@@ -1,18 +1,50 @@
 import { flushSync } from 'svelte';
-import type { Client } from '@urql/svelte';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { PresenceStatus, RoomType } from '$lib/gql/graphql';
+import { PresenceStatus } from '$lib/render/types';
+import { RoomKind } from '$lib/pb/chatto/api/v1/rooms_pb';
 import { useRoomData } from './useRoomData.svelte';
+import { createMemberDirectoryAPI } from '$lib/api/memberDirectory';
+import { createRoomDirectoryAPI } from '$lib/api/roomDirectory';
 
 const { mocks } = vi.hoisted(() => ({
   mocks: {
-    client: undefined as Client | undefined,
-    reconnect: { count: 0 }
+    reconnect: { count: 0 },
+    getRoom: vi.fn(),
+    listRoomMembers: vi.fn()
   }
 }));
 
 vi.mock('$lib/state/server/connection.svelte', () => ({
-  useConnection: () => () => ({ client: mocks.client })
+  useConnection: () => () => ({
+    connectBaseUrl: '/api/connect',
+    bearerToken: null,
+    serverId: 'server-1'
+  })
+}));
+
+vi.mock('$lib/state/server/registry.svelte', () => ({
+  serverRegistry: {
+    tryGetStore: () => ({
+      currentUser: { user: { id: 'viewer' } },
+      serverInfo: { name: 'Test Server' }
+    })
+  }
+}));
+
+vi.mock('$lib/api/roomDirectory', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('$lib/api/roomDirectory')>();
+  return {
+    ...actual,
+    createRoomDirectoryAPI: vi.fn(() => ({
+      getRoom: mocks.getRoom
+    }))
+  };
+});
+
+vi.mock('$lib/api/memberDirectory', () => ({
+  createMemberDirectoryAPI: vi.fn(() => ({
+    listRoomMembers: mocks.listRoomMembers
+  }))
 }));
 
 vi.mock('$lib/hooks/useEvent.svelte', () => ({
@@ -22,11 +54,6 @@ vi.mock('$lib/hooks/useEvent.svelte', () => ({
 vi.mock('$lib/hooks/useReconnectCallback.svelte', () => ({
   useReconnectTrigger: () => mocks.reconnect
 }));
-
-type QueryResult = {
-  data?: unknown;
-  error?: unknown;
-};
 
 type Deferred<T> = {
   promise: Promise<T>;
@@ -44,90 +71,64 @@ function deferred<T>(): Deferred<T> {
   return { promise, resolve, reject };
 }
 
-function operationName(document: unknown): string {
-  const definition = (document as { definitions?: Array<{ name?: { value?: string } }> }).definitions?.find(
-    (candidate) => candidate.name?.value
-  );
-  return definition?.name?.value ?? 'unknown';
-}
-
-function roomQueryResult(roomId: string): QueryResult {
+function roomDetails(roomId: string) {
   return {
-    data: {
-      room: {
-        id: roomId,
-        name: roomId,
-        description: null,
-        type: RoomType.Dm,
-        isUniversal: false,
-        viewerCanPostMessage: true,
-        viewerCanPostInThread: true,
-        viewerCanAttach: true,
-        viewerCanReact: true,
-        viewerCanManageOthersMessage: false,
-        viewerCanEchoMessage: false,
-        viewerCanManageRoom: false,
-        viewerCanBanRoomMembers: false
-      },
-      server: {
-        profile: { name: 'Test Server' },
-        viewerCanManageRooms: false
-      }
-    }
+    id: roomId,
+    name: roomId,
+    description: null,
+    kind: RoomKind.DM,
+    archived: false,
+    isUniversal: false,
+    isMember: true,
+    hasUnread: false,
+    canJoinRoom: false,
+    canPostMessage: true,
+    canPostInThread: true,
+    canAttach: true,
+    canReact: true,
+    canEchoMessage: false,
+    canManageOthersMessage: false,
+    canManageRoom: false,
+    canBanRoomMembers: false
   };
 }
 
-function dmMembersResult(roomId: string, userId: string, displayName: string): QueryResult {
+function dmMembersResult(userId: string, displayName: string) {
   return {
-    data: {
-      room: {
-        id: roomId,
-        members: {
-          users: [
-            {
-              id: userId,
-              login: userId,
-              displayName,
-              avatarUrl: null,
-              presenceStatus: PresenceStatus.Online
-            }
-          ],
-          totalCount: 1,
-          hasMore: false
-        }
-      },
-      viewer: {
-        user: { id: 'viewer' }
+    members: [
+      {
+        id: userId,
+        login: userId,
+        displayName,
+        deleted: false,
+        avatarUrl: null,
+        presenceStatus: PresenceStatus.Online,
+        customStatus: null,
+        roles: [],
+        createdAt: null
       }
-    }
+    ],
+    totalCount: 1,
+    hasMore: false
   };
 }
+
+type DmMembersResult = ReturnType<typeof dmMembersResult>;
 
 describe('useRoomData', () => {
-  let pendingDmQueries: Map<string, Deferred<QueryResult>>;
+  let pendingDmQueries: Map<string, Deferred<DmMembersResult>>;
 
   beforeEach(() => {
     mocks.reconnect = { count: 0 };
+    mocks.getRoom.mockReset();
+    mocks.listRoomMembers.mockReset();
     pendingDmQueries = new Map();
-    mocks.client = {
-      query: vi.fn().mockImplementation((document: unknown, variables: { roomId: string }) => {
-        const name = operationName(document);
-
-        if (name === 'GetRoom') {
-          return { toPromise: () => Promise.resolve(roomQueryResult(variables.roomId)) };
-        }
-
-        if (name === 'GetDMRoomMembers') {
-          const pending = deferred<QueryResult>();
-          pendingDmQueries.set(variables.roomId, pending);
-          return { toPromise: () => pending.promise };
-        }
-
-        throw new Error(`Unexpected query: ${name}`);
-      }),
-      mutation: vi.fn(),
-      subscription: vi.fn()
-    } as unknown as Client;
+    mocks.getRoom.mockImplementation((roomId: string) => Promise.resolve(roomDetails(roomId)));
+    mocks.listRoomMembers.mockImplementation((roomId: string) => {
+      const pending = deferred<DmMembersResult>();
+      pendingDmQueries.set(roomId, pending);
+      return pending.promise;
+    });
   });
 
   afterEach(() => {
@@ -159,10 +160,20 @@ describe('useRoomData', () => {
       harness.switchRoom('dm-b');
       await vi.waitFor(() => expect(pendingDmQueries.has('dm-b')).toBe(true));
 
-      pendingDmQueries.get('dm-b')?.resolve(dmMembersResult('dm-b', 'user-b', 'User B'));
+      expect(createRoomDirectoryAPI).toHaveBeenCalledWith({
+        serverId: 'server-1',
+        baseUrl: '/api/connect',
+        bearerToken: null
+      });
+      expect(createMemberDirectoryAPI).toHaveBeenCalledWith({
+        baseUrl: '/api/connect',
+        bearerToken: null
+      });
+
+      pendingDmQueries.get('dm-b')?.resolve(dmMembersResult('user-b', 'User B'));
       await vi.waitFor(() => expect(harness.room.dmData?.participants[0]?.id).toBe('user-b'));
 
-      pendingDmQueries.get('dm-a')?.resolve(dmMembersResult('dm-a', 'user-a', 'User A'));
+      pendingDmQueries.get('dm-a')?.resolve(dmMembersResult('user-a', 'User A'));
       await new Promise((resolve) => setTimeout(resolve, 0));
 
       expect(harness.room.dmData?.participants[0]?.id).toBe('user-b');

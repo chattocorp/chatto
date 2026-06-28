@@ -1,6 +1,15 @@
 import { expect, type Locator, type Page } from '@playwright/test';
+import { connectPost } from '../fixtures/connectHelpers';
 import * as routes from '../routes';
 import { RoomPage } from './RoomPage';
+
+interface GetUserByLoginResponse {
+  user?: { id?: string };
+}
+
+interface StartDMResponse {
+  room?: { id?: string };
+}
 
 /**
  * Page object for Direct Messages interactions.
@@ -33,31 +42,22 @@ export class DMPage {
    */
   async startConversation(username: string): Promise<RoomPage> {
     // Look up user by login
-    const userResult = await this.page.request.post('/api/graphql', {
-      headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-      data: {
-        query: `query FindUserByLogin($login: String!) { userByLogin(login: $login) { id } }`,
-        variables: { login: username }
-      }
-    });
-    const userData = await userResult.json();
-    const userId = userData.data?.userByLogin?.id;
+    const userData = await connectPost<GetUserByLoginResponse>(
+      this.page,
+      'chatto.api.v1.UserService/GetUserByLogin',
+      { login: username }
+    );
+    const userId = userData.user?.id;
     if (!userId) {
       throw new Error(`User not found: ${username}`);
     }
 
     // Start DM
-    const dmResult = await this.page.request.post(
-      '/api/connect/chatto.api.v1.RoomService/StartDM',
-      {
-        headers: { 'Content-Type': 'application/json', 'Connect-Protocol-Version': '1' },
-        data: { participantIds: [userId] }
-      }
+    const dmData = await connectPost<StartDMResponse>(
+      this.page,
+      'chatto.api.v1.RoomService/StartDM',
+      { participantIds: [userId] }
     );
-    if (!dmResult.ok()) {
-      throw new Error(`Failed to start DM with ${username}: ${await dmResult.text()}`);
-    }
-    const dmData = await dmResult.json();
     const conversationId = dmData.room?.id;
     if (!conversationId) {
       throw new Error(`Failed to start DM with ${username}`);

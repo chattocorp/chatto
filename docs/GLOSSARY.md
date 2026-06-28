@@ -108,7 +108,7 @@ Chatto's RBAC model. Read top-to-bottom — terms build on each other.
 
 Infrastructure jargon. If only contributors say the word, it goes here.
 
-**ChattoCore** — Go package (`cli/internal/core`) that holds low-level domain logic and talks to NATS. Takes an `actorID` but performs no authorization — that lives in the GraphQL layer. See [ADR-004](adr/ADR-004-authorization-at-api-boundary.md).
+**ChattoCore** — Go package (`cli/internal/core`) that owns domain models, projections, and NATS access. Low-level helpers are not public transport entry points and may assume their caller has already authorized the operation; public ConnectRPC paths should delegate to core operation models that own authorization before domain state changes. See [ADR-044](adr/ADR-044-connectrpc-service-conventions.md).
 
 **NATS** — Messaging system Chatto uses for pubsub and persistence. Runs embedded in the single binary by default.
 

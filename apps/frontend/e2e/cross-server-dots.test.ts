@@ -15,10 +15,10 @@ import {
   connectRemoteInstance
 } from './fixtures/multiServer';
 import {
-  postMessageViaAPI,
-  postThreadReplyViaAPI,
-  getRoomIdByName
-} from './fixtures/graphqlHelpers';
+  getRoomIdByNameViaConnect,
+  postMessageViaConnect,
+  postThreadReplyViaConnect
+} from './fixtures/connectHelpers';
 import type { ServerInfo } from './fixtures/server';
 import { TIMEOUTS } from './constants';
 import * as routes from './routes';
@@ -142,7 +142,7 @@ test.describe('Cross-instance dots', () => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
     await chatPage.enterRoom('general');
-    const homeGeneralRoomId = await getRoomIdByName(page, 'general');
+    const homeGeneralRoomId = await getRoomIdByNameViaConnect(page, 'general');
     const homeBody = `Home room before remote dot ${Date.now()}`;
     await roomPage.sendMessage(homeBody);
 
@@ -210,7 +210,7 @@ test.describe('Cross-instance dots', () => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
     await chatPage.enterRoom('general');
-    const homeGeneralRoomId = await getRoomIdByName(page, 'general');
+    const homeGeneralRoomId = await getRoomIdByNameViaConnect(page, 'general');
     const homeBody = `Home room before remote DM switch ${Date.now()}`;
     await roomPage.sendMessage(homeBody);
 
@@ -275,16 +275,16 @@ test.describe('Cross-instance dots', () => {
     await chatPage.goto();
 
     await chatPage.enterRoom('general');
-    const generalRoomId = await getRoomIdByName(page, 'general');
+    const generalRoomId = await getRoomIdByNameViaConnect(page, 'general');
     const rootBody = `Thread root ${Date.now()}`;
-    const rootEventId = await postMessageViaAPI(page, generalRoomId, rootBody);
+    const rootEventId = await postMessageViaConnect(page, generalRoomId, rootBody);
 
     // Move A away from the room so the notification badge can show on the server.
     await chatPage.enterRoom('announcements');
 
     // User B joins, then posts a thread reply that @-mentions User A.
     await withServerUser(browser!, serverURL, async ({ page: pageB }) => {
-      await postThreadReplyViaAPI(
+      await postThreadReplyViaConnect(
         pageB,
         generalRoomId,
         `@${userA.login} look at this`,

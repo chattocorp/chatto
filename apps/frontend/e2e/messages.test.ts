@@ -112,12 +112,13 @@ test('image attachment refreshes URL after an expired lazy-load request', async 
 
   let refreshQueryCount = 0;
 
-  await page.route('**/api/graphql', async (route) => {
-    if (route.request().postData()?.includes('RefreshMessageAttachmentUrls')) {
+  await page.route(
+    '**/api/connect/chatto.api.v1.AttachmentService/RefreshMessageAttachmentUrls',
+    async (route) => {
       refreshQueryCount += 1;
+      await route.continue();
     }
-    await route.continue();
-  });
+  );
 
   const failNextAssetResponse = await page.request.post(
     '/auth/test/fail-next-asset-proxy-request',

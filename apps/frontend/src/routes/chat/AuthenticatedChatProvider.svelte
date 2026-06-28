@@ -1,11 +1,11 @@
 <script lang="ts">
   import { onDestroy, type Snippet } from 'svelte';
   import type { CurrentUser } from '$lib/auth/loadAuth';
-  import { PresenceStatus } from '$lib/gql/graphql';
+  import { PresenceStatus } from '$lib/render/types';
   import type { PresenceCache } from '$lib/state/presenceCache.svelte';
   import type { UserSettingsState } from '$lib/state/userSettings.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
-  import { graphqlClientManager } from '$lib/state/server/graphqlClient.svelte';
+  import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
   import { provideEventBus } from '$lib/eventBus.svelte';
   import { eventBusManager } from '$lib/state/server/eventBus.svelte';
   import {
@@ -102,7 +102,7 @@
   // dropped no-op.
   const originServerId = serverRegistry.originServer?.id;
   if (originServerId) {
-    const originClient = graphqlClientManager.originClient;
+    const originClient = serverConnectionManager.originClient;
     eventBusManager.startBus(originServerId, originClient);
     provideEventBus(() => originServerId);
 
@@ -158,7 +158,7 @@
       serverRegistry.servers
         .filter((server) => serverRegistry.tryGetStore(server.id)?.isAuthenticated)
         .map((server) => {
-          const client = graphqlClientManager.getClient(server.id);
+          const client = serverConnectionManager.getClient(server.id);
           return {
             serverId: server.id,
             baseUrl: client.connectBaseUrl,
@@ -178,7 +178,7 @@
         eventBusManager.resumeAll();
         for (const server of serverRegistry.servers) {
           if (serverRegistry.tryGetStore(server.id)?.isAuthenticated) {
-            eventBusManager.startBus(server.id, graphqlClientManager.getClient(server.id));
+            eventBusManager.startBus(server.id, serverConnectionManager.getClient(server.id));
           }
         }
       }

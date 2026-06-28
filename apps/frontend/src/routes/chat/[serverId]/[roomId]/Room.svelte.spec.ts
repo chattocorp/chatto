@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { q } from '$lib/test-utils';
+import { RoomKind } from '$lib/pb/chatto/api/v1/rooms_pb';
 import {
   consumePendingRoomSidebarPanel,
   setPendingRoomSidebarPanel
@@ -41,6 +42,13 @@ const { mocks } = vi.hoisted(() => {
         toPromise: vi.fn().mockResolvedValue({ data: {}, error: null })
       })),
       subscription: vi.fn(),
+      timeline: {
+        getRoomEvents: vi.fn(),
+        getRoomEventsAround: vi.fn(),
+        resolveMessageLinkTarget: vi.fn(),
+        getThreadEvents: vi.fn(),
+        getThreadEventsAround: vi.fn()
+      },
       livekitUrl: null as string | null,
       notifications: {
         dismissDMNotifications: vi.fn().mockResolvedValue({ byRoom: {} }),
@@ -90,7 +98,7 @@ vi.mock('$lib/hooks', () => ({
         id: 'room-1',
         name: 'general',
         description: 'Room description',
-        type: 'CHANNEL',
+        type: RoomKind.CHANNEL,
         isUniversal: false
       },
       spaceName: 'Test Space',
@@ -128,12 +136,19 @@ vi.mock('$lib/state/server/connection.svelte', () => ({
   useConnection: () => () => ({
     isConnected: true,
     showConnectionLostBanner: false,
+    serverId: 'server-1',
+    connectBaseUrl: 'http://localhost/api/connect',
+    bearerToken: null,
     client: {
       query: mocks.query,
       mutation: mocks.mutation,
       subscription: mocks.subscription
     }
   })
+}));
+
+vi.mock('$lib/api/roomTimeline', () => ({
+  createRoomTimelineAPI: () => mocks.timeline
 }));
 
 vi.mock('$lib/state/server/registry.svelte', () => ({
@@ -181,7 +196,8 @@ vi.mock('$lib/attachments/dropZone.svelte', () => ({
 }));
 
 vi.mock('$lib/components/composer/MessageComposer.svelte', async () => {
-  const { default: MessageComposerMock } = await import('./RoomLocalEchoMessageComposerMock.svelte');
+  const { default: MessageComposerMock } =
+    await import('./RoomLocalEchoMessageComposerMock.svelte');
   return { default: MessageComposerMock };
 });
 
@@ -232,17 +248,38 @@ vi.mock('$lib/ui/PaneHeader.svelte', async () => {
 
 import Room from './Room.svelte';
 
+function emptyTimelinePage() {
+  return {
+    events: [],
+    startCursor: null,
+    endCursor: null,
+    hasOlder: false,
+    hasNewer: false
+  };
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   localStorage.clear();
   sessionStorage.clear();
+  mocks.timeline.getRoomEvents.mockResolvedValue(emptyTimelinePage());
+  mocks.timeline.getRoomEventsAround.mockResolvedValue(emptyTimelinePage());
+  mocks.timeline.resolveMessageLinkTarget.mockResolvedValue({
+    event: null,
+    threadRootEventId: null
+  });
+  mocks.timeline.getThreadEvents.mockResolvedValue(emptyTimelinePage());
+  mocks.timeline.getThreadEventsAround.mockResolvedValue(emptyTimelinePage());
   mocks.livekitUrl = null;
   mocks.notifications.dismissDMNotifications.mockResolvedValue({ byRoom: {} });
   mocks.notifications.dismissMentionNotifications.mockResolvedValue({ byRoom: {} });
   mocks.notifications.dismissRoomReplyNotifications.mockResolvedValue({ byRoom: {} });
   mocks.notifications.dismissRoomMessageNotifications.mockResolvedValue({ byRoom: {} });
   mocks.rooms.refreshNotificationCounts.mockResolvedValue(undefined);
-  vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: true })));
+  vi.stubGlobal(
+    'matchMedia',
+    vi.fn(() => ({ matches: true }))
+  );
 });
 
 describe('Room local message echo', () => {
@@ -274,12 +311,17 @@ describe('Room local message echo', () => {
 
   it('opens a pending call panel request as a mobile sidebar after navigation', async () => {
     mocks.livekitUrl = 'wss://livekit.example.test';
-    vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: false })));
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn(() => ({ matches: false }))
+    );
     setPendingRoomSidebarPanel('server-1', 'room-1', 'call');
 
     const { container } = render(Room, { props: { roomId: 'room-1' } });
 
-    await expect.element(q(container, '[data-testid="room-sidebar-mobile-pane"]')).toBeInTheDocument();
+    await expect
+      .element(q(container, '[data-testid="room-sidebar-mobile-pane"]'))
+      .toBeInTheDocument();
     expect(consumePendingRoomSidebarPanel('server-1', 'room-1')).toBeNull();
   });
 
@@ -302,8 +344,8 @@ describe('Room local message echo', () => {
     await expect
       .element(q(container, '[data-testid="room-event-ids"]'))
       .toHaveTextContent('msg-local');
-    await vi.waitFor(() => expect(mocks.query).toHaveBeenCalled());
-    mocks.query.mockClear();
+    await vi.waitFor(() => expect(mocks.timeline.getRoomEvents).toHaveBeenCalled());
+    mocks.timeline.getRoomEventsAround.mockClear();
 
     window.dispatchEvent(
       new CustomEvent('chatto:room-message-mutated', {
@@ -316,11 +358,11 @@ describe('Room local message echo', () => {
     );
 
     await vi.waitFor(() => {
-      expect(mocks.query).toHaveBeenCalledWith(
-        expect.anything(),
-        { roomId: 'room-1', eventId: 'msg-local', limit: 50 },
-        { requestPolicy: 'network-only' }
-      );
+      expect(mocks.timeline.getRoomEventsAround).toHaveBeenCalledWith({
+        roomId: 'room-1',
+        eventId: 'msg-local',
+        limit: 50
+      });
     });
   });
 
@@ -332,8 +374,8 @@ describe('Room local message echo', () => {
     await expect
       .element(q(container, '[data-testid="room-event-ids"]'))
       .toHaveTextContent('echo-local');
-    await vi.waitFor(() => expect(mocks.query).toHaveBeenCalled());
-    mocks.query.mockClear();
+    await vi.waitFor(() => expect(mocks.timeline.getRoomEvents).toHaveBeenCalled());
+    mocks.timeline.getRoomEventsAround.mockClear();
 
     window.dispatchEvent(
       new CustomEvent('chatto:room-message-mutated', {
@@ -346,11 +388,11 @@ describe('Room local message echo', () => {
     );
 
     await vi.waitFor(() => {
-      expect(mocks.query).toHaveBeenCalledWith(
-        expect.anything(),
-        { roomId: 'room-1', eventId: 'echo-local', limit: 50 },
-        { requestPolicy: 'network-only' }
-      );
+      expect(mocks.timeline.getRoomEventsAround).toHaveBeenCalledWith({
+        roomId: 'room-1',
+        eventId: 'echo-local',
+        limit: 50
+      });
     });
   });
 
@@ -362,8 +404,8 @@ describe('Room local message echo', () => {
     await expect
       .element(q(container, '[data-testid="room-event-ids"]'))
       .toHaveTextContent('echo-local');
-    await vi.waitFor(() => expect(mocks.query).toHaveBeenCalled());
-    mocks.query.mockClear();
+    await vi.waitFor(() => expect(mocks.timeline.getRoomEvents).toHaveBeenCalled());
+    mocks.timeline.getRoomEventsAround.mockClear();
 
     window.dispatchEvent(
       new CustomEvent('chatto:room-message-mutated', {
@@ -376,6 +418,6 @@ describe('Room local message echo', () => {
     );
 
     await expect.element(q(container, '[data-testid="room-event-ids"]')).toHaveTextContent('');
-    expect(mocks.query).not.toHaveBeenCalled();
+    expect(mocks.timeline.getRoomEventsAround).not.toHaveBeenCalled();
   });
 });

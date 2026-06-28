@@ -17,7 +17,7 @@ export class SettingsPage {
   async goto(): Promise<void> {
     await this.page.goto(routes.settings);
     await this.page.waitForURL(routes.settings);
-    // Wait for the form to be interactive (GraphQL connection established)
+    // Wait for the form to be interactive.
     await this.displayNameInput.waitFor({ state: 'visible' });
     // Ensure the WebSocket connection is established (no "Real-time updates paused" banner)
     await expect(this.page.getByText('Real-time updates paused')).not.toBeVisible({

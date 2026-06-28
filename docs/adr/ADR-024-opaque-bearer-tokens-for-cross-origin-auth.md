@@ -31,7 +31,7 @@ To enable a multi-instance client — where a single frontend connects to multip
 
 ## Decision
 
-Use opaque bearer tokens stored in NATS KV. Tokens are issued alongside existing cookie sessions (not replacing them) on password, registration, and trusted OAuth code-exchange authentication flows. Clients authenticate via the `Authorization: Bearer <token>` HTTP header for GraphQL queries/mutations, and via `connectionParams.token` in the graphql-ws `connection_init` payload for WebSocket subscriptions.
+Use opaque bearer tokens stored in NATS KV. Tokens are issued alongside existing cookie sessions (not replacing them) on password, registration, and trusted OAuth code-exchange authentication flows. Clients authenticate via the `Authorization: Bearer <token>` HTTP header for HTTP API requests, and via the realtime websocket token field for live-event delivery.
 
 **2026-05 update:** bearer token records now live in `RUNTIME_STATE` under HMAC-derived `session.{hmac}` keys with per-key TTL. The HMAC input is `session\0{token}` keyed by `[core].secret_key`, so backups can preserve sessions without containing raw bearer-token values.
 

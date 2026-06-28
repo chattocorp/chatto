@@ -2,10 +2,9 @@
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { useConnection } from '$lib/state/server/connection.svelte';
-  import { graphql } from '$lib/gql';
+  import { createAccountAPI } from '$lib/api/account';
   import { PaneHeader, Dialog, FormSection, Hint } from '$lib/ui';
   import { TextInput, Button, FormError } from '$lib/ui/form';
-  import { useQuery } from '$lib/hooks';
   import { notifyLogout } from '$lib/auth/sessionChannel';
   import { csrfFetch } from '$lib/auth/csrf';
   import * as m from '$lib/i18n/messages';
@@ -13,20 +12,15 @@
   const currentUser = $derived(serverRegistry.getStore(getActiveServer()).currentUser);
   const connection = useConnection();
 
-  // Check if the user has permission to delete their own account
-  const permQuery = useQuery(
-    graphql(`
-      query AccountPermissions {
-        viewer {
-          user {
-            viewerCanDeleteAccount
-          }
-        }
-      }
-    `),
-    () => ({})
-  );
-  let canDeleteAccount = $derived(permQuery.data?.viewer?.user.viewerCanDeleteAccount ?? false);
+  const canDeleteAccount = $derived(currentUser.user?.viewerCanDeleteAccount ?? false);
+
+  function accountAPI() {
+    const conn = connection();
+    return createAccountAPI({
+      baseUrl: conn.connectBaseUrl,
+      bearerToken: conn.bearerToken
+    });
+  }
 
   // Modal state
   let showDeleteModal = $state(false);
@@ -56,46 +50,14 @@
 
     try {
       // Step 1: Request a confirmation token (XSS protection)
-      const tokenResult = await connection()
-        .client.mutation(
-          graphql(`
-            mutation RequestAccountDeletion {
-              requestAccountDeletion
-            }
-          `),
-          {}
-        )
-        .toPromise();
-
-      if (tokenResult.error) {
-        error = tokenResult.error.message;
-        return;
-      }
-
-      const confirmationToken = tokenResult.data?.requestAccountDeletion;
+      const confirmationToken = await accountAPI().requestAccountDeletion();
       if (!confirmationToken) {
         error = m['settings.account.delete_request_failed']();
         return;
       }
 
       // Step 2: Delete account with the confirmation token
-      const result = await connection()
-        .client.mutation(
-          graphql(`
-            mutation DeleteMyAccount($input: DeleteMyAccountInput!) {
-              deleteMyAccount(input: $input)
-            }
-          `),
-          { input: { confirmationToken } }
-        )
-        .toPromise();
-
-      if (result.error) {
-        error = result.error.message;
-        return;
-      }
-
-      if (result.data?.deleteMyAccount) {
+      if (await accountAPI().deleteMyAccount(confirmationToken)) {
         // Log out and redirect to home
         const originToken = serverRegistry.originServer?.token;
         await csrfFetch('/auth/logout', {

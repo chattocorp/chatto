@@ -5,10 +5,18 @@ import { q } from '$lib/test-utils';
 import type { RoomMember } from '$lib/state/room';
 import type { PresenceCache } from '$lib/state/presenceCache.svelte';
 import type { RoomData } from '$lib/hooks/useRoomData.svelte';
-import { PresenceStatus } from '$lib/gql/graphql';
+import { PresenceStatus } from '$lib/render/types';
+import { RoomKind } from '$lib/pb/chatto/api/v1/rooms_pb';
 import RoomSidebarTestHarness from './RoomSidebarTestHarness.svelte';
 
 const queryMock = vi.hoisted(() => vi.fn());
+const memberDirectoryMocks = vi.hoisted(() => ({
+  listRoomMembers: vi.fn()
+}));
+const attachmentMocks = vi.hoisted(() => ({
+  listRoomAttachments: vi.fn(),
+  refreshMessageAttachmentUrls: vi.fn()
+}));
 const callStore = vi.hoisted(() => ({
   voiceCall: {
     roomId: null as string | null,
@@ -118,6 +126,9 @@ vi.mock('$lib/hooks', () => ({
 
 vi.mock('$lib/state/server/connection.svelte', () => ({
   useConnection: () => () => ({
+    serverId: 'test-server',
+    connectBaseUrl: 'https://chat.example.test/api/connect',
+    bearerToken: 'test-token',
     isConnected: true,
     showConnectionLostBanner: false,
     client: {
@@ -131,6 +142,20 @@ vi.mock('$lib/state/server/connection.svelte', () => ({
       subscription: vi.fn()
     }
   })
+}));
+
+vi.mock('$lib/api/attachments', () => ({
+  createAttachmentAPI: vi.fn(() => ({
+    listRoomAttachments: attachmentMocks.listRoomAttachments,
+    refreshMessageAttachmentUrls: attachmentMocks.refreshMessageAttachmentUrls
+  }))
+}));
+
+vi.mock('$lib/api/memberDirectory', async (importActual) => ({
+  ...(await importActual<typeof import('$lib/api/memberDirectory')>()),
+  createMemberDirectoryAPI: vi.fn(() => ({
+    listRoomMembers: memberDirectoryMocks.listRoomMembers
+  }))
 }));
 
 vi.mock('$lib/state/activeServer.svelte', () => ({
@@ -215,7 +240,7 @@ function roomData(members: RoomMember[], totalCount: number, hasMore: boolean): 
   void totalCount;
   void hasMore;
   return {
-    room: { id: 'room-1', name: 'general', type: 'CHANNEL', isUniversal: false },
+    room: { id: 'room-1', name: 'general', type: RoomKind.CHANNEL, isUniversal: false },
     spaceName: 'Test Server',
     canPostMessage: true,
     canPostInThread: true,
@@ -229,18 +254,22 @@ function roomData(members: RoomMember[], totalCount: number, hasMore: boolean): 
 }
 
 function mockRoomMembers(members: RoomMember[], totalCount = members.length, hasMore = false) {
-  queryMock.mockResolvedValue({
-    data: {
-      room: {
-        members: {
-          users: members,
-          totalCount,
-          hasMore
-        }
-      }
-    },
-    error: null
-  });
+  memberDirectoryMocks.listRoomMembers.mockResolvedValue(memberPage(members, totalCount, hasMore));
+}
+
+function memberPage(members: RoomMember[], totalCount = members.length, hasMore = false) {
+  return {
+    members: members.map((member) => ({
+      ...member,
+      deleted: member.deleted ?? false,
+      avatarUrl: member.avatarUrl ?? null,
+      customStatus: member.customStatus ?? null,
+      roles: [],
+      createdAt: null
+    })),
+    totalCount,
+    hasMore
+  };
 }
 
 function roomFile(
@@ -309,6 +338,16 @@ function roomAudioFile(filename: string) {
 describe('RoomSidebar', () => {
   beforeEach(() => {
     queryMock.mockReset();
+    memberDirectoryMocks.listRoomMembers.mockReset();
+    attachmentMocks.listRoomAttachments.mockReset();
+    attachmentMocks.refreshMessageAttachmentUrls.mockReset();
+    memberDirectoryMocks.listRoomMembers.mockResolvedValue(memberPage([member(1)]));
+    attachmentMocks.listRoomAttachments.mockResolvedValue({
+      items: [],
+      totalCount: 0,
+      hasMore: false
+    });
+    attachmentMocks.refreshMessageAttachmentUrls.mockResolvedValue(new Map());
     queryMock.mockResolvedValue({
       data: {
         room: {
@@ -357,31 +396,9 @@ describe('RoomSidebar', () => {
     const firstPage = Array.from({ length: 100 }, (_, index) => member(index + 1));
     const secondPage = Array.from({ length: 42 }, (_, index) => member(index + 101));
 
-    queryMock
-      .mockResolvedValueOnce({
-        data: {
-          room: {
-            members: {
-              users: firstPage,
-              totalCount: 142,
-              hasMore: true
-            }
-          }
-        },
-        error: null
-      })
-      .mockResolvedValueOnce({
-        data: {
-          room: {
-            members: {
-              users: secondPage,
-              totalCount: 142,
-              hasMore: false
-            }
-          }
-        },
-        error: null
-      });
+    memberDirectoryMocks.listRoomMembers
+      .mockResolvedValueOnce(memberPage(firstPage, 142, true))
+      .mockResolvedValueOnce(memberPage(secondPage, 142, false));
 
     const { container } = render(RoomSidebarTestHarness, {
       props: {
@@ -391,18 +408,8 @@ describe('RoomSidebar', () => {
 
     await expect.element(q(container, 'h1')).toHaveTextContent('Members (142)');
     await vi.waitFor(() => {
-      expect(queryMock).toHaveBeenCalledWith(expect.anything(), {
-        roomId: 'room-1',
-        search: null,
-        limit: 100,
-        offset: 0
-      });
-      expect(queryMock).toHaveBeenCalledWith(expect.anything(), {
-        roomId: 'room-1',
-        search: null,
-        limit: 100,
-        offset: 100
-      });
+      expect(memberDirectoryMocks.listRoomMembers).toHaveBeenCalledWith('room-1', '', 100, 0);
+      expect(memberDirectoryMocks.listRoomMembers).toHaveBeenCalledWith('room-1', '', 100, 100);
     });
 
     await vi.waitFor(() => {
@@ -844,18 +851,9 @@ describe('RoomSidebar', () => {
   });
 
   it('filters room members locally without changing the canonical total count', async () => {
-    queryMock.mockResolvedValueOnce({
-      data: {
-        room: {
-          members: {
-            users: [member(1), { ...member(2), displayName: 'Boris Member' }],
-            totalCount: 2,
-            hasMore: false
-          }
-        }
-      },
-      error: null
-    });
+    memberDirectoryMocks.listRoomMembers.mockResolvedValueOnce(
+      memberPage([member(1), { ...member(2), displayName: 'Boris Member' }])
+    );
 
     const { container } = render(RoomSidebarTestHarness, {
       props: {
@@ -876,22 +874,11 @@ describe('RoomSidebar', () => {
       expect(renderedMemberTitles(container)).toEqual(['View profile of Boris Member']);
       expect(q(container, 'h1')?.textContent).toContain('Members (2)');
     });
-    expect(queryMock).toHaveBeenCalledTimes(1);
+    expect(memberDirectoryMocks.listRoomMembers).toHaveBeenCalledTimes(1);
   });
 
   it('shows an empty local search result without changing the canonical total count', async () => {
-    queryMock.mockResolvedValueOnce({
-      data: {
-        room: {
-          members: {
-            users: [member(1), member(2)],
-            totalCount: 2,
-            hasMore: false
-          }
-        }
-      },
-      error: null
-    });
+    memberDirectoryMocks.listRoomMembers.mockResolvedValueOnce(memberPage([member(1), member(2)]));
 
     const { container } = render(RoomSidebarTestHarness, {
       props: {
@@ -915,30 +902,14 @@ describe('RoomSidebar', () => {
     });
 
     await new Promise((resolve) => setTimeout(resolve, 350));
-    expect(queryMock).toHaveBeenCalledTimes(1);
+    expect(memberDirectoryMocks.listRoomMembers).toHaveBeenCalledTimes(1);
   });
 
-  it('loads members from older servers without the room member search argument', async () => {
+  it('filters the loaded member directory without refetching', async () => {
     const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    queryMock
-      .mockResolvedValueOnce({
-        data: null,
-        error: {
-          graphQLErrors: [{ message: 'Unknown argument "search" on field "Room.members".' }]
-        }
-      })
-      .mockResolvedValueOnce({
-        data: {
-          room: {
-            members: {
-              users: [member(1), { ...member(2), displayName: 'Boris Member' }],
-              totalCount: 2,
-              hasMore: false
-            }
-          }
-        },
-        error: null
-      });
+    memberDirectoryMocks.listRoomMembers.mockResolvedValueOnce(
+      memberPage([member(1), { ...member(2), displayName: 'Boris Member' }])
+    );
 
     try {
       const { container } = render(RoomSidebarTestHarness, {
@@ -957,14 +928,9 @@ describe('RoomSidebar', () => {
       await waitForMemberSearchDebounce();
 
       await vi.waitFor(() => {
-        expect(queryMock).toHaveBeenCalledWith(expect.anything(), {
-          roomId: 'room-1',
-          limit: 100,
-          offset: 0
-        });
         expect(renderedMemberTitles(container)).toEqual(['View profile of Boris Member']);
       });
-      expect(queryMock).toHaveBeenCalledTimes(2);
+      expect(memberDirectoryMocks.listRoomMembers).toHaveBeenCalledTimes(1);
       expect(consoleErrorSpy).not.toHaveBeenCalled();
     } finally {
       consoleErrorSpy.mockRestore();
@@ -1041,17 +1007,10 @@ describe('RoomSidebar', () => {
   });
 
   it('renders an empty files panel', async () => {
-    queryMock.mockResolvedValue({
-      data: {
-        room: {
-          attachments: {
-            items: [],
-            totalCount: 0,
-            hasMore: false
-          }
-        }
-      },
-      error: null
+    attachmentMocks.listRoomAttachments.mockResolvedValue({
+      items: [],
+      totalCount: 0,
+      hasMore: false
     });
 
     const { container } = render(RoomSidebarTestHarness, {
@@ -1068,18 +1027,9 @@ describe('RoomSidebar', () => {
     expect(container.querySelector('[aria-label="Members"]')).toBeFalsy();
   });
 
-  it('keeps the files panel usable when the optional attachments field is unsupported', async () => {
+  it('keeps the files panel usable when attachment loading fails', async () => {
     const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    queryMock.mockResolvedValue({
-      data: null,
-      error: {
-        graphQLErrors: [
-          {
-            message: 'Cannot query field "attachments" on type "Room".'
-          }
-        ]
-      }
-    });
+    attachmentMocks.listRoomAttachments.mockRejectedValue(new Error('attachments unavailable'));
 
     try {
       const { container } = render(RoomSidebarTestHarness, {
@@ -1094,7 +1044,7 @@ describe('RoomSidebar', () => {
         expect(container.textContent).toContain('No files in this room yet.');
       });
       expect(container.querySelector('[data-testid="room-files-load-more-sentinel"]')).toBeFalsy();
-      expect(consoleErrorSpy).not.toHaveBeenCalled();
+      expect(consoleErrorSpy).toHaveBeenCalled();
     } finally {
       consoleErrorSpy.mockRestore();
     }
@@ -1102,30 +1052,16 @@ describe('RoomSidebar', () => {
 
   it('renders room files, opens their message anchors, and automatically loads more', async () => {
     const onOpenFile = vi.fn();
-    queryMock
+    attachmentMocks.listRoomAttachments
       .mockResolvedValueOnce({
-        data: {
-          room: {
-            attachments: {
-              items: [roomFile('root-message', null, 'root.txt')],
-              totalCount: 2,
-              hasMore: true
-            }
-          }
-        },
-        error: null
+        items: [roomFile('root-message', null, 'root.txt')],
+        totalCount: 2,
+        hasMore: true
       })
       .mockResolvedValueOnce({
-        data: {
-          room: {
-            attachments: {
-              items: [roomFile('thread-message', 'thread-root', 'thread.txt')],
-              totalCount: 2,
-              hasMore: false
-            }
-          }
-        },
-        error: null
+        items: [roomFile('thread-message', 'thread-root', 'thread.txt')],
+        totalCount: 2,
+        hasMore: false
       });
 
     const { container } = render(RoomSidebarTestHarness, {
@@ -1151,10 +1087,15 @@ describe('RoomSidebar', () => {
     await tick();
 
     await vi.waitFor(() => {
-      expect(queryMock).toHaveBeenCalledWith(expect.anything(), {
+      expect(attachmentMocks.listRoomAttachments).toHaveBeenCalledWith({
         roomId: 'room-1',
         limit: 50,
-        offset: 1
+        offset: 1,
+        thumbnail: {
+          width: 120,
+          height: 120,
+          fit: 'COVER'
+        }
       });
       expect(container.textContent).toContain('thread.txt');
       expect(container.querySelector('[data-testid="room-files-load-more-sentinel"]')).toBeFalsy();
@@ -1168,37 +1109,23 @@ describe('RoomSidebar', () => {
   it('groups room files by date and appends loaded pages into the matching groups', async () => {
     const fileGroupingNow = new Date('2026-06-17T12:00:00Z');
 
-    queryMock
+    attachmentMocks.listRoomAttachments
       .mockResolvedValueOnce({
-        data: {
-          room: {
-            attachments: {
-              items: [
-                roomFile('today-message', null, 'today.txt', '2026-06-17T08:00:00Z'),
-                roomFile('yesterday-message', null, 'yesterday.txt', '2026-06-16T08:00:00Z')
-              ],
-              totalCount: 5,
-              hasMore: true
-            }
-          }
-        },
-        error: null
+        items: [
+          roomFile('today-message', null, 'today.txt', '2026-06-17T08:00:00Z'),
+          roomFile('yesterday-message', null, 'yesterday.txt', '2026-06-16T08:00:00Z')
+        ],
+        totalCount: 5,
+        hasMore: true
       })
       .mockResolvedValueOnce({
-        data: {
-          room: {
-            attachments: {
-              items: [
-                roomFile('week-message', null, 'week.txt', '2026-06-15T08:00:00Z'),
-                roomFile('month-message', null, 'month.txt', '2026-06-10T08:00:00Z'),
-                roomFile('older-month-message', null, 'older-month.txt', '2026-05-21T08:00:00Z')
-              ],
-              totalCount: 5,
-              hasMore: false
-            }
-          }
-        },
-        error: null
+        items: [
+          roomFile('week-message', null, 'week.txt', '2026-06-15T08:00:00Z'),
+          roomFile('month-message', null, 'month.txt', '2026-06-10T08:00:00Z'),
+          roomFile('older-month-message', null, 'older-month.txt', '2026-05-21T08:00:00Z')
+        ],
+        totalCount: 5,
+        hasMore: false
       });
 
     const { container } = render(RoomSidebarTestHarness, {
@@ -1234,32 +1161,13 @@ describe('RoomSidebar', () => {
   });
 
   it('falls back to a file icon when a video thumbnail fails to load', async () => {
-    queryMock
+    attachmentMocks.listRoomAttachments
       .mockResolvedValueOnce({
-        data: {
-          room: {
-            attachments: {
-              items: [roomVideoFile('clip.mp4')],
-              totalCount: 1,
-              hasMore: false
-            }
-          }
-        },
-        error: null
-      })
-      .mockResolvedValueOnce({
-        data: {
-          room: {
-            event: {
-              event: {
-                __typename: 'MessagePostedEvent',
-                attachments: []
-              }
-            }
-          }
-        },
-        error: null
+        items: [roomVideoFile('clip.mp4')],
+        totalCount: 1,
+        hasMore: false
       });
+    attachmentMocks.refreshMessageAttachmentUrls.mockResolvedValueOnce(new Map());
 
     const { container } = render(RoomSidebarTestHarness, {
       props: {
@@ -1281,17 +1189,10 @@ describe('RoomSidebar', () => {
   });
 
   it('renders an icon instead of a broken thumbnail for audio files', async () => {
-    queryMock.mockResolvedValueOnce({
-      data: {
-        room: {
-          attachments: {
-            items: [roomAudioFile('song.mp3')],
-            totalCount: 1,
-            hasMore: false
-          }
-        }
-      },
-      error: null
+    attachmentMocks.listRoomAttachments.mockResolvedValueOnce({
+      items: [roomAudioFile('song.mp3')],
+      totalCount: 1,
+      hasMore: false
     });
 
     const { container } = render(RoomSidebarTestHarness, {

@@ -6,7 +6,7 @@
  */
 
 import { createContext } from 'svelte';
-import { TimeFormat } from '$lib/gql/graphql';
+import { TimeFormat } from '$lib/render/types';
 
 export class UserSettingsState {
   /** IANA timezone name, or null for browser default. */
@@ -33,7 +33,7 @@ export class UserSettingsState {
     return undefined;
   }
 
-  /** Update from GraphQL settings data. */
+  /** Update from server settings data. */
   updateFromData(
     settings: { timezone?: string | null; timeFormat: TimeFormat } | null | undefined
   ) {

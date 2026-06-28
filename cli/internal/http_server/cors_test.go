@@ -27,10 +27,10 @@ func setupCORSServer(t *testing.T, webserverConfig config.WebserverConfig) *HTTP
 	router.Use(s.corsMiddleware(allowedOrigins))
 
 	// Add test handlers
-	router.GET("/api/graphql", func(c *gin.Context) {
+	router.GET("/api/connect/test", func(c *gin.Context) {
 		c.String(http.StatusOK, "ok")
 	})
-	router.POST("/api/graphql", func(c *gin.Context) {
+	router.POST("/api/connect/test", func(c *gin.Context) {
 		c.String(http.StatusOK, "ok")
 	})
 	router.GET("/api/server", func(c *gin.Context) {
@@ -49,7 +49,7 @@ func TestCORSMiddleware(t *testing.T) {
 			AllowedOrigins: []string{"https://other.example.com"},
 		})
 
-		req := httptest.NewRequest("GET", "/api/graphql", nil)
+		req := httptest.NewRequest("GET", "/api/connect/test", nil)
 		w := httptest.NewRecorder()
 		s.router.ServeHTTP(w, req)
 
@@ -66,7 +66,7 @@ func TestCORSMiddleware(t *testing.T) {
 			URL: "https://chat.example.com",
 		})
 
-		req := httptest.NewRequest("GET", "/api/graphql", nil)
+		req := httptest.NewRequest("GET", "/api/connect/test", nil)
 		req.Header.Set("Origin", "https://chat.example.com")
 		w := httptest.NewRecorder()
 		s.router.ServeHTTP(w, req)
@@ -91,7 +91,7 @@ func TestCORSMiddleware(t *testing.T) {
 			AllowedOrigins: []string{"https://app.example.com"},
 		})
 
-		req := httptest.NewRequest("GET", "/api/graphql", nil)
+		req := httptest.NewRequest("GET", "/api/connect/test", nil)
 		req.Header.Set("Origin", "https://app.example.com")
 		w := httptest.NewRecorder()
 		s.router.ServeHTTP(w, req)
@@ -107,7 +107,7 @@ func TestCORSMiddleware(t *testing.T) {
 			AllowedOrigins: []string{"https://only-this.example.com"},
 		})
 
-		req := httptest.NewRequest("GET", "/api/graphql", nil)
+		req := httptest.NewRequest("GET", "/api/connect/test", nil)
 		req.Header.Set("Origin", "https://evil.example.com")
 		w := httptest.NewRecorder()
 		s.router.ServeHTTP(w, req)
@@ -125,7 +125,7 @@ func TestCORSMiddleware(t *testing.T) {
 			URL: "https://chat.example.com",
 		})
 
-		req := httptest.NewRequest("OPTIONS", "/api/graphql", nil)
+		req := httptest.NewRequest("OPTIONS", "/api/connect/test", nil)
 		req.Header.Set("Origin", "https://chat.example.com")
 		w := httptest.NewRecorder()
 		s.router.ServeHTTP(w, req)
@@ -139,7 +139,7 @@ func TestCORSMiddleware(t *testing.T) {
 		if methods := w.Header().Get("Access-Control-Allow-Methods"); methods != "GET, POST, OPTIONS" {
 			t.Errorf("expected Access-Control-Allow-Methods 'GET, POST, OPTIONS', got %q", methods)
 		}
-		expectedHeaders := "Authorization, Content-Type, Connect-Protocol-Version, Connect-Timeout-Ms, X-CSRF-Token, X-REQUEST-TYPE, Range, If-None-Match, If-Modified-Since, X-Chatto-Asset-Proxy"
+		expectedHeaders := "Authorization, Content-Type, Connect-Protocol-Version, Connect-Timeout-Ms, X-CSRF-Token, Range, If-None-Match, If-Modified-Since, X-Chatto-Asset-Proxy"
 		if headers := w.Header().Get("Access-Control-Allow-Headers"); headers != expectedHeaders {
 			t.Errorf("expected Access-Control-Allow-Headers %q, got %q", expectedHeaders, headers)
 		}
@@ -187,7 +187,7 @@ func TestCORSMiddleware(t *testing.T) {
 			AllowedOrigins: []string{"https://only-this.example.com"},
 		})
 
-		req := httptest.NewRequest("OPTIONS", "/api/graphql", nil)
+		req := httptest.NewRequest("OPTIONS", "/api/connect/test", nil)
 		req.Header.Set("Origin", "https://evil.example.com")
 		w := httptest.NewRecorder()
 		s.router.ServeHTTP(w, req)
@@ -206,7 +206,7 @@ func TestCORSMiddleware(t *testing.T) {
 			AllowedOrigins: []string{"*"},
 		})
 
-		req := httptest.NewRequest("GET", "/api/graphql", nil)
+		req := httptest.NewRequest("GET", "/api/connect/test", nil)
 		req.Header.Set("Origin", "https://anywhere.example.com")
 		w := httptest.NewRecorder()
 		s.router.ServeHTTP(w, req)
@@ -227,7 +227,7 @@ func TestCORSMiddleware(t *testing.T) {
 			URL: "https://chat.example.com",
 		})
 
-		req := httptest.NewRequest("GET", "/api/graphql", nil)
+		req := httptest.NewRequest("GET", "/api/connect/test", nil)
 		req.Header.Set("Origin", "HTTPS://CHAT.EXAMPLE.COM")
 		w := httptest.NewRecorder()
 		s.router.ServeHTTP(w, req)
@@ -264,7 +264,7 @@ func TestCORSMiddleware(t *testing.T) {
 			// AllowedOrigins not set — should default to wildcard
 		})
 
-		req := httptest.NewRequest("GET", "/api/graphql", nil)
+		req := httptest.NewRequest("GET", "/api/connect/test", nil)
 		req.Header.Set("Origin", "https://remote-instance.example.com")
 		w := httptest.NewRecorder()
 		s.router.ServeHTTP(w, req)
@@ -283,7 +283,7 @@ func TestCORSMiddleware(t *testing.T) {
 			// AllowedOrigins not set — wildcard default active
 		})
 
-		req := httptest.NewRequest("GET", "/api/graphql", nil)
+		req := httptest.NewRequest("GET", "/api/connect/test", nil)
 		req.Header.Set("Origin", "https://chat.example.com")
 		w := httptest.NewRecorder()
 		s.router.ServeHTTP(w, req)
@@ -303,7 +303,7 @@ func TestCORSMiddleware(t *testing.T) {
 			Port: 4000,
 		})
 
-		req := httptest.NewRequest("GET", "/api/graphql", nil)
+		req := httptest.NewRequest("GET", "/api/connect/test", nil)
 		req.Header.Set("Origin", "http://localhost:4000")
 		w := httptest.NewRecorder()
 		s.router.ServeHTTP(w, req)

@@ -1,33 +1,36 @@
 import { describe, it, expect, vi } from 'vitest';
 import { flushSync } from 'svelte';
-import type { Client } from '@urql/svelte';
-import type { RoomEventViewFragment } from '$lib/gql/graphql';
+import type { RoomEventView } from '$lib/render/types';
+import { RoomEventKind } from '$lib/render/eventKinds';
+import {
+  RoomDirectoryScope,
+  RoomKind,
+  type DirectoryRoomSummary,
+  type RoomDirectoryAPI
+} from '$lib/api/roomDirectory';
 import { RoomDirectoryStore, type DirectoryRoom } from './roomDirectory.svelte';
 import type { RoomCommandAPI } from '$lib/api/rooms';
 
-const SPACE_ID = 's_main';
-
-function makeRoom(id: string, overrides: Partial<DirectoryRoom> = {}): DirectoryRoom {
+function makeRoom(id: string, overrides: Partial<DirectoryRoomSummary> = {}): DirectoryRoomSummary {
   return {
     id,
     name: overrides.name ?? id,
     description: overrides.description ?? null,
+    kind: overrides.kind ?? RoomKind.CHANNEL,
     archived: overrides.archived ?? false,
     isUniversal: overrides.isUniversal ?? false,
-    viewerCanJoinRoom: overrides.viewerCanJoinRoom ?? true
+    isMember: overrides.isMember ?? false,
+    hasUnread: overrides.hasUnread ?? false,
+    canJoinRoom: overrides.canJoinRoom ?? true
   };
 }
 
-type QueryResponse = { server: { id: string; rooms: DirectoryRoom[] } | null };
-
-function makeClient(opts: {
-  query?: QueryResponse | null;
-}) {
-  const queryMock = vi.fn(() => ({
-    toPromise: () => Promise.resolve({ data: opts.query ?? null, error: null })
-  }));
-  const client = { query: queryMock, mutation: vi.fn() } as unknown as Client;
-  return { client, queryMock };
+function makeRoomDirectoryAPI(
+  rooms: DirectoryRoomSummary[] = []
+): Pick<RoomDirectoryAPI, 'listRooms'> {
+  return {
+    listRooms: vi.fn().mockResolvedValue(rooms)
+  };
 }
 
 function roomAPI(
@@ -41,47 +44,58 @@ function roomAPI(
   };
 }
 
+function makeStore({
+  roomDirectoryAPI = makeRoomDirectoryAPI(),
+  commands = roomAPI()
+}: {
+  roomDirectoryAPI?: Pick<RoomDirectoryAPI, 'listRooms'>;
+  commands?: Pick<RoomCommandAPI, 'joinRoom' | 'leaveRoom' | 'joinGroup'>;
+} = {}) {
+  return new RoomDirectoryStore(roomDirectoryAPI, commands);
+}
+
 async function settle() {
   await Promise.resolve();
   await Promise.resolve();
   flushSync();
 }
 
-describe('RoomDirectoryStore — initial load', () => {
+describe('RoomDirectoryStore - initial load', () => {
   it('populates allRooms and clears isLoading', async () => {
-    const { client } = makeClient({
-      query: {
-        server: { id: SPACE_ID, rooms: [makeRoom('r1'), makeRoom('r2', { archived: true })] }
-      }
-    });
-    const store = new RoomDirectoryStore(client, roomAPI());
+    const roomDirectoryAPI = makeRoomDirectoryAPI([
+      makeRoom('r1', { description: 'Lobby' }),
+      makeRoom('r2', { archived: true })
+    ]);
+    const store = makeStore({ roomDirectoryAPI });
 
     expect(store.isLoading).toBe(true);
     void store.refresh();
     await settle();
 
-    // Both rooms (archived + non-archived) are stored — the directory
-    // surfaces archived state to UI but the store keeps them. Filtering is
-    // a presentation concern.
-    expect(store.allRooms.map((r) => r.id)).toEqual(['r1', 'r2']);
+    expect(roomDirectoryAPI.listRooms).toHaveBeenCalledWith(RoomDirectoryScope.CHANNELS);
+    // Both rooms (archived + non-archived) are stored. Filtering is a
+    // presentation concern because Browse Rooms needs archived state.
+    expect(store.allRooms).toMatchObject([
+      { id: 'r1', description: 'Lobby', archived: false },
+      { id: 'r2', archived: true }
+    ]);
     expect(store.isLoading).toBe(false);
   });
 
-  it('keeps allRooms unchanged when the query returns no data', async () => {
-    const { client } = makeClient({ query: null });
-    const store = new RoomDirectoryStore(client, roomAPI());
-    void store.refresh();
-    await settle();
+  it('replaces allRooms with an empty list when Connect returns no rooms', async () => {
+    const store = makeStore({ roomDirectoryAPI: makeRoomDirectoryAPI([]) });
+    store.allRooms = [directoryRoom('stale')];
+
+    await store.refresh();
 
     expect(store.allRooms).toEqual([]);
     expect(store.isLoading).toBe(false);
   });
 });
 
-describe('RoomDirectoryStore — isJoined predicate', () => {
+describe('RoomDirectoryStore - isJoined predicate', () => {
   it('returns true when the room is in the joined set', async () => {
-    const { client } = makeClient({ query: null });
-    const store = new RoomDirectoryStore(client, roomAPI());
+    const store = makeStore();
     void store.refresh();
     await settle();
 
@@ -90,8 +104,7 @@ describe('RoomDirectoryStore — isJoined predicate', () => {
   });
 
   it('returns true for an optimistically-just-joined room even if not in the joined set yet', async () => {
-    const { client } = makeClient({ query: null });
-    const store = new RoomDirectoryStore(client, roomAPI());
+    const store = makeStore();
     void store.refresh();
     await settle();
 
@@ -100,8 +113,7 @@ describe('RoomDirectoryStore — isJoined predicate', () => {
   });
 
   it('returns false for an optimistically-just-left room even if still in the joined set', async () => {
-    const { client } = makeClient({ query: null });
-    const store = new RoomDirectoryStore(client, roomAPI());
+    const store = makeStore();
     void store.refresh();
     await settle();
 
@@ -110,8 +122,7 @@ describe('RoomDirectoryStore — isJoined predicate', () => {
   });
 
   it('justLeft takes precedence over justJoined when both are set', async () => {
-    const { client } = makeClient({ query: null });
-    const store = new RoomDirectoryStore(client, roomAPI());
+    const store = makeStore();
     void store.refresh();
     await settle();
 
@@ -121,12 +132,11 @@ describe('RoomDirectoryStore — isJoined predicate', () => {
   });
 });
 
-describe('RoomDirectoryStore — joinRoom', () => {
+describe('RoomDirectoryStore - joinRoom', () => {
   it('marks joining during the request and just-joined on success', async () => {
-    const { client } = makeClient({
-      query: { server: { id: SPACE_ID, rooms: [makeRoom('r1', { name: 'general' })] } }
+    const store = makeStore({
+      roomDirectoryAPI: makeRoomDirectoryAPI([makeRoom('r1', { name: 'general' })])
     });
-    const store = new RoomDirectoryStore(client, roomAPI());
     void store.refresh();
     await settle();
 
@@ -141,13 +151,10 @@ describe('RoomDirectoryStore — joinRoom', () => {
   });
 
   it('returns an error result and does not set just-joined when the mutation fails', async () => {
-    const { client } = makeClient({
-      query: { server: { id: SPACE_ID, rooms: [makeRoom('r1')] } }
+    const store = makeStore({
+      roomDirectoryAPI: makeRoomDirectoryAPI([makeRoom('r1')]),
+      commands: roomAPI({ joinRoom: vi.fn().mockRejectedValue(new Error('permission denied')) })
     });
-    const store = new RoomDirectoryStore(
-      client,
-      roomAPI({ joinRoom: vi.fn().mockRejectedValue(new Error('permission denied')) })
-    );
     void store.refresh();
     await settle();
 
@@ -159,10 +166,7 @@ describe('RoomDirectoryStore — joinRoom', () => {
   });
 
   it('clears a stale justLeft when the user re-joins', async () => {
-    const { client } = makeClient({
-      query: { server: { id: SPACE_ID, rooms: [makeRoom('r1')] } }
-    });
-    const store = new RoomDirectoryStore(client, roomAPI());
+    const store = makeStore({ roomDirectoryAPI: makeRoomDirectoryAPI([makeRoom('r1')]) });
     void store.refresh();
     await settle();
 
@@ -174,16 +178,13 @@ describe('RoomDirectoryStore — joinRoom', () => {
   });
 });
 
-describe('RoomDirectoryStore — leaveRoom', () => {
+describe('RoomDirectoryStore - leaveRoom', () => {
   it('marks leaving during the request and just-left on success, clearing justJoined', async () => {
-    const { client } = makeClient({
-      query: { server: { id: SPACE_ID, rooms: [makeRoom('r1')] } }
-    });
-    const store = new RoomDirectoryStore(client, roomAPI());
+    const store = makeStore({ roomDirectoryAPI: makeRoomDirectoryAPI([makeRoom('r1')]) });
     void store.refresh();
     await settle();
 
-    store.justJoinedIds.add('r1'); // simulate prior optimistic join
+    store.justJoinedIds.add('r1');
     const promise = store.leaveRoom('r1');
     expect(store.leavingIds.has('r1')).toBe(true);
 
@@ -195,13 +196,10 @@ describe('RoomDirectoryStore — leaveRoom', () => {
   });
 
   it('returns an error result on failure', async () => {
-    const { client } = makeClient({
-      query: { server: { id: SPACE_ID, rooms: [makeRoom('r1')] } }
+    const store = makeStore({
+      roomDirectoryAPI: makeRoomDirectoryAPI([makeRoom('r1')]),
+      commands: roomAPI({ leaveRoom: vi.fn().mockRejectedValue(new Error('cannot leave')) })
     });
-    const store = new RoomDirectoryStore(
-      client,
-      roomAPI({ leaveRoom: vi.fn().mockRejectedValue(new Error('cannot leave')) })
-    );
     void store.refresh();
     await settle();
 
@@ -212,12 +210,9 @@ describe('RoomDirectoryStore — leaveRoom', () => {
   });
 });
 
-describe('RoomDirectoryStore — refresh clears optimistic state', () => {
+describe('RoomDirectoryStore - refresh clears optimistic state', () => {
   it('refresh clears just-* sets so the authoritative joined membership wins', async () => {
-    const { client } = makeClient({
-      query: { server: { id: SPACE_ID, rooms: [makeRoom('r1')] } }
-    });
-    const store = new RoomDirectoryStore(client, roomAPI());
+    const store = makeStore({ roomDirectoryAPI: makeRoomDirectoryAPI([makeRoom('r1')]) });
     void store.refresh();
     await settle();
 
@@ -232,126 +227,115 @@ describe('RoomDirectoryStore — refresh clears optimistic state', () => {
   });
 });
 
-describe('RoomDirectoryStore — ingestServerEvent', () => {
-  function makeEvent(typename: string): RoomEventViewFragment {
-    return { event: { __typename: typename } } as unknown as RoomEventViewFragment;
+describe('RoomDirectoryStore - ingestServerEvent', () => {
+  function makeEvent(kind: RoomEventKind): RoomEventView {
+    return { event: { kind } } as unknown as RoomEventView;
   }
 
   it('refreshes on UserJoinedRoomEvent', async () => {
-    const { client, queryMock } = makeClient({
-      query: { server: { id: SPACE_ID, rooms: [] } }
-    });
-    const store = new RoomDirectoryStore(client, roomAPI());
+    const roomDirectoryAPI = makeRoomDirectoryAPI([]);
+    const store = makeStore({ roomDirectoryAPI });
     void store.refresh();
     await settle();
-    expect(queryMock).toHaveBeenCalledTimes(1);
+    expect(roomDirectoryAPI.listRooms).toHaveBeenCalledTimes(1);
 
-    store.ingestServerEvent(makeEvent('UserJoinedRoomEvent'));
+    store.ingestServerEvent(makeEvent(RoomEventKind.UserJoinedRoom));
     await settle();
-    expect(queryMock).toHaveBeenCalledTimes(2);
+    expect(roomDirectoryAPI.listRooms).toHaveBeenCalledTimes(2);
   });
 
   it('refreshes on UserLeftRoomEvent', async () => {
-    const { client, queryMock } = makeClient({
-      query: { server: { id: SPACE_ID, rooms: [] } }
-    });
-    const store = new RoomDirectoryStore(client, roomAPI());
+    const roomDirectoryAPI = makeRoomDirectoryAPI([]);
+    const store = makeStore({ roomDirectoryAPI });
     void store.refresh();
     await settle();
 
-    store.ingestServerEvent(makeEvent('UserLeftRoomEvent'));
+    store.ingestServerEvent(makeEvent(RoomEventKind.UserLeftRoom));
     await settle();
-    expect(queryMock).toHaveBeenCalledTimes(2);
+    expect(roomDirectoryAPI.listRooms).toHaveBeenCalledTimes(2);
   });
 
   it('refreshes on room catalog and layout changes', async () => {
-    const { client, queryMock } = makeClient({
-      query: { server: { id: SPACE_ID, rooms: [] } }
-    });
-    const store = new RoomDirectoryStore(client, roomAPI());
+    const roomDirectoryAPI = makeRoomDirectoryAPI([]);
+    const store = makeStore({ roomDirectoryAPI });
     void store.refresh();
     await settle();
 
-    store.ingestServerEvent(makeEvent('RoomCreatedEvent'));
+    store.ingestServerEvent(makeEvent(RoomEventKind.RoomCreated));
     await settle();
-    store.ingestServerEvent(makeEvent('RoomUpdatedEvent'));
+    store.ingestServerEvent(makeEvent(RoomEventKind.RoomUpdated));
     await settle();
-    store.ingestServerEvent(makeEvent('RoomArchivedEvent'));
+    store.ingestServerEvent(makeEvent(RoomEventKind.RoomArchived));
     await settle();
-    store.ingestServerEvent(makeEvent('RoomUnarchivedEvent'));
+    store.ingestServerEvent(makeEvent(RoomEventKind.RoomUnarchived));
     await settle();
-    store.ingestServerEvent(makeEvent('RoomDeletedEvent'));
+    store.ingestServerEvent(makeEvent(RoomEventKind.RoomDeleted));
     await settle();
-    store.ingestServerEvent(makeEvent('RoomGroupsUpdatedEvent'));
+    store.ingestServerEvent(makeEvent(RoomEventKind.RoomGroupsUpdated));
     await settle();
 
-    expect(queryMock).toHaveBeenCalledTimes(7);
+    expect(roomDirectoryAPI.listRooms).toHaveBeenCalledTimes(7);
   });
 
   it('does NOT refresh on irrelevant event types', async () => {
-    const { client, queryMock } = makeClient({
-      query: { server: { id: SPACE_ID, rooms: [] } }
-    });
-    const store = new RoomDirectoryStore(client, roomAPI());
+    const roomDirectoryAPI = makeRoomDirectoryAPI([]);
+    const store = makeStore({ roomDirectoryAPI });
     void store.refresh();
     await settle();
 
-    store.ingestServerEvent(makeEvent('MessagePostedEvent'));
-    store.ingestServerEvent(makeEvent('ReactionAddedEvent'));
+    store.ingestServerEvent(makeEvent(RoomEventKind.MessagePosted));
+    store.ingestServerEvent(makeEvent(RoomEventKind.ReactionAdded));
     await settle();
 
-    expect(queryMock).toHaveBeenCalledTimes(1);
+    expect(roomDirectoryAPI.listRooms).toHaveBeenCalledTimes(1);
   });
 
   it('ingestRoomLayoutUpdated triggers a refresh', async () => {
-    const { client, queryMock } = makeClient({
-      query: { server: { id: SPACE_ID, rooms: [] } }
-    });
-    const store = new RoomDirectoryStore(client, roomAPI());
+    const roomDirectoryAPI = makeRoomDirectoryAPI([]);
+    const store = makeStore({ roomDirectoryAPI });
     void store.refresh();
     await settle();
 
     store.ingestRoomLayoutUpdated();
     await settle();
-    expect(queryMock).toHaveBeenCalledTimes(2);
+    expect(roomDirectoryAPI.listRooms).toHaveBeenCalledTimes(2);
   });
 });
 
-describe('RoomDirectoryStore — concurrent refresh guard', () => {
+describe('RoomDirectoryStore - concurrent refresh guard', () => {
   it('discards out-of-order responses', async () => {
-    let resolveFirst!: (value: { data: QueryResponse; error: null }) => void;
-    let resolveSecond!: (value: { data: QueryResponse; error: null }) => void;
+    let resolveFirst!: (value: DirectoryRoomSummary[]) => void;
+    let resolveSecond!: (value: DirectoryRoomSummary[]) => void;
 
-    const queryMock = vi
+    const listRooms = vi
       .fn()
-      .mockImplementationOnce(() => ({
-        toPromise: () => new Promise((r) => (resolveFirst = r))
-      }))
-      .mockImplementationOnce(() => ({
-        toPromise: () => new Promise((r) => (resolveSecond = r))
-      }));
-    const client = { query: queryMock, mutation: vi.fn() } as unknown as Client;
+      .mockImplementationOnce(() => new Promise((resolve) => (resolveFirst = resolve)))
+      .mockImplementationOnce(() => new Promise((resolve) => (resolveSecond = resolve)));
+    const roomDirectoryAPI = { listRooms } as unknown as Pick<RoomDirectoryAPI, 'listRooms'>;
 
-    const store = new RoomDirectoryStore(client, roomAPI());
-    void store.refresh(); // first load
-    void store.refresh(); // second concurrent load
+    const store = makeStore({ roomDirectoryAPI });
+    void store.refresh();
+    void store.refresh();
 
-    // Resolve the SECOND load first (out-of-order)
-    resolveSecond({
-      data: { server: { id: SPACE_ID, rooms: [makeRoom('newer')] } },
-      error: null
-    });
+    resolveSecond([makeRoom('newer')]);
     await settle();
 
     expect(store.allRooms.map((r) => r.id)).toEqual(['newer']);
 
-    // The earlier load now resolves — should be ignored
-    resolveFirst({
-      data: { server: { id: SPACE_ID, rooms: [makeRoom('older')] } },
-      error: null
-    });
+    resolveFirst([makeRoom('older')]);
     await settle();
 
     expect(store.allRooms.map((r) => r.id)).toEqual(['newer']);
   });
 });
+
+function directoryRoom(id: string): DirectoryRoom {
+  return {
+    id,
+    name: id,
+    description: null,
+    archived: false,
+    isUniversal: false,
+    viewerCanJoinRoom: true
+  };
+}

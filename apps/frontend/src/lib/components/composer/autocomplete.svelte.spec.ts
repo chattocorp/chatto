@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { PresenceStatus } from '$lib/gql/graphql';
+import { PresenceStatus } from '$lib/render/types';
 import type { RoomMember } from '$lib/state/room';
 import type { TipTapEditorApi } from './TipTapEditor.svelte';
 import { AutocompleteState } from './autocomplete.svelte';

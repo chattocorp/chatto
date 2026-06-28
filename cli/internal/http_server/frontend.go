@@ -144,6 +144,16 @@ func servePrecompressedFile(c *gin.Context, clientFS fs.FS, filePath string) boo
 	return false
 }
 
+func isReservedNonFrontendPath(urlPath string) bool {
+	return hasPathSegmentPrefix(urlPath, "/api") ||
+		hasPathSegmentPrefix(urlPath, "/auth") ||
+		hasPathSegmentPrefix(urlPath, "/assets")
+}
+
+func hasPathSegmentPrefix(urlPath string, prefix string) bool {
+	return urlPath == prefix || strings.HasPrefix(urlPath, prefix+"/")
+}
+
 func (s *HTTPServer) setupFrontendRoutes() error {
 	// Get a sub-filesystem rooted at .client
 	clientFS, err := fs.Sub(embeddedWebUIFS, ".client")
@@ -257,9 +267,7 @@ func (s *HTTPServer) setupFrontendRoutes() error {
 
 		// Skip if path starts with /api, /auth, /assets (handled by other routes)
 		urlPath := c.Request.URL.Path
-		if strings.HasPrefix(urlPath, "/api") ||
-			strings.HasPrefix(urlPath, "/auth") ||
-			strings.HasPrefix(urlPath, "/assets") {
+		if isReservedNonFrontendPath(urlPath) {
 			c.Next()
 			return
 		}
@@ -270,6 +278,10 @@ func (s *HTTPServer) setupFrontendRoutes() error {
 
 	// Fall back to 200.html for SPA routing (NoRoute handler)
 	s.router.NoRoute(func(c *gin.Context) {
+		if isReservedNonFrontendPath(c.Request.URL.Path) {
+			c.Status(http.StatusNotFound)
+			return
+		}
 		serveStatic(c, "200.html")
 	})
 

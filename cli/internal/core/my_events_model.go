@@ -17,7 +17,7 @@ import (
 )
 
 // liveEVTProjectionWaitTimeout bounds the causal barrier between JetStream's
-// raw EVT republish and GraphQL delivery. In the normal case the local
+// raw EVT republish and realtime delivery. In the normal case the local
 // projectors have already advanced and WaitFor returns immediately; the
 // timeout covers replica lag or a stuck projector without wedging a
 // subscription goroutine forever.
@@ -56,7 +56,7 @@ func (c *ChattoCore) myEvents() *MyEventsModel {
 	return c.myEventsModel
 }
 
-// MyEventsMetrics is a process-local snapshot of the GraphQL live-event stream.
+// MyEventsMetrics is a process-local snapshot of the realtime event stream.
 type MyEventsMetrics struct {
 	ActiveStreams     int64
 	DeliveredEvents   uint64
@@ -92,7 +92,7 @@ func (s *MyEventsModel) Metrics() MyEventsMetrics {
 // singleton republish of committed EVT facts. EVT delivery is not UI-safe by
 // itself: filterLiveEvent waits for the relevant local projection(s) to reach
 // the republished stream sequence, then applies this user's authorization
-// before forwarding the event through GraphQL.
+// before forwarding the event through the realtime API.
 //
 // Authorization:
 //   - Room events (live.sync.room.> and deliverable live.evt.room.>) are

@@ -360,8 +360,8 @@ func attachmentFromAsset(asset *corev1.AssetRecord) *corev1.Attachment {
 	}
 }
 
-// AttachmentFromAsset converts the new Asset model into the legacy
-// message-facing Attachment view used by GraphQL and asset URL helpers.
+// AttachmentFromAsset converts the Asset model into the message-facing
+// Attachment view used by API response mapping and asset URL helpers.
 func AttachmentFromAsset(asset *corev1.AssetRecord) *corev1.Attachment {
 	return attachmentFromAsset(asset)
 }
@@ -714,7 +714,7 @@ const ServerAssetSignResource = "server"
 // (no session/bearer check at the asset endpoint — see ADR-032 and
 // cli/AGENTS.md), so a leaked URL grants access for the full TTL. We
 // keep it just long enough for an in-flight render to complete; the
-// frontend regenerates URLs by re-resolving GraphQL when needed.
+// frontend regenerates URLs by refetching API response fields when needed.
 //
 // We treat this as a stopgap for cross-origin remote-server <img>
 // loading rather than a real cross-origin auth design. See the

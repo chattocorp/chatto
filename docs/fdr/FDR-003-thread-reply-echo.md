@@ -27,7 +27,7 @@ When posting a reply inside a thread, the user can optionally "also send to chan
 ### 1. Echo links by event identity, not payload aliases
 
 **Decision:** The echo and the original thread reply are two different EVT envelopes. The echo carries `echoOfEventId`, which points at the original reply envelope. The message identity itself lives on the envelope (`Event.id`), not inside the `MessagePostedEvent` payload.
-**Why:** GraphQL and EVT now model the same wrapper/payload boundary. Echoes still render the same text, but edits and deletes are propagated through the event-link relationship instead of a shared `messageBodyId` payload crutch.
+**Why:** Public timeline APIs and EVT now model the same wrapper/payload boundary. Echoes still render the same text, but edits and deletes are propagated through the event-link relationship instead of a shared `messageBodyId` payload crutch.
 **Tradeoff:** Read models have to keep the echo link when applying edit/delete state. Reactions remain naturally independent because they already key on the envelope event ID.
 
 ### 2. Echo deletion hides the echo artifact
@@ -61,7 +61,7 @@ When posting a reply inside a thread, the user can optionally "also send to chan
 
 ### 7. Echo state is editable during the edit window
 
-**Decision:** The message update API can optionally reconcile a thread reply's channel echo state during the author's normal edit window. GraphQL `updateMessage` remains the legacy compatibility path, and ConnectRPC `MessageService.UpdateMessage` exposes the same behavior through the shared core message model. Omitting the field preserves current echo state for older clients and moderation edits.
+**Decision:** The ConnectRPC `MessageService.UpdateMessage` API can optionally reconcile a thread reply's channel echo state during the author's normal edit window through the shared core message model. Omitting the field preserves current echo state for clients that do not intend to change it and for moderation edits.
 **Why:** Users often realize shortly after posting in a thread that the reply should have been visible in the room. Treating the checkbox as edit-time message state keeps the interaction aligned with the composer.
 **Tradeoff:** Echo reconciliation is not a new persisted event type; adding an echo appends the existing echo-shaped `MessagePostedEvent`, and removing one appends a normal `MessageRetractedEvent` for the echo artifact.
 

@@ -1,6 +1,7 @@
 import { Timestamp } from '@bufbuild/protobuf';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createEventBusHandlerRegistrar, getRealtimeEventEnvelope } from '$lib/eventBus.svelte';
+import { RoomEventKind } from '$lib/render/eventKinds';
 import {
   RealtimeEventEnvelope,
   RealtimeHeartbeat,
@@ -11,7 +12,7 @@ import {
   RealtimeSubscribed
 } from '$lib/pb/chatto/api/v1/realtime_pb';
 import { eventBusManager, setRealtimeSocketFactoryForTests } from './eventBus.svelte';
-import type { ConnectionStatus, GraphQLClient } from './graphqlClient.svelte';
+import type { ConnectionStatus, ServerConnection } from './serverConnection.svelte';
 
 class FakeRealtimeSocket {
   binaryType: BinaryType = 'blob';
@@ -51,7 +52,7 @@ class FakeRealtimeSocket {
   }
 }
 
-class FakeGqlClient {
+class FakeServerConnection {
   status: ConnectionStatus = $state('connecting');
   reconnectCount = $state(0);
   realtimeUrl = 'ws://chatto.test/api/realtime';
@@ -160,11 +161,11 @@ function mentionNotificationFrame(): RealtimeServerFrame {
   });
 }
 
-async function startAndSubscribe(fake = new FakeGqlClient()): Promise<{
-  fake: FakeGqlClient;
+async function startAndSubscribe(fake = new FakeServerConnection()): Promise<{
+  fake: FakeServerConnection;
   socket: FakeRealtimeSocket;
 }> {
-  eventBusManager.startBus(TEST_SERVER, fake as unknown as GraphQLClient);
+  eventBusManager.startBus(TEST_SERVER, fake as unknown as ServerConnection);
   const socket = sockets.at(-1);
   if (!socket) throw new Error('expected realtime socket');
   socket.open();
@@ -201,8 +202,8 @@ describe('eventBusManager realtime transport', () => {
   });
 
   it('opens /api/realtime, sends hello, then subscribes after server hello', async () => {
-    const fake = new FakeGqlClient();
-    eventBusManager.startBus(TEST_SERVER, fake as unknown as GraphQLClient);
+    const fake = new FakeServerConnection();
+    eventBusManager.startBus(TEST_SERVER, fake as unknown as ServerConnection);
 
     expect(sockets).toHaveLength(1);
     expect(sockets[0].url).toBe(fake.realtimeUrl);
@@ -226,10 +227,15 @@ describe('eventBusManager realtime transport', () => {
       expect.objectContaining({
         id: 'evt-1',
         event: expect.objectContaining({
-          __typename: 'ServerUpdatedEvent',
+          kind: RoomEventKind.ServerUpdated,
           name: 'Updated'
         })
       })
+    );
+    expect(consoleDebug).toHaveBeenCalledWith(
+      `[eventBus:${TEST_SERVER}] event dispatched`,
+      RoomEventKind.ServerUpdated,
+      expect.objectContaining({ eventId: 'evt-1' })
     );
   });
 
@@ -244,7 +250,7 @@ describe('eventBusManager realtime transport', () => {
     expect(dispatched).toEqual(
       expect.objectContaining({
         event: expect.objectContaining({
-          __typename: 'MentionNotificationEvent'
+          kind: RoomEventKind.MentionNotification
         })
       })
     );
@@ -325,7 +331,7 @@ describe('eventBusManager realtime transport', () => {
     expect(catchUp).toHaveBeenNthCalledWith(2, 'subscription-ended');
   });
 
-  it('reconnects when the GraphQLClient retry bridge requests it', async () => {
+  it('reconnects when the ServerConnection retry bridge requests it', async () => {
     vi.useFakeTimers();
     const { fake } = await startAndSubscribe();
     const catchUp = vi.fn();
@@ -383,6 +389,30 @@ describe('eventBusManager realtime transport', () => {
     unsubscribe();
   });
 
+  it('matches direct room layout handlers by local event kind', async () => {
+    await startAndSubscribe();
+    const handler = vi.fn();
+    const unsubscribe = createEventBusHandlerRegistrar(TEST_SERVER)!.onRoomLayoutUpdated(handler);
+    const bus = eventBusManager.getBus(TEST_SERVER)!;
+
+    for (const eventHandler of bus.handlers) {
+      eventHandler({
+        id: 'evt-room-kind',
+        createdAt: new Date().toISOString(),
+        actorId: null,
+        actor: null,
+        event: {
+          kind: RoomEventKind.RoomUniversalChanged,
+          roomId: 'room-kind',
+          universal: true
+        } as never
+      });
+    }
+
+    expect(handler).toHaveBeenCalledWith({ roomId: 'room-kind', universal: true });
+    unsubscribe();
+  });
+
   it('does NOT reconnect when stopBus is called', async () => {
     await startAndSubscribe();
     expect(sockets).toHaveLength(1);
@@ -394,19 +424,19 @@ describe('eventBusManager realtime transport', () => {
   });
 
   it('pauseAll stops active buses and blocks later startBus calls until resumeAll', async () => {
-    const fake = new FakeGqlClient();
+    const fake = new FakeServerConnection();
     await startAndSubscribe(fake);
     expect(sockets).toHaveLength(1);
 
     eventBusManager.pauseAll();
     expect(eventBusManager.getBus(TEST_SERVER)).toBeUndefined();
 
-    eventBusManager.startBus(TEST_SERVER, fake as unknown as GraphQLClient);
+    eventBusManager.startBus(TEST_SERVER, fake as unknown as ServerConnection);
     expect(sockets).toHaveLength(1);
     expect(eventBusManager.getBus(TEST_SERVER)).toBeUndefined();
 
     eventBusManager.resumeAll();
-    eventBusManager.startBus(TEST_SERVER, fake as unknown as GraphQLClient);
+    eventBusManager.startBus(TEST_SERVER, fake as unknown as ServerConnection);
     expect(sockets).toHaveLength(2);
     expect(eventBusManager.getBus(TEST_SERVER)).toBeDefined();
   });

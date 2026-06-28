@@ -1,54 +1,16 @@
 <script lang="ts" module>
-  import { graphql } from '$lib/gql';
+  import { MessageAttachmentViewDocument } from '$lib/render/types';
 
-  export const MessageAttachmentFragment = graphql(`
-    fragment MessageAttachmentView on Attachment {
-      id
-      filename
-      contentType
-      width
-      height
-      assetUrl {
-        url
-        expiresAt
-      }
-      thumbnailAssetUrl(width: 960, height: 800, fit: CONTAIN) {
-        url
-        expiresAt
-      }
-      videoProcessing {
-        status
-        durationMs
-        width
-        height
-        thumbnailAssetUrl {
-          url
-          expiresAt
-        }
-        sourceAvailable
-        variants {
-          assetUrl {
-            url
-            expiresAt
-          }
-          quality
-          width
-          height
-          size
-        }
-        reasonCode
-      }
-    }
-  `);
+  export const MessageAttachmentViewData = MessageAttachmentViewDocument;
 </script>
 
 <script lang="ts">
-  import type { FragmentType } from '$lib/gql/fragment-masking';
-  import { useFragment } from '$lib/gql/fragment-masking';
-  import type { MessageAttachmentViewFragment } from '$lib/gql/graphql';
+  import type { RenderType } from '$lib/render/data';
+  import { useRenderData } from '$lib/render/data';
+  import type { MessageAttachmentView } from '$lib/render/types';
   import type { ImageItem } from '$lib/ui/ImageModal.svelte';
 
-  type RawAttachment = MessageAttachmentViewFragment;
+  type RawAttachment = MessageAttachmentView;
   import VideoPlayer from '$lib/components/chat/VideoPlayer.svelte';
   import SkeletonImg from '$lib/ui/SkeletonImg.svelte';
   import { SvelteMap, SvelteSet } from 'svelte/reactivity';
@@ -65,6 +27,7 @@
     type ExpiringAssetUrl,
     type RefreshedAttachmentUrls
   } from '$lib/attachments/attachmentUrls';
+  import { createAttachmentAPI } from '$lib/api/attachments';
   import { assetUrlForServer } from '$lib/assets/assetUrls';
 
   let {
@@ -74,7 +37,7 @@
     eventId,
     canDeleteAttachment = false
   }: {
-    attachments: readonly FragmentType<typeof MessageAttachmentFragment>[];
+    attachments: readonly RenderType<typeof MessageAttachmentViewData>[];
     serverId: string;
     roomId: string;
     eventId: string;
@@ -157,7 +120,7 @@
   type Attachment = ReturnType<typeof normalizeAttachment>;
 
   const attachments = $derived.by(() =>
-    rawAttachments.map((a) => normalizeAttachment(useFragment(MessageAttachmentFragment, a)))
+    rawAttachments.map((a) => normalizeAttachment(useRenderData(MessageAttachmentViewData, a)))
   );
 
   const MIN_THUMB_SIZE = 24;
@@ -278,7 +241,16 @@
   });
 
   async function refreshUrlsForMessage(): Promise<Map<string, RefreshedAttachmentUrls>> {
-    return refreshAttachmentUrlsForMessage(connection().client, roomId, eventId);
+    const conn = connection();
+    return refreshAttachmentUrlsForMessage(
+      createAttachmentAPI({
+        serverId: conn.serverId,
+        baseUrl: conn.connectBaseUrl,
+        bearerToken: conn.bearerToken
+      }),
+      roomId,
+      eventId
+    );
   }
 
   async function openImageModal(attachment: Attachment) {

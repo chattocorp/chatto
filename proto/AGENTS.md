@@ -28,7 +28,7 @@ For `chatto/api/v1`:
 - Persisted protobufs in `EVT`, `RUNTIME_STATE`, `ENCRYPTION_KEYS`, and object
   metadata need additive evolution plus repair/migration code when existing data
   changes shape.
-- Transient live-event protos are less stable, but still consider GraphQL/API
+- Transient live-event protos are less stable, but still consider public API
   behavior and mixed-version clients.
 
 ## Presence And API Shape

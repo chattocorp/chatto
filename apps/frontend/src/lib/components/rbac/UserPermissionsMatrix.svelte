@@ -1,7 +1,7 @@
 <!--
 @component
 
-Per-user permission matrix loader. Owns the GraphQL query for the user's
+Per-user permission matrix loader. Owns the ConnectRPC query for the user's
 matrix and the mutation dispatch for cell clicks; delegates rendering to
 `SubjectPermissionsMatrix`.
 -->
@@ -9,7 +9,7 @@ matrix and the mutation dispatch for cell clicks; delegates rendering to
   import { untrack } from 'svelte';
   import { Hint } from '$lib/ui';
   import { useConnection } from '$lib/state/server/connection.svelte';
-  import { graphql } from '$lib/gql';
+  import { createPermissionAPI } from '$lib/api/permissions';
   import { toast } from '$lib/ui/toast';
   import * as m from '$lib/i18n/messages';
   import {
@@ -28,6 +28,14 @@ matrix and the mutation dispatch for cell clicks; delegates rendering to
   let { userId }: { userId: string } = $props();
 
   const connection = useConnection();
+
+  function permissionAPI() {
+    const conn = connection();
+    return createPermissionAPI({
+      baseUrl: conn.connectBaseUrl,
+      bearerToken: conn.bearerToken
+    });
+  }
 
   let data = $state<Matrix | null>(null);
   let loading = $state(true);
@@ -50,43 +58,19 @@ matrix and the mutation dispatch for cell clicks; delegates rendering to
     if (!current || current.userId !== uid) loading = true;
     error = null;
 
-    const resp = await connection().client.query(
-      graphql(`
-        query UserPermissionsMatrixQuery($userId: ID!) {
-          admin {
-            rbac {
-              userPermissionMatrix(userId: $userId) {
-                userId
-                applicablePermissions
-                scopes {
-                  id
-                  label
-                  kind
-                  parentGroupId
-                }
-                cells {
-                  permission
-                  scopeId
-                  override
-                  effective
-                }
-              }
-            }
-          }
-        }
-      `),
-      { userId: uid },
-      { requestPolicy: 'network-only' }
-    );
+    let matrix: Matrix | null = null;
+    try {
+      matrix = await permissionAPI().getUserPermissionMatrix(uid);
+    } catch (err) {
+      if (uid !== userId) return;
+      loading = false;
+      error = err instanceof Error ? err.message : String(err);
+      return;
+    }
 
     if (uid !== userId) return;
 
     loading = false;
-    if (resp.error) {
-      error = resp.error.message;
-      return;
-    }
-    const matrix = resp.data?.admin?.rbac.userPermissionMatrix;
     if (!matrix) {
       error = 'No data returned';
       return;
@@ -119,7 +103,7 @@ matrix and the mutation dispatch for cell clicks; delegates rendering to
     error = null;
 
     const result = await setUserPermission(
-      connection().client,
+      permissionAPI(),
       data.userId,
       mutationScopeFor(scope),
       permission,

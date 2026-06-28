@@ -5,7 +5,11 @@
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
-  import { graphql } from '$lib/gql';
+  import {
+    createAdminUserManagementAPI,
+    type AdminMember,
+    type AdminMemberRole
+  } from '$lib/api/adminUsers';
   import { getServerPermissions } from '$lib/state/server/permissions.svelte';
   import { CopyId, Panel } from '$lib/components/admin';
   import { UserPermissionsMatrix } from '$lib/components/rbac';
@@ -26,26 +30,6 @@
     formatCooldownRemaining
   } from '$lib/validation';
 
-  type User = {
-    id: string;
-    login: string;
-    displayName: string;
-    avatarUrl?: string | null;
-    roles: string[];
-    createdAt?: string | null;
-    deleted: boolean;
-    hasVerifiedEmail: boolean;
-    verifiedEmails: string[];
-    viewerCanDeleteAccount: boolean;
-    lastLoginChange?: string | null;
-  };
-  type Role = {
-    name: string;
-    displayName: string;
-    position: number;
-    permissions: string[];
-    permissionDenials: string[];
-  };
   // Everyone role is implicit for all server members and shouldn't be assignable
   const IMPLICIT_ROLES = ['everyone'];
 
@@ -57,8 +41,8 @@
   const serverPerms = getServerPermissions();
   const canAdminManageUsers = $derived(serverPerms.current.canAdminManageUsers);
 
-  let member = $state<User | null>(null);
-  let allRoles = $state<Role[]>([]);
+  let member = $state<AdminMember | null>(null);
+  let allRoles = $state<AdminMemberRole[]>([]);
   let memberServerRoles = $state<string[]>([]); // Member's server roles (separate from member object)
   let canAssignRoles = $state(false);
   let canManageRoles = $state(false);
@@ -78,64 +62,23 @@
   async function loadData() {
     error = null;
 
-    const resp = await connection().client.query(
-      graphql(`
-        query ServerAdminMemberDetails($userId: ID!) {
-          server {
-            viewerCanAssignRoles
-            viewerCanManageRoles
-            viewerCanManageUserPermissions
-            availablePermissions
-            roles {
-              name
-              displayName
-              position
-              permissions
-              permissionDenials
-            }
-            member(userId: $userId) {
-              id
-              login
-              displayName
-              avatarUrl
-              roles
-              createdAt
-              deleted
-              hasVerifiedEmail
-              verifiedEmails
-              viewerCanDeleteAccount
-              lastLoginChange
-            }
-          }
-        }
-      `),
-      { userId }
-    );
+    try {
+      const resp = await adminUsersAPI().getMember(userId);
 
-    if (resp.error) {
-      error = resp.error.message;
+      member = resp.member;
+      allRoles = resp.roles;
+      memberServerRoles = resp.member?.roles ?? [];
+      canAssignRoles = resp.viewerCanAssignRoles;
+      canManageRoles = resp.viewerCanManageRoles;
+      canManageUserPermissions = resp.viewerCanManageUserPermissions;
+      editLogin = resp.member?.login ?? '';
+      editDisplayName = resp.member?.displayName ?? '';
+      lastLoginChange = resp.member?.lastLoginChange ? new Date(resp.member.lastLoginChange) : null;
+    } catch (err) {
+      error = err instanceof Error ? err.message : m['admin.members.load_failed']();
+    } finally {
       loading = false;
-      return;
     }
-
-    if (!resp.data?.server) {
-      error = m['admin.members.server_not_found']();
-      loading = false;
-      return;
-    }
-
-    member = resp.data.server.member ?? null;
-    allRoles = resp.data.server.roles ?? [];
-    memberServerRoles = resp.data.server.member?.roles ?? [];
-    canAssignRoles = resp.data.server.viewerCanAssignRoles;
-    canManageRoles = resp.data.server.viewerCanManageRoles;
-    canManageUserPermissions = resp.data.server.viewerCanManageUserPermissions;
-    editLogin = resp.data.server.member?.login ?? '';
-    editDisplayName = resp.data.server.member?.displayName ?? '';
-    lastLoginChange = resp.data.server.member?.lastLoginChange
-      ? new Date(resp.data.server.member.lastLoginChange)
-      : null;
-    loading = false;
   }
 
   // Identity edit derivations
@@ -144,6 +87,14 @@
   const identityModified = $derived(loginModified || displayNameModified);
   const cooldownRemaining = $derived(getLoginChangeCooldownRemaining(lastLoginChange));
   const cooldownActive = $derived(cooldownRemaining > 0);
+
+  function adminUsersAPI() {
+    const conn = connection();
+    return createAdminUserManagementAPI({
+      baseUrl: conn.connectBaseUrl,
+      bearerToken: conn.bearerToken
+    });
+  }
 
   async function saveIdentity(e?: Event) {
     e?.preventDefault();
@@ -172,29 +123,19 @@
     }
 
     savingIdentity = true;
-    const resp = await connection().client.mutation(
-      graphql(`
-        mutation AdminUpdateUser($input: AdminUpdateUserInput!) {
-          admin {
-            updateUser(input: $input) {
-              id
-              login
-              displayName
-            }
-          }
-        }
-      `),
-      { input }
-    );
+    let updated: { login: string; displayName: string } | null = null;
+    try {
+      updated = await adminUsersAPI().updateUser(input);
+    } catch (err) {
+      identityError = err instanceof Error ? err.message : 'Failed to update user';
+    }
     savingIdentity = false;
 
-    if (resp.error) {
-      identityError = resp.error.message;
+    if (!updated) {
       return;
     }
 
-    const updated = resp.data?.admin?.updateUser;
-    if (updated && member) {
+    if (member) {
       member = { ...member, login: updated.login, displayName: updated.displayName };
       editLogin = updated.login;
       editDisplayName = updated.displayName;
@@ -215,26 +156,20 @@
   async function clearCooldown() {
     if (!member || clearingCooldown) return;
     clearingCooldown = true;
-    const resp = await connection().client.mutation(
-      graphql(`
-        mutation AdminClearUsernameCooldown($input: ClearUsernameCooldownInput!) {
-          admin {
-            clearUsernameCooldown(input: $input)
-          }
-        }
-      `),
-      { input: { userId: member.id } }
-    );
+    identityError = null;
+    let cleared = false;
+    try {
+      cleared = await adminUsersAPI().clearUsernameCooldown(member.id);
+    } catch (err) {
+      identityError = err instanceof Error ? err.message : 'Failed to clear username cooldown';
+    }
     clearingCooldown = false;
 
-    if (resp.error) {
-      identityError = resp.error.message;
+    if (!cleared) {
       return;
     }
-    if (resp.data?.admin?.clearUsernameCooldown) {
-      lastLoginChange = null;
-      toast.success('Username change cooldown cleared');
-    }
+    lastLoginChange = null;
+    toast.success('Username change cooldown cleared');
   }
 
   // Check if user has a specific role (explicit assignment)
@@ -282,7 +217,7 @@
     return date ? formatDate(date, userSettings) : 'Unknown';
   }
 
-  function emailSummary(user: User): string {
+  function emailSummary(user: AdminMember): string {
     if (!canViewMemberEmails) return 'Email visibility unavailable';
     if (user.verifiedEmails.length > 0) return user.verifiedEmails.join(', ');
     if (user.hasVerifiedEmail) return 'Verified email on file';
@@ -295,33 +230,22 @@
     updating = roleName;
     error = null;
 
-    const mutation = currentlyHas
-      ? graphql(`
-          mutation RevokeRoleFromMember($input: RevokeRoleInput!) {
-            revokeRole(input: $input)
-          }
-        `)
-      : graphql(`
-          mutation AssignRoleToMember($input: AssignRoleInput!) {
-            assignRole(input: $input)
-          }
-        `);
-
-    const resp = await connection().client.mutation(mutation, {
-      input: { userId: member.id, roleName }
-    });
-
-    if (resp.error) {
-      error = resp.error.message;
-    } else {
-      const displayName = getRoleDisplayName(roleName);
-      if (currentlyHas) {
-        toast.success(m['admin.members.removed_role']({ role: displayName }));
-      } else {
-        toast.success(m['admin.members.assigned_role']({ role: displayName }));
+    try {
+      const changed = currentlyHas
+        ? await adminUsersAPI().revokeRole(member.id, roleName)
+        : await adminUsersAPI().assignRole(member.id, roleName);
+      if (changed) {
+        const displayName = getRoleDisplayName(roleName);
+        if (currentlyHas) {
+          toast.success(m['admin.members.removed_role']({ role: displayName }));
+        } else {
+          toast.success(m['admin.members.assigned_role']({ role: displayName }));
+        }
+        // Reload to get updated state
+        await loadData();
       }
-      // Reload to get updated state
-      await loadData();
+    } catch (err) {
+      error = err instanceof Error ? err.message : m['admin.members.role_update_failed']();
     }
 
     updating = null;

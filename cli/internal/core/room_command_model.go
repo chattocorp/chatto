@@ -42,6 +42,11 @@ type RoomIDInput struct {
 	RoomID  string
 }
 
+type RoomStartDMInput struct {
+	ActorID        string
+	ParticipantIDs []string
+}
+
 type RoomUniversalInput struct {
 	ActorID   string
 	RoomID    string
@@ -61,6 +66,11 @@ type RoomUnbanInput struct {
 	RoomID  string
 	UserID  string
 	Reason  string
+}
+
+type RoomBanListInput struct {
+	ActorID string
+	RoomID  *string
 }
 
 func (s *RoomCommandModel) CreateRoom(ctx context.Context, input RoomCreateInput) (*corev1.Room, error) {
@@ -150,6 +160,23 @@ func (s *RoomCommandModel) LeaveRoom(ctx context.Context, input RoomIDInput) err
 	return s.core.LeaveRoom(ctx, input.ActorID, kind, input.ActorID, input.RoomID)
 }
 
+func (s *RoomCommandModel) StartDM(ctx context.Context, input RoomStartDMInput) (*corev1.Room, bool, error) {
+	if err := requireAuthenticatedActor(input.ActorID); err != nil {
+		return nil, false, err
+	}
+	if len(input.ParticipantIDs) > MaxDMParticipants-1 {
+		return nil, false, invalidArgument("DM conversations are limited to 10 participants")
+	}
+	can, err := s.core.CanStartDM(ctx, input.ActorID)
+	if err != nil {
+		return nil, false, err
+	}
+	if !can {
+		return nil, false, ErrPermissionDenied
+	}
+	return s.core.FindOrCreateDM(ctx, input.ActorID, input.ParticipantIDs)
+}
+
 func (s *RoomCommandModel) BanRoomMember(ctx context.Context, input RoomBanInput) (*RoomBan, error) {
 	kind, err := s.authorizeRoomBan(ctx, input.ActorID, input.RoomID)
 	if err != nil {
@@ -170,6 +197,20 @@ func (s *RoomCommandModel) UnbanRoomMember(ctx context.Context, input RoomUnbanI
 		return err
 	}
 	return s.core.UnbanRoomMember(ctx, input.ActorID, kind, input.RoomID, input.UserID, input.Reason)
+}
+
+func (s *RoomCommandModel) ListActiveRoomBans(ctx context.Context, input RoomBanListInput) ([]RoomBan, error) {
+	if err := requireAuthenticatedActor(input.ActorID); err != nil {
+		return nil, err
+	}
+	canModerate, err := s.core.HasServerPermission(ctx, input.ActorID, PermRoomMemberBan)
+	if err != nil {
+		return nil, err
+	}
+	if !canModerate {
+		return nil, ErrPermissionDenied
+	}
+	return s.core.ListActiveRoomBans(ctx, input.RoomID)
 }
 
 func (s *RoomCommandModel) authorizeRoomManage(ctx context.Context, actorID, roomID string) (RoomKind, error) {

@@ -1,6 +1,11 @@
 import { expect } from '@playwright/test';
 import { createAndLoginTestUser } from './fixtures/testUser';
-import { waitForRoomUnread, waitForRoomRead, getRoomIdByName } from './fixtures/graphqlHelpers';
+import {
+  connectPost,
+  getRoomIdByNameViaConnect,
+  waitForRoomReadViaConnect,
+  waitForRoomUnreadViaConnect
+} from './fixtures/connectHelpers';
 import { waitForRoomReady } from './fixtures/realtimeSync';
 import { test } from './setup';
 import { TIMEOUTS, POLLING_INTERVALS } from './constants';
@@ -28,7 +33,7 @@ test.describe('Multi-Tab Unread Sync', () => {
     await chatPage.enterRoom('announcements');
 
     // Get room ID for general (the room that will have unread messages)
-    const roomId = await getRoomIdByName(page, 'general');
+    const roomId = await getRoomIdByNameViaConnect(page, 'general');
 
     // User B: Open the server and send a message that creates unread state for User A
     await withServerUser(
@@ -43,7 +48,7 @@ test.describe('Multi-Tab Unread Sync', () => {
         await roomPage2.sendMessage(testMessage);
 
         // Wait for server to register unread state for User A
-        await waitForRoomUnread(page, roomId, true);
+        await waitForRoomUnreadViaConnect(page, roomId, true);
 
         await withLoggedInServerWindow(
           browser!,
@@ -62,7 +67,7 @@ test.describe('Multi-Tab Unread Sync', () => {
 
             // Wait for WebSocket subscription to be established
             // networkidle waits until no network requests for 500ms, ensuring the
-            // GraphQL subscription connection is established before we trigger events
+            // realtime connection is established before we trigger events
             await page3.waitForLoadState('networkidle');
 
             // Tab 1: User A enters general room (this auto-marks room as read and emits RoomMarkedAsReadEvent)
@@ -101,10 +106,10 @@ test.describe('Multi-window unread sync', () => {
     await roomPage.sendMessage('First window ready');
 
     // Get the general room ID for polling
-    const generalRoomId = await getRoomIdByName(page, 'general');
+    const generalRoomId = await getRoomIdByNameViaConnect(page, 'general');
 
     // Wait for server to confirm room is read
-    await waitForRoomRead(page, generalRoomId);
+    await waitForRoomReadViaConnect(page, generalRoomId);
 
     // User A navigates away from general to announcements
     await chatPage.enterRoom('announcements');
@@ -131,7 +136,7 @@ test.describe('Multi-window unread sync', () => {
             await roomPage3.sendMessage(`Message from User B at ${Date.now()}`);
 
             // Wait for server to register the unread state for User A
-            await waitForRoomUnread(page2, generalRoomId, true);
+            await waitForRoomUnreadViaConnect(page2, generalRoomId, true);
 
             // Both windows should see unread indicator on general room
             const generalLink1 = page.locator('nav').locator('a', { hasText: '# general' });
@@ -167,7 +172,7 @@ test.describe('Unread indicators', () => {
     await waitForRoomReady(page, 'announcements');
 
     // Get the general room ID for polling
-    const generalRoomId = await getRoomIdByName(page, 'general');
+    const generalRoomId = await getRoomIdByNameViaConnect(page, 'general');
 
     // Verify general has no unread indicator
     const generalLink = chatPage.roomList.locator('a', { hasText: '# general' });
@@ -188,7 +193,7 @@ test.describe('Unread indicators', () => {
         await roomPage2.sendMessage(testMessage);
 
         // Wait for server to register the unread state
-        await waitForRoomUnread(page, generalRoomId, true);
+        await waitForRoomUnreadViaConnect(page, generalRoomId, true);
 
         // User A: Verify unread indicator appears on "general"
         await expect(async () => {
@@ -205,7 +210,7 @@ test.describe('Unread indicators', () => {
         await expect(page.getByText(testMessage)).toBeVisible();
 
         // Wait for server to confirm room is read
-        await waitForRoomRead(page, generalRoomId);
+        await waitForRoomReadViaConnect(page, generalRoomId);
 
         // Verify the unread indicator is now gone
         await expect(async () => {
@@ -262,7 +267,7 @@ test.describe('Room unread separator', () => {
     await roomPage.sendMessage('Message 2 from User A');
 
     // Get the general room ID for polling
-    const generalRoomId = await getRoomIdByName(page, 'general');
+    const generalRoomId = await getRoomIdByNameViaConnect(page, 'general');
 
     // User B: Create account, open the server
     await withServerUser(
@@ -278,7 +283,7 @@ test.describe('Room unread separator', () => {
         await expect(roomPage2.messageInput).toBeEnabled();
 
         // Wait for server to confirm room is read (replaces arbitrary timeout)
-        await waitForRoomRead(page2, generalRoomId);
+        await waitForRoomReadViaConnect(page2, generalRoomId);
 
         // User B leaves room by navigating to announcements
         await chatPage2.enterRoom('announcements');
@@ -289,7 +294,7 @@ test.describe('Room unread separator', () => {
         await roomPage.sendMessage(newMessage);
 
         // Wait for server to register the unread state for User B
-        await waitForRoomUnread(page2, generalRoomId, true);
+        await waitForRoomUnreadViaConnect(page2, generalRoomId, true);
 
         // User B re-enters general room
         await chatPage2.enterRoom('general');
@@ -355,7 +360,7 @@ test.describe('Room unread separator', () => {
     await roomPage.sendMessage('Initial message');
 
     // Get the general room ID for polling
-    const generalRoomId = await getRoomIdByName(page, 'general');
+    const generalRoomId = await getRoomIdByNameViaConnect(page, 'general');
 
     // User B: Create account, open the server
     await withServerUser(
@@ -368,7 +373,7 @@ test.describe('Room unread separator', () => {
         await roomPage2.expectMessageVisible('Initial message');
 
         // Wait for server to confirm room is read
-        await waitForRoomRead(page2, generalRoomId);
+        await waitForRoomReadViaConnect(page2, generalRoomId);
 
         await chatPage2.enterRoom('announcements');
         await waitForRoomReady(page2, 'announcements');
@@ -378,7 +383,7 @@ test.describe('Room unread separator', () => {
         await roomPage.sendMessage(unreadMsg1);
 
         // Wait for server to register unread state
-        await waitForRoomUnread(page2, generalRoomId, true);
+        await waitForRoomUnreadViaConnect(page2, generalRoomId, true);
 
         // User B re-enters - should see separator before unreadMsg1
         await chatPage2.enterRoom('general');
@@ -416,7 +421,7 @@ test.describe('Room unread separator', () => {
     await waitForRoomReady(page, 'general');
     await roomPage.sendMessage('Initial message');
 
-    const generalRoomId = await getRoomIdByName(page, 'general');
+    const generalRoomId = await getRoomIdByNameViaConnect(page, 'general');
 
     // User B: Create account, open the server, and sit in general — present and
     // caught up, never navigating away.
@@ -427,7 +432,7 @@ test.describe('Room unread separator', () => {
         await chatPage2.enterRoom('general');
         await waitForRoomReady(page2, 'general');
         await roomPage2.expectMessageVisible('Initial message');
-        await waitForRoomRead(page2, generalRoomId);
+        await waitForRoomReadViaConnect(page2, generalRoomId);
 
         // No separator yet — User B has read everything.
         await roomPage2.expectNoUnreadSeparator();
@@ -490,7 +495,7 @@ test.describe('Room unread separator', () => {
     await waitForRoomReady(page, 'general');
     await roomPage.sendMessage('Initial blur message');
 
-    const generalRoomId = await getRoomIdByName(page, 'general');
+    const generalRoomId = await getRoomIdByNameViaConnect(page, 'general');
 
     // User B: Stay in general, then switch focus away without hiding the tab.
     await withServerUser(
@@ -500,7 +505,7 @@ test.describe('Room unread separator', () => {
         await chatPage2.enterRoom('general');
         await waitForRoomReady(page2, 'general');
         await roomPage2.expectMessageVisible('Initial blur message');
-        await waitForRoomRead(page2, generalRoomId);
+        await waitForRoomReadViaConnect(page2, generalRoomId);
         await roomPage2.expectNoUnreadSeparator();
 
         await page2.evaluate(() => {
@@ -551,7 +556,7 @@ test.describe('Room unread separator', () => {
     await waitForRoomReady(page, 'general');
     await roomPage.sendMessage('Anchor message from User A');
 
-    const generalRoomId = await getRoomIdByName(page, 'general');
+    const generalRoomId = await getRoomIdByNameViaConnect(page, 'general');
 
     // User B: Open the server, enter general, read the anchor message — caught
     // up, no separator yet.
@@ -562,7 +567,7 @@ test.describe('Room unread separator', () => {
         await chatPage2.enterRoom('general');
         await waitForRoomReady(page2, 'general');
         await roomPage2.expectMessageVisible('Anchor message from User A');
-        await waitForRoomRead(page2, generalRoomId);
+        await waitForRoomReadViaConnect(page2, generalRoomId);
         await roomPage2.expectNoUnreadSeparator();
 
         // User B's tab goes hidden. The unread anchor is captured, but the
@@ -656,7 +661,7 @@ test.describe('Room unread separator', () => {
     await waitForRoomReady(page, 'general');
     await roomPage.sendMessage('Existing message from User A');
 
-    const generalRoomId = await getRoomIdByName(page, 'general');
+    const generalRoomId = await getRoomIdByNameViaConnect(page, 'general');
 
     // User B: Create account, open the server, enter the (non-empty) room — this
     // gives User B a real read cursor — then post their own message and
@@ -668,14 +673,14 @@ test.describe('Room unread separator', () => {
         await chatPage2.enterRoom('general');
         await waitForRoomReady(page2, 'general');
         await roomPage2.expectMessageVisible('Existing message from User A');
-        await waitForRoomRead(page2, generalRoomId);
+        await waitForRoomReadViaConnect(page2, generalRoomId);
 
         // User B posts their own message. Posting auto-advances the read cursor
         // server-side, so the client cursor must follow.
         const ownMessage = `User B own message ${Date.now()}`;
         await roomPage2.sendMessage(ownMessage);
         await roomPage2.expectMessageVisible(ownMessage);
-        await waitForRoomRead(page2, generalRoomId);
+        await waitForRoomReadViaConnect(page2, generalRoomId);
         await roomPage2.expectNoUnreadSeparator();
 
         // User B's tab goes to the background — still in the room.
@@ -711,13 +716,13 @@ test.describe('Room unread separator', () => {
     await waitForRoomReady(page, 'general');
 
     // Get the general room ID for polling
-    const generalRoomId = await getRoomIdByName(page, 'general');
+    const generalRoomId = await getRoomIdByNameViaConnect(page, 'general');
 
     // Post a message (this marks the room as read)
     await roomPage.sendMessage('Initial message');
 
     // Wait for server to confirm room is read
-    await waitForRoomRead(page, generalRoomId);
+    await waitForRoomReadViaConnect(page, generalRoomId);
 
     // Leave room by going to announcements
     await chatPage.enterRoom('announcements');
@@ -763,14 +768,14 @@ test.describe('Room unread separator', () => {
 
     await chatPage.enterRoom('general');
     await waitForRoomReady(page, 'general');
-    const generalRoomId = await getRoomIdByName(page, 'general');
+    const generalRoomId = await getRoomIdByNameViaConnect(page, 'general');
 
     // First own message — establishes a real client-side lastCursor that
     // the presence-false branch will anchor on.
     const firstMessage = `First own message ${Date.now()}`;
     await roomPage.sendMessage(firstMessage);
     await roomPage.expectMessageVisible(firstMessage);
-    await waitForRoomRead(page, generalRoomId);
+    await waitForRoomReadViaConnect(page, generalRoomId);
 
     // Background the tab. useRoomUnread's effect fires presence-false and
     // anchors unreadAfterTime = lastCursor, unreadBeforeTime = null (the
@@ -829,7 +834,7 @@ test.describe('Unread dot stability after loadRooms refresh', () => {
     await waitForRoomReady(page, 'general');
     await roomPage.sendMessage('Initial message from User A');
 
-    const generalRoomId = await getRoomIdByName(page, 'general');
+    const generalRoomId = await getRoomIdByNameViaConnect(page, 'general');
 
     // User B: Create account, open the server
     await withServerUser(
@@ -840,7 +845,7 @@ test.describe('Unread dot stability after loadRooms refresh', () => {
         await chatPage2.enterRoom('general');
         await waitForRoomReady(page2, 'general');
         await roomPage2.expectMessageVisible('Initial message from User A');
-        await waitForRoomRead(page2, generalRoomId);
+        await waitForRoomReadViaConnect(page2, generalRoomId);
 
         // User B navigates to announcements
         await chatPage2.enterRoom('announcements');
@@ -851,7 +856,7 @@ test.describe('Unread dot stability after loadRooms refresh', () => {
         await roomPage.sendMessage(testMessage);
 
         // Wait for server to register unread state
-        await waitForRoomUnread(page2, generalRoomId, true);
+        await waitForRoomUnreadViaConnect(page2, generalRoomId, true);
 
         // User B should see unread dot
         const generalLink = chatPage2.roomList.locator('a', { hasText: '# general' });
@@ -865,7 +870,7 @@ test.describe('Unread dot stability after loadRooms refresh', () => {
         await roomPage2.expectMessageVisible(testMessage);
 
         // Wait for server to confirm room is read
-        await waitForRoomRead(page2, generalRoomId);
+        await waitForRoomReadViaConnect(page2, generalRoomId);
 
         // Verify the unread dot is gone
         await expect(async () => {
@@ -883,12 +888,10 @@ test.describe('Unread dot stability after loadRooms refresh', () => {
         // bootstrap server, so do the rename as e2eadmin through a side request
         // context that leaves user A's page session intact.
         await withBootstrapAdminRequest(serverURL, async (adminRequest) => {
-          await adminRequest.post('/api/graphql', {
-            headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-            data: {
-              query: `mutation($input: UpdateRoomInput!) { updateRoom(input: $input) { id name } }`,
-              variables: { input: { roomId: generalRoomId, name: 'general-renamed' } }
-            }
+          await connectPost(adminRequest, 'chatto.api.v1.RoomService/UpdateRoom', {
+            roomId: generalRoomId,
+            name: 'general-renamed',
+            description: ''
           });
         });
 
@@ -926,7 +929,7 @@ test.describe('Thread reply unread behavior', () => {
     const rootMessage = `Root message ${Date.now()}`;
     const rootMsg = await roomPage.sendMessage(rootMessage);
 
-    const generalRoomId = await getRoomIdByName(page, 'general');
+    const generalRoomId = await getRoomIdByNameViaConnect(page, 'general');
 
     // User B: Create account, open the server
     await withServerUser(
@@ -939,7 +942,7 @@ test.describe('Thread reply unread behavior', () => {
         await roomPage2.expectMessageVisible(rootMessage);
 
         // Wait for server to confirm room is read for User B
-        await waitForRoomRead(page2, generalRoomId);
+        await waitForRoomReadViaConnect(page2, generalRoomId);
 
         // User B navigates to announcements (so general is not active)
         await chatPage2.enterRoom('announcements');
@@ -952,8 +955,8 @@ test.describe('Thread reply unread behavior', () => {
         await roomPage.postThreadReply(threadReply);
 
         // Verify server-side: room should still be read for User B
-        // (waitForRoomRead polls the server, giving events time to propagate)
-        await waitForRoomRead(page2, generalRoomId);
+        // (waitForRoomReadViaConnect polls the server, giving events time to propagate)
+        await waitForRoomReadViaConnect(page2, generalRoomId);
 
         // Verify UI: no unread dot on room — use toPass() to allow events to settle
         // before asserting absence (negative assertions need extra care)
@@ -970,7 +973,7 @@ test.describe('Thread reply unread behavior', () => {
         await roomPage.sendMessage(newRootMessage);
 
         // Wait for server to register unread state
-        await waitForRoomUnread(page2, generalRoomId, true);
+        await waitForRoomUnreadViaConnect(page2, generalRoomId, true);
 
         // User B should see unread dot on general room
         await expect(async () => {

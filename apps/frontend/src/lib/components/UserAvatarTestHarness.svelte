@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { PresenceStatus, type UserAvatarUserFragment } from '$lib/gql/graphql';
+  import { PresenceStatus, type UserAvatarUserView } from '$lib/render/types';
   import { createPresenceCache } from '$lib/state/presenceCache.svelte';
   import { createUserProfileCache } from '$lib/state/userProfiles.svelte';
   import UserAvatar from './UserAvatar.svelte';
@@ -16,8 +16,7 @@
     showStatus?: boolean;
   } = $props();
 
-  const user: UserAvatarUserFragment = {
-    __typename: 'User',
+  const user: UserAvatarUserView = {
     id: 'user-1',
     login: 'alice',
     displayName: 'Alice',
@@ -25,7 +24,6 @@
     avatarUrl: null,
     presenceStatus: PresenceStatus.Online,
     customStatus: {
-      __typename: 'CustomUserStatus',
       emoji: '🍜',
       text: 'chatto:status:out_for_lunch',
       expiresAt: null

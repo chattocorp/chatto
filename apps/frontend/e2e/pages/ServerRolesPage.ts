@@ -285,8 +285,8 @@ export class ServerRolesPage {
       if (target === 'deny' && /Override deny/.test(label)) return;
       if (target === 'neutral' && /No override/.test(label)) return;
       await cell.click();
-      // Optimistic UI update is synchronous after the GraphQL mutation
-      // resolves; one tick is enough.
+      // Optimistic UI update is synchronous after the API mutation resolves;
+      // one tick is enough.
       await this.page.waitForFunction(
         ({ from, prev }) => {
           const el = document.querySelector(from) as HTMLElement | null;

@@ -73,7 +73,7 @@ Use `*` only when you intentionally want open connectivity. It allows any HTTPS 
 
 ## Authorization
 
-Chatto enforces access control at the **API boundary**: GraphQL fields require authentication by default unless they are explicitly public, and resolvers check permissions before calling into the core domain layer. The core itself is pure business logic and assumes its caller is authorized, which lets internal callers reuse domain functions without redundant permission checks.
+Chatto enforces access control at the **API boundary**: ConnectRPC services require authentication by default unless they are explicitly public, and public operation models check permissions before touching domain state.
 
 Chatto uses a role-based permission system with four built-in roles (everyone / moderator / admin / owner), custom roles, room-specific overrides, and per-user grants and denies. The full model is covered on its own page:
 
@@ -100,7 +100,7 @@ Owners and admins can see operational metadata but **cannot** see user content:
 | NATS / JetStream metrics             | File attachments                 |
 | System configuration                 | User passwords                   |
 
-This boundary is intentional and enforced in the resolvers under `Query.admin` — admin queries do not fetch message bodies. If your community needs message moderation, that has to be designed as a separate, auditable feature; "log in as admin and read DMs" is not supported.
+This boundary is intentional and enforced in the admin API — admin operations do not fetch message bodies. If your community needs message moderation, that has to be designed as a separate, auditable feature; "log in as admin and read DMs" is not supported.
 
 ## Encryption
 
@@ -122,7 +122,7 @@ Older message bodies encrypted directly with the user's per-user ChaCha20-Poly13
 Durable user events also encrypt login, display name, and verified email fields with a separate user-PII DEK epoch. Legacy KV user records are imported by emitting encrypted user events, and projections decrypt those fields while the key exists to derive the in-memory login/email indexes used by the API.
 
 <Aside type="note">
-  Authorized live events and GraphQL responses still contain profile fields in plaintext because clients need to render them. The durable event log is the protected boundary here.
+  Authorized live events and API responses still contain profile fields in plaintext because clients need to render them. The durable event log is the protected boundary here.
 </Aside>
 
 ### Crypto-shredding
@@ -145,6 +145,8 @@ Chatto has **built-in Let's Encrypt** support via Go's `autocert` package — no
 - Plain HTTP requests are 301-redirected to HTTPS (except ACME challenges).
 
 TLS is **not required**. Chatto can also run plain HTTP, which is useful for local development or when you terminate TLS at your own proxy. If you terminate TLS upstream, make sure `webserver.url` starts with `https://` so the `Secure` cookie flag is set correctly.
+
+`webserver.url` is also the trusted public origin for generated absolute API and asset URLs. Chatto does not implicitly trust `X-Forwarded-Proto` or similar proxy headers for public URL generation; reverse-proxy deployments should set `webserver.url` to the external HTTPS origin.
 
 ## Backup security
 
@@ -174,33 +176,33 @@ Backups are outside the live account-deletion flow. Restoring an old backup that
 
 ## Account deletion
 
-Users can delete their own account via the GraphQL API. Deletion is comprehensive (see [Crypto-shredding](#crypto-shredding) above) and does not leave plaintext message bodies behind. There is no soft-delete or grace period — deletion is immediate and irreversible.
+Users can delete their own account from account settings or through the public API. Deletion is comprehensive (see [Crypto-shredding](#crypto-shredding) above) and does not leave plaintext message bodies behind. There is no soft-delete or grace period — deletion is immediate and irreversible.
 
 ## API surface
 
-### Introspection and the playground
+### Public API
 
-GraphQL introspection and the `/api/playground` UI are **enabled by default for everyone, including production deployments**. This is intentional: letting people explore the API is part of the product. Authorization is enforced in the resolvers themselves, so there's no need to hide the schema.
+The public request/response API is ConnectRPC under `/api/connect`, with protobuf definitions published in the API reference. Authorization is enforced by the API handlers and shared operation models, so sensitive operations remain permission-gated even though the API shape is documented.
 
-If you want a private server where the schema is not browsable, place Chatto behind an authenticating reverse proxy.
+If you want a private server where no unauthenticated traffic reaches Chatto, place Chatto behind an authenticating reverse proxy.
 
-### Query limits
+### Request limits
 
-Two protections apply to every GraphQL request:
+ConnectRPC requests have explicit read limits:
 
 | Limit                         | Value          | Purpose                                                     |
 | ----------------------------- | -------------- | ----------------------------------------------------------- |
-| Maximum query depth           | 12             | Bounds recursion through nested field resolvers             |
-| Fixed complexity limit        | 500            | Bounds the total cost of any single query                   |
+| General protobuf request body | 1 MiB          | Bounds non-upload request size                              |
+| Upload request body           | Config-derived | Allows configured attachment uploads plus protobuf overhead |
 | Room event pagination limit   | 500 per field  | Bounds historical room event windows and jump-to-message reads |
 
-There is **no per-IP or per-user rate limiting** at the GraphQL layer. If you expose Chatto on the public internet, a request-rate limiter (e.g. Caddy `rate_limit`, Cloudflare, or an upstream WAF) is recommended.
+There is **no per-IP or per-user rate limiting** at the application layer. If you expose Chatto on the public internet, a request-rate limiter (e.g. Caddy `rate_limit`, Cloudflare, or an upstream WAF) is recommended.
 
 ### CORS and WebSockets
 
 CORS allows the configured `webserver.url`, the local listen port (for development), and any explicit entries in `webserver.allowed_origins`. Credentials (cookies) are only attached for explicit origins; wildcard mode omits credentials, forcing token-based auth in that case.
 
-WebSocket subscriptions perform the same origin check before the upgrade is accepted.
+Realtime WebSocket connections perform the same origin check before the upgrade is accepted.
 
 OAuth redirect callbacks use a separate trust list, `webserver.oauth_redirect_origins`. See [Chatto frontend OAuth redirects](#chatto-frontend-oauth-redirects).
 

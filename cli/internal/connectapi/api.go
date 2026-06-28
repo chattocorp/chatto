@@ -50,37 +50,107 @@ func New(core *core.ChattoCore, config config.ChattoConfig, version string) *API
 // public API. HTTP middleware that writes Connect errors should use the same
 // options so errors are encoded consistently with the generated handlers.
 func HandlerOptions() []connect.HandlerOption {
+	return handlerOptionsWithReadMax(MaxRequestMessageBytes)
+}
+
+func handlerOptionsWithReadMax(readMaxBytes int) []connect.HandlerOption {
 	return []connect.HandlerOption{
-		connect.WithReadMaxBytes(MaxRequestMessageBytes),
+		connect.WithReadMaxBytes(readMaxBytes),
 		connect.WithInterceptors(validate.NewInterceptor()),
 	}
 }
 
 func (a *API) Handlers() []Handler {
 	options := HandlerOptions()
+	uploadOptions := options
+	messageUploadOptions := options
+	if a.core != nil {
+		uploadOptions = handlerOptionsWithReadMax(uploadRequestMaxBytes(a.core.AssetsConfig().MaxUploadSize))
+		messageUploadOptions = handlerOptionsWithReadMax(messageUploadRequestMaxBytes(a.core.AssetsConfig().MaxUploadSize))
+	}
 
+	accountPath, accountHandler := apiv1connect.NewAccountServiceHandler(&accountService{api: a}, uploadOptions...)
+	attachmentPath, attachmentHandler := apiv1connect.NewAttachmentServiceHandler(&attachmentService{api: a}, options...)
+	adminDiagnosticsPath, adminDiagnosticsHandler := apiv1connect.NewAdminDiagnosticsServiceHandler(&adminDiagnosticsService{api: a}, options...)
+	adminEventLogPath, adminEventLogHandler := apiv1connect.NewAdminEventLogServiceHandler(&adminEventLogService{api: a}, options...)
+	adminUserManagementPath, adminUserManagementHandler := apiv1connect.NewAdminUserManagementServiceHandler(&adminUserManagementService{api: a}, options...)
 	serverPath, serverHandler := apiv1connect.NewServerServiceHandler(&serverService{api: a}, options...)
+	serverStatePath, serverStateHandler := apiv1connect.NewServerStateServiceHandler(&serverStateService{api: a}, uploadOptions...)
+	viewerPath, viewerHandler := apiv1connect.NewViewerServiceHandler(&viewerService{api: a}, options...)
 	presencePath, presenceHandler := apiv1connect.NewPresenceServiceHandler(&presenceService{api: a}, options...)
-	messagePath, messageHandler := apiv1connect.NewMessageServiceHandler(&messageService{api: a}, options...)
+	permissionPath, permissionHandler := apiv1connect.NewPermissionServiceHandler(&permissionService{api: a}, options...)
+	linkPreviewPath, linkPreviewHandler := apiv1connect.NewLinkPreviewServiceHandler(&linkPreviewService{api: a}, options...)
+	messagePath, messageHandler := apiv1connect.NewMessageServiceHandler(&messageService{api: a}, messageUploadOptions...)
+	memberDirectoryPath, memberDirectoryHandler := apiv1connect.NewMemberDirectoryServiceHandler(&memberDirectoryService{api: a}, options...)
+	notificationPath, notificationHandler := apiv1connect.NewNotificationServiceHandler(&notificationService{api: a}, options...)
 	prefsPath, prefsHandler := apiv1connect.NewNotificationPreferencesServiceHandler(&notificationPreferencesService{api: a}, options...)
+	pushPath, pushHandler := apiv1connect.NewPushNotificationServiceHandler(&pushNotificationService{api: a}, options...)
 	readStatePath, readStateHandler := apiv1connect.NewReadStateServiceHandler(&readStateService{api: a}, options...)
 	reactionPath, reactionHandler := apiv1connect.NewReactionServiceHandler(&reactionService{api: a}, options...)
+	rolePath, roleHandler := apiv1connect.NewRoleServiceHandler(&roleService{api: a}, options...)
 	timelinePath, timelineHandler := apiv1connect.NewRoomTimelineServiceHandler(&roomTimelineService{api: a}, options...)
 	roomPath, roomHandler := apiv1connect.NewRoomServiceHandler(&roomService{api: a}, options...)
 	roomDirectoryPath, roomDirectoryHandler := apiv1connect.NewRoomDirectoryServiceHandler(&roomDirectoryService{api: a}, options...)
+	adminRoomLayoutPath, adminRoomLayoutHandler := apiv1connect.NewAdminRoomLayoutServiceHandler(&adminRoomLayoutService{api: a}, options...)
 	userStatusPath, userStatusHandler := apiv1connect.NewUserStatusServiceHandler(&userStatusService{api: a}, options...)
 	threadPath, threadHandler := apiv1connect.NewThreadServiceHandler(&threadService{api: a}, options...)
+	userPath, userHandler := apiv1connect.NewUserServiceHandler(&userService{api: a}, options...)
+	voicePath, voiceHandler := apiv1connect.NewVoiceCallServiceHandler(&voiceCallService{api: a}, options...)
 	return []Handler{
+		{ServicePath: accountPath, Handler: accountHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
+		{ServicePath: attachmentPath, Handler: attachmentHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
+		{ServicePath: adminDiagnosticsPath, Handler: adminDiagnosticsHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
+		{ServicePath: adminEventLogPath, Handler: adminEventLogHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
+		{ServicePath: adminRoomLayoutPath, Handler: adminRoomLayoutHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
+		{ServicePath: adminUserManagementPath, Handler: adminUserManagementHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
+		{ServicePath: linkPreviewPath, Handler: linkPreviewHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: messagePath, Handler: messageHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
+		{ServicePath: memberDirectoryPath, Handler: memberDirectoryHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
+		{ServicePath: notificationPath, Handler: notificationHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: serverPath, Handler: serverHandler, AuthPolicy: AuthPolicyPublic},
+		{ServicePath: serverStatePath, Handler: serverStateHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
+		{ServicePath: viewerPath, Handler: viewerHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: presencePath, Handler: presenceHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
+		{ServicePath: permissionPath, Handler: permissionHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: prefsPath, Handler: prefsHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
+		{ServicePath: pushPath, Handler: pushHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: readStatePath, Handler: readStateHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: reactionPath, Handler: reactionHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
+		{ServicePath: rolePath, Handler: roleHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: timelinePath, Handler: timelineHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: roomPath, Handler: roomHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: roomDirectoryPath, Handler: roomDirectoryHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: userStatusPath, Handler: userStatusHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
+		{ServicePath: userPath, Handler: userHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: threadPath, Handler: threadHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
+		{ServicePath: voicePath, Handler: voiceHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 	}
+}
+
+func uploadRequestMaxBytes(maxUploadSize int64) int {
+	const protobufOverhead = 64 * 1024
+	maxInt := int(^uint(0) >> 1)
+	if maxUploadSize <= 0 {
+		return MaxRequestMessageBytes
+	}
+	if maxUploadSize > int64(maxInt-protobufOverhead) {
+		return maxInt
+	}
+	return int(maxUploadSize) + protobufOverhead
+}
+
+func messageUploadRequestMaxBytes(maxUploadSize int64) int {
+	const (
+		protobufOverhead      = 256 * 1024
+		maxAttachmentBatchLen = 10
+	)
+	maxInt := int(^uint(0) >> 1)
+	if maxUploadSize <= 0 {
+		return MaxRequestMessageBytes
+	}
+	maxPayload := int64(maxInt - protobufOverhead)
+	if maxUploadSize > maxPayload/maxAttachmentBatchLen {
+		return maxInt
+	}
+	return int(maxUploadSize)*maxAttachmentBatchLen + protobufOverhead
 }

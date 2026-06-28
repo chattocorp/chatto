@@ -3,8 +3,9 @@ import { createConnectTransport } from '@connectrpc/connect-web';
 import { Timestamp } from '@bufbuild/protobuf';
 import { RoomService } from '$lib/pb/chatto/api/v1/rooms_connect';
 import { RoomDirectoryService } from '$lib/pb/chatto/api/v1/room_directory_connect';
-import type { Room } from '$lib/pb/chatto/api/v1/rooms_pb';
+import type { Room, RoomBan as APIRoomBan } from '$lib/pb/chatto/api/v1/rooms_pb';
 import { serverRegistry } from '$lib/state/server/registry.svelte';
+import { mapDirectoryMember, type DirectoryMember } from './memberDirectory';
 
 export type ConnectAPIConfig = {
   serverId?: string;
@@ -21,6 +22,19 @@ export type PublicRoom = {
   universal: boolean;
 };
 
+export type RoomBanSummary = {
+  id: string;
+  roomId: string;
+  room: PublicRoom | null;
+  userId: string;
+  user: DirectoryMember | null;
+  moderatorId: string;
+  moderator: DirectoryMember | null;
+  reason: string;
+  createdAt: string | null;
+  expiresAt: string | null;
+};
+
 export type RoomCommandAPI = ReturnType<typeof createRoomCommandAPI>;
 
 const ROOM_NAME_MAX_LENGTH = 30;
@@ -35,6 +49,21 @@ function publicRoom(room: Room | undefined): PublicRoom | null {
     archived: room.archived,
     groupId: room.groupId,
     universal: room.universal
+  };
+}
+
+function roomBan(ban: APIRoomBan): RoomBanSummary {
+  return {
+    id: ban.id,
+    roomId: ban.roomId,
+    room: publicRoom(ban.room),
+    userId: ban.userId,
+    user: ban.user ? mapDirectoryMember(ban.user) : null,
+    moderatorId: ban.moderatorId,
+    moderator: ban.moderator ? mapDirectoryMember(ban.moderator) : null,
+    reason: ban.reason,
+    createdAt: ban.createdAt?.toDate().toISOString() ?? null,
+    expiresAt: ban.expiresAt?.toDate().toISOString() ?? null
   };
 }
 
@@ -163,6 +192,15 @@ export function createRoomCommandAPI(config: ConnectAPIConfig) {
       try {
         const response = await rooms.leaveRoom({ roomId }, { headers: headers() });
         return response.left;
+      } catch (err) {
+        return handleAuthError(err);
+      }
+    },
+
+    async listRoomBans(roomId?: string): Promise<RoomBanSummary[]> {
+      try {
+        const response = await rooms.listRoomBans({ roomId: roomId ?? '' }, { headers: headers() });
+        return response.bans.map(roomBan);
       } catch (err) {
         return handleAuthError(err);
       }

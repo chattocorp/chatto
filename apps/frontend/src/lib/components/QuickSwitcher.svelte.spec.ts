@@ -2,7 +2,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { render } from 'vitest-browser-svelte';
 import { flushSync } from 'svelte';
 import { q } from '$lib/test-utils';
-import { RoomType } from '$lib/gql/graphql';
+import { RoomKind } from '$lib/pb/chatto/api/v1/rooms_pb';
 import { quickSwitcher } from '$lib/state/globals.svelte';
 
 const mocks = vi.hoisted(() => ({
@@ -10,6 +10,9 @@ const mocks = vi.hoisted(() => ({
   query: vi.fn(),
   mutation: vi.fn(),
   startDM: vi.fn(),
+  listRooms: vi.fn(),
+  listRoomMembers: vi.fn(),
+  listServerMembers: vi.fn(),
   toastError: vi.fn(),
   recents: {
     urls: [] as string[],
@@ -26,7 +29,16 @@ const mocks = vi.hoisted(() => ({
   ],
   store: {
     serverInfo: {
-      name: 'Workspace Server'
+      name: 'Workspace Server',
+      iconUrl: null
+    },
+    permissions: {
+      canStartDMs: true
+    },
+    currentUser: {
+      user: {
+        id: 'user-current'
+      }
     }
   }
 }));
@@ -45,9 +57,8 @@ vi.mock('$lib/navigation', () => ({
   segmentToServerId: (segment: string) => (segment === '-' ? 'origin' : null)
 }));
 
-vi.mock('$lib/gql', () => ({
-  graphql: (source: string) => source,
-  useFragment: (_document: unknown, value: unknown) => value
+vi.mock('$lib/render/data', () => ({
+  useRenderData: (_document: unknown, value: unknown) => value
 }));
 
 vi.mock('$lib/state/server/registry.svelte', () => ({
@@ -59,8 +70,8 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
   }
 }));
 
-vi.mock('$lib/state/server/graphqlClient.svelte', () => ({
-  graphqlClientManager: {
+vi.mock('$lib/state/server/serverConnection.svelte', () => ({
+  serverConnectionManager: {
     getClient: () => ({
       connectBaseUrl: 'https://chat.example.test/api/connect',
       bearerToken: 'token-1',
@@ -99,6 +110,23 @@ vi.mock('$lib/api/rooms', () => ({
   }))
 }));
 
+vi.mock('$lib/api/memberDirectory', () => ({
+  createMemberDirectoryAPI: vi.fn(() => ({
+    listRoomMembers: mocks.listRoomMembers,
+    listServerMembers: mocks.listServerMembers
+  }))
+}));
+
+vi.mock('$lib/api/roomDirectory', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('$lib/api/roomDirectory')>();
+  return {
+    ...actual,
+    createRoomDirectoryAPI: vi.fn(() => ({
+      listRooms: mocks.listRooms
+    }))
+  };
+});
+
 import QuickSwitcher from './QuickSwitcher.svelte';
 
 type User = {
@@ -125,96 +153,42 @@ let currentRender: { unmount: () => void } | undefined;
 let originalShowModal: typeof HTMLDialogElement.prototype.showModal;
 let originalClose: typeof HTMLDialogElement.prototype.close;
 
-function queryResult(data: unknown) {
-  return {
-    toPromise: vi.fn().mockResolvedValue({ data })
-  };
-}
-
-function operationName(document: unknown): string {
-  if (typeof document === 'string') {
-    return document.match(/\b(?:query|mutation)\s+(\w+)/)?.[1] ?? document;
-  }
-
-  const definitions = (document as { definitions?: Array<{ name?: { value?: string } }> })
-    .definitions;
-  return definitions?.[0]?.name?.value ?? '';
-}
-
 function installQueryMocks() {
-  mocks.query.mockImplementation((document: unknown, variables?: Record<string, unknown>) => {
-    const name = operationName(document);
-
-    if (name === 'QuickSwitcherServer') {
-      return queryResult({
-        server: {
-          profile: {
-            name: 'E2E Test Server',
-            logoUrl: null
-          }
-        }
-      });
-    }
-
-    if (name === 'QuickSwitcherRooms') {
-      return queryResult({
-        viewer: {
-          user: {
-            id: currentUser.id,
-            rooms: [
-              {
-                id: 'room-general',
-                name: 'general',
-                type: RoomType.Channel,
-                members: {
-                  users: [currentUser]
-                }
-              },
-              {
-                id: 'room-xylophone',
-                name: 'xylophone-chat',
-                type: RoomType.Channel,
-                members: {
-                  users: [currentUser]
-                }
-              },
-              {
-                id: 'dm-existing',
-                name: '',
-                type: RoomType.Dm,
-                members: {
-                  users: [currentUser, teammate]
-                }
-              }
-            ]
-          }
-        }
-      });
-    }
-
-    if (name === 'QuickSwitcherMembers') {
-      return queryResult({
-        viewer: {
-          canStartDMs: true,
-          user: {
-            id: currentUser.id
-          }
-        },
-        server: {
-          members: {
-            users:
-              variables?.search === 'river-login'
-                ? [user('user-river-login', 'river-login', 'River Login')]
-                : []
-          }
-        }
-      });
-    }
-
-    throw new Error(`Unexpected query document: ${name}`);
-  });
-
   mocks.startDM.mockResolvedValue({ id: 'dm-new' });
+  mocks.listRooms.mockResolvedValue([
+    {
+      id: 'room-general',
+      name: 'general',
+      kind: RoomKind.CHANNEL,
+      isMember: true,
+      hasUnread: false
+    },
+    {
+      id: 'room-xylophone',
+      name: 'xylophone-chat',
+      kind: RoomKind.CHANNEL,
+      isMember: true,
+      hasUnread: false
+    },
+    {
+      id: 'dm-existing',
+      name: '',
+      kind: RoomKind.DM,
+      isMember: true,
+      hasUnread: false
+    }
+  ]);
+  mocks.listRoomMembers.mockImplementation(async (roomId: string) => ({
+    members: roomId === 'dm-existing' ? [currentUser, teammate] : [],
+    totalCount: roomId === 'dm-existing' ? 2 : 0,
+    hasMore: false
+  }));
+  mocks.listServerMembers.mockImplementation(async (search: string) => ({
+    members:
+      search === 'river-login' ? [user('user-river-login', 'river-login', 'River Login')] : [],
+    totalCount: search === 'river-login' ? 1 : 0,
+    hasMore: false
+  }));
 }
 
 async function renderOpenSwitcher() {
@@ -261,11 +235,7 @@ function resultButtons(container: HTMLElement): HTMLButtonElement[] {
 async function waitForDebouncedUserSearch() {
   await new Promise((resolve) => setTimeout(resolve, 250));
   await vi.waitFor(() => {
-    expect(
-      mocks.query.mock.calls.some(
-        ([document]) => operationName(document) === 'QuickSwitcherMembers'
-      )
-    ).toBe(true);
+    expect(mocks.listServerMembers).toHaveBeenCalledWith('river-login', 20, 0);
   });
 }
 
@@ -290,6 +260,9 @@ beforeEach(() => {
   mocks.recents.record.mockClear();
   mocks.mutation.mockClear();
   mocks.startDM.mockClear();
+  mocks.listRooms.mockClear();
+  mocks.listRoomMembers.mockClear();
+  mocks.listServerMembers.mockClear();
   mocks.query.mockClear();
 });
 
@@ -310,7 +283,7 @@ describe('QuickSwitcher', () => {
     const { container } = await renderOpenSwitcher();
 
     expect(container.textContent).toContain('Notifications');
-    expect(container.textContent).toContain('E2E Test Server');
+    expect(container.textContent).toContain('Workspace Server');
     expect(container.textContent).toContain('general');
     expect(container.textContent).toContain('River Teammate');
     expect(input(container)).toBe(document.activeElement);
@@ -363,9 +336,9 @@ describe('QuickSwitcher', () => {
   it('navigates to the server overview from the server result', async () => {
     const { container } = await renderOpenSwitcher();
 
-    setSearch(container, 'e2e test');
+    setSearch(container, 'workspace');
     const serverResult = resultButtons(container).find((button) =>
-      button.textContent?.includes('E2E Test Server')
+      button.textContent?.includes('Workspace Server')
     );
     expect(serverResult).toBeTruthy();
     serverResult!.click();

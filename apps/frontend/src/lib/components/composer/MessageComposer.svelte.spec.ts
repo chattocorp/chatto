@@ -3,10 +3,11 @@ import { userEvent } from 'vitest/browser';
 import { render } from 'vitest-browser-svelte';
 import { tick, type ComponentProps } from 'svelte';
 import MessageComposer, { type MessageComposerApi } from './MessageComposer.svelte';
-import { createMockGraphqlClient, q } from '$lib/test-utils';
+import { q } from '$lib/test-utils';
 import { getToasts, toast } from '$lib/ui/toast';
 import type { QuoteInsertionContent, RoomMember } from '$lib/state/room';
-import { PresenceStatus } from '$lib/gql/graphql';
+import { PresenceStatus } from '$lib/render/types';
+import { RoomEventKind } from '$lib/render/eventKinds';
 
 function postedMessageEvent(
   id = 'msg_123',
@@ -14,13 +15,12 @@ function postedMessageEvent(
   threadRootEventId: string | null = null
 ) {
   return {
-    __typename: 'Event',
     id,
     createdAt: '2026-06-17T10:47:00Z',
     actorId: 'test-user',
     actor: null,
     event: {
-      __typename: 'MessagePostedEvent',
+      kind: RoomEventKind.MessagePosted,
       roomId,
       body: 'hello world',
       attachments: [],
@@ -42,11 +42,18 @@ function postedMessageEvent(
 
 const mutationData = { postMessage: postedMessageEvent() };
 const updateMutationData = { updateMessage: true };
+const mentionConfirmationData = {
+  mentionConfirmation: {
+    recipientCount: 12,
+    token: 'jwt.confirmation.token'
+  }
+};
 const prepareFilesMock = vi.hoisted(() => vi.fn());
 const mutationMock = vi.hoisted(() => vi.fn());
 const queryMock = vi.hoisted(() => vi.fn());
 const postMessageConnectMock = vi.hoisted(() => vi.fn());
 const updateMessageConnectMock = vi.hoisted(() => vi.fn());
+const fetchLinkPreviewConnectMock = vi.hoisted(() => vi.fn());
 const roomStateMock = vi.hoisted(() => ({
   members: [] as RoomMember[],
   editState: {
@@ -109,6 +116,12 @@ vi.mock('$lib/api/messages', () => ({
   })
 }));
 
+vi.mock('$lib/api/linkPreviews', () => ({
+  createLinkPreviewAPI: () => ({
+    fetchLinkPreview: fetchLinkPreviewConnectMock
+  })
+}));
+
 vi.mock('$lib/attachments/prepareFiles', () => ({
   prepareFiles: prepareFilesMock
 }));
@@ -144,14 +157,12 @@ type MessageComposerProps = ComponentProps<typeof MessageComposer>;
 
 function renderMessageComposer(
   props: Partial<MessageComposerProps> & { roomId: string },
-  context: Map<string, unknown>,
   options: { exactRoomId?: boolean } = {}
 ) {
   const roomId = options.exactRoomId ? props.roomId : `${props.roomId}-${renderId++}`;
   return {
     ...render(MessageComposer, {
-      props: { ...props, roomId },
-      context
+      props: { ...props, roomId }
     }),
     roomId
   };
@@ -298,11 +309,8 @@ function selectFirstAttachment(input: HTMLInputElement, file = imageFile()) {
 }
 
 describe('MessageComposer', () => {
-  let mockClient: ReturnType<typeof createMockGraphqlClient>;
-
   beforeEach(() => {
     window.getSelection()?.removeAllRanges();
-    mockClient = createMockGraphqlClient({ mutationData });
     mockInstanceStores.serverInfo.videoProcessingEnabled = false;
     mockInstanceStores.serverInfo.maxUploadSize = 25 * 1024 * 1024;
     mockInstanceStores.serverInfo.maxVideoUploadSize = 25 * 1024 * 1024;
@@ -341,17 +349,13 @@ describe('MessageComposer', () => {
     postMessageConnectMock.mockReset();
     postMessageConnectMock.mockImplementation(async (input) => {
       const response = await mutationMock('connectPostMessage', {
-        input: { ...input, attachments: null }
+        input: { ...input, attachments: input.attachments ?? null }
       });
-      const mentionError = response.error?.graphQLErrors?.find(
-        (error: { extensions?: Record<string, unknown> }) =>
-          error.extensions?.code === 'MENTION_CONFIRMATION_REQUIRED'
-      );
-      if (mentionError) {
+      if (response.data?.mentionConfirmation) {
         return {
           kind: 'mentionConfirmation',
-          recipientCount: mentionError.extensions.recipientCount,
-          token: mentionError.extensions.mentionConfirmationToken
+          recipientCount: response.data.mentionConfirmation.recipientCount,
+          token: response.data.mentionConfirmation.token
         };
       }
       if (response.error) throw response.error;
@@ -362,6 +366,8 @@ describe('MessageComposer', () => {
     });
     updateMessageConnectMock.mockReset();
     updateMessageConnectMock.mockResolvedValue(true);
+    fetchLinkPreviewConnectMock.mockReset();
+    fetchLinkPreviewConnectMock.mockResolvedValue(null);
     queryMock.mockReset();
     queryMock.mockResolvedValue({ data: null, error: null });
     sessionStorage.clear();
@@ -374,28 +380,19 @@ describe('MessageComposer', () => {
 
   describe('form rendering', () => {
     it('renders the TipTap editor', async () => {
-      const { container } = renderMessageComposer(
-        { roomId: 'room_456' },
-        new Map([['$$_urql', mockClient]])
-      );
+      const { container } = renderMessageComposer({ roomId: 'room_456' });
 
       await expect.element(await findEditor(container)).toBeInTheDocument();
     });
 
     it('renders the attachment button', async () => {
-      const { container } = renderMessageComposer(
-        { roomId: 'room_456' },
-        new Map([['$$_urql', mockClient]])
-      );
+      const { container } = renderMessageComposer({ roomId: 'room_456' });
 
       await expect.element(q(container, 'button[title="Attach file"]')).toBeInTheDocument();
     });
 
     it('hides attachment controls when uploads are not allowed', async () => {
-      const { container } = renderMessageComposer(
-        { roomId: 'room_456', canAttach: false },
-        new Map([['$$_urql', mockClient]])
-      );
+      const { container } = renderMessageComposer({ roomId: 'room_456', canAttach: false });
 
       await findEditor(container);
       expect(q(container, 'button[title="Attach file"]')).toBeNull();
@@ -403,10 +400,7 @@ describe('MessageComposer', () => {
     });
 
     it('renders hidden file input', async () => {
-      const { container } = renderMessageComposer(
-        { roomId: 'room_456' },
-        new Map([['$$_urql', mockClient]])
-      );
+      const { container } = renderMessageComposer({ roomId: 'room_456' });
 
       const fileInput = q(container, 'input[type="file"]');
       await expect.element(fileInput).toBeInTheDocument();
@@ -414,10 +408,7 @@ describe('MessageComposer', () => {
     });
 
     it('editor has correct placeholder', async () => {
-      const { container } = renderMessageComposer(
-        { roomId: 'room_456' },
-        new Map([['$$_urql', mockClient]])
-      );
+      const { container } = renderMessageComposer({ roomId: 'room_456' });
 
       await findEditor(container);
       // TipTap Placeholder extension sets data-placeholder on the empty paragraph
@@ -429,10 +420,7 @@ describe('MessageComposer', () => {
 
   describe('file input configuration', () => {
     it('accepts image and audio files when video processing is disabled', async () => {
-      const { container } = renderMessageComposer(
-        { roomId: 'room_456' },
-        new Map([['$$_urql', mockClient]])
-      );
+      const { container } = renderMessageComposer({ roomId: 'room_456' });
 
       await expect
         .element(q(container, 'input[type="file"]'))
@@ -441,10 +429,7 @@ describe('MessageComposer', () => {
 
     it('accepts image, video, and audio files when video processing is enabled', async () => {
       mockInstanceStores.serverInfo.videoProcessingEnabled = true;
-      const { container } = renderMessageComposer(
-        { roomId: 'room_456' },
-        new Map([['$$_urql', mockClient]])
-      );
+      const { container } = renderMessageComposer({ roomId: 'room_456' });
 
       await expect
         .element(q(container, 'input[type="file"]'))
@@ -452,19 +437,13 @@ describe('MessageComposer', () => {
     });
 
     it('allows multiple file selection', async () => {
-      const { container } = renderMessageComposer(
-        { roomId: 'room_456' },
-        new Map([['$$_urql', mockClient]])
-      );
+      const { container } = renderMessageComposer({ roomId: 'room_456' });
 
       await expect.element(q(container, 'input[type="file"]')).toHaveAttribute('multiple');
     });
 
     it('rejects selected video files when video processing is disabled', async () => {
-      const { container } = renderMessageComposer(
-        { roomId: 'room_456' },
-        new Map([['$$_urql', mockClient]])
-      );
+      const { container } = renderMessageComposer({ roomId: 'room_456' });
       const input = q(container, 'input[type="file"]') as HTMLInputElement;
 
       selectFiles(input, [new File(['video'], 'clip.mp4', { type: 'video/mp4' })]);
@@ -477,10 +456,7 @@ describe('MessageComposer', () => {
 
     it('stages selected video files when video processing is enabled', async () => {
       mockInstanceStores.serverInfo.videoProcessingEnabled = true;
-      const { container } = renderMessageComposer(
-        { roomId: 'room_456' },
-        new Map([['$$_urql', mockClient]])
-      );
+      const { container } = renderMessageComposer({ roomId: 'room_456' });
       const input = q(container, 'input[type="file"]') as HTMLInputElement;
 
       selectFiles(input, [new File(['video'], 'clip.mp4', { type: 'video/mp4' })]);
@@ -492,10 +468,7 @@ describe('MessageComposer', () => {
 
     it('rejects selected files over the server upload size limit', async () => {
       mockInstanceStores.serverInfo.maxUploadSize = 1;
-      const { container } = renderMessageComposer(
-        { roomId: 'room_456' },
-        new Map([['$$_urql', mockClient]])
-      );
+      const { container } = renderMessageComposer({ roomId: 'room_456' });
       const input = q(container, 'input[type="file"]') as HTMLInputElement;
 
       selectFiles(input, [
@@ -514,28 +487,19 @@ describe('MessageComposer', () => {
 
   describe('initial state', () => {
     it('editor is editable initially', async () => {
-      const { container } = renderMessageComposer(
-        { roomId: 'room_456' },
-        new Map([['$$_urql', mockClient]])
-      );
+      const { container } = renderMessageComposer({ roomId: 'room_456' });
 
       await expect.element(await findEditor(container)).toHaveAttribute('contenteditable', 'true');
     });
 
     it('attachment button is not disabled initially', async () => {
-      const { container } = renderMessageComposer(
-        { roomId: 'room_456' },
-        new Map([['$$_urql', mockClient]])
-      );
+      const { container } = renderMessageComposer({ roomId: 'room_456' });
 
       await expect.element(q(container, 'button[title="Attach file"]')).not.toBeDisabled();
     });
 
     it('does not show file preview area initially', async () => {
-      const { container } = renderMessageComposer(
-        { roomId: 'room_456' },
-        new Map([['$$_urql', mockClient]])
-      );
+      const { container } = renderMessageComposer({ roomId: 'room_456' });
 
       // File preview should only appear when files are selected
       const previewImages = container.querySelectorAll('img');
@@ -545,28 +509,19 @@ describe('MessageComposer', () => {
 
   describe('send button', () => {
     it('renders the send button', async () => {
-      const { container } = renderMessageComposer(
-        { roomId: 'room_456' },
-        new Map([['$$_urql', mockClient]])
-      );
+      const { container } = renderMessageComposer({ roomId: 'room_456' });
 
       await expect.element(q(container, 'button[aria-label="Send message"]')).toBeInTheDocument();
     });
 
     it('send button is disabled when input is empty', async () => {
-      const { container } = renderMessageComposer(
-        { roomId: 'room_456' },
-        new Map([['$$_urql', mockClient]])
-      );
+      const { container } = renderMessageComposer({ roomId: 'room_456' });
 
       await expect.element(q(container, 'button[aria-label="Send message"]')).toBeDisabled();
     });
 
     it('send button has paper plane icon', async () => {
-      const { container } = renderMessageComposer(
-        { roomId: 'room_456' },
-        new Map([['$$_urql', mockClient]])
-      );
+      const { container } = renderMessageComposer({ roomId: 'room_456' });
 
       const sendButton = q(container, 'button[aria-label="Send message"]');
       const icon = sendButton?.querySelector('.uil--telegram-alt');
@@ -574,10 +529,7 @@ describe('MessageComposer', () => {
     });
 
     it('hides the keyboard shortcut hint in simple mode', async () => {
-      const { container } = renderMessageComposer(
-        { roomId: 'room_456' },
-        new Map([['$$_urql', mockClient]])
-      );
+      const { container } = renderMessageComposer({ roomId: 'room_456' });
       const editor = await findEditor(container);
 
       expect(q(container, '[title$="Return to Send"]')).toBeNull();
@@ -587,10 +539,7 @@ describe('MessageComposer', () => {
     });
 
     it('shows the enter-again hint after manually activating rich mode', async () => {
-      const { container } = renderMessageComposer(
-        { roomId: 'room_456' },
-        new Map([['$$_urql', mockClient]])
-      );
+      const { container } = renderMessageComposer({ roomId: 'room_456' });
       const editor = await findEditor(container);
 
       await typeEditorLiteralText(editor, 'hint me');
@@ -604,10 +553,7 @@ describe('MessageComposer', () => {
     });
 
     it('treats an empty block element as sendable composer content', async () => {
-      const { container, roomId } = renderMessageComposer(
-        { roomId: 'room_456' },
-        new Map([['$$_urql', mockClient]])
-      );
+      const { container, roomId } = renderMessageComposer({ roomId: 'room_456' });
       const editor = await findEditor(container);
 
       await typeEditorLiteralText(editor, '- ');
@@ -632,10 +578,7 @@ describe('MessageComposer', () => {
 
   describe('pasted attachments', () => {
     it('ignores pasted files when uploads are not allowed', async () => {
-      const { container } = renderMessageComposer(
-        { roomId: 'room_456', canAttach: false },
-        new Map([['$$_urql', mockClient]])
-      );
+      const { container } = renderMessageComposer({ roomId: 'room_456', canAttach: false });
       const editor = await findEditor(container);
 
       pasteFile(editor, imageFile());
@@ -646,16 +589,13 @@ describe('MessageComposer', () => {
 
     it('ignores externally added files when uploads are not allowed', async () => {
       const readyApis: MessageComposerApi[] = [];
-      const { container } = renderMessageComposer(
-        {
-          roomId: 'room_456',
-          canAttach: false,
-          onReady: (api) => {
-            readyApis.push(api);
-          }
-        },
-        new Map([['$$_urql', mockClient]])
-      );
+      const { container } = renderMessageComposer({
+        roomId: 'room_456',
+        canAttach: false,
+        onReady: (api) => {
+          readyApis.push(api);
+        }
+      });
 
       await findEditor(container);
       expect(readyApis).not.toHaveLength(0);
@@ -669,10 +609,7 @@ describe('MessageComposer', () => {
       const file = imageFile();
       const pendingPreparation = deferred<File[]>();
       prepareFilesMock.mockReturnValueOnce(pendingPreparation.promise);
-      const { container, roomId } = renderMessageComposer(
-        { roomId: 'room_456' },
-        new Map([['$$_urql', mockClient]])
-      );
+      const { container, roomId } = renderMessageComposer({ roomId: 'room_456' });
       const editor = await findEditor(container);
 
       pasteFile(editor, file);
@@ -702,10 +639,7 @@ describe('MessageComposer', () => {
       const file = imageFile();
       const pendingPreparation = deferred<File[]>();
       prepareFilesMock.mockReturnValueOnce(pendingPreparation.promise);
-      const { container, roomId } = renderMessageComposer(
-        { roomId: 'room_456' },
-        new Map([['$$_urql', mockClient]])
-      );
+      const { container, roomId } = renderMessageComposer({ roomId: 'room_456' });
       const editor = await findEditor(container);
       const sendButton = q(container, 'button[aria-label="Send message"]')! as HTMLButtonElement;
 
@@ -723,7 +657,7 @@ describe('MessageComposer', () => {
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({
         roomId,
-        body: null,
+        body: '',
         attachments: [file]
       });
     });
@@ -731,10 +665,7 @@ describe('MessageComposer', () => {
     it('clears disabled send state when pasted image preparation fails', async () => {
       const pendingPreparation = deferred<File[]>();
       prepareFilesMock.mockReturnValueOnce(pendingPreparation.promise);
-      const { container } = renderMessageComposer(
-        { roomId: 'room_456' },
-        new Map([['$$_urql', mockClient]])
-      );
+      const { container } = renderMessageComposer({ roomId: 'room_456' });
       const editor = await findEditor(container);
       const sendButton = q(container, 'button[aria-label="Send message"]')! as HTMLButtonElement;
 
@@ -759,7 +690,6 @@ describe('MessageComposer', () => {
 
       const { container } = renderMessageComposer(
         { roomId: 'room_markdown_draft' },
-        new Map([['$$_urql', mockClient]]),
         { exactRoomId: true }
       );
 
@@ -773,11 +703,7 @@ describe('MessageComposer', () => {
     it('loads and persists a room text draft in sessionStorage', async () => {
       sessionStorage.setItem('chatto:draft:room_draft', 'saved draft');
 
-      const { container } = renderMessageComposer(
-        { roomId: 'room_draft' },
-        new Map([['$$_urql', mockClient]]),
-        { exactRoomId: true }
-      );
+      const { container } = renderMessageComposer({ roomId: 'room_draft' }, { exactRoomId: true });
       const editor = await findEditor(container);
 
       await expect.element(editor).toHaveTextContent('saved draft');
@@ -796,7 +722,6 @@ describe('MessageComposer', () => {
 
       const { container } = renderMessageComposer(
         { roomId: 'room_html_draft' },
-        new Map([['$$_urql', mockClient]]),
         { exactRoomId: true }
       );
       const editor = await findEditor(container);
@@ -817,7 +742,6 @@ describe('MessageComposer', () => {
 
       const { container } = renderMessageComposer(
         { roomId: 'room_entity_draft' },
-        new Map([['$$_urql', mockClient]]),
         { exactRoomId: true }
       );
       const editor = await findEditor(container);
@@ -838,7 +762,6 @@ describe('MessageComposer', () => {
 
       const { container } = renderMessageComposer(
         { roomId: 'room_less_than_entity_draft' },
-        new Map([['$$_urql', mockClient]]),
         { exactRoomId: true }
       );
       const editor = await findEditor(container);
@@ -859,7 +782,6 @@ describe('MessageComposer', () => {
 
       const { container } = renderMessageComposer(
         { roomId: 'room_link_draft' },
-        new Map([['$$_urql', mockClient]]),
         { exactRoomId: true }
       );
       const editor = await findEditor(container);
@@ -884,7 +806,6 @@ describe('MessageComposer', () => {
 
       const { container } = renderMessageComposer(
         { roomId: 'room_indented_code_draft' },
-        new Map([['$$_urql', mockClient]]),
         { exactRoomId: true }
       );
       const editor = await findEditor(container);
@@ -908,7 +829,6 @@ describe('MessageComposer', () => {
 
       const { container } = renderMessageComposer(
         { roomId: 'room_indented_continuation_draft' },
-        new Map([['$$_urql', mockClient]]),
         { exactRoomId: true }
       );
       const editor = await findEditor(container);
@@ -932,7 +852,6 @@ describe('MessageComposer', () => {
 
       const { container } = renderMessageComposer(
         { roomId: 'room_unmatched_backtick_draft' },
-        new Map([['$$_urql', mockClient]]),
         { exactRoomId: true }
       );
       const editor = await findEditor(container);
@@ -954,7 +873,6 @@ describe('MessageComposer', () => {
 
       const { container } = renderMessageComposer(
         { roomId: 'room_non_closing_fence_draft' },
-        new Map([['$$_urql', mockClient]]),
         { exactRoomId: true }
       );
       const editor = await findEditor(container);
@@ -972,7 +890,6 @@ describe('MessageComposer', () => {
 
       const { container } = renderMessageComposer(
         { roomId: 'room_blockquoted_fence_draft' },
-        new Map([['$$_urql', mockClient]]),
         { exactRoomId: true }
       );
       const editor = await findEditor(container);
@@ -988,7 +905,6 @@ describe('MessageComposer', () => {
 
       const { container } = renderMessageComposer(
         { roomId: 'room_multiline_inline_code_draft' },
-        new Map([['$$_urql', mockClient]]),
         { exactRoomId: true }
       );
       const editor = await findEditor(container);
@@ -1004,7 +920,6 @@ describe('MessageComposer', () => {
 
       const { container } = renderMessageComposer(
         { roomId: 'room_fake_link_draft' },
-        new Map([['$$_urql', mockClient]]),
         { exactRoomId: true }
       );
       const editor = await findEditor(container);
@@ -1025,7 +940,6 @@ describe('MessageComposer', () => {
 
       const { container } = renderMessageComposer(
         { roomId: 'room_autolink_text_draft' },
-        new Map([['$$_urql', mockClient]]),
         { exactRoomId: true }
       );
       const editor = await findEditor(container);
@@ -1041,7 +955,6 @@ describe('MessageComposer', () => {
 
       const { container } = renderMessageComposer(
         { roomId: 'room_draft', inThread: 'msg_root' },
-        new Map([['$$_urql', mockClient]]),
         { exactRoomId: true }
       );
 
@@ -1052,10 +965,7 @@ describe('MessageComposer', () => {
     });
 
     it('clears the active text draft after a successful send', async () => {
-      const { container, roomId } = renderMessageComposer(
-        { roomId: 'room_456' },
-        new Map([['$$_urql', mockClient]])
-      );
+      const { container, roomId } = renderMessageComposer({ roomId: 'room_456' });
       const editor = await findEditor(container);
 
       await typeInEditor(editor, 'send and clear draft');
@@ -1072,10 +982,7 @@ describe('MessageComposer', () => {
 
   describe('edit mode transitions', () => {
     it('does not start editing on ArrowUp when no editable message is available', async () => {
-      const { container } = renderMessageComposer(
-        { roomId: 'room_456' },
-        new Map([['$$_urql', mockClient]])
-      );
+      const { container } = renderMessageComposer({ roomId: 'room_456' });
       const editor = await findEditor(container);
 
       await pressEditorKey(editor, 'ArrowUp');
@@ -1088,10 +995,7 @@ describe('MessageComposer', () => {
     it('prefills edit text, hides attachment controls, and cancels on Escape', async () => {
       roomStateMock.editState.eventId = 'evt_edit';
       roomStateMock.editState.originalBody = 'original body';
-      const { container } = renderMessageComposer(
-        { roomId: 'room_456' },
-        new Map([['$$_urql', mockClient]])
-      );
+      const { container } = renderMessageComposer({ roomId: 'room_456' });
       const editor = await findEditor(container);
 
       await expect.element(editor).toHaveTextContent('original body');
@@ -1108,10 +1012,7 @@ describe('MessageComposer', () => {
       roomStateMock.members = [roomMember('golden_fox07')];
       roomStateMock.editState.eventId = 'evt_edit';
       roomStateMock.editState.originalBody = 'original body';
-      const { container } = renderMessageComposer(
-        { roomId: 'room_456' },
-        new Map([['$$_urql', mockClient]])
-      );
+      const { container } = renderMessageComposer({ roomId: 'room_456' });
       const editor = await findEditor(container);
 
       await typeEditorLiteralText(editor, '@gold');
@@ -1135,10 +1036,7 @@ describe('MessageComposer', () => {
       roomStateMock.members = [roomMember('golden_fox07')];
       roomStateMock.editState.eventId = 'evt_edit';
       roomStateMock.editState.originalBody = 'original body';
-      const { container } = renderMessageComposer(
-        { roomId: 'room_456' },
-        new Map([['$$_urql', mockClient]])
-      );
+      const { container } = renderMessageComposer({ roomId: 'room_456' });
       const editor = await findEditor(container);
 
       await typeEditorLiteralText(editor, '@gold');
@@ -1161,10 +1059,7 @@ describe('MessageComposer', () => {
     it('sends a plain text edit with Enter', async () => {
       roomStateMock.editState.eventId = 'evt_edit';
       roomStateMock.editState.originalBody = 'original body';
-      const { container } = renderMessageComposer(
-        { roomId: 'room_456' },
-        new Map([['$$_urql', mockClient]])
-      );
+      const { container } = renderMessageComposer({ roomId: 'room_456' });
       const editor = await findEditor(container);
 
       await vi.waitFor(() => expect(editor.textContent).toBe('original body'));
@@ -1182,10 +1077,7 @@ describe('MessageComposer', () => {
     it('can force rich keyboard behavior while editing plain text', async () => {
       roomStateMock.editState.eventId = 'evt_edit';
       roomStateMock.editState.originalBody = 'original body';
-      const { container } = renderMessageComposer(
-        { roomId: 'room_456' },
-        new Map([['$$_urql', mockClient]])
-      );
+      const { container } = renderMessageComposer({ roomId: 'room_456' });
       const editor = await findEditor(container);
 
       await vi.waitFor(() => expect(editor.textContent).toBe('original body'));
@@ -1212,10 +1104,7 @@ describe('MessageComposer', () => {
       const editedBody = `${body}!`;
       roomStateMock.editState.eventId = 'evt_edit';
       roomStateMock.editState.originalBody = body;
-      const { container } = renderMessageComposer(
-        { roomId: 'room_456' },
-        new Map([['$$_urql', mockClient]])
-      );
+      const { container } = renderMessageComposer({ roomId: 'room_456' });
       const editor = await findEditor(container);
 
       await expect.element(editor).toHaveTextContent(body);
@@ -1235,9 +1124,12 @@ describe('MessageComposer', () => {
 
     it('clears staged attachments when edit mode is active at mount', async () => {
       const roomId = 'room_edit_attachments';
-      const firstRender = renderMessageComposer({ roomId }, new Map([['$$_urql', mockClient]]), {
-        exactRoomId: true
-      });
+      const firstRender = renderMessageComposer(
+        { roomId },
+        {
+          exactRoomId: true
+        }
+      );
       const file = selectFirstAttachment(
         q(firstRender.container, 'input[type="file"]') as HTMLInputElement
       );
@@ -1248,9 +1140,12 @@ describe('MessageComposer', () => {
       // The composer should discard attachments because editMessage only supports text.
       roomStateMock.editState.eventId = 'evt_edit';
       roomStateMock.editState.originalBody = 'editable';
-      const { container } = renderMessageComposer({ roomId }, new Map([['$$_urql', mockClient]]), {
-        exactRoomId: true
-      });
+      const { container } = renderMessageComposer(
+        { roomId },
+        {
+          exactRoomId: true
+        }
+      );
       expect(q(container, 'button[title="Attach file"]')).toBeNull();
       expect(file.name).toBe('paste.png');
       expect(q(container, 'img')).toBeNull();
@@ -1259,10 +1154,7 @@ describe('MessageComposer', () => {
     it('converts a new typed code fence after an edited terminal code block', async () => {
       roomStateMock.editState.eventId = 'evt_edit';
       roomStateMock.editState.originalBody = '```ts\nconst existing = true;\n```';
-      const { container } = renderMessageComposer(
-        { roomId: 'room_456' },
-        new Map([['$$_urql', mockClient]])
-      );
+      const { container } = renderMessageComposer({ roomId: 'room_456' });
       const editor = await findEditor(container);
 
       await vi.waitFor(() => expect(editor.querySelectorAll('pre code')).toHaveLength(1));
@@ -1290,10 +1182,7 @@ describe('MessageComposer', () => {
   describe('submit behavior', () => {
     it('uses Enter to complete an active mention before plain Enter can send', async () => {
       roomStateMock.members = [roomMember('alice')];
-      const { container, roomId } = renderMessageComposer(
-        { roomId: 'room_456' },
-        new Map([['$$_urql', mockClient]])
-      );
+      const { container, roomId } = renderMessageComposer({ roomId: 'room_456' });
       const editor = await findEditor(container);
 
       await typeEditorLiteralText(editor, '@ali');
@@ -1316,10 +1205,7 @@ describe('MessageComposer', () => {
     });
 
     it('sends plain text with Enter in simple mode', async () => {
-      const { container, roomId } = renderMessageComposer(
-        { roomId: 'room_456' },
-        new Map([['$$_urql', mockClient]])
-      );
+      const { container, roomId } = renderMessageComposer({ roomId: 'room_456' });
       const editor = await findEditor(container);
 
       await typeEditorLiteralText(editor, 'hello from shortcut');
@@ -1334,15 +1220,12 @@ describe('MessageComposer', () => {
 
     it('inserts selected reply quotes without replacing draft text', async () => {
       let composerApi: MessageComposerApi | null = null;
-      const { container } = renderMessageComposer(
-        {
-          roomId: 'room_456',
-          onReady: (api) => {
-            composerApi = api;
-          }
-        },
-        new Map([['$$_urql', mockClient]])
-      );
+      const { container } = renderMessageComposer({
+        roomId: 'room_456',
+        onReady: (api) => {
+          composerApi = api;
+        }
+      });
       const editor = await findEditor(container);
 
       await typeInEditor(editor, 'draft');
@@ -1356,15 +1239,12 @@ describe('MessageComposer', () => {
 
     it('submits inserted selected reply quotes as blockquote markdown', async () => {
       let composerApi: MessageComposerApi | null = null;
-      const { container, roomId } = renderMessageComposer(
-        {
-          roomId: 'room_456',
-          onReady: (api) => {
-            composerApi = api;
-          }
-        },
-        new Map([['$$_urql', mockClient]])
-      );
+      const { container, roomId } = renderMessageComposer({
+        roomId: 'room_456',
+        onReady: (api) => {
+          composerApi = api;
+        }
+      });
       const editor = await findEditor(container);
 
       await typeInEditor(editor, 'draft');
@@ -1383,15 +1263,12 @@ describe('MessageComposer', () => {
 
     it('preserves line breaks inside inserted reply quotes', async () => {
       let composerApi: MessageComposerApi | null = null;
-      const { container } = renderMessageComposer(
-        {
-          roomId: 'room_456',
-          onReady: (api) => {
-            composerApi = api;
-          }
-        },
-        new Map([['$$_urql', mockClient]])
-      );
+      const { container } = renderMessageComposer({
+        roomId: 'room_456',
+        onReady: (api) => {
+          composerApi = api;
+        }
+      });
       const editor = await findEditor(container);
 
       await vi.waitFor(() => expect(composerApi).not.toBeNull());
@@ -1404,15 +1281,12 @@ describe('MessageComposer', () => {
 
     it('renders structured selected reply quotes as nested blockquotes', async () => {
       let composerApi: MessageComposerApi | null = null;
-      const { container } = renderMessageComposer(
-        {
-          roomId: 'room_456',
-          onReady: (api) => {
-            composerApi = api;
-          }
-        },
-        new Map([['$$_urql', mockClient]])
-      );
+      const { container } = renderMessageComposer({
+        roomId: 'room_456',
+        onReady: (api) => {
+          composerApi = api;
+        }
+      });
       const editor = await findEditor(container);
 
       await vi.waitFor(() => expect(composerApi).not.toBeNull());
@@ -1433,15 +1307,12 @@ describe('MessageComposer', () => {
 
     it('submits structured selected reply quotes as nested blockquote markdown', async () => {
       let composerApi: MessageComposerApi | null = null;
-      const { container, roomId } = renderMessageComposer(
-        {
-          roomId: 'room_456',
-          onReady: (api) => {
-            composerApi = api;
-          }
-        },
-        new Map([['$$_urql', mockClient]])
-      );
+      const { container, roomId } = renderMessageComposer({
+        roomId: 'room_456',
+        onReady: (api) => {
+          composerApi = api;
+        }
+      });
       const editor = await findEditor(container);
 
       await typeInEditor(editor, 'draft');
@@ -1459,10 +1330,7 @@ describe('MessageComposer', () => {
     });
 
     it('activates rich mode with Ctrl+Enter in simple mode', async () => {
-      const { container, roomId } = renderMessageComposer(
-        { roomId: 'room_456' },
-        new Map([['$$_urql', mockClient]])
-      );
+      const { container, roomId } = renderMessageComposer({ roomId: 'room_456' });
       const editor = await findEditor(container);
 
       await typeEditorLiteralText(editor, 'hello from shortcut');
@@ -1483,10 +1351,7 @@ describe('MessageComposer', () => {
     });
 
     it('posts markdown after TipTap formatting shortcuts are applied', async () => {
-      const { container, roomId } = renderMessageComposer(
-        { roomId: 'room_456' },
-        new Map([['$$_urql', mockClient]])
-      );
+      const { container, roomId } = renderMessageComposer({ roomId: 'room_456' });
       const editor = await findEditor(container);
 
       await typeEditorKeys(editor, '**bold**');
@@ -1501,10 +1366,7 @@ describe('MessageComposer', () => {
     });
 
     it('posts markdown after typed markdown link syntax is applied', async () => {
-      const { container, roomId } = renderMessageComposer(
-        { roomId: 'room_456' },
-        new Map([['$$_urql', mockClient]])
-      );
+      const { container, roomId } = renderMessageComposer({ roomId: 'room_456' });
       const editor = await findEditor(container);
 
       await typeEditorLiteralText(editor, '[example](https://example.com)');
@@ -1524,10 +1386,7 @@ describe('MessageComposer', () => {
 
     it('keeps typed space after a pasted autolink outside the link', async () => {
       const url = 'https://www.spiegel.de/';
-      const { container } = renderMessageComposer(
-        { roomId: 'room_456' },
-        new Map([['$$_urql', mockClient]])
-      );
+      const { container } = renderMessageComposer({ roomId: 'room_456' });
       const editor = await findEditor(container);
 
       editor.focus();
@@ -1550,10 +1409,7 @@ describe('MessageComposer', () => {
 
     it('posts fresh literal HTML-looking text without entity corruption', async () => {
       const body = '<script>alert(1)</script> & <b>bold?</b> &lt;x&gt;';
-      const { container, roomId } = renderMessageComposer(
-        { roomId: 'room_456' },
-        new Map([['$$_urql', mockClient]])
-      );
+      const { container, roomId } = renderMessageComposer({ roomId: 'room_456' });
       const editor = await findEditor(container);
 
       await typeInEditor(editor, body);
@@ -1568,10 +1424,7 @@ describe('MessageComposer', () => {
 
     it('posts fresh plain less-than text without entity corruption', async () => {
       const body = 'x < 5';
-      const { container, roomId } = renderMessageComposer(
-        { roomId: 'room_456' },
-        new Map([['$$_urql', mockClient]])
-      );
+      const { container, roomId } = renderMessageComposer({ roomId: 'room_456' });
       const editor = await findEditor(container);
 
       await typeInEditor(editor, body);
@@ -1586,10 +1439,7 @@ describe('MessageComposer', () => {
 
     it('posts fresh plain greater-than text without entity corruption', async () => {
       const body = 'x > 5';
-      const { container, roomId } = renderMessageComposer(
-        { roomId: 'room_456' },
-        new Map([['$$_urql', mockClient]])
-      );
+      const { container, roomId } = renderMessageComposer({ roomId: 'room_456' });
       const editor = await findEditor(container);
 
       await typeInEditor(editor, body);
@@ -1603,10 +1453,7 @@ describe('MessageComposer', () => {
     });
 
     it('escapes fresh leading blockquote markers typed as literal text', async () => {
-      const { container, roomId } = renderMessageComposer(
-        { roomId: 'room_456' },
-        new Map([['$$_urql', mockClient]])
-      );
+      const { container, roomId } = renderMessageComposer({ roomId: 'room_456' });
       const editor = await findEditor(container);
 
       await typeInEditor(editor, '> not a quote');
@@ -1620,10 +1467,7 @@ describe('MessageComposer', () => {
     });
 
     it('edits the active markdown link href from the composer controls', async () => {
-      const { container, roomId } = renderMessageComposer(
-        { roomId: 'room_456' },
-        new Map([['$$_urql', mockClient]])
-      );
+      const { container, roomId } = renderMessageComposer({ roomId: 'room_456' });
       const editor = await findEditor(container);
 
       await typeEditorLiteralText(editor, '[example](https://example.com)');
@@ -1646,10 +1490,7 @@ describe('MessageComposer', () => {
     });
 
     it('removes the active markdown link from the composer controls', async () => {
-      const { container, roomId } = renderMessageComposer(
-        { roomId: 'room_456' },
-        new Map([['$$_urql', mockClient]])
-      );
+      const { container, roomId } = renderMessageComposer({ roomId: 'room_456' });
       const editor = await findEditor(container);
 
       await typeEditorLiteralText(editor, '[example](https://example.com)');
@@ -1667,10 +1508,7 @@ describe('MessageComposer', () => {
     });
 
     it('posts fenced markdown after typed code fence syntax is applied', async () => {
-      const { container, roomId } = renderMessageComposer(
-        { roomId: 'room_456' },
-        new Map([['$$_urql', mockClient]])
-      );
+      const { container, roomId } = renderMessageComposer({ roomId: 'room_456' });
       const editor = await findEditor(container);
 
       await typeEditorLiteralText(editor, '```ts ');
@@ -1690,10 +1528,7 @@ describe('MessageComposer', () => {
     });
 
     it('converts a code fence on the current visual line after normal text', async () => {
-      const { container, roomId } = renderMessageComposer(
-        { roomId: 'room_456' },
-        new Map([['$$_urql', mockClient]])
-      );
+      const { container, roomId } = renderMessageComposer({ roomId: 'room_456' });
       const editor = await findEditor(container);
 
       await typeEditorLiteralText(editor, 'or this:');
@@ -1718,10 +1553,7 @@ describe('MessageComposer', () => {
     it('converts a second code fence after an existing code block and normal text', async () => {
       roomStateMock.editState.eventId = 'evt_edit';
       roomStateMock.editState.originalBody = '```text\nmoo\nquack\n```';
-      const { container } = renderMessageComposer(
-        { roomId: 'room_456' },
-        new Map([['$$_urql', mockClient]])
-      );
+      const { container } = renderMessageComposer({ roomId: 'room_456' });
       const editor = await findEditor(container);
 
       await vi.waitFor(() => expect(editor.querySelectorAll('pre code')).toHaveLength(1));
@@ -1746,10 +1578,7 @@ describe('MessageComposer', () => {
     });
 
     it('keeps Enter inside an active code block', async () => {
-      const { container, roomId } = renderMessageComposer(
-        { roomId: 'room_456' },
-        new Map([['$$_urql', mockClient]])
-      );
+      const { container, roomId } = renderMessageComposer({ roomId: 'room_456' });
       const editor = await findEditor(container);
 
       await typeEditorLiteralText(editor, '```ts ');
@@ -1779,10 +1608,7 @@ describe('MessageComposer', () => {
     });
 
     it('lets Shift+Enter insert a hard break without submitting', async () => {
-      const { container, roomId } = renderMessageComposer(
-        { roomId: 'room_456' },
-        new Map([['$$_urql', mockClient]])
-      );
+      const { container, roomId } = renderMessageComposer({ roomId: 'room_456' });
       const editor = await findEditor(container);
 
       await typeEditorLiteralText(editor, 'first');
@@ -1802,10 +1628,7 @@ describe('MessageComposer', () => {
     });
 
     it('sends with Cmd+Enter inside an active code block', async () => {
-      const { container, roomId } = renderMessageComposer(
-        { roomId: 'room_456' },
-        new Map([['$$_urql', mockClient]])
-      );
+      const { container, roomId } = renderMessageComposer({ roomId: 'room_456' });
       const editor = await findEditor(container);
 
       await typeEditorLiteralText(editor, '```ts ');
@@ -1825,10 +1648,7 @@ describe('MessageComposer', () => {
     });
 
     it('lets Enter create another bullet list item instead of submitting', async () => {
-      const { container, roomId } = renderMessageComposer(
-        { roomId: 'room_456' },
-        new Map([['$$_urql', mockClient]])
-      );
+      const { container, roomId } = renderMessageComposer({ roomId: 'room_456' });
       const editor = await findEditor(container);
 
       await typeEditorLiteralText(editor, '- first');
@@ -1852,10 +1672,7 @@ describe('MessageComposer', () => {
     });
 
     it('sends with Enter from the visible trailing paragraph after leaving a bullet list', async () => {
-      const { container, roomId } = renderMessageComposer(
-        { roomId: 'room_456' },
-        new Map([['$$_urql', mockClient]])
-      );
+      const { container, roomId } = renderMessageComposer({ roomId: 'room_456' });
       const editor = await findEditor(container);
 
       await typeEditorLiteralText(editor, '- first');
@@ -1879,10 +1696,7 @@ describe('MessageComposer', () => {
     });
 
     it('sends with Cmd+Enter inside a bullet list', async () => {
-      const { container, roomId } = renderMessageComposer(
-        { roomId: 'room_456' },
-        new Map([['$$_urql', mockClient]])
-      );
+      const { container, roomId } = renderMessageComposer({ roomId: 'room_456' });
       const editor = await findEditor(container);
 
       await typeEditorLiteralText(editor, '- first');
@@ -1897,10 +1711,7 @@ describe('MessageComposer', () => {
     });
 
     it('starts a bullet list from a visual line after hard breaks', async () => {
-      const { container, roomId } = renderMessageComposer(
-        { roomId: 'room_456' },
-        new Map([['$$_urql', mockClient]])
-      );
+      const { container, roomId } = renderMessageComposer({ roomId: 'room_456' });
       const editor = await findEditor(container);
 
       await typeEditorLiteralText(editor, 'Things I hate:');
@@ -1923,10 +1734,7 @@ describe('MessageComposer', () => {
     });
 
     it('starts an ordered list from a visual line after hard breaks', async () => {
-      const { container, roomId } = renderMessageComposer(
-        { roomId: 'room_456' },
-        new Map([['$$_urql', mockClient]])
-      );
+      const { container, roomId } = renderMessageComposer({ roomId: 'room_456' });
       const editor = await findEditor(container);
 
       await typeEditorLiteralText(editor, 'Things I like:');
@@ -1947,10 +1755,7 @@ describe('MessageComposer', () => {
     });
 
     it('lets Enter leave a heading without submitting', async () => {
-      const { container, roomId } = renderMessageComposer(
-        { roomId: 'room_456' },
-        new Map([['$$_urql', mockClient]])
-      );
+      const { container, roomId } = renderMessageComposer({ roomId: 'room_456' });
       const editor = await findEditor(container);
 
       await typeEditorLiteralText(editor, '# Heading');
@@ -1978,10 +1783,7 @@ describe('MessageComposer', () => {
     });
 
     it('preserves literal trailing hashes in heading text when sending', async () => {
-      const { container, roomId } = renderMessageComposer(
-        { roomId: 'room_456' },
-        new Map([['$$_urql', mockClient]])
-      );
+      const { container, roomId } = renderMessageComposer({ roomId: 'room_456' });
       const editor = await findEditor(container);
 
       await typeEditorLiteralText(editor, '# test #');
@@ -1998,10 +1800,7 @@ describe('MessageComposer', () => {
     });
 
     it('preserves multiple literal trailing hashes in heading text when sending', async () => {
-      const { container, roomId } = renderMessageComposer(
-        { roomId: 'room_456' },
-        new Map([['$$_urql', mockClient]])
-      );
+      const { container, roomId } = renderMessageComposer({ roomId: 'room_456' });
       const editor = await findEditor(container);
 
       await typeEditorLiteralText(editor, '# test ##');
@@ -2018,10 +1817,7 @@ describe('MessageComposer', () => {
     });
 
     it('updates the active code block language from the composer controls', async () => {
-      const { container, roomId } = renderMessageComposer(
-        { roomId: 'room_456' },
-        new Map([['$$_urql', mockClient]])
-      );
+      const { container, roomId } = renderMessageComposer({ roomId: 'room_456' });
       const editor = await findEditor(container);
 
       await typeEditorLiteralText(editor, '```ts ');
@@ -2057,17 +1853,14 @@ describe('MessageComposer', () => {
     it('posts normalized body and all thread/reply options', async () => {
       const onCancelReply = vi.fn();
       const onMessageSent = vi.fn();
-      const { container, roomId } = renderMessageComposer(
-        {
-          roomId: 'room_456',
-          inThread: 'evt_thread_root',
-          inReplyTo: 'evt_reply_to',
-          showAlsoSendToChannel: true,
-          onCancelReply,
-          onMessageSent
-        },
-        new Map([['$$_urql', mockClient]])
-      );
+      const { container, roomId } = renderMessageComposer({
+        roomId: 'room_456',
+        inThread: 'evt_thread_root',
+        inReplyTo: 'evt_reply_to',
+        showAlsoSendToChannel: true,
+        onCancelReply,
+        onMessageSent
+      });
       const editor = await findEditor(container, 'thread-reply-input');
 
       await typeInEditor(editor, 'hello world');
@@ -2087,7 +1880,7 @@ describe('MessageComposer', () => {
       expect(onMessageSent).toHaveBeenCalledWith(
         expect.objectContaining({
           id: 'msg_123',
-          event: expect.objectContaining({ __typename: 'MessagePostedEvent' })
+          event: expect.objectContaining({ kind: RoomEventKind.MessagePosted })
         })
       );
       expect(mockInstanceStores.roomUnread.setRoomUnread).toHaveBeenCalledWith(roomId, false);
@@ -2096,26 +1889,10 @@ describe('MessageComposer', () => {
 
     it('retries large mention sends with the confirmation token', async () => {
       mutationMock
-        .mockResolvedValueOnce({
-          data: null,
-          error: {
-            graphQLErrors: [
-              {
-                extensions: {
-                  code: 'MENTION_CONFIRMATION_REQUIRED',
-                  recipientCount: 12,
-                  mentionConfirmationToken: 'jwt.confirmation.token'
-                }
-              }
-            ]
-          }
-        })
+        .mockResolvedValueOnce({ data: mentionConfirmationData, error: null })
         .mockResolvedValueOnce({ data: mutationData, error: null });
 
-      const { container, getByRole, getByText } = renderMessageComposer(
-        { roomId: 'room_456' },
-        new Map([['$$_urql', mockClient]])
-      );
+      const { container, getByRole, getByText } = renderMessageComposer({ roomId: 'room_456' });
       const editor = await findEditor(container);
 
       await typeInEditor(editor, '@all hello');
@@ -2138,24 +1915,11 @@ describe('MessageComposer', () => {
 
     it('restores text and attachments when cancelling a large mention send', async () => {
       mutationMock.mockResolvedValueOnce({
-        data: null,
-        error: {
-          graphQLErrors: [
-            {
-              extensions: {
-                code: 'MENTION_CONFIRMATION_REQUIRED',
-                recipientCount: 12,
-                mentionConfirmationToken: 'jwt.confirmation.token'
-              }
-            }
-          ]
-        }
+        data: mentionConfirmationData,
+        error: null
       });
 
-      const { container, getByRole } = renderMessageComposer(
-        { roomId: 'room_456' },
-        new Map([['$$_urql', mockClient]])
-      );
+      const { container, getByRole } = renderMessageComposer({ roomId: 'room_456' });
       const editor = await findEditor(container);
       const file = selectFirstAttachment(q(container, 'input[type="file"]') as HTMLInputElement);
 
@@ -2176,26 +1940,10 @@ describe('MessageComposer', () => {
 
     it('restores text and attachments after a failed large mention confirmation retry', async () => {
       mutationMock
-        .mockResolvedValueOnce({
-          data: null,
-          error: {
-            graphQLErrors: [
-              {
-                extensions: {
-                  code: 'MENTION_CONFIRMATION_REQUIRED',
-                  recipientCount: 12,
-                  mentionConfirmationToken: 'jwt.confirmation.token'
-                }
-              }
-            ]
-          }
-        })
+        .mockResolvedValueOnce({ data: mentionConfirmationData, error: null })
         .mockResolvedValueOnce({ data: null, error: new Error('still nope') });
 
-      const { container, getByRole } = renderMessageComposer(
-        { roomId: 'room_456' },
-        new Map([['$$_urql', mockClient]])
-      );
+      const { container, getByRole } = renderMessageComposer({ roomId: 'room_456' });
       const editor = await findEditor(container);
       const file = selectFirstAttachment(q(container, 'input[type="file"]') as HTMLInputElement);
 
@@ -2218,10 +1966,7 @@ describe('MessageComposer', () => {
 
     it('restores text and attachments after a failed post', async () => {
       mutationMock.mockResolvedValueOnce({ data: null, error: new Error('nope') });
-      const { container } = renderMessageComposer(
-        { roomId: 'room_456' },
-        new Map([['$$_urql', mockClient]])
-      );
+      const { container } = renderMessageComposer({ roomId: 'room_456' });
       const editor = await findEditor(container);
       const file = selectFirstAttachment(q(container, 'input[type="file"]') as HTMLInputElement);
 
@@ -2239,37 +1984,30 @@ describe('MessageComposer', () => {
 
   describe('link preview composer behavior', () => {
     function mockLinkPreview(url: string) {
-      queryMock
-        .mockResolvedValueOnce({ data: { server: { roles: [] } }, error: null })
-        .mockResolvedValueOnce({
-          data: {
-            linkPreview: {
-              url,
-              title: 'Preview title',
-              description: 'Preview description',
-              imageUrl: null,
-              siteName: 'Preview site',
-              embedType: null,
-              embedId: null,
-              imageAssetId: 'asset_preview'
-            }
-          },
-          error: null
-        });
+      queryMock.mockResolvedValueOnce({ data: { server: { roles: [] } }, error: null });
+      fetchLinkPreviewConnectMock.mockResolvedValueOnce({
+        url,
+        title: 'Preview title',
+        description: 'Preview description',
+        imageUrl: null,
+        siteName: 'Preview site',
+        embedType: null,
+        embedId: null,
+        imageAssetId: 'asset_preview'
+      });
     }
 
     it('fetches a non-message-link preview and sends it with the post mutation', async () => {
       const url = 'https://example.com/story';
       mockLinkPreview(url);
-      const { container } = renderMessageComposer(
-        { roomId: 'room_456' },
-        new Map([['$$_urql', mockClient]])
-      );
+      const { container } = renderMessageComposer({ roomId: 'room_456' });
       const editor = await findEditor(container);
 
       await typeInEditor(editor, `Look ${url}`);
 
-      await vi.waitFor(() => expect(queryMock).toHaveBeenCalledTimes(2), { timeout: 1000 });
+      await vi.waitFor(() => expect(fetchLinkPreviewConnectMock).toHaveBeenCalledOnce(), {
+        timeout: 1000
+      });
       await expect.element(q(container, '[data-testid="link-preview-card"]')).toBeInTheDocument();
 
       (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
@@ -2287,14 +2025,13 @@ describe('MessageComposer', () => {
     it('dismisses a fetched preview so it is not attached to the outgoing message', async () => {
       const url = 'https://example.com/dismiss';
       mockLinkPreview(url);
-      const { container } = renderMessageComposer(
-        { roomId: 'room_456' },
-        new Map([['$$_urql', mockClient]])
-      );
+      const { container } = renderMessageComposer({ roomId: 'room_456' });
       const editor = await findEditor(container);
 
       await typeInEditor(editor, `Dismiss ${url}`);
-      await vi.waitFor(() => expect(queryMock).toHaveBeenCalledTimes(2), { timeout: 1000 });
+      await vi.waitFor(() => expect(fetchLinkPreviewConnectMock).toHaveBeenCalledOnce(), {
+        timeout: 1000
+      });
       (q(container, 'button[aria-label="Dismiss preview"]') as HTMLButtonElement).click();
 
       (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
@@ -2306,10 +2043,7 @@ describe('MessageComposer', () => {
 
   describe('attachment object URL lifecycle', () => {
     it('revokes object URLs when removing staged files', async () => {
-      const { container } = renderMessageComposer(
-        { roomId: 'room_456' },
-        new Map([['$$_urql', mockClient]])
-      );
+      const { container } = renderMessageComposer({ roomId: 'room_456' });
       selectFirstAttachment(q(container, 'input[type="file"]') as HTMLInputElement);
       await expect.poll(() => q(container, 'img')).toBeTruthy();
 
@@ -2320,10 +2054,7 @@ describe('MessageComposer', () => {
     });
 
     it('revokes object URLs after a successful send', async () => {
-      const { container } = renderMessageComposer(
-        { roomId: 'room_456' },
-        new Map([['$$_urql', mockClient]])
-      );
+      const { container } = renderMessageComposer({ roomId: 'room_456' });
       const editor = await findEditor(container);
       selectFirstAttachment(q(container, 'input[type="file"]') as HTMLInputElement);
       await typeInEditor(editor, 'with file');
@@ -2338,10 +2069,7 @@ describe('MessageComposer', () => {
 
   describe('accessibility', () => {
     it('attachment button has title attribute', async () => {
-      const { container } = renderMessageComposer(
-        { roomId: 'room_456' },
-        new Map([['$$_urql', mockClient]])
-      );
+      const { container } = renderMessageComposer({ roomId: 'room_456' });
 
       await expect
         .element(q(container, 'button[title="Attach file"]'))
@@ -2349,10 +2077,7 @@ describe('MessageComposer', () => {
     });
 
     it('send button title follows composer mode', async () => {
-      const { container } = renderMessageComposer(
-        { roomId: 'room_456' },
-        new Map([['$$_urql', mockClient]])
-      );
+      const { container } = renderMessageComposer({ roomId: 'room_456' });
       const editor = await findEditor(container);
 
       await expect

@@ -1185,6 +1185,266 @@ func TestChattoCore_UpdateUserLogin(t *testing.T) {
 	})
 }
 
+func TestChattoCore_AdminUpdateUserAuthorization(t *testing.T) {
+	t.Run("unauthenticated actor is rejected", func(t *testing.T) {
+		c, _ := setupTestCore(t)
+		ctx := testContext(t)
+		target, err := c.CreateUser(ctx, SystemActorID, "adminauth-target", "Target", "password123")
+		if err != nil {
+			t.Fatalf("CreateUser target: %v", err)
+		}
+		login := "adminauth-renamed"
+		_, err = c.AdminUpdateUser(ctx, "", target.Id, AdminUpdateUserInput{Login: &login})
+		if !errors.Is(err, ErrNotAuthenticated) {
+			t.Fatalf("AdminUpdateUser err = %v, want ErrNotAuthenticated", err)
+		}
+	})
+
+	t.Run("regular user cannot update another user", func(t *testing.T) {
+		c, _ := setupTestCore(t)
+		ctx := testContext(t)
+		regular, err := c.CreateUser(ctx, SystemActorID, "adminauth-regular", "Regular", "password123")
+		if err != nil {
+			t.Fatalf("CreateUser regular: %v", err)
+		}
+		target, err := c.CreateUser(ctx, SystemActorID, "adminauth-target2", "Target", "password123")
+		if err != nil {
+			t.Fatalf("CreateUser target: %v", err)
+		}
+		login := "adminauth-denied"
+		_, err = c.AdminUpdateUser(ctx, regular.Id, target.Id, AdminUpdateUserInput{Login: &login})
+		if !errors.Is(err, ErrPermissionDenied) {
+			t.Fatalf("AdminUpdateUser err = %v, want ErrPermissionDenied", err)
+		}
+		if err := c.AdminClearLoginChangeCooldown(ctx, regular.Id, target.Id); !errors.Is(err, ErrPermissionDenied) {
+			t.Fatalf("AdminClearLoginChangeCooldown err = %v, want ErrPermissionDenied", err)
+		}
+	})
+
+	t.Run("admin role holder can update another user", func(t *testing.T) {
+		c, _ := setupTestCore(t)
+		ctx := testContext(t)
+		admin, err := c.CreateUser(ctx, SystemActorID, "adminauth-admin", "Admin", "password123")
+		if err != nil {
+			t.Fatalf("CreateUser admin: %v", err)
+		}
+		if err := c.AssignAdminRole(ctx, admin.Id); err != nil {
+			t.Fatalf("AssignAdminRole: %v", err)
+		}
+		target, err := c.CreateUser(ctx, SystemActorID, "adminauth-target3", "Target", "password123")
+		if err != nil {
+			t.Fatalf("CreateUser target: %v", err)
+		}
+		login := "adminauth-updated"
+		displayName := "Admin Updated"
+		updated, err := c.AdminUpdateUser(ctx, admin.Id, target.Id, AdminUpdateUserInput{
+			Login:       &login,
+			DisplayName: &displayName,
+		})
+		if err != nil {
+			t.Fatalf("AdminUpdateUser: %v", err)
+		}
+		if updated.GetLogin() != login || updated.GetDisplayName() != displayName {
+			t.Fatalf("updated user = %+v, want login %q display %q", updated, login, displayName)
+		}
+		if err := c.AdminClearLoginChangeCooldown(ctx, admin.Id, target.Id); err != nil {
+			t.Fatalf("AdminClearLoginChangeCooldown: %v", err)
+		}
+	})
+
+	t.Run("self update preserves legacy admin mutation behavior", func(t *testing.T) {
+		c, _ := setupTestCore(t)
+		ctx := testContext(t)
+		user, err := c.CreateUser(ctx, SystemActorID, "adminauth-self", "Self", "password123")
+		if err != nil {
+			t.Fatalf("CreateUser self: %v", err)
+		}
+		login := "adminauth-self-updated"
+		updated, err := c.AdminUpdateUser(ctx, user.Id, user.Id, AdminUpdateUserInput{Login: &login})
+		if err != nil {
+			t.Fatalf("AdminUpdateUser self: %v", err)
+		}
+		if updated.GetLogin() != login {
+			t.Fatalf("updated login = %q, want %q", updated.GetLogin(), login)
+		}
+	})
+}
+
+func TestChattoCore_AdminMemberReads(t *testing.T) {
+	c, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	target, err := c.CreateUser(ctx, SystemActorID, "adminmember-target", "Admin Member Target", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser target: %v", err)
+	}
+	regular, err := c.CreateUser(ctx, SystemActorID, "adminmember-regular", "Admin Member Regular", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser regular: %v", err)
+	}
+	admin, err := c.CreateUser(ctx, SystemActorID, "adminmember-admin", "Admin Member Admin", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser admin: %v", err)
+	}
+	if err := c.AssignAdminRole(ctx, admin.Id); err != nil {
+		t.Fatalf("AssignAdminRole: %v", err)
+	}
+	if err := c.AssignServerRole(ctx, SystemActorID, target.Id, RoleModerator); err != nil {
+		t.Fatalf("AssignServerRole target: %v", err)
+	}
+	if err := c.AddVerifiedEmailDirect(ctx, target.Id, "adminmember-target@example.test"); err != nil {
+		t.Fatalf("AddVerifiedEmailDirect target: %v", err)
+	}
+	if _, err := c.UpdateUserLogin(ctx, target.Id, "adminmember-target-renamed"); err != nil {
+		t.Fatalf("UpdateUserLogin target: %v", err)
+	}
+
+	if _, err := c.ListAdminMembers(ctx, "", AdminMemberListInput{}); !errors.Is(err, ErrNotAuthenticated) {
+		t.Fatalf("ListAdminMembers unauth err = %v, want ErrNotAuthenticated", err)
+	}
+
+	list, err := c.ListAdminMembers(ctx, regular.Id, AdminMemberListInput{Search: "target", Limit: 10})
+	if err != nil {
+		t.Fatalf("ListAdminMembers: %v", err)
+	}
+	if list.TotalCount != 1 || len(list.Users) != 1 {
+		t.Fatalf("ListAdminMembers returned %d/%d users, want 1/1", len(list.Users), list.TotalCount)
+	}
+	if got := list.Users[0].Roles; len(got) != 1 || got[0] != RoleModerator {
+		t.Fatalf("list user roles = %v, want explicit moderator only", got)
+	}
+	if list.Users[0].HasVerifiedEmail || len(list.Users[0].VerifiedEmails) != 0 || list.Users[0].LastLoginChange != nil {
+		t.Fatalf("regular list leaked sensitive fields: %+v", list.Users[0])
+	}
+
+	regularDetails, err := c.GetAdminMemberDetails(ctx, regular.Id, target.Id)
+	if err != nil {
+		t.Fatalf("GetAdminMemberDetails regular: %v", err)
+	}
+	if regularDetails.Member == nil {
+		t.Fatal("regular details member is nil")
+	}
+	if regularDetails.Member.HasVerifiedEmail || len(regularDetails.Member.VerifiedEmails) != 0 {
+		t.Fatalf("regular details leaked emails: %+v", regularDetails.Member)
+	}
+	if regularDetails.Member.LastLoginChange != nil {
+		t.Fatalf("regular details leaked last login change: %v", regularDetails.Member.LastLoginChange)
+	}
+	if regularDetails.ViewerCanAssignRoles || regularDetails.ViewerCanManageRoles || regularDetails.ViewerCanManageUserPermissions {
+		t.Fatalf("regular capabilities = assign:%v manage:%v perms:%v, want all false", regularDetails.ViewerCanAssignRoles, regularDetails.ViewerCanManageRoles, regularDetails.ViewerCanManageUserPermissions)
+	}
+
+	adminDetails, err := c.GetAdminMemberDetails(ctx, admin.Id, target.Id)
+	if err != nil {
+		t.Fatalf("GetAdminMemberDetails admin: %v", err)
+	}
+	if adminDetails.Member == nil {
+		t.Fatal("admin details member is nil")
+	}
+	if !adminDetails.Member.HasVerifiedEmail || len(adminDetails.Member.VerifiedEmails) != 1 || adminDetails.Member.VerifiedEmails[0] != "adminmember-target@example.test" {
+		t.Fatalf("admin details emails = has:%v emails:%v, want target email", adminDetails.Member.HasVerifiedEmail, adminDetails.Member.VerifiedEmails)
+	}
+	if adminDetails.Member.LastLoginChange == nil {
+		t.Fatal("admin details LastLoginChange is nil, want visible cooldown timestamp")
+	}
+	if !adminDetails.ViewerCanAssignRoles || !adminDetails.ViewerCanManageRoles || !adminDetails.ViewerCanManageUserPermissions {
+		t.Fatalf("admin capabilities = assign:%v manage:%v perms:%v, want all true", adminDetails.ViewerCanAssignRoles, adminDetails.ViewerCanManageRoles, adminDetails.ViewerCanManageUserPermissions)
+	}
+	if len(adminDetails.Roles) == 0 || len(adminDetails.AvailablePermissions) == 0 {
+		t.Fatalf("admin details roles/perms empty: roles=%d perms=%d", len(adminDetails.Roles), len(adminDetails.AvailablePermissions))
+	}
+}
+
+func TestChattoCore_AdminRoleAssignmentAuthorization(t *testing.T) {
+	t.Run("unauthenticated actor is rejected", func(t *testing.T) {
+		c, _ := setupTestCore(t)
+		ctx := testContext(t)
+		target, err := c.CreateUser(ctx, SystemActorID, "adminrole-target", "Target", "password123")
+		if err != nil {
+			t.Fatalf("CreateUser target: %v", err)
+		}
+		if err := c.AdminAssignServerRole(ctx, "", target.Id, RoleModerator); !errors.Is(err, ErrNotAuthenticated) {
+			t.Fatalf("AdminAssignServerRole err = %v, want ErrNotAuthenticated", err)
+		}
+	})
+
+	t.Run("regular user cannot assign or revoke roles", func(t *testing.T) {
+		c, _ := setupTestCore(t)
+		ctx := testContext(t)
+		regular, err := c.CreateUser(ctx, SystemActorID, "adminrole-regular", "Regular", "password123")
+		if err != nil {
+			t.Fatalf("CreateUser regular: %v", err)
+		}
+		target, err := c.CreateUser(ctx, SystemActorID, "adminrole-target2", "Target", "password123")
+		if err != nil {
+			t.Fatalf("CreateUser target: %v", err)
+		}
+		if err := c.AdminAssignServerRole(ctx, regular.Id, target.Id, RoleModerator); !errors.Is(err, ErrPermissionDenied) {
+			t.Fatalf("AdminAssignServerRole err = %v, want ErrPermissionDenied", err)
+		}
+		if err := c.AdminRevokeServerRole(ctx, regular.Id, target.Id, RoleModerator); !errors.Is(err, ErrPermissionDenied) {
+			t.Fatalf("AdminRevokeServerRole err = %v, want ErrPermissionDenied", err)
+		}
+	})
+
+	t.Run("role assigner can assign and revoke roles", func(t *testing.T) {
+		c, _ := setupTestCore(t)
+		ctx := testContext(t)
+		admin, err := c.CreateUser(ctx, SystemActorID, "adminrole-admin", "Admin", "password123")
+		if err != nil {
+			t.Fatalf("CreateUser admin: %v", err)
+		}
+		if err := c.AssignAdminRole(ctx, admin.Id); err != nil {
+			t.Fatalf("AssignAdminRole: %v", err)
+		}
+		target, err := c.CreateUser(ctx, SystemActorID, "adminrole-target3", "Target", "password123")
+		if err != nil {
+			t.Fatalf("CreateUser target: %v", err)
+		}
+		if err := c.AdminAssignServerRole(ctx, admin.Id, target.Id, RoleModerator); err != nil {
+			t.Fatalf("AdminAssignServerRole: %v", err)
+		}
+		roles, err := c.GetUserRoles(ctx, target.Id)
+		if err != nil {
+			t.Fatalf("GetUserRoles after assign: %v", err)
+		}
+		if len(roles) != 1 || roles[0] != RoleModerator {
+			t.Fatalf("roles after assign = %v, want moderator", roles)
+		}
+		if err := c.AdminRevokeServerRole(ctx, admin.Id, target.Id, RoleModerator); err != nil {
+			t.Fatalf("AdminRevokeServerRole: %v", err)
+		}
+		roles, err = c.GetUserRoles(ctx, target.Id)
+		if err != nil {
+			t.Fatalf("GetUserRoles after revoke: %v", err)
+		}
+		if len(roles) != 0 {
+			t.Fatalf("roles after revoke = %v, want none", roles)
+		}
+	})
+
+	t.Run("cannot revoke own owner or admin role", func(t *testing.T) {
+		c, _ := setupTestCore(t)
+		ctx := testContext(t)
+		admin, err := c.CreateUser(ctx, SystemActorID, "adminrole-self", "Self", "password123")
+		if err != nil {
+			t.Fatalf("CreateUser admin: %v", err)
+		}
+		if err := c.AssignAdminRole(ctx, admin.Id); err != nil {
+			t.Fatalf("AssignAdminRole: %v", err)
+		}
+		if err := c.AssignOwnerRole(ctx, admin.Id); err != nil {
+			t.Fatalf("AssignOwnerRole: %v", err)
+		}
+		if err := c.AdminRevokeServerRole(ctx, admin.Id, admin.Id, RoleAdmin); !errors.Is(err, ErrCannotRevokeSelfAdmin) {
+			t.Fatalf("AdminRevokeServerRole admin err = %v, want ErrCannotRevokeSelfAdmin", err)
+		}
+		if err := c.AdminRevokeServerRole(ctx, admin.Id, admin.Id, RoleOwner); !errors.Is(err, ErrCannotRevokeSelfAdmin) {
+			t.Fatalf("AdminRevokeServerRole owner err = %v, want ErrCannotRevokeSelfAdmin", err)
+		}
+	})
+}
+
 func TestChattoCore_GetLastLoginChange(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)

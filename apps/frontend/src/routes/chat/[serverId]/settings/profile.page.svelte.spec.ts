@@ -4,15 +4,23 @@ import { flushSync } from 'svelte';
 import ProfilePage from './+page.svelte';
 import { q } from '$lib/test-utils';
 
+const avatarDataUrl =
+  'data:image/gif;base64,R0lGODlhAQABAAAAACwAAAAAAQABAAA=';
+
 const mocks = vi.hoisted(() => ({
   query: vi.fn(),
   mutation: vi.fn(),
+  updateProfile: vi.fn(),
+  uploadAvatar: vi.fn(),
+  deleteAvatar: vi.fn(),
   currentUser: {
     user: {
       id: 'user-1',
       login: 'alice',
       displayName: 'Alice',
-      avatarUrl: null
+      avatarUrl: null,
+      viewerCanDeleteAccount: true,
+      lastLoginChange: null
     },
     loading: false
   }
@@ -34,11 +42,21 @@ vi.mock('$lib/state/server/connection.svelte', () => ({
   useConnection: () => () => ({
     isConnected: true,
     showConnectionLostBanner: false,
+    connectBaseUrl: '/api/connect',
+    bearerToken: null,
     client: {
       query: mocks.query,
       mutation: mocks.mutation,
       subscription: vi.fn()
     }
+  })
+}));
+
+vi.mock('$lib/api/account', () => ({
+  createAccountAPI: () => ({
+    updateProfile: mocks.updateProfile,
+    uploadAvatar: mocks.uploadAvatar,
+    deleteAvatar: mocks.deleteAvatar
   })
 }));
 
@@ -60,28 +78,29 @@ describe('Profile settings page', () => {
       id: 'user-1',
       login: 'alice',
       displayName: 'Alice',
-      avatarUrl: null
+      avatarUrl: null,
+      viewerCanDeleteAccount: true,
+      lastLoginChange: null
     };
     mocks.query.mockReset();
-    mocks.query.mockReturnValue({
-      toPromise: vi.fn().mockResolvedValue({
-        data: { viewer: { user: { id: 'user-1', lastLoginChange: null } } },
-        error: null
-      })
-    });
     mocks.mutation.mockReset();
-    mocks.mutation.mockImplementation((_document, variables) => ({
-      toPromise: vi.fn().mockResolvedValue({
-        data: {
-          updateProfile: {
-            id: 'user-1',
-            displayName: variables.input.displayName ?? mocks.currentUser.user!.displayName,
-            login: variables.input.login ?? mocks.currentUser.user!.login
-          }
-        },
-        error: null
+    mocks.updateProfile.mockReset();
+    mocks.updateProfile.mockImplementation((input) =>
+      Promise.resolve({
+        id: 'user-1',
+        displayName: input.displayName ?? mocks.currentUser.user!.displayName,
+        login: input.login ?? mocks.currentUser.user!.login,
+        avatarUrl: mocks.currentUser.user!.avatarUrl
       })
-    }));
+    );
+    mocks.uploadAvatar.mockReset();
+    mocks.uploadAvatar.mockResolvedValue({
+      id: 'user-1',
+      displayName: 'Alice',
+      login: 'alice',
+      avatarUrl: avatarDataUrl
+    });
+    mocks.deleteAvatar.mockReset();
   });
 
   it('renders the current profile and keeps Save disabled until a field changes', async () => {
@@ -100,7 +119,7 @@ describe('Profile settings page', () => {
     await expect.element(saveButton).toBeDisabled();
   });
 
-  it('submits a valid display name through the profile mutation', async () => {
+  it('submits a valid display name through the account API', async () => {
     const { container } = render(ProfilePage);
     await settle();
 
@@ -115,12 +134,9 @@ describe('Profile settings page', () => {
     saveButton.click();
 
     await vi.waitFor(() => {
-      expect(mocks.mutation).toHaveBeenCalledWith(expect.anything(), {
-        input: {
-          userId: 'user-1',
-          displayName: 'Ada Lovelace',
-          login: null
-        }
+      expect(mocks.updateProfile).toHaveBeenCalledWith({
+        displayName: 'Ada Lovelace',
+        login: undefined
       });
     });
     await expect.element(q(container, 'form')).toHaveTextContent('Profile updated successfully');
@@ -140,6 +156,30 @@ describe('Profile settings page', () => {
     (q(container, 'button[type="submit"]') as HTMLButtonElement).click();
 
     await expect.element(q(container, 'form')).toHaveTextContent('consecutive spaces');
-    expect(mocks.mutation).not.toHaveBeenCalled();
+    expect(mocks.updateProfile).not.toHaveBeenCalled();
+  });
+
+  it('uploads an avatar through the account API', async () => {
+    const { container } = render(ProfilePage);
+    await settle();
+
+    const input = q(container, 'input[type="file"]') as HTMLInputElement;
+    const file = new File([new Uint8Array([137, 80, 78, 71])], 'avatar.png', {
+      type: 'image/png'
+    });
+    Object.defineProperty(input, 'files', {
+      configurable: true,
+      value: [file]
+    });
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+
+    await vi.waitFor(() => {
+      expect(mocks.uploadAvatar).toHaveBeenCalledWith(file);
+    });
+    expect(mocks.currentUser.user?.avatarUrl).toBe(avatarDataUrl);
+    await vi.waitFor(() => {
+      const img = container.querySelector('img') as HTMLImageElement | null;
+      expect(img?.src).toBe(avatarDataUrl);
+    });
   });
 });

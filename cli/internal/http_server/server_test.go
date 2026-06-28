@@ -231,7 +231,7 @@ func setupTestHTTPServerWithHook(t *testing.T, configure func(*HTTPServer)) (*ht
 		configure(s)
 	}
 
-	// Set up auth routes only (skip GraphQL and other routes for focused testing)
+	// Set up auth routes only for focused testing.
 	s.setupAuthRoutes()
 
 	// Create test server

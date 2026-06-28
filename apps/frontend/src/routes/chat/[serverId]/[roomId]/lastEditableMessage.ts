@@ -1,8 +1,9 @@
-import type { RoomEventViewFragment } from '$lib/gql/graphql';
+import type { RoomEventView } from '$lib/render/types';
+import { isMessagePostedEvent } from '$lib/render/eventKinds';
 import type { EditableMessage, RoomPermissions } from '$lib/state/room';
 
 type FindLastEditableMessageOptions = {
-  events: RoomEventViewFragment[];
+  events: RoomEventView[];
   currentUserId: string | null | undefined;
   roomPermissions: RoomPermissions;
   messageEditWindowSeconds: number;
@@ -24,7 +25,7 @@ export function findLastEditableMessage({
     const event = events[i];
     const message = event.event;
     if (event.actorId !== currentUserId) continue;
-    if (message?.__typename !== 'MessagePostedEvent') continue;
+    if (!isMessagePostedEvent(message)) continue;
     if (message.body == null) continue;
     if (nowMs - new Date(event.createdAt).getTime() >= editWindowMs) continue;
 

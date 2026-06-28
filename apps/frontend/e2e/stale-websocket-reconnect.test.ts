@@ -2,6 +2,7 @@ import { expect, type Page } from '@playwright/test';
 import { createAndLoginTestUser } from './fixtures/testUser';
 import { withServerUser } from './fixtures/serverUser';
 import { waitForRoomReady } from './fixtures/realtimeSync';
+import { postThreadReplyViaConnect } from './fixtures/connectHelpers';
 import { test } from './setup';
 import { TIMEOUTS } from './constants';
 
@@ -106,8 +107,8 @@ test.describe('WebSocket reconnect recovery', () => {
     await roomPage.postThreadReply(baselineReply);
     await roomPage.expectTextInThreadPane(baselineReply);
 
-    // Extract room ID and thread root event ID from the URL
-    // URL format: /chat/-/{spaceId}/{roomId}/{threadId}
+    // Extract room ID and thread root event ID from the URL.
+    // URL format: /chat/-/{roomId}/{threadId}
     const urlParts = page.url().split('/');
     const roomId = urlParts[urlParts.length - 2];
     const threadRootEventId = urlParts[urlParts.length - 1];
@@ -118,17 +119,9 @@ test.describe('WebSocket reconnect recovery', () => {
         await page.context().setOffline(true);
         await page.waitForTimeout(TIMEOUTS.NETWORK_OFFLINE);
 
-        // User 2 posts a thread reply via API while User 1 is disconnected
+        // User 2 posts a thread reply via Connect while User 1 is disconnected
         const missedReply = `missed-thread-reply-${Date.now()}`;
-        await page2.request.post('/api/graphql', {
-          headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-          data: {
-            query: `mutation($input: PostMessageInput!) { postMessage(input: $input) { id } }`,
-            variables: {
-              input: { roomId, body: missedReply, threadRootEventId: threadRootEventId }
-            }
-          }
-        });
+        await postThreadReplyViaConnect(page2, roomId, missedReply, threadRootEventId);
 
         // Verify User 1 doesn't see it yet (offline)
         await roomPage.expectTextNotInThreadPane(missedReply);

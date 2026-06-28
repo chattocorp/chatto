@@ -1,0 +1,99 @@
+syntax = "proto3";
+
+package chatto.api.v1;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/timestamp.proto";
+
+// Filter for owner/auditor event-log inspection.
+message AdminEventLogFilter {
+  // Event oneof payload type, such as MessagePostedEvent.
+  string event_type = 1;
+  // Actor user ID.
+  string actor_id = 2;
+  // Inclusive lower creation timestamp bound.
+  google.protobuf.Timestamp created_at_from = 3;
+  // Inclusive upper creation timestamp bound.
+  google.protobuf.Timestamp created_at_to = 4;
+}
+
+// Request to list durable EVT entries newest-first.
+message ListEventsRequest {
+  // Maximum entries to return. The server clamps this to its diagnostic limit.
+  int32 limit = 1 [(buf.validate.field).int32.gte = 0];
+  // Exclusive sequence cursor. Returned entries are older than this sequence.
+  optional string before = 2;
+  // Optional filter. Filtered scans inspect a bounded window per request.
+  AdminEventLogFilter filter = 3;
+}
+
+// Newest-first page of durable EVT entries.
+message ListEventsResponse {
+  // Event-log rows.
+  repeated AdminEventLogEntry entries = 1;
+  // Whether older rows may be fetched with end_cursor.
+  bool has_older = 2;
+  // Sequence cursor for loading older rows.
+  optional string end_cursor = 3;
+  // Total EVT message count reported by JetStream.
+  int64 total_count = 4;
+  // Number of stream sequences inspected while building this page.
+  int32 scanned_count = 5;
+  // Maximum number of stream sequences inspected for this page.
+  int32 scan_limit = 6;
+  // True when a filtered request reached scan_limit before finding a full page.
+  bool scan_limited = 7;
+}
+
+// Request to list filterable event types.
+message ListEventTypesRequest {}
+
+// Event types accepted by event-log filters.
+message ListEventTypesResponse {
+  // Sorted event type names.
+  repeated string event_types = 1;
+}
+
+// Request to read one durable EVT entry by stream sequence.
+message GetEventRequest {
+  // Required EVT stream sequence.
+  string sequence = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+// Result of reading one durable EVT entry.
+message GetEventResponse {
+  // Entry is absent when the requested sequence does not exist.
+  optional AdminEventLogEntry entry = 1;
+}
+
+// One durable EVT entry decoded for operator inspection.
+message AdminEventLogEntry {
+  // EVT stream sequence.
+  string sequence = 1;
+  // NATS subject.
+  string subject = 2;
+  // Aggregate type parsed from the subject.
+  string aggregate_type = 3;
+  // Aggregate ID parsed from the subject.
+  string aggregate_id = 4;
+  // Event oneof payload type, or decode-error when decoding failed.
+  string event_type = 5;
+  // Durable event ID.
+  string event_id = 6;
+  // Actor user ID stored on the event.
+  string actor_id = 7;
+  // Event creation timestamp.
+  google.protobuf.Timestamp created_at = 8;
+  // Pretty-printed JSON representation of the event payload.
+  string payload_json = 9;
+}
+
+// Provides server-admin audit/event-log diagnostics.
+service AdminEventLogService {
+  // Lists durable EVT entries newest-first.
+  rpc ListEvents(ListEventsRequest) returns (ListEventsResponse);
+  // Lists filterable event type names.
+  rpc ListEventTypes(ListEventTypesRequest) returns (ListEventTypesResponse);
+  // Reads one durable EVT entry by stream sequence.
+  rpc GetEvent(GetEventRequest) returns (GetEventResponse);
+}

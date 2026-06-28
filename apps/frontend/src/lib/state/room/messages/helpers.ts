@@ -1,11 +1,11 @@
-import { useFragment } from '$lib/gql';
+import { useRenderData } from '$lib/render/data';
 import {
-  RoomEventViewFragmentDoc,
-  type RoomEventViewFragment
-} from '$lib/gql/graphql';
-import type { FragmentType } from '$lib/gql/fragment-masking';
+  RoomEventViewDocument,
+  type RoomEventView
+} from '$lib/render/types';
+import type { RenderType } from '$lib/render/data';
 
-export type RawEvent = FragmentType<typeof RoomEventViewFragmentDoc>;
+export type RawEvent = RenderType<typeof RoomEventViewDocument>;
 
 export type EventConnectionPage = {
   events: readonly RawEvent[];
@@ -15,12 +15,12 @@ export type EventConnectionPage = {
   hasNewer: boolean;
 };
 
-export function unmask(raw: readonly RawEvent[]): RoomEventViewFragment[] {
+export function unmask(raw: readonly RawEvent[]): RoomEventView[] {
   return raw
-    .map((e) => useFragment(RoomEventViewFragmentDoc, e))
-    .filter((e): e is RoomEventViewFragment => e !== null);
+    .map((e) => useRenderData(RoomEventViewDocument, e))
+    .filter((e): e is RoomEventView => e !== null);
 }
 
-export function getActorId(actor: RoomEventViewFragment['actor']): string | undefined {
+export function getActorId(actor: RoomEventView['actor']): string | undefined {
   return actor ? (actor as { id?: string }).id : undefined;
 }

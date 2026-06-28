@@ -4,7 +4,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { extractMentions, findMemberByMention, isUserMentioned, type RoomMember } from './mentions';
-import type { PresenceStatus } from '$lib/gql/graphql';
+import type { PresenceStatus } from '$lib/render/types';
 
 // Helper to create test members
 function member(login: string, displayName?: string): RoomMember {

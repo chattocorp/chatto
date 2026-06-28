@@ -1,12 +1,18 @@
 import { Code, ConnectError } from '@connectrpc/connect';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { NotificationLevel } from '$lib/pb/chatto/api/v1/notification_preferences_pb';
-import { setRoomNotificationLevel } from './notificationPreferences';
+import {
+  getServerNotificationPreference,
+  setRoomNotificationLevel,
+  setServerNotificationLevel
+} from './notificationPreferences';
 
 const mocks = vi.hoisted(() => ({
   createClient: vi.fn(),
   createConnectTransport: vi.fn(),
   handleAuthenticationRequired: vi.fn(),
+  getServerNotificationPreference: vi.fn(),
+  setServerNotificationLevel: vi.fn(),
   setRoomNotificationLevel: vi.fn()
 }));
 
@@ -28,19 +34,68 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
   }
 }));
 
-describe('setRoomNotificationLevel', () => {
+describe('notificationPreferences API', () => {
   beforeEach(() => {
     mocks.createClient.mockReset();
     mocks.createConnectTransport.mockReset();
     mocks.handleAuthenticationRequired.mockReset();
+    mocks.getServerNotificationPreference.mockReset();
+    mocks.setServerNotificationLevel.mockReset();
     mocks.setRoomNotificationLevel.mockReset();
     mocks.createConnectTransport.mockReturnValue({ kind: 'transport' });
     mocks.createClient.mockReturnValue({
+      getServerNotificationPreference: mocks.getServerNotificationPreference,
+      setServerNotificationLevel: mocks.setServerNotificationLevel,
       setRoomNotificationLevel: mocks.setRoomNotificationLevel
     });
   });
 
-  it('sends binary ConnectRPC requests with bearer auth', async () => {
+  it('gets and sets server notification preferences with bearer auth', async () => {
+    mocks.getServerNotificationPreference.mockResolvedValue({
+      level: NotificationLevel.NORMAL,
+      effectiveLevel: NotificationLevel.NORMAL
+    });
+    mocks.setServerNotificationLevel.mockResolvedValue({
+      level: NotificationLevel.ALL_MESSAGES,
+      effectiveLevel: NotificationLevel.ALL_MESSAGES
+    });
+
+    const config = {
+      serverId: 'remote',
+      baseUrl: 'https://remote.example.test/api/connect',
+      bearerToken: 'remote-token'
+    };
+
+    await expect(getServerNotificationPreference(config)).resolves.toEqual({
+      level: NotificationLevel.NORMAL,
+      effectiveLevel: NotificationLevel.NORMAL
+    });
+    await expect(
+      setServerNotificationLevel(config, NotificationLevel.ALL_MESSAGES)
+    ).resolves.toEqual({
+      level: NotificationLevel.ALL_MESSAGES,
+      effectiveLevel: NotificationLevel.ALL_MESSAGES
+    });
+
+    expect(mocks.createConnectTransport).toHaveBeenCalledWith({
+      baseUrl: 'https://remote.example.test/api/connect',
+      useBinaryFormat: true
+    });
+    expect(mocks.getServerNotificationPreference).toHaveBeenCalledWith(
+      {},
+      {
+        headers: { Authorization: 'Bearer remote-token' }
+      }
+    );
+    expect(mocks.setServerNotificationLevel).toHaveBeenCalledWith(
+      { level: NotificationLevel.ALL_MESSAGES },
+      {
+        headers: { Authorization: 'Bearer remote-token' }
+      }
+    );
+  });
+
+  it('sets room notification levels with bearer auth', async () => {
     mocks.setRoomNotificationLevel.mockResolvedValue({
       level: NotificationLevel.MUTED,
       effectiveLevel: NotificationLevel.MUTED

@@ -21,11 +21,8 @@ Server and CLI Go Components:
 - Cobra CLI framework (https://github.com/spf13/cobra) - Apache License 2.0
 - CoreOS go-oidc (https://github.com/coreos/go-oidc) - Apache License 2.0
 - datasize (https://github.com/c2h5oh/datasize) - MIT License
-- dataloadgen (https://github.com/vikstrous/dataloadgen) - MIT License
 - Gin web framework (https://github.com/gin-gonic/gin) - MIT License
 - gin-contrib/sessions (https://github.com/gin-contrib/sessions) - MIT License
-- gqlgen GraphQL framework (https://github.com/99designs/gqlgen) - MIT License
-- gqlparser (https://github.com/vektah/gqlparser) - MIT License
 - go-jwt (https://github.com/golang-jwt/jwt) - MIT License
 - go-mail (https://github.com/wneessen/go-mail) - MIT License
 - go-nanoid (https://github.com/matoous/go-nanoid) - MIT License
@@ -61,8 +58,6 @@ Frontend and Documentation Components:
   (https://fontsource.org/fonts/ibm-plex-sans,
   https://fontsource.org/fonts/ibm-plex-mono) - SIL Open Font License 1.1
 - gemoji (https://github.com/github/gemoji) - MIT License
-- GraphQL and GraphQL Code Generator packages
-  (https://graphql.org/, https://the-guild.dev/graphql/codegen) - MIT License
 - heic2any (https://github.com/alexcorvi/heic2any) - MIT License
 - highlight.js (https://highlightjs.org/) - BSD 3-Clause License
 - Iconify packages (https://iconify.design/) - MIT License
@@ -86,8 +81,6 @@ Frontend and Documentation Components:
 - tlds (https://github.com/segmentio/tlds) - MIT License
 - TypeScript (https://www.typescriptlang.org/) - Apache License 2.0
 - TypeScript ESLint (https://typescript-eslint.io/) - MIT License
-- urql and Wonka (https://commerce.nearform.com/open-source/urql/) -
-  MIT License
 - Vidstack (https://www.vidstack.io/) - MIT License
 - Virtua (https://github.com/inokawa/virtua) - MIT License
 - Vite and Vitest (https://vite.dev/, https://vitest.dev/) - MIT License

@@ -3,6 +3,7 @@ import { test, expect } from './setup';
 import { createAndLoginTestUser } from './fixtures/testUser';
 import { withServerUser } from './fixtures/serverUser';
 import { startSecondServer, stopSecondServer, createUserOnRemote } from './fixtures/multiServer';
+import { connectPost } from './fixtures/connectHelpers';
 import type { ServerInfo } from './fixtures/server';
 import { DMPage } from './pages/DMPage';
 import * as routes from './routes';
@@ -11,6 +12,10 @@ import { TIMEOUTS } from './constants';
 interface FreshPageSession {
   context: BrowserContext;
   page: Page;
+}
+
+interface ViewerResponse {
+  user?: { id?: string };
 }
 
 async function withFreshPage<T>(
@@ -63,23 +68,14 @@ test.describe('Landing Page', () => {
       async ({ context, page: freshPage }) => {
         await context.addCookies([sessionCookie!]);
 
-        const rejectedResponse = await freshPage.request.post('/api/graphql', {
-          headers: { 'Content-Type': 'application/json' },
-          data: {
-            query: `query { viewer { user { id } } }`
-          }
-        });
+        const rejectedResponse = await freshPage.request.post('/auth/logout');
         expect(rejectedResponse.status()).toBe(403);
 
-        const acceptedResponse = await freshPage.request.post('/api/graphql', {
-          headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-          data: {
-            query: `query { viewer { user { id } } }`
-          }
-        });
-        expect(acceptedResponse.ok()).toBe(true);
-        const acceptedBody = await acceptedResponse.json();
-        expect(acceptedBody.data.viewer.user.id).toBeTruthy();
+        const viewer = await connectPost<ViewerResponse>(
+          freshPage,
+          'chatto.api.v1.ViewerService/GetViewer'
+        );
+        expect(viewer.user?.id).toBeTruthy();
 
         await freshPage.goto(routes.settings);
         await expect(freshPage.getByRole('heading', { name: 'Profile' })).toBeVisible();

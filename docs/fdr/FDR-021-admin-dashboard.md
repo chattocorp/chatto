@@ -14,15 +14,15 @@ The admin section gives owners and admins visibility into the server's operation
 - **Users page** — paginated list of all server members with login, email, roles, verification status. Admins can edit profiles, assign roles, suspend, or delete users when they hold the relevant permission.
 - **System Info page** — owner-only page showing backing message-broker connection status, storage account limits and current usage, stream/consumer health, projection health (lag, entry counts, and rough memory estimates), and `admin.systemInfo.stats` (user count, channel room count, DM room count).
 - **Audit log page** — chronological diagnostic event-log view for forensic review, grouped by event creation date. The list view uses `admin.eventLog`; the detail view uses `admin.eventLogEntry` to show the raw payload JSON for human inspection.
-- The audit log UI can be filtered by exact event type and exact actor ID. Event type suggestions come from `admin.eventLogEventTypes`; the actor field reuses the server member lookup but still accepts synthetic actor IDs such as `system:bootstrap`. The GraphQL filter also supports inclusive created-at bounds for API callers, but the server-admin page does not expose time-range controls.
-- The audit/event-log GraphQL connection returns `totalCount` as `Int64` because it reflects retained stream message counts, which can exceed GraphQL's 32-bit `Int` range on long-running servers.
+- The audit log UI can be filtered by exact event type and exact actor ID. Event type suggestions come from the admin event-log API; the actor field reuses the server member lookup but still accepts synthetic actor IDs such as `system:bootstrap`. The API also supports inclusive created-at bounds for callers, but the server-admin page does not expose time-range controls.
+- The audit/event-log API returns `totalCount` as a 64-bit value because it reflects retained stream message counts, which can exceed 32-bit integer range on long-running servers.
 - Filtered audit-log browsing is a bounded diagnostic scan over retained EVT rows, not an indexed analytics query. The connection reports `scannedCount`, `scanLimit`, and `scanLimited` so the UI can tell operators when older matches may exist beyond the inspected window.
 
 ## Design Decisions
 
 ### 1. Capability-based admin entry
 
-**Decision:** There is no separate `admin.access` permission. The admin UI is visible when the viewer has at least one concrete admin capability, while child routes and GraphQL fields enforce their own narrower gates such as `server.manage`, `admin.view-users`, `admin.view-audit`, `role.manage`, and owner-only diagnostics.
+**Decision:** There is no separate `admin.access` permission. The admin UI is visible when the viewer has at least one concrete admin capability, while child routes and API methods enforce their own narrower gates such as `server.manage`, `admin.view-users`, `admin.view-audit`, `role.manage`, and owner-only diagnostics.
 **Why:** Some operators want a "read-only admin" role that can investigate without making changes; some want users-but-not-system access for a customer-support persona. Tiered permissions let those roles be expressed without inventing parallel role systems.
 **Tradeoff:** There is no standalone "can see the admin dashboard" bit. The dashboard is a capability index, so the UI derives visibility from the concrete permissions the viewer holds.
 
@@ -46,7 +46,7 @@ The admin section gives owners and admins visibility into the server's operation
 
 ### 5. Diagnostic values are operator tooling, not product contracts
 
-**Decision:** Raw storage subjects, stream/consumer names, payload JSON, projection metric names, and memory estimates are documented as diagnostic values. The GraphQL fields are intentional operator APIs, but clients should not parse those raw values as stable product-domain data.
+**Decision:** Raw storage subjects, stream/consumer names, payload JSON, projection metric names, and memory estimates are documented as diagnostic values. The admin diagnostics APIs are intentional operator APIs, but clients should not parse those raw values as stable product-domain data.
 **Why:** Operators need visibility into what the runtime is doing, especially during the 0.1 stabilization lane. At the same time, these values reflect storage and projection implementation details that may evolve as the event-sourcing model settles.
 **Tradeoff:** Third-party admin clients can display diagnostics but should treat raw strings and JSON as best-effort inspection data. If a future integration needs a stable audit export format, it should get a dedicated schema instead of depending on diagnostic payloads.
 

@@ -2,7 +2,7 @@
 @component
 
 Test-only wrapper around `RoomDirectory`. Constructs a real
-`RoomDirectoryStore` with a stubbed urql client, seeds the rooms list, and
+`RoomDirectoryStore` with stubbed APIs, seeds the rooms list, and
 passes a duck-typed rooms-store stub as the prop — so component-level
 tests can exercise the rendered view without standing up the full
 chat-event tree or registering a server in the global registry.
@@ -30,22 +30,19 @@ chat-event tree or registering a server in the global registry.
     roomGroups?: RoomsListGroup[] | null;
   } = $props();
 
-  // urql client stub: query never resolves (we seed `allRooms` directly), so
-  // the in-flight load doesn't trample the test fixture.
-  const stubClient = {
-    query: () => ({ toPromise: () => new Promise(() => {}) }),
-    mutation: () => ({ toPromise: () => Promise.resolve({ data: null, error: null }) })
-  };
-
   const stubRoomAPI = {
     joinRoom: async () => null,
     leaveRoom: async () => true,
     joinGroup: async () => []
   };
+  const stubRoomDirectoryAPI = {
+    // The harness seeds `allRooms` directly, so this in-flight load should
+    // never replace the fixture data.
+    listRooms: () => new Promise<never>(() => {})
+  };
 
   const directory = new RoomDirectoryStore(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- test stub
-    stubClient as any,
+    stubRoomDirectoryAPI,
     stubRoomAPI
   );
   directory.allRooms = untrack(() => initialRooms);

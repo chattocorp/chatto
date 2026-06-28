@@ -6,7 +6,7 @@ import (
 )
 
 // EventEnvelope is the in-process envelope used by StreamMyEvents and the
-// GraphQL Event type. Concrete implementations are intentionally private so an
+// realtime API. Concrete implementations are intentionally private so an
 // envelope can only wrap one backing source: a durable EVT fact, a transient
 // LiveEvent, or a synthetic heartbeat.
 type EventEnvelope interface {

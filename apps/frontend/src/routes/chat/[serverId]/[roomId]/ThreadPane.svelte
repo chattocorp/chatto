@@ -7,6 +7,7 @@
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
+  import { isMessagePostedEvent } from '$lib/render/eventKinds';
   import * as m from '$lib/i18n/messages';
 
   const stores = serverRegistry.getStore(getActiveServer());
@@ -151,7 +152,7 @@
     if (!eventData) return;
 
     if (
-      eventData.__typename === 'MessagePostedEvent' &&
+      isMessagePostedEvent(eventData) &&
       eventData.roomId === roomId &&
       eventData.threadRootEventId === threadRootEventId
     ) {
@@ -193,7 +194,7 @@
         _followSeededForThread = threadId;
         if (_followSubFiredForThread !== threadId) {
           const rootEvent = threadEvents.find((e) => e.id === threadId);
-          if (rootEvent?.event?.__typename === 'MessagePostedEvent') {
+          if (isMessagePostedEvent(rootEvent?.event)) {
             isFollowingThread = rootEvent.event.viewerIsFollowingThread ?? false;
           }
         }

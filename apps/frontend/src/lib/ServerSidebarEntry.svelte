@@ -4,10 +4,12 @@
   import { resolve } from '$app/paths';
   import { serverIdToSegment } from '$lib/navigation';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
-  import { graphqlClientManager } from '$lib/state/server/graphqlClient.svelte';
+  import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
   import { createEventBusHandlerRegistrar } from '$lib/eventBus.svelte';
-  import { graphql } from './gql';
-  import { isUnsupportedGraphQLFieldError } from '$lib/gql/compatibility';
+  import { isMessagePostedEvent, RoomEventKind, roomEventKind } from '$lib/render/eventKinds';
+  import { getAuthenticatedServerState } from '$lib/api/serverState';
+  import { getViewerStateViaConnect } from '$lib/api/viewer';
+  import { createRoomDirectoryAPI, RoomDirectoryScope } from '$lib/api/roomDirectory';
   import { notificationTarget } from '$lib/state/server/notifications.svelte';
   import { appState } from '$lib/state/globals.svelte';
   import ServerIcon from './ServerIcon.svelte';
@@ -32,8 +34,20 @@
   const notificationLevelStore = stores.notificationLevels;
   // eslint-disable-next-line svelte/no-unused-svelte-ignore -- Svelte compiler warning, not ESLint
   // svelte-ignore state_referenced_locally - serverId is stable per component lifetime (keyed by server.id)
-  const gqlClient = graphqlClientManager.getClient(serverId);
+  const serverConnection = serverConnectionManager.getClient(serverId);
   const registeredServer = $derived(serverRegistry.getServer(serverId));
+
+  function connectAPIConfig() {
+    return {
+      serverId,
+      baseUrl: serverConnection.connectBaseUrl,
+      bearerToken: serverConnection.bearerToken
+    };
+  }
+
+  function roomDirectoryAPI() {
+    return createRoomDirectoryAPI(connectAPIConfig());
+  }
 
   // After the URL collapse (ADR-027), the active context is the deployment-wide
   // server named in the current URL segment.
@@ -50,7 +64,7 @@
       logoUrl: loaded ? logoUrl : (stores.serverInfo.iconUrl ?? registeredServer?.iconUrl)
     };
   });
-  const iconDimmed = $derived(!loaded || gqlClient.showConnectionLostIcon);
+  const iconDimmed = $derived(!loaded || serverConnection.showConnectionLostIcon);
   const iconTitle = $derived(
     iconDimmed ? `${iconServer.name} (connection unavailable)` : iconServer.name
   );
@@ -62,167 +76,50 @@
     return handleServerUnreadClick();
   }
 
-  // Get the GraphQL client for this server
-  function getClient() {
-    return gqlClient.client;
-  }
-
-  // Single combined query for server icon, unread status, notification prefs, and viewer permissions.
-  const ServerSidebarEntryInitQuery = graphql(`
-    query ServerSidebarEntryInit {
-      server {
-        profile {
-          name
-          logoUrl
-        }
-        viewerHasUnreadRooms
-        viewerNotificationPreference {
-          level
-          effectiveLevel
-        }
-        rooms(type: DM) {
-          id
-          hasUnread
-          viewerNotificationPreference {
-            level
-            effectiveLevel
-          }
-        }
-      }
-      viewer {
-        user {
-          roomNotificationPreferences {
-            roomId
-            level
-            effectiveLevel
-          }
-        }
-        canViewAdmin
-        canStartDMs
-        canAdminViewUsers
-        canAdminManageUsers
-        canAdminViewRoles
-        canAdminManageRoles
-        canAdminViewSystem
-        canAdminViewAudit
-      }
-    }
-  `);
-
-  const ServerSidebarEntryNotificationCountQuery = graphql(`
-    query ServerSidebarEntryNotificationCount {
-      server {
-        viewerNotifications(limit: 1) {
-          totalCount
-        }
-      }
-    }
-  `);
-
   async function loadAll() {
     try {
-      const client = getClient();
-
-      const [initResult] = await Promise.all([
-        client.query(ServerSidebarEntryInitQuery, {}).toPromise(),
+      const [serverState, viewer, dmRooms] = await Promise.all([
+        getAuthenticatedServerState(connectAPIConfig()),
+        getViewerStateViaConnect(connectAPIConfig()),
+        roomDirectoryAPI().listRooms(RoomDirectoryScope.DMS),
         notificationStore.fetch()
       ]);
 
-      if (initResult.error) {
-        console.error(`[server:${serverId}] failed to load sidebar icon data`, initResult.error);
-        return;
+      stores.setPermissions(viewer);
+      // Populate room-level notification preferences first.
+      for (const pref of viewer.roomNotificationPreferences) {
+        notificationLevelStore.setRoomPreference(pref.roomId, pref.level, pref.effectiveLevel);
       }
 
-      if (!initResult.data) return;
+      const pref = viewer.serverNotificationPreference;
+      notificationLevelStore.setServerPreference(pref.level, pref.effectiveLevel);
+      roomUnreadStore.clear();
+      roomUnreadStore.setServerHasUnread(serverState.viewerHasUnreadRooms);
 
-      const { server, viewer } = initResult.data;
-
-      if (viewer) {
-        stores.setPermissions(viewer);
-        // Populate room-level notification preferences first.
-        for (const pref of viewer.user.roomNotificationPreferences) {
-          notificationLevelStore.setRoomPreference(pref.roomId, pref.level, pref.effectiveLevel);
+      // Populate DM unread status. Channel and DM rooms now share the same
+      // per-room unread map.
+      for (const room of dmRooms) {
+        if (room.hasUnread) {
+          roomUnreadStore.setRoomUnread(room.id, true);
         }
       }
 
-      if (server) {
-        // Populate server-level notification preference and unread state.
-        const pref = server.viewerNotificationPreference;
-        if (pref) {
-          notificationLevelStore.setServerPreference(pref.level, pref.effectiveLevel);
-        }
-        roomUnreadStore.clear();
-        roomUnreadStore.setServerHasUnread(server.viewerHasUnreadRooms);
-        notificationStore.setUnreadNotificationCount(0);
-        void loadUnreadNotificationCount();
-
-        // Populate DM unread status and notification preferences. Channel
-        // and DM rooms now share the same per-room unread map.
-        for (const room of server.rooms) {
-          const roomPref = room.viewerNotificationPreference;
-          if (roomPref) {
-            notificationLevelStore.setRoomPreference(room.id, roomPref.level, roomPref.effectiveLevel);
-          }
-          if (room.hasUnread) {
-            roomUnreadStore.setRoomUnread(room.id, true);
-          }
-        }
-      }
-
-      if (server) {
-        displayName = server.profile.name;
-        logoUrl = server.profile.logoUrl ?? null;
-        loaded = true;
-      }
+      displayName = serverState.name;
+      logoUrl = serverState.logoUrl;
+      loaded = true;
     } catch (err) {
       console.error(`[server:${serverId}] failed to load sidebar icon data`, err);
     }
   }
 
-  async function loadUnreadNotificationCount() {
-    try {
-      const client = getClient();
-      const result = await client.query(ServerSidebarEntryNotificationCountQuery, {}).toPromise();
-
-      if (result.error) {
-        if (!isUnsupportedGraphQLFieldError(result.error, 'viewerNotifications')) {
-          console.warn(`[server:${serverId}] failed to load notification count`, result.error);
-        }
-        notificationStore.setUnreadNotificationCount(0);
-        return;
-      }
-
-      notificationStore.setUnreadNotificationCount(
-        result.data?.server?.viewerNotifications.totalCount ?? 0
-      );
-    } catch (err) {
-      console.warn(`[server:${serverId}] failed to load notification count`, err);
-      notificationStore.setUnreadNotificationCount(0);
-    }
-  }
-
   // Lightweight reload for server config changes (rename, logo, etc.).
   async function reloadServer() {
-    const client = getClient();
-    const result = await client
-      .query(
-        graphql(`
-          query ServerSidebarEntryIconRefresh {
-            server {
-              profile {
-                name
-                logoUrl
-              }
-            }
-          }
-        `),
-        {}
-      )
-      .toPromise();
-
-    if (result.data?.server) {
-      displayName = result.data.server.profile.name;
-      logoUrl = result.data.server.profile.logoUrl ?? null;
+    try {
+      const serverState = await getAuthenticatedServerState(connectAPIConfig());
+      displayName = serverState.name;
+      logoUrl = serverState.logoUrl;
+    } catch (err) {
+      console.warn(`[server:${serverId}] failed to refresh sidebar icon`, err);
     }
   }
 
@@ -248,13 +145,13 @@
         if (!event) return;
 
         // Reload the icon when server config (name/logo) changes.
-        if (event.__typename === 'ServerUpdatedEvent') {
+        if (roomEventKind(event) === RoomEventKind.ServerUpdated) {
           reloadServer();
         }
 
         // Root message in any room on this server → mark that room
         // unread (unless the viewer authored it or is currently in it).
-        if (event.__typename === 'MessagePostedEvent') {
+        if (isMessagePostedEvent(event)) {
           if (event.threadRootEventId) return; // root messages only
           const eventRoomId = event.roomId;
           const isFromSelf = actorId === currentUserId;
@@ -268,11 +165,7 @@
             page.params.roomId === eventRoomId &&
             appState.isPresent;
 
-          if (
-            !isFromSelf &&
-            !isViewingRoom &&
-            !notificationLevelStore.isRoomMuted(eventRoomId)
-          ) {
+          if (!isFromSelf && !isViewingRoom && !notificationLevelStore.isRoomMuted(eventRoomId)) {
             roomUnreadStore.setRoomUnread(eventRoomId, true);
           }
         }
@@ -328,34 +221,15 @@
     await goto(path);
   }
 
-  // Query to fetch rooms with unread status on demand (sentinel-only server flag).
-  const FirstUnreadRoomQuery = graphql(`
-    query FirstUnreadRoom {
-      server {
-        rooms(type: CHANNEL) {
-          id
-          hasUnread
-        }
-      }
-    }
-  `);
-
   // Handle click on icon unread dot. Channel and DM unreads both flow through
   // this server icon.
   async function handleServerUnreadClick() {
     let roomId = roomUnreadStore.getFirstUnreadRoomId();
 
     if (!roomId) {
-      const client = getClient();
-      const result = await client.query(FirstUnreadRoomQuery, {}).toPromise();
-
-      const rooms = result.data?.server?.rooms;
-      if (rooms) {
-        roomUnreadStore.initRooms(
-          rooms.map((r: { id: string; hasUnread: boolean }) => ({ id: r.id, hasUnread: r.hasUnread }))
-        );
-        roomId = rooms.find((r: { hasUnread: boolean }) => r.hasUnread)?.id ?? null;
-      }
+      const rooms = await roomDirectoryAPI().listRooms(RoomDirectoryScope.CHANNELS);
+      roomUnreadStore.initRooms(rooms);
+      roomId = rooms.find((r) => r.hasUnread)?.id ?? null;
     }
 
     if (roomId) {

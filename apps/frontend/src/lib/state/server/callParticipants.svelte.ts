@@ -5,28 +5,11 @@
  * to room members who haven't joined yet.
  *
  * Data sources:
- * - Initial load: `callParticipants` GraphQL query (from the call-state projection)
+ * - Initial load: Connect voice-call API (from the call-state projection)
  * - Real-time updates: Optimistic adds/removes from CallParticipantJoined/Left events
  */
 
-import { graphql, useFragment } from '$lib/gql';
-import type { GetCallParticipantsQuery, UserAvatarUserFragment } from '$lib/gql/graphql';
-import { UserAvatarUserFragmentDoc } from '$lib/gql/graphql';
-import type { Client } from '@urql/svelte';
-
-const CallParticipantsQuery = graphql(`
-	query GetCallParticipants($roomId: ID!) {
-		room(roomId: $roomId) {
-			callParticipants {
-				user {
-					...UserAvatarUser
-				}
-				joinedAt
-				callId
-			}
-		}
-	}
-`);
+import type { VoiceCallAPI } from '$lib/api/voiceCalls';
 
 /** Participant info stored in observer mode. */
 export type ObserverParticipant = {
@@ -37,11 +20,18 @@ export type ObserverParticipant = {
 };
 
 type QueryCallParticipant = NonNullable<
-  GetCallParticipantsQuery['room']
->['callParticipants'][number];
+  Awaited<ReturnType<VoiceCallAPI['listCallParticipants']>>
+>[number];
+
+type CallActor = {
+  id: string;
+  displayName: string;
+  login: string;
+  avatarUrl?: string | null;
+};
 
 export class CallParticipantsState {
-  #client: Client;
+  #api: VoiceCallAPI;
 
   /** Current participants visible to observers. */
   participants = $state<ObserverParticipant[]>([]);
@@ -51,8 +41,8 @@ export class CallParticipantsState {
   private currentCallId: string | null = null;
   private version = 0;
 
-  constructor(client: Client) {
-    this.#client = client;
+  constructor(api: VoiceCallAPI) {
+    this.#api = api;
   }
 
   /**
@@ -65,8 +55,7 @@ export class CallParticipantsState {
   }
 
   private async fetchParticipants(roomId: string): Promise<QueryCallParticipant[] | null> {
-    const result = await this.#client.query(CallParticipantsQuery, { roomId }).toPromise();
-    return result.data?.room?.callParticipants ?? null;
+    return await this.#api.listCallParticipants(roomId);
   }
 
   async load(roomId: string): Promise<void> {
@@ -86,11 +75,7 @@ export class CallParticipantsState {
    * Optimistically add a participant from a CallParticipantJoinedEvent.
    * Uses the actor data from the Event envelope.
    */
-  async handleJoin(
-    roomId: string,
-    callId: string,
-    actor: UserAvatarUserFragment | null
-  ): Promise<void> {
+  async handleJoin(roomId: string, callId: string, actor: CallActor | null): Promise<void> {
     if (roomId !== this.currentRoomId) return;
     if (this.currentCallId && this.currentCallId !== callId) return;
     if (!actor) {
@@ -152,11 +137,10 @@ export class CallParticipantsState {
 }
 
 function toObserverParticipant(p: QueryCallParticipant): ObserverParticipant {
-  const user = useFragment(UserAvatarUserFragmentDoc, p.user);
   return {
-    userId: user.id,
-    displayName: user.displayName,
-    login: user.login,
-    avatarUrl: user.avatarUrl ?? null
+    userId: p.user.id,
+    displayName: p.user.displayName,
+    login: p.user.login,
+    avatarUrl: p.user.avatarUrl ?? null
   };
 }

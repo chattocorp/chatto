@@ -1,9 +1,11 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import type { Client } from '@urql/svelte';
+import type { ComposerLinkPreview } from '$lib/api/linkPreviews';
 import { LinkPreviewState } from './linkPreviews.svelte';
 
-function clientWithQuery(query: ReturnType<typeof vi.fn>): Client {
-  return { query } as unknown as Client;
+type FetchLinkPreview = (url: string) => Promise<ComposerLinkPreview | null>;
+
+function apiWithFetch(fetchLinkPreview: FetchLinkPreview) {
+  return { fetchLinkPreview };
 }
 
 describe('LinkPreviewState', () => {
@@ -13,21 +15,21 @@ describe('LinkPreviewState', () => {
 
   it('does not fetch OpenGraph data for Chatto message links', async () => {
     vi.useFakeTimers();
-    const query = vi.fn();
-    const state = new LinkPreviewState(() => clientWithQuery(query));
+    const fetchLinkPreview = vi.fn<FetchLinkPreview>();
+    const state = new LinkPreviewState(() => apiWithFetch(fetchLinkPreview));
 
     const cleanup = state.scheduleDetection('See http://localhost/chat/-/room_456/m/evt_123', false);
     await vi.advanceTimersByTimeAsync(500);
     cleanup();
 
     expect(state.detectedURLs).toEqual(['http://localhost/chat/-/room_456/m/evt_123']);
-    expect(query).not.toHaveBeenCalled();
+    expect(fetchLinkPreview).not.toHaveBeenCalled();
   });
 
   it('does not fetch previews for ignored markdown URL regions or non-http URLs', async () => {
     vi.useFakeTimers();
-    const query = vi.fn();
-    const state = new LinkPreviewState(() => clientWithQuery(query));
+    const fetchLinkPreview = vi.fn<FetchLinkPreview>();
+    const state = new LinkPreviewState(() => apiWithFetch(fetchLinkPreview));
 
     for (const message of [
       '`https://example.com`',
@@ -44,32 +46,27 @@ describe('LinkPreviewState', () => {
       expect(state.detectedURLs).toEqual([]);
     }
 
-    expect(query).not.toHaveBeenCalled();
+    expect(fetchLinkPreview).not.toHaveBeenCalled();
   });
 
   it('fetches non-message links and converts the active preview into mutation input', async () => {
     vi.useFakeTimers();
     const url = 'https://example.com/story';
-    const query = vi.fn().mockResolvedValue({
-      data: {
-        linkPreview: {
-          url,
-          title: 'Preview title',
-          description: 'Preview description',
-          imageUrl: null,
-          siteName: 'Preview site',
-          embedType: null,
-          embedId: null,
-          imageAssetId: 'asset_preview'
-        }
-      },
-      error: null
+    const fetchLinkPreview = vi.fn<FetchLinkPreview>().mockResolvedValue({
+      url,
+      title: 'Preview title',
+      description: 'Preview description',
+      imageUrl: null,
+      siteName: 'Preview site',
+      embedType: null,
+      embedId: null,
+      imageAssetId: 'asset_preview'
     });
-    const state = new LinkPreviewState(() => clientWithQuery(query));
+    const state = new LinkPreviewState(() => apiWithFetch(fetchLinkPreview));
 
     const cleanup = state.scheduleDetection(`Look ${url}`, false);
     await vi.advanceTimersByTimeAsync(500);
-    await vi.waitFor(() => expect(query).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(fetchLinkPreview).toHaveBeenCalledOnce());
     cleanup();
 
     expect(state.buildInput()).toMatchObject({
@@ -82,7 +79,7 @@ describe('LinkPreviewState', () => {
   });
 
   it('dismisses active URLs and clears preview state', async () => {
-    const state = new LinkPreviewState(() => clientWithQuery(vi.fn()));
+    const state = new LinkPreviewState(() => apiWithFetch(vi.fn<FetchLinkPreview>()));
     state.detectedURLs = ['https://example.com'];
     state.previews.set('https://example.com', null);
     state.fetchingURLs.add('https://example.com');

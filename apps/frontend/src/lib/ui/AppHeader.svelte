@@ -2,7 +2,7 @@
   import { pushState } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
-  import { graphqlClientManager } from '$lib/state/server/graphqlClient.svelte';
+  import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { version } from '$app/environment';
   import { sidebarNav, quickSwitcher } from '$lib/state/globals.svelte';
@@ -74,11 +74,11 @@
 
     <!-- Connection lost indicator: only show when an authenticated server has lost connection.
          Skip the origin server if the user isn't authenticated (no WebSocket expected). -->
-    {#if originStore?.currentUser.user && graphqlClientManager.originClient.showConnectionLostIcon}
+    {#if originStore?.currentUser.user && serverConnectionManager.originClient.showConnectionLostIcon}
       <span
         class={[
           'iconify text-lg uil--wifi-slash',
-          graphqlClientManager.originClient.showConnectionLostBanner
+          serverConnectionManager.originClient.showConnectionLostBanner
             ? 'text-warning'
             : 'animate-pulse'
         ]}

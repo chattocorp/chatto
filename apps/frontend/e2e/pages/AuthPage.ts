@@ -514,8 +514,8 @@ export class AuthPage {
 
   /**
    * Create a user directly via the test-only HTTP endpoint.
-   * Useful for setting up test fixtures. The production GraphQL `createUser`
-   * mutation was removed for security (#175); the test endpoint is gated
+   * Useful for setting up test fixtures. The production create-user mutation
+   * was removed for security (#175); the test endpoint is gated
    * behind the `test_endpoints` build tag and never compiled into release
    * binaries.
    */

@@ -14,7 +14,6 @@ vi.mock('$app/paths', () => ({
 }));
 
 vi.mock('./loadAuth', () => ({
-  LoadCurrentUserDocument: {},
   clearCachedUser: clearCachedUserMock
 }));
 
@@ -29,7 +28,10 @@ vi.mock('./loadAuth', () => ({
 describe('CurrentUserState', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(new Response('{}', { status: 200 }))));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => Promise.resolve(new Response('{}', { status: 200 })))
+    );
     vi.stubGlobal('sessionStorage', {
       setItem: vi.fn(),
       getItem: vi.fn(),
@@ -52,19 +54,22 @@ describe('CurrentUserState', () => {
 
   it('does not revoke the server session by default for cookie auth failures', async () => {
     const { CurrentUserState } = await import('./currentUser.svelte');
-    const state = new CurrentUserState({} as never, true);
+    const state = new CurrentUserState(true);
 
     await state.handleAuthFailure();
 
     expect(fetch).not.toHaveBeenCalled();
     expect(clearCachedUserMock).toHaveBeenCalledOnce();
-    expect(sessionStorage.setItem).toHaveBeenCalledWith('returnUrl', '/chat/-/overview?tab=profile');
+    expect(sessionStorage.setItem).toHaveBeenCalledWith(
+      'returnUrl',
+      '/chat/-/overview?tab=profile'
+    );
     expect(gotoMock).toHaveBeenCalledWith('/', { invalidateAll: true });
   });
 
   it('revokes the server session when explicitly requested', async () => {
     const { CurrentUserState } = await import('./currentUser.svelte');
-    const state = new CurrentUserState({} as never, true);
+    const state = new CurrentUserState(true);
 
     await state.handleAuthFailure({ revokeServerSession: true });
 

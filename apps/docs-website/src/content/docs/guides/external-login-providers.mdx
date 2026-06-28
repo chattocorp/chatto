@@ -214,9 +214,8 @@ If a provider callback returns an identity that is not linked to a Chatto accoun
 
 ## Discovery fields
 
-Public clients can discover configured providers in two places:
+Public clients can discover configured providers through server discovery:
 
-- GraphQL `Server.authProviders` returns provider IDs, types, labels, and login URLs.
-- `GET /api/server` returns the same metadata in `authProviders`.
+- `GET /api/server` returns provider IDs, types, labels, and login URLs in `authProviders`.
 
 Older clients may still read `/api/server.authMethods`. That legacy field stays method-oriented, so OIDC appears as `oidc` even when the configured provider ID is something like `chatto-hub`.

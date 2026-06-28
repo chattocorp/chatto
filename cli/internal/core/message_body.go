@@ -106,9 +106,8 @@ func (c *ChattoCore) GetMessageBody(ctx context.Context, kind RoomKind, messageB
 	return body.Body, nil
 }
 
-// GetMessageAuthorID returns the author of a message by its compound
-// body key. Used by the GraphQL layer to check ownership before
-// edit / delete.
+// GetMessageAuthorID returns the author of a message by its compound body key.
+// Used by public operation models to check ownership before edit/delete.
 func (c *ChattoCore) GetMessageAuthorID(ctx context.Context, kind RoomKind, messageBodyID string) (string, error) {
 	eventID := eventIDFromBodyKey(messageBodyID)
 	if eventID == "" {

@@ -13,9 +13,9 @@ import (
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
+	"hmans.de/chatto/internal/authctx"
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/email"
-	graphauth "hmans.de/chatto/internal/graph/auth"
 )
 
 // Pre-compiled regexes for login validation
@@ -536,7 +536,7 @@ func (s *HTTPServer) setupAuthRoutes() {
 	// Authenticated email verification code request.
 	auth.POST("verify-email/request-code", func(c *gin.Context) {
 		req := s.injectUserIntoContext(c)
-		user := graphauth.ForContext(req.Context())
+		user := authctx.ForContext(req.Context())
 		if user == nil {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
 			return
@@ -587,7 +587,7 @@ func (s *HTTPServer) setupAuthRoutes() {
 	// Authenticated email verification code confirmation.
 	auth.POST("verify-email/confirm-code", func(c *gin.Context) {
 		req := s.injectUserIntoContext(c)
-		user := graphauth.ForContext(req.Context())
+		user := authctx.ForContext(req.Context())
 		if user == nil {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
 			return

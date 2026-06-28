@@ -1,8 +1,7 @@
 # Instructions for Agents Working in `apps/frontend/`
 
 Frontend work uses SvelteKit, Svelte 5 runes, Tailwind 4, Paraglide i18n,
-GraphQL, generated protobuf clients, Vitest browser tests, Playwright e2e, and
-Storybook.
+generated protobuf clients, Vitest browser tests, Playwright e2e, and Storybook.
 
 ## Svelte Tooling
 
@@ -20,8 +19,9 @@ Storybook.
   stores under `src/lib/state/server/`.
 - Component-local `$state` is fine for UI-only state such as open/closed, hover,
   focus, draft text, and drag position.
-- Colocate GraphQL fragments with the component that renders the fields; stores
-  compose those fragments in queries.
+- Component render DTOs live in `$lib/render/types`; keep them narrow and move
+  callers toward protobuf-native API DTOs as Connect services replace legacy
+  compatibility shapes.
 - The URL is the source of truth for the active server. Pass explicit `serverId`
   values through helpers rather than relying on a global current server.
 - Use Svelte `createContext` for context APIs, and prefer context over mutable
@@ -51,16 +51,18 @@ Storybook.
 - Modals use shallow routing via `pushState('', { modal: ... })`; close with
   history navigation.
 
-## GraphQL, ConnectRPC, And Generated Types
+## ConnectRPC And Generated Types
 
-- Use the app's GraphQL client surface from `$lib/state/server/graphqlClient.svelte.ts`;
-  do not use `getContextClient()` from `@urql/svelte`.
-- Generated GraphQL types live in `$lib/gql/graphql`; import the `graphql` tag
-  from `$lib/gql`.
+- Use the app's connection surface from
+  `$lib/state/server/serverConnection.svelte.ts` for Connect base URLs,
+  `/api/realtime` URLs, bearer tokens, auth-required handling, and
+  reconnect/status UI state.
+- `$lib/render/types` is a hand-owned temporary render DTO compatibility layer,
+  not generated API output. Do not add documents or generated calls for the
+  retired legacy API.
 - Query permissions/capability hints from the backend instead of duplicating
   authorization rules in UI code.
 - When Go permission/shared types change, run `mise codegen-types`.
-- When frontend GraphQL operations change, run `mise codegen-frontend`.
 - Public ConnectRPC/protobuf clients live under `$lib/pb`; keep generated files
   in sync with `mise codegen-proto`.
 
@@ -116,8 +118,8 @@ Storybook.
 ## Pagination, Lists, And Realtime UI
 
 - Use automatic "load more" pagination when a scroll/container edge is reached.
-- Use event-driven updates from the per-server event bus rather than assuming a
-  GraphQL cache.
+- Use event-driven updates from the per-server event bus and explicit projected
+  refetches rather than assuming a normalized client cache.
 - Guard subscription creation on authentication/server availability to avoid
   reconnect loops.
 - For virtualized lists (`virtua`), use real wheel interaction in e2e tests; raw
@@ -132,7 +134,7 @@ Storybook.
   DOM/CSS/localStorage/drag behavior, context, and `$effect` runtime behavior
   need browser/component tests.
 - E2E is for real backend/NATS/WebSocket/multi-user/cross-route behavior.
-- Use helpers from `$lib/test-utils` rather than re-rolling GraphQL/context
+- Use helpers from `$lib/test-utils` rather than re-rolling connection/context
   mocks.
 - Use `expect.element(...)` for DOM assertions and flush after Svelte state
   mutations when needed.

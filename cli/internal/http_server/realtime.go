@@ -13,8 +13,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 	"google.golang.org/protobuf/proto"
+	"hmans.de/chatto/internal/authctx"
 	"hmans.de/chatto/internal/core"
-	graphauth "hmans.de/chatto/internal/graph/auth"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
@@ -249,7 +249,7 @@ func (s *HTTPServer) realtimeAuthenticatedUser(ctx context.Context, hello *apiv1
 		}
 		return s.core.GetUser(ctx, userID)
 	}
-	if user := graphauth.ForContext(ctx); user != nil {
+	if user := authctx.ForContext(ctx); user != nil {
 		return user, nil
 	}
 	return nil, core.ErrNotAuthenticated

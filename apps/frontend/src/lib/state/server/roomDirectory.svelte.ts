@@ -1,7 +1,8 @@
 import { SvelteSet } from 'svelte/reactivity';
-import type { Client } from '@urql/svelte';
-import { graphql } from '$lib/gql';
+import type { RoomDirectoryAPI, DirectoryRoomSummary } from '$lib/api/roomDirectory';
+import { RoomDirectoryScope } from '$lib/api/roomDirectory';
 import type { RoomCommandAPI } from '$lib/api/rooms';
+import type { RoomEventKindSource } from '$lib/render/eventKinds';
 import { isRoomStateRefreshEvent } from './rooms.svelte';
 
 export type DirectoryRoom = {
@@ -13,27 +14,19 @@ export type DirectoryRoom = {
   viewerCanJoinRoom: boolean;
 };
 
-const RoomsForDirectoryQuery = graphql(`
-  query GetServerRoomDirectory {
-    server {
-      rooms(type: CHANNEL) {
-        id
-        name
-        description
-        archived
-        isUniversal
-        viewerCanJoinRoom
-      }
-    }
-  }
-`);
-
 export type JoinResult = { ok: true; room?: DirectoryRoom } | { ok: false; error: Error };
 export type LeaveResult = { ok: true; room?: DirectoryRoom } | { ok: false; error: Error };
 export type JoinGroupResult = { ok: true; joinedRoomIds: string[] } | { ok: false; error: Error };
 
-function isUniversalRoom(room: object): boolean {
-  return 'isUniversal' in room && room.isUniversal === true;
+function directoryRoom(room: DirectoryRoomSummary): DirectoryRoom {
+  return {
+    id: room.id,
+    name: room.name,
+    description: room.description,
+    archived: room.archived,
+    isUniversal: room.isUniversal,
+    viewerCanJoinRoom: room.canJoinRoom
+  };
 }
 
 /**
@@ -75,7 +68,7 @@ export class RoomDirectoryStore {
   private loadId = 0;
 
   constructor(
-    private readonly client: Client,
+    private readonly roomDirectoryAPI: Pick<RoomDirectoryAPI, 'listRooms'>,
     private readonly roomAPI: Pick<RoomCommandAPI, 'joinRoom' | 'leaveRoom' | 'joinGroup'>
   ) {}
 
@@ -85,20 +78,15 @@ export class RoomDirectoryStore {
 
   async refresh(): Promise<void> {
     const thisLoad = ++this.loadId;
-    const result = await this.client.query(RoomsForDirectoryQuery, {}).toPromise();
+    const rooms = await this.roomDirectoryAPI.listRooms(RoomDirectoryScope.CHANNELS);
     if (this.loadId !== thisLoad) return;
 
-    if (result.data?.server) {
-      this.allRooms = result.data.server.rooms.map((room) => ({
-        ...room,
-        isUniversal: isUniversalRoom(room)
-      }));
-      // A successful refresh confirms what was optimistically applied; clear
-      // the just-* sets so isJoined() falls back on the authoritative joined
-      // membership reported by RoomsStore.
-      this.justJoinedIds.clear();
-      this.justLeftIds.clear();
-    }
+    this.allRooms = rooms.map(directoryRoom);
+    // A successful refresh confirms what was optimistically applied; clear
+    // the just-* sets so isJoined() falls back on the authoritative joined
+    // membership reported by RoomsStore.
+    this.justJoinedIds.clear();
+    this.justLeftIds.clear();
     this.isLoading = false;
   }
 
@@ -181,13 +169,12 @@ export class RoomDirectoryStore {
    * {@link RoomsStore.ingestServerEvent}.
    *
    * Accepts a discriminated-union envelope so the test harness can pass a
-   * minimal stub without needing to materialise a full RoomEventViewFragment
-   * (the only field we touch is `event.__typename`).
+   * minimal stub without needing to materialise a full RoomEventView.
    */
-  ingestServerEvent(serverEvent: { event?: { __typename?: string } | null }): void {
+  ingestServerEvent(serverEvent: { event?: RoomEventKindSource }): void {
     const event = serverEvent.event;
     if (!event) return;
-    if (isRoomStateRefreshEvent(event.__typename)) {
+    if (isRoomStateRefreshEvent(event)) {
       void this.refresh();
     }
   }

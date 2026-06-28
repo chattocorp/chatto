@@ -25,6 +25,69 @@ type RoomAttachmentsResult struct {
 	HasMore    bool
 }
 
+// ListRoomAttachmentsInput is the authorized room attachment list request.
+type ListRoomAttachmentsInput struct {
+	ActorID string
+	RoomID  string
+	Limit   int
+	Offset  int
+}
+
+// MessageAttachmentsInput is the authorized current-message attachment request.
+type MessageAttachmentsInput struct {
+	ActorID string
+	RoomID  string
+	EventID string
+}
+
+// ListRoomAttachments returns current message-owned attachments for a room the
+// actor belongs to.
+func (c *ChattoCore) ListRoomAttachments(ctx context.Context, input ListRoomAttachmentsInput) (*RoomAttachmentsResult, error) {
+	_, kind, err := c.requireRoomMember(ctx, input.ActorID, input.RoomID)
+	if err != nil {
+		return nil, err
+	}
+	return c.GetRoomAttachments(ctx, kind, input.RoomID, input.Limit, input.Offset)
+}
+
+// MessageAttachments returns the current attachments for one visible message in
+// a room the actor belongs to. Retracted, hidden, wrong-room, and non-message
+// event IDs return ErrMessageNotFound so callers do not learn more than the
+// timeline read path would reveal.
+func (c *ChattoCore) MessageAttachments(ctx context.Context, input MessageAttachmentsInput) ([]*corev1.Attachment, error) {
+	_, kind, err := c.requireRoomMember(ctx, input.ActorID, input.RoomID)
+	if err != nil {
+		return nil, err
+	}
+	event, err := c.GetRoomEventByEventID(ctx, kind, input.RoomID, input.EventID)
+	if err != nil {
+		return nil, err
+	}
+	if event == nil || event.GetMessagePosted() == nil {
+		return nil, ErrMessageNotFound
+	}
+	body, err := c.GetFullMessageBodyByEventID(ctx, input.EventID)
+	if err != nil {
+		return nil, err
+	}
+	if body == nil {
+		return nil, ErrMessageNotFound
+	}
+	out := make([]*corev1.Attachment, 0, len(body.Attachments))
+	for _, attachment := range body.Attachments {
+		if attachment == nil {
+			continue
+		}
+		cloned := proto.Clone(attachment).(*corev1.Attachment)
+		cloned.RoomId = input.RoomID
+		if cloned.MessageBodyId == "" {
+			cloned.MessageBodyId = input.EventID
+		}
+		out = append(out, cloned)
+	}
+	return out, nil
+}
+
 // GetRoomAttachments returns current message-owned attachments in newest
 // message order. It includes root messages and thread replies, reads the room
 // timeline projection's current attachment-message index, and preserves

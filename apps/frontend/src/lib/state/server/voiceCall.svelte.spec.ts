@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { VoiceCallAPI } from '$lib/api/voiceCalls';
 
 const { soundMocks } = vi.hoisted(() => ({
   soundMocks: {
@@ -149,24 +150,18 @@ vi.mock('livekit-client/e2ee-worker?worker', () => ({
   }
 }));
 
-function createVoiceCallClient() {
+function createVoiceCallClient(overrides: Partial<VoiceCallAPI> = {}): VoiceCallAPI {
   return {
-    mutation: vi.fn(() => ({
-      toPromise: vi.fn(async () => ({ data: { joinVoiceCall: true } }))
+    listActiveCallRoomIds: vi.fn(async () => []),
+    listCallParticipants: vi.fn(async () => []),
+    joinCall: vi.fn(async () => true),
+    getCallToken: vi.fn(async () => ({
+      token: 'livekit-token',
+      e2eeKey: 'shared-e2ee-key',
+      callId: 'call-1'
     })),
-    query: vi.fn(() => ({
-      toPromise: vi.fn(async () => ({
-        data: {
-          room: {
-            voiceCallToken: {
-              token: 'livekit-token',
-              e2eeKey: 'shared-e2ee-key',
-              callId: 'call-1'
-            }
-          }
-        }
-      }))
-    }))
+    leaveCall: vi.fn(async () => true),
+    ...overrides
   };
 }
 
@@ -209,29 +204,12 @@ describe('VoiceCallState', () => {
   });
 
   it('sets up LiveKit E2EE before connecting', async () => {
-    const client = {
-      mutation: vi.fn(() => ({
-        toPromise: vi.fn(async () => ({ data: { joinVoiceCall: true } }))
-      })),
-      query: vi.fn(() => ({
-        toPromise: vi.fn(async () => ({
-          data: {
-            room: {
-              voiceCallToken: {
-                token: 'livekit-token',
-                e2eeKey: 'shared-e2ee-key',
-                callId: 'call-1'
-              }
-            }
-          }
-        }))
-      }))
-    };
+    const client = createVoiceCallClient();
 
-    const state = new VoiceCallState(client as never);
+    const state = new VoiceCallState(client);
     await state.join('wss://livekit.example.test', 'R1');
 
-    expect(client.mutation).toHaveBeenCalled();
+    expect(client.joinCall).toHaveBeenCalledWith('R1');
     expect(lastKeyProvider?.setKey).toHaveBeenCalledWith('shared-e2ee-key');
     expect(lastRoomOptions?.encryption).toMatchObject({
       keyProvider: lastKeyProvider
@@ -244,7 +222,7 @@ describe('VoiceCallState', () => {
 
   it('does not play a join sound without the participant join event', async () => {
     const client = createVoiceCallClient();
-    const state = new VoiceCallState(client as never);
+    const state = new VoiceCallState(client);
 
     await state.join('wss://livekit.example.test', 'R1');
 
@@ -254,7 +232,7 @@ describe('VoiceCallState', () => {
   it('plays a deferred current-user join event after connecting successfully', async () => {
     connectGate = deferredVoid();
     const client = createVoiceCallClient();
-    const state = new VoiceCallState(client as never);
+    const state = new VoiceCallState(client);
 
     const join = state.join('wss://livekit.example.test', 'R1');
     await flushPromises();
@@ -273,21 +251,16 @@ describe('VoiceCallState', () => {
     vi.stubGlobal('RTCRtpScriptTransform', undefined);
     vi.stubGlobal('RTCRtpSender', class MockRTCRtpSender {});
 
-    const client = {
-      mutation: vi.fn(() => ({
-        toPromise: vi.fn(async () => ({ data: { joinVoiceCall: true } }))
-      })),
-      query: vi.fn()
-    };
+    const client = createVoiceCallClient();
 
-    const state = new VoiceCallState(client as never);
+    const state = new VoiceCallState(client);
 
     await expect(state.join('wss://livekit.example.test', 'R1')).rejects.toThrow(
       VoiceCallJoinError
     );
 
-    expect(client.mutation).not.toHaveBeenCalled();
-    expect(client.query).not.toHaveBeenCalled();
+    expect(client.joinCall).not.toHaveBeenCalled();
+    expect(client.getCallToken).not.toHaveBeenCalled();
     expect(state.isInAnyCall).toBe(false);
     expect(soundMocks.playCallSound).not.toHaveBeenCalled();
   });
@@ -301,63 +274,30 @@ describe('VoiceCallState', () => {
   });
 
   it('coalesces duplicate joins for the same room while connecting', async () => {
-    const client = {
-      mutation: vi.fn(() => ({
-        toPromise: vi.fn(async () => ({ data: { joinVoiceCall: true } }))
-      })),
-      query: vi.fn(() => ({
-        toPromise: vi.fn(async () => ({
-          data: {
-            room: {
-              voiceCallToken: {
-                token: 'livekit-token',
-                e2eeKey: 'shared-e2ee-key',
-                callId: 'call-1'
-              }
-            }
-          }
-        }))
-      }))
-    };
+    const client = createVoiceCallClient();
 
-    const state = new VoiceCallState(client as never);
+    const state = new VoiceCallState(client);
     await Promise.all([
       state.join('wss://livekit.example.test', 'R1'),
       state.join('wss://livekit.example.test', 'R1')
     ]);
 
-    expect(client.mutation).toHaveBeenCalledTimes(1);
-    expect(client.query).toHaveBeenCalledTimes(1);
+    expect(client.joinCall).toHaveBeenCalledTimes(1);
+    expect(client.getCallToken).toHaveBeenCalledTimes(1);
     expect(calls.filter((call) => call === 'connect')).toHaveLength(1);
   });
 
   it('coalesces duplicate leave actions while the leave intent is in flight', async () => {
-    const client = {
-      mutation: vi.fn(() => ({
-        toPromise: vi.fn(async () => ({ data: { joinVoiceCall: true } }))
-      })),
-      query: vi.fn(() => ({
-        toPromise: vi.fn(async () => ({
-          data: {
-            room: {
-              voiceCallToken: {
-                token: 'livekit-token',
-                e2eeKey: 'shared-e2ee-key',
-                callId: 'call-1'
-              }
-            }
-          }
-        }))
-      }))
-    };
+    const client = createVoiceCallClient();
 
-    const state = new VoiceCallState(client as never);
+    const state = new VoiceCallState(client);
     await state.join('wss://livekit.example.test', 'R1');
     soundMocks.playCallSound.mockClear();
 
     await Promise.all([state.leave(), state.leave()]);
 
-    expect(client.mutation).toHaveBeenCalledTimes(2);
+    expect(client.joinCall).toHaveBeenCalledTimes(1);
+    expect(client.leaveCall).toHaveBeenCalledTimes(1);
     expect(lastRoom?.disconnect).toHaveBeenCalledOnce();
     expect(state.isInAnyCall).toBe(false);
     expect(soundMocks.playCallSound).not.toHaveBeenCalled();
@@ -365,58 +305,22 @@ describe('VoiceCallState', () => {
 
   it('records a compensating leave when LiveKit connect fails after join intent', async () => {
     connectFailure = new Error('connect failed');
-    const client = {
-      mutation: vi.fn(() => ({
-        toPromise: vi.fn(async () => ({ data: { joinVoiceCall: true } }))
-      })),
-      query: vi.fn(() => ({
-        toPromise: vi.fn(async () => ({
-          data: {
-            room: {
-              voiceCallToken: {
-                token: 'livekit-token',
-                e2eeKey: 'shared-e2ee-key',
-                callId: 'call-1'
-              }
-            }
-          }
-        }))
-      }))
-    };
+    const client = createVoiceCallClient();
 
-    const state = new VoiceCallState(client as never);
+    const state = new VoiceCallState(client);
 
-    await expect(state.join('wss://livekit.example.test', 'R1')).rejects.toThrow(
-      'connect failed'
-    );
+    await expect(state.join('wss://livekit.example.test', 'R1')).rejects.toThrow('connect failed');
 
-    expect(client.mutation).toHaveBeenCalledTimes(2);
-    expect(client.mutation).toHaveBeenNthCalledWith(2, expect.anything(), { roomId: 'R1' });
+    expect(client.joinCall).toHaveBeenCalledTimes(1);
+    expect(client.leaveCall).toHaveBeenCalledWith('R1');
     expect(state.isInAnyCall).toBe(false);
     expect(soundMocks.playCallSound).not.toHaveBeenCalled();
   });
 
   it('disconnects without recording leave when the backend ends the current call', async () => {
-    const client = {
-      mutation: vi.fn(() => ({
-        toPromise: vi.fn(async () => ({ data: { joinVoiceCall: true } }))
-      })),
-      query: vi.fn(() => ({
-        toPromise: vi.fn(async () => ({
-          data: {
-            room: {
-              voiceCallToken: {
-                token: 'livekit-token',
-                e2eeKey: 'shared-e2ee-key',
-                callId: 'call-1'
-              }
-            }
-          }
-        }))
-      }))
-    };
+    const client = createVoiceCallClient();
 
-    const state = new VoiceCallState(client as never);
+    const state = new VoiceCallState(client);
     await state.join('wss://livekit.example.test', 'R1');
     soundMocks.playCallSound.mockClear();
 
@@ -428,32 +332,16 @@ describe('VoiceCallState', () => {
     state.handleCallEndedEvent('R1', 'call-1');
 
     expect(lastRoom?.disconnect).toHaveBeenCalledOnce();
-    expect(client.mutation).toHaveBeenCalledTimes(1);
+    expect(client.joinCall).toHaveBeenCalledTimes(1);
+    expect(client.leaveCall).not.toHaveBeenCalled();
     expect(state.isInAnyCall).toBe(false);
     expect(soundMocks.playCallSound).not.toHaveBeenCalled();
   });
 
   it('disconnects only for the current user participant leave event', async () => {
-    const client = {
-      mutation: vi.fn(() => ({
-        toPromise: vi.fn(async () => ({ data: { joinVoiceCall: true } }))
-      })),
-      query: vi.fn(() => ({
-        toPromise: vi.fn(async () => ({
-          data: {
-            room: {
-              voiceCallToken: {
-                token: 'livekit-token',
-                e2eeKey: 'shared-e2ee-key',
-                callId: 'call-1'
-              }
-            }
-          }
-        }))
-      }))
-    };
+    const client = createVoiceCallClient();
 
-    const state = new VoiceCallState(client as never);
+    const state = new VoiceCallState(client);
     await state.join('wss://livekit.example.test', 'R1');
     soundMocks.playCallSound.mockClear();
 
@@ -469,7 +357,8 @@ describe('VoiceCallState', () => {
 
     state.handleParticipantLeftEvent('R1', 'call-1', 'local-user', 'local-user');
     expect(lastRoom?.disconnect).toHaveBeenCalledOnce();
-    expect(client.mutation).toHaveBeenCalledTimes(1);
+    expect(client.joinCall).toHaveBeenCalledTimes(1);
+    expect(client.leaveCall).not.toHaveBeenCalled();
     expect(state.isInAnyCall).toBe(false);
     expect(soundMocks.playCallSound).not.toHaveBeenCalled();
     expect(state.callTransitionSoundDecision('leave', 'R1', 'call-1', true)).toBe('play');
@@ -477,7 +366,7 @@ describe('VoiceCallState', () => {
 
   it('matches only the currently connected call', async () => {
     const client = createVoiceCallClient();
-    const state = new VoiceCallState(client as never);
+    const state = new VoiceCallState(client);
     await state.join('wss://livekit.example.test', 'R1');
 
     expect(state.matchesActiveCall('R1', 'call-1')).toBe(true);
@@ -488,7 +377,7 @@ describe('VoiceCallState', () => {
 
   it('toggles video-only screen sharing through LiveKit', async () => {
     const client = createVoiceCallClient();
-    const state = new VoiceCallState(client as never);
+    const state = new VoiceCallState(client);
     await state.join('wss://livekit.example.test', 'R1');
 
     await state.toggleScreenShare();
@@ -512,7 +401,7 @@ describe('VoiceCallState', () => {
 
   it('keeps the call connected when screen capture fails', async () => {
     const client = createVoiceCallClient();
-    const state = new VoiceCallState(client as never);
+    const state = new VoiceCallState(client);
     await state.join('wss://livekit.example.test', 'R1');
     screenShareFailure = new Error('permission denied');
 
@@ -526,7 +415,7 @@ describe('VoiceCallState', () => {
 
   it('keeps camera and screen-share tracks separate', async () => {
     const client = createVoiceCallClient();
-    const state = new VoiceCallState(client as never);
+    const state = new VoiceCallState(client);
     await state.join('wss://livekit.example.test', 'R1');
 
     await state.toggleCamera();
@@ -547,7 +436,7 @@ describe('VoiceCallState', () => {
 
   it('clears screen-share state on leave', async () => {
     const client = createVoiceCallClient();
-    const state = new VoiceCallState(client as never);
+    const state = new VoiceCallState(client);
     await state.join('wss://livekit.example.test', 'R1');
     await state.toggleScreenShare();
 
@@ -559,7 +448,7 @@ describe('VoiceCallState', () => {
 
   it('updates screen-share state when LiveKit reports local unpublish', async () => {
     const client = createVoiceCallClient();
-    const state = new VoiceCallState(client as never);
+    const state = new VoiceCallState(client);
     await state.join('wss://livekit.example.test', 'R1');
     await state.toggleScreenShare();
     expect(state.isScreenShareEnabled).toBe(true);

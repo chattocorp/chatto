@@ -50,8 +50,8 @@ Runtime units are classified by behavior:
   writes.
 - **Worker:** performs background work and may append durable facts through the
   owning service or `events.Publisher`, such as future media processing.
-- **Main app:** the GraphQL/web/live-delivery process that owns `ChattoCore`
-  boot and compatibility facades.
+- **Main app:** the ConnectRPC/web/realtime-delivery process that owns
+  `ChattoCore` boot and HTTP compatibility facades.
 
 Durable domain facts still go through `EVT`, and any unit that writes them must
 use the same multi-replica-safe OCC and service-boundary rules as the main

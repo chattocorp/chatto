@@ -17,6 +17,7 @@ import {
   type ServerUserOptions,
   type ServerUserSession
 } from './fixtures/serverUser';
+import { connectPost } from './fixtures/connectHelpers';
 
 type RegularAdminSession = ServerUserSession & { adminPage: AdminPage };
 
@@ -35,36 +36,101 @@ async function withRegularAdminPage<T>(
 }
 
 async function createRoleViaAPI(page: Page, name: string, displayName: string): Promise<void> {
-  const resp = await page.request.post('/api/graphql', {
-    headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-    data: {
-      query: `mutation($input: CreateRoleInput!) { createRole(input: $input) { name } }`,
-      variables: { input: { name, displayName, description: `Test role: ${displayName}` } }
-    }
-  });
-  expect(resp.ok()).toBeTruthy();
+  const role = await createRoleViaConnect(page, name, displayName, `Test role: ${displayName}`);
+  expect(role.name).toBe(name);
 }
 
 async function assignRoleViaAPI(page: Page, userId: string, roleName: string): Promise<void> {
-  const resp = await page.request.post('/api/graphql', {
-    headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-    data: {
-      query: `mutation($input: AssignRoleInput!) { assignRole(input: $input) }`,
-      variables: { input: { userId, roleName } }
-    }
-  });
-  expect(resp.ok()).toBeTruthy();
+  const data = await connectPost<{ assigned?: boolean }>(
+    page,
+    'chatto.api.v1.AdminUserManagementService/AssignRole',
+    { userId, roleName }
+  );
+  expect(data.assigned).toBe(true);
 }
 
 async function revokeRoleViaAPI(page: Page, userId: string, roleName: string): Promise<void> {
-  const resp = await page.request.post('/api/graphql', {
-    headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-    data: {
-      query: `mutation($input: RevokeRoleInput!) { revokeRole(input: $input) }`,
-      variables: { input: { userId, roleName } }
+  const data = await connectPost<{ revoked?: boolean }>(
+    page,
+    'chatto.api.v1.AdminUserManagementService/RevokeRole',
+    { userId, roleName }
+  );
+  expect(data.revoked).toBe(true);
+}
+
+async function createRoleViaConnect(
+  page: Page,
+  name: string,
+  displayName: string,
+  description: string
+): Promise<{ name?: string; permissionDenials?: string[] }> {
+  const data = await connectPost<{ role?: { name?: string; permissionDenials?: string[] } }>(
+    page,
+    'chatto.api.v1.RoleService/CreateRole',
+    { name, displayName, description }
+  );
+  if (!data.role?.name) {
+    throw new Error(`CreateRole did not return a role: ${JSON.stringify(data)}`);
+  }
+  return data.role;
+}
+
+async function deleteRoleViaConnect(page: Page, name: string): Promise<void> {
+  const data = await connectPost<{ deleted?: boolean }>(
+    page,
+    'chatto.api.v1.RoleService/DeleteRole',
+    { name }
+  );
+  expect(data.deleted).toBe(true);
+}
+
+async function getRoleViaConnect(
+  page: Page,
+  name: string
+): Promise<{ name?: string; permissionDenials?: string[] }> {
+  const data = await connectPost<{ role?: { name?: string; permissionDenials?: string[] } }>(
+    page,
+    'chatto.api.v1.RoleService/GetRole',
+    { name }
+  );
+  if (!data.role?.name) {
+    throw new Error(`Role ${name} not found: ${JSON.stringify(data)}`);
+  }
+  return data.role;
+}
+
+async function setRolePermissionViaConnect(
+  page: Page,
+  roleName: string,
+  permission: string,
+  decision: 'PERMISSION_DECISION_DENY' | 'PERMISSION_DECISION_NONE'
+): Promise<void> {
+  const data = await connectPost<{ ok?: boolean }>(
+    page,
+    'chatto.api.v1.PermissionService/SetRolePermission',
+    {
+      roleName,
+      permission,
+      decision,
+      scope: { kind: 'PERMISSION_SCOPE_KIND_SERVER' }
     }
-  });
-  expect(resp.ok()).toBeTruthy();
+  );
+  expect(data.ok).toBe(true);
+}
+
+async function updateOwnProfileViaConnect(
+  page: Page,
+  input: { login?: string; displayName?: string }
+): Promise<{ login?: string; displayName?: string }> {
+  const data = await connectPost<{ user?: { login?: string; displayName?: string } }>(
+    page,
+    'chatto.api.v1.AccountService/UpdateProfile',
+    input
+  );
+  if (!data.user) {
+    throw new Error(`UpdateProfile did not return a user: ${JSON.stringify(data)}`);
+  }
+  return data.user;
 }
 
 /**
@@ -250,12 +316,7 @@ test.describe('Admin Granular Permissions', () => {
 
     for (const permission of permissions) {
       try {
-        await page.request.post('/api/graphql', {
-          headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-          data: {
-            query: `mutation { revokePermission(input: {roleName: "everyone", permission: "${permission}"}) }`
-          }
-        });
+        await setRolePermissionViaConnect(page, 'everyone', permission, 'PERMISSION_DECISION_NONE');
       } catch {
         // Ignore errors - permission may not have been granted
       }
@@ -385,7 +446,9 @@ test.describe('Admin Granular Permissions', () => {
     await withRegularAdminPage(browser, serverURL, async ({ adminPage: regularAdminPage }) => {
       await regularAdminPage.gotoSystem();
 
-      await regularAdminPage.expectAccessDeniedForPermission('owner');
+      await regularAdminPage.expectAccessDeniedForPermission('admin.view-system');
+      await regularAdminPage.expectSidebarLinkNotVisible('System');
+      await expect(regularAdminPage.page.getByText('Connected to Server')).toHaveCount(0);
     });
 
     // Clean up
@@ -693,78 +756,23 @@ test.describe('Instance Role Permission Denials', () => {
 
     // Create a custom role via API
     const roleName = generateRoleName('test');
-    const createRoleResponse = await page.request.post('/api/graphql', {
-      headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-      data: {
-        query: `
-					mutation CreateRole($input: CreateRoleInput!) {
-						createRole(input: $input) {
-							name
-							permissions
-							permissionDenials
-						}
-					}
-				`,
-        variables: {
-          input: {
-            name: roleName,
-            displayName: 'Test Denial Role',
-            description: 'A role for testing permission denials'
-          }
-        }
-      }
-    });
-    expect(createRoleResponse.ok()).toBeTruthy();
-    const createRoleData = await createRoleResponse.json();
-    expect(createRoleData.data?.createRole).toBeTruthy();
-    expect(createRoleData.data.createRole.permissionDenials).toEqual([]);
+    const createdRole = await createRoleViaConnect(
+      page,
+      roleName,
+      'Test Denial Role',
+      'A role for testing permission denials'
+    );
+    expect(createdRole.permissionDenials ?? []).toEqual([]);
 
     // Deny a permission on the role
-    const denyResponse = await page.request.post('/api/graphql', {
-      headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-      data: {
-        query: `
-					mutation DenyInstancePermission($input: DenyPermissionInput!) { denyPermission(input: $input)
-					}
-				`,
-        variables: { input: { roleName, permission: 'message.post' } }
-      }
-    });
-    expect(denyResponse.ok()).toBeTruthy();
-    const denyData = await denyResponse.json();
-    expect(denyData.data?.denyPermission).toBe(true);
+    await setRolePermissionViaConnect(page, roleName, 'message.post', 'PERMISSION_DECISION_DENY');
 
     // Query the role and verify the denial persists
-    const queryRoleResponse = await page.request.post('/api/graphql', {
-      headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-      data: {
-        query: `
-					query GetRole($name: String!) {
-						server {
-							role(name: $name) {
-								name
-								permissions
-								permissionDenials
-							}
-						}
-					}
-				`,
-        variables: { name: roleName }
-      }
-    });
-    expect(queryRoleResponse.ok()).toBeTruthy();
-    const queryRoleData = await queryRoleResponse.json();
-    expect(queryRoleData.data?.server?.role).toBeTruthy();
-    expect(queryRoleData.data.server.role.permissionDenials).toContain('message.post');
+    const role = await getRoleViaConnect(page, roleName);
+    expect(role.permissionDenials).toContain('message.post');
 
     // Clean up - delete the role
-    await page.request.post('/api/graphql', {
-      headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-      data: {
-        query: `mutation DeleteRole($input: DeleteRoleInput!) { deleteRole(input: $input) }`,
-        variables: { input: { name: roleName } }
-      }
-    });
+    await deleteRoleViaConnect(page, roleName);
   });
 
   test('admin can deny a permission on a role via UI and it persists', async ({
@@ -775,26 +783,12 @@ test.describe('Instance Role Permission Denials', () => {
 
     // Create a custom role via API
     const roleName = generateRoleName('deny');
-    const createRoleResponse = await page.request.post('/api/graphql', {
-      headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-      data: {
-        query: `
-					mutation CreateRole($input: CreateRoleInput!) {
-						createRole(input: $input) {
-							name
-						}
-					}
-				`,
-        variables: {
-          input: {
-            name: roleName,
-            displayName: 'UI Denial Test Role',
-            description: 'A role for testing permission denial UI'
-          }
-        }
-      }
-    });
-    expect(createRoleResponse.ok()).toBeTruthy();
+    await createRoleViaConnect(
+      page,
+      roleName,
+      'UI Denial Test Role',
+      'A role for testing permission denial UI'
+    );
 
     // The matrix lives on the roles listing page now: rows are permissions,
     // columns are roles, and each cell is a button whose aria-label encodes
@@ -828,13 +822,7 @@ test.describe('Instance Role Permission Denials', () => {
     await expect(cellAfterReload).toHaveAttribute('aria-pressed', 'true');
 
     // Clean up - delete the role
-    await page.request.post('/api/graphql', {
-      headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-      data: {
-        query: `mutation DeleteRole($input: DeleteRoleInput!) { deleteRole(input: $input) }`,
-        variables: { input: { name: roleName } }
-      }
-    });
+    await deleteRoleViaConnect(page, roleName);
   });
 });
 
@@ -854,14 +842,10 @@ test.describe('Identity Editing', () => {
         // The regular user changes their own login first to set a cooldown
         // timestamp. We need this to verify Reset cooldown actually clears it.
         const userChosenLogin = `userpicked${Date.now()}`;
-        const userRenameResp = await regularPage.request.post('/api/graphql', {
-          headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-          data: {
-            query: `mutation($input: UpdateProfileInput!) { updateProfile(input: $input) { id login } }`,
-            variables: { input: { userId: regularUser.id, login: userChosenLogin } }
-          }
+        const userRename = await updateOwnProfileViaConnect(regularPage, {
+          login: userChosenLogin
         });
-        expect(userRenameResp.ok()).toBeTruthy();
+        expect(userRename.login).toBe(userChosenLogin);
 
         // Admin navigates to the user management page
         await adminPage.gotoUserManagement(regularUser.id!);
@@ -918,20 +902,10 @@ test.describe('Identity Editing', () => {
         // Sanity check: the user can now successfully rename themselves immediately,
         // proving the cooldown was actually cleared on the backend.
         const userSecondRename = `userrenamed${Date.now()}`;
-        const secondRenameResp = await regularPage.request.post('/api/graphql', {
-          headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-          data: {
-            query: `mutation($input: UpdateProfileInput!) { updateProfile(input: $input) { id login } }`,
-            variables: { input: { userId: regularUser.id, login: userSecondRename } }
-          }
+        const secondRename = await updateOwnProfileViaConnect(regularPage, {
+          login: userSecondRename
         });
-        expect(secondRenameResp.ok()).toBeTruthy();
-        const secondRenameData = (await secondRenameResp.json()) as {
-          data?: { updateProfile?: { login?: string } };
-          errors?: unknown;
-        };
-        expect(secondRenameData.errors).toBeUndefined();
-        expect(secondRenameData.data?.updateProfile?.login).toBe(userSecondRename);
+        expect(secondRename.login).toBe(userSecondRename);
       },
       { userOptions: { loginPrefix: 'edituser' } }
     );

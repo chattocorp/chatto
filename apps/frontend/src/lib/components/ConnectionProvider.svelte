@@ -1,14 +1,14 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
 	import { provideConnection } from '$lib/state/server/connection.svelte';
-	import { graphqlClientManager } from '$lib/state/server/graphqlClient.svelte';
+	import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
 
 	let { children }: { children: Snippet } = $props();
 
-	// Provide the home instance's GraphQL client by default.
+	// Provide the home instance's connection state by default.
 	// The [[serverId=hostname]] layout overrides this with the
-	// correct instance-specific client for its subtree.
-	provideConnection(() => graphqlClientManager.originClient);
+	// correct instance-specific connection for its subtree.
+	provideConnection(() => serverConnectionManager.originClient);
 </script>
 
 {@render children()}

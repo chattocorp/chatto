@@ -18,8 +18,8 @@ type RoomEvent struct {
 // RoomEventsResult is the return type for paginated room event queries.
 // HasOlder/HasNewer indicate whether more events exist beyond the
 // returned page. StartCursorSeq/EndCursorSeq are stream sequences for
-// the first and last event in the page; the GraphQL layer renders them
-// as opaque cursor strings. Both are zero when Events is empty.
+// the first and last event in the page; API layers render them as opaque
+// cursor strings. Both are zero when Events is empty.
 type RoomEventsResult struct {
 	Events         []*RoomEvent
 	HasOlder       bool

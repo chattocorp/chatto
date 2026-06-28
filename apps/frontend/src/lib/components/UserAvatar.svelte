@@ -1,33 +1,18 @@
 <script lang="ts" module>
-  import { graphql } from '$lib/gql';
+  import { UserAvatarUserViewDocument } from '$lib/render/types';
 
-  // Request 96x96 for 2x retina (covers sizes up to lg at 48px CSS pixels)
-  export const UserAvatarFragment = graphql(`
-    fragment UserAvatarUser on User {
-      id
-      login
-      displayName
-      deleted
-      avatarUrl(width: 96, height: 96)
-      presenceStatus
-      customStatus {
-        emoji
-        text
-        expiresAt
-      }
-    }
-  `);
+  export const UserAvatarViewData = UserAvatarUserViewDocument;
 </script>
 
 <script lang="ts">
-  import type { UserAvatarUserFragment } from '$lib/gql/graphql';
+  import type { UserAvatarUserView } from '$lib/render/types';
   import { getLiveAvatarUrl, getLiveCustomStatus } from '$lib/state/userProfiles.svelte';
   import { getPresenceCache } from '$lib/state/presenceCache.svelte';
   import { getAvatarInitials } from '$lib/utils/initials';
   import SkeletonImg from '$lib/ui/SkeletonImg.svelte';
   import UserCustomStatusBadge from './UserCustomStatusBadge.svelte';
 
-  type AvatarUser = Omit<UserAvatarUserFragment, 'deleted'> & { deleted?: boolean };
+  type AvatarUser = Omit<UserAvatarUserView, 'deleted'> & { deleted?: boolean };
   type Size = 'xs' | 'sm' | 'md' | 'lg' | 'xl';
 
   const sizeClasses: Record<Size, string> = {
@@ -94,7 +79,7 @@
     user && !user.deleted ? getLiveAvatarUrl(user.id, user.avatarUrl ?? null) : null
   );
 
-  // Use live presence from global cache if available, otherwise fall back to initial GraphQL value.
+  // Use live presence from global cache if available, otherwise fall back to the initial value.
   // The global cache is populated by ServerEventProvider, so all UserAvatar instances — including
   // newly-mounted ones like popovers — see the latest presence immediately.
   const presence = $derived(

@@ -770,8 +770,8 @@ test.describe('Cross-Tab Sync', () => {
     // Tab 1 not only removes the notification on Tab 2, but also clears the
     // room-level mention indicator (notification badge in the room list). The reload
     // step proves the server-side pending notification was cleared — not just the
-    // local frontend state — by hitting the GraphQL room notification count resolver
-    // on a fresh load.
+    // local frontend state — by hitting the room notification count API on a
+    // fresh load.
 
     const userA = await createAndLoginTestUser(page);
     await chatPage.goto();

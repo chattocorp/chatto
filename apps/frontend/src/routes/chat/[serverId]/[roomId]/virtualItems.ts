@@ -1,4 +1,5 @@
-import type { RoomEventViewFragment } from '$lib/gql/graphql';
+import type { RoomEventView } from '$lib/render/types';
+import { RoomEventKind, roomEventKind } from '$lib/render/eventKinds';
 import type { EventWithMeta } from './messageGrouping';
 
 export type SystemGroupKind = 'join' | 'leave';
@@ -13,19 +14,19 @@ export type VirtualItem =
   | { type: 'start-marker'; key: string }
   | { type: 'day-separator'; key: string; label: string }
   | { type: 'unread-separator'; key: string }
-  | { type: 'event'; key: string; event: RoomEventViewFragment; isFirstInGroup: boolean }
+  | { type: 'event'; key: string; event: RoomEventView; isFirstInGroup: boolean }
   | {
       type: 'system-group';
       key: string;
       kind: SystemGroupKind;
-      events: RoomEventViewFragment[];
+      events: RoomEventView[];
     };
 
-function getSystemGroupKind(event: RoomEventViewFragment): SystemGroupKind | null {
-  switch (event.event?.__typename) {
-    case 'UserJoinedRoomEvent':
+function getSystemGroupKind(event: RoomEventView): SystemGroupKind | null {
+  switch (roomEventKind(event.event)) {
+    case RoomEventKind.UserJoinedRoom:
       return 'join';
-    case 'UserLeftRoomEvent':
+    case RoomEventKind.UserLeftRoom:
       return 'leave';
     default:
       return null;
@@ -52,7 +53,7 @@ export function buildVirtualItems(
 
   let openGroup: {
     kind: SystemGroupKind;
-    events: RoomEventViewFragment[];
+    events: RoomEventView[];
   } | null = null;
 
   const flushGroup = () => {
@@ -83,10 +84,7 @@ export function buildVirtualItems(
     const hasUnreadSeparator = firstUnreadEventId !== null && event.id === firstUnreadEventId;
 
     // Any separator or a mismatched / non-system event breaks an open group.
-    if (
-      openGroup &&
-      (systemKind !== openGroup.kind || hasDaySeparator || hasUnreadSeparator)
-    ) {
+    if (openGroup && (systemKind !== openGroup.kind || hasDaySeparator || hasUnreadSeparator)) {
       flushGroup();
     }
 

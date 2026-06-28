@@ -12,12 +12,14 @@ import {
   RoomTimelineVideoProcessingStatus,
   RoomTimelineVideoVariant
 } from '$lib/pb/chatto/api/v1/room_timeline_pb';
+import { __resetUserSummaryCachesForTests, getUserSummaryCache } from '$lib/state/userSummaries.svelte';
 import { createRoomTimelineAPI, roomTimelinePageToEventConnectionPage } from './roomTimeline';
 
 const mocks = vi.hoisted(() => ({
   createClient: vi.fn(),
   createConnectTransport: vi.fn(),
   handleAuthenticationRequired: vi.fn(),
+  resolveMessageLinkTarget: vi.fn(),
   getThreadEvents: vi.fn(),
   getThreadEventsAround: vi.fn()
 }));
@@ -45,10 +47,13 @@ describe('createRoomTimelineAPI', () => {
     mocks.createClient.mockReset();
     mocks.createConnectTransport.mockReset();
     mocks.handleAuthenticationRequired.mockReset();
+    mocks.resolveMessageLinkTarget.mockReset();
     mocks.getThreadEvents.mockReset();
     mocks.getThreadEventsAround.mockReset();
+    __resetUserSummaryCachesForTests();
     mocks.createConnectTransport.mockReturnValue({ kind: 'transport' });
     mocks.createClient.mockReturnValue({
+      resolveMessageLinkTarget: mocks.resolveMessageLinkTarget,
       getThreadEvents: mocks.getThreadEvents,
       getThreadEventsAround: mocks.getThreadEventsAround
     });
@@ -57,8 +62,8 @@ describe('createRoomTimelineAPI', () => {
   it('sends thread page requests with bearer auth and opaque cursors', async () => {
     mocks.getThreadEvents.mockResolvedValue({
       page: new RoomTimelinePage({
-        startCursor: 'seq:1',
-        endCursor: 'seq:2',
+        startCursor: 'tl:opaque-start',
+        endCursor: 'tl:opaque-end',
         hasOlder: false,
         hasNewer: true
       })
@@ -74,7 +79,7 @@ describe('createRoomTimelineAPI', () => {
       roomId: 'room-1',
       threadRootEventId: 'root-1',
       limit: 50,
-      before: 'seq:10'
+      before: 'tl:opaque-before'
     });
 
     expect(mocks.createConnectTransport).toHaveBeenCalledWith({
@@ -86,15 +91,15 @@ describe('createRoomTimelineAPI', () => {
         roomId: 'room-1',
         threadRootEventId: 'root-1',
         limit: 50,
-        cursor: { case: 'before', value: 'seq:10' }
+        cursor: { case: 'before', value: 'tl:opaque-before' }
       },
       {
         headers: { Authorization: 'Bearer remote-token' }
       }
     );
     expect(page).toMatchObject({
-      startCursor: 'seq:1',
-      endCursor: 'seq:2',
+      startCursor: 'tl:opaque-start',
+      endCursor: 'tl:opaque-end',
       hasOlder: false,
       hasNewer: true
     });
@@ -129,13 +134,72 @@ describe('createRoomTimelineAPI', () => {
       }
     );
   });
+
+  it('resolves message link targets with bearer auth', async () => {
+    mocks.resolveMessageLinkTarget.mockResolvedValue({
+      event: new RoomTimelineEvent({
+        id: 'reply-1',
+        actorId: 'u1',
+        event: {
+          case: 'messagePosted',
+          value: new RoomTimelineMessagePosted({
+            roomId: 'room-1',
+            body: 'thread reply'
+          })
+        }
+      }),
+      threadRootEventId: 'root-1',
+      includes: {
+        users: {
+          u1: new RoomTimelineUser({
+            id: 'u1',
+            login: 'alice',
+            displayName: 'Alice'
+          })
+        }
+      }
+    });
+
+    const api = createRoomTimelineAPI({
+      serverId: 'remote',
+      baseUrl: 'https://remote.example.test/api/connect',
+      bearerToken: 'remote-token'
+    });
+
+    const target = await api.resolveMessageLinkTarget({
+      roomId: 'room-1',
+      eventId: 'reply-1'
+    });
+
+    expect(mocks.resolveMessageLinkTarget).toHaveBeenCalledWith(
+      {
+        roomId: 'room-1',
+        eventId: 'reply-1'
+      },
+      {
+        headers: { Authorization: 'Bearer remote-token' }
+      }
+    );
+    expect(target.threadRootEventId).toBe('root-1');
+    expect(target.event).toMatchObject({
+      id: 'reply-1',
+      actor: { id: 'u1', displayName: 'Alice' },
+      event: { kind: 'messagePosted', body: 'thread reply' }
+    });
+    expect(getUserSummaryCache('remote').get('u1')).toMatchObject({
+      id: 'u1',
+      login: 'alice',
+      displayName: 'Alice',
+      avatarUrl: null
+    });
+  });
 });
 
 describe('roomTimelinePageToEventConnectionPage', () => {
   it('maps hydrated protobuf room timeline pages into the message render shape', () => {
     const page = new RoomTimelinePage({
-      startCursor: 'seq:10',
-      endCursor: 'seq:11',
+      startCursor: 'tl:opaque-start',
+      endCursor: 'tl:opaque-end',
       hasOlder: true,
       hasNewer: false,
       includes: {
@@ -233,7 +297,7 @@ describe('roomTimelinePageToEventConnectionPage', () => {
 
     const mapped = roomTimelinePageToEventConnectionPage(page);
 
-    expect(mapped.startCursor).toBe('seq:10');
+    expect(mapped.startCursor).toBe('tl:opaque-start');
     expect(mapped.hasOlder).toBe(true);
     expect(mapped.events).toHaveLength(2);
     expect(mapped.events[0]).toMatchObject({
@@ -241,7 +305,7 @@ describe('roomTimelinePageToEventConnectionPage', () => {
       createdAt: '2026-06-01T12:00:00.000Z',
       actor: { id: 'u1', displayName: 'Alice', avatarUrl: '/avatars/u1' },
       event: {
-        __typename: 'MessagePostedEvent',
+        kind: 'messagePosted',
         body: 'hello',
         attachments: [
           {
@@ -284,7 +348,7 @@ describe('roomTimelinePageToEventConnectionPage', () => {
     });
     expect(mapped.events[1]).toMatchObject({
       id: 'join1',
-      event: { __typename: 'UserJoinedRoomEvent', roomId: 'room-1' }
+      event: { kind: 'userJoinedRoom', roomId: 'room-1' }
     });
   });
 });

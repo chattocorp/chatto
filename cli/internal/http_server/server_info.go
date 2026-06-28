@@ -32,8 +32,8 @@ type serverInfoAuthProvider struct {
 }
 
 // setupServerInfoRoutes registers the server discovery endpoint.
-// This endpoint is used by multi-server clients to probe a server
-// before setting up a full GraphQL client.
+// This endpoint is used by multi-server clients to probe a server before
+// setting up authenticated API clients.
 func (s *HTTPServer) setupServerInfoRoutes() {
 	s.router.GET("/api/server", s.handleServerInfo)
 	s.router.OPTIONS("/api/server", s.handleServerInfoPreflight)
@@ -91,11 +91,11 @@ func (s *HTTPServer) handleServerInfo(c *gin.Context) {
 	if s.core != nil {
 		bw, bh := 1200, 630
 		if u, err := s.core.GetServerBannerURL(ctx, &bw, &bh, "cover"); err == nil {
-			bannerURL = absolutizeAssetURL(c, u)
+			bannerURL = s.absolutizeAssetURL(c, u)
 		}
 		lw, lh := 256, 256
 		if u, err := s.core.GetServerLogoURL(ctx, &lw, &lh, "cover"); err == nil {
-			iconURL = absolutizeAssetURL(c, u)
+			iconURL = s.absolutizeAssetURL(c, u)
 		}
 	}
 
@@ -135,36 +135,22 @@ func serverInfoAuthProviders(providers []config.AuthProviderConfig) []serverInfo
 	return result
 }
 
-// absolutizeAssetURL turns a relative asset path into a fully-qualified URL
-// using the incoming request's scheme + host. No-op for empty strings and
-// already-absolute URLs. Used so /api/server returns absolute URLs to
-// cross-origin clients that would otherwise resolve relative paths against
-// their own origin.
-func absolutizeAssetURL(c *gin.Context, assetURL string) string {
+// absolutizeAssetURL turns a relative asset path into a fully-qualified URL.
+// Prefer the configured public webserver URL. When it is unset, fall back to
+// the direct request scheme + host; forwarded headers are ignored until Chatto
+// has explicit trusted-proxy configuration.
+func (s *HTTPServer) absolutizeAssetURL(c *gin.Context, assetURL string) string {
 	if assetURL == "" || strings.HasPrefix(assetURL, "http://") || strings.HasPrefix(assetURL, "https://") {
 		return assetURL
 	}
+	if baseURL := configuredWebserverOrigin(s.config.Webserver.URL); baseURL != "" {
+		return baseURL + assetURL
+	}
 	scheme := "http"
-	if proto := c.GetHeader("X-Forwarded-Proto"); proto != "" {
-		scheme = proto
-	} else if c.Request.TLS != nil {
+	if c.Request.TLS != nil {
 		scheme = "https"
 	}
 	return scheme + "://" + c.Request.Host + assetURL
-}
-
-func (s *HTTPServer) absolutizeAssetURLFromConfig(assetURL string) string {
-	if assetURL == "" || strings.HasPrefix(assetURL, "http://") || strings.HasPrefix(assetURL, "https://") {
-		return assetURL
-	}
-	if s.config.Webserver.URL == "" {
-		return assetURL
-	}
-	base, err := url.Parse(s.config.Webserver.URL)
-	if err != nil || base.Scheme == "" || base.Host == "" {
-		return assetURL
-	}
-	return base.Scheme + "://" + base.Host + assetURL
 }
 
 // handleServerInfoPreflight responds to CORS preflight requests.

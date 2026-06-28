@@ -16,7 +16,7 @@ export default ts.config(
   includeIgnoreFile(gitignorePath),
   {
     // Ignore generated files (these are committed, so not in .gitignore)
-    ignores: ['src/lib/gql/**', 'src/lib/types/core.ts']
+    ignores: ['src/lib/types/core.ts']
   },
   js.configs.recommended,
   ...ts.configs.recommended,

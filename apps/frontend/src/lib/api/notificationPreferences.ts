@@ -15,16 +15,55 @@ export type NotificationPreference = {
   effectiveLevel: NotificationLevel;
 };
 
+export async function getServerNotificationPreference(
+  config: ConnectAPIConfig
+): Promise<NotificationPreference> {
+  const client = createNotificationPreferencesClient(config);
+  let response;
+  try {
+    response = await client.getServerNotificationPreference(
+      {},
+      {
+        headers: connectHeaders(config)
+      }
+    );
+  } catch (err) {
+    handleAuthError(config, err);
+  }
+  return {
+    level: response.level,
+    effectiveLevel: response.effectiveLevel
+  };
+}
+
+export async function setServerNotificationLevel(
+  config: ConnectAPIConfig,
+  level: NotificationLevel
+): Promise<NotificationPreference> {
+  const client = createNotificationPreferencesClient(config);
+  let response;
+  try {
+    response = await client.setServerNotificationLevel(
+      { level },
+      {
+        headers: connectHeaders(config)
+      }
+    );
+  } catch (err) {
+    handleAuthError(config, err);
+  }
+  return {
+    level: response.level,
+    effectiveLevel: response.effectiveLevel
+  };
+}
+
 export async function setRoomNotificationLevel(
   config: ConnectAPIConfig,
   roomId: string,
   level: NotificationLevel
 ): Promise<NotificationPreference> {
-  const transport = createConnectTransport({
-    baseUrl: config.baseUrl,
-    useBinaryFormat: true
-  });
-  const client = createClient(NotificationPreferencesService, transport);
+  const client = createNotificationPreferencesClient(config);
   let response;
   try {
     response = await client.setRoomNotificationLevel(
@@ -33,17 +72,33 @@ export async function setRoomNotificationLevel(
         level
       },
       {
-        headers: config.bearerToken ? { Authorization: `Bearer ${config.bearerToken}` } : undefined
+        headers: connectHeaders(config)
       }
     );
   } catch (err) {
-    if (err instanceof ConnectError && err.code === Code.Unauthenticated) {
-      serverRegistry.handleAuthenticationRequired(config.serverId);
-    }
-    throw err;
+    handleAuthError(config, err);
   }
   return {
     level: response.level,
     effectiveLevel: response.effectiveLevel
   };
+}
+
+function createNotificationPreferencesClient(config: ConnectAPIConfig) {
+  const transport = createConnectTransport({
+    baseUrl: config.baseUrl,
+    useBinaryFormat: true
+  });
+  return createClient(NotificationPreferencesService, transport);
+}
+
+function connectHeaders(config: ConnectAPIConfig) {
+  return config.bearerToken ? { Authorization: `Bearer ${config.bearerToken}` } : undefined;
+}
+
+function handleAuthError(config: ConnectAPIConfig, err: unknown): never {
+  if (err instanceof ConnectError && err.code === Code.Unauthenticated) {
+    serverRegistry.handleAuthenticationRequired(config.serverId);
+  }
+  throw err;
 }

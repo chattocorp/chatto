@@ -1,8 +1,9 @@
 <script lang="ts">
   import { onDestroy, tick, untrack } from 'svelte';
-  import { graphql, useFragment } from '$lib/gql';
-  import { RoomEventViewFragmentDoc, type RoomEventViewFragment } from '$lib/gql/graphql';
+  import type { RoomEventView } from '$lib/render/types';
   import { createMessageAPI } from '$lib/api/messages';
+  import { createLinkPreviewAPI } from '$lib/api/linkPreviews';
+  import { createRoleAPI } from '$lib/api/roles';
   import * as m from '$lib/i18n/messages';
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
@@ -90,7 +91,7 @@
     autoFocus?: boolean;
     onReady?: (api: MessageComposerApi) => void;
     onTyping?: () => void;
-    onMessageSent?: (event: RoomEventViewFragment | null) => void;
+    onMessageSent?: (event: RoomEventView | null) => void;
     onCancelReply?: () => void;
     onEscape?: () => void;
     showAlsoSendToChannel?: boolean;
@@ -145,7 +146,14 @@
   let editorApi = $state<TipTapEditorApi | null>(null);
   const draftState = new DraftState();
   const attachments = new AttachmentsState(() => serverInfo);
-  const linkPreviews = new LinkPreviewState(() => connection().client);
+  const linkPreviews = new LinkPreviewState(() => {
+    const conn = connection();
+    return createLinkPreviewAPI({
+      serverId: conn.serverId,
+      baseUrl: conn.connectBaseUrl,
+      bearerToken: conn.bearerToken
+    });
+  });
   const autocomplete = new AutocompleteState(
     () => editorApi,
     () => mentionCandidateMembers,
@@ -252,45 +260,32 @@
     draftState.persistText(message);
   });
 
-  const PostMessageMutation = graphql(`
-    mutation PostMessage($input: PostMessageInput!) {
-      postMessage(input: $input) {
-        ...RoomEventView
-      }
-    }
-  `);
-
-  const ComposerMentionRolesQuery = graphql(`
-    query ComposerMentionRoles {
-      server {
-        roles {
-          name
-          isSystem
-          position
-          pingable
-        }
-      }
-    }
-  `);
-
   $effect(() => {
     return linkPreviews.scheduleDetection(message, isEditing);
   });
 
   $effect(() => {
-    const client = connection().client;
+    const conn = connection();
+    const api = createRoleAPI({
+      baseUrl: conn.connectBaseUrl,
+      bearerToken: conn.bearerToken
+    });
     let cancelled = false;
 
     async function loadMentionRoles() {
-      const response = await client.query(ComposerMentionRolesQuery, {});
-      if (cancelled) return;
-      if (response.error) {
-        mentionRoles = [];
+      let roles;
+      try {
+        roles = (await api.listRoles()).roles;
+      } catch {
+        if (!cancelled) {
+          mentionRoles = [];
+        }
         return;
       }
+      if (cancelled) return;
       mentionRoles =
-        response.data?.server?.roles
-          .filter((role) => role.name !== 'everyone')
+        roles
+          ?.filter((role) => role.name !== 'everyone')
           .map((role) => ({
             name: role.name,
             isSystem: role.isSystem,
@@ -493,7 +488,7 @@
   type PendingMentionConfirmation = PreparedPost & MentionConfirmation;
 
   type SendPreparedPostResponse = {
-    event: RoomEventViewFragment | null;
+    event: RoomEventView | null;
     error: unknown | null;
     mentionConfirmation: MentionConfirmation | null;
   };
@@ -501,57 +496,10 @@
   let pendingMentionConfirmation = $state<PendingMentionConfirmation | null>(null);
   let mentionConfirmationLoading = $state(false);
 
-  function mentionConfirmation(error: unknown): MentionConfirmation | null {
-    const graphQLErrors =
-      error && typeof error === 'object' && 'graphQLErrors' in error
-        ? (error.graphQLErrors as Array<{ extensions?: Record<string, unknown> }>)
-        : [];
-
-    for (const graphQLError of graphQLErrors) {
-      const extensions = graphQLError.extensions;
-      if (extensions?.code !== 'MENTION_CONFIRMATION_REQUIRED') continue;
-      const count = extensions.recipientCount;
-      const token = extensions.mentionConfirmationToken;
-      if (typeof count === 'number' && typeof token === 'string' && token) {
-        return { recipientCount: count, token };
-      }
-    }
-    return null;
-  }
-
-  function buildPostVariables(post: PreparedPost, mentionConfirmationToken: string | null) {
-    return {
-      input: {
-        roomId: post.roomId,
-        body: post.bodyToSend || null,
-        attachments: post.filesToSend,
-        threadRootEventId: post.threadRootEventId,
-        inReplyTo: post.inReplyTo,
-        linkPreview: post.linkPreviewInput,
-        alsoSendToChannel: post.alsoSendToChannel || null,
-        mentionConfirmationToken
-      }
-    };
-  }
-
   async function sendPreparedPost(
     post: PreparedPost,
     mentionConfirmationToken: string | null
   ): Promise<SendPreparedPostResponse> {
-    if (post.filesToSend) {
-      const response = await connection().client.mutation(
-        PostMessageMutation,
-        buildPostVariables(post, mentionConfirmationToken)
-      );
-      return {
-        event: response.data?.postMessage
-          ? useFragment(RoomEventViewFragmentDoc, response.data.postMessage)
-          : null,
-        error: response.error ?? null,
-        mentionConfirmation: response.error ? mentionConfirmation(response.error) : null
-      };
-    }
-
     try {
       const conn = connection();
       const result = await createMessageAPI({
@@ -561,6 +509,7 @@
       }).postMessage({
         roomId: post.roomId,
         body: post.bodyToSend,
+        attachments: post.filesToSend,
         threadRootEventId: post.threadRootEventId,
         inReplyTo: post.inReplyTo,
         linkPreview: post.linkPreviewInput,

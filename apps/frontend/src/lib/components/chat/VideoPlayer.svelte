@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { tick, onMount } from 'svelte';
-	import type { VideoProcessingStatus } from '$lib/gql/graphql';
+	import type { VideoProcessingStatus } from '$lib/render/types';
 	import { fullscreenVideo } from '$lib/state/globals.svelte';
 
 	import 'vidstack/player/styles/default/theme.css';

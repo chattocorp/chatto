@@ -1,31 +1,21 @@
-import type { Client } from '@urql/svelte';
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
-import { graphql } from '$lib/gql';
-import { type LinkPreviewForComposerQuery, type LinkPreviewInput } from '$lib/gql/graphql';
-import { useFragment } from '$lib/gql/fragment-masking';
+import type { LinkPreviewInput } from '$lib/render/types';
 import { extractURLs } from '$lib/linkPreview';
 import { parseMessageLink } from '$lib/messageLinks';
-import { LinkPreviewFragment } from '$lib/components/LinkPreviewCard.svelte';
+import type { ComposerLinkPreview } from '$lib/api/linkPreviews';
 
-const LinkPreviewForComposerDocument = graphql(`
-  query LinkPreviewForComposer($url: String!) {
-    linkPreview(url: $url) {
-      ...LinkPreviewView
-      imageAssetId
-    }
-  }
-`);
-
-type PreviewData = NonNullable<LinkPreviewForComposerQuery['linkPreview']>;
+type LinkPreviewAPI = {
+  fetchLinkPreview(url: string): Promise<ComposerLinkPreview | null>;
+};
 
 export class LinkPreviewState {
   detectedURLs = $state<string[]>([]);
-  previews = new SvelteMap<string, PreviewData | null>();
+  previews = new SvelteMap<string, ComposerLinkPreview | null>();
   dismissedURLs = new SvelteSet<string>();
   fetchingURLs = new SvelteSet<string>();
   #urlDetectionTimeout: ReturnType<typeof setTimeout> | undefined;
 
-  constructor(private readonly getClient: () => Client) {}
+  constructor(private readonly getAPI: () => LinkPreviewAPI) {}
 
   get activeURL(): string | undefined {
     return this.detectedURLs[0];
@@ -57,15 +47,10 @@ export class LinkPreviewState {
   async fetchPreview(url: string): Promise<void> {
     this.fetchingURLs.add(url);
 
-    const result = await this.getClient().query(LinkPreviewForComposerDocument, { url });
+    const preview = await this.getAPI().fetchLinkPreview(url);
 
     this.fetchingURLs.delete(url);
-
-    if (result.data?.linkPreview) {
-      this.previews.set(url, result.data.linkPreview);
-    } else {
-      this.previews.set(url, null);
-    }
+    this.previews.set(url, preview);
   }
 
   dismissPreview(url: string): void {
@@ -83,20 +68,19 @@ export class LinkPreviewState {
   buildInput(): LinkPreviewInput | null {
     const previewURL = this.activeURL;
     const activePreview = previewURL ? this.previews.get(previewURL) : null;
-    const previewFields = activePreview ? useFragment(LinkPreviewFragment, activePreview) : null;
 
-    if (!previewURL || !activePreview || !previewFields || this.dismissedURLs.has(previewURL)) {
+    if (!previewURL || !activePreview || this.dismissedURLs.has(previewURL)) {
       return null;
     }
 
     return {
-      url: previewFields.url,
-      title: previewFields.title,
-      description: previewFields.description,
-      siteName: previewFields.siteName,
+      url: activePreview.url,
+      title: activePreview.title,
+      description: activePreview.description,
+      siteName: activePreview.siteName,
       imageAssetId: activePreview.imageAssetId,
-      embedType: previewFields.embedType,
-      embedId: previewFields.embedId
+      embedType: activePreview.embedType,
+      embedId: activePreview.embedId
     };
   }
 }

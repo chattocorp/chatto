@@ -13,6 +13,7 @@ import type {
   EventEnvelope
 } from '$lib/eventBus.svelte';
 import { attachRealtimeEventEnvelope } from '$lib/eventBus.svelte';
+import { roomEventKind } from '$lib/render/eventKinds';
 import { realtimeEventToEventEnvelope } from '$lib/realtimeEventMapper';
 import {
   RealtimeClientFrame,
@@ -20,7 +21,7 @@ import {
   RealtimeServerFrame,
   RealtimeSubscribeEvents
 } from '$lib/pb/chatto/api/v1/realtime_pb';
-import type { GraphQLClient } from './graphqlClient.svelte';
+import type { ServerConnection } from './serverConnection.svelte';
 
 const HEARTBEAT_STALL_MS = 75_000;
 const HEARTBEAT_WATCHDOG_MS = 15_000;
@@ -86,7 +87,7 @@ class EventBusManager {
    * Start an event bus for the given server. Creates the realtime socket and
    * stores the bus. If a bus already exists for this server, returns a no-op.
    */
-  startBus(serverId: string, gqlClient: GraphQLClient): () => void {
+  startBus(serverId: string, serverConnection: ServerConnection): () => void {
     if (this.#paused) return () => {};
     if (this.#buses.has(serverId)) return () => {};
 
@@ -162,7 +163,7 @@ class EventBusManager {
       dispatchedEventCount++;
       console.debug(
         `[eventBus:${serverId}] event dispatched`,
-        event.event?.__typename ?? '<unknown>',
+        roomEventKind(event.event) ?? '<unknown>',
         { eventId: event.id, total: dispatchedEventCount, ...debugState() }
       );
       for (const handler of handlers) {
@@ -180,21 +181,21 @@ class EventBusManager {
       generation++;
       const socketGeneration = generation;
       lastEventAt = Date.now();
-      gqlClient.setRealtimeConnectionStatus('connecting', reconnectAttempts);
+      serverConnection.setRealtimeConnectionStatus('connecting', reconnectAttempts);
       console.debug(`[eventBus:${serverId}] opening realtime socket`, {
         reason,
-        url: gqlClient.realtimeUrl,
+        url: serverConnection.realtimeUrl,
         ...debugState()
       });
 
-      const nextSocket = realtimeSocketFactory(gqlClient.realtimeUrl);
+      const nextSocket = realtimeSocketFactory(serverConnection.realtimeUrl);
       nextSocket.binaryType = 'arraybuffer';
       socket = nextSocket;
 
       nextSocket.onopen = () => {
         if (stopped || socket !== nextSocket) return;
         console.debug(`[eventBus:${serverId}] realtime socket opened`, debugState());
-        nextSocket.send(clientHelloFrame(gqlClient.bearerToken));
+        nextSocket.send(clientHelloFrame(serverConnection.bearerToken));
       };
 
       nextSocket.onmessage = (message) => {
@@ -215,7 +216,7 @@ class EventBusManager {
               return;
             case 'subscribed':
               reconnectAttempts = 0;
-              gqlClient.setRealtimeConnectionStatus('connected');
+              serverConnection.setRealtimeConnectionStatus('connected');
               console.debug(`[eventBus:${serverId}] realtime stream subscribed`, {
                 generation: socketGeneration
               });
@@ -238,7 +239,7 @@ class EventBusManager {
                 fatal: frame.frame.value.fatal
               });
               if (frame.frame.value.code === 'authentication_required') {
-                gqlClient.handleAuthenticationRequired();
+                serverConnection.handleAuthenticationRequired();
               }
               if (frame.frame.value.fatal) {
                 nextSocket.close(1011, frame.frame.value.code || 'fatal realtime error');
@@ -246,7 +247,7 @@ class EventBusManager {
               return;
             case 'close':
               if (frame.frame.value.code === 'authentication_required') {
-                gqlClient.handleAuthenticationRequired();
+                serverConnection.handleAuthenticationRequired();
               }
               nextSocket.onclose = null;
               if (socket === nextSocket) socket = null;
@@ -258,7 +259,7 @@ class EventBusManager {
                   frame.frame.value.retryAfterMs
                 );
               } else {
-                gqlClient.setRealtimeConnectionStatus('disconnected', reconnectAttempts);
+                serverConnection.setRealtimeConnectionStatus('disconnected', reconnectAttempts);
               }
               return;
             case 'pong':
@@ -293,7 +294,7 @@ class EventBusManager {
       clearReconnectTimer();
       reconnectCount++;
       reconnectAttempts++;
-      gqlClient.setRealtimeConnectionStatus('disconnected', reconnectAttempts);
+      serverConnection.setRealtimeConnectionStatus('disconnected', reconnectAttempts);
       notifyCatchUpHandlers(catchUpReason);
       scheduleCatchUpRetry(catchUpReason);
       const wait = delayMs ?? (reconnectAttempts <= 1 ? 0 : RECONNECT_WAIT_MS);
@@ -313,7 +314,7 @@ class EventBusManager {
       scheduleReconnect(reason, catchUpReason, 0);
     };
 
-    const unregisterReconnect = gqlClient.registerRealtimeReconnect((reason) => {
+    const unregisterReconnect = serverConnection.registerRealtimeReconnect((reason) => {
       reconnectNow(reason, 'ws-reconnected');
     });
 
@@ -341,7 +342,7 @@ class EventBusManager {
       clearInterval(heartbeatWatchdog);
       unregisterReconnect();
       detachSocket(true);
-      gqlClient.setRealtimeConnectionStatus('disconnected');
+      serverConnection.setRealtimeConnectionStatus('disconnected');
     });
 
     this.#buses.set(serverId, bus);

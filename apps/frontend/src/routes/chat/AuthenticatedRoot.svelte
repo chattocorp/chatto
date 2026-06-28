@@ -4,7 +4,7 @@
   import NotificationSync from '$lib/components/NotificationSync.svelte';
   import { shouldPauseLiveEventsForStoredPresence } from '$lib/presenceTracking';
   import { createPresenceCache } from '$lib/state/presenceCache.svelte';
-  import { graphqlClientManager } from '$lib/state/server/graphqlClient.svelte';
+  import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
   import { eventBusManager } from '$lib/state/server/eventBus.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { UserSettingsState } from '$lib/state/userSettings.svelte';
@@ -33,7 +33,7 @@
     for (const server of serverRegistry.servers) {
       const store = serverRegistry.tryGetStore(server.id);
       if (store?.isAuthenticated) {
-        eventBusManager.startBus(server.id, graphqlClientManager.getClient(server.id));
+        eventBusManager.startBus(server.id, serverConnectionManager.getClient(server.id));
       }
     }
   }

@@ -1,45 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Client } from '@urql/svelte';
 import type { PublicServerInfo } from '$lib/api/server';
 import { ServerInfoState } from './state.svelte';
-
-/** Build a minimal urql Client mock with controllable query result. */
-function makeClient(result: {
-  data?: unknown;
-  error?: { message: string; networkError?: Error } | null;
-}): Client {
-  return {
-    query: vi.fn().mockReturnValue({
-      toPromise: vi.fn().mockResolvedValue({
-        data: result.data ?? null,
-        error: result.error ?? null
-      })
-    }),
-    mutation: vi.fn(),
-    subscription: vi.fn()
-  } as unknown as Client;
-}
-
-function makeClientSequence(
-  results: Array<{
-    data?: unknown;
-    error?: { message: string; networkError?: Error } | null;
-  }>
-): Client {
-  return {
-    query: vi.fn().mockImplementation(() => {
-      const result = results.shift() ?? {};
-      return {
-        toPromise: vi.fn().mockResolvedValue({
-          data: result.data ?? null,
-          error: result.error ?? null
-        })
-      };
-    }),
-    mutation: vi.fn(),
-    subscription: vi.fn()
-  } as unknown as Client;
-}
 
 function publicServerInfo(overrides: Partial<PublicServerInfo> = {}): PublicServerInfo {
   return {
@@ -66,14 +27,12 @@ describe('ServerInfoState.init()', () => {
   });
 
   it('populates fields and clears loading on success', async () => {
-    const client = makeClient({});
     const loader = vi.fn<() => Promise<PublicServerInfo>>().mockResolvedValue(publicServerInfo());
-    const state = new ServerInfoState(client, 'https://acme.test', loader);
+    const state = new ServerInfoState('https://acme.test', loader);
 
     await state.init();
 
     expect(loader).toHaveBeenCalledWith('https://acme.test');
-    expect(client.query).not.toHaveBeenCalled();
     expect(state.loading).toBe(false);
     expect(state.error).toBeNull();
     expect(state.name).toBe('Acme');
@@ -86,30 +45,31 @@ describe('ServerInfoState.init()', () => {
   });
 
   it('loads authenticated runtime settings separately', async () => {
-    const client = makeClientSequence([
-      {
-        data: {
-          server: {
-            pushNotificationsEnabled: true,
-            vapidPublicKey: 'vap',
-            livekitUrl: 'wss://lk',
-            videoProcessingEnabled: true,
-            maxUploadSize: 100,
-            maxVideoUploadSize: 200,
-            messageEditWindowSeconds: 7200,
-            profile: {
-              motd: 'hello'
-            }
-          }
-        }
-      }
-    ]);
     const loader = vi.fn<() => Promise<PublicServerInfo>>().mockResolvedValue(publicServerInfo());
-    const state = new ServerInfoState(client, 'https://acme.test', loader);
+    const authenticatedLoader = vi.fn().mockResolvedValue({
+      motd: 'hello',
+      pushNotificationsEnabled: true,
+      vapidPublicKey: 'vap',
+      livekitUrl: 'wss://lk',
+      videoProcessingEnabled: true,
+      maxUploadSize: 100,
+      maxVideoUploadSize: 200,
+      messageEditWindowSeconds: 7200
+    });
+    const state = new ServerInfoState(
+      'https://acme.test',
+      loader,
+      { baseUrl: 'https://acme.test/api/connect', bearerToken: 'token' },
+      authenticatedLoader
+    );
 
     await state.init();
     await state.refreshAuthenticatedSettings();
 
+    expect(authenticatedLoader).toHaveBeenCalledWith({
+      baseUrl: 'https://acme.test/api/connect',
+      bearerToken: 'token'
+    });
     expect(state.motd).toBe('hello');
     expect(state.pushNotificationsEnabled).toBe(true);
     expect(state.vapidPublicKey).toBe('vap');
@@ -121,7 +81,6 @@ describe('ServerInfoState.init()', () => {
   });
 
   it('refreshes profile fields without toggling initial loading state', async () => {
-    const client = makeClient({});
     const loader = vi.fn<() => Promise<PublicServerInfo>>().mockResolvedValue(
       publicServerInfo({
         name: 'Fresh',
@@ -132,13 +91,12 @@ describe('ServerInfoState.init()', () => {
         bannerUrl: 'https://fresh-banner'
       })
     );
-    const state = new ServerInfoState(client, 'https://fresh.test', loader);
+    const state = new ServerInfoState('https://fresh.test', loader);
     state.loading = false;
 
     await state.refreshProfile();
 
     expect(state.loading).toBe(false);
-    expect(client.query).not.toHaveBeenCalled();
     expect(state.name).toBe('Fresh');
     expect(state.welcomeMessage).toBe('fresh welcome');
     expect(state.description).toBe('fresh description');
@@ -147,62 +105,43 @@ describe('ServerInfoState.init()', () => {
   });
 
   it('logs and sets error when Connect server metadata fails', async () => {
-    const client = makeClient({});
     const loader = vi
       .fn<() => Promise<PublicServerInfo>>()
       .mockRejectedValue(new Error('[Network] Failed to fetch'));
-    const state = new ServerInfoState(client, 'https://chatto.run', loader);
+    const state = new ServerInfoState('https://chatto.run', loader);
 
     await state.init();
 
     expect(state.loading).toBe(false);
     expect(state.error).toBe('[Network] Failed to fetch');
     expect(state.name).toBe('Chatto'); // default unchanged
-    expect(client.query).not.toHaveBeenCalled();
     expect(consoleError).toHaveBeenCalledTimes(1);
     expect(consoleError.mock.calls[0][0]).toContain('https://chatto.run');
     expect(consoleError.mock.calls[0][0]).toContain('failed to load server info');
   });
 
   it('logs and sets error when the Connect loader rejects', async () => {
-    const client = makeClient({});
     const loader = vi.fn<() => Promise<PublicServerInfo>>().mockRejectedValue(new Error('boom'));
-    const state = new ServerInfoState(client, 'https://chatto.run', loader);
+    const state = new ServerInfoState('https://chatto.run', loader);
 
     await state.init();
 
     expect(state.loading).toBe(false);
     expect(state.error).toBe('boom');
-    expect(client.query).not.toHaveBeenCalled();
     expect(consoleError).toHaveBeenCalledTimes(1);
     expect(consoleError.mock.calls[0][0]).toContain('https://chatto.run');
     expect(consoleError.mock.calls[0][0]).toContain('failed to load server info');
   });
 
   it('does not throw — failure must be isolated to this server', async () => {
-    const client = makeClient({});
     const loader = vi.fn<() => Promise<PublicServerInfo>>().mockRejectedValue(new Error('boom'));
-    const state = new ServerInfoState(client, 'unknown', loader);
+    const state = new ServerInfoState('unknown', loader);
 
     // Must resolve, not reject.
     await expect(state.init()).resolves.toBeUndefined();
   });
 
   it('loads public profile fields through ConnectRPC', async () => {
-    const client = makeClient({
-      data: {
-        server: {
-          directRegistrationEnabled: true,
-          profile: {
-            name: 'GraphQL metadata',
-            welcomeMessage: null,
-            description: null,
-            logoUrl: null,
-            bannerUrl: null
-          }
-        }
-      }
-    });
     const loader = vi.fn<() => Promise<PublicServerInfo>>().mockResolvedValue(
       publicServerInfo({
         name: 'Connect Server',
@@ -213,12 +152,11 @@ describe('ServerInfoState.init()', () => {
         bannerUrl: 'https://cdn/banner.webp'
       })
     );
-    const state = new ServerInfoState(client, 'https://connect.test', loader);
+    const state = new ServerInfoState('https://connect.test', loader);
 
     await state.init();
 
     expect(loader).toHaveBeenCalledWith('https://connect.test');
-    expect(client.query).not.toHaveBeenCalled();
     expect(state.error).toBeNull();
     expect(state.name).toBe('Connect Server');
     expect(state.directRegistrationEnabled).toBe(false);

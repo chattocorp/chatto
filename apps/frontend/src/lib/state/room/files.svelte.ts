@@ -1,8 +1,5 @@
-import type { Client } from '@urql/svelte';
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
-import { graphql } from '$lib/gql';
-import { isUnsupportedGraphQLFieldError } from '$lib/gql/compatibility';
-import { FitMode, RoomFilesDocument, type RoomFilesQuery } from '$lib/gql/graphql';
+import { FitMode } from '$lib/render/types';
 import type { EventEnvelope } from '$lib/eventBus.svelte';
 import type { ExpiringAssetUrl, RefreshedAttachmentUrls } from '$lib/attachments/attachmentUrls';
 import {
@@ -11,55 +8,27 @@ import {
   mergeRefreshedAttachmentUrls,
   refreshAttachmentUrlsForMessage
 } from '$lib/attachments/attachmentUrls';
-import type { GraphQLClient } from '$lib/state/server/graphqlClient.svelte';
+import { RoomEventKind, roomEventKind } from '$lib/render/eventKinds';
+import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
+import { createAttachmentAPI, type AttachmentAPI, type RoomFileItem } from '$lib/api/attachments';
 
 export const ROOM_FILES_PAGE_SIZE = 50;
 
-const RoomFilesQueryDocument = graphql(`
-  query RoomFiles($roomId: ID!, $limit: Int!, $offset: Int!) {
-    room(roomId: $roomId) {
-      attachments(limit: $limit, offset: $offset) {
-        items {
-          messageEventId
-          threadRootEventId
-          createdAt
-          attachment {
-            id
-            filename
-            contentType
-            width
-            height
-            assetUrl {
-              url
-              expiresAt
-            }
-            thumbnailAssetUrl(width: 120, height: 120, fit: COVER) {
-              url
-              expiresAt
-            }
-            videoProcessing {
-              status
-              thumbnailAssetUrl {
-                url
-                expiresAt
-              }
-            }
-          }
-        }
-        totalCount
-        hasMore
-      }
-    }
-  }
-`) as typeof RoomFilesDocument;
-
-export type RoomFileItem = NonNullable<
-  NonNullable<RoomFilesQuery['room']>['attachments']['items'][number]
->;
+export type { RoomFileItem };
 
 function itemKey(item: RoomFileItem): string {
   return `${item.messageEventId}:${item.attachment.id}`;
 }
+
+const roomFilesInvalidatingEventKinds = new Set<RoomEventKind>([
+  RoomEventKind.MessagePosted,
+  RoomEventKind.MessageEdited,
+  RoomEventKind.MessageRetracted,
+  RoomEventKind.AssetProcessingStarted,
+  RoomEventKind.AssetProcessingSucceeded,
+  RoomEventKind.AssetProcessingFailed,
+  RoomEventKind.AssetDeleted
+]);
 
 function attachmentAssetUrls(item: RoomFileItem, refreshed: RefreshedAttachmentUrls | undefined) {
   return [
@@ -94,12 +63,16 @@ export class RoomFilesStore {
   isUnsupported = $state(false);
   refreshedAttachmentUrls = new SvelteMap<string, RefreshedAttachmentUrls>();
 
-  private readonly client: Client;
+  private readonly attachmentAPI: AttachmentAPI;
   private roomId = '';
   #loadId = 0;
 
-  constructor(gqlClient: GraphQLClient) {
-    this.client = gqlClient.client;
+  constructor(serverConnection: ServerConnection) {
+    this.attachmentAPI = createAttachmentAPI({
+      serverId: serverConnection.serverId,
+      baseUrl: serverConnection.connectBaseUrl,
+      bearerToken: serverConnection.bearerToken
+    });
   }
 
   setRoom(roomId: string): void {
@@ -139,15 +112,8 @@ export class RoomFilesStore {
     if (!eventData) return;
     if (eventRoomId(eventData) !== this.roomId) return;
 
-    if (
-      eventData.__typename === 'MessagePostedEvent' ||
-      eventData.__typename === 'MessageEditedEvent' ||
-      eventData.__typename === 'MessageRetractedEvent' ||
-      eventData.__typename === 'AssetProcessingStartedEvent' ||
-      eventData.__typename === 'AssetProcessingSucceededEvent' ||
-      eventData.__typename === 'AssetProcessingFailedEvent' ||
-      eventData.__typename === 'AssetDeletedEvent'
-    ) {
+    const kind = roomEventKind(eventData);
+    if (kind && roomFilesInvalidatingEventKinds.has(kind)) {
       void this.refresh();
     }
   }
@@ -209,7 +175,7 @@ export class RoomFilesStore {
     const eventIds = Array.from(new SvelteSet(items.map((item) => item.messageEventId)));
     const freshMaps = await Promise.all(
       eventIds.map((eventId) =>
-        refreshAttachmentUrlsForMessage(this.client, this.roomId, eventId, {
+        refreshAttachmentUrlsForMessage(this.attachmentAPI, this.roomId, eventId, {
           width: 120,
           height: 120,
           fit: FitMode.Cover
@@ -234,39 +200,25 @@ export class RoomFilesStore {
   ): Promise<void> {
     const roomId = this.roomId;
     const thisLoad = ++this.#loadId;
-    const result = await this.client
-      .query(RoomFilesQueryDocument, {
+    let connection;
+    try {
+      connection = await this.attachmentAPI.listRoomAttachments({
         roomId,
         limit,
-        offset
-      })
-      .toPromise();
-
-    if (this.#loadId !== thisLoad || this.roomId !== roomId) return;
-    if (result.error) {
-      if (isUnsupportedGraphQLFieldError(result.error, 'attachments')) {
-        this.isUnsupported = true;
-        this.items = [];
-        this.totalCount = 0;
-        this.hasMore = false;
-        if (replace) this.isInitialLoading = false;
-        return;
-      }
-      console.error('RoomFilesStore: failed to load files:', result.error);
+        offset,
+        thumbnail: {
+          width: 120,
+          height: 120,
+          fit: FitMode.Cover
+        }
+      });
+    } catch (error) {
+      if (this.#loadId !== thisLoad || this.roomId !== roomId) return;
+      console.error('RoomFilesStore: failed to load files:', error);
       if (replace) this.isInitialLoading = false;
       return;
     }
-
-    const connection = result.data?.room?.attachments;
-    if (!connection) {
-      if (replace) {
-        this.items = [];
-        this.totalCount = 0;
-        this.hasMore = false;
-        this.isInitialLoading = false;
-      }
-      return;
-    }
+    if (this.#loadId !== thisLoad || this.roomId !== roomId) return;
 
     if (replace) {
       this.items = connection.items;

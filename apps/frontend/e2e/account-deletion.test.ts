@@ -2,7 +2,7 @@ import { expect } from '@playwright/test';
 import { createAndLoginTestUser } from './fixtures/testUser';
 import { withServerUser } from './fixtures/serverUser';
 import { waitForRoomReady } from './fixtures/realtimeSync';
-import { waitForUserDeleted } from './fixtures/graphqlHelpers';
+import { waitForUserDeletedViaConnect } from './fixtures/connectHelpers';
 import { test } from './setup';
 import { AccountPage } from './pages';
 import { TIMEOUTS } from './constants';
@@ -113,7 +113,7 @@ test.describe('Account Deletion', () => {
           await accountPage.deleteAccount();
 
           // Wait for server to confirm user deletion (replaces arbitrary timeout)
-          await waitForUserDeleted(page2, userA.id!);
+          await waitForUserDeletedViaConnect(page2, userA.id!);
 
           // User B refreshes the room to see updated state
           await page2.reload();
@@ -222,7 +222,7 @@ test.describe('Account Deletion', () => {
           await accountPage2.deleteAccount();
 
           // Wait for server to confirm user deletion (replaces arbitrary timeout)
-          await waitForUserDeleted(page, userB.id!);
+          await waitForUserDeletedViaConnect(page, userB.id!);
 
           // User A refreshes to see updated state
           await page.reload();
@@ -274,7 +274,7 @@ test.describe('Account Deletion', () => {
           await accountPage.deleteAccount();
 
           // Wait for server to confirm user deletion (replaces arbitrary timeout)
-          await waitForUserDeleted(page2, userA.id!);
+          await waitForUserDeletedViaConnect(page2, userA.id!);
 
           // User B refreshes to see updated state
           await page2.reload();

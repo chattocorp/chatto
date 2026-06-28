@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { render } from 'vitest-browser-svelte';
-import { makeFragmentData } from '$lib/gql/fragment-masking';
-import LinkPreviewCard, { LinkPreviewFragment } from './LinkPreviewCard.svelte';
+import { makeRenderData } from '$lib/render/data';
+import LinkPreviewCard, { LinkPreviewViewData } from './LinkPreviewCard.svelte';
 
 type PreviewData = {
   url: string;
@@ -14,9 +14,8 @@ type PreviewData = {
 };
 
 function preview(o: Partial<PreviewData> = {}) {
-  return makeFragmentData(
+  return makeRenderData(
     {
-      __typename: 'LinkPreview' as const,
       url: 'https://example.com',
       title: null,
       description: null,
@@ -26,7 +25,7 @@ function preview(o: Partial<PreviewData> = {}) {
       embedId: null,
       ...o
     },
-    LinkPreviewFragment
+    LinkPreviewViewData
   );
 }
 

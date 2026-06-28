@@ -13,8 +13,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"hmans.de/chatto/internal/assets"
+	"hmans.de/chatto/internal/authctx"
 	"hmans.de/chatto/internal/core"
-	"hmans.de/chatto/internal/graph/auth"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	"hmans.de/chatto/pkg/signedurl"
 )
@@ -409,7 +409,7 @@ func (s *HTTPServer) resolveStableAssetViewerID(c *gin.Context, assetID string, 
 	}
 
 	reqWithUser := s.injectUserIntoContext(c)
-	user := auth.ForContext(reqWithUser.Context())
+	user := authctx.ForContext(reqWithUser.Context())
 	if user == nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
 		return "", false

@@ -1,7 +1,7 @@
 /**
  * Tracks which rooms have active voice calls and who's in each call.
  *
- * Uses the `activeCallRoomIds` GraphQL query (backed by the call-state projection)
+ * Uses the Connect voice-call API (backed by the call-state projection)
  * as the source of truth. Real-time updates come from room events:
  * - CallParticipantJoinedEvent → add participant to the room
  * - CallParticipantLeftEvent → remove participant; delete room if empty
@@ -11,30 +11,8 @@
  */
 
 import { SvelteMap } from 'svelte/reactivity';
-import { graphql, useFragment } from '$lib/gql';
-import { UserAvatarUserFragmentDoc, type UserAvatarUserFragment } from '$lib/gql/graphql';
-import type { Client } from '@urql/svelte';
 import type { VoiceCallState } from '$lib/state/server/voiceCall.svelte';
-
-const ActiveCallRoomIdsQuery = graphql(`
-	query GetActiveCallRoomIds {
-		activeCallRoomIds
-	}
-`);
-
-const CallParticipantsQuery = graphql(`
-	query GetSidebarCallParticipants($roomId: ID!) {
-		room(roomId: $roomId) {
-			callParticipants {
-				user {
-					...UserAvatarUser
-				}
-				joinedAt
-				callId
-			}
-		}
-	}
-`);
+import type { VoiceCallAPI, VoiceCallParticipant } from '$lib/api/voiceCalls';
 
 /** Participant info for display in the room list sidebar. */
 export type CallRoomParticipant = {
@@ -51,8 +29,15 @@ type ActiveCallRoomSnapshot = {
   participants: CallRoomParticipant[];
 };
 
+type CallActor = {
+  id: string;
+  displayName: string;
+  login: string;
+  avatarUrl?: string | null;
+};
+
 export class ActiveCallRoomsState {
-  #client: Client;
+  #api: VoiceCallAPI;
   #voiceCall: VoiceCallState;
 
   /** Map of room ID → server-observed active call snapshot. */
@@ -60,8 +45,8 @@ export class ActiveCallRoomsState {
   private roomVersions = new SvelteMap<string, number>();
   private pendingCallIds = new SvelteMap<string, string>();
 
-  constructor(client: Client, voiceCall: VoiceCallState) {
-    this.#client = client;
+  constructor(api: VoiceCallAPI, voiceCall: VoiceCallState) {
+    this.#api = api;
     this.#voiceCall = voiceCall;
   }
 
@@ -109,8 +94,7 @@ export class ActiveCallRoomsState {
    * Should be called when entering the chat (alongside room list loading).
    */
   async load(): Promise<void> {
-    const result = await this.#client.query(ActiveCallRoomIdsQuery, {}).toPromise();
-    const roomIds = result.data?.activeCallRoomIds ?? [];
+    const roomIds = await this.#api.listActiveCallRoomIds();
 
     // Remove rooms that are no longer active
     for (const id of this.serverRooms.keys()) {
@@ -134,30 +118,19 @@ export class ActiveCallRoomsState {
     fallbackCallId: string | null = null,
     expectedVersion?: number
   ) {
-    const participantResult = await this.#client
-      .query(CallParticipantsQuery, { roomId })
-      .toPromise();
+    const participants = await this.#api.listCallParticipants(roomId);
 
     if (expectedVersion !== undefined && this.roomVersions.get(roomId) !== expectedVersion) {
       return;
     }
 
-    const participants = participantResult.data?.room?.callParticipants;
     if (participants) {
       const callId = participants[0]?.callId ?? fallbackCallId;
       if (fallbackCallId !== null && callId !== null && callId !== fallbackCallId) return;
 
       this.serverRooms.set(roomId, {
         callId,
-        participants: participants.map((p) => {
-          const user = useFragment(UserAvatarUserFragmentDoc, p.user);
-          return {
-            userId: user.id,
-            displayName: user.displayName,
-            login: user.login,
-            avatarUrl: user.avatarUrl ?? null
-          };
-        })
+        participants: participants.map(toCallRoomParticipant)
       });
       if (this.pendingCallIds.get(roomId) === fallbackCallId) {
         this.pendingCallIds.delete(roomId);
@@ -171,11 +144,7 @@ export class ActiveCallRoomsState {
   /**
    * Handle a CallParticipantJoinedEvent — add participant to the room.
    */
-  async handleJoin(
-    roomId: string,
-    callId: string,
-    actor: UserAvatarUserFragment | null
-  ): Promise<void> {
+  async handleJoin(roomId: string, callId: string, actor: CallActor | null): Promise<void> {
     const existing = this.serverRooms.get(roomId);
     if (existing?.callId && existing.callId !== callId) return;
 
@@ -255,4 +224,13 @@ export class ActiveCallRoomsState {
     this.roomVersions.clear();
     this.pendingCallIds.clear();
   }
+}
+
+function toCallRoomParticipant(participant: VoiceCallParticipant): CallRoomParticipant {
+  return {
+    userId: participant.user.id,
+    displayName: participant.user.displayName,
+    login: participant.user.login,
+    avatarUrl: participant.user.avatarUrl ?? null
+  };
 }

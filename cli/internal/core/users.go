@@ -737,6 +737,64 @@ func (c *ChattoCore) AdminUpdateUserDisplayName(ctx context.Context, userID, dis
 	return user, nil
 }
 
+type AdminUpdateUserInput struct {
+	Login       *string
+	DisplayName *string
+}
+
+func (c *ChattoCore) AdminUpdateUser(ctx context.Context, actorID, targetUserID string, input AdminUpdateUserInput) (*corev1.User, error) {
+	if err := c.requireCanAdminManageUser(ctx, actorID, targetUserID); err != nil {
+		return nil, err
+	}
+	if input.Login == nil && input.DisplayName == nil {
+		return nil, fmt.Errorf("%w: at least one of login or display_name must be provided", ErrInvalidArgument)
+	}
+
+	var updated *corev1.User
+	if input.DisplayName != nil {
+		user, err := c.AdminUpdateUserDisplayName(ctx, targetUserID, *input.DisplayName)
+		if err != nil {
+			return nil, err
+		}
+		updated = user
+	}
+	if input.Login != nil {
+		user, err := c.AdminUpdateUserLogin(ctx, targetUserID, *input.Login)
+		if err != nil {
+			return nil, err
+		}
+		updated = user
+	}
+	return updated, nil
+}
+
+func (c *ChattoCore) AdminClearLoginChangeCooldown(ctx context.Context, actorID, targetUserID string) error {
+	if err := c.requireCanAdminManageUser(ctx, actorID, targetUserID); err != nil {
+		return err
+	}
+	return c.ClearLoginChangeCooldown(ctx, targetUserID)
+}
+
+func (c *ChattoCore) requireCanAdminManageUser(ctx context.Context, actorID, targetUserID string) error {
+	if actorID == "" {
+		return ErrNotAuthenticated
+	}
+	if targetUserID == "" {
+		return fmt.Errorf("%w: target user ID is required", ErrInvalidArgument)
+	}
+	if actorID == targetUserID {
+		return nil
+	}
+	canManage, err := c.CanAssignRoles(ctx, actorID)
+	if err != nil {
+		return fmt.Errorf("check role.assign: %w", err)
+	}
+	if !canManage {
+		return ErrPermissionDenied
+	}
+	return nil
+}
+
 // ============================================================================
 // Login Change Operations
 // ============================================================================

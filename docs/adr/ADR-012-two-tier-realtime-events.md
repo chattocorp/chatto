@@ -2,7 +2,7 @@
 
 **Date:** 2026-03-01
 
-**Naming note:** This ADR refers to `space.{id}.>` and `live.space.{id}.>` subject patterns and the `StreamMySpaceEvents` fan-in function. After ADR-029 (Instance → Server rename), ADR-030 (Space tier retired), and ADR-034 (EVT), the live equivalents are `live.evt.>` for republished durable EVT facts, `live.sync.>` for transient `LiveEvent` signals, and `StreamMyEvents` for the GraphQL fan-in. `SERVER_EVENTS` no longer republishes to a live subject. The two-tier split itself (durable JetStream vs. transient NATS Core) and the per-event-type channel decision are unchanged.
+**Naming note:** This ADR refers to `space.{id}.>` and `live.space.{id}.>` subject patterns and the `StreamMySpaceEvents` fan-in function. After ADR-029 (Instance → Server rename), ADR-030 (Space tier retired), ADR-034 (EVT), and ADR-042 (protobuf-first public API), the live equivalents are `live.evt.>` for republished durable EVT facts, `live.sync.>` for transient `LiveEvent` signals, and realtime websocket delivery for the public app-session stream. `SERVER_EVENTS` no longer republishes to a live subject. The two-tier split itself (durable JetStream vs. transient NATS Core) and the per-event-type channel decision are unchanged.
 
 ## Context
 
@@ -17,7 +17,7 @@ Split events into two channels based on persistence:
 1. **JetStream events** (messages, joins, leaves, room lifecycle): Published to `space.{id}.>` subjects on a persisted per-space stream. Consumed via ordered JetStream consumers with replay support.
 2. **Live-only events** (reactions, typing indicators, presence, message updates/deletes): Published to `live.space.{id}.>` subjects via bare NATS Core pub/sub. Not stored. Consumed via plain NATS subscriptions.
 
-The `StreamMySpaceEvents` function in core is the central fan-in point that merges both channels (plus a KV presence watcher) into a single Go channel for the GraphQL subscription.
+The realtime delivery layer merges durable and transient live channels, then maps authorized events into public protobuf live events for connected clients.
 
 ## Consequences
 

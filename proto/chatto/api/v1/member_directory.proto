@@ -1,0 +1,82 @@
+syntax = "proto3";
+
+package chatto.api.v1;
+
+import "buf/validate/validate.proto";
+import "chatto/api/v1/presence.proto";
+import "chatto/api/v1/user_status.proto";
+import "google/protobuf/timestamp.proto";
+
+// Public user/member profile used by directory and mention surfaces.
+message DirectoryMember {
+  // Stable user ID.
+  string id = 1;
+  // Login identifier.
+  string login = 2;
+  // Display name shown in Chatto.
+  string display_name = 3;
+  // Whether this row represents a deleted account tombstone.
+  bool deleted = 4;
+  // Optional avatar URL.
+  optional string avatar_url = 5;
+  // Current live presence status.
+  PresenceStatus presence_status = 6;
+  // Custom profile status, when set.
+  CustomUserStatus custom_status = 7;
+  // Explicit server roles assigned to the user. Server member listings include
+  // the virtual `everyone` role for parity with Chatto's permission model.
+  repeated string roles = 8;
+  // Account creation time when known.
+  google.protobuf.Timestamp created_at = 9;
+}
+
+// Request for server members visible to the authenticated user.
+message ListServerMembersRequest {
+  // Optional case-insensitive search against login and display name.
+  string search = 1 [(buf.validate.field).string.max_len = 100];
+  // Maximum results to return. Defaults to 20, maximum 100.
+  int32 limit = 2 [(buf.validate.field).int32.gte = 0];
+  // Zero-based result offset.
+  int32 offset = 3 [(buf.validate.field).int32.gte = 0];
+}
+
+// Server member page.
+message ListServerMembersResponse {
+  // Members in the requested page.
+  repeated DirectoryMember members = 1;
+  // Total matching members before pagination.
+  int32 total_count = 2;
+  // Whether more matching members exist after this page.
+  bool has_more = 3;
+}
+
+// Request for members of one room.
+message ListRoomMembersRequest {
+  // Required. Room whose explicit members should be listed.
+  string room_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Optional case-insensitive search against login and display name.
+  string search = 2 [(buf.validate.field).string.max_len = 100];
+  // Maximum results to return. Defaults to 20, maximum 100.
+  int32 limit = 3 [(buf.validate.field).int32.gte = 0];
+  // Zero-based result offset.
+  int32 offset = 4 [(buf.validate.field).int32.gte = 0];
+}
+
+// Room member page.
+message ListRoomMembersResponse {
+  // Members in the requested page.
+  repeated DirectoryMember members = 1;
+  // Total matching members before pagination.
+  int32 total_count = 2;
+  // Whether more matching members exist after this page.
+  bool has_more = 3;
+}
+
+// Reads server and room member directories.
+service MemberDirectoryService {
+  // Lists authenticated server members. Every authenticated user is a server
+  // member; admin-sensitive fields stay out of this public row shape.
+  rpc ListServerMembers(ListServerMembersRequest) returns (ListServerMembersResponse);
+  // Lists explicit members of a room. The caller must be a member of the room.
+  rpc ListRoomMembers(ListRoomMembersRequest) returns (ListRoomMembersResponse);
+}

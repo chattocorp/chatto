@@ -2,7 +2,7 @@
 
 **Date:** 2026-03-01
 
-**Status:** Superseded by ADR-030 (Retire the Space tier). The "per-space" framing is obsolete now that the Space tier is gone; the GraphQL surface is the single deployment-wide `myEvents` subscription backed by internal NATS Core live subjects plus per-event authorization/projection readiness (see ARCHITECTURE.md). The pattern — one multiplexed subscription with server-side membership filtering — survives, but at server scope rather than space scope. The decision recorded here is preserved as historical context.
+**Status:** Superseded by ADR-030 (Retire the Space tier) and ADR-042 (protobuf-first public API). The "per-space" framing is obsolete now that the Space tier is gone, and GraphQL subscriptions have been replaced by the Chatto realtime websocket. The pattern — one multiplexed app-session stream with server-side membership filtering — survives at server scope. The decision recorded here is preserved as historical context.
 
 ## Context
 

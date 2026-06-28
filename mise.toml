@@ -57,22 +57,6 @@ depends = ["setup-cli", "setup-frontend"]
 dir = "proto"
 run = "buf generate"
 
-[tasks.codegen-api-frontend]
-description = "Generate frontend TypeScript code from public API protobuf schemas"
-depends = ["codegen-proto"]
-
-[tasks.codegen-cli]
-description = "Generate GraphQL code using gqlgen"
-depends = ["setup-cli", "codegen-proto"]
-dir = "cli"
-run = "go generate ./..."
-
-[tasks.codegen-frontend]
-description = "Generate Frontend code (e.g. GraphQL types)"
-depends = ["setup-frontend"]
-dir = "apps/frontend"
-run = "pnpm codegen"
-
 [tasks.codegen-emoji]
 description = "Generate Go emoji map from gemoji npm package"
 depends = ["setup-frontend"]
@@ -148,7 +132,6 @@ sources = [
     "!**/*_test.go",
     "cmd/embedded/LICENSE",
     "cmd/embedded/NOTICE",
-    "internal/graph/*.graphqls",
     "internal/http_server/.client/**/*",
 ]
 outputs = ["bin/chatto"]
@@ -188,12 +171,6 @@ description = "Run the local development frontend"
 depends = ["setup-frontend"]
 dir = "apps/frontend"
 run = "exec ./node_modules/.bin/vite dev"
-
-[tasks.dev-frontend-codegen]
-description = "Run frontend GraphQL codegen in watch mode"
-depends = ["setup-frontend"]
-dir = "apps/frontend"
-run = "exec ./node_modules/.bin/graphql-codegen --watch"
 
 [tasks.dev]
 description = "Run the local Tilt development stack"

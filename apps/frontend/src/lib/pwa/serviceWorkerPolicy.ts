@@ -1,7 +1,6 @@
 export const OFFLINE_SHELL_PATH = '/200.html';
 
 const NETWORK_ONLY_PREFIXES = ['/api', '/auth', '/assets', '/webhooks'];
-const NETWORK_ONLY_PATHS = new Set(['/graphql']);
 
 export interface ServiceWorkerPolicy {
   cacheableShellAsset: boolean;
@@ -29,7 +28,6 @@ export function classifyServiceWorkerRequest(
   const networkOnly =
     request.method !== 'GET' ||
     !sameOrigin ||
-    NETWORK_ONLY_PATHS.has(url.pathname) ||
     NETWORK_ONLY_PREFIXES.some(
       (prefix) => url.pathname === prefix || url.pathname.startsWith(`${prefix}/`)
     );

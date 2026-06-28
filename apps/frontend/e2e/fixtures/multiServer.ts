@@ -4,34 +4,105 @@ import { createClient } from '@connectrpc/connect';
 import { createConnectTransport } from '@connectrpc/connect-web';
 import { readFile } from 'fs/promises';
 import { MessageService } from '$lib/pb/chatto/api/v1/messages_connect';
+import { RoomDirectoryService } from '$lib/pb/chatto/api/v1/room_directory_connect';
 import { RoomService } from '$lib/pb/chatto/api/v1/rooms_connect';
+import { ServerStateService } from '$lib/pb/chatto/api/v1/server_state_connect';
+import { ViewerService } from '$lib/pb/chatto/api/v1/viewer_connect';
 import { startServer, stopServer, type ServerInfo } from './server';
+
+function connectBaseUrl(remoteBaseURL: string): string {
+  return new URL('/api/connect', remoteBaseURL).toString();
+}
+
+function authHeaders(token: string) {
+  return { Authorization: `Bearer ${token}` };
+}
+
+function messageClient(remoteBaseURL: string) {
+  return createClient(
+    MessageService,
+    createConnectTransport({
+      baseUrl: connectBaseUrl(remoteBaseURL),
+      useBinaryFormat: true
+    })
+  );
+}
+
+function roomClient(remoteBaseURL: string) {
+  return createClient(
+    RoomService,
+    createConnectTransport({
+      baseUrl: connectBaseUrl(remoteBaseURL),
+      useBinaryFormat: true
+    })
+  );
+}
+
+function roomDirectoryClient(remoteBaseURL: string) {
+  return createClient(
+    RoomDirectoryService,
+    createConnectTransport({
+      baseUrl: connectBaseUrl(remoteBaseURL),
+      useBinaryFormat: true
+    })
+  );
+}
+
+function serverStateClient(remoteBaseURL: string) {
+  return createClient(
+    ServerStateService,
+    createConnectTransport({
+      baseUrl: connectBaseUrl(remoteBaseURL),
+      useBinaryFormat: true
+    })
+  );
+}
+
+function viewerClient(remoteBaseURL: string) {
+  return createClient(
+    ViewerService,
+    createConnectTransport({
+      baseUrl: connectBaseUrl(remoteBaseURL),
+      useBinaryFormat: true
+    })
+  );
+}
+
+function postedEventId(
+  response: Awaited<ReturnType<ReturnType<typeof messageClient>['postMessage']>>
+) {
+  const event = response.result.case === 'event' ? response.result.value : undefined;
+  if (!event?.id) {
+    throw new Error(`PostMessage did not return an event: ${JSON.stringify(response.toJson())}`);
+  }
+  return event.id;
+}
 
 /**
  * Starts a second Chatto server for multi-instance tests.
  * Uses parallelIndex + 5 to avoid port collisions with the primary server.
  */
 export async function startSecondServer(testInfo: TestInfo): Promise<ServerInfo> {
-	// Create a modified testInfo-like object with offset parallelIndex
-	// to get a different port range from the primary server
-	const modifiedTestInfo = {
-		...testInfo,
-		parallelIndex: testInfo.parallelIndex + 5
-	} as TestInfo;
+  // Create a modified testInfo-like object with offset parallelIndex
+  // to get a different port range from the primary server
+  const modifiedTestInfo = {
+    ...testInfo,
+    parallelIndex: testInfo.parallelIndex + 5
+  } as TestInfo;
 
-	return startServer(modifiedTestInfo);
+  return startServer(modifiedTestInfo);
 }
 
 /**
  * Stops a second server and cleans up.
  */
 export async function stopSecondServer(server: ServerInfo, testInfo: TestInfo): Promise<void> {
-	const modifiedTestInfo = {
-		...testInfo,
-		parallelIndex: testInfo.parallelIndex + 5
-	} as TestInfo;
+  const modifiedTestInfo = {
+    ...testInfo,
+    parallelIndex: testInfo.parallelIndex + 5
+  } as TestInfo;
 
-	await stopServer(server, modifiedTestInfo);
+  await stopServer(server, modifiedTestInfo);
 }
 
 /**
@@ -39,55 +110,57 @@ export async function stopSecondServer(server: ServerInfo, testInfo: TestInfo): 
  * This simulates what AddInstanceModal does: register, then login to get a bearer token.
  */
 export async function createUserOnRemote(
-	remoteBaseURL: string,
-	login: string,
-	password: string
+  remoteBaseURL: string,
+  login: string,
+  password: string
 ): Promise<{ token: string; userId: string }> {
-	// Create user via the test-only endpoint (build-tagged; not in production
-	// binaries). The production createUser GraphQL mutation was removed for
-	// security — see #175 — so e2e tests use this build-gated path instead.
-	const createResponse = await fetch(`${remoteBaseURL}/auth/test/create-user`, {
-		method: 'POST',
-		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify({
-			login,
-			displayName: `User ${login}`,
-			password
-		})
-	});
+  // Create user via the test-only endpoint (build-tagged; not in production
+  // binaries). The production create-user mutation was removed for security
+  // — see #175 — so e2e tests use this build-gated path instead.
+  const createResponse = await fetch(`${remoteBaseURL}/auth/test/create-user`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      login,
+      displayName: `User ${login}`,
+      password
+    })
+  });
 
-	if (!createResponse.ok) {
-		throw new Error(`Failed to create user on remote: ${await createResponse.text()}`);
-	}
+  if (!createResponse.ok) {
+    throw new Error(`Failed to create user on remote: ${await createResponse.text()}`);
+  }
 
-	const createData = await createResponse.json();
-	const userId = createData.id;
-	if (!userId) {
-		throw new Error(`No userId returned from remote test/create-user: ${JSON.stringify(createData)}`);
-	}
+  const createData = await createResponse.json();
+  const userId = createData.id;
+  if (!userId) {
+    throw new Error(
+      `No userId returned from remote test/create-user: ${JSON.stringify(createData)}`
+    );
+  }
 
-	// Login to get bearer token
-	const loginResponse = await fetch(`${remoteBaseURL}/auth/login`, {
-		method: 'POST',
-		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify({ login, password })
-	});
+  // Login to get bearer token
+  const loginResponse = await fetch(`${remoteBaseURL}/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ login, password })
+  });
 
-	if (!loginResponse.ok) {
-		throw new Error(`Failed to login on remote: ${await loginResponse.text()}`);
-	}
+  if (!loginResponse.ok) {
+    throw new Error(`Failed to login on remote: ${await loginResponse.text()}`);
+  }
 
-	const loginData = await loginResponse.json();
-	if (!loginData.token) {
-		throw new Error(`No token returned from remote login: ${JSON.stringify(loginData)}`);
-	}
+  const loginData = await loginResponse.json();
+  if (!loginData.token) {
+    throw new Error(`No token returned from remote login: ${JSON.stringify(loginData)}`);
+  }
 
-	// Join the bootstrap default rooms (announcements + general) on the remote.
-	// Most cross-server tests assume `# general` is in scope, so grant those
-	// room memberships once as part of creating the remote user.
-	await joinDefaultRoomsOnRemote(remoteBaseURL, loginData.token);
+  // Join the bootstrap default rooms (announcements + general) on the remote.
+  // Most cross-server tests assume `# general` is in scope, so grant those
+  // room memberships once as part of creating the remote user.
+  await joinDefaultRoomsOnRemote(remoteBaseURL, loginData.token);
 
-	return { token: loginData.token, userId };
+  return { token: loginData.token, userId };
 }
 
 /**
@@ -96,28 +169,14 @@ export async function createUserOnRemote(
  * arg is ignored for backwards compatibility with existing call sites.
  */
 export async function getPrimaryServerScopeOnRemote(
-	remoteBaseURL: string,
-	token: string,
-	_serverName: string
+  remoteBaseURL: string,
+  token: string,
+  _serverName: string
 ): Promise<string> {
-	// Sanity-check that the remote is reachable; the actual ID is the
-	// kind discriminator constant (post-ADR-030).
-	const response = await fetch(`${remoteBaseURL}/api/graphql`, {
-		method: 'POST',
-		headers: {
-			'Content-Type': 'application/json',
-			'X-REQUEST-TYPE': 'GraphQL',
-			Authorization: `Bearer ${token}`
-		},
-		body: JSON.stringify({
-			query: `query { server { profile { name } } }`
-		})
-	});
-
-	if (!response.ok) {
-		throw new Error(`Failed to reach remote server: ${await response.text()}`);
-	}
-	return 'server';
+  // Sanity-check that the remote is reachable; the actual ID is the
+  // kind discriminator constant (post-ADR-030).
+  await serverStateClient(remoteBaseURL).getServerState({}, { headers: authHeaders(token) });
+  return 'server';
 }
 
 /**
@@ -126,171 +185,102 @@ export async function getPrimaryServerScopeOnRemote(
  * membership instead of an empty-sidebar guest view.
  */
 export async function joinDefaultRoomsOnRemote(
-	remoteBaseURL: string,
-	token: string,
-	_spaceId?: string
+  remoteBaseURL: string,
+  token: string,
+  _spaceId?: string
 ): Promise<void> {
-	const roomsResp = await fetch(`${remoteBaseURL}/api/graphql`, {
-		method: 'POST',
-		headers: {
-			'Content-Type': 'application/json',
-			'X-REQUEST-TYPE': 'GraphQL',
-			Authorization: `Bearer ${token}`
-		},
-		body: JSON.stringify({ query: `query { server { rooms(type: CHANNEL) { id name } } }` })
-	});
-	if (!roomsResp.ok) return;
-	const roomsData = (await roomsResp.json()) as {
-		data?: { server?: { rooms?: Array<{ id: string; name: string }> } };
-	};
-	const defaults = new Set(['general', 'announcements']);
-	const targets = (roomsData.data?.server?.rooms ?? []).filter((r) => defaults.has(r.name));
-	for (const room of targets) {
-		await fetch(`${remoteBaseURL}/api/graphql`, {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-				'X-REQUEST-TYPE': 'GraphQL',
-				Authorization: `Bearer ${token}`
-			},
-			body: JSON.stringify({
-				query: `mutation($input: JoinRoomInput!) { joinRoom(input: $input) { id } }`,
-				variables: { input: { roomId: room.id } }
-			})
-		});
-	}
+  const roomsData = await roomDirectoryClient(remoteBaseURL).listRooms(
+    {},
+    { headers: authHeaders(token) }
+  );
+  const defaults = new Set(['general', 'announcements']);
+  const targets = roomsData.rooms.filter((entry) => {
+    const name = entry.room?.name;
+    return name ? defaults.has(name) : false;
+  });
+  for (const room of targets) {
+    if (room.room?.id) {
+      await roomClient(remoteBaseURL).joinRoom(
+        { roomId: room.room.id },
+        { headers: authHeaders(token) }
+      );
+    }
+  }
 }
 
 /**
  * Posts a message in a room on a remote server. Returns the new event ID.
  */
 export async function postMessageOnRemote(
-	remoteBaseURL: string,
-	token: string,
-	roomId: string,
-	body: string
+  remoteBaseURL: string,
+  token: string,
+  roomId: string,
+  body: string
 ): Promise<string> {
-	const response = await fetch(`${remoteBaseURL}/api/graphql`, {
-		method: 'POST',
-		headers: {
-			'Content-Type': 'application/json',
-			'X-REQUEST-TYPE': 'GraphQL',
-			Authorization: `Bearer ${token}`
-		},
-		body: JSON.stringify({
-			query: `mutation($input: PostMessageInput!) { postMessage(input: $input) { id } }`,
-			variables: { input: { roomId, body } }
-		})
-	});
-
-	if (!response.ok) {
-		throw new Error(`Failed to post message on remote: ${await response.text()}`);
-	}
-
-	const data = await response.json();
-	const id = data.data?.postMessage?.id;
-	if (!id) {
-		throw new Error(`No event ID returned from remote postMessage: ${JSON.stringify(data)}`);
-	}
-	return id;
+  const response = await messageClient(remoteBaseURL).postMessage(
+    { roomId, body },
+    { headers: authHeaders(token) }
+  );
+  return postedEventId(response);
 }
 
 /**
  * Posts a message with one attachment in a room on a remote server. Returns
- * the new event ID and the stable attachment URL emitted by GraphQL.
+ * the new event ID and the stable attachment URL emitted by ConnectRPC.
  */
 export async function postMessageAttachmentOnRemote(
-	remoteBaseURL: string,
-	token: string,
-	roomId: string,
-	body: string,
-	filePath: string,
-	fileName: string,
-	contentType: string
+  remoteBaseURL: string,
+  token: string,
+  roomId: string,
+  body: string,
+  filePath: string,
+  fileName: string,
+  contentType: string
 ): Promise<{ eventId: string; attachmentUrl: string }> {
-	const fileBytes = await readFile(filePath);
-	const form = new FormData();
-	form.set(
-		'operations',
-		JSON.stringify({
-			query: `
-				mutation RemoteAttachment($roomId: ID!, $body: String!, $file: Upload!) {
-					postMessage(input: { roomId: $roomId, body: $body, attachments: [$file] }) {
-						id
-						event {
-							... on MessagePostedEvent {
-								attachments { id url }
-							}
-						}
-					}
-				}
-			`,
-			variables: { roomId, body, file: null }
-		})
-	);
-	form.set('map', JSON.stringify({ '0': ['variables.file'] }));
-	form.set('0', new Blob([new Uint8Array(fileBytes)], { type: contentType }), fileName);
+  const fileBytes = await readFile(filePath);
+  const response = await messageClient(remoteBaseURL).postMessage(
+    {
+      roomId,
+      body,
+      attachments: [
+        {
+          content: new Uint8Array(fileBytes),
+          filename: fileName,
+          contentType
+        }
+      ]
+    },
+    { headers: authHeaders(token) }
+  );
 
-	const response = await fetch(`${remoteBaseURL}/api/graphql`, {
-		method: 'POST',
-		headers: {
-			'X-REQUEST-TYPE': 'GraphQL',
-			Authorization: `Bearer ${token}`
-		},
-		body: form
-	});
+  const event = response.result.case === 'event' ? response.result.value : undefined;
+  const eventId = event?.id;
+  const message = event?.event.case === 'messagePosted' ? event.event.value : undefined;
+  const attachmentUrl = message?.attachments[0]?.assetUrl?.url;
+  if (!eventId || !attachmentUrl) {
+    throw new Error(
+      `No attachment returned from remote postMessage: ${JSON.stringify(response.toJson())}`
+    );
+  }
 
-	if (!response.ok) {
-		throw new Error(`Failed to post remote attachment: ${await response.text()}`);
-	}
-
-	const data = await response.json();
-	if (data.errors) {
-		throw new Error(`Remote attachment mutation returned errors: ${JSON.stringify(data.errors)}`);
-	}
-
-	const eventId = data.data?.postMessage?.id;
-	const attachmentUrl = data.data?.postMessage?.event?.attachments?.[0]?.url;
-	if (!eventId || !attachmentUrl) {
-		throw new Error(`No attachment returned from remote postMessage: ${JSON.stringify(data)}`);
-	}
-
-	return { eventId, attachmentUrl };
+  return { eventId, attachmentUrl };
 }
 
 /**
  * Posts a thread reply in a room on a remote server. Returns the new event ID.
  */
 export async function postThreadReplyOnRemote(
-	remoteBaseURL: string,
-	token: string,
-	roomId: string,
-	body: string,
-	threadRootEventId: string
+  remoteBaseURL: string,
+  token: string,
+  roomId: string,
+  body: string,
+  threadRootEventId: string
 ): Promise<string> {
-	const response = await fetch(`${remoteBaseURL}/api/graphql`, {
-		method: 'POST',
-		headers: {
-			'Content-Type': 'application/json',
-			'X-REQUEST-TYPE': 'GraphQL',
-			Authorization: `Bearer ${token}`
-		},
-		body: JSON.stringify({
-			query: `mutation($input: PostMessageInput!) { postMessage(input: $input) { id } }`,
-			variables: { input: { roomId, body, threadRootEventId } }
-		})
-	});
-
-	if (!response.ok) {
-		throw new Error(`Failed to post thread reply on remote: ${await response.text()}`);
-	}
-
-	const data = await response.json();
-	const id = data.data?.postMessage?.id;
-	if (!id) {
-		throw new Error(`No event ID returned from remote thread reply: ${JSON.stringify(data)}`);
-	}
-	return id;
+  const response = await messageClient(remoteBaseURL).postMessage(
+    { roomId, body, threadRootEventId },
+    { headers: authHeaders(token) }
+  );
+  return postedEventId(response);
 }
 
 /**
@@ -298,95 +288,56 @@ export async function postThreadReplyOnRemote(
  * Returns the conversation (room) ID.
  */
 export async function startDMOnRemote(
-	remoteBaseURL: string,
-	senderToken: string,
-	receiverUserId: string,
-	message: string
+  remoteBaseURL: string,
+  senderToken: string,
+  receiverUserId: string,
+  message: string
 ): Promise<string> {
-	const client = createClient(
-		RoomService,
-		createConnectTransport({
-			baseUrl: new URL('/api/connect', remoteBaseURL).toString(),
-			useBinaryFormat: true
-		})
-	);
-	const response = await client.startDM(
-		{ participantIds: [receiverUserId] },
-		{ headers: { Authorization: `Bearer ${senderToken}` } }
-	);
-	const roomId = response.room?.id;
-	if (!roomId) throw new Error('Failed to start DM on remote');
+  const response = await roomClient(remoteBaseURL).startDM(
+    { participantIds: [receiverUserId] },
+    { headers: authHeaders(senderToken) }
+  );
+  const roomId = response.room?.id;
+  if (!roomId) throw new Error('Failed to start DM on remote');
 
-	await postMessageOnRemote(remoteBaseURL, senderToken, roomId, message);
-	return roomId;
+  await postMessageOnRemote(remoteBaseURL, senderToken, roomId, message);
+  return roomId;
 }
 
 /**
  * Sends a typing indicator on a remote server via ConnectRPC.
  */
 export async function sendTypingOnRemote(
-	remoteBaseURL: string,
-	token: string,
-	roomId: string
+  remoteBaseURL: string,
+  token: string,
+  roomId: string
 ): Promise<void> {
-	const client = createClient(
-		MessageService,
-		createConnectTransport({
-			baseUrl: new URL('/api/connect', remoteBaseURL).toString(),
-			useBinaryFormat: true
-		})
-	);
-
-	await client.sendTypingIndicator(
-		{ roomId },
-		{
-			headers: { Authorization: `Bearer ${token}` }
-		}
-	);
+  await messageClient(remoteBaseURL).sendTypingIndicator(
+    { roomId },
+    {
+      headers: authHeaders(token)
+    }
+  );
 }
 
 /**
  * Gets a room by name on a remote server. Returns the room's ID.
  */
 export async function getRoomOnRemote(
-	remoteBaseURL: string,
-	token: string,
-	roomName: string
+  remoteBaseURL: string,
+  token: string,
+  roomName: string
 ): Promise<string> {
-	const response = await fetch(`${remoteBaseURL}/api/graphql`, {
-		method: 'POST',
-		headers: {
-			'Content-Type': 'application/json',
-			'X-REQUEST-TYPE': 'GraphQL',
-			Authorization: `Bearer ${token}`
-		},
-		body: JSON.stringify({
-			query: `
-				query InstanceRooms {
-					server {
-						rooms(type: CHANNEL) { id name }
-					}
-				}
-			`
-		})
-	});
+  const data = await roomDirectoryClient(remoteBaseURL).listRooms(
+    {},
+    { headers: authHeaders(token) }
+  );
+  const room = data.rooms.find((entry) => entry.room?.name === roomName)?.room;
+  if (!room?.id) {
+    throw new Error(`Room "${roomName}" not found in instance: ${JSON.stringify(data.toJson())}`);
+  }
 
-	if (!response.ok) {
-		throw new Error(`Failed to get rooms on remote: ${await response.text()}`);
-	}
-
-	const data = await response.json();
-	const rooms = data.data?.server?.rooms;
-	if (!rooms) {
-		throw new Error(`No rooms returned: ${JSON.stringify(data)}`);
-	}
-
-	const room = rooms.find((r: { name: string }) => r.name === roomName);
-	if (!room) {
-		throw new Error(`Room "${roomName}" not found in instance: ${JSON.stringify(rooms)}`);
-	}
-
-	return room.id;
+  return room.id;
 }
 
 /**
@@ -394,70 +345,50 @@ export async function getRoomOnRemote(
  * returns a bearer token. Mirrors `loginAsAdmin()` for the origin server.
  */
 export async function loginAdminOnRemote(
-	remoteBaseURL: string
+  remoteBaseURL: string
 ): Promise<{ token: string; userId: string }> {
-	const loginResp = await fetch(`${remoteBaseURL}/auth/login`, {
-		method: 'POST',
-		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify({ login: 'e2eadmin', password: 'adminpassword123' })
-	});
-	if (!loginResp.ok) {
-		throw new Error(`Failed to login admin on remote: ${await loginResp.text()}`);
-	}
-	const loginData = await loginResp.json();
-	if (!loginData.token) {
-		throw new Error(`No token returned from remote admin login: ${JSON.stringify(loginData)}`);
-	}
+  const loginResp = await fetch(`${remoteBaseURL}/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ login: 'e2eadmin', password: 'adminpassword123' })
+  });
+  if (!loginResp.ok) {
+    throw new Error(`Failed to login admin on remote: ${await loginResp.text()}`);
+  }
+  const loginData = await loginResp.json();
+  if (!loginData.token) {
+    throw new Error(`No token returned from remote admin login: ${JSON.stringify(loginData)}`);
+  }
 
-	const meResp = await fetch(`${remoteBaseURL}/api/graphql`, {
-		method: 'POST',
-		headers: {
-			'Content-Type': 'application/json',
-			'X-REQUEST-TYPE': 'GraphQL',
-			Authorization: `Bearer ${loginData.token}`
-		},
-		body: JSON.stringify({ query: `query { viewer { user { id } } }` })
-	});
-	const meData = await meResp.json();
-	const userId = meData.data?.viewer?.user?.id;
-	if (!userId) {
-		throw new Error(`No userId returned from remote viewer query: ${JSON.stringify(meData)}`);
-	}
-	return { token: loginData.token, userId };
+  const viewer = await viewerClient(remoteBaseURL).getViewer(
+    {},
+    { headers: authHeaders(loginData.token) }
+  );
+  const userId = viewer.user?.id;
+  if (!userId) {
+    throw new Error(
+      `No userId returned from remote viewer RPC: ${JSON.stringify(viewer.toJson())}`
+    );
+  }
+  return { token: loginData.token, userId };
 }
 
 /**
- * Updates the MOTD on a remote server via the admin GraphQL mutation.
+ * Updates the MOTD on a remote server via the admin ConnectRPC.
  * The token must belong to a user with admin/owner permission.
  */
 export async function setMotdOnRemote(
-	remoteBaseURL: string,
-	token: string,
-	motd: string
+  remoteBaseURL: string,
+  token: string,
+  motd: string
 ): Promise<void> {
-	const resp = await fetch(`${remoteBaseURL}/api/graphql`, {
-		method: 'POST',
-		headers: {
-			'Content-Type': 'application/json',
-			'X-REQUEST-TYPE': 'GraphQL',
-			Authorization: `Bearer ${token}`
-		},
-		body: JSON.stringify({
-			query: `
-				mutation SetMotd($input: UpdateServerConfigInput!) {
-					updateServerConfig(input: $input) { motd }
-				}
-			`,
-			variables: { input: { motd } }
-		})
-	});
-	if (!resp.ok) {
-		throw new Error(`Failed to set MOTD on remote: ${await resp.text()}`);
-	}
-	const data = await resp.json();
-	if (data.errors) {
-		throw new Error(`updateServerConfig on remote returned errors: ${JSON.stringify(data.errors)}`);
-	}
+  const response = await serverStateClient(remoteBaseURL).updateServerConfig(
+    { motd },
+    { headers: authHeaders(token) }
+  );
+  if (response.profile?.motd !== motd) {
+    throw new Error(`Failed to set MOTD on remote: ${JSON.stringify(response.toJson())}`);
+  }
 }
 
 /**
@@ -474,64 +405,61 @@ export async function setMotdOnRemote(
  * `createUserOnRemote` to create one).
  */
 export async function connectRemoteInstance(
-	page: Page,
-	remoteServer: ServerInfo,
-	userId: string
+  page: Page,
+  remoteServer: ServerInfo,
+  userId: string
 ): Promise<void> {
-	const remoteBaseURL = remoteServer.baseURL;
-	const remoteOrigin = new URL(remoteBaseURL).origin;
-	const hostname = new URL(remoteBaseURL).host;
+  const remoteBaseURL = remoteServer.baseURL;
+  const remoteOrigin = new URL(remoteBaseURL).origin;
+  const hostname = new URL(remoteBaseURL).host;
 
-	// Intercept the navigation to the remote's /oauth/authorize and fulfill
-	// with a 302 to the callback URL carrying a real authorization code.
-	await page.route(`${remoteOrigin}/oauth/authorize*`, async (route) => {
-		const requestUrl = new URL(route.request().url());
-		const codeChallenge = requestUrl.searchParams.get('code_challenge') ?? '';
-		const codeChallengeMethod =
-			requestUrl.searchParams.get('code_challenge_method') ?? '';
-		const redirectUri = requestUrl.searchParams.get('redirect_uri') ?? '';
-		const state = requestUrl.searchParams.get('state') ?? '';
+  // Intercept the navigation to the remote's /oauth/authorize and fulfill
+  // with a 302 to the callback URL carrying a real authorization code.
+  await page.route(`${remoteOrigin}/oauth/authorize*`, async (route) => {
+    const requestUrl = new URL(route.request().url());
+    const codeChallenge = requestUrl.searchParams.get('code_challenge') ?? '';
+    const codeChallengeMethod = requestUrl.searchParams.get('code_challenge_method') ?? '';
+    const redirectUri = requestUrl.searchParams.get('redirect_uri') ?? '';
+    const state = requestUrl.searchParams.get('state') ?? '';
 
-		const resp = await fetch(`${remoteBaseURL}/auth/test/oauth-authorize`, {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({
-				userId,
-				redirectUri,
-				codeChallenge,
-				codeChallengeMethod,
-				state
-			})
-		});
+    const resp = await fetch(`${remoteBaseURL}/auth/test/oauth-authorize`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        userId,
+        redirectUri,
+        codeChallenge,
+        codeChallengeMethod,
+        state
+      })
+    });
 
-		if (!resp.ok) {
-			throw new Error(
-				`test/oauth-authorize failed (${resp.status}): ${await resp.text()}`
-			);
-		}
+    if (!resp.ok) {
+      throw new Error(`test/oauth-authorize failed (${resp.status}): ${await resp.text()}`);
+    }
 
-		const { redirectURL } = (await resp.json()) as { redirectURL: string };
-		await route.fulfill({
-			status: 302,
-			headers: { Location: redirectURL }
-		});
-	});
+    const { redirectURL } = (await resp.json()) as { redirectURL: string };
+    await route.fulfill({
+      status: 302,
+      headers: { Location: redirectURL }
+    });
+  });
 
-	// Drive the real UI: open dialog from sidebar → URL → preview →
-	// would-redirect to /oauth/authorize (intercepted) → /servers/callback
-	// → token exchange → addServer.
-	if (!/\/chat\//.test(page.url())) {
-		await page.goto('/chat/-');
-	}
-	await page.getByTitle('Add Server').click();
-	await page.getByLabel('Server URL').fill(hostname);
-	await page.getByRole('button', { name: 'Connect' }).click();
-	await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+  // Drive the real UI: open dialog from sidebar → URL → preview →
+  // would-redirect to /oauth/authorize (intercepted) → /servers/callback
+  // → token exchange → addServer.
+  if (!/\/chat\//.test(page.url())) {
+    await page.goto('/chat/-');
+  }
+  await page.getByTitle('Add Server').click();
+  await page.getByLabel('Server URL').fill(hostname);
+  await page.getByRole('button', { name: 'Connect' }).click();
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click();
 
-	// Callback page redirects into the newly-added remote instance's chat
-	// tree on success — `/chat/<hostname>/...` (post-PR(a) there is no
-	// `/chat/spaces` landing). The hostname is whatever segment was passed
-	// in (typically "127.0.0.1").
-	const hostnameOnly = hostname.split(':')[0]!.replace(/\./g, '\\.');
-	await page.waitForURL(new RegExp(`/chat/${hostnameOnly}(/|$)`));
+  // Callback page redirects into the newly-added remote instance's chat
+  // tree on success — `/chat/<hostname>/...` (post-PR(a) there is no
+  // `/chat/spaces` landing). The hostname is whatever segment was passed
+  // in (typically "127.0.0.1").
+  const hostnameOnly = hostname.split(':')[0]!.replace(/\./g, '\\.');
+  await page.waitForURL(new RegExp(`/chat/${hostnameOnly}(/|$)`));
 }

@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"strings"
+
+	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
 // RoomTimelineReads returns the operation-level model for user-facing room
@@ -35,6 +37,12 @@ type RoomTimelineEventsResult struct {
 type RoomTimelineAroundResult struct {
 	Kind   RoomKind
 	Result *RoomEventsAroundResult
+}
+
+type MessageLinkTargetResult struct {
+	Kind              RoomKind
+	Event             *corev1.Event
+	ThreadRootEventID string
 }
 
 type ThreadTimelineEventsInput struct {
@@ -95,6 +103,35 @@ func (s *RoomTimelineReadModel) GetRoomEventsAround(ctx context.Context, actorID
 		return nil, err
 	}
 	return &RoomTimelineAroundResult{Kind: kind, Result: result}, nil
+}
+
+func (s *RoomTimelineReadModel) ResolveMessageLinkTarget(ctx context.Context, actorID, roomID, eventID string) (*MessageLinkTargetResult, error) {
+	room, kind, err := s.core.requireRoomMember(ctx, actorID, roomID)
+	if err != nil {
+		return nil, err
+	}
+	if strings.TrimSpace(eventID) == "" {
+		return nil, invalidArgument("event_id is required")
+	}
+
+	event, err := s.core.GetRoomEventByEventID(ctx, kind, room.Id, eventID)
+	if err != nil {
+		return nil, err
+	}
+	if event == nil {
+		return nil, fmt.Errorf("message link target not found: %w", ErrNotFound)
+	}
+
+	threadRootEventID := ""
+	if message := event.GetMessagePosted(); message != nil && message.GetEchoOfEventId() == "" {
+		threadRootEventID = message.GetInThread()
+	}
+
+	return &MessageLinkTargetResult{
+		Kind:              kind,
+		Event:             event,
+		ThreadRootEventID: threadRootEventID,
+	}, nil
 }
 
 func (s *RoomTimelineReadModel) GetThreadEvents(ctx context.Context, input ThreadTimelineEventsInput) (*ThreadTimelineEventsResult, error) {

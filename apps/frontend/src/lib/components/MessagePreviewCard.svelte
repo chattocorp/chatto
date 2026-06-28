@@ -3,7 +3,7 @@
 
 Displays a preview card for a Chatto message link (e.g. pasted in the composer
 or embedded in a posted message). The message is fetched through the appropriate
-instance's GraphQL client; if it can't be loaded (not found, no permission,
+instance's Connect timeline API; if it can't be loaded (not found, no permission,
 unknown instance) the component renders nothing.
 
 **Props:**
@@ -11,64 +11,26 @@ unknown instance) the component renders nothing.
 - `onDismiss` — Callback when user dismisses the preview (composer mode).
 - `showDismiss` — Whether to show the dismiss button (default: true).
 -->
-<script lang="ts" module>
-  import { graphql } from '$lib/gql';
-  import { UserAvatarFragment } from './UserAvatar.svelte';
-
-  export const MessagePreviewQuery = graphql(`
-    query MessagePreview($roomId: ID!, $eventId: ID!) {
-      server {
-        profile {
-          name
-        }
-      }
-      room(roomId: $roomId) {
-        id
-        name
-        event(eventId: $eventId) {
-          id
-          createdAt
-          actor {
-            ...UserAvatarUser
-          }
-          event {
-            __typename
-            ... on MessagePostedEvent {
-              body
-              attachments {
-                id
-                filename
-                contentType
-                thumbnailAssetUrl(width: 120, height: 120, fit: COVER) {
-                  url
-                  expiresAt
-                }
-                videoProcessing {
-                  thumbnailAssetUrl {
-                    url
-                    expiresAt
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-  `);
-</script>
-
 <script lang="ts">
   import { goto } from '$app/navigation';
   import type { MessageLink } from '$lib/messageLinks';
-  import { FitMode, type UserAvatarUserFragment } from '$lib/gql/graphql';
-  import { useFragment } from '$lib/gql';
+  import {
+    FitMode,
+    MessageAttachmentViewDocument,
+    type MessageAttachmentView,
+    type UserAvatarUserView
+  } from '$lib/render/types';
+  import { useRenderData } from '$lib/render/data';
   import { resolve } from '$app/paths';
   import { SvelteMap, SvelteSet } from 'svelte/reactivity';
   import { serverIdToSegment } from '$lib/navigation';
   import * as m from '$lib/i18n/messages';
-  import { graphqlClientManager } from '$lib/state/server/graphqlClient.svelte';
+  import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
+  import { createRoomTimelineAPI } from '$lib/api/roomTimeline';
+  import { createAttachmentAPI } from '$lib/api/attachments';
+  import { isMessagePostedEvent } from '$lib/render/eventKinds';
+  import { unmask } from '$lib/state/room/messages/helpers';
   import {
     assetUrlNeedsRefresh,
     earliestAssetUrlRefreshAt,
@@ -78,7 +40,7 @@ unknown instance) the component renders nothing.
   } from '$lib/attachments/attachmentUrls';
   import { assetUrlForServer } from '$lib/assets/assetUrls';
   import MessageContent from './MessageContent.svelte';
-  import UserAvatar from './UserAvatar.svelte';
+  import UserAvatar, { UserAvatarViewData } from './UserAvatar.svelte';
 
   let {
     link,
@@ -105,7 +67,7 @@ unknown instance) the component renders nothing.
     eventId: string;
     body: string | null;
     attachments: Attachment[];
-    actor: UserAvatarUserFragment | null;
+    actor: UserAvatarUserView | null;
     spaceName: string | null;
     roomName: string | null;
   } | null>(null);
@@ -118,6 +80,17 @@ unknown instance) the component renders nothing.
     height: 120,
     fit: FitMode.Cover
   };
+
+  function connectBaseUrl(serverUrl: string): string {
+    return new URL('/api/connect', serverUrl).toString();
+  }
+
+  function roomName(serverId: string, roomId: string): string | null {
+    return (
+      serverRegistry.tryGetStore(serverId)?.rooms.rooms.find((room) => room.id === roomId)?.name ??
+      null
+    );
+  }
 
   function normalizePreviewAssetUrl(
     serverId: string,
@@ -150,21 +123,32 @@ unknown instance) the component renders nothing.
 
     (async () => {
       try {
-        const client = graphqlClientManager.getClient(serverId).client;
-        const result = await client
-          .query(MessagePreviewQuery, { roomId, eventId: messageId })
-          .toPromise();
+        const server = serverRegistry.getServer(serverId);
+        if (!server) return;
+        const page = await createRoomTimelineAPI({
+          serverId,
+          baseUrl: connectBaseUrl(server.url),
+          bearerToken: server.token
+        }).getRoomEventsAround({
+          roomId,
+          eventId: messageId,
+          limit: 1
+        });
 
         if (cancelled) return;
 
-        const ev = result.data?.room?.event;
+        const ev = unmask(page.events).find((item) => item.id === messageId);
         const inner = ev?.event;
-        if (!ev || !inner || inner.__typename !== 'MessagePostedEvent') {
+        if (!ev || !isMessagePostedEvent(inner)) {
           return;
         }
 
+        const attachments = inner.attachments.map((attachment) =>
+          useRenderData(MessageAttachmentViewDocument, attachment)
+        );
+
         // Need at least a body or attachments for a meaningful preview
-        if (!inner.body && inner.attachments.length === 0) {
+        if (!inner.body && attachments.length === 0) {
           return;
         }
 
@@ -173,7 +157,7 @@ unknown instance) the component renders nothing.
           roomId,
           eventId: messageId,
           body: inner.body ?? null,
-          attachments: inner.attachments.map((a) => {
+          attachments: attachments.map((a: MessageAttachmentView) => {
             const thumbnailAssetUrl = normalizePreviewAssetUrl(serverId, a.thumbnailAssetUrl);
             const videoThumbnailAssetUrl = normalizePreviewAssetUrl(
               serverId,
@@ -191,9 +175,9 @@ unknown instance) the component renders nothing.
               thumbnailUrl: displayThumbnailAssetUrl?.url ?? null
             };
           }),
-          actor: ev.actor ? useFragment(UserAvatarFragment, ev.actor) : null,
-          spaceName: result.data?.server?.profile.name ?? null,
-          roomName: result.data?.room?.name ?? null
+          actor: ev.actor ? useRenderData(UserAvatarViewData, ev.actor) : null,
+          spaceName: server.name ?? null,
+          roomName: roomName(serverId, roomId)
         };
       } catch {
         // Fail silently — no preview shown.
@@ -241,9 +225,14 @@ unknown instance) the component renders nothing.
     if (!preview || refreshPromise) return refreshPromise ?? undefined;
 
     const current = preview;
-    const client = graphqlClientManager.getClient(current.serverId).client;
+    const server = serverRegistry.getServer(current.serverId);
+    if (!server) return undefined;
     refreshPromise = refreshAttachmentUrlsForMessage(
-      client,
+      createAttachmentAPI({
+        serverId: current.serverId,
+        baseUrl: connectBaseUrl(server.url),
+        bearerToken: server.token
+      }),
       current.roomId,
       current.eventId,
       PREVIEW_THUMBNAIL_REFRESH

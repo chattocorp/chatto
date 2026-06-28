@@ -8,12 +8,14 @@ type CacheSnapshot = {
   manifestCached: boolean;
   iconCached: boolean;
   apiServerCached: boolean;
-  graphqlCached: boolean;
-  legacyGraphqlCached: boolean;
+  apiConnectCached: boolean;
   uploadedAssetCached: boolean;
 };
 
-test('service worker caches only the app shell and serves it offline', async ({ page, context }) => {
+test('service worker caches only the app shell and serves it offline', async ({
+  page,
+  context
+}) => {
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Sign In' })).toBeVisible();
 
@@ -86,14 +88,15 @@ test('service worker caches only the app shell and serves it offline', async ({ 
   await requestNetworkOnlyPaths(page);
 
   const onlineCacheSnapshot = await cacheSnapshot(page);
-  expect(onlineCacheSnapshot.cacheNames.some((name) => name.startsWith('chatto-shell-'))).toBe(true);
+  expect(onlineCacheSnapshot.cacheNames.some((name) => name.startsWith('chatto-shell-'))).toBe(
+    true
+  );
   expect(onlineCacheSnapshot.rootShellCached).toBe(true);
   expect(onlineCacheSnapshot.fallbackShellCached).toBe(true);
   expect(onlineCacheSnapshot.manifestCached).toBe(true);
   expect(onlineCacheSnapshot.iconCached).toBe(true);
   expect(onlineCacheSnapshot.apiServerCached).toBe(false);
-  expect(onlineCacheSnapshot.graphqlCached).toBe(false);
-  expect(onlineCacheSnapshot.legacyGraphqlCached).toBe(false);
+  expect(onlineCacheSnapshot.apiConnectCached).toBe(false);
   expect(onlineCacheSnapshot.uploadedAssetCached).toBe(false);
 
   await context.setOffline(true);
@@ -103,8 +106,7 @@ test('service worker caches only the app shell and serves it offline', async ({ 
 
     const offlineCacheSnapshot = await cacheSnapshot(page);
     expect(offlineCacheSnapshot.apiServerCached).toBe(false);
-    expect(offlineCacheSnapshot.graphqlCached).toBe(false);
-    expect(offlineCacheSnapshot.legacyGraphqlCached).toBe(false);
+    expect(offlineCacheSnapshot.apiConnectCached).toBe(false);
     expect(offlineCacheSnapshot.uploadedAssetCached).toBe(false);
   } finally {
     await context.setOffline(false);
@@ -115,8 +117,7 @@ async function requestNetworkOnlyPaths(page: Page) {
   await page.evaluate(async () => {
     await Promise.allSettled([
       fetch('/api/server'),
-      fetch('/api/graphql'),
-      fetch('/graphql'),
+      fetch('/api/connect'),
       fetch('/assets/example.png')
     ]);
   });
@@ -131,8 +132,7 @@ async function cacheSnapshot(page: Page) {
       manifestCached: Boolean(await caches.match('/manifest.webmanifest')),
       iconCached: Boolean(await caches.match('/icons/icon-192.png')),
       apiServerCached: Boolean(await caches.match('/api/server')),
-      graphqlCached: Boolean(await caches.match('/api/graphql')),
-      legacyGraphqlCached: Boolean(await caches.match('/graphql')),
+      apiConnectCached: Boolean(await caches.match('/api/connect')),
       uploadedAssetCached: Boolean(await caches.match('/assets/example.png'))
     };
   });

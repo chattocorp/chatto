@@ -1,20 +1,22 @@
-import type { RoomEventViewFragment } from '$lib/gql/graphql';
+import { isMessagePostedEvent, roomEventKind, RoomEventKind } from '$lib/render/eventKinds';
+import type { RoomEventView } from '$lib/render/types';
 
-export function isRootRoomEvent(event: RoomEventViewFragment): boolean {
+export function isRootRoomEvent(event: RoomEventView): boolean {
   const eventData = event.event;
   if (!eventData) return false;
-  switch (eventData.__typename) {
-    case 'MessagePostedEvent':
-      // Echoes are root-level; thread replies (threadRootEventId set) are not.
-      return !!eventData.echoOfEventId || !eventData.threadRootEventId;
-    case 'MessageEditedEvent':
-    case 'MessageRetractedEvent':
-    case 'UserJoinedRoomEvent':
-    case 'UserLeftRoomEvent':
-    case 'RoomUpdatedEvent':
-    case 'RoomDeletedEvent':
-    case 'RoomArchivedEvent':
-    case 'RoomUnarchivedEvent':
+  if (isMessagePostedEvent(eventData)) {
+    // Echoes are root-level; thread replies (threadRootEventId set) are not.
+    return !!eventData.echoOfEventId || !eventData.threadRootEventId;
+  }
+  switch (roomEventKind(eventData)) {
+    case RoomEventKind.MessageEdited:
+    case RoomEventKind.MessageRetracted:
+    case RoomEventKind.UserJoinedRoom:
+    case RoomEventKind.UserLeftRoom:
+    case RoomEventKind.RoomUpdated:
+    case RoomEventKind.RoomDeleted:
+    case RoomEventKind.RoomArchived:
+    case RoomEventKind.RoomUnarchived:
       return true;
     default:
       return false;
@@ -22,14 +24,14 @@ export function isRootRoomEvent(event: RoomEventViewFragment): boolean {
 }
 
 export function isThreadEvent(
-  event: RoomEventViewFragment,
+  event: RoomEventView,
   roomId: string,
   threadRootEventId: string
 ): boolean {
   const eventData = event.event;
   if (!eventData || !('roomId' in eventData) || eventData.roomId !== roomId) return false;
   // Thread view only shows messages, not system events.
-  if (eventData.__typename !== 'MessagePostedEvent') return false;
+  if (!isMessagePostedEvent(eventData)) return false;
   if (event.id === threadRootEventId) return true;
   return eventData.threadRootEventId === threadRootEventId;
 }

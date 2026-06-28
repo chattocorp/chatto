@@ -51,6 +51,9 @@ const (
 	RoomServiceStartDMProcedure = "/chatto.api.v1.RoomService/StartDM"
 	// RoomServiceLeaveRoomProcedure is the fully-qualified name of the RoomService's LeaveRoom RPC.
 	RoomServiceLeaveRoomProcedure = "/chatto.api.v1.RoomService/LeaveRoom"
+	// RoomServiceListRoomBansProcedure is the fully-qualified name of the RoomService's ListRoomBans
+	// RPC.
+	RoomServiceListRoomBansProcedure = "/chatto.api.v1.RoomService/ListRoomBans"
 	// RoomServiceBanRoomMemberProcedure is the fully-qualified name of the RoomService's BanRoomMember
 	// RPC.
 	RoomServiceBanRoomMemberProcedure = "/chatto.api.v1.RoomService/BanRoomMember"
@@ -84,6 +87,9 @@ type RoomServiceClient interface {
 	// Leaves the room as the current user. Direct-message and universal rooms
 	// cannot be left.
 	LeaveRoom(context.Context, *connect.Request[v1.LeaveRoomRequest]) (*connect.Response[v1.LeaveRoomResponse], error)
+	// Lists active channel room bans. The caller must be allowed to moderate room
+	// membership bans.
+	ListRoomBans(context.Context, *connect.Request[v1.ListRoomBansRequest]) (*connect.Response[v1.ListRoomBansResponse], error)
 	// Bans a member from a channel room. Direct-message rooms cannot be moderated
 	// this way, and the target must currently be a room member.
 	BanRoomMember(context.Context, *connect.Request[v1.BanRoomMemberRequest]) (*connect.Response[v1.BanRoomMemberResponse], error)
@@ -151,6 +157,12 @@ func NewRoomServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(roomServiceMethods.ByName("LeaveRoom")),
 			connect.WithClientOptions(opts...),
 		),
+		listRoomBans: connect.NewClient[v1.ListRoomBansRequest, v1.ListRoomBansResponse](
+			httpClient,
+			baseURL+RoomServiceListRoomBansProcedure,
+			connect.WithSchema(roomServiceMethods.ByName("ListRoomBans")),
+			connect.WithClientOptions(opts...),
+		),
 		banRoomMember: connect.NewClient[v1.BanRoomMemberRequest, v1.BanRoomMemberResponse](
 			httpClient,
 			baseURL+RoomServiceBanRoomMemberProcedure,
@@ -176,6 +188,7 @@ type roomServiceClient struct {
 	joinRoom         *connect.Client[v1.JoinRoomRequest, v1.JoinRoomResponse]
 	startDM          *connect.Client[v1.StartDMRequest, v1.StartDMResponse]
 	leaveRoom        *connect.Client[v1.LeaveRoomRequest, v1.LeaveRoomResponse]
+	listRoomBans     *connect.Client[v1.ListRoomBansRequest, v1.ListRoomBansResponse]
 	banRoomMember    *connect.Client[v1.BanRoomMemberRequest, v1.BanRoomMemberResponse]
 	unbanRoomMember  *connect.Client[v1.UnbanRoomMemberRequest, v1.UnbanRoomMemberResponse]
 }
@@ -220,6 +233,11 @@ func (c *roomServiceClient) LeaveRoom(ctx context.Context, req *connect.Request[
 	return c.leaveRoom.CallUnary(ctx, req)
 }
 
+// ListRoomBans calls chatto.api.v1.RoomService.ListRoomBans.
+func (c *roomServiceClient) ListRoomBans(ctx context.Context, req *connect.Request[v1.ListRoomBansRequest]) (*connect.Response[v1.ListRoomBansResponse], error) {
+	return c.listRoomBans.CallUnary(ctx, req)
+}
+
 // BanRoomMember calls chatto.api.v1.RoomService.BanRoomMember.
 func (c *roomServiceClient) BanRoomMember(ctx context.Context, req *connect.Request[v1.BanRoomMemberRequest]) (*connect.Response[v1.BanRoomMemberResponse], error) {
 	return c.banRoomMember.CallUnary(ctx, req)
@@ -255,6 +273,9 @@ type RoomServiceHandler interface {
 	// Leaves the room as the current user. Direct-message and universal rooms
 	// cannot be left.
 	LeaveRoom(context.Context, *connect.Request[v1.LeaveRoomRequest]) (*connect.Response[v1.LeaveRoomResponse], error)
+	// Lists active channel room bans. The caller must be allowed to moderate room
+	// membership bans.
+	ListRoomBans(context.Context, *connect.Request[v1.ListRoomBansRequest]) (*connect.Response[v1.ListRoomBansResponse], error)
 	// Bans a member from a channel room. Direct-message rooms cannot be moderated
 	// this way, and the target must currently be a room member.
 	BanRoomMember(context.Context, *connect.Request[v1.BanRoomMemberRequest]) (*connect.Response[v1.BanRoomMemberResponse], error)
@@ -318,6 +339,12 @@ func NewRoomServiceHandler(svc RoomServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(roomServiceMethods.ByName("LeaveRoom")),
 		connect.WithHandlerOptions(opts...),
 	)
+	roomServiceListRoomBansHandler := connect.NewUnaryHandler(
+		RoomServiceListRoomBansProcedure,
+		svc.ListRoomBans,
+		connect.WithSchema(roomServiceMethods.ByName("ListRoomBans")),
+		connect.WithHandlerOptions(opts...),
+	)
 	roomServiceBanRoomMemberHandler := connect.NewUnaryHandler(
 		RoomServiceBanRoomMemberProcedure,
 		svc.BanRoomMember,
@@ -348,6 +375,8 @@ func NewRoomServiceHandler(svc RoomServiceHandler, opts ...connect.HandlerOption
 			roomServiceStartDMHandler.ServeHTTP(w, r)
 		case RoomServiceLeaveRoomProcedure:
 			roomServiceLeaveRoomHandler.ServeHTTP(w, r)
+		case RoomServiceListRoomBansProcedure:
+			roomServiceListRoomBansHandler.ServeHTTP(w, r)
 		case RoomServiceBanRoomMemberProcedure:
 			roomServiceBanRoomMemberHandler.ServeHTTP(w, r)
 		case RoomServiceUnbanRoomMemberProcedure:
@@ -391,6 +420,10 @@ func (UnimplementedRoomServiceHandler) StartDM(context.Context, *connect.Request
 
 func (UnimplementedRoomServiceHandler) LeaveRoom(context.Context, *connect.Request[v1.LeaveRoomRequest]) (*connect.Response[v1.LeaveRoomResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.RoomService.LeaveRoom is not implemented"))
+}
+
+func (UnimplementedRoomServiceHandler) ListRoomBans(context.Context, *connect.Request[v1.ListRoomBansRequest]) (*connect.Response[v1.ListRoomBansResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.RoomService.ListRoomBans is not implemented"))
 }
 
 func (UnimplementedRoomServiceHandler) BanRoomMember(context.Context, *connect.Request[v1.BanRoomMemberRequest]) (*connect.Response[v1.BanRoomMemberResponse], error) {

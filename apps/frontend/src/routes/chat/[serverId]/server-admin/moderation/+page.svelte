@@ -1,13 +1,12 @@
 <script lang="ts">
-  import { graphql, useFragment } from '$lib/gql';
-  import { useQuery } from '$lib/hooks';
-  import { createRoomCommandAPI } from '$lib/api/rooms';
+  import { onMount } from 'svelte';
+  import { createRoomCommandAPI, type RoomBanSummary } from '$lib/api/rooms';
   import { Panel, DataTable } from '$lib/components/admin';
   import { Hint } from '$lib/ui';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import { Button } from '$lib/ui/form';
-  import UserAvatar, { UserAvatarFragment } from '$lib/components/UserAvatar.svelte';
+  import UserAvatar from '$lib/components/UserAvatar.svelte';
   import UnbanRoomMemberModal from '$lib/components/moderation/UnbanRoomMemberModal.svelte';
   import { getUserSettings } from '$lib/state/userSettings.svelte';
   import { formatDate as formatDateUtil } from '$lib/utils/formatTime';
@@ -19,67 +18,66 @@
   const userSettings = getUserSettings();
   const connection = useConnection();
 
-  const RoomBansQuery = graphql(`
-    query AdminRoomBans {
-      admin {
-        roomBans {
-          id
-          roomId
-          room {
-            id
-            name
-          }
-          userId
-          user {
-            ...UserAvatarUser
-          }
-          reason
-          expiresAt
-        }
+  let bans = $state.raw<RoomBanSummary[]>([]);
+  let unbanningBanId = $state<string | null>(null);
+  let unbanDialogBan = $state<RoomBanSummary | null>(null);
+  let unbanError = $state<string | null>(null);
+  let loading = $state(true);
+  let error = $state<string | null>(null);
+  let loadRequest = 0;
+
+  function roomAPI() {
+    const conn = connection();
+    return createRoomCommandAPI({
+      serverId: conn.serverId ?? getActiveServer(),
+      baseUrl: conn.connectBaseUrl,
+      bearerToken: conn.bearerToken
+    });
+  }
+
+  async function loadRoomBans() {
+    const request = ++loadRequest;
+    loading = true;
+    error = null;
+    try {
+      const nextBans = await roomAPI().listRoomBans();
+      if (request !== loadRequest) return;
+      bans = nextBans;
+    } catch (err) {
+      if (request !== loadRequest) return;
+      error = m['admin.moderation.admin_unavailable']();
+      console.error('Failed to load room bans:', err);
+    } finally {
+      if (request === loadRequest) {
+        loading = false;
       }
     }
-  `);
+  }
 
-  const roomBansQuery = useQuery(RoomBansQuery, () => ({}));
-
-  let bans = $derived(roomBansQuery.data?.admin?.roomBans ?? []);
-  let unbanningBanId = $state<string | null>(null);
-  let unbanDialogBan = $state<(typeof bans)[number] | null>(null);
-  let unbanError = $state<string | null>(null);
-  let loading = $derived(roomBansQuery.loading);
-  let error = $derived(
-    roomBansQuery.error ??
-      (!roomBansQuery.loading && !roomBansQuery.data?.admin
-        ? m['admin.moderation.admin_unavailable']()
-        : null)
-  );
+  onMount(() => {
+    void loadRoomBans();
+  });
 
   function formatDate(value: string | null | undefined): string {
     if (!value) return m['admin.moderation.no_expiry']();
     return formatDateUtil(value, userSettings);
   }
 
-  function roomLabel(ban: (typeof bans)[number]): string {
+  function roomLabel(ban: RoomBanSummary): string {
     return ban.room ? `#${ban.room.name}` : ban.roomId;
   }
 
-  function openUnbanDialog(ban: (typeof bans)[number]) {
+  function openUnbanDialog(ban: RoomBanSummary) {
     unbanDialogBan = ban;
     unbanError = null;
   }
 
-  async function unban(ban: (typeof bans)[number], reason: string) {
+  async function unban(ban: RoomBanSummary, reason: string) {
     if (unbanningBanId) return;
     unbanningBanId = ban.id;
     unbanError = null;
     try {
-      const conn = connection();
-      const api = createRoomCommandAPI({
-        serverId: conn.serverId ?? getActiveServer(),
-        baseUrl: conn.connectBaseUrl,
-        bearerToken: conn.bearerToken
-      });
-      await api.unbanRoomMember({
+      await roomAPI().unbanRoomMember({
         roomId: ban.roomId,
         userId: ban.userId,
         reason
@@ -95,7 +93,7 @@
 
     toast.success(m['admin.moderation.unban_success']());
     unbanDialogBan = null;
-    roomBansQuery.refetch();
+    await loadRoomBans();
   }
 </script>
 
@@ -124,7 +122,7 @@
             <th class="px-3 py-2 font-medium"></th>
           {/snippet}
           {#snippet row(ban)}
-            {@const user = ban.user ? useFragment(UserAvatarFragment, ban.user) : null}
+            {@const user = ban.user}
             <td class="min-w-48 px-3 py-2">
               <div class="flex items-center gap-2">
                 {#if user}
@@ -173,11 +171,8 @@
 </div>
 
 {#if unbanDialogBan}
-  {@const unbanDialogUser = unbanDialogBan.user
-    ? useFragment(UserAvatarFragment, unbanDialogBan.user)
-    : null}
   <UnbanRoomMemberModal
-    user={unbanDialogUser}
+    user={unbanDialogBan.user}
     userId={unbanDialogBan.userId}
     room={unbanDialogBan.room}
     roomId={unbanDialogBan.roomId}

@@ -20,7 +20,7 @@ Users can react to a message with emoji. Reactions are aggregated into pills sho
 ### 1. Reactions key on message event ID
 
 **Decision:** A reaction is keyed by the specific message event ID the user reacted to. A channel echo of a thread reply and the original thread reply are separate visible events, so they accumulate independent reaction state.
-**Why:** Message identity lives on the EVT envelope. Keeping reactions attached to the exact envelope matches the GraphQL event model and avoids hidden canonicalization between two visible artifacts.
+**Why:** Message identity lives on the EVT envelope. Keeping reactions attached to the exact envelope matches the public timeline event model and avoids hidden canonicalization between two visible artifacts.
 **Tradeoff:** A reply echoed into the channel can show different reaction counts in the channel and thread views. That is intentional: people are reacting to the appearance they can see.
 
 ### 2. Shortcodes, not raw Unicode
@@ -37,7 +37,7 @@ Users can react to a message with emoji. Reactions are aggregated into pills sho
 
 ### 4. Public APIs expose reactor names as a bounded preview
 
-**Decision:** `ReactionSummary.count` is the total current count, while bounded reactor previews expose only a small set of reacting users. GraphQL keeps `ReactionSummary.users(first:)` as the legacy projected read shape; ConnectRPC room timeline responses expose hydrated reaction summaries with the same bounded preview semantics. Reaction writes use ConnectRPC `ReactionService.AddReaction` and `RemoveReaction` in the web client, while GraphQL mutations remain as a compatibility path and call the same core operation model.
+**Decision:** `ReactionSummary.count` is the total current count, while bounded reactor previews expose only a small set of reacting users. ConnectRPC room timeline responses expose hydrated reaction summaries with bounded preview semantics. Reaction writes use ConnectRPC `ReactionService.AddReaction` and `RemoveReaction` in the web client and call the shared core operation model.
 **Why:** Reaction pills need a quick hover tooltip, not an unbounded user directory embedded in every message event. Keeping the full count separate preserves the main signal while preventing popular reactions from inflating timeline payloads.
 **Tradeoff:** Clients that need a complete reactor list will need a future dedicated paginated query instead of overloading the message timeline shape.
 
@@ -49,7 +49,7 @@ Users can react to a message with emoji. Reactions are aggregated into pills sho
 
 ### 6. Web reconnect catch-up refreshes the current room window
 
-**Decision:** On browser wake/reconnect, the web client refreshes the currently viewed room window from projected GraphQL reads instead of replaying missed reaction events through its event bus. If the user is at the bottom it fetches the latest room page; if scrolled up it refetches around the visible anchor event and preserves scroll by event ID.
+**Decision:** On browser wake/reconnect, the web client refreshes the currently viewed room window from projected ConnectRPC timeline reads instead of replaying missed reaction events through its event bus. If the user is at the bottom it fetches the latest room page; if scrolled up it refetches around the visible anchor event and preserves scroll by event ID.
 **Why:** Reactions mutate existing message rows. Refetching projected message rows updates reactions, edits, retractions, attachment processing state, and newly posted messages through one path, while avoiding fragile reconnect replay state in the browser.
 **Tradeoff:** Message-row catch-up is scoped to the room/thread the user is actually viewing. Other rooms catch up through normal queries when opened, while server-scoped projected state such as notifications, unread/sidebar state, room layout, server profile/settings, and active-call indicators is refetched after event-bus gaps. The `myEvents` subscription is intentionally live-only and no longer exposes a replay cursor.
 

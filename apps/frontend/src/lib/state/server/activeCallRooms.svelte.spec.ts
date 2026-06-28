@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import type { VoiceCallAPI, VoiceCallParticipant } from '$lib/api/voiceCalls';
 import { ActiveCallRoomsState } from './activeCallRooms.svelte';
 
 function deferred<T>() {
@@ -9,12 +10,42 @@ function deferred<T>() {
   return { promise, resolve };
 }
 
+function participant(
+  userId: string,
+  displayName = 'Alice',
+  login = 'alice',
+  callId = 'call-1'
+): VoiceCallParticipant {
+  return {
+    callId,
+    joinedAt: '2026-01-01T00:00:00Z',
+    user: {
+      id: userId,
+      displayName,
+      login,
+      deleted: false,
+      avatarUrl: null
+    }
+  };
+}
+
+function makeVoiceCallAPI(overrides: Partial<VoiceCallAPI> = {}): VoiceCallAPI {
+  return {
+    listActiveCallRoomIds: vi.fn().mockResolvedValue([]),
+    listCallParticipants: vi.fn().mockResolvedValue([]),
+    joinCall: vi.fn().mockResolvedValue(true),
+    getCallToken: vi.fn().mockResolvedValue(null),
+    leaveCall: vi.fn().mockResolvedValue(true),
+    ...overrides
+  };
+}
+
 describe('ActiveCallRoomsState', () => {
   it('removes a failed local participant without hiding other active participants', () => {
-    const state = new ActiveCallRoomsState(
-      { query: vi.fn() } as never,
-      { connected: false, roomId: null } as never
-    );
+    const state = new ActiveCallRoomsState(makeVoiceCallAPI(), {
+      connected: false,
+      roomId: null
+    } as never);
 
     state.handleJoin('R1', 'call-1', {
       id: 'U1',
@@ -43,10 +74,11 @@ describe('ActiveCallRoomsState', () => {
   });
 
   it('reports backend-observed participants as voice call participants', () => {
-    const state = new ActiveCallRoomsState(
-      { query: vi.fn() } as never,
-      { connected: false, roomId: null, participants: [] } as never
-    );
+    const state = new ActiveCallRoomsState(makeVoiceCallAPI(), {
+      connected: false,
+      roomId: null,
+      participants: []
+    } as never);
 
     state.handleJoin('R1', 'call-1', {
       id: 'U1',
@@ -60,34 +92,16 @@ describe('ActiveCallRoomsState', () => {
   });
 
   it('reloads participants when a protobuf call join has no hydrated actor', async () => {
-    const query = vi.fn().mockReturnValueOnce({
-      toPromise: vi.fn(async () => ({
-        data: {
-          room: {
-            callParticipants: [
-              {
-                callId: 'call-1',
-                joinedAt: '2026-01-01T00:00:00Z',
-                user: {
-                  id: 'U1',
-                  displayName: 'Alice',
-                  login: 'alice',
-                  avatarUrl: null
-                }
-              }
-            ]
-          }
-        }
-      }))
-    });
-    const state = new ActiveCallRoomsState(
-      { query } as never,
-      { connected: false, roomId: null, participants: [] } as never
-    );
+    const listCallParticipants = vi.fn().mockResolvedValueOnce([participant('U1')]);
+    const state = new ActiveCallRoomsState(makeVoiceCallAPI({ listCallParticipants }), {
+      connected: false,
+      roomId: null,
+      participants: []
+    } as never);
 
     await state.handleJoin('R1', 'call-1', null);
 
-    expect(query).toHaveBeenCalledTimes(1);
+    expect(listCallParticipants).toHaveBeenCalledTimes(1);
     expect(state.has('R1')).toBe(true);
     expect(state.getParticipants('R1')).toEqual([
       {
@@ -101,28 +115,7 @@ describe('ActiveCallRoomsState', () => {
 
   it('keeps actor-less active rooms on unrelated leave events', async () => {
     const state = new ActiveCallRoomsState(
-      {
-        query: vi.fn(() => ({
-          toPromise: vi.fn(async () => ({
-            data: {
-              room: {
-                callParticipants: [
-                  {
-                    callId: 'call-1',
-                    joinedAt: '2026-01-01T00:00:00Z',
-                    user: {
-                      id: 'U1',
-                      displayName: 'Alice',
-                      login: 'alice',
-                      avatarUrl: null
-                    }
-                  }
-                ]
-              }
-            }
-          }))
-        }))
-      } as never,
+      makeVoiceCallAPI({ listCallParticipants: vi.fn().mockResolvedValue([participant('U1')]) }),
       { connected: false, roomId: null, participants: [] } as never
     );
 
@@ -134,46 +127,15 @@ describe('ActiveCallRoomsState', () => {
   });
 
   it('does not resurrect an ended call from a late actor-less join reload', async () => {
-    const reload = deferred<{
-      data: {
-        room: {
-          callParticipants: Array<{
-            callId: string;
-            joinedAt: string;
-            user: { id: string; displayName: string; login: string; avatarUrl: string | null };
-          }>;
-        };
-      };
-    }>();
+    const reload = deferred<VoiceCallParticipant[]>();
     const state = new ActiveCallRoomsState(
-      {
-        query: vi.fn(() => ({
-          toPromise: vi.fn(() => reload.promise)
-        }))
-      } as never,
+      makeVoiceCallAPI({ listCallParticipants: vi.fn(() => reload.promise) }),
       { connected: false, roomId: null, participants: [] } as never
     );
 
     const join = state.handleJoin('R1', 'call-1', null);
     state.handleEnd('R1', 'call-1');
-    reload.resolve({
-      data: {
-        room: {
-          callParticipants: [
-            {
-              callId: 'call-1',
-              joinedAt: '2026-01-01T00:00:00Z',
-              user: {
-                id: 'U1',
-                displayName: 'Alice',
-                login: 'alice',
-                avatarUrl: null
-              }
-            }
-          ]
-        }
-      }
-    });
+    reload.resolve([participant('U1')]);
     await join;
 
     expect(state.has('R1')).toBe(false);
@@ -181,25 +143,22 @@ describe('ActiveCallRoomsState', () => {
   });
 
   it('reports active LiveKit camera participants as video participants', () => {
-    const state = new ActiveCallRoomsState(
-      { query: vi.fn() } as never,
-      {
-        connected: true,
-        roomId: 'R1',
-        participants: [
-          {
-            identity: 'U1',
-            isCameraEnabled: true,
-            videoTrack: {}
-          },
-          {
-            identity: 'U2',
-            isCameraEnabled: false,
-            videoTrack: null
-          }
-        ]
-      } as never
-    );
+    const state = new ActiveCallRoomsState(makeVoiceCallAPI(), {
+      connected: true,
+      roomId: 'R1',
+      participants: [
+        {
+          identity: 'U1',
+          isCameraEnabled: true,
+          videoTrack: {}
+        },
+        {
+          identity: 'U2',
+          isCameraEnabled: false,
+          videoTrack: null
+        }
+      ]
+    } as never);
 
     expect(state.getParticipantCallPresence('R1', 'U1')).toBe('video');
     expect(state.getParticipantCallPresence('R1', 'U2')).toBe('voice');
@@ -207,10 +166,10 @@ describe('ActiveCallRoomsState', () => {
   });
 
   it('clears a room when its call ends', () => {
-    const state = new ActiveCallRoomsState(
-      { query: vi.fn() } as never,
-      { connected: false, roomId: null } as never
-    );
+    const state = new ActiveCallRoomsState(makeVoiceCallAPI(), {
+      connected: false,
+      roomId: null
+    } as never);
 
     state.handleJoin('R1', 'call-1', {
       id: 'U1',
@@ -230,18 +189,10 @@ describe('ActiveCallRoomsState', () => {
 
   it('clears a room with an unknown call id when a call end event arrives', async () => {
     const state = new ActiveCallRoomsState(
-      {
-        query: vi
-          .fn()
-          .mockReturnValueOnce({
-            toPromise: vi.fn(async () => ({ data: { activeCallRoomIds: ['R1'] } }))
-          })
-          .mockReturnValueOnce({
-            toPromise: vi.fn(async () => ({
-              data: { room: { callParticipants: [] } }
-            }))
-          })
-      } as never,
+      makeVoiceCallAPI({
+        listActiveCallRoomIds: vi.fn().mockResolvedValue(['R1']),
+        listCallParticipants: vi.fn().mockResolvedValue([])
+      }),
       { connected: false, roomId: null } as never
     );
 
@@ -256,10 +207,10 @@ describe('ActiveCallRoomsState', () => {
   });
 
   it('ignores stale leave and end events from an older call', () => {
-    const state = new ActiveCallRoomsState(
-      { query: vi.fn() } as never,
-      { connected: false, roomId: null } as never
-    );
+    const state = new ActiveCallRoomsState(makeVoiceCallAPI(), {
+      connected: false,
+      roomId: null
+    } as never);
 
     state.handleJoin('R1', 'call-2', {
       id: 'U1',

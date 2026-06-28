@@ -11,10 +11,10 @@ import (
 	"connectrpc.com/connect"
 	"github.com/gin-gonic/gin"
 	"google.golang.org/protobuf/proto"
+	"hmans.de/chatto/internal/authctx"
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/connectapi"
 	"hmans.de/chatto/internal/core"
-	graphauth "hmans.de/chatto/internal/graph/auth"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	"hmans.de/chatto/internal/pb/chatto/api/v1/apiv1connect"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
@@ -120,15 +120,14 @@ func TestConnectAPIRejectsOversizedRequestMessages(t *testing.T) {
 		t.Fatalf("CreateAuthToken: %v", err)
 	}
 
-	client := apiv1connect.NewMessageServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
-	req := connect.NewRequest(&apiv1.PostMessageRequest{
-		RoomId: "oversized-room",
-		Body:   strings.Repeat("a", connectapi.MaxRequestMessageBytes),
+	client := apiv1connect.NewRoomTimelineServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
+	req := connect.NewRequest(&apiv1.GetRoomEventsRequest{
+		RoomId: strings.Repeat("a", connectapi.MaxRequestMessageBytes+1),
 	})
 	req.Header().Set("Authorization", "Bearer "+token)
-	_, err = client.PostMessage(ctx, req)
+	_, err = client.GetRoomEvents(ctx, req)
 	if connect.CodeOf(err) != connect.CodeResourceExhausted {
-		t.Fatalf("PostMessage oversized err = %v, want resource exhausted", err)
+		t.Fatalf("GetRoomEvents oversized err = %v, want resource exhausted", err)
 	}
 }
 
@@ -282,7 +281,7 @@ func TestAuthenticateConnectRequest(t *testing.T) {
 	})
 
 	t.Run("returns narrow Connect caller", func(t *testing.T) {
-		info, err := authenticateConnectRequest(graphauth.WithUser(context.Background(), &corev1.User{
+		info, err := authenticateConnectRequest(authctx.WithUser(context.Background(), &corev1.User{
 			Id:          "user-123",
 			Login:       "should-not-leak",
 			DisplayName: "Should Not Leak",
@@ -296,6 +295,39 @@ func TestAuthenticateConnectRequest(t *testing.T) {
 		}
 		if caller != (connectapi.Caller{UserID: "user-123"}) {
 			t.Fatalf("caller = %+v, want user id only", caller)
+		}
+	})
+}
+
+func TestConnectRequestBaseURLTrustModel(t *testing.T) {
+	t.Run("uses configured public URL before request headers", func(t *testing.T) {
+		s := &HTTPServer{config: config.ChattoConfig{
+			Webserver: config.WebserverConfig{URL: "https://configured.example.com/chatto"},
+		}}
+		req := httptest.NewRequest(http.MethodGet, "http://request.example.com/api/connect", nil)
+		req.Header.Set("X-Forwarded-Proto", "https")
+
+		if got, want := s.requestBaseURL(req), "https://configured.example.com"; got != want {
+			t.Fatalf("requestBaseURL = %q, want %q", got, want)
+		}
+	})
+
+	t.Run("uses direct TLS state when no public URL is configured", func(t *testing.T) {
+		s := &HTTPServer{}
+		req := httptest.NewRequest(http.MethodGet, "https://direct.example.com/api/connect", nil)
+
+		if got, want := s.requestBaseURL(req), "https://direct.example.com"; got != want {
+			t.Fatalf("requestBaseURL = %q, want %q", got, want)
+		}
+	})
+
+	t.Run("ignores untrusted forwarded proto when no public URL is configured", func(t *testing.T) {
+		s := &HTTPServer{}
+		req := httptest.NewRequest(http.MethodGet, "http://direct.example.com/api/connect", nil)
+		req.Header.Set("X-Forwarded-Proto", "https")
+
+		if got, want := s.requestBaseURL(req), "http://direct.example.com"; got != want {
+			t.Fatalf("requestBaseURL = %q, want %q", got, want)
 		}
 	})
 }

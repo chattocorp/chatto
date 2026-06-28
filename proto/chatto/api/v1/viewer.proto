@@ -1,0 +1,117 @@
+syntax = "proto3";
+
+package chatto.api.v1;
+
+import "chatto/api/v1/notification_preferences.proto";
+import "chatto/api/v1/presence.proto";
+import "chatto/api/v1/user_status.proto";
+import "google/protobuf/timestamp.proto";
+
+// User preference for rendering times in clients.
+enum TimeFormat {
+  // No explicit preference was stored.
+  TIME_FORMAT_UNSPECIFIED = 0;
+  // Let the client choose based on locale and browser settings.
+  TIME_FORMAT_AUTO = 1;
+  // Render times using a 12-hour clock.
+  TIME_FORMAT_12_HOUR = 2;
+  // Render times using a 24-hour clock.
+  TIME_FORMAT_24_HOUR = 3;
+}
+
+// Server-level display settings for the authenticated user.
+message UserSettings {
+  // Optional IANA timezone override. Absent means the client should use the
+  // browser's local timezone.
+  optional string timezone = 1;
+  // Preferred time format.
+  TimeFormat time_format = 2;
+}
+
+// Current authenticated user's public profile and self-only settings.
+message ViewerUser {
+  // Stable user ID.
+  string id = 1;
+  // Login identifier.
+  string login = 2;
+  // Display name shown in Chatto.
+  string display_name = 3;
+  // Optional avatar URL.
+  optional string avatar_url = 4;
+  // Custom profile status, when set.
+  CustomUserStatus custom_status = 5;
+  // Current live presence status.
+  PresenceStatus presence_status = 6;
+  // Whether the account has at least one verified email address.
+  bool has_verified_email = 7;
+  // Current user's display settings.
+  UserSettings settings = 8;
+  // Whether the authenticated user may delete this account.
+  bool viewer_can_delete_account = 9;
+  // Last time a login credential changed, when known.
+  google.protobuf.Timestamp last_login_change = 10;
+}
+
+// Permission-derived capabilities for the authenticated user.
+message ViewerCapabilities {
+  // Whether the user has at least one server-admin permission.
+  bool can_view_admin = 1;
+  // Whether the user may start direct-message conversations.
+  bool can_start_dms = 2;
+  // Whether the user may view the admin users screen.
+  bool can_admin_view_users = 3;
+  // Whether the user may manage users.
+  bool can_admin_manage_users = 4;
+  // Whether the user may view role administration.
+  bool can_admin_view_roles = 5;
+  // Whether the user may manage roles.
+  bool can_admin_manage_roles = 6;
+  // Whether the user may view system administration.
+  bool can_admin_view_system = 7;
+  // Whether the user may view the audit log.
+  bool can_admin_view_audit = 8;
+  // Whether the user has unread followed threads.
+  bool has_unread_followed_threads = 9;
+  // Whether the user may edit direct per-user permission overrides.
+  bool can_manage_user_permissions = 10;
+}
+
+// Server-wide notification preference for the authenticated user.
+message ServerNotificationPreference {
+  // Explicit server-level setting.
+  NotificationLevel level = 1;
+  // Level after applying system defaults.
+  NotificationLevel effective_level = 2;
+}
+
+// Room notification preference for one joined room.
+message RoomNotificationPreference {
+  // Room whose preference is represented.
+  string room_id = 1;
+  // Explicit room-level setting.
+  NotificationLevel level = 2;
+  // Level after applying room/server/system defaults.
+  NotificationLevel effective_level = 3;
+}
+
+// Request for the authenticated viewer snapshot.
+message GetViewerRequest {}
+
+// Authenticated viewer snapshot needed by application shells.
+message GetViewerResponse {
+  // Current authenticated user.
+  ViewerUser user = 1;
+  // Permission-derived capabilities.
+  ViewerCapabilities capabilities = 2;
+  // Server-wide notification preference.
+  ServerNotificationPreference server_notification_preference = 3;
+  // Notification preferences for rooms the user participates in.
+  repeated RoomNotificationPreference room_notification_preferences = 4;
+}
+
+// Provides authenticated user profile, preferences, and capability state.
+service ViewerService {
+  // Returns the current authenticated viewer. This RPC requires a logged-in
+  // user; unauthenticated callers receive an UNAUTHENTICATED error.
+  rpc GetViewer(GetViewerRequest) returns (GetViewerResponse);
+}

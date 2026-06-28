@@ -2,23 +2,9 @@ import { expect, type Page } from '@playwright/test';
 import { test } from './setup';
 import { createAndLoginTestUser } from './fixtures/testUser';
 import { withServerUser } from './fixtures/serverUser';
+import { postMessagesViaConnect } from './fixtures/connectHelpers';
 import { TIMEOUTS } from './constants';
 import { waitForRoomReady } from './fixtures/realtimeSync';
-
-/**
- * Post messages via GraphQL API (much faster than UI-based posting).
- */
-async function postMessagesViaAPI(page: Page, roomId: string, messages: string[]): Promise<void> {
-  for (const body of messages) {
-    await page.request.post('/api/graphql', {
-      headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-      data: {
-        query: `mutation($input: PostMessageInput!) { postMessage(input: $input) { id } }`,
-        variables: { input: { roomId, body } }
-      }
-    });
-  }
-}
 
 /**
  * Get the room ID from the current page URL.
@@ -62,7 +48,7 @@ test.describe('Virtualizer stability', () => {
       { length: 25 },
       (_, i) => `Fade reset message ${i + 1} - ${timestamp} - ${longText}`
     );
-    await postMessagesViaAPI(page, generalRoomId, messages);
+    await postMessagesViaConnect(page, generalRoomId, messages);
     await expect(page.getByText(`Fade reset message 25 - ${timestamp}`)).toBeVisible({
       timeout: TIMEOUTS.UI_STANDARD
     });
@@ -103,7 +89,7 @@ test.describe('Virtualizer stability', () => {
     const generalRoomId = getRoomIdFromUrl(page);
 
     const messages = Array.from({ length: 20 }, (_, i) => `General message ${i + 1}`);
-    await postMessagesViaAPI(page, generalRoomId, messages);
+    await postMessagesViaConnect(page, generalRoomId, messages);
     await expect(page.getByText('General message 20')).toBeVisible({
       timeout: TIMEOUTS.UI_STANDARD
     });
@@ -113,7 +99,7 @@ test.describe('Virtualizer stability', () => {
     const sparseRoomId = getRoomIdFromUrl(page);
 
     const sparseMessages = Array.from({ length: 3 }, (_, i) => `Sparse message ${i + 1}`);
-    await postMessagesViaAPI(page, sparseRoomId, sparseMessages);
+    await postMessagesViaConnect(page, sparseRoomId, sparseMessages);
     await expect(page.getByText('Sparse message 3')).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
 
     // Set up error capture
@@ -173,7 +159,7 @@ test.describe('Virtualizer stability', () => {
 
     // Seed general room with messages so it has scroll content
     const seedMessages = Array.from({ length: 15 }, (_, i) => `Seed message ${i + 1}`);
-    await postMessagesViaAPI(page, generalRoomId, seedMessages);
+    await postMessagesViaConnect(page, generalRoomId, seedMessages);
     await expect(page.getByText('Seed message 15')).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
 
     // Create a second room
@@ -200,7 +186,7 @@ test.describe('Virtualizer stability', () => {
       // User 2 posts messages while User 1 switches rooms
       const postPromise = (async () => {
         for (let i = 0; i < 10; i++) {
-          await postMessagesViaAPI(page2, generalRoomId, [`Live message ${i + 1}`]);
+          await postMessagesViaConnect(page2, generalRoomId, [`Live message ${i + 1}`]);
         }
       })();
 

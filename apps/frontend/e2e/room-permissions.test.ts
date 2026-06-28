@@ -6,16 +6,20 @@ import {
   loginAsAdminAndUsePrimaryServer,
   type TestUser
 } from './fixtures/testUser';
+import {
+  connectPost,
+  connectPostResponse,
+  createRoomViaConnect,
+  getDefaultRoomGroupIdViaConnect,
+  getRoomIdByNameViaConnect,
+  joinRoomViaConnect
+} from './fixtures/connectHelpers';
 import * as routes from './routes';
 
 interface TestServer {
   id: string;
   name: string;
 }
-
-// ============================================================================
-// GraphQL Helper Functions
-// ============================================================================
 
 async function usePrimaryServerViaAPI(page: Page, _name?: string): Promise<TestServer> {
   return loginAsAdminAndUsePrimaryServer(page);
@@ -61,86 +65,24 @@ async function logoutUser(page: Page): Promise<void> {
 
 async function createRoomViaAPI(page: Page, name?: string): Promise<string> {
   const roomName = name ?? `room${Date.now()}`;
-  const groupResp = await page.request.post('/api/graphql', {
-    headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-    data: { query: `query { server { roomGroups { id } } }` }
-  });
-  expect(groupResp.ok()).toBeTruthy();
-  const groupData = await groupResp.json();
-  const groupId = groupData.data?.server?.roomGroups?.[0]?.id;
-  if (!groupId) {
-    throw new Error(`No room group available for e2e room creation: ${JSON.stringify(groupData)}`);
-  }
-
-  const resp = await page.request.post('/api/graphql', {
-    headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-    data: {
-      query: `mutation($input: CreateRoomInput!) { createRoom(input: $input) { id name } }`,
-      variables: { input: { name: roomName, groupId } }
-    }
-  });
-  expect(resp.ok()).toBeTruthy();
-  const data = await resp.json();
-  if (data.errors || !data.data?.createRoom) {
-    throw new Error(`createRoom failed: ${JSON.stringify(data)}`);
-  }
-  return data.data.createRoom.id;
+  const groupId = await getDefaultRoomGroupIdViaConnect(page);
+  return createRoomViaConnect(page, roomName, groupId);
 }
 
 async function getRoomByName(page: Page, roomName: string): Promise<string> {
-  const resp = await page.request.post('/api/graphql', {
-    headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-    data: {
-      query: `query { server { rooms(type: CHANNEL) { id name } } }`
-    }
-  });
-  expect(resp.ok()).toBeTruthy();
-  const data = await resp.json();
-  const rooms = data.data?.server?.rooms;
-  if (!rooms) {
-    throw new Error(`Failed to get rooms: ${JSON.stringify(data)}`);
-  }
-  const room = rooms.find((r: { name: string }) => r.name.toLowerCase() === roomName.toLowerCase());
-  if (!room) {
-    throw new Error(`Room '${roomName}' not found in instance`);
-  }
-  return room.id;
+  return getRoomIdByNameViaConnect(page, roomName);
 }
 
 async function joinRoomViaAPI(page: Page, roomId: string): Promise<void> {
-  const resp = await page.request.post('/api/graphql', {
-    headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-    data: {
-      query: `mutation($input: JoinRoomInput!) { joinRoom(input: $input) { id } }`,
-      variables: { input: { roomId } }
-    }
-  });
-  expect(resp.ok()).toBeTruthy();
-  expect((await resp.json()).data?.joinRoom?.id).toBe(roomId);
+  await joinRoomViaConnect(page, roomId);
 }
 
 async function denyPermission(page: Page, role: string, permission: string): Promise<void> {
-  const resp = await page.request.post('/api/graphql', {
-    headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-    data: {
-      query: `mutation($input: DenyPermissionInput!) { denyPermission(input: $input) }`,
-      variables: { input: { roleName: role, permission } }
-    }
-  });
-  expect(resp.ok()).toBeTruthy();
-  expect((await resp.json()).data?.denyPermission).toBe(true);
+  await setRolePermission(page, role, permission, 'PERMISSION_DECISION_DENY');
 }
 
 async function revokePermission(page: Page, role: string, permission: string): Promise<void> {
-  const resp = await page.request.post('/api/graphql', {
-    headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-    data: {
-      query: `mutation($input: RevokePermissionInput!) { revokePermission(input: $input) }`,
-      variables: { input: { roleName: role, permission } }
-    }
-  });
-  expect(resp.ok()).toBeTruthy();
-  expect((await resp.json()).data?.revokePermission).toBe(true);
+  await setRolePermission(page, role, permission, 'PERMISSION_DECISION_NONE');
 }
 
 async function grantRoomPermission(
@@ -149,17 +91,7 @@ async function grantRoomPermission(
   role: string,
   permission: string
 ): Promise<void> {
-  const resp = await page.request.post('/api/graphql', {
-    headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-    data: {
-      query: `mutation($input: GrantRoomPermissionInput!) {
-				grantRoomPermission(input: $input)
-			}`,
-      variables: { input: { roomId, roleName: role, permission } }
-    }
-  });
-  expect(resp.ok()).toBeTruthy();
-  expect((await resp.json()).data?.grantRoomPermission).toBe(true);
+  await setRolePermission(page, role, permission, 'PERMISSION_DECISION_ALLOW', roomId);
 }
 
 async function denyRoomPermission(
@@ -168,17 +100,29 @@ async function denyRoomPermission(
   role: string,
   permission: string
 ): Promise<void> {
-  const resp = await page.request.post('/api/graphql', {
-    headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-    data: {
-      query: `mutation($input: DenyRoomPermissionInput!) {
-				denyRoomPermission(input: $input)
-			}`,
-      variables: { input: { roomId, roleName: role, permission } }
+  await setRolePermission(page, role, permission, 'PERMISSION_DECISION_DENY', roomId);
+}
+
+async function setRolePermission(
+  page: Page,
+  roleName: string,
+  permission: string,
+  decision: 'PERMISSION_DECISION_ALLOW' | 'PERMISSION_DECISION_DENY' | 'PERMISSION_DECISION_NONE',
+  roomId?: string
+): Promise<void> {
+  const data = await connectPost<{ ok?: boolean }>(
+    page,
+    'chatto.api.v1.PermissionService/SetRolePermission',
+    {
+      roleName,
+      permission,
+      decision,
+      ...(roomId
+        ? { scope: { kind: 'PERMISSION_SCOPE_KIND_ROOM', id: roomId } }
+        : { scope: { kind: 'PERMISSION_SCOPE_KIND_SERVER' } })
     }
-  });
-  expect(resp.ok()).toBeTruthy();
-  expect((await resp.json()).data?.denyRoomPermission).toBe(true);
+  );
+  expect(data.ok).toBe(true);
 }
 
 async function postMessageViaAPI(
@@ -186,20 +130,15 @@ async function postMessageViaAPI(
   roomId: string,
   body: string
 ): Promise<{ id: string } | null> {
-  const resp = await page.request.post('/api/graphql', {
-    headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-    data: {
-      query: `mutation($input: PostMessageInput!) {
-				postMessage(input: $input) { id }
-			}`,
-      variables: { input: { roomId, body } }
-    }
+  const resp = await connectPostResponse(page, 'chatto.api.v1.MessageService/PostMessage', {
+    roomId,
+    body
   });
-  const data = await resp.json();
-  if (data.errors) {
+  if (!resp.ok()) {
     return null;
   }
-  return data.data?.postMessage ?? null;
+  const data = (await resp.json()) as { event?: { id?: string } };
+  return data.event?.id ? { id: data.event.id } : null;
 }
 
 async function replyToMessageViaAPI(
@@ -208,20 +147,16 @@ async function replyToMessageViaAPI(
   inThread: string,
   body: string
 ): Promise<{ id: string } | null> {
-  const resp = await page.request.post('/api/graphql', {
-    headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-    data: {
-      query: `mutation($input: PostMessageInput!) {
-				postMessage(input: $input) { id }
-			}`,
-      variables: { input: { roomId, body, threadRootEventId: inThread } }
-    }
+  const resp = await connectPostResponse(page, 'chatto.api.v1.MessageService/PostMessage', {
+    roomId,
+    body,
+    threadRootEventId: inThread
   });
-  const data = await resp.json();
-  if (data.errors) {
+  if (!resp.ok()) {
     return null;
   }
-  return data.data?.postMessage ?? null;
+  const data = (await resp.json()) as { event?: { id?: string } };
+  return data.event?.id ? { id: data.event.id } : null;
 }
 
 async function addReactionViaAPI(
@@ -230,17 +165,12 @@ async function addReactionViaAPI(
   messageEventId: string,
   emoji: string
 ): Promise<boolean> {
-  const resp = await page.request.post('/api/graphql', {
-    headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-    data: {
-      query: `mutation($input: AddReactionInput!) {
-				addReaction(input: $input)
-			}`,
-      variables: { input: { roomId, messageEventId, emoji } }
-    }
+  const resp = await connectPostResponse(page, 'chatto.api.v1.ReactionService/AddReaction', {
+    roomId,
+    messageEventId,
+    emoji
   });
-  const data = await resp.json();
-  return !data.errors;
+  return resp.ok();
 }
 
 // ============================================================================
@@ -486,7 +416,7 @@ test.describe('Room-Level Permission Overrides', () => {
       await loginUser(page, member.login, member.password);
       await joinRoomViaAPI(page, roomId);
 
-      // Try to post directly via GraphQL API (bypassing UI)
+      // Try to post directly via ConnectRPC (bypassing UI)
       const result = await postMessageViaAPI(page, roomId, 'Sneaky message');
       expect(result).toBeNull();
     });
@@ -531,49 +461,38 @@ async function createServerRole(
   displayName: string,
   description: string
 ): Promise<void> {
-  const resp = await page.request.post('/api/graphql', {
-    headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-    data: {
-      query: `mutation($input: CreateRoleInput!) {
-				createRole(input: $input) { name }
-			}`,
-      variables: { input: { name, displayName, description } }
+  const data = await connectPost<{ role?: { name?: string } }>(
+    page,
+    'chatto.api.v1.RoleService/CreateRole',
+    {
+      name,
+      displayName,
+      description
     }
-  });
-  if (!resp.ok()) {
-    throw new Error(`createRole HTTP failed: ${resp.status()} - ${await resp.text()}`);
-  }
-  const data = await resp.json();
-  if (data.errors || !data.data?.createRole) {
-    throw new Error(`createRole failed: ${JSON.stringify(data)}`);
+  );
+  if (data.role?.name !== name) {
+    throw new Error(`CreateRole returned ${data.role?.name ?? '<none>'}, want ${name}`);
   }
 }
 
 async function assignServerRole(page: Page, userId: string, roleName: string): Promise<void> {
-  const resp = await page.request.post('/api/graphql', {
-    headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-    data: {
-      query: `mutation($input: AssignRoleInput!) {
-				assignRole(input: $input)
-			}`,
-      variables: { input: { userId, roleName } }
-    }
-  });
-  expect(resp.ok()).toBeTruthy();
-  expect((await resp.json()).data?.assignRole).toBe(true);
+  const data = await connectPost<{ assigned?: boolean }>(
+    page,
+    'chatto.api.v1.AdminUserManagementService/AssignRole',
+    { userId, roleName }
+  );
+  expect(data.assigned).toBe(true);
 }
 
 async function reorderServerRoles(page: Page, roleNames: string[]): Promise<void> {
-  const resp = await page.request.post('/api/graphql', {
-    headers: { 'Content-Type': 'application/json', 'X-REQUEST-TYPE': 'GraphQL' },
-    data: {
-      query: `mutation($input: ReorderRolesInput!) {
-				reorderRoles(input: $input) { name position }
-			}`,
-      variables: { input: { roleNames } }
-    }
-  });
-  expect(resp.ok()).toBeTruthy();
+  const data = await connectPost<{ roles?: Array<{ name?: string }> }>(
+    page,
+    'chatto.api.v1.RoleService/ReorderRoles',
+    { roleNames }
+  );
+  for (const roleName of roleNames) {
+    expect(data.roles?.some((role) => role.name === roleName)).toBe(true);
+  }
 }
 
 test.describe('Permission-only Resolution', () => {

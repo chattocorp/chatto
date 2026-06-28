@@ -20,7 +20,7 @@ Every `chatto.toml` setting can be overridden with an environment variable. The 
 ## Web Server
 
 <EnvVar name="CHATTO_WEBSERVER_URL" toml="webserver.url" required>
-  Public URL of the server, used for absolute links and OAuth redirects.
+  Public URL of the server, used for absolute links, public API asset URLs, and OAuth redirects. Set this to the external HTTPS origin when Chatto runs behind a reverse proxy; forwarded proxy headers are not trusted for public URL generation.
 </EnvVar>
 
 <EnvVar name="CHATTO_WEBSERVER_PORT" toml="webserver.port" default="4000">

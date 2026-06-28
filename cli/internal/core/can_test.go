@@ -78,7 +78,6 @@ func TestServerCanHelpers(t *testing.T) {
 			{"CanAdminUsersView", func() (bool, error) { return core.CanAdminUsersView(ctx, adminUser.Id) }},
 			{"CanAssignRoles", func() (bool, error) { return core.CanAssignRoles(ctx, adminUser.Id) }},
 			{"CanManageRoles", func() (bool, error) { return core.CanManageRoles(ctx, adminUser.Id) }},
-			{"CanAdminSystemView", func() (bool, error) { return core.CanAdminSystemView(ctx, adminUser.Id) }},
 		}
 
 		for _, tc := range adminTests {
@@ -91,6 +90,31 @@ func TestServerCanHelpers(t *testing.T) {
 					t.Errorf("admin user should have %s permission", tc.name)
 				}
 			})
+		}
+	})
+
+	t.Run("system diagnostics capability is owner-only", func(t *testing.T) {
+		can, err := core.CanAdminSystemView(ctx, adminUser.Id)
+		if err != nil {
+			t.Fatalf("CanAdminSystemView admin error: %v", err)
+		}
+		if can {
+			t.Error("admin user should NOT have owner-only CanAdminSystemView capability")
+		}
+
+		ownerUser, err := core.CreateUser(ctx, SystemActorID, "owneruser", "Owner User", "password123")
+		if err != nil {
+			t.Fatalf("failed to create owner user: %v", err)
+		}
+		if err := core.AssignOwnerRole(ctx, ownerUser.Id); err != nil {
+			t.Fatalf("failed to assign owner role: %v", err)
+		}
+		can, err = core.CanAdminSystemView(ctx, ownerUser.Id)
+		if err != nil {
+			t.Fatalf("CanAdminSystemView owner error: %v", err)
+		}
+		if !can {
+			t.Error("owner user should have CanAdminSystemView capability")
 		}
 	})
 

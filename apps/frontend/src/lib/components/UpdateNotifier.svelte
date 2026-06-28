@@ -12,7 +12,7 @@ Include this component once at the root layout level.
   import { onNavigate } from '$app/navigation';
   import { updated } from '$app/state';
   import { idleState } from '$lib/state/idle.svelte';
-  import { graphqlClientManager } from '$lib/state/server/graphqlClient.svelte';
+  import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
   import { toast } from '$lib/ui/toast';
   import * as m from '$lib/i18n/messages';
 
@@ -30,7 +30,7 @@ Include this component once at the root layout level.
 
       // Force-reconnect the WebSocket — a deploy means the old connection
       // is stale even if the client thinks it's still connected
-      graphqlClientManager.originClient.forceReconnect('app update detected');
+      serverConnectionManager.originClient.forceReconnect('app update detected');
     }
 
     // Auto-reload as soon as it's safe. The effect re-runs when the user

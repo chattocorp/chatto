@@ -5,10 +5,10 @@
 // AssetProcessingSucceeded / AssetProcessingFailed events. It implements
 // service.Service for lifecycle management.
 //
-// Architecture: process-local bounded concurrency via semaphore. PostMessage
-// asks this service to spawn local work and returns immediately so the GraphQL
-// mutation never blocks on ffmpeg. This intentionally remains best-effort until
-// a real durable task queue exists.
+// Architecture: process-local bounded concurrency via semaphore. Message posts
+// ask this service to spawn local work and return immediately so the public API
+// never blocks on ffmpeg. This intentionally remains best-effort until a real
+// durable task queue exists.
 package video
 
 import (
