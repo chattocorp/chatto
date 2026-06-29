@@ -34,6 +34,16 @@ func freshAuthMethodForSource(source string) string {
 	}
 }
 
+func sourceGrantsInitialFreshAuth(source string) bool {
+	if source == "oauth_code_exchange" || source == "unknown" {
+		return false
+	}
+	return source == "external_identity_create" ||
+		source == "registration" ||
+		source == "registration_complete" ||
+		strings.HasSuffix(source, "_login")
+}
+
 func isFreshAuthAt(at time.Time, now time.Time) bool {
 	return !at.IsZero() && now.Sub(at) >= 0 && now.Sub(at) <= FreshAuthWindow
 }

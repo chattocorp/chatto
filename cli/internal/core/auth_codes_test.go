@@ -83,6 +83,9 @@ func TestChattoCore_ExchangeAuthCode_HappyPath(t *testing.T) {
 	if validatedUserID != user.Id {
 		t.Errorf("ValidateAuthToken returned userID %q, want %q", validatedUserID, user.Id)
 	}
+	if err := core.RequireFreshAuthForBearerToken(ctx, token); !errors.Is(err, ErrFreshAuthRequired) {
+		t.Fatalf("exchanged token fresh auth err = %v, want ErrFreshAuthRequired", err)
+	}
 }
 
 func TestChattoCore_ExchangeAuthCodeRejectsStaleAuthGeneration(t *testing.T) {

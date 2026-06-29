@@ -83,15 +83,18 @@ func (c *ChattoCore) CreateAuthTokenWithSourceGeneration(ctx context.Context, us
 	token := NewAuthToken()
 	createdAt := time.Now()
 	key := c.authTokenKey(token)
+	tokenData := AuthTokenData{
+		UserID:         userID,
+		CreatedAt:      createdAt,
+		AuthGeneration: authGeneration,
+	}
+	if sourceGrantsInitialFreshAuth(source) {
+		tokenData.FreshAuthAt = createdAt
+		tokenData.FreshAuthMethod = freshAuthMethodForSource(source)
+		tokenData.FreshAuthSource = source
+	}
 
-	data, err := json.Marshal(AuthTokenData{
-		UserID:          userID,
-		CreatedAt:       createdAt,
-		AuthGeneration:  authGeneration,
-		FreshAuthAt:     createdAt,
-		FreshAuthMethod: freshAuthMethodForSource(source),
-		FreshAuthSource: source,
-	})
+	data, err := json.Marshal(tokenData)
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal auth token: %w", err)
 	}

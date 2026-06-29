@@ -1220,6 +1220,11 @@ func TestAccountServiceSetsPassword(t *testing.T) {
 		t.Fatalf("CreateAuthTokenWithSource: %v", err)
 	}
 	freshCtx := withBearerCredential(env.ctx, passwordless, freshToken)
+	oauthToken, err := env.core.CreateAuthTokenWithSource(env.ctx, passwordless.Id, "oauth_code_exchange")
+	if err != nil {
+		t.Fatalf("CreateAuthTokenWithSource oauth: %v", err)
+	}
+	oauthCtx := withBearerCredential(env.ctx, passwordless, oauthToken)
 
 	if _, err := env.account.SetPassword(env.ctx, connect.NewRequest(&apiv1.SetPasswordRequest{
 		Password: "newpassword456",
@@ -1239,6 +1244,11 @@ func TestAccountServiceSetsPassword(t *testing.T) {
 		Password: "newpassword456",
 	})); connect.CodeOf(err) != connect.CodeFailedPrecondition {
 		t.Fatalf("SetPassword without fresh credential code = %v, want failed_precondition", connect.CodeOf(err))
+	}
+	if _, err := env.account.SetPassword(oauthCtx, connect.NewRequest(&apiv1.SetPasswordRequest{
+		Password: "newpassword456",
+	})); connect.CodeOf(err) != connect.CodeFailedPrecondition {
+		t.Fatalf("SetPassword with OAuth token code = %v, want failed_precondition", connect.CodeOf(err))
 	}
 	if _, err := env.account.SetPassword(freshCtx, connect.NewRequest(&apiv1.SetPasswordRequest{
 		Password: "newpassword456",
