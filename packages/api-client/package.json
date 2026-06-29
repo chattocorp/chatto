@@ -1,0 +1,31 @@
+{
+  "name": "@chatto/api-client",
+  "private": true,
+  "version": "0.4.0-beta.4",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    "./package.json": "./package.json",
+    "./*": {
+      "types": "./dist/*.d.ts",
+      "import": "./dist/*.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@bufbuild/protobuf": "^1.10.0",
+    "@chatto/api-types": "workspace:*",
+    "@connectrpc/connect": "^1.7.0",
+    "@connectrpc/connect-web": "^1.7.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
+}
