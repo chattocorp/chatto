@@ -441,15 +441,24 @@ func TestPermissionServiceMatricesAndWrites(t *testing.T) {
 	if len(tierResp.Msg.GetMatrix().GetRoles()) == 0 || len(tierResp.Msg.GetMatrix().GetApplicablePermissions()) == 0 {
 		t.Fatalf("tier matrix = %+v, want roles and permissions", tierResp.Msg.GetMatrix())
 	}
+	emptyScopeTierResp, err := env.permissions.GetRolePermissionTierMatrix(ctx, connect.NewRequest(&apiv1.GetRolePermissionTierMatrixRequest{
+		Scope: &apiv1.PermissionScope{},
+	}))
+	if err != nil {
+		t.Fatalf("GetRolePermissionTierMatrix empty scope: %v", err)
+	}
+	if len(emptyScopeTierResp.Msg.GetMatrix().GetRoles()) == 0 || len(emptyScopeTierResp.Msg.GetMatrix().GetApplicablePermissions()) == 0 {
+		t.Fatalf("empty-scope tier matrix = %+v, want roles and permissions", emptyScopeTierResp.Msg.GetMatrix())
+	}
 
 	setResp, err := env.permissions.SetRolePermission(ctx, connect.NewRequest(&apiv1.SetRolePermissionRequest{
 		RoleName:   core.RoleModerator,
 		Permission: string(core.PermMessagePost),
 		Decision:   apiv1.PermissionDecision_PERMISSION_DECISION_ALLOW,
-		Scope:      &apiv1.PermissionScope{Kind: apiv1.PermissionScopeKind_PERMISSION_SCOPE_KIND_SERVER},
+		Scope:      &apiv1.PermissionScope{},
 	}))
 	if err != nil {
-		t.Fatalf("SetRolePermission server allow: %v", err)
+		t.Fatalf("SetRolePermission empty scope allow: %v", err)
 	}
 	if !setResp.Msg.GetOk() {
 		t.Fatal("SetRolePermission Ok = false, want true")

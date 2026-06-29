@@ -15,7 +15,7 @@ interface FreshPageSession {
 }
 
 interface ViewerResponse {
-  user?: { profile?: { id?: string } };
+  user?: { profile?: { user?: { id?: string } } };
 }
 
 async function withFreshPage<T>(

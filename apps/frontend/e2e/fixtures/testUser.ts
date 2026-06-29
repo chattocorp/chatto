@@ -19,7 +19,9 @@ const ADMIN_EMAIL = 'admin@e2e-test.example.com';
 interface ViewerResponse {
   user?: {
     profile?: {
-      id?: string;
+      user?: {
+        id?: string;
+      };
     };
   };
 }

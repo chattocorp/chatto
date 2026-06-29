@@ -6,6 +6,13 @@ on:
       - main
       - 'release-[0-9]*'
   pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - labeled
+      - unlabeled
+      - ready_for_review
     branches:
       - main
       - 'release-[0-9]*'

@@ -55,7 +55,9 @@ interface ListActiveCallRoomsResponse {
 }
 
 interface ListCallParticipantsResponse {
-  participants?: Array<{ user?: { id?: string; displayName?: string; login?: string } }>;
+  participants?: Array<{
+    user?: { user?: { id?: string; displayName?: string; login?: string } };
+  }>;
 }
 
 interface ServerStateResponse {

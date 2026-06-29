@@ -273,6 +273,11 @@ func permissionScopeIDs(scope *apiv1.PermissionScope) (roomID string, groupID st
 		return "", "", nil
 	}
 	switch scope.GetKind() {
+	case apiv1.PermissionScopeKind_PERMISSION_SCOPE_KIND_UNSPECIFIED:
+		if scope.GetId() != "" {
+			return "", "", invalidArgument("server scope id must be empty")
+		}
+		return "", "", nil
 	case apiv1.PermissionScopeKind_PERMISSION_SCOPE_KIND_SERVER:
 		if scope.GetId() != "" {
 			return "", "", invalidArgument("server scope id must be empty")
