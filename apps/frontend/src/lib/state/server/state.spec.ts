@@ -6,7 +6,6 @@ function publicServerInfo(overrides: Partial<PublicServerInfo> = {}): PublicServ
   return {
     name: 'Acme',
     version: 'test',
-    authMethods: ['password'],
     authorizeUrl: '/oauth/authorize',
     directRegistrationEnabled: false,
     welcomeMessage: 'welcome',

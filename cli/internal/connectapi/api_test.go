@@ -30,6 +30,7 @@ import (
 	"hmans.de/chatto/internal/pb/chatto/admin/v1/adminv1connect"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	"hmans.de/chatto/internal/pb/chatto/api/v1/apiv1connect"
+	configv1 "hmans.de/chatto/internal/pb/chatto/config/v1"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	"hmans.de/chatto/internal/testutil"
 )
@@ -222,19 +223,19 @@ func TestServerDiscoveryServiceGetServerPublicMetadata(t *testing.T) {
 	}
 
 	msg := resp.Msg
-	if msg.Name != "Chatto" {
-		t.Fatalf("Name = %q, want Chatto", msg.Name)
+	if msg.GetProfile().GetName() != "Chatto" {
+		t.Fatalf("profile name = %q, want Chatto", msg.GetProfile().GetName())
 	}
-	if msg.Version != "9.8.7" {
-		t.Fatalf("Version = %q, want 9.8.7", msg.Version)
+	if msg.GetProfile().GetVersion() != "9.8.7" {
+		t.Fatalf("profile version = %q, want 9.8.7", msg.GetProfile().GetVersion())
 	}
-	if got, want := strings.Join(msg.AuthMethods, ","), "password,oidc"; got != want {
-		t.Fatalf("AuthMethods = %v, want %s", msg.AuthMethods, want)
+	if !msg.GetLogin().GetDirectRegistrationEnabled() {
+		t.Fatal("DirectRegistrationEnabled = false, want true")
 	}
-	if len(msg.AuthProviders) != 1 {
-		t.Fatalf("AuthProviders len = %d, want 1", len(msg.AuthProviders))
+	if len(msg.GetLogin().GetProviders()) != 1 {
+		t.Fatalf("providers len = %d, want 1", len(msg.GetLogin().GetProviders()))
 	}
-	provider := msg.AuthProviders[0]
+	provider := msg.GetLogin().GetProviders()[0]
 	if provider.Id != "hub provider" {
 		t.Fatalf("provider Id = %q, want hub provider", provider.Id)
 	}
@@ -1272,6 +1273,11 @@ func TestServerServiceGetServerStateReturnsAuthenticatedServerState(t *testing.T
 			APISecret: "lk-secret",
 		},
 	}
+	if err := env.core.ConfigManager().SetServerConfig(env.ctx, core.SystemActorID, &configv1.ServerConfig{
+		Motd: "Authenticated MOTD",
+	}); err != nil {
+		t.Fatalf("SetServerConfig: %v", err)
+	}
 
 	if _, err := env.serverState.GetServerState(env.ctx, connect.NewRequest(&apiv1.GetServerStateRequest{})); connect.CodeOf(err) != connect.CodeUnauthenticated {
 		t.Fatalf("unauthenticated GetServerState code = %v, want unauthenticated", connect.CodeOf(err))
@@ -1282,29 +1288,38 @@ func TestServerServiceGetServerStateReturnsAuthenticatedServerState(t *testing.T
 		t.Fatalf("GetServerState: %v", err)
 	}
 	msg := resp.Msg
-	if msg.GetProfile().GetName() != "Chatto" {
-		t.Fatalf("profile name = %q, want Chatto", msg.GetProfile().GetName())
+	if msg.GetProfile().GetPublicProfile().GetName() != "Chatto" {
+		t.Fatalf("profile name = %q, want Chatto", msg.GetProfile().GetPublicProfile().GetName())
 	}
-	if !msg.GetPushNotificationsEnabled() || msg.GetVapidPublicKey() != "test-public-key" {
-		t.Fatalf("push fields = enabled %v key %q, want true/test-public-key", msg.GetPushNotificationsEnabled(), msg.GetVapidPublicKey())
+	if msg.GetProfile().GetMotd() != "Authenticated MOTD" {
+		t.Fatalf("profile MOTD = %q, want Authenticated MOTD", msg.GetProfile().GetMotd())
 	}
-	if msg.GetDirectRegistrationEnabled() {
+	if !msg.GetRuntime().GetPushNotificationsEnabled() || msg.GetRuntime().GetVapidPublicKey() != "test-public-key" {
+		t.Fatalf("push fields = enabled %v key %q, want true/test-public-key", msg.GetRuntime().GetPushNotificationsEnabled(), msg.GetRuntime().GetVapidPublicKey())
+	}
+	if msg.GetRuntime().GetDirectRegistrationEnabled() {
 		t.Fatal("DirectRegistrationEnabled = true, want false")
 	}
-	if !msg.GetVideoProcessingEnabled() {
+	if !msg.GetRuntime().GetVideoProcessingEnabled() {
 		t.Fatal("VideoProcessingEnabled = false, want true")
 	}
-	if msg.GetLivekitUrl() != "wss://livekit.example.test" {
-		t.Fatalf("LivekitUrl = %q, want configured URL", msg.GetLivekitUrl())
+	if msg.GetRuntime().GetLivekitUrl() != "wss://livekit.example.test" {
+		t.Fatalf("LivekitUrl = %q, want configured URL", msg.GetRuntime().GetLivekitUrl())
 	}
-	if msg.GetMaxUploadSize() <= 0 || msg.GetMaxVideoUploadSize() <= 0 {
-		t.Fatalf("upload sizes = %d/%d, want positive values", msg.GetMaxUploadSize(), msg.GetMaxVideoUploadSize())
+	if msg.GetRuntime().GetMaxUploadSize() <= 0 || msg.GetRuntime().GetMaxVideoUploadSize() <= 0 {
+		t.Fatalf("upload sizes = %d/%d, want positive values", msg.GetRuntime().GetMaxUploadSize(), msg.GetRuntime().GetMaxVideoUploadSize())
 	}
-	if msg.GetMessageEditWindowSeconds() != int32(core.MessageEditWindow/time.Second) {
-		t.Fatalf("MessageEditWindowSeconds = %d, want %d", msg.GetMessageEditWindowSeconds(), int32(core.MessageEditWindow/time.Second))
+	if msg.GetRuntime().GetMessageEditWindowSeconds() != int32(core.MessageEditWindow/time.Second) {
+		t.Fatalf("MessageEditWindowSeconds = %d, want %d", msg.GetRuntime().GetMessageEditWindowSeconds(), int32(core.MessageEditWindow/time.Second))
 	}
-	if msg.GetViewerCapabilities() == nil {
-		t.Fatal("ViewerCapabilities = nil")
+	if msg.GetViewerPermissions() == nil {
+		t.Fatal("ViewerPermissions = nil")
+	}
+	if got, want := len(msg.GetViewerPermissions().GetPermissions()), len(core.AllPermissions()); got != want {
+		t.Fatalf("viewer permissions len = %d, want %d", got, want)
+	}
+	if msg.GetViewerState() == nil {
+		t.Fatal("ViewerState = nil")
 	}
 }
 
@@ -1338,10 +1353,10 @@ func TestAdminServerServiceUpdateServerConfig(t *testing.T) {
 		t.Fatalf("UpdateServerConfig: %v", err)
 	}
 	profile := resp.Msg.GetProfile()
-	if profile.GetName() != "Connect Settings" ||
-		profile.GetDescription() != "Description from Connect" ||
+	if profile.GetPublicProfile().GetName() != "Connect Settings" ||
+		profile.GetPublicProfile().GetDescription() != "Description from Connect" ||
 		profile.GetMotd() != "MOTD from Connect" ||
-		profile.GetWelcomeMessage() != "Welcome from Connect" {
+		profile.GetPublicProfile().GetWelcomeMessage() != "Welcome from Connect" {
 		t.Fatalf("updated profile = %+v", profile)
 	}
 
@@ -1400,7 +1415,7 @@ func TestAdminServerServiceUpdatesServerBranding(t *testing.T) {
 	if err != nil {
 		t.Fatalf("UploadServerLogo: %v", err)
 	}
-	if logoResp.Msg.GetProfile().GetLogoUrl() == "" {
+	if logoResp.Msg.GetProfile().GetPublicProfile().GetLogoUrl() == "" {
 		t.Fatalf("UploadServerLogo profile = %+v, want logo URL", logoResp.Msg.GetProfile())
 	}
 
@@ -1408,8 +1423,8 @@ func TestAdminServerServiceUpdatesServerBranding(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DeleteServerLogo: %v", err)
 	}
-	if deleteLogoResp.Msg.GetProfile().LogoUrl != nil {
-		t.Fatalf("DeleteServerLogo logo URL = %q, want nil", deleteLogoResp.Msg.GetProfile().GetLogoUrl())
+	if deleteLogoResp.Msg.GetProfile().GetPublicProfile().LogoUrl != nil {
+		t.Fatalf("DeleteServerLogo logo URL = %q, want nil", deleteLogoResp.Msg.GetProfile().GetPublicProfile().GetLogoUrl())
 	}
 
 	if _, err := env.serverState.UploadServerBanner(ctx, connect.NewRequest(&adminv1.UploadServerBannerRequest{})); connect.CodeOf(err) != connect.CodeInvalidArgument {
@@ -1423,7 +1438,7 @@ func TestAdminServerServiceUpdatesServerBranding(t *testing.T) {
 	if err != nil {
 		t.Fatalf("UploadServerBanner: %v", err)
 	}
-	if bannerResp.Msg.GetProfile().GetBannerUrl() == "" {
+	if bannerResp.Msg.GetProfile().GetPublicProfile().GetBannerUrl() == "" {
 		t.Fatalf("UploadServerBanner profile = %+v, want banner URL", bannerResp.Msg.GetProfile())
 	}
 
@@ -1431,8 +1446,8 @@ func TestAdminServerServiceUpdatesServerBranding(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DeleteServerBanner: %v", err)
 	}
-	if deleteBannerResp.Msg.GetProfile().BannerUrl != nil {
-		t.Fatalf("DeleteServerBanner banner URL = %q, want nil", deleteBannerResp.Msg.GetProfile().GetBannerUrl())
+	if deleteBannerResp.Msg.GetProfile().GetPublicProfile().BannerUrl != nil {
+		t.Fatalf("DeleteServerBanner banner URL = %q, want nil", deleteBannerResp.Msg.GetProfile().GetPublicProfile().GetBannerUrl())
 	}
 }
 

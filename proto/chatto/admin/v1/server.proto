@@ -22,7 +22,7 @@ message UpdateServerConfigRequest {
 // Result of updating runtime-editable server profile settings.
 message UpdateServerConfigResponse {
   // Updated server profile and branding.
-  chatto.api.v1.ServerProfile profile = 1;
+  chatto.api.v1.ServerMemberProfile profile = 1;
 }
 
 // Request to upload and set the public server logo.
@@ -38,7 +38,7 @@ message UploadServerLogoRequest {
 // Result of uploading the public server logo.
 message UploadServerLogoResponse {
   // Updated server profile and branding.
-  chatto.api.v1.ServerProfile profile = 1;
+  chatto.api.v1.ServerMemberProfile profile = 1;
 }
 
 // Request to clear the public server logo.
@@ -47,7 +47,7 @@ message DeleteServerLogoRequest {}
 // Result of clearing the public server logo.
 message DeleteServerLogoResponse {
   // Updated server profile and branding.
-  chatto.api.v1.ServerProfile profile = 1;
+  chatto.api.v1.ServerMemberProfile profile = 1;
 }
 
 // Request to upload and set the public server banner.
@@ -63,7 +63,7 @@ message UploadServerBannerRequest {
 // Result of uploading the public server banner.
 message UploadServerBannerResponse {
   // Updated server profile and branding.
-  chatto.api.v1.ServerProfile profile = 1;
+  chatto.api.v1.ServerMemberProfile profile = 1;
 }
 
 // Request to clear the public server banner.
@@ -72,7 +72,7 @@ message DeleteServerBannerRequest {}
 // Result of clearing the public server banner.
 message DeleteServerBannerResponse {
   // Updated server profile and branding.
-  chatto.api.v1.ServerProfile profile = 1;
+  chatto.api.v1.ServerMemberProfile profile = 1;
 }
 
 // Request for server security configuration.

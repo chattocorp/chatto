@@ -216,7 +216,7 @@ If a provider callback returns an identity that is not linked to a Chatto accoun
 
 Public clients can discover configured providers through server discovery:
 
-- `ServerDiscoveryService.GetServer` returns provider IDs, types, labels, and login URLs in `authProviders`.
+- `ServerDiscoveryService.GetServer` returns provider IDs, types, labels, and login URLs in `login.providers`.
 
 You can call the discovery RPC with Connect JSON:
 
@@ -227,4 +227,4 @@ curl -X POST https://chat.example.com/api/connect/chatto.api.v1.ServerDiscoveryS
   --data '{}'
 ```
 
-The `authMethods` field stays method-oriented, so OIDC appears as `oidc` even when the configured provider ID is something like `chatto-hub`.
+Provider IDs stay provider-specific, so an OIDC provider can use an ID such as `chatto-hub` while reporting its provider `type` as `oidc`.

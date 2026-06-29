@@ -21,39 +21,31 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// Authenticated server profile and branding fields.
-type ServerProfile struct {
+// Server profile fields visible to authenticated members.
+type ServerMemberProfile struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Display name of the Chatto server.
-	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	// Optional server logo URL.
-	LogoUrl *string `protobuf:"bytes,2,opt,name=logo_url,json=logoUrl,proto3,oneof" json:"logo_url,omitempty"`
-	// Optional server banner URL.
-	BannerUrl *string `protobuf:"bytes,3,opt,name=banner_url,json=bannerUrl,proto3,oneof" json:"banner_url,omitempty"`
-	// Optional welcome message.
-	WelcomeMessage *string `protobuf:"bytes,4,opt,name=welcome_message,json=welcomeMessage,proto3,oneof" json:"welcome_message,omitempty"`
-	// Optional message of the day.
-	Motd *string `protobuf:"bytes,5,opt,name=motd,proto3,oneof" json:"motd,omitempty"`
-	// Optional server description.
-	Description   *string `protobuf:"bytes,6,opt,name=description,proto3,oneof" json:"description,omitempty"`
+	// Public server profile and branding.
+	PublicProfile *ServerPublicProfile `protobuf:"bytes,1,opt,name=public_profile,json=publicProfile,proto3" json:"public_profile,omitempty"`
+	// Optional message of the day shown to authenticated members.
+	Motd          *string `protobuf:"bytes,2,opt,name=motd,proto3,oneof" json:"motd,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *ServerProfile) Reset() {
-	*x = ServerProfile{}
+func (x *ServerMemberProfile) Reset() {
+	*x = ServerMemberProfile{}
 	mi := &file_chatto_api_v1_server_state_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ServerProfile) String() string {
+func (x *ServerMemberProfile) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ServerProfile) ProtoMessage() {}
+func (*ServerMemberProfile) ProtoMessage() {}
 
-func (x *ServerProfile) ProtoReflect() protoreflect.Message {
+func (x *ServerMemberProfile) ProtoReflect() protoreflect.Message {
 	mi := &file_chatto_api_v1_server_state_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -65,84 +57,50 @@ func (x *ServerProfile) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ServerProfile.ProtoReflect.Descriptor instead.
-func (*ServerProfile) Descriptor() ([]byte, []int) {
+// Deprecated: Use ServerMemberProfile.ProtoReflect.Descriptor instead.
+func (*ServerMemberProfile) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_server_state_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *ServerProfile) GetName() string {
+func (x *ServerMemberProfile) GetPublicProfile() *ServerPublicProfile {
 	if x != nil {
-		return x.Name
+		return x.PublicProfile
 	}
-	return ""
+	return nil
 }
 
-func (x *ServerProfile) GetLogoUrl() string {
-	if x != nil && x.LogoUrl != nil {
-		return *x.LogoUrl
-	}
-	return ""
-}
-
-func (x *ServerProfile) GetBannerUrl() string {
-	if x != nil && x.BannerUrl != nil {
-		return *x.BannerUrl
-	}
-	return ""
-}
-
-func (x *ServerProfile) GetWelcomeMessage() string {
-	if x != nil && x.WelcomeMessage != nil {
-		return *x.WelcomeMessage
-	}
-	return ""
-}
-
-func (x *ServerProfile) GetMotd() string {
+func (x *ServerMemberProfile) GetMotd() string {
 	if x != nil && x.Motd != nil {
 		return *x.Motd
 	}
 	return ""
 }
 
-func (x *ServerProfile) GetDescription() string {
-	if x != nil && x.Description != nil {
-		return *x.Description
-	}
-	return ""
-}
-
-// Permission-derived server capabilities for the authenticated user.
-type ServerViewerCapabilities struct {
+// Effective permission decision for the authenticated user.
+type ServerViewerPermission struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Whether the user has at least one server-admin permission.
-	HasAnyAdminPermission bool `protobuf:"varint,1,opt,name=has_any_admin_permission,json=hasAnyAdminPermission,proto3" json:"has_any_admin_permission,omitempty"`
-	// Whether the user may manage server configuration.
-	CanManageServer bool `protobuf:"varint,2,opt,name=can_manage_server,json=canManageServer,proto3" json:"can_manage_server,omitempty"`
-	// Whether the user may create a channel room at server scope.
-	CanCreateRoom bool `protobuf:"varint,3,opt,name=can_create_room,json=canCreateRoom,proto3" json:"can_create_room,omitempty"`
-	// Whether the user may manage at least one room.
-	CanManageRooms bool `protobuf:"varint,4,opt,name=can_manage_rooms,json=canManageRooms,proto3" json:"can_manage_rooms,omitempty"`
-	// Whether any joined channel room has unread messages.
-	HasUnreadRooms bool `protobuf:"varint,5,opt,name=has_unread_rooms,json=hasUnreadRooms,proto3" json:"has_unread_rooms,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// Stable permission key, such as "server.manage".
+	Permission string `protobuf:"bytes,1,opt,name=permission,proto3" json:"permission,omitempty"`
+	// Whether the permission is currently granted to the viewer.
+	Granted       bool `protobuf:"varint,2,opt,name=granted,proto3" json:"granted,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
-func (x *ServerViewerCapabilities) Reset() {
-	*x = ServerViewerCapabilities{}
+func (x *ServerViewerPermission) Reset() {
+	*x = ServerViewerPermission{}
 	mi := &file_chatto_api_v1_server_state_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ServerViewerCapabilities) String() string {
+func (x *ServerViewerPermission) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ServerViewerCapabilities) ProtoMessage() {}
+func (*ServerViewerPermission) ProtoMessage() {}
 
-func (x *ServerViewerCapabilities) ProtoReflect() protoreflect.Message {
+func (x *ServerViewerPermission) ProtoReflect() protoreflect.Message {
 	mi := &file_chatto_api_v1_server_state_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -154,40 +112,111 @@ func (x *ServerViewerCapabilities) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ServerViewerCapabilities.ProtoReflect.Descriptor instead.
-func (*ServerViewerCapabilities) Descriptor() ([]byte, []int) {
+// Deprecated: Use ServerViewerPermission.ProtoReflect.Descriptor instead.
+func (*ServerViewerPermission) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_server_state_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *ServerViewerCapabilities) GetHasAnyAdminPermission() bool {
+func (x *ServerViewerPermission) GetPermission() string {
 	if x != nil {
-		return x.HasAnyAdminPermission
+		return x.Permission
+	}
+	return ""
+}
+
+func (x *ServerViewerPermission) GetGranted() bool {
+	if x != nil {
+		return x.Granted
 	}
 	return false
 }
 
-func (x *ServerViewerCapabilities) GetCanManageServer() bool {
-	if x != nil {
-		return x.CanManageServer
-	}
-	return false
+// Effective server/channel permission decisions for the authenticated user.
+type ServerViewerPermissions struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// One row per permission known to the server.
+	Permissions   []*ServerViewerPermission `protobuf:"bytes,1,rep,name=permissions,proto3" json:"permissions,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
-func (x *ServerViewerCapabilities) GetCanCreateRoom() bool {
-	if x != nil {
-		return x.CanCreateRoom
-	}
-	return false
+func (x *ServerViewerPermissions) Reset() {
+	*x = ServerViewerPermissions{}
+	mi := &file_chatto_api_v1_server_state_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
 }
 
-func (x *ServerViewerCapabilities) GetCanManageRooms() bool {
-	if x != nil {
-		return x.CanManageRooms
-	}
-	return false
+func (x *ServerViewerPermissions) String() string {
+	return protoimpl.X.MessageStringOf(x)
 }
 
-func (x *ServerViewerCapabilities) GetHasUnreadRooms() bool {
+func (*ServerViewerPermissions) ProtoMessage() {}
+
+func (x *ServerViewerPermissions) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_server_state_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ServerViewerPermissions.ProtoReflect.Descriptor instead.
+func (*ServerViewerPermissions) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_server_state_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *ServerViewerPermissions) GetPermissions() []*ServerViewerPermission {
+	if x != nil {
+		return x.Permissions
+	}
+	return nil
+}
+
+// Non-permission server state for the authenticated user.
+type ServerViewerState struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Whether any joined channel room has unread messages.
+	HasUnreadRooms bool `protobuf:"varint,1,opt,name=has_unread_rooms,json=hasUnreadRooms,proto3" json:"has_unread_rooms,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *ServerViewerState) Reset() {
+	*x = ServerViewerState{}
+	mi := &file_chatto_api_v1_server_state_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ServerViewerState) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ServerViewerState) ProtoMessage() {}
+
+func (x *ServerViewerState) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_server_state_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ServerViewerState.ProtoReflect.Descriptor instead.
+func (*ServerViewerState) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_server_state_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *ServerViewerState) GetHasUnreadRooms() bool {
 	if x != nil {
 		return x.HasUnreadRooms
 	}
@@ -203,7 +232,7 @@ type GetServerStateRequest struct {
 
 func (x *GetServerStateRequest) Reset() {
 	*x = GetServerStateRequest{}
-	mi := &file_chatto_api_v1_server_state_proto_msgTypes[2]
+	mi := &file_chatto_api_v1_server_state_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -215,7 +244,7 @@ func (x *GetServerStateRequest) String() string {
 func (*GetServerStateRequest) ProtoMessage() {}
 
 func (x *GetServerStateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_server_state_proto_msgTypes[2]
+	mi := &file_chatto_api_v1_server_state_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -228,39 +257,136 @@ func (x *GetServerStateRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetServerStateRequest.ProtoReflect.Descriptor instead.
 func (*GetServerStateRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_server_state_proto_rawDescGZIP(), []int{2}
+	return file_chatto_api_v1_server_state_proto_rawDescGZIP(), []int{4}
+}
+
+// Authenticated server runtime settings used by clients.
+type ServerRuntimeConfig struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Whether Web Push notifications are fully configured.
+	PushNotificationsEnabled bool `protobuf:"varint,1,opt,name=push_notifications_enabled,json=pushNotificationsEnabled,proto3" json:"push_notifications_enabled,omitempty"`
+	// Optional VAPID public key for Web Push registration.
+	VapidPublicKey *string `protobuf:"bytes,2,opt,name=vapid_public_key,json=vapidPublicKey,proto3,oneof" json:"vapid_public_key,omitempty"`
+	// Optional LiveKit URL for voice calls.
+	LivekitUrl *string `protobuf:"bytes,3,opt,name=livekit_url,json=livekitUrl,proto3,oneof" json:"livekit_url,omitempty"`
+	// Whether direct email/password registration is enabled.
+	DirectRegistrationEnabled bool `protobuf:"varint,4,opt,name=direct_registration_enabled,json=directRegistrationEnabled,proto3" json:"direct_registration_enabled,omitempty"`
+	// Whether video processing is enabled.
+	VideoProcessingEnabled bool `protobuf:"varint,5,opt,name=video_processing_enabled,json=videoProcessingEnabled,proto3" json:"video_processing_enabled,omitempty"`
+	// Maximum general upload size in bytes.
+	MaxUploadSize int64 `protobuf:"varint,6,opt,name=max_upload_size,json=maxUploadSize,proto3" json:"max_upload_size,omitempty"`
+	// Maximum video upload size in bytes.
+	MaxVideoUploadSize int64 `protobuf:"varint,7,opt,name=max_video_upload_size,json=maxVideoUploadSize,proto3" json:"max_video_upload_size,omitempty"`
+	// Message edit window in seconds.
+	MessageEditWindowSeconds int32 `protobuf:"varint,8,opt,name=message_edit_window_seconds,json=messageEditWindowSeconds,proto3" json:"message_edit_window_seconds,omitempty"`
+	unknownFields            protoimpl.UnknownFields
+	sizeCache                protoimpl.SizeCache
+}
+
+func (x *ServerRuntimeConfig) Reset() {
+	*x = ServerRuntimeConfig{}
+	mi := &file_chatto_api_v1_server_state_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ServerRuntimeConfig) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ServerRuntimeConfig) ProtoMessage() {}
+
+func (x *ServerRuntimeConfig) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_server_state_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ServerRuntimeConfig.ProtoReflect.Descriptor instead.
+func (*ServerRuntimeConfig) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_server_state_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *ServerRuntimeConfig) GetPushNotificationsEnabled() bool {
+	if x != nil {
+		return x.PushNotificationsEnabled
+	}
+	return false
+}
+
+func (x *ServerRuntimeConfig) GetVapidPublicKey() string {
+	if x != nil && x.VapidPublicKey != nil {
+		return *x.VapidPublicKey
+	}
+	return ""
+}
+
+func (x *ServerRuntimeConfig) GetLivekitUrl() string {
+	if x != nil && x.LivekitUrl != nil {
+		return *x.LivekitUrl
+	}
+	return ""
+}
+
+func (x *ServerRuntimeConfig) GetDirectRegistrationEnabled() bool {
+	if x != nil {
+		return x.DirectRegistrationEnabled
+	}
+	return false
+}
+
+func (x *ServerRuntimeConfig) GetVideoProcessingEnabled() bool {
+	if x != nil {
+		return x.VideoProcessingEnabled
+	}
+	return false
+}
+
+func (x *ServerRuntimeConfig) GetMaxUploadSize() int64 {
+	if x != nil {
+		return x.MaxUploadSize
+	}
+	return 0
+}
+
+func (x *ServerRuntimeConfig) GetMaxVideoUploadSize() int64 {
+	if x != nil {
+		return x.MaxVideoUploadSize
+	}
+	return 0
+}
+
+func (x *ServerRuntimeConfig) GetMessageEditWindowSeconds() int32 {
+	if x != nil {
+		return x.MessageEditWindowSeconds
+	}
+	return 0
 }
 
 // Authenticated server state used by the web client and public API clients.
 type GetServerStateResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Server profile and branding.
-	Profile *ServerProfile `protobuf:"bytes,1,opt,name=profile,proto3" json:"profile,omitempty"`
-	// Whether Web Push notifications are fully configured.
-	PushNotificationsEnabled bool `protobuf:"varint,2,opt,name=push_notifications_enabled,json=pushNotificationsEnabled,proto3" json:"push_notifications_enabled,omitempty"`
-	// Optional VAPID public key for Web Push registration.
-	VapidPublicKey *string `protobuf:"bytes,3,opt,name=vapid_public_key,json=vapidPublicKey,proto3,oneof" json:"vapid_public_key,omitempty"`
-	// Optional LiveKit URL for voice calls.
-	LivekitUrl *string `protobuf:"bytes,4,opt,name=livekit_url,json=livekitUrl,proto3,oneof" json:"livekit_url,omitempty"`
-	// Whether direct email/password registration is enabled.
-	DirectRegistrationEnabled bool `protobuf:"varint,5,opt,name=direct_registration_enabled,json=directRegistrationEnabled,proto3" json:"direct_registration_enabled,omitempty"`
-	// Whether video processing is enabled.
-	VideoProcessingEnabled bool `protobuf:"varint,6,opt,name=video_processing_enabled,json=videoProcessingEnabled,proto3" json:"video_processing_enabled,omitempty"`
-	// Maximum general upload size in bytes.
-	MaxUploadSize int64 `protobuf:"varint,7,opt,name=max_upload_size,json=maxUploadSize,proto3" json:"max_upload_size,omitempty"`
-	// Maximum video upload size in bytes.
-	MaxVideoUploadSize int64 `protobuf:"varint,8,opt,name=max_video_upload_size,json=maxVideoUploadSize,proto3" json:"max_video_upload_size,omitempty"`
-	// Message edit window in seconds.
-	MessageEditWindowSeconds int32 `protobuf:"varint,9,opt,name=message_edit_window_seconds,json=messageEditWindowSeconds,proto3" json:"message_edit_window_seconds,omitempty"`
-	// Permission-derived state for the authenticated user.
-	ViewerCapabilities *ServerViewerCapabilities `protobuf:"bytes,10,opt,name=viewer_capabilities,json=viewerCapabilities,proto3" json:"viewer_capabilities,omitempty"`
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
+	// Authenticated server profile and branding.
+	Profile *ServerMemberProfile `protobuf:"bytes,1,opt,name=profile,proto3" json:"profile,omitempty"`
+	// Authenticated runtime settings used by clients.
+	Runtime *ServerRuntimeConfig `protobuf:"bytes,2,opt,name=runtime,proto3" json:"runtime,omitempty"`
+	// Effective server/channel permission decisions for the authenticated user.
+	ViewerPermissions *ServerViewerPermissions `protobuf:"bytes,3,opt,name=viewer_permissions,json=viewerPermissions,proto3" json:"viewer_permissions,omitempty"`
+	// Non-permission server state for the authenticated user.
+	ViewerState   *ServerViewerState `protobuf:"bytes,4,opt,name=viewer_state,json=viewerState,proto3" json:"viewer_state,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *GetServerStateResponse) Reset() {
 	*x = GetServerStateResponse{}
-	mi := &file_chatto_api_v1_server_state_proto_msgTypes[3]
+	mi := &file_chatto_api_v1_server_state_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -272,7 +398,7 @@ func (x *GetServerStateResponse) String() string {
 func (*GetServerStateResponse) ProtoMessage() {}
 
 func (x *GetServerStateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_server_state_proto_msgTypes[3]
+	mi := &file_chatto_api_v1_server_state_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -285,75 +411,33 @@ func (x *GetServerStateResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetServerStateResponse.ProtoReflect.Descriptor instead.
 func (*GetServerStateResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_server_state_proto_rawDescGZIP(), []int{3}
+	return file_chatto_api_v1_server_state_proto_rawDescGZIP(), []int{6}
 }
 
-func (x *GetServerStateResponse) GetProfile() *ServerProfile {
+func (x *GetServerStateResponse) GetProfile() *ServerMemberProfile {
 	if x != nil {
 		return x.Profile
 	}
 	return nil
 }
 
-func (x *GetServerStateResponse) GetPushNotificationsEnabled() bool {
+func (x *GetServerStateResponse) GetRuntime() *ServerRuntimeConfig {
 	if x != nil {
-		return x.PushNotificationsEnabled
+		return x.Runtime
 	}
-	return false
+	return nil
 }
 
-func (x *GetServerStateResponse) GetVapidPublicKey() string {
-	if x != nil && x.VapidPublicKey != nil {
-		return *x.VapidPublicKey
-	}
-	return ""
-}
-
-func (x *GetServerStateResponse) GetLivekitUrl() string {
-	if x != nil && x.LivekitUrl != nil {
-		return *x.LivekitUrl
-	}
-	return ""
-}
-
-func (x *GetServerStateResponse) GetDirectRegistrationEnabled() bool {
+func (x *GetServerStateResponse) GetViewerPermissions() *ServerViewerPermissions {
 	if x != nil {
-		return x.DirectRegistrationEnabled
+		return x.ViewerPermissions
 	}
-	return false
+	return nil
 }
 
-func (x *GetServerStateResponse) GetVideoProcessingEnabled() bool {
+func (x *GetServerStateResponse) GetViewerState() *ServerViewerState {
 	if x != nil {
-		return x.VideoProcessingEnabled
-	}
-	return false
-}
-
-func (x *GetServerStateResponse) GetMaxUploadSize() int64 {
-	if x != nil {
-		return x.MaxUploadSize
-	}
-	return 0
-}
-
-func (x *GetServerStateResponse) GetMaxVideoUploadSize() int64 {
-	if x != nil {
-		return x.MaxVideoUploadSize
-	}
-	return 0
-}
-
-func (x *GetServerStateResponse) GetMessageEditWindowSeconds() int32 {
-	if x != nil {
-		return x.MessageEditWindowSeconds
-	}
-	return 0
-}
-
-func (x *GetServerStateResponse) GetViewerCapabilities() *ServerViewerCapabilities {
-	if x != nil {
-		return x.ViewerCapabilities
+		return x.ViewerState
 	}
 	return nil
 }
@@ -362,42 +446,38 @@ var File_chatto_api_v1_server_state_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_server_state_proto_rawDesc = "" +
 	"\n" +
-	" chatto/api/v1/server_state.proto\x12\rchatto.api.v1\"\x9e\x02\n" +
-	"\rServerProfile\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1e\n" +
-	"\blogo_url\x18\x02 \x01(\tH\x00R\alogoUrl\x88\x01\x01\x12\"\n" +
+	" chatto/api/v1/server_state.proto\x12\rchatto.api.v1\x1a\x1achatto/api/v1/server.proto\"\x82\x01\n" +
+	"\x13ServerMemberProfile\x12I\n" +
+	"\x0epublic_profile\x18\x01 \x01(\v2\".chatto.api.v1.ServerPublicProfileR\rpublicProfile\x12\x17\n" +
+	"\x04motd\x18\x02 \x01(\tH\x00R\x04motd\x88\x01\x01B\a\n" +
+	"\x05_motd\"R\n" +
+	"\x16ServerViewerPermission\x12\x1e\n" +
 	"\n" +
-	"banner_url\x18\x03 \x01(\tH\x01R\tbannerUrl\x88\x01\x01\x12,\n" +
-	"\x0fwelcome_message\x18\x04 \x01(\tH\x02R\x0ewelcomeMessage\x88\x01\x01\x12\x17\n" +
-	"\x04motd\x18\x05 \x01(\tH\x03R\x04motd\x88\x01\x01\x12%\n" +
-	"\vdescription\x18\x06 \x01(\tH\x04R\vdescription\x88\x01\x01B\v\n" +
-	"\t_logo_urlB\r\n" +
-	"\v_banner_urlB\x12\n" +
-	"\x10_welcome_messageB\a\n" +
-	"\x05_motdB\x0e\n" +
-	"\f_description\"\xfb\x01\n" +
-	"\x18ServerViewerCapabilities\x127\n" +
-	"\x18has_any_admin_permission\x18\x01 \x01(\bR\x15hasAnyAdminPermission\x12*\n" +
-	"\x11can_manage_server\x18\x02 \x01(\bR\x0fcanManageServer\x12&\n" +
-	"\x0fcan_create_room\x18\x03 \x01(\bR\rcanCreateRoom\x12(\n" +
-	"\x10can_manage_rooms\x18\x04 \x01(\bR\x0ecanManageRooms\x12(\n" +
-	"\x10has_unread_rooms\x18\x05 \x01(\bR\x0ehasUnreadRooms\"\x17\n" +
-	"\x15GetServerStateRequest\"\xf6\x04\n" +
-	"\x16GetServerStateResponse\x126\n" +
-	"\aprofile\x18\x01 \x01(\v2\x1c.chatto.api.v1.ServerProfileR\aprofile\x12<\n" +
-	"\x1apush_notifications_enabled\x18\x02 \x01(\bR\x18pushNotificationsEnabled\x12-\n" +
-	"\x10vapid_public_key\x18\x03 \x01(\tH\x00R\x0evapidPublicKey\x88\x01\x01\x12$\n" +
-	"\vlivekit_url\x18\x04 \x01(\tH\x01R\n" +
+	"permission\x18\x01 \x01(\tR\n" +
+	"permission\x12\x18\n" +
+	"\agranted\x18\x02 \x01(\bR\agranted\"b\n" +
+	"\x17ServerViewerPermissions\x12G\n" +
+	"\vpermissions\x18\x01 \x03(\v2%.chatto.api.v1.ServerViewerPermissionR\vpermissions\"=\n" +
+	"\x11ServerViewerState\x12(\n" +
+	"\x10has_unread_rooms\x18\x01 \x01(\bR\x0ehasUnreadRooms\"\x17\n" +
+	"\x15GetServerStateRequest\"\xe1\x03\n" +
+	"\x13ServerRuntimeConfig\x12<\n" +
+	"\x1apush_notifications_enabled\x18\x01 \x01(\bR\x18pushNotificationsEnabled\x12-\n" +
+	"\x10vapid_public_key\x18\x02 \x01(\tH\x00R\x0evapidPublicKey\x88\x01\x01\x12$\n" +
+	"\vlivekit_url\x18\x03 \x01(\tH\x01R\n" +
 	"livekitUrl\x88\x01\x01\x12>\n" +
-	"\x1bdirect_registration_enabled\x18\x05 \x01(\bR\x19directRegistrationEnabled\x128\n" +
-	"\x18video_processing_enabled\x18\x06 \x01(\bR\x16videoProcessingEnabled\x12&\n" +
-	"\x0fmax_upload_size\x18\a \x01(\x03R\rmaxUploadSize\x121\n" +
-	"\x15max_video_upload_size\x18\b \x01(\x03R\x12maxVideoUploadSize\x12=\n" +
-	"\x1bmessage_edit_window_seconds\x18\t \x01(\x05R\x18messageEditWindowSeconds\x12X\n" +
-	"\x13viewer_capabilities\x18\n" +
-	" \x01(\v2'.chatto.api.v1.ServerViewerCapabilitiesR\x12viewerCapabilitiesB\x13\n" +
+	"\x1bdirect_registration_enabled\x18\x04 \x01(\bR\x19directRegistrationEnabled\x128\n" +
+	"\x18video_processing_enabled\x18\x05 \x01(\bR\x16videoProcessingEnabled\x12&\n" +
+	"\x0fmax_upload_size\x18\x06 \x01(\x03R\rmaxUploadSize\x121\n" +
+	"\x15max_video_upload_size\x18\a \x01(\x03R\x12maxVideoUploadSize\x12=\n" +
+	"\x1bmessage_edit_window_seconds\x18\b \x01(\x05R\x18messageEditWindowSecondsB\x13\n" +
 	"\x11_vapid_public_keyB\x0e\n" +
-	"\f_livekit_url2n\n" +
+	"\f_livekit_url\"\xb0\x02\n" +
+	"\x16GetServerStateResponse\x12<\n" +
+	"\aprofile\x18\x01 \x01(\v2\".chatto.api.v1.ServerMemberProfileR\aprofile\x12<\n" +
+	"\aruntime\x18\x02 \x01(\v2\".chatto.api.v1.ServerRuntimeConfigR\aruntime\x12U\n" +
+	"\x12viewer_permissions\x18\x03 \x01(\v2&.chatto.api.v1.ServerViewerPermissionsR\x11viewerPermissions\x12C\n" +
+	"\fviewer_state\x18\x04 \x01(\v2 .chatto.api.v1.ServerViewerStateR\vviewerState2n\n" +
 	"\rServerService\x12]\n" +
 	"\x0eGetServerState\x12$.chatto.api.v1.GetServerStateRequest\x1a%.chatto.api.v1.GetServerStateResponseB\xac\x01\n" +
 	"\x11com.chatto.api.v1B\x10ServerStateProtoP\x01Z/hmans.de/chatto/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
@@ -414,23 +494,31 @@ func file_chatto_api_v1_server_state_proto_rawDescGZIP() []byte {
 	return file_chatto_api_v1_server_state_proto_rawDescData
 }
 
-var file_chatto_api_v1_server_state_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_chatto_api_v1_server_state_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_chatto_api_v1_server_state_proto_goTypes = []any{
-	(*ServerProfile)(nil),            // 0: chatto.api.v1.ServerProfile
-	(*ServerViewerCapabilities)(nil), // 1: chatto.api.v1.ServerViewerCapabilities
-	(*GetServerStateRequest)(nil),    // 2: chatto.api.v1.GetServerStateRequest
-	(*GetServerStateResponse)(nil),   // 3: chatto.api.v1.GetServerStateResponse
+	(*ServerMemberProfile)(nil),     // 0: chatto.api.v1.ServerMemberProfile
+	(*ServerViewerPermission)(nil),  // 1: chatto.api.v1.ServerViewerPermission
+	(*ServerViewerPermissions)(nil), // 2: chatto.api.v1.ServerViewerPermissions
+	(*ServerViewerState)(nil),       // 3: chatto.api.v1.ServerViewerState
+	(*GetServerStateRequest)(nil),   // 4: chatto.api.v1.GetServerStateRequest
+	(*ServerRuntimeConfig)(nil),     // 5: chatto.api.v1.ServerRuntimeConfig
+	(*GetServerStateResponse)(nil),  // 6: chatto.api.v1.GetServerStateResponse
+	(*ServerPublicProfile)(nil),     // 7: chatto.api.v1.ServerPublicProfile
 }
 var file_chatto_api_v1_server_state_proto_depIdxs = []int32{
-	0, // 0: chatto.api.v1.GetServerStateResponse.profile:type_name -> chatto.api.v1.ServerProfile
-	1, // 1: chatto.api.v1.GetServerStateResponse.viewer_capabilities:type_name -> chatto.api.v1.ServerViewerCapabilities
-	2, // 2: chatto.api.v1.ServerService.GetServerState:input_type -> chatto.api.v1.GetServerStateRequest
-	3, // 3: chatto.api.v1.ServerService.GetServerState:output_type -> chatto.api.v1.GetServerStateResponse
-	3, // [3:4] is the sub-list for method output_type
-	2, // [2:3] is the sub-list for method input_type
-	2, // [2:2] is the sub-list for extension type_name
-	2, // [2:2] is the sub-list for extension extendee
-	0, // [0:2] is the sub-list for field type_name
+	7, // 0: chatto.api.v1.ServerMemberProfile.public_profile:type_name -> chatto.api.v1.ServerPublicProfile
+	1, // 1: chatto.api.v1.ServerViewerPermissions.permissions:type_name -> chatto.api.v1.ServerViewerPermission
+	0, // 2: chatto.api.v1.GetServerStateResponse.profile:type_name -> chatto.api.v1.ServerMemberProfile
+	5, // 3: chatto.api.v1.GetServerStateResponse.runtime:type_name -> chatto.api.v1.ServerRuntimeConfig
+	2, // 4: chatto.api.v1.GetServerStateResponse.viewer_permissions:type_name -> chatto.api.v1.ServerViewerPermissions
+	3, // 5: chatto.api.v1.GetServerStateResponse.viewer_state:type_name -> chatto.api.v1.ServerViewerState
+	4, // 6: chatto.api.v1.ServerService.GetServerState:input_type -> chatto.api.v1.GetServerStateRequest
+	6, // 7: chatto.api.v1.ServerService.GetServerState:output_type -> chatto.api.v1.GetServerStateResponse
+	7, // [7:8] is the sub-list for method output_type
+	6, // [6:7] is the sub-list for method input_type
+	6, // [6:6] is the sub-list for extension type_name
+	6, // [6:6] is the sub-list for extension extendee
+	0, // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_chatto_api_v1_server_state_proto_init() }
@@ -438,15 +526,16 @@ func file_chatto_api_v1_server_state_proto_init() {
 	if File_chatto_api_v1_server_state_proto != nil {
 		return
 	}
+	file_chatto_api_v1_server_proto_init()
 	file_chatto_api_v1_server_state_proto_msgTypes[0].OneofWrappers = []any{}
-	file_chatto_api_v1_server_state_proto_msgTypes[3].OneofWrappers = []any{}
+	file_chatto_api_v1_server_state_proto_msgTypes[5].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_api_v1_server_state_proto_rawDesc), len(file_chatto_api_v1_server_state_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   4,
+			NumMessages:   7,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

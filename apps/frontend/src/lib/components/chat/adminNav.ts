@@ -1,7 +1,7 @@
 import { resolve } from '$app/paths';
 
 export type AdminNavChromePermissions = {
-  hasAnyAdminPermission: boolean;
+  canViewAdmin: boolean;
   canManage: boolean;
   canManageRooms: boolean;
   canManageRoles: boolean;
@@ -33,7 +33,7 @@ export function getAdminNavItems({
   server: AdminNavServerPermissions;
 }): AdminNavItem[] {
   if (!chrome) return [];
-  if (!chrome.hasAnyAdminPermission && !server.canViewAdmin) return [];
+  if (!chrome.canViewAdmin && !server.canViewAdmin) return [];
 
   const items: AdminNavItem[] = [];
 
@@ -61,7 +61,7 @@ export function getAdminNavItems({
     });
   }
 
-  if (chrome.hasAnyAdminPermission) {
+  if (chrome.canViewAdmin) {
     items.push({
       href: resolve('/chat/[serverId]/server-admin/moderation', { serverId: serverSegment }),
       label: 'Moderation',

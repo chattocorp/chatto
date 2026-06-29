@@ -2114,20 +2114,6 @@ func TestAuthConfig_EnabledProviders(t *testing.T) {
 	}
 }
 
-func TestAuthConfig_EnabledProviderMethods(t *testing.T) {
-	auth := AuthConfig{Providers: []AuthProviderConfig{
-		{ID: "hub", Type: AuthProviderTypeOpenIDConnect},
-		{ID: "hub-backup", Type: AuthProviderTypeOpenIDConnect},
-		{ID: "github-main", Type: AuthProviderTypeGitHub},
-	}}
-
-	got := auth.EnabledProviderMethods()
-	want := []string{"oidc", "github"}
-	if strings.Join(got, ",") != strings.Join(want, ",") {
-		t.Fatalf("EnabledProviderMethods() = %v, want %v", got, want)
-	}
-}
-
 func TestAuthConfig_PublicProviders(t *testing.T) {
 	auth := AuthConfig{Providers: []AuthProviderConfig{
 		{ID: "hub", Type: AuthProviderTypeOpenIDConnect, Label: "Chatto Hub", ClientID: "id", ClientSecret: "secret", IssuerURL: "https://issuer.example"},

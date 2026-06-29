@@ -2,61 +2,69 @@ syntax = "proto3";
 
 package chatto.api.v1;
 
-// Authenticated server profile and branding fields.
-message ServerProfile {
-  // Display name of the Chatto server.
-  string name = 1;
-  // Optional server logo URL.
-  optional string logo_url = 2;
-  // Optional server banner URL.
-  optional string banner_url = 3;
-  // Optional welcome message.
-  optional string welcome_message = 4;
-  // Optional message of the day.
-  optional string motd = 5;
-  // Optional server description.
-  optional string description = 6;
+import "chatto/api/v1/server.proto";
+
+// Server profile fields visible to authenticated members.
+message ServerMemberProfile {
+  // Public server profile and branding.
+  ServerPublicProfile public_profile = 1;
+  // Optional message of the day shown to authenticated members.
+  optional string motd = 2;
 }
 
-// Permission-derived server capabilities for the authenticated user.
-message ServerViewerCapabilities {
-  // Whether the user has at least one server-admin permission.
-  bool has_any_admin_permission = 1;
-  // Whether the user may manage server configuration.
-  bool can_manage_server = 2;
-  // Whether the user may create a channel room at server scope.
-  bool can_create_room = 3;
-  // Whether the user may manage at least one room.
-  bool can_manage_rooms = 4;
+// Effective permission decision for the authenticated user.
+message ServerViewerPermission {
+  // Stable permission key, such as "server.manage".
+  string permission = 1;
+  // Whether the permission is currently granted to the viewer.
+  bool granted = 2;
+}
+
+// Effective server/channel permission decisions for the authenticated user.
+message ServerViewerPermissions {
+  // One row per permission known to the server.
+  repeated ServerViewerPermission permissions = 1;
+}
+
+// Non-permission server state for the authenticated user.
+message ServerViewerState {
   // Whether any joined channel room has unread messages.
-  bool has_unread_rooms = 5;
+  bool has_unread_rooms = 1;
 }
 
 // Request for authenticated server state.
 message GetServerStateRequest {}
 
+// Authenticated server runtime settings used by clients.
+message ServerRuntimeConfig {
+  // Whether Web Push notifications are fully configured.
+  bool push_notifications_enabled = 1;
+  // Optional VAPID public key for Web Push registration.
+  optional string vapid_public_key = 2;
+  // Optional LiveKit URL for voice calls.
+  optional string livekit_url = 3;
+  // Whether direct email/password registration is enabled.
+  bool direct_registration_enabled = 4;
+  // Whether video processing is enabled.
+  bool video_processing_enabled = 5;
+  // Maximum general upload size in bytes.
+  int64 max_upload_size = 6;
+  // Maximum video upload size in bytes.
+  int64 max_video_upload_size = 7;
+  // Message edit window in seconds.
+  int32 message_edit_window_seconds = 8;
+}
+
 // Authenticated server state used by the web client and public API clients.
 message GetServerStateResponse {
-  // Server profile and branding.
-  ServerProfile profile = 1;
-  // Whether Web Push notifications are fully configured.
-  bool push_notifications_enabled = 2;
-  // Optional VAPID public key for Web Push registration.
-  optional string vapid_public_key = 3;
-  // Optional LiveKit URL for voice calls.
-  optional string livekit_url = 4;
-  // Whether direct email/password registration is enabled.
-  bool direct_registration_enabled = 5;
-  // Whether video processing is enabled.
-  bool video_processing_enabled = 6;
-  // Maximum general upload size in bytes.
-  int64 max_upload_size = 7;
-  // Maximum video upload size in bytes.
-  int64 max_video_upload_size = 8;
-  // Message edit window in seconds.
-  int32 message_edit_window_seconds = 9;
-  // Permission-derived state for the authenticated user.
-  ServerViewerCapabilities viewer_capabilities = 10;
+  // Authenticated server profile and branding.
+  ServerMemberProfile profile = 1;
+  // Authenticated runtime settings used by clients.
+  ServerRuntimeConfig runtime = 2;
+  // Effective server/channel permission decisions for the authenticated user.
+  ServerViewerPermissions viewer_permissions = 3;
+  // Non-permission server state for the authenticated user.
+  ServerViewerState viewer_state = 4;
 }
 
 // Provides authenticated server state and current user's server capabilities.

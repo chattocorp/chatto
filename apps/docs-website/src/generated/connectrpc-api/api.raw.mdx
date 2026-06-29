@@ -2197,16 +2197,8 @@ initial server view.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `name` | `string` | Display name of the Chatto server. |
-| `version` | `string` | Server software version. |
-| `auth_methods` | `repeated string` | Enabled legacy authentication method identifiers. |
-| `auth_providers` | repeated [`AuthProvider`](#chatto-api-v1-AuthProvider) | Configured login providers. |
-| `registration_open` | `bool` | Whether users can create accounts through the public UI. |
-| `authorize_url` | `string` | URL for the legacy authorization flow, when enabled. |
-| `welcome_message` | `optional string` | Optional welcome message configured by the server administrator. |
-| `description` | `optional string` | Optional server description configured by the server administrator. |
-| `logo_url` | `optional string` | Optional server logo URL suitable for branding the server in client UI. |
-| `banner_url` | `optional string` | Optional server banner URL suitable for larger server branding surfaces. |
+| `profile` | [`ServerPublicProfile`](#chatto-api-v1-ServerPublicProfile) | Public server profile and branding. |
+| `login` | [`ServerLogin`](#chatto-api-v1-ServerLogin) | Login and registration options. |
 
 
 <a id="chatto-api-v1-ServerService"></a>
@@ -2242,16 +2234,10 @@ Authenticated server state used by the web client and public API clients.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `profile` | [`ServerProfile`](#chatto-api-v1-ServerProfile) | Server profile and branding. |
-| `push_notifications_enabled` | `bool` | Whether Web Push notifications are fully configured. |
-| `vapid_public_key` | `optional string` | Optional VAPID public key for Web Push registration. |
-| `livekit_url` | `optional string` | Optional LiveKit URL for voice calls. |
-| `direct_registration_enabled` | `bool` | Whether direct email/password registration is enabled. |
-| `video_processing_enabled` | `bool` | Whether video processing is enabled. |
-| `max_upload_size` | `int64` | Maximum general upload size in bytes. |
-| `max_video_upload_size` | `int64` | Maximum video upload size in bytes. |
-| `message_edit_window_seconds` | `int32` | Message edit window in seconds. |
-| `viewer_capabilities` | [`ServerViewerCapabilities`](#chatto-api-v1-ServerViewerCapabilities) | Permission-derived state for the authenticated user. |
+| `profile` | [`ServerMemberProfile`](#chatto-api-v1-ServerMemberProfile) | Authenticated server profile and branding. |
+| `runtime` | [`ServerRuntimeConfig`](#chatto-api-v1-ServerRuntimeConfig) | Authenticated runtime settings used by clients. |
+| `viewer_permissions` | [`ServerViewerPermissions`](#chatto-api-v1-ServerViewerPermissions) | Effective server/channel permission decisions for the authenticated user. |
+| `viewer_state` | [`ServerViewerState`](#chatto-api-v1-ServerViewerState) | Non-permission server state for the authenticated user. |
 
 
 <a id="chatto-api-v1-ThreadService"></a>
@@ -3251,35 +3237,102 @@ Clients can render these providers before a user has authenticated.
 
 
 
-<a id="chatto-api-v1-ServerProfile"></a>
+<a id="chatto-api-v1-ServerLogin"></a>
 
-### ServerProfile
+### ServerLogin
 
-Authenticated server profile and branding fields.
+Login and registration options exposed before authentication.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `direct_registration_enabled` | `bool` | Whether users can create accounts through the public UI. |
+| `providers` | repeated [`AuthProvider`](#chatto-api-v1-AuthProvider) | Configured login providers. |
+| `authorize_url` | `string` | URL for the legacy authorization flow, when enabled. |
+
+
+
+<a id="chatto-api-v1-ServerPublicProfile"></a>
+
+### ServerPublicProfile
+
+Public server profile, identity, and branding fields.
 
 | Field | Type | Description |
 | --- | --- | --- |
 | `name` | `string` | Display name of the Chatto server. |
+| `version` | `string` | Server software version. |
 | `logo_url` | `optional string` | Optional server logo URL. |
 | `banner_url` | `optional string` | Optional server banner URL. |
 | `welcome_message` | `optional string` | Optional welcome message. |
-| `motd` | `optional string` | Optional message of the day. |
 | `description` | `optional string` | Optional server description. |
 
 
 
-<a id="chatto-api-v1-ServerViewerCapabilities"></a>
+<a id="chatto-api-v1-ServerMemberProfile"></a>
 
-### ServerViewerCapabilities
+### ServerMemberProfile
 
-Permission-derived server capabilities for the authenticated user.
+Server profile fields visible to authenticated members.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `has_any_admin_permission` | `bool` | Whether the user has at least one server-admin permission. |
-| `can_manage_server` | `bool` | Whether the user may manage server configuration. |
-| `can_create_room` | `bool` | Whether the user may create a channel room at server scope. |
-| `can_manage_rooms` | `bool` | Whether the user may manage at least one room. |
+| `public_profile` | [`ServerPublicProfile`](#chatto-api-v1-ServerPublicProfile) | Public server profile and branding. |
+| `motd` | `optional string` | Optional message of the day shown to authenticated members. |
+
+
+
+<a id="chatto-api-v1-ServerRuntimeConfig"></a>
+
+### ServerRuntimeConfig
+
+Authenticated server runtime settings used by clients.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `push_notifications_enabled` | `bool` | Whether Web Push notifications are fully configured. |
+| `vapid_public_key` | `optional string` | Optional VAPID public key for Web Push registration. |
+| `livekit_url` | `optional string` | Optional LiveKit URL for voice calls. |
+| `direct_registration_enabled` | `bool` | Whether direct email/password registration is enabled. |
+| `video_processing_enabled` | `bool` | Whether video processing is enabled. |
+| `max_upload_size` | `int64` | Maximum general upload size in bytes. |
+| `max_video_upload_size` | `int64` | Maximum video upload size in bytes. |
+| `message_edit_window_seconds` | `int32` | Message edit window in seconds. |
+
+
+
+<a id="chatto-api-v1-ServerViewerPermission"></a>
+
+### ServerViewerPermission
+
+Effective permission decision for the authenticated user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `permission` | `string` | Stable permission key, such as "server.manage". |
+| `granted` | `bool` | Whether the permission is currently granted to the viewer. |
+
+
+
+<a id="chatto-api-v1-ServerViewerPermissions"></a>
+
+### ServerViewerPermissions
+
+Effective server/channel permission decisions for the authenticated user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `permissions` | repeated [`ServerViewerPermission`](#chatto-api-v1-ServerViewerPermission) | One row per permission known to the server. |
+
+
+
+<a id="chatto-api-v1-ServerViewerState"></a>
+
+### ServerViewerState
+
+Non-permission server state for the authenticated user.
+
+| Field | Type | Description |
+| --- | --- | --- |
 | `has_unread_rooms` | `bool` | Whether any joined channel room has unread messages. |
 
 

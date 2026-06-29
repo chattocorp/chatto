@@ -34,6 +34,9 @@ first consumer.
   shape plus extra fields over copying identity fields into another local type.
 - When a separate user-shaped message is still needed, explain the visibility
   reason in the message comment.
+- For extensible key spaces such as permissions, avoid one protobuf field per
+  key. Use repeated keyed rows, for example `{ permission, granted }`, so
+  built-in and integration-defined keys share one forward-compatible shape.
 
 ## Absence Semantics
 

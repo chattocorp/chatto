@@ -2,6 +2,7 @@ import { createClient } from "@connectrpc/connect";
 import { createConnectTransport } from "@connectrpc/connect-web";
 import { AdminServerService } from "@chatto/api-types/admin/v1/server_connect";
 import { ServerService } from "@chatto/api-types/api/v1/server_state_connect";
+import { mapServerProfile, type ServerProfile } from "./serverProfile.js";
 
 export type ServerStateAPIConfig = {
   baseUrl: string;
@@ -11,6 +12,7 @@ export type ServerStateAPIConfig = {
 
 export type AuthenticatedServerState = {
   name: string;
+  version: string;
   logoUrl: string | null;
   bannerUrl: string | null;
   welcomeMessage: string | null;
@@ -23,10 +25,27 @@ export type AuthenticatedServerState = {
   maxUploadSize: number;
   maxVideoUploadSize: number;
   messageEditWindowSeconds: number;
-  viewerHasAnyAdminPermission: boolean;
+  viewerPermissions: Record<string, boolean>;
   viewerCanManageServer: boolean;
-  viewerCanCreateRoom: boolean;
+  viewerCanCreateRooms: boolean;
+  viewerCanJoinRooms: boolean;
+  viewerCanListRooms: boolean;
   viewerCanManageRooms: boolean;
+  viewerCanBanRoomMembers: boolean;
+  viewerCanPostMessages: boolean;
+  viewerCanPostInThreads: boolean;
+  viewerCanAttachFiles: boolean;
+  viewerCanManageMessages: boolean;
+  viewerCanReactToMessages: boolean;
+  viewerCanEchoMessages: boolean;
+  viewerCanManageRoles: boolean;
+  viewerCanAssignRoles: boolean;
+  viewerCanViewAdminUsers: boolean;
+  viewerCanViewAdminSystem: boolean;
+  viewerCanViewAdminAudit: boolean;
+  viewerCanDeleteAnyUser: boolean;
+  viewerCanDeleteSelf: boolean;
+  viewerCanManageUserPermissions: boolean;
   viewerHasUnreadRooms: boolean;
 };
 
@@ -37,18 +56,22 @@ export type EditableServerConfig = {
   welcomeMessage: string;
 };
 
-export type EditableServerProfile = {
-  name: string;
-  description: string | null;
-  motd: string | null;
-  welcomeMessage: string | null;
-  logoUrl: string | null;
-  bannerUrl: string | null;
-};
+export type EditableServerProfile = ServerProfile;
 
 export type ServerSecurityConfig = {
   blockedUsernames: string;
 };
+
+function mapViewerPermissions(
+  permissions: Array<{ permission: string; granted: boolean }> | undefined,
+): Record<string, boolean> {
+  return Object.fromEntries(
+    (permissions ?? []).map((permission) => [
+      permission.permission,
+      permission.granted,
+    ]),
+  );
+}
 
 function serverClients(config: ServerStateAPIConfig) {
   const transport = createConnectTransport({
@@ -68,28 +91,51 @@ export async function getAuthenticatedServerState(
 ): Promise<AuthenticatedServerState> {
   const { server, headers } = serverClients(config);
   const response = await server.getServerState({}, { headers });
+  const profile = mapServerProfile(response.profile);
+  const runtime = response.runtime;
+  const viewerPermissions = mapViewerPermissions(
+    response.viewerPermissions?.permissions,
+  );
+  const viewerState = response.viewerState;
+  const can = (permission: string) => viewerPermissions[permission] ?? false;
 
   return {
-    name: response.profile?.name || "Chatto",
-    logoUrl: response.profile?.logoUrl ?? null,
-    bannerUrl: response.profile?.bannerUrl ?? null,
-    welcomeMessage: response.profile?.welcomeMessage ?? null,
-    description: response.profile?.description ?? null,
-    motd: response.profile?.motd ?? null,
-    pushNotificationsEnabled: response.pushNotificationsEnabled,
-    vapidPublicKey: response.vapidPublicKey ?? null,
-    livekitUrl: response.livekitUrl ?? null,
-    videoProcessingEnabled: response.videoProcessingEnabled,
-    maxUploadSize: Number(response.maxUploadSize),
-    maxVideoUploadSize: Number(response.maxVideoUploadSize),
-    messageEditWindowSeconds: response.messageEditWindowSeconds,
-    viewerHasAnyAdminPermission:
-      response.viewerCapabilities?.hasAnyAdminPermission ?? false,
-    viewerCanManageServer:
-      response.viewerCapabilities?.canManageServer ?? false,
-    viewerCanCreateRoom: response.viewerCapabilities?.canCreateRoom ?? false,
-    viewerCanManageRooms: response.viewerCapabilities?.canManageRooms ?? false,
-    viewerHasUnreadRooms: response.viewerCapabilities?.hasUnreadRooms ?? false,
+    name: profile.name,
+    version: profile.version,
+    logoUrl: profile.logoUrl,
+    bannerUrl: profile.bannerUrl,
+    welcomeMessage: profile.welcomeMessage,
+    description: profile.description,
+    motd: profile.motd,
+    pushNotificationsEnabled: runtime?.pushNotificationsEnabled ?? false,
+    vapidPublicKey: runtime?.vapidPublicKey ?? null,
+    livekitUrl: runtime?.livekitUrl ?? null,
+    videoProcessingEnabled: runtime?.videoProcessingEnabled ?? false,
+    maxUploadSize: Number(runtime?.maxUploadSize ?? 0),
+    maxVideoUploadSize: Number(runtime?.maxVideoUploadSize ?? 0),
+    messageEditWindowSeconds: runtime?.messageEditWindowSeconds ?? 0,
+    viewerPermissions,
+    viewerCanManageServer: can("server.manage"),
+    viewerCanCreateRooms: can("room.create"),
+    viewerCanJoinRooms: can("room.join"),
+    viewerCanListRooms: can("room.list"),
+    viewerCanManageRooms: can("room.manage"),
+    viewerCanBanRoomMembers: can("room.ban-member"),
+    viewerCanPostMessages: can("message.post"),
+    viewerCanPostInThreads: can("message.post-in-thread"),
+    viewerCanAttachFiles: can("message.attach"),
+    viewerCanManageMessages: can("message.manage"),
+    viewerCanReactToMessages: can("message.react"),
+    viewerCanEchoMessages: can("message.echo"),
+    viewerCanManageRoles: can("role.manage"),
+    viewerCanAssignRoles: can("role.assign"),
+    viewerCanViewAdminUsers: can("admin.view-users"),
+    viewerCanViewAdminSystem: can("admin.view-system"),
+    viewerCanViewAdminAudit: can("admin.view-audit"),
+    viewerCanDeleteAnyUser: can("user.delete-any"),
+    viewerCanDeleteSelf: can("user.delete-self"),
+    viewerCanManageUserPermissions: can("user.manage-permissions"),
+    viewerHasUnreadRooms: viewerState?.hasUnreadRooms ?? false,
   };
 }
 
@@ -108,7 +154,7 @@ export async function updateServerConfig(
     { headers },
   );
 
-  return editableServerProfile(response.profile);
+  return mapServerProfile(response.profile);
 }
 
 export async function uploadServerLogo(
@@ -124,7 +170,7 @@ export async function uploadServerLogo(
     },
     { headers },
   );
-  return editableServerProfile(response.profile);
+  return mapServerProfile(response.profile);
 }
 
 export async function deleteServerLogo(
@@ -132,7 +178,7 @@ export async function deleteServerLogo(
 ): Promise<EditableServerProfile> {
   const { adminServer, headers } = serverClients(config);
   const response = await adminServer.deleteServerLogo({}, { headers });
-  return editableServerProfile(response.profile);
+  return mapServerProfile(response.profile);
 }
 
 export async function uploadServerBanner(
@@ -148,7 +194,7 @@ export async function uploadServerBanner(
     },
     { headers },
   );
-  return editableServerProfile(response.profile);
+  return mapServerProfile(response.profile);
 }
 
 export async function deleteServerBanner(
@@ -156,7 +202,7 @@ export async function deleteServerBanner(
 ): Promise<EditableServerProfile> {
   const { adminServer, headers } = serverClients(config);
   const response = await adminServer.deleteServerBanner({}, { headers });
-  return editableServerProfile(response.profile);
+  return mapServerProfile(response.profile);
 }
 
 export async function getServerSecurityConfig(
@@ -180,28 +226,5 @@ export async function updateBlockedUsernames(
   );
   return {
     blockedUsernames: response.blockedUsernames,
-  };
-}
-
-function editableServerProfile(
-  profile:
-    | {
-        name?: string;
-        logoUrl?: string;
-        bannerUrl?: string;
-        welcomeMessage?: string;
-        description?: string;
-        motd?: string;
-      }
-    | null
-    | undefined,
-): EditableServerProfile {
-  return {
-    name: profile?.name || "Chatto",
-    logoUrl: profile?.logoUrl ?? null,
-    bannerUrl: profile?.bannerUrl ?? null,
-    welcomeMessage: profile?.welcomeMessage ?? null,
-    description: profile?.description ?? null,
-    motd: profile?.motd ?? null,
   };
 }

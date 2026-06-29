@@ -47,13 +47,7 @@ Authenticated server state used by the web client and public API clients.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `profile` | [`ServerProfile`](/reference/connectrpc-api/types/#chatto-api-v1-ServerProfile) | Server profile and branding. |
-| `push_notifications_enabled` | `bool` | Whether Web Push notifications are fully configured. |
-| `vapid_public_key` | `optional string` | Optional VAPID public key for Web Push registration. |
-| `livekit_url` | `optional string` | Optional LiveKit URL for voice calls. |
-| `direct_registration_enabled` | `bool` | Whether direct email/password registration is enabled. |
-| `video_processing_enabled` | `bool` | Whether video processing is enabled. |
-| `max_upload_size` | `int64` | Maximum general upload size in bytes. |
-| `max_video_upload_size` | `int64` | Maximum video upload size in bytes. |
-| `message_edit_window_seconds` | `int32` | Message edit window in seconds. |
-| `viewer_capabilities` | [`ServerViewerCapabilities`](/reference/connectrpc-api/types/#chatto-api-v1-ServerViewerCapabilities) | Permission-derived state for the authenticated user. |
+| `profile` | [`ServerMemberProfile`](/reference/connectrpc-api/types/#chatto-api-v1-ServerMemberProfile) | Authenticated server profile and branding. |
+| `runtime` | [`ServerRuntimeConfig`](/reference/connectrpc-api/types/#chatto-api-v1-ServerRuntimeConfig) | Authenticated runtime settings used by clients. |
+| `viewer_permissions` | [`ServerViewerPermissions`](/reference/connectrpc-api/types/#chatto-api-v1-ServerViewerPermissions) | Effective server/channel permission decisions for the authenticated user. |
+| `viewer_state` | [`ServerViewerState`](/reference/connectrpc-api/types/#chatto-api-v1-ServerViewerState) | Non-permission server state for the authenticated user. |

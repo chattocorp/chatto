@@ -14,40 +14,22 @@ type serverDiscoveryService struct {
 	api *API
 }
 
-func (s *serverDiscoveryService) GetServer(ctx context.Context, _ *connect.Request[apiv1.GetServerRequest]) (*connect.Response[apiv1.GetServerResponse], error) {
-	authMethods := s.api.config.Auth.EnabledProviderMethods()
-	if s.api.config.Auth.DirectRegistrationOrDefault() {
-		authMethods = append([]string{"password"}, authMethods...)
-	}
-	if authMethods == nil {
-		authMethods = []string{}
-	}
+type serverProfileOptions struct {
+	tolerateErrors bool
+}
 
+func (s *serverDiscoveryService) GetServer(ctx context.Context, _ *connect.Request[apiv1.GetServerRequest]) (*connect.Response[apiv1.GetServerResponse], error) {
+	profile, err := s.api.serverProfile(ctx, serverProfileOptions{tolerateErrors: true})
+	if err != nil {
+		return nil, err
+	}
 	response := &apiv1.GetServerResponse{
-		Name:             s.api.effectiveServerName(ctx),
-		Version:          s.api.version,
-		AuthMethods:      authMethods,
-		AuthProviders:    apiAuthProviders(s.api.config.Auth.PublicProviders()),
-		RegistrationOpen: s.api.config.Auth.DirectRegistrationOrDefault(),
-		AuthorizeUrl:     "/oauth/authorize",
-	}
-	if s.api.core != nil && s.api.core.ConfigManager() != nil {
-		if welcome, err := s.api.core.ConfigManager().GetEffectiveWelcomeMessage(ctx); err == nil {
-			response.WelcomeMessage = stringPtr(welcome)
-		}
-		if cfg, err := s.api.core.ConfigManager().GetServerConfig(ctx); err == nil && cfg != nil {
-			response.Description = stringPtr(cfg.Description)
-		}
-	}
-	if s.api.core != nil {
-		bw, bh := 1200, 630
-		if u, err := s.api.core.GetServerBannerURL(ctx, &bw, &bh, "cover"); err == nil {
-			response.BannerUrl = stringPtr(s.api.absolutizeAssetURL(ctx, u))
-		}
-		lw, lh := 256, 256
-		if u, err := s.api.core.GetServerLogoURL(ctx, &lw, &lh, "cover"); err == nil {
-			response.LogoUrl = stringPtr(s.api.absolutizeAssetURL(ctx, u))
-		}
+		Profile: profile,
+		Login: &apiv1.ServerLogin{
+			DirectRegistrationEnabled: s.api.config.Auth.DirectRegistrationOrDefault(),
+			Providers:                 apiAuthProviders(s.api.config.Auth.PublicProviders()),
+			AuthorizeUrl:              "/oauth/authorize",
+		},
 	}
 	return connect.NewResponse(response), nil
 }
@@ -59,6 +41,49 @@ func (a *API) effectiveServerName(ctx context.Context) string {
 		}
 	}
 	return "Chatto"
+}
+
+func (a *API) serverProfile(ctx context.Context, options serverProfileOptions) (*apiv1.ServerPublicProfile, error) {
+	profile := &apiv1.ServerPublicProfile{Name: a.effectiveServerName(ctx), Version: a.version}
+
+	if a.core != nil && a.core.ConfigManager() != nil {
+		cm := a.core.ConfigManager()
+		if welcome, err := cm.GetEffectiveWelcomeMessage(ctx); err != nil {
+			if !options.tolerateErrors {
+				return nil, connectError(err)
+			}
+		} else if welcome != "" {
+			profile.WelcomeMessage = stringPtr(welcome)
+		}
+		if cfg, err := cm.GetServerConfig(ctx); err != nil {
+			if !options.tolerateErrors {
+				return nil, connectError(err)
+			}
+		} else if cfg != nil && cfg.GetDescription() != "" {
+			profile.Description = stringPtr(cfg.GetDescription())
+		}
+	}
+
+	if a.core != nil {
+		bw, bh := 1200, 630
+		if u, err := a.core.GetServerBannerURL(ctx, &bw, &bh, "cover"); err != nil {
+			if !options.tolerateErrors {
+				return nil, connectError(err)
+			}
+		} else if u != "" {
+			profile.BannerUrl = stringPtr(a.absolutizeAssetURL(ctx, u))
+		}
+		lw, lh := 256, 256
+		if u, err := a.core.GetServerLogoURL(ctx, &lw, &lh, "cover"); err != nil {
+			if !options.tolerateErrors {
+				return nil, connectError(err)
+			}
+		} else if u != "" {
+			profile.LogoUrl = stringPtr(a.absolutizeAssetURL(ctx, u))
+		}
+	}
+
+	return profile, nil
 }
 
 func apiAuthProviders(providers []config.AuthProviderConfig) []*apiv1.AuthProvider {

@@ -29,6 +29,7 @@ path-specific guidance.
   broad base API and `chatto.admin.v1` a clearly administrative public API,
   with explicit compatibility notes over moving ordinary frontend-used features
   into an app-only namespace.
+- As long as we haven't released 0.4.0, breaking changes to the ConnectRPC are not only okay, but even encouraged (if they are for cleanup/DRY/etc.) - after we've released 0.4.0, we'll want to be more careful.
 
 ## Prime Directives
 

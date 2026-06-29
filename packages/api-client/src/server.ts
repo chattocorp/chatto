@@ -1,6 +1,7 @@
 import { createClient } from "@connectrpc/connect";
 import { createConnectTransport } from "@connectrpc/connect-web";
 import { ServerDiscoveryService } from "@chatto/api-types/api/v1/server_connect";
+import { mapServerProfile } from "./serverProfile.js";
 
 export type PublicAuthProvider = {
   id: string;
@@ -12,7 +13,6 @@ export type PublicAuthProvider = {
 export type PublicServerInfo = {
   name: string;
   version: string;
-  authMethods: string[];
   authorizeUrl: string;
   directRegistrationEnabled: boolean;
   welcomeMessage: string | null;
@@ -31,18 +31,21 @@ export async function getPublicServerInfo(
   });
   const client = createClient(ServerDiscoveryService, transport);
   const response = await client.getServer({}, { signal: options.signal });
+  if (!response.profile?.name) {
+    throw new Error("This does not appear to be a Chatto server.");
+  }
+  const profile = mapServerProfile(response.profile);
 
   return {
-    name: response.name,
-    version: response.version,
-    authMethods: [...response.authMethods],
-    authorizeUrl: response.authorizeUrl,
-    directRegistrationEnabled: response.registrationOpen,
-    welcomeMessage: response.welcomeMessage || null,
-    description: response.description || null,
-    iconUrl: response.logoUrl || null,
-    bannerUrl: response.bannerUrl || null,
-    authProviders: response.authProviders.map((provider) => ({
+    name: profile.name,
+    version: profile.version,
+    authorizeUrl: response.login?.authorizeUrl ?? "",
+    directRegistrationEnabled: response.login?.directRegistrationEnabled ?? false,
+    welcomeMessage: profile.welcomeMessage,
+    description: profile.description,
+    iconUrl: profile.logoUrl,
+    bannerUrl: profile.bannerUrl,
+    authProviders: (response.login?.providers ?? []).map((provider) => ({
       id: provider.id,
       type: provider.type,
       label: provider.label,
