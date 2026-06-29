@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { TimeFormat as APITimeFormat } from '$lib/pb/chatto/api/v1/viewer_pb';
+import { TimeFormat as APITimeFormat } from '@chatto/api-types/api/v1/viewer_pb';
 import { TimeFormat } from '$lib/render/types';
 import { createAccountAPI } from './account';
 

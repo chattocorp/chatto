@@ -1,6 +1,6 @@
 import { createClient } from '@connectrpc/connect';
 import { createConnectTransport } from '@connectrpc/connect-web';
-import { PushNotificationService } from '$lib/pb/chatto/api/v1/push_notifications_connect';
+import { PushNotificationService } from '@chatto/api-types/api/v1/push_notifications_connect';
 
 export type PushNotificationAPIConfig = {
   baseUrl: string;

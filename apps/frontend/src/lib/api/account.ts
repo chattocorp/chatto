@@ -1,11 +1,11 @@
 import { createClient } from '@connectrpc/connect';
 import { createConnectTransport } from '@connectrpc/connect-web';
-import { AccountService } from '$lib/pb/chatto/api/v1/account_connect';
-import type { User as APIUser } from '$lib/pb/chatto/api/v1/users_pb';
+import { AccountService } from '@chatto/api-types/api/v1/account_connect';
+import type { User as APIUser } from '@chatto/api-types/api/v1/users_pb';
 import {
   TimeFormat as APITimeFormat,
   type UserSettings as APIUserSettings
-} from '$lib/pb/chatto/api/v1/viewer_pb';
+} from '@chatto/api-types/api/v1/viewer_pb';
 import { TimeFormat } from '$lib/render/types';
 
 export type AccountAPIConfig = {

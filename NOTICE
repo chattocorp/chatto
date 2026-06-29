@@ -18,7 +18,7 @@ Server and CLI Go Components:
   (https://protovalidate.com/, https://buf.build/) - Apache License 2.0
 - caarlos0/env (https://github.com/caarlos0/env) - MIT License
 - Charmbracelet log (https://github.com/charmbracelet/log) - MIT License
-- ConnectRPC, Connect Authn, and Connect validation packages
+- ConnectRPC, Connect Authn, Connect validation, and Connect gRPC reflection packages
   (https://connectrpc.com/) - Apache License 2.0
 - Cobra CLI framework (https://github.com/spf13/cobra) - Apache License 2.0
 - CoreOS go-oidc (https://github.com/coreos/go-oidc) - Apache License 2.0

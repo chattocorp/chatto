@@ -124,7 +124,7 @@ func (a *API) Handlers() []Handler {
 		{ServicePath: threadPath, Handler: threadHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: voicePath, Handler: voiceHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 	}
-	return handlers
+	return append(handlers, reflectionHandlers(options)...)
 }
 
 func uploadRequestMaxBytes(maxUploadSize int64) int {

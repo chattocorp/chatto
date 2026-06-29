@@ -93,13 +93,13 @@ jobs:
         timeout-minutes: 5
 
       - name: Run frontend typecheck
-        run: cd apps/frontend && pnpm check
+        run: pnpm run check:frontend
 
       - name: Run frontend lint
-        run: cd apps/frontend && pnpm lint
+        run: pnpm run lint:frontend
 
       - name: Run frontend unit tests
-        run: cd apps/frontend && pnpm vitest --run
+        run: pnpm run test:frontend
 
   test-cli:
     # runs-on: ubicloud-standard-4

@@ -1,8 +1,8 @@
 import { Timestamp } from '@bufbuild/protobuf';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { NotificationLevel as APINotificationLevel } from '$lib/pb/chatto/api/v1/notification_preferences_pb';
-import { PresenceStatus as APIPresenceStatus } from '$lib/pb/chatto/api/v1/presence_pb';
-import { TimeFormat as APITimeFormat } from '$lib/pb/chatto/api/v1/viewer_pb';
+import { NotificationLevel as APINotificationLevel } from '@chatto/api-types/api/v1/notification_preferences_pb';
+import { PresenceStatus as APIPresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
+import { TimeFormat as APITimeFormat } from '@chatto/api-types/api/v1/viewer_pb';
 import { NotificationLevel, PresenceStatus, TimeFormat } from '$lib/render/types';
 import { getCurrentUserViaConnect, getViewerStateViaConnect } from './viewer';
 

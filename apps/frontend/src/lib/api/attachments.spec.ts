@@ -8,14 +8,14 @@ import {
   RefreshMessageAttachmentUrlsResponse,
   RefreshedAttachmentUrls,
   RoomAttachmentListItem
-} from '$lib/pb/chatto/api/v1/attachments_pb';
+} from '@chatto/api-types/api/v1/attachments_pb';
 import {
   RoomTimelineAssetUrl,
   RoomTimelineAttachment,
   RoomTimelineVideoProcessing,
   RoomTimelineVideoProcessingStatus,
   RoomTimelineVideoVariant
-} from '$lib/pb/chatto/api/v1/room_timeline_pb';
+} from '@chatto/api-types/api/v1/room_timeline_pb';
 import { createAttachmentAPI } from './attachments';
 
 const mocks = vi.hoisted(() => ({

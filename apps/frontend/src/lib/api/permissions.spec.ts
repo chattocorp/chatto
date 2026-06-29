@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPermissionAPI } from './permissions';
-import { PermissionDecision, PermissionScopeKind } from '$lib/pb/chatto/admin/v1/permissions_pb';
+import { PermissionDecision, PermissionScopeKind } from '@chatto/api-types/admin/v1/permissions_pb';
 
 const mocks = vi.hoisted(() => ({
   createClient: vi.fn(),

@@ -1,13 +1,13 @@
 import { Code, ConnectError, createClient } from '@connectrpc/connect';
 import { createConnectTransport } from '@connectrpc/connect-web';
-import { RoomDirectoryService } from '$lib/pb/chatto/api/v1/room_directory_connect';
+import { RoomDirectoryService } from '@chatto/api-types/api/v1/room_directory_connect';
 import type {
   DirectoryRoom,
   RoomGroup,
   RoomGroupItem
-} from '$lib/pb/chatto/api/v1/room_directory_pb';
-import { RoomDirectoryScope } from '$lib/pb/chatto/api/v1/room_directory_pb';
-import { RoomKind } from '$lib/pb/chatto/api/v1/rooms_pb';
+} from '@chatto/api-types/api/v1/room_directory_pb';
+import { RoomDirectoryScope } from '@chatto/api-types/api/v1/room_directory_pb';
+import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 import { serverRegistry } from '$lib/state/server/registry.svelte';
 
 export type RoomDirectoryAPIConfig = {

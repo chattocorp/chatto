@@ -63,8 +63,8 @@ generated protobuf clients, Vitest browser tests, Playwright e2e, and Storybook.
 - Query permissions/capability hints from the backend instead of duplicating
   authorization rules in UI code.
 - When Go permission/shared types change, run `mise codegen-types`.
-- Public ConnectRPC/protobuf clients live under `$lib/pb`; keep generated files
-  in sync with `mise codegen-proto`.
+- Public ConnectRPC/protobuf clients live in the workspace package
+  `@chatto/api-types`; keep generated files in sync with `mise codegen-proto`.
 
 ## UI And Styling
 

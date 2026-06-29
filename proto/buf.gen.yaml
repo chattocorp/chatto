@@ -16,16 +16,16 @@ plugins:
     out: ../cli/internal/pb
     opt:
       - paths=source_relative
-  - local: ../apps/frontend/node_modules/.bin/protoc-gen-es
-    out: ../apps/frontend/src/lib/pb
+  - local: ../packages/api-types/node_modules/.bin/protoc-gen-es
+    out: ../packages/api-types/src
     opt:
       - target=ts
     types:
       - chatto.api.v1
       - chatto.admin.v1
       - chatto.realtime.v1
-  - local: ../apps/frontend/node_modules/.bin/protoc-gen-connect-es
-    out: ../apps/frontend/src/lib/pb
+  - local: ../packages/api-types/node_modules/.bin/protoc-gen-connect-es
+    out: ../packages/api-types/src
     opt:
       - target=ts
     types:

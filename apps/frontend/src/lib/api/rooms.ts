@@ -1,8 +1,8 @@
 import { Code, ConnectError, createClient } from '@connectrpc/connect';
 import { createConnectTransport } from '@connectrpc/connect-web';
 import { Timestamp } from '@bufbuild/protobuf';
-import { RoomService } from '$lib/pb/chatto/api/v1/rooms_connect';
-import type { Room, RoomBan as APIRoomBan } from '$lib/pb/chatto/api/v1/rooms_pb';
+import { RoomService } from '@chatto/api-types/api/v1/rooms_connect';
+import type { Room, RoomBan as APIRoomBan } from '@chatto/api-types/api/v1/rooms_pb';
 import { serverRegistry } from '$lib/state/server/registry.svelte';
 import { mapDirectoryMember, type DirectoryMember } from './memberDirectory';
 

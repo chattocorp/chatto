@@ -1,7 +1,7 @@
 import { Code, ConnectError, createClient } from '@connectrpc/connect';
 import { createConnectTransport } from '@connectrpc/connect-web';
-import { LinkPreviewService } from '$lib/pb/chatto/api/v1/link_previews_connect';
-import type { LinkPreview } from '$lib/pb/chatto/api/v1/link_previews_pb';
+import { LinkPreviewService } from '@chatto/api-types/api/v1/link_previews_connect';
+import type { LinkPreview } from '@chatto/api-types/api/v1/link_previews_pb';
 import { serverRegistry } from '$lib/state/server/registry.svelte';
 
 export type LinkPreviewAPIConfig = {

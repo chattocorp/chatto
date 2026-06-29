@@ -1,7 +1,7 @@
 import { Code, ConnectError, createClient } from '@connectrpc/connect';
 import { createConnectTransport } from '@connectrpc/connect-web';
-import { NotificationPreferencesService } from '$lib/pb/chatto/api/v1/notification_preferences_connect';
-import { NotificationLevel } from '$lib/pb/chatto/api/v1/notification_preferences_pb';
+import { NotificationPreferencesService } from '@chatto/api-types/api/v1/notification_preferences_connect';
+import { NotificationLevel } from '@chatto/api-types/api/v1/notification_preferences_pb';
 import { serverRegistry } from '$lib/state/server/registry.svelte';
 
 export type ConnectAPIConfig = {

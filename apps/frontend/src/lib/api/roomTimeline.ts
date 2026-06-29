@@ -5,19 +5,19 @@ import { RoomEventKind } from '$lib/render/eventKinds';
 import { PresenceStatus, type RoomEventView } from '$lib/render/types';
 import { serverRegistry } from '$lib/state/server/registry.svelte';
 import { primeUserSummaryCache } from '$lib/state/userSummaries.svelte';
-import { RoomTimelineService } from '$lib/pb/chatto/api/v1/room_timeline_connect';
+import { RoomTimelineService } from '@chatto/api-types/api/v1/room_timeline_connect';
 import {
   RoomTimelinePage,
   RoomTimelineVideoProcessingStatus
-} from '$lib/pb/chatto/api/v1/room_timeline_pb';
-import type { LinkPreview } from '$lib/pb/chatto/api/v1/link_previews_pb';
+} from '@chatto/api-types/api/v1/room_timeline_pb';
+import type { LinkPreview } from '@chatto/api-types/api/v1/link_previews_pb';
 import type {
   RoomTimelineAssetUrl,
   RoomTimelineEvent,
   RoomTimelineMessagePosted,
   RoomTimelineVideoProcessing
-} from '$lib/pb/chatto/api/v1/room_timeline_pb';
-import type { User } from '$lib/pb/chatto/api/v1/users_pb';
+} from '@chatto/api-types/api/v1/room_timeline_pb';
+import type { User } from '@chatto/api-types/api/v1/users_pb';
 
 export type RoomTimelineAPIConfig = {
   serverId?: string;

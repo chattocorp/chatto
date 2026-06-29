@@ -1,6 +1,6 @@
 import { createClient } from '@connectrpc/connect';
 import { createConnectTransport } from '@connectrpc/connect-web';
-import { AdminDiagnosticsService } from '$lib/pb/chatto/admin/v1/diagnostics_connect';
+import { AdminDiagnosticsService } from '@chatto/api-types/admin/v1/diagnostics_connect';
 
 export type AdminDiagnosticsAPIConfig = {
   baseUrl: string;

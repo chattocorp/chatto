@@ -1,7 +1,7 @@
 import { Code, ConnectError, createClient } from '@connectrpc/connect';
 import { createConnectTransport } from '@connectrpc/connect-web';
-import { AccountService } from '$lib/pb/chatto/api/v1/account_connect';
-import { PresenceStatus } from '$lib/pb/chatto/api/v1/presence_pb';
+import { AccountService } from '@chatto/api-types/api/v1/account_connect';
+import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { serverRegistry } from '$lib/state/server/registry.svelte';
 
 export type PresenceAPIConfig = {

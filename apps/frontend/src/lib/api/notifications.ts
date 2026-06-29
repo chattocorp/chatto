@@ -1,13 +1,13 @@
 import { createClient } from '@connectrpc/connect';
 import { createConnectTransport } from '@connectrpc/connect-web';
-import { NotificationService } from '$lib/pb/chatto/api/v1/notifications_connect';
+import { NotificationService } from '@chatto/api-types/api/v1/notifications_connect';
 import type {
   ListRoomNotificationsResponse,
   ListNotificationsResponse,
   NotificationItem as APINotificationItem
-} from '$lib/pb/chatto/api/v1/notifications_pb';
-import type { UserProfile as APIUserProfile } from '$lib/pb/chatto/api/v1/users_pb';
-import { PresenceStatus as APIPresenceStatus } from '$lib/pb/chatto/api/v1/presence_pb';
+} from '@chatto/api-types/api/v1/notifications_pb';
+import type { UserProfile as APIUserProfile } from '@chatto/api-types/api/v1/users_pb';
+import { PresenceStatus as APIPresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { PresenceStatus } from '$lib/render/types';
 
 export type NotificationAPIConfig = {

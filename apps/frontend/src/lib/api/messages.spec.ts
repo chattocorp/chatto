@@ -2,13 +2,13 @@ import { Timestamp } from '@bufbuild/protobuf';
 import { Code, ConnectError } from '@connectrpc/connect';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createMessageAPI } from './messages';
-import { MentionConfirmationChallenge, PostMessageResponse } from '$lib/pb/chatto/api/v1/messages_pb';
+import { MentionConfirmationChallenge, PostMessageResponse } from '@chatto/api-types/api/v1/messages_pb';
 import {
 	RoomTimelineEvent,
 	RoomTimelineIncludes,
 	RoomTimelineMessagePosted
-} from '$lib/pb/chatto/api/v1/room_timeline_pb';
-import { User } from '$lib/pb/chatto/api/v1/users_pb';
+} from '@chatto/api-types/api/v1/room_timeline_pb';
+import { User } from '@chatto/api-types/api/v1/users_pb';
 
 const mocks = vi.hoisted(() => ({
 	createClient: vi.fn(),

@@ -2,7 +2,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { render } from 'vitest-browser-svelte';
 import { flushSync } from 'svelte';
 import { q } from '$lib/test-utils';
-import { RoomKind } from '$lib/pb/chatto/api/v1/rooms_pb';
+import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 import { quickSwitcher } from '$lib/state/globals.svelte';
 
 const mocks = vi.hoisted(() => ({

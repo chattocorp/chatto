@@ -1,0 +1,42 @@
+{
+  "name": "@chatto/api-types",
+  "private": true,
+  "version": "0.4.0-beta.4",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    "./package.json": "./package.json",
+    "./admin/*": {
+      "types": "./dist/chatto/admin/*.d.ts",
+      "import": "./dist/chatto/admin/*.js"
+    },
+    "./api/*": {
+      "types": "./dist/chatto/api/*.d.ts",
+      "import": "./dist/chatto/api/*.js"
+    },
+    "./chatto/*": {
+      "types": "./dist/chatto/*.d.ts",
+      "import": "./dist/chatto/*.js"
+    },
+    "./realtime/*": {
+      "types": "./dist/chatto/realtime/*.d.ts",
+      "import": "./dist/chatto/realtime/*.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "clean": "rm -rf dist src/chatto"
+  },
+  "dependencies": {
+    "@bufbuild/protobuf": "1.10.0"
+  },
+  "devDependencies": {
+    "@bufbuild/protoc-gen-es": "^1.10.0",
+    "@connectrpc/protoc-gen-connect-es": "1.7.0",
+    "typescript": "^5.9.3"
+  }
+}
