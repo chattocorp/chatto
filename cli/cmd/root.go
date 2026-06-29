@@ -11,10 +11,12 @@ import (
 var Version = "dev"
 
 var rootCmd = &cobra.Command{
-	Use:     "chatto",
-	Short:   "Run and manage a Chatto server",
-	Long:    rootBanner(Version),
-	Version: Version,
+	Use:           "chatto",
+	Short:         "Run and manage a Chatto server",
+	Long:          rootBanner(Version),
+	Version:       Version,
+	SilenceUsage:  true,
+	SilenceErrors: true,
 }
 
 func Execute() {

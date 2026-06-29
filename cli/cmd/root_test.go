@@ -82,6 +82,29 @@ func TestRootRegistersOperatorUserCommands(t *testing.T) {
 	}
 }
 
+func TestRootDoesNotPrintUsageOnError(t *testing.T) {
+	resetAdminGlobals(t)
+	resetCommandFlags(rootCmd)
+
+	var out bytes.Buffer
+	rootCmd.SetOut(&out)
+	rootCmd.SetErr(&out)
+	rootCmd.SetArgs([]string{"operator", "user", "create", "ignored", "--login", "alice"})
+	t.Cleanup(func() {
+		rootCmd.SetOut(os.Stdout)
+		rootCmd.SetErr(os.Stderr)
+		rootCmd.SetArgs(nil)
+	})
+
+	err := rootCmd.Execute()
+	if err == nil {
+		t.Fatal("Execute() err = nil, want argument error")
+	}
+	if strings.Contains(out.String(), "Usage:") {
+		t.Fatalf("unexpected usage output on error:\n%s", out.String())
+	}
+}
+
 func TestResolveOperatorAPIClientConfigUsesConfigSocket(t *testing.T) {
 	resetAdminGlobals(t)
 	operatorConfigFile = writeOperatorTestConfig(t, "/tmp/config-operator.sock")
@@ -193,12 +216,12 @@ func TestOperatorUserCommandsExerciseOperatorAPI(t *testing.T) {
 		t.Fatalf("roles = %v, want cli-test-role", roles)
 	}
 
-	getOut := env.run(t, "operator", "user", "get", "--email", "cli-admin@example.com")
+	getOut := env.run(t, "operator", "user", "get", user.Id)
 	if !strings.Contains(getOut, user.Id+"\tcli-admin-user\tCLI Admin User") {
 		t.Fatalf("get output = %q", getOut)
 	}
 
-	updateOut := env.run(t, "operator", "user", "update", "--login", "cli-admin-user", "--display-name", "CLI Renamed")
+	updateOut := env.run(t, "operator", "user", "update", user.Id, "--display-name", "CLI Renamed")
 	if !strings.Contains(updateOut, "\tCLI Renamed\t") {
 		t.Fatalf("update output = %q", updateOut)
 	}
@@ -207,21 +230,21 @@ func TestOperatorUserCommandsExerciseOperatorAPI(t *testing.T) {
 	if err := os.WriteFile(passwordPath, []byte("new-password-123\n"), 0o600); err != nil {
 		t.Fatalf("write password file: %v", err)
 	}
-	env.run(t, "operator", "user", "set-password", "--email", "cli-admin@example.com", "--password-file", passwordPath)
+	env.run(t, "operator", "user", "set-password", user.Id, "--password-file", passwordPath)
 	if _, _, err := env.core.VerifyPasswordWithAuthGeneration(env.ctx, "cli-admin-user", "new-password-123"); err != nil {
 		t.Fatalf("VerifyPasswordWithAuthGeneration after set-password: %v", err)
 	}
 
-	emailOut := env.run(t, "operator", "user", "add-email", "--login", "cli-admin-user", "cli-admin-2@example.com")
+	emailOut := env.run(t, "operator", "user", "add-email", user.Id, "--email", "cli-admin-2@example.com")
 	if !strings.Contains(emailOut, "cli-admin-2@example.com") {
 		t.Fatalf("add-email output = %q", emailOut)
 	}
 
-	roleAddOut := env.run(t, "operator", "user", "role", "add", "--email", "cli-admin-2@example.com", "cli-extra-role")
+	roleAddOut := env.run(t, "operator", "user", "role", "add", user.Id, "cli-extra-role")
 	if !strings.Contains(roleAddOut, "cli-extra-role") {
 		t.Fatalf("role add output = %q", roleAddOut)
 	}
-	roleRemoveOut := env.run(t, "operator", "user", "role", "remove", "--id", user.Id, "cli-extra-role")
+	roleRemoveOut := env.run(t, "operator", "user", "role", "remove", user.Id, "cli-extra-role")
 	if strings.Contains(roleRemoveOut, "cli-extra-role") {
 		t.Fatalf("role remove output still contains cli-extra-role: %q", roleRemoveOut)
 	}
@@ -234,8 +257,12 @@ func TestOperatorUserCommandsExerciseOperatorAPI(t *testing.T) {
 	if !strings.Contains(negativeLimitListOut, "total=1 has_more=false") || !strings.Contains(negativeLimitListOut, "cli-admin-user") {
 		t.Fatalf("list with negative limit output = %q", negativeLimitListOut)
 	}
+	emailListOut := env.run(t, "operator", "user", "list", "--search", "cli-admin-2@example.com")
+	if !strings.Contains(emailListOut, "total=1 has_more=false") || !strings.Contains(emailListOut, user.Id) {
+		t.Fatalf("list with email search output = %q", emailListOut)
+	}
 
-	deleteOut := env.run(t, "operator", "user", "delete", "--email", "cli-admin@example.com", "--yes")
+	deleteOut := env.run(t, "operator", "user", "delete", user.Id, "--yes")
 	if !strings.Contains(deleteOut, "deleted user "+user.Id) {
 		t.Fatalf("delete output = %q", deleteOut)
 	}

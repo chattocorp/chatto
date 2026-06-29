@@ -66,6 +66,7 @@ func adminUserListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list",
 		Short: "List users",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			client, err := newOperatorAPIClient()
 			if err != nil {
@@ -103,27 +104,23 @@ func adminUserListCmd() *cobra.Command {
 			})
 		},
 	}
-	cmd.Flags().StringVar(&search, "search", "", "search login or display name")
+	cmd.Flags().StringVar(&search, "search", "", "search login/display name or exact verified email")
 	cmd.Flags().Int32Var(&limit, "limit", 20, "maximum users to return")
 	cmd.Flags().Int32Var(&offset, "offset", 0, "zero-based result offset")
 	return cmd
 }
 
 func adminUserGetCmd() *cobra.Command {
-	var userID string
-	var login string
-	var email string
 	cmd := &cobra.Command{
-		Use:   "get (--id USER_ID | --login LOGIN | --email EMAIL)",
-		Short: "Get a user by ID, login, or verified email",
-		Args:  cobra.NoArgs,
+		Use:   "get USER_ID",
+		Short: "Get a user by ID",
+		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			client, err := newOperatorAPIClient()
 			if err != nil {
 				return err
 			}
-			selector := operatorUserSelector{userID: userID, login: login, email: email}
-			resp, err := getOperatorUserBySelector(cmd.Context(), client, selector)
+			resp, err := client.GetUser(cmd.Context(), adminRequest(&operatorv1.GetUserRequest{UserId: args[0]}))
 			if err != nil {
 				return err
 			}
@@ -131,9 +128,6 @@ func adminUserGetCmd() *cobra.Command {
 			return printAdminOutput(out, resp.Msg, func() { printAdminMemberLine(out, resp.Msg.GetMember()) })
 		},
 	}
-	cmd.Flags().StringVar(&userID, "id", "", "user ID")
-	cmd.Flags().StringVar(&login, "login", "", "login")
-	cmd.Flags().StringVar(&email, "email", "", "verified email address")
 	return cmd
 }
 
@@ -148,6 +142,7 @@ func adminUserCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create",
 		Short: "Create a user",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if strings.TrimSpace(login) == "" {
 				return errors.New("--login is required")
@@ -206,13 +201,12 @@ func adminUserCreateCmd() *cobra.Command {
 }
 
 func adminUserUpdateCmd() *cobra.Command {
-	var selector operatorUserSelector
 	var newLogin string
 	var displayName string
 	cmd := &cobra.Command{
-		Use:   "update (--id USER_ID | --login LOGIN | --email EMAIL)",
+		Use:   "update USER_ID",
 		Short: "Update a user's profile fields",
-		Args:  cobra.NoArgs,
+		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if !cmd.Flags().Changed("new-login") && !cmd.Flags().Changed("display-name") {
 				return errors.New("provide --new-login and/or --display-name")
@@ -221,11 +215,7 @@ func adminUserUpdateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			resolvedUserID, err := resolveOperatorUserID(cmd.Context(), client, selector)
-			if err != nil {
-				return err
-			}
-			req := &operatorv1.UpdateUserRequest{UserId: resolvedUserID}
+			req := &operatorv1.UpdateUserRequest{UserId: args[0]}
 			if cmd.Flags().Changed("new-login") {
 				req.Login = &newLogin
 			}
@@ -240,22 +230,20 @@ func adminUserUpdateCmd() *cobra.Command {
 			return printAdminOutput(out, resp.Msg, func() { printAdminMemberLine(out, resp.Msg.GetMember()) })
 		},
 	}
-	addOperatorUserSelectorFlags(cmd, &selector)
 	cmd.Flags().StringVar(&newLogin, "new-login", "", "new login")
 	cmd.Flags().StringVar(&displayName, "display-name", "", "new display name")
 	return cmd
 }
 
 func adminUserSetPasswordCmd() *cobra.Command {
-	var selector operatorUserSelector
 	var password string
 	var passwordFile string
 	var passwordStdin bool
 	cmd := &cobra.Command{
-		Use:     "set-password (--id USER_ID | --login LOGIN | --email EMAIL)",
+		Use:     "set-password USER_ID",
 		Aliases: []string{"setpassword"},
 		Short:   "Set a user's password",
-		Args:    cobra.NoArgs,
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := validateSecretSources("--password", cmd.Flags().Changed("password"), "--password-file", passwordFile != "", "--password-stdin", passwordStdin); err != nil {
 				return err
@@ -291,12 +279,8 @@ func adminUserSetPasswordCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			resolvedUserID, err := resolveOperatorUserID(cmd.Context(), client, selector)
-			if err != nil {
-				return err
-			}
 			resp, err := client.SetUserPassword(cmd.Context(), adminRequest(&operatorv1.SetUserPasswordRequest{
-				UserId:   resolvedUserID,
+				UserId:   args[0],
 				Password: password,
 			}))
 			if err != nil {
@@ -306,7 +290,6 @@ func adminUserSetPasswordCmd() *cobra.Command {
 			return printAdminOutput(out, resp.Msg, func() { printAdminMemberLine(out, resp.Msg.GetMember()) })
 		},
 	}
-	addOperatorUserSelectorFlags(cmd, &selector)
 	cmd.Flags().StringVar(&password, "password", "", "new password; prefer --password-stdin or --password-file for automation")
 	cmd.Flags().StringVar(&passwordFile, "password-file", "", "file containing the new password")
 	cmd.Flags().BoolVar(&passwordStdin, "password-stdin", false, "read the new password from stdin")
@@ -314,21 +297,13 @@ func adminUserSetPasswordCmd() *cobra.Command {
 }
 
 func adminUserDeleteCmd() *cobra.Command {
-	var selector operatorUserSelector
 	var yes bool
 	cmd := &cobra.Command{
-		Use:   "delete (--id USER_ID | --login LOGIN | --email EMAIL)",
+		Use:   "delete USER_ID",
 		Short: "Permanently delete a user",
-		Args:  cobra.NoArgs,
+		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if _, err := selector.Request(); err != nil {
-				return err
-			}
 			client, err := newOperatorAPIClient()
-			if err != nil {
-				return err
-			}
-			resolvedUserID, err := resolveOperatorUserID(cmd.Context(), client, selector)
 			if err != nil {
 				return err
 			}
@@ -336,41 +311,39 @@ func adminUserDeleteCmd() *cobra.Command {
 				if !term.IsTerminal(int(syscall.Stdin)) {
 					return errors.New("--yes is required when stdin is not a terminal")
 				}
-				if err := confirmDeletion(resolvedUserID); err != nil {
+				if err := confirmDeletion(args[0]); err != nil {
 					return err
 				}
 			}
-			resp, err := client.DeleteUser(cmd.Context(), adminRequest(&operatorv1.DeleteUserRequest{UserId: resolvedUserID}))
+			resp, err := client.DeleteUser(cmd.Context(), adminRequest(&operatorv1.DeleteUserRequest{UserId: args[0]}))
 			if err != nil {
 				return err
 			}
 			out := cmd.OutOrStdout()
-			return printAdminOutput(out, resp.Msg, func() { fmt.Fprintf(out, "deleted user %s\n", resolvedUserID) })
+			return printAdminOutput(out, resp.Msg, func() { fmt.Fprintf(out, "deleted user %s\n", args[0]) })
 		},
 	}
-	addOperatorUserSelectorFlags(cmd, &selector)
 	cmd.Flags().BoolVar(&yes, "yes", false, "confirm irreversible user deletion")
 	return cmd
 }
 
 func adminUserAddEmailCmd() *cobra.Command {
-	var selector operatorUserSelector
+	var email string
 	cmd := &cobra.Command{
-		Use:   "add-email EMAIL (--id USER_ID | --login LOGIN | --email TARGET_EMAIL)",
+		Use:   "add-email USER_ID --email EMAIL",
 		Short: "Add a verified email address",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if strings.TrimSpace(email) == "" {
+				return errors.New("--email is required")
+			}
 			client, err := newOperatorAPIClient()
 			if err != nil {
 				return err
 			}
-			resolvedUserID, err := resolveOperatorUserID(cmd.Context(), client, selector)
-			if err != nil {
-				return err
-			}
 			resp, err := client.AddVerifiedEmail(cmd.Context(), adminRequest(&operatorv1.AddVerifiedEmailRequest{
-				UserId: resolvedUserID,
-				Email:  args[0],
+				UserId: args[0],
+				Email:  email,
 			}))
 			if err != nil {
 				return err
@@ -379,7 +352,7 @@ func adminUserAddEmailCmd() *cobra.Command {
 			return printAdminOutput(out, resp.Msg, func() { printAdminMemberLine(out, resp.Msg.GetMember()) })
 		},
 	}
-	addOperatorUserSelectorFlags(cmd, &selector)
+	cmd.Flags().StringVar(&email, "email", "", "email address to add as already verified")
 	return cmd
 }
 
@@ -388,23 +361,18 @@ func adminUserRoleCmd() *cobra.Command {
 		Use:   "role",
 		Short: "Manage user roles",
 	}
-	var addSelector operatorUserSelector
 	addCmd := &cobra.Command{
-		Use:   "add ROLE (--id USER_ID | --login LOGIN | --email EMAIL)",
+		Use:   "add USER_ID ROLE",
 		Short: "Assign a role",
-		Args:  cobra.ExactArgs(1),
+		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			client, err := newOperatorAPIClient()
-			if err != nil {
-				return err
-			}
-			resolvedUserID, err := resolveOperatorUserID(cmd.Context(), client, addSelector)
 			if err != nil {
 				return err
 			}
 			resp, err := client.AssignRole(cmd.Context(), adminRequest(&operatorv1.AssignRoleRequest{
-				UserId:   resolvedUserID,
-				RoleName: args[0],
+				UserId:   args[0],
+				RoleName: args[1],
 			}))
 			if err != nil {
 				return err
@@ -413,27 +381,21 @@ func adminUserRoleCmd() *cobra.Command {
 			return printAdminOutput(out, resp.Msg, func() { printAdminMemberLine(out, resp.Msg.GetMember()) })
 		},
 	}
-	addOperatorUserSelectorFlags(addCmd, &addSelector)
 	roleCmd.AddCommand(addCmd)
 
-	var removeSelector operatorUserSelector
 	removeCmd := &cobra.Command{
-		Use:     "remove ROLE (--id USER_ID | --login LOGIN | --email EMAIL)",
+		Use:     "remove USER_ID ROLE",
 		Aliases: []string{"rm"},
 		Short:   "Revoke a role",
-		Args:    cobra.ExactArgs(1),
+		Args:    cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			client, err := newOperatorAPIClient()
 			if err != nil {
 				return err
 			}
-			resolvedUserID, err := resolveOperatorUserID(cmd.Context(), client, removeSelector)
-			if err != nil {
-				return err
-			}
 			resp, err := client.RevokeRole(cmd.Context(), adminRequest(&operatorv1.RevokeRoleRequest{
-				UserId:   resolvedUserID,
-				RoleName: args[0],
+				UserId:   args[0],
+				RoleName: args[1],
 			}))
 			if err != nil {
 				return err
@@ -442,7 +404,6 @@ func adminUserRoleCmd() *cobra.Command {
 			return printAdminOutput(out, resp.Msg, func() { printAdminMemberLine(out, resp.Msg.GetMember()) })
 		},
 	}
-	addOperatorUserSelectorFlags(removeCmd, &removeSelector)
 	roleCmd.AddCommand(removeCmd)
 	return roleCmd
 }
@@ -495,72 +456,6 @@ func readOperatorConfigFile(path string) (config.ChattoConfig, error) {
 		return cfg, err
 	}
 	return cfg, nil
-}
-
-type operatorUserSelector struct {
-	userID string
-	login  string
-	email  string
-}
-
-func addOperatorUserSelectorFlags(cmd *cobra.Command, selector *operatorUserSelector) {
-	cmd.Flags().StringVar(&selector.userID, "id", "", "target user ID")
-	cmd.Flags().StringVar(&selector.login, "login", "", "target login")
-	cmd.Flags().StringVar(&selector.email, "email", "", "target verified email address")
-}
-
-func (s operatorUserSelector) Request() (*operatorv1.GetUserRequest, error) {
-	if nonEmptyCount(s.userID, s.login, s.email) != 1 {
-		return nil, errors.New("provide exactly one of --id, --login, or --email")
-	}
-	return &operatorv1.GetUserRequest{
-		UserId: strings.TrimSpace(s.userID),
-		Login:  strings.TrimSpace(s.login),
-		Email:  strings.TrimSpace(s.email),
-	}, nil
-}
-
-func (s operatorUserSelector) Description() string {
-	switch {
-	case strings.TrimSpace(s.userID) != "":
-		return "id " + strings.TrimSpace(s.userID)
-	case strings.TrimSpace(s.login) != "":
-		return "login " + strings.TrimSpace(s.login)
-	case strings.TrimSpace(s.email) != "":
-		return "email " + strings.TrimSpace(s.email)
-	default:
-		return "selected user"
-	}
-}
-
-func resolveOperatorUserID(ctx context.Context, client operatorv1connect.OperatorUserServiceClient, selector operatorUserSelector) (string, error) {
-	resp, err := getOperatorUserBySelector(ctx, client, selector)
-	if err != nil {
-		return "", err
-	}
-	userID := resp.Msg.GetMember().GetUser().GetId()
-	if userID == "" {
-		return "", errors.New("operator API returned a user without an ID")
-	}
-	return userID, nil
-}
-
-func getOperatorUserBySelector(ctx context.Context, client operatorv1connect.OperatorUserServiceClient, selector operatorUserSelector) (*connect.Response[operatorv1.GetUserResponse], error) {
-	req, err := selector.Request()
-	if err != nil {
-		return nil, err
-	}
-	return client.GetUser(ctx, adminRequest(req))
-}
-
-func nonEmptyCount(values ...string) int {
-	count := 0
-	for _, value := range values {
-		if strings.TrimSpace(value) != "" {
-			count++
-		}
-	}
-	return count
 }
 
 func validateSecretSources(sources ...any) error {

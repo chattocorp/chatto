@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -50,6 +51,28 @@ func (c *ChattoCore) AdminListUsers(ctx context.Context, search string, limit, o
 	}
 	if offset < 0 {
 		return nil, ErrInvalidArgument
+	}
+
+	search = strings.TrimSpace(search)
+	if strings.Contains(search, "@") {
+		user, err := c.GetUserByVerifiedEmail(ctx, search)
+		if errors.Is(err, ErrNotFound) {
+			return &AdminUserList{}, nil
+		}
+		if err != nil {
+			return nil, err
+		}
+		if offset > 0 {
+			return &AdminUserList{TotalCount: 1}, nil
+		}
+		view, err := c.AdminGetUser(ctx, user.GetId())
+		if err != nil {
+			return nil, err
+		}
+		return &AdminUserList{
+			Users:      []*AdminUserView{view},
+			TotalCount: 1,
+		}, nil
 	}
 
 	members, totalCount, err := c.GetServerMembers(ctx, search, limit, offset)
