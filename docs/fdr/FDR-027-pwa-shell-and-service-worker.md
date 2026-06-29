@@ -5,7 +5,7 @@
 
 ## Overview
 
-Chatto ships a service worker so the installed web app can launch reliably, handle push notifications, and proxy private asset loads through non-portable same-origin URLs. The worker caches the SPA fallback shell during install and caches versioned frontend shell/static assets when the browser actually requests them. It deliberately does not cache chat data, API responses, or live-event traffic. It may cache uploaded asset bytes privately after the user has already loaded them, because those bytes are immutable content the browser has already received.
+Chatto ships a service worker so the installed web app can launch reliably, handle push notifications, and proxy private asset loads through non-portable same-origin URLs. The worker caches the SPA fallback shell and SvelteKit build assets during install, then caches static PWA assets when the browser actually requests them. It deliberately does not cache chat data, API responses, or live-event traffic. It may cache uploaded asset bytes privately after the user has already loaded them, because those bytes are immutable content the browser has already received.
 
 Offline support means the app can open and show its normal disconnected state instead of the browser's generic offline page. It does not mean offline message history, offline search, or an outbox for composing messages while disconnected.
 
@@ -14,9 +14,9 @@ Reconnect catch-up is owned by the foreground web app, not the service worker. W
 ## Behavior
 
 - The service worker is registered by SvelteKit in production builds.
-- On install, the worker caches only the minimal SPA fallback shell.
+- On install, the worker caches the SPA fallback shell and SvelteKit build assets required to boot it.
 - On activate, old Chatto shell caches are deleted and the new worker claims open clients.
-- Known shell assets are served cache-first from the versioned cache and cached lazily on first request.
+- Known shell assets are served cache-first from the versioned cache; static PWA assets are cached lazily on first request.
 - Same-origin navigations are network-first, falling back to the cached SPA shell only when the network fails.
 - API, auth, webhook, non-GET, and cross-origin requests are network-only.
 - Same-origin virtual asset requests under `/__chatto/assets/{serverId}/...` are resolved by the worker to the registered server's hidden ticketed asset URL. The worker does not receive registered-server API bearer tokens, asks Chatto to stream originals instead of redirecting to S3 for cacheable full responses, and keeps media `Range` requests network-only.
@@ -29,9 +29,9 @@ Reconnect catch-up is owned by the foreground web app, not the service worker. W
 
 ### 1. Shell-only caching
 
-**Decision:** Cache only the app shell and static PWA assets, and cache build/static assets lazily after install.
+**Decision:** Cache only the app shell and static PWA assets. Build assets required to boot the shell are cached during install, while static PWA assets are cached lazily after install.
 **Why:** Chatto is a real-time chat app. Serving stale messages, permissions, assets, or notification state as if they were live would be worse than showing the disconnected state.
-**Tradeoff:** Offline launches do not show recent rooms or messages unless the live app already has that state in memory, and full shell asset coverage accumulates as the app requests assets. This keeps the data model honest and keeps service-worker updates cheap.
+**Tradeoff:** Offline launches do not show recent rooms or messages unless the live app already has that state in memory, and full static asset coverage accumulates as the app requests assets. This keeps the data model honest while avoiding install-time requests for icons, manifests, and unrelated static files.
 
 ### 2. Versioned cache names
 

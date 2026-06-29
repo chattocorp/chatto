@@ -79,7 +79,6 @@ test('service worker caches only the app shell and serves it offline', async ({
   expect(registration.scope).toBe(`${new URL(page.url()).origin}/`);
   expect(registration.scriptURL).toBe(`${new URL(page.url()).origin}/service-worker.js`);
 
-  await page.reload({ waitUntil: 'domcontentloaded' });
   await expect
     .poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller)))
     .toBe(true);
