@@ -17,6 +17,7 @@ import (
 	"hmans.de/chatto/internal/authctx"
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/connectapi"
+	"hmans.de/chatto/internal/core"
 )
 
 const connectAPIPrefix = connectapi.Prefix
@@ -46,16 +47,11 @@ func (s *HTTPServer) setupConnectAPIOnRouter(router gin.IRouter) {
 	api := connectapi.New(s.core, s.config, s.version)
 	authMiddleware := authn.NewMiddleware(authenticateConnectRequest, connectapi.HandlerOptions()...)
 	for _, handler := range api.Handlers() {
-		if handler.AuthPolicy == connectapi.AuthPolicyAdminToken {
-			continue
-		}
 		serviceHandler := handler.Handler
 		switch handler.AuthPolicy {
 		case connectapi.AuthPolicyPublic:
 		case connectapi.AuthPolicyAuthenticatedUser:
 			serviceHandler = authMiddleware.Wrap(serviceHandler)
-		case connectapi.AuthPolicyAdminToken:
-			panic("AdminService must be mounted only on the dedicated Admin API listener")
 		default:
 			panic("unknown ConnectRPC auth policy for " + handler.ServicePath)
 		}
@@ -67,10 +63,15 @@ func (s *HTTPServer) setupAdminConnectAPI(router gin.IRouter) {
 	api := connectapi.New(s.core, s.config, s.version)
 	adminAuthMiddleware := s.adminConnectAuthMiddleware()
 	for _, handler := range api.Handlers() {
-		if handler.AuthPolicy != connectapi.AuthPolicyAdminToken {
-			continue
+		serviceHandler := handler.Handler
+		switch handler.AuthPolicy {
+		case connectapi.AuthPolicyPublic:
+		case connectapi.AuthPolicyAuthenticatedUser:
+			serviceHandler = adminAuthMiddleware.Wrap(serviceHandler)
+		default:
+			panic("unknown ConnectRPC auth policy for " + handler.ServicePath)
 		}
-		s.mountConnectHandler(router, handler.ServicePath, adminAuthMiddleware.Wrap(handler.Handler))
+		s.mountConnectHandler(router, handler.ServicePath, serviceHandler)
 	}
 }
 
@@ -78,11 +79,12 @@ func (s *HTTPServer) adminConnectAuthMiddleware() *authn.Middleware {
 	return authn.NewMiddleware(func(ctx context.Context, req *http.Request) (any, error) {
 		info, err := authenticateAdminConnectRequest(ctx, req, s.config.AdminAPI)
 		if err == nil {
-			if caller, ok := info.(connectapi.AdminCaller); ok {
+			if caller, ok := info.(connectapi.Caller); ok && caller.IsSystem {
 				s.logger.Info("Authenticated Admin API request", "admin_token_name", caller.TokenName, "path", req.URL.Path)
 			}
+			return info, nil
 		}
-		return info, err
+		return authenticateConnectRequest(ctx, req)
 	}, connectapi.HandlerOptions()...)
 }
 
@@ -128,7 +130,7 @@ func authenticateAdminConnectRequest(_ context.Context, req *http.Request, cfg c
 		if !allowed {
 			return nil, authn.Errorf("admin token required")
 		}
-		return connectapi.AdminCaller{TokenName: configured.Name}, nil
+		return connectapi.Caller{UserID: core.SystemActorID, IsSystem: true, TokenName: configured.Name}, nil
 	}
 	return nil, authn.Errorf("admin token required")
 }

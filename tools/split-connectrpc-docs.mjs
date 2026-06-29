@@ -35,12 +35,6 @@ const categories = [
         description: 'Authenticated server state and current-user server capability RPCs.'
       },
       {
-        name: 'AdminService',
-        slug: 'admin',
-        title: 'Operator Admin',
-        description: 'Operator-only user bootstrap and administration RPCs served only on the dedicated Admin API listener.'
-      },
-      {
         name: 'ViewerService',
         slug: 'viewer',
         title: 'Viewer',

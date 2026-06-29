@@ -25,7 +25,6 @@ type AuthPolicy string
 const (
 	AuthPolicyPublic            AuthPolicy = "public"
 	AuthPolicyAuthenticatedUser AuthPolicy = "authenticated_user"
-	AuthPolicyAdminToken        AuthPolicy = "admin_token"
 )
 
 // Handler is one generated Connect service handler, its generated service path,
@@ -124,10 +123,6 @@ func (a *API) Handlers() []Handler {
 		{ServicePath: userPath, Handler: userHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: threadPath, Handler: threadHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: voicePath, Handler: voiceHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
-	}
-	if a.config.AdminAPI.Enabled {
-		adminPath, adminHandler := apiv1connect.NewAdminServiceHandler(&adminService{api: a}, options...)
-		handlers = append(handlers, Handler{ServicePath: adminPath, Handler: adminHandler, AuthPolicy: AuthPolicyAdminToken})
 	}
 	return handlers
 }

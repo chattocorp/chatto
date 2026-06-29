@@ -16,6 +16,8 @@ import (
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/connectapi"
 	"hmans.de/chatto/internal/core"
+	adminv1 "hmans.de/chatto/internal/pb/chatto/admin/v1"
+	"hmans.de/chatto/internal/pb/chatto/admin/v1/adminv1connect"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	"hmans.de/chatto/internal/pb/chatto/api/v1/apiv1connect"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
@@ -39,17 +41,7 @@ func setupConnectTestServerWithConfig(t *testing.T, cfg config.ChattoConfig) (*H
 	return s, ts
 }
 
-func TestConnectAdminServiceTokenAuth(t *testing.T) {
-	t.Run("not mounted when disabled", func(t *testing.T) {
-		_, ts := setupConnectTestServer(t, config.AuthConfig{})
-		client := apiv1connect.NewAdminServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
-
-		_, err := client.ListUsers(context.Background(), connect.NewRequest(&apiv1.ListAdminUsersRequest{}))
-		if connect.CodeOf(err) != connect.CodeUnimplemented {
-			t.Fatalf("ListUsers disabled err = %v, want unimplemented", err)
-		}
-	})
-
+func TestConnectAdminListenerTokenAuth(t *testing.T) {
 	t.Run("accepts configured token from allowed CIDR", func(t *testing.T) {
 		s, _ := setupConnectTestServerWithConfig(t, config.ChattoConfig{
 			AdminAPI: config.AdminAPIConfig{
@@ -68,20 +60,20 @@ func TestConnectAdminServiceTokenAuth(t *testing.T) {
 		}
 
 		adminTS := newAdminAPITestServer(t, s)
-		client := apiv1connect.NewAdminServiceClient(adminTS.Client(), adminTS.URL+connectAPIPrefix)
-		req := connect.NewRequest(&apiv1.GetAdminUserRequest{UserId: user.GetId()})
+		client := adminv1connect.NewAdminMemberServiceClient(adminTS.Client(), adminTS.URL+connectAPIPrefix)
+		req := connect.NewRequest(&adminv1.GetMemberRequest{UserId: user.GetId()})
 		req.Header().Set("Authorization", "Bearer operator-secret")
-		resp, err := client.GetUser(ctx, req)
+		resp, err := client.GetMember(ctx, req)
 		if err != nil {
-			t.Fatalf("GetUser: %v", err)
+			t.Fatalf("GetMember: %v", err)
 		}
-		if got := resp.Msg.GetUser().GetLogin(); got != "admin-connect" {
-			t.Fatalf("GetUser login = %q, want admin-connect", got)
+		if got := resp.Msg.GetMember().GetUser().GetLogin(); got != "admin-connect" {
+			t.Fatalf("GetMember login = %q, want admin-connect", got)
 		}
 	})
 
-	t.Run("carries token name in admin caller", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodPost, connectAPIPrefix+apiv1connect.AdminServiceListUsersProcedure, nil)
+	t.Run("carries token name in system caller", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodPost, connectAPIPrefix+adminv1connect.AdminMemberServiceListMembersProcedure, nil)
 		req.RemoteAddr = "127.0.0.1:12345"
 		req.Header.Set("Authorization", "Bearer operator-secret")
 
@@ -96,16 +88,19 @@ func TestConnectAdminServiceTokenAuth(t *testing.T) {
 		if err != nil {
 			t.Fatalf("authenticateAdminConnectRequest: %v", err)
 		}
-		caller, ok := info.(connectapi.AdminCaller)
+		caller, ok := info.(connectapi.Caller)
 		if !ok {
-			t.Fatalf("auth info = %T, want AdminCaller", info)
+			t.Fatalf("auth info = %T, want Caller", info)
+		}
+		if !caller.IsSystem || caller.UserID != core.SystemActorID {
+			t.Fatalf("caller = %+v, want system caller", caller)
 		}
 		if caller.TokenName != "ops-sidecar" {
 			t.Fatalf("TokenName = %q, want ops-sidecar", caller.TokenName)
 		}
 	})
 
-	t.Run("never mounts admin service on public listener", func(t *testing.T) {
+	t.Run("public listener does not accept operator token", func(t *testing.T) {
 		s, publicTS := setupConnectTestServerWithConfig(t, config.ChattoConfig{
 			AdminAPI: config.AdminAPIConfig{
 				Enabled: true,
@@ -117,19 +112,19 @@ func TestConnectAdminServiceTokenAuth(t *testing.T) {
 			},
 		})
 
-		publicClient := apiv1connect.NewAdminServiceClient(publicTS.Client(), publicTS.URL+connectAPIPrefix)
-		req := connect.NewRequest(&apiv1.ListAdminUsersRequest{})
+		publicClient := adminv1connect.NewAdminMemberServiceClient(publicTS.Client(), publicTS.URL+connectAPIPrefix)
+		req := connect.NewRequest(&adminv1.ListMembersRequest{})
 		req.Header().Set("Authorization", "Bearer operator-secret")
-		if _, err := publicClient.ListUsers(context.Background(), req); connect.CodeOf(err) != connect.CodeUnimplemented {
-			t.Fatalf("public ListUsers err = %v, want unimplemented", err)
+		if _, err := publicClient.ListMembers(context.Background(), req); connect.CodeOf(err) != connect.CodeUnauthenticated {
+			t.Fatalf("public ListMembers err = %v, want unauthenticated", err)
 		}
 
 		adminTS := newAdminAPITestServer(t, s)
-		adminClient := apiv1connect.NewAdminServiceClient(adminTS.Client(), adminTS.URL+connectAPIPrefix)
-		req = connect.NewRequest(&apiv1.ListAdminUsersRequest{})
+		adminClient := adminv1connect.NewAdminMemberServiceClient(adminTS.Client(), adminTS.URL+connectAPIPrefix)
+		req = connect.NewRequest(&adminv1.ListMembersRequest{})
 		req.Header().Set("Authorization", "Bearer operator-secret")
-		if _, err := adminClient.ListUsers(context.Background(), req); err != nil {
-			t.Fatalf("dedicated listener ListUsers: %v", err)
+		if _, err := adminClient.ListMembers(context.Background(), req); err != nil {
+			t.Fatalf("dedicated listener ListMembers: %v", err)
 		}
 	})
 
@@ -141,12 +136,12 @@ func TestConnectAdminServiceTokenAuth(t *testing.T) {
 			},
 		})
 		adminTS := newAdminAPITestServer(t, s)
-		client := apiv1connect.NewAdminServiceClient(adminTS.Client(), adminTS.URL+connectAPIPrefix)
-		req := connect.NewRequest(&apiv1.ListAdminUsersRequest{})
+		client := adminv1connect.NewAdminMemberServiceClient(adminTS.Client(), adminTS.URL+connectAPIPrefix)
+		req := connect.NewRequest(&adminv1.ListMembersRequest{})
 		req.Header().Set("Authorization", "Bearer wrong")
-		_, err := client.ListUsers(context.Background(), req)
+		_, err := client.ListMembers(context.Background(), req)
 		if connect.CodeOf(err) != connect.CodeUnauthenticated {
-			t.Fatalf("ListUsers bad token err = %v, want unauthenticated", err)
+			t.Fatalf("ListMembers bad token err = %v, want unauthenticated", err)
 		}
 	})
 
@@ -162,12 +157,12 @@ func TestConnectAdminServiceTokenAuth(t *testing.T) {
 			},
 		})
 		adminTS := newAdminAPITestServer(t, s)
-		client := apiv1connect.NewAdminServiceClient(adminTS.Client(), adminTS.URL+connectAPIPrefix)
-		req := connect.NewRequest(&apiv1.ListAdminUsersRequest{})
+		client := adminv1connect.NewAdminMemberServiceClient(adminTS.Client(), adminTS.URL+connectAPIPrefix)
+		req := connect.NewRequest(&adminv1.ListMembersRequest{})
 		req.Header().Set("Authorization", "Bearer operator-secret")
-		_, err := client.ListUsers(context.Background(), req)
+		_, err := client.ListMembers(context.Background(), req)
 		if connect.CodeOf(err) != connect.CodeUnauthenticated {
-			t.Fatalf("ListUsers disallowed CIDR err = %v, want unauthenticated", err)
+			t.Fatalf("ListMembers disallowed CIDR err = %v, want unauthenticated", err)
 		}
 	})
 }

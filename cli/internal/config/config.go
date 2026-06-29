@@ -104,18 +104,18 @@ type DiagnosticsConfig struct {
 	StartupCPUProfile string `toml:"startup_cpu_profile,commented" env:"CHATTO_DIAGNOSTICS_STARTUP_CPU_PROFILE" comment:"Write a Go CPU profile covering process startup through core boot to this path. Disabled when empty."`
 }
 
-// AdminAPIConfig controls the opt-in operator administrative ConnectRPC API.
+// AdminAPIConfig controls the opt-in dedicated Admin API listener.
 type AdminAPIConfig struct {
-	Enabled     bool                  `toml:"enabled" env:"CHATTO_ADMIN_API_ENABLED" comment:"Enable the operator-only AdminService ConnectRPC API on its dedicated listener. Default: false."`
+	Enabled     bool                  `toml:"enabled" env:"CHATTO_ADMIN_API_ENABLED" comment:"Enable the dedicated Admin API listener for operator-token automation. Default: false."`
 	BindAddress string                `toml:"bind_address,commented" env:"CHATTO_ADMIN_API_BIND_ADDRESS" comment:"Address to bind the Admin API listener. Default: 127.0.0.1 (localhost only)."`
 	Port        int                   `toml:"port,commented" env:"CHATTO_ADMIN_API_PORT" comment:"Port for the Admin API listener. Default: 4021."`
-	Tokens      []AdminAPITokenConfig `toml:"tokens,commented" comment:"Bearer tokens accepted by the AdminService. Required when admin_api.enabled = true."`
+	Tokens      []AdminAPITokenConfig `toml:"tokens,commented" comment:"Bearer tokens accepted by the dedicated Admin API listener. Required when admin_api.enabled = true."`
 }
 
-// AdminAPITokenConfig is one named AdminService bearer token and its network allow-list.
+// AdminAPITokenConfig is one named Admin API bearer token and its network allow-list.
 type AdminAPITokenConfig struct {
 	Name         string   `toml:"name" comment:"Operator-facing token name used for selection and rotation."`
-	Token        string   `toml:"token" comment:"Bearer token accepted by the AdminService. NEVER SHARE THIS!"`
+	Token        string   `toml:"token" comment:"Bearer token accepted by the dedicated Admin API listener. NEVER SHARE THIS!"`
 	AllowedCIDRs []string `toml:"allowed_cidrs,commented" comment:"CIDR ranges allowed to use this token. Default: [\"127.0.0.1/32\", \"::1/128\"]."`
 }
 
@@ -139,7 +139,7 @@ func (c *AdminAPIConfig) PortOrDefault() int {
 	return c.Port
 }
 
-// URLOrDefault returns the loopback/private AdminService base URL for CLI use.
+// URLOrDefault returns the loopback/private Admin API base URL for CLI use.
 func (c *AdminAPIConfig) URLOrDefault() string {
 	host := c.BindAddressOrDefault()
 	switch host {
@@ -925,7 +925,7 @@ type ChattoConfig struct {
 	Metrics     MetricsConfig     `toml:"metrics,commented" comment:"Process-local Prometheus metrics endpoint."`
 	Exporter    ExporterConfig    `toml:"exporter,commented" comment:"Deployment-wide Prometheus metrics exporter."`
 	Diagnostics DiagnosticsConfig `toml:"diagnostics,commented" comment:"Opt-in diagnostics for local benchmarking and operator troubleshooting."`
-	AdminAPI    AdminAPIConfig    `toml:"admin_api,commented" comment:"Operator-only administrative ConnectRPC API. Disabled by default."`
+	AdminAPI    AdminAPIConfig    `toml:"admin_api,commented" comment:"Dedicated Admin API listener for operator-token automation. Disabled by default."`
 	Core        CoreConfig        `toml:"core" comment:"Core service configuration."`
 	Auth        AuthConfig        `toml:"auth" comment:"Authentication configuration."`
 	Limits      LimitsConfig      `toml:"limits,commented" comment:"Instance-wide resource limits. Use -1 for unlimited."`

@@ -105,6 +105,12 @@ func (c *ChattoCore) AdminGetUserByLogin(ctx context.Context, login string) (*Ad
 // and role state. If any post-create step fails, it compensates by deleting the
 // just-created account.
 func (c *ChattoCore) AdminCreateUser(ctx context.Context, req AdminCreateUserRequest) (*AdminUserView, error) {
+	return c.AdminCreateUserAs(ctx, SystemActorID, req)
+}
+
+// AdminCreateUserAs creates a user with an explicit actor and applies optional
+// email and role state with compensation if a post-create step fails.
+func (c *ChattoCore) AdminCreateUserAs(ctx context.Context, actorID string, req AdminCreateUserRequest) (*AdminUserView, error) {
 	displayName := strings.TrimSpace(req.DisplayName)
 	if displayName == "" {
 		displayName = strings.TrimSpace(req.Login)
@@ -127,18 +133,18 @@ func (c *ChattoCore) AdminCreateUser(ctx context.Context, req AdminCreateUserReq
 		}
 	}
 
-	user, err := c.CreateUser(ctx, SystemActorID, req.Login, displayName, req.Password)
+	user, err := c.CreateUser(ctx, actorID, req.Login, displayName, req.Password)
 	if err != nil {
 		return nil, err
 	}
 	if email := strings.TrimSpace(req.VerifiedEmail); email != "" {
-		if err := c.AddVerifiedEmailDirectAs(ctx, SystemActorID, user.GetId(), email); err != nil {
+		if err := c.AddVerifiedEmailDirectAs(ctx, actorID, user.GetId(), email); err != nil {
 			c.rollbackUserCreation(ctx, user)
 			return nil, fmt.Errorf("failed to add verified email for new user: %w", err)
 		}
 	}
 	for _, roleName := range req.RoleNames {
-		if err := c.AssignServerRoleToExistingUser(ctx, SystemActorID, user.GetId(), roleName); err != nil {
+		if err := c.AssignServerRoleToExistingUser(ctx, actorID, user.GetId(), roleName); err != nil {
 			c.rollbackUserCreation(ctx, user)
 			return nil, fmt.Errorf("failed to assign role to new user: %w", err)
 		}
@@ -167,7 +173,12 @@ func (c *ChattoCore) AdminUpdateOperatorUser(ctx context.Context, req AdminUpdat
 
 // AdminSetUserPassword sets a user's password as the system actor.
 func (c *ChattoCore) AdminSetUserPassword(ctx context.Context, userID, password string) (*AdminUserView, error) {
-	if err := c.SetPasswordHashAs(ctx, SystemActorID, userID, password); err != nil {
+	return c.AdminSetUserPasswordAs(ctx, SystemActorID, userID, password)
+}
+
+// AdminSetUserPasswordAs sets a user's password with an explicit actor.
+func (c *ChattoCore) AdminSetUserPasswordAs(ctx context.Context, actorID, userID, password string) (*AdminUserView, error) {
+	if err := c.SetPasswordHashAs(ctx, actorID, userID, password); err != nil {
 		return nil, err
 	}
 	return c.AdminGetUser(ctx, userID)
@@ -175,12 +186,22 @@ func (c *ChattoCore) AdminSetUserPassword(ctx context.Context, userID, password 
 
 // AdminDeleteUser permanently deletes a user as the system actor.
 func (c *ChattoCore) AdminDeleteUser(ctx context.Context, userID string) error {
-	return c.DeleteUser(ctx, SystemActorID, userID)
+	return c.AdminDeleteUserAs(ctx, SystemActorID, userID)
+}
+
+// AdminDeleteUserAs permanently deletes a user with an explicit actor.
+func (c *ChattoCore) AdminDeleteUserAs(ctx context.Context, actorID, userID string) error {
+	return c.DeleteUser(ctx, actorID, userID)
 }
 
 // AdminAddUserVerifiedEmail adds an already-verified email to a user.
 func (c *ChattoCore) AdminAddUserVerifiedEmail(ctx context.Context, userID, email string) (*AdminUserView, error) {
-	if err := c.AddVerifiedEmailDirectAs(ctx, SystemActorID, userID, email); err != nil {
+	return c.AdminAddUserVerifiedEmailAs(ctx, SystemActorID, userID, email)
+}
+
+// AdminAddUserVerifiedEmailAs adds an already-verified email with an explicit actor.
+func (c *ChattoCore) AdminAddUserVerifiedEmailAs(ctx context.Context, actorID, userID, email string) (*AdminUserView, error) {
+	if err := c.AddVerifiedEmailDirectAs(ctx, actorID, userID, email); err != nil {
 		return nil, err
 	}
 	return c.AdminGetUser(ctx, userID)
@@ -200,4 +221,10 @@ func (c *ChattoCore) AdminRevokeUserRole(ctx context.Context, userID, roleName s
 		return nil, err
 	}
 	return c.AdminGetUser(ctx, userID)
+}
+
+// AdminClearUserLoginChangeCooldown clears a user's self-service login-change
+// cooldown as the system actor.
+func (c *ChattoCore) AdminClearUserLoginChangeCooldown(ctx context.Context, userID string) error {
+	return c.ClearLoginChangeCooldownAs(ctx, SystemActorID, userID)
 }

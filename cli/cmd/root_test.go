@@ -18,6 +18,7 @@ import (
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/connectapi"
 	"hmans.de/chatto/internal/core"
+	adminv1 "hmans.de/chatto/internal/pb/chatto/admin/v1"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	"hmans.de/chatto/internal/testutil"
 )
@@ -272,20 +273,20 @@ func TestAdminOutputUsesProvidedWriter(t *testing.T) {
 	originalJSON := adminOutputJSON
 	t.Cleanup(func() { adminOutputJSON = originalJSON })
 
-	user := &apiv1.AdminUser{
-		UserId:      "Uwriter",
-		Login:       "writer",
-		DisplayName: "Writer User",
-		RoleNames:   []string{"admin"},
-		VerifiedEmails: []*apiv1.AdminVerifiedEmail{
-			{Email: "writer@example.com"},
+	member := &adminv1.AdminMember{
+		Roles:          []string{"admin"},
+		VerifiedEmails: []string{"writer@example.com"},
+		User: &apiv1.User{
+			Id:          "Uwriter",
+			Login:       "writer",
+			DisplayName: "Writer User",
 		},
 	}
 
 	adminOutputJSON = false
 	var humanOut bytes.Buffer
-	if err := printAdminOutput(&humanOut, &apiv1.GetAdminUserResponse{User: user}, func() {
-		printAdminUserLine(&humanOut, user)
+	if err := printAdminOutput(&humanOut, &adminv1.GetMemberResponse{Member: member}, func() {
+		printAdminMemberLine(&humanOut, member)
 	}); err != nil {
 		t.Fatalf("printAdminOutput human: %v", err)
 	}
@@ -295,12 +296,12 @@ func TestAdminOutputUsesProvidedWriter(t *testing.T) {
 
 	adminOutputJSON = true
 	var jsonOut bytes.Buffer
-	if err := printAdminOutput(&jsonOut, &apiv1.GetAdminUserResponse{User: user}, func() {
+	if err := printAdminOutput(&jsonOut, &adminv1.GetMemberResponse{Member: member}, func() {
 		t.Fatal("human callback should not run for JSON output")
 	}); err != nil {
 		t.Fatalf("printAdminOutput JSON: %v", err)
 	}
-	if got := jsonOut.String(); !strings.Contains(got, `"userId"`) || !strings.Contains(got, `"Uwriter"`) {
+	if got := jsonOut.String(); !strings.Contains(got, `"user"`) || !strings.Contains(got, `"Uwriter"`) {
 		t.Fatalf("JSON output = %q", got)
 	}
 }
@@ -317,16 +318,18 @@ func TestAdminUserCommandsExerciseAdminAPI(t *testing.T) {
 		"--json",
 	)
 	var created struct {
-		User struct {
-			Login     string   `json:"login"`
-			RoleNames []string `json:"roleNames"`
-		} `json:"user"`
+		Member struct {
+			User struct {
+				Login string `json:"login"`
+			} `json:"user"`
+			Roles []string `json:"roles"`
+		} `json:"member"`
 	}
 	if err := json.Unmarshal([]byte(createOut), &created); err != nil {
 		t.Fatalf("unmarshal create output: %v\n%s", err, createOut)
 	}
-	if created.User.Login != "cli-admin-user" || strings.Join(created.User.RoleNames, ",") != "cli-test-role" {
-		t.Fatalf("create output = %+v", created.User)
+	if created.Member.User.Login != "cli-admin-user" || strings.Join(created.Member.Roles, ",") != "cli-test-role" {
+		t.Fatalf("create output = %+v", created.Member)
 	}
 	user, err := env.core.GetUserByLogin(env.ctx, "cli-admin-user")
 	if err != nil {
@@ -465,13 +468,14 @@ func newAdminCLITestEnv(t *testing.T) *adminCLITestEnv {
 		if req.Header.Get("Authorization") != "Bearer "+adminCLITestToken {
 			return nil, authn.Errorf("admin token required")
 		}
-		return connectapi.AdminCaller{TokenName: "local-cli"}, nil
+		return connectapi.Caller{UserID: core.SystemActorID, IsSystem: true, TokenName: "local-cli"}, nil
 	}, connectapi.HandlerOptions()...)
 	for _, handler := range api.Handlers() {
-		if handler.AuthPolicy != connectapi.AuthPolicyAdminToken {
-			continue
+		serviceHandler := handler.Handler
+		if handler.AuthPolicy == connectapi.AuthPolicyAuthenticatedUser {
+			serviceHandler = authMiddleware.Wrap(serviceHandler)
 		}
-		mux.Handle(connectapi.Prefix+handler.ServicePath, http.StripPrefix(connectapi.Prefix, authMiddleware.Wrap(handler.Handler)))
+		mux.Handle(connectapi.Prefix+handler.ServicePath, http.StripPrefix(connectapi.Prefix, serviceHandler))
 	}
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)

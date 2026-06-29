@@ -21,8 +21,9 @@ import (
 	"google.golang.org/protobuf/proto"
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/connectapi"
+	adminv1 "hmans.de/chatto/internal/pb/chatto/admin/v1"
+	"hmans.de/chatto/internal/pb/chatto/admin/v1/adminv1connect"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
-	"hmans.de/chatto/internal/pb/chatto/api/v1/apiv1connect"
 )
 
 var adminConfigFile string
@@ -86,10 +87,8 @@ func adminUserListCmd() *cobra.Command {
 			if offset < 0 {
 				return errors.New("--offset must be greater than or equal to 0")
 			}
-			resp, err := client.ListUsers(cmd.Context(), adminRequest(&apiv1.ListAdminUsersRequest{
+			resp, err := client.ListMembers(cmd.Context(), adminRequest(&adminv1.ListMembersRequest{
 				Search: search,
-				Limit:  requestLimit,
-				Offset: offset,
 				Page: &apiv1.PageRequest{
 					Limit:  requestLimit,
 					Offset: offset,
@@ -101,15 +100,11 @@ func adminUserListCmd() *cobra.Command {
 			out := cmd.OutOrStdout()
 			return printAdminOutput(out, resp.Msg, func() {
 				for _, user := range resp.Msg.GetUsers() {
-					printAdminUserLine(out, user)
+					printAdminMemberLine(out, user)
 				}
 				page := resp.Msg.GetPage()
 				totalCount := page.GetTotalCount()
 				hasMore := page.GetHasMore()
-				if page == nil {
-					totalCount = int64(resp.Msg.GetTotalCount())
-					hasMore = resp.Msg.GetHasMore()
-				}
 				fmt.Fprintf(out, "total=%d has_more=%t\n", totalCount, hasMore)
 			})
 		},
@@ -134,12 +129,12 @@ func adminUserGetCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			resp, err := client.GetUser(cmd.Context(), adminRequest(&apiv1.GetAdminUserRequest{UserId: userID, Login: login}))
+			resp, err := client.GetMember(cmd.Context(), adminRequest(&adminv1.GetMemberRequest{UserId: userID, Login: login}))
 			if err != nil {
 				return err
 			}
 			out := cmd.OutOrStdout()
-			return printAdminOutput(out, resp.Msg, func() { printAdminUserLine(out, resp.Msg.GetUser()) })
+			return printAdminOutput(out, resp.Msg, func() { printAdminMemberLine(out, resp.Msg.GetMember()) })
 		},
 	}
 	cmd.Flags().StringVar(&userID, "id", "", "user ID")
@@ -191,7 +186,7 @@ func adminUserCreateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			resp, err := client.CreateUser(cmd.Context(), adminRequest(&apiv1.CreateAdminUserRequest{
+			resp, err := client.CreateUser(cmd.Context(), adminRequest(&adminv1.CreateUserRequest{
 				Login:         login,
 				DisplayName:   displayName,
 				Password:      password,
@@ -202,7 +197,7 @@ func adminUserCreateCmd() *cobra.Command {
 				return err
 			}
 			out := cmd.OutOrStdout()
-			return printAdminOutput(out, resp.Msg, func() { printAdminUserLine(out, resp.Msg.GetUser()) })
+			return printAdminOutput(out, resp.Msg, func() { printAdminMemberLine(out, resp.Msg.GetMember()) })
 		},
 	}
 	cmd.Flags().StringVar(&login, "login", "", "login for the new user")
@@ -223,7 +218,7 @@ func adminUserUpdateCmd() *cobra.Command {
 		Short: "Update a user's profile fields",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			req := &apiv1.UpdateAdminUserRequest{UserId: args[0]}
+			req := &adminv1.UpdateUserRequest{UserId: args[0]}
 			if cmd.Flags().Changed("login") {
 				req.Login = &login
 			}
@@ -242,7 +237,7 @@ func adminUserUpdateCmd() *cobra.Command {
 				return err
 			}
 			out := cmd.OutOrStdout()
-			return printAdminOutput(out, resp.Msg, func() { printAdminUserLine(out, resp.Msg.GetUser()) })
+			return printAdminOutput(out, resp.Msg, func() { printAdminMemberLine(out, resp.Msg.GetMember()) })
 		},
 	}
 	cmd.Flags().StringVar(&login, "login", "", "new login")
@@ -294,7 +289,7 @@ func adminUserSetPasswordCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			resp, err := client.SetUserPassword(cmd.Context(), adminRequest(&apiv1.SetAdminUserPasswordRequest{
+			resp, err := client.SetUserPassword(cmd.Context(), adminRequest(&adminv1.SetUserPasswordRequest{
 				UserId:   args[0],
 				Password: password,
 			}))
@@ -302,7 +297,7 @@ func adminUserSetPasswordCmd() *cobra.Command {
 				return err
 			}
 			out := cmd.OutOrStdout()
-			return printAdminOutput(out, resp.Msg, func() { printAdminUserLine(out, resp.Msg.GetUser()) })
+			return printAdminOutput(out, resp.Msg, func() { printAdminMemberLine(out, resp.Msg.GetMember()) })
 		},
 	}
 	cmd.Flags().StringVar(&password, "password", "", "new password; prefer --password-stdin or --password-file for automation")
@@ -330,7 +325,7 @@ func adminUserDeleteCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			resp, err := client.DeleteUser(cmd.Context(), adminRequest(&apiv1.DeleteAdminUserRequest{UserId: args[0]}))
+			resp, err := client.DeleteUser(cmd.Context(), adminRequest(&adminv1.DeleteUserRequest{UserId: args[0]}))
 			if err != nil {
 				return err
 			}
@@ -352,7 +347,7 @@ func adminUserAddEmailCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			resp, err := client.AddUserVerifiedEmail(cmd.Context(), adminRequest(&apiv1.AddAdminUserVerifiedEmailRequest{
+			resp, err := client.AddVerifiedEmail(cmd.Context(), adminRequest(&adminv1.AddVerifiedEmailRequest{
 				UserId: args[0],
 				Email:  args[1],
 			}))
@@ -360,7 +355,7 @@ func adminUserAddEmailCmd() *cobra.Command {
 				return err
 			}
 			out := cmd.OutOrStdout()
-			return printAdminOutput(out, resp.Msg, func() { printAdminUserLine(out, resp.Msg.GetUser()) })
+			return printAdminOutput(out, resp.Msg, func() { printAdminMemberLine(out, resp.Msg.GetMember()) })
 		},
 	}
 }
@@ -379,7 +374,7 @@ func adminUserRoleCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			resp, err := client.AssignUserRole(cmd.Context(), adminRequest(&apiv1.AssignAdminUserRoleRequest{
+			resp, err := client.AssignRole(cmd.Context(), adminRequest(&adminv1.AssignRoleRequest{
 				UserId:   args[0],
 				RoleName: args[1],
 			}))
@@ -387,7 +382,7 @@ func adminUserRoleCmd() *cobra.Command {
 				return err
 			}
 			out := cmd.OutOrStdout()
-			return printAdminOutput(out, resp.Msg, func() { printAdminUserLine(out, resp.Msg.GetUser()) })
+			return printAdminOutput(out, resp.Msg, func() { printAdminMemberLine(out, resp.Msg.GetMember()) })
 		},
 	})
 	roleCmd.AddCommand(&cobra.Command{
@@ -400,7 +395,7 @@ func adminUserRoleCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			resp, err := client.RevokeUserRole(cmd.Context(), adminRequest(&apiv1.RevokeAdminUserRoleRequest{
+			resp, err := client.RevokeRole(cmd.Context(), adminRequest(&adminv1.RevokeRoleRequest{
 				UserId:   args[0],
 				RoleName: args[1],
 			}))
@@ -408,13 +403,13 @@ func adminUserRoleCmd() *cobra.Command {
 				return err
 			}
 			out := cmd.OutOrStdout()
-			return printAdminOutput(out, resp.Msg, func() { printAdminUserLine(out, resp.Msg.GetUser()) })
+			return printAdminOutput(out, resp.Msg, func() { printAdminMemberLine(out, resp.Msg.GetMember()) })
 		},
 	})
 	return roleCmd
 }
 
-func newAdminAPIClient() (apiv1connect.AdminServiceClient, error) {
+func newAdminAPIClient() (adminv1connect.AdminMemberServiceClient, error) {
 	resolved, err := resolveAdminAPIClientConfig()
 	if err != nil {
 		return nil, err
@@ -423,7 +418,7 @@ func newAdminAPIClient() (apiv1connect.AdminServiceClient, error) {
 		token: resolved.token,
 		base:  http.DefaultTransport,
 	}}
-	return apiv1connect.NewAdminServiceClient(httpClient, resolved.connectBaseURL), nil
+	return adminv1connect.NewAdminMemberServiceClient(httpClient, resolved.connectBaseURL), nil
 }
 
 type resolvedAdminAPIConfig struct {
@@ -683,23 +678,20 @@ func printAdminOutput(out io.Writer, message proto.Message, human func()) error 
 	return nil
 }
 
-func printAdminUserLine(out io.Writer, user *apiv1.AdminUser) {
-	if user == nil {
+func printAdminMemberLine(out io.Writer, member *adminv1.AdminMember) {
+	if member == nil || member.GetUser() == nil {
 		return
 	}
-	roles := strings.Join(user.GetRoleNames(), ",")
+	user := member.GetUser()
+	roles := strings.Join(member.GetRoles(), ",")
 	if roles == "" {
 		roles = "-"
 	}
-	emails := make([]string, 0, len(user.GetVerifiedEmails()))
-	for _, email := range user.GetVerifiedEmails() {
-		emails = append(emails, email.GetEmail())
-	}
-	emailText := strings.Join(emails, ",")
+	emailText := strings.Join(member.GetVerifiedEmails(), ",")
 	if emailText == "" {
 		emailText = "-"
 	}
-	fmt.Fprintf(out, "%s\t%s\t%s\troles=%s\temails=%s\n", user.GetUserId(), user.GetLogin(), user.GetDisplayName(), roles, emailText)
+	fmt.Fprintf(out, "%s\t%s\t%s\troles=%s\temails=%s\n", user.GetId(), user.GetLogin(), user.GetDisplayName(), roles, emailText)
 }
 
 func readPassword(prompt string) (string, error) {

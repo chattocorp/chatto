@@ -112,7 +112,7 @@ Infrastructure jargon. If only contributors say the word, it goes here.
 
 **System actor** — Synthetic actor ID used when Chatto itself, bootstrap code, or trusted operator automation performs a domain write. It is not a login-capable user account.
 
-**Admin API** — Opt-in operator-only ConnectRPC service for user administration and bootstrap automation. It is authenticated by named `[admin_api.tokens]` bearer tokens plus per-token direct-source CIDR allow-lists, not by a user's session or RBAC role. It runs only on the dedicated Admin API listener configured in `[admin_api]` and is never mounted on the public web listener. See [FDR-028](fdr/FDR-028-operator-admin-api-and-cli.md).
+**Admin API** — Public ConnectRPC administrative surface in `chatto.admin.v1`. On the public web listener it uses normal user authentication and RBAC. When the dedicated Admin API listener is enabled with `[admin_api]`, the same RPC surface also accepts named `[admin_api.tokens]` bearer tokens from per-token direct-source CIDR allow-lists and treats those requests as the system actor for bootstrap and trusted automation. See [FDR-028](fdr/FDR-028-operator-admin-api-and-cli.md).
 
 **Admin token** — Shared secret configured in `[[admin_api.tokens]]` / `CHATTO_ADMIN_API_TOKENS_<index>_TOKEN` and accepted by the Admin API from that token's allowed CIDRs. Token names appear in admin-auth logs as non-secret context; token values must not be logged. Treat each token as a root operator credential.
 

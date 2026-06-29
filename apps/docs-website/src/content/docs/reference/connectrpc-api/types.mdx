@@ -154,32 +154,6 @@ for simple list browsing.
 | `limit` | `int32` | Maximum number of items to return. Each RPC defines its default; the common maximum for public API list pages is 100. |
 | `offset` | `int32` | Zero-based number of matching items to skip. |
 
-<a id="chatto-api-v1-AdminUser"></a>
-
-### AdminUser
-
-User record returned by the operator-only AdminService.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `user_id` | `string` | Stable user ID. |
-| `login` | `string` | Login name used for password sign-in and mentions. |
-| `display_name` | `string` | Display name shown in clients. |
-| `created_at` | `google.protobuf.Timestamp` | When the account was created, if known. |
-| `role_names` | `repeated string` | Explicit server roles assigned to the user. The implicit "everyone" role is not included. |
-| `verified_emails` | repeated [`AdminVerifiedEmail`](#chatto-api-v1-AdminVerifiedEmail) | Verified email addresses attached to this user. |
-
-<a id="chatto-api-v1-AdminVerifiedEmail"></a>
-
-### AdminVerifiedEmail
-
-Verified email address attached to an administrative user view.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `email` | `string` | Verified email address. |
-| `verified_at` | `google.protobuf.Timestamp` | When the email address was verified. |
-
 <a id="chatto-api-v1-LinkPreview"></a>
 
 ### LinkPreview

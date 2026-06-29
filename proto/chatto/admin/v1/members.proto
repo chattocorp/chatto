@@ -55,6 +55,29 @@ message AdminMemberRole {
   repeated string permission_denials = 5;
 }
 
+// Request to create a user as an admin or operator action.
+message CreateUserRequest {
+  // Required login for the new user.
+  string login = 1 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 64
+  }];
+  // Optional display name. Defaults to login when empty.
+  string display_name = 2 [(buf.validate.field).string.max_len = 80];
+  // Optional password. When present, it must satisfy server password policy.
+  string password = 3 [(buf.validate.field).string.max_len = 128];
+  // Optional email to add as already verified.
+  string verified_email = 4 [(buf.validate.field).string.max_len = 320];
+  // Optional explicit server roles to assign after creation.
+  repeated string role_names = 5 [(buf.validate.field).repeated.max_items = 20];
+}
+
+// Result of creating a user.
+message CreateUserResponse {
+  // Created admin member row.
+  AdminMember member = 1;
+}
+
 // Request server-admin member rows.
 message ListMembersRequest {
   reserved 2, 3;
@@ -82,7 +105,9 @@ message ListMembersResponse {
 // Request one server-admin member detail record.
 message GetMemberRequest {
   // Target user ID.
-  string user_id = 1 [(buf.validate.field).string.min_len = 1];
+  string user_id = 1;
+  // Target login. Provide either user_id or login.
+  string login = 2;
 }
 
 // Server-admin member detail payload.
@@ -113,6 +138,8 @@ message AssignRoleRequest {
 message AssignRoleResponse {
   // True when the request completed.
   bool assigned = 1;
+  // Updated admin member row.
+  AdminMember member = 2;
 }
 
 // Request to revoke a server role from a user.
@@ -127,6 +154,8 @@ message RevokeRoleRequest {
 message RevokeRoleResponse {
   // True when the request completed.
   bool revoked = 1;
+  // Updated admin member row.
+  AdminMember member = 2;
 }
 
 // Request to update a user's identity as a server-admin action.
@@ -143,6 +172,54 @@ message UpdateUserRequest {
 message UpdateUserResponse {
   // Updated user profile.
   chatto.api.v1.User user = 1;
+  // Updated admin member row.
+  AdminMember member = 2;
+}
+
+// Request to set a user's password as an admin or operator action.
+message SetUserPasswordRequest {
+  // Target user ID.
+  string user_id = 1 [(buf.validate.field).string.min_len = 1];
+  // New password.
+  string password = 2 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 128
+  }];
+}
+
+// Result of setting a user's password.
+message SetUserPasswordResponse {
+  // Updated admin member row.
+  AdminMember member = 1;
+}
+
+// Request to permanently delete a user account.
+message DeleteUserRequest {
+  // Target user ID.
+  string user_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+// Result of deleting a user account.
+message DeleteUserResponse {
+  // True when the account was deleted.
+  bool deleted = 1;
+}
+
+// Request to add a verified email address to a user.
+message AddVerifiedEmailRequest {
+  // Target user ID.
+  string user_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Email address to mark as verified.
+  string email = 2 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 320
+  }];
+}
+
+// Result of adding a verified email address.
+message AddVerifiedEmailResponse {
+  // Updated admin member row.
+  AdminMember member = 1;
 }
 
 // Request to clear a user's self-service username-change cooldown.
@@ -158,7 +235,13 @@ message ClearUsernameCooldownResponse {
 }
 
 // Server-admin user identity and cooldown commands.
+//
+// On the public web listener, these RPCs use normal user authentication and
+// RBAC checks. On the dedicated Admin API listener, configured operator tokens
+// may call the same RPCs from allowed CIDRs as Chatto's system actor.
 service AdminMemberService {
+  // Creates a user as an authenticated admin or local operator.
+  rpc CreateUser(CreateUserRequest) returns (CreateUserResponse);
   // Lists server members for the admin members screen.
   rpc ListMembers(ListMembersRequest) returns (ListMembersResponse);
   // Gets one server member plus role/permission metadata for admin details.
@@ -170,6 +253,12 @@ service AdminMemberService {
   rpc RevokeRole(RevokeRoleRequest) returns (RevokeRoleResponse);
   // Updates a user's login and/or display name as an admin action.
   rpc UpdateUser(UpdateUserRequest) returns (UpdateUserResponse);
+  // Sets a user's password as an authenticated admin or local operator.
+  rpc SetUserPassword(SetUserPasswordRequest) returns (SetUserPasswordResponse);
+  // Permanently deletes a user account.
+  rpc DeleteUser(DeleteUserRequest) returns (DeleteUserResponse);
+  // Adds an already-verified email address to a user.
+  rpc AddVerifiedEmail(AddVerifiedEmailRequest) returns (AddVerifiedEmailResponse);
   // Clears the target user's self-service username-change cooldown.
   rpc ClearUsernameCooldown(ClearUsernameCooldownRequest) returns (ClearUsernameCooldownResponse);
 }

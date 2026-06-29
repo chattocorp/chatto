@@ -33,6 +33,9 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
+	// AdminMemberServiceCreateUserProcedure is the fully-qualified name of the AdminMemberService's
+	// CreateUser RPC.
+	AdminMemberServiceCreateUserProcedure = "/chatto.admin.v1.AdminMemberService/CreateUser"
 	// AdminMemberServiceListMembersProcedure is the fully-qualified name of the AdminMemberService's
 	// ListMembers RPC.
 	AdminMemberServiceListMembersProcedure = "/chatto.admin.v1.AdminMemberService/ListMembers"
@@ -48,6 +51,15 @@ const (
 	// AdminMemberServiceUpdateUserProcedure is the fully-qualified name of the AdminMemberService's
 	// UpdateUser RPC.
 	AdminMemberServiceUpdateUserProcedure = "/chatto.admin.v1.AdminMemberService/UpdateUser"
+	// AdminMemberServiceSetUserPasswordProcedure is the fully-qualified name of the
+	// AdminMemberService's SetUserPassword RPC.
+	AdminMemberServiceSetUserPasswordProcedure = "/chatto.admin.v1.AdminMemberService/SetUserPassword"
+	// AdminMemberServiceDeleteUserProcedure is the fully-qualified name of the AdminMemberService's
+	// DeleteUser RPC.
+	AdminMemberServiceDeleteUserProcedure = "/chatto.admin.v1.AdminMemberService/DeleteUser"
+	// AdminMemberServiceAddVerifiedEmailProcedure is the fully-qualified name of the
+	// AdminMemberService's AddVerifiedEmail RPC.
+	AdminMemberServiceAddVerifiedEmailProcedure = "/chatto.admin.v1.AdminMemberService/AddVerifiedEmail"
 	// AdminMemberServiceClearUsernameCooldownProcedure is the fully-qualified name of the
 	// AdminMemberService's ClearUsernameCooldown RPC.
 	AdminMemberServiceClearUsernameCooldownProcedure = "/chatto.admin.v1.AdminMemberService/ClearUsernameCooldown"
@@ -55,6 +67,8 @@ const (
 
 // AdminMemberServiceClient is a client for the chatto.admin.v1.AdminMemberService service.
 type AdminMemberServiceClient interface {
+	// Creates a user as an authenticated admin or local operator.
+	CreateUser(context.Context, *connect.Request[v1.CreateUserRequest]) (*connect.Response[v1.CreateUserResponse], error)
 	// Lists server members for the admin members screen.
 	ListMembers(context.Context, *connect.Request[v1.ListMembersRequest]) (*connect.Response[v1.ListMembersResponse], error)
 	// Gets one server member plus role/permission metadata for admin details.
@@ -66,6 +80,12 @@ type AdminMemberServiceClient interface {
 	RevokeRole(context.Context, *connect.Request[v1.RevokeRoleRequest]) (*connect.Response[v1.RevokeRoleResponse], error)
 	// Updates a user's login and/or display name as an admin action.
 	UpdateUser(context.Context, *connect.Request[v1.UpdateUserRequest]) (*connect.Response[v1.UpdateUserResponse], error)
+	// Sets a user's password as an authenticated admin or local operator.
+	SetUserPassword(context.Context, *connect.Request[v1.SetUserPasswordRequest]) (*connect.Response[v1.SetUserPasswordResponse], error)
+	// Permanently deletes a user account.
+	DeleteUser(context.Context, *connect.Request[v1.DeleteUserRequest]) (*connect.Response[v1.DeleteUserResponse], error)
+	// Adds an already-verified email address to a user.
+	AddVerifiedEmail(context.Context, *connect.Request[v1.AddVerifiedEmailRequest]) (*connect.Response[v1.AddVerifiedEmailResponse], error)
 	// Clears the target user's self-service username-change cooldown.
 	ClearUsernameCooldown(context.Context, *connect.Request[v1.ClearUsernameCooldownRequest]) (*connect.Response[v1.ClearUsernameCooldownResponse], error)
 }
@@ -81,6 +101,12 @@ func NewAdminMemberServiceClient(httpClient connect.HTTPClient, baseURL string, 
 	baseURL = strings.TrimRight(baseURL, "/")
 	adminMemberServiceMethods := v1.File_chatto_admin_v1_members_proto.Services().ByName("AdminMemberService").Methods()
 	return &adminMemberServiceClient{
+		createUser: connect.NewClient[v1.CreateUserRequest, v1.CreateUserResponse](
+			httpClient,
+			baseURL+AdminMemberServiceCreateUserProcedure,
+			connect.WithSchema(adminMemberServiceMethods.ByName("CreateUser")),
+			connect.WithClientOptions(opts...),
+		),
 		listMembers: connect.NewClient[v1.ListMembersRequest, v1.ListMembersResponse](
 			httpClient,
 			baseURL+AdminMemberServiceListMembersProcedure,
@@ -111,6 +137,24 @@ func NewAdminMemberServiceClient(httpClient connect.HTTPClient, baseURL string, 
 			connect.WithSchema(adminMemberServiceMethods.ByName("UpdateUser")),
 			connect.WithClientOptions(opts...),
 		),
+		setUserPassword: connect.NewClient[v1.SetUserPasswordRequest, v1.SetUserPasswordResponse](
+			httpClient,
+			baseURL+AdminMemberServiceSetUserPasswordProcedure,
+			connect.WithSchema(adminMemberServiceMethods.ByName("SetUserPassword")),
+			connect.WithClientOptions(opts...),
+		),
+		deleteUser: connect.NewClient[v1.DeleteUserRequest, v1.DeleteUserResponse](
+			httpClient,
+			baseURL+AdminMemberServiceDeleteUserProcedure,
+			connect.WithSchema(adminMemberServiceMethods.ByName("DeleteUser")),
+			connect.WithClientOptions(opts...),
+		),
+		addVerifiedEmail: connect.NewClient[v1.AddVerifiedEmailRequest, v1.AddVerifiedEmailResponse](
+			httpClient,
+			baseURL+AdminMemberServiceAddVerifiedEmailProcedure,
+			connect.WithSchema(adminMemberServiceMethods.ByName("AddVerifiedEmail")),
+			connect.WithClientOptions(opts...),
+		),
 		clearUsernameCooldown: connect.NewClient[v1.ClearUsernameCooldownRequest, v1.ClearUsernameCooldownResponse](
 			httpClient,
 			baseURL+AdminMemberServiceClearUsernameCooldownProcedure,
@@ -122,12 +166,21 @@ func NewAdminMemberServiceClient(httpClient connect.HTTPClient, baseURL string, 
 
 // adminMemberServiceClient implements AdminMemberServiceClient.
 type adminMemberServiceClient struct {
+	createUser            *connect.Client[v1.CreateUserRequest, v1.CreateUserResponse]
 	listMembers           *connect.Client[v1.ListMembersRequest, v1.ListMembersResponse]
 	getMember             *connect.Client[v1.GetMemberRequest, v1.GetMemberResponse]
 	assignRole            *connect.Client[v1.AssignRoleRequest, v1.AssignRoleResponse]
 	revokeRole            *connect.Client[v1.RevokeRoleRequest, v1.RevokeRoleResponse]
 	updateUser            *connect.Client[v1.UpdateUserRequest, v1.UpdateUserResponse]
+	setUserPassword       *connect.Client[v1.SetUserPasswordRequest, v1.SetUserPasswordResponse]
+	deleteUser            *connect.Client[v1.DeleteUserRequest, v1.DeleteUserResponse]
+	addVerifiedEmail      *connect.Client[v1.AddVerifiedEmailRequest, v1.AddVerifiedEmailResponse]
 	clearUsernameCooldown *connect.Client[v1.ClearUsernameCooldownRequest, v1.ClearUsernameCooldownResponse]
+}
+
+// CreateUser calls chatto.admin.v1.AdminMemberService.CreateUser.
+func (c *adminMemberServiceClient) CreateUser(ctx context.Context, req *connect.Request[v1.CreateUserRequest]) (*connect.Response[v1.CreateUserResponse], error) {
+	return c.createUser.CallUnary(ctx, req)
 }
 
 // ListMembers calls chatto.admin.v1.AdminMemberService.ListMembers.
@@ -155,6 +208,21 @@ func (c *adminMemberServiceClient) UpdateUser(ctx context.Context, req *connect.
 	return c.updateUser.CallUnary(ctx, req)
 }
 
+// SetUserPassword calls chatto.admin.v1.AdminMemberService.SetUserPassword.
+func (c *adminMemberServiceClient) SetUserPassword(ctx context.Context, req *connect.Request[v1.SetUserPasswordRequest]) (*connect.Response[v1.SetUserPasswordResponse], error) {
+	return c.setUserPassword.CallUnary(ctx, req)
+}
+
+// DeleteUser calls chatto.admin.v1.AdminMemberService.DeleteUser.
+func (c *adminMemberServiceClient) DeleteUser(ctx context.Context, req *connect.Request[v1.DeleteUserRequest]) (*connect.Response[v1.DeleteUserResponse], error) {
+	return c.deleteUser.CallUnary(ctx, req)
+}
+
+// AddVerifiedEmail calls chatto.admin.v1.AdminMemberService.AddVerifiedEmail.
+func (c *adminMemberServiceClient) AddVerifiedEmail(ctx context.Context, req *connect.Request[v1.AddVerifiedEmailRequest]) (*connect.Response[v1.AddVerifiedEmailResponse], error) {
+	return c.addVerifiedEmail.CallUnary(ctx, req)
+}
+
 // ClearUsernameCooldown calls chatto.admin.v1.AdminMemberService.ClearUsernameCooldown.
 func (c *adminMemberServiceClient) ClearUsernameCooldown(ctx context.Context, req *connect.Request[v1.ClearUsernameCooldownRequest]) (*connect.Response[v1.ClearUsernameCooldownResponse], error) {
 	return c.clearUsernameCooldown.CallUnary(ctx, req)
@@ -162,6 +230,8 @@ func (c *adminMemberServiceClient) ClearUsernameCooldown(ctx context.Context, re
 
 // AdminMemberServiceHandler is an implementation of the chatto.admin.v1.AdminMemberService service.
 type AdminMemberServiceHandler interface {
+	// Creates a user as an authenticated admin or local operator.
+	CreateUser(context.Context, *connect.Request[v1.CreateUserRequest]) (*connect.Response[v1.CreateUserResponse], error)
 	// Lists server members for the admin members screen.
 	ListMembers(context.Context, *connect.Request[v1.ListMembersRequest]) (*connect.Response[v1.ListMembersResponse], error)
 	// Gets one server member plus role/permission metadata for admin details.
@@ -173,6 +243,12 @@ type AdminMemberServiceHandler interface {
 	RevokeRole(context.Context, *connect.Request[v1.RevokeRoleRequest]) (*connect.Response[v1.RevokeRoleResponse], error)
 	// Updates a user's login and/or display name as an admin action.
 	UpdateUser(context.Context, *connect.Request[v1.UpdateUserRequest]) (*connect.Response[v1.UpdateUserResponse], error)
+	// Sets a user's password as an authenticated admin or local operator.
+	SetUserPassword(context.Context, *connect.Request[v1.SetUserPasswordRequest]) (*connect.Response[v1.SetUserPasswordResponse], error)
+	// Permanently deletes a user account.
+	DeleteUser(context.Context, *connect.Request[v1.DeleteUserRequest]) (*connect.Response[v1.DeleteUserResponse], error)
+	// Adds an already-verified email address to a user.
+	AddVerifiedEmail(context.Context, *connect.Request[v1.AddVerifiedEmailRequest]) (*connect.Response[v1.AddVerifiedEmailResponse], error)
 	// Clears the target user's self-service username-change cooldown.
 	ClearUsernameCooldown(context.Context, *connect.Request[v1.ClearUsernameCooldownRequest]) (*connect.Response[v1.ClearUsernameCooldownResponse], error)
 }
@@ -184,6 +260,12 @@ type AdminMemberServiceHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewAdminMemberServiceHandler(svc AdminMemberServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	adminMemberServiceMethods := v1.File_chatto_admin_v1_members_proto.Services().ByName("AdminMemberService").Methods()
+	adminMemberServiceCreateUserHandler := connect.NewUnaryHandler(
+		AdminMemberServiceCreateUserProcedure,
+		svc.CreateUser,
+		connect.WithSchema(adminMemberServiceMethods.ByName("CreateUser")),
+		connect.WithHandlerOptions(opts...),
+	)
 	adminMemberServiceListMembersHandler := connect.NewUnaryHandler(
 		AdminMemberServiceListMembersProcedure,
 		svc.ListMembers,
@@ -214,6 +296,24 @@ func NewAdminMemberServiceHandler(svc AdminMemberServiceHandler, opts ...connect
 		connect.WithSchema(adminMemberServiceMethods.ByName("UpdateUser")),
 		connect.WithHandlerOptions(opts...),
 	)
+	adminMemberServiceSetUserPasswordHandler := connect.NewUnaryHandler(
+		AdminMemberServiceSetUserPasswordProcedure,
+		svc.SetUserPassword,
+		connect.WithSchema(adminMemberServiceMethods.ByName("SetUserPassword")),
+		connect.WithHandlerOptions(opts...),
+	)
+	adminMemberServiceDeleteUserHandler := connect.NewUnaryHandler(
+		AdminMemberServiceDeleteUserProcedure,
+		svc.DeleteUser,
+		connect.WithSchema(adminMemberServiceMethods.ByName("DeleteUser")),
+		connect.WithHandlerOptions(opts...),
+	)
+	adminMemberServiceAddVerifiedEmailHandler := connect.NewUnaryHandler(
+		AdminMemberServiceAddVerifiedEmailProcedure,
+		svc.AddVerifiedEmail,
+		connect.WithSchema(adminMemberServiceMethods.ByName("AddVerifiedEmail")),
+		connect.WithHandlerOptions(opts...),
+	)
 	adminMemberServiceClearUsernameCooldownHandler := connect.NewUnaryHandler(
 		AdminMemberServiceClearUsernameCooldownProcedure,
 		svc.ClearUsernameCooldown,
@@ -222,6 +322,8 @@ func NewAdminMemberServiceHandler(svc AdminMemberServiceHandler, opts ...connect
 	)
 	return "/chatto.admin.v1.AdminMemberService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
+		case AdminMemberServiceCreateUserProcedure:
+			adminMemberServiceCreateUserHandler.ServeHTTP(w, r)
 		case AdminMemberServiceListMembersProcedure:
 			adminMemberServiceListMembersHandler.ServeHTTP(w, r)
 		case AdminMemberServiceGetMemberProcedure:
@@ -232,6 +334,12 @@ func NewAdminMemberServiceHandler(svc AdminMemberServiceHandler, opts ...connect
 			adminMemberServiceRevokeRoleHandler.ServeHTTP(w, r)
 		case AdminMemberServiceUpdateUserProcedure:
 			adminMemberServiceUpdateUserHandler.ServeHTTP(w, r)
+		case AdminMemberServiceSetUserPasswordProcedure:
+			adminMemberServiceSetUserPasswordHandler.ServeHTTP(w, r)
+		case AdminMemberServiceDeleteUserProcedure:
+			adminMemberServiceDeleteUserHandler.ServeHTTP(w, r)
+		case AdminMemberServiceAddVerifiedEmailProcedure:
+			adminMemberServiceAddVerifiedEmailHandler.ServeHTTP(w, r)
 		case AdminMemberServiceClearUsernameCooldownProcedure:
 			adminMemberServiceClearUsernameCooldownHandler.ServeHTTP(w, r)
 		default:
@@ -242,6 +350,10 @@ func NewAdminMemberServiceHandler(svc AdminMemberServiceHandler, opts ...connect
 
 // UnimplementedAdminMemberServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedAdminMemberServiceHandler struct{}
+
+func (UnimplementedAdminMemberServiceHandler) CreateUser(context.Context, *connect.Request[v1.CreateUserRequest]) (*connect.Response[v1.CreateUserResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.admin.v1.AdminMemberService.CreateUser is not implemented"))
+}
 
 func (UnimplementedAdminMemberServiceHandler) ListMembers(context.Context, *connect.Request[v1.ListMembersRequest]) (*connect.Response[v1.ListMembersResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.admin.v1.AdminMemberService.ListMembers is not implemented"))
@@ -261,6 +373,18 @@ func (UnimplementedAdminMemberServiceHandler) RevokeRole(context.Context, *conne
 
 func (UnimplementedAdminMemberServiceHandler) UpdateUser(context.Context, *connect.Request[v1.UpdateUserRequest]) (*connect.Response[v1.UpdateUserResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.admin.v1.AdminMemberService.UpdateUser is not implemented"))
+}
+
+func (UnimplementedAdminMemberServiceHandler) SetUserPassword(context.Context, *connect.Request[v1.SetUserPasswordRequest]) (*connect.Response[v1.SetUserPasswordResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.admin.v1.AdminMemberService.SetUserPassword is not implemented"))
+}
+
+func (UnimplementedAdminMemberServiceHandler) DeleteUser(context.Context, *connect.Request[v1.DeleteUserRequest]) (*connect.Response[v1.DeleteUserResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.admin.v1.AdminMemberService.DeleteUser is not implemented"))
+}
+
+func (UnimplementedAdminMemberServiceHandler) AddVerifiedEmail(context.Context, *connect.Request[v1.AddVerifiedEmailRequest]) (*connect.Response[v1.AddVerifiedEmailResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.admin.v1.AdminMemberService.AddVerifiedEmail is not implemented"))
 }
 
 func (UnimplementedAdminMemberServiceHandler) ClearUsernameCooldown(context.Context, *connect.Request[v1.ClearUsernameCooldownRequest]) (*connect.Response[v1.ClearUsernameCooldownResponse], error) {

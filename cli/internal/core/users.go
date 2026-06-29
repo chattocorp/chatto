@@ -892,7 +892,7 @@ func (c *ChattoCore) AdminClearLoginChangeCooldown(ctx context.Context, actorID,
 	if err := c.requireCanAdminManageUser(ctx, actorID, targetUserID); err != nil {
 		return err
 	}
-	return c.ClearLoginChangeCooldown(ctx, targetUserID)
+	return c.ClearLoginChangeCooldownAs(ctx, actorID, targetUserID)
 }
 
 func (c *ChattoCore) requireCanAdminManageUser(ctx context.Context, actorID, targetUserID string) error {
@@ -1056,10 +1056,21 @@ func (c *ChattoCore) GetLastLoginChange(ctx context.Context, userID string) (tim
 // already-clear cooldown is a no-op.
 // Authorization: Caller must verify admin privileges.
 func (c *ChattoCore) ClearLoginChangeCooldown(ctx context.Context, userID string) error {
-	event := newEvent(userID, &corev1.Event{Event: &corev1.Event_UserLoginCooldownCleared{
+	return c.ClearLoginChangeCooldownAs(ctx, userID, userID)
+}
+
+// ClearLoginChangeCooldownAs removes the cooldown timestamp with explicit actor
+// attribution. Authorization must be checked by the caller.
+func (c *ChattoCore) ClearLoginChangeCooldownAs(ctx context.Context, actorID, userID string) error {
+	event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_UserLoginCooldownCleared{
 		UserLoginCooldownCleared: &corev1.UserLoginCooldownClearedEvent{UserId: userID},
 	}})
-	if _, err := c.appendUserEvent(ctx, userID, event, "", nil); err != nil {
+	if _, err := c.appendUserEvent(ctx, userID, event, "", func() error {
+		if _, err := c.GetUser(ctx, userID); err != nil {
+			return fmt.Errorf("user not found: %w", err)
+		}
+		return nil
+	}); err != nil {
 		return fmt.Errorf("failed to clear login change cooldown: %w", err)
 	}
 	c.logger.Info("Cleared user login change cooldown", "id", userID)
