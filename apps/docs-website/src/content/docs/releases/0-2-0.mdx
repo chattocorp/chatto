@@ -1,0 +1,75 @@
+---
+title: Chatto 0.2.0
+description: Release notes for Chatto 0.2.0.
+---
+
+import ReleaseFeatureCard from "../../../components/release-notes/ReleaseFeatureCard.astro";
+import ReleaseFeatureGrid from "../../../components/release-notes/ReleaseFeatureGrid.astro";
+import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
+
+<ReleaseHero
+  version="0.2.0"
+  summary="This release covers the full 0.2.0 line since 0.1.0: Markdown previews while composing, notification badge counts, direct-message room sidebars, email-code throttling, and a clearer Docker runtime layout."
+/>
+
+<ReleaseFeatureGrid>
+  <ReleaseFeatureCard title="Markdown previews in the composer" size="large">
+    The composer can preview Markdown while you write, including formatting shortcuts,
+    links, code fences, syntax highlighting, and language selection for code blocks.
+  </ReleaseFeatureCard>
+
+  <ReleaseFeatureCard title="Notification badge counts" size="large">
+    Room rows and the server gutter show notification counts, while unread-message dots
+    remain separate. Badge counts can be loaded without waiting for a websocket event.
+  </ReleaseFeatureCard>
+
+  <ReleaseFeatureCard title="Room sidebar controls in direct messages">
+    Direct-message rooms now expose the room sidebar where it makes sense, including the
+    files panel, while keeping DM moderation actions hidden.
+  </ReleaseFeatureCard>
+</ReleaseFeatureGrid>
+
+## Running and Integrating Chatto
+
+<ReleaseFeatureGrid>
+  <ReleaseFeatureCard title="Email-code throttling is configurable" size="large">
+    Registration and email-verification codes have configurable guardrails for expiration,
+    resend throttling, wrong-code attempts, and disabling throttling for controlled
+    environments. Failed sends roll back their OTP records, so delivery problems do not
+    consume throttle capacity.
+  </ReleaseFeatureCard>
+</ReleaseFeatureGrid>
+
+## Upgrade Notes
+
+- Docker self-hosters should move mounts from the old `/home/chatto` layout to
+  `/config/chatto.toml` and `/data`.
+- Review registration and email-verification OTP throttling settings if your deployment
+  relies on custom signup or verification flows.
+- SMTP providers that require SMTPS on port 465 can use implicit TLS instead of trying to
+  force STARTTLS semantics.
+
+## Smaller fixes you'll appreciate
+
+### Auth, email, and server runtime
+
+- CSRF tokens are stateless and bound to the authenticated cookie-session generation.
+- Server lifecycle logs are less noisy and include clearer shutdown and metrics startup
+  details.
+
+### Rooms, notifications, and calls
+
+- Navigating from a notification into a different server remounts the room route so
+  server-scoped room state is rebuilt correctly.
+- Room and directory state refresh after room creation and room layout changes.
+- Direct-message rows show active call badges consistently.
+
+### Docker and operations
+
+- Docker containers use the documented config and data root paths.
+- Implicit SMTP TLS works for SMTPS providers.
+
+## GitHub release
+
+The GitHub release lists every PR and commit:
+[github.com/chattocorp/chatto/releases/tag/v0.2.0](https://github.com/chattocorp/chatto/releases/tag/v0.2.0)

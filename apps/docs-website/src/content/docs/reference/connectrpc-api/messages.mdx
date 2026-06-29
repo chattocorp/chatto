@@ -1,0 +1,238 @@
+---
+title: MessageService
+description: Message posting, editing, deletion, link-preview, attachment, and typing RPCs.
+editUrl: false
+---
+
+{/* Generated from proto/chatto/{api,admin,realtime}/v1/*.proto. Do not edit directly. */}
+
+Chatto exposes this service below `/api/connect`.
+
+
+
+Shared message and enum definitions are documented in [Shared Types And Enums](/reference/connectrpc-api/types/).
+
+
+
+<a id="chatto-api-v1-MessageService"></a>
+
+## MessageService
+
+Posts messages into room and thread timelines.
+
+<a id="chatto-api-v1-MessageService-PostMessage"></a>
+
+### PostMessage
+
+Posts a message for the current user. The user must be a room member and
+must have message.post for room messages or message.post-in-thread for
+thread replies. Echoing a thread reply also requires message.echo and
+message.post.
+
+```http
+POST /api/connect/chatto.api.v1.MessageService/PostMessage
+```
+
+<a id="chatto-api-v1-PostMessageRequest"></a>
+
+#### Input: PostMessageRequest
+
+Request to post a message in a room or thread.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room where the message should be posted. |
+| `body` | `string` | Message body text. Required unless attachments or attachment_asset_ids is non-empty. |
+| `attachment_asset_ids` | `repeated string` | Existing room-scoped attachment asset IDs to include with the message. |
+| `thread_root_event_id` | `string` | Event ID of the thread root message when posting a thread reply. |
+| `in_reply_to` | `string` | Event ID this message replies to for attribution. |
+| `also_send_to_channel` | `bool` | True to also echo a thread reply into the main room timeline. |
+| `mention_confirmation_token` | `string` | Short-lived token returned by a prior mention confirmation challenge. |
+| `link_preview` | [`LinkPreview`](/reference/connectrpc-api/types/#chatto-api-v1-LinkPreview) | Link preview selected by the client. Server response-only LinkPreview fields are ignored. |
+| `attachments` | repeated [`MessageAttachmentUpload`](/reference/connectrpc-api/types/#chatto-api-v1-MessageAttachmentUpload) | Browser-uploaded attachments to include with the message. |
+
+
+<a id="chatto-api-v1-PostMessageResponse"></a>
+
+#### Result: PostMessageResponse
+
+Result of posting a message.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `result.event` | [`RoomTimelineEvent`](/reference/connectrpc-api/types/#chatto-api-v1-RoomTimelineEvent) | Renderable timeline event for the posted message. |
+| `result.mention_confirmation` | [`MentionConfirmationChallenge`](/reference/connectrpc-api/types/#chatto-api-v1-MentionConfirmationChallenge) | Challenge shown when a message would notify many people. |
+| `includes` | [`RoomTimelineIncludes`](/reference/connectrpc-api/types/#chatto-api-v1-RoomTimelineIncludes) | Related entities needed to render event when a message was posted. |
+
+
+<a id="chatto-api-v1-MessageService-UpdateMessage"></a>
+
+### UpdateMessage
+
+Edits a message body. Authors can edit their own messages within the edit
+window. Non-authors need message.manage and cannot change channel echo
+state.
+
+```http
+POST /api/connect/chatto.api.v1.MessageService/UpdateMessage
+```
+
+<a id="chatto-api-v1-UpdateMessageRequest"></a>
+
+#### Input: UpdateMessageRequest
+
+Request to edit a message body.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room containing the message. |
+| `event_id` | `string` | Required. Event ID of the message to edit. |
+| `body` | `string` | New message body text. |
+| `also_send_to_channel` | `optional bool` | For thread replies, whether a channel echo should exist after saving. Omit to preserve the current echo state. |
+
+
+<a id="chatto-api-v1-UpdateMessageResponse"></a>
+
+#### Result: UpdateMessageResponse
+
+Result of editing a message.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `updated` | `bool` | True when the edit was accepted. |
+
+
+<a id="chatto-api-v1-MessageService-DeleteMessage"></a>
+
+### DeleteMessage
+
+Retracts a message. Authors can delete their own messages. Non-authors need
+message.manage.
+
+```http
+POST /api/connect/chatto.api.v1.MessageService/DeleteMessage
+```
+
+<a id="chatto-api-v1-DeleteMessageRequest"></a>
+
+#### Input: DeleteMessageRequest
+
+Request to retract a message.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room containing the message. |
+| `event_id` | `string` | Required. Event ID of the message to retract. |
+
+
+<a id="chatto-api-v1-DeleteMessageResponse"></a>
+
+#### Result: DeleteMessageResponse
+
+Result of retracting a message.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `deleted` | `bool` | True when the delete/retract request was accepted. |
+
+
+<a id="chatto-api-v1-MessageService-DeleteAttachment"></a>
+
+### DeleteAttachment
+
+Removes one attachment from the author's own message.
+
+```http
+POST /api/connect/chatto.api.v1.MessageService/DeleteAttachment
+```
+
+<a id="chatto-api-v1-DeleteAttachmentRequest"></a>
+
+#### Input: DeleteAttachmentRequest
+
+Request to remove one attachment from a message.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room containing the message. |
+| `event_id` | `string` | Required. Event ID of the message containing the attachment. |
+| `attachment_id` | `string` | Required. Attachment ID to remove from the message. |
+
+
+<a id="chatto-api-v1-DeleteAttachmentResponse"></a>
+
+#### Result: DeleteAttachmentResponse
+
+Result of removing one attachment from a message.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `deleted` | `bool` | True when the attachment removal was accepted. |
+
+
+<a id="chatto-api-v1-MessageService-DeleteLinkPreview"></a>
+
+### DeleteLinkPreview
+
+Removes the accepted link preview from the author's own message.
+
+```http
+POST /api/connect/chatto.api.v1.MessageService/DeleteLinkPreview
+```
+
+<a id="chatto-api-v1-DeleteLinkPreviewRequest"></a>
+
+#### Input: DeleteLinkPreviewRequest
+
+Request to remove the accepted link preview from a message.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room containing the message. |
+| `event_id` | `string` | Required. Event ID of the message containing the link preview. |
+| `url` | `string` | Required. URL of the link preview to remove. |
+
+
+<a id="chatto-api-v1-DeleteLinkPreviewResponse"></a>
+
+#### Result: DeleteLinkPreviewResponse
+
+Result of removing a link preview from a message.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `deleted` | `bool` | True when the link preview removal was accepted. |
+
+
+<a id="chatto-api-v1-MessageService-SendTypingIndicator"></a>
+
+### SendTypingIndicator
+
+Publishes a live-only typing indicator. Room membership is required; message
+posting permission is not.
+
+```http
+POST /api/connect/chatto.api.v1.MessageService/SendTypingIndicator
+```
+
+<a id="chatto-api-v1-SendTypingIndicatorRequest"></a>
+
+#### Input: SendTypingIndicatorRequest
+
+Request to publish a live-only typing indicator.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room where the current user is typing. |
+| `thread_root_event_id` | `string` | Event ID of the thread root when typing inside a thread. |
+
+
+<a id="chatto-api-v1-SendTypingIndicatorResponse"></a>
+
+#### Result: SendTypingIndicatorResponse
+
+Result of publishing a typing indicator.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `sent` | `bool` | True when the typing indicator was accepted for publish. |

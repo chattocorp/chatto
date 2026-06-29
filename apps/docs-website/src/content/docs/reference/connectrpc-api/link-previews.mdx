@@ -1,0 +1,53 @@
+---
+title: LinkPreviewService
+description: Link preview fetch RPCs.
+editUrl: false
+---
+
+{/* Generated from proto/chatto/{api,admin,realtime}/v1/*.proto. Do not edit directly. */}
+
+Chatto exposes this service below `/api/connect`.
+
+
+
+Shared message and enum definitions are documented in [Shared Types And Enums](/reference/connectrpc-api/types/).
+
+
+
+<a id="chatto-api-v1-LinkPreviewService"></a>
+
+## LinkPreviewService
+
+Fetches link preview metadata for message composers.
+
+<a id="chatto-api-v1-LinkPreviewService-FetchLinkPreview"></a>
+
+### FetchLinkPreview
+
+Fetches and caches metadata for a URL. Authentication is required to avoid
+exposing the preview fetcher as an unauthenticated network proxy.
+
+```http
+POST /api/connect/chatto.api.v1.LinkPreviewService/FetchLinkPreview
+```
+
+<a id="chatto-api-v1-FetchLinkPreviewRequest"></a>
+
+#### Input: FetchLinkPreviewRequest
+
+Request to fetch server-side link preview metadata for a URL.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `url` | `string` | URL to preview. |
+
+
+<a id="chatto-api-v1-FetchLinkPreviewResponse"></a>
+
+#### Result: FetchLinkPreviewResponse
+
+Result of fetching link preview metadata.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `preview` | [`LinkPreview`](/reference/connectrpc-api/types/#chatto-api-v1-LinkPreview) | Preview metadata, or absent when the URL cannot be previewed. |

@@ -124,6 +124,20 @@ func (s *roomService) JoinRoom(ctx context.Context, req *connect.Request[apiv1.J
 	return connect.NewResponse(&apiv1.JoinRoomResponse{Room: apiRoom(room)}), nil
 }
 
+func (s *roomService) JoinRoomGroup(ctx context.Context, req *connect.Request[apiv1.JoinRoomGroupRequest]) (*connect.Response[apiv1.JoinRoomGroupResponse], error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	joined, err := s.api.core.RoomDirectoryReads().JoinGroup(ctx, caller.UserID, req.Msg.GetGroupId())
+	if err != nil {
+		return nil, connectError(err)
+	}
+
+	return connect.NewResponse(&apiv1.JoinRoomGroupResponse{JoinedRoomIds: joined}), nil
+}
+
 func (s *roomService) StartDM(ctx context.Context, req *connect.Request[apiv1.StartDMRequest]) (*connect.Response[apiv1.StartDMResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {

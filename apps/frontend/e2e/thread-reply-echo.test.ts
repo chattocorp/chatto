@@ -843,7 +843,7 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
         const seedSetId = await getDefaultRoomGroupIdViaConnect(adminRequest);
         const response = await connectPost<{ ok?: boolean }>(
           adminRequest,
-          'chatto.api.v1.PermissionService/SetRolePermission',
+          'chatto.admin.v1.AdminPermissionService/SetRolePermission',
           {
             roleName: 'everyone',
             permission: 'message.echo',

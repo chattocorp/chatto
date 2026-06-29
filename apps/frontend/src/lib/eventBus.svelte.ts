@@ -23,7 +23,7 @@ import {
 } from './render/types';
 import { eventBusManager } from './state/server/eventBus.svelte';
 import type { CustomUserStatus } from './state/userProfiles.svelte';
-import type { RealtimeEventEnvelope as RealtimeProtobufEventEnvelope } from '$lib/pb/chatto/api/v1/realtime_pb';
+import type { RealtimeEventEnvelope as RealtimeProtobufEventEnvelope } from '$lib/pb/chatto/realtime/v1/realtime_pb';
 import { RoomEventKind, roomEventKind } from '$lib/render/eventKinds';
 
 type EventEnvelopeReactionSummary = {

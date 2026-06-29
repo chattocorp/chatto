@@ -1,0 +1,188 @@
+---
+title: VoiceCallService
+description: Voice and video call state and token RPCs.
+editUrl: false
+---
+
+{/* Generated from proto/chatto/{api,admin,realtime}/v1/*.proto. Do not edit directly. */}
+
+Chatto exposes this service below `/api/connect`.
+
+
+
+Shared message and enum definitions are documented in [Shared Types And Enums](/reference/connectrpc-api/types/).
+
+
+
+<a id="chatto-api-v1-VoiceCallService"></a>
+
+## VoiceCallService
+
+Voice-call request/response APIs backed by Chatto call-state projections.
+
+<a id="chatto-api-v1-VoiceCallService-ListActiveCallRooms"></a>
+
+### ListActiveCallRooms
+
+Lists channel room IDs that currently have active calls.
+
+Returns an empty list when LiveKit is not configured.
+
+```http
+POST /api/connect/chatto.api.v1.VoiceCallService/ListActiveCallRooms
+```
+
+<a id="chatto-api-v1-ListActiveCallRoomsRequest"></a>
+
+#### Input: ListActiveCallRoomsRequest
+
+Request for active channel call room IDs.
+
+
+<a id="chatto-api-v1-ListActiveCallRoomsResponse"></a>
+
+#### Result: ListActiveCallRoomsResponse
+
+Active channel call room IDs.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_ids` | `repeated string` | Room IDs with active calls. |
+
+
+<a id="chatto-api-v1-VoiceCallService-ListCallParticipants"></a>
+
+### ListCallParticipants
+
+Lists participants currently observed in a room's active call.
+
+The caller must be a member of the room.
+
+```http
+POST /api/connect/chatto.api.v1.VoiceCallService/ListCallParticipants
+```
+
+<a id="chatto-api-v1-ListCallParticipantsRequest"></a>
+
+#### Input: ListCallParticipantsRequest
+
+Request for participants in a room call.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room whose active call should be inspected. |
+
+
+<a id="chatto-api-v1-ListCallParticipantsResponse"></a>
+
+#### Result: ListCallParticipantsResponse
+
+Participants in one room call.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `participants` | repeated [`CallParticipant`](/reference/connectrpc-api/types/#chatto-api-v1-CallParticipant) | Participants currently projected for the room call. |
+
+
+<a id="chatto-api-v1-VoiceCallService-JoinCall"></a>
+
+### JoinCall
+
+Records the caller's intent to join a room call.
+
+Returns joined=false when LiveKit is not configured.
+
+```http
+POST /api/connect/chatto.api.v1.VoiceCallService/JoinCall
+```
+
+<a id="chatto-api-v1-JoinCallRequest"></a>
+
+#### Input: JoinCallRequest
+
+Request to record joining a room call.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room whose call is being joined. |
+
+
+<a id="chatto-api-v1-JoinCallResponse"></a>
+
+#### Result: JoinCallResponse
+
+Response from recording a join intent.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `joined` | `bool` | True when a join fact was recorded. |
+
+
+<a id="chatto-api-v1-VoiceCallService-GetCallToken"></a>
+
+### GetCallToken
+
+Issues a LiveKit token for joining the room's active call.
+
+The caller must be a member of the room and a call must already be active.
+
+```http
+POST /api/connect/chatto.api.v1.VoiceCallService/GetCallToken
+```
+
+<a id="chatto-api-v1-GetCallTokenRequest"></a>
+
+#### Input: GetCallTokenRequest
+
+Request for a LiveKit token for a room call.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room whose active call should be joined. |
+
+
+<a id="chatto-api-v1-GetCallTokenResponse"></a>
+
+#### Result: GetCallTokenResponse
+
+LiveKit token details for joining a room call.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `token` | `string` | LiveKit JWT token. |
+| `e2ee_key` | `string` | Shared E2EE key for this active call. |
+| `call_id` | `string` | Active call session ID. |
+
+
+<a id="chatto-api-v1-VoiceCallService-LeaveCall"></a>
+
+### LeaveCall
+
+Records the caller's intent to leave a room call.
+
+Returns left=false when LiveKit is not configured.
+
+```http
+POST /api/connect/chatto.api.v1.VoiceCallService/LeaveCall
+```
+
+<a id="chatto-api-v1-LeaveCallRequest"></a>
+
+#### Input: LeaveCallRequest
+
+Request to record leaving a room call.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room whose call is being left. |
+
+
+<a id="chatto-api-v1-LeaveCallResponse"></a>
+
+#### Result: LeaveCallResponse
+
+Response from recording a leave intent.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `left` | `bool` | True when a leave fact was recorded. |

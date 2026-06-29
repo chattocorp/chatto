@@ -5,7 +5,7 @@ Per-role permission matrix loader. Owns the ConnectRPC query for the
 role's matrix and the mutation dispatch for cell clicks; delegates
 rendering to `SubjectPermissionsMatrix` (shared with the user variant).
 
-Mutations go through the PermissionService via `setRolePermission`.
+  Mutations go through the admin permission API via `setRolePermission`.
 -->
 <script lang="ts">
   import { untrack } from 'svelte';

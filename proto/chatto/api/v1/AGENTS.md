@@ -25,8 +25,8 @@ first consumer.
 - Keep cursor/window APIs separate when the model is not offset pagination, for
   example timeline cursors or event-log sequence scans.
 - Reuse canonical user shapes when they fit:
-  - `UserSummary` for lightweight render/cache identity references.
-  - `UserPresenceSummary` when presence/custom status is part of the result.
+  - `User` for public identity fields.
+  - `UserProfile` when presence/custom status is part of the result.
   - `DirectoryMember` for directory/member rows with roles and
     membership-oriented metadata.
 - Add a new user-shaped message only when shared shapes cannot represent the
@@ -76,11 +76,16 @@ first consumer.
   same change.
 - The project is pre-1.0, but public API breakage still needs an explicit plan
   and PR compatibility note.
+- Follow [ADR-045](../../../../docs/adr/ADR-045-public-api-stability-tiers.md)
+  for integration API, bundled app API, and realtime protocol stability tiers.
 
 ## Code Generation
 
 - Public `.proto` or ConnectRPC service changes require `mise codegen-proto`.
 - Commit all generated Go/TypeScript bindings and docs-website ConnectRPC
   reference outputs.
-- New public services also need entries in `proto/buf.gen.yaml` and the docs
-  sidebar in `apps/docs-website/astro.config.mjs`.
+- New public services also need generated docs grouping in
+  `tools/split-connectrpc-docs.mjs`; the splitter fails codegen when a service
+  is not assigned to a reference page.
+- New generated reference pages need docs sidebar entries in
+  `apps/docs-website/astro.config.mjs`.

@@ -52,6 +52,7 @@
   import { extractURLs } from '$lib/linkPreview';
   import MessagePreviewCard from '$lib/components/MessagePreviewCard.svelte';
   import { shouldHighlightCurrentUserMention } from './messageMentionHighlight';
+  import { roomReplyTargetEventId } from './messageReplyTarget';
   import { selectedQuoteTextForMessageBody } from './selectedReplyQuote';
   import { createThreadAPI } from '$lib/api/threads';
   import { createRoomCommandAPI } from '$lib/api/rooms';
@@ -551,7 +552,7 @@
   function handleReplyInRoom() {
     const quote = takeSelectedReplyQuote();
     const excerpt = (msg?.body ?? '').slice(0, 80);
-    replyState.startReply(event.id, displayName, excerpt);
+    replyState.startReply(roomReplyTargetEventId(event), displayName, excerpt);
     if (quote) {
       composerContext.quoteInsertionState.requestInsertQuote(quote);
     }

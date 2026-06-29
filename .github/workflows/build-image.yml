@@ -14,7 +14,8 @@ permissions:
 
 jobs:
   build-image:
-    runs-on: ubicloud-standard-4
+    # runs-on: ubicloud-standard-4
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v6

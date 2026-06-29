@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"connectrpc.com/connect"
-	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/core"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
@@ -105,31 +104,20 @@ func (s *memberDirectoryService) ListRoomMembers(ctx context.Context, req *conne
 }
 
 func (s *memberDirectoryService) directoryMember(ctx context.Context, user *corev1.User, roles []string) (*apiv1.DirectoryMember, error) {
-	presence, err := s.api.core.GetUserPresence(ctx, user.GetId())
+	avatarSize := 96
+	avatar := &apiv1.UserAvatarOptions{
+		Width:  int32(avatarSize),
+		Height: int32(avatarSize),
+		Fit:    apiv1.UserAvatarFitMode_USER_AVATAR_FIT_MODE_COVER,
+	}
+	profile, err := (&userService{api: s.api}).userPresenceSummary(ctx, user, avatar)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	member := &apiv1.DirectoryMember{
-		Id:             user.GetId(),
-		Login:          user.GetLogin(),
-		DisplayName:    user.GetDisplayName(),
-		Deleted:        user.GetDeleted(),
-		PresenceStatus: corePresenceStatusToAPI(presence),
-		CustomStatus:   coreCustomStatusToAPI(user.GetCustomStatus()),
-		Roles:          roles,
-		CreatedAt:      user.GetCreatedAt(),
-	}
-
-	avatarSize := 96
-	if avatarURL, err := s.api.core.GetUserAvatarURL(ctx, user.GetId(), &avatarSize, &avatarSize, "cover"); err != nil {
-		if !errors.Is(err, core.ErrNotFound) {
-			return nil, connectError(err)
-		}
-	} else if avatarURL != "" {
-		member.AvatarUrl = stringPtr(s.api.absolutizeAssetURL(ctx, avatarURL))
-	}
-	if member.CreatedAt == nil && user.GetCreatedAt() != nil {
-		member.CreatedAt = timestamppb.New(user.GetCreatedAt().AsTime())
+		Profile:   profile,
+		Roles:     append([]string(nil), roles...),
+		CreatedAt: user.GetCreatedAt(),
 	}
 
 	return member, nil

@@ -1,0 +1,205 @@
+---
+title: NotificationService
+description: Notification listing, counts, checks, and dismissal RPCs.
+editUrl: false
+---
+
+{/* Generated from proto/chatto/{api,admin,realtime}/v1/*.proto. Do not edit directly. */}
+
+Chatto exposes this service below `/api/connect`.
+
+
+
+Shared message and enum definitions are documented in [Shared Types And Enums](/reference/connectrpc-api/types/).
+
+
+
+<a id="chatto-api-v1-NotificationService"></a>
+
+## NotificationService
+
+Reads and dismisses pending notifications for the authenticated viewer.
+
+<a id="chatto-api-v1-NotificationService-ListNotifications"></a>
+
+### ListNotifications
+
+Lists the authenticated viewer's pending notifications.
+
+```http
+POST /api/connect/chatto.api.v1.NotificationService/ListNotifications
+```
+
+<a id="chatto-api-v1-ListNotificationsRequest"></a>
+
+#### Input: ListNotificationsRequest
+
+Request for the authenticated viewer's pending notifications.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `page` | [`PageRequest`](/reference/connectrpc-api/types/#chatto-api-v1-PageRequest) | Page request. Defaults to 50 results when absent or limit is zero. |
+
+
+<a id="chatto-api-v1-ListNotificationsResponse"></a>
+
+#### Result: ListNotificationsResponse
+
+Pending notification page.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `items` | repeated [`NotificationItem`](/reference/connectrpc-api/types/#chatto-api-v1-NotificationItem) | Page items, newest first. |
+| `server_name` | `string` | Current server display name for non-DM location labels. |
+| `page` | [`PageInfo`](/reference/connectrpc-api/types/#chatto-api-v1-PageInfo) | Page metadata. |
+
+
+<a id="chatto-api-v1-NotificationService-ListRoomNotifications"></a>
+
+### ListRoomNotifications
+
+Lists pending notifications for one room. Non-members receive an empty page.
+
+```http
+POST /api/connect/chatto.api.v1.NotificationService/ListRoomNotifications
+```
+
+<a id="chatto-api-v1-ListRoomNotificationsRequest"></a>
+
+#### Input: ListRoomNotificationsRequest
+
+Request for pending notifications scoped to one room.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room whose notifications should be listed. |
+| `page` | [`PageRequest`](/reference/connectrpc-api/types/#chatto-api-v1-PageRequest) | Page request. Defaults to 50 results when absent or limit is zero. |
+
+
+<a id="chatto-api-v1-ListRoomNotificationsResponse"></a>
+
+#### Result: ListRoomNotificationsResponse
+
+Pending notification page scoped to one room.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `items` | repeated [`NotificationItem`](/reference/connectrpc-api/types/#chatto-api-v1-NotificationItem) | Page items, newest first. |
+| `server_name` | `string` | Current server display name for non-DM location labels. |
+| `page` | [`PageInfo`](/reference/connectrpc-api/types/#chatto-api-v1-PageInfo) | Page metadata. |
+
+
+<a id="chatto-api-v1-NotificationService-ListNotificationCounts"></a>
+
+### ListNotificationCounts
+
+Lists pending notification counts grouped by room.
+
+```http
+POST /api/connect/chatto.api.v1.NotificationService/ListNotificationCounts
+```
+
+<a id="chatto-api-v1-ListNotificationCountsRequest"></a>
+
+#### Input: ListNotificationCountsRequest
+
+Request for pending notification counts grouped by room.
+
+
+<a id="chatto-api-v1-ListNotificationCountsResponse"></a>
+
+#### Result: ListNotificationCountsResponse
+
+Pending notification counts grouped by room.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_counts` | repeated [`RoomNotificationCount`](/reference/connectrpc-api/types/#chatto-api-v1-RoomNotificationCount) | Counts for rooms with at least one pending notification. |
+
+
+<a id="chatto-api-v1-NotificationService-HasNotifications"></a>
+
+### HasNotifications
+
+Checks whether the authenticated viewer has any pending notifications.
+
+```http
+POST /api/connect/chatto.api.v1.NotificationService/HasNotifications
+```
+
+<a id="chatto-api-v1-HasNotificationsRequest"></a>
+
+#### Input: HasNotificationsRequest
+
+Request for a lightweight pending notification check.
+
+
+<a id="chatto-api-v1-HasNotificationsResponse"></a>
+
+#### Result: HasNotificationsResponse
+
+Lightweight pending notification check.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `has_notifications` | `bool` | True when the authenticated viewer has at least one pending notification. |
+
+
+<a id="chatto-api-v1-NotificationService-DismissNotification"></a>
+
+### DismissNotification
+
+Dismisses one pending notification.
+
+```http
+POST /api/connect/chatto.api.v1.NotificationService/DismissNotification
+```
+
+<a id="chatto-api-v1-DismissNotificationRequest"></a>
+
+#### Input: DismissNotificationRequest
+
+Request to dismiss one pending notification.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `notification_id` | `string` | Required. Notification to dismiss. |
+
+
+<a id="chatto-api-v1-DismissNotificationResponse"></a>
+
+#### Result: DismissNotificationResponse
+
+Result of dismissing one pending notification.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `dismissed` | `bool` | True when the notification existed and was dismissed. |
+
+
+<a id="chatto-api-v1-NotificationService-DismissAllNotifications"></a>
+
+### DismissAllNotifications
+
+Dismisses all pending notifications.
+
+```http
+POST /api/connect/chatto.api.v1.NotificationService/DismissAllNotifications
+```
+
+<a id="chatto-api-v1-DismissAllNotificationsRequest"></a>
+
+#### Input: DismissAllNotificationsRequest
+
+Request to dismiss all pending notifications.
+
+
+<a id="chatto-api-v1-DismissAllNotificationsResponse"></a>
+
+#### Result: DismissAllNotificationsResponse
+
+Result of dismissing all pending notifications.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `dismissed_count` | `int32` | Number of notifications dismissed. |

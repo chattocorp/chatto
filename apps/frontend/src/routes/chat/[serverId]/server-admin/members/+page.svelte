@@ -7,7 +7,7 @@
   import {
     createAdminUserManagementAPI,
     type AdminMember,
-    type AdminMemberRoleSummary
+    type AdminRoleReference
   } from '$lib/api/adminUsers';
   import { Panel, DataTable } from '$lib/components/admin';
   import { Hint, Pill } from '$lib/ui';
@@ -26,7 +26,7 @@
   let searchInput = $state('');
   let activeSearch = '';
   let users = $state<AdminMember[]>([]);
-  let roles = $state<AdminMemberRoleSummary[]>([]);
+  let roles = $state<AdminRoleReference[]>([]);
   let totalCount = $state(0);
   let hasMore = $state(false);
   let loading = $state(true);

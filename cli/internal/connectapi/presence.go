@@ -9,11 +9,7 @@ import (
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 )
 
-type presenceService struct {
-	api *API
-}
-
-func (s *presenceService) ReportPresence(ctx context.Context, req *connect.Request[apiv1.ReportPresenceRequest]) (*connect.Response[apiv1.ReportPresenceResponse], error) {
+func (s *accountService) ReportPresence(ctx context.Context, req *connect.Request[apiv1.ReportPresenceRequest]) (*connect.Response[apiv1.ReportPresenceResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err

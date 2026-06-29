@@ -33,9 +33,7 @@ func setupCORSServer(t *testing.T, webserverConfig config.WebserverConfig) *HTTP
 	router.POST("/api/connect/test", func(c *gin.Context) {
 		c.String(http.StatusOK, "ok")
 	})
-	router.GET("/api/server", func(c *gin.Context) {
-		// Simulate instance_info's own CORS headers
-		setCORSHeaders(c)
+	router.POST(serverDiscoveryConnectPath, func(c *gin.Context) {
 		c.String(http.StatusOK, "instance info")
 	})
 
@@ -139,9 +137,8 @@ func TestCORSMiddleware(t *testing.T) {
 		if methods := w.Header().Get("Access-Control-Allow-Methods"); methods != "GET, POST, OPTIONS" {
 			t.Errorf("expected Access-Control-Allow-Methods 'GET, POST, OPTIONS', got %q", methods)
 		}
-		expectedHeaders := "Authorization, Content-Type, Connect-Protocol-Version, Connect-Timeout-Ms, X-CSRF-Token, Range, If-None-Match, If-Modified-Since, X-Chatto-Asset-Proxy"
-		if headers := w.Header().Get("Access-Control-Allow-Headers"); headers != expectedHeaders {
-			t.Errorf("expected Access-Control-Allow-Headers %q, got %q", expectedHeaders, headers)
+		if headers := w.Header().Get("Access-Control-Allow-Headers"); headers != corsAllowedHeaders {
+			t.Errorf("expected Access-Control-Allow-Headers %q, got %q", corsAllowedHeaders, headers)
 		}
 		if maxAge := w.Header().Get("Access-Control-Max-Age"); maxAge != "86400" {
 			t.Errorf("expected Access-Control-Max-Age '86400', got %q", maxAge)
@@ -237,14 +234,13 @@ func TestCORSMiddleware(t *testing.T) {
 		}
 	})
 
-	t.Run("middleware skips /api/server path", func(t *testing.T) {
+	t.Run("public server discovery connect path uses wildcard CORS even with explicit allowed origins", func(t *testing.T) {
 		s := setupCORSServer(t, config.WebserverConfig{
-			URL: "https://chat.example.com",
+			URL:            "https://chat.example.com",
+			AllowedOrigins: []string{"https://only-this.example.com"},
 		})
 
-		// Request /api/server with a disallowed origin — the middleware
-		// should skip it, and the handler's own setCORSHeaders should set *.
-		req := httptest.NewRequest("GET", "/api/server", nil)
+		req := httptest.NewRequest("POST", serverDiscoveryConnectPath, nil)
 		req.Header.Set("Origin", "https://unknown.example.com")
 		w := httptest.NewRecorder()
 		s.router.ServeHTTP(w, req)
@@ -252,9 +248,41 @@ func TestCORSMiddleware(t *testing.T) {
 		if w.Code != http.StatusOK {
 			t.Fatalf("expected 200, got %d", w.Code)
 		}
-		// The endpoint's own handler sets * regardless of middleware
 		if origin := w.Header().Get("Access-Control-Allow-Origin"); origin != "*" {
-			t.Errorf("expected Access-Control-Allow-Origin '*' from instance_info handler, got %q", origin)
+			t.Errorf("expected Access-Control-Allow-Origin '*' from discovery handler, got %q", origin)
+		}
+		if methods := w.Header().Get("Access-Control-Allow-Methods"); methods != "POST, OPTIONS" {
+			t.Errorf("expected Access-Control-Allow-Methods 'POST, OPTIONS', got %q", methods)
+		}
+		if creds := w.Header().Get("Access-Control-Allow-Credentials"); creds != "" {
+			t.Errorf("expected no Access-Control-Allow-Credentials for public discovery, got %q", creds)
+		}
+	})
+
+	t.Run("public server discovery connect preflight allows JSON Connect headers", func(t *testing.T) {
+		s := setupCORSServer(t, config.WebserverConfig{
+			URL:            "https://chat.example.com",
+			AllowedOrigins: []string{"https://only-this.example.com"},
+		})
+
+		req := httptest.NewRequest("OPTIONS", serverDiscoveryConnectPath, nil)
+		req.Header.Set("Origin", "https://unknown.example.com")
+		req.Header.Set("Access-Control-Request-Method", "POST")
+		req.Header.Set("Access-Control-Request-Headers", "content-type, connect-protocol-version")
+		w := httptest.NewRecorder()
+		s.router.ServeHTTP(w, req)
+
+		if w.Code != http.StatusNoContent {
+			t.Fatalf("expected 204, got %d", w.Code)
+		}
+		if origin := w.Header().Get("Access-Control-Allow-Origin"); origin != "*" {
+			t.Errorf("expected Access-Control-Allow-Origin '*' from discovery preflight, got %q", origin)
+		}
+		headers := w.Header().Get("Access-Control-Allow-Headers")
+		for _, required := range []string{"Content-Type", "Connect-Protocol-Version"} {
+			if !strings.Contains(headers, required) {
+				t.Errorf("expected Access-Control-Allow-Headers to include %q, got %q", required, headers)
+			}
 		}
 	})
 

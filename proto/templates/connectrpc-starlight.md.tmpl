@@ -103,14 +103,14 @@ POST /api/connect/{{$service.FullName}}/{{.Name}}
 
 {{$hasSupportingTypes := false -}}
 {{range .Files}}{{range .Messages -}}
-{{if and (not (regexMatch "Entry$" .Name)) (not (regexMatch "(Request|Response)$" .Name)) -}}
+{{if and (or (not (regexMatch "Entry$" .Name)) (eq .Name "AdminEventLogEntry") (eq .Name "PermissionTraceEntry")) (or (not (regexMatch "(Request|Response)$" .Name)) (eq .Name "PageRequest")) -}}
 {{$hasSupportingTypes = true -}}
 {{end}}{{end}}{{end -}}
 {{if $hasSupportingTypes}}
 ## Supporting Types
 
 {{range .Files}}{{range .Messages -}}
-{{if and (not (regexMatch "Entry$" .Name)) (not (regexMatch "(Request|Response)$" .Name)) -}}
+{{if and (or (not (regexMatch "Entry$" .Name)) (eq .Name "AdminEventLogEntry") (eq .Name "PermissionTraceEntry")) (or (not (regexMatch "(Request|Response)$" .Name)) (eq .Name "PageRequest")) -}}
 <a id="{{.FullName | anchor}}"></a>
 
 ### {{.LongName}}

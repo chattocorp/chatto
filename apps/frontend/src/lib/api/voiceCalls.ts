@@ -44,15 +44,16 @@ export function createVoiceCallAPI(config: VoiceCallAPIConfig) {
     async listCallParticipants(roomId: string): Promise<VoiceCallParticipant[]> {
       const response = await client.listCallParticipants({ roomId }, { headers: headers() });
       return response.participants.flatMap((participant) => {
-        if (!participant.user) return [];
+        const summary = participant.user?.user;
+        if (!summary) return [];
         return [
           {
             user: {
-              id: participant.user.id,
-              login: participant.user.login,
-              displayName: participant.user.displayName,
-              deleted: participant.user.deleted,
-              avatarUrl: participant.user.avatarUrl ?? null
+              id: summary.id,
+              login: summary.login,
+              displayName: summary.displayName,
+              deleted: summary.deleted,
+              avatarUrl: summary.avatarUrl ?? null
             },
             joinedAt: participant.joinedAt?.toDate().toISOString() ?? new Date(0).toISOString(),
             callId: participant.callId

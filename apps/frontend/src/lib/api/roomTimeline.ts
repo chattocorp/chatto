@@ -17,7 +17,7 @@ import type {
   RoomTimelineMessagePosted,
   RoomTimelineVideoProcessing
 } from '$lib/pb/chatto/api/v1/room_timeline_pb';
-import type { UserSummary } from '$lib/pb/chatto/api/v1/users_pb';
+import type { User } from '$lib/pb/chatto/api/v1/users_pb';
 
 export type RoomTimelineAPIConfig = {
   serverId?: string;
@@ -162,7 +162,7 @@ export function createRoomTimelineAPI(config: RoomTimelineAPIConfig): RoomTimeli
 
 function primeTimelineUserIncludes(
   serverId: string | undefined,
-  users: Record<string, UserSummary>
+  users: Record<string, User>
 ) {
   primeUserSummaryCache(
     serverId,
@@ -201,7 +201,7 @@ export function roomTimelinePageToEventConnectionPage(page: RoomTimelinePage): E
 
 export function roomTimelineEventToRawEvent(
   event: RoomTimelineEvent,
-  users: Record<string, UserSummary>
+  users: Record<string, User>
 ): RawEvent | null {
   const payload = timelinePayload(event, users);
   if (!payload) return null;
@@ -216,7 +216,7 @@ export function roomTimelineEventToRawEvent(
 
 function timelinePayload(
   event: RoomTimelineEvent,
-  users: Record<string, UserSummary>
+  users: Record<string, User>
 ): RoomEventView['event'] | null {
   switch (event.event.case) {
     case 'messagePosted':
@@ -263,7 +263,7 @@ function timelinePayload(
 
 function messagePostedPayload(
   message: RoomTimelineMessagePosted,
-  users: Record<string, UserSummary>
+  users: Record<string, User>
 ) {
   return {
     kind: RoomEventKind.MessagePosted,
@@ -295,7 +295,7 @@ function messagePostedPayload(
   };
 }
 
-function userView(userId: string, users: Record<string, UserSummary>) {
+function userView(userId: string, users: Record<string, User>) {
   if (!userId) return null;
   const user = users[userId];
   if (!user) {

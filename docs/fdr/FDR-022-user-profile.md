@@ -72,7 +72,7 @@ A user's profile carries the public identity they present to the rest of the ser
 
 ### 9. Custom status writes use the protobuf-first API
 
-**Decision:** The web client writes custom status through `UserStatusService` on the ConnectRPC `/api/connect` surface. Projected profile reads and realtime profile-change signals are also consumed through the ConnectRPC/realtime surface.
+**Decision:** The web client writes custom status through `AccountService` on the ConnectRPC `/api/connect` surface. Projected profile reads and realtime profile-change signals are also consumed through the ConnectRPC/realtime surface.
 **Why:** Keeping profile writes, projected reads, and live refetch signals on the protobuf-first path avoids transport drift and keeps profile behavior aligned with the rest of the public API migration.
 **Tradeoff:** Clients need to combine request/response profile APIs with the app-session realtime stream rather than relying on one subscription protocol for both.
 

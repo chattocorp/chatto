@@ -1,0 +1,151 @@
+---
+title: ExternalIdentityFlowService
+description: Public pending external-identity confirmation RPCs.
+editUrl: false
+---
+
+{/* Generated from proto/chatto/{api,admin,realtime}/v1/*.proto. Do not edit directly. */}
+
+Chatto exposes this service below `/api/connect`.
+
+
+
+Shared message and enum definitions are documented in [Shared Types And Enums](/reference/connectrpc-api/types/).
+
+
+
+<a id="chatto-api-v1-ExternalIdentityFlowService"></a>
+
+## ExternalIdentityFlowService
+
+Public pending external identity flow operations.
+
+<a id="chatto-api-v1-ExternalIdentityFlowService-GetPendingExternalIdentity"></a>
+
+### GetPendingExternalIdentity
+
+Reads safe metadata for a pending create/link flow.
+
+```http
+POST /api/connect/chatto.api.v1.ExternalIdentityFlowService/GetPendingExternalIdentity
+```
+
+<a id="chatto-api-v1-GetPendingExternalIdentityRequest"></a>
+
+#### Input: GetPendingExternalIdentityRequest
+
+Request to inspect a pending external identity flow.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `token` | `string` | Raw pending flow token from the provider callback redirect. |
+
+
+<a id="chatto-api-v1-GetPendingExternalIdentityResponse"></a>
+
+#### Result: GetPendingExternalIdentityResponse
+
+Result of inspecting a pending external identity flow.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `pending` | [`PendingExternalIdentity`](/reference/connectrpc-api/types/#chatto-api-v1-PendingExternalIdentity) | Pending flow metadata. |
+
+
+<a id="chatto-api-v1-ExternalIdentityFlowService-CreateExternalIdentityAccount"></a>
+
+### CreateExternalIdentityAccount
+
+Creates a passwordless account from a pending provider identity.
+
+```http
+POST /api/connect/chatto.api.v1.ExternalIdentityFlowService/CreateExternalIdentityAccount
+```
+
+<a id="chatto-api-v1-CreateExternalIdentityAccountRequest"></a>
+
+#### Input: CreateExternalIdentityAccountRequest
+
+Request to create a new passwordless account from a pending provider identity.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `token` | `string` | Raw pending create token from the provider callback redirect. |
+| `login` | `string` | Desired Chatto username. |
+
+
+<a id="chatto-api-v1-CreateExternalIdentityAccountResponse"></a>
+
+#### Result: CreateExternalIdentityAccountResponse
+
+Result of creating an account from a pending provider identity.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_id` | `string` | Newly created user ID. |
+| `login` | `string` | Newly created username. |
+| `token` | `string` | Bearer token for the new session. |
+
+
+<a id="chatto-api-v1-ExternalIdentityFlowService-ConfirmExternalIdentityLink"></a>
+
+### ConfirmExternalIdentityLink
+
+Links a provider identity using a pending link-flow capability token.
+
+```http
+POST /api/connect/chatto.api.v1.ExternalIdentityFlowService/ConfirmExternalIdentityLink
+```
+
+<a id="chatto-api-v1-ConfirmExternalIdentityLinkRequest"></a>
+
+#### Input: ConfirmExternalIdentityLinkRequest
+
+Request to confirm a pending provider link using the flow capability token.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `token` | `string` | Raw pending link token from the provider callback redirect. |
+
+
+<a id="chatto-api-v1-ConfirmExternalIdentityLinkResponse"></a>
+
+#### Result: ConfirmExternalIdentityLinkResponse
+
+Result of confirming a provider identity link.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `linked_identity` | [`LinkedExternalIdentity`](/reference/connectrpc-api/types/#chatto-api-v1-LinkedExternalIdentity) | Linked identity metadata. |
+
+
+<a id="chatto-api-v1-ExternalIdentityFlowService-CancelExternalIdentityFlow"></a>
+
+### CancelExternalIdentityFlow
+
+Cancels a pending provider identity flow.
+
+```http
+POST /api/connect/chatto.api.v1.ExternalIdentityFlowService/CancelExternalIdentityFlow
+```
+
+<a id="chatto-api-v1-CancelExternalIdentityFlowRequest"></a>
+
+#### Input: CancelExternalIdentityFlowRequest
+
+Request to cancel a pending external identity flow.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `token` | `string` | Raw pending flow token. |
+
+
+<a id="chatto-api-v1-CancelExternalIdentityFlowResponse"></a>
+
+#### Result: CancelExternalIdentityFlowResponse
+
+Result of cancelling a pending external identity flow.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `cancelled` | `bool` | True when a pending flow was removed or already absent. |

@@ -21,8 +21,8 @@ import (
 const _ = connect.IsAtLeastVersion1_13_0
 
 const (
-	// ServerServiceName is the fully-qualified name of the ServerService service.
-	ServerServiceName = "chatto.api.v1.ServerService"
+	// ServerDiscoveryServiceName is the fully-qualified name of the ServerDiscoveryService service.
+	ServerDiscoveryServiceName = "chatto.api.v1.ServerDiscoveryService"
 )
 
 // These constants are the fully-qualified names of the RPCs defined in this package. They're
@@ -33,82 +33,84 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
-	// ServerServiceGetServerProcedure is the fully-qualified name of the ServerService's GetServer RPC.
-	ServerServiceGetServerProcedure = "/chatto.api.v1.ServerService/GetServer"
+	// ServerDiscoveryServiceGetServerProcedure is the fully-qualified name of the
+	// ServerDiscoveryService's GetServer RPC.
+	ServerDiscoveryServiceGetServerProcedure = "/chatto.api.v1.ServerDiscoveryService/GetServer"
 )
 
-// ServerServiceClient is a client for the chatto.api.v1.ServerService service.
-type ServerServiceClient interface {
+// ServerDiscoveryServiceClient is a client for the chatto.api.v1.ServerDiscoveryService service.
+type ServerDiscoveryServiceClient interface {
 	// Returns public server metadata, branding, registration status, and login
 	// provider information. This RPC is available before login so clients can
 	// render the first server screen and authentication choices.
 	GetServer(context.Context, *connect.Request[v1.GetServerRequest]) (*connect.Response[v1.GetServerResponse], error)
 }
 
-// NewServerServiceClient constructs a client for the chatto.api.v1.ServerService service. By
-// default, it uses the Connect protocol with the binary Protobuf Codec, asks for gzipped responses,
-// and sends uncompressed requests. To use the gRPC or gRPC-Web protocols, supply the
-// connect.WithGRPC() or connect.WithGRPCWeb() options.
+// NewServerDiscoveryServiceClient constructs a client for the chatto.api.v1.ServerDiscoveryService
+// service. By default, it uses the Connect protocol with the binary Protobuf Codec, asks for
+// gzipped responses, and sends uncompressed requests. To use the gRPC or gRPC-Web protocols, supply
+// the connect.WithGRPC() or connect.WithGRPCWeb() options.
 //
 // The URL supplied here should be the base URL for the Connect or gRPC server (for example,
 // http://api.acme.com or https://acme.com/grpc).
-func NewServerServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) ServerServiceClient {
+func NewServerDiscoveryServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) ServerDiscoveryServiceClient {
 	baseURL = strings.TrimRight(baseURL, "/")
-	serverServiceMethods := v1.File_chatto_api_v1_server_proto.Services().ByName("ServerService").Methods()
-	return &serverServiceClient{
+	serverDiscoveryServiceMethods := v1.File_chatto_api_v1_server_proto.Services().ByName("ServerDiscoveryService").Methods()
+	return &serverDiscoveryServiceClient{
 		getServer: connect.NewClient[v1.GetServerRequest, v1.GetServerResponse](
 			httpClient,
-			baseURL+ServerServiceGetServerProcedure,
-			connect.WithSchema(serverServiceMethods.ByName("GetServer")),
+			baseURL+ServerDiscoveryServiceGetServerProcedure,
+			connect.WithSchema(serverDiscoveryServiceMethods.ByName("GetServer")),
 			connect.WithClientOptions(opts...),
 		),
 	}
 }
 
-// serverServiceClient implements ServerServiceClient.
-type serverServiceClient struct {
+// serverDiscoveryServiceClient implements ServerDiscoveryServiceClient.
+type serverDiscoveryServiceClient struct {
 	getServer *connect.Client[v1.GetServerRequest, v1.GetServerResponse]
 }
 
-// GetServer calls chatto.api.v1.ServerService.GetServer.
-func (c *serverServiceClient) GetServer(ctx context.Context, req *connect.Request[v1.GetServerRequest]) (*connect.Response[v1.GetServerResponse], error) {
+// GetServer calls chatto.api.v1.ServerDiscoveryService.GetServer.
+func (c *serverDiscoveryServiceClient) GetServer(ctx context.Context, req *connect.Request[v1.GetServerRequest]) (*connect.Response[v1.GetServerResponse], error) {
 	return c.getServer.CallUnary(ctx, req)
 }
 
-// ServerServiceHandler is an implementation of the chatto.api.v1.ServerService service.
-type ServerServiceHandler interface {
+// ServerDiscoveryServiceHandler is an implementation of the chatto.api.v1.ServerDiscoveryService
+// service.
+type ServerDiscoveryServiceHandler interface {
 	// Returns public server metadata, branding, registration status, and login
 	// provider information. This RPC is available before login so clients can
 	// render the first server screen and authentication choices.
 	GetServer(context.Context, *connect.Request[v1.GetServerRequest]) (*connect.Response[v1.GetServerResponse], error)
 }
 
-// NewServerServiceHandler builds an HTTP handler from the service implementation. It returns the
-// path on which to mount the handler and the handler itself.
+// NewServerDiscoveryServiceHandler builds an HTTP handler from the service implementation. It
+// returns the path on which to mount the handler and the handler itself.
 //
 // By default, handlers support the Connect, gRPC, and gRPC-Web protocols with the binary Protobuf
 // and JSON codecs. They also support gzip compression.
-func NewServerServiceHandler(svc ServerServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
-	serverServiceMethods := v1.File_chatto_api_v1_server_proto.Services().ByName("ServerService").Methods()
-	serverServiceGetServerHandler := connect.NewUnaryHandler(
-		ServerServiceGetServerProcedure,
+func NewServerDiscoveryServiceHandler(svc ServerDiscoveryServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
+	serverDiscoveryServiceMethods := v1.File_chatto_api_v1_server_proto.Services().ByName("ServerDiscoveryService").Methods()
+	serverDiscoveryServiceGetServerHandler := connect.NewUnaryHandler(
+		ServerDiscoveryServiceGetServerProcedure,
 		svc.GetServer,
-		connect.WithSchema(serverServiceMethods.ByName("GetServer")),
+		connect.WithSchema(serverDiscoveryServiceMethods.ByName("GetServer")),
 		connect.WithHandlerOptions(opts...),
 	)
-	return "/chatto.api.v1.ServerService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	return "/chatto.api.v1.ServerDiscoveryService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case ServerServiceGetServerProcedure:
-			serverServiceGetServerHandler.ServeHTTP(w, r)
+		case ServerDiscoveryServiceGetServerProcedure:
+			serverDiscoveryServiceGetServerHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
 	})
 }
 
-// UnimplementedServerServiceHandler returns CodeUnimplemented from all methods.
-type UnimplementedServerServiceHandler struct{}
+// UnimplementedServerDiscoveryServiceHandler returns CodeUnimplemented from all methods.
+type UnimplementedServerDiscoveryServiceHandler struct{}
 
-func (UnimplementedServerServiceHandler) GetServer(context.Context, *connect.Request[v1.GetServerRequest]) (*connect.Response[v1.GetServerResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.ServerService.GetServer is not implemented"))
+func (UnimplementedServerDiscoveryServiceHandler) GetServer(context.Context, *connect.Request[v1.GetServerRequest]) (*connect.Response[v1.GetServerResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.ServerDiscoveryService.GetServer is not implemented"))
 }

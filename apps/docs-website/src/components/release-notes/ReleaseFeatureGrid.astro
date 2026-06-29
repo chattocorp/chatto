@@ -1,0 +1,138 @@
+<section class="release-feature-grid" data-release-feature-grid>
+  <slot />
+</section>
+
+<script>
+  const grids = document.querySelectorAll<HTMLElement>("[data-release-feature-grid]");
+
+  const parseGap = (value: string): number => {
+    const parsed = Number.parseFloat(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  };
+
+  const itemSpan = (item: HTMLElement, columnCount: number): number => {
+    const raw = Number.parseInt(getComputedStyle(item).getPropertyValue("--release-lane-span"), 10);
+    if (!Number.isFinite(raw) || raw < 1) return 1;
+    return Math.min(raw, columnCount);
+  };
+
+  const layoutGrid = (grid: HTMLElement): void => {
+    const items = Array.from(grid.children).filter(
+      (child): child is HTMLElement => child instanceof HTMLElement
+    );
+    if (items.length === 0) return;
+
+    const styles = getComputedStyle(grid);
+    const gap = parseGap(styles.columnGap || styles.gap);
+    const gridWidth = grid.clientWidth;
+    const columnCount = Number.parseInt(
+      styles.getPropertyValue("--release-lane-count").trim(),
+      10
+    );
+    if (!Number.isFinite(columnCount) || columnCount < 1 || gridWidth <= 0) return;
+
+    grid.classList.add("release-feature-grid-polyfilled");
+
+    const columnWidth = (gridWidth - gap * (columnCount - 1)) / columnCount;
+    const laneHeights = Array.from({ length: columnCount }, () => 0);
+
+    for (const item of items) {
+      const span = itemSpan(item, columnCount);
+      const width = columnWidth * span + gap * (span - 1);
+      item.style.width = `${width}px`;
+      item.style.position = "absolute";
+
+      const maxStart = columnCount - span;
+      let bestStart = 0;
+      let bestTop = Number.POSITIVE_INFINITY;
+
+      for (let start = 0; start <= maxStart; start += 1) {
+        const top = Math.max(...laneHeights.slice(start, start + span));
+        if (top < bestTop) {
+          bestTop = top;
+          bestStart = start;
+        }
+      }
+
+      const left = bestStart * (columnWidth + gap);
+      item.style.transform = `translate(${left}px, ${bestTop}px)`;
+
+      const bottom = bestTop + item.offsetHeight + gap;
+      for (let lane = bestStart; lane < bestStart + span; lane += 1) {
+        laneHeights[lane] = bottom;
+      }
+    }
+
+    grid.style.height = `${Math.max(...laneHeights)}px`;
+  };
+
+  const resetGrid = (grid: HTMLElement): void => {
+    grid.classList.remove("release-feature-grid-polyfilled");
+    grid.style.height = "";
+    for (const item of Array.from(grid.children)) {
+      if (!(item instanceof HTMLElement)) continue;
+      item.style.position = "";
+      item.style.transform = "";
+      item.style.width = "";
+    }
+  };
+
+  const initializeGrid = (grid: HTMLElement): void => {
+    if (CSS.supports("display", "grid-lanes")) {
+      resetGrid(grid);
+      return;
+    }
+
+    let frame = 0;
+    const schedule = () => {
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(() => layoutGrid(grid));
+    };
+
+    schedule();
+
+    const observer = new ResizeObserver(schedule);
+    observer.observe(grid);
+    for (const item of Array.from(grid.children)) {
+      if (item instanceof HTMLElement) observer.observe(item);
+    }
+
+    if (document.fonts) {
+      document.fonts.ready.then(schedule).catch(() => undefined);
+    }
+  };
+
+  for (const grid of grids) {
+    initializeGrid(grid);
+  }
+</script>
+
+<style>
+  .release-feature-grid {
+    --release-lane-count: 4;
+    display: grid;
+    display: grid-lanes;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 1rem;
+    margin-block: 1.5rem 2.5rem;
+  }
+
+  .release-feature-grid-polyfilled {
+    display: block;
+    position: relative;
+  }
+
+  @media (max-width: 42rem) {
+    .release-feature-grid {
+      --release-lane-count: 2;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 36rem) {
+    .release-feature-grid {
+      --release-lane-count: 1;
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

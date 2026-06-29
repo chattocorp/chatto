@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPermissionAPI } from './permissions';
-import { PermissionDecision, PermissionScopeKind } from '$lib/pb/chatto/api/v1/permissions_pb';
+import { PermissionDecision, PermissionScopeKind } from '$lib/pb/chatto/admin/v1/permissions_pb';
 
 const mocks = vi.hoisted(() => ({
   createClient: vi.fn(),
@@ -66,7 +66,7 @@ describe('createPermissionAPI', () => {
     const result = await api.getRolePermissionTierMatrix({ roomId: 'R1', groupId: null });
 
     expect(mocks.getRolePermissionTierMatrix).toHaveBeenCalledWith(
-      { roomId: 'R1', groupId: '' },
+      { scope: { kind: PermissionScopeKind.ROOM, id: 'R1' } },
       { headers: { Authorization: 'Bearer token' } }
     );
     expect(result).toEqual({

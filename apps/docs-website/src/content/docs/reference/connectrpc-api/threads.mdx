@@ -1,0 +1,123 @@
+---
+title: ThreadService
+description: Thread follow and followed-thread listing RPCs.
+editUrl: false
+---
+
+{/* Generated from proto/chatto/{api,admin,realtime}/v1/*.proto. Do not edit directly. */}
+
+Chatto exposes this service below `/api/connect`.
+
+
+
+Shared message and enum definitions are documented in [Shared Types And Enums](/reference/connectrpc-api/types/).
+
+
+
+<a id="chatto-api-v1-ThreadService"></a>
+
+## ThreadService
+
+Manages thread follow state for the current user.
+
+<a id="chatto-api-v1-ThreadService-ListFollowedThreads"></a>
+
+### ListFollowedThreads
+
+Returns followed threads for the current user, including enough root-message
+data for clients to render the list without extra per-field fetches.
+
+```http
+POST /api/connect/chatto.api.v1.ThreadService/ListFollowedThreads
+```
+
+<a id="chatto-api-v1-ListFollowedThreadsRequest"></a>
+
+#### Input: ListFollowedThreadsRequest
+
+Request for a page of followed threads for the current user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `page` | [`PageRequest`](/reference/connectrpc-api/types/#chatto-api-v1-PageRequest) | Page request. Defaults to 20 results when absent or limit is zero. |
+
+
+<a id="chatto-api-v1-ListFollowedThreadsResponse"></a>
+
+#### Result: ListFollowedThreadsResponse
+
+Response containing one followed-thread page.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `threads` | repeated [`FollowedThread`](/reference/connectrpc-api/types/#chatto-api-v1-FollowedThread) | Followed threads in newest-activity-first order. |
+| `includes` | [`RoomTimelineIncludes`](/reference/connectrpc-api/types/#chatto-api-v1-RoomTimelineIncludes) | Related entities needed to render root messages. |
+| `page` | [`PageInfo`](/reference/connectrpc-api/types/#chatto-api-v1-PageInfo) | Page metadata. |
+
+
+<a id="chatto-api-v1-ThreadService-FollowThread"></a>
+
+### FollowThread
+
+Follows a thread for the current user. Followed threads can be surfaced in
+clients and can participate in thread notification behavior.
+
+```http
+POST /api/connect/chatto.api.v1.ThreadService/FollowThread
+```
+
+<a id="chatto-api-v1-FollowThreadRequest"></a>
+
+#### Input: FollowThreadRequest
+
+Request to follow one message thread.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room containing the thread. |
+| `thread_root_event_id` | `string` | Required. Event ID of the root message for the thread. |
+
+
+<a id="chatto-api-v1-FollowThreadResponse"></a>
+
+#### Result: FollowThreadResponse
+
+Result of following a thread.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `following` | `bool` | True when the current user follows the thread after the operation. |
+
+
+<a id="chatto-api-v1-ThreadService-UnfollowThread"></a>
+
+### UnfollowThread
+
+Stops following a thread for the current user. The response reports the
+resulting follow state so clients can update local UI immediately.
+
+```http
+POST /api/connect/chatto.api.v1.ThreadService/UnfollowThread
+```
+
+<a id="chatto-api-v1-UnfollowThreadRequest"></a>
+
+#### Input: UnfollowThreadRequest
+
+Request to stop following one message thread.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room containing the thread. |
+| `thread_root_event_id` | `string` | Required. Event ID of the root message for the thread. |
+
+
+<a id="chatto-api-v1-UnfollowThreadResponse"></a>
+
+#### Result: UnfollowThreadResponse
+
+Result of unfollowing a thread.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `following` | `bool` | True when the current user follows the thread after the operation. |

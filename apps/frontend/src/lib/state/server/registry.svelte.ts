@@ -4,6 +4,7 @@ import { serverConnectionManager } from './serverConnection.svelte';
 import { eventBusManager } from './eventBus.svelte';
 import { Codecs, globalSlot } from '$lib/storage/slot';
 import { clearAssetProxyCache } from '$lib/pwa/assetProxy';
+import { getPublicServerInfo } from '$lib/api/server';
 
 /**
  * A registered Chatto server in the multi-server client.
@@ -13,7 +14,7 @@ export interface RegisteredServer {
 	id: string;
 	/** Base URL (e.g., "https://chat.example.com") */
 	url: string;
-	/** Server display name (fetched from /api/server) */
+	/** Server display name (fetched from ServerDiscoveryService.GetServer) */
 	name: string;
 	/** Server icon URL, or null if none */
 	iconUrl: string | null;
@@ -46,7 +47,7 @@ export interface AuthenticatedUserSummary {
 export function generateServerId(url: string, existingIds: string[] = []): string {
 	let hostname: string;
 	try {
-		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- extracting hostname string, URL not stored
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- this helper parses an input string once; no reactive URL state is needed
 		hostname = new URL(url).hostname;
 	} catch {
 		hostname = url.replace(/[^a-z0-9-]/gi, '-');
@@ -139,9 +140,9 @@ class ServerRegistry {
 	 * synchronously with a placeholder name — the store's serverInfo.init()
 	 * fetches the real name.
 	 *
-	 * When `knownServer` is false, probes /api/server first. If it responds,
-	 * the origin is a Chatto server — register it. If it fails (static hosting),
-	 * nothing happens.
+	 * When `knownServer` is false, probes ServerDiscoveryService.GetServer first.
+	 * If it responds, the origin is a Chatto server — register it. If it fails
+	 * (static hosting), nothing happens.
 	 *
 	 * No-ops if the origin is already registered (e.g., from localStorage).
 	 */
@@ -166,17 +167,15 @@ class ServerRegistry {
 		}
 
 		// Async probe — detect if the origin is a Chatto server
-		fetch(`${origin}/api/server`)
-			.then((r) => {
-				if (!r.ok) return;
-				return r.json();
-			})
-			.then((data) => {
-				if (!data) return;
+		getPublicServerInfo(origin)
+			.then((info) => {
 				if (this.originServer) return; // Registered while we were fetching
 
-				const id = generateServerId(origin, this.servers.map((s) => s.id));
-				this.#registerOrigin(id, origin, data.name || 'Chatto', data.iconUrl ?? null);
+				const id = generateServerId(
+					origin,
+					this.servers.map((s) => s.id)
+				);
+				this.#registerOrigin(id, origin, info.name || 'Chatto', info.iconUrl ?? null);
 				this.settleOriginUnauthenticated();
 			})
 			.catch(() => {

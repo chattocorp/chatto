@@ -1,0 +1,146 @@
+---
+title: ExternalIdentityService
+description: Authenticated external identity listing, linking, and disconnect RPCs.
+editUrl: false
+---
+
+{/* Generated from proto/chatto/{api,admin,realtime}/v1/*.proto. Do not edit directly. */}
+
+Chatto exposes this service below `/api/connect`.
+
+
+
+Shared message and enum definitions are documented in [Shared Types And Enums](/reference/connectrpc-api/types/).
+
+
+
+<a id="chatto-api-v1-ExternalIdentityService"></a>
+
+## ExternalIdentityService
+
+Authenticated external identity management.
+
+<a id="chatto-api-v1-ExternalIdentityService-ListExternalIdentities"></a>
+
+### ListExternalIdentities
+
+Lists providers and identities linked to the authenticated account.
+
+```http
+POST /api/connect/chatto.api.v1.ExternalIdentityService/ListExternalIdentities
+```
+
+<a id="chatto-api-v1-ListExternalIdentitiesRequest"></a>
+
+#### Input: ListExternalIdentitiesRequest
+
+Request to list configured and linked external identities for the current user.
+
+
+<a id="chatto-api-v1-ListExternalIdentitiesResponse"></a>
+
+#### Result: ListExternalIdentitiesResponse
+
+Result of listing configured and linked external identities.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `providers` | repeated [`ExternalIdentityProvider`](/reference/connectrpc-api/types/#chatto-api-v1-ExternalIdentityProvider) | Configured providers the user may link. |
+| `linked_identities` | repeated [`LinkedExternalIdentity`](/reference/connectrpc-api/types/#chatto-api-v1-LinkedExternalIdentity) | Provider identities already linked to the authenticated user. |
+
+
+<a id="chatto-api-v1-ExternalIdentityService-StartExternalIdentityLink"></a>
+
+### StartExternalIdentityLink
+
+Creates a short-lived browser handoff URL for linking a provider identity.
+
+```http
+POST /api/connect/chatto.api.v1.ExternalIdentityService/StartExternalIdentityLink
+```
+
+<a id="chatto-api-v1-StartExternalIdentityLinkRequest"></a>
+
+#### Input: StartExternalIdentityLinkRequest
+
+Request to start linking a configured provider to the current user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `provider_id` | `string` | Provider ID to link. |
+| `redirect_path` | `string` | Internal path to return to after confirmation. |
+
+
+<a id="chatto-api-v1-StartExternalIdentityLinkResponse"></a>
+
+#### Result: StartExternalIdentityLinkResponse
+
+Result of preparing an external identity link flow.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `start_url` | `string` | Browser URL that starts provider authorization on the target server origin. |
+
+
+<a id="chatto-api-v1-ExternalIdentityService-LinkExternalIdentity"></a>
+
+### LinkExternalIdentity
+
+Links a pending provider identity to the authenticated account.
+
+```http
+POST /api/connect/chatto.api.v1.ExternalIdentityService/LinkExternalIdentity
+```
+
+<a id="chatto-api-v1-LinkExternalIdentityRequest"></a>
+
+#### Input: LinkExternalIdentityRequest
+
+Request to link a pending provider identity to the authenticated user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `token` | `string` | Raw pending link token from the provider callback redirect. |
+
+
+<a id="chatto-api-v1-LinkExternalIdentityResponse"></a>
+
+#### Result: LinkExternalIdentityResponse
+
+Result of linking a provider identity.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `linked_identity` | [`LinkedExternalIdentity`](/reference/connectrpc-api/types/#chatto-api-v1-LinkedExternalIdentity) | Linked identity metadata. |
+
+
+<a id="chatto-api-v1-ExternalIdentityService-DisconnectExternalIdentity"></a>
+
+### DisconnectExternalIdentity
+
+Disconnects a provider identity from the authenticated account.
+
+```http
+POST /api/connect/chatto.api.v1.ExternalIdentityService/DisconnectExternalIdentity
+```
+
+<a id="chatto-api-v1-DisconnectExternalIdentityRequest"></a>
+
+#### Input: DisconnectExternalIdentityRequest
+
+Request to disconnect a linked provider identity from the authenticated user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `subject_hash` | `string` | Stable one-way subject hash of the linked identity to disconnect. |
+
+
+<a id="chatto-api-v1-DisconnectExternalIdentityResponse"></a>
+
+#### Result: DisconnectExternalIdentityResponse
+
+Result of disconnecting a provider identity.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `disconnected` | `bool` | True when the identity was disconnected. |

@@ -8,7 +8,7 @@ import {
 	RoomTimelineIncludes,
 	RoomTimelineMessagePosted
 } from '$lib/pb/chatto/api/v1/room_timeline_pb';
-import { UserSummary } from '$lib/pb/chatto/api/v1/users_pb';
+import { User } from '$lib/pb/chatto/api/v1/users_pb';
 
 const mocks = vi.hoisted(() => ({
 	createClient: vi.fn(),
@@ -83,7 +83,7 @@ describe('createMessageAPI', () => {
 				},
 				includes: new RoomTimelineIncludes({
 					users: {
-						'user-1': new UserSummary({
+						'user-1': new User({
 							id: 'user-1',
 							login: 'alice',
 							displayName: 'Alice'

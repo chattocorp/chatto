@@ -1,6 +1,6 @@
 import { Code, ConnectError, createClient } from '@connectrpc/connect';
 import { createConnectTransport } from '@connectrpc/connect-web';
-import { PresenceService } from '$lib/pb/chatto/api/v1/presence_connect';
+import { AccountService } from '$lib/pb/chatto/api/v1/account_connect';
 import { PresenceStatus } from '$lib/pb/chatto/api/v1/presence_pb';
 import { serverRegistry } from '$lib/state/server/registry.svelte';
 
@@ -17,7 +17,7 @@ export function createPresenceAPI(config: PresenceAPIConfig) {
 		baseUrl: config.baseUrl,
 		useBinaryFormat: true
 	});
-	const client = createClient(PresenceService, transport);
+	const client = createClient(AccountService, transport);
 	const headers = () =>
 		config.bearerToken ? { Authorization: `Bearer ${config.bearerToken}` } : undefined;
 
