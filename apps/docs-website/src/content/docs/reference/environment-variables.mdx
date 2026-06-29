@@ -131,30 +131,18 @@ The exporter exposes deployment-wide Chatto metrics. Run it as `chatto exporter`
   Write a Go CPU profile covering process startup through core boot to this path. Useful for local projection replay benchmarking; disabled when empty.
 </EnvVar>
 
-## Admin API
+## Operator API
 
-<EnvVar name="CHATTO_ADMIN_API_ENABLED" toml="admin_api.enabled" default="false">
-  Enable the dedicated Admin API listener for operator-token automation through `chatto admin ...` or another trusted operator client. The normal public listener does not accept these tokens.
+<EnvVar name="CHATTO_OPERATOR_API_ENABLED" toml="operator_api.enabled" default="false">
+  Enable the local root-equivalent Operator API Unix socket for `chatto operator ...` commands. The public web listener never serves this API.
 </EnvVar>
 
-<EnvVar name="CHATTO_ADMIN_API_BIND_ADDRESS" toml="admin_api.bind_address" default="127.0.0.1">
-  Address to bind the dedicated Admin API listener. Keep this on localhost unless a trusted private network or sidecar needs direct access.
+<EnvVar name="CHATTO_OPERATOR_API_SOCKET_PATH" toml="operator_api.socket_path" default="/tmp/chatto/operator.sock">
+  Unix socket path for local operator commands. Docker users should normally run `chatto operator ...` inside the running container with `docker exec`.
 </EnvVar>
 
-<EnvVar name="CHATTO_ADMIN_API_PORT" toml="admin_api.port" default="4021">
-  Port for the dedicated Admin API listener.
-</EnvVar>
-
-<EnvVar name="CHATTO_ADMIN_API_TOKENS_<index>_NAME" toml="admin_api.tokens[].name">
-  Counted token name for an Admin API bearer token. Indexes start at `0` and must not have gaps.
-</EnvVar>
-
-<EnvVar name="CHATTO_ADMIN_API_TOKENS_<index>_TOKEN" toml="admin_api.tokens[].token">
-  Bearer token accepted by the dedicated Admin API listener for this named token entry. Tokens must be at least 32 characters. At least one token entry is required when `admin_api.enabled = true`. Treat each token like a root operator secret.
-</EnvVar>
-
-<EnvVar name="CHATTO_ADMIN_API_TOKENS_<index>_ALLOWED_CIDRS" toml="admin_api.tokens[].allowed_cidrs" default="127.0.0.1/32,::1/128">
-  Comma-separated CIDR ranges allowed to use this Admin API token on the dedicated listener. The server checks the direct TCP peer address, not forwarded headers.
+<EnvVar name="CHATTO_OPERATOR_API_SOCKET_MODE" toml="operator_api.socket_mode" default="0660">
+  Unix socket permissions in octal. Chatto refuses to start if an existing operator socket has a different mode.
 </EnvVar>
 
 ## Core

@@ -2,14 +2,13 @@ package cmd
 
 import (
 	"bufio"
+	"context"
 	"errors"
 	"fmt"
 	"io"
 	"net"
 	"net/http"
-	"net/url"
 	"os"
-	"strconv"
 	"strings"
 	"syscall"
 
@@ -22,38 +21,33 @@ import (
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/connectapi"
 	adminv1 "hmans.de/chatto/internal/pb/chatto/admin/v1"
-	"hmans.de/chatto/internal/pb/chatto/admin/v1/adminv1connect"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
+	operatorv1 "hmans.de/chatto/internal/pb/chatto/operator/v1"
+	"hmans.de/chatto/internal/pb/chatto/operator/v1/operatorv1connect"
 )
 
-var adminConfigFile string
-var adminAPIURL string
-var adminAPIToken string
-var adminAPITokenFile string
-var adminAPITokenName string
-var adminOutputJSON bool
+var operatorConfigFile string
+var operatorSocketPath string
+var operatorOutputJSON bool
 
-var adminCmd = &cobra.Command{
-	Use:   "admin",
-	Short: "Operator administration commands",
+var operatorCmd = &cobra.Command{
+	Use:   "operator",
+	Short: "Local operator commands",
 }
 
-var adminUserCmd = &cobra.Command{
+var operatorUserCmd = &cobra.Command{
 	Use:   "user",
-	Short: "Manage users through the Admin API",
+	Short: "Manage users through the local operator API",
 }
 
 func init() {
-	rootCmd.AddCommand(adminCmd)
-	adminCmd.AddCommand(adminUserCmd)
-	adminCmd.PersistentFlags().StringVarP(&adminConfigFile, "config", "c", "", "path to configuration file (default: chatto.toml)")
-	adminCmd.PersistentFlags().StringVar(&adminAPIURL, "url", "", "server URL or ConnectRPC base URL (default: webserver.url from config/env)")
-	adminCmd.PersistentFlags().StringVar(&adminAPIToken, "admin-token", "", "Admin API bearer token; prefer --admin-token-file or CHATTO_ADMIN_API_TOKEN for automation")
-	adminCmd.PersistentFlags().StringVar(&adminAPITokenFile, "admin-token-file", "", "file containing the Admin API bearer token")
-	adminCmd.PersistentFlags().StringVar(&adminAPITokenName, "admin-token-name", "", "name of admin_api.tokens entry to use when reading token from config")
-	adminCmd.PersistentFlags().BoolVar(&adminOutputJSON, "json", false, "print JSON output")
+	rootCmd.AddCommand(operatorCmd)
+	operatorCmd.AddCommand(operatorUserCmd)
+	operatorCmd.PersistentFlags().StringVarP(&operatorConfigFile, "config", "c", "", "path to configuration file (default: chatto.toml)")
+	operatorCmd.PersistentFlags().StringVar(&operatorSocketPath, "operator-socket", "", "operator API Unix socket path")
+	operatorCmd.PersistentFlags().BoolVar(&operatorOutputJSON, "json", false, "print JSON output")
 
-	adminUserCmd.AddCommand(
+	operatorUserCmd.AddCommand(
 		adminUserListCmd(),
 		adminUserGetCmd(),
 		adminUserCreateCmd(),
@@ -73,7 +67,7 @@ func adminUserListCmd() *cobra.Command {
 		Use:   "list",
 		Short: "List users",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			client, err := newAdminAPIClient()
+			client, err := newOperatorAPIClient()
 			if err != nil {
 				return err
 			}
@@ -87,7 +81,7 @@ func adminUserListCmd() *cobra.Command {
 			if offset < 0 {
 				return errors.New("--offset must be greater than or equal to 0")
 			}
-			resp, err := client.ListMembers(cmd.Context(), adminRequest(&adminv1.ListMembersRequest{
+			resp, err := client.ListUsers(cmd.Context(), adminRequest(&operatorv1.ListUsersRequest{
 				Search: search,
 				Page: &apiv1.PageRequest{
 					Limit:  requestLimit,
@@ -125,11 +119,11 @@ func adminUserGetCmd() *cobra.Command {
 			if (strings.TrimSpace(userID) == "") == (strings.TrimSpace(login) == "") {
 				return errors.New("provide exactly one of --id or --login")
 			}
-			client, err := newAdminAPIClient()
+			client, err := newOperatorAPIClient()
 			if err != nil {
 				return err
 			}
-			resp, err := client.GetMember(cmd.Context(), adminRequest(&adminv1.GetMemberRequest{UserId: userID, Login: login}))
+			resp, err := client.GetUser(cmd.Context(), adminRequest(&operatorv1.GetUserRequest{UserId: userID, Login: login}))
 			if err != nil {
 				return err
 			}
@@ -182,11 +176,11 @@ func adminUserCreateCmd() *cobra.Command {
 				}
 				password = prompted
 			}
-			client, err := newAdminAPIClient()
+			client, err := newOperatorAPIClient()
 			if err != nil {
 				return err
 			}
-			resp, err := client.CreateUser(cmd.Context(), adminRequest(&adminv1.CreateUserRequest{
+			resp, err := client.CreateUser(cmd.Context(), adminRequest(&operatorv1.CreateUserRequest{
 				Login:         login,
 				DisplayName:   displayName,
 				Password:      password,
@@ -218,7 +212,7 @@ func adminUserUpdateCmd() *cobra.Command {
 		Short: "Update a user's profile fields",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			req := &adminv1.UpdateUserRequest{UserId: args[0]}
+			req := &operatorv1.UpdateUserRequest{UserId: args[0]}
 			if cmd.Flags().Changed("login") {
 				req.Login = &login
 			}
@@ -228,7 +222,7 @@ func adminUserUpdateCmd() *cobra.Command {
 			if req.Login == nil && req.DisplayName == nil {
 				return errors.New("provide --login and/or --display-name")
 			}
-			client, err := newAdminAPIClient()
+			client, err := newOperatorAPIClient()
 			if err != nil {
 				return err
 			}
@@ -285,11 +279,11 @@ func adminUserSetPasswordCmd() *cobra.Command {
 			if password == "" {
 				return errors.New("password cannot be empty")
 			}
-			client, err := newAdminAPIClient()
+			client, err := newOperatorAPIClient()
 			if err != nil {
 				return err
 			}
-			resp, err := client.SetUserPassword(cmd.Context(), adminRequest(&adminv1.SetUserPasswordRequest{
+			resp, err := client.SetUserPassword(cmd.Context(), adminRequest(&operatorv1.SetUserPasswordRequest{
 				UserId:   args[0],
 				Password: password,
 			}))
@@ -321,11 +315,11 @@ func adminUserDeleteCmd() *cobra.Command {
 					return err
 				}
 			}
-			client, err := newAdminAPIClient()
+			client, err := newOperatorAPIClient()
 			if err != nil {
 				return err
 			}
-			resp, err := client.DeleteUser(cmd.Context(), adminRequest(&adminv1.DeleteUserRequest{UserId: args[0]}))
+			resp, err := client.DeleteUser(cmd.Context(), adminRequest(&operatorv1.DeleteUserRequest{UserId: args[0]}))
 			if err != nil {
 				return err
 			}
@@ -343,11 +337,11 @@ func adminUserAddEmailCmd() *cobra.Command {
 		Short: "Add a verified email address",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			client, err := newAdminAPIClient()
+			client, err := newOperatorAPIClient()
 			if err != nil {
 				return err
 			}
-			resp, err := client.AddVerifiedEmail(cmd.Context(), adminRequest(&adminv1.AddVerifiedEmailRequest{
+			resp, err := client.AddVerifiedEmail(cmd.Context(), adminRequest(&operatorv1.AddVerifiedEmailRequest{
 				UserId: args[0],
 				Email:  args[1],
 			}))
@@ -370,11 +364,11 @@ func adminUserRoleCmd() *cobra.Command {
 		Short: "Assign a role",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			client, err := newAdminAPIClient()
+			client, err := newOperatorAPIClient()
 			if err != nil {
 				return err
 			}
-			resp, err := client.AssignRole(cmd.Context(), adminRequest(&adminv1.AssignRoleRequest{
+			resp, err := client.AssignRole(cmd.Context(), adminRequest(&operatorv1.AssignRoleRequest{
 				UserId:   args[0],
 				RoleName: args[1],
 			}))
@@ -391,11 +385,11 @@ func adminUserRoleCmd() *cobra.Command {
 		Short:   "Revoke a role",
 		Args:    cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			client, err := newAdminAPIClient()
+			client, err := newOperatorAPIClient()
 			if err != nil {
 				return err
 			}
-			resp, err := client.RevokeRole(cmd.Context(), adminRequest(&adminv1.RevokeRoleRequest{
+			resp, err := client.RevokeRole(cmd.Context(), adminRequest(&operatorv1.RevokeRoleRequest{
 				UserId:   args[0],
 				RoleName: args[1],
 			}))
@@ -409,160 +403,46 @@ func adminUserRoleCmd() *cobra.Command {
 	return roleCmd
 }
 
-func newAdminAPIClient() (adminv1connect.AdminMemberServiceClient, error) {
-	resolved, err := resolveAdminAPIClientConfig()
+func newOperatorAPIClient() (operatorv1connect.OperatorUserServiceClient, error) {
+	resolved, err := resolveOperatorAPIClientConfig()
 	if err != nil {
 		return nil, err
 	}
-	httpClient := &http.Client{Transport: adminTokenTransport{
-		token: resolved.token,
-		base:  http.DefaultTransport,
-	}}
-	return adminv1connect.NewAdminMemberServiceClient(httpClient, resolved.connectBaseURL), nil
+	httpClient := &http.Client{Transport: newOperatorSocketTransport(resolved.socketPath)}
+	return operatorv1connect.NewOperatorUserServiceClient(httpClient, resolved.connectBaseURL), nil
 }
 
-type resolvedAdminAPIConfig struct {
+type resolvedOperatorAPIConfig struct {
 	connectBaseURL string
-	token          string
+	socketPath     string
 }
 
-func resolveAdminAPIClientConfig() (resolvedAdminAPIConfig, error) {
-	envURL := strings.TrimSpace(os.Getenv("CHATTO_WEBSERVER_URL"))
-	envToken := strings.TrimSpace(os.Getenv("CHATTO_ADMIN_API_TOKEN"))
-	if err := validateSecretSources("--admin-token", adminAPIToken != "", "--admin-token-file", adminAPITokenFile != ""); err != nil {
-		return resolvedAdminAPIConfig{}, err
+func resolveOperatorAPIClientConfig() (resolvedOperatorAPIConfig, error) {
+	resolved := resolvedOperatorAPIConfig{
+		connectBaseURL: "http://chatto-operator" + connectapi.Prefix,
+		socketPath:     strings.TrimSpace(operatorSocketPath),
 	}
-	resolved := resolvedAdminAPIConfig{
-		connectBaseURL: strings.TrimSpace(adminAPIURL),
-		token:          strings.TrimSpace(adminAPIToken),
+	if envSocketPath := strings.TrimSpace(os.Getenv("CHATTO_OPERATOR_API_SOCKET_PATH")); resolved.socketPath == "" && envSocketPath != "" {
+		resolved.socketPath = envSocketPath
 	}
-	if resolved.token == "" && adminAPITokenFile != "" {
-		token, err := readTokenFile(adminAPITokenFile)
-		if err != nil {
-			return resolved, err
-		}
-		resolved.token = token
-	}
-	tokenName := strings.TrimSpace(adminAPITokenName)
-	if envTokenName := strings.TrimSpace(os.Getenv("CHATTO_ADMIN_API_TOKEN_NAME")); tokenName == "" && envTokenName != "" {
-		tokenName = envTokenName
-	}
-	explicitURL := resolved.connectBaseURL != ""
-	if resolved.token == "" && envToken != "" {
-		resolved.token = envToken
-	}
-
-	cfg, cfgErr := readAdminAPIConfigFile(adminConfigFile)
+	cfg, cfgErr := readOperatorConfigFile(operatorConfigFile)
 	if cfgErr != nil {
 		return resolved, cfgErr
 	}
-	if err := applyAdminAPIEndpointEnv(&cfg); err != nil {
-		return resolved, err
+	if resolved.socketPath == "" {
+		resolved.socketPath = cfg.OperatorAPI.SocketPathOrDefault()
 	}
-	configuredURL := strings.TrimSpace(cfg.Webserver.URL)
-	if envURL != "" {
-		configuredURL = envURL
-	}
-	if cfg.AdminAPI.Enabled {
-		configuredURL = cfg.AdminAPI.URLOrDefault()
-	}
-	if envTokens, envTokensSet, err := config.AdminAPITokensFromEnv(); err != nil {
-		return resolved, err
-	} else if envTokensSet {
-		cfg.AdminAPI.Tokens = envTokens
-	}
-	if resolved.connectBaseURL == "" {
-		if cfg.AdminAPI.Enabled {
-			resolved.connectBaseURL = cfg.AdminAPI.URLOrDefault()
-		} else if envURL != "" {
-			resolved.connectBaseURL = envURL
-		} else if cfg.Webserver.URL != "" {
-			resolved.connectBaseURL = cfg.Webserver.URL
-		}
-	}
-	if resolved.token == "" {
-		if explicitURL && !adminAPIURLMatchesConfig(resolved.connectBaseURL, configuredURL) {
-			return resolved, errors.New("refusing to send admin_api.tokens from config/env to an overridden admin API URL; set --admin-token or CHATTO_ADMIN_API_TOKEN")
-		}
-		token, err := selectAdminAPIConfigToken(cfg.AdminAPI.Tokens, tokenName)
-		if err != nil {
-			return resolved, err
-		}
-		resolved.token = token
-	}
-	if resolved.connectBaseURL == "" {
-		return resolved, errors.New("admin API URL is required; set --url, CHATTO_WEBSERVER_URL, or webserver.url")
-	}
-	if resolved.token == "" {
-		return resolved, errors.New("admin API token is required; set --admin-token, CHATTO_ADMIN_API_TOKEN, or admin_api.tokens")
-	}
-	baseURL, err := connectBaseURL(resolved.connectBaseURL)
-	if err != nil {
-		return resolved, err
-	}
-	resolved.connectBaseURL = baseURL
 	return resolved, nil
 }
 
-func applyAdminAPIEndpointEnv(cfg *config.ChattoConfig) error {
-	if v := strings.TrimSpace(os.Getenv("CHATTO_ADMIN_API_ENABLED")); v != "" {
-		enabled, err := strconv.ParseBool(v)
-		if err != nil {
-			return fmt.Errorf("invalid CHATTO_ADMIN_API_ENABLED: %w", err)
-		}
-		cfg.AdminAPI.Enabled = enabled
-	}
-	if v := strings.TrimSpace(os.Getenv("CHATTO_ADMIN_API_BIND_ADDRESS")); v != "" {
-		cfg.AdminAPI.BindAddress = v
-	}
-	if v := strings.TrimSpace(os.Getenv("CHATTO_ADMIN_API_PORT")); v != "" {
-		port, err := strconv.Atoi(v)
-		if err != nil {
-			return fmt.Errorf("invalid CHATTO_ADMIN_API_PORT: %w", err)
-		}
-		cfg.AdminAPI.Port = port
-	}
-	return nil
-}
-
-func adminAPIURLMatchesConfig(rawURL, rawConfigURL string) bool {
-	if strings.TrimSpace(rawURL) == "" || strings.TrimSpace(rawConfigURL) == "" {
-		return false
-	}
-	urlBase, err := connectBaseURL(rawURL)
-	if err != nil {
-		return false
-	}
-	configBase, err := connectBaseURL(rawConfigURL)
-	if err != nil {
-		return false
-	}
-	return urlBase == configBase
-}
-
-func selectAdminAPIConfigToken(tokens []config.AdminAPITokenConfig, name string) (string, error) {
-	if len(tokens) == 0 {
-		return "", nil
-	}
-	if name == "" {
-		return strings.TrimSpace(tokens[0].Token), nil
-	}
-	for _, token := range tokens {
-		if token.Name == name {
-			return strings.TrimSpace(token.Token), nil
-		}
-	}
-	return "", fmt.Errorf("admin API token named %q not found in admin_api.tokens", name)
-}
-
-func readAdminAPIConfigFile(path string) (config.ChattoConfig, error) {
+func readOperatorConfigFile(path string) (config.ChattoConfig, error) {
 	var cfg config.ChattoConfig
 	if path == "" {
 		path = "chatto.toml"
 	}
 	b, err := os.ReadFile(path)
 	if err != nil {
-		if os.IsNotExist(err) && adminConfigFile == "" {
+		if os.IsNotExist(err) && operatorConfigFile == "" {
 			return cfg, nil
 		}
 		return cfg, err
@@ -588,14 +468,6 @@ func validateSecretSources(sources ...any) error {
 	return nil
 }
 
-func readTokenFile(path string) (string, error) {
-	token, err := readSecretFile(path)
-	if err != nil {
-		return "", err
-	}
-	return strings.TrimSpace(token), nil
-}
-
 func readSecretFile(path string) (string, error) {
 	b, err := os.ReadFile(path)
 	if err != nil {
@@ -616,49 +488,13 @@ func trimSecretNewline(s string) string {
 	return strings.TrimRight(s, "\r\n")
 }
 
-func connectBaseURL(raw string) (string, error) {
-	u, err := url.Parse(strings.TrimSpace(raw))
-	if err != nil {
-		return "", err
+func newOperatorSocketTransport(socketPath string) *http.Transport {
+	return &http.Transport{
+		DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
+			var dialer net.Dialer
+			return dialer.DialContext(ctx, "unix", socketPath)
+		},
 	}
-	if u.Scheme == "" || u.Host == "" {
-		return "", fmt.Errorf("admin API URL must be absolute: %s", raw)
-	}
-	if u.Scheme != "https" && !(u.Scheme == "http" && isLoopbackHost(u.Hostname())) {
-		return "", fmt.Errorf("admin API URL must use https unless it targets a loopback host: %s", raw)
-	}
-	u.RawQuery = ""
-	u.Fragment = ""
-	u.Path = strings.TrimRight(u.Path, "/")
-	if !strings.HasSuffix(u.Path, connectapi.Prefix) {
-		u.Path = strings.TrimRight(u.Path, "/") + connectapi.Prefix
-	}
-	return strings.TrimRight(u.String(), "/"), nil
-}
-
-func isLoopbackHost(host string) bool {
-	host = strings.Trim(strings.ToLower(host), "[]")
-	if host == "localhost" {
-		return true
-	}
-	ip := net.ParseIP(host)
-	return ip != nil && ip.IsLoopback()
-}
-
-type adminTokenTransport struct {
-	token string
-	base  http.RoundTripper
-}
-
-func (t adminTokenTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	cloned := req.Clone(req.Context())
-	cloned.Header = req.Header.Clone()
-	cloned.Header.Set("Authorization", "Bearer "+t.token)
-	base := t.base
-	if base == nil {
-		base = http.DefaultTransport
-	}
-	return base.RoundTrip(cloned)
 }
 
 func adminRequest[T any](msg *T) *connect.Request[T] {
@@ -666,7 +502,7 @@ func adminRequest[T any](msg *T) *connect.Request[T] {
 }
 
 func printAdminOutput(out io.Writer, message proto.Message, human func()) error {
-	if adminOutputJSON {
+	if operatorOutputJSON {
 		b, err := protojson.MarshalOptions{Indent: "  "}.Marshal(message)
 		if err != nil {
 			return err

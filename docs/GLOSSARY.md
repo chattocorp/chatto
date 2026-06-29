@@ -112,9 +112,11 @@ Infrastructure jargon. If only contributors say the word, it goes here.
 
 **System actor** — Synthetic actor ID used when Chatto itself, bootstrap code, or trusted operator automation performs a domain write. It is not a login-capable user account.
 
-**Admin API** — Public ConnectRPC administrative surface in `chatto.admin.v1`. On the public web listener it uses normal user authentication and RBAC. When the dedicated Admin API listener is enabled with `[admin_api]`, the same RPC surface also accepts named `[admin_api.tokens]` bearer tokens from per-token direct-source CIDR allow-lists and treats those requests as the system actor for bootstrap and trusted automation. See [FDR-028](fdr/FDR-028-operator-admin-api-and-cli.md).
+**Admin API** — Public ConnectRPC administrative surface in `chatto.admin.v1`. On the public web listener it uses normal user authentication and RBAC. It is separate from the local Operator API. See [FDR-028](fdr/FDR-028-operator-api-and-cli.md).
 
-**Admin token** — Shared secret configured in `[[admin_api.tokens]]` / `CHATTO_ADMIN_API_TOKENS_<index>_TOKEN` and accepted by the Admin API from that token's allowed CIDRs. Token names appear in admin-auth logs as non-secret context; token values must not be logged. Treat each token as a root operator credential.
+**Operator API** — Root-equivalent local ConnectRPC surface in `chatto.operator.v1`, served only on the configured Unix socket. Socket filesystem permissions are the access boundary; anyone who can connect to the socket can perform operator actions as the system actor. See [FDR-028](fdr/FDR-028-operator-api-and-cli.md).
+
+**Operator socket** — Unix socket configured by `[operator_api].socket_path` / `CHATTO_OPERATOR_API_SOCKET_PATH`. `chatto operator ...` uses it to send root-equivalent commands to the already-running Chatto process without opening a second store writer.
 
 **NATS** — Messaging system Chatto uses for pubsub and persistence. Runs embedded in the single binary by default.
 

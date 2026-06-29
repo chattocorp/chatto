@@ -3,32 +3,17 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { AddVerifiedEmailRequest, AddVerifiedEmailResponse, AssignRoleRequest, AssignRoleResponse, ClearUsernameCooldownRequest, ClearUsernameCooldownResponse, CreateUserRequest, CreateUserResponse, DeleteUserRequest, DeleteUserResponse, GetMemberRequest, GetMemberResponse, ListMembersRequest, ListMembersResponse, RevokeRoleRequest, RevokeRoleResponse, SetUserPasswordRequest, SetUserPasswordResponse, UpdateUserRequest, UpdateUserResponse } from "./members_pb.js";
+import { AssignRoleRequest, AssignRoleResponse, ClearUsernameCooldownRequest, ClearUsernameCooldownResponse, GetMemberRequest, GetMemberResponse, ListMembersRequest, ListMembersResponse, RevokeRoleRequest, RevokeRoleResponse, UpdateUserRequest, UpdateUserResponse } from "./members_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
  * Server-admin user identity and cooldown commands.
- *
- * On the public web listener, these RPCs use normal user authentication and
- * RBAC checks. On the dedicated Admin API listener, configured operator tokens
- * may call the same RPCs from allowed CIDRs as Chatto's system actor.
  *
  * @generated from service chatto.admin.v1.AdminMemberService
  */
 export const AdminMemberService = {
   typeName: "chatto.admin.v1.AdminMemberService",
   methods: {
-    /**
-     * Creates a user as an authenticated admin or local operator.
-     *
-     * @generated from rpc chatto.admin.v1.AdminMemberService.CreateUser
-     */
-    createUser: {
-      name: "CreateUser",
-      I: CreateUserRequest,
-      O: CreateUserResponse,
-      kind: MethodKind.Unary,
-    },
     /**
      * Lists server members for the admin members screen.
      *
@@ -83,39 +68,6 @@ export const AdminMemberService = {
       name: "UpdateUser",
       I: UpdateUserRequest,
       O: UpdateUserResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * Sets a user's password as an authenticated admin or local operator.
-     *
-     * @generated from rpc chatto.admin.v1.AdminMemberService.SetUserPassword
-     */
-    setUserPassword: {
-      name: "SetUserPassword",
-      I: SetUserPasswordRequest,
-      O: SetUserPasswordResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * Permanently deletes a user account.
-     *
-     * @generated from rpc chatto.admin.v1.AdminMemberService.DeleteUser
-     */
-    deleteUser: {
-      name: "DeleteUser",
-      I: DeleteUserRequest,
-      O: DeleteUserResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * Adds an already-verified email address to a user.
-     *
-     * @generated from rpc chatto.admin.v1.AdminMemberService.AddVerifiedEmail
-     */
-    addVerifiedEmail: {
-      name: "AddVerifiedEmail",
-      I: AddVerifiedEmailRequest,
-      O: AddVerifiedEmailResponse,
       kind: MethodKind.Unary,
     },
     /**

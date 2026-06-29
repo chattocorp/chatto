@@ -5,14 +5,14 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"net"
 	"net/http"
-	"net/http/httptest"
 	"os"
 	"strings"
 	"testing"
 	"time"
 
-	"connectrpc.com/authn"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"hmans.de/chatto/internal/config"
@@ -66,11 +66,11 @@ func TestRootRegistersExporterCommand(t *testing.T) {
 	}
 }
 
-func TestRootRegistersAdminUserCommands(t *testing.T) {
+func TestRootRegistersOperatorUserCommands(t *testing.T) {
 	for _, args := range [][]string{
-		{"admin", "user", "create", "--help"},
-		{"admin", "user", "set-password", "--help"},
-		{"admin", "user", "role", "add", "--help"},
+		{"operator", "user", "create", "--help"},
+		{"operator", "user", "set-password", "--help"},
+		{"operator", "user", "role", "add", "--help"},
 	} {
 		cmd, _, err := rootCmd.Find(args)
 		if err != nil {
@@ -82,196 +82,39 @@ func TestRootRegistersAdminUserCommands(t *testing.T) {
 	}
 }
 
-func TestConnectBaseURL(t *testing.T) {
-	tests := []struct {
-		raw  string
-		want string
-	}{
-		{raw: "https://chat.example", want: "https://chat.example/api/connect"},
-		{raw: "https://chat.example/api/connect", want: "https://chat.example/api/connect"},
-		{raw: "https://chat.example/base/", want: "https://chat.example/base/api/connect"},
-		{raw: "http://localhost:4000", want: "http://localhost:4000/api/connect"},
-		{raw: "http://127.0.0.1:4000", want: "http://127.0.0.1:4000/api/connect"},
-	}
-	for _, tt := range tests {
-		t.Run(tt.raw, func(t *testing.T) {
-			got, err := connectBaseURL(tt.raw)
-			if err != nil {
-				t.Fatalf("connectBaseURL(): %v", err)
-			}
-			if got != tt.want {
-				t.Fatalf("connectBaseURL() = %q, want %q", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestConnectBaseURLRejectsPlainHTTPForNonLoopbackHosts(t *testing.T) {
-	if _, err := connectBaseURL("http://chat.example"); err == nil || !strings.Contains(err.Error(), "must use https") {
-		t.Fatalf("connectBaseURL() error = %v, want https requirement", err)
-	}
-}
-
-func TestResolveAdminAPIClientConfigRefusesConfigTokenForOverriddenURL(t *testing.T) {
+func TestResolveOperatorAPIClientConfigUsesConfigSocket(t *testing.T) {
 	resetAdminGlobals(t)
-	adminConfigFile = writeAdminTestConfig(t, "https://safe.example")
-	adminAPIURL = "https://evil.example"
+	operatorConfigFile = writeOperatorTestConfig(t, "/tmp/config-operator.sock")
 
-	_, err := resolveAdminAPIClientConfig()
-	if err == nil || !strings.Contains(err.Error(), "refusing to send admin_api.tokens from config") {
-		t.Fatalf("resolveAdminAPIClientConfig() error = %v, want config-token refusal", err)
-	}
-}
-
-func TestResolveAdminAPIClientConfigAllowsExplicitTokenForOverriddenURL(t *testing.T) {
-	resetAdminGlobals(t)
-	adminConfigFile = writeAdminTestConfig(t, "https://safe.example")
-	adminAPIURL = "https://ops.example"
-	adminAPIToken = "explicit-token"
-
-	got, err := resolveAdminAPIClientConfig()
+	got, err := resolveOperatorAPIClientConfig()
 	if err != nil {
-		t.Fatalf("resolveAdminAPIClientConfig(): %v", err)
+		t.Fatalf("resolveOperatorAPIClientConfig(): %v", err)
 	}
-	if got.connectBaseURL != "https://ops.example/api/connect" {
-		t.Fatalf("connectBaseURL = %q, want overridden URL", got.connectBaseURL)
+	if got.socketPath != "/tmp/config-operator.sock" {
+		t.Fatalf("socketPath = %q, want config path", got.socketPath)
 	}
-	if got.token != "explicit-token" {
-		t.Fatalf("token = %q, want explicit token", got.token)
+	if got.connectBaseURL != "http://chatto-operator/api/connect" {
+		t.Fatalf("connectBaseURL = %q, want Unix-socket base URL", got.connectBaseURL)
 	}
 }
 
-func TestResolveAdminAPIClientConfigUsesDedicatedListenerURL(t *testing.T) {
+func TestResolveOperatorAPIClientConfigEnvOverridesConfigSocket(t *testing.T) {
 	resetAdminGlobals(t)
-	adminConfigFile = writeAdminTestConfig(t, "https://public.example")
+	operatorConfigFile = writeOperatorTestConfig(t, "/tmp/config-operator.sock")
+	t.Setenv("CHATTO_OPERATOR_API_SOCKET_PATH", "/tmp/env-operator.sock")
 
-	got, err := resolveAdminAPIClientConfig()
+	got, err := resolveOperatorAPIClientConfig()
 	if err != nil {
-		t.Fatalf("resolveAdminAPIClientConfig(): %v", err)
+		t.Fatalf("resolveOperatorAPIClientConfig(): %v", err)
 	}
-	if got.connectBaseURL != "http://127.0.0.1:4021/api/connect" {
-		t.Fatalf("connectBaseURL = %q, want dedicated listener URL", got.connectBaseURL)
-	}
-	if got.token != "config-token-value" {
-		t.Fatalf("token = %q, want config token", got.token)
+	if got.socketPath != "/tmp/env-operator.sock" {
+		t.Fatalf("socketPath = %q, want env path", got.socketPath)
 	}
 }
 
-func TestResolveAdminAPIClientConfigUsesDedicatedListenerEnv(t *testing.T) {
-	resetAdminGlobals(t)
-	adminConfigFile = writeAdminTestConfig(t, "https://safe.example")
-	t.Setenv("CHATTO_WEBSERVER_URL", "https://public-env.example")
-	t.Setenv("CHATTO_ADMIN_API_ENABLED", "true")
-	t.Setenv("CHATTO_ADMIN_API_BIND_ADDRESS", "0.0.0.0")
-	t.Setenv("CHATTO_ADMIN_API_PORT", "4123")
-
-	got, err := resolveAdminAPIClientConfig()
-	if err != nil {
-		t.Fatalf("resolveAdminAPIClientConfig(): %v", err)
-	}
-	if got.connectBaseURL != "http://127.0.0.1:4123/api/connect" {
-		t.Fatalf("connectBaseURL = %q, want dedicated listener URL from env", got.connectBaseURL)
-	}
-	if got.token != "config-token-value" {
-		t.Fatalf("token = %q, want config token", got.token)
-	}
-}
-
-func TestResolveAdminAPIClientConfigReadsAdminTokenFile(t *testing.T) {
-	resetAdminGlobals(t)
-	adminConfigFile = writeAdminTestConfig(t, "https://safe.example")
-	adminAPIURL = "https://ops.example"
-	adminAPITokenFile = t.TempDir() + "/admin-token"
-	if err := os.WriteFile(adminAPITokenFile, []byte("file-token-value\n"), 0o600); err != nil {
-		t.Fatalf("write token file: %v", err)
-	}
-	t.Setenv("CHATTO_ADMIN_API_TOKEN", "env-token-value")
-
-	got, err := resolveAdminAPIClientConfig()
-	if err != nil {
-		t.Fatalf("resolveAdminAPIClientConfig(): %v", err)
-	}
-	if got.token != "file-token-value" {
-		t.Fatalf("token = %q, want file token", got.token)
-	}
-}
-
-func TestResolveAdminAPIClientConfigRejectsAmbiguousAdminTokenSources(t *testing.T) {
-	resetAdminGlobals(t)
-	adminAPIToken = "flag-token"
-	adminAPITokenFile = "token-file"
-
-	_, err := resolveAdminAPIClientConfig()
-	if err == nil || !strings.Contains(err.Error(), "provide only one of --admin-token, --admin-token-file") {
-		t.Fatalf("resolveAdminAPIClientConfig() error = %v, want ambiguous token error", err)
-	}
-}
-
-func TestResolveAdminAPIClientConfigAllowsEnvTokenEntriesForEnvURL(t *testing.T) {
-	resetAdminGlobals(t)
-	adminConfigFile = writeWebserverOnlyTestConfig(t, "https://safe.example")
-	t.Setenv("CHATTO_WEBSERVER_URL", "https://ops.example")
-	t.Setenv("CHATTO_ADMIN_API_TOKENS_0_NAME", "env-token")
-	t.Setenv("CHATTO_ADMIN_API_TOKENS_0_TOKEN", "env-token-value")
-	t.Setenv("CHATTO_ADMIN_API_TOKENS_0_ALLOWED_CIDRS", "127.0.0.1/32")
-
-	got, err := resolveAdminAPIClientConfig()
-	if err != nil {
-		t.Fatalf("resolveAdminAPIClientConfig(): %v", err)
-	}
-	if got.connectBaseURL != "https://ops.example/api/connect" {
-		t.Fatalf("connectBaseURL = %q, want env URL", got.connectBaseURL)
-	}
-	if got.token != "env-token-value" {
-		t.Fatalf("token = %q, want counted env token", got.token)
-	}
-}
-
-func TestResolveAdminAPIClientConfigRefusesEnvTokenEntriesForOverriddenURL(t *testing.T) {
-	resetAdminGlobals(t)
-	adminConfigFile = writeAdminTestConfig(t, "https://safe.example")
-	adminAPIURL = "https://evil.example"
-	t.Setenv("CHATTO_ADMIN_API_TOKENS_0_NAME", "env-token")
-	t.Setenv("CHATTO_ADMIN_API_TOKENS_0_TOKEN", "env-token-value")
-	t.Setenv("CHATTO_ADMIN_API_TOKENS_0_ALLOWED_CIDRS", "127.0.0.1/32")
-
-	_, err := resolveAdminAPIClientConfig()
-	if err == nil || !strings.Contains(err.Error(), "refusing to send admin_api.tokens from config/env") {
-		t.Fatalf("resolveAdminAPIClientConfig() error = %v, want env-token URL refusal", err)
-	}
-}
-
-func TestSelectAdminAPIConfigToken(t *testing.T) {
-	tokens := []config.AdminAPITokenConfig{
-		{Name: "local-cli", Token: "local-secret"},
-		{Name: "ops-sidecar", Token: "ops-secret"},
-	}
-
-	got, err := selectAdminAPIConfigToken(tokens, "")
-	if err != nil {
-		t.Fatalf("select default token: %v", err)
-	}
-	if got != "local-secret" {
-		t.Fatalf("default token = %q, want local-secret", got)
-	}
-
-	got, err = selectAdminAPIConfigToken(tokens, "ops-sidecar")
-	if err != nil {
-		t.Fatalf("select named token: %v", err)
-	}
-	if got != "ops-secret" {
-		t.Fatalf("named token = %q, want ops-secret", got)
-	}
-
-	_, err = selectAdminAPIConfigToken(tokens, "missing")
-	if err == nil || !strings.Contains(err.Error(), `admin API token named "missing" not found`) {
-		t.Fatalf("missing token err = %v", err)
-	}
-}
-
-func TestAdminOutputUsesProvidedWriter(t *testing.T) {
-	originalJSON := adminOutputJSON
-	t.Cleanup(func() { adminOutputJSON = originalJSON })
+func TestOperatorOutputUsesProvidedWriter(t *testing.T) {
+	originalJSON := operatorOutputJSON
+	t.Cleanup(func() { operatorOutputJSON = originalJSON })
 
 	member := &adminv1.AdminMember{
 		Roles:          []string{"admin"},
@@ -283,7 +126,7 @@ func TestAdminOutputUsesProvidedWriter(t *testing.T) {
 		},
 	}
 
-	adminOutputJSON = false
+	operatorOutputJSON = false
 	var humanOut bytes.Buffer
 	if err := printAdminOutput(&humanOut, &adminv1.GetMemberResponse{Member: member}, func() {
 		printAdminMemberLine(&humanOut, member)
@@ -294,7 +137,7 @@ func TestAdminOutputUsesProvidedWriter(t *testing.T) {
 		t.Fatalf("human output = %q", got)
 	}
 
-	adminOutputJSON = true
+	operatorOutputJSON = true
 	var jsonOut bytes.Buffer
 	if err := printAdminOutput(&jsonOut, &adminv1.GetMemberResponse{Member: member}, func() {
 		t.Fatal("human callback should not run for JSON output")
@@ -306,10 +149,10 @@ func TestAdminOutputUsesProvidedWriter(t *testing.T) {
 	}
 }
 
-func TestAdminUserCommandsExerciseAdminAPI(t *testing.T) {
+func TestOperatorUserCommandsExerciseOperatorAPI(t *testing.T) {
 	env := newAdminCLITestEnv(t)
 
-	createOut := env.run(t, "admin", "user", "create",
+	createOut := env.run(t, "operator", "user", "create",
 		"--login", "cli-admin-user",
 		"--display-name", "CLI Admin User",
 		"--password-stdin",
@@ -350,12 +193,12 @@ func TestAdminUserCommandsExerciseAdminAPI(t *testing.T) {
 		t.Fatalf("roles = %v, want cli-test-role", roles)
 	}
 
-	getOut := env.run(t, "admin", "user", "get", "--login", "cli-admin-user")
+	getOut := env.run(t, "operator", "user", "get", "--login", "cli-admin-user")
 	if !strings.Contains(getOut, user.Id+"\tcli-admin-user\tCLI Admin User") {
 		t.Fatalf("get output = %q", getOut)
 	}
 
-	updateOut := env.run(t, "admin", "user", "update", user.Id, "--display-name", "CLI Renamed")
+	updateOut := env.run(t, "operator", "user", "update", user.Id, "--display-name", "CLI Renamed")
 	if !strings.Contains(updateOut, "\tCLI Renamed\t") {
 		t.Fatalf("update output = %q", updateOut)
 	}
@@ -364,35 +207,35 @@ func TestAdminUserCommandsExerciseAdminAPI(t *testing.T) {
 	if err := os.WriteFile(passwordPath, []byte("new-password-123\n"), 0o600); err != nil {
 		t.Fatalf("write password file: %v", err)
 	}
-	env.run(t, "admin", "user", "set-password", user.Id, "--password-file", passwordPath)
+	env.run(t, "operator", "user", "set-password", user.Id, "--password-file", passwordPath)
 	if _, _, err := env.core.VerifyPasswordWithAuthGeneration(env.ctx, "cli-admin-user", "new-password-123"); err != nil {
 		t.Fatalf("VerifyPasswordWithAuthGeneration after set-password: %v", err)
 	}
 
-	emailOut := env.run(t, "admin", "user", "add-email", user.Id, "cli-admin-2@example.com")
+	emailOut := env.run(t, "operator", "user", "add-email", user.Id, "cli-admin-2@example.com")
 	if !strings.Contains(emailOut, "cli-admin-2@example.com") {
 		t.Fatalf("add-email output = %q", emailOut)
 	}
 
-	roleAddOut := env.run(t, "admin", "user", "role", "add", user.Id, "cli-extra-role")
+	roleAddOut := env.run(t, "operator", "user", "role", "add", user.Id, "cli-extra-role")
 	if !strings.Contains(roleAddOut, "cli-extra-role") {
 		t.Fatalf("role add output = %q", roleAddOut)
 	}
-	roleRemoveOut := env.run(t, "admin", "user", "role", "remove", user.Id, "cli-extra-role")
+	roleRemoveOut := env.run(t, "operator", "user", "role", "remove", user.Id, "cli-extra-role")
 	if strings.Contains(roleRemoveOut, "cli-extra-role") {
 		t.Fatalf("role remove output still contains cli-extra-role: %q", roleRemoveOut)
 	}
 
-	listOut := env.run(t, "admin", "user", "list", "--search", "cli-admin", "--limit", "101")
+	listOut := env.run(t, "operator", "user", "list", "--search", "cli-admin", "--limit", "101")
 	if !strings.Contains(listOut, "total=1 has_more=false") || !strings.Contains(listOut, "cli-admin-user") {
 		t.Fatalf("list output = %q", listOut)
 	}
-	negativeLimitListOut := env.run(t, "admin", "user", "list", "--search", "cli-admin", "--limit", "-1")
+	negativeLimitListOut := env.run(t, "operator", "user", "list", "--search", "cli-admin", "--limit", "-1")
 	if !strings.Contains(negativeLimitListOut, "total=1 has_more=false") || !strings.Contains(negativeLimitListOut, "cli-admin-user") {
 		t.Fatalf("list with negative limit output = %q", negativeLimitListOut)
 	}
 
-	deleteOut := env.run(t, "admin", "user", "delete", user.Id, "--yes")
+	deleteOut := env.run(t, "operator", "user", "delete", user.Id, "--yes")
 	if !strings.Contains(deleteOut, "deleted user "+user.Id) {
 		t.Fatalf("delete output = %q", deleteOut)
 	}
@@ -401,30 +244,11 @@ func TestAdminUserCommandsExerciseAdminAPI(t *testing.T) {
 	}
 }
 
-func TestAdminUserCommandReadsAdminTokenFile(t *testing.T) {
-	env := newAdminCLITestEnv(t)
-	tokenPath := t.TempDir() + "/admin-token"
-	if err := os.WriteFile(tokenPath, []byte(adminCLITestToken+"\n"), 0o600); err != nil {
-		t.Fatalf("write token file: %v", err)
-	}
-	env.token = ""
-
-	out := env.run(t, "admin", "--admin-token-file", tokenPath, "user", "create",
-		"--login", "token-file-user",
-		"--password", "password123",
-	)
-	if !strings.Contains(out, "\ttoken-file-user\t") {
-		t.Fatalf("create with token file output = %q", out)
-	}
-}
-
-const adminCLITestToken = "cli-admin-token"
-
 type adminCLITestEnv struct {
-	ctx    context.Context
-	core   *core.ChattoCore
-	server *httptest.Server
-	token  string
+	ctx        context.Context
+	core       *core.ChattoCore
+	server     *http.Server
+	socketPath string
 }
 
 func newAdminCLITestEnv(t *testing.T) *adminCLITestEnv {
@@ -452,38 +276,34 @@ func newAdminCLITestEnv(t *testing.T) *adminCLITestEnv {
 		t.Fatalf("CreateServerRole cli-extra-role: %v", err)
 	}
 
-	cfg := config.ChattoConfig{
-		AdminAPI: config.AdminAPIConfig{
-			Enabled: true,
-			Tokens: []config.AdminAPITokenConfig{{
-				Name:         "local-cli",
-				Token:        adminCLITestToken,
-				AllowedCIDRs: []string{"127.0.0.1/32"},
-			}},
-		},
-	}
+	socketPath := fmt.Sprintf("/tmp/chatto-operator-%d.sock", time.Now().UnixNano())
+	cfg := config.ChattoConfig{}
 	mux := http.NewServeMux()
 	api := connectapi.New(c, cfg, "test")
-	authMiddleware := authn.NewMiddleware(func(ctx context.Context, req *http.Request) (any, error) {
-		if req.Header.Get("Authorization") != "Bearer "+adminCLITestToken {
-			return nil, authn.Errorf("admin token required")
-		}
-		return connectapi.Caller{UserID: core.SystemActorID, IsSystem: true, TokenName: "local-cli"}, nil
-	}, connectapi.HandlerOptions()...)
-	for _, handler := range api.Handlers() {
+	for _, handler := range api.OperatorHandlers() {
 		serviceHandler := handler.Handler
-		if handler.AuthPolicy == connectapi.AuthPolicyAuthenticatedUser {
-			serviceHandler = authMiddleware.Wrap(serviceHandler)
-		}
 		mux.Handle(connectapi.Prefix+handler.ServicePath, http.StripPrefix(connectapi.Prefix, serviceHandler))
 	}
-	server := httptest.NewServer(mux)
-	t.Cleanup(server.Close)
+	listener, err := net.Listen("unix", socketPath)
+	if err != nil {
+		t.Fatalf("listen operator socket: %v", err)
+	}
+	server := &http.Server{Handler: mux}
+	done := make(chan error, 1)
+	go func() { done <- server.Serve(listener) }()
+	t.Cleanup(func() {
+		_ = server.Close()
+		select {
+		case <-done:
+		case <-time.After(5 * time.Second):
+			t.Fatal("operator test server did not stop within timeout")
+		}
+		_ = os.Remove(socketPath)
+	})
 
-	env := &adminCLITestEnv{ctx: ctx, core: c, server: server, token: adminCLITestToken}
-	adminAPIURL = server.URL + connectapi.Prefix
-	adminAPIToken = adminCLITestToken
-	adminOutputJSON = false
+	env := &adminCLITestEnv{ctx: ctx, core: c, server: server, socketPath: socketPath}
+	operatorSocketPath = socketPath
+	operatorOutputJSON = false
 	return env
 }
 
@@ -528,9 +348,8 @@ func (env *adminCLITestEnv) run(t *testing.T, args ...string) string {
 		_ = r.Close()
 	}()
 
-	adminAPIURL = env.server.URL + connectapi.Prefix
-	adminAPIToken = env.token
-	adminOutputJSON = false
+	operatorSocketPath = env.socketPath
+	operatorOutputJSON = false
 
 	var out bytes.Buffer
 	rootCmd.SetOut(&out)
@@ -540,7 +359,7 @@ func (env *adminCLITestEnv) run(t *testing.T, args ...string) string {
 		rootCmd.SetOut(os.Stdout)
 		rootCmd.SetErr(os.Stderr)
 		rootCmd.SetArgs(nil)
-		adminOutputJSON = false
+		operatorOutputJSON = false
 	}()
 	if err := rootCmd.Execute(); err != nil {
 		t.Fatalf("chatto %s: %v\noutput:\n%s", strings.Join(args, " "), err, out.String())
@@ -596,18 +415,15 @@ func TestAdminSecretReaders(t *testing.T) {
 
 func resetAdminGlobals(t *testing.T) {
 	t.Helper()
-	oldConfigFile := adminConfigFile
-	oldAPIURL := adminAPIURL
-	oldToken := adminAPIToken
-	oldTokenFile := adminAPITokenFile
-	oldTokenName := adminAPITokenName
+	oldConfigFile := operatorConfigFile
+	oldSocketPath := operatorSocketPath
 	oldEnv := make(map[string]*string)
 	for _, entry := range os.Environ() {
 		name, _, ok := strings.Cut(entry, "=")
 		if !ok {
 			continue
 		}
-		if name == "CHATTO_WEBSERVER_URL" || name == "CHATTO_ADMIN_API_TOKEN" || name == "CHATTO_ADMIN_API_TOKEN_NAME" || name == "CHATTO_ADMIN_API_ENABLED" || name == "CHATTO_ADMIN_API_BIND_ADDRESS" || name == "CHATTO_ADMIN_API_PORT" || strings.HasPrefix(name, "CHATTO_ADMIN_API_TOKENS_") {
+		if name == "CHATTO_OPERATOR_API_SOCKET_PATH" {
 			value := os.Getenv(name)
 			oldEnv[name] = &value
 			if err := os.Unsetenv(name); err != nil {
@@ -616,11 +432,8 @@ func resetAdminGlobals(t *testing.T) {
 		}
 	}
 	t.Cleanup(func() {
-		adminConfigFile = oldConfigFile
-		adminAPIURL = oldAPIURL
-		adminAPIToken = oldToken
-		adminAPITokenFile = oldTokenFile
-		adminAPITokenName = oldTokenName
+		operatorConfigFile = oldConfigFile
+		operatorSocketPath = oldSocketPath
 		for name, value := range oldEnv {
 			if value == nil {
 				_ = os.Unsetenv(name)
@@ -629,37 +442,16 @@ func resetAdminGlobals(t *testing.T) {
 			}
 		}
 	})
-	adminConfigFile = ""
-	adminAPIURL = ""
-	adminAPIToken = ""
-	adminAPITokenFile = ""
-	adminAPITokenName = ""
+	operatorConfigFile = ""
+	operatorSocketPath = ""
 }
 
-func writeAdminTestConfig(t *testing.T, webserverURL string) string {
+func writeOperatorTestConfig(t *testing.T, socketPath string) string {
 	t.Helper()
 	path := t.TempDir() + "/chatto.toml"
-	body := `[webserver]
-url = "` + webserverURL + `"
-
-[admin_api]
+	body := `[operator_api]
 enabled = true
-
-[[admin_api.tokens]]
-name = "local-cli"
-token = "config-token-value"
-`
-	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
-		t.Fatalf("write config: %v", err)
-	}
-	return path
-}
-
-func writeWebserverOnlyTestConfig(t *testing.T, webserverURL string) string {
-	t.Helper()
-	path := t.TempDir() + "/chatto.toml"
-	body := `[webserver]
-url = "` + webserverURL + `"
+socket_path = "` + socketPath + `"
 `
 	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
 		t.Fatalf("write config: %v", err)

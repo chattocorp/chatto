@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -31,6 +32,8 @@ import (
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	"hmans.de/chatto/internal/pb/chatto/api/v1/apiv1connect"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	operatorv1 "hmans.de/chatto/internal/pb/chatto/operator/v1"
+	"hmans.de/chatto/internal/pb/chatto/operator/v1/operatorv1connect"
 )
 
 func setupConnectTestServer(t *testing.T, authConfig config.AuthConfig) (*HTTPServer, *httptest.Server) {
@@ -51,138 +54,121 @@ func setupConnectTestServerWithConfig(t *testing.T, cfg config.ChattoConfig) (*H
 	return s, ts
 }
 
-func TestConnectAdminListenerTokenAuth(t *testing.T) {
-	t.Run("accepts configured token from allowed CIDR", func(t *testing.T) {
-		s, _ := setupConnectTestServerWithConfig(t, config.ChattoConfig{
-			AdminAPI: config.AdminAPIConfig{
-				Enabled: true,
-				Tokens: []config.AdminAPITokenConfig{{
-					Name:         "local-cli",
-					Token:        "operator-secret",
-					AllowedCIDRs: []string{"127.0.0.1/32"},
-				}},
-			},
-		})
+func TestConnectOperatorAPISeparation(t *testing.T) {
+	t.Run("operator server serves only operator API", func(t *testing.T) {
+		s, _ := setupConnectTestServerWithConfig(t, config.ChattoConfig{})
 		ctx := context.Background()
-		user, err := s.core.CreateUser(ctx, core.SystemActorID, "admin-connect", "Admin Connect", "password")
+		user, err := s.core.CreateUser(ctx, core.SystemActorID, "operator-connect", "Operator Connect", "password")
 		if err != nil {
 			t.Fatalf("CreateUser: %v", err)
 		}
 
-		adminTS := newAdminAPITestServer(t, s)
-		client := adminv1connect.NewAdminMemberServiceClient(adminTS.Client(), adminTS.URL+connectAPIPrefix)
-		req := connect.NewRequest(&adminv1.GetMemberRequest{UserId: user.GetId()})
-		req.Header().Set("Authorization", "Bearer operator-secret")
-		resp, err := client.GetMember(ctx, req)
+		operatorTS := newOperatorAPITestServer(t, s)
+		operatorClient := operatorv1connect.NewOperatorUserServiceClient(operatorTS.Client(), operatorTS.URL+connectAPIPrefix)
+		resp, err := operatorClient.GetUser(ctx, connect.NewRequest(&operatorv1.GetUserRequest{UserId: user.GetId()}))
 		if err != nil {
-			t.Fatalf("GetMember: %v", err)
+			t.Fatalf("GetUser: %v", err)
 		}
-		if got := resp.Msg.GetMember().GetUser().GetLogin(); got != "admin-connect" {
-			t.Fatalf("GetMember login = %q, want admin-connect", got)
+		if got := resp.Msg.GetMember().GetUser().GetLogin(); got != "operator-connect" {
+			t.Fatalf("GetUser login = %q, want operator-connect", got)
+		}
+
+		adminClient := adminv1connect.NewAdminMemberServiceClient(operatorTS.Client(), operatorTS.URL+connectAPIPrefix)
+		if _, err := adminClient.ListMembers(ctx, connect.NewRequest(&adminv1.ListMembersRequest{})); connect.CodeOf(err) != connect.CodeUnimplemented {
+			t.Fatalf("AdminMemberService on operator server err = %v, want unimplemented", err)
 		}
 	})
 
-	t.Run("carries token name in system caller", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodPost, connectAPIPrefix+adminv1connect.AdminMemberServiceListMembersProcedure, nil)
-		req.RemoteAddr = "127.0.0.1:12345"
-		req.Header.Set("Authorization", "Bearer operator-secret")
-
-		info, err := authenticateAdminConnectRequest(context.Background(), req, config.AdminAPIConfig{
-			Enabled: true,
-			Tokens: []config.AdminAPITokenConfig{{
-				Name:         "ops-sidecar",
-				Token:        "operator-secret",
-				AllowedCIDRs: []string{"127.0.0.1/32"},
-			}},
-		})
-		if err != nil {
-			t.Fatalf("authenticateAdminConnectRequest: %v", err)
-		}
-		caller, ok := info.(connectapi.Caller)
-		if !ok {
-			t.Fatalf("auth info = %T, want Caller", info)
-		}
-		if !caller.IsSystem || caller.UserID != core.SystemActorID {
-			t.Fatalf("caller = %+v, want system caller", caller)
-		}
-		if caller.TokenName != "ops-sidecar" {
-			t.Fatalf("TokenName = %q, want ops-sidecar", caller.TokenName)
-		}
-	})
-
-	t.Run("public listener does not accept operator token", func(t *testing.T) {
-		s, publicTS := setupConnectTestServerWithConfig(t, config.ChattoConfig{
-			AdminAPI: config.AdminAPIConfig{
-				Enabled: true,
-				Tokens: []config.AdminAPITokenConfig{{
-					Name:         "local-cli",
-					Token:        "operator-secret",
-					AllowedCIDRs: []string{"127.0.0.1/32"},
-				}},
-			},
-		})
-
-		publicClient := adminv1connect.NewAdminMemberServiceClient(publicTS.Client(), publicTS.URL+connectAPIPrefix)
-		req := connect.NewRequest(&adminv1.ListMembersRequest{})
-		req.Header().Set("Authorization", "Bearer operator-secret")
-		if _, err := publicClient.ListMembers(context.Background(), req); connect.CodeOf(err) != connect.CodeUnauthenticated {
-			t.Fatalf("public ListMembers err = %v, want unauthenticated", err)
-		}
-
-		adminTS := newAdminAPITestServer(t, s)
-		adminClient := adminv1connect.NewAdminMemberServiceClient(adminTS.Client(), adminTS.URL+connectAPIPrefix)
-		req = connect.NewRequest(&adminv1.ListMembersRequest{})
-		req.Header().Set("Authorization", "Bearer operator-secret")
-		if _, err := adminClient.ListMembers(context.Background(), req); err != nil {
-			t.Fatalf("dedicated listener ListMembers: %v", err)
-		}
-	})
-
-	t.Run("rejects bad token", func(t *testing.T) {
-		s, _ := setupConnectTestServerWithConfig(t, config.ChattoConfig{
-			AdminAPI: config.AdminAPIConfig{
-				Enabled: true,
-				Tokens:  []config.AdminAPITokenConfig{{Name: "local-cli", Token: "operator-secret"}},
-			},
-		})
-		adminTS := newAdminAPITestServer(t, s)
-		client := adminv1connect.NewAdminMemberServiceClient(adminTS.Client(), adminTS.URL+connectAPIPrefix)
-		req := connect.NewRequest(&adminv1.ListMembersRequest{})
-		req.Header().Set("Authorization", "Bearer wrong")
-		_, err := client.ListMembers(context.Background(), req)
-		if connect.CodeOf(err) != connect.CodeUnauthenticated {
-			t.Fatalf("ListMembers bad token err = %v, want unauthenticated", err)
-		}
-	})
-
-	t.Run("rejects disallowed CIDR", func(t *testing.T) {
-		s, _ := setupConnectTestServerWithConfig(t, config.ChattoConfig{
-			AdminAPI: config.AdminAPIConfig{
-				Enabled: true,
-				Tokens: []config.AdminAPITokenConfig{{
-					Name:         "ops-sidecar",
-					Token:        "operator-secret",
-					AllowedCIDRs: []string{"192.0.2.0/24"},
-				}},
-			},
-		})
-		adminTS := newAdminAPITestServer(t, s)
-		client := adminv1connect.NewAdminMemberServiceClient(adminTS.Client(), adminTS.URL+connectAPIPrefix)
-		req := connect.NewRequest(&adminv1.ListMembersRequest{})
-		req.Header().Set("Authorization", "Bearer operator-secret")
-		_, err := client.ListMembers(context.Background(), req)
-		if connect.CodeOf(err) != connect.CodeUnauthenticated {
-			t.Fatalf("ListMembers disallowed CIDR err = %v, want unauthenticated", err)
+	t.Run("public listener does not serve operator API", func(t *testing.T) {
+		_, publicTS := setupConnectTestServerWithConfig(t, config.ChattoConfig{})
+		operatorClient := operatorv1connect.NewOperatorUserServiceClient(publicTS.Client(), publicTS.URL+connectAPIPrefix)
+		if _, err := operatorClient.ListUsers(context.Background(), connect.NewRequest(&operatorv1.ListUsersRequest{})); connect.CodeOf(err) != connect.CodeUnimplemented {
+			t.Fatalf("OperatorUserService on public server err = %v, want unimplemented", err)
 		}
 	})
 }
 
-func newAdminAPITestServer(t *testing.T, s *HTTPServer) *httptest.Server {
+func newOperatorAPITestServer(t *testing.T, s *HTTPServer) *httptest.Server {
 	t.Helper()
-	adminServer := s.newAdminAPIServer()
-	adminTS := httptest.NewServer(adminServer.Handler)
-	t.Cleanup(adminTS.Close)
-	return adminTS
+	operatorServer := s.newOperatorAPIServer()
+	operatorTS := httptest.NewServer(operatorServer.Handler)
+	t.Cleanup(operatorTS.Close)
+	return operatorTS
+}
+
+func TestPrepareOperatorAPISocket(t *testing.T) {
+	t.Run("creates socket with configured mode", func(t *testing.T) {
+		socketPath := shortTestSocketPath(t)
+		s := &HTTPServer{config: config.ChattoConfig{OperatorAPI: config.OperatorAPIConfig{
+			Enabled:    true,
+			SocketPath: socketPath,
+			SocketMode: "0600",
+		}}}
+		listener, info, err := s.prepareOperatorAPISocket()
+		if err != nil {
+			t.Fatalf("prepareOperatorAPISocket(): %v", err)
+		}
+		t.Cleanup(func() {
+			_ = listener.Close()
+			s.cleanupOperatorAPISocket(info)
+		})
+		if info.Mode().Perm() != 0o600 {
+			t.Fatalf("socket mode = %04o, want 0600", info.Mode().Perm())
+		}
+	})
+
+	t.Run("rejects existing socket with different mode", func(t *testing.T) {
+		socketPath := shortTestSocketPath(t)
+		listener, err := net.Listen("unix", socketPath)
+		if err != nil {
+			t.Fatalf("listen setup socket: %v", err)
+		}
+		t.Cleanup(func() {
+			_ = listener.Close()
+			_ = os.Remove(socketPath)
+		})
+		if err := os.Chmod(socketPath, 0o666); err != nil {
+			t.Fatalf("chmod setup socket: %v", err)
+		}
+		s := &HTTPServer{config: config.ChattoConfig{OperatorAPI: config.OperatorAPIConfig{
+			Enabled:    true,
+			SocketPath: socketPath,
+			SocketMode: "0600",
+		}}}
+		if _, _, err := s.prepareOperatorAPISocket(); err == nil || !strings.Contains(err.Error(), "has mode 0666, want 0600") {
+			t.Fatalf("prepareOperatorAPISocket() error = %v, want mode mismatch", err)
+		}
+	})
+
+	t.Run("rejects active socket", func(t *testing.T) {
+		socketPath := shortTestSocketPath(t)
+		listener, err := net.Listen("unix", socketPath)
+		if err != nil {
+			t.Fatalf("listen setup socket: %v", err)
+		}
+		t.Cleanup(func() {
+			_ = listener.Close()
+			_ = os.Remove(socketPath)
+		})
+		if err := os.Chmod(socketPath, 0o600); err != nil {
+			t.Fatalf("chmod setup socket: %v", err)
+		}
+		s := &HTTPServer{config: config.ChattoConfig{OperatorAPI: config.OperatorAPIConfig{
+			Enabled:    true,
+			SocketPath: socketPath,
+			SocketMode: "0600",
+		}}}
+		if _, _, err := s.prepareOperatorAPISocket(); err == nil || !strings.Contains(err.Error(), "already in use") {
+			t.Fatalf("prepareOperatorAPISocket() error = %v, want already in use", err)
+		}
+	})
+}
+
+func shortTestSocketPath(t *testing.T) string {
+	t.Helper()
+	path := fmt.Sprintf("/tmp/chatto-test-%d.sock", time.Now().UnixNano())
+	t.Cleanup(func() { _ = os.Remove(path) })
+	return path
 }
 
 func setupConnectHTTP2TestServer(t *testing.T, authConfig config.AuthConfig) (*HTTPServer, *httptest.Server) {

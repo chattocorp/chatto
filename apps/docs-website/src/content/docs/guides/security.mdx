@@ -180,24 +180,24 @@ Users can delete their own account from account settings or through the public A
 
 ## API surface
 
-### Admin API
+### Operator API
 
-The dedicated Admin API listener is disabled by default. Operators can enable it with `[admin_api]` / `CHATTO_ADMIN_API_*` configuration for trusted automation such as `chatto admin user create` and password/bootstrap workflows. Operator-token requests must use a configured bearer token and originate from one of that token's configured CIDR ranges; by default each token is loopback-only.
+The Operator API is disabled by default. Operators can enable it with `[operator_api]` / `CHATTO_OPERATOR_API_*` configuration for trusted local automation such as `chatto operator user create` and password/bootstrap workflows. It listens on a Unix socket, not TCP, and uses filesystem permissions as its access boundary.
 
-Operator tokens are only accepted on the dedicated listener:
+The default socket path is Docker-friendly:
 
 ```toml
-[admin_api]
+[operator_api]
 enabled = true
-bind_address = "127.0.0.1"
-port = 4021
+socket_path = "/tmp/chatto/operator.sock"
+socket_mode = "0660"
 ```
 
-Chatto serves the same ConnectRPC API surface on the public and dedicated listeners, but the public web listener never accepts `[admin_api]` operator tokens. This is intentional defense in depth: normal public reverse-proxy routing for Chatto's web UI and public APIs cannot accidentally expose token-based bootstrap access. The `chatto admin ...` CLI also prefers the dedicated listener URL from `chatto.toml` or `CHATTO_ADMIN_API_BIND_ADDRESS` / `CHATTO_ADMIN_API_PORT`, so local operator commands keep using the private endpoint automatically.
+Chatto serves only `chatto.operator.v1` on the operator socket, and the public web listener never mounts the Operator API. The inverse is also true: the operator socket does not serve public or admin ConnectRPC services. This is intentional defense in depth, so normal public reverse-proxy routing for Chatto's web UI and public APIs cannot accidentally expose root-grade bootstrap access.
 
-The CIDR check uses the direct TCP peer address seen by Chatto, not `X-Forwarded-For` or another forwarded client header. Bind the Admin API listener to loopback for local CLI use, or to a trusted private interface when a sidecar or automation host needs direct access.
+The `chatto operator ...` CLI reads the socket path from `--operator-socket`, `CHATTO_OPERATOR_API_SOCKET_PATH`, or `chatto.toml`, falling back to `/tmp/chatto/operator.sock`. In Docker, run the command inside the container with `docker exec` or mount the socket path into a trusted sidecar/container with matching filesystem permissions.
 
-Operator-token actions are attributed to Chatto's system actor, not to an in-app user or RBAC role. The matched token name is logged as non-secret admin-auth context so operators can distinguish token entries during incident response. Keep admin tokens out of browser clients, logs, and shell history where possible; for automation, prefer `--admin-token-file`, `--password-stdin`, and `--password-file` over direct secret flags.
+Operator actions are attributed to Chatto's system actor, not to an in-app user or RBAC role. Keep the socket path private to the Chatto process and explicitly trusted automation; for password workflows, prefer `--password-stdin` and `--password-file` over direct secret flags.
 
 ### Public API
 
@@ -252,7 +252,6 @@ For HSTS, CSP, and other policy headers, add them at your reverse proxy.
 | Cookie signing secret | `chatto.toml` / `CHATTO_WEBSERVER_COOKIE_SIGNING_SECRET` | n/a |
 | Cookie encryption secret (optional) | `chatto.toml` / `CHATTO_WEBSERVER_COOKIE_ENCRYPTION_SECRET` | n/a |
 | Asset URL signing secret | `chatto.toml` / `CHATTO_CORE_ASSETS_SIGNING_SECRET` | n/a |
-| Admin API tokens | `chatto.toml` / `CHATTO_ADMIN_API_TOKENS_<index>_TOKEN` | n/a |
 | S3 access key ID and secret access key | `chatto.toml` / `CHATTO_CORE_ASSETS_S3_ACCESS_KEY_ID`, `CHATTO_CORE_ASSETS_S3_SECRET_ACCESS_KEY` | n/a |
 | NATS embedded/client credentials | `chatto.toml` / `CHATTO_NATS_EMBEDDED_AUTH_TOKEN`, `CHATTO_NATS_CLIENT_TOKEN`, `CHATTO_NATS_CLIENT_PASSWORD`, `CHATTO_NATS_CLIENT_CREDENTIALS_FILE`, or `CHATTO_NATS_CLIENT_NKEY_SEED` | n/a |
 | OAuth/OIDC provider client secrets | `chatto.toml` `[[auth.providers]]` / `CHATTO_AUTH_PROVIDERS_<index>_CLIENT_SECRET` or legacy `CHATTO_AUTH_OIDC_CLIENT_SECRET` | n/a |

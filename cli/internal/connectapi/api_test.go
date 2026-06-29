@@ -33,6 +33,7 @@ import (
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	"hmans.de/chatto/internal/pb/chatto/api/v1/apiv1connect"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	operatorv1 "hmans.de/chatto/internal/pb/chatto/operator/v1"
 	"hmans.de/chatto/internal/testutil"
 )
 
@@ -245,16 +246,15 @@ func TestServerDiscoveryServiceGetServerPublicMetadata(t *testing.T) {
 	}
 }
 
-func TestAdminMemberServiceSystemUserLifecycle(t *testing.T) {
+func TestOperatorUserServiceLifecycle(t *testing.T) {
 	env := newConnectAPITestEnv(t)
-	admin := &adminUserManagementService{api: env.api}
-	ctx := authn.SetInfo(env.ctx, Caller{UserID: core.SystemActorID, IsSystem: true, TokenName: "local-cli"})
+	operator := &operatorUserService{api: env.api}
 
-	createResp, err := admin.CreateUser(ctx, connect.NewRequest(&adminv1.CreateUserRequest{
-		Login:         "admin-api-user",
-		DisplayName:   "Admin API User",
+	createResp, err := operator.CreateUser(env.ctx, connect.NewRequest(&operatorv1.CreateUserRequest{
+		Login:         "operator-api-user",
+		DisplayName:   "Operator API User",
 		Password:      "password123",
-		VerifiedEmail: "admin-api@example.com",
+		VerifiedEmail: "operator-api@example.com",
 		RoleNames:     []string{core.RoleAdmin},
 	}))
 	if err != nil {
@@ -262,7 +262,7 @@ func TestAdminMemberServiceSystemUserLifecycle(t *testing.T) {
 	}
 	member := createResp.Msg.GetMember()
 	user := member.GetUser()
-	if user.GetId() == "" || user.GetLogin() != "admin-api-user" || user.GetDisplayName() != "Admin API User" {
+	if user.GetId() == "" || user.GetLogin() != "operator-api-user" || user.GetDisplayName() != "Operator API User" {
 		t.Fatalf("created member = %+v", member)
 	}
 	if got := strings.Join(member.GetRoles(), ","); got != core.RoleAdmin {
@@ -271,43 +271,43 @@ func TestAdminMemberServiceSystemUserLifecycle(t *testing.T) {
 	if got := len(member.GetVerifiedEmails()); got != 1 {
 		t.Fatalf("created verified email count = %d, want 1", got)
 	}
-	if _, err := env.core.VerifyPassword(env.ctx, "admin-api-user", "password123"); err != nil {
+	if _, err := env.core.VerifyPassword(env.ctx, "operator-api-user", "password123"); err != nil {
 		t.Fatalf("VerifyPassword initial: %v", err)
 	}
 
-	getByLoginResp, err := admin.GetMember(ctx, connect.NewRequest(&adminv1.GetMemberRequest{Login: "admin-api-user"}))
+	getByLoginResp, err := operator.GetUser(env.ctx, connect.NewRequest(&operatorv1.GetUserRequest{Login: "operator-api-user"}))
 	if err != nil {
-		t.Fatalf("GetMember by login: %v", err)
+		t.Fatalf("GetUser by login: %v", err)
 	}
 	if getByLoginResp.Msg.GetMember().GetUser().GetId() != user.GetId() {
 		t.Fatalf("GetMember by login id = %q, want %q", getByLoginResp.Msg.GetMember().GetUser().GetId(), user.GetId())
 	}
 
-	updateResp, err := admin.UpdateUser(ctx, connect.NewRequest(&adminv1.UpdateUserRequest{
+	updateResp, err := operator.UpdateUser(env.ctx, connect.NewRequest(&operatorv1.UpdateUserRequest{
 		UserId:      user.GetId(),
-		Login:       stringPtr("admin-api-renamed"),
-		DisplayName: stringPtr("Admin API Renamed"),
+		Login:       stringPtr("operator-api-renamed"),
+		DisplayName: stringPtr("Operator API Renamed"),
 	}))
 	if err != nil {
 		t.Fatalf("UpdateUser: %v", err)
 	}
-	if got := updateResp.Msg.GetMember().GetUser().GetLogin(); got != "admin-api-renamed" {
-		t.Fatalf("updated login = %q, want admin-api-renamed", got)
+	if got := updateResp.Msg.GetMember().GetUser().GetLogin(); got != "operator-api-renamed" {
+		t.Fatalf("updated login = %q, want operator-api-renamed", got)
 	}
 
-	if _, err := admin.SetUserPassword(ctx, connect.NewRequest(&adminv1.SetUserPasswordRequest{
+	if _, err := operator.SetUserPassword(env.ctx, connect.NewRequest(&operatorv1.SetUserPasswordRequest{
 		UserId:   user.GetId(),
 		Password: "newpassword123",
 	})); err != nil {
 		t.Fatalf("SetUserPassword: %v", err)
 	}
-	if _, err := env.core.VerifyPassword(env.ctx, "admin-api-renamed", "newpassword123"); err != nil {
+	if _, err := env.core.VerifyPassword(env.ctx, "operator-api-renamed", "newpassword123"); err != nil {
 		t.Fatalf("VerifyPassword updated: %v", err)
 	}
 
-	emailResp, err := admin.AddVerifiedEmail(ctx, connect.NewRequest(&adminv1.AddVerifiedEmailRequest{
+	emailResp, err := operator.AddVerifiedEmail(env.ctx, connect.NewRequest(&operatorv1.AddVerifiedEmailRequest{
 		UserId: user.GetId(),
-		Email:  "admin-api-alt@example.com",
+		Email:  "operator-api-alt@example.com",
 	}))
 	if err != nil {
 		t.Fatalf("AddVerifiedEmail: %v", err)
@@ -316,13 +316,13 @@ func TestAdminMemberServiceSystemUserLifecycle(t *testing.T) {
 		t.Fatalf("verified email count = %d, want 2", got)
 	}
 
-	if _, err := admin.AssignRole(ctx, connect.NewRequest(&adminv1.AssignRoleRequest{
+	if _, err := operator.AssignRole(env.ctx, connect.NewRequest(&operatorv1.AssignRoleRequest{
 		UserId:   user.GetId(),
 		RoleName: core.RoleModerator,
 	})); err != nil {
 		t.Fatalf("AssignRole: %v", err)
 	}
-	roleResp, err := admin.RevokeRole(ctx, connect.NewRequest(&adminv1.RevokeRoleRequest{
+	roleResp, err := operator.RevokeRole(env.ctx, connect.NewRequest(&operatorv1.RevokeRoleRequest{
 		UserId:   user.GetId(),
 		RoleName: core.RoleAdmin,
 	}))
@@ -333,15 +333,15 @@ func TestAdminMemberServiceSystemUserLifecycle(t *testing.T) {
 		t.Fatalf("roles after revoke = %q, want %s", got, core.RoleModerator)
 	}
 
-	if _, err := admin.DeleteUser(ctx, connect.NewRequest(&adminv1.DeleteUserRequest{UserId: user.GetId()})); err != nil {
+	if _, err := operator.DeleteUser(env.ctx, connect.NewRequest(&operatorv1.DeleteUserRequest{UserId: user.GetId()})); err != nil {
 		t.Fatalf("DeleteUser: %v", err)
 	}
-	if _, err := admin.GetMember(ctx, connect.NewRequest(&adminv1.GetMemberRequest{UserId: user.GetId()})); connect.CodeOf(err) != connect.CodeNotFound {
-		t.Fatalf("GetMember after delete err = %v, want not found", err)
+	if _, err := operator.GetUser(env.ctx, connect.NewRequest(&operatorv1.GetUserRequest{UserId: user.GetId()})); connect.CodeOf(err) != connect.CodeNotFound {
+		t.Fatalf("GetUser after delete err = %v, want not found", err)
 	}
 }
 
-func TestAdminMemberServiceRejectsUserAuthSelfDelete(t *testing.T) {
+func TestAdminMemberServiceSelfCannotDeleteAccountFromMemberDetails(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	admin := &adminUserManagementService{api: env.api}
 
@@ -357,119 +357,20 @@ func TestAdminMemberServiceRejectsUserAuthSelfDelete(t *testing.T) {
 	if details.Msg.GetMember().GetViewerCanDeleteAccount() {
 		t.Fatalf("ViewerCanDeleteAccount for self = true, want false")
 	}
-
-	_, err = admin.DeleteUser(withCaller(env.ctx, user), connect.NewRequest(&adminv1.DeleteUserRequest{UserId: user.GetId()}))
-	if connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Fatalf("DeleteUser self error = %v, want permission denied", err)
-	}
-	if _, err := env.core.GetUser(env.ctx, user.GetId()); err != nil {
-		t.Fatalf("GetUser after rejected self delete: %v", err)
-	}
 }
 
-func TestAdminMemberServiceAccountLifecycleRequiresManageAccounts(t *testing.T) {
+func TestOperatorUserServiceListUsesSharedPageInfo(t *testing.T) {
 	env := newConnectAPITestEnv(t)
-
-	target, err := env.core.CreateUser(env.ctx, core.SystemActorID, "admin-account-target", "Admin Account Target", "original-password")
-	if err != nil {
-		t.Fatalf("CreateUser target: %v", err)
-	}
-	roleAssigner, err := env.core.CreateUser(env.ctx, core.SystemActorID, "admin-account-role-assigner", "Role Assigner", "password")
-	if err != nil {
-		t.Fatalf("CreateUser role assigner: %v", err)
-	}
-	if err := env.core.GrantUserPermission(env.ctx, core.SystemActorID, roleAssigner.Id, core.PermRoleAssign); err != nil {
-		t.Fatalf("GrantUserPermission role.assign: %v", err)
-	}
-	roleAssignerCtx := withCaller(env.ctx, roleAssigner)
-
-	if _, err := env.adminUsers.SetUserPassword(roleAssignerCtx, connect.NewRequest(&adminv1.SetUserPasswordRequest{
-		UserId:   target.Id,
-		Password: "taken-over-password",
-	})); connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Fatalf("role.assign SetUserPassword code = %v, want permission_denied", connect.CodeOf(err))
-	}
-	if _, err := env.core.VerifyPassword(env.ctx, "admin-account-target", "original-password"); err != nil {
-		t.Fatalf("VerifyPassword original after denied reset: %v", err)
-	}
-	if _, err := env.adminUsers.AddVerifiedEmail(roleAssignerCtx, connect.NewRequest(&adminv1.AddVerifiedEmailRequest{
-		UserId: target.Id,
-		Email:  "role-assigner-claimed@example.test",
-	})); connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Fatalf("role.assign AddVerifiedEmail code = %v, want permission_denied", connect.CodeOf(err))
-	}
-	if _, err := env.adminUsers.CreateUser(roleAssignerCtx, connect.NewRequest(&adminv1.CreateUserRequest{
-		Login:    "role-assigner-created",
-		Password: "password123",
-	})); connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Fatalf("role.assign CreateUser code = %v, want permission_denied", connect.CodeOf(err))
-	}
-	claimed, err := env.core.IsEmailClaimed(env.ctx, "role-assigner-claimed@example.test")
-	if err != nil {
-		t.Fatalf("IsEmailClaimed after denied add: %v", err)
-	}
-	if claimed {
-		t.Fatal("denied AddVerifiedEmail claimed the email")
-	}
-	if _, err := env.adminUsers.AssignRole(roleAssignerCtx, connect.NewRequest(&adminv1.AssignRoleRequest{
-		UserId:   target.Id,
-		RoleName: core.RoleModerator,
-	})); err != nil {
-		t.Fatalf("role.assign AssignRole: %v", err)
-	}
-
-	accountManager, err := env.core.CreateUser(env.ctx, core.SystemActorID, "admin-account-manager", "Account Manager", "password")
-	if err != nil {
-		t.Fatalf("CreateUser account manager: %v", err)
-	}
-	if err := env.core.GrantUserPermission(env.ctx, core.SystemActorID, accountManager.Id, core.PermUserManageAccounts); err != nil {
-		t.Fatalf("GrantUserPermission user.manage-accounts: %v", err)
-	}
-	accountManagerCtx := withCaller(env.ctx, accountManager)
-
-	if _, err := env.adminUsers.SetUserPassword(accountManagerCtx, connect.NewRequest(&adminv1.SetUserPasswordRequest{
-		UserId:   target.Id,
-		Password: "managed-password",
-	})); err != nil {
-		t.Fatalf("user.manage-accounts SetUserPassword: %v", err)
-	}
-	if _, err := env.core.VerifyPassword(env.ctx, "admin-account-target", "managed-password"); err != nil {
-		t.Fatalf("VerifyPassword managed password: %v", err)
-	}
-	if _, err := env.adminUsers.AddVerifiedEmail(accountManagerCtx, connect.NewRequest(&adminv1.AddVerifiedEmailRequest{
-		UserId: target.Id,
-		Email:  "account-manager-claimed@example.test",
-	})); err != nil {
-		t.Fatalf("user.manage-accounts AddVerifiedEmail: %v", err)
-	}
-	if _, err := env.adminUsers.CreateUser(accountManagerCtx, connect.NewRequest(&adminv1.CreateUserRequest{
-		Login:    "account-manager-created",
-		Password: "password123",
-	})); err != nil {
-		t.Fatalf("user.manage-accounts CreateUser: %v", err)
-	}
-	if _, err := env.adminUsers.CreateUser(accountManagerCtx, connect.NewRequest(&adminv1.CreateUserRequest{
-		Login:     "account-manager-created-with-role",
-		Password:  "password123",
-		RoleNames: []string{core.RoleModerator},
-	})); connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Fatalf("user.manage-accounts CreateUser with role code = %v, want permission_denied", connect.CodeOf(err))
-	}
-}
-
-func TestAdminMemberServiceSystemListUsesSharedPageInfo(t *testing.T) {
-	env := newConnectAPITestEnv(t)
-	admin := &adminUserManagementService{api: env.api}
-	ctx := authn.SetInfo(env.ctx, Caller{UserID: core.SystemActorID, IsSystem: true})
+	operator := &operatorUserService{api: env.api}
 
 	for i := 1; i <= 2; i++ {
-		login := fmt.Sprintf("admin-api-page-%d", i)
+		login := fmt.Sprintf("operator-api-page-%d", i)
 		if _, err := env.core.CreateUser(env.ctx, core.SystemActorID, login, "Admin API Page", "password123"); err != nil {
 			t.Fatalf("CreateUser %s: %v", login, err)
 		}
 	}
 
-	defaultResp, err := admin.ListMembers(ctx, connect.NewRequest(&adminv1.ListMembersRequest{Search: "admin-api-page"}))
+	defaultResp, err := operator.ListUsers(env.ctx, connect.NewRequest(&operatorv1.ListUsersRequest{Search: "operator-api-page"}))
 	if err != nil {
 		t.Fatalf("ListMembers default page: %v", err)
 	}
@@ -480,8 +381,8 @@ func TestAdminMemberServiceSystemListUsesSharedPageInfo(t *testing.T) {
 		t.Fatalf("default ListMembers page = %+v, want total 2 has_more false", page)
 	}
 
-	firstPageResp, err := admin.ListMembers(ctx, connect.NewRequest(&adminv1.ListMembersRequest{
-		Search: "admin-api-page",
+	firstPageResp, err := operator.ListUsers(env.ctx, connect.NewRequest(&operatorv1.ListUsersRequest{
+		Search: "operator-api-page",
 		Page:   &apiv1.PageRequest{Limit: 1},
 	}))
 	if err != nil {
@@ -495,17 +396,16 @@ func TestAdminMemberServiceSystemListUsesSharedPageInfo(t *testing.T) {
 	}
 }
 
-func TestAdminMemberServiceSystemUpdateUserValidatesAllFieldsBeforeWriting(t *testing.T) {
+func TestOperatorUserServiceUpdateUserValidatesAllFieldsBeforeWriting(t *testing.T) {
 	env := newConnectAPITestEnv(t)
-	admin := &adminUserManagementService{api: env.api}
-	ctx := authn.SetInfo(env.ctx, Caller{UserID: core.SystemActorID, IsSystem: true})
+	operator := &operatorUserService{api: env.api}
 
-	user, err := env.core.CreateUser(env.ctx, core.SystemActorID, "admin-api-update-rollback", "Original Display", "password123")
+	user, err := env.core.CreateUser(env.ctx, core.SystemActorID, "operator-api-update-rollback", "Original Display", "password123")
 	if err != nil {
 		t.Fatalf("CreateUser setup: %v", err)
 	}
 
-	_, err = admin.UpdateUser(ctx, connect.NewRequest(&adminv1.UpdateUserRequest{
+	_, err = operator.UpdateUser(env.ctx, connect.NewRequest(&operatorv1.UpdateUserRequest{
 		UserId:      user.GetId(),
 		DisplayName: stringPtr("Changed Display"),
 		Login:       stringPtr("bad login"),
@@ -521,25 +421,24 @@ func TestAdminMemberServiceSystemUpdateUserValidatesAllFieldsBeforeWriting(t *te
 	if got.GetDisplayName() != "Original Display" {
 		t.Fatalf("display name after rollback = %q, want Original Display", got.GetDisplayName())
 	}
-	if got.GetLogin() != "admin-api-update-rollback" {
-		t.Fatalf("login after rollback = %q, want admin-api-update-rollback", got.GetLogin())
+	if got.GetLogin() != "operator-api-update-rollback" {
+		t.Fatalf("login after rollback = %q, want operator-api-update-rollback", got.GetLogin())
 	}
 }
 
-func TestAdminMemberServiceSystemUpdateUserEventsUseSystemActor(t *testing.T) {
+func TestOperatorUserServiceUpdateUserEventsUseSystemActor(t *testing.T) {
 	env := newConnectAPITestEnv(t)
-	admin := &adminUserManagementService{api: env.api}
-	ctx := authn.SetInfo(env.ctx, Caller{UserID: core.SystemActorID, IsSystem: true})
+	operator := &operatorUserService{api: env.api}
 
-	user, err := env.core.CreateUser(env.ctx, core.SystemActorID, "admin-api-actor", "Admin Actor", "password123")
+	user, err := env.core.CreateUser(env.ctx, core.SystemActorID, "operator-api-actor", "Operator Actor", "password123")
 	if err != nil {
 		t.Fatalf("CreateUser setup: %v", err)
 	}
 
-	if _, err := admin.UpdateUser(ctx, connect.NewRequest(&adminv1.UpdateUserRequest{
+	if _, err := operator.UpdateUser(env.ctx, connect.NewRequest(&operatorv1.UpdateUserRequest{
 		UserId:      user.GetId(),
-		Login:       stringPtr("admin-api-actor-renamed"),
-		DisplayName: stringPtr("Admin Actor Renamed"),
+		Login:       stringPtr("operator-api-actor-renamed"),
+		DisplayName: stringPtr("Operator Actor Renamed"),
 	})); err != nil {
 		t.Fatalf("UpdateUser: %v", err)
 	}
@@ -567,23 +466,22 @@ func TestAdminMemberServiceSystemUpdateUserEventsUseSystemActor(t *testing.T) {
 	}
 }
 
-func TestAdminMemberServiceSystemClearUsernameCooldownUsesSystemActor(t *testing.T) {
+func TestOperatorUserServiceClearUsernameCooldownUsesSystemActor(t *testing.T) {
 	env := newConnectAPITestEnv(t)
-	admin := &adminUserManagementService{api: env.api}
-	ctx := authn.SetInfo(env.ctx, Caller{UserID: core.SystemActorID, IsSystem: true})
+	operator := &operatorUserService{api: env.api}
 
-	user, err := env.core.CreateUser(env.ctx, core.SystemActorID, "admin-api-cooldown", "Admin API Cooldown", "password123")
+	user, err := env.core.CreateUser(env.ctx, core.SystemActorID, "operator-api-cooldown", "Operator API Cooldown", "password123")
 	if err != nil {
 		t.Fatalf("CreateUser setup: %v", err)
 	}
-	if _, err := env.core.UpdateUserLogin(env.ctx, user.GetId(), "admin-api-cooldown-renamed"); err != nil {
+	if _, err := env.core.UpdateUserLogin(env.ctx, user.GetId(), "operator-api-cooldown-renamed"); err != nil {
 		t.Fatalf("UpdateUserLogin setup: %v", err)
 	}
-	if _, err := env.core.UpdateUserLogin(env.ctx, user.GetId(), "admin-api-cooldown-blocked"); !errors.Is(err, core.ErrLoginChangeCooldown) {
+	if _, err := env.core.UpdateUserLogin(env.ctx, user.GetId(), "operator-api-cooldown-blocked"); !errors.Is(err, core.ErrLoginChangeCooldown) {
 		t.Fatalf("second UpdateUserLogin error = %v, want cooldown", err)
 	}
 
-	resp, err := admin.ClearUsernameCooldown(ctx, connect.NewRequest(&adminv1.ClearUsernameCooldownRequest{
+	resp, err := operator.ClearUsernameCooldown(env.ctx, connect.NewRequest(&operatorv1.ClearUsernameCooldownRequest{
 		UserId: user.GetId(),
 	}))
 	if err != nil {
@@ -592,7 +490,7 @@ func TestAdminMemberServiceSystemClearUsernameCooldownUsesSystemActor(t *testing
 	if !resp.Msg.GetCleared() {
 		t.Fatal("Cleared = false, want true")
 	}
-	if _, err := env.core.UpdateUserLogin(env.ctx, user.GetId(), "admin-api-cooldown-unblocked"); err != nil {
+	if _, err := env.core.UpdateUserLogin(env.ctx, user.GetId(), "operator-api-cooldown-unblocked"); err != nil {
 		t.Fatalf("UpdateUserLogin after clear: %v", err)
 	}
 
@@ -608,29 +506,27 @@ func TestAdminMemberServiceSystemClearUsernameCooldownUsesSystemActor(t *testing
 	}
 }
 
-func TestAdminMemberServiceSystemAddVerifiedEmailRejectsMissingUserWithoutClaimingEmail(t *testing.T) {
+func TestOperatorUserServiceAddVerifiedEmailRejectsMissingUserWithoutClaimingEmail(t *testing.T) {
 	env := newConnectAPITestEnv(t)
-	admin := &adminUserManagementService{api: env.api}
-	ctx := authn.SetInfo(env.ctx, Caller{UserID: core.SystemActorID, IsSystem: true})
+	operator := &operatorUserService{api: env.api}
 
-	_, err := admin.AddVerifiedEmail(ctx, connect.NewRequest(&adminv1.AddVerifiedEmailRequest{
+	_, err := operator.AddVerifiedEmail(env.ctx, connect.NewRequest(&operatorv1.AddVerifiedEmailRequest{
 		UserId: "UmissingVerifiedEmail",
-		Email:  "missing-admin@example.com",
+		Email:  "missing-operator@example.com",
 	}))
 	if connect.CodeOf(err) != connect.CodeNotFound {
 		t.Fatalf("AddVerifiedEmail error = %v, want not found", err)
 	}
-	if claimed, err := env.core.IsEmailClaimed(env.ctx, "missing-admin@example.com"); err != nil || claimed {
+	if claimed, err := env.core.IsEmailClaimed(env.ctx, "missing-operator@example.com"); err != nil || claimed {
 		t.Fatalf("IsEmailClaimed after missing user add = %t, %v; want false, nil", claimed, err)
 	}
 }
 
-func TestAdminMemberServiceSystemAssignRoleRejectsMissingUserWithoutPersistingRole(t *testing.T) {
+func TestOperatorUserServiceAssignRoleRejectsMissingUserWithoutPersistingRole(t *testing.T) {
 	env := newConnectAPITestEnv(t)
-	admin := &adminUserManagementService{api: env.api}
-	ctx := authn.SetInfo(env.ctx, Caller{UserID: core.SystemActorID, IsSystem: true})
+	operator := &operatorUserService{api: env.api}
 
-	_, err := admin.AssignRole(ctx, connect.NewRequest(&adminv1.AssignRoleRequest{
+	_, err := operator.AssignRole(env.ctx, connect.NewRequest(&operatorv1.AssignRoleRequest{
 		UserId:   "UmissingAdminUser",
 		RoleName: core.RoleAdmin,
 	}))
@@ -645,7 +541,7 @@ func TestAdminMemberServiceSystemAssignRoleRejectsMissingUserWithoutPersistingRo
 	if err != nil {
 		t.Fatalf("SubjectEvents role revoked before: %v", err)
 	}
-	_, err = admin.RevokeRole(ctx, connect.NewRequest(&adminv1.RevokeRoleRequest{
+	_, err = operator.RevokeRole(env.ctx, connect.NewRequest(&operatorv1.RevokeRoleRequest{
 		UserId:   "UmissingAdminUser",
 		RoleName: core.RoleAdmin,
 	}))

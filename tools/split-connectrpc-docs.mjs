@@ -157,7 +157,7 @@ const categories = [
         name: 'AdminMemberService',
         slug: 'admin-members',
         title: 'Admin Members',
-        description: 'Member identity, role assignment, and user administration RPCs.'
+        description: 'Member identity, role assignment, and username-cooldown RPCs.'
       },
       {
         name: 'AdminRoleService',
