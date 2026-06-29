@@ -1,7 +1,7 @@
 import { Code, ConnectError } from '@connectrpc/connect';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createExternalIdentityAPI, createExternalIdentityFlowAPI } from './externalIdentities';
-import { ExternalIdentityFlowKind } from '$lib/pb/chatto/api/v1/external_identities_pb';
+import { ExternalIdentityFlowKind } from '@chatto/api-types/api/v1/external_identities_pb';
 
 const mocks = vi.hoisted(() => ({
   createClient: vi.fn(),

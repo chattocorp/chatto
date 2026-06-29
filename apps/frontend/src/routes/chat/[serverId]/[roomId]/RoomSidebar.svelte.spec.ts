@@ -6,7 +6,7 @@ import type { RoomMember } from '$lib/state/room';
 import type { PresenceCache } from '$lib/state/presenceCache.svelte';
 import type { RoomData } from '$lib/hooks/useRoomData.svelte';
 import { PresenceStatus } from '$lib/render/types';
-import { RoomKind } from '$lib/pb/chatto/api/v1/rooms_pb';
+import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 import RoomSidebarTestHarness from './RoomSidebarTestHarness.svelte';
 
 const queryMock = vi.hoisted(() => vi.fn());

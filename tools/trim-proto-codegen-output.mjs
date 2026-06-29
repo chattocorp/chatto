@@ -9,8 +9,8 @@ const generatedFiles = [
   'apps/docs-website/src/generated/connectrpc-api/admin.raw.mdx',
   'apps/docs-website/src/generated/connectrpc-api/api.raw.mdx',
   'apps/docs-website/src/generated/connectrpc-api/realtime.raw.mdx',
-  'apps/frontend/src/lib/pb/chatto/admin/v1/server_connect.ts',
-  'apps/frontend/src/lib/pb/chatto/admin/v1/server_pb.ts'
+  'packages/api-types/src/chatto/admin/v1/server_connect.ts',
+  'packages/api-types/src/chatto/admin/v1/server_pb.ts'
 ];
 
 for (const generatedFile of generatedFiles) {

@@ -3,13 +3,13 @@ import { createConnectTransport } from '@connectrpc/connect-web';
 import {
   ExternalIdentityFlowService,
   ExternalIdentityService
-} from '$lib/pb/chatto/api/v1/external_identities_connect';
+} from '@chatto/api-types/api/v1/external_identities_connect';
 import {
   ExternalIdentityFlowKind,
   type ExternalIdentityProvider,
   type LinkedExternalIdentity,
   type PendingExternalIdentity
-} from '$lib/pb/chatto/api/v1/external_identities_pb';
+} from '@chatto/api-types/api/v1/external_identities_pb';
 import { serverRegistry } from '$lib/state/server/registry.svelte';
 
 export type ExternalIdentityAPIConfig = {

@@ -1,7 +1,7 @@
 import { createClient } from '@connectrpc/connect';
 import { createConnectTransport } from '@connectrpc/connect-web';
-import { AdminServerService } from '$lib/pb/chatto/admin/v1/server_connect';
-import { ServerService } from '$lib/pb/chatto/api/v1/server_state_connect';
+import { AdminServerService } from '@chatto/api-types/admin/v1/server_connect';
+import { ServerService } from '@chatto/api-types/api/v1/server_state_connect';
 
 export type ServerStateAPIConfig = {
   baseUrl: string;

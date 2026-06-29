@@ -1,6 +1,6 @@
 import { Code, ConnectError, createClient } from '@connectrpc/connect';
 import { createConnectTransport } from '@connectrpc/connect-web';
-import { ReadStateService } from '$lib/pb/chatto/api/v1/read_state_connect';
+import { ReadStateService } from '@chatto/api-types/api/v1/read_state_connect';
 import { serverRegistry } from '$lib/state/server/registry.svelte';
 
 export type ConnectAPIConfig = {

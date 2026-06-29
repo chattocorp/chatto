@@ -20,7 +20,7 @@ import {
   RealtimeClientHello,
   RealtimeServerFrame,
   RealtimeSubscribeEvents
-} from '$lib/pb/chatto/realtime/v1/realtime_pb';
+} from '@chatto/api-types/realtime/v1/realtime_pb';
 import type { ServerConnection } from './serverConnection.svelte';
 
 const HEARTBEAT_STALL_MS = 75_000;

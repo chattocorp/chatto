@@ -1,9 +1,9 @@
 import { createClient } from '@connectrpc/connect';
 import { createConnectTransport } from '@connectrpc/connect-web';
-import { ViewerService } from '$lib/pb/chatto/api/v1/viewer_connect';
-import { PresenceStatus as APIPresenceStatus } from '$lib/pb/chatto/api/v1/presence_pb';
-import { NotificationLevel as APINotificationLevel } from '$lib/pb/chatto/api/v1/notification_preferences_pb';
-import { TimeFormat as APITimeFormat } from '$lib/pb/chatto/api/v1/viewer_pb';
+import { ViewerService } from '@chatto/api-types/api/v1/viewer_connect';
+import { PresenceStatus as APIPresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
+import { NotificationLevel as APINotificationLevel } from '@chatto/api-types/api/v1/notification_preferences_pb';
+import { TimeFormat as APITimeFormat } from '@chatto/api-types/api/v1/viewer_pb';
 import { NotificationLevel, PresenceStatus, TimeFormat } from '$lib/render/types';
 
 export type ViewerAPIConfig = {

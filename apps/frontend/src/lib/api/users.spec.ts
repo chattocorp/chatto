@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { User as APIUser } from '$lib/pb/chatto/api/v1/users_pb';
+import { User as APIUser } from '@chatto/api-types/api/v1/users_pb';
 import { createUserAPI, mapUserSummary } from './users';
 
 const mocks = vi.hoisted(() => ({

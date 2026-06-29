@@ -1,7 +1,7 @@
 import { Code, ConnectError, createClient } from '@connectrpc/connect';
 import { Timestamp } from '@bufbuild/protobuf';
 import { createConnectTransport } from '@connectrpc/connect-web';
-import { AccountService } from '$lib/pb/chatto/api/v1/account_connect';
+import { AccountService } from '@chatto/api-types/api/v1/account_connect';
 import { serverRegistry } from '$lib/state/server/registry.svelte';
 
 export type CustomUserStatusAPIConfig = {

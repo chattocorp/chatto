@@ -1,6 +1,6 @@
 import { createClient } from '@connectrpc/connect';
 import { createConnectTransport } from '@connectrpc/connect-web';
-import { VoiceCallService } from '$lib/pb/chatto/api/v1/voice_calls_connect';
+import { VoiceCallService } from '@chatto/api-types/api/v1/voice_calls_connect';
 
 export type VoiceCallAPIConfig = {
   baseUrl: string;

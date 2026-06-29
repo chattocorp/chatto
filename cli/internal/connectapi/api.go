@@ -98,9 +98,7 @@ func (a *API) Handlers() []Handler {
 	threadPath, threadHandler := apiv1connect.NewThreadServiceHandler(&threadService{api: a}, options...)
 	userPath, userHandler := apiv1connect.NewUserDirectoryServiceHandler(&userService{api: a}, options...)
 	voicePath, voiceHandler := apiv1connect.NewVoiceCallServiceHandler(&voiceCallService{api: a}, options...)
-	return []Handler{
-		{ServicePath: externalFlowPath, Handler: externalFlowHandler, AuthPolicy: AuthPolicyPublic},
-		{ServicePath: externalIdentityPath, Handler: externalIdentityHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
+	handlers := []Handler{
 		{ServicePath: accountPath, Handler: accountHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: attachmentPath, Handler: attachmentHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: adminDiagnosticsPath, Handler: adminDiagnosticsHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
@@ -108,6 +106,8 @@ func (a *API) Handlers() []Handler {
 		{ServicePath: adminServerPath, Handler: adminServerHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: adminRoomLayoutPath, Handler: adminRoomLayoutHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: adminMemberPath, Handler: adminMemberHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
+		{ServicePath: externalFlowPath, Handler: externalFlowHandler, AuthPolicy: AuthPolicyPublic},
+		{ServicePath: externalIdentityPath, Handler: externalIdentityHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: linkPreviewPath, Handler: linkPreviewHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: messagePath, Handler: messageHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: memberDirectoryPath, Handler: memberDirectoryHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
@@ -128,6 +128,7 @@ func (a *API) Handlers() []Handler {
 		{ServicePath: threadPath, Handler: threadHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: voicePath, Handler: voiceHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 	}
+	return append(handlers, reflectionHandlers(options)...)
 }
 
 func uploadRequestMaxBytes(maxUploadSize int64) int {

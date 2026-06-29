@@ -1,6 +1,6 @@
 import { Code, ConnectError, createClient } from '@connectrpc/connect';
 import { createConnectTransport } from '@connectrpc/connect-web';
-import { ReactionService } from '$lib/pb/chatto/api/v1/reactions_connect';
+import { ReactionService } from '@chatto/api-types/api/v1/reactions_connect';
 import { serverRegistry } from '$lib/state/server/registry.svelte';
 
 export type ConnectAPIConfig = {

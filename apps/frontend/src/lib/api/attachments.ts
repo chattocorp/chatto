@@ -3,17 +3,17 @@ import { createConnectTransport } from '@connectrpc/connect-web';
 import { FitMode } from '$lib/render/types';
 import type { ExpiringAssetUrl, RefreshedAttachmentUrls } from '$lib/attachments/attachmentUrls';
 import { serverRegistry } from '$lib/state/server/registry.svelte';
-import { AttachmentService } from '$lib/pb/chatto/api/v1/attachments_connect';
+import { AttachmentService } from '@chatto/api-types/api/v1/attachments_connect';
 import {
   AttachmentFitMode,
   AttachmentThumbnailOptions
-} from '$lib/pb/chatto/api/v1/attachments_pb';
+} from '@chatto/api-types/api/v1/attachments_pb';
 import {
   RoomTimelineVideoProcessingStatus,
   type RoomTimelineAssetUrl,
   type RoomTimelineAttachment,
   type RoomTimelineVideoProcessing
-} from '$lib/pb/chatto/api/v1/room_timeline_pb';
+} from '@chatto/api-types/api/v1/room_timeline_pb';
 
 export type AttachmentAPIConfig = {
   serverId?: string;

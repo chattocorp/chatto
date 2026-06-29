@@ -1,21 +1,32 @@
 package http_server
 
 import (
+	"bufio"
 	"context"
+	"crypto/tls"
+	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect"
+	"connectrpc.com/grpcreflect"
 	"github.com/gin-gonic/gin"
+	"golang.org/x/net/http2"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/types/descriptorpb"
 	"hmans.de/chatto/internal/authctx"
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/connectapi"
 	"hmans.de/chatto/internal/core"
+	"hmans.de/chatto/internal/pb/chatto/admin/v1/adminv1connect"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	"hmans.de/chatto/internal/pb/chatto/api/v1/apiv1connect"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
@@ -32,6 +43,53 @@ func setupConnectTestServer(t *testing.T, authConfig config.AuthConfig) (*HTTPSe
 	t.Cleanup(ts.Close)
 
 	return s, ts
+}
+
+func setupConnectHTTP2TestServer(t *testing.T, authConfig config.AuthConfig) (*HTTPServer, *httptest.Server) {
+	t.Helper()
+	gin.SetMode(gin.TestMode)
+
+	s := setupHTTPServerTestServer(t, authConfig)
+	s.setupConnectAPI()
+
+	ts := httptest.NewUnstartedServer(s.router)
+	ts.EnableHTTP2 = true
+	ts.StartTLS()
+	t.Cleanup(ts.Close)
+
+	return s, ts
+}
+
+func setupConnectH2CTestServer(t *testing.T, authConfig config.AuthConfig) (*HTTPServer, string) {
+	t.Helper()
+	gin.SetMode(gin.TestMode)
+
+	s := setupHTTPServerTestServer(t, authConfig)
+	s.setupConnectAPI()
+
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	srv := newAppHTTPServer(listener.Addr().String(), s.router)
+	go func() {
+		_ = srv.Serve(listener)
+	}()
+	t.Cleanup(func() {
+		_ = srv.Shutdown(context.Background())
+	})
+
+	return s, "http://" + listener.Addr().String()
+}
+
+func newH2CClient() *http.Client {
+	return &http.Client{Transport: &http2.Transport{
+		AllowHTTP: true,
+		DialTLSContext: func(ctx context.Context, network, addr string, _ *tls.Config) (net.Conn, error) {
+			var dialer net.Dialer
+			return dialer.DialContext(ctx, network, addr)
+		},
+	}}
 }
 
 func TestConnectServerDiscoveryServiceGetServer(t *testing.T) {
@@ -166,6 +224,111 @@ func TestConnectServerDiscoveryServiceGetServer(t *testing.T) {
 			t.Fatalf("BannerUrl = %q, want %s prefix", resp.Msg.GetBannerUrl(), ts.URL+"/")
 		}
 	})
+}
+
+func TestConnectReflection(t *testing.T) {
+	_, ts := setupConnectHTTP2TestServer(t, config.AuthConfig{})
+
+	client := grpcreflect.NewClient(ts.Client(), ts.URL+connectAPIPrefix)
+	stream := client.NewStream(context.Background())
+	t.Cleanup(func() {
+		_, _ = stream.Close()
+	})
+
+	names, err := stream.ListServices()
+	if err != nil {
+		t.Fatalf("ListServices: %v", err)
+	}
+	nameSet := make(map[protoreflect.FullName]bool, len(names))
+	for _, name := range names {
+		nameSet[name] = true
+	}
+	for _, want := range []protoreflect.FullName{
+		protoreflect.FullName(apiv1connect.ServerDiscoveryServiceName),
+		protoreflect.FullName(apiv1connect.RoomServiceName),
+		protoreflect.FullName(adminv1connect.AdminDiagnosticsServiceName),
+	} {
+		if !nameSet[want] {
+			t.Fatalf("reflection services = %v, missing %s", names, want)
+		}
+	}
+
+	files, err := stream.FileContainingSymbol(protoreflect.FullName(apiv1connect.ServerDiscoveryServiceName))
+	if err != nil {
+		t.Fatalf("FileContainingSymbol(%s): %v", apiv1connect.ServerDiscoveryServiceName, err)
+	}
+	if !descriptorFilesContain(files, "chatto/api/v1/server.proto") {
+		t.Fatalf("descriptors for %s did not include chatto/api/v1/server.proto", apiv1connect.ServerDiscoveryServiceName)
+	}
+
+	if _, err := stream.FileContainingSymbol("chatto.core.v1.Event"); connect.CodeOf(err) != connect.CodeNotFound {
+		t.Fatalf("FileContainingSymbol(chatto.core.v1.Event) err = %v, want not found", err)
+	}
+}
+
+func TestConnectReflectionSupportsPlaintextHTTP2(t *testing.T) {
+	_, baseURL := setupConnectH2CTestServer(t, config.AuthConfig{})
+
+	client := grpcreflect.NewClient(newH2CClient(), baseURL+connectAPIPrefix)
+	stream := client.NewStream(context.Background())
+	t.Cleanup(func() {
+		_, _ = stream.Close()
+	})
+
+	names, err := stream.ListServices()
+	if err != nil {
+		t.Fatalf("ListServices over h2c: %v", err)
+	}
+	if len(names) == 0 {
+		t.Fatal("ListServices over h2c returned no services")
+	}
+}
+
+func TestAppHTTPServerDoesNotBufferH2CUpgradeRequestBodies(t *testing.T) {
+	_, baseURL := setupConnectH2CTestServer(t, config.AuthConfig{})
+	parsedURL, err := url.Parse(baseURL)
+	if err != nil {
+		t.Fatalf("Parse(%q): %v", baseURL, err)
+	}
+
+	conn, err := net.Dial("tcp", parsedURL.Host)
+	if err != nil {
+		t.Fatalf("Dial(%s): %v", parsedURL.Host, err)
+	}
+	defer conn.Close()
+	if err := conn.SetDeadline(time.Now().Add(2 * time.Second)); err != nil {
+		t.Fatalf("SetDeadline: %v", err)
+	}
+
+	_, err = fmt.Fprintf(conn, "POST /missing-h2c-upgrade-target HTTP/1.1\r\n"+
+		"Host: %s\r\n"+
+		"Connection: Upgrade, HTTP2-Settings\r\n"+
+		"Upgrade: h2c\r\n"+
+		"HTTP2-Settings: AAMAAABkAAQAAP__\r\n"+
+		"Content-Length: 1073741824\r\n"+
+		"Content-Type: application/json\r\n"+
+		"\r\n", parsedURL.Host)
+	if err != nil {
+		t.Fatalf("write upgrade request: %v", err)
+	}
+
+	resp, err := http.ReadResponse(bufio.NewReader(conn), nil)
+	if err != nil {
+		t.Fatalf("ReadResponse: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusSwitchingProtocols {
+		t.Fatalf("status = %d, want HTTP response without h2c upgrade", resp.StatusCode)
+	}
+}
+
+func descriptorFilesContain(files []*descriptorpb.FileDescriptorProto, name string) bool {
+	for _, file := range files {
+		if file.GetName() == name {
+			return true
+		}
+	}
+	return false
 }
 
 func TestConnectServerServiceGetServerStateRequiresAuth(t *testing.T) {

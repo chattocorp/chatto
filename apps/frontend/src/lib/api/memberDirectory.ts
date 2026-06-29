@@ -1,8 +1,8 @@
 import { createClient } from '@connectrpc/connect';
 import { createConnectTransport } from '@connectrpc/connect-web';
-import { MemberDirectoryService } from '$lib/pb/chatto/api/v1/member_directory_connect';
-import type { DirectoryMember as APIDirectoryMember } from '$lib/pb/chatto/api/v1/member_directory_pb';
-import { PresenceStatus as APIPresenceStatus } from '$lib/pb/chatto/api/v1/presence_pb';
+import { MemberDirectoryService } from '@chatto/api-types/api/v1/member_directory_connect';
+import type { DirectoryMember as APIDirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
+import { PresenceStatus as APIPresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { PresenceStatus } from '$lib/render/types';
 
 export type MemberDirectoryAPIConfig = {

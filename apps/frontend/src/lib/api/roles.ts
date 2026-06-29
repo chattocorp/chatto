@@ -1,8 +1,8 @@
 import { createClient } from '@connectrpc/connect';
 import { createConnectTransport } from '@connectrpc/connect-web';
-import { AdminRoleService } from '$lib/pb/chatto/admin/v1/roles_connect';
-import type { Role as APIRole } from '$lib/pb/chatto/admin/v1/roles_pb';
-import type { User as APIUser } from '$lib/pb/chatto/api/v1/users_pb';
+import { AdminRoleService } from '@chatto/api-types/admin/v1/roles_connect';
+import type { Role as APIRole } from '@chatto/api-types/admin/v1/roles_pb';
+import type { User as APIUser } from '@chatto/api-types/api/v1/users_pb';
 
 export type RoleAPIConfig = {
   baseUrl: string;

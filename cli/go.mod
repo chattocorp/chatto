@@ -14,6 +14,7 @@ require (
 	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.11-20260415201107-50325440f8f2.1
 	connectrpc.com/authn v0.2.0
 	connectrpc.com/connect v1.20.0
+	connectrpc.com/grpcreflect v1.3.0
 	connectrpc.com/validate v0.6.0
 	filippo.io/age v1.3.1
 	github.com/HugoSmits86/nativewebp v1.3.0
@@ -52,6 +53,7 @@ require (
 	github.com/yuin/goldmark v1.8.2
 	golang.org/x/crypto v0.52.0
 	golang.org/x/image v0.41.0
+	golang.org/x/net v0.55.0
 	golang.org/x/oauth2 v0.36.0
 	golang.org/x/sync v0.20.0
 	golang.org/x/term v0.43.0
@@ -195,7 +197,6 @@ require (
 	golang.org/x/arch v0.27.0 // indirect
 	golang.org/x/exp v0.0.0-20260529124908-c761662dc8c9 // indirect
 	golang.org/x/mod v0.36.0 // indirect
-	golang.org/x/net v0.55.0 // indirect
 	golang.org/x/sys v0.45.0 // indirect
 	golang.org/x/text v0.37.0 // indirect
 	golang.org/x/time v0.15.0 // indirect

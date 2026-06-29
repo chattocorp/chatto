@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { q } from '$lib/test-utils';
-import { RoomKind } from '$lib/pb/chatto/api/v1/rooms_pb';
+import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 import {
   consumePendingRoomSidebarPanel,
   setPendingRoomSidebarPanel

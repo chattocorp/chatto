@@ -1,7 +1,7 @@
 import { createClient } from '@connectrpc/connect';
 import { createConnectTransport } from '@connectrpc/connect-web';
-import { UserDirectoryService } from '$lib/pb/chatto/api/v1/users_connect';
-import type { User as APIUser } from '$lib/pb/chatto/api/v1/users_pb';
+import { UserDirectoryService } from '@chatto/api-types/api/v1/users_connect';
+import type { User as APIUser } from '@chatto/api-types/api/v1/users_pb';
 
 export type UserAPIConfig = {
   baseUrl: string;

@@ -1,20 +1,196 @@
 ---
-title: ConnectRPC API
-description: Generated reference index for Chatto's public protobuf API.
+title: API Overview
+description: Overview of Chatto's public protobuf API.
 editUrl: false
 ---
 
 {/* Generated from proto/chatto/{api,admin,realtime}/v1/*.proto. Do not edit directly. */}
 
-Chatto exposes a protobuf-first integration API over ConnectRPC at `/api/connect`.
+Chatto exposes a protobuf-first integration API over ConnectRPC at `/api/connect`. Use it for bots, integrations, admin tooling, and alternate clients that need the same public contract as the bundled web app.
 
-Endpoint paths use the Connect convention:
+ConnectRPC lets the same generated protobuf service work with the Connect, gRPC, and gRPC-Web protocols. For simple debugging you can also call unary RPCs as JSON over HTTP.
 
-`/api/connect/<fully-qualified-service>/<method>`
+## Endpoint Shape
 
-Use this reference when building integrations, bots, admin tools, or alternate clients for a Chatto server. Public unary services use `chatto.api.v1`; privileged administration services use `chatto.admin.v1`.
+Every ConnectRPC service method is mounted below `/api/connect`:
 
-Chatto is still pre-1.0. This reference is generated from the current protobuf contract and may change between releases.
+```txt
+https://chat.example.com/api/connect/<fully-qualified-service>/<method>
+```
+
+Replace `chat.example.com` with the host of the Chatto instance you want to interact with.
+
+For example, public server discovery is:
+
+```txt
+POST /api/connect/chatto.api.v1.ServerDiscoveryService/GetServer
+```
+
+Public discovery is unauthenticated. Most other RPCs require an `Authorization: Bearer <token>` header, or a browser session when called by the bundled web client.
+
+## Authentication And Permissions
+
+[ServerDiscoveryService.GetServer](/reference/connectrpc-api/server-discovery/#chatto-api-v1-ServerDiscoveryService-GetServer) is public so clients can discover branding, registration state, and login providers before a user signs in.
+
+Most `chatto.api.v1` calls require an authenticated user. Non-browser clients should send `Authorization: Bearer <token>`; browser clients can use the active Chatto session. See [External Login Providers](/guides/external-login-providers/) for login-provider discovery and sign-in configuration.
+
+`chatto.admin.v1` calls require authentication and the relevant server permission. For example, admin settings, role, member, diagnostics, and audit-log calls are capability-gated. See [Permissions & Roles](/guides/permissions/) for the permission model.
+
+## Packages And Namespaces
+
+The API is split by who uses each part and how clients connect to it.
+
+**`chatto.api.v1`**
+
+- **Transport:** ConnectRPC unary RPCs.
+- **Covers:** Normal client and integration behavior: discovery, profile reads, room navigation, messages, reactions, notifications, calls, attachments, and preferences.
+- **Contract:** Public client API for integrations, bots, alternate clients, and the bundled web app.
+
+**`chatto.admin.v1`**
+
+- **Transport:** ConnectRPC unary RPCs.
+- **Covers:** Server administration: settings, room layout, members, roles, permissions, diagnostics, and audit reads.
+- **Contract:** Public administrative API for tools used by server owners and administrators. Calls require authentication and the relevant permission.
+
+**`chatto.realtime.v1`**
+
+- **Transport:** WebSocket protobuf frames at `/api/realtime`.
+- **Covers:** Live event delivery and realtime client synchronization.
+- **Contract:** Public realtime wire protocol. It is documented separately because it is not a ConnectRPC service.
+
+This split makes it clear which calls are for ordinary client behavior, which calls are administrative, and which protocol handles live updates.
+
+## Reflection
+
+Chatto exposes unauthenticated gRPC-compatible reflection for the public ConnectRPC API:
+
+```txt
+/api/connect/grpc.reflection.v1.ServerReflection/ServerReflectionInfo
+/api/connect/grpc.reflection.v1alpha.ServerReflection/ServerReflectionInfo
+```
+
+Reflection lets tools resolve service and message descriptors without a local copy of the `.proto` files. Chatto limits reflection to public `chatto.api.v1` and `chatto.admin.v1` descriptors plus required imports.
+
+Because Chatto mounts ConnectRPC under `/api/connect`, use tools that accept a full Connect URL, such as `buf curl`. gRPC tools that only dial services at the host root need a proxy or path rewrite.
+
+## Usage Examples
+
+### Public JSON request with curl
+
+The Connect protocol accepts JSON for unary requests, which makes [ServerDiscoveryService.GetServer](/reference/connectrpc-api/server-discovery/#chatto-api-v1-ServerDiscoveryService-GetServer) easy to test with ordinary HTTP tools:
+
+```sh
+curl -X POST \
+  -H "Content-Type: application/json" \
+  -H "Connect-Protocol-Version: 1" \
+  -d '{}' \
+  https://chat.example.com/api/connect/chatto.api.v1.ServerDiscoveryService/GetServer
+```
+
+### Authenticated JSON request
+
+Use bearer tokens for external clients. The exact token issuance flow depends on how your integration authenticates with the server. This example calls [ViewerService.GetViewer](/reference/connectrpc-api/viewer/#chatto-api-v1-ViewerService-GetViewer).
+
+```sh
+curl -X POST \
+  -H "Content-Type: application/json" \
+  -H "Connect-Protocol-Version: 1" \
+  -H "Authorization: Bearer $CHATTO_TOKEN" \
+  -d '{}' \
+  https://chat.example.com/api/connect/chatto.api.v1.ViewerService/GetViewer
+```
+
+### Reflection-backed protobuf call with buf curl
+
+`buf curl` uses protobuf schemas and can speak the Connect, gRPC, or gRPC-Web protocols. It accepts request data as protobuf JSON for CLI ergonomics, then uses reflection to resolve the request and response types. This example calls [ServerDiscoveryService.GetServer](/reference/connectrpc-api/server-discovery/#chatto-api-v1-ServerDiscoveryService-GetServer) over the Connect protocol:
+
+```sh
+buf curl --protocol connect \
+  -d '{}' \
+  https://chat.example.com/api/connect/chatto.api.v1.ServerDiscoveryService/GetServer
+```
+
+For a local plaintext server, use HTTP/2 prior knowledge. You can also switch to gRPC protobuf framing with `--protocol grpc`:
+
+```sh
+buf curl --http2-prior-knowledge \
+  --protocol grpc \
+  -d '{}' \
+  http://localhost:4000/api/connect/chatto.api.v1.ServerDiscoveryService/GetServer
+```
+
+Add `-v` to see the reflection request before the actual RPC. The first request resolves the schema through `/api/connect/grpc.reflection.v1.ServerReflection/ServerReflectionInfo`; the second request calls your target service.
+
+### Raw binary protobuf request
+
+Generated clients and `buf curl` are usually easier, but unary Connect calls can also use raw protobuf wire bytes. Send `Content-Type: application/proto`; the request body is the serialized protobuf request message, and the response body is the serialized protobuf response message.
+
+[ServerDiscoveryService.GetServer](/reference/connectrpc-api/server-discovery/#chatto-api-v1-ServerDiscoveryService-GetServer) has an empty request message, so an empty binary body is valid:
+
+```sh
+curl -X POST \
+  -H "Content-Type: application/proto" \
+  --data-binary "" \
+  --output get-server.bin \
+  https://chat.example.com/api/connect/chatto.api.v1.ServerDiscoveryService/GetServer
+```
+
+`get-server.bin` contains a protobuf-encoded `GetServerResponse`. Decode it with generated code or a protobuf tool that has the Chatto schema.
+
+### Generated TypeScript client
+
+Generated clients use `/api/connect` as their base URL. The client appends the service and method path. Set `useBinaryFormat: true` when you want the Connect-Web client to send and receive binary protobuf instead of JSON.
+
+```ts
+import { createClient } from "@connectrpc/connect";
+import { createConnectTransport } from "@connectrpc/connect-web";
+import { ServerDiscoveryService } from "./gen/chatto/api/v1/server_connect";
+
+const transport = createConnectTransport({
+  baseUrl: "https://chat.example.com/api/connect",
+  useBinaryFormat: true,
+});
+
+const discovery = createClient(ServerDiscoveryService, transport);
+const server = await discovery.getServer({});
+```
+
+For authenticated calls, pass request headers through the generated client call options:
+
+```ts
+const viewer = await viewerClient.getViewer({}, {
+  headers: { Authorization: `Bearer ${token}` },
+});
+```
+
+## Responses And Errors
+
+Successful unary JSON calls return the protobuf response message as JSON. Field names use protobuf JSON casing, such as `authMethods` and `registrationOpen`.
+
+Successful binary protobuf calls return the serialized protobuf response message with `Content-Type: application/proto`.
+
+Failed calls return Connect errors with stable codes. Common codes include:
+
+- `unauthenticated` - the call needs a signed-in user or bearer token.
+- `permission_denied` - the user is authenticated but lacks the required permission.
+- `not_found` - a singular lookup target does not exist.
+- `invalid_argument` - the request message failed validation.
+
+Generated clients expose those codes through their Connect client error helpers. Plain HTTP tools receive a Connect error response with an HTTP status mapped from the Connect code.
+
+## Versioning And Stability
+
+Package names such as `chatto.api.v1` and `chatto.admin.v1` identify the public API contract that clients integrate with.
+
+Chatto is still pre-1.0, so public API details may change between releases. Check this reference for the Chatto server version you target, and use generated clients that match that server version.
+
+If you call the API directly, ignore unknown fields when possible. Treat documented enum values, error codes, and permission requirements as part of the integration contract.
+
+The realtime protocol is versioned separately as `chatto.realtime.v1` because it is a WebSocket protocol rather than a ConnectRPC service.
+
+## Reference Pages
+
+Use the service pages below for request and response fields. Shared messages and enums are collected in [Shared Types And Enums](/reference/connectrpc-api/types/).
 
 ## ConnectRPC Services
 
