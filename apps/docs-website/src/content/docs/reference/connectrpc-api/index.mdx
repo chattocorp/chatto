@@ -18,20 +18,14 @@ Chatto is still pre-1.0. This reference is generated from the current protobuf c
 
 ## ConnectRPC Services
 
-### Discovery
+### chatto.api.v1
 
 - [ServerDiscoveryService](/reference/connectrpc-api/server-discovery/) - Unauthenticated server metadata, branding, and login discovery RPCs.
 - [ServerService](/reference/connectrpc-api/server/) - Authenticated server state and current-user server capability RPCs.
-
-### Identity
-
 - [ViewerService](/reference/connectrpc-api/viewer/) - Authenticated viewer profile, preferences, and capability RPCs.
 - [AccountService](/reference/connectrpc-api/account/) - Self-service account, profile, avatar, presence, status, and settings RPCs.
 - [UserDirectoryService](/reference/connectrpc-api/user-directory/) - Authenticated public user profile lookup RPCs.
 - [MemberDirectoryService](/reference/connectrpc-api/member-directory/) - Server and room member directory RPCs.
-
-### Rooms And Messages
-
 - [RoomDirectoryService](/reference/connectrpc-api/room-directory/) - Room navigation, room group, and room viewer-state RPCs.
 - [RoomService](/reference/connectrpc-api/rooms/) - Room lifecycle, membership, direct-message, and moderation RPCs.
 - [RoomTimelineService](/reference/connectrpc-api/room-timeline/) - Room and thread timeline read RPCs.
@@ -42,14 +36,11 @@ Chatto is still pre-1.0. This reference is generated from the current protobuf c
 - [ThreadService](/reference/connectrpc-api/threads/) - Thread follow and followed-thread listing RPCs.
 - [LinkPreviewService](/reference/connectrpc-api/link-previews/) - Link preview fetch RPCs.
 - [VoiceCallService](/reference/connectrpc-api/calls/) - Voice and video call state and token RPCs.
-
-### Notifications
-
 - [NotificationPreferencesService](/reference/connectrpc-api/notification-preferences/) - Server and room notification preference RPCs.
 - [NotificationService](/reference/connectrpc-api/notifications/) - Notification listing, counts, checks, and dismissal RPCs.
 - [PushNotificationService](/reference/connectrpc-api/push-notifications/) - Web Push subscription RPCs.
 
-### Administration
+### chatto.admin.v1
 
 - [AdminServerService](/reference/connectrpc-api/admin-server/) - Server profile, branding, and security administration RPCs.
 - [AdminRoomLayoutService](/reference/connectrpc-api/admin-room-layout/) - Room group, sidebar layout, and sidebar link administration RPCs.

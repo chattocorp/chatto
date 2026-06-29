@@ -20,7 +20,7 @@ const outputDir = path.join(
 
 const categories = [
   {
-    title: 'Discovery',
+    title: 'chatto.api.v1',
     services: [
       {
         name: 'ServerDiscoveryService',
@@ -33,12 +33,7 @@ const categories = [
         slug: 'server',
         title: 'Server',
         description: 'Authenticated server state and current-user server capability RPCs.'
-      }
-    ]
-  },
-  {
-    title: 'Identity',
-    services: [
+      },
       {
         name: 'ViewerService',
         slug: 'viewer',
@@ -62,12 +57,7 @@ const categories = [
         slug: 'member-directory',
         title: 'Member Directory',
         description: 'Server and room member directory RPCs.'
-      }
-    ]
-  },
-  {
-    title: 'Rooms And Messages',
-    services: [
+      },
       {
         name: 'RoomDirectoryService',
         slug: 'room-directory',
@@ -127,12 +117,7 @@ const categories = [
         slug: 'calls',
         title: 'Calls',
         description: 'Voice and video call state and token RPCs.'
-      }
-    ]
-  },
-  {
-    title: 'Notifications',
-    services: [
+      },
       {
         name: 'NotificationPreferencesService',
         slug: 'notification-preferences',
@@ -154,7 +139,7 @@ const categories = [
     ]
   },
   {
-    title: 'Administration',
+    title: 'chatto.admin.v1',
     services: [
       {
         name: 'AdminServerService',

@@ -49,24 +49,14 @@ export default defineConfig({
               items: [
                 "reference/connectrpc-api",
                 {
-                  label: "Discovery",
+                  label: "chatto.api.v1",
                   items: [
                     "reference/connectrpc-api/server-discovery",
                     "reference/connectrpc-api/server",
-                  ],
-                },
-                {
-                  label: "Identity",
-                  items: [
                     "reference/connectrpc-api/viewer",
                     "reference/connectrpc-api/account",
                     "reference/connectrpc-api/user-directory",
                     "reference/connectrpc-api/member-directory",
-                  ],
-                },
-                {
-                  label: "Rooms And Messages",
-                  items: [
                     "reference/connectrpc-api/room-directory",
                     "reference/connectrpc-api/rooms",
                     "reference/connectrpc-api/room-timeline",
@@ -77,18 +67,13 @@ export default defineConfig({
                     "reference/connectrpc-api/threads",
                     "reference/connectrpc-api/link-previews",
                     "reference/connectrpc-api/calls",
-                  ],
-                },
-                {
-                  label: "Notifications",
-                  items: [
                     "reference/connectrpc-api/notification-preferences",
                     "reference/connectrpc-api/notifications",
                     "reference/connectrpc-api/push-notifications",
                   ],
                 },
                 {
-                  label: "Administration",
+                  label: "chatto.admin.v1",
                   items: [
                     "reference/connectrpc-api/admin-server",
                     "reference/connectrpc-api/admin-room-layout",
@@ -100,7 +85,10 @@ export default defineConfig({
                   ],
                 },
                 "reference/connectrpc-api/types",
-                "reference/connectrpc-api/realtime",
+                {
+                  label: "chatto.realtime.v1",
+                  items: ["reference/connectrpc-api/realtime"],
+                },
               ],
             },
             "reference/environment-variables",
