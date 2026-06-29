@@ -23,6 +23,7 @@ describe('PERMISSION_METADATA', () => {
       'server.manage',
       'user.delete-any',
       'user.delete-self',
+      'user.manage-accounts',
       'user.manage-permissions'
     ]);
   });

@@ -226,7 +226,7 @@ type ViewerCapabilities struct {
 	CanStartDms bool `protobuf:"varint,2,opt,name=can_start_dms,json=canStartDms,proto3" json:"can_start_dms,omitempty"`
 	// Whether the user may view the admin users screen.
 	CanAdminViewUsers bool `protobuf:"varint,3,opt,name=can_admin_view_users,json=canAdminViewUsers,proto3" json:"can_admin_view_users,omitempty"`
-	// Whether the user may manage users.
+	// Whether the user may perform account lifecycle and recovery actions for users.
 	CanAdminManageUsers bool `protobuf:"varint,4,opt,name=can_admin_manage_users,json=canAdminManageUsers,proto3" json:"can_admin_manage_users,omitempty"`
 	// Whether the user may view role administration.
 	CanAdminViewRoles bool `protobuf:"varint,5,opt,name=can_admin_view_roles,json=canAdminViewRoles,proto3" json:"can_admin_view_roles,omitempty"`
@@ -240,8 +240,10 @@ type ViewerCapabilities struct {
 	HasUnreadFollowedThreads bool `protobuf:"varint,9,opt,name=has_unread_followed_threads,json=hasUnreadFollowedThreads,proto3" json:"has_unread_followed_threads,omitempty"`
 	// Whether the user may edit direct per-user permission overrides.
 	CanManageUserPermissions bool `protobuf:"varint,10,opt,name=can_manage_user_permissions,json=canManageUserPermissions,proto3" json:"can_manage_user_permissions,omitempty"`
-	unknownFields            protoimpl.UnknownFields
-	sizeCache                protoimpl.SizeCache
+	// Whether the user may assign and revoke roles for users.
+	CanAssignRoles bool `protobuf:"varint,11,opt,name=can_assign_roles,json=canAssignRoles,proto3" json:"can_assign_roles,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *ViewerCapabilities) Reset() {
@@ -340,6 +342,13 @@ func (x *ViewerCapabilities) GetHasUnreadFollowedThreads() bool {
 func (x *ViewerCapabilities) GetCanManageUserPermissions() bool {
 	if x != nil {
 		return x.CanManageUserPermissions
+	}
+	return false
+}
+
+func (x *ViewerCapabilities) GetCanAssignRoles() bool {
+	if x != nil {
+		return x.CanAssignRoles
 	}
 	return false
 }
@@ -591,7 +600,7 @@ const file_chatto_api_v1_viewer_proto_rawDesc = "" +
 	"\x11last_login_change\x18\n" +
 	" \x01(\v2\x1a.google.protobuf.TimestampR\x0flastLoginChange\x124\n" +
 	"\aprofile\x18\v \x01(\v2\x1a.chatto.api.v1.UserProfileR\aprofileJ\x04\b\x01\x10\aR\x02idR\x05loginR\fdisplay_nameR\n" +
-	"avatar_urlR\rcustom_statusR\x0fpresence_status\"\x8c\x04\n" +
+	"avatar_urlR\rcustom_statusR\x0fpresence_status\"\xb6\x04\n" +
 	"\x12ViewerCapabilities\x12$\n" +
 	"\x0ecan_view_admin\x18\x01 \x01(\bR\fcanViewAdmin\x12\"\n" +
 	"\rcan_start_dms\x18\x02 \x01(\bR\vcanStartDms\x12/\n" +
@@ -603,7 +612,8 @@ const file_chatto_api_v1_viewer_proto_rawDesc = "" +
 	"\x14can_admin_view_audit\x18\b \x01(\bR\x11canAdminViewAudit\x12=\n" +
 	"\x1bhas_unread_followed_threads\x18\t \x01(\bR\x18hasUnreadFollowedThreads\x12=\n" +
 	"\x1bcan_manage_user_permissions\x18\n" +
-	" \x01(\bR\x18canManageUserPermissions\"\xa1\x01\n" +
+	" \x01(\bR\x18canManageUserPermissions\x12(\n" +
+	"\x10can_assign_roles\x18\v \x01(\bR\x0ecanAssignRoles\"\xa1\x01\n" +
 	"\x1cServerNotificationPreference\x126\n" +
 	"\x05level\x18\x01 \x01(\x0e2 .chatto.api.v1.NotificationLevelR\x05level\x12I\n" +
 	"\x0feffective_level\x18\x02 \x01(\x0e2 .chatto.api.v1.NotificationLevelR\x0eeffectiveLevel\"\xb8\x01\n" +

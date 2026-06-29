@@ -63,6 +63,12 @@ func (c *ChattoCore) CanManageUserPermissions(ctx context.Context, userID string
 	return c.HasServerPermission(ctx, userID, PermUserManagePermissions)
 }
 
+// CanManageUserAccounts checks if a user can perform cross-user account
+// lifecycle and recovery operations.
+func (c *ChattoCore) CanManageUserAccounts(ctx context.Context, userID string) (bool, error) {
+	return c.HasServerPermission(ctx, userID, PermUserManageAccounts)
+}
+
 // CanStartDM checks if a user can start DM conversations. DMs are allowed by
 // default for authenticated users, but an applicable server-scope
 // message.post deny still blocks the action. This keeps global suspension
@@ -100,6 +106,7 @@ var adminPermissions = []Permission{
 	PermRoomManage,
 	PermRoomMemberBan,
 	PermUserDeleteAny,
+	PermUserManageAccounts,
 	PermUserManagePermissions,
 	PermAdminUsersView,
 	PermAdminSystemView,

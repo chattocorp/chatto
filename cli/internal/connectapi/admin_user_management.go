@@ -29,12 +29,17 @@ func (s *adminUserManagementService) CreateUser(ctx context.Context, req *connec
 		return nil, invalidArgument("login is required")
 	}
 	if !caller.IsSystem {
-		canAssign, err := s.api.core.CanAssignRoles(ctx, caller.UserID)
-		if err != nil {
-			return nil, connectError(err)
+		if err := s.requireCanManageUserAccounts(ctx, caller.UserID); err != nil {
+			return nil, err
 		}
-		if !canAssign {
-			return nil, connectError(core.ErrPermissionDenied)
+		if len(req.Msg.GetRoleNames()) > 0 {
+			canAssign, err := s.api.core.CanAssignRoles(ctx, caller.UserID)
+			if err != nil {
+				return nil, connectError(err)
+			}
+			if !canAssign {
+				return nil, connectError(core.ErrPermissionDenied)
+			}
 		}
 	}
 	created, err := s.api.core.AdminCreateUserAs(ctx, caller.UserID, core.AdminCreateUserRequest{
@@ -178,6 +183,17 @@ func (s *adminUserManagementService) GetMember(ctx context.Context, req *connect
 	return connect.NewResponse(response), nil
 }
 
+func (s *adminUserManagementService) requireCanManageUserAccounts(ctx context.Context, userID string) error {
+	canManage, err := s.api.core.CanManageUserAccounts(ctx, userID)
+	if err != nil {
+		return connectError(err)
+	}
+	if !canManage {
+		return connectError(core.ErrPermissionDenied)
+	}
+	return nil
+}
+
 func (s *adminUserManagementService) AssignRole(ctx context.Context, req *connect.Request[adminv1.AssignRoleRequest]) (*connect.Response[adminv1.AssignRoleResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
@@ -299,12 +315,8 @@ func (s *adminUserManagementService) SetUserPassword(ctx context.Context, req *c
 		return nil, err
 	}
 	if !caller.IsSystem {
-		canAssign, err := s.api.core.CanAssignRoles(ctx, caller.UserID)
-		if err != nil {
-			return nil, connectError(err)
-		}
-		if !canAssign {
-			return nil, connectError(core.ErrPermissionDenied)
+		if err := s.requireCanManageUserAccounts(ctx, caller.UserID); err != nil {
+			return nil, err
 		}
 	}
 	updated, err := s.api.core.AdminSetUserPasswordAs(ctx, caller.UserID, req.Msg.GetUserId(), req.Msg.GetPassword())
@@ -347,12 +359,8 @@ func (s *adminUserManagementService) AddVerifiedEmail(ctx context.Context, req *
 		return nil, err
 	}
 	if !caller.IsSystem {
-		canAssign, err := s.api.core.CanAssignRoles(ctx, caller.UserID)
-		if err != nil {
-			return nil, connectError(err)
-		}
-		if !canAssign {
-			return nil, connectError(core.ErrPermissionDenied)
+		if err := s.requireCanManageUserAccounts(ctx, caller.UserID); err != nil {
+			return nil, err
 		}
 	}
 	updated, err := s.api.core.AdminAddUserVerifiedEmailAs(ctx, caller.UserID, req.Msg.GetUserId(), req.Msg.GetEmail())

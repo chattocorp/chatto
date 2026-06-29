@@ -67,6 +67,7 @@ function makeViewer(overrides: Partial<ViewerState> = {}): ViewerState {
     canStartDMs: true,
     canAdminViewUsers: false,
     canAdminManageUsers: false,
+    canAssignRoles: false,
     canAdminViewRoles: false,
     canAdminManageRoles: false,
     canAdminViewSystem: false,

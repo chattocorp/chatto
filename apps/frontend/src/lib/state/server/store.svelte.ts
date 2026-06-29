@@ -63,6 +63,7 @@ const EMPTY_PERMISSIONS: ServerPermissions = {
   canStartDMs: false,
   canAdminViewUsers: false,
   canAdminManageUsers: false,
+  canAssignRoles: false,
   canAdminViewRoles: false,
   canAdminManageRoles: false,
   canAdminViewSystem: false,

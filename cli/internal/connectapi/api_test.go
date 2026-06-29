@@ -367,6 +367,96 @@ func TestAdminMemberServiceRejectsUserAuthSelfDelete(t *testing.T) {
 	}
 }
 
+func TestAdminMemberServiceAccountLifecycleRequiresManageAccounts(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+
+	target, err := env.core.CreateUser(env.ctx, core.SystemActorID, "admin-account-target", "Admin Account Target", "original-password")
+	if err != nil {
+		t.Fatalf("CreateUser target: %v", err)
+	}
+	roleAssigner, err := env.core.CreateUser(env.ctx, core.SystemActorID, "admin-account-role-assigner", "Role Assigner", "password")
+	if err != nil {
+		t.Fatalf("CreateUser role assigner: %v", err)
+	}
+	if err := env.core.GrantUserPermission(env.ctx, core.SystemActorID, roleAssigner.Id, core.PermRoleAssign); err != nil {
+		t.Fatalf("GrantUserPermission role.assign: %v", err)
+	}
+	roleAssignerCtx := withCaller(env.ctx, roleAssigner)
+
+	if _, err := env.adminUsers.SetUserPassword(roleAssignerCtx, connect.NewRequest(&adminv1.SetUserPasswordRequest{
+		UserId:   target.Id,
+		Password: "taken-over-password",
+	})); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("role.assign SetUserPassword code = %v, want permission_denied", connect.CodeOf(err))
+	}
+	if _, err := env.core.VerifyPassword(env.ctx, "admin-account-target", "original-password"); err != nil {
+		t.Fatalf("VerifyPassword original after denied reset: %v", err)
+	}
+	if _, err := env.adminUsers.AddVerifiedEmail(roleAssignerCtx, connect.NewRequest(&adminv1.AddVerifiedEmailRequest{
+		UserId: target.Id,
+		Email:  "role-assigner-claimed@example.test",
+	})); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("role.assign AddVerifiedEmail code = %v, want permission_denied", connect.CodeOf(err))
+	}
+	if _, err := env.adminUsers.CreateUser(roleAssignerCtx, connect.NewRequest(&adminv1.CreateUserRequest{
+		Login:    "role-assigner-created",
+		Password: "password123",
+	})); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("role.assign CreateUser code = %v, want permission_denied", connect.CodeOf(err))
+	}
+	claimed, err := env.core.IsEmailClaimed(env.ctx, "role-assigner-claimed@example.test")
+	if err != nil {
+		t.Fatalf("IsEmailClaimed after denied add: %v", err)
+	}
+	if claimed {
+		t.Fatal("denied AddVerifiedEmail claimed the email")
+	}
+	if _, err := env.adminUsers.AssignRole(roleAssignerCtx, connect.NewRequest(&adminv1.AssignRoleRequest{
+		UserId:   target.Id,
+		RoleName: core.RoleModerator,
+	})); err != nil {
+		t.Fatalf("role.assign AssignRole: %v", err)
+	}
+
+	accountManager, err := env.core.CreateUser(env.ctx, core.SystemActorID, "admin-account-manager", "Account Manager", "password")
+	if err != nil {
+		t.Fatalf("CreateUser account manager: %v", err)
+	}
+	if err := env.core.GrantUserPermission(env.ctx, core.SystemActorID, accountManager.Id, core.PermUserManageAccounts); err != nil {
+		t.Fatalf("GrantUserPermission user.manage-accounts: %v", err)
+	}
+	accountManagerCtx := withCaller(env.ctx, accountManager)
+
+	if _, err := env.adminUsers.SetUserPassword(accountManagerCtx, connect.NewRequest(&adminv1.SetUserPasswordRequest{
+		UserId:   target.Id,
+		Password: "managed-password",
+	})); err != nil {
+		t.Fatalf("user.manage-accounts SetUserPassword: %v", err)
+	}
+	if _, err := env.core.VerifyPassword(env.ctx, "admin-account-target", "managed-password"); err != nil {
+		t.Fatalf("VerifyPassword managed password: %v", err)
+	}
+	if _, err := env.adminUsers.AddVerifiedEmail(accountManagerCtx, connect.NewRequest(&adminv1.AddVerifiedEmailRequest{
+		UserId: target.Id,
+		Email:  "account-manager-claimed@example.test",
+	})); err != nil {
+		t.Fatalf("user.manage-accounts AddVerifiedEmail: %v", err)
+	}
+	if _, err := env.adminUsers.CreateUser(accountManagerCtx, connect.NewRequest(&adminv1.CreateUserRequest{
+		Login:    "account-manager-created",
+		Password: "password123",
+	})); err != nil {
+		t.Fatalf("user.manage-accounts CreateUser: %v", err)
+	}
+	if _, err := env.adminUsers.CreateUser(accountManagerCtx, connect.NewRequest(&adminv1.CreateUserRequest{
+		Login:     "account-manager-created-with-role",
+		Password:  "password123",
+		RoleNames: []string{core.RoleModerator},
+	})); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("user.manage-accounts CreateUser with role code = %v, want permission_denied", connect.CodeOf(err))
+	}
+}
+
 func TestAdminMemberServiceSystemListUsesSharedPageInfo(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	admin := &adminUserManagementService{api: env.api}

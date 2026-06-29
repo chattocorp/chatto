@@ -8,6 +8,7 @@ function chrome(overrides: Partial<AdminNavChromePermissions> = {}): AdminNavChr
     canManageRooms: false,
     canManageRoles: false,
     canAssignRoles: false,
+    canManageUserAccounts: false,
     canManageUserPermissions: false,
     ...overrides
   };

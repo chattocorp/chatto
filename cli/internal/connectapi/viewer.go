@@ -112,7 +112,11 @@ func (s *viewerService) viewerCapabilities(ctx context.Context, userID string) (
 	if err != nil {
 		return nil, connectError(err)
 	}
-	canAdminManageUsers, err := s.api.core.CanAssignRoles(ctx, userID)
+	canAdminManageUsers, err := s.api.core.CanManageUserAccounts(ctx, userID)
+	if err != nil {
+		return nil, connectError(err)
+	}
+	canAssignRoles, err := s.api.core.CanAssignRoles(ctx, userID)
 	if err != nil {
 		return nil, connectError(err)
 	}
@@ -148,6 +152,7 @@ func (s *viewerService) viewerCapabilities(ctx context.Context, userID string) (
 		CanAdminViewAudit:        canAdminViewAudit,
 		HasUnreadFollowedThreads: hasUnreadFollowedThreads,
 		CanManageUserPermissions: canManageUserPermissions,
+		CanAssignRoles:           canAssignRoles,
 	}, nil
 }
 
