@@ -24,7 +24,7 @@ Provides authenticated role catalog reads and admin role CRUD.
 
 ### ListRoles
 
-Lists the server role catalog. Requires an authenticated user.
+Lists the role catalog. Requires an authenticated user.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminRoleService/ListRoles
@@ -34,14 +34,14 @@ POST /api/connect/chatto.admin.v1.AdminRoleService/ListRoles
 
 #### Input: ListRolesRequest
 
-Request the server role catalog.
+Request the role catalog.
 
 
 <a id="chatto-admin-v1-ListRolesResponse"></a>
 
 #### Result: ListRolesResponse
 
-Server role catalog plus viewer role-management capabilities.
+Role catalog plus viewer role-management capabilities.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -54,7 +54,7 @@ Server role catalog plus viewer role-management capabilities.
 
 ### GetRole
 
-Gets one server role plus admin detail metadata. Returns NOT_FOUND when the
+Gets one role plus admin detail metadata. Returns NOT_FOUND when the
 role does not exist.
 
 ```http
@@ -65,7 +65,7 @@ POST /api/connect/chatto.admin.v1.AdminRoleService/GetRole
 
 #### Input: GetRoleRequest
 
-Request one server role.
+Request one role.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -76,7 +76,7 @@ Request one server role.
 
 #### Result: GetRoleResponse
 
-One server role plus role-management metadata.
+One role plus role-management metadata.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -90,7 +90,7 @@ One server role plus role-management metadata.
 
 ### CreateRole
 
-Creates a custom server role. Requires role.manage.
+Creates a custom role. Requires role.manage.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminRoleService/CreateRole
@@ -100,7 +100,7 @@ POST /api/connect/chatto.admin.v1.AdminRoleService/CreateRole
 
 #### Input: CreateRoleRequest
 
-Request to create a server role.
+Request to create a role.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -114,7 +114,7 @@ Request to create a server role.
 
 #### Result: CreateRoleResponse
 
-Result of creating a server role.
+Result of creating a role.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -135,7 +135,7 @@ POST /api/connect/chatto.admin.v1.AdminRoleService/UpdateRole
 
 #### Input: UpdateRoleRequest
 
-Request to update server role metadata.
+Request to update role metadata.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -149,7 +149,7 @@ Request to update server role metadata.
 
 #### Result: UpdateRoleResponse
 
-Result of updating a server role.
+Result of updating a role.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -160,7 +160,7 @@ Result of updating a server role.
 
 ### DeleteRole
 
-Deletes a custom server role. Requires role.manage.
+Deletes a custom role. Requires role.manage.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminRoleService/DeleteRole
@@ -170,7 +170,7 @@ POST /api/connect/chatto.admin.v1.AdminRoleService/DeleteRole
 
 #### Input: DeleteRoleRequest
 
-Request to delete a server role.
+Request to delete a role.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -181,7 +181,7 @@ Request to delete a server role.
 
 #### Result: DeleteRoleResponse
 
-Result of deleting a server role.
+Result of deleting a role.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -202,7 +202,7 @@ POST /api/connect/chatto.admin.v1.AdminRoleService/ReorderRoles
 
 #### Input: ReorderRolesRequest
 
-Request to replace custom server role order.
+Request to replace custom role order.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -213,7 +213,7 @@ Request to replace custom server role order.
 
 #### Result: ReorderRolesResponse
 
-Result of replacing custom server role order.
+Result of replacing custom role order.
 
 | Field | Type | Description |
 | --- | --- | --- |

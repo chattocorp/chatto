@@ -30,7 +30,7 @@ const (
 // admin/member metadata with visibility controlled by the service.
 type AdminMember struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Explicit server role assignments. The implicit everyone role is omitted.
+	// Explicit role assignments. The implicit everyone role is omitted.
 	Roles []string `protobuf:"bytes,5,rep,name=roles,proto3" json:"roles,omitempty"`
 	// Account creation time, when known.
 	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
@@ -182,7 +182,7 @@ func (x *AdminRoleReference) GetDisplayName() string {
 	return ""
 }
 
-// Server role details used by the member detail role-assignment UI.
+// Role details used by the member detail role-assignment UI.
 type AdminMemberRole struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Stable role name.
@@ -191,9 +191,9 @@ type AdminMemberRole struct {
 	DisplayName string `protobuf:"bytes,2,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
 	// Display/order position.
 	Position int32 `protobuf:"varint,3,opt,name=position,proto3" json:"position,omitempty"`
-	// Server permissions granted by this role.
+	// Permissions granted by this role.
 	Permissions []string `protobuf:"bytes,4,rep,name=permissions,proto3" json:"permissions,omitempty"`
-	// Server permissions denied by this role.
+	// Permissions denied by this role.
 	PermissionDenials []string `protobuf:"bytes,5,rep,name=permission_denials,json=permissionDenials,proto3" json:"permission_denials,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
@@ -275,7 +275,7 @@ type CreateUserRequest struct {
 	Password string `protobuf:"bytes,3,opt,name=password,proto3" json:"password,omitempty"`
 	// Optional email to add as already verified.
 	VerifiedEmail string `protobuf:"bytes,4,opt,name=verified_email,json=verifiedEmail,proto3" json:"verified_email,omitempty"`
-	// Optional explicit server roles to assign after creation.
+	// Optional explicit roles to assign after creation.
 	RoleNames     []string `protobuf:"bytes,5,rep,name=role_names,json=roleNames,proto3" json:"role_names,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -452,7 +452,7 @@ type ListMembersResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Matching users.
 	Users []*AdminMember `protobuf:"bytes,1,rep,name=users,proto3" json:"users,omitempty"`
-	// Server roles for display-name lookup.
+	// Roles for display-name lookup.
 	Roles []*AdminRoleReference `protobuf:"bytes,2,rep,name=roles,proto3" json:"roles,omitempty"`
 	// Page metadata.
 	Page          *v1.PageInfo `protobuf:"bytes,5,opt,name=page,proto3" json:"page,omitempty"`
@@ -571,9 +571,9 @@ type GetMemberResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Member record.
 	Member *AdminMember `protobuf:"bytes,1,opt,name=member,proto3" json:"member,omitempty"`
-	// Server roles for assignment UI.
+	// Roles for assignment UI.
 	Roles []*AdminMemberRole `protobuf:"bytes,2,rep,name=roles,proto3" json:"roles,omitempty"`
-	// Server permissions available for per-user overrides.
+	// Permissions available for per-user overrides.
 	AvailablePermissions []string `protobuf:"bytes,3,rep,name=available_permissions,json=availablePermissions,proto3" json:"available_permissions,omitempty"`
 	// Whether the caller may assign/revoke roles.
 	ViewerCanAssignRoles bool `protobuf:"varint,4,opt,name=viewer_can_assign_roles,json=viewerCanAssignRoles,proto3" json:"viewer_can_assign_roles,omitempty"`
@@ -657,7 +657,7 @@ func (x *GetMemberResponse) GetViewerCanManageUserPermissions() bool {
 	return false
 }
 
-// Request to assign a server role to a user.
+// Request to assign a role to a user.
 type AssignRoleRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Target user ID.
@@ -712,7 +712,7 @@ func (x *AssignRoleRequest) GetRoleName() string {
 	return ""
 }
 
-// Result of assigning a server role.
+// Result of assigning a role.
 type AssignRoleResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// True when the request completed.
@@ -767,7 +767,7 @@ func (x *AssignRoleResponse) GetMember() *AdminMember {
 	return nil
 }
 
-// Request to revoke a server role from a user.
+// Request to revoke a role from a user.
 type RevokeRoleRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Target user ID.
@@ -822,7 +822,7 @@ func (x *RevokeRoleRequest) GetRoleName() string {
 	return ""
 }
 
-// Result of revoking a server role.
+// Result of revoking a role.
 type RevokeRoleResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// True when the request completed.

@@ -206,7 +206,7 @@ func adminUserCreateCmd() *cobra.Command {
 	cmd.Flags().StringVar(&passwordFile, "password-file", "", "file containing the password for the new user")
 	cmd.Flags().BoolVar(&passwordStdin, "password-stdin", false, "read the password for the new user from stdin")
 	cmd.Flags().StringVar(&verifiedEmail, "verified-email", "", "email to add as already verified")
-	cmd.Flags().StringArrayVar(&roles, "role", nil, "server role to assign; repeatable")
+	cmd.Flags().StringArrayVar(&roles, "role", nil, "role to assign; repeatable")
 	return cmd
 }
 
@@ -367,7 +367,7 @@ func adminUserRoleCmd() *cobra.Command {
 	}
 	roleCmd.AddCommand(&cobra.Command{
 		Use:   "add USER_ID ROLE",
-		Short: "Assign a server role",
+		Short: "Assign a role",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			client, err := newAdminAPIClient()
@@ -388,7 +388,7 @@ func adminUserRoleCmd() *cobra.Command {
 	roleCmd.AddCommand(&cobra.Command{
 		Use:     "remove USER_ID ROLE",
 		Aliases: []string{"rm"},
-		Short:   "Revoke a server role",
+		Short:   "Revoke a role",
 		Args:    cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			client, err := newAdminAPIClient()

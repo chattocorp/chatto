@@ -5,11 +5,11 @@
 
 ## Overview
 
-Chatto controls who can do what through role-based access control. Every authenticated user holds one or more server roles; each role grants or denies specific permissions. Permissions can also be overridden per room-group and per room, giving operators fine-grained control without inventing parallel role systems.
+Chatto controls who can do what through role-based access control. Every authenticated user holds one or more roles; each role grants or denies specific permissions. Permissions can also be overridden per room-group and per room, giving operators fine-grained control without inventing parallel role systems.
 
 ## Behavior
 
-- Every authenticated user belongs to the implicit `everyone` role and may additionally hold one or more named server roles.
+- Every authenticated user belongs to the implicit `everyone` role and may additionally hold one or more named roles.
 - The system roles are `owner`, `admin`, `moderator`, `everyone`. Role position controls ordering/display and legacy event compatibility; it is not an authorization rank.
 - A role grants or denies named permissions like `message.post`, `room.create`, `admin.view-users`.
 - Permission grants/denies can be configured at three scopes: per-server (global override/default), per room-group, and per room. For non-owners, any applicable deny wins; otherwise any applicable allow grants access.

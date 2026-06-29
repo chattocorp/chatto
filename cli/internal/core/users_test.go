@@ -1550,6 +1550,41 @@ func TestChattoCore_AdminRoleAssignmentAuthorization(t *testing.T) {
 		}
 	})
 
+	t.Run("missing target user does not persist role facts", func(t *testing.T) {
+		c, _ := setupTestCore(t)
+		ctx := testContext(t)
+		admin, err := c.CreateUser(ctx, SystemActorID, "adminrole-missing-target-admin", "Admin", "password123")
+		if err != nil {
+			t.Fatalf("CreateUser admin: %v", err)
+		}
+		if err := c.AssignAdminRole(ctx, admin.Id); err != nil {
+			t.Fatalf("AssignAdminRole: %v", err)
+		}
+
+		const missingUserID = "UmissingAdminRoleTarget"
+		if err := c.AdminAssignServerRole(ctx, admin.Id, missingUserID, RoleModerator); !errors.Is(err, ErrNotFound) {
+			t.Fatalf("AdminAssignServerRole missing user err = %v, want ErrNotFound", err)
+		}
+		if c.RBAC.HasRole(missingUserID, RoleModerator) {
+			t.Fatal("missing user was assigned moderator role")
+		}
+
+		beforeRevocations, _, err := c.EventPublisher.SubjectEvents(ctx, events.RBACAggregate().Subject(events.EventRBACRoleRevoked))
+		if err != nil {
+			t.Fatalf("SubjectEvents role revoked before: %v", err)
+		}
+		if err := c.AdminRevokeServerRole(ctx, admin.Id, missingUserID, RoleModerator); !errors.Is(err, ErrNotFound) {
+			t.Fatalf("AdminRevokeServerRole missing user err = %v, want ErrNotFound", err)
+		}
+		afterRevocations, _, err := c.EventPublisher.SubjectEvents(ctx, events.RBACAggregate().Subject(events.EventRBACRoleRevoked))
+		if err != nil {
+			t.Fatalf("SubjectEvents role revoked after: %v", err)
+		}
+		if len(afterRevocations) != len(beforeRevocations) {
+			t.Fatalf("role revocation events changed from %d to %d for missing user", len(beforeRevocations), len(afterRevocations))
+		}
+	})
+
 	t.Run("cannot revoke own owner or admin role", func(t *testing.T) {
 		c, _ := setupTestCore(t)
 		ctx := testContext(t)

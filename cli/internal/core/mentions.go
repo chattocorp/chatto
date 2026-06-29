@@ -243,7 +243,7 @@ func (c *ChattoCore) ResolveMentions(ctx context.Context, usernames []string) ([
 // room-scoped broadcasts:
 //   - @all: every current room member
 //   - @here: current room members whose presence is not OFFLINE
-//   - @pingable-role: current room members explicitly assigned that server role
+//   - @pingable-role: current room members explicitly assigned that role
 //   - @user: that user, if they are a current room member
 //
 // Invalid handles are silently ignored, matching existing @user behavior.

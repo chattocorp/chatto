@@ -458,7 +458,7 @@ func (c *ChattoCore) ListServerRoles(ctx context.Context) ([]RoleWithPermissions
 	return result, nil
 }
 
-// CreateServerRole creates a new custom server role.
+// CreateServerRole creates a new custom role.
 // Role names must be lowercase letters only (e.g., "editor", "moderator").
 // System role names (owner, admin, moderator, everyone) are reserved.
 func (c *ChattoCore) CreateServerRole(ctx context.Context, actorID, name, displayName, description string, pingableValue ...bool) (*RoleWithPermissions, error) {

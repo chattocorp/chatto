@@ -18,7 +18,7 @@ import { PageInfo, PageRequest } from "../../api/v1/pagination_pb.js";
  */
 export class AdminMember extends Message<AdminMember> {
   /**
-   * Explicit server role assignments. The implicit everyone role is omitted.
+   * Explicit role assignments. The implicit everyone role is omitted.
    *
    * @generated from field: repeated string roles = 5;
    */
@@ -150,7 +150,7 @@ export class AdminRoleReference extends Message<AdminRoleReference> {
 }
 
 /**
- * Server role details used by the member detail role-assignment UI.
+ * Role details used by the member detail role-assignment UI.
  *
  * @generated from message chatto.admin.v1.AdminMemberRole
  */
@@ -177,14 +177,14 @@ export class AdminMemberRole extends Message<AdminMemberRole> {
   position = 0;
 
   /**
-   * Server permissions granted by this role.
+   * Permissions granted by this role.
    *
    * @generated from field: repeated string permissions = 4;
    */
   permissions: string[] = [];
 
   /**
-   * Server permissions denied by this role.
+   * Permissions denied by this role.
    *
    * @generated from field: repeated string permission_denials = 5;
    */
@@ -257,7 +257,7 @@ export class CreateUserRequest extends Message<CreateUserRequest> {
   verifiedEmail = "";
 
   /**
-   * Optional explicit server roles to assign after creation.
+   * Optional explicit roles to assign after creation.
    *
    * @generated from field: repeated string role_names = 5;
    */
@@ -399,7 +399,7 @@ export class ListMembersResponse extends Message<ListMembersResponse> {
   users: AdminMember[] = [];
 
   /**
-   * Server roles for display-name lookup.
+   * Roles for display-name lookup.
    *
    * @generated from field: repeated chatto.admin.v1.AdminRoleReference roles = 2;
    */
@@ -505,14 +505,14 @@ export class GetMemberResponse extends Message<GetMemberResponse> {
   member?: AdminMember;
 
   /**
-   * Server roles for assignment UI.
+   * Roles for assignment UI.
    *
    * @generated from field: repeated chatto.admin.v1.AdminMemberRole roles = 2;
    */
   roles: AdminMemberRole[] = [];
 
   /**
-   * Server permissions available for per-user overrides.
+   * Permissions available for per-user overrides.
    *
    * @generated from field: repeated string available_permissions = 3;
    */
@@ -573,7 +573,7 @@ export class GetMemberResponse extends Message<GetMemberResponse> {
 }
 
 /**
- * Request to assign a server role to a user.
+ * Request to assign a role to a user.
  *
  * @generated from message chatto.admin.v1.AssignRoleRequest
  */
@@ -622,7 +622,7 @@ export class AssignRoleRequest extends Message<AssignRoleRequest> {
 }
 
 /**
- * Result of assigning a server role.
+ * Result of assigning a role.
  *
  * @generated from message chatto.admin.v1.AssignRoleResponse
  */
@@ -671,7 +671,7 @@ export class AssignRoleResponse extends Message<AssignRoleResponse> {
 }
 
 /**
- * Request to revoke a server role from a user.
+ * Request to revoke a role from a user.
  *
  * @generated from message chatto.admin.v1.RevokeRoleRequest
  */
@@ -720,7 +720,7 @@ export class RevokeRoleRequest extends Message<RevokeRoleRequest> {
 }
 
 /**
- * Result of revoking a server role.
+ * Result of revoking a role.
  *
  * @generated from message chatto.admin.v1.RevokeRoleResponse
  */

@@ -22,8 +22,8 @@ export class DirectoryMember extends Message<DirectoryMember> {
   profile?: UserProfile;
 
   /**
-   * Explicit server roles assigned to the user. Server member listings include
-   * the virtual `everyone` role for parity with Chatto's permission model.
+   * Explicit roles assigned to the user. Member listings include the virtual
+   * `everyone` role for parity with Chatto's permission model.
    *
    * @generated from field: repeated string roles = 2;
    */

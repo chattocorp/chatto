@@ -1,6 +1,6 @@
 package core
 
-// Server role names (system-defined, cannot be deleted).
+// Built-in role names (system-defined, cannot be deleted).
 //
 // Phase 5 of #330 collapsed the dual-layer instance/space RBAC into a single
 // server-shaped layer. The legacy `instance-` prefix is gone — the unified

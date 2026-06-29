@@ -223,10 +223,10 @@ const (
 	// MaxServerBlockedUsernamesLength is the maximum length of the blocked-username list in bytes.
 	MaxServerBlockedUsernamesLength = 10000
 
-	// MaxRoleDisplayNameLength is the maximum length of a server role display name in bytes.
+	// MaxRoleDisplayNameLength is the maximum length of a role display name in bytes.
 	MaxRoleDisplayNameLength = 80
 
-	// MaxRoleDescriptionLength is the maximum length of a server role description in bytes.
+	// MaxRoleDescriptionLength is the maximum length of a role description in bytes.
 	MaxRoleDescriptionLength = 500
 
 	// MaxRoomGroupNameLength is the maximum length of a room group display name in bytes.

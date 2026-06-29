@@ -46,7 +46,7 @@ Request to create a user as an admin or operator action.
 | `display_name` | `string` | Optional display name. Defaults to login when empty. |
 | `password` | `string` | Optional password. When present, it must satisfy server password policy. |
 | `verified_email` | `string` | Optional email to add as already verified. |
-| `role_names` | `repeated string` | Optional explicit server roles to assign after creation. |
+| `role_names` | `repeated string` | Optional explicit roles to assign after creation. |
 
 
 <a id="chatto-admin-v1-CreateUserResponse"></a>
@@ -91,7 +91,7 @@ Server-admin member rows plus role summaries.
 | Field | Type | Description |
 | --- | --- | --- |
 | `users` | repeated [`AdminMember`](/reference/connectrpc-api/types/#chatto-admin-v1-AdminMember) | Matching users. |
-| `roles` | repeated [`AdminRoleReference`](/reference/connectrpc-api/types/#chatto-admin-v1-AdminRoleReference) | Server roles for display-name lookup. |
+| `roles` | repeated [`AdminRoleReference`](/reference/connectrpc-api/types/#chatto-admin-v1-AdminRoleReference) | Roles for display-name lookup. |
 | `page` | `chatto.api.v1.PageInfo` | Page metadata. |
 
 
@@ -127,8 +127,8 @@ Server-admin member detail payload.
 | Field | Type | Description |
 | --- | --- | --- |
 | `member` | [`AdminMember`](/reference/connectrpc-api/types/#chatto-admin-v1-AdminMember) | Member record. |
-| `roles` | repeated [`AdminMemberRole`](/reference/connectrpc-api/types/#chatto-admin-v1-AdminMemberRole) | Server roles for assignment UI. |
-| `available_permissions` | `repeated string` | Server permissions available for per-user overrides. |
+| `roles` | repeated [`AdminMemberRole`](/reference/connectrpc-api/types/#chatto-admin-v1-AdminMemberRole) | Roles for assignment UI. |
+| `available_permissions` | `repeated string` | Permissions available for per-user overrides. |
 | `viewer_can_assign_roles` | `bool` | Whether the caller may assign/revoke roles. |
 | `viewer_can_manage_roles` | `bool` | Whether the caller may edit role definitions. |
 | `viewer_can_manage_user_permissions` | `bool` | Whether the caller may edit direct user permissions. |
@@ -138,7 +138,7 @@ Server-admin member detail payload.
 
 ### AssignRole
 
-Assigns a server role to a user.
+Assigns a role to a user.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminMemberService/AssignRole
@@ -148,7 +148,7 @@ POST /api/connect/chatto.admin.v1.AdminMemberService/AssignRole
 
 #### Input: AssignRoleRequest
 
-Request to assign a server role to a user.
+Request to assign a role to a user.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -160,7 +160,7 @@ Request to assign a server role to a user.
 
 #### Result: AssignRoleResponse
 
-Result of assigning a server role.
+Result of assigning a role.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -172,7 +172,7 @@ Result of assigning a server role.
 
 ### RevokeRole
 
-Revokes a server role from a user.
+Revokes a role from a user.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminMemberService/RevokeRole
@@ -182,7 +182,7 @@ POST /api/connect/chatto.admin.v1.AdminMemberService/RevokeRole
 
 #### Input: RevokeRoleRequest
 
-Request to revoke a server role from a user.
+Request to revoke a role from a user.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -194,7 +194,7 @@ Request to revoke a server role from a user.
 
 #### Result: RevokeRoleResponse
 
-Result of revoking a server role.
+Result of revoking a role.
 
 | Field | Type | Description |
 | --- | --- | --- |

@@ -53,7 +53,7 @@ export const AdminMemberService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Assigns a server role to a user.
+     * Assigns a role to a user.
      *
      * @generated from rpc chatto.admin.v1.AdminMemberService.AssignRole
      */
@@ -64,7 +64,7 @@ export const AdminMemberService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Revokes a server role from a user.
+     * Revokes a role from a user.
      *
      * @generated from rpc chatto.admin.v1.AdminMemberService.RevokeRole
      */

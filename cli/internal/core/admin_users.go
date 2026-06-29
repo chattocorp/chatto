@@ -207,7 +207,7 @@ func (c *ChattoCore) AdminAddUserVerifiedEmailAs(ctx context.Context, actorID, u
 	return c.AdminGetUser(ctx, userID)
 }
 
-// AdminAssignUserRole assigns a server role to an existing user.
+// AdminAssignUserRole assigns a role to an existing user.
 func (c *ChattoCore) AdminAssignUserRole(ctx context.Context, userID, roleName string) (*AdminUserView, error) {
 	if err := c.AssignServerRoleToExistingUser(ctx, SystemActorID, userID, roleName); err != nil {
 		return nil, err
@@ -215,7 +215,7 @@ func (c *ChattoCore) AdminAssignUserRole(ctx context.Context, userID, roleName s
 	return c.AdminGetUser(ctx, userID)
 }
 
-// AdminRevokeUserRole revokes a server role from an existing user.
+// AdminRevokeUserRole revokes a role from an existing user.
 func (c *ChattoCore) AdminRevokeUserRole(ctx context.Context, userID, roleName string) (*AdminUserView, error) {
 	if err := c.RevokeServerRoleFromExistingUser(ctx, SystemActorID, userID, roleName); err != nil {
 		return nil, err

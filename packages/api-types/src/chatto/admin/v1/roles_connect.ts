@@ -15,7 +15,7 @@ export const AdminRoleService = {
   typeName: "chatto.admin.v1.AdminRoleService",
   methods: {
     /**
-     * Lists the server role catalog. Requires an authenticated user.
+     * Lists the role catalog. Requires an authenticated user.
      *
      * @generated from rpc chatto.admin.v1.AdminRoleService.ListRoles
      */
@@ -26,7 +26,7 @@ export const AdminRoleService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Gets one server role plus admin detail metadata. Returns NOT_FOUND when the
+     * Gets one role plus admin detail metadata. Returns NOT_FOUND when the
      * role does not exist.
      *
      * @generated from rpc chatto.admin.v1.AdminRoleService.GetRole
@@ -38,7 +38,7 @@ export const AdminRoleService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Creates a custom server role. Requires role.manage.
+     * Creates a custom role. Requires role.manage.
      *
      * @generated from rpc chatto.admin.v1.AdminRoleService.CreateRole
      */
@@ -60,7 +60,7 @@ export const AdminRoleService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Deletes a custom server role. Requires role.manage.
+     * Deletes a custom role. Requires role.manage.
      *
      * @generated from rpc chatto.admin.v1.AdminRoleService.DeleteRole
      */

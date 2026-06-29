@@ -324,7 +324,10 @@ func (s *adminUserManagementService) DeleteUser(ctx context.Context, req *connec
 		return nil, err
 	}
 	if !caller.IsSystem {
-		canDelete, err := s.api.core.CanDeleteUser(ctx, caller.UserID, req.Msg.GetUserId())
+		if caller.UserID == req.Msg.GetUserId() {
+			return nil, connectError(core.ErrPermissionDenied)
+		}
+		canDelete, err := s.api.core.HasServerPermission(ctx, caller.UserID, core.PermUserDeleteAny)
 		if err != nil {
 			return nil, connectError(err)
 		}

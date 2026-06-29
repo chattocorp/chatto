@@ -43,7 +43,7 @@
 
   let member = $state<AdminMember | null>(null);
   let allRoles = $state<AdminMemberRole[]>([]);
-  let memberServerRoles = $state<string[]>([]); // Member's server roles (separate from member object)
+  let memberServerRoles = $state<string[]>([]); // Member's roles (separate from member object)
   let canAssignRoles = $state(false);
   let canManageRoles = $state(false);
   let canManageUserPermissions = $state(false);
@@ -196,7 +196,7 @@
   const isSelf = $derived(currentUser.user?.id === userId);
   const canViewMemberEmails = $derived(isSelf || serverPerms.current.canAdminViewUsers);
 
-  // Sorted server roles (excluding everyone, sorted by position)
+  // Sorted roles (excluding everyone, sorted by position)
   const sortedServerRoles = $derived(
     memberServerRoles
       .filter((r) => r !== 'everyone')

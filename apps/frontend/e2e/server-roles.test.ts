@@ -507,7 +507,7 @@ test.describe('Roles Management', () => {
       await createAndLoginTestUser(page);
       const server = await usePrimaryServerViaAPI(page);
 
-      // Grant role.manage to the "everyone" server role
+      // Grant role.manage to the "everyone" role
       await grantPermission(page, server.id, 'everyone', 'role.manage');
 
       // Create second user
@@ -528,7 +528,7 @@ test.describe('Roles Management', () => {
       await createAndLoginTestUser(page);
       const server = await usePrimaryServerViaAPI(page);
 
-      // Deny role.manage on the "everyone" server role
+      // Deny role.manage on the "everyone" role
       await denyPermission(page, server.id, 'everyone', 'role.manage');
 
       // Create second user

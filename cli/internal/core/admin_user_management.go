@@ -147,7 +147,7 @@ func (c *ChattoCore) AdminAssignServerRole(ctx context.Context, actorID, targetU
 	if err := c.requireCanAssignAdminRole(ctx, actorID, targetUserID, roleName); err != nil {
 		return err
 	}
-	return c.AssignServerRole(ctx, actorID, targetUserID, roleName)
+	return c.AssignServerRoleToExistingUser(ctx, actorID, targetUserID, roleName)
 }
 
 func (c *ChattoCore) AdminRevokeServerRole(ctx context.Context, actorID, targetUserID, roleName string) error {
@@ -157,7 +157,7 @@ func (c *ChattoCore) AdminRevokeServerRole(ctx context.Context, actorID, targetU
 	if actorID == targetUserID && (roleName == RoleOwner || roleName == RoleAdmin) {
 		return ErrCannotRevokeSelfAdmin
 	}
-	return c.RevokeServerRole(ctx, actorID, targetUserID, roleName)
+	return c.RevokeServerRoleFromExistingUser(ctx, actorID, targetUserID, roleName)
 }
 
 func (c *ChattoCore) requireCanAssignAdminRole(ctx context.Context, actorID, targetUserID, roleName string) error {
@@ -214,11 +214,13 @@ func (c *ChattoCore) adminMemberForViewer(ctx context.Context, actorID string, u
 		}
 	}
 
-	viewerCanDeleteAccount, err := c.CanDeleteUser(ctx, actorID, user.GetId())
-	if err != nil {
-		return nil, err
+	if actorID != user.GetId() {
+		viewerCanDeleteAccount, err := c.CanDeleteUser(ctx, actorID, user.GetId())
+		if err != nil {
+			return nil, err
+		}
+		member.ViewerCanDeleteAccount = viewerCanDeleteAccount
 	}
-	member.ViewerCanDeleteAccount = viewerCanDeleteAccount
 
 	if canViewLastLoginChange, err := c.canViewAdminMemberLastLoginChange(ctx, actorID, user.GetId()); err != nil {
 		return nil, err

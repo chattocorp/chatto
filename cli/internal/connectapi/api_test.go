@@ -341,6 +341,32 @@ func TestAdminMemberServiceSystemUserLifecycle(t *testing.T) {
 	}
 }
 
+func TestAdminMemberServiceRejectsUserAuthSelfDelete(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	admin := &adminUserManagementService{api: env.api}
+
+	user, err := env.core.CreateUser(env.ctx, core.SystemActorID, "admin-api-self-delete", "Admin API Self Delete", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser setup: %v", err)
+	}
+
+	details, err := admin.GetMember(withCaller(env.ctx, user), connect.NewRequest(&adminv1.GetMemberRequest{UserId: user.GetId()}))
+	if err != nil {
+		t.Fatalf("GetMember self: %v", err)
+	}
+	if details.Msg.GetMember().GetViewerCanDeleteAccount() {
+		t.Fatalf("ViewerCanDeleteAccount for self = true, want false")
+	}
+
+	_, err = admin.DeleteUser(withCaller(env.ctx, user), connect.NewRequest(&adminv1.DeleteUserRequest{UserId: user.GetId()}))
+	if connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("DeleteUser self error = %v, want permission denied", err)
+	}
+	if _, err := env.core.GetUser(env.ctx, user.GetId()); err != nil {
+		t.Fatalf("GetUser after rejected self delete: %v", err)
+	}
+}
+
 func TestAdminMemberServiceSystemListUsesSharedPageInfo(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	admin := &adminUserManagementService{api: env.api}

@@ -11,8 +11,8 @@ import "google/protobuf/timestamp.proto";
 message DirectoryMember {
   // Public profile and live presence fields.
   UserProfile profile = 1;
-  // Explicit server roles assigned to the user. Server member listings include
-  // the virtual `everyone` role for parity with Chatto's permission model.
+  // Explicit roles assigned to the user. Member listings include the virtual
+  // `everyone` role for parity with Chatto's permission model.
   repeated string roles = 2;
   // Account creation time when known.
   google.protobuf.Timestamp created_at = 3;
