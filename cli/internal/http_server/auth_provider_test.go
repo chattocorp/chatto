@@ -1,6 +1,9 @@
 package http_server
 
 import (
+	"context"
+	"crypto/rand"
+	"crypto/rsa"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -8,15 +11,19 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/charmbracelet/log"
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
+	jose "github.com/go-jose/go-jose/v3"
+	josejwt "github.com/go-jose/go-jose/v3/jwt"
 	"github.com/markbates/goth"
 	gothgithub "github.com/markbates/goth/providers/github"
 	"hmans.de/chatto/internal/config"
+	"hmans.de/chatto/internal/core"
 )
 
 func TestProviderScopesForOIDC(t *testing.T) {
@@ -122,6 +129,98 @@ func TestFetchGitHubVerifiedPrimaryEmail(t *testing.T) {
 	}
 }
 
+func TestOIDCProviderWithoutEmailAutoProvisionLinkAndLogin(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	requestEmail := false
+	issuer := newNoEmailOIDCIssuer(t, "client-id")
+	defer issuer.Close()
+
+	ts, client, chattoCore := setupTestHTTPServerWithHook(t, func(s *HTTPServer) {
+		s.config.Webserver.URL = "http://chat.example"
+		s.config.Auth.Providers = []config.AuthProviderConfig{{
+			ID:            "oidc-no-email",
+			Type:          config.AuthProviderTypeOpenIDConnect,
+			Label:         "No Email OIDC",
+			IssuerURL:     issuer.URL(),
+			ClientID:      "client-id",
+			ClientSecret:  "client-secret",
+			RequestEmail:  &requestEmail,
+			AutoProvision: boolPtr(true),
+		}}
+		s.setupOIDCRoutes()
+	})
+
+	issuer.SetSubject("subject-create")
+	createToken := completeNoEmailOIDCHandshake(t, client, ts.URL, "oidc-no-email", "/chat")
+	createFlow, err := chattoCore.GetPendingExternalIdentityCreateFlow(t.Context(), createToken)
+	if err != nil {
+		t.Fatalf("GetPendingExternalIdentityCreateFlow: %v", err)
+	}
+	if createFlow.VerifiedEmail != "" {
+		t.Fatalf("create flow VerifiedEmail = %q, want empty", createFlow.VerifiedEmail)
+	}
+	if createFlow.Issuer != issuer.URL() || createFlow.Subject != "subject-create" {
+		t.Fatalf("create flow identity = %s/%s", createFlow.Issuer, createFlow.Subject)
+	}
+	if createFlow.RedirectPath != "/chat" {
+		t.Fatalf("create flow RedirectPath = %q, want /chat", createFlow.RedirectPath)
+	}
+
+	user, err := chattoCore.CreateUserForExternalIdentity(t.Context(), "noemailoidc", "No Email OIDC", createFlow)
+	if err != nil {
+		t.Fatalf("CreateUserForExternalIdentity: %v", err)
+	}
+	if err := chattoCore.DeletePendingExternalIdentityFlow(t.Context(), createToken); err != nil {
+		t.Fatalf("DeletePendingExternalIdentityFlow: %v", err)
+	}
+	if hasEmail, err := chattoCore.HasVerifiedEmail(t.Context(), user.Id); err != nil || hasEmail {
+		t.Fatalf("HasVerifiedEmail = %v, %v; want false", hasEmail, err)
+	}
+	if got, err := chattoCore.CountVerifiedAccounts(t.Context()); err != nil || got != 1 {
+		t.Fatalf("CountVerifiedAccounts = %d, %v; want 1", got, err)
+	}
+
+	loginLocation := completeNoEmailOIDCLogin(t, client, ts.URL, "oidc-no-email", "/chat")
+	if !strings.HasPrefix(loginLocation, "/chat?token=") {
+		t.Fatalf("matched no-email OIDC login Location = %q, want /chat?token=...", loginLocation)
+	}
+
+	issuer.SetSubject("subject-link")
+	linkUser, err := chattoCore.CreateUser(t.Context(), core.SystemActorID, "link-no-email-oidc", "Link No Email OIDC", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser link target: %v", err)
+	}
+	linkStart, err := chattoCore.CreatePendingExternalIdentityLinkStart(t.Context(), "oidc-no-email", "/chat/-/settings/account", linkUser.Id)
+	if err != nil {
+		t.Fatalf("CreatePendingExternalIdentityLinkStart: %v", err)
+	}
+	linkToken := completeNoEmailOIDCHandshakeWithQuery(t, client, ts.URL, "oidc-no-email", url.Values{
+		"intent":     {"link"},
+		"link_start": {linkStart},
+	})
+	linkFlow, err := chattoCore.GetPendingExternalIdentityLinkFlow(t.Context(), linkToken, linkUser.Id)
+	if err != nil {
+		t.Fatalf("GetPendingExternalIdentityLinkFlow: %v", err)
+	}
+	if linkFlow.VerifiedEmail != "" {
+		t.Fatalf("link flow VerifiedEmail = %q, want empty", linkFlow.VerifiedEmail)
+	}
+	if _, err := chattoCore.ConfirmPendingExternalIdentityLink(t.Context(), linkFlow); err != nil {
+		t.Fatalf("ConfirmPendingExternalIdentityLink: %v", err)
+	}
+	linked, err := chattoCore.GetUserByExternalIdentity(t.Context(), issuer.URL(), "subject-link")
+	if err != nil {
+		t.Fatalf("GetUserByExternalIdentity link: %v", err)
+	}
+	if linked == nil || linked.Id != linkUser.Id {
+		t.Fatalf("linked no-email OIDC identity = %v, want %s", linked, linkUser.Id)
+	}
+
+	if issuer.UserInfoRequests() == 0 {
+		t.Fatal("expected userinfo fallback when ID token has no email claim")
+	}
+}
+
 func TestLegacyOIDCRoutes(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
@@ -205,6 +304,90 @@ func TestLegacyOIDCRoutes(t *testing.T) {
 	})
 }
 
+func completeNoEmailOIDCHandshake(t *testing.T, client *http.Client, baseURL, providerID, redirectPath string) string {
+	t.Helper()
+	return completeNoEmailOIDCHandshakeWithQuery(t, client, baseURL, providerID, url.Values{"redirect": {redirectPath}})
+}
+
+func completeNoEmailOIDCLogin(t *testing.T, client *http.Client, baseURL, providerID, redirectPath string) string {
+	t.Helper()
+	startLocation := startNoEmailOIDC(t, client, baseURL, providerID, url.Values{"redirect": {redirectPath}})
+	state := authStateFromLocation(t, startLocation)
+	location := finishNoEmailOIDCCallback(t, client, baseURL, providerID, state)
+	return location
+}
+
+func completeNoEmailOIDCHandshakeWithQuery(t *testing.T, client *http.Client, baseURL, providerID string, query url.Values) string {
+	t.Helper()
+	startLocation := startNoEmailOIDC(t, client, baseURL, providerID, query)
+	state := authStateFromLocation(t, startLocation)
+	location := finishNoEmailOIDCCallback(t, client, baseURL, providerID, state)
+	redirectURL, err := url.Parse(location)
+	if err != nil {
+		t.Fatalf("callback Location %q did not parse: %v", location, err)
+	}
+	if redirectURL.Path != "/sso/confirm" {
+		t.Fatalf("callback Location = %q, want /sso/confirm", location)
+	}
+	token := redirectURL.Query().Get("token")
+	if token == "" {
+		t.Fatalf("callback Location = %q, missing token", location)
+	}
+	return token
+}
+
+func startNoEmailOIDC(t *testing.T, client *http.Client, baseURL, providerID string, query url.Values) string {
+	t.Helper()
+	reqURL := baseURL + "/auth/providers/" + providerID
+	if len(query) > 0 {
+		reqURL += "?" + query.Encode()
+	}
+	resp, err := client.Get(reqURL)
+	if err != nil {
+		t.Fatalf("GET provider start: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusTemporaryRedirect {
+		t.Fatalf("provider start status = %d, want %d", resp.StatusCode, http.StatusTemporaryRedirect)
+	}
+	location := resp.Header.Get("Location")
+	authURL, err := url.Parse(location)
+	if err != nil {
+		t.Fatalf("provider start Location %q did not parse: %v", location, err)
+	}
+	if scope := authURL.Query().Get("scope"); scope != "openid profile" {
+		t.Fatalf("provider start scope = %q, want openid profile", scope)
+	}
+	return location
+}
+
+func finishNoEmailOIDCCallback(t *testing.T, client *http.Client, baseURL, providerID, state string) string {
+	t.Helper()
+	callbackURL := baseURL + "/auth/providers/" + providerID + "/callback?state=" + url.QueryEscape(state) + "&code=test-code"
+	resp, err := client.Get(callbackURL)
+	if err != nil {
+		t.Fatalf("GET provider callback: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusTemporaryRedirect {
+		t.Fatalf("provider callback status = %d, want %d", resp.StatusCode, http.StatusTemporaryRedirect)
+	}
+	return resp.Header.Get("Location")
+}
+
+func authStateFromLocation(t *testing.T, location string) string {
+	t.Helper()
+	authURL, err := url.Parse(location)
+	if err != nil {
+		t.Fatalf("provider start Location %q did not parse: %v", location, err)
+	}
+	state := authURL.Query().Get("state")
+	if state == "" {
+		t.Fatalf("provider start Location = %q, missing state", location)
+	}
+	return state
+}
+
 func assertRedirectURI(t *testing.T, location, want string) {
 	t.Helper()
 	redirectURL, err := url.Parse(location)
@@ -215,4 +398,119 @@ func assertRedirectURI(t *testing.T, location, want string) {
 	if got != want {
 		t.Fatalf("redirect_uri = %q, want %q; Location = %q", got, want, location)
 	}
+}
+
+type noEmailOIDCIssuer struct {
+	server           *httptest.Server
+	key              *rsa.PrivateKey
+	clientID         string
+	subject          string
+	userInfoRequests int
+}
+
+func newNoEmailOIDCIssuer(t *testing.T, clientID string) *noEmailOIDCIssuer {
+	t.Helper()
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatalf("GenerateKey: %v", err)
+	}
+	issuer := &noEmailOIDCIssuer{
+		key:      key,
+		clientID: clientID,
+		subject:  "subject",
+	}
+	issuer.server = httptest.NewServer(http.HandlerFunc(issuer.ServeHTTP))
+	return issuer
+}
+
+func (i *noEmailOIDCIssuer) Close() {
+	i.server.Close()
+}
+
+func (i *noEmailOIDCIssuer) URL() string {
+	return i.server.URL
+}
+
+func (i *noEmailOIDCIssuer) SetSubject(subject string) {
+	i.subject = subject
+}
+
+func (i *noEmailOIDCIssuer) UserInfoRequests() int {
+	return i.userInfoRequests
+}
+
+func (i *noEmailOIDCIssuer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	switch r.URL.Path {
+	case "/.well-known/openid-configuration":
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"issuer":                 i.server.URL,
+			"authorization_endpoint": i.server.URL + "/authorize",
+			"token_endpoint":         i.server.URL + "/token",
+			"jwks_uri":               i.server.URL + "/keys",
+			"userinfo_endpoint":      i.server.URL + "/userinfo",
+		})
+	case "/authorize":
+		http.Redirect(w, r, r.URL.Query().Get("redirect_uri")+"?state="+url.QueryEscape(r.URL.Query().Get("state"))+"&code=test-code", http.StatusTemporaryRedirect)
+	case "/token":
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"access_token": "access-token",
+			"token_type":   "Bearer",
+			"expires_in":   3600,
+			"id_token":     i.idToken(r.Context()),
+		})
+	case "/keys":
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(jose.JSONWebKeySet{Keys: []jose.JSONWebKey{{
+			Key:       &i.key.PublicKey,
+			KeyID:     "test-key",
+			Algorithm: string(jose.RS256),
+			Use:       "sig",
+		}}})
+	case "/userinfo":
+		i.userInfoRequests++
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]string{
+			"sub":                i.subject,
+			"name":               "No Email User",
+			"preferred_username": "no-email-user",
+		})
+	default:
+		http.NotFound(w, r)
+	}
+}
+
+func (i *noEmailOIDCIssuer) idToken(_ context.Context) string {
+	signer, err := jose.NewSigner(
+		jose.SigningKey{Algorithm: jose.RS256, Key: i.key},
+		(&jose.SignerOptions{}).WithType("JWT").WithHeader("kid", "test-key"),
+	)
+	if err != nil {
+		panic(err)
+	}
+	now := time.Now()
+	claims := josejwt.Claims{
+		Issuer:   i.server.URL,
+		Subject:  i.subject,
+		Audience: josejwt.Audience{i.clientID},
+		Expiry:   josejwt.NewNumericDate(now.Add(time.Hour)),
+		IssuedAt: josejwt.NewNumericDate(now),
+	}
+	profileClaims := struct {
+		Name          string `json:"name"`
+		PreferredUser string `json:"preferred_username"`
+	}{
+		Name:          "No Email User",
+		PreferredUser: "no-email-user",
+	}
+	raw, err := josejwt.Signed(signer).Claims(claims).Claims(profileClaims).CompactSerialize()
+	if err != nil {
+		panic(err)
+	}
+	return raw
+}
+
+func boolPtr(value bool) *bool {
+	return &value
 }

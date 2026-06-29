@@ -656,7 +656,7 @@ func (c *NATSConfig) ReplicasOrDefault() int {
 // briefly overshoot by one or two. Tightening this requires an instance-stats
 // counter system with CAS-incrementing gates — tracked as a follow-up to this PR.
 type LimitsConfig struct {
-	MaxUsers *int `toml:"max_users,commented" env:"CHATTO_LIMITS_MAX_USERS" comment:"Maximum number of verified users allowed in this instance. -1 = unlimited (default), 0 = no new signups, positive = cap. Counts users with at least one verified email."`
+	MaxUsers *int `toml:"max_users,commented" env:"CHATTO_LIMITS_MAX_USERS" comment:"Maximum number of verified accounts allowed in this instance. -1 = unlimited (default), 0 = no new signups, positive = cap. Counts users with at least one verified email or linked SSO identity."`
 }
 
 // MaxUsersOrDefault returns the configured max-users limit, defaulting to -1 (unlimited).

@@ -67,6 +67,11 @@ func (c *ChattoCore) LinkExternalIdentity(ctx context.Context, providerID, provi
 		if ok && existing.GetId() != userID {
 			return ErrExternalIdentityAlreadyClaimed
 		}
+		if !ok {
+			if err := c.requireVerifiedAccountCapacity(ctx, userID); err != nil {
+				return err
+			}
+		}
 		return nil
 	})
 	return err

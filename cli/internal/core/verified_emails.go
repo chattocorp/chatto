@@ -218,6 +218,24 @@ func (c *ChattoCore) VerifyEmailCode(ctx context.Context, userID, email, code st
 	return userID, nil
 }
 
+// requireVerifiedAccountCapacity enforces the user cap at points where an
+// account gains its first verified sign-in factor.
+func (c *ChattoCore) requireVerifiedAccountCapacity(ctx context.Context, userID string) error {
+	if max := c.config.Limits.MaxUsersOrDefault(); max >= 0 {
+		if userID != "" && c.Users.HasVerifiedFactor(userID) {
+			return nil
+		}
+		count, err := c.CountVerifiedAccounts(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to count verified accounts: %w", err)
+		}
+		if count >= max {
+			return ErrLimitExceeded
+		}
+	}
+	return nil
+}
+
 // addVerifiedEmail appends a durable verified-email event for the user.
 // Idempotent: rewriting the same (user, email) pair just overwrites the
 // existing entry with identical content.
@@ -238,6 +256,9 @@ func (c *ChattoCore) addVerifiedEmail(ctx context.Context, userID, email string)
 				return errVerifiedEmailNoop
 			}
 			return ErrEmailAlreadyVerified
+		}
+		if err := c.requireVerifiedAccountCapacity(ctx, userID); err != nil {
+			return err
 		}
 		return nil
 	}); err != nil {
@@ -293,15 +314,14 @@ func (c *ChattoCore) GetUserByVerifiedEmail(ctx context.Context, email string) (
 	return nil, fmt.Errorf("no user found with verified email")
 }
 
+// CountVerifiedAccounts returns the number of distinct users with at least one
+// verified sign-in factor: a verified email or linked external identity.
+func (c *ChattoCore) CountVerifiedAccounts(ctx context.Context) (int, error) {
+	return len(c.Users.VerifiedAccountIDs()), nil
+}
+
 // CountVerifiedUsers returns the number of distinct users with at least
 // one verified email.
-//
-// Implemented by listing the email-to-user index (`user_by_email.*`),
-// which has one entry per verified email — not per user — and
-// deduplicating the userIDs in the values. This is the only path that
-// gives a tombstone-free count; see the comment on ListKeysFiltered in
-// the older version of this file for the JetStream subject-count
-// pitfall.
 func (c *ChattoCore) CountVerifiedUsers(ctx context.Context) (int, error) {
 	return len(c.Users.VerifiedUserIDs()), nil
 }

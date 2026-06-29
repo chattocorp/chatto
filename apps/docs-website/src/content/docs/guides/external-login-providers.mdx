@@ -207,7 +207,7 @@ scopes = ["openid", "profile", "groups"]
 
 For OIDC providers, Chatto always includes `openid` even if you omit it from a custom scope list.
 
-Set `request_email = false` to omit the default email scope for providers where Chatto adds one automatically.
+Set `request_email = false` to omit the default email scope for providers where Chatto adds one automatically. For OIDC this leaves the default request at `openid profile`; Chatto can create, link, and sign in accounts from the provider `sub` without receiving an email claim.
 
 ## Account matching
 
@@ -215,13 +215,15 @@ Chatto matches external logins by provider identity, not by email address.
 
 - OIDC providers are matched by verified issuer URL plus subject.
 - OAuth-only providers are matched by the configured provider ID plus provider user ID.
-- Email claims are treated as profile data and are not used to pick an account.
+- Email claims are optional profile data and are not used to pick an account.
 
 If a provider callback returns an identity that is not linked to a Chatto account, Chatto does not silently pick an account by email.
 
 Set `auto_provision = true` on a provider to allow new users from that provider to create Chatto accounts. The provider callback sends the user to an explicit confirmation screen where they choose the Chatto username. If `auto_provision` is omitted or `false`, an unlinked provider identity cannot create an account.
 
 Existing users can link providers from their account settings. Linking requires the user to already be signed in, lets Chatto create a short-lived provider link-start URL, and asks the user to confirm the pending link after the provider callback. Pending create and link tokens are short-lived and scoped to that specific action.
+
+Accounts created through an email-less provider are passwordless until the user adds a password in account settings. Password reset by email requires a verified email address, so operators running SSO without email should keep at least one trusted provider link available for affected users.
 
 ## Discovery fields
 

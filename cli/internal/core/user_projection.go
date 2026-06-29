@@ -689,6 +689,16 @@ func (p *UserProjection) HasVerifiedEmail(userID string) bool {
 	return len(p.VerifiedEmails(userID)) > 0
 }
 
+func (p *UserProjection) HasVerifiedFactor(userID string) bool {
+	p.RLock()
+	defer p.RUnlock()
+	u := p.users[userID]
+	if u == nil || u.deleted {
+		return false
+	}
+	return len(u.verifiedEmail) > 0 || len(u.externalIdentities) > 0
+}
+
 func (p *UserProjection) HasOAuthConsent(userID, redirectOrigin string) bool {
 	p.RLock()
 	defer p.RUnlock()
@@ -728,6 +738,28 @@ func (p *UserProjection) VerifiedUserIDs() []string {
 	defer p.RUnlock()
 	seen := map[string]struct{}{}
 	for _, userID := range p.emailIndex {
+		if u := p.users[userID]; u != nil && !u.deleted {
+			seen[userID] = struct{}{}
+		}
+	}
+	out := make([]string, 0, len(seen))
+	for userID := range seen {
+		out = append(out, userID)
+	}
+	sort.Strings(out)
+	return out
+}
+
+func (p *UserProjection) VerifiedAccountIDs() []string {
+	p.RLock()
+	defer p.RUnlock()
+	seen := map[string]struct{}{}
+	for _, userID := range p.emailIndex {
+		if u := p.users[userID]; u != nil && !u.deleted {
+			seen[userID] = struct{}{}
+		}
+	}
+	for _, userID := range p.identityIndex {
 		if u := p.users[userID]; u != nil && !u.deleted {
 			seen[userID] = struct{}{}
 		}

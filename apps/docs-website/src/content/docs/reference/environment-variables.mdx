@@ -313,6 +313,8 @@ auto_provision = false
 
 Provider IDs are used in login URLs and external identity links, so do not change them after users link accounts through that provider.
 
+Set `request_email = false` to avoid requesting provider email scopes. OIDC providers can run with only `openid profile`; Chatto links and signs in accounts by issuer and subject even when no email claim is returned.
+
 Set `auto_provision = true` only for providers whose users should be allowed to create Chatto accounts. Unlinked identities from providers without auto-provisioning can still be linked by existing signed-in users from account settings.
 
 See [External Login Providers](/guides/external-login-providers/) for callback URLs, provider-specific examples, and discovery behavior.
@@ -448,5 +450,5 @@ See [External Login Providers](/guides/external-login-providers/) for callback U
 Server-wide resource limits. Use `-1` for unlimited (the default), `0` to disable creation entirely, or any positive integer to cap.
 
 <EnvVar name="CHATTO_LIMITS_MAX_USERS" toml="limits.max_users" default="-1">
-  Maximum number of verified users on this server. Enforced at signup: when the verified-user count is already at the limit, new signups are rejected. Note that the check is non-atomic, so a burst of concurrent signups at the boundary can briefly overshoot by one or two.
+  Maximum number of verified accounts on this server. An account counts once it has at least one verified sign-in factor: a verified email or a linked SSO identity. Enforced when accounts are created and when the first verified factor is added. Note that the check is non-atomic, so a burst at the boundary can briefly overshoot by one or two.
 </EnvVar>

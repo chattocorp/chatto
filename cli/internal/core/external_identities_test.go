@@ -88,6 +88,58 @@ func TestChattoCore_PendingExternalIdentityCreateFlow(t *testing.T) {
 	}
 }
 
+func TestChattoCore_ExternalIdentityWithoutEmailCreatesVerifiedAccount(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	baselineUsers, err := core.CountVerifiedAccounts(ctx)
+	if err != nil {
+		t.Fatalf("CountVerifiedAccounts: %v", err)
+	}
+
+	token, err := core.CreatePendingExternalIdentityCreateFlow(ctx, PendingExternalIdentityFlow{
+		ProviderID:      "oidc-main",
+		ProviderType:    "oidc",
+		ProviderLabel:   "OIDC",
+		Issuer:          "https://id.example",
+		Subject:         "subject-no-email",
+		LoginHint:       "subject-user",
+		DisplayNameHint: "Subject User",
+	})
+	if err != nil {
+		t.Fatalf("CreatePendingExternalIdentityCreateFlow: %v", err)
+	}
+	flow, err := core.GetPendingExternalIdentityCreateFlow(ctx, token)
+	if err != nil {
+		t.Fatalf("GetPendingExternalIdentityCreateFlow: %v", err)
+	}
+	if flow.VerifiedEmail != "" {
+		t.Fatalf("VerifiedEmail = %q, want empty", flow.VerifiedEmail)
+	}
+
+	user, err := core.CreateUserForExternalIdentity(ctx, "subjectuser", "Subject User", flow)
+	if err != nil {
+		t.Fatalf("CreateUserForExternalIdentity: %v", err)
+	}
+	emails, err := core.GetVerifiedEmails(ctx, user.Id)
+	if err != nil {
+		t.Fatalf("GetVerifiedEmails: %v", err)
+	}
+	if len(emails) != 0 {
+		t.Fatalf("verified emails = %+v, want none", emails)
+	}
+	found, err := core.GetUserByExternalIdentity(ctx, "https://id.example", "subject-no-email")
+	if err != nil {
+		t.Fatalf("GetUserByExternalIdentity: %v", err)
+	}
+	if found == nil || found.Id != user.Id {
+		t.Fatalf("external identity login lookup = %v, want user %s", found, user.Id)
+	}
+	if got, err := core.CountVerifiedAccounts(ctx); err != nil || got != baselineUsers+1 {
+		t.Fatalf("CountVerifiedAccounts = %d, %v; want %d", got, err, baselineUsers+1)
+	}
+}
+
 func TestChattoCore_PendingExternalIdentityLinkStart(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
