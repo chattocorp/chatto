@@ -1,0 +1,59 @@
+---
+title: ServerService
+description: Authenticated server state and current-user server capability RPCs.
+editUrl: false
+---
+
+{/* Generated from proto/chatto/{api,admin,realtime}/v1/*.proto. Do not edit directly. */}
+
+Chatto exposes this service below `/api/connect`.
+
+
+
+Shared message and enum definitions are documented in [Shared Types And Enums](/reference/connectrpc-api/types/).
+
+
+
+<a id="chatto-api-v1-ServerService"></a>
+
+## ServerService
+
+Provides authenticated server state and current user's server capabilities.
+
+<a id="chatto-api-v1-ServerService-GetServerState"></a>
+
+### GetServerState
+
+Returns authenticated server state. This RPC requires a logged-in user;
+public discovery remains available through
+ServerDiscoveryService.GetServer.
+
+```http
+POST /api/connect/chatto.api.v1.ServerService/GetServerState
+```
+
+<a id="chatto-api-v1-GetServerStateRequest"></a>
+
+#### Input: GetServerStateRequest
+
+Request for authenticated server state.
+
+
+<a id="chatto-api-v1-GetServerStateResponse"></a>
+
+#### Result: GetServerStateResponse
+
+Authenticated server state used by the web client and public API clients.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `profile` | [`ServerProfile`](/reference/connectrpc-api/types/#chatto-api-v1-ServerProfile) | Server profile and branding. |
+| `push_notifications_enabled` | `bool` | Whether Web Push notifications are fully configured. |
+| `vapid_public_key` | `optional string` | Optional VAPID public key for Web Push registration. |
+| `livekit_url` | `optional string` | Optional LiveKit URL for voice calls. |
+| `direct_registration_enabled` | `bool` | Whether direct email/password registration is enabled. |
+| `video_processing_enabled` | `bool` | Whether video processing is enabled. |
+| `max_upload_size` | `int64` | Maximum general upload size in bytes. |
+| `max_video_upload_size` | `int64` | Maximum video upload size in bytes. |
+| `message_edit_window_seconds` | `int32` | Message edit window in seconds. |
+| `viewer_capabilities` | [`ServerViewerCapabilities`](/reference/connectrpc-api/types/#chatto-api-v1-ServerViewerCapabilities) | Permission-derived state for the authenticated user. |

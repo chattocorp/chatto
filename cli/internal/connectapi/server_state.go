@@ -7,15 +7,16 @@ import (
 
 	"connectrpc.com/connect"
 	"hmans.de/chatto/internal/core"
+	adminv1 "hmans.de/chatto/internal/pb/chatto/admin/v1"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	configv1 "hmans.de/chatto/internal/pb/chatto/config/v1"
 )
 
-type serverStateService struct {
+type serverService struct {
 	api *API
 }
 
-func (s *serverStateService) GetServerState(ctx context.Context, _ *connect.Request[apiv1.GetServerStateRequest]) (*connect.Response[apiv1.GetServerStateResponse], error) {
+func (s *serverService) GetServerState(ctx context.Context, _ *connect.Request[apiv1.GetServerStateRequest]) (*connect.Response[apiv1.GetServerStateResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -55,7 +56,7 @@ func (s *serverStateService) GetServerState(ctx context.Context, _ *connect.Requ
 	return connect.NewResponse(response), nil
 }
 
-func (s *serverStateService) UpdateServerConfig(ctx context.Context, req *connect.Request[apiv1.UpdateServerConfigRequest]) (*connect.Response[apiv1.UpdateServerConfigResponse], error) {
+func (s *serverService) UpdateServerConfig(ctx context.Context, req *connect.Request[adminv1.UpdateServerConfigRequest]) (*connect.Response[adminv1.UpdateServerConfigResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -71,12 +72,12 @@ func (s *serverStateService) UpdateServerConfig(ctx context.Context, req *connec
 		return nil, connectError(err)
 	}
 
-	return connect.NewResponse(&apiv1.UpdateServerConfigResponse{
+	return connect.NewResponse(&adminv1.UpdateServerConfigResponse{
 		Profile: s.serverProfileFromConfig(ctx, cfg),
 	}), nil
 }
 
-func (s *serverStateService) UploadServerLogo(ctx context.Context, req *connect.Request[apiv1.UploadServerLogoRequest]) (*connect.Response[apiv1.UploadServerLogoResponse], error) {
+func (s *serverService) UploadServerLogo(ctx context.Context, req *connect.Request[adminv1.UploadServerLogoRequest]) (*connect.Response[adminv1.UploadServerLogoResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -92,10 +93,10 @@ func (s *serverStateService) UploadServerLogo(ctx context.Context, req *connect.
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&apiv1.UploadServerLogoResponse{Profile: profile}), nil
+	return connect.NewResponse(&adminv1.UploadServerLogoResponse{Profile: profile}), nil
 }
 
-func (s *serverStateService) DeleteServerLogo(ctx context.Context, _ *connect.Request[apiv1.DeleteServerLogoRequest]) (*connect.Response[apiv1.DeleteServerLogoResponse], error) {
+func (s *serverService) DeleteServerLogo(ctx context.Context, _ *connect.Request[adminv1.DeleteServerLogoRequest]) (*connect.Response[adminv1.DeleteServerLogoResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -107,10 +108,10 @@ func (s *serverStateService) DeleteServerLogo(ctx context.Context, _ *connect.Re
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&apiv1.DeleteServerLogoResponse{Profile: profile}), nil
+	return connect.NewResponse(&adminv1.DeleteServerLogoResponse{Profile: profile}), nil
 }
 
-func (s *serverStateService) UploadServerBanner(ctx context.Context, req *connect.Request[apiv1.UploadServerBannerRequest]) (*connect.Response[apiv1.UploadServerBannerResponse], error) {
+func (s *serverService) UploadServerBanner(ctx context.Context, req *connect.Request[adminv1.UploadServerBannerRequest]) (*connect.Response[adminv1.UploadServerBannerResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -126,10 +127,10 @@ func (s *serverStateService) UploadServerBanner(ctx context.Context, req *connec
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&apiv1.UploadServerBannerResponse{Profile: profile}), nil
+	return connect.NewResponse(&adminv1.UploadServerBannerResponse{Profile: profile}), nil
 }
 
-func (s *serverStateService) DeleteServerBanner(ctx context.Context, _ *connect.Request[apiv1.DeleteServerBannerRequest]) (*connect.Response[apiv1.DeleteServerBannerResponse], error) {
+func (s *serverService) DeleteServerBanner(ctx context.Context, _ *connect.Request[adminv1.DeleteServerBannerRequest]) (*connect.Response[adminv1.DeleteServerBannerResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -141,10 +142,10 @@ func (s *serverStateService) DeleteServerBanner(ctx context.Context, _ *connect.
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&apiv1.DeleteServerBannerResponse{Profile: profile}), nil
+	return connect.NewResponse(&adminv1.DeleteServerBannerResponse{Profile: profile}), nil
 }
 
-func (s *serverStateService) GetServerSecurityConfig(ctx context.Context, _ *connect.Request[apiv1.GetServerSecurityConfigRequest]) (*connect.Response[apiv1.GetServerSecurityConfigResponse], error) {
+func (s *serverService) GetServerSecurityConfig(ctx context.Context, _ *connect.Request[adminv1.GetServerSecurityConfigRequest]) (*connect.Response[adminv1.GetServerSecurityConfigResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -155,12 +156,12 @@ func (s *serverStateService) GetServerSecurityConfig(ctx context.Context, _ *con
 		return nil, connectError(err)
 	}
 
-	return connect.NewResponse(&apiv1.GetServerSecurityConfigResponse{
+	return connect.NewResponse(&adminv1.GetServerSecurityConfigResponse{
 		BlockedUsernames: blockedUsernames,
 	}), nil
 }
 
-func (s *serverStateService) UpdateBlockedUsernames(ctx context.Context, req *connect.Request[apiv1.UpdateBlockedUsernamesRequest]) (*connect.Response[apiv1.UpdateBlockedUsernamesResponse], error) {
+func (s *serverService) UpdateBlockedUsernames(ctx context.Context, req *connect.Request[adminv1.UpdateBlockedUsernamesRequest]) (*connect.Response[adminv1.UpdateBlockedUsernamesResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -171,12 +172,12 @@ func (s *serverStateService) UpdateBlockedUsernames(ctx context.Context, req *co
 		return nil, connectError(err)
 	}
 
-	return connect.NewResponse(&apiv1.UpdateBlockedUsernamesResponse{
+	return connect.NewResponse(&adminv1.UpdateBlockedUsernamesResponse{
 		BlockedUsernames: blockedUsernames,
 	}), nil
 }
 
-func (s *serverStateService) serverProfile(ctx context.Context) (*apiv1.ServerProfile, error) {
+func (s *serverService) serverProfile(ctx context.Context) (*apiv1.ServerProfile, error) {
 	profile := &apiv1.ServerProfile{Name: s.api.effectiveServerName(ctx)}
 
 	if cm := s.api.core.ConfigManager(); cm != nil {
@@ -213,7 +214,7 @@ func (s *serverStateService) serverProfile(ctx context.Context) (*apiv1.ServerPr
 	return profile, nil
 }
 
-func (s *serverStateService) serverProfileFromConfig(ctx context.Context, cfg *configv1.ServerConfig) *apiv1.ServerProfile {
+func (s *serverService) serverProfileFromConfig(ctx context.Context, cfg *configv1.ServerConfig) *apiv1.ServerProfile {
 	profile := &apiv1.ServerProfile{Name: s.api.effectiveServerName(ctx)}
 	if cfg != nil {
 		if cfg.GetServerName() != "" {
@@ -239,7 +240,7 @@ func (s *serverStateService) serverProfileFromConfig(ctx context.Context, cfg *c
 	return profile
 }
 
-func (s *serverStateService) serverViewerCapabilities(ctx context.Context, userID string) (*apiv1.ServerViewerCapabilities, error) {
+func (s *serverService) serverViewerCapabilities(ctx context.Context, userID string) (*apiv1.ServerViewerCapabilities, error) {
 	hasAnyAdminPermission, err := s.api.core.HasAnyAdminPermission(ctx, userID)
 	if err != nil {
 		return nil, connectError(err)
@@ -270,7 +271,7 @@ func (s *serverStateService) serverViewerCapabilities(ctx context.Context, userI
 	}, nil
 }
 
-func (s *serverStateService) viewerHasUnreadRooms(ctx context.Context, userID string) (bool, error) {
+func (s *serverService) viewerHasUnreadRooms(ctx context.Context, userID string) (bool, error) {
 	rooms, err := s.api.core.ListMemberRooms(ctx, core.KindChannel, userID, core.MemberRoomListOptions{})
 	if err != nil {
 		return false, connectError(err)

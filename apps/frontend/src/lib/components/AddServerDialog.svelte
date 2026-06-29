@@ -3,8 +3,8 @@
 
 The "Add Server" dialog. Two stages in one modal:
 
-1. URL — collects a hostname/URL and probes `/api/server` to confirm
-   it's a Chatto server.
+1. URL — collects a hostname/URL and probes ServerDiscoveryService.GetServer
+   to confirm it's a Chatto server.
 2. Preview — shows what was found (name, hostname, version) so the user
    can confirm before being bounced to the remote's OAuth login. On
    submit it kicks off the OAuth PKCE flow and redirects.
@@ -13,7 +13,9 @@ Internal naming stays "instance" (registry, file name, route ids) per
 ADR-027 — only user-facing copy says "server".
 -->
 <script lang="ts">
+  import { ConnectError } from '@connectrpc/connect';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
+  import { getPublicServerInfo, type PublicServerInfo } from '$lib/api/server';
   import * as m from '$lib/i18n/messages';
   import {
     generateCodeChallenge,
@@ -32,23 +34,12 @@ ADR-027 — only user-facing copy says "server".
     onclose: () => void;
   } = $props();
 
-  type InstanceInfo = {
-    name: string;
-    version?: string;
-    authMethods: string[];
-    welcomeMessage?: string;
-    authorizeUrl?: string;
-    description?: string;
-    iconUrl?: string | null;
-    bannerUrl?: string | null;
-  };
-
   type Stage = 'url' | 'preview';
 
   let stage = $state<Stage>('url');
   let serverUrl = $state('');
   let probedUrl = $state('');
-  let probedInfo = $state<InstanceInfo | null>(null);
+  let probedInfo = $state<PublicServerInfo | null>(null);
   let formError = $state('');
   let probing = $state(false);
   let connecting = $state(false);
@@ -85,26 +76,25 @@ ADR-027 — only user-facing copy says "server".
   }
 
   /**
-   * Probe `${url}/api/server`. If the user typed a bare hostname (no
-   * scheme), `normalizeUrl()` defaults to https — fall back to http on
-   * connection failure so dev servers on plain http still work without
-   * the user having to type the scheme.
+   * Probe ServerDiscoveryService.GetServer. If the user typed a bare hostname
+   * (no scheme), `normalizeUrl()` defaults to https — fall back to http on
+   * connection failure so dev servers on plain http still work without the user
+   * having to type the scheme.
    */
   async function probeWithFallback(
     rawInput: string,
     initialUrl: string
-  ): Promise<{ url: string; response: Response }> {
-    const fetchOnce = (u: string) =>
-      fetch(`${u}/api/server`, { signal: AbortSignal.timeout(10000) });
+  ): Promise<{ url: string; info: PublicServerInfo }> {
+    const fetchOnce = (u: string) => getPublicServerInfo(u, { signal: AbortSignal.timeout(10000) });
 
     try {
-      return { url: initialUrl, response: await fetchOnce(initialUrl) };
+      return { url: initialUrl, info: await fetchOnce(initialUrl) };
     } catch (err) {
       if (hasScheme(rawInput) || !initialUrl.startsWith('https://')) {
         throw err;
       }
       const httpUrl = 'http://' + initialUrl.slice('https://'.length);
-      return { url: httpUrl, response: await fetchOnce(httpUrl) };
+      return { url: httpUrl, info: await fetchOnce(httpUrl) };
     }
   }
 
@@ -137,14 +127,7 @@ ADR-027 — only user-facing copy says "server".
     probing = true;
 
     try {
-      const { url: probedFromUrl, response } = await probeWithFallback(serverUrl, url);
-
-      if (!response.ok) {
-        formError = `Server responded with ${response.status}. Is this a Chatto server?`;
-        return;
-      }
-
-      const info = (await response.json()) as InstanceInfo;
+      const { url: probedFromUrl, info } = await probeWithFallback(serverUrl, url);
 
       if (!info.name || !Array.isArray(info.authMethods)) {
         formError = 'This does not appear to be a Chatto server.';
@@ -162,7 +145,7 @@ ADR-027 — only user-facing copy says "server".
     } catch (err) {
       if (err instanceof DOMException && err.name === 'AbortError') {
         formError = 'Connection timed out. Check the URL and try again.';
-      } else if (err instanceof TypeError) {
+      } else if (err instanceof TypeError || err instanceof ConnectError) {
         formError = 'Could not connect. Check the URL and ensure CORS is configured.';
       } else {
         formError = err instanceof Error ? err.message : 'Failed to connect.';

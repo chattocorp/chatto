@@ -55,7 +55,10 @@ depends = ["deps-frontend"]
 description = "Generate Go and frontend code from protobuf schemas"
 depends = ["setup-cli", "setup-frontend"]
 dir = "proto"
-run = "buf generate"
+run = [
+    "buf generate",
+    "node ../tools/split-connectrpc-docs.mjs",
+]
 
 [tasks.codegen-emoji]
 description = "Generate Go emoji map from gemoji npm package"

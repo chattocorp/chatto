@@ -41,7 +41,7 @@ message ViewerUser {
   // Last time a login credential changed, when known.
   google.protobuf.Timestamp last_login_change = 10;
   // Public profile and live presence fields for the authenticated user.
-  UserPresenceSummary profile = 11;
+  UserProfile profile = 11;
 }
 
 // Permission-derived capabilities for the authenticated user.

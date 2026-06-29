@@ -36,16 +36,20 @@ describe('createMemberDirectoryAPI', () => {
     mocks.listServerMembers.mockResolvedValue({
       members: [
         {
-          id: 'U1',
-          login: 'alice',
-          displayName: 'Alice',
-          deleted: false,
-          avatarUrl: 'https://cdn/avatar.webp',
-          presenceStatus: APIPresenceStatus.AWAY,
-          customStatus: {
-            emoji: ':seedling:',
-            text: 'Focus',
-            expiresAt: Timestamp.fromDate(new Date('2026-06-01T12:00:00Z'))
+          profile: {
+            user: {
+              id: 'U1',
+              login: 'alice',
+              displayName: 'Alice',
+              deleted: false,
+              avatarUrl: 'https://cdn/avatar.webp'
+            },
+            presenceStatus: APIPresenceStatus.AWAY,
+            customStatus: {
+              emoji: ':seedling:',
+              text: 'Focus',
+              expiresAt: Timestamp.fromDate(new Date('2026-06-01T12:00:00Z'))
+            }
           },
           roles: ['everyone', 'admin'],
           createdAt: Timestamp.fromDate(new Date('2026-01-01T09:00:00Z'))
@@ -95,11 +99,15 @@ describe('createMemberDirectoryAPI', () => {
     mocks.listRoomMembers.mockResolvedValue({
       members: [
         {
-          id: 'U2',
-          login: 'bob',
-          displayName: 'Bob',
-          deleted: false,
-          presenceStatus: APIPresenceStatus.DO_NOT_DISTURB,
+          profile: {
+            user: {
+              id: 'U2',
+              login: 'bob',
+              displayName: 'Bob',
+              deleted: false
+            },
+            presenceStatus: APIPresenceStatus.DO_NOT_DISTURB
+          },
           roles: []
         }
       ],
@@ -136,19 +144,27 @@ describe('createMemberDirectoryAPI', () => {
     mocks.listServerMembers.mockResolvedValue({
       members: [
         {
-          id: 'U3',
-          login: 'carol',
-          displayName: 'Carol',
-          deleted: false,
-          presenceStatus: APIPresenceStatus.OFFLINE,
+          profile: {
+            user: {
+              id: 'U3',
+              login: 'carol',
+              displayName: 'Carol',
+              deleted: false
+            },
+            presenceStatus: APIPresenceStatus.OFFLINE
+          },
           roles: []
         },
         {
-          id: 'U4',
-          login: 'dave',
-          displayName: 'Dave',
-          deleted: false,
-          presenceStatus: APIPresenceStatus.UNSPECIFIED,
+          profile: {
+            user: {
+              id: 'U4',
+              login: 'dave',
+              displayName: 'Dave',
+              deleted: false
+            },
+            presenceStatus: APIPresenceStatus.UNSPECIFIED
+          },
           roles: []
         }
       ],

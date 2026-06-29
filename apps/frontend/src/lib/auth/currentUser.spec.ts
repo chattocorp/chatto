@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { CurrentUserState } from './currentUser.svelte';
 
 const { gotoMock, clearCachedUserMock } = vi.hoisted(() => ({
   gotoMock: vi.fn(() => Promise.resolve()),
@@ -46,14 +47,12 @@ describe('CurrentUserState', () => {
     });
   });
 
-  it('exports the class', async () => {
-    const module = await import('./currentUser.svelte');
-    expect(module.CurrentUserState).toBeDefined();
-    expect(typeof module.CurrentUserState).toBe('function');
+  it('exports the class', () => {
+    expect(CurrentUserState).toBeDefined();
+    expect(typeof CurrentUserState).toBe('function');
   });
 
   it('does not revoke the server session by default for cookie auth failures', async () => {
-    const { CurrentUserState } = await import('./currentUser.svelte');
     const state = new CurrentUserState(true);
 
     await state.handleAuthFailure();
@@ -68,7 +67,6 @@ describe('CurrentUserState', () => {
   });
 
   it('revokes the server session when explicitly requested', async () => {
-    const { CurrentUserState } = await import('./currentUser.svelte');
     const state = new CurrentUserState(true);
 
     await state.handleAuthFailure({ revokeServerSession: true });

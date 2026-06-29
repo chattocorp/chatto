@@ -137,10 +137,11 @@ export class CallParticipantsState {
 }
 
 function toObserverParticipant(p: QueryCallParticipant): ObserverParticipant {
+  const user = p.user;
   return {
-    userId: p.user.id,
-    displayName: p.user.displayName,
-    login: p.user.login,
-    avatarUrl: p.user.avatarUrl ?? null
+    userId: user?.id ?? '',
+    displayName: user?.displayName ?? '',
+    login: user?.login ?? '',
+    avatarUrl: user?.avatarUrl ?? null
   };
 }

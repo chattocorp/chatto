@@ -38,13 +38,3 @@ message ClearCustomStatusResponse {
   // Current custom status after the operation. Usually absent after a clear.
   CustomUserStatus status = 1;
 }
-
-// Manages the current user's custom profile status.
-service UserStatusService {
-  // Sets or replaces the current user's custom status. Emoji and text are
-  // required, and expires_at must be omitted or in the future.
-  rpc SetCustomStatus(SetCustomStatusRequest) returns (SetCustomStatusResponse);
-  // Clears the current user's custom status. The call is idempotent and returns
-  // the resulting empty status state.
-  rpc ClearCustomStatus(ClearCustomStatusRequest) returns (ClearCustomStatusResponse);
-}

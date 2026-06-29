@@ -1,0 +1,91 @@
+---
+title: AttachmentService
+description: Attachment listing and signed URL refresh RPCs.
+editUrl: false
+---
+
+{/* Generated from proto/chatto/{api,admin,realtime}/v1/*.proto. Do not edit directly. */}
+
+Chatto exposes this service below `/api/connect`.
+
+
+
+Shared message and enum definitions are documented in [Shared Types And Enums](/reference/connectrpc-api/types/).
+
+
+
+<a id="chatto-api-v1-AttachmentService"></a>
+
+## AttachmentService
+
+Reads room attachments and refreshes expiring signed attachment URLs.
+
+<a id="chatto-api-v1-AttachmentService-ListRoomAttachments"></a>
+
+### ListRoomAttachments
+
+Lists current message-owned room attachments. Authentication and room
+membership are required.
+
+```http
+POST /api/connect/chatto.api.v1.AttachmentService/ListRoomAttachments
+```
+
+<a id="chatto-api-v1-ListRoomAttachmentsRequest"></a>
+
+#### Input: ListRoomAttachmentsRequest
+
+Request for room-scoped attachment list pages.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required room ID. |
+| `thumbnail` | [`AttachmentThumbnailOptions`](/reference/connectrpc-api/types/#chatto-api-v1-AttachmentThumbnailOptions) | Thumbnail URL options. Defaults are applied when absent. |
+| `page` | [`PageRequest`](/reference/connectrpc-api/types/#chatto-api-v1-PageRequest) | Page request. Defaults are applied when absent or limit is zero. |
+
+
+<a id="chatto-api-v1-ListRoomAttachmentsResponse"></a>
+
+#### Result: ListRoomAttachmentsResponse
+
+Room-scoped attachment list response.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `items` | repeated [`RoomAttachmentListItem`](/reference/connectrpc-api/types/#chatto-api-v1-RoomAttachmentListItem) | Current attachments in newest message order. |
+| `page` | [`PageInfo`](/reference/connectrpc-api/types/#chatto-api-v1-PageInfo) | Page metadata. |
+
+
+<a id="chatto-api-v1-AttachmentService-RefreshMessageAttachmentUrls"></a>
+
+### RefreshMessageAttachmentUrls
+
+Refreshes signed URLs for the current attachments on one message.
+Authentication and room membership are required.
+
+```http
+POST /api/connect/chatto.api.v1.AttachmentService/RefreshMessageAttachmentUrls
+```
+
+<a id="chatto-api-v1-RefreshMessageAttachmentUrlsRequest"></a>
+
+#### Input: RefreshMessageAttachmentUrlsRequest
+
+Request to refresh signed attachment URLs for one message.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required room ID. |
+| `event_id` | `string` | Required message event ID. |
+| `thumbnail` | [`AttachmentThumbnailOptions`](/reference/connectrpc-api/types/#chatto-api-v1-AttachmentThumbnailOptions) | Thumbnail URL options. Defaults are applied when absent. |
+
+
+<a id="chatto-api-v1-RefreshMessageAttachmentUrlsResponse"></a>
+
+#### Result: RefreshMessageAttachmentUrlsResponse
+
+Response containing fresh signed URLs for the current message attachments.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `attachments` | repeated [`RefreshedAttachmentUrls`](/reference/connectrpc-api/types/#chatto-api-v1-RefreshedAttachmentUrls) | Fresh URL bundle for each current attachment on the message. |

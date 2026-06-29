@@ -1,6 +1,6 @@
 import { createClient } from '@connectrpc/connect';
 import { createConnectTransport } from '@connectrpc/connect-web';
-import { ServerService } from '$lib/pb/chatto/api/v1/server_connect';
+import { ServerDiscoveryService } from '$lib/pb/chatto/api/v1/server_connect';
 
 export type PublicAuthProvider = {
   id: string;
@@ -11,6 +11,9 @@ export type PublicAuthProvider = {
 
 export type PublicServerInfo = {
   name: string;
+  version: string;
+  authMethods: string[];
+  authorizeUrl: string;
   directRegistrationEnabled: boolean;
   welcomeMessage: string | null;
   description: string | null;
@@ -19,20 +22,25 @@ export type PublicServerInfo = {
   authProviders: PublicAuthProvider[];
 };
 
-export async function getPublicServerInfo(baseUrl: string): Promise<PublicServerInfo> {
+export async function getPublicServerInfo(
+  baseUrl: string,
+  options: { signal?: AbortSignal } = {}
+): Promise<PublicServerInfo> {
   const transport = createConnectTransport({
-    baseUrl: new URL('/api/connect', baseUrl).toString(),
-    useBinaryFormat: true
+    baseUrl: new URL('/api/connect', baseUrl).toString()
   });
-  const client = createClient(ServerService, transport);
-  const response = await client.getServer({});
+  const client = createClient(ServerDiscoveryService, transport);
+  const response = await client.getServer({}, { signal: options.signal });
 
   return {
     name: response.name,
+    version: response.version,
+    authMethods: [...response.authMethods],
+    authorizeUrl: response.authorizeUrl,
     directRegistrationEnabled: response.registrationOpen,
     welcomeMessage: response.welcomeMessage || null,
     description: response.description || null,
-    iconUrl: response.iconUrl || null,
+    iconUrl: response.logoUrl || null,
     bannerUrl: response.bannerUrl || null,
     authProviders: response.authProviders.map((provider) => ({
       id: provider.id,

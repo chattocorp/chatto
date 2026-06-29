@@ -2,7 +2,6 @@ import { Code, ConnectError, createClient } from '@connectrpc/connect';
 import { createConnectTransport } from '@connectrpc/connect-web';
 import { Timestamp } from '@bufbuild/protobuf';
 import { RoomService } from '$lib/pb/chatto/api/v1/rooms_connect';
-import { RoomDirectoryService } from '$lib/pb/chatto/api/v1/room_directory_connect';
 import type { Room, RoomBan as APIRoomBan } from '$lib/pb/chatto/api/v1/rooms_pb';
 import { serverRegistry } from '$lib/state/server/registry.svelte';
 import { mapDirectoryMember, type DirectoryMember } from './memberDirectory';
@@ -92,7 +91,6 @@ export function createRoomCommandAPI(config: ConnectAPIConfig) {
     useBinaryFormat: true
   });
   const rooms = createClient(RoomService, transport);
-  const directory = createClient(RoomDirectoryService, transport);
   const headers = () =>
     config.bearerToken ? { Authorization: `Bearer ${config.bearerToken}` } : undefined;
 
@@ -224,7 +222,7 @@ export function createRoomCommandAPI(config: ConnectAPIConfig) {
 
     async joinGroup(groupId: string): Promise<string[]> {
       try {
-        const response = await directory.joinGroup({ groupId }, { headers: headers() });
+        const response = await rooms.joinRoomGroup({ groupId }, { headers: headers() });
         return response.joinedRoomIds;
       } catch (err) {
         return handleAuthError(err);

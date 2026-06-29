@@ -1,0 +1,428 @@
+---
+title: RoomService
+description: Room lifecycle, membership, direct-message, and moderation RPCs.
+editUrl: false
+---
+
+{/* Generated from proto/chatto/{api,admin,realtime}/v1/*.proto. Do not edit directly. */}
+
+Chatto exposes this service below `/api/connect`.
+
+
+
+Shared message and enum definitions are documented in [Shared Types And Enums](/reference/connectrpc-api/types/).
+
+
+
+<a id="chatto-api-v1-RoomService"></a>
+
+## RoomService
+
+Manages channel room lifecycle and room membership for the current user.
+
+<a id="chatto-api-v1-RoomService-CreateRoom"></a>
+
+### CreateRoom
+
+Creates a new channel room in a room group. The caller must be allowed to
+create rooms in the target group.
+
+```http
+POST /api/connect/chatto.api.v1.RoomService/CreateRoom
+```
+
+<a id="chatto-api-v1-CreateRoomRequest"></a>
+
+#### Input: CreateRoomRequest
+
+Request to create a channel room.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `name` | `string` | Required. Name of the new channel room. |
+| `description` | `string` | Optional room description. |
+| `group_id` | `string` | Required. Room group that should contain the new channel. |
+| `universal` | `bool` | Whether the new channel should grant effective membership to eligible server members. |
+
+
+<a id="chatto-api-v1-CreateRoomResponse"></a>
+
+#### Result: CreateRoomResponse
+
+Result of creating a room.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room` | [`Room`](/reference/connectrpc-api/types/#chatto-api-v1-Room) | Created room. |
+
+
+<a id="chatto-api-v1-RoomService-UpdateRoom"></a>
+
+### UpdateRoom
+
+Updates a room's name and description. The caller must be allowed to manage
+rooms.
+
+```http
+POST /api/connect/chatto.api.v1.RoomService/UpdateRoom
+```
+
+<a id="chatto-api-v1-UpdateRoomRequest"></a>
+
+#### Input: UpdateRoomRequest
+
+Request to update a room's editable metadata.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room to update. |
+| `name` | `string` | Required. New room name. |
+| `description` | `string` | Optional new room description. |
+
+
+<a id="chatto-api-v1-UpdateRoomResponse"></a>
+
+#### Result: UpdateRoomResponse
+
+Result of updating a room.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room` | [`Room`](/reference/connectrpc-api/types/#chatto-api-v1-Room) | Updated room. |
+
+
+<a id="chatto-api-v1-RoomService-ArchiveRoom"></a>
+
+### ArchiveRoom
+
+Archives a room so it is hidden from active room lists. The caller must be
+allowed to manage rooms.
+
+```http
+POST /api/connect/chatto.api.v1.RoomService/ArchiveRoom
+```
+
+<a id="chatto-api-v1-ArchiveRoomRequest"></a>
+
+#### Input: ArchiveRoomRequest
+
+Request to archive a room.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room to archive. |
+
+
+<a id="chatto-api-v1-ArchiveRoomResponse"></a>
+
+#### Result: ArchiveRoomResponse
+
+Result of archiving a room.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room` | [`Room`](/reference/connectrpc-api/types/#chatto-api-v1-Room) | Archived room. |
+
+
+<a id="chatto-api-v1-RoomService-UnarchiveRoom"></a>
+
+### UnarchiveRoom
+
+Restores an archived room to active room lists. The caller must be allowed
+to manage rooms.
+
+```http
+POST /api/connect/chatto.api.v1.RoomService/UnarchiveRoom
+```
+
+<a id="chatto-api-v1-UnarchiveRoomRequest"></a>
+
+#### Input: UnarchiveRoomRequest
+
+Request to unarchive a room.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room to unarchive. |
+
+
+<a id="chatto-api-v1-UnarchiveRoomResponse"></a>
+
+#### Result: UnarchiveRoomResponse
+
+Result of unarchiving a room.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room` | [`Room`](/reference/connectrpc-api/types/#chatto-api-v1-Room) | Unarchived room. |
+
+
+<a id="chatto-api-v1-RoomService-SetRoomUniversal"></a>
+
+### SetRoomUniversal
+
+Changes whether a channel room grants effective membership to eligible
+server members. Direct-message rooms cannot be universal.
+
+```http
+POST /api/connect/chatto.api.v1.RoomService/SetRoomUniversal
+```
+
+<a id="chatto-api-v1-SetRoomUniversalRequest"></a>
+
+#### Input: SetRoomUniversalRequest
+
+Request to change a channel room's universal membership flag.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Channel room to update. |
+| `universal` | `bool` | New universal membership state. |
+
+
+<a id="chatto-api-v1-SetRoomUniversalResponse"></a>
+
+#### Result: SetRoomUniversalResponse
+
+Result of changing a channel room's universal membership flag.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room` | [`Room`](/reference/connectrpc-api/types/#chatto-api-v1-Room) | Updated room. |
+
+
+<a id="chatto-api-v1-RoomService-JoinRoom"></a>
+
+### JoinRoom
+
+Joins the room as the current user when room permissions allow it.
+
+```http
+POST /api/connect/chatto.api.v1.RoomService/JoinRoom
+```
+
+<a id="chatto-api-v1-JoinRoomRequest"></a>
+
+#### Input: JoinRoomRequest
+
+Request to join a room as the current user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room to join. |
+
+
+<a id="chatto-api-v1-JoinRoomResponse"></a>
+
+#### Result: JoinRoomResponse
+
+Result of joining a room.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room` | [`Room`](/reference/connectrpc-api/types/#chatto-api-v1-Room) | Joined room. |
+
+
+<a id="chatto-api-v1-RoomService-JoinRoomGroup"></a>
+
+### JoinRoomGroup
+
+Joins every unarchived room in a group that the current user can join.
+Already-joined and non-joinable rooms are skipped.
+
+```http
+POST /api/connect/chatto.api.v1.RoomService/JoinRoomGroup
+```
+
+<a id="chatto-api-v1-JoinRoomGroupRequest"></a>
+
+#### Input: JoinRoomGroupRequest
+
+Request to join all joinable rooms in one room group.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `group_id` | `string` | Required. Room group whose rooms should be joined. |
+
+
+<a id="chatto-api-v1-JoinRoomGroupResponse"></a>
+
+#### Result: JoinRoomGroupResponse
+
+Result of joining all joinable rooms in one room group.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `joined_room_ids` | `repeated string` | Room IDs that transitioned from not joined to joined. |
+
+
+<a id="chatto-api-v1-RoomService-StartDM"></a>
+
+### StartDM
+
+Starts or fetches a direct-message room for the current user and the
+requested participant set. The caller must be allowed to start DMs.
+
+```http
+POST /api/connect/chatto.api.v1.RoomService/StartDM
+```
+
+<a id="chatto-api-v1-StartDMRequest"></a>
+
+#### Input: StartDMRequest
+
+Request to start or fetch a direct-message room.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `participant_ids` | `repeated string` | Other participants to include in the direct-message room. The current user is always included by the server. An empty list creates or fetches the caller's self-DM. |
+
+
+<a id="chatto-api-v1-StartDMResponse"></a>
+
+#### Result: StartDMResponse
+
+Result of starting or fetching a direct-message room.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room` | [`Room`](/reference/connectrpc-api/types/#chatto-api-v1-Room) | Direct-message room for the participant set. |
+
+
+<a id="chatto-api-v1-RoomService-LeaveRoom"></a>
+
+### LeaveRoom
+
+Leaves the room as the current user. Direct-message and universal rooms
+cannot be left.
+
+```http
+POST /api/connect/chatto.api.v1.RoomService/LeaveRoom
+```
+
+<a id="chatto-api-v1-LeaveRoomRequest"></a>
+
+#### Input: LeaveRoomRequest
+
+Request to leave a room as the current user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room to leave. |
+
+
+<a id="chatto-api-v1-LeaveRoomResponse"></a>
+
+#### Result: LeaveRoomResponse
+
+Result of leaving a room.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `left` | `bool` | True when the current user is no longer an explicit member after the call. |
+
+
+<a id="chatto-api-v1-RoomService-ListRoomBans"></a>
+
+### ListRoomBans
+
+Lists active channel room bans. The caller must be allowed to moderate room
+membership bans.
+
+```http
+POST /api/connect/chatto.api.v1.RoomService/ListRoomBans
+```
+
+<a id="chatto-api-v1-ListRoomBansRequest"></a>
+
+#### Input: ListRoomBansRequest
+
+Request to list active room bans.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Optional channel room filter. Empty lists active bans across all rooms. |
+| `page` | [`PageRequest`](/reference/connectrpc-api/types/#chatto-api-v1-PageRequest) | Page request. Defaults are applied when absent or limit is zero. |
+
+
+<a id="chatto-api-v1-ListRoomBansResponse"></a>
+
+#### Result: ListRoomBansResponse
+
+Active room bans visible to the current moderator.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bans` | repeated [`RoomBan`](/reference/connectrpc-api/types/#chatto-api-v1-RoomBan) | Active bans, newest first. |
+| `page` | [`PageInfo`](/reference/connectrpc-api/types/#chatto-api-v1-PageInfo) | Page metadata. |
+
+
+<a id="chatto-api-v1-RoomService-BanRoomMember"></a>
+
+### BanRoomMember
+
+Bans a member from a channel room. Direct-message rooms cannot be moderated
+this way, and the target must currently be a room member.
+
+```http
+POST /api/connect/chatto.api.v1.RoomService/BanRoomMember
+```
+
+<a id="chatto-api-v1-BanRoomMemberRequest"></a>
+
+#### Input: BanRoomMemberRequest
+
+Request to ban a member from a channel room.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Channel room to ban the user from. |
+| `user_id` | `string` | Required. User to ban from the room. |
+| `reason` | `string` | Required moderator-entered reason stored for audit. |
+| `expires_at` | `google.protobuf.Timestamp` | Optional future time when the ban expires. |
+
+
+<a id="chatto-api-v1-BanRoomMemberResponse"></a>
+
+#### Result: BanRoomMemberResponse
+
+Result of banning a room member.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `banned` | `bool` | True when the ban operation completed. |
+
+
+<a id="chatto-api-v1-RoomService-UnbanRoomMember"></a>
+
+### UnbanRoomMember
+
+Removes an active channel room ban. Calling this when no active ban exists
+is allowed and still returns success.
+
+```http
+POST /api/connect/chatto.api.v1.RoomService/UnbanRoomMember
+```
+
+<a id="chatto-api-v1-UnbanRoomMemberRequest"></a>
+
+#### Input: UnbanRoomMemberRequest
+
+Request to remove a channel room ban.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Channel room to unban the user from. |
+| `user_id` | `string` | Required. User to unban. |
+| `reason` | `string` | Required moderator-entered reason stored for audit. |
+
+
+<a id="chatto-api-v1-UnbanRoomMemberResponse"></a>
+
+#### Result: UnbanRoomMemberResponse
+
+Result of removing a room ban.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `unbanned` | `bool` | True when the unban operation completed. |

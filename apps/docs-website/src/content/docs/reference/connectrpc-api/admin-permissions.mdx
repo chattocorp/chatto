@@ -1,0 +1,220 @@
+---
+title: AdminPermissionService
+description: Permission matrix, explanation, and override administration RPCs.
+editUrl: false
+---
+
+{/* Generated from proto/chatto/{api,admin,realtime}/v1/*.proto. Do not edit directly. */}
+
+Chatto exposes this service below `/api/connect`.
+
+
+
+Shared message and enum definitions are documented in [Shared Types And Enums](/reference/connectrpc-api/types/).
+
+
+
+<a id="chatto-admin-v1-AdminPermissionService"></a>
+
+## AdminPermissionService
+
+Provides permission matrix reads and admin permission writes.
+
+<a id="chatto-admin-v1-AdminPermissionService-GetRolePermissionTierMatrix"></a>
+
+### GetRolePermissionTierMatrix
+
+Gets the role-permission matrix for a single tier.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminPermissionService/GetRolePermissionTierMatrix
+```
+
+<a id="chatto-admin-v1-GetRolePermissionTierMatrixRequest"></a>
+
+#### Input: GetRolePermissionTierMatrixRequest
+
+Request a role-permission tier matrix.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `scope` | [`PermissionScope`](/reference/connectrpc-api/types/#chatto-admin-v1-PermissionScope) | Target scope. Omit or use SERVER for server scope. |
+
+
+<a id="chatto-admin-v1-GetRolePermissionTierMatrixResponse"></a>
+
+#### Result: GetRolePermissionTierMatrixResponse
+
+Response containing a role-permission tier matrix.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `matrix` | [`TierRoles`](/reference/connectrpc-api/types/#chatto-admin-v1-TierRoles) | Requested matrix. |
+
+
+<a id="chatto-admin-v1-AdminPermissionService-GetRolePermissionMatrix"></a>
+
+### GetRolePermissionMatrix
+
+Gets one role's full permission matrix. Requires role.manage. Returns
+NOT_FOUND when the role does not exist.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminPermissionService/GetRolePermissionMatrix
+```
+
+<a id="chatto-admin-v1-GetRolePermissionMatrixRequest"></a>
+
+#### Input: GetRolePermissionMatrixRequest
+
+Request one role's permission matrix.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `role_name` | `string` | Stable role name. |
+
+
+<a id="chatto-admin-v1-GetRolePermissionMatrixResponse"></a>
+
+#### Result: GetRolePermissionMatrixResponse
+
+Response containing one role's permission matrix.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `matrix` | [`RolePermissionMatrix`](/reference/connectrpc-api/types/#chatto-admin-v1-RolePermissionMatrix) | Requested matrix. |
+
+
+<a id="chatto-admin-v1-AdminPermissionService-GetUserPermissionMatrix"></a>
+
+### GetUserPermissionMatrix
+
+Gets one user's full permission matrix. Requires user.manage-permissions.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminPermissionService/GetUserPermissionMatrix
+```
+
+<a id="chatto-admin-v1-GetUserPermissionMatrixRequest"></a>
+
+#### Input: GetUserPermissionMatrixRequest
+
+Request one user's permission matrix.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_id` | `string` | User ID. |
+
+
+<a id="chatto-admin-v1-GetUserPermissionMatrixResponse"></a>
+
+#### Result: GetUserPermissionMatrixResponse
+
+Response containing one user's permission matrix.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `matrix` | [`UserPermissionMatrix`](/reference/connectrpc-api/types/#chatto-admin-v1-UserPermissionMatrix) | Requested matrix. |
+
+
+<a id="chatto-admin-v1-AdminPermissionService-ExplainPermissions"></a>
+
+### ExplainPermissions
+
+Explains permission resolution for another user. Requires role.manage.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminPermissionService/ExplainPermissions
+```
+
+<a id="chatto-admin-v1-ExplainPermissionsRequest"></a>
+
+#### Input: ExplainPermissionsRequest
+
+Request permission explanations for a user at server or room scope.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_id` | `string` | User whose permissions should be explained. |
+| `room_id` | `string` | Optional room scope. Omit for server-scoped permissions. |
+
+
+<a id="chatto-admin-v1-ExplainPermissionsResponse"></a>
+
+#### Result: ExplainPermissionsResponse
+
+Permission explanations for all permissions applicable at the requested scope.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `explanations` | repeated [`PermissionExplanation`](/reference/connectrpc-api/types/#chatto-admin-v1-PermissionExplanation) | Explanation rows sorted by permission metadata order. |
+
+
+<a id="chatto-admin-v1-AdminPermissionService-SetRolePermission"></a>
+
+### SetRolePermission
+
+Sets one role permission decision. Requires role.manage or scoped room.manage for room scope.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminPermissionService/SetRolePermission
+```
+
+<a id="chatto-admin-v1-SetRolePermissionRequest"></a>
+
+#### Input: SetRolePermissionRequest
+
+Request to set one role permission state.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `role_name` | `string` | Role name. |
+| `permission` | `string` | Permission identifier. |
+| `decision` | [`PermissionDecision`](/reference/connectrpc-api/types/#chatto-admin-v1-PermissionDecision) | New decision. NONE clears the explicit state. |
+| `scope` | [`PermissionScope`](/reference/connectrpc-api/types/#chatto-admin-v1-PermissionScope) | Target scope. Omit or use SERVER for server scope. |
+
+
+<a id="chatto-admin-v1-SetRolePermissionResponse"></a>
+
+#### Result: SetRolePermissionResponse
+
+Result of setting one role permission state.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `ok` | `bool` | True when the request completed. |
+
+
+<a id="chatto-admin-v1-AdminPermissionService-SetUserPermission"></a>
+
+### SetUserPermission
+
+Sets one user permission decision. Requires user.manage-permissions.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminPermissionService/SetUserPermission
+```
+
+<a id="chatto-admin-v1-SetUserPermissionRequest"></a>
+
+#### Input: SetUserPermissionRequest
+
+Request to set one user permission state.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_id` | `string` | Target user ID. |
+| `permission` | `string` | Permission identifier. |
+| `decision` | [`PermissionDecision`](/reference/connectrpc-api/types/#chatto-admin-v1-PermissionDecision) | New decision. NONE clears the explicit state. |
+| `scope` | [`PermissionScope`](/reference/connectrpc-api/types/#chatto-admin-v1-PermissionScope) | Target scope. Omit or use SERVER for server scope. |
+
+
+<a id="chatto-admin-v1-SetUserPermissionResponse"></a>
+
+#### Result: SetUserPermissionResponse
+
+Result of setting one user permission state.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `ok` | `bool` | True when the request completed. |

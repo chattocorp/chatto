@@ -99,6 +99,7 @@ func (s *messageService) uploadPostAttachments(ctx context.Context, actorID stri
 		AttachmentAssetIDs:       attachmentAssetIDs,
 		HasPendingAttachments:    true,
 		ThreadRootEventID:        req.GetThreadRootEventId(),
+		InReplyTo:                req.GetInReplyTo(),
 		AlsoSendToChannel:        req.GetAlsoSendToChannel(),
 		MentionConfirmationToken: req.GetMentionConfirmationToken(),
 		LinkPreview:              apiMessageLinkPreviewToCore(req.GetLinkPreview()),

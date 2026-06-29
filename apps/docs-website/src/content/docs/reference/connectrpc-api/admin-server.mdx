@@ -1,0 +1,243 @@
+---
+title: AdminServerService
+description: Server profile, branding, and security administration RPCs.
+editUrl: false
+---
+
+{/* Generated from proto/chatto/{api,admin,realtime}/v1/*.proto. Do not edit directly. */}
+
+Chatto exposes this service below `/api/connect`.
+
+
+
+Shared message and enum definitions are documented in [Shared Types And Enums](/reference/connectrpc-api/types/).
+
+
+
+<a id="chatto-admin-v1-AdminServerService"></a>
+
+## AdminServerService
+
+Provides server-administration commands for profile, branding, and security
+settings.
+
+<a id="chatto-admin-v1-AdminServerService-UpdateServerConfig"></a>
+
+### UpdateServerConfig
+
+Updates runtime-editable server profile settings. This RPC requires
+server.manage.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminServerService/UpdateServerConfig
+```
+
+<a id="chatto-admin-v1-UpdateServerConfigRequest"></a>
+
+#### Input: UpdateServerConfigRequest
+
+Request to update runtime-editable server profile settings.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `server_name` | `optional string` | Optional server name for page titles. Set to empty string to use default. |
+| `description` | `optional string` | Optional short server description for OG link-preview metadata. Set to empty string to clear. |
+| `motd` | `optional string` | Optional message of the day for the header. Set to empty string to clear. |
+| `welcome_message` | `optional string` | Optional welcome message shown on the login page. Set to empty string to clear. |
+
+
+<a id="chatto-admin-v1-UpdateServerConfigResponse"></a>
+
+#### Result: UpdateServerConfigResponse
+
+Result of updating runtime-editable server profile settings.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `profile` | `chatto.api.v1.ServerProfile` | Updated server profile and branding. |
+
+
+<a id="chatto-admin-v1-AdminServerService-UploadServerLogo"></a>
+
+### UploadServerLogo
+
+Uploads and sets the public server logo. This RPC requires server.manage.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminServerService/UploadServerLogo
+```
+
+<a id="chatto-admin-v1-UploadServerLogoRequest"></a>
+
+#### Input: UploadServerLogoRequest
+
+Request to upload and set the public server logo.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `image` | `bytes` | Raw image bytes. The server validates, resizes, and stores a WebP logo. |
+| `filename` | `string` | Original browser filename, for diagnostics and future compatibility. |
+| `content_type` | `string` | Browser-provided content type, for diagnostics and future compatibility. |
+
+
+<a id="chatto-admin-v1-UploadServerLogoResponse"></a>
+
+#### Result: UploadServerLogoResponse
+
+Result of uploading the public server logo.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `profile` | `chatto.api.v1.ServerProfile` | Updated server profile and branding. |
+
+
+<a id="chatto-admin-v1-AdminServerService-DeleteServerLogo"></a>
+
+### DeleteServerLogo
+
+Clears the public server logo. This RPC requires server.manage.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminServerService/DeleteServerLogo
+```
+
+<a id="chatto-admin-v1-DeleteServerLogoRequest"></a>
+
+#### Input: DeleteServerLogoRequest
+
+Request to clear the public server logo.
+
+
+<a id="chatto-admin-v1-DeleteServerLogoResponse"></a>
+
+#### Result: DeleteServerLogoResponse
+
+Result of clearing the public server logo.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `profile` | `chatto.api.v1.ServerProfile` | Updated server profile and branding. |
+
+
+<a id="chatto-admin-v1-AdminServerService-UploadServerBanner"></a>
+
+### UploadServerBanner
+
+Uploads and sets the public server banner. This RPC requires server.manage.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminServerService/UploadServerBanner
+```
+
+<a id="chatto-admin-v1-UploadServerBannerRequest"></a>
+
+#### Input: UploadServerBannerRequest
+
+Request to upload and set the public server banner.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `image` | `bytes` | Raw image bytes. The server validates, resizes, and stores a WebP banner. |
+| `filename` | `string` | Original browser filename, for diagnostics and future compatibility. |
+| `content_type` | `string` | Browser-provided content type, for diagnostics and future compatibility. |
+
+
+<a id="chatto-admin-v1-UploadServerBannerResponse"></a>
+
+#### Result: UploadServerBannerResponse
+
+Result of uploading the public server banner.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `profile` | `chatto.api.v1.ServerProfile` | Updated server profile and branding. |
+
+
+<a id="chatto-admin-v1-AdminServerService-DeleteServerBanner"></a>
+
+### DeleteServerBanner
+
+Clears the public server banner. This RPC requires server.manage.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminServerService/DeleteServerBanner
+```
+
+<a id="chatto-admin-v1-DeleteServerBannerRequest"></a>
+
+#### Input: DeleteServerBannerRequest
+
+Request to clear the public server banner.
+
+
+<a id="chatto-admin-v1-DeleteServerBannerResponse"></a>
+
+#### Result: DeleteServerBannerResponse
+
+Result of clearing the public server banner.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `profile` | `chatto.api.v1.ServerProfile` | Updated server profile and branding. |
+
+
+<a id="chatto-admin-v1-AdminServerService-GetServerSecurityConfig"></a>
+
+### GetServerSecurityConfig
+
+Returns security-sensitive server configuration. This RPC requires
+server.manage.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminServerService/GetServerSecurityConfig
+```
+
+<a id="chatto-admin-v1-GetServerSecurityConfigRequest"></a>
+
+#### Input: GetServerSecurityConfigRequest
+
+Request for server security configuration.
+
+
+<a id="chatto-admin-v1-GetServerSecurityConfigResponse"></a>
+
+#### Result: GetServerSecurityConfigResponse
+
+Security-sensitive server configuration. The caller must be allowed to
+manage server configuration.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `blocked_usernames` | `string` | Newline-separated blocked usernames. |
+
+
+<a id="chatto-admin-v1-AdminServerService-UpdateBlockedUsernames"></a>
+
+### UpdateBlockedUsernames
+
+Updates the blocked-username list. This RPC requires server.manage.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminServerService/UpdateBlockedUsernames
+```
+
+<a id="chatto-admin-v1-UpdateBlockedUsernamesRequest"></a>
+
+#### Input: UpdateBlockedUsernamesRequest
+
+Request to update the server blocked-username list.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `blocked_usernames` | `string` | Newline-separated blocked usernames. |
+
+
+<a id="chatto-admin-v1-UpdateBlockedUsernamesResponse"></a>
+
+#### Result: UpdateBlockedUsernamesResponse
+
+Result of updating the server blocked-username list.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `blocked_usernames` | `string` | Effective newline-separated blocked usernames after the update. |

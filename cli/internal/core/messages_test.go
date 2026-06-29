@@ -1376,3 +1376,115 @@ func TestChattoCore_ArchiveRoom_BlocksWrites(t *testing.T) {
 		}
 	})
 }
+
+func TestMessageModel_PostMessageValidatesInReplyTo(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	user, err := core.CreateUser(ctx, SystemActorID, "reply-target-user", "Reply Target User", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	room, err := core.CreateRoom(ctx, user.Id, KindChannel, "", "reply-target-room", "")
+	if err != nil {
+		t.Fatalf("CreateRoom room: %v", err)
+	}
+	if _, err := core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom room: %v", err)
+	}
+	otherRoom, err := core.CreateRoom(ctx, user.Id, KindChannel, "", "reply-target-other-room", "")
+	if err != nil {
+		t.Fatalf("CreateRoom otherRoom: %v", err)
+	}
+	if _, err := core.JoinRoom(ctx, user.Id, KindChannel, user.Id, otherRoom.Id); err != nil {
+		t.Fatalf("JoinRoom otherRoom: %v", err)
+	}
+
+	root, err := core.Messages().PostMessage(ctx, MessagePostInput{
+		ActorID: user.Id,
+		RoomID:  room.Id,
+		Body:    "root",
+	})
+	if err != nil {
+		t.Fatalf("PostMessage root: %v", err)
+	}
+	threadReply, err := core.Messages().PostMessage(ctx, MessagePostInput{
+		ActorID:           user.Id,
+		RoomID:            room.Id,
+		Body:              "thread reply",
+		ThreadRootEventID: root.Event.Id,
+	})
+	if err != nil {
+		t.Fatalf("PostMessage thread reply: %v", err)
+	}
+	otherRoomMessage, err := core.Messages().PostMessage(ctx, MessagePostInput{
+		ActorID: user.Id,
+		RoomID:  otherRoom.Id,
+		Body:    "other room",
+	})
+	if err != nil {
+		t.Fatalf("PostMessage other room: %v", err)
+	}
+
+	tests := []struct {
+		name      string
+		inReplyTo string
+		wantErr   bool
+	}{
+		{
+			name:      "valid room reply",
+			inReplyTo: root.Event.Id,
+		},
+		{
+			name:      "valid thread reply target",
+			inReplyTo: threadReply.Event.Id,
+		},
+		{
+			name:      "missing target",
+			inReplyTo: "missing-reply-target",
+			wantErr:   true,
+		},
+		{
+			name:      "other room target",
+			inReplyTo: otherRoomMessage.Event.Id,
+			wantErr:   true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			beforeID, _, beforeExists, err := core.GetRoomLastEvent(ctx, KindChannel, room.Id)
+			if err != nil {
+				t.Fatalf("GetRoomLastEvent before post: %v", err)
+			}
+			result, err := core.Messages().PostMessage(ctx, MessagePostInput{
+				ActorID:   user.Id,
+				RoomID:    room.Id,
+				Body:      "reply",
+				InReplyTo: tt.inReplyTo,
+			})
+			if tt.wantErr {
+				if !errors.Is(err, ErrInvalidArgument) {
+					t.Fatalf("PostMessage error = %v, want ErrInvalidArgument", err)
+				}
+				afterID, _, afterExists, err := core.GetRoomLastEvent(ctx, KindChannel, room.Id)
+				if err != nil {
+					t.Fatalf("GetRoomLastEvent after rejected post: %v", err)
+				}
+				if afterExists != beforeExists || afterID != beforeID {
+					t.Fatalf("last room event after rejected post = %q/%v, want unchanged %q/%v", afterID, afterExists, beforeID, beforeExists)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("PostMessage: %v", err)
+			}
+			if result == nil || result.Event == nil {
+				t.Fatalf("PostMessage result = %+v, want event", result)
+			}
+			if got := result.Event.GetMessagePosted().GetInReplyTo(); got != tt.inReplyTo {
+				t.Fatalf("InReplyTo = %q, want %q", got, tt.inReplyTo)
+			}
+		})
+	}
+}

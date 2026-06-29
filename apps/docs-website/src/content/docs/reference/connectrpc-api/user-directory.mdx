@@ -1,0 +1,120 @@
+---
+title: UserDirectoryService
+description: Authenticated public user profile lookup RPCs.
+editUrl: false
+---
+
+{/* Generated from proto/chatto/{api,admin,realtime}/v1/*.proto. Do not edit directly. */}
+
+Chatto exposes this service below `/api/connect`.
+
+
+
+Shared message and enum definitions are documented in [Shared Types And Enums](/reference/connectrpc-api/types/).
+
+
+
+<a id="chatto-api-v1-UserDirectoryService"></a>
+
+## UserDirectoryService
+
+Provides authenticated public user directory lookups.
+
+<a id="chatto-api-v1-UserDirectoryService-GetUser"></a>
+
+### GetUser
+
+Gets a user by stable ID. Returns NOT_FOUND when the ID is unknown.
+
+```http
+POST /api/connect/chatto.api.v1.UserDirectoryService/GetUser
+```
+
+<a id="chatto-api-v1-GetUserRequest"></a>
+
+#### Input: GetUserRequest
+
+Request one user by stable user ID.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_id` | `string` | Required user ID. |
+| `avatar` | [`UserAvatarOptions`](/reference/connectrpc-api/types/#chatto-api-v1-UserAvatarOptions) | Optional avatar URL transform parameters. Omit for the original avatar URL. |
+
+
+<a id="chatto-api-v1-GetUserResponse"></a>
+
+#### Result: GetUserResponse
+
+Public authenticated user profile response.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user` | [`UserProfile`](/reference/connectrpc-api/types/#chatto-api-v1-UserProfile) | Requested user. |
+
+
+<a id="chatto-api-v1-UserDirectoryService-GetUserByLogin"></a>
+
+### GetUserByLogin
+
+Gets a user by login. Returns NOT_FOUND when the login is unknown.
+
+```http
+POST /api/connect/chatto.api.v1.UserDirectoryService/GetUserByLogin
+```
+
+<a id="chatto-api-v1-GetUserByLoginRequest"></a>
+
+#### Input: GetUserByLoginRequest
+
+Request one user by login identifier.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `login` | `string` | Required login identifier. |
+| `avatar` | [`UserAvatarOptions`](/reference/connectrpc-api/types/#chatto-api-v1-UserAvatarOptions) | Optional avatar URL transform parameters. Omit for the original avatar URL. |
+
+
+<a id="chatto-api-v1-GetUserByLoginResponse"></a>
+
+#### Result: GetUserByLoginResponse
+
+Public authenticated user profile response for login lookup.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user` | [`UserProfile`](/reference/connectrpc-api/types/#chatto-api-v1-UserProfile) | Requested user. |
+
+
+<a id="chatto-api-v1-UserDirectoryService-BatchGetUsers"></a>
+
+### BatchGetUsers
+
+Gets public user records for multiple users referenced by event-focused
+payloads.
+
+```http
+POST /api/connect/chatto.api.v1.UserDirectoryService/BatchGetUsers
+```
+
+<a id="chatto-api-v1-BatchGetUsersRequest"></a>
+
+#### Input: BatchGetUsersRequest
+
+Request public user records for a set of stable user IDs.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_ids` | `repeated string` | Required user IDs. Unknown IDs are omitted from the response. |
+| `avatar` | [`UserAvatarOptions`](/reference/connectrpc-api/types/#chatto-api-v1-UserAvatarOptions) | Optional avatar URL transform parameters. Omit for the original avatar URL. |
+
+
+<a id="chatto-api-v1-BatchGetUsersResponse"></a>
+
+#### Result: BatchGetUsersResponse
+
+Batch public user response.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `users` | repeated [`User`](/reference/connectrpc-api/types/#chatto-api-v1-User) | Found users. The server preserves first-seen request order and de-duplicates repeated IDs. |

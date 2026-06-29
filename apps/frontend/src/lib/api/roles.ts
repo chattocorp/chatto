@@ -1,8 +1,8 @@
 import { createClient } from '@connectrpc/connect';
 import { createConnectTransport } from '@connectrpc/connect-web';
-import { RoleService } from '$lib/pb/chatto/api/v1/roles_connect';
-import type { Role as APIRole } from '$lib/pb/chatto/api/v1/roles_pb';
-import type { UserSummary as APIUserSummary } from '$lib/pb/chatto/api/v1/users_pb';
+import { AdminRoleService } from '$lib/pb/chatto/admin/v1/roles_connect';
+import type { Role as APIRole } from '$lib/pb/chatto/admin/v1/roles_pb';
+import type { User as APIUser } from '$lib/pb/chatto/api/v1/users_pb';
 
 export type RoleAPIConfig = {
   baseUrl: string;
@@ -56,7 +56,7 @@ export function createRoleAPI(config: RoleAPIConfig) {
     baseUrl: config.baseUrl,
     useBinaryFormat: true
   });
-  const client = createClient(RoleService, transport);
+  const client = createClient(AdminRoleService, transport);
   const headers = () =>
     config.bearerToken ? { Authorization: `Bearer ${config.bearerToken}` } : undefined;
 
@@ -120,7 +120,7 @@ function serverRole(role: APIRole): ServerRole {
   };
 }
 
-function roleUser(user: APIUserSummary): RoleUser {
+function roleUser(user: APIUser): RoleUser {
   return {
     id: user.id,
     login: user.login,

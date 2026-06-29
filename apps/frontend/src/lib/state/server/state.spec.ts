@@ -5,6 +5,9 @@ import { ServerInfoState } from './state.svelte';
 function publicServerInfo(overrides: Partial<PublicServerInfo> = {}): PublicServerInfo {
   return {
     name: 'Acme',
+    version: 'test',
+    authMethods: ['password'],
+    authorizeUrl: '/oauth/authorize',
     directRegistrationEnabled: false,
     welcomeMessage: 'welcome',
     description: 'a server for acme',

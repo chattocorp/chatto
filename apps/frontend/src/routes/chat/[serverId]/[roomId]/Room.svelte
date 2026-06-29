@@ -98,6 +98,7 @@
   const composerContext = createComposerContext({ scroll: true });
   const mentionRoles = createMentionRoles();
   const replyState = composerContext.replyState;
+  let replyStateRoomId: string | null = null;
   const jumpState = composerContext.jumpState;
   const currentUser = $derived(serverRegistry.getStore(getActiveServer()).currentUser);
   const roomMessageStore = new MessagesStore(connection(), () => currentUser.user?.id ?? null);
@@ -119,6 +120,17 @@
 
   // --- Extracted hooks ---
   const room = useRoomData(() => ({ roomId }));
+
+  $effect(() => {
+    const currentRoomId = roomId;
+    if (replyStateRoomId === null) {
+      replyStateRoomId = currentRoomId;
+      return;
+    }
+    if (replyStateRoomId === currentRoomId) return;
+    replyStateRoomId = currentRoomId;
+    replyState.cancelReply();
+  });
 
   $effect(() => {
     const conn = connection();

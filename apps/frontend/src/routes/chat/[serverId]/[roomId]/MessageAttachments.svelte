@@ -124,11 +124,25 @@
   );
 
   const MIN_THUMB_SIZE = 24;
+  const EXTREME_ASPECT_RATIO = 3;
+  const LANDSCAPE_THUMB_MAX_WIDTH = 480;
+  const LANDSCAPE_THUMB_MAX_HEIGHT = 320;
+  const PORTRAIT_THUMB_MAX_WIDTH = 320;
+  const PORTRAIT_THUMB_MAX_HEIGHT = 400;
 
   function thumbSize(w: number, h: number) {
     const isLandscape = w > h;
-    const maxW = isLandscape ? 480 : 320;
-    const maxH = isLandscape ? 320 : 400;
+    const aspectRatio = w / h;
+    const maxW = isLandscape ? LANDSCAPE_THUMB_MAX_WIDTH : PORTRAIT_THUMB_MAX_WIDTH;
+    const maxH = isLandscape ? LANDSCAPE_THUMB_MAX_HEIGHT : PORTRAIT_THUMB_MAX_HEIGHT;
+
+    if (aspectRatio >= EXTREME_ASPECT_RATIO || aspectRatio <= 1 / EXTREME_ASPECT_RATIO) {
+      return {
+        width: maxW,
+        height: maxH
+      };
+    }
+
     const scale = Math.min(maxW / w, maxH / h, 1);
     return {
       width: Math.max(Math.round(w * scale), MIN_THUMB_SIZE),

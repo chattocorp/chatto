@@ -1,0 +1,52 @@
+---
+title: ViewerService
+description: Authenticated viewer profile, preferences, and capability RPCs.
+editUrl: false
+---
+
+{/* Generated from proto/chatto/{api,admin,realtime}/v1/*.proto. Do not edit directly. */}
+
+Chatto exposes this service below `/api/connect`.
+
+
+
+Shared message and enum definitions are documented in [Shared Types And Enums](/reference/connectrpc-api/types/).
+
+
+
+<a id="chatto-api-v1-ViewerService"></a>
+
+## ViewerService
+
+Provides authenticated user profile, preferences, and capability state.
+
+<a id="chatto-api-v1-ViewerService-GetViewer"></a>
+
+### GetViewer
+
+Returns the current authenticated viewer. This RPC requires a logged-in
+user; unauthenticated callers receive an UNAUTHENTICATED error.
+
+```http
+POST /api/connect/chatto.api.v1.ViewerService/GetViewer
+```
+
+<a id="chatto-api-v1-GetViewerRequest"></a>
+
+#### Input: GetViewerRequest
+
+Request for the authenticated viewer snapshot.
+
+
+<a id="chatto-api-v1-GetViewerResponse"></a>
+
+#### Result: GetViewerResponse
+
+Authenticated viewer snapshot needed by application shells.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user` | [`ViewerUser`](/reference/connectrpc-api/types/#chatto-api-v1-ViewerUser) | Current authenticated user. |
+| `capabilities` | [`ViewerCapabilities`](/reference/connectrpc-api/types/#chatto-api-v1-ViewerCapabilities) | Permission-derived capabilities. |
+| `server_notification_preference` | [`ServerNotificationPreference`](/reference/connectrpc-api/types/#chatto-api-v1-ServerNotificationPreference) | Server-wide notification preference. |
+| `room_notification_preferences` | repeated [`RoomNotificationPreference`](/reference/connectrpc-api/types/#chatto-api-v1-RoomNotificationPreference) | Notification preferences for rooms the user participates in. |

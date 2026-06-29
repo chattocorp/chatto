@@ -7,7 +7,6 @@ import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialM
 import { Message, proto3 } from "@bufbuild/protobuf";
 import { PresenceStatus } from "./presence_pb.js";
 import { CustomUserStatus } from "./user_status_pb.js";
-import { DirectoryMember } from "./member_directory_pb.js";
 
 /**
  * Fit mode used when generating transformed user avatar URLs.
@@ -101,11 +100,11 @@ export class UserAvatarOptions extends Message<UserAvatarOptions> {
 }
 
 /**
- * Lightweight public user data for cache-backed render surfaces.
+ * Public user identity fields.
  *
- * @generated from message chatto.api.v1.UserSummary
+ * @generated from message chatto.api.v1.User
  */
-export class UserSummary extends Message<UserSummary> {
+export class User extends Message<User> {
   /**
    * Stable user ID.
    *
@@ -141,13 +140,13 @@ export class UserSummary extends Message<UserSummary> {
    */
   avatarUrl?: string;
 
-  constructor(data?: PartialMessage<UserSummary>) {
+  constructor(data?: PartialMessage<User>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.UserSummary";
+  static readonly typeName = "chatto.api.v1.User";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "login", kind: "scalar", T: 9 /* ScalarType.STRING */ },
@@ -156,109 +155,77 @@ export class UserSummary extends Message<UserSummary> {
     { no: 5, name: "avatar_url", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UserSummary {
-    return new UserSummary().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): User {
+    return new User().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): UserSummary {
-    return new UserSummary().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): User {
+    return new User().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): UserSummary {
-    return new UserSummary().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): User {
+    return new User().fromJsonString(jsonString, options);
   }
 
-  static equals(a: UserSummary | PlainMessage<UserSummary> | undefined, b: UserSummary | PlainMessage<UserSummary> | undefined): boolean {
-    return proto3.util.equals(UserSummary, a, b);
+  static equals(a: User | PlainMessage<User> | undefined, b: User | PlainMessage<User> | undefined): boolean {
+    return proto3.util.equals(User, a, b);
   }
 }
 
 /**
- * Lightweight public user data plus live profile state.
+ * Public user identity fields plus live profile state.
  *
- * @generated from message chatto.api.v1.UserPresenceSummary
+ * @generated from message chatto.api.v1.UserProfile
  */
-export class UserPresenceSummary extends Message<UserPresenceSummary> {
+export class UserProfile extends Message<UserProfile> {
   /**
-   * Stable user ID.
+   * Public identity fields.
    *
-   * @generated from field: string id = 1;
+   * @generated from field: chatto.api.v1.User user = 1;
    */
-  id = "";
-
-  /**
-   * Login name.
-   *
-   * @generated from field: string login = 2;
-   */
-  login = "";
-
-  /**
-   * Display name, when set.
-   *
-   * @generated from field: string display_name = 3;
-   */
-  displayName = "";
-
-  /**
-   * True when the user account has been deleted.
-   *
-   * @generated from field: bool deleted = 4;
-   */
-  deleted = false;
-
-  /**
-   * Avatar image URL, when available.
-   *
-   * @generated from field: optional string avatar_url = 5;
-   */
-  avatarUrl?: string;
+  user?: User;
 
   /**
    * Current live presence status.
    *
-   * @generated from field: chatto.api.v1.PresenceStatus presence_status = 6;
+   * @generated from field: chatto.api.v1.PresenceStatus presence_status = 2;
    */
   presenceStatus = PresenceStatus.UNSPECIFIED;
 
   /**
    * Custom profile status, when set.
    *
-   * @generated from field: chatto.api.v1.CustomUserStatus custom_status = 7;
+   * @generated from field: chatto.api.v1.CustomUserStatus custom_status = 3;
    */
   customStatus?: CustomUserStatus;
 
-  constructor(data?: PartialMessage<UserPresenceSummary>) {
+  constructor(data?: PartialMessage<UserProfile>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.UserPresenceSummary";
+  static readonly typeName = "chatto.api.v1.UserProfile";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "login", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "display_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 4, name: "deleted", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 5, name: "avatar_url", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
-    { no: 6, name: "presence_status", kind: "enum", T: proto3.getEnumType(PresenceStatus) },
-    { no: 7, name: "custom_status", kind: "message", T: CustomUserStatus },
+    { no: 1, name: "user", kind: "message", T: User },
+    { no: 2, name: "presence_status", kind: "enum", T: proto3.getEnumType(PresenceStatus) },
+    { no: 3, name: "custom_status", kind: "message", T: CustomUserStatus },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UserPresenceSummary {
-    return new UserPresenceSummary().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UserProfile {
+    return new UserProfile().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): UserPresenceSummary {
-    return new UserPresenceSummary().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): UserProfile {
+    return new UserProfile().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): UserPresenceSummary {
-    return new UserPresenceSummary().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): UserProfile {
+    return new UserProfile().fromJsonString(jsonString, options);
   }
 
-  static equals(a: UserPresenceSummary | PlainMessage<UserPresenceSummary> | undefined, b: UserPresenceSummary | PlainMessage<UserPresenceSummary> | undefined): boolean {
-    return proto3.util.equals(UserPresenceSummary, a, b);
+  static equals(a: UserProfile | PlainMessage<UserProfile> | undefined, b: UserProfile | PlainMessage<UserProfile> | undefined): boolean {
+    return proto3.util.equals(UserProfile, a, b);
   }
 }
 
@@ -361,7 +328,7 @@ export class GetUserByLoginRequest extends Message<GetUserByLoginRequest> {
 }
 
 /**
- * Request lightweight summaries for a set of stable user IDs.
+ * Request public user records for a set of stable user IDs.
  *
  * @generated from message chatto.api.v1.BatchGetUsersRequest
  */
@@ -418,9 +385,9 @@ export class GetUserResponse extends Message<GetUserResponse> {
   /**
    * Requested user.
    *
-   * @generated from field: chatto.api.v1.DirectoryMember user = 1;
+   * @generated from field: chatto.api.v1.UserProfile user = 1;
    */
-  user?: DirectoryMember;
+  user?: UserProfile;
 
   constructor(data?: PartialMessage<GetUserResponse>) {
     super();
@@ -430,7 +397,7 @@ export class GetUserResponse extends Message<GetUserResponse> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.GetUserResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "user", kind: "message", T: DirectoryMember },
+    { no: 1, name: "user", kind: "message", T: UserProfile },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetUserResponse {
@@ -459,9 +426,9 @@ export class GetUserByLoginResponse extends Message<GetUserByLoginResponse> {
   /**
    * Requested user.
    *
-   * @generated from field: chatto.api.v1.DirectoryMember user = 1;
+   * @generated from field: chatto.api.v1.UserProfile user = 1;
    */
-  user?: DirectoryMember;
+  user?: UserProfile;
 
   constructor(data?: PartialMessage<GetUserByLoginResponse>) {
     super();
@@ -471,7 +438,7 @@ export class GetUserByLoginResponse extends Message<GetUserByLoginResponse> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.GetUserByLoginResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "user", kind: "message", T: DirectoryMember },
+    { no: 1, name: "user", kind: "message", T: UserProfile },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetUserByLoginResponse {
@@ -492,7 +459,7 @@ export class GetUserByLoginResponse extends Message<GetUserByLoginResponse> {
 }
 
 /**
- * Lightweight batch user summary response.
+ * Batch public user response.
  *
  * @generated from message chatto.api.v1.BatchGetUsersResponse
  */
@@ -501,9 +468,9 @@ export class BatchGetUsersResponse extends Message<BatchGetUsersResponse> {
    * Found users. The server preserves first-seen request order and de-duplicates
    * repeated IDs.
    *
-   * @generated from field: repeated chatto.api.v1.UserSummary users = 1;
+   * @generated from field: repeated chatto.api.v1.User users = 1;
    */
-  users: UserSummary[] = [];
+  users: User[] = [];
 
   constructor(data?: PartialMessage<BatchGetUsersResponse>) {
     super();
@@ -513,7 +480,7 @@ export class BatchGetUsersResponse extends Message<BatchGetUsersResponse> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.BatchGetUsersResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "users", kind: "message", T: UserSummary, repeated: true },
+    { no: 1, name: "users", kind: "message", T: User, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BatchGetUsersResponse {

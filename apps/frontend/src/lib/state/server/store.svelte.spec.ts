@@ -371,6 +371,9 @@ describe('ServerStateStore live server updates', () => {
     const publicServerInfoLoader = vi.fn<(baseUrl: string) => Promise<PublicServerInfo>>();
     publicServerInfoLoader.mockResolvedValue({
       name: 'Fresh Name',
+      version: 'test',
+      authMethods: ['password'],
+      authorizeUrl: '/oauth/authorize',
       welcomeMessage: 'Fresh welcome',
       description: 'Fresh description',
       iconUrl: 'https://cdn/icon.webp',

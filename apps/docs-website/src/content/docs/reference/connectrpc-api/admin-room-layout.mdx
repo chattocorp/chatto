@@ -1,0 +1,387 @@
+---
+title: AdminRoomLayoutService
+description: Room group, sidebar layout, and sidebar link administration RPCs.
+editUrl: false
+---
+
+{/* Generated from proto/chatto/{api,admin,realtime}/v1/*.proto. Do not edit directly. */}
+
+Chatto exposes this service below `/api/connect`.
+
+
+
+Shared message and enum definitions are documented in [Shared Types And Enums](/reference/connectrpc-api/types/).
+
+
+
+<a id="chatto-admin-v1-AdminRoomLayoutService"></a>
+
+## AdminRoomLayoutService
+
+Reads and mutates the server-admin channel room layout.
+
+<a id="chatto-admin-v1-AdminRoomLayoutService-ListAdminRoomLayout"></a>
+
+### ListAdminRoomLayout
+
+Lists the current room groups, rooms, and sidebar links for the admin
+layout editor.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminRoomLayoutService/ListAdminRoomLayout
+```
+
+<a id="chatto-admin-v1-ListAdminRoomLayoutRequest"></a>
+
+#### Input: ListAdminRoomLayoutRequest
+
+Request to read the admin room layout.
+
+
+<a id="chatto-admin-v1-ListAdminRoomLayoutResponse"></a>
+
+#### Result: ListAdminRoomLayoutResponse
+
+Current admin room layout.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `groups` | repeated [`AdminRoomLayoutGroup`](/reference/connectrpc-api/types/#chatto-admin-v1-AdminRoomLayoutGroup) | Room groups in sidebar order. |
+
+
+<a id="chatto-admin-v1-AdminRoomLayoutService-CreateRoomGroup"></a>
+
+### CreateRoomGroup
+
+Creates a room group. The caller must be allowed to manage roles.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminRoomLayoutService/CreateRoomGroup
+```
+
+<a id="chatto-admin-v1-CreateRoomGroupRequest"></a>
+
+#### Input: CreateRoomGroupRequest
+
+Request to create a room group.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `name` | `string` | Required group display name. |
+| `description` | `string` | Optional operator-facing description. |
+
+
+<a id="chatto-admin-v1-CreateRoomGroupResponse"></a>
+
+#### Result: CreateRoomGroupResponse
+
+Result of creating a room group.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `group` | [`AdminRoomLayoutGroup`](/reference/connectrpc-api/types/#chatto-admin-v1-AdminRoomLayoutGroup) | Created room group. |
+
+
+<a id="chatto-admin-v1-AdminRoomLayoutService-UpdateRoomGroup"></a>
+
+### UpdateRoomGroup
+
+Updates a room group's metadata. The caller must be allowed to manage
+roles.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminRoomLayoutService/UpdateRoomGroup
+```
+
+<a id="chatto-admin-v1-UpdateRoomGroupRequest"></a>
+
+#### Input: UpdateRoomGroupRequest
+
+Request to update a room group.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `group_id` | `string` | Required room group ID. |
+| `name` | `string` | Required group display name. |
+| `description` | `string` | Optional operator-facing description. |
+
+
+<a id="chatto-admin-v1-UpdateRoomGroupResponse"></a>
+
+#### Result: UpdateRoomGroupResponse
+
+Result of updating a room group.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `group` | [`AdminRoomLayoutGroup`](/reference/connectrpc-api/types/#chatto-admin-v1-AdminRoomLayoutGroup) | Updated room group. |
+
+
+<a id="chatto-admin-v1-AdminRoomLayoutService-DeleteRoomGroup"></a>
+
+### DeleteRoomGroup
+
+Deletes an empty room group. The caller must be allowed to manage roles.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminRoomLayoutService/DeleteRoomGroup
+```
+
+<a id="chatto-admin-v1-DeleteRoomGroupRequest"></a>
+
+#### Input: DeleteRoomGroupRequest
+
+Request to delete an empty room group.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `group_id` | `string` | Required room group ID. |
+
+
+<a id="chatto-admin-v1-DeleteRoomGroupResponse"></a>
+
+#### Result: DeleteRoomGroupResponse
+
+Result of deleting a room group.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `deleted` | `bool` | True when the room group was deleted. |
+
+
+<a id="chatto-admin-v1-AdminRoomLayoutService-ReorderRoomGroups"></a>
+
+### ReorderRoomGroups
+
+Replaces the global room group order. The caller must be allowed to manage
+roles.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminRoomLayoutService/ReorderRoomGroups
+```
+
+<a id="chatto-admin-v1-ReorderRoomGroupsRequest"></a>
+
+#### Input: ReorderRoomGroupsRequest
+
+Request to replace the global room group order.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `ordered_group_ids` | `repeated string` | Ordered room group IDs. The list must include every existing group exactly once. |
+
+
+<a id="chatto-admin-v1-ReorderRoomGroupsResponse"></a>
+
+#### Result: ReorderRoomGroupsResponse
+
+Result of replacing the global room group order.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `groups` | repeated [`AdminRoomLayoutGroup`](/reference/connectrpc-api/types/#chatto-admin-v1-AdminRoomLayoutGroup) | Room groups in their new order. |
+
+
+<a id="chatto-admin-v1-AdminRoomLayoutService-MoveRoomToGroup"></a>
+
+### MoveRoomToGroup
+
+Moves a channel room to another room group. The caller must be allowed to
+manage rooms in both source and destination groups.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminRoomLayoutService/MoveRoomToGroup
+```
+
+<a id="chatto-admin-v1-MoveRoomToGroupRequest"></a>
+
+#### Input: MoveRoomToGroupRequest
+
+Request to move a channel room to another room group.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required channel room ID. |
+| `group_id` | `string` | Required destination room group ID. |
+
+
+<a id="chatto-admin-v1-MoveRoomToGroupResponse"></a>
+
+#### Result: MoveRoomToGroupResponse
+
+Result of moving a channel room.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room` | `chatto.api.v1.Room` | Moved room after the operation. |
+
+
+<a id="chatto-admin-v1-AdminRoomLayoutService-ReorderSidebarItemsInGroup"></a>
+
+### ReorderSidebarItemsInGroup
+
+Replaces the mixed room/link sidebar order in one group. The caller must
+be allowed to manage rooms in that group.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminRoomLayoutService/ReorderSidebarItemsInGroup
+```
+
+<a id="chatto-admin-v1-ReorderSidebarItemsInGroupRequest"></a>
+
+#### Input: ReorderSidebarItemsInGroupRequest
+
+Request to replace the mixed sidebar item order in one group.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `group_id` | `string` | Required room group ID. |
+| `items` | repeated [`AdminRoomLayoutItemInput`](/reference/connectrpc-api/types/#chatto-admin-v1-AdminRoomLayoutItemInput) | Ordered room/sidebar-link item references. |
+
+
+<a id="chatto-admin-v1-ReorderSidebarItemsInGroupResponse"></a>
+
+#### Result: ReorderSidebarItemsInGroupResponse
+
+Result of replacing the mixed sidebar item order.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `group` | [`AdminRoomLayoutGroup`](/reference/connectrpc-api/types/#chatto-admin-v1-AdminRoomLayoutGroup) | Updated room group. |
+
+
+<a id="chatto-admin-v1-AdminRoomLayoutService-CreateSidebarLink"></a>
+
+### CreateSidebarLink
+
+Creates a sidebar link. The caller must be allowed to manage rooms in the
+destination group.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminRoomLayoutService/CreateSidebarLink
+```
+
+<a id="chatto-admin-v1-CreateSidebarLinkRequest"></a>
+
+#### Input: CreateSidebarLinkRequest
+
+Request to create a sidebar link in one room group.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `group_id` | `string` | Required destination room group ID. |
+| `label` | `string` | Required display label. |
+| `url` | `string` | Required absolute http(s) URL or server-local path. |
+
+
+<a id="chatto-admin-v1-CreateSidebarLinkResponse"></a>
+
+#### Result: CreateSidebarLinkResponse
+
+Result of creating a sidebar link.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `sidebar_link` | `chatto.api.v1.SidebarLink` | Created sidebar link. |
+
+
+<a id="chatto-admin-v1-AdminRoomLayoutService-UpdateSidebarLink"></a>
+
+### UpdateSidebarLink
+
+Updates a sidebar link. The caller must be allowed to manage rooms in the
+link's current group.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminRoomLayoutService/UpdateSidebarLink
+```
+
+<a id="chatto-admin-v1-UpdateSidebarLinkRequest"></a>
+
+#### Input: UpdateSidebarLinkRequest
+
+Request to update a sidebar link.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `link_id` | `string` | Required sidebar link ID. |
+| `label` | `string` | Required display label. |
+| `url` | `string` | Required absolute http(s) URL or server-local path. |
+
+
+<a id="chatto-admin-v1-UpdateSidebarLinkResponse"></a>
+
+#### Result: UpdateSidebarLinkResponse
+
+Result of updating a sidebar link.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `sidebar_link` | `chatto.api.v1.SidebarLink` | Updated sidebar link. |
+
+
+<a id="chatto-admin-v1-AdminRoomLayoutService-DeleteSidebarLink"></a>
+
+### DeleteSidebarLink
+
+Deletes a sidebar link. The caller must be allowed to manage rooms in the
+link's current group.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminRoomLayoutService/DeleteSidebarLink
+```
+
+<a id="chatto-admin-v1-DeleteSidebarLinkRequest"></a>
+
+#### Input: DeleteSidebarLinkRequest
+
+Request to delete a sidebar link.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `link_id` | `string` | Required sidebar link ID. |
+
+
+<a id="chatto-admin-v1-DeleteSidebarLinkResponse"></a>
+
+#### Result: DeleteSidebarLinkResponse
+
+Result of deleting a sidebar link.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `deleted` | `bool` | True when the sidebar link was deleted. |
+
+
+<a id="chatto-admin-v1-AdminRoomLayoutService-MoveSidebarLinkToGroup"></a>
+
+### MoveSidebarLinkToGroup
+
+Moves a sidebar link to another group. The caller must be allowed to manage
+rooms in both source and destination groups.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminRoomLayoutService/MoveSidebarLinkToGroup
+```
+
+<a id="chatto-admin-v1-MoveSidebarLinkToGroupRequest"></a>
+
+#### Input: MoveSidebarLinkToGroupRequest
+
+Request to move a sidebar link to another room group.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `link_id` | `string` | Required sidebar link ID. |
+| `group_id` | `string` | Required destination room group ID. |
+
+
+<a id="chatto-admin-v1-MoveSidebarLinkToGroupResponse"></a>
+
+#### Result: MoveSidebarLinkToGroupResponse
+
+Result of moving a sidebar link.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `sidebar_link` | `chatto.api.v1.SidebarLink` | Moved sidebar link. |

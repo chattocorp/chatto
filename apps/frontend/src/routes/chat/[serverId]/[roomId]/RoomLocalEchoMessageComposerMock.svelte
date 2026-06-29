@@ -1,12 +1,17 @@
 <script lang="ts">
   import { RoomEventKind } from '$lib/render/eventKinds';
   import type { RoomEventView } from '$lib/render/types';
+  import { getComposerContext } from '$lib/state/room';
 
   let {
+    inReplyTo,
     onMessageSent
   }: {
+    inReplyTo?: string;
     onMessageSent?: (event: RoomEventView | null) => void;
   } = $props();
+
+  const composerContext = getComposerContext();
 
   const returnedPost = {
     id: 'msg-local',
@@ -66,3 +71,12 @@
 <button data-testid="emit-returned-echo" onclick={() => onMessageSent?.(returnedEcho)}>
   emit returned echo
 </button>
+
+<button
+  data-testid="start-composer-reply"
+  onclick={() => composerContext.replyState.startReply('reply-target', 'Reply Target', 'excerpt')}
+>
+  start composer reply
+</button>
+
+<output data-testid="composer-in-reply-to">{inReplyTo ?? ''}</output>

@@ -1,0 +1,115 @@
+---
+title: RoomDirectoryService
+description: Room navigation, room group, and room viewer-state RPCs.
+editUrl: false
+---
+
+{/* Generated from proto/chatto/{api,admin,realtime}/v1/*.proto. Do not edit directly. */}
+
+Chatto exposes this service below `/api/connect`.
+
+
+
+Shared message and enum definitions are documented in [Shared Types And Enums](/reference/connectrpc-api/types/).
+
+
+
+<a id="chatto-api-v1-RoomDirectoryService"></a>
+
+## RoomDirectoryService
+
+Reads room directory data.
+
+<a id="chatto-api-v1-RoomDirectoryService-ListRooms"></a>
+
+### ListRooms
+
+Lists rooms visible to the current user. Channel rooms are non-archived
+rooms visible through membership or room.list. DM rooms are membership-only
+and empty DM conversations are omitted.
+
+```http
+POST /api/connect/chatto.api.v1.RoomDirectoryService/ListRooms
+```
+
+<a id="chatto-api-v1-ListRoomsRequest"></a>
+
+#### Input: ListRoomsRequest
+
+Request for rooms visible to the current user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `scope` | [`RoomDirectoryScope`](/reference/connectrpc-api/types/#chatto-api-v1-RoomDirectoryScope) | Which room kinds to include. Defaults to all. |
+
+
+<a id="chatto-api-v1-ListRoomsResponse"></a>
+
+#### Result: ListRoomsResponse
+
+Visible rooms for the current user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `rooms` | repeated [`DirectoryRoom`](/reference/connectrpc-api/types/#chatto-api-v1-DirectoryRoom) | Rooms matching the requested scope. |
+
+
+<a id="chatto-api-v1-RoomDirectoryService-ListRoomGroups"></a>
+
+### ListRoomGroups
+
+Lists ordered channel room groups and sidebar items visible to the current
+user. Archived and hidden room entries are omitted from group results.
+
+```http
+POST /api/connect/chatto.api.v1.RoomDirectoryService/ListRoomGroups
+```
+
+<a id="chatto-api-v1-ListRoomGroupsRequest"></a>
+
+#### Input: ListRoomGroupsRequest
+
+Request for ordered room groups visible to the current user.
+
+
+<a id="chatto-api-v1-ListRoomGroupsResponse"></a>
+
+#### Result: ListRoomGroupsResponse
+
+Ordered room groups visible to the current user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `groups` | repeated [`RoomGroup`](/reference/connectrpc-api/types/#chatto-api-v1-RoomGroup) | Channel room groups in sidebar order. |
+
+
+<a id="chatto-api-v1-RoomDirectoryService-GetRoom"></a>
+
+### GetRoom
+
+Returns one visible room by ID. DM rooms require membership.
+
+```http
+POST /api/connect/chatto.api.v1.RoomDirectoryService/GetRoom
+```
+
+<a id="chatto-api-v1-GetRoomRequest"></a>
+
+#### Input: GetRoomRequest
+
+Request for one room visible to the current user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room to resolve. |
+
+
+<a id="chatto-api-v1-GetRoomResponse"></a>
+
+#### Result: GetRoomResponse
+
+Room visible to the current user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room` | [`DirectoryRoom`](/reference/connectrpc-api/types/#chatto-api-v1-DirectoryRoom) | Resolved room and viewer state. |

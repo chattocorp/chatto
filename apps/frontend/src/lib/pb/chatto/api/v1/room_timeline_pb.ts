@@ -5,7 +5,7 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3, protoInt64, Timestamp } from "@bufbuild/protobuf";
-import { UserSummary } from "./users_pb.js";
+import { User } from "./users_pb.js";
 import { LinkPreview } from "./link_previews_pb.js";
 
 /**
@@ -61,9 +61,9 @@ export class RoomTimelineIncludes extends Message<RoomTimelineIncludes> {
   /**
    * Users keyed by user ID.
    *
-   * @generated from field: map<string, chatto.api.v1.UserSummary> users = 1;
+   * @generated from field: map<string, chatto.api.v1.User> users = 1;
    */
-  users: { [key: string]: UserSummary } = {};
+  users: { [key: string]: User } = {};
 
   constructor(data?: PartialMessage<RoomTimelineIncludes>) {
     super();
@@ -73,7 +73,7 @@ export class RoomTimelineIncludes extends Message<RoomTimelineIncludes> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.RoomTimelineIncludes";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "users", kind: "map", K: 9 /* ScalarType.STRING */, V: {kind: "message", T: UserSummary} },
+    { no: 1, name: "users", kind: "map", K: 9 /* ScalarType.STRING */, V: {kind: "message", T: User} },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoomTimelineIncludes {
@@ -422,12 +422,12 @@ export class RoomTimelineAttachment extends Message<RoomTimelineAttachment> {
 /**
  * Aggregated reaction state for one emoji on one event.
  *
- * The summary is scoped to the current event and includes whether the current
+ * This state is scoped to the current event and includes whether the current
  * user has reacted with the same emoji.
  *
- * @generated from message chatto.api.v1.RoomTimelineReactionSummary
+ * @generated from message chatto.api.v1.RoomTimelineReaction
  */
-export class RoomTimelineReactionSummary extends Message<RoomTimelineReactionSummary> {
+export class RoomTimelineReaction extends Message<RoomTimelineReaction> {
   /**
    * Emoji or reaction key.
    *
@@ -456,13 +456,13 @@ export class RoomTimelineReactionSummary extends Message<RoomTimelineReactionSum
    */
   userIds: string[] = [];
 
-  constructor(data?: PartialMessage<RoomTimelineReactionSummary>) {
+  constructor(data?: PartialMessage<RoomTimelineReaction>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.RoomTimelineReactionSummary";
+  static readonly typeName = "chatto.api.v1.RoomTimelineReaction";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "emoji", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "count", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
@@ -470,20 +470,20 @@ export class RoomTimelineReactionSummary extends Message<RoomTimelineReactionSum
     { no: 4, name: "user_ids", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoomTimelineReactionSummary {
-    return new RoomTimelineReactionSummary().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoomTimelineReaction {
+    return new RoomTimelineReaction().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RoomTimelineReactionSummary {
-    return new RoomTimelineReactionSummary().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RoomTimelineReaction {
+    return new RoomTimelineReaction().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RoomTimelineReactionSummary {
-    return new RoomTimelineReactionSummary().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RoomTimelineReaction {
+    return new RoomTimelineReaction().fromJsonString(jsonString, options);
   }
 
-  static equals(a: RoomTimelineReactionSummary | PlainMessage<RoomTimelineReactionSummary> | undefined, b: RoomTimelineReactionSummary | PlainMessage<RoomTimelineReactionSummary> | undefined): boolean {
-    return proto3.util.equals(RoomTimelineReactionSummary, a, b);
+  static equals(a: RoomTimelineReaction | PlainMessage<RoomTimelineReaction> | undefined, b: RoomTimelineReaction | PlainMessage<RoomTimelineReaction> | undefined): boolean {
+    return proto3.util.equals(RoomTimelineReaction, a, b);
   }
 }
 
@@ -600,9 +600,9 @@ export class RoomTimelineMessagePosted extends Message<RoomTimelineMessagePosted
   /**
    * Reaction summaries for this message.
    *
-   * @generated from field: repeated chatto.api.v1.RoomTimelineReactionSummary reactions = 17;
+   * @generated from field: repeated chatto.api.v1.RoomTimelineReaction reactions = 17;
    */
-  reactions: RoomTimelineReactionSummary[] = [];
+  reactions: RoomTimelineReaction[] = [];
 
   constructor(data?: PartialMessage<RoomTimelineMessagePosted>) {
     super();
@@ -626,7 +626,7 @@ export class RoomTimelineMessagePosted extends Message<RoomTimelineMessagePosted
     { no: 13, name: "last_reply_at", kind: "message", T: Timestamp },
     { no: 14, name: "thread_participant_user_ids", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
     { no: 15, name: "viewer_is_following_thread", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
-    { no: 17, name: "reactions", kind: "message", T: RoomTimelineReactionSummary, repeated: true },
+    { no: 17, name: "reactions", kind: "message", T: RoomTimelineReaction, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoomTimelineMessagePosted {

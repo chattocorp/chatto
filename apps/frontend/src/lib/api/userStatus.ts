@@ -1,7 +1,7 @@
 import { Code, ConnectError, createClient } from '@connectrpc/connect';
 import { Timestamp } from '@bufbuild/protobuf';
 import { createConnectTransport } from '@connectrpc/connect-web';
-import { UserStatusService } from '$lib/pb/chatto/api/v1/user_status_connect';
+import { AccountService } from '$lib/pb/chatto/api/v1/account_connect';
 import { serverRegistry } from '$lib/state/server/registry.svelte';
 
 export type CustomUserStatusAPIConfig = {
@@ -57,7 +57,7 @@ function createUserStatusClient(config: CustomUserStatusAPIConfig) {
     baseUrl: config.baseUrl,
     useBinaryFormat: true
   });
-  return createClient(UserStatusService, transport);
+  return createClient(AccountService, transport);
 }
 
 function headers(config: CustomUserStatusAPIConfig) {

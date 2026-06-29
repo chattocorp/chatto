@@ -3,106 +3,28 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { DeleteServerBannerRequest, DeleteServerBannerResponse, DeleteServerLogoRequest, DeleteServerLogoResponse, GetServerSecurityConfigRequest, GetServerSecurityConfigResponse, GetServerStateRequest, GetServerStateResponse, UpdateBlockedUsernamesRequest, UpdateBlockedUsernamesResponse, UpdateServerConfigRequest, UpdateServerConfigResponse, UploadServerBannerRequest, UploadServerBannerResponse, UploadServerLogoRequest, UploadServerLogoResponse } from "./server_state_pb.js";
+import { GetServerStateRequest, GetServerStateResponse } from "./server_state_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
  * Provides authenticated server state and current user's server capabilities.
  *
- * @generated from service chatto.api.v1.ServerStateService
+ * @generated from service chatto.api.v1.ServerService
  */
-export const ServerStateService = {
-  typeName: "chatto.api.v1.ServerStateService",
+export const ServerService = {
+  typeName: "chatto.api.v1.ServerService",
   methods: {
     /**
      * Returns authenticated server state. This RPC requires a logged-in user;
-     * public discovery remains available through ServerService.GetServer.
+     * public discovery remains available through
+     * ServerDiscoveryService.GetServer.
      *
-     * @generated from rpc chatto.api.v1.ServerStateService.GetServerState
+     * @generated from rpc chatto.api.v1.ServerService.GetServerState
      */
     getServerState: {
       name: "GetServerState",
       I: GetServerStateRequest,
       O: GetServerStateResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * Updates runtime-editable server profile settings. This RPC requires
-     * server.manage.
-     *
-     * @generated from rpc chatto.api.v1.ServerStateService.UpdateServerConfig
-     */
-    updateServerConfig: {
-      name: "UpdateServerConfig",
-      I: UpdateServerConfigRequest,
-      O: UpdateServerConfigResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * Uploads and sets the public server logo. This RPC requires server.manage.
-     *
-     * @generated from rpc chatto.api.v1.ServerStateService.UploadServerLogo
-     */
-    uploadServerLogo: {
-      name: "UploadServerLogo",
-      I: UploadServerLogoRequest,
-      O: UploadServerLogoResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * Clears the public server logo. This RPC requires server.manage.
-     *
-     * @generated from rpc chatto.api.v1.ServerStateService.DeleteServerLogo
-     */
-    deleteServerLogo: {
-      name: "DeleteServerLogo",
-      I: DeleteServerLogoRequest,
-      O: DeleteServerLogoResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * Uploads and sets the public server banner. This RPC requires server.manage.
-     *
-     * @generated from rpc chatto.api.v1.ServerStateService.UploadServerBanner
-     */
-    uploadServerBanner: {
-      name: "UploadServerBanner",
-      I: UploadServerBannerRequest,
-      O: UploadServerBannerResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * Clears the public server banner. This RPC requires server.manage.
-     *
-     * @generated from rpc chatto.api.v1.ServerStateService.DeleteServerBanner
-     */
-    deleteServerBanner: {
-      name: "DeleteServerBanner",
-      I: DeleteServerBannerRequest,
-      O: DeleteServerBannerResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * Returns security-sensitive server configuration. This RPC requires
-     * server.manage.
-     *
-     * @generated from rpc chatto.api.v1.ServerStateService.GetServerSecurityConfig
-     */
-    getServerSecurityConfig: {
-      name: "GetServerSecurityConfig",
-      I: GetServerSecurityConfigRequest,
-      O: GetServerSecurityConfigResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * Updates the blocked-username list. This RPC requires server.manage.
-     *
-     * @generated from rpc chatto.api.v1.ServerStateService.UpdateBlockedUsernames
-     */
-    updateBlockedUsernames: {
-      name: "UpdateBlockedUsernames",
-      I: UpdateBlockedUsernamesRequest,
-      O: UpdateBlockedUsernamesResponse,
       kind: MethodKind.Unary,
     },
   }

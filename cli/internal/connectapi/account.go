@@ -148,7 +148,7 @@ func (s *accountService) DeleteMyAccount(ctx context.Context, req *connect.Reque
 	return connect.NewResponse(&apiv1.DeleteMyAccountResponse{Deleted: true}), nil
 }
 
-func (s *accountService) accountUser(ctx context.Context, user *corev1.User) (*apiv1.UserSummary, error) {
+func (s *accountService) accountUser(ctx context.Context, user *corev1.User) (*apiv1.User, error) {
 	if user == nil {
 		return nil, connectError(core.ErrNotFound)
 	}

@@ -125,7 +125,7 @@ export async function waitForServerUnreadViaConnect(
   await expect(async () => {
     const data = await connectPost<ServerStateResponse>(
       page,
-      'chatto.api.v1.ServerStateService/GetServerState'
+      'chatto.api.v1.ServerService/GetServerState'
     );
     expect(data.viewerCapabilities?.hasUnreadRooms ?? false).toBe(expected);
   }).toPass({ timeout, intervals: [100, 250, 500, 1000] });
@@ -156,7 +156,7 @@ export async function waitForUserDeletedViaConnect(
   timeout = DEFAULT_POLL_TIMEOUT
 ): Promise<void> {
   await expect(async () => {
-    const response = await connectPostResponse(page, 'chatto.api.v1.UserService/GetUser', {
+    const response = await connectPostResponse(page, 'chatto.api.v1.UserDirectoryService/GetUser', {
       userId
     });
     if (response.ok()) {

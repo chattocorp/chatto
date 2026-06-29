@@ -1,0 +1,220 @@
+---
+title: AdminRoleService
+description: Role catalog and role definition administration RPCs.
+editUrl: false
+---
+
+{/* Generated from proto/chatto/{api,admin,realtime}/v1/*.proto. Do not edit directly. */}
+
+Chatto exposes this service below `/api/connect`.
+
+
+
+Shared message and enum definitions are documented in [Shared Types And Enums](/reference/connectrpc-api/types/).
+
+
+
+<a id="chatto-admin-v1-AdminRoleService"></a>
+
+## AdminRoleService
+
+Provides authenticated role catalog reads and admin role CRUD.
+
+<a id="chatto-admin-v1-AdminRoleService-ListRoles"></a>
+
+### ListRoles
+
+Lists the server role catalog. Requires an authenticated user.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminRoleService/ListRoles
+```
+
+<a id="chatto-admin-v1-ListRolesRequest"></a>
+
+#### Input: ListRolesRequest
+
+Request the server role catalog.
+
+
+<a id="chatto-admin-v1-ListRolesResponse"></a>
+
+#### Result: ListRolesResponse
+
+Server role catalog plus viewer role-management capabilities.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `roles` | repeated [`Role`](/reference/connectrpc-api/types/#chatto-admin-v1-Role) | Roles sorted by position. |
+| `viewer_can_manage_roles` | `bool` | Whether the caller may create/update/delete role definitions. |
+| `viewer_can_assign_roles` | `bool` | Whether the caller may assign/revoke roles and view role rosters. |
+
+
+<a id="chatto-admin-v1-AdminRoleService-GetRole"></a>
+
+### GetRole
+
+Gets one server role plus admin detail metadata. Returns NOT_FOUND when the
+role does not exist.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminRoleService/GetRole
+```
+
+<a id="chatto-admin-v1-GetRoleRequest"></a>
+
+#### Input: GetRoleRequest
+
+Request one server role.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `name` | `string` | Stable role name. |
+
+
+<a id="chatto-admin-v1-GetRoleResponse"></a>
+
+#### Result: GetRoleResponse
+
+One server role plus role-management metadata.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `role` | [`Role`](/reference/connectrpc-api/types/#chatto-admin-v1-Role) | Requested role. |
+| `users` | `repeated chatto.api.v1.User` | Explicit users with this role. Empty unless the caller may assign roles. |
+| `viewer_can_manage_roles` | `bool` | Whether the caller may create/update/delete role definitions. |
+| `viewer_can_assign_roles` | `bool` | Whether the caller may assign/revoke roles and view role rosters. |
+
+
+<a id="chatto-admin-v1-AdminRoleService-CreateRole"></a>
+
+### CreateRole
+
+Creates a custom server role. Requires role.manage.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminRoleService/CreateRole
+```
+
+<a id="chatto-admin-v1-CreateRoleRequest"></a>
+
+#### Input: CreateRoleRequest
+
+Request to create a server role.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `name` | `string` | Stable role name. |
+| `display_name` | `string` | Display name shown in admin and mention UIs. |
+| `description` | `string` | Optional role description. |
+| `pingable` | `bool` | Whether messages may notify users assigned to this role. |
+
+
+<a id="chatto-admin-v1-CreateRoleResponse"></a>
+
+#### Result: CreateRoleResponse
+
+Result of creating a server role.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `role` | [`Role`](/reference/connectrpc-api/types/#chatto-admin-v1-Role) | Created role. |
+
+
+<a id="chatto-admin-v1-AdminRoleService-UpdateRole"></a>
+
+### UpdateRole
+
+Updates role metadata. Requires role.manage.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminRoleService/UpdateRole
+```
+
+<a id="chatto-admin-v1-UpdateRoleRequest"></a>
+
+#### Input: UpdateRoleRequest
+
+Request to update server role metadata.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `name` | `string` | Stable role name. |
+| `display_name` | `string` | Display name shown in admin and mention UIs. |
+| `description` | `string` | Optional role description. |
+| `pingable` | `optional bool` | Whether messages may notify users assigned to this role, when changing it. |
+
+
+<a id="chatto-admin-v1-UpdateRoleResponse"></a>
+
+#### Result: UpdateRoleResponse
+
+Result of updating a server role.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `role` | [`Role`](/reference/connectrpc-api/types/#chatto-admin-v1-Role) | Updated role. |
+
+
+<a id="chatto-admin-v1-AdminRoleService-DeleteRole"></a>
+
+### DeleteRole
+
+Deletes a custom server role. Requires role.manage.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminRoleService/DeleteRole
+```
+
+<a id="chatto-admin-v1-DeleteRoleRequest"></a>
+
+#### Input: DeleteRoleRequest
+
+Request to delete a server role.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `name` | `string` | Stable role name. |
+
+
+<a id="chatto-admin-v1-DeleteRoleResponse"></a>
+
+#### Result: DeleteRoleResponse
+
+Result of deleting a server role.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `deleted` | `bool` | True when the request completed. |
+
+
+<a id="chatto-admin-v1-AdminRoleService-ReorderRoles"></a>
+
+### ReorderRoles
+
+Replaces the custom role order. Requires role.manage.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminRoleService/ReorderRoles
+```
+
+<a id="chatto-admin-v1-ReorderRolesRequest"></a>
+
+#### Input: ReorderRolesRequest
+
+Request to replace custom server role order.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `role_names` | `repeated string` | Ordered custom role names. The list must include every custom role exactly once; system roles keep fixed positions and must not be included. |
+
+
+<a id="chatto-admin-v1-ReorderRolesResponse"></a>
+
+#### Result: ReorderRolesResponse
+
+Result of replacing custom server role order.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `roles` | repeated [`Role`](/reference/connectrpc-api/types/#chatto-admin-v1-Role) | Full role catalog after reordering. |

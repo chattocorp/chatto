@@ -86,7 +86,7 @@ func (RoomTimelineVideoProcessingStatus) EnumDescriptor() ([]byte, []int) {
 type RoomTimelineIncludes struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Users keyed by user ID.
-	Users         map[string]*UserSummary `protobuf:"bytes,1,rep,name=users,proto3" json:"users,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Users         map[string]*User `protobuf:"bytes,1,rep,name=users,proto3" json:"users,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -121,7 +121,7 @@ func (*RoomTimelineIncludes) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_room_timeline_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *RoomTimelineIncludes) GetUsers() map[string]*UserSummary {
+func (x *RoomTimelineIncludes) GetUsers() map[string]*User {
 	if x != nil {
 		return x.Users
 	}
@@ -495,9 +495,9 @@ func (x *RoomTimelineAttachment) GetVideoProcessing() *RoomTimelineVideoProcessi
 
 // Aggregated reaction state for one emoji on one event.
 //
-// The summary is scoped to the current event and includes whether the current
+// This state is scoped to the current event and includes whether the current
 // user has reacted with the same emoji.
-type RoomTimelineReactionSummary struct {
+type RoomTimelineReaction struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Emoji or reaction key.
 	Emoji string `protobuf:"bytes,1,opt,name=emoji,proto3" json:"emoji,omitempty"`
@@ -511,20 +511,20 @@ type RoomTimelineReactionSummary struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *RoomTimelineReactionSummary) Reset() {
-	*x = RoomTimelineReactionSummary{}
+func (x *RoomTimelineReaction) Reset() {
+	*x = RoomTimelineReaction{}
 	mi := &file_chatto_api_v1_room_timeline_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *RoomTimelineReactionSummary) String() string {
+func (x *RoomTimelineReaction) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*RoomTimelineReactionSummary) ProtoMessage() {}
+func (*RoomTimelineReaction) ProtoMessage() {}
 
-func (x *RoomTimelineReactionSummary) ProtoReflect() protoreflect.Message {
+func (x *RoomTimelineReaction) ProtoReflect() protoreflect.Message {
 	mi := &file_chatto_api_v1_room_timeline_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -536,33 +536,33 @@ func (x *RoomTimelineReactionSummary) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use RoomTimelineReactionSummary.ProtoReflect.Descriptor instead.
-func (*RoomTimelineReactionSummary) Descriptor() ([]byte, []int) {
+// Deprecated: Use RoomTimelineReaction.ProtoReflect.Descriptor instead.
+func (*RoomTimelineReaction) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_room_timeline_proto_rawDescGZIP(), []int{5}
 }
 
-func (x *RoomTimelineReactionSummary) GetEmoji() string {
+func (x *RoomTimelineReaction) GetEmoji() string {
 	if x != nil {
 		return x.Emoji
 	}
 	return ""
 }
 
-func (x *RoomTimelineReactionSummary) GetCount() int32 {
+func (x *RoomTimelineReaction) GetCount() int32 {
 	if x != nil {
 		return x.Count
 	}
 	return 0
 }
 
-func (x *RoomTimelineReactionSummary) GetHasReacted() bool {
+func (x *RoomTimelineReaction) GetHasReacted() bool {
 	if x != nil {
 		return x.HasReacted
 	}
 	return false
 }
 
-func (x *RoomTimelineReactionSummary) GetUserIds() []string {
+func (x *RoomTimelineReaction) GetUserIds() []string {
 	if x != nil {
 		return x.UserIds
 	}
@@ -607,7 +607,7 @@ type RoomTimelineMessagePosted struct {
 	// Whether the current user follows this message's thread, when known.
 	ViewerIsFollowingThread *bool `protobuf:"varint,15,opt,name=viewer_is_following_thread,json=viewerIsFollowingThread,proto3,oneof" json:"viewer_is_following_thread,omitempty"`
 	// Reaction summaries for this message.
-	Reactions     []*RoomTimelineReactionSummary `protobuf:"bytes,17,rep,name=reactions,proto3" json:"reactions,omitempty"`
+	Reactions     []*RoomTimelineReaction `protobuf:"bytes,17,rep,name=reactions,proto3" json:"reactions,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -740,7 +740,7 @@ func (x *RoomTimelineMessagePosted) GetViewerIsFollowingThread() bool {
 	return false
 }
 
-func (x *RoomTimelineMessagePosted) GetReactions() []*RoomTimelineReactionSummary {
+func (x *RoomTimelineMessagePosted) GetReactions() []*RoomTimelineReaction {
 	if x != nil {
 		return x.Reactions
 	}
@@ -1809,13 +1809,13 @@ var File_chatto_api_v1_room_timeline_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_room_timeline_proto_rawDesc = "" +
 	"\n" +
-	"!chatto/api/v1/room_timeline.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a!chatto/api/v1/link_previews.proto\x1a\x19chatto/api/v1/users.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xb2\x01\n" +
+	"!chatto/api/v1/room_timeline.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a!chatto/api/v1/link_previews.proto\x1a\x19chatto/api/v1/users.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xab\x01\n" +
 	"\x14RoomTimelineIncludes\x12D\n" +
-	"\x05users\x18\x01 \x03(\v2..chatto.api.v1.RoomTimelineIncludes.UsersEntryR\x05users\x1aT\n" +
+	"\x05users\x18\x01 \x03(\v2..chatto.api.v1.RoomTimelineIncludes.UsersEntryR\x05users\x1aM\n" +
 	"\n" +
 	"UsersEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x120\n" +
-	"\x05value\x18\x02 \x01(\v2\x1a.chatto.api.v1.UserSummaryR\x05value:\x028\x01\"c\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12)\n" +
+	"\x05value\x18\x02 \x01(\v2\x13.chatto.api.v1.UserR\x05value:\x028\x01\"c\n" +
 	"\x14RoomTimelineAssetUrl\x12\x10\n" +
 	"\x03url\x18\x01 \x01(\tR\x03url\x129\n" +
 	"\n" +
@@ -1845,13 +1845,13 @@ const file_chatto_api_v1_room_timeline_proto_rawDesc = "" +
 	"\x06height\x18\x05 \x01(\x05R\x06height\x12@\n" +
 	"\tasset_url\x18\x06 \x01(\v2#.chatto.api.v1.RoomTimelineAssetUrlR\bassetUrl\x12S\n" +
 	"\x13thumbnail_asset_url\x18\a \x01(\v2#.chatto.api.v1.RoomTimelineAssetUrlR\x11thumbnailAssetUrl\x12U\n" +
-	"\x10video_processing\x18\b \x01(\v2*.chatto.api.v1.RoomTimelineVideoProcessingR\x0fvideoProcessing\"\x85\x01\n" +
-	"\x1bRoomTimelineReactionSummary\x12\x14\n" +
+	"\x10video_processing\x18\b \x01(\v2*.chatto.api.v1.RoomTimelineVideoProcessingR\x0fvideoProcessing\"~\n" +
+	"\x14RoomTimelineReaction\x12\x14\n" +
 	"\x05emoji\x18\x01 \x01(\tR\x05emoji\x12\x14\n" +
 	"\x05count\x18\x02 \x01(\x05R\x05count\x12\x1f\n" +
 	"\vhas_reacted\x18\x03 \x01(\bR\n" +
 	"hasReacted\x12\x19\n" +
-	"\buser_ids\x18\x04 \x03(\tR\auserIds\"\x92\a\n" +
+	"\buser_ids\x18\x04 \x03(\tR\auserIds\"\x8b\a\n" +
 	"\x19RoomTimelineMessagePosted\x12\x17\n" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x17\n" +
 	"\x04body\x18\x02 \x01(\tH\x00R\x04body\x88\x01\x01\x12G\n" +
@@ -1869,8 +1869,8 @@ const file_chatto_api_v1_room_timeline_proto_rawDesc = "" +
 	"replyCount\x12>\n" +
 	"\rlast_reply_at\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\vlastReplyAt\x12=\n" +
 	"\x1bthread_participant_user_ids\x18\x0e \x03(\tR\x18threadParticipantUserIds\x12@\n" +
-	"\x1aviewer_is_following_thread\x18\x0f \x01(\bH\x01R\x17viewerIsFollowingThread\x88\x01\x01\x12H\n" +
-	"\treactions\x18\x11 \x03(\v2*.chatto.api.v1.RoomTimelineReactionSummaryR\treactionsB\a\n" +
+	"\x1aviewer_is_following_thread\x18\x0f \x01(\bH\x01R\x17viewerIsFollowingThread\x88\x01\x01\x12A\n" +
+	"\treactions\x18\x11 \x03(\v2#.chatto.api.v1.RoomTimelineReactionR\treactionsB\a\n" +
 	"\x05_bodyB\x1d\n" +
 	"\x1b_viewer_is_following_threadJ\x04\b\x03\x10\x04J\x04\b\x10\x10\x11R\fbody_presentR\"viewer_is_following_thread_present\"0\n" +
 	"\x15RoomTimelineRoomEvent\x12\x17\n" +
@@ -1971,7 +1971,7 @@ var file_chatto_api_v1_room_timeline_proto_goTypes = []any{
 	(*RoomTimelineVideoVariant)(nil),         // 3: chatto.api.v1.RoomTimelineVideoVariant
 	(*RoomTimelineVideoProcessing)(nil),      // 4: chatto.api.v1.RoomTimelineVideoProcessing
 	(*RoomTimelineAttachment)(nil),           // 5: chatto.api.v1.RoomTimelineAttachment
-	(*RoomTimelineReactionSummary)(nil),      // 6: chatto.api.v1.RoomTimelineReactionSummary
+	(*RoomTimelineReaction)(nil),             // 6: chatto.api.v1.RoomTimelineReaction
 	(*RoomTimelineMessagePosted)(nil),        // 7: chatto.api.v1.RoomTimelineMessagePosted
 	(*RoomTimelineRoomEvent)(nil),            // 8: chatto.api.v1.RoomTimelineRoomEvent
 	(*RoomTimelineEvent)(nil),                // 9: chatto.api.v1.RoomTimelineEvent
@@ -1989,7 +1989,7 @@ var file_chatto_api_v1_room_timeline_proto_goTypes = []any{
 	nil,                                      // 21: chatto.api.v1.RoomTimelineIncludes.UsersEntry
 	(*timestamppb.Timestamp)(nil),            // 22: google.protobuf.Timestamp
 	(*LinkPreview)(nil),                      // 23: chatto.api.v1.LinkPreview
-	(*UserSummary)(nil),                      // 24: chatto.api.v1.UserSummary
+	(*User)(nil),                             // 24: chatto.api.v1.User
 }
 var file_chatto_api_v1_room_timeline_proto_depIdxs = []int32{
 	21, // 0: chatto.api.v1.RoomTimelineIncludes.users:type_name -> chatto.api.v1.RoomTimelineIncludes.UsersEntry
@@ -2005,7 +2005,7 @@ var file_chatto_api_v1_room_timeline_proto_depIdxs = []int32{
 	23, // 10: chatto.api.v1.RoomTimelineMessagePosted.link_preview:type_name -> chatto.api.v1.LinkPreview
 	22, // 11: chatto.api.v1.RoomTimelineMessagePosted.updated_at:type_name -> google.protobuf.Timestamp
 	22, // 12: chatto.api.v1.RoomTimelineMessagePosted.last_reply_at:type_name -> google.protobuf.Timestamp
-	6,  // 13: chatto.api.v1.RoomTimelineMessagePosted.reactions:type_name -> chatto.api.v1.RoomTimelineReactionSummary
+	6,  // 13: chatto.api.v1.RoomTimelineMessagePosted.reactions:type_name -> chatto.api.v1.RoomTimelineReaction
 	22, // 14: chatto.api.v1.RoomTimelineEvent.created_at:type_name -> google.protobuf.Timestamp
 	7,  // 15: chatto.api.v1.RoomTimelineEvent.message_posted:type_name -> chatto.api.v1.RoomTimelineMessagePosted
 	8,  // 16: chatto.api.v1.RoomTimelineEvent.room_created:type_name -> chatto.api.v1.RoomTimelineRoomEvent
@@ -2023,7 +2023,7 @@ var file_chatto_api_v1_room_timeline_proto_depIdxs = []int32{
 	1,  // 28: chatto.api.v1.ResolveMessageLinkTargetResponse.includes:type_name -> chatto.api.v1.RoomTimelineIncludes
 	10, // 29: chatto.api.v1.GetThreadEventsResponse.page:type_name -> chatto.api.v1.RoomTimelinePage
 	10, // 30: chatto.api.v1.GetThreadEventsAroundResponse.page:type_name -> chatto.api.v1.RoomTimelinePage
-	24, // 31: chatto.api.v1.RoomTimelineIncludes.UsersEntry.value:type_name -> chatto.api.v1.UserSummary
+	24, // 31: chatto.api.v1.RoomTimelineIncludes.UsersEntry.value:type_name -> chatto.api.v1.User
 	11, // 32: chatto.api.v1.RoomTimelineService.GetRoomEvents:input_type -> chatto.api.v1.GetRoomEventsRequest
 	13, // 33: chatto.api.v1.RoomTimelineService.GetRoomEventsAround:input_type -> chatto.api.v1.GetRoomEventsAroundRequest
 	15, // 34: chatto.api.v1.RoomTimelineService.ResolveMessageLinkTarget:input_type -> chatto.api.v1.ResolveMessageLinkTargetRequest

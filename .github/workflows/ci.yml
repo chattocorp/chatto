@@ -6,6 +6,13 @@ on:
       - main
       - 'release-[0-9]*'
   pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - labeled
+      - unlabeled
+      - ready_for_review
     branches:
       - main
       - 'release-[0-9]*'
@@ -19,13 +26,37 @@ permissions:
 
 jobs:
   codegen-proto-drift:
-    runs-on: ubicloud-standard-4
+    # runs-on: ubicloud-standard-4
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
 
       - name: Setup environment
         uses: ./.github/actions/setup
+
+      - name: Fetch protobuf breaking base
+        run: |
+          base_ref="${GITHUB_BASE_REF:-main}"
+          git fetch --no-tags --depth=1 origin "${base_ref}:refs/remotes/origin/${base_ref}"
+
+      - name: Check storage and internal protobuf breaking changes
+        run: |
+          base_ref="${GITHUB_BASE_REF:-main}"
+          cd proto
+          mise x -- buf breaking . --against "../.git#branch=origin/${base_ref},subdir=proto" --exclude-path chatto/api/v1
+
+      - name: Check public API protobuf breaking changes
+        if: ${{ github.event_name != 'pull_request' || !contains(github.event.pull_request.labels.*.name, 'api-breaking-change') }}
+        run: |
+          base_ref="${GITHUB_BASE_REF:-main}"
+          cd proto
+          mise x -- buf breaking . --against "../.git#branch=origin/${base_ref},subdir=proto" --path chatto/api/v1
+
+      - name: Acknowledge intentional public API protobuf breaking changes
+        if: ${{ github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'api-breaking-change') }}
+        run: |
+          echo "::notice::Skipping public API Buf breaking check because this PR has the api-breaking-change label. Storage/internal protobuf breaking checks and codegen drift are still checked."
 
       - name: Regenerate protobuf bindings
         run: mise codegen-proto
@@ -38,7 +69,8 @@ jobs:
           fi
 
   test-frontend-unit:
-    runs-on: ubicloud-standard-4
+    # runs-on: ubicloud-standard-4
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -70,7 +102,8 @@ jobs:
         run: cd apps/frontend && pnpm vitest --run
 
   test-cli:
-    runs-on: ubicloud-standard-4
+    # runs-on: ubicloud-standard-4
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -85,7 +118,8 @@ jobs:
         run: cd cli && go test -trimpath -p 1 -tags test_endpoints ./...
 
   test-e2e:
-    runs-on: ubicloud-standard-4
+    # runs-on: ubicloud-standard-4
+    runs-on: ubuntu-latest
     name: test-e2e (${{ matrix.shard }}/4)
     strategy:
       fail-fast: false
@@ -125,7 +159,8 @@ jobs:
           retention-days: 14
 
   test-e2e-media:
-    runs-on: ubicloud-standard-4
+    # runs-on: ubicloud-standard-4
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v6

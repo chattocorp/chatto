@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { SubscribeRequest, SubscribeResponse, UnsubscribeRequest, UnsubscribeResponse } from "./push_notifications_pb.js";
+import { SubscribePushRequest, SubscribePushResponse, UnsubscribePushRequest, UnsubscribePushResponse } from "./push_notifications_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -24,8 +24,8 @@ export const PushNotificationService = {
      */
     subscribe: {
       name: "Subscribe",
-      I: SubscribeRequest,
-      O: SubscribeResponse,
+      I: SubscribePushRequest,
+      O: SubscribePushResponse,
       kind: MethodKind.Unary,
     },
     /**
@@ -37,8 +37,8 @@ export const PushNotificationService = {
      */
     unsubscribe: {
       name: "Unsubscribe",
-      I: UnsubscribeRequest,
-      O: UnsubscribeResponse,
+      I: UnsubscribePushRequest,
+      O: UnsubscribePushResponse,
       kind: MethodKind.Unary,
     },
   }

@@ -1,6 +1,7 @@
 import { createClient } from '@connectrpc/connect';
 import { createConnectTransport } from '@connectrpc/connect-web';
-import { ServerStateService } from '$lib/pb/chatto/api/v1/server_state_connect';
+import { AdminServerService } from '$lib/pb/chatto/admin/v1/server_connect';
+import { ServerService } from '$lib/pb/chatto/api/v1/server_state_connect';
 
 export type ServerStateAPIConfig = {
   baseUrl: string;
@@ -48,23 +49,24 @@ export type ServerSecurityConfig = {
   blockedUsernames: string;
 };
 
-function serverStateClient(config: ServerStateAPIConfig) {
+function serverClients(config: ServerStateAPIConfig) {
   const transport = createConnectTransport({
     baseUrl: config.baseUrl,
     useBinaryFormat: true
   });
-  const client = createClient(ServerStateService, transport);
+  const server = createClient(ServerService, transport);
+  const adminServer = createClient(AdminServerService, transport);
   const headers = config.bearerToken
     ? { Authorization: `Bearer ${config.bearerToken}` }
     : undefined;
-  return { client, headers };
+  return { server, adminServer, headers };
 }
 
 export async function getAuthenticatedServerState(
   config: ServerStateAPIConfig
 ): Promise<AuthenticatedServerState> {
-  const { client, headers } = serverStateClient(config);
-  const response = await client.getServerState({}, { headers });
+  const { server, headers } = serverClients(config);
+  const response = await server.getServerState({}, { headers });
 
   return {
     name: response.profile?.name || 'Chatto',
@@ -92,8 +94,8 @@ export async function updateServerConfig(
   config: ServerStateAPIConfig,
   input: EditableServerConfig
 ): Promise<EditableServerProfile> {
-  const { client, headers } = serverStateClient(config);
-  const response = await client.updateServerConfig(
+  const { adminServer, headers } = serverClients(config);
+  const response = await adminServer.updateServerConfig(
     {
       serverName: input.name,
       description: input.description,
@@ -110,8 +112,8 @@ export async function uploadServerLogo(
   config: ServerStateAPIConfig,
   file: File
 ): Promise<EditableServerProfile> {
-  const { client, headers } = serverStateClient(config);
-  const response = await client.uploadServerLogo(
+  const { adminServer, headers } = serverClients(config);
+  const response = await adminServer.uploadServerLogo(
     {
       image: new Uint8Array(await file.arrayBuffer()),
       filename: file.name,
@@ -125,8 +127,8 @@ export async function uploadServerLogo(
 export async function deleteServerLogo(
   config: ServerStateAPIConfig
 ): Promise<EditableServerProfile> {
-  const { client, headers } = serverStateClient(config);
-  const response = await client.deleteServerLogo({}, { headers });
+  const { adminServer, headers } = serverClients(config);
+  const response = await adminServer.deleteServerLogo({}, { headers });
   return editableServerProfile(response.profile);
 }
 
@@ -134,8 +136,8 @@ export async function uploadServerBanner(
   config: ServerStateAPIConfig,
   file: File
 ): Promise<EditableServerProfile> {
-  const { client, headers } = serverStateClient(config);
-  const response = await client.uploadServerBanner(
+  const { adminServer, headers } = serverClients(config);
+  const response = await adminServer.uploadServerBanner(
     {
       image: new Uint8Array(await file.arrayBuffer()),
       filename: file.name,
@@ -149,16 +151,16 @@ export async function uploadServerBanner(
 export async function deleteServerBanner(
   config: ServerStateAPIConfig
 ): Promise<EditableServerProfile> {
-  const { client, headers } = serverStateClient(config);
-  const response = await client.deleteServerBanner({}, { headers });
+  const { adminServer, headers } = serverClients(config);
+  const response = await adminServer.deleteServerBanner({}, { headers });
   return editableServerProfile(response.profile);
 }
 
 export async function getServerSecurityConfig(
   config: ServerStateAPIConfig
 ): Promise<ServerSecurityConfig> {
-  const { client, headers } = serverStateClient(config);
-  const response = await client.getServerSecurityConfig({}, { headers });
+  const { adminServer, headers } = serverClients(config);
+  const response = await adminServer.getServerSecurityConfig({}, { headers });
   return {
     blockedUsernames: response.blockedUsernames
   };
@@ -168,8 +170,8 @@ export async function updateBlockedUsernames(
   config: ServerStateAPIConfig,
   blockedUsernames: string
 ): Promise<ServerSecurityConfig> {
-  const { client, headers } = serverStateClient(config);
-  const response = await client.updateBlockedUsernames({ blockedUsernames }, { headers });
+  const { adminServer, headers } = serverClients(config);
+  const response = await adminServer.updateBlockedUsernames({ blockedUsernames }, { headers });
   return {
     blockedUsernames: response.blockedUsernames
   };

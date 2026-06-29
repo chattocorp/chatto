@@ -5,9 +5,12 @@
 
 import { DeleteAvatarRequest, DeleteAvatarResponse, DeleteMyAccountRequest, DeleteMyAccountResponse, RequestAccountDeletionRequest, RequestAccountDeletionResponse, UpdateProfileRequest, UpdateProfileResponse, UpdateSettingsRequest, UpdateSettingsResponse, UploadAvatarRequest, UploadAvatarResponse } from "./account_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
+import { ReportPresenceRequest, ReportPresenceResponse } from "./presence_pb.js";
+import { ClearCustomStatusRequest, ClearCustomStatusResponse, SetCustomStatusRequest, SetCustomStatusResponse } from "./user_status_pb.js";
 
 /**
- * Self-service account, profile, avatar, and display preference commands.
+ * Self-service account, profile, avatar, display preference, presence, and
+ * custom-status commands.
  *
  * @generated from service chatto.api.v1.AccountService
  */
@@ -56,6 +59,43 @@ export const AccountService = {
       name: "UpdateSettings",
       I: UpdateSettingsRequest,
       O: UpdateSettingsResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Reports the current user's live presence status. This state is transient:
+     * clients should refresh it periodically while visible, and should stop
+     * calling this RPC when the user chooses to appear offline.
+     *
+     * @generated from rpc chatto.api.v1.AccountService.ReportPresence
+     */
+    reportPresence: {
+      name: "ReportPresence",
+      I: ReportPresenceRequest,
+      O: ReportPresenceResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Sets or replaces the current user's custom status. Emoji and text are
+     * required, and expires_at must be omitted or in the future.
+     *
+     * @generated from rpc chatto.api.v1.AccountService.SetCustomStatus
+     */
+    setCustomStatus: {
+      name: "SetCustomStatus",
+      I: SetCustomStatusRequest,
+      O: SetCustomStatusResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Clears the current user's custom status. The call is idempotent and returns
+     * the resulting empty status state.
+     *
+     * @generated from rpc chatto.api.v1.AccountService.ClearCustomStatus
+     */
+    clearCustomStatus: {
+      name: "ClearCustomStatus",
+      I: ClearCustomStatusRequest,
+      O: ClearCustomStatusResponse,
       kind: MethodKind.Unary,
     },
     /**

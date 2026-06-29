@@ -333,7 +333,7 @@ type NotificationItem struct {
 	// Creation time.
 	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	// User who triggered the notification, when still resolvable.
-	Actor *UserPresenceSummary `protobuf:"bytes,3,opt,name=actor,proto3" json:"actor,omitempty"`
+	Actor *UserProfile `protobuf:"bytes,3,opt,name=actor,proto3" json:"actor,omitempty"`
 	// Short human-readable notification summary.
 	Summary string `protobuf:"bytes,4,opt,name=summary,proto3" json:"summary,omitempty"`
 	// Types that are valid to be assigned to Kind:
@@ -391,7 +391,7 @@ func (x *NotificationItem) GetCreatedAt() *timestamppb.Timestamp {
 	return nil
 }
 
-func (x *NotificationItem) GetActor() *UserPresenceSummary {
+func (x *NotificationItem) GetActor() *UserProfile {
 	if x != nil {
 		return x.Actor
 	}
@@ -1129,12 +1129,12 @@ const file_chatto_api_v1_notifications_proto_rawDesc = "" +
 	"\x15_thread_root_event_id\"i\n" +
 	"\x17RoomMessageNotification\x123\n" +
 	"\x04room\x18\x01 \x01(\v2\x1f.chatto.api.v1.NotificationRoomR\x04room\x12\x19\n" +
-	"\bevent_id\x18\x02 \x01(\tR\aeventId\"\xd3\x03\n" +
+	"\bevent_id\x18\x02 \x01(\tR\aeventId\"\xcb\x03\n" +
 	"\x10NotificationItem\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x129\n" +
 	"\n" +
-	"created_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x128\n" +
-	"\x05actor\x18\x03 \x01(\v2\".chatto.api.v1.UserPresenceSummaryR\x05actor\x12\x18\n" +
+	"created_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x120\n" +
+	"\x05actor\x18\x03 \x01(\v2\x1a.chatto.api.v1.UserProfileR\x05actor\x12\x18\n" +
 	"\asummary\x18\x04 \x01(\tR\asummary\x12Q\n" +
 	"\x0edirect_message\x18\n" +
 	" \x01(\v2(.chatto.api.v1.DirectMessageNotificationH\x00R\rdirectMessage\x12>\n" +
@@ -1218,7 +1218,7 @@ var file_chatto_api_v1_notifications_proto_goTypes = []any{
 	(*DismissAllNotificationsRequest)(nil),  // 17: chatto.api.v1.DismissAllNotificationsRequest
 	(*DismissAllNotificationsResponse)(nil), // 18: chatto.api.v1.DismissAllNotificationsResponse
 	(*timestamppb.Timestamp)(nil),           // 19: google.protobuf.Timestamp
-	(*UserPresenceSummary)(nil),             // 20: chatto.api.v1.UserPresenceSummary
+	(*UserProfile)(nil),                     // 20: chatto.api.v1.UserProfile
 	(*PageRequest)(nil),                     // 21: chatto.api.v1.PageRequest
 	(*PageInfo)(nil),                        // 22: chatto.api.v1.PageInfo
 }
@@ -1227,7 +1227,7 @@ var file_chatto_api_v1_notifications_proto_depIdxs = []int32{
 	0,  // 1: chatto.api.v1.ReplyNotification.room:type_name -> chatto.api.v1.NotificationRoom
 	0,  // 2: chatto.api.v1.RoomMessageNotification.room:type_name -> chatto.api.v1.NotificationRoom
 	19, // 3: chatto.api.v1.NotificationItem.created_at:type_name -> google.protobuf.Timestamp
-	20, // 4: chatto.api.v1.NotificationItem.actor:type_name -> chatto.api.v1.UserPresenceSummary
+	20, // 4: chatto.api.v1.NotificationItem.actor:type_name -> chatto.api.v1.UserProfile
 	1,  // 5: chatto.api.v1.NotificationItem.direct_message:type_name -> chatto.api.v1.DirectMessageNotification
 	2,  // 6: chatto.api.v1.NotificationItem.mention:type_name -> chatto.api.v1.MentionNotification
 	3,  // 7: chatto.api.v1.NotificationItem.reply:type_name -> chatto.api.v1.ReplyNotification

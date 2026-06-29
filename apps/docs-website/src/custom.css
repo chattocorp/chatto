@@ -1,8 +1,10 @@
 @import "@fontsource-variable/ibm-plex-sans";
 @import "@fontsource-variable/ibm-plex-sans/wght-italic.css";
+@import "@fontsource-variable/fraunces/index.css";
 
 :root {
   --sl-font: "IBM Plex Sans Variable", sans-serif;
+  --chatto-heading-font: "Fraunces Variable", serif;
   --sl-text-body: 1.1rem;
 
   /* Sky blue accent — matches Chatto frontend (sky-600 light / sky-400 dark) */
@@ -13,6 +15,12 @@
 
 body {
   font-size: var(--sl-text-body);
+}
+
+h1,
+h2 {
+  font-family: var(--chatto-heading-font);
+  font-variation-settings: "SOFT" 50, "WONK" 0, "opsz" 72;
 }
 
 :root[data-theme="dark"] {

@@ -56,9 +56,9 @@ The WebSocket protocol should reserve frame shapes for future multiplexed RPC-ov
 - preserve the same authorization, validation, OCC, read-your-writes, idempotency, and error semantics,
 - avoid WebSocket-only product APIs except connection-control operations.
 
-JSON is deferred. Chatto may later expose JSON encodings or generated JSON/HTTP convenience endpoints for selected public API protos, but JSON is not the source of truth for the new API contract.
+JSON uses Connect's standard JSON encoding for unary APIs. Protobuf service and message definitions remain the source of truth for the public API contract.
 
-Existing non-RPC HTTP endpoints are reviewed separately from the ConnectRPC API surface. In particular, `/api/server` remains a high-stability discovery surface, and auth, OAuth, uploads, asset delivery, webhooks, and health/metrics endpoints may remain explicit HTTP APIs where that shape is still appropriate.
+Existing non-RPC HTTP endpoints are reviewed separately from the ConnectRPC API surface. Auth, OAuth, uploads, asset delivery, webhooks, and health/metrics endpoints may remain explicit HTTP APIs where that shape is still appropriate. Public server discovery is handled by `ServerDiscoveryService.GetServer`.
 
 New protobuf API methods must not duplicate operation-specific authorization in each transport. HTTP ConnectRPC and future RPC-over-WebSocket should call the same internal operation model for the use case. Transports authenticate the caller, decode/encode protocol messages, and map transport-specific errors. Internal models own authorization, validation, domain invariants, OCC/write orchestration, read-your-writes waits, and response shaping for the operation.
 
@@ -70,7 +70,7 @@ Generated clients become a first-class part of the API strategy. Bots and integr
 
 The first-party web client gets a cleaner split between request/response operations and app-session realtime delivery. The live connection can be designed around Chatto's actual needs instead of fitting them through GraphQL subscriptions or generic HTTP streaming.
 
-Deferring JSON keeps the initial compatibility surface smaller. The cost is that casual `curl`-style integrations are less ergonomic until JSON support, SDKs, CLI tooling, or debug helpers exist.
+Connect JSON keeps casual `curl`-style integrations possible without creating separate REST compatibility endpoints.
 
 Separating public API protos from persisted EVT protos prevents storage compatibility requirements from leaking into caller-facing contracts. It also means some mapping code is unavoidable.
 

@@ -12,7 +12,7 @@ type pushNotificationService struct {
 	api *API
 }
 
-func (s *pushNotificationService) Subscribe(ctx context.Context, req *connect.Request[apiv1.SubscribeRequest]) (*connect.Response[apiv1.SubscribeResponse], error) {
+func (s *pushNotificationService) Subscribe(ctx context.Context, req *connect.Request[apiv1.SubscribePushRequest]) (*connect.Response[apiv1.SubscribePushResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -29,10 +29,10 @@ func (s *pushNotificationService) Subscribe(ctx context.Context, req *connect.Re
 		return nil, connectError(err)
 	}
 
-	return connect.NewResponse(&apiv1.SubscribeResponse{Subscribed: true}), nil
+	return connect.NewResponse(&apiv1.SubscribePushResponse{Subscribed: true}), nil
 }
 
-func (s *pushNotificationService) Unsubscribe(ctx context.Context, req *connect.Request[apiv1.UnsubscribeRequest]) (*connect.Response[apiv1.UnsubscribeResponse], error) {
+func (s *pushNotificationService) Unsubscribe(ctx context.Context, req *connect.Request[apiv1.UnsubscribePushRequest]) (*connect.Response[apiv1.UnsubscribePushResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -42,5 +42,5 @@ func (s *pushNotificationService) Unsubscribe(ctx context.Context, req *connect.
 		return nil, connectError(err)
 	}
 
-	return connect.NewResponse(&apiv1.UnsubscribeResponse{Unsubscribed: true}), nil
+	return connect.NewResponse(&apiv1.UnsubscribePushResponse{Unsubscribed: true}), nil
 }

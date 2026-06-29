@@ -62,7 +62,7 @@ func (s *threadService) UnfollowThread(ctx context.Context, req *connect.Request
 func (s *threadService) followedThreadsResponse(ctx context.Context, viewerID string, page *core.FollowedThreadsPage) (*apiv1.ListFollowedThreadsResponse, error) {
 	if page == nil {
 		return &apiv1.ListFollowedThreadsResponse{
-			Includes: &apiv1.RoomTimelineIncludes{Users: map[string]*apiv1.UserSummary{}},
+			Includes: &apiv1.RoomTimelineIncludes{Users: map[string]*apiv1.User{}},
 			Page:     apiPageInfo(0, false),
 		}, nil
 	}

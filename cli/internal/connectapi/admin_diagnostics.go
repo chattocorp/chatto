@@ -6,14 +6,14 @@ import (
 
 	"connectrpc.com/connect"
 	"hmans.de/chatto/internal/core"
-	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
+	adminv1 "hmans.de/chatto/internal/pb/chatto/admin/v1"
 )
 
 type adminDiagnosticsService struct {
 	api *API
 }
 
-func (s *adminDiagnosticsService) GetSystemInfo(ctx context.Context, _ *connect.Request[apiv1.GetSystemInfoRequest]) (*connect.Response[apiv1.GetSystemInfoResponse], error) {
+func (s *adminDiagnosticsService) GetSystemInfo(ctx context.Context, _ *connect.Request[adminv1.GetSystemInfoRequest]) (*connect.Response[adminv1.GetSystemInfoResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -24,14 +24,14 @@ func (s *adminDiagnosticsService) GetSystemInfo(ctx context.Context, _ *connect.
 		return nil, connectError(err)
 	}
 
-	return connect.NewResponse(&apiv1.GetSystemInfoResponse{
+	return connect.NewResponse(&adminv1.GetSystemInfoResponse{
 		SystemInfo:  adminSystemInfo(diagnostics),
 		Projections: adminProjectionStates(diagnostics.Projections),
 	}), nil
 }
 
-func adminSystemInfo(diagnostics *core.AdminDiagnostics) *apiv1.AdminSystemInfo {
-	return &apiv1.AdminSystemInfo{
+func adminSystemInfo(diagnostics *core.AdminDiagnostics) *adminv1.AdminSystemInfo {
+	return &adminv1.AdminSystemInfo{
 		Connection: adminConnectionInfo(diagnostics.Connection),
 		Account:    adminAccountInfo(diagnostics.Account),
 		Nats:       adminNatsStats(diagnostics.JetStream),
@@ -39,19 +39,19 @@ func adminSystemInfo(diagnostics *core.AdminDiagnostics) *apiv1.AdminSystemInfo 
 	}
 }
 
-func adminProjectionStates(states []core.ProjectionAdminState) []*apiv1.AdminProjectionState {
-	out := make([]*apiv1.AdminProjectionState, 0, len(states))
+func adminProjectionStates(states []core.ProjectionAdminState) []*adminv1.AdminProjectionState {
+	out := make([]*adminv1.AdminProjectionState, 0, len(states))
 	for _, state := range states {
 		out = append(out, adminProjectionState(state))
 	}
 	return out
 }
 
-func adminConnectionInfo(info *core.ConnectionInfo) *apiv1.AdminConnectionInfo {
+func adminConnectionInfo(info *core.ConnectionInfo) *adminv1.AdminConnectionInfo {
 	if info == nil {
-		return &apiv1.AdminConnectionInfo{}
+		return &adminv1.AdminConnectionInfo{}
 	}
-	return &apiv1.AdminConnectionInfo{
+	return &adminv1.AdminConnectionInfo{
 		Connected:  info.Connected,
 		ServerId:   info.ServerID,
 		ServerName: info.ServerName,
@@ -61,11 +61,11 @@ func adminConnectionInfo(info *core.ConnectionInfo) *apiv1.AdminConnectionInfo {
 	}
 }
 
-func adminAccountInfo(info *core.AccountInfo) *apiv1.AdminAccountInfo {
+func adminAccountInfo(info *core.AccountInfo) *adminv1.AdminAccountInfo {
 	if info == nil {
-		return &apiv1.AdminAccountInfo{}
+		return &adminv1.AdminAccountInfo{}
 	}
-	return &apiv1.AdminAccountInfo{
+	return &adminv1.AdminAccountInfo{
 		Memory:        int64(info.Memory),
 		MemoryUsed:    int64(info.MemoryUsed),
 		Storage:       int64(info.Storage),
@@ -77,25 +77,25 @@ func adminAccountInfo(info *core.AccountInfo) *apiv1.AdminAccountInfo {
 	}
 }
 
-func adminServerStats(stats *core.ServerStats) *apiv1.AdminServerStats {
+func adminServerStats(stats *core.ServerStats) *adminv1.AdminServerStats {
 	if stats == nil {
-		return &apiv1.AdminServerStats{}
+		return &adminv1.AdminServerStats{}
 	}
-	return &apiv1.AdminServerStats{
+	return &adminv1.AdminServerStats{
 		UserCount:        int32(stats.UserCount),
 		ChannelRoomCount: int32(stats.ChannelRoomCount),
 		DmRoomCount:      int32(stats.DMRoomCount),
 	}
 }
 
-func adminNatsStats(stats *core.JetStreamStats) *apiv1.AdminNatsStats {
+func adminNatsStats(stats *core.JetStreamStats) *adminv1.AdminNatsStats {
 	if stats == nil {
-		return &apiv1.AdminNatsStats{}
+		return &adminv1.AdminNatsStats{}
 	}
 
-	streams := make([]*apiv1.AdminNatsStreamInfo, 0, len(stats.Streams))
+	streams := make([]*adminv1.AdminNatsStreamInfo, 0, len(stats.Streams))
 	for _, stream := range stats.Streams {
-		streams = append(streams, &apiv1.AdminNatsStreamInfo{
+		streams = append(streams, &adminv1.AdminNatsStreamInfo{
 			Name:          stream.Name,
 			Description:   stream.Description,
 			Subjects:      append([]string(nil), stream.Subjects...),
@@ -110,9 +110,9 @@ func adminNatsStats(stats *core.JetStreamStats) *apiv1.AdminNatsStats {
 		})
 	}
 
-	consumers := make([]*apiv1.AdminNatsConsumerInfo, 0, len(stats.Consumers))
+	consumers := make([]*adminv1.AdminNatsConsumerInfo, 0, len(stats.Consumers))
 	for _, consumer := range stats.Consumers {
-		consumers = append(consumers, &apiv1.AdminNatsConsumerInfo{
+		consumers = append(consumers, &adminv1.AdminNatsConsumerInfo{
 			Stream:                    consumer.Stream,
 			Name:                      consumer.Name,
 			Durable:                   consumer.Durable,
@@ -132,7 +132,7 @@ func adminNatsStats(stats *core.JetStreamStats) *apiv1.AdminNatsStats {
 		})
 	}
 
-	return &apiv1.AdminNatsStats{
+	return &adminv1.AdminNatsStats{
 		TotalMessages:        int64(stats.TotalMessages),
 		TotalBytes:           int64(stats.TotalBytes),
 		TotalConsumerPending: int64(stats.TotalConsumerPending),
@@ -142,10 +142,10 @@ func adminNatsStats(stats *core.JetStreamStats) *apiv1.AdminNatsStats {
 	}
 }
 
-func adminProjectionState(state core.ProjectionAdminState) *apiv1.AdminProjectionState {
-	metrics := make([]*apiv1.AdminProjectionMetric, 0, len(state.Metrics))
+func adminProjectionState(state core.ProjectionAdminState) *adminv1.AdminProjectionState {
+	metrics := make([]*adminv1.AdminProjectionMetric, 0, len(state.Metrics))
 	for _, metric := range state.Metrics {
-		metrics = append(metrics, &apiv1.AdminProjectionMetric{
+		metrics = append(metrics, &adminv1.AdminProjectionMetric{
 			Name:  metric.Name,
 			Value: metric.Value,
 			Bytes: metric.Bytes,
@@ -157,7 +157,7 @@ func adminProjectionState(state core.ProjectionAdminState) *apiv1.AdminProjectio
 		startupDurationSeconds = &state.StartupDuration
 	}
 
-	return &apiv1.AdminProjectionState{
+	return &adminv1.AdminProjectionState{
 		Key:                    state.Key,
 		Name:                   state.Name,
 		Subjects:               append([]string(nil), state.Subjects...),
