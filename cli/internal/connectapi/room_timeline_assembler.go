@@ -228,7 +228,7 @@ func (h *timelineHydrator) attachments(roomID, messageEventID string, attachment
 			attachment.MessageBodyId = messageEventID
 		}
 		assetURL := h.api.core.GetStableAttachmentAssetURL(attachment.Id, h.viewerID)
-		thumbnailURL := h.api.core.GetStableTransformedAttachmentAssetURL(attachment.Id, h.viewerID, 960, 800, "contain")
+		thumbnailURL := h.api.core.GetStableTransformedAttachmentAssetURL(attachment.Id, h.viewerID, 960, 800, "cover")
 		result = append(result, &apiv1.RoomTimelineAttachment{
 			Id:                attachment.Id,
 			Filename:          attachment.Filename,

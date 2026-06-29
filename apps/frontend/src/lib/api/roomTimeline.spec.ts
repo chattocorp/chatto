@@ -241,7 +241,7 @@ describe('roomTimelinePageToEventConnectionPage', () => {
                     expiresAt: Timestamp.fromDate(new Date('2026-06-01T13:00:00Z'))
                   }),
                   thumbnailAssetUrl: new RoomTimelineAssetUrl({
-                    url: '/assets/files/a-video/image/960x800/contain',
+                    url: '/assets/files/a-video/image/960x800/cover',
                     expiresAt: Timestamp.fromDate(new Date('2026-06-01T13:00:00Z'))
                   }),
                   videoProcessing: new RoomTimelineVideoProcessing({

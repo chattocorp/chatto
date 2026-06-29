@@ -4160,6 +4160,9 @@ func TestRoomTimelineServiceHydratesProcessedVideoAttachments(t *testing.T) {
 	if len(attachments) != 1 {
 		t.Fatalf("attachments = %d, want 1", len(attachments))
 	}
+	if got := attachments[0].GetThumbnailAssetUrl().GetUrl(); !strings.Contains(got, "/960x800/cover") {
+		t.Fatalf("attachment thumbnail URL = %q, want 960x800 cover transform", got)
+	}
 	processing := attachments[0].GetVideoProcessing()
 	if processing == nil {
 		t.Fatal("videoProcessing = nil, want completed manifest")
