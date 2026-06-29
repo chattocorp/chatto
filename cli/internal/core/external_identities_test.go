@@ -221,6 +221,24 @@ func TestChattoCore_PendingExternalIdentityLinkFlowIsUserBound(t *testing.T) {
 		t.Fatalf("GetPendingExternalIdentityLinkFlow wrong user error = %v, want ErrExternalIdentityFlowUserBound", err)
 	}
 
+	if _, err := core.CreatePendingExternalIdentityLinkFlow(ctx, PendingExternalIdentityFlow{
+		ProviderID:   "discord-main",
+		ProviderType: "discord",
+		Issuer:       "discord-main",
+		Subject:      "unbound",
+	}, ""); !errors.Is(err, ErrInvalidArgument) {
+		t.Fatalf("CreatePendingExternalIdentityLinkFlow unbound error = %v, want ErrInvalidArgument", err)
+	}
+	if _, err := core.ConfirmPendingExternalIdentityLink(ctx, &PendingExternalIdentityFlow{
+		Kind:         ExternalIdentityFlowKindLink,
+		ProviderID:   "discord-main",
+		ProviderType: "discord",
+		Issuer:       "discord-main",
+		Subject:      "unbound",
+	}); !errors.Is(err, ErrExternalIdentityFlowUserBound) {
+		t.Fatalf("ConfirmPendingExternalIdentityLink unbound error = %v, want ErrExternalIdentityFlowUserBound", err)
+	}
+
 	flow, err := core.GetPendingExternalIdentityLinkFlow(ctx, token, user.Id)
 	if err != nil {
 		t.Fatalf("GetPendingExternalIdentityLinkFlow: %v", err)

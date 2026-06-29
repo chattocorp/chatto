@@ -490,48 +490,53 @@
               </Button>
             </div>
           </Form>
-          <form class="mt-6 flex flex-col gap-4 border-t border-border pt-6" onsubmit={setMemberPassword}>
-            <div>
-              <h4 class="text-sm font-semibold">{m['admin.members.set_password']()}</h4>
-              <p class="mt-1 text-sm text-muted">
-                {m['admin.members.set_password_description']()}
-              </p>
-            </div>
-            <TextInput
-              id="admin-member-password"
-              label={m['common.new_password']()}
-              type="password"
-              bind:value={adminPassword}
-              placeholder={m['common.password_min_placeholder']()}
-              disabled={settingPassword}
-              autocomplete="new-password"
-              error={adminPasswordValidationError}
-            />
-            <TextInput
-              id="admin-member-password-confirm"
-              label={m['common.confirm_password']()}
-              type="password"
-              bind:value={adminConfirmPassword}
-              placeholder={m['common.password_confirm_placeholder']()}
-              disabled={settingPassword}
-              autocomplete="new-password"
-              error={adminConfirmPasswordError}
-            />
-            {#if passwordError}
-              <FormError error={passwordError} />
-            {/if}
-            <div>
-              <Button
-                type="submit"
-                loading={settingPassword}
-                loadingText={m['admin.members.setting_password']()}
-                disabled={!canSetMemberPassword}
-              >
-                <span class="iconify mdi--key-change"></span>
-                {m['admin.members.set_password']()}
-              </Button>
-            </div>
-          </form>
+          {#if !isSelf}
+            <form
+              class="mt-6 flex flex-col gap-4 border-t border-border pt-6"
+              onsubmit={setMemberPassword}
+            >
+              <div>
+                <h4 class="text-sm font-semibold">{m['admin.members.set_password']()}</h4>
+                <p class="mt-1 text-sm text-muted">
+                  {m['admin.members.set_password_description']()}
+                </p>
+              </div>
+              <TextInput
+                id="admin-member-password"
+                label={m['common.new_password']()}
+                type="password"
+                bind:value={adminPassword}
+                placeholder={m['common.password_min_placeholder']()}
+                disabled={settingPassword}
+                autocomplete="new-password"
+                error={adminPasswordValidationError}
+              />
+              <TextInput
+                id="admin-member-password-confirm"
+                label={m['common.confirm_password']()}
+                type="password"
+                bind:value={adminConfirmPassword}
+                placeholder={m['common.password_confirm_placeholder']()}
+                disabled={settingPassword}
+                autocomplete="new-password"
+                error={adminConfirmPasswordError}
+              />
+              {#if passwordError}
+                <FormError error={passwordError} />
+              {/if}
+              <div>
+                <Button
+                  type="submit"
+                  loading={settingPassword}
+                  loadingText={m['admin.members.setting_password']()}
+                  disabled={!canSetMemberPassword}
+                >
+                  <span class="iconify mdi--key-change"></span>
+                  {m['admin.members.set_password']()}
+                </Button>
+              </div>
+            </form>
+          {/if}
         </Panel>
       {/if}
 

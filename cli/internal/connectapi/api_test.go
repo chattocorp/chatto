@@ -1244,6 +1244,12 @@ func TestAdminUserManagementServiceUpdatesUsersAndClearsCooldown(t *testing.T) {
 	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("short SetUserPassword code = %v, want invalid_argument", connect.CodeOf(err))
 	}
+	if _, err := env.adminUsers.SetUserPassword(adminCtx, connect.NewRequest(&apiv1.SetUserPasswordRequest{
+		UserId:   admin.Id,
+		Password: "newpassword456",
+	})); connect.CodeOf(err) != connect.CodeFailedPrecondition {
+		t.Fatalf("self SetUserPassword code = %v, want failed_precondition", connect.CodeOf(err))
+	}
 	resp, err := env.adminUsers.UpdateUser(adminCtx, connect.NewRequest(&apiv1.UpdateUserRequest{
 		UserId:      target.Id,
 		DisplayName: stringPtr("Managed Target"),

@@ -14,6 +14,8 @@ import (
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
+	"github.com/markbates/goth"
+	gothgithub "github.com/markbates/goth/providers/github"
 	"hmans.de/chatto/internal/config"
 )
 
@@ -48,6 +50,76 @@ func TestProviderScopesForOIDC(t *testing.T) {
 			t.Fatalf("providerScopes() = %v, want %v", scopes, want)
 		}
 	})
+}
+
+func TestVerifiedEmailFromGothUser(t *testing.T) {
+	t.Run("discord requires verified flag", func(t *testing.T) {
+		runtime := &authProviderRuntime{config: config.AuthProviderConfig{Type: config.AuthProviderTypeDiscord}}
+		unverified := runtime.verifiedEmailFromGothUser(t.Context(), goth.User{
+			Email:   "User@Example.com",
+			RawData: map[string]interface{}{"verified": false},
+		})
+		if unverified != "" {
+			t.Fatalf("unverified discord email = %q, want empty", unverified)
+		}
+		verified := runtime.verifiedEmailFromGothUser(t.Context(), goth.User{
+			Email:   "User@Example.com",
+			RawData: map[string]interface{}{"verified": true},
+		})
+		if verified != "user@example.com" {
+			t.Fatalf("verified discord email = %q, want normalized email", verified)
+		}
+	})
+
+	t.Run("google requires verified email flag", func(t *testing.T) {
+		runtime := &authProviderRuntime{config: config.AuthProviderConfig{Type: config.AuthProviderTypeGoogle}}
+		unverified := runtime.verifiedEmailFromGothUser(t.Context(), goth.User{
+			Email:   "User@Example.com",
+			RawData: map[string]interface{}{"verified_email": false},
+		})
+		if unverified != "" {
+			t.Fatalf("unverified google email = %q, want empty", unverified)
+		}
+		verified := runtime.verifiedEmailFromGothUser(t.Context(), goth.User{
+			Email:   "User@Example.com",
+			RawData: map[string]interface{}{"verified_email": true},
+		})
+		if verified != "user@example.com" {
+			t.Fatalf("verified google email = %q, want normalized email", verified)
+		}
+	})
+
+	t.Run("gitlab raw email is only a hint", func(t *testing.T) {
+		runtime := &authProviderRuntime{config: config.AuthProviderConfig{Type: config.AuthProviderTypeGitLab}}
+		if got := runtime.verifiedEmailFromGothUser(t.Context(), goth.User{Email: "user@example.com"}); got != "" {
+			t.Fatalf("gitlab verified email = %q, want empty", got)
+		}
+	})
+}
+
+func TestFetchGitHubVerifiedPrimaryEmail(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Authorization") != "Bearer token-1" {
+			t.Fatalf("Authorization = %q, want bearer token", r.Header.Get("Authorization"))
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`[
+			{"email":"secondary@example.com","primary":false,"verified":true},
+			{"email":"Primary@Example.com","primary":true,"verified":true}
+		]`))
+	}))
+	t.Cleanup(server.Close)
+	oldEmailURL := gothgithub.EmailURL
+	gothgithub.EmailURL = server.URL
+	t.Cleanup(func() { gothgithub.EmailURL = oldEmailURL })
+
+	email, err := fetchGitHubVerifiedPrimaryEmail(t.Context(), "token-1")
+	if err != nil {
+		t.Fatalf("fetchGitHubVerifiedPrimaryEmail: %v", err)
+	}
+	if email != "primary@example.com" {
+		t.Fatalf("email = %q, want normalized primary email", email)
+	}
 }
 
 func TestLegacyOIDCRoutes(t *testing.T) {

@@ -5,7 +5,9 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -524,19 +526,97 @@ func (r *authProviderRuntime) resolveGothIdentity(c *gin.Context, session sessio
 	return resolvedProviderIdentity{
 		issuer:          r.config.ID,
 		subject:         gothUser.UserID,
-		verifiedEmail:   verifiedEmailHint(gothUser.Email),
+		verifiedEmail:   r.verifiedEmailFromGothUser(c.Request.Context(), gothUser),
 		avatarURL:       gothUser.AvatarURL,
 		loginHint:       loginHintFromParts(gothUser.NickName, gothUser.Email, gothUser.Name),
 		displayNameHint: displayNameHintFromParts(gothUser.Name, gothUser.NickName, gothUser.Email),
 	}, nil
 }
 
-func verifiedEmailHint(email string) string {
+func (r *authProviderRuntime) verifiedEmailFromGothUser(ctx context.Context, gothUser goth.User) string {
+	switch r.config.Type {
+	case config.AuthProviderTypeDiscord:
+		if rawBool(gothUser.RawData, "verified") {
+			return normalizeProviderEmail(gothUser.Email)
+		}
+	case config.AuthProviderTypeGoogle:
+		if rawBool(gothUser.RawData, "verified_email") || rawBool(gothUser.RawData, "email_verified") {
+			return normalizeProviderEmail(gothUser.Email)
+		}
+	case config.AuthProviderTypeGitHub:
+		email, err := fetchGitHubVerifiedPrimaryEmail(ctx, gothUser.AccessToken)
+		if err == nil {
+			return email
+		}
+	}
+	return ""
+}
+
+func rawBool(raw map[string]interface{}, key string) bool {
+	if raw == nil {
+		return false
+	}
+	value, ok := raw[key]
+	if !ok {
+		return false
+	}
+	switch v := value.(type) {
+	case bool:
+		return v
+	case string:
+		return strings.EqualFold(v, "true")
+	default:
+		return false
+	}
+}
+
+func normalizeProviderEmail(email string) string {
 	email = strings.ToLower(strings.TrimSpace(email))
 	if email == "" {
 		return ""
 	}
 	return email
+}
+
+func fetchGitHubVerifiedPrimaryEmail(ctx context.Context, accessToken string) (string, error) {
+	if strings.TrimSpace(accessToken) == "" {
+		return "", fmt.Errorf("missing github access token")
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, github.EmailURL, nil)
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Accept", "application/vnd.github+json")
+	req.Header.Set("Authorization", "Bearer "+accessToken)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("github email endpoint returned %d", resp.StatusCode)
+	}
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	if err != nil {
+		return "", err
+	}
+	var emails []struct {
+		Email    string `json:"email"`
+		Primary  bool   `json:"primary"`
+		Verified bool   `json:"verified"`
+	}
+	if err := json.Unmarshal(body, &emails); err != nil {
+		return "", err
+	}
+	for _, email := range emails {
+		if email.Primary && email.Verified {
+			normalized := normalizeProviderEmail(email.Email)
+			if normalized != "" {
+				return normalized, nil
+			}
+		}
+	}
+	return "", fmt.Errorf("github account has no verified primary email")
 }
 
 func (s *HTTPServer) redirectPendingExternalIdentity(c *gin.Context, session sessions.Session, providerConfig config.AuthProviderConfig, identity resolvedProviderIdentity, intent, linkUserID string) {

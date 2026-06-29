@@ -357,8 +357,21 @@ func (c *ChattoCore) SetOwnPassword(ctx context.Context, userID, currentPassword
 // the old password. Changing another account requires the same admin-management
 // gate used by admin identity changes.
 func (c *ChattoCore) AdminSetUserPassword(ctx context.Context, actorID, targetUserID, password string) error {
-	if err := c.requireCanAdminManageUser(ctx, actorID, targetUserID); err != nil {
-		return err
+	if actorID == "" {
+		return ErrNotAuthenticated
+	}
+	if targetUserID == "" {
+		return fmt.Errorf("%w: target user ID is required", ErrInvalidArgument)
+	}
+	if actorID == targetUserID {
+		return ErrAdminCannotSetOwnPassword
+	}
+	canManage, err := c.CanAssignRoles(ctx, actorID)
+	if err != nil {
+		return fmt.Errorf("check role.assign: %w", err)
+	}
+	if !canManage {
+		return ErrPermissionDenied
 	}
 	return c.SetPasswordHash(ctx, targetUserID, password)
 }

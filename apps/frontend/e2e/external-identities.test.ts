@@ -210,21 +210,37 @@ test.describe('External identity confirmation flows', () => {
     await expect(retiredRow).toBeHidden();
   });
 
-  test('rejects a link token bound to a different user', async ({ page, authPage }) => {
+  test('confirms a link token through the public flow service', async ({ page, authPage }) => {
     const owner = await authPage.createUserViaApi(`ssoowner${Date.now()}`, 'testpassword123');
-    await createAndLoginTestUser(page, { loginPrefix: 'ssowrong' });
     const flow = await authPage.createExternalIdentityFlow({
       kind: 'link',
       providerId: 'discord-main',
       providerType: 'discord',
       providerLabel: 'Discord',
-      subject: `discord-wrong-${Date.now()}`,
+      subject: `discord-public-${Date.now()}`,
       boundUserId: owner.id
     });
 
+    const confirmRequestStarted = new Promise<void>((resolve) => {
+      page.route(
+        '**/api/connect/chatto.api.v1.ExternalIdentityFlowService/ConfirmExternalIdentityLink',
+        async (route) => {
+          resolve();
+          await route.continue();
+        }
+      );
+    });
+    await page.route(
+      '**/api/connect/chatto.api.v1.ExternalIdentityService/LinkExternalIdentity',
+      async (route) => {
+        throw new Error(`unexpected authenticated link RPC: ${route.request().url()}`);
+      }
+    );
+
     await page.goto(flow.confirmUrl);
     await page.getByRole('button', { name: 'Link Account' }).click();
-    await expect(page.getByText('bound to a different user')).toBeVisible();
+    await confirmRequestStarted;
+    await page.waitForURL('/');
   });
 
   test('cancels a pending provider identity flow', async ({ page, authPage }) => {

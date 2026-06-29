@@ -4,20 +4,17 @@
   import { Code, ConnectError } from '@connectrpc/connect';
   import AuthLayout from '$lib/components/AuthLayout.svelte';
   import {
-    createExternalIdentityAPI,
     createExternalIdentityFlowAPI,
     ExternalIdentityFlowKind,
     type PendingSSOIdentity
   } from '$lib/api/externalIdentities';
   import * as m from '$lib/i18n/messages';
   import type { AuthenticatedUserSummary } from '$lib/state/server/registry.svelte';
-  import { useConnection } from '$lib/state/server/connection.svelte';
   import Hint from '$lib/ui/Hint.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import { TextInput, FormError, Button, z, validate } from '$lib/ui/form';
 
   const { data } = $props();
-  const connection = useConnection();
   const flowAPI = createExternalIdentityFlowAPI();
 
   let pending = $state<PendingSSOIdentity | null>(null);
@@ -113,13 +110,7 @@
     submitting = true;
     actionError = '';
     try {
-      const client = connection();
-      const api = createExternalIdentityAPI({
-        serverId: client.serverId,
-        baseUrl: client.connectBaseUrl,
-        bearerToken: client.bearerToken
-      });
-      await api.link(data.token);
+      await flowAPI.confirmLink(data.token);
       goto(resolve((pending.redirectPath || '/') as '/'), { replaceState: true });
     } catch (err) {
       actionError = err instanceof Error ? err.message : m['auth.sso.link_failed']();

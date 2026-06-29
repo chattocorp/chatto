@@ -132,6 +132,10 @@ func (c *ChattoCore) CreatePendingExternalIdentityCreateFlow(ctx context.Context
 }
 
 func (c *ChattoCore) CreatePendingExternalIdentityLinkFlow(ctx context.Context, flow PendingExternalIdentityFlow, userID string) (string, error) {
+	userID = strings.TrimSpace(userID)
+	if userID == "" {
+		return "", ErrInvalidArgument
+	}
 	flow.Kind = ExternalIdentityFlowKindLink
 	flow.BoundUserID = userID
 	token := NewExternalIdentityLinkToken()

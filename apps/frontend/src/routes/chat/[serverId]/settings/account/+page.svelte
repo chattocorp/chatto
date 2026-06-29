@@ -2,6 +2,7 @@
   import { Code, ConnectError } from '@connectrpc/connect';
   import { resolve } from '$app/paths';
   import { createAccountAPI } from '$lib/api/account';
+  import { serverIdToSegment } from '$lib/navigation';
   import {
     createExternalIdentityAPI,
     type LinkedSSOIdentity,
@@ -20,7 +21,11 @@
   const currentUser = $derived(serverRegistry.getStore(getActiveServer()).currentUser);
   const connection = useConnection();
   const serverId = $derived(getActiveServer());
-  const accountSettingsPath = $derived(resolve('/chat/[serverId]/settings/account', { serverId }));
+  const serverSegment = $derived(serverIdToSegment(serverId));
+  const accountSettingsPath = $derived(
+    resolve('/chat/[serverId]/settings/account', { serverId: serverSegment })
+  );
+  let ssoLoadSerial = 0;
 
   const canDeleteAccount = $derived(currentUser.user?.viewerCanDeleteAccount ?? false);
 
@@ -87,12 +92,26 @@
   );
 
   $effect(() => {
-    const client = connection();
-    void loadExternalIdentities(client.serverId, client.connectBaseUrl, client.bearerToken);
+    void refreshExternalIdentities();
   });
 
+  async function refreshExternalIdentities() {
+    const activeServerId = serverId;
+    const client = connection();
+    const loadSerial = ++ssoLoadSerial;
+    await loadExternalIdentities(
+      loadSerial,
+      activeServerId,
+      client.serverId,
+      client.connectBaseUrl,
+      client.bearerToken
+    );
+  }
+
   async function loadExternalIdentities(
-    serverId: string | undefined,
+    loadSerial: number,
+    activeServerId: string,
+    apiServerId: string | undefined,
     baseUrl: string,
     bearerToken: string | null
   ) {
@@ -100,17 +119,25 @@
     ssoError = '';
     try {
       const api = createExternalIdentityAPI({
-        serverId,
+        serverId: apiServerId,
         baseUrl,
         bearerToken
       });
       const result = await api.list();
+      if (loadSerial !== ssoLoadSerial || activeServerId !== getActiveServer()) {
+        return;
+      }
       ssoProviders = result.providers;
       linkedSSOIdentities = result.linkedIdentities;
     } catch (err) {
+      if (loadSerial !== ssoLoadSerial || activeServerId !== getActiveServer()) {
+        return;
+      }
       ssoError = err instanceof Error ? err.message : m['settings.account.sso.load_failed']();
     } finally {
-      ssoLoading = false;
+      if (loadSerial === ssoLoadSerial && activeServerId === getActiveServer()) {
+        ssoLoading = false;
+      }
     }
   }
 
@@ -166,7 +193,7 @@
         bearerToken: client.bearerToken
       });
       await api.disconnect(subjectHash);
-      await loadExternalIdentities(client.serverId, client.connectBaseUrl, client.bearerToken);
+      await refreshExternalIdentities();
     } catch (err) {
       if (err instanceof ConnectError && err.code === Code.FailedPrecondition) {
         ssoError = m['settings.account.sso.disconnect_last_method']();

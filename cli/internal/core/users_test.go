@@ -1511,6 +1511,21 @@ func TestChattoCore_AdminUpdateUserAuthorization(t *testing.T) {
 			t.Fatalf("updated login = %q, want %q", updated.GetLogin(), login)
 		}
 	})
+
+	t.Run("self password reset is rejected", func(t *testing.T) {
+		c, _ := setupTestCore(t)
+		ctx := testContext(t)
+		user, err := c.CreateUser(ctx, SystemActorID, "adminauth-self-password", "Self Password", "password123")
+		if err != nil {
+			t.Fatalf("CreateUser self: %v", err)
+		}
+		if err := c.AdminSetUserPassword(ctx, user.Id, user.Id, "newpassword456"); !errors.Is(err, ErrAdminCannotSetOwnPassword) {
+			t.Fatalf("AdminSetUserPassword self err = %v, want ErrAdminCannotSetOwnPassword", err)
+		}
+		if _, err := c.VerifyPassword(ctx, user.Login, "password123"); err != nil {
+			t.Fatalf("original password should still verify: %v", err)
+		}
+	})
 }
 
 func TestChattoCore_AdminMemberReads(t *testing.T) {
