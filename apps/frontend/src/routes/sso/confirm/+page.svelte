@@ -6,7 +6,7 @@
   import {
     createExternalIdentityFlowAPI,
     ExternalIdentityFlowKind,
-    type PendingSSOIdentity
+    type PendingExternalIdentityInfo
   } from '@chatto/api-client/externalIdentities';
   import * as m from '$lib/i18n/messages';
   import type { AuthenticatedUserSummary } from '$lib/state/server/registry.svelte';
@@ -17,7 +17,7 @@
   const { data } = $props();
   const flowAPI = createExternalIdentityFlowAPI();
 
-  let pending = $state<PendingSSOIdentity | null>(null);
+  let pending = $state<PendingExternalIdentityInfo | null>(null);
   let loadError = $state('');
   let actionError = $state('');
   let loading = $state(true);

@@ -65,7 +65,9 @@ describe('createExternalIdentityFlowAPI', () => {
       }
     });
 
-    const api = createExternalIdentityFlowAPI();
+    const api = createExternalIdentityFlowAPI({
+      baseUrl: 'https://origin.example.test/api/connect'
+    });
     await expect(api.getPending('token-1')).resolves.toEqual({
       kind: ExternalIdentityFlowKind.CREATE_ACCOUNT,
       providerId: 'github-main',
@@ -76,6 +78,10 @@ describe('createExternalIdentityFlowAPI', () => {
       displayNameHint: 'Octo',
       boundUserId: null,
       redirectPath: '/chat/-/settings/account'
+    });
+    expect(mocks.createConnectTransport).toHaveBeenCalledWith({
+      baseUrl: 'https://origin.example.test/api/connect',
+      useBinaryFormat: true
     });
     expect(mocks.getPendingExternalIdentity).toHaveBeenCalledWith({ token: 'token-1' });
   });

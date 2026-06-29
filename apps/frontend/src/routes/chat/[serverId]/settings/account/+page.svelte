@@ -4,8 +4,8 @@
   import { serverIdToSegment } from '$lib/navigation';
   import {
     createExternalIdentityAPI,
-    type LinkedSSOIdentity,
-    type SSOProvider
+    type ExternalIdentityProviderInfo,
+    type LinkedExternalIdentityInfo
   } from '@chatto/api-client/externalIdentities';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
@@ -42,8 +42,8 @@
   let confirmText = $state('');
   let isDeleting = $state(false);
   let error = $state('');
-  let ssoProviders = $state.raw<SSOProvider[]>([]);
-  let linkedSSOIdentities = $state.raw<LinkedSSOIdentity[]>([]);
+  let ssoProviders = $state.raw<ExternalIdentityProviderInfo[]>([]);
+  let linkedSSOIdentities = $state.raw<LinkedExternalIdentityInfo[]>([]);
   let ssoLoading = $state(true);
   let ssoError = $state('');
   let linkingProviderId = $state('');
@@ -156,7 +156,7 @@
     }
   }
 
-  async function handleStartProviderLink(provider: SSOProvider) {
+  async function handleStartProviderLink(provider: ExternalIdentityProviderInfo) {
     const client = connection();
     linkingProviderId = provider.id;
     ssoError = '';
@@ -177,7 +177,7 @@
     }
   }
 
-  async function handleDisconnectProvider(provider: SSOProvider) {
+  async function handleDisconnectProvider(provider: ExternalIdentityProviderInfo) {
     if (!provider.linkedIdentitySubjectHash) return;
     await handleDisconnectIdentity(provider.linkedIdentitySubjectHash);
   }

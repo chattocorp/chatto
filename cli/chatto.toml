@@ -47,6 +47,12 @@ label = 'Chatto Hub'
 issuer_url = 'https://chatto.id/realms/chatto-hub'
 client_id = 'chatto-dev'
 client_secret = 'iARXOaPkiIDxdNRX2N9uJmQf0aXIfwUE'
+# request_email = false keeps the OIDC flow email-less; Chatto will still
+# match accounts by issuer + subject.
+# request_email = true
+# auto_provision allows unlinked provider identities to create passwordless
+# accounts after an explicit confirmation screen.
+auto_provision = false
 
 [smtp]
 enabled = true

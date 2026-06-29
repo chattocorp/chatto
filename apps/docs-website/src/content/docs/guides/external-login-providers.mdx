@@ -71,10 +71,27 @@ label = "Chatto Hub"
 issuer_url = "https://hub.chatto.dev"
 client_id = "..."
 client_secret = "..."
-auto_provision = true
+# Keep false for invite-only/account-linking deployments.
+auto_provision = false
 ```
 
 `issuer_url` must be an absolute `http` or `https` URL. Chatto uses OIDC discovery from that issuer and verifies the ID token before matching the external identity.
+
+To run an OIDC provider without email claims, omit the email scope:
+
+```toml
+[[auth.providers]]
+id = "idp-main"
+type = "oidc"
+label = "Company SSO"
+issuer_url = "https://idp.example.com"
+client_id = "..."
+client_secret = "..."
+request_email = false
+auto_provision = true
+```
+
+Email-less accounts can sign in, link identities, and count toward `limits.max_users` through the linked OIDC subject. They do not receive a Chatto verified email unless the provider later returns an explicitly verified email claim.
 
 </TabItem>
 <TabItem label="Environment">
@@ -88,6 +105,7 @@ CHATTO_AUTH_PROVIDERS_0_LABEL="Chatto Hub"
 CHATTO_AUTH_PROVIDERS_0_ISSUER_URL=https://hub.chatto.dev
 CHATTO_AUTH_PROVIDERS_0_CLIENT_ID=...
 CHATTO_AUTH_PROVIDERS_0_CLIENT_SECRET=...
+CHATTO_AUTH_PROVIDERS_0_REQUEST_EMAIL=false
 CHATTO_AUTH_PROVIDERS_0_AUTO_PROVISION=true
 
 CHATTO_AUTH_PROVIDERS_1_ID=github-main
@@ -209,6 +227,15 @@ For OIDC providers, Chatto always includes `openid` even if you omit it from a c
 
 Set `request_email = false` to omit the default email scope for providers where Chatto adds one automatically. For OIDC this leaves the default request at `openid profile`; Chatto can create, link, and sign in accounts from the provider `sub` without receiving an email claim.
 
+## Auto-provisioning
+
+`auto_provision` controls whether an unlinked provider identity may create a new Chatto account.
+
+- `auto_provision = false` is the safe default. Unlinked users are returned to the login screen with an explanation, and existing users can still link the provider from account settings.
+- `auto_provision = true` creates a short-lived pending account-creation flow after the provider callback. The user must explicitly confirm the Chatto username before the account is created.
+
+Auto-provisioning never silently merges by email. If a person already has a local account, they should sign in with that account and link the provider from account settings.
+
 ## Account matching
 
 Chatto matches external logins by provider identity, not by email address.
@@ -219,11 +246,27 @@ Chatto matches external logins by provider identity, not by email address.
 
 If a provider callback returns an identity that is not linked to a Chatto account, Chatto does not silently pick an account by email.
 
-Set `auto_provision = true` on a provider to allow new users from that provider to create Chatto accounts. The provider callback sends the user to an explicit confirmation screen where they choose the Chatto username. If `auto_provision` is omitted or `false`, an unlinked provider identity cannot create an account.
+Set `auto_provision = true` on a provider to allow new users from that provider to create Chatto accounts. If `auto_provision` is omitted or `false`, an unlinked provider identity cannot create an account.
 
 Existing users can link providers from their account settings. Linking requires the user to already be signed in, lets Chatto create a short-lived provider link-start URL, and asks the user to confirm the pending link after the provider callback. Pending create and link tokens are short-lived and scoped to that specific action.
 
 Accounts created through an email-less provider are passwordless until the user adds a password in account settings. Password reset by email requires a verified email address, so operators running SSO without email should keep at least one trusted provider link available for affected users.
+
+## Verified email and verified factors
+
+A linked external identity is a verified sign-in factor. It is enough for login and for `limits.max_users`, even when the provider did not return an email address.
+
+A Chatto verified email is stricter. Chatto creates one from a provider email only when the provider adapter has an explicit verification signal:
+
+| Provider | When Chatto stores a verified email |
+| -------- | ----------------------------------- |
+| `oidc` | `email` is present and `email_verified = true` |
+| `github` | The GitHub emails API returns a verified primary email |
+| `google` | Goth profile data includes `verified_email` or `email_verified` |
+| `discord` | Goth profile data includes `verified = true` |
+| `gitlab` | Not currently promoted to a Chatto verified email |
+
+Verified email matters for email password reset and for `owners.emails` owner promotion. A linked SSO identity alone does not match `owners.emails`.
 
 ## Discovery fields
 

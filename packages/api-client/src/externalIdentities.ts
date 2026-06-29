@@ -7,10 +7,14 @@ import {
 } from '@chatto/api-types/api/v1/external_identities_connect';
 import {
   ExternalIdentityFlowKind,
-  type ExternalIdentityProvider,
-  type LinkedExternalIdentity,
-  type PendingExternalIdentity
+  type ExternalIdentityProvider as APIExternalIdentityProvider,
+  type LinkedExternalIdentity as APILinkedExternalIdentity,
+  type PendingExternalIdentity as APIPendingExternalIdentity
 } from '@chatto/api-types/api/v1/external_identities_pb';
+
+export type ExternalIdentityFlowAPIConfig = {
+  baseUrl?: string;
+};
 
 export type ExternalIdentityAPIConfig = {
   serverId?: string;
@@ -19,7 +23,7 @@ export type ExternalIdentityAPIConfig = {
   onAuthenticationRequired?: (serverId: string) => void;
 };
 
-export type PendingSSOIdentity = {
+export type PendingExternalIdentityInfo = {
   kind: ExternalIdentityFlowKind;
   providerId: string;
   providerType: string;
@@ -31,14 +35,14 @@ export type PendingSSOIdentity = {
   redirectPath: string | null;
 };
 
-export type LinkedSSOIdentity = {
+export type LinkedExternalIdentityInfo = {
   providerId: string;
   providerType: string;
   providerLabel: string;
   subjectHash: string;
 };
 
-export type SSOProvider = {
+export type ExternalIdentityProviderInfo = {
   id: string;
   type: string;
   label: string;
@@ -48,15 +52,26 @@ export type SSOProvider = {
   linkedIdentitySubjectHash: string | null;
 };
 
-export function createExternalIdentityFlowAPI(baseUrl = '/api/connect') {
+export type ExternalIdentityList = {
+  providers: ExternalIdentityProviderInfo[];
+  linkedIdentities: LinkedExternalIdentityInfo[];
+};
+
+export type CreatedExternalIdentityAccount = {
+  userId: string;
+  login: string;
+  token: string;
+};
+
+export function createExternalIdentityFlowAPI(config: ExternalIdentityFlowAPIConfig = {}) {
   const transport = createConnectTransport({
-    baseUrl,
+    baseUrl: config.baseUrl ?? '/api/connect',
     useBinaryFormat: true
   });
   const client = createClient(ExternalIdentityFlowService, transport);
 
   return {
-    async getPending(token: string): Promise<PendingSSOIdentity | null> {
+    async getPending(token: string): Promise<PendingExternalIdentityInfo | null> {
       const response = await client.getPendingExternalIdentity({ token });
       return pendingIdentity(response.pending);
     },
@@ -64,7 +79,7 @@ export function createExternalIdentityFlowAPI(baseUrl = '/api/connect') {
     async createAccount(input: {
       token: string;
       login: string;
-    }): Promise<{ userId: string; login: string; token: string }> {
+    }): Promise<CreatedExternalIdentityAccount> {
       const response = await client.createExternalIdentityAccount(input);
       return {
         userId: response.userId,
@@ -77,7 +92,7 @@ export function createExternalIdentityFlowAPI(baseUrl = '/api/connect') {
       await client.cancelExternalIdentityFlow({ token });
     },
 
-    async confirmLink(token: string): Promise<LinkedSSOIdentity | null> {
+    async confirmLink(token: string): Promise<LinkedExternalIdentityInfo | null> {
       const response = await client.confirmExternalIdentityLink({ token });
       return linkedIdentity(response.linkedIdentity);
     }
@@ -101,11 +116,13 @@ export function createExternalIdentityAPI(config: ExternalIdentityAPIConfig) {
   }
 
   return {
-    async list(): Promise<{ providers: SSOProvider[]; linkedIdentities: LinkedSSOIdentity[] }> {
+    async list(): Promise<ExternalIdentityList> {
       try {
         const response = await client.listExternalIdentities({}, { headers: headers() });
         return {
-          providers: response.providers.map((provider) => ssoProvider(provider, config.baseUrl)),
+          providers: response.providers.map((provider) =>
+            externalIdentityProvider(provider, config.baseUrl)
+          ),
           linkedIdentities: response.linkedIdentities.map(linkedIdentity).filter(isLinkedIdentity)
         };
       } catch (err) {
@@ -122,7 +139,7 @@ export function createExternalIdentityAPI(config: ExternalIdentityAPIConfig) {
       }
     },
 
-    async link(token: string): Promise<LinkedSSOIdentity | null> {
+    async link(token: string): Promise<LinkedExternalIdentityInfo | null> {
       try {
         const response = await client.linkExternalIdentity({ token }, { headers: headers() });
         return linkedIdentity(response.linkedIdentity);
@@ -143,7 +160,7 @@ export function createExternalIdentityAPI(config: ExternalIdentityAPIConfig) {
 
 export { ExternalIdentityFlowKind };
 
-function pendingIdentity(pending?: PendingExternalIdentity): PendingSSOIdentity | null {
+function pendingIdentity(pending?: APIPendingExternalIdentity): PendingExternalIdentityInfo | null {
   if (!pending) return null;
   return {
     kind: pending.kind,
@@ -158,7 +175,10 @@ function pendingIdentity(pending?: PendingExternalIdentity): PendingSSOIdentity 
   };
 }
 
-function ssoProvider(provider: ExternalIdentityProvider, baseUrl: string): SSOProvider {
+function externalIdentityProvider(
+  provider: APIExternalIdentityProvider,
+  baseUrl: string
+): ExternalIdentityProviderInfo {
   return {
     id: provider.id,
     type: provider.type,
@@ -180,7 +200,7 @@ function resolveServerUrl(value: string, baseUrl: string): string {
   }
 }
 
-function linkedIdentity(identity?: LinkedExternalIdentity): LinkedSSOIdentity | null {
+function linkedIdentity(identity?: APILinkedExternalIdentity): LinkedExternalIdentityInfo | null {
   if (!identity) return null;
   return {
     providerId: identity.providerId,
@@ -190,6 +210,8 @@ function linkedIdentity(identity?: LinkedExternalIdentity): LinkedSSOIdentity | 
   };
 }
 
-function isLinkedIdentity(identity: LinkedSSOIdentity | null): identity is LinkedSSOIdentity {
+function isLinkedIdentity(
+  identity: LinkedExternalIdentityInfo | null
+): identity is LinkedExternalIdentityInfo {
   return identity !== null;
 }
