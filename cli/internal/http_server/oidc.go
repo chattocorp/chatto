@@ -23,7 +23,6 @@ import (
 	"github.com/markbates/goth/providers/gitlab"
 	"github.com/markbates/goth/providers/google"
 	"golang.org/x/oauth2"
-	"hmans.de/chatto/internal/authctx"
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core"
 )
@@ -145,31 +144,20 @@ func (s *HTTPServer) handleProviderStart(c *gin.Context, providerRuntime *authPr
 	intent := c.Query("intent")
 	linkStartRedirect := ""
 	if intent == "link" {
-		if linkStartToken := c.Query("link_start"); linkStartToken != "" {
-			start, err := s.core.ConsumePendingExternalIdentityLinkStart(c.Request.Context(), linkStartToken)
-			if err != nil || start.ProviderID != providerRuntime.config.ID {
-				if err != nil {
-					log.Warn("Provider link start token failed", "provider_id", providerRuntime.config.ID, "provider_type", providerRuntime.config.Type, "error", err)
-				} else {
-					log.Warn("Provider link start token provider mismatch", "provider_id", providerRuntime.config.ID, "provider_type", providerRuntime.config.Type)
-				}
-				c.Redirect(http.StatusTemporaryRedirect, "/login?error=provider_failed")
-				return
+		start, err := s.core.ConsumePendingExternalIdentityLinkStart(c.Request.Context(), c.Query("link_start"))
+		if err != nil || start.ProviderID != providerRuntime.config.ID {
+			if err != nil {
+				log.Warn("Provider link start token failed", "provider_id", providerRuntime.config.ID, "provider_type", providerRuntime.config.Type, "error", err)
+			} else {
+				log.Warn("Provider link start token provider mismatch", "provider_id", providerRuntime.config.ID, "provider_type", providerRuntime.config.Type)
 			}
-			session.Set(providerSessionKey(providerRuntime.config.ID, "intent"), "link")
-			session.Set(providerSessionKey(providerRuntime.config.ID, "link_user_id"), start.BoundUserID)
-			if isValidInternalRedirect(start.RedirectPath) {
-				linkStartRedirect = start.RedirectPath
-			}
-		} else {
-			req := s.injectUserIntoContext(c)
-			user := authctx.ForContext(req.Context())
-			if user == nil {
-				c.Redirect(http.StatusTemporaryRedirect, "/login?error=authentication_required")
-				return
-			}
-			session.Set(providerSessionKey(providerRuntime.config.ID, "intent"), "link")
-			session.Set(providerSessionKey(providerRuntime.config.ID, "link_user_id"), user.Id)
+			c.Redirect(http.StatusTemporaryRedirect, "/login?error=provider_failed")
+			return
+		}
+		session.Set(providerSessionKey(providerRuntime.config.ID, "intent"), "link")
+		session.Set(providerSessionKey(providerRuntime.config.ID, "link_user_id"), start.BoundUserID)
+		if isValidInternalRedirect(start.RedirectPath) {
+			linkStartRedirect = start.RedirectPath
 		}
 	} else {
 		session.Set(providerSessionKey(providerRuntime.config.ID, "intent"), "login")
@@ -486,10 +474,9 @@ func (r *authProviderRuntime) resolveOIDCIdentity(c *gin.Context, session sessio
 		log.Info("OIDC ID token missing email, falling back to userinfo", "provider_id", r.config.ID)
 		userInfo, err := r.oidc.provider.UserInfo(ctx, oauth2.StaticTokenSource(token))
 		if err != nil {
-			return resolvedProviderIdentity{}, fmt.Errorf("fetch userinfo: %w", err)
-		}
-		if err := userInfo.Claims(&claims); err != nil {
-			return resolvedProviderIdentity{}, fmt.Errorf("parse userinfo claims: %w", err)
+			log.Warn("OIDC userinfo fallback failed", "provider_id", r.config.ID, "error", err)
+		} else if err := userInfo.Claims(&claims); err != nil {
+			log.Warn("OIDC userinfo claims ignored", "provider_id", r.config.ID, "error", err)
 		}
 	}
 

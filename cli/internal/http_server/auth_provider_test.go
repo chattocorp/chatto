@@ -207,6 +207,15 @@ func TestOIDCProviderWithoutEmailAutoProvisionLinkAndLogin(t *testing.T) {
 		t.Fatalf("matched no-email OIDC login Location = %q, want /chat?token=...", loginLocation)
 	}
 
+	resp, err := client.Get(ts.URL + "/auth/providers/oidc-no-email?intent=link")
+	if err != nil {
+		t.Fatalf("GET provider link without start token: %v", err)
+	}
+	resp.Body.Close()
+	if location := resp.Header.Get("Location"); location != "/login?error=provider_failed" {
+		t.Fatalf("provider link without start token Location = %q, want provider failure", location)
+	}
+
 	issuer.SetSubject("subject-link")
 	linkUser, err := chattoCore.CreateUser(t.Context(), core.SystemActorID, "link-no-email-oidc", "Link No Email OIDC", "password123")
 	if err != nil {
@@ -279,6 +288,42 @@ func TestOIDCProviderWithoutEmailAutoProvisionLinkAndLogin(t *testing.T) {
 
 	if issuer.UserInfoRequests() == 0 {
 		t.Fatal("expected userinfo fallback when ID token has no email claim")
+	}
+}
+
+func TestOIDCProviderWithoutEmailIgnoresUserInfoFailure(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	requestEmail := false
+	issuer := newNoEmailOIDCIssuer(t, "client-id")
+	issuer.failUserInfo = true
+	defer issuer.Close()
+
+	ts, client, chattoCore := setupTestHTTPServerWithHook(t, func(s *HTTPServer) {
+		s.config.Webserver.URL = "http://chat.example"
+		s.config.Auth.Providers = []config.AuthProviderConfig{{
+			ID:            "oidc-no-email",
+			Type:          config.AuthProviderTypeOpenIDConnect,
+			Label:         "No Email OIDC",
+			IssuerURL:     issuer.URL(),
+			ClientID:      "client-id",
+			ClientSecret:  "client-secret",
+			RequestEmail:  &requestEmail,
+			AutoProvision: boolPtr(true),
+		}}
+		s.setupOIDCRoutes()
+	})
+
+	issuer.SetSubject("subject-create")
+	createToken := completeNoEmailOIDCHandshake(t, client, ts.URL, "oidc-no-email", "/chat")
+	createFlow, err := chattoCore.GetPendingExternalIdentityCreateFlow(t.Context(), createToken)
+	if err != nil {
+		t.Fatalf("GetPendingExternalIdentityCreateFlow: %v", err)
+	}
+	if createFlow.Issuer != issuer.URL() || createFlow.Subject != "subject-create" {
+		t.Fatalf("create flow identity = %s/%s", createFlow.Issuer, createFlow.Subject)
+	}
+	if issuer.UserInfoRequests() == 0 {
+		t.Fatal("expected attempted userinfo fallback")
 	}
 }
 
@@ -466,6 +511,7 @@ type noEmailOIDCIssuer struct {
 	key              *rsa.PrivateKey
 	clientID         string
 	subject          string
+	failUserInfo     bool
 	userInfoRequests int
 }
 
@@ -531,6 +577,10 @@ func (i *noEmailOIDCIssuer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}}})
 	case "/userinfo":
 		i.userInfoRequests++
+		if i.failUserInfo {
+			http.Error(w, "userinfo unavailable", http.StatusInternalServerError)
+			return
+		}
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]string{
 			"sub":                i.subject,
