@@ -28,17 +28,28 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup
 
-      - name: Check protobuf breaking changes
-        if: ${{ github.event_name != 'pull_request' || !contains(github.event.pull_request.labels.*.name, 'api-breaking-change') }}
+      - name: Fetch protobuf breaking base
         run: |
           base_ref="${GITHUB_BASE_REF:-main}"
           git fetch --no-tags --depth=1 origin "${base_ref}:refs/remotes/origin/${base_ref}"
-          mise x -- buf breaking proto --against ".git#branch=origin/${base_ref},subdir=proto"
 
-      - name: Acknowledge intentional protobuf breaking changes
+      - name: Check storage and internal protobuf breaking changes
+        run: |
+          base_ref="${GITHUB_BASE_REF:-main}"
+          cd proto
+          mise x -- buf breaking . --against "../.git#branch=origin/${base_ref},subdir=proto" --exclude-path chatto/api/v1
+
+      - name: Check public API protobuf breaking changes
+        if: ${{ github.event_name != 'pull_request' || !contains(github.event.pull_request.labels.*.name, 'api-breaking-change') }}
+        run: |
+          base_ref="${GITHUB_BASE_REF:-main}"
+          cd proto
+          mise x -- buf breaking . --against "../.git#branch=origin/${base_ref},subdir=proto" --path chatto/api/v1
+
+      - name: Acknowledge intentional public API protobuf breaking changes
         if: ${{ github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'api-breaking-change') }}
         run: |
-          echo "::notice::Skipping Buf breaking check because this PR has the api-breaking-change label. Codegen drift is still checked."
+          echo "::notice::Skipping public API Buf breaking check because this PR has the api-breaking-change label. Storage/internal protobuf breaking checks and codegen drift are still checked."
 
       - name: Regenerate protobuf bindings
         run: mise codegen-proto

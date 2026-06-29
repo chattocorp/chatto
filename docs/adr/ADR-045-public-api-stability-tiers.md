@@ -75,8 +75,10 @@ remains the source of truth.
 
 CI runs Buf breaking-change checks against `origin/main` and codegen drift
 checks. These checks are guardrails, not a replacement for compatibility review:
-pre-1.0 breaking changes can still be accepted when the PR carries the
-`api-breaking-change` label and states the compatibility plan.
+pre-1.0 public API breaking changes can still be accepted when the PR carries
+the `api-breaking-change` label and states the compatibility plan. That label
+only suppresses the public `chatto/api/v1` breaking check; storage and internal
+protobuf checks, including `chatto/core/v1`, still run.
 
 ## Consequences
 
