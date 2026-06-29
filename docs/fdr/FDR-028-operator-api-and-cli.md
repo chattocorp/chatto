@@ -61,10 +61,10 @@ Operator API access is not gated by Chatto RBAC permissions. It is gated by loca
 For Docker, the preferred workflow is to run operator commands inside the running container:
 
 ```sh
-docker exec -it chatto chatto operator user list
-docker exec -it chatto chatto operator user list --search alice
-docker exec -it chatto chatto operator user list --search alice@example.com
-docker exec -it chatto chatto operator user set-password USER_ID
+docker exec -it -u chatto chatto /chatto operator user list
+docker exec -it -u chatto chatto /chatto operator user list --search alice
+docker exec -it -u chatto chatto /chatto operator user list --search alice@example.com
+docker exec -it -u chatto chatto /chatto operator user set-password USER_ID
 ```
 
 Sharing the socket with another container or host path is advanced usage and should only be done for trusted operator tooling.

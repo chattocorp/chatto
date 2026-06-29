@@ -88,6 +88,16 @@ Consider all of these optional; if you don't want to use Caddy, feel free to rep
 
 The image runs Chatto as a non-root user. By default that user is `1000:1000`; set `PUID` and `PGID` in your shell or Compose environment if the files mounted into `/config` or `/data` are owned by a different host user or group. The entrypoint does not recursively change ownership of mounted directories, so make sure writable mounts are owned by the configured IDs.
 
+The generated `.env` also enables Chatto's local operator API socket at `/tmp/chatto/operator.sock` inside the app container. Run operator commands with `docker compose exec` as the `chatto` user, and use `list --search` to find a stable user ID before mutating an account:
+
+```bash
+docker compose exec -u chatto chatto /chatto operator user list
+docker compose exec -u chatto chatto /chatto operator user list --search admin@example.com
+docker compose exec -u chatto chatto /chatto operator user set-password USER_ID
+```
+
+Do not mount or publish the operator socket unless the target container or host is fully trusted; socket access is root-equivalent Chatto authority.
+
 ## Persistent Data
 
 | Volume         | Contents                                                     |

@@ -41,6 +41,7 @@ This example deploys a clustered Chatto setup with:
    - `CHATTO_OWNERS_EMAILS` - Comma-separated verified email addresses that should become Chatto owners. Include the email address you will use for the first account.
    - `CHATTO_SMTP_*` - Required for direct email/password registration, email verification, and password reset.
    - `PUID` and `PGID` - Optional host user/group IDs for files Chatto writes to mounted volumes. Defaults to `1000:1000`.
+   - `CHATTO_OPERATOR_API_*` - Enables the private in-container operator socket used by `chatto operator ...`.
 
    Leave `LIVEKIT_CONFIG_FILE=./livekit.generated.yaml` unless you deliberately
    want to maintain `livekit.yaml` by hand.
@@ -99,6 +100,21 @@ NATS connection. Run it as the `chatto` user so the CLI reads the context from
 ```bash
 docker compose exec -u chatto chatto nats stream ls
 ```
+
+## Operator Commands
+
+The generated `.env` enables the local operator API socket inside the Chatto
+container. Run operator commands as the `chatto` user and use `list --search`
+to find a stable user ID before mutating an account:
+
+```bash
+docker compose exec -u chatto chatto /chatto operator user list
+docker compose exec -u chatto chatto /chatto operator user list --search admin@example.com
+docker compose exec -u chatto chatto /chatto operator user set-password USER_ID
+```
+
+Do not mount or publish the operator socket unless the target container or host
+is fully trusted; socket access is root-equivalent Chatto authority.
 
 ## Updating
 
