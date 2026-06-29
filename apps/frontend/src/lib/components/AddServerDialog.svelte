@@ -13,6 +13,7 @@ Internal naming stays "instance" (registry, file name, route ids) per
 ADR-027 — only user-facing copy says "server".
 -->
 <script lang="ts">
+  import { ConnectError } from '@connectrpc/connect';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { getPublicServerInfo, type PublicServerInfo } from '$lib/api/server';
   import * as m from '$lib/i18n/messages';
@@ -144,7 +145,7 @@ ADR-027 — only user-facing copy says "server".
     } catch (err) {
       if (err instanceof DOMException && err.name === 'AbortError') {
         formError = 'Connection timed out. Check the URL and try again.';
-      } else if (err instanceof TypeError) {
+      } else if (err instanceof TypeError || err instanceof ConnectError) {
         formError = 'Could not connect. Check the URL and ensure CORS is configured.';
       } else {
         formError = err instanceof Error ? err.message : 'Failed to connect.';

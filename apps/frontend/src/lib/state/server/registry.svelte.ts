@@ -47,6 +47,7 @@ export interface AuthenticatedUserSummary {
 export function generateServerId(url: string, existingIds: string[] = []): string {
 	let hostname: string;
 	try {
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- this helper parses an input string once; no reactive URL state is needed
 		hostname = new URL(url).hostname;
 	} catch {
 		hostname = url.replace(/[^a-z0-9-]/gi, '-');
