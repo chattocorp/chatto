@@ -162,13 +162,60 @@ func TestPrepareOperatorAPISocket(t *testing.T) {
 			t.Fatalf("prepareOperatorAPISocket() error = %v, want already in use", err)
 		}
 	})
+
+	t.Run("rejects parent directory accessible by other users", func(t *testing.T) {
+		parent := shortTestSocketParent(t)
+		if err := os.Chmod(parent, 0o777); err != nil {
+			t.Fatalf("chmod unsafe parent: %v", err)
+		}
+		socketPath := parent + "/operator.sock"
+		s := &HTTPServer{config: config.ChattoConfig{OperatorAPI: config.OperatorAPIConfig{
+			Enabled:    true,
+			SocketPath: socketPath,
+			SocketMode: "0600",
+		}}}
+		if _, _, err := s.prepareOperatorAPISocket(); err == nil || !strings.Contains(err.Error(), "must not be accessible by other users") {
+			t.Fatalf("prepareOperatorAPISocket() error = %v, want unsafe parent mode", err)
+		}
+	})
+
+	t.Run("rejects parent directory with setgid bit", func(t *testing.T) {
+		parent := shortTestSocketParent(t)
+		if err := os.Chmod(parent, os.FileMode(0o700)|os.ModeSetgid); err != nil {
+			t.Fatalf("chmod setgid parent: %v", err)
+		}
+		info, err := os.Lstat(parent)
+		if err != nil {
+			t.Fatalf("stat setgid parent: %v", err)
+		}
+		if info.Mode()&os.ModeSetgid == 0 {
+			t.Skip("filesystem did not preserve setgid bit on test directory")
+		}
+		socketPath := parent + "/operator.sock"
+		s := &HTTPServer{config: config.ChattoConfig{OperatorAPI: config.OperatorAPIConfig{
+			Enabled:    true,
+			SocketPath: socketPath,
+			SocketMode: "0600",
+		}}}
+		if _, _, err := s.prepareOperatorAPISocket(); err == nil || !strings.Contains(err.Error(), "unsafe mode bits") {
+			t.Fatalf("prepareOperatorAPISocket() error = %v, want unsafe parent mode bits", err)
+		}
+	})
 }
 
 func shortTestSocketPath(t *testing.T) string {
 	t.Helper()
-	path := fmt.Sprintf("/tmp/chatto-test-%d.sock", time.Now().UnixNano())
-	t.Cleanup(func() { _ = os.Remove(path) })
-	return path
+	return shortTestSocketParent(t) + "/operator.sock"
+}
+
+func shortTestSocketParent(t *testing.T) string {
+	t.Helper()
+	parent := fmt.Sprintf("/tmp/chatto-test-%d", time.Now().UnixNano())
+	if err := os.Mkdir(parent, 0o700); err != nil {
+		t.Fatalf("mkdir test socket parent: %v", err)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(parent) })
+	return parent
 }
 
 func setupConnectHTTP2TestServer(t *testing.T, authConfig config.AuthConfig) (*HTTPServer, *httptest.Server) {

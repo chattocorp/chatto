@@ -70,11 +70,19 @@ func (s *operatorUserService) ListUsers(ctx context.Context, req *connect.Reques
 func (s *operatorUserService) GetUser(ctx context.Context, req *connect.Request[operatorv1.GetUserRequest]) (*connect.Response[operatorv1.GetUserResponse], error) {
 	userID := strings.TrimSpace(req.Msg.GetUserId())
 	login := strings.TrimSpace(req.Msg.GetLogin())
-	if (userID == "") == (login == "") {
-		return nil, invalidArgument("provide exactly one of user_id or login")
+	email := strings.TrimSpace(req.Msg.GetEmail())
+	if nonEmptyCount(userID, login, email) != 1 {
+		return nil, invalidArgument("provide exactly one of user_id, login, or email")
 	}
 	if login != "" {
 		user, err := s.api.core.GetUserByLogin(ctx, login)
+		if err != nil {
+			return nil, connectError(err)
+		}
+		userID = user.GetId()
+	}
+	if email != "" {
+		user, err := s.api.core.GetUserByVerifiedEmail(ctx, email)
 		if err != nil {
 			return nil, connectError(err)
 		}
@@ -201,4 +209,14 @@ func (s *operatorUserService) ClearUsernameCooldown(ctx context.Context, req *co
 
 func (s *operatorUserService) operatorMember(ctx context.Context, user *core.AdminUserView) (*adminv1.AdminMember, error) {
 	return (&adminUserManagementService{api: s.api}).adminMemberForOperator(ctx, user)
+}
+
+func nonEmptyCount(values ...string) int {
+	count := 0
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			count++
+		}
+	}
+	return count
 }

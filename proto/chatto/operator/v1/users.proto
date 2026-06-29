@@ -52,8 +52,10 @@ message ListUsersResponse {
 message GetUserRequest {
   // Target user ID.
   string user_id = 1;
-  // Target login. Provide either user_id or login.
+  // Target login. Provide exactly one lookup field.
   string login = 2;
+  // Target verified email address. Provide exactly one lookup field.
+  string email = 3;
 }
 
 // Operator-visible user detail payload.

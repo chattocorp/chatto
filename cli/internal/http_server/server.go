@@ -328,6 +328,9 @@ func (s *HTTPServer) prepareOperatorAPISocket() (net.Listener, os.FileInfo, erro
 	if err := os.MkdirAll(parent, 0o770); err != nil {
 		return nil, nil, fmt.Errorf("create operator API socket directory %s: %w", parent, err)
 	}
+	if err := validateOperatorAPISocketParent(parent); err != nil {
+		return nil, nil, err
+	}
 	if existing, err := os.Lstat(socketPath); err == nil {
 		if existing.Mode()&os.ModeSocket == 0 {
 			return nil, nil, fmt.Errorf("operator API socket path %s exists and is not a Unix socket", socketPath)
@@ -371,6 +374,43 @@ func (s *HTTPServer) prepareOperatorAPISocket() (net.Listener, os.FileInfo, erro
 		return nil, nil, fmt.Errorf("operator API socket %s has mode %04o after bind, want %04o", socketPath, created.Mode().Perm(), socketMode)
 	}
 	return listener, created, nil
+}
+
+func validateOperatorAPISocketParent(parent string) error {
+	info, err := os.Lstat(parent)
+	if err != nil {
+		return fmt.Errorf("inspect operator API socket directory %s: %w", parent, err)
+	}
+	mode := info.Mode()
+	if mode&os.ModeSymlink != 0 || !mode.IsDir() {
+		return fmt.Errorf("operator API socket directory %s is not a directory", parent)
+	}
+	uid, gid, ok := fileOwnerIDs(info)
+	if !ok {
+		return fmt.Errorf("inspect owner of operator API socket directory %s", parent)
+	}
+	if uid != uint32(os.Geteuid()) {
+		return fmt.Errorf("operator API socket directory %s is owned by uid %d, want uid %d", parent, uid, os.Geteuid())
+	}
+	if mode&(os.ModeSetuid|os.ModeSetgid|os.ModeSticky) != 0 {
+		return fmt.Errorf("operator API socket directory %s has unsafe mode bits %s", parent, mode.String())
+	}
+	perm := mode.Perm()
+	if perm&0o007 != 0 {
+		return fmt.Errorf("operator API socket directory %s must not be accessible by other users; mode is %04o", parent, perm)
+	}
+	if perm&0o070 != 0 && gid != uint32(os.Getegid()) {
+		return fmt.Errorf("operator API socket directory %s is group-accessible by gid %d, want gid %d", parent, gid, os.Getegid())
+	}
+	return nil
+}
+
+func fileOwnerIDs(info os.FileInfo) (uint32, uint32, bool) {
+	stat, ok := info.Sys().(*syscall.Stat_t)
+	if !ok {
+		return 0, 0, false
+	}
+	return stat.Uid, stat.Gid, true
 }
 
 func isStaleOperatorSocketError(err error) bool {

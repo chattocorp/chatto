@@ -276,8 +276,10 @@ type GetUserRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Target user ID.
 	UserId string `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	// Target login. Provide either user_id or login.
-	Login         string `protobuf:"bytes,2,opt,name=login,proto3" json:"login,omitempty"`
+	// Target login. Provide exactly one lookup field.
+	Login string `protobuf:"bytes,2,opt,name=login,proto3" json:"login,omitempty"`
+	// Target verified email address. Provide exactly one lookup field.
+	Email         string `protobuf:"bytes,3,opt,name=email,proto3" json:"email,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -322,6 +324,13 @@ func (x *GetUserRequest) GetUserId() string {
 func (x *GetUserRequest) GetLogin() string {
 	if x != nil {
 		return x.Login
+	}
+	return ""
+}
+
+func (x *GetUserRequest) GetEmail() string {
+	if x != nil {
+		return x.Email
 	}
 	return ""
 }
@@ -1135,10 +1144,11 @@ const file_chatto_operator_v1_users_proto_rawDesc = "" +
 	"\x11ListUsersResponse\x122\n" +
 	"\x05users\x18\x01 \x03(\v2\x1c.chatto.admin.v1.AdminMemberR\x05users\x129\n" +
 	"\x05roles\x18\x02 \x03(\v2#.chatto.admin.v1.AdminRoleReferenceR\x05roles\x12+\n" +
-	"\x04page\x18\x03 \x01(\v2\x17.chatto.api.v1.PageInfoR\x04page\"?\n" +
+	"\x04page\x18\x03 \x01(\v2\x17.chatto.api.v1.PageInfoR\x04page\"U\n" +
 	"\x0eGetUserRequest\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x14\n" +
-	"\x05login\x18\x02 \x01(\tR\x05login\"\xb4\x01\n" +
+	"\x05login\x18\x02 \x01(\tR\x05login\x12\x14\n" +
+	"\x05email\x18\x03 \x01(\tR\x05email\"\xb4\x01\n" +
 	"\x0fGetUserResponse\x124\n" +
 	"\x06member\x18\x01 \x01(\v2\x1c.chatto.admin.v1.AdminMemberR\x06member\x126\n" +
 	"\x05roles\x18\x02 \x03(\v2 .chatto.admin.v1.AdminMemberRoleR\x05roles\x123\n" +
