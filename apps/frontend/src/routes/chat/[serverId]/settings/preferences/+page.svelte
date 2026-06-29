@@ -2,7 +2,7 @@
   import * as m from '$lib/i18n/messages';
   import { getLocale, setLocale, type Locale } from '$lib/i18n/runtime';
   import { useConnection } from '$lib/state/server/connection.svelte';
-  import { createAccountAPI } from '$lib/api/account';
+  import { createAccountAPI } from '@chatto/api-client/account';
   import { TimeFormat } from '$lib/render/types';
   import { getUserSettings } from '$lib/state/userSettings.svelte';
   import { userPreferences, type DisplayTheme } from '$lib/state/userPreferences.svelte';

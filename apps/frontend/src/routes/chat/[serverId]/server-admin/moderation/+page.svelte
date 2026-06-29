@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { createRoomCommandAPI, type RoomBanSummary } from '$lib/api/rooms';
+  import { createRoomCommandAPI, type RoomBanSummary } from '@chatto/api-client/rooms';
   import { Panel, DataTable } from '$lib/components/admin';
   import { Hint } from '$lib/ui';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';

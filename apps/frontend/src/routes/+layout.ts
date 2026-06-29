@@ -1,5 +1,6 @@
+import '$lib/apiClientHooks';
 import { loadCurrentUser } from '$lib/auth/loadAuth';
-import { getPublicServerInfo } from '$lib/api/server';
+import { getPublicServerInfo } from '@chatto/api-client/server';
 import { preloadActiveLocaleMessages } from '$lib/i18n/messages';
 import type { LayoutLoad } from './$types';
 

@@ -6,7 +6,7 @@ import {
   type DirectoryMember,
   type MemberDirectoryAPI,
   type MemberDirectoryPage
-} from '$lib/api/memberDirectory';
+} from '@chatto/api-client/memberDirectory';
 import type { EventEnvelope } from '$lib/eventBus.svelte';
 import { RoomEventKind, roomEventKind } from '$lib/render/eventKinds';
 import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';

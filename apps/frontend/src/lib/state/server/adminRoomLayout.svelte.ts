@@ -5,8 +5,8 @@ import type {
   AdminRoomLayoutItemMutationInput,
   AdminSidebarItem,
   AdminSidebarLinkInfo
-} from '$lib/api/adminRoomLayout';
-import type { RoomCommandAPI } from '$lib/api/rooms';
+} from '@chatto/api-client/adminRoomLayout';
+import type { RoomCommandAPI } from '@chatto/api-client/rooms';
 import { RoomEventKind, roomEventKind, type RoomEventKindSource } from '$lib/render/eventKinds';
 import { SvelteMap } from 'svelte/reactivity';
 
@@ -17,7 +17,7 @@ export type {
   AdminRoomInfo,
   AdminSidebarItem,
   AdminSidebarLinkInfo
-} from '$lib/api/adminRoomLayout';
+} from '@chatto/api-client/adminRoomLayout';
 
 export type MoveRoomMutationInput = {
   roomId: string;

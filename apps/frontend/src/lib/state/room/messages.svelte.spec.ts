@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { flushSync } from 'svelte';
 import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
-import type { RoomTimelineAPI } from '$lib/api/roomTimeline';
+import type { RoomTimelineAPI } from '@chatto/api-client/roomTimeline';
 import { RoomEventKind } from '$lib/render/eventKinds';
 import type { EventConnectionPage } from './messages/helpers';
 import { MessagesStore } from './messages.svelte';

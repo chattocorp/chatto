@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { VoiceCallAPI } from '$lib/api/voiceCalls';
+import type { VoiceCallAPI } from '@chatto/api-client/voiceCalls';
 
 const { soundMocks } = vi.hoisted(() => ({
   soundMocks: {

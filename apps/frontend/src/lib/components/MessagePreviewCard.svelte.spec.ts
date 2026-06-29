@@ -16,13 +16,13 @@ const { getRoomEventsAroundMock, timelineResults, refreshMessageAttachmentUrlsMo
 
 const transparentGif = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==';
 
-vi.mock('$lib/api/roomTimeline', () => ({
+vi.mock('@chatto/api-client/roomTimeline', () => ({
   createRoomTimelineAPI: vi.fn(() => ({
     getRoomEventsAround: getRoomEventsAroundMock
   }))
 }));
 
-vi.mock('$lib/api/attachments', () => ({
+vi.mock('@chatto/api-client/attachments', () => ({
   createAttachmentAPI: vi.fn(() => ({
     refreshMessageAttachmentUrls: refreshMessageAttachmentUrlsMock
   }))

@@ -2,7 +2,7 @@
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { useConnection } from '$lib/state/server/connection.svelte';
-  import { createAccountAPI } from '$lib/api/account';
+  import { createAccountAPI } from '@chatto/api-client/account';
   import { PaneHeader, Dialog, FormSection, Hint } from '$lib/ui';
   import { TextInput, Button, FormError } from '$lib/ui/form';
   import { notifyLogout } from '$lib/auth/sessionChannel';

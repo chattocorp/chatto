@@ -13,7 +13,7 @@ vi.mock('$app/paths', () => ({
   resolve: (path: string) => path
 }));
 
-vi.mock('$lib/api/viewer', () => ({
+vi.mock('@chatto/api-client/viewer', () => ({
   getCurrentUserViaConnect: getCurrentUserViaConnectMock
 }));
 

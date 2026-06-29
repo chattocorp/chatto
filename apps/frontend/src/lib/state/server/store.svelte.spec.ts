@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { flushSync } from 'svelte';
-import type { PublicServerInfo } from '$lib/api/server';
-import type { AuthenticatedServerState } from '$lib/api/serverState';
+import type { PublicServerInfo } from '@chatto/api-client/server';
+import type { AuthenticatedServerState } from '@chatto/api-client/serverState';
 import { RoomEventKind } from '$lib/render/eventKinds';
 
 const { soundMocks, apiMocks } = vi.hoisted(() => ({
@@ -115,7 +115,7 @@ vi.mock('$lib/audio/callSounds', () => ({
   playCallSound: soundMocks.playCallSound
 }));
 
-vi.mock('$lib/api/roomDirectory', () => ({
+vi.mock('@chatto/api-client/roomDirectory', () => ({
   RoomDirectoryScope: {
     ALL: 1
   },
@@ -129,14 +129,14 @@ vi.mock('$lib/api/roomDirectory', () => ({
   }))
 }));
 
-vi.mock('$lib/api/memberDirectory', () => ({
+vi.mock('@chatto/api-client/memberDirectory', () => ({
   mapDirectoryMember: (member: unknown) => member,
   createMemberDirectoryAPI: vi.fn(() => ({
     listRoomMembers: apiMocks.listRoomMembers
   }))
 }));
 
-vi.mock('$lib/api/notifications', () => ({
+vi.mock('@chatto/api-client/notifications', () => ({
   NotificationItemKind: {
     DirectMessage: 'directMessage',
     Mention: 'mention',
@@ -153,7 +153,7 @@ vi.mock('$lib/api/notifications', () => ({
   }))
 }));
 
-vi.mock('$lib/api/adminEventLog', () => ({
+vi.mock('@chatto/api-client/adminEventLog', () => ({
   EMPTY_ADMIN_EVENT_LOG_FILTER: {
     eventType: '',
     actorId: '',
@@ -167,11 +167,11 @@ vi.mock('$lib/api/adminEventLog', () => ({
   }))
 }));
 
-vi.mock('$lib/api/serverState', () => ({
+vi.mock('@chatto/api-client/serverState', () => ({
   getAuthenticatedServerState: apiMocks.getAuthenticatedServerState
 }));
 
-vi.mock('$lib/api/viewer', () => ({
+vi.mock('@chatto/api-client/viewer', () => ({
   getViewerStateViaConnect: apiMocks.getViewerStateViaConnect,
   getCurrentUserViaConnect: apiMocks.getCurrentUserViaConnect
 }));

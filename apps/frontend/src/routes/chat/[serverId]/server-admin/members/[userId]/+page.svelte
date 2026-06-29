@@ -9,7 +9,7 @@
     createAdminUserManagementAPI,
     type AdminMember,
     type AdminMemberRole
-  } from '$lib/api/adminUsers';
+  } from '@chatto/api-client/adminUsers';
   import { getServerPermissions } from '$lib/state/server/permissions.svelte';
   import { CopyId, Panel } from '$lib/components/admin';
   import { UserPermissionsMatrix } from '$lib/components/rbac';

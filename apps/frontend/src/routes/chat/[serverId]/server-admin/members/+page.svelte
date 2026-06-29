@@ -8,7 +8,7 @@
     createAdminUserManagementAPI,
     type AdminMember,
     type AdminRoleReference
-  } from '$lib/api/adminUsers';
+  } from '@chatto/api-client/adminUsers';
   import { Panel, DataTable } from '$lib/components/admin';
   import { Hint, Pill } from '$lib/ui';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';

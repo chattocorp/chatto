@@ -15,9 +15,9 @@
   import ConfirmDialog from '$lib/ui/ConfirmDialog.svelte';
   import { Button } from '$lib/ui/form';
   import CreateRoom from '$lib/CreateRoom.svelte';
-  import { createRoomCommandAPI } from '$lib/api/rooms';
-  import { createMessageAPI } from '$lib/api/messages';
-  import { createAttachmentAPI } from '$lib/api/attachments';
+  import { createRoomCommandAPI } from '@chatto/api-client/rooms';
+  import { createMessageAPI } from '@chatto/api-client/messages';
+  import { createAttachmentAPI } from '@chatto/api-client/attachments';
 
   import ImageModal from '$lib/ui/ImageModal.svelte';
 

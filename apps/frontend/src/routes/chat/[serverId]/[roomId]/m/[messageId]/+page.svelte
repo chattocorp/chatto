@@ -7,7 +7,7 @@
 <script lang="ts" module>
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
-  import { createRoomTimelineAPI, type RoomTimelineAPIConfig } from '$lib/api/roomTimeline';
+  import { createRoomTimelineAPI, type RoomTimelineAPIConfig } from '@chatto/api-client/roomTimeline';
   import type { PendingHighlightStore } from '$lib/state/server/pendingHighlight.svelte';
 
   /**

@@ -12,7 +12,7 @@
     uploadServerBanner,
     uploadServerLogo,
     type ServerStateAPIConfig
-  } from '$lib/api/serverState';
+  } from '@chatto/api-client/serverState';
   import * as m from '$lib/i18n/messages';
 
   import { Panel } from '$lib/components/admin';

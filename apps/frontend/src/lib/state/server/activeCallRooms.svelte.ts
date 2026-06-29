@@ -12,7 +12,7 @@
 
 import { SvelteMap } from 'svelte/reactivity';
 import type { VoiceCallState } from '$lib/state/server/voiceCall.svelte';
-import type { VoiceCallAPI, VoiceCallParticipant } from '$lib/api/voiceCalls';
+import type { VoiceCallAPI, VoiceCallParticipant } from '@chatto/api-client/voiceCalls';
 
 /** Participant info for display in the room list sidebar. */
 export type CallRoomParticipant = {

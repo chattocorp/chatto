@@ -2,12 +2,12 @@
  * Server info state — public branding plus authenticated runtime settings.
  */
 
-import { getPublicServerInfo, type PublicServerInfo } from '$lib/api/server';
+import { getPublicServerInfo, type PublicServerInfo } from '@chatto/api-client/server';
 import {
   getAuthenticatedServerState,
   type AuthenticatedServerState,
   type ServerStateAPIConfig
-} from '$lib/api/serverState';
+} from '@chatto/api-client/serverState';
 
 export class ServerInfoState {
   #label: string;

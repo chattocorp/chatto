@@ -1,6 +1,6 @@
 import { Code, ConnectError } from '@connectrpc/connect';
-import { createMemberDirectoryAPI, type DirectoryMember } from '$lib/api/memberDirectory';
-import { createRoomDirectoryAPI, RoomKind } from '$lib/api/roomDirectory';
+import { createMemberDirectoryAPI, type DirectoryMember } from '@chatto/api-client/memberDirectory';
+import { createRoomDirectoryAPI, RoomKind } from '@chatto/api-client/roomDirectory';
 import { useActiveRoomLayoutUpdated } from '$lib/hooks/useEvent.svelte';
 import { useReconnectTrigger } from '$lib/hooks/useReconnectCallback.svelte';
 import { useConnection } from '$lib/state/server/connection.svelte';
