@@ -301,7 +301,7 @@ func (c *ChattoCore) GetUserByVerifiedEmail(ctx context.Context, email string) (
 	if user, ok := c.Users.GetByEmail(email); ok {
 		return user, nil
 	}
-	return nil, fmt.Errorf("no user found with verified email")
+	return nil, fmt.Errorf("%w: verified email", ErrNotFound)
 }
 
 // CountVerifiedUsers returns the number of distinct users with at least

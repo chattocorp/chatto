@@ -289,6 +289,9 @@ func TestOperatorUserServiceLifecycle(t *testing.T) {
 	if getByEmailResp.Msg.GetMember().GetUser().GetId() != user.GetId() {
 		t.Fatalf("GetMember by email id = %q, want %q", getByEmailResp.Msg.GetMember().GetUser().GetId(), user.GetId())
 	}
+	if _, err := operator.GetUser(env.ctx, connect.NewRequest(&operatorv1.GetUserRequest{Email: "missing-operator-api@example.com"})); connect.CodeOf(err) != connect.CodeNotFound {
+		t.Fatalf("missing GetUser by email err = %v, want not found", err)
+	}
 
 	updateResp, err := operator.UpdateUser(env.ctx, connect.NewRequest(&operatorv1.UpdateUserRequest{
 		UserId:      user.GetId(),

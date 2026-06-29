@@ -324,14 +324,6 @@ func adminUserDeleteCmd() *cobra.Command {
 			if _, err := selector.Request(); err != nil {
 				return err
 			}
-			if !yes {
-				if !term.IsTerminal(int(syscall.Stdin)) {
-					return errors.New("--yes is required when stdin is not a terminal")
-				}
-				if err := confirmDeletion(selector.Description()); err != nil {
-					return err
-				}
-			}
 			client, err := newOperatorAPIClient()
 			if err != nil {
 				return err
@@ -339,6 +331,14 @@ func adminUserDeleteCmd() *cobra.Command {
 			resolvedUserID, err := resolveOperatorUserID(cmd.Context(), client, selector)
 			if err != nil {
 				return err
+			}
+			if !yes {
+				if !term.IsTerminal(int(syscall.Stdin)) {
+					return errors.New("--yes is required when stdin is not a terminal")
+				}
+				if err := confirmDeletion(resolvedUserID); err != nil {
+					return err
+				}
 			}
 			resp, err := client.DeleteUser(cmd.Context(), adminRequest(&operatorv1.DeleteUserRequest{UserId: resolvedUserID}))
 			if err != nil {
