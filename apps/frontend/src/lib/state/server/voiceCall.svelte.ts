@@ -19,7 +19,7 @@ import {
 } from 'livekit-client';
 import { toast } from '$lib/ui/toast';
 import { playCallSound } from '$lib/audio/callSounds';
-import type { VoiceCallAPI } from '$lib/api/voiceCalls';
+import type { VoiceCallAPI } from '@chatto/api-client/voiceCalls';
 
 export type CallParticipantInfo = {
   identity: string;

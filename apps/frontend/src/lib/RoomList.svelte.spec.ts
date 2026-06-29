@@ -4,7 +4,7 @@ import { q } from '$lib/test-utils';
 import { RoomType } from '$lib/render/types';
 import type { EventEnvelope, EventHandler } from '$lib/eventBus.svelte';
 import { RoomEventKind } from '$lib/render/eventKinds';
-import { NotificationItemKind } from '$lib/api/notifications';
+import { NotificationItemKind } from '@chatto/api-client/notifications';
 import { serverStorageKey } from '$lib/storage/serverStorage';
 import {
   consumePendingRoomSidebarPanel,

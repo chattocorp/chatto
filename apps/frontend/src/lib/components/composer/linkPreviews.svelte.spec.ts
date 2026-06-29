@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import type { ComposerLinkPreview } from '$lib/api/linkPreviews';
+import type { ComposerLinkPreview } from '@chatto/api-client/linkPreviews';
 import { LinkPreviewState } from './linkPreviews.svelte';
 
 type FetchLinkPreview = (url: string) => Promise<ComposerLinkPreview | null>;

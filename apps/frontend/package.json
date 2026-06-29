@@ -83,6 +83,7 @@
     "zod": "^4.4.3"
   },
   "dependencies": {
+    "@chatto/api-client": "workspace:*",
     "@chatto/api-types": "workspace:*",
     "@bufbuild/protobuf": "^1.10.0",
     "@connectrpc/connect": "^1.7.0",

@@ -1,5 +1,5 @@
 import { SvelteMap } from 'svelte/reactivity';
-import type { UserAPI, UserSummary } from '$lib/api/users';
+import type { UserAPI, UserSummary } from '@chatto/api-client/users';
 
 export class UserSummaryCache {
   readonly serverId: string;

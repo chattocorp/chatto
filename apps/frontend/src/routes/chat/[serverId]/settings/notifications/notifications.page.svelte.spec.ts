@@ -50,18 +50,18 @@ vi.mock('$lib/notifications/pushNotifications', () => ({
   isSubscribed: mocks.pushNotifications.isSubscribed
 }));
 
-vi.mock('$lib/api/notificationPreferences', () => ({
+vi.mock('@chatto/api-client/notificationPreferences', () => ({
   getServerNotificationPreference: mocks.getServerNotificationPreference,
   setServerNotificationLevel: mocks.setServerNotificationLevel,
   setRoomNotificationLevel: mocks.setRoomNotificationLevel
 }));
 
-vi.mock('$lib/api/viewer', () => ({
+vi.mock('@chatto/api-client/viewer', () => ({
   getViewerStateViaConnect: mocks.getViewerStateViaConnect
 }));
 
-vi.mock('$lib/api/roomDirectory', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('$lib/api/roomDirectory')>();
+vi.mock('@chatto/api-client/roomDirectory', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@chatto/api-client/roomDirectory')>();
   return {
     ...actual,
     createRoomDirectoryAPI: vi.fn(() => ({

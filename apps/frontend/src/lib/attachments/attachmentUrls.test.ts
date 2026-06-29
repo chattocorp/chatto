@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { FitMode } from '$lib/render/types';
-import type { AttachmentAPI } from '$lib/api/attachments';
+import type { AttachmentAPI } from '@chatto/api-client/attachments';
 import {
   ASSET_URL_REFRESH_LEAD_MS,
   assetUrlExpiresAtMs,

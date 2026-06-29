@@ -8,7 +8,7 @@
     clearCustomStatus as clearCustomStatusViaAPI,
     setCustomStatus as setCustomStatusViaAPI,
     type CustomUserStatusAPIConfig
-  } from '$lib/api/userStatus';
+  } from '@chatto/api-client/userStatus';
   import type { CustomUserStatus } from '$lib/state/userProfiles.svelte';
   import {
     CUSTOM_STATUS_TEMPLATES,

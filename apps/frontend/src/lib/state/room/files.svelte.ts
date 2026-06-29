@@ -10,7 +10,7 @@ import {
 } from '$lib/attachments/attachmentUrls';
 import { RoomEventKind, roomEventKind } from '$lib/render/eventKinds';
 import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
-import { createAttachmentAPI, type AttachmentAPI, type RoomFileItem } from '$lib/api/attachments';
+import { createAttachmentAPI, type AttachmentAPI, type RoomFileItem } from '@chatto/api-client/attachments';
 
 export const ROOM_FILES_PAGE_SIZE = 50;
 

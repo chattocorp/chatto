@@ -9,7 +9,7 @@ vi.mock('$app/navigation', () => ({
   replaceState: vi.fn()
 }));
 
-vi.mock('$lib/api/attachments', () => ({
+vi.mock('@chatto/api-client/attachments', () => ({
   createAttachmentAPI: vi.fn(() => ({
     refreshMessageAttachmentUrls: vi.fn().mockResolvedValue(new Map())
   }))

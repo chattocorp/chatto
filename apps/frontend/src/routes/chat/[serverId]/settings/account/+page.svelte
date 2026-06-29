@@ -1,16 +1,16 @@
 <script lang="ts">
   import { Code, ConnectError } from '@connectrpc/connect';
   import { resolve } from '$app/paths';
-  import { createAccountAPI } from '$lib/api/account';
   import { serverIdToSegment } from '$lib/navigation';
   import {
     createExternalIdentityAPI,
     type LinkedSSOIdentity,
     type SSOProvider
-  } from '$lib/api/externalIdentities';
+  } from '@chatto/api-client/externalIdentities';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { useConnection } from '$lib/state/server/connection.svelte';
+  import { createAccountAPI } from '@chatto/api-client/account';
   import { PaneHeader, Dialog, FormSection, Hint } from '$lib/ui';
   import { TextInput, Button, FormError, z, validate } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast/toastState.svelte';

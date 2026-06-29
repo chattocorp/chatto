@@ -13,9 +13,9 @@
   import { quickSwitcher } from '$lib/state/globals.svelte';
   import * as m from '$lib/i18n/messages';
   import { toast } from '$lib/ui/toast';
-  import { createRoomCommandAPI } from '$lib/api/rooms';
-  import { createMemberDirectoryAPI, type DirectoryMember } from '$lib/api/memberDirectory';
-  import { createRoomDirectoryAPI, RoomDirectoryScope, RoomKind } from '$lib/api/roomDirectory';
+  import { createRoomCommandAPI } from '@chatto/api-client/rooms';
+  import { createMemberDirectoryAPI, type DirectoryMember } from '@chatto/api-client/memberDirectory';
+  import { createRoomDirectoryAPI, RoomDirectoryScope, RoomKind } from '@chatto/api-client/roomDirectory';
 
   type ServerLogo = { name: string; logoUrl?: string | null };
   type AvatarUser = Pick<DirectoryMember, 'id' | 'login' | 'displayName' | 'deleted'> & {

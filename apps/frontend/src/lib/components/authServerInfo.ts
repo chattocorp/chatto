@@ -1,5 +1,5 @@
 import { getContext, setContext } from 'svelte';
-import type { PublicServerInfo } from '$lib/api/server';
+import type { PublicServerInfo } from '@chatto/api-client/server';
 
 const AUTH_SERVER_INFO = Symbol('auth-server-info');
 

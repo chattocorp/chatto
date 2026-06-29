@@ -4,7 +4,7 @@
   import AuthLayout from '$lib/components/AuthLayout.svelte';
   import * as m from '$lib/i18n/messages';
   import type { AuthenticatedUserSummary } from '$lib/state/server/registry.svelte';
-  import type { PublicAuthProvider } from '$lib/api/server';
+  import type { PublicAuthProvider } from '@chatto/api-client/server';
   import Divider from '$lib/ui/Divider.svelte';
   import Hint from '$lib/ui/Hint.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';

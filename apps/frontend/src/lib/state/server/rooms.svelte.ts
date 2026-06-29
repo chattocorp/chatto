@@ -7,13 +7,13 @@ import {
   roomEventKind,
   type RoomEventKindSource
 } from '$lib/render/eventKinds';
-import type { RoomDirectoryAPI, DirectoryRoomSummary } from '$lib/api/roomDirectory';
-import { RoomDirectoryScope, RoomKind } from '$lib/api/roomDirectory';
-import type { MemberDirectoryAPI, DirectoryMember } from '$lib/api/memberDirectory';
-import type { ViewerState } from '$lib/api/viewer';
+import type { RoomDirectoryAPI, DirectoryRoomSummary } from '@chatto/api-client/roomDirectory';
+import { RoomDirectoryScope, RoomKind } from '@chatto/api-client/roomDirectory';
+import type { MemberDirectoryAPI, DirectoryMember } from '@chatto/api-client/memberDirectory';
+import type { ViewerState } from '@chatto/api-client/viewer';
 import type { NotificationLevelStore } from '$lib/state/server/notificationLevel.svelte';
 import type { RoomUnreadStore } from '$lib/state/server/roomUnread.svelte';
-import type { NotificationAPI } from '$lib/api/notifications';
+import type { NotificationAPI } from '@chatto/api-client/notifications';
 
 export type RoomsListItem = {
   id: string;

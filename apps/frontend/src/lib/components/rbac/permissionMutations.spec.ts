@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { PermissionAPI, PermissionState } from '$lib/api/permissions';
+import type { PermissionAPI, PermissionState } from '@chatto/api-client/permissions';
 import { setRolePermission } from './permissionMutations';
 import { setUserPermission } from './userPermissionMutations';
 

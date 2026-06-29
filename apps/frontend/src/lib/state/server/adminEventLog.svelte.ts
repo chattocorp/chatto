@@ -4,9 +4,9 @@ import {
   type AdminEventLogEntry,
   type AdminEventLogFilter,
   type AdminEventLogPage
-} from '$lib/api/adminEventLog';
+} from '@chatto/api-client/adminEventLog';
 
-export type { AdminEventLogEntry, AdminEventLogFilter } from '$lib/api/adminEventLog';
+export type { AdminEventLogEntry, AdminEventLogFilter } from '@chatto/api-client/adminEventLog';
 
 const pageSize = 50;
 

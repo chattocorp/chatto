@@ -7,9 +7,9 @@ import {
   RoomKind,
   type DirectoryRoomSummary,
   type RoomDirectoryAPI
-} from '$lib/api/roomDirectory';
+} from '@chatto/api-client/roomDirectory';
 import { RoomDirectoryStore, type DirectoryRoom } from './roomDirectory.svelte';
-import type { RoomCommandAPI } from '$lib/api/rooms';
+import type { RoomCommandAPI } from '@chatto/api-client/rooms';
 
 function makeRoom(id: string, overrides: Partial<DirectoryRoomSummary> = {}): DirectoryRoomSummary {
   return {

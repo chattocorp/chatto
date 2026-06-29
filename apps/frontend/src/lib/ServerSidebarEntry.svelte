@@ -7,9 +7,9 @@
   import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
   import { createEventBusHandlerRegistrar } from '$lib/eventBus.svelte';
   import { isMessagePostedEvent, RoomEventKind, roomEventKind } from '$lib/render/eventKinds';
-  import { getAuthenticatedServerState } from '$lib/api/serverState';
-  import { getViewerStateViaConnect } from '$lib/api/viewer';
-  import { createRoomDirectoryAPI, RoomDirectoryScope } from '$lib/api/roomDirectory';
+  import { getAuthenticatedServerState } from '@chatto/api-client/serverState';
+  import { getViewerStateViaConnect } from '@chatto/api-client/viewer';
+  import { createRoomDirectoryAPI, RoomDirectoryScope } from '@chatto/api-client/roomDirectory';
   import { notificationTarget } from '$lib/state/server/notifications.svelte';
   import { appState } from '$lib/state/globals.svelte';
   import ServerIcon from './ServerIcon.svelte';
