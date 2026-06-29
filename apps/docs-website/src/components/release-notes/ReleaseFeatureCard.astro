@@ -1,0 +1,145 @@
+---
+interface Props {
+  title: string;
+  size?: "small" | "medium" | "large";
+  imageSrc?: string;
+  imageAlt?: string;
+  imageCaption?: string;
+  imagePosition?: "top" | "bottom";
+}
+
+const {
+  title,
+  size = "medium",
+  imageSrc,
+  imageAlt = "",
+  imageCaption,
+  imagePosition = "top"
+} = Astro.props;
+---
+
+<article class:list={["release-feature-card", `size-${size}`]}>
+  {imageSrc && imagePosition === "top" && (
+    <figure class="release-feature-image">
+      <img src={imageSrc} alt={imageAlt} loading="lazy" decoding="async" />
+      {imageCaption && <figcaption>{imageCaption}</figcaption>}
+    </figure>
+  )}
+  <h2>{title}</h2>
+  <div class="release-feature-body">
+    <slot />
+  </div>
+  {imageSrc && imagePosition === "bottom" && (
+    <figure class="release-feature-image bottom">
+      <img src={imageSrc} alt={imageAlt} loading="lazy" decoding="async" />
+      {imageCaption && <figcaption>{imageCaption}</figcaption>}
+    </figure>
+  )}
+</article>
+
+<style>
+  .release-feature-card {
+    --release-lane-span: 2;
+    grid-column: span 2;
+    display: flex;
+    min-height: 13rem;
+    flex-direction: column;
+    padding: 1.15rem;
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.5rem;
+    background: var(--sl-color-gray-7);
+  }
+
+  .release-feature-card.size-small {
+    --release-lane-span: 2;
+    grid-column: span 2;
+    min-height: 9.5rem;
+  }
+
+  .release-feature-card.size-large {
+    --release-lane-span: 4;
+    grid-column: span 4;
+    min-height: 15rem;
+    padding: 1.35rem;
+    background:
+      linear-gradient(135deg, color-mix(in srgb, var(--sl-color-accent-low), transparent 58%), transparent 68%),
+      var(--sl-color-gray-7);
+  }
+
+  .release-feature-card h2 {
+    margin: 0;
+    color: var(--sl-color-white);
+    font-size: 1.35rem;
+    line-height: 1.15;
+  }
+
+  .release-feature-card.size-large h2 {
+    font-size: clamp(1.75rem, 5vw, 2.45rem);
+  }
+
+  .release-feature-body {
+    margin-top: 0.85rem;
+    color: var(--sl-color-gray-2);
+    line-height: 1.55;
+  }
+
+  .release-feature-body :global(:first-child) {
+    margin-top: 0;
+  }
+
+  .release-feature-body :global(:last-child) {
+    margin-bottom: 0;
+  }
+
+  .release-feature-body :global(ul) {
+    padding-inline-start: 1.2rem;
+  }
+
+  .release-feature-body :global(li + li) {
+    margin-top: 0.35rem;
+  }
+
+  .release-feature-image {
+    margin: -0.35rem -0.35rem 1rem;
+  }
+
+  .release-feature-image.bottom {
+    margin: 1rem -0.35rem -0.35rem;
+  }
+
+  .release-feature-image img {
+    display: block;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.4rem;
+    background: var(--sl-color-gray-6);
+  }
+
+  .release-feature-image figcaption {
+    margin-top: 0.5rem;
+    color: var(--sl-color-gray-3);
+    font-size: 0.85rem;
+    line-height: 1.45;
+  }
+
+  @media (max-width: 42rem) {
+    .release-feature-card,
+    .release-feature-card.size-small,
+    .release-feature-card.size-large {
+      --release-lane-span: 2;
+      grid-column: span 2;
+    }
+  }
+
+  @media (max-width: 36rem) {
+    .release-feature-card,
+    .release-feature-card.size-small,
+    .release-feature-card.size-large {
+      --release-lane-span: 1;
+      grid-column: span 1;
+      min-height: 0;
+    }
+  }
+</style>

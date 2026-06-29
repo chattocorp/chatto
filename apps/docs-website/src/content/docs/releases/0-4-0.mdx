@@ -1,0 +1,147 @@
+---
+title: Chatto 0.4.0 (unreleased)
+description: Unreleased release notes for Chatto 0.4.0.
+---
+
+import ReleaseFeatureCard from "../../../components/release-notes/ReleaseFeatureCard.astro";
+import ReleaseFeatureGrid from "../../../components/release-notes/ReleaseFeatureGrid.astro";
+import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
+
+<ReleaseHero
+  version="0.4.0"
+  status="Unreleased"
+  summary="This unreleased page covers the full 0.4.0 line since 0.3.8: a GraphQL-to-ConnectRPC API replacement, universal rooms, richer presence controls, custom statuses, and broader interface localization."
+/>
+
+<ReleaseFeatureGrid>
+  <ReleaseFeatureCard title="ConnectRPC replaces GraphQL" size="large">
+    The public API has moved from GraphQL to ConnectRPC. The bundled web app uses the new
+    API for room, message, reaction, direct-message, typing, and realtime flows, and custom
+    clients, bots, and integrations need to move to the generated protobuf/ConnectRPC
+    clients before upgrading production deployments.
+  </ReleaseFeatureCard>
+
+  <ReleaseFeatureCard title="Universal rooms" size="large">
+    Important channels can now be made available to the whole server without asking every
+    member to join manually. The seeded announcements room, hidden leave actions, directory
+    behavior, and sidebar updates make shared rooms feel like part of the server rather
+    than another room membership chore.
+  </ReleaseFeatureCard>
+
+  <ReleaseFeatureCard title="Presence modes and custom statuses">
+    Choose automatic presence, Away, Do Not Disturb, or Look offline, and add a custom
+    status with built-in templates for lunch, vacation, sick leave, or your own text and
+    emoji. Do Not Disturb suppresses notification sounds and push alerts, while Look
+    offline stops presence reports for better privacy.
+  </ReleaseFeatureCard>
+
+  <ReleaseFeatureCard title="A localized interface foundation">
+    The app shell, sidebar, settings, auth, chat, room, composer, calls, admin, media, and
+    shared UI strings now flow through English and German message catalogs. Display
+    settings include a browser-local language preference that updates without a full
+    reload.
+  </ReleaseFeatureCard>
+
+  <ReleaseFeatureCard title="Clearer room and call context" size="small">
+    Room headers show channel descriptions on desktop, room rows show active call
+    participants, and reaction popups show readable reaction names.
+  </ReleaseFeatureCard>
+
+</ReleaseFeatureGrid>
+
+## Running and Integrating Chatto
+
+<ReleaseFeatureGrid>
+  <ReleaseFeatureCard title="A broader public API surface" size="large">
+    ConnectRPC now covers room lifecycle, room directory reads, message management,
+    reactions, direct-message starts, presence reporting, custom statuses, and protobuf
+    realtime delivery. The generated API reference is split into domain pages, and new API
+    stability tiers explain what integration authors can rely on.
+  </ReleaseFeatureCard>
+
+  <ReleaseFeatureCard title="Admin screens for daily operations">
+    The system dashboard has clearer broker, JetStream, stream activity, consumer, and
+    projection sections. Member detail pages expose account status, join date, verified
+    email visibility, copyable user IDs, role count, deletion capability, and username
+    cooldown state. Event log filters make investigations less noisy.
+  </ReleaseFeatureCard>
+
+  <ReleaseFeatureCard title="Deployment-wide Prometheus metrics" size="small">
+    The new `chatto exporter` command and `[exporter]` config expose deployment-wide
+    Prometheus metrics, either standalone or embedded in `chatto run`.
+  </ReleaseFeatureCard>
+
+  <ReleaseFeatureCard title="Storage-backed link previews" size="small">
+    Link preview assets now use the configured storage backend, which makes preview media
+    behave like other persisted uploaded assets when S3-compatible storage is configured.
+  </ReleaseFeatureCard>
+
+  <ReleaseFeatureCard title="SMTP TLS controls" size="small">
+    New SMTP TLS server-name and skip-verify settings handle internal mail servers with
+    self-signed or mismatched certificates without changing existing TLS policy behavior.
+  </ReleaseFeatureCard>
+
+  <ReleaseFeatureCard title="Faster loading paths">
+    The frontend splits chat code from the application shell, and server-side projection
+    startup/replay paths have been tightened. Large or long-running deployments should
+    spend less time on avoidable loading work.
+  </ReleaseFeatureCard>
+</ReleaseFeatureGrid>
+
+## Upgrade Notes
+
+- GraphQL has been replaced by ConnectRPC. Update custom clients, bots, and integrations
+  before upgrading production deployments that depend on the old GraphQL API.
+- The ConnectRPC API shape changed during the 0.4.0 prerelease cycle. If you already
+  tested against a 0.4.0 beta, regenerate clients and review the generated API reference.
+- If you override SMTP security behavior, review the TLS verification configuration for
+  your mail provider.
+- Link preview media is now stored through the configured storage backend. Confirm your
+  backup and object storage policies cover these assets.
+
+## Smaller fixes you'll appreciate
+
+### Messages and threads
+
+- Replies to deleted, hidden, or cross-room targets no longer submit or leave dangling
+  timeline references.
+- Local message deletions now refresh the visible message list reliably.
+- Simple message edits can be submitted with Enter again.
+- Reply attribution previews are easier to read.
+- Stale direct-message member loads no longer appear after switching rooms.
+- Same-tab message links stay in the right context.
+- Thread follow controls no longer show stale bell state.
+- Unread separators wait until you return to a room instead of appearing too early.
+
+### Notifications and unread state
+
+- Dismissing notifications keeps unread badges in sync.
+- Unread channel rows have stronger contrast.
+- Push notification controls stay hidden for remote servers, where native Web Push cannot
+  work from the app origin.
+- Read markers no longer move backwards during concurrent room or thread updates.
+
+### Calls, media, and interface polish
+
+- LiveKit call observation stays scoped to the active call.
+- Muted call participant icons and call control buttons are visually consistent.
+- Scrollbars follow the selected display theme.
+- Asset proxy token handling is more defensive.
+
+### API and operations
+
+- ConnectRPC room commands and directory reads share the same core authorization checks as
+  room behavior.
+- ConnectRPC message posting returns clearer errors, avoids exposing raw backend text, and
+  keeps video attachment processing intact.
+- ConnectRPC caller authentication checks fail closed.
+- ConnectRPC timeline and thread reads reject missing or unsupported anchors with the right
+  error.
+- ConnectRPC requests now have a message-size cap.
+- Generated API docs include the custom user status service.
+- Service inventory metrics cover the full service set.
+
+## GitHub release
+
+The generated GitHub release will list every PR and commit once 0.4.0 is published:
+[github.com/chattocorp/chatto/releases/tag/v0.4.0](https://github.com/chattocorp/chatto/releases/tag/v0.4.0)
