@@ -1,6 +1,6 @@
-import { createClient } from '@connectrpc/connect';
-import { createConnectTransport } from '@connectrpc/connect-web';
-import { AdminDiagnosticsService } from '@chatto/api-types/admin/v1/diagnostics_connect';
+import { createClient } from "@connectrpc/connect";
+import { createConnectTransport } from "@connectrpc/connect-web";
+import { AdminDiagnosticsService } from "@chatto/api-types/admin/v1/diagnostics_connect";
 
 export type AdminDiagnosticsAPIConfig = {
   baseUrl: string;
@@ -112,7 +112,7 @@ export type AdminProjectionMetric = {
 function adminDiagnosticsClient(config: AdminDiagnosticsAPIConfig) {
   const transport = createConnectTransport({
     baseUrl: config.baseUrl,
-    useBinaryFormat: true
+    useBinaryFormat: true,
   });
   const client = createClient(AdminDiagnosticsService, transport);
   const headers = config.bearerToken
@@ -122,7 +122,7 @@ function adminDiagnosticsClient(config: AdminDiagnosticsAPIConfig) {
 }
 
 export async function getAdminSystemInfo(
-  config: AdminDiagnosticsAPIConfig
+  config: AdminDiagnosticsAPIConfig,
 ): Promise<AdminSystemInfo> {
   const { client, headers } = adminDiagnosticsClient(config);
   const response = await client.getSystemInfo({}, { headers });
@@ -131,11 +131,11 @@ export async function getAdminSystemInfo(
   return {
     connection: {
       connected: systemInfo?.connection?.connected ?? false,
-      serverId: systemInfo?.connection?.serverId ?? '',
-      serverName: systemInfo?.connection?.serverName ?? '',
-      version: systemInfo?.connection?.version ?? '',
+      serverId: systemInfo?.connection?.serverId ?? "",
+      serverName: systemInfo?.connection?.serverName ?? "",
+      version: systemInfo?.connection?.version ?? "",
       maxPayload: Number(systemInfo?.connection?.maxPayload ?? 0),
-      rtt: systemInfo?.connection?.rtt ?? ''
+      rtt: systemInfo?.connection?.rtt ?? "",
     },
     account: {
       memory: Number(systemInfo?.account?.memory ?? 0),
@@ -145,7 +145,7 @@ export async function getAdminSystemInfo(
       streams: systemInfo?.account?.streams ?? 0,
       streamsUsed: systemInfo?.account?.streamsUsed ?? 0,
       consumers: systemInfo?.account?.consumers ?? 0,
-      consumersUsed: systemInfo?.account?.consumersUsed ?? 0
+      consumersUsed: systemInfo?.account?.consumersUsed ?? 0,
     },
     nats: {
       totalMessages: Number(systemInfo?.nats?.totalMessages ?? 0),
@@ -163,7 +163,7 @@ export async function getAdminSystemInfo(
         lastSequence: stream.lastSequence,
         consumerCount: stream.consumerCount,
         replicas: stream.replicas,
-        clusterLeader: stream.clusterLeader
+        clusterLeader: stream.clusterLeader,
       })),
       consumers: (systemInfo?.nats?.consumers ?? []).map((consumer) => ({
         stream: consumer.stream,
@@ -181,13 +181,13 @@ export async function getAdminSystemInfo(
         deliveredConsumerSequence: consumer.deliveredConsumerSequence,
         deliveredStreamSequence: consumer.deliveredStreamSequence,
         ackFloorConsumerSequence: consumer.ackFloorConsumerSequence,
-        ackFloorStreamSequence: consumer.ackFloorStreamSequence
-      }))
+        ackFloorStreamSequence: consumer.ackFloorStreamSequence,
+      })),
     },
     stats: {
       userCount: systemInfo?.stats?.userCount ?? 0,
       channelRoomCount: systemInfo?.stats?.channelRoomCount ?? 0,
-      dmRoomCount: systemInfo?.stats?.dmRoomCount ?? 0
+      dmRoomCount: systemInfo?.stats?.dmRoomCount ?? 0,
     },
     projections: response.projections.map((projection) => ({
       key: projection.key,
@@ -208,8 +208,8 @@ export async function getAdminSystemInfo(
       metrics: projection.metrics.map((metric) => ({
         name: metric.name,
         value: Number(metric.value),
-        bytes: Number(metric.bytes)
-      }))
-    }))
+        bytes: Number(metric.bytes),
+      })),
+    })),
   };
 }

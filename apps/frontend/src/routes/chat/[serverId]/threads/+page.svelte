@@ -9,7 +9,7 @@
 
   import { useRenderData } from '$lib/render/data';
   import { RoomEventViewDocument, type RoomEventView } from '$lib/render/types';
-  import { createThreadAPI, type FollowedThread as APIFollowedThread } from '$lib/api/threads';
+  import { createThreadAPI, type FollowedThread as APIFollowedThread } from '@chatto/api-client/threads';
   import { EmptyState, Hint, PaneHeader } from '$lib/ui';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import { Button } from '$lib/ui/form';

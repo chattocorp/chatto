@@ -1,7 +1,8 @@
-import { Code, ConnectError, createClient } from '@connectrpc/connect';
-import { createConnectTransport } from '@connectrpc/connect-web';
-import { LinkPreviewService } from '@chatto/api-types/api/v1/link_previews_connect';
-import type { LinkPreview } from '@chatto/api-types/api/v1/link_previews_pb';
+import { notifyAuthenticationRequired } from "./hooks.js";
+import { Code, ConnectError, createClient } from "@connectrpc/connect";
+import { createConnectTransport } from "@connectrpc/connect-web";
+import { LinkPreviewService } from "@chatto/api-types/api/v1/link_previews_connect";
+import type { LinkPreview } from "@chatto/api-types/api/v1/link_previews_pb";
 
 export type LinkPreviewAPIConfig = {
   serverId?: string;
@@ -24,15 +25,24 @@ export type ComposerLinkPreview = {
 export function createLinkPreviewAPI(config: LinkPreviewAPIConfig) {
   const transport = createConnectTransport({
     baseUrl: config.baseUrl,
-    useBinaryFormat: true
+    useBinaryFormat: true,
   });
   const client = createClient(LinkPreviewService, transport);
   const headers = () =>
-    config.bearerToken ? { Authorization: `Bearer ${config.bearerToken}` } : undefined;
+    config.bearerToken
+      ? { Authorization: `Bearer ${config.bearerToken}` }
+      : undefined;
 
   async function handleAuthError(err: unknown): Promise<never> {
-    if (err instanceof ConnectError && err.code === Code.Unauthenticated && config.serverId) {
-      config.onAuthenticationRequired?.(config.serverId);
+    if (
+      err instanceof ConnectError &&
+      err.code === Code.Unauthenticated &&
+      config.serverId
+    ) {
+      notifyAuthenticationRequired(
+        config.serverId,
+        config.onAuthenticationRequired,
+      );
     }
     throw err;
   }
@@ -40,16 +50,21 @@ export function createLinkPreviewAPI(config: LinkPreviewAPIConfig) {
   return {
     async fetchLinkPreview(url: string): Promise<ComposerLinkPreview | null> {
       try {
-        const response = await client.fetchLinkPreview({ url }, { headers: headers() });
+        const response = await client.fetchLinkPreview(
+          { url },
+          { headers: headers() },
+        );
         return composerLinkPreview(response.preview);
       } catch (err) {
         return handleAuthError(err);
       }
-    }
+    },
   };
 }
 
-function composerLinkPreview(preview: LinkPreview | undefined): ComposerLinkPreview | null {
+function composerLinkPreview(
+  preview: LinkPreview | undefined,
+): ComposerLinkPreview | null {
   if (!preview) return null;
   return {
     url: preview.url,
@@ -59,6 +74,6 @@ function composerLinkPreview(preview: LinkPreview | undefined): ComposerLinkPrev
     imageAssetId: preview.imageAssetId || null,
     siteName: preview.siteName || null,
     embedType: preview.embedType || null,
-    embedId: preview.embedId || null
+    embedId: preview.embedId || null,
   };
 }

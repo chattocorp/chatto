@@ -3,7 +3,7 @@
   import { resolve } from '$app/paths';
   import { serverIdToSegment } from '$lib/navigation';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
-  import { createAdminRoomLayoutAPI, type AdminRoomGroup } from '$lib/api/adminRoomLayout';
+  import { createAdminRoomLayoutAPI, type AdminRoomGroup } from '@chatto/api-client/adminRoomLayout';
   import { useConnection } from '$lib/state/server/connection.svelte';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';

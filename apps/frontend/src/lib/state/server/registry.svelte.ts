@@ -4,7 +4,7 @@ import { serverConnectionManager } from './serverConnection.svelte';
 import { eventBusManager } from './eventBus.svelte';
 import { Codecs, globalSlot } from '$lib/storage/slot';
 import { clearAssetProxyCache } from '$lib/pwa/assetProxy';
-import { getPublicServerInfo } from '$lib/api/server';
+import { getPublicServerInfo } from '@chatto/api-client/server';
 
 /**
  * A registered Chatto server in the multi-server client.

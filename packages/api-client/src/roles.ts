@@ -1,8 +1,8 @@
-import { createClient } from '@connectrpc/connect';
-import { createConnectTransport } from '@connectrpc/connect-web';
-import { AdminRoleService } from '@chatto/api-types/admin/v1/roles_connect';
-import type { Role as APIRole } from '@chatto/api-types/admin/v1/roles_pb';
-import type { User as APIUser } from '@chatto/api-types/api/v1/users_pb';
+import { createClient } from "@connectrpc/connect";
+import { createConnectTransport } from "@connectrpc/connect-web";
+import { AdminRoleService } from "@chatto/api-types/admin/v1/roles_connect";
+import type { Role as APIRole } from "@chatto/api-types/admin/v1/roles_pb";
+import type { User as APIUser } from "@chatto/api-types/api/v1/users_pb";
 
 export type RoleAPIConfig = {
   baseUrl: string;
@@ -55,11 +55,13 @@ export type UpdateRoleInput = {
 export function createRoleAPI(config: RoleAPIConfig) {
   const transport = createConnectTransport({
     baseUrl: config.baseUrl,
-    useBinaryFormat: true
+    useBinaryFormat: true,
   });
   const client = createClient(AdminRoleService, transport);
   const headers = () =>
-    config.bearerToken ? { Authorization: `Bearer ${config.bearerToken}` } : undefined;
+    config.bearerToken
+      ? { Authorization: `Bearer ${config.bearerToken}` }
+      : undefined;
 
   return {
     async listRoles(): Promise<RoleCatalog> {
@@ -67,7 +69,7 @@ export function createRoleAPI(config: RoleAPIConfig) {
       return {
         roles: response.roles.map(serverRole),
         viewerCanManageRoles: response.viewerCanManageRoles,
-        viewerCanAssignRoles: response.viewerCanAssignRoles
+        viewerCanAssignRoles: response.viewerCanAssignRoles,
       };
     },
 
@@ -78,7 +80,7 @@ export function createRoleAPI(config: RoleAPIConfig) {
         role: response.role ? serverRole(response.role) : null,
         users: response.users.map(roleUser),
         viewerCanManageRoles: response.viewerCanManageRoles,
-        viewerCanAssignRoles: response.viewerCanAssignRoles
+        viewerCanAssignRoles: response.viewerCanAssignRoles,
       };
     },
 
@@ -93,9 +95,12 @@ export function createRoleAPI(config: RoleAPIConfig) {
     },
 
     async deleteRole(name: string): Promise<boolean> {
-      const response = await client.deleteRole({ name }, { headers: headers() });
+      const response = await client.deleteRole(
+        { name },
+        { headers: headers() },
+      );
       return response.deleted;
-    }
+    },
   };
 }
 
@@ -103,7 +108,7 @@ export type RoleAPI = ReturnType<typeof createRoleAPI>;
 
 function requiredRole(role: APIRole | undefined): ServerRole {
   if (!role) {
-    throw new Error('role response did not include a role');
+    throw new Error("role response did not include a role");
   }
   return serverRole(role);
 }
@@ -117,7 +122,7 @@ function serverRole(role: APIRole): ServerRole {
     permissionDenials: [...role.permissionDenials],
     isSystem: role.isSystem,
     position: role.position,
-    pingable: role.pingable
+    pingable: role.pingable,
   };
 }
 
@@ -125,6 +130,6 @@ function roleUser(user: APIUser): RoleUser {
   return {
     id: user.id,
     login: user.login,
-    displayName: user.displayName
+    displayName: user.displayName,
   };
 }

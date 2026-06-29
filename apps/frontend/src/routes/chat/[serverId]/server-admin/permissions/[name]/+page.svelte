@@ -5,7 +5,7 @@
   import { serverIdToSegment } from '$lib/navigation';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { useConnection } from '$lib/state/server/connection.svelte';
-  import { createRoleAPI, type RoleUser } from '$lib/api/roles';
+  import { createRoleAPI, type RoleUser } from '@chatto/api-client/roles';
   import { Panel, UserList } from '$lib/components/admin';
   import { Hint } from '$lib/ui';
   import { toast } from '$lib/ui/toast';

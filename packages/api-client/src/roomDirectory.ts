@@ -1,13 +1,14 @@
-import { Code, ConnectError, createClient } from '@connectrpc/connect';
-import { createConnectTransport } from '@connectrpc/connect-web';
-import { RoomDirectoryService } from '@chatto/api-types/api/v1/room_directory_connect';
+import { notifyAuthenticationRequired } from "./hooks.js";
+import { Code, ConnectError, createClient } from "@connectrpc/connect";
+import { createConnectTransport } from "@connectrpc/connect-web";
+import { RoomDirectoryService } from "@chatto/api-types/api/v1/room_directory_connect";
 import type {
   DirectoryRoom,
   RoomGroup,
-  RoomGroupItem
-} from '@chatto/api-types/api/v1/room_directory_pb';
-import { RoomDirectoryScope } from '@chatto/api-types/api/v1/room_directory_pb';
-import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
+  RoomGroupItem,
+} from "@chatto/api-types/api/v1/room_directory_pb";
+import { RoomDirectoryScope } from "@chatto/api-types/api/v1/room_directory_pb";
+import { RoomKind } from "@chatto/api-types/api/v1/rooms_pb";
 
 export type RoomDirectoryAPIConfig = {
   serverId?: string;
@@ -48,12 +49,12 @@ export type DirectorySidebarLink = {
 export type DirectoryRoomGroupItem =
   | {
       id: string;
-      type: 'room';
+      type: "room";
       roomId: string;
     }
   | {
       id: string;
-      type: 'link';
+      type: "link";
       link: DirectorySidebarLink;
     };
 
@@ -70,23 +71,37 @@ export { RoomKind };
 export function createRoomDirectoryAPI(config: RoomDirectoryAPIConfig) {
   const transport = createConnectTransport({
     baseUrl: config.baseUrl,
-    useBinaryFormat: true
+    useBinaryFormat: true,
   });
   const directory = createClient(RoomDirectoryService, transport);
   const headers = () =>
-    config.bearerToken ? { Authorization: `Bearer ${config.bearerToken}` } : undefined;
+    config.bearerToken
+      ? { Authorization: `Bearer ${config.bearerToken}` }
+      : undefined;
 
   async function handleAuthError(err: unknown): Promise<never> {
-    if (err instanceof ConnectError && err.code === Code.Unauthenticated && config.serverId) {
-      config.onAuthenticationRequired?.(config.serverId);
+    if (
+      err instanceof ConnectError &&
+      err.code === Code.Unauthenticated &&
+      config.serverId
+    ) {
+      notifyAuthenticationRequired(
+        config.serverId,
+        config.onAuthenticationRequired,
+      );
     }
     throw err;
   }
 
   return {
-    async listRooms(scope: RoomDirectoryScope): Promise<DirectoryRoomSummary[]> {
+    async listRooms(
+      scope: RoomDirectoryScope,
+    ): Promise<DirectoryRoomSummary[]> {
       try {
-        const response = await directory.listRooms({ scope }, { headers: headers() });
+        const response = await directory.listRooms(
+          { scope },
+          { headers: headers() },
+        );
         return response.rooms.flatMap((entry) => mapDirectoryRoom(entry) ?? []);
       } catch (err) {
         return handleAuthError(err);
@@ -95,7 +110,10 @@ export function createRoomDirectoryAPI(config: RoomDirectoryAPIConfig) {
 
     async getRoom(roomId: string): Promise<DirectoryRoomDetails | null> {
       try {
-        const response = await directory.getRoom({ roomId }, { headers: headers() });
+        const response = await directory.getRoom(
+          { roomId },
+          { headers: headers() },
+        );
         return mapDirectoryRoomDetails(response.room);
       } catch (err) {
         if (
@@ -110,18 +128,23 @@ export function createRoomDirectoryAPI(config: RoomDirectoryAPIConfig) {
 
     async listRoomGroups(): Promise<DirectoryRoomGroup[]> {
       try {
-        const response = await directory.listRoomGroups({}, { headers: headers() });
+        const response = await directory.listRoomGroups(
+          {},
+          { headers: headers() },
+        );
         return response.groups.map(mapRoomGroup);
       } catch (err) {
         return handleAuthError(err);
       }
-    }
+    },
   };
 }
 
 export type RoomDirectoryAPI = ReturnType<typeof createRoomDirectoryAPI>;
 
-function mapDirectoryRoomDetails(entry: DirectoryRoom | undefined): DirectoryRoomDetails | null {
+function mapDirectoryRoomDetails(
+  entry: DirectoryRoom | undefined,
+): DirectoryRoomDetails | null {
   const summary = entry ? mapDirectoryRoom(entry) : null;
   if (!summary) return null;
 
@@ -134,7 +157,7 @@ function mapDirectoryRoomDetails(entry: DirectoryRoom | undefined): DirectoryRoo
     canEchoMessage: entry?.viewerState?.canEchoMessage ?? false,
     canManageOthersMessage: entry?.viewerState?.canManageOthersMessage ?? false,
     canManageRoom: entry?.viewerState?.canManageRoom ?? false,
-    canBanRoomMembers: entry?.viewerState?.canBanRoomMembers ?? false
+    canBanRoomMembers: entry?.viewerState?.canBanRoomMembers ?? false,
   };
 }
 
@@ -149,7 +172,7 @@ function mapDirectoryRoom(entry: DirectoryRoom): DirectoryRoomSummary | null {
     isUniversal: entry.room.universal,
     isMember: entry.viewerState?.isMember ?? false,
     hasUnread: entry.viewerState?.hasUnread ?? false,
-    canJoinRoom: entry.viewerState?.canJoinRoom ?? false
+    canJoinRoom: entry.viewerState?.canJoinRoom ?? false,
   };
 }
 
@@ -158,7 +181,7 @@ function mapRoomGroup(group: RoomGroup): DirectoryRoomGroup {
     id: group.id,
     name: group.name,
     roomIds: uniqueRoomIds(group.rooms),
-    items: sidebarItemsFromAPI(group)
+    items: sidebarItemsFromAPI(group),
   };
 }
 
@@ -176,8 +199,8 @@ function sidebarItemsFromAPI(group: RoomGroup): DirectoryRoomGroupItem[] {
   if (group.items.length === 0) {
     return uniqueRoomIds(group.rooms).map((roomId) => ({
       id: `room:${roomId}`,
-      type: 'room',
-      roomId
+      type: "room",
+      roomId,
     }));
   }
 
@@ -185,19 +208,19 @@ function sidebarItemsFromAPI(group: RoomGroup): DirectoryRoomGroupItem[] {
 }
 
 function mapRoomGroupItem(item: RoomGroupItem): DirectoryRoomGroupItem | null {
-  if (item.item.case === 'room') {
+  if (item.item.case === "room") {
     const roomId = item.item.value.room?.id;
-    return roomId ? { id: `room:${roomId}`, type: 'room', roomId } : null;
+    return roomId ? { id: `room:${roomId}`, type: "room", roomId } : null;
   }
-  if (item.item.case === 'sidebarLink') {
+  if (item.item.case === "sidebarLink") {
     return {
       id: `link:${item.item.value.id}`,
-      type: 'link',
+      type: "link",
       link: {
         id: item.item.value.id,
         label: item.item.value.label,
-        url: item.item.value.url
-      }
+        url: item.item.value.url,
+      },
     };
   }
   return null;

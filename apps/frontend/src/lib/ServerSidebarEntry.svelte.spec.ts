@@ -115,15 +115,15 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
   }
 }));
 
-vi.mock('$lib/api/serverState', () => ({
+vi.mock('@chatto/api-client/serverState', () => ({
   getAuthenticatedServerState: mocks.getAuthenticatedServerState
 }));
 
-vi.mock('$lib/api/viewer', () => ({
+vi.mock('@chatto/api-client/viewer', () => ({
   getViewerStateViaConnect: mocks.getViewerStateViaConnect
 }));
 
-vi.mock('$lib/api/roomDirectory', () => ({
+vi.mock('@chatto/api-client/roomDirectory', () => ({
   RoomDirectoryScope: {
     CHANNELS: 2,
     DMS: 3

@@ -31,7 +31,7 @@ Contains the thread reply button, reaction pills, and an add-reaction button.
   import { toast } from '$lib/ui/toast';
   import FloatingTooltip from '$lib/ui/FloatingTooltip.svelte';
   import { getEmojiByName, getEmojiDisplayName } from '$lib/emoji';
-  import { createReactionAPI } from '$lib/api/reactions';
+  import { createReactionAPI } from '@chatto/api-client/reactions';
   import * as m from '$lib/i18n/messages';
 
   // Extract the MessagePostedEvent type from the union

@@ -1,4 +1,4 @@
-import { createReadStateAPI } from '$lib/api/readState';
+import { createReadStateAPI } from '@chatto/api-client/readState';
 import { useConnection } from '$lib/state/server/connection.svelte';
 import { serverRegistry } from '$lib/state/server/registry.svelte';
 import { getActiveServer } from '$lib/state/activeServer.svelte';

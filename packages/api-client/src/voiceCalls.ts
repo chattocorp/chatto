@@ -1,6 +1,6 @@
-import { createClient } from '@connectrpc/connect';
-import { createConnectTransport } from '@connectrpc/connect-web';
-import { VoiceCallService } from '@chatto/api-types/api/v1/voice_calls_connect';
+import { createClient } from "@connectrpc/connect";
+import { createConnectTransport } from "@connectrpc/connect-web";
+import { VoiceCallService } from "@chatto/api-types/api/v1/voice_calls_connect";
 
 export type VoiceCallAPIConfig = {
   baseUrl: string;
@@ -31,19 +31,27 @@ export type VoiceCallToken = {
 export function createVoiceCallAPI(config: VoiceCallAPIConfig) {
   const transport = createConnectTransport({
     baseUrl: config.baseUrl,
-    useBinaryFormat: true
+    useBinaryFormat: true,
   });
   const client = createClient(VoiceCallService, transport);
   const headers = () =>
-    config.bearerToken ? { Authorization: `Bearer ${config.bearerToken}` } : undefined;
+    config.bearerToken
+      ? { Authorization: `Bearer ${config.bearerToken}` }
+      : undefined;
 
   return {
     async listActiveCallRoomIds(): Promise<string[]> {
-      return (await client.listActiveCallRooms({}, { headers: headers() })).roomIds;
+      return (await client.listActiveCallRooms({}, { headers: headers() }))
+        .roomIds;
     },
 
-    async listCallParticipants(roomId: string): Promise<VoiceCallParticipant[]> {
-      const response = await client.listCallParticipants({ roomId }, { headers: headers() });
+    async listCallParticipants(
+      roomId: string,
+    ): Promise<VoiceCallParticipant[]> {
+      const response = await client.listCallParticipants(
+        { roomId },
+        { headers: headers() },
+      );
       return response.participants.flatMap((participant) => {
         const summary = participant.user?.user;
         if (!summary) return [];
@@ -54,11 +62,13 @@ export function createVoiceCallAPI(config: VoiceCallAPIConfig) {
               login: summary.login,
               displayName: summary.displayName,
               deleted: summary.deleted,
-              avatarUrl: summary.avatarUrl ?? null
+              avatarUrl: summary.avatarUrl ?? null,
             },
-            joinedAt: participant.joinedAt?.toDate().toISOString() ?? new Date(0).toISOString(),
-            callId: participant.callId
-          }
+            joinedAt:
+              participant.joinedAt?.toDate().toISOString() ??
+              new Date(0).toISOString(),
+            callId: participant.callId,
+          },
         ];
       });
     },
@@ -68,18 +78,21 @@ export function createVoiceCallAPI(config: VoiceCallAPIConfig) {
     },
 
     async getCallToken(roomId: string): Promise<VoiceCallToken | null> {
-      const response = await client.getCallToken({ roomId }, { headers: headers() });
+      const response = await client.getCallToken(
+        { roomId },
+        { headers: headers() },
+      );
       if (!response.token || !response.e2eeKey || !response.callId) return null;
       return {
         token: response.token,
         e2eeKey: response.e2eeKey,
-        callId: response.callId
+        callId: response.callId,
       };
     },
 
     async leaveCall(roomId: string): Promise<boolean> {
       return (await client.leaveCall({ roomId }, { headers: headers() })).left;
-    }
+    },
   };
 }
 

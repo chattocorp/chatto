@@ -1,6 +1,6 @@
-import { createClient } from '@connectrpc/connect';
-import { createConnectTransport } from '@connectrpc/connect-web';
-import { AdminPermissionService } from '@chatto/api-types/admin/v1/permissions_connect';
+import { createClient } from "@connectrpc/connect";
+import { createConnectTransport } from "@connectrpc/connect-web";
+import { AdminPermissionService } from "@chatto/api-types/admin/v1/permissions_connect";
 import {
   PermissionDecision,
   PermissionScopeKind,
@@ -9,8 +9,8 @@ import {
   type RolePermissionMatrix as APIRolePermissionMatrix,
   type TierRole as APITierRole,
   type TierRoles as APITierRoles,
-  type UserPermissionMatrix as APIUserPermissionMatrix
-} from '@chatto/api-types/admin/v1/permissions_pb';
+  type UserPermissionMatrix as APIUserPermissionMatrix,
+} from "@chatto/api-types/admin/v1/permissions_pb";
 
 export type PermissionAPIConfig = {
   baseUrl: string;
@@ -18,14 +18,14 @@ export type PermissionAPIConfig = {
   onAuthenticationRequired?: (serverId: string) => void;
 };
 
-export type PermissionState = 'allow' | 'deny' | 'neutral';
-export type MatrixDecision = 'ALLOW' | 'DENY' | 'NONE';
-export type MatrixScopeKind = 'SERVER' | 'GROUP' | 'ROOM';
+export type PermissionState = "allow" | "deny" | "neutral";
+export type MatrixDecision = "ALLOW" | "DENY" | "NONE";
+export type MatrixScopeKind = "SERVER" | "GROUP" | "ROOM";
 
 export type PermissionScope =
-  | { tier: 'server' }
-  | { tier: 'group'; groupId: string }
-  | { tier: 'room'; roomId: string };
+  | { tier: "server" }
+  | { tier: "group"; groupId: string }
+  | { tier: "room"; roomId: string };
 
 export type TierPermissions = {
   permissions: string[];
@@ -79,11 +79,13 @@ export type UserPermissionMatrix = MatrixData & {
 export function createPermissionAPI(config: PermissionAPIConfig) {
   const transport = createConnectTransport({
     baseUrl: config.baseUrl,
-    useBinaryFormat: true
+    useBinaryFormat: true,
   });
   const client = createClient(AdminPermissionService, transport);
   const headers = () =>
-    config.bearerToken ? { Authorization: `Bearer ${config.bearerToken}` } : undefined;
+    config.bearerToken
+      ? { Authorization: `Bearer ${config.bearerToken}` }
+      : undefined;
 
   return {
     async getRolePermissionTierMatrix(input: {
@@ -92,20 +94,30 @@ export function createPermissionAPI(config: PermissionAPIConfig) {
     }): Promise<TierRoles | null> {
       const response = await client.getRolePermissionTierMatrix(
         {
-          scope: apiTierMatrixScope(input)
+          scope: apiTierMatrixScope(input),
         },
-        { headers: headers() }
+        { headers: headers() },
       );
       return response.matrix ? tierRoles(response.matrix) : null;
     },
 
-    async getRolePermissionMatrix(roleName: string): Promise<RolePermissionMatrix | null> {
-      const response = await client.getRolePermissionMatrix({ roleName }, { headers: headers() });
+    async getRolePermissionMatrix(
+      roleName: string,
+    ): Promise<RolePermissionMatrix | null> {
+      const response = await client.getRolePermissionMatrix(
+        { roleName },
+        { headers: headers() },
+      );
       return response.matrix ? rolePermissionMatrix(response.matrix) : null;
     },
 
-    async getUserPermissionMatrix(userId: string): Promise<UserPermissionMatrix | null> {
-      const response = await client.getUserPermissionMatrix({ userId }, { headers: headers() });
+    async getUserPermissionMatrix(
+      userId: string,
+    ): Promise<UserPermissionMatrix | null> {
+      const response = await client.getUserPermissionMatrix(
+        { userId },
+        { headers: headers() },
+      );
       return response.matrix ? userPermissionMatrix(response.matrix) : null;
     },
 
@@ -120,9 +132,9 @@ export function createPermissionAPI(config: PermissionAPIConfig) {
           roleName: input.roleName,
           permission: input.permission,
           decision: apiDecision(input.state),
-          scope: apiScope(input.scope)
+          scope: apiScope(input.scope),
         },
-        { headers: headers() }
+        { headers: headers() },
       );
       return response.ok;
     },
@@ -138,12 +150,12 @@ export function createPermissionAPI(config: PermissionAPIConfig) {
           userId: input.userId,
           permission: input.permission,
           decision: apiDecision(input.state),
-          scope: apiScope(input.scope)
+          scope: apiScope(input.scope),
         },
-        { headers: headers() }
+        { headers: headers() },
       );
       return response.ok;
-    }
+    },
   };
 }
 
@@ -152,7 +164,7 @@ export type PermissionAPI = ReturnType<typeof createPermissionAPI>;
 function tierRoles(matrix: APITierRoles): TierRoles {
   return {
     applicablePermissions: [...matrix.applicablePermissions],
-    roles: matrix.roles.map(tierRole)
+    roles: matrix.roles.map(tierRole),
   };
 }
 
@@ -165,28 +177,32 @@ function tierRole(role: APITierRole): TierRole {
     position: role.position,
     override: {
       permissions: [...(role.override?.permissions ?? [])],
-      permissionDenials: [...(role.override?.permissionDenials ?? [])]
+      permissionDenials: [...(role.override?.permissionDenials ?? [])],
     },
     inheritedAllows: [...role.inheritedAllows],
-    inheritedDenials: [...role.inheritedDenials]
+    inheritedDenials: [...role.inheritedDenials],
   };
 }
 
-function rolePermissionMatrix(matrix: APIRolePermissionMatrix): RolePermissionMatrix {
+function rolePermissionMatrix(
+  matrix: APIRolePermissionMatrix,
+): RolePermissionMatrix {
   return {
     roleName: matrix.roleName,
     applicablePermissions: [...matrix.applicablePermissions],
     scopes: matrix.scopes.map(matrixScope),
-    cells: matrix.cells.map(matrixCell)
+    cells: matrix.cells.map(matrixCell),
   };
 }
 
-function userPermissionMatrix(matrix: APIUserPermissionMatrix): UserPermissionMatrix {
+function userPermissionMatrix(
+  matrix: APIUserPermissionMatrix,
+): UserPermissionMatrix {
   return {
     userId: matrix.userId,
     applicablePermissions: [...matrix.applicablePermissions],
     scopes: matrix.scopes.map(matrixScope),
-    cells: matrix.cells.map(matrixCell)
+    cells: matrix.cells.map(matrixCell),
   };
 }
 
@@ -195,7 +211,7 @@ function matrixScope(scope: APIPermissionMatrixScope): MatrixScope {
     id: scope.id,
     label: scope.label,
     kind: scopeKind(scope.kind),
-    parentGroupId: scope.parentGroupId
+    parentGroupId: scope.parentGroupId,
   };
 }
 
@@ -204,36 +220,39 @@ function matrixCell(cell: APIPermissionMatrixCell): MatrixCell {
     permission: cell.permission,
     scopeId: cell.scopeId,
     override: matrixDecision(cell.override),
-    effective: matrixDecision(cell.effective)
+    effective: matrixDecision(cell.effective),
   };
 }
 
 function scopeKind(kind: PermissionScopeKind): MatrixScopeKind {
-  if (kind === PermissionScopeKind.GROUP) return 'GROUP';
-  if (kind === PermissionScopeKind.ROOM) return 'ROOM';
-  return 'SERVER';
+  if (kind === PermissionScopeKind.GROUP) return "GROUP";
+  if (kind === PermissionScopeKind.ROOM) return "ROOM";
+  return "SERVER";
 }
 
 function matrixDecision(decision: PermissionDecision): MatrixDecision {
-  if (decision === PermissionDecision.ALLOW) return 'ALLOW';
-  if (decision === PermissionDecision.DENY) return 'DENY';
-  return 'NONE';
+  if (decision === PermissionDecision.ALLOW) return "ALLOW";
+  if (decision === PermissionDecision.DENY) return "DENY";
+  return "NONE";
 }
 
 function apiDecision(state: PermissionState): PermissionDecision {
-  if (state === 'allow') return PermissionDecision.ALLOW;
-  if (state === 'deny') return PermissionDecision.DENY;
+  if (state === "allow") return PermissionDecision.ALLOW;
+  if (state === "deny") return PermissionDecision.DENY;
   return PermissionDecision.NONE;
 }
 
-function apiScope(scope: PermissionScope): { kind: PermissionScopeKind; id: string } {
-  if (scope.tier === 'group') {
+function apiScope(scope: PermissionScope): {
+  kind: PermissionScopeKind;
+  id: string;
+} {
+  if (scope.tier === "group") {
     return { kind: PermissionScopeKind.GROUP, id: scope.groupId };
   }
-  if (scope.tier === 'room') {
+  if (scope.tier === "room") {
     return { kind: PermissionScopeKind.ROOM, id: scope.roomId };
   }
-  return { kind: PermissionScopeKind.SERVER, id: '' };
+  return { kind: PermissionScopeKind.SERVER, id: "" };
 }
 
 function apiTierMatrixScope(input: {
@@ -246,5 +265,5 @@ function apiTierMatrixScope(input: {
   if (input.groupId) {
     return { kind: PermissionScopeKind.GROUP, id: input.groupId };
   }
-  return { kind: PermissionScopeKind.SERVER, id: '' };
+  return { kind: PermissionScopeKind.SERVER, id: "" };
 }

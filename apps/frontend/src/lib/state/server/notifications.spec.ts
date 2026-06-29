@@ -8,7 +8,7 @@ import {
   NotificationItemKind,
   type NotificationAPI,
   type NotificationPage
-} from '$lib/api/notifications';
+} from '@chatto/api-client/notifications';
 
 type MockNotificationAPI = NotificationAPI & {
   listNotifications: ReturnType<typeof vi.fn>;

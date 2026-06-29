@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
-  import { createMemberDirectoryAPI, type DirectoryMember } from '$lib/api/memberDirectory';
+  import { createMemberDirectoryAPI, type DirectoryMember } from '@chatto/api-client/memberDirectory';
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { Combobox } from '$lib/ui/form';
   import SkeletonImg from '$lib/ui/SkeletonImg.svelte';

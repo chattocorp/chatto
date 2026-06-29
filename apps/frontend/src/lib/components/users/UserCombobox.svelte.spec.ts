@@ -14,7 +14,7 @@ vi.mock('$lib/state/server/connection.svelte', () => ({
   })
 }));
 
-vi.mock('$lib/api/memberDirectory', () => ({
+vi.mock('@chatto/api-client/memberDirectory', () => ({
   createMemberDirectoryAPI: () => ({
     listServerMembers: mocks.listServerMembers
   })

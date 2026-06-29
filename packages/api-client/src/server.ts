@@ -1,6 +1,6 @@
-import { createClient } from '@connectrpc/connect';
-import { createConnectTransport } from '@connectrpc/connect-web';
-import { ServerDiscoveryService } from '@chatto/api-types/api/v1/server_connect';
+import { createClient } from "@connectrpc/connect";
+import { createConnectTransport } from "@connectrpc/connect-web";
+import { ServerDiscoveryService } from "@chatto/api-types/api/v1/server_connect";
 
 export type PublicAuthProvider = {
   id: string;
@@ -24,10 +24,10 @@ export type PublicServerInfo = {
 
 export async function getPublicServerInfo(
   baseUrl: string,
-  options: { signal?: AbortSignal } = {}
+  options: { signal?: AbortSignal } = {},
 ): Promise<PublicServerInfo> {
   const transport = createConnectTransport({
-    baseUrl: new URL('/api/connect', baseUrl).toString()
+    baseUrl: new URL("/api/connect", baseUrl).toString(),
   });
   const client = createClient(ServerDiscoveryService, transport);
   const response = await client.getServer({}, { signal: options.signal });
@@ -46,7 +46,7 @@ export async function getPublicServerInfo(
       id: provider.id,
       type: provider.type,
       label: provider.label,
-      loginUrl: provider.loginUrl
-    }))
+      loginUrl: provider.loginUrl,
+    })),
   };
 }

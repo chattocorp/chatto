@@ -1,9 +1,9 @@
 <script lang="ts">
   import { onDestroy, tick, untrack } from 'svelte';
   import type { RoomEventView } from '$lib/render/types';
-  import { createMessageAPI } from '$lib/api/messages';
-  import { createLinkPreviewAPI } from '$lib/api/linkPreviews';
-  import { createRoleAPI } from '$lib/api/roles';
+  import { createMessageAPI } from '@chatto/api-client/messages';
+  import { createLinkPreviewAPI } from '@chatto/api-client/linkPreviews';
+  import { createRoleAPI } from '@chatto/api-client/roles';
   import * as m from '$lib/i18n/messages';
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';

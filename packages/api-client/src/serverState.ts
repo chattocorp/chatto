@@ -1,7 +1,7 @@
-import { createClient } from '@connectrpc/connect';
-import { createConnectTransport } from '@connectrpc/connect-web';
-import { AdminServerService } from '@chatto/api-types/admin/v1/server_connect';
-import { ServerService } from '@chatto/api-types/api/v1/server_state_connect';
+import { createClient } from "@connectrpc/connect";
+import { createConnectTransport } from "@connectrpc/connect-web";
+import { AdminServerService } from "@chatto/api-types/admin/v1/server_connect";
+import { ServerService } from "@chatto/api-types/api/v1/server_state_connect";
 
 export type ServerStateAPIConfig = {
   baseUrl: string;
@@ -53,7 +53,7 @@ export type ServerSecurityConfig = {
 function serverClients(config: ServerStateAPIConfig) {
   const transport = createConnectTransport({
     baseUrl: config.baseUrl,
-    useBinaryFormat: true
+    useBinaryFormat: true,
   });
   const server = createClient(ServerService, transport);
   const adminServer = createClient(AdminServerService, transport);
@@ -64,13 +64,13 @@ function serverClients(config: ServerStateAPIConfig) {
 }
 
 export async function getAuthenticatedServerState(
-  config: ServerStateAPIConfig
+  config: ServerStateAPIConfig,
 ): Promise<AuthenticatedServerState> {
   const { server, headers } = serverClients(config);
   const response = await server.getServerState({}, { headers });
 
   return {
-    name: response.profile?.name || 'Chatto',
+    name: response.profile?.name || "Chatto",
     logoUrl: response.profile?.logoUrl ?? null,
     bannerUrl: response.profile?.bannerUrl ?? null,
     welcomeMessage: response.profile?.welcomeMessage ?? null,
@@ -83,17 +83,19 @@ export async function getAuthenticatedServerState(
     maxUploadSize: Number(response.maxUploadSize),
     maxVideoUploadSize: Number(response.maxVideoUploadSize),
     messageEditWindowSeconds: response.messageEditWindowSeconds,
-    viewerHasAnyAdminPermission: response.viewerCapabilities?.hasAnyAdminPermission ?? false,
-    viewerCanManageServer: response.viewerCapabilities?.canManageServer ?? false,
+    viewerHasAnyAdminPermission:
+      response.viewerCapabilities?.hasAnyAdminPermission ?? false,
+    viewerCanManageServer:
+      response.viewerCapabilities?.canManageServer ?? false,
     viewerCanCreateRoom: response.viewerCapabilities?.canCreateRoom ?? false,
     viewerCanManageRooms: response.viewerCapabilities?.canManageRooms ?? false,
-    viewerHasUnreadRooms: response.viewerCapabilities?.hasUnreadRooms ?? false
+    viewerHasUnreadRooms: response.viewerCapabilities?.hasUnreadRooms ?? false,
   };
 }
 
 export async function updateServerConfig(
   config: ServerStateAPIConfig,
-  input: EditableServerConfig
+  input: EditableServerConfig,
 ): Promise<EditableServerProfile> {
   const { adminServer, headers } = serverClients(config);
   const response = await adminServer.updateServerConfig(
@@ -101,9 +103,9 @@ export async function updateServerConfig(
       serverName: input.name,
       description: input.description,
       motd: input.motd,
-      welcomeMessage: input.welcomeMessage
+      welcomeMessage: input.welcomeMessage,
     },
-    { headers }
+    { headers },
   );
 
   return editableServerProfile(response.profile);
@@ -111,22 +113,22 @@ export async function updateServerConfig(
 
 export async function uploadServerLogo(
   config: ServerStateAPIConfig,
-  file: File
+  file: File,
 ): Promise<EditableServerProfile> {
   const { adminServer, headers } = serverClients(config);
   const response = await adminServer.uploadServerLogo(
     {
       image: new Uint8Array(await file.arrayBuffer()),
       filename: file.name,
-      contentType: file.type
+      contentType: file.type,
     },
-    { headers }
+    { headers },
   );
   return editableServerProfile(response.profile);
 }
 
 export async function deleteServerLogo(
-  config: ServerStateAPIConfig
+  config: ServerStateAPIConfig,
 ): Promise<EditableServerProfile> {
   const { adminServer, headers } = serverClients(config);
   const response = await adminServer.deleteServerLogo({}, { headers });
@@ -135,22 +137,22 @@ export async function deleteServerLogo(
 
 export async function uploadServerBanner(
   config: ServerStateAPIConfig,
-  file: File
+  file: File,
 ): Promise<EditableServerProfile> {
   const { adminServer, headers } = serverClients(config);
   const response = await adminServer.uploadServerBanner(
     {
       image: new Uint8Array(await file.arrayBuffer()),
       filename: file.name,
-      contentType: file.type
+      contentType: file.type,
     },
-    { headers }
+    { headers },
   );
   return editableServerProfile(response.profile);
 }
 
 export async function deleteServerBanner(
-  config: ServerStateAPIConfig
+  config: ServerStateAPIConfig,
 ): Promise<EditableServerProfile> {
   const { adminServer, headers } = serverClients(config);
   const response = await adminServer.deleteServerBanner({}, { headers });
@@ -158,42 +160,48 @@ export async function deleteServerBanner(
 }
 
 export async function getServerSecurityConfig(
-  config: ServerStateAPIConfig
+  config: ServerStateAPIConfig,
 ): Promise<ServerSecurityConfig> {
   const { adminServer, headers } = serverClients(config);
   const response = await adminServer.getServerSecurityConfig({}, { headers });
   return {
-    blockedUsernames: response.blockedUsernames
+    blockedUsernames: response.blockedUsernames,
   };
 }
 
 export async function updateBlockedUsernames(
   config: ServerStateAPIConfig,
-  blockedUsernames: string
+  blockedUsernames: string,
 ): Promise<ServerSecurityConfig> {
   const { adminServer, headers } = serverClients(config);
-  const response = await adminServer.updateBlockedUsernames({ blockedUsernames }, { headers });
+  const response = await adminServer.updateBlockedUsernames(
+    { blockedUsernames },
+    { headers },
+  );
   return {
-    blockedUsernames: response.blockedUsernames
+    blockedUsernames: response.blockedUsernames,
   };
 }
 
 function editableServerProfile(
-  profile: {
-    name?: string;
-    logoUrl?: string;
-    bannerUrl?: string;
-    welcomeMessage?: string;
-    description?: string;
-    motd?: string;
-  } | null | undefined
+  profile:
+    | {
+        name?: string;
+        logoUrl?: string;
+        bannerUrl?: string;
+        welcomeMessage?: string;
+        description?: string;
+        motd?: string;
+      }
+    | null
+    | undefined,
 ): EditableServerProfile {
   return {
-    name: profile?.name || 'Chatto',
+    name: profile?.name || "Chatto",
     logoUrl: profile?.logoUrl ?? null,
     bannerUrl: profile?.bannerUrl ?? null,
     welcomeMessage: profile?.welcomeMessage ?? null,
     description: profile?.description ?? null,
-    motd: profile?.motd ?? null
+    motd: profile?.motd ?? null,
   };
 }

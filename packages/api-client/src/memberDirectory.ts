@@ -1,9 +1,9 @@
-import { createClient } from '@connectrpc/connect';
-import { createConnectTransport } from '@connectrpc/connect-web';
-import { MemberDirectoryService } from '@chatto/api-types/api/v1/member_directory_connect';
-import type { DirectoryMember as APIDirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
-import { PresenceStatus as APIPresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
-import { PresenceStatus } from './renderTypes.js';
+import { createClient } from "@connectrpc/connect";
+import { createConnectTransport } from "@connectrpc/connect-web";
+import { MemberDirectoryService } from "@chatto/api-types/api/v1/member_directory_connect";
+import type { DirectoryMember as APIDirectoryMember } from "@chatto/api-types/api/v1/member_directory_pb";
+import { PresenceStatus as APIPresenceStatus } from "@chatto/api-types/api/v1/presence_pb";
+import { PresenceStatus } from "./renderTypes.js";
 
 export type MemberDirectoryAPIConfig = {
   baseUrl: string;
@@ -36,65 +36,76 @@ export type MemberDirectoryPage = {
 export function createMemberDirectoryAPI(config: MemberDirectoryAPIConfig) {
   const transport = createConnectTransport({
     baseUrl: config.baseUrl,
-    useBinaryFormat: true
+    useBinaryFormat: true,
   });
   const client = createClient(MemberDirectoryService, transport);
   const headers = () =>
-    config.bearerToken ? { Authorization: `Bearer ${config.bearerToken}` } : undefined;
+    config.bearerToken
+      ? { Authorization: `Bearer ${config.bearerToken}` }
+      : undefined;
 
   return {
-    async listServerMembers(search = '', limit = 20, offset = 0): Promise<MemberDirectoryPage> {
+    async listServerMembers(
+      search = "",
+      limit = 20,
+      offset = 0,
+    ): Promise<MemberDirectoryPage> {
       const response = await client.listServerMembers(
         { search, page: { limit, offset } },
-        { headers: headers() }
+        { headers: headers() },
       );
       return {
         members: response.members.map(mapDirectoryMember),
         totalCount: Number(response.page?.totalCount ?? 0),
-        hasMore: response.page?.hasMore ?? false
+        hasMore: response.page?.hasMore ?? false,
       };
     },
 
     async listRoomMembers(
       roomId: string,
-      search = '',
+      search = "",
       limit = 20,
-      offset = 0
+      offset = 0,
     ): Promise<MemberDirectoryPage> {
       const response = await client.listRoomMembers(
         { roomId, search, page: { limit, offset } },
-        { headers: headers() }
+        { headers: headers() },
       );
       return {
         members: response.members.map(mapDirectoryMember),
         totalCount: Number(response.page?.totalCount ?? 0),
-        hasMore: response.page?.hasMore ?? false
+        hasMore: response.page?.hasMore ?? false,
       };
-    }
+    },
   };
 }
 
 export type MemberDirectoryAPI = ReturnType<typeof createMemberDirectoryAPI>;
 
-export function mapDirectoryMember(member: APIDirectoryMember): DirectoryMember {
+export function mapDirectoryMember(
+  member: APIDirectoryMember,
+): DirectoryMember {
   const profile = member.profile;
   const summary = profile?.user;
   return {
-    id: summary?.id ?? '',
-    login: summary?.login ?? '',
-    displayName: summary?.displayName ?? '',
+    id: summary?.id ?? "",
+    login: summary?.login ?? "",
+    displayName: summary?.displayName ?? "",
     deleted: summary?.deleted ?? false,
     avatarUrl: summary?.avatarUrl ?? null,
-    presenceStatus: apiPresenceStatus(profile?.presenceStatus ?? APIPresenceStatus.UNSPECIFIED),
+    presenceStatus: apiPresenceStatus(
+      profile?.presenceStatus ?? APIPresenceStatus.UNSPECIFIED,
+    ),
     customStatus: profile?.customStatus
       ? {
           emoji: profile.customStatus.emoji,
           text: profile.customStatus.text,
-          expiresAt: profile.customStatus.expiresAt?.toDate().toISOString() ?? null
+          expiresAt:
+            profile.customStatus.expiresAt?.toDate().toISOString() ?? null,
         }
       : null,
     roles: [...member.roles],
-    createdAt: member.createdAt?.toDate().toISOString() ?? null
+    createdAt: member.createdAt?.toDate().toISOString() ?? null,
   };
 }
 

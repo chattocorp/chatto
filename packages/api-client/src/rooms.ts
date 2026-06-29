@@ -1,9 +1,13 @@
-import { Code, ConnectError, createClient } from '@connectrpc/connect';
-import { createConnectTransport } from '@connectrpc/connect-web';
-import { Timestamp } from '@bufbuild/protobuf';
-import { RoomService } from '@chatto/api-types/api/v1/rooms_connect';
-import type { Room, RoomBan as APIRoomBan } from '@chatto/api-types/api/v1/rooms_pb';
-import { mapDirectoryMember, type DirectoryMember } from './memberDirectory.js';
+import { notifyAuthenticationRequired } from "./hooks.js";
+import { Code, ConnectError, createClient } from "@connectrpc/connect";
+import { createConnectTransport } from "@connectrpc/connect-web";
+import { Timestamp } from "@bufbuild/protobuf";
+import { RoomService } from "@chatto/api-types/api/v1/rooms_connect";
+import type {
+  Room,
+  RoomBan as APIRoomBan,
+} from "@chatto/api-types/api/v1/rooms_pb";
+import { mapDirectoryMember, type DirectoryMember } from "./memberDirectory.js";
 
 export type ConnectAPIConfig = {
   serverId?: string;
@@ -53,7 +57,7 @@ function publicRoom(room: Room | undefined): PublicRoom | null {
     description: room.description,
     archived: room.archived,
     groupId: room.groupId,
-    universal: room.universal
+    universal: room.universal,
   };
 }
 
@@ -68,18 +72,26 @@ function roomBan(ban: APIRoomBan): RoomBanSummary {
     moderator: ban.moderator ? mapDirectoryMember(ban.moderator) : null,
     reason: ban.reason,
     createdAt: ban.createdAt?.toDate().toISOString() ?? null,
-    expiresAt: ban.expiresAt?.toDate().toISOString() ?? null
+    expiresAt: ban.expiresAt?.toDate().toISOString() ?? null,
   };
 }
 
-function roomValidationError(err: unknown, input: { name: string; description?: string | null }) {
-  if (!(err instanceof ConnectError) || err.code !== Code.InvalidArgument) return err;
+function roomValidationError(
+  err: unknown,
+  input: { name: string; description?: string | null },
+) {
+  if (!(err instanceof ConnectError) || err.code !== Code.InvalidArgument)
+    return err;
 
   if (input.name.length > ROOM_NAME_MAX_LENGTH) {
-    return new Error(`room name must be ${ROOM_NAME_MAX_LENGTH} characters or less`);
+    return new Error(
+      `room name must be ${ROOM_NAME_MAX_LENGTH} characters or less`,
+    );
   }
-  if ((input.description ?? '').length > ROOM_DESCRIPTION_MAX_LENGTH) {
-    return new Error(`room description must be ${ROOM_DESCRIPTION_MAX_LENGTH} characters or less`);
+  if ((input.description ?? "").length > ROOM_DESCRIPTION_MAX_LENGTH) {
+    return new Error(
+      `room description must be ${ROOM_DESCRIPTION_MAX_LENGTH} characters or less`,
+    );
   }
 
   return err;
@@ -88,15 +100,24 @@ function roomValidationError(err: unknown, input: { name: string; description?: 
 export function createRoomCommandAPI(config: ConnectAPIConfig) {
   const transport = createConnectTransport({
     baseUrl: config.baseUrl,
-    useBinaryFormat: true
+    useBinaryFormat: true,
   });
   const rooms = createClient(RoomService, transport);
   const headers = () =>
-    config.bearerToken ? { Authorization: `Bearer ${config.bearerToken}` } : undefined;
+    config.bearerToken
+      ? { Authorization: `Bearer ${config.bearerToken}` }
+      : undefined;
 
   async function handleAuthError(err: unknown): Promise<never> {
-    if (err instanceof ConnectError && err.code === Code.Unauthenticated && config.serverId) {
-      config.onAuthenticationRequired?.(config.serverId);
+    if (
+      err instanceof ConnectError &&
+      err.code === Code.Unauthenticated &&
+      config.serverId
+    ) {
+      notifyAuthenticationRequired(
+        config.serverId,
+        config.onAuthenticationRequired,
+      );
     }
     throw err;
   }
@@ -112,11 +133,11 @@ export function createRoomCommandAPI(config: ConnectAPIConfig) {
         const response = await rooms.createRoom(
           {
             name: input.name,
-            description: input.description ?? '',
+            description: input.description ?? "",
             groupId: input.groupId,
-            universal: input.universal ?? false
+            universal: input.universal ?? false,
           },
-          { headers: headers() }
+          { headers: headers() },
         );
         return publicRoom(response.room);
       } catch (err) {
@@ -134,9 +155,9 @@ export function createRoomCommandAPI(config: ConnectAPIConfig) {
           {
             roomId: input.roomId,
             name: input.name,
-            description: input.description ?? ''
+            description: input.description ?? "",
           },
-          { headers: headers() }
+          { headers: headers() },
         );
         return publicRoom(response.room);
       } catch (err) {
@@ -146,7 +167,10 @@ export function createRoomCommandAPI(config: ConnectAPIConfig) {
 
     async archiveRoom(roomId: string): Promise<PublicRoom | null> {
       try {
-        const response = await rooms.archiveRoom({ roomId }, { headers: headers() });
+        const response = await rooms.archiveRoom(
+          { roomId },
+          { headers: headers() },
+        );
         return publicRoom(response.room);
       } catch (err) {
         return handleAuthError(err);
@@ -155,18 +179,24 @@ export function createRoomCommandAPI(config: ConnectAPIConfig) {
 
     async unarchiveRoom(roomId: string): Promise<PublicRoom | null> {
       try {
-        const response = await rooms.unarchiveRoom({ roomId }, { headers: headers() });
+        const response = await rooms.unarchiveRoom(
+          { roomId },
+          { headers: headers() },
+        );
         return publicRoom(response.room);
       } catch (err) {
         return handleAuthError(err);
       }
     },
 
-    async setRoomUniversal(roomId: string, universal: boolean): Promise<PublicRoom | null> {
+    async setRoomUniversal(
+      roomId: string,
+      universal: boolean,
+    ): Promise<PublicRoom | null> {
       try {
         const response = await rooms.setRoomUniversal(
           { roomId, universal },
-          { headers: headers() }
+          { headers: headers() },
         );
         return publicRoom(response.room);
       } catch (err) {
@@ -176,7 +206,10 @@ export function createRoomCommandAPI(config: ConnectAPIConfig) {
 
     async joinRoom(roomId: string): Promise<PublicRoom | null> {
       try {
-        const response = await rooms.joinRoom({ roomId }, { headers: headers() });
+        const response = await rooms.joinRoom(
+          { roomId },
+          { headers: headers() },
+        );
         return publicRoom(response.room);
       } catch (err) {
         return handleAuthError(err);
@@ -185,7 +218,10 @@ export function createRoomCommandAPI(config: ConnectAPIConfig) {
 
     async startDM(participantIds: string[]): Promise<PublicRoom | null> {
       try {
-        const response = await rooms.startDM({ participantIds }, { headers: headers() });
+        const response = await rooms.startDM(
+          { participantIds },
+          { headers: headers() },
+        );
         return publicRoom(response.room);
       } catch (err) {
         return handleAuthError(err);
@@ -194,26 +230,31 @@ export function createRoomCommandAPI(config: ConnectAPIConfig) {
 
     async leaveRoom(roomId: string): Promise<boolean> {
       try {
-        const response = await rooms.leaveRoom({ roomId }, { headers: headers() });
+        const response = await rooms.leaveRoom(
+          { roomId },
+          { headers: headers() },
+        );
         return response.left;
       } catch (err) {
         return handleAuthError(err);
       }
     },
 
-    async listRoomBans(input: { roomId?: string; limit?: number; offset?: number } = {}): Promise<RoomBanList> {
+    async listRoomBans(
+      input: { roomId?: string; limit?: number; offset?: number } = {},
+    ): Promise<RoomBanList> {
       try {
         const response = await rooms.listRoomBans(
           {
-            roomId: input.roomId ?? '',
-            page: { limit: input.limit ?? 100, offset: input.offset ?? 0 }
+            roomId: input.roomId ?? "",
+            page: { limit: input.limit ?? 100, offset: input.offset ?? 0 },
           },
-          { headers: headers() }
+          { headers: headers() },
         );
         return {
           bans: response.bans.map(roomBan),
           totalCount: Number(response.page?.totalCount ?? 0),
-          hasMore: response.page?.hasMore ?? false
+          hasMore: response.page?.hasMore ?? false,
         };
       } catch (err) {
         return handleAuthError(err);
@@ -222,7 +263,10 @@ export function createRoomCommandAPI(config: ConnectAPIConfig) {
 
     async joinGroup(groupId: string): Promise<string[]> {
       try {
-        const response = await rooms.joinRoomGroup({ groupId }, { headers: headers() });
+        const response = await rooms.joinRoomGroup(
+          { groupId },
+          { headers: headers() },
+        );
         return response.joinedRoomIds;
       } catch (err) {
         return handleAuthError(err);
@@ -241,9 +285,11 @@ export function createRoomCommandAPI(config: ConnectAPIConfig) {
             roomId: input.roomId,
             userId: input.userId,
             reason: input.reason,
-            expiresAt: input.expiresAt ? Timestamp.fromDate(new Date(input.expiresAt)) : undefined
+            expiresAt: input.expiresAt
+              ? Timestamp.fromDate(new Date(input.expiresAt))
+              : undefined,
           },
-          { headers: headers() }
+          { headers: headers() },
         );
         return response.banned;
       } catch (err) {
@@ -257,11 +303,13 @@ export function createRoomCommandAPI(config: ConnectAPIConfig) {
       reason: string;
     }): Promise<boolean> {
       try {
-        const response = await rooms.unbanRoomMember(input, { headers: headers() });
+        const response = await rooms.unbanRoomMember(input, {
+          headers: headers(),
+        });
         return response.unbanned;
       } catch (err) {
         return handleAuthError(err);
       }
-    }
+    },
   };
 }

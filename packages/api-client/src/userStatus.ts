@@ -1,7 +1,8 @@
-import { Code, ConnectError, createClient } from '@connectrpc/connect';
-import { Timestamp } from '@bufbuild/protobuf';
-import { createConnectTransport } from '@connectrpc/connect-web';
-import { AccountService } from '@chatto/api-types/api/v1/account_connect';
+import { notifyAuthenticationRequired } from "./hooks.js";
+import { Code, ConnectError, createClient } from "@connectrpc/connect";
+import { Timestamp } from "@bufbuild/protobuf";
+import { createConnectTransport } from "@connectrpc/connect-web";
+import { AccountService } from "@chatto/api-types/api/v1/account_connect";
 
 export type CustomUserStatusAPIConfig = {
   serverId: string;
@@ -22,7 +23,7 @@ export async function setCustomStatus(
     emoji: string;
     text: string;
     expiresAt?: string | null;
-  }
+  },
 ): Promise<CustomUserStatus | null> {
   const client = createUserStatusClient(config);
   try {
@@ -30,9 +31,11 @@ export async function setCustomStatus(
       {
         emoji: input.emoji,
         text: input.text,
-        expiresAt: input.expiresAt ? Timestamp.fromDate(new Date(input.expiresAt)) : undefined
+        expiresAt: input.expiresAt
+          ? Timestamp.fromDate(new Date(input.expiresAt))
+          : undefined,
       },
-      { headers: headers(config) }
+      { headers: headers(config) },
     );
     return apiStatus(response.status);
   } catch (err) {
@@ -41,11 +44,14 @@ export async function setCustomStatus(
 }
 
 export async function clearCustomStatus(
-  config: CustomUserStatusAPIConfig
+  config: CustomUserStatusAPIConfig,
 ): Promise<CustomUserStatus | null> {
   const client = createUserStatusClient(config);
   try {
-    const response = await client.clearCustomStatus({}, { headers: headers(config) });
+    const response = await client.clearCustomStatus(
+      {},
+      { headers: headers(config) },
+    );
     return apiStatus(response.status);
   } catch (err) {
     handleAuthError(config, err);
@@ -55,31 +61,45 @@ export async function clearCustomStatus(
 function createUserStatusClient(config: CustomUserStatusAPIConfig) {
   const transport = createConnectTransport({
     baseUrl: config.baseUrl,
-    useBinaryFormat: true
+    useBinaryFormat: true,
   });
   return createClient(AccountService, transport);
 }
 
 function headers(config: CustomUserStatusAPIConfig) {
-  return config.bearerToken ? { Authorization: `Bearer ${config.bearerToken}` } : undefined;
+  return config.bearerToken
+    ? { Authorization: `Bearer ${config.bearerToken}` }
+    : undefined;
 }
 
-function handleAuthError(config: CustomUserStatusAPIConfig, err: unknown): never {
+function handleAuthError(
+  config: CustomUserStatusAPIConfig,
+  err: unknown,
+): never {
   if (err instanceof ConnectError && err.code === Code.Unauthenticated) {
-    config.onAuthenticationRequired?.(config.serverId);
+    notifyAuthenticationRequired(
+      config.serverId,
+      config.onAuthenticationRequired,
+    );
   }
   throw err;
 }
 
-function apiStatus(status: {
-  emoji: string;
-  text: string;
-  expiresAt?: { toDate(): Date };
-} | undefined): CustomUserStatus | null {
+function apiStatus(
+  status:
+    | {
+        emoji: string;
+        text: string;
+        expiresAt?: { toDate(): Date };
+      }
+    | undefined,
+): CustomUserStatus | null {
   if (!status) return null;
   return {
     emoji: status.emoji,
     text: status.text,
-    expiresAt: status.expiresAt ? status.expiresAt.toDate().toISOString() : null
+    expiresAt: status.expiresAt
+      ? status.expiresAt.toDate().toISOString()
+      : null,
   };
 }

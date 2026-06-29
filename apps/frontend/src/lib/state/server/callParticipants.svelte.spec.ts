@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { VoiceCallAPI, VoiceCallParticipant } from '$lib/api/voiceCalls';
+import type { VoiceCallAPI, VoiceCallParticipant } from '@chatto/api-client/voiceCalls';
 import { CallParticipantsState } from './callParticipants.svelte';
 
 function deferred<T>() {

@@ -104,21 +104,21 @@ vi.mock('$lib/ui/toast', () => ({
   }
 }));
 
-vi.mock('$lib/api/rooms', () => ({
+vi.mock('@chatto/api-client/rooms', () => ({
   createRoomCommandAPI: vi.fn(() => ({
     startDM: mocks.startDM
   }))
 }));
 
-vi.mock('$lib/api/memberDirectory', () => ({
+vi.mock('@chatto/api-client/memberDirectory', () => ({
   createMemberDirectoryAPI: vi.fn(() => ({
     listRoomMembers: mocks.listRoomMembers,
     listServerMembers: mocks.listServerMembers
   }))
 }));
 
-vi.mock('$lib/api/roomDirectory', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('$lib/api/roomDirectory')>();
+vi.mock('@chatto/api-client/roomDirectory', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@chatto/api-client/roomDirectory')>();
   return {
     ...actual,
     createRoomDirectoryAPI: vi.fn(() => ({

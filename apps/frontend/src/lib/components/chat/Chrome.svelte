@@ -4,8 +4,8 @@
   import { page } from '$app/state';
   import { Code, ConnectError } from '@connectrpc/connect';
   import { untrack } from 'svelte';
-  import { getAuthenticatedServerState } from '$lib/api/serverState';
-  import { getViewerStateViaConnect } from '$lib/api/viewer';
+  import { getAuthenticatedServerState } from '@chatto/api-client/serverState';
+  import { getViewerStateViaConnect } from '@chatto/api-client/viewer';
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { serverIdToSegment } from '$lib/navigation';

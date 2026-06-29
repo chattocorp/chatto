@@ -2,7 +2,7 @@ import { SvelteMap } from 'svelte/reactivity';
 import { onTypingEvent, type TypingEventData } from '$lib/eventBus.svelte';
 import { useConnection } from '$lib/state/server/connection.svelte';
 import { getActiveServer } from '$lib/state/activeServer.svelte';
-import { createMessageAPI } from '$lib/api/messages';
+import { createMessageAPI } from '@chatto/api-client/messages';
 
 /** How long to display typing indicator after receiving an event (ms) */
 export const TYPING_TIMEOUT_MS = 6000;

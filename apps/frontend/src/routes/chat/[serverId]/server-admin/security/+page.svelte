@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { getServerSecurityConfig, updateBlockedUsernames } from '$lib/api/serverState';
+  import { getServerSecurityConfig, updateBlockedUsernames } from '@chatto/api-client/serverState';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import { TextArea, Button } from '$lib/ui/form';

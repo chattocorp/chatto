@@ -1,4 +1,4 @@
-import { createPresenceAPI, APIPresenceStatus, type PresenceAPIConfig } from '$lib/api/presence';
+import { createPresenceAPI, APIPresenceStatus, type PresenceAPIConfig } from '@chatto/api-client/presence';
 import { PresenceStatus } from '$lib/render/types';
 import { presencePreference, type PresenceMode } from '$lib/state/presencePreference.svelte';
 

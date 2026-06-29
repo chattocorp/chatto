@@ -2,7 +2,7 @@ import { serverConnectionManager } from '$lib/state/server/serverConnection.svel
 import { goto } from '$app/navigation';
 import { resolve } from '$app/paths';
 import { serverIdToSegment } from '$lib/navigation';
-import { createRoomCommandAPI } from '$lib/api/rooms';
+import { createRoomCommandAPI } from '@chatto/api-client/rooms';
 
 /**
  * Start a DM conversation with a user and navigate to it.

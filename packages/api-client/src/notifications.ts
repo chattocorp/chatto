@@ -1,14 +1,14 @@
-import { createClient } from '@connectrpc/connect';
-import { createConnectTransport } from '@connectrpc/connect-web';
-import { NotificationService } from '@chatto/api-types/api/v1/notifications_connect';
+import { createClient } from "@connectrpc/connect";
+import { createConnectTransport } from "@connectrpc/connect-web";
+import { NotificationService } from "@chatto/api-types/api/v1/notifications_connect";
 import type {
   ListRoomNotificationsResponse,
   ListNotificationsResponse,
-  NotificationItem as APINotificationItem
-} from '@chatto/api-types/api/v1/notifications_pb';
-import type { UserProfile as APIUserProfile } from '@chatto/api-types/api/v1/users_pb';
-import { PresenceStatus as APIPresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
-import { PresenceStatus } from './renderTypes.js';
+  NotificationItem as APINotificationItem,
+} from "@chatto/api-types/api/v1/notifications_pb";
+import type { UserProfile as APIUserProfile } from "@chatto/api-types/api/v1/users_pb";
+import { PresenceStatus as APIPresenceStatus } from "@chatto/api-types/api/v1/presence_pb";
+import { PresenceStatus } from "./renderTypes.js";
 
 export type NotificationAPIConfig = {
   baseUrl: string;
@@ -31,13 +31,14 @@ export type NotificationActor = {
 };
 
 export const NotificationItemKind = {
-  DirectMessage: 'directMessage',
-  Mention: 'mention',
-  Reply: 'reply',
-  RoomMessage: 'roomMessage'
+  DirectMessage: "directMessage",
+  Mention: "mention",
+  Reply: "reply",
+  RoomMessage: "roomMessage",
 } as const;
 
-export type NotificationItemKind = (typeof NotificationItemKind)[keyof typeof NotificationItemKind];
+export type NotificationItemKind =
+  (typeof NotificationItemKind)[keyof typeof NotificationItemKind];
 
 export type DirectMessageNotificationItem = {
   kind: typeof NotificationItemKind.DirectMessage;
@@ -97,50 +98,75 @@ export type NotificationPage = {
 export function createNotificationAPI(config: NotificationAPIConfig) {
   const transport = createConnectTransport({
     baseUrl: config.baseUrl,
-    useBinaryFormat: true
+    useBinaryFormat: true,
   });
   const client = createClient(NotificationService, transport);
   const headers = () =>
-    config.bearerToken ? { Authorization: `Bearer ${config.bearerToken}` } : undefined;
+    config.bearerToken
+      ? { Authorization: `Bearer ${config.bearerToken}` }
+      : undefined;
 
   return {
     async listNotifications(limit = 50, offset = 0): Promise<NotificationPage> {
       return notificationPage(
-        await client.listNotifications({ page: { limit, offset } }, { headers: headers() })
+        await client.listNotifications(
+          { page: { limit, offset } },
+          { headers: headers() },
+        ),
       );
     },
 
-    async listRoomNotifications(roomId: string, limit = 1, offset = 0): Promise<NotificationPage> {
+    async listRoomNotifications(
+      roomId: string,
+      limit = 1,
+      offset = 0,
+    ): Promise<NotificationPage> {
       return notificationPage(
-        await client.listRoomNotifications({ roomId, page: { limit, offset } }, { headers: headers() })
+        await client.listRoomNotifications(
+          { roomId, page: { limit, offset } },
+          { headers: headers() },
+        ),
       );
     },
 
     async hasNotifications(): Promise<boolean> {
-      return (await client.hasNotifications({}, { headers: headers() })).hasNotifications;
+      return (await client.hasNotifications({}, { headers: headers() }))
+        .hasNotifications;
     },
 
     async listNotificationCounts(): Promise<Record<string, number>> {
-      const response = await client.listNotificationCounts({}, { headers: headers() });
+      const response = await client.listNotificationCounts(
+        {},
+        { headers: headers() },
+      );
       return Object.fromEntries(
-        response.roomCounts.map((count) => [count.roomId, count.totalCount] as const)
+        response.roomCounts.map(
+          (count) => [count.roomId, count.totalCount] as const,
+        ),
       );
     },
 
     async dismissNotification(notificationId: string): Promise<boolean> {
-      return (await client.dismissNotification({ notificationId }, { headers: headers() }))
-        .dismissed;
+      return (
+        await client.dismissNotification(
+          { notificationId },
+          { headers: headers() },
+        )
+      ).dismissed;
     },
 
     async dismissAllNotifications(): Promise<number> {
-      return (await client.dismissAllNotifications({}, { headers: headers() })).dismissedCount;
-    }
+      return (await client.dismissAllNotifications({}, { headers: headers() }))
+        .dismissedCount;
+    },
   };
 }
 
 export type NotificationAPI = ReturnType<typeof createNotificationAPI>;
 
-function notificationPage(response: ListNotificationsResponse | ListRoomNotificationsResponse): NotificationPage {
+function notificationPage(
+  response: ListNotificationsResponse | ListRoomNotificationsResponse,
+): NotificationPage {
   return {
     items: response.items.flatMap((item) => {
       const mapped = notificationItem(item);
@@ -148,26 +174,27 @@ function notificationPage(response: ListNotificationsResponse | ListRoomNotifica
     }),
     totalCount: Number(response.page?.totalCount ?? 0),
     hasMore: response.page?.hasMore ?? false,
-    serverName: response.serverName || null
+    serverName: response.serverName || null,
   };
 }
 
 function notificationItem(item: APINotificationItem): NotificationItem | null {
   const base = {
     id: item.id,
-    createdAt: item.createdAt?.toDate().toISOString() ?? new Date(0).toISOString(),
+    createdAt:
+      item.createdAt?.toDate().toISOString() ?? new Date(0).toISOString(),
     actor: notificationActor(item.actor),
-    summary: item.summary
+    summary: item.summary,
   };
 
   switch (item.kind.case) {
-    case 'directMessage':
+    case "directMessage":
       return {
         kind: NotificationItemKind.DirectMessage,
         ...base,
-        room: { id: item.kind.value.roomId }
+        room: { id: item.kind.value.roomId },
       };
-    case 'mention':
+    case "mention":
       return {
         kind: NotificationItemKind.Mention,
         ...base,
@@ -175,9 +202,9 @@ function notificationItem(item: APINotificationItem): NotificationItem | null {
           ? { id: item.kind.value.room.id, name: item.kind.value.room.name }
           : null,
         mentionEventId: item.kind.value.eventId,
-        mentionInThread: item.kind.value.threadRootEventId ?? null
+        mentionInThread: item.kind.value.threadRootEventId ?? null,
       };
-    case 'reply':
+    case "reply":
       return {
         kind: NotificationItemKind.Reply,
         ...base,
@@ -186,23 +213,25 @@ function notificationItem(item: APINotificationItem): NotificationItem | null {
           : null,
         replyEventId: item.kind.value.eventId,
         inReplyToId: item.kind.value.inReplyToId,
-        replyInThread: item.kind.value.threadRootEventId ?? null
+        replyInThread: item.kind.value.threadRootEventId ?? null,
       };
-    case 'roomMessage':
+    case "roomMessage":
       return {
         kind: NotificationItemKind.RoomMessage,
         ...base,
         roomMsgRoom: item.kind.value.room
           ? { id: item.kind.value.room.id, name: item.kind.value.room.name }
           : null,
-        roomMsgEventId: item.kind.value.eventId
+        roomMsgEventId: item.kind.value.eventId,
       };
     default:
       return null;
   }
 }
 
-function notificationActor(actor: APIUserProfile | undefined): NotificationActor | null {
+function notificationActor(
+  actor: APIUserProfile | undefined,
+): NotificationActor | null {
   const summary = actor?.user;
   if (!actor || !summary) return null;
   return {
@@ -216,9 +245,10 @@ function notificationActor(actor: APIUserProfile | undefined): NotificationActor
       ? {
           emoji: actor.customStatus.emoji,
           text: actor.customStatus.text,
-          expiresAt: actor.customStatus.expiresAt?.toDate().toISOString() ?? null
+          expiresAt:
+            actor.customStatus.expiresAt?.toDate().toISOString() ?? null,
         }
-      : null
+      : null,
   };
 }
 

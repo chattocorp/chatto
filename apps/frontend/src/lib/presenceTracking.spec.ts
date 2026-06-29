@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
-import { APIPresenceStatus } from '$lib/api/presence';
+import { APIPresenceStatus } from '@chatto/api-client/presence';
 import { PresenceStatus } from '$lib/render/types';
 import { presencePreference } from '$lib/state/presencePreference.svelte';
 import { initPresenceTracking, setPresenceMode } from './presenceTracking';
@@ -14,8 +14,8 @@ const mocks = vi.hoisted(() => ({
 	reportPresence: vi.fn()
 }));
 
-vi.mock('$lib/api/presence', async (importOriginal) => {
-	const actual = await importOriginal<typeof import('$lib/api/presence')>();
+vi.mock('@chatto/api-client/presence', async (importOriginal) => {
+	const actual = await importOriginal<typeof import('@chatto/api-client/presence')>();
 	return {
 		...actual,
 		createPresenceAPI: () => ({

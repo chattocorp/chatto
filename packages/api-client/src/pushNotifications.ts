@@ -1,6 +1,6 @@
-import { createClient } from '@connectrpc/connect';
-import { createConnectTransport } from '@connectrpc/connect-web';
-import { PushNotificationService } from '@chatto/api-types/api/v1/push_notifications_connect';
+import { createClient } from "@connectrpc/connect";
+import { createConnectTransport } from "@connectrpc/connect-web";
+import { PushNotificationService } from "@chatto/api-types/api/v1/push_notifications_connect";
 
 export type PushNotificationAPIConfig = {
   baseUrl: string;
@@ -18,11 +18,13 @@ export type SubscribePushInput = {
 export function createPushNotificationAPI(config: PushNotificationAPIConfig) {
   const transport = createConnectTransport({
     baseUrl: config.baseUrl,
-    useBinaryFormat: true
+    useBinaryFormat: true,
   });
   const client = createClient(PushNotificationService, transport);
   const headers = () =>
-    config.bearerToken ? { Authorization: `Bearer ${config.bearerToken}` } : undefined;
+    config.bearerToken
+      ? { Authorization: `Bearer ${config.bearerToken}` }
+      : undefined;
 
   return {
     async subscribe(input: SubscribePushInput): Promise<boolean> {
@@ -30,8 +32,9 @@ export function createPushNotificationAPI(config: PushNotificationAPIConfig) {
     },
 
     async unsubscribe(endpoint: string): Promise<boolean> {
-      return (await client.unsubscribe({ endpoint }, { headers: headers() })).unsubscribed;
-    }
+      return (await client.unsubscribe({ endpoint }, { headers: headers() }))
+        .unsubscribed;
+    },
   };
 }
 

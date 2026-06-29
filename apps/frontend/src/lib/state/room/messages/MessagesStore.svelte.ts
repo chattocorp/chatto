@@ -3,7 +3,7 @@ import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import type { RoomEventView } from '$lib/render/types';
 import type { EventEnvelope } from '$lib/eventBus.svelte';
 import { RoomEventKind, roomEventKind } from '$lib/render/eventKinds';
-import { createRoomTimelineAPI, type RoomTimelineAPI } from '$lib/api/roomTimeline';
+import { createRoomTimelineAPI, type RoomTimelineAPI } from '@chatto/api-client/roomTimeline';
 import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
 import type { JumpToMessageState } from '../composerContext.svelte';
 import { PAGE_SIZE } from './queries';

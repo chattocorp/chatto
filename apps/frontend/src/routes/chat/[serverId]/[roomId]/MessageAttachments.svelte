@@ -27,7 +27,7 @@
     type ExpiringAssetUrl,
     type RefreshedAttachmentUrls
   } from '$lib/attachments/attachmentUrls';
-  import { createAttachmentAPI } from '$lib/api/attachments';
+  import { createAttachmentAPI } from '@chatto/api-client/attachments';
   import { assetUrlForServer } from '$lib/assets/assetUrls';
 
   let {

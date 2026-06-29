@@ -1,10 +1,14 @@
-import { createClient } from '@connectrpc/connect';
-import { createConnectTransport } from '@connectrpc/connect-web';
-import { ViewerService } from '@chatto/api-types/api/v1/viewer_connect';
-import { PresenceStatus as APIPresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
-import { NotificationLevel as APINotificationLevel } from '@chatto/api-types/api/v1/notification_preferences_pb';
-import { TimeFormat as APITimeFormat } from '@chatto/api-types/api/v1/viewer_pb';
-import { NotificationLevel, PresenceStatus, TimeFormat } from './renderTypes.js';
+import { createClient } from "@connectrpc/connect";
+import { createConnectTransport } from "@connectrpc/connect-web";
+import { ViewerService } from "@chatto/api-types/api/v1/viewer_connect";
+import { PresenceStatus as APIPresenceStatus } from "@chatto/api-types/api/v1/presence_pb";
+import { NotificationLevel as APINotificationLevel } from "@chatto/api-types/api/v1/notification_preferences_pb";
+import { TimeFormat as APITimeFormat } from "@chatto/api-types/api/v1/viewer_pb";
+import {
+  NotificationLevel,
+  PresenceStatus,
+  TimeFormat,
+} from "./renderTypes.js";
 
 export type ViewerAPIConfig = {
   baseUrl: string;
@@ -59,27 +63,31 @@ export type ViewerState = ViewerCapabilities & {
   roomNotificationPreferences: RoomNotificationPreference[];
 };
 
-export async function getViewerStateViaConnect(config: ViewerAPIConfig): Promise<ViewerState> {
+export async function getViewerStateViaConnect(
+  config: ViewerAPIConfig,
+): Promise<ViewerState> {
   const transport = createConnectTransport({
     baseUrl: config.baseUrl,
-    useBinaryFormat: true
+    useBinaryFormat: true,
   });
   const client = createClient(ViewerService, transport);
   const response = await client.getViewer(
     {},
     {
-      headers: config.bearerToken ? { Authorization: `Bearer ${config.bearerToken}` } : undefined
-    }
+      headers: config.bearerToken
+        ? { Authorization: `Bearer ${config.bearerToken}` }
+        : undefined,
+    },
   );
   if (!response.user) {
-    throw new Error('viewer response did not include a user');
+    throw new Error("viewer response did not include a user");
   }
   if (!response.user.profile) {
-    throw new Error('viewer response did not include a user profile');
+    throw new Error("viewer response did not include a user profile");
   }
   const user = response.user.profile;
   if (!user.user) {
-    throw new Error('viewer response did not include a user summary');
+    throw new Error("viewer response did not include a user summary");
   }
   const summary = user.user;
   const capabilities = response.capabilities;
@@ -93,19 +101,21 @@ export async function getViewerStateViaConnect(config: ViewerAPIConfig): Promise
         ? {
             emoji: user.customStatus.emoji,
             text: user.customStatus.text,
-            expiresAt: user.customStatus.expiresAt?.toDate().toISOString() ?? null
+            expiresAt:
+              user.customStatus.expiresAt?.toDate().toISOString() ?? null,
           }
         : null,
       presenceStatus: apiPresenceStatus(user.presenceStatus),
       hasVerifiedEmail: response.user.hasVerifiedEmail,
       viewerCanDeleteAccount: response.user.viewerCanDeleteAccount ?? false,
-      lastLoginChange: response.user.lastLoginChange?.toDate().toISOString() ?? null,
+      lastLoginChange:
+        response.user.lastLoginChange?.toDate().toISOString() ?? null,
       settings: response.user.settings
         ? {
             timezone: response.user.settings.timezone ?? null,
-            timeFormat: apiTimeFormat(response.user.settings.timeFormat)
+            timeFormat: apiTimeFormat(response.user.settings.timeFormat),
           }
-        : null
+        : null,
     },
     canViewAdmin: capabilities?.canViewAdmin ?? false,
     canStartDMs: capabilities?.canStartDms ?? false,
@@ -118,21 +128,29 @@ export async function getViewerStateViaConnect(config: ViewerAPIConfig): Promise
     canManageUserPermissions: capabilities?.canManageUserPermissions ?? false,
     serverNotificationPreference: {
       level: apiNotificationLevel(response.serverNotificationPreference?.level),
-      effectiveLevel: apiNotificationLevel(response.serverNotificationPreference?.effectiveLevel)
+      effectiveLevel: apiNotificationLevel(
+        response.serverNotificationPreference?.effectiveLevel,
+      ),
     },
-    roomNotificationPreferences: response.roomNotificationPreferences.map((pref) => ({
-      roomId: pref.roomId,
-      level: apiNotificationLevel(pref.level),
-      effectiveLevel: apiNotificationLevel(pref.effectiveLevel)
-    }))
+    roomNotificationPreferences: response.roomNotificationPreferences.map(
+      (pref) => ({
+        roomId: pref.roomId,
+        level: apiNotificationLevel(pref.level),
+        effectiveLevel: apiNotificationLevel(pref.effectiveLevel),
+      }),
+    ),
   };
 }
 
-export async function getCurrentUserViaConnect(config: ViewerAPIConfig): Promise<CurrentUser> {
+export async function getCurrentUserViaConnect(
+  config: ViewerAPIConfig,
+): Promise<CurrentUser> {
   return (await getViewerStateViaConnect(config)).user;
 }
 
-function apiNotificationLevel(level: APINotificationLevel | undefined): NotificationLevel {
+function apiNotificationLevel(
+  level: APINotificationLevel | undefined,
+): NotificationLevel {
   switch (level) {
     case APINotificationLevel.MUTED:
       return NotificationLevel.Muted;
