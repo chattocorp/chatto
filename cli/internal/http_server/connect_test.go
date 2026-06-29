@@ -108,6 +108,48 @@ func TestConnectServerDiscoveryServiceGetServer(t *testing.T) {
 	})
 }
 
+func TestConnectLegacyServerServiceGetServerIsPublic(t *testing.T) {
+	_, ts := setupConnectTestServer(t, config.AuthConfig{})
+
+	body := strings.NewReader("")
+	req, err := http.NewRequest(http.MethodPost, ts.URL+connectAPIPrefix+"/chatto.api.v1.ServerService/GetServer", body)
+	if err != nil {
+		t.Fatalf("new request: %v", err)
+	}
+	req.Header.Set("Content-Type", "application/proto")
+
+	resp, err := ts.Client().Do(req)
+	if err != nil {
+		t.Fatalf("raw legacy Connect request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want 200", resp.StatusCode)
+	}
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("read body: %v", err)
+	}
+	var msg apiv1.GetServerResponse
+	if err := proto.Unmarshal(data, &msg); err != nil {
+		t.Fatalf("unmarshal response: %v", err)
+	}
+	if msg.Name != "Chatto" {
+		t.Fatalf("Name = %q, want Chatto", msg.Name)
+	}
+}
+
+func TestConnectServerServiceGetServerStateRequiresAuth(t *testing.T) {
+	_, ts := setupConnectTestServer(t, config.AuthConfig{})
+
+	client := apiv1connect.NewServerServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
+	_, err := client.GetServerState(context.Background(), connect.NewRequest(&apiv1.GetServerStateRequest{}))
+	if connect.CodeOf(err) != connect.CodeUnauthenticated {
+		t.Fatalf("GetServerState code = %v, want unauthenticated", connect.CodeOf(err))
+	}
+}
+
 func TestConnectAPIRejectsOversizedRequestMessages(t *testing.T) {
 	s, ts := setupConnectTestServer(t, config.AuthConfig{})
 	ctx := context.Background()
