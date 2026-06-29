@@ -84,11 +84,11 @@ export default defineConfig({
                     "reference/connectrpc-api/admin-event-log",
                   ],
                 },
-                "reference/connectrpc-api/types",
                 {
                   label: "chatto.realtime.v1",
                   items: ["reference/connectrpc-api/realtime"],
                 },
+                "reference/connectrpc-api/types",
               ],
             },
             "reference/environment-variables",
