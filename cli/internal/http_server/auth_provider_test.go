@@ -239,7 +239,7 @@ func TestOIDCProviderWithoutEmailAutoProvisionLinkAndLogin(t *testing.T) {
 	}
 
 	issuer.SetSubject("subject-conflict")
-	conflictUser, err := chattoCore.CreateUserForExternalIdentity(t.Context(), "conflict-no-email-oidc", "Conflict No Email OIDC", &core.PendingExternalIdentityFlow{
+	conflictToken, err := chattoCore.CreatePendingExternalIdentityCreateFlow(t.Context(), core.PendingExternalIdentityFlow{
 		ProviderID:    "oidc-no-email",
 		ProviderType:  config.AuthProviderTypeOpenIDConnect,
 		ProviderLabel: "No Email OIDC",
@@ -247,7 +247,18 @@ func TestOIDCProviderWithoutEmailAutoProvisionLinkAndLogin(t *testing.T) {
 		Subject:       "subject-conflict",
 	})
 	if err != nil {
+		t.Fatalf("CreatePendingExternalIdentityCreateFlow conflict: %v", err)
+	}
+	conflictFlow, err := chattoCore.GetPendingExternalIdentityCreateFlow(t.Context(), conflictToken)
+	if err != nil {
+		t.Fatalf("GetPendingExternalIdentityCreateFlow conflict: %v", err)
+	}
+	conflictUser, err := chattoCore.CreateUserForExternalIdentity(t.Context(), "conflict-no-email-oidc", "Conflict No Email OIDC", conflictFlow)
+	if err != nil {
 		t.Fatalf("CreateUserForExternalIdentity conflict: %v", err)
+	}
+	if err := chattoCore.DeletePendingExternalIdentityFlow(t.Context(), conflictToken); err != nil {
+		t.Fatalf("DeletePendingExternalIdentityFlow conflict: %v", err)
 	}
 	conflictTarget, err := chattoCore.CreateUser(t.Context(), core.SystemActorID, "conflict-link-target", "Conflict Link Target", "password123")
 	if err != nil {
