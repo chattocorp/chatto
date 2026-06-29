@@ -2,7 +2,6 @@ package connectapi
 
 import (
 	"context"
-	"net/http"
 	"net/url"
 	"strings"
 
@@ -10,8 +9,6 @@ import (
 	"hmans.de/chatto/internal/config"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 )
-
-const legacyServerServiceGetServerProcedure = "/chatto.api.v1.ServerService/GetServer"
 
 type serverDiscoveryService struct {
 	api *API
@@ -53,16 +50,6 @@ func (s *serverDiscoveryService) GetServer(ctx context.Context, _ *connect.Reque
 		}
 	}
 	return connect.NewResponse(response), nil
-}
-
-func newLegacyServerServiceGetServerHandler(svc *serverDiscoveryService, opts ...connect.HandlerOption) http.Handler {
-	serverDiscoveryMethods := apiv1.File_chatto_api_v1_server_proto.Services().ByName("ServerDiscoveryService").Methods()
-	return connect.NewUnaryHandler(
-		legacyServerServiceGetServerProcedure,
-		svc.GetServer,
-		connect.WithSchema(serverDiscoveryMethods.ByName("GetServer")),
-		connect.WithHandlerOptions(opts...),
-	)
 }
 
 func (a *API) effectiveServerName(ctx context.Context) string {

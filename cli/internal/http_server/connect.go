@@ -22,9 +22,6 @@ func (s *HTTPServer) setupConnectAPI() {
 		case connectapi.AuthPolicyPublic:
 		case connectapi.AuthPolicyAuthenticatedUser:
 			serviceHandler = authMiddleware.Wrap(serviceHandler)
-			if len(handler.PublicProcedureHandlers) > 0 {
-				serviceHandler = publicProcedureMux(handler.PublicProcedureHandlers, serviceHandler)
-			}
 		default:
 			panic("unknown ConnectRPC auth policy for " + handler.ServicePath)
 		}
@@ -38,16 +35,6 @@ func (s *HTTPServer) mountConnectHandler(servicePath string, serviceHandler http
 		req := s.injectUserIntoContext(c)
 		req = req.WithContext(connectapi.WithRequestBaseURL(req.Context(), s.requestBaseURL(c.Request)))
 		handler.ServeHTTP(c.Writer, req)
-	})
-}
-
-func publicProcedureMux(publicHandlers map[string]http.Handler, fallback http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if handler, ok := publicHandlers[r.URL.Path]; ok {
-			handler.ServeHTTP(w, r)
-			return
-		}
-		fallback.ServeHTTP(w, r)
 	})
 }
 

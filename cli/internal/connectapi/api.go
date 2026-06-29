@@ -30,10 +30,9 @@ const (
 // Handler is one generated Connect service handler, its generated service path,
 // and the auth policy the HTTP server must enforce before serving it.
 type Handler struct {
-	ServicePath             string
-	Handler                 http.Handler
-	AuthPolicy              AuthPolicy
-	PublicProcedureHandlers map[string]http.Handler
+	ServicePath string
+	Handler     http.Handler
+	AuthPolicy  AuthPolicy
 }
 
 // API owns Chatto's ConnectRPC service implementations. It deliberately has no
@@ -79,7 +78,6 @@ func (a *API) Handlers() []Handler {
 	adminServerPath, adminServerHandler := adminv1connect.NewAdminServerServiceHandler(&serverService{api: a}, uploadOptions...)
 	serverDiscoveryPath, serverDiscoveryHandler := apiv1connect.NewServerDiscoveryServiceHandler(&serverDiscoveryService{api: a}, options...)
 	serverPath, serverHandler := apiv1connect.NewServerServiceHandler(&serverService{api: a}, options...)
-	legacyServerGetServerHandler := newLegacyServerServiceGetServerHandler(&serverDiscoveryService{api: a}, options...)
 	viewerPath, viewerHandler := apiv1connect.NewViewerServiceHandler(&viewerService{api: a}, options...)
 	permissionPath, permissionHandler := adminv1connect.NewAdminPermissionServiceHandler(&permissionService{api: a}, options...)
 	linkPreviewPath, linkPreviewHandler := apiv1connect.NewLinkPreviewServiceHandler(&linkPreviewService{api: a}, options...)
@@ -111,14 +109,7 @@ func (a *API) Handlers() []Handler {
 		{ServicePath: memberDirectoryPath, Handler: memberDirectoryHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: notificationPath, Handler: notificationHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: serverDiscoveryPath, Handler: serverDiscoveryHandler, AuthPolicy: AuthPolicyPublic},
-		{
-			ServicePath: serverPath,
-			Handler:     serverHandler,
-			AuthPolicy:  AuthPolicyAuthenticatedUser,
-			PublicProcedureHandlers: map[string]http.Handler{
-				legacyServerServiceGetServerProcedure: legacyServerGetServerHandler,
-			},
-		},
+		{ServicePath: serverPath, Handler: serverHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: viewerPath, Handler: viewerHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: permissionPath, Handler: permissionHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: prefsPath, Handler: prefsHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
