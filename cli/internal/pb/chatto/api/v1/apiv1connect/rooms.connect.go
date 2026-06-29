@@ -47,6 +47,9 @@ const (
 	RoomServiceSetRoomUniversalProcedure = "/chatto.api.v1.RoomService/SetRoomUniversal"
 	// RoomServiceJoinRoomProcedure is the fully-qualified name of the RoomService's JoinRoom RPC.
 	RoomServiceJoinRoomProcedure = "/chatto.api.v1.RoomService/JoinRoom"
+	// RoomServiceJoinRoomGroupProcedure is the fully-qualified name of the RoomService's JoinRoomGroup
+	// RPC.
+	RoomServiceJoinRoomGroupProcedure = "/chatto.api.v1.RoomService/JoinRoomGroup"
 	// RoomServiceStartDMProcedure is the fully-qualified name of the RoomService's StartDM RPC.
 	RoomServiceStartDMProcedure = "/chatto.api.v1.RoomService/StartDM"
 	// RoomServiceLeaveRoomProcedure is the fully-qualified name of the RoomService's LeaveRoom RPC.
@@ -81,6 +84,9 @@ type RoomServiceClient interface {
 	SetRoomUniversal(context.Context, *connect.Request[v1.SetRoomUniversalRequest]) (*connect.Response[v1.SetRoomUniversalResponse], error)
 	// Joins the room as the current user when room permissions allow it.
 	JoinRoom(context.Context, *connect.Request[v1.JoinRoomRequest]) (*connect.Response[v1.JoinRoomResponse], error)
+	// Joins every unarchived room in a group that the current user can join.
+	// Already-joined and non-joinable rooms are skipped.
+	JoinRoomGroup(context.Context, *connect.Request[v1.JoinRoomGroupRequest]) (*connect.Response[v1.JoinRoomGroupResponse], error)
 	// Starts or fetches a direct-message room for the current user and the
 	// requested participant set. The caller must be allowed to start DMs.
 	StartDM(context.Context, *connect.Request[v1.StartDMRequest]) (*connect.Response[v1.StartDMResponse], error)
@@ -145,6 +151,12 @@ func NewRoomServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(roomServiceMethods.ByName("JoinRoom")),
 			connect.WithClientOptions(opts...),
 		),
+		joinRoomGroup: connect.NewClient[v1.JoinRoomGroupRequest, v1.JoinRoomGroupResponse](
+			httpClient,
+			baseURL+RoomServiceJoinRoomGroupProcedure,
+			connect.WithSchema(roomServiceMethods.ByName("JoinRoomGroup")),
+			connect.WithClientOptions(opts...),
+		),
 		startDM: connect.NewClient[v1.StartDMRequest, v1.StartDMResponse](
 			httpClient,
 			baseURL+RoomServiceStartDMProcedure,
@@ -186,6 +198,7 @@ type roomServiceClient struct {
 	unarchiveRoom    *connect.Client[v1.UnarchiveRoomRequest, v1.UnarchiveRoomResponse]
 	setRoomUniversal *connect.Client[v1.SetRoomUniversalRequest, v1.SetRoomUniversalResponse]
 	joinRoom         *connect.Client[v1.JoinRoomRequest, v1.JoinRoomResponse]
+	joinRoomGroup    *connect.Client[v1.JoinRoomGroupRequest, v1.JoinRoomGroupResponse]
 	startDM          *connect.Client[v1.StartDMRequest, v1.StartDMResponse]
 	leaveRoom        *connect.Client[v1.LeaveRoomRequest, v1.LeaveRoomResponse]
 	listRoomBans     *connect.Client[v1.ListRoomBansRequest, v1.ListRoomBansResponse]
@@ -221,6 +234,11 @@ func (c *roomServiceClient) SetRoomUniversal(ctx context.Context, req *connect.R
 // JoinRoom calls chatto.api.v1.RoomService.JoinRoom.
 func (c *roomServiceClient) JoinRoom(ctx context.Context, req *connect.Request[v1.JoinRoomRequest]) (*connect.Response[v1.JoinRoomResponse], error) {
 	return c.joinRoom.CallUnary(ctx, req)
+}
+
+// JoinRoomGroup calls chatto.api.v1.RoomService.JoinRoomGroup.
+func (c *roomServiceClient) JoinRoomGroup(ctx context.Context, req *connect.Request[v1.JoinRoomGroupRequest]) (*connect.Response[v1.JoinRoomGroupResponse], error) {
+	return c.joinRoomGroup.CallUnary(ctx, req)
 }
 
 // StartDM calls chatto.api.v1.RoomService.StartDM.
@@ -267,6 +285,9 @@ type RoomServiceHandler interface {
 	SetRoomUniversal(context.Context, *connect.Request[v1.SetRoomUniversalRequest]) (*connect.Response[v1.SetRoomUniversalResponse], error)
 	// Joins the room as the current user when room permissions allow it.
 	JoinRoom(context.Context, *connect.Request[v1.JoinRoomRequest]) (*connect.Response[v1.JoinRoomResponse], error)
+	// Joins every unarchived room in a group that the current user can join.
+	// Already-joined and non-joinable rooms are skipped.
+	JoinRoomGroup(context.Context, *connect.Request[v1.JoinRoomGroupRequest]) (*connect.Response[v1.JoinRoomGroupResponse], error)
 	// Starts or fetches a direct-message room for the current user and the
 	// requested participant set. The caller must be allowed to start DMs.
 	StartDM(context.Context, *connect.Request[v1.StartDMRequest]) (*connect.Response[v1.StartDMResponse], error)
@@ -327,6 +348,12 @@ func NewRoomServiceHandler(svc RoomServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(roomServiceMethods.ByName("JoinRoom")),
 		connect.WithHandlerOptions(opts...),
 	)
+	roomServiceJoinRoomGroupHandler := connect.NewUnaryHandler(
+		RoomServiceJoinRoomGroupProcedure,
+		svc.JoinRoomGroup,
+		connect.WithSchema(roomServiceMethods.ByName("JoinRoomGroup")),
+		connect.WithHandlerOptions(opts...),
+	)
 	roomServiceStartDMHandler := connect.NewUnaryHandler(
 		RoomServiceStartDMProcedure,
 		svc.StartDM,
@@ -371,6 +398,8 @@ func NewRoomServiceHandler(svc RoomServiceHandler, opts ...connect.HandlerOption
 			roomServiceSetRoomUniversalHandler.ServeHTTP(w, r)
 		case RoomServiceJoinRoomProcedure:
 			roomServiceJoinRoomHandler.ServeHTTP(w, r)
+		case RoomServiceJoinRoomGroupProcedure:
+			roomServiceJoinRoomGroupHandler.ServeHTTP(w, r)
 		case RoomServiceStartDMProcedure:
 			roomServiceStartDMHandler.ServeHTTP(w, r)
 		case RoomServiceLeaveRoomProcedure:
@@ -412,6 +441,10 @@ func (UnimplementedRoomServiceHandler) SetRoomUniversal(context.Context, *connec
 
 func (UnimplementedRoomServiceHandler) JoinRoom(context.Context, *connect.Request[v1.JoinRoomRequest]) (*connect.Response[v1.JoinRoomResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.RoomService.JoinRoom is not implemented"))
+}
+
+func (UnimplementedRoomServiceHandler) JoinRoomGroup(context.Context, *connect.Request[v1.JoinRoomGroupRequest]) (*connect.Response[v1.JoinRoomGroupResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.RoomService.JoinRoomGroup is not implemented"))
 }
 
 func (UnimplementedRoomServiceHandler) StartDM(context.Context, *connect.Request[v1.StartDMRequest]) (*connect.Response[v1.StartDMResponse], error) {

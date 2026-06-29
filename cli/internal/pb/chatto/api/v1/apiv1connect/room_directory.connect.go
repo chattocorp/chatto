@@ -42,9 +42,6 @@ const (
 	// RoomDirectoryServiceGetRoomProcedure is the fully-qualified name of the RoomDirectoryService's
 	// GetRoom RPC.
 	RoomDirectoryServiceGetRoomProcedure = "/chatto.api.v1.RoomDirectoryService/GetRoom"
-	// RoomDirectoryServiceJoinGroupProcedure is the fully-qualified name of the RoomDirectoryService's
-	// JoinGroup RPC.
-	RoomDirectoryServiceJoinGroupProcedure = "/chatto.api.v1.RoomDirectoryService/JoinGroup"
 )
 
 // RoomDirectoryServiceClient is a client for the chatto.api.v1.RoomDirectoryService service.
@@ -58,9 +55,6 @@ type RoomDirectoryServiceClient interface {
 	ListRoomGroups(context.Context, *connect.Request[v1.ListRoomGroupsRequest]) (*connect.Response[v1.ListRoomGroupsResponse], error)
 	// Returns one visible room by ID. DM rooms require membership.
 	GetRoom(context.Context, *connect.Request[v1.GetRoomRequest]) (*connect.Response[v1.GetRoomResponse], error)
-	// Joins every unarchived room in a group that the current user can join.
-	// Already-joined and non-joinable rooms are skipped.
-	JoinGroup(context.Context, *connect.Request[v1.JoinGroupRequest]) (*connect.Response[v1.JoinGroupResponse], error)
 }
 
 // NewRoomDirectoryServiceClient constructs a client for the chatto.api.v1.RoomDirectoryService
@@ -92,12 +86,6 @@ func NewRoomDirectoryServiceClient(httpClient connect.HTTPClient, baseURL string
 			connect.WithSchema(roomDirectoryServiceMethods.ByName("GetRoom")),
 			connect.WithClientOptions(opts...),
 		),
-		joinGroup: connect.NewClient[v1.JoinGroupRequest, v1.JoinGroupResponse](
-			httpClient,
-			baseURL+RoomDirectoryServiceJoinGroupProcedure,
-			connect.WithSchema(roomDirectoryServiceMethods.ByName("JoinGroup")),
-			connect.WithClientOptions(opts...),
-		),
 	}
 }
 
@@ -106,7 +94,6 @@ type roomDirectoryServiceClient struct {
 	listRooms      *connect.Client[v1.ListRoomsRequest, v1.ListRoomsResponse]
 	listRoomGroups *connect.Client[v1.ListRoomGroupsRequest, v1.ListRoomGroupsResponse]
 	getRoom        *connect.Client[v1.GetRoomRequest, v1.GetRoomResponse]
-	joinGroup      *connect.Client[v1.JoinGroupRequest, v1.JoinGroupResponse]
 }
 
 // ListRooms calls chatto.api.v1.RoomDirectoryService.ListRooms.
@@ -124,11 +111,6 @@ func (c *roomDirectoryServiceClient) GetRoom(ctx context.Context, req *connect.R
 	return c.getRoom.CallUnary(ctx, req)
 }
 
-// JoinGroup calls chatto.api.v1.RoomDirectoryService.JoinGroup.
-func (c *roomDirectoryServiceClient) JoinGroup(ctx context.Context, req *connect.Request[v1.JoinGroupRequest]) (*connect.Response[v1.JoinGroupResponse], error) {
-	return c.joinGroup.CallUnary(ctx, req)
-}
-
 // RoomDirectoryServiceHandler is an implementation of the chatto.api.v1.RoomDirectoryService
 // service.
 type RoomDirectoryServiceHandler interface {
@@ -141,9 +123,6 @@ type RoomDirectoryServiceHandler interface {
 	ListRoomGroups(context.Context, *connect.Request[v1.ListRoomGroupsRequest]) (*connect.Response[v1.ListRoomGroupsResponse], error)
 	// Returns one visible room by ID. DM rooms require membership.
 	GetRoom(context.Context, *connect.Request[v1.GetRoomRequest]) (*connect.Response[v1.GetRoomResponse], error)
-	// Joins every unarchived room in a group that the current user can join.
-	// Already-joined and non-joinable rooms are skipped.
-	JoinGroup(context.Context, *connect.Request[v1.JoinGroupRequest]) (*connect.Response[v1.JoinGroupResponse], error)
 }
 
 // NewRoomDirectoryServiceHandler builds an HTTP handler from the service implementation. It returns
@@ -171,12 +150,6 @@ func NewRoomDirectoryServiceHandler(svc RoomDirectoryServiceHandler, opts ...con
 		connect.WithSchema(roomDirectoryServiceMethods.ByName("GetRoom")),
 		connect.WithHandlerOptions(opts...),
 	)
-	roomDirectoryServiceJoinGroupHandler := connect.NewUnaryHandler(
-		RoomDirectoryServiceJoinGroupProcedure,
-		svc.JoinGroup,
-		connect.WithSchema(roomDirectoryServiceMethods.ByName("JoinGroup")),
-		connect.WithHandlerOptions(opts...),
-	)
 	return "/chatto.api.v1.RoomDirectoryService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case RoomDirectoryServiceListRoomsProcedure:
@@ -185,8 +158,6 @@ func NewRoomDirectoryServiceHandler(svc RoomDirectoryServiceHandler, opts ...con
 			roomDirectoryServiceListRoomGroupsHandler.ServeHTTP(w, r)
 		case RoomDirectoryServiceGetRoomProcedure:
 			roomDirectoryServiceGetRoomHandler.ServeHTTP(w, r)
-		case RoomDirectoryServiceJoinGroupProcedure:
-			roomDirectoryServiceJoinGroupHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -206,8 +177,4 @@ func (UnimplementedRoomDirectoryServiceHandler) ListRoomGroups(context.Context, 
 
 func (UnimplementedRoomDirectoryServiceHandler) GetRoom(context.Context, *connect.Request[v1.GetRoomRequest]) (*connect.Response[v1.GetRoomResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.RoomDirectoryService.GetRoom is not implemented"))
-}
-
-func (UnimplementedRoomDirectoryServiceHandler) JoinGroup(context.Context, *connect.Request[v1.JoinGroupRequest]) (*connect.Response[v1.JoinGroupResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.RoomDirectoryService.JoinGroup is not implemented"))
 }

@@ -4,7 +4,12 @@ import { fileURLToPath } from 'node:url';
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(scriptDir, '..');
-const rawReferencePath = path.join(
+const rawReferencePaths = [
+  path.join(repoRoot, 'apps/docs-website/src/generated/connectrpc-api/api.raw.mdx'),
+  path.join(repoRoot, 'apps/docs-website/src/generated/connectrpc-api/admin.raw.mdx'),
+  path.join(repoRoot, 'apps/docs-website/src/generated/connectrpc-api/realtime.raw.mdx')
+];
+const legacyRawReferencePath = path.join(
   repoRoot,
   'apps/docs-website/src/generated/connectrpc-api/index.raw.mdx'
 );
@@ -13,70 +18,183 @@ const outputDir = path.join(
   'apps/docs-website/src/content/docs/reference/connectrpc-api'
 );
 
-const groups = [
+const categories = [
   {
-    slug: 'identity',
-    title: 'Identity And Accounts',
-    description: 'Viewer, account, profile, presence, and member directory RPCs.',
+    title: 'chatto.api.v1',
     services: [
-      'ViewerService',
-      'AccountService',
-      'UserService',
-      'MemberDirectoryService',
-      'PresenceService',
-      'UserStatusService'
+      {
+        name: 'ServerDiscoveryService',
+        slug: 'server-discovery',
+        title: 'Server Discovery',
+        description: 'Unauthenticated server metadata, branding, and login discovery RPCs.'
+      },
+      {
+        name: 'ServerService',
+        slug: 'server',
+        title: 'Server',
+        description: 'Authenticated server state and current-user server capability RPCs.'
+      },
+      {
+        name: 'ViewerService',
+        slug: 'viewer',
+        title: 'Viewer',
+        description: 'Authenticated viewer profile, preferences, and capability RPCs.'
+      },
+      {
+        name: 'AccountService',
+        slug: 'account',
+        title: 'Account',
+        description: 'Self-service account, profile, avatar, presence, status, and settings RPCs.'
+      },
+      {
+        name: 'UserDirectoryService',
+        slug: 'user-directory',
+        title: 'User Directory',
+        description: 'Authenticated public user profile lookup RPCs.'
+      },
+      {
+        name: 'MemberDirectoryService',
+        slug: 'member-directory',
+        title: 'Member Directory',
+        description: 'Server and room member directory RPCs.'
+      },
+      {
+        name: 'RoomDirectoryService',
+        slug: 'room-directory',
+        title: 'Room Directory',
+        description: 'Room navigation, room group, and room viewer-state RPCs.'
+      },
+      {
+        name: 'RoomService',
+        slug: 'rooms',
+        title: 'Rooms',
+        description: 'Room lifecycle, membership, direct-message, and moderation RPCs.'
+      },
+      {
+        name: 'RoomTimelineService',
+        slug: 'room-timeline',
+        title: 'Room Timeline',
+        description: 'Room and thread timeline read RPCs.'
+      },
+      {
+        name: 'MessageService',
+        slug: 'messages',
+        title: 'Messages',
+        description: 'Message posting, editing, deletion, link-preview, attachment, and typing RPCs.'
+      },
+      {
+        name: 'AttachmentService',
+        slug: 'attachments',
+        title: 'Attachments',
+        description: 'Attachment listing and signed URL refresh RPCs.'
+      },
+      {
+        name: 'ReactionService',
+        slug: 'reactions',
+        title: 'Reactions',
+        description: 'Message reaction command RPCs.'
+      },
+      {
+        name: 'ReadStateService',
+        slug: 'read-state',
+        title: 'Read State',
+        description: 'Room and thread read-state command RPCs.'
+      },
+      {
+        name: 'ThreadService',
+        slug: 'threads',
+        title: 'Threads',
+        description: 'Thread follow and followed-thread listing RPCs.'
+      },
+      {
+        name: 'LinkPreviewService',
+        slug: 'link-previews',
+        title: 'Link Previews',
+        description: 'Link preview fetch RPCs.'
+      },
+      {
+        name: 'VoiceCallService',
+        slug: 'calls',
+        title: 'Calls',
+        description: 'Voice and video call state and token RPCs.'
+      },
+      {
+        name: 'NotificationPreferencesService',
+        slug: 'notification-preferences',
+        title: 'Notification Preferences',
+        description: 'Server and room notification preference RPCs.'
+      },
+      {
+        name: 'NotificationService',
+        slug: 'notifications',
+        title: 'Notifications',
+        description: 'Notification listing, counts, checks, and dismissal RPCs.'
+      },
+      {
+        name: 'PushNotificationService',
+        slug: 'push-notifications',
+        title: 'Push Notifications',
+        description: 'Web Push subscription RPCs.'
+      }
     ]
   },
   {
-    slug: 'rooms-and-messages',
-    title: 'Rooms And Messages',
-    description: 'Room navigation, timelines, messages, attachments, reactions, reads, threads, and calls.',
+    title: 'chatto.admin.v1',
     services: [
-      'RoomDirectoryService',
-      'RoomService',
-      'RoomTimelineService',
-      'MessageService',
-      'AttachmentService',
-      'ReactionService',
-      'ReadStateService',
-      'ThreadService',
-      'LinkPreviewService',
-      'VoiceCallService'
-    ]
-  },
-  {
-    slug: 'notifications',
-    title: 'Notifications',
-    description: 'Notification listing, preferences, counts, dismissal, and web push RPCs.',
-    services: [
-      'NotificationPreferencesService',
-      'NotificationService',
-      'PushNotificationService'
-    ]
-  },
-  {
-    slug: 'administration',
-    title: 'Administration',
-    description: 'Server administration, room layout, users, roles, permissions, diagnostics, and audit RPCs.',
-    services: [
-      'ServerService',
-      'ServerStateService',
-      'AdminRoomLayoutService',
-      'AdminUserManagementService',
-      'RoleService',
-      'PermissionService',
-      'AdminDiagnosticsService',
-      'AdminEventLogService'
+      {
+        name: 'AdminServerService',
+        slug: 'admin-server',
+        title: 'Admin Server',
+        description: 'Server profile, branding, and security administration RPCs.'
+      },
+      {
+        name: 'AdminRoomLayoutService',
+        slug: 'admin-room-layout',
+        title: 'Admin Room Layout',
+        description: 'Room group, sidebar layout, and sidebar link administration RPCs.'
+      },
+      {
+        name: 'AdminMemberService',
+        slug: 'admin-members',
+        title: 'Admin Members',
+        description: 'Member identity, role assignment, and user administration RPCs.'
+      },
+      {
+        name: 'AdminRoleService',
+        slug: 'admin-roles',
+        title: 'Admin Roles',
+        description: 'Role catalog and role definition administration RPCs.'
+      },
+      {
+        name: 'AdminPermissionService',
+        slug: 'admin-permissions',
+        title: 'Admin Permissions',
+        description: 'Permission matrix, explanation, and override administration RPCs.'
+      },
+      {
+        name: 'AdminDiagnosticsService',
+        slug: 'admin-diagnostics',
+        title: 'Admin Diagnostics',
+        description: 'System diagnostics RPCs.'
+      },
+      {
+        name: 'AdminEventLogService',
+        slug: 'admin-event-log',
+        title: 'Admin Event Log',
+        description: 'Audit event log read RPCs.'
+      }
     ]
   }
 ];
+
+const servicePages = categories.flatMap((category) => category.services);
 
 function frontmatter(title, description) {
   return `---\ntitle: ${title}\ndescription: ${description}\neditUrl: false\n---\n\n`;
 }
 
 function generatedNotice() {
-  return '{/* Generated from proto/chatto/api/v1/*.proto. Do not edit directly. */}\n\n';
+  return '{/* Generated from proto/chatto/{api,admin,realtime}/v1/*.proto. Do not edit directly. */}\n\n';
 }
 
 function parseAnchoredSections(source, heading) {
@@ -96,14 +214,14 @@ function parseAnchoredSections(source, heading) {
 
 function rewriteServiceTypeLinks(section) {
   return section.replace(
-    /\]\(#(chatto-api-v1-[^)]+)\)/g,
+    /\]\(#(chatto-(?:api|admin)-v1-[^)]+)\)/g,
     '](/reference/connectrpc-api/types/#$1)'
   );
 }
 
 function rewriteRealtimeExternalLinks(section) {
   return section.replace(
-    /\]\(#(chatto-api-v1-(?!Realtime)[^)]+)\)/g,
+    /\]\(#(chatto-(?:api|admin)-v1-[^)]+)\)/g,
     '](/reference/connectrpc-api/types/#$1)'
   );
 }
@@ -124,18 +242,23 @@ function renderLanding() {
     '',
     '`/api/connect/<fully-qualified-service>/<method>`',
     '',
-    'Use this reference when building integrations, bots, admin tools, or alternate clients for a Chatto server. All services in this reference use the `chatto.api.v1` protobuf package.',
+    'Use this reference when building integrations, bots, admin tools, or alternate clients for a Chatto server. Public unary services use `chatto.api.v1`; privileged administration services use `chatto.admin.v1`.',
     '',
     'Chatto is still pre-1.0. This reference is generated from the current protobuf contract and may change between releases.',
     '',
     '## ConnectRPC Services',
     '',
-    ...groups.map((group) => `- [${group.title}](/reference/connectrpc-api/${group.slug}/) - ${group.description}`),
+    ...categories.flatMap((category) => [
+      `### ${category.title}`,
+      '',
+      ...category.services.map((service) => `- [${service.name}](/reference/connectrpc-api/${service.slug}/) - ${service.description}`),
+      ''
+    ]),
     '',
     '## Shared References',
     '',
     '- [Shared Types And Enums](/reference/connectrpc-api/types/) - common message and enum definitions used by service responses.',
-    '- [Realtime WebSocket Protocol](/reference/connectrpc-api/realtime/) - binary protobuf frames exchanged at `/api/realtime`.'
+    '- [Realtime WebSocket Protocol](/reference/connectrpc-api/realtime/) - `chatto.realtime.v1` binary protobuf frames exchanged at `/api/realtime`.'
   ];
   return renderPage(
     'ConnectRPC API',
@@ -144,15 +267,15 @@ function renderLanding() {
   );
 }
 
-function renderServiceGroup(group, serviceSections) {
+function renderServicePage(service, serviceSections) {
   const body = [
-    `Chatto exposes these ${group.title.toLowerCase()} services below \`/api/connect\`.`,
+    `Chatto exposes this service below \`/api/connect\`.`,
     '',
     'Shared message and enum definitions are documented in [Shared Types And Enums](/reference/connectrpc-api/types/).',
     '',
-    ...group.services.map((service) => rewriteServiceTypeLinks(serviceSections.get(service).content))
+    rewriteServiceTypeLinks(serviceSections.get(service.name).content)
   ];
-  return renderPage(group.title, group.description, body.join('\n\n'));
+  return renderPage(service.name, service.description, body.join('\n\n'));
 }
 
 function renderTypesPage(typeSections, enumSections) {
@@ -191,7 +314,7 @@ function renderRealtimePage(typeSections, enumSections) {
     .map(([, section]) => rewriteRealtimeExternalLinks(section.content));
 
   const body = [
-    'Chatto exposes realtime updates at `GET /api/realtime` using binary protobuf frames from `chatto.api.v1`.',
+    'Chatto exposes realtime updates at `GET /api/realtime` using binary protobuf frames from `chatto.realtime.v1`.',
     '',
     'Realtime frames are documented separately from ConnectRPC services because they are exchanged over a long-lived WebSocket session rather than `/api/connect` RPC methods.',
     '',
@@ -268,22 +391,33 @@ async function removeStaleGeneratedPages(expectedFilenames) {
   }
 }
 
-const raw = await readFile(rawReferencePath, 'utf8');
-const supportingStart = raw.indexOf('\n## Supporting Types\n');
-const enumsStart = raw.indexOf('\n## Enums\n');
-if (supportingStart === -1 || enumsStart === -1 || enumsStart < supportingStart) {
-  throw new Error('Unable to find generated Supporting Types and Enums sections.');
+const serviceSections = new Map();
+const typeSections = new Map();
+const enumSections = new Map();
+for (const rawReferencePath of rawReferencePaths) {
+  const raw = await readFile(rawReferencePath, 'utf8');
+  const supportingStart = raw.indexOf('\n## Supporting Types\n');
+  const enumsStart = raw.indexOf('\n## Enums\n');
+  if (supportingStart === -1 || enumsStart === -1 || enumsStart < supportingStart) {
+    throw new Error(`Unable to find generated Supporting Types and Enums sections in ${rawReferencePath}.`);
+  }
+
+  const serviceSource = raw.slice(0, supportingStart);
+  const typeSource = raw.slice(supportingStart, enumsStart);
+  const enumSource = raw.slice(enumsStart);
+
+  for (const [name, section] of parseAnchoredSections(serviceSource, '##')) {
+    serviceSections.set(name, section);
+  }
+  for (const [name, section] of parseAnchoredSections(typeSource, '###')) {
+    typeSections.set(name, section);
+  }
+  for (const [name, section] of parseAnchoredSections(enumSource, '###')) {
+    enumSections.set(name, section);
+  }
 }
 
-const serviceSource = raw.slice(0, supportingStart);
-const typeSource = raw.slice(supportingStart, enumsStart);
-const enumSource = raw.slice(enumsStart);
-
-const serviceSections = parseAnchoredSections(serviceSource, '##');
-const typeSections = parseAnchoredSections(typeSource, '###');
-const enumSections = parseAnchoredSections(enumSource, '###');
-
-const mappedServices = new Set(groups.flatMap((group) => group.services));
+const mappedServices = new Set(servicePages.map((service) => service.name));
 const generatedServices = new Set(serviceSections.keys());
 const missing = [...mappedServices].filter((service) => !generatedServices.has(service));
 const unmapped = [...generatedServices].filter((service) => !mappedServices.has(service));
@@ -299,8 +433,8 @@ if (missing.length > 0 || unmapped.length > 0) {
 }
 
 const generatedPages = new Map([['index.mdx', renderLanding()]]);
-for (const group of groups) {
-  generatedPages.set(`${group.slug}.mdx`, renderServiceGroup(group, serviceSections));
+for (const service of servicePages) {
+  generatedPages.set(`${service.slug}.mdx`, renderServicePage(service, serviceSections));
 }
 generatedPages.set('types.mdx', renderTypesPage(typeSections, enumSections));
 generatedPages.set('realtime.mdx', renderRealtimePage(typeSections, enumSections));
@@ -309,6 +443,13 @@ validateGeneratedPages(generatedPages);
 
 await mkdir(outputDir, { recursive: true });
 await removeStaleGeneratedPages(new Set(generatedPages.keys()));
+try {
+  await unlink(legacyRawReferencePath);
+} catch (error) {
+  if (error.code !== 'ENOENT') {
+    throw error;
+  }
+}
 for (const [filename, content] of generatedPages.entries()) {
   await writeFile(path.join(outputDir, filename), content);
 }

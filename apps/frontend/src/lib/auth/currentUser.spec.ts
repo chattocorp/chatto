@@ -47,7 +47,7 @@ describe('CurrentUserState', () => {
     });
   });
 
-  it('exports the class', async () => {
+  it('exports the class', () => {
     expect(CurrentUserState).toBeDefined();
     expect(typeof CurrentUserState).toBe('function');
   });

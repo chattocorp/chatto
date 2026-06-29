@@ -7,17 +7,17 @@ import { BatchGetUsersRequest, BatchGetUsersResponse, GetUserByLoginRequest, Get
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
- * Provides authenticated public user profile lookups.
+ * Provides authenticated public user directory lookups.
  *
- * @generated from service chatto.api.v1.UserService
+ * @generated from service chatto.api.v1.UserDirectoryService
  */
-export const UserService = {
-  typeName: "chatto.api.v1.UserService",
+export const UserDirectoryService = {
+  typeName: "chatto.api.v1.UserDirectoryService",
   methods: {
     /**
      * Gets a user by stable ID. Returns NOT_FOUND when the ID is unknown.
      *
-     * @generated from rpc chatto.api.v1.UserService.GetUser
+     * @generated from rpc chatto.api.v1.UserDirectoryService.GetUser
      */
     getUser: {
       name: "GetUser",
@@ -28,7 +28,7 @@ export const UserService = {
     /**
      * Gets a user by login. Returns NOT_FOUND when the login is unknown.
      *
-     * @generated from rpc chatto.api.v1.UserService.GetUserByLogin
+     * @generated from rpc chatto.api.v1.UserDirectoryService.GetUserByLogin
      */
     getUserByLogin: {
       name: "GetUserByLogin",
@@ -37,10 +37,10 @@ export const UserService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Gets lightweight summaries for multiple users referenced by event-focused
+     * Gets public user records for multiple users referenced by event-focused
      * payloads.
      *
-     * @generated from rpc chatto.api.v1.UserService.BatchGetUsers
+     * @generated from rpc chatto.api.v1.UserDirectoryService.BatchGetUsers
      */
     batchGetUsers: {
       name: "BatchGetUsers",

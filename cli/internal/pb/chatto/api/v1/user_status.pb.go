@@ -298,10 +298,7 @@ const file_chatto_api_v1_user_status_proto_rawDesc = "" +
 	"\x06status\x18\x01 \x01(\v2\x1f.chatto.api.v1.CustomUserStatusR\x06status\"\x1a\n" +
 	"\x18ClearCustomStatusRequest\"T\n" +
 	"\x19ClearCustomStatusResponse\x127\n" +
-	"\x06status\x18\x01 \x01(\v2\x1f.chatto.api.v1.CustomUserStatusR\x06status2\xdd\x01\n" +
-	"\x11UserStatusService\x12`\n" +
-	"\x0fSetCustomStatus\x12%.chatto.api.v1.SetCustomStatusRequest\x1a&.chatto.api.v1.SetCustomStatusResponse\x12f\n" +
-	"\x11ClearCustomStatus\x12'.chatto.api.v1.ClearCustomStatusRequest\x1a(.chatto.api.v1.ClearCustomStatusResponseB\xab\x01\n" +
+	"\x06status\x18\x01 \x01(\v2\x1f.chatto.api.v1.CustomUserStatusR\x06statusB\xab\x01\n" +
 	"\x11com.chatto.api.v1B\x0fUserStatusProtoP\x01Z/hmans.de/chatto/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
 
 var (
@@ -330,12 +327,8 @@ var file_chatto_api_v1_user_status_proto_depIdxs = []int32{
 	5, // 1: chatto.api.v1.SetCustomStatusRequest.expires_at:type_name -> google.protobuf.Timestamp
 	0, // 2: chatto.api.v1.SetCustomStatusResponse.status:type_name -> chatto.api.v1.CustomUserStatus
 	0, // 3: chatto.api.v1.ClearCustomStatusResponse.status:type_name -> chatto.api.v1.CustomUserStatus
-	1, // 4: chatto.api.v1.UserStatusService.SetCustomStatus:input_type -> chatto.api.v1.SetCustomStatusRequest
-	3, // 5: chatto.api.v1.UserStatusService.ClearCustomStatus:input_type -> chatto.api.v1.ClearCustomStatusRequest
-	2, // 6: chatto.api.v1.UserStatusService.SetCustomStatus:output_type -> chatto.api.v1.SetCustomStatusResponse
-	4, // 7: chatto.api.v1.UserStatusService.ClearCustomStatus:output_type -> chatto.api.v1.ClearCustomStatusResponse
-	6, // [6:8] is the sub-list for method output_type
-	4, // [4:6] is the sub-list for method input_type
+	4, // [4:4] is the sub-list for method output_type
+	4, // [4:4] is the sub-list for method input_type
 	4, // [4:4] is the sub-list for extension type_name
 	4, // [4:4] is the sub-list for extension extendee
 	0, // [0:4] is the sub-list for field type_name
@@ -354,7 +347,7 @@ func file_chatto_api_v1_user_status_proto_init() {
 			NumEnums:      0,
 			NumMessages:   5,
 			NumExtensions: 0,
-			NumServices:   1,
+			NumServices:   0,
 		},
 		GoTypes:           file_chatto_api_v1_user_status_proto_goTypes,
 		DependencyIndexes: file_chatto_api_v1_user_status_proto_depIdxs,

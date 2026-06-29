@@ -4,7 +4,7 @@ import * as routes from '../routes';
 import { RoomPage } from './RoomPage';
 
 interface GetUserByLoginResponse {
-  user?: { id?: string };
+  user?: { user?: { id?: string } };
 }
 
 interface StartDMResponse {
@@ -44,10 +44,10 @@ export class DMPage {
     // Look up user by login
     const userData = await connectPost<GetUserByLoginResponse>(
       this.page,
-      'chatto.api.v1.UserService/GetUserByLogin',
+      'chatto.api.v1.UserDirectoryService/GetUserByLogin',
       { login: username }
     );
-    const userId = userData.user?.id;
+    const userId = userData.user?.user?.id;
     if (!userId) {
       throw new Error(`User not found: ${username}`);
     }

@@ -159,30 +159,30 @@ export class GetServerResponse extends Message<GetServerResponse> {
   /**
    * Optional welcome message configured by the server administrator.
    *
-   * @generated from field: string welcome_message = 7;
+   * @generated from field: optional string welcome_message = 7;
    */
-  welcomeMessage = "";
+  welcomeMessage?: string;
 
   /**
    * Optional server description configured by the server administrator.
    *
-   * @generated from field: string description = 8;
+   * @generated from field: optional string description = 8;
    */
-  description = "";
+  description?: string;
 
   /**
-   * Optional server icon URL suitable for branding the server in client UI.
+   * Optional server logo URL suitable for branding the server in client UI.
    *
-   * @generated from field: string icon_url = 9;
+   * @generated from field: optional string logo_url = 9;
    */
-  iconUrl = "";
+  logoUrl?: string;
 
   /**
    * Optional server banner URL suitable for larger server branding surfaces.
    *
-   * @generated from field: string banner_url = 10;
+   * @generated from field: optional string banner_url = 10;
    */
-  bannerUrl = "";
+  bannerUrl?: string;
 
   constructor(data?: PartialMessage<GetServerResponse>) {
     super();
@@ -198,10 +198,10 @@ export class GetServerResponse extends Message<GetServerResponse> {
     { no: 4, name: "auth_providers", kind: "message", T: AuthProvider, repeated: true },
     { no: 5, name: "registration_open", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 6, name: "authorize_url", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 7, name: "welcome_message", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 8, name: "description", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 9, name: "icon_url", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 10, name: "banner_url", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 7, name: "welcome_message", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 8, name: "description", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 9, name: "logo_url", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 10, name: "banner_url", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetServerResponse {

@@ -123,19 +123,7 @@ message GetRoomResponse {
   DirectoryRoom room = 1;
 }
 
-// Request to join all joinable rooms in one room group.
-message JoinGroupRequest {
-  // Required. Room group whose rooms should be joined.
-  string group_id = 1 [(buf.validate.field).string.min_len = 1];
-}
-
-// Result of joining all joinable rooms in one room group.
-message JoinGroupResponse {
-  // Room IDs that transitioned from not joined to joined.
-  repeated string joined_room_ids = 1;
-}
-
-// Reads room directory data and performs directory-adjacent commands.
+// Reads room directory data.
 service RoomDirectoryService {
   // Lists rooms visible to the current user. Channel rooms are non-archived
   // rooms visible through membership or room.list. DM rooms are membership-only
@@ -146,7 +134,4 @@ service RoomDirectoryService {
   rpc ListRoomGroups(ListRoomGroupsRequest) returns (ListRoomGroupsResponse);
   // Returns one visible room by ID. DM rooms require membership.
   rpc GetRoom(GetRoomRequest) returns (GetRoomResponse);
-  // Joins every unarchived room in a group that the current user can join.
-  // Already-joined and non-joinable rooms are skipped.
-  rpc JoinGroup(JoinGroupRequest) returns (JoinGroupResponse);
 }

@@ -57,11 +57,13 @@ describe('createNotificationAPI', () => {
           id: 'n1',
           createdAt: Timestamp.fromDate(new Date('2026-06-01T12:00:00Z')),
           actor: {
-            id: 'u1',
-            login: 'alice',
-            displayName: 'Alice',
-            deleted: false,
-            avatarUrl: 'https://cdn/avatar.webp',
+            user: {
+              id: 'u1',
+              login: 'alice',
+              displayName: 'Alice',
+              deleted: false,
+              avatarUrl: 'https://cdn/avatar.webp'
+            },
             presenceStatus: APIPresenceStatus.OFFLINE
           },
           summary: 'Alice mentioned you',

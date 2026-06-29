@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ArchiveRoomRequest, ArchiveRoomResponse, BanRoomMemberRequest, BanRoomMemberResponse, CreateRoomRequest, CreateRoomResponse, JoinRoomRequest, JoinRoomResponse, LeaveRoomRequest, LeaveRoomResponse, ListRoomBansRequest, ListRoomBansResponse, SetRoomUniversalRequest, SetRoomUniversalResponse, StartDMRequest, StartDMResponse, UnarchiveRoomRequest, UnarchiveRoomResponse, UnbanRoomMemberRequest, UnbanRoomMemberResponse, UpdateRoomRequest, UpdateRoomResponse } from "./rooms_pb.js";
+import { ArchiveRoomRequest, ArchiveRoomResponse, BanRoomMemberRequest, BanRoomMemberResponse, CreateRoomRequest, CreateRoomResponse, JoinRoomGroupRequest, JoinRoomGroupResponse, JoinRoomRequest, JoinRoomResponse, LeaveRoomRequest, LeaveRoomResponse, ListRoomBansRequest, ListRoomBansResponse, SetRoomUniversalRequest, SetRoomUniversalResponse, StartDMRequest, StartDMResponse, UnarchiveRoomRequest, UnarchiveRoomResponse, UnbanRoomMemberRequest, UnbanRoomMemberResponse, UpdateRoomRequest, UpdateRoomResponse } from "./rooms_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -83,6 +83,18 @@ export const RoomService = {
       name: "JoinRoom",
       I: JoinRoomRequest,
       O: JoinRoomResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Joins every unarchived room in a group that the current user can join.
+     * Already-joined and non-joinable rooms are skipped.
+     *
+     * @generated from rpc chatto.api.v1.RoomService.JoinRoomGroup
+     */
+    joinRoomGroup: {
+      name: "JoinRoomGroup",
+      I: JoinRoomGroupRequest,
+      O: JoinRoomGroupResponse,
       kind: MethodKind.Unary,
     },
     /**

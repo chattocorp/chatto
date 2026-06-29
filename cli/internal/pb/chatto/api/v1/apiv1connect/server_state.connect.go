@@ -21,8 +21,8 @@ import (
 const _ = connect.IsAtLeastVersion1_13_0
 
 const (
-	// ServerStateServiceName is the fully-qualified name of the ServerStateService service.
-	ServerStateServiceName = "chatto.api.v1.ServerStateService"
+	// ServerServiceName is the fully-qualified name of the ServerService service.
+	ServerServiceName = "chatto.api.v1.ServerService"
 )
 
 // These constants are the fully-qualified names of the RPCs defined in this package. They're
@@ -33,302 +33,83 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
-	// ServerStateServiceGetServerStateProcedure is the fully-qualified name of the ServerStateService's
+	// ServerServiceGetServerStateProcedure is the fully-qualified name of the ServerService's
 	// GetServerState RPC.
-	ServerStateServiceGetServerStateProcedure = "/chatto.api.v1.ServerStateService/GetServerState"
-	// ServerStateServiceUpdateServerConfigProcedure is the fully-qualified name of the
-	// ServerStateService's UpdateServerConfig RPC.
-	ServerStateServiceUpdateServerConfigProcedure = "/chatto.api.v1.ServerStateService/UpdateServerConfig"
-	// ServerStateServiceUploadServerLogoProcedure is the fully-qualified name of the
-	// ServerStateService's UploadServerLogo RPC.
-	ServerStateServiceUploadServerLogoProcedure = "/chatto.api.v1.ServerStateService/UploadServerLogo"
-	// ServerStateServiceDeleteServerLogoProcedure is the fully-qualified name of the
-	// ServerStateService's DeleteServerLogo RPC.
-	ServerStateServiceDeleteServerLogoProcedure = "/chatto.api.v1.ServerStateService/DeleteServerLogo"
-	// ServerStateServiceUploadServerBannerProcedure is the fully-qualified name of the
-	// ServerStateService's UploadServerBanner RPC.
-	ServerStateServiceUploadServerBannerProcedure = "/chatto.api.v1.ServerStateService/UploadServerBanner"
-	// ServerStateServiceDeleteServerBannerProcedure is the fully-qualified name of the
-	// ServerStateService's DeleteServerBanner RPC.
-	ServerStateServiceDeleteServerBannerProcedure = "/chatto.api.v1.ServerStateService/DeleteServerBanner"
-	// ServerStateServiceGetServerSecurityConfigProcedure is the fully-qualified name of the
-	// ServerStateService's GetServerSecurityConfig RPC.
-	ServerStateServiceGetServerSecurityConfigProcedure = "/chatto.api.v1.ServerStateService/GetServerSecurityConfig"
-	// ServerStateServiceUpdateBlockedUsernamesProcedure is the fully-qualified name of the
-	// ServerStateService's UpdateBlockedUsernames RPC.
-	ServerStateServiceUpdateBlockedUsernamesProcedure = "/chatto.api.v1.ServerStateService/UpdateBlockedUsernames"
+	ServerServiceGetServerStateProcedure = "/chatto.api.v1.ServerService/GetServerState"
 )
 
-// ServerStateServiceClient is a client for the chatto.api.v1.ServerStateService service.
-type ServerStateServiceClient interface {
+// ServerServiceClient is a client for the chatto.api.v1.ServerService service.
+type ServerServiceClient interface {
 	// Returns authenticated server state. This RPC requires a logged-in user;
-	// public discovery remains available through ServerService.GetServer.
+	// public discovery remains available through
+	// ServerDiscoveryService.GetServer.
 	GetServerState(context.Context, *connect.Request[v1.GetServerStateRequest]) (*connect.Response[v1.GetServerStateResponse], error)
-	// Updates runtime-editable server profile settings. This RPC requires
-	// server.manage.
-	UpdateServerConfig(context.Context, *connect.Request[v1.UpdateServerConfigRequest]) (*connect.Response[v1.UpdateServerConfigResponse], error)
-	// Uploads and sets the public server logo. This RPC requires server.manage.
-	UploadServerLogo(context.Context, *connect.Request[v1.UploadServerLogoRequest]) (*connect.Response[v1.UploadServerLogoResponse], error)
-	// Clears the public server logo. This RPC requires server.manage.
-	DeleteServerLogo(context.Context, *connect.Request[v1.DeleteServerLogoRequest]) (*connect.Response[v1.DeleteServerLogoResponse], error)
-	// Uploads and sets the public server banner. This RPC requires server.manage.
-	UploadServerBanner(context.Context, *connect.Request[v1.UploadServerBannerRequest]) (*connect.Response[v1.UploadServerBannerResponse], error)
-	// Clears the public server banner. This RPC requires server.manage.
-	DeleteServerBanner(context.Context, *connect.Request[v1.DeleteServerBannerRequest]) (*connect.Response[v1.DeleteServerBannerResponse], error)
-	// Returns security-sensitive server configuration. This RPC requires
-	// server.manage.
-	GetServerSecurityConfig(context.Context, *connect.Request[v1.GetServerSecurityConfigRequest]) (*connect.Response[v1.GetServerSecurityConfigResponse], error)
-	// Updates the blocked-username list. This RPC requires server.manage.
-	UpdateBlockedUsernames(context.Context, *connect.Request[v1.UpdateBlockedUsernamesRequest]) (*connect.Response[v1.UpdateBlockedUsernamesResponse], error)
 }
 
-// NewServerStateServiceClient constructs a client for the chatto.api.v1.ServerStateService service.
-// By default, it uses the Connect protocol with the binary Protobuf Codec, asks for gzipped
-// responses, and sends uncompressed requests. To use the gRPC or gRPC-Web protocols, supply the
+// NewServerServiceClient constructs a client for the chatto.api.v1.ServerService service. By
+// default, it uses the Connect protocol with the binary Protobuf Codec, asks for gzipped responses,
+// and sends uncompressed requests. To use the gRPC or gRPC-Web protocols, supply the
 // connect.WithGRPC() or connect.WithGRPCWeb() options.
 //
 // The URL supplied here should be the base URL for the Connect or gRPC server (for example,
 // http://api.acme.com or https://acme.com/grpc).
-func NewServerStateServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) ServerStateServiceClient {
+func NewServerServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) ServerServiceClient {
 	baseURL = strings.TrimRight(baseURL, "/")
-	serverStateServiceMethods := v1.File_chatto_api_v1_server_state_proto.Services().ByName("ServerStateService").Methods()
-	return &serverStateServiceClient{
+	serverServiceMethods := v1.File_chatto_api_v1_server_state_proto.Services().ByName("ServerService").Methods()
+	return &serverServiceClient{
 		getServerState: connect.NewClient[v1.GetServerStateRequest, v1.GetServerStateResponse](
 			httpClient,
-			baseURL+ServerStateServiceGetServerStateProcedure,
-			connect.WithSchema(serverStateServiceMethods.ByName("GetServerState")),
-			connect.WithClientOptions(opts...),
-		),
-		updateServerConfig: connect.NewClient[v1.UpdateServerConfigRequest, v1.UpdateServerConfigResponse](
-			httpClient,
-			baseURL+ServerStateServiceUpdateServerConfigProcedure,
-			connect.WithSchema(serverStateServiceMethods.ByName("UpdateServerConfig")),
-			connect.WithClientOptions(opts...),
-		),
-		uploadServerLogo: connect.NewClient[v1.UploadServerLogoRequest, v1.UploadServerLogoResponse](
-			httpClient,
-			baseURL+ServerStateServiceUploadServerLogoProcedure,
-			connect.WithSchema(serverStateServiceMethods.ByName("UploadServerLogo")),
-			connect.WithClientOptions(opts...),
-		),
-		deleteServerLogo: connect.NewClient[v1.DeleteServerLogoRequest, v1.DeleteServerLogoResponse](
-			httpClient,
-			baseURL+ServerStateServiceDeleteServerLogoProcedure,
-			connect.WithSchema(serverStateServiceMethods.ByName("DeleteServerLogo")),
-			connect.WithClientOptions(opts...),
-		),
-		uploadServerBanner: connect.NewClient[v1.UploadServerBannerRequest, v1.UploadServerBannerResponse](
-			httpClient,
-			baseURL+ServerStateServiceUploadServerBannerProcedure,
-			connect.WithSchema(serverStateServiceMethods.ByName("UploadServerBanner")),
-			connect.WithClientOptions(opts...),
-		),
-		deleteServerBanner: connect.NewClient[v1.DeleteServerBannerRequest, v1.DeleteServerBannerResponse](
-			httpClient,
-			baseURL+ServerStateServiceDeleteServerBannerProcedure,
-			connect.WithSchema(serverStateServiceMethods.ByName("DeleteServerBanner")),
-			connect.WithClientOptions(opts...),
-		),
-		getServerSecurityConfig: connect.NewClient[v1.GetServerSecurityConfigRequest, v1.GetServerSecurityConfigResponse](
-			httpClient,
-			baseURL+ServerStateServiceGetServerSecurityConfigProcedure,
-			connect.WithSchema(serverStateServiceMethods.ByName("GetServerSecurityConfig")),
-			connect.WithClientOptions(opts...),
-		),
-		updateBlockedUsernames: connect.NewClient[v1.UpdateBlockedUsernamesRequest, v1.UpdateBlockedUsernamesResponse](
-			httpClient,
-			baseURL+ServerStateServiceUpdateBlockedUsernamesProcedure,
-			connect.WithSchema(serverStateServiceMethods.ByName("UpdateBlockedUsernames")),
+			baseURL+ServerServiceGetServerStateProcedure,
+			connect.WithSchema(serverServiceMethods.ByName("GetServerState")),
 			connect.WithClientOptions(opts...),
 		),
 	}
 }
 
-// serverStateServiceClient implements ServerStateServiceClient.
-type serverStateServiceClient struct {
-	getServerState          *connect.Client[v1.GetServerStateRequest, v1.GetServerStateResponse]
-	updateServerConfig      *connect.Client[v1.UpdateServerConfigRequest, v1.UpdateServerConfigResponse]
-	uploadServerLogo        *connect.Client[v1.UploadServerLogoRequest, v1.UploadServerLogoResponse]
-	deleteServerLogo        *connect.Client[v1.DeleteServerLogoRequest, v1.DeleteServerLogoResponse]
-	uploadServerBanner      *connect.Client[v1.UploadServerBannerRequest, v1.UploadServerBannerResponse]
-	deleteServerBanner      *connect.Client[v1.DeleteServerBannerRequest, v1.DeleteServerBannerResponse]
-	getServerSecurityConfig *connect.Client[v1.GetServerSecurityConfigRequest, v1.GetServerSecurityConfigResponse]
-	updateBlockedUsernames  *connect.Client[v1.UpdateBlockedUsernamesRequest, v1.UpdateBlockedUsernamesResponse]
+// serverServiceClient implements ServerServiceClient.
+type serverServiceClient struct {
+	getServerState *connect.Client[v1.GetServerStateRequest, v1.GetServerStateResponse]
 }
 
-// GetServerState calls chatto.api.v1.ServerStateService.GetServerState.
-func (c *serverStateServiceClient) GetServerState(ctx context.Context, req *connect.Request[v1.GetServerStateRequest]) (*connect.Response[v1.GetServerStateResponse], error) {
+// GetServerState calls chatto.api.v1.ServerService.GetServerState.
+func (c *serverServiceClient) GetServerState(ctx context.Context, req *connect.Request[v1.GetServerStateRequest]) (*connect.Response[v1.GetServerStateResponse], error) {
 	return c.getServerState.CallUnary(ctx, req)
 }
 
-// UpdateServerConfig calls chatto.api.v1.ServerStateService.UpdateServerConfig.
-func (c *serverStateServiceClient) UpdateServerConfig(ctx context.Context, req *connect.Request[v1.UpdateServerConfigRequest]) (*connect.Response[v1.UpdateServerConfigResponse], error) {
-	return c.updateServerConfig.CallUnary(ctx, req)
-}
-
-// UploadServerLogo calls chatto.api.v1.ServerStateService.UploadServerLogo.
-func (c *serverStateServiceClient) UploadServerLogo(ctx context.Context, req *connect.Request[v1.UploadServerLogoRequest]) (*connect.Response[v1.UploadServerLogoResponse], error) {
-	return c.uploadServerLogo.CallUnary(ctx, req)
-}
-
-// DeleteServerLogo calls chatto.api.v1.ServerStateService.DeleteServerLogo.
-func (c *serverStateServiceClient) DeleteServerLogo(ctx context.Context, req *connect.Request[v1.DeleteServerLogoRequest]) (*connect.Response[v1.DeleteServerLogoResponse], error) {
-	return c.deleteServerLogo.CallUnary(ctx, req)
-}
-
-// UploadServerBanner calls chatto.api.v1.ServerStateService.UploadServerBanner.
-func (c *serverStateServiceClient) UploadServerBanner(ctx context.Context, req *connect.Request[v1.UploadServerBannerRequest]) (*connect.Response[v1.UploadServerBannerResponse], error) {
-	return c.uploadServerBanner.CallUnary(ctx, req)
-}
-
-// DeleteServerBanner calls chatto.api.v1.ServerStateService.DeleteServerBanner.
-func (c *serverStateServiceClient) DeleteServerBanner(ctx context.Context, req *connect.Request[v1.DeleteServerBannerRequest]) (*connect.Response[v1.DeleteServerBannerResponse], error) {
-	return c.deleteServerBanner.CallUnary(ctx, req)
-}
-
-// GetServerSecurityConfig calls chatto.api.v1.ServerStateService.GetServerSecurityConfig.
-func (c *serverStateServiceClient) GetServerSecurityConfig(ctx context.Context, req *connect.Request[v1.GetServerSecurityConfigRequest]) (*connect.Response[v1.GetServerSecurityConfigResponse], error) {
-	return c.getServerSecurityConfig.CallUnary(ctx, req)
-}
-
-// UpdateBlockedUsernames calls chatto.api.v1.ServerStateService.UpdateBlockedUsernames.
-func (c *serverStateServiceClient) UpdateBlockedUsernames(ctx context.Context, req *connect.Request[v1.UpdateBlockedUsernamesRequest]) (*connect.Response[v1.UpdateBlockedUsernamesResponse], error) {
-	return c.updateBlockedUsernames.CallUnary(ctx, req)
-}
-
-// ServerStateServiceHandler is an implementation of the chatto.api.v1.ServerStateService service.
-type ServerStateServiceHandler interface {
+// ServerServiceHandler is an implementation of the chatto.api.v1.ServerService service.
+type ServerServiceHandler interface {
 	// Returns authenticated server state. This RPC requires a logged-in user;
-	// public discovery remains available through ServerService.GetServer.
+	// public discovery remains available through
+	// ServerDiscoveryService.GetServer.
 	GetServerState(context.Context, *connect.Request[v1.GetServerStateRequest]) (*connect.Response[v1.GetServerStateResponse], error)
-	// Updates runtime-editable server profile settings. This RPC requires
-	// server.manage.
-	UpdateServerConfig(context.Context, *connect.Request[v1.UpdateServerConfigRequest]) (*connect.Response[v1.UpdateServerConfigResponse], error)
-	// Uploads and sets the public server logo. This RPC requires server.manage.
-	UploadServerLogo(context.Context, *connect.Request[v1.UploadServerLogoRequest]) (*connect.Response[v1.UploadServerLogoResponse], error)
-	// Clears the public server logo. This RPC requires server.manage.
-	DeleteServerLogo(context.Context, *connect.Request[v1.DeleteServerLogoRequest]) (*connect.Response[v1.DeleteServerLogoResponse], error)
-	// Uploads and sets the public server banner. This RPC requires server.manage.
-	UploadServerBanner(context.Context, *connect.Request[v1.UploadServerBannerRequest]) (*connect.Response[v1.UploadServerBannerResponse], error)
-	// Clears the public server banner. This RPC requires server.manage.
-	DeleteServerBanner(context.Context, *connect.Request[v1.DeleteServerBannerRequest]) (*connect.Response[v1.DeleteServerBannerResponse], error)
-	// Returns security-sensitive server configuration. This RPC requires
-	// server.manage.
-	GetServerSecurityConfig(context.Context, *connect.Request[v1.GetServerSecurityConfigRequest]) (*connect.Response[v1.GetServerSecurityConfigResponse], error)
-	// Updates the blocked-username list. This RPC requires server.manage.
-	UpdateBlockedUsernames(context.Context, *connect.Request[v1.UpdateBlockedUsernamesRequest]) (*connect.Response[v1.UpdateBlockedUsernamesResponse], error)
 }
 
-// NewServerStateServiceHandler builds an HTTP handler from the service implementation. It returns
-// the path on which to mount the handler and the handler itself.
+// NewServerServiceHandler builds an HTTP handler from the service implementation. It returns the
+// path on which to mount the handler and the handler itself.
 //
 // By default, handlers support the Connect, gRPC, and gRPC-Web protocols with the binary Protobuf
 // and JSON codecs. They also support gzip compression.
-func NewServerStateServiceHandler(svc ServerStateServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
-	serverStateServiceMethods := v1.File_chatto_api_v1_server_state_proto.Services().ByName("ServerStateService").Methods()
-	serverStateServiceGetServerStateHandler := connect.NewUnaryHandler(
-		ServerStateServiceGetServerStateProcedure,
+func NewServerServiceHandler(svc ServerServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
+	serverServiceMethods := v1.File_chatto_api_v1_server_state_proto.Services().ByName("ServerService").Methods()
+	serverServiceGetServerStateHandler := connect.NewUnaryHandler(
+		ServerServiceGetServerStateProcedure,
 		svc.GetServerState,
-		connect.WithSchema(serverStateServiceMethods.ByName("GetServerState")),
+		connect.WithSchema(serverServiceMethods.ByName("GetServerState")),
 		connect.WithHandlerOptions(opts...),
 	)
-	serverStateServiceUpdateServerConfigHandler := connect.NewUnaryHandler(
-		ServerStateServiceUpdateServerConfigProcedure,
-		svc.UpdateServerConfig,
-		connect.WithSchema(serverStateServiceMethods.ByName("UpdateServerConfig")),
-		connect.WithHandlerOptions(opts...),
-	)
-	serverStateServiceUploadServerLogoHandler := connect.NewUnaryHandler(
-		ServerStateServiceUploadServerLogoProcedure,
-		svc.UploadServerLogo,
-		connect.WithSchema(serverStateServiceMethods.ByName("UploadServerLogo")),
-		connect.WithHandlerOptions(opts...),
-	)
-	serverStateServiceDeleteServerLogoHandler := connect.NewUnaryHandler(
-		ServerStateServiceDeleteServerLogoProcedure,
-		svc.DeleteServerLogo,
-		connect.WithSchema(serverStateServiceMethods.ByName("DeleteServerLogo")),
-		connect.WithHandlerOptions(opts...),
-	)
-	serverStateServiceUploadServerBannerHandler := connect.NewUnaryHandler(
-		ServerStateServiceUploadServerBannerProcedure,
-		svc.UploadServerBanner,
-		connect.WithSchema(serverStateServiceMethods.ByName("UploadServerBanner")),
-		connect.WithHandlerOptions(opts...),
-	)
-	serverStateServiceDeleteServerBannerHandler := connect.NewUnaryHandler(
-		ServerStateServiceDeleteServerBannerProcedure,
-		svc.DeleteServerBanner,
-		connect.WithSchema(serverStateServiceMethods.ByName("DeleteServerBanner")),
-		connect.WithHandlerOptions(opts...),
-	)
-	serverStateServiceGetServerSecurityConfigHandler := connect.NewUnaryHandler(
-		ServerStateServiceGetServerSecurityConfigProcedure,
-		svc.GetServerSecurityConfig,
-		connect.WithSchema(serverStateServiceMethods.ByName("GetServerSecurityConfig")),
-		connect.WithHandlerOptions(opts...),
-	)
-	serverStateServiceUpdateBlockedUsernamesHandler := connect.NewUnaryHandler(
-		ServerStateServiceUpdateBlockedUsernamesProcedure,
-		svc.UpdateBlockedUsernames,
-		connect.WithSchema(serverStateServiceMethods.ByName("UpdateBlockedUsernames")),
-		connect.WithHandlerOptions(opts...),
-	)
-	return "/chatto.api.v1.ServerStateService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	return "/chatto.api.v1.ServerService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case ServerStateServiceGetServerStateProcedure:
-			serverStateServiceGetServerStateHandler.ServeHTTP(w, r)
-		case ServerStateServiceUpdateServerConfigProcedure:
-			serverStateServiceUpdateServerConfigHandler.ServeHTTP(w, r)
-		case ServerStateServiceUploadServerLogoProcedure:
-			serverStateServiceUploadServerLogoHandler.ServeHTTP(w, r)
-		case ServerStateServiceDeleteServerLogoProcedure:
-			serverStateServiceDeleteServerLogoHandler.ServeHTTP(w, r)
-		case ServerStateServiceUploadServerBannerProcedure:
-			serverStateServiceUploadServerBannerHandler.ServeHTTP(w, r)
-		case ServerStateServiceDeleteServerBannerProcedure:
-			serverStateServiceDeleteServerBannerHandler.ServeHTTP(w, r)
-		case ServerStateServiceGetServerSecurityConfigProcedure:
-			serverStateServiceGetServerSecurityConfigHandler.ServeHTTP(w, r)
-		case ServerStateServiceUpdateBlockedUsernamesProcedure:
-			serverStateServiceUpdateBlockedUsernamesHandler.ServeHTTP(w, r)
+		case ServerServiceGetServerStateProcedure:
+			serverServiceGetServerStateHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
 	})
 }
 
-// UnimplementedServerStateServiceHandler returns CodeUnimplemented from all methods.
-type UnimplementedServerStateServiceHandler struct{}
+// UnimplementedServerServiceHandler returns CodeUnimplemented from all methods.
+type UnimplementedServerServiceHandler struct{}
 
-func (UnimplementedServerStateServiceHandler) GetServerState(context.Context, *connect.Request[v1.GetServerStateRequest]) (*connect.Response[v1.GetServerStateResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.ServerStateService.GetServerState is not implemented"))
-}
-
-func (UnimplementedServerStateServiceHandler) UpdateServerConfig(context.Context, *connect.Request[v1.UpdateServerConfigRequest]) (*connect.Response[v1.UpdateServerConfigResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.ServerStateService.UpdateServerConfig is not implemented"))
-}
-
-func (UnimplementedServerStateServiceHandler) UploadServerLogo(context.Context, *connect.Request[v1.UploadServerLogoRequest]) (*connect.Response[v1.UploadServerLogoResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.ServerStateService.UploadServerLogo is not implemented"))
-}
-
-func (UnimplementedServerStateServiceHandler) DeleteServerLogo(context.Context, *connect.Request[v1.DeleteServerLogoRequest]) (*connect.Response[v1.DeleteServerLogoResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.ServerStateService.DeleteServerLogo is not implemented"))
-}
-
-func (UnimplementedServerStateServiceHandler) UploadServerBanner(context.Context, *connect.Request[v1.UploadServerBannerRequest]) (*connect.Response[v1.UploadServerBannerResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.ServerStateService.UploadServerBanner is not implemented"))
-}
-
-func (UnimplementedServerStateServiceHandler) DeleteServerBanner(context.Context, *connect.Request[v1.DeleteServerBannerRequest]) (*connect.Response[v1.DeleteServerBannerResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.ServerStateService.DeleteServerBanner is not implemented"))
-}
-
-func (UnimplementedServerStateServiceHandler) GetServerSecurityConfig(context.Context, *connect.Request[v1.GetServerSecurityConfigRequest]) (*connect.Response[v1.GetServerSecurityConfigResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.ServerStateService.GetServerSecurityConfig is not implemented"))
-}
-
-func (UnimplementedServerStateServiceHandler) UpdateBlockedUsernames(context.Context, *connect.Request[v1.UpdateBlockedUsernamesRequest]) (*connect.Response[v1.UpdateBlockedUsernamesResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.ServerStateService.UpdateBlockedUsernames is not implemented"))
+func (UnimplementedServerServiceHandler) GetServerState(context.Context, *connect.Request[v1.GetServerStateRequest]) (*connect.Response[v1.GetServerStateResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.ServerService.GetServerState is not implemented"))
 }

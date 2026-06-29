@@ -76,18 +76,20 @@ export function createMemberDirectoryAPI(config: MemberDirectoryAPIConfig) {
 export type MemberDirectoryAPI = ReturnType<typeof createMemberDirectoryAPI>;
 
 export function mapDirectoryMember(member: APIDirectoryMember): DirectoryMember {
+  const profile = member.profile;
+  const summary = profile?.user;
   return {
-    id: member.id,
-    login: member.login,
-    displayName: member.displayName,
-    deleted: member.deleted,
-    avatarUrl: member.avatarUrl ?? null,
-    presenceStatus: apiPresenceStatus(member.presenceStatus),
-    customStatus: member.customStatus
+    id: summary?.id ?? '',
+    login: summary?.login ?? '',
+    displayName: summary?.displayName ?? '',
+    deleted: summary?.deleted ?? false,
+    avatarUrl: summary?.avatarUrl ?? null,
+    presenceStatus: apiPresenceStatus(profile?.presenceStatus ?? APIPresenceStatus.UNSPECIFIED),
+    customStatus: profile?.customStatus
       ? {
-          emoji: member.customStatus.emoji,
-          text: member.customStatus.text,
-          expiresAt: member.customStatus.expiresAt?.toDate().toISOString() ?? null
+          emoji: profile.customStatus.emoji,
+          text: profile.customStatus.text,
+          expiresAt: profile.customStatus.expiresAt?.toDate().toISOString() ?? null
         }
       : null,
     roles: [...member.roles],

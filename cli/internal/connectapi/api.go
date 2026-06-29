@@ -7,6 +7,7 @@ import (
 	"connectrpc.com/validate"
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core"
+	"hmans.de/chatto/internal/pb/chatto/admin/v1/adminv1connect"
 	"hmans.de/chatto/internal/pb/chatto/api/v1/apiv1connect"
 )
 
@@ -71,14 +72,14 @@ func (a *API) Handlers() []Handler {
 
 	accountPath, accountHandler := apiv1connect.NewAccountServiceHandler(&accountService{api: a}, uploadOptions...)
 	attachmentPath, attachmentHandler := apiv1connect.NewAttachmentServiceHandler(&attachmentService{api: a}, options...)
-	adminDiagnosticsPath, adminDiagnosticsHandler := apiv1connect.NewAdminDiagnosticsServiceHandler(&adminDiagnosticsService{api: a}, options...)
-	adminEventLogPath, adminEventLogHandler := apiv1connect.NewAdminEventLogServiceHandler(&adminEventLogService{api: a}, options...)
-	adminUserManagementPath, adminUserManagementHandler := apiv1connect.NewAdminUserManagementServiceHandler(&adminUserManagementService{api: a}, options...)
+	adminDiagnosticsPath, adminDiagnosticsHandler := adminv1connect.NewAdminDiagnosticsServiceHandler(&adminDiagnosticsService{api: a}, options...)
+	adminEventLogPath, adminEventLogHandler := adminv1connect.NewAdminEventLogServiceHandler(&adminEventLogService{api: a}, options...)
+	adminMemberPath, adminMemberHandler := adminv1connect.NewAdminMemberServiceHandler(&adminUserManagementService{api: a}, options...)
+	adminServerPath, adminServerHandler := adminv1connect.NewAdminServerServiceHandler(&serverService{api: a}, uploadOptions...)
+	serverDiscoveryPath, serverDiscoveryHandler := apiv1connect.NewServerDiscoveryServiceHandler(&serverDiscoveryService{api: a}, options...)
 	serverPath, serverHandler := apiv1connect.NewServerServiceHandler(&serverService{api: a}, options...)
-	serverStatePath, serverStateHandler := apiv1connect.NewServerStateServiceHandler(&serverStateService{api: a}, uploadOptions...)
 	viewerPath, viewerHandler := apiv1connect.NewViewerServiceHandler(&viewerService{api: a}, options...)
-	presencePath, presenceHandler := apiv1connect.NewPresenceServiceHandler(&presenceService{api: a}, options...)
-	permissionPath, permissionHandler := apiv1connect.NewPermissionServiceHandler(&permissionService{api: a}, options...)
+	permissionPath, permissionHandler := adminv1connect.NewAdminPermissionServiceHandler(&permissionService{api: a}, options...)
 	linkPreviewPath, linkPreviewHandler := apiv1connect.NewLinkPreviewServiceHandler(&linkPreviewService{api: a}, options...)
 	messagePath, messageHandler := apiv1connect.NewMessageServiceHandler(&messageService{api: a}, messageUploadOptions...)
 	memberDirectoryPath, memberDirectoryHandler := apiv1connect.NewMemberDirectoryServiceHandler(&memberDirectoryService{api: a}, options...)
@@ -87,30 +88,29 @@ func (a *API) Handlers() []Handler {
 	pushPath, pushHandler := apiv1connect.NewPushNotificationServiceHandler(&pushNotificationService{api: a}, options...)
 	readStatePath, readStateHandler := apiv1connect.NewReadStateServiceHandler(&readStateService{api: a}, options...)
 	reactionPath, reactionHandler := apiv1connect.NewReactionServiceHandler(&reactionService{api: a}, options...)
-	rolePath, roleHandler := apiv1connect.NewRoleServiceHandler(&roleService{api: a}, options...)
+	rolePath, roleHandler := adminv1connect.NewAdminRoleServiceHandler(&roleService{api: a}, options...)
 	timelinePath, timelineHandler := apiv1connect.NewRoomTimelineServiceHandler(&roomTimelineService{api: a}, options...)
 	roomPath, roomHandler := apiv1connect.NewRoomServiceHandler(&roomService{api: a}, options...)
 	roomDirectoryPath, roomDirectoryHandler := apiv1connect.NewRoomDirectoryServiceHandler(&roomDirectoryService{api: a}, options...)
-	adminRoomLayoutPath, adminRoomLayoutHandler := apiv1connect.NewAdminRoomLayoutServiceHandler(&adminRoomLayoutService{api: a}, options...)
-	userStatusPath, userStatusHandler := apiv1connect.NewUserStatusServiceHandler(&userStatusService{api: a}, options...)
+	adminRoomLayoutPath, adminRoomLayoutHandler := adminv1connect.NewAdminRoomLayoutServiceHandler(&adminRoomLayoutService{api: a}, options...)
 	threadPath, threadHandler := apiv1connect.NewThreadServiceHandler(&threadService{api: a}, options...)
-	userPath, userHandler := apiv1connect.NewUserServiceHandler(&userService{api: a}, options...)
+	userPath, userHandler := apiv1connect.NewUserDirectoryServiceHandler(&userService{api: a}, options...)
 	voicePath, voiceHandler := apiv1connect.NewVoiceCallServiceHandler(&voiceCallService{api: a}, options...)
 	return []Handler{
 		{ServicePath: accountPath, Handler: accountHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: attachmentPath, Handler: attachmentHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: adminDiagnosticsPath, Handler: adminDiagnosticsHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: adminEventLogPath, Handler: adminEventLogHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
+		{ServicePath: adminServerPath, Handler: adminServerHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: adminRoomLayoutPath, Handler: adminRoomLayoutHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
-		{ServicePath: adminUserManagementPath, Handler: adminUserManagementHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
+		{ServicePath: adminMemberPath, Handler: adminMemberHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: linkPreviewPath, Handler: linkPreviewHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: messagePath, Handler: messageHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: memberDirectoryPath, Handler: memberDirectoryHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: notificationPath, Handler: notificationHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
-		{ServicePath: serverPath, Handler: serverHandler, AuthPolicy: AuthPolicyPublic},
-		{ServicePath: serverStatePath, Handler: serverStateHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
+		{ServicePath: serverDiscoveryPath, Handler: serverDiscoveryHandler, AuthPolicy: AuthPolicyPublic},
+		{ServicePath: serverPath, Handler: serverHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: viewerPath, Handler: viewerHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
-		{ServicePath: presencePath, Handler: presenceHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: permissionPath, Handler: permissionHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: prefsPath, Handler: prefsHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: pushPath, Handler: pushHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
@@ -120,7 +120,6 @@ func (a *API) Handlers() []Handler {
 		{ServicePath: timelinePath, Handler: timelineHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: roomPath, Handler: roomHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: roomDirectoryPath, Handler: roomDirectoryHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
-		{ServicePath: userStatusPath, Handler: userStatusHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: userPath, Handler: userHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: threadPath, Handler: threadHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: voicePath, Handler: voiceHandler, AuthPolicy: AuthPolicyAuthenticatedUser},

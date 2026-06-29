@@ -1,0 +1,96 @@
+---
+title: Chatto 0.3.0
+description: Release notes for Chatto 0.3.0.
+---
+
+import ReleaseFeatureCard from "../../../components/release-notes/ReleaseFeatureCard.astro";
+import ReleaseFeatureGrid from "../../../components/release-notes/ReleaseFeatureGrid.astro";
+import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
+
+<ReleaseHero
+  version="0.3.0"
+  summary="This release covers the full 0.3.0 line since 0.2.3: room discovery in the sidebar, simpler message composition, attachment permissions, richer message previews, and clearer notification opt-in."
+/>
+
+<ReleaseFeatureGrid>
+  <ReleaseFeatureCard title="Rooms are easier to discover" size="large">
+    The sidebar can show channel rooms you are allowed to see, even before you join them.
+    Non-member rooms are shown as available spaces instead of disappearing, with join and
+    access flows that explain what happens next.
+  </ReleaseFeatureCard>
+
+  <ReleaseFeatureCard title="Simple and rich composer modes" size="large">
+    Enter now sends ordinary plain messages quickly, while rich drafts keep multiline and
+    structured Markdown behavior. The composer switches modes when the draft needs richer
+    formatting, so fast chat and careful editing both feel natural.
+  </ReleaseFeatureCard>
+
+  <ReleaseFeatureCard title="Better member browsing">
+    Room members load lazily, support search, and paginate automatically. Large rooms and
+    mention lookups no longer need to eagerly load every member before the room is usable.
+  </ReleaseFeatureCard>
+
+  <ReleaseFeatureCard title="Richer linked message previews">
+    Links to Chatto messages render as scrollable previews with shared embed styling,
+    image refresh handling, and video thumbnail fallbacks.
+  </ReleaseFeatureCard>
+
+  <ReleaseFeatureCard title="Message links are easier to share" size="small">
+    Message action menus include a copy-link action, so you can point someone directly at
+    the relevant message.
+  </ReleaseFeatureCard>
+
+  <ReleaseFeatureCard title="Clearer Web Push opt-in" size="small">
+    Web Push setup follows the browser and operating-system permission model more closely,
+    with a dismissible prompt and improved settings copy.
+  </ReleaseFeatureCard>
+</ReleaseFeatureGrid>
+
+## Running and Integrating Chatto
+
+<ReleaseFeatureGrid>
+  <ReleaseFeatureCard title="Attachment uploads have their own permission" size="large">
+    File uploads are now gated by the room-scoped `message.attach` permission. The composer
+    hides upload controls when the current member cannot attach files, and servers can grant
+    attachment rights separately from message posting.
+  </ReleaseFeatureCard>
+
+  <ReleaseFeatureCard title="Room visibility is part of the sidebar contract">
+    The frontend sidebar now depends on room-list visibility and membership state instead
+    of only showing joined rooms. Custom GraphQL clients that mirror the bundled sidebar
+    need the new room visibility fields.
+  </ReleaseFeatureCard>
+</ReleaseFeatureGrid>
+
+## Upgrade Notes
+
+- The bundled frontend expects GraphQL room data that includes `Room.viewerIsMember`.
+  Upgrade custom clients or mixed frontend/server deployments that depend on the old
+  sidebar room query shape.
+- Existing deployments may need to grant `message.attach` where uploads should remain
+  available. Fresh/default RBAC state grants it to `everyone`, but existing permission
+  state is not backfilled automatically.
+
+## Smaller fixes you'll appreciate
+
+### Composer and message rendering
+
+- Composer headings preserve literal trailing `#` characters when messages are stored and
+  rendered.
+- Blockquotes have clearer quote rails, softer text, and tighter multi-paragraph spacing.
+
+### Notifications and sidebar
+
+- Room badges route from scoped notifications, so stale room and DM badges clear more
+  reliably.
+- Sidebar item spacing is tighter and better aligned with collapsible group headers.
+
+### Interface polish
+
+- Chat controls use consistent border radii across the current-user bar, add button, and
+  composer shell.
+
+## GitHub release
+
+The GitHub release lists every PR and commit:
+[github.com/chattocorp/chatto/releases/tag/v0.3.0](https://github.com/chattocorp/chatto/releases/tag/v0.3.0)

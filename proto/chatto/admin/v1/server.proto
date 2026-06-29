@@ -1,0 +1,119 @@
+syntax = "proto3";
+
+package chatto.admin.v1;
+
+import "buf/validate/validate.proto";
+import "chatto/api/v1/server_state.proto";
+
+// Request to update runtime-editable server profile settings.
+message UpdateServerConfigRequest {
+  // Optional server name for page titles. Set to empty string to use default.
+  optional string server_name = 1 [(buf.validate.field).string.max_len = 80];
+  // Optional short server description for OG link-preview metadata. Set to
+  // empty string to clear.
+  optional string description = 2 [(buf.validate.field).string.max_len = 500];
+  // Optional message of the day for the header. Set to empty string to clear.
+  optional string motd = 3 [(buf.validate.field).string.max_len = 1000];
+  // Optional welcome message shown on the login page. Set to empty string to
+  // clear.
+  optional string welcome_message = 4 [(buf.validate.field).string.max_len = 10000];
+}
+
+// Result of updating runtime-editable server profile settings.
+message UpdateServerConfigResponse {
+  // Updated server profile and branding.
+  chatto.api.v1.ServerProfile profile = 1;
+}
+
+// Request to upload and set the public server logo.
+message UploadServerLogoRequest {
+  // Raw image bytes. The server validates, resizes, and stores a WebP logo.
+  bytes image = 1;
+  // Original browser filename, for diagnostics and future compatibility.
+  string filename = 2;
+  // Browser-provided content type, for diagnostics and future compatibility.
+  string content_type = 3;
+}
+
+// Result of uploading the public server logo.
+message UploadServerLogoResponse {
+  // Updated server profile and branding.
+  chatto.api.v1.ServerProfile profile = 1;
+}
+
+// Request to clear the public server logo.
+message DeleteServerLogoRequest {}
+
+// Result of clearing the public server logo.
+message DeleteServerLogoResponse {
+  // Updated server profile and branding.
+  chatto.api.v1.ServerProfile profile = 1;
+}
+
+// Request to upload and set the public server banner.
+message UploadServerBannerRequest {
+  // Raw image bytes. The server validates, resizes, and stores a WebP banner.
+  bytes image = 1;
+  // Original browser filename, for diagnostics and future compatibility.
+  string filename = 2;
+  // Browser-provided content type, for diagnostics and future compatibility.
+  string content_type = 3;
+}
+
+// Result of uploading the public server banner.
+message UploadServerBannerResponse {
+  // Updated server profile and branding.
+  chatto.api.v1.ServerProfile profile = 1;
+}
+
+// Request to clear the public server banner.
+message DeleteServerBannerRequest {}
+
+// Result of clearing the public server banner.
+message DeleteServerBannerResponse {
+  // Updated server profile and branding.
+  chatto.api.v1.ServerProfile profile = 1;
+}
+
+// Request for server security configuration.
+message GetServerSecurityConfigRequest {}
+
+// Security-sensitive server configuration. The caller must be allowed to
+// manage server configuration.
+message GetServerSecurityConfigResponse {
+  // Newline-separated blocked usernames.
+  string blocked_usernames = 1;
+}
+
+// Request to update the server blocked-username list.
+message UpdateBlockedUsernamesRequest {
+  // Newline-separated blocked usernames.
+  string blocked_usernames = 1 [(buf.validate.field).string.max_len = 10000];
+}
+
+// Result of updating the server blocked-username list.
+message UpdateBlockedUsernamesResponse {
+  // Effective newline-separated blocked usernames after the update.
+  string blocked_usernames = 1;
+}
+
+// Provides server-administration commands for profile, branding, and security
+// settings.
+service AdminServerService {
+  // Updates runtime-editable server profile settings. This RPC requires
+  // server.manage.
+  rpc UpdateServerConfig(UpdateServerConfigRequest) returns (UpdateServerConfigResponse);
+  // Uploads and sets the public server logo. This RPC requires server.manage.
+  rpc UploadServerLogo(UploadServerLogoRequest) returns (UploadServerLogoResponse);
+  // Clears the public server logo. This RPC requires server.manage.
+  rpc DeleteServerLogo(DeleteServerLogoRequest) returns (DeleteServerLogoResponse);
+  // Uploads and sets the public server banner. This RPC requires server.manage.
+  rpc UploadServerBanner(UploadServerBannerRequest) returns (UploadServerBannerResponse);
+  // Clears the public server banner. This RPC requires server.manage.
+  rpc DeleteServerBanner(DeleteServerBannerRequest) returns (DeleteServerBannerResponse);
+  // Returns security-sensitive server configuration. This RPC requires
+  // server.manage.
+  rpc GetServerSecurityConfig(GetServerSecurityConfigRequest) returns (GetServerSecurityConfigResponse);
+  // Updates the blocked-username list. This RPC requires server.manage.
+  rpc UpdateBlockedUsernames(UpdateBlockedUsernamesRequest) returns (UpdateBlockedUsernamesResponse);
+}

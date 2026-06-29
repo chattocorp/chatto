@@ -15,7 +15,7 @@ interface FreshPageSession {
 }
 
 interface ViewerResponse {
-  user?: { profile?: { id?: string } };
+  user?: { profile?: { user?: { id?: string } } };
 }
 
 async function withFreshPage<T>(
@@ -75,7 +75,7 @@ test.describe('Landing Page', () => {
           freshPage,
           'chatto.api.v1.ViewerService/GetViewer'
         );
-        expect(viewer.user?.profile?.id).toBeTruthy();
+        expect(viewer.user?.profile?.user?.id).toBeTruthy();
 
         await freshPage.goto(routes.settings);
         await expect(freshPage.getByRole('heading', { name: 'Profile' })).toBeVisible();

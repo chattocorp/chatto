@@ -1,0 +1,225 @@
+---
+title: AdminMemberService
+description: Member identity, role assignment, and user administration RPCs.
+editUrl: false
+---
+
+{/* Generated from proto/chatto/{api,admin,realtime}/v1/*.proto. Do not edit directly. */}
+
+Chatto exposes this service below `/api/connect`.
+
+
+
+Shared message and enum definitions are documented in [Shared Types And Enums](/reference/connectrpc-api/types/).
+
+
+
+<a id="chatto-admin-v1-AdminMemberService"></a>
+
+## AdminMemberService
+
+Server-admin user identity and cooldown commands.
+
+<a id="chatto-admin-v1-AdminMemberService-ListMembers"></a>
+
+### ListMembers
+
+Lists server members for the admin members screen.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminMemberService/ListMembers
+```
+
+<a id="chatto-admin-v1-ListMembersRequest"></a>
+
+#### Input: ListMembersRequest
+
+Request server-admin member rows.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `search` | `string` | Case-insensitive login/display-name search term. Empty disables search. |
+| `page` | `chatto.api.v1.PageRequest` | Page request. Defaults to 20 results when absent or limit is zero. |
+
+
+<a id="chatto-admin-v1-ListMembersResponse"></a>
+
+#### Result: ListMembersResponse
+
+Server-admin member rows plus role summaries.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `users` | repeated [`AdminMember`](/reference/connectrpc-api/types/#chatto-admin-v1-AdminMember) | Matching users. |
+| `roles` | repeated [`AdminRoleReference`](/reference/connectrpc-api/types/#chatto-admin-v1-AdminRoleReference) | Server roles for display-name lookup. |
+| `page` | `chatto.api.v1.PageInfo` | Page metadata. |
+
+
+<a id="chatto-admin-v1-AdminMemberService-GetMember"></a>
+
+### GetMember
+
+Gets one server member plus role/permission metadata for admin details.
+Returns NOT_FOUND when the user does not exist.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminMemberService/GetMember
+```
+
+<a id="chatto-admin-v1-GetMemberRequest"></a>
+
+#### Input: GetMemberRequest
+
+Request one server-admin member detail record.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_id` | `string` | Target user ID. |
+
+
+<a id="chatto-admin-v1-GetMemberResponse"></a>
+
+#### Result: GetMemberResponse
+
+Server-admin member detail payload.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `member` | [`AdminMember`](/reference/connectrpc-api/types/#chatto-admin-v1-AdminMember) | Member record. |
+| `roles` | repeated [`AdminMemberRole`](/reference/connectrpc-api/types/#chatto-admin-v1-AdminMemberRole) | Server roles for assignment UI. |
+| `available_permissions` | `repeated string` | Server permissions available for per-user overrides. |
+| `viewer_can_assign_roles` | `bool` | Whether the caller may assign/revoke roles. |
+| `viewer_can_manage_roles` | `bool` | Whether the caller may edit role definitions. |
+| `viewer_can_manage_user_permissions` | `bool` | Whether the caller may edit direct user permissions. |
+
+
+<a id="chatto-admin-v1-AdminMemberService-AssignRole"></a>
+
+### AssignRole
+
+Assigns a server role to a user.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminMemberService/AssignRole
+```
+
+<a id="chatto-admin-v1-AssignRoleRequest"></a>
+
+#### Input: AssignRoleRequest
+
+Request to assign a server role to a user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_id` | `string` | Target user ID. |
+| `role_name` | `string` | Role name to assign. |
+
+
+<a id="chatto-admin-v1-AssignRoleResponse"></a>
+
+#### Result: AssignRoleResponse
+
+Result of assigning a server role.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `assigned` | `bool` | True when the request completed. |
+
+
+<a id="chatto-admin-v1-AdminMemberService-RevokeRole"></a>
+
+### RevokeRole
+
+Revokes a server role from a user.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminMemberService/RevokeRole
+```
+
+<a id="chatto-admin-v1-RevokeRoleRequest"></a>
+
+#### Input: RevokeRoleRequest
+
+Request to revoke a server role from a user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_id` | `string` | Target user ID. |
+| `role_name` | `string` | Role name to revoke. |
+
+
+<a id="chatto-admin-v1-RevokeRoleResponse"></a>
+
+#### Result: RevokeRoleResponse
+
+Result of revoking a server role.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `revoked` | `bool` | True when the request completed. |
+
+
+<a id="chatto-admin-v1-AdminMemberService-UpdateUser"></a>
+
+### UpdateUser
+
+Updates a user's login and/or display name as an admin action.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminMemberService/UpdateUser
+```
+
+<a id="chatto-admin-v1-UpdateUserRequest"></a>
+
+#### Input: UpdateUserRequest
+
+Request to update a user's identity as a server-admin action.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_id` | `string` | Target user ID. |
+| `display_name` | `optional string` | New display name, when changing it. |
+| `login` | `optional string` | New login identifier, when changing it. |
+
+
+<a id="chatto-admin-v1-UpdateUserResponse"></a>
+
+#### Result: UpdateUserResponse
+
+Result of an admin user update.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user` | `chatto.api.v1.User` | Updated user profile. |
+
+
+<a id="chatto-admin-v1-AdminMemberService-ClearUsernameCooldown"></a>
+
+### ClearUsernameCooldown
+
+Clears the target user's self-service username-change cooldown.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminMemberService/ClearUsernameCooldown
+```
+
+<a id="chatto-admin-v1-ClearUsernameCooldownRequest"></a>
+
+#### Input: ClearUsernameCooldownRequest
+
+Request to clear a user's self-service username-change cooldown.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_id` | `string` | Target user ID. |
+
+
+<a id="chatto-admin-v1-ClearUsernameCooldownResponse"></a>
+
+#### Result: ClearUsernameCooldownResponse
+
+Result of clearing a user's username-change cooldown.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `cleared` | `bool` | True when the request completed. |

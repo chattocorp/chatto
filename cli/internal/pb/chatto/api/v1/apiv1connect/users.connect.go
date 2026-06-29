@@ -21,8 +21,8 @@ import (
 const _ = connect.IsAtLeastVersion1_13_0
 
 const (
-	// UserServiceName is the fully-qualified name of the UserService service.
-	UserServiceName = "chatto.api.v1.UserService"
+	// UserDirectoryServiceName is the fully-qualified name of the UserDirectoryService service.
+	UserDirectoryServiceName = "chatto.api.v1.UserDirectoryService"
 )
 
 // These constants are the fully-qualified names of the RPCs defined in this package. They're
@@ -33,142 +33,144 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
-	// UserServiceGetUserProcedure is the fully-qualified name of the UserService's GetUser RPC.
-	UserServiceGetUserProcedure = "/chatto.api.v1.UserService/GetUser"
-	// UserServiceGetUserByLoginProcedure is the fully-qualified name of the UserService's
-	// GetUserByLogin RPC.
-	UserServiceGetUserByLoginProcedure = "/chatto.api.v1.UserService/GetUserByLogin"
-	// UserServiceBatchGetUsersProcedure is the fully-qualified name of the UserService's BatchGetUsers
-	// RPC.
-	UserServiceBatchGetUsersProcedure = "/chatto.api.v1.UserService/BatchGetUsers"
+	// UserDirectoryServiceGetUserProcedure is the fully-qualified name of the UserDirectoryService's
+	// GetUser RPC.
+	UserDirectoryServiceGetUserProcedure = "/chatto.api.v1.UserDirectoryService/GetUser"
+	// UserDirectoryServiceGetUserByLoginProcedure is the fully-qualified name of the
+	// UserDirectoryService's GetUserByLogin RPC.
+	UserDirectoryServiceGetUserByLoginProcedure = "/chatto.api.v1.UserDirectoryService/GetUserByLogin"
+	// UserDirectoryServiceBatchGetUsersProcedure is the fully-qualified name of the
+	// UserDirectoryService's BatchGetUsers RPC.
+	UserDirectoryServiceBatchGetUsersProcedure = "/chatto.api.v1.UserDirectoryService/BatchGetUsers"
 )
 
-// UserServiceClient is a client for the chatto.api.v1.UserService service.
-type UserServiceClient interface {
+// UserDirectoryServiceClient is a client for the chatto.api.v1.UserDirectoryService service.
+type UserDirectoryServiceClient interface {
 	// Gets a user by stable ID. Returns NOT_FOUND when the ID is unknown.
 	GetUser(context.Context, *connect.Request[v1.GetUserRequest]) (*connect.Response[v1.GetUserResponse], error)
 	// Gets a user by login. Returns NOT_FOUND when the login is unknown.
 	GetUserByLogin(context.Context, *connect.Request[v1.GetUserByLoginRequest]) (*connect.Response[v1.GetUserByLoginResponse], error)
-	// Gets lightweight summaries for multiple users referenced by event-focused
+	// Gets public user records for multiple users referenced by event-focused
 	// payloads.
 	BatchGetUsers(context.Context, *connect.Request[v1.BatchGetUsersRequest]) (*connect.Response[v1.BatchGetUsersResponse], error)
 }
 
-// NewUserServiceClient constructs a client for the chatto.api.v1.UserService service. By default,
-// it uses the Connect protocol with the binary Protobuf Codec, asks for gzipped responses, and
-// sends uncompressed requests. To use the gRPC or gRPC-Web protocols, supply the connect.WithGRPC()
-// or connect.WithGRPCWeb() options.
+// NewUserDirectoryServiceClient constructs a client for the chatto.api.v1.UserDirectoryService
+// service. By default, it uses the Connect protocol with the binary Protobuf Codec, asks for
+// gzipped responses, and sends uncompressed requests. To use the gRPC or gRPC-Web protocols, supply
+// the connect.WithGRPC() or connect.WithGRPCWeb() options.
 //
 // The URL supplied here should be the base URL for the Connect or gRPC server (for example,
 // http://api.acme.com or https://acme.com/grpc).
-func NewUserServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) UserServiceClient {
+func NewUserDirectoryServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) UserDirectoryServiceClient {
 	baseURL = strings.TrimRight(baseURL, "/")
-	userServiceMethods := v1.File_chatto_api_v1_users_proto.Services().ByName("UserService").Methods()
-	return &userServiceClient{
+	userDirectoryServiceMethods := v1.File_chatto_api_v1_users_proto.Services().ByName("UserDirectoryService").Methods()
+	return &userDirectoryServiceClient{
 		getUser: connect.NewClient[v1.GetUserRequest, v1.GetUserResponse](
 			httpClient,
-			baseURL+UserServiceGetUserProcedure,
-			connect.WithSchema(userServiceMethods.ByName("GetUser")),
+			baseURL+UserDirectoryServiceGetUserProcedure,
+			connect.WithSchema(userDirectoryServiceMethods.ByName("GetUser")),
 			connect.WithClientOptions(opts...),
 		),
 		getUserByLogin: connect.NewClient[v1.GetUserByLoginRequest, v1.GetUserByLoginResponse](
 			httpClient,
-			baseURL+UserServiceGetUserByLoginProcedure,
-			connect.WithSchema(userServiceMethods.ByName("GetUserByLogin")),
+			baseURL+UserDirectoryServiceGetUserByLoginProcedure,
+			connect.WithSchema(userDirectoryServiceMethods.ByName("GetUserByLogin")),
 			connect.WithClientOptions(opts...),
 		),
 		batchGetUsers: connect.NewClient[v1.BatchGetUsersRequest, v1.BatchGetUsersResponse](
 			httpClient,
-			baseURL+UserServiceBatchGetUsersProcedure,
-			connect.WithSchema(userServiceMethods.ByName("BatchGetUsers")),
+			baseURL+UserDirectoryServiceBatchGetUsersProcedure,
+			connect.WithSchema(userDirectoryServiceMethods.ByName("BatchGetUsers")),
 			connect.WithClientOptions(opts...),
 		),
 	}
 }
 
-// userServiceClient implements UserServiceClient.
-type userServiceClient struct {
+// userDirectoryServiceClient implements UserDirectoryServiceClient.
+type userDirectoryServiceClient struct {
 	getUser        *connect.Client[v1.GetUserRequest, v1.GetUserResponse]
 	getUserByLogin *connect.Client[v1.GetUserByLoginRequest, v1.GetUserByLoginResponse]
 	batchGetUsers  *connect.Client[v1.BatchGetUsersRequest, v1.BatchGetUsersResponse]
 }
 
-// GetUser calls chatto.api.v1.UserService.GetUser.
-func (c *userServiceClient) GetUser(ctx context.Context, req *connect.Request[v1.GetUserRequest]) (*connect.Response[v1.GetUserResponse], error) {
+// GetUser calls chatto.api.v1.UserDirectoryService.GetUser.
+func (c *userDirectoryServiceClient) GetUser(ctx context.Context, req *connect.Request[v1.GetUserRequest]) (*connect.Response[v1.GetUserResponse], error) {
 	return c.getUser.CallUnary(ctx, req)
 }
 
-// GetUserByLogin calls chatto.api.v1.UserService.GetUserByLogin.
-func (c *userServiceClient) GetUserByLogin(ctx context.Context, req *connect.Request[v1.GetUserByLoginRequest]) (*connect.Response[v1.GetUserByLoginResponse], error) {
+// GetUserByLogin calls chatto.api.v1.UserDirectoryService.GetUserByLogin.
+func (c *userDirectoryServiceClient) GetUserByLogin(ctx context.Context, req *connect.Request[v1.GetUserByLoginRequest]) (*connect.Response[v1.GetUserByLoginResponse], error) {
 	return c.getUserByLogin.CallUnary(ctx, req)
 }
 
-// BatchGetUsers calls chatto.api.v1.UserService.BatchGetUsers.
-func (c *userServiceClient) BatchGetUsers(ctx context.Context, req *connect.Request[v1.BatchGetUsersRequest]) (*connect.Response[v1.BatchGetUsersResponse], error) {
+// BatchGetUsers calls chatto.api.v1.UserDirectoryService.BatchGetUsers.
+func (c *userDirectoryServiceClient) BatchGetUsers(ctx context.Context, req *connect.Request[v1.BatchGetUsersRequest]) (*connect.Response[v1.BatchGetUsersResponse], error) {
 	return c.batchGetUsers.CallUnary(ctx, req)
 }
 
-// UserServiceHandler is an implementation of the chatto.api.v1.UserService service.
-type UserServiceHandler interface {
+// UserDirectoryServiceHandler is an implementation of the chatto.api.v1.UserDirectoryService
+// service.
+type UserDirectoryServiceHandler interface {
 	// Gets a user by stable ID. Returns NOT_FOUND when the ID is unknown.
 	GetUser(context.Context, *connect.Request[v1.GetUserRequest]) (*connect.Response[v1.GetUserResponse], error)
 	// Gets a user by login. Returns NOT_FOUND when the login is unknown.
 	GetUserByLogin(context.Context, *connect.Request[v1.GetUserByLoginRequest]) (*connect.Response[v1.GetUserByLoginResponse], error)
-	// Gets lightweight summaries for multiple users referenced by event-focused
+	// Gets public user records for multiple users referenced by event-focused
 	// payloads.
 	BatchGetUsers(context.Context, *connect.Request[v1.BatchGetUsersRequest]) (*connect.Response[v1.BatchGetUsersResponse], error)
 }
 
-// NewUserServiceHandler builds an HTTP handler from the service implementation. It returns the path
-// on which to mount the handler and the handler itself.
+// NewUserDirectoryServiceHandler builds an HTTP handler from the service implementation. It returns
+// the path on which to mount the handler and the handler itself.
 //
 // By default, handlers support the Connect, gRPC, and gRPC-Web protocols with the binary Protobuf
 // and JSON codecs. They also support gzip compression.
-func NewUserServiceHandler(svc UserServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
-	userServiceMethods := v1.File_chatto_api_v1_users_proto.Services().ByName("UserService").Methods()
-	userServiceGetUserHandler := connect.NewUnaryHandler(
-		UserServiceGetUserProcedure,
+func NewUserDirectoryServiceHandler(svc UserDirectoryServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
+	userDirectoryServiceMethods := v1.File_chatto_api_v1_users_proto.Services().ByName("UserDirectoryService").Methods()
+	userDirectoryServiceGetUserHandler := connect.NewUnaryHandler(
+		UserDirectoryServiceGetUserProcedure,
 		svc.GetUser,
-		connect.WithSchema(userServiceMethods.ByName("GetUser")),
+		connect.WithSchema(userDirectoryServiceMethods.ByName("GetUser")),
 		connect.WithHandlerOptions(opts...),
 	)
-	userServiceGetUserByLoginHandler := connect.NewUnaryHandler(
-		UserServiceGetUserByLoginProcedure,
+	userDirectoryServiceGetUserByLoginHandler := connect.NewUnaryHandler(
+		UserDirectoryServiceGetUserByLoginProcedure,
 		svc.GetUserByLogin,
-		connect.WithSchema(userServiceMethods.ByName("GetUserByLogin")),
+		connect.WithSchema(userDirectoryServiceMethods.ByName("GetUserByLogin")),
 		connect.WithHandlerOptions(opts...),
 	)
-	userServiceBatchGetUsersHandler := connect.NewUnaryHandler(
-		UserServiceBatchGetUsersProcedure,
+	userDirectoryServiceBatchGetUsersHandler := connect.NewUnaryHandler(
+		UserDirectoryServiceBatchGetUsersProcedure,
 		svc.BatchGetUsers,
-		connect.WithSchema(userServiceMethods.ByName("BatchGetUsers")),
+		connect.WithSchema(userDirectoryServiceMethods.ByName("BatchGetUsers")),
 		connect.WithHandlerOptions(opts...),
 	)
-	return "/chatto.api.v1.UserService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	return "/chatto.api.v1.UserDirectoryService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case UserServiceGetUserProcedure:
-			userServiceGetUserHandler.ServeHTTP(w, r)
-		case UserServiceGetUserByLoginProcedure:
-			userServiceGetUserByLoginHandler.ServeHTTP(w, r)
-		case UserServiceBatchGetUsersProcedure:
-			userServiceBatchGetUsersHandler.ServeHTTP(w, r)
+		case UserDirectoryServiceGetUserProcedure:
+			userDirectoryServiceGetUserHandler.ServeHTTP(w, r)
+		case UserDirectoryServiceGetUserByLoginProcedure:
+			userDirectoryServiceGetUserByLoginHandler.ServeHTTP(w, r)
+		case UserDirectoryServiceBatchGetUsersProcedure:
+			userDirectoryServiceBatchGetUsersHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
 	})
 }
 
-// UnimplementedUserServiceHandler returns CodeUnimplemented from all methods.
-type UnimplementedUserServiceHandler struct{}
+// UnimplementedUserDirectoryServiceHandler returns CodeUnimplemented from all methods.
+type UnimplementedUserDirectoryServiceHandler struct{}
 
-func (UnimplementedUserServiceHandler) GetUser(context.Context, *connect.Request[v1.GetUserRequest]) (*connect.Response[v1.GetUserResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.UserService.GetUser is not implemented"))
+func (UnimplementedUserDirectoryServiceHandler) GetUser(context.Context, *connect.Request[v1.GetUserRequest]) (*connect.Response[v1.GetUserResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.UserDirectoryService.GetUser is not implemented"))
 }
 
-func (UnimplementedUserServiceHandler) GetUserByLogin(context.Context, *connect.Request[v1.GetUserByLoginRequest]) (*connect.Response[v1.GetUserByLoginResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.UserService.GetUserByLogin is not implemented"))
+func (UnimplementedUserDirectoryServiceHandler) GetUserByLogin(context.Context, *connect.Request[v1.GetUserByLoginRequest]) (*connect.Response[v1.GetUserByLoginResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.UserDirectoryService.GetUserByLogin is not implemented"))
 }
 
-func (UnimplementedUserServiceHandler) BatchGetUsers(context.Context, *connect.Request[v1.BatchGetUsersRequest]) (*connect.Response[v1.BatchGetUsersResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.UserService.BatchGetUsers is not implemented"))
+func (UnimplementedUserDirectoryServiceHandler) BatchGetUsers(context.Context, *connect.Request[v1.BatchGetUsersRequest]) (*connect.Response[v1.BatchGetUsersResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.UserDirectoryService.BatchGetUsers is not implemented"))
 }

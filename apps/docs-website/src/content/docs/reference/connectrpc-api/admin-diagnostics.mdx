@@ -1,0 +1,49 @@
+---
+title: AdminDiagnosticsService
+description: System diagnostics RPCs.
+editUrl: false
+---
+
+{/* Generated from proto/chatto/{api,admin,realtime}/v1/*.proto. Do not edit directly. */}
+
+Chatto exposes this service below `/api/connect`.
+
+
+
+Shared message and enum definitions are documented in [Shared Types And Enums](/reference/connectrpc-api/types/).
+
+
+
+<a id="chatto-admin-v1-AdminDiagnosticsService"></a>
+
+## AdminDiagnosticsService
+
+Provides owner-only server diagnostics for the admin system page.
+
+<a id="chatto-admin-v1-AdminDiagnosticsService-GetSystemInfo"></a>
+
+### GetSystemInfo
+
+Returns broker, JetStream, and projection diagnostics.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminDiagnosticsService/GetSystemInfo
+```
+
+<a id="chatto-admin-v1-GetSystemInfoRequest"></a>
+
+#### Input: GetSystemInfoRequest
+
+Request to read owner-only server diagnostics.
+
+
+<a id="chatto-admin-v1-GetSystemInfoResponse"></a>
+
+#### Result: GetSystemInfoResponse
+
+Owner-only operational diagnostics for the Chatto server.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `system_info` | [`AdminSystemInfo`](/reference/connectrpc-api/types/#chatto-admin-v1-AdminSystemInfo) | Broker connection, account, and JetStream state. |
+| `projections` | repeated [`AdminProjectionState`](/reference/connectrpc-api/types/#chatto-admin-v1-AdminProjectionState) | Event-sourced projection health and memory estimates. |

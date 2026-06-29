@@ -5,6 +5,7 @@ import (
 
 	"connectrpc.com/connect"
 	"hmans.de/chatto/internal/core"
+	adminv1 "hmans.de/chatto/internal/pb/chatto/admin/v1"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 )
 
@@ -12,7 +13,7 @@ type roleService struct {
 	api *API
 }
 
-func (s *roleService) ListRoles(ctx context.Context, _ *connect.Request[apiv1.ListRolesRequest]) (*connect.Response[apiv1.ListRolesResponse], error) {
+func (s *roleService) ListRoles(ctx context.Context, _ *connect.Request[adminv1.ListRolesRequest]) (*connect.Response[adminv1.ListRolesResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -21,14 +22,14 @@ func (s *roleService) ListRoles(ctx context.Context, _ *connect.Request[apiv1.Li
 	if err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&apiv1.ListRolesResponse{
+	return connect.NewResponse(&adminv1.ListRolesResponse{
 		Roles:                apiRoles(catalog.Roles),
 		ViewerCanManageRoles: catalog.ViewerCanManageRoles,
 		ViewerCanAssignRoles: catalog.ViewerCanAssignRoles,
 	}), nil
 }
 
-func (s *roleService) GetRole(ctx context.Context, req *connect.Request[apiv1.GetRoleRequest]) (*connect.Response[apiv1.GetRoleResponse], error) {
+func (s *roleService) GetRole(ctx context.Context, req *connect.Request[adminv1.GetRoleRequest]) (*connect.Response[adminv1.GetRoleResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -40,7 +41,7 @@ func (s *roleService) GetRole(ctx context.Context, req *connect.Request[apiv1.Ge
 	if err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&apiv1.GetRoleResponse{
+	return connect.NewResponse(&adminv1.GetRoleResponse{
 		Role:                 apiRole(details.Role),
 		Users:                apiRoleUsers(details.Users),
 		ViewerCanManageRoles: details.ViewerCanManageRoles,
@@ -48,7 +49,7 @@ func (s *roleService) GetRole(ctx context.Context, req *connect.Request[apiv1.Ge
 	}), nil
 }
 
-func (s *roleService) CreateRole(ctx context.Context, req *connect.Request[apiv1.CreateRoleRequest]) (*connect.Response[apiv1.CreateRoleResponse], error) {
+func (s *roleService) CreateRole(ctx context.Context, req *connect.Request[adminv1.CreateRoleRequest]) (*connect.Response[adminv1.CreateRoleResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -63,10 +64,10 @@ func (s *roleService) CreateRole(ctx context.Context, req *connect.Request[apiv1
 	if err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&apiv1.CreateRoleResponse{Role: apiRole(role)}), nil
+	return connect.NewResponse(&adminv1.CreateRoleResponse{Role: apiRole(role)}), nil
 }
 
-func (s *roleService) UpdateRole(ctx context.Context, req *connect.Request[apiv1.UpdateRoleRequest]) (*connect.Response[apiv1.UpdateRoleResponse], error) {
+func (s *roleService) UpdateRole(ctx context.Context, req *connect.Request[adminv1.UpdateRoleRequest]) (*connect.Response[adminv1.UpdateRoleResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -80,10 +81,10 @@ func (s *roleService) UpdateRole(ctx context.Context, req *connect.Request[apiv1
 	if err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&apiv1.UpdateRoleResponse{Role: apiRole(role)}), nil
+	return connect.NewResponse(&adminv1.UpdateRoleResponse{Role: apiRole(role)}), nil
 }
 
-func (s *roleService) DeleteRole(ctx context.Context, req *connect.Request[apiv1.DeleteRoleRequest]) (*connect.Response[apiv1.DeleteRoleResponse], error) {
+func (s *roleService) DeleteRole(ctx context.Context, req *connect.Request[adminv1.DeleteRoleRequest]) (*connect.Response[adminv1.DeleteRoleResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -91,10 +92,10 @@ func (s *roleService) DeleteRole(ctx context.Context, req *connect.Request[apiv1
 	if err := s.api.core.AdminDeleteServerRole(ctx, caller.UserID, req.Msg.GetName()); err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&apiv1.DeleteRoleResponse{Deleted: true}), nil
+	return connect.NewResponse(&adminv1.DeleteRoleResponse{Deleted: true}), nil
 }
 
-func (s *roleService) ReorderRoles(ctx context.Context, req *connect.Request[apiv1.ReorderRolesRequest]) (*connect.Response[apiv1.ReorderRolesResponse], error) {
+func (s *roleService) ReorderRoles(ctx context.Context, req *connect.Request[adminv1.ReorderRolesRequest]) (*connect.Response[adminv1.ReorderRolesResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -103,22 +104,22 @@ func (s *roleService) ReorderRoles(ctx context.Context, req *connect.Request[api
 	if err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&apiv1.ReorderRolesResponse{Roles: apiRoles(roles)}), nil
+	return connect.NewResponse(&adminv1.ReorderRolesResponse{Roles: apiRoles(roles)}), nil
 }
 
-func apiRoles(roles []core.RoleWithPermissions) []*apiv1.Role {
-	out := make([]*apiv1.Role, 0, len(roles))
+func apiRoles(roles []core.RoleWithPermissions) []*adminv1.Role {
+	out := make([]*adminv1.Role, 0, len(roles))
 	for i := range roles {
 		out = append(out, apiRole(&roles[i]))
 	}
 	return out
 }
 
-func apiRole(role *core.RoleWithPermissions) *apiv1.Role {
+func apiRole(role *core.RoleWithPermissions) *adminv1.Role {
 	if role == nil {
 		return nil
 	}
-	return &apiv1.Role{
+	return &adminv1.Role{
 		Name:              role.Name,
 		DisplayName:       role.DisplayName,
 		Description:       role.Description,
@@ -130,10 +131,10 @@ func apiRole(role *core.RoleWithPermissions) *apiv1.Role {
 	}
 }
 
-func apiRoleUsers(users []core.RoleUserSummary) []*apiv1.UserSummary {
-	out := make([]*apiv1.UserSummary, 0, len(users))
+func apiRoleUsers(users []core.RoleUserSummary) []*apiv1.User {
+	out := make([]*apiv1.User, 0, len(users))
 	for _, user := range users {
-		out = append(out, &apiv1.UserSummary{
+		out = append(out, &apiv1.User{
 			Id:          user.ID,
 			Login:       user.Login,
 			DisplayName: user.DisplayName,

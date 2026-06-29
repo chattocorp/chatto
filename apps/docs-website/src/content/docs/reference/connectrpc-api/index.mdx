@@ -4,7 +4,7 @@ description: Generated reference index for Chatto's public protobuf API.
 editUrl: false
 ---
 
-{/* Generated from proto/chatto/api/v1/*.proto. Do not edit directly. */}
+{/* Generated from proto/chatto/{api,admin,realtime}/v1/*.proto. Do not edit directly. */}
 
 Chatto exposes a protobuf-first integration API over ConnectRPC at `/api/connect`.
 
@@ -12,18 +12,46 @@ Endpoint paths use the Connect convention:
 
 `/api/connect/<fully-qualified-service>/<method>`
 
-Use this reference when building integrations, bots, admin tools, or alternate clients for a Chatto server. All services in this reference use the `chatto.api.v1` protobuf package.
+Use this reference when building integrations, bots, admin tools, or alternate clients for a Chatto server. Public unary services use `chatto.api.v1`; privileged administration services use `chatto.admin.v1`.
 
 Chatto is still pre-1.0. This reference is generated from the current protobuf contract and may change between releases.
 
 ## ConnectRPC Services
 
-- [Identity And Accounts](/reference/connectrpc-api/identity/) - Viewer, account, profile, presence, and member directory RPCs.
-- [Rooms And Messages](/reference/connectrpc-api/rooms-and-messages/) - Room navigation, timelines, messages, attachments, reactions, reads, threads, and calls.
-- [Notifications](/reference/connectrpc-api/notifications/) - Notification listing, preferences, counts, dismissal, and web push RPCs.
-- [Administration](/reference/connectrpc-api/administration/) - Server administration, room layout, users, roles, permissions, diagnostics, and audit RPCs.
+### chatto.api.v1
+
+- [ServerDiscoveryService](/reference/connectrpc-api/server-discovery/) - Unauthenticated server metadata, branding, and login discovery RPCs.
+- [ServerService](/reference/connectrpc-api/server/) - Authenticated server state and current-user server capability RPCs.
+- [ViewerService](/reference/connectrpc-api/viewer/) - Authenticated viewer profile, preferences, and capability RPCs.
+- [AccountService](/reference/connectrpc-api/account/) - Self-service account, profile, avatar, presence, status, and settings RPCs.
+- [UserDirectoryService](/reference/connectrpc-api/user-directory/) - Authenticated public user profile lookup RPCs.
+- [MemberDirectoryService](/reference/connectrpc-api/member-directory/) - Server and room member directory RPCs.
+- [RoomDirectoryService](/reference/connectrpc-api/room-directory/) - Room navigation, room group, and room viewer-state RPCs.
+- [RoomService](/reference/connectrpc-api/rooms/) - Room lifecycle, membership, direct-message, and moderation RPCs.
+- [RoomTimelineService](/reference/connectrpc-api/room-timeline/) - Room and thread timeline read RPCs.
+- [MessageService](/reference/connectrpc-api/messages/) - Message posting, editing, deletion, link-preview, attachment, and typing RPCs.
+- [AttachmentService](/reference/connectrpc-api/attachments/) - Attachment listing and signed URL refresh RPCs.
+- [ReactionService](/reference/connectrpc-api/reactions/) - Message reaction command RPCs.
+- [ReadStateService](/reference/connectrpc-api/read-state/) - Room and thread read-state command RPCs.
+- [ThreadService](/reference/connectrpc-api/threads/) - Thread follow and followed-thread listing RPCs.
+- [LinkPreviewService](/reference/connectrpc-api/link-previews/) - Link preview fetch RPCs.
+- [VoiceCallService](/reference/connectrpc-api/calls/) - Voice and video call state and token RPCs.
+- [NotificationPreferencesService](/reference/connectrpc-api/notification-preferences/) - Server and room notification preference RPCs.
+- [NotificationService](/reference/connectrpc-api/notifications/) - Notification listing, counts, checks, and dismissal RPCs.
+- [PushNotificationService](/reference/connectrpc-api/push-notifications/) - Web Push subscription RPCs.
+
+### chatto.admin.v1
+
+- [AdminServerService](/reference/connectrpc-api/admin-server/) - Server profile, branding, and security administration RPCs.
+- [AdminRoomLayoutService](/reference/connectrpc-api/admin-room-layout/) - Room group, sidebar layout, and sidebar link administration RPCs.
+- [AdminMemberService](/reference/connectrpc-api/admin-members/) - Member identity, role assignment, and user administration RPCs.
+- [AdminRoleService](/reference/connectrpc-api/admin-roles/) - Role catalog and role definition administration RPCs.
+- [AdminPermissionService](/reference/connectrpc-api/admin-permissions/) - Permission matrix, explanation, and override administration RPCs.
+- [AdminDiagnosticsService](/reference/connectrpc-api/admin-diagnostics/) - System diagnostics RPCs.
+- [AdminEventLogService](/reference/connectrpc-api/admin-event-log/) - Audit event log read RPCs.
+
 
 ## Shared References
 
 - [Shared Types And Enums](/reference/connectrpc-api/types/) - common message and enum definitions used by service responses.
-- [Realtime WebSocket Protocol](/reference/connectrpc-api/realtime/) - binary protobuf frames exchanged at `/api/realtime`.
+- [Realtime WebSocket Protocol](/reference/connectrpc-api/realtime/) - `chatto.realtime.v1` binary protobuf frames exchanged at `/api/realtime`.

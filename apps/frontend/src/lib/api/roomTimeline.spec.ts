@@ -11,7 +11,7 @@ import {
   RoomTimelineVideoProcessingStatus,
   RoomTimelineVideoVariant
 } from '@chatto/api-types/chatto/api/v1/room_timeline_pb';
-import { UserSummary } from '@chatto/api-types/chatto/api/v1/users_pb';
+import { User } from '@chatto/api-types/chatto/api/v1/users_pb';
 import { __resetUserSummaryCachesForTests, getUserSummaryCache } from '$lib/state/userSummaries.svelte';
 import { createRoomTimelineAPI, roomTimelinePageToEventConnectionPage } from './roomTimeline';
 
@@ -151,7 +151,7 @@ describe('createRoomTimelineAPI', () => {
       threadRootEventId: 'root-1',
       includes: {
         users: {
-          u1: new UserSummary({
+          u1: new User({
             id: 'u1',
             login: 'alice',
             displayName: 'Alice'
@@ -204,14 +204,14 @@ describe('roomTimelinePageToEventConnectionPage', () => {
       hasNewer: false,
       includes: {
         users: {
-          u1: new UserSummary({
+          u1: new User({
             id: 'u1',
             login: 'alice',
             displayName: 'Alice',
             avatarUrl: '/avatars/u1',
             deleted: false
           }),
-          u2: new UserSummary({
+          u2: new User({
             id: 'u2',
             login: 'bob',
             displayName: 'Bob',
@@ -241,7 +241,7 @@ describe('roomTimelinePageToEventConnectionPage', () => {
                     expiresAt: Timestamp.fromDate(new Date('2026-06-01T13:00:00Z'))
                   }),
                   thumbnailAssetUrl: new RoomTimelineAssetUrl({
-                    url: '/assets/files/a-video/image/960x800/contain',
+                    url: '/assets/files/a-video/image/960x800/cover',
                     expiresAt: Timestamp.fromDate(new Date('2026-06-01T13:00:00Z'))
                   }),
                   videoProcessing: new RoomTimelineVideoProcessing({

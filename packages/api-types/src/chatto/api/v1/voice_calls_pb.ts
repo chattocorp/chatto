@@ -5,7 +5,7 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
-import { UserPresenceSummary } from "./users_pb.js";
+import { UserProfile } from "./users_pb.js";
 
 /**
  * Request for active channel call room IDs.
@@ -172,9 +172,9 @@ export class CallParticipant extends Message<CallParticipant> {
   /**
    * Participant user.
    *
-   * @generated from field: chatto.api.v1.UserPresenceSummary user = 1;
+   * @generated from field: chatto.api.v1.UserProfile user = 1;
    */
-  user?: UserPresenceSummary;
+  user?: UserProfile;
 
   /**
    * When the user joined this call.
@@ -198,7 +198,7 @@ export class CallParticipant extends Message<CallParticipant> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.CallParticipant";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "user", kind: "message", T: UserPresenceSummary },
+    { no: 1, name: "user", kind: "message", T: UserProfile },
     { no: 2, name: "joined_at", kind: "message", T: Timestamp },
     { no: 3, name: "call_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);

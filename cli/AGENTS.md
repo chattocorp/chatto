@@ -33,10 +33,11 @@ authorization, live events, backup/restore, and backend tests.
   behavior. Low-level `ChattoCore` helpers are not public transport entry
   points and may assume their caller already performed the appropriate gate.
 - REST endpoints are acceptable for OAuth callbacks, webhooks, health checks,
-  uploaded assets, and unauthenticated discovery such as `GET /api/server`.
-- `GET /api/server` is compatibility-sensitive. Preserve URL, CORS behavior,
-  required JSON fields, and OAuth discovery fields unless there is a rollout
-  plan.
+  and uploaded assets. Public server discovery belongs to
+  `ServerDiscoveryService.GetServer` in the ConnectRPC API.
+- `ServerDiscoveryService.GetServer` is compatibility-sensitive. Preserve its
+  public CORS behavior, required JSON/protobuf fields, and OAuth discovery
+  fields unless there is a rollout plan.
 
 ## Event-Sourced State And NATS
 

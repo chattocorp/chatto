@@ -4,9 +4,9 @@ package chatto.api.v1;
 
 // Live presence status returned by public read APIs.
 //
-// Offline is a read-side state only. Clients cannot report Offline through
-// PresenceService.ReportPresence; they should stop reporting presence and let
-// the server's live presence record expire.
+// Offline is a read-side state only. Clients cannot report Offline through the
+// account presence RPC; they should stop reporting presence and let the
+// server's live presence record expire.
 enum PresenceStatus {
   // No presence status was specified.
   PRESENCE_STATUS_UNSPECIFIED = 0;
@@ -34,12 +34,4 @@ message ReportPresenceRequest {
 message ReportPresenceResponse {
   // Reportable status accepted and stored by the server.
   PresenceStatus status = 1;
-}
-
-// Lets clients report the authenticated user's current live presence.
-service PresenceService {
-  // Reports the current user's live presence status. This state is transient:
-  // clients should refresh it periodically while visible, and should stop
-  // calling this RPC when the user chooses to appear offline.
-  rpc ReportPresence(ReportPresenceRequest) returns (ReportPresenceResponse);
 }

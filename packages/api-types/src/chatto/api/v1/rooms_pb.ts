@@ -674,6 +674,88 @@ export class JoinRoomResponse extends Message<JoinRoomResponse> {
 }
 
 /**
+ * Request to join all joinable rooms in one room group.
+ *
+ * @generated from message chatto.api.v1.JoinRoomGroupRequest
+ */
+export class JoinRoomGroupRequest extends Message<JoinRoomGroupRequest> {
+  /**
+   * Required. Room group whose rooms should be joined.
+   *
+   * @generated from field: string group_id = 1;
+   */
+  groupId = "";
+
+  constructor(data?: PartialMessage<JoinRoomGroupRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.JoinRoomGroupRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "group_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): JoinRoomGroupRequest {
+    return new JoinRoomGroupRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): JoinRoomGroupRequest {
+    return new JoinRoomGroupRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): JoinRoomGroupRequest {
+    return new JoinRoomGroupRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: JoinRoomGroupRequest | PlainMessage<JoinRoomGroupRequest> | undefined, b: JoinRoomGroupRequest | PlainMessage<JoinRoomGroupRequest> | undefined): boolean {
+    return proto3.util.equals(JoinRoomGroupRequest, a, b);
+  }
+}
+
+/**
+ * Result of joining all joinable rooms in one room group.
+ *
+ * @generated from message chatto.api.v1.JoinRoomGroupResponse
+ */
+export class JoinRoomGroupResponse extends Message<JoinRoomGroupResponse> {
+  /**
+   * Room IDs that transitioned from not joined to joined.
+   *
+   * @generated from field: repeated string joined_room_ids = 1;
+   */
+  joinedRoomIds: string[] = [];
+
+  constructor(data?: PartialMessage<JoinRoomGroupResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.JoinRoomGroupResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "joined_room_ids", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): JoinRoomGroupResponse {
+    return new JoinRoomGroupResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): JoinRoomGroupResponse {
+    return new JoinRoomGroupResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): JoinRoomGroupResponse {
+    return new JoinRoomGroupResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: JoinRoomGroupResponse | PlainMessage<JoinRoomGroupResponse> | undefined, b: JoinRoomGroupResponse | PlainMessage<JoinRoomGroupResponse> | undefined): boolean {
+    return proto3.util.equals(JoinRoomGroupResponse, a, b);
+  }
+}
+
+/**
  * Request to start or fetch a direct-message room.
  *
  * @generated from message chatto.api.v1.StartDMRequest

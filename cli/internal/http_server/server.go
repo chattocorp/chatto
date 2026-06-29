@@ -169,7 +169,6 @@ func (s *HTTPServer) setupRoutes() error {
 
 	// Set up feature-specific routes
 	s.setupHealthRoutes()
-	s.setupServerInfoRoutes()
 	s.setupWebhookRoutes()
 	s.setupConnectAPI()
 	s.setupRealtimeAPI(allowedOrigins)

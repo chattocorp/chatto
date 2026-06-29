@@ -1,8 +1,8 @@
 import { Timestamp } from '@bufbuild/protobuf';
 import { Code, ConnectError, createClient } from '@connectrpc/connect';
 import { createConnectTransport } from '@connectrpc/connect-web';
-import { AdminEventLogService } from '@chatto/api-types/chatto/api/v1/admin_event_log_connect';
-import type { AdminEventLogEntry as APIAdminEventLogEntry } from '@chatto/api-types/chatto/api/v1/admin_event_log_pb';
+import { AdminEventLogService } from '@chatto/api-types/chatto/admin/v1/event_log_connect';
+import type { AdminEventLogEntry as APIAdminEventLogEntry } from '@chatto/api-types/chatto/admin/v1/event_log_pb';
 
 export type AdminEventLogAPIConfig = {
   baseUrl: string;

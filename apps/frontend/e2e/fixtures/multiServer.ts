@@ -6,7 +6,8 @@ import { readFile } from 'fs/promises';
 import { MessageService } from '@chatto/api-types/chatto/api/v1/messages_connect';
 import { RoomDirectoryService } from '@chatto/api-types/chatto/api/v1/room_directory_connect';
 import { RoomService } from '@chatto/api-types/chatto/api/v1/rooms_connect';
-import { ServerStateService } from '@chatto/api-types/chatto/api/v1/server_state_connect';
+import { AdminServerService } from '@chatto/api-types/chatto/admin/v1/server_connect';
+import { ServerService } from '@chatto/api-types/chatto/api/v1/server_state_connect';
 import { ViewerService } from '@chatto/api-types/chatto/api/v1/viewer_connect';
 import { startServer, stopServer, type ServerInfo } from './server';
 
@@ -50,7 +51,17 @@ function roomDirectoryClient(remoteBaseURL: string) {
 
 function serverStateClient(remoteBaseURL: string) {
   return createClient(
-    ServerStateService,
+    ServerService,
+    createConnectTransport({
+      baseUrl: connectBaseUrl(remoteBaseURL),
+      useBinaryFormat: true
+    })
+  );
+}
+
+function adminServerClient(remoteBaseURL: string) {
+  return createClient(
+    AdminServerService,
     createConnectTransport({
       baseUrl: connectBaseUrl(remoteBaseURL),
       useBinaryFormat: true
@@ -364,7 +375,7 @@ export async function loginAdminOnRemote(
     {},
     { headers: authHeaders(loginData.token) }
   );
-  const userId = viewer.user?.profile?.id;
+  const userId = viewer.user?.profile?.user?.id;
   if (!userId) {
     throw new Error(
       `No userId returned from remote viewer RPC: ${JSON.stringify(viewer.toJson())}`
@@ -382,7 +393,7 @@ export async function setMotdOnRemote(
   token: string,
   motd: string
 ): Promise<void> {
-  const response = await serverStateClient(remoteBaseURL).updateServerConfig(
+  const response = await adminServerClient(remoteBaseURL).updateServerConfig(
     { motd },
     { headers: authHeaders(token) }
   );

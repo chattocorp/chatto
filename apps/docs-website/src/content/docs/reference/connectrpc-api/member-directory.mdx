@@ -1,0 +1,90 @@
+---
+title: MemberDirectoryService
+description: Server and room member directory RPCs.
+editUrl: false
+---
+
+{/* Generated from proto/chatto/{api,admin,realtime}/v1/*.proto. Do not edit directly. */}
+
+Chatto exposes this service below `/api/connect`.
+
+
+
+Shared message and enum definitions are documented in [Shared Types And Enums](/reference/connectrpc-api/types/).
+
+
+
+<a id="chatto-api-v1-MemberDirectoryService"></a>
+
+## MemberDirectoryService
+
+Reads server and room member directories.
+
+<a id="chatto-api-v1-MemberDirectoryService-ListServerMembers"></a>
+
+### ListServerMembers
+
+Lists authenticated server members. Every authenticated user is a server
+member; admin-sensitive fields stay out of this public row shape.
+
+```http
+POST /api/connect/chatto.api.v1.MemberDirectoryService/ListServerMembers
+```
+
+<a id="chatto-api-v1-ListServerMembersRequest"></a>
+
+#### Input: ListServerMembersRequest
+
+Request for server members visible to the authenticated user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `search` | `string` | Optional case-insensitive search against login and display name. |
+| `page` | [`PageRequest`](/reference/connectrpc-api/types/#chatto-api-v1-PageRequest) | Page request. Defaults to 20 results when absent or limit is zero. |
+
+
+<a id="chatto-api-v1-ListServerMembersResponse"></a>
+
+#### Result: ListServerMembersResponse
+
+Server member page.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `members` | repeated [`DirectoryMember`](/reference/connectrpc-api/types/#chatto-api-v1-DirectoryMember) | Members in the requested page. |
+| `page` | [`PageInfo`](/reference/connectrpc-api/types/#chatto-api-v1-PageInfo) | Page metadata. |
+
+
+<a id="chatto-api-v1-MemberDirectoryService-ListRoomMembers"></a>
+
+### ListRoomMembers
+
+Lists explicit members of a room. The caller must be a member of the room.
+
+```http
+POST /api/connect/chatto.api.v1.MemberDirectoryService/ListRoomMembers
+```
+
+<a id="chatto-api-v1-ListRoomMembersRequest"></a>
+
+#### Input: ListRoomMembersRequest
+
+Request for members of one room.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room whose explicit members should be listed. |
+| `search` | `string` | Optional case-insensitive search against login and display name. |
+| `page` | [`PageRequest`](/reference/connectrpc-api/types/#chatto-api-v1-PageRequest) | Page request. Defaults to 20 results when absent or limit is zero. |
+
+
+<a id="chatto-api-v1-ListRoomMembersResponse"></a>
+
+#### Result: ListRoomMembersResponse
+
+Room member page.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `members` | repeated [`DirectoryMember`](/reference/connectrpc-api/types/#chatto-api-v1-DirectoryMember) | Members in the requested page. |
+| `page` | [`PageInfo`](/reference/connectrpc-api/types/#chatto-api-v1-PageInfo) | Page metadata. |

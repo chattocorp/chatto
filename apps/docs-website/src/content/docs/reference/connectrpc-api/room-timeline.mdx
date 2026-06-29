@@ -1,0 +1,220 @@
+---
+title: RoomTimelineService
+description: Room and thread timeline read RPCs.
+editUrl: false
+---
+
+{/* Generated from proto/chatto/{api,admin,realtime}/v1/*.proto. Do not edit directly. */}
+
+Chatto exposes this service below `/api/connect`.
+
+
+
+Shared message and enum definitions are documented in [Shared Types And Enums](/reference/connectrpc-api/types/).
+
+
+
+<a id="chatto-api-v1-RoomTimelineService"></a>
+
+## RoomTimelineService
+
+Reads room and thread timeline pages.
+
+<a id="chatto-api-v1-RoomTimelineService-GetRoomEvents"></a>
+
+### GetRoomEvents
+
+Returns one page of room timeline events, including related user data needed
+to render the page.
+
+```http
+POST /api/connect/chatto.api.v1.RoomTimelineService/GetRoomEvents
+```
+
+<a id="chatto-api-v1-GetRoomEventsRequest"></a>
+
+#### Input: GetRoomEventsRequest
+
+Request for a page of room timeline events.
+
+Omit the cursor to load the initial page. Set before to a previously returned
+start_cursor to page toward older events, or after to a previously returned
+end_cursor to page toward newer events.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room whose timeline should be loaded. |
+| `limit` | `int32` | Maximum number of events to return. The server may clamp very large limits. |
+| `cursor.before` | `string` | Return events older than this opaque cursor. |
+| `cursor.after` | `string` | Return events newer than this opaque cursor. |
+
+
+<a id="chatto-api-v1-GetRoomEventsResponse"></a>
+
+#### Result: GetRoomEventsResponse
+
+Response containing one room timeline page.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `page` | [`RoomTimelinePage`](/reference/connectrpc-api/types/#chatto-api-v1-RoomTimelinePage) | Loaded timeline page. |
+
+
+<a id="chatto-api-v1-RoomTimelineService-GetRoomEventsAround"></a>
+
+### GetRoomEventsAround
+
+Returns a room timeline window centered around a specific event. Use this to
+open a permalink, search result, or notification target in context.
+
+```http
+POST /api/connect/chatto.api.v1.RoomTimelineService/GetRoomEventsAround
+```
+
+<a id="chatto-api-v1-GetRoomEventsAroundRequest"></a>
+
+#### Input: GetRoomEventsAroundRequest
+
+Request for room timeline events around a specific event.
+
+Use this when a client needs to jump to a known event and render enough
+context around it.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room whose timeline should be loaded. |
+| `event_id` | `string` | Required. Anchor event ID that should appear in the returned page. |
+| `limit` | `int32` | Maximum number of events to return around the anchor. |
+
+
+<a id="chatto-api-v1-GetRoomEventsAroundResponse"></a>
+
+#### Result: GetRoomEventsAroundResponse
+
+Response containing a room timeline window around a specific event.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `page` | [`RoomTimelinePage`](/reference/connectrpc-api/types/#chatto-api-v1-RoomTimelinePage) | Loaded timeline page. |
+| `target_index` | `int32` | Zero-based index of the anchor event within page.events. |
+
+
+<a id="chatto-api-v1-RoomTimelineService-ResolveMessageLinkTarget"></a>
+
+### ResolveMessageLinkTarget
+
+Resolves a permalink target to either the room timeline or a message
+thread, including thread-only replies that are not room timeline rows.
+
+```http
+POST /api/connect/chatto.api.v1.RoomTimelineService/ResolveMessageLinkTarget
+```
+
+<a id="chatto-api-v1-ResolveMessageLinkTargetRequest"></a>
+
+#### Input: ResolveMessageLinkTargetRequest
+
+Request for resolving a message permalink target.
+
+Unlike GetRoomEventsAround, this can resolve thread-only replies that do not
+appear as rows in the room timeline.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room containing the linked event. |
+| `event_id` | `string` | Required. Linked event ID. |
+
+
+<a id="chatto-api-v1-ResolveMessageLinkTargetResponse"></a>
+
+#### Result: ResolveMessageLinkTargetResponse
+
+Response describing where a message permalink should land.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `event` | [`RoomTimelineEvent`](/reference/connectrpc-api/types/#chatto-api-v1-RoomTimelineEvent) | Linked event, hydrated with the same shape used by timeline pages. |
+| `thread_root_event_id` | `string` | Event ID of the thread root when event is a thread-only reply. Empty when the event should open in the room timeline. |
+| `includes` | [`RoomTimelineIncludes`](/reference/connectrpc-api/types/#chatto-api-v1-RoomTimelineIncludes) | Related entities needed to render the event. |
+
+
+<a id="chatto-api-v1-RoomTimelineService-GetThreadEvents"></a>
+
+### GetThreadEvents
+
+Returns one page of events in a message thread. Initial pages include the
+thread root message; cursor pages return replies in the requested direction.
+
+```http
+POST /api/connect/chatto.api.v1.RoomTimelineService/GetThreadEvents
+```
+
+<a id="chatto-api-v1-GetThreadEventsRequest"></a>
+
+#### Input: GetThreadEventsRequest
+
+Request for a page of events in one thread.
+
+Omit the cursor to load the latest visible part of the thread, including the
+root message. Set before to a previously returned start_cursor to page toward
+older replies, or after to a previously returned end_cursor to page toward
+newer replies without repeating the root message.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room containing the thread. |
+| `thread_root_event_id` | `string` | Required. Event ID of the root message for the thread. |
+| `limit` | `int32` | Maximum number of events to return. The server may clamp very large limits. |
+| `cursor.before` | `string` | Return thread events older than this opaque cursor. |
+| `cursor.after` | `string` | Return thread events newer than this opaque cursor. |
+
+
+<a id="chatto-api-v1-GetThreadEventsResponse"></a>
+
+#### Result: GetThreadEventsResponse
+
+Response containing one thread timeline page.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `page` | [`RoomTimelinePage`](/reference/connectrpc-api/types/#chatto-api-v1-RoomTimelinePage) | Loaded timeline page. |
+
+
+<a id="chatto-api-v1-RoomTimelineService-GetThreadEventsAround"></a>
+
+### GetThreadEventsAround
+
+Returns a thread timeline window centered around a specific event. Use this
+to open a reply from a notification or search result in context.
+
+```http
+POST /api/connect/chatto.api.v1.RoomTimelineService/GetThreadEventsAround
+```
+
+<a id="chatto-api-v1-GetThreadEventsAroundRequest"></a>
+
+#### Input: GetThreadEventsAroundRequest
+
+Request for thread events around a specific event.
+
+Use this when a client needs to jump to a known reply and render surrounding
+thread context.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room containing the thread. |
+| `thread_root_event_id` | `string` | Required. Event ID of the root message for the thread. |
+| `event_id` | `string` | Required. Anchor event ID inside the thread. The event should belong to the requested thread. |
+| `limit` | `int32` | Maximum number of events to return around the anchor. |
+
+
+<a id="chatto-api-v1-GetThreadEventsAroundResponse"></a>
+
+#### Result: GetThreadEventsAroundResponse
+
+Response containing a thread timeline window around a specific event.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `page` | [`RoomTimelinePage`](/reference/connectrpc-api/types/#chatto-api-v1-RoomTimelinePage) | Loaded timeline page. |
+| `target_index` | `int32` | Zero-based index of the anchor event within page.events. |

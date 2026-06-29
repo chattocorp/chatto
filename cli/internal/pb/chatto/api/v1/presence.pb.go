@@ -23,9 +23,9 @@ const (
 
 // Live presence status returned by public read APIs.
 //
-// Offline is a read-side state only. Clients cannot report Offline through
-// PresenceService.ReportPresence; they should stop reporting presence and let
-// the server's live presence record expire.
+// Offline is a read-side state only. Clients cannot report Offline through the
+// account presence RPC; they should stop reporting presence and let the
+// server's live presence record expire.
 type PresenceStatus int32
 
 const (
@@ -204,9 +204,7 @@ const file_chatto_api_v1_presence_proto_rawDesc = "" +
 	"\x16PRESENCE_STATUS_ONLINE\x10\x01\x12\x18\n" +
 	"\x14PRESENCE_STATUS_AWAY\x10\x02\x12\"\n" +
 	"\x1ePRESENCE_STATUS_DO_NOT_DISTURB\x10\x03\x12\x1b\n" +
-	"\x17PRESENCE_STATUS_OFFLINE\x10\x042p\n" +
-	"\x0fPresenceService\x12]\n" +
-	"\x0eReportPresence\x12$.chatto.api.v1.ReportPresenceRequest\x1a%.chatto.api.v1.ReportPresenceResponseB\xa9\x01\n" +
+	"\x17PRESENCE_STATUS_OFFLINE\x10\x04B\xa9\x01\n" +
 	"\x11com.chatto.api.v1B\rPresenceProtoP\x01Z/hmans.de/chatto/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
 
 var (
@@ -231,10 +229,8 @@ var file_chatto_api_v1_presence_proto_goTypes = []any{
 var file_chatto_api_v1_presence_proto_depIdxs = []int32{
 	0, // 0: chatto.api.v1.ReportPresenceRequest.status:type_name -> chatto.api.v1.PresenceStatus
 	0, // 1: chatto.api.v1.ReportPresenceResponse.status:type_name -> chatto.api.v1.PresenceStatus
-	1, // 2: chatto.api.v1.PresenceService.ReportPresence:input_type -> chatto.api.v1.ReportPresenceRequest
-	2, // 3: chatto.api.v1.PresenceService.ReportPresence:output_type -> chatto.api.v1.ReportPresenceResponse
-	3, // [3:4] is the sub-list for method output_type
-	2, // [2:3] is the sub-list for method input_type
+	2, // [2:2] is the sub-list for method output_type
+	2, // [2:2] is the sub-list for method input_type
 	2, // [2:2] is the sub-list for extension type_name
 	2, // [2:2] is the sub-list for extension extendee
 	0, // [0:2] is the sub-list for field type_name
@@ -253,7 +249,7 @@ func file_chatto_api_v1_presence_proto_init() {
 			NumEnums:      1,
 			NumMessages:   2,
 			NumExtensions: 0,
-			NumServices:   1,
+			NumServices:   0,
 		},
 		GoTypes:           file_chatto_api_v1_presence_proto_goTypes,
 		DependencyIndexes: file_chatto_api_v1_presence_proto_depIdxs,

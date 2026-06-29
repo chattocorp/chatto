@@ -180,19 +180,6 @@ func (c *ChattoCore) SetRolePermissionState(ctx context.Context, actorID, roleNa
 	}
 }
 
-func (c *ChattoCore) AdminRevokeRolePermissionGrant(ctx context.Context, actorID, roleName string, perm Permission) error {
-	if roleName == RoleOwner {
-		return fmt.Errorf("%w: owner permissions are granted virtually and cannot be edited", ErrInvalidArgument)
-	}
-	if roleName == "" {
-		return fmt.Errorf("%w: role name is required", ErrInvalidArgument)
-	}
-	if err := c.requireCanManageAdminRoles(ctx, actorID); err != nil {
-		return err
-	}
-	return c.RevokeServerPermission(ctx, actorID, roleName, perm)
-}
-
 func (c *ChattoCore) SetUserPermissionState(ctx context.Context, actorID, userID string, scope PermissionTargetScope, perm Permission, state PermissionState) error {
 	if userID == "" {
 		return fmt.Errorf("%w: user id is required", ErrInvalidArgument)

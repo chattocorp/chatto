@@ -10,11 +10,7 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-type userStatusService struct {
-	api *API
-}
-
-func (s *userStatusService) SetCustomStatus(ctx context.Context, req *connect.Request[apiv1.SetCustomStatusRequest]) (*connect.Response[apiv1.SetCustomStatusResponse], error) {
+func (s *accountService) SetCustomStatus(ctx context.Context, req *connect.Request[apiv1.SetCustomStatusRequest]) (*connect.Response[apiv1.SetCustomStatusResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -34,7 +30,7 @@ func (s *userStatusService) SetCustomStatus(ctx context.Context, req *connect.Re
 	}), nil
 }
 
-func (s *userStatusService) ClearCustomStatus(ctx context.Context, _ *connect.Request[apiv1.ClearCustomStatusRequest]) (*connect.Response[apiv1.ClearCustomStatusResponse], error) {
+func (s *accountService) ClearCustomStatus(ctx context.Context, _ *connect.Request[apiv1.ClearCustomStatusRequest]) (*connect.Response[apiv1.ClearCustomStatusResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err

@@ -780,98 +780,6 @@ func (x *GetRoomResponse) GetRoom() *DirectoryRoom {
 	return nil
 }
 
-// Request to join all joinable rooms in one room group.
-type JoinGroupRequest struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Required. Room group whose rooms should be joined.
-	GroupId       string `protobuf:"bytes,1,opt,name=group_id,json=groupId,proto3" json:"group_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *JoinGroupRequest) Reset() {
-	*x = JoinGroupRequest{}
-	mi := &file_chatto_api_v1_room_directory_proto_msgTypes[11]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *JoinGroupRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*JoinGroupRequest) ProtoMessage() {}
-
-func (x *JoinGroupRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_room_directory_proto_msgTypes[11]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use JoinGroupRequest.ProtoReflect.Descriptor instead.
-func (*JoinGroupRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_room_directory_proto_rawDescGZIP(), []int{11}
-}
-
-func (x *JoinGroupRequest) GetGroupId() string {
-	if x != nil {
-		return x.GroupId
-	}
-	return ""
-}
-
-// Result of joining all joinable rooms in one room group.
-type JoinGroupResponse struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Room IDs that transitioned from not joined to joined.
-	JoinedRoomIds []string `protobuf:"bytes,1,rep,name=joined_room_ids,json=joinedRoomIds,proto3" json:"joined_room_ids,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *JoinGroupResponse) Reset() {
-	*x = JoinGroupResponse{}
-	mi := &file_chatto_api_v1_room_directory_proto_msgTypes[12]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *JoinGroupResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*JoinGroupResponse) ProtoMessage() {}
-
-func (x *JoinGroupResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_room_directory_proto_msgTypes[12]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use JoinGroupResponse.ProtoReflect.Descriptor instead.
-func (*JoinGroupResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_room_directory_proto_rawDescGZIP(), []int{12}
-}
-
-func (x *JoinGroupResponse) GetJoinedRoomIds() []string {
-	if x != nil {
-		return x.JoinedRoomIds
-	}
-	return nil
-}
-
 var File_chatto_api_v1_room_directory_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_room_directory_proto_rawDesc = "" +
@@ -920,21 +828,16 @@ const file_chatto_api_v1_room_directory_proto_rawDesc = "" +
 	"\x0eGetRoomRequest\x12 \n" +
 	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\"C\n" +
 	"\x0fGetRoomResponse\x120\n" +
-	"\x04room\x18\x01 \x01(\v2\x1c.chatto.api.v1.DirectoryRoomR\x04room\"6\n" +
-	"\x10JoinGroupRequest\x12\"\n" +
-	"\bgroup_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\agroupId\";\n" +
-	"\x11JoinGroupResponse\x12&\n" +
-	"\x0fjoined_room_ids\x18\x01 \x03(\tR\rjoinedRoomIds*\x99\x01\n" +
+	"\x04room\x18\x01 \x01(\v2\x1c.chatto.api.v1.DirectoryRoomR\x04room*\x99\x01\n" +
 	"\x12RoomDirectoryScope\x12$\n" +
 	" ROOM_DIRECTORY_SCOPE_UNSPECIFIED\x10\x00\x12\x1c\n" +
 	"\x18ROOM_DIRECTORY_SCOPE_ALL\x10\x01\x12!\n" +
 	"\x1dROOM_DIRECTORY_SCOPE_CHANNELS\x10\x02\x12\x1c\n" +
-	"\x18ROOM_DIRECTORY_SCOPE_DMS\x10\x032\xdf\x02\n" +
+	"\x18ROOM_DIRECTORY_SCOPE_DMS\x10\x032\x8f\x02\n" +
 	"\x14RoomDirectoryService\x12N\n" +
 	"\tListRooms\x12\x1f.chatto.api.v1.ListRoomsRequest\x1a .chatto.api.v1.ListRoomsResponse\x12]\n" +
 	"\x0eListRoomGroups\x12$.chatto.api.v1.ListRoomGroupsRequest\x1a%.chatto.api.v1.ListRoomGroupsResponse\x12H\n" +
-	"\aGetRoom\x12\x1d.chatto.api.v1.GetRoomRequest\x1a\x1e.chatto.api.v1.GetRoomResponse\x12N\n" +
-	"\tJoinGroup\x12\x1f.chatto.api.v1.JoinGroupRequest\x1a .chatto.api.v1.JoinGroupResponseB\xae\x01\n" +
+	"\aGetRoom\x12\x1d.chatto.api.v1.GetRoomRequest\x1a\x1e.chatto.api.v1.GetRoomResponseB\xae\x01\n" +
 	"\x11com.chatto.api.v1B\x12RoomDirectoryProtoP\x01Z/hmans.de/chatto/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
 
 var (
@@ -950,7 +853,7 @@ func file_chatto_api_v1_room_directory_proto_rawDescGZIP() []byte {
 }
 
 var file_chatto_api_v1_room_directory_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_chatto_api_v1_room_directory_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
+var file_chatto_api_v1_room_directory_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
 var file_chatto_api_v1_room_directory_proto_goTypes = []any{
 	(RoomDirectoryScope)(0),        // 0: chatto.api.v1.RoomDirectoryScope
 	(*RoomViewerState)(nil),        // 1: chatto.api.v1.RoomViewerState
@@ -964,12 +867,10 @@ var file_chatto_api_v1_room_directory_proto_goTypes = []any{
 	(*ListRoomGroupsResponse)(nil), // 9: chatto.api.v1.ListRoomGroupsResponse
 	(*GetRoomRequest)(nil),         // 10: chatto.api.v1.GetRoomRequest
 	(*GetRoomResponse)(nil),        // 11: chatto.api.v1.GetRoomResponse
-	(*JoinGroupRequest)(nil),       // 12: chatto.api.v1.JoinGroupRequest
-	(*JoinGroupResponse)(nil),      // 13: chatto.api.v1.JoinGroupResponse
-	(*Room)(nil),                   // 14: chatto.api.v1.Room
+	(*Room)(nil),                   // 12: chatto.api.v1.Room
 }
 var file_chatto_api_v1_room_directory_proto_depIdxs = []int32{
-	14, // 0: chatto.api.v1.DirectoryRoom.room:type_name -> chatto.api.v1.Room
+	12, // 0: chatto.api.v1.DirectoryRoom.room:type_name -> chatto.api.v1.Room
 	1,  // 1: chatto.api.v1.DirectoryRoom.viewer_state:type_name -> chatto.api.v1.RoomViewerState
 	2,  // 2: chatto.api.v1.RoomGroupItem.room:type_name -> chatto.api.v1.DirectoryRoom
 	3,  // 3: chatto.api.v1.RoomGroupItem.sidebar_link:type_name -> chatto.api.v1.SidebarLink
@@ -982,13 +883,11 @@ var file_chatto_api_v1_room_directory_proto_depIdxs = []int32{
 	6,  // 10: chatto.api.v1.RoomDirectoryService.ListRooms:input_type -> chatto.api.v1.ListRoomsRequest
 	8,  // 11: chatto.api.v1.RoomDirectoryService.ListRoomGroups:input_type -> chatto.api.v1.ListRoomGroupsRequest
 	10, // 12: chatto.api.v1.RoomDirectoryService.GetRoom:input_type -> chatto.api.v1.GetRoomRequest
-	12, // 13: chatto.api.v1.RoomDirectoryService.JoinGroup:input_type -> chatto.api.v1.JoinGroupRequest
-	7,  // 14: chatto.api.v1.RoomDirectoryService.ListRooms:output_type -> chatto.api.v1.ListRoomsResponse
-	9,  // 15: chatto.api.v1.RoomDirectoryService.ListRoomGroups:output_type -> chatto.api.v1.ListRoomGroupsResponse
-	11, // 16: chatto.api.v1.RoomDirectoryService.GetRoom:output_type -> chatto.api.v1.GetRoomResponse
-	13, // 17: chatto.api.v1.RoomDirectoryService.JoinGroup:output_type -> chatto.api.v1.JoinGroupResponse
-	14, // [14:18] is the sub-list for method output_type
-	10, // [10:14] is the sub-list for method input_type
+	7,  // 13: chatto.api.v1.RoomDirectoryService.ListRooms:output_type -> chatto.api.v1.ListRoomsResponse
+	9,  // 14: chatto.api.v1.RoomDirectoryService.ListRoomGroups:output_type -> chatto.api.v1.ListRoomGroupsResponse
+	11, // 15: chatto.api.v1.RoomDirectoryService.GetRoom:output_type -> chatto.api.v1.GetRoomResponse
+	13, // [13:16] is the sub-list for method output_type
+	10, // [10:13] is the sub-list for method input_type
 	10, // [10:10] is the sub-list for extension type_name
 	10, // [10:10] is the sub-list for extension extendee
 	0,  // [0:10] is the sub-list for field type_name
@@ -1010,7 +909,7 @@ func file_chatto_api_v1_room_directory_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_api_v1_room_directory_proto_rawDesc), len(file_chatto_api_v1_room_directory_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   13,
+			NumMessages:   11,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

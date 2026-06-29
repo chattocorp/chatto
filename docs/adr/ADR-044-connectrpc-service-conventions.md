@@ -24,7 +24,7 @@ All public ConnectRPC services live under `proto/chatto/api/v1` and are implemen
 
 Repeated public semantics should use shared protobuf shapes instead of service-local copies. Offset-based list RPCs use `PageRequest page` and return `PageInfo page` unless they need a cursor/window model such as room timeline reads. Singular lookup RPCs return `NOT_FOUND` when the requested resource is absent. Batch/list RPCs may omit missing resources or return empty lists. Optional response fields should represent a successful nullable result, not a hidden not-found status.
 
-Public user-shaped payloads should reuse the narrowest canonical shape that represents their semantics. `UserSummary` is the lightweight render/cache identity shape. `UserPresenceSummary` adds live presence and custom status for notification and call surfaces. `DirectoryMember`, `ViewerUser`, and `AdminMember` remain separate because they carry directory, self-service, and admin-only fields with different visibility rules.
+Public user-shaped payloads should reuse the narrowest canonical shape that represents their semantics. `User` is the lightweight render/cache identity shape. `UserProfile` adds live presence and custom status for notification and call surfaces. `DirectoryMember`, `ViewerUser`, and `AdminMember` remain separate because they carry directory, self-service, and admin-only fields with different visibility rules.
 
 `connectapi.API.Handlers()` is the authoritative registry for mounted ConnectRPC services. Each registered handler includes:
 

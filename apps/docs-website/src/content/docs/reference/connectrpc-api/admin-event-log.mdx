@@ -1,0 +1,121 @@
+---
+title: AdminEventLogService
+description: Audit event log read RPCs.
+editUrl: false
+---
+
+{/* Generated from proto/chatto/{api,admin,realtime}/v1/*.proto. Do not edit directly. */}
+
+Chatto exposes this service below `/api/connect`.
+
+
+
+Shared message and enum definitions are documented in [Shared Types And Enums](/reference/connectrpc-api/types/).
+
+
+
+<a id="chatto-admin-v1-AdminEventLogService"></a>
+
+## AdminEventLogService
+
+Provides server-admin audit/event-log diagnostics.
+
+<a id="chatto-admin-v1-AdminEventLogService-ListEvents"></a>
+
+### ListEvents
+
+Lists durable EVT entries newest-first.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminEventLogService/ListEvents
+```
+
+<a id="chatto-admin-v1-ListEventsRequest"></a>
+
+#### Input: ListEventsRequest
+
+Request to list durable EVT entries newest-first.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `limit` | `int32` | Maximum entries to return. The server clamps this to its diagnostic limit. |
+| `before` | `optional string` | Exclusive sequence cursor. Returned entries are older than this sequence. |
+| `filter` | [`AdminEventLogFilter`](/reference/connectrpc-api/types/#chatto-admin-v1-AdminEventLogFilter) | Optional filter. Filtered scans inspect a bounded window per request. |
+
+
+<a id="chatto-admin-v1-ListEventsResponse"></a>
+
+#### Result: ListEventsResponse
+
+Newest-first page of durable EVT entries.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `entries` | repeated [`AdminEventLogEntry`](/reference/connectrpc-api/types/#chatto-admin-v1-AdminEventLogEntry) | Event-log rows. |
+| `has_older` | `bool` | Whether older rows may be fetched with end_cursor. |
+| `end_cursor` | `optional string` | Sequence cursor for loading older rows. |
+| `total_count` | `int64` | Total EVT message count reported by JetStream. |
+| `scanned_count` | `int32` | Number of stream sequences inspected while building this page. |
+| `scan_limit` | `int32` | Maximum number of stream sequences inspected for this page. |
+| `scan_limited` | `bool` | True when a filtered request reached scan_limit before finding a full page. |
+
+
+<a id="chatto-admin-v1-AdminEventLogService-ListEventTypes"></a>
+
+### ListEventTypes
+
+Lists filterable event type names.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminEventLogService/ListEventTypes
+```
+
+<a id="chatto-admin-v1-ListEventTypesRequest"></a>
+
+#### Input: ListEventTypesRequest
+
+Request to list filterable event types.
+
+
+<a id="chatto-admin-v1-ListEventTypesResponse"></a>
+
+#### Result: ListEventTypesResponse
+
+Event types accepted by event-log filters.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `event_types` | `repeated string` | Sorted event type names. |
+
+
+<a id="chatto-admin-v1-AdminEventLogService-GetEvent"></a>
+
+### GetEvent
+
+Reads one durable EVT entry by stream sequence. Returns NOT_FOUND when the
+requested sequence does not exist.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminEventLogService/GetEvent
+```
+
+<a id="chatto-admin-v1-GetEventRequest"></a>
+
+#### Input: GetEventRequest
+
+Request to read one durable EVT entry by stream sequence.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `sequence` | `string` | Required EVT stream sequence. |
+
+
+<a id="chatto-admin-v1-GetEventResponse"></a>
+
+#### Result: GetEventResponse
+
+Result of reading one durable EVT entry.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `entry` | [`AdminEventLogEntry`](/reference/connectrpc-api/types/#chatto-admin-v1-AdminEventLogEntry) | Requested event-log entry. |

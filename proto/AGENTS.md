@@ -5,10 +5,14 @@ ConnectRPC services, and the public API reference.
 
 ## Public API Protos
 
-For `chatto/api/v1`:
+For public API packages:
 
 - Follow [chatto/api/v1/AGENTS.md](chatto/api/v1/AGENTS.md) for public
   ConnectRPC API consistency rules.
+- Follow [chatto/admin/v1/AGENTS.md](chatto/admin/v1/AGENTS.md) for
+  administrative ConnectRPC API consistency rules.
+- Follow [chatto/realtime/v1/AGENTS.md](chatto/realtime/v1/AGENTS.md) for the
+  realtime WebSocket protobuf protocol.
 - Write comments for API consumers, not Chatto maintainers.
 - Every public service, RPC, message, enum, enum value, and important field
   should have useful comments.
@@ -30,14 +34,14 @@ For `chatto/api/v1`:
 - Persisted protobufs in `EVT`, `RUNTIME_STATE`, `ENCRYPTION_KEYS`, and object
   metadata need additive evolution plus repair/migration code when existing data
   changes shape.
-- Transient live-event protos are less stable, but still consider public API
-  behavior and mixed-version clients.
+- Transient live-event protos are less stable, but `chatto/realtime/v1` is still
+  a public wire protocol and must consider mixed-version clients.
 
 ## Presence And API Shape
 
-- For public API messages under `chatto/api/v1`, use proto3 `optional` scalar
-  fields when clients must distinguish absent/unhydrated/unknown from a scalar
-  default.
+- For public API messages under `chatto/api/v1`, `chatto/admin/v1`, and
+  `chatto/realtime/v1`, use proto3 `optional` scalar fields when clients must
+  distinguish absent/unhydrated/unknown from a scalar default.
 - Avoid parallel `*_present` booleans for simple scalar presence.
 - Use enums or oneofs only when modeling multiple meaningful availability states.
 

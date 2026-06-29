@@ -7,14 +7,14 @@ import (
 	"connectrpc.com/connect"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/core"
-	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
+	adminv1 "hmans.de/chatto/internal/pb/chatto/admin/v1"
 )
 
 type adminEventLogService struct {
 	api *API
 }
 
-func (s *adminEventLogService) ListEvents(ctx context.Context, req *connect.Request[apiv1.ListEventsRequest]) (*connect.Response[apiv1.ListEventsResponse], error) {
+func (s *adminEventLogService) ListEvents(ctx context.Context, req *connect.Request[adminv1.ListEventsRequest]) (*connect.Response[adminv1.ListEventsResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -34,7 +34,7 @@ func (s *adminEventLogService) ListEvents(ctx context.Context, req *connect.Requ
 	return connect.NewResponse(adminEventLogConnectionToAPI(conn)), nil
 }
 
-func (s *adminEventLogService) ListEventTypes(ctx context.Context, _ *connect.Request[apiv1.ListEventTypesRequest]) (*connect.Response[apiv1.ListEventTypesResponse], error) {
+func (s *adminEventLogService) ListEventTypes(ctx context.Context, _ *connect.Request[adminv1.ListEventTypesRequest]) (*connect.Response[adminv1.ListEventTypesResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -43,10 +43,10 @@ func (s *adminEventLogService) ListEventTypes(ctx context.Context, _ *connect.Re
 	if err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&apiv1.ListEventTypesResponse{EventTypes: eventTypes}), nil
+	return connect.NewResponse(&adminv1.ListEventTypesResponse{EventTypes: eventTypes}), nil
 }
 
-func (s *adminEventLogService) GetEvent(ctx context.Context, req *connect.Request[apiv1.GetEventRequest]) (*connect.Response[apiv1.GetEventResponse], error) {
+func (s *adminEventLogService) GetEvent(ctx context.Context, req *connect.Request[adminv1.GetEventRequest]) (*connect.Response[adminv1.GetEventResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -58,12 +58,12 @@ func (s *adminEventLogService) GetEvent(ctx context.Context, req *connect.Reques
 	if entry == nil {
 		return nil, connectError(core.ErrNotFound)
 	}
-	return connect.NewResponse(&apiv1.GetEventResponse{
+	return connect.NewResponse(&adminv1.GetEventResponse{
 		Entry: adminEventLogEntryToAPI(entry),
 	}), nil
 }
 
-func adminEventLogFilterFromAPI(filter *apiv1.AdminEventLogFilter) (core.EventLogFilter, error) {
+func adminEventLogFilterFromAPI(filter *adminv1.AdminEventLogFilter) (core.EventLogFilter, error) {
 	if filter == nil {
 		return core.EventLogFilter{}, nil
 	}
@@ -94,15 +94,15 @@ func checkedEventLogTimestamp(ts *timestamppb.Timestamp, field string) (*time.Ti
 	return &value, nil
 }
 
-func adminEventLogConnectionToAPI(conn *core.EventLogConnection) *apiv1.ListEventsResponse {
+func adminEventLogConnectionToAPI(conn *core.EventLogConnection) *adminv1.ListEventsResponse {
 	if conn == nil {
-		return &apiv1.ListEventsResponse{}
+		return &adminv1.ListEventsResponse{}
 	}
-	entries := make([]*apiv1.AdminEventLogEntry, 0, len(conn.Entries))
+	entries := make([]*adminv1.AdminEventLogEntry, 0, len(conn.Entries))
 	for _, entry := range conn.Entries {
 		entries = append(entries, adminEventLogEntryToAPI(entry))
 	}
-	return &apiv1.ListEventsResponse{
+	return &adminv1.ListEventsResponse{
 		Entries:      entries,
 		HasOlder:     conn.HasOlder,
 		EndCursor:    conn.EndCursor,
@@ -113,11 +113,11 @@ func adminEventLogConnectionToAPI(conn *core.EventLogConnection) *apiv1.ListEven
 	}
 }
 
-func adminEventLogEntryToAPI(entry *core.EventLogEntry) *apiv1.AdminEventLogEntry {
+func adminEventLogEntryToAPI(entry *core.EventLogEntry) *adminv1.AdminEventLogEntry {
 	if entry == nil {
 		return nil
 	}
-	return &apiv1.AdminEventLogEntry{
+	return &adminv1.AdminEventLogEntry{
 		Sequence:      entry.Sequence,
 		Subject:       entry.Subject,
 		AggregateType: entry.AggregateType,

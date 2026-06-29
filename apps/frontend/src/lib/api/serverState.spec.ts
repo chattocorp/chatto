@@ -201,7 +201,7 @@ describe('getAuthenticatedServerState', () => {
     });
   });
 
-  it('updates server branding through ServerStateService', async () => {
+  it('updates server branding through AdminServerService', async () => {
     mocks.uploadServerLogo.mockResolvedValue({
       profile: {
         name: 'Connect Server',
@@ -271,7 +271,7 @@ describe('getAuthenticatedServerState', () => {
     );
   });
 
-  it('loads and updates security config through ServerStateService', async () => {
+  it('loads and updates security config through AdminServerService', async () => {
     mocks.getServerSecurityConfig.mockResolvedValue({
       blockedUsernames: 'root\nadmin'
     });

@@ -72,7 +72,7 @@ func setupCSRFTestServer(t *testing.T) (*httptest.Server, *http.Client) {
 	router.GET("/csrf-refresh", func(c *gin.Context) {
 		c.String(http.StatusOK, "refreshed")
 	})
-	router.POST(connectAPIPrefix+"/chatto.api.v1.ServerService/GetServer", func(c *gin.Context) {
+	router.POST(serverDiscoveryConnectPath, func(c *gin.Context) {
 		c.String(http.StatusOK, "connect ok")
 	})
 	router.POST("/auth/logout", func(c *gin.Context) {
@@ -176,7 +176,7 @@ func TestCSRFMiddleware(t *testing.T) {
 		server, client := setupCSRFTestServer(t)
 		csrfCookieValue(t, client, server.URL)
 
-		resp, err := client.Post(server.URL+connectAPIPrefix+"/chatto.api.v1.ServerService/GetServer", "application/proto", strings.NewReader(""))
+		resp, err := client.Post(server.URL+serverDiscoveryConnectPath, "application/proto", strings.NewReader(""))
 		if err != nil {
 			t.Fatalf("ConnectRPC request: %v", err)
 		}

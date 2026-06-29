@@ -10,16 +10,16 @@ service PushNotificationService {
   //
   // The server must have Web Push configured. Clients normally call this after
   // the browser grants notification permission and returns a PushSubscription.
-  rpc Subscribe(SubscribeRequest) returns (SubscribeResponse);
+  rpc Subscribe(SubscribePushRequest) returns (SubscribePushResponse);
 
   // Removes the caller's browser push subscription by endpoint.
   //
   // The call is idempotent: removing an unknown endpoint still succeeds.
-  rpc Unsubscribe(UnsubscribeRequest) returns (UnsubscribeResponse);
+  rpc Unsubscribe(UnsubscribePushRequest) returns (UnsubscribePushResponse);
 }
 
 // Request to store a PushSubscription returned by the browser Push API.
-message SubscribeRequest {
+message SubscribePushRequest {
   // Push service endpoint URL.
   string endpoint = 1 [(buf.validate.field).string.max_len = 4096];
 
@@ -34,19 +34,19 @@ message SubscribeRequest {
 }
 
 // Response from storing a browser push subscription.
-message SubscribeResponse {
+message SubscribePushResponse {
   // True when the subscription was stored.
   bool subscribed = 1;
 }
 
 // Request to remove a browser push subscription.
-message UnsubscribeRequest {
+message UnsubscribePushRequest {
   // Push service endpoint URL to remove.
   string endpoint = 1 [(buf.validate.field).string.max_len = 4096];
 }
 
 // Response from removing a browser push subscription.
-message UnsubscribeResponse {
+message UnsubscribePushResponse {
   // True when the request completed.
   bool unsubscribed = 1;
 }
