@@ -27,7 +27,7 @@ export const AdminRoomLayoutService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Creates a room group. The caller must be allowed to manage rooms.
+     * Creates a room group. The caller must be allowed to manage roles.
      *
      * @generated from rpc chatto.api.v1.AdminRoomLayoutService.CreateRoomGroup
      */
@@ -39,7 +39,7 @@ export const AdminRoomLayoutService = {
     },
     /**
      * Updates a room group's metadata. The caller must be allowed to manage
-     * rooms.
+     * roles.
      *
      * @generated from rpc chatto.api.v1.AdminRoomLayoutService.UpdateRoomGroup
      */
@@ -50,7 +50,7 @@ export const AdminRoomLayoutService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Deletes an empty room group. The caller must be allowed to manage rooms.
+     * Deletes an empty room group. The caller must be allowed to manage roles.
      *
      * @generated from rpc chatto.api.v1.AdminRoomLayoutService.DeleteRoomGroup
      */
@@ -62,7 +62,7 @@ export const AdminRoomLayoutService = {
     },
     /**
      * Replaces the global room group order. The caller must be allowed to manage
-     * rooms.
+     * roles.
      *
      * @generated from rpc chatto.api.v1.AdminRoomLayoutService.ReorderRoomGroups
      */

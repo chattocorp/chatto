@@ -363,7 +363,7 @@ Current admin room layout.
 
 ### CreateRoomGroup
 
-Creates a room group. The caller must be allowed to manage rooms.
+Creates a room group. The caller must be allowed to manage roles.
 
 ```http
 POST /api/connect/chatto.api.v1.AdminRoomLayoutService/CreateRoomGroup
@@ -397,7 +397,7 @@ Result of creating a room group.
 ### UpdateRoomGroup
 
 Updates a room group's metadata. The caller must be allowed to manage
-rooms.
+roles.
 
 ```http
 POST /api/connect/chatto.api.v1.AdminRoomLayoutService/UpdateRoomGroup
@@ -431,7 +431,7 @@ Result of updating a room group.
 
 ### DeleteRoomGroup
 
-Deletes an empty room group. The caller must be allowed to manage rooms.
+Deletes an empty room group. The caller must be allowed to manage roles.
 
 ```http
 POST /api/connect/chatto.api.v1.AdminRoomLayoutService/DeleteRoomGroup
@@ -464,7 +464,7 @@ Result of deleting a room group.
 ### ReorderRoomGroups
 
 Replaces the global room group order. The caller must be allowed to manage
-rooms.
+roles.
 
 ```http
 POST /api/connect/chatto.api.v1.AdminRoomLayoutService/ReorderRoomGroups

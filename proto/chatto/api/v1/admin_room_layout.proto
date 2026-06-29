@@ -240,15 +240,15 @@ service AdminRoomLayoutService {
   // Lists the current room groups, rooms, and sidebar links for the admin
   // layout editor.
   rpc ListAdminRoomLayout(ListAdminRoomLayoutRequest) returns (ListAdminRoomLayoutResponse);
-  // Creates a room group. The caller must be allowed to manage rooms.
+  // Creates a room group. The caller must be allowed to manage roles.
   rpc CreateRoomGroup(CreateRoomGroupRequest) returns (CreateRoomGroupResponse);
   // Updates a room group's metadata. The caller must be allowed to manage
-  // rooms.
+  // roles.
   rpc UpdateRoomGroup(UpdateRoomGroupRequest) returns (UpdateRoomGroupResponse);
-  // Deletes an empty room group. The caller must be allowed to manage rooms.
+  // Deletes an empty room group. The caller must be allowed to manage roles.
   rpc DeleteRoomGroup(DeleteRoomGroupRequest) returns (DeleteRoomGroupResponse);
   // Replaces the global room group order. The caller must be allowed to manage
-  // rooms.
+  // roles.
   rpc ReorderRoomGroups(ReorderRoomGroupsRequest) returns (ReorderRoomGroupsResponse);
   // Moves a channel room to another room group. The caller must be allowed to
   // manage rooms in both source and destination groups.
