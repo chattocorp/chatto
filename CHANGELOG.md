@@ -3,6 +3,30 @@
 All notable changes to Chatto. Maintained by release-please from the
 conventional-commit messages on `main` — do not edit by hand.
 
+## [0.4.0-beta.5](https://github.com/chattocorp/chatto/compare/v0.4.0-beta.4...v0.4.0-beta.5) (2026-06-29)
+
+
+### ⚠ BREAKING CHANGES
+
+* **api:** split ConnectRPC packages ([#1179](https://github.com/chattocorp/chatto/issues/1179))
+
+### Features
+
+* **api:** add ConnectRPC reflection ([#1182](https://github.com/chattocorp/chatto/issues/1182)) ([a93324c](https://github.com/chattocorp/chatto/commit/a93324cf91e21cfab6eb7057f9b35e3545f3cf4c))
+* **api:** clean up ConnectRPC surface ([#1171](https://github.com/chattocorp/chatto/issues/1171)) ([03c42af](https://github.com/chattocorp/chatto/commit/03c42af51837bcd999bb3c34989ba706e2d291c5))
+* **api:** clean up ConnectRPC surface ([#1178](https://github.com/chattocorp/chatto/issues/1178)) ([b1b6e28](https://github.com/chattocorp/chatto/commit/b1b6e28a818d3f878c0674bd741292d1e33f680e))
+* **api:** extract generated TypeScript clients ([#1183](https://github.com/chattocorp/chatto/issues/1183)) ([3480cda](https://github.com/chattocorp/chatto/commit/3480cdab949940d614160897134129693f14e782))
+* **api:** extract TypeScript API client ([#1184](https://github.com/chattocorp/chatto/issues/1184)) ([b38b9a5](https://github.com/chattocorp/chatto/commit/b38b9a522cd48b5673109d09007b7d04709b251e))
+* **api:** split ConnectRPC packages ([#1179](https://github.com/chattocorp/chatto/issues/1179)) ([6ec286a](https://github.com/chattocorp/chatto/commit/6ec286a469377b5ebe338167cb0244bbc4a9b9d2))
+* **docs:** add release notes pages ([#1180](https://github.com/chattocorp/chatto/issues/1180)) ([6418471](https://github.com/chattocorp/chatto/commit/641847194e8d02cd86e8e9827b756a8cec109d56))
+
+
+### Bug Fixes
+
+* **api:** preserve offline presence in snapshots ([#1172](https://github.com/chattocorp/chatto/issues/1172)) ([7fce244](https://github.com/chattocorp/chatto/commit/7fce244d8f7deecd821966923ce2992c5a656f2c))
+* **attachments:** crop extreme image thumbnails ([#1181](https://github.com/chattocorp/chatto/issues/1181)) ([d5dd244](https://github.com/chattocorp/chatto/commit/d5dd244e42ea884cf4739523cda3479a17c1e4f8))
+* **messages:** validate reply targets before posting ([#1176](https://github.com/chattocorp/chatto/issues/1176)) ([2919a1a](https://github.com/chattocorp/chatto/commit/2919a1a4fcb0cf5b13a6e22764329bee0f9f1d1d))
+
 ## [0.4.0-beta.4](https://github.com/chattocorp/chatto/compare/v0.4.0-beta.3...v0.4.0-beta.4) (2026-06-28)
 
 
