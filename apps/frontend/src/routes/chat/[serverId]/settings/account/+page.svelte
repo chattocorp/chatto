@@ -47,6 +47,9 @@
   let ssoLoading = $state(true);
   let ssoError = $state('');
   let linkingProviderId = $state('');
+  let linkFreshAuthProvider = $state<ExternalIdentityProviderInfo | null>(null);
+  let linkCurrentPassword = $state('');
+  let linkFreshAuthError = $state('');
   let disconnectingSubjectHash = $state('');
   let disconnectTarget = $state<{ subjectHash: string; providerLabel: string } | null>(null);
   let blockedDisconnectProviderLabel = $state('');
@@ -163,6 +166,13 @@
   }
 
   async function handleStartProviderLink(provider: ExternalIdentityProviderInfo) {
+    await startProviderLink(provider);
+  }
+
+  async function startProviderLink(
+    provider: ExternalIdentityProviderInfo,
+    currentPassword?: string
+  ) {
     const client = connection();
     linkingProviderId = provider.id;
     ssoError = '';
@@ -174,13 +184,43 @@
       });
       const startUrl = await api.startLink({
         providerId: provider.id,
-        redirectPath: accountSettingsPath
+        redirectPath: accountSettingsPath,
+        currentPassword
       });
       window.location.href = startUrl;
     } catch (err) {
-      ssoError = err instanceof Error ? err.message : m['settings.account.sso.load_failed']();
+      if (err instanceof ConnectError && err.code === Code.FailedPrecondition && hasPassword) {
+        linkFreshAuthProvider = provider;
+        linkCurrentPassword = '';
+        linkFreshAuthError = '';
+      } else if (err instanceof ConnectError && err.code === Code.FailedPrecondition) {
+        ssoError = m['settings.account.sso.fresh_auth_required']();
+      } else if (currentPassword !== undefined) {
+        linkFreshAuthError =
+          err instanceof Error ? err.message : m['settings.account.sso.link_failed']();
+      } else {
+        ssoError = err instanceof Error ? err.message : m['settings.account.sso.link_failed']();
+      }
       linkingProviderId = '';
     }
+  }
+
+  function closeLinkFreshAuthDialog() {
+    if (linkingProviderId) return;
+    linkFreshAuthProvider = null;
+    linkCurrentPassword = '';
+    linkFreshAuthError = '';
+  }
+
+  async function confirmLinkFreshAuth(e: Event) {
+    e.preventDefault();
+    if (!linkFreshAuthProvider || !linkCurrentPassword) {
+      linkFreshAuthError = m['settings.account.password.current_required']();
+      return;
+    }
+    const provider = linkFreshAuthProvider;
+    linkFreshAuthError = '';
+    await startProviderLink(provider, linkCurrentPassword);
   }
 
   function openDisconnectProvider(provider: ExternalIdentityProviderInfo) {
@@ -280,7 +320,9 @@
       );
     } catch (err) {
       if (err instanceof ConnectError && err.code === Code.FailedPrecondition) {
-        passwordError = m['settings.account.password.already_set']();
+        passwordError = wasChangingPassword
+          ? m['settings.account.password.already_set']()
+          : m['settings.account.password.fresh_auth_required']();
       } else {
         passwordError =
           err instanceof Error ? err.message : m['settings.account.password.save_failed']();
@@ -555,6 +597,52 @@
     </div>
   </div>
 </Dialog>
+
+{#if linkFreshAuthProvider}
+  <Dialog
+    visible
+    title={m['settings.account.sso.fresh_auth_modal.title']()}
+    size="sm"
+    onclose={closeLinkFreshAuthDialog}
+  >
+    <form class="flex flex-col gap-4" onsubmit={confirmLinkFreshAuth}>
+      <p class="text-sm text-muted">
+        {m['settings.account.sso.fresh_auth_modal.body']({
+          provider: linkFreshAuthProvider.label
+        })}
+      </p>
+      <TextInput
+        id="sso-link-current-password"
+        label={m['settings.account.password.current_label']()}
+        type="password"
+        bind:value={linkCurrentPassword}
+        disabled={linkingProviderId !== ''}
+        autocomplete="current-password"
+      />
+      {#if linkFreshAuthError}
+        <FormError error={linkFreshAuthError} />
+      {/if}
+      <div class="flex flex-wrap justify-end gap-2">
+        <Button
+          type="button"
+          variant="secondary"
+          onclick={closeLinkFreshAuthDialog}
+          disabled={linkingProviderId !== ''}
+        >
+          {m['common.cancel']()}
+        </Button>
+        <Button
+          type="submit"
+          loading={linkingProviderId === linkFreshAuthProvider.id}
+          disabled={!linkCurrentPassword || linkingProviderId !== ''}
+        >
+          <span class="iconify uil--link"></span>
+          {m['settings.account.sso.fresh_auth_modal.action']()}
+        </Button>
+      </div>
+    </form>
+  </Dialog>
+{/if}
 
 <!-- Delete Account Confirmation Modal -->
 <Dialog

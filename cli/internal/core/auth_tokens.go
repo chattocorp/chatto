@@ -29,9 +29,12 @@ const authTokenKeyPrefix = "session."
 
 // AuthTokenData is the JSON value stored in RUNTIME_STATE for bearer tokens.
 type AuthTokenData struct {
-	UserID         string    `json:"user_id"`
-	CreatedAt      time.Time `json:"created_at"`
-	AuthGeneration uint64    `json:"auth_generation,omitempty"`
+	UserID          string    `json:"user_id"`
+	CreatedAt       time.Time `json:"created_at"`
+	AuthGeneration  uint64    `json:"auth_generation,omitempty"`
+	FreshAuthAt     time.Time `json:"fresh_auth_at,omitempty"`
+	FreshAuthMethod string    `json:"fresh_auth_method,omitempty"`
+	FreshAuthSource string    `json:"fresh_auth_source,omitempty"`
 }
 
 // ============================================================================
@@ -82,9 +85,12 @@ func (c *ChattoCore) CreateAuthTokenWithSourceGeneration(ctx context.Context, us
 	key := c.authTokenKey(token)
 
 	data, err := json.Marshal(AuthTokenData{
-		UserID:         userID,
-		CreatedAt:      createdAt,
-		AuthGeneration: authGeneration,
+		UserID:          userID,
+		CreatedAt:       createdAt,
+		AuthGeneration:  authGeneration,
+		FreshAuthAt:     createdAt,
+		FreshAuthMethod: freshAuthMethodForSource(source),
+		FreshAuthSource: source,
 	})
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal auth token: %w", err)

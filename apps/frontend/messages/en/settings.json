@@ -288,6 +288,7 @@
         "saved": "Password added",
         "changed": "Password changed",
         "save_failed": "Failed to save password",
+        "fresh_auth_required": "Sign in again before adding a password.",
         "already_set": "This account already has a password."
       },
       "sso": {
@@ -298,6 +299,8 @@
         "linked": "Linked",
         "not_linked": "Not linked",
         "link_button": "Link",
+        "link_failed": "Failed to link sign-on provider",
+        "fresh_auth_required": "Sign in again before linking another provider.",
         "provider_unconfigured": "Provider no longer configured",
         "disconnect_button": "Disconnect",
         "disconnecting": "Disconnecting...",
@@ -311,6 +314,11 @@
         "disconnect_blocked_modal": {
           "title": "Provider cannot be disconnected",
           "body": "{provider} is your only sign-in method. Add a password or link another provider first."
+        },
+        "fresh_auth_modal": {
+          "title": "Confirm password",
+          "body": "Enter your current password before linking {provider}.",
+          "action": "Continue"
         }
       },
       "delete_modal": {

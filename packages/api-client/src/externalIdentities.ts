@@ -130,7 +130,11 @@ export function createExternalIdentityAPI(config: ExternalIdentityAPIConfig) {
       }
     },
 
-    async startLink(input: { providerId: string; redirectPath: string }): Promise<string> {
+    async startLink(input: {
+      providerId: string;
+      redirectPath: string;
+      currentPassword?: string;
+    }): Promise<string> {
       try {
         const response = await client.startExternalIdentityLink(input, { headers: headers() });
         return response.startUrl;

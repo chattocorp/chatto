@@ -325,6 +325,7 @@ const msg_settings_account_password_saving = (): LocalizedString => messages().s
 const msg_settings_account_password_saved = (): LocalizedString => messages().settings_account_password_saved(empty());
 const msg_settings_account_password_changed = (): LocalizedString => messages().settings_account_password_changed(empty());
 const msg_settings_account_password_save_failed = (): LocalizedString => messages().settings_account_password_save_failed(empty());
+const msg_settings_account_password_fresh_auth_required = (): LocalizedString => messages().settings_account_password_fresh_auth_required(empty());
 const msg_settings_account_password_already_set = (): LocalizedString => messages().settings_account_password_already_set(empty());
 const msg_settings_account_sso_title = (): LocalizedString => messages().settings_account_sso_title(empty());
 const msg_settings_account_sso_loading = (): LocalizedString => messages().settings_account_sso_loading(empty());
@@ -333,6 +334,8 @@ const msg_settings_account_sso_none_configured = (): LocalizedString => messages
 const msg_settings_account_sso_linked = (): LocalizedString => messages().settings_account_sso_linked(empty());
 const msg_settings_account_sso_not_linked = (): LocalizedString => messages().settings_account_sso_not_linked(empty());
 const msg_settings_account_sso_link_button = (): LocalizedString => messages().settings_account_sso_link_button(empty());
+const msg_settings_account_sso_link_failed = (): LocalizedString => messages().settings_account_sso_link_failed(empty());
+const msg_settings_account_sso_fresh_auth_required = (): LocalizedString => messages().settings_account_sso_fresh_auth_required(empty());
 const msg_settings_account_sso_provider_unconfigured = (): LocalizedString => messages().settings_account_sso_provider_unconfigured(empty());
 const msg_settings_account_sso_disconnect_button = (): LocalizedString => messages().settings_account_sso_disconnect_button(empty());
 const msg_settings_account_sso_disconnecting = (): LocalizedString => messages().settings_account_sso_disconnecting(empty());
@@ -347,6 +350,11 @@ const msg_settings_account_sso_disconnect_blocked_modal_title = (): LocalizedStr
 const msg_settings_account_sso_disconnect_blocked_modal_body = (
   inputs: Parameters<LocaleMessages['settings_account_sso_disconnect_blocked_modal_body']>[0]
 ): LocalizedString => messages().settings_account_sso_disconnect_blocked_modal_body(inputs);
+const msg_settings_account_sso_fresh_auth_modal_title = (): LocalizedString => messages().settings_account_sso_fresh_auth_modal_title(empty());
+const msg_settings_account_sso_fresh_auth_modal_body = (
+  inputs: Parameters<LocaleMessages['settings_account_sso_fresh_auth_modal_body']>[0]
+): LocalizedString => messages().settings_account_sso_fresh_auth_modal_body(inputs);
+const msg_settings_account_sso_fresh_auth_modal_action = (): LocalizedString => messages().settings_account_sso_fresh_auth_modal_action(empty());
 const msg_settings_account_delete_modal_title = (): LocalizedString => messages().settings_account_delete_modal_title(empty());
 const msg_settings_account_delete_modal_warning_label = (): LocalizedString => messages().settings_account_delete_modal_warning_label(empty());
 const msg_settings_account_delete_modal_warning_text = (): LocalizedString => messages().settings_account_delete_modal_warning_text(empty());
@@ -1555,6 +1563,7 @@ export { msg_settings_account_password_saving as 'settings.account.password.savi
 export { msg_settings_account_password_saved as 'settings.account.password.saved' };
 export { msg_settings_account_password_changed as 'settings.account.password.changed' };
 export { msg_settings_account_password_save_failed as 'settings.account.password.save_failed' };
+export { msg_settings_account_password_fresh_auth_required as 'settings.account.password.fresh_auth_required' };
 export { msg_settings_account_password_already_set as 'settings.account.password.already_set' };
 export { msg_settings_account_sso_title as 'settings.account.sso.title' };
 export { msg_settings_account_sso_loading as 'settings.account.sso.loading' };
@@ -1563,6 +1572,8 @@ export { msg_settings_account_sso_none_configured as 'settings.account.sso.none_
 export { msg_settings_account_sso_linked as 'settings.account.sso.linked' };
 export { msg_settings_account_sso_not_linked as 'settings.account.sso.not_linked' };
 export { msg_settings_account_sso_link_button as 'settings.account.sso.link_button' };
+export { msg_settings_account_sso_link_failed as 'settings.account.sso.link_failed' };
+export { msg_settings_account_sso_fresh_auth_required as 'settings.account.sso.fresh_auth_required' };
 export { msg_settings_account_sso_provider_unconfigured as 'settings.account.sso.provider_unconfigured' };
 export { msg_settings_account_sso_disconnect_button as 'settings.account.sso.disconnect_button' };
 export { msg_settings_account_sso_disconnecting as 'settings.account.sso.disconnecting' };
@@ -1573,6 +1584,9 @@ export { msg_settings_account_sso_disconnect_modal_body as 'settings.account.sso
 export { msg_settings_account_sso_disconnect_modal_action as 'settings.account.sso.disconnect_modal.action' };
 export { msg_settings_account_sso_disconnect_blocked_modal_title as 'settings.account.sso.disconnect_blocked_modal.title' };
 export { msg_settings_account_sso_disconnect_blocked_modal_body as 'settings.account.sso.disconnect_blocked_modal.body' };
+export { msg_settings_account_sso_fresh_auth_modal_title as 'settings.account.sso.fresh_auth_modal.title' };
+export { msg_settings_account_sso_fresh_auth_modal_body as 'settings.account.sso.fresh_auth_modal.body' };
+export { msg_settings_account_sso_fresh_auth_modal_action as 'settings.account.sso.fresh_auth_modal.action' };
 export { msg_settings_account_delete_modal_title as 'settings.account.delete_modal.title' };
 export { msg_settings_account_delete_modal_warning_label as 'settings.account.delete_modal.warning_label' };
 export { msg_settings_account_delete_modal_warning_text as 'settings.account.delete_modal.warning_text' };

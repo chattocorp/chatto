@@ -37,6 +37,9 @@ func TestChattoCore_CreateAndValidateCookieSession(t *testing.T) {
 	if created.GetRequest().GetUserAgent() != "cookie-session-test" || created.GetRequest().GetIpHash() != "hashed-ip" {
 		t.Fatalf("unexpected request metadata: %#v", created.GetRequest())
 	}
+	if created.GetFreshAuthAt() == nil || created.GetFreshAuthMethod() == "" || created.GetFreshAuthSource() != "test_login" {
+		t.Fatalf("unexpected fresh auth metadata: %#v", created)
+	}
 
 	key := core.cookieSessionKey(user.Id, sessionID)
 	assertRuntimeKVHasTTL(t, core, key)
@@ -60,6 +63,41 @@ func TestChattoCore_CreateAndValidateCookieSession(t *testing.T) {
 	}
 	if !proto.Equal(validated, &stored) {
 		t.Fatalf("validated session differs from stored session")
+	}
+}
+
+func TestChattoCore_CookieSessionFreshAuth(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	user, err := core.CreateUser(ctx, SystemActorID, "cookie-fresh-auth-user", "Cookie Fresh Auth User", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	sessionID, created, err := core.CreateCookieSession(ctx, user.Id, "password_login")
+	if err != nil {
+		t.Fatalf("CreateCookieSession: %v", err)
+	}
+	if err := core.RequireFreshAuthForCookieSession(ctx, user.Id, sessionID); err != nil {
+		t.Fatalf("new cookie session should be fresh: %v", err)
+	}
+
+	created.FreshAuthAt = timestamppb.New(time.Now().Add(-FreshAuthWindow - time.Minute))
+	rotatedID, rotated, err := core.CreateCookieSessionForGenerationPreservingFreshAuth(ctx, user.Id, "session_rotation", created.GetAuthGeneration(), created)
+	if err != nil {
+		t.Fatalf("CreateCookieSessionForGenerationPreservingFreshAuth: %v", err)
+	}
+	if rotated.GetFreshAuthAt() == nil || !rotated.GetFreshAuthAt().AsTime().Equal(created.GetFreshAuthAt().AsTime()) {
+		t.Fatalf("rotated fresh auth at = %v, want %v", rotated.GetFreshAuthAt(), created.GetFreshAuthAt())
+	}
+	if err := core.RequireFreshAuthForCookieSession(ctx, user.Id, rotatedID); !errors.Is(err, ErrFreshAuthRequired) {
+		t.Fatalf("rotated stale session fresh auth err = %v, want ErrFreshAuthRequired", err)
+	}
+	if err := core.MarkCookieSessionFresh(ctx, user.Id, rotatedID, "password", "current_password"); err != nil {
+		t.Fatalf("MarkCookieSessionFresh: %v", err)
+	}
+	if err := core.RequireFreshAuthForCookieSession(ctx, user.Id, rotatedID); err != nil {
+		t.Fatalf("marked cookie session should be fresh: %v", err)
 	}
 }
 

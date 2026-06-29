@@ -24,6 +24,7 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/reflect/protoregistry"
 	"google.golang.org/protobuf/types/known/timestamppb"
+	"hmans.de/chatto/internal/authctx"
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/core/linkpreview"
@@ -286,7 +287,8 @@ func TestExternalIdentityServicesCreateAndLink(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateExternalIdentityAccount: %v", err)
 	}
-	userID, err := env.core.ValidateAuthToken(env.ctx, created.Msg.GetToken())
+	createdAuthToken := created.Msg.GetToken()
+	userID, err := env.core.ValidateAuthToken(env.ctx, createdAuthToken)
 	if err != nil {
 		t.Fatalf("ValidateAuthToken: %v", err)
 	}
@@ -331,7 +333,8 @@ func TestExternalIdentityServicesCreateAndLink(t *testing.T) {
 		t.Fatalf("fallback display name = %q, want login", fallbackUser.GetDisplayName())
 	}
 
-	createdCtx := withCaller(env.ctx, &corev1.User{Id: created.Msg.GetUserId()})
+	createdUserRef := &corev1.User{Id: created.Msg.GetUserId()}
+	createdCtx := withBearerCredential(env.ctx, createdUserRef, createdAuthToken)
 	list, err := env.identity.ListExternalIdentities(createdCtx, connect.NewRequest(&apiv1.ListExternalIdentitiesRequest{}))
 	if err != nil {
 		t.Fatalf("ListExternalIdentities: %v", err)
@@ -350,6 +353,12 @@ func TestExternalIdentityServicesCreateAndLink(t *testing.T) {
 	}))
 	requireConnectCode(t, err, connect.CodeFailedPrecondition)
 
+	if _, err := env.identity.StartExternalIdentityLink(withCaller(env.ctx, createdUserRef), connect.NewRequest(&apiv1.StartExternalIdentityLinkRequest{
+		ProviderId:   "discord-main",
+		RedirectPath: "/chat/-/settings/account",
+	})); connect.CodeOf(err) != connect.CodeFailedPrecondition {
+		t.Fatalf("StartExternalIdentityLink without credential code = %v, want failed_precondition", connect.CodeOf(err))
+	}
 	started, err := env.identity.StartExternalIdentityLink(createdCtx, connect.NewRequest(&apiv1.StartExternalIdentityLinkRequest{
 		ProviderId:   "discord-main",
 		RedirectPath: "/chat/-/settings/account",
@@ -1206,6 +1215,11 @@ func TestAccountServiceSetsPassword(t *testing.T) {
 		t.Fatalf("CreateUser passwordless: %v", err)
 	}
 	ctx := withCaller(env.ctx, passwordless)
+	freshToken, err := env.core.CreateAuthTokenWithSource(env.ctx, passwordless.Id, "test_login")
+	if err != nil {
+		t.Fatalf("CreateAuthTokenWithSource: %v", err)
+	}
+	freshCtx := withBearerCredential(env.ctx, passwordless, freshToken)
 
 	if _, err := env.account.SetPassword(env.ctx, connect.NewRequest(&apiv1.SetPasswordRequest{
 		Password: "newpassword456",
@@ -1222,6 +1236,11 @@ func TestAccountServiceSetsPassword(t *testing.T) {
 	}
 
 	if _, err := env.account.SetPassword(ctx, connect.NewRequest(&apiv1.SetPasswordRequest{
+		Password: "newpassword456",
+	})); connect.CodeOf(err) != connect.CodeFailedPrecondition {
+		t.Fatalf("SetPassword without fresh credential code = %v, want failed_precondition", connect.CodeOf(err))
+	}
+	if _, err := env.account.SetPassword(freshCtx, connect.NewRequest(&apiv1.SetPasswordRequest{
 		Password: "newpassword456",
 	})); err != nil {
 		t.Fatalf("SetPassword: %v", err)
@@ -5122,6 +5141,15 @@ func requireConnectCode(t testing.TB, err error, want connect.Code) {
 
 func withCaller(ctx context.Context, user *corev1.User) context.Context {
 	return authn.SetInfo(ctx, Caller{UserID: user.Id})
+}
+
+func withBearerCredential(ctx context.Context, user *corev1.User, token string) context.Context {
+	ctx = withCaller(ctx, user)
+	return authctx.WithCredential(ctx, authctx.RuntimeCredential{
+		Kind:        authctx.RuntimeCredentialKindBearerToken,
+		UserID:      user.Id,
+		BearerToken: token,
+	})
 }
 
 func boolPtr(value bool) *bool {

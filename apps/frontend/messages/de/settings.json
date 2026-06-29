@@ -288,6 +288,7 @@
         "saved": "Passwort hinzugefügt",
         "changed": "Passwort geändert",
         "save_failed": "Passwort konnte nicht gespeichert werden",
+        "fresh_auth_required": "Melde dich erneut an, bevor du ein Passwort hinzufügst.",
         "already_set": "Dieses Konto hat bereits ein Passwort."
       },
       "sso": {
@@ -298,6 +299,8 @@
         "linked": "Verknüpft",
         "not_linked": "Nicht verknüpft",
         "link_button": "Verknüpfen",
+        "link_failed": "Anmeldeanbieter konnte nicht verknüpft werden",
+        "fresh_auth_required": "Melde dich erneut an, bevor du einen weiteren Anbieter verknüpfst.",
         "provider_unconfigured": "Anbieter ist nicht mehr konfiguriert",
         "disconnect_button": "Trennen",
         "disconnecting": "Wird getrennt...",
@@ -311,6 +314,11 @@
         "disconnect_blocked_modal": {
           "title": "Anbieter kann nicht getrennt werden",
           "body": "{provider} ist deine einzige Anmeldemethode. Füge zuerst ein Passwort hinzu oder verknüpfe einen weiteren Anbieter."
+        },
+        "fresh_auth_modal": {
+          "title": "Passwort bestätigen",
+          "body": "Gib dein aktuelles Passwort ein, bevor du {provider} verknüpfst.",
+          "action": "Weiter"
         }
       },
       "delete_modal": {

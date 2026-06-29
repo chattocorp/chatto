@@ -99,6 +99,18 @@ func (s *accountService) SetPassword(ctx context.Context, req *connect.Request[a
 	if req.Msg.GetPassword() == "" {
 		return nil, invalidArgument("password is required")
 	}
+	if err := core.ValidatePassword(req.Msg.GetPassword()); err != nil {
+		return nil, connectError(err)
+	}
+	hasPassword, err := s.api.core.HasPassword(ctx, caller.UserID)
+	if err != nil {
+		return nil, connectError(err)
+	}
+	if !hasPassword {
+		if err := s.api.requireFreshCredential(ctx, caller, ""); err != nil {
+			return nil, connectError(err)
+		}
+	}
 	if err := s.api.core.SetOwnPassword(ctx, caller.UserID, req.Msg.GetCurrentPassword(), req.Msg.GetPassword()); err != nil {
 		return nil, connectError(err)
 	}

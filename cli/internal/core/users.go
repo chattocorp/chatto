@@ -319,13 +319,13 @@ func (c *ChattoCore) GetUserByLogin(ctx context.Context, login string) (*corev1.
 // SetPasswordHash hashes and stores a password for a user.
 // Password hashes are stored separately from user profile data in the user event stream.
 func (c *ChattoCore) SetPasswordHash(ctx context.Context, userID string, password string) error {
-	return c.setPasswordHash(ctx, userID, password, true, nil)
+	return c.setPasswordHash(ctx, userID, userID, password, true, nil)
 }
 
 // SetInitialPasswordHash adds the first password credential for a passwordless
 // account. It refuses to overwrite an existing password.
 func (c *ChattoCore) SetInitialPasswordHash(ctx context.Context, userID string, password string) error {
-	return c.setPasswordHash(ctx, userID, password, false, func() error {
+	return c.setPasswordHash(ctx, userID, userID, password, false, func() error {
 		if _, hasPassword := c.Users.PasswordHash(userID); hasPassword {
 			return ErrPasswordAlreadySet
 		}
@@ -373,7 +373,7 @@ func (c *ChattoCore) AdminSetUserPassword(ctx context.Context, actorID, targetUs
 	if !canManage {
 		return ErrPermissionDenied
 	}
-	return c.SetPasswordHash(ctx, targetUserID, password)
+	return c.setPasswordHash(ctx, actorID, targetUserID, password, true, nil)
 }
 
 func (c *ChattoCore) HasPassword(ctx context.Context, userID string) (bool, error) {
@@ -404,7 +404,7 @@ func (c *ChattoCore) VerifyUserPassword(ctx context.Context, userID, password st
 	return nil
 }
 
-func (c *ChattoCore) setPasswordHash(ctx context.Context, userID string, password string, revokeCredentials bool, check func() error) error {
+func (c *ChattoCore) setPasswordHash(ctx context.Context, actorID, userID string, password string, revokeCredentials bool, check func() error) error {
 	// Validate password strength
 	if err := ValidatePassword(password); err != nil {
 		return err
@@ -422,7 +422,7 @@ func (c *ChattoCore) setPasswordHash(ctx context.Context, userID string, passwor
 		return fmt.Errorf("failed to hash password: %w", err)
 	}
 
-	event := newEvent(userID, &corev1.Event{Event: &corev1.Event_UserPasswordHashChanged{
+	event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_UserPasswordHashChanged{
 		UserPasswordHashChanged: &corev1.UserPasswordHashChangedEvent{
 			UserId:                      userID,
 			PasswordHash:                hashedPassword,

@@ -1493,6 +1493,29 @@ func TestChattoCore_AdminUpdateUserAuthorization(t *testing.T) {
 		if _, err := c.VerifyPassword(ctx, updated.GetLogin(), "adminpassword456"); err != nil {
 			t.Fatalf("admin-set password should verify: %v", err)
 		}
+		if err := c.GrantUserPermission(ctx, SystemActorID, admin.Id, PermAdminAuditView); err != nil {
+			t.Fatalf("GrantUserPermission admin.view-audit: %v", err)
+		}
+		log, err := c.ListEventLog(ctx, admin.Id, EventLogQuery{
+			Limit: 10,
+			Filter: EventLogFilter{
+				EventType: "UserPasswordHashChangedEvent",
+				ActorID:   admin.Id,
+			},
+		})
+		if err != nil {
+			t.Fatalf("ListEventLog password reset: %v", err)
+		}
+		var found bool
+		for _, entry := range log.Entries {
+			if strings.Contains(entry.PayloadJSON, target.Id) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Fatalf("admin password reset audit entry with actor %q for target %q not found: %+v", admin.Id, target.Id, log.Entries)
+		}
 	})
 
 	t.Run("self update preserves legacy admin mutation behavior", func(t *testing.T) {

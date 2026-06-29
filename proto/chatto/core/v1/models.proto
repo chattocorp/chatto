@@ -96,6 +96,9 @@ message CookieSession {
   string source = 4;
   AuditRequestMetadata request = 5;
   uint64 auth_generation = 6;
+  google.protobuf.Timestamp fresh_auth_at = 7;
+  string fresh_auth_method = 8;
+  string fresh_auth_source = 9;
 }
 
 // DeprecatedAsset is the storage-pointer-only proto used for legacy values:

@@ -12,6 +12,27 @@ type contextKey struct {
 }
 
 var userCtxKey = &contextKey{"user"}
+var credentialCtxKey = &contextKey{"runtime_credential"}
+
+// RuntimeCredentialKind identifies the runtime credential that authenticated a
+// request.
+type RuntimeCredentialKind string
+
+const (
+	RuntimeCredentialKindBearerToken   RuntimeCredentialKind = "bearer_token"
+	RuntimeCredentialKindCookieSession RuntimeCredentialKind = "cookie_session"
+)
+
+// RuntimeCredential identifies the concrete runtime credential that
+// authenticated a request. Raw bearer tokens and cookie session IDs are only
+// kept in request context so sensitive account operations can refresh or check
+// the same credential.
+type RuntimeCredential struct {
+	Kind            RuntimeCredentialKind
+	UserID          string
+	BearerToken     string
+	CookieSessionID string
+}
 
 // ForContext extracts the authenticated user from the request context.
 // Returns nil if no user is authenticated.
@@ -23,4 +44,18 @@ func ForContext(ctx context.Context) *corev1.User {
 // WithUser returns a new context with the authenticated user injected.
 func WithUser(ctx context.Context, user *corev1.User) context.Context {
 	return context.WithValue(ctx, userCtxKey, user)
+}
+
+// CredentialForContext extracts the runtime credential that authenticated the
+// request. It returns false for unauthenticated requests or auth paths that do
+// not use a persisted runtime credential.
+func CredentialForContext(ctx context.Context) (RuntimeCredential, bool) {
+	raw, _ := ctx.Value(credentialCtxKey).(RuntimeCredential)
+	return raw, raw.Kind != "" && raw.UserID != ""
+}
+
+// WithCredential returns a new context with the authenticating runtime
+// credential injected.
+func WithCredential(ctx context.Context, credential RuntimeCredential) context.Context {
+	return context.WithValue(ctx, credentialCtxKey, credential)
 }

@@ -43,6 +43,50 @@ func TestChattoCore_CreateAuthToken(t *testing.T) {
 	assertRawRuntimeTokenKeyAbsent(t, core, authTokenKeyPrefix+token)
 }
 
+func TestChattoCore_BearerTokenFreshAuth(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	user, err := core.CreateUser(ctx, SystemActorID, "fresh-auth-token-user", "Fresh Auth Token User", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	token, err := core.CreateAuthTokenWithSource(ctx, user.Id, "password_login")
+	if err != nil {
+		t.Fatalf("CreateAuthTokenWithSource: %v", err)
+	}
+	if err := core.RequireFreshAuthForBearerToken(ctx, token); err != nil {
+		t.Fatalf("new token should be fresh: %v", err)
+	}
+
+	key := core.authTokenKey(token)
+	entry, err := core.storage.runtimeStateKV.Get(ctx, key)
+	if err != nil {
+		t.Fatalf("get token: %v", err)
+	}
+	var data AuthTokenData
+	if err := json.Unmarshal(entry.Value(), &data); err != nil {
+		t.Fatalf("unmarshal token: %v", err)
+	}
+	data.FreshAuthAt = time.Now().Add(-FreshAuthWindow - time.Minute)
+	staleValue, err := json.Marshal(data)
+	if err != nil {
+		t.Fatalf("marshal stale token: %v", err)
+	}
+	if _, err := core.updateRuntimeStateTokenTTL(ctx, key, staleValue, entry.Revision(), core.authTokenTTL()); err != nil {
+		t.Fatalf("write stale token: %v", err)
+	}
+	if err := core.RequireFreshAuthForBearerToken(ctx, token); !errors.Is(err, ErrFreshAuthRequired) {
+		t.Fatalf("stale token fresh auth err = %v, want ErrFreshAuthRequired", err)
+	}
+	if err := core.MarkBearerTokenFresh(ctx, token, "password", "current_password"); err != nil {
+		t.Fatalf("MarkBearerTokenFresh: %v", err)
+	}
+	if err := core.RequireFreshAuthForBearerToken(ctx, token); err != nil {
+		t.Fatalf("marked token should be fresh: %v", err)
+	}
+}
+
 func TestChattoCore_ValidateAuthToken_NotFound(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)

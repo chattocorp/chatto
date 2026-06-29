@@ -47,6 +47,24 @@ func (c *ChattoCore) CreateCookieSession(ctx context.Context, userID, source str
 // CreateCookieSessionForGeneration creates a server-side cookie session for an
 // authentication that proved credentials against authGeneration.
 func (c *ChattoCore) CreateCookieSessionForGeneration(ctx context.Context, userID, source string, authGeneration uint64) (string, *corev1.CookieSession, error) {
+	now := time.Now()
+	return c.createCookieSessionForGeneration(ctx, userID, source, authGeneration, now, freshAuthMethodForSource(source), source)
+}
+
+func (c *ChattoCore) CreateCookieSessionForGenerationPreservingFreshAuth(ctx context.Context, userID, source string, authGeneration uint64, previous *corev1.CookieSession) (string, *corev1.CookieSession, error) {
+	var freshAuthAt time.Time
+	var freshAuthMethod, freshAuthSource string
+	if previous != nil {
+		if previous.GetFreshAuthAt() != nil {
+			freshAuthAt = previous.GetFreshAuthAt().AsTime()
+		}
+		freshAuthMethod = previous.GetFreshAuthMethod()
+		freshAuthSource = previous.GetFreshAuthSource()
+	}
+	return c.createCookieSessionForGeneration(ctx, userID, source, authGeneration, freshAuthAt, freshAuthMethod, freshAuthSource)
+}
+
+func (c *ChattoCore) createCookieSessionForGeneration(ctx context.Context, userID, source string, authGeneration uint64, freshAuthAt time.Time, freshAuthMethod, freshAuthSource string) (string, *corev1.CookieSession, error) {
 	if err := c.RequireAuthenticationAllowed(ctx, userID, authGeneration); err != nil {
 		if !errors.Is(err, ErrAuthenticationRevoked) {
 			return "", nil, err
@@ -65,6 +83,11 @@ func (c *ChattoCore) CreateCookieSessionForGeneration(ctx context.Context, userI
 		Source:         source,
 		Request:        auditRequestMetadata(ctx),
 		AuthGeneration: authGeneration,
+	}
+	if !freshAuthAt.IsZero() {
+		record.FreshAuthAt = timestamppb.New(freshAuthAt)
+		record.FreshAuthMethod = freshAuthMethod
+		record.FreshAuthSource = freshAuthSource
 	}
 
 	data, err := proto.Marshal(record)

@@ -861,9 +861,12 @@ type StartExternalIdentityLinkRequest struct {
 	// Provider ID to link.
 	ProviderId string `protobuf:"bytes,1,opt,name=provider_id,json=providerId,proto3" json:"provider_id,omitempty"`
 	// Internal path to return to after confirmation.
-	RedirectPath  string `protobuf:"bytes,2,opt,name=redirect_path,json=redirectPath,proto3" json:"redirect_path,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	RedirectPath string `protobuf:"bytes,2,opt,name=redirect_path,json=redirectPath,proto3" json:"redirect_path,omitempty"`
+	// Current password proof for accounts with a password when the active
+	// runtime credential is no longer fresh.
+	CurrentPassword string `protobuf:"bytes,3,opt,name=current_password,json=currentPassword,proto3" json:"current_password,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *StartExternalIdentityLinkRequest) Reset() {
@@ -906,6 +909,13 @@ func (x *StartExternalIdentityLinkRequest) GetProviderId() string {
 func (x *StartExternalIdentityLinkRequest) GetRedirectPath() string {
 	if x != nil {
 		return x.RedirectPath
+	}
+	return ""
+}
+
+func (x *StartExternalIdentityLinkRequest) GetCurrentPassword() string {
+	if x != nil {
+		return x.CurrentPassword
 	}
 	return ""
 }
@@ -1193,11 +1203,12 @@ const file_chatto_api_v1_external_identities_proto_rawDesc = "" +
 	"\x1dListExternalIdentitiesRequest\"\xbb\x01\n" +
 	"\x1eListExternalIdentitiesResponse\x12E\n" +
 	"\tproviders\x18\x01 \x03(\v2'.chatto.api.v1.ExternalIdentityProviderR\tproviders\x12R\n" +
-	"\x11linked_identities\x18\x02 \x03(\v2%.chatto.api.v1.LinkedExternalIdentityR\x10linkedIdentities\"q\n" +
+	"\x11linked_identities\x18\x02 \x03(\v2%.chatto.api.v1.LinkedExternalIdentityR\x10linkedIdentities\"\x9c\x01\n" +
 	" StartExternalIdentityLinkRequest\x12(\n" +
 	"\vprovider_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\n" +
 	"providerId\x12#\n" +
-	"\rredirect_path\x18\x02 \x01(\tR\fredirectPath\"@\n" +
+	"\rredirect_path\x18\x02 \x01(\tR\fredirectPath\x12)\n" +
+	"\x10current_password\x18\x03 \x01(\tR\x0fcurrentPassword\"@\n" +
 	"!StartExternalIdentityLinkResponse\x12\x1b\n" +
 	"\tstart_url\x18\x01 \x01(\tR\bstartUrl\"<\n" +
 	"\x1bLinkExternalIdentityRequest\x12\x1d\n" +

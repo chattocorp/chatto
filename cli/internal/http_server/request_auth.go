@@ -26,6 +26,11 @@ func (s *HTTPServer) injectUserIntoContext(c *gin.Context) *http.Request {
 				user, err := s.core.GetUser(ctx, userID)
 				if err == nil {
 					ctx = authctx.WithUser(ctx, user)
+					ctx = authctx.WithCredential(ctx, authctx.RuntimeCredential{
+						Kind:        authctx.RuntimeCredentialKindBearerToken,
+						UserID:      userID,
+						BearerToken: token,
+					})
 					return c.Request.WithContext(ctx)
 				}
 				log.Warn("Bearer token valid but user not found", "userId", userID, "error", err)
@@ -52,5 +57,10 @@ func (s *HTTPServer) injectUserIntoContext(c *gin.Context) *http.Request {
 	s.rotateCookieSessionIfNeeded(c, userID, sessionID, cookieSession)
 
 	ctx = authctx.WithUser(ctx, user)
+	ctx = authctx.WithCredential(ctx, authctx.RuntimeCredential{
+		Kind:            authctx.RuntimeCredentialKindCookieSession,
+		UserID:          userID,
+		CookieSessionID: sessionID,
+	})
 	return c.Request.WithContext(ctx)
 }

@@ -755,6 +755,14 @@ export class StartExternalIdentityLinkRequest extends Message<StartExternalIdent
    */
   redirectPath = "";
 
+  /**
+   * Current password proof for accounts with a password when the active
+   * runtime credential is no longer fresh.
+   *
+   * @generated from field: string current_password = 3;
+   */
+  currentPassword = "";
+
   constructor(data?: PartialMessage<StartExternalIdentityLinkRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -765,6 +773,7 @@ export class StartExternalIdentityLinkRequest extends Message<StartExternalIdent
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "provider_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "redirect_path", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "current_password", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): StartExternalIdentityLinkRequest {

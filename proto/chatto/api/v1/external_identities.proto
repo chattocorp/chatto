@@ -142,6 +142,9 @@ message StartExternalIdentityLinkRequest {
   string provider_id = 1 [(buf.validate.field).string.min_len = 1];
   // Internal path to return to after confirmation.
   string redirect_path = 2;
+  // Current password proof for accounts with a password when the active
+  // runtime credential is no longer fresh.
+  string current_password = 3;
 }
 
 // Result of preparing an external identity link flow.

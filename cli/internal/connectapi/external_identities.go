@@ -119,6 +119,9 @@ func (s *externalIdentityService) StartExternalIdentityLink(ctx context.Context,
 	if redirectPath != "" && !isValidInternalRedirectPath(redirectPath) {
 		return nil, connectError(core.ErrInvalidArgument)
 	}
+	if err := s.api.requireFreshCredential(ctx, caller, req.Msg.GetCurrentPassword()); err != nil {
+		return nil, connectError(err)
+	}
 	token, err := s.api.core.CreatePendingExternalIdentityLinkStart(ctx, provider.ID, redirectPath, caller.UserID)
 	if err != nil {
 		return nil, connectError(err)

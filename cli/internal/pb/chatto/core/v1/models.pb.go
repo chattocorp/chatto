@@ -597,15 +597,18 @@ func (x *AuditRequestMetadata) GetIpHash() string {
 // HTTP cookie session. The raw session ID is never stored in this payload; it is
 // represented only by the HMAC-derived RUNTIME_STATE key.
 type CookieSession struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	UserId         string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	CreatedAt      *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	ExpiresAt      *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
-	Source         string                 `protobuf:"bytes,4,opt,name=source,proto3" json:"source,omitempty"`
-	Request        *AuditRequestMetadata  `protobuf:"bytes,5,opt,name=request,proto3" json:"request,omitempty"`
-	AuthGeneration uint64                 `protobuf:"varint,6,opt,name=auth_generation,json=authGeneration,proto3" json:"auth_generation,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	UserId          string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	CreatedAt       *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	ExpiresAt       *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
+	Source          string                 `protobuf:"bytes,4,opt,name=source,proto3" json:"source,omitempty"`
+	Request         *AuditRequestMetadata  `protobuf:"bytes,5,opt,name=request,proto3" json:"request,omitempty"`
+	AuthGeneration  uint64                 `protobuf:"varint,6,opt,name=auth_generation,json=authGeneration,proto3" json:"auth_generation,omitempty"`
+	FreshAuthAt     *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=fresh_auth_at,json=freshAuthAt,proto3" json:"fresh_auth_at,omitempty"`
+	FreshAuthMethod string                 `protobuf:"bytes,8,opt,name=fresh_auth_method,json=freshAuthMethod,proto3" json:"fresh_auth_method,omitempty"`
+	FreshAuthSource string                 `protobuf:"bytes,9,opt,name=fresh_auth_source,json=freshAuthSource,proto3" json:"fresh_auth_source,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *CookieSession) Reset() {
@@ -678,6 +681,27 @@ func (x *CookieSession) GetAuthGeneration() uint64 {
 		return x.AuthGeneration
 	}
 	return 0
+}
+
+func (x *CookieSession) GetFreshAuthAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.FreshAuthAt
+	}
+	return nil
+}
+
+func (x *CookieSession) GetFreshAuthMethod() string {
+	if x != nil {
+		return x.FreshAuthMethod
+	}
+	return ""
+}
+
+func (x *CookieSession) GetFreshAuthSource() string {
+	if x != nil {
+		return x.FreshAuthSource
+	}
+	return ""
 }
 
 // DeprecatedAsset is the storage-pointer-only proto used for legacy values:
@@ -2344,7 +2368,7 @@ const file_chatto_core_v1_models_proto_rawDesc = "" +
 	"\x14AuditRequestMetadata\x12\x1d\n" +
 	"\n" +
 	"user_agent\x18\x01 \x01(\tR\tuserAgent\x12\x17\n" +
-	"\aip_hash\x18\x02 \x01(\tR\x06ipHash\"\x9f\x02\n" +
+	"\aip_hash\x18\x02 \x01(\tR\x06ipHash\"\xb7\x03\n" +
 	"\rCookieSession\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x129\n" +
 	"\n" +
@@ -2353,7 +2377,10 @@ const file_chatto_core_v1_models_proto_rawDesc = "" +
 	"expires_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\x12\x16\n" +
 	"\x06source\x18\x04 \x01(\tR\x06source\x12>\n" +
 	"\arequest\x18\x05 \x01(\v2$.chatto.core.v1.AuditRequestMetadataR\arequest\x12'\n" +
-	"\x0fauth_generation\x18\x06 \x01(\x04R\x0eauthGeneration\"v\n" +
+	"\x0fauth_generation\x18\x06 \x01(\x04R\x0eauthGeneration\x12>\n" +
+	"\rfresh_auth_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\vfreshAuthAt\x12*\n" +
+	"\x11fresh_auth_method\x18\b \x01(\tR\x0ffreshAuthMethod\x12*\n" +
+	"\x11fresh_auth_source\x18\t \x01(\tR\x0ffreshAuthSource\"v\n" +
 	"\x0fDeprecatedAsset\x12/\n" +
 	"\x04nats\x18\x02 \x01(\v2\x19.chatto.core.v1.NATSAssetH\x00R\x04nats\x12)\n" +
 	"\x02s3\x18\x01 \x01(\v2\x17.chatto.core.v1.S3AssetH\x00R\x02s3B\a\n" +
@@ -2557,32 +2584,33 @@ var file_chatto_core_v1_models_proto_depIdxs = []int32{
 	29, // 5: chatto.core.v1.CookieSession.created_at:type_name -> google.protobuf.Timestamp
 	29, // 6: chatto.core.v1.CookieSession.expires_at:type_name -> google.protobuf.Timestamp
 	8,  // 7: chatto.core.v1.CookieSession.request:type_name -> chatto.core.v1.AuditRequestMetadata
-	12, // 8: chatto.core.v1.DeprecatedAsset.nats:type_name -> chatto.core.v1.NATSAsset
-	11, // 9: chatto.core.v1.DeprecatedAsset.s3:type_name -> chatto.core.v1.S3Asset
-	12, // 10: chatto.core.v1.AssetRecord.nats:type_name -> chatto.core.v1.NATSAsset
-	11, // 11: chatto.core.v1.AssetRecord.s3:type_name -> chatto.core.v1.S3Asset
-	1,  // 12: chatto.core.v1.UserPresence.status:type_name -> chatto.core.v1.UserPresenceStatus
-	29, // 13: chatto.core.v1.ThreadMetadata.last_reply_at:type_name -> google.protobuf.Timestamp
-	10, // 14: chatto.core.v1.Attachment.storage:type_name -> chatto.core.v1.DeprecatedAsset
-	29, // 15: chatto.core.v1.MessageBody.created_at:type_name -> google.protobuf.Timestamp
-	29, // 16: chatto.core.v1.MessageBody.updated_at:type_name -> google.protobuf.Timestamp
-	19, // 17: chatto.core.v1.MessageBody.attachments:type_name -> chatto.core.v1.Attachment
-	21, // 18: chatto.core.v1.MessageBody.link_preview:type_name -> chatto.core.v1.LinkPreview
-	13, // 19: chatto.core.v1.LinkPreview.image_asset:type_name -> chatto.core.v1.AssetRecord
-	21, // 20: chatto.core.v1.CachedLinkPreview.preview:type_name -> chatto.core.v1.LinkPreview
-	26, // 21: chatto.core.v1.RoomLayout.legacy_sections:type_name -> chatto.core.v1.RoomGroup
-	3,  // 22: chatto.core.v1.SidebarGroupEntry.kind:type_name -> chatto.core.v1.SidebarGroupEntry.Kind
-	25, // 23: chatto.core.v1.RoomGroup.entries:type_name -> chatto.core.v1.SidebarGroupEntry
-	24, // 24: chatto.core.v1.RoomGroup.sidebar_links:type_name -> chatto.core.v1.SidebarLink
-	2,  // 25: chatto.core.v1.VideoProcessingState.status:type_name -> chatto.core.v1.VideoStatus
-	28, // 26: chatto.core.v1.VideoProcessingState.variants:type_name -> chatto.core.v1.VideoVariant
-	19, // 27: chatto.core.v1.VideoProcessingState.thumbnail_attachment:type_name -> chatto.core.v1.Attachment
-	19, // 28: chatto.core.v1.VideoVariant.attachment:type_name -> chatto.core.v1.Attachment
-	29, // [29:29] is the sub-list for method output_type
-	29, // [29:29] is the sub-list for method input_type
-	29, // [29:29] is the sub-list for extension type_name
-	29, // [29:29] is the sub-list for extension extendee
-	0,  // [0:29] is the sub-list for field type_name
+	29, // 8: chatto.core.v1.CookieSession.fresh_auth_at:type_name -> google.protobuf.Timestamp
+	12, // 9: chatto.core.v1.DeprecatedAsset.nats:type_name -> chatto.core.v1.NATSAsset
+	11, // 10: chatto.core.v1.DeprecatedAsset.s3:type_name -> chatto.core.v1.S3Asset
+	12, // 11: chatto.core.v1.AssetRecord.nats:type_name -> chatto.core.v1.NATSAsset
+	11, // 12: chatto.core.v1.AssetRecord.s3:type_name -> chatto.core.v1.S3Asset
+	1,  // 13: chatto.core.v1.UserPresence.status:type_name -> chatto.core.v1.UserPresenceStatus
+	29, // 14: chatto.core.v1.ThreadMetadata.last_reply_at:type_name -> google.protobuf.Timestamp
+	10, // 15: chatto.core.v1.Attachment.storage:type_name -> chatto.core.v1.DeprecatedAsset
+	29, // 16: chatto.core.v1.MessageBody.created_at:type_name -> google.protobuf.Timestamp
+	29, // 17: chatto.core.v1.MessageBody.updated_at:type_name -> google.protobuf.Timestamp
+	19, // 18: chatto.core.v1.MessageBody.attachments:type_name -> chatto.core.v1.Attachment
+	21, // 19: chatto.core.v1.MessageBody.link_preview:type_name -> chatto.core.v1.LinkPreview
+	13, // 20: chatto.core.v1.LinkPreview.image_asset:type_name -> chatto.core.v1.AssetRecord
+	21, // 21: chatto.core.v1.CachedLinkPreview.preview:type_name -> chatto.core.v1.LinkPreview
+	26, // 22: chatto.core.v1.RoomLayout.legacy_sections:type_name -> chatto.core.v1.RoomGroup
+	3,  // 23: chatto.core.v1.SidebarGroupEntry.kind:type_name -> chatto.core.v1.SidebarGroupEntry.Kind
+	25, // 24: chatto.core.v1.RoomGroup.entries:type_name -> chatto.core.v1.SidebarGroupEntry
+	24, // 25: chatto.core.v1.RoomGroup.sidebar_links:type_name -> chatto.core.v1.SidebarLink
+	2,  // 26: chatto.core.v1.VideoProcessingState.status:type_name -> chatto.core.v1.VideoStatus
+	28, // 27: chatto.core.v1.VideoProcessingState.variants:type_name -> chatto.core.v1.VideoVariant
+	19, // 28: chatto.core.v1.VideoProcessingState.thumbnail_attachment:type_name -> chatto.core.v1.Attachment
+	19, // 29: chatto.core.v1.VideoVariant.attachment:type_name -> chatto.core.v1.Attachment
+	30, // [30:30] is the sub-list for method output_type
+	30, // [30:30] is the sub-list for method input_type
+	30, // [30:30] is the sub-list for extension type_name
+	30, // [30:30] is the sub-list for extension extendee
+	0,  // [0:30] is the sub-list for field type_name
 }
 
 func init() { file_chatto_core_v1_models_proto_init() }
