@@ -8,7 +8,7 @@ import { NotificationLevel as ApiNotificationLevel } from '$lib/pb/chatto/api/v1
 import {
   RealtimeEventEnvelope,
   RealtimeHeartbeat
-} from '$lib/pb/chatto/api/v1/realtime_pb';
+} from '$lib/pb/chatto/realtime/v1/realtime_pb';
 import { PresenceStatus as ApiPresenceStatus } from '$lib/pb/chatto/api/v1/presence_pb';
 import { TimeFormat as ApiTimeFormat } from '$lib/pb/chatto/api/v1/viewer_pb';
 import type { EventEnvelope } from '$lib/eventBus.svelte';

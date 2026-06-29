@@ -33,7 +33,7 @@ func setupConnectTestServer(t *testing.T, authConfig config.AuthConfig) (*HTTPSe
 	return s, ts
 }
 
-func TestConnectServerServiceGetServer(t *testing.T) {
+func TestConnectServerDiscoveryServiceGetServer(t *testing.T) {
 	t.Run("returns public server metadata", func(t *testing.T) {
 		_, ts := setupConnectTestServer(t, config.AuthConfig{
 			Providers: []config.AuthProviderConfig{
@@ -41,7 +41,7 @@ func TestConnectServerServiceGetServer(t *testing.T) {
 			},
 		})
 
-		client := apiv1connect.NewServerServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
+		client := apiv1connect.NewServerDiscoveryServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
 		resp, err := client.GetServer(context.Background(), connect.NewRequest(&apiv1.GetServerRequest{}))
 		if err != nil {
 			t.Fatalf("GetServer: %v", err)
@@ -76,7 +76,7 @@ func TestConnectServerServiceGetServer(t *testing.T) {
 		_, ts := setupConnectTestServer(t, config.AuthConfig{})
 
 		body := strings.NewReader("")
-		req, err := http.NewRequest(http.MethodPost, ts.URL+connectAPIPrefix+apiv1connect.ServerServiceGetServerProcedure, body)
+		req, err := http.NewRequest(http.MethodPost, ts.URL+connectAPIPrefix+apiv1connect.ServerDiscoveryServiceGetServerProcedure, body)
 		if err != nil {
 			t.Fatalf("new request: %v", err)
 		}

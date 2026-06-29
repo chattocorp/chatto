@@ -48,10 +48,57 @@ export default defineConfig({
               label: "API Reference",
               items: [
                 "reference/connectrpc-api",
-                "reference/connectrpc-api/identity",
-                "reference/connectrpc-api/rooms-and-messages",
-                "reference/connectrpc-api/notifications",
-                "reference/connectrpc-api/administration",
+                {
+                  label: "Discovery",
+                  items: [
+                    "reference/connectrpc-api/server-discovery",
+                    "reference/connectrpc-api/server",
+                  ],
+                },
+                {
+                  label: "Identity",
+                  items: [
+                    "reference/connectrpc-api/viewer",
+                    "reference/connectrpc-api/account",
+                    "reference/connectrpc-api/user-directory",
+                    "reference/connectrpc-api/member-directory",
+                  ],
+                },
+                {
+                  label: "Rooms And Messages",
+                  items: [
+                    "reference/connectrpc-api/room-directory",
+                    "reference/connectrpc-api/rooms",
+                    "reference/connectrpc-api/room-timeline",
+                    "reference/connectrpc-api/messages",
+                    "reference/connectrpc-api/attachments",
+                    "reference/connectrpc-api/reactions",
+                    "reference/connectrpc-api/read-state",
+                    "reference/connectrpc-api/threads",
+                    "reference/connectrpc-api/link-previews",
+                    "reference/connectrpc-api/calls",
+                  ],
+                },
+                {
+                  label: "Notifications",
+                  items: [
+                    "reference/connectrpc-api/notification-preferences",
+                    "reference/connectrpc-api/notifications",
+                    "reference/connectrpc-api/push-notifications",
+                  ],
+                },
+                {
+                  label: "Administration",
+                  items: [
+                    "reference/connectrpc-api/admin-server",
+                    "reference/connectrpc-api/admin-room-layout",
+                    "reference/connectrpc-api/admin-members",
+                    "reference/connectrpc-api/admin-roles",
+                    "reference/connectrpc-api/admin-permissions",
+                    "reference/connectrpc-api/admin-diagnostics",
+                    "reference/connectrpc-api/admin-event-log",
+                  ],
+                },
                 "reference/connectrpc-api/types",
                 "reference/connectrpc-api/realtime",
               ],

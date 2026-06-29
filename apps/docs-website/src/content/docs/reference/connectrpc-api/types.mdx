@@ -4,7 +4,7 @@ description: Generated shared message and enum reference for Chatto ConnectRPC s
 editUrl: false
 ---
 
-{/* Generated from proto/chatto/api/v1/*.proto. Do not edit directly. */}
+{/* Generated from proto/chatto/{api,admin,realtime}/v1/*.proto. Do not edit directly. */}
 
 Shared message and enum definitions used by the ConnectRPC service pages.
 
@@ -26,6 +26,20 @@ Custom status shown on a user profile, separate from presence.
 | `text` | `string` | User-written status text. |
 | `expires_at` | `google.protobuf.Timestamp` | Optional time after which clients should stop showing the status. |
 
+<a id="chatto-api-v1-User"></a>
+
+### User
+
+Public user identity fields.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | Stable user ID. |
+| `login` | `string` | Login name. |
+| `display_name` | `string` | Display name, when set. |
+| `deleted` | `bool` | True when the user account has been deleted. |
+| `avatar_url` | `optional string` | Avatar image URL, when available. |
+
 <a id="chatto-api-v1-UserAvatarOptions"></a>
 
 ### UserAvatarOptions
@@ -38,31 +52,17 @@ Avatar transform parameters for user profile reads.
 | `height` | `int32` | Avatar height in pixels. |
 | `fit` | [`UserAvatarFitMode`](#chatto-api-v1-UserAvatarFitMode) | Avatar crop/fit behavior. |
 
-<a id="chatto-api-v1-UserPresenceSummary"></a>
+<a id="chatto-api-v1-UserProfile"></a>
 
-### UserPresenceSummary
+### UserProfile
 
-Lightweight public user data plus live profile state.
+Public user identity fields plus live profile state.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `user` | [`UserSummary`](#chatto-api-v1-UserSummary) | Public identity fields. |
+| `user` | [`User`](#chatto-api-v1-User) | Public identity fields. |
 | `presence_status` | [`PresenceStatus`](#chatto-api-v1-PresenceStatus) | Current live presence status. |
 | `custom_status` | [`CustomUserStatus`](#chatto-api-v1-CustomUserStatus) | Custom profile status, when set. |
-
-<a id="chatto-api-v1-UserSummary"></a>
-
-### UserSummary
-
-Lightweight public user data for cache-backed render surfaces.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `id` | `string` | Stable user ID. |
-| `login` | `string` | Login name. |
-| `display_name` | `string` | Display name, when set. |
-| `deleted` | `bool` | True when the user account has been deleted. |
-| `avatar_url` | `optional string` | Avatar image URL, when available. |
 
 <a id="chatto-api-v1-RoomNotificationPreference"></a>
 
@@ -129,192 +129,7 @@ Current authenticated user's public profile plus self-only settings.
 | `settings` | [`UserSettings`](#chatto-api-v1-UserSettings) | Current user's display settings. |
 | `viewer_can_delete_account` | `bool` | Whether the authenticated user may delete this account. |
 | `last_login_change` | `google.protobuf.Timestamp` | Last time a login credential changed, when known. |
-| `profile` | [`UserPresenceSummary`](#chatto-api-v1-UserPresenceSummary) | Public profile and live presence fields for the authenticated user. |
-
-<a id="chatto-api-v1-AdminAccountInfo"></a>
-
-### AdminAccountInfo
-
-JetStream account limits and usage.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `memory` | `int64` | Maximum memory storage in bytes. Values less than or equal to zero mean unlimited. |
-| `memory_used` | `int64` | Used memory storage in bytes. |
-| `storage` | `int64` | Maximum file storage in bytes. Values less than or equal to zero mean unlimited. |
-| `storage_used` | `int64` | Used file storage in bytes. |
-| `streams` | `int32` | Maximum number of streams. Values less than or equal to zero mean unlimited. |
-| `streams_used` | `int32` | Current number of streams. |
-| `consumers` | `int32` | Maximum number of consumers. Values less than or equal to zero mean unlimited. |
-| `consumers_used` | `int32` | Current number of consumers. |
-
-<a id="chatto-api-v1-AdminConnectionInfo"></a>
-
-### AdminConnectionInfo
-
-Current NATS server connection metadata.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `connected` | `bool` | Whether Chatto is currently connected to NATS. |
-| `server_id` | `string` | Connected NATS server ID. |
-| `server_name` | `string` | Connected NATS server name. |
-| `version` | `string` | Connected NATS server version. |
-| `max_payload` | `int64` | Maximum payload accepted by the connected NATS server. |
-| `rtt` | `string` | Round-trip latency to the connected NATS server. |
-
-<a id="chatto-api-v1-AdminNatsConsumerInfo"></a>
-
-### AdminNatsConsumerInfo
-
-JetStream consumer state.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `stream` | `string` | Stream that owns the consumer. |
-| `name` | `string` | Consumer name. |
-| `durable` | `string` | Durable name, when the consumer is durable. |
-| `filter_subject` | `string` | Single filter subject, when configured. |
-| `filter_subjects` | `repeated string` | Multiple filter subjects, when configured. |
-| `ack_policy` | `string` | NATS acknowledgement policy. |
-| `pull_based` | `bool` | Whether this is a pull consumer. |
-| `push_bound` | `bool` | Whether this push consumer has an active subscription. |
-| `pending` | `int64` | Pending messages for this consumer. |
-| `ack_pending` | `int32` | Messages waiting for acknowledgement. |
-| `redelivered` | `int32` | Redelivered message count. |
-| `waiting` | `int32` | Pull requests waiting for messages. |
-| `delivered_consumer_sequence` | `string` | Delivered consumer sequence. |
-| `delivered_stream_sequence` | `string` | Delivered stream sequence. |
-| `ack_floor_consumer_sequence` | `string` | Acknowledgement floor consumer sequence. |
-| `ack_floor_stream_sequence` | `string` | Acknowledgement floor stream sequence. |
-
-<a id="chatto-api-v1-AdminNatsStats"></a>
-
-### AdminNatsStats
-
-JetStream stream and consumer diagnostics.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `total_messages` | `int64` | Total messages stored across all streams. |
-| `total_bytes` | `int64` | Total bytes stored across all streams. |
-| `total_consumer_pending` | `int64` | Total pending messages across all consumers. |
-| `total_ack_pending` | `int32` | Total messages currently waiting for acknowledgement. |
-| `streams` | repeated [`AdminNatsStreamInfo`](#chatto-api-v1-AdminNatsStreamInfo) | Streams sorted by name. |
-| `consumers` | repeated [`AdminNatsConsumerInfo`](#chatto-api-v1-AdminNatsConsumerInfo) | Consumers sorted by stream and name. |
-
-<a id="chatto-api-v1-AdminNatsStreamInfo"></a>
-
-### AdminNatsStreamInfo
-
-JetStream stream state.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `name` | `string` | Stream name. |
-| `description` | `string` | Stream description. |
-| `subjects` | `repeated string` | Subjects stored in the stream. |
-| `storage` | `string` | Storage backend name. |
-| `messages` | `int64` | Number of messages in the stream. |
-| `bytes` | `int64` | Number of bytes in the stream. |
-| `first_sequence` | `string` | First stream sequence. |
-| `last_sequence` | `string` | Last stream sequence. |
-| `consumer_count` | `int32` | Number of stream consumers. |
-| `replicas` | `int32` | Configured stream replica count. |
-| `cluster_leader` | `string` | Current cluster leader, when reported by NATS. |
-
-<a id="chatto-api-v1-AdminProjectionMetric"></a>
-
-### AdminProjectionMetric
-
-Projection-specific diagnostic metric.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `name` | `string` | Metric name. |
-| `value` | `int64` | Metric value. |
-| `bytes` | `int64` | Estimated memory represented by this metric in bytes. |
-
-<a id="chatto-api-v1-AdminProjectionState"></a>
-
-### AdminProjectionState
-
-Event-sourced projection health and memory estimates.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `key` | `string` | Stable projection key. |
-| `name` | `string` | Display name. |
-| `subjects` | `repeated string` | EVT subjects consumed by this projection. |
-| `started` | `bool` | Whether the projection projector is running. |
-| `startup_duration_seconds` | `optional double` | Startup duration in seconds, set after startup completes. |
-| `last_applied_sequence` | `string` | Last event sequence applied by the projection. |
-| `matching_stream_sequence` | `string` | Target sequence among the projection's matching subjects. |
-| `stream_last_sequence` | `string` | Current last sequence of the EVT stream. |
-| `lag` | `int64` | Matching-subject lag between target and applied sequence. |
-| `failed` | `bool` | Whether the projection failed. |
-| `failed_sequence` | `string` | Sequence that failed, when failed is true. |
-| `failure` | `string` | Failure message, when failed is true. |
-| `entry_count` | `int64` | Estimated number of entries held by the projection. |
-| `estimated_bytes` | `int64` | Estimated memory used by the projection in bytes. |
-| `average_entry_bytes` | `int64` | Estimated average memory per entry in bytes. |
-| `metrics` | repeated [`AdminProjectionMetric`](#chatto-api-v1-AdminProjectionMetric) | Projection-specific diagnostic metrics. |
-
-<a id="chatto-api-v1-AdminServerStats"></a>
-
-### AdminServerStats
-
-Aggregate Chatto object counts.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `user_count` | `int32` | Registered user count. |
-| `channel_room_count` | `int32` | Channel room count. |
-| `dm_room_count` | `int32` | Direct-message room count. |
-
-<a id="chatto-api-v1-AdminSystemInfo"></a>
-
-### AdminSystemInfo
-
-Broker and application diagnostics shown on the server admin system page.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `connection` | [`AdminConnectionInfo`](#chatto-api-v1-AdminConnectionInfo) | Current NATS server connection metadata. |
-| `account` | [`AdminAccountInfo`](#chatto-api-v1-AdminAccountInfo) | JetStream account limits and usage. |
-| `nats` | [`AdminNatsStats`](#chatto-api-v1-AdminNatsStats) | JetStream stream and consumer diagnostics. |
-| `stats` | [`AdminServerStats`](#chatto-api-v1-AdminServerStats) | Aggregate Chatto object counts. |
-
-<a id="chatto-api-v1-AdminEventLogEntry"></a>
-
-### AdminEventLogEntry
-
-One durable EVT entry decoded for operator inspection.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `sequence` | `string` | EVT stream sequence. |
-| `subject` | `string` | NATS subject. |
-| `aggregate_type` | `string` | Aggregate type parsed from the subject. |
-| `aggregate_id` | `string` | Aggregate ID parsed from the subject. |
-| `event_type` | `string` | Event oneof payload type, or decode-error when decoding failed. |
-| `event_id` | `string` | Durable event ID. |
-| `actor_id` | `string` | Actor user ID stored on the event. |
-| `created_at` | `google.protobuf.Timestamp` | Event creation timestamp. |
-| `payload_json` | `string` | Pretty-printed JSON representation of the event payload. |
-
-<a id="chatto-api-v1-AdminEventLogFilter"></a>
-
-### AdminEventLogFilter
-
-Filter for owner/auditor event-log inspection.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `event_type` | `string` | Event oneof payload type, such as MessagePostedEvent. |
-| `actor_id` | `string` | Actor user ID. |
-| `created_at_from` | `google.protobuf.Timestamp` | Inclusive lower creation timestamp bound. |
-| `created_at_to` | `google.protobuf.Timestamp` | Inclusive upper creation timestamp bound. |
+| `profile` | [`UserProfile`](#chatto-api-v1-UserProfile) | Public profile and live presence fields for the authenticated user. |
 
 <a id="chatto-api-v1-PageInfo"></a>
 
@@ -339,6 +154,245 @@ for simple list browsing.
 | `limit` | `int32` | Maximum number of items to return. Each RPC defines its default; the common maximum for public API list pages is 100. |
 | `offset` | `int32` | Zero-based number of matching items to skip. |
 
+<a id="chatto-api-v1-LinkPreview"></a>
+
+### LinkPreview
+
+Link preview metadata used by message composers and room timeline events.
+
+On message-post requests, the server accepts url, title, description,
+site_name, image_asset_id, embed_type, and embed_id. The image_url field is
+response-only and ignored on input. Clients should treat optional metadata as
+unavailable when absent.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `url` | `string` | Previewed URL. |
+| `title` | `optional string` | Page or embed title. |
+| `description` | `optional string` | Page or embed description. |
+| `image_url` | `optional string` | Preview image URL, when available. Response-only; ignored on message-post input. |
+| `image_asset_id` | `optional string` | Existing server asset ID for the preview image, when selected by the client or stored with the message. |
+| `site_name` | `optional string` | Site name, when known. |
+| `embed_type` | `optional string` | Embed provider or type, when recognized. |
+| `embed_id` | `optional string` | Provider-specific embed ID, when recognized. |
+
+<a id="chatto-api-v1-RoomTimelineAssetUrl"></a>
+
+### RoomTimelineAssetUrl
+
+Time-limited URL for a room timeline asset.
+
+Clients should expect these URLs to expire and refresh the timeline data when
+an asset URL is no longer usable.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `url` | `string` | Signed asset URL. |
+| `expires_at` | `google.protobuf.Timestamp` | Time when the signed URL expires. |
+
+<a id="chatto-api-v1-RoomTimelineAttachment"></a>
+
+### RoomTimelineAttachment
+
+Attachment metadata included with a posted message.
+
+Image and video dimensions are best-effort metadata for layout. Asset URLs can
+be absent while processing is pending or when the source is unavailable.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | Stable attachment ID. |
+| `filename` | `string` | Original filename. |
+| `content_type` | `string` | MIME content type. |
+| `width` | `int32` | Image or video width in pixels, when known. |
+| `height` | `int32` | Image or video height in pixels, when known. |
+| `asset_url` | [`RoomTimelineAssetUrl`](#chatto-api-v1-RoomTimelineAssetUrl) | Signed URL for the original asset, when available. |
+| `thumbnail_asset_url` | [`RoomTimelineAssetUrl`](#chatto-api-v1-RoomTimelineAssetUrl) | Signed URL for a thumbnail image, when available. |
+| `video_processing` | [`RoomTimelineVideoProcessing`](#chatto-api-v1-RoomTimelineVideoProcessing) | Video-specific processing metadata, when this attachment is a video. |
+
+<a id="chatto-api-v1-RoomTimelineEvent"></a>
+
+### RoomTimelineEvent
+
+One event in a room or thread timeline.
+
+Clients should inspect the event oneof to choose the renderer for the event.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | Stable event ID. |
+| `created_at` | `google.protobuf.Timestamp` | Time when the event was created. |
+| `actor_id` | `string` | User ID of the event actor. |
+| `event.message_posted` | [`RoomTimelineMessagePosted`](#chatto-api-v1-RoomTimelineMessagePosted) | A message was posted. |
+| `event.room_created` | [`RoomTimelineRoomEvent`](#chatto-api-v1-RoomTimelineRoomEvent) | The room was created. |
+| `event.room_updated` | [`RoomTimelineRoomEvent`](#chatto-api-v1-RoomTimelineRoomEvent) | The room metadata was updated. |
+| `event.room_deleted` | [`RoomTimelineRoomEvent`](#chatto-api-v1-RoomTimelineRoomEvent) | The room was deleted. |
+| `event.room_archived` | [`RoomTimelineRoomEvent`](#chatto-api-v1-RoomTimelineRoomEvent) | The room was archived. |
+| `event.room_unarchived` | [`RoomTimelineRoomEvent`](#chatto-api-v1-RoomTimelineRoomEvent) | The room was unarchived. |
+| `event.user_joined_room` | [`RoomTimelineRoomEvent`](#chatto-api-v1-RoomTimelineRoomEvent) | A user joined the room. |
+| `event.user_left_room` | [`RoomTimelineRoomEvent`](#chatto-api-v1-RoomTimelineRoomEvent) | A user left the room. |
+
+<a id="chatto-api-v1-RoomTimelineIncludes"></a>
+
+### RoomTimelineIncludes
+
+Related entities included beside timeline events.
+
+Includes avoid repeating the same user data on every event in a page.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `users` | map&lt;`string`, [`User`](#chatto-api-v1-User)&gt; | Users keyed by user ID. |
+
+<a id="chatto-api-v1-RoomTimelineMessagePosted"></a>
+
+### RoomTimelineMessagePosted
+
+Payload for a message-posted timeline event.
+
+The same shape is used for top-level room messages, thread replies, and thread
+echo entries. Thread-related fields let clients render reply counts, thread
+participants, and follow state without additional per-message requests.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Room containing the message. |
+| `body` | `optional string` | Message body text, when available. A present empty string is distinct from an absent body. |
+| `attachments` | repeated [`RoomTimelineAttachment`](#chatto-api-v1-RoomTimelineAttachment) | Attachments sent with the message. |
+| `link_preview` | [`LinkPreview`](#chatto-api-v1-LinkPreview) | Link preview extracted for the message, when available. |
+| `updated_at` | `google.protobuf.Timestamp` | Time when the message was last edited. |
+| `in_reply_to` | `string` | Event ID this message directly replies to, when this is a reply. |
+| `thread_root_event_id` | `string` | Event ID of the root message for the thread this message belongs to. |
+| `echo_of_event_id` | `string` | Event ID this event echoes into the current view, when applicable. Echoes allow thread activity to appear in another timeline context. |
+| `echo_from_thread_root_event_id` | `string` | Thread root ID of the echoed event, when applicable. |
+| `channel_echo_event_id` | `string` | Channel timeline event ID for a thread echo, when applicable. |
+| `reply_count` | `int32` | Number of replies in this message's thread. |
+| `last_reply_at` | `google.protobuf.Timestamp` | Creation time of the most recent reply in this message's thread. |
+| `thread_participant_user_ids` | `repeated string` | User IDs that have participated in this message's thread. |
+| `viewer_is_following_thread` | `optional bool` | Whether the current user follows this message's thread, when known. |
+| `reactions` | repeated [`RoomTimelineReaction`](#chatto-api-v1-RoomTimelineReaction) | Reaction summaries for this message. |
+
+<a id="chatto-api-v1-RoomTimelinePage"></a>
+
+### RoomTimelinePage
+
+Cursor page of room or thread timeline events.
+
+Use opaque start_cursor and end_cursor values with before/after requests to
+continue paging in either direction. Clients must treat cursor values as
+server-owned tokens and must not parse or construct them. The has_older and
+has_newer flags tell clients whether another request can extend the current
+window.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `events` | repeated [`RoomTimelineEvent`](#chatto-api-v1-RoomTimelineEvent) | Events in display order. |
+| `start_cursor` | `string` | Opaque cursor for the first event in the page. |
+| `end_cursor` | `string` | Opaque cursor for the last event in the page. |
+| `has_older` | `bool` | True when older events are available before start_cursor. |
+| `has_newer` | `bool` | True when newer events are available after end_cursor. |
+| `includes` | [`RoomTimelineIncludes`](#chatto-api-v1-RoomTimelineIncludes) | Related entities needed to render the page. |
+
+<a id="chatto-api-v1-RoomTimelineReaction"></a>
+
+### RoomTimelineReaction
+
+Aggregated reaction state for one emoji on one event.
+
+This state is scoped to the current event and includes whether the current
+user has reacted with the same emoji.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `emoji` | `string` | Emoji or reaction key. |
+| `count` | `int32` | Number of users who reacted with this emoji. |
+| `has_reacted` | `bool` | True when the current user reacted with this emoji. |
+| `user_ids` | `repeated string` | User IDs that reacted with this emoji. |
+
+<a id="chatto-api-v1-RoomTimelineRoomEvent"></a>
+
+### RoomTimelineRoomEvent
+
+Payload for room lifecycle and membership timeline events.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Room affected by the event. |
+
+<a id="chatto-api-v1-RoomTimelineVideoProcessing"></a>
+
+### RoomTimelineVideoProcessing
+
+Processing metadata for a video attachment.
+
+Clients can use this object to show upload/transcoding progress and decide
+whether to play a processed variant, show a thumbnail, or display a failure
+state.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `status` | [`RoomTimelineVideoProcessingStatus`](#chatto-api-v1-RoomTimelineVideoProcessingStatus) | Current processing status. |
+| `duration_ms` | `int64` | Video duration in milliseconds. |
+| `width` | `int32` | Source video width in pixels. |
+| `height` | `int32` | Source video height in pixels. |
+| `source_available` | `bool` | True when the original source asset is currently available. |
+| `reason_code` | `string` | Stable reason code for a failed or incomplete processing state. |
+| `thumbnail_asset_url` | [`RoomTimelineAssetUrl`](#chatto-api-v1-RoomTimelineAssetUrl) | Signed URL for the generated thumbnail, when available. |
+| `variants` | repeated [`RoomTimelineVideoVariant`](#chatto-api-v1-RoomTimelineVideoVariant) | Available transcoded renditions. |
+
+<a id="chatto-api-v1-RoomTimelineVideoVariant"></a>
+
+### RoomTimelineVideoVariant
+
+One transcoded video rendition.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `quality` | `string` | Quality label for the rendition. |
+| `width` | `int32` | Video width in pixels. |
+| `height` | `int32` | Video height in pixels. |
+| `size` | `int64` | Rendition size in bytes. |
+| `asset_url` | [`RoomTimelineAssetUrl`](#chatto-api-v1-RoomTimelineAssetUrl) | Signed URL for the rendition. |
+
+<a id="chatto-api-v1-AttachmentThumbnailOptions"></a>
+
+### AttachmentThumbnailOptions
+
+Thumbnail transform parameters for attachment URL reads.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `width` | `int32` | Thumbnail width in pixels. |
+| `height` | `int32` | Thumbnail height in pixels. |
+| `fit` | [`AttachmentFitMode`](#chatto-api-v1-AttachmentFitMode) | Thumbnail fit mode. |
+
+<a id="chatto-api-v1-RefreshedAttachmentUrls"></a>
+
+### RefreshedAttachmentUrls
+
+Fresh signed URLs for one message attachment.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `attachment_id` | `string` | Attachment ID these URLs belong to. |
+| `asset_url` | [`RoomTimelineAssetUrl`](#chatto-api-v1-RoomTimelineAssetUrl) | Fresh signed URL for the original attachment. |
+| `thumbnail_asset_url` | [`RoomTimelineAssetUrl`](#chatto-api-v1-RoomTimelineAssetUrl) | Fresh signed transformed thumbnail URL for the attachment. |
+| `video_thumbnail_asset_url` | [`RoomTimelineAssetUrl`](#chatto-api-v1-RoomTimelineAssetUrl) | Fresh signed URL for the processed video thumbnail, when present. |
+| `variants` | repeated [`RoomTimelineVideoVariant`](#chatto-api-v1-RoomTimelineVideoVariant) | Fresh signed URLs for processed video variants, when present. |
+
+<a id="chatto-api-v1-RoomAttachmentListItem"></a>
+
+### RoomAttachmentListItem
+
+One current room attachment and its message anchor.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `attachment` | [`RoomTimelineAttachment`](#chatto-api-v1-RoomTimelineAttachment) | Attachment metadata and signed URLs. |
+| `message_event_id` | `string` | Message event containing the attachment. |
+| `thread_root_event_id` | `string` | Thread root event ID when the containing message is a thread reply. |
+| `created_at` | `google.protobuf.Timestamp` | Message creation timestamp. |
+
 <a id="chatto-api-v1-DirectoryMember"></a>
 
 ### DirectoryMember
@@ -347,9 +401,121 @@ Public user/member profile used by directory and mention surfaces.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `profile` | [`UserPresenceSummary`](#chatto-api-v1-UserPresenceSummary) | Public profile and live presence fields. |
+| `profile` | [`UserProfile`](#chatto-api-v1-UserProfile) | Public profile and live presence fields. |
 | `roles` | `repeated string` | Explicit server roles assigned to the user. Server member listings include the virtual `everyone` role for parity with Chatto's permission model. |
 | `created_at` | `google.protobuf.Timestamp` | Account creation time when known. |
+
+<a id="chatto-api-v1-MentionConfirmationChallenge"></a>
+
+### MentionConfirmationChallenge
+
+Large mention confirmation details for a message that was not posted.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `recipient_count` | `int32` | Number of people the message would notify. |
+| `token` | `string` | Short-lived token to send back with the same message after user approval. |
+
+<a id="chatto-api-v1-MessageAttachmentUpload"></a>
+
+### MessageAttachmentUpload
+
+Attachment bytes submitted with a message post.
+
+Each attachment is uploaded as a room-scoped asset before the message is
+committed. The message service validates per-file limits and permissions.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `content` | `bytes` | Raw file bytes. |
+| `filename` | `string` | Original filename supplied by the client. |
+| `content_type` | `string` | MIME content type supplied by the client. Empty values are treated as application/octet-stream. |
+
+<a id="chatto-api-v1-DirectMessageNotification"></a>
+
+### DirectMessageNotification
+
+Direct-message notification payload.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | DM room where the message was posted. |
+| `event_id` | `string` | Message event ID. |
+
+<a id="chatto-api-v1-MentionNotification"></a>
+
+### MentionNotification
+
+Mention notification payload.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room` | [`NotificationRoom`](#chatto-api-v1-NotificationRoom) | Room where the mention occurred. |
+| `event_id` | `string` | Message event ID. |
+| `thread_root_event_id` | `optional string` | Thread root event ID when the mention happened inside a thread. |
+
+<a id="chatto-api-v1-NotificationItem"></a>
+
+### NotificationItem
+
+One pending notification for the authenticated viewer.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | Stable notification ID. |
+| `created_at` | `google.protobuf.Timestamp` | Creation time. |
+| `actor` | [`UserProfile`](#chatto-api-v1-UserProfile) | User who triggered the notification, when still resolvable. |
+| `summary` | `string` | Short human-readable notification summary. |
+| `kind.direct_message` | [`DirectMessageNotification`](#chatto-api-v1-DirectMessageNotification) | Direct-message notification. |
+| `kind.mention` | [`MentionNotification`](#chatto-api-v1-MentionNotification) | Mention notification. |
+| `kind.reply` | [`ReplyNotification`](#chatto-api-v1-ReplyNotification) | Reply notification. |
+| `kind.room_message` | [`RoomMessageNotification`](#chatto-api-v1-RoomMessageNotification) | All-messages room notification. |
+
+<a id="chatto-api-v1-NotificationRoom"></a>
+
+### NotificationRoom
+
+Room summary embedded in notification responses.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | Stable room ID. |
+| `name` | `string` | Room display name. Empty for DM rooms. |
+
+<a id="chatto-api-v1-ReplyNotification"></a>
+
+### ReplyNotification
+
+Reply notification payload.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room` | [`NotificationRoom`](#chatto-api-v1-NotificationRoom) | Room where the reply occurred. |
+| `event_id` | `string` | Reply event ID. |
+| `in_reply_to_id` | `string` | Event ID of the message being replied to. |
+| `thread_root_event_id` | `optional string` | Thread root event ID when the reply happened inside a thread. |
+
+<a id="chatto-api-v1-RoomMessageNotification"></a>
+
+### RoomMessageNotification
+
+All-messages room notification payload.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room` | [`NotificationRoom`](#chatto-api-v1-NotificationRoom) | Room where the message was posted. |
+| `event_id` | `string` | Message event ID. |
+
+<a id="chatto-api-v1-RoomNotificationCount"></a>
+
+### RoomNotificationCount
+
+Pending notification count for one room.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Room ID. |
+| `total_count` | `int32` | Pending notification count for the authenticated viewer in this room. |
 
 <a id="chatto-api-v1-Room"></a>
 
@@ -458,597 +624,6 @@ Sidebar link metadata for room group navigation.
 | `label` | `string` | Display label. |
 | `url` | `string` | Absolute http(s) URL or server-local path. |
 
-<a id="chatto-api-v1-AdminRoomLayoutGroup"></a>
-
-### AdminRoomLayoutGroup
-
-Ordered room group used by the admin room layout editor.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `id` | `string` | Stable room group ID. |
-| `name` | `string` | Display name. |
-| `description` | `string` | Operator-facing description, when set. |
-| `rooms` | repeated [`AdminRoomLayoutRoom`](#chatto-api-v1-AdminRoomLayoutRoom) | Channel rooms in this group order. |
-| `items` | repeated [`AdminRoomLayoutItem`](#chatto-api-v1-AdminRoomLayoutItem) | Mixed room/sidebar-link entries in sidebar order. |
-
-<a id="chatto-api-v1-AdminRoomLayoutItem"></a>
-
-### AdminRoomLayoutItem
-
-One ordered sidebar item in an admin room group layout.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `item.room` | [`AdminRoomLayoutRoom`](#chatto-api-v1-AdminRoomLayoutRoom) | Channel room entry. |
-| `item.sidebar_link` | [`SidebarLink`](#chatto-api-v1-SidebarLink) | Sidebar link entry. |
-
-<a id="chatto-api-v1-AdminRoomLayoutItemInput"></a>
-
-### AdminRoomLayoutItemInput
-
-One item reference in a sidebar order replacement.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `kind` | [`AdminRoomLayoutItemKind`](#chatto-api-v1-AdminRoomLayoutItemKind) | Item kind. |
-| `id` | `string` | Room ID when kind is ROOM, sidebar link ID when kind is SIDEBAR_LINK. |
-
-<a id="chatto-api-v1-AdminRoomLayoutRoom"></a>
-
-### AdminRoomLayoutRoom
-
-Room metadata used by server administrators when editing channel layout.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `id` | `string` | Stable room ID. |
-| `name` | `string` | Display name. |
-| `description` | `string` | Optional room description. |
-| `archived` | `bool` | True when the room is archived. |
-| `universal` | `bool` | True when the channel grants effective membership to eligible members. |
-
-<a id="chatto-api-v1-AdminMember"></a>
-
-### AdminMember
-
-User row returned by server-admin member management reads.
-
-The embedded user summary carries public identity fields; remaining fields are
-admin/member metadata with visibility controlled by the service.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `roles` | `repeated string` | Explicit server role assignments. The implicit everyone role is omitted. |
-| `created_at` | `google.protobuf.Timestamp` | Account creation time, when known. |
-| `has_verified_email` | `bool` | Whether the caller may see that the user has a verified email and one exists. |
-| `verified_emails` | `repeated string` | Verified email addresses visible to the caller. |
-| `viewer_can_delete_account` | `bool` | Whether the caller may delete this account. |
-| `last_login_change` | `google.protobuf.Timestamp` | Last self-service username change, when visible and known. |
-| `user` | [`UserSummary`](#chatto-api-v1-UserSummary) | Public identity fields for this user. |
-
-<a id="chatto-api-v1-AdminMemberRole"></a>
-
-### AdminMemberRole
-
-Server role details used by the member detail role-assignment UI.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `name` | `string` | Stable role name. |
-| `display_name` | `string` | Display name shown in admin UI. |
-| `position` | `int32` | Display/order position. |
-| `permissions` | `repeated string` | Server permissions granted by this role. |
-| `permission_denials` | `repeated string` | Server permissions denied by this role. |
-
-<a id="chatto-api-v1-AdminMemberRoleSummary"></a>
-
-### AdminMemberRoleSummary
-
-Role summary used by member list filters and badges.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `name` | `string` | Stable role name. |
-| `display_name` | `string` | Display name shown in admin UI. |
-
-<a id="chatto-api-v1-LinkPreview"></a>
-
-### LinkPreview
-
-Link preview metadata used by message composers and room timeline events.
-
-On message-post requests, the server accepts url, title, description,
-site_name, image_asset_id, embed_type, and embed_id. The image_url field is
-response-only and ignored on input. Clients should treat optional metadata as
-unavailable when absent.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `url` | `string` | Previewed URL. |
-| `title` | `optional string` | Page or embed title. |
-| `description` | `optional string` | Page or embed description. |
-| `image_url` | `optional string` | Preview image URL, when available. Response-only; ignored on message-post input. |
-| `image_asset_id` | `optional string` | Existing server asset ID for the preview image, when selected by the client or stored with the message. |
-| `site_name` | `optional string` | Site name, when known. |
-| `embed_type` | `optional string` | Embed provider or type, when recognized. |
-| `embed_id` | `optional string` | Provider-specific embed ID, when recognized. |
-
-<a id="chatto-api-v1-RoomTimelineAssetUrl"></a>
-
-### RoomTimelineAssetUrl
-
-Time-limited URL for a room timeline asset.
-
-Clients should expect these URLs to expire and refresh the timeline data when
-an asset URL is no longer usable.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `url` | `string` | Signed asset URL. |
-| `expires_at` | `google.protobuf.Timestamp` | Time when the signed URL expires. |
-
-<a id="chatto-api-v1-RoomTimelineAttachment"></a>
-
-### RoomTimelineAttachment
-
-Attachment metadata included with a posted message.
-
-Image and video dimensions are best-effort metadata for layout. Asset URLs can
-be absent while processing is pending or when the source is unavailable.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `id` | `string` | Stable attachment ID. |
-| `filename` | `string` | Original filename. |
-| `content_type` | `string` | MIME content type. |
-| `width` | `int32` | Image or video width in pixels, when known. |
-| `height` | `int32` | Image or video height in pixels, when known. |
-| `asset_url` | [`RoomTimelineAssetUrl`](#chatto-api-v1-RoomTimelineAssetUrl) | Signed URL for the original asset, when available. |
-| `thumbnail_asset_url` | [`RoomTimelineAssetUrl`](#chatto-api-v1-RoomTimelineAssetUrl) | Signed URL for a thumbnail image, when available. |
-| `video_processing` | [`RoomTimelineVideoProcessing`](#chatto-api-v1-RoomTimelineVideoProcessing) | Video-specific processing metadata, when this attachment is a video. |
-
-<a id="chatto-api-v1-RoomTimelineEvent"></a>
-
-### RoomTimelineEvent
-
-One event in a room or thread timeline.
-
-Clients should inspect the event oneof to choose the renderer for the event.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `id` | `string` | Stable event ID. |
-| `created_at` | `google.protobuf.Timestamp` | Time when the event was created. |
-| `actor_id` | `string` | User ID of the event actor. |
-| `event.message_posted` | [`RoomTimelineMessagePosted`](#chatto-api-v1-RoomTimelineMessagePosted) | A message was posted. |
-| `event.room_created` | [`RoomTimelineRoomEvent`](#chatto-api-v1-RoomTimelineRoomEvent) | The room was created. |
-| `event.room_updated` | [`RoomTimelineRoomEvent`](#chatto-api-v1-RoomTimelineRoomEvent) | The room metadata was updated. |
-| `event.room_deleted` | [`RoomTimelineRoomEvent`](#chatto-api-v1-RoomTimelineRoomEvent) | The room was deleted. |
-| `event.room_archived` | [`RoomTimelineRoomEvent`](#chatto-api-v1-RoomTimelineRoomEvent) | The room was archived. |
-| `event.room_unarchived` | [`RoomTimelineRoomEvent`](#chatto-api-v1-RoomTimelineRoomEvent) | The room was unarchived. |
-| `event.user_joined_room` | [`RoomTimelineRoomEvent`](#chatto-api-v1-RoomTimelineRoomEvent) | A user joined the room. |
-| `event.user_left_room` | [`RoomTimelineRoomEvent`](#chatto-api-v1-RoomTimelineRoomEvent) | A user left the room. |
-
-<a id="chatto-api-v1-RoomTimelineIncludes"></a>
-
-### RoomTimelineIncludes
-
-Related entities included beside timeline events.
-
-Includes avoid repeating the same user data on every event in a page.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `users` | map&lt;`string`, [`UserSummary`](#chatto-api-v1-UserSummary)&gt; | Users keyed by user ID. |
-
-<a id="chatto-api-v1-RoomTimelineMessagePosted"></a>
-
-### RoomTimelineMessagePosted
-
-Payload for a message-posted timeline event.
-
-The same shape is used for top-level room messages, thread replies, and thread
-echo entries. Thread-related fields let clients render reply counts, thread
-participants, and follow state without additional per-message requests.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | Room containing the message. |
-| `body` | `optional string` | Message body text, when available. A present empty string is distinct from an absent body. |
-| `attachments` | repeated [`RoomTimelineAttachment`](#chatto-api-v1-RoomTimelineAttachment) | Attachments sent with the message. |
-| `link_preview` | [`LinkPreview`](#chatto-api-v1-LinkPreview) | Link preview extracted for the message, when available. |
-| `updated_at` | `google.protobuf.Timestamp` | Time when the message was last edited. |
-| `in_reply_to` | `string` | Event ID this message directly replies to, when this is a reply. |
-| `thread_root_event_id` | `string` | Event ID of the root message for the thread this message belongs to. |
-| `echo_of_event_id` | `string` | Event ID this event echoes into the current view, when applicable. Echoes allow thread activity to appear in another timeline context. |
-| `echo_from_thread_root_event_id` | `string` | Thread root ID of the echoed event, when applicable. |
-| `channel_echo_event_id` | `string` | Channel timeline event ID for a thread echo, when applicable. |
-| `reply_count` | `int32` | Number of replies in this message's thread. |
-| `last_reply_at` | `google.protobuf.Timestamp` | Creation time of the most recent reply in this message's thread. |
-| `thread_participant_user_ids` | `repeated string` | User IDs that have participated in this message's thread. |
-| `viewer_is_following_thread` | `optional bool` | Whether the current user follows this message's thread, when known. |
-| `reactions` | repeated [`RoomTimelineReactionSummary`](#chatto-api-v1-RoomTimelineReactionSummary) | Reaction summaries for this message. |
-
-<a id="chatto-api-v1-RoomTimelinePage"></a>
-
-### RoomTimelinePage
-
-Cursor page of room or thread timeline events.
-
-Use opaque start_cursor and end_cursor values with before/after requests to
-continue paging in either direction. Clients must treat cursor values as
-server-owned tokens and must not parse or construct them. The has_older and
-has_newer flags tell clients whether another request can extend the current
-window.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `events` | repeated [`RoomTimelineEvent`](#chatto-api-v1-RoomTimelineEvent) | Events in display order. |
-| `start_cursor` | `string` | Opaque cursor for the first event in the page. |
-| `end_cursor` | `string` | Opaque cursor for the last event in the page. |
-| `has_older` | `bool` | True when older events are available before start_cursor. |
-| `has_newer` | `bool` | True when newer events are available after end_cursor. |
-| `includes` | [`RoomTimelineIncludes`](#chatto-api-v1-RoomTimelineIncludes) | Related entities needed to render the page. |
-
-<a id="chatto-api-v1-RoomTimelineReactionSummary"></a>
-
-### RoomTimelineReactionSummary
-
-Aggregated reaction state for one emoji on one event.
-
-The summary is scoped to the current event and includes whether the current
-user has reacted with the same emoji.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `emoji` | `string` | Emoji or reaction key. |
-| `count` | `int32` | Number of users who reacted with this emoji. |
-| `has_reacted` | `bool` | True when the current user reacted with this emoji. |
-| `user_ids` | `repeated string` | User IDs that reacted with this emoji. |
-
-<a id="chatto-api-v1-RoomTimelineRoomEvent"></a>
-
-### RoomTimelineRoomEvent
-
-Payload for room lifecycle and membership timeline events.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | Room affected by the event. |
-
-<a id="chatto-api-v1-RoomTimelineVideoProcessing"></a>
-
-### RoomTimelineVideoProcessing
-
-Processing metadata for a video attachment.
-
-Clients can use this object to show upload/transcoding progress and decide
-whether to play a processed variant, show a thumbnail, or display a failure
-state.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `status` | [`RoomTimelineVideoProcessingStatus`](#chatto-api-v1-RoomTimelineVideoProcessingStatus) | Current processing status. |
-| `duration_ms` | `int64` | Video duration in milliseconds. |
-| `width` | `int32` | Source video width in pixels. |
-| `height` | `int32` | Source video height in pixels. |
-| `source_available` | `bool` | True when the original source asset is currently available. |
-| `reason_code` | `string` | Stable reason code for a failed or incomplete processing state. |
-| `thumbnail_asset_url` | [`RoomTimelineAssetUrl`](#chatto-api-v1-RoomTimelineAssetUrl) | Signed URL for the generated thumbnail, when available. |
-| `variants` | repeated [`RoomTimelineVideoVariant`](#chatto-api-v1-RoomTimelineVideoVariant) | Available transcoded renditions. |
-
-<a id="chatto-api-v1-RoomTimelineVideoVariant"></a>
-
-### RoomTimelineVideoVariant
-
-One transcoded video rendition.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `quality` | `string` | Quality label for the rendition. |
-| `width` | `int32` | Video width in pixels. |
-| `height` | `int32` | Video height in pixels. |
-| `size` | `int64` | Rendition size in bytes. |
-| `asset_url` | [`RoomTimelineAssetUrl`](#chatto-api-v1-RoomTimelineAssetUrl) | Signed URL for the rendition. |
-
-<a id="chatto-api-v1-AttachmentThumbnailOptions"></a>
-
-### AttachmentThumbnailOptions
-
-Thumbnail transform parameters for attachment URL reads.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `width` | `int32` | Thumbnail width in pixels. |
-| `height` | `int32` | Thumbnail height in pixels. |
-| `fit` | [`AttachmentFitMode`](#chatto-api-v1-AttachmentFitMode) | Thumbnail fit mode. |
-
-<a id="chatto-api-v1-RefreshedAttachmentUrls"></a>
-
-### RefreshedAttachmentUrls
-
-Fresh signed URLs for one message attachment.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `attachment_id` | `string` | Attachment ID these URLs belong to. |
-| `asset_url` | [`RoomTimelineAssetUrl`](#chatto-api-v1-RoomTimelineAssetUrl) | Fresh signed URL for the original attachment. |
-| `thumbnail_asset_url` | [`RoomTimelineAssetUrl`](#chatto-api-v1-RoomTimelineAssetUrl) | Fresh signed transformed thumbnail URL for the attachment. |
-| `video_thumbnail_asset_url` | [`RoomTimelineAssetUrl`](#chatto-api-v1-RoomTimelineAssetUrl) | Fresh signed URL for the processed video thumbnail, when present. |
-| `variants` | repeated [`RoomTimelineVideoVariant`](#chatto-api-v1-RoomTimelineVideoVariant) | Fresh signed URLs for processed video variants, when present. |
-
-<a id="chatto-api-v1-RoomAttachmentListItem"></a>
-
-### RoomAttachmentListItem
-
-One current room attachment and its message anchor.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `attachment` | [`RoomTimelineAttachment`](#chatto-api-v1-RoomTimelineAttachment) | Attachment metadata and signed URLs. |
-| `message_event_id` | `string` | Message event containing the attachment. |
-| `thread_root_event_id` | `string` | Thread root event ID when the containing message is a thread reply. |
-| `created_at` | `google.protobuf.Timestamp` | Message creation timestamp. |
-
-<a id="chatto-api-v1-MentionConfirmationChallenge"></a>
-
-### MentionConfirmationChallenge
-
-Large mention confirmation details for a message that was not posted.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `recipient_count` | `int32` | Number of people the message would notify. |
-| `token` | `string` | Short-lived token to send back with the same message after user approval. |
-
-<a id="chatto-api-v1-MessageAttachmentUpload"></a>
-
-### MessageAttachmentUpload
-
-Attachment bytes submitted with a message post.
-
-Each attachment is uploaded as a room-scoped asset before the message is
-committed. The message service validates per-file limits and permissions.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `content` | `bytes` | Raw file bytes. |
-| `filename` | `string` | Original filename supplied by the client. |
-| `content_type` | `string` | MIME content type supplied by the client. Empty values are treated as application/octet-stream. |
-
-<a id="chatto-api-v1-DirectMessageNotification"></a>
-
-### DirectMessageNotification
-
-Direct-message notification payload.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | DM room where the message was posted. |
-| `event_id` | `string` | Message event ID. |
-
-<a id="chatto-api-v1-MentionNotification"></a>
-
-### MentionNotification
-
-Mention notification payload.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room` | [`NotificationRoom`](#chatto-api-v1-NotificationRoom) | Room where the mention occurred. |
-| `event_id` | `string` | Message event ID. |
-| `thread_root_event_id` | `optional string` | Thread root event ID when the mention happened inside a thread. |
-
-<a id="chatto-api-v1-NotificationItem"></a>
-
-### NotificationItem
-
-One pending notification for the authenticated viewer.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `id` | `string` | Stable notification ID. |
-| `created_at` | `google.protobuf.Timestamp` | Creation time. |
-| `actor` | [`UserPresenceSummary`](#chatto-api-v1-UserPresenceSummary) | User who triggered the notification, when still resolvable. |
-| `summary` | `string` | Short human-readable notification summary. |
-| `kind.direct_message` | [`DirectMessageNotification`](#chatto-api-v1-DirectMessageNotification) | Direct-message notification. |
-| `kind.mention` | [`MentionNotification`](#chatto-api-v1-MentionNotification) | Mention notification. |
-| `kind.reply` | [`ReplyNotification`](#chatto-api-v1-ReplyNotification) | Reply notification. |
-| `kind.room_message` | [`RoomMessageNotification`](#chatto-api-v1-RoomMessageNotification) | All-messages room notification. |
-
-<a id="chatto-api-v1-NotificationRoom"></a>
-
-### NotificationRoom
-
-Room summary embedded in notification responses.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `id` | `string` | Stable room ID. |
-| `name` | `string` | Room display name. Empty for DM rooms. |
-
-<a id="chatto-api-v1-ReplyNotification"></a>
-
-### ReplyNotification
-
-Reply notification payload.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room` | [`NotificationRoom`](#chatto-api-v1-NotificationRoom) | Room where the reply occurred. |
-| `event_id` | `string` | Reply event ID. |
-| `in_reply_to_id` | `string` | Event ID of the message being replied to. |
-| `thread_root_event_id` | `optional string` | Thread root event ID when the reply happened inside a thread. |
-
-<a id="chatto-api-v1-RoomMessageNotification"></a>
-
-### RoomMessageNotification
-
-All-messages room notification payload.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room` | [`NotificationRoom`](#chatto-api-v1-NotificationRoom) | Room where the message was posted. |
-| `event_id` | `string` | Message event ID. |
-
-<a id="chatto-api-v1-RoomNotificationCount"></a>
-
-### RoomNotificationCount
-
-Pending notification count for one room.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | Room ID. |
-| `total_count` | `int32` | Pending notification count for the authenticated viewer in this room. |
-
-<a id="chatto-api-v1-PermissionExplanation"></a>
-
-### PermissionExplanation
-
-Full decision trace for one permission and target user.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `permission` | `string` | Permission identifier. |
-| `state` | [`PermissionDecision`](#chatto-api-v1-PermissionDecision) | Overall decision after applying deny-wins resolution. |
-| `decided_at` | [`PermissionDecisionLevel`](#chatto-api-v1-PermissionDecisionLevel) | Level of the winning decision, when state is not NONE. |
-| `decided_by_role` | `string` | Role name or policy marker that produced the winning decision. |
-| `trace` | repeated [`PermissionTraceEntry`](#chatto-api-v1-PermissionTraceEntry) | Ordered decision trace. The first entry is the winning decision. |
-
-<a id="chatto-api-v1-PermissionMatrixCell"></a>
-
-### PermissionMatrixCell
-
-Matrix cell for one permission and scope.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `permission` | `string` | Permission identifier. |
-| `scope_id` | `string` | Scope ID matching PermissionMatrixScope.id. |
-| `override` | [`PermissionDecision`](#chatto-api-v1-PermissionDecision) | Explicit decision at this scope. |
-| `effective` | [`PermissionDecision`](#chatto-api-v1-PermissionDecision) | Effective decision at this scope. |
-
-<a id="chatto-api-v1-PermissionMatrixScope"></a>
-
-### PermissionMatrixScope
-
-Matrix column scope.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `id` | `string` | Stable scope ID for the server, a group, or a room. |
-| `label` | `string` | Human-readable label. |
-| `kind` | [`PermissionScopeKind`](#chatto-api-v1-PermissionScopeKind) | Scope tier. |
-| `parent_group_id` | `string` | Parent group ID for room scopes. |
-
-<a id="chatto-api-v1-PermissionScope"></a>
-
-### PermissionScope
-
-Permission scope reference.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `kind` | [`PermissionScopeKind`](#chatto-api-v1-PermissionScopeKind) | Scope tier. |
-| `id` | `string` | Scope ID for group or room scope. Empty for server scope. |
-
-<a id="chatto-api-v1-PermissionTraceEntry"></a>
-
-### PermissionTraceEntry
-
-One explicit decision encountered while explaining a permission.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `level` | [`PermissionDecisionLevel`](#chatto-api-v1-PermissionDecisionLevel) | Level at which this decision was observed. |
-| `role_name` | `string` | Role name or policy marker that produced the decision. |
-| `decision` | [`PermissionDecision`](#chatto-api-v1-PermissionDecision) | Decision observed at this trace step. |
-| `applied` | `bool` | Whether this entry is the winning decision. |
-
-<a id="chatto-api-v1-RolePermissionMatrix"></a>
-
-### RolePermissionMatrix
-
-Permission matrix for one role across all scopes.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `role_name` | `string` | Role name. |
-| `applicable_permissions` | `repeated string` | Permissions rendered as rows. |
-| `scopes` | repeated [`PermissionMatrixScope`](#chatto-api-v1-PermissionMatrixScope) | Scopes rendered as columns. |
-| `cells` | repeated [`PermissionMatrixCell`](#chatto-api-v1-PermissionMatrixCell) | Sparse matrix cells. |
-
-<a id="chatto-api-v1-TierPermissions"></a>
-
-### TierPermissions
-
-Permission grants and denials at a single tier.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `permissions` | `repeated string` | Explicitly granted permissions. |
-| `permission_denials` | `repeated string` | Explicitly denied permissions. |
-
-<a id="chatto-api-v1-TierRole"></a>
-
-### TierRole
-
-One role's permission state at a single tier.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `role_name` | `string` | Stable role name. |
-| `display_name` | `string` | Display name. |
-| `description` | `string` | Optional role description. |
-| `is_system` | `bool` | Whether this is a built-in role. |
-| `position` | `int32` | Display/order position. |
-| `override` | [`TierPermissions`](#chatto-api-v1-TierPermissions) | Explicit state at this tier. |
-| `inherited_allows` | `repeated string` | Allows inherited from broader tiers. |
-| `inherited_denials` | `repeated string` | Denials inherited from broader tiers. |
-
-<a id="chatto-api-v1-TierRoles"></a>
-
-### TierRoles
-
-Role permission matrix for one tier.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `applicable_permissions` | `repeated string` | Permissions configurable at this tier. |
-| `roles` | repeated [`TierRole`](#chatto-api-v1-TierRole) | Roles sorted by position. |
-
-<a id="chatto-api-v1-UserPermissionMatrix"></a>
-
-### UserPermissionMatrix
-
-Permission matrix for one user across all scopes.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `user_id` | `string` | User ID. |
-| `applicable_permissions` | `repeated string` | Permissions rendered as rows. |
-| `scopes` | repeated [`PermissionMatrixScope`](#chatto-api-v1-PermissionMatrixScope) | Scopes rendered as columns. |
-| `cells` | repeated [`PermissionMatrixCell`](#chatto-api-v1-PermissionMatrixCell) | Sparse matrix cells. |
-
-<a id="chatto-api-v1-Role"></a>
-
-### Role
-
-Server role metadata and server-scope permission state.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `name` | `string` | Stable role name used in permission and assignment records. |
-| `display_name` | `string` | Display name shown in admin and mention UIs. |
-| `description` | `string` | Optional role description. |
-| `permissions` | `repeated string` | Server permissions granted by this role. |
-| `permission_denials` | `repeated string` | Server permissions denied by this role. |
-| `is_system` | `bool` | Whether this is a built-in role. |
-| `position` | `int32` | Display/order position. |
-| `pingable` | `bool` | Whether messages may notify users assigned to this role. |
-
 <a id="chatto-api-v1-AuthProvider"></a>
 
 ### AuthProvider
@@ -1117,9 +692,434 @@ User currently participating in a room call.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `user` | [`UserPresenceSummary`](#chatto-api-v1-UserPresenceSummary) | Participant user. |
+| `user` | [`UserProfile`](#chatto-api-v1-UserProfile) | Participant user. |
 | `joined_at` | `google.protobuf.Timestamp` | When the user joined this call. |
 | `call_id` | `string` | Active call session ID. |
+
+<a id="chatto-admin-v1-AdminAccountInfo"></a>
+
+### AdminAccountInfo
+
+JetStream account limits and usage.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `memory` | `int64` | Maximum memory storage in bytes. Values less than or equal to zero mean unlimited. |
+| `memory_used` | `int64` | Used memory storage in bytes. |
+| `storage` | `int64` | Maximum file storage in bytes. Values less than or equal to zero mean unlimited. |
+| `storage_used` | `int64` | Used file storage in bytes. |
+| `streams` | `int32` | Maximum number of streams. Values less than or equal to zero mean unlimited. |
+| `streams_used` | `int32` | Current number of streams. |
+| `consumers` | `int32` | Maximum number of consumers. Values less than or equal to zero mean unlimited. |
+| `consumers_used` | `int32` | Current number of consumers. |
+
+<a id="chatto-admin-v1-AdminConnectionInfo"></a>
+
+### AdminConnectionInfo
+
+Current NATS server connection metadata.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `connected` | `bool` | Whether Chatto is currently connected to NATS. |
+| `server_id` | `string` | Connected NATS server ID. |
+| `server_name` | `string` | Connected NATS server name. |
+| `version` | `string` | Connected NATS server version. |
+| `max_payload` | `int64` | Maximum payload accepted by the connected NATS server. |
+| `rtt` | `string` | Round-trip latency to the connected NATS server. |
+
+<a id="chatto-admin-v1-AdminNatsConsumerInfo"></a>
+
+### AdminNatsConsumerInfo
+
+JetStream consumer state.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `stream` | `string` | Stream that owns the consumer. |
+| `name` | `string` | Consumer name. |
+| `durable` | `string` | Durable name, when the consumer is durable. |
+| `filter_subject` | `string` | Single filter subject, when configured. |
+| `filter_subjects` | `repeated string` | Multiple filter subjects, when configured. |
+| `ack_policy` | `string` | NATS acknowledgement policy. |
+| `pull_based` | `bool` | Whether this is a pull consumer. |
+| `push_bound` | `bool` | Whether this push consumer has an active subscription. |
+| `pending` | `int64` | Pending messages for this consumer. |
+| `ack_pending` | `int32` | Messages waiting for acknowledgement. |
+| `redelivered` | `int32` | Redelivered message count. |
+| `waiting` | `int32` | Pull requests waiting for messages. |
+| `delivered_consumer_sequence` | `string` | Delivered consumer sequence. |
+| `delivered_stream_sequence` | `string` | Delivered stream sequence. |
+| `ack_floor_consumer_sequence` | `string` | Acknowledgement floor consumer sequence. |
+| `ack_floor_stream_sequence` | `string` | Acknowledgement floor stream sequence. |
+
+<a id="chatto-admin-v1-AdminNatsStats"></a>
+
+### AdminNatsStats
+
+JetStream stream and consumer diagnostics.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `total_messages` | `int64` | Total messages stored across all streams. |
+| `total_bytes` | `int64` | Total bytes stored across all streams. |
+| `total_consumer_pending` | `int64` | Total pending messages across all consumers. |
+| `total_ack_pending` | `int32` | Total messages currently waiting for acknowledgement. |
+| `streams` | repeated [`AdminNatsStreamInfo`](#chatto-admin-v1-AdminNatsStreamInfo) | Streams sorted by name. |
+| `consumers` | repeated [`AdminNatsConsumerInfo`](#chatto-admin-v1-AdminNatsConsumerInfo) | Consumers sorted by stream and name. |
+
+<a id="chatto-admin-v1-AdminNatsStreamInfo"></a>
+
+### AdminNatsStreamInfo
+
+JetStream stream state.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `name` | `string` | Stream name. |
+| `description` | `string` | Stream description. |
+| `subjects` | `repeated string` | Subjects stored in the stream. |
+| `storage` | `string` | Storage backend name. |
+| `messages` | `int64` | Number of messages in the stream. |
+| `bytes` | `int64` | Number of bytes in the stream. |
+| `first_sequence` | `string` | First stream sequence. |
+| `last_sequence` | `string` | Last stream sequence. |
+| `consumer_count` | `int32` | Number of stream consumers. |
+| `replicas` | `int32` | Configured stream replica count. |
+| `cluster_leader` | `string` | Current cluster leader, when reported by NATS. |
+
+<a id="chatto-admin-v1-AdminProjectionMetric"></a>
+
+### AdminProjectionMetric
+
+Projection-specific diagnostic metric.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `name` | `string` | Metric name. |
+| `value` | `int64` | Metric value. |
+| `bytes` | `int64` | Estimated memory represented by this metric in bytes. |
+
+<a id="chatto-admin-v1-AdminProjectionState"></a>
+
+### AdminProjectionState
+
+Event-sourced projection health and memory estimates.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `key` | `string` | Stable projection key. |
+| `name` | `string` | Display name. |
+| `subjects` | `repeated string` | EVT subjects consumed by this projection. |
+| `started` | `bool` | Whether the projection projector is running. |
+| `startup_duration_seconds` | `optional double` | Startup duration in seconds, set after startup completes. |
+| `last_applied_sequence` | `string` | Last event sequence applied by the projection. |
+| `matching_stream_sequence` | `string` | Target sequence among the projection's matching subjects. |
+| `stream_last_sequence` | `string` | Current last sequence of the EVT stream. |
+| `lag` | `int64` | Matching-subject lag between target and applied sequence. |
+| `failed` | `bool` | Whether the projection failed. |
+| `failed_sequence` | `string` | Sequence that failed, when failed is true. |
+| `failure` | `string` | Failure message, when failed is true. |
+| `entry_count` | `int64` | Estimated number of entries held by the projection. |
+| `estimated_bytes` | `int64` | Estimated memory used by the projection in bytes. |
+| `average_entry_bytes` | `int64` | Estimated average memory per entry in bytes. |
+| `metrics` | repeated [`AdminProjectionMetric`](#chatto-admin-v1-AdminProjectionMetric) | Projection-specific diagnostic metrics. |
+
+<a id="chatto-admin-v1-AdminServerStats"></a>
+
+### AdminServerStats
+
+Aggregate Chatto object counts.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_count` | `int32` | Registered user count. |
+| `channel_room_count` | `int32` | Channel room count. |
+| `dm_room_count` | `int32` | Direct-message room count. |
+
+<a id="chatto-admin-v1-AdminSystemInfo"></a>
+
+### AdminSystemInfo
+
+Broker and application diagnostics shown on the server admin system page.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `connection` | [`AdminConnectionInfo`](#chatto-admin-v1-AdminConnectionInfo) | Current NATS server connection metadata. |
+| `account` | [`AdminAccountInfo`](#chatto-admin-v1-AdminAccountInfo) | JetStream account limits and usage. |
+| `nats` | [`AdminNatsStats`](#chatto-admin-v1-AdminNatsStats) | JetStream stream and consumer diagnostics. |
+| `stats` | [`AdminServerStats`](#chatto-admin-v1-AdminServerStats) | Aggregate Chatto object counts. |
+
+<a id="chatto-admin-v1-AdminEventLogEntry"></a>
+
+### AdminEventLogEntry
+
+One durable EVT entry decoded for operator inspection.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `sequence` | `string` | EVT stream sequence. |
+| `subject` | `string` | NATS subject. |
+| `aggregate_type` | `string` | Aggregate type parsed from the subject. |
+| `aggregate_id` | `string` | Aggregate ID parsed from the subject. |
+| `event_type` | `string` | Event oneof payload type, or decode-error when decoding failed. |
+| `event_id` | `string` | Durable event ID. |
+| `actor_id` | `string` | Actor user ID stored on the event. |
+| `created_at` | `google.protobuf.Timestamp` | Event creation timestamp. |
+| `payload_json` | `string` | Pretty-printed JSON representation of the event payload. |
+
+<a id="chatto-admin-v1-AdminEventLogFilter"></a>
+
+### AdminEventLogFilter
+
+Filter for owner/auditor event-log inspection.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `event_type` | `string` | Event oneof payload type, such as MessagePostedEvent. |
+| `actor_id` | `string` | Actor user ID. |
+| `created_at_from` | `google.protobuf.Timestamp` | Inclusive lower creation timestamp bound. |
+| `created_at_to` | `google.protobuf.Timestamp` | Inclusive upper creation timestamp bound. |
+
+<a id="chatto-admin-v1-AdminMember"></a>
+
+### AdminMember
+
+User row returned by server-admin member management reads.
+
+The embedded user record carries public identity fields; remaining fields are
+admin/member metadata with visibility controlled by the service.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `roles` | `repeated string` | Explicit server role assignments. The implicit everyone role is omitted. |
+| `created_at` | `google.protobuf.Timestamp` | Account creation time, when known. |
+| `has_verified_email` | `bool` | Whether the caller may see that the user has a verified email and one exists. |
+| `verified_emails` | `repeated string` | Verified email addresses visible to the caller. |
+| `viewer_can_delete_account` | `bool` | Whether the caller may delete this account. |
+| `last_login_change` | `google.protobuf.Timestamp` | Last self-service username change, when visible and known. |
+| `user` | `chatto.api.v1.User` | Public identity fields for this user. |
+
+<a id="chatto-admin-v1-AdminMemberRole"></a>
+
+### AdminMemberRole
+
+Server role details used by the member detail role-assignment UI.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `name` | `string` | Stable role name. |
+| `display_name` | `string` | Display name shown in admin UI. |
+| `position` | `int32` | Display/order position. |
+| `permissions` | `repeated string` | Server permissions granted by this role. |
+| `permission_denials` | `repeated string` | Server permissions denied by this role. |
+
+<a id="chatto-admin-v1-AdminRoleReference"></a>
+
+### AdminRoleReference
+
+Role reference used by member list filters and badges.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `name` | `string` | Stable role name. |
+| `display_name` | `string` | Display name shown in admin UI. |
+
+<a id="chatto-admin-v1-PermissionExplanation"></a>
+
+### PermissionExplanation
+
+Full decision trace for one permission and target user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `permission` | `string` | Permission identifier. |
+| `state` | [`PermissionDecision`](#chatto-admin-v1-PermissionDecision) | Overall decision after applying deny-wins resolution. |
+| `decided_at` | [`PermissionDecisionLevel`](#chatto-admin-v1-PermissionDecisionLevel) | Level of the winning decision, when state is not NONE. |
+| `decided_by_role` | `string` | Role name or policy marker that produced the winning decision. |
+| `trace` | repeated [`PermissionTraceEntry`](#chatto-admin-v1-PermissionTraceEntry) | Ordered decision trace. The first entry is the winning decision. |
+
+<a id="chatto-admin-v1-PermissionMatrixCell"></a>
+
+### PermissionMatrixCell
+
+Matrix cell for one permission and scope.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `permission` | `string` | Permission identifier. |
+| `scope_id` | `string` | Scope ID matching PermissionMatrixScope.id. |
+| `override` | [`PermissionDecision`](#chatto-admin-v1-PermissionDecision) | Explicit decision at this scope. |
+| `effective` | [`PermissionDecision`](#chatto-admin-v1-PermissionDecision) | Effective decision at this scope. |
+
+<a id="chatto-admin-v1-PermissionMatrixScope"></a>
+
+### PermissionMatrixScope
+
+Matrix column scope.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | Stable scope ID for the server, a group, or a room. |
+| `label` | `string` | Human-readable label. |
+| `kind` | [`PermissionScopeKind`](#chatto-admin-v1-PermissionScopeKind) | Scope tier. |
+| `parent_group_id` | `string` | Parent group ID for room scopes. |
+
+<a id="chatto-admin-v1-PermissionScope"></a>
+
+### PermissionScope
+
+Permission scope reference.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `kind` | [`PermissionScopeKind`](#chatto-admin-v1-PermissionScopeKind) | Scope tier. |
+| `id` | `string` | Scope ID for group or room scope. Empty for server scope. |
+
+<a id="chatto-admin-v1-PermissionTraceEntry"></a>
+
+### PermissionTraceEntry
+
+One explicit decision encountered while explaining a permission.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `level` | [`PermissionDecisionLevel`](#chatto-admin-v1-PermissionDecisionLevel) | Level at which this decision was observed. |
+| `role_name` | `string` | Role name or policy marker that produced the decision. |
+| `decision` | [`PermissionDecision`](#chatto-admin-v1-PermissionDecision) | Decision observed at this trace step. |
+| `applied` | `bool` | Whether this entry is the winning decision. |
+
+<a id="chatto-admin-v1-RolePermissionMatrix"></a>
+
+### RolePermissionMatrix
+
+Permission matrix for one role across all scopes.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `role_name` | `string` | Role name. |
+| `applicable_permissions` | `repeated string` | Permissions rendered as rows. |
+| `scopes` | repeated [`PermissionMatrixScope`](#chatto-admin-v1-PermissionMatrixScope) | Scopes rendered as columns. |
+| `cells` | repeated [`PermissionMatrixCell`](#chatto-admin-v1-PermissionMatrixCell) | Sparse matrix cells. |
+
+<a id="chatto-admin-v1-TierPermissions"></a>
+
+### TierPermissions
+
+Permission grants and denials at a single tier.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `permissions` | `repeated string` | Explicitly granted permissions. |
+| `permission_denials` | `repeated string` | Explicitly denied permissions. |
+
+<a id="chatto-admin-v1-TierRole"></a>
+
+### TierRole
+
+One role's permission state at a single tier.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `role_name` | `string` | Stable role name. |
+| `display_name` | `string` | Display name. |
+| `description` | `string` | Optional role description. |
+| `is_system` | `bool` | Whether this is a built-in role. |
+| `position` | `int32` | Display/order position. |
+| `override` | [`TierPermissions`](#chatto-admin-v1-TierPermissions) | Explicit state at this tier. |
+| `inherited_allows` | `repeated string` | Allows inherited from broader tiers. |
+| `inherited_denials` | `repeated string` | Denials inherited from broader tiers. |
+
+<a id="chatto-admin-v1-TierRoles"></a>
+
+### TierRoles
+
+Role permission matrix for one tier.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `applicable_permissions` | `repeated string` | Permissions configurable at this tier. |
+| `roles` | repeated [`TierRole`](#chatto-admin-v1-TierRole) | Roles sorted by position. |
+
+<a id="chatto-admin-v1-UserPermissionMatrix"></a>
+
+### UserPermissionMatrix
+
+Permission matrix for one user across all scopes.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_id` | `string` | User ID. |
+| `applicable_permissions` | `repeated string` | Permissions rendered as rows. |
+| `scopes` | repeated [`PermissionMatrixScope`](#chatto-admin-v1-PermissionMatrixScope) | Scopes rendered as columns. |
+| `cells` | repeated [`PermissionMatrixCell`](#chatto-admin-v1-PermissionMatrixCell) | Sparse matrix cells. |
+
+<a id="chatto-admin-v1-Role"></a>
+
+### Role
+
+Server role metadata and server-scope permission state.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `name` | `string` | Stable role name used in permission and assignment records. |
+| `display_name` | `string` | Display name shown in admin and mention UIs. |
+| `description` | `string` | Optional role description. |
+| `permissions` | `repeated string` | Server permissions granted by this role. |
+| `permission_denials` | `repeated string` | Server permissions denied by this role. |
+| `is_system` | `bool` | Whether this is a built-in role. |
+| `position` | `int32` | Display/order position. |
+| `pingable` | `bool` | Whether messages may notify users assigned to this role. |
+
+<a id="chatto-admin-v1-AdminRoomLayoutGroup"></a>
+
+### AdminRoomLayoutGroup
+
+Ordered room group used by the admin room layout editor.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | Stable room group ID. |
+| `name` | `string` | Display name. |
+| `description` | `string` | Operator-facing description, when set. |
+| `rooms` | repeated [`AdminRoomLayoutRoom`](#chatto-admin-v1-AdminRoomLayoutRoom) | Channel rooms in this group order. |
+| `items` | repeated [`AdminRoomLayoutItem`](#chatto-admin-v1-AdminRoomLayoutItem) | Mixed room/sidebar-link entries in sidebar order. |
+
+<a id="chatto-admin-v1-AdminRoomLayoutItem"></a>
+
+### AdminRoomLayoutItem
+
+One ordered sidebar item in an admin room group layout.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `item.room` | [`AdminRoomLayoutRoom`](#chatto-admin-v1-AdminRoomLayoutRoom) | Channel room entry. |
+| `item.sidebar_link` | `chatto.api.v1.SidebarLink` | Sidebar link entry. |
+
+<a id="chatto-admin-v1-AdminRoomLayoutItemInput"></a>
+
+### AdminRoomLayoutItemInput
+
+One item reference in a sidebar order replacement.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `kind` | [`AdminRoomLayoutItemKind`](#chatto-admin-v1-AdminRoomLayoutItemKind) | Item kind. |
+| `id` | `string` | Room ID when kind is ROOM, sidebar link ID when kind is SIDEBAR_LINK. |
+
+<a id="chatto-admin-v1-AdminRoomLayoutRoom"></a>
+
+### AdminRoomLayoutRoom
+
+Room metadata used by server administrators when editing channel layout.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | Stable room ID. |
+| `name` | `string` | Display name. |
+| `description` | `string` | Optional room description. |
+| `archived` | `bool` | True when the room is archived. |
+| `universal` | `bool` | True when the channel grants effective membership to eligible members. |
 
 
 
@@ -1147,9 +1147,9 @@ Notification delivery level for a room.
 
 Live presence status returned by public read APIs.
 
-Offline is a read-side state only. Clients cannot report Offline through
-PresenceService.ReportPresence; they should stop reporting presence and let
-the server's live presence record expire.
+Offline is a read-side state only. Clients cannot report Offline through the
+account presence RPC; they should stop reporting presence and let the
+server's live presence record expire.
 
 | Name | Number | Description |
 | --- | --- | --- |
@@ -1184,43 +1184,6 @@ User preference for rendering times in clients.
 | `TIME_FORMAT_12_HOUR` | `2` | Render times using a 12-hour clock. |
 | `TIME_FORMAT_24_HOUR` | `3` | Render times using a 24-hour clock. |
 
-<a id="chatto-api-v1-RoomKind"></a>
-
-### RoomKind
-
-Kind of room represented by the public API.
-
-| Name | Number | Description |
-| --- | --- | --- |
-| `ROOM_KIND_UNSPECIFIED` | `0` | The room kind was not specified. |
-| `ROOM_KIND_CHANNEL` | `1` | A regular channel governed by server and room permissions. |
-| `ROOM_KIND_DM` | `2` | A direct-message conversation between members. |
-
-<a id="chatto-api-v1-RoomDirectoryScope"></a>
-
-### RoomDirectoryScope
-
-Room kinds to include in directory responses.
-
-| Name | Number | Description |
-| --- | --- | --- |
-| `ROOM_DIRECTORY_SCOPE_UNSPECIFIED` | `0` | Include both visible channel rooms and the caller's active DM rooms. |
-| `ROOM_DIRECTORY_SCOPE_ALL` | `1` | Include both visible channel rooms and the caller's active DM rooms. |
-| `ROOM_DIRECTORY_SCOPE_CHANNELS` | `2` | Include visible channel rooms only. |
-| `ROOM_DIRECTORY_SCOPE_DMS` | `3` | Include the caller's active DM rooms only. |
-
-<a id="chatto-api-v1-AdminRoomLayoutItemKind"></a>
-
-### AdminRoomLayoutItemKind
-
-Sidebar item kind used in reorder requests.
-
-| Name | Number | Description |
-| --- | --- | --- |
-| `ADMIN_ROOM_LAYOUT_ITEM_KIND_UNSPECIFIED` | `0` | The item kind was not specified. |
-| `ADMIN_ROOM_LAYOUT_ITEM_KIND_ROOM` | `1` | Channel room entry. |
-| `ADMIN_ROOM_LAYOUT_ITEM_KIND_SIDEBAR_LINK` | `2` | Sidebar link entry. |
-
 <a id="chatto-api-v1-RoomTimelineVideoProcessingStatus"></a>
 
 ### RoomTimelineVideoProcessingStatus
@@ -1246,7 +1209,32 @@ Fit mode used when generating transformed attachment thumbnails.
 | `ATTACHMENT_FIT_MODE_CONTAIN` | `1` | Preserve the whole source image within the requested bounds. |
 | `ATTACHMENT_FIT_MODE_COVER` | `2` | Fill the requested bounds, cropping when needed. |
 
-<a id="chatto-api-v1-PermissionDecision"></a>
+<a id="chatto-api-v1-RoomKind"></a>
+
+### RoomKind
+
+Kind of room represented by the public API.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `ROOM_KIND_UNSPECIFIED` | `0` | The room kind was not specified. |
+| `ROOM_KIND_CHANNEL` | `1` | A regular channel governed by server and room permissions. |
+| `ROOM_KIND_DM` | `2` | A direct-message conversation between members. |
+
+<a id="chatto-api-v1-RoomDirectoryScope"></a>
+
+### RoomDirectoryScope
+
+Room kinds to include in directory responses.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `ROOM_DIRECTORY_SCOPE_UNSPECIFIED` | `0` | Include both visible channel rooms and the caller's active DM rooms. |
+| `ROOM_DIRECTORY_SCOPE_ALL` | `1` | Include both visible channel rooms and the caller's active DM rooms. |
+| `ROOM_DIRECTORY_SCOPE_CHANNELS` | `2` | Include visible channel rooms only. |
+| `ROOM_DIRECTORY_SCOPE_DMS` | `3` | Include the caller's active DM rooms only. |
+
+<a id="chatto-admin-v1-PermissionDecision"></a>
 
 ### PermissionDecision
 
@@ -1259,7 +1247,7 @@ Trinary permission decision used by permission matrices and write requests.
 | `PERMISSION_DECISION_DENY` | `2` | Explicit deny. |
 | `PERMISSION_DECISION_NONE` | `3` | No explicit decision; clears the permission state on writes. |
 
-<a id="chatto-api-v1-PermissionDecisionLevel"></a>
+<a id="chatto-admin-v1-PermissionDecisionLevel"></a>
 
 ### PermissionDecisionLevel
 
@@ -1272,7 +1260,7 @@ Level at which a permission explanation found a decision.
 | `PERMISSION_DECISION_LEVEL_GROUP` | `2` | Room-group-level role or user decision. |
 | `PERMISSION_DECISION_LEVEL_ROOM` | `3` | Room-level role or user decision. |
 
-<a id="chatto-api-v1-PermissionScopeKind"></a>
+<a id="chatto-admin-v1-PermissionScopeKind"></a>
 
 ### PermissionScopeKind
 
@@ -1284,3 +1272,15 @@ Scope tier for permission matrices and write requests.
 | `PERMISSION_SCOPE_KIND_SERVER` | `1` | Server tier. |
 | `PERMISSION_SCOPE_KIND_GROUP` | `2` | Room-group tier. |
 | `PERMISSION_SCOPE_KIND_ROOM` | `3` | Room tier. |
+
+<a id="chatto-admin-v1-AdminRoomLayoutItemKind"></a>
+
+### AdminRoomLayoutItemKind
+
+Sidebar item kind used in reorder requests.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `ADMIN_ROOM_LAYOUT_ITEM_KIND_UNSPECIFIED` | `0` | The item kind was not specified. |
+| `ADMIN_ROOM_LAYOUT_ITEM_KIND_ROOM` | `1` | Channel room entry. |
+| `ADMIN_ROOM_LAYOUT_ITEM_KIND_SIDEBAR_LINK` | `2` | Sidebar link entry. |

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { UserSummary as APIUserSummary } from '$lib/pb/chatto/api/v1/users_pb';
+import { User as APIUser } from '$lib/pb/chatto/api/v1/users_pb';
 import { createUserAPI, mapUserSummary } from './users';
 
 const mocks = vi.hoisted(() => ({
@@ -67,7 +67,7 @@ describe('createUserAPI', () => {
 
   it('maps missing avatar URLs to null', () => {
     expect(
-      mapUserSummary(new APIUserSummary({
+      mapUserSummary(new APIUser({
         id: 'U2',
         login: 'bob',
         displayName: 'Bob',

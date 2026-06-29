@@ -289,8 +289,8 @@ const file_chatto_api_v1_server_proto_rawDesc = "" +
 	"\x10_welcome_messageB\x0e\n" +
 	"\f_descriptionB\v\n" +
 	"\t_logo_urlB\r\n" +
-	"\v_banner_url2_\n" +
-	"\rServerService\x12N\n" +
+	"\v_banner_url2h\n" +
+	"\x16ServerDiscoveryService\x12N\n" +
 	"\tGetServer\x12\x1f.chatto.api.v1.GetServerRequest\x1a .chatto.api.v1.GetServerResponseB\xa7\x01\n" +
 	"\x11com.chatto.api.v1B\vServerProtoP\x01Z/hmans.de/chatto/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
 
@@ -314,8 +314,8 @@ var file_chatto_api_v1_server_proto_goTypes = []any{
 }
 var file_chatto_api_v1_server_proto_depIdxs = []int32{
 	0, // 0: chatto.api.v1.GetServerResponse.auth_providers:type_name -> chatto.api.v1.AuthProvider
-	1, // 1: chatto.api.v1.ServerService.GetServer:input_type -> chatto.api.v1.GetServerRequest
-	2, // 2: chatto.api.v1.ServerService.GetServer:output_type -> chatto.api.v1.GetServerResponse
+	1, // 1: chatto.api.v1.ServerDiscoveryService.GetServer:input_type -> chatto.api.v1.GetServerRequest
+	2, // 2: chatto.api.v1.ServerDiscoveryService.GetServer:output_type -> chatto.api.v1.GetServerResponse
 	2, // [2:3] is the sub-list for method output_type
 	1, // [1:2] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name

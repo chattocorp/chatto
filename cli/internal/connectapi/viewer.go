@@ -76,8 +76,8 @@ func (s *viewerService) viewerUser(ctx context.Context, user *corev1.User) (*api
 		HasVerifiedEmail:       hasVerifiedEmail,
 		Settings:               coreUserSettingsToAPI(settings),
 		ViewerCanDeleteAccount: canDeleteAccount,
-		Profile: &apiv1.UserPresenceSummary{
-			User: &apiv1.UserSummary{
+		Profile: &apiv1.UserProfile{
+			User: &apiv1.User{
 				Id:          user.GetId(),
 				Login:       user.GetLogin(),
 				DisplayName: user.GetDisplayName(),

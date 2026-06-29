@@ -1,7 +1,7 @@
 import { createClient } from '@connectrpc/connect';
 import { createConnectTransport } from '@connectrpc/connect-web';
-import { UserService } from '$lib/pb/chatto/api/v1/users_connect';
-import type { UserSummary as APIUserSummary } from '$lib/pb/chatto/api/v1/users_pb';
+import { UserDirectoryService } from '$lib/pb/chatto/api/v1/users_connect';
+import type { User as APIUser } from '$lib/pb/chatto/api/v1/users_pb';
 
 export type UserAPIConfig = {
   baseUrl: string;
@@ -21,7 +21,7 @@ export function createUserAPI(config: UserAPIConfig) {
     baseUrl: config.baseUrl,
     useBinaryFormat: true
   });
-  const client = createClient(UserService, transport);
+  const client = createClient(UserDirectoryService, transport);
   const headers = () =>
     config.bearerToken ? { Authorization: `Bearer ${config.bearerToken}` } : undefined;
 
@@ -35,7 +35,7 @@ export function createUserAPI(config: UserAPIConfig) {
 
 export type UserAPI = ReturnType<typeof createUserAPI>;
 
-export function mapUserSummary(user: APIUserSummary): UserSummary {
+export function mapUserSummary(user: APIUser): UserSummary {
   return {
     id: user.id,
     login: user.login,

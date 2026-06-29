@@ -60,7 +60,7 @@ message NotificationItem {
   // Creation time.
   google.protobuf.Timestamp created_at = 2;
   // User who triggered the notification, when still resolvable.
-  UserPresenceSummary actor = 3;
+  UserProfile actor = 3;
   // Short human-readable notification summary.
   string summary = 4;
 

@@ -335,13 +335,13 @@ func (h *timelineHydrator) linkPreview(preview *corev1.LinkPreview) *apiv1.LinkP
 	return apiLinkPreview(h.api, preview)
 }
 
-func (h *timelineHydrator) reactions(messageEventID string) []*apiv1.RoomTimelineReactionSummary {
+func (h *timelineHydrator) reactions(messageEventID string) []*apiv1.RoomTimelineReaction {
 	summaries := h.reactionsByMessageID[messageEventID]
-	result := make([]*apiv1.RoomTimelineReactionSummary, 0, len(summaries))
+	result := make([]*apiv1.RoomTimelineReaction, 0, len(summaries))
 	for _, summary := range summaries {
 		previewUserIDs := firstN(summary.UserIDs, 5)
 		h.addUserIDs(previewUserIDs)
-		result = append(result, &apiv1.RoomTimelineReactionSummary{
+		result = append(result, &apiv1.RoomTimelineReaction{
 			Emoji:      summary.Emoji,
 			Count:      int32(len(summary.UserIDs)),
 			HasReacted: containsString(summary.UserIDs, h.viewerID),
@@ -351,7 +351,7 @@ func (h *timelineHydrator) reactions(messageEventID string) []*apiv1.RoomTimelin
 	return result
 }
 
-func (h *timelineHydrator) users() (map[string]*apiv1.UserSummary, error) {
+func (h *timelineHydrator) users() (map[string]*apiv1.User, error) {
 	ids := make([]string, 0, len(h.userIDs))
 	for id := range h.userIDs {
 		ids = append(ids, id)
@@ -361,14 +361,14 @@ func (h *timelineHydrator) users() (map[string]*apiv1.UserSummary, error) {
 		return nil, err
 	}
 
-	result := make(map[string]*apiv1.UserSummary, len(ids))
+	result := make(map[string]*apiv1.User, len(ids))
 	avatarWidth, avatarHeight := 96, 96
 	for i, id := range ids {
 		user := coreUsers[i]
 		if user == nil {
 			user = core.DeletedUserReference(id)
 		}
-		summary := &apiv1.UserSummary{
+		summary := &apiv1.User{
 			Id:          user.Id,
 			Login:       user.Login,
 			DisplayName: user.DisplayName,

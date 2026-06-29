@@ -4,9 +4,9 @@ description: Generated protobuf frame reference for the Chatto realtime WebSocke
 editUrl: false
 ---
 
-{/* Generated from proto/chatto/api/v1/*.proto. Do not edit directly. */}
+{/* Generated from proto/chatto/{api,admin,realtime}/v1/*.proto. Do not edit directly. */}
 
-Chatto exposes realtime updates at `GET /api/realtime` using binary protobuf frames from `chatto.api.v1`.
+Chatto exposes realtime updates at `GET /api/realtime` using binary protobuf frames from `chatto.realtime.v1`.
 
 
 
@@ -18,7 +18,7 @@ Realtime frames are documented separately from ConnectRPC services because they 
 
 
 
-<a id="chatto-api-v1-RealtimeAssetDeletedEvent"></a>
+<a id="chatto-realtime-v1-RealtimeAssetDeletedEvent"></a>
 
 ### RealtimeAssetDeletedEvent
 
@@ -29,7 +29,7 @@ Asset-deleted signal.
 | `room_id` | `optional string` | Room containing the message that owned the asset, when known. |
 | `asset_id` | `string` | Asset ID. |
 
-<a id="chatto-api-v1-RealtimeAssetProcessingEvent"></a>
+<a id="chatto-realtime-v1-RealtimeAssetProcessingEvent"></a>
 
 ### RealtimeAssetProcessingEvent
 
@@ -41,7 +41,7 @@ Asset-processing signal.
 | `asset_id` | `string` | Asset ID. |
 | `message_event_id` | `optional string` | Event ID of the message that owns the asset, when known. |
 
-<a id="chatto-api-v1-RealtimeCallEvent"></a>
+<a id="chatto-realtime-v1-RealtimeCallEvent"></a>
 
 ### RealtimeCallEvent
 
@@ -51,9 +51,9 @@ Voice-call state signal.
 | --- | --- | --- |
 | `room_id` | `string` | Room containing the call. |
 | `call_id` | `string` | Call ID. |
-| `source` | [`RealtimeCallEventSource`](#chatto-api-v1-RealtimeCallEventSource) | Source that produced the call transition. |
+| `source` | [`RealtimeCallEventSource`](#chatto-realtime-v1-RealtimeCallEventSource) | Source that produced the call transition. |
 
-<a id="chatto-api-v1-RealtimeClientFrame"></a>
+<a id="chatto-realtime-v1-RealtimeClientFrame"></a>
 
 ### RealtimeClientFrame
 
@@ -65,11 +65,11 @@ be `hello`; after the server replies with `hello`, clients send
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `frame.hello` | [`RealtimeClientHello`](#chatto-api-v1-RealtimeClientHello) | Opens the protocol session and optionally carries a bearer token. |
-| `frame.subscribe_events` | [`RealtimeSubscribeEvents`](#chatto-api-v1-RealtimeSubscribeEvents) | Starts the caller's authorized live-event stream. |
-| `frame.ping` | [`RealtimePing`](#chatto-api-v1-RealtimePing) | Application-level ping. The server replies with `pong`. |
+| `frame.hello` | [`RealtimeClientHello`](#chatto-realtime-v1-RealtimeClientHello) | Opens the protocol session and optionally carries a bearer token. |
+| `frame.subscribe_events` | [`RealtimeSubscribeEvents`](#chatto-realtime-v1-RealtimeSubscribeEvents) | Starts the caller's authorized live-event stream. |
+| `frame.ping` | [`RealtimePing`](#chatto-realtime-v1-RealtimePing) | Application-level ping. The server replies with `pong`. |
 
-<a id="chatto-api-v1-RealtimeClientHello"></a>
+<a id="chatto-realtime-v1-RealtimeClientHello"></a>
 
 ### RealtimeClientHello
 
@@ -80,7 +80,7 @@ Initial client hello.
 | `protocol_version` | `uint32` | Protocol version requested by the client. The current version is 1. |
 | `bearer_token` | `optional string` | Optional bearer token. When present, it takes precedence over cookie auth. |
 
-<a id="chatto-api-v1-RealtimeClose"></a>
+<a id="chatto-realtime-v1-RealtimeClose"></a>
 
 ### RealtimeClose
 
@@ -93,7 +93,7 @@ Close instruction sent before the socket is closed when possible.
 | `reconnect` | `bool` | True when the client should reconnect after a delay. |
 | `retry_after_ms` | `uint32` | Suggested reconnect delay in milliseconds. |
 
-<a id="chatto-api-v1-RealtimeError"></a>
+<a id="chatto-realtime-v1-RealtimeError"></a>
 
 ### RealtimeError
 
@@ -105,7 +105,7 @@ Protocol error.
 | `message` | `string` | Human-readable diagnostic message. |
 | `fatal` | `bool` | True when the server will close the socket after sending this error. |
 
-<a id="chatto-api-v1-RealtimeEventEnvelope"></a>
+<a id="chatto-realtime-v1-RealtimeEventEnvelope"></a>
 
 ### RealtimeEventEnvelope
 
@@ -116,47 +116,47 @@ One authorized live event delivered over the realtime WebSocket.
 | `id` | `string` | Stable event ID. |
 | `created_at` | `google.protobuf.Timestamp` | Time the event was created. |
 | `actor_id` | `optional string` | User or system actor that caused the event, when known. |
-| `event.message_posted` | [`RealtimeMessagePostedEvent`](#chatto-api-v1-RealtimeMessagePostedEvent) | A message was posted in a room or thread. |
-| `event.message_edited` | [`RealtimeMessageEditedEvent`](#chatto-api-v1-RealtimeMessageEditedEvent) | A message body or renderable metadata changed. |
-| `event.message_retracted` | [`RealtimeMessageRetractedEvent`](#chatto-api-v1-RealtimeMessageRetractedEvent) | A message was retracted. |
-| `event.reaction_added` | [`RealtimeReactionEvent`](#chatto-api-v1-RealtimeReactionEvent) | A user added a reaction to a message. |
-| `event.reaction_removed` | [`RealtimeReactionEvent`](#chatto-api-v1-RealtimeReactionEvent) | A user removed a reaction from a message. |
-| `event.user_typing` | [`RealtimeTypingEvent`](#chatto-api-v1-RealtimeTypingEvent) | A user is typing in a room or thread. |
-| `event.presence_changed` | [`RealtimePresenceChangedEvent`](#chatto-api-v1-RealtimePresenceChangedEvent) | A user's live presence changed. |
-| `event.room_created` | [`RealtimeRoomEvent`](#chatto-api-v1-RealtimeRoomEvent) | A room was created. |
-| `event.room_updated` | [`RealtimeRoomEvent`](#chatto-api-v1-RealtimeRoomEvent) | A room's profile or settings changed. |
-| `event.room_deleted` | [`RealtimeRoomEvent`](#chatto-api-v1-RealtimeRoomEvent) | A room was deleted. |
-| `event.room_archived` | [`RealtimeRoomEvent`](#chatto-api-v1-RealtimeRoomEvent) | A room was archived. |
-| `event.room_unarchived` | [`RealtimeRoomEvent`](#chatto-api-v1-RealtimeRoomEvent) | A room was restored from the archive. |
-| `event.user_joined_room` | [`RealtimeRoomEvent`](#chatto-api-v1-RealtimeRoomEvent) | A user joined a room visible to the current user. |
-| `event.user_left_room` | [`RealtimeRoomEvent`](#chatto-api-v1-RealtimeRoomEvent) | A user left a room visible to the current user. |
-| `event.room_universal_changed` | [`RealtimeRoomUniversalChangedEvent`](#chatto-api-v1-RealtimeRoomUniversalChangedEvent) | A room's universal visibility flag changed. |
-| `event.notification_created` | [`RealtimeNotificationCreatedEvent`](#chatto-api-v1-RealtimeNotificationCreatedEvent) | A notification was created for the current user. |
-| `event.notification_dismissed` | [`RealtimeNotificationDismissedEvent`](#chatto-api-v1-RealtimeNotificationDismissedEvent) | A notification was dismissed for the current user. |
-| `event.notification_level_changed` | [`RealtimeNotificationLevelChangedEvent`](#chatto-api-v1-RealtimeNotificationLevelChangedEvent) | The current user's notification level changed. |
-| `event.thread_follow_changed` | [`RealtimeThreadFollowChangedEvent`](#chatto-api-v1-RealtimeThreadFollowChangedEvent) | The current user's thread follow state changed. |
-| `event.room_marked_as_read` | [`RealtimeRoomMarkedAsReadEvent`](#chatto-api-v1-RealtimeRoomMarkedAsReadEvent) | The current user's room read state changed. |
-| `event.thread_created` | [`RealtimeThreadCreatedEvent`](#chatto-api-v1-RealtimeThreadCreatedEvent) | A thread was created in a room visible to the current user. |
-| `event.server_updated` | [`RealtimeServerUpdatedEvent`](#chatto-api-v1-RealtimeServerUpdatedEvent) | The server profile/config changed. |
-| `event.user_profile_updated` | [`RealtimeUserProfileUpdatedEvent`](#chatto-api-v1-RealtimeUserProfileUpdatedEvent) | A user profile changed. |
-| `event.user_custom_status_set` | [`RealtimeUserCustomStatusSetEvent`](#chatto-api-v1-RealtimeUserCustomStatusSetEvent) | A user's custom status was set or changed. |
-| `event.user_custom_status_cleared` | [`RealtimeUserCustomStatusClearedEvent`](#chatto-api-v1-RealtimeUserCustomStatusClearedEvent) | A user's custom status was cleared. |
-| `event.server_user_preferences_updated` | [`RealtimeServerUserPreferencesUpdatedEvent`](#chatto-api-v1-RealtimeServerUserPreferencesUpdatedEvent) | The current user's display preferences changed. |
-| `event.room_groups_updated` | [`RealtimeRoomGroupsUpdatedEvent`](#chatto-api-v1-RealtimeRoomGroupsUpdatedEvent) | Room-group layout changed. |
-| `event.server_member_deleted` | [`RealtimeServerMemberDeletedEvent`](#chatto-api-v1-RealtimeServerMemberDeletedEvent) | A server member was deleted. |
-| `event.asset_processing_started` | [`RealtimeAssetProcessingEvent`](#chatto-api-v1-RealtimeAssetProcessingEvent) | Asset processing started for a message attachment. |
-| `event.asset_processing_succeeded` | [`RealtimeAssetProcessingEvent`](#chatto-api-v1-RealtimeAssetProcessingEvent) | Asset processing completed successfully for a message attachment. |
-| `event.asset_processing_failed` | [`RealtimeAssetProcessingEvent`](#chatto-api-v1-RealtimeAssetProcessingEvent) | Asset processing failed for a message attachment. |
-| `event.asset_deleted` | [`RealtimeAssetDeletedEvent`](#chatto-api-v1-RealtimeAssetDeletedEvent) | An asset attached to a message was deleted. |
-| `event.call_started` | [`RealtimeCallEvent`](#chatto-api-v1-RealtimeCallEvent) | A voice call started in a room. |
-| `event.call_participant_joined` | [`RealtimeCallEvent`](#chatto-api-v1-RealtimeCallEvent) | A participant joined a voice call. |
-| `event.call_participant_left` | [`RealtimeCallEvent`](#chatto-api-v1-RealtimeCallEvent) | A participant left a voice call. |
-| `event.call_ended` | [`RealtimeCallEvent`](#chatto-api-v1-RealtimeCallEvent) | A voice call ended. |
-| `event.mention_notification` | [`RealtimeMentionNotificationEvent`](#chatto-api-v1-RealtimeMentionNotificationEvent) | The current user was mentioned in a room. |
-| `event.new_direct_message_notification` | [`RealtimeNewDirectMessageNotificationEvent`](#chatto-api-v1-RealtimeNewDirectMessageNotificationEvent) | The current user received a new direct message. |
-| `event.session_terminated` | [`RealtimeSessionTerminatedEvent`](#chatto-api-v1-RealtimeSessionTerminatedEvent) | The current user's session was terminated. |
+| `event.message_posted` | [`RealtimeMessagePostedEvent`](#chatto-realtime-v1-RealtimeMessagePostedEvent) | A message was posted in a room or thread. |
+| `event.message_edited` | [`RealtimeMessageEditedEvent`](#chatto-realtime-v1-RealtimeMessageEditedEvent) | A message body or renderable metadata changed. |
+| `event.message_retracted` | [`RealtimeMessageRetractedEvent`](#chatto-realtime-v1-RealtimeMessageRetractedEvent) | A message was retracted. |
+| `event.reaction_added` | [`RealtimeReactionEvent`](#chatto-realtime-v1-RealtimeReactionEvent) | A user added a reaction to a message. |
+| `event.reaction_removed` | [`RealtimeReactionEvent`](#chatto-realtime-v1-RealtimeReactionEvent) | A user removed a reaction from a message. |
+| `event.user_typing` | [`RealtimeTypingEvent`](#chatto-realtime-v1-RealtimeTypingEvent) | A user is typing in a room or thread. |
+| `event.presence_changed` | [`RealtimePresenceChangedEvent`](#chatto-realtime-v1-RealtimePresenceChangedEvent) | A user's live presence changed. |
+| `event.room_created` | [`RealtimeRoomEvent`](#chatto-realtime-v1-RealtimeRoomEvent) | A room was created. |
+| `event.room_updated` | [`RealtimeRoomEvent`](#chatto-realtime-v1-RealtimeRoomEvent) | A room's profile or settings changed. |
+| `event.room_deleted` | [`RealtimeRoomEvent`](#chatto-realtime-v1-RealtimeRoomEvent) | A room was deleted. |
+| `event.room_archived` | [`RealtimeRoomEvent`](#chatto-realtime-v1-RealtimeRoomEvent) | A room was archived. |
+| `event.room_unarchived` | [`RealtimeRoomEvent`](#chatto-realtime-v1-RealtimeRoomEvent) | A room was restored from the archive. |
+| `event.user_joined_room` | [`RealtimeRoomEvent`](#chatto-realtime-v1-RealtimeRoomEvent) | A user joined a room visible to the current user. |
+| `event.user_left_room` | [`RealtimeRoomEvent`](#chatto-realtime-v1-RealtimeRoomEvent) | A user left a room visible to the current user. |
+| `event.room_universal_changed` | [`RealtimeRoomUniversalChangedEvent`](#chatto-realtime-v1-RealtimeRoomUniversalChangedEvent) | A room's universal visibility flag changed. |
+| `event.notification_created` | [`RealtimeNotificationCreatedEvent`](#chatto-realtime-v1-RealtimeNotificationCreatedEvent) | A notification was created for the current user. |
+| `event.notification_dismissed` | [`RealtimeNotificationDismissedEvent`](#chatto-realtime-v1-RealtimeNotificationDismissedEvent) | A notification was dismissed for the current user. |
+| `event.notification_level_changed` | [`RealtimeNotificationLevelChangedEvent`](#chatto-realtime-v1-RealtimeNotificationLevelChangedEvent) | The current user's notification level changed. |
+| `event.thread_follow_changed` | [`RealtimeThreadFollowChangedEvent`](#chatto-realtime-v1-RealtimeThreadFollowChangedEvent) | The current user's thread follow state changed. |
+| `event.room_marked_as_read` | [`RealtimeRoomMarkedAsReadEvent`](#chatto-realtime-v1-RealtimeRoomMarkedAsReadEvent) | The current user's room read state changed. |
+| `event.thread_created` | [`RealtimeThreadCreatedEvent`](#chatto-realtime-v1-RealtimeThreadCreatedEvent) | A thread was created in a room visible to the current user. |
+| `event.server_updated` | [`RealtimeServerUpdatedEvent`](#chatto-realtime-v1-RealtimeServerUpdatedEvent) | The server profile/config changed. |
+| `event.user_profile_updated` | [`RealtimeUserProfileUpdatedEvent`](#chatto-realtime-v1-RealtimeUserProfileUpdatedEvent) | A user profile changed. |
+| `event.user_custom_status_set` | [`RealtimeUserCustomStatusSetEvent`](#chatto-realtime-v1-RealtimeUserCustomStatusSetEvent) | A user's custom status was set or changed. |
+| `event.user_custom_status_cleared` | [`RealtimeUserCustomStatusClearedEvent`](#chatto-realtime-v1-RealtimeUserCustomStatusClearedEvent) | A user's custom status was cleared. |
+| `event.server_user_preferences_updated` | [`RealtimeServerUserPreferencesUpdatedEvent`](#chatto-realtime-v1-RealtimeServerUserPreferencesUpdatedEvent) | The current user's display preferences changed. |
+| `event.room_groups_updated` | [`RealtimeRoomGroupsUpdatedEvent`](#chatto-realtime-v1-RealtimeRoomGroupsUpdatedEvent) | Room-group layout changed. |
+| `event.server_member_deleted` | [`RealtimeServerMemberDeletedEvent`](#chatto-realtime-v1-RealtimeServerMemberDeletedEvent) | A server member was deleted. |
+| `event.asset_processing_started` | [`RealtimeAssetProcessingEvent`](#chatto-realtime-v1-RealtimeAssetProcessingEvent) | Asset processing started for a message attachment. |
+| `event.asset_processing_succeeded` | [`RealtimeAssetProcessingEvent`](#chatto-realtime-v1-RealtimeAssetProcessingEvent) | Asset processing completed successfully for a message attachment. |
+| `event.asset_processing_failed` | [`RealtimeAssetProcessingEvent`](#chatto-realtime-v1-RealtimeAssetProcessingEvent) | Asset processing failed for a message attachment. |
+| `event.asset_deleted` | [`RealtimeAssetDeletedEvent`](#chatto-realtime-v1-RealtimeAssetDeletedEvent) | An asset attached to a message was deleted. |
+| `event.call_started` | [`RealtimeCallEvent`](#chatto-realtime-v1-RealtimeCallEvent) | A voice call started in a room. |
+| `event.call_participant_joined` | [`RealtimeCallEvent`](#chatto-realtime-v1-RealtimeCallEvent) | A participant joined a voice call. |
+| `event.call_participant_left` | [`RealtimeCallEvent`](#chatto-realtime-v1-RealtimeCallEvent) | A participant left a voice call. |
+| `event.call_ended` | [`RealtimeCallEvent`](#chatto-realtime-v1-RealtimeCallEvent) | A voice call ended. |
+| `event.mention_notification` | [`RealtimeMentionNotificationEvent`](#chatto-realtime-v1-RealtimeMentionNotificationEvent) | The current user was mentioned in a room. |
+| `event.new_direct_message_notification` | [`RealtimeNewDirectMessageNotificationEvent`](#chatto-realtime-v1-RealtimeNewDirectMessageNotificationEvent) | The current user received a new direct message. |
+| `event.session_terminated` | [`RealtimeSessionTerminatedEvent`](#chatto-realtime-v1-RealtimeSessionTerminatedEvent) | The current user's session was terminated. |
 
-<a id="chatto-api-v1-RealtimeHeartbeat"></a>
+<a id="chatto-realtime-v1-RealtimeHeartbeat"></a>
 
 ### RealtimeHeartbeat
 
@@ -167,7 +167,7 @@ Application-level heartbeat.
 | `id` | `string` | Stable event ID for this heartbeat. |
 | `created_at` | `google.protobuf.Timestamp` | Time the heartbeat was emitted. |
 
-<a id="chatto-api-v1-RealtimeMentionNotificationEvent"></a>
+<a id="chatto-realtime-v1-RealtimeMentionNotificationEvent"></a>
 
 ### RealtimeMentionNotificationEvent
 
@@ -180,7 +180,7 @@ Mention attention signal for the connected user.
 | `room_name` | `optional string` | Display name of the room where the mention occurred, when hydrated for the caller. |
 | `actor_display_name` | `optional string` | Display name of the author who mentioned the connected user, when hydrated. |
 
-<a id="chatto-api-v1-RealtimeMessageEditedEvent"></a>
+<a id="chatto-realtime-v1-RealtimeMessageEditedEvent"></a>
 
 ### RealtimeMessageEditedEvent
 
@@ -191,7 +191,7 @@ Message-edited signal.
 | `room_id` | `string` | Room containing the message. |
 | `message_event_id` | `string` | Event ID of the edited message. |
 
-<a id="chatto-api-v1-RealtimeMessagePostedEvent"></a>
+<a id="chatto-realtime-v1-RealtimeMessagePostedEvent"></a>
 
 ### RealtimeMessagePostedEvent
 
@@ -203,7 +203,7 @@ Message-posted signal.
 | `message_event_id` | `string` | Event ID of the posted message. |
 | `thread_root_event_id` | `optional string` | Root message event ID when the message was posted in a thread. |
 
-<a id="chatto-api-v1-RealtimeMessageRetractedEvent"></a>
+<a id="chatto-realtime-v1-RealtimeMessageRetractedEvent"></a>
 
 ### RealtimeMessageRetractedEvent
 
@@ -215,7 +215,7 @@ Message-retracted signal.
 | `message_event_id` | `string` | Event ID of the retracted message. |
 | `reason` | `optional string` | Retraction reason, when one was supplied. |
 
-<a id="chatto-api-v1-RealtimeNewDirectMessageNotificationEvent"></a>
+<a id="chatto-realtime-v1-RealtimeNewDirectMessageNotificationEvent"></a>
 
 ### RealtimeNewDirectMessageNotificationEvent
 
@@ -229,7 +229,7 @@ New-DM attention signal for the connected user.
 | `sender_avatar_url` | `optional string` | Avatar URL of the sender, when one is available. |
 | `conversation_name` | `optional string` | Display name for the DM conversation from the connected user's perspective, when hydrated. |
 
-<a id="chatto-api-v1-RealtimeNotificationCreatedEvent"></a>
+<a id="chatto-realtime-v1-RealtimeNotificationCreatedEvent"></a>
 
 ### RealtimeNotificationCreatedEvent
 
@@ -243,7 +243,7 @@ Notification-created signal for the connected user.
 | `in_reply_to_id` | `optional string` | Parent event ID for reply notifications, when known. |
 | `silent` | `bool` | True when the notification should not alert. |
 
-<a id="chatto-api-v1-RealtimeNotificationDismissedEvent"></a>
+<a id="chatto-realtime-v1-RealtimeNotificationDismissedEvent"></a>
 
 ### RealtimeNotificationDismissedEvent
 
@@ -253,7 +253,7 @@ Notification-dismissed signal for the connected user.
 | --- | --- | --- |
 | `notification_id` | `string` | Notification ID. |
 
-<a id="chatto-api-v1-RealtimeNotificationLevelChangedEvent"></a>
+<a id="chatto-realtime-v1-RealtimeNotificationLevelChangedEvent"></a>
 
 ### RealtimeNotificationLevelChangedEvent
 
@@ -262,10 +262,10 @@ Notification-level signal for the connected user.
 | Field | Type | Description |
 | --- | --- | --- |
 | `room_id` | `string` | Room whose notification level changed. |
-| `level` | [`NotificationLevel`](/reference/connectrpc-api/types/#chatto-api-v1-NotificationLevel) | Explicit room notification level. |
-| `effective_level` | [`NotificationLevel`](/reference/connectrpc-api/types/#chatto-api-v1-NotificationLevel) | Effective notification level after defaults are applied. |
+| `level` | `chatto.api.v1.NotificationLevel` | Explicit room notification level. |
+| `effective_level` | `chatto.api.v1.NotificationLevel` | Effective notification level after defaults are applied. |
 
-<a id="chatto-api-v1-RealtimePing"></a>
+<a id="chatto-realtime-v1-RealtimePing"></a>
 
 ### RealtimePing
 
@@ -275,7 +275,7 @@ Application-level ping.
 | --- | --- | --- |
 | `nonce` | `string` | Client-chosen opaque value echoed in the pong. |
 
-<a id="chatto-api-v1-RealtimePong"></a>
+<a id="chatto-realtime-v1-RealtimePong"></a>
 
 ### RealtimePong
 
@@ -285,7 +285,7 @@ Application-level pong.
 | --- | --- | --- |
 | `nonce` | `string` | Echo of the ping nonce. |
 
-<a id="chatto-api-v1-RealtimePresenceChangedEvent"></a>
+<a id="chatto-realtime-v1-RealtimePresenceChangedEvent"></a>
 
 ### RealtimePresenceChangedEvent
 
@@ -294,9 +294,9 @@ Presence-changed signal.
 | Field | Type | Description |
 | --- | --- | --- |
 | `user_id` | `string` | User whose presence changed. |
-| `status` | [`PresenceStatus`](/reference/connectrpc-api/types/#chatto-api-v1-PresenceStatus) | Latest presence status. |
+| `status` | `chatto.api.v1.PresenceStatus` | Latest presence status. |
 
-<a id="chatto-api-v1-RealtimeReactionEvent"></a>
+<a id="chatto-realtime-v1-RealtimeReactionEvent"></a>
 
 ### RealtimeReactionEvent
 
@@ -308,7 +308,7 @@ Reaction signal.
 | `message_event_id` | `string` | Event ID of the reacted-to message. |
 | `emoji` | `string` | Reaction emoji. |
 
-<a id="chatto-api-v1-RealtimeRoomEvent"></a>
+<a id="chatto-realtime-v1-RealtimeRoomEvent"></a>
 
 ### RealtimeRoomEvent
 
@@ -318,7 +318,7 @@ Room lifecycle or membership signal.
 | --- | --- | --- |
 | `room_id` | `string` | Room affected by the event. |
 
-<a id="chatto-api-v1-RealtimeRoomGroupsUpdatedEvent"></a>
+<a id="chatto-realtime-v1-RealtimeRoomGroupsUpdatedEvent"></a>
 
 ### RealtimeRoomGroupsUpdatedEvent
 
@@ -328,7 +328,7 @@ Room-group layout signal.
 | --- | --- | --- |
 | `changed` | `bool` | Always true; present for event-bus compatibility. |
 
-<a id="chatto-api-v1-RealtimeRoomMarkedAsReadEvent"></a>
+<a id="chatto-realtime-v1-RealtimeRoomMarkedAsReadEvent"></a>
 
 ### RealtimeRoomMarkedAsReadEvent
 
@@ -338,7 +338,7 @@ Room-read signal for the connected user.
 | --- | --- | --- |
 | `room_id` | `string` | Room marked read. |
 
-<a id="chatto-api-v1-RealtimeRoomUniversalChangedEvent"></a>
+<a id="chatto-realtime-v1-RealtimeRoomUniversalChangedEvent"></a>
 
 ### RealtimeRoomUniversalChangedEvent
 
@@ -349,7 +349,7 @@ Room universal-visibility signal.
 | `room_id` | `string` | Room whose universal setting changed. |
 | `universal` | `bool` | Latest universal setting. |
 
-<a id="chatto-api-v1-RealtimeServerFrame"></a>
+<a id="chatto-realtime-v1-RealtimeServerFrame"></a>
 
 ### RealtimeServerFrame
 
@@ -357,15 +357,15 @@ Server-to-client frame for Chatto's protobuf WebSocket realtime protocol.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `frame.hello` | [`RealtimeServerHello`](#chatto-api-v1-RealtimeServerHello) | Confirms protocol version, server version, and capabilities. |
-| `frame.subscribed` | [`RealtimeSubscribed`](#chatto-api-v1-RealtimeSubscribed) | Confirms the live-event stream has started. |
-| `frame.event` | [`RealtimeEventEnvelope`](#chatto-api-v1-RealtimeEventEnvelope) | A live event authorized for the connected user. |
-| `frame.heartbeat` | [`RealtimeHeartbeat`](#chatto-api-v1-RealtimeHeartbeat) | Application-level heartbeat used for liveness checks. |
-| `frame.error` | [`RealtimeError`](#chatto-api-v1-RealtimeError) | Protocol or authorization error. |
-| `frame.close` | [`RealtimeClose`](#chatto-api-v1-RealtimeClose) | Server-requested close with reconnect guidance. |
-| `frame.pong` | [`RealtimePong`](#chatto-api-v1-RealtimePong) | Reply to a client ping. |
+| `frame.hello` | [`RealtimeServerHello`](#chatto-realtime-v1-RealtimeServerHello) | Confirms protocol version, server version, and capabilities. |
+| `frame.subscribed` | [`RealtimeSubscribed`](#chatto-realtime-v1-RealtimeSubscribed) | Confirms the live-event stream has started. |
+| `frame.event` | [`RealtimeEventEnvelope`](#chatto-realtime-v1-RealtimeEventEnvelope) | A live event authorized for the connected user. |
+| `frame.heartbeat` | [`RealtimeHeartbeat`](#chatto-realtime-v1-RealtimeHeartbeat) | Application-level heartbeat used for liveness checks. |
+| `frame.error` | [`RealtimeError`](#chatto-realtime-v1-RealtimeError) | Protocol or authorization error. |
+| `frame.close` | [`RealtimeClose`](#chatto-realtime-v1-RealtimeClose) | Server-requested close with reconnect guidance. |
+| `frame.pong` | [`RealtimePong`](#chatto-realtime-v1-RealtimePong) | Reply to a client ping. |
 
-<a id="chatto-api-v1-RealtimeServerHello"></a>
+<a id="chatto-realtime-v1-RealtimeServerHello"></a>
 
 ### RealtimeServerHello
 
@@ -377,7 +377,7 @@ Initial server hello.
 | `server_version` | `string` | Chatto server software version. |
 | `heartbeat_interval_seconds` | `uint32` | Approximate heartbeat interval clients should expect. |
 
-<a id="chatto-api-v1-RealtimeServerMemberDeletedEvent"></a>
+<a id="chatto-realtime-v1-RealtimeServerMemberDeletedEvent"></a>
 
 ### RealtimeServerMemberDeletedEvent
 
@@ -387,7 +387,7 @@ Server-member deleted signal.
 | --- | --- | --- |
 | `user_id` | `string` | Deleted user ID. |
 
-<a id="chatto-api-v1-RealtimeServerUpdatedEvent"></a>
+<a id="chatto-realtime-v1-RealtimeServerUpdatedEvent"></a>
 
 ### RealtimeServerUpdatedEvent
 
@@ -400,7 +400,7 @@ Server-profile signal.
 | `logo_url` | `optional string` | Server logo URL, when configured. |
 | `banner_url` | `optional string` | Server banner URL, when configured. |
 
-<a id="chatto-api-v1-RealtimeServerUserPreferencesUpdatedEvent"></a>
+<a id="chatto-realtime-v1-RealtimeServerUserPreferencesUpdatedEvent"></a>
 
 ### RealtimeServerUserPreferencesUpdatedEvent
 
@@ -409,9 +409,9 @@ User display-preferences signal for the connected user.
 | Field | Type | Description |
 | --- | --- | --- |
 | `timezone` | `optional string` | IANA timezone name, when the user has selected a fixed timezone. |
-| `time_format` | [`TimeFormat`](/reference/connectrpc-api/types/#chatto-api-v1-TimeFormat) | Preferred time display format. |
+| `time_format` | `chatto.api.v1.TimeFormat` | Preferred time display format. |
 
-<a id="chatto-api-v1-RealtimeSessionTerminatedEvent"></a>
+<a id="chatto-realtime-v1-RealtimeSessionTerminatedEvent"></a>
 
 ### RealtimeSessionTerminatedEvent
 
@@ -421,19 +421,19 @@ Session-terminated signal for the connected user's current session.
 | --- | --- | --- |
 | `reason` | `string` | Termination reason. |
 
-<a id="chatto-api-v1-RealtimeSubscribeEvents"></a>
+<a id="chatto-realtime-v1-RealtimeSubscribeEvents"></a>
 
 ### RealtimeSubscribeEvents
 
 Request to start the caller's authorized live event stream.
 
-<a id="chatto-api-v1-RealtimeSubscribed"></a>
+<a id="chatto-realtime-v1-RealtimeSubscribed"></a>
 
 ### RealtimeSubscribed
 
 Confirms event streaming has started.
 
-<a id="chatto-api-v1-RealtimeThreadCreatedEvent"></a>
+<a id="chatto-realtime-v1-RealtimeThreadCreatedEvent"></a>
 
 ### RealtimeThreadCreatedEvent
 
@@ -444,7 +444,7 @@ Thread-created signal.
 | `room_id` | `string` | Room containing the thread. |
 | `thread_root_event_id` | `string` | Root message event ID that identifies the thread. |
 
-<a id="chatto-api-v1-RealtimeThreadFollowChangedEvent"></a>
+<a id="chatto-realtime-v1-RealtimeThreadFollowChangedEvent"></a>
 
 ### RealtimeThreadFollowChangedEvent
 
@@ -456,7 +456,7 @@ Thread-follow signal for the connected user.
 | `thread_root_event_id` | `string` | Root message event ID of the thread. |
 | `following` | `bool` | True when the user now follows the thread. |
 
-<a id="chatto-api-v1-RealtimeTypingEvent"></a>
+<a id="chatto-realtime-v1-RealtimeTypingEvent"></a>
 
 ### RealtimeTypingEvent
 
@@ -467,7 +467,7 @@ Typing signal.
 | `room_id` | `string` | Room where the actor is typing. |
 | `thread_root_event_id` | `optional string` | Thread root event ID when the actor is typing in a thread. |
 
-<a id="chatto-api-v1-RealtimeUserCustomStatusClearedEvent"></a>
+<a id="chatto-realtime-v1-RealtimeUserCustomStatusClearedEvent"></a>
 
 ### RealtimeUserCustomStatusClearedEvent
 
@@ -477,7 +477,7 @@ User-custom-status cleared signal.
 | --- | --- | --- |
 | `user_id` | `string` | User whose status was cleared. |
 
-<a id="chatto-api-v1-RealtimeUserCustomStatusSetEvent"></a>
+<a id="chatto-realtime-v1-RealtimeUserCustomStatusSetEvent"></a>
 
 ### RealtimeUserCustomStatusSetEvent
 
@@ -490,7 +490,7 @@ User-custom-status set signal.
 | `text` | `string` | Text part of the status. |
 | `expires_at` | `google.protobuf.Timestamp` | Expiration time, when the status expires automatically. |
 
-<a id="chatto-api-v1-RealtimeUserProfileUpdatedEvent"></a>
+<a id="chatto-realtime-v1-RealtimeUserProfileUpdatedEvent"></a>
 
 ### RealtimeUserProfileUpdatedEvent
 
@@ -509,7 +509,7 @@ User-profile signal.
 
 
 
-<a id="chatto-api-v1-RealtimeCallEventSource"></a>
+<a id="chatto-realtime-v1-RealtimeCallEventSource"></a>
 
 ### RealtimeCallEventSource
 

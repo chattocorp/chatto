@@ -9,9 +9,9 @@ import { Message, proto3 } from "@bufbuild/protobuf";
 /**
  * Live presence status returned by public read APIs.
  *
- * Offline is a read-side state only. Clients cannot report Offline through
- * PresenceService.ReportPresence; they should stop reporting presence and let
- * the server's live presence record expire.
+ * Offline is a read-side state only. Clients cannot report Offline through the
+ * account presence RPC; they should stop reporting presence and let the
+ * server's live presence record expire.
  *
  * @generated from enum chatto.api.v1.PresenceStatus
  */

@@ -1,12 +1,12 @@
 import { Code, ConnectError, createClient } from '@connectrpc/connect';
 import { createConnectTransport } from '@connectrpc/connect-web';
-import { AdminRoomLayoutService } from '$lib/pb/chatto/api/v1/admin_room_layout_connect';
+import { AdminRoomLayoutService } from '$lib/pb/chatto/admin/v1/room_layout_connect';
 import {
   AdminRoomLayoutItemKind,
   type AdminRoomLayoutGroup as APIAdminRoomLayoutGroup,
   type AdminRoomLayoutItem as APIAdminRoomLayoutItem,
   type AdminRoomLayoutRoom
-} from '$lib/pb/chatto/api/v1/admin_room_layout_pb';
+} from '$lib/pb/chatto/admin/v1/room_layout_pb';
 import type { SidebarLink } from '$lib/pb/chatto/api/v1/room_directory_pb';
 import { serverRegistry } from '$lib/state/server/registry.svelte';
 

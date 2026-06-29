@@ -45,6 +45,15 @@ const (
 	// AccountServiceUpdateSettingsProcedure is the fully-qualified name of the AccountService's
 	// UpdateSettings RPC.
 	AccountServiceUpdateSettingsProcedure = "/chatto.api.v1.AccountService/UpdateSettings"
+	// AccountServiceReportPresenceProcedure is the fully-qualified name of the AccountService's
+	// ReportPresence RPC.
+	AccountServiceReportPresenceProcedure = "/chatto.api.v1.AccountService/ReportPresence"
+	// AccountServiceSetCustomStatusProcedure is the fully-qualified name of the AccountService's
+	// SetCustomStatus RPC.
+	AccountServiceSetCustomStatusProcedure = "/chatto.api.v1.AccountService/SetCustomStatus"
+	// AccountServiceClearCustomStatusProcedure is the fully-qualified name of the AccountService's
+	// ClearCustomStatus RPC.
+	AccountServiceClearCustomStatusProcedure = "/chatto.api.v1.AccountService/ClearCustomStatus"
 	// AccountServiceRequestAccountDeletionProcedure is the fully-qualified name of the AccountService's
 	// RequestAccountDeletion RPC.
 	AccountServiceRequestAccountDeletionProcedure = "/chatto.api.v1.AccountService/RequestAccountDeletion"
@@ -63,6 +72,16 @@ type AccountServiceClient interface {
 	DeleteAvatar(context.Context, *connect.Request[v1.DeleteAvatarRequest]) (*connect.Response[v1.DeleteAvatarResponse], error)
 	// Updates the authenticated user's display preferences.
 	UpdateSettings(context.Context, *connect.Request[v1.UpdateSettingsRequest]) (*connect.Response[v1.UpdateSettingsResponse], error)
+	// Reports the current user's live presence status. This state is transient:
+	// clients should refresh it periodically while visible, and should stop
+	// calling this RPC when the user chooses to appear offline.
+	ReportPresence(context.Context, *connect.Request[v1.ReportPresenceRequest]) (*connect.Response[v1.ReportPresenceResponse], error)
+	// Sets or replaces the current user's custom status. Emoji and text are
+	// required, and expires_at must be omitted or in the future.
+	SetCustomStatus(context.Context, *connect.Request[v1.SetCustomStatusRequest]) (*connect.Response[v1.SetCustomStatusResponse], error)
+	// Clears the current user's custom status. The call is idempotent and returns
+	// the resulting empty status state.
+	ClearCustomStatus(context.Context, *connect.Request[v1.ClearCustomStatusRequest]) (*connect.Response[v1.ClearCustomStatusResponse], error)
 	// Issues a short-lived token used to confirm self-deletion.
 	RequestAccountDeletion(context.Context, *connect.Request[v1.RequestAccountDeletionRequest]) (*connect.Response[v1.RequestAccountDeletionResponse], error)
 	// Permanently deletes the authenticated account after token validation.
@@ -104,6 +123,24 @@ func NewAccountServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(accountServiceMethods.ByName("UpdateSettings")),
 			connect.WithClientOptions(opts...),
 		),
+		reportPresence: connect.NewClient[v1.ReportPresenceRequest, v1.ReportPresenceResponse](
+			httpClient,
+			baseURL+AccountServiceReportPresenceProcedure,
+			connect.WithSchema(accountServiceMethods.ByName("ReportPresence")),
+			connect.WithClientOptions(opts...),
+		),
+		setCustomStatus: connect.NewClient[v1.SetCustomStatusRequest, v1.SetCustomStatusResponse](
+			httpClient,
+			baseURL+AccountServiceSetCustomStatusProcedure,
+			connect.WithSchema(accountServiceMethods.ByName("SetCustomStatus")),
+			connect.WithClientOptions(opts...),
+		),
+		clearCustomStatus: connect.NewClient[v1.ClearCustomStatusRequest, v1.ClearCustomStatusResponse](
+			httpClient,
+			baseURL+AccountServiceClearCustomStatusProcedure,
+			connect.WithSchema(accountServiceMethods.ByName("ClearCustomStatus")),
+			connect.WithClientOptions(opts...),
+		),
 		requestAccountDeletion: connect.NewClient[v1.RequestAccountDeletionRequest, v1.RequestAccountDeletionResponse](
 			httpClient,
 			baseURL+AccountServiceRequestAccountDeletionProcedure,
@@ -125,6 +162,9 @@ type accountServiceClient struct {
 	uploadAvatar           *connect.Client[v1.UploadAvatarRequest, v1.UploadAvatarResponse]
 	deleteAvatar           *connect.Client[v1.DeleteAvatarRequest, v1.DeleteAvatarResponse]
 	updateSettings         *connect.Client[v1.UpdateSettingsRequest, v1.UpdateSettingsResponse]
+	reportPresence         *connect.Client[v1.ReportPresenceRequest, v1.ReportPresenceResponse]
+	setCustomStatus        *connect.Client[v1.SetCustomStatusRequest, v1.SetCustomStatusResponse]
+	clearCustomStatus      *connect.Client[v1.ClearCustomStatusRequest, v1.ClearCustomStatusResponse]
 	requestAccountDeletion *connect.Client[v1.RequestAccountDeletionRequest, v1.RequestAccountDeletionResponse]
 	deleteMyAccount        *connect.Client[v1.DeleteMyAccountRequest, v1.DeleteMyAccountResponse]
 }
@@ -149,6 +189,21 @@ func (c *accountServiceClient) UpdateSettings(ctx context.Context, req *connect.
 	return c.updateSettings.CallUnary(ctx, req)
 }
 
+// ReportPresence calls chatto.api.v1.AccountService.ReportPresence.
+func (c *accountServiceClient) ReportPresence(ctx context.Context, req *connect.Request[v1.ReportPresenceRequest]) (*connect.Response[v1.ReportPresenceResponse], error) {
+	return c.reportPresence.CallUnary(ctx, req)
+}
+
+// SetCustomStatus calls chatto.api.v1.AccountService.SetCustomStatus.
+func (c *accountServiceClient) SetCustomStatus(ctx context.Context, req *connect.Request[v1.SetCustomStatusRequest]) (*connect.Response[v1.SetCustomStatusResponse], error) {
+	return c.setCustomStatus.CallUnary(ctx, req)
+}
+
+// ClearCustomStatus calls chatto.api.v1.AccountService.ClearCustomStatus.
+func (c *accountServiceClient) ClearCustomStatus(ctx context.Context, req *connect.Request[v1.ClearCustomStatusRequest]) (*connect.Response[v1.ClearCustomStatusResponse], error) {
+	return c.clearCustomStatus.CallUnary(ctx, req)
+}
+
 // RequestAccountDeletion calls chatto.api.v1.AccountService.RequestAccountDeletion.
 func (c *accountServiceClient) RequestAccountDeletion(ctx context.Context, req *connect.Request[v1.RequestAccountDeletionRequest]) (*connect.Response[v1.RequestAccountDeletionResponse], error) {
 	return c.requestAccountDeletion.CallUnary(ctx, req)
@@ -169,6 +224,16 @@ type AccountServiceHandler interface {
 	DeleteAvatar(context.Context, *connect.Request[v1.DeleteAvatarRequest]) (*connect.Response[v1.DeleteAvatarResponse], error)
 	// Updates the authenticated user's display preferences.
 	UpdateSettings(context.Context, *connect.Request[v1.UpdateSettingsRequest]) (*connect.Response[v1.UpdateSettingsResponse], error)
+	// Reports the current user's live presence status. This state is transient:
+	// clients should refresh it periodically while visible, and should stop
+	// calling this RPC when the user chooses to appear offline.
+	ReportPresence(context.Context, *connect.Request[v1.ReportPresenceRequest]) (*connect.Response[v1.ReportPresenceResponse], error)
+	// Sets or replaces the current user's custom status. Emoji and text are
+	// required, and expires_at must be omitted or in the future.
+	SetCustomStatus(context.Context, *connect.Request[v1.SetCustomStatusRequest]) (*connect.Response[v1.SetCustomStatusResponse], error)
+	// Clears the current user's custom status. The call is idempotent and returns
+	// the resulting empty status state.
+	ClearCustomStatus(context.Context, *connect.Request[v1.ClearCustomStatusRequest]) (*connect.Response[v1.ClearCustomStatusResponse], error)
 	// Issues a short-lived token used to confirm self-deletion.
 	RequestAccountDeletion(context.Context, *connect.Request[v1.RequestAccountDeletionRequest]) (*connect.Response[v1.RequestAccountDeletionResponse], error)
 	// Permanently deletes the authenticated account after token validation.
@@ -206,6 +271,24 @@ func NewAccountServiceHandler(svc AccountServiceHandler, opts ...connect.Handler
 		connect.WithSchema(accountServiceMethods.ByName("UpdateSettings")),
 		connect.WithHandlerOptions(opts...),
 	)
+	accountServiceReportPresenceHandler := connect.NewUnaryHandler(
+		AccountServiceReportPresenceProcedure,
+		svc.ReportPresence,
+		connect.WithSchema(accountServiceMethods.ByName("ReportPresence")),
+		connect.WithHandlerOptions(opts...),
+	)
+	accountServiceSetCustomStatusHandler := connect.NewUnaryHandler(
+		AccountServiceSetCustomStatusProcedure,
+		svc.SetCustomStatus,
+		connect.WithSchema(accountServiceMethods.ByName("SetCustomStatus")),
+		connect.WithHandlerOptions(opts...),
+	)
+	accountServiceClearCustomStatusHandler := connect.NewUnaryHandler(
+		AccountServiceClearCustomStatusProcedure,
+		svc.ClearCustomStatus,
+		connect.WithSchema(accountServiceMethods.ByName("ClearCustomStatus")),
+		connect.WithHandlerOptions(opts...),
+	)
 	accountServiceRequestAccountDeletionHandler := connect.NewUnaryHandler(
 		AccountServiceRequestAccountDeletionProcedure,
 		svc.RequestAccountDeletion,
@@ -228,6 +311,12 @@ func NewAccountServiceHandler(svc AccountServiceHandler, opts ...connect.Handler
 			accountServiceDeleteAvatarHandler.ServeHTTP(w, r)
 		case AccountServiceUpdateSettingsProcedure:
 			accountServiceUpdateSettingsHandler.ServeHTTP(w, r)
+		case AccountServiceReportPresenceProcedure:
+			accountServiceReportPresenceHandler.ServeHTTP(w, r)
+		case AccountServiceSetCustomStatusProcedure:
+			accountServiceSetCustomStatusHandler.ServeHTTP(w, r)
+		case AccountServiceClearCustomStatusProcedure:
+			accountServiceClearCustomStatusHandler.ServeHTTP(w, r)
 		case AccountServiceRequestAccountDeletionProcedure:
 			accountServiceRequestAccountDeletionHandler.ServeHTTP(w, r)
 		case AccountServiceDeleteMyAccountProcedure:
@@ -255,6 +344,18 @@ func (UnimplementedAccountServiceHandler) DeleteAvatar(context.Context, *connect
 
 func (UnimplementedAccountServiceHandler) UpdateSettings(context.Context, *connect.Request[v1.UpdateSettingsRequest]) (*connect.Response[v1.UpdateSettingsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.AccountService.UpdateSettings is not implemented"))
+}
+
+func (UnimplementedAccountServiceHandler) ReportPresence(context.Context, *connect.Request[v1.ReportPresenceRequest]) (*connect.Response[v1.ReportPresenceResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.AccountService.ReportPresence is not implemented"))
+}
+
+func (UnimplementedAccountServiceHandler) SetCustomStatus(context.Context, *connect.Request[v1.SetCustomStatusRequest]) (*connect.Response[v1.SetCustomStatusResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.AccountService.SetCustomStatus is not implemented"))
+}
+
+func (UnimplementedAccountServiceHandler) ClearCustomStatus(context.Context, *connect.Request[v1.ClearCustomStatusRequest]) (*connect.Response[v1.ClearCustomStatusResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.AccountService.ClearCustomStatus is not implemented"))
 }
 
 func (UnimplementedAccountServiceHandler) RequestAccountDeletion(context.Context, *connect.Request[v1.RequestAccountDeletionRequest]) (*connect.Response[v1.RequestAccountDeletionResponse], error) {

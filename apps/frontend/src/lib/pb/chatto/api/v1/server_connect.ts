@@ -9,17 +9,17 @@ import { MethodKind } from "@bufbuild/protobuf";
 /**
  * Provides public server discovery metadata.
  *
- * @generated from service chatto.api.v1.ServerService
+ * @generated from service chatto.api.v1.ServerDiscoveryService
  */
-export const ServerService = {
-  typeName: "chatto.api.v1.ServerService",
+export const ServerDiscoveryService = {
+  typeName: "chatto.api.v1.ServerDiscoveryService",
   methods: {
     /**
      * Returns public server metadata, branding, registration status, and login
      * provider information. This RPC is available before login so clients can
      * render the first server screen and authentication choices.
      *
-     * @generated from rpc chatto.api.v1.ServerService.GetServer
+     * @generated from rpc chatto.api.v1.ServerDiscoveryService.GetServer
      */
     getServer: {
       name: "GetServer",

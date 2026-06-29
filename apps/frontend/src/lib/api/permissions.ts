@@ -1,6 +1,6 @@
 import { createClient } from '@connectrpc/connect';
 import { createConnectTransport } from '@connectrpc/connect-web';
-import { PermissionService } from '$lib/pb/chatto/api/v1/permissions_connect';
+import { AdminPermissionService } from '$lib/pb/chatto/admin/v1/permissions_connect';
 import {
   PermissionDecision,
   PermissionScopeKind,
@@ -10,7 +10,7 @@ import {
   type TierRole as APITierRole,
   type TierRoles as APITierRoles,
   type UserPermissionMatrix as APIUserPermissionMatrix
-} from '$lib/pb/chatto/api/v1/permissions_pb';
+} from '$lib/pb/chatto/admin/v1/permissions_pb';
 
 export type PermissionAPIConfig = {
   baseUrl: string;
@@ -80,7 +80,7 @@ export function createPermissionAPI(config: PermissionAPIConfig) {
     baseUrl: config.baseUrl,
     useBinaryFormat: true
   });
-  const client = createClient(PermissionService, transport);
+  const client = createClient(AdminPermissionService, transport);
   const headers = () =>
     config.bearerToken ? { Authorization: `Bearer ${config.bearerToken}` } : undefined;
 

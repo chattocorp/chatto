@@ -32,8 +32,8 @@ message UserAvatarOptions {
   UserAvatarFitMode fit = 3 [(buf.validate.field).enum.defined_only = true];
 }
 
-// Lightweight public user data for cache-backed render surfaces.
-message UserSummary {
+// Public user identity fields.
+message User {
   // Stable user ID.
   string id = 1;
   // Login name.
@@ -46,10 +46,10 @@ message UserSummary {
   optional string avatar_url = 5;
 }
 
-// Lightweight public user data plus live profile state.
-message UserPresenceSummary {
+// Public user identity fields plus live profile state.
+message UserProfile {
   // Public identity fields.
-  UserSummary user = 1;
+  User user = 1;
   // Current live presence status.
   PresenceStatus presence_status = 2;
   // Custom profile status, when set.
@@ -72,7 +72,7 @@ message GetUserByLoginRequest {
   UserAvatarOptions avatar = 2;
 }
 
-// Request lightweight summaries for a set of stable user IDs.
+// Request public user records for a set of stable user IDs.
 message BatchGetUsersRequest {
   // Required user IDs. Unknown IDs are omitted from the response.
   repeated string user_ids = 1 [(buf.validate.field).repeated = {
@@ -89,29 +89,29 @@ message BatchGetUsersRequest {
 // Public authenticated user profile response.
 message GetUserResponse {
   // Requested user.
-  UserPresenceSummary user = 1;
+  UserProfile user = 1;
 }
 
 // Public authenticated user profile response for login lookup.
 message GetUserByLoginResponse {
   // Requested user.
-  UserPresenceSummary user = 1;
+  UserProfile user = 1;
 }
 
-// Lightweight batch user summary response.
+// Batch public user response.
 message BatchGetUsersResponse {
   // Found users. The server preserves first-seen request order and de-duplicates
   // repeated IDs.
-  repeated UserSummary users = 1;
+  repeated User users = 1;
 }
 
-// Provides authenticated public user profile lookups.
-service UserService {
+// Provides authenticated public user directory lookups.
+service UserDirectoryService {
   // Gets a user by stable ID. Returns NOT_FOUND when the ID is unknown.
   rpc GetUser(GetUserRequest) returns (GetUserResponse);
   // Gets a user by login. Returns NOT_FOUND when the login is unknown.
   rpc GetUserByLogin(GetUserByLoginRequest) returns (GetUserByLoginResponse);
-  // Gets lightweight summaries for multiple users referenced by event-focused
+  // Gets public user records for multiple users referenced by event-focused
   // payloads.
   rpc BatchGetUsers(BatchGetUsersRequest) returns (BatchGetUsersResponse);
 }

@@ -46,7 +46,7 @@ message GetServerResponse {
 }
 
 // Provides public server discovery metadata.
-service ServerService {
+service ServerDiscoveryService {
   // Returns public server metadata, branding, registration status, and login
   // provider information. This RPC is available before login so clients can
   // render the first server screen and authentication choices.

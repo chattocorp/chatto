@@ -202,7 +202,7 @@ func (x *ListCallParticipantsResponse) GetParticipants() []*CallParticipant {
 type CallParticipant struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Participant user.
-	User *UserPresenceSummary `protobuf:"bytes,1,opt,name=user,proto3" json:"user,omitempty"`
+	User *UserProfile `protobuf:"bytes,1,opt,name=user,proto3" json:"user,omitempty"`
 	// When the user joined this call.
 	JoinedAt *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=joined_at,json=joinedAt,proto3" json:"joined_at,omitempty"`
 	// Active call session ID.
@@ -241,7 +241,7 @@ func (*CallParticipant) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_voice_calls_proto_rawDescGZIP(), []int{4}
 }
 
-func (x *CallParticipant) GetUser() *UserPresenceSummary {
+func (x *CallParticipant) GetUser() *UserProfile {
 	if x != nil {
 		return x.User
 	}
@@ -567,9 +567,9 @@ const file_chatto_api_v1_voice_calls_proto_rawDesc = "" +
 	"\x1bListCallParticipantsRequest\x12 \n" +
 	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\"b\n" +
 	"\x1cListCallParticipantsResponse\x12B\n" +
-	"\fparticipants\x18\x01 \x03(\v2\x1e.chatto.api.v1.CallParticipantR\fparticipants\"\x9b\x01\n" +
-	"\x0fCallParticipant\x126\n" +
-	"\x04user\x18\x01 \x01(\v2\".chatto.api.v1.UserPresenceSummaryR\x04user\x127\n" +
+	"\fparticipants\x18\x01 \x03(\v2\x1e.chatto.api.v1.CallParticipantR\fparticipants\"\x93\x01\n" +
+	"\x0fCallParticipant\x12.\n" +
+	"\x04user\x18\x01 \x01(\v2\x1a.chatto.api.v1.UserProfileR\x04user\x127\n" +
 	"\tjoined_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\bjoinedAt\x12\x17\n" +
 	"\acall_id\x18\x03 \x01(\tR\x06callId\"3\n" +
 	"\x0fJoinCallRequest\x12 \n" +
@@ -619,12 +619,12 @@ var file_chatto_api_v1_voice_calls_proto_goTypes = []any{
 	(*GetCallTokenResponse)(nil),         // 8: chatto.api.v1.GetCallTokenResponse
 	(*LeaveCallRequest)(nil),             // 9: chatto.api.v1.LeaveCallRequest
 	(*LeaveCallResponse)(nil),            // 10: chatto.api.v1.LeaveCallResponse
-	(*UserPresenceSummary)(nil),          // 11: chatto.api.v1.UserPresenceSummary
+	(*UserProfile)(nil),                  // 11: chatto.api.v1.UserProfile
 	(*timestamppb.Timestamp)(nil),        // 12: google.protobuf.Timestamp
 }
 var file_chatto_api_v1_voice_calls_proto_depIdxs = []int32{
 	4,  // 0: chatto.api.v1.ListCallParticipantsResponse.participants:type_name -> chatto.api.v1.CallParticipant
-	11, // 1: chatto.api.v1.CallParticipant.user:type_name -> chatto.api.v1.UserPresenceSummary
+	11, // 1: chatto.api.v1.CallParticipant.user:type_name -> chatto.api.v1.UserProfile
 	12, // 2: chatto.api.v1.CallParticipant.joined_at:type_name -> google.protobuf.Timestamp
 	0,  // 3: chatto.api.v1.VoiceCallService.ListActiveCallRooms:input_type -> chatto.api.v1.ListActiveCallRoomsRequest
 	2,  // 4: chatto.api.v1.VoiceCallService.ListCallParticipants:input_type -> chatto.api.v1.ListCallParticipantsRequest

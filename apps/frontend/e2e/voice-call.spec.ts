@@ -459,7 +459,7 @@ test.describe('Voice calls', () => {
 
     const data = await connectPost<ServerStateResponse>(
       page,
-      'chatto.api.v1.ServerStateService/GetServerState'
+      'chatto.api.v1.ServerService/GetServerState'
     );
     expect(data.livekitUrl).toBe('ws://localhost:7880');
   });

@@ -1,12 +1,12 @@
 import { createClient } from '@connectrpc/connect';
 import { createConnectTransport } from '@connectrpc/connect-web';
-import { AdminUserManagementService } from '$lib/pb/chatto/api/v1/admin_user_management_connect';
+import { AdminMemberService } from '$lib/pb/chatto/admin/v1/members_connect';
 import type {
   AdminMember as APIAdminMember,
   AdminMemberRole as APIAdminMemberRole,
-  AdminMemberRoleSummary as APIAdminMemberRoleSummary
-} from '$lib/pb/chatto/api/v1/admin_user_management_pb';
-import type { UserSummary as APIUserSummary } from '$lib/pb/chatto/api/v1/users_pb';
+  AdminRoleReference as APIAdminRoleReference
+} from '$lib/pb/chatto/admin/v1/members_pb';
+import type { User as APIUser } from '$lib/pb/chatto/api/v1/users_pb';
 
 export type AdminUserManagementAPIConfig = {
   baseUrl: string;
@@ -30,12 +30,12 @@ export type AdminMember = AdminManagedUser & {
   lastLoginChange?: string | null;
 };
 
-export type AdminMemberRoleSummary = {
+export type AdminRoleReference = {
   name: string;
   displayName: string;
 };
 
-export type AdminMemberRole = AdminMemberRoleSummary & {
+export type AdminMemberRole = AdminRoleReference & {
   position: number;
   permissions: string[];
   permissionDenials: string[];
@@ -43,7 +43,7 @@ export type AdminMemberRole = AdminMemberRoleSummary & {
 
 export type AdminMemberList = {
   users: AdminMember[];
-  roles: AdminMemberRoleSummary[];
+  roles: AdminRoleReference[];
   totalCount: number;
   hasMore: boolean;
 };
@@ -74,7 +74,7 @@ export function createAdminUserManagementAPI(config: AdminUserManagementAPIConfi
     baseUrl: config.baseUrl,
     useBinaryFormat: true
   });
-  const client = createClient(AdminUserManagementService, transport);
+  const client = createClient(AdminMemberService, transport);
   const headers = () =>
     config.bearerToken ? { Authorization: `Bearer ${config.bearerToken}` } : undefined;
 
@@ -92,7 +92,7 @@ export function createAdminUserManagementAPI(config: AdminUserManagementAPIConfi
       );
       return {
         users: response.users.map(adminMember),
-        roles: response.roles.map(adminMemberRoleSummary),
+        roles: response.roles.map(adminRoleReference),
         totalCount: Number(response.page?.totalCount ?? 0),
         hasMore: response.page?.hasMore ?? false
       };
@@ -134,7 +134,7 @@ export function createAdminUserManagementAPI(config: AdminUserManagementAPIConfi
 
 export type AdminUserManagementAPI = ReturnType<typeof createAdminUserManagementAPI>;
 
-function adminManagedUser(user: APIUserSummary | undefined): AdminManagedUser {
+function adminManagedUser(user: APIUser | undefined): AdminManagedUser {
   if (!user) {
     throw new Error('admin user response did not include a user');
   }
@@ -166,7 +166,7 @@ function adminMember(member: APIAdminMember): AdminMember {
   };
 }
 
-function adminMemberRoleSummary(role: APIAdminMemberRoleSummary): AdminMemberRoleSummary {
+function adminRoleReference(role: APIAdminRoleReference): AdminRoleReference {
   return {
     name: role.name,
     displayName: role.displayName
@@ -175,7 +175,7 @@ function adminMemberRoleSummary(role: APIAdminMemberRoleSummary): AdminMemberRol
 
 function adminMemberRole(role: APIAdminMemberRole): AdminMemberRole {
   return {
-    ...adminMemberRoleSummary(role),
+    ...adminRoleReference(role),
     position: role.position,
     permissions: [...role.permissions],
     permissionDenials: [...role.permissionDenials]

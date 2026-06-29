@@ -1,6 +1,6 @@
 import { createClient } from '@connectrpc/connect';
 import { createConnectTransport } from '@connectrpc/connect-web';
-import { ServerService } from '$lib/pb/chatto/api/v1/server_connect';
+import { ServerDiscoveryService } from '$lib/pb/chatto/api/v1/server_connect';
 
 export type PublicAuthProvider = {
   id: string;
@@ -24,7 +24,7 @@ export async function getPublicServerInfo(baseUrl: string): Promise<PublicServer
     baseUrl: new URL('/api/connect', baseUrl).toString(),
     useBinaryFormat: true
   });
-  const client = createClient(ServerService, transport);
+  const client = createClient(ServerDiscoveryService, transport);
   const response = await client.getServer({});
 
   return {

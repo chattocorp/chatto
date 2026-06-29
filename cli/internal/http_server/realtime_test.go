@@ -12,6 +12,7 @@ import (
 	"hmans.de/chatto/internal/core"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	realtimev1 "hmans.de/chatto/internal/pb/chatto/realtime/v1"
 )
 
 func (env *wsTestEnv) connectRealtime(t *testing.T) *websocket.Conn {
@@ -34,7 +35,7 @@ func (env *wsTestEnv) connectRealtime(t *testing.T) *websocket.Conn {
 	return conn
 }
 
-func sendRealtimeClientFrame(t *testing.T, conn *websocket.Conn, frame *apiv1.RealtimeClientFrame) {
+func sendRealtimeClientFrame(t *testing.T, conn *websocket.Conn, frame *realtimev1.RealtimeClientFrame) {
 	t.Helper()
 	data, err := proto.Marshal(frame)
 	if err != nil {
@@ -45,7 +46,7 @@ func sendRealtimeClientFrame(t *testing.T, conn *websocket.Conn, frame *apiv1.Re
 	}
 }
 
-func readRealtimeServerFrame(t *testing.T, conn *websocket.Conn, timeout time.Duration) (*apiv1.RealtimeServerFrame, bool) {
+func readRealtimeServerFrame(t *testing.T, conn *websocket.Conn, timeout time.Duration) (*realtimev1.RealtimeServerFrame, bool) {
 	t.Helper()
 	if err := conn.SetReadDeadline(time.Now().Add(timeout)); err != nil {
 		t.Fatalf("set realtime read deadline: %v", err)
@@ -60,7 +61,7 @@ func readRealtimeServerFrame(t *testing.T, conn *websocket.Conn, timeout time.Du
 	if mt != websocket.BinaryMessage {
 		t.Fatalf("realtime message type = %d, want binary", mt)
 	}
-	var frame apiv1.RealtimeServerFrame
+	var frame realtimev1.RealtimeServerFrame
 	if err := proto.Unmarshal(data, &frame); err != nil {
 		t.Fatalf("unmarshal realtime server frame: %v", err)
 	}
@@ -69,8 +70,8 @@ func readRealtimeServerFrame(t *testing.T, conn *websocket.Conn, timeout time.Du
 
 func subscribeRealtime(t *testing.T, conn *websocket.Conn, token string) {
 	t.Helper()
-	sendRealtimeClientFrame(t, conn, &apiv1.RealtimeClientFrame{Frame: &apiv1.RealtimeClientFrame_Hello{
-		Hello: &apiv1.RealtimeClientHello{ProtocolVersion: realtimeProtocolVersion, BearerToken: proto.String(token)},
+	sendRealtimeClientFrame(t, conn, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_Hello{
+		Hello: &realtimev1.RealtimeClientHello{ProtocolVersion: realtimeProtocolVersion, BearerToken: proto.String(token)},
 	}})
 	hello, ok := readRealtimeServerFrame(t, conn, 5*time.Second)
 	if !ok {
@@ -82,8 +83,8 @@ func subscribeRealtime(t *testing.T, conn *websocket.Conn, token string) {
 		t.Fatalf("unexpected realtime hello: %+v", got)
 	}
 
-	sendRealtimeClientFrame(t, conn, &apiv1.RealtimeClientFrame{Frame: &apiv1.RealtimeClientFrame_SubscribeEvents{
-		SubscribeEvents: &apiv1.RealtimeSubscribeEvents{},
+	sendRealtimeClientFrame(t, conn, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_SubscribeEvents{
+		SubscribeEvents: &realtimev1.RealtimeSubscribeEvents{},
 	}})
 	subscribed, ok := readRealtimeServerFrame(t, conn, 5*time.Second)
 	if !ok {
@@ -94,7 +95,7 @@ func subscribeRealtime(t *testing.T, conn *websocket.Conn, token string) {
 	}
 }
 
-func waitRealtimeEvent(t *testing.T, conn *websocket.Conn, timeout time.Duration, match func(*apiv1.RealtimeEventEnvelope) bool) *apiv1.RealtimeEventEnvelope {
+func waitRealtimeEvent(t *testing.T, conn *websocket.Conn, timeout time.Duration, match func(*realtimev1.RealtimeEventEnvelope) bool) *realtimev1.RealtimeEventEnvelope {
 	t.Helper()
 	deadline := time.Now().Add(timeout)
 	for time.Now().Before(deadline) {
@@ -166,7 +167,7 @@ func TestRealtimeMapperMapsCallEventSource(t *testing.T) {
 	if call == nil {
 		t.Fatalf("event = %T, want call_participant_joined", frame.GetEvent())
 	}
-	if call.Source != apiv1.RealtimeCallEventSource_REALTIME_CALL_EVENT_SOURCE_LIVEKIT {
+	if call.Source != realtimev1.RealtimeCallEventSource_REALTIME_CALL_EVENT_SOURCE_LIVEKIT {
 		t.Fatalf("call source = %v, want LIVEKIT", call.Source)
 	}
 }
@@ -349,8 +350,8 @@ func TestRealtimeWebSocketRejectsUnauthenticatedHello(t *testing.T) {
 	env := setupWebSocketTestServer(t)
 	conn := env.connectRealtime(t)
 
-	sendRealtimeClientFrame(t, conn, &apiv1.RealtimeClientFrame{Frame: &apiv1.RealtimeClientFrame_Hello{
-		Hello: &apiv1.RealtimeClientHello{ProtocolVersion: realtimeProtocolVersion},
+	sendRealtimeClientFrame(t, conn, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_Hello{
+		Hello: &realtimev1.RealtimeClientHello{ProtocolVersion: realtimeProtocolVersion},
 	}})
 	frame, ok := readRealtimeServerFrame(t, conn, 5*time.Second)
 	if !ok {
@@ -391,7 +392,7 @@ func TestRealtimeWebSocketDeliversRoomMessageToMember(t *testing.T) {
 		t.Fatalf("PostMessage: %v", err)
 	}
 
-	event := waitRealtimeEvent(t, conn, 5*time.Second, func(event *apiv1.RealtimeEventEnvelope) bool {
+	event := waitRealtimeEvent(t, conn, 5*time.Second, func(event *realtimev1.RealtimeEventEnvelope) bool {
 		msg := event.GetMessagePosted()
 		return msg != nil && msg.MessageEventId == posted.Id
 	})
@@ -445,7 +446,7 @@ func TestRealtimeWebSocketDoesNotDeliverRoomMessageToOutsider(t *testing.T) {
 		t.Fatalf("PostMessage visible: %v", err)
 	}
 
-	event := waitRealtimeEvent(t, conn, 5*time.Second, func(event *apiv1.RealtimeEventEnvelope) bool {
+	event := waitRealtimeEvent(t, conn, 5*time.Second, func(event *realtimev1.RealtimeEventEnvelope) bool {
 		msg := event.GetMessagePosted()
 		if msg == nil {
 			return false
@@ -476,8 +477,8 @@ func TestRealtimeWebSocketRespondsToPing(t *testing.T) {
 
 	time.Sleep(realtimeHandshakeTimeout + 200*time.Millisecond)
 
-	sendRealtimeClientFrame(t, conn, &apiv1.RealtimeClientFrame{Frame: &apiv1.RealtimeClientFrame_Ping{
-		Ping: &apiv1.RealtimePing{Nonce: "abc123"},
+	sendRealtimeClientFrame(t, conn, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_Ping{
+		Ping: &realtimev1.RealtimePing{Nonce: "abc123"},
 	}})
 
 	frame, ok := readRealtimeServerFrame(t, conn, 5*time.Second)

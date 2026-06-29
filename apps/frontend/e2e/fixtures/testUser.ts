@@ -58,7 +58,7 @@ async function setServerRolePermission(
 ): Promise<void> {
   const data = await connectPost<PermissionMutationResponse>(
     page,
-    'chatto.api.v1.PermissionService/SetRolePermission',
+    'chatto.admin.v1.AdminPermissionService/SetRolePermission',
     { roleName, permission, decision }
   );
   expect(data.ok).toBe(true);
@@ -67,7 +67,7 @@ async function setServerRolePermission(
 async function assignRoleViaConnect(page: Page, userId: string, roleName: string): Promise<void> {
   const data = await connectPost<AssignRoleResponse>(
     page,
-    'chatto.api.v1.AdminUserManagementService/AssignRole',
+    'chatto.admin.v1.AdminMemberService/AssignRole',
     { userId, roleName }
   );
   expect(data.assigned).toBe(true);
@@ -76,7 +76,7 @@ async function assignRoleViaConnect(page: Page, userId: string, roleName: string
 async function revokeRoleViaConnect(page: Page, userId: string, roleName: string): Promise<void> {
   const data = await connectPost<RevokeRoleResponse>(
     page,
-    'chatto.api.v1.AdminUserManagementService/RevokeRole',
+    'chatto.admin.v1.AdminMemberService/RevokeRole',
     { userId, roleName }
   );
   expect(data.revoked).toBe(true);
@@ -138,7 +138,7 @@ export async function loginAsAdminAndUsePrimaryServer(
   await loginAsAdmin(page);
   const data = await connectPost<ServerStateResponse>(
     page,
-    'chatto.api.v1.ServerStateService/GetServerState'
+    'chatto.api.v1.ServerService/GetServerState'
   );
   const serverName = data.profile?.name;
   if (!serverName) {
@@ -234,7 +234,7 @@ export async function denyUserPermission(
 
   const created = await connectPost<CreateRoleResponse>(
     page,
-    'chatto.api.v1.RoleService/CreateRole',
+    'chatto.admin.v1.AdminRoleService/CreateRole',
     { name: roleName, displayName, description: `Auto-created to deny ${permission}` }
   );
   expect(created.role?.name).toBe(roleName);

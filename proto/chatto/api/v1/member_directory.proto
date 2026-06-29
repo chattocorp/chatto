@@ -10,7 +10,7 @@ import "google/protobuf/timestamp.proto";
 // Public user/member profile used by directory and mention surfaces.
 message DirectoryMember {
   // Public profile and live presence fields.
-  UserPresenceSummary profile = 1;
+  UserProfile profile = 1;
   // Explicit server roles assigned to the user. Server member listings include
   // the virtual `everyone` role for parity with Chatto's permission model.
   repeated string roles = 2;

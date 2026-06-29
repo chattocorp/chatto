@@ -6,7 +6,8 @@ import { readFile } from 'fs/promises';
 import { MessageService } from '$lib/pb/chatto/api/v1/messages_connect';
 import { RoomDirectoryService } from '$lib/pb/chatto/api/v1/room_directory_connect';
 import { RoomService } from '$lib/pb/chatto/api/v1/rooms_connect';
-import { ServerStateService } from '$lib/pb/chatto/api/v1/server_state_connect';
+import { AdminServerService } from '$lib/pb/chatto/admin/v1/server_connect';
+import { ServerService } from '$lib/pb/chatto/api/v1/server_state_connect';
 import { ViewerService } from '$lib/pb/chatto/api/v1/viewer_connect';
 import { startServer, stopServer, type ServerInfo } from './server';
 
@@ -50,7 +51,17 @@ function roomDirectoryClient(remoteBaseURL: string) {
 
 function serverStateClient(remoteBaseURL: string) {
   return createClient(
-    ServerStateService,
+    ServerService,
+    createConnectTransport({
+      baseUrl: connectBaseUrl(remoteBaseURL),
+      useBinaryFormat: true
+    })
+  );
+}
+
+function adminServerClient(remoteBaseURL: string) {
+  return createClient(
+    AdminServerService,
     createConnectTransport({
       baseUrl: connectBaseUrl(remoteBaseURL),
       useBinaryFormat: true
@@ -382,7 +393,7 @@ export async function setMotdOnRemote(
   token: string,
   motd: string
 ): Promise<void> {
-  const response = await serverStateClient(remoteBaseURL).updateServerConfig(
+  const response = await adminServerClient(remoteBaseURL).updateServerConfig(
     { motd },
     { headers: authHeaders(token) }
   );

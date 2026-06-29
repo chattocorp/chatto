@@ -12,7 +12,7 @@ import "google/protobuf/timestamp.proto";
 // Includes avoid repeating the same user data on every event in a page.
 message RoomTimelineIncludes {
   // Users keyed by user ID.
-  map<string, UserSummary> users = 1;
+  map<string, User> users = 1;
 }
 
 // Time-limited URL for a room timeline asset.
@@ -101,9 +101,9 @@ message RoomTimelineAttachment {
 
 // Aggregated reaction state for one emoji on one event.
 //
-// The summary is scoped to the current event and includes whether the current
+// This state is scoped to the current event and includes whether the current
 // user has reacted with the same emoji.
-message RoomTimelineReactionSummary {
+message RoomTimelineReaction {
   // Emoji or reaction key.
   string emoji = 1;
   // Number of users who reacted with this emoji.
@@ -156,7 +156,7 @@ message RoomTimelineMessagePosted {
   // Whether the current user follows this message's thread, when known.
   optional bool viewer_is_following_thread = 15;
   // Reaction summaries for this message.
-  repeated RoomTimelineReactionSummary reactions = 17;
+  repeated RoomTimelineReaction reactions = 17;
 }
 
 // Payload for room lifecycle and membership timeline events.

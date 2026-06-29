@@ -22,15 +22,31 @@ plugins:
       - target=ts
     types:
       - chatto.api.v1
+      - chatto.admin.v1
+      - chatto.realtime.v1
   - local: ../apps/frontend/node_modules/.bin/protoc-gen-connect-es
     out: ../apps/frontend/src/lib/pb
     opt:
       - target=ts
     types:
       - chatto.api.v1
+      - chatto.admin.v1
+      - chatto.realtime.v1
   - local: ["go", "tool", "-C", "../cli", "protoc-gen-doc"]
     out: ../apps/docs-website/src/generated/connectrpc-api
     opt:
-      - ../proto/templates/connectrpc-starlight.md.tmpl,index.raw.mdx
+      - ../proto/templates/connectrpc-starlight.md.tmpl,api.raw.mdx:chatto/admin/v1/*,chatto/realtime/v1/*,chatto/config/v1/*,chatto/core/v1/*
     types:
       - chatto.api.v1
+  - local: ["go", "tool", "-C", "../cli", "protoc-gen-doc"]
+    out: ../apps/docs-website/src/generated/connectrpc-api
+    opt:
+      - ../proto/templates/connectrpc-starlight.md.tmpl,admin.raw.mdx:chatto/api/v1/*,chatto/realtime/v1/*,chatto/config/v1/*,chatto/core/v1/*
+    types:
+      - chatto.admin.v1
+  - local: ["go", "tool", "-C", "../cli", "protoc-gen-doc"]
+    out: ../apps/docs-website/src/generated/connectrpc-api
+    opt:
+      - ../proto/templates/connectrpc-starlight.md.tmpl,realtime.raw.mdx:chatto/api/v1/*,chatto/admin/v1/*,chatto/config/v1/*,chatto/core/v1/*
+    types:
+      - chatto.realtime.v1

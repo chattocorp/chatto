@@ -1,6 +1,6 @@
 import { Code, ConnectError } from '@connectrpc/connect';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { AdminRoomLayoutItemKind } from '$lib/pb/chatto/api/v1/admin_room_layout_pb';
+import { AdminRoomLayoutItemKind } from '$lib/pb/chatto/admin/v1/room_layout_pb';
 import { createAdminRoomLayoutAPI } from './adminRoomLayout';
 
 const mocks = vi.hoisted(() => ({

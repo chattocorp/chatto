@@ -44,7 +44,7 @@ export class DMPage {
     // Look up user by login
     const userData = await connectPost<GetUserByLoginResponse>(
       this.page,
-      'chatto.api.v1.UserService/GetUserByLogin',
+      'chatto.api.v1.UserDirectoryService/GetUserByLogin',
       { login: username }
     );
     const userId = userData.user?.user?.id;

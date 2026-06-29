@@ -10,11 +10,11 @@ import (
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 )
 
-type serverService struct {
+type serverDiscoveryService struct {
 	api *API
 }
 
-func (s *serverService) GetServer(ctx context.Context, _ *connect.Request[apiv1.GetServerRequest]) (*connect.Response[apiv1.GetServerResponse], error) {
+func (s *serverDiscoveryService) GetServer(ctx context.Context, _ *connect.Request[apiv1.GetServerRequest]) (*connect.Response[apiv1.GetServerResponse], error) {
 	authMethods := s.api.config.Auth.EnabledProviderMethods()
 	if s.api.config.Auth.DirectRegistrationOrDefault() {
 		authMethods = append([]string{"password"}, authMethods...)

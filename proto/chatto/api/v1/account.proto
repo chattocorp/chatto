@@ -3,6 +3,8 @@ syntax = "proto3";
 package chatto.api.v1;
 
 import "chatto/api/v1/viewer.proto";
+import "chatto/api/v1/presence.proto";
+import "chatto/api/v1/user_status.proto";
 import "chatto/api/v1/users.proto";
 
 // Request to update the authenticated user's profile. At least one field must
@@ -17,7 +19,7 @@ message UpdateProfileRequest {
 // Result of a profile update.
 message UpdateProfileResponse {
   // Updated user profile.
-  UserSummary user = 1;
+  User user = 1;
 }
 
 // Request to upload and set the authenticated user's avatar.
@@ -33,7 +35,7 @@ message UploadAvatarRequest {
 // Result of uploading the authenticated user's avatar.
 message UploadAvatarResponse {
   // Updated user profile.
-  UserSummary user = 1;
+  User user = 1;
 }
 
 // Request to delete the authenticated user's avatar.
@@ -42,7 +44,7 @@ message DeleteAvatarRequest {}
 // Result of deleting the authenticated user's avatar.
 message DeleteAvatarResponse {
   // Updated user profile.
-  UserSummary user = 1;
+  User user = 1;
 }
 
 // Request to update the authenticated user's display preferences. Omitted
@@ -82,7 +84,8 @@ message DeleteMyAccountResponse {
   bool deleted = 1;
 }
 
-// Self-service account, profile, avatar, and display preference commands.
+// Self-service account, profile, avatar, display preference, presence, and
+// custom-status commands.
 service AccountService {
   // Updates the authenticated user's login and/or display name.
   rpc UpdateProfile(UpdateProfileRequest) returns (UpdateProfileResponse);
@@ -92,6 +95,16 @@ service AccountService {
   rpc DeleteAvatar(DeleteAvatarRequest) returns (DeleteAvatarResponse);
   // Updates the authenticated user's display preferences.
   rpc UpdateSettings(UpdateSettingsRequest) returns (UpdateSettingsResponse);
+  // Reports the current user's live presence status. This state is transient:
+  // clients should refresh it periodically while visible, and should stop
+  // calling this RPC when the user chooses to appear offline.
+  rpc ReportPresence(ReportPresenceRequest) returns (ReportPresenceResponse);
+  // Sets or replaces the current user's custom status. Emoji and text are
+  // required, and expires_at must be omitted or in the future.
+  rpc SetCustomStatus(SetCustomStatusRequest) returns (SetCustomStatusResponse);
+  // Clears the current user's custom status. The call is idempotent and returns
+  // the resulting empty status state.
+  rpc ClearCustomStatus(ClearCustomStatusRequest) returns (ClearCustomStatusResponse);
   // Issues a short-lived token used to confirm self-deletion.
   rpc RequestAccountDeletion(RequestAccountDeletionRequest) returns (RequestAccountDeletionResponse);
   // Permanently deletes the authenticated account after token validation.

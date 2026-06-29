@@ -139,8 +139,8 @@ func (x *UserAvatarOptions) GetFit() UserAvatarFitMode {
 	return UserAvatarFitMode_USER_AVATAR_FIT_MODE_UNSPECIFIED
 }
 
-// Lightweight public user data for cache-backed render surfaces.
-type UserSummary struct {
+// Public user identity fields.
+type User struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Stable user ID.
 	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -156,20 +156,20 @@ type UserSummary struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *UserSummary) Reset() {
-	*x = UserSummary{}
+func (x *User) Reset() {
+	*x = User{}
 	mi := &file_chatto_api_v1_users_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *UserSummary) String() string {
+func (x *User) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*UserSummary) ProtoMessage() {}
+func (*User) ProtoMessage() {}
 
-func (x *UserSummary) ProtoReflect() protoreflect.Message {
+func (x *User) ProtoReflect() protoreflect.Message {
 	mi := &file_chatto_api_v1_users_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -181,51 +181,51 @@ func (x *UserSummary) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use UserSummary.ProtoReflect.Descriptor instead.
-func (*UserSummary) Descriptor() ([]byte, []int) {
+// Deprecated: Use User.ProtoReflect.Descriptor instead.
+func (*User) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_users_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *UserSummary) GetId() string {
+func (x *User) GetId() string {
 	if x != nil {
 		return x.Id
 	}
 	return ""
 }
 
-func (x *UserSummary) GetLogin() string {
+func (x *User) GetLogin() string {
 	if x != nil {
 		return x.Login
 	}
 	return ""
 }
 
-func (x *UserSummary) GetDisplayName() string {
+func (x *User) GetDisplayName() string {
 	if x != nil {
 		return x.DisplayName
 	}
 	return ""
 }
 
-func (x *UserSummary) GetDeleted() bool {
+func (x *User) GetDeleted() bool {
 	if x != nil {
 		return x.Deleted
 	}
 	return false
 }
 
-func (x *UserSummary) GetAvatarUrl() string {
+func (x *User) GetAvatarUrl() string {
 	if x != nil && x.AvatarUrl != nil {
 		return *x.AvatarUrl
 	}
 	return ""
 }
 
-// Lightweight public user data plus live profile state.
-type UserPresenceSummary struct {
+// Public user identity fields plus live profile state.
+type UserProfile struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Public identity fields.
-	User *UserSummary `protobuf:"bytes,1,opt,name=user,proto3" json:"user,omitempty"`
+	User *User `protobuf:"bytes,1,opt,name=user,proto3" json:"user,omitempty"`
 	// Current live presence status.
 	PresenceStatus PresenceStatus `protobuf:"varint,2,opt,name=presence_status,json=presenceStatus,proto3,enum=chatto.api.v1.PresenceStatus" json:"presence_status,omitempty"`
 	// Custom profile status, when set.
@@ -234,20 +234,20 @@ type UserPresenceSummary struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *UserPresenceSummary) Reset() {
-	*x = UserPresenceSummary{}
+func (x *UserProfile) Reset() {
+	*x = UserProfile{}
 	mi := &file_chatto_api_v1_users_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *UserPresenceSummary) String() string {
+func (x *UserProfile) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*UserPresenceSummary) ProtoMessage() {}
+func (*UserProfile) ProtoMessage() {}
 
-func (x *UserPresenceSummary) ProtoReflect() protoreflect.Message {
+func (x *UserProfile) ProtoReflect() protoreflect.Message {
 	mi := &file_chatto_api_v1_users_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -259,26 +259,26 @@ func (x *UserPresenceSummary) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use UserPresenceSummary.ProtoReflect.Descriptor instead.
-func (*UserPresenceSummary) Descriptor() ([]byte, []int) {
+// Deprecated: Use UserProfile.ProtoReflect.Descriptor instead.
+func (*UserProfile) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_users_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *UserPresenceSummary) GetUser() *UserSummary {
+func (x *UserProfile) GetUser() *User {
 	if x != nil {
 		return x.User
 	}
 	return nil
 }
 
-func (x *UserPresenceSummary) GetPresenceStatus() PresenceStatus {
+func (x *UserProfile) GetPresenceStatus() PresenceStatus {
 	if x != nil {
 		return x.PresenceStatus
 	}
 	return PresenceStatus_PRESENCE_STATUS_UNSPECIFIED
 }
 
-func (x *UserPresenceSummary) GetCustomStatus() *CustomUserStatus {
+func (x *UserProfile) GetCustomStatus() *CustomUserStatus {
 	if x != nil {
 		return x.CustomStatus
 	}
@@ -395,7 +395,7 @@ func (x *GetUserByLoginRequest) GetAvatar() *UserAvatarOptions {
 	return nil
 }
 
-// Request lightweight summaries for a set of stable user IDs.
+// Request public user records for a set of stable user IDs.
 type BatchGetUsersRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Required user IDs. Unknown IDs are omitted from the response.
@@ -454,7 +454,7 @@ func (x *BatchGetUsersRequest) GetAvatar() *UserAvatarOptions {
 type GetUserResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Requested user.
-	User          *UserPresenceSummary `protobuf:"bytes,1,opt,name=user,proto3" json:"user,omitempty"`
+	User          *UserProfile `protobuf:"bytes,1,opt,name=user,proto3" json:"user,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -489,7 +489,7 @@ func (*GetUserResponse) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_users_proto_rawDescGZIP(), []int{6}
 }
 
-func (x *GetUserResponse) GetUser() *UserPresenceSummary {
+func (x *GetUserResponse) GetUser() *UserProfile {
 	if x != nil {
 		return x.User
 	}
@@ -500,7 +500,7 @@ func (x *GetUserResponse) GetUser() *UserPresenceSummary {
 type GetUserByLoginResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Requested user.
-	User          *UserPresenceSummary `protobuf:"bytes,1,opt,name=user,proto3" json:"user,omitempty"`
+	User          *UserProfile `protobuf:"bytes,1,opt,name=user,proto3" json:"user,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -535,19 +535,19 @@ func (*GetUserByLoginResponse) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_users_proto_rawDescGZIP(), []int{7}
 }
 
-func (x *GetUserByLoginResponse) GetUser() *UserPresenceSummary {
+func (x *GetUserByLoginResponse) GetUser() *UserProfile {
 	if x != nil {
 		return x.User
 	}
 	return nil
 }
 
-// Lightweight batch user summary response.
+// Batch public user response.
 type BatchGetUsersResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Found users. The server preserves first-seen request order and de-duplicates
 	// repeated IDs.
-	Users         []*UserSummary `protobuf:"bytes,1,rep,name=users,proto3" json:"users,omitempty"`
+	Users         []*User `protobuf:"bytes,1,rep,name=users,proto3" json:"users,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -582,7 +582,7 @@ func (*BatchGetUsersResponse) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_users_proto_rawDescGZIP(), []int{8}
 }
 
-func (x *BatchGetUsersResponse) GetUsers() []*UserSummary {
+func (x *BatchGetUsersResponse) GetUsers() []*User {
 	if x != nil {
 		return x.Users
 	}
@@ -599,17 +599,17 @@ const file_chatto_api_v1_users_proto_rawDesc = "" +
 	"\xbaH\a\x1a\x05\x18\x80 (\x01R\x05width\x12\"\n" +
 	"\x06height\x18\x02 \x01(\x05B\n" +
 	"\xbaH\a\x1a\x05\x18\x80 (\x01R\x06height\x12<\n" +
-	"\x03fit\x18\x03 \x01(\x0e2 .chatto.api.v1.UserAvatarFitModeB\b\xbaH\x05\x82\x01\x02\x10\x01R\x03fit\"\xa3\x01\n" +
-	"\vUserSummary\x12\x0e\n" +
+	"\x03fit\x18\x03 \x01(\x0e2 .chatto.api.v1.UserAvatarFitModeB\b\xbaH\x05\x82\x01\x02\x10\x01R\x03fit\"\x9c\x01\n" +
+	"\x04User\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05login\x18\x02 \x01(\tR\x05login\x12!\n" +
 	"\fdisplay_name\x18\x03 \x01(\tR\vdisplayName\x12\x18\n" +
 	"\adeleted\x18\x04 \x01(\bR\adeleted\x12\"\n" +
 	"\n" +
 	"avatar_url\x18\x05 \x01(\tH\x00R\tavatarUrl\x88\x01\x01B\r\n" +
-	"\v_avatar_url\"\xd3\x01\n" +
-	"\x13UserPresenceSummary\x12.\n" +
-	"\x04user\x18\x01 \x01(\v2\x1a.chatto.api.v1.UserSummaryR\x04user\x12F\n" +
+	"\v_avatar_url\"\xc4\x01\n" +
+	"\vUserProfile\x12'\n" +
+	"\x04user\x18\x01 \x01(\v2\x13.chatto.api.v1.UserR\x04user\x12F\n" +
 	"\x0fpresence_status\x18\x02 \x01(\x0e2\x1d.chatto.api.v1.PresenceStatusR\x0epresenceStatus\x12D\n" +
 	"\rcustom_status\x18\x03 \x01(\v2\x1f.chatto.api.v1.CustomUserStatusR\fcustomStatus\"l\n" +
 	"\x0eGetUserRequest\x12 \n" +
@@ -621,18 +621,18 @@ const file_chatto_api_v1_users_proto_rawDesc = "" +
 	"\x14BatchGetUsersRequest\x12+\n" +
 	"\buser_ids\x18\x01 \x03(\tB\x10\xbaH\r\x92\x01\n" +
 	"\b\x01\x10d\"\x04r\x02\x10\x01R\auserIds\x128\n" +
-	"\x06avatar\x18\x02 \x01(\v2 .chatto.api.v1.UserAvatarOptionsR\x06avatar\"I\n" +
-	"\x0fGetUserResponse\x126\n" +
-	"\x04user\x18\x01 \x01(\v2\".chatto.api.v1.UserPresenceSummaryR\x04user\"P\n" +
-	"\x16GetUserByLoginResponse\x126\n" +
-	"\x04user\x18\x01 \x01(\v2\".chatto.api.v1.UserPresenceSummaryR\x04user\"I\n" +
-	"\x15BatchGetUsersResponse\x120\n" +
-	"\x05users\x18\x01 \x03(\v2\x1a.chatto.api.v1.UserSummaryR\x05users*{\n" +
+	"\x06avatar\x18\x02 \x01(\v2 .chatto.api.v1.UserAvatarOptionsR\x06avatar\"A\n" +
+	"\x0fGetUserResponse\x12.\n" +
+	"\x04user\x18\x01 \x01(\v2\x1a.chatto.api.v1.UserProfileR\x04user\"H\n" +
+	"\x16GetUserByLoginResponse\x12.\n" +
+	"\x04user\x18\x01 \x01(\v2\x1a.chatto.api.v1.UserProfileR\x04user\"B\n" +
+	"\x15BatchGetUsersResponse\x12)\n" +
+	"\x05users\x18\x01 \x03(\v2\x13.chatto.api.v1.UserR\x05users*{\n" +
 	"\x11UserAvatarFitMode\x12$\n" +
 	" USER_AVATAR_FIT_MODE_UNSPECIFIED\x10\x00\x12 \n" +
 	"\x1cUSER_AVATAR_FIT_MODE_CONTAIN\x10\x01\x12\x1e\n" +
-	"\x1aUSER_AVATAR_FIT_MODE_COVER\x10\x022\x92\x02\n" +
-	"\vUserService\x12H\n" +
+	"\x1aUSER_AVATAR_FIT_MODE_COVER\x10\x022\x9b\x02\n" +
+	"\x14UserDirectoryService\x12H\n" +
 	"\aGetUser\x12\x1d.chatto.api.v1.GetUserRequest\x1a\x1e.chatto.api.v1.GetUserResponse\x12]\n" +
 	"\x0eGetUserByLogin\x12$.chatto.api.v1.GetUserByLoginRequest\x1a%.chatto.api.v1.GetUserByLoginResponse\x12Z\n" +
 	"\rBatchGetUsers\x12#.chatto.api.v1.BatchGetUsersRequest\x1a$.chatto.api.v1.BatchGetUsersResponseB\xa6\x01\n" +
@@ -656,8 +656,8 @@ var file_chatto_api_v1_users_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
 var file_chatto_api_v1_users_proto_goTypes = []any{
 	(UserAvatarFitMode)(0),         // 0: chatto.api.v1.UserAvatarFitMode
 	(*UserAvatarOptions)(nil),      // 1: chatto.api.v1.UserAvatarOptions
-	(*UserSummary)(nil),            // 2: chatto.api.v1.UserSummary
-	(*UserPresenceSummary)(nil),    // 3: chatto.api.v1.UserPresenceSummary
+	(*User)(nil),                   // 2: chatto.api.v1.User
+	(*UserProfile)(nil),            // 3: chatto.api.v1.UserProfile
 	(*GetUserRequest)(nil),         // 4: chatto.api.v1.GetUserRequest
 	(*GetUserByLoginRequest)(nil),  // 5: chatto.api.v1.GetUserByLoginRequest
 	(*BatchGetUsersRequest)(nil),   // 6: chatto.api.v1.BatchGetUsersRequest
@@ -669,21 +669,21 @@ var file_chatto_api_v1_users_proto_goTypes = []any{
 }
 var file_chatto_api_v1_users_proto_depIdxs = []int32{
 	0,  // 0: chatto.api.v1.UserAvatarOptions.fit:type_name -> chatto.api.v1.UserAvatarFitMode
-	2,  // 1: chatto.api.v1.UserPresenceSummary.user:type_name -> chatto.api.v1.UserSummary
-	10, // 2: chatto.api.v1.UserPresenceSummary.presence_status:type_name -> chatto.api.v1.PresenceStatus
-	11, // 3: chatto.api.v1.UserPresenceSummary.custom_status:type_name -> chatto.api.v1.CustomUserStatus
+	2,  // 1: chatto.api.v1.UserProfile.user:type_name -> chatto.api.v1.User
+	10, // 2: chatto.api.v1.UserProfile.presence_status:type_name -> chatto.api.v1.PresenceStatus
+	11, // 3: chatto.api.v1.UserProfile.custom_status:type_name -> chatto.api.v1.CustomUserStatus
 	1,  // 4: chatto.api.v1.GetUserRequest.avatar:type_name -> chatto.api.v1.UserAvatarOptions
 	1,  // 5: chatto.api.v1.GetUserByLoginRequest.avatar:type_name -> chatto.api.v1.UserAvatarOptions
 	1,  // 6: chatto.api.v1.BatchGetUsersRequest.avatar:type_name -> chatto.api.v1.UserAvatarOptions
-	3,  // 7: chatto.api.v1.GetUserResponse.user:type_name -> chatto.api.v1.UserPresenceSummary
-	3,  // 8: chatto.api.v1.GetUserByLoginResponse.user:type_name -> chatto.api.v1.UserPresenceSummary
-	2,  // 9: chatto.api.v1.BatchGetUsersResponse.users:type_name -> chatto.api.v1.UserSummary
-	4,  // 10: chatto.api.v1.UserService.GetUser:input_type -> chatto.api.v1.GetUserRequest
-	5,  // 11: chatto.api.v1.UserService.GetUserByLogin:input_type -> chatto.api.v1.GetUserByLoginRequest
-	6,  // 12: chatto.api.v1.UserService.BatchGetUsers:input_type -> chatto.api.v1.BatchGetUsersRequest
-	7,  // 13: chatto.api.v1.UserService.GetUser:output_type -> chatto.api.v1.GetUserResponse
-	8,  // 14: chatto.api.v1.UserService.GetUserByLogin:output_type -> chatto.api.v1.GetUserByLoginResponse
-	9,  // 15: chatto.api.v1.UserService.BatchGetUsers:output_type -> chatto.api.v1.BatchGetUsersResponse
+	3,  // 7: chatto.api.v1.GetUserResponse.user:type_name -> chatto.api.v1.UserProfile
+	3,  // 8: chatto.api.v1.GetUserByLoginResponse.user:type_name -> chatto.api.v1.UserProfile
+	2,  // 9: chatto.api.v1.BatchGetUsersResponse.users:type_name -> chatto.api.v1.User
+	4,  // 10: chatto.api.v1.UserDirectoryService.GetUser:input_type -> chatto.api.v1.GetUserRequest
+	5,  // 11: chatto.api.v1.UserDirectoryService.GetUserByLogin:input_type -> chatto.api.v1.GetUserByLoginRequest
+	6,  // 12: chatto.api.v1.UserDirectoryService.BatchGetUsers:input_type -> chatto.api.v1.BatchGetUsersRequest
+	7,  // 13: chatto.api.v1.UserDirectoryService.GetUser:output_type -> chatto.api.v1.GetUserResponse
+	8,  // 14: chatto.api.v1.UserDirectoryService.GetUserByLogin:output_type -> chatto.api.v1.GetUserByLoginResponse
+	9,  // 15: chatto.api.v1.UserDirectoryService.BatchGetUsers:output_type -> chatto.api.v1.BatchGetUsersResponse
 	13, // [13:16] is the sub-list for method output_type
 	10, // [10:13] is the sub-list for method input_type
 	10, // [10:10] is the sub-list for extension type_name
