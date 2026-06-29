@@ -238,6 +238,34 @@ func TestOIDCProviderWithoutEmailAutoProvisionLinkAndLogin(t *testing.T) {
 		t.Fatalf("linked no-email OIDC identity = %v, want %s", linked, linkUser.Id)
 	}
 
+	issuer.SetSubject("subject-conflict")
+	conflictUser, err := chattoCore.CreateUserForExternalIdentity(t.Context(), "conflict-no-email-oidc", "Conflict No Email OIDC", &core.PendingExternalIdentityFlow{
+		ProviderID:    "oidc-no-email",
+		ProviderType:  config.AuthProviderTypeOpenIDConnect,
+		ProviderLabel: "No Email OIDC",
+		Issuer:        issuer.URL(),
+		Subject:       "subject-conflict",
+	})
+	if err != nil {
+		t.Fatalf("CreateUserForExternalIdentity conflict: %v", err)
+	}
+	conflictTarget, err := chattoCore.CreateUser(t.Context(), core.SystemActorID, "conflict-link-target", "Conflict Link Target", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser conflict target: %v", err)
+	}
+	conflictStart, err := chattoCore.CreatePendingExternalIdentityLinkStart(t.Context(), "oidc-no-email", "/chat/-/settings/account", conflictTarget.Id)
+	if err != nil {
+		t.Fatalf("CreatePendingExternalIdentityLinkStart conflict: %v", err)
+	}
+	conflictStartLocation := startNoEmailOIDC(t, client, ts.URL, "oidc-no-email", url.Values{
+		"intent":     {"link"},
+		"link_start": {conflictStart},
+	})
+	conflictLocation := finishNoEmailOIDCCallback(t, client, ts.URL, "oidc-no-email", authStateFromLocation(t, conflictStartLocation))
+	if conflictLocation != "/chat/-/settings/account?error=external_identity_conflict" {
+		t.Fatalf("conflict Location = %q, want settings conflict error redirect (linked user %s)", conflictLocation, conflictUser.Id)
+	}
+
 	if issuer.UserInfoRequests() == 0 {
 		t.Fatal("expected userinfo fallback when ID token has no email claim")
 	}

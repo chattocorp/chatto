@@ -301,7 +301,7 @@ func (s *HTTPServer) handleProviderCallback(c *gin.Context, providerRuntime *aut
 
 	if intent == "link" {
 		if linkUserID == "" || linkUserID != user.Id {
-			c.Redirect(http.StatusTemporaryRedirect, providerReturnPath(session, "/?error=external_identity_conflict"))
+			c.Redirect(http.StatusTemporaryRedirect, providerReturnPathWithError(session, "/", "external_identity_conflict"))
 			return
 		}
 		c.Redirect(http.StatusTemporaryRedirect, providerReturnPath(session, "/"))
@@ -671,6 +671,18 @@ func providerReturnPath(session sessions.Session, fallback string) string {
 		}
 	}
 	return fallback
+}
+
+func providerReturnPathWithError(session sessions.Session, fallback, errorCode string) string {
+	returnPath := providerReturnPath(session, fallback)
+	u, err := url.Parse(returnPath)
+	if err != nil {
+		return fallback
+	}
+	q := u.Query()
+	q.Set("error", errorCode)
+	u.RawQuery = q.Encode()
+	return u.String()
 }
 
 func loginHintFromParts(parts ...string) string {
