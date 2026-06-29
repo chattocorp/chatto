@@ -17,8 +17,11 @@ import (
 
 	"connectrpc.com/authn"
 	"connectrpc.com/connect"
+	"connectrpc.com/grpcreflect"
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
+	"google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/reflect/protoregistry"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core"
@@ -52,6 +55,8 @@ func TestAPIHandlers(t *testing.T) {
 		"/" + adminv1connect.AdminEventLogServiceName + "/",
 		"/" + adminv1connect.AdminRoomLayoutServiceName + "/",
 		"/" + adminv1connect.AdminMemberServiceName + "/",
+		"/" + grpcreflect.ReflectV1AlphaServiceName + "/",
+		"/" + grpcreflect.ReflectV1ServiceName + "/",
 		"/" + apiv1connect.LinkPreviewServiceName + "/",
 		"/" + apiv1connect.MessageServiceName + "/",
 		"/" + apiv1connect.MemberDirectoryServiceName + "/",
@@ -96,6 +101,8 @@ func TestAPIHandlerAuthPolicies(t *testing.T) {
 		"/" + adminv1connect.AdminEventLogServiceName + "/":         AuthPolicyAuthenticatedUser,
 		"/" + adminv1connect.AdminRoomLayoutServiceName + "/":       AuthPolicyAuthenticatedUser,
 		"/" + adminv1connect.AdminMemberServiceName + "/":           AuthPolicyAuthenticatedUser,
+		"/" + grpcreflect.ReflectV1AlphaServiceName + "/":           AuthPolicyPublic,
+		"/" + grpcreflect.ReflectV1ServiceName + "/":                AuthPolicyPublic,
 		"/" + apiv1connect.LinkPreviewServiceName + "/":             AuthPolicyAuthenticatedUser,
 		"/" + apiv1connect.MessageServiceName + "/":                 AuthPolicyAuthenticatedUser,
 		"/" + apiv1connect.MemberDirectoryServiceName + "/":         AuthPolicyAuthenticatedUser,
@@ -123,6 +130,29 @@ func TestAPIHandlerAuthPolicies(t *testing.T) {
 		if gotPolicy := got[servicePath]; gotPolicy != wantPolicy {
 			t.Fatalf("auth policy for %s = %q, want %q", servicePath, gotPolicy, wantPolicy)
 		}
+	}
+}
+
+func TestPublicReflectionResolver(t *testing.T) {
+	resolver, err := publicReflectionResolver(publicReflectionServiceNames)
+	if err != nil {
+		t.Fatalf("publicReflectionResolver: %v", err)
+	}
+
+	if _, err := resolver.FindDescriptorByName(protoreflect.FullName(apiv1connect.ServerDiscoveryServiceName)); err != nil {
+		t.Fatalf("FindDescriptorByName(%s): %v", apiv1connect.ServerDiscoveryServiceName, err)
+	}
+	if _, err := resolver.FindFileByPath("chatto/api/v1/server.proto"); err != nil {
+		t.Fatalf("FindFileByPath(chatto/api/v1/server.proto): %v", err)
+	}
+	if _, err := resolver.FindFileByPath("chatto/admin/v1/diagnostics.proto"); err != nil {
+		t.Fatalf("FindFileByPath(chatto/admin/v1/diagnostics.proto): %v", err)
+	}
+	if _, err := resolver.FindFileByPath("chatto/core/v1/event.proto"); !errors.Is(err, protoregistry.NotFound) {
+		t.Fatalf("FindFileByPath(chatto/core/v1/event.proto) err = %v, want NotFound", err)
+	}
+	if _, err := resolver.FindDescriptorByName("chatto.core.v1.Event"); !errors.Is(err, protoregistry.NotFound) {
+		t.Fatalf("FindDescriptorByName(chatto.core.v1.Event) err = %v, want NotFound", err)
 	}
 }
 

@@ -104,6 +104,16 @@ func newHTTPServer(addr string, handler http.Handler) *http.Server {
 	}
 }
 
+func newAppHTTPServer(addr string, handler http.Handler) *http.Server {
+	server := newHTTPServer(addr, handler)
+	protocols := new(http.Protocols)
+	protocols.SetHTTP1(true)
+	protocols.SetHTTP2(true)
+	protocols.SetUnencryptedHTTP2(true)
+	server.Protocols = protocols
+	return server
+}
+
 func requestLogger(logger *log.Logger) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		start := time.Now()
@@ -209,7 +219,7 @@ func (s *HTTPServer) Run(ctx context.Context) error {
 		}
 
 		// HTTPS server (started separately with ListenAndServeTLS)
-		tlsServer = newHTTPServer(s.addr, s.router)
+		tlsServer = newAppHTTPServer(s.addr, s.router)
 		tlsServer.TLSConfig = &tls.Config{
 			GetCertificate: certManager.GetCertificate,
 			MinVersion:     tls.VersionTLS12,
@@ -220,7 +230,7 @@ func (s *HTTPServer) Run(ctx context.Context) error {
 		servers = append(servers, newHTTPServer(httpAddr, certManager.HTTPHandler(http.HandlerFunc(s.redirectToHTTPS))))
 	} else {
 		// Plain HTTP server
-		servers = append(servers, newHTTPServer(s.addr, s.router))
+		servers = append(servers, newAppHTTPServer(s.addr, s.router))
 	}
 
 	if s.config.Metrics.Enabled {

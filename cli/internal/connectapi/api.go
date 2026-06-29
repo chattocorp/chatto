@@ -96,7 +96,7 @@ func (a *API) Handlers() []Handler {
 	threadPath, threadHandler := apiv1connect.NewThreadServiceHandler(&threadService{api: a}, options...)
 	userPath, userHandler := apiv1connect.NewUserDirectoryServiceHandler(&userService{api: a}, options...)
 	voicePath, voiceHandler := apiv1connect.NewVoiceCallServiceHandler(&voiceCallService{api: a}, options...)
-	return []Handler{
+	handlers := []Handler{
 		{ServicePath: accountPath, Handler: accountHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: attachmentPath, Handler: attachmentHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: adminDiagnosticsPath, Handler: adminDiagnosticsHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
@@ -124,6 +124,7 @@ func (a *API) Handlers() []Handler {
 		{ServicePath: threadPath, Handler: threadHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: voicePath, Handler: voiceHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 	}
+	return append(handlers, reflectionHandlers(options)...)
 }
 
 func uploadRequestMaxBytes(maxUploadSize int64) int {
