@@ -29,6 +29,13 @@ authorization, live events, backup/restore, and backend tests.
   protocol.
 - Keep ConnectRPC transport thin: authenticate, decode, map errors/responses,
   and delegate policy/domain work to shared services.
+- Keep projected read hydration out of ConnectRPC handlers. Put per-response
+  batching, bounded concurrency, include-map construction, and protobuf response
+  assembly in small `*_assembler.go` helpers near the service that owns the
+  response shape.
+- Do not create a generic ConnectRPC loader package until multiple assemblers
+  share the same non-trivial loading semantics. Prefer concrete assemblers plus
+  small generic mechanics such as `internal/parallel`.
 - Put operation-specific authorization in the core operation model for that
   behavior. Low-level `ChattoCore` helpers are not public transport entry
   points and may assume their caller already performed the appropriate gate.

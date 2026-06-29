@@ -56,6 +56,10 @@ Core operation models are responsible for:
 - read-your-writes waits;
 - response semantics shared across transports.
 
+Read responses that hydrate projected data from multiple sources should keep that fanout out of service handlers. Handlers stay responsible for caller/auth, request translation, pagination parameters, and response wrapping. Per-response loading, batching, bounded concurrency, and include-map construction should live in small response assemblers or focused helper functions near the service that owns the response shape.
+
+These assemblers should stay concrete until repetition proves otherwise. Do not introduce a generic ConnectRPC loader package just because several endpoints hydrate data: most hydration code also owns response-shape details such as protobuf messages, include maps, viewer visibility, nullable fields, and endpoint-specific absence behavior. Shared helpers are appropriate for truly generic mechanics such as bounded parallel mapping, or after multiple assemblers share the same non-trivial loading behavior with the same semantics.
+
 ConnectRPC errors are mapped through the shared `connectError` helper so core authentication, authorization, validation, not-found, conflict, and room-state errors produce consistent Connect status codes. Handlers should return `connect.NewResponse` for success and avoid service-local status-code mapping unless the public method has a deliberate protocol-specific error.
 
 Adding a new public ConnectRPC service requires the same change set:
@@ -74,7 +78,7 @@ Adding a new public ConnectRPC service requires the same change set:
 
 ConnectRPC services become predictable to review: public surface, auth policy, validation, and handler options are visible in one place.
 
-Some small mapping code remains in each handler. That is intentional. The handler layer should be thin and explicit rather than hiding service behavior behind broad reflection or generic transport abstractions.
+Some small request and response wrapping code remains in each handler. That is intentional. The handler layer should be thin and explicit rather than hiding service behavior behind broad reflection or generic transport abstractions. Heavier read-response assembly belongs in named assemblers/helpers so batching and concurrency are reusable without spreading loader control flow through handlers. A separate loader layer should be extracted only when the shared semantics are already visible in concrete assemblers.
 
 Operation-specific authorization lives in shared core operation models for public API actions. This reduces transport drift, but it means older trusted core helpers can coexist with newer operation models. Trusted/internal callers may still use lower-level helpers; public transports should use operation models.
 

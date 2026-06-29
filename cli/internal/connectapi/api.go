@@ -18,6 +18,8 @@ const Prefix = "/api/connect"
 // defaults to unlimited reads, so keep this explicit for every public handler.
 const MaxRequestMessageBytes = 1 << 20 // 1 MiB
 
+const maxConnectAPIHydrationConcurrency = 16
+
 // AuthPolicy describes whether the HTTP edge should require authentication
 // before forwarding a request to a generated Connect handler.
 type AuthPolicy string

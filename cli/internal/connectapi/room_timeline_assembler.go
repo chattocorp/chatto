@@ -14,8 +14,6 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-const maxRoomTimelineHydrationConcurrency = 16
-
 type roomTimelineAssembler struct {
 	api *API
 }
@@ -51,7 +49,7 @@ func (a *roomTimelineAssembler) buildPage(ctx context.Context, viewerID string, 
 		userIDs:              make(map[string]struct{}),
 	}
 
-	hydratedEvents, err := parallel.Map(ctx, maxRoomTimelineHydrationConcurrency, events, func(ctx context.Context, _ int, event *core.RoomEvent) (*apiv1.RoomTimelineEvent, error) {
+	hydratedEvents, err := parallel.Map(ctx, maxConnectAPIHydrationConcurrency, events, func(ctx context.Context, _ int, event *core.RoomEvent) (*apiv1.RoomTimelineEvent, error) {
 		return h.event(ctx, event)
 	})
 	if err != nil {
