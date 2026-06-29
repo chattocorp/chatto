@@ -10,7 +10,7 @@ import {
   RealtimeServerHello,
   RealtimeServerUpdatedEvent,
   RealtimeSubscribed
-} from '$lib/pb/chatto/api/v1/realtime_pb';
+} from '@chatto/api-types/chatto/api/v1/realtime_pb';
 import { eventBusManager, setRealtimeSocketFactoryForTests } from './eventBus.svelte';
 import type { ConnectionStatus, ServerConnection } from './serverConnection.svelte';
 

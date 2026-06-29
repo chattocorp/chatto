@@ -3,11 +3,11 @@ import type { TestInfo } from '@playwright/test';
 import { createClient } from '@connectrpc/connect';
 import { createConnectTransport } from '@connectrpc/connect-web';
 import { readFile } from 'fs/promises';
-import { MessageService } from '$lib/pb/chatto/api/v1/messages_connect';
-import { RoomDirectoryService } from '$lib/pb/chatto/api/v1/room_directory_connect';
-import { RoomService } from '$lib/pb/chatto/api/v1/rooms_connect';
-import { ServerStateService } from '$lib/pb/chatto/api/v1/server_state_connect';
-import { ViewerService } from '$lib/pb/chatto/api/v1/viewer_connect';
+import { MessageService } from '@chatto/api-types/chatto/api/v1/messages_connect';
+import { RoomDirectoryService } from '@chatto/api-types/chatto/api/v1/room_directory_connect';
+import { RoomService } from '@chatto/api-types/chatto/api/v1/rooms_connect';
+import { ServerStateService } from '@chatto/api-types/chatto/api/v1/server_state_connect';
+import { ViewerService } from '@chatto/api-types/chatto/api/v1/viewer_connect';
 import { startServer, stopServer, type ServerInfo } from './server';
 
 function connectBaseUrl(remoteBaseURL: string): string {

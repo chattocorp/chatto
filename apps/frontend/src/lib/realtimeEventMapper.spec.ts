@@ -7,7 +7,7 @@ import {
   RealtimeEventEnvelope,
   RealtimeMentionNotificationEvent,
   RealtimeNewDirectMessageNotificationEvent
-} from '$lib/pb/chatto/api/v1/realtime_pb';
+} from '@chatto/api-types/chatto/api/v1/realtime_pb';
 
 describe('realtimeEventToEventEnvelope', () => {
   it('preserves mention notification display data', () => {
