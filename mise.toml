@@ -58,6 +58,7 @@ dir = "proto"
 run = [
     "buf generate",
     "node ../tools/split-connectrpc-docs.mjs",
+    "node ../tools/trim-proto-codegen-output.mjs",
 ]
 
 [tasks.codegen-emoji]
