@@ -266,7 +266,7 @@ function renderLanding() {
     ...categories.flatMap((category) => [
       `### ${category.title}`,
       '',
-      ...category.services.map((service) => `- [${service.title}](/reference/connectrpc-api/${service.slug}/) - ${service.description}`),
+      ...category.services.map((service) => `- [${service.name}](/reference/connectrpc-api/${service.slug}/) - ${service.description}`),
       ''
     ]),
     '',
@@ -290,7 +290,7 @@ function renderServicePage(service, serviceSections) {
     '',
     rewriteServiceTypeLinks(serviceSections.get(service.name).content)
   ];
-  return renderPage(service.title, service.description, body.join('\n\n'));
+  return renderPage(service.name, service.description, body.join('\n\n'));
 }
 
 function renderTypesPage(typeSections, enumSections) {
