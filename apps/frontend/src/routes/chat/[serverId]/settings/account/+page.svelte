@@ -11,7 +11,7 @@
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { createAccountAPI } from '@chatto/api-client/account';
-  import { PaneHeader, Dialog, FormSection, Hint } from '$lib/ui';
+  import { PaneHeader, ConfirmDialog, Dialog, FormSection, Hint } from '$lib/ui';
   import { TextInput, Button, FormError, z, validate } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast/toastState.svelte';
   import { notifyLogout } from '$lib/auth/sessionChannel';
@@ -48,6 +48,9 @@
   let ssoError = $state('');
   let linkingProviderId = $state('');
   let disconnectingSubjectHash = $state('');
+  let disconnectTarget = $state<{ subjectHash: string; providerLabel: string } | null>(null);
+  let blockedDisconnectProviderLabel = $state('');
+  let showDisconnectBlockedModal = $state(false);
   let currentPassword = $state('');
   let password = $state('');
   let confirmPassword = $state('');
@@ -89,6 +92,9 @@
   );
   const hasSSORows = $derived(
     ssoProviders.length > 0 || unconfiguredLinkedIdentities.length > 0
+  );
+  const disconnectWouldRemoveLastMethod = $derived(
+    !hasPassword && linkedSSOIdentities.length <= 1
   );
 
   $effect(() => {
@@ -177,12 +183,38 @@
     }
   }
 
-  async function handleDisconnectProvider(provider: ExternalIdentityProviderInfo) {
+  function openDisconnectProvider(provider: ExternalIdentityProviderInfo) {
     if (!provider.linkedIdentitySubjectHash) return;
-    await handleDisconnectIdentity(provider.linkedIdentitySubjectHash);
+    openDisconnectDialog(provider.linkedIdentitySubjectHash, provider.label);
   }
 
-  async function handleDisconnectIdentity(subjectHash: string) {
+  function openDisconnectIdentity(identity: LinkedExternalIdentityInfo) {
+    openDisconnectDialog(identity.subjectHash, identity.providerLabel);
+  }
+
+  function openDisconnectDialog(subjectHash: string, providerLabel: string) {
+    ssoError = '';
+    if (disconnectWouldRemoveLastMethod) {
+      blockedDisconnectProviderLabel = providerLabel;
+      showDisconnectBlockedModal = true;
+      return;
+    }
+    disconnectTarget = { subjectHash, providerLabel };
+  }
+
+  function closeDisconnectDialog() {
+    if (disconnectingSubjectHash) return;
+    disconnectTarget = null;
+  }
+
+  function closeDisconnectBlockedModal() {
+    showDisconnectBlockedModal = false;
+    blockedDisconnectProviderLabel = '';
+  }
+
+  async function confirmDisconnectIdentity() {
+    if (!disconnectTarget) return;
+    const { subjectHash, providerLabel } = disconnectTarget;
     const client = connection();
     disconnectingSubjectHash = subjectHash;
     ssoError = '';
@@ -194,16 +226,26 @@
       });
       await api.disconnect(subjectHash);
       await refreshExternalIdentities();
+      disconnectTarget = null;
     } catch (err) {
       if (err instanceof ConnectError && err.code === Code.FailedPrecondition) {
-        ssoError = m['settings.account.sso.disconnect_last_method']();
+        disconnectTarget = null;
+        blockedDisconnectProviderLabel = providerLabel;
+        showDisconnectBlockedModal = true;
       } else {
         ssoError =
           err instanceof Error ? err.message : m['settings.account.sso.disconnect_failed']();
+        disconnectTarget = null;
       }
     } finally {
       disconnectingSubjectHash = '';
     }
+  }
+
+  function disconnectButtonLabel(subjectHash: string) {
+    return disconnectingSubjectHash === subjectHash
+      ? m['settings.account.sso.disconnecting']()
+      : m['settings.account.sso.disconnect_button']();
   }
 
   async function handleSetPassword(e: Event) {
@@ -402,17 +444,19 @@
                 </div>
                 {#if provider.linked}
                   {#if provider.linkedIdentitySubjectHash}
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      loading={disconnectingSubjectHash === provider.linkedIdentitySubjectHash}
-                      loadingText={m['settings.account.sso.disconnecting']()}
+                    <button
+                      type="button"
+                      class="btn-secondary btn-sm hover:!from-danger/65 hover:!to-danger/95 hover:!text-white hover:!ring-danger/30"
+                      aria-busy={
+                        disconnectingSubjectHash === provider.linkedIdentitySubjectHash ||
+                        undefined
+                      }
                       disabled={linkingProviderId !== '' || disconnectingSubjectHash !== ''}
-                      onclick={() => handleDisconnectProvider(provider)}
+                      onclick={() => openDisconnectProvider(provider)}
                     >
                       <span class="iconify uil--link-broken"></span>
-                      {m['settings.account.sso.disconnect_button']()}
-                    </Button>
+                      {disconnectButtonLabel(provider.linkedIdentitySubjectHash)}
+                    </button>
                   {:else}
                     <span class="text-sm text-muted">{m['settings.account.sso.linked']()}</span>
                   {/if}
@@ -444,17 +488,16 @@
                     </div>
                   </div>
                 </div>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  loading={disconnectingSubjectHash === identity.subjectHash}
-                  loadingText={m['settings.account.sso.disconnecting']()}
+                <button
+                  type="button"
+                  class="btn-secondary btn-sm hover:!from-danger/65 hover:!to-danger/95 hover:!text-white hover:!ring-danger/30"
+                  aria-busy={disconnectingSubjectHash === identity.subjectHash || undefined}
                   disabled={linkingProviderId !== '' || disconnectingSubjectHash !== ''}
-                  onclick={() => handleDisconnectIdentity(identity.subjectHash)}
+                  onclick={() => openDisconnectIdentity(identity)}
                 >
                   <span class="iconify uil--link-broken"></span>
-                  {m['settings.account.sso.disconnect_button']()}
-                </Button>
+                  {disconnectButtonLabel(identity.subjectHash)}
+                </button>
               </div>
             {/each}
           </div>
@@ -476,6 +519,42 @@
     </div>
   {/if}
 </div>
+
+{#if disconnectTarget}
+  <ConfirmDialog
+    visible
+    title={m['settings.account.sso.disconnect_modal.title']()}
+    actionLabel={m['settings.account.sso.disconnect_modal.action']()}
+    actionIcon="iconify uil--link-broken"
+    loading={disconnectingSubjectHash === disconnectTarget.subjectHash}
+    onconfirm={confirmDisconnectIdentity}
+    onclose={closeDisconnectDialog}
+  >
+    {m['settings.account.sso.disconnect_modal.body']({
+      provider: disconnectTarget.providerLabel
+    })}
+  </ConfirmDialog>
+{/if}
+
+<Dialog
+  visible={showDisconnectBlockedModal}
+  title={m['settings.account.sso.disconnect_blocked_modal.title']()}
+  size="sm"
+  onclose={closeDisconnectBlockedModal}
+>
+  <div class="flex flex-col gap-4">
+    <Hint tone="warning">
+      {m['settings.account.sso.disconnect_blocked_modal.body']({
+        provider: blockedDisconnectProviderLabel
+      })}
+    </Hint>
+    <div class="flex justify-end">
+      <Button variant="secondary" onclick={closeDisconnectBlockedModal}>
+        {m['ui.close']()}
+      </Button>
+    </div>
+  </div>
+</Dialog>
 
 <!-- Delete Account Confirmation Modal -->
 <Dialog

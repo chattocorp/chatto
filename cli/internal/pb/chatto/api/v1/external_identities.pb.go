@@ -28,9 +28,9 @@ type ExternalIdentityFlowKind int32
 const (
 	// The flow kind was not specified.
 	ExternalIdentityFlowKind_EXTERNAL_IDENTITY_FLOW_KIND_UNSPECIFIED ExternalIdentityFlowKind = 0
-	// Create a new passwordless Chatto account and link the provider identity.
+	// Create a new passwordless account and link the provider identity.
 	ExternalIdentityFlowKind_EXTERNAL_IDENTITY_FLOW_KIND_CREATE_ACCOUNT ExternalIdentityFlowKind = 1
-	// Link the provider identity to the authenticated Chatto account.
+	// Link the provider identity to the authenticated account.
 	ExternalIdentityFlowKind_EXTERNAL_IDENTITY_FLOW_KIND_LINK_ACCOUNT ExternalIdentityFlowKind = 2
 )
 
@@ -190,11 +190,11 @@ type PendingExternalIdentity struct {
 	ProviderLabel string `protobuf:"bytes,4,opt,name=provider_label,json=providerLabel,proto3" json:"provider_label,omitempty"`
 	// Verified email supplied by the provider, when available.
 	VerifiedEmail string `protobuf:"bytes,5,opt,name=verified_email,json=verifiedEmail,proto3" json:"verified_email,omitempty"`
-	// Suggested Chatto username derived from provider profile hints.
+	// Suggested username derived from provider profile hints.
 	LoginHint string `protobuf:"bytes,6,opt,name=login_hint,json=loginHint,proto3" json:"login_hint,omitempty"`
 	// Suggested display name derived from provider profile hints.
 	DisplayNameHint string `protobuf:"bytes,7,opt,name=display_name_hint,json=displayNameHint,proto3" json:"display_name_hint,omitempty"`
-	// Chatto user ID this link flow is bound to. Empty for create flows.
+	// User ID this link flow is bound to. Empty for create flows.
 	BoundUserId string `protobuf:"bytes,8,opt,name=bound_user_id,json=boundUserId,proto3" json:"bound_user_id,omitempty"`
 	// Internal path the client should return to after confirmation.
 	RedirectPath  string `protobuf:"bytes,9,opt,name=redirect_path,json=redirectPath,proto3" json:"redirect_path,omitempty"`
@@ -465,7 +465,7 @@ type CreateExternalIdentityAccountRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Raw pending create token from the provider callback redirect.
 	Token string `protobuf:"bytes,1,opt,name=token,proto3" json:"token,omitempty"`
-	// Desired Chatto username.
+	// Desired username.
 	Login         string `protobuf:"bytes,2,opt,name=login,proto3" json:"login,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

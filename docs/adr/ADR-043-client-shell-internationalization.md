@@ -14,7 +14,7 @@ Chatto needs internationalization support for its user interface. The current fr
 The architecture shapes the i18n approach:
 
 - Chatto ships the SvelteKit app as a static SPA embedded in the Go binary, with SSR disabled. Runtime production requests do not run SvelteKit server hooks.
-- The frontend is multi-server and instance-agnostic. One browser client can connect to several Chatto servers, and there is no global Chatto account that spans those servers.
+- The frontend is multi-server and instance-agnostic. One browser client can connect to several Chatto servers, and there is no global account that spans those servers.
 - Canonical app routes already encode server selection and chat navigation. Locale-prefixed routes would add churn to a routing surface that is mostly private app UI, not public SEO content.
 
 Chatto needs an i18n system that can be adopted incrementally, gives good type-safety, keeps bundles reasonable as locales grow, and does not mix translated presentation text into durable domain data.

@@ -102,6 +102,10 @@ generated protobuf clients, Vitest browser tests, Playwright e2e, and Storybook.
 - Use nested keys grouped by feature/surface; do not use English sentences as
   keys.
 - Keep user-generated values untranslated.
+- Do not product-qualify end-user accounts, users, members, or usernames in UI
+  copy. Use "account", "user", "member", or "username"; in German, use forms
+  such as "Konto", "Mitglied", and "Benutzername" without the product name as
+  a prefix.
 
 ## Admin And Settings UI
 

@@ -313,9 +313,9 @@ auto_provision = false
 
 Provider IDs are used in login URLs and external identity links, so do not change them after users link accounts through that provider.
 
-Set `request_email = false` to avoid requesting provider email scopes. OIDC providers can run with only `openid profile`; Chatto links and signs in accounts by issuer and subject even when no email claim is returned.
+`request_email` defaults to `false`, so Chatto does not request provider email scopes unless you opt in. Set `request_email = true` when you want provider-verified email claims. OIDC providers can run with only `openid profile`; Chatto links and signs in accounts by issuer and subject even when no email claim is returned.
 
-Set `auto_provision = true` only for providers whose users should be allowed to create Chatto accounts. Unlinked identities from providers without auto-provisioning can still be linked by existing signed-in users from account settings.
+Set `auto_provision = true` only for providers whose users should be allowed to create accounts. Unlinked identities from providers without auto-provisioning can still be linked by existing signed-in users from account settings.
 
 See [External Login Providers](/guides/external-login-providers/) for callback URLs, provider-specific examples, and discovery behavior.
 

@@ -20,14 +20,14 @@ export enum ExternalIdentityFlowKind {
   UNSPECIFIED = 0,
 
   /**
-   * Create a new passwordless Chatto account and link the provider identity.
+   * Create a new passwordless account and link the provider identity.
    *
    * @generated from enum value: EXTERNAL_IDENTITY_FLOW_KIND_CREATE_ACCOUNT = 1;
    */
   CREATE_ACCOUNT = 1,
 
   /**
-   * Link the provider identity to the authenticated Chatto account.
+   * Link the provider identity to the authenticated account.
    *
    * @generated from enum value: EXTERNAL_IDENTITY_FLOW_KIND_LINK_ACCOUNT = 2;
    */
@@ -173,7 +173,7 @@ export class PendingExternalIdentity extends Message<PendingExternalIdentity> {
   verifiedEmail = "";
 
   /**
-   * Suggested Chatto username derived from provider profile hints.
+   * Suggested username derived from provider profile hints.
    *
    * @generated from field: string login_hint = 6;
    */
@@ -187,7 +187,7 @@ export class PendingExternalIdentity extends Message<PendingExternalIdentity> {
   displayNameHint = "";
 
   /**
-   * Chatto user ID this link flow is bound to. Empty for create flows.
+   * User ID this link flow is bound to. Empty for create flows.
    *
    * @generated from field: string bound_user_id = 8;
    */
@@ -397,7 +397,7 @@ export class CreateExternalIdentityAccountRequest extends Message<CreateExternal
   token = "";
 
   /**
-   * Desired Chatto username.
+   * Desired username.
    *
    * @generated from field: string login = 2;
    */

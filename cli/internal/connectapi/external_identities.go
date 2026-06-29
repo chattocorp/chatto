@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/url"
 	"strings"
+	"unicode/utf8"
 
 	"connectrpc.com/connect"
 	"hmans.de/chatto/internal/config"
@@ -34,10 +35,7 @@ func (s *externalIdentityFlowService) CreateExternalIdentityAccount(ctx context.
 	if err != nil {
 		return nil, connectError(err)
 	}
-	displayName := flow.DisplayNameHint
-	if displayName == "" {
-		displayName = req.Msg.GetLogin()
-	}
+	displayName := externalIdentityCreateDisplayName(req.Msg.GetLogin(), flow.DisplayNameHint)
 	user, err := s.api.core.CreateUserForExternalIdentity(ctx, req.Msg.GetLogin(), displayName, flow)
 	if err != nil {
 		return nil, connectError(err)
@@ -57,6 +55,16 @@ func (s *externalIdentityFlowService) CreateExternalIdentityAccount(ctx context.
 		Login:  user.GetLogin(),
 		Token:  token,
 	}), nil
+}
+
+func externalIdentityCreateDisplayName(login, hint string) string {
+	displayName := core.NormalizeDisplayName(hint)
+	if displayName == "" ||
+		utf8.RuneCountInString(displayName) > core.MaxDisplayNameLength ||
+		core.ValidateDisplayName(displayName) != nil {
+		return strings.TrimSpace(login)
+	}
+	return displayName
 }
 
 func (s *externalIdentityFlowService) ConfirmExternalIdentityLink(ctx context.Context, req *connect.Request[apiv1.ConfirmExternalIdentityLinkRequest]) (*connect.Response[apiv1.ConfirmExternalIdentityLinkResponse], error) {

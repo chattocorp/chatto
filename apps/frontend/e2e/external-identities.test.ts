@@ -53,7 +53,7 @@ test.describe('External identity confirmation flows', () => {
     await page.goto('/login?error=external_identity_unlinked');
 
     await expect(
-      page.getByText('No Chatto account is linked to that provider identity yet.')
+      page.getByText('No account is linked to that provider identity yet.')
     ).toBeVisible();
   });
 
@@ -92,10 +92,22 @@ test.describe('External identity confirmation flows', () => {
     const githubRow = page.locator('div.rounded.border').filter({ hasText: 'GitHub' });
     await expect(githubRow.getByText('Linked')).toBeVisible();
 
+    let disconnectRequestCount = 0;
+    await page.route(
+      '**/api/connect/chatto.api.v1.ExternalIdentityService/DisconnectExternalIdentity',
+      async (route) => {
+        disconnectRequestCount++;
+        await route.continue();
+      }
+    );
+
     await githubRow.getByRole('button', { name: 'Disconnect' }).click();
+    await expect(page.getByRole('dialog', { name: 'Provider cannot be disconnected' })).toBeVisible();
     await expect(
-      page.getByText('Add a password or another sign-in method before disconnecting this provider.')
+      page.getByText('GitHub is your only sign-in method. Add a password or link another provider first.')
     ).toBeVisible();
+    expect(disconnectRequestCount).toBe(0);
+    await page.getByRole('dialog').getByText('Close').click();
     await expect(githubRow.getByText('Linked')).toBeVisible();
     await expect(githubRow.locator('.uil--link-broken')).toBeVisible();
 
@@ -106,6 +118,9 @@ test.describe('External identity confirmation flows', () => {
     await expect(page.getByRole('button', { name: 'Change Password' })).toBeVisible();
 
     await githubRow.getByRole('button', { name: 'Disconnect' }).click();
+    await expect(page.getByRole('dialog', { name: 'Disconnect provider' })).toBeVisible();
+    await expect(page.getByText('Disconnect GitHub from this account?')).toBeVisible();
+    await page.getByRole('dialog').getByRole('button', { name: 'Disconnect' }).click();
     await expect(githubRow.getByText('Not linked')).toBeVisible();
   });
 
@@ -175,7 +190,11 @@ test.describe('External identity confirmation flows', () => {
       );
     });
 
-    await discordRow.getByRole('button', { name: 'Disconnect' }).click();
+    const disconnectButton = discordRow.getByRole('button', { name: 'Disconnect' });
+    await expect(disconnectButton).toHaveClass(/hover:!from-danger/);
+    await disconnectButton.click();
+    await expect(page.getByRole('dialog', { name: 'Disconnect provider' })).toBeVisible();
+    await page.getByRole('dialog').getByRole('button', { name: 'Disconnect' }).click();
     await disconnectRequestStarted;
     const disconnectingButton = discordRow.getByRole('button', { name: 'Disconnecting...' });
     await expect(disconnectingButton).toBeDisabled();
@@ -207,6 +226,9 @@ test.describe('External identity confirmation flows', () => {
     await expect(retiredRow.getByText('Provider no longer configured')).toBeVisible();
 
     await retiredRow.getByRole('button', { name: 'Disconnect' }).click();
+    await expect(page.getByRole('dialog', { name: 'Disconnect provider' })).toBeVisible();
+    await expect(page.getByText('Disconnect retired-provider from this account?')).toBeVisible();
+    await page.getByRole('dialog').getByRole('button', { name: 'Disconnect' }).click();
     await expect(retiredRow).toBeHidden();
   });
 

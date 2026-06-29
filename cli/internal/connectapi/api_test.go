@@ -304,6 +304,33 @@ func TestExternalIdentityServicesCreateAndLink(t *testing.T) {
 		t.Fatalf("pending create flow after confirmation error = %v, want ErrExternalIdentityFlowNotFound", err)
 	}
 
+	fallbackToken, err := env.core.CreatePendingExternalIdentityCreateFlow(env.ctx, core.PendingExternalIdentityFlow{
+		ProviderID:      "discord-main",
+		ProviderType:    config.AuthProviderTypeDiscord,
+		ProviderLabel:   "Discord",
+		Issuer:          "discord-main",
+		Subject:         "fallback-display-name",
+		LoginHint:       "fallback-user",
+		DisplayNameHint: strings.Repeat("Provider ", 8),
+	})
+	if err != nil {
+		t.Fatalf("CreatePendingExternalIdentityCreateFlow fallback: %v", err)
+	}
+	fallbackCreated, err := env.flow.CreateExternalIdentityAccount(env.ctx, connect.NewRequest(&apiv1.CreateExternalIdentityAccountRequest{
+		Token: fallbackToken,
+		Login: "fallback-user",
+	}))
+	if err != nil {
+		t.Fatalf("CreateExternalIdentityAccount fallback: %v", err)
+	}
+	fallbackUser, err := env.core.GetUser(env.ctx, fallbackCreated.Msg.GetUserId())
+	if err != nil {
+		t.Fatalf("GetUser fallback: %v", err)
+	}
+	if fallbackUser.GetDisplayName() != "fallback-user" {
+		t.Fatalf("fallback display name = %q, want login", fallbackUser.GetDisplayName())
+	}
+
 	createdCtx := withCaller(env.ctx, &corev1.User{Id: created.Msg.GetUserId()})
 	list, err := env.identity.ListExternalIdentities(createdCtx, connect.NewRequest(&apiv1.ListExternalIdentitiesRequest{}))
 	if err != nil {
@@ -403,6 +430,53 @@ func TestExternalIdentityServicesCreateAndLink(t *testing.T) {
 	}
 	if publicLinked.Msg.LinkedIdentity.GetProviderId() != "gitlab-main" {
 		t.Fatalf("public linked identity = %+v", publicLinked.Msg.LinkedIdentity)
+	}
+}
+
+func TestExternalIdentityCreateDisplayName(t *testing.T) {
+	tests := []struct {
+		name  string
+		login string
+		hint  string
+		want  string
+	}{
+		{
+			name:  "valid hint",
+			login: "sso-user",
+			hint:  "SSO User",
+			want:  "SSO User",
+		},
+		{
+			name:  "empty hint falls back",
+			login: "sso-user",
+			hint:  " ",
+			want:  "sso-user",
+		},
+		{
+			name:  "invalid punctuation falls back",
+			login: "sso-user",
+			hint:  "User, Inc.",
+			want:  "sso-user",
+		},
+		{
+			name:  "too long falls back",
+			login: "sso-user",
+			hint:  strings.Repeat("A", core.MaxDisplayNameLength+1),
+			want:  "sso-user",
+		},
+		{
+			name:  "invalid start falls back",
+			login: "sso-user",
+			hint:  "😀 User",
+			want:  "sso-user",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := externalIdentityCreateDisplayName(tt.login, tt.hint); got != tt.want {
+				t.Fatalf("externalIdentityCreateDisplayName(%q, %q) = %q, want %q", tt.login, tt.hint, got, tt.want)
+			}
+		})
 	}
 }
 

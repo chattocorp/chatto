@@ -188,6 +188,12 @@ func TestReadConfig_AuthProvidersFromEnv(t *testing.T) {
 	}
 }
 
+func TestAuthProviderConfig_RequestEmailDefault(t *testing.T) {
+	if got := (AuthProviderConfig{}).RequestEmailOrDefault(); got {
+		t.Fatalf("RequestEmailOrDefault() = %v, want false", got)
+	}
+}
+
 func TestReadConfig_AuthProvidersEnvOverridesFile(t *testing.T) {
 	tmpDir := t.TempDir()
 	originalDir, err := os.Getwd()

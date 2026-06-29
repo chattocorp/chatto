@@ -84,6 +84,9 @@ For ad-hoc tool invocations, use `mise x -- ...` rather than assuming `go`,
 - Review visible frontend changes in the browser using Chrome DevTools MCP.
 - User-visible strings go through Paraglide message catalogs with both English
   and German entries. Follow ADR-043 and [apps/frontend/AGENTS.md](apps/frontend/AGENTS.md).
+- In user-facing copy, do not prefix end-user accounts, users, members, or
+  usernames with the product name. People belong to the community powered by
+  Chatto; use "account", "user", "member", or "username" as appropriate.
 - Use automatic "load more" pagination for frontend lists, not manual pages.
 - Use Save buttons only for multi-field forms that submit together; disable them
   until something changed.

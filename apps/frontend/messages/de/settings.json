@@ -302,7 +302,16 @@
         "disconnect_button": "Trennen",
         "disconnecting": "Wird getrennt...",
         "disconnect_failed": "Anmeldeanbieter konnte nicht getrennt werden",
-        "disconnect_last_method": "Füge ein Passwort oder eine weitere Anmeldemethode hinzu, bevor du diesen Anbieter trennst."
+        "disconnect_last_method": "Füge ein Passwort oder eine weitere Anmeldemethode hinzu, bevor du diesen Anbieter trennst.",
+        "disconnect_modal": {
+          "title": "Anbieter trennen",
+          "body": "{provider} von diesem Konto trennen?",
+          "action": "Trennen"
+        },
+        "disconnect_blocked_modal": {
+          "title": "Anbieter kann nicht getrennt werden",
+          "body": "{provider} ist deine einzige Anmeldemethode. Füge zuerst ein Passwort hinzu oder verknüpfe einen weiteren Anbieter."
+        }
       },
       "delete_modal": {
         "title": "Konto löschen",

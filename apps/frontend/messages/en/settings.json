@@ -302,7 +302,16 @@
         "disconnect_button": "Disconnect",
         "disconnecting": "Disconnecting...",
         "disconnect_failed": "Failed to disconnect sign-on provider",
-        "disconnect_last_method": "Add a password or another sign-in method before disconnecting this provider."
+        "disconnect_last_method": "Add a password or another sign-in method before disconnecting this provider.",
+        "disconnect_modal": {
+          "title": "Disconnect provider",
+          "body": "Disconnect {provider} from this account?",
+          "action": "Disconnect"
+        },
+        "disconnect_blocked_modal": {
+          "title": "Provider cannot be disconnected",
+          "body": "{provider} is your only sign-in method. Add a password or link another provider first."
+        }
       },
       "delete_modal": {
         "title": "Delete Account",

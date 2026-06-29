@@ -154,7 +154,7 @@ func addAuthProviderExamples(tomlText string) string {
 # issuer_url = 'https://id.example.com/realms/chatto'
 # client_id = 'chatto'
 # client_secret = 'replace-me'
-# scopes = ['openid', 'profile', 'email']
+# request_email = true
 #
 # [[auth.providers]]
 # id = 'github'

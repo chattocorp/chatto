@@ -82,7 +82,7 @@ This FDR covers the user account from registration through deletion: signup, ema
 
 ### 7. KMS service boundary, even though it's in-process
 
-**Decision:** KEK creation, DEK wrapping/unwrapping, and KEK shredding go through a KMS service interface (`createKey`, `wrapContentKey`, `unwrapContentKey`, `shredKey`) using opaque key refs rather than direct KEK access or Chatto user IDs. DEK record create/load/shred stays in application-owned `RUNTIME_STATE` storage.
+**Decision:** KEK creation, DEK wrapping/unwrapping, and KEK shredding go through a KMS service interface (`createKey`, `wrapContentKey`, `unwrapContentKey`, `shredKey`) using opaque key refs rather than direct KEK access or user IDs. DEK record create/load/shred stays in application-owned `RUNTIME_STATE` storage.
 **Why:** A clean KMS boundary is what makes future extraction to Vault / AWS KMS / HSM possible without turning the external KMS into Chatto's DEK registry. Keeping wrapped DEKs in `RUNTIME_STATE` also preserves them in normal data backups without backing up the KEKs needed to unwrap them. See ADR-007.
 **Tradeoff:** A tiny indirection layer for what's currently an in-process call. Legacy direct-key body decrypt still has a local raw-KEK compatibility path until old bodies age out.
 

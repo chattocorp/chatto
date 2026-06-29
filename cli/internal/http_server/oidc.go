@@ -294,7 +294,7 @@ func (s *HTTPServer) handleProviderCallback(c *gin.Context, providerRuntime *aut
 		return
 	}
 	if user == nil {
-		log.Info("Provider login has no linked Chatto account", "provider_id", providerRuntime.config.ID, "provider_type", providerRuntime.config.Type)
+		log.Info("Provider login has no linked account", "provider_id", providerRuntime.config.ID, "provider_type", providerRuntime.config.Type)
 		s.redirectPendingExternalIdentity(c, session, providerRuntime.config, identity, intent, linkUserID)
 		return
 	}
@@ -381,6 +381,9 @@ func providerScopes(providerConfig config.AuthProviderConfig) []string {
 		return scopes
 	}
 	if !providerConfig.RequestEmailOrDefault() {
+		if providerConfig.Type == config.AuthProviderTypeGoogle {
+			return []string{"openid", "profile"}
+		}
 		return nil
 	}
 	switch providerConfig.Type {

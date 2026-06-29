@@ -27,21 +27,21 @@ import (
 )
 
 func TestProviderScopesForOIDC(t *testing.T) {
-	t.Run("default requests openid profile email", func(t *testing.T) {
+	t.Run("default keeps openid profile", func(t *testing.T) {
 		scopes := providerScopes(config.AuthProviderConfig{Type: config.AuthProviderTypeOpenIDConnect})
-		want := []string{oidc.ScopeOpenID, "profile", "email"}
+		want := []string{oidc.ScopeOpenID, "profile"}
 		if !slices.Equal(scopes, want) {
 			t.Fatalf("providerScopes() = %v, want %v", scopes, want)
 		}
 	})
 
-	t.Run("request_email false keeps openid profile", func(t *testing.T) {
-		requestEmail := false
+	t.Run("request_email true requests openid profile email", func(t *testing.T) {
+		requestEmail := true
 		scopes := providerScopes(config.AuthProviderConfig{
 			Type:         config.AuthProviderTypeOpenIDConnect,
 			RequestEmail: &requestEmail,
 		})
-		want := []string{oidc.ScopeOpenID, "profile"}
+		want := []string{oidc.ScopeOpenID, "profile", "email"}
 		if !slices.Equal(scopes, want) {
 			t.Fatalf("providerScopes() = %v, want %v", scopes, want)
 		}
@@ -53,6 +53,28 @@ func TestProviderScopesForOIDC(t *testing.T) {
 			Scopes: []string{"groups", "profile"},
 		})
 		want := []string{oidc.ScopeOpenID, "groups", "profile"}
+		if !slices.Equal(scopes, want) {
+			t.Fatalf("providerScopes() = %v, want %v", scopes, want)
+		}
+	})
+}
+
+func TestProviderScopesForGoogle(t *testing.T) {
+	t.Run("default keeps openid profile", func(t *testing.T) {
+		scopes := providerScopes(config.AuthProviderConfig{Type: config.AuthProviderTypeGoogle})
+		want := []string{"openid", "profile"}
+		if !slices.Equal(scopes, want) {
+			t.Fatalf("providerScopes() = %v, want %v", scopes, want)
+		}
+	})
+
+	t.Run("request_email true requests openid profile email", func(t *testing.T) {
+		requestEmail := true
+		scopes := providerScopes(config.AuthProviderConfig{
+			Type:         config.AuthProviderTypeGoogle,
+			RequestEmail: &requestEmail,
+		})
+		want := []string{"openid", "profile", "email"}
 		if !slices.Equal(scopes, want) {
 			t.Fatalf("providerScopes() = %v, want %v", scopes, want)
 		}

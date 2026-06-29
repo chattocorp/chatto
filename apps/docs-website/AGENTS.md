@@ -5,7 +5,8 @@ Starlight.
 
 ## Audience
 
-- Write for Chatto users, server operators, administrators, and API consumers.
+- Write for community members, server operators, administrators, and API
+  consumers.
 - Do not put maintainer workflow text in visible docs pages. Hidden source
   comments are fine when useful.
 - The repository, binaries, and Docker images are public. Do not document private
