@@ -72,8 +72,9 @@ For ad-hoc tool invocations, use `mise x -- ...` rather than assuming `go`,
   Avoid direct JetStream/KV/projection access from unrelated code.
 - New public API surface should favor ConnectRPC/protobuf or the planned wire
   protocol.
-- `GET /api/server` is a high-compatibility discovery endpoint. Prefer additive
-  changes and preserve CORS, URL shape, and OAuth discovery semantics.
+- `ServerDiscoveryService.GetServer` is the high-compatibility discovery
+  endpoint. Prefer additive changes and preserve public CORS and OAuth
+  discovery semantics.
 
 ## Frontend Principles
 

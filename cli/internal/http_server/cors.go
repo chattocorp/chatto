@@ -9,6 +9,11 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+const (
+	serverDiscoveryConnectPath = connectAPIPrefix + "/chatto.api.v1.ServerDiscoveryService/GetServer"
+	corsAllowedHeaders         = "Authorization, Content-Type, Connect-Protocol-Version, Connect-Timeout-Ms, X-CSRF-Token, Range, If-None-Match, If-Modified-Since, X-Chatto-Asset-Proxy"
+)
+
 // buildAllowedOrigins constructs the list of origins that are allowed for CORS
 // and WebSocket connections. This is computed once at server startup.
 //
@@ -64,21 +69,29 @@ func (s *HTTPServer) matchOrigin(origin string, allowedOrigins []string) originM
 }
 
 // corsMiddleware returns Gin middleware that sets CORS headers for cross-origin
-// requests. It skips the /api/server endpoint, which has its own public CORS
-// headers (wildcard origin).
+// requests. ServerDiscoveryService.GetServer gets public wildcard CORS because
+// it is the unauthenticated cross-origin discovery endpoint used before a
+// client has registered or authenticated a server.
 //
 // When no Origin header is present (same-origin or non-browser clients), this
 // middleware is a no-op.
 func (s *HTTPServer) corsMiddleware(allowedOrigins []string) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// /api/server handles its own CORS (public wildcard)
-		if c.Request.URL.Path == "/api/server" {
+		origin := c.GetHeader("Origin")
+		if origin == "" {
 			c.Next()
 			return
 		}
 
-		origin := c.GetHeader("Origin")
-		if origin == "" {
+		if c.Request.URL.Path == serverDiscoveryConnectPath {
+			c.Header("Access-Control-Allow-Origin", "*")
+			c.Header("Access-Control-Allow-Methods", "POST, OPTIONS")
+			c.Header("Access-Control-Allow-Headers", corsAllowedHeaders)
+			c.Header("Access-Control-Max-Age", "86400")
+			if c.Request.Method == http.MethodOptions {
+				c.AbortWithStatus(http.StatusNoContent)
+				return
+			}
 			c.Next()
 			return
 		}
@@ -86,7 +99,7 @@ func (s *HTTPServer) corsMiddleware(allowedOrigins []string) gin.HandlerFunc {
 		match := s.matchOrigin(origin, allowedOrigins)
 		if match != originNotAllowed {
 			c.Header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-			c.Header("Access-Control-Allow-Headers", "Authorization, Content-Type, Connect-Protocol-Version, Connect-Timeout-Ms, X-CSRF-Token, Range, If-None-Match, If-Modified-Since, X-Chatto-Asset-Proxy")
+			c.Header("Access-Control-Allow-Headers", corsAllowedHeaders)
 			c.Header("Access-Control-Max-Age", "86400")
 
 			if match == originWildcard {

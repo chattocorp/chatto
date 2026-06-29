@@ -10,6 +10,7 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/gin-gonic/gin"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"hmans.de/chatto/internal/authctx"
 	"hmans.de/chatto/internal/config"
@@ -24,7 +25,7 @@ func setupConnectTestServer(t *testing.T, authConfig config.AuthConfig) (*HTTPSe
 	t.Helper()
 	gin.SetMode(gin.TestMode)
 
-	s := setupServerInfoServer(t, authConfig)
+	s := setupHTTPServerTestServer(t, authConfig)
 	s.setupConnectAPI()
 
 	ts := httptest.NewServer(s.router)
@@ -104,6 +105,65 @@ func TestConnectServerDiscoveryServiceGetServer(t *testing.T) {
 		}
 		if msg.Name != "Chatto" {
 			t.Fatalf("Name = %q, want Chatto", msg.Name)
+		}
+	})
+
+	t.Run("serves JSON over HTTP", func(t *testing.T) {
+		_, ts := setupConnectTestServer(t, config.AuthConfig{})
+
+		body := strings.NewReader("{}")
+		req, err := http.NewRequest(http.MethodPost, ts.URL+connectAPIPrefix+apiv1connect.ServerDiscoveryServiceGetServerProcedure, body)
+		if err != nil {
+			t.Fatalf("new request: %v", err)
+		}
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Connect-Protocol-Version", "1")
+
+		resp, err := ts.Client().Do(req)
+		if err != nil {
+			t.Fatalf("raw JSON Connect request: %v", err)
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("status = %d, want 200", resp.StatusCode)
+		}
+		if ct := resp.Header.Get("Content-Type"); !strings.HasPrefix(ct, "application/json") {
+			t.Fatalf("Content-Type = %q, want application/json", ct)
+		}
+		data, err := io.ReadAll(resp.Body)
+		if err != nil {
+			t.Fatalf("read body: %v", err)
+		}
+		var msg apiv1.GetServerResponse
+		if err := protojson.Unmarshal(data, &msg); err != nil {
+			t.Fatalf("unmarshal response: %v", err)
+		}
+		if msg.Name != "Chatto" || msg.AuthorizeUrl != "/oauth/authorize" {
+			t.Fatalf("response = %+v, want Chatto metadata", &msg)
+		}
+	})
+
+	t.Run("uses request origin for relative asset URLs", func(t *testing.T) {
+		s, ts := setupConnectTestServer(t, config.AuthConfig{})
+
+		ctx := testContext(t)
+		asset, err := s.core.UploadServerBanner(ctx, bannerImageBytes(t))
+		if err != nil {
+			t.Fatalf("upload banner: %v", err)
+		}
+		if err := s.core.SetServerBanner(ctx, "test-admin", asset); err != nil {
+			t.Fatalf("set banner: %v", err)
+		}
+
+		client := apiv1connect.NewServerDiscoveryServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
+		resp, err := client.GetServer(context.Background(), connect.NewRequest(&apiv1.GetServerRequest{}))
+		if err != nil {
+			t.Fatalf("GetServer: %v", err)
+		}
+
+		if !strings.HasPrefix(resp.Msg.GetBannerUrl(), ts.URL+"/") {
+			t.Fatalf("BannerUrl = %q, want %s prefix", resp.Msg.GetBannerUrl(), ts.URL+"/")
 		}
 	})
 }

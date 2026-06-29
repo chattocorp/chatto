@@ -71,10 +71,11 @@ describe('AddServerDialog', () => {
       expect(submit?.textContent ?? '').toMatch(/^\s*Sign in\s*$/);
     });
 
-    expect(globalThis.fetch).toHaveBeenCalledWith(
-      'https://chat.example.com/api/server',
-      expect.any(Object)
+    const [requestUrl, requestInit] = vi.mocked(globalThis.fetch).mock.calls[0];
+    expect(requestUrl).toBe(
+      'https://chat.example.com/api/connect/chatto.api.v1.ServerDiscoveryService/GetServer'
     );
+    expect(requestInit?.method).toBe('POST');
 
     // The server-supplied name appears in the (visually-marked) preview
     // card, not in any action button.
