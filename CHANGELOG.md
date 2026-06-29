@@ -3,6 +3,17 @@
 All notable changes to Chatto. Maintained by release-please from the
 conventional-commit messages on `main` — do not edit by hand.
 
+## [0.4.0-beta.6](https://github.com/chattocorp/chatto/compare/v0.4.0-beta.5...v0.4.0-beta.6) (2026-06-29)
+
+
+### ⚠ BREAKING CHANGES
+
+* **api:** reshape server profile responses ([#1185](https://github.com/chattocorp/chatto/issues/1185))
+
+### Features
+
+* **api:** reshape server profile responses ([#1185](https://github.com/chattocorp/chatto/issues/1185)) ([96bde6e](https://github.com/chattocorp/chatto/commit/96bde6eb3d0ea9b134e7191e41b16fdc07d3bee1))
+
 ## [0.4.0-beta.5](https://github.com/chattocorp/chatto/compare/v0.4.0-beta.4...v0.4.0-beta.5) (2026-06-29)
 
 
