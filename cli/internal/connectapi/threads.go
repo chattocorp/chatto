@@ -105,7 +105,7 @@ func (s *threadService) followedThreadsResponse(ctx context.Context, viewerID st
 		}
 		var rootMessage *apiv1.RoomTimelineEvent
 		if event != nil {
-			rootMessage, err = h.event(&core.RoomEvent{Event: event})
+			rootMessage, err = h.event(ctx, &core.RoomEvent{Event: event})
 			if err != nil {
 				return nil, err
 			}
