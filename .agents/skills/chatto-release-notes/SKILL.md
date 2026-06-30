@@ -313,6 +313,9 @@ new page. Preserve existing order and labels.
 - In visible section headings, speak to the reader directly. Avoid labels such
   as "users" when the page is addressing them; prefer headings like "Smaller
   fixes you'll appreciate".
+- Do not write meta copy about the release page itself. Do not frame summaries
+  as an explanation of what the page or release notes cover; describe the
+  release directly instead.
 - Avoid self-referential filler such as "Chatto adds", "Chatto moves", or
   "Chatto now". The page is already about Chatto. Prefer direct subject-first
   copy such as "Presence now shows up..." or "The public API has moved...".
