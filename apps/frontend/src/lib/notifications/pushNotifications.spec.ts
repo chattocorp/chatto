@@ -1,5 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { ensureRegistered, onNotificationClick, unsubscribe } from './pushNotifications';
+import {
+  ensureRegistered,
+  getPushCapability,
+  onNotificationClick,
+  unsubscribe
+} from './pushNotifications';
 
 const mocks = vi.hoisted(() => ({
   createPushNotificationAPI: vi.fn(),
@@ -86,6 +91,41 @@ function installPushGlobals() {
   });
 }
 
+function installCapabilityGlobals(options: {
+  userAgent: string;
+  platform?: string;
+  maxTouchPoints?: number;
+  hasPushManager?: boolean;
+  standalone?: boolean;
+  displayModeStandalone?: boolean;
+}) {
+  vi.stubGlobal('Notification', {
+    permission: 'default',
+    requestPermission: vi.fn()
+  });
+  vi.stubGlobal('window', {
+    Notification,
+    ...(options.hasPushManager === false ? {} : { PushManager: class PushManager {} }),
+    matchMedia: vi.fn((query: string) => ({
+      matches: query === '(display-mode: standalone)' && options.displayModeStandalone === true,
+      media: query,
+      onchange: null,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn()
+    }))
+  });
+  vi.stubGlobal('navigator', {
+    serviceWorker: {},
+    userAgent: options.userAgent,
+    platform: options.platform ?? '',
+    maxTouchPoints: options.maxTouchPoints ?? 0,
+    standalone: options.standalone
+  });
+}
+
 function stubServiceWorker() {
   const listeners = new Set<(event: MessageEvent) => void>();
 
@@ -114,6 +154,47 @@ function stubServiceWorker() {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+});
+
+describe('pushNotifications.getPushCapability', () => {
+  it('returns supported when service worker, notifications, and Push API are available', () => {
+    installCapabilityGlobals({
+      userAgent: 'Mozilla/5.0 Chrome/125.0',
+      platform: 'Linux x86_64'
+    });
+
+    expect(getPushCapability()).toBe('supported');
+  });
+
+  it('returns ios_home_screen_required for iOS browser context before Home Screen launch', () => {
+    installCapabilityGlobals({
+      userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15',
+      platform: 'iPhone',
+      hasPushManager: false
+    });
+
+    expect(getPushCapability()).toBe('ios_home_screen_required');
+  });
+
+  it('returns supported for iOS standalone contexts when the Push API is available', () => {
+    installCapabilityGlobals({
+      userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15',
+      platform: 'iPhone',
+      standalone: true
+    });
+
+    expect(getPushCapability()).toBe('supported');
+  });
+
+  it('returns unsupported when a non-iOS browser lacks the Push API', () => {
+    installCapabilityGlobals({
+      userAgent: 'Mozilla/5.0 Firefox/120.0',
+      platform: 'Linux x86_64',
+      hasPushManager: false
+    });
+
+    expect(getPushCapability()).toBe('unsupported');
+  });
 });
 
 describe('pushNotifications.ensureRegistered', () => {

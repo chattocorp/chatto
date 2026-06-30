@@ -13,8 +13,8 @@
   } from '$lib/audio/notificationSounds';
   import {
     ensureRegistered,
+    getPushCapability,
     getPermission,
-    isSupported as isPushSupported,
     isSubscribed as checkPushSubscription
   } from '$lib/notifications/pushNotifications';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
@@ -162,7 +162,9 @@
   let pushEnabled = $derived(serverInfo.pushNotificationsEnabled);
   let showOriginPushControls = $derived(pushEnabled && isOriginServer);
   let showRemotePushNotice = $derived(pushEnabled && !isOriginServer);
-  let pushSupported = isPushSupported();
+  const pushCapability = getPushCapability();
+  const pushSupported = pushCapability === 'supported';
+  const needsIosHomeScreen = pushCapability === 'ios_home_screen_required';
   let pushPermission = $state<NotificationPermission | null>(getPermission());
   let pushSubscribed = $state(false);
   let pushLoading = $state(false);
@@ -237,7 +239,16 @@
         {m['settings.notifications.push.title']()}
       </h3>
 
-      {#if !pushSupported}
+      {#if needsIosHomeScreen}
+        <Hint tone="info">
+          <div>
+            <p class="font-medium">{m['settings.notifications.push.ios_home_screen_title']()}</p>
+            <p class="mt-1 text-sm text-muted">
+              {m['settings.notifications.push.ios_home_screen_description']()}
+            </p>
+          </div>
+        </Hint>
+      {:else if !pushSupported}
         <div class="surface-box px-4 py-3 text-sm text-muted">
           {m['settings.notifications.push.not_supported']()}
         </div>

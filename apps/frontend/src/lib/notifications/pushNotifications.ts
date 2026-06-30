@@ -1,8 +1,9 @@
 /**
  * Push notifications module.
  *
- * Manages Web Push subscriptions for receiving notifications even when
- * the browser is completely closed. Uses the Service Worker and Web Push API.
+ * Manages Web Push subscriptions for receiving notifications outside an open
+ * Chatto page. Uses the Service Worker and Web Push API; platform delivery is
+ * still treated as a notification trigger rather than authoritative app state.
  */
 
 import { createPushNotificationAPI } from '@chatto/api-client/pushNotifications';
@@ -16,17 +17,53 @@ type EnsureRegisteredOptions = {
   prompt: boolean;
 };
 
+export type PushCapability = 'supported' | 'ios_home_screen_required' | 'unsupported';
+
+type StandaloneNavigator = Navigator & {
+  standalone?: boolean;
+};
+
+function isIosBrowserContext(): boolean {
+  if (typeof navigator === 'undefined') return false;
+
+  const platform = navigator.platform;
+  const userAgent = navigator.userAgent;
+  const touchCapableMac = platform === 'MacIntel' && navigator.maxTouchPoints > 1;
+  return /iPad|iPhone|iPod/.test(userAgent) || touchCapableMac;
+}
+
+function isStandaloneDisplayMode(): boolean {
+  if (typeof window === 'undefined') return false;
+
+  return (
+    window.matchMedia?.('(display-mode: standalone)').matches === true ||
+    (navigator as StandaloneNavigator).standalone === true
+  );
+}
+
+export function getPushCapability(): PushCapability {
+  if (
+    typeof window !== 'undefined' &&
+    'serviceWorker' in navigator &&
+    'PushManager' in window &&
+    'Notification' in window
+  ) {
+    return 'supported';
+  }
+
+  if (isIosBrowserContext() && !isStandaloneDisplayMode()) {
+    return 'ios_home_screen_required';
+  }
+
+  return 'unsupported';
+}
+
 /**
  * Check if push notifications are supported in this browser.
  * Requires Service Worker and Push API support.
  */
 export function isSupported(): boolean {
-  return (
-    typeof window !== 'undefined' &&
-    'serviceWorker' in navigator &&
-    'PushManager' in window &&
-    'Notification' in window
-  );
+  return getPushCapability() === 'supported';
 }
 
 /**

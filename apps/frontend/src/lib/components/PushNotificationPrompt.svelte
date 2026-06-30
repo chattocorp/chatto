@@ -7,8 +7,8 @@ have not made a browser permission choice yet.
 <script lang="ts">
   import {
     ensureRegistered,
-    getPermission,
-    isSupported as isPushSupported
+    getPushCapability,
+    getPermission
   } from '$lib/notifications/pushNotifications';
   import { Codecs, serverSlot } from '$lib/storage/slot';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
@@ -32,17 +32,17 @@ have not made a browser permission choice yet.
   let permission = $state<NotificationPermission | null>(getPermission());
   let loading = $state(false);
 
-  const supported = isPushSupported();
+  const pushCapability = getPushCapability();
+  const supported = pushCapability === 'supported';
+  const needsIosHomeScreen = pushCapability === 'ios_home_screen_required';
   const vapidKey = $derived(originServerInfo?.vapidPublicKey ?? null);
-  const shouldShow = $derived(
-    Boolean(
-      originServerInfo?.pushNotificationsEnabled &&
-      vapidKey &&
-      supported &&
-      permission === 'default' &&
-      !dismissed
-    )
+  const canShowPushPrompt = $derived(
+    Boolean(originServerInfo?.pushNotificationsEnabled && vapidKey && !dismissed)
   );
+  const shouldShowEnablePrompt = $derived(
+    canShowPushPrompt && supported && permission === 'default'
+  );
+  const shouldShowIosHomeScreenNotice = $derived(canShowPushPrompt && needsIosHomeScreen);
 
   function optOut() {
     dismissed = true;
@@ -73,7 +73,7 @@ have not made a browser permission choice yet.
   }
 </script>
 
-{#if shouldShow}
+{#if shouldShowEnablePrompt}
   <TopOverlayNotice
     title={m['settings.notifications.push_prompt.title']()}
     message={m['settings.notifications.push_prompt.message']()}
@@ -87,6 +87,17 @@ have not made a browser permission choice yet.
       icon: 'uil--bell',
       onclick: enablePush
     }}
+    secondaryAction={{
+      label: m['settings.notifications.push_prompt.dismiss'](),
+      onclick: optOut
+    }}
+  />
+{:else if shouldShowIosHomeScreenNotice}
+  <TopOverlayNotice
+    title={m['settings.notifications.push_prompt.ios_home_screen_title']()}
+    message={m['settings.notifications.push_prompt.ios_home_screen_message']()}
+    icon="uil--mobile-android"
+    tone="info"
     secondaryAction={{
       label: m['settings.notifications.push_prompt.dismiss'](),
       onclick: optOut

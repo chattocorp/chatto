@@ -29,8 +29,8 @@ const mocks = vi.hoisted(() => ({
   },
   pushNotifications: {
     ensureRegistered: vi.fn(),
+    getPushCapability: vi.fn(),
     getPermission: vi.fn(),
-    isSupported: vi.fn(),
     isSubscribed: vi.fn()
   }
 }));
@@ -45,8 +45,8 @@ vi.mock('$lib/audio/notificationSounds', async (importOriginal) => {
 
 vi.mock('$lib/notifications/pushNotifications', () => ({
   ensureRegistered: mocks.pushNotifications.ensureRegistered,
+  getPushCapability: mocks.pushNotifications.getPushCapability,
   getPermission: mocks.pushNotifications.getPermission,
-  isSupported: mocks.pushNotifications.isSupported,
   isSubscribed: mocks.pushNotifications.isSubscribed
 }));
 
@@ -142,8 +142,8 @@ describe('Notification settings page', () => {
     mocks.pushNotifications.ensureRegistered.mockResolvedValue(true);
     mocks.pushNotifications.getPermission.mockReset();
     mocks.pushNotifications.getPermission.mockReturnValue('default');
-    mocks.pushNotifications.isSupported.mockReset();
-    mocks.pushNotifications.isSupported.mockReturnValue(true);
+    mocks.pushNotifications.getPushCapability.mockReset();
+    mocks.pushNotifications.getPushCapability.mockReturnValue('supported');
     mocks.pushNotifications.isSubscribed.mockReset();
     mocks.pushNotifications.isSubscribed.mockResolvedValue(false);
     mocks.query.mockReset();
@@ -333,9 +333,30 @@ describe('Notification settings page', () => {
     expect(container.textContent).toContain('Push Notifications');
     expect(container.textContent).toContain('Native push is unavailable for remote servers');
     expect(container.textContent).toContain('In-app notification badges and sounds still work');
-    expect(container.textContent).not.toContain(
-      'Get notified about new messages even when the browser is closed.'
-    );
+    expect(container.textContent).not.toContain('Get notified about new messages while Chatto');
+    expect(
+      Array.from(container.querySelectorAll('button')).some((button) =>
+        button.textContent?.includes('Enable')
+      )
+    ).toBe(false);
+    expect(mocks.pushNotifications.isSubscribed).not.toHaveBeenCalled();
+    expect(mocks.pushNotifications.ensureRegistered).not.toHaveBeenCalled();
+  });
+
+  it('shows iOS Home Screen guidance without checking or registering push', async () => {
+    mocks.serverInfo.pushNotificationsEnabled = true;
+    mocks.serverInfo.vapidPublicKey = 'vapid-key';
+    mocks.pushNotifications.getPushCapability.mockReturnValue('ios_home_screen_required');
+    mocks.pushNotifications.getPermission.mockReturnValue(null);
+
+    const { container } = render(NotificationsPage);
+    await settle();
+
+    expect(container.textContent).toContain('Push Notifications');
+    expect(container.textContent).toContain('Add Chatto to your Home Screen');
+    expect(container.textContent).toContain('supported iOS/iPadOS versions');
+    expect(container.textContent).toContain('open it from the app icon');
+    expect(container.textContent).not.toContain('Get notified about new messages while Chatto');
     expect(
       Array.from(container.querySelectorAll('button')).some((button) =>
         button.textContent?.includes('Enable')

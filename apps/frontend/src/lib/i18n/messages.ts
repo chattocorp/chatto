@@ -217,6 +217,8 @@ const msg_settings_notifications_subtitle = (): LocalizedString => messages().se
 const msg_settings_notifications_push_title = (): LocalizedString => messages().settings_notifications_push_title(empty());
 const msg_settings_notifications_push_not_configured = (): LocalizedString => messages().settings_notifications_push_not_configured(empty());
 const msg_settings_notifications_push_not_supported = (): LocalizedString => messages().settings_notifications_push_not_supported(empty());
+const msg_settings_notifications_push_ios_home_screen_title = (): LocalizedString => messages().settings_notifications_push_ios_home_screen_title(empty());
+const msg_settings_notifications_push_ios_home_screen_description = (): LocalizedString => messages().settings_notifications_push_ios_home_screen_description(empty());
 const msg_settings_notifications_push_blocked_title = (): LocalizedString => messages().settings_notifications_push_blocked_title(empty());
 const msg_settings_notifications_push_blocked_description = (): LocalizedString => messages().settings_notifications_push_blocked_description(empty());
 const msg_settings_notifications_push_enabled_title = (): LocalizedString => messages().settings_notifications_push_enabled_title(empty());
@@ -232,6 +234,8 @@ const msg_settings_notifications_push_remote_title = (): LocalizedString => mess
 const msg_settings_notifications_push_remote_description = (): LocalizedString => messages().settings_notifications_push_remote_description(empty());
 const msg_settings_notifications_push_prompt_title = (): LocalizedString => messages().settings_notifications_push_prompt_title(empty());
 const msg_settings_notifications_push_prompt_message = (): LocalizedString => messages().settings_notifications_push_prompt_message(empty());
+const msg_settings_notifications_push_prompt_ios_home_screen_title = (): LocalizedString => messages().settings_notifications_push_prompt_ios_home_screen_title(empty());
+const msg_settings_notifications_push_prompt_ios_home_screen_message = (): LocalizedString => messages().settings_notifications_push_prompt_ios_home_screen_message(empty());
 const msg_settings_notifications_push_prompt_enabled = (): LocalizedString => messages().settings_notifications_push_prompt_enabled(empty());
 const msg_settings_notifications_push_prompt_blocked = (): LocalizedString => messages().settings_notifications_push_prompt_blocked(empty());
 const msg_settings_notifications_push_prompt_enable_failed = (): LocalizedString => messages().settings_notifications_push_prompt_enable_failed(empty());
@@ -1388,6 +1392,8 @@ export { msg_settings_notifications_subtitle as 'settings.notifications.subtitle
 export { msg_settings_notifications_push_title as 'settings.notifications.push.title' };
 export { msg_settings_notifications_push_not_configured as 'settings.notifications.push.not_configured' };
 export { msg_settings_notifications_push_not_supported as 'settings.notifications.push.not_supported' };
+export { msg_settings_notifications_push_ios_home_screen_title as 'settings.notifications.push.ios_home_screen_title' };
+export { msg_settings_notifications_push_ios_home_screen_description as 'settings.notifications.push.ios_home_screen_description' };
 export { msg_settings_notifications_push_blocked_title as 'settings.notifications.push.blocked_title' };
 export { msg_settings_notifications_push_blocked_description as 'settings.notifications.push.blocked_description' };
 export { msg_settings_notifications_push_enabled_title as 'settings.notifications.push.enabled_title' };
@@ -1403,6 +1409,8 @@ export { msg_settings_notifications_push_remote_title as 'settings.notifications
 export { msg_settings_notifications_push_remote_description as 'settings.notifications.push.remote_description' };
 export { msg_settings_notifications_push_prompt_title as 'settings.notifications.push_prompt.title' };
 export { msg_settings_notifications_push_prompt_message as 'settings.notifications.push_prompt.message' };
+export { msg_settings_notifications_push_prompt_ios_home_screen_title as 'settings.notifications.push_prompt.ios_home_screen_title' };
+export { msg_settings_notifications_push_prompt_ios_home_screen_message as 'settings.notifications.push_prompt.ios_home_screen_message' };
 export { msg_settings_notifications_push_prompt_enabled as 'settings.notifications.push_prompt.enabled' };
 export { msg_settings_notifications_push_prompt_blocked as 'settings.notifications.push_prompt.blocked' };
 export { msg_settings_notifications_push_prompt_enable_failed as 'settings.notifications.push_prompt.enable_failed' };

@@ -5,8 +5,8 @@ import PushNotificationPrompt from './PushNotificationPrompt.svelte';
 
 const mocks = vi.hoisted(() => ({
   ensureRegistered: vi.fn(),
+  getPushCapability: vi.fn(),
   getPermission: vi.fn(),
-  isSupported: vi.fn(),
   toastSuccess: vi.fn(),
   toastWarning: vi.fn(),
   toastError: vi.fn(),
@@ -18,8 +18,8 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('$lib/notifications/pushNotifications', () => ({
   ensureRegistered: mocks.ensureRegistered,
-  getPermission: mocks.getPermission,
-  isSupported: mocks.isSupported
+  getPushCapability: mocks.getPushCapability,
+  getPermission: mocks.getPermission
 }));
 
 vi.mock('$lib/ui/toast', () => ({
@@ -64,8 +64,8 @@ describe('PushNotificationPrompt', () => {
     mocks.ensureRegistered.mockResolvedValue(true);
     mocks.getPermission.mockReset();
     mocks.getPermission.mockReturnValue('default');
-    mocks.isSupported.mockReset();
-    mocks.isSupported.mockReturnValue(true);
+    mocks.getPushCapability.mockReset();
+    mocks.getPushCapability.mockReturnValue('supported');
     mocks.toastSuccess.mockReset();
     mocks.toastWarning.mockReset();
     mocks.toastError.mockReset();
@@ -108,6 +108,25 @@ describe('PushNotificationPrompt', () => {
     await settle();
 
     expect(container.textContent).not.toContain('Enable push notifications');
+  });
+
+  it('shows iOS Home Screen guidance without registering push', async () => {
+    mocks.getPushCapability.mockReturnValue('ios_home_screen_required');
+    mocks.getPermission.mockReturnValue(null);
+
+    const { container } = render(PushNotificationPrompt, { props: { userId: 'user-1' } });
+    await settle();
+
+    expect(container.textContent).toContain('Add Chatto to your Home Screen');
+    expect(container.textContent).toContain('supported iOS/iPadOS versions');
+    expect(container.textContent).toContain('open Chatto from its Home Screen icon');
+    expect(container.textContent).not.toContain('Get notified about DMs, mentions, and replies');
+    expect(
+      Array.from(container.querySelectorAll('button')).some((button) =>
+        button.textContent?.includes('Enable')
+      )
+    ).toBe(false);
+    expect(mocks.ensureRegistered).not.toHaveBeenCalled();
   });
 
   it('enables push through the registration helper', async () => {
