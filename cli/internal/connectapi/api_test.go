@@ -1715,6 +1715,41 @@ func TestAdminMemberServiceUpdatesUsersAndClearsCooldown(t *testing.T) {
 		t.Fatalf("regular SetUserPassword code = %v, want permission_denied", connect.CodeOf(err))
 	}
 
+	roleAssigner, err := env.core.CreateUser(env.ctx, core.SystemActorID, "admin-user-role-assigner", "Admin User Role Assigner", "password")
+	if err != nil {
+		t.Fatalf("CreateUser role assigner: %v", err)
+	}
+	if err := env.core.GrantUserPermission(env.ctx, core.SystemActorID, roleAssigner.Id, core.PermRoleAssign); err != nil {
+		t.Fatalf("GrantUserPermission role.assign: %v", err)
+	}
+	if _, err := env.adminUsers.SetUserPassword(withCaller(env.ctx, roleAssigner), connect.NewRequest(&adminv1.SetUserPasswordRequest{
+		UserId:   target.Id,
+		Password: "newpassword456",
+	})); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("role.assign-only SetUserPassword code = %v, want permission_denied", connect.CodeOf(err))
+	}
+
+	accountManager, err := env.core.CreateUser(env.ctx, core.SystemActorID, "admin-user-account-manager", "Admin User Account Manager", "password")
+	if err != nil {
+		t.Fatalf("CreateUser account manager: %v", err)
+	}
+	if err := env.core.GrantUserPermission(env.ctx, core.SystemActorID, accountManager.Id, core.PermUserManageAccounts); err != nil {
+		t.Fatalf("GrantUserPermission user.manage-accounts: %v", err)
+	}
+	accountManagerResp, err := env.adminUsers.SetUserPassword(withCaller(env.ctx, accountManager), connect.NewRequest(&adminv1.SetUserPasswordRequest{
+		UserId:   target.Id,
+		Password: "accountmanagerpass456",
+	}))
+	if err != nil {
+		t.Fatalf("account manager SetUserPassword: %v", err)
+	}
+	if !accountManagerResp.Msg.GetUpdated() {
+		t.Fatal("account manager Updated = false, want true")
+	}
+	if _, err := env.core.VerifyPassword(env.ctx, target.Login, "accountmanagerpass456"); err != nil {
+		t.Fatalf("account-manager-set password should verify: %v", err)
+	}
+
 	admin, err := env.core.CreateUser(env.ctx, core.SystemActorID, "admin-user-admin", "Admin User Admin", "password")
 	if err != nil {
 		t.Fatalf("CreateUser admin: %v", err)

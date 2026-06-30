@@ -1709,6 +1709,52 @@ func TestChattoCore_AdminUpdateUserAuthorization(t *testing.T) {
 		}
 	})
 
+	t.Run("role assignment permission cannot reset another user password", func(t *testing.T) {
+		c, _ := setupTestCore(t)
+		ctx := testContext(t)
+		roleAssigner, err := c.CreateUser(ctx, SystemActorID, "adminauth-role-assigner", "Role Assigner", "password123")
+		if err != nil {
+			t.Fatalf("CreateUser role assigner: %v", err)
+		}
+		if err := c.GrantUserPermission(ctx, SystemActorID, roleAssigner.Id, PermRoleAssign); err != nil {
+			t.Fatalf("GrantUserPermission role.assign: %v", err)
+		}
+		target, err := c.CreateUser(ctx, SystemActorID, "adminauth-target-role-only", "Target", "password123")
+		if err != nil {
+			t.Fatalf("CreateUser target: %v", err)
+		}
+
+		if err := c.AdminSetUserPasswordAuthorized(ctx, roleAssigner.Id, target.Id, "newpassword456"); !errors.Is(err, ErrPermissionDenied) {
+			t.Fatalf("AdminSetUserPasswordAuthorized err = %v, want ErrPermissionDenied", err)
+		}
+		if _, err := c.VerifyPassword(ctx, target.Login, "password123"); err != nil {
+			t.Fatalf("original password should still verify: %v", err)
+		}
+	})
+
+	t.Run("account management permission can reset another user password", func(t *testing.T) {
+		c, _ := setupTestCore(t)
+		ctx := testContext(t)
+		accountManager, err := c.CreateUser(ctx, SystemActorID, "adminauth-account-manager", "Account Manager", "password123")
+		if err != nil {
+			t.Fatalf("CreateUser account manager: %v", err)
+		}
+		if err := c.GrantUserPermission(ctx, SystemActorID, accountManager.Id, PermUserManageAccounts); err != nil {
+			t.Fatalf("GrantUserPermission user.manage-accounts: %v", err)
+		}
+		target, err := c.CreateUser(ctx, SystemActorID, "adminauth-target-account-manager", "Target", "password123")
+		if err != nil {
+			t.Fatalf("CreateUser target: %v", err)
+		}
+
+		if err := c.AdminSetUserPasswordAuthorized(ctx, accountManager.Id, target.Id, "managedpassword456"); err != nil {
+			t.Fatalf("AdminSetUserPasswordAuthorized: %v", err)
+		}
+		if _, err := c.VerifyPassword(ctx, target.Login, "managedpassword456"); err != nil {
+			t.Fatalf("account-manager-set password should verify: %v", err)
+		}
+	})
+
 	t.Run("self update preserves legacy admin mutation behavior", func(t *testing.T) {
 		c, _ := setupTestCore(t)
 		ctx := testContext(t)

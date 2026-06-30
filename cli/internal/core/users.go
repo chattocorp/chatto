@@ -376,9 +376,9 @@ func (c *ChattoCore) AdminSetUserPasswordAuthorized(ctx context.Context, actorID
 	if actorID == targetUserID {
 		return ErrAdminCannotSetOwnPassword
 	}
-	canManage, err := c.CanAssignRoles(ctx, actorID)
+	canManage, err := c.CanManageUserAccounts(ctx, actorID)
 	if err != nil {
-		return fmt.Errorf("check role.assign: %w", err)
+		return fmt.Errorf("check user.manage-accounts: %w", err)
 	}
 	if !canManage {
 		return ErrPermissionDenied
