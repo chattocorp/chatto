@@ -18,13 +18,14 @@ Use this reference when building clients against Chatto's public ConnectRPC API.
 
 ## AdminDiagnosticsService
 
-Provides owner-only server diagnostics for the admin system page.
+Provides server diagnostics for the admin system page.
 
 <a id="chatto-admin-v1-AdminDiagnosticsService-GetSystemInfo"></a>
 
 ### GetSystemInfo
 
-Returns broker, JetStream, and projection diagnostics.
+Returns broker, JetStream, and projection diagnostics. Requires
+admin.view-system.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminDiagnosticsService/GetSystemInfo
@@ -59,7 +60,7 @@ Provides server-admin audit/event-log diagnostics.
 
 ### ListEvents
 
-Lists durable EVT entries newest-first.
+Lists durable EVT entries newest-first. Requires admin.view-audit.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminEventLogService/ListEvents
@@ -99,7 +100,8 @@ Newest-first page of durable EVT entries.
 
 ### ListEventTypes
 
-Lists filterable event type names.
+Lists filterable event type names as a finite snapshot. Requires
+admin.view-audit.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminEventLogService/ListEventTypes
@@ -116,7 +118,7 @@ Request to list filterable event types.
 
 #### Result: ListEventTypesResponse
 
-Event types accepted by event-log filters.
+Finite snapshot of event types accepted by event-log filters.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -127,8 +129,8 @@ Event types accepted by event-log filters.
 
 ### GetEvent
 
-Reads one durable EVT entry by stream sequence. Returns NOT_FOUND when the
-requested sequence does not exist.
+Reads one durable EVT entry by stream sequence. Requires admin.view-audit.
+Returns NOT_FOUND when the requested sequence does not exist.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminEventLogService/GetEvent
@@ -156,6 +158,214 @@ Result of reading one durable EVT entry.
 | `entry` | [`AdminEventLogEntry`](#chatto-admin-v1-AdminEventLogEntry) | Requested event-log entry. |
 
 
+<a id="chatto-admin-v1-AdminRoleService"></a>
+
+## AdminRoleService
+
+Provides administrative role reads and role definition changes.
+
+<a id="chatto-admin-v1-AdminRoleService-ListRoles"></a>
+
+### ListRoles
+
+Lists the role catalog including permission arrays as a finite snapshot.
+Requires an authenticated user; use chatto.api.v1.RoleService for ordinary
+catalog rendering.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminRoleService/ListRoles
+```
+
+<a id="chatto-admin-v1-ListRolesRequest"></a>
+
+#### Input: ListRolesRequest
+
+Request the role catalog.
+
+
+<a id="chatto-admin-v1-ListRolesResponse"></a>
+
+#### Result: ListRolesResponse
+
+Finite role catalog snapshot plus viewer role-management capabilities.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `roles` | repeated [`AdminRole`](#chatto-admin-v1-AdminRole) | Roles sorted by position. |
+| `viewer_can_manage_roles` | `bool` | Whether the caller may create/update/delete role definitions. |
+| `viewer_can_assign_roles` | `bool` | Whether the caller may assign/revoke roles and view role rosters. |
+
+
+<a id="chatto-admin-v1-AdminRoleService-GetRole"></a>
+
+### GetRole
+
+Gets one role plus admin detail metadata. Returns NOT_FOUND when the
+role does not exist.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminRoleService/GetRole
+```
+
+<a id="chatto-admin-v1-GetRoleRequest"></a>
+
+#### Input: GetRoleRequest
+
+Request one role.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `name` | `string` | Stable role name. |
+
+
+<a id="chatto-admin-v1-GetRoleResponse"></a>
+
+#### Result: GetRoleResponse
+
+One role plus role-management metadata.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `role` | [`AdminRole`](#chatto-admin-v1-AdminRole) | Requested role. |
+| `users` | `repeated chatto.api.v1.User` | Explicit users with this role. Empty unless the caller may assign roles. |
+| `viewer_can_manage_roles` | `bool` | Whether the caller may create/update/delete role definitions. |
+| `viewer_can_assign_roles` | `bool` | Whether the caller may assign/revoke roles and view role rosters. |
+
+
+<a id="chatto-admin-v1-AdminRoleService-CreateRole"></a>
+
+### CreateRole
+
+Creates a custom role. Requires role.manage.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminRoleService/CreateRole
+```
+
+<a id="chatto-admin-v1-CreateRoleRequest"></a>
+
+#### Input: CreateRoleRequest
+
+Request to create a role.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `name` | `string` | Stable role name. |
+| `display_name` | `string` | Display name shown in admin and mention UIs. |
+| `description` | `string` | Optional role description. |
+| `pingable` | `bool` | Whether messages may notify users assigned to this role. |
+
+
+<a id="chatto-admin-v1-CreateRoleResponse"></a>
+
+#### Result: CreateRoleResponse
+
+Result of creating a role.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `role` | [`AdminRole`](#chatto-admin-v1-AdminRole) | Created role. |
+
+
+<a id="chatto-admin-v1-AdminRoleService-UpdateRole"></a>
+
+### UpdateRole
+
+Updates role metadata. Requires role.manage.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminRoleService/UpdateRole
+```
+
+<a id="chatto-admin-v1-UpdateRoleRequest"></a>
+
+#### Input: UpdateRoleRequest
+
+Request to update role metadata.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `name` | `string` | Stable role name. |
+| `display_name` | `string` | Display name shown in admin and mention UIs. |
+| `description` | `string` | Optional role description. |
+| `pingable` | `optional bool` | Whether messages may notify users assigned to this role, when changing it. |
+
+
+<a id="chatto-admin-v1-UpdateRoleResponse"></a>
+
+#### Result: UpdateRoleResponse
+
+Result of updating a role.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `role` | [`AdminRole`](#chatto-admin-v1-AdminRole) | Updated role. |
+
+
+<a id="chatto-admin-v1-AdminRoleService-DeleteRole"></a>
+
+### DeleteRole
+
+Deletes a custom role. Requires role.manage.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminRoleService/DeleteRole
+```
+
+<a id="chatto-admin-v1-DeleteRoleRequest"></a>
+
+#### Input: DeleteRoleRequest
+
+Request to delete a role.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `name` | `string` | Stable role name. |
+
+
+<a id="chatto-admin-v1-DeleteRoleResponse"></a>
+
+#### Result: DeleteRoleResponse
+
+Result of deleting a role.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `deleted` | `bool` | True when the request completed. |
+
+
+<a id="chatto-admin-v1-AdminRoleService-ReorderRoles"></a>
+
+### ReorderRoles
+
+Replaces the custom role order. Requires role.manage.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminRoleService/ReorderRoles
+```
+
+<a id="chatto-admin-v1-ReorderRolesRequest"></a>
+
+#### Input: ReorderRolesRequest
+
+Request to replace custom role order.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `role_names` | `repeated string` | Ordered custom role names. The list must include every custom role exactly once; system roles keep fixed positions and must not be included. |
+
+
+<a id="chatto-admin-v1-ReorderRolesResponse"></a>
+
+#### Result: ReorderRolesResponse
+
+Result of replacing custom role order.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `roles` | repeated [`AdminRole`](#chatto-admin-v1-AdminRole) | Full role catalog after reordering. |
+
+
 <a id="chatto-admin-v1-AdminMemberService"></a>
 
 ## AdminMemberService
@@ -166,7 +376,8 @@ Server-admin user identity and cooldown commands.
 
 ### ListMembers
 
-Lists server members for the admin members screen.
+Lists server members for the admin members screen. Requires
+admin.view-users.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminMemberService/ListMembers
@@ -193,7 +404,7 @@ Server-admin member rows plus role summaries.
 | Field | Type | Description |
 | --- | --- | --- |
 | `users` | repeated [`AdminMember`](#chatto-admin-v1-AdminMember) | Matching users. |
-| `roles` | repeated [`AdminRoleReference`](#chatto-admin-v1-AdminRoleReference) | Roles for display-name lookup. |
+| `roles` | `repeated chatto.api.v1.Role` | Public roles for display-name lookup. |
 | `page` | `chatto.api.v1.PageInfo` | Page metadata. |
 
 
@@ -202,7 +413,7 @@ Server-admin member rows plus role summaries.
 ### GetMember
 
 Gets one server member plus role/permission metadata for admin details.
-Returns NOT_FOUND when the user does not exist.
+Requires admin.view-users. Returns NOT_FOUND when the user does not exist.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminMemberService/GetMember
@@ -229,7 +440,7 @@ Server-admin member detail payload.
 | Field | Type | Description |
 | --- | --- | --- |
 | `member` | [`AdminMember`](#chatto-admin-v1-AdminMember) | Member record. |
-| `roles` | repeated [`AdminMemberRole`](#chatto-admin-v1-AdminMemberRole) | Roles for assignment UI. |
+| `roles` | repeated [`AdminRole`](#chatto-admin-v1-AdminRole) | Roles for assignment UI. |
 | `available_permissions` | `repeated string` | Permissions available for per-user overrides. |
 | `viewer_can_assign_roles` | `bool` | Whether the caller may assign/revoke roles. |
 | `viewer_can_manage_roles` | `bool` | Whether the caller may edit role definitions. |
@@ -240,7 +451,7 @@ Server-admin member detail payload.
 
 ### AssignRole
 
-Assigns a role to a user.
+Assigns a role to a user. Requires role.assign.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminMemberService/AssignRole
@@ -274,7 +485,7 @@ Result of assigning a role.
 
 ### RevokeRole
 
-Revokes a role from a user.
+Revokes a role from a user. Requires role.assign.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminMemberService/RevokeRole
@@ -308,7 +519,8 @@ Result of revoking a role.
 
 ### UpdateUser
 
-Updates a user's login and/or display name as an admin action.
+Updates a user's login and/or display name as an admin action. Requires
+user.manage-accounts for other users.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminMemberService/UpdateUser
@@ -343,7 +555,8 @@ Result of an admin user update.
 
 ### SetUserPassword
 
-Sets a user's password as an admin action.
+Sets a user's password as an admin action. Requires user.manage-accounts
+for other users and a fresh credential for the caller.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminMemberService/SetUserPassword
@@ -376,7 +589,8 @@ Result of an admin password update.
 
 ### ClearUsernameCooldown
 
-Clears the target user's self-service username-change cooldown.
+Clears the target user's self-service username-change cooldown. Requires
+user.manage-accounts.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminMemberService/ClearUsernameCooldown
@@ -402,6 +616,41 @@ Result of clearing a user's username-change cooldown.
 | Field | Type | Description |
 | --- | --- | --- |
 | `cleared` | `bool` | True when the request completed. |
+
+
+<a id="chatto-admin-v1-AdminMemberService-DeleteUser"></a>
+
+### DeleteUser
+
+Deletes a user account as an admin action. Requires user.delete-any for
+other users, user.delete-self for the caller, and a fresh credential for
+the caller.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminMemberService/DeleteUser
+```
+
+<a id="chatto-admin-v1-DeleteUserRequest"></a>
+
+#### Input: DeleteUserRequest
+
+Request to delete a user account as a server-admin action.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_id` | `string` | Target user ID. |
+| `current_password` | `string` | Current password proof for accounts with a password when the active runtime credential is no longer fresh. |
+
+
+<a id="chatto-admin-v1-DeleteUserResponse"></a>
+
+#### Result: DeleteUserResponse
+
+Result of deleting a user account.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `deleted` | `bool` | True when the user was deleted. |
 
 
 <a id="chatto-admin-v1-AdminPermissionService"></a>
@@ -475,11 +724,46 @@ Response containing one role's permission matrix.
 | `matrix` | [`RolePermissionMatrix`](#chatto-admin-v1-RolePermissionMatrix) | Requested matrix. |
 
 
+<a id="chatto-admin-v1-AdminPermissionService-ListRolePermissionDecisions"></a>
+
+### ListRolePermissionDecisions
+
+Lists one role's permission decisions by permission and scope. Requires
+role.manage. Returns NOT_FOUND when the role does not exist.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminPermissionService/ListRolePermissionDecisions
+```
+
+<a id="chatto-admin-v1-ListRolePermissionDecisionsRequest"></a>
+
+#### Input: ListRolePermissionDecisionsRequest
+
+Request explicit/effective permission decisions for one role.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `role_name` | `string` | Stable role name. |
+
+
+<a id="chatto-admin-v1-ListRolePermissionDecisionsResponse"></a>
+
+#### Result: ListRolePermissionDecisionsResponse
+
+Resource-oriented permission decisions for one role.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `role_name` | `string` | Stable role name. |
+| `decisions` | repeated [`ScopedPermissionDecision`](#chatto-admin-v1-ScopedPermissionDecision) | Permission decisions keyed by permission and scope. |
+
+
 <a id="chatto-admin-v1-AdminPermissionService-GetUserPermissionMatrix"></a>
 
 ### GetUserPermissionMatrix
 
 Gets one user's full permission matrix. Requires user.manage-permissions.
+Returns NOT_FOUND when the user does not exist.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminPermissionService/GetUserPermissionMatrix
@@ -505,6 +789,40 @@ Response containing one user's permission matrix.
 | Field | Type | Description |
 | --- | --- | --- |
 | `matrix` | [`UserPermissionMatrix`](#chatto-admin-v1-UserPermissionMatrix) | Requested matrix. |
+
+
+<a id="chatto-admin-v1-AdminPermissionService-ListUserPermissionDecisions"></a>
+
+### ListUserPermissionDecisions
+
+Lists one user's permission decisions by permission and scope. Requires
+user.manage-permissions. Returns NOT_FOUND when the user does not exist.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminPermissionService/ListUserPermissionDecisions
+```
+
+<a id="chatto-admin-v1-ListUserPermissionDecisionsRequest"></a>
+
+#### Input: ListUserPermissionDecisionsRequest
+
+Request explicit/effective permission decisions for one user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_id` | `string` | User ID. |
+
+
+<a id="chatto-admin-v1-ListUserPermissionDecisionsResponse"></a>
+
+#### Result: ListUserPermissionDecisionsResponse
+
+Resource-oriented permission decisions for one user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_id` | `string` | User ID. |
+| `decisions` | repeated [`ScopedPermissionDecision`](#chatto-admin-v1-ScopedPermissionDecision) | Permission decisions keyed by permission and scope. |
 
 
 <a id="chatto-admin-v1-AdminPermissionService-ExplainPermissions"></a>
@@ -610,212 +928,6 @@ Result of setting one user permission state.
 | `ok` | `bool` | True when the request completed. |
 
 
-<a id="chatto-admin-v1-AdminRoleService"></a>
-
-## AdminRoleService
-
-Provides authenticated role catalog reads and admin role CRUD.
-
-<a id="chatto-admin-v1-AdminRoleService-ListRoles"></a>
-
-### ListRoles
-
-Lists the role catalog. Requires an authenticated user.
-
-```http
-POST /api/connect/chatto.admin.v1.AdminRoleService/ListRoles
-```
-
-<a id="chatto-admin-v1-ListRolesRequest"></a>
-
-#### Input: ListRolesRequest
-
-Request the role catalog.
-
-
-<a id="chatto-admin-v1-ListRolesResponse"></a>
-
-#### Result: ListRolesResponse
-
-Role catalog plus viewer role-management capabilities.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `roles` | repeated [`Role`](#chatto-admin-v1-Role) | Roles sorted by position. |
-| `viewer_can_manage_roles` | `bool` | Whether the caller may create/update/delete role definitions. |
-| `viewer_can_assign_roles` | `bool` | Whether the caller may assign/revoke roles and view role rosters. |
-
-
-<a id="chatto-admin-v1-AdminRoleService-GetRole"></a>
-
-### GetRole
-
-Gets one role plus admin detail metadata. Returns NOT_FOUND when the
-role does not exist.
-
-```http
-POST /api/connect/chatto.admin.v1.AdminRoleService/GetRole
-```
-
-<a id="chatto-admin-v1-GetRoleRequest"></a>
-
-#### Input: GetRoleRequest
-
-Request one role.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `name` | `string` | Stable role name. |
-
-
-<a id="chatto-admin-v1-GetRoleResponse"></a>
-
-#### Result: GetRoleResponse
-
-One role plus role-management metadata.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `role` | [`Role`](#chatto-admin-v1-Role) | Requested role. |
-| `users` | `repeated chatto.api.v1.User` | Explicit users with this role. Empty unless the caller may assign roles. |
-| `viewer_can_manage_roles` | `bool` | Whether the caller may create/update/delete role definitions. |
-| `viewer_can_assign_roles` | `bool` | Whether the caller may assign/revoke roles and view role rosters. |
-
-
-<a id="chatto-admin-v1-AdminRoleService-CreateRole"></a>
-
-### CreateRole
-
-Creates a custom role. Requires role.manage.
-
-```http
-POST /api/connect/chatto.admin.v1.AdminRoleService/CreateRole
-```
-
-<a id="chatto-admin-v1-CreateRoleRequest"></a>
-
-#### Input: CreateRoleRequest
-
-Request to create a role.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `name` | `string` | Stable role name. |
-| `display_name` | `string` | Display name shown in admin and mention UIs. |
-| `description` | `string` | Optional role description. |
-| `pingable` | `bool` | Whether messages may notify users assigned to this role. |
-
-
-<a id="chatto-admin-v1-CreateRoleResponse"></a>
-
-#### Result: CreateRoleResponse
-
-Result of creating a role.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `role` | [`Role`](#chatto-admin-v1-Role) | Created role. |
-
-
-<a id="chatto-admin-v1-AdminRoleService-UpdateRole"></a>
-
-### UpdateRole
-
-Updates role metadata. Requires role.manage.
-
-```http
-POST /api/connect/chatto.admin.v1.AdminRoleService/UpdateRole
-```
-
-<a id="chatto-admin-v1-UpdateRoleRequest"></a>
-
-#### Input: UpdateRoleRequest
-
-Request to update role metadata.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `name` | `string` | Stable role name. |
-| `display_name` | `string` | Display name shown in admin and mention UIs. |
-| `description` | `string` | Optional role description. |
-| `pingable` | `optional bool` | Whether messages may notify users assigned to this role, when changing it. |
-
-
-<a id="chatto-admin-v1-UpdateRoleResponse"></a>
-
-#### Result: UpdateRoleResponse
-
-Result of updating a role.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `role` | [`Role`](#chatto-admin-v1-Role) | Updated role. |
-
-
-<a id="chatto-admin-v1-AdminRoleService-DeleteRole"></a>
-
-### DeleteRole
-
-Deletes a custom role. Requires role.manage.
-
-```http
-POST /api/connect/chatto.admin.v1.AdminRoleService/DeleteRole
-```
-
-<a id="chatto-admin-v1-DeleteRoleRequest"></a>
-
-#### Input: DeleteRoleRequest
-
-Request to delete a role.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `name` | `string` | Stable role name. |
-
-
-<a id="chatto-admin-v1-DeleteRoleResponse"></a>
-
-#### Result: DeleteRoleResponse
-
-Result of deleting a role.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `deleted` | `bool` | True when the request completed. |
-
-
-<a id="chatto-admin-v1-AdminRoleService-ReorderRoles"></a>
-
-### ReorderRoles
-
-Replaces the custom role order. Requires role.manage.
-
-```http
-POST /api/connect/chatto.admin.v1.AdminRoleService/ReorderRoles
-```
-
-<a id="chatto-admin-v1-ReorderRolesRequest"></a>
-
-#### Input: ReorderRolesRequest
-
-Request to replace custom role order.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `role_names` | `repeated string` | Ordered custom role names. The list must include every custom role exactly once; system roles keep fixed positions and must not be included. |
-
-
-<a id="chatto-admin-v1-ReorderRolesResponse"></a>
-
-#### Result: ReorderRolesResponse
-
-Result of replacing custom role order.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `roles` | repeated [`Role`](#chatto-admin-v1-Role) | Full role catalog after reordering. |
-
-
 <a id="chatto-admin-v1-AdminRoomLayoutService"></a>
 
 ## AdminRoomLayoutService
@@ -844,7 +956,7 @@ Request to read the admin room layout.
 
 #### Result: ListAdminRoomLayoutResponse
 
-Current admin room layout.
+Finite snapshot of the current admin room layout.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -855,7 +967,7 @@ Current admin room layout.
 
 ### CreateRoomGroup
 
-Creates a room group. The caller must be allowed to manage roles.
+Creates a room group. Requires role.manage.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminRoomLayoutService/CreateRoomGroup
@@ -888,8 +1000,7 @@ Result of creating a room group.
 
 ### UpdateRoomGroup
 
-Updates a room group's metadata. The caller must be allowed to manage
-roles.
+Updates a room group's metadata. Requires role.manage.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminRoomLayoutService/UpdateRoomGroup
@@ -923,7 +1034,7 @@ Result of updating a room group.
 
 ### DeleteRoomGroup
 
-Deletes an empty room group. The caller must be allowed to manage roles.
+Deletes an empty room group. Requires role.manage.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminRoomLayoutService/DeleteRoomGroup
@@ -955,8 +1066,7 @@ Result of deleting a room group.
 
 ### ReorderRoomGroups
 
-Replaces the global room group order. The caller must be allowed to manage
-roles.
+Replaces the global room group order. Requires role.manage.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminRoomLayoutService/ReorderRoomGroups
@@ -988,8 +1098,8 @@ Result of replacing the global room group order.
 
 ### MoveRoomToGroup
 
-Moves a channel room to another room group. The caller must be allowed to
-manage rooms in both source and destination groups.
+Moves a channel room to another room group. Requires room.manage in both
+source and destination groups.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminRoomLayoutService/MoveRoomToGroup
@@ -1022,8 +1132,8 @@ Result of moving a channel room.
 
 ### ReorderSidebarItemsInGroup
 
-Replaces the mixed room/link sidebar order in one group. The caller must
-be allowed to manage rooms in that group.
+Replaces the mixed room/link sidebar order in one group. Requires
+room.manage in that group.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminRoomLayoutService/ReorderSidebarItemsInGroup
@@ -1056,8 +1166,7 @@ Result of replacing the mixed sidebar item order.
 
 ### CreateSidebarLink
 
-Creates a sidebar link. The caller must be allowed to manage rooms in the
-destination group.
+Creates a sidebar link. Requires room.manage in the destination group.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminRoomLayoutService/CreateSidebarLink
@@ -1091,8 +1200,7 @@ Result of creating a sidebar link.
 
 ### UpdateSidebarLink
 
-Updates a sidebar link. The caller must be allowed to manage rooms in the
-link's current group.
+Updates a sidebar link. Requires room.manage in the link's current group.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminRoomLayoutService/UpdateSidebarLink
@@ -1126,8 +1234,7 @@ Result of updating a sidebar link.
 
 ### DeleteSidebarLink
 
-Deletes a sidebar link. The caller must be allowed to manage rooms in the
-link's current group.
+Deletes a sidebar link. Requires room.manage in the link's current group.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminRoomLayoutService/DeleteSidebarLink
@@ -1159,8 +1266,8 @@ Result of deleting a sidebar link.
 
 ### MoveSidebarLinkToGroup
 
-Moves a sidebar link to another group. The caller must be allowed to manage
-rooms in both source and destination groups.
+Moves a sidebar link to another group. Requires room.manage in both source
+and destination groups.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminRoomLayoutService/MoveSidebarLinkToGroup
@@ -1628,6 +1735,20 @@ Filter for owner/auditor event-log inspection.
 
 
 
+<a id="chatto-admin-v1-AdminRole"></a>
+
+### AdminRole
+
+Role metadata plus administrative permission state.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `role` | `chatto.api.v1.Role` | Public role metadata shared with ordinary role catalog reads. |
+| `permissions` | `repeated string` | Permissions granted by this role. |
+| `permission_denials` | `repeated string` | Permissions denied by this role. |
+
+
+
 <a id="chatto-admin-v1-AdminMember"></a>
 
 ### AdminMember
@@ -1646,35 +1767,6 @@ admin/member metadata with visibility controlled by the service.
 | `viewer_can_delete_account` | `bool` | Whether the caller may delete this account. |
 | `last_login_change` | `google.protobuf.Timestamp` | Last self-service username change, when visible and known. |
 | `user` | `chatto.api.v1.User` | Public identity fields for this user. |
-
-
-
-<a id="chatto-admin-v1-AdminMemberRole"></a>
-
-### AdminMemberRole
-
-Role details used by the member detail role-assignment UI.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `name` | `string` | Stable role name. |
-| `display_name` | `string` | Display name shown in admin UI. |
-| `position` | `int32` | Display/order position. |
-| `permissions` | `repeated string` | Permissions granted by this role. |
-| `permission_denials` | `repeated string` | Permissions denied by this role. |
-
-
-
-<a id="chatto-admin-v1-AdminRoleReference"></a>
-
-### AdminRoleReference
-
-Role reference used by member list filters and badges.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `name` | `string` | Stable role name. |
-| `display_name` | `string` | Display name shown in admin UI. |
 
 
 
@@ -1767,6 +1859,21 @@ Permission matrix for one role across all scopes.
 
 
 
+<a id="chatto-admin-v1-ScopedPermissionDecision"></a>
+
+### ScopedPermissionDecision
+
+One resource-oriented permission decision at a concrete scope.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `permission` | `string` | Permission identifier. |
+| `scope` | [`PermissionScope`](#chatto-admin-v1-PermissionScope) | Server, group, or room scope this decision applies to. |
+| `override` | [`PermissionDecision`](#chatto-admin-v1-PermissionDecision) | Explicit decision stored at this scope. |
+| `effective` | [`PermissionDecision`](#chatto-admin-v1-PermissionDecision) | Effective decision after inherited broader scopes are applied. |
+
+
+
 <a id="chatto-admin-v1-TierPermissions"></a>
 
 ### TierPermissions
@@ -1824,25 +1931,6 @@ Permission matrix for one user across all scopes.
 | `applicable_permissions` | `repeated string` | Permissions rendered as rows. |
 | `scopes` | repeated [`PermissionMatrixScope`](#chatto-admin-v1-PermissionMatrixScope) | Scopes rendered as columns. |
 | `cells` | repeated [`PermissionMatrixCell`](#chatto-admin-v1-PermissionMatrixCell) | Sparse matrix cells. |
-
-
-
-<a id="chatto-admin-v1-Role"></a>
-
-### Role
-
-Role metadata and permission state.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `name` | `string` | Stable role name used in permission and assignment records. |
-| `display_name` | `string` | Display name shown in admin and mention UIs. |
-| `description` | `string` | Optional role description. |
-| `permissions` | `repeated string` | Permissions granted by this role. |
-| `permission_denials` | `repeated string` | Permissions denied by this role. |
-| `is_system` | `bool` | Whether this is a built-in role. |
-| `position` | `int32` | Display/order position. |
-| `pingable` | `bool` | Whether messages may notify users assigned to this role. |
 
 
 

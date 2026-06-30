@@ -65,6 +65,19 @@ export type ViewerState = ViewerCapabilities & {
   roomNotificationPreferences: RoomNotificationPreference[];
 };
 
+const capabilityKeys = {
+  adminView: "admin.view",
+  dmStart: "dm.start",
+  adminViewUsers: "admin.view-users",
+  adminManageAccounts: "user.manage-accounts",
+  assignRoles: "role.assign",
+  adminViewRoles: "role.view",
+  adminManageRoles: "role.manage",
+  adminViewSystem: "admin.view-system",
+  adminViewAudit: "admin.view-audit",
+  manageUserPermissions: "user.manage-permissions",
+} as const;
+
 export async function getViewerStateViaConnect(
   config: ViewerAPIConfig,
 ): Promise<ViewerState> {
@@ -92,7 +105,8 @@ export async function getViewerStateViaConnect(
     throw new Error("viewer response did not include a user summary");
   }
   const summary = user.user;
-  const capabilities = response.capabilities;
+  const grants = mapCapabilityGrants(response.capabilities?.grants);
+  const can = (capability: string) => grants[capability] ?? false;
   return {
     user: {
       id: summary.id,
@@ -120,16 +134,16 @@ export async function getViewerStateViaConnect(
           }
         : null,
     },
-    canViewAdmin: capabilities?.canViewAdmin ?? false,
-    canStartDMs: capabilities?.canStartDms ?? false,
-    canAdminViewUsers: capabilities?.canAdminViewUsers ?? false,
-    canAdminManageAccounts: capabilities?.canAdminManageAccounts ?? false,
-    canAssignRoles: capabilities?.canAssignRoles ?? false,
-    canAdminViewRoles: capabilities?.canAdminViewRoles ?? false,
-    canAdminManageRoles: capabilities?.canAdminManageRoles ?? false,
-    canAdminViewSystem: capabilities?.canAdminViewSystem ?? false,
-    canAdminViewAudit: capabilities?.canAdminViewAudit ?? false,
-    canManageUserPermissions: capabilities?.canManageUserPermissions ?? false,
+    canViewAdmin: can(capabilityKeys.adminView),
+    canStartDMs: can(capabilityKeys.dmStart),
+    canAdminViewUsers: can(capabilityKeys.adminViewUsers),
+    canAdminManageAccounts: can(capabilityKeys.adminManageAccounts),
+    canAssignRoles: can(capabilityKeys.assignRoles),
+    canAdminViewRoles: can(capabilityKeys.adminViewRoles),
+    canAdminManageRoles: can(capabilityKeys.adminManageRoles),
+    canAdminViewSystem: can(capabilityKeys.adminViewSystem),
+    canAdminViewAudit: can(capabilityKeys.adminViewAudit),
+    canManageUserPermissions: can(capabilityKeys.manageUserPermissions),
     serverNotificationPreference: {
       level: apiNotificationLevel(response.serverNotificationPreference?.level),
       effectiveLevel: apiNotificationLevel(
@@ -144,6 +158,14 @@ export async function getViewerStateViaConnect(
       }),
     ),
   };
+}
+
+function mapCapabilityGrants(
+  grants: Array<{ capability: string; granted: boolean }> | undefined,
+): Record<string, boolean> {
+  return Object.fromEntries(
+    (grants ?? []).map((grant) => [grant.capability, grant.granted]),
+  );
 }
 
 export async function getCurrentUserViaConnect(

@@ -16,7 +16,8 @@ export const AttachmentService = {
   methods: {
     /**
      * Lists current message-owned room attachments. Authentication and room
-     * membership are required.
+     * membership are required. Returns PERMISSION_DENIED when the room is
+     * inaccessible to the caller.
      *
      * @generated from rpc chatto.api.v1.AttachmentService.ListRoomAttachments
      */
@@ -28,7 +29,10 @@ export const AttachmentService = {
     },
     /**
      * Refreshes signed URLs for the current attachments on one message.
-     * Authentication and room membership are required.
+     * Authentication and room membership are required. Returns NOT_FOUND when the
+     * message does not exist, is not a current visible message, or belongs to a
+     * different room. Returns an empty attachment list when the message exists
+     * but currently has no attachments.
      *
      * @generated from rpc chatto.api.v1.AttachmentService.RefreshMessageAttachmentUrls
      */

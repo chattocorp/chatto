@@ -93,7 +93,7 @@ Pending notification page scoped to one room.
 
 ### ListNotificationCounts
 
-Lists pending notification counts grouped by room.
+Lists pending notification counts grouped by room as a finite snapshot.
 
 ```http
 POST /api/connect/chatto.api.v1.NotificationService/ListNotificationCounts
@@ -110,7 +110,7 @@ Request for pending notification counts grouped by room.
 
 #### Result: ListNotificationCountsResponse
 
-Pending notification counts grouped by room.
+Finite snapshot of pending notification counts grouped by room.
 
 | Field | Type | Description |
 | --- | --- | --- |

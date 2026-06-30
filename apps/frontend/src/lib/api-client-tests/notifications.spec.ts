@@ -66,7 +66,6 @@ describe('createNotificationAPI', () => {
             },
             presenceStatus: APIPresenceStatus.OFFLINE
           },
-          summary: 'Alice mentioned you',
           kind: {
             case: 'mention',
             value: {
@@ -126,7 +125,6 @@ describe('createNotificationAPI', () => {
       items: [
         {
           id: 'n2',
-          summary: 'New DM',
           kind: { case: 'directMessage', value: { roomId: 'dm-1', eventId: 'event-2' } }
         }
       ]

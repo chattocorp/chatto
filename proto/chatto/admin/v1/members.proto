@@ -3,8 +3,10 @@ syntax = "proto3";
 package chatto.admin.v1;
 
 import "buf/validate/validate.proto";
-import "chatto/api/v1/users.proto";
 import "chatto/api/v1/pagination.proto";
+import "chatto/api/v1/roles.proto";
+import "chatto/api/v1/users.proto";
+import "chatto/admin/v1/roles.proto";
 import "google/protobuf/timestamp.proto";
 
 // User row returned by server-admin member management reads.
@@ -33,28 +35,6 @@ message AdminMember {
   chatto.api.v1.User user = 12;
 }
 
-// Role reference used by member list filters and badges.
-message AdminRoleReference {
-  // Stable role name.
-  string name = 1;
-  // Display name shown in admin UI.
-  string display_name = 2;
-}
-
-// Role details used by the member detail role-assignment UI.
-message AdminMemberRole {
-  // Stable role name.
-  string name = 1;
-  // Display name shown in admin UI.
-  string display_name = 2;
-  // Display/order position.
-  int32 position = 3;
-  // Permissions granted by this role.
-  repeated string permissions = 4;
-  // Permissions denied by this role.
-  repeated string permission_denials = 5;
-}
-
 // Request server-admin member rows.
 message ListMembersRequest {
   reserved 2, 3;
@@ -73,8 +53,8 @@ message ListMembersResponse {
 
   // Matching users.
   repeated AdminMember users = 1;
-  // Roles for display-name lookup.
-  repeated AdminRoleReference roles = 2;
+  // Public roles for display-name lookup.
+  repeated chatto.api.v1.Role roles = 2;
   // Page metadata.
   chatto.api.v1.PageInfo page = 5;
 }
@@ -92,7 +72,7 @@ message GetMemberResponse {
   // Member record.
   AdminMember member = 1;
   // Roles for assignment UI.
-  repeated AdminMemberRole roles = 2;
+  repeated AdminRole roles = 2;
   // Permissions available for per-user overrides.
   repeated string available_permissions = 3;
   // Whether the caller may assign/revoke roles.
@@ -180,21 +160,44 @@ message ClearUsernameCooldownResponse {
   bool cleared = 1;
 }
 
+// Request to delete a user account as a server-admin action.
+message DeleteUserRequest {
+  // Target user ID.
+  string user_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Current password proof for accounts with a password when the active
+  // runtime credential is no longer fresh.
+  string current_password = 2;
+}
+
+// Result of deleting a user account.
+message DeleteUserResponse {
+  // True when the user was deleted.
+  bool deleted = 1;
+}
+
 // Server-admin user identity and cooldown commands.
 service AdminMemberService {
-  // Lists server members for the admin members screen.
+  // Lists server members for the admin members screen. Requires
+  // admin.view-users.
   rpc ListMembers(ListMembersRequest) returns (ListMembersResponse);
   // Gets one server member plus role/permission metadata for admin details.
-  // Returns NOT_FOUND when the user does not exist.
+  // Requires admin.view-users. Returns NOT_FOUND when the user does not exist.
   rpc GetMember(GetMemberRequest) returns (GetMemberResponse);
-  // Assigns a role to a user.
+  // Assigns a role to a user. Requires role.assign.
   rpc AssignRole(AssignRoleRequest) returns (AssignRoleResponse);
-  // Revokes a role from a user.
+  // Revokes a role from a user. Requires role.assign.
   rpc RevokeRole(RevokeRoleRequest) returns (RevokeRoleResponse);
-  // Updates a user's login and/or display name as an admin action.
+  // Updates a user's login and/or display name as an admin action. Requires
+  // user.manage-accounts for other users.
   rpc UpdateUser(UpdateUserRequest) returns (UpdateUserResponse);
-  // Sets a user's password as an admin action.
+  // Sets a user's password as an admin action. Requires user.manage-accounts
+  // for other users and a fresh credential for the caller.
   rpc SetUserPassword(SetUserPasswordRequest) returns (SetUserPasswordResponse);
-  // Clears the target user's self-service username-change cooldown.
+  // Clears the target user's self-service username-change cooldown. Requires
+  // user.manage-accounts.
   rpc ClearUsernameCooldown(ClearUsernameCooldownRequest) returns (ClearUsernameCooldownResponse);
+  // Deletes a user account as an admin action. Requires user.delete-any for
+  // other users, user.delete-self for the caller, and a fresh credential for
+  // the caller.
+  rpc DeleteUser(DeleteUserRequest) returns (DeleteUserResponse);
 }

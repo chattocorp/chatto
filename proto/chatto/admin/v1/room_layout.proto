@@ -65,7 +65,7 @@ message AdminRoomLayoutItemInput {
 // Request to read the admin room layout.
 message ListAdminRoomLayoutRequest {}
 
-// Current admin room layout.
+// Finite snapshot of the current admin room layout.
 message ListAdminRoomLayoutResponse {
   // Room groups in sidebar order.
   repeated AdminRoomLayoutGroup groups = 1;
@@ -240,32 +240,27 @@ service AdminRoomLayoutService {
   // Lists the current room groups, rooms, and sidebar links for the admin
   // layout editor.
   rpc ListAdminRoomLayout(ListAdminRoomLayoutRequest) returns (ListAdminRoomLayoutResponse);
-  // Creates a room group. The caller must be allowed to manage roles.
+  // Creates a room group. Requires role.manage.
   rpc CreateRoomGroup(CreateRoomGroupRequest) returns (CreateRoomGroupResponse);
-  // Updates a room group's metadata. The caller must be allowed to manage
-  // roles.
+  // Updates a room group's metadata. Requires role.manage.
   rpc UpdateRoomGroup(UpdateRoomGroupRequest) returns (UpdateRoomGroupResponse);
-  // Deletes an empty room group. The caller must be allowed to manage roles.
+  // Deletes an empty room group. Requires role.manage.
   rpc DeleteRoomGroup(DeleteRoomGroupRequest) returns (DeleteRoomGroupResponse);
-  // Replaces the global room group order. The caller must be allowed to manage
-  // roles.
+  // Replaces the global room group order. Requires role.manage.
   rpc ReorderRoomGroups(ReorderRoomGroupsRequest) returns (ReorderRoomGroupsResponse);
-  // Moves a channel room to another room group. The caller must be allowed to
-  // manage rooms in both source and destination groups.
+  // Moves a channel room to another room group. Requires room.manage in both
+  // source and destination groups.
   rpc MoveRoomToGroup(MoveRoomToGroupRequest) returns (MoveRoomToGroupResponse);
-  // Replaces the mixed room/link sidebar order in one group. The caller must
-  // be allowed to manage rooms in that group.
+  // Replaces the mixed room/link sidebar order in one group. Requires
+  // room.manage in that group.
   rpc ReorderSidebarItemsInGroup(ReorderSidebarItemsInGroupRequest) returns (ReorderSidebarItemsInGroupResponse);
-  // Creates a sidebar link. The caller must be allowed to manage rooms in the
-  // destination group.
+  // Creates a sidebar link. Requires room.manage in the destination group.
   rpc CreateSidebarLink(CreateSidebarLinkRequest) returns (CreateSidebarLinkResponse);
-  // Updates a sidebar link. The caller must be allowed to manage rooms in the
-  // link's current group.
+  // Updates a sidebar link. Requires room.manage in the link's current group.
   rpc UpdateSidebarLink(UpdateSidebarLinkRequest) returns (UpdateSidebarLinkResponse);
-  // Deletes a sidebar link. The caller must be allowed to manage rooms in the
-  // link's current group.
+  // Deletes a sidebar link. Requires room.manage in the link's current group.
   rpc DeleteSidebarLink(DeleteSidebarLinkRequest) returns (DeleteSidebarLinkResponse);
-  // Moves a sidebar link to another group. The caller must be allowed to manage
-  // rooms in both source and destination groups.
+  // Moves a sidebar link to another group. Requires room.manage in both source
+  // and destination groups.
   rpc MoveSidebarLinkToGroup(MoveSidebarLinkToGroupRequest) returns (MoveSidebarLinkToGroupResponse);
 }

@@ -1,7 +1,9 @@
 import { createClient } from "@connectrpc/connect";
 import { createConnectTransport } from "@connectrpc/connect-web";
 import { AdminRoleService } from "@chatto/api-types/admin/v1/roles_connect";
-import type { Role as APIRole } from "@chatto/api-types/admin/v1/roles_pb";
+import type { AdminRole as APIAdminRole } from "@chatto/api-types/admin/v1/roles_pb";
+import { RoleService } from "@chatto/api-types/api/v1/roles_connect";
+import type { Role as APIRole } from "@chatto/api-types/api/v1/roles_pb";
 import type { User as APIUser } from "@chatto/api-types/api/v1/users_pb";
 
 export type RoleAPIConfig = {
@@ -57,7 +59,8 @@ export function createRoleAPI(config: RoleAPIConfig) {
     baseUrl: config.baseUrl,
     useBinaryFormat: true,
   });
-  const client = createClient(AdminRoleService, transport);
+  const client = createClient(RoleService, transport);
+  const adminClient = createClient(AdminRoleService, transport);
   const headers = () =>
     config.bearerToken
       ? { Authorization: `Bearer ${config.bearerToken}` }
@@ -67,17 +70,26 @@ export function createRoleAPI(config: RoleAPIConfig) {
     async listRoles(): Promise<RoleCatalog> {
       const response = await client.listRoles({}, { headers: headers() });
       return {
-        roles: response.roles.map(serverRole),
+        roles: response.roles.map((role) => serverRoleFromPublic(role)),
+        viewerCanManageRoles: false,
+        viewerCanAssignRoles: false,
+      };
+    },
+
+    async listAdminRoles(): Promise<RoleCatalog> {
+      const response = await adminClient.listRoles({}, { headers: headers() });
+      return {
+        roles: response.roles.map(serverRoleFromAdmin),
         viewerCanManageRoles: response.viewerCanManageRoles,
         viewerCanAssignRoles: response.viewerCanAssignRoles,
       };
     },
 
     async getRole(name: string): Promise<RoleDetails> {
-      const response = await client.getRole({ name }, { headers: headers() });
+      const response = await adminClient.getRole({ name }, { headers: headers() });
       return {
         roles: [],
-        role: response.role ? serverRole(response.role) : null,
+        role: response.role ? serverRoleFromAdmin(response.role) : null,
         users: response.users.map(roleUser),
         viewerCanManageRoles: response.viewerCanManageRoles,
         viewerCanAssignRoles: response.viewerCanAssignRoles,
@@ -85,17 +97,17 @@ export function createRoleAPI(config: RoleAPIConfig) {
     },
 
     async createRole(input: CreateRoleInput): Promise<ServerRole> {
-      const response = await client.createRole(input, { headers: headers() });
-      return requiredRole(response.role);
+      const response = await adminClient.createRole(input, { headers: headers() });
+      return requiredAdminRole(response.role);
     },
 
     async updateRole(input: UpdateRoleInput): Promise<ServerRole> {
-      const response = await client.updateRole(input, { headers: headers() });
-      return requiredRole(response.role);
+      const response = await adminClient.updateRole(input, { headers: headers() });
+      return requiredAdminRole(response.role);
     },
 
     async deleteRole(name: string): Promise<boolean> {
-      const response = await client.deleteRole(
+      const response = await adminClient.deleteRole(
         { name },
         { headers: headers() },
       );
@@ -106,20 +118,31 @@ export function createRoleAPI(config: RoleAPIConfig) {
 
 export type RoleAPI = ReturnType<typeof createRoleAPI>;
 
-function requiredRole(role: APIRole | undefined): ServerRole {
+function requiredAdminRole(role: APIAdminRole | undefined): ServerRole {
   if (!role) {
     throw new Error("role response did not include a role");
   }
-  return serverRole(role);
+  return serverRoleFromAdmin(role);
 }
 
-function serverRole(role: APIRole): ServerRole {
+function serverRoleFromAdmin(role: APIAdminRole): ServerRole {
+  if (!role.role) {
+    throw new Error("admin role response did not include public role metadata");
+  }
+  return serverRoleFromPublic(role.role, role.permissions, role.permissionDenials);
+}
+
+function serverRoleFromPublic(
+  role: APIRole,
+  permissions: string[] = [],
+  permissionDenials: string[] = [],
+): ServerRole {
   return {
     name: role.name,
     displayName: role.displayName,
     description: role.description,
-    permissions: [...role.permissions],
-    permissionDenials: [...role.permissionDenials],
+    permissions: [...permissions],
+    permissionDenials: [...permissionDenials],
     isSystem: role.isSystem,
     position: role.position,
     pingable: role.pingable,

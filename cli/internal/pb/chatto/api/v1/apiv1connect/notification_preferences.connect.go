@@ -58,7 +58,9 @@ type NotificationPreferencesServiceClient interface {
 	SetServerNotificationLevel(context.Context, *connect.Request[v1.SetServerNotificationLevelRequest]) (*connect.Response[v1.SetServerNotificationLevelResponse], error)
 	// Returns the current user's explicit and effective notification level for a
 	// room. Use this before rendering room notification controls so the UI can
-	// distinguish inherited defaults from an explicit room override.
+	// distinguish inherited defaults from an explicit room override. Returns
+	// NOT_FOUND when the room does not exist and PERMISSION_DENIED when the room
+	// exists but is inaccessible to the caller.
 	GetRoomNotificationPreference(context.Context, *connect.Request[v1.GetRoomNotificationPreferenceRequest]) (*connect.Response[v1.GetRoomNotificationPreferenceResponse], error)
 	// Sets the current user's explicit notification level for a room and returns
 	// the resulting stored and effective levels.
@@ -146,7 +148,9 @@ type NotificationPreferencesServiceHandler interface {
 	SetServerNotificationLevel(context.Context, *connect.Request[v1.SetServerNotificationLevelRequest]) (*connect.Response[v1.SetServerNotificationLevelResponse], error)
 	// Returns the current user's explicit and effective notification level for a
 	// room. Use this before rendering room notification controls so the UI can
-	// distinguish inherited defaults from an explicit room override.
+	// distinguish inherited defaults from an explicit room override. Returns
+	// NOT_FOUND when the room does not exist and PERMISSION_DENIED when the room
+	// exists but is inaccessible to the caller.
 	GetRoomNotificationPreference(context.Context, *connect.Request[v1.GetRoomNotificationPreferenceRequest]) (*connect.Response[v1.GetRoomNotificationPreferenceResponse], error)
 	// Sets the current user's explicit notification level for a room and returns
 	// the resulting stored and effective levels.

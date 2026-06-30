@@ -8,14 +8,18 @@ import "google/protobuf/timestamp.proto";
 
 // Voice-call request/response APIs backed by Chatto call-state projections.
 service VoiceCallService {
-  // Lists channel room IDs that currently have active calls.
+  // Lists channel room IDs that currently have active calls as a finite
+  // runtime snapshot.
   //
   // Returns an empty list when LiveKit is not configured.
   rpc ListActiveCallRooms(ListActiveCallRoomsRequest) returns (ListActiveCallRoomsResponse);
 
-  // Lists participants currently observed in a room's active call.
+  // Lists participants currently observed in a room's active call as a finite
+  // runtime snapshot.
   //
   // The caller must be a member of the room.
+  // Returns NOT_FOUND when the room does not exist and PERMISSION_DENIED when
+  // the caller is not a room member.
   rpc ListCallParticipants(ListCallParticipantsRequest) returns (ListCallParticipantsResponse);
 
   // Records the caller's intent to join a room call.
@@ -26,6 +30,8 @@ service VoiceCallService {
   // Issues a LiveKit token for joining the room's active call.
   //
   // The caller must be a member of the room and a call must already be active.
+  // Returns NOT_FOUND when the room does not exist, PERMISSION_DENIED when the
+  // caller is not a room member, and FAILED_PRECONDITION when no call is active.
   rpc GetCallToken(GetCallTokenRequest) returns (GetCallTokenResponse);
 
   // Records the caller's intent to leave a room call.
@@ -37,7 +43,7 @@ service VoiceCallService {
 // Request for active channel call room IDs.
 message ListActiveCallRoomsRequest {}
 
-// Active channel call room IDs.
+// Finite runtime snapshot of active channel call room IDs.
 message ListActiveCallRoomsResponse {
   // Room IDs with active calls.
   repeated string room_ids = 1;
@@ -49,7 +55,7 @@ message ListCallParticipantsRequest {
   string room_id = 1 [(buf.validate.field).string.min_len = 1];
 }
 
-// Participants in one room call.
+// Finite runtime snapshot of participants in one room call.
 message ListCallParticipantsResponse {
   // Participants currently projected for the room call.
   repeated CallParticipant participants = 1;

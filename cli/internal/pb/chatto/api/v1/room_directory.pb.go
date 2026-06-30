@@ -559,7 +559,7 @@ func (x *ListRoomsRequest) GetScope() RoomDirectoryScope {
 	return RoomDirectoryScope_ROOM_DIRECTORY_SCOPE_UNSPECIFIED
 }
 
-// Visible rooms for the current user.
+// Finite snapshot of rooms visible to the current user.
 type ListRoomsResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Rooms matching the requested scope.
@@ -642,7 +642,7 @@ func (*ListRoomGroupsRequest) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_room_directory_proto_rawDescGZIP(), []int{7}
 }
 
-// Ordered room groups visible to the current user.
+// Finite snapshot of ordered room groups visible to the current user.
 type ListRoomGroupsResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Channel room groups in sidebar order.

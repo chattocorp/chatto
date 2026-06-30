@@ -42,7 +42,7 @@ Request to read the admin room layout.
 
 #### Result: ListAdminRoomLayoutResponse
 
-Current admin room layout.
+Finite snapshot of the current admin room layout.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -53,7 +53,7 @@ Current admin room layout.
 
 ### CreateRoomGroup
 
-Creates a room group. The caller must be allowed to manage roles.
+Creates a room group. Requires role.manage.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminRoomLayoutService/CreateRoomGroup
@@ -86,8 +86,7 @@ Result of creating a room group.
 
 ### UpdateRoomGroup
 
-Updates a room group's metadata. The caller must be allowed to manage
-roles.
+Updates a room group's metadata. Requires role.manage.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminRoomLayoutService/UpdateRoomGroup
@@ -121,7 +120,7 @@ Result of updating a room group.
 
 ### DeleteRoomGroup
 
-Deletes an empty room group. The caller must be allowed to manage roles.
+Deletes an empty room group. Requires role.manage.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminRoomLayoutService/DeleteRoomGroup
@@ -153,8 +152,7 @@ Result of deleting a room group.
 
 ### ReorderRoomGroups
 
-Replaces the global room group order. The caller must be allowed to manage
-roles.
+Replaces the global room group order. Requires role.manage.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminRoomLayoutService/ReorderRoomGroups
@@ -186,8 +184,8 @@ Result of replacing the global room group order.
 
 ### MoveRoomToGroup
 
-Moves a channel room to another room group. The caller must be allowed to
-manage rooms in both source and destination groups.
+Moves a channel room to another room group. Requires room.manage in both
+source and destination groups.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminRoomLayoutService/MoveRoomToGroup
@@ -220,8 +218,8 @@ Result of moving a channel room.
 
 ### ReorderSidebarItemsInGroup
 
-Replaces the mixed room/link sidebar order in one group. The caller must
-be allowed to manage rooms in that group.
+Replaces the mixed room/link sidebar order in one group. Requires
+room.manage in that group.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminRoomLayoutService/ReorderSidebarItemsInGroup
@@ -254,8 +252,7 @@ Result of replacing the mixed sidebar item order.
 
 ### CreateSidebarLink
 
-Creates a sidebar link. The caller must be allowed to manage rooms in the
-destination group.
+Creates a sidebar link. Requires room.manage in the destination group.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminRoomLayoutService/CreateSidebarLink
@@ -289,8 +286,7 @@ Result of creating a sidebar link.
 
 ### UpdateSidebarLink
 
-Updates a sidebar link. The caller must be allowed to manage rooms in the
-link's current group.
+Updates a sidebar link. Requires room.manage in the link's current group.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminRoomLayoutService/UpdateSidebarLink
@@ -324,8 +320,7 @@ Result of updating a sidebar link.
 
 ### DeleteSidebarLink
 
-Deletes a sidebar link. The caller must be allowed to manage rooms in the
-link's current group.
+Deletes a sidebar link. Requires room.manage in the link's current group.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminRoomLayoutService/DeleteSidebarLink
@@ -357,8 +352,8 @@ Result of deleting a sidebar link.
 
 ### MoveSidebarLinkToGroup
 
-Moves a sidebar link to another group. The caller must be allowed to manage
-rooms in both source and destination groups.
+Moves a sidebar link to another group. Requires room.manage in both source
+and destination groups.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminRoomLayoutService/MoveSidebarLinkToGroup

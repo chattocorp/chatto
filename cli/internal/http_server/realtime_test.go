@@ -3,6 +3,7 @@ package http_server
 import (
 	"context"
 	"net/http"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -81,6 +82,8 @@ func subscribeRealtime(t *testing.T, conn *websocket.Conn, token string) {
 		t.Fatalf("first realtime frame = %T, want hello", hello.GetFrame())
 	} else if got.ProtocolVersion != realtimeProtocolVersion || got.ServerVersion == "" {
 		t.Fatalf("unexpected realtime hello: %+v", got)
+	} else if !slices.Equal(got.GetCapabilities(), realtimeServerCapabilities) {
+		t.Fatalf("realtime capabilities = %v, want %v", got.GetCapabilities(), realtimeServerCapabilities)
 	}
 
 	sendRealtimeClientFrame(t, conn, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_SubscribeEvents{

@@ -427,6 +427,7 @@ Initial server hello.
 | `protocol_version` | `uint32` | Protocol version accepted by the server. |
 | `server_version` | `string` | Chatto server software version. |
 | `heartbeat_interval_seconds` | `uint32` | Approximate heartbeat interval clients should expect. |
+| `capabilities` | `repeated string` | Stable protocol capability keys supported by this server. Current keys: `chatto.realtime.events.live.v1`, `chatto.realtime.heartbeat.v1`, and `chatto.realtime.ping.v1`. |
 
 
 

@@ -37,7 +37,7 @@ export const NotificationService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Lists pending notification counts grouped by room.
+     * Lists pending notification counts grouped by room as a finite snapshot.
      *
      * @generated from rpc chatto.api.v1.NotificationService.ListNotificationCounts
      */

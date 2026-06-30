@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { AssignRoleRequest, AssignRoleResponse, ClearUsernameCooldownRequest, ClearUsernameCooldownResponse, GetMemberRequest, GetMemberResponse, ListMembersRequest, ListMembersResponse, RevokeRoleRequest, RevokeRoleResponse, SetUserPasswordRequest, SetUserPasswordResponse, UpdateUserRequest, UpdateUserResponse } from "./members_pb.js";
+import { AssignRoleRequest, AssignRoleResponse, ClearUsernameCooldownRequest, ClearUsernameCooldownResponse, DeleteUserRequest, DeleteUserResponse, GetMemberRequest, GetMemberResponse, ListMembersRequest, ListMembersResponse, RevokeRoleRequest, RevokeRoleResponse, SetUserPasswordRequest, SetUserPasswordResponse, UpdateUserRequest, UpdateUserResponse } from "./members_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -15,7 +15,8 @@ export const AdminMemberService = {
   typeName: "chatto.admin.v1.AdminMemberService",
   methods: {
     /**
-     * Lists server members for the admin members screen.
+     * Lists server members for the admin members screen. Requires
+     * admin.view-users.
      *
      * @generated from rpc chatto.admin.v1.AdminMemberService.ListMembers
      */
@@ -27,7 +28,7 @@ export const AdminMemberService = {
     },
     /**
      * Gets one server member plus role/permission metadata for admin details.
-     * Returns NOT_FOUND when the user does not exist.
+     * Requires admin.view-users. Returns NOT_FOUND when the user does not exist.
      *
      * @generated from rpc chatto.admin.v1.AdminMemberService.GetMember
      */
@@ -38,7 +39,7 @@ export const AdminMemberService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Assigns a role to a user.
+     * Assigns a role to a user. Requires role.assign.
      *
      * @generated from rpc chatto.admin.v1.AdminMemberService.AssignRole
      */
@@ -49,7 +50,7 @@ export const AdminMemberService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Revokes a role from a user.
+     * Revokes a role from a user. Requires role.assign.
      *
      * @generated from rpc chatto.admin.v1.AdminMemberService.RevokeRole
      */
@@ -60,7 +61,8 @@ export const AdminMemberService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Updates a user's login and/or display name as an admin action.
+     * Updates a user's login and/or display name as an admin action. Requires
+     * user.manage-accounts for other users.
      *
      * @generated from rpc chatto.admin.v1.AdminMemberService.UpdateUser
      */
@@ -71,7 +73,8 @@ export const AdminMemberService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Sets a user's password as an admin action.
+     * Sets a user's password as an admin action. Requires user.manage-accounts
+     * for other users and a fresh credential for the caller.
      *
      * @generated from rpc chatto.admin.v1.AdminMemberService.SetUserPassword
      */
@@ -82,7 +85,8 @@ export const AdminMemberService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Clears the target user's self-service username-change cooldown.
+     * Clears the target user's self-service username-change cooldown. Requires
+     * user.manage-accounts.
      *
      * @generated from rpc chatto.admin.v1.AdminMemberService.ClearUsernameCooldown
      */
@@ -90,6 +94,19 @@ export const AdminMemberService = {
       name: "ClearUsernameCooldown",
       I: ClearUsernameCooldownRequest,
       O: ClearUsernameCooldownResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Deletes a user account as an admin action. Requires user.delete-any for
+     * other users, user.delete-self for the caller, and a fresh credential for
+     * the caller.
+     *
+     * @generated from rpc chatto.admin.v1.AdminMemberService.DeleteUser
+     */
+    deleteUser: {
+      name: "DeleteUser",
+      I: DeleteUserRequest,
+      O: DeleteUserResponse,
       kind: MethodKind.Unary,
     },
   }

@@ -229,30 +229,12 @@ func (x *ViewerUser) GetHasPassword() bool {
 // Permission-derived capabilities for the authenticated user.
 type ViewerCapabilities struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Whether the user has at least one server-admin permission.
-	CanViewAdmin bool `protobuf:"varint,1,opt,name=can_view_admin,json=canViewAdmin,proto3" json:"can_view_admin,omitempty"`
-	// Whether the user may start direct-message conversations.
-	CanStartDms bool `protobuf:"varint,2,opt,name=can_start_dms,json=canStartDms,proto3" json:"can_start_dms,omitempty"`
-	// Whether the user may view the admin users screen.
-	CanAdminViewUsers bool `protobuf:"varint,3,opt,name=can_admin_view_users,json=canAdminViewUsers,proto3" json:"can_admin_view_users,omitempty"`
-	// Whether the user may view role administration.
-	CanAdminViewRoles bool `protobuf:"varint,5,opt,name=can_admin_view_roles,json=canAdminViewRoles,proto3" json:"can_admin_view_roles,omitempty"`
-	// Whether the user may manage roles.
-	CanAdminManageRoles bool `protobuf:"varint,6,opt,name=can_admin_manage_roles,json=canAdminManageRoles,proto3" json:"can_admin_manage_roles,omitempty"`
-	// Whether the user may view system administration.
-	CanAdminViewSystem bool `protobuf:"varint,7,opt,name=can_admin_view_system,json=canAdminViewSystem,proto3" json:"can_admin_view_system,omitempty"`
-	// Whether the user may view the audit log.
-	CanAdminViewAudit bool `protobuf:"varint,8,opt,name=can_admin_view_audit,json=canAdminViewAudit,proto3" json:"can_admin_view_audit,omitempty"`
+	// Keyed capability decisions for the authenticated user.
+	Grants []*CapabilityGrant `protobuf:"bytes,1,rep,name=grants,proto3" json:"grants,omitempty"`
 	// Whether the user has unread followed threads.
-	HasUnreadFollowedThreads bool `protobuf:"varint,9,opt,name=has_unread_followed_threads,json=hasUnreadFollowedThreads,proto3" json:"has_unread_followed_threads,omitempty"`
-	// Whether the user may edit direct per-user permission overrides.
-	CanManageUserPermissions bool `protobuf:"varint,10,opt,name=can_manage_user_permissions,json=canManageUserPermissions,proto3" json:"can_manage_user_permissions,omitempty"`
-	// Whether the user may assign and revoke roles for users.
-	CanAssignRoles bool `protobuf:"varint,11,opt,name=can_assign_roles,json=canAssignRoles,proto3" json:"can_assign_roles,omitempty"`
-	// Whether the user may perform account lifecycle and recovery actions for users.
-	CanAdminManageAccounts bool `protobuf:"varint,12,opt,name=can_admin_manage_accounts,json=canAdminManageAccounts,proto3" json:"can_admin_manage_accounts,omitempty"`
-	unknownFields          protoimpl.UnknownFields
-	sizeCache              protoimpl.SizeCache
+	HasUnreadFollowedThreads bool `protobuf:"varint,2,opt,name=has_unread_followed_threads,json=hasUnreadFollowedThreads,proto3" json:"has_unread_followed_threads,omitempty"`
+	unknownFields            protoimpl.UnknownFields
+	sizeCache                protoimpl.SizeCache
 }
 
 func (x *ViewerCapabilities) Reset() {
@@ -285,79 +267,16 @@ func (*ViewerCapabilities) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_viewer_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *ViewerCapabilities) GetCanViewAdmin() bool {
+func (x *ViewerCapabilities) GetGrants() []*CapabilityGrant {
 	if x != nil {
-		return x.CanViewAdmin
+		return x.Grants
 	}
-	return false
-}
-
-func (x *ViewerCapabilities) GetCanStartDms() bool {
-	if x != nil {
-		return x.CanStartDms
-	}
-	return false
-}
-
-func (x *ViewerCapabilities) GetCanAdminViewUsers() bool {
-	if x != nil {
-		return x.CanAdminViewUsers
-	}
-	return false
-}
-
-func (x *ViewerCapabilities) GetCanAdminViewRoles() bool {
-	if x != nil {
-		return x.CanAdminViewRoles
-	}
-	return false
-}
-
-func (x *ViewerCapabilities) GetCanAdminManageRoles() bool {
-	if x != nil {
-		return x.CanAdminManageRoles
-	}
-	return false
-}
-
-func (x *ViewerCapabilities) GetCanAdminViewSystem() bool {
-	if x != nil {
-		return x.CanAdminViewSystem
-	}
-	return false
-}
-
-func (x *ViewerCapabilities) GetCanAdminViewAudit() bool {
-	if x != nil {
-		return x.CanAdminViewAudit
-	}
-	return false
+	return nil
 }
 
 func (x *ViewerCapabilities) GetHasUnreadFollowedThreads() bool {
 	if x != nil {
 		return x.HasUnreadFollowedThreads
-	}
-	return false
-}
-
-func (x *ViewerCapabilities) GetCanManageUserPermissions() bool {
-	if x != nil {
-		return x.CanManageUserPermissions
-	}
-	return false
-}
-
-func (x *ViewerCapabilities) GetCanAssignRoles() bool {
-	if x != nil {
-		return x.CanAssignRoles
-	}
-	return false
-}
-
-func (x *ViewerCapabilities) GetCanAdminManageAccounts() bool {
-	if x != nil {
-		return x.CanAdminManageAccounts
 	}
 	return false
 }
@@ -595,7 +514,7 @@ var File_chatto_api_v1_viewer_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_viewer_proto_rawDesc = "" +
 	"\n" +
-	"\x1achatto/api/v1/viewer.proto\x12\rchatto.api.v1\x1a,chatto/api/v1/notification_preferences.proto\x1a\x19chatto/api/v1/users.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"x\n" +
+	"\x1achatto/api/v1/viewer.proto\x12\rchatto.api.v1\x1a,chatto/api/v1/notification_preferences.proto\x1a\x1fchatto/api/v1/permissions.proto\x1a\x19chatto/api/v1/users.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"x\n" +
 	"\fUserSettings\x12\x1f\n" +
 	"\btimezone\x18\x01 \x01(\tH\x00R\btimezone\x88\x01\x01\x12:\n" +
 	"\vtime_format\x18\x02 \x01(\x0e2\x19.chatto.api.v1.TimeFormatR\n" +
@@ -610,20 +529,10 @@ const file_chatto_api_v1_viewer_proto_rawDesc = "" +
 	" \x01(\v2\x1a.google.protobuf.TimestampR\x0flastLoginChange\x124\n" +
 	"\aprofile\x18\v \x01(\v2\x1a.chatto.api.v1.UserProfileR\aprofile\x12!\n" +
 	"\fhas_password\x18\f \x01(\bR\vhasPasswordJ\x04\b\x01\x10\aR\x02idR\x05loginR\fdisplay_nameR\n" +
-	"avatar_urlR\rcustom_statusR\x0fpresence_status\"\xda\x04\n" +
-	"\x12ViewerCapabilities\x12$\n" +
-	"\x0ecan_view_admin\x18\x01 \x01(\bR\fcanViewAdmin\x12\"\n" +
-	"\rcan_start_dms\x18\x02 \x01(\bR\vcanStartDms\x12/\n" +
-	"\x14can_admin_view_users\x18\x03 \x01(\bR\x11canAdminViewUsers\x12/\n" +
-	"\x14can_admin_view_roles\x18\x05 \x01(\bR\x11canAdminViewRoles\x123\n" +
-	"\x16can_admin_manage_roles\x18\x06 \x01(\bR\x13canAdminManageRoles\x121\n" +
-	"\x15can_admin_view_system\x18\a \x01(\bR\x12canAdminViewSystem\x12/\n" +
-	"\x14can_admin_view_audit\x18\b \x01(\bR\x11canAdminViewAudit\x12=\n" +
-	"\x1bhas_unread_followed_threads\x18\t \x01(\bR\x18hasUnreadFollowedThreads\x12=\n" +
-	"\x1bcan_manage_user_permissions\x18\n" +
-	" \x01(\bR\x18canManageUserPermissions\x12(\n" +
-	"\x10can_assign_roles\x18\v \x01(\bR\x0ecanAssignRoles\x129\n" +
-	"\x19can_admin_manage_accounts\x18\f \x01(\bR\x16canAdminManageAccountsJ\x04\b\x04\x10\x05R\x16can_admin_manage_users\"\xa1\x01\n" +
+	"avatar_urlR\rcustom_statusR\x0fpresence_status\"\x8b\x01\n" +
+	"\x12ViewerCapabilities\x126\n" +
+	"\x06grants\x18\x01 \x03(\v2\x1e.chatto.api.v1.CapabilityGrantR\x06grants\x12=\n" +
+	"\x1bhas_unread_followed_threads\x18\x02 \x01(\bR\x18hasUnreadFollowedThreads\"\xa1\x01\n" +
 	"\x1cServerNotificationPreference\x126\n" +
 	"\x05level\x18\x01 \x01(\x0e2 .chatto.api.v1.NotificationLevelR\x05level\x12I\n" +
 	"\x0feffective_level\x18\x02 \x01(\x0e2 .chatto.api.v1.NotificationLevelR\x0eeffectiveLevel\"\xb8\x01\n" +
@@ -672,28 +581,30 @@ var file_chatto_api_v1_viewer_proto_goTypes = []any{
 	(*GetViewerResponse)(nil),            // 7: chatto.api.v1.GetViewerResponse
 	(*timestamppb.Timestamp)(nil),        // 8: google.protobuf.Timestamp
 	(*UserProfile)(nil),                  // 9: chatto.api.v1.UserProfile
-	(NotificationLevel)(0),               // 10: chatto.api.v1.NotificationLevel
+	(*CapabilityGrant)(nil),              // 10: chatto.api.v1.CapabilityGrant
+	(NotificationLevel)(0),               // 11: chatto.api.v1.NotificationLevel
 }
 var file_chatto_api_v1_viewer_proto_depIdxs = []int32{
 	0,  // 0: chatto.api.v1.UserSettings.time_format:type_name -> chatto.api.v1.TimeFormat
 	1,  // 1: chatto.api.v1.ViewerUser.settings:type_name -> chatto.api.v1.UserSettings
 	8,  // 2: chatto.api.v1.ViewerUser.last_login_change:type_name -> google.protobuf.Timestamp
 	9,  // 3: chatto.api.v1.ViewerUser.profile:type_name -> chatto.api.v1.UserProfile
-	10, // 4: chatto.api.v1.ServerNotificationPreference.level:type_name -> chatto.api.v1.NotificationLevel
-	10, // 5: chatto.api.v1.ServerNotificationPreference.effective_level:type_name -> chatto.api.v1.NotificationLevel
-	10, // 6: chatto.api.v1.RoomNotificationPreference.level:type_name -> chatto.api.v1.NotificationLevel
-	10, // 7: chatto.api.v1.RoomNotificationPreference.effective_level:type_name -> chatto.api.v1.NotificationLevel
-	2,  // 8: chatto.api.v1.GetViewerResponse.user:type_name -> chatto.api.v1.ViewerUser
-	3,  // 9: chatto.api.v1.GetViewerResponse.capabilities:type_name -> chatto.api.v1.ViewerCapabilities
-	4,  // 10: chatto.api.v1.GetViewerResponse.server_notification_preference:type_name -> chatto.api.v1.ServerNotificationPreference
-	5,  // 11: chatto.api.v1.GetViewerResponse.room_notification_preferences:type_name -> chatto.api.v1.RoomNotificationPreference
-	6,  // 12: chatto.api.v1.ViewerService.GetViewer:input_type -> chatto.api.v1.GetViewerRequest
-	7,  // 13: chatto.api.v1.ViewerService.GetViewer:output_type -> chatto.api.v1.GetViewerResponse
-	13, // [13:14] is the sub-list for method output_type
-	12, // [12:13] is the sub-list for method input_type
-	12, // [12:12] is the sub-list for extension type_name
-	12, // [12:12] is the sub-list for extension extendee
-	0,  // [0:12] is the sub-list for field type_name
+	10, // 4: chatto.api.v1.ViewerCapabilities.grants:type_name -> chatto.api.v1.CapabilityGrant
+	11, // 5: chatto.api.v1.ServerNotificationPreference.level:type_name -> chatto.api.v1.NotificationLevel
+	11, // 6: chatto.api.v1.ServerNotificationPreference.effective_level:type_name -> chatto.api.v1.NotificationLevel
+	11, // 7: chatto.api.v1.RoomNotificationPreference.level:type_name -> chatto.api.v1.NotificationLevel
+	11, // 8: chatto.api.v1.RoomNotificationPreference.effective_level:type_name -> chatto.api.v1.NotificationLevel
+	2,  // 9: chatto.api.v1.GetViewerResponse.user:type_name -> chatto.api.v1.ViewerUser
+	3,  // 10: chatto.api.v1.GetViewerResponse.capabilities:type_name -> chatto.api.v1.ViewerCapabilities
+	4,  // 11: chatto.api.v1.GetViewerResponse.server_notification_preference:type_name -> chatto.api.v1.ServerNotificationPreference
+	5,  // 12: chatto.api.v1.GetViewerResponse.room_notification_preferences:type_name -> chatto.api.v1.RoomNotificationPreference
+	6,  // 13: chatto.api.v1.ViewerService.GetViewer:input_type -> chatto.api.v1.GetViewerRequest
+	7,  // 14: chatto.api.v1.ViewerService.GetViewer:output_type -> chatto.api.v1.GetViewerResponse
+	14, // [14:15] is the sub-list for method output_type
+	13, // [13:14] is the sub-list for method input_type
+	13, // [13:13] is the sub-list for extension type_name
+	13, // [13:13] is the sub-list for extension extendee
+	0,  // [0:13] is the sub-list for field type_name
 }
 
 func init() { file_chatto_api_v1_viewer_proto_init() }
@@ -702,6 +613,7 @@ func file_chatto_api_v1_viewer_proto_init() {
 		return
 	}
 	file_chatto_api_v1_notification_preferences_proto_init()
+	file_chatto_api_v1_permissions_proto_init()
 	file_chatto_api_v1_users_proto_init()
 	file_chatto_api_v1_viewer_proto_msgTypes[0].OneofWrappers = []any{}
 	type x struct{}

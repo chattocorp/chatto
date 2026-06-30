@@ -18,12 +18,19 @@ type AdminMemberListInput struct {
 type AdminMemberRoleSummary struct {
 	Name        string
 	DisplayName string
+	Description string
+	IsSystem    bool
+	Position    int32
+	Pingable    bool
 }
 
 type AdminMemberRole struct {
 	Name              string
 	DisplayName       string
+	Description       string
+	IsSystem          bool
 	Position          int32
+	Pingable          bool
 	Permissions       []Permission
 	PermissionDenials []Permission
 }
@@ -287,6 +294,10 @@ func adminMemberRoleSummaries(roles []RoleWithPermissions) []AdminMemberRoleSumm
 		out = append(out, AdminMemberRoleSummary{
 			Name:        role.Name,
 			DisplayName: role.DisplayName,
+			Description: role.Description,
+			IsSystem:    role.IsSystem,
+			Position:    role.Position,
+			Pingable:    role.Pingable,
 		})
 	}
 	return out
@@ -298,7 +309,10 @@ func adminMemberRoles(roles []RoleWithPermissions) []AdminMemberRole {
 		out = append(out, AdminMemberRole{
 			Name:              role.Name,
 			DisplayName:       role.DisplayName,
+			Description:       role.Description,
+			IsSystem:          role.IsSystem,
 			Position:          role.Position,
+			Pingable:          role.Pingable,
 			Permissions:       append([]Permission{}, role.Permissions...),
 			PermissionDenials: append([]Permission{}, role.PermissionDenials...),
 		})

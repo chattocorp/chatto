@@ -1,11 +1,9 @@
 import { createClient } from "@connectrpc/connect";
 import { createConnectTransport } from "@connectrpc/connect-web";
 import { AdminMemberService } from "@chatto/api-types/admin/v1/members_connect";
-import type {
-  AdminMember as APIAdminMember,
-  AdminMemberRole as APIAdminMemberRole,
-  AdminRoleReference as APIAdminRoleReference,
-} from "@chatto/api-types/admin/v1/members_pb";
+import type { AdminMember as APIAdminMember } from "@chatto/api-types/admin/v1/members_pb";
+import type { AdminRole as APIAdminRole } from "@chatto/api-types/admin/v1/roles_pb";
+import type { Role as APIRole } from "@chatto/api-types/api/v1/roles_pb";
 import type { User as APIUser } from "@chatto/api-types/api/v1/users_pb";
 
 export type AdminUserManagementAPIConfig = {
@@ -62,6 +60,11 @@ export type AdminUpdateUserInput = {
   userId: string;
   login?: string;
   displayName?: string;
+};
+
+export type AdminDeleteUserInput = {
+  userId: string;
+  currentPassword?: string;
 };
 
 export type AdminListMembersInput = {
@@ -140,7 +143,10 @@ export function createAdminUserManagementAPI(
     },
 
     async setUserPassword(userId: string, password: string): Promise<boolean> {
-      const response = await client.setUserPassword({ userId, password }, { headers: headers() });
+      const response = await client.setUserPassword(
+        { userId, password },
+        { headers: headers() },
+      );
       return response.updated;
     },
 
@@ -150,6 +156,11 @@ export function createAdminUserManagementAPI(
         { headers: headers() },
       );
       return response.cleared;
+    },
+
+    async deleteUser(input: AdminDeleteUserInput): Promise<boolean> {
+      const response = await client.deleteUser(input, { headers: headers() });
+      return response.deleted;
     },
   };
 }
@@ -190,17 +201,20 @@ function adminMember(member: APIAdminMember): AdminMember {
   };
 }
 
-function adminRoleReference(role: APIAdminRoleReference): AdminRoleReference {
+function adminRoleReference(role: APIRole): AdminRoleReference {
   return {
     name: role.name,
     displayName: role.displayName,
   };
 }
 
-function adminMemberRole(role: APIAdminMemberRole): AdminMemberRole {
+function adminMemberRole(role: APIAdminRole): AdminMemberRole {
+  if (!role.role) {
+    throw new Error("admin member role response did not include public role metadata");
+  }
   return {
-    ...adminRoleReference(role),
-    position: role.position,
+    ...adminRoleReference(role.role),
+    position: role.role.position,
     permissions: [...role.permissions],
     permissionDenials: [...role.permissionDenials],
   };

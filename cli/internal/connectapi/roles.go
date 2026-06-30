@@ -13,6 +13,24 @@ type roleService struct {
 	api *API
 }
 
+type publicRoleService struct {
+	api *API
+}
+
+func (s *publicRoleService) ListRoles(ctx context.Context, _ *connect.Request[apiv1.ListRolesRequest]) (*connect.Response[apiv1.ListRolesResponse], error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	catalog, err := s.api.core.ListServerRolesForUser(ctx, caller.UserID)
+	if err != nil {
+		return nil, connectError(err)
+	}
+	return connect.NewResponse(&apiv1.ListRolesResponse{
+		Roles: publicAPIRoles(catalog.Roles),
+	}), nil
+}
+
 func (s *roleService) ListRoles(ctx context.Context, _ *connect.Request[adminv1.ListRolesRequest]) (*connect.Response[adminv1.ListRolesResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
@@ -23,7 +41,7 @@ func (s *roleService) ListRoles(ctx context.Context, _ *connect.Request[adminv1.
 		return nil, connectError(err)
 	}
 	return connect.NewResponse(&adminv1.ListRolesResponse{
-		Roles:                apiRoles(catalog.Roles),
+		Roles:                adminAPIRoles(catalog.Roles),
 		ViewerCanManageRoles: catalog.ViewerCanManageRoles,
 		ViewerCanAssignRoles: catalog.ViewerCanAssignRoles,
 	}), nil
@@ -42,7 +60,7 @@ func (s *roleService) GetRole(ctx context.Context, req *connect.Request[adminv1.
 		return nil, connectError(err)
 	}
 	return connect.NewResponse(&adminv1.GetRoleResponse{
-		Role:                 apiRole(details.Role),
+		Role:                 adminAPIRole(details.Role),
 		Users:                apiRoleUsers(details.Users),
 		ViewerCanManageRoles: details.ViewerCanManageRoles,
 		ViewerCanAssignRoles: details.ViewerCanAssignRoles,
@@ -64,7 +82,7 @@ func (s *roleService) CreateRole(ctx context.Context, req *connect.Request[admin
 	if err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&adminv1.CreateRoleResponse{Role: apiRole(role)}), nil
+	return connect.NewResponse(&adminv1.CreateRoleResponse{Role: adminAPIRole(role)}), nil
 }
 
 func (s *roleService) UpdateRole(ctx context.Context, req *connect.Request[adminv1.UpdateRoleRequest]) (*connect.Response[adminv1.UpdateRoleResponse], error) {
@@ -81,7 +99,7 @@ func (s *roleService) UpdateRole(ctx context.Context, req *connect.Request[admin
 	if err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&adminv1.UpdateRoleResponse{Role: apiRole(role)}), nil
+	return connect.NewResponse(&adminv1.UpdateRoleResponse{Role: adminAPIRole(role)}), nil
 }
 
 func (s *roleService) DeleteRole(ctx context.Context, req *connect.Request[adminv1.DeleteRoleRequest]) (*connect.Response[adminv1.DeleteRoleResponse], error) {
@@ -104,30 +122,47 @@ func (s *roleService) ReorderRoles(ctx context.Context, req *connect.Request[adm
 	if err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&adminv1.ReorderRolesResponse{Roles: apiRoles(roles)}), nil
+	return connect.NewResponse(&adminv1.ReorderRolesResponse{Roles: adminAPIRoles(roles)}), nil
 }
 
-func apiRoles(roles []core.RoleWithPermissions) []*adminv1.Role {
-	out := make([]*adminv1.Role, 0, len(roles))
+func publicAPIRoles(roles []core.RoleWithPermissions) []*apiv1.Role {
+	out := make([]*apiv1.Role, 0, len(roles))
 	for i := range roles {
-		out = append(out, apiRole(&roles[i]))
+		out = append(out, publicAPIRole(&roles[i]))
 	}
 	return out
 }
 
-func apiRole(role *core.RoleWithPermissions) *adminv1.Role {
+func publicAPIRole(role *core.RoleWithPermissions) *apiv1.Role {
 	if role == nil {
 		return nil
 	}
-	return &adminv1.Role{
-		Name:              role.Name,
-		DisplayName:       role.DisplayName,
-		Description:       role.Description,
+	return &apiv1.Role{
+		Name:        role.Name,
+		DisplayName: role.DisplayName,
+		Description: role.Description,
+		IsSystem:    role.IsSystem,
+		Position:    role.Position,
+		Pingable:    role.Pingable,
+	}
+}
+
+func adminAPIRoles(roles []core.RoleWithPermissions) []*adminv1.AdminRole {
+	out := make([]*adminv1.AdminRole, 0, len(roles))
+	for i := range roles {
+		out = append(out, adminAPIRole(&roles[i]))
+	}
+	return out
+}
+
+func adminAPIRole(role *core.RoleWithPermissions) *adminv1.AdminRole {
+	if role == nil {
+		return nil
+	}
+	return &adminv1.AdminRole{
+		Role:              publicAPIRole(role),
 		Permissions:       corePermissionsToStrings(role.Permissions),
 		PermissionDenials: corePermissionsToStrings(role.PermissionDenials),
-		IsSystem:          role.IsSystem,
-		Position:          role.Position,
-		Pingable:          role.Pingable,
 	}
 }
 

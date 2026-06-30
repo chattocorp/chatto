@@ -48,12 +48,16 @@ const (
 type RoomDirectoryServiceClient interface {
 	// Lists rooms visible to the current user. Channel rooms are non-archived
 	// rooms visible through membership or room.list. DM rooms are membership-only
-	// and empty DM conversations are omitted.
+	// and empty DM conversations are omitted. Results are returned as a finite
+	// navigation snapshot.
 	ListRooms(context.Context, *connect.Request[v1.ListRoomsRequest]) (*connect.Response[v1.ListRoomsResponse], error)
 	// Lists ordered channel room groups and sidebar items visible to the current
-	// user. Archived and hidden room entries are omitted from group results.
+	// user as a finite navigation snapshot. Archived and hidden room entries are
+	// omitted from group results.
 	ListRoomGroups(context.Context, *connect.Request[v1.ListRoomGroupsRequest]) (*connect.Response[v1.ListRoomGroupsResponse], error)
-	// Returns one visible room by ID. DM rooms require membership.
+	// Returns one visible room by ID. DM rooms require membership. Returns
+	// NOT_FOUND when the room does not exist and PERMISSION_DENIED when the room
+	// exists but is hidden from the caller.
 	GetRoom(context.Context, *connect.Request[v1.GetRoomRequest]) (*connect.Response[v1.GetRoomResponse], error)
 }
 
@@ -116,12 +120,16 @@ func (c *roomDirectoryServiceClient) GetRoom(ctx context.Context, req *connect.R
 type RoomDirectoryServiceHandler interface {
 	// Lists rooms visible to the current user. Channel rooms are non-archived
 	// rooms visible through membership or room.list. DM rooms are membership-only
-	// and empty DM conversations are omitted.
+	// and empty DM conversations are omitted. Results are returned as a finite
+	// navigation snapshot.
 	ListRooms(context.Context, *connect.Request[v1.ListRoomsRequest]) (*connect.Response[v1.ListRoomsResponse], error)
 	// Lists ordered channel room groups and sidebar items visible to the current
-	// user. Archived and hidden room entries are omitted from group results.
+	// user as a finite navigation snapshot. Archived and hidden room entries are
+	// omitted from group results.
 	ListRoomGroups(context.Context, *connect.Request[v1.ListRoomGroupsRequest]) (*connect.Response[v1.ListRoomGroupsResponse], error)
-	// Returns one visible room by ID. DM rooms require membership.
+	// Returns one visible room by ID. DM rooms require membership. Returns
+	// NOT_FOUND when the room does not exist and PERMISSION_DENIED when the room
+	// exists but is hidden from the caller.
 	GetRoom(context.Context, *connect.Request[v1.GetRoomRequest]) (*connect.Response[v1.GetRoomResponse], error)
 }
 

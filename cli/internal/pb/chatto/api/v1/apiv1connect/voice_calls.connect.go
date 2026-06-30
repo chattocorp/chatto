@@ -52,13 +52,17 @@ const (
 
 // VoiceCallServiceClient is a client for the chatto.api.v1.VoiceCallService service.
 type VoiceCallServiceClient interface {
-	// Lists channel room IDs that currently have active calls.
+	// Lists channel room IDs that currently have active calls as a finite
+	// runtime snapshot.
 	//
 	// Returns an empty list when LiveKit is not configured.
 	ListActiveCallRooms(context.Context, *connect.Request[v1.ListActiveCallRoomsRequest]) (*connect.Response[v1.ListActiveCallRoomsResponse], error)
-	// Lists participants currently observed in a room's active call.
+	// Lists participants currently observed in a room's active call as a finite
+	// runtime snapshot.
 	//
 	// The caller must be a member of the room.
+	// Returns NOT_FOUND when the room does not exist and PERMISSION_DENIED when
+	// the caller is not a room member.
 	ListCallParticipants(context.Context, *connect.Request[v1.ListCallParticipantsRequest]) (*connect.Response[v1.ListCallParticipantsResponse], error)
 	// Records the caller's intent to join a room call.
 	//
@@ -67,6 +71,8 @@ type VoiceCallServiceClient interface {
 	// Issues a LiveKit token for joining the room's active call.
 	//
 	// The caller must be a member of the room and a call must already be active.
+	// Returns NOT_FOUND when the room does not exist, PERMISSION_DENIED when the
+	// caller is not a room member, and FAILED_PRECONDITION when no call is active.
 	GetCallToken(context.Context, *connect.Request[v1.GetCallTokenRequest]) (*connect.Response[v1.GetCallTokenResponse], error)
 	// Records the caller's intent to leave a room call.
 	//
@@ -154,13 +160,17 @@ func (c *voiceCallServiceClient) LeaveCall(ctx context.Context, req *connect.Req
 
 // VoiceCallServiceHandler is an implementation of the chatto.api.v1.VoiceCallService service.
 type VoiceCallServiceHandler interface {
-	// Lists channel room IDs that currently have active calls.
+	// Lists channel room IDs that currently have active calls as a finite
+	// runtime snapshot.
 	//
 	// Returns an empty list when LiveKit is not configured.
 	ListActiveCallRooms(context.Context, *connect.Request[v1.ListActiveCallRoomsRequest]) (*connect.Response[v1.ListActiveCallRoomsResponse], error)
-	// Lists participants currently observed in a room's active call.
+	// Lists participants currently observed in a room's active call as a finite
+	// runtime snapshot.
 	//
 	// The caller must be a member of the room.
+	// Returns NOT_FOUND when the room does not exist and PERMISSION_DENIED when
+	// the caller is not a room member.
 	ListCallParticipants(context.Context, *connect.Request[v1.ListCallParticipantsRequest]) (*connect.Response[v1.ListCallParticipantsResponse], error)
 	// Records the caller's intent to join a room call.
 	//
@@ -169,6 +179,8 @@ type VoiceCallServiceHandler interface {
 	// Issues a LiveKit token for joining the room's active call.
 	//
 	// The caller must be a member of the room and a call must already be active.
+	// Returns NOT_FOUND when the room does not exist, PERMISSION_DENIED when the
+	// caller is not a room member, and FAILED_PRECONDITION when no call is active.
 	GetCallToken(context.Context, *connect.Request[v1.GetCallTokenRequest]) (*connect.Response[v1.GetCallTokenResponse], error)
 	// Records the caller's intent to leave a room call.
 	//

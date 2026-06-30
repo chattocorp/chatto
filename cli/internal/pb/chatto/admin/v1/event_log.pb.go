@@ -297,7 +297,7 @@ func (*ListEventTypesRequest) Descriptor() ([]byte, []int) {
 	return file_chatto_admin_v1_event_log_proto_rawDescGZIP(), []int{3}
 }
 
-// Event types accepted by event-log filters.
+// Finite snapshot of event types accepted by event-log filters.
 type ListEventTypesResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Sorted event type names.

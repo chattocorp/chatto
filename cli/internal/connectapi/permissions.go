@@ -2,6 +2,7 @@ package connectapi
 
 import (
 	"context"
+	"strings"
 
 	"connectrpc.com/connect"
 	"hmans.de/chatto/internal/core"
@@ -40,6 +41,21 @@ func (s *permissionService) GetRolePermissionMatrix(ctx context.Context, req *co
 	return connect.NewResponse(&adminv1.GetRolePermissionMatrixResponse{Matrix: apiRolePermissionMatrix(matrix)}), nil
 }
 
+func (s *permissionService) ListRolePermissionDecisions(ctx context.Context, req *connect.Request[adminv1.ListRolePermissionDecisionsRequest]) (*connect.Response[adminv1.ListRolePermissionDecisionsResponse], error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	matrix, err := s.api.core.GetRolePermissionMatrix(ctx, caller.UserID, req.Msg.GetRoleName())
+	if err != nil {
+		return nil, connectError(err)
+	}
+	return connect.NewResponse(&adminv1.ListRolePermissionDecisionsResponse{
+		RoleName:  matrix.RoleName,
+		Decisions: apiPermissionDecisionEntries(matrix.Scopes, matrix.Cells),
+	}), nil
+}
+
 func (s *permissionService) GetUserPermissionMatrix(ctx context.Context, req *connect.Request[adminv1.GetUserPermissionMatrixRequest]) (*connect.Response[adminv1.GetUserPermissionMatrixResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
@@ -50,6 +66,21 @@ func (s *permissionService) GetUserPermissionMatrix(ctx context.Context, req *co
 		return nil, connectError(err)
 	}
 	return connect.NewResponse(&adminv1.GetUserPermissionMatrixResponse{Matrix: apiUserPermissionMatrix(matrix)}), nil
+}
+
+func (s *permissionService) ListUserPermissionDecisions(ctx context.Context, req *connect.Request[adminv1.ListUserPermissionDecisionsRequest]) (*connect.Response[adminv1.ListUserPermissionDecisionsResponse], error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	matrix, err := s.api.core.GetUserPermissionMatrix(ctx, caller.UserID, req.Msg.GetUserId())
+	if err != nil {
+		return nil, connectError(err)
+	}
+	return connect.NewResponse(&adminv1.ListUserPermissionDecisionsResponse{
+		UserId:    matrix.UserID,
+		Decisions: apiPermissionDecisionEntries(matrix.Scopes, matrix.Cells),
+	}), nil
 }
 
 func (s *permissionService) ExplainPermissions(ctx context.Context, req *connect.Request[adminv1.ExplainPermissionsRequest]) (*connect.Response[adminv1.ExplainPermissionsResponse], error) {
@@ -228,6 +259,46 @@ func apiUserPermissionMatrix(matrix *core.UserPermissionMatrix) *adminv1.UserPer
 		ApplicablePermissions: append([]string(nil), matrix.ApplicablePermissions...),
 		Scopes:                apiPermissionMatrixScopes(matrix.Scopes),
 		Cells:                 apiPermissionMatrixCells(matrix.Cells),
+	}
+}
+
+func apiPermissionDecisionEntries(scopes []core.PermissionMatrixScope, cells []core.PermissionMatrixCell) []*adminv1.ScopedPermissionDecision {
+	scopesByID := make(map[string]core.PermissionMatrixScope, len(scopes))
+	for _, scope := range scopes {
+		scopesByID[scope.ID] = scope
+	}
+	out := make([]*adminv1.ScopedPermissionDecision, 0, len(cells))
+	for _, cell := range cells {
+		scope, ok := scopesByID[cell.ScopeID]
+		if !ok {
+			continue
+		}
+		out = append(out, &adminv1.ScopedPermissionDecision{
+			Permission: cell.Permission,
+			Scope:      apiPermissionEntryScope(scope),
+			Override:   apiPermissionDecision(cell.Override),
+			Effective:  apiPermissionDecision(cell.Effective),
+		})
+	}
+	return out
+}
+
+func apiPermissionEntryScope(scope core.PermissionMatrixScope) *adminv1.PermissionScope {
+	switch scope.Kind {
+	case core.MatrixScopeGroup:
+		return &adminv1.PermissionScope{
+			Kind: adminv1.PermissionScopeKind_PERMISSION_SCOPE_KIND_GROUP,
+			Id:   strings.TrimPrefix(scope.ID, "group:"),
+		}
+	case core.MatrixScopeRoom:
+		return &adminv1.PermissionScope{
+			Kind: adminv1.PermissionScopeKind_PERMISSION_SCOPE_KIND_ROOM,
+			Id:   strings.TrimPrefix(scope.ID, "room:"),
+		}
+	default:
+		return &adminv1.PermissionScope{
+			Kind: adminv1.PermissionScopeKind_PERMISSION_SCOPE_KIND_SERVER,
+		}
 	}
 }
 

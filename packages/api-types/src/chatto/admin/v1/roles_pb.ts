@@ -5,102 +5,63 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3 } from "@bufbuild/protobuf";
+import { Role } from "../../api/v1/roles_pb.js";
 import { User } from "../../api/v1/users_pb.js";
 
 /**
- * Role metadata and permission state.
+ * Role metadata plus administrative permission state.
  *
- * @generated from message chatto.admin.v1.Role
+ * @generated from message chatto.admin.v1.AdminRole
  */
-export class Role extends Message<Role> {
+export class AdminRole extends Message<AdminRole> {
   /**
-   * Stable role name used in permission and assignment records.
+   * Public role metadata shared with ordinary role catalog reads.
    *
-   * @generated from field: string name = 1;
+   * @generated from field: chatto.api.v1.Role role = 1;
    */
-  name = "";
-
-  /**
-   * Display name shown in admin and mention UIs.
-   *
-   * @generated from field: string display_name = 2;
-   */
-  displayName = "";
-
-  /**
-   * Optional role description.
-   *
-   * @generated from field: string description = 3;
-   */
-  description = "";
+  role?: Role;
 
   /**
    * Permissions granted by this role.
    *
-   * @generated from field: repeated string permissions = 4;
+   * @generated from field: repeated string permissions = 2;
    */
   permissions: string[] = [];
 
   /**
    * Permissions denied by this role.
    *
-   * @generated from field: repeated string permission_denials = 5;
+   * @generated from field: repeated string permission_denials = 3;
    */
   permissionDenials: string[] = [];
 
-  /**
-   * Whether this is a built-in role.
-   *
-   * @generated from field: bool is_system = 6;
-   */
-  isSystem = false;
-
-  /**
-   * Display/order position.
-   *
-   * @generated from field: int32 position = 7;
-   */
-  position = 0;
-
-  /**
-   * Whether messages may notify users assigned to this role.
-   *
-   * @generated from field: bool pingable = 8;
-   */
-  pingable = false;
-
-  constructor(data?: PartialMessage<Role>) {
+  constructor(data?: PartialMessage<AdminRole>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.admin.v1.Role";
+  static readonly typeName = "chatto.admin.v1.AdminRole";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "display_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "description", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 4, name: "permissions", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
-    { no: 5, name: "permission_denials", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
-    { no: 6, name: "is_system", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 7, name: "position", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
-    { no: 8, name: "pingable", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 1, name: "role", kind: "message", T: Role },
+    { no: 2, name: "permissions", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+    { no: 3, name: "permission_denials", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Role {
-    return new Role().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AdminRole {
+    return new AdminRole().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Role {
-    return new Role().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): AdminRole {
+    return new AdminRole().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Role {
-    return new Role().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): AdminRole {
+    return new AdminRole().fromJsonString(jsonString, options);
   }
 
-  static equals(a: Role | PlainMessage<Role> | undefined, b: Role | PlainMessage<Role> | undefined): boolean {
-    return proto3.util.equals(Role, a, b);
+  static equals(a: AdminRole | PlainMessage<AdminRole> | undefined, b: AdminRole | PlainMessage<AdminRole> | undefined): boolean {
+    return proto3.util.equals(AdminRole, a, b);
   }
 }
 
@@ -138,7 +99,7 @@ export class ListRolesRequest extends Message<ListRolesRequest> {
 }
 
 /**
- * Role catalog plus viewer role-management capabilities.
+ * Finite role catalog snapshot plus viewer role-management capabilities.
  *
  * @generated from message chatto.admin.v1.ListRolesResponse
  */
@@ -146,9 +107,9 @@ export class ListRolesResponse extends Message<ListRolesResponse> {
   /**
    * Roles sorted by position.
    *
-   * @generated from field: repeated chatto.admin.v1.Role roles = 1;
+   * @generated from field: repeated chatto.admin.v1.AdminRole roles = 1;
    */
-  roles: Role[] = [];
+  roles: AdminRole[] = [];
 
   /**
    * Whether the caller may create/update/delete role definitions.
@@ -172,7 +133,7 @@ export class ListRolesResponse extends Message<ListRolesResponse> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.admin.v1.ListRolesResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "roles", kind: "message", T: Role, repeated: true },
+    { no: 1, name: "roles", kind: "message", T: AdminRole, repeated: true },
     { no: 2, name: "viewer_can_manage_roles", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 3, name: "viewer_can_assign_roles", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
@@ -244,9 +205,9 @@ export class GetRoleResponse extends Message<GetRoleResponse> {
   /**
    * Requested role.
    *
-   * @generated from field: chatto.admin.v1.Role role = 1;
+   * @generated from field: chatto.admin.v1.AdminRole role = 1;
    */
-  role?: Role;
+  role?: AdminRole;
 
   /**
    * Explicit users with this role. Empty unless the caller may assign roles.
@@ -277,7 +238,7 @@ export class GetRoleResponse extends Message<GetRoleResponse> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.admin.v1.GetRoleResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "role", kind: "message", T: Role },
+    { no: 1, name: "role", kind: "message", T: AdminRole },
     { no: 2, name: "users", kind: "message", T: User, repeated: true },
     { no: 3, name: "viewer_can_manage_roles", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 4, name: "viewer_can_assign_roles", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
@@ -374,9 +335,9 @@ export class CreateRoleResponse extends Message<CreateRoleResponse> {
   /**
    * Created role.
    *
-   * @generated from field: chatto.admin.v1.Role role = 1;
+   * @generated from field: chatto.admin.v1.AdminRole role = 1;
    */
-  role?: Role;
+  role?: AdminRole;
 
   constructor(data?: PartialMessage<CreateRoleResponse>) {
     super();
@@ -386,7 +347,7 @@ export class CreateRoleResponse extends Message<CreateRoleResponse> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.admin.v1.CreateRoleResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "role", kind: "message", T: Role },
+    { no: 1, name: "role", kind: "message", T: AdminRole },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CreateRoleResponse {
@@ -480,9 +441,9 @@ export class UpdateRoleResponse extends Message<UpdateRoleResponse> {
   /**
    * Updated role.
    *
-   * @generated from field: chatto.admin.v1.Role role = 1;
+   * @generated from field: chatto.admin.v1.AdminRole role = 1;
    */
-  role?: Role;
+  role?: AdminRole;
 
   constructor(data?: PartialMessage<UpdateRoleResponse>) {
     super();
@@ -492,7 +453,7 @@ export class UpdateRoleResponse extends Message<UpdateRoleResponse> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.admin.v1.UpdateRoleResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "role", kind: "message", T: Role },
+    { no: 1, name: "role", kind: "message", T: AdminRole },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UpdateRoleResponse {
@@ -645,9 +606,9 @@ export class ReorderRolesResponse extends Message<ReorderRolesResponse> {
   /**
    * Full role catalog after reordering.
    *
-   * @generated from field: repeated chatto.admin.v1.Role roles = 1;
+   * @generated from field: repeated chatto.admin.v1.AdminRole roles = 1;
    */
-  roles: Role[] = [];
+  roles: AdminRole[] = [];
 
   constructor(data?: PartialMessage<ReorderRolesResponse>) {
     super();
@@ -657,7 +618,7 @@ export class ReorderRolesResponse extends Message<ReorderRolesResponse> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.admin.v1.ReorderRolesResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "roles", kind: "message", T: Role, repeated: true },
+    { no: 1, name: "roles", kind: "message", T: AdminRole, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ReorderRolesResponse {

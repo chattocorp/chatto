@@ -15,7 +15,8 @@ export const VoiceCallService = {
   typeName: "chatto.api.v1.VoiceCallService",
   methods: {
     /**
-     * Lists channel room IDs that currently have active calls.
+     * Lists channel room IDs that currently have active calls as a finite
+     * runtime snapshot.
      *
      * Returns an empty list when LiveKit is not configured.
      *
@@ -28,9 +29,12 @@ export const VoiceCallService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Lists participants currently observed in a room's active call.
+     * Lists participants currently observed in a room's active call as a finite
+     * runtime snapshot.
      *
      * The caller must be a member of the room.
+     * Returns NOT_FOUND when the room does not exist and PERMISSION_DENIED when
+     * the caller is not a room member.
      *
      * @generated from rpc chatto.api.v1.VoiceCallService.ListCallParticipants
      */
@@ -57,6 +61,8 @@ export const VoiceCallService = {
      * Issues a LiveKit token for joining the room's active call.
      *
      * The caller must be a member of the room and a call must already be active.
+     * Returns NOT_FOUND when the room does not exist, PERMISSION_DENIED when the
+     * caller is not a room member, and FAILED_PRECONDITION when no call is active.
      *
      * @generated from rpc chatto.api.v1.VoiceCallService.GetCallToken
      */

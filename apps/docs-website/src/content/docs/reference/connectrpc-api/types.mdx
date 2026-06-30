@@ -14,6 +14,28 @@ Shared message and enum definitions used by the ConnectRPC service pages.
 
 
 
+<a id="chatto-api-v1-CapabilityGrant"></a>
+
+### CapabilityGrant
+
+Effective decision for one capability key.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `capability` | `string` | Stable capability key, such as "admin.view" or "dm.start". |
+| `granted` | `bool` | Whether the capability is currently available. |
+
+<a id="chatto-api-v1-PermissionGrant"></a>
+
+### PermissionGrant
+
+Effective decision for one permission key.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `permission` | `string` | Stable permission key, such as "server.manage". |
+| `granted` | `bool` | Whether the permission is currently granted. |
+
 <a id="chatto-api-v1-CustomUserStatus"></a>
 
 ### CustomUserStatus
@@ -106,17 +128,8 @@ Permission-derived capabilities for the authenticated user.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `can_view_admin` | `bool` | Whether the user has at least one server-admin permission. |
-| `can_start_dms` | `bool` | Whether the user may start direct-message conversations. |
-| `can_admin_view_users` | `bool` | Whether the user may view the admin users screen. |
-| `can_admin_view_roles` | `bool` | Whether the user may view role administration. |
-| `can_admin_manage_roles` | `bool` | Whether the user may manage roles. |
-| `can_admin_view_system` | `bool` | Whether the user may view system administration. |
-| `can_admin_view_audit` | `bool` | Whether the user may view the audit log. |
+| `grants` | repeated [`CapabilityGrant`](#chatto-api-v1-CapabilityGrant) | Keyed capability decisions for the authenticated user. |
 | `has_unread_followed_threads` | `bool` | Whether the user has unread followed threads. |
-| `can_manage_user_permissions` | `bool` | Whether the user may edit direct per-user permission overrides. |
-| `can_assign_roles` | `bool` | Whether the user may assign and revoke roles for users. |
-| `can_admin_manage_accounts` | `bool` | Whether the user may perform account lifecycle and recovery actions for users. |
 
 <a id="chatto-api-v1-ViewerUser"></a>
 
@@ -515,7 +528,6 @@ One pending notification for the authenticated viewer.
 | `id` | `string` | Stable notification ID. |
 | `created_at` | `google.protobuf.Timestamp` | Creation time. |
 | `actor` | [`UserProfile`](#chatto-api-v1-UserProfile) | User who triggered the notification, when still resolvable. |
-| `summary` | `string` | Short human-readable notification summary. |
 | `kind.direct_message` | [`DirectMessageNotification`](#chatto-api-v1-DirectMessageNotification) | Direct-message notification. |
 | `kind.mention` | [`MentionNotification`](#chatto-api-v1-MentionNotification) | Mention notification. |
 | `kind.reply` | [`ReplyNotification`](#chatto-api-v1-ReplyNotification) | Reply notification. |
@@ -566,6 +578,21 @@ Pending notification count for one room.
 | --- | --- | --- |
 | `room_id` | `string` | Room ID. |
 | `total_count` | `int32` | Pending notification count for the authenticated viewer in this room. |
+
+<a id="chatto-api-v1-Role"></a>
+
+### Role
+
+Public role metadata used for rendering role mentions, labels, and catalogs.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `name` | `string` | Stable role name used in permission and assignment records. |
+| `display_name` | `string` | Display name shown in user-facing role UIs. |
+| `description` | `string` | Optional role description. |
+| `is_system` | `bool` | Whether this is a built-in role. |
+| `position` | `int32` | Display/order position. |
+| `pingable` | `bool` | Whether messages may notify users assigned to this role. |
 
 <a id="chatto-api-v1-Room"></a>
 
@@ -744,17 +771,6 @@ Authenticated server runtime settings used by clients.
 | `max_video_upload_size` | `int64` | Maximum video upload size in bytes. |
 | `message_edit_window_seconds` | `int32` | Message edit window in seconds. |
 
-<a id="chatto-api-v1-ServerViewerPermission"></a>
-
-### ServerViewerPermission
-
-Effective permission decision for the authenticated user.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `permission` | `string` | Stable permission key, such as "server.manage". |
-| `granted` | `bool` | Whether the permission is currently granted to the viewer. |
-
 <a id="chatto-api-v1-ServerViewerPermissions"></a>
 
 ### ServerViewerPermissions
@@ -763,7 +779,7 @@ Effective server/channel permission decisions for the authenticated user.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `permissions` | repeated [`ServerViewerPermission`](#chatto-api-v1-ServerViewerPermission) | One row per permission known to the server. |
+| `permissions` | repeated [`PermissionGrant`](#chatto-api-v1-PermissionGrant) | One row per permission known to the server. |
 
 <a id="chatto-api-v1-ServerViewerState"></a>
 
@@ -988,6 +1004,18 @@ Filter for owner/auditor event-log inspection.
 | `created_at_from` | `google.protobuf.Timestamp` | Inclusive lower creation timestamp bound. |
 | `created_at_to` | `google.protobuf.Timestamp` | Inclusive upper creation timestamp bound. |
 
+<a id="chatto-admin-v1-AdminRole"></a>
+
+### AdminRole
+
+Role metadata plus administrative permission state.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `role` | `chatto.api.v1.Role` | Public role metadata shared with ordinary role catalog reads. |
+| `permissions` | `repeated string` | Permissions granted by this role. |
+| `permission_denials` | `repeated string` | Permissions denied by this role. |
+
 <a id="chatto-admin-v1-AdminMember"></a>
 
 ### AdminMember
@@ -1006,31 +1034,6 @@ admin/member metadata with visibility controlled by the service.
 | `viewer_can_delete_account` | `bool` | Whether the caller may delete this account. |
 | `last_login_change` | `google.protobuf.Timestamp` | Last self-service username change, when visible and known. |
 | `user` | `chatto.api.v1.User` | Public identity fields for this user. |
-
-<a id="chatto-admin-v1-AdminMemberRole"></a>
-
-### AdminMemberRole
-
-Role details used by the member detail role-assignment UI.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `name` | `string` | Stable role name. |
-| `display_name` | `string` | Display name shown in admin UI. |
-| `position` | `int32` | Display/order position. |
-| `permissions` | `repeated string` | Permissions granted by this role. |
-| `permission_denials` | `repeated string` | Permissions denied by this role. |
-
-<a id="chatto-admin-v1-AdminRoleReference"></a>
-
-### AdminRoleReference
-
-Role reference used by member list filters and badges.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `name` | `string` | Stable role name. |
-| `display_name` | `string` | Display name shown in admin UI. |
 
 <a id="chatto-admin-v1-PermissionExplanation"></a>
 
@@ -1109,6 +1112,19 @@ Permission matrix for one role across all scopes.
 | `scopes` | repeated [`PermissionMatrixScope`](#chatto-admin-v1-PermissionMatrixScope) | Scopes rendered as columns. |
 | `cells` | repeated [`PermissionMatrixCell`](#chatto-admin-v1-PermissionMatrixCell) | Sparse matrix cells. |
 
+<a id="chatto-admin-v1-ScopedPermissionDecision"></a>
+
+### ScopedPermissionDecision
+
+One resource-oriented permission decision at a concrete scope.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `permission` | `string` | Permission identifier. |
+| `scope` | [`PermissionScope`](#chatto-admin-v1-PermissionScope) | Server, group, or room scope this decision applies to. |
+| `override` | [`PermissionDecision`](#chatto-admin-v1-PermissionDecision) | Explicit decision stored at this scope. |
+| `effective` | [`PermissionDecision`](#chatto-admin-v1-PermissionDecision) | Effective decision after inherited broader scopes are applied. |
+
 <a id="chatto-admin-v1-TierPermissions"></a>
 
 ### TierPermissions
@@ -1160,23 +1176,6 @@ Permission matrix for one user across all scopes.
 | `applicable_permissions` | `repeated string` | Permissions rendered as rows. |
 | `scopes` | repeated [`PermissionMatrixScope`](#chatto-admin-v1-PermissionMatrixScope) | Scopes rendered as columns. |
 | `cells` | repeated [`PermissionMatrixCell`](#chatto-admin-v1-PermissionMatrixCell) | Sparse matrix cells. |
-
-<a id="chatto-admin-v1-Role"></a>
-
-### Role
-
-Role metadata and permission state.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `name` | `string` | Stable role name used in permission and assignment records. |
-| `display_name` | `string` | Display name shown in admin and mention UIs. |
-| `description` | `string` | Optional role description. |
-| `permissions` | `repeated string` | Permissions granted by this role. |
-| `permission_denials` | `repeated string` | Permissions denied by this role. |
-| `is_system` | `bool` | Whether this is a built-in role. |
-| `position` | `int32` | Display/order position. |
-| `pingable` | `bool` | Whether messages may notify users assigned to this role. |
 
 <a id="chatto-admin-v1-AdminRoomLayoutGroup"></a>
 

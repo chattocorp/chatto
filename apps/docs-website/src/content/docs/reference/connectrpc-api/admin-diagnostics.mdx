@@ -18,13 +18,14 @@ Shared message and enum definitions are documented in [Shared Types And Enums](/
 
 ## AdminDiagnosticsService
 
-Provides owner-only server diagnostics for the admin system page.
+Provides server diagnostics for the admin system page.
 
 <a id="chatto-admin-v1-AdminDiagnosticsService-GetSystemInfo"></a>
 
 ### GetSystemInfo
 
-Returns broker, JetStream, and projection diagnostics.
+Returns broker, JetStream, and projection diagnostics. Requires
+admin.view-system.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminDiagnosticsService/GetSystemInfo

@@ -251,7 +251,7 @@ export class ListEventTypesRequest extends Message<ListEventTypesRequest> {
 }
 
 /**
- * Event types accepted by event-log filters.
+ * Finite snapshot of event types accepted by event-log filters.
  *
  * @generated from message chatto.admin.v1.ListEventTypesResponse
  */

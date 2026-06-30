@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   revokeRole: vi.fn(),
   updateUser: vi.fn(),
   setUserPassword: vi.fn(),
+  deleteUser: vi.fn(),
   clearUsernameCooldown: vi.fn()
 }));
 
@@ -35,6 +36,7 @@ describe('createAdminUserManagementAPI', () => {
     mocks.revokeRole.mockReset();
     mocks.updateUser.mockReset();
     mocks.setUserPassword.mockReset();
+    mocks.deleteUser.mockReset();
     mocks.clearUsernameCooldown.mockReset();
     mocks.createConnectTransport.mockReturnValue({ kind: 'transport' });
     mocks.createClient.mockReturnValue({
@@ -44,6 +46,7 @@ describe('createAdminUserManagementAPI', () => {
       revokeRole: mocks.revokeRole,
       updateUser: mocks.updateUser,
       setUserPassword: mocks.setUserPassword,
+      deleteUser: mocks.deleteUser,
       clearUsernameCooldown: mocks.clearUsernameCooldown
     });
   });
@@ -127,9 +130,14 @@ describe('createAdminUserManagementAPI', () => {
       },
       roles: [
         {
-          name: 'moderator',
-          displayName: 'Moderator',
-          position: 50,
+          role: {
+            name: 'moderator',
+            displayName: 'Moderator',
+            description: '',
+            isSystem: true,
+            position: 50,
+            pingable: false
+          },
           permissions: ['room.manage'],
           permissionDenials: ['message.post']
         }
@@ -258,6 +266,23 @@ describe('createAdminUserManagementAPI', () => {
 
     expect(mocks.setUserPassword).toHaveBeenCalledWith(
       { userId: 'user-1', password: 'newpassword456' },
+      { headers: { Authorization: 'Bearer token' } }
+    );
+  });
+
+  it('deletes a user with auth headers and fresh credential', async () => {
+    mocks.deleteUser.mockResolvedValue({ deleted: true });
+    const api = createAdminUserManagementAPI({
+      baseUrl: '/api/connect',
+      bearerToken: 'token'
+    });
+
+    await expect(
+      api.deleteUser({ userId: 'user-1', currentPassword: 'current-password' })
+    ).resolves.toBe(true);
+
+    expect(mocks.deleteUser).toHaveBeenCalledWith(
+      { userId: 'user-1', currentPassword: 'current-password' },
       { headers: { Authorization: 'Bearer token' } }
     );
   });

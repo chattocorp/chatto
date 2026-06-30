@@ -96,7 +96,7 @@ message ListRoomsRequest {
   RoomDirectoryScope scope = 1 [(buf.validate.field).enum.defined_only = true];
 }
 
-// Visible rooms for the current user.
+// Finite snapshot of rooms visible to the current user.
 message ListRoomsResponse {
   // Rooms matching the requested scope.
   repeated DirectoryRoom rooms = 1;
@@ -105,7 +105,7 @@ message ListRoomsResponse {
 // Request for ordered room groups visible to the current user.
 message ListRoomGroupsRequest {}
 
-// Ordered room groups visible to the current user.
+// Finite snapshot of ordered room groups visible to the current user.
 message ListRoomGroupsResponse {
   // Channel room groups in sidebar order.
   repeated RoomGroup groups = 1;
@@ -127,11 +127,15 @@ message GetRoomResponse {
 service RoomDirectoryService {
   // Lists rooms visible to the current user. Channel rooms are non-archived
   // rooms visible through membership or room.list. DM rooms are membership-only
-  // and empty DM conversations are omitted.
+  // and empty DM conversations are omitted. Results are returned as a finite
+  // navigation snapshot.
   rpc ListRooms(ListRoomsRequest) returns (ListRoomsResponse);
   // Lists ordered channel room groups and sidebar items visible to the current
-  // user. Archived and hidden room entries are omitted from group results.
+  // user as a finite navigation snapshot. Archived and hidden room entries are
+  // omitted from group results.
   rpc ListRoomGroups(ListRoomGroupsRequest) returns (ListRoomGroupsResponse);
-  // Returns one visible room by ID. DM rooms require membership.
+  // Returns one visible room by ID. DM rooms require membership. Returns
+  // NOT_FOUND when the room does not exist and PERMISSION_DENIED when the room
+  // exists but is hidden from the caller.
   rpc GetRoom(GetRoomRequest) returns (GetRoomResponse);
 }

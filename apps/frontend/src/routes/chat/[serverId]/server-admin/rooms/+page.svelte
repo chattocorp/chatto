@@ -11,6 +11,8 @@
   const stores = $derived(serverRegistry.getStore(activeServerId));
   const layout = $derived(stores.adminRoomLayout);
 
+  $effect(() => stores.activateAdminRoomLayout());
+
   function refreshServerRoomState() {
     void stores.rooms.refresh();
     void stores.roomDirectory.refresh();

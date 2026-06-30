@@ -142,16 +142,18 @@ describe('getCurrentUserViaConnect', () => {
         hasVerifiedEmail: true
       },
       capabilities: {
-        canViewAdmin: true,
-        canStartDms: true,
-        canAdminViewUsers: true,
-        canAdminManageAccounts: true,
-        canAssignRoles: true,
-        canAdminViewRoles: true,
-        canAdminManageRoles: false,
-        canAdminViewSystem: true,
-        canAdminViewAudit: true,
-        canManageUserPermissions: true
+        grants: [
+          { capability: 'admin.view', granted: true },
+          { capability: 'dm.start', granted: true },
+          { capability: 'admin.view-users', granted: true },
+          { capability: 'user.manage-accounts', granted: true },
+          { capability: 'role.assign', granted: true },
+          { capability: 'role.view', granted: true },
+          { capability: 'role.manage', granted: false },
+          { capability: 'admin.view-system', granted: true },
+          { capability: 'admin.view-audit', granted: true },
+          { capability: 'user.manage-permissions', granted: true }
+        ]
       },
       serverNotificationPreference: {
         level: APINotificationLevel.ALL_MESSAGES,

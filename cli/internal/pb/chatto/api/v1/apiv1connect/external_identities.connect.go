@@ -65,7 +65,8 @@ const (
 // ExternalIdentityFlowServiceClient is a client for the chatto.api.v1.ExternalIdentityFlowService
 // service.
 type ExternalIdentityFlowServiceClient interface {
-	// Reads safe metadata for a pending create/link flow.
+	// Reads safe metadata for a pending create/link flow. Returns NOT_FOUND when
+	// the token is unknown or expired.
 	GetPendingExternalIdentity(context.Context, *connect.Request[v1.GetPendingExternalIdentityRequest]) (*connect.Response[v1.GetPendingExternalIdentityResponse], error)
 	// Creates a passwordless account from a pending provider identity.
 	CreateExternalIdentityAccount(context.Context, *connect.Request[v1.CreateExternalIdentityAccountRequest]) (*connect.Response[v1.CreateExternalIdentityAccountResponse], error)
@@ -148,7 +149,8 @@ func (c *externalIdentityFlowServiceClient) CancelExternalIdentityFlow(ctx conte
 // ExternalIdentityFlowServiceHandler is an implementation of the
 // chatto.api.v1.ExternalIdentityFlowService service.
 type ExternalIdentityFlowServiceHandler interface {
-	// Reads safe metadata for a pending create/link flow.
+	// Reads safe metadata for a pending create/link flow. Returns NOT_FOUND when
+	// the token is unknown or expired.
 	GetPendingExternalIdentity(context.Context, *connect.Request[v1.GetPendingExternalIdentityRequest]) (*connect.Response[v1.GetPendingExternalIdentityResponse], error)
 	// Creates a passwordless account from a pending provider identity.
 	CreateExternalIdentityAccount(context.Context, *connect.Request[v1.CreateExternalIdentityAccountRequest]) (*connect.Response[v1.CreateExternalIdentityAccountResponse], error)
@@ -226,7 +228,8 @@ func (UnimplementedExternalIdentityFlowServiceHandler) CancelExternalIdentityFlo
 
 // ExternalIdentityServiceClient is a client for the chatto.api.v1.ExternalIdentityService service.
 type ExternalIdentityServiceClient interface {
-	// Lists providers and identities linked to the authenticated account.
+	// Lists providers and identities linked to the authenticated account as a
+	// finite snapshot.
 	ListExternalIdentities(context.Context, *connect.Request[v1.ListExternalIdentitiesRequest]) (*connect.Response[v1.ListExternalIdentitiesResponse], error)
 	// Creates a short-lived browser handoff URL for linking a provider identity.
 	StartExternalIdentityLink(context.Context, *connect.Request[v1.StartExternalIdentityLinkRequest]) (*connect.Response[v1.StartExternalIdentityLinkResponse], error)
@@ -306,7 +309,8 @@ func (c *externalIdentityServiceClient) DisconnectExternalIdentity(ctx context.C
 // ExternalIdentityServiceHandler is an implementation of the chatto.api.v1.ExternalIdentityService
 // service.
 type ExternalIdentityServiceHandler interface {
-	// Lists providers and identities linked to the authenticated account.
+	// Lists providers and identities linked to the authenticated account as a
+	// finite snapshot.
 	ListExternalIdentities(context.Context, *connect.Request[v1.ListExternalIdentitiesRequest]) (*connect.Response[v1.ListExternalIdentitiesResponse], error)
 	// Creates a short-lived browser handoff URL for linking a provider identity.
 	StartExternalIdentityLink(context.Context, *connect.Request[v1.StartExternalIdentityLinkRequest]) (*connect.Response[v1.StartExternalIdentityLinkResponse], error)

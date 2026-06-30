@@ -501,6 +501,9 @@ func (c *ChattoCore) buildRolePermissionMatrix(ctx context.Context, roleName str
 }
 
 func (c *ChattoCore) buildUserPermissionMatrix(ctx context.Context, userID string) (*UserPermissionMatrix, error) {
+	if _, err := c.GetUser(ctx, userID); err != nil {
+		return nil, err
+	}
 	applicable := matrixApplicablePermissions()
 	scopes, err := c.buildMatrixScopes(ctx)
 	if err != nil {

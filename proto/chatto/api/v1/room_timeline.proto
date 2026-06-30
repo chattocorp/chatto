@@ -345,15 +345,21 @@ service RoomTimelineService {
   // to render the page.
   rpc GetRoomEvents(GetRoomEventsRequest) returns (GetRoomEventsResponse);
   // Returns a room timeline window centered around a specific event. Use this to
-  // open a permalink, search result, or notification target in context.
+  // open a permalink, search result, or notification target in context. Returns
+  // NOT_FOUND when the anchor event is missing or not visible in the room
+  // timeline and PERMISSION_DENIED when the room is inaccessible.
   rpc GetRoomEventsAround(GetRoomEventsAroundRequest) returns (GetRoomEventsAroundResponse);
   // Resolves a permalink target to either the room timeline or a message
   // thread, including thread-only replies that are not room timeline rows.
+  // Returns NOT_FOUND when the target message is missing or hidden and
+  // PERMISSION_DENIED when the room is inaccessible.
   rpc ResolveMessageLinkTarget(ResolveMessageLinkTargetRequest) returns (ResolveMessageLinkTargetResponse);
   // Returns one page of events in a message thread. Initial pages include the
   // thread root message; cursor pages return replies in the requested direction.
   rpc GetThreadEvents(GetThreadEventsRequest) returns (GetThreadEventsResponse);
   // Returns a thread timeline window centered around a specific event. Use this
-  // to open a reply from a notification or search result in context.
+  // to open a reply from a notification or search result in context. Returns
+  // NOT_FOUND when the thread root or anchor event is missing or hidden and
+  // PERMISSION_DENIED when the room is inaccessible.
   rpc GetThreadEventsAround(GetThreadEventsAroundRequest) returns (GetThreadEventsAroundResponse);
 }

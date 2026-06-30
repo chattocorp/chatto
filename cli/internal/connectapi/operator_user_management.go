@@ -7,6 +7,7 @@ import (
 	"connectrpc.com/connect"
 	"hmans.de/chatto/internal/core"
 	adminv1 "hmans.de/chatto/internal/pb/chatto/admin/v1"
+	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	operatorv1 "hmans.de/chatto/internal/pb/chatto/operator/v1"
 )
 
@@ -43,7 +44,7 @@ func (s *operatorUserService) ListUsers(ctx context.Context, req *connect.Reques
 	}
 	response := &operatorv1.ListUsersResponse{
 		Users: make([]*adminv1.AdminMember, 0, len(users.Users)),
-		Roles: []*adminv1.AdminRoleReference{},
+		Roles: []*apiv1.Role{},
 		Page:  apiPageInfo(users.TotalCount, users.HasMore),
 	}
 	for _, user := range users.Users {
@@ -57,12 +58,9 @@ func (s *operatorUserService) ListUsers(ctx context.Context, req *connect.Reques
 	if err != nil {
 		return nil, connectError(err)
 	}
-	response.Roles = make([]*adminv1.AdminRoleReference, 0, len(roles))
+	response.Roles = make([]*apiv1.Role, 0, len(roles))
 	for _, role := range roles {
-		response.Roles = append(response.Roles, &adminv1.AdminRoleReference{
-			Name:        role.Name,
-			DisplayName: role.DisplayName,
-		})
+		response.Roles = append(response.Roles, publicAPIRole(&role))
 	}
 	return connect.NewResponse(response), nil
 }
@@ -102,7 +100,7 @@ func (s *operatorUserService) GetUser(ctx context.Context, req *connect.Request[
 	}
 	return connect.NewResponse(&operatorv1.GetUserResponse{
 		Member:               member,
-		Roles:                adminMemberRolesFromCore(roles),
+		Roles:                adminAPIRoles(roles),
 		AvailablePermissions: corePermissionsToStrings(s.api.core.AllServerPermissions()),
 	}), nil
 }

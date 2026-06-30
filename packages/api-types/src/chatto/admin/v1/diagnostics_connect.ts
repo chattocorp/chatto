@@ -7,7 +7,7 @@ import { GetSystemInfoRequest, GetSystemInfoResponse } from "./diagnostics_pb.js
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
- * Provides owner-only server diagnostics for the admin system page.
+ * Provides server diagnostics for the admin system page.
  *
  * @generated from service chatto.admin.v1.AdminDiagnosticsService
  */
@@ -15,7 +15,8 @@ export const AdminDiagnosticsService = {
   typeName: "chatto.admin.v1.AdminDiagnosticsService",
   methods: {
     /**
-     * Returns broker, JetStream, and projection diagnostics.
+     * Returns broker, JetStream, and projection diagnostics. Requires
+     * admin.view-system.
      *
      * @generated from rpc chatto.admin.v1.AdminDiagnosticsService.GetSystemInfo
      */

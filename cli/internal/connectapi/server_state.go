@@ -206,14 +206,14 @@ func (s *serverService) serverViewerState(ctx context.Context, userID string) (*
 	}
 
 	permissions := &apiv1.ServerViewerPermissions{
-		Permissions: make([]*apiv1.ServerViewerPermission, 0, len(core.AllPermissions())),
+		Permissions: make([]*apiv1.PermissionGrant, 0, len(core.AllPermissions())),
 	}
 	for _, meta := range core.AllPermissions() {
 		granted, err := s.api.core.HasUserPermissionViaRoles(ctx, userID, meta.Permission)
 		if err != nil {
 			return nil, nil, connectError(err)
 		}
-		permissions.Permissions = append(permissions.Permissions, &apiv1.ServerViewerPermission{
+		permissions.Permissions = append(permissions.Permissions, &apiv1.PermissionGrant{
 			Permission: string(meta.Permission),
 			Granted:    granted,
 		})

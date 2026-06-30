@@ -800,7 +800,7 @@ func (*ListExternalIdentitiesRequest) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_external_identities_proto_rawDescGZIP(), []int{11}
 }
 
-// Result of listing configured and linked external identities.
+// Finite snapshot of configured providers and linked external identities.
 type ListExternalIdentitiesResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Configured providers the user may link.

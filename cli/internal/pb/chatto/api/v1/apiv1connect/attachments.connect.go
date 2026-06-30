@@ -44,10 +44,14 @@ const (
 // AttachmentServiceClient is a client for the chatto.api.v1.AttachmentService service.
 type AttachmentServiceClient interface {
 	// Lists current message-owned room attachments. Authentication and room
-	// membership are required.
+	// membership are required. Returns PERMISSION_DENIED when the room is
+	// inaccessible to the caller.
 	ListRoomAttachments(context.Context, *connect.Request[v1.ListRoomAttachmentsRequest]) (*connect.Response[v1.ListRoomAttachmentsResponse], error)
 	// Refreshes signed URLs for the current attachments on one message.
-	// Authentication and room membership are required.
+	// Authentication and room membership are required. Returns NOT_FOUND when the
+	// message does not exist, is not a current visible message, or belongs to a
+	// different room. Returns an empty attachment list when the message exists
+	// but currently has no attachments.
 	RefreshMessageAttachmentUrls(context.Context, *connect.Request[v1.RefreshMessageAttachmentUrlsRequest]) (*connect.Response[v1.RefreshMessageAttachmentUrlsResponse], error)
 }
 
@@ -96,10 +100,14 @@ func (c *attachmentServiceClient) RefreshMessageAttachmentUrls(ctx context.Conte
 // AttachmentServiceHandler is an implementation of the chatto.api.v1.AttachmentService service.
 type AttachmentServiceHandler interface {
 	// Lists current message-owned room attachments. Authentication and room
-	// membership are required.
+	// membership are required. Returns PERMISSION_DENIED when the room is
+	// inaccessible to the caller.
 	ListRoomAttachments(context.Context, *connect.Request[v1.ListRoomAttachmentsRequest]) (*connect.Response[v1.ListRoomAttachmentsResponse], error)
 	// Refreshes signed URLs for the current attachments on one message.
-	// Authentication and room membership are required.
+	// Authentication and room membership are required. Returns NOT_FOUND when the
+	// message does not exist, is not a current visible message, or belongs to a
+	// different room. Returns an empty attachment list when the message exists
+	// but currently has no attachments.
 	RefreshMessageAttachmentUrls(context.Context, *connect.Request[v1.RefreshMessageAttachmentUrlsRequest]) (*connect.Response[v1.RefreshMessageAttachmentUrlsResponse], error)
 }
 

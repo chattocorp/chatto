@@ -72,6 +72,7 @@ export default defineConfig({
                     "reference/connectrpc-api/account",
                     "reference/connectrpc-api/user-directory",
                     "reference/connectrpc-api/member-directory",
+                    "reference/connectrpc-api/roles",
                     "reference/connectrpc-api/room-directory",
                     "reference/connectrpc-api/rooms",
                     "reference/connectrpc-api/room-timeline",

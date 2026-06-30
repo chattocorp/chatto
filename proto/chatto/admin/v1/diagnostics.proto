@@ -195,8 +195,9 @@ message AdminProjectionMetric {
   int64 bytes = 3;
 }
 
-// Provides owner-only server diagnostics for the admin system page.
+// Provides server diagnostics for the admin system page.
 service AdminDiagnosticsService {
-  // Returns broker, JetStream, and projection diagnostics.
+  // Returns broker, JetStream, and projection diagnostics. Requires
+  // admin.view-system.
   rpc GetSystemInfo(GetSystemInfoRequest) returns (GetSystemInfoResponse);
 }

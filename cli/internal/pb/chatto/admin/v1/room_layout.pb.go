@@ -417,7 +417,7 @@ func (*ListAdminRoomLayoutRequest) Descriptor() ([]byte, []int) {
 	return file_chatto_admin_v1_room_layout_proto_rawDescGZIP(), []int{4}
 }
 
-// Current admin room layout.
+// Finite snapshot of the current admin room layout.
 type ListAdminRoomLayoutResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Room groups in sidebar order.

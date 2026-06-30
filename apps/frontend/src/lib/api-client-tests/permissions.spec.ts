@@ -7,7 +7,9 @@ const mocks = vi.hoisted(() => ({
   createConnectTransport: vi.fn(),
   getRolePermissionTierMatrix: vi.fn(),
   getRolePermissionMatrix: vi.fn(),
+  listRolePermissionDecisions: vi.fn(),
   getUserPermissionMatrix: vi.fn(),
+  listUserPermissionDecisions: vi.fn(),
   setRolePermission: vi.fn(),
   setUserPermission: vi.fn()
 }));
@@ -30,14 +32,18 @@ describe('createPermissionAPI', () => {
     mocks.createConnectTransport.mockReset();
     mocks.getRolePermissionTierMatrix.mockReset();
     mocks.getRolePermissionMatrix.mockReset();
+    mocks.listRolePermissionDecisions.mockReset();
     mocks.getUserPermissionMatrix.mockReset();
+    mocks.listUserPermissionDecisions.mockReset();
     mocks.setRolePermission.mockReset();
     mocks.setUserPermission.mockReset();
     mocks.createConnectTransport.mockReturnValue({ kind: 'transport' });
     mocks.createClient.mockReturnValue({
       getRolePermissionTierMatrix: mocks.getRolePermissionTierMatrix,
       getRolePermissionMatrix: mocks.getRolePermissionMatrix,
+      listRolePermissionDecisions: mocks.listRolePermissionDecisions,
       getUserPermissionMatrix: mocks.getUserPermissionMatrix,
+      listUserPermissionDecisions: mocks.listUserPermissionDecisions,
       setRolePermission: mocks.setRolePermission,
       setUserPermission: mocks.setUserPermission
     });
@@ -132,6 +138,51 @@ describe('createPermissionAPI', () => {
     });
   });
 
+  it('loads role permission decisions as scoped entries', async () => {
+    mocks.listRolePermissionDecisions.mockResolvedValue({
+      roleName: 'admin',
+      decisions: [
+        {
+          permission: 'message.post',
+          scope: { kind: PermissionScopeKind.SERVER, id: '' },
+          override: PermissionDecision.ALLOW,
+          effective: PermissionDecision.ALLOW
+        },
+        {
+          permission: 'message.react',
+          scope: { kind: PermissionScopeKind.ROOM, id: 'R1' },
+          override: PermissionDecision.NONE,
+          effective: PermissionDecision.DENY
+        }
+      ]
+    });
+    const api = createPermissionAPI({ baseUrl: '/api/connect', bearerToken: 'token' });
+
+    const result = await api.listRolePermissionDecisions('admin');
+
+    expect(mocks.listRolePermissionDecisions).toHaveBeenCalledWith(
+      { roleName: 'admin' },
+      { headers: { Authorization: 'Bearer token' } }
+    );
+    expect(result).toEqual({
+      roleName: 'admin',
+      decisions: [
+        {
+          permission: 'message.post',
+          scope: { tier: 'server' },
+          override: 'ALLOW',
+          effective: 'ALLOW'
+        },
+        {
+          permission: 'message.react',
+          scope: { tier: 'room', roomId: 'R1' },
+          override: 'NONE',
+          effective: 'DENY'
+        }
+      ]
+    });
+  });
+
   it('loads user matrices and maps missing decisions to NONE', async () => {
     mocks.getUserPermissionMatrix.mockResolvedValue({
       matrix: {
@@ -164,6 +215,39 @@ describe('createPermissionAPI', () => {
           scopeId: 'group:G1',
           override: 'NONE',
           effective: 'NONE'
+        }
+      ]
+    });
+  });
+
+  it('loads user permission decisions as scoped entries', async () => {
+    mocks.listUserPermissionDecisions.mockResolvedValue({
+      userId: 'U1',
+      decisions: [
+        {
+          permission: 'room.create',
+          scope: { kind: PermissionScopeKind.GROUP, id: 'G1' },
+          override: PermissionDecision.DENY,
+          effective: PermissionDecision.DENY
+        }
+      ]
+    });
+    const api = createPermissionAPI({ baseUrl: '/api/connect', bearerToken: null });
+
+    const result = await api.listUserPermissionDecisions('U1');
+
+    expect(mocks.listUserPermissionDecisions).toHaveBeenCalledWith(
+      { userId: 'U1' },
+      { headers: undefined }
+    );
+    expect(result).toEqual({
+      userId: 'U1',
+      decisions: [
+        {
+          permission: 'room.create',
+          scope: { tier: 'group', groupId: 'G1' },
+          override: 'DENY',
+          effective: 'DENY'
         }
       ]
     });

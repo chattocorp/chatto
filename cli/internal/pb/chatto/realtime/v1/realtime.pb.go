@@ -420,8 +420,12 @@ type RealtimeServerHello struct {
 	ServerVersion string `protobuf:"bytes,2,opt,name=server_version,json=serverVersion,proto3" json:"server_version,omitempty"`
 	// Approximate heartbeat interval clients should expect.
 	HeartbeatIntervalSeconds uint32 `protobuf:"varint,4,opt,name=heartbeat_interval_seconds,json=heartbeatIntervalSeconds,proto3" json:"heartbeat_interval_seconds,omitempty"`
-	unknownFields            protoimpl.UnknownFields
-	sizeCache                protoimpl.SizeCache
+	// Stable protocol capability keys supported by this server. Current keys:
+	// `chatto.realtime.events.live.v1`, `chatto.realtime.heartbeat.v1`, and
+	// `chatto.realtime.ping.v1`.
+	Capabilities  []string `protobuf:"bytes,5,rep,name=capabilities,proto3" json:"capabilities,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *RealtimeServerHello) Reset() {
@@ -473,6 +477,13 @@ func (x *RealtimeServerHello) GetHeartbeatIntervalSeconds() uint32 {
 		return x.HeartbeatIntervalSeconds
 	}
 	return 0
+}
+
+func (x *RealtimeServerHello) GetCapabilities() []string {
+	if x != nil {
+		return x.Capabilities
+	}
+	return nil
 }
 
 // Request to start the caller's authorized live event stream.
@@ -3209,11 +3220,12 @@ const file_chatto_realtime_v1_realtime_proto_rawDesc = "" +
 	"\x13RealtimeClientHello\x12)\n" +
 	"\x10protocol_version\x18\x01 \x01(\rR\x0fprotocolVersion\x12&\n" +
 	"\fbearer_token\x18\x02 \x01(\tH\x00R\vbearerToken\x88\x01\x01B\x0f\n" +
-	"\r_bearer_tokenJ\x04\b\x03\x10\x04R\rresume_cursor\"\xbd\x01\n" +
+	"\r_bearer_tokenJ\x04\b\x03\x10\x04R\rresume_cursor\"\xe1\x01\n" +
 	"\x13RealtimeServerHello\x12)\n" +
 	"\x10protocol_version\x18\x01 \x01(\rR\x0fprotocolVersion\x12%\n" +
 	"\x0eserver_version\x18\x02 \x01(\tR\rserverVersion\x12<\n" +
-	"\x1aheartbeat_interval_seconds\x18\x04 \x01(\rR\x18heartbeatIntervalSecondsJ\x04\b\x03\x10\x04R\x10resume_supported\"\x19\n" +
+	"\x1aheartbeat_interval_seconds\x18\x04 \x01(\rR\x18heartbeatIntervalSeconds\x12\"\n" +
+	"\fcapabilities\x18\x05 \x03(\tR\fcapabilitiesJ\x04\b\x03\x10\x04R\x10resume_supported\"\x19\n" +
 	"\x17RealtimeSubscribeEvents\"\"\n" +
 	"\x12RealtimeSubscribedJ\x04\b\x01\x10\x02R\x06cursor\"$\n" +
 	"\fRealtimePing\x12\x14\n" +

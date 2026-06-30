@@ -27,7 +27,7 @@ export const AdminRoomLayoutService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Creates a room group. The caller must be allowed to manage roles.
+     * Creates a room group. Requires role.manage.
      *
      * @generated from rpc chatto.admin.v1.AdminRoomLayoutService.CreateRoomGroup
      */
@@ -38,8 +38,7 @@ export const AdminRoomLayoutService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Updates a room group's metadata. The caller must be allowed to manage
-     * roles.
+     * Updates a room group's metadata. Requires role.manage.
      *
      * @generated from rpc chatto.admin.v1.AdminRoomLayoutService.UpdateRoomGroup
      */
@@ -50,7 +49,7 @@ export const AdminRoomLayoutService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Deletes an empty room group. The caller must be allowed to manage roles.
+     * Deletes an empty room group. Requires role.manage.
      *
      * @generated from rpc chatto.admin.v1.AdminRoomLayoutService.DeleteRoomGroup
      */
@@ -61,8 +60,7 @@ export const AdminRoomLayoutService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Replaces the global room group order. The caller must be allowed to manage
-     * roles.
+     * Replaces the global room group order. Requires role.manage.
      *
      * @generated from rpc chatto.admin.v1.AdminRoomLayoutService.ReorderRoomGroups
      */
@@ -73,8 +71,8 @@ export const AdminRoomLayoutService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Moves a channel room to another room group. The caller must be allowed to
-     * manage rooms in both source and destination groups.
+     * Moves a channel room to another room group. Requires room.manage in both
+     * source and destination groups.
      *
      * @generated from rpc chatto.admin.v1.AdminRoomLayoutService.MoveRoomToGroup
      */
@@ -85,8 +83,8 @@ export const AdminRoomLayoutService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Replaces the mixed room/link sidebar order in one group. The caller must
-     * be allowed to manage rooms in that group.
+     * Replaces the mixed room/link sidebar order in one group. Requires
+     * room.manage in that group.
      *
      * @generated from rpc chatto.admin.v1.AdminRoomLayoutService.ReorderSidebarItemsInGroup
      */
@@ -97,8 +95,7 @@ export const AdminRoomLayoutService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Creates a sidebar link. The caller must be allowed to manage rooms in the
-     * destination group.
+     * Creates a sidebar link. Requires room.manage in the destination group.
      *
      * @generated from rpc chatto.admin.v1.AdminRoomLayoutService.CreateSidebarLink
      */
@@ -109,8 +106,7 @@ export const AdminRoomLayoutService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Updates a sidebar link. The caller must be allowed to manage rooms in the
-     * link's current group.
+     * Updates a sidebar link. Requires room.manage in the link's current group.
      *
      * @generated from rpc chatto.admin.v1.AdminRoomLayoutService.UpdateSidebarLink
      */
@@ -121,8 +117,7 @@ export const AdminRoomLayoutService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Deletes a sidebar link. The caller must be allowed to manage rooms in the
-     * link's current group.
+     * Deletes a sidebar link. Requires room.manage in the link's current group.
      *
      * @generated from rpc chatto.admin.v1.AdminRoomLayoutService.DeleteSidebarLink
      */
@@ -133,8 +128,8 @@ export const AdminRoomLayoutService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Moves a sidebar link to another group. The caller must be allowed to manage
-     * rooms in both source and destination groups.
+     * Moves a sidebar link to another group. Requires room.manage in both source
+     * and destination groups.
      *
      * @generated from rpc chatto.admin.v1.AdminRoomLayoutService.MoveSidebarLinkToGroup
      */

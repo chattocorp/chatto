@@ -54,25 +54,36 @@ const (
 	// AdminMemberServiceClearUsernameCooldownProcedure is the fully-qualified name of the
 	// AdminMemberService's ClearUsernameCooldown RPC.
 	AdminMemberServiceClearUsernameCooldownProcedure = "/chatto.admin.v1.AdminMemberService/ClearUsernameCooldown"
+	// AdminMemberServiceDeleteUserProcedure is the fully-qualified name of the AdminMemberService's
+	// DeleteUser RPC.
+	AdminMemberServiceDeleteUserProcedure = "/chatto.admin.v1.AdminMemberService/DeleteUser"
 )
 
 // AdminMemberServiceClient is a client for the chatto.admin.v1.AdminMemberService service.
 type AdminMemberServiceClient interface {
-	// Lists server members for the admin members screen.
+	// Lists server members for the admin members screen. Requires
+	// admin.view-users.
 	ListMembers(context.Context, *connect.Request[v1.ListMembersRequest]) (*connect.Response[v1.ListMembersResponse], error)
 	// Gets one server member plus role/permission metadata for admin details.
-	// Returns NOT_FOUND when the user does not exist.
+	// Requires admin.view-users. Returns NOT_FOUND when the user does not exist.
 	GetMember(context.Context, *connect.Request[v1.GetMemberRequest]) (*connect.Response[v1.GetMemberResponse], error)
-	// Assigns a role to a user.
+	// Assigns a role to a user. Requires role.assign.
 	AssignRole(context.Context, *connect.Request[v1.AssignRoleRequest]) (*connect.Response[v1.AssignRoleResponse], error)
-	// Revokes a role from a user.
+	// Revokes a role from a user. Requires role.assign.
 	RevokeRole(context.Context, *connect.Request[v1.RevokeRoleRequest]) (*connect.Response[v1.RevokeRoleResponse], error)
-	// Updates a user's login and/or display name as an admin action.
+	// Updates a user's login and/or display name as an admin action. Requires
+	// user.manage-accounts for other users.
 	UpdateUser(context.Context, *connect.Request[v1.UpdateUserRequest]) (*connect.Response[v1.UpdateUserResponse], error)
-	// Sets a user's password as an admin action.
+	// Sets a user's password as an admin action. Requires user.manage-accounts
+	// for other users and a fresh credential for the caller.
 	SetUserPassword(context.Context, *connect.Request[v1.SetUserPasswordRequest]) (*connect.Response[v1.SetUserPasswordResponse], error)
-	// Clears the target user's self-service username-change cooldown.
+	// Clears the target user's self-service username-change cooldown. Requires
+	// user.manage-accounts.
 	ClearUsernameCooldown(context.Context, *connect.Request[v1.ClearUsernameCooldownRequest]) (*connect.Response[v1.ClearUsernameCooldownResponse], error)
+	// Deletes a user account as an admin action. Requires user.delete-any for
+	// other users, user.delete-self for the caller, and a fresh credential for
+	// the caller.
+	DeleteUser(context.Context, *connect.Request[v1.DeleteUserRequest]) (*connect.Response[v1.DeleteUserResponse], error)
 }
 
 // NewAdminMemberServiceClient constructs a client for the chatto.admin.v1.AdminMemberService
@@ -128,6 +139,12 @@ func NewAdminMemberServiceClient(httpClient connect.HTTPClient, baseURL string, 
 			connect.WithSchema(adminMemberServiceMethods.ByName("ClearUsernameCooldown")),
 			connect.WithClientOptions(opts...),
 		),
+		deleteUser: connect.NewClient[v1.DeleteUserRequest, v1.DeleteUserResponse](
+			httpClient,
+			baseURL+AdminMemberServiceDeleteUserProcedure,
+			connect.WithSchema(adminMemberServiceMethods.ByName("DeleteUser")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -140,6 +157,7 @@ type adminMemberServiceClient struct {
 	updateUser            *connect.Client[v1.UpdateUserRequest, v1.UpdateUserResponse]
 	setUserPassword       *connect.Client[v1.SetUserPasswordRequest, v1.SetUserPasswordResponse]
 	clearUsernameCooldown *connect.Client[v1.ClearUsernameCooldownRequest, v1.ClearUsernameCooldownResponse]
+	deleteUser            *connect.Client[v1.DeleteUserRequest, v1.DeleteUserResponse]
 }
 
 // ListMembers calls chatto.admin.v1.AdminMemberService.ListMembers.
@@ -177,23 +195,36 @@ func (c *adminMemberServiceClient) ClearUsernameCooldown(ctx context.Context, re
 	return c.clearUsernameCooldown.CallUnary(ctx, req)
 }
 
+// DeleteUser calls chatto.admin.v1.AdminMemberService.DeleteUser.
+func (c *adminMemberServiceClient) DeleteUser(ctx context.Context, req *connect.Request[v1.DeleteUserRequest]) (*connect.Response[v1.DeleteUserResponse], error) {
+	return c.deleteUser.CallUnary(ctx, req)
+}
+
 // AdminMemberServiceHandler is an implementation of the chatto.admin.v1.AdminMemberService service.
 type AdminMemberServiceHandler interface {
-	// Lists server members for the admin members screen.
+	// Lists server members for the admin members screen. Requires
+	// admin.view-users.
 	ListMembers(context.Context, *connect.Request[v1.ListMembersRequest]) (*connect.Response[v1.ListMembersResponse], error)
 	// Gets one server member plus role/permission metadata for admin details.
-	// Returns NOT_FOUND when the user does not exist.
+	// Requires admin.view-users. Returns NOT_FOUND when the user does not exist.
 	GetMember(context.Context, *connect.Request[v1.GetMemberRequest]) (*connect.Response[v1.GetMemberResponse], error)
-	// Assigns a role to a user.
+	// Assigns a role to a user. Requires role.assign.
 	AssignRole(context.Context, *connect.Request[v1.AssignRoleRequest]) (*connect.Response[v1.AssignRoleResponse], error)
-	// Revokes a role from a user.
+	// Revokes a role from a user. Requires role.assign.
 	RevokeRole(context.Context, *connect.Request[v1.RevokeRoleRequest]) (*connect.Response[v1.RevokeRoleResponse], error)
-	// Updates a user's login and/or display name as an admin action.
+	// Updates a user's login and/or display name as an admin action. Requires
+	// user.manage-accounts for other users.
 	UpdateUser(context.Context, *connect.Request[v1.UpdateUserRequest]) (*connect.Response[v1.UpdateUserResponse], error)
-	// Sets a user's password as an admin action.
+	// Sets a user's password as an admin action. Requires user.manage-accounts
+	// for other users and a fresh credential for the caller.
 	SetUserPassword(context.Context, *connect.Request[v1.SetUserPasswordRequest]) (*connect.Response[v1.SetUserPasswordResponse], error)
-	// Clears the target user's self-service username-change cooldown.
+	// Clears the target user's self-service username-change cooldown. Requires
+	// user.manage-accounts.
 	ClearUsernameCooldown(context.Context, *connect.Request[v1.ClearUsernameCooldownRequest]) (*connect.Response[v1.ClearUsernameCooldownResponse], error)
+	// Deletes a user account as an admin action. Requires user.delete-any for
+	// other users, user.delete-self for the caller, and a fresh credential for
+	// the caller.
+	DeleteUser(context.Context, *connect.Request[v1.DeleteUserRequest]) (*connect.Response[v1.DeleteUserResponse], error)
 }
 
 // NewAdminMemberServiceHandler builds an HTTP handler from the service implementation. It returns
@@ -245,6 +276,12 @@ func NewAdminMemberServiceHandler(svc AdminMemberServiceHandler, opts ...connect
 		connect.WithSchema(adminMemberServiceMethods.ByName("ClearUsernameCooldown")),
 		connect.WithHandlerOptions(opts...),
 	)
+	adminMemberServiceDeleteUserHandler := connect.NewUnaryHandler(
+		AdminMemberServiceDeleteUserProcedure,
+		svc.DeleteUser,
+		connect.WithSchema(adminMemberServiceMethods.ByName("DeleteUser")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/chatto.admin.v1.AdminMemberService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AdminMemberServiceListMembersProcedure:
@@ -261,6 +298,8 @@ func NewAdminMemberServiceHandler(svc AdminMemberServiceHandler, opts ...connect
 			adminMemberServiceSetUserPasswordHandler.ServeHTTP(w, r)
 		case AdminMemberServiceClearUsernameCooldownProcedure:
 			adminMemberServiceClearUsernameCooldownHandler.ServeHTTP(w, r)
+		case AdminMemberServiceDeleteUserProcedure:
+			adminMemberServiceDeleteUserHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -296,4 +335,8 @@ func (UnimplementedAdminMemberServiceHandler) SetUserPassword(context.Context, *
 
 func (UnimplementedAdminMemberServiceHandler) ClearUsernameCooldown(context.Context, *connect.Request[v1.ClearUsernameCooldownRequest]) (*connect.Response[v1.ClearUsernameCooldownResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.admin.v1.AdminMemberService.ClearUsernameCooldown is not implemented"))
+}
+
+func (UnimplementedAdminMemberServiceHandler) DeleteUser(context.Context, *connect.Request[v1.DeleteUserRequest]) (*connect.Response[v1.DeleteUserResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.admin.v1.AdminMemberService.DeleteUser is not implemented"))
 }

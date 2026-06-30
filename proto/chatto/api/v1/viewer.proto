@@ -3,6 +3,7 @@ syntax = "proto3";
 package chatto.api.v1;
 
 import "chatto/api/v1/notification_preferences.proto";
+import "chatto/api/v1/permissions.proto";
 import "chatto/api/v1/users.proto";
 import "google/protobuf/timestamp.proto";
 
@@ -48,31 +49,10 @@ message ViewerUser {
 
 // Permission-derived capabilities for the authenticated user.
 message ViewerCapabilities {
-  reserved 4;
-  reserved "can_admin_manage_users";
-
-  // Whether the user has at least one server-admin permission.
-  bool can_view_admin = 1;
-  // Whether the user may start direct-message conversations.
-  bool can_start_dms = 2;
-  // Whether the user may view the admin users screen.
-  bool can_admin_view_users = 3;
-  // Whether the user may view role administration.
-  bool can_admin_view_roles = 5;
-  // Whether the user may manage roles.
-  bool can_admin_manage_roles = 6;
-  // Whether the user may view system administration.
-  bool can_admin_view_system = 7;
-  // Whether the user may view the audit log.
-  bool can_admin_view_audit = 8;
+  // Keyed capability decisions for the authenticated user.
+  repeated CapabilityGrant grants = 1;
   // Whether the user has unread followed threads.
-  bool has_unread_followed_threads = 9;
-  // Whether the user may edit direct per-user permission overrides.
-  bool can_manage_user_permissions = 10;
-  // Whether the user may assign and revoke roles for users.
-  bool can_assign_roles = 11;
-  // Whether the user may perform account lifecycle and recovery actions for users.
-  bool can_admin_manage_accounts = 12;
+  bool has_unread_followed_threads = 2;
 }
 
 // Server-wide notification preference for the authenticated user.

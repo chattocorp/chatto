@@ -7,6 +7,7 @@ import {
   type PermissionMatrixCell as APIPermissionMatrixCell,
   type PermissionMatrixScope as APIPermissionMatrixScope,
   type RolePermissionMatrix as APIRolePermissionMatrix,
+  type ScopedPermissionDecision as APIScopedPermissionDecision,
   type TierRole as APITierRole,
   type TierRoles as APITierRoles,
   type UserPermissionMatrix as APIUserPermissionMatrix,
@@ -76,6 +77,23 @@ export type UserPermissionMatrix = MatrixData & {
   userId: string;
 };
 
+export type PermissionDecisionEntry = {
+  permission: string;
+  scope: PermissionScope;
+  override: MatrixDecision;
+  effective: MatrixDecision;
+};
+
+export type RolePermissionDecisions = {
+  roleName: string;
+  decisions: PermissionDecisionEntry[];
+};
+
+export type UserPermissionDecisions = {
+  userId: string;
+  decisions: PermissionDecisionEntry[];
+};
+
 export function createPermissionAPI(config: PermissionAPIConfig) {
   const transport = createConnectTransport({
     baseUrl: config.baseUrl,
@@ -111,6 +129,19 @@ export function createPermissionAPI(config: PermissionAPIConfig) {
       return response.matrix ? rolePermissionMatrix(response.matrix) : null;
     },
 
+    async listRolePermissionDecisions(
+      roleName: string,
+    ): Promise<RolePermissionDecisions> {
+      const response = await client.listRolePermissionDecisions(
+        { roleName },
+        { headers: headers() },
+      );
+      return {
+        roleName: response.roleName,
+        decisions: response.decisions.map(permissionDecisionEntry),
+      };
+    },
+
     async getUserPermissionMatrix(
       userId: string,
     ): Promise<UserPermissionMatrix | null> {
@@ -119,6 +150,19 @@ export function createPermissionAPI(config: PermissionAPIConfig) {
         { headers: headers() },
       );
       return response.matrix ? userPermissionMatrix(response.matrix) : null;
+    },
+
+    async listUserPermissionDecisions(
+      userId: string,
+    ): Promise<UserPermissionDecisions> {
+      const response = await client.listUserPermissionDecisions(
+        { userId },
+        { headers: headers() },
+      );
+      return {
+        userId: response.userId,
+        decisions: response.decisions.map(permissionDecisionEntry),
+      };
     },
 
     async setRolePermission(input: {
@@ -222,6 +266,29 @@ function matrixCell(cell: APIPermissionMatrixCell): MatrixCell {
     override: matrixDecision(cell.override),
     effective: matrixDecision(cell.effective),
   };
+}
+
+function permissionDecisionEntry(
+  decision: APIScopedPermissionDecision,
+): PermissionDecisionEntry {
+  return {
+    permission: decision.permission,
+    scope: permissionScope(decision.scope),
+    override: matrixDecision(decision.override),
+    effective: matrixDecision(decision.effective),
+  };
+}
+
+function permissionScope(
+  scope: { kind: PermissionScopeKind; id: string } | undefined,
+): PermissionScope {
+  if (scope?.kind === PermissionScopeKind.GROUP) {
+    return { tier: "group", groupId: scope.id };
+  }
+  if (scope?.kind === PermissionScopeKind.ROOM) {
+    return { tier: "room", roomId: scope.id };
+  }
+  return { tier: "server" };
 }
 
 function scopeKind(kind: PermissionScopeKind): MatrixScopeKind {

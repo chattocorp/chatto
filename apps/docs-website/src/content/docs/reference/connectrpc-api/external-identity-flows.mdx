@@ -24,7 +24,8 @@ Public pending external identity flow operations.
 
 ### GetPendingExternalIdentity
 
-Reads safe metadata for a pending create/link flow.
+Reads safe metadata for a pending create/link flow. Returns NOT_FOUND when
+the token is unknown or expired.
 
 ```http
 POST /api/connect/chatto.api.v1.ExternalIdentityFlowService/GetPendingExternalIdentity

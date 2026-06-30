@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ExplainPermissionsRequest, ExplainPermissionsResponse, GetRolePermissionMatrixRequest, GetRolePermissionMatrixResponse, GetRolePermissionTierMatrixRequest, GetRolePermissionTierMatrixResponse, GetUserPermissionMatrixRequest, GetUserPermissionMatrixResponse, SetRolePermissionRequest, SetRolePermissionResponse, SetUserPermissionRequest, SetUserPermissionResponse } from "./permissions_pb.js";
+import { ExplainPermissionsRequest, ExplainPermissionsResponse, GetRolePermissionMatrixRequest, GetRolePermissionMatrixResponse, GetRolePermissionTierMatrixRequest, GetRolePermissionTierMatrixResponse, GetUserPermissionMatrixRequest, GetUserPermissionMatrixResponse, ListRolePermissionDecisionsRequest, ListRolePermissionDecisionsResponse, ListUserPermissionDecisionsRequest, ListUserPermissionDecisionsResponse, SetRolePermissionRequest, SetRolePermissionResponse, SetUserPermissionRequest, SetUserPermissionResponse } from "./permissions_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -38,7 +38,20 @@ export const AdminPermissionService = {
       kind: MethodKind.Unary,
     },
     /**
+     * Lists one role's permission decisions by permission and scope. Requires
+     * role.manage. Returns NOT_FOUND when the role does not exist.
+     *
+     * @generated from rpc chatto.admin.v1.AdminPermissionService.ListRolePermissionDecisions
+     */
+    listRolePermissionDecisions: {
+      name: "ListRolePermissionDecisions",
+      I: ListRolePermissionDecisionsRequest,
+      O: ListRolePermissionDecisionsResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
      * Gets one user's full permission matrix. Requires user.manage-permissions.
+     * Returns NOT_FOUND when the user does not exist.
      *
      * @generated from rpc chatto.admin.v1.AdminPermissionService.GetUserPermissionMatrix
      */
@@ -46,6 +59,18 @@ export const AdminPermissionService = {
       name: "GetUserPermissionMatrix",
       I: GetUserPermissionMatrixRequest,
       O: GetUserPermissionMatrixResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Lists one user's permission decisions by permission and scope. Requires
+     * user.manage-permissions. Returns NOT_FOUND when the user does not exist.
+     *
+     * @generated from rpc chatto.admin.v1.AdminPermissionService.ListUserPermissionDecisions
+     */
+    listUserPermissionDecisions: {
+      name: "ListUserPermissionDecisions",
+      I: ListUserPermissionDecisionsRequest,
+      O: ListUserPermissionDecisionsResponse,
       kind: MethodKind.Unary,
     },
     /**

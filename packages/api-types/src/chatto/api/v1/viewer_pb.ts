@@ -6,6 +6,7 @@
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
 import { UserProfile } from "./users_pb.js";
+import { CapabilityGrant } from "./permissions_pb.js";
 import { NotificationLevel } from "./notification_preferences_pb.js";
 
 /**
@@ -188,81 +189,18 @@ export class ViewerUser extends Message<ViewerUser> {
  */
 export class ViewerCapabilities extends Message<ViewerCapabilities> {
   /**
-   * Whether the user has at least one server-admin permission.
+   * Keyed capability decisions for the authenticated user.
    *
-   * @generated from field: bool can_view_admin = 1;
+   * @generated from field: repeated chatto.api.v1.CapabilityGrant grants = 1;
    */
-  canViewAdmin = false;
-
-  /**
-   * Whether the user may start direct-message conversations.
-   *
-   * @generated from field: bool can_start_dms = 2;
-   */
-  canStartDms = false;
-
-  /**
-   * Whether the user may view the admin users screen.
-   *
-   * @generated from field: bool can_admin_view_users = 3;
-   */
-  canAdminViewUsers = false;
-
-  /**
-   * Whether the user may view role administration.
-   *
-   * @generated from field: bool can_admin_view_roles = 5;
-   */
-  canAdminViewRoles = false;
-
-  /**
-   * Whether the user may manage roles.
-   *
-   * @generated from field: bool can_admin_manage_roles = 6;
-   */
-  canAdminManageRoles = false;
-
-  /**
-   * Whether the user may view system administration.
-   *
-   * @generated from field: bool can_admin_view_system = 7;
-   */
-  canAdminViewSystem = false;
-
-  /**
-   * Whether the user may view the audit log.
-   *
-   * @generated from field: bool can_admin_view_audit = 8;
-   */
-  canAdminViewAudit = false;
+  grants: CapabilityGrant[] = [];
 
   /**
    * Whether the user has unread followed threads.
    *
-   * @generated from field: bool has_unread_followed_threads = 9;
+   * @generated from field: bool has_unread_followed_threads = 2;
    */
   hasUnreadFollowedThreads = false;
-
-  /**
-   * Whether the user may edit direct per-user permission overrides.
-   *
-   * @generated from field: bool can_manage_user_permissions = 10;
-   */
-  canManageUserPermissions = false;
-
-  /**
-   * Whether the user may assign and revoke roles for users.
-   *
-   * @generated from field: bool can_assign_roles = 11;
-   */
-  canAssignRoles = false;
-
-  /**
-   * Whether the user may perform account lifecycle and recovery actions for users.
-   *
-   * @generated from field: bool can_admin_manage_accounts = 12;
-   */
-  canAdminManageAccounts = false;
 
   constructor(data?: PartialMessage<ViewerCapabilities>) {
     super();
@@ -272,17 +210,8 @@ export class ViewerCapabilities extends Message<ViewerCapabilities> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.ViewerCapabilities";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "can_view_admin", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 2, name: "can_start_dms", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 3, name: "can_admin_view_users", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 5, name: "can_admin_view_roles", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 6, name: "can_admin_manage_roles", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 7, name: "can_admin_view_system", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 8, name: "can_admin_view_audit", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 9, name: "has_unread_followed_threads", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 10, name: "can_manage_user_permissions", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 11, name: "can_assign_roles", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 12, name: "can_admin_manage_accounts", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 1, name: "grants", kind: "message", T: CapabilityGrant, repeated: true },
+    { no: 2, name: "has_unread_followed_threads", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ViewerCapabilities {

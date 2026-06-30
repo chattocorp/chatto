@@ -33,6 +33,7 @@ var publicReflectionServiceNames = []string{
 	apiv1connect.PushNotificationServiceName,
 	apiv1connect.ReactionServiceName,
 	apiv1connect.ReadStateServiceName,
+	apiv1connect.RoleServiceName,
 	apiv1connect.RoomDirectoryServiceName,
 	apiv1connect.RoomServiceName,
 	apiv1connect.RoomTimelineServiceName,

@@ -48,7 +48,7 @@ message ListEventsResponse {
 // Request to list filterable event types.
 message ListEventTypesRequest {}
 
-// Event types accepted by event-log filters.
+// Finite snapshot of event types accepted by event-log filters.
 message ListEventTypesResponse {
   // Sorted event type names.
   repeated string event_types = 1;
@@ -90,11 +90,12 @@ message AdminEventLogEntry {
 
 // Provides server-admin audit/event-log diagnostics.
 service AdminEventLogService {
-  // Lists durable EVT entries newest-first.
+  // Lists durable EVT entries newest-first. Requires admin.view-audit.
   rpc ListEvents(ListEventsRequest) returns (ListEventsResponse);
-  // Lists filterable event type names.
+  // Lists filterable event type names as a finite snapshot. Requires
+  // admin.view-audit.
   rpc ListEventTypes(ListEventTypesRequest) returns (ListEventTypesResponse);
-  // Reads one durable EVT entry by stream sequence. Returns NOT_FOUND when the
-  // requested sequence does not exist.
+  // Reads one durable EVT entry by stream sequence. Requires admin.view-audit.
+  // Returns NOT_FOUND when the requested sequence does not exist.
   rpc GetEvent(GetEventRequest) returns (GetEventResponse);
 }

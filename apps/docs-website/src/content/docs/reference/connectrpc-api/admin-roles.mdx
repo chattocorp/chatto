@@ -18,13 +18,15 @@ Shared message and enum definitions are documented in [Shared Types And Enums](/
 
 ## AdminRoleService
 
-Provides authenticated role catalog reads and admin role CRUD.
+Provides administrative role reads and role definition changes.
 
 <a id="chatto-admin-v1-AdminRoleService-ListRoles"></a>
 
 ### ListRoles
 
-Lists the role catalog. Requires an authenticated user.
+Lists the role catalog including permission arrays as a finite snapshot.
+Requires an authenticated user; use chatto.api.v1.RoleService for ordinary
+catalog rendering.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminRoleService/ListRoles
@@ -41,11 +43,11 @@ Request the role catalog.
 
 #### Result: ListRolesResponse
 
-Role catalog plus viewer role-management capabilities.
+Finite role catalog snapshot plus viewer role-management capabilities.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `roles` | repeated [`Role`](/reference/connectrpc-api/types/#chatto-admin-v1-Role) | Roles sorted by position. |
+| `roles` | repeated [`AdminRole`](/reference/connectrpc-api/types/#chatto-admin-v1-AdminRole) | Roles sorted by position. |
 | `viewer_can_manage_roles` | `bool` | Whether the caller may create/update/delete role definitions. |
 | `viewer_can_assign_roles` | `bool` | Whether the caller may assign/revoke roles and view role rosters. |
 
@@ -80,7 +82,7 @@ One role plus role-management metadata.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `role` | [`Role`](/reference/connectrpc-api/types/#chatto-admin-v1-Role) | Requested role. |
+| `role` | [`AdminRole`](/reference/connectrpc-api/types/#chatto-admin-v1-AdminRole) | Requested role. |
 | `users` | `repeated chatto.api.v1.User` | Explicit users with this role. Empty unless the caller may assign roles. |
 | `viewer_can_manage_roles` | `bool` | Whether the caller may create/update/delete role definitions. |
 | `viewer_can_assign_roles` | `bool` | Whether the caller may assign/revoke roles and view role rosters. |
@@ -118,7 +120,7 @@ Result of creating a role.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `role` | [`Role`](/reference/connectrpc-api/types/#chatto-admin-v1-Role) | Created role. |
+| `role` | [`AdminRole`](/reference/connectrpc-api/types/#chatto-admin-v1-AdminRole) | Created role. |
 
 
 <a id="chatto-admin-v1-AdminRoleService-UpdateRole"></a>
@@ -153,7 +155,7 @@ Result of updating a role.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `role` | [`Role`](/reference/connectrpc-api/types/#chatto-admin-v1-Role) | Updated role. |
+| `role` | [`AdminRole`](/reference/connectrpc-api/types/#chatto-admin-v1-AdminRole) | Updated role. |
 
 
 <a id="chatto-admin-v1-AdminRoleService-DeleteRole"></a>
@@ -217,4 +219,4 @@ Result of replacing custom role order.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `roles` | repeated [`Role`](/reference/connectrpc-api/types/#chatto-admin-v1-Role) | Full role catalog after reordering. |
+| `roles` | repeated [`AdminRole`](/reference/connectrpc-api/types/#chatto-admin-v1-AdminRole) | Full role catalog after reordering. |

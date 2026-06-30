@@ -29,6 +29,12 @@ const (
 	realtimeHeartbeatIntervalSeconds = 25
 )
 
+var realtimeServerCapabilities = []string{
+	"chatto.realtime.events.live.v1",
+	"chatto.realtime.heartbeat.v1",
+	"chatto.realtime.ping.v1",
+}
+
 func (s *HTTPServer) setupRealtimeAPI(allowedOrigins []string) {
 	upgrader := websocket.Upgrader{
 		EnableCompression: s.config.Webserver.WebSocketCompressionEnabled(),
@@ -125,6 +131,7 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 			ProtocolVersion:          realtimeProtocolVersion,
 			ServerVersion:            s.version,
 			HeartbeatIntervalSeconds: realtimeHeartbeatIntervalSeconds,
+			Capabilities:             append([]string(nil), realtimeServerCapabilities...),
 		},
 	}}); err != nil {
 		return

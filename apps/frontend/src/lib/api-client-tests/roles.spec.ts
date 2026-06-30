@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
   createClient: vi.fn(),
   createConnectTransport: vi.fn(),
   listRoles: vi.fn(),
+  listAdminRoles: vi.fn(),
   getRole: vi.fn(),
   createRole: vi.fn(),
   updateRole: vi.fn(),
@@ -28,32 +29,81 @@ describe('createRoleAPI', () => {
     mocks.createClient.mockReset();
     mocks.createConnectTransport.mockReset();
     mocks.listRoles.mockReset();
+    mocks.listAdminRoles.mockReset();
     mocks.getRole.mockReset();
     mocks.createRole.mockReset();
     mocks.updateRole.mockReset();
     mocks.deleteRole.mockReset();
     mocks.createConnectTransport.mockReturnValue({ kind: 'transport' });
-    mocks.createClient.mockReturnValue({
-      listRoles: mocks.listRoles,
-      getRole: mocks.getRole,
-      createRole: mocks.createRole,
-      updateRole: mocks.updateRole,
-      deleteRole: mocks.deleteRole
+    mocks.createClient.mockImplementation((service) => {
+      if (service.typeName === 'chatto.api.v1.RoleService') {
+        return {
+          listRoles: mocks.listRoles
+        };
+      }
+      return {
+        listRoles: mocks.listAdminRoles,
+        getRole: mocks.getRole,
+        createRole: mocks.createRole,
+        updateRole: mocks.updateRole,
+        deleteRole: mocks.deleteRole
+      };
     });
   });
 
-  it('lists roles with viewer capabilities', async () => {
+  it('lists public roles', async () => {
     mocks.listRoles.mockResolvedValue({
       roles: [
         {
           name: 'moderator',
           displayName: 'Moderator',
           description: 'Moderates rooms',
-          permissions: ['room.manage'],
-          permissionDenials: ['message.post'],
           isSystem: true,
           position: 100,
           pingable: true
+        }
+      ]
+    });
+    const api = createRoleAPI({ baseUrl: '/api/connect', bearerToken: 'token' });
+
+    const result = await api.listRoles();
+
+    expect(mocks.listRoles).toHaveBeenCalledWith(
+      {},
+      { headers: { Authorization: 'Bearer token' } }
+    );
+    expect(result).toEqual({
+      roles: [
+        {
+          name: 'moderator',
+          displayName: 'Moderator',
+          description: 'Moderates rooms',
+          permissions: [],
+          permissionDenials: [],
+          isSystem: true,
+          position: 100,
+          pingable: true
+        }
+      ],
+      viewerCanManageRoles: false,
+      viewerCanAssignRoles: false
+    });
+  });
+
+  it('lists admin roles with viewer capabilities', async () => {
+    mocks.listAdminRoles.mockResolvedValue({
+      roles: [
+        {
+          role: {
+            name: 'moderator',
+            displayName: 'Moderator',
+            description: 'Moderates rooms',
+            isSystem: true,
+            position: 100,
+            pingable: true
+          },
+          permissions: ['room.manage'],
+          permissionDenials: ['message.post']
         }
       ],
       viewerCanManageRoles: true,
@@ -61,9 +111,9 @@ describe('createRoleAPI', () => {
     });
     const api = createRoleAPI({ baseUrl: '/api/connect', bearerToken: 'token' });
 
-    const result = await api.listRoles();
+    const result = await api.listAdminRoles();
 
-    expect(mocks.listRoles).toHaveBeenCalledWith(
+    expect(mocks.listAdminRoles).toHaveBeenCalledWith(
       {},
       { headers: { Authorization: 'Bearer token' } }
     );
@@ -88,14 +138,16 @@ describe('createRoleAPI', () => {
   it('gets a role with users and no auth headers when no token is available', async () => {
     mocks.getRole.mockResolvedValue({
       role: {
-        name: 'helpdesk',
-        displayName: 'Helpdesk',
-        description: '',
+        role: {
+          name: 'helpdesk',
+          displayName: 'Helpdesk',
+          description: '',
+          isSystem: false,
+          position: 10,
+          pingable: false
+        },
         permissions: [],
-        permissionDenials: [],
-        isSystem: false,
-        position: 10,
-        pingable: false
+        permissionDenials: []
       },
       users: [{ id: 'user-1', login: 'alice', displayName: 'Alice' }],
       viewerCanManageRoles: true,
@@ -135,8 +187,22 @@ describe('createRoleAPI', () => {
       position: 10,
       pingable: true
     };
-    mocks.createRole.mockResolvedValue({ role });
-    mocks.updateRole.mockResolvedValue({ role: { ...role, displayName: 'Support' } });
+    const apiRole = {
+      role: {
+        name: role.name,
+        displayName: role.displayName,
+        description: role.description,
+        isSystem: role.isSystem,
+        position: role.position,
+        pingable: role.pingable
+      },
+      permissions: role.permissions,
+      permissionDenials: role.permissionDenials
+    };
+    mocks.createRole.mockResolvedValue({ role: apiRole });
+    mocks.updateRole.mockResolvedValue({
+      role: { ...apiRole, role: { ...apiRole.role, displayName: 'Support' } }
+    });
     mocks.deleteRole.mockResolvedValue({ deleted: true });
     const api = createRoleAPI({ baseUrl: '/api/connect', bearerToken: 'token' });
 

@@ -89,7 +89,9 @@ Updated server-level notification preference.
 
 Returns the current user's explicit and effective notification level for a
 room. Use this before rendering room notification controls so the UI can
-distinguish inherited defaults from an explicit room override.
+distinguish inherited defaults from an explicit room override. Returns
+NOT_FOUND when the room does not exist and PERMISSION_DENIED when the room
+exists but is inaccessible to the caller.
 
 ```http
 POST /api/connect/chatto.api.v1.NotificationPreferencesService/GetRoomNotificationPreference
@@ -719,7 +721,9 @@ Response containing one room timeline page.
 ### GetRoomEventsAround
 
 Returns a room timeline window centered around a specific event. Use this to
-open a permalink, search result, or notification target in context.
+open a permalink, search result, or notification target in context. Returns
+NOT_FOUND when the anchor event is missing or not visible in the room
+timeline and PERMISSION_DENIED when the room is inaccessible.
 
 ```http
 POST /api/connect/chatto.api.v1.RoomTimelineService/GetRoomEventsAround
@@ -759,6 +763,8 @@ Response containing a room timeline window around a specific event.
 
 Resolves a permalink target to either the room timeline or a message
 thread, including thread-only replies that are not room timeline rows.
+Returns NOT_FOUND when the target message is missing or hidden and
+PERMISSION_DENIED when the room is inaccessible.
 
 ```http
 POST /api/connect/chatto.api.v1.RoomTimelineService/ResolveMessageLinkTarget
@@ -839,7 +845,9 @@ Response containing one thread timeline page.
 ### GetThreadEventsAround
 
 Returns a thread timeline window centered around a specific event. Use this
-to open a reply from a notification or search result in context.
+to open a reply from a notification or search result in context. Returns
+NOT_FOUND when the thread root or anchor event is missing or hidden and
+PERMISSION_DENIED when the room is inaccessible.
 
 ```http
 POST /api/connect/chatto.api.v1.RoomTimelineService/GetThreadEventsAround
@@ -885,7 +893,8 @@ Reads room attachments and refreshes expiring signed attachment URLs.
 ### ListRoomAttachments
 
 Lists current message-owned room attachments. Authentication and room
-membership are required.
+membership are required. Returns PERMISSION_DENIED when the room is
+inaccessible to the caller.
 
 ```http
 POST /api/connect/chatto.api.v1.AttachmentService/ListRoomAttachments
@@ -921,7 +930,10 @@ Room-scoped attachment list response.
 ### RefreshMessageAttachmentUrls
 
 Refreshes signed URLs for the current attachments on one message.
-Authentication and room membership are required.
+Authentication and room membership are required. Returns NOT_FOUND when the
+message does not exist, is not a current visible message, or belongs to a
+different room. Returns an empty attachment list when the message exists
+but currently has no attachments.
 
 ```http
 POST /api/connect/chatto.api.v1.AttachmentService/RefreshMessageAttachmentUrls
@@ -961,7 +973,8 @@ Public pending external identity flow operations.
 
 ### GetPendingExternalIdentity
 
-Reads safe metadata for a pending create/link flow.
+Reads safe metadata for a pending create/link flow. Returns NOT_FOUND when
+the token is unknown or expired.
 
 ```http
 POST /api/connect/chatto.api.v1.ExternalIdentityFlowService/GetPendingExternalIdentity
@@ -1098,7 +1111,8 @@ Authenticated external identity management.
 
 ### ListExternalIdentities
 
-Lists providers and identities linked to the authenticated account.
+Lists providers and identities linked to the authenticated account as a
+finite snapshot.
 
 ```http
 POST /api/connect/chatto.api.v1.ExternalIdentityService/ListExternalIdentities
@@ -1115,7 +1129,7 @@ Request to list configured and linked external identities for the current user.
 
 #### Result: ListExternalIdentitiesResponse
 
-Result of listing configured and linked external identities.
+Finite snapshot of configured providers and linked external identities.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -1601,7 +1615,7 @@ Pending notification page scoped to one room.
 
 ### ListNotificationCounts
 
-Lists pending notification counts grouped by room.
+Lists pending notification counts grouped by room as a finite snapshot.
 
 ```http
 POST /api/connect/chatto.api.v1.NotificationService/ListNotificationCounts
@@ -1618,7 +1632,7 @@ Request for pending notification counts grouped by room.
 
 #### Result: ListNotificationCountsResponse
 
-Pending notification counts grouped by room.
+Finite snapshot of pending notification counts grouped by room.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -1946,6 +1960,41 @@ Result of marking a message thread as read.
 | Field | Type | Description |
 | --- | --- | --- |
 | `previous_read_at` | `google.protobuf.Timestamp` | Previous thread read timestamp, when one existed. |
+
+
+<a id="chatto-api-v1-RoleService"></a>
+
+## RoleService
+
+Provides authenticated reads for public role metadata.
+
+<a id="chatto-api-v1-RoleService-ListRoles"></a>
+
+### ListRoles
+
+Lists the current role catalog as a finite snapshot. Requires an
+authenticated user.
+
+```http
+POST /api/connect/chatto.api.v1.RoleService/ListRoles
+```
+
+<a id="chatto-api-v1-ListRolesRequest"></a>
+
+#### Input: ListRolesRequest
+
+Request the current role catalog.
+
+
+<a id="chatto-api-v1-ListRolesResponse"></a>
+
+#### Result: ListRolesResponse
+
+Snapshot of the role catalog visible to the authenticated viewer.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `roles` | repeated [`Role`](#chatto-api-v1-Role) | Roles sorted by position. |
 
 
 <a id="chatto-api-v1-RoomService"></a>
@@ -2374,7 +2423,8 @@ Reads room directory data.
 
 Lists rooms visible to the current user. Channel rooms are non-archived
 rooms visible through membership or room.list. DM rooms are membership-only
-and empty DM conversations are omitted.
+and empty DM conversations are omitted. Results are returned as a finite
+navigation snapshot.
 
 ```http
 POST /api/connect/chatto.api.v1.RoomDirectoryService/ListRooms
@@ -2395,7 +2445,7 @@ Request for rooms visible to the current user.
 
 #### Result: ListRoomsResponse
 
-Visible rooms for the current user.
+Finite snapshot of rooms visible to the current user.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -2407,7 +2457,8 @@ Visible rooms for the current user.
 ### ListRoomGroups
 
 Lists ordered channel room groups and sidebar items visible to the current
-user. Archived and hidden room entries are omitted from group results.
+user as a finite navigation snapshot. Archived and hidden room entries are
+omitted from group results.
 
 ```http
 POST /api/connect/chatto.api.v1.RoomDirectoryService/ListRoomGroups
@@ -2424,7 +2475,7 @@ Request for ordered room groups visible to the current user.
 
 #### Result: ListRoomGroupsResponse
 
-Ordered room groups visible to the current user.
+Finite snapshot of ordered room groups visible to the current user.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -2435,7 +2486,9 @@ Ordered room groups visible to the current user.
 
 ### GetRoom
 
-Returns one visible room by ID. DM rooms require membership.
+Returns one visible room by ID. DM rooms require membership. Returns
+NOT_FOUND when the room does not exist and PERMISSION_DENIED when the room
+exists but is hidden from the caller.
 
 ```http
 POST /api/connect/chatto.api.v1.RoomDirectoryService/GetRoom
@@ -2659,7 +2712,8 @@ Voice-call request/response APIs backed by Chatto call-state projections.
 
 ### ListActiveCallRooms
 
-Lists channel room IDs that currently have active calls.
+Lists channel room IDs that currently have active calls as a finite
+runtime snapshot.
 
 Returns an empty list when LiveKit is not configured.
 
@@ -2678,7 +2732,7 @@ Request for active channel call room IDs.
 
 #### Result: ListActiveCallRoomsResponse
 
-Active channel call room IDs.
+Finite runtime snapshot of active channel call room IDs.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -2689,9 +2743,12 @@ Active channel call room IDs.
 
 ### ListCallParticipants
 
-Lists participants currently observed in a room's active call.
+Lists participants currently observed in a room's active call as a finite
+runtime snapshot.
 
 The caller must be a member of the room.
+Returns NOT_FOUND when the room does not exist and PERMISSION_DENIED when
+the caller is not a room member.
 
 ```http
 POST /api/connect/chatto.api.v1.VoiceCallService/ListCallParticipants
@@ -2712,7 +2769,7 @@ Request for participants in a room call.
 
 #### Result: ListCallParticipantsResponse
 
-Participants in one room call.
+Finite runtime snapshot of participants in one room call.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -2760,6 +2817,8 @@ Response from recording a join intent.
 Issues a LiveKit token for joining the room's active call.
 
 The caller must be a member of the room and a call must already be active.
+Returns NOT_FOUND when the room does not exist, PERMISSION_DENIED when the
+caller is not a room member, and FAILED_PRECONDITION when no call is active.
 
 ```http
 POST /api/connect/chatto.api.v1.VoiceCallService/GetCallToken
@@ -2825,6 +2884,32 @@ Response from recording a leave intent.
 
 
 ## Supporting Types
+
+<a id="chatto-api-v1-CapabilityGrant"></a>
+
+### CapabilityGrant
+
+Effective decision for one capability key.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `capability` | `string` | Stable capability key, such as "admin.view" or "dm.start". |
+| `granted` | `bool` | Whether the capability is currently available. |
+
+
+
+<a id="chatto-api-v1-PermissionGrant"></a>
+
+### PermissionGrant
+
+Effective decision for one permission key.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `permission` | `string` | Stable permission key, such as "server.manage". |
+| `granted` | `bool` | Whether the permission is currently granted. |
+
+
 
 <a id="chatto-api-v1-CustomUserStatus"></a>
 
@@ -2932,17 +3017,8 @@ Permission-derived capabilities for the authenticated user.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `can_view_admin` | `bool` | Whether the user has at least one server-admin permission. |
-| `can_start_dms` | `bool` | Whether the user may start direct-message conversations. |
-| `can_admin_view_users` | `bool` | Whether the user may view the admin users screen. |
-| `can_admin_view_roles` | `bool` | Whether the user may view role administration. |
-| `can_admin_manage_roles` | `bool` | Whether the user may manage roles. |
-| `can_admin_view_system` | `bool` | Whether the user may view system administration. |
-| `can_admin_view_audit` | `bool` | Whether the user may view the audit log. |
+| `grants` | repeated [`CapabilityGrant`](#chatto-api-v1-CapabilityGrant) | Keyed capability decisions for the authenticated user. |
 | `has_unread_followed_threads` | `bool` | Whether the user has unread followed threads. |
-| `can_manage_user_permissions` | `bool` | Whether the user may edit direct per-user permission overrides. |
-| `can_assign_roles` | `bool` | Whether the user may assign and revoke roles for users. |
-| `can_admin_manage_accounts` | `bool` | Whether the user may perform account lifecycle and recovery actions for users. |
 
 
 
@@ -3393,7 +3469,6 @@ One pending notification for the authenticated viewer.
 | `id` | `string` | Stable notification ID. |
 | `created_at` | `google.protobuf.Timestamp` | Creation time. |
 | `actor` | [`UserProfile`](#chatto-api-v1-UserProfile) | User who triggered the notification, when still resolvable. |
-| `summary` | `string` | Short human-readable notification summary. |
 | `kind.direct_message` | [`DirectMessageNotification`](#chatto-api-v1-DirectMessageNotification) | Direct-message notification. |
 | `kind.mention` | [`MentionNotification`](#chatto-api-v1-MentionNotification) | Mention notification. |
 | `kind.reply` | [`ReplyNotification`](#chatto-api-v1-ReplyNotification) | Reply notification. |
@@ -3452,6 +3527,23 @@ Pending notification count for one room.
 | --- | --- | --- |
 | `room_id` | `string` | Room ID. |
 | `total_count` | `int32` | Pending notification count for the authenticated viewer in this room. |
+
+
+
+<a id="chatto-api-v1-Role"></a>
+
+### Role
+
+Public role metadata used for rendering role mentions, labels, and catalogs.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `name` | `string` | Stable role name used in permission and assignment records. |
+| `display_name` | `string` | Display name shown in user-facing role UIs. |
+| `description` | `string` | Optional role description. |
+| `is_system` | `bool` | Whether this is a built-in role. |
+| `position` | `int32` | Display/order position. |
+| `pingable` | `bool` | Whether messages may notify users assigned to this role. |
 
 
 
@@ -3656,19 +3748,6 @@ Authenticated server runtime settings used by clients.
 
 
 
-<a id="chatto-api-v1-ServerViewerPermission"></a>
-
-### ServerViewerPermission
-
-Effective permission decision for the authenticated user.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `permission` | `string` | Stable permission key, such as "server.manage". |
-| `granted` | `bool` | Whether the permission is currently granted to the viewer. |
-
-
-
 <a id="chatto-api-v1-ServerViewerPermissions"></a>
 
 ### ServerViewerPermissions
@@ -3677,7 +3756,7 @@ Effective server/channel permission decisions for the authenticated user.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `permissions` | repeated [`ServerViewerPermission`](#chatto-api-v1-ServerViewerPermission) | One row per permission known to the server. |
+| `permissions` | repeated [`PermissionGrant`](#chatto-api-v1-PermissionGrant) | One row per permission known to the server. |
 
 
 

@@ -24,7 +24,8 @@ Authenticated external identity management.
 
 ### ListExternalIdentities
 
-Lists providers and identities linked to the authenticated account.
+Lists providers and identities linked to the authenticated account as a
+finite snapshot.
 
 ```http
 POST /api/connect/chatto.api.v1.ExternalIdentityService/ListExternalIdentities
@@ -41,7 +42,7 @@ Request to list configured and linked external identities for the current user.
 
 #### Result: ListExternalIdentitiesResponse
 
-Result of listing configured and linked external identities.
+Finite snapshot of configured providers and linked external identities.
 
 | Field | Type | Description |
 | --- | --- | --- |

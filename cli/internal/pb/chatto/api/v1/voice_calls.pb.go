@@ -60,7 +60,7 @@ func (*ListActiveCallRoomsRequest) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_voice_calls_proto_rawDescGZIP(), []int{0}
 }
 
-// Active channel call room IDs.
+// Finite runtime snapshot of active channel call room IDs.
 type ListActiveCallRoomsResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Room IDs with active calls.
@@ -152,7 +152,7 @@ func (x *ListCallParticipantsRequest) GetRoomId() string {
 	return ""
 }
 
-// Participants in one room call.
+// Finite runtime snapshot of participants in one room call.
 type ListCallParticipantsResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Participants currently projected for the room call.

@@ -101,6 +101,7 @@ export class ServerStateStore {
   /** Disposer for the internal effect root that wires lifecycle reactivity. */
   readonly #disposeEffects: () => void;
   readonly #playedCallSoundEventIds: string[] = [];
+  #adminRoomLayoutSubscriptions = 0;
   #lastSuccessfulCatchUpRefreshAt = 0;
   #catchUpRefreshInFlight = false;
   #queuedCatchUpRefreshReason: EventBusCatchUpReason | null = null;
@@ -178,7 +179,6 @@ export class ServerStateStore {
           });
           void this.rooms.refresh();
           void this.roomDirectory.refresh();
-          void this.adminRoomLayout.refresh();
         }
       });
 
@@ -193,7 +193,9 @@ export class ServerStateStore {
         const handler: EventHandler = (event) => {
           this.rooms.ingestServerEvent(event);
           this.roomDirectory.ingestServerEvent(event);
-          this.adminRoomLayout.ingestServerEvent(event);
+          if (this.#adminRoomLayoutActive) {
+            this.adminRoomLayout.ingestServerEvent(event);
+          }
           const eventKind = roomEventKind(event.event);
           if (eventKind === RoomEventKind.ServerUpdated) {
             void this.serverInfo.refreshProfile();
@@ -301,7 +303,9 @@ export class ServerStateStore {
         run('notifications', () => this.notifications.fetch()),
         run('rooms', () => this.rooms.refresh()),
         run('room directory', () => this.roomDirectory.refresh()),
-        run('admin room layout', () => this.adminRoomLayout.refresh()),
+        this.#adminRoomLayoutActive
+          ? run('admin room layout', () => this.adminRoomLayout.refresh())
+          : Promise.resolve(),
         this.serverInfo.livekitUrl
           ? run('active calls', () => this.activeCallRooms.load())
           : Promise.resolve()
@@ -349,6 +353,18 @@ export class ServerStateStore {
       return this.currentUser.user != null;
     }
     return this.#registered.token != null;
+  }
+
+  get #adminRoomLayoutActive(): boolean {
+    return this.#adminRoomLayoutSubscriptions > 0;
+  }
+
+  activateAdminRoomLayout(): () => void {
+    this.#adminRoomLayoutSubscriptions += 1;
+    void this.adminRoomLayout.refresh();
+    return () => {
+      this.#adminRoomLayoutSubscriptions = Math.max(0, this.#adminRoomLayoutSubscriptions - 1);
+    };
   }
 
   /** Update permissions from viewer query data. */

@@ -28,7 +28,9 @@ export const RoomTimelineService = {
     },
     /**
      * Returns a room timeline window centered around a specific event. Use this to
-     * open a permalink, search result, or notification target in context.
+     * open a permalink, search result, or notification target in context. Returns
+     * NOT_FOUND when the anchor event is missing or not visible in the room
+     * timeline and PERMISSION_DENIED when the room is inaccessible.
      *
      * @generated from rpc chatto.api.v1.RoomTimelineService.GetRoomEventsAround
      */
@@ -41,6 +43,8 @@ export const RoomTimelineService = {
     /**
      * Resolves a permalink target to either the room timeline or a message
      * thread, including thread-only replies that are not room timeline rows.
+     * Returns NOT_FOUND when the target message is missing or hidden and
+     * PERMISSION_DENIED when the room is inaccessible.
      *
      * @generated from rpc chatto.api.v1.RoomTimelineService.ResolveMessageLinkTarget
      */
@@ -64,7 +68,9 @@ export const RoomTimelineService = {
     },
     /**
      * Returns a thread timeline window centered around a specific event. Use this
-     * to open a reply from a notification or search result in context.
+     * to open a reply from a notification or search result in context. Returns
+     * NOT_FOUND when the thread root or anchor event is missing or hidden and
+     * PERMISSION_DENIED when the room is inaccessible.
      *
      * @generated from rpc chatto.api.v1.RoomTimelineService.GetThreadEventsAround
      */

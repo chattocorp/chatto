@@ -24,7 +24,8 @@ Server-admin user identity and cooldown commands.
 
 ### ListMembers
 
-Lists server members for the admin members screen.
+Lists server members for the admin members screen. Requires
+admin.view-users.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminMemberService/ListMembers
@@ -51,7 +52,7 @@ Server-admin member rows plus role summaries.
 | Field | Type | Description |
 | --- | --- | --- |
 | `users` | repeated [`AdminMember`](/reference/connectrpc-api/types/#chatto-admin-v1-AdminMember) | Matching users. |
-| `roles` | repeated [`AdminRoleReference`](/reference/connectrpc-api/types/#chatto-admin-v1-AdminRoleReference) | Roles for display-name lookup. |
+| `roles` | `repeated chatto.api.v1.Role` | Public roles for display-name lookup. |
 | `page` | `chatto.api.v1.PageInfo` | Page metadata. |
 
 
@@ -60,7 +61,7 @@ Server-admin member rows plus role summaries.
 ### GetMember
 
 Gets one server member plus role/permission metadata for admin details.
-Returns NOT_FOUND when the user does not exist.
+Requires admin.view-users. Returns NOT_FOUND when the user does not exist.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminMemberService/GetMember
@@ -87,7 +88,7 @@ Server-admin member detail payload.
 | Field | Type | Description |
 | --- | --- | --- |
 | `member` | [`AdminMember`](/reference/connectrpc-api/types/#chatto-admin-v1-AdminMember) | Member record. |
-| `roles` | repeated [`AdminMemberRole`](/reference/connectrpc-api/types/#chatto-admin-v1-AdminMemberRole) | Roles for assignment UI. |
+| `roles` | repeated [`AdminRole`](/reference/connectrpc-api/types/#chatto-admin-v1-AdminRole) | Roles for assignment UI. |
 | `available_permissions` | `repeated string` | Permissions available for per-user overrides. |
 | `viewer_can_assign_roles` | `bool` | Whether the caller may assign/revoke roles. |
 | `viewer_can_manage_roles` | `bool` | Whether the caller may edit role definitions. |
@@ -98,7 +99,7 @@ Server-admin member detail payload.
 
 ### AssignRole
 
-Assigns a role to a user.
+Assigns a role to a user. Requires role.assign.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminMemberService/AssignRole
@@ -132,7 +133,7 @@ Result of assigning a role.
 
 ### RevokeRole
 
-Revokes a role from a user.
+Revokes a role from a user. Requires role.assign.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminMemberService/RevokeRole
@@ -166,7 +167,8 @@ Result of revoking a role.
 
 ### UpdateUser
 
-Updates a user's login and/or display name as an admin action.
+Updates a user's login and/or display name as an admin action. Requires
+user.manage-accounts for other users.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminMemberService/UpdateUser
@@ -201,7 +203,8 @@ Result of an admin user update.
 
 ### SetUserPassword
 
-Sets a user's password as an admin action.
+Sets a user's password as an admin action. Requires user.manage-accounts
+for other users and a fresh credential for the caller.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminMemberService/SetUserPassword
@@ -234,7 +237,8 @@ Result of an admin password update.
 
 ### ClearUsernameCooldown
 
-Clears the target user's self-service username-change cooldown.
+Clears the target user's self-service username-change cooldown. Requires
+user.manage-accounts.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminMemberService/ClearUsernameCooldown
@@ -260,3 +264,38 @@ Result of clearing a user's username-change cooldown.
 | Field | Type | Description |
 | --- | --- | --- |
 | `cleared` | `bool` | True when the request completed. |
+
+
+<a id="chatto-admin-v1-AdminMemberService-DeleteUser"></a>
+
+### DeleteUser
+
+Deletes a user account as an admin action. Requires user.delete-any for
+other users, user.delete-self for the caller, and a fresh credential for
+the caller.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminMemberService/DeleteUser
+```
+
+<a id="chatto-admin-v1-DeleteUserRequest"></a>
+
+#### Input: DeleteUserRequest
+
+Request to delete a user account as a server-admin action.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_id` | `string` | Target user ID. |
+| `current_password` | `string` | Current password proof for accounts with a password when the active runtime credential is no longer fresh. |
+
+
+<a id="chatto-admin-v1-DeleteUserResponse"></a>
+
+#### Result: DeleteUserResponse
+
+Result of deleting a user account.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `deleted` | `bool` | True when the user was deleted. |

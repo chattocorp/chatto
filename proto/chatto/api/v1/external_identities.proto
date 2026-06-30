@@ -128,7 +128,7 @@ message ConfirmExternalIdentityLinkResponse {
 // Request to list configured and linked external identities for the current user.
 message ListExternalIdentitiesRequest {}
 
-// Result of listing configured and linked external identities.
+// Finite snapshot of configured providers and linked external identities.
 message ListExternalIdentitiesResponse {
   // Configured providers the user may link.
   repeated ExternalIdentityProvider providers = 1;
@@ -182,7 +182,8 @@ message DisconnectExternalIdentityResponse {
 
 // Public pending external identity flow operations.
 service ExternalIdentityFlowService {
-  // Reads safe metadata for a pending create/link flow.
+  // Reads safe metadata for a pending create/link flow. Returns NOT_FOUND when
+  // the token is unknown or expired.
   rpc GetPendingExternalIdentity(GetPendingExternalIdentityRequest) returns (GetPendingExternalIdentityResponse);
   // Creates a passwordless account from a pending provider identity.
   rpc CreateExternalIdentityAccount(CreateExternalIdentityAccountRequest) returns (CreateExternalIdentityAccountResponse);
@@ -194,7 +195,8 @@ service ExternalIdentityFlowService {
 
 // Authenticated external identity management.
 service ExternalIdentityService {
-  // Lists providers and identities linked to the authenticated account.
+  // Lists providers and identities linked to the authenticated account as a
+  // finite snapshot.
   rpc ListExternalIdentities(ListExternalIdentitiesRequest) returns (ListExternalIdentitiesResponse);
   // Creates a short-lived browser handoff URL for linking a provider identity.
   rpc StartExternalIdentityLink(StartExternalIdentityLinkRequest) returns (StartExternalIdentityLinkResponse);

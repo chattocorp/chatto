@@ -1,0 +1,49 @@
+---
+title: RoleService
+description: Authenticated role catalog read RPCs.
+editUrl: false
+---
+
+{/* Generated from proto/chatto/{api,admin,realtime}/v1/*.proto. Do not edit directly. */}
+
+Chatto exposes this service below `/api/connect`.
+
+
+
+Shared message and enum definitions are documented in [Shared Types And Enums](/reference/connectrpc-api/types/).
+
+
+
+<a id="chatto-api-v1-RoleService"></a>
+
+## RoleService
+
+Provides authenticated reads for public role metadata.
+
+<a id="chatto-api-v1-RoleService-ListRoles"></a>
+
+### ListRoles
+
+Lists the current role catalog as a finite snapshot. Requires an
+authenticated user.
+
+```http
+POST /api/connect/chatto.api.v1.RoleService/ListRoles
+```
+
+<a id="chatto-api-v1-ListRolesRequest"></a>
+
+#### Input: ListRolesRequest
+
+Request the current role catalog.
+
+
+<a id="chatto-api-v1-ListRolesResponse"></a>
+
+#### Result: ListRolesResponse
+
+Snapshot of the role catalog visible to the authenticated viewer.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `roles` | repeated [`Role`](/reference/connectrpc-api/types/#chatto-api-v1-Role) | Roles sorted by position. |

@@ -2,7 +2,6 @@ package connectapi
 
 import (
 	"context"
-	"fmt"
 
 	"connectrpc.com/connect"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
@@ -133,37 +132,6 @@ func (s *notificationService) notificationPage(ctx context.Context, userID strin
 		return nil, connectError(err)
 	}
 	return connect.NewResponse(page), nil
-}
-
-func notificationSummary(actor *apiv1.UserProfile, notification *corev1.Notification) string {
-	actorName := ""
-	if actor != nil && actor.GetUser() != nil {
-		actorName = actor.GetUser().GetDisplayName()
-	}
-	switch notification.GetNotification().(type) {
-	case *corev1.Notification_DmMessage:
-		if actorName == "" {
-			return "New message"
-		}
-		return fmt.Sprintf("%s sent you a message", actorName)
-	case *corev1.Notification_Mention:
-		if actorName == "" {
-			return "You were mentioned"
-		}
-		return fmt.Sprintf("%s mentioned you", actorName)
-	case *corev1.Notification_Reply:
-		if actorName == "" {
-			return "New reply to your message"
-		}
-		return fmt.Sprintf("%s replied to your message", actorName)
-	case *corev1.Notification_RoomMessage:
-		if actorName == "" {
-			return "New message"
-		}
-		return fmt.Sprintf("%s posted a message", actorName)
-	default:
-		return "New notification"
-	}
 }
 
 func notificationTargetRoomID(notification *corev1.Notification) string {

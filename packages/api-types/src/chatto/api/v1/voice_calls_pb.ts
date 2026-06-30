@@ -41,7 +41,7 @@ export class ListActiveCallRoomsRequest extends Message<ListActiveCallRoomsReque
 }
 
 /**
- * Active channel call room IDs.
+ * Finite runtime snapshot of active channel call room IDs.
  *
  * @generated from message chatto.api.v1.ListActiveCallRoomsResponse
  */
@@ -123,7 +123,7 @@ export class ListCallParticipantsRequest extends Message<ListCallParticipantsReq
 }
 
 /**
- * Participants in one room call.
+ * Finite runtime snapshot of participants in one room call.
  *
  * @generated from message chatto.api.v1.ListCallParticipantsResponse
  */

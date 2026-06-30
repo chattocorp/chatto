@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package chatto.api.v1;
 
+import "chatto/api/v1/permissions.proto";
 import "chatto/api/v1/server.proto";
 
 // Server profile fields visible to authenticated members.
@@ -12,18 +13,10 @@ message ServerMemberProfile {
   optional string motd = 2;
 }
 
-// Effective permission decision for the authenticated user.
-message ServerViewerPermission {
-  // Stable permission key, such as "server.manage".
-  string permission = 1;
-  // Whether the permission is currently granted to the viewer.
-  bool granted = 2;
-}
-
 // Effective server/channel permission decisions for the authenticated user.
 message ServerViewerPermissions {
   // One row per permission known to the server.
-  repeated ServerViewerPermission permissions = 1;
+  repeated PermissionGrant permissions = 1;
 }
 
 // Non-permission server state for the authenticated user.

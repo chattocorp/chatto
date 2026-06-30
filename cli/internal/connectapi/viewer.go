@@ -14,6 +14,19 @@ type viewerService struct {
 	api *API
 }
 
+const (
+	viewerCapabilityAdminView        = "admin.view"
+	viewerCapabilityDMStart          = "dm.start"
+	viewerCapabilityAdminViewUsers   = string(core.PermAdminUsersView)
+	viewerCapabilityAdminManageUsers = string(core.PermUserManageAccounts)
+	viewerCapabilityAssignRoles      = string(core.PermRoleAssign)
+	viewerCapabilityAdminViewRoles   = "role.view"
+	viewerCapabilityAdminManageRoles = string(core.PermRoleManage)
+	viewerCapabilityAdminViewSystem  = string(core.PermAdminSystemView)
+	viewerCapabilityAdminViewAudit   = string(core.PermAdminAuditView)
+	viewerCapabilityManageUserPerms  = string(core.PermUserManagePermissions)
+)
+
 func (s *viewerService) GetViewer(ctx context.Context, _ *connect.Request[apiv1.GetViewerRequest]) (*connect.Response[apiv1.GetViewerResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
@@ -147,17 +160,19 @@ func (s *viewerService) viewerCapabilities(ctx context.Context, userID string) (
 	}
 
 	return &apiv1.ViewerCapabilities{
-		CanViewAdmin:             canViewAdmin,
-		CanStartDms:              canStartDMs,
-		CanAdminViewUsers:        canAdminViewUsers,
-		CanAdminViewRoles:        canAdminManageRoles,
-		CanAdminManageRoles:      canAdminManageRoles,
-		CanAdminViewSystem:       canAdminViewSystem,
-		CanAdminViewAudit:        canAdminViewAudit,
+		Grants: []*apiv1.CapabilityGrant{
+			{Capability: viewerCapabilityAdminView, Granted: canViewAdmin},
+			{Capability: viewerCapabilityDMStart, Granted: canStartDMs},
+			{Capability: viewerCapabilityAdminViewUsers, Granted: canAdminViewUsers},
+			{Capability: viewerCapabilityAdminManageUsers, Granted: canAdminManageAccounts},
+			{Capability: viewerCapabilityAssignRoles, Granted: canAssignRoles},
+			{Capability: viewerCapabilityAdminViewRoles, Granted: canAdminManageRoles},
+			{Capability: viewerCapabilityAdminManageRoles, Granted: canAdminManageRoles},
+			{Capability: viewerCapabilityAdminViewSystem, Granted: canAdminViewSystem},
+			{Capability: viewerCapabilityAdminViewAudit, Granted: canAdminViewAudit},
+			{Capability: viewerCapabilityManageUserPerms, Granted: canManageUserPermissions},
+		},
 		HasUnreadFollowedThreads: hasUnreadFollowedThreads,
-		CanManageUserPermissions: canManageUserPermissions,
-		CanAssignRoles:           canAssignRoles,
-		CanAdminManageAccounts:   canAdminManageAccounts,
 	}, nil
 }
 

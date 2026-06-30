@@ -458,7 +458,7 @@ export class ListRoomsRequest extends Message<ListRoomsRequest> {
 }
 
 /**
- * Visible rooms for the current user.
+ * Finite snapshot of rooms visible to the current user.
  *
  * @generated from message chatto.api.v1.ListRoomsResponse
  */
@@ -532,7 +532,7 @@ export class ListRoomGroupsRequest extends Message<ListRoomGroupsRequest> {
 }
 
 /**
- * Ordered room groups visible to the current user.
+ * Finite snapshot of ordered room groups visible to the current user.
  *
  * @generated from message chatto.api.v1.ListRoomGroupsResponse
  */

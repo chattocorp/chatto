@@ -71,6 +71,12 @@ const categories = [
         description: 'Server and room member directory RPCs.'
       },
       {
+        name: 'RoleService',
+        slug: 'roles',
+        title: 'Roles',
+        description: 'Authenticated role catalog read RPCs.'
+      },
+      {
         name: 'RoomDirectoryService',
         slug: 'room-directory',
         title: 'Room Directory',

@@ -7,7 +7,7 @@ import { CreateRoleRequest, CreateRoleResponse, DeleteRoleRequest, DeleteRoleRes
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
- * Provides authenticated role catalog reads and admin role CRUD.
+ * Provides administrative role reads and role definition changes.
  *
  * @generated from service chatto.admin.v1.AdminRoleService
  */
@@ -15,7 +15,9 @@ export const AdminRoleService = {
   typeName: "chatto.admin.v1.AdminRoleService",
   methods: {
     /**
-     * Lists the role catalog. Requires an authenticated user.
+     * Lists the role catalog including permission arrays as a finite snapshot.
+     * Requires an authenticated user; use chatto.api.v1.RoleService for ordinary
+     * catalog rendering.
      *
      * @generated from rpc chatto.admin.v1.AdminRoleService.ListRoles
      */

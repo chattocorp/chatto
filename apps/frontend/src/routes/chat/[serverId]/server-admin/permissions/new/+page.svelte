@@ -27,7 +27,7 @@
     loading = true;
 
     try {
-      const resp = await roleAPI().listRoles();
+      const resp = await roleAPI().listAdminRoles();
       canManageRoles = resp.viewerCanManageRoles;
     } catch {
       error = m['admin.permissions.load_instance_failed']();

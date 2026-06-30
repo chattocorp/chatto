@@ -73,33 +73,28 @@ type AdminRoomLayoutServiceClient interface {
 	// Lists the current room groups, rooms, and sidebar links for the admin
 	// layout editor.
 	ListAdminRoomLayout(context.Context, *connect.Request[v1.ListAdminRoomLayoutRequest]) (*connect.Response[v1.ListAdminRoomLayoutResponse], error)
-	// Creates a room group. The caller must be allowed to manage roles.
+	// Creates a room group. Requires role.manage.
 	CreateRoomGroup(context.Context, *connect.Request[v1.CreateRoomGroupRequest]) (*connect.Response[v1.CreateRoomGroupResponse], error)
-	// Updates a room group's metadata. The caller must be allowed to manage
-	// roles.
+	// Updates a room group's metadata. Requires role.manage.
 	UpdateRoomGroup(context.Context, *connect.Request[v1.UpdateRoomGroupRequest]) (*connect.Response[v1.UpdateRoomGroupResponse], error)
-	// Deletes an empty room group. The caller must be allowed to manage roles.
+	// Deletes an empty room group. Requires role.manage.
 	DeleteRoomGroup(context.Context, *connect.Request[v1.DeleteRoomGroupRequest]) (*connect.Response[v1.DeleteRoomGroupResponse], error)
-	// Replaces the global room group order. The caller must be allowed to manage
-	// roles.
+	// Replaces the global room group order. Requires role.manage.
 	ReorderRoomGroups(context.Context, *connect.Request[v1.ReorderRoomGroupsRequest]) (*connect.Response[v1.ReorderRoomGroupsResponse], error)
-	// Moves a channel room to another room group. The caller must be allowed to
-	// manage rooms in both source and destination groups.
+	// Moves a channel room to another room group. Requires room.manage in both
+	// source and destination groups.
 	MoveRoomToGroup(context.Context, *connect.Request[v1.MoveRoomToGroupRequest]) (*connect.Response[v1.MoveRoomToGroupResponse], error)
-	// Replaces the mixed room/link sidebar order in one group. The caller must
-	// be allowed to manage rooms in that group.
+	// Replaces the mixed room/link sidebar order in one group. Requires
+	// room.manage in that group.
 	ReorderSidebarItemsInGroup(context.Context, *connect.Request[v1.ReorderSidebarItemsInGroupRequest]) (*connect.Response[v1.ReorderSidebarItemsInGroupResponse], error)
-	// Creates a sidebar link. The caller must be allowed to manage rooms in the
-	// destination group.
+	// Creates a sidebar link. Requires room.manage in the destination group.
 	CreateSidebarLink(context.Context, *connect.Request[v1.CreateSidebarLinkRequest]) (*connect.Response[v1.CreateSidebarLinkResponse], error)
-	// Updates a sidebar link. The caller must be allowed to manage rooms in the
-	// link's current group.
+	// Updates a sidebar link. Requires room.manage in the link's current group.
 	UpdateSidebarLink(context.Context, *connect.Request[v1.UpdateSidebarLinkRequest]) (*connect.Response[v1.UpdateSidebarLinkResponse], error)
-	// Deletes a sidebar link. The caller must be allowed to manage rooms in the
-	// link's current group.
+	// Deletes a sidebar link. Requires room.manage in the link's current group.
 	DeleteSidebarLink(context.Context, *connect.Request[v1.DeleteSidebarLinkRequest]) (*connect.Response[v1.DeleteSidebarLinkResponse], error)
-	// Moves a sidebar link to another group. The caller must be allowed to manage
-	// rooms in both source and destination groups.
+	// Moves a sidebar link to another group. Requires room.manage in both source
+	// and destination groups.
 	MoveSidebarLinkToGroup(context.Context, *connect.Request[v1.MoveSidebarLinkToGroupRequest]) (*connect.Response[v1.MoveSidebarLinkToGroupResponse], error)
 }
 
@@ -260,33 +255,28 @@ type AdminRoomLayoutServiceHandler interface {
 	// Lists the current room groups, rooms, and sidebar links for the admin
 	// layout editor.
 	ListAdminRoomLayout(context.Context, *connect.Request[v1.ListAdminRoomLayoutRequest]) (*connect.Response[v1.ListAdminRoomLayoutResponse], error)
-	// Creates a room group. The caller must be allowed to manage roles.
+	// Creates a room group. Requires role.manage.
 	CreateRoomGroup(context.Context, *connect.Request[v1.CreateRoomGroupRequest]) (*connect.Response[v1.CreateRoomGroupResponse], error)
-	// Updates a room group's metadata. The caller must be allowed to manage
-	// roles.
+	// Updates a room group's metadata. Requires role.manage.
 	UpdateRoomGroup(context.Context, *connect.Request[v1.UpdateRoomGroupRequest]) (*connect.Response[v1.UpdateRoomGroupResponse], error)
-	// Deletes an empty room group. The caller must be allowed to manage roles.
+	// Deletes an empty room group. Requires role.manage.
 	DeleteRoomGroup(context.Context, *connect.Request[v1.DeleteRoomGroupRequest]) (*connect.Response[v1.DeleteRoomGroupResponse], error)
-	// Replaces the global room group order. The caller must be allowed to manage
-	// roles.
+	// Replaces the global room group order. Requires role.manage.
 	ReorderRoomGroups(context.Context, *connect.Request[v1.ReorderRoomGroupsRequest]) (*connect.Response[v1.ReorderRoomGroupsResponse], error)
-	// Moves a channel room to another room group. The caller must be allowed to
-	// manage rooms in both source and destination groups.
+	// Moves a channel room to another room group. Requires room.manage in both
+	// source and destination groups.
 	MoveRoomToGroup(context.Context, *connect.Request[v1.MoveRoomToGroupRequest]) (*connect.Response[v1.MoveRoomToGroupResponse], error)
-	// Replaces the mixed room/link sidebar order in one group. The caller must
-	// be allowed to manage rooms in that group.
+	// Replaces the mixed room/link sidebar order in one group. Requires
+	// room.manage in that group.
 	ReorderSidebarItemsInGroup(context.Context, *connect.Request[v1.ReorderSidebarItemsInGroupRequest]) (*connect.Response[v1.ReorderSidebarItemsInGroupResponse], error)
-	// Creates a sidebar link. The caller must be allowed to manage rooms in the
-	// destination group.
+	// Creates a sidebar link. Requires room.manage in the destination group.
 	CreateSidebarLink(context.Context, *connect.Request[v1.CreateSidebarLinkRequest]) (*connect.Response[v1.CreateSidebarLinkResponse], error)
-	// Updates a sidebar link. The caller must be allowed to manage rooms in the
-	// link's current group.
+	// Updates a sidebar link. Requires room.manage in the link's current group.
 	UpdateSidebarLink(context.Context, *connect.Request[v1.UpdateSidebarLinkRequest]) (*connect.Response[v1.UpdateSidebarLinkResponse], error)
-	// Deletes a sidebar link. The caller must be allowed to manage rooms in the
-	// link's current group.
+	// Deletes a sidebar link. Requires room.manage in the link's current group.
 	DeleteSidebarLink(context.Context, *connect.Request[v1.DeleteSidebarLinkRequest]) (*connect.Response[v1.DeleteSidebarLinkResponse], error)
-	// Moves a sidebar link to another group. The caller must be allowed to manage
-	// rooms in both source and destination groups.
+	// Moves a sidebar link to another group. Requires room.manage in both source
+	// and destination groups.
 	MoveSidebarLinkToGroup(context.Context, *connect.Request[v1.MoveSidebarLinkToGroupRequest]) (*connect.Response[v1.MoveSidebarLinkToGroupResponse], error)
 }
 

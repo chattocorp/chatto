@@ -327,7 +327,7 @@ export class ListAdminRoomLayoutRequest extends Message<ListAdminRoomLayoutReque
 }
 
 /**
- * Current admin room layout.
+ * Finite snapshot of the current admin room layout.
  *
  * @generated from message chatto.admin.v1.ListAdminRoomLayoutResponse
  */

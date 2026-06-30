@@ -39,9 +39,15 @@ const (
 	// AdminPermissionServiceGetRolePermissionMatrixProcedure is the fully-qualified name of the
 	// AdminPermissionService's GetRolePermissionMatrix RPC.
 	AdminPermissionServiceGetRolePermissionMatrixProcedure = "/chatto.admin.v1.AdminPermissionService/GetRolePermissionMatrix"
+	// AdminPermissionServiceListRolePermissionDecisionsProcedure is the fully-qualified name of the
+	// AdminPermissionService's ListRolePermissionDecisions RPC.
+	AdminPermissionServiceListRolePermissionDecisionsProcedure = "/chatto.admin.v1.AdminPermissionService/ListRolePermissionDecisions"
 	// AdminPermissionServiceGetUserPermissionMatrixProcedure is the fully-qualified name of the
 	// AdminPermissionService's GetUserPermissionMatrix RPC.
 	AdminPermissionServiceGetUserPermissionMatrixProcedure = "/chatto.admin.v1.AdminPermissionService/GetUserPermissionMatrix"
+	// AdminPermissionServiceListUserPermissionDecisionsProcedure is the fully-qualified name of the
+	// AdminPermissionService's ListUserPermissionDecisions RPC.
+	AdminPermissionServiceListUserPermissionDecisionsProcedure = "/chatto.admin.v1.AdminPermissionService/ListUserPermissionDecisions"
 	// AdminPermissionServiceExplainPermissionsProcedure is the fully-qualified name of the
 	// AdminPermissionService's ExplainPermissions RPC.
 	AdminPermissionServiceExplainPermissionsProcedure = "/chatto.admin.v1.AdminPermissionService/ExplainPermissions"
@@ -60,8 +66,15 @@ type AdminPermissionServiceClient interface {
 	// Gets one role's full permission matrix. Requires role.manage. Returns
 	// NOT_FOUND when the role does not exist.
 	GetRolePermissionMatrix(context.Context, *connect.Request[v1.GetRolePermissionMatrixRequest]) (*connect.Response[v1.GetRolePermissionMatrixResponse], error)
+	// Lists one role's permission decisions by permission and scope. Requires
+	// role.manage. Returns NOT_FOUND when the role does not exist.
+	ListRolePermissionDecisions(context.Context, *connect.Request[v1.ListRolePermissionDecisionsRequest]) (*connect.Response[v1.ListRolePermissionDecisionsResponse], error)
 	// Gets one user's full permission matrix. Requires user.manage-permissions.
+	// Returns NOT_FOUND when the user does not exist.
 	GetUserPermissionMatrix(context.Context, *connect.Request[v1.GetUserPermissionMatrixRequest]) (*connect.Response[v1.GetUserPermissionMatrixResponse], error)
+	// Lists one user's permission decisions by permission and scope. Requires
+	// user.manage-permissions. Returns NOT_FOUND when the user does not exist.
+	ListUserPermissionDecisions(context.Context, *connect.Request[v1.ListUserPermissionDecisionsRequest]) (*connect.Response[v1.ListUserPermissionDecisionsResponse], error)
 	// Explains permission resolution for another user. Requires role.manage.
 	ExplainPermissions(context.Context, *connect.Request[v1.ExplainPermissionsRequest]) (*connect.Response[v1.ExplainPermissionsResponse], error)
 	// Sets one role permission decision. Requires role.manage or scoped room.manage for room scope.
@@ -93,10 +106,22 @@ func NewAdminPermissionServiceClient(httpClient connect.HTTPClient, baseURL stri
 			connect.WithSchema(adminPermissionServiceMethods.ByName("GetRolePermissionMatrix")),
 			connect.WithClientOptions(opts...),
 		),
+		listRolePermissionDecisions: connect.NewClient[v1.ListRolePermissionDecisionsRequest, v1.ListRolePermissionDecisionsResponse](
+			httpClient,
+			baseURL+AdminPermissionServiceListRolePermissionDecisionsProcedure,
+			connect.WithSchema(adminPermissionServiceMethods.ByName("ListRolePermissionDecisions")),
+			connect.WithClientOptions(opts...),
+		),
 		getUserPermissionMatrix: connect.NewClient[v1.GetUserPermissionMatrixRequest, v1.GetUserPermissionMatrixResponse](
 			httpClient,
 			baseURL+AdminPermissionServiceGetUserPermissionMatrixProcedure,
 			connect.WithSchema(adminPermissionServiceMethods.ByName("GetUserPermissionMatrix")),
+			connect.WithClientOptions(opts...),
+		),
+		listUserPermissionDecisions: connect.NewClient[v1.ListUserPermissionDecisionsRequest, v1.ListUserPermissionDecisionsResponse](
+			httpClient,
+			baseURL+AdminPermissionServiceListUserPermissionDecisionsProcedure,
+			connect.WithSchema(adminPermissionServiceMethods.ByName("ListUserPermissionDecisions")),
 			connect.WithClientOptions(opts...),
 		),
 		explainPermissions: connect.NewClient[v1.ExplainPermissionsRequest, v1.ExplainPermissionsResponse](
@@ -124,7 +149,9 @@ func NewAdminPermissionServiceClient(httpClient connect.HTTPClient, baseURL stri
 type adminPermissionServiceClient struct {
 	getRolePermissionTierMatrix *connect.Client[v1.GetRolePermissionTierMatrixRequest, v1.GetRolePermissionTierMatrixResponse]
 	getRolePermissionMatrix     *connect.Client[v1.GetRolePermissionMatrixRequest, v1.GetRolePermissionMatrixResponse]
+	listRolePermissionDecisions *connect.Client[v1.ListRolePermissionDecisionsRequest, v1.ListRolePermissionDecisionsResponse]
 	getUserPermissionMatrix     *connect.Client[v1.GetUserPermissionMatrixRequest, v1.GetUserPermissionMatrixResponse]
+	listUserPermissionDecisions *connect.Client[v1.ListUserPermissionDecisionsRequest, v1.ListUserPermissionDecisionsResponse]
 	explainPermissions          *connect.Client[v1.ExplainPermissionsRequest, v1.ExplainPermissionsResponse]
 	setRolePermission           *connect.Client[v1.SetRolePermissionRequest, v1.SetRolePermissionResponse]
 	setUserPermission           *connect.Client[v1.SetUserPermissionRequest, v1.SetUserPermissionResponse]
@@ -141,9 +168,21 @@ func (c *adminPermissionServiceClient) GetRolePermissionMatrix(ctx context.Conte
 	return c.getRolePermissionMatrix.CallUnary(ctx, req)
 }
 
+// ListRolePermissionDecisions calls
+// chatto.admin.v1.AdminPermissionService.ListRolePermissionDecisions.
+func (c *adminPermissionServiceClient) ListRolePermissionDecisions(ctx context.Context, req *connect.Request[v1.ListRolePermissionDecisionsRequest]) (*connect.Response[v1.ListRolePermissionDecisionsResponse], error) {
+	return c.listRolePermissionDecisions.CallUnary(ctx, req)
+}
+
 // GetUserPermissionMatrix calls chatto.admin.v1.AdminPermissionService.GetUserPermissionMatrix.
 func (c *adminPermissionServiceClient) GetUserPermissionMatrix(ctx context.Context, req *connect.Request[v1.GetUserPermissionMatrixRequest]) (*connect.Response[v1.GetUserPermissionMatrixResponse], error) {
 	return c.getUserPermissionMatrix.CallUnary(ctx, req)
+}
+
+// ListUserPermissionDecisions calls
+// chatto.admin.v1.AdminPermissionService.ListUserPermissionDecisions.
+func (c *adminPermissionServiceClient) ListUserPermissionDecisions(ctx context.Context, req *connect.Request[v1.ListUserPermissionDecisionsRequest]) (*connect.Response[v1.ListUserPermissionDecisionsResponse], error) {
+	return c.listUserPermissionDecisions.CallUnary(ctx, req)
 }
 
 // ExplainPermissions calls chatto.admin.v1.AdminPermissionService.ExplainPermissions.
@@ -169,8 +208,15 @@ type AdminPermissionServiceHandler interface {
 	// Gets one role's full permission matrix. Requires role.manage. Returns
 	// NOT_FOUND when the role does not exist.
 	GetRolePermissionMatrix(context.Context, *connect.Request[v1.GetRolePermissionMatrixRequest]) (*connect.Response[v1.GetRolePermissionMatrixResponse], error)
+	// Lists one role's permission decisions by permission and scope. Requires
+	// role.manage. Returns NOT_FOUND when the role does not exist.
+	ListRolePermissionDecisions(context.Context, *connect.Request[v1.ListRolePermissionDecisionsRequest]) (*connect.Response[v1.ListRolePermissionDecisionsResponse], error)
 	// Gets one user's full permission matrix. Requires user.manage-permissions.
+	// Returns NOT_FOUND when the user does not exist.
 	GetUserPermissionMatrix(context.Context, *connect.Request[v1.GetUserPermissionMatrixRequest]) (*connect.Response[v1.GetUserPermissionMatrixResponse], error)
+	// Lists one user's permission decisions by permission and scope. Requires
+	// user.manage-permissions. Returns NOT_FOUND when the user does not exist.
+	ListUserPermissionDecisions(context.Context, *connect.Request[v1.ListUserPermissionDecisionsRequest]) (*connect.Response[v1.ListUserPermissionDecisionsResponse], error)
 	// Explains permission resolution for another user. Requires role.manage.
 	ExplainPermissions(context.Context, *connect.Request[v1.ExplainPermissionsRequest]) (*connect.Response[v1.ExplainPermissionsResponse], error)
 	// Sets one role permission decision. Requires role.manage or scoped room.manage for room scope.
@@ -198,10 +244,22 @@ func NewAdminPermissionServiceHandler(svc AdminPermissionServiceHandler, opts ..
 		connect.WithSchema(adminPermissionServiceMethods.ByName("GetRolePermissionMatrix")),
 		connect.WithHandlerOptions(opts...),
 	)
+	adminPermissionServiceListRolePermissionDecisionsHandler := connect.NewUnaryHandler(
+		AdminPermissionServiceListRolePermissionDecisionsProcedure,
+		svc.ListRolePermissionDecisions,
+		connect.WithSchema(adminPermissionServiceMethods.ByName("ListRolePermissionDecisions")),
+		connect.WithHandlerOptions(opts...),
+	)
 	adminPermissionServiceGetUserPermissionMatrixHandler := connect.NewUnaryHandler(
 		AdminPermissionServiceGetUserPermissionMatrixProcedure,
 		svc.GetUserPermissionMatrix,
 		connect.WithSchema(adminPermissionServiceMethods.ByName("GetUserPermissionMatrix")),
+		connect.WithHandlerOptions(opts...),
+	)
+	adminPermissionServiceListUserPermissionDecisionsHandler := connect.NewUnaryHandler(
+		AdminPermissionServiceListUserPermissionDecisionsProcedure,
+		svc.ListUserPermissionDecisions,
+		connect.WithSchema(adminPermissionServiceMethods.ByName("ListUserPermissionDecisions")),
 		connect.WithHandlerOptions(opts...),
 	)
 	adminPermissionServiceExplainPermissionsHandler := connect.NewUnaryHandler(
@@ -228,8 +286,12 @@ func NewAdminPermissionServiceHandler(svc AdminPermissionServiceHandler, opts ..
 			adminPermissionServiceGetRolePermissionTierMatrixHandler.ServeHTTP(w, r)
 		case AdminPermissionServiceGetRolePermissionMatrixProcedure:
 			adminPermissionServiceGetRolePermissionMatrixHandler.ServeHTTP(w, r)
+		case AdminPermissionServiceListRolePermissionDecisionsProcedure:
+			adminPermissionServiceListRolePermissionDecisionsHandler.ServeHTTP(w, r)
 		case AdminPermissionServiceGetUserPermissionMatrixProcedure:
 			adminPermissionServiceGetUserPermissionMatrixHandler.ServeHTTP(w, r)
+		case AdminPermissionServiceListUserPermissionDecisionsProcedure:
+			adminPermissionServiceListUserPermissionDecisionsHandler.ServeHTTP(w, r)
 		case AdminPermissionServiceExplainPermissionsProcedure:
 			adminPermissionServiceExplainPermissionsHandler.ServeHTTP(w, r)
 		case AdminPermissionServiceSetRolePermissionProcedure:
@@ -253,8 +315,16 @@ func (UnimplementedAdminPermissionServiceHandler) GetRolePermissionMatrix(contex
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.admin.v1.AdminPermissionService.GetRolePermissionMatrix is not implemented"))
 }
 
+func (UnimplementedAdminPermissionServiceHandler) ListRolePermissionDecisions(context.Context, *connect.Request[v1.ListRolePermissionDecisionsRequest]) (*connect.Response[v1.ListRolePermissionDecisionsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.admin.v1.AdminPermissionService.ListRolePermissionDecisions is not implemented"))
+}
+
 func (UnimplementedAdminPermissionServiceHandler) GetUserPermissionMatrix(context.Context, *connect.Request[v1.GetUserPermissionMatrixRequest]) (*connect.Response[v1.GetUserPermissionMatrixResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.admin.v1.AdminPermissionService.GetUserPermissionMatrix is not implemented"))
+}
+
+func (UnimplementedAdminPermissionServiceHandler) ListUserPermissionDecisions(context.Context, *connect.Request[v1.ListUserPermissionDecisionsRequest]) (*connect.Response[v1.ListUserPermissionDecisionsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.admin.v1.AdminPermissionService.ListUserPermissionDecisions is not implemented"))
 }
 
 func (UnimplementedAdminPermissionServiceHandler) ExplainPermissions(context.Context, *connect.Request[v1.ExplainPermissionsRequest]) (*connect.Response[v1.ExplainPermissionsResponse], error) {

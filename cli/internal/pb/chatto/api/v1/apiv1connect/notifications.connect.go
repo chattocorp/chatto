@@ -59,7 +59,7 @@ type NotificationServiceClient interface {
 	ListNotifications(context.Context, *connect.Request[v1.ListNotificationsRequest]) (*connect.Response[v1.ListNotificationsResponse], error)
 	// Lists pending notifications for one room. Non-members receive an empty page.
 	ListRoomNotifications(context.Context, *connect.Request[v1.ListRoomNotificationsRequest]) (*connect.Response[v1.ListRoomNotificationsResponse], error)
-	// Lists pending notification counts grouped by room.
+	// Lists pending notification counts grouped by room as a finite snapshot.
 	ListNotificationCounts(context.Context, *connect.Request[v1.ListNotificationCountsRequest]) (*connect.Response[v1.ListNotificationCountsResponse], error)
 	// Checks whether the authenticated viewer has any pending notifications.
 	HasNotifications(context.Context, *connect.Request[v1.HasNotificationsRequest]) (*connect.Response[v1.HasNotificationsResponse], error)
@@ -165,7 +165,7 @@ type NotificationServiceHandler interface {
 	ListNotifications(context.Context, *connect.Request[v1.ListNotificationsRequest]) (*connect.Response[v1.ListNotificationsResponse], error)
 	// Lists pending notifications for one room. Non-members receive an empty page.
 	ListRoomNotifications(context.Context, *connect.Request[v1.ListRoomNotificationsRequest]) (*connect.Response[v1.ListRoomNotificationsResponse], error)
-	// Lists pending notification counts grouped by room.
+	// Lists pending notification counts grouped by room as a finite snapshot.
 	ListNotificationCounts(context.Context, *connect.Request[v1.ListNotificationCountsRequest]) (*connect.Response[v1.ListNotificationCountsResponse], error)
 	// Checks whether the authenticated viewer has any pending notifications.
 	HasNotifications(context.Context, *connect.Request[v1.HasNotificationsRequest]) (*connect.Response[v1.HasNotificationsResponse], error)

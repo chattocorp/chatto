@@ -55,14 +55,15 @@ message RoomMessageNotification {
 
 // One pending notification for the authenticated viewer.
 message NotificationItem {
+  reserved 4;
+  reserved "summary";
+
   // Stable notification ID.
   string id = 1;
   // Creation time.
   google.protobuf.Timestamp created_at = 2;
   // User who triggered the notification, when still resolvable.
   UserProfile actor = 3;
-  // Short human-readable notification summary.
-  string summary = 4;
 
   oneof kind {
     // Direct-message notification.
@@ -142,7 +143,7 @@ message RoomNotificationCount {
 // Request for pending notification counts grouped by room.
 message ListNotificationCountsRequest {}
 
-// Pending notification counts grouped by room.
+// Finite snapshot of pending notification counts grouped by room.
 message ListNotificationCountsResponse {
   // Counts for rooms with at least one pending notification.
   repeated RoomNotificationCount room_counts = 1;
@@ -175,7 +176,7 @@ service NotificationService {
   rpc ListNotifications(ListNotificationsRequest) returns (ListNotificationsResponse);
   // Lists pending notifications for one room. Non-members receive an empty page.
   rpc ListRoomNotifications(ListRoomNotificationsRequest) returns (ListRoomNotificationsResponse);
-  // Lists pending notification counts grouped by room.
+  // Lists pending notification counts grouped by room as a finite snapshot.
   rpc ListNotificationCounts(ListNotificationCountsRequest) returns (ListNotificationCountsResponse);
   // Checks whether the authenticated viewer has any pending notifications.
   rpc HasNotifications(HasNotificationsRequest) returns (HasNotificationsResponse);

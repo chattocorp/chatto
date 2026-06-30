@@ -26,7 +26,8 @@ Reads room directory data.
 
 Lists rooms visible to the current user. Channel rooms are non-archived
 rooms visible through membership or room.list. DM rooms are membership-only
-and empty DM conversations are omitted.
+and empty DM conversations are omitted. Results are returned as a finite
+navigation snapshot.
 
 ```http
 POST /api/connect/chatto.api.v1.RoomDirectoryService/ListRooms
@@ -47,7 +48,7 @@ Request for rooms visible to the current user.
 
 #### Result: ListRoomsResponse
 
-Visible rooms for the current user.
+Finite snapshot of rooms visible to the current user.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -59,7 +60,8 @@ Visible rooms for the current user.
 ### ListRoomGroups
 
 Lists ordered channel room groups and sidebar items visible to the current
-user. Archived and hidden room entries are omitted from group results.
+user as a finite navigation snapshot. Archived and hidden room entries are
+omitted from group results.
 
 ```http
 POST /api/connect/chatto.api.v1.RoomDirectoryService/ListRoomGroups
@@ -76,7 +78,7 @@ Request for ordered room groups visible to the current user.
 
 #### Result: ListRoomGroupsResponse
 
-Ordered room groups visible to the current user.
+Finite snapshot of ordered room groups visible to the current user.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -87,7 +89,9 @@ Ordered room groups visible to the current user.
 
 ### GetRoom
 
-Returns one visible room by ID. DM rooms require membership.
+Returns one visible room by ID. DM rooms require membership. Returns
+NOT_FOUND when the room does not exist and PERMISSION_DENIED when the room
+exists but is hidden from the caller.
 
 ```http
 POST /api/connect/chatto.api.v1.RoomDirectoryService/GetRoom

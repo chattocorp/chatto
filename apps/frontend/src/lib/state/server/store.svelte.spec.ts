@@ -490,7 +490,7 @@ describe('ServerStateStore live server updates', () => {
     expect(store.serverInfo.livekitUrl).toBe('wss://livekit');
   });
 
-  it('forwards RoomGroupsUpdatedEvent once to every room-state store', async () => {
+  it('forwards RoomGroupsUpdatedEvent to public room-state stores by default', async () => {
     const fake = new FakeServerConnection([
       roomDirectoryResult([{ id: 'r1', name: 'general', description: null, archived: false }]),
       adminRoomLayoutResult(
@@ -525,7 +525,53 @@ describe('ServerStateStore live server updates', () => {
 
     expect(store.rooms.refresh).toHaveBeenCalledOnce();
     expect(store.roomDirectory.refresh).toHaveBeenCalledOnce();
+    expect(store.adminRoomLayout.refresh).not.toHaveBeenCalled();
+  });
+
+  it('forwards RoomGroupsUpdatedEvent to admin room layout while active', async () => {
+    const fake = new FakeServerConnection([]);
+    const store = makeStore(fake);
+    store.rooms.refresh = vi.fn().mockResolvedValue(undefined);
+    store.roomDirectory.refresh = vi.fn().mockResolvedValue(undefined);
+    store.adminRoomLayout.refresh = vi.fn().mockResolvedValue(undefined);
+    const deactivate = store.activateAdminRoomLayout();
+    await Promise.resolve();
     expect(store.adminRoomLayout.refresh).toHaveBeenCalledOnce();
+
+    eventBusManager.startBus(registered.id, fake as unknown as ServerConnection);
+    flushSync();
+    const bus = eventBusManager.getBus(registered.id);
+    if (!bus) throw new Error('event bus did not start');
+
+    for (const handler of bus.handlers) {
+      handler({
+        id: 'E2-admin',
+        createdAt: new Date().toISOString(),
+        actorId: 'U1',
+        actor: null,
+        event: roomEvent(RoomEventKind.RoomGroupsUpdated, { changed: true })
+      });
+    }
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(store.rooms.refresh).toHaveBeenCalledOnce();
+    expect(store.roomDirectory.refresh).toHaveBeenCalledOnce();
+    expect(store.adminRoomLayout.refresh).toHaveBeenCalledTimes(2);
+
+    deactivate();
+    for (const handler of bus.handlers) {
+      handler({
+        id: 'E2-admin-inactive',
+        createdAt: new Date().toISOString(),
+        actorId: 'U1',
+        actor: null,
+        event: roomEvent(RoomEventKind.RoomGroupsUpdated, { changed: true })
+      });
+    }
+    await Promise.resolve();
+
+    expect(store.adminRoomLayout.refresh).toHaveBeenCalledTimes(2);
   });
 
   it('plays call join and leave sounds for participant events in the current active call', async () => {
@@ -692,7 +738,7 @@ describe('ServerStateStore live server updates', () => {
     expect(store.notifications.fetch).toHaveBeenCalledOnce();
     expect(store.rooms.refresh).toHaveBeenCalledOnce();
     expect(store.roomDirectory.refresh).toHaveBeenCalledOnce();
-    expect(store.adminRoomLayout.refresh).toHaveBeenCalledOnce();
+    expect(store.adminRoomLayout.refresh).not.toHaveBeenCalled();
     expect(store.activeCallRooms.load).toHaveBeenCalledOnce();
   });
 
@@ -723,6 +769,32 @@ describe('ServerStateStore live server updates', () => {
     expect(store.notifications.fetch).toHaveBeenCalledOnce();
     expect(store.rooms.refresh).toHaveBeenCalledOnce();
     expect(store.roomDirectory.refresh).toHaveBeenCalledOnce();
+    expect(store.adminRoomLayout.refresh).not.toHaveBeenCalled();
+  });
+
+  it('refreshes active admin room layout during projected-state catch-up', async () => {
+    const fake = new FakeServerConnection([]);
+    const store = makeStore(fake);
+    store.serverInfo.refreshProfile = vi.fn().mockResolvedValue(undefined);
+    store.serverInfo.refreshAuthenticatedSettings = vi.fn().mockResolvedValue(undefined);
+    store.notifications.fetch = vi.fn().mockResolvedValue(undefined);
+    store.rooms.refresh = vi.fn().mockResolvedValue(undefined);
+    store.roomDirectory.refresh = vi.fn().mockResolvedValue(undefined);
+    store.adminRoomLayout.refresh = vi.fn().mockResolvedValue(undefined);
+    store.activateAdminRoomLayout();
+    await Promise.resolve();
+    store.adminRoomLayout.refresh = vi.fn().mockResolvedValue(undefined);
+
+    eventBusManager.startBus(registered.id, fake as unknown as ServerConnection);
+    flushSync();
+    const bus = eventBusManager.getBus(registered.id);
+    if (!bus) throw new Error('event bus did not start');
+
+    for (const handler of bus.catchUpHandlers) {
+      handler('ws-reconnected');
+    }
+    await Promise.resolve();
+
     expect(store.adminRoomLayout.refresh).toHaveBeenCalledOnce();
   });
 
@@ -757,7 +829,7 @@ describe('ServerStateStore live server updates', () => {
     expect(store.serverInfo.refreshAuthenticatedSettings).toHaveBeenCalledTimes(2);
     expect(store.notifications.fetch).toHaveBeenCalledTimes(2);
     expect(store.roomDirectory.refresh).toHaveBeenCalledTimes(2);
-    expect(store.adminRoomLayout.refresh).toHaveBeenCalledTimes(2);
+    expect(store.adminRoomLayout.refresh).not.toHaveBeenCalled();
   });
 
   it('runs a queued projected-state refresh after the in-flight catch-up fails', async () => {
@@ -795,7 +867,7 @@ describe('ServerStateStore live server updates', () => {
     expect(store.notifications.fetch).toHaveBeenCalledTimes(2);
     expect(store.rooms.refresh).toHaveBeenCalledTimes(2);
     expect(store.roomDirectory.refresh).toHaveBeenCalledTimes(2);
-    expect(store.adminRoomLayout.refresh).toHaveBeenCalledTimes(2);
+    expect(store.adminRoomLayout.refresh).not.toHaveBeenCalled();
     expect(consoleError).toHaveBeenCalledOnce();
   });
 

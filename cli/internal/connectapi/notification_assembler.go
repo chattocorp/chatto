@@ -61,7 +61,6 @@ func (a *notificationAssembler) item(ctx context.Context, notification *corev1.N
 		Id:        notification.GetId(),
 		CreatedAt: notification.GetCreatedAt(),
 		Actor:     actor,
-		Summary:   notificationSummary(actor, notification),
 	}
 
 	switch payload := notification.GetNotification().(type) {

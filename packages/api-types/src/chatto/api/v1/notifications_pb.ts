@@ -305,13 +305,6 @@ export class NotificationItem extends Message<NotificationItem> {
   actor?: UserProfile;
 
   /**
-   * Short human-readable notification summary.
-   *
-   * @generated from field: string summary = 4;
-   */
-  summary = "";
-
-  /**
    * @generated from oneof chatto.api.v1.NotificationItem.kind
    */
   kind: {
@@ -359,7 +352,6 @@ export class NotificationItem extends Message<NotificationItem> {
     { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "created_at", kind: "message", T: Timestamp },
     { no: 3, name: "actor", kind: "message", T: UserProfile },
-    { no: 4, name: "summary", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 10, name: "direct_message", kind: "message", T: DirectMessageNotification, oneof: "kind" },
     { no: 11, name: "mention", kind: "message", T: MentionNotification, oneof: "kind" },
     { no: 12, name: "reply", kind: "message", T: ReplyNotification, oneof: "kind" },
@@ -744,7 +736,7 @@ export class ListNotificationCountsRequest extends Message<ListNotificationCount
 }
 
 /**
- * Pending notification counts grouped by room.
+ * Finite snapshot of pending notification counts grouped by room.
  *
  * @generated from message chatto.api.v1.ListNotificationCountsResponse
  */

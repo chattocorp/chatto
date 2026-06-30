@@ -68,6 +68,10 @@ message RealtimeServerHello {
   string server_version = 2;
   // Approximate heartbeat interval clients should expect.
   uint32 heartbeat_interval_seconds = 4;
+  // Stable protocol capability keys supported by this server. Current keys:
+  // `chatto.realtime.events.live.v1`, `chatto.realtime.heartbeat.v1`, and
+  // `chatto.realtime.ping.v1`.
+  repeated string capabilities = 5;
 }
 
 // Request to start the caller's authorized live event stream.

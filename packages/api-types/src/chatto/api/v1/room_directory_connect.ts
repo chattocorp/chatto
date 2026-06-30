@@ -17,7 +17,8 @@ export const RoomDirectoryService = {
     /**
      * Lists rooms visible to the current user. Channel rooms are non-archived
      * rooms visible through membership or room.list. DM rooms are membership-only
-     * and empty DM conversations are omitted.
+     * and empty DM conversations are omitted. Results are returned as a finite
+     * navigation snapshot.
      *
      * @generated from rpc chatto.api.v1.RoomDirectoryService.ListRooms
      */
@@ -29,7 +30,8 @@ export const RoomDirectoryService = {
     },
     /**
      * Lists ordered channel room groups and sidebar items visible to the current
-     * user. Archived and hidden room entries are omitted from group results.
+     * user as a finite navigation snapshot. Archived and hidden room entries are
+     * omitted from group results.
      *
      * @generated from rpc chatto.api.v1.RoomDirectoryService.ListRoomGroups
      */
@@ -40,7 +42,9 @@ export const RoomDirectoryService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Returns one visible room by ID. DM rooms require membership.
+     * Returns one visible room by ID. DM rooms require membership. Returns
+     * NOT_FOUND when the room does not exist and PERMISSION_DENIED when the room
+     * exists but is hidden from the caller.
      *
      * @generated from rpc chatto.api.v1.RoomDirectoryService.GetRoom
      */

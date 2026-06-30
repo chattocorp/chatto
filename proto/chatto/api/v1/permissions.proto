@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package chatto.api.v1;
+
+// Effective decision for one permission key.
+message PermissionGrant {
+  // Stable permission key, such as "server.manage".
+  string permission = 1;
+  // Whether the permission is currently granted.
+  bool granted = 2;
+}
+
+// Effective decision for one capability key.
+message CapabilityGrant {
+  // Stable capability key, such as "admin.view" or "dm.start".
+  string capability = 1;
+  // Whether the capability is currently available.
+  bool granted = 2;
+}

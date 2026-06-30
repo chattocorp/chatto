@@ -801,6 +801,251 @@ export class UserPermissionMatrix extends Message<UserPermissionMatrix> {
 }
 
 /**
+ * One resource-oriented permission decision at a concrete scope.
+ *
+ * @generated from message chatto.admin.v1.ScopedPermissionDecision
+ */
+export class ScopedPermissionDecision extends Message<ScopedPermissionDecision> {
+  /**
+   * Permission identifier.
+   *
+   * @generated from field: string permission = 1;
+   */
+  permission = "";
+
+  /**
+   * Server, group, or room scope this decision applies to.
+   *
+   * @generated from field: chatto.admin.v1.PermissionScope scope = 2;
+   */
+  scope?: PermissionScope;
+
+  /**
+   * Explicit decision stored at this scope.
+   *
+   * @generated from field: chatto.admin.v1.PermissionDecision override = 3;
+   */
+  override = PermissionDecision.UNSPECIFIED;
+
+  /**
+   * Effective decision after inherited broader scopes are applied.
+   *
+   * @generated from field: chatto.admin.v1.PermissionDecision effective = 4;
+   */
+  effective = PermissionDecision.UNSPECIFIED;
+
+  constructor(data?: PartialMessage<ScopedPermissionDecision>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.admin.v1.ScopedPermissionDecision";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "permission", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "scope", kind: "message", T: PermissionScope },
+    { no: 3, name: "override", kind: "enum", T: proto3.getEnumType(PermissionDecision) },
+    { no: 4, name: "effective", kind: "enum", T: proto3.getEnumType(PermissionDecision) },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ScopedPermissionDecision {
+    return new ScopedPermissionDecision().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ScopedPermissionDecision {
+    return new ScopedPermissionDecision().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ScopedPermissionDecision {
+    return new ScopedPermissionDecision().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ScopedPermissionDecision | PlainMessage<ScopedPermissionDecision> | undefined, b: ScopedPermissionDecision | PlainMessage<ScopedPermissionDecision> | undefined): boolean {
+    return proto3.util.equals(ScopedPermissionDecision, a, b);
+  }
+}
+
+/**
+ * Request explicit/effective permission decisions for one role.
+ *
+ * @generated from message chatto.admin.v1.ListRolePermissionDecisionsRequest
+ */
+export class ListRolePermissionDecisionsRequest extends Message<ListRolePermissionDecisionsRequest> {
+  /**
+   * Stable role name.
+   *
+   * @generated from field: string role_name = 1;
+   */
+  roleName = "";
+
+  constructor(data?: PartialMessage<ListRolePermissionDecisionsRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.admin.v1.ListRolePermissionDecisionsRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "role_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListRolePermissionDecisionsRequest {
+    return new ListRolePermissionDecisionsRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListRolePermissionDecisionsRequest {
+    return new ListRolePermissionDecisionsRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListRolePermissionDecisionsRequest {
+    return new ListRolePermissionDecisionsRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ListRolePermissionDecisionsRequest | PlainMessage<ListRolePermissionDecisionsRequest> | undefined, b: ListRolePermissionDecisionsRequest | PlainMessage<ListRolePermissionDecisionsRequest> | undefined): boolean {
+    return proto3.util.equals(ListRolePermissionDecisionsRequest, a, b);
+  }
+}
+
+/**
+ * Resource-oriented permission decisions for one role.
+ *
+ * @generated from message chatto.admin.v1.ListRolePermissionDecisionsResponse
+ */
+export class ListRolePermissionDecisionsResponse extends Message<ListRolePermissionDecisionsResponse> {
+  /**
+   * Stable role name.
+   *
+   * @generated from field: string role_name = 1;
+   */
+  roleName = "";
+
+  /**
+   * Permission decisions keyed by permission and scope.
+   *
+   * @generated from field: repeated chatto.admin.v1.ScopedPermissionDecision decisions = 2;
+   */
+  decisions: ScopedPermissionDecision[] = [];
+
+  constructor(data?: PartialMessage<ListRolePermissionDecisionsResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.admin.v1.ListRolePermissionDecisionsResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "role_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "decisions", kind: "message", T: ScopedPermissionDecision, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListRolePermissionDecisionsResponse {
+    return new ListRolePermissionDecisionsResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListRolePermissionDecisionsResponse {
+    return new ListRolePermissionDecisionsResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListRolePermissionDecisionsResponse {
+    return new ListRolePermissionDecisionsResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ListRolePermissionDecisionsResponse | PlainMessage<ListRolePermissionDecisionsResponse> | undefined, b: ListRolePermissionDecisionsResponse | PlainMessage<ListRolePermissionDecisionsResponse> | undefined): boolean {
+    return proto3.util.equals(ListRolePermissionDecisionsResponse, a, b);
+  }
+}
+
+/**
+ * Request explicit/effective permission decisions for one user.
+ *
+ * @generated from message chatto.admin.v1.ListUserPermissionDecisionsRequest
+ */
+export class ListUserPermissionDecisionsRequest extends Message<ListUserPermissionDecisionsRequest> {
+  /**
+   * User ID.
+   *
+   * @generated from field: string user_id = 1;
+   */
+  userId = "";
+
+  constructor(data?: PartialMessage<ListUserPermissionDecisionsRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.admin.v1.ListUserPermissionDecisionsRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "user_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListUserPermissionDecisionsRequest {
+    return new ListUserPermissionDecisionsRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListUserPermissionDecisionsRequest {
+    return new ListUserPermissionDecisionsRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListUserPermissionDecisionsRequest {
+    return new ListUserPermissionDecisionsRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ListUserPermissionDecisionsRequest | PlainMessage<ListUserPermissionDecisionsRequest> | undefined, b: ListUserPermissionDecisionsRequest | PlainMessage<ListUserPermissionDecisionsRequest> | undefined): boolean {
+    return proto3.util.equals(ListUserPermissionDecisionsRequest, a, b);
+  }
+}
+
+/**
+ * Resource-oriented permission decisions for one user.
+ *
+ * @generated from message chatto.admin.v1.ListUserPermissionDecisionsResponse
+ */
+export class ListUserPermissionDecisionsResponse extends Message<ListUserPermissionDecisionsResponse> {
+  /**
+   * User ID.
+   *
+   * @generated from field: string user_id = 1;
+   */
+  userId = "";
+
+  /**
+   * Permission decisions keyed by permission and scope.
+   *
+   * @generated from field: repeated chatto.admin.v1.ScopedPermissionDecision decisions = 2;
+   */
+  decisions: ScopedPermissionDecision[] = [];
+
+  constructor(data?: PartialMessage<ListUserPermissionDecisionsResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.admin.v1.ListUserPermissionDecisionsResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "user_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "decisions", kind: "message", T: ScopedPermissionDecision, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListUserPermissionDecisionsResponse {
+    return new ListUserPermissionDecisionsResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListUserPermissionDecisionsResponse {
+    return new ListUserPermissionDecisionsResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListUserPermissionDecisionsResponse {
+    return new ListUserPermissionDecisionsResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ListUserPermissionDecisionsResponse | PlainMessage<ListUserPermissionDecisionsResponse> | undefined, b: ListUserPermissionDecisionsResponse | PlainMessage<ListUserPermissionDecisionsResponse> | undefined): boolean {
+    return proto3.util.equals(ListUserPermissionDecisionsResponse, a, b);
+  }
+}
+
+/**
  * One explicit decision encountered while explaining a permission.
  *
  * @generated from message chatto.admin.v1.PermissionTraceEntry

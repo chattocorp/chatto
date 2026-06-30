@@ -334,8 +334,6 @@ type NotificationItem struct {
 	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	// User who triggered the notification, when still resolvable.
 	Actor *UserProfile `protobuf:"bytes,3,opt,name=actor,proto3" json:"actor,omitempty"`
-	// Short human-readable notification summary.
-	Summary string `protobuf:"bytes,4,opt,name=summary,proto3" json:"summary,omitempty"`
 	// Types that are valid to be assigned to Kind:
 	//
 	//	*NotificationItem_DirectMessage
@@ -396,13 +394,6 @@ func (x *NotificationItem) GetActor() *UserProfile {
 		return x.Actor
 	}
 	return nil
-}
-
-func (x *NotificationItem) GetSummary() string {
-	if x != nil {
-		return x.Summary
-	}
-	return ""
 }
 
 func (x *NotificationItem) GetKind() isNotificationItem_Kind {
@@ -884,7 +875,7 @@ func (*ListNotificationCountsRequest) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_notifications_proto_rawDescGZIP(), []int{13}
 }
 
-// Pending notification counts grouped by room.
+// Finite snapshot of pending notification counts grouped by room.
 type ListNotificationCountsResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Counts for rooms with at least one pending notification.
@@ -1129,19 +1120,18 @@ const file_chatto_api_v1_notifications_proto_rawDesc = "" +
 	"\x15_thread_root_event_id\"i\n" +
 	"\x17RoomMessageNotification\x123\n" +
 	"\x04room\x18\x01 \x01(\v2\x1f.chatto.api.v1.NotificationRoomR\x04room\x12\x19\n" +
-	"\bevent_id\x18\x02 \x01(\tR\aeventId\"\xcb\x03\n" +
+	"\bevent_id\x18\x02 \x01(\tR\aeventId\"\xc0\x03\n" +
 	"\x10NotificationItem\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x129\n" +
 	"\n" +
 	"created_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x120\n" +
-	"\x05actor\x18\x03 \x01(\v2\x1a.chatto.api.v1.UserProfileR\x05actor\x12\x18\n" +
-	"\asummary\x18\x04 \x01(\tR\asummary\x12Q\n" +
+	"\x05actor\x18\x03 \x01(\v2\x1a.chatto.api.v1.UserProfileR\x05actor\x12Q\n" +
 	"\x0edirect_message\x18\n" +
 	" \x01(\v2(.chatto.api.v1.DirectMessageNotificationH\x00R\rdirectMessage\x12>\n" +
 	"\amention\x18\v \x01(\v2\".chatto.api.v1.MentionNotificationH\x00R\amention\x128\n" +
 	"\x05reply\x18\f \x01(\v2 .chatto.api.v1.ReplyNotificationH\x00R\x05reply\x12K\n" +
 	"\froom_message\x18\r \x01(\v2&.chatto.api.v1.RoomMessageNotificationH\x00R\vroomMessageB\x06\n" +
-	"\x04kind\"e\n" +
+	"\x04kindJ\x04\b\x04\x10\x05R\asummary\"e\n" +
 	"\x18ListNotificationsRequest\x12.\n" +
 	"\x04page\x18\x03 \x01(\v2\x1a.chatto.api.v1.PageRequestR\x04pageJ\x04\b\x01\x10\x02J\x04\b\x02\x10\x03R\x05limitR\x06offset\"\x8b\x01\n" +
 	"\x1cListRoomNotificationsRequest\x12 \n" +

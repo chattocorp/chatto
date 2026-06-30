@@ -23,43 +23,33 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// Role metadata and permission state.
-type Role struct {
+// Role metadata plus administrative permission state.
+type AdminRole struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Stable role name used in permission and assignment records.
-	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	// Display name shown in admin and mention UIs.
-	DisplayName string `protobuf:"bytes,2,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
-	// Optional role description.
-	Description string `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
+	// Public role metadata shared with ordinary role catalog reads.
+	Role *v1.Role `protobuf:"bytes,1,opt,name=role,proto3" json:"role,omitempty"`
 	// Permissions granted by this role.
-	Permissions []string `protobuf:"bytes,4,rep,name=permissions,proto3" json:"permissions,omitempty"`
+	Permissions []string `protobuf:"bytes,2,rep,name=permissions,proto3" json:"permissions,omitempty"`
 	// Permissions denied by this role.
-	PermissionDenials []string `protobuf:"bytes,5,rep,name=permission_denials,json=permissionDenials,proto3" json:"permission_denials,omitempty"`
-	// Whether this is a built-in role.
-	IsSystem bool `protobuf:"varint,6,opt,name=is_system,json=isSystem,proto3" json:"is_system,omitempty"`
-	// Display/order position.
-	Position int32 `protobuf:"varint,7,opt,name=position,proto3" json:"position,omitempty"`
-	// Whether messages may notify users assigned to this role.
-	Pingable      bool `protobuf:"varint,8,opt,name=pingable,proto3" json:"pingable,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	PermissionDenials []string `protobuf:"bytes,3,rep,name=permission_denials,json=permissionDenials,proto3" json:"permission_denials,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
-func (x *Role) Reset() {
-	*x = Role{}
+func (x *AdminRole) Reset() {
+	*x = AdminRole{}
 	mi := &file_chatto_admin_v1_roles_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *Role) String() string {
+func (x *AdminRole) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*Role) ProtoMessage() {}
+func (*AdminRole) ProtoMessage() {}
 
-func (x *Role) ProtoReflect() protoreflect.Message {
+func (x *AdminRole) ProtoReflect() protoreflect.Message {
 	mi := &file_chatto_admin_v1_roles_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -71,65 +61,30 @@ func (x *Role) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use Role.ProtoReflect.Descriptor instead.
-func (*Role) Descriptor() ([]byte, []int) {
+// Deprecated: Use AdminRole.ProtoReflect.Descriptor instead.
+func (*AdminRole) Descriptor() ([]byte, []int) {
 	return file_chatto_admin_v1_roles_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *Role) GetName() string {
+func (x *AdminRole) GetRole() *v1.Role {
 	if x != nil {
-		return x.Name
+		return x.Role
 	}
-	return ""
+	return nil
 }
 
-func (x *Role) GetDisplayName() string {
-	if x != nil {
-		return x.DisplayName
-	}
-	return ""
-}
-
-func (x *Role) GetDescription() string {
-	if x != nil {
-		return x.Description
-	}
-	return ""
-}
-
-func (x *Role) GetPermissions() []string {
+func (x *AdminRole) GetPermissions() []string {
 	if x != nil {
 		return x.Permissions
 	}
 	return nil
 }
 
-func (x *Role) GetPermissionDenials() []string {
+func (x *AdminRole) GetPermissionDenials() []string {
 	if x != nil {
 		return x.PermissionDenials
 	}
 	return nil
-}
-
-func (x *Role) GetIsSystem() bool {
-	if x != nil {
-		return x.IsSystem
-	}
-	return false
-}
-
-func (x *Role) GetPosition() int32 {
-	if x != nil {
-		return x.Position
-	}
-	return 0
-}
-
-func (x *Role) GetPingable() bool {
-	if x != nil {
-		return x.Pingable
-	}
-	return false
 }
 
 // Request the role catalog.
@@ -169,11 +124,11 @@ func (*ListRolesRequest) Descriptor() ([]byte, []int) {
 	return file_chatto_admin_v1_roles_proto_rawDescGZIP(), []int{1}
 }
 
-// Role catalog plus viewer role-management capabilities.
+// Finite role catalog snapshot plus viewer role-management capabilities.
 type ListRolesResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Roles sorted by position.
-	Roles []*Role `protobuf:"bytes,1,rep,name=roles,proto3" json:"roles,omitempty"`
+	Roles []*AdminRole `protobuf:"bytes,1,rep,name=roles,proto3" json:"roles,omitempty"`
 	// Whether the caller may create/update/delete role definitions.
 	ViewerCanManageRoles bool `protobuf:"varint,2,opt,name=viewer_can_manage_roles,json=viewerCanManageRoles,proto3" json:"viewer_can_manage_roles,omitempty"`
 	// Whether the caller may assign/revoke roles and view role rosters.
@@ -212,7 +167,7 @@ func (*ListRolesResponse) Descriptor() ([]byte, []int) {
 	return file_chatto_admin_v1_roles_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *ListRolesResponse) GetRoles() []*Role {
+func (x *ListRolesResponse) GetRoles() []*AdminRole {
 	if x != nil {
 		return x.Roles
 	}
@@ -283,7 +238,7 @@ func (x *GetRoleRequest) GetName() string {
 type GetRoleResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Requested role.
-	Role *Role `protobuf:"bytes,1,opt,name=role,proto3" json:"role,omitempty"`
+	Role *AdminRole `protobuf:"bytes,1,opt,name=role,proto3" json:"role,omitempty"`
 	// Explicit users with this role. Empty unless the caller may assign roles.
 	Users []*v1.User `protobuf:"bytes,2,rep,name=users,proto3" json:"users,omitempty"`
 	// Whether the caller may create/update/delete role definitions.
@@ -324,7 +279,7 @@ func (*GetRoleResponse) Descriptor() ([]byte, []int) {
 	return file_chatto_admin_v1_roles_proto_rawDescGZIP(), []int{4}
 }
 
-func (x *GetRoleResponse) GetRole() *Role {
+func (x *GetRoleResponse) GetRole() *AdminRole {
 	if x != nil {
 		return x.Role
 	}
@@ -429,7 +384,7 @@ func (x *CreateRoleRequest) GetPingable() bool {
 type CreateRoleResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Created role.
-	Role          *Role `protobuf:"bytes,1,opt,name=role,proto3" json:"role,omitempty"`
+	Role          *AdminRole `protobuf:"bytes,1,opt,name=role,proto3" json:"role,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -464,7 +419,7 @@ func (*CreateRoleResponse) Descriptor() ([]byte, []int) {
 	return file_chatto_admin_v1_roles_proto_rawDescGZIP(), []int{6}
 }
 
-func (x *CreateRoleResponse) GetRole() *Role {
+func (x *CreateRoleResponse) GetRole() *AdminRole {
 	if x != nil {
 		return x.Role
 	}
@@ -548,7 +503,7 @@ func (x *UpdateRoleRequest) GetPingable() bool {
 type UpdateRoleResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Updated role.
-	Role          *Role `protobuf:"bytes,1,opt,name=role,proto3" json:"role,omitempty"`
+	Role          *AdminRole `protobuf:"bytes,1,opt,name=role,proto3" json:"role,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -583,7 +538,7 @@ func (*UpdateRoleResponse) Descriptor() ([]byte, []int) {
 	return file_chatto_admin_v1_roles_proto_rawDescGZIP(), []int{8}
 }
 
-func (x *UpdateRoleResponse) GetRole() *Role {
+func (x *UpdateRoleResponse) GetRole() *AdminRole {
 	if x != nil {
 		return x.Role
 	}
@@ -733,7 +688,7 @@ func (x *ReorderRolesRequest) GetRoleNames() []string {
 type ReorderRolesResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Full role catalog after reordering.
-	Roles         []*Role `protobuf:"bytes,1,rep,name=roles,proto3" json:"roles,omitempty"`
+	Roles         []*AdminRole `protobuf:"bytes,1,rep,name=roles,proto3" json:"roles,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -768,7 +723,7 @@ func (*ReorderRolesResponse) Descriptor() ([]byte, []int) {
 	return file_chatto_admin_v1_roles_proto_rawDescGZIP(), []int{12}
 }
 
-func (x *ReorderRolesResponse) GetRoles() []*Role {
+func (x *ReorderRolesResponse) GetRoles() []*AdminRole {
 	if x != nil {
 		return x.Roles
 	}
@@ -779,25 +734,20 @@ var File_chatto_admin_v1_roles_proto protoreflect.FileDescriptor
 
 const file_chatto_admin_v1_roles_proto_rawDesc = "" +
 	"\n" +
-	"\x1bchatto/admin/v1/roles.proto\x12\x0fchatto.admin.v1\x1a\x1bbuf/validate/validate.proto\x1a\x19chatto/api/v1/users.proto\"\x85\x02\n" +
-	"\x04Role\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\x12!\n" +
-	"\fdisplay_name\x18\x02 \x01(\tR\vdisplayName\x12 \n" +
-	"\vdescription\x18\x03 \x01(\tR\vdescription\x12 \n" +
-	"\vpermissions\x18\x04 \x03(\tR\vpermissions\x12-\n" +
-	"\x12permission_denials\x18\x05 \x03(\tR\x11permissionDenials\x12\x1b\n" +
-	"\tis_system\x18\x06 \x01(\bR\bisSystem\x12\x1a\n" +
-	"\bposition\x18\a \x01(\x05R\bposition\x12\x1a\n" +
-	"\bpingable\x18\b \x01(\bR\bpingable\"\x12\n" +
-	"\x10ListRolesRequest\"\xae\x01\n" +
-	"\x11ListRolesResponse\x12+\n" +
-	"\x05roles\x18\x01 \x03(\v2\x15.chatto.admin.v1.RoleR\x05roles\x125\n" +
+	"\x1bchatto/admin/v1/roles.proto\x12\x0fchatto.admin.v1\x1a\x1bbuf/validate/validate.proto\x1a\x19chatto/api/v1/roles.proto\x1a\x19chatto/api/v1/users.proto\"\x85\x01\n" +
+	"\tAdminRole\x12'\n" +
+	"\x04role\x18\x01 \x01(\v2\x13.chatto.api.v1.RoleR\x04role\x12 \n" +
+	"\vpermissions\x18\x02 \x03(\tR\vpermissions\x12-\n" +
+	"\x12permission_denials\x18\x03 \x03(\tR\x11permissionDenials\"\x12\n" +
+	"\x10ListRolesRequest\"\xb3\x01\n" +
+	"\x11ListRolesResponse\x120\n" +
+	"\x05roles\x18\x01 \x03(\v2\x1a.chatto.admin.v1.AdminRoleR\x05roles\x125\n" +
 	"\x17viewer_can_manage_roles\x18\x02 \x01(\bR\x14viewerCanManageRoles\x125\n" +
 	"\x17viewer_can_assign_roles\x18\x03 \x01(\bR\x14viewerCanAssignRoles\"-\n" +
 	"\x0eGetRoleRequest\x12\x1b\n" +
-	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\"\xd5\x01\n" +
-	"\x0fGetRoleResponse\x12)\n" +
-	"\x04role\x18\x01 \x01(\v2\x15.chatto.admin.v1.RoleR\x04role\x12)\n" +
+	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\"\xda\x01\n" +
+	"\x0fGetRoleResponse\x12.\n" +
+	"\x04role\x18\x01 \x01(\v2\x1a.chatto.admin.v1.AdminRoleR\x04role\x12)\n" +
 	"\x05users\x18\x02 \x03(\v2\x13.chatto.api.v1.UserR\x05users\x125\n" +
 	"\x17viewer_can_manage_roles\x18\x03 \x01(\bR\x14viewerCanManageRoles\x125\n" +
 	"\x17viewer_can_assign_roles\x18\x04 \x01(\bR\x14viewerCanAssignRoles\"\xa4\x01\n" +
@@ -805,26 +755,26 @@ const file_chatto_admin_v1_roles_proto_rawDesc = "" +
 	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12*\n" +
 	"\fdisplay_name\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x18PR\vdisplayName\x12*\n" +
 	"\vdescription\x18\x03 \x01(\tB\b\xbaH\x05r\x03\x18\xf4\x03R\vdescription\x12\x1a\n" +
-	"\bpingable\x18\x04 \x01(\bR\bpingable\"?\n" +
-	"\x12CreateRoleResponse\x12)\n" +
-	"\x04role\x18\x01 \x01(\v2\x15.chatto.admin.v1.RoleR\x04role\"\xb6\x01\n" +
+	"\bpingable\x18\x04 \x01(\bR\bpingable\"D\n" +
+	"\x12CreateRoleResponse\x12.\n" +
+	"\x04role\x18\x01 \x01(\v2\x1a.chatto.admin.v1.AdminRoleR\x04role\"\xb6\x01\n" +
 	"\x11UpdateRoleRequest\x12\x1b\n" +
 	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12*\n" +
 	"\fdisplay_name\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x18PR\vdisplayName\x12*\n" +
 	"\vdescription\x18\x03 \x01(\tB\b\xbaH\x05r\x03\x18\xf4\x03R\vdescription\x12\x1f\n" +
 	"\bpingable\x18\x04 \x01(\bH\x00R\bpingable\x88\x01\x01B\v\n" +
-	"\t_pingable\"?\n" +
-	"\x12UpdateRoleResponse\x12)\n" +
-	"\x04role\x18\x01 \x01(\v2\x15.chatto.admin.v1.RoleR\x04role\"0\n" +
+	"\t_pingable\"D\n" +
+	"\x12UpdateRoleResponse\x12.\n" +
+	"\x04role\x18\x01 \x01(\v2\x1a.chatto.admin.v1.AdminRoleR\x04role\"0\n" +
 	"\x11DeleteRoleRequest\x12\x1b\n" +
 	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\".\n" +
 	"\x12DeleteRoleResponse\x12\x18\n" +
 	"\adeleted\x18\x01 \x01(\bR\adeleted\"B\n" +
 	"\x13ReorderRolesRequest\x12+\n" +
 	"\n" +
-	"role_names\x18\x01 \x03(\tB\f\xbaH\t\x92\x01\x06\"\x04r\x02\x10\x01R\troleNames\"C\n" +
-	"\x14ReorderRolesResponse\x12+\n" +
-	"\x05roles\x18\x01 \x03(\v2\x15.chatto.admin.v1.RoleR\x05roles2\x96\x04\n" +
+	"role_names\x18\x01 \x03(\tB\f\xbaH\t\x92\x01\x06\"\x04r\x02\x10\x01R\troleNames\"H\n" +
+	"\x14ReorderRolesResponse\x120\n" +
+	"\x05roles\x18\x01 \x03(\v2\x1a.chatto.admin.v1.AdminRoleR\x05roles2\x96\x04\n" +
 	"\x10AdminRoleService\x12R\n" +
 	"\tListRoles\x12!.chatto.admin.v1.ListRolesRequest\x1a\".chatto.admin.v1.ListRolesResponse\x12L\n" +
 	"\aGetRole\x12\x1f.chatto.admin.v1.GetRoleRequest\x1a .chatto.admin.v1.GetRoleResponse\x12U\n" +
@@ -852,7 +802,7 @@ func file_chatto_admin_v1_roles_proto_rawDescGZIP() []byte {
 
 var file_chatto_admin_v1_roles_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
 var file_chatto_admin_v1_roles_proto_goTypes = []any{
-	(*Role)(nil),                 // 0: chatto.admin.v1.Role
+	(*AdminRole)(nil),            // 0: chatto.admin.v1.AdminRole
 	(*ListRolesRequest)(nil),     // 1: chatto.admin.v1.ListRolesRequest
 	(*ListRolesResponse)(nil),    // 2: chatto.admin.v1.ListRolesResponse
 	(*GetRoleRequest)(nil),       // 3: chatto.admin.v1.GetRoleRequest
@@ -865,32 +815,34 @@ var file_chatto_admin_v1_roles_proto_goTypes = []any{
 	(*DeleteRoleResponse)(nil),   // 10: chatto.admin.v1.DeleteRoleResponse
 	(*ReorderRolesRequest)(nil),  // 11: chatto.admin.v1.ReorderRolesRequest
 	(*ReorderRolesResponse)(nil), // 12: chatto.admin.v1.ReorderRolesResponse
-	(*v1.User)(nil),              // 13: chatto.api.v1.User
+	(*v1.Role)(nil),              // 13: chatto.api.v1.Role
+	(*v1.User)(nil),              // 14: chatto.api.v1.User
 }
 var file_chatto_admin_v1_roles_proto_depIdxs = []int32{
-	0,  // 0: chatto.admin.v1.ListRolesResponse.roles:type_name -> chatto.admin.v1.Role
-	0,  // 1: chatto.admin.v1.GetRoleResponse.role:type_name -> chatto.admin.v1.Role
-	13, // 2: chatto.admin.v1.GetRoleResponse.users:type_name -> chatto.api.v1.User
-	0,  // 3: chatto.admin.v1.CreateRoleResponse.role:type_name -> chatto.admin.v1.Role
-	0,  // 4: chatto.admin.v1.UpdateRoleResponse.role:type_name -> chatto.admin.v1.Role
-	0,  // 5: chatto.admin.v1.ReorderRolesResponse.roles:type_name -> chatto.admin.v1.Role
-	1,  // 6: chatto.admin.v1.AdminRoleService.ListRoles:input_type -> chatto.admin.v1.ListRolesRequest
-	3,  // 7: chatto.admin.v1.AdminRoleService.GetRole:input_type -> chatto.admin.v1.GetRoleRequest
-	5,  // 8: chatto.admin.v1.AdminRoleService.CreateRole:input_type -> chatto.admin.v1.CreateRoleRequest
-	7,  // 9: chatto.admin.v1.AdminRoleService.UpdateRole:input_type -> chatto.admin.v1.UpdateRoleRequest
-	9,  // 10: chatto.admin.v1.AdminRoleService.DeleteRole:input_type -> chatto.admin.v1.DeleteRoleRequest
-	11, // 11: chatto.admin.v1.AdminRoleService.ReorderRoles:input_type -> chatto.admin.v1.ReorderRolesRequest
-	2,  // 12: chatto.admin.v1.AdminRoleService.ListRoles:output_type -> chatto.admin.v1.ListRolesResponse
-	4,  // 13: chatto.admin.v1.AdminRoleService.GetRole:output_type -> chatto.admin.v1.GetRoleResponse
-	6,  // 14: chatto.admin.v1.AdminRoleService.CreateRole:output_type -> chatto.admin.v1.CreateRoleResponse
-	8,  // 15: chatto.admin.v1.AdminRoleService.UpdateRole:output_type -> chatto.admin.v1.UpdateRoleResponse
-	10, // 16: chatto.admin.v1.AdminRoleService.DeleteRole:output_type -> chatto.admin.v1.DeleteRoleResponse
-	12, // 17: chatto.admin.v1.AdminRoleService.ReorderRoles:output_type -> chatto.admin.v1.ReorderRolesResponse
-	12, // [12:18] is the sub-list for method output_type
-	6,  // [6:12] is the sub-list for method input_type
-	6,  // [6:6] is the sub-list for extension type_name
-	6,  // [6:6] is the sub-list for extension extendee
-	0,  // [0:6] is the sub-list for field type_name
+	13, // 0: chatto.admin.v1.AdminRole.role:type_name -> chatto.api.v1.Role
+	0,  // 1: chatto.admin.v1.ListRolesResponse.roles:type_name -> chatto.admin.v1.AdminRole
+	0,  // 2: chatto.admin.v1.GetRoleResponse.role:type_name -> chatto.admin.v1.AdminRole
+	14, // 3: chatto.admin.v1.GetRoleResponse.users:type_name -> chatto.api.v1.User
+	0,  // 4: chatto.admin.v1.CreateRoleResponse.role:type_name -> chatto.admin.v1.AdminRole
+	0,  // 5: chatto.admin.v1.UpdateRoleResponse.role:type_name -> chatto.admin.v1.AdminRole
+	0,  // 6: chatto.admin.v1.ReorderRolesResponse.roles:type_name -> chatto.admin.v1.AdminRole
+	1,  // 7: chatto.admin.v1.AdminRoleService.ListRoles:input_type -> chatto.admin.v1.ListRolesRequest
+	3,  // 8: chatto.admin.v1.AdminRoleService.GetRole:input_type -> chatto.admin.v1.GetRoleRequest
+	5,  // 9: chatto.admin.v1.AdminRoleService.CreateRole:input_type -> chatto.admin.v1.CreateRoleRequest
+	7,  // 10: chatto.admin.v1.AdminRoleService.UpdateRole:input_type -> chatto.admin.v1.UpdateRoleRequest
+	9,  // 11: chatto.admin.v1.AdminRoleService.DeleteRole:input_type -> chatto.admin.v1.DeleteRoleRequest
+	11, // 12: chatto.admin.v1.AdminRoleService.ReorderRoles:input_type -> chatto.admin.v1.ReorderRolesRequest
+	2,  // 13: chatto.admin.v1.AdminRoleService.ListRoles:output_type -> chatto.admin.v1.ListRolesResponse
+	4,  // 14: chatto.admin.v1.AdminRoleService.GetRole:output_type -> chatto.admin.v1.GetRoleResponse
+	6,  // 15: chatto.admin.v1.AdminRoleService.CreateRole:output_type -> chatto.admin.v1.CreateRoleResponse
+	8,  // 16: chatto.admin.v1.AdminRoleService.UpdateRole:output_type -> chatto.admin.v1.UpdateRoleResponse
+	10, // 17: chatto.admin.v1.AdminRoleService.DeleteRole:output_type -> chatto.admin.v1.DeleteRoleResponse
+	12, // 18: chatto.admin.v1.AdminRoleService.ReorderRoles:output_type -> chatto.admin.v1.ReorderRolesResponse
+	13, // [13:19] is the sub-list for method output_type
+	7,  // [7:13] is the sub-list for method input_type
+	7,  // [7:7] is the sub-list for extension type_name
+	7,  // [7:7] is the sub-list for extension extendee
+	0,  // [0:7] is the sub-list for field type_name
 }
 
 func init() { file_chatto_admin_v1_roles_proto_init() }

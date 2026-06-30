@@ -179,12 +179,12 @@ function notificationPage(
 }
 
 function notificationItem(item: APINotificationItem): NotificationItem | null {
+  const actor = notificationActor(item.actor);
   const base = {
     id: item.id,
     createdAt:
       item.createdAt?.toDate().toISOString() ?? new Date(0).toISOString(),
-    actor: notificationActor(item.actor),
-    summary: item.summary,
+    actor,
   };
 
   switch (item.kind.case) {
@@ -192,12 +192,14 @@ function notificationItem(item: APINotificationItem): NotificationItem | null {
       return {
         kind: NotificationItemKind.DirectMessage,
         ...base,
+        summary: notificationSummary(actor, NotificationItemKind.DirectMessage),
         room: { id: item.kind.value.roomId },
       };
     case "mention":
       return {
         kind: NotificationItemKind.Mention,
         ...base,
+        summary: notificationSummary(actor, NotificationItemKind.Mention),
         mentionRoom: item.kind.value.room
           ? { id: item.kind.value.room.id, name: item.kind.value.room.name }
           : null,
@@ -208,6 +210,7 @@ function notificationItem(item: APINotificationItem): NotificationItem | null {
       return {
         kind: NotificationItemKind.Reply,
         ...base,
+        summary: notificationSummary(actor, NotificationItemKind.Reply),
         replyRoom: item.kind.value.room
           ? { id: item.kind.value.room.id, name: item.kind.value.room.name }
           : null,
@@ -219,6 +222,7 @@ function notificationItem(item: APINotificationItem): NotificationItem | null {
       return {
         kind: NotificationItemKind.RoomMessage,
         ...base,
+        summary: notificationSummary(actor, NotificationItemKind.RoomMessage),
         roomMsgRoom: item.kind.value.room
           ? { id: item.kind.value.room.id, name: item.kind.value.room.name }
           : null,
@@ -226,6 +230,25 @@ function notificationItem(item: APINotificationItem): NotificationItem | null {
       };
     default:
       return null;
+  }
+}
+
+function notificationSummary(
+  actor: NotificationActor | null,
+  kind: NotificationItemKind,
+): string {
+  const actorName = actor?.displayName || null;
+  switch (kind) {
+    case NotificationItemKind.DirectMessage:
+      return actorName ? `${actorName} sent you a message` : "New message";
+    case NotificationItemKind.Mention:
+      return actorName ? `${actorName} mentioned you` : "You were mentioned";
+    case NotificationItemKind.Reply:
+      return actorName
+        ? `${actorName} replied to your message`
+        : "New reply to your message";
+    case NotificationItemKind.RoomMessage:
+      return actorName ? `${actorName} posted a message` : "New message";
   }
 }
 

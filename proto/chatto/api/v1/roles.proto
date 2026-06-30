@@ -1,0 +1,35 @@
+syntax = "proto3";
+
+package chatto.api.v1;
+
+// Public role metadata used for rendering role mentions, labels, and catalogs.
+message Role {
+  // Stable role name used in permission and assignment records.
+  string name = 1;
+  // Display name shown in user-facing role UIs.
+  string display_name = 2;
+  // Optional role description.
+  string description = 3;
+  // Whether this is a built-in role.
+  bool is_system = 4;
+  // Display/order position.
+  int32 position = 5;
+  // Whether messages may notify users assigned to this role.
+  bool pingable = 6;
+}
+
+// Request the current role catalog.
+message ListRolesRequest {}
+
+// Snapshot of the role catalog visible to the authenticated viewer.
+message ListRolesResponse {
+  // Roles sorted by position.
+  repeated Role roles = 1;
+}
+
+// Provides authenticated reads for public role metadata.
+service RoleService {
+  // Lists the current role catalog as a finite snapshot. Requires an
+  // authenticated user.
+  rpc ListRoles(ListRolesRequest) returns (ListRolesResponse);
+}

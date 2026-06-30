@@ -297,6 +297,15 @@ export class RealtimeServerHello extends Message<RealtimeServerHello> {
    */
   heartbeatIntervalSeconds = 0;
 
+  /**
+   * Stable protocol capability keys supported by this server. Current keys:
+   * `chatto.realtime.events.live.v1`, `chatto.realtime.heartbeat.v1`, and
+   * `chatto.realtime.ping.v1`.
+   *
+   * @generated from field: repeated string capabilities = 5;
+   */
+  capabilities: string[] = [];
+
   constructor(data?: PartialMessage<RealtimeServerHello>) {
     super();
     proto3.util.initPartial(data, this);
@@ -308,6 +317,7 @@ export class RealtimeServerHello extends Message<RealtimeServerHello> {
     { no: 1, name: "protocol_version", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 2, name: "server_version", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 4, name: "heartbeat_interval_seconds", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 5, name: "capabilities", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeServerHello {

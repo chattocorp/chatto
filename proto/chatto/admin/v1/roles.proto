@@ -3,35 +3,26 @@ syntax = "proto3";
 package chatto.admin.v1;
 
 import "buf/validate/validate.proto";
+import "chatto/api/v1/roles.proto";
 import "chatto/api/v1/users.proto";
 
-// Role metadata and permission state.
-message Role {
-  // Stable role name used in permission and assignment records.
-  string name = 1;
-  // Display name shown in admin and mention UIs.
-  string display_name = 2;
-  // Optional role description.
-  string description = 3;
+// Role metadata plus administrative permission state.
+message AdminRole {
+  // Public role metadata shared with ordinary role catalog reads.
+  chatto.api.v1.Role role = 1;
   // Permissions granted by this role.
-  repeated string permissions = 4;
+  repeated string permissions = 2;
   // Permissions denied by this role.
-  repeated string permission_denials = 5;
-  // Whether this is a built-in role.
-  bool is_system = 6;
-  // Display/order position.
-  int32 position = 7;
-  // Whether messages may notify users assigned to this role.
-  bool pingable = 8;
+  repeated string permission_denials = 3;
 }
 
 // Request the role catalog.
 message ListRolesRequest {}
 
-// Role catalog plus viewer role-management capabilities.
+// Finite role catalog snapshot plus viewer role-management capabilities.
 message ListRolesResponse {
   // Roles sorted by position.
-  repeated Role roles = 1;
+  repeated AdminRole roles = 1;
   // Whether the caller may create/update/delete role definitions.
   bool viewer_can_manage_roles = 2;
   // Whether the caller may assign/revoke roles and view role rosters.
@@ -47,7 +38,7 @@ message GetRoleRequest {
 // One role plus role-management metadata.
 message GetRoleResponse {
   // Requested role.
-  Role role = 1;
+  AdminRole role = 1;
   // Explicit users with this role. Empty unless the caller may assign roles.
   repeated chatto.api.v1.User users = 2;
   // Whether the caller may create/update/delete role definitions.
@@ -71,7 +62,7 @@ message CreateRoleRequest {
 // Result of creating a role.
 message CreateRoleResponse {
   // Created role.
-  Role role = 1;
+  AdminRole role = 1;
 }
 
 // Request to update role metadata.
@@ -89,7 +80,7 @@ message UpdateRoleRequest {
 // Result of updating a role.
 message UpdateRoleResponse {
   // Updated role.
-  Role role = 1;
+  AdminRole role = 1;
 }
 
 // Request to delete a role.
@@ -118,12 +109,14 @@ message ReorderRolesRequest {
 // Result of replacing custom role order.
 message ReorderRolesResponse {
   // Full role catalog after reordering.
-  repeated Role roles = 1;
+  repeated AdminRole roles = 1;
 }
 
-// Provides authenticated role catalog reads and admin role CRUD.
+// Provides administrative role reads and role definition changes.
 service AdminRoleService {
-  // Lists the role catalog. Requires an authenticated user.
+  // Lists the role catalog including permission arrays as a finite snapshot.
+  // Requires an authenticated user; use chatto.api.v1.RoleService for ordinary
+  // catalog rendering.
   rpc ListRoles(ListRolesRequest) returns (ListRolesResponse);
   // Gets one role plus admin detail metadata. Returns NOT_FOUND when the
   // role does not exist.

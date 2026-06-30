@@ -85,11 +85,46 @@ Response containing one role's permission matrix.
 | `matrix` | [`RolePermissionMatrix`](/reference/connectrpc-api/types/#chatto-admin-v1-RolePermissionMatrix) | Requested matrix. |
 
 
+<a id="chatto-admin-v1-AdminPermissionService-ListRolePermissionDecisions"></a>
+
+### ListRolePermissionDecisions
+
+Lists one role's permission decisions by permission and scope. Requires
+role.manage. Returns NOT_FOUND when the role does not exist.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminPermissionService/ListRolePermissionDecisions
+```
+
+<a id="chatto-admin-v1-ListRolePermissionDecisionsRequest"></a>
+
+#### Input: ListRolePermissionDecisionsRequest
+
+Request explicit/effective permission decisions for one role.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `role_name` | `string` | Stable role name. |
+
+
+<a id="chatto-admin-v1-ListRolePermissionDecisionsResponse"></a>
+
+#### Result: ListRolePermissionDecisionsResponse
+
+Resource-oriented permission decisions for one role.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `role_name` | `string` | Stable role name. |
+| `decisions` | repeated [`ScopedPermissionDecision`](/reference/connectrpc-api/types/#chatto-admin-v1-ScopedPermissionDecision) | Permission decisions keyed by permission and scope. |
+
+
 <a id="chatto-admin-v1-AdminPermissionService-GetUserPermissionMatrix"></a>
 
 ### GetUserPermissionMatrix
 
 Gets one user's full permission matrix. Requires user.manage-permissions.
+Returns NOT_FOUND when the user does not exist.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminPermissionService/GetUserPermissionMatrix
@@ -115,6 +150,40 @@ Response containing one user's permission matrix.
 | Field | Type | Description |
 | --- | --- | --- |
 | `matrix` | [`UserPermissionMatrix`](/reference/connectrpc-api/types/#chatto-admin-v1-UserPermissionMatrix) | Requested matrix. |
+
+
+<a id="chatto-admin-v1-AdminPermissionService-ListUserPermissionDecisions"></a>
+
+### ListUserPermissionDecisions
+
+Lists one user's permission decisions by permission and scope. Requires
+user.manage-permissions. Returns NOT_FOUND when the user does not exist.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminPermissionService/ListUserPermissionDecisions
+```
+
+<a id="chatto-admin-v1-ListUserPermissionDecisionsRequest"></a>
+
+#### Input: ListUserPermissionDecisionsRequest
+
+Request explicit/effective permission decisions for one user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_id` | `string` | User ID. |
+
+
+<a id="chatto-admin-v1-ListUserPermissionDecisionsResponse"></a>
+
+#### Result: ListUserPermissionDecisionsResponse
+
+Resource-oriented permission decisions for one user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_id` | `string` | User ID. |
+| `decisions` | repeated [`ScopedPermissionDecision`](/reference/connectrpc-api/types/#chatto-admin-v1-ScopedPermissionDecision) | Permission decisions keyed by permission and scope. |
 
 
 <a id="chatto-admin-v1-AdminPermissionService-ExplainPermissions"></a>

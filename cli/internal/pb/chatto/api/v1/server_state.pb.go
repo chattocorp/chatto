@@ -76,73 +76,18 @@ func (x *ServerMemberProfile) GetMotd() string {
 	return ""
 }
 
-// Effective permission decision for the authenticated user.
-type ServerViewerPermission struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Stable permission key, such as "server.manage".
-	Permission string `protobuf:"bytes,1,opt,name=permission,proto3" json:"permission,omitempty"`
-	// Whether the permission is currently granted to the viewer.
-	Granted       bool `protobuf:"varint,2,opt,name=granted,proto3" json:"granted,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ServerViewerPermission) Reset() {
-	*x = ServerViewerPermission{}
-	mi := &file_chatto_api_v1_server_state_proto_msgTypes[1]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ServerViewerPermission) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ServerViewerPermission) ProtoMessage() {}
-
-func (x *ServerViewerPermission) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_server_state_proto_msgTypes[1]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ServerViewerPermission.ProtoReflect.Descriptor instead.
-func (*ServerViewerPermission) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_server_state_proto_rawDescGZIP(), []int{1}
-}
-
-func (x *ServerViewerPermission) GetPermission() string {
-	if x != nil {
-		return x.Permission
-	}
-	return ""
-}
-
-func (x *ServerViewerPermission) GetGranted() bool {
-	if x != nil {
-		return x.Granted
-	}
-	return false
-}
-
 // Effective server/channel permission decisions for the authenticated user.
 type ServerViewerPermissions struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// One row per permission known to the server.
-	Permissions   []*ServerViewerPermission `protobuf:"bytes,1,rep,name=permissions,proto3" json:"permissions,omitempty"`
+	Permissions   []*PermissionGrant `protobuf:"bytes,1,rep,name=permissions,proto3" json:"permissions,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ServerViewerPermissions) Reset() {
 	*x = ServerViewerPermissions{}
-	mi := &file_chatto_api_v1_server_state_proto_msgTypes[2]
+	mi := &file_chatto_api_v1_server_state_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -154,7 +99,7 @@ func (x *ServerViewerPermissions) String() string {
 func (*ServerViewerPermissions) ProtoMessage() {}
 
 func (x *ServerViewerPermissions) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_server_state_proto_msgTypes[2]
+	mi := &file_chatto_api_v1_server_state_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -167,10 +112,10 @@ func (x *ServerViewerPermissions) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ServerViewerPermissions.ProtoReflect.Descriptor instead.
 func (*ServerViewerPermissions) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_server_state_proto_rawDescGZIP(), []int{2}
+	return file_chatto_api_v1_server_state_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *ServerViewerPermissions) GetPermissions() []*ServerViewerPermission {
+func (x *ServerViewerPermissions) GetPermissions() []*PermissionGrant {
 	if x != nil {
 		return x.Permissions
 	}
@@ -188,7 +133,7 @@ type ServerViewerState struct {
 
 func (x *ServerViewerState) Reset() {
 	*x = ServerViewerState{}
-	mi := &file_chatto_api_v1_server_state_proto_msgTypes[3]
+	mi := &file_chatto_api_v1_server_state_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -200,7 +145,7 @@ func (x *ServerViewerState) String() string {
 func (*ServerViewerState) ProtoMessage() {}
 
 func (x *ServerViewerState) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_server_state_proto_msgTypes[3]
+	mi := &file_chatto_api_v1_server_state_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -213,7 +158,7 @@ func (x *ServerViewerState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ServerViewerState.ProtoReflect.Descriptor instead.
 func (*ServerViewerState) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_server_state_proto_rawDescGZIP(), []int{3}
+	return file_chatto_api_v1_server_state_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *ServerViewerState) GetHasUnreadRooms() bool {
@@ -232,7 +177,7 @@ type GetServerStateRequest struct {
 
 func (x *GetServerStateRequest) Reset() {
 	*x = GetServerStateRequest{}
-	mi := &file_chatto_api_v1_server_state_proto_msgTypes[4]
+	mi := &file_chatto_api_v1_server_state_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -244,7 +189,7 @@ func (x *GetServerStateRequest) String() string {
 func (*GetServerStateRequest) ProtoMessage() {}
 
 func (x *GetServerStateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_server_state_proto_msgTypes[4]
+	mi := &file_chatto_api_v1_server_state_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -257,7 +202,7 @@ func (x *GetServerStateRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetServerStateRequest.ProtoReflect.Descriptor instead.
 func (*GetServerStateRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_server_state_proto_rawDescGZIP(), []int{4}
+	return file_chatto_api_v1_server_state_proto_rawDescGZIP(), []int{3}
 }
 
 // Authenticated server runtime settings used by clients.
@@ -285,7 +230,7 @@ type ServerRuntimeConfig struct {
 
 func (x *ServerRuntimeConfig) Reset() {
 	*x = ServerRuntimeConfig{}
-	mi := &file_chatto_api_v1_server_state_proto_msgTypes[5]
+	mi := &file_chatto_api_v1_server_state_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -297,7 +242,7 @@ func (x *ServerRuntimeConfig) String() string {
 func (*ServerRuntimeConfig) ProtoMessage() {}
 
 func (x *ServerRuntimeConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_server_state_proto_msgTypes[5]
+	mi := &file_chatto_api_v1_server_state_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -310,7 +255,7 @@ func (x *ServerRuntimeConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ServerRuntimeConfig.ProtoReflect.Descriptor instead.
 func (*ServerRuntimeConfig) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_server_state_proto_rawDescGZIP(), []int{5}
+	return file_chatto_api_v1_server_state_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *ServerRuntimeConfig) GetPushNotificationsEnabled() bool {
@@ -386,7 +331,7 @@ type GetServerStateResponse struct {
 
 func (x *GetServerStateResponse) Reset() {
 	*x = GetServerStateResponse{}
-	mi := &file_chatto_api_v1_server_state_proto_msgTypes[6]
+	mi := &file_chatto_api_v1_server_state_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -398,7 +343,7 @@ func (x *GetServerStateResponse) String() string {
 func (*GetServerStateResponse) ProtoMessage() {}
 
 func (x *GetServerStateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_server_state_proto_msgTypes[6]
+	mi := &file_chatto_api_v1_server_state_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -411,7 +356,7 @@ func (x *GetServerStateResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetServerStateResponse.ProtoReflect.Descriptor instead.
 func (*GetServerStateResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_server_state_proto_rawDescGZIP(), []int{6}
+	return file_chatto_api_v1_server_state_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *GetServerStateResponse) GetProfile() *ServerMemberProfile {
@@ -446,18 +391,13 @@ var File_chatto_api_v1_server_state_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_server_state_proto_rawDesc = "" +
 	"\n" +
-	" chatto/api/v1/server_state.proto\x12\rchatto.api.v1\x1a\x1achatto/api/v1/server.proto\"\x82\x01\n" +
+	" chatto/api/v1/server_state.proto\x12\rchatto.api.v1\x1a\x1fchatto/api/v1/permissions.proto\x1a\x1achatto/api/v1/server.proto\"\x82\x01\n" +
 	"\x13ServerMemberProfile\x12I\n" +
 	"\x0epublic_profile\x18\x01 \x01(\v2\".chatto.api.v1.ServerPublicProfileR\rpublicProfile\x12\x17\n" +
 	"\x04motd\x18\x02 \x01(\tH\x00R\x04motd\x88\x01\x01B\a\n" +
-	"\x05_motd\"R\n" +
-	"\x16ServerViewerPermission\x12\x1e\n" +
-	"\n" +
-	"permission\x18\x01 \x01(\tR\n" +
-	"permission\x12\x18\n" +
-	"\agranted\x18\x02 \x01(\bR\agranted\"b\n" +
-	"\x17ServerViewerPermissions\x12G\n" +
-	"\vpermissions\x18\x01 \x03(\v2%.chatto.api.v1.ServerViewerPermissionR\vpermissions\"=\n" +
+	"\x05_motd\"[\n" +
+	"\x17ServerViewerPermissions\x12@\n" +
+	"\vpermissions\x18\x01 \x03(\v2\x1e.chatto.api.v1.PermissionGrantR\vpermissions\"=\n" +
 	"\x11ServerViewerState\x12(\n" +
 	"\x10has_unread_rooms\x18\x01 \x01(\bR\x0ehasUnreadRooms\"\x17\n" +
 	"\x15GetServerStateRequest\"\xe1\x03\n" +
@@ -494,26 +434,26 @@ func file_chatto_api_v1_server_state_proto_rawDescGZIP() []byte {
 	return file_chatto_api_v1_server_state_proto_rawDescData
 }
 
-var file_chatto_api_v1_server_state_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_chatto_api_v1_server_state_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_chatto_api_v1_server_state_proto_goTypes = []any{
 	(*ServerMemberProfile)(nil),     // 0: chatto.api.v1.ServerMemberProfile
-	(*ServerViewerPermission)(nil),  // 1: chatto.api.v1.ServerViewerPermission
-	(*ServerViewerPermissions)(nil), // 2: chatto.api.v1.ServerViewerPermissions
-	(*ServerViewerState)(nil),       // 3: chatto.api.v1.ServerViewerState
-	(*GetServerStateRequest)(nil),   // 4: chatto.api.v1.GetServerStateRequest
-	(*ServerRuntimeConfig)(nil),     // 5: chatto.api.v1.ServerRuntimeConfig
-	(*GetServerStateResponse)(nil),  // 6: chatto.api.v1.GetServerStateResponse
-	(*ServerPublicProfile)(nil),     // 7: chatto.api.v1.ServerPublicProfile
+	(*ServerViewerPermissions)(nil), // 1: chatto.api.v1.ServerViewerPermissions
+	(*ServerViewerState)(nil),       // 2: chatto.api.v1.ServerViewerState
+	(*GetServerStateRequest)(nil),   // 3: chatto.api.v1.GetServerStateRequest
+	(*ServerRuntimeConfig)(nil),     // 4: chatto.api.v1.ServerRuntimeConfig
+	(*GetServerStateResponse)(nil),  // 5: chatto.api.v1.GetServerStateResponse
+	(*ServerPublicProfile)(nil),     // 6: chatto.api.v1.ServerPublicProfile
+	(*PermissionGrant)(nil),         // 7: chatto.api.v1.PermissionGrant
 }
 var file_chatto_api_v1_server_state_proto_depIdxs = []int32{
-	7, // 0: chatto.api.v1.ServerMemberProfile.public_profile:type_name -> chatto.api.v1.ServerPublicProfile
-	1, // 1: chatto.api.v1.ServerViewerPermissions.permissions:type_name -> chatto.api.v1.ServerViewerPermission
+	6, // 0: chatto.api.v1.ServerMemberProfile.public_profile:type_name -> chatto.api.v1.ServerPublicProfile
+	7, // 1: chatto.api.v1.ServerViewerPermissions.permissions:type_name -> chatto.api.v1.PermissionGrant
 	0, // 2: chatto.api.v1.GetServerStateResponse.profile:type_name -> chatto.api.v1.ServerMemberProfile
-	5, // 3: chatto.api.v1.GetServerStateResponse.runtime:type_name -> chatto.api.v1.ServerRuntimeConfig
-	2, // 4: chatto.api.v1.GetServerStateResponse.viewer_permissions:type_name -> chatto.api.v1.ServerViewerPermissions
-	3, // 5: chatto.api.v1.GetServerStateResponse.viewer_state:type_name -> chatto.api.v1.ServerViewerState
-	4, // 6: chatto.api.v1.ServerService.GetServerState:input_type -> chatto.api.v1.GetServerStateRequest
-	6, // 7: chatto.api.v1.ServerService.GetServerState:output_type -> chatto.api.v1.GetServerStateResponse
+	4, // 3: chatto.api.v1.GetServerStateResponse.runtime:type_name -> chatto.api.v1.ServerRuntimeConfig
+	1, // 4: chatto.api.v1.GetServerStateResponse.viewer_permissions:type_name -> chatto.api.v1.ServerViewerPermissions
+	2, // 5: chatto.api.v1.GetServerStateResponse.viewer_state:type_name -> chatto.api.v1.ServerViewerState
+	3, // 6: chatto.api.v1.ServerService.GetServerState:input_type -> chatto.api.v1.GetServerStateRequest
+	5, // 7: chatto.api.v1.ServerService.GetServerState:output_type -> chatto.api.v1.GetServerStateResponse
 	7, // [7:8] is the sub-list for method output_type
 	6, // [6:7] is the sub-list for method input_type
 	6, // [6:6] is the sub-list for extension type_name
@@ -526,16 +466,17 @@ func file_chatto_api_v1_server_state_proto_init() {
 	if File_chatto_api_v1_server_state_proto != nil {
 		return
 	}
+	file_chatto_api_v1_permissions_proto_init()
 	file_chatto_api_v1_server_proto_init()
 	file_chatto_api_v1_server_state_proto_msgTypes[0].OneofWrappers = []any{}
-	file_chatto_api_v1_server_state_proto_msgTypes[5].OneofWrappers = []any{}
+	file_chatto_api_v1_server_state_proto_msgTypes[4].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_api_v1_server_state_proto_rawDesc), len(file_chatto_api_v1_server_state_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   7,
+			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

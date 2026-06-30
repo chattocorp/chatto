@@ -15,7 +15,8 @@ export const ExternalIdentityFlowService = {
   typeName: "chatto.api.v1.ExternalIdentityFlowService",
   methods: {
     /**
-     * Reads safe metadata for a pending create/link flow.
+     * Reads safe metadata for a pending create/link flow. Returns NOT_FOUND when
+     * the token is unknown or expired.
      *
      * @generated from rpc chatto.api.v1.ExternalIdentityFlowService.GetPendingExternalIdentity
      */
@@ -70,7 +71,8 @@ export const ExternalIdentityService = {
   typeName: "chatto.api.v1.ExternalIdentityService",
   methods: {
     /**
-     * Lists providers and identities linked to the authenticated account.
+     * Lists providers and identities linked to the authenticated account as a
+     * finite snapshot.
      *
      * @generated from rpc chatto.api.v1.ExternalIdentityService.ListExternalIdentities
      */

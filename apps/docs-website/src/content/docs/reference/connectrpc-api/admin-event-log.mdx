@@ -24,7 +24,7 @@ Provides server-admin audit/event-log diagnostics.
 
 ### ListEvents
 
-Lists durable EVT entries newest-first.
+Lists durable EVT entries newest-first. Requires admin.view-audit.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminEventLogService/ListEvents
@@ -64,7 +64,8 @@ Newest-first page of durable EVT entries.
 
 ### ListEventTypes
 
-Lists filterable event type names.
+Lists filterable event type names as a finite snapshot. Requires
+admin.view-audit.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminEventLogService/ListEventTypes
@@ -81,7 +82,7 @@ Request to list filterable event types.
 
 #### Result: ListEventTypesResponse
 
-Event types accepted by event-log filters.
+Finite snapshot of event types accepted by event-log filters.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -92,8 +93,8 @@ Event types accepted by event-log filters.
 
 ### GetEvent
 
-Reads one durable EVT entry by stream sequence. Returns NOT_FOUND when the
-requested sequence does not exist.
+Reads one durable EVT entry by stream sequence. Requires admin.view-audit.
+Returns NOT_FOUND when the requested sequence does not exist.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminEventLogService/GetEvent

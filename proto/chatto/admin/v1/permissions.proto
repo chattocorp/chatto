@@ -144,6 +144,46 @@ message UserPermissionMatrix {
   repeated PermissionMatrixCell cells = 4;
 }
 
+// One resource-oriented permission decision at a concrete scope.
+message ScopedPermissionDecision {
+  // Permission identifier.
+  string permission = 1;
+  // Server, group, or room scope this decision applies to.
+  PermissionScope scope = 2;
+  // Explicit decision stored at this scope.
+  PermissionDecision override = 3;
+  // Effective decision after inherited broader scopes are applied.
+  PermissionDecision effective = 4;
+}
+
+// Request explicit/effective permission decisions for one role.
+message ListRolePermissionDecisionsRequest {
+  // Stable role name.
+  string role_name = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+// Resource-oriented permission decisions for one role.
+message ListRolePermissionDecisionsResponse {
+  // Stable role name.
+  string role_name = 1;
+  // Permission decisions keyed by permission and scope.
+  repeated ScopedPermissionDecision decisions = 2;
+}
+
+// Request explicit/effective permission decisions for one user.
+message ListUserPermissionDecisionsRequest {
+  // User ID.
+  string user_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+// Resource-oriented permission decisions for one user.
+message ListUserPermissionDecisionsResponse {
+  // User ID.
+  string user_id = 1;
+  // Permission decisions keyed by permission and scope.
+  repeated ScopedPermissionDecision decisions = 2;
+}
+
 // Level at which a permission explanation found a decision.
 enum PermissionDecisionLevel {
   // No decision level was reached.
@@ -251,8 +291,15 @@ service AdminPermissionService {
   // Gets one role's full permission matrix. Requires role.manage. Returns
   // NOT_FOUND when the role does not exist.
   rpc GetRolePermissionMatrix(GetRolePermissionMatrixRequest) returns (GetRolePermissionMatrixResponse);
+  // Lists one role's permission decisions by permission and scope. Requires
+  // role.manage. Returns NOT_FOUND when the role does not exist.
+  rpc ListRolePermissionDecisions(ListRolePermissionDecisionsRequest) returns (ListRolePermissionDecisionsResponse);
   // Gets one user's full permission matrix. Requires user.manage-permissions.
+  // Returns NOT_FOUND when the user does not exist.
   rpc GetUserPermissionMatrix(GetUserPermissionMatrixRequest) returns (GetUserPermissionMatrixResponse);
+  // Lists one user's permission decisions by permission and scope. Requires
+  // user.manage-permissions. Returns NOT_FOUND when the user does not exist.
+  rpc ListUserPermissionDecisions(ListUserPermissionDecisionsRequest) returns (ListUserPermissionDecisionsResponse);
   // Explains permission resolution for another user. Requires role.manage.
   rpc ExplainPermissions(ExplainPermissionsRequest) returns (ExplainPermissionsResponse);
   // Sets one role permission decision. Requires role.manage or scoped room.manage for room scope.
