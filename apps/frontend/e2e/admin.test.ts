@@ -17,7 +17,7 @@ import {
   type ServerUserOptions,
   type ServerUserSession
 } from './fixtures/serverUser';
-import { connectPost } from './fixtures/connectHelpers';
+import { connectPost, type E2EAdminRole, unwrapAdminRole } from './fixtures/connectHelpers';
 
 type RegularAdminSession = ServerUserSession & { adminPage: AdminPage };
 
@@ -64,15 +64,16 @@ async function createRoleViaConnect(
   displayName: string,
   description: string
 ): Promise<{ name?: string; permissionDenials?: string[] }> {
-  const data = await connectPost<{ role?: { name?: string; permissionDenials?: string[] } }>(
+  const data = await connectPost<{ role?: E2EAdminRole }>(
     page,
     'chatto.admin.v1.AdminRoleService/CreateRole',
     { name, displayName, description }
   );
-  if (!data.role?.name) {
+  const role = unwrapAdminRole(data.role);
+  if (!role?.name) {
     throw new Error(`CreateRole did not return a role: ${JSON.stringify(data)}`);
   }
-  return data.role;
+  return role;
 }
 
 async function deleteRoleViaConnect(page: Page, name: string): Promise<void> {
@@ -88,15 +89,16 @@ async function getRoleViaConnect(
   page: Page,
   name: string
 ): Promise<{ name?: string; permissionDenials?: string[] }> {
-  const data = await connectPost<{ role?: { name?: string; permissionDenials?: string[] } }>(
+  const data = await connectPost<{ role?: E2EAdminRole }>(
     page,
     'chatto.admin.v1.AdminRoleService/GetRole',
     { name }
   );
-  if (!data.role?.name) {
+  const role = unwrapAdminRole(data.role);
+  if (!role?.name) {
     throw new Error(`Role ${name} not found: ${JSON.stringify(data)}`);
   }
-  return data.role;
+  return role;
 }
 
 async function setRolePermissionViaConnect(

@@ -207,7 +207,7 @@ test.describe('Server Admin Navigation Permissions', () => {
       await serverAdminPage.expectRolesNavVisible();
     });
 
-    test('member with only role.assign permission sees Members nav item', async ({
+    test('member with only role.assign permission sees Members and Permissions nav items', async ({
       serverAdminPage
     }) => {
       const { page } = serverAdminPage;
@@ -229,12 +229,13 @@ test.describe('Server Admin Navigation Permissions', () => {
       // Wait for page to load
       await expect(page.getByRole('heading', { name: 'Members', exact: true })).toBeVisible();
 
-      // Should see Members (has role.assign)
+      // Should see Members (has role.assign) and Permissions (role.assign
+      // implies role.view so assignment UIs can render stable role metadata).
       await serverAdminPage.expectMembersNavVisible();
+      await serverAdminPage.expectRolesNavVisible();
 
-      // Should NOT see other permission-gated nav items
+      // Should NOT see unrelated permission-gated nav items.
       await serverAdminPage.expectGeneralNavNotVisible();
-      await serverAdminPage.expectRolesNavNotVisible();
     });
 
     test('member with only role.manage permission sees Roles nav item', async ({

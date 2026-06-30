@@ -10,9 +10,11 @@ import {
   connectPost,
   connectPostResponse,
   createRoomViaConnect,
+  type E2EAdminRole,
   getDefaultRoomGroupIdViaConnect,
   getRoomIdByNameViaConnect,
-  joinRoomViaConnect
+  joinRoomViaConnect,
+  unwrapAdminRole
 } from './fixtures/connectHelpers';
 import * as routes from './routes';
 
@@ -461,7 +463,7 @@ async function createServerRole(
   displayName: string,
   description: string
 ): Promise<void> {
-  const data = await connectPost<{ role?: { name?: string } }>(
+  const data = await connectPost<{ role?: E2EAdminRole }>(
     page,
     'chatto.admin.v1.AdminRoleService/CreateRole',
     {
@@ -470,8 +472,9 @@ async function createServerRole(
       description
     }
   );
-  if (data.role?.name !== name) {
-    throw new Error(`CreateRole returned ${data.role?.name ?? '<none>'}, want ${name}`);
+  const role = unwrapAdminRole(data.role);
+  if (role?.name !== name) {
+    throw new Error(`CreateRole returned ${role?.name ?? '<none>'}, want ${name}`);
   }
 }
 
@@ -485,13 +488,14 @@ async function assignServerRole(page: Page, userId: string, roleName: string): P
 }
 
 async function reorderServerRoles(page: Page, roleNames: string[]): Promise<void> {
-  const data = await connectPost<{ roles?: Array<{ name?: string }> }>(
+  const data = await connectPost<{ roles?: E2EAdminRole[] }>(
     page,
     'chatto.admin.v1.AdminRoleService/ReorderRoles',
     { roleNames }
   );
+  const roles = data.roles?.map(unwrapAdminRole) ?? [];
   for (const roleName of roleNames) {
-    expect(data.roles?.some((role) => role.name === roleName)).toBe(true);
+    expect(roles.some((role) => role?.name === roleName)).toBe(true);
   }
 }
 

@@ -4,6 +4,30 @@ type ConnectRequest = Record<string, unknown>;
 type ConnectClient = Page | APIRequestContext;
 const DEFAULT_POLL_TIMEOUT = process.env.CI ? 10_000 : 3_000;
 
+export interface E2EAdminRole {
+  role?: {
+    name?: string;
+    displayName?: string;
+    description?: string;
+    isSystem?: boolean;
+    position?: number;
+    pingable?: boolean;
+  };
+  permissions?: string[];
+  permissionDenials?: string[];
+}
+
+export interface E2EServerRole {
+  name?: string;
+  displayName?: string;
+  description?: string;
+  isSystem?: boolean;
+  position?: number;
+  pingable?: boolean;
+  permissions: string[];
+  permissionDenials: string[];
+}
+
 export type E2ENotificationLevel = 'DEFAULT' | 'MUTED' | 'NORMAL' | 'ALL_MESSAGES';
 
 export interface E2ENotificationPreference {
@@ -88,6 +112,15 @@ export async function connectPostResponse(
 
 function requestContext(client: ConnectClient): APIRequestContext {
   return 'request' in client ? client.request : client;
+}
+
+export function unwrapAdminRole(role: E2EAdminRole | undefined): E2EServerRole | undefined {
+  if (!role?.role) return undefined;
+  return {
+    ...role.role,
+    permissions: [...(role.permissions ?? [])],
+    permissionDenials: [...(role.permissionDenials ?? [])]
+  };
 }
 
 export async function getRoomIdByNameViaConnect(

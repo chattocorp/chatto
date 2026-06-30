@@ -1,6 +1,6 @@
 import { expect, type Page } from '@playwright/test';
 import { csrfHeaders } from './csrf';
-import { connectPost } from './connectHelpers';
+import { connectPost, type E2EAdminRole, unwrapAdminRole } from './connectHelpers';
 import { unloadPageForIdentitySwitch } from './navigation';
 
 export interface TestUser {
@@ -36,12 +36,6 @@ interface ServerStateResponse {
 
 interface PermissionMutationResponse {
   ok?: boolean;
-}
-
-interface CreateRoleResponse {
-  role?: {
-    name?: string;
-  };
 }
 
 interface AssignRoleResponse {
@@ -234,12 +228,12 @@ export async function denyUserPermission(
   const roleName = `deny${suffix}`;
   const displayName = `Deny ${permission} #${denyRoleCounter}`;
 
-  const created = await connectPost<CreateRoleResponse>(
+  const created = await connectPost<{ role?: E2EAdminRole }>(
     page,
     'chatto.admin.v1.AdminRoleService/CreateRole',
     { name: roleName, displayName, description: `Auto-created to deny ${permission}` }
   );
-  expect(created.role?.name).toBe(roleName);
+  expect(unwrapAdminRole(created.role)?.name).toBe(roleName);
 
   // Deny permission on role
   await denyPermission(page, roleName, permission);
