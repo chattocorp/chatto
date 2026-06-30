@@ -3,6 +3,18 @@
 All notable changes to Chatto. Maintained by release-please from the
 conventional-commit messages on `main` — do not edit by hand.
 
+## [0.4.0-beta.8](https://github.com/chattocorp/chatto/compare/v0.4.0-beta.7...v0.4.0-beta.8) (2026-06-30)
+
+
+### Features
+
+* **auth:** type runtime credentials ([#1195](https://github.com/chattocorp/chatto/issues/1195)) ([5f0ebe4](https://github.com/chattocorp/chatto/commit/5f0ebe4264d4f4539ce85f4d8c3d1a6a779a9702))
+
+
+### Bug Fixes
+
+* **frontend:** preserve touch composer line breaks ([#1194](https://github.com/chattocorp/chatto/issues/1194)) ([8c62c70](https://github.com/chattocorp/chatto/commit/8c62c700f1a4a07369cb17ba0dd2ea9141bcdf8d))
+
 ## [0.4.0-beta.7](https://github.com/chattocorp/chatto/compare/v0.4.0-beta.6...v0.4.0-beta.7) (2026-06-30)
 
 
