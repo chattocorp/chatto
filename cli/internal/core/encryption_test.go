@@ -3,6 +3,9 @@ package core
 import (
 	"bytes"
 	"context"
+	"fmt"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -18,8 +21,28 @@ import (
 	"hmans.de/chatto/pkg/signedurl"
 )
 
+type countingKeyWrapper struct {
+	kms.KeyWrapper
+	unwraps atomic.Int32
+}
+
+func (w *countingKeyWrapper) UnwrapContentKey(ctx context.Context, keyRef string, wrapped kms.WrappedContentKey, aad []byte) ([]byte, error) {
+	w.unwraps.Add(1)
+	return w.KeyWrapper.UnwrapContentKey(ctx, keyRef, wrapped, aad)
+}
+
+type delayedKeyWrapper struct {
+	kms.KeyWrapper
+	delay time.Duration
+}
+
+func (w delayedKeyWrapper) UnwrapContentKey(ctx context.Context, keyRef string, wrapped kms.WrappedContentKey, aad []byte) ([]byte, error) {
+	time.Sleep(w.delay)
+	return w.KeyWrapper.UnwrapContentKey(ctx, keyRef, wrapped, aad)
+}
+
 // setupTestCoreWithEncryption creates a ChattoCore for encryption tests.
-func setupTestCoreWithEncryption(t *testing.T) *ChattoCore {
+func setupTestCoreWithEncryption(t testing.TB) *ChattoCore {
 	t.Helper()
 
 	_, nc := testutil.StartSharedNATS(t)
@@ -249,6 +272,128 @@ func TestUserPIIAADRejectsWrongContext(t *testing.T) {
 	require.ErrorIs(t, err, encryption.ErrDecryptionFailed)
 }
 
+func TestGetMessageBody_ReusesRequestCachedMessageBodyDEK(t *testing.T) {
+	core := setupTestCoreWithEncryption(t)
+	ctx := testContext(t)
+
+	user, err := core.CreateUser(ctx, "system", "cacheuser", "Cache User", "password123")
+	require.NoError(t, err)
+	room, err := core.CreateRoom(ctx, user.Id, KindChannel, "", "General", "General chat")
+	require.NoError(t, err)
+	event, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "Secret message content", nil, "", "", nil, false)
+	require.NoError(t, err)
+
+	wrapper := &countingKeyWrapper{KeyWrapper: core.encryption.keyWrapper}
+	core.dekResolver.keyWrapper = wrapper
+
+	readCtx := WithDEKRequestCache(ctx)
+	body, err := core.GetMessageBody(readCtx, KindChannel, event.Id)
+	require.NoError(t, err)
+	require.Equal(t, "Secret message content", body)
+	body, err = core.GetMessageBody(readCtx, KindChannel, event.Id)
+	require.NoError(t, err)
+	require.Equal(t, "Secret message content", body)
+	require.EqualValues(t, 1, wrapper.unwraps.Load(), "message body DEK should be unwrapped once and then served from cache")
+}
+
+func TestUnwrappedDEKResolver_RequestCacheDoesNotPersistAcrossContexts(t *testing.T) {
+	key, err := encryption.GenerateKey()
+	require.NoError(t, err)
+	wrapper := &countingKeyWrapper{KeyWrapper: staticProjectionKeyWrapper{key: key}}
+	resolver := newUnwrappedDEKResolver(wrapper, staticProjectionDEKStore{})
+	event := &corev1.UserDEKGeneratedEvent{
+		UserId:        "U-cache",
+		Epoch:         1,
+		Purpose:       corev1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY,
+		ContentKeyRef: "dek.test",
+	}
+
+	ctx := WithDEKRequestCache(context.Background())
+	dek, err := resolver.Resolve(ctx, event, corev1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY)
+	require.NoError(t, err)
+	require.Equal(t, key, dek.key)
+	dek, err = resolver.Resolve(ctx, event, corev1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY)
+	require.NoError(t, err)
+	require.Equal(t, key, dek.key)
+	require.EqualValues(t, 1, wrapper.unwraps.Load())
+
+	dek, err = resolver.Resolve(WithDEKRequestCache(context.Background()), event, corev1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY)
+	require.NoError(t, err)
+	require.Equal(t, key, dek.key)
+	require.EqualValues(t, 2, wrapper.unwraps.Load())
+}
+
+func TestUnwrappedDEKResolver_RequestCacheCollapsesConcurrentMisses(t *testing.T) {
+	key, err := encryption.GenerateKey()
+	require.NoError(t, err)
+	wrapper := &countingKeyWrapper{KeyWrapper: delayedKeyWrapper{
+		KeyWrapper: staticProjectionKeyWrapper{key: key},
+		delay:      25 * time.Millisecond,
+	}}
+	resolver := newUnwrappedDEKResolver(wrapper, staticProjectionDEKStore{})
+	event := &corev1.UserDEKGeneratedEvent{
+		UserId:        "U-concurrent-cache",
+		Epoch:         1,
+		Purpose:       corev1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY,
+		ContentKeyRef: "dek.test",
+	}
+
+	ctx := WithDEKRequestCache(context.Background())
+	const goroutineCount = 16
+	start := make(chan struct{})
+	errs := make(chan error, goroutineCount)
+	var wg sync.WaitGroup
+	for i := 0; i < goroutineCount; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			dek, err := resolver.Resolve(ctx, event, corev1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY)
+			if err != nil {
+				errs <- err
+				return
+			}
+			if dek == nil || !bytes.Equal(key, dek.key) {
+				errs <- fmt.Errorf("resolved wrong DEK")
+				return
+			}
+			errs <- nil
+		}()
+	}
+
+	close(start)
+	wg.Wait()
+	close(errs)
+
+	for err := range errs {
+		require.NoError(t, err)
+	}
+	require.EqualValues(t, 1, wrapper.unwraps.Load(), "concurrent misses for one request cache key should share one unwrap")
+}
+
+func TestDeleteUserEncryptionKeyAsInvalidatesRequestCachedDEK(t *testing.T) {
+	core := setupTestCoreWithEncryption(t)
+	ctx := testContext(t)
+
+	user, err := core.CreateUser(ctx, "system", "requestcachedelete", "Request Cache Delete", "password123")
+	require.NoError(t, err)
+	room, err := core.CreateRoom(ctx, user.Id, KindChannel, "", "General", "General chat")
+	require.NoError(t, err)
+	event, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "Secret message content", nil, "", "", nil, false)
+	require.NoError(t, err)
+
+	readCtx := WithDEKRequestCache(ctx)
+	body, err := core.GetMessageBody(readCtx, KindChannel, event.Id)
+	require.NoError(t, err)
+	require.Equal(t, "Secret message content", body)
+
+	require.NoError(t, core.DeleteUserEncryptionKeyAs(readCtx, user.Id, user.Id))
+
+	body, err = core.GetMessageBody(readCtx, KindChannel, event.Id)
+	require.NoError(t, err)
+	require.Empty(t, body, "same request context should not keep using a DEK after deleting it")
+}
+
 func TestGetMessageBody_CryptoShredding(t *testing.T) {
 	core := setupTestCoreWithEncryption(t)
 	ctx := testContext(t)
@@ -271,10 +416,8 @@ func TestGetMessageBody_CryptoShredding(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "Secret message content", body)
 
-	// Delete the message-body DEK record (crypto-shredding)
-	contentKeyEvent, ok := core.ContentKeys.Active(user.Id, corev1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY)
-	require.True(t, ok)
-	require.NoError(t, core.encryption.contentKeys.Shred(ctx, contentKeyEvent.GetContentKeyRef()))
+	// Delete the user's DEK records through the core path.
+	require.NoError(t, core.DeleteUserEncryptionKeyAs(ctx, user.Id, user.Id))
 
 	// Verify message now returns empty string (crypto-shredded)
 	body, err = core.GetMessageBody(ctx, KindChannel, event.Id)

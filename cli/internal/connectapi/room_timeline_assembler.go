@@ -28,6 +28,8 @@ func newRoomTimelineAssembler(api *API) *roomTimelineAssembler {
 // Hydrating them here keeps the public API free of per-field resolver N+1s
 // and gives future clients one renderable page per request.
 func (a *roomTimelineAssembler) buildPage(ctx context.Context, viewerID string, kind core.RoomKind, events []*core.RoomEvent, hasOlder, hasNewer bool) (*apiv1.RoomTimelinePage, error) {
+	ctx = core.WithDEKRequestCache(ctx)
+
 	messageIDs := make([]string, 0, len(events))
 	for _, event := range events {
 		if event.GetMessagePosted() != nil {
@@ -86,6 +88,8 @@ func (a *roomTimelineAssembler) buildThreadPage(ctx context.Context, viewerID st
 }
 
 func (a *roomTimelineAssembler) hydrateEvent(ctx context.Context, viewerID string, kind core.RoomKind, event *corev1.Event) (*apiv1.RoomTimelineEvent, *apiv1.RoomTimelineIncludes, error) {
+	ctx = core.WithDEKRequestCache(ctx)
+
 	messageIDs := []string(nil)
 	if event.GetMessagePosted() != nil {
 		messageIDs = append(messageIDs, event.Id)

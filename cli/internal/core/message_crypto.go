@@ -8,7 +8,6 @@ import (
 
 	"hmans.de/chatto/internal/encryption"
 	"hmans.de/chatto/internal/events"
-	"hmans.de/chatto/internal/kms"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -86,43 +85,10 @@ func (c *ChattoCore) unwrapMessageContentKey(ctx context.Context, event *corev1.
 }
 
 func (c *ChattoCore) unwrapUserDEK(ctx context.Context, event *corev1.UserDEKGeneratedEvent, purpose corev1.UserDEKPurpose) (*userDEK, error) {
-	if event == nil {
-		return nil, fmt.Errorf("DEK event is nil")
-	}
-	userID := event.GetUserId()
-	epoch := event.GetEpoch()
-	contentKeyRef := event.GetContentKeyRef()
-	if userID == "" || epoch <= 0 || contentKeyRef == "" {
-		return nil, fmt.Errorf("invalid DEK event")
-	}
-	eventPurpose := event.GetPurpose()
-	if eventPurpose != corev1.UserDEKPurpose_USER_DEK_PURPOSE_UNSPECIFIED && purpose != corev1.UserDEKPurpose_USER_DEK_PURPOSE_UNSPECIFIED && eventPurpose != purpose {
-		return nil, fmt.Errorf("DEK purpose mismatch: event has %s, want %s", eventPurpose.String(), purpose.String())
-	}
-	if c.encryption.keyWrapper == nil {
+	if c.dekResolver == nil {
 		return nil, encryption.ErrKeyNotFound
 	}
-	if c.encryption.contentKeys == nil {
-		return nil, encryption.ErrKeyNotFound
-	}
-	stored, err := c.encryption.contentKeys.Get(ctx, contentKeyRef)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load DEK: %w", err)
-	}
-	keyRef := stored.WrappingKeyRef
-	if keyRef == "" {
-		keyRef = kms.LegacyUserKeyRef(userID)
-	}
-	key, err := c.encryption.keyWrapper.UnwrapContentKey(ctx, keyRef, kms.WrappedContentKey{
-		EncryptedContentKey: stored.EncryptedContentKey,
-		Nonce:               stored.ContentKeyNonce,
-		Algorithm:           stored.WrappingAlgorithm,
-		Metadata:            stored.WrappingMetadata,
-	}, userDEKAAD(userID, eventPurpose, epoch))
-	if err != nil {
-		return nil, fmt.Errorf("failed to unwrap DEK: %w", err)
-	}
-	return &userDEK{epoch: epoch, purpose: eventPurpose, key: key}, nil
+	return c.dekResolver.Resolve(ctx, event, purpose)
 }
 
 func (c *ChattoCore) generateInitialUserDEK(ctx context.Context, userID string, purpose corev1.UserDEKPurpose) (*userDEK, error) {

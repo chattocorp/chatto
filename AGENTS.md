@@ -34,6 +34,9 @@ path-specific guidance.
 ## Prime Directives
 
 - Prefer simple, clear changes over clever abstractions.
+- Add concise code documentation for public APIs and for otherwise important
+  fields, functions, types, invariants, and lifecycle behavior that future
+  maintainers should not have to infer from call sites.
 - Keep tests and documentation up to date when changing behavior.
 - Run verification that would actually catch regressions in the area touched.
 - Never claim full verification when only a partial signal was run.

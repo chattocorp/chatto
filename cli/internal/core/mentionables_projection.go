@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"google.golang.org/protobuf/proto"
+
 	"hmans.de/chatto/internal/dekstore"
 	"hmans.de/chatto/internal/encryption"
 	"hmans.de/chatto/internal/events"
@@ -35,18 +37,23 @@ type MentionablesProjection struct {
 	events.MemoryProjection
 	owners      map[string]map[mentionableOwner]struct{}
 	userLogins  map[string]string
-	keyWrapper  kms.KeyWrapper
-	dekStore    dekstore.Reader
-	contentKeys map[string]map[corev1.UserDEKPurpose]map[int32][]byte
+	dekResolver *unwrappedDEKResolver
+	dekEvents   map[string]map[corev1.UserDEKPurpose]map[int32]*corev1.UserDEKGeneratedEvent
 }
 
+// NewMentionablesProjection creates the global mentionable-handle read model.
+// It keeps encrypted DEK event references for replay, while raw key bytes are
+// resolved through the shared unwrapped-DEK resolver.
 func NewMentionablesProjection(keyWrapper kms.KeyWrapper, dekStore dekstore.Reader) *MentionablesProjection {
+	return newMentionablesProjectionWithDEKResolver(newUnwrappedDEKResolver(keyWrapper, dekStore))
+}
+
+func newMentionablesProjectionWithDEKResolver(dekResolver *unwrappedDEKResolver) *MentionablesProjection {
 	p := &MentionablesProjection{
 		owners:      make(map[string]map[mentionableOwner]struct{}),
 		userLogins:  make(map[string]string),
-		keyWrapper:  keyWrapper,
-		dekStore:    dekStore,
-		contentKeys: make(map[string]map[corev1.UserDEKPurpose]map[int32][]byte),
+		dekResolver: dekResolver,
+		dekEvents:   make(map[string]map[corev1.UserDEKPurpose]map[int32]*corev1.UserDEKGeneratedEvent),
 	}
 	p.addOwner(MentionHandleAll, mentionableOwner{kind: mentionableOwnerVirtual, id: MentionHandleAll})
 	p.addOwner(MentionHandleHere, mentionableOwner{kind: mentionableOwnerVirtual, id: MentionHandleHere})
@@ -85,37 +92,20 @@ func (p *MentionablesProjection) Apply(event *corev1.Event, _ uint64) error {
 }
 
 func (p *MentionablesProjection) applyDEKGenerated(e *corev1.UserDEKGeneratedEvent) {
-	if e == nil || e.GetUserId() == "" || e.GetEpoch() <= 0 || e.GetContentKeyRef() == "" || p.keyWrapper == nil || p.dekStore == nil {
+	if e == nil || e.GetUserId() == "" || e.GetEpoch() <= 0 || e.GetContentKeyRef() == "" {
 		return
 	}
-	stored, err := p.dekStore.Get(context.Background(), e.GetContentKeyRef())
-	if err != nil {
-		return
-	}
-	keyRef := stored.WrappingKeyRef
-	if keyRef == "" {
-		keyRef = kms.LegacyUserKeyRef(e.GetUserId())
-	}
-	key, err := p.keyWrapper.UnwrapContentKey(context.Background(), keyRef, kms.WrappedContentKey{
-		EncryptedContentKey: stored.EncryptedContentKey,
-		Nonce:               stored.ContentKeyNonce,
-		Algorithm:           stored.WrappingAlgorithm,
-		Metadata:            stored.WrappingMetadata,
-	}, userDEKAAD(e.GetUserId(), e.GetPurpose(), e.GetEpoch()))
-	if err != nil {
-		return
-	}
-	byPurpose := p.contentKeys[e.GetUserId()]
+	byPurpose := p.dekEvents[e.GetUserId()]
 	if byPurpose == nil {
-		byPurpose = make(map[corev1.UserDEKPurpose]map[int32][]byte)
-		p.contentKeys[e.GetUserId()] = byPurpose
+		byPurpose = make(map[corev1.UserDEKPurpose]map[int32]*corev1.UserDEKGeneratedEvent)
+		p.dekEvents[e.GetUserId()] = byPurpose
 	}
 	epochs := byPurpose[e.GetPurpose()]
 	if epochs == nil {
-		epochs = make(map[int32][]byte)
+		epochs = make(map[int32]*corev1.UserDEKGeneratedEvent)
 		byPurpose[e.GetPurpose()] = epochs
 	}
-	epochs[e.GetEpoch()] = append([]byte(nil), key...)
+	epochs[e.GetEpoch()] = proto.Clone(e).(*corev1.UserDEKGeneratedEvent)
 }
 
 func (p *MentionablesProjection) applyUserAccountCreated(eventID string, e *corev1.UserAccountCreatedEvent) {
@@ -151,7 +141,7 @@ func (p *MentionablesProjection) applyUserKeyShredded(e *corev1.UserKeyShreddedE
 	if e == nil || e.GetUserId() == "" {
 		return
 	}
-	delete(p.contentKeys, e.GetUserId())
+	delete(p.dekEvents, e.GetUserId())
 }
 
 func (p *MentionablesProjection) setUserLogin(userID, login string) {
@@ -202,18 +192,22 @@ func (p *MentionablesProjection) userPIIString(eventID, userID, eventType, purpo
 	if encrypted == nil {
 		return "", false
 	}
-	byPurpose := p.contentKeys[userID]
+	byPurpose := p.dekEvents[userID]
 	if byPurpose == nil {
 		return "", false
 	}
-	key := byPurpose[corev1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII][encrypted.GetContentKeyEpoch()]
-	if len(key) == 0 {
-		key = byPurpose[corev1.UserDEKPurpose_USER_DEK_PURPOSE_UNSPECIFIED][encrypted.GetContentKeyEpoch()]
+	event := byPurpose[corev1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII][encrypted.GetContentKeyEpoch()]
+	if event == nil {
+		event = byPurpose[corev1.UserDEKPurpose_USER_DEK_PURPOSE_UNSPECIFIED][encrypted.GetContentKeyEpoch()]
 	}
-	if len(key) == 0 {
+	if event == nil || p.dekResolver == nil {
 		return "", false
 	}
-	plaintext, err := decryptUserPIIString(key, eventID, userID, eventType, purpose, encrypted)
+	dek, err := p.dekResolver.Resolve(context.Background(), event, corev1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII)
+	if err != nil || dek == nil || len(dek.key) == 0 {
+		return "", false
+	}
+	plaintext, err := decryptUserPIIString(dek.key, eventID, userID, eventType, purpose, encrypted)
 	if err != nil {
 		if errors.Is(err, encryption.ErrDecryptionFailed) || errors.Is(err, encryption.ErrKeyNotFound) {
 			return "", false

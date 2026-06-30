@@ -39,6 +39,7 @@ type ChattoCore struct {
 	storage            *storage
 	config             config.CoreConfig
 	encryption         *encryptionManager
+	dekResolver        *unwrappedDEKResolver
 	configManager      *ConfigManager
 	roomModel          *RoomModel
 	roomCommands       *RoomCommandModel
@@ -517,6 +518,7 @@ func (c *ChattoCore) DeleteUserEncryptionKeyAs(ctx context.Context, actorID, use
 	if !shredded {
 		return nil
 	}
+	forgetDEKRequestCacheUser(ctx, userID)
 
 	event := newEvent(actorID, &corev1.Event{
 		Event: &corev1.Event_UserKeyShredded{
@@ -941,7 +943,9 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	reactions := NewReactionProjection()
 	reactionsProjector := newProjector(reactions, "reactions", "Reactions", reactions.adminProjectionEstimate)
 
-	users := NewUserProjection(encMgr.keyWrapper, encMgr.contentKeys)
+	dekResolver := newUnwrappedDEKResolver(encMgr.keyWrapper, encMgr.contentKeys)
+
+	users := newUserProjectionWithDEKResolver(dekResolver)
 	usersProjector := newProjector(users, "users", "Users", users.adminProjectionEstimate)
 
 	contentKeys := NewContentKeyProjection()
@@ -950,7 +954,7 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	rbac := NewRBACProjection()
 	rbacProjector := newProjector(rbac, "rbac", "RBAC", rbac.adminProjectionEstimate)
 
-	mentionables := NewMentionablesProjection(encMgr.keyWrapper, encMgr.contentKeys)
+	mentionables := newMentionablesProjectionWithDEKResolver(dekResolver)
 	mentionablesProjector := newProjector(mentionables, "mentionables", "Mentionables", mentionables.adminProjectionEstimate)
 
 	configModel := NewConfigModel(eventPublisher, serverConfigProjector, serverConfigProjection)
@@ -978,6 +982,7 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 		storage:                  storage,
 		config:                   cfg,
 		encryption:               encMgr,
+		dekResolver:              dekResolver,
 		configManager:            configMgr,
 		roomModel:                roomMgr,
 		userModel:                userMgr,

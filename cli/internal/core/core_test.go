@@ -60,7 +60,7 @@ func setupTestCore(t *testing.T) (*ChattoCore, *nats.Conn) {
 //
 // Once `core.Run` owns the lifecycle of every background service, new
 // projectors (ADR-035) get picked up here automatically.
-func startCoreServices(t *testing.T, core *ChattoCore) {
+func startCoreServices(t testing.TB, core *ChattoCore) {
 	t.Helper()
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan error, 1)

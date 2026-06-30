@@ -26,9 +26,8 @@ type UserProjection struct {
 	emailIndex    map[string]string
 	identityIndex map[string]string
 	eventIDSeen   eventIDSet
-	keyWrapper    kms.KeyWrapper
-	dekStore      dekstore.Reader
-	contentKeys   map[string]map[corev1.UserDEKPurpose]map[int32][]byte
+	dekResolver   *unwrappedDEKResolver
+	dekEvents     map[string]map[corev1.UserDEKPurpose]map[int32]*corev1.UserDEKGeneratedEvent
 }
 
 type projectedUser struct {
@@ -44,16 +43,22 @@ type projectedUser struct {
 	loginChanged   time.Time
 }
 
+// NewUserProjection creates the user/account read model. It owns user-facing
+// projected state, while unwrapped DEK bytes are delegated to a resolver so
+// user PII and message-body reads share one cache and shred path.
 func NewUserProjection(keyWrapper kms.KeyWrapper, dekStore dekstore.Reader) *UserProjection {
+	return newUserProjectionWithDEKResolver(newUnwrappedDEKResolver(keyWrapper, dekStore))
+}
+
+func newUserProjectionWithDEKResolver(dekResolver *unwrappedDEKResolver) *UserProjection {
 	return &UserProjection{
 		users:         make(map[string]*projectedUser),
 		loginIndex:    make(map[string]string),
 		emailIndex:    make(map[string]string),
 		identityIndex: make(map[string]string),
 		eventIDSeen:   newEventIDSet(),
-		keyWrapper:    keyWrapper,
-		dekStore:      dekStore,
-		contentKeys:   make(map[string]map[corev1.UserDEKPurpose]map[int32][]byte),
+		dekResolver:   dekResolver,
+		dekEvents:     make(map[string]map[corev1.UserDEKPurpose]map[int32]*corev1.UserDEKGeneratedEvent),
 	}
 }
 
@@ -132,38 +137,21 @@ func (p *UserProjection) ensureUserLocked(userID string) *projectedUser {
 }
 
 func (p *UserProjection) applyDEKGenerated(e *corev1.UserDEKGeneratedEvent) {
-	if e == nil || e.GetUserId() == "" || e.GetEpoch() <= 0 || e.GetContentKeyRef() == "" || p.keyWrapper == nil || p.dekStore == nil {
+	if e == nil || e.GetUserId() == "" || e.GetEpoch() <= 0 || e.GetContentKeyRef() == "" {
 		return
 	}
 	purpose := e.GetPurpose()
-	stored, err := p.dekStore.Get(context.Background(), e.GetContentKeyRef())
-	if err != nil {
-		return
-	}
-	keyRef := stored.WrappingKeyRef
-	if keyRef == "" {
-		keyRef = kms.LegacyUserKeyRef(e.GetUserId())
-	}
-	key, err := p.keyWrapper.UnwrapContentKey(context.Background(), keyRef, kms.WrappedContentKey{
-		EncryptedContentKey: stored.EncryptedContentKey,
-		Nonce:               stored.ContentKeyNonce,
-		Algorithm:           stored.WrappingAlgorithm,
-		Metadata:            stored.WrappingMetadata,
-	}, userDEKAAD(e.GetUserId(), purpose, e.GetEpoch()))
-	if err != nil {
-		return
-	}
-	byPurpose := p.contentKeys[e.GetUserId()]
+	byPurpose := p.dekEvents[e.GetUserId()]
 	if byPurpose == nil {
-		byPurpose = make(map[corev1.UserDEKPurpose]map[int32][]byte)
-		p.contentKeys[e.GetUserId()] = byPurpose
+		byPurpose = make(map[corev1.UserDEKPurpose]map[int32]*corev1.UserDEKGeneratedEvent)
+		p.dekEvents[e.GetUserId()] = byPurpose
 	}
 	epochs := byPurpose[purpose]
 	if epochs == nil {
-		epochs = make(map[int32][]byte)
+		epochs = make(map[int32]*corev1.UserDEKGeneratedEvent)
 		byPurpose[purpose] = epochs
 	}
-	epochs[e.GetEpoch()] = append([]byte(nil), key...)
+	epochs[e.GetEpoch()] = proto.Clone(e).(*corev1.UserDEKGeneratedEvent)
 }
 
 func (p *UserProjection) applyAccountCreated(eventID string, e *corev1.UserAccountCreatedEvent, envelopeCreatedAt *timestamppb.Timestamp) {
@@ -410,14 +398,14 @@ func (p *UserProjection) applyAccountDeleted(e *corev1.UserAccountDeletedEvent, 
 	u.verifiedEmail = make(map[string]VerifiedEmail)
 	u.oauthConsent = make(map[string]struct{})
 	u.loginChanged = time.Time{}
-	delete(p.contentKeys, e.GetUserId())
+	delete(p.dekEvents, e.GetUserId())
 }
 
 func (p *UserProjection) applyKeyShredded(e *corev1.UserKeyShreddedEvent) {
 	if e == nil || e.GetUserId() == "" {
 		return
 	}
-	delete(p.contentKeys, e.GetUserId())
+	delete(p.dekEvents, e.GetUserId())
 	u := p.ensureUserLocked(e.GetUserId())
 	if u.user != nil && u.user.GetLogin() != "" {
 		delete(p.loginIndex, strings.ToLower(u.user.GetLogin()))
@@ -463,18 +451,22 @@ func (p *UserProjection) userPIIString(eventID, userID, eventType, purpose strin
 	if encrypted == nil {
 		return "", false
 	}
-	byPurpose := p.contentKeys[userID]
+	byPurpose := p.dekEvents[userID]
 	if byPurpose == nil {
 		return "", false
 	}
-	key := byPurpose[corev1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII][encrypted.GetContentKeyEpoch()]
-	if len(key) == 0 {
-		key = byPurpose[corev1.UserDEKPurpose_USER_DEK_PURPOSE_UNSPECIFIED][encrypted.GetContentKeyEpoch()]
+	event := byPurpose[corev1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII][encrypted.GetContentKeyEpoch()]
+	if event == nil {
+		event = byPurpose[corev1.UserDEKPurpose_USER_DEK_PURPOSE_UNSPECIFIED][encrypted.GetContentKeyEpoch()]
 	}
-	if len(key) == 0 {
+	if event == nil || p.dekResolver == nil {
 		return "", false
 	}
-	plaintext, err := decryptUserPIIString(key, eventID, userID, eventType, purpose, encrypted)
+	dek, err := p.dekResolver.Resolve(context.Background(), event, corev1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII)
+	if err != nil || dek == nil || len(dek.key) == 0 {
+		return "", false
+	}
+	plaintext, err := decryptUserPIIString(dek.key, eventID, userID, eventType, purpose, encrypted)
 	if err != nil {
 		if errors.Is(err, encryption.ErrDecryptionFailed) || errors.Is(err, encryption.ErrKeyNotFound) {
 			return "", false
