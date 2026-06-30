@@ -968,4 +968,3 @@ export class AdminProjectionMetric extends Message<AdminProjectionMetric> {
     return proto3.util.equals(AdminProjectionMetric, a, b);
   }
 }
-

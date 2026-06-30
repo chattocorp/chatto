@@ -269,4 +269,3 @@ export class ListRoomMembersResponse extends Message<ListRoomMembersResponse> {
     return proto3.util.equals(ListRoomMembersResponse, a, b);
   }
 }
-

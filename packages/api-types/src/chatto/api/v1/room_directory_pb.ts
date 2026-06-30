@@ -653,4 +653,3 @@ export class GetRoomResponse extends Message<GetRoomResponse> {
     return proto3.util.equals(GetRoomResponse, a, b);
   }
 }
-

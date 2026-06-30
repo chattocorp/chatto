@@ -50,4 +50,3 @@ export const UserDirectoryService = {
     },
   }
 } as const;
-

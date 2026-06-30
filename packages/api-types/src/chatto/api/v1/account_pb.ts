@@ -602,4 +602,3 @@ export class DeleteMyAccountResponse extends Message<DeleteMyAccountResponse> {
     return proto3.util.equals(DeleteMyAccountResponse, a, b);
   }
 }
-

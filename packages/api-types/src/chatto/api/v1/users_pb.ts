@@ -499,4 +499,3 @@ export class BatchGetUsersResponse extends Message<BatchGetUsersResponse> {
     return proto3.util.equals(BatchGetUsersResponse, a, b);
   }
 }
-

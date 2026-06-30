@@ -931,4 +931,3 @@ export class DismissAllNotificationsResponse extends Message<DismissAllNotificat
     return proto3.util.equals(DismissAllNotificationsResponse, a, b);
   }
 }
-

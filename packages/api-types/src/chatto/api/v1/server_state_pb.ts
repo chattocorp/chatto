@@ -333,4 +333,3 @@ export class GetServerStateResponse extends Message<GetServerStateResponse> {
     return proto3.util.equals(GetServerStateResponse, a, b);
   }
 }
-

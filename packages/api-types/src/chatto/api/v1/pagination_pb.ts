@@ -105,4 +105,3 @@ export class PageInfo extends Message<PageInfo> {
     return proto3.util.equals(PageInfo, a, b);
   }
 }
-

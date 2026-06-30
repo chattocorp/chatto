@@ -193,4 +193,3 @@ export class UnsubscribePushResponse extends Message<UnsubscribePushResponse> {
     return proto3.util.equals(UnsubscribePushResponse, a, b);
   }
 }
-

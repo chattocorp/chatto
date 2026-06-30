@@ -1335,4 +1335,3 @@ export class ListRoomBansResponse extends Message<ListRoomBansResponse> {
     return proto3.util.equals(ListRoomBansResponse, a, b);
   }
 }
-

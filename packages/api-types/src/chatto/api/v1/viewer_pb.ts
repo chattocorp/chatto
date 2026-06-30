@@ -434,4 +434,3 @@ export class GetViewerResponse extends Message<GetViewerResponse> {
     return proto3.util.equals(GetViewerResponse, a, b);
   }
 }
-

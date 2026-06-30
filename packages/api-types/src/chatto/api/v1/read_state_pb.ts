@@ -207,4 +207,3 @@ export class MarkThreadAsReadResponse extends Message<MarkThreadAsReadResponse> 
     return proto3.util.equals(MarkThreadAsReadResponse, a, b);
   }
 }
-

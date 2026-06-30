@@ -85,4 +85,3 @@ export const AdminRoleService = {
     },
   }
 } as const;
-

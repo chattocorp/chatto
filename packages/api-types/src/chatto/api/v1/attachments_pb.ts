@@ -440,4 +440,3 @@ export class RefreshMessageAttachmentUrlsResponse extends Message<RefreshMessage
     return proto3.util.equals(RefreshMessageAttachmentUrlsResponse, a, b);
   }
 }
-

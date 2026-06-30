@@ -39,4 +39,3 @@ export const MemberDirectoryService = {
     },
   }
 } as const;
-

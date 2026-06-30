@@ -771,4 +771,3 @@ export class SendTypingIndicatorResponse extends Message<SendTypingIndicatorResp
     return proto3.util.equals(SendTypingIndicatorResponse, a, b);
   }
 }
-

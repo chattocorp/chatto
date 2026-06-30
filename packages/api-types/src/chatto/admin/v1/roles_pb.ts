@@ -637,4 +637,3 @@ export class ReorderRolesResponse extends Message<ReorderRolesResponse> {
     return proto3.util.equals(ReorderRolesResponse, a, b);
   }
 }
-
