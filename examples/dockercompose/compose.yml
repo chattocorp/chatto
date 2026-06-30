@@ -17,6 +17,7 @@ services:
       - /etc/livekit.yaml
     ports:
       - "50000-50200:50000-50200/udp"  # WebRTC media (UDP, must be direct)
+      - "3478:3478/udp"  # TURN/STUN relay for NAT traversal
     expose:
       - "7880"  # WebSocket signaling (proxied through Caddy)
     volumes:

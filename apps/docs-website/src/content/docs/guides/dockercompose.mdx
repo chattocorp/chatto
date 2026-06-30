@@ -32,7 +32,7 @@ Consider all of these optional; if you don't want to use Caddy, feel free to rep
 - Docker and Docker Compose v2
 - A domain pointing to your server (e.g., `chat.example.com`)
 - A `livekit.*` subdomain pointing to the same server (e.g., `livekit.chat.example.com`)
-- Firewall allowing inbound TCP 80, 443 and UDP 50000-50200
+- Firewall allowing inbound TCP 80/443 and UDP 3478, 50000-50200
 - SMTP credentials for email/password registration, email verification, and password reset
 
 ## Setup
@@ -162,27 +162,29 @@ If you don't need voice and video calls, simplify the stack by:
 3. Removing the `livekit.*` block from the `Caddyfile`
 4. Removing the `CHATTO_LIVEKIT_*` variables from `.env`
 
-You won't need the `livekit.*` subdomain or the UDP port range.
+You won't need the `livekit.*` subdomain or the LiveKit UDP ports.
 
 ## TURN Server for Restrictive Networks
 
-The default setup exposes LiveKit's UDP port range directly. This works for most networks, but users behind strict corporate firewalls or symmetric NATs that block all UDP traffic won't be able to join calls.
-
-For Docker Compose deployments, the shortest path is LiveKit's built-in TURN server on a dedicated TCP port:
-
-```yaml
-turn:
-  enabled: true
-  tls_port: 5349
-```
-
-Expose that port on the `livekit` service:
+The default setup exposes LiveKit's direct UDP media range and its embedded TURN/UDP relay:
 
 ```yaml
 ports:
   - "50000-50200:50000-50200/udp"
-  - "5349:5349/tcp" # TURN/TLS relay
+  - "3478:3478/udp"
 ```
+
+The generated and checked-in LiveKit configs enable the matching relay:
+
+```yaml
+turn:
+  enabled: true
+  udp_port: 3478
+```
+
+This helps with symmetric NATs and many mobile, Firefox, and restrictive-network failures while keeping the Compose example certificate-free.
+
+Networks that block UDP entirely still need TURN/TLS. Add that only when you also provide a TURN domain plus certificate/key, or run LiveKit behind L4 TLS forwarding that terminates TLS before LiveKit.
 
 <Aside>
   Some networks only allow outbound traffic on TCP 443. If you need TURN on
@@ -204,9 +206,9 @@ See [Voice & Video Calls](/guides/voice-calls/#turn-for-restrictive-networks) fo
 
 **Container startup order** — `depends_on` with `condition: service_healthy` ensures NATS and LiveKit are ready before Chatto starts. If health checks fail, check the individual service logs.
 
-**Calls don't connect** — Verify the LiveKit API key/secret in `.env` matches the selected LiveKit config (`livekit.generated.yaml` or `livekit.yaml`). Ensure `CHATTO_LIVEKIT_URL` uses the public `wss://livekit.*` subdomain (browsers connect to it directly). Check that UDP 50000-50200 is open in your firewall.
+**Calls don't connect** — Verify the LiveKit API key/secret in `.env` matches the selected LiveKit config (`livekit.generated.yaml` or `livekit.yaml`). Ensure `CHATTO_LIVEKIT_URL` uses the public `wss://livekit.*` subdomain (browsers connect to it directly). Check that UDP 3478 and 50000-50200 are open in your firewall.
 
-**Calls fail for some users** — Users behind firewalls that block UDP need a TURN relay. See [TURN server for restrictive networks](#turn-server-for-restrictive-networks).
+**Calls fail for some users** — Confirm the built-in TURN/UDP relay is reachable on UDP 3478. Users behind firewalls that block UDP entirely need TURN/TLS. See [TURN server for restrictive networks](#turn-server-for-restrictive-networks).
 
 <CardGrid>
   <LinkCard

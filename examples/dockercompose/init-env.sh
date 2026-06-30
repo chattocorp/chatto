@@ -129,6 +129,10 @@ rtc:
   port_range_end: 50200
   use_external_ip: true
 
+turn:
+  enabled: true
+  udp_port: 3478
+
 keys:
   ${livekit_api_key}: ${livekit_api_secret}
 

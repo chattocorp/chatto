@@ -12,6 +12,7 @@ This example deploys a clustered Chatto setup with:
 - Docker and Docker Compose (v2) installed
 - A domain pointing to your server (for automatic HTTPS)
 - A `livekit.` subdomain pointing to the same server (e.g., `livekit.chat.example.com`)
+- Firewall allowing inbound TCP 80/443 and UDP 3478, 50000-50200
 
 ## Configuration
 
@@ -134,4 +135,6 @@ If you don't need voice calls, remove the `livekit` service from `compose.yml`, 
 
 **Voice calls not working**: Ensure the LiveKit API key/secret in `.env` matches the `keys:` section in the selected LiveKit config (`livekit.generated.yaml` or `livekit.yaml`). Also verify the webhook URL points to your Chatto instance. Make sure `CHATTO_LIVEKIT_URL` uses the public `wss://livekit.` subdomain (not the internal Docker hostname), since browsers connect to it directly.
 
-**LiveKit UDP ports**: WebRTC requires UDP ports 50000-50200. Ensure your firewall allows inbound UDP on this range.
+**LiveKit UDP ports**: The example exposes UDP 50000-50200 for direct WebRTC media and UDP 3478 for LiveKit's embedded TURN/STUN relay. Ensure your firewall allows inbound UDP on both.
+
+**Calls fail for some users**: The built-in TURN/UDP relay helps with symmetric NATs and some mobile, Firefox, and restrictive-network cases. Networks that block UDP entirely still need an advanced TURN/TLS setup, such as a dedicated TURN host or L4 TLS forwarding with matching certificates.
