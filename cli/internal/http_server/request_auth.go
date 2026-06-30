@@ -11,7 +11,7 @@ import (
 )
 
 // injectUserIntoContext extracts the authenticated user from either a bearer token
-// or the Gin session cookie, and returns an updated http.Request with the user
+// or the runtime credential handle in the Gin session cookie, and returns an updated http.Request with the user
 // injected into its context.
 // Returns the original request if no user is authenticated (allowing unauthenticated requests).
 func (s *HTTPServer) injectUserIntoContext(c *gin.Context) *http.Request {

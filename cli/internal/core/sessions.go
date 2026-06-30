@@ -127,6 +127,17 @@ func (c *ChattoCore) ValidateCookieSession(ctx context.Context, userID, sessionI
 	return c.validateLegacyCookieSession(ctx, userID, sessionID)
 }
 
+// ValidateCookieCredential validates a typed cookie-presentation runtime
+// credential. Unlike deprecated cookie_session.* records, typed credentials
+// carry their user ID in the runtime-state record, so callers do not need to
+// trust or duplicate the user ID in the signed browser cookie.
+func (c *ChattoCore) ValidateCookieCredential(ctx context.Context, sessionID string) (*corev1.CookieSession, error) {
+	if sessionID == "" {
+		return nil, ErrCookieSessionNotFound
+	}
+	return c.validateTokenBackedCookieSession(ctx, "", sessionID)
+}
+
 func (c *ChattoCore) validateTokenBackedCookieSession(ctx context.Context, userID, sessionID string) (*corev1.CookieSession, error) {
 	key := c.authTokenKey(sessionID)
 	entry, err := c.storage.runtimeStateKV.Get(ctx, key)
@@ -142,11 +153,13 @@ func (c *ChattoCore) validateTokenBackedCookieSession(ctx context.Context, userI
 		_ = c.storage.runtimeStateKV.Delete(ctx, key)
 		return nil, ErrCookieSessionNotFound
 	}
-	if tokenData.UserID != userID ||
-		tokenData.kindOrDefault() != AuthTokenKindFirstPartySession ||
+	if tokenData.kindOrDefault() != AuthTokenKindFirstPartySession ||
 		tokenData.presentationOrDefault() != AuthTokenPresentationCookie ||
 		tokenData.CreatedAt.IsZero() {
 		_ = c.storage.runtimeStateKV.Delete(ctx, key)
+		return nil, ErrCookieSessionNotFound
+	}
+	if userID != "" && tokenData.UserID != userID {
 		return nil, ErrCookieSessionNotFound
 	}
 
@@ -250,11 +263,14 @@ func (c *ChattoCore) cookieSessionRecordFromAuthTokenData(tokenData AuthTokenDat
 // It deletes both current and deprecated legacy cookie-session storage shapes;
 // keep the legacy delete until validateLegacyCookieSession is removed.
 func (c *ChattoCore) RevokeCookieSession(ctx context.Context, userID, sessionID string) error {
-	if userID == "" || sessionID == "" {
+	if sessionID == "" {
 		return nil
 	}
 	if err := c.storage.runtimeStateKV.Delete(ctx, c.authTokenKey(sessionID)); err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) {
 		return fmt.Errorf("failed to revoke cookie session token: %w", err)
+	}
+	if userID == "" {
+		return nil
 	}
 	err := c.storage.runtimeStateKV.Delete(ctx, c.cookieSessionKey(userID, sessionID))
 	if err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) {

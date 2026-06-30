@@ -68,9 +68,12 @@ Migration is phased:
 3. Write browser cookie sessions as first-party `session.{hmac}` runtime
    credentials with `presentation = "cookie"` while continuing to validate
    legacy `cookie_session.*` records.
-4. Keep cookie rotation, revocation, and auth-context injection on the shared
+4. Store only the opaque runtime credential handle in newly written signed
+   browser sessions. Keep dual-read support for legacy signed sessions that
+   contain `user_id` plus `cookie_session_id`.
+5. Keep cookie rotation, revocation, and auth-context injection on the shared
    credential path where possible.
-5. Keep legacy record validation and cleanup until existing TTLs expire or a
+6. Keep legacy record validation and cleanup until existing TTLs expire or a
    documented pre-1.0 compatibility cutoff removes them. The
    `cookie_session.*` keyspace is deprecated compatibility-only storage and must
    not receive new writes.

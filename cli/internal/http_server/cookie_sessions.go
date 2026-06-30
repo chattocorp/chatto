@@ -15,8 +15,9 @@ import (
 )
 
 const (
-	sessionKeyUserID          = "user_id"
-	sessionKeyCookieSessionID = "cookie_session_id"
+	sessionKeyRuntimeCredentialID = "runtime_credential_id"
+	sessionKeyUserID              = "user_id"
+	sessionKeyCookieSessionID     = "cookie_session_id"
 )
 
 func (s *HTTPServer) createCookieSession(c *gin.Context, userID, source string) error {
@@ -40,10 +41,10 @@ func (s *HTTPServer) createConnectBrowserSession(c *gin.Context, userID, source 
 		return connectapi.BrowserSession{}, err
 	}
 	session := sessions.Default(c)
-	cookieUserID, cookieSessionID, _ := cookieSessionIDs(session)
+	cookieCredential, _ := cookieCredentialFromSession(session)
 	browserSession := connectapi.BrowserSession{
 		Revoke: func(ctx context.Context) error {
-			_ = s.core.RevokeCookieSession(ctx, cookieUserID, cookieSessionID)
+			_ = s.core.RevokeCookieSession(ctx, userID, cookieCredential.sessionID)
 			clearCookieSessionAuth(session)
 			clearCSRFCookie(c)
 			return nil
@@ -58,8 +59,9 @@ func (s *HTTPServer) createConnectBrowserSession(c *gin.Context, userID, source 
 
 func saveCookieSession(c *gin.Context, userID, sessionID string) error {
 	session := sessions.Default(c)
-	session.Set(sessionKeyUserID, userID)
-	session.Set(sessionKeyCookieSessionID, sessionID)
+	session.Set(sessionKeyRuntimeCredentialID, sessionID)
+	session.Delete(sessionKeyUserID)
+	session.Delete(sessionKeyCookieSessionID)
 	return session.Save()
 }
 
@@ -67,41 +69,72 @@ func clearCookieSessionAuth(session sessions.Session) {
 	if session == nil {
 		return
 	}
+	session.Delete(sessionKeyRuntimeCredentialID)
 	session.Delete(sessionKeyUserID)
 	session.Delete(sessionKeyCookieSessionID)
 	_ = session.Save()
 }
 
-func cookieSessionIDs(session sessions.Session) (string, string, bool) {
+type cookieCredential struct {
+	userID    string
+	sessionID string
+	legacy    bool
+}
+
+func cookieCredentialFromSession(session sessions.Session) (cookieCredential, bool) {
 	if session == nil {
-		return "", "", false
+		return cookieCredential{}, false
+	}
+	if sessionID, _ := session.Get(sessionKeyRuntimeCredentialID).(string); sessionID != "" {
+		return cookieCredential{sessionID: sessionID}, true
 	}
 	userID, _ := session.Get(sessionKeyUserID).(string)
 	sessionID, _ := session.Get(sessionKeyCookieSessionID).(string)
-	return userID, sessionID, userID != "" && sessionID != ""
+	return cookieCredential{userID: userID, sessionID: sessionID, legacy: true}, userID != "" && sessionID != ""
+}
+
+func cookieSessionIDs(session sessions.Session) (string, string, bool) {
+	credential, ok := cookieCredentialFromSession(session)
+	if !ok {
+		return "", "", false
+	}
+	return credential.userID, credential.sessionID, true
 }
 
 func (s *HTTPServer) validateCookieSession(c *gin.Context) (string, string, *corev1.CookieSession, bool) {
 	session := sessions.Default(c)
-	userID, sessionID, ok := cookieSessionIDs(session)
+	credential, ok := cookieCredentialFromSession(session)
 	if !ok {
-		if userID != "" || sessionID != "" {
+		if session.Get(sessionKeyRuntimeCredentialID) != nil ||
+			session.Get(sessionKeyUserID) != nil ||
+			session.Get(sessionKeyCookieSessionID) != nil {
 			clearCookieSessionAuth(session)
 		}
 		return "", "", nil, false
 	}
 
-	record, err := s.core.ValidateCookieSession(c.Request.Context(), userID, sessionID)
+	var record *corev1.CookieSession
+	var err error
+	if credential.userID != "" {
+		record, err = s.core.ValidateCookieSession(c.Request.Context(), credential.userID, credential.sessionID)
+	} else {
+		record, err = s.core.ValidateCookieCredential(c.Request.Context(), credential.sessionID)
+	}
 	if err != nil {
 		if errors.Is(err, core.ErrCookieSessionNotFound) {
 			clearCookieSessionAuth(session)
 		} else {
-			log.Warn("Failed to validate cookie session", "userId", userID, "error", err)
+			log.Warn("Failed to validate cookie session", "error", err)
 		}
 		return "", "", nil, false
 	}
+	userID := record.GetUserId()
+	if userID == "" {
+		clearCookieSessionAuth(session)
+		return "", "", nil, false
+	}
 
-	return userID, sessionID, record, true
+	return userID, credential.sessionID, record, true
 }
 
 func (s *HTTPServer) rotateCookieSessionIfNeeded(c *gin.Context, userID, oldSessionID string, record *corev1.CookieSession) {
@@ -122,8 +155,9 @@ func (s *HTTPServer) rotateCookieSessionIfNeeded(c *gin.Context, userID, oldSess
 	}
 
 	session := sessions.Default(c)
-	session.Set(sessionKeyUserID, userID)
-	session.Set(sessionKeyCookieSessionID, newSessionID)
+	session.Set(sessionKeyRuntimeCredentialID, newSessionID)
+	session.Delete(sessionKeyUserID)
+	session.Delete(sessionKeyCookieSessionID)
 	if err := session.Save(); err != nil {
 		log.Warn("Failed to save rotated cookie session", "userId", userID, "error", err)
 		_ = s.core.RevokeCookieSession(c.Request.Context(), userID, newSessionID)

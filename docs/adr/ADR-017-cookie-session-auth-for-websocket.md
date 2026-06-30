@@ -13,7 +13,9 @@ Authentication approaches for WebSocket:
 
 ## Decision
 
-Use cookie-based sessions (90-day expiry, `HttpOnly`, `SameSiteLax`) for the embedded browser SPA. The session stores `user_id`; the current user is resolved server-side and injected into request context by HTTP middleware. For WebSocket connections, the session cookie is sent with the HTTP upgrade request, so the user is already authenticated before the WebSocket handshake completes.
+Use cookie-based sessions (90-day expiry, `HttpOnly`, `SameSiteLax`) for the embedded browser SPA. For WebSocket connections, the session cookie is sent with the HTTP upgrade request, so the user is already authenticated before the WebSocket handshake completes.
+
+**2026-06 update:** ADR-046 moved new cookie sessions onto typed runtime credentials. New signed browser sessions store only an opaque runtime credential handle; the user ID is loaded from the `session.{hmac}` runtime credential record. Legacy signed sessions that store `user_id` remain readable during the compatibility window.
 
 The realtime WebSocket handler reads the authenticated user from request context and creates connection-scoped state without inheriting request-local caches. The connection acknowledgement includes the server version for frontend upgrade detection.
 

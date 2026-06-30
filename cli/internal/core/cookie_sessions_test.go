@@ -64,6 +64,16 @@ func TestChattoCore_CreateAndValidateCookieSession(t *testing.T) {
 		t.Fatalf("cookie session handle ValidateAuthToken err = %v, want ErrAuthTokenNotFound", err)
 	}
 
+	validatedByHandle, err := core.ValidateCookieCredential(ctx, sessionID)
+	if err != nil {
+		t.Fatalf("ValidateCookieCredential: %v", err)
+	}
+	if validatedByHandle.GetUserId() != user.Id ||
+		validatedByHandle.GetSource() != "test_login" ||
+		validatedByHandle.GetAuthGeneration() != stored.AuthGeneration {
+		t.Fatalf("validated credential differs from stored session token: %#v", validatedByHandle)
+	}
+
 	validated, err := core.ValidateCookieSession(ctx, user.Id, sessionID)
 	if err != nil {
 		t.Fatalf("ValidateCookieSession: %v", err)

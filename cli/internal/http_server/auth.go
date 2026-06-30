@@ -73,9 +73,9 @@ func (s *HTTPServer) setupAuthRoutes() {
 	auth.POST("logout", func(c *gin.Context) {
 		ctx := c.Request.Context()
 
-		// Read user ID before clearing session (needed for session terminated event)
+		// Read the cookie credential before clearing the signed browser session.
 		session := sessions.Default(c)
-		userID, cookieSessionID, _ := cookieSessionIDs(session)
+		userID, cookieSessionID, _, _ := s.validateCookieSession(c)
 
 		// If authenticated via bearer token, revoke it
 		if authHeader := c.GetHeader("Authorization"); authHeader != "" {
@@ -196,7 +196,7 @@ func (s *HTTPServer) setupAuthRoutes() {
 		}
 
 		session := sessions.Default(c)
-		cookieUserID, cookieSessionID, _ := cookieSessionIDs(session)
+		cookieCredential, _ := cookieCredentialFromSession(session)
 		bearerToken := ""
 
 		// Issue a bearer token (cross-origin clients use this instead of the session cookie).
@@ -205,7 +205,7 @@ func (s *HTTPServer) setupAuthRoutes() {
 		token, err := s.core.CreateAuthTokenWithSourceGeneration(ctx, user.Id, "password_login", authGeneration)
 		if err != nil {
 			if isStaleLoginCredentialError(err) {
-				_ = s.core.RevokeCookieSession(ctx, cookieUserID, cookieSessionID)
+				_ = s.core.RevokeCookieSession(ctx, user.Id, cookieCredential.sessionID)
 				clearCookieSessionAuth(session)
 				_ = session.Save()
 				if auditErr := s.core.RecordLoginFailed(ctx, login); auditErr != nil {
@@ -216,7 +216,7 @@ func (s *HTTPServer) setupAuthRoutes() {
 				return
 			}
 			log.Error("Failed to create auth token on login", "userId", user.Id, "error", err)
-			_ = s.core.RevokeCookieSession(ctx, cookieUserID, cookieSessionID)
+			_ = s.core.RevokeCookieSession(ctx, user.Id, cookieCredential.sessionID)
 			clearCookieSessionAuth(session)
 			_ = session.Save()
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create session"})
@@ -227,7 +227,7 @@ func (s *HTTPServer) setupAuthRoutes() {
 
 		if err := s.ensureCSRFToken(c); err != nil {
 			log.Error("Failed to create CSRF token", "error", err)
-			_ = s.core.RevokeCookieSession(ctx, cookieUserID, cookieSessionID)
+			_ = s.core.RevokeCookieSession(ctx, user.Id, cookieCredential.sessionID)
 			if bearerToken != "" {
 				_ = s.core.RevokeAuthTokenWithReason(ctx, bearerToken, "login_csrf_failed")
 			}
@@ -240,7 +240,7 @@ func (s *HTTPServer) setupAuthRoutes() {
 
 		if err := s.core.RecordLoginSucceeded(ctx, user.Id, login); err != nil {
 			log.Error("Failed to append login audit event", "userId", user.Id, "error", err)
-			_ = s.core.RevokeCookieSession(ctx, cookieUserID, cookieSessionID)
+			_ = s.core.RevokeCookieSession(ctx, user.Id, cookieCredential.sessionID)
 			if bearerToken != "" {
 				_ = s.core.RevokeAuthTokenWithReason(ctx, bearerToken, "login_audit_failed")
 			}
@@ -501,8 +501,8 @@ func (s *HTTPServer) setupAuthRoutes() {
 		session := sessions.Default(c)
 		if err := s.ensureCSRFToken(c); err != nil {
 			log.Error("Failed to create CSRF token", "error", err)
-			cookieUserID, cookieSessionID, _ := cookieSessionIDs(session)
-			_ = s.core.RevokeCookieSession(ctx, cookieUserID, cookieSessionID)
+			cookieCredential, _ := cookieCredentialFromSession(session)
+			_ = s.core.RevokeCookieSession(ctx, user.Id, cookieCredential.sessionID)
 			session.Clear()
 			_ = session.Save()
 			clearCSRFCookie(c)
@@ -520,8 +520,8 @@ func (s *HTTPServer) setupAuthRoutes() {
 		token, err := s.core.CreateAuthTokenWithSource(ctx, user.Id, "registration")
 		if err != nil {
 			log.Error("Failed to create auth token on register", "userId", user.Id, "error", err)
-			cookieUserID, cookieSessionID, _ := cookieSessionIDs(session)
-			_ = s.core.RevokeCookieSession(ctx, cookieUserID, cookieSessionID)
+			cookieCredential, _ := cookieCredentialFromSession(session)
+			_ = s.core.RevokeCookieSession(ctx, user.Id, cookieCredential.sessionID)
 			session.Clear()
 			_ = session.Save()
 			clearCSRFCookie(c)

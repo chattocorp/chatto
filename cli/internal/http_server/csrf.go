@@ -30,7 +30,7 @@ func (s *HTTPServer) csrfMiddleware() gin.HandlerFunc {
 		}
 
 		session := sessions.Default(c)
-		if isSafeHTTPMethod(c.Request.Method) && session.Get("user_id") != nil {
+		if isSafeHTTPMethod(c.Request.Method) && hasCookieCredential(session) {
 			if err := s.ensureCSRFToken(c); err != nil {
 				c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "Failed to prepare CSRF token"})
 				return
@@ -62,7 +62,7 @@ func (s *HTTPServer) requiresCSRF(c *gin.Context) bool {
 	if isSafeHTTPMethod(c.Request.Method) {
 		return false
 	}
-	if sessions.Default(c).Get("user_id") == nil {
+	if !hasCookieCredential(sessions.Default(c)) {
 		return false
 	}
 	return !isCSRFExemptUnsafePath(c.Request.URL.Path)
@@ -112,15 +112,16 @@ type csrfBinding struct {
 }
 
 func (s *HTTPServer) csrfBinding(c *gin.Context) (csrfBinding, bool) {
-	userID, sessionID, ok := cookieSessionIDs(sessions.Default(c))
+	userID, _, record, ok := s.validateCookieSession(c)
 	if !ok {
 		return csrfBinding{}, false
 	}
-	record, err := s.core.ValidateCookieSession(c.Request.Context(), userID, sessionID)
-	if err != nil {
-		return csrfBinding{}, false
-	}
 	return csrfBindingForSession(userID, record), true
+}
+
+func hasCookieCredential(session sessions.Session) bool {
+	_, ok := cookieCredentialFromSession(session)
+	return ok
 }
 
 func csrfBindingForSession(userID string, record *corev1.CookieSession) csrfBinding {

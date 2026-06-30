@@ -37,6 +37,8 @@ Browser sessions use signed cookies with the following options:
 
 Session cookies are always signed with `webserver.cookie_signing_secret`. They are additionally **encrypted** if `webserver.cookie_encryption_secret` is set. When the encryption secret is missing, Chatto logs a startup warning — running `chatto init` on a fresh server generates both secrets automatically.
 
+New browser session cookies store only an opaque runtime credential handle. The user ID, source, auth generation, and fresh-auth metadata live in the server-side `session.{hmac}` runtime credential record.
+
 ### Email verification
 
 Registration sends a six-digit verification code with a 15-minute TTL. An email address must be verified before it can be used for password reset or for matching against the `owners.emails` config (see [Authorization](#authorization) below). Email lookup is case-insensitive — addresses are normalized and indexed by SHA-256 hash for the lookup bucket.

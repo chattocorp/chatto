@@ -202,6 +202,12 @@ test.describe('Authentication', () => {
     await page.waitForURL((url) => url.pathname.startsWith('/chat'));
     await expect(page.getByRole('heading', { name: 'Sign In' })).not.toBeVisible();
     await expect(page.getByTitle('Sign out')).toBeVisible();
+
+    await page.getByTitle('Sign out').click();
+    await page.getByRole('dialog').getByRole('button', { name: 'Current Server' }).click();
+    await page.waitForURL('/');
+    await page.goto('/login');
+    await expect(page.getByRole('heading', { name: 'Sign In' })).toBeVisible();
   });
 
   test('authenticated users are redirected away from /register', async ({ page }) => {

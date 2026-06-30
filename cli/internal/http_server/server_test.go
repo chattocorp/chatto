@@ -2309,7 +2309,7 @@ func TestAuthRoutes_LoginStaleBearerTokenIssuanceIsInvalidCredentials(t *testing
 
 	ts, client, chattoCore := setupTestHTTPServerWithHook(t, func(s *HTTPServer) {
 		s.passwordLoginSessionCreatedHook = func(c *gin.Context, userID string, _ uint64) {
-			sessionUserID, sessionID, ok := cookieSessionIDs(sessions.Default(c))
+			cookieCredential, ok := cookieCredentialFromSession(sessions.Default(c))
 
 			capture.Lock()
 			defer capture.Unlock()
@@ -2318,13 +2318,13 @@ func TestAuthRoutes_LoginStaleBearerTokenIssuanceIsInvalidCredentials(t *testing
 				capture.err = errors.New("cookie session was not saved before hook")
 				return
 			}
-			if sessionUserID != userID {
-				capture.err = errors.New("cookie session user did not match login user")
+			if cookieCredential.userID != "" {
+				capture.err = errors.New("new cookie session should not duplicate user ID")
 				return
 			}
 
-			capture.userID = sessionUserID
-			capture.sessionID = sessionID
+			capture.userID = userID
+			capture.sessionID = cookieCredential.sessionID
 			capture.err = s.core.SetPasswordHash(c.Request.Context(), userID, "newpassword456")
 		}
 	})
@@ -2384,14 +2384,14 @@ func TestAuthRoutes_LoginBearerTokenFailureRevokesCookieSession(t *testing.T) {
 
 	ts, client, chattoCore := setupTestHTTPServerWithHook(t, func(s *HTTPServer) {
 		s.passwordLoginSessionCreatedHook = func(c *gin.Context, userID string, _ uint64) {
-			sessionUserID, sessionID, ok := cookieSessionIDs(sessions.Default(c))
+			cookieCredential, ok := cookieCredentialFromSession(sessions.Default(c))
 
 			capture.Lock()
 			defer capture.Unlock()
 
 			if ok {
-				capture.userID = sessionUserID
-				capture.sessionID = sessionID
+				capture.userID = userID
+				capture.sessionID = cookieCredential.sessionID
 			}
 			s.core.EventPublisher = nil
 		}
