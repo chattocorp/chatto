@@ -10,7 +10,6 @@ export type ViewerData = {
   canViewAdmin: boolean;
   canStartDMs: boolean;
   canAdminViewUsers: boolean;
-  canAdminManageUsers: boolean;
   canAdminManageAccounts: boolean;
   canAssignRoles: boolean;
   canAdminViewRoles: boolean;
@@ -33,7 +32,6 @@ const EMPTY_PERMISSIONS: ServerPermissions = {
   canViewAdmin: false,
   canStartDMs: false,
   canAdminViewUsers: false,
-  canAdminManageUsers: false,
   canAdminManageAccounts: false,
   canAssignRoles: false,
   canAdminViewRoles: false,

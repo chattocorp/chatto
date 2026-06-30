@@ -1496,8 +1496,8 @@ func TestViewerServiceGetViewerReturnsSelfScopedState(t *testing.T) {
 	if !foundRoomPref {
 		t.Fatalf("room notification preferences did not include %s: %+v", room.Id, resp.Msg.GetRoomNotificationPreferences())
 	}
-	if caps := resp.Msg.GetCapabilities(); !caps.GetCanAdminManageUsers() || !caps.GetCanAssignRoles() || caps.GetCanAdminManageAccounts() {
-		t.Fatalf("viewer capabilities role/account split = manage_users:%v assign_roles:%v manage_accounts:%v, want true/true/false", caps.GetCanAdminManageUsers(), caps.GetCanAssignRoles(), caps.GetCanAdminManageAccounts())
+	if caps := resp.Msg.GetCapabilities(); !caps.GetCanAssignRoles() || caps.GetCanAdminManageAccounts() {
+		t.Fatalf("viewer capabilities role/account split = assign_roles:%v manage_accounts:%v, want true/false", caps.GetCanAssignRoles(), caps.GetCanAdminManageAccounts())
 	}
 }
 

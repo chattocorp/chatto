@@ -48,14 +48,15 @@ message ViewerUser {
 
 // Permission-derived capabilities for the authenticated user.
 message ViewerCapabilities {
+  reserved 4;
+  reserved "can_admin_manage_users";
+
   // Whether the user has at least one server-admin permission.
   bool can_view_admin = 1;
   // Whether the user may start direct-message conversations.
   bool can_start_dms = 2;
   // Whether the user may view the admin users screen.
   bool can_admin_view_users = 3;
-  // Whether the user may assign and revoke roles for users.
-  bool can_admin_manage_users = 4;
   // Whether the user may view role administration.
   bool can_admin_view_roles = 5;
   // Whether the user may manage roles.

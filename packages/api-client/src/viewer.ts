@@ -41,7 +41,6 @@ export type ViewerCapabilities = {
   canViewAdmin: boolean;
   canStartDMs: boolean;
   canAdminViewUsers: boolean;
-  canAdminManageUsers: boolean;
   canAdminManageAccounts: boolean;
   canAssignRoles: boolean;
   canAdminViewRoles: boolean;
@@ -124,7 +123,6 @@ export async function getViewerStateViaConnect(
     canViewAdmin: capabilities?.canViewAdmin ?? false,
     canStartDMs: capabilities?.canStartDms ?? false,
     canAdminViewUsers: capabilities?.canAdminViewUsers ?? false,
-    canAdminManageUsers: capabilities?.canAdminManageUsers ?? false,
     canAdminManageAccounts: capabilities?.canAdminManageAccounts ?? false,
     canAssignRoles: capabilities?.canAssignRoles ?? false,
     canAdminViewRoles: capabilities?.canAdminViewRoles ?? false,

@@ -30,7 +30,6 @@ function makeViewer(overrides: Partial<ViewerData> = {}): ViewerData {
     canViewAdmin: false,
     canStartDMs: false,
     canAdminViewUsers: false,
-    canAdminManageUsers: false,
     canAdminManageAccounts: false,
     canAssignRoles: false,
     canAdminViewRoles: false,
@@ -90,11 +89,11 @@ describe('getServerPermissions', () => {
 
   it('maps account management to the dedicated capability', () => {
     const viewer = makeViewer({
-      canAdminManageUsers: true,
+      canAssignRoles: true,
       canAdminManageAccounts: false
     });
 
-    expect(viewerHasPermission(viewer, 'role.assign')).toBe(false);
+    expect(viewerHasPermission(viewer, 'role.assign')).toBe(true);
     expect(viewerHasPermission(viewer, 'user.manage-accounts')).toBe(false);
 
     expect(

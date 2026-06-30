@@ -150,7 +150,6 @@ func (s *viewerService) viewerCapabilities(ctx context.Context, userID string) (
 		CanViewAdmin:             canViewAdmin,
 		CanStartDms:              canStartDMs,
 		CanAdminViewUsers:        canAdminViewUsers,
-		CanAdminManageUsers:      canAssignRoles,
 		CanAdminViewRoles:        canAdminManageRoles,
 		CanAdminManageRoles:      canAdminManageRoles,
 		CanAdminViewSystem:       canAdminViewSystem,

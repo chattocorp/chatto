@@ -209,13 +209,6 @@ export class ViewerCapabilities extends Message<ViewerCapabilities> {
   canAdminViewUsers = false;
 
   /**
-   * Whether the user may assign and revoke roles for users.
-   *
-   * @generated from field: bool can_admin_manage_users = 4;
-   */
-  canAdminManageUsers = false;
-
-  /**
    * Whether the user may view role administration.
    *
    * @generated from field: bool can_admin_view_roles = 5;
@@ -282,7 +275,6 @@ export class ViewerCapabilities extends Message<ViewerCapabilities> {
     { no: 1, name: "can_view_admin", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 2, name: "can_start_dms", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 3, name: "can_admin_view_users", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 4, name: "can_admin_manage_users", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 5, name: "can_admin_view_roles", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 6, name: "can_admin_manage_roles", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 7, name: "can_admin_view_system", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
