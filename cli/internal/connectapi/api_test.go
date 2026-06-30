@@ -1725,6 +1725,26 @@ func TestAdminMemberServiceUpdatesUsersAndClearsCooldown(t *testing.T) {
 	})); connect.CodeOf(err) != connect.CodePermissionDenied {
 		t.Fatalf("regular SetUserPassword code = %v, want permission_denied", connect.CodeOf(err))
 	}
+	if _, err := env.core.UpdateUserLogin(env.ctx, regular.Id, "admin-user-regular-renamed"); err != nil {
+		t.Fatalf("UpdateUserLogin regular: %v", err)
+	}
+	if _, err := env.adminUsers.UpdateUser(withCaller(env.ctx, regular), connect.NewRequest(&adminv1.UpdateUserRequest{
+		UserId: regular.Id,
+		Login:  stringPtr("admin-user-regular-bypass"),
+	})); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("regular self UpdateUser code = %v, want permission_denied", connect.CodeOf(err))
+	}
+	if _, err := env.core.UpdateUserLogin(env.ctx, regular.Id, "admin-user-regular-cooldown"); !errors.Is(err, core.ErrLoginChangeCooldown) {
+		t.Fatalf("regular cooldown after denied self UpdateUser err = %v, want cooldown", err)
+	}
+	if _, err := env.adminUsers.ClearUsernameCooldown(withCaller(env.ctx, regular), connect.NewRequest(&adminv1.ClearUsernameCooldownRequest{
+		UserId: regular.Id,
+	})); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("regular self ClearUsernameCooldown code = %v, want permission_denied", connect.CodeOf(err))
+	}
+	if _, err := env.core.UpdateUserLogin(env.ctx, regular.Id, "regular-still-cooldown"); !errors.Is(err, core.ErrLoginChangeCooldown) {
+		t.Fatalf("regular cooldown after denied self clear err = %v, want cooldown", err)
+	}
 
 	roleAssigner, err := env.core.CreateUser(env.ctx, core.SystemActorID, "admin-user-role-assigner", "Admin User Role Assigner", "password")
 	if err != nil {
@@ -1747,7 +1767,17 @@ func TestAdminMemberServiceUpdatesUsersAndClearsCooldown(t *testing.T) {
 	if err := env.core.GrantUserPermission(env.ctx, core.SystemActorID, accountManager.Id, core.PermUserManageAccounts); err != nil {
 		t.Fatalf("GrantUserPermission user.manage-accounts: %v", err)
 	}
-	accountManagerResp, err := env.adminUsers.SetUserPassword(withCaller(env.ctx, accountManager), connect.NewRequest(&adminv1.SetUserPasswordRequest{
+	if _, err := env.adminUsers.SetUserPassword(withCaller(env.ctx, accountManager), connect.NewRequest(&adminv1.SetUserPasswordRequest{
+		UserId:   target.Id,
+		Password: "accountmanagerpass456",
+	})); connect.CodeOf(err) != connect.CodeFailedPrecondition {
+		t.Fatalf("account manager stale SetUserPassword code = %v, want failed_precondition", connect.CodeOf(err))
+	}
+	accountManagerToken, err := env.core.CreateAuthTokenWithSource(env.ctx, accountManager.Id, "password_login")
+	if err != nil {
+		t.Fatalf("CreateAuthTokenWithSource account manager: %v", err)
+	}
+	accountManagerResp, err := env.adminUsers.SetUserPassword(withBearerCredential(env.ctx, accountManager, accountManagerToken), connect.NewRequest(&adminv1.SetUserPasswordRequest{
 		UserId:   target.Id,
 		Password: "accountmanagerpass456",
 	}))
@@ -1768,7 +1798,11 @@ func TestAdminMemberServiceUpdatesUsersAndClearsCooldown(t *testing.T) {
 	if err := env.core.AssignAdminRole(env.ctx, admin.Id); err != nil {
 		t.Fatalf("AssignAdminRole: %v", err)
 	}
-	adminCtx := withCaller(env.ctx, admin)
+	adminToken, err := env.core.CreateAuthTokenWithSource(env.ctx, admin.Id, "password_login")
+	if err != nil {
+		t.Fatalf("CreateAuthTokenWithSource admin: %v", err)
+	}
+	adminCtx := withBearerCredential(env.ctx, admin, adminToken)
 
 	if _, err := env.adminUsers.UpdateUser(adminCtx, connect.NewRequest(&adminv1.UpdateUserRequest{
 		UserId: target.Id,
@@ -5462,6 +5496,44 @@ func TestThreadServiceListFollowedThreadsReturnsHydratedPage(t *testing.T) {
 	}
 }
 
+func TestThreadServiceListFollowedThreadsFiltersMembershipLoss(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	room := env.createJoinedRoom("followed-loss")
+	participant, err := env.core.CreateUser(env.ctx, core.SystemActorID, "thread-loss-participant", "Thread Loss Participant", "password")
+	if err != nil {
+		t.Fatalf("CreateUser participant: %v", err)
+	}
+	if _, err := env.core.JoinRoom(env.ctx, participant.Id, core.KindChannel, participant.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom participant: %v", err)
+	}
+	root := env.post(room.Id, env.viewer.Id, "root body", "")
+	env.post(room.Id, participant.Id, "reply body", root.Id)
+
+	ctx := withCaller(env.ctx, env.viewer)
+	if _, err := env.threads.FollowThread(ctx, connect.NewRequest(&apiv1.FollowThreadRequest{
+		RoomId:            room.Id,
+		ThreadRootEventId: root.Id,
+	})); err != nil {
+		t.Fatalf("FollowThread: %v", err)
+	}
+	if err := env.core.LeaveRoom(env.ctx, env.viewer.Id, core.KindChannel, env.viewer.Id, room.Id); err != nil {
+		t.Fatalf("LeaveRoom viewer: %v", err)
+	}
+
+	resp, err := env.threads.ListFollowedThreads(ctx, connect.NewRequest(&apiv1.ListFollowedThreadsRequest{
+		Page: &apiv1.PageRequest{Limit: 20},
+	}))
+	if err != nil {
+		t.Fatalf("ListFollowedThreads: %v", err)
+	}
+	if got := len(resp.Msg.GetThreads()); got != 0 {
+		t.Fatalf("ListFollowedThreads returned %d threads after membership loss, want 0", got)
+	}
+	if resp.Msg.GetPage().GetTotalCount() != 0 || resp.Msg.GetPage().GetHasMore() {
+		t.Fatalf("ListFollowedThreads page metadata = total %d hasMore %v, want total 0 hasMore false", resp.Msg.GetPage().GetTotalCount(), resp.Msg.GetPage().GetHasMore())
+	}
+}
+
 func TestNotificationLevelMapping(t *testing.T) {
 	valid := []struct {
 		name string
@@ -5548,6 +5620,41 @@ func requireConnectCode(t testing.TB, err error, want connect.Code) {
 	t.Helper()
 	if got := connect.CodeOf(err); got != want {
 		t.Fatalf("connect code = %v, want %v (err = %v)", got, want, err)
+	}
+}
+
+func TestAPIPermissionExplanationMarksWinningTraceFirst(t *testing.T) {
+	got := apiPermissionExplanation(core.PermissionExplanation{
+		Permission:    core.PermAdminUsersView,
+		State:         core.DecisionDeny,
+		DecidedAt:     core.LevelRoom,
+		DecidedByRole: core.RoleEveryone,
+		Trace: []core.TraceEntry{
+			{
+				Level:    core.LevelServer,
+				RoleName: "custom",
+				Decision: core.DecisionAllow,
+			},
+			{
+				Level:    core.LevelRoom,
+				RoleName: core.RoleEveryone,
+				Decision: core.DecisionDeny,
+			},
+		},
+	})
+
+	if got.GetState() != adminv1.PermissionDecision_PERMISSION_DECISION_DENY {
+		t.Fatalf("state = %v, want deny", got.GetState())
+	}
+	trace := got.GetTrace()
+	if len(trace) != 2 {
+		t.Fatalf("trace length = %d, want 2", len(trace))
+	}
+	if trace[0].GetRoleName() != core.RoleEveryone || trace[0].GetDecision() != adminv1.PermissionDecision_PERMISSION_DECISION_DENY || !trace[0].GetApplied() {
+		t.Fatalf("first trace entry = %+v, want winning deny applied", trace[0])
+	}
+	if trace[1].GetApplied() {
+		t.Fatalf("second trace entry applied = true, want false")
 	}
 }
 

@@ -978,7 +978,7 @@ type AdminUpdateUserInput struct {
 }
 
 func (c *ChattoCore) AdminUpdateUser(ctx context.Context, actorID, targetUserID string, input AdminUpdateUserInput) (*corev1.User, error) {
-	if err := c.requireCanAdminManageUser(ctx, actorID, targetUserID); err != nil {
+	if err := c.requireCanAdminManageOtherUser(ctx, actorID, targetUserID); err != nil {
 		return nil, err
 	}
 	if input.Login == nil && input.DisplayName == nil {
@@ -988,13 +988,13 @@ func (c *ChattoCore) AdminUpdateUser(ctx context.Context, actorID, targetUserID 
 }
 
 func (c *ChattoCore) AdminClearLoginChangeCooldown(ctx context.Context, actorID, targetUserID string) error {
-	if err := c.requireCanAdminManageUser(ctx, actorID, targetUserID); err != nil {
+	if err := c.requireCanAdminManageOtherUser(ctx, actorID, targetUserID); err != nil {
 		return err
 	}
 	return c.ClearLoginChangeCooldownAs(ctx, actorID, targetUserID)
 }
 
-func (c *ChattoCore) requireCanAdminManageUser(ctx context.Context, actorID, targetUserID string) error {
+func (c *ChattoCore) requireCanAdminManageOtherUser(ctx context.Context, actorID, targetUserID string) error {
 	if actorID == "" {
 		return ErrNotAuthenticated
 	}
@@ -1002,7 +1002,7 @@ func (c *ChattoCore) requireCanAdminManageUser(ctx context.Context, actorID, tar
 		return fmt.Errorf("%w: target user ID is required", ErrInvalidArgument)
 	}
 	if actorID == targetUserID {
-		return nil
+		return ErrPermissionDenied
 	}
 	canManage, err := c.CanManageUserAccounts(ctx, actorID)
 	if err != nil {

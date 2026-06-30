@@ -280,7 +280,6 @@ func DefaultSeedEveryonePermissions() []Permission {
 // list contains only moderator-specific server-scope capabilities.
 func DefaultModeratorPermissions() []Permission {
 	return []Permission{
-		PermAdminUsersView,
 		PermMessageManage,
 		PermRoomMemberBan,
 	}

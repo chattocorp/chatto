@@ -1755,7 +1755,7 @@ func TestChattoCore_AdminUpdateUserAuthorization(t *testing.T) {
 		}
 	})
 
-	t.Run("self update preserves legacy admin mutation behavior", func(t *testing.T) {
+	t.Run("self update uses account path not admin mutation path", func(t *testing.T) {
 		c, _ := setupTestCore(t)
 		ctx := testContext(t)
 		user, err := c.CreateUser(ctx, SystemActorID, "adminauth-self", "Self", "password123")
@@ -1763,9 +1763,15 @@ func TestChattoCore_AdminUpdateUserAuthorization(t *testing.T) {
 			t.Fatalf("CreateUser self: %v", err)
 		}
 		login := "adminauth-self-updated"
-		updated, err := c.AdminUpdateUser(ctx, user.Id, user.Id, AdminUpdateUserInput{Login: &login})
+		if _, err := c.AdminUpdateUser(ctx, user.Id, user.Id, AdminUpdateUserInput{Login: &login}); !errors.Is(err, ErrPermissionDenied) {
+			t.Fatalf("AdminUpdateUser self err = %v, want ErrPermissionDenied", err)
+		}
+		if err := c.AdminClearLoginChangeCooldown(ctx, user.Id, user.Id); !errors.Is(err, ErrPermissionDenied) {
+			t.Fatalf("AdminClearLoginChangeCooldown self err = %v, want ErrPermissionDenied", err)
+		}
+		updated, err := c.UpdateUserLogin(ctx, user.Id, login)
 		if err != nil {
-			t.Fatalf("AdminUpdateUser self: %v", err)
+			t.Fatalf("UpdateUserLogin self: %v", err)
 		}
 		if updated.GetLogin() != login {
 			t.Fatalf("updated login = %q, want %q", updated.GetLogin(), login)

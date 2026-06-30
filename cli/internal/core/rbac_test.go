@@ -2486,14 +2486,18 @@ func TestChattoCore_GetUserEffectiveSpacePermissions_ServerRoleDenialInSpace(t *
 	// Create a space
 	_, _ = core.CreateUser(ctx, SystemActorID, "creator4", "Creator", "password123")
 
-	// Verify moderator has admin.view-users by default.
+	// Moderators do not get admin.view-users by default.
 	perms1, _ := core.GetUserEffectiveSpacePermissions(ctx, KindChannel, user.Id)
 	permSet1 := make(map[string]bool)
 	for _, p := range perms1 {
 		permSet1[string(p)] = true
 	}
-	if !permSet1["admin.view-users"] {
-		t.Error("User should have admin.view-users by default")
+	if permSet1["admin.view-users"] {
+		t.Error("User should not have admin.view-users by default")
+	}
+
+	if err := core.GrantServerPermission(ctx, SystemActorID, RoleModerator, PermAdminUsersView); err != nil {
+		t.Fatalf("Failed to grant role permission: %v", err)
 	}
 
 	// Deny admin.view-users to moderator role.

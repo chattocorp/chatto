@@ -171,6 +171,18 @@ func (s *adminUserManagementService) SetUserPassword(ctx context.Context, req *c
 	if req.Msg.GetPassword() == "" {
 		return nil, invalidArgument("password is required")
 	}
+	if caller.UserID != req.Msg.GetUserId() {
+		canManage, err := s.api.core.CanManageUserAccounts(ctx, caller.UserID)
+		if err != nil {
+			return nil, connectError(err)
+		}
+		if !canManage {
+			return nil, connectError(core.ErrPermissionDenied)
+		}
+	}
+	if err := s.api.requireFreshCredential(ctx, caller, ""); err != nil {
+		return nil, connectError(err)
+	}
 	if err := s.api.core.AdminSetUserPasswordAuthorized(ctx, caller.UserID, req.Msg.GetUserId(), req.Msg.GetPassword()); err != nil {
 		return nil, connectError(err)
 	}

@@ -118,15 +118,39 @@ func apiPermissionExplanation(explanation core.PermissionExplanation) *adminv1.P
 		DecidedByRole: explanation.DecidedByRole,
 		Trace:         make([]*adminv1.PermissionTraceEntry, 0, len(explanation.Trace)),
 	}
-	for i, entry := range explanation.Trace {
+	for i, entry := range winningTraceFirst(explanation) {
 		out.Trace = append(out.Trace, &adminv1.PermissionTraceEntry{
 			Level:    apiPermissionDecisionLevel(entry.Level),
 			RoleName: entry.RoleName,
 			Decision: apiPermissionExplanationDecision(entry.Decision),
-			Applied:  i == 0,
+			Applied:  i == 0 && traceEntryWins(explanation, entry),
 		})
 	}
 	return out
+}
+
+func winningTraceFirst(explanation core.PermissionExplanation) []core.TraceEntry {
+	trace := append([]core.TraceEntry(nil), explanation.Trace...)
+	winningIndex := -1
+	for i, entry := range trace {
+		if traceEntryWins(explanation, entry) {
+			winningIndex = i
+			break
+		}
+	}
+	if winningIndex <= 0 {
+		return trace
+	}
+	winning := trace[winningIndex]
+	copy(trace[1:winningIndex+1], trace[:winningIndex])
+	trace[0] = winning
+	return trace
+}
+
+func traceEntryWins(explanation core.PermissionExplanation, entry core.TraceEntry) bool {
+	return entry.Level == explanation.DecidedAt &&
+		entry.RoleName == explanation.DecidedByRole &&
+		entry.Decision == explanation.State
 }
 
 func apiPermissionExplanationDecision(decision core.DecisionKind) adminv1.PermissionDecision {

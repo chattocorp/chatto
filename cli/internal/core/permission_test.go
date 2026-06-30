@@ -290,7 +290,6 @@ func TestDefaultModeratorPermissions(t *testing.T) {
 	perms := DefaultModeratorPermissions()
 
 	mustInclude := []Permission{
-		PermAdminUsersView,
 		PermMessageManage,
 		PermRoomMemberBan,
 	}
@@ -300,8 +299,9 @@ func TestDefaultModeratorPermissions(t *testing.T) {
 		}
 	}
 
-	// Moderators are not server admins.
-	for _, mustNotInclude := range []Permission{PermRoomCreate, PermRoomManage, PermServerManage, PermRoleManage} {
+	// Moderators can moderate content and bans, but do not get admin visibility
+	// or general server administration by default.
+	for _, mustNotInclude := range []Permission{PermAdminUsersView, PermRoomCreate, PermRoomManage, PermServerManage, PermRoleManage} {
 		if slices.Contains(perms, mustNotInclude) {
 			t.Errorf("moderator defaults must not include %v", mustNotInclude)
 		}

@@ -450,36 +450,39 @@ func TestInitDefaultPermissions(t *testing.T) {
 		}
 	})
 
-	t.Run("moderator has server-scope admin user visibility and moderation permissions", func(t *testing.T) {
-		moderatorPerms := []Permission{PermAdminUsersView, PermMessageManage, PermRoomMemberBan}
+	t.Run("moderator has server-scope moderation permissions", func(t *testing.T) {
+		moderatorPerms := []Permission{PermMessageManage, PermRoomMemberBan}
 		for _, perm := range moderatorPerms {
 			if got := core.RBAC.GetDecision(ScopeServer, "", RoleModerator, perm); got != DecisionAllow {
 				t.Errorf("moderator decision for %s = %s, want %s", perm, got, DecisionAllow)
 			}
 		}
+		if got := core.RBAC.GetDecision(ScopeServer, "", RoleModerator, PermAdminUsersView); got != DecisionNone {
+			t.Errorf("moderator admin.view-users decision = %s, want %s", got, DecisionNone)
+		}
 	})
 
 	t.Run("ensure default permissions backfills missing grants without overriding denies", func(t *testing.T) {
-		if err := core.ClearServerPermissionState(ctx, SystemActorID, RoleModerator, PermAdminUsersView); err != nil {
+		if err := core.ClearServerPermissionState(ctx, SystemActorID, RoleModerator, PermMessageManage); err != nil {
 			t.Fatalf("ClearServerPermissionState: %v", err)
 		}
-		if got := core.RBAC.GetDecision(ScopeServer, "", RoleModerator, PermAdminUsersView); got != DecisionNone {
+		if got := core.RBAC.GetDecision(ScopeServer, "", RoleModerator, PermMessageManage); got != DecisionNone {
 			t.Fatalf("decision after clear = %s, want %s", got, DecisionNone)
 		}
 		if err := core.EnsureDefaultRolePermissions(ctx); err != nil {
 			t.Fatalf("EnsureDefaultRolePermissions backfill: %v", err)
 		}
-		if got := core.RBAC.GetDecision(ScopeServer, "", RoleModerator, PermAdminUsersView); got != DecisionAllow {
+		if got := core.RBAC.GetDecision(ScopeServer, "", RoleModerator, PermMessageManage); got != DecisionAllow {
 			t.Fatalf("decision after ensure = %s, want %s", got, DecisionAllow)
 		}
 
-		if err := core.DenyServerPermission(ctx, SystemActorID, RoleModerator, PermAdminUsersView); err != nil {
+		if err := core.DenyServerPermission(ctx, SystemActorID, RoleModerator, PermMessageManage); err != nil {
 			t.Fatalf("DenyServerPermission: %v", err)
 		}
 		if err := core.EnsureDefaultRolePermissions(ctx); err != nil {
 			t.Fatalf("EnsureDefaultRolePermissions preserve deny: %v", err)
 		}
-		if got := core.RBAC.GetDecision(ScopeServer, "", RoleModerator, PermAdminUsersView); got != DecisionDeny {
+		if got := core.RBAC.GetDecision(ScopeServer, "", RoleModerator, PermMessageManage); got != DecisionDeny {
 			t.Fatalf("decision after denied ensure = %s, want %s", got, DecisionDeny)
 		}
 	})

@@ -759,6 +759,15 @@ func (c *ChattoCore) listFollowedThreadsInSpace(ctx context.Context, userID stri
 		roomID := parts[2]
 		threadRootEventID := parts[3]
 
+		isMember, err := c.RoomMembershipExists(ctx, kind, userID, roomID)
+		if err != nil {
+			c.logger.Warn("Failed to check room membership for followed thread", "error", err, "room_id", roomID, "thread_root_event_id", threadRootEventID)
+			continue
+		}
+		if !isMember {
+			continue
+		}
+
 		// Get thread metadata (reply count, last reply, participants)
 		metadata, err := c.GetThreadMetadata(ctx, kind, roomID, threadRootEventID)
 		if err != nil {
