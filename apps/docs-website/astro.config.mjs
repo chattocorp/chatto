@@ -21,11 +21,19 @@ export default defineConfig({
       sidebar: [
         {
           label: "Getting Started",
-          items: ["getting-started/introduction", "getting-started/quick-start"],
+          items: [
+            "getting-started/introduction",
+            "getting-started/quick-start",
+          ],
         },
         {
           label: "Deployment",
-          items: ["guides/binary", "guides/dockercompose", "guides/kubernetes"],
+          items: [
+            "guides/deployment-read-this-first",
+            "guides/binary",
+            "guides/dockercompose",
+            "guides/kubernetes",
+          ],
         },
         {
           label: "Guides",
