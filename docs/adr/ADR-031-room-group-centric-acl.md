@@ -50,16 +50,22 @@ For **DM rooms**: room groups do not apply. Reading is membership-based, startin
 
 For **channel-room-scope** permissions in room R (belonging to group G):
 
-1. **User-level overrides**, in order: room R → group G → server (server only for permissions that carry both `ScopeServer` and `ScopeGroup` / `ScopeRoom`). First explicit decision wins.
-2. **Role walk**, highest rank first. For each role:
-   1. Room R's grant/deny for that role
-   2. Group G's grant/deny for that role
-   3. Server-scope grant/deny for that role (fallback, only for dual-scope perms)
-3. **Default deny** if no decision was reached.
+1. The resolver collects every applicable explicit decision for the user, their
+   assigned roles, and the implicit `everyone` role.
+2. Applicable scope inputs are server, group G, and room R when the permission is
+   valid at those scopes. Server-scope message and room permissions act as broad
+   defaults and broad restrictions; group and room decisions are local inputs to
+   the same check.
+3. ADR-040 defines the combination rule for non-owners: any applicable deny
+   blocks the permission; otherwise any applicable allow grants it; otherwise
+   the result is denied at the API boundary. Role position is display/order
+   metadata, not an authorization rank.
 
-A small revision from the original ADR text: server scope acts as the **global default** for channel-room perms. The walker checks group state first, room state on top of that, and falls back to server only when neither tier emits a decision. This gives operators a single "global default" they can adjust once and have apply everywhere, while still letting per-group and per-room edits override locally. DMs (which aren't in any group) resolve at server scope only.
-
-The earlier ADR text said "there is no cascade from server scope into channel-room scope." That was the initial intent; in practice it made DMs and operator-friendly defaults awkward, so we restored the cascade. ADR-040 later simplified the combination rule further: for non-owners, all applicable server/group/room decisions contribute, any deny wins, and any allow grants only when no deny applies.
+The earlier ADR text said "there is no cascade from server scope into
+channel-room scope" and later described a first-explicit-decision walker. Both
+were superseded by ADR-040's permission-only deny-wins model. The room-group
+container decision remains active: room groups are still the operator-facing
+place to configure permissions shared by a set of channel rooms.
 
 **The announcements pattern uses a room-scoped deny** against `everyone.message.post`. With deny-wins this blocks root posts for all non-owner users in that room, because every authenticated user carries `everyone`. The benefit over a server-level restriction is locality: the deny is scoped, audit-visible inside its room, and doesn't affect other rooms.
 

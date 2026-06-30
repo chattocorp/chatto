@@ -98,7 +98,7 @@ Chatto's RBAC model. Read top-to-bottom — terms build on each other.
 
 **Everyone** — Implicit virtual role (position 0) held by every authenticated user. Default-permission grants attach here.
 
-**Scope** — Tier at which a permission is configured: `server`, `group`, or `room`. Resolution: room > group > server (first explicit decision wins). See [`cli/AGENTS.md`](../cli/AGENTS.md).
+**Scope** — Tier at which a permission is configured: `server`, `group`, or `room`. For non-owners, all applicable user and role decisions across valid scopes contribute; any deny wins, otherwise any allow grants, otherwise the API treats the result as denied. See [`cli/AGENTS.md`](../cli/AGENTS.md).
 
 **User-level override** — Permission grant or deny attached directly to a user, not via a role. Outranks every role grant. Used for suspensions and ad-hoc grants.
 

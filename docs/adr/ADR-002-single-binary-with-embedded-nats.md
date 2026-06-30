@@ -16,7 +16,7 @@ For advanced deployments, an external NATS cluster can be used instead — the a
 
 ## Consequences
 
-- **Single-command deployment**: `chatto serve` starts everything. No Docker Compose, no service orchestration required for basic use.
+- **Single-command deployment**: `chatto run` starts everything. No Docker Compose, no service orchestration required for basic use.
 - **Reduced failure modes**: No network calls between the app and its data store in single-node mode. Eliminates connection pool management, reconnection logic, and network partitions for the common case.
 - **Horizontal scaling is still possible**: Multiple Chatto instances can connect to an external NATS cluster. The embedded server is a convenience, not a constraint.
 - **Memory footprint includes NATS**: The process uses more memory than a thin web server, since it also runs the JetStream storage engine.

@@ -24,7 +24,7 @@ question: which parts of the protobuf API carry which stability promise?
 
 ## Decision
 
-Chatto defines three public API stability tiers:
+Chatto defines four public API stability tiers:
 
 1. **Integration API**: `chatto.api.v1` ConnectRPC services and shared messages
    that represent coherent external-client behavior. This is the default home

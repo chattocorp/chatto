@@ -16,7 +16,7 @@ For more about ADRs, see [Michael Nygard's article](https://cognitect.com/blog/2
 | [ADR-006](ADR-006-kv-source-of-truth-streams-audit-log.md) | KV as Source of Truth, Streams as Audit Logs | 2026-03-01 |
 | [ADR-007](ADR-007-per-user-encryption-with-crypto-shredding.md) | Per-User Encryption Keys with Crypto-Shredding for GDPR | 2026-03-01 |
 | [ADR-008](ADR-008-protobuf-for-event-serialization.md) | Protobuf for Event Serialization | 2026-03-01 |
-| [ADR-009](ADR-009-webhook-driven-voice-call-state.md) | Webhook-Driven Voice Call State | 2026-03-01 |
+| [ADR-009](ADR-009-webhook-driven-voice-call-state.md) | Durable LiveKit Call State | 2026-03-01 |
 | [ADR-010](ADR-010-svelte5-reactive-cache-whitelisting.md) | Svelte 5 Reactive Cache Whitelisting | 2026-03-01 |
 | [ADR-011](ADR-011-message-body-event-split.md) | Message Body / Event Split | 2026-03-01 |
 | [ADR-012](ADR-012-two-tier-realtime-events.md) | Two-Tier Real-Time Event System | 2026-03-01 |
@@ -36,11 +36,11 @@ For more about ADRs, see [Michael Nygard's article](https://cognitect.com/blog/2
 | [ADR-026](ADR-026-event-identity-via-nanoid.md) | Event Identity via NanoID, Not JetStream Sequence Numbers | 2026-03-26 |
 | [ADR-027](ADR-027-instance-space-server-consolidation.md) | Consolidate Instance + Space into a Single "Server" Concept | 2026-05-04 |
 | [ADR-028](ADR-028-event-id-keyed-read-state.md) | Event-ID-Keyed Read State | 2026-05-06 |
-| [ADR-029](ADR-029-instance-to-server-rename.md) | Rename `Instance` → `Server` Across the Codebase | 2026-05-11 |
+| [ADR-029](ADR-029-instance-to-server-rename.md) | Rename `Instance` → `Server` across the codebase | 2026-05-11 |
 | [ADR-030](ADR-030-space-tier-retirement.md) | Retire the Space tier | 2026-05-11 |
 | [ADR-031](ADR-031-room-group-centric-acl.md) | Room-Group-Centric ACL for Room-Scope Permissions | 2026-05-13 |
 | [ADR-032](ADR-032-signed-attachment-locator-urls.md) | Self-Describing Signed Attachment URLs | 2026-05-23 |
-| [ADR-033](ADR-033-event-sourced-state-with-projections.md) | Event-Sourced State with Derived Projections (supersedes ADR-006) | 2026-05-24 |
+| [ADR-033](ADR-033-event-sourced-state-with-projections.md) | Event-Sourced State with Derived Projections | 2026-05-24 |
 | [ADR-034](ADR-034-single-event-stream.md) | Single Event Stream with Event-Type Subject Lanes | 2026-05-24 |
 | [ADR-035](ADR-035-per-aggregate-phased-migration.md) | Per-Aggregate Phased Migration to Event Sourcing | 2026-05-24 |
 | [ADR-036](ADR-036-runtime-state-kv-boundary.md) | Persist Runtime State in RUNTIME_STATE | 2026-05-27 |
