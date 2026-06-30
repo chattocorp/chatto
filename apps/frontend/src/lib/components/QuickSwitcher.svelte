@@ -395,6 +395,7 @@
     const url = itemUrl(item);
     if (url) {
       recentQuickSwitcher.record(url);
+      // eslint-disable-next-line svelte/no-navigation-without-resolve -- itemUrl() returns resolved app routes
       goto(url);
     }
   }

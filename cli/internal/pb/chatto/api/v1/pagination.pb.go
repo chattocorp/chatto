@@ -27,7 +27,7 @@ const (
 type PageRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Maximum number of items to return. Each RPC defines its default; the common
-	// maximum for public API list pages is 100.
+	// maximum for public API list pages is 500.
 	Limit int32 `protobuf:"varint,1,opt,name=limit,proto3" json:"limit,omitempty"`
 	// Zero-based number of matching items to skip.
 	Offset        int32 `protobuf:"varint,2,opt,name=offset,proto3" json:"offset,omitempty"`
@@ -138,9 +138,10 @@ var File_chatto_api_v1_pagination_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_pagination_proto_rawDesc = "" +
 	"\n" +
-	"\x1echatto/api/v1/pagination.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\"O\n" +
-	"\vPageRequest\x12\x1f\n" +
-	"\x05limit\x18\x01 \x01(\x05B\t\xbaH\x06\x1a\x04\x18d(\x00R\x05limit\x12\x1f\n" +
+	"\x1echatto/api/v1/pagination.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\"P\n" +
+	"\vPageRequest\x12 \n" +
+	"\x05limit\x18\x01 \x01(\x05B\n" +
+	"\xbaH\a\x1a\x05\x18\xf4\x03(\x00R\x05limit\x12\x1f\n" +
 	"\x06offset\x18\x02 \x01(\x05B\a\xbaH\x04\x1a\x02(\x00R\x06offset\"F\n" +
 	"\bPageInfo\x12\x1f\n" +
 	"\vtotal_count\x18\x01 \x01(\x03R\n" +

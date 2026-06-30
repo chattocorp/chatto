@@ -8,10 +8,10 @@ import "buf/validate/validate.proto";
 // for simple list browsing.
 message PageRequest {
   // Maximum number of items to return. Each RPC defines its default; the common
-  // maximum for public API list pages is 100.
+  // maximum for public API list pages is 500.
   int32 limit = 1 [(buf.validate.field).int32 = {
     gte: 0,
-    lte: 100
+    lte: 500
   }];
   // Zero-based number of matching items to skip.
   int32 offset = 2 [(buf.validate.field).int32.gte = 0];
