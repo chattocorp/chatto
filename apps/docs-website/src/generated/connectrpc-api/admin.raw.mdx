@@ -1770,6 +1770,35 @@ admin/member metadata with visibility controlled by the service.
 
 
 
+<a id="chatto-admin-v1-AdminMemberRole"></a>
+
+### AdminMemberRole
+
+Legacy role details used by operator.v1 response shapes.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `name` | `string` | Stable role name. |
+| `display_name` | `string` | Display name shown in operator UI. |
+| `position` | `int32` | Display/order position. |
+| `permissions` | `repeated string` | Permissions granted by this role. |
+| `permission_denials` | `repeated string` | Permissions denied by this role. |
+
+
+
+<a id="chatto-admin-v1-AdminRoleReference"></a>
+
+### AdminRoleReference
+
+Legacy role reference used by operator.v1 response shapes.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `name` | `string` | Stable role name. |
+| `display_name` | `string` | Display name shown in operator UI. |
+
+
+
 <a id="chatto-admin-v1-PermissionExplanation"></a>
 
 ### PermissionExplanation

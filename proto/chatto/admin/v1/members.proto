@@ -35,6 +35,28 @@ message AdminMember {
   chatto.api.v1.User user = 12;
 }
 
+// Legacy role reference used by operator.v1 response shapes.
+message AdminRoleReference {
+  // Stable role name.
+  string name = 1;
+  // Display name shown in operator UI.
+  string display_name = 2;
+}
+
+// Legacy role details used by operator.v1 response shapes.
+message AdminMemberRole {
+  // Stable role name.
+  string name = 1;
+  // Display name shown in operator UI.
+  string display_name = 2;
+  // Display/order position.
+  int32 position = 3;
+  // Permissions granted by this role.
+  repeated string permissions = 4;
+  // Permissions denied by this role.
+  repeated string permission_denials = 5;
+}
+
 // Request server-admin member rows.
 message ListMembersRequest {
   reserved 2, 3;

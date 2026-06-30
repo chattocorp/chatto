@@ -7,7 +7,6 @@ import (
 	"connectrpc.com/connect"
 	"hmans.de/chatto/internal/core"
 	adminv1 "hmans.de/chatto/internal/pb/chatto/admin/v1"
-	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	operatorv1 "hmans.de/chatto/internal/pb/chatto/operator/v1"
 )
 
@@ -44,7 +43,7 @@ func (s *operatorUserService) ListUsers(ctx context.Context, req *connect.Reques
 	}
 	response := &operatorv1.ListUsersResponse{
 		Users: make([]*adminv1.AdminMember, 0, len(users.Users)),
-		Roles: []*apiv1.Role{},
+		Roles: []*adminv1.AdminRoleReference{},
 		Page:  apiPageInfo(users.TotalCount, users.HasMore),
 	}
 	for _, user := range users.Users {
@@ -58,9 +57,9 @@ func (s *operatorUserService) ListUsers(ctx context.Context, req *connect.Reques
 	if err != nil {
 		return nil, connectError(err)
 	}
-	response.Roles = make([]*apiv1.Role, 0, len(roles))
+	response.Roles = make([]*adminv1.AdminRoleReference, 0, len(roles))
 	for _, role := range roles {
-		response.Roles = append(response.Roles, publicAPIRole(&role))
+		response.Roles = append(response.Roles, operatorAdminRoleReference(role))
 	}
 	return connect.NewResponse(response), nil
 }
@@ -100,7 +99,7 @@ func (s *operatorUserService) GetUser(ctx context.Context, req *connect.Request[
 	}
 	return connect.NewResponse(&operatorv1.GetUserResponse{
 		Member:               member,
-		Roles:                adminAPIRoles(roles),
+		Roles:                operatorAdminMemberRoles(roles),
 		AvailablePermissions: corePermissionsToStrings(s.api.core.AllServerPermissions()),
 	}), nil
 }
@@ -207,6 +206,27 @@ func (s *operatorUserService) ClearUsernameCooldown(ctx context.Context, req *co
 
 func (s *operatorUserService) operatorMember(ctx context.Context, user *core.AdminUserView) (*adminv1.AdminMember, error) {
 	return (&adminUserManagementService{api: s.api}).adminMemberForOperator(ctx, user)
+}
+
+func operatorAdminRoleReference(role core.RoleWithPermissions) *adminv1.AdminRoleReference {
+	return &adminv1.AdminRoleReference{
+		Name:        role.Name,
+		DisplayName: role.DisplayName,
+	}
+}
+
+func operatorAdminMemberRoles(roles []core.RoleWithPermissions) []*adminv1.AdminMemberRole {
+	out := make([]*adminv1.AdminMemberRole, 0, len(roles))
+	for _, role := range roles {
+		out = append(out, &adminv1.AdminMemberRole{
+			Name:              role.Name,
+			DisplayName:       role.DisplayName,
+			Position:          role.Position,
+			Permissions:       corePermissionsToStrings(role.Permissions),
+			PermissionDenials: corePermissionsToStrings(role.PermissionDenials),
+		})
+	}
+	return out
 }
 
 func nonEmptyCount(values ...string) int {

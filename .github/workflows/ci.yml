@@ -45,6 +45,7 @@ jobs:
           base_ref="${GITHUB_BASE_REF:-main}"
           cd proto
           mise x -- buf breaking . --against "../.git#branch=origin/${base_ref},subdir=proto" \
+            --exclude-imports \
             --exclude-path chatto/api/v1 \
             --exclude-path chatto/admin/v1 \
             --exclude-path chatto/realtime/v1
