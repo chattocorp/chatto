@@ -12,7 +12,7 @@ import { RoomEventKind, roomEventKind } from '$lib/render/eventKinds';
 import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
 import type { CustomUserStatus } from '$lib/state/userProfiles.svelte';
 
-export const ROOM_MEMBERS_PAGE_SIZE = 100;
+export const ROOM_MEMBERS_PAGE_SIZE = 500;
 const MENTION_MEMBER_SEARCH_LIMIT = 10;
 const roomMemberInvalidatingEventKinds = new Set<RoomEventKind>([
   RoomEventKind.UserJoinedRoom,

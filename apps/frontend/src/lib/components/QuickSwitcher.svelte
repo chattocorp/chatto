@@ -11,6 +11,7 @@
   import { getGradientForName } from '$lib/utils/gradients';
   import { recentQuickSwitcher } from '$lib/state/recentQuickSwitcher.svelte';
   import { quickSwitcher } from '$lib/state/globals.svelte';
+  import { ROOM_MEMBERS_PAGE_SIZE } from '$lib/state/room/members.svelte';
   import * as m from '$lib/i18n/messages';
   import { toast } from '$lib/ui/toast';
   import { createRoomCommandAPI } from '@chatto/api-client/rooms';
@@ -95,9 +96,9 @@
         await Promise.all(
           rooms.map(async (room) => {
             if (room.kind === RoomKind.DM) {
-              const participants = (await members.listRoomMembers(room.id, '', 100, 0)).members.map(
-                avatarUser
-              );
+              const participants = (
+                await members.listRoomMembers(room.id, '', ROOM_MEMBERS_PAGE_SIZE, 0)
+              ).members.map(avatarUser);
               items.push({
                 kind: 'dm',
                 id: room.id,
@@ -394,7 +395,6 @@
     const url = itemUrl(item);
     if (url) {
       recentQuickSwitcher.record(url);
-      // eslint-disable-next-line svelte/no-navigation-without-resolve -- itemUrl() returns resolved app routes
       goto(url);
     }
   }

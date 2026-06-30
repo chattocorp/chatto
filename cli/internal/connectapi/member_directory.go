@@ -14,7 +14,7 @@ import (
 
 const (
 	defaultMemberDirectoryLimit = 20
-	maxMemberDirectoryLimit     = 100
+	maxMemberDirectoryLimit     = 500
 )
 
 type memberDirectoryService struct {

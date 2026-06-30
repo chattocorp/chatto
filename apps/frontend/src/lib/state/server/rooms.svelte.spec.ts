@@ -7,6 +7,7 @@ import {
   type UserAvatarUserView
 } from '$lib/render/types';
 import { RoomEventKind } from '$lib/render/eventKinds';
+import { ROOM_MEMBERS_PAGE_SIZE } from '$lib/state/room/members.svelte';
 import {
   RoomDirectoryScope,
   RoomKind,
@@ -172,7 +173,12 @@ describe('RoomsStore - refresh', () => {
     await store.refresh();
 
     expect(roomDirectoryAPI.listRooms).toHaveBeenCalledWith(RoomDirectoryScope.ALL);
-    expect(memberDirectoryAPI.listRoomMembers).toHaveBeenCalledWith('dm-1', '', 100, 0);
+    expect(memberDirectoryAPI.listRoomMembers).toHaveBeenCalledWith(
+      'dm-1',
+      '',
+      ROOM_MEMBERS_PAGE_SIZE,
+      0
+    );
     expect(store.rooms).toMatchObject([
       {
         id: 'public',

@@ -3146,6 +3146,22 @@ func TestMemberDirectoryServiceListRoomMembersRequiresMembership(t *testing.T) {
 	}
 }
 
+func TestMemberDirectoryOversizedPagesClampTo500(t *testing.T) {
+	limit, offset := apiPagination(&apiv1.PageRequest{Limit: 9999}, defaultMemberDirectoryLimit, maxMemberDirectoryLimit)
+	if limit != 500 || offset != 0 {
+		t.Fatalf("apiPagination limit, offset = %d, %d; want 500, 0", limit, offset)
+	}
+
+	users := make([]*corev1.User, 501)
+	for i := range users {
+		users[i] = &corev1.User{Id: fmt.Sprintf("user-%03d", i)}
+	}
+	page, totalCount, hasMore := paginateDirectoryUsers(users, limit, offset)
+	if len(page) != 500 || totalCount != 501 || !hasMore {
+		t.Fatalf("paginated users len, total, hasMore = %d, %d, %v; want 500, 501, true", len(page), totalCount, hasMore)
+	}
+}
+
 func TestAccountServiceSetAndClearCustomStatus(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	ctx := withCaller(env.ctx, env.viewer)

@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { tick } from 'svelte';
 import { q } from '$lib/test-utils';
-import type { RoomMember } from '$lib/state/room';
+import { ROOM_MEMBERS_PAGE_SIZE, type RoomMember } from '$lib/state/room/members.svelte';
 import type { PresenceCache } from '$lib/state/presenceCache.svelte';
 import type { RoomData } from '$lib/hooks/useRoomData.svelte';
 import { PresenceStatus } from '$lib/render/types';
@@ -408,8 +408,18 @@ describe('RoomSidebar', () => {
 
     await expect.element(q(container, 'h1')).toHaveTextContent('Members (142)');
     await vi.waitFor(() => {
-      expect(memberDirectoryMocks.listRoomMembers).toHaveBeenCalledWith('room-1', '', 100, 0);
-      expect(memberDirectoryMocks.listRoomMembers).toHaveBeenCalledWith('room-1', '', 100, 100);
+      expect(memberDirectoryMocks.listRoomMembers).toHaveBeenCalledWith(
+        'room-1',
+        '',
+        ROOM_MEMBERS_PAGE_SIZE,
+        0
+      );
+      expect(memberDirectoryMocks.listRoomMembers).toHaveBeenCalledWith(
+        'room-1',
+        '',
+        ROOM_MEMBERS_PAGE_SIZE,
+        100
+      );
     });
 
     await vi.waitFor(() => {

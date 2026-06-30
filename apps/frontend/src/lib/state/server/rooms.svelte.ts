@@ -14,6 +14,7 @@ import type { ViewerState } from '@chatto/api-client/viewer';
 import type { NotificationLevelStore } from '$lib/state/server/notificationLevel.svelte';
 import type { RoomUnreadStore } from '$lib/state/server/roomUnread.svelte';
 import type { NotificationAPI } from '@chatto/api-client/notifications';
+import { ROOM_MEMBERS_PAGE_SIZE } from '$lib/state/room/members.svelte';
 
 export type RoomsListItem = {
   id: string;
@@ -172,9 +173,14 @@ export class RoomsStore {
           async (room) =>
             [
               room.id,
-              (await this.memberDirectoryAPI.listRoomMembers(room.id, '', 100, 0)).members.map(
-                avatarUserFromDirectoryMember
-              )
+              (
+                await this.memberDirectoryAPI.listRoomMembers(
+                  room.id,
+                  '',
+                  ROOM_MEMBERS_PAGE_SIZE,
+                  0
+                )
+              ).members.map(avatarUserFromDirectoryMember)
             ] as const
         )
       )

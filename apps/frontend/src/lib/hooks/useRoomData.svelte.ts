@@ -3,6 +3,7 @@ import { createMemberDirectoryAPI, type DirectoryMember } from '@chatto/api-clie
 import { createRoomDirectoryAPI, RoomKind } from '@chatto/api-client/roomDirectory';
 import { useActiveRoomLayoutUpdated } from '$lib/hooks/useEvent.svelte';
 import { useReconnectTrigger } from '$lib/hooks/useReconnectCallback.svelte';
+import { ROOM_MEMBERS_PAGE_SIZE } from '$lib/state/room/members.svelte';
 import { useConnection } from '$lib/state/server/connection.svelte';
 import { serverRegistry } from '$lib/state/server/registry.svelte';
 import { untrack } from 'svelte';
@@ -160,7 +161,7 @@ export function useRoomData(getProps: () => { roomId: string }) {
       bearerToken: currentConnection.bearerToken
     });
     api
-      .listRoomMembers(currentRoomId, '', 100, 0)
+      .listRoomMembers(currentRoomId, '', ROOM_MEMBERS_PAGE_SIZE, 0)
       .then((resp) => {
         if (dmLoadId.current !== thisLoadId) return;
         dmData = {

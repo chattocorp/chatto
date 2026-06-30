@@ -3,7 +3,7 @@ import type { EventEnvelope } from '$lib/eventBus.svelte';
 import { RoomEventKind } from '$lib/render/eventKinds';
 import { PresenceStatus } from '$lib/render/types';
 import type { MemberDirectoryAPI, MemberDirectoryPage } from '@chatto/api-client/memberDirectory';
-import { RoomMembersStore } from './members.svelte';
+import { ROOM_MEMBERS_PAGE_SIZE, RoomMembersStore } from './members.svelte';
 
 class FakeMemberDirectoryAPI {
   listRoomMembers: MemberDirectoryAPI['listRoomMembers'];
@@ -60,14 +60,29 @@ function createStore(results: Array<MemberDirectoryPage | Promise<MemberDirector
 
 describe('RoomMembersStore', () => {
   it('eagerly loads every room member page into the canonical member list', async () => {
-    const store = createStore([
+    const fakeAPI = new FakeMemberDirectoryAPI([
       pageResult([user('u1', 'alice')], true, 3),
       pageResult([user('u2', 'boris'), user('u3', 'cora')], false, 3)
     ]);
+    const store = new RoomMembersStore(fakeAPI);
 
     store.setRoom('room-1');
     await store.loadInitial();
 
+    expect(fakeAPI.listRoomMembers).toHaveBeenNthCalledWith(
+      1,
+      'room-1',
+      '',
+      ROOM_MEMBERS_PAGE_SIZE,
+      0
+    );
+    expect(fakeAPI.listRoomMembers).toHaveBeenNthCalledWith(
+      2,
+      'room-1',
+      '',
+      ROOM_MEMBERS_PAGE_SIZE,
+      1
+    );
     expect(store.members.map((member) => member.login)).toEqual(['alice', 'boris', 'cora']);
     expect(store.filteredMembers.map((member) => member.login)).toEqual(['alice', 'boris', 'cora']);
     expect(store.totalCount).toBe(3);
