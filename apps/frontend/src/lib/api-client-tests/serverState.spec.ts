@@ -64,25 +64,51 @@ describe('getAuthenticatedServerState', () => {
   it('loads authenticated server state and maps optional and int64 fields', async () => {
     mocks.getServerState.mockResolvedValue({
       profile: {
-        name: 'Remote Chatto',
-        logoUrl: 'https://cdn/logo.webp',
-        bannerUrl: 'https://cdn/banner.webp',
-        welcomeMessage: 'welcome',
-        description: 'description',
+        publicProfile: {
+          name: 'Remote Chatto',
+          version: '9.8.7',
+          logoUrl: 'https://cdn/logo.webp',
+          bannerUrl: 'https://cdn/banner.webp',
+          welcomeMessage: 'welcome',
+          description: 'description'
+        },
         motd: 'hello'
       },
-      pushNotificationsEnabled: true,
-      vapidPublicKey: 'vapid',
-      livekitUrl: 'wss://livekit',
-      videoProcessingEnabled: true,
-      maxUploadSize: protoInt64.parse(123),
-      maxVideoUploadSize: protoInt64.parse(456),
-      messageEditWindowSeconds: 7200,
-      viewerCapabilities: {
-        hasAnyAdminPermission: true,
-        canManageServer: true,
-        canCreateRoom: true,
-        canManageRooms: false,
+      runtime: {
+        pushNotificationsEnabled: true,
+        vapidPublicKey: 'vapid',
+        livekitUrl: 'wss://livekit',
+        videoProcessingEnabled: true,
+        maxUploadSize: protoInt64.parse(123),
+        maxVideoUploadSize: protoInt64.parse(456),
+        messageEditWindowSeconds: 7200
+      },
+      viewerPermissions: {
+        permissions: [
+          { permission: 'server.manage', granted: true },
+          { permission: 'room.create', granted: true },
+          { permission: 'room.join', granted: true },
+          { permission: 'room.list', granted: true },
+          { permission: 'room.manage', granted: false },
+          { permission: 'room.ban-member', granted: true },
+          { permission: 'message.post', granted: true },
+          { permission: 'message.post-in-thread', granted: true },
+          { permission: 'message.attach', granted: true },
+          { permission: 'message.manage', granted: false },
+          { permission: 'message.react', granted: true },
+          { permission: 'message.echo', granted: true },
+          { permission: 'role.manage', granted: true },
+          { permission: 'role.assign', granted: true },
+          { permission: 'admin.view-users', granted: true },
+          { permission: 'admin.view-system', granted: false },
+          { permission: 'admin.view-audit', granted: true },
+          { permission: 'user.delete-any', granted: false },
+          { permission: 'user.delete-self', granted: true },
+          { permission: 'user.manage-permissions', granted: true },
+          { permission: 'bot.example.do-thing', granted: true }
+        ]
+      },
+      viewerState: {
         hasUnreadRooms: true
       }
     });
@@ -102,6 +128,7 @@ describe('getAuthenticatedServerState', () => {
     );
     expect(state).toEqual({
       name: 'Remote Chatto',
+      version: '9.8.7',
       logoUrl: 'https://cdn/logo.webp',
       bannerUrl: 'https://cdn/banner.webp',
       welcomeMessage: 'welcome',
@@ -114,10 +141,49 @@ describe('getAuthenticatedServerState', () => {
       maxUploadSize: 123,
       maxVideoUploadSize: 456,
       messageEditWindowSeconds: 7200,
-      viewerHasAnyAdminPermission: true,
+      viewerPermissions: {
+        'admin.view-audit': true,
+        'admin.view-system': false,
+        'admin.view-users': true,
+        'bot.example.do-thing': true,
+        'message.attach': true,
+        'message.echo': true,
+        'message.manage': false,
+        'message.post': true,
+        'message.post-in-thread': true,
+        'message.react': true,
+        'role.assign': true,
+        'role.manage': true,
+        'room.ban-member': true,
+        'room.create': true,
+        'room.join': true,
+        'room.list': true,
+        'room.manage': false,
+        'server.manage': true,
+        'user.delete-any': false,
+        'user.delete-self': true,
+        'user.manage-permissions': true
+      },
       viewerCanManageServer: true,
-      viewerCanCreateRoom: true,
+      viewerCanCreateRooms: true,
+      viewerCanJoinRooms: true,
+      viewerCanListRooms: true,
       viewerCanManageRooms: false,
+      viewerCanBanRoomMembers: true,
+      viewerCanPostMessages: true,
+      viewerCanPostInThreads: true,
+      viewerCanAttachFiles: true,
+      viewerCanManageMessages: false,
+      viewerCanReactToMessages: true,
+      viewerCanEchoMessages: true,
+      viewerCanManageRoles: true,
+      viewerCanAssignRoles: true,
+      viewerCanViewAdminUsers: true,
+      viewerCanViewAdminSystem: false,
+      viewerCanViewAdminAudit: true,
+      viewerCanDeleteAnyUser: false,
+      viewerCanDeleteSelf: true,
+      viewerCanManageUserPermissions: true,
       viewerHasUnreadRooms: true
     });
   });
@@ -125,11 +191,13 @@ describe('getAuthenticatedServerState', () => {
   it('maps absent optional fields to null and omits auth headers without a token', async () => {
     mocks.getServerState.mockResolvedValue({
       profile: {},
-      pushNotificationsEnabled: false,
-      videoProcessingEnabled: false,
-      maxUploadSize: protoInt64.zero,
-      maxVideoUploadSize: protoInt64.zero,
-      messageEditWindowSeconds: 10800
+      runtime: {
+        pushNotificationsEnabled: false,
+        videoProcessingEnabled: false,
+        maxUploadSize: protoInt64.zero,
+        maxVideoUploadSize: protoInt64.zero,
+        messageEditWindowSeconds: 10800
+      }
     });
 
     const state = await getAuthenticatedServerState({
@@ -139,6 +207,7 @@ describe('getAuthenticatedServerState', () => {
 
     expect(mocks.getServerState).toHaveBeenCalledWith({}, { headers: undefined });
     expect(state.name).toBe('Chatto');
+    expect(state.version).toBe('');
     expect(state.logoUrl).toBeNull();
     expect(state.bannerUrl).toBeNull();
     expect(state.welcomeMessage).toBeNull();
@@ -146,9 +215,10 @@ describe('getAuthenticatedServerState', () => {
     expect(state.motd).toBeNull();
     expect(state.vapidPublicKey).toBeNull();
     expect(state.livekitUrl).toBeNull();
-    expect(state.viewerHasAnyAdminPermission).toBe(false);
     expect(state.viewerCanManageServer).toBe(false);
-    expect(state.viewerCanCreateRoom).toBe(false);
+    expect(state.viewerCanCreateRooms).toBe(false);
+    expect(state.viewerCanJoinRooms).toBe(false);
+    expect(state.viewerCanListRooms).toBe(false);
     expect(state.viewerCanManageRooms).toBe(false);
     expect(state.viewerHasUnreadRooms).toBe(false);
   });
@@ -156,12 +226,14 @@ describe('getAuthenticatedServerState', () => {
   it('updates server config with bearer auth and maps the returned profile', async () => {
     mocks.updateServerConfig.mockResolvedValue({
       profile: {
-        name: 'Connect Server',
-        description: 'Connect description',
+        publicProfile: {
+          name: 'Connect Server',
+          description: 'Connect description',
+          welcomeMessage: 'Connect welcome',
+          logoUrl: 'https://cdn/logo.webp',
+          bannerUrl: 'https://cdn/banner.webp'
+        },
         motd: 'Connect MOTD',
-        welcomeMessage: 'Connect welcome',
-        logoUrl: 'https://cdn/logo.webp',
-        bannerUrl: 'https://cdn/banner.webp'
       }
     });
 
@@ -193,6 +265,7 @@ describe('getAuthenticatedServerState', () => {
     );
     expect(profile).toEqual({
       name: 'Connect Server',
+      version: '',
       description: 'Connect description',
       motd: 'Connect MOTD',
       welcomeMessage: 'Connect welcome',
@@ -204,24 +277,32 @@ describe('getAuthenticatedServerState', () => {
   it('updates server branding through AdminServerService', async () => {
     mocks.uploadServerLogo.mockResolvedValue({
       profile: {
-        name: 'Connect Server',
-        logoUrl: 'https://cdn/new-logo.webp'
+        publicProfile: {
+          name: 'Connect Server',
+          logoUrl: 'https://cdn/new-logo.webp'
+        }
       }
     });
     mocks.deleteServerLogo.mockResolvedValue({
       profile: {
-        name: 'Connect Server'
+        publicProfile: {
+          name: 'Connect Server'
+        }
       }
     });
     mocks.uploadServerBanner.mockResolvedValue({
       profile: {
-        name: 'Connect Server',
-        bannerUrl: 'https://cdn/new-banner.webp'
+        publicProfile: {
+          name: 'Connect Server',
+          bannerUrl: 'https://cdn/new-banner.webp'
+        }
       }
     });
     mocks.deleteServerBanner.mockResolvedValue({
       profile: {
-        name: 'Connect Server'
+        publicProfile: {
+          name: 'Connect Server'
+        }
       }
     });
 

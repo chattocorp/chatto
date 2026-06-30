@@ -20,29 +20,39 @@ message AuthProvider {
 // Request for public server metadata.
 message GetServerRequest {}
 
-// Public metadata clients need before they can authenticate or render the
-// initial server view.
-message GetServerResponse {
+// Public server profile, identity, and branding fields.
+message ServerPublicProfile {
   // Display name of the Chatto server.
   string name = 1;
   // Server software version.
   string version = 2;
-  // Enabled legacy authentication method identifiers.
-  repeated string auth_methods = 3;
-  // Configured login providers.
-  repeated AuthProvider auth_providers = 4;
+  // Optional server logo URL.
+  optional string logo_url = 3;
+  // Optional server banner URL.
+  optional string banner_url = 4;
+  // Optional welcome message.
+  optional string welcome_message = 5;
+  // Optional server description.
+  optional string description = 6;
+}
+
+// Login and registration options exposed before authentication.
+message ServerLogin {
   // Whether users can create accounts through the public UI.
-  bool registration_open = 5;
+  bool direct_registration_enabled = 1;
+  // Configured login providers.
+  repeated AuthProvider providers = 2;
   // URL for the legacy authorization flow, when enabled.
-  string authorize_url = 6;
-  // Optional welcome message configured by the server administrator.
-  optional string welcome_message = 7;
-  // Optional server description configured by the server administrator.
-  optional string description = 8;
-  // Optional server logo URL suitable for branding the server in client UI.
-  optional string logo_url = 9;
-  // Optional server banner URL suitable for larger server branding surfaces.
-  optional string banner_url = 10;
+  string authorize_url = 3;
+}
+
+// Public metadata clients need before they can authenticate or render the
+// initial server view.
+message GetServerResponse {
+  // Public server profile and branding.
+  ServerPublicProfile profile = 1;
+  // Login and registration options.
+  ServerLogin login = 2;
 }
 
 // Provides public server discovery metadata.

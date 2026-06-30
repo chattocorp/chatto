@@ -48,13 +48,5 @@ initial server view.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `name` | `string` | Display name of the Chatto server. |
-| `version` | `string` | Server software version. |
-| `auth_methods` | `repeated string` | Enabled legacy authentication method identifiers. |
-| `auth_providers` | repeated [`AuthProvider`](/reference/connectrpc-api/types/#chatto-api-v1-AuthProvider) | Configured login providers. |
-| `registration_open` | `bool` | Whether users can create accounts through the public UI. |
-| `authorize_url` | `string` | URL for the legacy authorization flow, when enabled. |
-| `welcome_message` | `optional string` | Optional welcome message configured by the server administrator. |
-| `description` | `optional string` | Optional server description configured by the server administrator. |
-| `logo_url` | `optional string` | Optional server logo URL suitable for branding the server in client UI. |
-| `banner_url` | `optional string` | Optional server banner URL suitable for larger server branding surfaces. |
+| `profile` | [`ServerPublicProfile`](/reference/connectrpc-api/types/#chatto-api-v1-ServerPublicProfile) | Public server profile and branding. |
+| `login` | [`ServerLogin`](/reference/connectrpc-api/types/#chatto-api-v1-ServerLogin) | Login and registration options. |

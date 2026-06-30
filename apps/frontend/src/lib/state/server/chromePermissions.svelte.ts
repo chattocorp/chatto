@@ -8,7 +8,7 @@ export type ChromePermissions = {
    * mount and the validateServer query returning.
    */
   loaded: boolean;
-  hasAnyAdminPermission: boolean;
+  canViewAdmin: boolean;
   canManage: boolean;
   canManageRooms: boolean;
   canManageRoles: boolean;
@@ -29,7 +29,7 @@ export function createChromePermissions(): (permissions: Omit<ChromePermissions,
   const state = $state<{ current: ChromePermissions }>({
     current: {
       loaded: false,
-      hasAnyAdminPermission: false,
+      canViewAdmin: false,
       canManage: false,
       canManageRooms: false,
       canManageRoles: false,

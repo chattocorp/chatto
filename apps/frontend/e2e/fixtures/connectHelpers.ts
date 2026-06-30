@@ -37,7 +37,7 @@ interface PostMessageResponse {
 }
 
 interface ServerStateResponse {
-  viewerCapabilities?: { hasUnreadRooms?: boolean };
+  viewerState?: { hasUnreadRooms?: boolean };
 }
 
 interface GetUserResponse {
@@ -127,7 +127,7 @@ export async function waitForServerUnreadViaConnect(
       page,
       'chatto.api.v1.ServerService/GetServerState'
     );
-    expect(data.viewerCapabilities?.hasUnreadRooms ?? false).toBe(expected);
+    expect(data.viewerState?.hasUnreadRooms ?? false).toBe(expected);
   }).toPass({ timeout, intervals: [100, 250, 500, 1000] });
 }
 

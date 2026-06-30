@@ -61,7 +61,9 @@ interface ListCallParticipantsResponse {
 }
 
 interface ServerStateResponse {
-  livekitUrl?: string;
+  runtime?: {
+    livekitUrl?: string;
+  };
 }
 
 async function joinCallViaConnect(page: Page, roomId: string): Promise<boolean> {
@@ -461,6 +463,6 @@ test.describe('Voice calls', () => {
       page,
       'chatto.api.v1.ServerService/GetServerState'
     );
-    expect(data.livekitUrl).toBe('ws://localhost:7880');
+    expect(data.runtime?.livekitUrl).toBe('ws://localhost:7880');
   });
 });

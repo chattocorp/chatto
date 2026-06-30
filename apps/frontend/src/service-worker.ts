@@ -28,7 +28,7 @@ const CACHE_NAME = `${CACHE_PREFIX}-${version}`;
 const BADGE_STATE_CACHE_NAME = 'chatto-badge-state-v1';
 const BADGE_STATE_URL = `${self.location.origin}/__chatto_badge_state__`;
 const SHELL_ASSETS = new Set([...build, ...files, OFFLINE_SHELL_PATH]);
-const PRECACHE_ASSETS = Array.from(new Set([...build, ...files, OFFLINE_SHELL_PATH, '/']));
+const PRECACHE_ASSETS = Array.from(new Set([...build, OFFLINE_SHELL_PATH, '/']));
 
 type AppBadgeNavigator = Navigator & {
   setAppBadge?: (contents?: number) => Promise<void>;

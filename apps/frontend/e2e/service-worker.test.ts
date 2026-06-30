@@ -5,8 +5,7 @@ type CacheSnapshot = {
   cacheNames: string[];
   rootShellCached: boolean;
   fallbackShellCached: boolean;
-  manifestCached: boolean;
-  iconCached: boolean;
+  lazyStaticAssetCached: boolean;
   apiDiscoveryCached: boolean;
   apiConnectCached: boolean;
   uploadedAssetCached: boolean;
@@ -80,7 +79,6 @@ test('service worker caches only the app shell and serves it offline', async ({
   expect(registration.scope).toBe(`${new URL(page.url()).origin}/`);
   expect(registration.scriptURL).toBe(`${new URL(page.url()).origin}/service-worker.js`);
 
-  await page.reload({ waitUntil: 'domcontentloaded' });
   await expect
     .poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller)))
     .toBe(true);
@@ -93,11 +91,14 @@ test('service worker caches only the app shell and serves it offline', async ({
   );
   expect(onlineCacheSnapshot.rootShellCached).toBe(true);
   expect(onlineCacheSnapshot.fallbackShellCached).toBe(true);
-  expect(onlineCacheSnapshot.manifestCached).toBe(true);
-  expect(onlineCacheSnapshot.iconCached).toBe(true);
+  expect(onlineCacheSnapshot.lazyStaticAssetCached).toBe(false);
   expect(onlineCacheSnapshot.apiDiscoveryCached).toBe(false);
   expect(onlineCacheSnapshot.apiConnectCached).toBe(false);
   expect(onlineCacheSnapshot.uploadedAssetCached).toBe(false);
+
+  await requestLazyStaticAsset(page);
+  const lazyCacheSnapshot = await cacheSnapshot(page);
+  expect(lazyCacheSnapshot.lazyStaticAssetCached).toBe(true);
 
   await context.setOffline(true);
   try {
@@ -136,13 +137,21 @@ async function cacheSnapshot(page: Page) {
       cacheNames: await caches.keys(),
       rootShellCached: Boolean(await caches.match('/')),
       fallbackShellCached: Boolean(await caches.match('/200.html')),
-      manifestCached: Boolean(await caches.match('/manifest.webmanifest')),
-      iconCached: Boolean(await caches.match('/icons/icon-192.png')),
+      lazyStaticAssetCached: Boolean(await caches.match('/robots.txt')),
       apiDiscoveryCached: Boolean(
         await caches.match('/api/connect/chatto.api.v1.ServerDiscoveryService/GetServer')
       ),
       apiConnectCached: Boolean(await caches.match('/api/connect')),
       uploadedAssetCached: Boolean(await caches.match('/assets/example.png'))
     };
+  });
+}
+
+async function requestLazyStaticAsset(page: Page) {
+  await page.evaluate(async () => {
+    const response = await fetch('/robots.txt');
+    if (!response.ok) {
+      throw new Error(`robots.txt request failed with ${response.status}`);
+    }
   });
 }

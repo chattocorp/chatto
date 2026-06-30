@@ -49,7 +49,7 @@
 
     // Moderation pages: the resolver enforces server-scope room.ban-member.
     if (pathname.startsWith(moderationBase)) {
-      return () => chromePermissions.current.hasAnyAdminPermission;
+      return () => chromePermissions.current.canViewAdmin;
     }
 
     // Permissions pages: role.manage OR admin.view-roles

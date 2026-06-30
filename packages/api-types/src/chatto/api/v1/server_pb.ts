@@ -108,12 +108,11 @@ export class GetServerRequest extends Message<GetServerRequest> {
 }
 
 /**
- * Public metadata clients need before they can authenticate or render the
- * initial server view.
+ * Public server profile, identity, and branding fields.
  *
- * @generated from message chatto.api.v1.GetServerResponse
+ * @generated from message chatto.api.v1.ServerPublicProfile
  */
-export class GetServerResponse extends Message<GetServerResponse> {
+export class ServerPublicProfile extends Message<ServerPublicProfile> {
   /**
    * Display name of the Chatto server.
    *
@@ -129,60 +128,143 @@ export class GetServerResponse extends Message<GetServerResponse> {
   version = "";
 
   /**
-   * Enabled legacy authentication method identifiers.
+   * Optional server logo URL.
    *
-   * @generated from field: repeated string auth_methods = 3;
-   */
-  authMethods: string[] = [];
-
-  /**
-   * Configured login providers.
-   *
-   * @generated from field: repeated chatto.api.v1.AuthProvider auth_providers = 4;
-   */
-  authProviders: AuthProvider[] = [];
-
-  /**
-   * Whether users can create accounts through the public UI.
-   *
-   * @generated from field: bool registration_open = 5;
-   */
-  registrationOpen = false;
-
-  /**
-   * URL for the legacy authorization flow, when enabled.
-   *
-   * @generated from field: string authorize_url = 6;
-   */
-  authorizeUrl = "";
-
-  /**
-   * Optional welcome message configured by the server administrator.
-   *
-   * @generated from field: optional string welcome_message = 7;
-   */
-  welcomeMessage?: string;
-
-  /**
-   * Optional server description configured by the server administrator.
-   *
-   * @generated from field: optional string description = 8;
-   */
-  description?: string;
-
-  /**
-   * Optional server logo URL suitable for branding the server in client UI.
-   *
-   * @generated from field: optional string logo_url = 9;
+   * @generated from field: optional string logo_url = 3;
    */
   logoUrl?: string;
 
   /**
-   * Optional server banner URL suitable for larger server branding surfaces.
+   * Optional server banner URL.
    *
-   * @generated from field: optional string banner_url = 10;
+   * @generated from field: optional string banner_url = 4;
    */
   bannerUrl?: string;
+
+  /**
+   * Optional welcome message.
+   *
+   * @generated from field: optional string welcome_message = 5;
+   */
+  welcomeMessage?: string;
+
+  /**
+   * Optional server description.
+   *
+   * @generated from field: optional string description = 6;
+   */
+  description?: string;
+
+  constructor(data?: PartialMessage<ServerPublicProfile>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.ServerPublicProfile";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "version", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "logo_url", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 4, name: "banner_url", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 5, name: "welcome_message", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 6, name: "description", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ServerPublicProfile {
+    return new ServerPublicProfile().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ServerPublicProfile {
+    return new ServerPublicProfile().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ServerPublicProfile {
+    return new ServerPublicProfile().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ServerPublicProfile | PlainMessage<ServerPublicProfile> | undefined, b: ServerPublicProfile | PlainMessage<ServerPublicProfile> | undefined): boolean {
+    return proto3.util.equals(ServerPublicProfile, a, b);
+  }
+}
+
+/**
+ * Login and registration options exposed before authentication.
+ *
+ * @generated from message chatto.api.v1.ServerLogin
+ */
+export class ServerLogin extends Message<ServerLogin> {
+  /**
+   * Whether users can create accounts through the public UI.
+   *
+   * @generated from field: bool direct_registration_enabled = 1;
+   */
+  directRegistrationEnabled = false;
+
+  /**
+   * Configured login providers.
+   *
+   * @generated from field: repeated chatto.api.v1.AuthProvider providers = 2;
+   */
+  providers: AuthProvider[] = [];
+
+  /**
+   * URL for the legacy authorization flow, when enabled.
+   *
+   * @generated from field: string authorize_url = 3;
+   */
+  authorizeUrl = "";
+
+  constructor(data?: PartialMessage<ServerLogin>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.ServerLogin";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "direct_registration_enabled", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 2, name: "providers", kind: "message", T: AuthProvider, repeated: true },
+    { no: 3, name: "authorize_url", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ServerLogin {
+    return new ServerLogin().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ServerLogin {
+    return new ServerLogin().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ServerLogin {
+    return new ServerLogin().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ServerLogin | PlainMessage<ServerLogin> | undefined, b: ServerLogin | PlainMessage<ServerLogin> | undefined): boolean {
+    return proto3.util.equals(ServerLogin, a, b);
+  }
+}
+
+/**
+ * Public metadata clients need before they can authenticate or render the
+ * initial server view.
+ *
+ * @generated from message chatto.api.v1.GetServerResponse
+ */
+export class GetServerResponse extends Message<GetServerResponse> {
+  /**
+   * Public server profile and branding.
+   *
+   * @generated from field: chatto.api.v1.ServerPublicProfile profile = 1;
+   */
+  profile?: ServerPublicProfile;
+
+  /**
+   * Login and registration options.
+   *
+   * @generated from field: chatto.api.v1.ServerLogin login = 2;
+   */
+  login?: ServerLogin;
 
   constructor(data?: PartialMessage<GetServerResponse>) {
     super();
@@ -192,16 +274,8 @@ export class GetServerResponse extends Message<GetServerResponse> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.GetServerResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "version", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "auth_methods", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
-    { no: 4, name: "auth_providers", kind: "message", T: AuthProvider, repeated: true },
-    { no: 5, name: "registration_open", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 6, name: "authorize_url", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 7, name: "welcome_message", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
-    { no: 8, name: "description", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
-    { no: 9, name: "logo_url", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
-    { no: 10, name: "banner_url", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 1, name: "profile", kind: "message", T: ServerPublicProfile },
+    { no: 2, name: "login", kind: "message", T: ServerLogin },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetServerResponse {

@@ -107,25 +107,22 @@ func TestConnectServerDiscoveryServiceGetServer(t *testing.T) {
 		}
 
 		msg := resp.Msg
-		if msg.Name != "Chatto" {
-			t.Fatalf("Name = %q, want Chatto", msg.Name)
+		if msg.GetProfile().GetName() != "Chatto" {
+			t.Fatalf("profile name = %q, want Chatto", msg.GetProfile().GetName())
 		}
-		if msg.Version != "1.2.3" {
-			t.Fatalf("Version = %q, want 1.2.3", msg.Version)
+		if msg.GetProfile().GetVersion() != "1.2.3" {
+			t.Fatalf("profile version = %q, want 1.2.3", msg.GetProfile().GetVersion())
 		}
-		if got, want := strings.Join(msg.AuthMethods, ","), "password,oidc"; got != want {
-			t.Fatalf("AuthMethods = %v, want %s", msg.AuthMethods, want)
+		if !msg.GetLogin().GetDirectRegistrationEnabled() {
+			t.Fatal("DirectRegistrationEnabled = false, want true")
 		}
-		if !msg.RegistrationOpen {
-			t.Fatal("RegistrationOpen = false, want true")
+		if msg.GetLogin().GetAuthorizeUrl() != "/oauth/authorize" {
+			t.Fatalf("AuthorizeUrl = %q, want /oauth/authorize", msg.GetLogin().GetAuthorizeUrl())
 		}
-		if msg.AuthorizeUrl != "/oauth/authorize" {
-			t.Fatalf("AuthorizeUrl = %q, want /oauth/authorize", msg.AuthorizeUrl)
+		if len(msg.GetLogin().GetProviders()) != 1 {
+			t.Fatalf("providers len = %d, want 1", len(msg.GetLogin().GetProviders()))
 		}
-		if len(msg.AuthProviders) != 1 {
-			t.Fatalf("AuthProviders len = %d, want 1", len(msg.AuthProviders))
-		}
-		provider := msg.AuthProviders[0]
+		provider := msg.GetLogin().GetProviders()[0]
 		if provider.Id != "hub" || provider.Type != config.AuthProviderTypeOpenIDConnect || provider.Label != "Chatto Hub" || provider.LoginUrl != "/auth/providers/hub" {
 			t.Fatalf("AuthProviders[0] = %+v", provider)
 		}
@@ -161,8 +158,8 @@ func TestConnectServerDiscoveryServiceGetServer(t *testing.T) {
 		if err := proto.Unmarshal(data, &msg); err != nil {
 			t.Fatalf("unmarshal response: %v", err)
 		}
-		if msg.Name != "Chatto" {
-			t.Fatalf("Name = %q, want Chatto", msg.Name)
+		if msg.GetProfile().GetName() != "Chatto" {
+			t.Fatalf("profile name = %q, want Chatto", msg.GetProfile().GetName())
 		}
 	})
 
@@ -197,7 +194,7 @@ func TestConnectServerDiscoveryServiceGetServer(t *testing.T) {
 		if err := protojson.Unmarshal(data, &msg); err != nil {
 			t.Fatalf("unmarshal response: %v", err)
 		}
-		if msg.Name != "Chatto" || msg.AuthorizeUrl != "/oauth/authorize" {
+		if msg.GetProfile().GetName() != "Chatto" || msg.GetLogin().GetAuthorizeUrl() != "/oauth/authorize" {
 			t.Fatalf("response = %+v, want Chatto metadata", &msg)
 		}
 	})
@@ -220,8 +217,8 @@ func TestConnectServerDiscoveryServiceGetServer(t *testing.T) {
 			t.Fatalf("GetServer: %v", err)
 		}
 
-		if !strings.HasPrefix(resp.Msg.GetBannerUrl(), ts.URL+"/") {
-			t.Fatalf("BannerUrl = %q, want %s prefix", resp.Msg.GetBannerUrl(), ts.URL+"/")
+		if !strings.HasPrefix(resp.Msg.GetProfile().GetBannerUrl(), ts.URL+"/") {
+			t.Fatalf("profile BannerUrl = %q, want %s prefix", resp.Msg.GetProfile().GetBannerUrl(), ts.URL+"/")
 		}
 	})
 }
