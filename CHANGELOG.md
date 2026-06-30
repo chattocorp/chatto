@@ -3,6 +3,13 @@
 All notable changes to Chatto. Maintained by release-please from the
 conventional-commit messages on `main` — do not edit by hand.
 
+## [0.4.0-beta.9](https://github.com/chattocorp/chatto/compare/v0.4.0-beta.8...v0.4.0-beta.9) (2026-06-30)
+
+
+### Bug Fixes
+
+* **auth:** reject empty-user runtime credentials ([#1201](https://github.com/chattocorp/chatto/issues/1201)) ([43b569c](https://github.com/chattocorp/chatto/commit/43b569c348c89cdf6df1f49a6433b385625a2589))
+
 ## [0.4.0-beta.8](https://github.com/chattocorp/chatto/compare/v0.4.0-beta.7...v0.4.0-beta.8) (2026-06-30)
 
 
