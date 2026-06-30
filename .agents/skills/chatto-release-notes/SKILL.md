@@ -28,9 +28,14 @@ Do not list changes that do not affect either group. Skip routine refactors,
 test work, CI work, codegen churn, internal API rearrangement, and dependency
 maintenance unless they change user-visible behavior or operator action.
 
-API changes belong on these pages only when they affect self-hosters or people
-running integrations against their own Chatto servers. Phrase them as operator
-or integration impact, not as maintainer implementation detail.
+Name the specific actor whenever one is known. Prefer "users", "members",
+"operators", "admins", or "integration authors" over generic actor wording.
+
+API changes belong on these pages only when they affect self-hosters or
+integration authors running against their own Chatto servers. Phrase them as
+operator or integration impact, not as maintainer implementation detail. Do not
+mention generated package moves, import paths, or internal client extraction
+unless external integration authors must take action.
 
 Major public API replacements, removed protocols, or required integration
 migrations are headline release-page items. Do not hide them behind generic
@@ -132,7 +137,7 @@ stable patch release of the previous minor line.
   during the `0.4.0` prerelease cycle and later prereleases clean up method
   names, message shapes, or generated docs before the stable release, describe
   the stable ConnectRPC API once. Mention beta-to-stable migration work only in
-  upgrade notes for people who tested prereleases.
+  upgrade notes for operators or integration authors who tested prereleases.
 
 Identify the baseline by listing stable tags for the previous minor:
 

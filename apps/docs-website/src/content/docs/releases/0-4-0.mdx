@@ -10,7 +10,7 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
 <ReleaseHero
   version="0.4.0"
   status="Unreleased"
-  summary="This unreleased page covers the full 0.4.0 line since 0.3.8: a GraphQL-to-ConnectRPC API replacement, universal rooms, richer presence controls, custom statuses, and broader interface localization."
+  summary="This unreleased page covers the full 0.4.0 line since 0.3.8: a GraphQL-to-ConnectRPC API replacement, universal rooms, richer presence controls, custom statuses, SSO account linking, and broader interface localization."
 />
 
 <ReleaseFeatureGrid>
@@ -35,6 +35,12 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
     offline stops presence reports for better privacy.
   </ReleaseFeatureCard>
 
+  <ReleaseFeatureCard title="SSO account creation and linking">
+    External identity providers can guide new users through explicit account creation and
+    account linking flows. Existing members can connect providers from account settings,
+    while operators keep control through provider auto-provisioning policy.
+  </ReleaseFeatureCard>
+
   <ReleaseFeatureCard title="A localized interface foundation">
     The app shell, sidebar, settings, auth, chat, room, composer, calls, admin, media, and
     shared UI strings now flow through English and German message catalogs. Display
@@ -55,8 +61,9 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
   <ReleaseFeatureCard title="A broader public API surface" size="large">
     ConnectRPC now covers room lifecycle, room directory reads, message management,
     reactions, direct-message starts, presence reporting, custom statuses, and protobuf
-    realtime delivery. The generated API reference is split into domain pages, and new API
-    stability tiers explain what integration authors can rely on.
+    realtime delivery. The generated API reference is split by `chatto.api.v1`,
+    `chatto.admin.v1`, and `chatto.realtime.v1`, and reflection is available for public
+    and admin services.
   </ReleaseFeatureCard>
 
   <ReleaseFeatureCard title="Admin screens for daily operations">
@@ -64,6 +71,13 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
     projection sections. Member detail pages expose account status, join date, verified
     email visibility, copyable user IDs, role count, deletion capability, and username
     cooldown state. Event log filters make investigations less noisy.
+  </ReleaseFeatureCard>
+
+  <ReleaseFeatureCard title="Local operator account administration" size="large">
+    A new socket-backed `chatto operator user ...` CLI handles trusted local recovery and
+    bootstrap tasks such as creating users, setting passwords, deleting accounts, and
+    managing verified email addresses. Root-grade account lifecycle operations no longer
+    live on the public admin API.
   </ReleaseFeatureCard>
 
   <ReleaseFeatureCard title="Deployment-wide Prometheus metrics" size="small">
@@ -92,10 +106,17 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
 
 - GraphQL has been replaced by ConnectRPC. Update custom clients, bots, and integrations
   before upgrading production deployments that depend on the old GraphQL API.
-- The ConnectRPC API shape changed during the 0.4.0 prerelease cycle. If you already
-  tested against a 0.4.0 beta, regenerate clients and review the generated API reference.
+- ConnectRPC service paths, generated imports, discovery, server profile responses, and
+  admin/realtime packages changed during the 0.4.0 prerelease cycle. Regenerate clients
+  and switch discovery clients to `ServerDiscoveryService.GetServer`; if you tested
+  against an earlier 0.4.0 beta, review the generated API reference again.
+- Root-grade account lifecycle automation has moved to the local operator socket and
+  `chatto operator user ...` commands. Enable `[operator_api]` for those workflows and
+  update automation that used the earlier public admin lifecycle RPCs.
 - If you override SMTP security behavior, review the TLS verification configuration for
   your mail provider.
+- Docker Compose voice-call deployments should allow UDP 3478 and the documented LiveKit
+  media ports so the embedded TURN relay can help clients that cannot connect directly.
 - Link preview media is now stored through the configured storage backend. Confirm your
   backup and object storage policies cover these assets.
 
@@ -107,6 +128,8 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
   timeline references.
 - Local message deletions now refresh the visible message list reliably.
 - Simple message edits can be submitted with Enter again.
+- Touch devices can insert composer line breaks with Return instead of accidentally
+  sending the message.
 - Reply attribution previews are easier to read.
 - Stale direct-message member loads no longer appear after switching rooms.
 - Same-tab message links stay in the right context.
@@ -119,12 +142,16 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
 - Unread channel rows have stronger contrast.
 - Push notification controls stay hidden for remote servers, where native Web Push cannot
   work from the app origin.
+- Service-worker updates cause less reload churn after deployments.
 - Read markers no longer move backwards during concurrent room or thread updates.
 
 ### Calls, media, and interface polish
 
 - LiveKit call observation stays scoped to the active call.
 - Muted call participant icons and call control buttons are visually consistent.
+- Docker Compose LiveKit setups enable the embedded TURN/UDP relay and document the
+  required firewall ports.
+- Extreme image thumbnails crop predictably instead of distorting the media layout.
 - Scrollbars follow the selected display theme.
 - Asset proxy token handling is more defensive.
 
@@ -138,6 +165,7 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
 - ConnectRPC timeline and thread reads reject missing or unsupported anchors with the right
   error.
 - ConnectRPC requests now have a message-size cap.
+- Presence snapshots preserve offline state in public read APIs.
 - Generated API docs include the custom user status service.
 - Service inventory metrics cover the full service set.
 
