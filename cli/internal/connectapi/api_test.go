@@ -629,6 +629,9 @@ func TestAdminMemberServiceSelfCannotDeleteAccountFromMemberDetails(t *testing.T
 	if err != nil {
 		t.Fatalf("CreateUser setup: %v", err)
 	}
+	if err := env.core.AssignAdminRole(env.ctx, user.GetId()); err != nil {
+		t.Fatalf("AssignAdminRole setup: %v", err)
+	}
 
 	details, err := admin.GetMember(withCaller(env.ctx, user), connect.NewRequest(&adminv1.GetMemberRequest{UserId: user.GetId()}))
 	if err != nil {
@@ -1978,12 +1981,25 @@ func TestAdminMemberServiceListsAndGetsMembers(t *testing.T) {
 	}
 
 	regularCtx := withCaller(env.ctx, regular)
-	listResp, err := env.adminUsers.ListMembers(regularCtx, connect.NewRequest(&adminv1.ListMembersRequest{
+	if _, err := env.adminUsers.ListMembers(regularCtx, connect.NewRequest(&adminv1.ListMembersRequest{
+		Search: "target",
+		Page:   &apiv1.PageRequest{Limit: 10},
+	})); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("regular ListMembers code = %v, want permission denied", connect.CodeOf(err))
+	}
+	if _, err := env.adminUsers.GetMember(regularCtx, connect.NewRequest(&adminv1.GetMemberRequest{
+		UserId: target.Id,
+	})); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("regular GetMember code = %v, want permission denied", connect.CodeOf(err))
+	}
+
+	adminCtx := withCaller(env.ctx, admin)
+	listResp, err := env.adminUsers.ListMembers(adminCtx, connect.NewRequest(&adminv1.ListMembersRequest{
 		Search: "target",
 		Page:   &apiv1.PageRequest{Limit: 10},
 	}))
 	if err != nil {
-		t.Fatalf("ListMembers regular: %v", err)
+		t.Fatalf("ListMembers admin: %v", err)
 	}
 	if listResp.Msg.GetPage().GetTotalCount() != 1 || len(listResp.Msg.GetUsers()) != 1 {
 		t.Fatalf("ListMembers returned %d/%d users, want 1/1", len(listResp.Msg.GetUsers()), listResp.Msg.GetPage().GetTotalCount())
@@ -1995,14 +2011,16 @@ func TestAdminMemberServiceListsAndGetsMembers(t *testing.T) {
 	if got := listUser.GetRoles(); len(got) != 1 || got[0] != core.RoleModerator {
 		t.Fatalf("ListMembers roles = %v, want explicit moderator only", got)
 	}
-	if listUser.GetHasVerifiedEmail() || len(listUser.GetVerifiedEmails()) != 0 || listUser.GetLastLoginChange() != nil {
-		t.Fatalf("ListMembers leaked sensitive fields: %+v", listUser)
+	if !listUser.GetHasVerifiedEmail() || len(listUser.GetVerifiedEmails()) != 1 || listUser.GetVerifiedEmails()[0] != "admin-member-target@example.test" {
+		t.Fatalf("ListMembers emails = has:%v emails:%v, want target email", listUser.GetHasVerifiedEmail(), listUser.GetVerifiedEmails())
+	}
+	if listUser.GetLastLoginChange() == nil {
+		t.Fatal("ListMembers LastLoginChange is nil, want visible cooldown timestamp")
 	}
 	if len(listResp.Msg.GetRoles()) == 0 {
 		t.Fatal("ListMembers roles are empty")
 	}
 
-	adminCtx := withCaller(env.ctx, admin)
 	getResp, err := env.adminUsers.GetMember(adminCtx, connect.NewRequest(&adminv1.GetMemberRequest{
 		UserId: target.Id,
 	}))

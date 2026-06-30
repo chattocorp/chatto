@@ -146,6 +146,7 @@ func (s *viewerService) viewerCapabilities(ctx context.Context, userID string) (
 	if err != nil {
 		return nil, connectError(err)
 	}
+	canAdminViewRoles := canAdminManageRoles || canAssignRoles || canManageUserPermissions
 	canAdminViewSystem, err := s.api.core.CanAdminSystemView(ctx, userID)
 	if err != nil {
 		return nil, connectError(err)
@@ -166,7 +167,7 @@ func (s *viewerService) viewerCapabilities(ctx context.Context, userID string) (
 			{Capability: viewerCapabilityAdminViewUsers, Granted: canAdminViewUsers},
 			{Capability: viewerCapabilityAdminManageUsers, Granted: canAdminManageAccounts},
 			{Capability: viewerCapabilityAssignRoles, Granted: canAssignRoles},
-			{Capability: viewerCapabilityAdminViewRoles, Granted: canAdminManageRoles},
+			{Capability: viewerCapabilityAdminViewRoles, Granted: canAdminViewRoles},
 			{Capability: viewerCapabilityAdminManageRoles, Granted: canAdminManageRoles},
 			{Capability: viewerCapabilityAdminViewSystem, Granted: canAdminViewSystem},
 			{Capability: viewerCapabilityAdminViewAudit, Granted: canAdminViewAudit},

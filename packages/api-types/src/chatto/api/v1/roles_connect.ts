@@ -28,4 +28,3 @@ export const RoleService = {
     },
   }
 } as const;
-

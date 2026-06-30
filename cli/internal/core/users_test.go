@@ -1827,7 +1827,14 @@ func TestChattoCore_AdminMemberReads(t *testing.T) {
 		t.Fatalf("ListAdminMembers unauth err = %v, want ErrNotAuthenticated", err)
 	}
 
-	list, err := c.ListAdminMembers(ctx, regular.Id, AdminMemberListInput{Search: "target", Limit: 10})
+	if _, err := c.ListAdminMembers(ctx, regular.Id, AdminMemberListInput{Search: "target", Limit: 10}); !errors.Is(err, ErrPermissionDenied) {
+		t.Fatalf("ListAdminMembers regular err = %v, want ErrPermissionDenied", err)
+	}
+	if _, err := c.GetAdminMemberDetails(ctx, regular.Id, target.Id); !errors.Is(err, ErrPermissionDenied) {
+		t.Fatalf("GetAdminMemberDetails regular err = %v, want ErrPermissionDenied", err)
+	}
+
+	list, err := c.ListAdminMembers(ctx, admin.Id, AdminMemberListInput{Search: "target", Limit: 10})
 	if err != nil {
 		t.Fatalf("ListAdminMembers: %v", err)
 	}
@@ -1837,25 +1844,11 @@ func TestChattoCore_AdminMemberReads(t *testing.T) {
 	if got := list.Users[0].Roles; len(got) != 1 || got[0] != RoleModerator {
 		t.Fatalf("list user roles = %v, want explicit moderator only", got)
 	}
-	if list.Users[0].HasVerifiedEmail || len(list.Users[0].VerifiedEmails) != 0 || list.Users[0].LastLoginChange != nil {
-		t.Fatalf("regular list leaked sensitive fields: %+v", list.Users[0])
+	if !list.Users[0].HasVerifiedEmail || len(list.Users[0].VerifiedEmails) != 1 || list.Users[0].VerifiedEmails[0] != "adminmember-target@example.test" {
+		t.Fatalf("list user emails = has:%v emails:%v, want target email", list.Users[0].HasVerifiedEmail, list.Users[0].VerifiedEmails)
 	}
-
-	regularDetails, err := c.GetAdminMemberDetails(ctx, regular.Id, target.Id)
-	if err != nil {
-		t.Fatalf("GetAdminMemberDetails regular: %v", err)
-	}
-	if regularDetails.Member == nil {
-		t.Fatal("regular details member is nil")
-	}
-	if regularDetails.Member.HasVerifiedEmail || len(regularDetails.Member.VerifiedEmails) != 0 {
-		t.Fatalf("regular details leaked emails: %+v", regularDetails.Member)
-	}
-	if regularDetails.Member.LastLoginChange != nil {
-		t.Fatalf("regular details leaked last login change: %v", regularDetails.Member.LastLoginChange)
-	}
-	if regularDetails.ViewerCanAssignRoles || regularDetails.ViewerCanManageRoles || regularDetails.ViewerCanManageUserPermissions {
-		t.Fatalf("regular capabilities = assign:%v manage:%v perms:%v, want all false", regularDetails.ViewerCanAssignRoles, regularDetails.ViewerCanManageRoles, regularDetails.ViewerCanManageUserPermissions)
+	if list.Users[0].LastLoginChange == nil {
+		t.Fatal("list user LastLoginChange is nil, want visible cooldown timestamp")
 	}
 
 	adminDetails, err := c.GetAdminMemberDetails(ctx, admin.Id, target.Id)

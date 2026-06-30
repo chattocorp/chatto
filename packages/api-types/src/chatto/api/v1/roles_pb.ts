@@ -160,4 +160,3 @@ export class ListRolesResponse extends Message<ListRolesResponse> {
     return proto3.util.equals(ListRolesResponse, a, b);
   }
 }
-

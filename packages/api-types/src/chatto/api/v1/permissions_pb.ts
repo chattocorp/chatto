@@ -103,4 +103,3 @@ export class CapabilityGrant extends Message<CapabilityGrant> {
     return proto3.util.equals(CapabilityGrant, a, b);
   }
 }
-
