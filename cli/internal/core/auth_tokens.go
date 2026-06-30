@@ -9,6 +9,7 @@ import (
 
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
+	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
 // ============================================================================
@@ -20,21 +21,67 @@ var (
 	ErrAuthTokenNotFound = errors.New("auth token not found")
 )
 
-// authTokenKeyPrefix is the KV key prefix for bearer session tokens.
+// authTokenKeyPrefix is the KV key prefix for opaque runtime credentials.
 const authTokenKeyPrefix = "session."
 
 // ============================================================================
 // Auth Token Types
 // ============================================================================
 
-// AuthTokenData is the JSON value stored in RUNTIME_STATE for bearer tokens.
+// AuthTokenKind identifies the security class of an opaque runtime credential.
+type AuthTokenKind string
+
+const (
+	AuthTokenKindFirstPartySession AuthTokenKind = "first_party_session"
+	AuthTokenKindOAuthAccessToken  AuthTokenKind = "oauth_access_token"
+)
+
+// AuthTokenPresentation identifies how an opaque runtime token is intended to
+// be presented by clients.
+type AuthTokenPresentation string
+
+const (
+	AuthTokenPresentationBearer AuthTokenPresentation = "bearer"
+	AuthTokenPresentationCookie AuthTokenPresentation = "cookie"
+)
+
+// AuthTokenData is the JSON value stored in RUNTIME_STATE under session.{hmac}.
+// New bearer tokens and same-origin cookie session handles share this record
+// shape so validators can reject a credential presented through the wrong
+// transport. The name is kept for compatibility with the existing auth-token
+// service API.
 type AuthTokenData struct {
-	UserID          string    `json:"user_id"`
-	CreatedAt       time.Time `json:"created_at"`
-	AuthGeneration  uint64    `json:"auth_generation,omitempty"`
-	FreshAuthAt     time.Time `json:"fresh_auth_at,omitempty"`
-	FreshAuthMethod string    `json:"fresh_auth_method,omitempty"`
-	FreshAuthSource string    `json:"fresh_auth_source,omitempty"`
+	UserID          string                       `json:"user_id"`
+	Kind            AuthTokenKind                `json:"kind,omitempty"`
+	Presentation    AuthTokenPresentation        `json:"presentation,omitempty"`
+	Source          string                       `json:"source,omitempty"`
+	Request         *corev1.AuditRequestMetadata `json:"request,omitempty"`
+	CreatedAt       time.Time                    `json:"created_at"`
+	AuthGeneration  uint64                       `json:"auth_generation,omitempty"`
+	FreshAuthAt     time.Time                    `json:"fresh_auth_at,omitempty"`
+	FreshAuthMethod string                       `json:"fresh_auth_method,omitempty"`
+	FreshAuthSource string                       `json:"fresh_auth_source,omitempty"`
+}
+
+func authTokenKindForSource(source string) AuthTokenKind {
+	if source == "oauth_code_exchange" {
+		return AuthTokenKindOAuthAccessToken
+	}
+	return AuthTokenKindFirstPartySession
+}
+
+func (d AuthTokenData) kindOrDefault() AuthTokenKind {
+	if d.Kind != "" {
+		return d.Kind
+	}
+	return AuthTokenKindFirstPartySession
+}
+
+func (d AuthTokenData) presentationOrDefault() AuthTokenPresentation {
+	if d.Presentation != "" {
+		return d.Presentation
+	}
+	return AuthTokenPresentationBearer
 }
 
 // ============================================================================
@@ -85,6 +132,10 @@ func (c *ChattoCore) CreateAuthTokenWithSourceGeneration(ctx context.Context, us
 	key := c.authTokenKey(token)
 	tokenData := AuthTokenData{
 		UserID:         userID,
+		Kind:           authTokenKindForSource(source),
+		Presentation:   AuthTokenPresentationBearer,
+		Source:         source,
+		Request:        auditRequestMetadata(ctx),
 		CreatedAt:      createdAt,
 		AuthGeneration: authGeneration,
 	}
@@ -130,6 +181,9 @@ func (c *ChattoCore) ValidateAuthToken(ctx context.Context, token string) (strin
 	var tokenData AuthTokenData
 	if err := json.Unmarshal(entry.Value(), &tokenData); err != nil {
 		return "", fmt.Errorf("failed to unmarshal auth token: %w", err)
+	}
+	if tokenData.presentationOrDefault() != AuthTokenPresentationBearer {
+		return "", ErrAuthTokenNotFound
 	}
 	validation, err := c.ValidateRuntimeCredential(ctx, RuntimeCredential{
 		UserID:         tokenData.UserID,

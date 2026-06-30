@@ -17,13 +17,13 @@ This page describes the security and privacy features built into Chatto today.
 
 Passwords are hashed with **bcrypt** at the library default cost. Chatto enforces a minimum length of 8 characters and a maximum length of 128 bytes so bcrypt never silently truncates user input.
 
-Password hash changes are durable user events in the `EVT` stream and are read through the user projection. Raw passwords are never written to storage, audit events, logs, or live subscriptions. Password changes and resets also advance the user's auth generation, so older cookie sessions, bearer tokens, and OAuth authorization codes are rejected.
+Password hash changes are durable user events in the `EVT` stream and are read through the user projection. Raw passwords are never written to storage, audit events, logs, or live subscriptions. Password changes and resets also advance the user's auth generation, so older first-party session credentials, bearer tokens, and OAuth authorization codes are rejected.
 
 Login comparison runs bcrypt against a dummy hash for unknown users and OAuth-only users so the response time is identical regardless of whether the account exists. This blocks the most basic form of user enumeration via timing.
 
 ### Sessions and tokens
 
-Chatto issues **opaque bearer tokens**, not JWTs. Token verifiers are stored in `RUNTIME_STATE` under HMAC-derived keys, with a sliding TTL: every successful validation re-puts the entry, extending its expiry. Revocation is a single KV delete — there is no signed-but-still-valid window to worry about.
+Chatto issues **opaque bearer tokens**, not JWTs. Bearer-token and same-origin cookie-session handles are stored as typed runtime credentials in `RUNTIME_STATE` under HMAC-derived `session.{hmac}` keys, with a sliding TTL: every successful validation re-puts the entry, extending its expiry. Revocation is a single KV delete -- there is no signed-but-still-valid window to worry about. Deprecated legacy cookie-session records remain readable for now so upgrades do not sign out existing browser sessions.
 
 Browser sessions use signed cookies with the following options:
 
@@ -162,7 +162,7 @@ Without `--include-keys`, the `ENCRYPTION_KEYS` bucket is deliberately excluded 
 
 - `ENCRYPTION_KEYS` — keeps backup archives unable to decrypt their own message bodies or durable user PII if leaked.
 
-`RUNTIME_STATE` is included in backups so active bearer/cookie sessions and pending registration, email-verification, password-reset, account-deletion, and OAuth-code flows can survive a restore. Credential entries in that bucket use HMAC-derived keys, so backup archives do not contain redeemable raw session IDs, bearer tokens, verification codes, links, or OAuth codes. Restoring with a different `core.secret_key` intentionally invalidates those credentials.
+`RUNTIME_STATE` is included in backups so active runtime credentials and pending registration, email-verification, password-reset, account-deletion, and OAuth-code flows can survive a restore. Credential entries in that bucket use HMAC-derived keys, so backup archives do not contain redeemable raw cookie handles, bearer tokens, verification codes, links, or OAuth codes. Restoring with a different `core.secret_key` intentionally invalidates those credentials.
 
 Encryption key records can also be exported and imported separately with `chatto keys export` / `chatto keys import`, again age-encrypted. Use this advanced split-backup flow only when you intentionally want data archives and key material stored or retained separately. Restores need the data backup, including the wrapped DEK records in `RUNTIME_STATE`, plus the KEKs from the separate key export to rebuild encrypted profile indexes as well as message bodies. The same passphrase format means a standalone `age` CLI can inspect or re-encrypt any Chatto archive.
 
@@ -245,7 +245,7 @@ For HSTS, CSP, and other policy headers, add them at your reverse proxy.
 | Per-user KEK records | `ENCRYPTION_KEYS` (NATS KV) | No (export separately, or use `--include-keys`) |
 | Per-call LiveKit E2EE keys | `ENCRYPTION_KEYS` (NATS KV, short-lived) | No (active calls are not recoverable without them) |
 | Wrapped app DEK records | `RUNTIME_STATE` (`dek.*` protobuf records) | Yes (unusable without KEKs) |
-| Bearer/cookie session verifiers | `RUNTIME_STATE` (HMAC-keyed, with TTL) | Yes (not raw tokens or session IDs) |
+| Runtime credential verifiers | `RUNTIME_STATE` (`session.{hmac}`, HMAC-keyed, with TTL) | Yes (not raw bearer tokens or cookie handles) |
 | Account-flow and OAuth-code verifiers | `RUNTIME_STATE` (HMAC-keyed, with TTL) | Yes (not raw codes or links) |
 | Core secret key | `chatto.toml` / `CHATTO_CORE_SECRET_KEY` | n/a |
 | Cookie signing secret | `chatto.toml` / `CHATTO_WEBSERVER_COOKIE_SIGNING_SECRET` | n/a |
@@ -259,7 +259,7 @@ For HSTS, CSP, and other policy headers, add them at your reverse proxy.
 | LiveKit API and webhook secrets | `chatto.toml` / `CHATTO_LIVEKIT_API_KEY`, `CHATTO_LIVEKIT_API_SECRET`, `CHATTO_LIVEKIT_WEBHOOK_API_KEY`, `CHATTO_LIVEKIT_WEBHOOK_API_SECRET` | n/a |
 | TLS certificates | Disk cache directory (`autocert`) | n/a |
 
-`core.secret_key` is not a message-encryption KEK. Rotating it invalidates bearer tokens, cookie session records, OAuth authorization codes, and pending account-flow credentials, but it does not rotate or invalidate the KEK records in `ENCRYPTION_KEYS`.
+`core.secret_key` is not a message-encryption KEK. Rotating it invalidates bearer tokens, cookie-session handles, OAuth authorization codes, and pending account-flow credentials, but it does not rotate or invalidate the KEK records in `ENCRYPTION_KEYS`.
 
 ## Reporting a security issue
 

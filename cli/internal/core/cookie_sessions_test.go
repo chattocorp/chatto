@@ -1,6 +1,7 @@
 package core
 
 import (
+	"encoding/json"
 	"errors"
 	"testing"
 	"time"
@@ -41,28 +42,37 @@ func TestChattoCore_CreateAndValidateCookieSession(t *testing.T) {
 		t.Fatalf("unexpected fresh auth metadata: %#v", created)
 	}
 
-	key := core.cookieSessionKey(user.Id, sessionID)
+	key := core.authTokenKey(sessionID)
 	assertRuntimeKVHasTTL(t, core, key)
-	assertRawRuntimeTokenKeyAbsent(t, core, cookieSessionKeyPrefix+user.Id+"."+sessionID)
+	assertRawRuntimeTokenKeyAbsent(t, core, authTokenKeyPrefix+sessionID)
 
 	entry, err := core.storage.runtimeStateKV.Get(ctx, key)
 	if err != nil {
 		t.Fatalf("get cookie session: %v", err)
 	}
-	var stored corev1.CookieSession
-	if err := proto.Unmarshal(entry.Value(), &stored); err != nil {
-		t.Fatalf("unmarshal cookie session: %v", err)
+	var stored AuthTokenData
+	if err := json.Unmarshal(entry.Value(), &stored); err != nil {
+		t.Fatalf("unmarshal cookie session token: %v", err)
 	}
-	if stored.GetUserId() != user.Id || stored.GetExpiresAt() == nil {
+	if stored.UserID != user.Id ||
+		stored.Kind != AuthTokenKindFirstPartySession ||
+		stored.Presentation != AuthTokenPresentationCookie ||
+		stored.Source != "test_login" {
 		t.Fatalf("unexpected stored session: %#v", &stored)
+	}
+	if _, err := core.ValidateAuthToken(ctx, sessionID); !errors.Is(err, ErrAuthTokenNotFound) {
+		t.Fatalf("cookie session handle ValidateAuthToken err = %v, want ErrAuthTokenNotFound", err)
 	}
 
 	validated, err := core.ValidateCookieSession(ctx, user.Id, sessionID)
 	if err != nil {
 		t.Fatalf("ValidateCookieSession: %v", err)
 	}
-	if !proto.Equal(validated, &stored) {
-		t.Fatalf("validated session differs from stored session")
+	if validated.GetUserId() != user.Id ||
+		validated.GetSource() != "test_login" ||
+		validated.GetRequest().GetUserAgent() != "cookie-session-test" ||
+		validated.GetAuthGeneration() != stored.AuthGeneration {
+		t.Fatalf("validated session differs from stored session token: %#v", validated)
 	}
 }
 

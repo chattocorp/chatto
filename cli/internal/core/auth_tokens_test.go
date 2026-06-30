@@ -39,6 +39,9 @@ func TestChattoCore_CreateAuthToken(t *testing.T) {
 	if _, err := core.storage.runtimeStateKV.Get(ctx, key); err != nil {
 		t.Fatalf("expected auth token in RUNTIME_STATE: %v", err)
 	}
+	if data := readAuthTokenData(t, core, token); data.Kind != AuthTokenKindFirstPartySession || data.Presentation != AuthTokenPresentationBearer {
+		t.Fatalf("auth token kind/presentation = %q/%q, want %q/%q", data.Kind, data.Presentation, AuthTokenKindFirstPartySession, AuthTokenPresentationBearer)
+	}
 	assertRuntimeKVHasTTL(t, core, key)
 	assertRawRuntimeTokenKeyAbsent(t, core, authTokenKeyPrefix+token)
 }
@@ -84,6 +87,90 @@ func TestChattoCore_BearerTokenFreshAuth(t *testing.T) {
 	}
 	if err := core.RequireFreshAuthForBearerToken(ctx, token); err != nil {
 		t.Fatalf("marked token should be fresh: %v", err)
+	}
+}
+
+func TestChattoCore_OAuthAccessTokenCannotBecomeFresh(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	user, err := core.CreateUser(ctx, SystemActorID, "oauth-access-token-user", "OAuth Access Token User", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	token, err := core.CreateAuthTokenWithSource(ctx, user.Id, "oauth_code_exchange")
+	if err != nil {
+		t.Fatalf("CreateAuthTokenWithSource: %v", err)
+	}
+	if data := readAuthTokenData(t, core, token); data.Kind != AuthTokenKindOAuthAccessToken || data.Presentation != AuthTokenPresentationBearer {
+		t.Fatalf("auth token kind/presentation = %q/%q, want %q/%q", data.Kind, data.Presentation, AuthTokenKindOAuthAccessToken, AuthTokenPresentationBearer)
+	}
+	if err := core.MarkBearerTokenFresh(ctx, token, "password", "current_password"); !errors.Is(err, ErrFreshAuthRequired) {
+		t.Fatalf("MarkBearerTokenFresh err = %v, want ErrFreshAuthRequired", err)
+	}
+	if err := core.RequireFreshAuthForBearerToken(ctx, token); !errors.Is(err, ErrFreshAuthRequired) {
+		t.Fatalf("RequireFreshAuthForBearerToken err = %v, want ErrFreshAuthRequired", err)
+	}
+	if data := readAuthTokenData(t, core, token); !data.FreshAuthAt.IsZero() || data.FreshAuthMethod != "" || data.FreshAuthSource != "" {
+		t.Fatalf("OAuth access token was marked fresh: %+v", data)
+	}
+}
+
+func TestChattoCore_LegacyUntypedBearerTokenCannotBecomeFresh(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	user, err := core.CreateUser(ctx, SystemActorID, "legacy-untyped-token-user", "Legacy Untyped Token User", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	token := NewAuthToken()
+	data, err := json.Marshal(AuthTokenData{
+		UserID:         user.Id,
+		CreatedAt:      time.Now(),
+		AuthGeneration: mustCurrentAuthGeneration(t, core, user.Id),
+	})
+	if err != nil {
+		t.Fatalf("marshal token: %v", err)
+	}
+	if _, err := core.storage.runtimeStateKV.Create(ctx, core.authTokenKey(token), data, jetstream.KeyTTL(core.authTokenTTL())); err != nil {
+		t.Fatalf("store token: %v", err)
+	}
+
+	if err := core.MarkBearerTokenFresh(ctx, token, "password", "current_password"); !errors.Is(err, ErrFreshAuthRequired) {
+		t.Fatalf("MarkBearerTokenFresh err = %v, want ErrFreshAuthRequired", err)
+	}
+	if err := core.RequireFreshAuthForBearerToken(ctx, token); !errors.Is(err, ErrFreshAuthRequired) {
+		t.Fatalf("RequireFreshAuthForBearerToken err = %v, want ErrFreshAuthRequired", err)
+	}
+}
+
+func TestChattoCore_LegacyFreshBearerTokenCanSatisfyExistingFreshWindow(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	user, err := core.CreateUser(ctx, SystemActorID, "legacy-fresh-token-user", "Legacy Fresh Token User", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	token := NewAuthToken()
+	data, err := json.Marshal(AuthTokenData{
+		UserID:          user.Id,
+		CreatedAt:       time.Now(),
+		AuthGeneration:  mustCurrentAuthGeneration(t, core, user.Id),
+		FreshAuthAt:     time.Now(),
+		FreshAuthMethod: "password",
+		FreshAuthSource: "password_login",
+	})
+	if err != nil {
+		t.Fatalf("marshal token: %v", err)
+	}
+	if _, err := core.storage.runtimeStateKV.Create(ctx, core.authTokenKey(token), data, jetstream.KeyTTL(core.authTokenTTL())); err != nil {
+		t.Fatalf("store token: %v", err)
+	}
+
+	if err := core.RequireFreshAuthForBearerToken(ctx, token); err != nil {
+		t.Fatalf("RequireFreshAuthForBearerToken: %v", err)
 	}
 }
 
@@ -381,4 +468,26 @@ func TestChattoCore_ValidateAuthTokenRejectsLegacyGenerationBeforePasswordChange
 	if _, err := core.storage.runtimeStateKV.Get(ctx, key); !errors.Is(err, jetstream.ErrKeyNotFound) {
 		t.Fatalf("legacy stale token lookup error = %v, want ErrKeyNotFound", err)
 	}
+}
+
+func readAuthTokenData(t *testing.T, core *ChattoCore, token string) AuthTokenData {
+	t.Helper()
+	entry, err := core.storage.runtimeStateKV.Get(testContext(t), core.authTokenKey(token))
+	if err != nil {
+		t.Fatalf("get auth token: %v", err)
+	}
+	var data AuthTokenData
+	if err := json.Unmarshal(entry.Value(), &data); err != nil {
+		t.Fatalf("unmarshal auth token: %v", err)
+	}
+	return data
+}
+
+func mustCurrentAuthGeneration(t *testing.T, core *ChattoCore, userID string) uint64 {
+	t.Helper()
+	authGeneration, err := core.CurrentAuthGeneration(testContext(t), userID)
+	if err != nil {
+		t.Fatalf("CurrentAuthGeneration: %v", err)
+	}
+	return authGeneration
 }

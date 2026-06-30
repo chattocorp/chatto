@@ -83,6 +83,9 @@ func TestChattoCore_ExchangeAuthCode_HappyPath(t *testing.T) {
 	if validatedUserID != user.Id {
 		t.Errorf("ValidateAuthToken returned userID %q, want %q", validatedUserID, user.Id)
 	}
+	if data := readAuthTokenData(t, core, token); data.Kind != AuthTokenKindOAuthAccessToken {
+		t.Fatalf("exchanged auth token kind = %q, want %q", data.Kind, AuthTokenKindOAuthAccessToken)
+	}
 	if err := core.RequireFreshAuthForBearerToken(ctx, token); !errors.Is(err, ErrFreshAuthRequired) {
 		t.Fatalf("exchanged token fresh auth err = %v, want ErrFreshAuthRequired", err)
 	}

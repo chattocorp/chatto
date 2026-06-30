@@ -53,6 +53,9 @@ func (c *ChattoCore) RequireFreshAuthForBearerToken(ctx context.Context, token s
 	if err != nil {
 		return err
 	}
+	if !data.canSatisfyFreshAuth() {
+		return ErrFreshAuthRequired
+	}
 	if isFreshAuthAt(data.FreshAuthAt, time.Now()) {
 		return nil
 	}
@@ -63,6 +66,9 @@ func (c *ChattoCore) MarkBearerTokenFresh(ctx context.Context, token, method, so
 	data, entry, err := c.authTokenData(ctx, token)
 	if err != nil {
 		return err
+	}
+	if data.Kind != AuthTokenKindFirstPartySession {
+		return ErrFreshAuthRequired
 	}
 	data.FreshAuthAt = time.Now()
 	data.FreshAuthMethod = method
@@ -78,6 +84,13 @@ func (c *ChattoCore) MarkBearerTokenFresh(ctx context.Context, token, method, so
 	return nil
 }
 
+func (d AuthTokenData) canSatisfyFreshAuth() bool {
+	if d.Kind != "" {
+		return d.Kind == AuthTokenKindFirstPartySession
+	}
+	return d.FreshAuthSource != "" && d.FreshAuthSource != "oauth_code_exchange"
+}
+
 func (c *ChattoCore) authTokenData(ctx context.Context, token string) (AuthTokenData, jetstream.KeyValueEntry, error) {
 	key := c.authTokenKey(token)
 	entry, err := c.storage.runtimeStateKV.Get(ctx, key)
@@ -91,6 +104,9 @@ func (c *ChattoCore) authTokenData(ctx context.Context, token string) (AuthToken
 	var tokenData AuthTokenData
 	if err := json.Unmarshal(entry.Value(), &tokenData); err != nil {
 		return AuthTokenData{}, nil, fmt.Errorf("failed to unmarshal auth token: %w", err)
+	}
+	if tokenData.presentationOrDefault() != AuthTokenPresentationBearer {
+		return AuthTokenData{}, nil, ErrAuthTokenNotFound
 	}
 	if _, err := c.ValidateRuntimeCredential(ctx, RuntimeCredential{
 		UserID:         tokenData.UserID,
@@ -121,6 +137,66 @@ func (c *ChattoCore) MarkCookieSessionFresh(ctx context.Context, userID, session
 	if userID == "" || sessionID == "" {
 		return ErrCookieSessionNotFound
 	}
+	if err := c.markTokenBackedCookieSessionFresh(ctx, userID, sessionID, method, source); err == nil {
+		return nil
+	} else if !errors.Is(err, ErrCookieSessionNotFound) {
+		return err
+	}
+	return c.markLegacyCookieSessionFresh(ctx, userID, sessionID, method, source)
+}
+
+func (c *ChattoCore) markTokenBackedCookieSessionFresh(ctx context.Context, userID, sessionID, method, source string) error {
+	key := c.authTokenKey(sessionID)
+	entry, err := c.storage.runtimeStateKV.Get(ctx, key)
+	if err != nil {
+		if errors.Is(err, jetstream.ErrKeyNotFound) {
+			return ErrCookieSessionNotFound
+		}
+		return fmt.Errorf("failed to get cookie session token: %w", err)
+	}
+
+	var tokenData AuthTokenData
+	if err := json.Unmarshal(entry.Value(), &tokenData); err != nil {
+		_ = c.storage.runtimeStateKV.Delete(ctx, key)
+		return ErrCookieSessionNotFound
+	}
+	if tokenData.UserID != userID ||
+		tokenData.kindOrDefault() != AuthTokenKindFirstPartySession ||
+		tokenData.presentationOrDefault() != AuthTokenPresentationCookie ||
+		tokenData.CreatedAt.IsZero() {
+		_ = c.storage.runtimeStateKV.Delete(ctx, key)
+		return ErrCookieSessionNotFound
+	}
+	validation, err := c.ValidateRuntimeCredential(ctx, RuntimeCredential{
+		UserID:         userID,
+		CreatedAt:      tokenData.CreatedAt,
+		AuthGeneration: tokenData.AuthGeneration,
+	})
+	if err != nil {
+		if errors.Is(err, ErrAuthenticationRevoked) {
+			_ = c.storage.runtimeStateKV.Delete(ctx, key)
+			return ErrCookieSessionNotFound
+		}
+		return err
+	}
+	if validation.ShouldPersistAuthGeneration {
+		tokenData.AuthGeneration = validation.AuthGeneration
+	}
+	tokenData.FreshAuthAt = time.Now()
+	tokenData.FreshAuthMethod = method
+	tokenData.FreshAuthSource = source
+	value, err := json.Marshal(tokenData)
+	if err != nil {
+		return fmt.Errorf("failed to marshal cookie session token: %w", err)
+	}
+	_, err = c.updateRuntimeStateTokenTTL(ctx, key, value, entry.Revision(), c.cookieSessionTTL())
+	if err != nil {
+		return fmt.Errorf("failed to mark cookie session fresh: %w", err)
+	}
+	return nil
+}
+
+func (c *ChattoCore) markLegacyCookieSessionFresh(ctx context.Context, userID, sessionID, method, source string) error {
 	key := c.cookieSessionKey(userID, sessionID)
 	entry, err := c.storage.runtimeStateKV.Get(ctx, key)
 	if err != nil {

@@ -44,7 +44,7 @@ Certain streams are intentionally excluded:
 </Aside>
 
 <Aside type="note">
-  `RUNTIME_STATE` is included in backups. Active sessions and pending registration, email-verification, password-reset, account-deletion, and OAuth-code flows can survive a restore when the restored server uses the same `core.secret_key`. Backup archives contain HMAC verifier keys, not raw bearer tokens, links, or OAuth codes; changing `core.secret_key` intentionally invalidates those credentials.
+  `RUNTIME_STATE` is included in backups. Active runtime credentials and pending registration, email-verification, password-reset, account-deletion, and OAuth-code flows can survive a restore when the restored server uses the same `core.secret_key`. Backup archives contain HMAC verifier keys, not raw bearer tokens, cookie handles, links, or OAuth codes; changing `core.secret_key` intentionally invalidates those credentials.
 </Aside>
 
 ## Creating a backup
@@ -101,7 +101,7 @@ vault kv get -field=passphrase secret/chatto | chatto backup -c chatto.toml --en
 </Aside>
 
 <Aside type="tip">
-  Keep the same `core.secret_key` in `chatto.toml` when restoring if you want existing bearer/cookie sessions, OAuth codes, and pending account-flow credentials to remain valid. Using a new value is a clean way to invalidate them during disaster recovery.
+  Keep the same `core.secret_key` in `chatto.toml` when restoring if you want existing bearer tokens, cookie-session handles, OAuth codes, and pending account-flow credentials to remain valid. Using a new value is a clean way to invalidate them during disaster recovery.
 </Aside>
 
 <Steps>

@@ -60,14 +60,21 @@ Current occupants include:
 - Pending notifications: `notification.{userId}.{notificationId}`, with per-key
   90-day TTL.
 - Web Push subscriptions: `push_subscription.{userId}.{endpointHash}`.
-- Embedded-SPA cookie-session records: `cookie_session.{userId}.{sessionHmac}`,
-  with per-key `auth.token_ttl` expiry. The value is a `CookieSession`
-  protobuf containing `user_id`, `created_at`, `expires_at`, source, safe
-  request metadata, and the user auth generation it was issued against.
-- Bearer auth token verifiers: `session.{hmac}`, with per-key
-  `auth.token_ttl` sliding-window expiry. Values include the user auth
-  generation they were issued against. User-wide cleanup scans these records and
-  deletes entries whose stored user ID matches.
+- Runtime credential verifiers: `session.{hmac}`, with per-key
+  `auth.token_ttl` sliding-window expiry. Values include credential kind
+  (`first_party_session` or `oauth_access_token`), presentation (`bearer` or
+  `cookie`), source, safe request metadata, fresh-auth metadata, and the user
+  auth generation they were issued against. User-wide cleanup scans these
+  records and deletes entries whose stored user ID matches.
+- Legacy embedded-SPA cookie-session records:
+  `cookie_session.{userId}.{sessionHmac}`. Current code no longer writes this
+  shape, and the keyspace is deprecated. Chatto still validates and cleans it up
+  during the typed runtime credential rollout so upgrades do not invalidate
+  existing sessions. The value is a `CookieSession` protobuf containing
+  `user_id`, `created_at`, `expires_at`, source, safe request metadata, and the
+  user auth generation it was issued against. Remove this compatibility path
+  after existing sessions have exceeded the configured auth token TTL or after a
+  documented pre-1.0 compatibility cutoff.
 - OAuth authorization-code verifiers: `grant.{hmac}`, with per-key 5-minute
   TTL. Values include the user auth generation they were issued against.
 - Account workflow credential verifiers: `email_otp.{hmac(subject)}.{hmac(code)}`,
@@ -80,12 +87,13 @@ Current occupants include:
   `UserDataEncryptionKey` per purpose-scoped user DEK epoch. These records have
   no TTL and are shredded on account deletion.
 
-The HMAC keys for cookie sessions, bearer tokens, OAuth codes, and account workflow tokens are
-derived with `[core].secret_key` from the raw token/code plus a per-flow scope
-string. `RUNTIME_STATE` is included in backups, so active sessions and pending
-flows survive restore when the same secret is used; restoring with a different
-secret intentionally invalidates those credentials. Backup archives do not
-contain raw cookie session IDs, bearer tokens, links, or OAuth codes.
+The HMAC keys for runtime credential handles, OAuth codes, and account workflow
+tokens are derived with `[core].secret_key` from the raw token/code plus a
+per-flow scope string. `RUNTIME_STATE` is included in backups, so active
+sessions and pending flows survive restore when the same secret is used;
+restoring with a different secret intentionally invalidates those credentials.
+Backup archives do not contain raw cookie credential handles, bearer tokens,
+links, or OAuth codes.
 
 Attachment declarations and video derivative manifests are not a `RUNTIME_STATE`
 target. Uploaded assets are content and are declared with `AssetCreatedEvent`;

@@ -122,6 +122,15 @@ test.describe('OAuth Authorization Code + PKCE Flow', () => {
 			timeout: TIMEOUTS.COMPLEX_OPERATION
 		});
 		await expect(page).not.toHaveURL(/\/oauth\/consent/);
+
+		// 10. Remote multi-server access must be carried by the stored bearer
+		// token, not by ambient browser cookies from the remote OAuth login.
+		await page.context().clearCookies();
+		await page.reload();
+		await expect(page).toHaveURL(/\/chat\/127\.0\.0\.1(\/|$)/, {
+			timeout: TIMEOUTS.COMPLEX_OPERATION
+		});
+		await expect(page.getByTitle('Sign out')).toBeVisible();
 	});
 
 	test('token exchange rejects invalid code_verifier', async () => {

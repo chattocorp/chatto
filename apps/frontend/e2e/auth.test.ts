@@ -160,6 +160,50 @@ test.describe('Authentication', () => {
     await expect(page.getByRole('heading', { name: 'Sign In' })).not.toBeVisible();
   });
 
+  test('same-origin cookie session works when the stored bearer token is absent', async ({
+    page,
+    authPage
+  }) => {
+    const timestamp = Date.now();
+    const testLogin = `cookiefallback${timestamp}`;
+    const testPassword = 'testpassword123';
+
+    await authPage.createUserViaApi(testLogin, testPassword);
+    await authPage.login(testLogin, testPassword);
+    await page.waitForURL((url) => url.pathname.startsWith('/chat'));
+    await expect(page.getByTitle('Sign out')).toBeVisible();
+
+    const strippedOriginTokens = await page.evaluate(() => {
+      const instances = JSON.parse(localStorage.getItem('chatto:instances') || '[]');
+      let stripped = 0;
+      localStorage.setItem(
+        'chatto:instances',
+        JSON.stringify(
+          instances.map((instance: { url?: string; token?: string | null }) => {
+            if (instance.url) {
+              try {
+                if (new URL(instance.url).origin === window.location.origin) {
+                  if (instance.token) stripped += 1;
+                  return { ...instance, token: null };
+                }
+              } catch {
+                // Ignore malformed test state; the app will handle it on reload.
+              }
+            }
+            return instance;
+          })
+        )
+      );
+      return stripped;
+    });
+    expect(strippedOriginTokens).toBeGreaterThan(0);
+
+    await page.reload();
+    await page.waitForURL((url) => url.pathname.startsWith('/chat'));
+    await expect(page.getByRole('heading', { name: 'Sign In' })).not.toBeVisible();
+    await expect(page.getByTitle('Sign out')).toBeVisible();
+  });
+
   test('authenticated users are redirected away from /register', async ({ page }) => {
     await createAndLoginTestUser(page);
 
