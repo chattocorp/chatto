@@ -26,8 +26,8 @@ const (
 // for simple list browsing.
 type PageRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Maximum number of items to return. Each RPC defines its default; the common
-	// maximum for public API list pages is 500.
+	// Maximum number of items to request. Each RPC defines its default and
+	// effective maximum; this shared request shape accepts values up to 500.
 	Limit int32 `protobuf:"varint,1,opt,name=limit,proto3" json:"limit,omitempty"`
 	// Zero-based number of matching items to skip.
 	Offset        int32 `protobuf:"varint,2,opt,name=offset,proto3" json:"offset,omitempty"`

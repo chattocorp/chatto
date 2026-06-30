@@ -14,8 +14,8 @@ import { Message, proto3, protoInt64 } from "@bufbuild/protobuf";
  */
 export class PageRequest extends Message<PageRequest> {
   /**
-   * Maximum number of items to return. Each RPC defines its default; the common
-   * maximum for public API list pages is 500.
+   * Maximum number of items to request. Each RPC defines its default and
+   * effective maximum; this shared request shape accepts values up to 500.
    *
    * @generated from field: int32 limit = 1;
    */
