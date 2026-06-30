@@ -62,6 +62,9 @@ func (s *HTTPServer) mountConnectHandler(router gin.IRouter, servicePath string,
 	router.Any(connectAPIPrefix+servicePath+"*connectPath", func(c *gin.Context) {
 		req := s.injectUserIntoContext(c)
 		req = req.WithContext(connectapi.WithRequestBaseURL(req.Context(), s.requestBaseURL(c.Request)))
+		req = req.WithContext(connectapi.WithBrowserSessionCreator(req.Context(), func(ctx context.Context, userID, source string) (connectapi.BrowserSession, error) {
+			return s.createConnectBrowserSession(c, userID, source)
+		}))
 		handler.ServeHTTP(c.Writer, req)
 	})
 }

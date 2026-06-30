@@ -44,7 +44,16 @@ func (s *externalIdentityFlowService) CreateExternalIdentityAccount(ctx context.
 	if err != nil {
 		return nil, connectError(err)
 	}
+	browserSession, err := createBrowserSessionFromContext(ctx, user.GetId(), "external_identity_create")
+	if err != nil {
+		_ = s.api.core.RevokeAuthTokenWithReason(ctx, token, "external_identity_create_session_failed")
+		return nil, connectError(err)
+	}
 	if err := s.api.core.RecordLoginSucceeded(ctx, user.GetId(), flow.ProviderType+":"+flow.ProviderID); err != nil {
+		_ = s.api.core.RevokeAuthTokenWithReason(ctx, token, "external_identity_create_audit_failed")
+		if browserSession.Revoke != nil {
+			_ = browserSession.Revoke(ctx)
+		}
 		return nil, connectError(err)
 	}
 	if err := s.api.core.DeletePendingExternalIdentityFlow(ctx, req.Msg.GetToken()); err != nil {

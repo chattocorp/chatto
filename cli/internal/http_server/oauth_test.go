@@ -4,18 +4,22 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"net/http/cookiejar"
 	"net/http/httptest"
 	"net/url"
 	"strings"
 	"testing"
 	"time"
 
+	"connectrpc.com/connect"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core"
+	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
+	"hmans.de/chatto/internal/pb/chatto/api/v1/apiv1connect"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	"hmans.de/chatto/internal/testutil"
 )
@@ -437,6 +441,103 @@ func TestOAuthAuthorize_FreshRequestOverwritesPendingConsent(t *testing.T) {
 		strings.Contains(redirectURL, "first.example") ||
 		strings.Contains(redirectURL, "first-state") {
 		t.Fatalf("fresh authorize did not replace stale pending request, redirectUrl=%q", redirectURL)
+	}
+}
+
+func TestOAuthAuthorizeExternalIdentityCreateEstablishesCookieSession(t *testing.T) {
+	s := setupOAuthServer(t)
+	s.config.Webserver.OAuthRedirectOrigins = []string{"https://client.example"}
+	s.setupConnectAPI()
+	ts := httptest.NewServer(s.router)
+	t.Cleanup(ts.Close)
+
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		t.Fatalf("cookiejar.New: %v", err)
+	}
+	client := ts.Client()
+	client.Jar = jar
+	client.CheckRedirect = func(_ *http.Request, _ []*http.Request) error {
+		return http.ErrUseLastResponse
+	}
+
+	verifier := "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+	challenge := core.GenerateCodeChallenge(verifier)
+	redirectURI := "https://client.example/callback"
+	state := "sso-create-oauth-state"
+	authorizeURL := ts.URL + "/oauth/authorize?" + url.Values{
+		"response_type":         {"code"},
+		"redirect_uri":          {redirectURI},
+		"code_challenge":        {challenge},
+		"code_challenge_method": {"S256"},
+		"state":                 {state},
+	}.Encode()
+
+	authorizeResp, err := client.Get(authorizeURL)
+	if err != nil {
+		t.Fatalf("initial authorize: %v", err)
+	}
+	_ = authorizeResp.Body.Close()
+	if authorizeResp.StatusCode != http.StatusTemporaryRedirect {
+		t.Fatalf("initial authorize status = %d, want 307", authorizeResp.StatusCode)
+	}
+	if location := authorizeResp.Header.Get("Location"); !strings.HasPrefix(location, "/login?redirect=") {
+		t.Fatalf("initial authorize Location = %q, want login redirect", location)
+	}
+
+	ctx := context.Background()
+	createToken, err := s.core.CreatePendingExternalIdentityCreateFlow(ctx, core.PendingExternalIdentityFlow{
+		ProviderID:      "github-main",
+		ProviderType:    config.AuthProviderTypeGitHub,
+		ProviderLabel:   "GitHub",
+		Issuer:          "github-main",
+		Subject:         "sso-oauth-create-subject",
+		LoginHint:       "sso-oauth-created",
+		DisplayNameHint: "SSO OAuth Created",
+	})
+	if err != nil {
+		t.Fatalf("CreatePendingExternalIdentityCreateFlow: %v", err)
+	}
+
+	flowClient := apiv1connect.NewExternalIdentityFlowServiceClient(client, ts.URL+connectAPIPrefix)
+	created, err := flowClient.CreateExternalIdentityAccount(ctx, connect.NewRequest(&apiv1.CreateExternalIdentityAccountRequest{
+		Token: createToken,
+		Login: "sso-oauth-created",
+	}))
+	if err != nil {
+		t.Fatalf("CreateExternalIdentityAccount: %v", err)
+	}
+	if created.Msg.GetToken() == "" {
+		t.Fatal("CreateExternalIdentityAccount token is empty")
+	}
+	if err := s.core.GrantOAuthConsent(ctx, created.Msg.GetUserId(), "https://client.example"); err != nil {
+		t.Fatalf("GrantOAuthConsent: %v", err)
+	}
+
+	resumeResp, err := client.Get(ts.URL + "/oauth/authorize")
+	if err != nil {
+		t.Fatalf("resume authorize: %v", err)
+	}
+	_ = resumeResp.Body.Close()
+	if resumeResp.StatusCode != http.StatusTemporaryRedirect {
+		t.Fatalf("resume authorize status = %d, want 307", resumeResp.StatusCode)
+	}
+	resumeLocation := resumeResp.Header.Get("Location")
+	if strings.HasPrefix(resumeLocation, "/login") {
+		t.Fatalf("resume authorize redirected to login: %q", resumeLocation)
+	}
+	callbackURL, err := url.Parse(resumeLocation)
+	if err != nil {
+		t.Fatalf("parse resume Location %q: %v", resumeLocation, err)
+	}
+	if got := callbackURL.Scheme + "://" + callbackURL.Host + callbackURL.Path; got != redirectURI {
+		t.Fatalf("resume redirect URI = %q, want %q", got, redirectURI)
+	}
+	if callbackURL.Query().Get("state") != state {
+		t.Fatalf("resume state = %q, want %q", callbackURL.Query().Get("state"), state)
+	}
+	if callbackURL.Query().Get("code") == "" {
+		t.Fatalf("resume Location %q did not include code", resumeLocation)
 	}
 }
 
