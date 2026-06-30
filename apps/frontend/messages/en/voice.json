@@ -27,6 +27,9 @@
     "camera": "Camera",
     "unknown_device": "Unknown device",
     "no_devices": "No devices found",
-    "participants": "Call participants"
+    "participants": "Call participants",
+    "join_failed": "Failed to join voice call",
+    "encrypted_unsupported": "This browser does not support encrypted voice calls yet. Try the latest Firefox, Chrome, or Edge.",
+    "signaling_failed": "Could not reach the voice server. Check your network and try again."
   }
 }

@@ -2,6 +2,7 @@
   /* eslint-disable svelte/no-navigation-without-resolve -- generic component with dynamic routes */
   import { page } from '$app/state';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
+  import * as m from '$lib/i18n/messages';
 
   type NavItem = { href: string; label: string; icon: string };
 
@@ -10,7 +11,7 @@
     subtitle,
     items,
     backHref,
-    backLabel = 'Back to Chat',
+    backLabel = m['ui.sidebar_nav.back_to_chat'](),
     isActive = defaultIsActive,
     showMobileNav = false
   }: {

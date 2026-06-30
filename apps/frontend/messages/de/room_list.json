@@ -8,6 +8,7 @@
     "unread_messages": "ungelesene Nachrichten",
     "go_to_dm_notifications": "Zu {count} Direktnachrichten-Benachrichtigungen",
     "new_direct_messages": "{count} neue Direktnachrichten",
+    "direct_messages": "Direktnachrichten",
     "empty_title": "Noch keine Räume",
     "empty_prefix": "Du bist auf diesem Server noch keinen Räumen beigetreten. Öffne die",
     "empty_overview": "Übersicht",

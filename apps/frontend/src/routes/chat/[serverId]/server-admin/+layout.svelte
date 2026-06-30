@@ -7,6 +7,7 @@
   import { getServerPermissions } from '$lib/state/server/permissions.svelte';
 
   import AccessDenied from '$lib/ui/AccessDenied.svelte';
+  import * as m from '$lib/i18n/messages';
 
   let { children } = $props();
 
@@ -56,8 +57,7 @@
     // Permissions pages: role.manage OR admin.view-roles
     if (pathname.startsWith(permissionsBase)) {
       return () =>
-        chromePermissions.current.canManageRoles ||
-        serverPerms.current.canAdminViewRoles;
+        chromePermissions.current.canManageRoles || serverPerms.current.canAdminViewRoles;
     }
 
     // Security (blocked usernames) — server.manage
@@ -92,10 +92,10 @@
   {@render children?.()}
 {:else}
   <AccessDenied
-    message="You do not have permission to access this page."
+    message={m['ui.access_denied.message']()}
     backHref={resolve('/chat/[serverId]', {
       serverId: serverIdToSegment(getActiveServer())
     })}
-    backLabel="Return to Server"
+    backLabel={m['admin.nav.back_to_server']()}
   />
 {/if}

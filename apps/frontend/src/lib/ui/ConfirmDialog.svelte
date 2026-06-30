@@ -26,6 +26,7 @@ Use the `tone` prop to communicate the weight of the action:
 -->
 <script lang="ts">
   import type { Snippet } from 'svelte';
+  import * as m from '$lib/i18n/messages';
   import FormDialog from './FormDialog.svelte';
 
   type Tone = 'danger' | 'warning' | 'info';
@@ -35,7 +36,7 @@ Use the `tone` prop to communicate the weight of the action:
     visible = $bindable(true),
     title,
     tone = 'danger',
-    actionLabel = 'Confirm',
+    actionLabel = m['common.confirm'](),
     actionIcon,
     loading = false,
     onconfirm,
@@ -70,7 +71,7 @@ Use the `tone` prop to communicate the weight of the action:
   submitLabel={actionLabel}
   submitTone={tone}
   submitIcon={resolvedIcon}
-  submitLoadingText={`${actionLabel}...`}
+  submitLoadingText={m['ui.dialog.submit_loading']({ label: actionLabel })}
   {loading}
   onsubmit={() => onconfirm()}
   {onclose}

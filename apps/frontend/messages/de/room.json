@@ -61,6 +61,7 @@
       "leave_prompt": "Möchtest du {server} wirklich verlassen? Du verlierst den Zugriff auf seine Räume und dein Client vergisst diesen Server. Du kannst ihn später über die Seitenleiste erneut hinzufügen."
     },
     "message": {
+      "empty": "Noch keine Nachrichten",
       "delete_title": "Nachricht löschen",
       "delete_prompt": "Möchtest du diese Nachricht wirklich löschen? Dies kann nicht rückgängig gemacht werden.",
       "delete_failed": "Nachricht konnte nicht gelöscht werden",
@@ -110,6 +111,7 @@
       "resize": "Raumdetails-Bereich vergrößern/verkleinern",
       "hide": "Raumdetails ausblenden",
       "members": "Mitglieder",
+      "members_title": "Mitglieder ({count})",
       "search_members": "Raummitglieder suchen",
       "search_members_placeholder": "Mitglieder suchen",
       "no_members": "Keine Mitglieder gefunden.",
@@ -117,9 +119,17 @@
       "offline": "Offline ({count})",
       "no_files": "Noch keine Dateien in diesem Raum.",
       "files": "Dateien",
+      "call": "Anruf",
       "jump_to_file": "Zu {filename} springen",
       "loading_files": "Dateien werden geladen...",
-      "calls_unavailable": "Anrufe sind auf diesem Server nicht verfügbar."
+      "calls_unavailable": "Anrufe sind auf diesem Server nicht verfügbar.",
+      "deleted_user": "Gelöschter Benutzer",
+      "view_profile": "Profil von {name} anzeigen",
+      "ban_failed": "Mitglied konnte nicht aus dem Raum gesperrt werden",
+      "ban_success": "{name} wurde aus dem Raum gesperrt"
+    },
+    "title": {
+      "direct_message": "Direktnachricht"
     },
     "thread": {
       "title": "Thread in #{room}",

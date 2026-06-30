@@ -209,13 +209,13 @@
     }
 
     if (!room.dmData || room.dmData.participants.length === 0) {
-      return 'Direct Message';
+      return m['room.title.direct_message']();
     }
 
     const others = room.dmData.participants.filter((p) => p.id !== room.dmData!.currentUserId);
     if (others.length === 0) {
       const self = room.dmData.participants.find((p) => p.id === room.dmData!.currentUserId);
-      return self?.displayName || self?.login || 'You';
+      return self?.displayName || self?.login || m['common.you']();
     }
     return others.map((p) => getLiveDisplayName(p.id, p.displayName || p.login)).join(', ');
   });

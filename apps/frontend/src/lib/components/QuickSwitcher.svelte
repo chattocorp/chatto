@@ -15,8 +15,15 @@
   import * as m from '$lib/i18n/messages';
   import { toast } from '$lib/ui/toast';
   import { createRoomCommandAPI } from '@chatto/api-client/rooms';
-  import { createMemberDirectoryAPI, type DirectoryMember } from '@chatto/api-client/memberDirectory';
-  import { createRoomDirectoryAPI, RoomDirectoryScope, RoomKind } from '@chatto/api-client/roomDirectory';
+  import {
+    createMemberDirectoryAPI,
+    type DirectoryMember
+  } from '@chatto/api-client/memberDirectory';
+  import {
+    createRoomDirectoryAPI,
+    RoomDirectoryScope,
+    RoomKind
+  } from '@chatto/api-client/roomDirectory';
 
   type ServerLogo = { name: string; logoUrl?: string | null };
   type AvatarUser = Pick<DirectoryMember, 'id' | 'login' | 'displayName' | 'deleted'> & {
@@ -132,7 +139,7 @@
     items.push({
       kind: 'destination',
       id: 'notifications',
-      label: 'Notifications',
+      label: m['ui.notifications'](),
       detail: '',
       serverId: '',
       serverName: '',

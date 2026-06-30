@@ -173,14 +173,13 @@
 
   let editRoomNameError = $derived.by(() => {
     if (!editRoomName) return undefined;
-    if (editRoomName.trim() === '') return 'Room name cannot be empty';
-    if (editRoomName !== editRoomName.trim())
-      return 'Room name cannot have leading or trailing whitespace';
+    if (editRoomName.trim() === '') return m['admin.rooms_admin.room_name_empty']();
+    if (editRoomName !== editRoomName.trim()) return m['admin.rooms_admin.room_name_trim']();
     if (!/^[a-zA-Z0-9_-]+$/.test(editRoomName.trim())) {
-      return 'Room name can only contain letters, numbers, hyphens, and underscores';
+      return m['admin.rooms_admin.room_name_charset']();
     }
     if (editRoomName.length > 30) {
-      return 'Room name cannot exceed 30 characters';
+      return m['admin.rooms_admin.room_name_too_long']();
     }
     return undefined;
   });

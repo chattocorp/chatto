@@ -1,5 +1,7 @@
 <script lang="ts">
-  let { message = 'Loading...' }: { message?: string } = $props();
+  import * as m from '$lib/i18n/messages';
+
+  let { message = m['ui.loading_page.loading']() }: { message?: string } = $props();
 </script>
 
 <div class="flex h-full w-full items-center justify-center">

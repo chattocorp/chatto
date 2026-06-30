@@ -176,7 +176,7 @@ under it. Column headers are clickable when `onRoleClick` is provided
 
     loading = false;
     if (!matrix) {
-      error = 'No data returned';
+      error = m['rbac.permissions.no_data']();
       return;
     }
     // Clone so we can safely apply optimistic updates.

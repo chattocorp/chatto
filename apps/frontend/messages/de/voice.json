@@ -27,6 +27,9 @@
     "camera": "Kamera",
     "unknown_device": "Unbekanntes Gerät",
     "no_devices": "Keine Geräte gefunden",
-    "participants": "Anrufteilnehmende"
+    "participants": "Anrufteilnehmende",
+    "join_failed": "Sprachanruf konnte nicht beigetreten werden",
+    "encrypted_unsupported": "Dieser Browser unterstützt verschlüsselte Sprachanrufe noch nicht. Versuche es mit der aktuellen Version von Firefox, Chrome oder Edge.",
+    "signaling_failed": "Der Sprachserver ist nicht erreichbar. Prüfe deine Netzwerkverbindung und versuche es erneut."
   }
 }

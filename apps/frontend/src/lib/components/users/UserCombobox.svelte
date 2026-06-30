@@ -1,10 +1,14 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
-  import { createMemberDirectoryAPI, type DirectoryMember } from '@chatto/api-client/memberDirectory';
+  import {
+    createMemberDirectoryAPI,
+    type DirectoryMember
+  } from '@chatto/api-client/memberDirectory';
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { Combobox } from '$lib/ui/form';
   import SkeletonImg from '$lib/ui/SkeletonImg.svelte';
   import { getAvatarInitials } from '$lib/utils/initials';
+  import * as m from '$lib/i18n/messages';
 
   type User = DirectoryMember;
 
@@ -13,7 +17,7 @@
     label,
     value = $bindable(''),
     text = $bindable(''),
-    placeholder = 'Search users or enter an actor ID...'
+    placeholder = m['admin.members.search_placeholder']()
   }: {
     id: string;
     label: string;

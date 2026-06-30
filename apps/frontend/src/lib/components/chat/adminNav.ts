@@ -1,4 +1,5 @@
 import { resolve } from '$app/paths';
+import * as m from '$lib/i18n/messages';
 
 export type AdminNavChromePermissions = {
   canViewAdmin: boolean;
@@ -41,7 +42,7 @@ export function getAdminNavItems({
   if (chrome.canManage) {
     items.push({
       href: resolve('/chat/[serverId]/server-admin/general', { serverId: serverSegment }),
-      label: 'General',
+      label: m['admin.nav.general'](),
       icon: 'iconify uil--setting'
     });
   }
@@ -54,7 +55,7 @@ export function getAdminNavItems({
   ) {
     items.push({
       href: resolve('/chat/[serverId]/server-admin/members', { serverId: serverSegment }),
-      label: 'Members',
+      label: m['admin.nav.members'](),
       icon: 'iconify uil--users-alt'
     });
   }
@@ -62,7 +63,7 @@ export function getAdminNavItems({
   if (chrome.canManageRooms) {
     items.push({
       href: resolve('/chat/[serverId]/server-admin/rooms', { serverId: serverSegment }),
-      label: 'Rooms',
+      label: m['admin.nav.rooms'](),
       icon: 'iconify uil--apps'
     });
   }
@@ -70,7 +71,7 @@ export function getAdminNavItems({
   if (chrome.canViewAdmin) {
     items.push({
       href: resolve('/chat/[serverId]/server-admin/moderation', { serverId: serverSegment }),
-      label: 'Moderation',
+      label: m['admin.nav.moderation'](),
       icon: 'iconify uil--ban'
     });
   }
@@ -78,7 +79,7 @@ export function getAdminNavItems({
   if (chrome.canManageRoles || server.canAdminViewRoles) {
     items.push({
       href: resolve('/chat/[serverId]/server-admin/permissions', { serverId: serverSegment }),
-      label: 'Permissions',
+      label: m['admin.nav.permissions'](),
       icon: 'iconify uil--shield-check'
     });
   }
@@ -86,7 +87,7 @@ export function getAdminNavItems({
   if (chrome.canManage) {
     items.push({
       href: resolve('/chat/[serverId]/server-admin/security', { serverId: serverSegment }),
-      label: 'Security',
+      label: m['admin.nav.security'](),
       icon: 'iconify uil--shield-exclamation'
     });
   }
@@ -94,7 +95,7 @@ export function getAdminNavItems({
   if (server.canAdminViewAudit) {
     items.push({
       href: resolve('/chat/[serverId]/server-admin/event-log', { serverId: serverSegment }),
-      label: 'Event Log',
+      label: m['admin.nav.event_log'](),
       icon: 'iconify uil--history'
     });
   }
@@ -102,7 +103,7 @@ export function getAdminNavItems({
   if (server.canAdminViewSystem) {
     items.push({
       href: resolve('/chat/[serverId]/server-admin/system', { serverId: serverSegment }),
-      label: 'System',
+      label: m['admin.nav.system'](),
       icon: 'iconify uil--server'
     });
   }

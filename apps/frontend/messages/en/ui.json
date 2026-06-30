@@ -13,7 +13,32 @@
     "access_denied": {
       "title": "Access Denied",
       "message": "You do not have permission to access this page.",
-      "back": "Return to Chat"
+      "back": "Return to Chat",
+      "back_to_server": "Return to Server"
+    },
+    "dialog": {
+      "submit_loading": "{label}..."
+    },
+    "tooltip": {
+      "more_information": "More information",
+      "about": "About {subject}"
+    },
+    "pane_header": {
+      "back": "Back"
+    },
+    "sidebar_nav": {
+      "back_to_chat": "Back to Chat"
+    },
+    "resize_handle": {
+      "resize": "Resize",
+      "resize_sidebar": "Resize sidebar"
+    },
+    "data_table": {
+      "empty": "No data",
+      "loading_more": "Loading more..."
+    },
+    "loading_page": {
+      "loading": "Loading..."
     },
     "image_modal": {
       "previous": "Previous image",
@@ -24,7 +49,9 @@
       "dismiss": "Dismiss notification"
     },
     "combobox": {
-      "loading": "Loading..."
+      "loading": "Loading...",
+      "empty": "No matches",
+      "clear": "Clear"
     },
     "expiry": {
       "label": "Expires",
@@ -40,6 +67,12 @@
     },
     "form": {
       "required": "Required"
+    },
+    "dates": {
+      "today": "Today",
+      "yesterday": "Yesterday",
+      "this_week": "This week",
+      "this_month": "This month"
     }
   }
 }

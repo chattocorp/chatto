@@ -60,11 +60,11 @@ to the user settings page for the active server.
   );
   const activeCallRoomName = $derived.by(() => {
     const room = activeCallRoom;
-    if (!room) return 'Current call';
+    if (!room) return m['common.current_call']();
     if (room.type === RoomType.Dm) {
       const meId = roomsStore?.currentUserId;
       const others = room.members.filter((member) => member.id !== meId);
-      if (others.length === 0) return 'You';
+      if (others.length === 0) return m['common.you']();
       return others
         .map((member) => getLiveDisplayName(member.id, member.displayName || member.login))
         .join(', ');

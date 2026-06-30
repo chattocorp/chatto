@@ -141,7 +141,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   function dmDisplayName(room: RoomsListItem): string {
     const meId = roomsStore.currentUserId;
     const others = room.members.filter((m) => m.id !== meId);
-    if (others.length === 0) return 'You';
+    if (others.length === 0) return m['common.you']();
     return others.map((m) => getLiveDisplayName(m.id, m.displayName || m.login)).join(', ');
   }
 
@@ -577,7 +577,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 
     {#if dmRooms.length > 0}
       <CollapsibleGroup
-        label="Direct Messages"
+        label={m['room_list.direct_messages']()}
         items={dmRooms}
         item={dmLink}
         persistKey={serverStorageKey(getActiveServer(), 'collapsible:dms')}

@@ -76,9 +76,9 @@ calls, and similar room-specific panels can plug into the same shell. See the
   const allMembers = $derived(membersStore.members);
   const memberCount = $derived(membersStore.totalCount);
   const title = $derived.by(() => {
-    if (activePanel === 'members') return `Members (${memberCount})`;
-    if (activePanel === 'files') return 'Files';
-    return 'Call';
+    if (activePanel === 'members') return m['room.sidebar.members_title']({ count: memberCount });
+    if (activePanel === 'files') return m['room.sidebar.files']();
+    return m['room.sidebar.call']();
   });
 
   // Check if user can start DMs (from centralized server permissions)
@@ -181,14 +181,14 @@ calls, and similar room-specific panels can plug into the same shell. See the
       await api.banRoomMember({ roomId, userId: member.id, reason, expiresAt });
     } catch (error) {
       banningMemberId = null;
-      banError = 'Failed to ban member from room';
+      banError = m['room.sidebar.ban_failed']();
       toast.error(banError);
       console.error('Failed to ban member from room:', error);
       return;
     }
     banningMemberId = null;
 
-    toast.success(`Banned ${displayName} from room`);
+    toast.success(m['room.sidebar.ban_success']({ name: displayName }));
     banDialogMember = null;
   }
 
@@ -354,8 +354,8 @@ calls, and similar room-specific panels can plug into the same shell. See the
       if (!member.deleted) togglePopover(member.id, e);
     }}
     title={member.deleted
-      ? 'Deleted User'
-      : `View profile of ${getLiveDisplayName(member.id, member.displayName)}`}
+      ? m['room.sidebar.deleted_user']()
+      : m['room.sidebar.view_profile']({ name: getLiveDisplayName(member.id, member.displayName) })}
   >
     <UserAvatar user={member} size="sm" showPresence />
     <div class="min-w-0 flex-1">

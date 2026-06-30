@@ -68,15 +68,15 @@ rendering to `SubjectPermissionsMatrix` (shared with the user variant).
 
     loading = false;
     if (!matrix) {
-      error = 'Role not found.';
+      error = m['admin.permissions.role_not_found']();
       return;
     }
-    const m = matrix;
+    const loadedMatrix = matrix;
     data = {
-      roleName: m.roleName,
-      applicablePermissions: [...m.applicablePermissions],
-      scopes: m.scopes.map((s) => ({ ...s })),
-      cells: m.cells.map((c) => ({ ...c }))
+      roleName: loadedMatrix.roleName,
+      applicablePermissions: [...loadedMatrix.applicablePermissions],
+      scopes: loadedMatrix.scopes.map((s) => ({ ...s })),
+      cells: loadedMatrix.cells.map((c) => ({ ...c }))
     };
   }
 

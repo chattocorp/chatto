@@ -18,6 +18,7 @@ See the "UI" section of `docs/GLOSSARY.md`.
     SERVER_SIDEBAR_MAX_WIDTH,
     SERVER_SIDEBAR_MIN_WIDTH
   } from '$lib/storage/serverSidebarWidth';
+  import * as m from '$lib/i18n/messages';
   import CurrentUserBar from './CurrentUserBar.svelte';
   import ResizeHandle from './ResizeHandle.svelte';
 
@@ -37,9 +38,7 @@ See the "UI" section of `docs/GLOSSARY.md`.
   // On mobile the panel slides as a single unit with the Server Gutter — both
   // apply the same translateX driven by `sidebarNav.progress`. On desktop the
   // sidebar toggles via `hidden`/`flex` (no overlay; layout reflows).
-  const tx = $derived(
-    sidebarNav.isMobile ? (sidebarNav.progress - 1) * SIDEBAR_PANEL_WIDTH_PX : 0
-  );
+  const tx = $derived(sidebarNav.isMobile ? (sidebarNav.progress - 1) * SIDEBAR_PANEL_WIDTH_PX : 0);
   const dragging = $derived(sidebarNav.dragOffset !== null);
   const resizable = $derived(!width);
 </script>
@@ -78,7 +77,7 @@ See the "UI" section of `docs/GLOSSARY.md`.
       max={SERVER_SIDEBAR_MAX_WIDTH}
       onResize={(w) => serverSidebarWidth.set(w)}
       onReset={() => serverSidebarWidth.reset()}
-      label="Resize sidebar"
+      label={m['ui.resize_handle.resize_sidebar']()}
     />
   {/if}
 </div>

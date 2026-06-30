@@ -10,6 +10,8 @@ import {
   isSameDay
 } from './formatTime';
 import type { UserSettingsState } from '$lib/state/userSettings.svelte';
+import { loadLocaleMessages } from '$lib/i18n/messages';
+import { setReactiveLocale } from '$lib/i18n/state.svelte';
 
 function settings(timezone: string | undefined, hour12?: boolean): UserSettingsState {
   return {
@@ -88,9 +90,9 @@ describe('isSameDay', () => {
     const la = settings('America/Los_Angeles', false);
     // 2025-04-27T05:00Z = 2025-04-26 22:00 LA, 2025-04-27T07:00Z = 2025-04-27 00:00 LA
     // Different local day in LA
-    expect(
-      isSameDay(new Date('2025-04-27T05:00:00Z'), new Date('2025-04-27T07:00:00Z'), la)
-    ).toBe(false);
+    expect(isSameDay(new Date('2025-04-27T05:00:00Z'), new Date('2025-04-27T07:00:00Z'), la)).toBe(
+      false
+    );
   });
 });
 
@@ -124,6 +126,19 @@ describe('formatDayLabel', () => {
     const out = formatDayLabel('2024-03-10T12:00:00Z', utc12);
     expect(out).toMatch(/March/);
     expect(out).toMatch(/2024/);
+  });
+
+  it('uses the active locale for relative and formatted labels', async () => {
+    await loadLocaleMessages('de');
+    setReactiveLocale('de');
+
+    try {
+      expect(formatDayLabel('2025-04-27T08:00:00Z', utc12)).toBe('Heute');
+      expect(formatDayLabel('2025-03-10T12:00:00Z', utc12)).toMatch(/Montag/);
+    } finally {
+      await loadLocaleMessages('en');
+      setReactiveLocale('en');
+    }
   });
 });
 
@@ -193,12 +208,7 @@ describe('fileDateGroup', () => {
 
   it('lets this week take precedence across a month boundary', () => {
     expect(
-      fileDateGroup(
-        '2026-05-31T08:00:00Z',
-        utc12,
-        new Date('2026-06-03T12:00:00Z'),
-        'en-US'
-      )
+      fileDateGroup('2026-05-31T08:00:00Z', utc12, new Date('2026-06-03T12:00:00Z'), 'en-US')
     ).toEqual({
       key: 'this-week',
       label: 'This week'
@@ -216,16 +226,30 @@ describe('fileDateGroup', () => {
     const berlin = settings('Europe/Berlin', false);
 
     expect(
-      fileDateGroup(
-        '2026-06-16T23:30:00Z',
-        berlin,
-        new Date('2026-06-17T00:30:00Z'),
-        'de-DE'
-      )
+      fileDateGroup('2026-06-16T23:30:00Z', berlin, new Date('2026-06-17T00:30:00Z'), 'de-DE')
     ).toEqual({
       key: 'today',
       label: 'Today'
     });
+  });
+
+  it('uses the active locale for group labels', async () => {
+    await loadLocaleMessages('de');
+    setReactiveLocale('de');
+
+    try {
+      expect(fileDateGroup('2026-06-16T08:00:00Z', utc12, now, 'de-DE')).toEqual({
+        key: 'yesterday',
+        label: 'Gestern'
+      });
+      expect(fileDateGroup('2026-06-15T08:00:00Z', utc12, now, 'de-DE')).toEqual({
+        key: 'this-week',
+        label: 'Diese Woche'
+      });
+    } finally {
+      await loadLocaleMessages('en');
+      setReactiveLocale('en');
+    }
   });
 });
 

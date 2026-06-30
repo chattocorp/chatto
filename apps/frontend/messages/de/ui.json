@@ -13,7 +13,32 @@
     "access_denied": {
       "title": "Zugriff verweigert",
       "message": "Du hast keine Berechtigung, diese Seite aufzurufen.",
-      "back": "Zurück zum Chat"
+      "back": "Zurück zum Chat",
+      "back_to_server": "Zurück zum Server"
+    },
+    "dialog": {
+      "submit_loading": "{label}..."
+    },
+    "tooltip": {
+      "more_information": "Mehr Informationen",
+      "about": "Über {subject}"
+    },
+    "pane_header": {
+      "back": "Zurück"
+    },
+    "sidebar_nav": {
+      "back_to_chat": "Zurück zum Chat"
+    },
+    "resize_handle": {
+      "resize": "Größe ändern",
+      "resize_sidebar": "Seitenleiste vergrößern/verkleinern"
+    },
+    "data_table": {
+      "empty": "Keine Daten",
+      "loading_more": "Weitere werden geladen..."
+    },
+    "loading_page": {
+      "loading": "Wird geladen..."
     },
     "image_modal": {
       "previous": "Vorheriges Bild",
@@ -24,7 +49,9 @@
       "dismiss": "Benachrichtigung ausblenden"
     },
     "combobox": {
-      "loading": "Wird geladen..."
+      "loading": "Wird geladen...",
+      "empty": "Keine Treffer",
+      "clear": "Leeren"
     },
     "expiry": {
       "label": "Läuft ab",
@@ -40,6 +67,12 @@
     },
     "form": {
       "required": "Erforderlich"
+    },
+    "dates": {
+      "today": "Heute",
+      "yesterday": "Gestern",
+      "this_week": "Diese Woche",
+      "this_month": "Dieser Monat"
     }
   }
 }

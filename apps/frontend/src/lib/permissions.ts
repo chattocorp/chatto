@@ -4,8 +4,10 @@
  * and explanation surfaces. Defined in the frontend to support future i18n.
  */
 
+import * as m from '$lib/i18n/messages';
+
 export type PermissionMetadata = {
-  description: string;
+  description: () => string;
 };
 
 /**
@@ -17,78 +19,77 @@ export type PermissionMetadata = {
 export const PERMISSION_METADATA: Record<string, PermissionMetadata> = {
   // Server permissions
   'server.manage': {
-    description: 'Update server settings (name, description, logo)'
+    description: m['rbac.permission_descriptions.server_manage']
   },
 
   // Room permissions
   'room.create': {
-    description: 'Create new rooms'
+    description: m['rbac.permission_descriptions.room_create']
   },
   'room.join': {
-    description: 'Join existing rooms'
+    description: m['rbac.permission_descriptions.room_join']
   },
   'room.list': {
-    description:
-      'See rooms in the directory. A user can be allowed to see a room (e.g. to request access) without being allowed to join it.'
+    description: m['rbac.permission_descriptions.room_list']
   },
   'room.manage': {
-    description: "Edit a room's settings and permissions, and delete rooms"
+    description: m['rbac.permission_descriptions.room_manage']
   },
   'room.ban-member': {
-    description: 'Ban members from rooms'
+    description: m['rbac.permission_descriptions.room_ban_member']
   },
 
   // Message permissions
   'message.post': {
-    description: 'Post root messages in rooms and start DMs'
+    description: m['rbac.permission_descriptions.message_post']
   },
   'message.post-in-thread': {
-    description: 'Post replies inside a thread'
+    description: m['rbac.permission_descriptions.message_post_in_thread']
   },
   'message.attach': {
-    description: 'Attach files to messages'
+    description: m['rbac.permission_descriptions.message_attach']
   },
   'message.echo': {
-    description: 'When posting in a thread, also surface the message in the main channel'
+    description: m['rbac.permission_descriptions.message_echo']
   },
   'message.manage': {
-    description: "Edit and delete other users' messages"
+    description: m['rbac.permission_descriptions.message_manage']
   },
   'message.react': {
-    description: 'Add and remove reactions on messages'
+    description: m['rbac.permission_descriptions.message_react']
   },
 
   // Role management
   'role.manage': {
-    description: 'Create, edit, delete, and reorder roles and their permission grants'
+    description: m['rbac.permission_descriptions.role_manage']
   },
   'role.assign': {
-    description: 'Assign and revoke roles for users'
+    description: m['rbac.permission_descriptions.role_assign']
   },
 
   // Admin panel
   'admin.view-users': {
-    description: 'View the users page in admin'
+    description: m['rbac.permission_descriptions.admin_view_users']
   },
   'admin.view-system': {
-    description: 'View projection diagnostics in admin'
+    description: m['rbac.permission_descriptions.admin_view_system']
   },
   'admin.view-audit': {
-    description: 'View the audit log in admin'
+    description: m['rbac.permission_descriptions.admin_view_audit']
   },
 
   // User management
   'user.delete-any': {
-    description: "Delete another user's account"
+    description: m['rbac.permission_descriptions.user_delete_any']
   },
   'user.delete-self': {
-    description: 'Delete your own account'
+    description: m['rbac.permission_descriptions.user_delete_self']
   },
   'user.manage-accounts': {
-    description: 'Create users, edit account identity, reset passwords, attach verified emails, and clear login cooldowns'
+    description: m['rbac.permission_descriptions.user_manage_accounts']
   },
   'user.manage-permissions': {
-    description: 'Edit direct per-user permission overrides'
+    description: m['rbac.permission_descriptions.user_manage_permissions']
   }
 };
 
@@ -97,5 +98,5 @@ export const PERMISSION_METADATA: Record<string, PermissionMetadata> = {
  * Returns the permission ID as fallback if not found.
  */
 export function getPermissionDescription(id: string): string {
-  return PERMISSION_METADATA[id]?.description ?? id;
+  return PERMISSION_METADATA[id]?.description() ?? id;
 }

@@ -445,14 +445,14 @@
       await api.banRoomMember({ roomId, userId: member.id, reason, expiresAt });
     } catch (error) {
       banningMemberId = null;
-      banError = 'Failed to ban member from room';
+      banError = m['room.sidebar.ban_failed']();
       toast.error(banError);
       console.error('Failed to ban member from room:', error);
       return;
     }
     banningMemberId = null;
 
-    toast.success(`Banned ${displayName} from room`);
+    toast.success(m['room.sidebar.ban_success']({ name: displayName }));
     banDialogUser = null;
   }
 

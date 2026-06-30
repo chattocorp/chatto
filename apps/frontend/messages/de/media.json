@@ -4,6 +4,11 @@
     "server_banner_alt": "Serverbanner",
     "fullscreen_video": "Vollbildvideo",
     "close_fullscreen_video": "Vollbildvideo schließen",
-    "video_alt": "Video"
+    "video_alt": "Video",
+    "video_original_missing": "Video ist nicht verfügbar, weil der ursprüngliche Upload fehlt.",
+    "video_processing_failed_retry": "Videoverarbeitung fehlgeschlagen. Bitte lade die Datei erneut hoch.",
+    "video_queued": "Video wartet auf Verarbeitung...",
+    "video_processing": "Video wird verarbeitet...",
+    "video_processing_failed": "Videoverarbeitung fehlgeschlagen"
   }
 }

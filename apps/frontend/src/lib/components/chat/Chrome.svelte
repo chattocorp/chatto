@@ -299,10 +299,10 @@
       </ScrollFader>
     {:else if isAdminMode}
       <SidebarNav
-        title={serverName ?? 'Server'}
+        title={serverName ?? m['chat.server_nav.server_fallback']()}
         items={adminNavItems}
         backHref={resolve('/chat/[serverId]', { serverId: serverSegment })}
-        backLabel="Back to Server"
+        backLabel={m['chat.server_nav.back_to_server']()}
         isActive={isAdminNavActive}
       />
     {:else}
@@ -321,7 +321,7 @@
             class={['sidebar-item', isHomeActive ? 'bg-surface-100' : '']}
           >
             <span class="sidebar-icon iconify uil--estate"></span>
-            Overview
+            {m['chat.overview.title']()}
           </a>
           <MyThreadsNavItem active={isMyThreadsActive} />
         </nav>

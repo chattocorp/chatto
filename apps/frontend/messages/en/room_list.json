@@ -8,6 +8,7 @@
     "unread_messages": "unread messages",
     "go_to_dm_notifications": "Go to {count} direct message notifications",
     "new_direct_messages": "{count} new direct messages",
+    "direct_messages": "Direct Messages",
     "empty_title": "No rooms yet",
     "empty_prefix": "You haven't joined any rooms on this server. Head to the",
     "empty_overview": "Overview",

@@ -69,6 +69,8 @@ const msg_common_create_account = (): LocalizedString => messages().common_creat
 const msg_common_email = (): LocalizedString => messages().common_email(empty());
 const msg_common_password = (): LocalizedString => messages().common_password(empty());
 const msg_common_username = (): LocalizedString => messages().common_username(empty());
+const msg_common_you = (): LocalizedString => messages().common_you(empty());
+const msg_common_current_call = (): LocalizedString => messages().common_current_call(empty());
 const msg_common_confirm_password = (): LocalizedString => messages().common_confirm_password(empty());
 const msg_common_new_password = (): LocalizedString => messages().common_new_password(empty());
 const msg_common_password_placeholder = (): LocalizedString => messages().common_password_placeholder(empty());
@@ -87,6 +89,11 @@ const msg_common_validation_fix_errors = (): LocalizedString => messages().commo
 const msg_common_error_network = (): LocalizedString => messages().common_error_network(empty());
 const msg_common_error_generic = (): LocalizedString => messages().common_error_generic(empty());
 const msg_common_delete = (): LocalizedString => messages().common_delete(empty());
+const msg_common_save = (): LocalizedString => messages().common_save(empty());
+const msg_common_confirm = (): LocalizedString => messages().common_confirm(empty());
+const msg_common_back = (): LocalizedString => messages().common_back(empty());
+const msg_common_clear = (): LocalizedString => messages().common_clear(empty());
+const msg_common_unknown = (): LocalizedString => messages().common_unknown(empty());
 const msg_common_got_it = (): LocalizedString => messages().common_got_it(empty());
 const msg_common_saved = (): LocalizedString => messages().common_saved(empty());
 const msg_common_rooms = (): LocalizedString => messages().common_rooms(empty());
@@ -505,6 +512,9 @@ const msg_chat_sign_out_current_server = (): LocalizedString => messages().chat_
 const msg_chat_sign_out_all_servers = (): LocalizedString => messages().chat_sign_out_all_servers(empty());
 const msg_chat_sign_out_description = (): LocalizedString => messages().chat_sign_out_description(empty());
 const msg_chat_overview_title = (): LocalizedString => messages().chat_overview_title(empty());
+const msg_chat_server_nav_back_to_server = (): LocalizedString => messages().chat_server_nav_back_to_server(empty());
+const msg_chat_server_nav_server_fallback = (): LocalizedString => messages().chat_server_nav_server_fallback(empty());
+const msg_chat_server_nav_administration = (): LocalizedString => messages().chat_server_nav_administration(empty());
 const msg_chat_user_menu_profile = (): LocalizedString => messages().chat_user_menu_profile(empty());
 const msg_chat_user_menu_send_message = (): LocalizedString => messages().chat_user_menu_send_message(empty());
 const msg_chat_server_gutter_add_server = (): LocalizedString => messages().chat_server_gutter_add_server(empty());
@@ -594,6 +604,7 @@ const msg_room_server_leave_action = (): LocalizedString => messages().room_serv
 const msg_room_server_leave_prompt = (
   inputs: Parameters<LocaleMessages['room_server_leave_prompt']>[0]
 ): LocalizedString => messages().room_server_leave_prompt(inputs);
+const msg_room_message_empty = (): LocalizedString => messages().room_message_empty(empty());
 const msg_room_message_delete_title = (): LocalizedString => messages().room_message_delete_title(empty());
 const msg_room_message_delete_prompt = (): LocalizedString => messages().room_message_delete_prompt(empty());
 const msg_room_message_delete_failed = (): LocalizedString => messages().room_message_delete_failed(empty());
@@ -647,6 +658,9 @@ const msg_room_sidebar_extras = (): LocalizedString => messages().room_sidebar_e
 const msg_room_sidebar_resize = (): LocalizedString => messages().room_sidebar_resize(empty());
 const msg_room_sidebar_hide = (): LocalizedString => messages().room_sidebar_hide(empty());
 const msg_room_sidebar_members = (): LocalizedString => messages().room_sidebar_members(empty());
+const msg_room_sidebar_members_title = (
+  inputs: Parameters<LocaleMessages['room_sidebar_members_title']>[0]
+): LocalizedString => messages().room_sidebar_members_title(inputs);
 const msg_room_sidebar_search_members = (): LocalizedString => messages().room_sidebar_search_members(empty());
 const msg_room_sidebar_search_members_placeholder = (): LocalizedString => messages().room_sidebar_search_members_placeholder(empty());
 const msg_room_sidebar_no_members = (): LocalizedString => messages().room_sidebar_no_members(empty());
@@ -658,11 +672,21 @@ const msg_room_sidebar_offline = (
 ): LocalizedString => messages().room_sidebar_offline(inputs);
 const msg_room_sidebar_no_files = (): LocalizedString => messages().room_sidebar_no_files(empty());
 const msg_room_sidebar_files = (): LocalizedString => messages().room_sidebar_files(empty());
+const msg_room_sidebar_call = (): LocalizedString => messages().room_sidebar_call(empty());
 const msg_room_sidebar_jump_to_file = (
   inputs: Parameters<LocaleMessages['room_sidebar_jump_to_file']>[0]
 ): LocalizedString => messages().room_sidebar_jump_to_file(inputs);
 const msg_room_sidebar_loading_files = (): LocalizedString => messages().room_sidebar_loading_files(empty());
 const msg_room_sidebar_calls_unavailable = (): LocalizedString => messages().room_sidebar_calls_unavailable(empty());
+const msg_room_sidebar_deleted_user = (): LocalizedString => messages().room_sidebar_deleted_user(empty());
+const msg_room_sidebar_view_profile = (
+  inputs: Parameters<LocaleMessages['room_sidebar_view_profile']>[0]
+): LocalizedString => messages().room_sidebar_view_profile(inputs);
+const msg_room_sidebar_ban_failed = (): LocalizedString => messages().room_sidebar_ban_failed(empty());
+const msg_room_sidebar_ban_success = (
+  inputs: Parameters<LocaleMessages['room_sidebar_ban_success']>[0]
+): LocalizedString => messages().room_sidebar_ban_success(inputs);
+const msg_room_title_direct_message = (): LocalizedString => messages().room_title_direct_message(empty());
 const msg_room_thread_title = (
   inputs: Parameters<LocaleMessages['room_thread_title']>[0]
 ): LocalizedString => messages().room_thread_title(inputs);
@@ -731,11 +755,28 @@ const msg_ui_close = (): LocalizedString => messages().ui_close(empty());
 const msg_ui_access_denied_title = (): LocalizedString => messages().ui_access_denied_title(empty());
 const msg_ui_access_denied_message = (): LocalizedString => messages().ui_access_denied_message(empty());
 const msg_ui_access_denied_back = (): LocalizedString => messages().ui_access_denied_back(empty());
+const msg_ui_access_denied_back_to_server = (): LocalizedString => messages().ui_access_denied_back_to_server(empty());
+const msg_ui_dialog_submit_loading = (
+  inputs: Parameters<LocaleMessages['ui_dialog_submit_loading']>[0]
+): LocalizedString => messages().ui_dialog_submit_loading(inputs);
+const msg_ui_tooltip_more_information = (): LocalizedString => messages().ui_tooltip_more_information(empty());
+const msg_ui_tooltip_about = (
+  inputs: Parameters<LocaleMessages['ui_tooltip_about']>[0]
+): LocalizedString => messages().ui_tooltip_about(inputs);
+const msg_ui_pane_header_back = (): LocalizedString => messages().ui_pane_header_back(empty());
+const msg_ui_sidebar_nav_back_to_chat = (): LocalizedString => messages().ui_sidebar_nav_back_to_chat(empty());
+const msg_ui_resize_handle_resize = (): LocalizedString => messages().ui_resize_handle_resize(empty());
+const msg_ui_resize_handle_resize_sidebar = (): LocalizedString => messages().ui_resize_handle_resize_sidebar(empty());
+const msg_ui_data_table_empty = (): LocalizedString => messages().ui_data_table_empty(empty());
+const msg_ui_data_table_loading_more = (): LocalizedString => messages().ui_data_table_loading_more(empty());
+const msg_ui_loading_page_loading = (): LocalizedString => messages().ui_loading_page_loading(empty());
 const msg_ui_image_modal_previous = (): LocalizedString => messages().ui_image_modal_previous(empty());
 const msg_ui_image_modal_next = (): LocalizedString => messages().ui_image_modal_next(empty());
 const msg_ui_image_modal_fallback_alt = (): LocalizedString => messages().ui_image_modal_fallback_alt(empty());
 const msg_ui_toast_dismiss = (): LocalizedString => messages().ui_toast_dismiss(empty());
 const msg_ui_combobox_loading = (): LocalizedString => messages().ui_combobox_loading(empty());
+const msg_ui_combobox_empty = (): LocalizedString => messages().ui_combobox_empty(empty());
+const msg_ui_combobox_clear = (): LocalizedString => messages().ui_combobox_clear(empty());
 const msg_ui_expiry_label = (): LocalizedString => messages().ui_expiry_label(empty());
 const msg_ui_expiry_24h = (): LocalizedString => messages().ui_expiry_24h(empty());
 const msg_ui_expiry_7d = (): LocalizedString => messages().ui_expiry_7d(empty());
@@ -747,6 +788,10 @@ const msg_ui_expiry_error_required = (): LocalizedString => messages().ui_expiry
 const msg_ui_expiry_error_invalid = (): LocalizedString => messages().ui_expiry_error_invalid(empty());
 const msg_ui_expiry_error_future = (): LocalizedString => messages().ui_expiry_error_future(empty());
 const msg_ui_form_required = (): LocalizedString => messages().ui_form_required(empty());
+const msg_ui_dates_today = (): LocalizedString => messages().ui_dates_today(empty());
+const msg_ui_dates_yesterday = (): LocalizedString => messages().ui_dates_yesterday(empty());
+const msg_ui_dates_this_week = (): LocalizedString => messages().ui_dates_this_week(empty());
+const msg_ui_dates_this_month = (): LocalizedString => messages().ui_dates_this_month(empty());
 const msg_quick_switcher_placeholder = (): LocalizedString => messages().quick_switcher_placeholder(empty());
 const msg_quick_switcher_no_results = (): LocalizedString => messages().quick_switcher_no_results(empty());
 const msg_quick_switcher_recent = (): LocalizedString => messages().quick_switcher_recent(empty());
@@ -768,6 +813,10 @@ const msg_message_preview_deleted_user = (): LocalizedString => messages().messa
 const msg_message_preview_attachments_count = (
   inputs: Parameters<LocaleMessages['message_preview_attachments_count']>[0]
 ): LocalizedString => messages().message_preview_attachments_count(inputs);
+const msg_message_preview_attachment_image = (): LocalizedString => messages().message_preview_attachment_image(empty());
+const msg_message_preview_attachment_video = (): LocalizedString => messages().message_preview_attachment_video(empty());
+const msg_message_preview_attachment_audio = (): LocalizedString => messages().message_preview_attachment_audio(empty());
+const msg_message_preview_attachment_file = (): LocalizedString => messages().message_preview_attachment_file(empty());
 const msg_welcome_verified = (): LocalizedString => messages().welcome_verified(empty());
 const msg_room_list_active_call = (): LocalizedString => messages().room_list_active_call(empty());
 const msg_room_list_call_participants = (
@@ -786,6 +835,7 @@ const msg_room_list_go_to_dm_notifications = (
 const msg_room_list_new_direct_messages = (
   inputs: Parameters<LocaleMessages['room_list_new_direct_messages']>[0]
 ): LocalizedString => messages().room_list_new_direct_messages(inputs);
+const msg_room_list_direct_messages = (): LocalizedString => messages().room_list_direct_messages(empty());
 const msg_room_list_empty_title = (): LocalizedString => messages().room_list_empty_title(empty());
 const msg_room_list_empty_prefix = (): LocalizedString => messages().room_list_empty_prefix(empty());
 const msg_room_list_empty_overview = (): LocalizedString => messages().room_list_empty_overview(empty());
@@ -819,6 +869,9 @@ const msg_voice_camera = (): LocalizedString => messages().voice_camera(empty())
 const msg_voice_unknown_device = (): LocalizedString => messages().voice_unknown_device(empty());
 const msg_voice_no_devices = (): LocalizedString => messages().voice_no_devices(empty());
 const msg_voice_participants = (): LocalizedString => messages().voice_participants(empty());
+const msg_voice_join_failed = (): LocalizedString => messages().voice_join_failed(empty());
+const msg_voice_encrypted_unsupported = (): LocalizedString => messages().voice_encrypted_unsupported(empty());
+const msg_voice_signaling_failed = (): LocalizedString => messages().voice_signaling_failed(empty());
 const msg_composer_attach_file = (): LocalizedString => messages().composer_attach_file(empty());
 const msg_composer_send = (): LocalizedString => messages().composer_send(empty());
 const msg_composer_send_enter = (): LocalizedString => messages().composer_send_enter(empty());
@@ -840,6 +893,8 @@ const msg_composer_remove_link = (): LocalizedString => messages().composer_remo
 const msg_composer_code_language = (): LocalizedString => messages().composer_code_language(empty());
 const msg_composer_placeholder = (): LocalizedString => messages().composer_placeholder(empty());
 const msg_composer_editing_placeholder = (): LocalizedString => messages().composer_editing_placeholder(empty());
+const msg_composer_drop_files_title = (): LocalizedString => messages().composer_drop_files_title(empty());
+const msg_composer_drop_files_subtitle = (): LocalizedString => messages().composer_drop_files_subtitle(empty());
 const msg_composer_send_failed = (): LocalizedString => messages().composer_send_failed(empty());
 const msg_composer_edit_failed = (): LocalizedString => messages().composer_edit_failed(empty());
 const msg_composer_mention_all_room_members = (): LocalizedString => messages().composer_mention_all_room_members(empty());
@@ -851,6 +906,14 @@ const msg_add_server_connect = (): LocalizedString => messages().add_server_conn
 const msg_add_server_redirecting = (): LocalizedString => messages().add_server_redirecting(empty());
 const msg_add_server_connecting = (): LocalizedString => messages().add_server_connecting(empty());
 const msg_add_server_start_failed = (): LocalizedString => messages().add_server_start_failed(empty());
+const msg_add_server_invalid_url = (): LocalizedString => messages().add_server_invalid_url(empty());
+const msg_add_server_already_connected = (): LocalizedString => messages().add_server_already_connected(empty());
+const msg_add_server_not_chatto_server = (): LocalizedString => messages().add_server_not_chatto_server(empty());
+const msg_add_server_oauth_unsupported = (): LocalizedString => messages().add_server_oauth_unsupported(empty());
+const msg_add_server_connection_timed_out = (): LocalizedString => messages().add_server_connection_timed_out(empty());
+const msg_add_server_connection_failed = (): LocalizedString => messages().add_server_connection_failed(empty());
+const msg_add_server_connect_failed = (): LocalizedString => messages().add_server_connect_failed(empty());
+const msg_add_server_edit_url = (): LocalizedString => messages().add_server_edit_url(empty());
 const msg_add_server_description_url = (): LocalizedString => messages().add_server_description_url(empty());
 const msg_add_server_description_preview = (): LocalizedString => messages().add_server_description_preview(empty());
 const msg_add_server_url_label = (): LocalizedString => messages().add_server_url_label(empty());
@@ -861,6 +924,11 @@ const msg_media_server_banner_alt = (): LocalizedString => messages().media_serv
 const msg_media_fullscreen_video = (): LocalizedString => messages().media_fullscreen_video(empty());
 const msg_media_close_fullscreen_video = (): LocalizedString => messages().media_close_fullscreen_video(empty());
 const msg_media_video_alt = (): LocalizedString => messages().media_video_alt(empty());
+const msg_media_video_original_missing = (): LocalizedString => messages().media_video_original_missing(empty());
+const msg_media_video_processing_failed_retry = (): LocalizedString => messages().media_video_processing_failed_retry(empty());
+const msg_media_video_queued = (): LocalizedString => messages().media_video_queued(empty());
+const msg_media_video_processing = (): LocalizedString => messages().media_video_processing(empty());
+const msg_media_video_processing_failed = (): LocalizedString => messages().media_video_processing_failed(empty());
 const msg_rbac_delete_role_title = (): LocalizedString => messages().rbac_delete_role_title(empty());
 const msg_rbac_delete_role_prompt = (
   inputs: Parameters<LocaleMessages['rbac_delete_role_prompt']>[0]
@@ -924,6 +992,36 @@ const msg_rbac_permissions_categories_dm_title = (): LocalizedString => messages
 const msg_rbac_permissions_categories_dm_description = (): LocalizedString => messages().rbac_permissions_categories_dm_description(empty());
 const msg_rbac_permissions_categories_user_title = (): LocalizedString => messages().rbac_permissions_categories_user_title(empty());
 const msg_rbac_permissions_categories_user_description = (): LocalizedString => messages().rbac_permissions_categories_user_description(empty());
+const msg_rbac_permission_descriptions_server_manage = (): LocalizedString => messages().rbac_permission_descriptions_server_manage(empty());
+const msg_rbac_permission_descriptions_room_create = (): LocalizedString => messages().rbac_permission_descriptions_room_create(empty());
+const msg_rbac_permission_descriptions_room_join = (): LocalizedString => messages().rbac_permission_descriptions_room_join(empty());
+const msg_rbac_permission_descriptions_room_list = (): LocalizedString => messages().rbac_permission_descriptions_room_list(empty());
+const msg_rbac_permission_descriptions_room_manage = (): LocalizedString => messages().rbac_permission_descriptions_room_manage(empty());
+const msg_rbac_permission_descriptions_room_ban_member = (): LocalizedString => messages().rbac_permission_descriptions_room_ban_member(empty());
+const msg_rbac_permission_descriptions_message_post = (): LocalizedString => messages().rbac_permission_descriptions_message_post(empty());
+const msg_rbac_permission_descriptions_message_post_in_thread = (): LocalizedString => messages().rbac_permission_descriptions_message_post_in_thread(empty());
+const msg_rbac_permission_descriptions_message_attach = (): LocalizedString => messages().rbac_permission_descriptions_message_attach(empty());
+const msg_rbac_permission_descriptions_message_echo = (): LocalizedString => messages().rbac_permission_descriptions_message_echo(empty());
+const msg_rbac_permission_descriptions_message_manage = (): LocalizedString => messages().rbac_permission_descriptions_message_manage(empty());
+const msg_rbac_permission_descriptions_message_react = (): LocalizedString => messages().rbac_permission_descriptions_message_react(empty());
+const msg_rbac_permission_descriptions_role_manage = (): LocalizedString => messages().rbac_permission_descriptions_role_manage(empty());
+const msg_rbac_permission_descriptions_role_assign = (): LocalizedString => messages().rbac_permission_descriptions_role_assign(empty());
+const msg_rbac_permission_descriptions_admin_view_users = (): LocalizedString => messages().rbac_permission_descriptions_admin_view_users(empty());
+const msg_rbac_permission_descriptions_admin_view_system = (): LocalizedString => messages().rbac_permission_descriptions_admin_view_system(empty());
+const msg_rbac_permission_descriptions_admin_view_audit = (): LocalizedString => messages().rbac_permission_descriptions_admin_view_audit(empty());
+const msg_rbac_permission_descriptions_user_delete_any = (): LocalizedString => messages().rbac_permission_descriptions_user_delete_any(empty());
+const msg_rbac_permission_descriptions_user_delete_self = (): LocalizedString => messages().rbac_permission_descriptions_user_delete_self(empty());
+const msg_rbac_permission_descriptions_user_manage_accounts = (): LocalizedString => messages().rbac_permission_descriptions_user_manage_accounts(empty());
+const msg_rbac_permission_descriptions_user_manage_permissions = (): LocalizedString => messages().rbac_permission_descriptions_user_manage_permissions(empty());
+const msg_admin_nav_general = (): LocalizedString => messages().admin_nav_general(empty());
+const msg_admin_nav_members = (): LocalizedString => messages().admin_nav_members(empty());
+const msg_admin_nav_rooms = (): LocalizedString => messages().admin_nav_rooms(empty());
+const msg_admin_nav_moderation = (): LocalizedString => messages().admin_nav_moderation(empty());
+const msg_admin_nav_permissions = (): LocalizedString => messages().admin_nav_permissions(empty());
+const msg_admin_nav_security = (): LocalizedString => messages().admin_nav_security(empty());
+const msg_admin_nav_event_log = (): LocalizedString => messages().admin_nav_event_log(empty());
+const msg_admin_nav_system = (): LocalizedString => messages().admin_nav_system(empty());
+const msg_admin_nav_back_to_server = (): LocalizedString => messages().admin_nav_back_to_server(empty());
 const msg_admin_common_page_title = (
   inputs: Parameters<LocaleMessages['admin_common_page_title']>[0]
 ): LocalizedString => messages().admin_common_page_title(inputs);
@@ -931,6 +1029,7 @@ const msg_admin_common_server_admin_page_title = (
   inputs: Parameters<LocaleMessages['admin_common_server_admin_page_title']>[0]
 ): LocalizedString => messages().admin_common_server_admin_page_title(inputs);
 const msg_admin_common_loading = (): LocalizedString => messages().admin_common_loading(empty());
+const msg_admin_common_unknown = (): LocalizedString => messages().admin_common_unknown(empty());
 const msg_admin_common_rooms = (): LocalizedString => messages().admin_common_rooms(empty());
 const msg_admin_common_user = (): LocalizedString => messages().admin_common_user(empty());
 const msg_admin_common_room = (): LocalizedString => messages().admin_common_room(empty());
@@ -1031,6 +1130,16 @@ const msg_admin_members_removed_role = (
   inputs: Parameters<LocaleMessages['admin_members_removed_role']>[0]
 ): LocalizedString => messages().admin_members_removed_role(inputs);
 const msg_admin_members_role_update_failed = (): LocalizedString => messages().admin_members_role_update_failed(empty());
+const msg_admin_member_detail_no_self_rename = (): LocalizedString => messages().admin_member_detail_no_self_rename(empty());
+const msg_admin_member_detail_self_rename_cooldown = (
+  inputs: Parameters<LocaleMessages['admin_member_detail_self_rename_cooldown']>[0]
+): LocalizedString => messages().admin_member_detail_self_rename_cooldown(inputs);
+const msg_admin_member_detail_last_self_rename = (
+  inputs: Parameters<LocaleMessages['admin_member_detail_last_self_rename']>[0]
+): LocalizedString => messages().admin_member_detail_last_self_rename(inputs);
+const msg_admin_member_detail_email_unavailable = (): LocalizedString => messages().admin_member_detail_email_unavailable(empty());
+const msg_admin_member_detail_verified_email_on_file = (): LocalizedString => messages().admin_member_detail_verified_email_on_file(empty());
+const msg_admin_member_detail_no_verified_email = (): LocalizedString => messages().admin_member_detail_no_verified_email(empty());
 const msg_admin_permissions_title = (): LocalizedString => messages().admin_permissions_title(empty());
 const msg_admin_permissions_subtitle = (): LocalizedString => messages().admin_permissions_subtitle(empty());
 const msg_admin_permissions_role_presets = (): LocalizedString => messages().admin_permissions_role_presets(empty());
@@ -1090,6 +1199,10 @@ const msg_admin_rooms_admin_create_room = (): LocalizedString => messages().admi
 const msg_admin_rooms_admin_edit_room = (): LocalizedString => messages().admin_rooms_admin_edit_room(empty());
 const msg_admin_rooms_admin_edit_room_action = (): LocalizedString => messages().admin_rooms_admin_edit_room_action(empty());
 const msg_admin_rooms_admin_room_description_placeholder = (): LocalizedString => messages().admin_rooms_admin_room_description_placeholder(empty());
+const msg_admin_rooms_admin_room_name_empty = (): LocalizedString => messages().admin_rooms_admin_room_name_empty(empty());
+const msg_admin_rooms_admin_room_name_trim = (): LocalizedString => messages().admin_rooms_admin_room_name_trim(empty());
+const msg_admin_rooms_admin_room_name_charset = (): LocalizedString => messages().admin_rooms_admin_room_name_charset(empty());
+const msg_admin_rooms_admin_room_name_too_long = (): LocalizedString => messages().admin_rooms_admin_room_name_too_long(empty());
 const msg_admin_rooms_admin_create_group = (): LocalizedString => messages().admin_rooms_admin_create_group(empty());
 const msg_admin_rooms_admin_group_name = (): LocalizedString => messages().admin_rooms_admin_group_name(empty());
 const msg_admin_rooms_admin_group_name_placeholder = (): LocalizedString => messages().admin_rooms_admin_group_name_placeholder(empty());
@@ -1333,6 +1446,8 @@ export { msg_common_create_account as 'common.create_account' };
 export { msg_common_email as 'common.email' };
 export { msg_common_password as 'common.password' };
 export { msg_common_username as 'common.username' };
+export { msg_common_you as 'common.you' };
+export { msg_common_current_call as 'common.current_call' };
 export { msg_common_confirm_password as 'common.confirm_password' };
 export { msg_common_new_password as 'common.new_password' };
 export { msg_common_password_placeholder as 'common.password_placeholder' };
@@ -1351,6 +1466,11 @@ export { msg_common_validation_fix_errors as 'common.validation.fix_errors' };
 export { msg_common_error_network as 'common.error.network' };
 export { msg_common_error_generic as 'common.error.generic' };
 export { msg_common_delete as 'common.delete' };
+export { msg_common_save as 'common.save' };
+export { msg_common_confirm as 'common.confirm' };
+export { msg_common_back as 'common.back' };
+export { msg_common_clear as 'common.clear' };
+export { msg_common_unknown as 'common.unknown' };
 export { msg_common_got_it as 'common.got_it' };
 export { msg_common_saved as 'common.saved' };
 export { msg_common_rooms as 'common.rooms' };
@@ -1727,6 +1847,9 @@ export { msg_chat_sign_out_current_server as 'chat.sign_out.current_server' };
 export { msg_chat_sign_out_all_servers as 'chat.sign_out.all_servers' };
 export { msg_chat_sign_out_description as 'chat.sign_out.description' };
 export { msg_chat_overview_title as 'chat.overview.title' };
+export { msg_chat_server_nav_back_to_server as 'chat.server_nav.back_to_server' };
+export { msg_chat_server_nav_server_fallback as 'chat.server_nav.server_fallback' };
+export { msg_chat_server_nav_administration as 'chat.server_nav.administration' };
 export { msg_chat_user_menu_profile as 'chat.user_menu.profile' };
 export { msg_chat_user_menu_send_message as 'chat.user_menu.send_message' };
 export { msg_chat_server_gutter_add_server as 'chat.server_gutter.add_server' };
@@ -1794,6 +1917,7 @@ export { msg_room_directory_leave_confirm as 'room.directory.leave_confirm' };
 export { msg_room_server_leave_title as 'room.server.leave_title' };
 export { msg_room_server_leave_action as 'room.server.leave_action' };
 export { msg_room_server_leave_prompt as 'room.server.leave_prompt' };
+export { msg_room_message_empty as 'room.message.empty' };
 export { msg_room_message_delete_title as 'room.message.delete_title' };
 export { msg_room_message_delete_prompt as 'room.message.delete_prompt' };
 export { msg_room_message_delete_failed as 'room.message.delete_failed' };
@@ -1833,6 +1957,7 @@ export { msg_room_sidebar_extras as 'room.sidebar.extras' };
 export { msg_room_sidebar_resize as 'room.sidebar.resize' };
 export { msg_room_sidebar_hide as 'room.sidebar.hide' };
 export { msg_room_sidebar_members as 'room.sidebar.members' };
+export { msg_room_sidebar_members_title as 'room.sidebar.members_title' };
 export { msg_room_sidebar_search_members as 'room.sidebar.search_members' };
 export { msg_room_sidebar_search_members_placeholder as 'room.sidebar.search_members_placeholder' };
 export { msg_room_sidebar_no_members as 'room.sidebar.no_members' };
@@ -1840,9 +1965,15 @@ export { msg_room_sidebar_online as 'room.sidebar.online' };
 export { msg_room_sidebar_offline as 'room.sidebar.offline' };
 export { msg_room_sidebar_no_files as 'room.sidebar.no_files' };
 export { msg_room_sidebar_files as 'room.sidebar.files' };
+export { msg_room_sidebar_call as 'room.sidebar.call' };
 export { msg_room_sidebar_jump_to_file as 'room.sidebar.jump_to_file' };
 export { msg_room_sidebar_loading_files as 'room.sidebar.loading_files' };
 export { msg_room_sidebar_calls_unavailable as 'room.sidebar.calls_unavailable' };
+export { msg_room_sidebar_deleted_user as 'room.sidebar.deleted_user' };
+export { msg_room_sidebar_view_profile as 'room.sidebar.view_profile' };
+export { msg_room_sidebar_ban_failed as 'room.sidebar.ban_failed' };
+export { msg_room_sidebar_ban_success as 'room.sidebar.ban_success' };
+export { msg_room_title_direct_message as 'room.title.direct_message' };
 export { msg_room_thread_title as 'room.thread.title' };
 export { msg_room_thread_back_to_room as 'room.thread.back_to_room' };
 export { msg_room_thread_follow as 'room.thread.follow' };
@@ -1909,11 +2040,24 @@ export { msg_ui_close as 'ui.close' };
 export { msg_ui_access_denied_title as 'ui.access_denied.title' };
 export { msg_ui_access_denied_message as 'ui.access_denied.message' };
 export { msg_ui_access_denied_back as 'ui.access_denied.back' };
+export { msg_ui_access_denied_back_to_server as 'ui.access_denied.back_to_server' };
+export { msg_ui_dialog_submit_loading as 'ui.dialog.submit_loading' };
+export { msg_ui_tooltip_more_information as 'ui.tooltip.more_information' };
+export { msg_ui_tooltip_about as 'ui.tooltip.about' };
+export { msg_ui_pane_header_back as 'ui.pane_header.back' };
+export { msg_ui_sidebar_nav_back_to_chat as 'ui.sidebar_nav.back_to_chat' };
+export { msg_ui_resize_handle_resize as 'ui.resize_handle.resize' };
+export { msg_ui_resize_handle_resize_sidebar as 'ui.resize_handle.resize_sidebar' };
+export { msg_ui_data_table_empty as 'ui.data_table.empty' };
+export { msg_ui_data_table_loading_more as 'ui.data_table.loading_more' };
+export { msg_ui_loading_page_loading as 'ui.loading_page.loading' };
 export { msg_ui_image_modal_previous as 'ui.image_modal.previous' };
 export { msg_ui_image_modal_next as 'ui.image_modal.next' };
 export { msg_ui_image_modal_fallback_alt as 'ui.image_modal.fallback_alt' };
 export { msg_ui_toast_dismiss as 'ui.toast.dismiss' };
 export { msg_ui_combobox_loading as 'ui.combobox.loading' };
+export { msg_ui_combobox_empty as 'ui.combobox.empty' };
+export { msg_ui_combobox_clear as 'ui.combobox.clear' };
 export { msg_ui_expiry_label as 'ui.expiry.label' };
 export { msg_ui_expiry_24h as 'ui.expiry.24h' };
 export { msg_ui_expiry_7d as 'ui.expiry.7d' };
@@ -1925,6 +2069,10 @@ export { msg_ui_expiry_error_required as 'ui.expiry.error_required' };
 export { msg_ui_expiry_error_invalid as 'ui.expiry.error_invalid' };
 export { msg_ui_expiry_error_future as 'ui.expiry.error_future' };
 export { msg_ui_form_required as 'ui.form.required' };
+export { msg_ui_dates_today as 'ui.dates.today' };
+export { msg_ui_dates_yesterday as 'ui.dates.yesterday' };
+export { msg_ui_dates_this_week as 'ui.dates.this_week' };
+export { msg_ui_dates_this_month as 'ui.dates.this_month' };
 export { msg_quick_switcher_placeholder as 'quick_switcher.placeholder' };
 export { msg_quick_switcher_no_results as 'quick_switcher.no_results' };
 export { msg_quick_switcher_recent as 'quick_switcher.recent' };
@@ -1944,6 +2092,10 @@ export { msg_preview_youtube_open as 'preview.youtube_open' };
 export { msg_preview_youtube_delete_embed as 'preview.youtube_delete_embed' };
 export { msg_message_preview_deleted_user as 'message_preview.deleted_user' };
 export { msg_message_preview_attachments_count as 'message_preview.attachments_count' };
+export { msg_message_preview_attachment_image as 'message_preview.attachment_image' };
+export { msg_message_preview_attachment_video as 'message_preview.attachment_video' };
+export { msg_message_preview_attachment_audio as 'message_preview.attachment_audio' };
+export { msg_message_preview_attachment_file as 'message_preview.attachment_file' };
 export { msg_welcome_verified as 'welcome.verified' };
 export { msg_room_list_active_call as 'room_list.active_call' };
 export { msg_room_list_call_participants as 'room_list.call_participants' };
@@ -1952,6 +2104,7 @@ export { msg_room_list_notifications as 'room_list.notifications' };
 export { msg_room_list_unread_messages as 'room_list.unread_messages' };
 export { msg_room_list_go_to_dm_notifications as 'room_list.go_to_dm_notifications' };
 export { msg_room_list_new_direct_messages as 'room_list.new_direct_messages' };
+export { msg_room_list_direct_messages as 'room_list.direct_messages' };
 export { msg_room_list_empty_title as 'room_list.empty_title' };
 export { msg_room_list_empty_prefix as 'room_list.empty_prefix' };
 export { msg_room_list_empty_overview as 'room_list.empty_overview' };
@@ -1983,6 +2136,9 @@ export { msg_voice_camera as 'voice.camera' };
 export { msg_voice_unknown_device as 'voice.unknown_device' };
 export { msg_voice_no_devices as 'voice.no_devices' };
 export { msg_voice_participants as 'voice.participants' };
+export { msg_voice_join_failed as 'voice.join_failed' };
+export { msg_voice_encrypted_unsupported as 'voice.encrypted_unsupported' };
+export { msg_voice_signaling_failed as 'voice.signaling_failed' };
 export { msg_composer_attach_file as 'composer.attach_file' };
 export { msg_composer_send as 'composer.send' };
 export { msg_composer_send_enter as 'composer.send_enter' };
@@ -2000,6 +2156,8 @@ export { msg_composer_remove_link as 'composer.remove_link' };
 export { msg_composer_code_language as 'composer.code_language' };
 export { msg_composer_placeholder as 'composer.placeholder' };
 export { msg_composer_editing_placeholder as 'composer.editing_placeholder' };
+export { msg_composer_drop_files_title as 'composer.drop_files_title' };
+export { msg_composer_drop_files_subtitle as 'composer.drop_files_subtitle' };
 export { msg_composer_send_failed as 'composer.send_failed' };
 export { msg_composer_edit_failed as 'composer.edit_failed' };
 export { msg_composer_mention_all_room_members as 'composer.mention.all_room_members' };
@@ -2011,6 +2169,14 @@ export { msg_add_server_connect as 'add_server.connect' };
 export { msg_add_server_redirecting as 'add_server.redirecting' };
 export { msg_add_server_connecting as 'add_server.connecting' };
 export { msg_add_server_start_failed as 'add_server.start_failed' };
+export { msg_add_server_invalid_url as 'add_server.invalid_url' };
+export { msg_add_server_already_connected as 'add_server.already_connected' };
+export { msg_add_server_not_chatto_server as 'add_server.not_chatto_server' };
+export { msg_add_server_oauth_unsupported as 'add_server.oauth_unsupported' };
+export { msg_add_server_connection_timed_out as 'add_server.connection_timed_out' };
+export { msg_add_server_connection_failed as 'add_server.connection_failed' };
+export { msg_add_server_connect_failed as 'add_server.connect_failed' };
+export { msg_add_server_edit_url as 'add_server.edit_url' };
 export { msg_add_server_description_url as 'add_server.description_url' };
 export { msg_add_server_description_preview as 'add_server.description_preview' };
 export { msg_add_server_url_label as 'add_server.url_label' };
@@ -2021,6 +2187,11 @@ export { msg_media_server_banner_alt as 'media.server_banner_alt' };
 export { msg_media_fullscreen_video as 'media.fullscreen_video' };
 export { msg_media_close_fullscreen_video as 'media.close_fullscreen_video' };
 export { msg_media_video_alt as 'media.video_alt' };
+export { msg_media_video_original_missing as 'media.video_original_missing' };
+export { msg_media_video_processing_failed_retry as 'media.video_processing_failed_retry' };
+export { msg_media_video_queued as 'media.video_queued' };
+export { msg_media_video_processing as 'media.video_processing' };
+export { msg_media_video_processing_failed as 'media.video_processing_failed' };
 export { msg_rbac_delete_role_title as 'rbac.delete_role.title' };
 export { msg_rbac_delete_role_prompt as 'rbac.delete_role.prompt' };
 export { msg_rbac_delete_role_remove_from_users as 'rbac.delete_role.remove_from_users' };
@@ -2080,9 +2251,40 @@ export { msg_rbac_permissions_categories_dm_title as 'rbac.permissions.categorie
 export { msg_rbac_permissions_categories_dm_description as 'rbac.permissions.categories.dm.description' };
 export { msg_rbac_permissions_categories_user_title as 'rbac.permissions.categories.user.title' };
 export { msg_rbac_permissions_categories_user_description as 'rbac.permissions.categories.user.description' };
+export { msg_rbac_permission_descriptions_server_manage as 'rbac.permission_descriptions.server_manage' };
+export { msg_rbac_permission_descriptions_room_create as 'rbac.permission_descriptions.room_create' };
+export { msg_rbac_permission_descriptions_room_join as 'rbac.permission_descriptions.room_join' };
+export { msg_rbac_permission_descriptions_room_list as 'rbac.permission_descriptions.room_list' };
+export { msg_rbac_permission_descriptions_room_manage as 'rbac.permission_descriptions.room_manage' };
+export { msg_rbac_permission_descriptions_room_ban_member as 'rbac.permission_descriptions.room_ban_member' };
+export { msg_rbac_permission_descriptions_message_post as 'rbac.permission_descriptions.message_post' };
+export { msg_rbac_permission_descriptions_message_post_in_thread as 'rbac.permission_descriptions.message_post_in_thread' };
+export { msg_rbac_permission_descriptions_message_attach as 'rbac.permission_descriptions.message_attach' };
+export { msg_rbac_permission_descriptions_message_echo as 'rbac.permission_descriptions.message_echo' };
+export { msg_rbac_permission_descriptions_message_manage as 'rbac.permission_descriptions.message_manage' };
+export { msg_rbac_permission_descriptions_message_react as 'rbac.permission_descriptions.message_react' };
+export { msg_rbac_permission_descriptions_role_manage as 'rbac.permission_descriptions.role_manage' };
+export { msg_rbac_permission_descriptions_role_assign as 'rbac.permission_descriptions.role_assign' };
+export { msg_rbac_permission_descriptions_admin_view_users as 'rbac.permission_descriptions.admin_view_users' };
+export { msg_rbac_permission_descriptions_admin_view_system as 'rbac.permission_descriptions.admin_view_system' };
+export { msg_rbac_permission_descriptions_admin_view_audit as 'rbac.permission_descriptions.admin_view_audit' };
+export { msg_rbac_permission_descriptions_user_delete_any as 'rbac.permission_descriptions.user_delete_any' };
+export { msg_rbac_permission_descriptions_user_delete_self as 'rbac.permission_descriptions.user_delete_self' };
+export { msg_rbac_permission_descriptions_user_manage_accounts as 'rbac.permission_descriptions.user_manage_accounts' };
+export { msg_rbac_permission_descriptions_user_manage_permissions as 'rbac.permission_descriptions.user_manage_permissions' };
+export { msg_admin_nav_general as 'admin.nav.general' };
+export { msg_admin_nav_members as 'admin.nav.members' };
+export { msg_admin_nav_rooms as 'admin.nav.rooms' };
+export { msg_admin_nav_moderation as 'admin.nav.moderation' };
+export { msg_admin_nav_permissions as 'admin.nav.permissions' };
+export { msg_admin_nav_security as 'admin.nav.security' };
+export { msg_admin_nav_event_log as 'admin.nav.event_log' };
+export { msg_admin_nav_system as 'admin.nav.system' };
+export { msg_admin_nav_back_to_server as 'admin.nav.back_to_server' };
 export { msg_admin_common_page_title as 'admin.common.page_title' };
 export { msg_admin_common_server_admin_page_title as 'admin.common.server_admin_page_title' };
 export { msg_admin_common_loading as 'admin.common.loading' };
+export { msg_admin_common_unknown as 'admin.common.unknown' };
 export { msg_admin_common_rooms as 'admin.common.rooms' };
 export { msg_admin_common_user as 'admin.common.user' };
 export { msg_admin_common_room as 'admin.common.room' };
@@ -2165,6 +2367,12 @@ export { msg_admin_members_edit as 'admin.members.edit' };
 export { msg_admin_members_assigned_role as 'admin.members.assigned_role' };
 export { msg_admin_members_removed_role as 'admin.members.removed_role' };
 export { msg_admin_members_role_update_failed as 'admin.members.role_update_failed' };
+export { msg_admin_member_detail_no_self_rename as 'admin.member_detail.no_self_rename' };
+export { msg_admin_member_detail_self_rename_cooldown as 'admin.member_detail.self_rename_cooldown' };
+export { msg_admin_member_detail_last_self_rename as 'admin.member_detail.last_self_rename' };
+export { msg_admin_member_detail_email_unavailable as 'admin.member_detail.email_unavailable' };
+export { msg_admin_member_detail_verified_email_on_file as 'admin.member_detail.verified_email_on_file' };
+export { msg_admin_member_detail_no_verified_email as 'admin.member_detail.no_verified_email' };
 export { msg_admin_permissions_title as 'admin.permissions.title' };
 export { msg_admin_permissions_subtitle as 'admin.permissions.subtitle' };
 export { msg_admin_permissions_role_presets as 'admin.permissions.role_presets' };
@@ -2222,6 +2430,10 @@ export { msg_admin_rooms_admin_create_room as 'admin.rooms_admin.create_room' };
 export { msg_admin_rooms_admin_edit_room as 'admin.rooms_admin.edit_room' };
 export { msg_admin_rooms_admin_edit_room_action as 'admin.rooms_admin.edit_room_action' };
 export { msg_admin_rooms_admin_room_description_placeholder as 'admin.rooms_admin.room_description_placeholder' };
+export { msg_admin_rooms_admin_room_name_empty as 'admin.rooms_admin.room_name_empty' };
+export { msg_admin_rooms_admin_room_name_trim as 'admin.rooms_admin.room_name_trim' };
+export { msg_admin_rooms_admin_room_name_charset as 'admin.rooms_admin.room_name_charset' };
+export { msg_admin_rooms_admin_room_name_too_long as 'admin.rooms_admin.room_name_too_long' };
 export { msg_admin_rooms_admin_create_group as 'admin.rooms_admin.create_group' };
 export { msg_admin_rooms_admin_group_name as 'admin.rooms_admin.group_name' };
 export { msg_admin_rooms_admin_group_name_placeholder as 'admin.rooms_admin.group_name_placeholder' };

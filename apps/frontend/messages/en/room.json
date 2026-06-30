@@ -61,6 +61,7 @@
       "leave_prompt": "Are you sure you want to leave {server}? You'll lose access to its rooms, and your client will forget about this server. You can re-add it later from the sidebar."
     },
     "message": {
+      "empty": "No messages yet",
       "delete_title": "Delete Message",
       "delete_prompt": "Are you sure you want to delete this message? This cannot be undone.",
       "delete_failed": "Failed to delete message",
@@ -110,6 +111,7 @@
       "resize": "Resize room extras pane",
       "hide": "Hide room extras",
       "members": "Members",
+      "members_title": "Members ({count})",
       "search_members": "Search room members",
       "search_members_placeholder": "Search members",
       "no_members": "No members found.",
@@ -117,9 +119,17 @@
       "offline": "Offline ({count})",
       "no_files": "No files in this room yet.",
       "files": "Files",
+      "call": "Call",
       "jump_to_file": "Jump to {filename}",
       "loading_files": "Loading files...",
-      "calls_unavailable": "Calls are not available on this server."
+      "calls_unavailable": "Calls are not available on this server.",
+      "deleted_user": "Deleted User",
+      "view_profile": "View profile of {name}",
+      "ban_failed": "Failed to ban member from room",
+      "ban_success": "Banned {name} from room"
+    },
+    "title": {
+      "direct_message": "Direct Message"
     },
     "thread": {
       "title": "Thread in #{room}",

@@ -19,6 +19,7 @@ import {
 } from 'livekit-client';
 import { toast } from '$lib/ui/toast';
 import { playCallSound } from '$lib/audio/callSounds';
+import * as m from '$lib/i18n/messages';
 import type { VoiceCallAPI } from '@chatto/api-client/voiceCalls';
 
 export type CallParticipantInfo = {
@@ -49,11 +50,6 @@ type ParticipantMetadata = {
   avatarUrl?: string;
 };
 
-const genericJoinFailureMessage = 'Failed to join voice call';
-const unsupportedEncryptedCallMessage =
-  'This browser does not support encrypted voice calls yet. Try the latest Firefox, Chrome, or Edge.';
-const signalingFailureMessage =
-  'Could not reach the voice server. Check your network and try again.';
 const RECENTLY_DISCONNECTED_CALL_SOUND_MS = 5_000;
 
 export class VoiceCallJoinError extends Error {
@@ -73,13 +69,13 @@ export function getVoiceCallJoinErrorMessage(err: unknown): string {
 
   const message = errorMessage(err);
   if (/signal connection|serverunreachable|websocket|web socket|abort handler/i.test(message)) {
-    return signalingFailureMessage;
+    return m['voice.signaling_failed']();
   }
   if (/e2ee|cryptor|encoded transform|insertable stream/i.test(message)) {
-    return unsupportedEncryptedCallMessage;
+    return m['voice.encrypted_unsupported']();
   }
 
-  return genericJoinFailureMessage;
+  return m['voice.join_failed']();
 }
 
 export class VoiceCallState {
@@ -862,7 +858,7 @@ function assertLiveKitE2EESupported(): void {
   ) {
     throw new VoiceCallJoinError(
       'LiveKit E2EE is not supported by this browser',
-      unsupportedEncryptedCallMessage
+      m['voice.encrypted_unsupported']()
     );
   }
 }

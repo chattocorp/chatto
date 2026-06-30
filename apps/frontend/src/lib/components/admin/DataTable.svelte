@@ -1,13 +1,14 @@
 <script lang="ts" generics="T">
   import type { Snippet } from 'svelte';
   import type { Attachment } from 'svelte/attachments';
+  import * as m from '$lib/i18n/messages';
 
   let {
     items,
     columns,
     header,
     row,
-    emptyMessage = 'No data',
+    emptyMessage = m['ui.data_table.empty'](),
     onRowClick,
     getKey,
     getGroupKey,
@@ -18,7 +19,7 @@
     onLoadMore,
     loadMoreRoot,
     loadMoreRootMargin = '0px 0px 160px 0px',
-    loadingMoreMessage = 'Loading more...'
+    loadingMoreMessage = m['ui.data_table.loading_more']()
   }: {
     items: T[];
     columns: number;

@@ -220,7 +220,7 @@
 
             <UserCombobox
               id="event-log-actor"
-              label="Actor"
+              label={m['admin.event_log.actor']()}
               bind:value={draftActorId}
               bind:text={draftActorText}
             />

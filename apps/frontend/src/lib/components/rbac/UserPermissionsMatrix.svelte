@@ -72,15 +72,15 @@ matrix and the mutation dispatch for cell clicks; delegates rendering to
 
     loading = false;
     if (!matrix) {
-      error = 'No data returned';
+      error = m['rbac.permissions.no_data']();
       return;
     }
-    const m = matrix;
+    const loadedMatrix = matrix;
     data = {
-      userId: m.userId,
-      applicablePermissions: [...m.applicablePermissions],
-      scopes: m.scopes.map((s) => ({ ...s })),
-      cells: m.cells.map((c) => ({ ...c }))
+      userId: loadedMatrix.userId,
+      applicablePermissions: [...loadedMatrix.applicablePermissions],
+      scopes: loadedMatrix.scopes.map((s) => ({ ...s })),
+      cells: loadedMatrix.cells.map((c) => ({ ...c }))
     };
   }
 

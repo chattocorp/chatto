@@ -199,10 +199,10 @@ unknown instance) the component renders nothing.
   const hasBody = $derived(bodyMarkdown.trim().length > 0);
 
   function attachmentLabel(contentType: string): string {
-    if (contentType.startsWith('image/')) return 'Image';
-    if (contentType.startsWith('video/')) return 'Video';
-    if (contentType.startsWith('audio/')) return 'Audio';
-    return 'File';
+    if (contentType.startsWith('image/')) return m['message_preview.attachment_image']();
+    if (contentType.startsWith('video/')) return m['message_preview.attachment_video']();
+    if (contentType.startsWith('audio/')) return m['message_preview.attachment_audio']();
+    return m['message_preview.attachment_file']();
   }
 
   const nextThumbnailRefreshAt = $derived.by(() =>

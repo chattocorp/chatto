@@ -54,7 +54,7 @@
     enableLastEditableFinder = false,
     // Loading states
     isLoading = false,
-    emptyMessage = 'No messages yet',
+    emptyMessage = m['room.message.empty'](),
     // Event ID of the first unread message (for showing the unread separator)
     unreadAfterEventId = null,
     // Typing indicator

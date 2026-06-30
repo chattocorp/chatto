@@ -28,11 +28,12 @@ handles viewport-clamped positioning.
 -->
 <script lang="ts">
   import type { Snippet } from 'svelte';
+  import * as m from '$lib/i18n/messages';
   import FloatingPopover from './FloatingPopover.svelte';
 
   let {
     children,
-    label = 'More information'
+    label = m['ui.tooltip.more_information']()
   }: {
     children: Snippet;
     /** aria-label for the trigger button. */

@@ -1,8 +1,10 @@
 <script lang="ts">
+  import * as m from '$lib/i18n/messages';
+
   let {
     visible = false,
-    title = 'Drop files here',
-    subtitle = 'Images and videos will be added to your message'
+    title = m['composer.drop_files_title'](),
+    subtitle = m['composer.drop_files_subtitle']()
   }: { visible: boolean; title?: string; subtitle?: string } = $props();
 </script>
 

@@ -254,23 +254,27 @@
   const serverRoleCount = $derived(sortedServerRoles.length);
   const cooldownSummary = $derived.by(() => {
     if (cooldownActive) {
-      return `Self-rename cooldown active for ${formatCooldownRemaining(cooldownRemaining)}.`;
+      return m['admin.member_detail.self_rename_cooldown']({
+        remaining: formatCooldownRemaining(cooldownRemaining)
+      });
     }
     if (lastLoginChange) {
-      return `Last self-rename: ${formatDateTime(lastLoginChange, userSettings)}.`;
+      return m['admin.member_detail.last_self_rename']({
+        time: formatDateTime(lastLoginChange, userSettings)
+      });
     }
-    return 'No self-rename recorded.';
+    return m['admin.member_detail.no_self_rename']();
   });
 
   function formatOptionalDate(date: string | null | undefined): string {
-    return date ? formatDate(date, userSettings) : 'Unknown';
+    return date ? formatDate(date, userSettings) : m['admin.common.unknown']();
   }
 
   function emailSummary(user: AdminMember): string {
-    if (!canViewMemberEmails) return 'Email visibility unavailable';
+    if (!canViewMemberEmails) return m['admin.member_detail.email_unavailable']();
     if (user.verifiedEmails.length > 0) return user.verifiedEmails.join(', ');
-    if (user.hasVerifiedEmail) return 'Verified email on file';
-    return 'No verified email';
+    if (user.hasVerifiedEmail) return m['admin.member_detail.verified_email_on_file']();
+    return m['admin.member_detail.no_verified_email']();
   }
 
   async function toggleRole(roleName: string, currentlyHas: boolean) {

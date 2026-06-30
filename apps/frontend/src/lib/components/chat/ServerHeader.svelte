@@ -1,6 +1,7 @@
 <script lang="ts">
   import HeaderIconButton from '$lib/ui/HeaderIconButton.svelte';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
+  import * as m from '$lib/i18n/messages';
 
   let {
     serverName,
@@ -16,7 +17,11 @@
 {#if adminHref}
   <PaneHeader title={serverName} {loading} skeletonButtons={1}>
     {#snippet actions()}
-      <HeaderIconButton icon="uil--setting" label="Server administration" href={adminHref} />
+      <HeaderIconButton
+        icon="uil--setting"
+        label={m['chat.server_nav.administration']()}
+        href={adminHref}
+      />
     {/snippet}
   </PaneHeader>
 {:else}

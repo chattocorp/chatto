@@ -1,4 +1,6 @@
 <script lang="ts">
+  import * as m from '$lib/i18n/messages';
+
   let {
     width,
     min,
@@ -6,7 +8,7 @@
     onResize,
     onReset,
     edge = 'right',
-    label = 'Resize'
+    label = m['ui.resize_handle.resize']()
   }: {
     width: number;
     min: number;

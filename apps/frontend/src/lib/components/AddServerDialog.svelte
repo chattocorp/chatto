@@ -114,13 +114,13 @@ ADR-027 — only user-facing copy says "server".
     try {
       new URL(url);
     } catch {
-      formError = 'Please enter a valid URL.';
+      formError = m['add_server.invalid_url']();
       return;
     }
 
     const existing = serverRegistry.servers.find((i) => i.url.toLowerCase() === url.toLowerCase());
     if (existing && (existing.token || existing.userId)) {
-      formError = 'This server is already connected.';
+      formError = m['add_server.already_connected']();
       return;
     }
 
@@ -130,12 +130,12 @@ ADR-027 — only user-facing copy says "server".
       const { url: probedFromUrl, info } = await probeWithFallback(serverUrl, url);
 
       if (!info.name) {
-        formError = 'This does not appear to be a Chatto server.';
+        formError = m['add_server.not_chatto_server']();
         return;
       }
 
       if (!info.authorizeUrl) {
-        formError = 'This server does not support OAuth authentication. It may need to be updated.';
+        formError = m['add_server.oauth_unsupported']();
         return;
       }
 
@@ -144,11 +144,11 @@ ADR-027 — only user-facing copy says "server".
       stage = 'preview';
     } catch (err) {
       if (err instanceof DOMException && err.name === 'AbortError') {
-        formError = 'Connection timed out. Check the URL and try again.';
+        formError = m['add_server.connection_timed_out']();
       } else if (err instanceof TypeError || err instanceof ConnectError) {
-        formError = 'Could not connect. Check the URL and ensure CORS is configured.';
+        formError = m['add_server.connection_failed']();
       } else {
-        formError = err instanceof Error ? err.message : 'Failed to connect.';
+        formError = err instanceof Error ? err.message : m['add_server.connect_failed']();
       }
     } finally {
       probing = false;
@@ -268,7 +268,7 @@ ADR-027 — only user-facing copy says "server".
       class="cursor-pointer text-left text-sm text-muted hover:text-text hover:underline"
       onclick={() => (stage = 'url')}
     >
-      Wrong server? Edit URL
+      {m['add_server.edit_url']()}
     </button>
   {/if}
 </FormDialog>

@@ -21,6 +21,11 @@
     "overview": {
       "title": "Übersicht"
     },
+    "server_nav": {
+      "back_to_server": "Zurück zum Server",
+      "server_fallback": "Server",
+      "administration": "Serveradministration"
+    },
     "user_menu": {
       "profile": "Benutzerprofil",
       "send_message": "Nachricht senden"

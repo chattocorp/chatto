@@ -1,10 +1,22 @@
 {
   "$schema": "https://inlang.com/schema/inlang-message-format",
   "admin": {
+    "nav": {
+      "general": "General",
+      "members": "Members",
+      "rooms": "Rooms",
+      "moderation": "Moderation",
+      "permissions": "Permissions",
+      "security": "Security",
+      "event_log": "Event Log",
+      "system": "System",
+      "back_to_server": "Return to Server"
+    },
     "common": {
       "page_title": "{title} | Admin",
       "server_admin_page_title": "{title} | Server Admin",
       "loading": "Loading...",
+      "unknown": "Unknown",
       "rooms": "Rooms",
       "user": "User",
       "room": "Room",
@@ -94,6 +106,14 @@
       "removed_role": "Removed {role} role",
       "role_update_failed": "Failed to update role assignment"
     },
+    "member_detail": {
+      "no_self_rename": "No self-rename recorded.",
+      "self_rename_cooldown": "Self-rename cooldown active for {remaining}.",
+      "last_self_rename": "Last self-rename: {time}.",
+      "email_unavailable": "Email visibility unavailable",
+      "verified_email_on_file": "Verified email on file",
+      "no_verified_email": "No verified email"
+    },
     "permissions": {
       "title": "Permissions",
       "subtitle": "Manage server-wide role defaults",
@@ -154,6 +174,10 @@
       "edit_room": "Edit Room",
       "edit_room_action": "Edit room",
       "room_description_placeholder": "Optional description for this room",
+      "room_name_empty": "Room name cannot be empty",
+      "room_name_trim": "Room name cannot have leading or trailing whitespace",
+      "room_name_charset": "Room name can only contain letters, numbers, hyphens, and underscores",
+      "room_name_too_long": "Room name cannot exceed 30 characters",
       "create_group": "Create Group",
       "group_name": "Group name",
       "group_name_placeholder": "e.g., General, Projects, Teams",

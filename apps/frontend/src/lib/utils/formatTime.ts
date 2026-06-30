@@ -10,6 +10,8 @@
  */
 
 import type { UserSettingsState } from '$lib/state/userSettings.svelte';
+import { getLocale } from '$lib/i18n/runtime';
+import * as m from '$lib/i18n/messages';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -31,6 +33,10 @@ function getFormatter(
     formatterCache.set(key, fmt);
   }
   return fmt;
+}
+
+function activeLocale(): string {
+  return getLocale();
 }
 
 type DateParts = {
@@ -110,7 +116,7 @@ function startOfWeekSerial(parts: DateParts, firstDay: number): number {
  * Format a message timestamp (e.g., "2:30 PM" or "14:30").
  */
 export function formatMessageTime(date: Date | string, settings: UserSettingsState): string {
-  const fmt = getFormatter('en-US', {
+  const fmt = getFormatter(activeLocale(), {
     hour: '2-digit',
     minute: '2-digit',
     hour12: settings.effectiveHour12,
@@ -123,7 +129,7 @@ export function formatMessageTime(date: Date | string, settings: UserSettingsSta
  * Format a date for display (e.g., "Jan 15, 2025").
  */
 export function formatDate(date: Date | string, settings: UserSettingsState): string {
-  const fmt = getFormatter(undefined, {
+  const fmt = getFormatter(activeLocale(), {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
@@ -136,7 +142,7 @@ export function formatDate(date: Date | string, settings: UserSettingsState): st
  * Format a date with time for display (e.g., "November 15, 2025, 02:30 PM").
  */
 export function formatDateTime(date: Date | string, settings: UserSettingsState): string {
-  const fmt = getFormatter(undefined, {
+  const fmt = getFormatter(activeLocale(), {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
@@ -169,20 +175,20 @@ export function formatDayLabel(date: Date | string, settings: UserSettingsState)
   const now = new Date();
 
   if (isSameDay(d, now, settings)) {
-    return 'Today';
+    return m['ui.dates.today']();
   }
 
   const yesterday = new Date(now);
   yesterday.setDate(yesterday.getDate() - 1);
   if (isSameDay(d, yesterday, settings)) {
-    return 'Yesterday';
+    return m['ui.dates.yesterday']();
   }
 
   const tz = settings.effectiveTimezone;
   const yearFmt = getFormatter('en-US', { year: 'numeric', timeZone: tz });
   const sameYear = yearFmt.format(d) === yearFmt.format(now);
 
-  const labelFmt = getFormatter('en-US', {
+  const labelFmt = getFormatter(activeLocale(), {
     weekday: 'long',
     month: 'long',
     day: 'numeric',
@@ -193,7 +199,7 @@ export function formatDayLabel(date: Date | string, settings: UserSettingsState)
 }
 
 export function formatMonthYear(date: Date | string, settings: UserSettingsState): string {
-  const fmt = getFormatter(undefined, {
+  const fmt = getFormatter(activeLocale(), {
     month: 'long',
     year: 'numeric',
     timeZone: settings.effectiveTimezone
@@ -205,23 +211,23 @@ export function fileDateGroup(
   date: Date | string,
   settings: UserSettingsState,
   now: Date = new Date(),
-  locale?: string
+  locale: string = activeLocale()
 ): FileDateGroup {
   const d = toDate(date);
   const itemParts = dateParts(d, settings);
   const nowParts = dateParts(now, settings);
   const daysAgo = daySerial(nowParts) - daySerial(itemParts);
 
-  if (daysAgo === 0) return { key: 'today', label: 'Today' };
-  if (daysAgo === 1) return { key: 'yesterday', label: 'Yesterday' };
+  if (daysAgo === 0) return { key: 'today', label: m['ui.dates.today']() };
+  if (daysAgo === 1) return { key: 'yesterday', label: m['ui.dates.yesterday']() };
 
   const firstDay = firstDayOfWeekForLocale(locale);
   if (startOfWeekSerial(itemParts, firstDay) === startOfWeekSerial(nowParts, firstDay)) {
-    return { key: 'this-week', label: 'This week' };
+    return { key: 'this-week', label: m['ui.dates.this_week']() };
   }
 
   if (itemParts.year === nowParts.year && itemParts.month === nowParts.month) {
-    return { key: 'this-month', label: 'This month' };
+    return { key: 'this-month', label: m['ui.dates.this_month']() };
   }
 
   return {

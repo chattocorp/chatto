@@ -18,6 +18,8 @@
     "code_language": "Code language",
     "placeholder": "Type a message...",
     "editing_placeholder": "Editing message...",
+    "drop_files_title": "Drop files here",
+    "drop_files_subtitle": "Images and videos will be added to your message",
     "send_failed": "Failed to send message",
     "edit_failed": "Failed to edit message",
     "mention": {

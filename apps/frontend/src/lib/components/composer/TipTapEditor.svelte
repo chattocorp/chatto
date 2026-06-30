@@ -722,7 +722,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
   };
 
   let {
-    placeholder = 'Type a message...',
+    placeholder = m['composer.placeholder'](),
     editable = true,
     autofocus = false,
     testid,

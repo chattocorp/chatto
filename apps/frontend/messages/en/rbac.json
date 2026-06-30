@@ -83,6 +83,29 @@
           "description": "Control user account and per-user permission operations. Any non-owner deny cancels grants"
         }
       }
+    },
+    "permission_descriptions": {
+      "server_manage": "Update server settings (name, description, logo)",
+      "room_create": "Create new rooms",
+      "room_join": "Join existing rooms",
+      "room_list": "See rooms in the directory. A user can be allowed to see a room (e.g. to request access) without being allowed to join it.",
+      "room_manage": "Edit a room's settings and permissions, and delete rooms",
+      "room_ban_member": "Ban members from rooms",
+      "message_post": "Post root messages in rooms and start DMs",
+      "message_post_in_thread": "Post replies inside a thread",
+      "message_attach": "Attach files to messages",
+      "message_echo": "When posting in a thread, also surface the message in the main channel",
+      "message_manage": "Edit and delete other users' messages",
+      "message_react": "Add and remove reactions on messages",
+      "role_manage": "Create, edit, delete, and reorder roles and their permission grants",
+      "role_assign": "Assign and revoke roles for users",
+      "admin_view_users": "View the users page in admin",
+      "admin_view_system": "View projection diagnostics in admin",
+      "admin_view_audit": "View the audit log in admin",
+      "user_delete_any": "Delete another user's account",
+      "user_delete_self": "Delete your own account",
+      "user_manage_accounts": "Create users, edit account identity, reset passwords, attach verified emails, and clear login cooldowns",
+      "user_manage_permissions": "Edit direct per-user permission overrides"
     }
   }
 }
