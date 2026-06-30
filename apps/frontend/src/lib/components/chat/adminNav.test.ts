@@ -3,7 +3,7 @@ import { getAdminNavItems, type AdminNavChromePermissions, type AdminNavServerPe
 
 function chrome(overrides: Partial<AdminNavChromePermissions> = {}): AdminNavChromePermissions {
   return {
-    hasAnyAdminPermission: false,
+    canViewAdmin: false,
     canManage: false,
     canManageRooms: false,
     canManageRoles: false,
@@ -29,7 +29,7 @@ describe('getAdminNavItems', () => {
   it('shows Members for direct user-permission managers', () => {
     const items = getAdminNavItems({
       serverSegment: 'local',
-      chrome: chrome({ hasAnyAdminPermission: true, canManageUserPermissions: true }),
+      chrome: chrome({ canViewAdmin: true, canManageUserPermissions: true }),
       server: server()
     });
 
@@ -39,7 +39,7 @@ describe('getAdminNavItems', () => {
   it('hides Members without a member-management capability', () => {
     const items = getAdminNavItems({
       serverSegment: 'local',
-      chrome: chrome({ hasAnyAdminPermission: true }),
+      chrome: chrome({ canViewAdmin: true }),
       server: server()
     });
 

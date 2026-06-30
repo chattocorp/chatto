@@ -44,14 +44,20 @@ jobs:
         run: |
           base_ref="${GITHUB_BASE_REF:-main}"
           cd proto
-          mise x -- buf breaking . --against "../.git#branch=origin/${base_ref},subdir=proto" --exclude-path chatto/api/v1
+          mise x -- buf breaking . --against "../.git#branch=origin/${base_ref},subdir=proto" \
+            --exclude-path chatto/api/v1 \
+            --exclude-path chatto/admin/v1 \
+            --exclude-path chatto/realtime/v1
 
       - name: Check public API protobuf breaking changes
         if: ${{ github.event_name != 'pull_request' || !contains(github.event.pull_request.labels.*.name, 'api-breaking-change') }}
         run: |
           base_ref="${GITHUB_BASE_REF:-main}"
           cd proto
-          mise x -- buf breaking . --against "../.git#branch=origin/${base_ref},subdir=proto" --path chatto/api/v1
+          mise x -- buf breaking . --against "../.git#branch=origin/${base_ref},subdir=proto" \
+            --path chatto/api/v1 \
+            --path chatto/admin/v1 \
+            --path chatto/realtime/v1
 
       - name: Acknowledge intentional public API protobuf breaking changes
         if: ${{ github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'api-breaking-change') }}

@@ -83,7 +83,7 @@
   type ServerChromeData = {
     name: string;
     bannerUrl: string | null;
-    hasAnyAdminPermission: boolean;
+    canViewAdmin: boolean;
     canManage: boolean;
     canManageRooms: boolean;
     canManageRoles: boolean;
@@ -111,7 +111,7 @@
       return {
         name: server.name,
         bannerUrl: server.bannerUrl,
-        hasAnyAdminPermission: server.viewerHasAnyAdminPermission,
+        canViewAdmin: viewer.canViewAdmin,
         canManage: server.viewerCanManageServer,
         canManageRooms: server.viewerCanManageRooms,
         canManageRoles: viewer.canAdminManageRoles,
@@ -203,7 +203,7 @@
   $effect(() => {
     if (serverData) {
       updateChromePermissions({
-        hasAnyAdminPermission: serverData.hasAnyAdminPermission,
+        canViewAdmin: serverData.canViewAdmin,
         canManage: serverData.canManage,
         canManageRooms: serverData.canManageRooms,
         canManageRoles: serverData.canManageRoles,

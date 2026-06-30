@@ -43,11 +43,14 @@ describe('AddServerDialog', () => {
   it('moves to the preview stage after a successful probe', async () => {
     globalThis.fetch = vi.fn(async () =>
       makeProbeResponse({
-        name: 'Remote Chatto',
-        version: '0.0.150',
-        authMethods: ['password'],
-        registrationOpen: true,
-        authorizeUrl: '/oauth/authorize'
+        profile: {
+          name: 'Remote Chatto',
+          version: '0.0.150'
+        },
+        login: {
+          directRegistrationEnabled: true,
+          authorizeUrl: '/oauth/authorize'
+        }
       })
     ) as unknown as typeof fetch;
 
@@ -85,12 +88,15 @@ describe('AddServerDialog', () => {
 
   it('handles the real chat.chatto.run response shape', async () => {
     const realResponse = {
-      name: 'Official Chatto Community',
-      version: '0.0.150',
-      authMethods: ['password', 'oidc'],
-      registrationOpen: true,
-      welcomeMessage: 'Welcome to the official Chatto community instance.',
-      authorizeUrl: '/oauth/authorize'
+      profile: {
+        name: 'Official Chatto Community',
+        version: '0.0.150',
+        welcomeMessage: 'Welcome to the official Chatto community instance.'
+      },
+      login: {
+        directRegistrationEnabled: true,
+        authorizeUrl: '/oauth/authorize'
+      }
     };
     globalThis.fetch = vi.fn(async () =>
       makeProbeResponse(realResponse)

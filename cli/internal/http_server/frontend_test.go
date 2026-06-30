@@ -66,28 +66,7 @@ func TestImmutableAssetCaching(t *testing.T) {
 	// Create a minimal test router that simulates our caching middleware
 	router := gin.New()
 
-	// Add the caching middleware (same logic as in setupFrontendRoutes)
-	router.Use(func(c *gin.Context) {
-		urlPath := c.Request.URL.Path
-		if len(urlPath) > len("/_app/immutable/") && urlPath[:len("/_app/immutable/")] == "/_app/immutable/" {
-			c.Header("Cache-Control", cacheControlImmutable)
-
-			if etag := extractImmutableETag(urlPath); etag != "" {
-				quotedETag := `"` + etag + `"`
-				c.Header("ETag", quotedETag)
-
-				if match := c.GetHeader("If-None-Match"); match != "" {
-					if match == quotedETag || match == etag || match == `W/`+quotedETag {
-						c.AbortWithStatus(http.StatusNotModified)
-						return
-					}
-				}
-			}
-		} else {
-			c.Header("Cache-Control", cacheControlNoCache)
-		}
-		c.Next()
-	})
+	router.Use(setFrontendCacheHeaders)
 
 	// Add a simple handler that returns content
 	router.GET("/*path", func(c *gin.Context) {
@@ -151,6 +130,55 @@ func TestImmutableAssetCaching(t *testing.T) {
 		assert.Equal(t, http.StatusOK, w.Code)
 		assert.Equal(t, cacheControlNoCache, w.Header().Get("Cache-Control"))
 		assert.Empty(t, w.Header().Get("ETag"))
+	})
+
+	t.Run("service worker returns revalidate cache policy", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/service-worker.js", nil)
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		assert.Equal(t, cacheControlRevalidate, w.Header().Get("Cache-Control"))
+		assert.Empty(t, w.Header().Get("ETag"))
+	})
+}
+
+func TestServiceWorkerETag(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	content := []byte("self.addEventListener('fetch', () => {});")
+	etag := serviceWorkerETag(content)
+
+	router := gin.New()
+	router.Use(setFrontendCacheHeaders)
+	router.GET("/service-worker.js", func(c *gin.Context) {
+		if setServiceWorkerETag(c, content) {
+			return
+		}
+		c.Data(http.StatusOK, "application/javascript", content)
+	})
+
+	t.Run("returns etag", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/service-worker.js", nil)
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		assert.Equal(t, cacheControlRevalidate, w.Header().Get("Cache-Control"))
+		assert.Equal(t, etag, w.Header().Get("ETag"))
+		assert.Equal(t, string(content), w.Body.String())
+	})
+
+	t.Run("matching if none match returns 304", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/service-worker.js", nil)
+		req.Header.Set("If-None-Match", etag)
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusNotModified, w.Code)
+		assert.Equal(t, cacheControlRevalidate, w.Header().Get("Cache-Control"))
+		assert.Equal(t, etag, w.Header().Get("ETag"))
+		assert.Empty(t, w.Body.String())
 	})
 }
 

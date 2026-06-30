@@ -28,7 +28,9 @@ interface ViewerResponse {
 
 interface ServerStateResponse {
   profile?: {
-    name?: string;
+    publicProfile?: {
+      name?: string;
+    };
   };
 }
 
@@ -140,7 +142,7 @@ export async function loginAsAdminAndUsePrimaryServer(
     page,
     'chatto.api.v1.ServerService/GetServerState'
   );
-  const serverName = data.profile?.name;
+  const serverName = data.profile?.publicProfile?.name;
   if (!serverName) {
     throw new Error('Server state returned no profile name - bootstrap profile likely broken');
   }

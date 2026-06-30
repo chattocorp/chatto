@@ -5,12 +5,15 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/core"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
+
+const maxRoomTimelineHydrationConcurrency = 16
 
 type roomTimelineAssembler struct {
 	api *API
@@ -38,6 +41,9 @@ func (a *roomTimelineAssembler) buildPage(ctx context.Context, viewerID string, 
 		return nil, err
 	}
 
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
 	h := &timelineHydrator{
 		api:                  a.api,
 		ctx:                  ctx,
@@ -47,12 +53,42 @@ func (a *roomTimelineAssembler) buildPage(ctx context.Context, viewerID string, 
 		userIDs:              make(map[string]struct{}),
 	}
 
-	apiEvents := make([]*apiv1.RoomTimelineEvent, 0, len(events))
-	for _, event := range events {
-		apiEvent, err := h.event(event)
-		if err != nil {
-			return nil, err
+	hydratedEvents := make([]*apiv1.RoomTimelineEvent, len(events))
+	if len(events) > 0 {
+		sem := make(chan struct{}, maxRoomTimelineHydrationConcurrency)
+		var wg sync.WaitGroup
+		var errMu sync.Mutex
+		var firstErr error
+
+		for i, event := range events {
+			sem <- struct{}{}
+			wg.Add(1)
+			go func(i int, event *core.RoomEvent) {
+				defer wg.Done()
+				defer func() { <-sem }()
+
+				apiEvent, err := h.event(event)
+				if err != nil {
+					errMu.Lock()
+					if firstErr == nil {
+						firstErr = err
+						cancel()
+					}
+					errMu.Unlock()
+					return
+				}
+				hydratedEvents[i] = apiEvent
+			}(i, event)
 		}
+
+		wg.Wait()
+		if firstErr != nil {
+			return nil, firstErr
+		}
+	}
+
+	apiEvents := make([]*apiv1.RoomTimelineEvent, 0, len(hydratedEvents))
+	for _, apiEvent := range hydratedEvents {
 		if apiEvent != nil {
 			apiEvents = append(apiEvents, apiEvent)
 		}
@@ -122,6 +158,7 @@ type timelineHydrator struct {
 	viewerID             string
 	kind                 core.RoomKind
 	reactionsByMessageID map[string][]core.ReactionSummary
+	userMu               sync.Mutex
 	userIDs              map[string]struct{}
 }
 
@@ -352,10 +389,13 @@ func (h *timelineHydrator) reactions(messageEventID string) []*apiv1.RoomTimelin
 }
 
 func (h *timelineHydrator) users() (map[string]*apiv1.User, error) {
+	h.userMu.Lock()
 	ids := make([]string, 0, len(h.userIDs))
 	for id := range h.userIDs {
 		ids = append(ids, id)
 	}
+	h.userMu.Unlock()
+
 	coreUsers, err := h.api.core.GetUsers(h.ctx, ids)
 	if err != nil {
 		return nil, err
@@ -384,14 +424,21 @@ func (h *timelineHydrator) users() (map[string]*apiv1.User, error) {
 }
 
 func (h *timelineHydrator) addUserID(userID string) {
-	if userID != "" {
-		h.userIDs[userID] = struct{}{}
+	if userID == "" {
+		return
 	}
+	h.userMu.Lock()
+	h.userIDs[userID] = struct{}{}
+	h.userMu.Unlock()
 }
 
 func (h *timelineHydrator) addUserIDs(userIDs []string) {
+	h.userMu.Lock()
+	defer h.userMu.Unlock()
 	for _, userID := range userIDs {
-		h.addUserID(userID)
+		if userID != "" {
+			h.userIDs[userID] = struct{}{}
+		}
 	}
 }
 

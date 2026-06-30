@@ -2,7 +2,9 @@ package http_server
 
 import (
 	"context"
+	"crypto/sha256"
 	"embed"
+	"fmt"
 	"io/fs"
 	"mime"
 	"net/http"
@@ -22,6 +24,8 @@ var embeddedWebUIFS embed.FS
 const (
 	// HTML files must never be cached to ensure users get the latest version
 	cacheControlNoCache = "no-store, no-cache, must-revalidate"
+	// Service worker bytes should be revalidated without forcing a full refetch
+	cacheControlRevalidate = "no-cache, must-revalidate"
 	// Hashed assets (in _app/) are immutable - cache for 1 year
 	cacheControlImmutable = "public, max-age=31536000, immutable"
 	// Report-only CSP preserves Chatto's multi-server client model while surfacing
@@ -57,6 +61,58 @@ func extractImmutableETag(urlPath string) string {
 	}
 	// Pattern 2: the entire name is the hash
 	return name
+}
+
+func serviceWorkerETag(content []byte) string {
+	sum := sha256.Sum256(content)
+	return fmt.Sprintf(`W/"%x"`, sum)
+}
+
+func etagMatches(ifNoneMatch string, etag string) bool {
+	for _, part := range strings.Split(ifNoneMatch, ",") {
+		if strings.TrimSpace(part) == etag {
+			return true
+		}
+	}
+	return false
+}
+
+func setServiceWorkerETag(c *gin.Context, content []byte) bool {
+	etag := serviceWorkerETag(content)
+	c.Header("ETag", etag)
+	if etagMatches(c.GetHeader("If-None-Match"), etag) {
+		c.Status(http.StatusNotModified)
+		return true
+	}
+	return false
+}
+
+func setFrontendCacheHeaders(c *gin.Context) {
+	urlPath := c.Request.URL.Path
+	if strings.HasPrefix(urlPath, "/_app/immutable/") {
+		c.Header("Cache-Control", cacheControlImmutable)
+
+		// Extract ETag from the content-hashed filename
+		if etag := extractImmutableETag(urlPath); etag != "" {
+			quotedETag := `"` + etag + `"`
+			c.Header("ETag", quotedETag)
+
+			// Check If-None-Match for conditional requests
+			if match := c.GetHeader("If-None-Match"); match != "" {
+				// Handle both quoted and unquoted ETags, and weak ETags (W/"...")
+				if match == quotedETag || match == etag || match == `W/`+quotedETag {
+					c.AbortWithStatus(http.StatusNotModified)
+					return
+				}
+			}
+		}
+	} else if urlPath == "/service-worker.js" {
+		c.Header("Cache-Control", cacheControlRevalidate)
+	} else {
+		// For HTML and other non-hashed files, prevent caching
+		c.Header("Cache-Control", cacheControlNoCache)
+	}
+	c.Next()
 }
 
 // clientAcceptsEncoding checks if the client accepts a specific encoding.
@@ -171,31 +227,7 @@ func (s *HTTPServer) setupFrontendRoutes() error {
 	// SvelteKit puts all hashed/immutable assets under /_app/immutable/
 	// Other files under /_app/ (like version.json, env.js) are NOT content-hashed
 	// and must not be cached immutably.
-	s.router.Use(func(c *gin.Context) {
-		urlPath := c.Request.URL.Path
-		if strings.HasPrefix(urlPath, "/_app/immutable/") {
-			c.Header("Cache-Control", cacheControlImmutable)
-
-			// Extract ETag from the content-hashed filename
-			if etag := extractImmutableETag(urlPath); etag != "" {
-				quotedETag := `"` + etag + `"`
-				c.Header("ETag", quotedETag)
-
-				// Check If-None-Match for conditional requests
-				if match := c.GetHeader("If-None-Match"); match != "" {
-					// Handle both quoted and unquoted ETags, and weak ETags (W/"...")
-					if match == quotedETag || match == etag || match == `W/`+quotedETag {
-						c.AbortWithStatus(http.StatusNotModified)
-						return
-					}
-				}
-			}
-		} else {
-			// For HTML and other non-hashed files, prevent caching
-			c.Header("Cache-Control", cacheControlNoCache)
-		}
-		c.Next()
-	})
+	s.router.Use(setFrontendCacheHeaders)
 
 	// refreshSessionIfAuthenticated validates and rotates authenticated
 	// cookie-session records for active SPA browsing. KV TTL is set only when
@@ -231,6 +263,17 @@ func (s *HTTPServer) setupFrontendRoutes() error {
 		if filePath == "200.html" {
 			s.serveSPAFallback(c, clientFS)
 			return
+		}
+
+		if filePath == "service-worker.js" {
+			content, err := fs.ReadFile(clientFS, filePath)
+			if err != nil {
+				c.Status(http.StatusInternalServerError)
+				return
+			}
+			if setServiceWorkerETag(c, content) {
+				return
+			}
 		}
 
 		// Try to serve precompressed version first

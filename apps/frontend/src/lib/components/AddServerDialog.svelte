@@ -129,7 +129,7 @@ ADR-027 — only user-facing copy says "server".
     try {
       const { url: probedFromUrl, info } = await probeWithFallback(serverUrl, url);
 
-      if (!info.name || !Array.isArray(info.authMethods)) {
+      if (!info.name) {
         formError = 'This does not appear to be a Chatto server.';
         return;
       }
