@@ -23,6 +23,7 @@ import (
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/email"
+	"hmans.de/chatto/internal/events"
 	configv1 "hmans.de/chatto/internal/pb/chatto/config/v1"
 	"hmans.de/chatto/internal/testutil"
 )
@@ -596,6 +597,47 @@ func TestAuthRoutes_Logout(t *testing.T) {
 	}
 	if deleted != 0 {
 		t.Fatalf("Logout left %d cookie sessions behind, want 0", deleted)
+	}
+}
+
+func TestAuthRoutes_LogoutWithBearerTokenRevokesAndAudits(t *testing.T) {
+	ts, client, chattoCore := setupTestHTTPServer(t)
+	ctx := testContext(t)
+
+	user, err := chattoCore.CreateUser(ctx, "system", "logoutbearer", "Logout Bearer", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	token, err := chattoCore.CreateAuthToken(ctx, user.Id)
+	if err != nil {
+		t.Fatalf("CreateAuthToken: %v", err)
+	}
+
+	req, err := http.NewRequest(http.MethodPost, ts.URL+"/auth/logout", nil)
+	if err != nil {
+		t.Fatalf("NewRequest: %v", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+	resp, err := client.Do(req)
+	if err != nil {
+		t.Fatalf("logout request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		t.Fatalf("logout status = %d, want 200: %s", resp.StatusCode, string(body))
+	}
+	if _, err := chattoCore.ValidateAuthToken(ctx, token); !errors.Is(err, core.ErrAuthTokenNotFound) {
+		t.Fatalf("ValidateAuthToken after logout err = %v, want ErrAuthTokenNotFound", err)
+	}
+
+	logoutEvents, _, err := chattoCore.EventPublisher.SubjectEvents(ctx, events.UserAggregate(user.Id).Subject(events.EventLogoutSucceeded))
+	if err != nil {
+		t.Fatalf("SubjectEvents logout: %v", err)
+	}
+	if len(logoutEvents) != 1 {
+		t.Fatalf("logout events = %d, want 1", len(logoutEvents))
 	}
 }
 

@@ -324,6 +324,10 @@ func TestChattoCore_RevokeAllAuthTokensForUser(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateAuthToken 2: %v", err)
 	}
+	cookieSession, _, err := core.CreateCookieSession(ctx, user.Id, "password_login")
+	if err != nil {
+		t.Fatalf("CreateCookieSession: %v", err)
+	}
 	otherToken, err := core.CreateAuthToken(ctx, otherUser.Id)
 	if err != nil {
 		t.Fatalf("CreateAuthToken other: %v", err)
@@ -347,6 +351,11 @@ func TestChattoCore_RevokeAllAuthTokensForUser(t *testing.T) {
 		t.Fatalf("other token should remain valid: %v", err)
 	} else if gotUserID != otherUser.Id {
 		t.Fatalf("other token user ID = %q, want %q", gotUserID, otherUser.Id)
+	}
+	if gotSession, err := core.ValidateCookieCredential(ctx, cookieSession); err != nil {
+		t.Fatalf("cookie session should remain valid after bearer revoke-all: %v", err)
+	} else if gotSession.GetUserId() != user.Id {
+		t.Fatalf("cookie session user ID = %q, want %q", gotSession.GetUserId(), user.Id)
 	}
 }
 

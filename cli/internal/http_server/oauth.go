@@ -43,10 +43,9 @@ func (s *HTTPServer) setupOAuthRoutes() {
 		// query string is treated as a fresh authorize attempt and overwrites the
 		// pending session after validation below.
 		if c.Request.URL.RawQuery == "" {
-			if userID, sessionID, cookieSession, ok := s.validateCookieSession(c); ok {
-				s.rotateCookieSessionIfNeeded(c, userID, sessionID, cookieSession)
+			if credential, ok := s.oauthCookieCredential(c); ok {
 				if hasPendingOAuthAuthorize(session) {
-					s.continueOAuthAuthorize(c, userID, cookieSession.GetAuthGeneration())
+					s.continueOAuthAuthorize(c, credential.auth.UserID, credential.cookieRecord.GetAuthGeneration())
 					return
 				}
 			}
@@ -107,9 +106,8 @@ func (s *HTTPServer) setupOAuthRoutes() {
 		session.Save()
 
 		// If user is already authenticated, generate code immediately
-		if userID, sessionID, cookieSession, ok := s.validateCookieSession(c); ok {
-			s.rotateCookieSessionIfNeeded(c, userID, sessionID, cookieSession)
-			s.continueOAuthAuthorize(c, userID, cookieSession.GetAuthGeneration())
+		if credential, ok := s.oauthCookieCredential(c); ok {
+			s.continueOAuthAuthorize(c, credential.auth.UserID, credential.cookieRecord.GetAuthGeneration())
 			return
 		}
 
@@ -216,12 +214,11 @@ func (s *HTTPServer) setupOAuthRoutes() {
 	})
 
 	oauth.GET("consent/request", func(c *gin.Context) {
-		userID, sessionID, cookieSession, ok := s.validateCookieSession(c)
+		_, ok := s.oauthCookieCredential(c)
 		if !ok {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
 			return
 		}
-		s.rotateCookieSessionIfNeeded(c, userID, sessionID, cookieSession)
 
 		params, err := readPendingOAuthAuthorize(sessions.Default(c))
 		if err != nil {
@@ -241,12 +238,11 @@ func (s *HTTPServer) setupOAuthRoutes() {
 	})
 
 	oauth.POST("consent/approve", func(c *gin.Context) {
-		userID, sessionID, cookieSession, ok := s.validateCookieSession(c)
+		credential, ok := s.oauthCookieCredential(c)
 		if !ok {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
 			return
 		}
-		s.rotateCookieSessionIfNeeded(c, userID, sessionID, cookieSession)
 
 		params, err := readPendingOAuthAuthorize(sessions.Default(c))
 		if err != nil {
@@ -260,13 +256,13 @@ func (s *HTTPServer) setupOAuthRoutes() {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid redirect_uri"})
 			return
 		}
-		if err := s.core.GrantOAuthConsent(c.Request.Context(), userID, redirectOrigin); err != nil {
-			log.Error("Failed to record OAuth consent grant", "error", err, "userId", userID)
+		if err := s.core.GrantOAuthConsent(c.Request.Context(), credential.auth.UserID, redirectOrigin); err != nil {
+			log.Error("Failed to record OAuth consent grant", "error", err, "userId", credential.auth.UserID)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to record consent"})
 			return
 		}
 
-		redirectURL, ok := s.completeOAuthAuthorizeURL(c, userID, cookieSession.GetAuthGeneration())
+		redirectURL, ok := s.completeOAuthAuthorizeURL(c, credential.auth.UserID, credential.cookieRecord.GetAuthGeneration())
 		if !ok {
 			return
 		}
@@ -274,12 +270,11 @@ func (s *HTTPServer) setupOAuthRoutes() {
 	})
 
 	oauth.POST("consent/deny", func(c *gin.Context) {
-		userID, sessionID, cookieSession, ok := s.validateCookieSession(c)
+		credential, ok := s.oauthCookieCredential(c)
 		if !ok {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
 			return
 		}
-		s.rotateCookieSessionIfNeeded(c, userID, sessionID, cookieSession)
 
 		session := sessions.Default(c)
 		params, err := readPendingOAuthAuthorize(session)
@@ -296,8 +291,8 @@ func (s *HTTPServer) setupOAuthRoutes() {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid redirect_uri"})
 			return
 		}
-		if err := s.core.RecordOAuthConsentDenied(c.Request.Context(), userID, redirectOrigin); err != nil {
-			log.Error("Failed to record OAuth consent denial", "error", err, "userId", userID)
+		if err := s.core.RecordOAuthConsentDenied(c.Request.Context(), credential.auth.UserID, redirectOrigin); err != nil {
+			log.Error("Failed to record OAuth consent denial", "error", err, "userId", credential.auth.UserID)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to record consent denial"})
 			return
 		}
@@ -309,6 +304,15 @@ func (s *HTTPServer) setupOAuthRoutes() {
 		}
 		c.JSON(http.StatusOK, gin.H{"redirectUrl": redirectURL})
 	})
+}
+
+func (s *HTTPServer) oauthCookieCredential(c *gin.Context) (presentedRuntimeCredential, bool) {
+	credential, ok := s.cookiePresentedCredential(c)
+	if !ok {
+		return presentedRuntimeCredential{}, false
+	}
+	s.rotateCookieSessionIfNeeded(c, credential.auth.UserID, credential.auth.Handle, credential.cookieRecord)
+	return credential, true
 }
 
 type oauthTokenRequest struct {

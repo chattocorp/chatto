@@ -5558,9 +5558,9 @@ func withCaller(ctx context.Context, user *corev1.User) context.Context {
 func withBearerCredential(ctx context.Context, user *corev1.User, token string) context.Context {
 	ctx = withCaller(ctx, user)
 	return authctx.WithCredential(ctx, authctx.RuntimeCredential{
-		Kind:        authctx.RuntimeCredentialKindBearerToken,
-		UserID:      user.Id,
-		BearerToken: token,
+		Kind:   authctx.RuntimeCredentialKindBearerToken,
+		UserID: user.Id,
+		Handle: token,
 	})
 }
 

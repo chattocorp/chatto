@@ -346,6 +346,34 @@ func TestRealtimeWebSocketAuthenticatesWithCookie(t *testing.T) {
 	subscribeRealtime(t, conn, "")
 }
 
+func TestRealtimeWebSocketRejectsCookieHandleAsBearerHello(t *testing.T) {
+	env := setupWebSocketTestServer(t)
+	user, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-cookie-as-bearer", "RT Cookie As Bearer", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	sessionID, _, err := env.core.CreateCookieSession(env.ctx, user.Id, "password_login")
+	if err != nil {
+		t.Fatalf("CreateCookieSession: %v", err)
+	}
+
+	conn := env.connectRealtime(t)
+	sendRealtimeClientFrame(t, conn, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_Hello{
+		Hello: &realtimev1.RealtimeClientHello{ProtocolVersion: realtimeProtocolVersion, BearerToken: proto.String(sessionID)},
+	}})
+	frame, ok := readRealtimeServerFrame(t, conn, 5*time.Second)
+	if !ok {
+		t.Fatal("timed out waiting for realtime auth error")
+	}
+	errFrame := frame.GetError()
+	if errFrame == nil {
+		t.Fatalf("frame = %T, want error", frame.GetFrame())
+	}
+	if errFrame.Code != "authentication_required" || !errFrame.Fatal {
+		t.Fatalf("error = %+v, want fatal authentication_required", errFrame)
+	}
+}
+
 func TestRealtimeWebSocketRejectsUnauthenticatedHello(t *testing.T) {
 	env := setupWebSocketTestServer(t)
 	conn := env.connectRealtime(t)

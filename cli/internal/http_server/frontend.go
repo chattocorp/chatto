@@ -234,9 +234,9 @@ func (s *HTTPServer) setupFrontendRoutes() error {
 	// a session is created, so near-expiry sessions are rotated instead of
 	// "touched" in place.
 	refreshSessionIfAuthenticated := func(c *gin.Context) {
-		userID, sessionID, cookieSession, ok := s.validateCookieSession(c)
+		credential, ok := s.cookiePresentedCredential(c)
 		if ok {
-			s.rotateCookieSessionIfNeeded(c, userID, sessionID, cookieSession)
+			s.rotateCookieSessionIfNeeded(c, credential.auth.UserID, credential.auth.Handle, credential.cookieRecord)
 		}
 	}
 

@@ -24,14 +24,12 @@ const (
 )
 
 // RuntimeCredential identifies the concrete runtime credential that
-// authenticated a request. Raw bearer tokens and cookie session IDs are only
-// kept in request context so sensitive account operations can refresh or check
-// the same credential.
+// authenticated a request. Handle is the opaque credential value as presented
+// through the transport identified by Kind.
 type RuntimeCredential struct {
-	Kind            RuntimeCredentialKind
-	UserID          string
-	BearerToken     string
-	CookieSessionID string
+	Kind   RuntimeCredentialKind
+	UserID string
+	Handle string
 }
 
 // ForContext extracts the authenticated user from the request context.
@@ -51,7 +49,7 @@ func WithUser(ctx context.Context, user *corev1.User) context.Context {
 // not use a persisted runtime credential.
 func CredentialForContext(ctx context.Context) (RuntimeCredential, bool) {
 	raw, _ := ctx.Value(credentialCtxKey).(RuntimeCredential)
-	return raw, raw.Kind != "" && raw.UserID != ""
+	return raw, raw.Kind != "" && raw.UserID != "" && raw.Handle != ""
 }
 
 // WithCredential returns a new context with the authenticating runtime

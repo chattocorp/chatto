@@ -63,6 +63,22 @@ type AuthTokenData struct {
 	FreshAuthSource string                       `json:"fresh_auth_source,omitempty"`
 }
 
+// ValidatedRuntimeCredential is the normalized result of validating an opaque
+// runtime credential handle from a specific presentation channel.
+type ValidatedRuntimeCredential struct {
+	Handle          string
+	UserID          string
+	Kind            AuthTokenKind
+	Presentation    AuthTokenPresentation
+	Source          string
+	Request         *corev1.AuditRequestMetadata
+	CreatedAt       time.Time
+	AuthGeneration  uint64
+	FreshAuthAt     time.Time
+	FreshAuthMethod string
+	FreshAuthSource string
+}
+
 func authTokenKindForSource(source string) AuthTokenKind {
 	if source == "oauth_code_exchange" {
 		return AuthTokenKindOAuthAccessToken
@@ -84,6 +100,22 @@ func (d AuthTokenData) presentationOrDefault() AuthTokenPresentation {
 	return AuthTokenPresentationBearer
 }
 
+func validatedRuntimeCredentialFromAuthToken(handle string, data AuthTokenData) ValidatedRuntimeCredential {
+	return ValidatedRuntimeCredential{
+		Handle:          handle,
+		UserID:          data.UserID,
+		Kind:            data.kindOrDefault(),
+		Presentation:    data.presentationOrDefault(),
+		Source:          data.Source,
+		Request:         data.Request,
+		CreatedAt:       data.CreatedAt,
+		AuthGeneration:  data.AuthGeneration,
+		FreshAuthAt:     data.FreshAuthAt,
+		FreshAuthMethod: data.FreshAuthMethod,
+		FreshAuthSource: data.FreshAuthSource,
+	}
+}
+
 // ============================================================================
 // Auth Token Operations
 // ============================================================================
@@ -97,6 +129,72 @@ func (c *ChattoCore) authTokenTTL() time.Duration {
 
 func (c *ChattoCore) authTokenKey(token string) string {
 	return c.runtimeTokenKey(authTokenKeyPrefix, token)
+}
+
+func (c *ChattoCore) runtimeCredentialTTL(presentation AuthTokenPresentation) time.Duration {
+	if presentation == AuthTokenPresentationCookie {
+		return c.cookieSessionTTL()
+	}
+	return c.authTokenTTL()
+}
+
+// ValidatePresentedRuntimeCredential validates an opaque runtime credential
+// handle as presented over a specific transport. Bearer and same-origin cookie
+// auth both use session.{hmac} records; the presentation check prevents a
+// handle minted for one channel from being replayed through another.
+func (c *ChattoCore) ValidatePresentedRuntimeCredential(ctx context.Context, handle string, presentation AuthTokenPresentation) (ValidatedRuntimeCredential, error) {
+	if handle == "" {
+		return ValidatedRuntimeCredential{}, ErrAuthTokenNotFound
+	}
+
+	key := c.authTokenKey(handle)
+	entry, err := c.storage.runtimeStateKV.Get(ctx, key)
+	if err != nil {
+		if errors.Is(err, jetstream.ErrKeyNotFound) {
+			return ValidatedRuntimeCredential{}, ErrAuthTokenNotFound
+		}
+		return ValidatedRuntimeCredential{}, fmt.Errorf("failed to get runtime credential: %w", err)
+	}
+
+	var tokenData AuthTokenData
+	if err := json.Unmarshal(entry.Value(), &tokenData); err != nil {
+		_ = c.storage.runtimeStateKV.Delete(ctx, key)
+		return ValidatedRuntimeCredential{}, ErrAuthTokenNotFound
+	}
+	if tokenData.presentationOrDefault() != presentation {
+		return ValidatedRuntimeCredential{}, ErrAuthTokenNotFound
+	}
+	if tokenData.UserID == "" {
+		_ = c.storage.runtimeStateKV.Delete(ctx, key)
+		return ValidatedRuntimeCredential{}, ErrAuthTokenNotFound
+	}
+	if presentation == AuthTokenPresentationCookie && tokenData.kindOrDefault() != AuthTokenKindFirstPartySession {
+		_ = c.storage.runtimeStateKV.Delete(ctx, key)
+		return ValidatedRuntimeCredential{}, ErrAuthTokenNotFound
+	}
+
+	validation, err := c.ValidateRuntimeCredential(ctx, RuntimeCredential{
+		UserID:         tokenData.UserID,
+		CreatedAt:      tokenData.CreatedAt,
+		AuthGeneration: tokenData.AuthGeneration,
+	})
+	if err != nil {
+		if !errors.Is(err, ErrAuthenticationRevoked) {
+			return ValidatedRuntimeCredential{}, err
+		}
+		_ = c.storage.runtimeStateKV.Delete(ctx, key)
+		return ValidatedRuntimeCredential{}, ErrAuthTokenNotFound
+	}
+	if validation.ShouldPersistAuthGeneration {
+		tokenData.AuthGeneration = validation.AuthGeneration
+		if value, err := json.Marshal(tokenData); err == nil {
+			_, _ = c.updateRuntimeStateTokenTTL(ctx, key, value, entry.Revision(), c.runtimeCredentialTTL(presentation))
+		}
+	} else {
+		_, _ = c.updateRuntimeStateTokenTTL(ctx, key, entry.Value(), entry.Revision(), c.runtimeCredentialTTL(presentation))
+	}
+
+	return validatedRuntimeCredentialFromAuthToken(handle, tokenData), nil
 }
 
 // CreateAuthToken creates a new opaque bearer token for the given user.
@@ -169,47 +267,11 @@ func (c *ChattoCore) CreateAuthTokenWithSourceGeneration(ctx context.Context, us
 // This means the token only expires after the configured TTL of *inactivity* — active
 // users are never logged out.
 func (c *ChattoCore) ValidateAuthToken(ctx context.Context, token string) (string, error) {
-	key := c.authTokenKey(token)
-	entry, err := c.storage.runtimeStateKV.Get(ctx, key)
+	credential, err := c.ValidatePresentedRuntimeCredential(ctx, token, AuthTokenPresentationBearer)
 	if err != nil {
-		if errors.Is(err, jetstream.ErrKeyNotFound) {
-			return "", ErrAuthTokenNotFound
-		}
-		return "", fmt.Errorf("failed to get auth token: %w", err)
+		return "", err
 	}
-
-	var tokenData AuthTokenData
-	if err := json.Unmarshal(entry.Value(), &tokenData); err != nil {
-		return "", fmt.Errorf("failed to unmarshal auth token: %w", err)
-	}
-	if tokenData.presentationOrDefault() != AuthTokenPresentationBearer {
-		return "", ErrAuthTokenNotFound
-	}
-	validation, err := c.ValidateRuntimeCredential(ctx, RuntimeCredential{
-		UserID:         tokenData.UserID,
-		CreatedAt:      tokenData.CreatedAt,
-		AuthGeneration: tokenData.AuthGeneration,
-	})
-	if err != nil {
-		if !errors.Is(err, ErrAuthenticationRevoked) {
-			return "", err
-		}
-		_ = c.storage.runtimeStateKV.Delete(ctx, key)
-		return "", ErrAuthTokenNotFound
-	}
-	value := entry.Value()
-	if validation.ShouldPersistAuthGeneration {
-		tokenData.AuthGeneration = validation.AuthGeneration
-		if upgraded, err := json.Marshal(tokenData); err == nil {
-			value = upgraded
-		}
-	}
-
-	// Rewrite to reset TTL (sliding window expiry).
-	// Fire-and-forget — validation succeeds even if the re-put fails.
-	_, _ = c.updateRuntimeStateTokenTTL(ctx, key, value, entry.Revision(), c.authTokenTTL())
-
-	return validation.UserID, nil
+	return credential.UserID, nil
 }
 
 // RevokeAuthToken deletes a bearer token, immediately invalidating it.
@@ -221,34 +283,49 @@ func (c *ChattoCore) RevokeAuthToken(ctx context.Context, token string) error {
 // RevokeAuthTokenWithReason deletes a bearer token and records the revocation
 // audit fact when the token existed and could be associated with a user.
 func (c *ChattoCore) RevokeAuthTokenWithReason(ctx context.Context, token, reason string) error {
+	_, _, err := c.RevokePresentedRuntimeCredentialWithReason(ctx, token, AuthTokenPresentationBearer, reason)
+	return err
+}
+
+// RevokePresentedRuntimeCredentialWithReason deletes one opaque runtime
+// credential for the requested presentation channel. It returns the owning user
+// ID when the credential existed so HTTP-edge logout can apply one audit and
+// live-session termination flow for bearer and cookie presentations.
+func (c *ChattoCore) RevokePresentedRuntimeCredentialWithReason(ctx context.Context, token string, presentation AuthTokenPresentation, reason string) (string, bool, error) {
+	if token == "" {
+		return "", false, nil
+	}
 	key := c.authTokenKey(token)
 	entry, err := c.storage.runtimeStateKV.Get(ctx, key)
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) {
-			return nil
+			return "", false, nil
 		}
-		return fmt.Errorf("failed to get auth token for revocation: %w", err)
+		return "", false, fmt.Errorf("failed to get runtime credential for revocation: %w", err)
 	}
 
 	var tokenData AuthTokenData
 	if err := json.Unmarshal(entry.Value(), &tokenData); err != nil {
 		if deleteErr := c.storage.runtimeStateKV.Delete(ctx, key); deleteErr != nil && !errors.Is(deleteErr, jetstream.ErrKeyNotFound) {
-			return fmt.Errorf("failed to revoke malformed auth token after unmarshal error %v: %w", err, deleteErr)
+			return "", false, fmt.Errorf("failed to revoke malformed runtime credential after unmarshal error %v: %w", err, deleteErr)
 		}
-		return fmt.Errorf("failed to unmarshal auth token for revocation: %w", err)
+		return "", true, fmt.Errorf("failed to unmarshal runtime credential for revocation: %w", err)
+	}
+	if tokenData.presentationOrDefault() != presentation {
+		return "", false, nil
 	}
 
-	if tokenData.UserID != "" {
+	if presentation == AuthTokenPresentationBearer && tokenData.UserID != "" {
 		if err := c.recordBearerTokenRevoked(ctx, tokenData.UserID, reason); err != nil {
-			return err
+			return tokenData.UserID, false, err
 		}
 	}
 
 	err = c.storage.runtimeStateKV.Delete(ctx, key)
 	if err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) {
-		return fmt.Errorf("failed to revoke auth token: %w", err)
+		return tokenData.UserID, false, fmt.Errorf("failed to revoke runtime credential: %w", err)
 	}
-	return nil
+	return tokenData.UserID, true, nil
 }
 
 // RevokeAllAuthTokensForUser deletes all bearer tokens for a user. It is used
@@ -294,6 +371,9 @@ func (c *ChattoCore) RevokeAllAuthTokensForUserWithReason(ctx context.Context, u
 			continue
 		}
 		if tokenData.UserID != userID {
+			continue
+		}
+		if tokenData.presentationOrDefault() != AuthTokenPresentationBearer {
 			continue
 		}
 

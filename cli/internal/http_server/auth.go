@@ -73,21 +73,29 @@ func (s *HTTPServer) setupAuthRoutes() {
 	auth.POST("logout", func(c *gin.Context) {
 		ctx := c.Request.Context()
 
-		// Read the cookie credential before clearing the signed browser session.
+		loggedOutUserIDs := make(map[string]struct{}, 2)
 		session := sessions.Default(c)
-		userID, cookieSessionID, _, _ := s.validateCookieSession(c)
+		cookieCredential, cookieOK := s.cookiePresentedCredential(c)
 
-		// If authenticated via bearer token, revoke it
 		if authHeader := c.GetHeader("Authorization"); authHeader != "" {
 			if token, ok := strings.CutPrefix(authHeader, "Bearer "); ok && strings.TrimSpace(token) != "" {
-				if err := s.core.RevokeAuthTokenWithReason(ctx, strings.TrimSpace(token), "logout"); err != nil {
-					log.Warn("Failed to revoke bearer token on logout", "error", err)
+				userID, revoked, err := s.core.RevokePresentedRuntimeCredentialWithReason(ctx, strings.TrimSpace(token), core.AuthTokenPresentationBearer, "logout")
+				if err != nil {
+					log.Warn("Failed to revoke bearer runtime credential on logout", "error", err)
+				}
+				if revoked && userID != "" {
+					loggedOutUserIDs[userID] = struct{}{}
 				}
 			}
 		}
 
-		if err := s.core.RevokeCookieSession(ctx, userID, cookieSessionID); err != nil {
-			log.Warn("Failed to revoke cookie session on logout", "error", err)
+		if cookieOK {
+			if err := s.core.RevokeCookieSession(ctx, cookieCredential.auth.UserID, cookieCredential.auth.Handle); err != nil {
+				log.Warn("Failed to revoke cookie runtime credential on logout", "error", err)
+			}
+			if cookieCredential.auth.UserID != "" {
+				loggedOutUserIDs[cookieCredential.auth.UserID] = struct{}{}
+			}
 		}
 
 		// Clear the session cookie
@@ -95,8 +103,8 @@ func (s *HTTPServer) setupAuthRoutes() {
 		session.Save()
 		clearCSRFCookie(c)
 
-		// Publish session terminated event so other tabs/devices disconnect
-		if userID != "" {
+		// Publish session terminated events so other tabs/devices disconnect.
+		for userID := range loggedOutUserIDs {
 			if err := s.core.PublishSessionTerminated(ctx, userID, "logout"); err != nil {
 				log.Warn("Failed to publish session terminated event", "error", err)
 			}

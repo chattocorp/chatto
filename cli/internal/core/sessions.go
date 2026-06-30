@@ -139,52 +139,21 @@ func (c *ChattoCore) ValidateCookieCredential(ctx context.Context, sessionID str
 }
 
 func (c *ChattoCore) validateTokenBackedCookieSession(ctx context.Context, userID, sessionID string) (*corev1.CookieSession, error) {
-	key := c.authTokenKey(sessionID)
-	entry, err := c.storage.runtimeStateKV.Get(ctx, key)
+	credential, err := c.ValidatePresentedRuntimeCredential(ctx, sessionID, AuthTokenPresentationCookie)
 	if err != nil {
-		if errors.Is(err, jetstream.ErrKeyNotFound) {
+		if errors.Is(err, ErrAuthTokenNotFound) {
 			return nil, ErrCookieSessionNotFound
 		}
-		return nil, fmt.Errorf("failed to get cookie session token: %w", err)
+		return nil, err
 	}
-
-	var tokenData AuthTokenData
-	if err := json.Unmarshal(entry.Value(), &tokenData); err != nil {
-		_ = c.storage.runtimeStateKV.Delete(ctx, key)
+	if credential.CreatedAt.IsZero() || credential.Kind != AuthTokenKindFirstPartySession {
 		return nil, ErrCookieSessionNotFound
 	}
-	if tokenData.kindOrDefault() != AuthTokenKindFirstPartySession ||
-		tokenData.presentationOrDefault() != AuthTokenPresentationCookie ||
-		tokenData.CreatedAt.IsZero() {
-		_ = c.storage.runtimeStateKV.Delete(ctx, key)
-		return nil, ErrCookieSessionNotFound
-	}
-	if userID != "" && tokenData.UserID != userID {
+	if userID != "" && credential.UserID != userID {
 		return nil, ErrCookieSessionNotFound
 	}
 
-	validation, err := c.ValidateRuntimeCredential(ctx, RuntimeCredential{
-		UserID:         tokenData.UserID,
-		CreatedAt:      tokenData.CreatedAt,
-		AuthGeneration: tokenData.AuthGeneration,
-	})
-	if err != nil {
-		if !errors.Is(err, ErrAuthenticationRevoked) {
-			return nil, err
-		}
-		_ = c.storage.runtimeStateKV.Delete(ctx, key)
-		return nil, ErrCookieSessionNotFound
-	}
-	value := entry.Value()
-	if validation.ShouldPersistAuthGeneration {
-		tokenData.AuthGeneration = validation.AuthGeneration
-		if upgraded, err := json.Marshal(tokenData); err == nil {
-			value = upgraded
-		}
-	}
-	_, _ = c.updateRuntimeStateTokenTTL(ctx, key, value, entry.Revision(), c.cookieSessionTTL())
-
-	return c.cookieSessionRecordFromAuthTokenData(tokenData), nil
+	return c.cookieSessionRecordFromValidatedCredential(credential), nil
 }
 
 // validateLegacyCookieSession reads cookie_session.* records created before
@@ -243,18 +212,22 @@ func (c *ChattoCore) validateLegacyCookieSession(ctx context.Context, userID, se
 }
 
 func (c *ChattoCore) cookieSessionRecordFromAuthTokenData(tokenData AuthTokenData) *corev1.CookieSession {
+	return c.cookieSessionRecordFromValidatedCredential(validatedRuntimeCredentialFromAuthToken("", tokenData))
+}
+
+func (c *ChattoCore) cookieSessionRecordFromValidatedCredential(credential ValidatedRuntimeCredential) *corev1.CookieSession {
 	record := &corev1.CookieSession{
-		UserId:         tokenData.UserID,
-		CreatedAt:      timestamppb.New(tokenData.CreatedAt),
-		ExpiresAt:      timestamppb.New(tokenData.CreatedAt.Add(c.cookieSessionTTL())),
-		Source:         tokenData.Source,
-		Request:        tokenData.Request,
-		AuthGeneration: tokenData.AuthGeneration,
+		UserId:         credential.UserID,
+		CreatedAt:      timestamppb.New(credential.CreatedAt),
+		ExpiresAt:      timestamppb.New(credential.CreatedAt.Add(c.cookieSessionTTL())),
+		Source:         credential.Source,
+		Request:        credential.Request,
+		AuthGeneration: credential.AuthGeneration,
 	}
-	if !tokenData.FreshAuthAt.IsZero() {
-		record.FreshAuthAt = timestamppb.New(tokenData.FreshAuthAt)
-		record.FreshAuthMethod = tokenData.FreshAuthMethod
-		record.FreshAuthSource = tokenData.FreshAuthSource
+	if !credential.FreshAuthAt.IsZero() {
+		record.FreshAuthAt = timestamppb.New(credential.FreshAuthAt)
+		record.FreshAuthMethod = credential.FreshAuthMethod
+		record.FreshAuthSource = credential.FreshAuthSource
 	}
 	return record
 }

@@ -9,6 +9,7 @@ import (
 	"github.com/charmbracelet/log"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
+	"hmans.de/chatto/internal/authctx"
 	"hmans.de/chatto/internal/connectapi"
 	"hmans.de/chatto/internal/core"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
@@ -81,6 +82,12 @@ type cookieCredential struct {
 	legacy    bool
 }
 
+type presentedRuntimeCredential struct {
+	user         *corev1.User
+	auth         authctx.RuntimeCredential
+	cookieRecord *corev1.CookieSession
+}
+
 func cookieCredentialFromSession(session sessions.Session) (cookieCredential, bool) {
 	if session == nil {
 		return cookieCredential{}, false
@@ -102,6 +109,17 @@ func cookieSessionIDs(session sessions.Session) (string, string, bool) {
 }
 
 func (s *HTTPServer) validateCookieSession(c *gin.Context) (string, string, *corev1.CookieSession, bool) {
+	credential, ok := s.cookiePresentedCredential(c)
+	if !ok {
+		return "", "", nil, false
+	}
+	return credential.auth.UserID, credential.auth.Handle, credential.cookieRecord, true
+}
+
+func (s *HTTPServer) cookiePresentedCredential(c *gin.Context) (presentedRuntimeCredential, bool) {
+	if _, ok := c.Get(sessions.DefaultKey); !ok {
+		return presentedRuntimeCredential{}, false
+	}
 	session := sessions.Default(c)
 	credential, ok := cookieCredentialFromSession(session)
 	if !ok {
@@ -110,7 +128,7 @@ func (s *HTTPServer) validateCookieSession(c *gin.Context) (string, string, *cor
 			session.Get(sessionKeyCookieSessionID) != nil {
 			clearCookieSessionAuth(session)
 		}
-		return "", "", nil, false
+		return presentedRuntimeCredential{}, false
 	}
 
 	var record *corev1.CookieSession
@@ -126,15 +144,29 @@ func (s *HTTPServer) validateCookieSession(c *gin.Context) (string, string, *cor
 		} else {
 			log.Warn("Failed to validate cookie session", "error", err)
 		}
-		return "", "", nil, false
+		return presentedRuntimeCredential{}, false
 	}
 	userID := record.GetUserId()
 	if userID == "" {
 		clearCookieSessionAuth(session)
-		return "", "", nil, false
+		return presentedRuntimeCredential{}, false
 	}
 
-	return userID, credential.sessionID, record, true
+	user, err := s.core.GetUser(c.Request.Context(), userID)
+	if err != nil {
+		log.Warn("Failed to load user from cookie runtime credential", "userId", userID, "error", err)
+		return presentedRuntimeCredential{}, false
+	}
+
+	return presentedRuntimeCredential{
+		user: user,
+		auth: authctx.RuntimeCredential{
+			Kind:   authctx.RuntimeCredentialKindCookieSession,
+			UserID: userID,
+			Handle: credential.sessionID,
+		},
+		cookieRecord: record,
+	}, true
 }
 
 func (s *HTTPServer) rotateCookieSessionIfNeeded(c *gin.Context, userID, oldSessionID string, record *corev1.CookieSession) {

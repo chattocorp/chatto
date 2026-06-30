@@ -48,8 +48,14 @@ The credential types are:
   sessions and cannot satisfy or acquire fresh-auth status.
 
 Fresh-auth metadata, auth generation, source, request metadata, expiry, sliding
-TTL behavior, and revocation eligibility belong to the typed runtime credential
-record. Fresh credential checks must explicitly require a first-party runtime
+TTL behavior, validation, and revocation eligibility belong to the typed runtime
+credential record. HTTP edge code may still extract credentials differently from
+`Authorization` headers and signed browser cookies, but both presentations must
+normalize to the same validated runtime-credential result before user context,
+logout, audit, realtime subscription, CSRF binding, or session-termination
+behavior is applied. Request context carries the presentation kind plus the
+single opaque handle; it does not duplicate bearer-token and cookie-session
+fields. Fresh credential checks must explicitly require a first-party runtime
 credential. OAuth access tokens remain useful for multi-server clients, but they
 must not authorize account-security operations such as adding a password or
 linking/disconnecting sign-in methods.
@@ -71,8 +77,9 @@ Migration is phased:
 4. Store only the opaque runtime credential handle in newly written signed
    browser sessions. Keep dual-read support for legacy signed sessions that
    contain `user_id` plus `cookie_session_id`.
-5. Keep cookie rotation, revocation, and auth-context injection on the shared
-   credential path where possible.
+5. Keep cookie rotation, revocation, logout audit, live session termination, and
+   auth-context injection on the shared credential path once the presentation
+   channel has been checked.
 6. Keep legacy record validation and cleanup until existing TTLs expire or a
    documented pre-1.0 compatibility cutoff removes them. The
    `cookie_session.*` keyspace is deprecated compatibility-only storage and must

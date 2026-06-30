@@ -113,7 +113,7 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 		_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseProtocolError, "unsupported protocol"), time.Now().Add(time.Second))
 		return
 	}
-	user, err := s.realtimeAuthenticatedUser(ctx, clientHello)
+	ctx, user, err := s.realtimeAuthenticatedUser(ctx, clientHello)
 	if err != nil {
 		writeError("authentication_required", "authentication required", true)
 		_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.ClosePolicyViolation, "authentication required"), time.Now().Add(time.Second))
@@ -242,18 +242,20 @@ func (s *HTTPServer) readRealtimeControlFrames(ctx context.Context, cancel conte
 	}
 }
 
-func (s *HTTPServer) realtimeAuthenticatedUser(ctx context.Context, hello *realtimev1.RealtimeClientHello) (*corev1.User, error) {
+func (s *HTTPServer) realtimeAuthenticatedUser(ctx context.Context, hello *realtimev1.RealtimeClientHello) (context.Context, *corev1.User, error) {
 	if token := strings.TrimSpace(hello.GetBearerToken()); token != "" {
-		userID, err := s.core.ValidateAuthToken(ctx, token)
-		if err != nil {
-			return nil, err
+		credential, ok := s.bearerPresentedCredential(ctx, token)
+		if !ok {
+			return ctx, nil, core.ErrNotAuthenticated
 		}
-		return s.core.GetUser(ctx, userID)
+		ctx = authctx.WithUser(ctx, credential.user)
+		ctx = authctx.WithCredential(ctx, credential.auth)
+		return ctx, credential.user, nil
 	}
 	if user := authctx.ForContext(ctx); user != nil {
-		return user, nil
+		return ctx, user, nil
 	}
-	return nil, core.ErrNotAuthenticated
+	return ctx, nil, core.ErrNotAuthenticated
 }
 
 func (s *HTTPServer) realtimeServerFrameForEvent(ctx context.Context, viewerID string, event core.EventEnvelope) (*realtimev1.RealtimeServerFrame, error) {

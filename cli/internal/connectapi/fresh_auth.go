@@ -35,9 +35,9 @@ func (a *API) requireFreshCredential(ctx context.Context, caller Caller, current
 func (a *API) requireCredentialFresh(ctx context.Context, credential authctx.RuntimeCredential) error {
 	switch credential.Kind {
 	case authctx.RuntimeCredentialKindBearerToken:
-		return a.core.RequireFreshAuthForBearerToken(ctx, credential.BearerToken)
+		return a.core.RequireFreshAuthForBearerToken(ctx, credential.Handle)
 	case authctx.RuntimeCredentialKindCookieSession:
-		return a.core.RequireFreshAuthForCookieSession(ctx, credential.UserID, credential.CookieSessionID)
+		return a.core.RequireFreshAuthForCookieSession(ctx, credential.UserID, credential.Handle)
 	default:
 		return core.ErrFreshAuthRequired
 	}
@@ -46,9 +46,9 @@ func (a *API) requireCredentialFresh(ctx context.Context, credential authctx.Run
 func (a *API) markCredentialFresh(ctx context.Context, credential authctx.RuntimeCredential, method, source string) error {
 	switch credential.Kind {
 	case authctx.RuntimeCredentialKindBearerToken:
-		return a.core.MarkBearerTokenFresh(ctx, credential.BearerToken, method, source)
+		return a.core.MarkBearerTokenFresh(ctx, credential.Handle, method, source)
 	case authctx.RuntimeCredentialKindCookieSession:
-		return a.core.MarkCookieSessionFresh(ctx, credential.UserID, credential.CookieSessionID, method, source)
+		return a.core.MarkCookieSessionFresh(ctx, credential.UserID, credential.Handle, method, source)
 	default:
 		return core.ErrFreshAuthRequired
 	}

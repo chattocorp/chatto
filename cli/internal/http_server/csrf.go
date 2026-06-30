@@ -112,11 +112,11 @@ type csrfBinding struct {
 }
 
 func (s *HTTPServer) csrfBinding(c *gin.Context) (csrfBinding, bool) {
-	userID, _, record, ok := s.validateCookieSession(c)
+	credential, ok := s.cookiePresentedCredential(c)
 	if !ok {
 		return csrfBinding{}, false
 	}
-	return csrfBindingForSession(userID, record), true
+	return csrfBindingForSession(credential.auth.UserID, credential.cookieRecord), true
 }
 
 func hasCookieCredential(session sessions.Session) bool {
