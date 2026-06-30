@@ -86,6 +86,15 @@ func TestChattoCore_CreateAndValidateCookieSession(t *testing.T) {
 	}
 }
 
+func TestChattoCore_CreateCookieSessionRejectsEmptyUser(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	if sessionID, _, err := core.CreateCookieSessionForGeneration(ctx, "", "password_login", 0); !errors.Is(err, ErrCookieSessionNotFound) {
+		t.Fatalf("CreateCookieSessionForGeneration err = %v, sessionID = %q, want ErrCookieSessionNotFound", err, sessionID)
+	}
+}
+
 func TestChattoCore_CookieSessionFreshAuth(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)

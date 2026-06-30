@@ -44,6 +44,16 @@ func TestChattoCore_CreateAuthCode(t *testing.T) {
 	assertRawRuntimeTokenKeyAbsent(t, core, authCodeKeyPrefix+code)
 }
 
+func TestChattoCore_CreateAuthCodeRejectsEmptyUser(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	challenge := GenerateCodeChallenge("verifier123")
+	if code, err := core.CreateAuthCodeForGeneration(ctx, "", "https://example.com/callback", challenge, "S256", 0); !errors.Is(err, ErrAuthCodeNotFound) {
+		t.Fatalf("CreateAuthCodeForGeneration err = %v, code = %q, want ErrAuthCodeNotFound", err, code)
+	}
+}
+
 func TestChattoCore_ExchangeAuthCode_HappyPath(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)

@@ -76,6 +76,9 @@ func (c *ChattoCore) CreateAuthCode(ctx context.Context, userID, redirectURI, co
 // CreateAuthCodeForGeneration creates an OAuth authorization code for an
 // already-authenticated session that proved authGeneration.
 func (c *ChattoCore) CreateAuthCodeForGeneration(ctx context.Context, userID, redirectURI, codeChallenge, codeChallengeMethod string, authGeneration uint64) (string, error) {
+	if userID == "" {
+		return "", ErrAuthCodeNotFound
+	}
 	if codeChallengeMethod != "S256" {
 		return "", ErrAuthCodeInvalidMethod
 	}
@@ -139,6 +142,9 @@ func (c *ChattoCore) ExchangeAuthCode(ctx context.Context, code, codeVerifier, r
 	var codeData AuthCodeData
 	if err := json.Unmarshal(entry.Value(), &codeData); err != nil {
 		return "", "", fmt.Errorf("failed to unmarshal auth code: %w", err)
+	}
+	if codeData.UserID == "" {
+		return "", "", ErrAuthCodeNotFound
 	}
 
 	// Validate redirect_uri matches

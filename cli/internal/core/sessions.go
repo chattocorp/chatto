@@ -73,6 +73,9 @@ func (c *ChattoCore) CreateCookieSessionForGenerationPreservingFreshAuth(ctx con
 }
 
 func (c *ChattoCore) createCookieSessionForGeneration(ctx context.Context, userID, source string, authGeneration uint64, freshAuthAt time.Time, freshAuthMethod, freshAuthSource string) (string, *corev1.CookieSession, error) {
+	if userID == "" {
+		return "", nil, ErrCookieSessionNotFound
+	}
 	if err := c.RequireAuthenticationAllowed(ctx, userID, authGeneration); err != nil {
 		if !errors.Is(err, ErrAuthenticationRevoked) {
 			return "", nil, err

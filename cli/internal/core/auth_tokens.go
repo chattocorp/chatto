@@ -218,6 +218,9 @@ func (c *ChattoCore) CreateAuthTokenWithSource(ctx context.Context, userID, sour
 // CreateAuthTokenWithSourceGeneration creates a bearer token for an
 // authentication that proved credentials against authGeneration.
 func (c *ChattoCore) CreateAuthTokenWithSourceGeneration(ctx context.Context, userID, source string, authGeneration uint64) (string, error) {
+	if userID == "" {
+		return "", ErrAuthTokenNotFound
+	}
 	if err := c.RequireAuthenticationAllowed(ctx, userID, authGeneration); err != nil {
 		if errors.Is(err, ErrAuthenticationRevoked) {
 			return "", ErrAuthTokenNotFound

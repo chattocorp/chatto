@@ -92,6 +92,9 @@ func (d AuthTokenData) canSatisfyFreshAuth() bool {
 }
 
 func (c *ChattoCore) authTokenData(ctx context.Context, token string) (AuthTokenData, jetstream.KeyValueEntry, error) {
+	if token == "" {
+		return AuthTokenData{}, nil, ErrAuthTokenNotFound
+	}
 	key := c.authTokenKey(token)
 	entry, err := c.storage.runtimeStateKV.Get(ctx, key)
 	if err != nil {
@@ -103,9 +106,14 @@ func (c *ChattoCore) authTokenData(ctx context.Context, token string) (AuthToken
 
 	var tokenData AuthTokenData
 	if err := json.Unmarshal(entry.Value(), &tokenData); err != nil {
-		return AuthTokenData{}, nil, fmt.Errorf("failed to unmarshal auth token: %w", err)
+		_ = c.storage.runtimeStateKV.Delete(ctx, key)
+		return AuthTokenData{}, nil, ErrAuthTokenNotFound
 	}
 	if tokenData.presentationOrDefault() != AuthTokenPresentationBearer {
+		return AuthTokenData{}, nil, ErrAuthTokenNotFound
+	}
+	if tokenData.UserID == "" {
+		_ = c.storage.runtimeStateKV.Delete(ctx, key)
 		return AuthTokenData{}, nil, ErrAuthTokenNotFound
 	}
 	if _, err := c.ValidateRuntimeCredential(ctx, RuntimeCredential{

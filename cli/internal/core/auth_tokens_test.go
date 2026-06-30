@@ -46,6 +46,15 @@ func TestChattoCore_CreateAuthToken(t *testing.T) {
 	assertRawRuntimeTokenKeyAbsent(t, core, authTokenKeyPrefix+token)
 }
 
+func TestChattoCore_CreateAuthTokenRejectsEmptyUser(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	if token, err := core.CreateAuthTokenWithSourceGeneration(ctx, "", "password_login", 0); !errors.Is(err, ErrAuthTokenNotFound) {
+		t.Fatalf("CreateAuthTokenWithSourceGeneration err = %v, token = %q, want ErrAuthTokenNotFound", err, token)
+	}
+}
+
 func TestChattoCore_BearerTokenFreshAuth(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
@@ -171,6 +180,34 @@ func TestChattoCore_LegacyFreshBearerTokenCanSatisfyExistingFreshWindow(t *testi
 
 	if err := core.RequireFreshAuthForBearerToken(ctx, token); err != nil {
 		t.Fatalf("RequireFreshAuthForBearerToken: %v", err)
+	}
+}
+
+func TestChattoCore_EmptyUserBearerTokenCannotSatisfyFreshAuth(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	token := NewAuthToken()
+	data, err := json.Marshal(AuthTokenData{
+		CreatedAt:       time.Now(),
+		AuthGeneration:  0,
+		FreshAuthAt:     time.Now(),
+		FreshAuthMethod: "password",
+		FreshAuthSource: "password_login",
+	})
+	if err != nil {
+		t.Fatalf("marshal token: %v", err)
+	}
+	key := core.authTokenKey(token)
+	if _, err := core.storage.runtimeStateKV.Create(ctx, key, data, jetstream.KeyTTL(core.authTokenTTL())); err != nil {
+		t.Fatalf("store token: %v", err)
+	}
+
+	if err := core.RequireFreshAuthForBearerToken(ctx, token); !errors.Is(err, ErrAuthTokenNotFound) {
+		t.Fatalf("RequireFreshAuthForBearerToken err = %v, want ErrAuthTokenNotFound", err)
+	}
+	if _, err := core.storage.runtimeStateKV.Get(ctx, key); !errors.Is(err, jetstream.ErrKeyNotFound) {
+		t.Fatalf("empty-user token should be deleted, get err = %v", err)
 	}
 }
 
