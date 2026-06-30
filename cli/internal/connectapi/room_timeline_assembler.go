@@ -49,19 +49,13 @@ func (a *roomTimelineAssembler) buildPage(ctx context.Context, viewerID string, 
 		userIDs:              make(map[string]struct{}),
 	}
 
-	hydratedEvents, err := parallel.Map(ctx, maxConnectAPIHydrationConcurrency, events, func(ctx context.Context, _ int, event *core.RoomEvent) (*apiv1.RoomTimelineEvent, error) {
+	apiEvents, err := parallel.MapNonNil(ctx, maxConnectAPIHydrationConcurrency, events, func(ctx context.Context, _ int, event *core.RoomEvent) (*apiv1.RoomTimelineEvent, error) {
 		return h.event(ctx, event)
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	apiEvents := make([]*apiv1.RoomTimelineEvent, 0, len(hydratedEvents))
-	for _, apiEvent := range hydratedEvents {
-		if apiEvent != nil {
-			apiEvents = append(apiEvents, apiEvent)
-		}
-	}
 	users, err := h.users()
 	if err != nil {
 		return nil, err

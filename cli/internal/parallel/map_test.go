@@ -50,3 +50,24 @@ func TestMapReturnsFirstError(t *testing.T) {
 		t.Fatalf("Map error = %v, want %v", err, wantErr)
 	}
 }
+
+func TestMapNonNilDropsNilResultsAndPreservesOrder(t *testing.T) {
+	got, err := MapNonNil(context.Background(), 2, []int{1, 2, 3, 4}, func(ctx context.Context, _ int, n int) (*int, error) {
+		if n%2 == 0 {
+			return nil, nil
+		}
+		result := n * 10
+		return &result, nil
+	})
+	if err != nil {
+		t.Fatalf("MapNonNil returned error: %v", err)
+	}
+	if len(got) != 2 {
+		t.Fatalf("len(got) = %d, want 2", len(got))
+	}
+	for i, want := range []int{10, 30} {
+		if *got[i] != want {
+			t.Fatalf("got[%d] = %d, want %d", i, *got[i], want)
+		}
+	}
+}

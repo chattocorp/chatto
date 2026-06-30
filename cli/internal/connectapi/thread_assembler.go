@@ -45,7 +45,7 @@ func (a *threadAssembler) followedThreadsResponse(ctx context.Context, viewerID 
 		userIDs:              make(map[string]struct{}),
 	}
 
-	mapped, err := parallel.Map(ctx, maxConnectAPIHydrationConcurrency, page.Threads, func(ctx context.Context, _ int, thread *core.FollowedThread) (*apiv1.FollowedThread, error) {
+	threads, err := parallel.MapNonNil(ctx, maxConnectAPIHydrationConcurrency, page.Threads, func(ctx context.Context, _ int, thread *core.FollowedThread) (*apiv1.FollowedThread, error) {
 		if thread == nil {
 			return nil, nil
 		}
@@ -84,13 +84,6 @@ func (a *threadAssembler) followedThreadsResponse(ctx context.Context, viewerID 
 	})
 	if err != nil {
 		return nil, err
-	}
-
-	threads := make([]*apiv1.FollowedThread, 0, len(mapped))
-	for _, thread := range mapped {
-		if thread != nil {
-			threads = append(threads, thread)
-		}
 	}
 
 	users, err := h.users()
