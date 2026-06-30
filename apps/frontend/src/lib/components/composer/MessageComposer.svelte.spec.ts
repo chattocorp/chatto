@@ -290,6 +290,22 @@ async function pressEditorKey(
   await tick();
 }
 
+function mockTouchPrimaryPointer() {
+  vi.spyOn(window, 'matchMedia').mockImplementation(
+    (query): MediaQueryList =>
+      ({
+        matches: query === '(pointer: coarse)',
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(() => false)
+      }) as MediaQueryList
+  );
+}
+
 async function changeSelectValue(select: HTMLSelectElement, value: string) {
   select.value = value;
   select.dispatchEvent(new Event('change', { bubbles: true }));
@@ -376,6 +392,7 @@ describe('MessageComposer', () => {
 
   afterEach(() => {
     window.getSelection()?.removeAllRanges();
+    vi.restoreAllMocks();
   });
 
   describe('form rendering', () => {
@@ -1215,6 +1232,27 @@ describe('MessageComposer', () => {
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({
         roomId,
         body: 'hello from shortcut'
+      });
+    });
+
+    it('lets bare Enter insert a line break on touch-primary devices', async () => {
+      mockTouchPrimaryPointer();
+      const { container, roomId } = renderMessageComposer({ roomId: 'room_456' });
+      const editor = await findEditor(container);
+
+      await typeEditorLiteralText(editor, 'first line');
+      await pressEditorKey(editor, 'Enter');
+
+      expect(mutationMock).not.toHaveBeenCalled();
+      await vi.waitFor(() => expect(editor.querySelectorAll(':scope > p')).toHaveLength(2));
+
+      await insertEditorLiteralText(editor, 'second line');
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      expect(mutationMock.mock.calls[0][1].input).toMatchObject({
+        roomId,
+        body: 'first line\n\nsecond line'
       });
     });
 

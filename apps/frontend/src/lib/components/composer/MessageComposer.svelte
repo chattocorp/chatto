@@ -724,6 +724,10 @@
       }
     }
 
+    if (event.key === 'Enter' && !event.ctrlKey && !event.metaKey && isTouchDevice()) {
+      return false;
+    }
+
     if (event.key === 'Enter' && !event.shiftKey) {
       if (event.metaKey || event.ctrlKey) {
         if (isRichComposer) {
