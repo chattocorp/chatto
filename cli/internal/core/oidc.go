@@ -63,6 +63,9 @@ func (c *ChattoCore) LinkExternalIdentity(ctx context.Context, providerID, provi
 		},
 	}})
 	_, err := c.appendUserEvent(ctx, userID, event, events.UserSubjectFilter(), func() error {
+		if _, ok := c.Users.Get(userID); !ok {
+			return ErrNotFound
+		}
 		existing, ok := c.Users.GetByExternalIdentity(issuer, subject)
 		if ok && existing.GetId() != userID {
 			return ErrExternalIdentityAlreadyClaimed

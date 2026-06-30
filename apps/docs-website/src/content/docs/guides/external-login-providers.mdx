@@ -200,15 +200,16 @@ auto_provision = false
 
 ## Scopes
 
-Chatto requests provider-specific default scopes:
+By default, Chatto requests the minimum provider scopes needed to identify the
+provider account. Email scopes are only requested when `request_email = true`.
 
-| Type             | Default scopes                    |
-| ---------------- | --------------------------------- |
-| `oidc` | `openid`, `profile`, `email`      |
-| `github`         | `read:user`, `user:email`         |
-| `gitlab`         | `read_user`                       |
-| `google`         | `openid`, `profile`, `email`      |
-| `discord`        | `identify`, `email`               |
+| Type             | Scopes when `request_email = false` | Scopes when `request_email = true` |
+| ---------------- | ----------------------------------- | ---------------------------------- |
+| `oidc`           | `openid`, `profile`                 | `openid`, `profile`, `email`       |
+| `github`         | none                                | `read:user`, `user:email`          |
+| `gitlab`         | none                                | `read_user`                        |
+| `google`         | `openid`, `profile`                 | `openid`, `profile`, `email`       |
+| `discord`        | `identify`                          | `identify`, `email`                |
 
 You can override scopes per provider:
 

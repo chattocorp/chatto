@@ -609,6 +609,42 @@ func TestChattoCore_SetPasswordHash(t *testing.T) {
 	}
 }
 
+func TestChattoCore_SetPasswordHash_RechecksCurrentPasswordAfterOCCConflict(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	user, err := core.CreateUser(ctx, "system", "stale-password-user", "Stale Password User", "initial123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+
+	checks := 0
+	err = core.setPasswordHash(ctx, user.Id, user.Id, "staleoverwrite789", true, func() error {
+		checks++
+		if err := core.verifyUserPasswordCurrent(user.Id, "initial123"); err != nil {
+			return err
+		}
+		if checks == 1 {
+			if err := core.SetPasswordHash(ctx, user.Id, "newerpassword456"); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if !errors.Is(err, ErrCurrentPasswordInvalid) {
+		t.Fatalf("setPasswordHash stale proof error = %v, want ErrCurrentPasswordInvalid", err)
+	}
+	if checks < 2 {
+		t.Fatalf("current password check ran %d time(s), want retry after conflict", checks)
+	}
+	if _, err := core.VerifyPassword(ctx, user.Login, "newerpassword456"); err != nil {
+		t.Fatalf("newer password should remain valid: %v", err)
+	}
+	if _, err := core.VerifyPassword(ctx, user.Login, "staleoverwrite789"); err == nil {
+		t.Fatal("stale password overwrite should not be valid")
+	}
+}
+
 func TestChattoCore_SetPasswordHash_RevokesBearerTokens(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)

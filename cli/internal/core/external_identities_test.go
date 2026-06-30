@@ -168,6 +168,43 @@ func TestChattoCore_PendingExternalIdentityLinkStart(t *testing.T) {
 	}
 }
 
+func TestChattoCore_ConfirmPendingExternalIdentityLinkRejectsDeletedUser(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	user, err := core.CreateUser(ctx, "system", "deleted-link-user", "Deleted Link User", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	token, err := core.CreatePendingExternalIdentityLinkFlow(ctx, PendingExternalIdentityFlow{
+		ProviderID:   "github-main",
+		ProviderType: "github",
+		Issuer:       "github-main",
+		Subject:      "deleted-subject",
+	}, user.Id)
+	if err != nil {
+		t.Fatalf("CreatePendingExternalIdentityLinkFlow: %v", err)
+	}
+	flow, err := core.GetPendingExternalIdentityFlow(ctx, token)
+	if err != nil {
+		t.Fatalf("GetPendingExternalIdentityFlow: %v", err)
+	}
+	if err := core.DeleteUser(ctx, user.Id, user.Id); err != nil {
+		t.Fatalf("DeleteUser: %v", err)
+	}
+
+	if _, err := core.ConfirmPendingExternalIdentityLink(ctx, flow); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("ConfirmPendingExternalIdentityLink deleted user error = %v, want ErrNotFound", err)
+	}
+	found, err := core.GetUserByExternalIdentity(ctx, "github-main", "deleted-subject")
+	if err != nil {
+		t.Fatalf("GetUserByExternalIdentity after rejected link: %v", err)
+	}
+	if found != nil {
+		t.Fatalf("GetUserByExternalIdentity after rejected link = %+v, want nil", found)
+	}
+}
+
 func TestChattoCore_CreateUserForExternalIdentityIgnoresProviderAvatarFailure(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)

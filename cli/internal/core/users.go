@@ -350,7 +350,9 @@ func (c *ChattoCore) SetOwnPassword(ctx context.Context, userID, currentPassword
 	if err := c.VerifyUserPassword(ctx, userID, currentPassword); err != nil {
 		return err
 	}
-	return c.SetPasswordHash(ctx, userID, newPassword)
+	return c.setPasswordHash(ctx, userID, userID, newPassword, true, func() error {
+		return c.verifyUserPasswordCurrent(userID, currentPassword)
+	})
 }
 
 // AdminSetUserPassword sets a password for the target account without requiring
@@ -391,6 +393,10 @@ func (c *ChattoCore) VerifyUserPassword(ctx context.Context, userID, password st
 	if err := c.userModel.waitForUsersCurrent(ctx, "user password", events.UserAggregate(userID).AllEventsFilter()); err != nil {
 		return err
 	}
+	return c.verifyUserPasswordCurrent(userID, password)
+}
+
+func (c *ChattoCore) verifyUserPasswordCurrent(userID, password string) error {
 	if _, ok := c.Users.Get(userID); !ok {
 		return ErrNotFound
 	}
