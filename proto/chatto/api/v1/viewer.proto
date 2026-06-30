@@ -52,7 +52,7 @@ message ViewerCapabilities {
   bool can_start_dms = 2;
   // Whether the user may view the admin users screen.
   bool can_admin_view_users = 3;
-  // Whether the user may perform account lifecycle and recovery actions for users.
+  // Whether the user may assign and revoke roles for users.
   bool can_admin_manage_users = 4;
   // Whether the user may view role administration.
   bool can_admin_view_roles = 5;
@@ -68,6 +68,8 @@ message ViewerCapabilities {
   bool can_manage_user_permissions = 10;
   // Whether the user may assign and revoke roles for users.
   bool can_assign_roles = 11;
+  // Whether the user may perform account lifecycle and recovery actions for users.
+  bool can_admin_manage_accounts = 12;
 }
 
 // Server-wide notification preference for the authenticated user.

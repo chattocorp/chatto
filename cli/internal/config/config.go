@@ -108,12 +108,12 @@ type DiagnosticsConfig struct {
 type OperatorAPIConfig struct {
 	Enabled    bool   `toml:"enabled" env:"CHATTO_OPERATOR_API_ENABLED" comment:"Enable the local operator API Unix socket. Default: false."`
 	SocketPath string `toml:"socket_path,commented" env:"CHATTO_OPERATOR_API_SOCKET_PATH" comment:"Unix socket path for local operator commands. Default: /tmp/chatto/operator.sock."`
-	SocketMode string `toml:"socket_mode,commented" env:"CHATTO_OPERATOR_API_SOCKET_MODE" comment:"Unix socket permissions in octal. Default: 0660."`
+	SocketMode string `toml:"socket_mode,omitempty" env:"CHATTO_OPERATOR_API_SOCKET_MODE"`
 }
 
 const (
 	defaultOperatorAPISocketPath = "/tmp/chatto/operator.sock"
-	defaultOperatorAPISocketMode = os.FileMode(0o660)
+	OperatorAPISocketMode        = os.FileMode(0o600)
 )
 
 // SocketPathOrDefault returns the configured operator API socket path.
@@ -122,22 +122,6 @@ func (c OperatorAPIConfig) SocketPathOrDefault() string {
 		return defaultOperatorAPISocketPath
 	}
 	return strings.TrimSpace(c.SocketPath)
-}
-
-// SocketModeOrDefault returns the configured operator API socket mode.
-func (c OperatorAPIConfig) SocketModeOrDefault() (os.FileMode, error) {
-	raw := strings.TrimSpace(c.SocketMode)
-	if raw == "" {
-		return defaultOperatorAPISocketMode, nil
-	}
-	mode, err := strconv.ParseUint(raw, 8, 32)
-	if err != nil {
-		return 0, fmt.Errorf("operator_api.socket_mode must be an octal mode such as 0660")
-	}
-	if mode > 0o777 {
-		return 0, fmt.Errorf("operator_api.socket_mode must not set bits outside 0777")
-	}
-	return os.FileMode(mode), nil
 }
 
 // BindAddressOrDefault returns the metrics bind address, defaulting to localhost.
@@ -954,8 +938,8 @@ func (c *ChattoConfig) Validate() error {
 		if strings.TrimSpace(c.OperatorAPI.SocketPathOrDefault()) == "" {
 			errs = append(errs, "operator_api.socket_path is required when operator_api.enabled is true")
 		}
-		if _, err := c.OperatorAPI.SocketModeOrDefault(); err != nil {
-			errs = append(errs, err.Error())
+		if strings.TrimSpace(c.OperatorAPI.SocketMode) != "" {
+			errs = append(errs, "operator_api.socket_mode is no longer supported; operator API sockets always use mode 0600")
 		}
 	}
 

@@ -116,7 +116,7 @@
         canManageRooms: server.viewerCanManageRooms,
         canManageRoles: viewer.canAdminManageRoles,
         canAssignRoles: viewer.canAssignRoles,
-        canManageUserAccounts: viewer.canAdminManageUsers,
+        canManageUserAccounts: viewer.canAdminManageAccounts,
         canManageUserPermissions: viewer.canManageUserPermissions
       };
     } catch (error) {

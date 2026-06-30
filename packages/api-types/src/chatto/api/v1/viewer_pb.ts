@@ -201,7 +201,7 @@ export class ViewerCapabilities extends Message<ViewerCapabilities> {
   canAdminViewUsers = false;
 
   /**
-   * Whether the user may perform account lifecycle and recovery actions for users.
+   * Whether the user may assign and revoke roles for users.
    *
    * @generated from field: bool can_admin_manage_users = 4;
    */
@@ -256,6 +256,13 @@ export class ViewerCapabilities extends Message<ViewerCapabilities> {
    */
   canAssignRoles = false;
 
+  /**
+   * Whether the user may perform account lifecycle and recovery actions for users.
+   *
+   * @generated from field: bool can_admin_manage_accounts = 12;
+   */
+  canAdminManageAccounts = false;
+
   constructor(data?: PartialMessage<ViewerCapabilities>) {
     super();
     proto3.util.initPartial(data, this);
@@ -275,6 +282,7 @@ export class ViewerCapabilities extends Message<ViewerCapabilities> {
     { no: 9, name: "has_unread_followed_threads", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 10, name: "can_manage_user_permissions", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 11, name: "can_assign_roles", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 12, name: "can_admin_manage_accounts", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ViewerCapabilities {

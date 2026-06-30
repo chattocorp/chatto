@@ -10,11 +10,11 @@ The Operator API gives server operators a local, root-equivalent user administra
 ## Behavior
 
 - Operators opt in with the top-level `operator_api` configuration section. The Operator API is disabled by default.
-- When enabled, Chatto serves `chatto.operator.v1` on a Unix socket. The default path is `/tmp/chatto/operator.sock`, with mode `0660`.
+- When enabled, Chatto serves `chatto.operator.v1` on a Unix socket. The default path is `/tmp/chatto/operator.sock`; the socket mode is fixed at `0600`.
 - The operator socket serves only the Operator API. It does not serve `chatto.api.v1` or `chatto.admin.v1`.
 - The public web listener does not serve `chatto.operator.v1`.
 - There are no operator bearer tokens, CIDR allow-lists, sessions, cookies, or CORS policy in this local-socket model. Socket filesystem permissions are the access boundary.
-- The server refuses to start if an existing operator socket has a different configured mode. A stale existing socket with the expected mode may be removed and replaced.
+- The server refuses to start if the operator socket parent directory is not private to the Chatto process user or if an existing operator socket has a mode other than `0600`. A stale existing socket with mode `0600` may be removed and replaced.
 - Operator actions are attributed to the system actor. They are not tied to a Chatto user account, cookie session, bearer session, or RBAC role.
 - The user-administration surface lives in `chatto.operator.v1.OperatorUserService` and can list and look up users, create users, update login/display name, set passwords, delete users, add verified email addresses, assign roles, and revoke roles.
 - The CLI groups these commands under `chatto operator user ...`, for example `chatto operator user create`, `chatto operator user set-password`, and `chatto operator user role add`.

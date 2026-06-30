@@ -102,7 +102,6 @@ CHATTO_LOG_LEVEL=info
 CHATTO_LOG_FORMAT=json
 CHATTO_OPERATOR_API_ENABLED=true
 CHATTO_OPERATOR_API_SOCKET_PATH=/tmp/chatto/operator.sock
-CHATTO_OPERATOR_API_SOCKET_MODE=0600
 
 # SMTP is required for direct email/password registration, email verification,
 # and password reset. Replace these placeholders with your provider settings.

@@ -320,12 +320,9 @@ func metricsServerURL(addr, path string) string {
 
 func (s *HTTPServer) prepareOperatorAPISocket() (net.Listener, os.FileInfo, error) {
 	socketPath := s.config.OperatorAPI.SocketPathOrDefault()
-	socketMode, err := s.config.OperatorAPI.SocketModeOrDefault()
-	if err != nil {
-		return nil, nil, err
-	}
+	socketMode := config.OperatorAPISocketMode
 	parent := filepath.Dir(socketPath)
-	if err := os.MkdirAll(parent, 0o770); err != nil {
+	if err := os.MkdirAll(parent, 0o700); err != nil {
 		return nil, nil, fmt.Errorf("create operator API socket directory %s: %w", parent, err)
 	}
 	if err := validateOperatorAPISocketParent(parent); err != nil {
@@ -385,7 +382,7 @@ func validateOperatorAPISocketParent(parent string) error {
 	if mode&os.ModeSymlink != 0 || !mode.IsDir() {
 		return fmt.Errorf("operator API socket directory %s is not a directory", parent)
 	}
-	uid, gid, ok := fileOwnerIDs(info)
+	uid, _, ok := fileOwnerIDs(info)
 	if !ok {
 		return fmt.Errorf("inspect owner of operator API socket directory %s", parent)
 	}
@@ -396,11 +393,8 @@ func validateOperatorAPISocketParent(parent string) error {
 		return fmt.Errorf("operator API socket directory %s has unsafe mode bits %s", parent, mode.String())
 	}
 	perm := mode.Perm()
-	if perm&0o007 != 0 {
-		return fmt.Errorf("operator API socket directory %s must not be accessible by other users; mode is %04o", parent, perm)
-	}
-	if perm&0o070 != 0 && gid != uint32(os.Getegid()) {
-		return fmt.Errorf("operator API socket directory %s is group-accessible by gid %d, want gid %d", parent, gid, os.Getegid())
+	if perm&0o077 != 0 {
+		return fmt.Errorf("operator API socket directory %s must not be accessible by group or other users; mode is %04o", parent, perm)
 	}
 	return nil
 }

@@ -138,11 +138,7 @@ The exporter exposes deployment-wide Chatto metrics. Run it as `chatto exporter`
 </EnvVar>
 
 <EnvVar name="CHATTO_OPERATOR_API_SOCKET_PATH" toml="operator_api.socket_path" default="/tmp/chatto/operator.sock">
-  Unix socket path for local operator commands. Docker users should normally run `chatto operator ...` inside the running container with `docker exec`.
-</EnvVar>
-
-<EnvVar name="CHATTO_OPERATOR_API_SOCKET_MODE" toml="operator_api.socket_mode" default="0660">
-  Unix socket permissions in octal. Chatto refuses to start if an existing operator socket has a different mode.
+  Unix socket path for local operator commands. The socket mode is fixed at `0600`; Docker users should normally run `chatto operator ...` inside the running container with `docker exec`.
 </EnvVar>
 
 ## Core

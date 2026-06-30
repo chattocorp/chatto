@@ -190,10 +190,9 @@ The default socket path is Docker-friendly:
 [operator_api]
 enabled = true
 socket_path = "/tmp/chatto/operator.sock"
-socket_mode = "0660"
 ```
 
-Chatto serves only `chatto.operator.v1` on the operator socket, and the public web listener never mounts the Operator API. The inverse is also true: the operator socket does not serve public or admin ConnectRPC services. This is intentional defense in depth, so normal public reverse-proxy routing for Chatto's web UI and public APIs cannot accidentally expose root-grade bootstrap access.
+Chatto serves only `chatto.operator.v1` on the operator socket, and the public web listener never mounts the Operator API. The inverse is also true: the operator socket does not serve public or admin ConnectRPC services. The socket mode is fixed at `0600`, and the parent directory must be private to the Chatto process user. This is intentional defense in depth, so normal public reverse-proxy routing for Chatto's web UI and public APIs cannot accidentally expose root-grade bootstrap access.
 
 The `chatto operator ...` CLI reads the socket path from `--operator-socket`, `CHATTO_OPERATOR_API_SOCKET_PATH`, or `chatto.toml`, falling back to `/tmp/chatto/operator.sock`. In Docker, run the command inside the container with `docker exec` or mount the socket path into a trusted sidecar/container with matching filesystem permissions.
 

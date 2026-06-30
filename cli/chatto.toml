@@ -14,7 +14,6 @@ cookie_encryption_secret = 'f61dd5e478f0c494bd7cc1d6136d8fd9b1c9cde38677f5c3a04f
 [operator_api]
 enabled = true
 socket_path = './data/operator.sock'
-socket_mode = '0660'
 
 [metrics]
 enabled = true

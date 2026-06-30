@@ -1199,6 +1199,9 @@ func TestViewerServiceGetViewerReturnsSelfScopedState(t *testing.T) {
 	if err := env.core.SetRoomNotificationLevel(env.ctx, env.viewer.Id, room.Id, corev1.NotificationLevel_NOTIFICATION_LEVEL_ALL_MESSAGES); err != nil {
 		t.Fatalf("SetRoomNotificationLevel: %v", err)
 	}
+	if err := env.core.GrantServerPermission(env.ctx, core.SystemActorID, core.RoleEveryone, core.PermRoleAssign); err != nil {
+		t.Fatalf("GrantServerPermission role.assign: %v", err)
+	}
 
 	resp, err := env.viewerService.GetViewer(ctx, connect.NewRequest(&apiv1.GetViewerRequest{}))
 	if err != nil {
@@ -1233,6 +1236,9 @@ func TestViewerServiceGetViewerReturnsSelfScopedState(t *testing.T) {
 	}
 	if !foundRoomPref {
 		t.Fatalf("room notification preferences did not include %s: %+v", room.Id, resp.Msg.GetRoomNotificationPreferences())
+	}
+	if caps := resp.Msg.GetCapabilities(); !caps.GetCanAdminManageUsers() || !caps.GetCanAssignRoles() || caps.GetCanAdminManageAccounts() {
+		t.Fatalf("viewer capabilities role/account split = manage_users:%v assign_roles:%v manage_accounts:%v, want true/true/false", caps.GetCanAdminManageUsers(), caps.GetCanAssignRoles(), caps.GetCanAdminManageAccounts())
 	}
 }
 

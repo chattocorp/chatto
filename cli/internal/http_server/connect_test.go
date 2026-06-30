@@ -97,12 +97,11 @@ func newOperatorAPITestServer(t *testing.T, s *HTTPServer) *httptest.Server {
 }
 
 func TestPrepareOperatorAPISocket(t *testing.T) {
-	t.Run("creates socket with configured mode", func(t *testing.T) {
+	t.Run("creates socket with fixed mode", func(t *testing.T) {
 		socketPath := shortTestSocketPath(t)
 		s := &HTTPServer{config: config.ChattoConfig{OperatorAPI: config.OperatorAPIConfig{
 			Enabled:    true,
 			SocketPath: socketPath,
-			SocketMode: "0600",
 		}}}
 		listener, info, err := s.prepareOperatorAPISocket()
 		if err != nil {
@@ -133,7 +132,6 @@ func TestPrepareOperatorAPISocket(t *testing.T) {
 		s := &HTTPServer{config: config.ChattoConfig{OperatorAPI: config.OperatorAPIConfig{
 			Enabled:    true,
 			SocketPath: socketPath,
-			SocketMode: "0600",
 		}}}
 		if _, _, err := s.prepareOperatorAPISocket(); err == nil || !strings.Contains(err.Error(), "has mode 0666, want 0600") {
 			t.Fatalf("prepareOperatorAPISocket() error = %v, want mode mismatch", err)
@@ -156,10 +154,24 @@ func TestPrepareOperatorAPISocket(t *testing.T) {
 		s := &HTTPServer{config: config.ChattoConfig{OperatorAPI: config.OperatorAPIConfig{
 			Enabled:    true,
 			SocketPath: socketPath,
-			SocketMode: "0600",
 		}}}
 		if _, _, err := s.prepareOperatorAPISocket(); err == nil || !strings.Contains(err.Error(), "already in use") {
 			t.Fatalf("prepareOperatorAPISocket() error = %v, want already in use", err)
+		}
+	})
+
+	t.Run("rejects parent directory accessible by group", func(t *testing.T) {
+		parent := shortTestSocketParent(t)
+		if err := os.Chmod(parent, 0o770); err != nil {
+			t.Fatalf("chmod unsafe parent: %v", err)
+		}
+		socketPath := parent + "/operator.sock"
+		s := &HTTPServer{config: config.ChattoConfig{OperatorAPI: config.OperatorAPIConfig{
+			Enabled:    true,
+			SocketPath: socketPath,
+		}}}
+		if _, _, err := s.prepareOperatorAPISocket(); err == nil || !strings.Contains(err.Error(), "must not be accessible by group or other users") {
+			t.Fatalf("prepareOperatorAPISocket() error = %v, want unsafe parent mode", err)
 		}
 	})
 
@@ -172,9 +184,8 @@ func TestPrepareOperatorAPISocket(t *testing.T) {
 		s := &HTTPServer{config: config.ChattoConfig{OperatorAPI: config.OperatorAPIConfig{
 			Enabled:    true,
 			SocketPath: socketPath,
-			SocketMode: "0600",
 		}}}
-		if _, _, err := s.prepareOperatorAPISocket(); err == nil || !strings.Contains(err.Error(), "must not be accessible by other users") {
+		if _, _, err := s.prepareOperatorAPISocket(); err == nil || !strings.Contains(err.Error(), "must not be accessible by group or other users") {
 			t.Fatalf("prepareOperatorAPISocket() error = %v, want unsafe parent mode", err)
 		}
 	})
@@ -195,7 +206,6 @@ func TestPrepareOperatorAPISocket(t *testing.T) {
 		s := &HTTPServer{config: config.ChattoConfig{OperatorAPI: config.OperatorAPIConfig{
 			Enabled:    true,
 			SocketPath: socketPath,
-			SocketMode: "0600",
 		}}}
 		if _, _, err := s.prepareOperatorAPISocket(); err == nil || !strings.Contains(err.Error(), "unsafe mode bits") {
 			t.Fatalf("prepareOperatorAPISocket() error = %v, want unsafe parent mode bits", err)

@@ -11,6 +11,7 @@ export type ViewerData = {
   canStartDMs: boolean;
   canAdminViewUsers: boolean;
   canAdminManageUsers: boolean;
+  canAdminManageAccounts: boolean;
   canAssignRoles: boolean;
   canAdminViewRoles: boolean;
   canAdminManageRoles: boolean;
@@ -33,6 +34,7 @@ const EMPTY_PERMISSIONS: ServerPermissions = {
   canStartDMs: false,
   canAdminViewUsers: false,
   canAdminManageUsers: false,
+  canAdminManageAccounts: false,
   canAssignRoles: false,
   canAdminViewRoles: false,
   canAdminManageRoles: false,
@@ -71,7 +73,7 @@ export function getServerPermissions(serverId?: string): { readonly current: Ser
 const PERMISSION_TO_FIELD: Record<string, keyof ViewerData> = {
   'admin.view-users': 'canAdminViewUsers',
   'role.assign': 'canAssignRoles',
-  'user.manage-accounts': 'canAdminManageUsers',
+  'user.manage-accounts': 'canAdminManageAccounts',
   'role.manage': 'canAdminManageRoles',
   'admin.view-system': 'canAdminViewSystem',
   'admin.view-audit': 'canAdminViewAudit'

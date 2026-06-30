@@ -147,7 +147,6 @@ func TestReadConfig_OperatorAPIFromEnv(t *testing.T) {
 	t.Setenv("CHATTO_CORE_ASSETS_SIGNING_SECRET", "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff")
 	t.Setenv("CHATTO_OPERATOR_API_ENABLED", "true")
 	t.Setenv("CHATTO_OPERATOR_API_SOCKET_PATH", "/tmp/chatto-test/operator.sock")
-	t.Setenv("CHATTO_OPERATOR_API_SOCKET_MODE", "0600")
 
 	cfg, err := ReadConfig("")
 	if err != nil {
@@ -158,13 +157,6 @@ func TestReadConfig_OperatorAPIFromEnv(t *testing.T) {
 	}
 	if got := cfg.OperatorAPI.SocketPathOrDefault(); got != "/tmp/chatto-test/operator.sock" {
 		t.Fatalf("OperatorAPI.SocketPathOrDefault() = %q", got)
-	}
-	mode, err := cfg.OperatorAPI.SocketModeOrDefault()
-	if err != nil {
-		t.Fatalf("OperatorAPI.SocketModeOrDefault(): %v", err)
-	}
-	if mode != 0o600 {
-		t.Fatalf("OperatorAPI.SocketModeOrDefault() = %04o, want 0600", mode)
 	}
 }
 
@@ -1182,13 +1174,6 @@ func TestChattoConfig_Validate_OperatorAPI(t *testing.T) {
 		if got := operatorAPI.SocketPathOrDefault(); got != "/tmp/chatto/operator.sock" {
 			t.Fatalf("SocketPathOrDefault() = %q", got)
 		}
-		mode, err := operatorAPI.SocketModeOrDefault()
-		if err != nil {
-			t.Fatalf("SocketModeOrDefault(): %v", err)
-		}
-		if mode != 0o660 {
-			t.Fatalf("SocketModeOrDefault() = %04o, want 0660", mode)
-		}
 	})
 
 	t.Run("enabled accepts defaults", func(t *testing.T) {
@@ -1200,23 +1185,13 @@ func TestChattoConfig_Validate_OperatorAPI(t *testing.T) {
 		}
 	})
 
-	t.Run("validates socket mode", func(t *testing.T) {
+	t.Run("rejects configured socket mode", func(t *testing.T) {
 		cfg := validTestConfig()
 		cfg.OperatorAPI.Enabled = true
-		cfg.OperatorAPI.SocketMode = "bad-mode"
+		cfg.OperatorAPI.SocketMode = "0600"
 		err := cfg.Validate()
-		if err == nil || !strings.Contains(err.Error(), "operator_api.socket_mode must be an octal mode") {
-			t.Fatalf("Validate() error = %v, want invalid socket mode error", err)
-		}
-	})
-
-	t.Run("rejects mode bits outside permissions", func(t *testing.T) {
-		cfg := validTestConfig()
-		cfg.OperatorAPI.Enabled = true
-		cfg.OperatorAPI.SocketMode = "1777"
-		err := cfg.Validate()
-		if err == nil || !strings.Contains(err.Error(), "operator_api.socket_mode must not set bits outside 0777") {
-			t.Fatalf("Validate() error = %v, want invalid socket mode bits error", err)
+		if err == nil || !strings.Contains(err.Error(), "operator_api.socket_mode is no longer supported") {
+			t.Fatalf("Validate() error = %v, want unsupported socket mode error", err)
 		}
 	})
 }
