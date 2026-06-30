@@ -3,6 +3,24 @@
 All notable changes to Chatto. Maintained by release-please from the
 conventional-commit messages on `main` — do not edit by hand.
 
+## [0.4.0-beta.7](https://github.com/chattocorp/chatto/compare/v0.4.0-beta.6...v0.4.0-beta.7) (2026-06-30)
+
+
+### ⚠ BREAKING CHANGES
+
+* **operator:** add socket-backed operator user administration ([#1164](https://github.com/chattocorp/chatto/issues/1164))
+
+### Features
+
+* **auth:** add SSO account creation and linking ([#1167](https://github.com/chattocorp/chatto/issues/1167)) ([61723e9](https://github.com/chattocorp/chatto/commit/61723e9e3e6c6f8802558c8a11acab31444c7efb))
+* **operator:** add socket-backed operator user administration ([#1164](https://github.com/chattocorp/chatto/issues/1164)) ([6209795](https://github.com/chattocorp/chatto/commit/6209795767fa38e2031bfb77e61b3bcb034a4b77))
+
+
+### Bug Fixes
+
+* **dockercompose:** enable LiveKit TURN relay ([#1190](https://github.com/chattocorp/chatto/issues/1190)) ([51eb5e7](https://github.com/chattocorp/chatto/commit/51eb5e799f4ebabb395c9f5073219d4015b2ac10))
+* **pwa:** reduce service worker reload churn ([#1187](https://github.com/chattocorp/chatto/issues/1187)) ([5489e47](https://github.com/chattocorp/chatto/commit/5489e4742cf577f50295dc8f29d30ed64841245b))
+
 ## [0.4.0-beta.6](https://github.com/chattocorp/chatto/compare/v0.4.0-beta.5...v0.4.0-beta.6) (2026-06-29)
 
 
