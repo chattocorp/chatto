@@ -1,6 +1,15 @@
 import { test, expect } from './setup';
 import { createAndLoginTestUser } from './fixtures/testUser';
 import * as routes from './routes';
+import { TIMEOUTS } from './constants';
+import type { Page } from '@playwright/test';
+
+async function expectLoggedOutRedirect(page: Page): Promise<void> {
+  await expect(page).toHaveURL(
+    (url) => url.pathname === routes.root || url.pathname === routes.login,
+    { timeout: TIMEOUTS.REALTIME_EVENT }
+  );
+}
 
 test.describe('External identity confirmation flows', () => {
   test.use({
@@ -121,7 +130,7 @@ test.describe('External identity confirmation flows', () => {
     await expect(page.getByRole('dialog', { name: 'Disconnect provider' })).toBeVisible();
     await expect(page.getByText('Disconnect GitHub from this account?')).toBeVisible();
     await page.getByRole('dialog').getByRole('button', { name: 'Disconnect' }).click();
-    await expect(githubRow.getByText('Not linked')).toBeVisible();
+    await expectLoggedOutRedirect(page);
   });
 
   test('can leave create confirmation to sign in without cancelling the pending flow', async ({
@@ -202,8 +211,7 @@ test.describe('External identity confirmation flows', () => {
     await expect(githubRow.getByRole('button', { name: 'Link' })).toBeDisabled();
     releaseDisconnectRequest?.();
 
-    await expect(discordRow.getByText('Not linked')).toBeVisible();
-    await expect(discordRow.getByRole('button', { name: 'Link' })).toBeVisible();
+    await expectLoggedOutRedirect(page);
   });
 
   test('disconnects a linked identity for an unconfigured provider', async ({ page, authPage }) => {
@@ -229,7 +237,7 @@ test.describe('External identity confirmation flows', () => {
     await expect(page.getByRole('dialog', { name: 'Disconnect provider' })).toBeVisible();
     await expect(page.getByText('Disconnect retired-provider from this account?')).toBeVisible();
     await page.getByRole('dialog').getByRole('button', { name: 'Disconnect' }).click();
-    await expect(retiredRow).toBeHidden();
+    await expectLoggedOutRedirect(page);
   });
 
   test('confirms a link token through the public flow service', async ({ page, authPage }) => {

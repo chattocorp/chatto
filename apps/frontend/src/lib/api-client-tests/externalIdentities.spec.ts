@@ -207,9 +207,9 @@ describe('createExternalIdentityAPI', () => {
       bearerToken: 'token'
     });
 
-    await expect(api.disconnect('abc123')).resolves.toBeUndefined();
+    await expect(api.disconnect('abc123', 'current-password')).resolves.toBeUndefined();
     expect(mocks.disconnectExternalIdentity).toHaveBeenCalledWith(
-      { subjectHash: 'abc123' },
+      { subjectHash: 'abc123', currentPassword: 'current-password' },
       { headers: { Authorization: 'Bearer token' } }
     );
   });

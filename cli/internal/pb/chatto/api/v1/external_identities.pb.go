@@ -1062,9 +1062,12 @@ func (x *LinkExternalIdentityResponse) GetLinkedIdentity() *LinkedExternalIdenti
 type DisconnectExternalIdentityRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Stable one-way subject hash of the linked identity to disconnect.
-	SubjectHash   string `protobuf:"bytes,1,opt,name=subject_hash,json=subjectHash,proto3" json:"subject_hash,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	SubjectHash string `protobuf:"bytes,1,opt,name=subject_hash,json=subjectHash,proto3" json:"subject_hash,omitempty"`
+	// Current password proof for accounts with a password when the active
+	// runtime credential is no longer fresh.
+	CurrentPassword string `protobuf:"bytes,2,opt,name=current_password,json=currentPassword,proto3" json:"current_password,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *DisconnectExternalIdentityRequest) Reset() {
@@ -1100,6 +1103,13 @@ func (*DisconnectExternalIdentityRequest) Descriptor() ([]byte, []int) {
 func (x *DisconnectExternalIdentityRequest) GetSubjectHash() string {
 	if x != nil {
 		return x.SubjectHash
+	}
+	return ""
+}
+
+func (x *DisconnectExternalIdentityRequest) GetCurrentPassword() string {
+	if x != nil {
+		return x.CurrentPassword
 	}
 	return ""
 }
@@ -1214,9 +1224,10 @@ const file_chatto_api_v1_external_identities_proto_rawDesc = "" +
 	"\x1bLinkExternalIdentityRequest\x12\x1d\n" +
 	"\x05token\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05token\"n\n" +
 	"\x1cLinkExternalIdentityResponse\x12N\n" +
-	"\x0flinked_identity\x18\x01 \x01(\v2%.chatto.api.v1.LinkedExternalIdentityR\x0elinkedIdentity\"O\n" +
+	"\x0flinked_identity\x18\x01 \x01(\v2%.chatto.api.v1.LinkedExternalIdentityR\x0elinkedIdentity\"z\n" +
 	"!DisconnectExternalIdentityRequest\x12*\n" +
-	"\fsubject_hash\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\vsubjectHash\"H\n" +
+	"\fsubject_hash\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\vsubjectHash\x12)\n" +
+	"\x10current_password\x18\x02 \x01(\tR\x0fcurrentPassword\"H\n" +
 	"\"DisconnectExternalIdentityResponse\x12\"\n" +
 	"\fdisconnected\x18\x01 \x01(\bR\fdisconnected*\xa5\x01\n" +
 	"\x18ExternalIdentityFlowKind\x12+\n" +

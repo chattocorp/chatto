@@ -365,5 +365,14 @@ func (c *ChattoCore) DisconnectExternalIdentity(ctx context.Context, userID, sub
 		}
 		return nil
 	})
-	return err
+	if err != nil {
+		return err
+	}
+	if _, err := c.RevokeRuntimeCredentialsForUser(ctx, userID, "external_identity_disconnected"); err != nil {
+		c.logger.Warn("Failed to clean up runtime credentials after external identity disconnect", "user_id", userID, "error", err)
+	}
+	if err := c.PublishSessionTerminated(ctx, userID, "external_identity_disconnected"); err != nil {
+		c.logger.Warn("Failed to publish SessionTerminatedEvent", "user_id", userID, "reason", "external_identity_disconnected", "error", err)
+	}
+	return nil
 }

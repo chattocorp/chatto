@@ -152,9 +152,9 @@ export function createExternalIdentityAPI(config: ExternalIdentityAPIConfig) {
       }
     },
 
-    async disconnect(subjectHash: string): Promise<void> {
+    async disconnect(subjectHash: string, currentPassword?: string): Promise<void> {
       try {
-        await client.disconnectExternalIdentity({ subjectHash }, { headers: headers() });
+        await client.disconnectExternalIdentity({ subjectHash, currentPassword }, { headers: headers() });
       } catch (err) {
         return handleAuthError(err);
       }

@@ -98,7 +98,7 @@ func (p *UserProjection) Apply(event *corev1.Event, seq uint64) error {
 	case *corev1.Event_UserExternalIdentityLinked:
 		p.applyExternalIdentityLinked(e.UserExternalIdentityLinked)
 	case *corev1.Event_UserExternalIdentityUnlinked:
-		p.applyExternalIdentityUnlinked(e.UserExternalIdentityUnlinked)
+		p.applyExternalIdentityUnlinked(e.UserExternalIdentityUnlinked, seq)
 	case *corev1.Event_UserServerPreferencesChanged:
 		p.applyServerPreferencesChanged(e.UserServerPreferencesChanged)
 	case *corev1.Event_UserLoginCooldownStarted:
@@ -355,7 +355,7 @@ func (p *UserProjection) applyExternalIdentityLinked(e *corev1.UserExternalIdent
 	}
 }
 
-func (p *UserProjection) applyExternalIdentityUnlinked(e *corev1.UserExternalIdentityUnlinkedEvent) {
+func (p *UserProjection) applyExternalIdentityUnlinked(e *corev1.UserExternalIdentityUnlinkedEvent, seq uint64) {
 	if e == nil || e.GetUserId() == "" || e.GetSubjectHash() == "" {
 		return
 	}
@@ -364,6 +364,7 @@ func (p *UserProjection) applyExternalIdentityUnlinked(e *corev1.UserExternalIde
 	}
 	u := p.ensureUserLocked(e.GetUserId())
 	delete(u.externalIdentities, e.GetSubjectHash())
+	u.authGeneration = seq
 }
 
 func (p *UserProjection) applyOAuthConsentGranted(e *corev1.OAuthConsentGrantedEvent) {

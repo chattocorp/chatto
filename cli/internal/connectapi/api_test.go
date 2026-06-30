@@ -403,8 +403,18 @@ func TestExternalIdentityServicesCreateAndLink(t *testing.T) {
 	if linked.Msg.LinkedIdentity.GetProviderId() != "discord-main" || linked.Msg.LinkedIdentity.GetSubjectHash() == "" {
 		t.Fatalf("linked identity = %+v", linked.Msg.LinkedIdentity)
 	}
-	disconnected, err := env.identity.DisconnectExternalIdentity(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.DisconnectExternalIdentityRequest{
+	staleViewerToken, err := env.core.CreateAuthTokenWithSource(env.ctx, env.viewer.Id, "oauth_code_exchange")
+	if err != nil {
+		t.Fatalf("CreateAuthTokenWithSource stale viewer: %v", err)
+	}
+	viewerCredentialCtx := withBearerCredential(env.ctx, env.viewer, staleViewerToken)
+	_, err = env.identity.DisconnectExternalIdentity(viewerCredentialCtx, connect.NewRequest(&apiv1.DisconnectExternalIdentityRequest{
 		SubjectHash: linked.Msg.LinkedIdentity.GetSubjectHash(),
+	}))
+	requireConnectCode(t, err, connect.CodeFailedPrecondition)
+	disconnected, err := env.identity.DisconnectExternalIdentity(viewerCredentialCtx, connect.NewRequest(&apiv1.DisconnectExternalIdentityRequest{
+		SubjectHash:     linked.Msg.LinkedIdentity.GetSubjectHash(),
+		CurrentPassword: "password",
 	}))
 	if err != nil {
 		t.Fatalf("DisconnectExternalIdentity: %v", err)

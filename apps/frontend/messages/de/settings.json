@@ -306,6 +306,7 @@
         "disconnecting": "Wird getrennt...",
         "disconnect_failed": "Anmeldeanbieter konnte nicht getrennt werden",
         "disconnect_last_method": "Füge ein Passwort oder eine weitere Anmeldemethode hinzu, bevor du diesen Anbieter trennst.",
+        "disconnect_fresh_auth_required": "Melde dich erneut an, bevor du diesen Anbieter trennst.",
         "disconnect_modal": {
           "title": "Anbieter trennen",
           "body": "{provider} von diesem Konto trennen?",
@@ -319,6 +320,11 @@
           "title": "Passwort bestätigen",
           "body": "Gib dein aktuelles Passwort ein, bevor du {provider} verknüpfst.",
           "action": "Weiter"
+        },
+        "disconnect_fresh_auth_modal": {
+          "title": "Passwort bestätigen",
+          "body": "Gib dein aktuelles Passwort ein, bevor du {provider} trennst.",
+          "action": "Trennen"
         }
       },
       "delete_modal": {

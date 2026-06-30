@@ -306,6 +306,7 @@
         "disconnecting": "Disconnecting...",
         "disconnect_failed": "Failed to disconnect sign-on provider",
         "disconnect_last_method": "Add a password or another sign-in method before disconnecting this provider.",
+        "disconnect_fresh_auth_required": "Sign in again before disconnecting this provider.",
         "disconnect_modal": {
           "title": "Disconnect provider",
           "body": "Disconnect {provider} from this account?",
@@ -319,6 +320,11 @@
           "title": "Confirm password",
           "body": "Enter your current password before linking {provider}.",
           "action": "Continue"
+        },
+        "disconnect_fresh_auth_modal": {
+          "title": "Confirm password",
+          "body": "Enter your current password before disconnecting {provider}.",
+          "action": "Disconnect"
         }
       },
       "delete_modal": {

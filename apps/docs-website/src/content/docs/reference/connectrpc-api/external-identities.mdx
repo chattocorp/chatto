@@ -134,6 +134,7 @@ Request to disconnect a linked provider identity from the authenticated user.
 | Field | Type | Description |
 | --- | --- | --- |
 | `subject_hash` | `string` | Stable one-way subject hash of the linked identity to disconnect. |
+| `current_password` | `string` | Current password proof for accounts with a password when the active runtime credential is no longer fresh. |
 
 
 <a id="chatto-api-v1-DisconnectExternalIdentityResponse"></a>

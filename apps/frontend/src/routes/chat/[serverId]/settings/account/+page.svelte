@@ -52,6 +52,9 @@
   let linkFreshAuthError = $state('');
   let disconnectingSubjectHash = $state('');
   let disconnectTarget = $state<{ subjectHash: string; providerLabel: string } | null>(null);
+  let disconnectFreshAuthTarget = $state<{ subjectHash: string; providerLabel: string } | null>(null);
+  let disconnectCurrentPassword = $state('');
+  let disconnectFreshAuthError = $state('');
   let blockedDisconnectProviderLabel = $state('');
   let showDisconnectBlockedModal = $state(false);
   let currentPassword = $state('');
@@ -247,14 +250,28 @@
     disconnectTarget = null;
   }
 
+  function closeDisconnectFreshAuthDialog() {
+    if (disconnectingSubjectHash) return;
+    disconnectFreshAuthTarget = null;
+    disconnectCurrentPassword = '';
+    disconnectFreshAuthError = '';
+  }
+
   function closeDisconnectBlockedModal() {
     showDisconnectBlockedModal = false;
     blockedDisconnectProviderLabel = '';
   }
 
-  async function confirmDisconnectIdentity() {
+  async function confirmDisconnectIdentity(currentPassword?: string) {
     if (!disconnectTarget) return;
-    const { subjectHash, providerLabel } = disconnectTarget;
+    await disconnectIdentity(disconnectTarget, currentPassword);
+  }
+
+  async function disconnectIdentity(
+    target: { subjectHash: string; providerLabel: string },
+    currentPassword?: string
+  ) {
+    const { subjectHash, providerLabel } = target;
     const client = connection();
     disconnectingSubjectHash = subjectHash;
     ssoError = '';
@@ -264,14 +281,25 @@
         baseUrl: client.connectBaseUrl,
         bearerToken: client.bearerToken
       });
-      await api.disconnect(subjectHash);
-      await refreshExternalIdentities();
+      await api.disconnect(subjectHash, currentPassword);
       disconnectTarget = null;
+      disconnectFreshAuthTarget = null;
+      disconnectCurrentPassword = '';
+      disconnectFreshAuthError = '';
+      serverRegistry.handleAuthenticationRequired(client.serverId ?? serverId);
     } catch (err) {
       if (err instanceof ConnectError && err.code === Code.FailedPrecondition) {
         disconnectTarget = null;
-        blockedDisconnectProviderLabel = providerLabel;
-        showDisconnectBlockedModal = true;
+        if (hasPassword) {
+          disconnectFreshAuthTarget = { subjectHash, providerLabel };
+          disconnectCurrentPassword = '';
+          disconnectFreshAuthError = '';
+        } else {
+          ssoError = m['settings.account.sso.disconnect_fresh_auth_required']();
+        }
+      } else if (currentPassword !== undefined) {
+        disconnectFreshAuthError =
+          err instanceof Error ? err.message : m['settings.account.sso.disconnect_failed']();
       } else {
         ssoError =
           err instanceof Error ? err.message : m['settings.account.sso.disconnect_failed']();
@@ -280,6 +308,16 @@
     } finally {
       disconnectingSubjectHash = '';
     }
+  }
+
+  async function confirmDisconnectFreshAuth(e: Event) {
+    e.preventDefault();
+    if (!disconnectFreshAuthTarget || !disconnectCurrentPassword) {
+      disconnectFreshAuthError = m['settings.account.password.current_required']();
+      return;
+    }
+    disconnectFreshAuthError = '';
+    await disconnectIdentity(disconnectFreshAuthTarget, disconnectCurrentPassword);
   }
 
   function disconnectButtonLabel(subjectHash: string) {
@@ -576,6 +614,52 @@
       provider: disconnectTarget.providerLabel
     })}
   </ConfirmDialog>
+{/if}
+
+{#if disconnectFreshAuthTarget}
+  <Dialog
+    visible
+    title={m['settings.account.sso.disconnect_fresh_auth_modal.title']()}
+    size="sm"
+    onclose={closeDisconnectFreshAuthDialog}
+  >
+    <form class="flex flex-col gap-4" onsubmit={confirmDisconnectFreshAuth}>
+      <p class="text-sm text-muted">
+        {m['settings.account.sso.disconnect_fresh_auth_modal.body']({
+          provider: disconnectFreshAuthTarget.providerLabel
+        })}
+      </p>
+      <TextInput
+        id="sso-disconnect-current-password"
+        label={m['settings.account.password.current_label']()}
+        type="password"
+        bind:value={disconnectCurrentPassword}
+        disabled={disconnectingSubjectHash !== ''}
+        autocomplete="current-password"
+      />
+      {#if disconnectFreshAuthError}
+        <FormError error={disconnectFreshAuthError} />
+      {/if}
+      <div class="flex flex-wrap justify-end gap-2">
+        <Button
+          type="button"
+          variant="secondary"
+          onclick={closeDisconnectFreshAuthDialog}
+          disabled={disconnectingSubjectHash !== ''}
+        >
+          {m['common.cancel']()}
+        </Button>
+        <Button
+          type="submit"
+          loading={disconnectingSubjectHash === disconnectFreshAuthTarget.subjectHash}
+          disabled={!disconnectCurrentPassword || disconnectingSubjectHash !== ''}
+        >
+          <span class="iconify uil--link-broken"></span>
+          {m['settings.account.sso.disconnect_fresh_auth_modal.action']()}
+        </Button>
+      </div>
+    </form>
+  </Dialog>
 {/if}
 
 <Dialog

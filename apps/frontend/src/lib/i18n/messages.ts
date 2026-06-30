@@ -341,6 +341,7 @@ const msg_settings_account_sso_disconnect_button = (): LocalizedString => messag
 const msg_settings_account_sso_disconnecting = (): LocalizedString => messages().settings_account_sso_disconnecting(empty());
 const msg_settings_account_sso_disconnect_failed = (): LocalizedString => messages().settings_account_sso_disconnect_failed(empty());
 const msg_settings_account_sso_disconnect_last_method = (): LocalizedString => messages().settings_account_sso_disconnect_last_method(empty());
+const msg_settings_account_sso_disconnect_fresh_auth_required = (): LocalizedString => messages().settings_account_sso_disconnect_fresh_auth_required(empty());
 const msg_settings_account_sso_disconnect_modal_title = (): LocalizedString => messages().settings_account_sso_disconnect_modal_title(empty());
 const msg_settings_account_sso_disconnect_modal_body = (
   inputs: Parameters<LocaleMessages['settings_account_sso_disconnect_modal_body']>[0]
@@ -355,6 +356,11 @@ const msg_settings_account_sso_fresh_auth_modal_body = (
   inputs: Parameters<LocaleMessages['settings_account_sso_fresh_auth_modal_body']>[0]
 ): LocalizedString => messages().settings_account_sso_fresh_auth_modal_body(inputs);
 const msg_settings_account_sso_fresh_auth_modal_action = (): LocalizedString => messages().settings_account_sso_fresh_auth_modal_action(empty());
+const msg_settings_account_sso_disconnect_fresh_auth_modal_title = (): LocalizedString => messages().settings_account_sso_disconnect_fresh_auth_modal_title(empty());
+const msg_settings_account_sso_disconnect_fresh_auth_modal_body = (
+  inputs: Parameters<LocaleMessages['settings_account_sso_disconnect_fresh_auth_modal_body']>[0]
+): LocalizedString => messages().settings_account_sso_disconnect_fresh_auth_modal_body(inputs);
+const msg_settings_account_sso_disconnect_fresh_auth_modal_action = (): LocalizedString => messages().settings_account_sso_disconnect_fresh_auth_modal_action(empty());
 const msg_settings_account_delete_modal_title = (): LocalizedString => messages().settings_account_delete_modal_title(empty());
 const msg_settings_account_delete_modal_warning_label = (): LocalizedString => messages().settings_account_delete_modal_warning_label(empty());
 const msg_settings_account_delete_modal_warning_text = (): LocalizedString => messages().settings_account_delete_modal_warning_text(empty());
@@ -1579,6 +1585,7 @@ export { msg_settings_account_sso_disconnect_button as 'settings.account.sso.dis
 export { msg_settings_account_sso_disconnecting as 'settings.account.sso.disconnecting' };
 export { msg_settings_account_sso_disconnect_failed as 'settings.account.sso.disconnect_failed' };
 export { msg_settings_account_sso_disconnect_last_method as 'settings.account.sso.disconnect_last_method' };
+export { msg_settings_account_sso_disconnect_fresh_auth_required as 'settings.account.sso.disconnect_fresh_auth_required' };
 export { msg_settings_account_sso_disconnect_modal_title as 'settings.account.sso.disconnect_modal.title' };
 export { msg_settings_account_sso_disconnect_modal_body as 'settings.account.sso.disconnect_modal.body' };
 export { msg_settings_account_sso_disconnect_modal_action as 'settings.account.sso.disconnect_modal.action' };
@@ -1587,6 +1594,9 @@ export { msg_settings_account_sso_disconnect_blocked_modal_body as 'settings.acc
 export { msg_settings_account_sso_fresh_auth_modal_title as 'settings.account.sso.fresh_auth_modal.title' };
 export { msg_settings_account_sso_fresh_auth_modal_body as 'settings.account.sso.fresh_auth_modal.body' };
 export { msg_settings_account_sso_fresh_auth_modal_action as 'settings.account.sso.fresh_auth_modal.action' };
+export { msg_settings_account_sso_disconnect_fresh_auth_modal_title as 'settings.account.sso.disconnect_fresh_auth_modal.title' };
+export { msg_settings_account_sso_disconnect_fresh_auth_modal_body as 'settings.account.sso.disconnect_fresh_auth_modal.body' };
+export { msg_settings_account_sso_disconnect_fresh_auth_modal_action as 'settings.account.sso.disconnect_fresh_auth_modal.action' };
 export { msg_settings_account_delete_modal_title as 'settings.account.delete_modal.title' };
 export { msg_settings_account_delete_modal_warning_label as 'settings.account.delete_modal.warning_label' };
 export { msg_settings_account_delete_modal_warning_text as 'settings.account.delete_modal.warning_text' };

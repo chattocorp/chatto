@@ -893,6 +893,18 @@ func TestChattoCore_DisconnectExternalIdentity(t *testing.T) {
 	if err := core.LinkExternalIdentity(ctx, "github-main", "github", "github-main", "12345", user.Id); err != nil {
 		t.Fatalf("LinkExternalIdentity: %v", err)
 	}
+	authGeneration, err := core.CurrentAuthGeneration(ctx, user.Id)
+	if err != nil {
+		t.Fatalf("CurrentAuthGeneration: %v", err)
+	}
+	token, err := core.CreateAuthTokenWithSourceGeneration(ctx, user.Id, "external_identity_login", authGeneration)
+	if err != nil {
+		t.Fatalf("CreateAuthTokenWithSourceGeneration: %v", err)
+	}
+	sessionID, _, err := core.CreateCookieSessionForGeneration(ctx, user.Id, "external_identity_login", authGeneration)
+	if err != nil {
+		t.Fatalf("CreateCookieSessionForGeneration: %v", err)
+	}
 	identities, err := core.ExternalIdentitiesForUser(ctx, user.Id)
 	if err != nil {
 		t.Fatalf("ExternalIdentitiesForUser: %v", err)
@@ -917,6 +929,22 @@ func TestChattoCore_DisconnectExternalIdentity(t *testing.T) {
 	}
 	if len(identities) != 0 {
 		t.Fatalf("identities after disconnect = %+v, want empty", identities)
+	}
+	if _, err := core.ValidateAuthToken(ctx, token); !errors.Is(err, ErrAuthTokenNotFound) {
+		t.Fatalf("ValidateAuthToken after disconnect err = %v, want ErrAuthTokenNotFound", err)
+	}
+	if _, err := core.ValidateCookieSession(ctx, user.Id, sessionID); !errors.Is(err, ErrCookieSessionNotFound) {
+		t.Fatalf("ValidateCookieSession after disconnect err = %v, want ErrCookieSessionNotFound", err)
+	}
+	if _, err := core.CreateAuthTokenWithSourceGeneration(ctx, user.Id, "external_identity_login", authGeneration); !errors.Is(err, ErrAuthTokenNotFound) {
+		t.Fatalf("CreateAuthTokenWithSourceGeneration old generation err = %v, want ErrAuthTokenNotFound", err)
+	}
+	afterGeneration, err := core.CurrentAuthGeneration(ctx, user.Id)
+	if err != nil {
+		t.Fatalf("CurrentAuthGeneration after disconnect: %v", err)
+	}
+	if afterGeneration == authGeneration {
+		t.Fatal("auth generation should advance after external identity disconnect")
 	}
 
 	err = core.DisconnectExternalIdentity(ctx, user.Id, "missing-subject-hash")

@@ -169,6 +169,9 @@ message LinkExternalIdentityResponse {
 message DisconnectExternalIdentityRequest {
   // Stable one-way subject hash of the linked identity to disconnect.
   string subject_hash = 1 [(buf.validate.field).string.min_len = 1];
+  // Current password proof for accounts with a password when the active
+  // runtime credential is no longer fresh.
+  string current_password = 2;
 }
 
 // Result of disconnecting a provider identity.

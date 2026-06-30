@@ -157,6 +157,9 @@ func (s *externalIdentityService) DisconnectExternalIdentity(ctx context.Context
 	if err != nil {
 		return nil, err
 	}
+	if err := s.api.requireFreshCredential(ctx, caller, req.Msg.GetCurrentPassword()); err != nil {
+		return nil, connectError(err)
+	}
 	if err := s.api.core.DisconnectExternalIdentity(ctx, caller.UserID, req.Msg.GetSubjectHash()); err != nil {
 		return nil, connectError(err)
 	}
