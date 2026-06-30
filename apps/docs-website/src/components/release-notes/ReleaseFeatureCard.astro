@@ -42,6 +42,7 @@ const {
     --release-lane-span: 2;
     grid-column: span 2;
     display: flex;
+    margin: 0;
     min-height: 13rem;
     flex-direction: column;
     padding: 1.15rem;
@@ -57,10 +58,10 @@ const {
   }
 
   .release-feature-card.size-large {
-    --release-lane-span: 4;
-    grid-column: span 4;
-    min-height: 15rem;
-    padding: 1.35rem;
+    --release-lane-span: 2;
+    grid-column: span 2;
+    min-height: 13rem;
+    border-color: color-mix(in srgb, var(--sl-color-accent), var(--sl-color-gray-5) 68%);
     background:
       linear-gradient(135deg, color-mix(in srgb, var(--sl-color-accent-low), transparent 58%), transparent 68%),
       var(--sl-color-gray-7);
@@ -74,7 +75,7 @@ const {
   }
 
   .release-feature-card.size-large h2 {
-    font-size: clamp(1.75rem, 5vw, 2.45rem);
+    font-size: clamp(1.45rem, 3vw, 1.7rem);
   }
 
   .release-feature-body {

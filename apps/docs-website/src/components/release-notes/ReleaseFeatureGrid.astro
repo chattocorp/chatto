@@ -41,6 +41,8 @@
       const width = columnWidth * span + gap * (span - 1);
       item.style.width = `${width}px`;
       item.style.position = "absolute";
+      item.style.insetBlockStart = "0";
+      item.style.insetInlineStart = "0";
 
       const maxStart = columnCount - span;
       let bestStart = 0;
@@ -72,6 +74,8 @@
     for (const item of Array.from(grid.children)) {
       if (!(item instanceof HTMLElement)) continue;
       item.style.position = "";
+      item.style.insetBlockStart = "";
+      item.style.insetInlineStart = "";
       item.style.transform = "";
       item.style.width = "";
     }
