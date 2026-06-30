@@ -37,6 +37,7 @@ export default defineConfig({
             "guides/voice-calls",
             "guides/external-login-providers",
             "guides/backup-restore",
+            "guides/operator-cli",
             "guides/security",
             "guides/permissions",
           ],
