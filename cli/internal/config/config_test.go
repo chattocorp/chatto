@@ -130,6 +130,36 @@ signing_secret = "00112233445566778899aabbccddeeff00112233445566778899aabbccddee
 	}
 }
 
+func TestReadConfig_OperatorAPIFromEnv(t *testing.T) {
+	tmpDir := t.TempDir()
+	originalDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get working directory: %v", err)
+	}
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("failed to change to temp directory: %v", err)
+	}
+	t.Cleanup(func() { os.Chdir(originalDir) })
+
+	t.Setenv("CHATTO_WEBSERVER_PORT", "4000")
+	t.Setenv("CHATTO_WEBSERVER_COOKIE_SIGNING_SECRET", "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
+	t.Setenv("CHATTO_CORE_SECRET_KEY", "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789")
+	t.Setenv("CHATTO_CORE_ASSETS_SIGNING_SECRET", "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff")
+	t.Setenv("CHATTO_OPERATOR_API_ENABLED", "true")
+	t.Setenv("CHATTO_OPERATOR_API_SOCKET_PATH", "/tmp/chatto-test/operator.sock")
+
+	cfg, err := ReadConfig("")
+	if err != nil {
+		t.Fatalf("ReadConfig() failed: %v", err)
+	}
+	if !cfg.OperatorAPI.Enabled {
+		t.Fatal("OperatorAPI.Enabled = false, want true")
+	}
+	if got := cfg.OperatorAPI.SocketPathOrDefault(); got != "/tmp/chatto-test/operator.sock" {
+		t.Fatalf("OperatorAPI.SocketPathOrDefault() = %q", got)
+	}
+}
+
 func TestReadConfig_AuthProvidersFromEnv(t *testing.T) {
 	tmpDir := t.TempDir()
 	originalDir, err := os.Getwd()
@@ -1146,6 +1176,34 @@ func TestChattoConfig_Validate_RequiredSecrets(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestChattoConfig_Validate_OperatorAPI(t *testing.T) {
+	t.Run("uses socket defaults", func(t *testing.T) {
+		operatorAPI := OperatorAPIConfig{}
+		if got := operatorAPI.SocketPathOrDefault(); got != "/tmp/chatto/operator.sock" {
+			t.Fatalf("SocketPathOrDefault() = %q", got)
+		}
+	})
+
+	t.Run("enabled accepts defaults", func(t *testing.T) {
+		cfg := validTestConfig()
+		cfg.OperatorAPI.Enabled = true
+		err := cfg.Validate()
+		if err != nil {
+			t.Fatalf("Validate() error = %v, want nil", err)
+		}
+	})
+
+	t.Run("rejects configured socket mode", func(t *testing.T) {
+		cfg := validTestConfig()
+		cfg.OperatorAPI.Enabled = true
+		cfg.OperatorAPI.SocketMode = "0600"
+		err := cfg.Validate()
+		if err == nil || !strings.Contains(err.Error(), "operator_api.socket_mode is no longer supported") {
+			t.Fatalf("Validate() error = %v, want unsupported socket mode error", err)
+		}
+	})
 }
 
 func TestChattoConfig_Validate_CookieEncryptionSecret(t *testing.T) {

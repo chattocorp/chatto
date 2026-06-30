@@ -9,11 +9,10 @@ import (
 
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/core"
+	"hmans.de/chatto/internal/parallel"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
-
-const maxRoomTimelineHydrationConcurrency = 16
 
 type roomTimelineAssembler struct {
 	api *API
@@ -41,9 +40,6 @@ func (a *roomTimelineAssembler) buildPage(ctx context.Context, viewerID string, 
 		return nil, err
 	}
 
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
 	h := &timelineHydrator{
 		api:                  a.api,
 		ctx:                  ctx,
@@ -53,46 +49,13 @@ func (a *roomTimelineAssembler) buildPage(ctx context.Context, viewerID string, 
 		userIDs:              make(map[string]struct{}),
 	}
 
-	hydratedEvents := make([]*apiv1.RoomTimelineEvent, len(events))
-	if len(events) > 0 {
-		sem := make(chan struct{}, maxRoomTimelineHydrationConcurrency)
-		var wg sync.WaitGroup
-		var errMu sync.Mutex
-		var firstErr error
-
-		for i, event := range events {
-			sem <- struct{}{}
-			wg.Add(1)
-			go func(i int, event *core.RoomEvent) {
-				defer wg.Done()
-				defer func() { <-sem }()
-
-				apiEvent, err := h.event(event)
-				if err != nil {
-					errMu.Lock()
-					if firstErr == nil {
-						firstErr = err
-						cancel()
-					}
-					errMu.Unlock()
-					return
-				}
-				hydratedEvents[i] = apiEvent
-			}(i, event)
-		}
-
-		wg.Wait()
-		if firstErr != nil {
-			return nil, firstErr
-		}
+	apiEvents, err := parallel.MapNonNil(ctx, maxConnectAPIHydrationConcurrency, events, func(ctx context.Context, _ int, event *core.RoomEvent) (*apiv1.RoomTimelineEvent, error) {
+		return h.event(ctx, event)
+	})
+	if err != nil {
+		return nil, err
 	}
 
-	apiEvents := make([]*apiv1.RoomTimelineEvent, 0, len(hydratedEvents))
-	for _, apiEvent := range hydratedEvents {
-		if apiEvent != nil {
-			apiEvents = append(apiEvents, apiEvent)
-		}
-	}
 	users, err := h.users()
 	if err != nil {
 		return nil, err
@@ -141,7 +104,7 @@ func (a *roomTimelineAssembler) hydrateEvent(ctx context.Context, viewerID strin
 		reactionsByMessageID: reactionsByMessageID,
 		userIDs:              make(map[string]struct{}),
 	}
-	apiEvent, err := h.event(&core.RoomEvent{Event: event})
+	apiEvent, err := h.event(ctx, &core.RoomEvent{Event: event})
 	if err != nil {
 		return nil, nil, err
 	}
@@ -162,7 +125,7 @@ type timelineHydrator struct {
 	userIDs              map[string]struct{}
 }
 
-func (h *timelineHydrator) event(event *core.RoomEvent) (*apiv1.RoomTimelineEvent, error) {
+func (h *timelineHydrator) event(ctx context.Context, event *core.RoomEvent) (*apiv1.RoomTimelineEvent, error) {
 	if event == nil || event.Event == nil {
 		return nil, nil
 	}
@@ -176,7 +139,7 @@ func (h *timelineHydrator) event(event *core.RoomEvent) (*apiv1.RoomTimelineEven
 
 	switch payload := event.Event.GetEvent().(type) {
 	case *corev1.Event_MessagePosted:
-		message, err := h.messagePosted(event, payload.MessagePosted)
+		message, err := h.messagePosted(ctx, event, payload.MessagePosted)
 		if err != nil {
 			return nil, err
 		}
@@ -202,7 +165,7 @@ func (h *timelineHydrator) event(event *core.RoomEvent) (*apiv1.RoomTimelineEven
 	return apiEvent, nil
 }
 
-func (h *timelineHydrator) messagePosted(event *core.RoomEvent, payload *corev1.MessagePostedEvent) (*apiv1.RoomTimelineMessagePosted, error) {
+func (h *timelineHydrator) messagePosted(ctx context.Context, event *core.RoomEvent, payload *corev1.MessagePostedEvent) (*apiv1.RoomTimelineMessagePosted, error) {
 	message := &apiv1.RoomTimelineMessagePosted{
 		RoomId:                    payload.GetRoomId(),
 		InReplyTo:                 payload.GetInReplyTo(),
@@ -216,7 +179,7 @@ func (h *timelineHydrator) messagePosted(event *core.RoomEvent, payload *corev1.
 		message.ChannelEchoEventId = echoID
 	}
 
-	body, err := h.api.core.GetFullMessageBodyByEventID(h.ctx, event.Id)
+	body, err := h.api.core.GetFullMessageBodyByEventID(ctx, event.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -230,7 +193,7 @@ func (h *timelineHydrator) messagePosted(event *core.RoomEvent, payload *corev1.
 	}
 
 	if payload.GetInThread() == "" {
-		metadata, err := h.api.core.GetThreadMetadata(h.ctx, h.kind, payload.GetRoomId(), event.Id)
+		metadata, err := h.api.core.GetThreadMetadata(ctx, h.kind, payload.GetRoomId(), event.Id)
 		if err != nil && !errors.Is(err, core.ErrNotFound) {
 			return nil, err
 		}
@@ -242,7 +205,7 @@ func (h *timelineHydrator) messagePosted(event *core.RoomEvent, payload *corev1.
 			message.ThreadParticipantUserIds = firstN(metadata.ParticipantIDs, 5)
 			h.addUserIDs(message.ThreadParticipantUserIds)
 		}
-		following, err := h.api.core.IsFollowingThread(h.ctx, h.kind, h.viewerID, payload.GetRoomId(), event.Id)
+		following, err := h.api.core.IsFollowingThread(ctx, h.kind, h.viewerID, payload.GetRoomId(), event.Id)
 		if err != nil {
 			return nil, err
 		}

@@ -58,11 +58,11 @@ A user's profile carries the public identity they present to the rest of the ser
 **Why:** Forcing every new user to pick a timezone at signup is friction. The browser usually knows.
 **Tradeoff:** Travelers see times rendered in their travel timezone if they haven't explicitly set one. Most users either don't notice or prefer this.
 
-### 7. Cross-user edits gated by `role.assign`
+### 7. Cross-user edits gated by `user.manage-accounts`
 
-**Decision:** Admin updates to other users' profiles use the `requireUserAdminTarget` helper, which requires `role.assign` for cross-user edits. Self-edits bypass that permission because they're privilege-neutral identity edits.
+**Decision:** Admin updates to other users' profiles require `user.manage-accounts` for cross-user edits. Self-edits bypass that permission because they're privilege-neutral identity edits.
 **Why:** Chatto's simplified RBAC model is permission-based for everyone except effective owners, who are protected by the owner override rather than target-rank gates.
-**Tradeoff:** A user with `role.assign` can edit any target user's profile.
+**Tradeoff:** A user with `user.manage-accounts` can edit any target user's profile.
 
 ### 8. Custom status is durable profile metadata, not presence
 
@@ -85,7 +85,7 @@ A user's profile carries the public identity they present to the rest of the ser
 ## Permissions
 
 - Self-edit (display name, avatar, custom status, settings, own login subject to cooldown) — no explicit permission; just authentication.
-- Cross-user edit — `role.assign` (via `requireUserAdminTarget`).
+- Cross-user edit — `user.manage-accounts`.
 - Clear another user's login cooldown — same gate.
 
 ## Related

@@ -5,7 +5,7 @@ package chatto.admin.v1;
 import "buf/validate/validate.proto";
 import "chatto/api/v1/users.proto";
 
-// Server role metadata and server-scope permission state.
+// Role metadata and permission state.
 message Role {
   // Stable role name used in permission and assignment records.
   string name = 1;
@@ -13,9 +13,9 @@ message Role {
   string display_name = 2;
   // Optional role description.
   string description = 3;
-  // Server permissions granted by this role.
+  // Permissions granted by this role.
   repeated string permissions = 4;
-  // Server permissions denied by this role.
+  // Permissions denied by this role.
   repeated string permission_denials = 5;
   // Whether this is a built-in role.
   bool is_system = 6;
@@ -25,10 +25,10 @@ message Role {
   bool pingable = 8;
 }
 
-// Request the server role catalog.
+// Request the role catalog.
 message ListRolesRequest {}
 
-// Server role catalog plus viewer role-management capabilities.
+// Role catalog plus viewer role-management capabilities.
 message ListRolesResponse {
   // Roles sorted by position.
   repeated Role roles = 1;
@@ -38,13 +38,13 @@ message ListRolesResponse {
   bool viewer_can_assign_roles = 3;
 }
 
-// Request one server role.
+// Request one role.
 message GetRoleRequest {
   // Stable role name.
   string name = 1 [(buf.validate.field).string.min_len = 1];
 }
 
-// One server role plus role-management metadata.
+// One role plus role-management metadata.
 message GetRoleResponse {
   // Requested role.
   Role role = 1;
@@ -56,7 +56,7 @@ message GetRoleResponse {
   bool viewer_can_assign_roles = 4;
 }
 
-// Request to create a server role.
+// Request to create a role.
 message CreateRoleRequest {
   // Stable role name.
   string name = 1 [(buf.validate.field).string.min_len = 1];
@@ -68,13 +68,13 @@ message CreateRoleRequest {
   bool pingable = 4;
 }
 
-// Result of creating a server role.
+// Result of creating a role.
 message CreateRoleResponse {
   // Created role.
   Role role = 1;
 }
 
-// Request to update server role metadata.
+// Request to update role metadata.
 message UpdateRoleRequest {
   // Stable role name.
   string name = 1 [(buf.validate.field).string.min_len = 1];
@@ -86,25 +86,25 @@ message UpdateRoleRequest {
   optional bool pingable = 4;
 }
 
-// Result of updating a server role.
+// Result of updating a role.
 message UpdateRoleResponse {
   // Updated role.
   Role role = 1;
 }
 
-// Request to delete a server role.
+// Request to delete a role.
 message DeleteRoleRequest {
   // Stable role name.
   string name = 1 [(buf.validate.field).string.min_len = 1];
 }
 
-// Result of deleting a server role.
+// Result of deleting a role.
 message DeleteRoleResponse {
   // True when the request completed.
   bool deleted = 1;
 }
 
-// Request to replace custom server role order.
+// Request to replace custom role order.
 message ReorderRolesRequest {
   // Ordered custom role names. The list must include every custom role exactly
   // once; system roles keep fixed positions and must not be included.
@@ -115,7 +115,7 @@ message ReorderRolesRequest {
   }];
 }
 
-// Result of replacing custom server role order.
+// Result of replacing custom role order.
 message ReorderRolesResponse {
   // Full role catalog after reordering.
   repeated Role roles = 1;
@@ -123,16 +123,16 @@ message ReorderRolesResponse {
 
 // Provides authenticated role catalog reads and admin role CRUD.
 service AdminRoleService {
-  // Lists the server role catalog. Requires an authenticated user.
+  // Lists the role catalog. Requires an authenticated user.
   rpc ListRoles(ListRolesRequest) returns (ListRolesResponse);
-  // Gets one server role plus admin detail metadata. Returns NOT_FOUND when the
+  // Gets one role plus admin detail metadata. Returns NOT_FOUND when the
   // role does not exist.
   rpc GetRole(GetRoleRequest) returns (GetRoleResponse);
-  // Creates a custom server role. Requires role.manage.
+  // Creates a custom role. Requires role.manage.
   rpc CreateRole(CreateRoleRequest) returns (CreateRoleResponse);
   // Updates role metadata. Requires role.manage.
   rpc UpdateRole(UpdateRoleRequest) returns (UpdateRoleResponse);
-  // Deletes a custom server role. Requires role.manage.
+  // Deletes a custom role. Requires role.manage.
   rpc DeleteRole(DeleteRoleRequest) returns (DeleteRoleResponse);
   // Replaces the custom role order. Requires role.manage.
   rpc ReorderRoles(ReorderRolesRequest) returns (ReorderRolesResponse);

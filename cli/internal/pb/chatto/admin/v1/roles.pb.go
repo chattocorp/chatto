@@ -23,7 +23,7 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// Server role metadata and server-scope permission state.
+// Role metadata and permission state.
 type Role struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Stable role name used in permission and assignment records.
@@ -32,9 +32,9 @@ type Role struct {
 	DisplayName string `protobuf:"bytes,2,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
 	// Optional role description.
 	Description string `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
-	// Server permissions granted by this role.
+	// Permissions granted by this role.
 	Permissions []string `protobuf:"bytes,4,rep,name=permissions,proto3" json:"permissions,omitempty"`
-	// Server permissions denied by this role.
+	// Permissions denied by this role.
 	PermissionDenials []string `protobuf:"bytes,5,rep,name=permission_denials,json=permissionDenials,proto3" json:"permission_denials,omitempty"`
 	// Whether this is a built-in role.
 	IsSystem bool `protobuf:"varint,6,opt,name=is_system,json=isSystem,proto3" json:"is_system,omitempty"`
@@ -132,7 +132,7 @@ func (x *Role) GetPingable() bool {
 	return false
 }
 
-// Request the server role catalog.
+// Request the role catalog.
 type ListRolesRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -169,7 +169,7 @@ func (*ListRolesRequest) Descriptor() ([]byte, []int) {
 	return file_chatto_admin_v1_roles_proto_rawDescGZIP(), []int{1}
 }
 
-// Server role catalog plus viewer role-management capabilities.
+// Role catalog plus viewer role-management capabilities.
 type ListRolesResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Roles sorted by position.
@@ -233,7 +233,7 @@ func (x *ListRolesResponse) GetViewerCanAssignRoles() bool {
 	return false
 }
 
-// Request one server role.
+// Request one role.
 type GetRoleRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Stable role name.
@@ -279,7 +279,7 @@ func (x *GetRoleRequest) GetName() string {
 	return ""
 }
 
-// One server role plus role-management metadata.
+// One role plus role-management metadata.
 type GetRoleResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Requested role.
@@ -352,7 +352,7 @@ func (x *GetRoleResponse) GetViewerCanAssignRoles() bool {
 	return false
 }
 
-// Request to create a server role.
+// Request to create a role.
 type CreateRoleRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Stable role name.
@@ -425,7 +425,7 @@ func (x *CreateRoleRequest) GetPingable() bool {
 	return false
 }
 
-// Result of creating a server role.
+// Result of creating a role.
 type CreateRoleResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Created role.
@@ -471,7 +471,7 @@ func (x *CreateRoleResponse) GetRole() *Role {
 	return nil
 }
 
-// Request to update server role metadata.
+// Request to update role metadata.
 type UpdateRoleRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Stable role name.
@@ -544,7 +544,7 @@ func (x *UpdateRoleRequest) GetPingable() bool {
 	return false
 }
 
-// Result of updating a server role.
+// Result of updating a role.
 type UpdateRoleResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Updated role.
@@ -590,7 +590,7 @@ func (x *UpdateRoleResponse) GetRole() *Role {
 	return nil
 }
 
-// Request to delete a server role.
+// Request to delete a role.
 type DeleteRoleRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Stable role name.
@@ -636,7 +636,7 @@ func (x *DeleteRoleRequest) GetName() string {
 	return ""
 }
 
-// Result of deleting a server role.
+// Result of deleting a role.
 type DeleteRoleResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// True when the request completed.
@@ -682,7 +682,7 @@ func (x *DeleteRoleResponse) GetDeleted() bool {
 	return false
 }
 
-// Request to replace custom server role order.
+// Request to replace custom role order.
 type ReorderRolesRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Ordered custom role names. The list must include every custom role exactly
@@ -729,7 +729,7 @@ func (x *ReorderRolesRequest) GetRoleNames() []string {
 	return nil
 }
 
-// Result of replacing custom server role order.
+// Result of replacing custom role order.
 type ReorderRolesResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Full role catalog after reordering.

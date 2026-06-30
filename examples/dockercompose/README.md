@@ -12,6 +12,7 @@ This example deploys a clustered Chatto setup with:
 - Docker and Docker Compose (v2) installed
 - A domain pointing to your server (for automatic HTTPS)
 - A `livekit.` subdomain pointing to the same server (e.g., `livekit.chat.example.com`)
+- Firewall allowing inbound TCP 80/443 and UDP 3478, 50000-50200
 
 ## Configuration
 
@@ -41,6 +42,7 @@ This example deploys a clustered Chatto setup with:
    - `CHATTO_OWNERS_EMAILS` - Comma-separated verified email addresses that should become Chatto owners. Include the email address you will use for the first account.
    - `CHATTO_SMTP_*` - Required for direct email/password registration, email verification, and password reset.
    - `PUID` and `PGID` - Optional host user/group IDs for files Chatto writes to mounted volumes. Defaults to `1000:1000`.
+   - `CHATTO_OPERATOR_API_*` - Enables the private in-container operator socket used by `chatto operator ...`.
 
    Leave `LIVEKIT_CONFIG_FILE=./livekit.generated.yaml` unless you deliberately
    want to maintain `livekit.yaml` by hand.
@@ -100,6 +102,21 @@ NATS connection. Run it as the `chatto` user so the CLI reads the context from
 docker compose exec -u chatto chatto nats stream ls
 ```
 
+## Operator Commands
+
+The generated `.env` enables the local operator API socket inside the Chatto
+container. Run operator commands as the `chatto` user and use `list --search`
+to find a stable user ID before mutating an account:
+
+```bash
+docker compose exec -u chatto chatto /chatto operator user list
+docker compose exec -u chatto chatto /chatto operator user list --search admin@example.com
+docker compose exec -u chatto chatto /chatto operator user set-password USER_ID
+```
+
+Do not mount or publish the operator socket unless the target container or host
+is fully trusted; socket access is root-equivalent Chatto authority.
+
 ## Updating
 
 ```bash
@@ -134,4 +151,6 @@ If you don't need voice calls, remove the `livekit` service from `compose.yml`, 
 
 **Voice calls not working**: Ensure the LiveKit API key/secret in `.env` matches the `keys:` section in the selected LiveKit config (`livekit.generated.yaml` or `livekit.yaml`). Also verify the webhook URL points to your Chatto instance. Make sure `CHATTO_LIVEKIT_URL` uses the public `wss://livekit.` subdomain (not the internal Docker hostname), since browsers connect to it directly.
 
-**LiveKit UDP ports**: WebRTC requires UDP ports 50000-50200. Ensure your firewall allows inbound UDP on this range.
+**LiveKit UDP ports**: The example exposes UDP 50000-50200 for direct WebRTC media and UDP 3478 for LiveKit's embedded TURN/STUN relay. Ensure your firewall allows inbound UDP on both.
+
+**Calls fail for some users**: The built-in TURN/UDP relay helps with symmetric NATs and some mobile, Firefox, and restrictive-network cases. Networks that block UDP entirely still need an advanced TURN/TLS setup, such as a dedicated TURN host or L4 TLS forwarding with matching certificates.

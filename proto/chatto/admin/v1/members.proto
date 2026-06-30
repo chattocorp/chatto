@@ -15,7 +15,7 @@ message AdminMember {
   reserved 1 to 4;
   reserved "id", "login", "display_name", "avatar_url";
 
-  // Explicit server role assignments. The implicit everyone role is omitted.
+  // Explicit role assignments. The implicit everyone role is omitted.
   repeated string roles = 5;
   // Account creation time, when known.
   google.protobuf.Timestamp created_at = 6;
@@ -41,7 +41,7 @@ message AdminRoleReference {
   string display_name = 2;
 }
 
-// Server role details used by the member detail role-assignment UI.
+// Role details used by the member detail role-assignment UI.
 message AdminMemberRole {
   // Stable role name.
   string name = 1;
@@ -49,9 +49,9 @@ message AdminMemberRole {
   string display_name = 2;
   // Display/order position.
   int32 position = 3;
-  // Server permissions granted by this role.
+  // Permissions granted by this role.
   repeated string permissions = 4;
-  // Server permissions denied by this role.
+  // Permissions denied by this role.
   repeated string permission_denials = 5;
 }
 
@@ -73,7 +73,7 @@ message ListMembersResponse {
 
   // Matching users.
   repeated AdminMember users = 1;
-  // Server roles for display-name lookup.
+  // Roles for display-name lookup.
   repeated AdminRoleReference roles = 2;
   // Page metadata.
   chatto.api.v1.PageInfo page = 5;
@@ -82,16 +82,18 @@ message ListMembersResponse {
 // Request one server-admin member detail record.
 message GetMemberRequest {
   // Target user ID.
-  string user_id = 1 [(buf.validate.field).string.min_len = 1];
+  string user_id = 1;
+  // Target login. Provide either user_id or login.
+  string login = 2;
 }
 
 // Server-admin member detail payload.
 message GetMemberResponse {
   // Member record.
   AdminMember member = 1;
-  // Server roles for assignment UI.
+  // Roles for assignment UI.
   repeated AdminMemberRole roles = 2;
-  // Server permissions available for per-user overrides.
+  // Permissions available for per-user overrides.
   repeated string available_permissions = 3;
   // Whether the caller may assign/revoke roles.
   bool viewer_can_assign_roles = 4;
@@ -101,7 +103,7 @@ message GetMemberResponse {
   bool viewer_can_manage_user_permissions = 6;
 }
 
-// Request to assign a server role to a user.
+// Request to assign a role to a user.
 message AssignRoleRequest {
   // Target user ID.
   string user_id = 1 [(buf.validate.field).string.min_len = 1];
@@ -109,13 +111,15 @@ message AssignRoleRequest {
   string role_name = 2 [(buf.validate.field).string.min_len = 1];
 }
 
-// Result of assigning a server role.
+// Result of assigning a role.
 message AssignRoleResponse {
   // True when the request completed.
   bool assigned = 1;
+  // Updated admin member row.
+  AdminMember member = 2;
 }
 
-// Request to revoke a server role from a user.
+// Request to revoke a role from a user.
 message RevokeRoleRequest {
   // Target user ID.
   string user_id = 1 [(buf.validate.field).string.min_len = 1];
@@ -123,10 +127,12 @@ message RevokeRoleRequest {
   string role_name = 2 [(buf.validate.field).string.min_len = 1];
 }
 
-// Result of revoking a server role.
+// Result of revoking a role.
 message RevokeRoleResponse {
   // True when the request completed.
   bool revoked = 1;
+  // Updated admin member row.
+  AdminMember member = 2;
 }
 
 // Request to update a user's identity as a server-admin action.
@@ -143,6 +149,8 @@ message UpdateUserRequest {
 message UpdateUserResponse {
   // Updated user profile.
   chatto.api.v1.User user = 1;
+  // Updated admin member row.
+  AdminMember member = 2;
 }
 
 // Request to set a user's password as a server-admin action.
@@ -179,9 +187,9 @@ service AdminMemberService {
   // Gets one server member plus role/permission metadata for admin details.
   // Returns NOT_FOUND when the user does not exist.
   rpc GetMember(GetMemberRequest) returns (GetMemberResponse);
-  // Assigns a server role to a user.
+  // Assigns a role to a user.
   rpc AssignRole(AssignRoleRequest) returns (AssignRoleResponse);
-  // Revokes a server role from a user.
+  // Revokes a role from a user.
   rpc RevokeRole(RevokeRoleRequest) returns (RevokeRoleResponse);
   // Updates a user's login and/or display name as an admin action.
   rpc UpdateUser(UpdateUserRequest) returns (UpdateUserResponse);

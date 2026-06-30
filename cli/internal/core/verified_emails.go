@@ -97,7 +97,7 @@ func emailVerificationOTPSubject(userID, email string) string {
 // the per-email key and the user_by_email index. Centralised so the
 // index and the per-email entries can never drift apart.
 func emailHash(email string) string {
-	sum := sha256.Sum256([]byte(strings.ToLower(email)))
+	sum := sha256.Sum256([]byte(strings.ToLower(strings.TrimSpace(email))))
 	return hex.EncodeToString(sum[:])
 }
 
@@ -212,7 +212,7 @@ func (c *ChattoCore) VerifyEmailCode(ctx context.Context, userID, email, code st
 		}
 		return "", err
 	}
-	if err := c.addVerifiedEmail(ctx, userID, email); err != nil {
+	if err := c.addVerifiedEmailAs(ctx, userID, userID, email); err != nil {
 		return "", err
 	}
 	return userID, nil
@@ -239,8 +239,16 @@ func (c *ChattoCore) requireVerifiedAccountCapacity(ctx context.Context, userID 
 // addVerifiedEmail appends a durable verified-email event for the user.
 // Idempotent: rewriting the same (user, email) pair just overwrites the
 // existing entry with identical content.
-func (c *ChattoCore) addVerifiedEmail(ctx context.Context, userID, email string) error {
-	event := newEvent(userID, &corev1.Event{Event: &corev1.Event_UserVerifiedEmailAdded{
+func (c *ChattoCore) addVerifiedEmailAs(ctx context.Context, actorID, userID, email string) error {
+	email = strings.ToLower(strings.TrimSpace(email))
+	if email == "" {
+		return ErrInvalidArgument
+	}
+	if _, err := c.GetUser(ctx, userID); err != nil {
+		return fmt.Errorf("user not found: %w", err)
+	}
+
+	event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_UserVerifiedEmailAdded{
 		UserVerifiedEmailAdded: &corev1.UserVerifiedEmailAddedEvent{
 			UserId: userID,
 		},
@@ -251,6 +259,9 @@ func (c *ChattoCore) addVerifiedEmail(ctx context.Context, userID, email string)
 	}
 	event.GetUserVerifiedEmailAdded().EncryptedEmail = encryptedEmail
 	if _, err := c.appendUserEvent(ctx, userID, event, events.UserSubjectFilter(), func() error {
+		if _, err := c.GetUser(ctx, userID); err != nil {
+			return fmt.Errorf("user not found: %w", err)
+		}
 		if user, ok := c.Users.GetByEmail(email); ok {
 			if user.GetId() == userID {
 				return errVerifiedEmailNoop
@@ -277,7 +288,7 @@ func (c *ChattoCore) addVerifiedEmail(ctx context.Context, userID, email string)
 	// account verifies their email, they pick up the `owner` role without
 	// waiting for the next boot-time owner sync.
 	if c.config.Owners.IsServerOwnerEmail(email) {
-		if err := c.AssignServerRole(ctx, SystemActorID, userID, RoleOwner); err != nil {
+		if err := c.AssignServerRoleToExistingUser(ctx, SystemActorID, userID, RoleOwner); err != nil {
 			c.logger.Warn("Failed to auto-assign owner role on email verification",
 				"user_id", userID, "error", err)
 		} else {
@@ -311,7 +322,7 @@ func (c *ChattoCore) GetUserByVerifiedEmail(ctx context.Context, email string) (
 	if user, ok := c.Users.GetByEmail(email); ok {
 		return user, nil
 	}
-	return nil, fmt.Errorf("no user found with verified email")
+	return nil, fmt.Errorf("%w: verified email", ErrNotFound)
 }
 
 // CountVerifiedAccounts returns the number of distinct users with at least one
@@ -351,7 +362,7 @@ func (c *ChattoCore) applyConfigOwners(ctx context.Context) error {
 			if c.RBAC.HasRole(userID, RoleOwner) {
 				break
 			}
-			if err := c.AssignServerRole(ctx, SystemActorID, userID, RoleOwner); err != nil {
+			if err := c.AssignServerRoleToExistingUser(ctx, SystemActorID, userID, RoleOwner); err != nil {
 				return fmt.Errorf("assign owner role to %s: %w", userID, err)
 			}
 			promoted++
@@ -368,5 +379,11 @@ func (c *ChattoCore) applyConfigOwners(ctx context.Context) error {
 // AddVerifiedEmailDirect adds an email as verified without requiring token verification.
 // Used for OAuth flows where the email is already verified by the provider.
 func (c *ChattoCore) AddVerifiedEmailDirect(ctx context.Context, userID, email string) error {
-	return c.addVerifiedEmail(ctx, userID, email)
+	return c.AddVerifiedEmailDirectAs(ctx, userID, userID, email)
+}
+
+// AddVerifiedEmailDirectAs adds an email as verified with explicit actor
+// attribution. Operator/admin flows should pass SystemActorID.
+func (c *ChattoCore) AddVerifiedEmailDirectAs(ctx context.Context, actorID, userID, email string) error {
+	return c.addVerifiedEmailAs(ctx, actorID, userID, email)
 }

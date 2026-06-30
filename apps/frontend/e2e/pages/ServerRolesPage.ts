@@ -2,8 +2,8 @@ import { expect, type Locator, type Page } from '@playwright/test';
 import * as routes from '../routes';
 
 /**
- * Page object for the Server Roles management pages.
- * Handles viewing, creating, editing, and deleting server roles.
+ * Page object for the role management pages.
+ * Handles viewing, creating, editing, and deleting roles.
  */
 export class ServerRolesPage {
   constructor(readonly page: Page) {}
@@ -99,7 +99,7 @@ export class ServerRolesPage {
   // --- Navigation ---
 
   /**
-   * Navigate to the server roles list page.
+   * Navigate to the roles list page.
    */
   async gotoRolesList(spaceId: string): Promise<void> {
     await this.page.goto(routes.serverAdminRoles);

@@ -391,6 +391,7 @@ func TestPermissionConsistency(t *testing.T) {
 			PermRoomManage,
 			PermRoomMemberBan,
 			PermMessageManage,
+			PermUserManageAccounts,
 		} {
 			if !slices.Contains(DefaultAdminPermissions(), want) {
 				t.Errorf("admin server defaults should include %v", want)

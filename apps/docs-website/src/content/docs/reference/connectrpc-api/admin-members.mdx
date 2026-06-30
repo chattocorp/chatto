@@ -1,6 +1,6 @@
 ---
 title: AdminMemberService
-description: Member identity, role assignment, and user administration RPCs.
+description: Member identity, role assignment, and username-cooldown RPCs.
 editUrl: false
 ---
 
@@ -51,7 +51,7 @@ Server-admin member rows plus role summaries.
 | Field | Type | Description |
 | --- | --- | --- |
 | `users` | repeated [`AdminMember`](/reference/connectrpc-api/types/#chatto-admin-v1-AdminMember) | Matching users. |
-| `roles` | repeated [`AdminRoleReference`](/reference/connectrpc-api/types/#chatto-admin-v1-AdminRoleReference) | Server roles for display-name lookup. |
+| `roles` | repeated [`AdminRoleReference`](/reference/connectrpc-api/types/#chatto-admin-v1-AdminRoleReference) | Roles for display-name lookup. |
 | `page` | `chatto.api.v1.PageInfo` | Page metadata. |
 
 
@@ -75,6 +75,7 @@ Request one server-admin member detail record.
 | Field | Type | Description |
 | --- | --- | --- |
 | `user_id` | `string` | Target user ID. |
+| `login` | `string` | Target login. Provide either user_id or login. |
 
 
 <a id="chatto-admin-v1-GetMemberResponse"></a>
@@ -86,8 +87,8 @@ Server-admin member detail payload.
 | Field | Type | Description |
 | --- | --- | --- |
 | `member` | [`AdminMember`](/reference/connectrpc-api/types/#chatto-admin-v1-AdminMember) | Member record. |
-| `roles` | repeated [`AdminMemberRole`](/reference/connectrpc-api/types/#chatto-admin-v1-AdminMemberRole) | Server roles for assignment UI. |
-| `available_permissions` | `repeated string` | Server permissions available for per-user overrides. |
+| `roles` | repeated [`AdminMemberRole`](/reference/connectrpc-api/types/#chatto-admin-v1-AdminMemberRole) | Roles for assignment UI. |
+| `available_permissions` | `repeated string` | Permissions available for per-user overrides. |
 | `viewer_can_assign_roles` | `bool` | Whether the caller may assign/revoke roles. |
 | `viewer_can_manage_roles` | `bool` | Whether the caller may edit role definitions. |
 | `viewer_can_manage_user_permissions` | `bool` | Whether the caller may edit direct user permissions. |
@@ -97,7 +98,7 @@ Server-admin member detail payload.
 
 ### AssignRole
 
-Assigns a server role to a user.
+Assigns a role to a user.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminMemberService/AssignRole
@@ -107,7 +108,7 @@ POST /api/connect/chatto.admin.v1.AdminMemberService/AssignRole
 
 #### Input: AssignRoleRequest
 
-Request to assign a server role to a user.
+Request to assign a role to a user.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -119,18 +120,19 @@ Request to assign a server role to a user.
 
 #### Result: AssignRoleResponse
 
-Result of assigning a server role.
+Result of assigning a role.
 
 | Field | Type | Description |
 | --- | --- | --- |
 | `assigned` | `bool` | True when the request completed. |
+| `member` | [`AdminMember`](/reference/connectrpc-api/types/#chatto-admin-v1-AdminMember) | Updated admin member row. |
 
 
 <a id="chatto-admin-v1-AdminMemberService-RevokeRole"></a>
 
 ### RevokeRole
 
-Revokes a server role from a user.
+Revokes a role from a user.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminMemberService/RevokeRole
@@ -140,7 +142,7 @@ POST /api/connect/chatto.admin.v1.AdminMemberService/RevokeRole
 
 #### Input: RevokeRoleRequest
 
-Request to revoke a server role from a user.
+Request to revoke a role from a user.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -152,11 +154,12 @@ Request to revoke a server role from a user.
 
 #### Result: RevokeRoleResponse
 
-Result of revoking a server role.
+Result of revoking a role.
 
 | Field | Type | Description |
 | --- | --- | --- |
 | `revoked` | `bool` | True when the request completed. |
+| `member` | [`AdminMember`](/reference/connectrpc-api/types/#chatto-admin-v1-AdminMember) | Updated admin member row. |
 
 
 <a id="chatto-admin-v1-AdminMemberService-UpdateUser"></a>
@@ -191,6 +194,7 @@ Result of an admin user update.
 | Field | Type | Description |
 | --- | --- | --- |
 | `user` | `chatto.api.v1.User` | Updated user profile. |
+| `member` | [`AdminMember`](/reference/connectrpc-api/types/#chatto-admin-v1-AdminMember) | Updated admin member row. |
 
 
 <a id="chatto-admin-v1-AdminMemberService-SetUserPassword"></a>

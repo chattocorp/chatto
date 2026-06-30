@@ -131,6 +131,16 @@ The exporter exposes deployment-wide Chatto metrics. Run it as `chatto exporter`
   Write a Go CPU profile covering process startup through core boot to this path. Useful for local projection replay benchmarking; disabled when empty.
 </EnvVar>
 
+## Operator API
+
+<EnvVar name="CHATTO_OPERATOR_API_ENABLED" toml="operator_api.enabled" default="false">
+  Enable the local root-equivalent Operator API Unix socket for `chatto operator ...` commands. The public web listener never serves this API.
+</EnvVar>
+
+<EnvVar name="CHATTO_OPERATOR_API_SOCKET_PATH" toml="operator_api.socket_path" default="/tmp/chatto/operator.sock">
+  Unix socket path for local operator commands. The socket mode is fixed at `0600`; Docker users should normally run `chatto operator ...` inside the running container with `docker exec`.
+</EnvVar>
+
 ## Core
 
 <EnvVar name="CHATTO_CORE_SECRET_KEY" toml="core.secret_key" required>

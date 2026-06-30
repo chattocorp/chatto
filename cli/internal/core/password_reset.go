@@ -180,7 +180,12 @@ func (c *ChattoCore) ResetPassword(ctx context.Context, token string, newPasswor
 			Event:   passwordResetCompletedEvent(ctx, tokenData.UserID),
 		},
 	}
-	if _, err := c.appendUserBatch(ctx, tokenData.UserID, entries, "", nil); err != nil {
+	if _, err := c.appendUserBatch(ctx, tokenData.UserID, entries, "", func() error {
+		if _, err := c.GetUser(ctx, tokenData.UserID); err != nil {
+			return fmt.Errorf("user not found: %w", err)
+		}
+		return nil
+	}); err != nil {
 		return fmt.Errorf("failed to update password: %w", err)
 	}
 	if _, err := c.RevokeRuntimeCredentialsForUser(ctx, tokenData.UserID, "password_reset"); err != nil {

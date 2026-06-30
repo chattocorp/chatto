@@ -39,11 +39,11 @@
   const userId = $derived(page.params.userId!);
 
   const serverPerms = getServerPermissions();
-  const canAdminManageUsers = $derived(serverPerms.current.canAdminManageUsers);
+  const canAdminManageAccounts = $derived(serverPerms.current.canAdminManageAccounts);
 
   let member = $state<AdminMember | null>(null);
   let allRoles = $state<AdminMemberRole[]>([]);
-  let memberServerRoles = $state<string[]>([]); // Member's server roles (separate from member object)
+  let memberServerRoles = $state<string[]>([]); // Member's roles (separate from member object)
   let canAssignRoles = $state(false);
   let canManageRoles = $state(false);
   let canManageUserPermissions = $state(false);
@@ -51,7 +51,7 @@
   let updating = $state<string | null>(null);
   let error = $state<string | null>(null);
 
-  // Identity edit state (gated on canAdminManageUsers)
+  // Identity edit state (gated on canAdminManageAccounts)
   let editLogin = $state('');
   let editDisplayName = $state('');
   let savingIdentity = $state(false);
@@ -245,7 +245,7 @@
   const isSelf = $derived(currentUser.user?.id === userId);
   const canViewMemberEmails = $derived(isSelf || serverPerms.current.canAdminViewUsers);
 
-  // Sorted server roles (excluding everyone, sorted by position)
+  // Sorted roles (excluding everyone, sorted by position)
   const sortedServerRoles = $derived(
     memberServerRoles
       .filter((r) => r !== 'everyone')
@@ -427,7 +427,7 @@
         </div>
       </Panel>
 
-      {#if canAdminManageUsers}
+      {#if canAdminManageAccounts}
         <!-- Identity (admin) — bypasses the 30-day rename cooldown -->
         <Panel title={m['admin.members.identity']()} icon="iconify uil--edit">
           <Form onsubmit={saveIdentity} error={identityError}>

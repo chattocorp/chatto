@@ -6,6 +6,7 @@ export type AdminNavChromePermissions = {
   canManageRooms: boolean;
   canManageRoles: boolean;
   canAssignRoles: boolean;
+  canManageUserAccounts: boolean;
   canManageUserPermissions: boolean;
 };
 
@@ -45,7 +46,12 @@ export function getAdminNavItems({
     });
   }
 
-  if (chrome.canAssignRoles || chrome.canManageUserPermissions || server.canAdminViewUsers) {
+  if (
+    chrome.canAssignRoles ||
+    chrome.canManageUserAccounts ||
+    chrome.canManageUserPermissions ||
+    server.canAdminViewUsers
+  ) {
     items.push({
       href: resolve('/chat/[serverId]/server-admin/members', { serverId: serverSegment }),
       label: 'Members',

@@ -246,7 +246,7 @@ func (s *messageService) hydratePostedEvent(ctx context.Context, viewerID string
 		reactionsByMessageID: reactionsByMessageID,
 		userIDs:              make(map[string]struct{}),
 	}
-	apiEvent, err := h.event(&core.RoomEvent{Event: event})
+	apiEvent, err := h.event(ctx, &core.RoomEvent{Event: event})
 	if err != nil {
 		return nil, nil, err
 	}

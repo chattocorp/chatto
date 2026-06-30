@@ -67,7 +67,8 @@ The admin section gives owners and admins visibility into the server's operation
 - `admin.view-users` — gates user-management views, admin-only affordances, and user-sensitive fields such as other users' verified email addresses and login cooldowns. The underlying `server.members` directory query remains authenticated-user visible; see FDR-025.
 - `admin.view-system` — gates admin projection diagnostics; system info is owner-only for now.
 - `admin.view-audit` — gates admin event log, event type, and event detail reads.
-- `role.assign` — gates user edits and role changes via the `requireUserAdminTarget` helper.
+- `role.assign` — gates user role assignment and revocation.
+- `user.manage-accounts` — gates user creation, cross-user identity edits, password resets, verified-email attachment, and login-cooldown resets.
 
 ## Related
 

@@ -37,3 +37,4 @@ See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the F
 | [FDR-025](FDR-025-user-search-and-member-directory.md) | User Search & Member Directory | Active | 2026-05-19 |
 | [FDR-026](FDR-026-last-room-memory.md) | Last-Room Memory | Active | 2026-05-19 |
 | [FDR-027](FDR-027-pwa-shell-and-service-worker.md) | PWA Shell & Service Worker | Active | 2026-06-08 |
+| [FDR-028](FDR-028-operator-api-and-cli.md) | Operator API & CLI | Active | 2026-06-29 |

@@ -121,6 +121,12 @@ export const PermUserDeleteAny: Permission = "user.delete-any";
  */
 export const PermUserDeleteSelf: Permission = "user.delete-self";
 /**
+ * PermUserManageAccounts allows account lifecycle and recovery operations
+ * for other users, such as creating accounts, admin profile edits, password
+ * resets, verified-email attachment, and login-cooldown resets.
+ */
+export const PermUserManageAccounts: Permission = "user.manage-accounts";
+/**
  * PermUserManagePermissions allows editing direct per-user permission
  * overrides.
  */

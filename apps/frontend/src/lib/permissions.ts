@@ -84,6 +84,9 @@ export const PERMISSION_METADATA: Record<string, PermissionMetadata> = {
   'user.delete-self': {
     description: 'Delete your own account'
   },
+  'user.manage-accounts': {
+    description: 'Create users, edit account identity, reset passwords, attach verified emails, and clear login cooldowns'
+  },
   'user.manage-permissions': {
     description: 'Edit direct per-user permission overrides'
   }

@@ -42,9 +42,16 @@ func connectError(err error) error {
 		errors.Is(err, core.ErrExternalIdentityFlowUserBound) ||
 		errors.Is(err, core.ErrCurrentPasswordRequired) ||
 		errors.Is(err, core.ErrCurrentPasswordInvalid) ||
+		errors.Is(err, core.ErrLoginTooShort) ||
+		errors.Is(err, core.ErrLoginTooLong) ||
+		errors.Is(err, core.ErrLoginInvalidCharacter) ||
+		errors.Is(err, core.ErrUsernameBlocked) ||
+		errors.Is(err, core.ErrDisplayNameTooLong) ||
+		errors.Is(err, core.ErrDisplayNameInvalidCharacter) ||
+		errors.Is(err, core.ErrDisplayNameInvalidStart) ||
 		errors.Is(err, core.ErrPasswordTooShort) ||
 		errors.Is(err, core.ErrPasswordTooLong) ||
-		errors.Is(err, core.ErrUsernameBlocked) ||
+		errors.Is(err, core.ErrImplicitRole) ||
 		errors.Is(err, core.ErrRoomGroupNameEmpty) ||
 		errors.Is(err, core.ErrSidebarLinkLabelEmpty) ||
 		errors.Is(err, core.ErrSidebarLinkURLInvalid) ||
@@ -62,11 +69,15 @@ func connectError(err error) error {
 		errors.Is(err, core.ErrMessageNotFound) ||
 		errors.Is(err, core.ErrMessageAttachmentNotFound) ||
 		errors.Is(err, core.ErrMessageLinkPreviewNotFound) ||
+		errors.Is(err, core.ErrRoleNotFound) ||
 		errors.Is(err, jetstream.ErrKeyNotFound) {
 		return connect.NewError(connect.CodeNotFound, err)
 	}
 	if errors.Is(err, core.ErrMessageTooLong) {
 		return connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	if errors.Is(err, core.ErrLimitExceeded) {
+		return connect.NewError(connect.CodeResourceExhausted, err)
 	}
 	if errors.Is(err, core.ErrRoomArchived) ||
 		errors.Is(err, core.ErrEditWindowExpired) ||

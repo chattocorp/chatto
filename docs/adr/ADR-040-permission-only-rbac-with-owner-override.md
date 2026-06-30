@@ -33,7 +33,8 @@ Use a permission-only RBAC model for everyone except effective owners.
 - Role position remains as ordering/display metadata and for compatibility with
   existing role events. It is not an authorization rank.
 - Targeted operations are gated by concrete permissions only: for example
-  `role.assign` gates role assignment, `room.ban-member` gates room bans, and
+  `role.assign` gates role assignment, `user.manage-accounts` gates account
+  lifecycle and recovery actions, `room.ban-member` gates room bans, and
   `user.manage-permissions` gates direct per-user permission overrides.
 - Default channel-room member permissions are granted at server scope on
   `everyone`, so normal rooms work immediately. Room and group decisions are

@@ -2,6 +2,7 @@ package connectapi
 
 import (
 	"context"
+	"strings"
 
 	"connectrpc.com/connect"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -55,10 +56,19 @@ func (s *adminUserManagementService) GetMember(ctx context.Context, req *connect
 	if err != nil {
 		return nil, err
 	}
-	if req.Msg.GetUserId() == "" {
-		return nil, invalidArgument("user_id is required")
+	userID := strings.TrimSpace(req.Msg.GetUserId())
+	login := strings.TrimSpace(req.Msg.GetLogin())
+	if (userID == "") == (login == "") {
+		return nil, invalidArgument("provide exactly one of user_id or login")
 	}
-	details, err := s.api.core.GetAdminMemberDetails(ctx, caller.UserID, req.Msg.GetUserId())
+	if login != "" {
+		user, err := s.api.core.GetUserByLogin(ctx, login)
+		if err != nil {
+			return nil, connectError(err)
+		}
+		userID = user.GetId()
+	}
+	details, err := s.api.core.GetAdminMemberDetails(ctx, caller.UserID, userID)
 	if err != nil {
 		return nil, connectError(err)
 	}
@@ -96,7 +106,11 @@ func (s *adminUserManagementService) AssignRole(ctx context.Context, req *connec
 	if err := s.api.core.AdminAssignServerRole(ctx, caller.UserID, req.Msg.GetUserId(), req.Msg.GetRoleName()); err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&adminv1.AssignRoleResponse{Assigned: true}), nil
+	member, err := s.adminMemberForUserCaller(ctx, caller.UserID, req.Msg.GetUserId())
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&adminv1.AssignRoleResponse{Assigned: true, Member: member}), nil
 }
 
 func (s *adminUserManagementService) RevokeRole(ctx context.Context, req *connect.Request[adminv1.RevokeRoleRequest]) (*connect.Response[adminv1.RevokeRoleResponse], error) {
@@ -113,7 +127,11 @@ func (s *adminUserManagementService) RevokeRole(ctx context.Context, req *connec
 	if err := s.api.core.AdminRevokeServerRole(ctx, caller.UserID, req.Msg.GetUserId(), req.Msg.GetRoleName()); err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&adminv1.RevokeRoleResponse{Revoked: true}), nil
+	member, err := s.adminMemberForUserCaller(ctx, caller.UserID, req.Msg.GetUserId())
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&adminv1.RevokeRoleResponse{Revoked: true, Member: member}), nil
 }
 
 func (s *adminUserManagementService) UpdateUser(ctx context.Context, req *connect.Request[adminv1.UpdateUserRequest]) (*connect.Response[adminv1.UpdateUserResponse], error) {
@@ -131,11 +149,15 @@ func (s *adminUserManagementService) UpdateUser(ctx context.Context, req *connec
 	if err != nil {
 		return nil, connectError(err)
 	}
-	user, err := (&accountService{api: s.api}).accountUser(ctx, updated)
+	updatedMember, err := s.adminMemberForUserCaller(ctx, caller.UserID, updated.GetId())
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&adminv1.UpdateUserResponse{User: user}), nil
+	updatedUser, err := (&accountService{api: s.api}).accountUser(ctx, updated)
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&adminv1.UpdateUserResponse{User: updatedUser, Member: updatedMember}), nil
 }
 
 func (s *adminUserManagementService) SetUserPassword(ctx context.Context, req *connect.Request[adminv1.SetUserPasswordRequest]) (*connect.Response[adminv1.SetUserPasswordResponse], error) {
@@ -149,7 +171,7 @@ func (s *adminUserManagementService) SetUserPassword(ctx context.Context, req *c
 	if req.Msg.GetPassword() == "" {
 		return nil, invalidArgument("password is required")
 	}
-	if err := s.api.core.AdminSetUserPassword(ctx, caller.UserID, req.Msg.GetUserId(), req.Msg.GetPassword()); err != nil {
+	if err := s.api.core.AdminSetUserPasswordAuthorized(ctx, caller.UserID, req.Msg.GetUserId(), req.Msg.GetPassword()); err != nil {
 		return nil, connectError(err)
 	}
 	return connect.NewResponse(&adminv1.SetUserPasswordResponse{Updated: true}), nil
@@ -190,6 +212,59 @@ func (s *adminUserManagementService) adminMember(ctx context.Context, member cor
 		response.LastLoginChange = timestamppb.New(*member.LastLoginChange)
 	}
 	return response
+}
+
+func (s *adminUserManagementService) adminMemberForUserCaller(ctx context.Context, actorID, userID string) (*adminv1.AdminMember, error) {
+	details, err := s.api.core.GetAdminMemberDetails(ctx, actorID, userID)
+	if err != nil {
+		return nil, connectError(err)
+	}
+	return s.adminMember(ctx, *details.Member), nil
+}
+
+func (s *adminUserManagementService) adminMemberForOperator(ctx context.Context, user *core.AdminUserView) (*adminv1.AdminMember, error) {
+	if user == nil || user.User == nil {
+		return nil, connectError(core.ErrNotFound)
+	}
+	avatarURL, err := s.api.core.GetUserAvatarURL(ctx, user.User.GetId(), nil, nil, "")
+	if err != nil {
+		return nil, connectError(err)
+	}
+	verifiedEmails := make([]string, 0, len(user.VerifiedEmails))
+	for _, email := range user.VerifiedEmails {
+		verifiedEmails = append(verifiedEmails, email.Email)
+	}
+	response := &adminv1.AdminMember{
+		Roles:                  append([]string(nil), user.RoleNames...),
+		CreatedAt:              user.User.GetCreatedAt(),
+		HasVerifiedEmail:       len(verifiedEmails) > 0,
+		VerifiedEmails:         verifiedEmails,
+		ViewerCanDeleteAccount: true,
+		User: &apiv1.User{
+			Id:          user.User.GetId(),
+			Login:       user.User.GetLogin(),
+			DisplayName: user.User.GetDisplayName(),
+			Deleted:     user.User.GetDeleted(),
+		},
+	}
+	if avatarURL != "" {
+		response.User.AvatarUrl = stringPtr(s.api.absolutizeAssetURL(ctx, avatarURL))
+	}
+	return response, nil
+}
+
+func adminMemberRolesFromCore(roles []core.RoleWithPermissions) []*adminv1.AdminMemberRole {
+	result := make([]*adminv1.AdminMemberRole, 0, len(roles))
+	for _, role := range roles {
+		result = append(result, &adminv1.AdminMemberRole{
+			Name:              role.Name,
+			DisplayName:       role.DisplayName,
+			Position:          role.Position,
+			Permissions:       corePermissionsToStrings(role.Permissions),
+			PermissionDenials: corePermissionsToStrings(role.PermissionDenials),
+		})
+	}
+	return result
 }
 
 func corePermissionsToStrings(perms []core.Permission) []string {

@@ -245,7 +245,7 @@ func TestPermissionResolver_HasSpacePermission(t *testing.T) {
 
 	// "instance-only permission returns false at space level" was a dual-tier
 	// assertion that no longer applies: post-Phase-5 there's only one tier, so
-	// an admin-permission grant on a server role propagates everywhere.
+	// an admin-permission grant on a role propagates everywhere.
 }
 
 func TestPermissionResolver_HasSpacePermission_ServerFallback(t *testing.T) {

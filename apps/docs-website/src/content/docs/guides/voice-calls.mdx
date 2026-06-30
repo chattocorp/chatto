@@ -107,24 +107,24 @@ Use `wss://` (WebSocket Secure) URLs in production. Plain `ws://` should only be
 :::
 
 - **Network**: Users connect directly to the LiveKit server from their browsers. Make sure your LiveKit server is reachable from the public internet (or your private network, for internal deployments).
-- **TURN/STUN**: LiveKit includes a built-in TURN server for NAT traversal. For restrictive networks, you may need to configure it to listen on port 443.
+- **TURN/STUN**: LiveKit includes a built-in TURN server for NAT traversal. TURN/UDP on port 3478 helps many NAT traversal failures; networks that block UDP entirely need TURN/TLS, often on port 443.
 - **Scaling**: A single LiveKit server handles hundreds of concurrent participants for typical small deployments. For larger deployments, LiveKit supports multi-node clustering with Redis.
 - **End-to-end encryption**: Chatto enables LiveKit E2EE automatically for clients. No additional LiveKit server configuration is required.
 - **API Secret**: Keep your API secret confidential. It's used to sign JWT tokens and should never be exposed to clients.
 
 ## TURN for Restrictive Networks
 
-LiveKit can usually connect browsers directly over UDP. Users behind strict corporate firewalls or symmetric NATs may need a TURN relay so media can fall back to TCP or TLS.
+LiveKit can usually connect browsers directly over UDP. Users behind symmetric NATs, mobile networks, or browser/network combinations that fail direct ICE checks need a TURN relay.
 
-For most self-hosted deployments, enable LiveKit's built-in TURN server first:
+For most self-hosted deployments, enable LiveKit's built-in TURN/UDP server first:
 
 ```yaml
 turn:
   enabled: true
-  tls_port: 5349
+  udp_port: 3478
 ```
 
-Expose the TURN/TLS port on the LiveKit host and keep the UDP media range open. If your users can only reach outbound TCP 443, LiveKit or TURN needs a dedicated IP address or host so it can listen on 443 without conflicting with your HTTPS reverse proxy.
+Expose UDP 3478 on the LiveKit host and keep the UDP media range open. Networks that block UDP entirely need TURN/TLS instead. If your users can only reach outbound TCP 443, LiveKit or TURN needs a dedicated IP address or host so it can listen on 443 without conflicting with your HTTPS reverse proxy, and the TURN TLS certificate must match the advertised TURN domain.
 
 Use a dedicated TURN server such as [coturn](https://github.com/coturn/coturn) when you need tighter network separation, a shared TURN service for multiple LiveKit deployments, or TURN/TLS on port 443 without moving LiveKit itself. Configure static credentials on the TURN server and list it under LiveKit's `rtc.turn_servers` configuration.
 

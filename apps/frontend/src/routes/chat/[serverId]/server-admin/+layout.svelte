@@ -38,6 +38,7 @@
     if (pathname.startsWith(membersBase)) {
       return () =>
         chromePermissions.current.canAssignRoles ||
+        chromePermissions.current.canManageUserAccounts ||
         chromePermissions.current.canManageUserPermissions ||
         serverPerms.current.canAdminViewUsers;
     }

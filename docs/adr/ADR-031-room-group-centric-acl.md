@@ -22,7 +22,7 @@ Adopt a **channel-centric ACL** model for channel-room permissions with **room g
 
 | Container | Configures | Examples |
 |---|---|---|
-| **Server** | Server-scope permissions only | `server.manage`, `role.manage`, `role.assign`, `admin.view-users`, `user.delete-any`, `user.delete-self` |
+| **Server** | Server-scope permissions only | `server.manage`, `role.manage`, `role.assign`, `admin.view-users`, `user.delete-any`, `user.delete-self`, `user.manage-accounts` |
 | **Room group** | Room-scope permissions for every channel room in the group | `message.post`, `message.react`, `room.join`, `room.manage`, `message.manage`, `message.echo` |
 | **Room** | Room-scope permissions, **overriding the room group on a per-(role, permission) basis** | Same as above; only the (role, permission) pairs explicitly overridden change from the group's value, the rest inherit |
 

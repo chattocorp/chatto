@@ -88,6 +88,7 @@
     canManageRooms: boolean;
     canManageRoles: boolean;
     canAssignRoles: boolean;
+    canManageUserAccounts: boolean;
     canManageUserPermissions: boolean;
   };
 
@@ -114,7 +115,8 @@
         canManage: server.viewerCanManageServer,
         canManageRooms: server.viewerCanManageRooms,
         canManageRoles: viewer.canAdminManageRoles,
-        canAssignRoles: viewer.canAdminManageUsers,
+        canAssignRoles: viewer.canAssignRoles,
+        canManageUserAccounts: viewer.canAdminManageAccounts,
         canManageUserPermissions: viewer.canManageUserPermissions
       };
     } catch (error) {
@@ -206,6 +208,7 @@
         canManageRooms: serverData.canManageRooms,
         canManageRoles: serverData.canManageRoles,
         canAssignRoles: serverData.canAssignRoles,
+        canManageUserAccounts: serverData.canManageUserAccounts,
         canManageUserPermissions: serverData.canManageUserPermissions
       });
     }

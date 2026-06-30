@@ -30,7 +30,7 @@ const (
 // admin/member metadata with visibility controlled by the service.
 type AdminMember struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Explicit server role assignments. The implicit everyone role is omitted.
+	// Explicit role assignments. The implicit everyone role is omitted.
 	Roles []string `protobuf:"bytes,5,rep,name=roles,proto3" json:"roles,omitempty"`
 	// Account creation time, when known.
 	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
@@ -182,7 +182,7 @@ func (x *AdminRoleReference) GetDisplayName() string {
 	return ""
 }
 
-// Server role details used by the member detail role-assignment UI.
+// Role details used by the member detail role-assignment UI.
 type AdminMemberRole struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Stable role name.
@@ -191,9 +191,9 @@ type AdminMemberRole struct {
 	DisplayName string `protobuf:"bytes,2,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
 	// Display/order position.
 	Position int32 `protobuf:"varint,3,opt,name=position,proto3" json:"position,omitempty"`
-	// Server permissions granted by this role.
+	// Permissions granted by this role.
 	Permissions []string `protobuf:"bytes,4,rep,name=permissions,proto3" json:"permissions,omitempty"`
-	// Server permissions denied by this role.
+	// Permissions denied by this role.
 	PermissionDenials []string `protobuf:"bytes,5,rep,name=permission_denials,json=permissionDenials,proto3" json:"permission_denials,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
@@ -324,7 +324,7 @@ type ListMembersResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Matching users.
 	Users []*AdminMember `protobuf:"bytes,1,rep,name=users,proto3" json:"users,omitempty"`
-	// Server roles for display-name lookup.
+	// Roles for display-name lookup.
 	Roles []*AdminRoleReference `protobuf:"bytes,2,rep,name=roles,proto3" json:"roles,omitempty"`
 	// Page metadata.
 	Page          *v1.PageInfo `protobuf:"bytes,5,opt,name=page,proto3" json:"page,omitempty"`
@@ -387,7 +387,9 @@ func (x *ListMembersResponse) GetPage() *v1.PageInfo {
 type GetMemberRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Target user ID.
-	UserId        string `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	UserId string `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	// Target login. Provide either user_id or login.
+	Login         string `protobuf:"bytes,2,opt,name=login,proto3" json:"login,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -429,14 +431,21 @@ func (x *GetMemberRequest) GetUserId() string {
 	return ""
 }
 
+func (x *GetMemberRequest) GetLogin() string {
+	if x != nil {
+		return x.Login
+	}
+	return ""
+}
+
 // Server-admin member detail payload.
 type GetMemberResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Member record.
 	Member *AdminMember `protobuf:"bytes,1,opt,name=member,proto3" json:"member,omitempty"`
-	// Server roles for assignment UI.
+	// Roles for assignment UI.
 	Roles []*AdminMemberRole `protobuf:"bytes,2,rep,name=roles,proto3" json:"roles,omitempty"`
-	// Server permissions available for per-user overrides.
+	// Permissions available for per-user overrides.
 	AvailablePermissions []string `protobuf:"bytes,3,rep,name=available_permissions,json=availablePermissions,proto3" json:"available_permissions,omitempty"`
 	// Whether the caller may assign/revoke roles.
 	ViewerCanAssignRoles bool `protobuf:"varint,4,opt,name=viewer_can_assign_roles,json=viewerCanAssignRoles,proto3" json:"viewer_can_assign_roles,omitempty"`
@@ -520,7 +529,7 @@ func (x *GetMemberResponse) GetViewerCanManageUserPermissions() bool {
 	return false
 }
 
-// Request to assign a server role to a user.
+// Request to assign a role to a user.
 type AssignRoleRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Target user ID.
@@ -575,11 +584,13 @@ func (x *AssignRoleRequest) GetRoleName() string {
 	return ""
 }
 
-// Result of assigning a server role.
+// Result of assigning a role.
 type AssignRoleResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// True when the request completed.
-	Assigned      bool `protobuf:"varint,1,opt,name=assigned,proto3" json:"assigned,omitempty"`
+	Assigned bool `protobuf:"varint,1,opt,name=assigned,proto3" json:"assigned,omitempty"`
+	// Updated admin member row.
+	Member        *AdminMember `protobuf:"bytes,2,opt,name=member,proto3" json:"member,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -621,7 +632,14 @@ func (x *AssignRoleResponse) GetAssigned() bool {
 	return false
 }
 
-// Request to revoke a server role from a user.
+func (x *AssignRoleResponse) GetMember() *AdminMember {
+	if x != nil {
+		return x.Member
+	}
+	return nil
+}
+
+// Request to revoke a role from a user.
 type RevokeRoleRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Target user ID.
@@ -676,11 +694,13 @@ func (x *RevokeRoleRequest) GetRoleName() string {
 	return ""
 }
 
-// Result of revoking a server role.
+// Result of revoking a role.
 type RevokeRoleResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// True when the request completed.
-	Revoked       bool `protobuf:"varint,1,opt,name=revoked,proto3" json:"revoked,omitempty"`
+	Revoked bool `protobuf:"varint,1,opt,name=revoked,proto3" json:"revoked,omitempty"`
+	// Updated admin member row.
+	Member        *AdminMember `protobuf:"bytes,2,opt,name=member,proto3" json:"member,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -720,6 +740,13 @@ func (x *RevokeRoleResponse) GetRevoked() bool {
 		return x.Revoked
 	}
 	return false
+}
+
+func (x *RevokeRoleResponse) GetMember() *AdminMember {
+	if x != nil {
+		return x.Member
+	}
+	return nil
 }
 
 // Request to update a user's identity as a server-admin action.
@@ -790,7 +817,9 @@ func (x *UpdateUserRequest) GetLogin() string {
 type UpdateUserResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Updated user profile.
-	User          *v1.User `protobuf:"bytes,1,opt,name=user,proto3" json:"user,omitempty"`
+	User *v1.User `protobuf:"bytes,1,opt,name=user,proto3" json:"user,omitempty"`
+	// Updated admin member row.
+	Member        *AdminMember `protobuf:"bytes,2,opt,name=member,proto3" json:"member,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -828,6 +857,13 @@ func (*UpdateUserResponse) Descriptor() ([]byte, []int) {
 func (x *UpdateUserResponse) GetUser() *v1.User {
 	if x != nil {
 		return x.User
+	}
+	return nil
+}
+
+func (x *UpdateUserResponse) GetMember() *AdminMember {
+	if x != nil {
+		return x.Member
 	}
 	return nil
 }
@@ -1057,9 +1093,10 @@ const file_chatto_admin_v1_members_proto_rawDesc = "" +
 	"\x13ListMembersResponse\x122\n" +
 	"\x05users\x18\x01 \x03(\v2\x1c.chatto.admin.v1.AdminMemberR\x05users\x129\n" +
 	"\x05roles\x18\x02 \x03(\v2#.chatto.admin.v1.AdminRoleReferenceR\x05roles\x12+\n" +
-	"\x04page\x18\x05 \x01(\v2\x17.chatto.api.v1.PageInfoR\x04pageJ\x04\b\x03\x10\x04J\x04\b\x04\x10\x05R\vtotal_countR\bhas_more\"4\n" +
-	"\x10GetMemberRequest\x12 \n" +
-	"\auser_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06userId\"\xf0\x02\n" +
+	"\x04page\x18\x05 \x01(\v2\x17.chatto.api.v1.PageInfoR\x04pageJ\x04\b\x03\x10\x04J\x04\b\x04\x10\x05R\vtotal_countR\bhas_more\"A\n" +
+	"\x10GetMemberRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x14\n" +
+	"\x05login\x18\x02 \x01(\tR\x05login\"\xf0\x02\n" +
 	"\x11GetMemberResponse\x124\n" +
 	"\x06member\x18\x01 \x01(\v2\x1c.chatto.admin.v1.AdminMemberR\x06member\x126\n" +
 	"\x05roles\x18\x02 \x03(\v2 .chatto.admin.v1.AdminMemberRoleR\x05roles\x123\n" +
@@ -1069,22 +1106,25 @@ const file_chatto_admin_v1_members_proto_rawDesc = "" +
 	"\"viewer_can_manage_user_permissions\x18\x06 \x01(\bR\x1eviewerCanManageUserPermissions\"[\n" +
 	"\x11AssignRoleRequest\x12 \n" +
 	"\auser_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06userId\x12$\n" +
-	"\trole_name\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\broleName\"0\n" +
+	"\trole_name\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\broleName\"f\n" +
 	"\x12AssignRoleResponse\x12\x1a\n" +
-	"\bassigned\x18\x01 \x01(\bR\bassigned\"[\n" +
+	"\bassigned\x18\x01 \x01(\bR\bassigned\x124\n" +
+	"\x06member\x18\x02 \x01(\v2\x1c.chatto.admin.v1.AdminMemberR\x06member\"[\n" +
 	"\x11RevokeRoleRequest\x12 \n" +
 	"\auser_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06userId\x12$\n" +
-	"\trole_name\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\broleName\".\n" +
+	"\trole_name\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\broleName\"d\n" +
 	"\x12RevokeRoleResponse\x12\x18\n" +
-	"\arevoked\x18\x01 \x01(\bR\arevoked\"\x93\x01\n" +
+	"\arevoked\x18\x01 \x01(\bR\arevoked\x124\n" +
+	"\x06member\x18\x02 \x01(\v2\x1c.chatto.admin.v1.AdminMemberR\x06member\"\x93\x01\n" +
 	"\x11UpdateUserRequest\x12 \n" +
 	"\auser_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06userId\x12&\n" +
 	"\fdisplay_name\x18\x02 \x01(\tH\x00R\vdisplayName\x88\x01\x01\x12\x19\n" +
 	"\x05login\x18\x03 \x01(\tH\x01R\x05login\x88\x01\x01B\x0f\n" +
 	"\r_display_nameB\b\n" +
-	"\x06_login\"=\n" +
+	"\x06_login\"s\n" +
 	"\x12UpdateUserResponse\x12'\n" +
-	"\x04user\x18\x01 \x01(\v2\x13.chatto.api.v1.UserR\x04user\"V\n" +
+	"\x04user\x18\x01 \x01(\v2\x13.chatto.api.v1.UserR\x04user\x124\n" +
+	"\x06member\x18\x02 \x01(\v2\x1c.chatto.admin.v1.AdminMemberR\x06member\"V\n" +
 	"\x16SetUserPasswordRequest\x12 \n" +
 	"\auser_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06userId\x12\x1a\n" +
 	"\bpassword\x18\x02 \x01(\tR\bpassword\"3\n" +
@@ -1153,26 +1193,29 @@ var file_chatto_admin_v1_members_proto_depIdxs = []int32{
 	20, // 6: chatto.admin.v1.ListMembersResponse.page:type_name -> chatto.api.v1.PageInfo
 	0,  // 7: chatto.admin.v1.GetMemberResponse.member:type_name -> chatto.admin.v1.AdminMember
 	2,  // 8: chatto.admin.v1.GetMemberResponse.roles:type_name -> chatto.admin.v1.AdminMemberRole
-	18, // 9: chatto.admin.v1.UpdateUserResponse.user:type_name -> chatto.api.v1.User
-	3,  // 10: chatto.admin.v1.AdminMemberService.ListMembers:input_type -> chatto.admin.v1.ListMembersRequest
-	5,  // 11: chatto.admin.v1.AdminMemberService.GetMember:input_type -> chatto.admin.v1.GetMemberRequest
-	7,  // 12: chatto.admin.v1.AdminMemberService.AssignRole:input_type -> chatto.admin.v1.AssignRoleRequest
-	9,  // 13: chatto.admin.v1.AdminMemberService.RevokeRole:input_type -> chatto.admin.v1.RevokeRoleRequest
-	11, // 14: chatto.admin.v1.AdminMemberService.UpdateUser:input_type -> chatto.admin.v1.UpdateUserRequest
-	13, // 15: chatto.admin.v1.AdminMemberService.SetUserPassword:input_type -> chatto.admin.v1.SetUserPasswordRequest
-	15, // 16: chatto.admin.v1.AdminMemberService.ClearUsernameCooldown:input_type -> chatto.admin.v1.ClearUsernameCooldownRequest
-	4,  // 17: chatto.admin.v1.AdminMemberService.ListMembers:output_type -> chatto.admin.v1.ListMembersResponse
-	6,  // 18: chatto.admin.v1.AdminMemberService.GetMember:output_type -> chatto.admin.v1.GetMemberResponse
-	8,  // 19: chatto.admin.v1.AdminMemberService.AssignRole:output_type -> chatto.admin.v1.AssignRoleResponse
-	10, // 20: chatto.admin.v1.AdminMemberService.RevokeRole:output_type -> chatto.admin.v1.RevokeRoleResponse
-	12, // 21: chatto.admin.v1.AdminMemberService.UpdateUser:output_type -> chatto.admin.v1.UpdateUserResponse
-	14, // 22: chatto.admin.v1.AdminMemberService.SetUserPassword:output_type -> chatto.admin.v1.SetUserPasswordResponse
-	16, // 23: chatto.admin.v1.AdminMemberService.ClearUsernameCooldown:output_type -> chatto.admin.v1.ClearUsernameCooldownResponse
-	17, // [17:24] is the sub-list for method output_type
-	10, // [10:17] is the sub-list for method input_type
-	10, // [10:10] is the sub-list for extension type_name
-	10, // [10:10] is the sub-list for extension extendee
-	0,  // [0:10] is the sub-list for field type_name
+	0,  // 9: chatto.admin.v1.AssignRoleResponse.member:type_name -> chatto.admin.v1.AdminMember
+	0,  // 10: chatto.admin.v1.RevokeRoleResponse.member:type_name -> chatto.admin.v1.AdminMember
+	18, // 11: chatto.admin.v1.UpdateUserResponse.user:type_name -> chatto.api.v1.User
+	0,  // 12: chatto.admin.v1.UpdateUserResponse.member:type_name -> chatto.admin.v1.AdminMember
+	3,  // 13: chatto.admin.v1.AdminMemberService.ListMembers:input_type -> chatto.admin.v1.ListMembersRequest
+	5,  // 14: chatto.admin.v1.AdminMemberService.GetMember:input_type -> chatto.admin.v1.GetMemberRequest
+	7,  // 15: chatto.admin.v1.AdminMemberService.AssignRole:input_type -> chatto.admin.v1.AssignRoleRequest
+	9,  // 16: chatto.admin.v1.AdminMemberService.RevokeRole:input_type -> chatto.admin.v1.RevokeRoleRequest
+	11, // 17: chatto.admin.v1.AdminMemberService.UpdateUser:input_type -> chatto.admin.v1.UpdateUserRequest
+	13, // 18: chatto.admin.v1.AdminMemberService.SetUserPassword:input_type -> chatto.admin.v1.SetUserPasswordRequest
+	15, // 19: chatto.admin.v1.AdminMemberService.ClearUsernameCooldown:input_type -> chatto.admin.v1.ClearUsernameCooldownRequest
+	4,  // 20: chatto.admin.v1.AdminMemberService.ListMembers:output_type -> chatto.admin.v1.ListMembersResponse
+	6,  // 21: chatto.admin.v1.AdminMemberService.GetMember:output_type -> chatto.admin.v1.GetMemberResponse
+	8,  // 22: chatto.admin.v1.AdminMemberService.AssignRole:output_type -> chatto.admin.v1.AssignRoleResponse
+	10, // 23: chatto.admin.v1.AdminMemberService.RevokeRole:output_type -> chatto.admin.v1.RevokeRoleResponse
+	12, // 24: chatto.admin.v1.AdminMemberService.UpdateUser:output_type -> chatto.admin.v1.UpdateUserResponse
+	14, // 25: chatto.admin.v1.AdminMemberService.SetUserPassword:output_type -> chatto.admin.v1.SetUserPasswordResponse
+	16, // 26: chatto.admin.v1.AdminMemberService.ClearUsernameCooldown:output_type -> chatto.admin.v1.ClearUsernameCooldownResponse
+	20, // [20:27] is the sub-list for method output_type
+	13, // [13:20] is the sub-list for method input_type
+	13, // [13:13] is the sub-list for extension type_name
+	13, // [13:13] is the sub-list for extension extendee
+	0,  // [0:13] is the sub-list for field type_name
 }
 
 func init() { file_chatto_admin_v1_members_proto_init() }

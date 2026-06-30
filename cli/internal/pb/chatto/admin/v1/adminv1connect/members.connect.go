@@ -63,9 +63,9 @@ type AdminMemberServiceClient interface {
 	// Gets one server member plus role/permission metadata for admin details.
 	// Returns NOT_FOUND when the user does not exist.
 	GetMember(context.Context, *connect.Request[v1.GetMemberRequest]) (*connect.Response[v1.GetMemberResponse], error)
-	// Assigns a server role to a user.
+	// Assigns a role to a user.
 	AssignRole(context.Context, *connect.Request[v1.AssignRoleRequest]) (*connect.Response[v1.AssignRoleResponse], error)
-	// Revokes a server role from a user.
+	// Revokes a role from a user.
 	RevokeRole(context.Context, *connect.Request[v1.RevokeRoleRequest]) (*connect.Response[v1.RevokeRoleResponse], error)
 	// Updates a user's login and/or display name as an admin action.
 	UpdateUser(context.Context, *connect.Request[v1.UpdateUserRequest]) (*connect.Response[v1.UpdateUserResponse], error)
@@ -184,9 +184,9 @@ type AdminMemberServiceHandler interface {
 	// Gets one server member plus role/permission metadata for admin details.
 	// Returns NOT_FOUND when the user does not exist.
 	GetMember(context.Context, *connect.Request[v1.GetMemberRequest]) (*connect.Response[v1.GetMemberResponse], error)
-	// Assigns a server role to a user.
+	// Assigns a role to a user.
 	AssignRole(context.Context, *connect.Request[v1.AssignRoleRequest]) (*connect.Response[v1.AssignRoleResponse], error)
-	// Revokes a server role from a user.
+	// Revokes a role from a user.
 	RevokeRole(context.Context, *connect.Request[v1.RevokeRoleRequest]) (*connect.Response[v1.RevokeRoleResponse], error)
 	// Updates a user's login and/or display name as an admin action.
 	UpdateUser(context.Context, *connect.Request[v1.UpdateUserRequest]) (*connect.Response[v1.UpdateUserResponse], error)

@@ -155,6 +155,8 @@ function viewerState(overrides: Record<string, unknown> = {}) {
     canStartDMs: true,
     canAdminViewUsers: false,
     canAdminManageUsers: false,
+    canAdminManageAccounts: false,
+    canAssignRoles: false,
     canAdminViewRoles: false,
     canAdminManageRoles: false,
     canAdminViewSystem: false,

@@ -193,7 +193,7 @@ Server-admin member rows plus role summaries.
 | Field | Type | Description |
 | --- | --- | --- |
 | `users` | repeated [`AdminMember`](#chatto-admin-v1-AdminMember) | Matching users. |
-| `roles` | repeated [`AdminRoleReference`](#chatto-admin-v1-AdminRoleReference) | Server roles for display-name lookup. |
+| `roles` | repeated [`AdminRoleReference`](#chatto-admin-v1-AdminRoleReference) | Roles for display-name lookup. |
 | `page` | `chatto.api.v1.PageInfo` | Page metadata. |
 
 
@@ -217,6 +217,7 @@ Request one server-admin member detail record.
 | Field | Type | Description |
 | --- | --- | --- |
 | `user_id` | `string` | Target user ID. |
+| `login` | `string` | Target login. Provide either user_id or login. |
 
 
 <a id="chatto-admin-v1-GetMemberResponse"></a>
@@ -228,8 +229,8 @@ Server-admin member detail payload.
 | Field | Type | Description |
 | --- | --- | --- |
 | `member` | [`AdminMember`](#chatto-admin-v1-AdminMember) | Member record. |
-| `roles` | repeated [`AdminMemberRole`](#chatto-admin-v1-AdminMemberRole) | Server roles for assignment UI. |
-| `available_permissions` | `repeated string` | Server permissions available for per-user overrides. |
+| `roles` | repeated [`AdminMemberRole`](#chatto-admin-v1-AdminMemberRole) | Roles for assignment UI. |
+| `available_permissions` | `repeated string` | Permissions available for per-user overrides. |
 | `viewer_can_assign_roles` | `bool` | Whether the caller may assign/revoke roles. |
 | `viewer_can_manage_roles` | `bool` | Whether the caller may edit role definitions. |
 | `viewer_can_manage_user_permissions` | `bool` | Whether the caller may edit direct user permissions. |
@@ -239,7 +240,7 @@ Server-admin member detail payload.
 
 ### AssignRole
 
-Assigns a server role to a user.
+Assigns a role to a user.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminMemberService/AssignRole
@@ -249,7 +250,7 @@ POST /api/connect/chatto.admin.v1.AdminMemberService/AssignRole
 
 #### Input: AssignRoleRequest
 
-Request to assign a server role to a user.
+Request to assign a role to a user.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -261,18 +262,19 @@ Request to assign a server role to a user.
 
 #### Result: AssignRoleResponse
 
-Result of assigning a server role.
+Result of assigning a role.
 
 | Field | Type | Description |
 | --- | --- | --- |
 | `assigned` | `bool` | True when the request completed. |
+| `member` | [`AdminMember`](#chatto-admin-v1-AdminMember) | Updated admin member row. |
 
 
 <a id="chatto-admin-v1-AdminMemberService-RevokeRole"></a>
 
 ### RevokeRole
 
-Revokes a server role from a user.
+Revokes a role from a user.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminMemberService/RevokeRole
@@ -282,7 +284,7 @@ POST /api/connect/chatto.admin.v1.AdminMemberService/RevokeRole
 
 #### Input: RevokeRoleRequest
 
-Request to revoke a server role from a user.
+Request to revoke a role from a user.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -294,11 +296,12 @@ Request to revoke a server role from a user.
 
 #### Result: RevokeRoleResponse
 
-Result of revoking a server role.
+Result of revoking a role.
 
 | Field | Type | Description |
 | --- | --- | --- |
 | `revoked` | `bool` | True when the request completed. |
+| `member` | [`AdminMember`](#chatto-admin-v1-AdminMember) | Updated admin member row. |
 
 
 <a id="chatto-admin-v1-AdminMemberService-UpdateUser"></a>
@@ -333,6 +336,7 @@ Result of an admin user update.
 | Field | Type | Description |
 | --- | --- | --- |
 | `user` | `chatto.api.v1.User` | Updated user profile. |
+| `member` | [`AdminMember`](#chatto-admin-v1-AdminMember) | Updated admin member row. |
 
 
 <a id="chatto-admin-v1-AdminMemberService-SetUserPassword"></a>
@@ -616,7 +620,7 @@ Provides authenticated role catalog reads and admin role CRUD.
 
 ### ListRoles
 
-Lists the server role catalog. Requires an authenticated user.
+Lists the role catalog. Requires an authenticated user.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminRoleService/ListRoles
@@ -626,14 +630,14 @@ POST /api/connect/chatto.admin.v1.AdminRoleService/ListRoles
 
 #### Input: ListRolesRequest
 
-Request the server role catalog.
+Request the role catalog.
 
 
 <a id="chatto-admin-v1-ListRolesResponse"></a>
 
 #### Result: ListRolesResponse
 
-Server role catalog plus viewer role-management capabilities.
+Role catalog plus viewer role-management capabilities.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -646,7 +650,7 @@ Server role catalog plus viewer role-management capabilities.
 
 ### GetRole
 
-Gets one server role plus admin detail metadata. Returns NOT_FOUND when the
+Gets one role plus admin detail metadata. Returns NOT_FOUND when the
 role does not exist.
 
 ```http
@@ -657,7 +661,7 @@ POST /api/connect/chatto.admin.v1.AdminRoleService/GetRole
 
 #### Input: GetRoleRequest
 
-Request one server role.
+Request one role.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -668,7 +672,7 @@ Request one server role.
 
 #### Result: GetRoleResponse
 
-One server role plus role-management metadata.
+One role plus role-management metadata.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -682,7 +686,7 @@ One server role plus role-management metadata.
 
 ### CreateRole
 
-Creates a custom server role. Requires role.manage.
+Creates a custom role. Requires role.manage.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminRoleService/CreateRole
@@ -692,7 +696,7 @@ POST /api/connect/chatto.admin.v1.AdminRoleService/CreateRole
 
 #### Input: CreateRoleRequest
 
-Request to create a server role.
+Request to create a role.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -706,7 +710,7 @@ Request to create a server role.
 
 #### Result: CreateRoleResponse
 
-Result of creating a server role.
+Result of creating a role.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -727,7 +731,7 @@ POST /api/connect/chatto.admin.v1.AdminRoleService/UpdateRole
 
 #### Input: UpdateRoleRequest
 
-Request to update server role metadata.
+Request to update role metadata.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -741,7 +745,7 @@ Request to update server role metadata.
 
 #### Result: UpdateRoleResponse
 
-Result of updating a server role.
+Result of updating a role.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -752,7 +756,7 @@ Result of updating a server role.
 
 ### DeleteRole
 
-Deletes a custom server role. Requires role.manage.
+Deletes a custom role. Requires role.manage.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminRoleService/DeleteRole
@@ -762,7 +766,7 @@ POST /api/connect/chatto.admin.v1.AdminRoleService/DeleteRole
 
 #### Input: DeleteRoleRequest
 
-Request to delete a server role.
+Request to delete a role.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -773,7 +777,7 @@ Request to delete a server role.
 
 #### Result: DeleteRoleResponse
 
-Result of deleting a server role.
+Result of deleting a role.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -794,7 +798,7 @@ POST /api/connect/chatto.admin.v1.AdminRoleService/ReorderRoles
 
 #### Input: ReorderRolesRequest
 
-Request to replace custom server role order.
+Request to replace custom role order.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -805,7 +809,7 @@ Request to replace custom server role order.
 
 #### Result: ReorderRolesResponse
 
-Result of replacing custom server role order.
+Result of replacing custom role order.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -1635,7 +1639,7 @@ admin/member metadata with visibility controlled by the service.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `roles` | `repeated string` | Explicit server role assignments. The implicit everyone role is omitted. |
+| `roles` | `repeated string` | Explicit role assignments. The implicit everyone role is omitted. |
 | `created_at` | `google.protobuf.Timestamp` | Account creation time, when known. |
 | `has_verified_email` | `bool` | Whether the caller may see that the user has a verified email and one exists. |
 | `verified_emails` | `repeated string` | Verified email addresses visible to the caller. |
@@ -1649,15 +1653,15 @@ admin/member metadata with visibility controlled by the service.
 
 ### AdminMemberRole
 
-Server role details used by the member detail role-assignment UI.
+Role details used by the member detail role-assignment UI.
 
 | Field | Type | Description |
 | --- | --- | --- |
 | `name` | `string` | Stable role name. |
 | `display_name` | `string` | Display name shown in admin UI. |
 | `position` | `int32` | Display/order position. |
-| `permissions` | `repeated string` | Server permissions granted by this role. |
-| `permission_denials` | `repeated string` | Server permissions denied by this role. |
+| `permissions` | `repeated string` | Permissions granted by this role. |
+| `permission_denials` | `repeated string` | Permissions denied by this role. |
 
 
 
@@ -1827,15 +1831,15 @@ Permission matrix for one user across all scopes.
 
 ### Role
 
-Server role metadata and server-scope permission state.
+Role metadata and permission state.
 
 | Field | Type | Description |
 | --- | --- | --- |
 | `name` | `string` | Stable role name used in permission and assignment records. |
 | `display_name` | `string` | Display name shown in admin and mention UIs. |
 | `description` | `string` | Optional role description. |
-| `permissions` | `repeated string` | Server permissions granted by this role. |
-| `permission_denials` | `repeated string` | Server permissions denied by this role. |
+| `permissions` | `repeated string` | Permissions granted by this role. |
+| `permission_denials` | `repeated string` | Permissions denied by this role. |
 | `is_system` | `bool` | Whether this is a built-in role. |
 | `position` | `int32` | Display/order position. |
 | `pingable` | `bool` | Whether messages may notify users assigned to this role. |

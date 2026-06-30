@@ -104,6 +104,26 @@ type DiagnosticsConfig struct {
 	StartupCPUProfile string `toml:"startup_cpu_profile,commented" env:"CHATTO_DIAGNOSTICS_STARTUP_CPU_PROFILE" comment:"Write a Go CPU profile covering process startup through core boot to this path. Disabled when empty."`
 }
 
+// OperatorAPIConfig controls the local root-equivalent operator API socket.
+type OperatorAPIConfig struct {
+	Enabled    bool   `toml:"enabled" env:"CHATTO_OPERATOR_API_ENABLED" comment:"Enable the local operator API Unix socket. Default: false."`
+	SocketPath string `toml:"socket_path,commented" env:"CHATTO_OPERATOR_API_SOCKET_PATH" comment:"Unix socket path for local operator commands. Default: /tmp/chatto/operator.sock."`
+	SocketMode string `toml:"socket_mode,omitempty" env:"CHATTO_OPERATOR_API_SOCKET_MODE"`
+}
+
+const (
+	defaultOperatorAPISocketPath = "/tmp/chatto/operator.sock"
+	OperatorAPISocketMode        = os.FileMode(0o600)
+)
+
+// SocketPathOrDefault returns the configured operator API socket path.
+func (c OperatorAPIConfig) SocketPathOrDefault() string {
+	if strings.TrimSpace(c.SocketPath) == "" {
+		return defaultOperatorAPISocketPath
+	}
+	return strings.TrimSpace(c.SocketPath)
+}
+
 // BindAddressOrDefault returns the metrics bind address, defaulting to localhost.
 func (c *MetricsConfig) BindAddressOrDefault() string {
 	if c.BindAddress == "" {
@@ -588,7 +608,6 @@ const (
 )
 
 // NATSClientConfig contains settings for connecting to an external NATS server.
-// Also used for CLI commands (like chatto admin) to connect to the embedded server.
 type NATSClientConfig struct {
 	URL             string         `toml:"url" env:"CHATTO_NATS_CLIENT_URL" comment:"NATS server URL. Use a comma-separated list for cluster failover, e.g. nats://n1:4222,nats://n2:4222."`
 	AuthMethod      NATSAuthMethod `toml:"auth_method" env:"CHATTO_NATS_CLIENT_AUTH_METHOD" comment:"Authentication method for the external NATS server: none, token, userpass, credentials, or nkey."`
@@ -843,6 +862,7 @@ type ChattoConfig struct {
 	Metrics     MetricsConfig     `toml:"metrics,commented" comment:"Process-local Prometheus metrics endpoint."`
 	Exporter    ExporterConfig    `toml:"exporter,commented" comment:"Deployment-wide Prometheus metrics exporter."`
 	Diagnostics DiagnosticsConfig `toml:"diagnostics,commented" comment:"Opt-in diagnostics for local benchmarking and operator troubleshooting."`
+	OperatorAPI OperatorAPIConfig `toml:"operator_api,commented" comment:"Local root-equivalent operator API Unix socket. Disabled by default."`
 	Core        CoreConfig        `toml:"core" comment:"Core service configuration."`
 	Auth        AuthConfig        `toml:"auth" comment:"Authentication configuration."`
 	Limits      LimitsConfig      `toml:"limits,commented" comment:"Instance-wide resource limits. Use -1 for unlimited."`
@@ -921,6 +941,14 @@ func (c *ChattoConfig) Validate() error {
 	}
 	if _, err := c.Webserver.CookieEncryptionKey(); err != nil {
 		errs = append(errs, err.Error())
+	}
+	if c.OperatorAPI.Enabled {
+		if strings.TrimSpace(c.OperatorAPI.SocketPathOrDefault()) == "" {
+			errs = append(errs, "operator_api.socket_path is required when operator_api.enabled is true")
+		}
+		if strings.TrimSpace(c.OperatorAPI.SocketMode) != "" {
+			errs = append(errs, "operator_api.socket_mode is no longer supported; operator API sockets always use mode 0600")
+		}
 	}
 
 	// Port ranges (port 0 is allowed when TLS is enabled, as it defaults to 443)

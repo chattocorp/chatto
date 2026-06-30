@@ -6,6 +6,7 @@ import (
 	"net/url"
 
 	"connectrpc.com/authn"
+	"github.com/charmbracelet/log"
 	"github.com/gin-gonic/gin"
 	"hmans.de/chatto/internal/authctx"
 	"hmans.de/chatto/internal/connectapi"
@@ -14,6 +15,26 @@ import (
 const connectAPIPrefix = connectapi.Prefix
 
 func (s *HTTPServer) setupConnectAPI() {
+	if s.logger == nil {
+		s.logger = log.WithPrefix("server.HTTP")
+	}
+	s.setupConnectAPIOnRouter(s.router)
+}
+
+func (s *HTTPServer) newOperatorAPIServer() *http.Server {
+	if s.logger == nil {
+		s.logger = log.WithPrefix("server.HTTP")
+	}
+	router := gin.New()
+	router.Use(gin.Recovery())
+	if s.config.Webserver.RequestLoggingEnabled() {
+		router.Use(requestLogger(s.logger))
+	}
+	s.setupOperatorConnectAPI(router)
+	return newHTTPServer(s.config.OperatorAPI.SocketPathOrDefault(), router)
+}
+
+func (s *HTTPServer) setupConnectAPIOnRouter(router gin.IRouter) {
 	api := connectapi.New(s.core, s.config, s.version)
 	authMiddleware := authn.NewMiddleware(authenticateConnectRequest, connectapi.HandlerOptions()...)
 	for _, handler := range api.Handlers() {
@@ -25,15 +46,30 @@ func (s *HTTPServer) setupConnectAPI() {
 		default:
 			panic("unknown ConnectRPC auth policy for " + handler.ServicePath)
 		}
-		s.mountConnectHandler(handler.ServicePath, serviceHandler)
+		s.mountConnectHandler(router, handler.ServicePath, serviceHandler)
 	}
 }
 
-func (s *HTTPServer) mountConnectHandler(servicePath string, serviceHandler http.Handler) {
+func (s *HTTPServer) setupOperatorConnectAPI(router gin.IRouter) {
+	api := connectapi.New(s.core, s.config, s.version)
+	for _, handler := range api.OperatorHandlers() {
+		s.mountOperatorConnectHandler(router, handler.ServicePath, handler.Handler)
+	}
+}
+
+func (s *HTTPServer) mountConnectHandler(router gin.IRouter, servicePath string, serviceHandler http.Handler) {
 	handler := http.StripPrefix(connectAPIPrefix, serviceHandler)
-	s.router.Any(connectAPIPrefix+servicePath+"*connectPath", func(c *gin.Context) {
+	router.Any(connectAPIPrefix+servicePath+"*connectPath", func(c *gin.Context) {
 		req := s.injectUserIntoContext(c)
 		req = req.WithContext(connectapi.WithRequestBaseURL(req.Context(), s.requestBaseURL(c.Request)))
+		handler.ServeHTTP(c.Writer, req)
+	})
+}
+
+func (s *HTTPServer) mountOperatorConnectHandler(router gin.IRouter, servicePath string, serviceHandler http.Handler) {
+	handler := http.StripPrefix(connectAPIPrefix, serviceHandler)
+	router.Any(connectAPIPrefix+servicePath+"*connectPath", func(c *gin.Context) {
+		req := c.Request.WithContext(connectapi.WithRequestBaseURL(c.Request.Context(), s.requestBaseURL(c.Request)))
 		handler.ServeHTTP(c.Writer, req)
 	})
 }

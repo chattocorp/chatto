@@ -1,0 +1,201 @@
+syntax = "proto3";
+
+package chatto.operator.v1;
+
+import "buf/validate/validate.proto";
+import "chatto/admin/v1/members.proto";
+import "chatto/api/v1/pagination.proto";
+import "chatto/api/v1/users.proto";
+
+// Request to create a user as a local operator action.
+message CreateUserRequest {
+  // Required login for the new user.
+  string login = 1 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 64
+  }];
+  // Optional display name. Defaults to login when empty.
+  string display_name = 2 [(buf.validate.field).string.max_len = 80];
+  // Optional password. When present, it must satisfy server password policy.
+  string password = 3 [(buf.validate.field).string.max_len = 128];
+  // Optional email to add as already verified.
+  string verified_email = 4 [(buf.validate.field).string.max_len = 320];
+  // Optional explicit roles to assign after creation.
+  repeated string role_names = 5 [(buf.validate.field).repeated.max_items = 20];
+}
+
+// Result of creating a user.
+message CreateUserResponse {
+  // Created member row.
+  chatto.admin.v1.AdminMember member = 1;
+}
+
+// Request operator-visible user rows.
+message ListUsersRequest {
+  // Case-insensitive login/display-name search term. Empty disables search.
+  string search = 1;
+  // Page request. Defaults to 20 results when absent or limit is zero.
+  chatto.api.v1.PageRequest page = 2;
+}
+
+// Operator-visible user rows plus role summaries.
+message ListUsersResponse {
+  // Matching users.
+  repeated chatto.admin.v1.AdminMember users = 1;
+  // Roles for display-name lookup.
+  repeated chatto.admin.v1.AdminRoleReference roles = 2;
+  // Page metadata.
+  chatto.api.v1.PageInfo page = 3;
+}
+
+// Request one operator-visible user detail record.
+message GetUserRequest {
+  // Target user ID.
+  string user_id = 1;
+  // Target login. Provide exactly one lookup field.
+  string login = 2;
+  // Target verified email address. Provide exactly one lookup field.
+  string email = 3;
+}
+
+// Operator-visible user detail payload.
+message GetUserResponse {
+  // Member record.
+  chatto.admin.v1.AdminMember member = 1;
+  // Roles for assignment.
+  repeated chatto.admin.v1.AdminMemberRole roles = 2;
+  // Permissions available for per-user overrides.
+  repeated string available_permissions = 3;
+}
+
+// Request to assign a role to a user.
+message AssignRoleRequest {
+  // Target user ID.
+  string user_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Role name to assign.
+  string role_name = 2 [(buf.validate.field).string.min_len = 1];
+}
+
+// Result of assigning a role.
+message AssignRoleResponse {
+  // True when the request completed.
+  bool assigned = 1;
+  // Updated member row.
+  chatto.admin.v1.AdminMember member = 2;
+}
+
+// Request to revoke a role from a user.
+message RevokeRoleRequest {
+  // Target user ID.
+  string user_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Role name to revoke.
+  string role_name = 2 [(buf.validate.field).string.min_len = 1];
+}
+
+// Result of revoking a role.
+message RevokeRoleResponse {
+  // True when the request completed.
+  bool revoked = 1;
+  // Updated member row.
+  chatto.admin.v1.AdminMember member = 2;
+}
+
+// Request to update a user's identity as an operator action.
+message UpdateUserRequest {
+  // Target user ID.
+  string user_id = 1 [(buf.validate.field).string.min_len = 1];
+  // New display name, when changing it.
+  optional string display_name = 2;
+  // New login identifier, when changing it.
+  optional string login = 3;
+}
+
+// Result of an operator user update.
+message UpdateUserResponse {
+  // Updated user profile.
+  chatto.api.v1.User user = 1;
+  // Updated member row.
+  chatto.admin.v1.AdminMember member = 2;
+}
+
+// Request to set a user's password as an operator action.
+message SetUserPasswordRequest {
+  // Target user ID.
+  string user_id = 1 [(buf.validate.field).string.min_len = 1];
+  // New password.
+  string password = 2 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 128
+  }];
+}
+
+// Result of setting a user's password.
+message SetUserPasswordResponse {
+  // Updated member row.
+  chatto.admin.v1.AdminMember member = 1;
+}
+
+// Request to permanently delete a user account.
+message DeleteUserRequest {
+  // Target user ID.
+  string user_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+// Result of deleting a user account.
+message DeleteUserResponse {
+  // True when the account was deleted.
+  bool deleted = 1;
+}
+
+// Request to add a verified email address to a user.
+message AddVerifiedEmailRequest {
+  // Target user ID.
+  string user_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Email address to mark as verified.
+  string email = 2 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 320
+  }];
+}
+
+// Result of adding a verified email address.
+message AddVerifiedEmailResponse {
+  // Updated member row.
+  chatto.admin.v1.AdminMember member = 1;
+}
+
+// Request to clear a user's self-service username-change cooldown.
+message ClearUsernameCooldownRequest {
+  // Target user ID.
+  string user_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+// Result of clearing a user's username-change cooldown.
+message ClearUsernameCooldownResponse {
+  // True when the request completed.
+  bool cleared = 1;
+}
+
+// Root-equivalent local operator user commands.
+service OperatorUserService {
+  // Creates a user as a local operator.
+  rpc CreateUser(CreateUserRequest) returns (CreateUserResponse);
+  // Lists users for operator inspection.
+  rpc ListUsers(ListUsersRequest) returns (ListUsersResponse);
+  // Gets one user plus role/permission metadata for operator inspection.
+  rpc GetUser(GetUserRequest) returns (GetUserResponse);
+  // Assigns a role to a user.
+  rpc AssignRole(AssignRoleRequest) returns (AssignRoleResponse);
+  // Revokes a role from a user.
+  rpc RevokeRole(RevokeRoleRequest) returns (RevokeRoleResponse);
+  // Updates a user's login and/or display name as an operator action.
+  rpc UpdateUser(UpdateUserRequest) returns (UpdateUserResponse);
+  // Sets a user's password as a local operator.
+  rpc SetUserPassword(SetUserPasswordRequest) returns (SetUserPasswordResponse);
+  // Permanently deletes a user account.
+  rpc DeleteUser(DeleteUserRequest) returns (DeleteUserResponse);
+  // Adds an already-verified email address to a user.
+  rpc AddVerifiedEmail(AddVerifiedEmailRequest) returns (AddVerifiedEmailResponse);
+  // Clears a user's self-service username-change cooldown.
+  rpc ClearUsernameCooldown(ClearUsernameCooldownRequest) returns (ClearUsernameCooldownResponse);
+}

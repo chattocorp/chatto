@@ -28,8 +28,8 @@ type DirectoryMember struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Public profile and live presence fields.
 	Profile *UserProfile `protobuf:"bytes,1,opt,name=profile,proto3" json:"profile,omitempty"`
-	// Explicit server roles assigned to the user. Server member listings include
-	// the virtual `everyone` role for parity with Chatto's permission model.
+	// Explicit roles assigned to the user. Member listings include the virtual
+	// `everyone` role for parity with Chatto's permission model.
 	Roles []string `protobuf:"bytes,2,rep,name=roles,proto3" json:"roles,omitempty"`
 	// Account creation time when known.
 	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`

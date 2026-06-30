@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -26,23 +27,205 @@ import (
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/connectapi"
 	"hmans.de/chatto/internal/core"
+	adminv1 "hmans.de/chatto/internal/pb/chatto/admin/v1"
 	"hmans.de/chatto/internal/pb/chatto/admin/v1/adminv1connect"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	"hmans.de/chatto/internal/pb/chatto/api/v1/apiv1connect"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	operatorv1 "hmans.de/chatto/internal/pb/chatto/operator/v1"
+	"hmans.de/chatto/internal/pb/chatto/operator/v1/operatorv1connect"
 )
 
 func setupConnectTestServer(t *testing.T, authConfig config.AuthConfig) (*HTTPServer, *httptest.Server) {
+	return setupConnectTestServerWithConfig(t, config.ChattoConfig{Auth: authConfig})
+}
+
+func setupConnectTestServerWithConfig(t *testing.T, cfg config.ChattoConfig) (*HTTPServer, *httptest.Server) {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
 
-	s := setupHTTPServerTestServer(t, authConfig)
+	s := setupHTTPServerTestServer(t, cfg.Auth)
+	s.config = cfg
 	s.setupConnectAPI()
 
 	ts := httptest.NewServer(s.router)
 	t.Cleanup(ts.Close)
 
 	return s, ts
+}
+
+func TestConnectOperatorAPISeparation(t *testing.T) {
+	t.Run("operator server serves only operator API", func(t *testing.T) {
+		s, _ := setupConnectTestServerWithConfig(t, config.ChattoConfig{})
+		ctx := context.Background()
+		user, err := s.core.CreateUser(ctx, core.SystemActorID, "operator-connect", "Operator Connect", "password")
+		if err != nil {
+			t.Fatalf("CreateUser: %v", err)
+		}
+
+		operatorTS := newOperatorAPITestServer(t, s)
+		operatorClient := operatorv1connect.NewOperatorUserServiceClient(operatorTS.Client(), operatorTS.URL+connectAPIPrefix)
+		resp, err := operatorClient.GetUser(ctx, connect.NewRequest(&operatorv1.GetUserRequest{UserId: user.GetId()}))
+		if err != nil {
+			t.Fatalf("GetUser: %v", err)
+		}
+		if got := resp.Msg.GetMember().GetUser().GetLogin(); got != "operator-connect" {
+			t.Fatalf("GetUser login = %q, want operator-connect", got)
+		}
+
+		adminClient := adminv1connect.NewAdminMemberServiceClient(operatorTS.Client(), operatorTS.URL+connectAPIPrefix)
+		if _, err := adminClient.ListMembers(ctx, connect.NewRequest(&adminv1.ListMembersRequest{})); connect.CodeOf(err) != connect.CodeUnimplemented {
+			t.Fatalf("AdminMemberService on operator server err = %v, want unimplemented", err)
+		}
+	})
+
+	t.Run("public listener does not serve operator API", func(t *testing.T) {
+		_, publicTS := setupConnectTestServerWithConfig(t, config.ChattoConfig{})
+		operatorClient := operatorv1connect.NewOperatorUserServiceClient(publicTS.Client(), publicTS.URL+connectAPIPrefix)
+		if _, err := operatorClient.ListUsers(context.Background(), connect.NewRequest(&operatorv1.ListUsersRequest{})); connect.CodeOf(err) != connect.CodeUnimplemented {
+			t.Fatalf("OperatorUserService on public server err = %v, want unimplemented", err)
+		}
+	})
+}
+
+func newOperatorAPITestServer(t *testing.T, s *HTTPServer) *httptest.Server {
+	t.Helper()
+	operatorServer := s.newOperatorAPIServer()
+	operatorTS := httptest.NewServer(operatorServer.Handler)
+	t.Cleanup(operatorTS.Close)
+	return operatorTS
+}
+
+func TestPrepareOperatorAPISocket(t *testing.T) {
+	t.Run("creates socket with fixed mode", func(t *testing.T) {
+		socketPath := shortTestSocketPath(t)
+		s := &HTTPServer{config: config.ChattoConfig{OperatorAPI: config.OperatorAPIConfig{
+			Enabled:    true,
+			SocketPath: socketPath,
+		}}}
+		listener, info, err := s.prepareOperatorAPISocket()
+		if err != nil {
+			t.Fatalf("prepareOperatorAPISocket(): %v", err)
+		}
+		t.Cleanup(func() {
+			_ = listener.Close()
+			s.cleanupOperatorAPISocket(info)
+		})
+		if info.Mode().Perm() != 0o600 {
+			t.Fatalf("socket mode = %04o, want 0600", info.Mode().Perm())
+		}
+	})
+
+	t.Run("rejects existing socket with different mode", func(t *testing.T) {
+		socketPath := shortTestSocketPath(t)
+		listener, err := net.Listen("unix", socketPath)
+		if err != nil {
+			t.Fatalf("listen setup socket: %v", err)
+		}
+		t.Cleanup(func() {
+			_ = listener.Close()
+			_ = os.Remove(socketPath)
+		})
+		if err := os.Chmod(socketPath, 0o666); err != nil {
+			t.Fatalf("chmod setup socket: %v", err)
+		}
+		s := &HTTPServer{config: config.ChattoConfig{OperatorAPI: config.OperatorAPIConfig{
+			Enabled:    true,
+			SocketPath: socketPath,
+		}}}
+		if _, _, err := s.prepareOperatorAPISocket(); err == nil || !strings.Contains(err.Error(), "has mode 0666, want 0600") {
+			t.Fatalf("prepareOperatorAPISocket() error = %v, want mode mismatch", err)
+		}
+	})
+
+	t.Run("rejects active socket", func(t *testing.T) {
+		socketPath := shortTestSocketPath(t)
+		listener, err := net.Listen("unix", socketPath)
+		if err != nil {
+			t.Fatalf("listen setup socket: %v", err)
+		}
+		t.Cleanup(func() {
+			_ = listener.Close()
+			_ = os.Remove(socketPath)
+		})
+		if err := os.Chmod(socketPath, 0o600); err != nil {
+			t.Fatalf("chmod setup socket: %v", err)
+		}
+		s := &HTTPServer{config: config.ChattoConfig{OperatorAPI: config.OperatorAPIConfig{
+			Enabled:    true,
+			SocketPath: socketPath,
+		}}}
+		if _, _, err := s.prepareOperatorAPISocket(); err == nil || !strings.Contains(err.Error(), "already in use") {
+			t.Fatalf("prepareOperatorAPISocket() error = %v, want already in use", err)
+		}
+	})
+
+	t.Run("rejects parent directory accessible by group", func(t *testing.T) {
+		parent := shortTestSocketParent(t)
+		if err := os.Chmod(parent, 0o770); err != nil {
+			t.Fatalf("chmod unsafe parent: %v", err)
+		}
+		socketPath := parent + "/operator.sock"
+		s := &HTTPServer{config: config.ChattoConfig{OperatorAPI: config.OperatorAPIConfig{
+			Enabled:    true,
+			SocketPath: socketPath,
+		}}}
+		if _, _, err := s.prepareOperatorAPISocket(); err == nil || !strings.Contains(err.Error(), "must not be accessible by group or other users") {
+			t.Fatalf("prepareOperatorAPISocket() error = %v, want unsafe parent mode", err)
+		}
+	})
+
+	t.Run("rejects parent directory accessible by other users", func(t *testing.T) {
+		parent := shortTestSocketParent(t)
+		if err := os.Chmod(parent, 0o777); err != nil {
+			t.Fatalf("chmod unsafe parent: %v", err)
+		}
+		socketPath := parent + "/operator.sock"
+		s := &HTTPServer{config: config.ChattoConfig{OperatorAPI: config.OperatorAPIConfig{
+			Enabled:    true,
+			SocketPath: socketPath,
+		}}}
+		if _, _, err := s.prepareOperatorAPISocket(); err == nil || !strings.Contains(err.Error(), "must not be accessible by group or other users") {
+			t.Fatalf("prepareOperatorAPISocket() error = %v, want unsafe parent mode", err)
+		}
+	})
+
+	t.Run("rejects parent directory with setgid bit", func(t *testing.T) {
+		parent := shortTestSocketParent(t)
+		if err := os.Chmod(parent, os.FileMode(0o700)|os.ModeSetgid); err != nil {
+			t.Fatalf("chmod setgid parent: %v", err)
+		}
+		info, err := os.Lstat(parent)
+		if err != nil {
+			t.Fatalf("stat setgid parent: %v", err)
+		}
+		if info.Mode()&os.ModeSetgid == 0 {
+			t.Skip("filesystem did not preserve setgid bit on test directory")
+		}
+		socketPath := parent + "/operator.sock"
+		s := &HTTPServer{config: config.ChattoConfig{OperatorAPI: config.OperatorAPIConfig{
+			Enabled:    true,
+			SocketPath: socketPath,
+		}}}
+		if _, _, err := s.prepareOperatorAPISocket(); err == nil || !strings.Contains(err.Error(), "unsafe mode bits") {
+			t.Fatalf("prepareOperatorAPISocket() error = %v, want unsafe parent mode bits", err)
+		}
+	})
+}
+
+func shortTestSocketPath(t *testing.T) string {
+	t.Helper()
+	return shortTestSocketParent(t) + "/operator.sock"
+}
+
+func shortTestSocketParent(t *testing.T) string {
+	t.Helper()
+	parent := fmt.Sprintf("/tmp/chatto-test-%d", time.Now().UnixNano())
+	if err := os.Mkdir(parent, 0o700); err != nil {
+		t.Fatalf("mkdir test socket parent: %v", err)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(parent) })
+	return parent
 }
 
 func setupConnectHTTP2TestServer(t *testing.T, authConfig config.AuthConfig) (*HTTPServer, *httptest.Server) {

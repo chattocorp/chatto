@@ -126,6 +126,11 @@ const (
 	// PermUserDeleteSelf allows users to delete their own account.
 	PermUserDeleteSelf Permission = "user.delete-self"
 
+	// PermUserManageAccounts allows account lifecycle and recovery operations
+	// for other users, such as creating accounts, admin profile edits, password
+	// resets, verified-email attachment, and login-cooldown resets.
+	PermUserManageAccounts Permission = "user.manage-accounts"
+
 	// PermUserManagePermissions allows editing direct per-user permission
 	// overrides.
 	PermUserManagePermissions Permission = "user.manage-permissions"
@@ -172,6 +177,7 @@ var allPermissions = []PermissionMetadata{
 	// User management
 	{PermUserDeleteAny, "Delete Any User", "Delete any user's account", CategoryUser, []PermissionScope{ScopeServer}},
 	{PermUserDeleteSelf, "Delete Own Account", "Delete your own account", CategoryUser, []PermissionScope{ScopeServer}},
+	{PermUserManageAccounts, "Manage User Accounts", "Create users, edit account identity, reset passwords, attach verified emails, and clear login cooldowns", CategoryUser, []PermissionScope{ScopeServer}},
 	{PermUserManagePermissions, "Manage User Permissions", "Grant, deny, and clear direct per-user permission overrides", CategoryUser, []PermissionScope{ScopeServer}},
 }
 

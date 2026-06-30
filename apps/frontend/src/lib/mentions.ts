@@ -159,12 +159,12 @@ function isInsideExcludedElement(node: Node): boolean {
  * Uses DOMParser to properly traverse the DOM tree, ensuring we only process
  * text nodes that are NOT inside excluded elements (code, pre, blockquote).
  * Only mentions that match actual room members, virtual handles, or known
- * server role handles are styled.
+ * role handles are styled.
  *
  * @param html - The rendered HTML string (from markdown)
  * @param members - List of room members to validate mentions against
  * @param currentUserLogin - Optional login of the current user (for self-mention highlighting)
- * @param roleHandles - Valid server role mention handles
+ * @param roleHandles - Valid role mention handles
  * @returns HTML string with valid mentions wrapped in <span class="mention"> (or "mention mention-self")
  */
 export function wrapValidMentions(

@@ -1,6 +1,11 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { serverRegistry, type RegisteredServer } from './registry.svelte';
-import { getServerPermissions, type ServerPermissions, type ViewerData } from './permissions.svelte';
+import {
+  getServerPermissions,
+  viewerHasPermission,
+  type ServerPermissions,
+  type ViewerData
+} from './permissions.svelte';
 
 const STORAGE_KEY = 'chatto:instances';
 
@@ -26,6 +31,8 @@ function makeViewer(overrides: Partial<ViewerData> = {}): ViewerData {
     canStartDMs: false,
     canAdminViewUsers: false,
     canAdminManageUsers: false,
+    canAdminManageAccounts: false,
+    canAssignRoles: false,
     canAdminViewRoles: false,
     canAdminManageRoles: false,
     canAdminViewSystem: false,
@@ -79,5 +86,19 @@ describe('getServerPermissions', () => {
     // wrongly return true.
     expect(perms.current.loaded).toBe(true);
     expect(perms.current.canAdminViewRoles).toBe(false);
+  });
+
+  it('maps account management to the dedicated capability', () => {
+    const viewer = makeViewer({
+      canAdminManageUsers: true,
+      canAdminManageAccounts: false
+    });
+
+    expect(viewerHasPermission(viewer, 'role.assign')).toBe(false);
+    expect(viewerHasPermission(viewer, 'user.manage-accounts')).toBe(false);
+
+    expect(
+      viewerHasPermission({ ...viewer, canAdminManageAccounts: true }, 'user.manage-accounts')
+    ).toBe(true);
   });
 });

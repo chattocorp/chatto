@@ -110,6 +110,14 @@ Infrastructure jargon. If only contributors say the word, it goes here.
 
 **ChattoCore** — Go package (`cli/internal/core`) that owns domain models, projections, and NATS access. Low-level helpers are not public transport entry points and may assume their caller has already authorized the operation; public ConnectRPC paths should delegate to core operation models that own authorization before domain state changes. See [ADR-044](adr/ADR-044-connectrpc-service-conventions.md).
 
+**System actor** — Synthetic actor ID used when Chatto itself, bootstrap code, or trusted operator automation performs a domain write. It is not a login-capable user account.
+
+**Admin API** — Public ConnectRPC administrative surface in `chatto.admin.v1`. On the public web listener it uses normal user authentication and RBAC. It is separate from the local Operator API. See [FDR-028](fdr/FDR-028-operator-api-and-cli.md).
+
+**Operator API** — Root-equivalent local ConnectRPC surface in `chatto.operator.v1`, served only on the configured Unix socket. Socket filesystem permissions are the access boundary; anyone who can connect to the socket can perform operator actions as the system actor. See [FDR-028](fdr/FDR-028-operator-api-and-cli.md).
+
+**Operator socket** — Unix socket configured by `[operator_api].socket_path` / `CHATTO_OPERATOR_API_SOCKET_PATH`. `chatto operator ...` uses it to send root-equivalent commands to the already-running Chatto process without opening a second store writer.
+
 **NATS** — Messaging system Chatto uses for pubsub and persistence. Runs embedded in the single binary by default.
 
 **JetStream** — NATS's persistence layer (streams + KV buckets). Chatto's primary data store. See [ADR-001](adr/ADR-001-nats-jetstream-as-primary-data-store.md).

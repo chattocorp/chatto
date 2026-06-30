@@ -100,6 +100,8 @@ CHATTO_CORE_SECRET_KEY=${core_secret_key}
 CHATTO_CORE_ASSETS_SIGNING_SECRET=${assets_signing_secret}
 CHATTO_LOG_LEVEL=info
 CHATTO_LOG_FORMAT=json
+CHATTO_OPERATOR_API_ENABLED=true
+CHATTO_OPERATOR_API_SOCKET_PATH=/tmp/chatto/operator.sock
 
 # SMTP is required for direct email/password registration, email verification,
 # and password reset. Replace these placeholders with your provider settings.
@@ -128,6 +130,10 @@ rtc:
   port_range_start: 50000
   port_range_end: 50200
   use_external_ip: true
+
+turn:
+  enabled: true
+  udp_port: 3478
 
 keys:
   ${livekit_api_key}: ${livekit_api_secret}

@@ -5,11 +5,11 @@
 
 ## Overview
 
-Chatto controls who can do what through role-based access control. Every authenticated user holds one or more server roles; each role grants or denies specific permissions. Permissions can also be overridden per room-group and per room, giving operators fine-grained control without inventing parallel role systems.
+Chatto controls who can do what through role-based access control. Every authenticated user holds one or more roles; each role grants or denies specific permissions. Permissions can also be overridden per room-group and per room, giving operators fine-grained control without inventing parallel role systems.
 
 ## Behavior
 
-- Every authenticated user belongs to the implicit `everyone` role and may additionally hold one or more named server roles.
+- Every authenticated user belongs to the implicit `everyone` role and may additionally hold one or more named roles.
 - The system roles are `owner`, `admin`, `moderator`, `everyone`. Role position controls ordering/display and legacy event compatibility; it is not an authorization rank.
 - A role grants or denies named permissions like `message.post`, `room.create`, `admin.view-users`.
 - Permission grants/denies can be configured at three scopes: per-server (global override/default), per room-group, and per room. For non-owners, any applicable deny wins; otherwise any applicable allow grants access.
@@ -18,7 +18,7 @@ Chatto controls who can do what through role-based access control. Every authent
 - Custom role display names are limited to 80 bytes; descriptions are limited to 500 bytes.
 - Owners are always granted all permissions. An effective owner is either assigned the durable `owner` role or has a verified email listed in `owners.emails` in `chatto.toml`.
 - Owner permissions are virtual rather than persisted defaults: fresh servers do not seed editable owner permission rows, and the admin UI shows owner permissions as read-only green checks.
-- RBAC editor and inspection APIs are exposed through ConnectRPC admin services. Admin entry is authenticated, and individual operations keep narrower gates such as `role.manage`, `role.assign`, `user.manage-permissions`, or `room.manage`.
+- RBAC editor and inspection APIs are exposed through ConnectRPC admin services. Admin entry is authenticated, and individual operations keep narrower gates such as `role.manage`, `role.assign`, `user.manage-accounts`, `user.manage-permissions`, or `room.manage`.
 - Roles have a `pingable` setting that controls whether `@role` pings notify assigned room members. Fresh servers seed `moderator` as pingable and leave `owner`, `admin`, and `everyone` unpingable.
 - User-initiated RBAC writes carry the authenticated user's ID as the event actor. Synthetic `system` actors are reserved for bootstrap, seeding, resets, migrations, and other non-user maintenance.
 
@@ -56,7 +56,7 @@ Chatto controls who can do what through role-based access control. Every authent
 
 ### 6. Target-user mutations are permission-gated
 
-**Decision:** Mutations that target another user require concrete permissions, not actor-vs-target rank checks. Role assignment uses `role.assign`; direct user permission overrides use `user.manage-permissions`; room bans use `room.ban-member`.
+**Decision:** Mutations that target another user require concrete permissions, not actor-vs-target rank checks. Role assignment uses `role.assign`; account lifecycle and recovery operations use `user.manage-accounts`; direct user permission overrides use `user.manage-permissions`; room bans use `room.ban-member`.
 **Why:** The single-server model no longer needs rank hierarchy to protect separate spaces. Concrete permissions are easier to audit and explain.
 **Tradeoff:** Permissions must be granted thoughtfully: a user with `role.assign` can assign roles to any target, and a user with `room.ban-member` can ban any non-owner-protected room member.
 
@@ -80,6 +80,7 @@ The full permission catalog is in `cli/internal/core/permission.go`. Key permiss
 
 - `role.manage` — create, edit, delete roles and the permissions attached to them.
 - `role.assign` — assign roles to users.
+- `user.manage-accounts` — create users, edit account identity, reset passwords, attach verified emails, and clear login cooldowns.
 - `user.manage-permissions` — edit direct per-user permission overrides.
 - `admin.view-users`, `admin.view-system`, `admin.view-audit` — gate specific admin UI sub-views; admin UI entry is derived from concrete capabilities rather than a standalone `admin.access` permission.
 - `message.post` — post root messages in rooms and start DMs. Fresh servers grant this to `everyone` at server scope; announcement rooms add a room-level `everyone` deny.

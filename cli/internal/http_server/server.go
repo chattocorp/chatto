@@ -3,12 +3,16 @@ package http_server
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync/atomic"
+	"syscall"
 	"time"
 
 	"github.com/charmbracelet/log"
@@ -200,6 +204,9 @@ func (s *HTTPServer) Run(ctx context.Context) error {
 	var servers []*http.Server
 	var tlsServer *http.Server
 	var metricsServer *http.Server
+	var operatorServer *http.Server
+	var operatorListener net.Listener
+	var operatorSocketInfo os.FileInfo
 
 	if s.config.Webserver.TLS.Enabled {
 		tlsConfig := s.config.Webserver.TLS
@@ -242,17 +249,36 @@ func (s *HTTPServer) Run(ctx context.Context) error {
 		servers = append(servers, metricsServer)
 	}
 
+	if s.config.OperatorAPI.Enabled {
+		operatorServer = s.newOperatorAPIServer()
+		var err error
+		operatorListener, operatorSocketInfo, err = s.prepareOperatorAPISocket()
+		if err != nil {
+			return err
+		}
+		defer s.cleanupOperatorAPISocket(operatorSocketInfo)
+		servers = append(servers, operatorServer)
+	}
+
 	serverErr := make(chan error, len(servers)+1)
 
 	// Start HTTP servers
 	for _, srv := range servers {
 		if srv == metricsServer {
 			s.logger.Info("Starting metrics server", "url", metricsServerURL(srv.Addr, s.config.Metrics.PathOrDefault()))
+		} else if srv == operatorServer {
+			s.logger.Info("Starting operator API server", "socket", srv.Addr)
 		} else {
 			s.logger.Info("Starting HTTP server", "addr", srv.Addr, "url", s.config.Webserver.URL)
 		}
 		go func(srv *http.Server) {
-			if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			var err error
+			if srv == operatorServer {
+				err = srv.Serve(operatorListener)
+			} else {
+				err = srv.ListenAndServe()
+			}
+			if err != nil && err != http.ErrServerClosed {
 				serverErr <- err
 			}
 		}(srv)
@@ -290,6 +316,115 @@ func (s *HTTPServer) Run(ctx context.Context) error {
 
 func metricsServerURL(addr, path string) string {
 	return (&url.URL{Scheme: "http", Host: addr, Path: path}).String()
+}
+
+func (s *HTTPServer) prepareOperatorAPISocket() (net.Listener, os.FileInfo, error) {
+	socketPath := s.config.OperatorAPI.SocketPathOrDefault()
+	socketMode := config.OperatorAPISocketMode
+	parent := filepath.Dir(socketPath)
+	if err := os.MkdirAll(parent, 0o700); err != nil {
+		return nil, nil, fmt.Errorf("create operator API socket directory %s: %w", parent, err)
+	}
+	if err := validateOperatorAPISocketParent(parent); err != nil {
+		return nil, nil, err
+	}
+	if existing, err := os.Lstat(socketPath); err == nil {
+		if existing.Mode()&os.ModeSocket == 0 {
+			return nil, nil, fmt.Errorf("operator API socket path %s exists and is not a Unix socket", socketPath)
+		}
+		if existing.Mode().Perm() != socketMode {
+			return nil, nil, fmt.Errorf("operator API socket %s has mode %04o, want %04o", socketPath, existing.Mode().Perm(), socketMode)
+		}
+		conn, err := net.DialTimeout("unix", socketPath, 200*time.Millisecond)
+		if err == nil {
+			_ = conn.Close()
+			return nil, nil, fmt.Errorf("operator API socket %s is already in use", socketPath)
+		}
+		if !isStaleOperatorSocketError(err) {
+			return nil, nil, fmt.Errorf("operator API socket %s exists but could not be verified as stale: %w", socketPath, err)
+		}
+		if err := os.Remove(socketPath); err != nil {
+			return nil, nil, fmt.Errorf("remove stale operator API socket %s: %w", socketPath, err)
+		}
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return nil, nil, fmt.Errorf("inspect operator API socket %s: %w", socketPath, err)
+	}
+
+	listener, err := net.Listen("unix", socketPath)
+	if err != nil {
+		return nil, nil, fmt.Errorf("listen on operator API socket %s: %w", socketPath, err)
+	}
+	if err := os.Chmod(socketPath, socketMode); err != nil {
+		_ = listener.Close()
+		_ = os.Remove(socketPath)
+		return nil, nil, fmt.Errorf("set operator API socket mode %s to %04o: %w", socketPath, socketMode, err)
+	}
+	created, err := os.Lstat(socketPath)
+	if err != nil {
+		_ = listener.Close()
+		_ = os.Remove(socketPath)
+		return nil, nil, fmt.Errorf("inspect created operator API socket %s: %w", socketPath, err)
+	}
+	if created.Mode().Perm() != socketMode {
+		_ = listener.Close()
+		_ = os.Remove(socketPath)
+		return nil, nil, fmt.Errorf("operator API socket %s has mode %04o after bind, want %04o", socketPath, created.Mode().Perm(), socketMode)
+	}
+	return listener, created, nil
+}
+
+func validateOperatorAPISocketParent(parent string) error {
+	info, err := os.Lstat(parent)
+	if err != nil {
+		return fmt.Errorf("inspect operator API socket directory %s: %w", parent, err)
+	}
+	mode := info.Mode()
+	if mode&os.ModeSymlink != 0 || !mode.IsDir() {
+		return fmt.Errorf("operator API socket directory %s is not a directory", parent)
+	}
+	uid, _, ok := fileOwnerIDs(info)
+	if !ok {
+		return fmt.Errorf("inspect owner of operator API socket directory %s", parent)
+	}
+	if uid != uint32(os.Geteuid()) {
+		return fmt.Errorf("operator API socket directory %s is owned by uid %d, want uid %d", parent, uid, os.Geteuid())
+	}
+	if mode&(os.ModeSetuid|os.ModeSetgid|os.ModeSticky) != 0 {
+		return fmt.Errorf("operator API socket directory %s has unsafe mode bits %s", parent, mode.String())
+	}
+	perm := mode.Perm()
+	if perm&0o077 != 0 {
+		return fmt.Errorf("operator API socket directory %s must not be accessible by group or other users; mode is %04o", parent, perm)
+	}
+	return nil
+}
+
+func fileOwnerIDs(info os.FileInfo) (uint32, uint32, bool) {
+	stat, ok := info.Sys().(*syscall.Stat_t)
+	if !ok {
+		return 0, 0, false
+	}
+	return stat.Uid, stat.Gid, true
+}
+
+func isStaleOperatorSocketError(err error) bool {
+	return errors.Is(err, syscall.ECONNREFUSED) || errors.Is(err, os.ErrNotExist)
+}
+
+func (s *HTTPServer) cleanupOperatorAPISocket(created os.FileInfo) {
+	if created == nil {
+		return
+	}
+	socketPath := s.config.OperatorAPI.SocketPathOrDefault()
+	current, err := os.Lstat(socketPath)
+	if err != nil {
+		return
+	}
+	if os.SameFile(created, current) {
+		if err := os.Remove(socketPath); err != nil {
+			s.logger.Warn("Failed to remove operator API socket", "socket", socketPath, "error", err)
+		}
+	}
 }
 
 func (s *HTTPServer) shutdownServer(server *http.Server) error {

@@ -8,7 +8,7 @@ import { Message, proto3 } from "@bufbuild/protobuf";
 import { User } from "../../api/v1/users_pb.js";
 
 /**
- * Server role metadata and server-scope permission state.
+ * Role metadata and permission state.
  *
  * @generated from message chatto.admin.v1.Role
  */
@@ -35,14 +35,14 @@ export class Role extends Message<Role> {
   description = "";
 
   /**
-   * Server permissions granted by this role.
+   * Permissions granted by this role.
    *
    * @generated from field: repeated string permissions = 4;
    */
   permissions: string[] = [];
 
   /**
-   * Server permissions denied by this role.
+   * Permissions denied by this role.
    *
    * @generated from field: repeated string permission_denials = 5;
    */
@@ -105,7 +105,7 @@ export class Role extends Message<Role> {
 }
 
 /**
- * Request the server role catalog.
+ * Request the role catalog.
  *
  * @generated from message chatto.admin.v1.ListRolesRequest
  */
@@ -138,7 +138,7 @@ export class ListRolesRequest extends Message<ListRolesRequest> {
 }
 
 /**
- * Server role catalog plus viewer role-management capabilities.
+ * Role catalog plus viewer role-management capabilities.
  *
  * @generated from message chatto.admin.v1.ListRolesResponse
  */
@@ -195,7 +195,7 @@ export class ListRolesResponse extends Message<ListRolesResponse> {
 }
 
 /**
- * Request one server role.
+ * Request one role.
  *
  * @generated from message chatto.admin.v1.GetRoleRequest
  */
@@ -236,7 +236,7 @@ export class GetRoleRequest extends Message<GetRoleRequest> {
 }
 
 /**
- * One server role plus role-management metadata.
+ * One role plus role-management metadata.
  *
  * @generated from message chatto.admin.v1.GetRoleResponse
  */
@@ -301,7 +301,7 @@ export class GetRoleResponse extends Message<GetRoleResponse> {
 }
 
 /**
- * Request to create a server role.
+ * Request to create a role.
  *
  * @generated from message chatto.admin.v1.CreateRoleRequest
  */
@@ -366,7 +366,7 @@ export class CreateRoleRequest extends Message<CreateRoleRequest> {
 }
 
 /**
- * Result of creating a server role.
+ * Result of creating a role.
  *
  * @generated from message chatto.admin.v1.CreateRoleResponse
  */
@@ -407,7 +407,7 @@ export class CreateRoleResponse extends Message<CreateRoleResponse> {
 }
 
 /**
- * Request to update server role metadata.
+ * Request to update role metadata.
  *
  * @generated from message chatto.admin.v1.UpdateRoleRequest
  */
@@ -472,7 +472,7 @@ export class UpdateRoleRequest extends Message<UpdateRoleRequest> {
 }
 
 /**
- * Result of updating a server role.
+ * Result of updating a role.
  *
  * @generated from message chatto.admin.v1.UpdateRoleResponse
  */
@@ -513,7 +513,7 @@ export class UpdateRoleResponse extends Message<UpdateRoleResponse> {
 }
 
 /**
- * Request to delete a server role.
+ * Request to delete a role.
  *
  * @generated from message chatto.admin.v1.DeleteRoleRequest
  */
@@ -554,7 +554,7 @@ export class DeleteRoleRequest extends Message<DeleteRoleRequest> {
 }
 
 /**
- * Result of deleting a server role.
+ * Result of deleting a role.
  *
  * @generated from message chatto.admin.v1.DeleteRoleResponse
  */
@@ -595,7 +595,7 @@ export class DeleteRoleResponse extends Message<DeleteRoleResponse> {
 }
 
 /**
- * Request to replace custom server role order.
+ * Request to replace custom role order.
  *
  * @generated from message chatto.admin.v1.ReorderRolesRequest
  */
@@ -637,7 +637,7 @@ export class ReorderRolesRequest extends Message<ReorderRolesRequest> {
 }
 
 /**
- * Result of replacing custom server role order.
+ * Result of replacing custom role order.
  *
  * @generated from message chatto.admin.v1.ReorderRolesResponse
  */

@@ -1,6 +1,7 @@
 package core
 
 import (
+	"errors"
 	"testing"
 	"time"
 
@@ -201,6 +202,21 @@ func TestChattoCore_ResetPassword(t *testing.T) {
 		err := core.ResetPassword(ctx, "invalid-token", string(newHash))
 		if err != ErrPasswordResetTokenNotFound {
 			t.Errorf("Expected ErrPasswordResetTokenNotFound, got %v", err)
+		}
+	})
+
+	t.Run("does not reset deleted user", func(t *testing.T) {
+		user, _ := core.CreateUser(ctx, "system", "deleted-reset-user", "Deleted Reset", "password123")
+		core.AddVerifiedEmailDirect(ctx, user.Id, "deleted-reset@example.com")
+		token, _ := core.CreatePasswordResetToken(ctx, "deleted-reset@example.com")
+		if err := core.DeleteUser(ctx, SystemActorID, user.Id); err != nil {
+			t.Fatalf("DeleteUser: %v", err)
+		}
+
+		newHash, _ := bcrypt.GenerateFromPassword([]byte("newpassword123"), bcrypt.DefaultCost)
+		err := core.ResetPassword(ctx, token, string(newHash))
+		if !errors.Is(err, ErrNotFound) {
+			t.Fatalf("ResetPassword error = %v, want ErrNotFound", err)
 		}
 	})
 }

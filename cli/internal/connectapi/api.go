@@ -9,6 +9,7 @@ import (
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/pb/chatto/admin/v1/adminv1connect"
 	"hmans.de/chatto/internal/pb/chatto/api/v1/apiv1connect"
+	"hmans.de/chatto/internal/pb/chatto/operator/v1/operatorv1connect"
 )
 
 // Prefix is the HTTP mount point for Chatto's ConnectRPC public API.
@@ -17,6 +18,8 @@ const Prefix = "/api/connect"
 // MaxRequestMessageBytes caps individual inbound protobuf messages. ConnectRPC
 // defaults to unlimited reads, so keep this explicit for every public handler.
 const MaxRequestMessageBytes = 1 << 20 // 1 MiB
+
+const maxConnectAPIHydrationConcurrency = 16
 
 // AuthPolicy describes whether the HTTP edge should require authentication
 // before forwarding a request to a generated Connect handler.
@@ -129,6 +132,16 @@ func (a *API) Handlers() []Handler {
 		{ServicePath: voicePath, Handler: voiceHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 	}
 	return append(handlers, reflectionHandlers(options)...)
+}
+
+// OperatorHandlers returns the local, root-equivalent operator API surface.
+// These handlers must only be mounted on the operator Unix socket.
+func (a *API) OperatorHandlers() []Handler {
+	options := HandlerOptions()
+	userPath, userHandler := operatorv1connect.NewOperatorUserServiceHandler(&operatorUserService{api: a}, options...)
+	return []Handler{
+		{ServicePath: userPath, Handler: userHandler, AuthPolicy: AuthPolicyPublic},
+	}
 }
 
 func uploadRequestMaxBytes(maxUploadSize int64) int {

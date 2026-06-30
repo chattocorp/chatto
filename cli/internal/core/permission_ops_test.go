@@ -155,7 +155,7 @@ func TestGrantSpaceRolePermission(t *testing.T) {
 
 	_, _ = core.CreateUser(ctx, "system", "testuser", "Test User", "password123")
 
-	t.Run("creates allow decision for server role", func(t *testing.T) {
+	t.Run("creates allow decision for role", func(t *testing.T) {
 		err := core.GrantServerPermission(ctx, SystemActorID, RoleEveryone, PermRoomCreate)
 		if err != nil {
 			t.Fatalf("GrantSpaceRolePermission() error = %v", err)

@@ -180,6 +180,24 @@ Users can delete their own account from account settings or through the public A
 
 ## API surface
 
+### Operator API
+
+The Operator API is disabled by default. Operators can enable it with `[operator_api]` / `CHATTO_OPERATOR_API_*` configuration for trusted local automation such as `chatto operator user create` and password/bootstrap workflows. It listens on a Unix socket, not TCP, and uses filesystem permissions as its access boundary.
+
+The default socket path is Docker-friendly:
+
+```toml
+[operator_api]
+enabled = true
+socket_path = "/tmp/chatto/operator.sock"
+```
+
+Chatto serves only `chatto.operator.v1` on the operator socket, and the public web listener never mounts the Operator API. The inverse is also true: the operator socket does not serve public or admin ConnectRPC services. The socket mode is fixed at `0600`, and the parent directory must be private to the Chatto process user. This is intentional defense in depth, so normal public reverse-proxy routing for Chatto's web UI and public APIs cannot accidentally expose root-grade bootstrap access.
+
+The `chatto operator ...` CLI reads the socket path from `--operator-socket`, `CHATTO_OPERATOR_API_SOCKET_PATH`, or `chatto.toml`, falling back to `/tmp/chatto/operator.sock`. In Docker, run the command inside the container with `docker exec` or mount the socket path into a trusted sidecar/container with matching filesystem permissions. See [Operator CLI](/guides/operator-cli/) for command examples.
+
+Operator actions are attributed to Chatto's system actor, not to an in-app user or RBAC role. Keep the socket path private to the Chatto process and explicitly trusted automation; for password workflows, prefer `--password-stdin` and `--password-file` over direct secret flags.
+
 ### Public API
 
 The public request/response API is ConnectRPC under `/api/connect`, with protobuf definitions published in the API reference. Authorization is enforced by the API handlers and shared operation models, so sensitive operations remain permission-gated even though the API shape is documented.

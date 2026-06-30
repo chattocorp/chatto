@@ -55,16 +55,16 @@ const (
 
 // AdminRoleServiceClient is a client for the chatto.admin.v1.AdminRoleService service.
 type AdminRoleServiceClient interface {
-	// Lists the server role catalog. Requires an authenticated user.
+	// Lists the role catalog. Requires an authenticated user.
 	ListRoles(context.Context, *connect.Request[v1.ListRolesRequest]) (*connect.Response[v1.ListRolesResponse], error)
-	// Gets one server role plus admin detail metadata. Returns NOT_FOUND when the
+	// Gets one role plus admin detail metadata. Returns NOT_FOUND when the
 	// role does not exist.
 	GetRole(context.Context, *connect.Request[v1.GetRoleRequest]) (*connect.Response[v1.GetRoleResponse], error)
-	// Creates a custom server role. Requires role.manage.
+	// Creates a custom role. Requires role.manage.
 	CreateRole(context.Context, *connect.Request[v1.CreateRoleRequest]) (*connect.Response[v1.CreateRoleResponse], error)
 	// Updates role metadata. Requires role.manage.
 	UpdateRole(context.Context, *connect.Request[v1.UpdateRoleRequest]) (*connect.Response[v1.UpdateRoleResponse], error)
-	// Deletes a custom server role. Requires role.manage.
+	// Deletes a custom role. Requires role.manage.
 	DeleteRole(context.Context, *connect.Request[v1.DeleteRoleRequest]) (*connect.Response[v1.DeleteRoleResponse], error)
 	// Replaces the custom role order. Requires role.manage.
 	ReorderRoles(context.Context, *connect.Request[v1.ReorderRolesRequest]) (*connect.Response[v1.ReorderRolesResponse], error)
@@ -162,16 +162,16 @@ func (c *adminRoleServiceClient) ReorderRoles(ctx context.Context, req *connect.
 
 // AdminRoleServiceHandler is an implementation of the chatto.admin.v1.AdminRoleService service.
 type AdminRoleServiceHandler interface {
-	// Lists the server role catalog. Requires an authenticated user.
+	// Lists the role catalog. Requires an authenticated user.
 	ListRoles(context.Context, *connect.Request[v1.ListRolesRequest]) (*connect.Response[v1.ListRolesResponse], error)
-	// Gets one server role plus admin detail metadata. Returns NOT_FOUND when the
+	// Gets one role plus admin detail metadata. Returns NOT_FOUND when the
 	// role does not exist.
 	GetRole(context.Context, *connect.Request[v1.GetRoleRequest]) (*connect.Response[v1.GetRoleResponse], error)
-	// Creates a custom server role. Requires role.manage.
+	// Creates a custom role. Requires role.manage.
 	CreateRole(context.Context, *connect.Request[v1.CreateRoleRequest]) (*connect.Response[v1.CreateRoleResponse], error)
 	// Updates role metadata. Requires role.manage.
 	UpdateRole(context.Context, *connect.Request[v1.UpdateRoleRequest]) (*connect.Response[v1.UpdateRoleResponse], error)
-	// Deletes a custom server role. Requires role.manage.
+	// Deletes a custom role. Requires role.manage.
 	DeleteRole(context.Context, *connect.Request[v1.DeleteRoleRequest]) (*connect.Response[v1.DeleteRoleResponse], error)
 	// Replaces the custom role order. Requires role.manage.
 	ReorderRoles(context.Context, *connect.Request[v1.ReorderRolesRequest]) (*connect.Response[v1.ReorderRolesResponse], error)

@@ -230,6 +230,38 @@ func (c *ChattoCore) AssignServerRole(ctx context.Context, actorID, userID, role
 	return nil
 }
 
+// AssignServerRoleToExistingUser assigns any role to an existing user. Unlike
+// AssignServerRole, it validates target-user existence inside the append OCC
+// loop so operator APIs cannot report NotFound after persisting a role fact for
+// a user that was already deleted.
+func (c *ChattoCore) AssignServerRoleToExistingUser(ctx context.Context, actorID, userID, roleName string) error {
+	if roleName == RoleEveryone {
+		return ErrImplicitRole
+	}
+
+	event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_RbacRoleAssigned{
+		RbacRoleAssigned: &corev1.RbacRoleAssignedEvent{UserId: userID, RoleName: roleName},
+	}})
+
+	if _, err := c.appendRBACEventWithUserCheck(ctx, userID, event, func() error {
+		if _, ok := c.RBAC.GetRole(roleName); !ok {
+			return ErrRoleNotFound
+		}
+		if c.RBAC.HasRole(userID, roleName) {
+			return errRBACNoop
+		}
+		return nil
+	}); err != nil {
+		if errors.Is(err, errRBACNoop) {
+			return nil
+		}
+		return err
+	}
+
+	c.logger.Info("Assigned role", "role", roleName, "user_id", userID, "actor_id", actorID)
+	return nil
+}
+
 // RevokeServerRole removes an role from a user.
 // The role must exist (system or custom). The everyone role cannot be revoked (it's implicit).
 // Authorization is enforced by the API boundary (`role.assign`). The only
@@ -244,6 +276,35 @@ func (c *ChattoCore) RevokeServerRole(ctx context.Context, actorID, userID, role
 	}})
 
 	if _, err := c.appendRBACEvent(ctx, event, func() error {
+		if roleName == RoleOwner && actorID == userID {
+			return ErrCannotRevokeSelfAdmin
+		}
+		if _, ok := c.RBAC.GetRole(roleName); !ok {
+			return ErrRoleNotFound
+		}
+		return nil
+	}); err != nil {
+		return err
+	}
+
+	c.logger.Info("Revoked role", "role", roleName, "user_id", userID, "actor_id", actorID)
+	return nil
+}
+
+// RevokeServerRoleFromExistingUser revokes a role from an existing user.
+// Unlike RevokeServerRole, it validates target-user existence inside the append
+// OCC loop so operator APIs cannot report NotFound after persisting a role fact
+// for a user that was already deleted.
+func (c *ChattoCore) RevokeServerRoleFromExistingUser(ctx context.Context, actorID, userID, roleName string) error {
+	if roleName == RoleEveryone {
+		return ErrImplicitRole
+	}
+
+	event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_RbacRoleRevoked{
+		RbacRoleRevoked: &corev1.RbacRoleRevokedEvent{UserId: userID, RoleName: roleName},
+	}})
+
+	if _, err := c.appendRBACEventWithUserCheck(ctx, userID, event, func() error {
 		if roleName == RoleOwner && actorID == userID {
 			return ErrCannotRevokeSelfAdmin
 		}
@@ -397,7 +458,7 @@ func (c *ChattoCore) ListServerRoles(ctx context.Context) ([]RoleWithPermissions
 	return result, nil
 }
 
-// CreateServerRole creates a new custom server role.
+// CreateServerRole creates a new custom role.
 // Role names must be lowercase letters only (e.g., "editor", "moderator").
 // System role names (owner, admin, moderator, everyone) are reserved.
 func (c *ChattoCore) CreateServerRole(ctx context.Context, actorID, name, displayName, description string, pingableValue ...bool) (*RoleWithPermissions, error) {
@@ -765,6 +826,14 @@ func (c *ChattoCore) GetUserEffectiveSpacePermissions(ctx context.Context, kind 
 // Used during LeaveSpace cleanup and account deletion.
 // Authorization: Internal use only (no permission check needed).
 func (c *ChattoCore) RevokeAllUserRoles(ctx context.Context, actorID, userID string) error {
+	rbacSeq, err := c.EventPublisher.LastSubjectSeq(ctx, events.RBACSubjectFilter())
+	if err != nil {
+		return fmt.Errorf("read RBAC seq: %w", err)
+	}
+	if err := c.rbacModel.waitFor(ctx, events.SubjectPosition(events.RBACSubjectFilter(), rbacSeq)); err != nil {
+		return fmt.Errorf("wait for RBAC projection: %w", err)
+	}
+
 	roles := c.RBAC.GetUserRoles(userID)
 	entries := make([]events.BatchEntry, 0, len(roles))
 	for _, roleName := range roles {

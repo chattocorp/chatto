@@ -12,7 +12,9 @@ import (
 // Keep this intentionally narrow: operation models should receive only the
 // actor identity they need, not the full user profile resolved at the HTTP edge.
 type Caller struct {
-	UserID string
+	UserID    string
+	IsSystem  bool
+	TokenName string
 }
 
 func requireCaller(ctx context.Context) (Caller, error) {

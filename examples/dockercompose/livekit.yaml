@@ -4,6 +4,10 @@ rtc:
   port_range_end: 50200
   use_external_ip: true
 
+turn:
+  enabled: true
+  udp_port: 3478
+
 keys:
   # Must match CHATTO_LIVEKIT_API_KEY / CHATTO_LIVEKIT_API_SECRET in .env
   your-api-key: replace-with-at-least-32-character-livekit-secret

@@ -13,8 +13,11 @@ import (
 	"testing"
 	"time"
 
+	"google.golang.org/protobuf/proto"
+	"hmans.de/chatto/internal/core/subjects"
 	"hmans.de/chatto/internal/events"
 	"hmans.de/chatto/internal/kms"
+	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
 func TestChattoCore_CreateUser(t *testing.T) {
@@ -52,6 +55,120 @@ func TestChattoCore_CreateUser(t *testing.T) {
 	_, err = core.VerifyPassword(ctx, user.Login, "password123")
 	if err != nil {
 		t.Errorf("Expected password to be verifiable: %v", err)
+	}
+}
+
+func TestChattoCore_CreateUserUsesProvidedActorID(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	user, err := core.CreateUser(ctx, SystemActorID, "actor-attribution", "Actor Attribution", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+
+	accountEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.UserAggregate(user.Id).Subject(events.EventUserAccountCreated))
+	if err != nil {
+		t.Fatalf("SubjectEvents account created: %v", err)
+	}
+	if len(accountEvents) != 1 {
+		t.Fatalf("account created events = %d, want 1", len(accountEvents))
+	}
+	if got := accountEvents[0].GetActorId(); got != SystemActorID {
+		t.Fatalf("account created actor = %q, want %q", got, SystemActorID)
+	}
+
+	dekEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.UserAggregate(user.Id).Subject(events.EventUserDEKGenerated))
+	if err != nil {
+		t.Fatalf("SubjectEvents DEK generated: %v", err)
+	}
+	if len(dekEvents) != 2 {
+		t.Fatalf("DEK generated events = %d, want 2", len(dekEvents))
+	}
+	for _, event := range dekEvents {
+		if got := event.GetActorId(); got != SystemActorID {
+			t.Fatalf("DEK generated actor = %q, want %q", got, SystemActorID)
+		}
+	}
+}
+
+func TestChattoCore_CreateUserLiveEventUsesProvidedActorID(t *testing.T) {
+	core, nc := setupTestCore(t)
+	ctx := testContext(t)
+
+	sub, err := nc.SubscribeSync(subjects.LiveSyncAllEvents())
+	if err != nil {
+		t.Fatalf("SubscribeSync live events: %v", err)
+	}
+	defer sub.Unsubscribe()
+	if err := nc.Flush(); err != nil {
+		t.Fatalf("Flush subscription: %v", err)
+	}
+
+	user, err := core.CreateUser(ctx, SystemActorID, "actor-live-create", "Actor Live Create", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+
+	msg, err := sub.NextMsg(2 * time.Second)
+	if err != nil {
+		t.Fatalf("waiting for user created live event: %v", err)
+	}
+	var live corev1.LiveEvent
+	if err := proto.Unmarshal(msg.Data, &live); err != nil {
+		t.Fatalf("unmarshal live event: %v", err)
+	}
+	created := live.GetUserCreated()
+	if created == nil {
+		t.Fatalf("expected UserCreatedEvent, got %T", live.Event)
+	}
+	if created.GetUserId() != user.GetId() {
+		t.Fatalf("created live user_id = %q, want %q", created.GetUserId(), user.GetId())
+	}
+	if got := live.GetActorId(); got != SystemActorID {
+		t.Fatalf("created live actor = %q, want %q", got, SystemActorID)
+	}
+}
+
+func TestChattoCore_DeleteUserLiveEventUsesProvidedActorID(t *testing.T) {
+	core, nc := setupTestCore(t)
+	ctx := testContext(t)
+
+	user, err := core.CreateUser(ctx, "system", "actor-live-delete", "Actor Live Delete", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser setup: %v", err)
+	}
+	subject := subjects.LiveSyncUserEvent(user.GetId(), "user_deleted")
+	sub, err := nc.SubscribeSync(subject)
+	if err != nil {
+		t.Fatalf("SubscribeSync(%s): %v", subject, err)
+	}
+	defer sub.Unsubscribe()
+	if err := nc.Flush(); err != nil {
+		t.Fatalf("Flush subscription: %v", err)
+	}
+
+	if err := core.DeleteUser(ctx, SystemActorID, user.GetId()); err != nil {
+		t.Fatalf("DeleteUser: %v", err)
+	}
+
+	msg, err := sub.NextMsg(2 * time.Second)
+	if err != nil {
+		t.Fatalf("waiting for user deleted live event: %v", err)
+	}
+	var live corev1.LiveEvent
+	if err := proto.Unmarshal(msg.Data, &live); err != nil {
+		t.Fatalf("unmarshal live event: %v", err)
+	}
+	deleted := live.GetUserDeleted()
+	if deleted == nil {
+		t.Fatalf("expected UserDeletedEvent, got %T", live.Event)
+	}
+	if deleted.GetUserId() != user.GetId() {
+		t.Fatalf("deleted live user_id = %q, want %q", deleted.GetUserId(), user.GetId())
+	}
+	if got := live.GetActorId(); got != SystemActorID {
+		t.Fatalf("deleted live actor = %q, want %q", got, SystemActorID)
 	}
 }
 
@@ -642,6 +759,16 @@ func TestChattoCore_SetPasswordHash_RechecksCurrentPasswordAfterOCCConflict(t *t
 	}
 	if _, err := core.VerifyPassword(ctx, user.Login, "staleoverwrite789"); err == nil {
 		t.Fatal("stale password overwrite should not be valid")
+	}
+}
+
+func TestChattoCore_SetPasswordHashRejectsMissingUser(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	err := core.SetPasswordHash(ctx, "UmissingPassword", "newpassword456")
+	if !errors.Is(err, ErrNotFound) {
+		t.Fatalf("SetPasswordHash error = %v, want ErrNotFound", err)
 	}
 }
 
@@ -1493,8 +1620,8 @@ func TestChattoCore_AdminUpdateUserAuthorization(t *testing.T) {
 		if !errors.Is(err, ErrNotAuthenticated) {
 			t.Fatalf("AdminUpdateUser err = %v, want ErrNotAuthenticated", err)
 		}
-		if err := c.AdminSetUserPassword(ctx, "", target.Id, "newpassword456"); !errors.Is(err, ErrNotAuthenticated) {
-			t.Fatalf("AdminSetUserPassword err = %v, want ErrNotAuthenticated", err)
+		if err := c.AdminSetUserPasswordAuthorized(ctx, "", target.Id, "newpassword456"); !errors.Is(err, ErrNotAuthenticated) {
+			t.Fatalf("AdminSetUserPasswordAuthorized err = %v, want ErrNotAuthenticated", err)
 		}
 	})
 
@@ -1517,8 +1644,8 @@ func TestChattoCore_AdminUpdateUserAuthorization(t *testing.T) {
 		if err := c.AdminClearLoginChangeCooldown(ctx, regular.Id, target.Id); !errors.Is(err, ErrPermissionDenied) {
 			t.Fatalf("AdminClearLoginChangeCooldown err = %v, want ErrPermissionDenied", err)
 		}
-		if err := c.AdminSetUserPassword(ctx, regular.Id, target.Id, "newpassword456"); !errors.Is(err, ErrPermissionDenied) {
-			t.Fatalf("AdminSetUserPassword err = %v, want ErrPermissionDenied", err)
+		if err := c.AdminSetUserPasswordAuthorized(ctx, regular.Id, target.Id, "newpassword456"); !errors.Is(err, ErrPermissionDenied) {
+			t.Fatalf("AdminSetUserPasswordAuthorized err = %v, want ErrPermissionDenied", err)
 		}
 	})
 
@@ -1551,8 +1678,8 @@ func TestChattoCore_AdminUpdateUserAuthorization(t *testing.T) {
 		if err := c.AdminClearLoginChangeCooldown(ctx, admin.Id, target.Id); err != nil {
 			t.Fatalf("AdminClearLoginChangeCooldown: %v", err)
 		}
-		if err := c.AdminSetUserPassword(ctx, admin.Id, target.Id, "adminpassword456"); err != nil {
-			t.Fatalf("AdminSetUserPassword: %v", err)
+		if err := c.AdminSetUserPasswordAuthorized(ctx, admin.Id, target.Id, "adminpassword456"); err != nil {
+			t.Fatalf("AdminSetUserPasswordAuthorized: %v", err)
 		}
 		if _, err := c.VerifyPassword(ctx, updated.GetLogin(), "adminpassword456"); err != nil {
 			t.Fatalf("admin-set password should verify: %v", err)
@@ -1606,8 +1733,8 @@ func TestChattoCore_AdminUpdateUserAuthorization(t *testing.T) {
 		if err != nil {
 			t.Fatalf("CreateUser self: %v", err)
 		}
-		if err := c.AdminSetUserPassword(ctx, user.Id, user.Id, "newpassword456"); !errors.Is(err, ErrAdminCannotSetOwnPassword) {
-			t.Fatalf("AdminSetUserPassword self err = %v, want ErrAdminCannotSetOwnPassword", err)
+		if err := c.AdminSetUserPasswordAuthorized(ctx, user.Id, user.Id, "newpassword456"); !errors.Is(err, ErrAdminCannotSetOwnPassword) {
+			t.Fatalf("AdminSetUserPasswordAuthorized self err = %v, want ErrAdminCannotSetOwnPassword", err)
 		}
 		if _, err := c.VerifyPassword(ctx, user.Login, "password123"); err != nil {
 			t.Fatalf("original password should still verify: %v", err)
@@ -1765,6 +1892,41 @@ func TestChattoCore_AdminRoleAssignmentAuthorization(t *testing.T) {
 		}
 		if len(roles) != 0 {
 			t.Fatalf("roles after revoke = %v, want none", roles)
+		}
+	})
+
+	t.Run("missing target user does not persist role facts", func(t *testing.T) {
+		c, _ := setupTestCore(t)
+		ctx := testContext(t)
+		admin, err := c.CreateUser(ctx, SystemActorID, "adminrole-missing-target-admin", "Admin", "password123")
+		if err != nil {
+			t.Fatalf("CreateUser admin: %v", err)
+		}
+		if err := c.AssignAdminRole(ctx, admin.Id); err != nil {
+			t.Fatalf("AssignAdminRole: %v", err)
+		}
+
+		const missingUserID = "UmissingAdminRoleTarget"
+		if err := c.AdminAssignServerRole(ctx, admin.Id, missingUserID, RoleModerator); !errors.Is(err, ErrNotFound) {
+			t.Fatalf("AdminAssignServerRole missing user err = %v, want ErrNotFound", err)
+		}
+		if c.RBAC.HasRole(missingUserID, RoleModerator) {
+			t.Fatal("missing user was assigned moderator role")
+		}
+
+		beforeRevocations, _, err := c.EventPublisher.SubjectEvents(ctx, events.RBACAggregate().Subject(events.EventRBACRoleRevoked))
+		if err != nil {
+			t.Fatalf("SubjectEvents role revoked before: %v", err)
+		}
+		if err := c.AdminRevokeServerRole(ctx, admin.Id, missingUserID, RoleModerator); !errors.Is(err, ErrNotFound) {
+			t.Fatalf("AdminRevokeServerRole missing user err = %v, want ErrNotFound", err)
+		}
+		afterRevocations, _, err := c.EventPublisher.SubjectEvents(ctx, events.RBACAggregate().Subject(events.EventRBACRoleRevoked))
+		if err != nil {
+			t.Fatalf("SubjectEvents role revoked after: %v", err)
+		}
+		if len(afterRevocations) != len(beforeRevocations) {
+			t.Fatalf("role revocation events changed from %d to %d for missing user", len(beforeRevocations), len(afterRevocations))
 		}
 	})
 
