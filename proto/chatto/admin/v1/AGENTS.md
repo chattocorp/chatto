@@ -11,6 +11,14 @@ their names and docs should make the administrative scope obvious.
   currently used by the bundled frontend.
 - Reuse shared shapes from `chatto.api.v1` when the semantics are the same.
 - Keep authorization expectations explicit in service and RPC comments.
+- Prefer service names that name the administrative resource directly. Do not
+  keep a narrower name when the service owns broader admin behavior; for
+  example, admin user/member management should be named around users when it
+  includes identity, password, cooldown, role, and member-detail operations.
+- Avoid creating extra admin services only to separate self-service and admin
+  mutations. The public `AccountService` owns current-caller self-service;
+  admin user management belongs in an explicitly named admin service with
+  permission-gated RPC comments.
 
 ## Compatibility
 

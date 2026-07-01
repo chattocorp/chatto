@@ -49,6 +49,17 @@ join/leave, mark read, ban/unban, reorder, rotate, import/export, and call
 control operations. Even then, method names should establish a repeatable
 pattern for future services instead of mirroring one frontend control.
 
+Service boundaries should optimize for API comprehension. Prefer explicit
+resource-and-scope service names over broad catch-all services when the scoped
+resources have distinct authorization, visibility, or absence semantics. The
+scope belongs in the service name when it makes the resource easier to reason
+about; once the service carries that scope, RPC names can stay concise. For
+example, server membership rows and room membership rows are easier to discover
+as `ServerMemberService.ListMembers` / `GetMember` / `BatchGetMembers` and
+`RoomMemberService.ListMembers` / `GetMember` / `BatchGetMembers` than as one
+generic member directory service with every method carrying the scope. This
+explicitness is preferred over minimizing the number of generated services.
+
 Public resource messages should be canonical per resource. Add narrower,
 expanded, or package-specific messages only when visibility, security, lifecycle,
 or transport semantics are genuinely different. Prefer returning or embedding
@@ -63,7 +74,7 @@ do not need N+1 RPC calls.
 
 Repeated public semantics should use shared protobuf shapes instead of service-local copies. Offset-based list RPCs use `PageRequest page` and return `PageInfo page` unless they need a cursor/window model such as room timeline reads. Singular lookup RPCs return `NOT_FOUND` when the requested resource is absent. Batch/list RPCs may omit missing resources or return empty lists. Optional response fields should represent a successful nullable result, not a hidden not-found status.
 
-Public user-shaped payloads should reuse the narrowest canonical shape that represents their semantics. `User` is the lightweight render/cache identity shape. `UserProfile` adds live presence and custom status for notification and call surfaces. `DirectoryMember`, `ViewerUser`, and `AdminMember` remain separate because they carry directory, self-service, and admin-only fields with different visibility rules.
+Public user-shaped payloads should reuse the narrowest canonical shape that represents their semantics. `User` is the lightweight render/cache identity shape. `UserProfile` adds live presence and custom status for notification and call surfaces. Member rows, `ViewerUser`, and `AdminMember` remain separate because they carry membership, self-service, and admin-only fields with different visibility rules. Membership row services should be named by their scope, for example server members versus room members, rather than by the implementation concept of a directory.
 
 `connectapi.API.Handlers()` is the authoritative registry for mounted ConnectRPC services. Each registered handler includes:
 

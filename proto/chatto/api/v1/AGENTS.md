@@ -14,6 +14,17 @@ first consumer.
   stable enough for mixed bundled client/server versions.
 - Prefer a broad, coherent base API over moving rough edges into a separate
   namespace.
+- Prefer service names that make the resource and scope obvious to generated
+  API consumers, even if that creates more services. Do not collapse unrelated
+  resources into broad catch-all services just because they share a scope.
+- When the same resource exists in distinct scopes with different authorization
+  or absence semantics, split the services by scope instead of overloading one
+  ambiguous service. For example, prefer `ServerMemberService` and
+  `RoomMemberService` over a generic member-directory service when server and
+  room membership reads are easier to understand as separate scoped resources.
+- Once a service name carries the scope, use concise resource method names such
+  as `ListMembers`, `GetMember`, and `BatchGetMembers` rather than repeating
+  the scope in every RPC name.
 
 ## Reused Shapes
 
