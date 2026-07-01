@@ -7,6 +7,7 @@ import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialM
 import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
 import { DirectoryMember } from "./member_directory_pb.js";
 import { PageInfo, PageRequest } from "./pagination_pb.js";
+import { AttachmentThumbnailOptions, RoomAttachmentListItem } from "./attachments_pb.js";
 
 /**
  * Kind of room represented by the public API.
@@ -1333,5 +1334,111 @@ export class ListRoomBansResponse extends Message<ListRoomBansResponse> {
 
   static equals(a: ListRoomBansResponse | PlainMessage<ListRoomBansResponse> | undefined, b: ListRoomBansResponse | PlainMessage<ListRoomBansResponse> | undefined): boolean {
     return proto3.util.equals(ListRoomBansResponse, a, b);
+  }
+}
+
+/**
+ * Request for room-scoped attachment list pages.
+ *
+ * @generated from message chatto.api.v1.ListRoomAttachmentsRequest
+ */
+export class ListRoomAttachmentsRequest extends Message<ListRoomAttachmentsRequest> {
+  /**
+   * Required room ID.
+   *
+   * @generated from field: string room_id = 1;
+   */
+  roomId = "";
+
+  /**
+   * Thumbnail URL options. Defaults are applied when absent.
+   *
+   * @generated from field: chatto.api.v1.AttachmentThumbnailOptions thumbnail = 4;
+   */
+  thumbnail?: AttachmentThumbnailOptions;
+
+  /**
+   * Page request. Defaults are applied when absent or limit is zero.
+   *
+   * @generated from field: chatto.api.v1.PageRequest page = 5;
+   */
+  page?: PageRequest;
+
+  constructor(data?: PartialMessage<ListRoomAttachmentsRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.ListRoomAttachmentsRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "thumbnail", kind: "message", T: AttachmentThumbnailOptions },
+    { no: 5, name: "page", kind: "message", T: PageRequest },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListRoomAttachmentsRequest {
+    return new ListRoomAttachmentsRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListRoomAttachmentsRequest {
+    return new ListRoomAttachmentsRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListRoomAttachmentsRequest {
+    return new ListRoomAttachmentsRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ListRoomAttachmentsRequest | PlainMessage<ListRoomAttachmentsRequest> | undefined, b: ListRoomAttachmentsRequest | PlainMessage<ListRoomAttachmentsRequest> | undefined): boolean {
+    return proto3.util.equals(ListRoomAttachmentsRequest, a, b);
+  }
+}
+
+/**
+ * Room-scoped attachment list response.
+ *
+ * @generated from message chatto.api.v1.ListRoomAttachmentsResponse
+ */
+export class ListRoomAttachmentsResponse extends Message<ListRoomAttachmentsResponse> {
+  /**
+   * Current attachments in newest message order.
+   *
+   * @generated from field: repeated chatto.api.v1.RoomAttachmentListItem items = 1;
+   */
+  items: RoomAttachmentListItem[] = [];
+
+  /**
+   * Page metadata.
+   *
+   * @generated from field: chatto.api.v1.PageInfo page = 4;
+   */
+  page?: PageInfo;
+
+  constructor(data?: PartialMessage<ListRoomAttachmentsResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.ListRoomAttachmentsResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "items", kind: "message", T: RoomAttachmentListItem, repeated: true },
+    { no: 4, name: "page", kind: "message", T: PageInfo },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListRoomAttachmentsResponse {
+    return new ListRoomAttachmentsResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListRoomAttachmentsResponse {
+    return new ListRoomAttachmentsResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListRoomAttachmentsResponse {
+    return new ListRoomAttachmentsResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ListRoomAttachmentsResponse | PlainMessage<ListRoomAttachmentsResponse> | undefined, b: ListRoomAttachmentsResponse | PlainMessage<ListRoomAttachmentsResponse> | undefined): boolean {
+    return proto3.util.equals(ListRoomAttachmentsResponse, a, b);
   }
 }

@@ -160,29 +160,6 @@ Current authenticated user's public profile plus self-only settings.
 | `profile` | [`UserProfile`](#chatto-api-v1-UserProfile) | Public profile and live presence fields for the authenticated user. |
 | `has_password` | `bool` | Whether this account currently has a password sign-in credential. |
 
-<a id="chatto-api-v1-PageInfo"></a>
-
-### PageInfo
-
-Offset-based page metadata returned by list RPCs.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `total_count` | `int64` | Total matching item count before pagination. |
-| `has_more` | `bool` | True when another page exists after this response. |
-
-<a id="chatto-api-v1-PageRequest"></a>
-
-### PageRequest
-
-Offset-based page request for list RPCs whose result order is stable enough
-for simple list browsing.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `limit` | `int32` | Maximum number of items to request. Each RPC defines its default and effective maximum; this shared request shape accepts values up to 500. |
-| `offset` | `int32` | Zero-based number of matching items to skip. |
-
 <a id="chatto-api-v1-LinkPreview"></a>
 
 ### LinkPreview
@@ -409,17 +386,6 @@ Fresh signed URLs for one message attachment.
 | `video_thumbnail_asset_url` | [`RoomTimelineAssetUrl`](#chatto-api-v1-RoomTimelineAssetUrl) | Fresh signed URL for the processed video thumbnail, when present. |
 | `variants` | repeated [`RoomTimelineVideoVariant`](#chatto-api-v1-RoomTimelineVideoVariant) | Fresh signed URLs for processed video variants, when present. |
 
-<a id="chatto-api-v1-RefreshedMessageAttachmentUrls"></a>
-
-### RefreshedMessageAttachmentUrls
-
-Fresh signed attachment URLs for one visible message.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `event_id` | `string` | Message event ID these attachment URLs belong to. |
-| `attachments` | repeated [`RefreshedAttachmentUrls`](#chatto-api-v1-RefreshedAttachmentUrls) | Fresh URL bundle for each current attachment on the message. |
-
 <a id="chatto-api-v1-RoomAttachmentListItem"></a>
 
 ### RoomAttachmentListItem
@@ -481,6 +447,29 @@ exposed; clients only need user-facing provider/profile hints.
 | `bound_user_id` | `string` | User ID this link flow is bound to. Empty for create flows. |
 | `redirect_path` | `string` | Internal path the client should return to after confirmation. |
 
+<a id="chatto-api-v1-PageInfo"></a>
+
+### PageInfo
+
+Offset-based page metadata returned by list RPCs.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `total_count` | `int64` | Total matching item count before pagination. |
+| `has_more` | `bool` | True when another page exists after this response. |
+
+<a id="chatto-api-v1-PageRequest"></a>
+
+### PageRequest
+
+Offset-based page request for list RPCs whose result order is stable enough
+for simple list browsing.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `limit` | `int32` | Maximum number of items to request. Each RPC defines its default and effective maximum; this shared request shape accepts values up to 500. |
+| `offset` | `int32` | Zero-based number of matching items to skip. |
+
 <a id="chatto-api-v1-DirectoryMember"></a>
 
 ### DirectoryMember
@@ -518,6 +507,17 @@ committed. The message service validates per-file limits and permissions.
 | `content` | `bytes` | Raw file bytes. |
 | `filename` | `string` | Original filename supplied by the client. |
 | `content_type` | `string` | MIME content type supplied by the client. Empty values are treated as application/octet-stream. |
+
+<a id="chatto-api-v1-RefreshedMessageAttachmentUrls"></a>
+
+### RefreshedMessageAttachmentUrls
+
+Fresh signed attachment URLs for one visible message.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `event_id` | `string` | Message event ID these attachment URLs belong to. |
+| `attachments` | repeated [`RefreshedAttachmentUrls`](#chatto-api-v1-RefreshedAttachmentUrls) | Fresh URL bundle for each current attachment on the message. |
 
 <a id="chatto-api-v1-DirectMessageNotification"></a>
 

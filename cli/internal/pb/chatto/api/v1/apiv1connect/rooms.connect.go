@@ -57,6 +57,9 @@ const (
 	// RoomServiceListRoomBansProcedure is the fully-qualified name of the RoomService's ListRoomBans
 	// RPC.
 	RoomServiceListRoomBansProcedure = "/chatto.api.v1.RoomService/ListRoomBans"
+	// RoomServiceListRoomAttachmentsProcedure is the fully-qualified name of the RoomService's
+	// ListRoomAttachments RPC.
+	RoomServiceListRoomAttachmentsProcedure = "/chatto.api.v1.RoomService/ListRoomAttachments"
 	// RoomServiceBanRoomMemberProcedure is the fully-qualified name of the RoomService's BanRoomMember
 	// RPC.
 	RoomServiceBanRoomMemberProcedure = "/chatto.api.v1.RoomService/BanRoomMember"
@@ -96,6 +99,10 @@ type RoomServiceClient interface {
 	// Lists active channel room bans. The caller must be allowed to moderate room
 	// membership bans.
 	ListRoomBans(context.Context, *connect.Request[v1.ListRoomBansRequest]) (*connect.Response[v1.ListRoomBansResponse], error)
+	// Lists current message-owned room attachments. Authentication and room
+	// membership are required. Returns PERMISSION_DENIED when the room is
+	// inaccessible to the caller.
+	ListRoomAttachments(context.Context, *connect.Request[v1.ListRoomAttachmentsRequest]) (*connect.Response[v1.ListRoomAttachmentsResponse], error)
 	// Bans a member from a channel room. Direct-message rooms cannot be moderated
 	// this way, and the target must currently be a room member.
 	BanRoomMember(context.Context, *connect.Request[v1.BanRoomMemberRequest]) (*connect.Response[v1.BanRoomMemberResponse], error)
@@ -175,6 +182,12 @@ func NewRoomServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(roomServiceMethods.ByName("ListRoomBans")),
 			connect.WithClientOptions(opts...),
 		),
+		listRoomAttachments: connect.NewClient[v1.ListRoomAttachmentsRequest, v1.ListRoomAttachmentsResponse](
+			httpClient,
+			baseURL+RoomServiceListRoomAttachmentsProcedure,
+			connect.WithSchema(roomServiceMethods.ByName("ListRoomAttachments")),
+			connect.WithClientOptions(opts...),
+		),
 		banRoomMember: connect.NewClient[v1.BanRoomMemberRequest, v1.BanRoomMemberResponse](
 			httpClient,
 			baseURL+RoomServiceBanRoomMemberProcedure,
@@ -202,6 +215,7 @@ type roomServiceClient struct {
 	startDM             *connect.Client[v1.StartDMRequest, v1.StartDMResponse]
 	leaveRoom           *connect.Client[v1.LeaveRoomRequest, v1.LeaveRoomResponse]
 	listRoomBans        *connect.Client[v1.ListRoomBansRequest, v1.ListRoomBansResponse]
+	listRoomAttachments *connect.Client[v1.ListRoomAttachmentsRequest, v1.ListRoomAttachmentsResponse]
 	banRoomMember       *connect.Client[v1.BanRoomMemberRequest, v1.BanRoomMemberResponse]
 	unbanRoomMember     *connect.Client[v1.UnbanRoomMemberRequest, v1.UnbanRoomMemberResponse]
 }
@@ -256,6 +270,11 @@ func (c *roomServiceClient) ListRoomBans(ctx context.Context, req *connect.Reque
 	return c.listRoomBans.CallUnary(ctx, req)
 }
 
+// ListRoomAttachments calls chatto.api.v1.RoomService.ListRoomAttachments.
+func (c *roomServiceClient) ListRoomAttachments(ctx context.Context, req *connect.Request[v1.ListRoomAttachmentsRequest]) (*connect.Response[v1.ListRoomAttachmentsResponse], error) {
+	return c.listRoomAttachments.CallUnary(ctx, req)
+}
+
 // BanRoomMember calls chatto.api.v1.RoomService.BanRoomMember.
 func (c *roomServiceClient) BanRoomMember(ctx context.Context, req *connect.Request[v1.BanRoomMemberRequest]) (*connect.Response[v1.BanRoomMemberResponse], error) {
 	return c.banRoomMember.CallUnary(ctx, req)
@@ -297,6 +316,10 @@ type RoomServiceHandler interface {
 	// Lists active channel room bans. The caller must be allowed to moderate room
 	// membership bans.
 	ListRoomBans(context.Context, *connect.Request[v1.ListRoomBansRequest]) (*connect.Response[v1.ListRoomBansResponse], error)
+	// Lists current message-owned room attachments. Authentication and room
+	// membership are required. Returns PERMISSION_DENIED when the room is
+	// inaccessible to the caller.
+	ListRoomAttachments(context.Context, *connect.Request[v1.ListRoomAttachmentsRequest]) (*connect.Response[v1.ListRoomAttachmentsResponse], error)
 	// Bans a member from a channel room. Direct-message rooms cannot be moderated
 	// this way, and the target must currently be a room member.
 	BanRoomMember(context.Context, *connect.Request[v1.BanRoomMemberRequest]) (*connect.Response[v1.BanRoomMemberResponse], error)
@@ -372,6 +395,12 @@ func NewRoomServiceHandler(svc RoomServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(roomServiceMethods.ByName("ListRoomBans")),
 		connect.WithHandlerOptions(opts...),
 	)
+	roomServiceListRoomAttachmentsHandler := connect.NewUnaryHandler(
+		RoomServiceListRoomAttachmentsProcedure,
+		svc.ListRoomAttachments,
+		connect.WithSchema(roomServiceMethods.ByName("ListRoomAttachments")),
+		connect.WithHandlerOptions(opts...),
+	)
 	roomServiceBanRoomMemberHandler := connect.NewUnaryHandler(
 		RoomServiceBanRoomMemberProcedure,
 		svc.BanRoomMember,
@@ -406,6 +435,8 @@ func NewRoomServiceHandler(svc RoomServiceHandler, opts ...connect.HandlerOption
 			roomServiceLeaveRoomHandler.ServeHTTP(w, r)
 		case RoomServiceListRoomBansProcedure:
 			roomServiceListRoomBansHandler.ServeHTTP(w, r)
+		case RoomServiceListRoomAttachmentsProcedure:
+			roomServiceListRoomAttachmentsHandler.ServeHTTP(w, r)
 		case RoomServiceBanRoomMemberProcedure:
 			roomServiceBanRoomMemberHandler.ServeHTTP(w, r)
 		case RoomServiceUnbanRoomMemberProcedure:
@@ -457,6 +488,10 @@ func (UnimplementedRoomServiceHandler) LeaveRoom(context.Context, *connect.Reque
 
 func (UnimplementedRoomServiceHandler) ListRoomBans(context.Context, *connect.Request[v1.ListRoomBansRequest]) (*connect.Response[v1.ListRoomBansResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.RoomService.ListRoomBans is not implemented"))
+}
+
+func (UnimplementedRoomServiceHandler) ListRoomAttachments(context.Context, *connect.Request[v1.ListRoomAttachmentsRequest]) (*connect.Response[v1.ListRoomAttachmentsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.RoomService.ListRoomAttachments is not implemented"))
 }
 
 func (UnimplementedRoomServiceHandler) BanRoomMember(context.Context, *connect.Request[v1.BanRoomMemberRequest]) (*connect.Response[v1.BanRoomMemberResponse], error) {

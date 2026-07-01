@@ -882,126 +882,6 @@ Response containing a thread timeline window around a specific event.
 | `target_index` | `int32` | Zero-based index of the anchor event within page.events. |
 
 
-<a id="chatto-api-v1-AttachmentService"></a>
-
-## AttachmentService
-
-Reads room attachments and refreshes expiring signed attachment URLs.
-
-<a id="chatto-api-v1-AttachmentService-ListRoomAttachments"></a>
-
-### ListRoomAttachments
-
-Lists current message-owned room attachments. Authentication and room
-membership are required. Returns PERMISSION_DENIED when the room is
-inaccessible to the caller.
-
-```http
-POST /api/connect/chatto.api.v1.AttachmentService/ListRoomAttachments
-```
-
-<a id="chatto-api-v1-ListRoomAttachmentsRequest"></a>
-
-#### Input: ListRoomAttachmentsRequest
-
-Request for room-scoped attachment list pages.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | Required room ID. |
-| `thumbnail` | [`AttachmentThumbnailOptions`](#chatto-api-v1-AttachmentThumbnailOptions) | Thumbnail URL options. Defaults are applied when absent. |
-| `page` | [`PageRequest`](#chatto-api-v1-PageRequest) | Page request. Defaults are applied when absent or limit is zero. |
-
-
-<a id="chatto-api-v1-ListRoomAttachmentsResponse"></a>
-
-#### Result: ListRoomAttachmentsResponse
-
-Room-scoped attachment list response.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `items` | repeated [`RoomAttachmentListItem`](#chatto-api-v1-RoomAttachmentListItem) | Current attachments in newest message order. |
-| `page` | [`PageInfo`](#chatto-api-v1-PageInfo) | Page metadata. |
-
-
-<a id="chatto-api-v1-AttachmentService-RefreshMessageAttachmentUrls"></a>
-
-### RefreshMessageAttachmentUrls
-
-Refreshes signed URLs for the current attachments on one message.
-Authentication and room membership are required. Returns NOT_FOUND when the
-message does not exist, is not a current visible message, or belongs to a
-different room. Returns an empty attachment list when the message exists
-but currently has no attachments.
-
-```http
-POST /api/connect/chatto.api.v1.AttachmentService/RefreshMessageAttachmentUrls
-```
-
-<a id="chatto-api-v1-RefreshMessageAttachmentUrlsRequest"></a>
-
-#### Input: RefreshMessageAttachmentUrlsRequest
-
-Request to refresh signed attachment URLs for one message.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | Required room ID. |
-| `event_id` | `string` | Required message event ID. |
-| `thumbnail` | [`AttachmentThumbnailOptions`](#chatto-api-v1-AttachmentThumbnailOptions) | Thumbnail URL options. Defaults are applied when absent. |
-
-
-<a id="chatto-api-v1-RefreshMessageAttachmentUrlsResponse"></a>
-
-#### Result: RefreshMessageAttachmentUrlsResponse
-
-Response containing fresh signed URLs for the current message attachments.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `attachments` | repeated [`RefreshedAttachmentUrls`](#chatto-api-v1-RefreshedAttachmentUrls) | Fresh URL bundle for each current attachment on the message. |
-
-
-<a id="chatto-api-v1-AttachmentService-BatchRefreshMessageAttachmentUrls"></a>
-
-### BatchRefreshMessageAttachmentUrls
-
-Refreshes signed URLs for the current attachments on multiple messages in
-one room. Authentication and room membership are required. Missing,
-retracted, non-message, and wrong-room event IDs are omitted. Results
-preserve first-seen request order and repeated event IDs are de-duplicated.
-Existing visible messages with no current attachments are returned with an
-empty attachment list.
-
-```http
-POST /api/connect/chatto.api.v1.AttachmentService/BatchRefreshMessageAttachmentUrls
-```
-
-<a id="chatto-api-v1-BatchRefreshMessageAttachmentUrlsRequest"></a>
-
-#### Input: BatchRefreshMessageAttachmentUrlsRequest
-
-Request to refresh signed attachment URLs for many messages in one room.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | Required room ID. |
-| `event_ids` | `repeated string` | Required message event IDs. Missing, retracted, non-message, and wrong-room event IDs are omitted from the response. |
-| `thumbnail` | [`AttachmentThumbnailOptions`](#chatto-api-v1-AttachmentThumbnailOptions) | Thumbnail URL options. Defaults are applied when absent. |
-
-
-<a id="chatto-api-v1-BatchRefreshMessageAttachmentUrlsResponse"></a>
-
-#### Result: BatchRefreshMessageAttachmentUrlsResponse
-
-Response containing fresh signed URLs for many visible messages.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `messages` | repeated [`RefreshedMessageAttachmentUrls`](#chatto-api-v1-RefreshedMessageAttachmentUrls) | Refreshed messages in first-seen request order. |
-
-
 <a id="chatto-api-v1-ExternalIdentityFlowService"></a>
 
 ## ExternalIdentityFlowService
@@ -1672,6 +1552,83 @@ Result of removing a link preview from a message.
 | Field | Type | Description |
 | --- | --- | --- |
 | `deleted` | `bool` | True when the link preview removal was accepted. |
+
+
+<a id="chatto-api-v1-MessageService-RefreshMessageAttachmentUrls"></a>
+
+### RefreshMessageAttachmentUrls
+
+Refreshes signed URLs for the current attachments on one message.
+Authentication and room membership are required. Returns NOT_FOUND when the
+message does not exist, is not a current visible message, or belongs to a
+different room. Returns an empty attachment list when the message exists
+but currently has no attachments.
+
+```http
+POST /api/connect/chatto.api.v1.MessageService/RefreshMessageAttachmentUrls
+```
+
+<a id="chatto-api-v1-RefreshMessageAttachmentUrlsRequest"></a>
+
+#### Input: RefreshMessageAttachmentUrlsRequest
+
+Request to refresh signed attachment URLs for one message.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required room ID. |
+| `event_id` | `string` | Required message event ID. |
+| `thumbnail` | [`AttachmentThumbnailOptions`](#chatto-api-v1-AttachmentThumbnailOptions) | Thumbnail URL options. Defaults are applied when absent. |
+
+
+<a id="chatto-api-v1-RefreshMessageAttachmentUrlsResponse"></a>
+
+#### Result: RefreshMessageAttachmentUrlsResponse
+
+Response containing fresh signed URLs for the current message attachments.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `attachments` | repeated [`RefreshedAttachmentUrls`](#chatto-api-v1-RefreshedAttachmentUrls) | Fresh URL bundle for each current attachment on the message. |
+
+
+<a id="chatto-api-v1-MessageService-BatchRefreshMessageAttachmentUrls"></a>
+
+### BatchRefreshMessageAttachmentUrls
+
+Refreshes signed URLs for the current attachments on multiple messages in
+one room. Authentication and room membership are required. Missing,
+retracted, non-message, and wrong-room event IDs are omitted. Results
+preserve first-seen request order and repeated event IDs are de-duplicated.
+Existing visible messages with no current attachments are returned with an
+empty attachment list.
+
+```http
+POST /api/connect/chatto.api.v1.MessageService/BatchRefreshMessageAttachmentUrls
+```
+
+<a id="chatto-api-v1-BatchRefreshMessageAttachmentUrlsRequest"></a>
+
+#### Input: BatchRefreshMessageAttachmentUrlsRequest
+
+Request to refresh signed attachment URLs for many messages in one room.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required room ID. |
+| `event_ids` | `repeated string` | Required message event IDs. Missing, retracted, non-message, and wrong-room event IDs are omitted from the response. |
+| `thumbnail` | [`AttachmentThumbnailOptions`](#chatto-api-v1-AttachmentThumbnailOptions) | Thumbnail URL options. Defaults are applied when absent. |
+
+
+<a id="chatto-api-v1-BatchRefreshMessageAttachmentUrlsResponse"></a>
+
+#### Result: BatchRefreshMessageAttachmentUrlsResponse
+
+Response containing fresh signed URLs for many visible messages.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `messages` | repeated [`RefreshedMessageAttachmentUrls`](#chatto-api-v1-RefreshedMessageAttachmentUrls) | Refreshed messages in first-seen request order. |
 
 
 <a id="chatto-api-v1-MessageService-SendTypingIndicator"></a>
@@ -2645,6 +2602,43 @@ Active room bans visible to the current moderator.
 | `page` | [`PageInfo`](#chatto-api-v1-PageInfo) | Page metadata. |
 
 
+<a id="chatto-api-v1-RoomService-ListRoomAttachments"></a>
+
+### ListRoomAttachments
+
+Lists current message-owned room attachments. Authentication and room
+membership are required. Returns PERMISSION_DENIED when the room is
+inaccessible to the caller.
+
+```http
+POST /api/connect/chatto.api.v1.RoomService/ListRoomAttachments
+```
+
+<a id="chatto-api-v1-ListRoomAttachmentsRequest"></a>
+
+#### Input: ListRoomAttachmentsRequest
+
+Request for room-scoped attachment list pages.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required room ID. |
+| `thumbnail` | [`AttachmentThumbnailOptions`](#chatto-api-v1-AttachmentThumbnailOptions) | Thumbnail URL options. Defaults are applied when absent. |
+| `page` | [`PageRequest`](#chatto-api-v1-PageRequest) | Page request. Defaults are applied when absent or limit is zero. |
+
+
+<a id="chatto-api-v1-ListRoomAttachmentsResponse"></a>
+
+#### Result: ListRoomAttachmentsResponse
+
+Room-scoped attachment list response.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `items` | repeated [`RoomAttachmentListItem`](#chatto-api-v1-RoomAttachmentListItem) | Current attachments in newest message order. |
+| `page` | [`PageInfo`](#chatto-api-v1-PageInfo) | Page metadata. |
+
+
 <a id="chatto-api-v1-RoomService-BanRoomMember"></a>
 
 ### BanRoomMember
@@ -3536,33 +3530,6 @@ Current authenticated user's public profile plus self-only settings.
 
 
 
-<a id="chatto-api-v1-PageInfo"></a>
-
-### PageInfo
-
-Offset-based page metadata returned by list RPCs.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `total_count` | `int64` | Total matching item count before pagination. |
-| `has_more` | `bool` | True when another page exists after this response. |
-
-
-
-<a id="chatto-api-v1-PageRequest"></a>
-
-### PageRequest
-
-Offset-based page request for list RPCs whose result order is stable enough
-for simple list browsing.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `limit` | `int32` | Maximum number of items to request. Each RPC defines its default and effective maximum; this shared request shape accepts values up to 500. |
-| `offset` | `int32` | Zero-based number of matching items to skip. |
-
-
-
 <a id="chatto-api-v1-LinkPreview"></a>
 
 ### LinkPreview
@@ -3815,19 +3782,6 @@ Fresh signed URLs for one message attachment.
 
 
 
-<a id="chatto-api-v1-RefreshedMessageAttachmentUrls"></a>
-
-### RefreshedMessageAttachmentUrls
-
-Fresh signed attachment URLs for one visible message.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `event_id` | `string` | Message event ID these attachment URLs belong to. |
-| `attachments` | repeated [`RefreshedAttachmentUrls`](#chatto-api-v1-RefreshedAttachmentUrls) | Fresh URL bundle for each current attachment on the message. |
-
-
-
 <a id="chatto-api-v1-RoomAttachmentListItem"></a>
 
 ### RoomAttachmentListItem
@@ -3897,6 +3851,33 @@ exposed; clients only need user-facing provider/profile hints.
 
 
 
+<a id="chatto-api-v1-PageInfo"></a>
+
+### PageInfo
+
+Offset-based page metadata returned by list RPCs.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `total_count` | `int64` | Total matching item count before pagination. |
+| `has_more` | `bool` | True when another page exists after this response. |
+
+
+
+<a id="chatto-api-v1-PageRequest"></a>
+
+### PageRequest
+
+Offset-based page request for list RPCs whose result order is stable enough
+for simple list browsing.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `limit` | `int32` | Maximum number of items to request. Each RPC defines its default and effective maximum; this shared request shape accepts values up to 500. |
+| `offset` | `int32` | Zero-based number of matching items to skip. |
+
+
+
 <a id="chatto-api-v1-DirectoryMember"></a>
 
 ### DirectoryMember
@@ -3938,6 +3919,19 @@ committed. The message service validates per-file limits and permissions.
 | `content` | `bytes` | Raw file bytes. |
 | `filename` | `string` | Original filename supplied by the client. |
 | `content_type` | `string` | MIME content type supplied by the client. Empty values are treated as application/octet-stream. |
+
+
+
+<a id="chatto-api-v1-RefreshedMessageAttachmentUrls"></a>
+
+### RefreshedMessageAttachmentUrls
+
+Fresh signed attachment URLs for one visible message.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `event_id` | `string` | Message event ID these attachment URLs belong to. |
+| `attachments` | repeated [`RefreshedAttachmentUrls`](#chatto-api-v1-RefreshedAttachmentUrls) | Fresh URL bundle for each current attachment on the message. |
 
 
 

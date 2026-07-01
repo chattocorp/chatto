@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ArchiveRoomRequest, ArchiveRoomResponse, BanRoomMemberRequest, BanRoomMemberResponse, CreateRoomRequest, CreateRoomResponse, JoinRoomGroupRequest, JoinRoomGroupResponse, JoinRoomRequest, JoinRoomResponse, LeaveRoomRequest, LeaveRoomResponse, ListRoomBansRequest, ListRoomBansResponse, StartDMRequest, StartDMResponse, UnarchiveRoomRequest, UnarchiveRoomResponse, UnbanRoomMemberRequest, UnbanRoomMemberResponse, UpdateRoomRequest, UpdateRoomResponse, UpdateRoomUniversalRequest, UpdateRoomUniversalResponse } from "./rooms_pb.js";
+import { ArchiveRoomRequest, ArchiveRoomResponse, BanRoomMemberRequest, BanRoomMemberResponse, CreateRoomRequest, CreateRoomResponse, JoinRoomGroupRequest, JoinRoomGroupResponse, JoinRoomRequest, JoinRoomResponse, LeaveRoomRequest, LeaveRoomResponse, ListRoomAttachmentsRequest, ListRoomAttachmentsResponse, ListRoomBansRequest, ListRoomBansResponse, StartDMRequest, StartDMResponse, UnarchiveRoomRequest, UnarchiveRoomResponse, UnbanRoomMemberRequest, UnbanRoomMemberResponse, UpdateRoomRequest, UpdateRoomResponse, UpdateRoomUniversalRequest, UpdateRoomUniversalResponse } from "./rooms_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -131,6 +131,19 @@ export const RoomService = {
       name: "ListRoomBans",
       I: ListRoomBansRequest,
       O: ListRoomBansResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Lists current message-owned room attachments. Authentication and room
+     * membership are required. Returns PERMISSION_DENIED when the room is
+     * inaccessible to the caller.
+     *
+     * @generated from rpc chatto.api.v1.RoomService.ListRoomAttachments
+     */
+    listRoomAttachments: {
+      name: "ListRoomAttachments",
+      I: ListRoomAttachmentsRequest,
+      O: ListRoomAttachmentsResponse,
       kind: MethodKind.Unary,
     },
     /**

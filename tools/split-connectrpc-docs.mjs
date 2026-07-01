@@ -29,12 +29,6 @@ const categories = [
         description: 'Self-service account, profile, avatar, presence, status, and settings RPCs.'
       },
       {
-        name: 'AttachmentService',
-        slug: 'attachments',
-        title: 'Attachments',
-        description: 'Attachment listing and signed URL refresh RPCs.'
-      },
-      {
         name: 'ExternalIdentityFlowService',
         slug: 'external-identity-flows',
         title: 'External Identity Flows',

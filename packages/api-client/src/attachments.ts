@@ -6,11 +6,12 @@ import type {
   ExpiringAssetUrl,
   RefreshedAttachmentUrls,
 } from "./attachmentUrls.js";
-import { AttachmentService } from "@chatto/api-types/api/v1/attachments_connect";
 import {
   AttachmentFitMode,
   AttachmentThumbnailOptions,
 } from "@chatto/api-types/api/v1/attachments_pb";
+import { MessageService } from "@chatto/api-types/api/v1/messages_connect";
+import { RoomService } from "@chatto/api-types/api/v1/rooms_connect";
 import {
   RoomTimelineVideoProcessingStatus,
   type RoomTimelineAssetUrl,
@@ -94,7 +95,8 @@ export function createAttachmentAPI(
     baseUrl: config.baseUrl,
     useBinaryFormat: true,
   });
-  const client = createClient(AttachmentService, transport);
+  const messages = createClient(MessageService, transport);
+  const rooms = createClient(RoomService, transport);
   const headers = () =>
     config.bearerToken
       ? { Authorization: `Bearer ${config.bearerToken}` }
@@ -117,7 +119,7 @@ export function createAttachmentAPI(
   return {
     async listRoomAttachments({ roomId, limit, offset, thumbnail }) {
       try {
-        const response = await client.listRoomAttachments(
+        const response = await rooms.listRoomAttachments(
           {
             roomId,
             page: { limit, offset },
@@ -136,7 +138,7 @@ export function createAttachmentAPI(
     },
     async refreshMessageAttachmentUrls(roomId, eventId, thumbnail) {
       try {
-        const response = await client.refreshMessageAttachmentUrls(
+        const response = await messages.refreshMessageAttachmentUrls(
           {
             roomId,
             eventId,
@@ -151,7 +153,7 @@ export function createAttachmentAPI(
     },
     async batchRefreshMessageAttachmentUrls(roomId, eventIds, thumbnail) {
       try {
-        const response = await client.batchRefreshMessageAttachmentUrls(
+        const response = await messages.batchRefreshMessageAttachmentUrls(
           {
             roomId,
             eventIds,

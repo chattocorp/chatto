@@ -5,13 +5,15 @@ import { Timestamp } from '@bufbuild/protobuf';
 import { FitMode } from '@chatto/api-client/renderTypes';
 import {
   AttachmentFitMode,
-  BatchRefreshMessageAttachmentUrlsResponse,
-  ListRoomAttachmentsResponse,
-  RefreshMessageAttachmentUrlsResponse,
-  RefreshedMessageAttachmentUrls,
   RefreshedAttachmentUrls,
   RoomAttachmentListItem
 } from '@chatto/api-types/api/v1/attachments_pb';
+import {
+  BatchRefreshMessageAttachmentUrlsResponse,
+  RefreshedMessageAttachmentUrls,
+  RefreshMessageAttachmentUrlsResponse
+} from '@chatto/api-types/api/v1/messages_pb';
+import { ListRoomAttachmentsResponse } from '@chatto/api-types/api/v1/rooms_pb';
 import {
   RoomTimelineAssetUrl,
   RoomTimelineAttachment,
@@ -60,10 +62,16 @@ describe('createAttachmentAPI', () => {
     mocks.refreshMessageAttachmentUrls.mockReset();
     mocks.batchRefreshMessageAttachmentUrls.mockReset();
     mocks.createConnectTransport.mockReturnValue({ kind: 'transport' });
-    mocks.createClient.mockReturnValue({
-      listRoomAttachments: mocks.listRoomAttachments,
-      refreshMessageAttachmentUrls: mocks.refreshMessageAttachmentUrls,
-      batchRefreshMessageAttachmentUrls: mocks.batchRefreshMessageAttachmentUrls
+    mocks.createClient.mockImplementation((service) => {
+      if (service.typeName === 'chatto.api.v1.RoomService') {
+        return {
+          listRoomAttachments: mocks.listRoomAttachments
+        };
+      }
+      return {
+        refreshMessageAttachmentUrls: mocks.refreshMessageAttachmentUrls,
+        batchRefreshMessageAttachmentUrls: mocks.batchRefreshMessageAttachmentUrls
+      };
     });
   });
 

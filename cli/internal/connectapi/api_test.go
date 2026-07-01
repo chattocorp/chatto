@@ -57,7 +57,6 @@ func TestAPIHandlers(t *testing.T) {
 	want := []string{
 		"/" + apiv1connect.AccountServiceName + "/",
 		"/" + adminv1connect.AdminServerServiceName + "/",
-		"/" + apiv1connect.AttachmentServiceName + "/",
 		"/" + apiv1connect.ExternalIdentityFlowServiceName + "/",
 		"/" + apiv1connect.ExternalIdentityServiceName + "/",
 		"/" + adminv1connect.AdminDiagnosticsServiceName + "/",
@@ -106,7 +105,6 @@ func TestAPIHandlerAuthPolicies(t *testing.T) {
 	want := map[string]AuthPolicy{
 		"/" + apiv1connect.AccountServiceName + "/":                 AuthPolicyAuthenticatedUser,
 		"/" + adminv1connect.AdminServerServiceName + "/":           AuthPolicyAuthenticatedUser,
-		"/" + apiv1connect.AttachmentServiceName + "/":              AuthPolicyAuthenticatedUser,
 		"/" + apiv1connect.ExternalIdentityFlowServiceName + "/":    AuthPolicyPublic,
 		"/" + apiv1connect.ExternalIdentityServiceName + "/":        AuthPolicyAuthenticatedUser,
 		"/" + adminv1connect.AdminDiagnosticsServiceName + "/":      AuthPolicyAuthenticatedUser,
@@ -217,18 +215,18 @@ func TestBatchGetResourceRequestsValidateThroughConnectHandlers(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	mux := http.NewServeMux()
 	rolePath, roleHandler := apiv1connect.NewRoleServiceHandler(env.publicRoles, HandlerOptions()...)
-	roomPath, roomHandler := apiv1connect.NewRoomDirectoryServiceHandler(env.directory, HandlerOptions()...)
+	roomDirectoryPath, roomDirectoryHandler := apiv1connect.NewRoomDirectoryServiceHandler(env.directory, HandlerOptions()...)
+	messagePath, messageHandler := apiv1connect.NewMessageServiceHandler(env.messages, HandlerOptions()...)
 	memberPath, memberHandler := apiv1connect.NewMemberDirectoryServiceHandler(env.members, HandlerOptions()...)
 	notificationPath, notificationHandler := apiv1connect.NewNotificationServiceHandler(env.notifications, HandlerOptions()...)
-	attachmentPath, attachmentHandler := apiv1connect.NewAttachmentServiceHandler(env.attachments, HandlerOptions()...)
 	voicePath, voiceHandler := apiv1connect.NewVoiceCallServiceHandler(env.voice, HandlerOptions()...)
 	adminMemberPath, adminMemberHandler := adminv1connect.NewAdminMemberServiceHandler(env.adminUsers, HandlerOptions()...)
 	adminServerPath, adminServerHandler := adminv1connect.NewAdminServerServiceHandler(env.serverState, HandlerOptions()...)
 	mux.Handle(rolePath, roleHandler)
-	mux.Handle(roomPath, roomHandler)
+	mux.Handle(roomDirectoryPath, roomDirectoryHandler)
+	mux.Handle(messagePath, messageHandler)
 	mux.Handle(memberPath, memberHandler)
 	mux.Handle(notificationPath, notificationHandler)
-	mux.Handle(attachmentPath, attachmentHandler)
 	mux.Handle(voicePath, voiceHandler)
 	mux.Handle(adminMemberPath, adminMemberHandler)
 	mux.Handle(adminServerPath, adminServerHandler)
@@ -236,10 +234,10 @@ func TestBatchGetResourceRequestsValidateThroughConnectHandlers(t *testing.T) {
 	t.Cleanup(ts.Close)
 
 	roles := apiv1connect.NewRoleServiceClient(ts.Client(), ts.URL)
-	rooms := apiv1connect.NewRoomDirectoryServiceClient(ts.Client(), ts.URL)
+	roomDirectory := apiv1connect.NewRoomDirectoryServiceClient(ts.Client(), ts.URL)
+	messages := apiv1connect.NewMessageServiceClient(ts.Client(), ts.URL)
 	members := apiv1connect.NewMemberDirectoryServiceClient(ts.Client(), ts.URL)
 	notifications := apiv1connect.NewNotificationServiceClient(ts.Client(), ts.URL)
-	attachments := apiv1connect.NewAttachmentServiceClient(ts.Client(), ts.URL)
 	voice := apiv1connect.NewVoiceCallServiceClient(ts.Client(), ts.URL)
 	adminMembers := adminv1connect.NewAdminMemberServiceClient(ts.Client(), ts.URL)
 	adminServer := adminv1connect.NewAdminServerServiceClient(ts.Client(), ts.URL)
@@ -258,33 +256,33 @@ func TestBatchGetResourceRequestsValidateThroughConnectHandlers(t *testing.T) {
 		t.Fatalf("too-many BatchGetRoles code = %v, want invalid_argument", connect.CodeOf(err))
 	}
 
-	if _, err := rooms.BatchGetRooms(context.Background(), connect.NewRequest(&apiv1.BatchGetRoomsRequest{})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+	if _, err := roomDirectory.BatchGetRooms(context.Background(), connect.NewRequest(&apiv1.BatchGetRoomsRequest{})); connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("empty BatchGetRooms code = %v, want invalid_argument", connect.CodeOf(err))
 	}
-	if _, err := rooms.BatchGetRooms(context.Background(), connect.NewRequest(&apiv1.BatchGetRoomsRequest{RoomIds: []string{""}})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+	if _, err := roomDirectory.BatchGetRooms(context.Background(), connect.NewRequest(&apiv1.BatchGetRoomsRequest{RoomIds: []string{""}})); connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("empty-id BatchGetRooms code = %v, want invalid_argument", connect.CodeOf(err))
 	}
 	tooManyRoomIDs := make([]string, 101)
 	for i := range tooManyRoomIDs {
 		tooManyRoomIDs[i] = fmt.Sprintf("room-%d", i)
 	}
-	if _, err := rooms.BatchGetRooms(context.Background(), connect.NewRequest(&apiv1.BatchGetRoomsRequest{RoomIds: tooManyRoomIDs})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+	if _, err := roomDirectory.BatchGetRooms(context.Background(), connect.NewRequest(&apiv1.BatchGetRoomsRequest{RoomIds: tooManyRoomIDs})); connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("too-many BatchGetRooms code = %v, want invalid_argument", connect.CodeOf(err))
 	}
-	if _, err := rooms.GetRoomGroup(context.Background(), connect.NewRequest(&apiv1.GetRoomGroupRequest{})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+	if _, err := roomDirectory.GetRoomGroup(context.Background(), connect.NewRequest(&apiv1.GetRoomGroupRequest{})); connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("empty GetRoomGroup code = %v, want invalid_argument", connect.CodeOf(err))
 	}
-	if _, err := rooms.BatchGetRoomGroups(context.Background(), connect.NewRequest(&apiv1.BatchGetRoomGroupsRequest{})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+	if _, err := roomDirectory.BatchGetRoomGroups(context.Background(), connect.NewRequest(&apiv1.BatchGetRoomGroupsRequest{})); connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("empty BatchGetRoomGroups code = %v, want invalid_argument", connect.CodeOf(err))
 	}
-	if _, err := rooms.BatchGetRoomGroups(context.Background(), connect.NewRequest(&apiv1.BatchGetRoomGroupsRequest{GroupIds: []string{""}})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+	if _, err := roomDirectory.BatchGetRoomGroups(context.Background(), connect.NewRequest(&apiv1.BatchGetRoomGroupsRequest{GroupIds: []string{""}})); connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("empty-id BatchGetRoomGroups code = %v, want invalid_argument", connect.CodeOf(err))
 	}
 	tooManyGroupIDs := make([]string, 101)
 	for i := range tooManyGroupIDs {
 		tooManyGroupIDs[i] = fmt.Sprintf("group-%d", i)
 	}
-	if _, err := rooms.BatchGetRoomGroups(context.Background(), connect.NewRequest(&apiv1.BatchGetRoomGroupsRequest{GroupIds: tooManyGroupIDs})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+	if _, err := roomDirectory.BatchGetRoomGroups(context.Background(), connect.NewRequest(&apiv1.BatchGetRoomGroupsRequest{GroupIds: tooManyGroupIDs})); connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("too-many BatchGetRoomGroups code = %v, want invalid_argument", connect.CodeOf(err))
 	}
 
@@ -332,20 +330,20 @@ func TestBatchGetResourceRequestsValidateThroughConnectHandlers(t *testing.T) {
 		t.Fatalf("too-many BatchGetNotifications code = %v, want invalid_argument", connect.CodeOf(err))
 	}
 
-	if _, err := attachments.BatchRefreshMessageAttachmentUrls(context.Background(), connect.NewRequest(&apiv1.BatchRefreshMessageAttachmentUrlsRequest{})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+	if _, err := messages.BatchRefreshMessageAttachmentUrls(context.Background(), connect.NewRequest(&apiv1.BatchRefreshMessageAttachmentUrlsRequest{})); connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("empty BatchRefreshMessageAttachmentUrls code = %v, want invalid_argument", connect.CodeOf(err))
 	}
-	if _, err := attachments.BatchRefreshMessageAttachmentUrls(context.Background(), connect.NewRequest(&apiv1.BatchRefreshMessageAttachmentUrlsRequest{RoomId: "room", EventIds: []string{""}})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+	if _, err := messages.BatchRefreshMessageAttachmentUrls(context.Background(), connect.NewRequest(&apiv1.BatchRefreshMessageAttachmentUrlsRequest{RoomId: "room", EventIds: []string{""}})); connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("empty-id BatchRefreshMessageAttachmentUrls code = %v, want invalid_argument", connect.CodeOf(err))
 	}
-	if _, err := attachments.BatchRefreshMessageAttachmentUrls(context.Background(), connect.NewRequest(&apiv1.BatchRefreshMessageAttachmentUrlsRequest{EventIds: []string{"event"}})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+	if _, err := messages.BatchRefreshMessageAttachmentUrls(context.Background(), connect.NewRequest(&apiv1.BatchRefreshMessageAttachmentUrlsRequest{EventIds: []string{"event"}})); connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("empty-room BatchRefreshMessageAttachmentUrls code = %v, want invalid_argument", connect.CodeOf(err))
 	}
 	tooManyEventIDs := make([]string, 101)
 	for i := range tooManyEventIDs {
 		tooManyEventIDs[i] = fmt.Sprintf("event-%d", i)
 	}
-	if _, err := attachments.BatchRefreshMessageAttachmentUrls(context.Background(), connect.NewRequest(&apiv1.BatchRefreshMessageAttachmentUrlsRequest{RoomId: "room", EventIds: tooManyEventIDs})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+	if _, err := messages.BatchRefreshMessageAttachmentUrls(context.Background(), connect.NewRequest(&apiv1.BatchRefreshMessageAttachmentUrlsRequest{RoomId: "room", EventIds: tooManyEventIDs})); connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("too-many BatchRefreshMessageAttachmentUrls code = %v, want invalid_argument", connect.CodeOf(err))
 	}
 
@@ -3143,13 +3141,13 @@ func TestConnectServicesRejectDMOutsiders(t *testing.T) {
 	}))
 	checkInaccessible("GetThreadEventsAround", err)
 
-	_, err = env.attachments.ListRoomAttachments(ctx, connect.NewRequest(&apiv1.ListRoomAttachmentsRequest{
+	_, err = env.rooms.ListRoomAttachments(ctx, connect.NewRequest(&apiv1.ListRoomAttachmentsRequest{
 		RoomId: dm.Id,
 		Page:   &apiv1.PageRequest{Limit: 10},
 	}))
 	checkInaccessible("ListRoomAttachments", err)
 
-	_, err = env.attachments.RefreshMessageAttachmentUrls(ctx, connect.NewRequest(&apiv1.RefreshMessageAttachmentUrlsRequest{
+	_, err = env.messages.RefreshMessageAttachmentUrls(ctx, connect.NewRequest(&apiv1.RefreshMessageAttachmentUrlsRequest{
 		RoomId:  dm.Id,
 		EventId: root.Id,
 	}))
@@ -5261,7 +5259,7 @@ func TestRoomTimelineCursorFormatIsOpaqueAndVersioned(t *testing.T) {
 	}
 }
 
-func TestAttachmentServiceListsAndRefreshesRoomAttachments(t *testing.T) {
+func TestRoomAndMessageServicesListAndRefreshAttachments(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("attachment-list")
 
@@ -5287,14 +5285,14 @@ func TestAttachmentServiceListsAndRefreshesRoomAttachments(t *testing.T) {
 	}
 
 	ctx := withCaller(env.ctx, env.viewer)
-	if _, err := env.attachments.ListRoomAttachments(env.ctx, connect.NewRequest(&apiv1.ListRoomAttachmentsRequest{
+	if _, err := env.rooms.ListRoomAttachments(env.ctx, connect.NewRequest(&apiv1.ListRoomAttachmentsRequest{
 		RoomId: room.Id,
 		Page:   &apiv1.PageRequest{Limit: 10},
 	})); connect.CodeOf(err) != connect.CodeUnauthenticated {
 		t.Fatalf("unauthenticated ListRoomAttachments code = %v, want %v", connect.CodeOf(err), connect.CodeUnauthenticated)
 	}
 
-	resp, err := env.attachments.ListRoomAttachments(ctx, connect.NewRequest(&apiv1.ListRoomAttachmentsRequest{
+	resp, err := env.rooms.ListRoomAttachments(ctx, connect.NewRequest(&apiv1.ListRoomAttachmentsRequest{
 		RoomId: room.Id,
 		Page:   &apiv1.PageRequest{Limit: 1},
 		Thumbnail: &apiv1.AttachmentThumbnailOptions{
@@ -5323,7 +5321,7 @@ func TestAttachmentServiceListsAndRefreshesRoomAttachments(t *testing.T) {
 		t.Fatal("created_at missing")
 	}
 
-	refresh, err := env.attachments.RefreshMessageAttachmentUrls(ctx, connect.NewRequest(&apiv1.RefreshMessageAttachmentUrlsRequest{
+	refresh, err := env.messages.RefreshMessageAttachmentUrls(ctx, connect.NewRequest(&apiv1.RefreshMessageAttachmentUrlsRequest{
 		RoomId:  room.Id,
 		EventId: reply.Id,
 		Thumbnail: &apiv1.AttachmentThumbnailOptions{
@@ -5349,7 +5347,7 @@ func TestAttachmentServiceListsAndRefreshesRoomAttachments(t *testing.T) {
 		t.Fatalf("fresh thumbnail URL missing: %+v", fresh.GetThumbnailAssetUrl())
 	}
 
-	batch, err := env.attachments.BatchRefreshMessageAttachmentUrls(ctx, connect.NewRequest(&apiv1.BatchRefreshMessageAttachmentUrlsRequest{
+	batch, err := env.messages.BatchRefreshMessageAttachmentUrls(ctx, connect.NewRequest(&apiv1.BatchRefreshMessageAttachmentUrlsRequest{
 		RoomId:   room.Id,
 		EventIds: []string{reply.Id, "missing-event", root.Id, reply.Id, empty.Id},
 		Thumbnail: &apiv1.AttachmentThumbnailOptions{
@@ -6421,7 +6419,6 @@ type connectAPITestEnv struct {
 	nc               *nats.Conn
 	api              *API
 	account          *accountService
-	attachments      *attachmentService
 	adminDiagnostics *adminDiagnosticsService
 	adminEventLog    *adminEventLogService
 	adminLayout      *adminRoomLayoutService
@@ -6479,7 +6476,6 @@ func newConnectAPITestEnv(t *testing.T) *connectAPITestEnv {
 		nc:               nc,
 		api:              api,
 		account:          &accountService{api: api},
-		attachments:      &attachmentService{api: api},
 		adminDiagnostics: &adminDiagnosticsService{api: api},
 		adminEventLog:    &adminEventLogService{api: api},
 		adminLayout:      &adminRoomLayoutService{api: api},

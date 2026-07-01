@@ -490,8 +490,8 @@ message RealtimeServerMemberDeletedEvent {
 //
 // Message attachments are message-owned subresources. When
 // `message_event_id` is known, refresh signed URLs with
-// `AttachmentService.RefreshMessageAttachmentUrls` or
-// `AttachmentService.BatchRefreshMessageAttachmentUrls`; otherwise refetch the
+// `MessageService.RefreshMessageAttachmentUrls` or
+// `MessageService.BatchRefreshMessageAttachmentUrls`; otherwise refetch the
 // affected attachment list or timeline window.
 message RealtimeAssetProcessingEvent {
   // Room containing the message that owns the asset, when known.
@@ -506,7 +506,7 @@ message RealtimeAssetProcessingEvent {
 //
 // Remove local attachment state by `asset_id`. When the owning message is known,
 // clients can refresh that message's attachment URLs through
-// `AttachmentService.RefreshMessageAttachmentUrls` or refetch the timeline
+// `MessageService.RefreshMessageAttachmentUrls` or refetch the timeline
 // window.
 message RealtimeAssetDeletedEvent {
   // Room containing the message that owned the asset, when known.

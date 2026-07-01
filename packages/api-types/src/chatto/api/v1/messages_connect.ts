@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CreateMessageRequest, CreateMessageResponse, DeleteAttachmentRequest, DeleteAttachmentResponse, DeleteLinkPreviewRequest, DeleteLinkPreviewResponse, DeleteMessageRequest, DeleteMessageResponse, SendTypingIndicatorRequest, SendTypingIndicatorResponse, UpdateMessageRequest, UpdateMessageResponse } from "./messages_pb.js";
+import { BatchRefreshMessageAttachmentUrlsRequest, BatchRefreshMessageAttachmentUrlsResponse, CreateMessageRequest, CreateMessageResponse, DeleteAttachmentRequest, DeleteAttachmentResponse, DeleteLinkPreviewRequest, DeleteLinkPreviewResponse, DeleteMessageRequest, DeleteMessageResponse, RefreshMessageAttachmentUrlsRequest, RefreshMessageAttachmentUrlsResponse, SendTypingIndicatorRequest, SendTypingIndicatorResponse, UpdateMessageRequest, UpdateMessageResponse } from "./messages_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -73,6 +73,37 @@ export const MessageService = {
       name: "DeleteLinkPreview",
       I: DeleteLinkPreviewRequest,
       O: DeleteLinkPreviewResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Refreshes signed URLs for the current attachments on one message.
+     * Authentication and room membership are required. Returns NOT_FOUND when the
+     * message does not exist, is not a current visible message, or belongs to a
+     * different room. Returns an empty attachment list when the message exists
+     * but currently has no attachments.
+     *
+     * @generated from rpc chatto.api.v1.MessageService.RefreshMessageAttachmentUrls
+     */
+    refreshMessageAttachmentUrls: {
+      name: "RefreshMessageAttachmentUrls",
+      I: RefreshMessageAttachmentUrlsRequest,
+      O: RefreshMessageAttachmentUrlsResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Refreshes signed URLs for the current attachments on multiple messages in
+     * one room. Authentication and room membership are required. Missing,
+     * retracted, non-message, and wrong-room event IDs are omitted. Results
+     * preserve first-seen request order and repeated event IDs are de-duplicated.
+     * Existing visible messages with no current attachments are returned with an
+     * empty attachment list.
+     *
+     * @generated from rpc chatto.api.v1.MessageService.BatchRefreshMessageAttachmentUrls
+     */
+    batchRefreshMessageAttachmentUrls: {
+      name: "BatchRefreshMessageAttachmentUrls",
+      I: BatchRefreshMessageAttachmentUrlsRequest,
+      O: BatchRefreshMessageAttachmentUrlsResponse,
       kind: MethodKind.Unary,
     },
     /**

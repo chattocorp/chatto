@@ -74,7 +74,6 @@ func (a *API) Handlers() []Handler {
 	}
 
 	accountPath, accountHandler := apiv1connect.NewAccountServiceHandler(&accountService{api: a}, uploadOptions...)
-	attachmentPath, attachmentHandler := apiv1connect.NewAttachmentServiceHandler(&attachmentService{api: a}, options...)
 	adminDiagnosticsPath, adminDiagnosticsHandler := adminv1connect.NewAdminDiagnosticsServiceHandler(&adminDiagnosticsService{api: a}, options...)
 	adminEventLogPath, adminEventLogHandler := adminv1connect.NewAdminEventLogServiceHandler(&adminEventLogService{api: a}, options...)
 	adminMemberPath, adminMemberHandler := adminv1connect.NewAdminMemberServiceHandler(&adminUserManagementService{api: a}, options...)
@@ -104,7 +103,6 @@ func (a *API) Handlers() []Handler {
 	voicePath, voiceHandler := apiv1connect.NewVoiceCallServiceHandler(&voiceCallService{api: a}, options...)
 	handlers := []Handler{
 		{ServicePath: accountPath, Handler: accountHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
-		{ServicePath: attachmentPath, Handler: attachmentHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: adminDiagnosticsPath, Handler: adminDiagnosticsHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: adminEventLogPath, Handler: adminEventLogHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: adminServerPath, Handler: adminServerHandler, AuthPolicy: AuthPolicyAuthenticatedUser},

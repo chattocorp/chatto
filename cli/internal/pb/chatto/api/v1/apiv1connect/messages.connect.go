@@ -48,6 +48,12 @@ const (
 	// MessageServiceDeleteLinkPreviewProcedure is the fully-qualified name of the MessageService's
 	// DeleteLinkPreview RPC.
 	MessageServiceDeleteLinkPreviewProcedure = "/chatto.api.v1.MessageService/DeleteLinkPreview"
+	// MessageServiceRefreshMessageAttachmentUrlsProcedure is the fully-qualified name of the
+	// MessageService's RefreshMessageAttachmentUrls RPC.
+	MessageServiceRefreshMessageAttachmentUrlsProcedure = "/chatto.api.v1.MessageService/RefreshMessageAttachmentUrls"
+	// MessageServiceBatchRefreshMessageAttachmentUrlsProcedure is the fully-qualified name of the
+	// MessageService's BatchRefreshMessageAttachmentUrls RPC.
+	MessageServiceBatchRefreshMessageAttachmentUrlsProcedure = "/chatto.api.v1.MessageService/BatchRefreshMessageAttachmentUrls"
 	// MessageServiceSendTypingIndicatorProcedure is the fully-qualified name of the MessageService's
 	// SendTypingIndicator RPC.
 	MessageServiceSendTypingIndicatorProcedure = "/chatto.api.v1.MessageService/SendTypingIndicator"
@@ -71,6 +77,19 @@ type MessageServiceClient interface {
 	DeleteAttachment(context.Context, *connect.Request[v1.DeleteAttachmentRequest]) (*connect.Response[v1.DeleteAttachmentResponse], error)
 	// Removes the accepted link preview from the author's own message.
 	DeleteLinkPreview(context.Context, *connect.Request[v1.DeleteLinkPreviewRequest]) (*connect.Response[v1.DeleteLinkPreviewResponse], error)
+	// Refreshes signed URLs for the current attachments on one message.
+	// Authentication and room membership are required. Returns NOT_FOUND when the
+	// message does not exist, is not a current visible message, or belongs to a
+	// different room. Returns an empty attachment list when the message exists
+	// but currently has no attachments.
+	RefreshMessageAttachmentUrls(context.Context, *connect.Request[v1.RefreshMessageAttachmentUrlsRequest]) (*connect.Response[v1.RefreshMessageAttachmentUrlsResponse], error)
+	// Refreshes signed URLs for the current attachments on multiple messages in
+	// one room. Authentication and room membership are required. Missing,
+	// retracted, non-message, and wrong-room event IDs are omitted. Results
+	// preserve first-seen request order and repeated event IDs are de-duplicated.
+	// Existing visible messages with no current attachments are returned with an
+	// empty attachment list.
+	BatchRefreshMessageAttachmentUrls(context.Context, *connect.Request[v1.BatchRefreshMessageAttachmentUrlsRequest]) (*connect.Response[v1.BatchRefreshMessageAttachmentUrlsResponse], error)
 	// Publishes a live-only typing indicator. Room membership is required; message
 	// posting permission is not.
 	SendTypingIndicator(context.Context, *connect.Request[v1.SendTypingIndicatorRequest]) (*connect.Response[v1.SendTypingIndicatorResponse], error)
@@ -117,6 +136,18 @@ func NewMessageServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(messageServiceMethods.ByName("DeleteLinkPreview")),
 			connect.WithClientOptions(opts...),
 		),
+		refreshMessageAttachmentUrls: connect.NewClient[v1.RefreshMessageAttachmentUrlsRequest, v1.RefreshMessageAttachmentUrlsResponse](
+			httpClient,
+			baseURL+MessageServiceRefreshMessageAttachmentUrlsProcedure,
+			connect.WithSchema(messageServiceMethods.ByName("RefreshMessageAttachmentUrls")),
+			connect.WithClientOptions(opts...),
+		),
+		batchRefreshMessageAttachmentUrls: connect.NewClient[v1.BatchRefreshMessageAttachmentUrlsRequest, v1.BatchRefreshMessageAttachmentUrlsResponse](
+			httpClient,
+			baseURL+MessageServiceBatchRefreshMessageAttachmentUrlsProcedure,
+			connect.WithSchema(messageServiceMethods.ByName("BatchRefreshMessageAttachmentUrls")),
+			connect.WithClientOptions(opts...),
+		),
 		sendTypingIndicator: connect.NewClient[v1.SendTypingIndicatorRequest, v1.SendTypingIndicatorResponse](
 			httpClient,
 			baseURL+MessageServiceSendTypingIndicatorProcedure,
@@ -128,12 +159,14 @@ func NewMessageServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 
 // messageServiceClient implements MessageServiceClient.
 type messageServiceClient struct {
-	createMessage       *connect.Client[v1.CreateMessageRequest, v1.CreateMessageResponse]
-	updateMessage       *connect.Client[v1.UpdateMessageRequest, v1.UpdateMessageResponse]
-	deleteMessage       *connect.Client[v1.DeleteMessageRequest, v1.DeleteMessageResponse]
-	deleteAttachment    *connect.Client[v1.DeleteAttachmentRequest, v1.DeleteAttachmentResponse]
-	deleteLinkPreview   *connect.Client[v1.DeleteLinkPreviewRequest, v1.DeleteLinkPreviewResponse]
-	sendTypingIndicator *connect.Client[v1.SendTypingIndicatorRequest, v1.SendTypingIndicatorResponse]
+	createMessage                     *connect.Client[v1.CreateMessageRequest, v1.CreateMessageResponse]
+	updateMessage                     *connect.Client[v1.UpdateMessageRequest, v1.UpdateMessageResponse]
+	deleteMessage                     *connect.Client[v1.DeleteMessageRequest, v1.DeleteMessageResponse]
+	deleteAttachment                  *connect.Client[v1.DeleteAttachmentRequest, v1.DeleteAttachmentResponse]
+	deleteLinkPreview                 *connect.Client[v1.DeleteLinkPreviewRequest, v1.DeleteLinkPreviewResponse]
+	refreshMessageAttachmentUrls      *connect.Client[v1.RefreshMessageAttachmentUrlsRequest, v1.RefreshMessageAttachmentUrlsResponse]
+	batchRefreshMessageAttachmentUrls *connect.Client[v1.BatchRefreshMessageAttachmentUrlsRequest, v1.BatchRefreshMessageAttachmentUrlsResponse]
+	sendTypingIndicator               *connect.Client[v1.SendTypingIndicatorRequest, v1.SendTypingIndicatorResponse]
 }
 
 // CreateMessage calls chatto.api.v1.MessageService.CreateMessage.
@@ -161,6 +194,17 @@ func (c *messageServiceClient) DeleteLinkPreview(ctx context.Context, req *conne
 	return c.deleteLinkPreview.CallUnary(ctx, req)
 }
 
+// RefreshMessageAttachmentUrls calls chatto.api.v1.MessageService.RefreshMessageAttachmentUrls.
+func (c *messageServiceClient) RefreshMessageAttachmentUrls(ctx context.Context, req *connect.Request[v1.RefreshMessageAttachmentUrlsRequest]) (*connect.Response[v1.RefreshMessageAttachmentUrlsResponse], error) {
+	return c.refreshMessageAttachmentUrls.CallUnary(ctx, req)
+}
+
+// BatchRefreshMessageAttachmentUrls calls
+// chatto.api.v1.MessageService.BatchRefreshMessageAttachmentUrls.
+func (c *messageServiceClient) BatchRefreshMessageAttachmentUrls(ctx context.Context, req *connect.Request[v1.BatchRefreshMessageAttachmentUrlsRequest]) (*connect.Response[v1.BatchRefreshMessageAttachmentUrlsResponse], error) {
+	return c.batchRefreshMessageAttachmentUrls.CallUnary(ctx, req)
+}
+
 // SendTypingIndicator calls chatto.api.v1.MessageService.SendTypingIndicator.
 func (c *messageServiceClient) SendTypingIndicator(ctx context.Context, req *connect.Request[v1.SendTypingIndicatorRequest]) (*connect.Response[v1.SendTypingIndicatorResponse], error) {
 	return c.sendTypingIndicator.CallUnary(ctx, req)
@@ -184,6 +228,19 @@ type MessageServiceHandler interface {
 	DeleteAttachment(context.Context, *connect.Request[v1.DeleteAttachmentRequest]) (*connect.Response[v1.DeleteAttachmentResponse], error)
 	// Removes the accepted link preview from the author's own message.
 	DeleteLinkPreview(context.Context, *connect.Request[v1.DeleteLinkPreviewRequest]) (*connect.Response[v1.DeleteLinkPreviewResponse], error)
+	// Refreshes signed URLs for the current attachments on one message.
+	// Authentication and room membership are required. Returns NOT_FOUND when the
+	// message does not exist, is not a current visible message, or belongs to a
+	// different room. Returns an empty attachment list when the message exists
+	// but currently has no attachments.
+	RefreshMessageAttachmentUrls(context.Context, *connect.Request[v1.RefreshMessageAttachmentUrlsRequest]) (*connect.Response[v1.RefreshMessageAttachmentUrlsResponse], error)
+	// Refreshes signed URLs for the current attachments on multiple messages in
+	// one room. Authentication and room membership are required. Missing,
+	// retracted, non-message, and wrong-room event IDs are omitted. Results
+	// preserve first-seen request order and repeated event IDs are de-duplicated.
+	// Existing visible messages with no current attachments are returned with an
+	// empty attachment list.
+	BatchRefreshMessageAttachmentUrls(context.Context, *connect.Request[v1.BatchRefreshMessageAttachmentUrlsRequest]) (*connect.Response[v1.BatchRefreshMessageAttachmentUrlsResponse], error)
 	// Publishes a live-only typing indicator. Room membership is required; message
 	// posting permission is not.
 	SendTypingIndicator(context.Context, *connect.Request[v1.SendTypingIndicatorRequest]) (*connect.Response[v1.SendTypingIndicatorResponse], error)
@@ -226,6 +283,18 @@ func NewMessageServiceHandler(svc MessageServiceHandler, opts ...connect.Handler
 		connect.WithSchema(messageServiceMethods.ByName("DeleteLinkPreview")),
 		connect.WithHandlerOptions(opts...),
 	)
+	messageServiceRefreshMessageAttachmentUrlsHandler := connect.NewUnaryHandler(
+		MessageServiceRefreshMessageAttachmentUrlsProcedure,
+		svc.RefreshMessageAttachmentUrls,
+		connect.WithSchema(messageServiceMethods.ByName("RefreshMessageAttachmentUrls")),
+		connect.WithHandlerOptions(opts...),
+	)
+	messageServiceBatchRefreshMessageAttachmentUrlsHandler := connect.NewUnaryHandler(
+		MessageServiceBatchRefreshMessageAttachmentUrlsProcedure,
+		svc.BatchRefreshMessageAttachmentUrls,
+		connect.WithSchema(messageServiceMethods.ByName("BatchRefreshMessageAttachmentUrls")),
+		connect.WithHandlerOptions(opts...),
+	)
 	messageServiceSendTypingIndicatorHandler := connect.NewUnaryHandler(
 		MessageServiceSendTypingIndicatorProcedure,
 		svc.SendTypingIndicator,
@@ -244,6 +313,10 @@ func NewMessageServiceHandler(svc MessageServiceHandler, opts ...connect.Handler
 			messageServiceDeleteAttachmentHandler.ServeHTTP(w, r)
 		case MessageServiceDeleteLinkPreviewProcedure:
 			messageServiceDeleteLinkPreviewHandler.ServeHTTP(w, r)
+		case MessageServiceRefreshMessageAttachmentUrlsProcedure:
+			messageServiceRefreshMessageAttachmentUrlsHandler.ServeHTTP(w, r)
+		case MessageServiceBatchRefreshMessageAttachmentUrlsProcedure:
+			messageServiceBatchRefreshMessageAttachmentUrlsHandler.ServeHTTP(w, r)
 		case MessageServiceSendTypingIndicatorProcedure:
 			messageServiceSendTypingIndicatorHandler.ServeHTTP(w, r)
 		default:
@@ -273,6 +346,14 @@ func (UnimplementedMessageServiceHandler) DeleteAttachment(context.Context, *con
 
 func (UnimplementedMessageServiceHandler) DeleteLinkPreview(context.Context, *connect.Request[v1.DeleteLinkPreviewRequest]) (*connect.Response[v1.DeleteLinkPreviewResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.MessageService.DeleteLinkPreview is not implemented"))
+}
+
+func (UnimplementedMessageServiceHandler) RefreshMessageAttachmentUrls(context.Context, *connect.Request[v1.RefreshMessageAttachmentUrlsRequest]) (*connect.Response[v1.RefreshMessageAttachmentUrlsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.MessageService.RefreshMessageAttachmentUrls is not implemented"))
+}
+
+func (UnimplementedMessageServiceHandler) BatchRefreshMessageAttachmentUrls(context.Context, *connect.Request[v1.BatchRefreshMessageAttachmentUrlsRequest]) (*connect.Response[v1.BatchRefreshMessageAttachmentUrlsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.MessageService.BatchRefreshMessageAttachmentUrls is not implemented"))
 }
 
 func (UnimplementedMessageServiceHandler) SendTypingIndicator(context.Context, *connect.Request[v1.SendTypingIndicatorRequest]) (*connect.Response[v1.SendTypingIndicatorResponse], error) {

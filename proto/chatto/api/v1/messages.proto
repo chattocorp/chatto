@@ -3,6 +3,7 @@ syntax = "proto3";
 package chatto.api.v1;
 
 import "buf/validate/validate.proto";
+import "chatto/api/v1/attachments.proto";
 import "chatto/api/v1/link_previews.proto";
 import "chatto/api/v1/room_timeline.proto";
 
@@ -143,6 +144,53 @@ message SendTypingIndicatorResponse {
   bool sent = 1;
 }
 
+// Request to refresh signed attachment URLs for one message.
+message RefreshMessageAttachmentUrlsRequest {
+  // Required room ID.
+  string room_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Required message event ID.
+  string event_id = 2 [(buf.validate.field).string.min_len = 1];
+  // Thumbnail URL options. Defaults are applied when absent.
+  AttachmentThumbnailOptions thumbnail = 3;
+}
+
+// Response containing fresh signed URLs for the current message attachments.
+message RefreshMessageAttachmentUrlsResponse {
+  // Fresh URL bundle for each current attachment on the message.
+  repeated RefreshedAttachmentUrls attachments = 1;
+}
+
+// Request to refresh signed attachment URLs for many messages in one room.
+message BatchRefreshMessageAttachmentUrlsRequest {
+  // Required room ID.
+  string room_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Required message event IDs. Missing, retracted, non-message, and
+  // wrong-room event IDs are omitted from the response.
+  repeated string event_ids = 2 [(buf.validate.field).repeated = {
+    min_items: 1
+    max_items: 100
+    items: {
+      string: {min_len: 1}
+    }
+  }];
+  // Thumbnail URL options. Defaults are applied when absent.
+  AttachmentThumbnailOptions thumbnail = 3;
+}
+
+// Fresh signed attachment URLs for one visible message.
+message RefreshedMessageAttachmentUrls {
+  // Message event ID these attachment URLs belong to.
+  string event_id = 1;
+  // Fresh URL bundle for each current attachment on the message.
+  repeated RefreshedAttachmentUrls attachments = 2;
+}
+
+// Response containing fresh signed URLs for many visible messages.
+message BatchRefreshMessageAttachmentUrlsResponse {
+  // Refreshed messages in first-seen request order.
+  repeated RefreshedMessageAttachmentUrls messages = 1;
+}
+
 // Creates messages in room and thread timelines.
 service MessageService {
   // Creates a message for the current user. The user must be a room member and
@@ -161,6 +209,19 @@ service MessageService {
   rpc DeleteAttachment(DeleteAttachmentRequest) returns (DeleteAttachmentResponse);
   // Removes the accepted link preview from the author's own message.
   rpc DeleteLinkPreview(DeleteLinkPreviewRequest) returns (DeleteLinkPreviewResponse);
+  // Refreshes signed URLs for the current attachments on one message.
+  // Authentication and room membership are required. Returns NOT_FOUND when the
+  // message does not exist, is not a current visible message, or belongs to a
+  // different room. Returns an empty attachment list when the message exists
+  // but currently has no attachments.
+  rpc RefreshMessageAttachmentUrls(RefreshMessageAttachmentUrlsRequest) returns (RefreshMessageAttachmentUrlsResponse);
+  // Refreshes signed URLs for the current attachments on multiple messages in
+  // one room. Authentication and room membership are required. Missing,
+  // retracted, non-message, and wrong-room event IDs are omitted. Results
+  // preserve first-seen request order and repeated event IDs are de-duplicated.
+  // Existing visible messages with no current attachments are returned with an
+  // empty attachment list.
+  rpc BatchRefreshMessageAttachmentUrls(BatchRefreshMessageAttachmentUrlsRequest) returns (BatchRefreshMessageAttachmentUrlsResponse);
   // Publishes a live-only typing indicator. Room membership is required; message
   // posting permission is not.
   rpc SendTypingIndicator(SendTypingIndicatorRequest) returns (SendTypingIndicatorResponse);

@@ -2250,8 +2250,8 @@ export class RealtimeServerMemberDeletedEvent extends Message<RealtimeServerMemb
  *
  * Message attachments are message-owned subresources. When
  * `message_event_id` is known, refresh signed URLs with
- * `AttachmentService.RefreshMessageAttachmentUrls` or
- * `AttachmentService.BatchRefreshMessageAttachmentUrls`; otherwise refetch the
+ * `MessageService.RefreshMessageAttachmentUrls` or
+ * `MessageService.BatchRefreshMessageAttachmentUrls`; otherwise refetch the
  * affected attachment list or timeline window.
  *
  * @generated from message chatto.realtime.v1.RealtimeAssetProcessingEvent
@@ -2313,7 +2313,7 @@ export class RealtimeAssetProcessingEvent extends Message<RealtimeAssetProcessin
  *
  * Remove local attachment state by `asset_id`. When the owning message is known,
  * clients can refresh that message's attachment URLs through
- * `AttachmentService.RefreshMessageAttachmentUrls` or refetch the timeline
+ * `MessageService.RefreshMessageAttachmentUrls` or refetch the timeline
  * window.
  *
  * @generated from message chatto.realtime.v1.RealtimeAssetDeletedEvent
