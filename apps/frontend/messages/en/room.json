@@ -112,6 +112,7 @@
       "members": "Members",
       "search_members": "Search room members",
       "search_members_placeholder": "Search members",
+      "clear_member_search": "Clear member search",
       "no_members": "No members found.",
       "online": "Online ({count})",
       "offline": "Offline ({count})",

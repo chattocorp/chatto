@@ -649,6 +649,7 @@ const msg_room_sidebar_hide = (): LocalizedString => messages().room_sidebar_hid
 const msg_room_sidebar_members = (): LocalizedString => messages().room_sidebar_members(empty());
 const msg_room_sidebar_search_members = (): LocalizedString => messages().room_sidebar_search_members(empty());
 const msg_room_sidebar_search_members_placeholder = (): LocalizedString => messages().room_sidebar_search_members_placeholder(empty());
+const msg_room_sidebar_clear_member_search = (): LocalizedString => messages().room_sidebar_clear_member_search(empty());
 const msg_room_sidebar_no_members = (): LocalizedString => messages().room_sidebar_no_members(empty());
 const msg_room_sidebar_online = (
   inputs: Parameters<LocaleMessages['room_sidebar_online']>[0]
@@ -1835,6 +1836,7 @@ export { msg_room_sidebar_hide as 'room.sidebar.hide' };
 export { msg_room_sidebar_members as 'room.sidebar.members' };
 export { msg_room_sidebar_search_members as 'room.sidebar.search_members' };
 export { msg_room_sidebar_search_members_placeholder as 'room.sidebar.search_members_placeholder' };
+export { msg_room_sidebar_clear_member_search as 'room.sidebar.clear_member_search' };
 export { msg_room_sidebar_no_members as 'room.sidebar.no_members' };
 export { msg_room_sidebar_online as 'room.sidebar.online' };
 export { msg_room_sidebar_offline as 'room.sidebar.offline' };

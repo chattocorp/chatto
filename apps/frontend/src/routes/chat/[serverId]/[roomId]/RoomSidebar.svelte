@@ -92,6 +92,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
   let banDialogMember = $state<RoomMember | null>(null);
   let banError = $state<string | null>(null);
   let memberSearchTimer: ReturnType<typeof setTimeout> | null = null;
+  let memberSearchInput = $state<HTMLInputElement | null>(null);
 
   onDestroy(() => {
     if (memberSearchTimer) clearTimeout(memberSearchTimer);
@@ -197,8 +198,18 @@ calls, and similar room-specific panels can plug into the same shell. See the
     membersStore.searchInput = value;
     if (memberSearchTimer) clearTimeout(memberSearchTimer);
     memberSearchTimer = setTimeout(() => {
+      memberSearchTimer = null;
       void membersStore.setSearch(value);
     }, 250);
+  }
+
+  function clearMemberSearch() {
+    if (memberSearchTimer) {
+      clearTimeout(memberSearchTimer);
+      memberSearchTimer = null;
+    }
+    void membersStore.setSearch('');
+    memberSearchInput?.focus();
   }
 </script>
 
@@ -241,13 +252,28 @@ calls, and similar room-specific panels can plug into the same shell. See the
             aria-hidden="true"
           ></span>
           <input
+            bind:this={memberSearchInput}
             id="room-member-search"
             type="search"
             value={membersStore.searchInput}
             oninput={scheduleMemberSearch}
             placeholder={m['room.sidebar.search_members_placeholder']()}
-            class="h-8 w-full rounded-md bg-surface py-1 pr-2 pl-8 text-sm transition-colors outline-none placeholder:text-muted"
+            class={[
+              'room-member-search-input h-8 w-full rounded-md bg-surface py-1 pl-8 text-sm transition-colors outline-none placeholder:text-muted',
+              membersStore.searchInput ? 'pr-8' : 'pr-2'
+            ]}
           />
+          {#if membersStore.searchInput}
+            <button
+              type="button"
+              class="pane-header-icon-button absolute top-1/2 right-1 h-6 w-6 -translate-y-1/2"
+              aria-label={m['room.sidebar.clear_member_search']()}
+              title={m['room.sidebar.clear_member_search']()}
+              onclick={clearMemberSearch}
+            >
+              <span class="pane-header-icon-glyph iconify uil--times" aria-hidden="true"></span>
+            </button>
+          {/if}
         </div>
       </div>
 
@@ -335,6 +361,14 @@ calls, and similar room-specific panels can plug into the same shell. See the
     />
   {/if}
 </aside>
+
+<style>
+  .room-member-search-input::-webkit-search-cancel-button {
+    -webkit-appearance: none;
+    appearance: none;
+    display: none;
+  }
+</style>
 
 {#snippet memberRow(member: RoomMember)}
   {@const isOnline = isOnlineStatus(getPresence(member))}

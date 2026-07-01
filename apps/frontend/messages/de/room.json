@@ -112,6 +112,7 @@
       "members": "Mitglieder",
       "search_members": "Raummitglieder suchen",
       "search_members_placeholder": "Mitglieder suchen",
+      "clear_member_search": "Mitgliedersuche leeren",
       "no_members": "Keine Mitglieder gefunden.",
       "online": "Online ({count})",
       "offline": "Offline ({count})",

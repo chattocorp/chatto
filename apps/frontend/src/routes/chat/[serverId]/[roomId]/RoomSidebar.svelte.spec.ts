@@ -887,6 +887,49 @@ describe('RoomSidebar', () => {
     expect(memberDirectoryMocks.listRoomMembers).toHaveBeenCalledTimes(1);
   });
 
+  it('clears the member search with the Chatto-styled clear button without refetching', async () => {
+    memberDirectoryMocks.listRoomMembers.mockResolvedValueOnce(
+      memberPage([member(1), { ...member(2), displayName: 'Boris Member' }])
+    );
+
+    const { container } = render(RoomSidebarTestHarness, {
+      props: {
+        roomData: roomData([], 0, false)
+      }
+    });
+
+    await vi.waitFor(() => {
+      expect(renderedMemberTitles(container)).toHaveLength(2);
+    });
+
+    const input = container.querySelector('#room-member-search') as HTMLInputElement;
+    input.value = 'bor';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    await waitForMemberSearchDebounce();
+
+    await vi.waitFor(() => {
+      expect(renderedMemberTitles(container)).toEqual(['View profile of Boris Member']);
+    });
+
+    const clearButton = q(
+      container,
+      'button[aria-label="Clear member search"]'
+    ) as HTMLButtonElement;
+    expect(clearButton.className).toContain('pane-header-icon-button');
+    clearButton.click();
+    await tick();
+
+    await vi.waitFor(() => {
+      expect(input.value).toBe('');
+      expect(renderedMemberTitles(container)).toHaveLength(2);
+      expect(q(container, 'h1')?.textContent).toContain('Members (2)');
+      expect(document.activeElement).toBe(input);
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 350));
+    expect(memberDirectoryMocks.listRoomMembers).toHaveBeenCalledTimes(1);
+  });
+
   it('shows an empty local search result without changing the canonical total count', async () => {
     memberDirectoryMocks.listRoomMembers.mockResolvedValueOnce(memberPage([member(1), member(2)]));
 
