@@ -144,6 +144,7 @@ export class NotificationStore {
   serverName = $state<string | null>(null);
   unreadNotificationCount = $state(0);
   loading = $state(false);
+  hasLoaded = $state(false);
   error = $state<string | null>(null);
 
   constructor(api: NotificationAPI) {
@@ -348,6 +349,7 @@ export class NotificationStore {
       this.notifications = page.items;
       this.unreadNotificationCount = page.totalCount;
       this.serverName = page.serverName;
+      this.hasLoaded = true;
     } catch (e) {
       this.error = e instanceof Error ? e.message : 'Failed to fetch notifications';
       console.error('Failed to fetch notifications:', e);

@@ -94,6 +94,7 @@ describe('NotificationStore', () => {
     await store.fetch();
     expect(store.notifications).toHaveLength(2);
     expect(store.error).toBeNull();
+    expect(store.hasLoaded).toBe(true);
   });
 
   it('fetchRoomNotification returns the newest room-scoped notification and caches it', async () => {
@@ -279,6 +280,7 @@ describe('NotificationStore', () => {
     expect(store.notifications).toHaveLength(1);
     expect(store.notifications[0].id).toBe('original');
     expect(store.error).toContain('Cannot query field');
+    expect(store.hasLoaded).toBe(false);
     expect(consoleError).toHaveBeenCalled();
   });
 

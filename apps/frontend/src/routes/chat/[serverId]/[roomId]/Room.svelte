@@ -236,11 +236,17 @@
     return title;
   });
 
-  // Dismiss notifications when entering the room
+  // Dismiss notifications when entering the room, and when new notifications
+  // arrive for a room the viewer is already present in.
   $effect(() => {
     if (!appState.isFocused) return;
 
     const currentRoomId = roomId;
+    const currentRoomData = room.roomData;
+    if (!currentRoomData || currentRoomData.room.id !== currentRoomId) return;
+    const notificationRevision = notificationStore.notifications.map((n) => n.id).join('\0');
+    void notificationRevision;
+
     void (async () => {
       const results = room.isDM
         ? [await notificationStore.dismissDMNotifications(currentRoomId)]
