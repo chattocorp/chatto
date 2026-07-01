@@ -71,7 +71,6 @@ export default defineConfig({
                 {
                   label: "chatto.api.v1",
                   items: [
-                    "reference/connectrpc-api/external-identities",
                     "reference/connectrpc-api/link-previews",
                     "reference/connectrpc-api/messages",
                     "reference/connectrpc-api/account",

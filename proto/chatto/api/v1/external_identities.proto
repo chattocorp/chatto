@@ -89,16 +89,3 @@ message DisconnectExternalIdentityResponse {
   // True when the identity was disconnected.
   bool disconnected = 1;
 }
-
-// Authenticated external identity management.
-service ExternalIdentityService {
-  // Lists providers and identities linked to the authenticated account as a
-  // finite snapshot.
-  rpc ListExternalIdentities(ListExternalIdentitiesRequest) returns (ListExternalIdentitiesResponse);
-  // Creates a short-lived browser handoff URL for linking a provider identity.
-  rpc StartExternalIdentityLink(StartExternalIdentityLinkRequest) returns (StartExternalIdentityLinkResponse);
-  // Links a pending provider identity to the authenticated account.
-  rpc LinkExternalIdentity(LinkExternalIdentityRequest) returns (LinkExternalIdentityResponse);
-  // Disconnects a provider identity from the authenticated account.
-  rpc DisconnectExternalIdentity(DisconnectExternalIdentityRequest) returns (DisconnectExternalIdentityResponse);
-}

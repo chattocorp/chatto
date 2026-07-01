@@ -41,12 +41,6 @@ const categories = [
     title: 'chatto.api.v1',
     services: [
       {
-        name: 'ExternalIdentityService',
-        slug: 'external-identities',
-        title: 'External Identities',
-        description: 'Authenticated external identity listing, linking, and disconnect RPCs.'
-      },
-      {
         name: 'LinkPreviewService',
         slug: 'link-previews',
         title: 'Link Previews',
@@ -62,7 +56,7 @@ const categories = [
         name: 'MyAccountService',
         slug: 'account',
         title: 'My Account',
-        description: 'Self-service account, profile, avatar, presence, status, and settings RPCs for the authenticated user.'
+        description: 'Self-service account, profile, avatar, presence, status, external identity, and settings RPCs for the authenticated user.'
       },
       {
         name: 'NotificationPreferencesService',

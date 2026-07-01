@@ -7,8 +7,8 @@ import {
   type PendingExternalIdentity as APIPendingExternalIdentity
 } from '@chatto/api-types/chatto/discovery/v1/external_identity_flows_pb';
 import {
-  ExternalIdentityService
-} from '@chatto/api-types/api/v1/external_identities_connect';
+  MyAccountService
+} from '@chatto/api-types/api/v1/account_connect';
 import {
   type ExternalIdentityProvider as APIExternalIdentityProvider,
   type LinkedExternalIdentity as APILinkedExternalIdentity
@@ -106,7 +106,7 @@ export function createExternalIdentityAPI(config: ExternalIdentityAPIConfig) {
     baseUrl: config.baseUrl,
     useBinaryFormat: true
   });
-  const client = createClient(ExternalIdentityService, transport);
+  const client = createClient(MyAccountService, transport);
   const headers = () =>
     config.bearerToken ? { Authorization: `Bearer ${config.bearerToken}` } : undefined;
 

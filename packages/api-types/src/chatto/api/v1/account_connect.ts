@@ -5,12 +5,14 @@
 
 import { DeleteAvatarRequest, DeleteAvatarResponse, DeleteMyAccountRequest, DeleteMyAccountResponse, RequestAccountDeletionRequest, RequestAccountDeletionResponse, UpdatePasswordRequest, UpdatePasswordResponse, UpdateProfileRequest, UpdateProfileResponse, UpdateSettingsRequest, UpdateSettingsResponse, UploadAvatarRequest, UploadAvatarResponse } from "./account_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
+import { DisconnectExternalIdentityRequest, DisconnectExternalIdentityResponse, LinkExternalIdentityRequest, LinkExternalIdentityResponse, ListExternalIdentitiesRequest, ListExternalIdentitiesResponse, StartExternalIdentityLinkRequest, StartExternalIdentityLinkResponse } from "./external_identities_pb.js";
 import { UpdatePresenceRequest, UpdatePresenceResponse } from "./presence_pb.js";
 import { DeleteCustomStatusRequest, DeleteCustomStatusResponse, UpdateCustomStatusRequest, UpdateCustomStatusResponse } from "./user_status_pb.js";
 
 /**
- * Self-service account, profile, avatar, display preference, presence, and
- * custom-status commands for the authenticated user.
+ * Self-service account, profile, avatar, display preference, presence,
+ * custom-status, external identity, and account lifecycle commands for the
+ * authenticated user.
  *
  * @generated from service chatto.api.v1.MyAccountService
  */
@@ -70,6 +72,52 @@ export const MyAccountService = {
       name: "UpdateSettings",
       I: UpdateSettingsRequest,
       O: UpdateSettingsResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Lists configured external identity providers and identities linked to the
+     * authenticated account.
+     *
+     * @generated from rpc chatto.api.v1.MyAccountService.ListExternalIdentities
+     */
+    listExternalIdentities: {
+      name: "ListExternalIdentities",
+      I: ListExternalIdentitiesRequest,
+      O: ListExternalIdentitiesResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Creates a short-lived browser handoff URL for linking a provider identity
+     * to the authenticated account.
+     *
+     * @generated from rpc chatto.api.v1.MyAccountService.StartExternalIdentityLink
+     */
+    startExternalIdentityLink: {
+      name: "StartExternalIdentityLink",
+      I: StartExternalIdentityLinkRequest,
+      O: StartExternalIdentityLinkResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Links a pending provider identity to the authenticated account.
+     *
+     * @generated from rpc chatto.api.v1.MyAccountService.LinkExternalIdentity
+     */
+    linkExternalIdentity: {
+      name: "LinkExternalIdentity",
+      I: LinkExternalIdentityRequest,
+      O: LinkExternalIdentityResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Disconnects a provider identity from the authenticated account.
+     *
+     * @generated from rpc chatto.api.v1.MyAccountService.DisconnectExternalIdentity
+     */
+    disconnectExternalIdentity: {
+      name: "DisconnectExternalIdentity",
+      I: DisconnectExternalIdentityRequest,
+      O: DisconnectExternalIdentityResponse,
       kind: MethodKind.Unary,
     },
     /**

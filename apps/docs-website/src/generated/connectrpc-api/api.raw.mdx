@@ -14,6 +14,112 @@ Endpoint paths use the Connect convention:
 
 Use this reference when building clients against Chatto's public ConnectRPC API.
 
+<a id="chatto-api-v1-UserDirectoryService"></a>
+
+## UserDirectoryService
+
+Provides authenticated public user directory lookups.
+
+<a id="chatto-api-v1-UserDirectoryService-GetUser"></a>
+
+### GetUser
+
+Gets a user by stable ID. Returns NOT_FOUND when the ID is unknown.
+
+```http
+POST /api/connect/chatto.api.v1.UserDirectoryService/GetUser
+```
+
+<a id="chatto-api-v1-GetUserRequest"></a>
+
+#### Input: GetUserRequest
+
+Request one user by stable user ID.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_id` | `string` | Required user ID. |
+| `avatar` | [`UserAvatarOptions`](#chatto-api-v1-UserAvatarOptions) | Optional avatar URL transform parameters. Omit for the original avatar URL. |
+
+
+<a id="chatto-api-v1-GetUserResponse"></a>
+
+#### Result: GetUserResponse
+
+Public authenticated user profile response.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user` | [`UserProfile`](#chatto-api-v1-UserProfile) | Requested user. |
+
+
+<a id="chatto-api-v1-UserDirectoryService-GetUserByLogin"></a>
+
+### GetUserByLogin
+
+Gets a user by login. Returns NOT_FOUND when the login is unknown.
+
+```http
+POST /api/connect/chatto.api.v1.UserDirectoryService/GetUserByLogin
+```
+
+<a id="chatto-api-v1-GetUserByLoginRequest"></a>
+
+#### Input: GetUserByLoginRequest
+
+Request one user by login identifier.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `login` | `string` | Required login identifier. |
+| `avatar` | [`UserAvatarOptions`](#chatto-api-v1-UserAvatarOptions) | Optional avatar URL transform parameters. Omit for the original avatar URL. |
+
+
+<a id="chatto-api-v1-GetUserByLoginResponse"></a>
+
+#### Result: GetUserByLoginResponse
+
+Public authenticated user profile response for login lookup.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user` | [`UserProfile`](#chatto-api-v1-UserProfile) | Requested user. |
+
+
+<a id="chatto-api-v1-UserDirectoryService-BatchGetUsers"></a>
+
+### BatchGetUsers
+
+Gets public user records for multiple users referenced by event-focused
+payloads.
+
+```http
+POST /api/connect/chatto.api.v1.UserDirectoryService/BatchGetUsers
+```
+
+<a id="chatto-api-v1-BatchGetUsersRequest"></a>
+
+#### Input: BatchGetUsersRequest
+
+Request public user records for a set of stable user IDs.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_ids` | `repeated string` | Required user IDs. Unknown IDs are omitted from the response. |
+| `avatar` | [`UserAvatarOptions`](#chatto-api-v1-UserAvatarOptions) | Optional avatar URL transform parameters. Omit for the original avatar URL. |
+
+
+<a id="chatto-api-v1-BatchGetUsersResponse"></a>
+
+#### Result: BatchGetUsersResponse
+
+Batch public user response.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `users` | repeated [`User`](#chatto-api-v1-User) | Found users. The server preserves first-seen request order and de-duplicates repeated IDs. |
+
+
 <a id="chatto-api-v1-NotificationPreferencesService"></a>
 
 ## NotificationPreferencesService
@@ -161,112 +267,6 @@ issuing a second read request.
 | `effective_level` | [`NotificationLevel`](#chatto-api-v1-NotificationLevel) | Level after applying defaults and inheritance. |
 
 
-<a id="chatto-api-v1-UserDirectoryService"></a>
-
-## UserDirectoryService
-
-Provides authenticated public user directory lookups.
-
-<a id="chatto-api-v1-UserDirectoryService-GetUser"></a>
-
-### GetUser
-
-Gets a user by stable ID. Returns NOT_FOUND when the ID is unknown.
-
-```http
-POST /api/connect/chatto.api.v1.UserDirectoryService/GetUser
-```
-
-<a id="chatto-api-v1-GetUserRequest"></a>
-
-#### Input: GetUserRequest
-
-Request one user by stable user ID.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `user_id` | `string` | Required user ID. |
-| `avatar` | [`UserAvatarOptions`](#chatto-api-v1-UserAvatarOptions) | Optional avatar URL transform parameters. Omit for the original avatar URL. |
-
-
-<a id="chatto-api-v1-GetUserResponse"></a>
-
-#### Result: GetUserResponse
-
-Public authenticated user profile response.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `user` | [`UserProfile`](#chatto-api-v1-UserProfile) | Requested user. |
-
-
-<a id="chatto-api-v1-UserDirectoryService-GetUserByLogin"></a>
-
-### GetUserByLogin
-
-Gets a user by login. Returns NOT_FOUND when the login is unknown.
-
-```http
-POST /api/connect/chatto.api.v1.UserDirectoryService/GetUserByLogin
-```
-
-<a id="chatto-api-v1-GetUserByLoginRequest"></a>
-
-#### Input: GetUserByLoginRequest
-
-Request one user by login identifier.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `login` | `string` | Required login identifier. |
-| `avatar` | [`UserAvatarOptions`](#chatto-api-v1-UserAvatarOptions) | Optional avatar URL transform parameters. Omit for the original avatar URL. |
-
-
-<a id="chatto-api-v1-GetUserByLoginResponse"></a>
-
-#### Result: GetUserByLoginResponse
-
-Public authenticated user profile response for login lookup.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `user` | [`UserProfile`](#chatto-api-v1-UserProfile) | Requested user. |
-
-
-<a id="chatto-api-v1-UserDirectoryService-BatchGetUsers"></a>
-
-### BatchGetUsers
-
-Gets public user records for multiple users referenced by event-focused
-payloads.
-
-```http
-POST /api/connect/chatto.api.v1.UserDirectoryService/BatchGetUsers
-```
-
-<a id="chatto-api-v1-BatchGetUsersRequest"></a>
-
-#### Input: BatchGetUsersRequest
-
-Request public user records for a set of stable user IDs.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `user_ids` | `repeated string` | Required user IDs. Unknown IDs are omitted from the response. |
-| `avatar` | [`UserAvatarOptions`](#chatto-api-v1-UserAvatarOptions) | Optional avatar URL transform parameters. Omit for the original avatar URL. |
-
-
-<a id="chatto-api-v1-BatchGetUsersResponse"></a>
-
-#### Result: BatchGetUsersResponse
-
-Batch public user response.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `users` | repeated [`User`](#chatto-api-v1-User) | Found users. The server preserves first-seen request order and de-duplicates repeated IDs. |
-
-
 <a id="chatto-api-v1-ViewerService"></a>
 
 ## ViewerService
@@ -309,8 +309,9 @@ Authenticated viewer snapshot needed by application shells.
 
 ## MyAccountService
 
-Self-service account, profile, avatar, display preference, presence, and
-custom-status commands for the authenticated user.
+Self-service account, profile, avatar, display preference, presence,
+custom-status, external identity, and account lifecycle commands for the
+authenticated user.
 
 <a id="chatto-api-v1-MyAccountService-UpdateProfile"></a>
 
@@ -469,6 +470,136 @@ Result of updating display preferences.
 | Field | Type | Description |
 | --- | --- | --- |
 | `settings` | [`UserSettings`](#chatto-api-v1-UserSettings) | Stored settings after merging the request. |
+
+
+<a id="chatto-api-v1-MyAccountService-ListExternalIdentities"></a>
+
+### ListExternalIdentities
+
+Lists configured external identity providers and identities linked to the
+authenticated account.
+
+```http
+POST /api/connect/chatto.api.v1.MyAccountService/ListExternalIdentities
+```
+
+<a id="chatto-api-v1-ListExternalIdentitiesRequest"></a>
+
+#### Input: ListExternalIdentitiesRequest
+
+Request to list configured and linked external identities for the current user.
+
+
+<a id="chatto-api-v1-ListExternalIdentitiesResponse"></a>
+
+#### Result: ListExternalIdentitiesResponse
+
+Finite snapshot of configured providers and linked external identities.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `providers` | repeated [`ExternalIdentityProvider`](#chatto-api-v1-ExternalIdentityProvider) | Configured providers the user may link. |
+| `linked_identities` | repeated [`LinkedExternalIdentity`](#chatto-api-v1-LinkedExternalIdentity) | Provider identities already linked to the authenticated user. |
+
+
+<a id="chatto-api-v1-MyAccountService-StartExternalIdentityLink"></a>
+
+### StartExternalIdentityLink
+
+Creates a short-lived browser handoff URL for linking a provider identity
+to the authenticated account.
+
+```http
+POST /api/connect/chatto.api.v1.MyAccountService/StartExternalIdentityLink
+```
+
+<a id="chatto-api-v1-StartExternalIdentityLinkRequest"></a>
+
+#### Input: StartExternalIdentityLinkRequest
+
+Request to start linking a configured provider to the current user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `provider_id` | `string` | Provider ID to link. |
+| `redirect_path` | `string` | Internal path to return to after confirmation. |
+| `current_password` | `string` | Current password proof for accounts with a password when the active runtime credential is no longer fresh. |
+
+
+<a id="chatto-api-v1-StartExternalIdentityLinkResponse"></a>
+
+#### Result: StartExternalIdentityLinkResponse
+
+Result of preparing an external identity link flow.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `start_url` | `string` | Browser URL that starts provider authorization on the target server origin. |
+
+
+<a id="chatto-api-v1-MyAccountService-LinkExternalIdentity"></a>
+
+### LinkExternalIdentity
+
+Links a pending provider identity to the authenticated account.
+
+```http
+POST /api/connect/chatto.api.v1.MyAccountService/LinkExternalIdentity
+```
+
+<a id="chatto-api-v1-LinkExternalIdentityRequest"></a>
+
+#### Input: LinkExternalIdentityRequest
+
+Request to link a pending provider identity to the authenticated user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `token` | `string` | Raw pending link token from the provider callback redirect. |
+
+
+<a id="chatto-api-v1-LinkExternalIdentityResponse"></a>
+
+#### Result: LinkExternalIdentityResponse
+
+Result of linking a provider identity.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `linked_identity` | [`LinkedExternalIdentity`](#chatto-api-v1-LinkedExternalIdentity) | Linked identity metadata. |
+
+
+<a id="chatto-api-v1-MyAccountService-DisconnectExternalIdentity"></a>
+
+### DisconnectExternalIdentity
+
+Disconnects a provider identity from the authenticated account.
+
+```http
+POST /api/connect/chatto.api.v1.MyAccountService/DisconnectExternalIdentity
+```
+
+<a id="chatto-api-v1-DisconnectExternalIdentityRequest"></a>
+
+#### Input: DisconnectExternalIdentityRequest
+
+Request to disconnect a linked provider identity from the authenticated user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `subject_hash` | `string` | Stable one-way subject hash of the linked identity to disconnect. |
+| `current_password` | `string` | Current password proof for accounts with a password when the active runtime credential is no longer fresh. |
+
+
+<a id="chatto-api-v1-DisconnectExternalIdentityResponse"></a>
+
+#### Result: DisconnectExternalIdentityResponse
+
+Result of disconnecting a provider identity.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `disconnected` | `bool` | True when the identity was disconnected. |
 
 
 <a id="chatto-api-v1-MyAccountService-UpdatePresence"></a>
@@ -880,141 +1011,6 @@ Response containing a thread timeline window around a specific event.
 | --- | --- | --- |
 | `page` | [`RoomTimelinePage`](#chatto-api-v1-RoomTimelinePage) | Loaded timeline page. |
 | `target_index` | `int32` | Zero-based index of the anchor event within page.events. |
-
-
-<a id="chatto-api-v1-ExternalIdentityService"></a>
-
-## ExternalIdentityService
-
-Authenticated external identity management.
-
-<a id="chatto-api-v1-ExternalIdentityService-ListExternalIdentities"></a>
-
-### ListExternalIdentities
-
-Lists providers and identities linked to the authenticated account as a
-finite snapshot.
-
-```http
-POST /api/connect/chatto.api.v1.ExternalIdentityService/ListExternalIdentities
-```
-
-<a id="chatto-api-v1-ListExternalIdentitiesRequest"></a>
-
-#### Input: ListExternalIdentitiesRequest
-
-Request to list configured and linked external identities for the current user.
-
-
-<a id="chatto-api-v1-ListExternalIdentitiesResponse"></a>
-
-#### Result: ListExternalIdentitiesResponse
-
-Finite snapshot of configured providers and linked external identities.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `providers` | repeated [`ExternalIdentityProvider`](#chatto-api-v1-ExternalIdentityProvider) | Configured providers the user may link. |
-| `linked_identities` | repeated [`LinkedExternalIdentity`](#chatto-api-v1-LinkedExternalIdentity) | Provider identities already linked to the authenticated user. |
-
-
-<a id="chatto-api-v1-ExternalIdentityService-StartExternalIdentityLink"></a>
-
-### StartExternalIdentityLink
-
-Creates a short-lived browser handoff URL for linking a provider identity.
-
-```http
-POST /api/connect/chatto.api.v1.ExternalIdentityService/StartExternalIdentityLink
-```
-
-<a id="chatto-api-v1-StartExternalIdentityLinkRequest"></a>
-
-#### Input: StartExternalIdentityLinkRequest
-
-Request to start linking a configured provider to the current user.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `provider_id` | `string` | Provider ID to link. |
-| `redirect_path` | `string` | Internal path to return to after confirmation. |
-| `current_password` | `string` | Current password proof for accounts with a password when the active runtime credential is no longer fresh. |
-
-
-<a id="chatto-api-v1-StartExternalIdentityLinkResponse"></a>
-
-#### Result: StartExternalIdentityLinkResponse
-
-Result of preparing an external identity link flow.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `start_url` | `string` | Browser URL that starts provider authorization on the target server origin. |
-
-
-<a id="chatto-api-v1-ExternalIdentityService-LinkExternalIdentity"></a>
-
-### LinkExternalIdentity
-
-Links a pending provider identity to the authenticated account.
-
-```http
-POST /api/connect/chatto.api.v1.ExternalIdentityService/LinkExternalIdentity
-```
-
-<a id="chatto-api-v1-LinkExternalIdentityRequest"></a>
-
-#### Input: LinkExternalIdentityRequest
-
-Request to link a pending provider identity to the authenticated user.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `token` | `string` | Raw pending link token from the provider callback redirect. |
-
-
-<a id="chatto-api-v1-LinkExternalIdentityResponse"></a>
-
-#### Result: LinkExternalIdentityResponse
-
-Result of linking a provider identity.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `linked_identity` | [`LinkedExternalIdentity`](#chatto-api-v1-LinkedExternalIdentity) | Linked identity metadata. |
-
-
-<a id="chatto-api-v1-ExternalIdentityService-DisconnectExternalIdentity"></a>
-
-### DisconnectExternalIdentity
-
-Disconnects a provider identity from the authenticated account.
-
-```http
-POST /api/connect/chatto.api.v1.ExternalIdentityService/DisconnectExternalIdentity
-```
-
-<a id="chatto-api-v1-DisconnectExternalIdentityRequest"></a>
-
-#### Input: DisconnectExternalIdentityRequest
-
-Request to disconnect a linked provider identity from the authenticated user.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `subject_hash` | `string` | Stable one-way subject hash of the linked identity to disconnect. |
-| `current_password` | `string` | Current password proof for accounts with a password when the active runtime credential is no longer fresh. |
-
-
-<a id="chatto-api-v1-DisconnectExternalIdentityResponse"></a>
-
-#### Result: DisconnectExternalIdentityResponse
-
-Result of disconnecting a provider identity.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `disconnected` | `bool` | True when the identity was disconnected. |
 
 
 <a id="chatto-api-v1-RoomMemberService"></a>
@@ -3192,43 +3188,36 @@ Response from recording a leave intent.
 
 ## Supporting Types
 
-<a id="chatto-api-v1-CapabilityGrant"></a>
+<a id="chatto-api-v1-ExternalIdentityProvider"></a>
 
-### CapabilityGrant
+### ExternalIdentityProvider
 
-Effective decision for one capability key.
-
-Built-in keys currently include:
-- admin.view
-- dm.start
-- admin.view-users
-- user.manage-accounts
-- role.assign
-- role.view
-- role.manage
-- admin.view-system
-- admin.view-audit
-- user.manage-permissions
-
-Clients should ignore unknown keys so servers can add capabilities over time.
+Public metadata for a configured external login provider.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `capability` | `string` | Stable capability key, such as "admin.view" or "dm.start". |
-| `granted` | `bool` | Whether the capability is currently available. |
+| `id` | `string` | Stable configured provider ID. |
+| `type` | `string` | Provider type, such as "oidc", "github", or "discord". |
+| `label` | `string` | Human-readable label. |
+| `login_url` | `string` | URL that starts login for this provider. |
+| `link_url` | `string` | URL that starts authenticated account linking for this provider. Clients should use StartExternalIdentityLink instead of navigating here directly. |
+| `linked` | `bool` | True when this provider is already linked to the authenticated user. |
+| `linked_identity_subject_hash` | `string` | Linked identity subject hash for this provider, when linked. |
 
 
 
-<a id="chatto-api-v1-PermissionGrant"></a>
+<a id="chatto-api-v1-LinkedExternalIdentity"></a>
 
-### PermissionGrant
+### LinkedExternalIdentity
 
-Effective decision for one permission key.
+Linked provider identity metadata for the authenticated user's settings UI.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `permission` | `string` | Stable permission key, such as "server.manage". |
-| `granted` | `bool` | Whether the permission is currently granted. |
+| `provider_id` | `string` | Provider ID recorded when the identity was linked. |
+| `provider_type` | `string` | Provider type recorded when the identity was linked. |
+| `provider_label` | `string` | Current or fallback provider label. |
+| `subject_hash` | `string` | Stable one-way subject hash, useful only as a UI/list key. |
 
 
 
@@ -3287,6 +3276,46 @@ Public user identity fields plus live profile state.
 | `user` | [`User`](#chatto-api-v1-User) | Public identity fields. |
 | `presence_status` | [`PresenceStatus`](#chatto-api-v1-PresenceStatus) | Current live presence status. |
 | `custom_status` | [`CustomUserStatus`](#chatto-api-v1-CustomUserStatus) | Custom profile status, when set. |
+
+
+
+<a id="chatto-api-v1-CapabilityGrant"></a>
+
+### CapabilityGrant
+
+Effective decision for one capability key.
+
+Built-in keys currently include:
+- admin.view
+- dm.start
+- admin.view-users
+- user.manage-accounts
+- role.assign
+- role.view
+- role.manage
+- admin.view-system
+- admin.view-audit
+- user.manage-permissions
+
+Clients should ignore unknown keys so servers can add capabilities over time.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `capability` | `string` | Stable capability key, such as "admin.view" or "dm.start". |
+| `granted` | `bool` | Whether the capability is currently available. |
+
+
+
+<a id="chatto-api-v1-PermissionGrant"></a>
+
+### PermissionGrant
+
+Effective decision for one permission key.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `permission` | `string` | Stable permission key, such as "server.manage". |
+| `granted` | `bool` | Whether the permission is currently granted. |
 
 
 
@@ -3624,39 +3653,6 @@ One current room attachment and its message anchor.
 | `message_event_id` | `string` | Message event containing the attachment. |
 | `thread_root_event_id` | `string` | Thread root event ID when the containing message is a thread reply. |
 | `created_at` | `google.protobuf.Timestamp` | Message creation timestamp. |
-
-
-
-<a id="chatto-api-v1-ExternalIdentityProvider"></a>
-
-### ExternalIdentityProvider
-
-Public metadata for a configured external login provider.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `id` | `string` | Stable configured provider ID. |
-| `type` | `string` | Provider type, such as "oidc", "github", or "discord". |
-| `label` | `string` | Human-readable label. |
-| `login_url` | `string` | URL that starts login for this provider. |
-| `link_url` | `string` | URL that starts authenticated account linking for this provider. Clients should use StartExternalIdentityLink instead of navigating here directly. |
-| `linked` | `bool` | True when this provider is already linked to the authenticated user. |
-| `linked_identity_subject_hash` | `string` | Linked identity subject hash for this provider, when linked. |
-
-
-
-<a id="chatto-api-v1-LinkedExternalIdentity"></a>
-
-### LinkedExternalIdentity
-
-Linked provider identity metadata for the authenticated user's settings UI.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `provider_id` | `string` | Provider ID recorded when the identity was linked. |
-| `provider_type` | `string` | Provider type recorded when the identity was linked. |
-| `provider_label` | `string` | Current or fallback provider label. |
-| `subject_hash` | `string` | Stable one-way subject hash, useful only as a UI/list key. |
 
 
 
@@ -4134,21 +4130,6 @@ User currently participating in a room call.
 
 ## Enums
 
-<a id="chatto-api-v1-NotificationLevel"></a>
-
-### NotificationLevel
-
-Notification delivery level for a room.
-
-| Name | Number | Description |
-| --- | --- | --- |
-| `NOTIFICATION_LEVEL_UNSPECIFIED` | `0` | The level was not specified. |
-| `NOTIFICATION_LEVEL_DEFAULT` | `1` | Use the inherited default for the room. |
-| `NOTIFICATION_LEVEL_MUTED` | `2` | Do not notify for this room. |
-| `NOTIFICATION_LEVEL_NORMAL` | `3` | Notify according to the normal room rules. |
-| `NOTIFICATION_LEVEL_ALL_MESSAGES` | `4` | Notify for every message in the room. |
-
-
 <a id="chatto-api-v1-PresenceStatus"></a>
 
 ### PresenceStatus
@@ -4179,6 +4160,21 @@ Fit mode used when generating transformed user avatar URLs.
 | `USER_AVATAR_FIT_MODE_UNSPECIFIED` | `0` | The fit mode was not specified. |
 | `USER_AVATAR_FIT_MODE_CONTAIN` | `1` | Preserve the whole source image within the requested bounds. |
 | `USER_AVATAR_FIT_MODE_COVER` | `2` | Fill the requested bounds, cropping when needed. |
+
+
+<a id="chatto-api-v1-NotificationLevel"></a>
+
+### NotificationLevel
+
+Notification delivery level for a room.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `NOTIFICATION_LEVEL_UNSPECIFIED` | `0` | The level was not specified. |
+| `NOTIFICATION_LEVEL_DEFAULT` | `1` | Use the inherited default for the room. |
+| `NOTIFICATION_LEVEL_MUTED` | `2` | Do not notify for this room. |
+| `NOTIFICATION_LEVEL_NORMAL` | `3` | Notify according to the normal room rules. |
+| `NOTIFICATION_LEVEL_ALL_MESSAGES` | `4` | Notify for every message in the room. |
 
 
 <a id="chatto-api-v1-TimeFormat"></a>

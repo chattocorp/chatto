@@ -60,7 +60,6 @@ func TestAPIHandlers(t *testing.T) {
 		"/" + apiv1connect.MyAccountServiceName + "/",
 		"/" + adminv1connect.AdminServerServiceName + "/",
 		"/" + discoveryv1connect.ExternalIdentityFlowServiceName + "/",
-		"/" + apiv1connect.ExternalIdentityServiceName + "/",
 		"/" + adminv1connect.AdminDiagnosticsServiceName + "/",
 		"/" + adminv1connect.AdminEventLogServiceName + "/",
 		"/" + adminv1connect.AdminRoomLayoutServiceName + "/",
@@ -109,7 +108,6 @@ func TestAPIHandlerAuthPolicies(t *testing.T) {
 		"/" + apiv1connect.MyAccountServiceName + "/":                  AuthPolicyAuthenticatedUser,
 		"/" + adminv1connect.AdminServerServiceName + "/":              AuthPolicyAuthenticatedUser,
 		"/" + discoveryv1connect.ExternalIdentityFlowServiceName + "/": AuthPolicyPublic,
-		"/" + apiv1connect.ExternalIdentityServiceName + "/":           AuthPolicyAuthenticatedUser,
 		"/" + adminv1connect.AdminDiagnosticsServiceName + "/":         AuthPolicyAuthenticatedUser,
 		"/" + adminv1connect.AdminEventLogServiceName + "/":            AuthPolicyAuthenticatedUser,
 		"/" + adminv1connect.AdminRoomLayoutServiceName + "/":          AuthPolicyAuthenticatedUser,
@@ -429,7 +427,7 @@ func TestServerDiscoveryServiceGetServerPublicMetadata(t *testing.T) {
 	}
 }
 
-func TestExternalIdentityServicesCreateAndLink(t *testing.T) {
+func TestExternalIdentityFlowsAndAccountManagement(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	env.api.config.Auth.Providers = []config.AuthProviderConfig{
 		{ID: "github-main", Type: config.AuthProviderTypeGitHub, Label: "GitHub"},
@@ -515,7 +513,7 @@ func TestExternalIdentityServicesCreateAndLink(t *testing.T) {
 
 	createdUserRef := &corev1.User{Id: created.Msg.GetUserId()}
 	createdCtx := withBearerCredential(env.ctx, createdUserRef, createdAuthToken)
-	list, err := env.identity.ListExternalIdentities(createdCtx, connect.NewRequest(&apiv1.ListExternalIdentitiesRequest{}))
+	list, err := env.account.ListExternalIdentities(createdCtx, connect.NewRequest(&apiv1.ListExternalIdentitiesRequest{}))
 	if err != nil {
 		t.Fatalf("ListExternalIdentities: %v", err)
 	}
@@ -528,18 +526,18 @@ func TestExternalIdentityServicesCreateAndLink(t *testing.T) {
 	if len(list.Msg.GetLinkedIdentities()) != 1 || list.Msg.GetLinkedIdentities()[0].GetProviderId() != "github-main" {
 		t.Fatalf("linked identities = %+v", list.Msg.GetLinkedIdentities())
 	}
-	_, err = env.identity.DisconnectExternalIdentity(createdCtx, connect.NewRequest(&apiv1.DisconnectExternalIdentityRequest{
+	_, err = env.account.DisconnectExternalIdentity(createdCtx, connect.NewRequest(&apiv1.DisconnectExternalIdentityRequest{
 		SubjectHash: list.Msg.GetProviders()[0].GetLinkedIdentitySubjectHash(),
 	}))
 	requireConnectCode(t, err, connect.CodeFailedPrecondition)
 
-	if _, err := env.identity.StartExternalIdentityLink(withCaller(env.ctx, createdUserRef), connect.NewRequest(&apiv1.StartExternalIdentityLinkRequest{
+	if _, err := env.account.StartExternalIdentityLink(withCaller(env.ctx, createdUserRef), connect.NewRequest(&apiv1.StartExternalIdentityLinkRequest{
 		ProviderId:   "discord-main",
 		RedirectPath: "/chat/-/settings/account",
 	})); connect.CodeOf(err) != connect.CodeFailedPrecondition {
 		t.Fatalf("StartExternalIdentityLink without credential code = %v, want failed_precondition", connect.CodeOf(err))
 	}
-	started, err := env.identity.StartExternalIdentityLink(createdCtx, connect.NewRequest(&apiv1.StartExternalIdentityLinkRequest{
+	started, err := env.account.StartExternalIdentityLink(createdCtx, connect.NewRequest(&apiv1.StartExternalIdentityLinkRequest{
 		ProviderId:   "discord-main",
 		RedirectPath: "/chat/-/settings/account",
 	}))
@@ -570,10 +568,10 @@ func TestExternalIdentityServicesCreateAndLink(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreatePendingExternalIdentityLinkFlow: %v", err)
 	}
-	_, err = env.identity.LinkExternalIdentity(createdCtx, connect.NewRequest(&apiv1.LinkExternalIdentityRequest{Token: linkToken}))
+	_, err = env.account.LinkExternalIdentity(createdCtx, connect.NewRequest(&apiv1.LinkExternalIdentityRequest{Token: linkToken}))
 	requireConnectCode(t, err, connect.CodeInvalidArgument)
 
-	linked, err := env.identity.LinkExternalIdentity(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.LinkExternalIdentityRequest{
+	linked, err := env.account.LinkExternalIdentity(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.LinkExternalIdentityRequest{
 		Token: linkToken,
 	}))
 	if err != nil {
@@ -587,7 +585,7 @@ func TestExternalIdentityServicesCreateAndLink(t *testing.T) {
 		t.Fatalf("CreateAuthTokenWithSource oauth viewer: %v", err)
 	}
 	oauthCredentialCtx := withBearerCredential(env.ctx, env.viewer, oauthViewerToken)
-	_, err = env.identity.DisconnectExternalIdentity(oauthCredentialCtx, connect.NewRequest(&apiv1.DisconnectExternalIdentityRequest{
+	_, err = env.account.DisconnectExternalIdentity(oauthCredentialCtx, connect.NewRequest(&apiv1.DisconnectExternalIdentityRequest{
 		SubjectHash:     linked.Msg.LinkedIdentity.GetSubjectHash(),
 		CurrentPassword: "password",
 	}))
@@ -598,11 +596,11 @@ func TestExternalIdentityServicesCreateAndLink(t *testing.T) {
 		t.Fatalf("CreateAuthTokenWithSource stale viewer: %v", err)
 	}
 	viewerCredentialCtx := withBearerCredential(env.ctx, env.viewer, staleViewerToken)
-	_, err = env.identity.DisconnectExternalIdentity(viewerCredentialCtx, connect.NewRequest(&apiv1.DisconnectExternalIdentityRequest{
+	_, err = env.account.DisconnectExternalIdentity(viewerCredentialCtx, connect.NewRequest(&apiv1.DisconnectExternalIdentityRequest{
 		SubjectHash: linked.Msg.LinkedIdentity.GetSubjectHash(),
 	}))
 	requireConnectCode(t, err, connect.CodeFailedPrecondition)
-	disconnected, err := env.identity.DisconnectExternalIdentity(viewerCredentialCtx, connect.NewRequest(&apiv1.DisconnectExternalIdentityRequest{
+	disconnected, err := env.account.DisconnectExternalIdentity(viewerCredentialCtx, connect.NewRequest(&apiv1.DisconnectExternalIdentityRequest{
 		SubjectHash:     linked.Msg.LinkedIdentity.GetSubjectHash(),
 		CurrentPassword: "password",
 	}))
@@ -6432,7 +6430,6 @@ type connectAPITestEnv struct {
 	adminUsers       *adminUserManagementService
 	directory        *roomDirectoryService
 	flow             *externalIdentityFlowService
-	identity         *externalIdentityService
 	linkPreviews     *linkPreviewService
 	messages         *messageService
 	serverMembers    *serverMemberService
@@ -6490,7 +6487,6 @@ func newConnectAPITestEnv(t *testing.T) *connectAPITestEnv {
 		adminUsers:       &adminUserManagementService{api: api},
 		directory:        &roomDirectoryService{api: api},
 		flow:             &externalIdentityFlowService{api: api},
-		identity:         &externalIdentityService{api: api},
 		linkPreviews:     &linkPreviewService{api: api},
 		messages:         &messageService{api: api},
 		serverMembers:    &serverMemberService{api: api},

@@ -33,41 +33,34 @@ exposed; clients only need user-facing provider/profile hints.
 | `bound_user_id` | `string` | User ID this link flow is bound to. Empty for create flows. |
 | `redirect_path` | `string` | Internal path the client should return to after confirmation. |
 
-<a id="chatto-api-v1-CapabilityGrant"></a>
+<a id="chatto-api-v1-ExternalIdentityProvider"></a>
 
-### CapabilityGrant
+### ExternalIdentityProvider
 
-Effective decision for one capability key.
-
-Built-in keys currently include:
-- admin.view
-- dm.start
-- admin.view-users
-- user.manage-accounts
-- role.assign
-- role.view
-- role.manage
-- admin.view-system
-- admin.view-audit
-- user.manage-permissions
-
-Clients should ignore unknown keys so servers can add capabilities over time.
+Public metadata for a configured external login provider.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `capability` | `string` | Stable capability key, such as "admin.view" or "dm.start". |
-| `granted` | `bool` | Whether the capability is currently available. |
+| `id` | `string` | Stable configured provider ID. |
+| `type` | `string` | Provider type, such as "oidc", "github", or "discord". |
+| `label` | `string` | Human-readable label. |
+| `login_url` | `string` | URL that starts login for this provider. |
+| `link_url` | `string` | URL that starts authenticated account linking for this provider. Clients should use StartExternalIdentityLink instead of navigating here directly. |
+| `linked` | `bool` | True when this provider is already linked to the authenticated user. |
+| `linked_identity_subject_hash` | `string` | Linked identity subject hash for this provider, when linked. |
 
-<a id="chatto-api-v1-PermissionGrant"></a>
+<a id="chatto-api-v1-LinkedExternalIdentity"></a>
 
-### PermissionGrant
+### LinkedExternalIdentity
 
-Effective decision for one permission key.
+Linked provider identity metadata for the authenticated user's settings UI.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `permission` | `string` | Stable permission key, such as "server.manage". |
-| `granted` | `bool` | Whether the permission is currently granted. |
+| `provider_id` | `string` | Provider ID recorded when the identity was linked. |
+| `provider_type` | `string` | Provider type recorded when the identity was linked. |
+| `provider_label` | `string` | Current or fallback provider label. |
+| `subject_hash` | `string` | Stable one-way subject hash, useful only as a UI/list key. |
 
 <a id="chatto-api-v1-CustomUserStatus"></a>
 
@@ -118,6 +111,42 @@ Public user identity fields plus live profile state.
 | `user` | [`User`](#chatto-api-v1-User) | Public identity fields. |
 | `presence_status` | [`PresenceStatus`](#chatto-api-v1-PresenceStatus) | Current live presence status. |
 | `custom_status` | [`CustomUserStatus`](#chatto-api-v1-CustomUserStatus) | Custom profile status, when set. |
+
+<a id="chatto-api-v1-CapabilityGrant"></a>
+
+### CapabilityGrant
+
+Effective decision for one capability key.
+
+Built-in keys currently include:
+- admin.view
+- dm.start
+- admin.view-users
+- user.manage-accounts
+- role.assign
+- role.view
+- role.manage
+- admin.view-system
+- admin.view-audit
+- user.manage-permissions
+
+Clients should ignore unknown keys so servers can add capabilities over time.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `capability` | `string` | Stable capability key, such as "admin.view" or "dm.start". |
+| `granted` | `bool` | Whether the capability is currently available. |
+
+<a id="chatto-api-v1-PermissionGrant"></a>
+
+### PermissionGrant
+
+Effective decision for one permission key.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `permission` | `string` | Stable permission key, such as "server.manage". |
+| `granted` | `bool` | Whether the permission is currently granted. |
 
 <a id="chatto-api-v1-RoomNotificationPreference"></a>
 
@@ -417,35 +446,6 @@ One current room attachment and its message anchor.
 | `message_event_id` | `string` | Message event containing the attachment. |
 | `thread_root_event_id` | `string` | Thread root event ID when the containing message is a thread reply. |
 | `created_at` | `google.protobuf.Timestamp` | Message creation timestamp. |
-
-<a id="chatto-api-v1-ExternalIdentityProvider"></a>
-
-### ExternalIdentityProvider
-
-Public metadata for a configured external login provider.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `id` | `string` | Stable configured provider ID. |
-| `type` | `string` | Provider type, such as "oidc", "github", or "discord". |
-| `label` | `string` | Human-readable label. |
-| `login_url` | `string` | URL that starts login for this provider. |
-| `link_url` | `string` | URL that starts authenticated account linking for this provider. Clients should use StartExternalIdentityLink instead of navigating here directly. |
-| `linked` | `bool` | True when this provider is already linked to the authenticated user. |
-| `linked_identity_subject_hash` | `string` | Linked identity subject hash for this provider, when linked. |
-
-<a id="chatto-api-v1-LinkedExternalIdentity"></a>
-
-### LinkedExternalIdentity
-
-Linked provider identity metadata for the authenticated user's settings UI.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `provider_id` | `string` | Provider ID recorded when the identity was linked. |
-| `provider_type` | `string` | Provider type recorded when the identity was linked. |
-| `provider_label` | `string` | Current or fallback provider label. |
-| `subject_hash` | `string` | Stable one-way subject hash, useful only as a UI/list key. |
 
 <a id="chatto-api-v1-PageInfo"></a>
 
@@ -1306,20 +1306,6 @@ Mode of a pending external identity confirmation flow.
 | `EXTERNAL_IDENTITY_FLOW_KIND_CREATE_ACCOUNT` | `1` | Create a new passwordless account and link the provider identity. |
 | `EXTERNAL_IDENTITY_FLOW_KIND_LINK_ACCOUNT` | `2` | Link the provider identity to the authenticated account. |
 
-<a id="chatto-api-v1-NotificationLevel"></a>
-
-### NotificationLevel
-
-Notification delivery level for a room.
-
-| Name | Number | Description |
-| --- | --- | --- |
-| `NOTIFICATION_LEVEL_UNSPECIFIED` | `0` | The level was not specified. |
-| `NOTIFICATION_LEVEL_DEFAULT` | `1` | Use the inherited default for the room. |
-| `NOTIFICATION_LEVEL_MUTED` | `2` | Do not notify for this room. |
-| `NOTIFICATION_LEVEL_NORMAL` | `3` | Notify according to the normal room rules. |
-| `NOTIFICATION_LEVEL_ALL_MESSAGES` | `4` | Notify for every message in the room. |
-
 <a id="chatto-api-v1-PresenceStatus"></a>
 
 ### PresenceStatus
@@ -1349,6 +1335,20 @@ Fit mode used when generating transformed user avatar URLs.
 | `USER_AVATAR_FIT_MODE_UNSPECIFIED` | `0` | The fit mode was not specified. |
 | `USER_AVATAR_FIT_MODE_CONTAIN` | `1` | Preserve the whole source image within the requested bounds. |
 | `USER_AVATAR_FIT_MODE_COVER` | `2` | Fill the requested bounds, cropping when needed. |
+
+<a id="chatto-api-v1-NotificationLevel"></a>
+
+### NotificationLevel
+
+Notification delivery level for a room.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `NOTIFICATION_LEVEL_UNSPECIFIED` | `0` | The level was not specified. |
+| `NOTIFICATION_LEVEL_DEFAULT` | `1` | Use the inherited default for the room. |
+| `NOTIFICATION_LEVEL_MUTED` | `2` | Do not notify for this room. |
+| `NOTIFICATION_LEVEL_NORMAL` | `3` | Notify according to the normal room rules. |
+| `NOTIFICATION_LEVEL_ALL_MESSAGES` | `4` | Notify for every message in the room. |
 
 <a id="chatto-api-v1-TimeFormat"></a>
 

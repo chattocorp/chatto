@@ -17,10 +17,6 @@ type externalIdentityFlowService struct {
 	api *API
 }
 
-type externalIdentityService struct {
-	api *API
-}
-
 func (s *externalIdentityFlowService) GetPendingExternalIdentity(ctx context.Context, req *connect.Request[discoveryv1.GetPendingExternalIdentityRequest]) (*connect.Response[discoveryv1.GetPendingExternalIdentityResponse], error) {
 	flow, err := s.api.core.GetPendingExternalIdentityFlow(ctx, req.Msg.GetToken())
 	if err != nil {
@@ -101,7 +97,7 @@ func (s *externalIdentityFlowService) CancelExternalIdentityFlow(ctx context.Con
 	return connect.NewResponse(&discoveryv1.CancelExternalIdentityFlowResponse{Cancelled: true}), nil
 }
 
-func (s *externalIdentityService) ListExternalIdentities(ctx context.Context, _ *connect.Request[apiv1.ListExternalIdentitiesRequest]) (*connect.Response[apiv1.ListExternalIdentitiesResponse], error) {
+func (s *accountService) ListExternalIdentities(ctx context.Context, _ *connect.Request[apiv1.ListExternalIdentitiesRequest]) (*connect.Response[apiv1.ListExternalIdentitiesResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -116,7 +112,7 @@ func (s *externalIdentityService) ListExternalIdentities(ctx context.Context, _ 
 	}), nil
 }
 
-func (s *externalIdentityService) StartExternalIdentityLink(ctx context.Context, req *connect.Request[apiv1.StartExternalIdentityLinkRequest]) (*connect.Response[apiv1.StartExternalIdentityLinkResponse], error) {
+func (s *accountService) StartExternalIdentityLink(ctx context.Context, req *connect.Request[apiv1.StartExternalIdentityLinkRequest]) (*connect.Response[apiv1.StartExternalIdentityLinkResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -141,7 +137,7 @@ func (s *externalIdentityService) StartExternalIdentityLink(ctx context.Context,
 	}), nil
 }
 
-func (s *externalIdentityService) LinkExternalIdentity(ctx context.Context, req *connect.Request[apiv1.LinkExternalIdentityRequest]) (*connect.Response[apiv1.LinkExternalIdentityResponse], error) {
+func (s *accountService) LinkExternalIdentity(ctx context.Context, req *connect.Request[apiv1.LinkExternalIdentityRequest]) (*connect.Response[apiv1.LinkExternalIdentityResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -162,7 +158,7 @@ func (s *externalIdentityService) LinkExternalIdentity(ctx context.Context, req 
 	}), nil
 }
 
-func (s *externalIdentityService) DisconnectExternalIdentity(ctx context.Context, req *connect.Request[apiv1.DisconnectExternalIdentityRequest]) (*connect.Response[apiv1.DisconnectExternalIdentityResponse], error) {
+func (s *accountService) DisconnectExternalIdentity(ctx context.Context, req *connect.Request[apiv1.DisconnectExternalIdentityRequest]) (*connect.Response[apiv1.DisconnectExternalIdentityResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err

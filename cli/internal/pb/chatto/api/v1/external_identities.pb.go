@@ -631,12 +631,7 @@ const file_chatto_api_v1_external_identities_proto_rawDesc = "" +
 	"\fsubject_hash\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\vsubjectHash\x12)\n" +
 	"\x10current_password\x18\x02 \x01(\tR\x0fcurrentPassword\"H\n" +
 	"\"DisconnectExternalIdentityResponse\x12\"\n" +
-	"\fdisconnected\x18\x01 \x01(\bR\fdisconnected2\x85\x04\n" +
-	"\x17ExternalIdentityService\x12u\n" +
-	"\x16ListExternalIdentities\x12,.chatto.api.v1.ListExternalIdentitiesRequest\x1a-.chatto.api.v1.ListExternalIdentitiesResponse\x12~\n" +
-	"\x19StartExternalIdentityLink\x12/.chatto.api.v1.StartExternalIdentityLinkRequest\x1a0.chatto.api.v1.StartExternalIdentityLinkResponse\x12o\n" +
-	"\x14LinkExternalIdentity\x12*.chatto.api.v1.LinkExternalIdentityRequest\x1a+.chatto.api.v1.LinkExternalIdentityResponse\x12\x81\x01\n" +
-	"\x1aDisconnectExternalIdentity\x120.chatto.api.v1.DisconnectExternalIdentityRequest\x1a1.chatto.api.v1.DisconnectExternalIdentityResponseB\xb3\x01\n" +
+	"\fdisconnected\x18\x01 \x01(\bR\fdisconnectedB\xb3\x01\n" +
 	"\x11com.chatto.api.v1B\x17ExternalIdentitiesProtoP\x01Z/hmans.de/chatto/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
 
 var (
@@ -668,16 +663,8 @@ var file_chatto_api_v1_external_identities_proto_depIdxs = []int32{
 	0, // 0: chatto.api.v1.ListExternalIdentitiesResponse.providers:type_name -> chatto.api.v1.ExternalIdentityProvider
 	1, // 1: chatto.api.v1.ListExternalIdentitiesResponse.linked_identities:type_name -> chatto.api.v1.LinkedExternalIdentity
 	1, // 2: chatto.api.v1.LinkExternalIdentityResponse.linked_identity:type_name -> chatto.api.v1.LinkedExternalIdentity
-	2, // 3: chatto.api.v1.ExternalIdentityService.ListExternalIdentities:input_type -> chatto.api.v1.ListExternalIdentitiesRequest
-	4, // 4: chatto.api.v1.ExternalIdentityService.StartExternalIdentityLink:input_type -> chatto.api.v1.StartExternalIdentityLinkRequest
-	6, // 5: chatto.api.v1.ExternalIdentityService.LinkExternalIdentity:input_type -> chatto.api.v1.LinkExternalIdentityRequest
-	8, // 6: chatto.api.v1.ExternalIdentityService.DisconnectExternalIdentity:input_type -> chatto.api.v1.DisconnectExternalIdentityRequest
-	3, // 7: chatto.api.v1.ExternalIdentityService.ListExternalIdentities:output_type -> chatto.api.v1.ListExternalIdentitiesResponse
-	5, // 8: chatto.api.v1.ExternalIdentityService.StartExternalIdentityLink:output_type -> chatto.api.v1.StartExternalIdentityLinkResponse
-	7, // 9: chatto.api.v1.ExternalIdentityService.LinkExternalIdentity:output_type -> chatto.api.v1.LinkExternalIdentityResponse
-	9, // 10: chatto.api.v1.ExternalIdentityService.DisconnectExternalIdentity:output_type -> chatto.api.v1.DisconnectExternalIdentityResponse
-	7, // [7:11] is the sub-list for method output_type
-	3, // [3:7] is the sub-list for method input_type
+	3, // [3:3] is the sub-list for method output_type
+	3, // [3:3] is the sub-list for method input_type
 	3, // [3:3] is the sub-list for extension type_name
 	3, // [3:3] is the sub-list for extension extendee
 	0, // [0:3] is the sub-list for field type_name
@@ -696,7 +683,7 @@ func file_chatto_api_v1_external_identities_proto_init() {
 			NumEnums:      0,
 			NumMessages:   10,
 			NumExtensions: 0,
-			NumServices:   1,
+			NumServices:   0,
 		},
 		GoTypes:           file_chatto_api_v1_external_identities_proto_goTypes,
 		DependencyIndexes: file_chatto_api_v1_external_identities_proto_depIdxs,

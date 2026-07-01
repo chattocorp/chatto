@@ -2,10 +2,11 @@ syntax = "proto3";
 
 package chatto.api.v1;
 
-import "chatto/api/v1/viewer.proto";
+import "chatto/api/v1/external_identities.proto";
 import "chatto/api/v1/presence.proto";
 import "chatto/api/v1/user_status.proto";
 import "chatto/api/v1/users.proto";
+import "chatto/api/v1/viewer.proto";
 
 // Request to update the authenticated user's profile. At least one field must
 // be present.
@@ -97,8 +98,9 @@ message DeleteMyAccountResponse {
   bool deleted = 1;
 }
 
-// Self-service account, profile, avatar, display preference, presence, and
-// custom-status commands for the authenticated user.
+// Self-service account, profile, avatar, display preference, presence,
+// custom-status, external identity, and account lifecycle commands for the
+// authenticated user.
 service MyAccountService {
   // Updates the authenticated user's login and/or display name.
   rpc UpdateProfile(UpdateProfileRequest) returns (UpdateProfileResponse);
@@ -110,6 +112,16 @@ service MyAccountService {
   rpc UpdatePassword(UpdatePasswordRequest) returns (UpdatePasswordResponse);
   // Updates the authenticated user's display preferences.
   rpc UpdateSettings(UpdateSettingsRequest) returns (UpdateSettingsResponse);
+  // Lists configured external identity providers and identities linked to the
+  // authenticated account.
+  rpc ListExternalIdentities(ListExternalIdentitiesRequest) returns (ListExternalIdentitiesResponse);
+  // Creates a short-lived browser handoff URL for linking a provider identity
+  // to the authenticated account.
+  rpc StartExternalIdentityLink(StartExternalIdentityLinkRequest) returns (StartExternalIdentityLinkResponse);
+  // Links a pending provider identity to the authenticated account.
+  rpc LinkExternalIdentity(LinkExternalIdentityRequest) returns (LinkExternalIdentityResponse);
+  // Disconnects a provider identity from the authenticated account.
+  rpc DisconnectExternalIdentity(DisconnectExternalIdentityRequest) returns (DisconnectExternalIdentityResponse);
   // Updates the current user's live presence status. This state is transient:
   // clients should refresh it periodically while visible, and should stop
   // calling this RPC when the user chooses to appear offline.

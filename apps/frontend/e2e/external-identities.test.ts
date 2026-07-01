@@ -103,7 +103,7 @@ test.describe('External identity confirmation flows', () => {
 
     let disconnectRequestCount = 0;
     await page.route(
-      '**/api/connect/chatto.api.v1.ExternalIdentityService/DisconnectExternalIdentity',
+      '**/api/connect/chatto.api.v1.MyAccountService/DisconnectExternalIdentity',
       async (route) => {
         disconnectRequestCount++;
         await route.continue();
@@ -188,7 +188,7 @@ test.describe('External identity confirmation flows', () => {
     let releaseDisconnectRequest: (() => void) | undefined;
     const disconnectRequestStarted = new Promise<void>((resolve) => {
       page.route(
-        '**/api/connect/chatto.api.v1.ExternalIdentityService/DisconnectExternalIdentity',
+        '**/api/connect/chatto.api.v1.MyAccountService/DisconnectExternalIdentity',
         async (route) => {
           resolve();
           await new Promise<void>((release) => {
@@ -261,7 +261,7 @@ test.describe('External identity confirmation flows', () => {
       );
     });
     await page.route(
-      '**/api/connect/chatto.api.v1.ExternalIdentityService/LinkExternalIdentity',
+      '**/api/connect/chatto.api.v1.MyAccountService/LinkExternalIdentity',
       async (route) => {
         throw new Error(`unexpected authenticated link RPC: ${route.request().url()}`);
       }
