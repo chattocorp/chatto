@@ -409,6 +409,17 @@ Fresh signed URLs for one message attachment.
 | `video_thumbnail_asset_url` | [`RoomTimelineAssetUrl`](#chatto-api-v1-RoomTimelineAssetUrl) | Fresh signed URL for the processed video thumbnail, when present. |
 | `variants` | repeated [`RoomTimelineVideoVariant`](#chatto-api-v1-RoomTimelineVideoVariant) | Fresh signed URLs for processed video variants, when present. |
 
+<a id="chatto-api-v1-RefreshedMessageAttachmentUrls"></a>
+
+### RefreshedMessageAttachmentUrls
+
+Fresh signed attachment URLs for one visible message.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `event_id` | `string` | Message event ID these attachment URLs belong to. |
+| `attachments` | repeated [`RefreshedAttachmentUrls`](#chatto-api-v1-RefreshedAttachmentUrls) | Fresh URL bundle for each current attachment on the message. |
+
 <a id="chatto-api-v1-RoomAttachmentListItem"></a>
 
 ### RoomAttachmentListItem

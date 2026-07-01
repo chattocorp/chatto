@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"errors"
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -40,6 +41,20 @@ type MessageAttachmentsInput struct {
 	EventID string
 }
 
+// MessageAttachmentSet contains current attachments for one visible message.
+type MessageAttachmentSet struct {
+	EventID     string
+	Attachments []*corev1.Attachment
+}
+
+// BatchMessageAttachmentsInput is the authorized current-message attachment
+// batch request.
+type BatchMessageAttachmentsInput struct {
+	ActorID  string
+	RoomID   string
+	EventIDs []string
+}
+
 // ListRoomAttachments returns current message-owned attachments for a room the
 // actor belongs to.
 func (c *ChattoCore) ListRoomAttachments(ctx context.Context, input ListRoomAttachmentsInput) (*RoomAttachmentsResult, error) {
@@ -59,14 +74,50 @@ func (c *ChattoCore) MessageAttachments(ctx context.Context, input MessageAttach
 	if err != nil {
 		return nil, err
 	}
-	event, err := c.GetRoomEventByEventID(ctx, kind, input.RoomID, input.EventID)
+	return c.messageAttachments(ctx, kind, input.RoomID, input.EventID)
+}
+
+// BatchMessageAttachments returns current attachments for visible messages in a
+// room the actor belongs to. Missing, retracted, hidden, wrong-room, and
+// non-message event IDs are omitted.
+func (c *ChattoCore) BatchMessageAttachments(ctx context.Context, input BatchMessageAttachmentsInput) ([]*MessageAttachmentSet, error) {
+	_, kind, err := c.requireRoomMember(ctx, input.ActorID, input.RoomID)
+	if err != nil {
+		return nil, err
+	}
+
+	seen := make(map[string]struct{}, len(input.EventIDs))
+	out := make([]*MessageAttachmentSet, 0, len(input.EventIDs))
+	for _, eventID := range input.EventIDs {
+		if _, ok := seen[eventID]; ok {
+			continue
+		}
+		seen[eventID] = struct{}{}
+
+		attachments, err := c.messageAttachments(ctx, kind, input.RoomID, eventID)
+		if err != nil {
+			if errors.Is(err, ErrMessageNotFound) {
+				continue
+			}
+			return nil, err
+		}
+		out = append(out, &MessageAttachmentSet{
+			EventID:     eventID,
+			Attachments: attachments,
+		})
+	}
+	return out, nil
+}
+
+func (c *ChattoCore) messageAttachments(ctx context.Context, kind RoomKind, roomID, eventID string) ([]*corev1.Attachment, error) {
+	event, err := c.GetRoomEventByEventID(ctx, kind, roomID, eventID)
 	if err != nil {
 		return nil, err
 	}
 	if event == nil || event.GetMessagePosted() == nil {
 		return nil, ErrMessageNotFound
 	}
-	body, err := c.GetFullMessageBodyByEventID(ctx, input.EventID)
+	body, err := c.GetFullMessageBodyByEventID(ctx, eventID)
 	if err != nil {
 		return nil, err
 	}
@@ -79,9 +130,9 @@ func (c *ChattoCore) MessageAttachments(ctx context.Context, input MessageAttach
 			continue
 		}
 		cloned := proto.Clone(attachment).(*corev1.Attachment)
-		cloned.RoomId = input.RoomID
+		cloned.RoomId = roomID
 		if cloned.MessageBodyId == "" {
-			cloned.MessageBodyId = input.EventID
+			cloned.MessageBodyId = eventID
 		}
 		out = append(out, cloned)
 	}

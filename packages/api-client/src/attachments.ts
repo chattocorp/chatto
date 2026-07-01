@@ -80,6 +80,11 @@ export type AttachmentAPI = {
     eventId: string,
     thumbnail: AttachmentRefreshOptions,
   ): Promise<Map<string, RefreshedAttachmentUrls>>;
+  batchRefreshMessageAttachmentUrls(
+    roomId: string,
+    eventIds: string[],
+    thumbnail: AttachmentRefreshOptions,
+  ): Promise<Map<string, Map<string, RefreshedAttachmentUrls>>>;
 };
 
 export function createAttachmentAPI(
@@ -139,30 +144,25 @@ export function createAttachmentAPI(
           },
           { headers: headers() },
         );
+        return refreshedAttachmentUrlMap(response.attachments);
+      } catch (err) {
+        return handleAuthError(err);
+      }
+    },
+    async batchRefreshMessageAttachmentUrls(roomId, eventIds, thumbnail) {
+      try {
+        const response = await client.batchRefreshMessageAttachmentUrls(
+          {
+            roomId,
+            eventIds,
+            thumbnail: thumbnailOptions(thumbnail),
+          },
+          { headers: headers() },
+        );
         return new Map(
-          response.attachments.map((attachment) => [
-            attachment.attachmentId,
-            {
-              assetUrl: assetUrl(attachment.assetUrl) ?? {
-                url: "",
-                expiresAt: "",
-              },
-              thumbnailAssetUrl: assetUrl(attachment.thumbnailAssetUrl),
-              videoThumbnailAssetUrl: assetUrl(
-                attachment.videoThumbnailAssetUrl,
-              ),
-              variantAssetUrls: new Map(
-                attachment.variants
-                  .map(
-                    (variant) =>
-                      [variant.quality, assetUrl(variant.assetUrl)] as const,
-                  )
-                  .filter(
-                    (entry): entry is readonly [string, ExpiringAssetUrl] =>
-                      entry[1] !== null,
-                  ),
-              ),
-            },
+          response.messages.map((message) => [
+            message.eventId,
+            refreshedAttachmentUrlMap(message.attachments),
           ]),
         );
       } catch (err) {
@@ -170,6 +170,44 @@ export function createAttachmentAPI(
       }
     },
   };
+}
+
+function refreshedAttachmentUrlMap(
+  attachments: readonly {
+    attachmentId: string;
+    assetUrl?: RoomTimelineAssetUrl;
+    thumbnailAssetUrl?: RoomTimelineAssetUrl;
+    videoThumbnailAssetUrl?: RoomTimelineAssetUrl;
+    variants: readonly {
+      quality: string;
+      assetUrl?: RoomTimelineAssetUrl;
+    }[];
+  }[],
+): Map<string, RefreshedAttachmentUrls> {
+  return new Map(
+    attachments.map((attachment) => [
+      attachment.attachmentId,
+      {
+        assetUrl: assetUrl(attachment.assetUrl) ?? {
+          url: "",
+          expiresAt: "",
+        },
+        thumbnailAssetUrl: assetUrl(attachment.thumbnailAssetUrl),
+        videoThumbnailAssetUrl: assetUrl(attachment.videoThumbnailAssetUrl),
+        variantAssetUrls: new Map(
+          attachment.variants
+            .map(
+              (variant) =>
+                [variant.quality, assetUrl(variant.assetUrl)] as const,
+            )
+            .filter(
+              (entry): entry is readonly [string, ExpiringAssetUrl] =>
+                entry[1] !== null,
+            ),
+        ),
+      },
+    ]),
+  );
 }
 
 function thumbnailOptions(

@@ -78,24 +78,50 @@ func (s *attachmentService) RefreshMessageAttachmentUrls(ctx context.Context, re
 	thumbnail := attachmentThumbnailOptions(req.Msg.Thumbnail)
 	items := make([]*apiv1.RefreshedAttachmentUrls, 0, len(attachments))
 	for _, attachment := range attachments {
-		if attachment == nil {
-			continue
+		if refreshed := s.refreshedAttachmentUrls(attachment, caller.UserID, thumbnail); refreshed != nil {
+			items = append(items, refreshed)
 		}
-		video := (&timelineHydrator{
-			api:      s.api,
-			viewerID: caller.UserID,
-		}).videoProcessing(attachment)
-		items = append(items, &apiv1.RefreshedAttachmentUrls{
-			AttachmentId:           attachment.Id,
-			AssetUrl:               assetURLView(s.api.core.GetStableAttachmentAssetURL(attachment.Id, caller.UserID)),
-			ThumbnailAssetUrl:      assetURLView(s.api.core.GetStableTransformedAttachmentAssetURL(attachment.Id, caller.UserID, thumbnail.width, thumbnail.height, thumbnail.fit)),
-			VideoThumbnailAssetUrl: s.videoThumbnailAssetURL(attachment, caller.UserID),
-			Variants:               refreshedVideoVariants(video),
-		})
 	}
 
 	return connect.NewResponse(&apiv1.RefreshMessageAttachmentUrlsResponse{
 		Attachments: items,
+	}), nil
+}
+
+func (s *attachmentService) BatchRefreshMessageAttachmentUrls(ctx context.Context, req *connect.Request[apiv1.BatchRefreshMessageAttachmentUrlsRequest]) (*connect.Response[apiv1.BatchRefreshMessageAttachmentUrlsResponse], error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	sets, err := s.api.core.BatchMessageAttachments(ctx, core.BatchMessageAttachmentsInput{
+		ActorID:  caller.UserID,
+		RoomID:   req.Msg.RoomId,
+		EventIDs: req.Msg.GetEventIds(),
+	})
+	if err != nil {
+		return nil, connectError(err)
+	}
+
+	thumbnail := attachmentThumbnailOptions(req.Msg.Thumbnail)
+	messages := make([]*apiv1.RefreshedMessageAttachmentUrls, 0, len(sets))
+	for _, set := range sets {
+		if set == nil {
+			continue
+		}
+		attachments := make([]*apiv1.RefreshedAttachmentUrls, 0, len(set.Attachments))
+		for _, attachment := range set.Attachments {
+			if refreshed := s.refreshedAttachmentUrls(attachment, caller.UserID, thumbnail); refreshed != nil {
+				attachments = append(attachments, refreshed)
+			}
+		}
+		messages = append(messages, &apiv1.RefreshedMessageAttachmentUrls{
+			EventId:     set.EventID,
+			Attachments: attachments,
+		})
+	}
+
+	return connect.NewResponse(&apiv1.BatchRefreshMessageAttachmentUrlsResponse{
+		Messages: messages,
 	}), nil
 }
 
@@ -104,6 +130,23 @@ func refreshedVideoVariants(processing *apiv1.RoomTimelineVideoProcessing) []*ap
 		return nil
 	}
 	return processing.GetVariants()
+}
+
+func (s *attachmentService) refreshedAttachmentUrls(attachment *corev1.Attachment, viewerID string, thumbnail attachmentThumbnailRequest) *apiv1.RefreshedAttachmentUrls {
+	if attachment == nil {
+		return nil
+	}
+	video := (&timelineHydrator{
+		api:      s.api,
+		viewerID: viewerID,
+	}).videoProcessing(attachment)
+	return &apiv1.RefreshedAttachmentUrls{
+		AttachmentId:           attachment.Id,
+		AssetUrl:               assetURLView(s.api.core.GetStableAttachmentAssetURL(attachment.Id, viewerID)),
+		ThumbnailAssetUrl:      assetURLView(s.api.core.GetStableTransformedAttachmentAssetURL(attachment.Id, viewerID, thumbnail.width, thumbnail.height, thumbnail.fit)),
+		VideoThumbnailAssetUrl: s.videoThumbnailAssetURL(attachment, viewerID),
+		Variants:               refreshedVideoVariants(video),
+	}
 }
 
 func (s *attachmentService) attachment(attachment *corev1.Attachment, viewerID string, thumbnail attachmentThumbnailRequest) *apiv1.RoomTimelineAttachment {

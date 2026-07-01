@@ -39,6 +39,9 @@ const (
 	// AttachmentServiceRefreshMessageAttachmentUrlsProcedure is the fully-qualified name of the
 	// AttachmentService's RefreshMessageAttachmentUrls RPC.
 	AttachmentServiceRefreshMessageAttachmentUrlsProcedure = "/chatto.api.v1.AttachmentService/RefreshMessageAttachmentUrls"
+	// AttachmentServiceBatchRefreshMessageAttachmentUrlsProcedure is the fully-qualified name of the
+	// AttachmentService's BatchRefreshMessageAttachmentUrls RPC.
+	AttachmentServiceBatchRefreshMessageAttachmentUrlsProcedure = "/chatto.api.v1.AttachmentService/BatchRefreshMessageAttachmentUrls"
 )
 
 // AttachmentServiceClient is a client for the chatto.api.v1.AttachmentService service.
@@ -53,6 +56,13 @@ type AttachmentServiceClient interface {
 	// different room. Returns an empty attachment list when the message exists
 	// but currently has no attachments.
 	RefreshMessageAttachmentUrls(context.Context, *connect.Request[v1.RefreshMessageAttachmentUrlsRequest]) (*connect.Response[v1.RefreshMessageAttachmentUrlsResponse], error)
+	// Refreshes signed URLs for the current attachments on multiple messages in
+	// one room. Authentication and room membership are required. Missing,
+	// retracted, non-message, and wrong-room event IDs are omitted. Results
+	// preserve first-seen request order and repeated event IDs are de-duplicated.
+	// Existing visible messages with no current attachments are returned with an
+	// empty attachment list.
+	BatchRefreshMessageAttachmentUrls(context.Context, *connect.Request[v1.BatchRefreshMessageAttachmentUrlsRequest]) (*connect.Response[v1.BatchRefreshMessageAttachmentUrlsResponse], error)
 }
 
 // NewAttachmentServiceClient constructs a client for the chatto.api.v1.AttachmentService service.
@@ -78,13 +88,20 @@ func NewAttachmentServiceClient(httpClient connect.HTTPClient, baseURL string, o
 			connect.WithSchema(attachmentServiceMethods.ByName("RefreshMessageAttachmentUrls")),
 			connect.WithClientOptions(opts...),
 		),
+		batchRefreshMessageAttachmentUrls: connect.NewClient[v1.BatchRefreshMessageAttachmentUrlsRequest, v1.BatchRefreshMessageAttachmentUrlsResponse](
+			httpClient,
+			baseURL+AttachmentServiceBatchRefreshMessageAttachmentUrlsProcedure,
+			connect.WithSchema(attachmentServiceMethods.ByName("BatchRefreshMessageAttachmentUrls")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // attachmentServiceClient implements AttachmentServiceClient.
 type attachmentServiceClient struct {
-	listRoomAttachments          *connect.Client[v1.ListRoomAttachmentsRequest, v1.ListRoomAttachmentsResponse]
-	refreshMessageAttachmentUrls *connect.Client[v1.RefreshMessageAttachmentUrlsRequest, v1.RefreshMessageAttachmentUrlsResponse]
+	listRoomAttachments               *connect.Client[v1.ListRoomAttachmentsRequest, v1.ListRoomAttachmentsResponse]
+	refreshMessageAttachmentUrls      *connect.Client[v1.RefreshMessageAttachmentUrlsRequest, v1.RefreshMessageAttachmentUrlsResponse]
+	batchRefreshMessageAttachmentUrls *connect.Client[v1.BatchRefreshMessageAttachmentUrlsRequest, v1.BatchRefreshMessageAttachmentUrlsResponse]
 }
 
 // ListRoomAttachments calls chatto.api.v1.AttachmentService.ListRoomAttachments.
@@ -95,6 +112,12 @@ func (c *attachmentServiceClient) ListRoomAttachments(ctx context.Context, req *
 // RefreshMessageAttachmentUrls calls chatto.api.v1.AttachmentService.RefreshMessageAttachmentUrls.
 func (c *attachmentServiceClient) RefreshMessageAttachmentUrls(ctx context.Context, req *connect.Request[v1.RefreshMessageAttachmentUrlsRequest]) (*connect.Response[v1.RefreshMessageAttachmentUrlsResponse], error) {
 	return c.refreshMessageAttachmentUrls.CallUnary(ctx, req)
+}
+
+// BatchRefreshMessageAttachmentUrls calls
+// chatto.api.v1.AttachmentService.BatchRefreshMessageAttachmentUrls.
+func (c *attachmentServiceClient) BatchRefreshMessageAttachmentUrls(ctx context.Context, req *connect.Request[v1.BatchRefreshMessageAttachmentUrlsRequest]) (*connect.Response[v1.BatchRefreshMessageAttachmentUrlsResponse], error) {
+	return c.batchRefreshMessageAttachmentUrls.CallUnary(ctx, req)
 }
 
 // AttachmentServiceHandler is an implementation of the chatto.api.v1.AttachmentService service.
@@ -109,6 +132,13 @@ type AttachmentServiceHandler interface {
 	// different room. Returns an empty attachment list when the message exists
 	// but currently has no attachments.
 	RefreshMessageAttachmentUrls(context.Context, *connect.Request[v1.RefreshMessageAttachmentUrlsRequest]) (*connect.Response[v1.RefreshMessageAttachmentUrlsResponse], error)
+	// Refreshes signed URLs for the current attachments on multiple messages in
+	// one room. Authentication and room membership are required. Missing,
+	// retracted, non-message, and wrong-room event IDs are omitted. Results
+	// preserve first-seen request order and repeated event IDs are de-duplicated.
+	// Existing visible messages with no current attachments are returned with an
+	// empty attachment list.
+	BatchRefreshMessageAttachmentUrls(context.Context, *connect.Request[v1.BatchRefreshMessageAttachmentUrlsRequest]) (*connect.Response[v1.BatchRefreshMessageAttachmentUrlsResponse], error)
 }
 
 // NewAttachmentServiceHandler builds an HTTP handler from the service implementation. It returns
@@ -130,12 +160,20 @@ func NewAttachmentServiceHandler(svc AttachmentServiceHandler, opts ...connect.H
 		connect.WithSchema(attachmentServiceMethods.ByName("RefreshMessageAttachmentUrls")),
 		connect.WithHandlerOptions(opts...),
 	)
+	attachmentServiceBatchRefreshMessageAttachmentUrlsHandler := connect.NewUnaryHandler(
+		AttachmentServiceBatchRefreshMessageAttachmentUrlsProcedure,
+		svc.BatchRefreshMessageAttachmentUrls,
+		connect.WithSchema(attachmentServiceMethods.ByName("BatchRefreshMessageAttachmentUrls")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/chatto.api.v1.AttachmentService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AttachmentServiceListRoomAttachmentsProcedure:
 			attachmentServiceListRoomAttachmentsHandler.ServeHTTP(w, r)
 		case AttachmentServiceRefreshMessageAttachmentUrlsProcedure:
 			attachmentServiceRefreshMessageAttachmentUrlsHandler.ServeHTTP(w, r)
+		case AttachmentServiceBatchRefreshMessageAttachmentUrlsProcedure:
+			attachmentServiceBatchRefreshMessageAttachmentUrlsHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -151,4 +189,8 @@ func (UnimplementedAttachmentServiceHandler) ListRoomAttachments(context.Context
 
 func (UnimplementedAttachmentServiceHandler) RefreshMessageAttachmentUrls(context.Context, *connect.Request[v1.RefreshMessageAttachmentUrlsRequest]) (*connect.Response[v1.RefreshMessageAttachmentUrlsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.AttachmentService.RefreshMessageAttachmentUrls is not implemented"))
+}
+
+func (UnimplementedAttachmentServiceHandler) BatchRefreshMessageAttachmentUrls(context.Context, *connect.Request[v1.BatchRefreshMessageAttachmentUrlsRequest]) (*connect.Response[v1.BatchRefreshMessageAttachmentUrlsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.AttachmentService.BatchRefreshMessageAttachmentUrls is not implemented"))
 }

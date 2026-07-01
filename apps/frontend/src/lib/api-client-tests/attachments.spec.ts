@@ -5,8 +5,10 @@ import { Timestamp } from '@bufbuild/protobuf';
 import { FitMode } from '@chatto/api-client/renderTypes';
 import {
   AttachmentFitMode,
+  BatchRefreshMessageAttachmentUrlsResponse,
   ListRoomAttachmentsResponse,
   RefreshMessageAttachmentUrlsResponse,
+  RefreshedMessageAttachmentUrls,
   RefreshedAttachmentUrls,
   RoomAttachmentListItem
 } from '@chatto/api-types/api/v1/attachments_pb';
@@ -24,7 +26,8 @@ const mocks = vi.hoisted(() => ({
   createConnectTransport: vi.fn(),
   handleAuthenticationRequired: vi.fn(),
   listRoomAttachments: vi.fn(),
-  refreshMessageAttachmentUrls: vi.fn()
+  refreshMessageAttachmentUrls: vi.fn(),
+  batchRefreshMessageAttachmentUrls: vi.fn()
 }));
 
 vi.mock('@connectrpc/connect', async (importOriginal) => {
@@ -55,10 +58,12 @@ describe('createAttachmentAPI', () => {
     configureApiClientHooks({ onAuthenticationRequired: mocks.handleAuthenticationRequired });
     mocks.listRoomAttachments.mockReset();
     mocks.refreshMessageAttachmentUrls.mockReset();
+    mocks.batchRefreshMessageAttachmentUrls.mockReset();
     mocks.createConnectTransport.mockReturnValue({ kind: 'transport' });
     mocks.createClient.mockReturnValue({
       listRoomAttachments: mocks.listRoomAttachments,
-      refreshMessageAttachmentUrls: mocks.refreshMessageAttachmentUrls
+      refreshMessageAttachmentUrls: mocks.refreshMessageAttachmentUrls,
+      batchRefreshMessageAttachmentUrls: mocks.batchRefreshMessageAttachmentUrls
     });
   });
 
@@ -200,6 +205,58 @@ describe('createAttachmentAPI', () => {
     expect(urls.get('att_1')?.variantAssetUrls.get('720p')?.url).toBe(
       '/assets/files/variant?fresh=1'
     );
+  });
+
+  it('batch refreshes message attachment URLs', async () => {
+    mocks.batchRefreshMessageAttachmentUrls.mockResolvedValue(
+      new BatchRefreshMessageAttachmentUrlsResponse({
+        messages: [
+          new RefreshedMessageAttachmentUrls({
+            eventId: 'event_1',
+            attachments: [
+              new RefreshedAttachmentUrls({
+                attachmentId: 'att_1',
+                assetUrl: assetUrl('/assets/files/att_1?fresh=1'),
+                thumbnailAssetUrl: assetUrl('/assets/files/att_1/image/120x120/cover?fresh=1')
+              })
+            ]
+          }),
+          new RefreshedMessageAttachmentUrls({
+            eventId: 'event_2',
+            attachments: []
+          })
+        ]
+      })
+    );
+
+    const api = createAttachmentAPI({
+      baseUrl: '/api/connect',
+      bearerToken: 'token'
+    });
+
+    const messages = await api.batchRefreshMessageAttachmentUrls(
+      'room_1',
+      ['event_1', 'missing', 'event_2'],
+      {
+        width: 120,
+        height: 120,
+        fit: FitMode.Cover
+      }
+    );
+
+    expect(mocks.batchRefreshMessageAttachmentUrls).toHaveBeenCalledWith(
+      {
+        roomId: 'room_1',
+        eventIds: ['event_1', 'missing', 'event_2'],
+        thumbnail: { width: 120, height: 120, fit: AttachmentFitMode.COVER }
+      },
+      { headers: { Authorization: 'Bearer token' } }
+    );
+    expect(messages.get('event_1')?.get('att_1')?.assetUrl.url).toBe(
+      '/assets/files/att_1?fresh=1'
+    );
+    expect(messages.get('event_2')?.size).toBe(0);
+    expect(messages.has('missing')).toBe(false);
   });
 
   it('notifies the registry when an authenticated server rejects the request', async () => {
