@@ -60,7 +60,7 @@ interface CreateMessageResponse {
   event?: { id?: string };
 }
 
-interface ServerStateResponse {
+interface ViewerResponse {
   viewerState?: { hasUnreadRooms?: boolean };
 }
 
@@ -156,9 +156,9 @@ export async function waitForServerUnreadViaConnect(
   timeout = DEFAULT_POLL_TIMEOUT
 ): Promise<void> {
   await expect(async () => {
-    const data = await connectPost<ServerStateResponse>(
+    const data = await connectPost<ViewerResponse>(
       page,
-      'chatto.api.v1.ServerService/GetServerState'
+      'chatto.api.v1.ViewerService/GetViewer'
     );
     expect(data.viewerState?.hasUnreadRooms ?? false).toBe(expected);
   }).toPass({ timeout, intervals: [100, 250, 500, 1000] });
