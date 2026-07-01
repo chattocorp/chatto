@@ -207,7 +207,7 @@ test.describe('Server Admin Navigation Permissions', () => {
       await serverAdminPage.expectRolesNavVisible();
     });
 
-    test('member with only role.assign permission sees Members and Permissions nav items', async ({
+    test('member with only role.assign permission sees Permissions nav item', async ({
       serverAdminPage
     }) => {
       const { page } = serverAdminPage;
@@ -216,23 +216,21 @@ test.describe('Server Admin Navigation Permissions', () => {
       await createAndLoginTestUser(page);
       const server = await usePrimaryServerViaAPI(page);
 
-      // Grant role.assign to everyone role (enables Members page access)
+      // Grant role.assign to everyone role. This implies role.view so the
+      // Permissions page can render role metadata, but Members still requires
+      // admin.view-users because it lists user records.
       await grantPermission(page, 'everyone', 'role.assign');
 
       // Create and login as non-admin user
       const member = await createSecondTestUser(page);
       await logoutUser(page);
       await loginUser(page, member.login, member.password);
-      // Navigate to settings
-      await serverAdminPage.gotoMembersDirectly(server.id);
+      // Navigate to settings through the Permissions page.
+      await serverAdminPage.gotoRolesDirectly(server.id);
 
-      // Wait for page to load
-      await expect(page.getByRole('heading', { name: 'Members', exact: true })).toBeVisible();
-
-      // Should see Members (has role.assign) and Permissions (role.assign
-      // implies role.view so assignment UIs can render stable role metadata).
-      await serverAdminPage.expectMembersNavVisible();
+      // Should see Permissions but not Members.
       await serverAdminPage.expectRolesNavVisible();
+      await serverAdminPage.expectMembersNavNotVisible();
 
       // Should NOT see unrelated permission-gated nav items.
       await serverAdminPage.expectGeneralNavNotVisible();
@@ -364,7 +362,7 @@ test.describe('Server Admin Navigation Permissions', () => {
       await serverAdminPage.expectAccessDenied();
     });
 
-    test('member without role.assign permission sees Access Denied on Members settings', async ({
+    test('member without admin.view-users permission sees Access Denied on Members settings', async ({
       serverAdminPage
     }) => {
       const { page } = serverAdminPage;

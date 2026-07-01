@@ -26,20 +26,20 @@ function server(overrides: Partial<AdminNavServerPermissions> = {}): AdminNavSer
 }
 
 describe('getAdminNavItems', () => {
-  it('shows Members for direct user-permission managers', () => {
+  it('shows Members for admin user viewers', () => {
     const items = getAdminNavItems({
       serverSegment: 'local',
-      chrome: chrome({ canViewAdmin: true, canManageUserPermissions: true }),
-      server: server()
+      chrome: chrome({ canViewAdmin: true }),
+      server: server({ canAdminViewUsers: true })
     });
 
     expect(items.some((item) => item.label === 'Members')).toBe(true);
   });
 
-  it('hides Members without a member-management capability', () => {
+  it('hides Members for role assignment without admin user view', () => {
     const items = getAdminNavItems({
       serverSegment: 'local',
-      chrome: chrome({ canViewAdmin: true }),
+      chrome: chrome({ canViewAdmin: true, canAssignRoles: true }),
       server: server()
     });
 

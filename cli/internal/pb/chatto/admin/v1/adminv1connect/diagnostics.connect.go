@@ -41,8 +41,8 @@ const (
 // AdminDiagnosticsServiceClient is a client for the chatto.admin.v1.AdminDiagnosticsService
 // service.
 type AdminDiagnosticsServiceClient interface {
-	// Returns broker, JetStream, and projection diagnostics. Requires
-	// admin.view-system.
+	// Returns broker, JetStream, and projection diagnostics. Requires the
+	// server owner role.
 	GetSystemInfo(context.Context, *connect.Request[v1.GetSystemInfoRequest]) (*connect.Response[v1.GetSystemInfoResponse], error)
 }
 
@@ -79,8 +79,8 @@ func (c *adminDiagnosticsServiceClient) GetSystemInfo(ctx context.Context, req *
 // AdminDiagnosticsServiceHandler is an implementation of the
 // chatto.admin.v1.AdminDiagnosticsService service.
 type AdminDiagnosticsServiceHandler interface {
-	// Returns broker, JetStream, and projection diagnostics. Requires
-	// admin.view-system.
+	// Returns broker, JetStream, and projection diagnostics. Requires the
+	// server owner role.
 	GetSystemInfo(context.Context, *connect.Request[v1.GetSystemInfoRequest]) (*connect.Response[v1.GetSystemInfoResponse], error)
 }
 

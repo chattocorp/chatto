@@ -47,12 +47,7 @@ export function getAdminNavItems({
     });
   }
 
-  if (
-    chrome.canAssignRoles ||
-    chrome.canManageUserAccounts ||
-    chrome.canManageUserPermissions ||
-    server.canAdminViewUsers
-  ) {
+  if (server.canAdminViewUsers) {
     items.push({
       href: resolve('/chat/[serverId]/server-admin/members', { serverId: serverSegment }),
       label: m['admin.nav.members'](),

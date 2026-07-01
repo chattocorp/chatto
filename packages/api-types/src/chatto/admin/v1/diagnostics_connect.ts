@@ -15,8 +15,8 @@ export const AdminDiagnosticsService = {
   typeName: "chatto.admin.v1.AdminDiagnosticsService",
   methods: {
     /**
-     * Returns broker, JetStream, and projection diagnostics. Requires
-     * admin.view-system.
+     * Returns broker, JetStream, and projection diagnostics. Requires the
+     * server owner role.
      *
      * @generated from rpc chatto.admin.v1.AdminDiagnosticsService.GetSystemInfo
      */

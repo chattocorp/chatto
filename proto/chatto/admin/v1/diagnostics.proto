@@ -197,7 +197,7 @@ message AdminProjectionMetric {
 
 // Provides server diagnostics for the admin system page.
 service AdminDiagnosticsService {
-  // Returns broker, JetStream, and projection diagnostics. Requires
-  // admin.view-system.
+  // Returns broker, JetStream, and projection diagnostics. Requires the
+  // server owner role.
   rpc GetSystemInfo(GetSystemInfoRequest) returns (GetSystemInfoResponse);
 }

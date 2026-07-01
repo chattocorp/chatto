@@ -24,8 +24,8 @@ Provides server diagnostics for the admin system page.
 
 ### GetSystemInfo
 
-Returns broker, JetStream, and projection diagnostics. Requires
-admin.view-system.
+Returns broker, JetStream, and projection diagnostics. Requires the
+server owner role.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminDiagnosticsService/GetSystemInfo
