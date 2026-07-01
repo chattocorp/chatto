@@ -77,6 +77,20 @@ func (x *PermissionGrant) GetGranted() bool {
 }
 
 // Effective decision for one capability key.
+//
+// Built-in keys currently include:
+// - admin.view
+// - dm.start
+// - admin.view-users
+// - user.manage-accounts
+// - role.assign
+// - role.view
+// - role.manage
+// - admin.view-system
+// - admin.view-audit
+// - user.manage-permissions
+//
+// Clients should ignore unknown keys so servers can add capabilities over time.
 type CapabilityGrant struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Stable capability key, such as "admin.view" or "dm.start".

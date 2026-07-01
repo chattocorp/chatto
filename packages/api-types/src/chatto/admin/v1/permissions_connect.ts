@@ -15,7 +15,9 @@ export const AdminPermissionService = {
   typeName: "chatto.admin.v1.AdminPermissionService",
   methods: {
     /**
-     * Gets the role-permission matrix for a single tier.
+     * Gets the role-permission matrix for a single tier. Requires role.manage
+     * for server/group scope; room scope requires role.manage or room.manage in
+     * that room.
      *
      * @generated from rpc chatto.admin.v1.AdminPermissionService.GetRolePermissionTierMatrix
      */

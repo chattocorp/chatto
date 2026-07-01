@@ -1395,18 +1395,6 @@ func (c *ChattoCore) DeleteUser(ctx context.Context, actorID, userID string) err
 		c.logger.Warn("Failed to revoke user roles during deletion", "user_id", userID, "error", err)
 	}
 
-	// Publish server-level UserDeletedEvent for audit logging and admin UI updates
-	serverEvent := newLiveEvent(actorID, &corev1.LiveEvent{
-		Event: &corev1.LiveEvent_UserDeleted{
-			UserDeleted: &corev1.UserDeletedEvent{
-				UserId: userID,
-			},
-		},
-	})
-	serverSubject := subjects.LiveSyncUserEvent(userID, "user_deleted")
-	if err := c.publishLiveEvent(ctx, serverSubject, serverEvent); err != nil {
-		c.logger.Warn("Failed to publish UserDeletedEvent", "user_id", userID, "error", err)
-	}
 	if err := c.PublishSessionTerminated(ctx, userID, "account_deleted"); err != nil {
 		c.logger.Warn("Failed to publish SessionTerminatedEvent", "user_id", userID, "error", err)
 	}

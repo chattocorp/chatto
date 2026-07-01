@@ -18,7 +18,8 @@ type voiceCallService struct {
 }
 
 func (s *voiceCallService) ListActiveCallRooms(ctx context.Context, _ *connect.Request[apiv1.ListActiveCallRoomsRequest]) (*connect.Response[apiv1.ListActiveCallRoomsResponse], error) {
-	if _, err := requireCaller(ctx); err != nil {
+	caller, err := requireCaller(ctx)
+	if err != nil {
 		return nil, err
 	}
 	if !s.api.config.LiveKit.IsConfigured() {
@@ -29,7 +30,17 @@ func (s *voiceCallService) ListActiveCallRooms(ctx context.Context, _ *connect.R
 	if err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&apiv1.ListActiveCallRoomsResponse{RoomIds: roomIDs}), nil
+	visibleRoomIDs := make([]string, 0, len(roomIDs))
+	for _, roomID := range roomIDs {
+		visible, err := s.api.core.CanSeeRoom(ctx, caller.UserID, core.KindChannel, roomID)
+		if err != nil {
+			return nil, connectError(err)
+		}
+		if visible {
+			visibleRoomIDs = append(visibleRoomIDs, roomID)
+		}
+	}
+	return connect.NewResponse(&apiv1.ListActiveCallRoomsResponse{RoomIds: visibleRoomIDs}), nil
 }
 
 func (s *voiceCallService) ListCallParticipants(ctx context.Context, req *connect.Request[apiv1.ListCallParticipantsRequest]) (*connect.Response[apiv1.ListCallParticipantsResponse], error) {
@@ -91,7 +102,7 @@ func (s *voiceCallService) GetCallToken(ctx context.Context, req *connect.Reques
 		return nil, connectError(err)
 	}
 	if !s.api.config.LiveKit.IsConfigured() {
-		return connect.NewResponse(&apiv1.GetCallTokenResponse{}), nil
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("voice calls are not configured"))
 	}
 
 	user, err := s.api.core.GetUser(ctx, caller.UserID)

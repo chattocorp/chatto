@@ -7,7 +7,7 @@ import { CreateRoleRequest, CreateRoleResponse, DeleteRoleRequest, DeleteRoleRes
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
- * Provides administrative role reads and role definition changes.
+ * Provides authenticated role reads and administrative role definition changes.
  *
  * @generated from service chatto.admin.v1.AdminRoleService
  */
@@ -16,8 +16,9 @@ export const AdminRoleService = {
   methods: {
     /**
      * Lists the role catalog including permission arrays as a finite snapshot.
-     * Requires an authenticated user; use chatto.api.v1.RoleService for ordinary
-     * catalog rendering.
+     * Requires an authenticated user. This intentionally includes permission
+     * arrays for clients that need to show a user's assigned roles and their
+     * effects; use chatto.api.v1.RoleService for lightweight catalog rendering.
      *
      * @generated from rpc chatto.admin.v1.AdminRoleService.ListRoles
      */
@@ -29,7 +30,8 @@ export const AdminRoleService = {
     },
     /**
      * Gets one role plus admin detail metadata. Returns NOT_FOUND when the
-     * role does not exist.
+     * role does not exist. Requires an authenticated user; the assigned-user
+     * roster is empty unless the caller may assign roles.
      *
      * @generated from rpc chatto.admin.v1.AdminRoleService.GetRole
      */

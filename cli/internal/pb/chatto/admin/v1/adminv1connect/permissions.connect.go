@@ -61,7 +61,9 @@ const (
 
 // AdminPermissionServiceClient is a client for the chatto.admin.v1.AdminPermissionService service.
 type AdminPermissionServiceClient interface {
-	// Gets the role-permission matrix for a single tier.
+	// Gets the role-permission matrix for a single tier. Requires role.manage
+	// for server/group scope; room scope requires role.manage or room.manage in
+	// that room.
 	GetRolePermissionTierMatrix(context.Context, *connect.Request[v1.GetRolePermissionTierMatrixRequest]) (*connect.Response[v1.GetRolePermissionTierMatrixResponse], error)
 	// Gets one role's full permission matrix. Requires role.manage. Returns
 	// NOT_FOUND when the role does not exist.
@@ -203,7 +205,9 @@ func (c *adminPermissionServiceClient) SetUserPermission(ctx context.Context, re
 // AdminPermissionServiceHandler is an implementation of the chatto.admin.v1.AdminPermissionService
 // service.
 type AdminPermissionServiceHandler interface {
-	// Gets the role-permission matrix for a single tier.
+	// Gets the role-permission matrix for a single tier. Requires role.manage
+	// for server/group scope; room scope requires role.manage or room.manage in
+	// that room.
 	GetRolePermissionTierMatrix(context.Context, *connect.Request[v1.GetRolePermissionTierMatrixRequest]) (*connect.Response[v1.GetRolePermissionTierMatrixResponse], error)
 	// Gets one role's full permission matrix. Requires role.manage. Returns
 	// NOT_FOUND when the role does not exist.

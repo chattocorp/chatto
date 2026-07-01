@@ -7,7 +7,7 @@ import { CreateRoomGroupRequest, CreateRoomGroupResponse, CreateSidebarLinkReque
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
- * Reads and mutates the server-admin channel room layout.
+ * Reads authenticated channel layout data and mutates the server-admin layout.
  *
  * @generated from service chatto.admin.v1.AdminRoomLayoutService
  */
@@ -16,7 +16,7 @@ export const AdminRoomLayoutService = {
   methods: {
     /**
      * Lists the current room groups, rooms, and sidebar links for the admin
-     * layout editor.
+     * layout editor and sidebar rendering. Requires an authenticated user.
      *
      * @generated from rpc chatto.admin.v1.AdminRoomLayoutService.ListAdminRoomLayout
      */

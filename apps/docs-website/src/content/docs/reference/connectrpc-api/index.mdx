@@ -34,7 +34,7 @@ Public discovery is unauthenticated. Most other RPCs require an `Authorization: 
 
 Most `chatto.api.v1` calls require an authenticated user. Non-browser clients should send `Authorization: Bearer <token>`; browser clients can use the active Chatto session. See [External Login Providers](/guides/external-login-providers/) for login-provider discovery and sign-in configuration.
 
-`chatto.admin.v1` calls require authentication and the relevant server permission. For example, admin settings, role, member, diagnostics, and audit-log calls are capability-gated. See [Permissions & Roles](/guides/permissions/) for the permission model.
+`chatto.admin.v1` calls require authentication. Mutating calls and sensitive reads require the relevant server permission; a few catalog/layout reads are intentionally available to any authenticated user so clients can render assigned roles and sidebar layout. See [Permissions & Roles](/guides/permissions/) for the permission model.
 
 ## Packages And Namespaces
 
@@ -50,7 +50,7 @@ The API is split by who uses each part and how clients connect to it.
 
 - **Transport:** ConnectRPC unary RPCs.
 - **Covers:** Server administration: settings, room layout, members, roles, permissions, diagnostics, and audit reads.
-- **Contract:** Public administrative API for tools used by server owners and administrators. Calls require authentication and the relevant permission.
+- **Contract:** Public administrative API for tools used by server owners and administrators. Calls require authentication; mutating calls and sensitive reads require the relevant permission.
 
 **`chatto.realtime.v1`**
 

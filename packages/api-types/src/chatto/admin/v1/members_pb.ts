@@ -103,7 +103,7 @@ export class AdminMember extends Message<AdminMember> {
 }
 
 /**
- * Legacy role reference used by operator.v1 response shapes.
+ * Operator compatibility role reference used by operator.v1 response shapes.
  *
  * @generated from message chatto.admin.v1.AdminRoleReference
  */
@@ -152,7 +152,7 @@ export class AdminRoleReference extends Message<AdminRoleReference> {
 }
 
 /**
- * Legacy role details used by operator.v1 response shapes.
+ * Operator compatibility role details used by operator.v1 response shapes.
  *
  * @generated from message chatto.admin.v1.AdminMemberRole
  */

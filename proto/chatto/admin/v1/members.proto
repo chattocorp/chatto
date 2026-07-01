@@ -35,7 +35,7 @@ message AdminMember {
   chatto.api.v1.User user = 12;
 }
 
-// Legacy role reference used by operator.v1 response shapes.
+// Operator compatibility role reference used by operator.v1 response shapes.
 message AdminRoleReference {
   // Stable role name.
   string name = 1;
@@ -43,7 +43,7 @@ message AdminRoleReference {
   string display_name = 2;
 }
 
-// Legacy role details used by operator.v1 response shapes.
+// Operator compatibility role details used by operator.v1 response shapes.
 message AdminMemberRole {
   // Stable role name.
   string name = 1;
@@ -209,11 +209,12 @@ service AdminMemberService {
   rpc AssignRole(AssignRoleRequest) returns (AssignRoleResponse);
   // Revokes a role from a user. Requires role.assign.
   rpc RevokeRole(RevokeRoleRequest) returns (RevokeRoleResponse);
-  // Updates a user's login and/or display name as an admin action. Requires
-  // user.manage-accounts for other users.
+  // Updates another user's login and/or display name as an admin action.
+  // Requires user.manage-accounts; the caller cannot target their own account.
   rpc UpdateUser(UpdateUserRequest) returns (UpdateUserResponse);
-  // Sets a user's password as an admin action. Requires user.manage-accounts
-  // for other users and a fresh credential for the caller.
+  // Sets another user's password as an admin action. Requires
+  // user.manage-accounts and a fresh credential for the caller; the caller
+  // cannot target their own account.
   rpc SetUserPassword(SetUserPasswordRequest) returns (SetUserPasswordResponse);
   // Clears the target user's self-service username-change cooldown. Requires
   // user.manage-accounts.

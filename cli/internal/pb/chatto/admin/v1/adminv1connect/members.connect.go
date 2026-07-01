@@ -71,11 +71,12 @@ type AdminMemberServiceClient interface {
 	AssignRole(context.Context, *connect.Request[v1.AssignRoleRequest]) (*connect.Response[v1.AssignRoleResponse], error)
 	// Revokes a role from a user. Requires role.assign.
 	RevokeRole(context.Context, *connect.Request[v1.RevokeRoleRequest]) (*connect.Response[v1.RevokeRoleResponse], error)
-	// Updates a user's login and/or display name as an admin action. Requires
-	// user.manage-accounts for other users.
+	// Updates another user's login and/or display name as an admin action.
+	// Requires user.manage-accounts; the caller cannot target their own account.
 	UpdateUser(context.Context, *connect.Request[v1.UpdateUserRequest]) (*connect.Response[v1.UpdateUserResponse], error)
-	// Sets a user's password as an admin action. Requires user.manage-accounts
-	// for other users and a fresh credential for the caller.
+	// Sets another user's password as an admin action. Requires
+	// user.manage-accounts and a fresh credential for the caller; the caller
+	// cannot target their own account.
 	SetUserPassword(context.Context, *connect.Request[v1.SetUserPasswordRequest]) (*connect.Response[v1.SetUserPasswordResponse], error)
 	// Clears the target user's self-service username-change cooldown. Requires
 	// user.manage-accounts.
@@ -212,11 +213,12 @@ type AdminMemberServiceHandler interface {
 	AssignRole(context.Context, *connect.Request[v1.AssignRoleRequest]) (*connect.Response[v1.AssignRoleResponse], error)
 	// Revokes a role from a user. Requires role.assign.
 	RevokeRole(context.Context, *connect.Request[v1.RevokeRoleRequest]) (*connect.Response[v1.RevokeRoleResponse], error)
-	// Updates a user's login and/or display name as an admin action. Requires
-	// user.manage-accounts for other users.
+	// Updates another user's login and/or display name as an admin action.
+	// Requires user.manage-accounts; the caller cannot target their own account.
 	UpdateUser(context.Context, *connect.Request[v1.UpdateUserRequest]) (*connect.Response[v1.UpdateUserResponse], error)
-	// Sets a user's password as an admin action. Requires user.manage-accounts
-	// for other users and a fresh credential for the caller.
+	// Sets another user's password as an admin action. Requires
+	// user.manage-accounts and a fresh credential for the caller; the caller
+	// cannot target their own account.
 	SetUserPassword(context.Context, *connect.Request[v1.SetUserPasswordRequest]) (*connect.Response[v1.SetUserPasswordResponse], error)
 	// Clears the target user's self-service username-change cooldown. Requires
 	// user.manage-accounts.

@@ -162,15 +162,16 @@ Result of reading one durable EVT entry.
 
 ## AdminRoleService
 
-Provides administrative role reads and role definition changes.
+Provides authenticated role reads and administrative role definition changes.
 
 <a id="chatto-admin-v1-AdminRoleService-ListRoles"></a>
 
 ### ListRoles
 
 Lists the role catalog including permission arrays as a finite snapshot.
-Requires an authenticated user; use chatto.api.v1.RoleService for ordinary
-catalog rendering.
+Requires an authenticated user. This intentionally includes permission
+arrays for clients that need to show a user's assigned roles and their
+effects; use chatto.api.v1.RoleService for lightweight catalog rendering.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminRoleService/ListRoles
@@ -201,7 +202,8 @@ Finite role catalog snapshot plus viewer role-management capabilities.
 ### GetRole
 
 Gets one role plus admin detail metadata. Returns NOT_FOUND when the
-role does not exist.
+role does not exist. Requires an authenticated user; the assigned-user
+roster is empty unless the caller may assign roles.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminRoleService/GetRole
@@ -519,8 +521,8 @@ Result of revoking a role.
 
 ### UpdateUser
 
-Updates a user's login and/or display name as an admin action. Requires
-user.manage-accounts for other users.
+Updates another user's login and/or display name as an admin action.
+Requires user.manage-accounts; the caller cannot target their own account.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminMemberService/UpdateUser
@@ -555,8 +557,9 @@ Result of an admin user update.
 
 ### SetUserPassword
 
-Sets a user's password as an admin action. Requires user.manage-accounts
-for other users and a fresh credential for the caller.
+Sets another user's password as an admin action. Requires
+user.manage-accounts and a fresh credential for the caller; the caller
+cannot target their own account.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminMemberService/SetUserPassword
@@ -663,7 +666,9 @@ Provides permission matrix reads and admin permission writes.
 
 ### GetRolePermissionTierMatrix
 
-Gets the role-permission matrix for a single tier.
+Gets the role-permission matrix for a single tier. Requires role.manage
+for server/group scope; room scope requires role.manage or room.manage in
+that room.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminPermissionService/GetRolePermissionTierMatrix
@@ -932,14 +937,14 @@ Result of setting one user permission state.
 
 ## AdminRoomLayoutService
 
-Reads and mutates the server-admin channel room layout.
+Reads authenticated channel layout data and mutates the server-admin layout.
 
 <a id="chatto-admin-v1-AdminRoomLayoutService-ListAdminRoomLayout"></a>
 
 ### ListAdminRoomLayout
 
 Lists the current room groups, rooms, and sidebar links for the admin
-layout editor.
+layout editor and sidebar rendering. Requires an authenticated user.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminRoomLayoutService/ListAdminRoomLayout
@@ -956,7 +961,7 @@ Request to read the admin room layout.
 
 #### Result: ListAdminRoomLayoutResponse
 
-Finite snapshot of the current admin room layout.
+Finite snapshot of the current room layout.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -982,7 +987,7 @@ Request to create a room group.
 | Field | Type | Description |
 | --- | --- | --- |
 | `name` | `string` | Required group display name. |
-| `description` | `string` | Optional operator-facing description. |
+| `description` | `string` | Optional public group description. |
 
 
 <a id="chatto-admin-v1-CreateRoomGroupResponse"></a>
@@ -1016,7 +1021,7 @@ Request to update a room group.
 | --- | --- | --- |
 | `group_id` | `string` | Required room group ID. |
 | `name` | `string` | Required group display name. |
-| `description` | `string` | Optional operator-facing description. |
+| `description` | `string` | Optional public group description. |
 
 
 <a id="chatto-admin-v1-UpdateRoomGroupResponse"></a>
@@ -1774,7 +1779,7 @@ admin/member metadata with visibility controlled by the service.
 
 ### AdminMemberRole
 
-Legacy role details used by operator.v1 response shapes.
+Operator compatibility role details used by operator.v1 response shapes.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -1790,7 +1795,7 @@ Legacy role details used by operator.v1 response shapes.
 
 ### AdminRoleReference
 
-Legacy role reference used by operator.v1 response shapes.
+Operator compatibility role reference used by operator.v1 response shapes.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -1967,14 +1972,14 @@ Permission matrix for one user across all scopes.
 
 ### AdminRoomLayoutGroup
 
-Ordered room group used by the admin room layout editor.
+Ordered room group used by authenticated clients and the admin layout editor.
 
 | Field | Type | Description |
 | --- | --- | --- |
 | `id` | `string` | Stable room group ID. |
 | `name` | `string` | Display name. |
-| `description` | `string` | Operator-facing description, when set. |
-| `rooms` | repeated [`AdminRoomLayoutRoom`](#chatto-admin-v1-AdminRoomLayoutRoom) | Channel rooms in this group order. |
+| `description` | `string` | Public group description, when set. |
+| `rooms` | `repeated chatto.api.v1.Room` | Channel rooms in this group order. |
 | `items` | repeated [`AdminRoomLayoutItem`](#chatto-admin-v1-AdminRoomLayoutItem) | Mixed room/sidebar-link entries in sidebar order. |
 
 
@@ -1987,7 +1992,7 @@ One ordered sidebar item in an admin room group layout.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `item.room` | [`AdminRoomLayoutRoom`](#chatto-admin-v1-AdminRoomLayoutRoom) | Channel room entry. |
+| `item.room` | `chatto.api.v1.Room` | Channel room entry. |
 | `item.sidebar_link` | `chatto.api.v1.SidebarLink` | Sidebar link entry. |
 
 
@@ -2002,22 +2007,6 @@ One item reference in a sidebar order replacement.
 | --- | --- | --- |
 | `kind` | [`AdminRoomLayoutItemKind`](#chatto-admin-v1-AdminRoomLayoutItemKind) | Item kind. |
 | `id` | `string` | Room ID when kind is ROOM, sidebar link ID when kind is SIDEBAR_LINK. |
-
-
-
-<a id="chatto-admin-v1-AdminRoomLayoutRoom"></a>
-
-### AdminRoomLayoutRoom
-
-Room metadata used by server administrators when editing channel layout.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `id` | `string` | Stable room ID. |
-| `name` | `string` | Display name. |
-| `description` | `string` | Optional room description. |
-| `archived` | `bool` | True when the room is archived. |
-| `universal` | `bool` | True when the channel grants effective membership to eligible members. |
 
 
 

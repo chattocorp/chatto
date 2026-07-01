@@ -5,8 +5,8 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3 } from "@bufbuild/protobuf";
-import { SidebarLink } from "../../api/v1/room_directory_pb.js";
 import { Room } from "../../api/v1/rooms_pb.js";
+import { SidebarLink } from "../../api/v1/room_directory_pb.js";
 
 /**
  * Sidebar item kind used in reorder requests.
@@ -43,79 +43,6 @@ proto3.util.setEnumType(AdminRoomLayoutItemKind, "chatto.admin.v1.AdminRoomLayou
 ]);
 
 /**
- * Room metadata used by server administrators when editing channel layout.
- *
- * @generated from message chatto.admin.v1.AdminRoomLayoutRoom
- */
-export class AdminRoomLayoutRoom extends Message<AdminRoomLayoutRoom> {
-  /**
-   * Stable room ID.
-   *
-   * @generated from field: string id = 1;
-   */
-  id = "";
-
-  /**
-   * Display name.
-   *
-   * @generated from field: string name = 2;
-   */
-  name = "";
-
-  /**
-   * Optional room description.
-   *
-   * @generated from field: string description = 3;
-   */
-  description = "";
-
-  /**
-   * True when the room is archived.
-   *
-   * @generated from field: bool archived = 4;
-   */
-  archived = false;
-
-  /**
-   * True when the channel grants effective membership to eligible members.
-   *
-   * @generated from field: bool universal = 5;
-   */
-  universal = false;
-
-  constructor(data?: PartialMessage<AdminRoomLayoutRoom>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.admin.v1.AdminRoomLayoutRoom";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "description", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 4, name: "archived", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 5, name: "universal", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AdminRoomLayoutRoom {
-    return new AdminRoomLayoutRoom().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): AdminRoomLayoutRoom {
-    return new AdminRoomLayoutRoom().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): AdminRoomLayoutRoom {
-    return new AdminRoomLayoutRoom().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: AdminRoomLayoutRoom | PlainMessage<AdminRoomLayoutRoom> | undefined, b: AdminRoomLayoutRoom | PlainMessage<AdminRoomLayoutRoom> | undefined): boolean {
-    return proto3.util.equals(AdminRoomLayoutRoom, a, b);
-  }
-}
-
-/**
  * One ordered sidebar item in an admin room group layout.
  *
  * @generated from message chatto.admin.v1.AdminRoomLayoutItem
@@ -128,9 +55,9 @@ export class AdminRoomLayoutItem extends Message<AdminRoomLayoutItem> {
     /**
      * Channel room entry.
      *
-     * @generated from field: chatto.admin.v1.AdminRoomLayoutRoom room = 1;
+     * @generated from field: chatto.api.v1.Room room = 1;
      */
-    value: AdminRoomLayoutRoom;
+    value: Room;
     case: "room";
   } | {
     /**
@@ -150,7 +77,7 @@ export class AdminRoomLayoutItem extends Message<AdminRoomLayoutItem> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.admin.v1.AdminRoomLayoutItem";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "room", kind: "message", T: AdminRoomLayoutRoom, oneof: "item" },
+    { no: 1, name: "room", kind: "message", T: Room, oneof: "item" },
     { no: 2, name: "sidebar_link", kind: "message", T: SidebarLink, oneof: "item" },
   ]);
 
@@ -172,7 +99,7 @@ export class AdminRoomLayoutItem extends Message<AdminRoomLayoutItem> {
 }
 
 /**
- * Ordered room group used by the admin room layout editor.
+ * Ordered room group used by authenticated clients and the admin layout editor.
  *
  * @generated from message chatto.admin.v1.AdminRoomLayoutGroup
  */
@@ -192,7 +119,7 @@ export class AdminRoomLayoutGroup extends Message<AdminRoomLayoutGroup> {
   name = "";
 
   /**
-   * Operator-facing description, when set.
+   * Public group description, when set.
    *
    * @generated from field: string description = 3;
    */
@@ -201,9 +128,9 @@ export class AdminRoomLayoutGroup extends Message<AdminRoomLayoutGroup> {
   /**
    * Channel rooms in this group order.
    *
-   * @generated from field: repeated chatto.admin.v1.AdminRoomLayoutRoom rooms = 4;
+   * @generated from field: repeated chatto.api.v1.Room rooms = 4;
    */
-  rooms: AdminRoomLayoutRoom[] = [];
+  rooms: Room[] = [];
 
   /**
    * Mixed room/sidebar-link entries in sidebar order.
@@ -223,7 +150,7 @@ export class AdminRoomLayoutGroup extends Message<AdminRoomLayoutGroup> {
     { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "description", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 4, name: "rooms", kind: "message", T: AdminRoomLayoutRoom, repeated: true },
+    { no: 4, name: "rooms", kind: "message", T: Room, repeated: true },
     { no: 5, name: "items", kind: "message", T: AdminRoomLayoutItem, repeated: true },
   ]);
 
@@ -327,7 +254,7 @@ export class ListAdminRoomLayoutRequest extends Message<ListAdminRoomLayoutReque
 }
 
 /**
- * Finite snapshot of the current admin room layout.
+ * Finite snapshot of the current room layout.
  *
  * @generated from message chatto.admin.v1.ListAdminRoomLayoutResponse
  */
@@ -381,7 +308,7 @@ export class CreateRoomGroupRequest extends Message<CreateRoomGroupRequest> {
   name = "";
 
   /**
-   * Optional operator-facing description.
+   * Optional public group description.
    *
    * @generated from field: string description = 2;
    */
@@ -478,7 +405,7 @@ export class UpdateRoomGroupRequest extends Message<UpdateRoomGroupRequest> {
   name = "";
 
   /**
-   * Optional operator-facing description.
+   * Optional public group description.
    *
    * @generated from field: string description = 3;
    */

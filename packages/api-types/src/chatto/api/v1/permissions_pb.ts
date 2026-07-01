@@ -58,6 +58,20 @@ export class PermissionGrant extends Message<PermissionGrant> {
 /**
  * Effective decision for one capability key.
  *
+ * Built-in keys currently include:
+ * - admin.view
+ * - dm.start
+ * - admin.view-users
+ * - user.manage-accounts
+ * - role.assign
+ * - role.view
+ * - role.manage
+ * - admin.view-system
+ * - admin.view-audit
+ * - user.manage-permissions
+ *
+ * Clients should ignore unknown keys so servers can add capabilities over time.
+ *
  * @generated from message chatto.api.v1.CapabilityGrant
  */
 export class CapabilityGrant extends Message<CapabilityGrant> {

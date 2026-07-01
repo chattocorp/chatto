@@ -538,7 +538,6 @@ Patterns: `live.sync.>` for transient `LiveEvent` pubsub and `live.evt.>` for ra
 | -------------------------------------------------------- | ---------------------------- |
 | `live.sync.user.{userId}.created`                        | User registration completed  |
 | `live.sync.user.{userId}.profile_updated`                | User profile changed (broadcast for login/display/avatar updates; custom status set/clear is delivered from `live.evt.>`) |
-| `live.sync.user.{userId}.user_deleted`                   | User account deleted         |
 | `live.sync.config.server_updated`                        | Public server profile/config changed (name/MOTD/welcome/logo/banner/description) |
 | `live.sync.config.room_groups_updated`                   | Admin reordered the room sidebar / room-group layout |
 | `live.sync.user.{userId}.mentioned`                      | User was @mentioned (legacy attention signal; suppressed during DND) |

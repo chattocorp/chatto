@@ -18,15 +18,16 @@ Shared message and enum definitions are documented in [Shared Types And Enums](/
 
 ## AdminRoleService
 
-Provides administrative role reads and role definition changes.
+Provides authenticated role reads and administrative role definition changes.
 
 <a id="chatto-admin-v1-AdminRoleService-ListRoles"></a>
 
 ### ListRoles
 
 Lists the role catalog including permission arrays as a finite snapshot.
-Requires an authenticated user; use chatto.api.v1.RoleService for ordinary
-catalog rendering.
+Requires an authenticated user. This intentionally includes permission
+arrays for clients that need to show a user's assigned roles and their
+effects; use chatto.api.v1.RoleService for lightweight catalog rendering.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminRoleService/ListRoles
@@ -57,7 +58,8 @@ Finite role catalog snapshot plus viewer role-management capabilities.
 ### GetRole
 
 Gets one role plus admin detail metadata. Returns NOT_FOUND when the
-role does not exist.
+role does not exist. Requires an authenticated user; the assigned-user
+roster is empty unless the caller may assign roles.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminRoleService/GetRole

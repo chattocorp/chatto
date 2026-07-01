@@ -239,7 +239,7 @@ func apiAdminRoomLayoutGroup(group *corev1.RoomGroup, roomsByID map[string]*core
 		if room == nil {
 			continue
 		}
-		apiGroup.Rooms = append(apiGroup.Rooms, apiAdminRoomLayoutRoom(room))
+		apiGroup.Rooms = append(apiGroup.Rooms, apiRoom(room))
 	}
 	for _, entry := range group.GetEntries() {
 		switch entry.GetKind() {
@@ -249,7 +249,7 @@ func apiAdminRoomLayoutGroup(group *corev1.RoomGroup, roomsByID map[string]*core
 				continue
 			}
 			apiGroup.Items = append(apiGroup.Items, &adminv1.AdminRoomLayoutItem{
-				Item: &adminv1.AdminRoomLayoutItem_Room{Room: apiAdminRoomLayoutRoom(room)},
+				Item: &adminv1.AdminRoomLayoutItem_Room{Room: apiRoom(room)},
 			})
 		case corev1.SidebarGroupEntry_SIDEBAR_LINK:
 			link := sidebarLinksByID[entry.GetId()]
@@ -262,19 +262,6 @@ func apiAdminRoomLayoutGroup(group *corev1.RoomGroup, roomsByID map[string]*core
 		}
 	}
 	return apiGroup
-}
-
-func apiAdminRoomLayoutRoom(room *corev1.Room) *adminv1.AdminRoomLayoutRoom {
-	if room == nil {
-		return nil
-	}
-	return &adminv1.AdminRoomLayoutRoom{
-		Id:          room.GetId(),
-		Name:        room.GetName(),
-		Description: room.GetDescription(),
-		Archived:    room.GetArchived(),
-		Universal:   room.GetUniversal(),
-	}
 }
 
 func adminRoomLayoutItemInputsToCore(items []*adminv1.AdminRoomLayoutItemInput) []*corev1.SidebarGroupEntry {

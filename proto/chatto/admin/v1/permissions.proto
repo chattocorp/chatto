@@ -286,7 +286,9 @@ message SetUserPermissionResponse {
 
 // Provides permission matrix reads and admin permission writes.
 service AdminPermissionService {
-  // Gets the role-permission matrix for a single tier.
+  // Gets the role-permission matrix for a single tier. Requires role.manage
+  // for server/group scope; room scope requires role.manage or room.manage in
+  // that room.
   rpc GetRolePermissionTierMatrix(GetRolePermissionTierMatrixRequest) returns (GetRolePermissionTierMatrixResponse);
   // Gets one role's full permission matrix. Requires role.manage. Returns
   // NOT_FOUND when the role does not exist.

@@ -24,8 +24,9 @@ message UserCreatedEvent {
   string display_name = 3;
 }
 
-// UserDeletedEvent is published when a user deletes their own account.
-// Server-level event for audit logging and admin UI updates.
+// UserDeletedEvent records a durable user-account deletion fact in EVT.
+// Transient realtime delivery uses SessionTerminatedEvent for the deleted
+// user's own clients and ServerMemberDeletedEvent for server-wide invalidation.
 message UserDeletedEvent {
   string user_id = 1;
 }

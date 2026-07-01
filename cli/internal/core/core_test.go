@@ -470,15 +470,15 @@ func TestChattoCore_isAuthorizedForLiveEvent(t *testing.T) {
 			wantResult: false,
 		},
 		{
-			name:       "user event - same user receives their own user_deleted",
+			name:       "user event - same user receives their own session_terminated",
 			userID:     userA.Id,
-			subject:    "live.sync.user." + userA.Id + ".user_deleted",
+			subject:    "live.sync.user." + userA.Id + ".session_terminated",
 			wantResult: true,
 		},
 		{
-			name:       "user event - other user does NOT receive user_deleted",
+			name:       "user event - other user does NOT receive session_terminated",
 			userID:     userB.Id,
-			subject:    "live.sync.user." + userA.Id + ".user_deleted",
+			subject:    "live.sync.user." + userA.Id + ".session_terminated",
 			wantResult: false,
 		},
 

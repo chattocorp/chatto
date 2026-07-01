@@ -130,8 +130,9 @@ func (x *UserCreatedEvent) GetDisplayName() string {
 	return ""
 }
 
-// UserDeletedEvent is published when a user deletes their own account.
-// Server-level event for audit logging and admin UI updates.
+// UserDeletedEvent records a durable user-account deletion fact in EVT.
+// Transient realtime delivery uses SessionTerminatedEvent for the deleted
+// user's own clients and ServerMemberDeletedEvent for server-wide invalidation.
 type UserDeletedEvent struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`

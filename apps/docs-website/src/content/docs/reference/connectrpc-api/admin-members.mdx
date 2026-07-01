@@ -167,8 +167,8 @@ Result of revoking a role.
 
 ### UpdateUser
 
-Updates a user's login and/or display name as an admin action. Requires
-user.manage-accounts for other users.
+Updates another user's login and/or display name as an admin action.
+Requires user.manage-accounts; the caller cannot target their own account.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminMemberService/UpdateUser
@@ -203,8 +203,9 @@ Result of an admin user update.
 
 ### SetUserPassword
 
-Sets a user's password as an admin action. Requires user.manage-accounts
-for other users and a fresh credential for the caller.
+Sets another user's password as an admin action. Requires
+user.manage-accounts and a fresh credential for the caller; the caller
+cannot target their own account.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminMemberService/SetUserPassword

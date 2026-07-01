@@ -20,6 +20,20 @@ Shared message and enum definitions used by the ConnectRPC service pages.
 
 Effective decision for one capability key.
 
+Built-in keys currently include:
+- admin.view
+- dm.start
+- admin.view-users
+- user.manage-accounts
+- role.assign
+- role.view
+- role.manage
+- admin.view-system
+- admin.view-audit
+- user.manage-permissions
+
+Clients should ignore unknown keys so servers can add capabilities over time.
+
 | Field | Type | Description |
 | --- | --- | --- |
 | `capability` | `string` | Stable capability key, such as "admin.view" or "dm.start". |
@@ -650,7 +664,7 @@ Ordered group of channel rooms and sidebar links.
 | --- | --- | --- |
 | `id` | `string` | Stable room group ID. |
 | `name` | `string` | Display name. |
-| `description` | `string` | Operator-facing description, when set. |
+| `description` | `string` | Public group description, when set. |
 | `rooms` | repeated [`DirectoryRoom`](#chatto-api-v1-DirectoryRoom) | Visible channel rooms in this group order. |
 | `items` | repeated [`RoomGroupItem`](#chatto-api-v1-RoomGroupItem) | Mixed room/sidebar-link entries in sidebar order. |
 
@@ -1039,7 +1053,7 @@ admin/member metadata with visibility controlled by the service.
 
 ### AdminMemberRole
 
-Legacy role details used by operator.v1 response shapes.
+Operator compatibility role details used by operator.v1 response shapes.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -1053,7 +1067,7 @@ Legacy role details used by operator.v1 response shapes.
 
 ### AdminRoleReference
 
-Legacy role reference used by operator.v1 response shapes.
+Operator compatibility role reference used by operator.v1 response shapes.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -1206,14 +1220,14 @@ Permission matrix for one user across all scopes.
 
 ### AdminRoomLayoutGroup
 
-Ordered room group used by the admin room layout editor.
+Ordered room group used by authenticated clients and the admin layout editor.
 
 | Field | Type | Description |
 | --- | --- | --- |
 | `id` | `string` | Stable room group ID. |
 | `name` | `string` | Display name. |
-| `description` | `string` | Operator-facing description, when set. |
-| `rooms` | repeated [`AdminRoomLayoutRoom`](#chatto-admin-v1-AdminRoomLayoutRoom) | Channel rooms in this group order. |
+| `description` | `string` | Public group description, when set. |
+| `rooms` | `repeated chatto.api.v1.Room` | Channel rooms in this group order. |
 | `items` | repeated [`AdminRoomLayoutItem`](#chatto-admin-v1-AdminRoomLayoutItem) | Mixed room/sidebar-link entries in sidebar order. |
 
 <a id="chatto-admin-v1-AdminRoomLayoutItem"></a>
@@ -1224,7 +1238,7 @@ One ordered sidebar item in an admin room group layout.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `item.room` | [`AdminRoomLayoutRoom`](#chatto-admin-v1-AdminRoomLayoutRoom) | Channel room entry. |
+| `item.room` | `chatto.api.v1.Room` | Channel room entry. |
 | `item.sidebar_link` | `chatto.api.v1.SidebarLink` | Sidebar link entry. |
 
 <a id="chatto-admin-v1-AdminRoomLayoutItemInput"></a>
@@ -1237,20 +1251,6 @@ One item reference in a sidebar order replacement.
 | --- | --- | --- |
 | `kind` | [`AdminRoomLayoutItemKind`](#chatto-admin-v1-AdminRoomLayoutItemKind) | Item kind. |
 | `id` | `string` | Room ID when kind is ROOM, sidebar link ID when kind is SIDEBAR_LINK. |
-
-<a id="chatto-admin-v1-AdminRoomLayoutRoom"></a>
-
-### AdminRoomLayoutRoom
-
-Room metadata used by server administrators when editing channel layout.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `id` | `string` | Stable room ID. |
-| `name` | `string` | Display name. |
-| `description` | `string` | Optional room description. |
-| `archived` | `bool` | True when the room is archived. |
-| `universal` | `bool` | True when the channel grants effective membership to eligible members. |
 
 
 

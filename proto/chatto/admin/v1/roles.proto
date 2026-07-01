@@ -112,14 +112,16 @@ message ReorderRolesResponse {
   repeated AdminRole roles = 1;
 }
 
-// Provides administrative role reads and role definition changes.
+// Provides authenticated role reads and administrative role definition changes.
 service AdminRoleService {
   // Lists the role catalog including permission arrays as a finite snapshot.
-  // Requires an authenticated user; use chatto.api.v1.RoleService for ordinary
-  // catalog rendering.
+  // Requires an authenticated user. This intentionally includes permission
+  // arrays for clients that need to show a user's assigned roles and their
+  // effects; use chatto.api.v1.RoleService for lightweight catalog rendering.
   rpc ListRoles(ListRolesRequest) returns (ListRolesResponse);
   // Gets one role plus admin detail metadata. Returns NOT_FOUND when the
-  // role does not exist.
+  // role does not exist. Requires an authenticated user; the assigned-user
+  // roster is empty unless the caller may assign roles.
   rpc GetRole(GetRoleRequest) returns (GetRoleResponse);
   // Creates a custom role. Requires role.manage.
   rpc CreateRole(CreateRoleRequest) returns (CreateRoleResponse);

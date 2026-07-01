@@ -438,7 +438,7 @@ type RoomGroup struct {
 	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	// Display name.
 	Name string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	// Operator-facing description, when set.
+	// Public group description, when set.
 	Description string `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
 	// Visible channel rooms in this group order.
 	Rooms []*DirectoryRoom `protobuf:"bytes,4,rep,name=rooms,proto3" json:"rooms,omitempty"`

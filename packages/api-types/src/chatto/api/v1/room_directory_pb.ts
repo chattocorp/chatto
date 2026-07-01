@@ -364,7 +364,7 @@ export class RoomGroup extends Message<RoomGroup> {
   name = "";
 
   /**
-   * Operator-facing description, when set.
+   * Public group description, when set.
    *
    * @generated from field: string description = 3;
    */

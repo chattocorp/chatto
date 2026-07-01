@@ -131,6 +131,7 @@ func (x *LiveEvent) GetUserCreated() *UserCreatedEvent {
 	return nil
 }
 
+// Deprecated: Marked as deprecated in chatto/core/v1/live_events.proto.
 func (x *LiveEvent) GetUserDeleted() *UserDeletedEvent {
 	if x != nil {
 		if x, ok := x.Event.(*LiveEvent_UserDeleted); ok {
@@ -312,6 +313,11 @@ type LiveEvent_UserCreated struct {
 }
 
 type LiveEvent_UserDeleted struct {
+	// Deprecated. Account deletion no longer publishes this transient signal;
+	// clients receive session_terminated for the deleted user's own sessions and
+	// server_member_deleted for server-wide invalidation.
+	//
+	// Deprecated: Marked as deprecated in chatto/core/v1/live_events.proto.
 	UserDeleted *UserDeletedEvent `protobuf:"bytes,21,opt,name=user_deleted,json=userDeleted,proto3,oneof"`
 }
 
@@ -1225,14 +1231,14 @@ var File_chatto_core_v1_live_events_proto protoreflect.FileDescriptor
 
 const file_chatto_core_v1_live_events_proto_rawDesc = "" +
 	"\n" +
-	" chatto/core/v1/live_events.proto\x12\x0echatto.core.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a chatto/core/v1/room_events.proto\x1a chatto/core/v1/user_events.proto\x1a%chatto/core/v1/user_preferences.proto\"\xff\x0f\n" +
+	" chatto/core/v1/live_events.proto\x12\x0echatto.core.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a chatto/core/v1/room_events.proto\x1a chatto/core/v1/user_events.proto\x1a%chatto/core/v1/user_preferences.proto\"\x83\x10\n" +
 	"\tLiveEvent\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x129\n" +
 	"\n" +
 	"created_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12\x19\n" +
 	"\bactor_id\x18\x03 \x01(\tR\aactorId\x12E\n" +
-	"\fuser_created\x18\x14 \x01(\v2 .chatto.core.v1.UserCreatedEventH\x00R\vuserCreated\x12E\n" +
-	"\fuser_deleted\x18\x15 \x01(\v2 .chatto.core.v1.UserDeletedEventH\x00R\vuserDeleted\x12[\n" +
+	"\fuser_created\x18\x14 \x01(\v2 .chatto.core.v1.UserCreatedEventH\x00R\vuserCreated\x12I\n" +
+	"\fuser_deleted\x18\x15 \x01(\v2 .chatto.core.v1.UserDeletedEventB\x02\x18\x01H\x00R\vuserDeleted\x12[\n" +
 	"\x14user_profile_updated\x18\x16 \x01(\v2'.chatto.core.v1.UserProfileUpdatedEventH\x00R\x12userProfileUpdated\x12z\n" +
 	"\x1fserver_user_preferences_updated\x18\x17 \x01(\v21.chatto.core.v1.ServerUserPreferencesUpdatedEventH\x00R\x1cserverUserPreferencesUpdated\x12m\n" +
 	"\x1anotification_level_changed\x18\x18 \x01(\v2-.chatto.core.v1.NotificationLevelChangedEventH\x00R\x18notificationLevelChanged\x12^\n" +

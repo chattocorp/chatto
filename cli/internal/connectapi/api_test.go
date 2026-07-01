@@ -3625,6 +3625,11 @@ func TestVoiceCallServiceRecordsAndListsCalls(t *testing.T) {
 	if len(disabledActive.Msg.GetRoomIds()) != 0 {
 		t.Fatalf("disabled active rooms = %v, want none", disabledActive.Msg.GetRoomIds())
 	}
+	if _, err := env.voice.GetCallToken(ctx, connect.NewRequest(&apiv1.GetCallTokenRequest{
+		RoomId: room.Id,
+	})); connect.CodeOf(err) != connect.CodeFailedPrecondition {
+		t.Fatalf("disabled GetCallToken code = %v, want failed_precondition", connect.CodeOf(err))
+	}
 
 	env.api.config.LiveKit = config.LiveKitConfig{
 		Enabled:   true,
@@ -3636,6 +3641,9 @@ func TestVoiceCallServiceRecordsAndListsCalls(t *testing.T) {
 	nonMember, err := env.core.CreateUser(env.ctx, core.SystemActorID, "voice-outsider", "Voice Outsider", "password")
 	if err != nil {
 		t.Fatalf("CreateUser nonMember: %v", err)
+	}
+	if err := env.core.DenyRoomPermission(env.ctx, core.SystemActorID, room.Id, core.RoleEveryone, core.PermRoomList); err != nil {
+		t.Fatalf("DenyRoomPermission room.list: %v", err)
 	}
 	if _, err := env.voice.JoinCall(withCaller(env.ctx, nonMember), connect.NewRequest(&apiv1.JoinCallRequest{
 		RoomId: room.Id,
@@ -3659,6 +3667,13 @@ func TestVoiceCallServiceRecordsAndListsCalls(t *testing.T) {
 	}
 	if got := strings.Join(activeResp.Msg.GetRoomIds(), ","); got != room.Id {
 		t.Fatalf("active room IDs = %v, want %s", activeResp.Msg.GetRoomIds(), room.Id)
+	}
+	nonMemberActiveResp, err := env.voice.ListActiveCallRooms(withCaller(env.ctx, nonMember), connect.NewRequest(&apiv1.ListActiveCallRoomsRequest{}))
+	if err != nil {
+		t.Fatalf("non-member ListActiveCallRooms: %v", err)
+	}
+	if len(nonMemberActiveResp.Msg.GetRoomIds()) != 0 {
+		t.Fatalf("non-member active room IDs = %v, want none", nonMemberActiveResp.Msg.GetRoomIds())
 	}
 
 	participantsResp, err := env.voice.ListCallParticipants(ctx, connect.NewRequest(&apiv1.ListCallParticipantsRequest{
@@ -6078,7 +6093,7 @@ func adminLayoutGroupByID(groups []*adminv1.AdminRoomLayoutGroup, groupID string
 	return nil
 }
 
-func adminLayoutRoomByID(rooms []*adminv1.AdminRoomLayoutRoom, roomID string) *adminv1.AdminRoomLayoutRoom {
+func adminLayoutRoomByID(rooms []*apiv1.Room, roomID string) *apiv1.Room {
 	for _, room := range rooms {
 		if room.GetId() == roomID {
 			return room

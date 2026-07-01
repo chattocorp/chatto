@@ -44,7 +44,10 @@ message LiveEvent {
   oneof event {
     // ----- User lifecycle / preferences -----
     UserCreatedEvent user_created = 20;
-    UserDeletedEvent user_deleted = 21;
+    // Deprecated. Account deletion no longer publishes this transient signal;
+    // clients receive session_terminated for the deleted user's own sessions and
+    // server_member_deleted for server-wide invalidation.
+    UserDeletedEvent user_deleted = 21 [deprecated = true];
     UserProfileUpdatedEvent user_profile_updated = 22;
     ServerUserPreferencesUpdatedEvent server_user_preferences_updated = 23;
     NotificationLevelChangedEvent notification_level_changed = 24;

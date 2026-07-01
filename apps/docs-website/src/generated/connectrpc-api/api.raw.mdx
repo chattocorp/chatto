@@ -2712,8 +2712,8 @@ Voice-call request/response APIs backed by Chatto call-state projections.
 
 ### ListActiveCallRooms
 
-Lists channel room IDs that currently have active calls as a finite
-runtime snapshot.
+Lists visible channel room IDs that currently have active calls as a finite
+runtime snapshot. Hidden rooms and rooms the caller cannot list are omitted.
 
 Returns an empty list when LiveKit is not configured.
 
@@ -2818,7 +2818,8 @@ Issues a LiveKit token for joining the room's active call.
 
 The caller must be a member of the room and a call must already be active.
 Returns NOT_FOUND when the room does not exist, PERMISSION_DENIED when the
-caller is not a room member, and FAILED_PRECONDITION when no call is active.
+caller is not a room member, and FAILED_PRECONDITION when no call is active
+or voice calls are not configured.
 
 ```http
 POST /api/connect/chatto.api.v1.VoiceCallService/GetCallToken
@@ -2890,6 +2891,20 @@ Response from recording a leave intent.
 ### CapabilityGrant
 
 Effective decision for one capability key.
+
+Built-in keys currently include:
+- admin.view
+- dm.start
+- admin.view-users
+- user.manage-accounts
+- role.assign
+- role.view
+- role.manage
+- admin.view-system
+- admin.view-audit
+- user.manage-permissions
+
+Clients should ignore unknown keys so servers can add capabilities over time.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -3609,7 +3624,7 @@ Ordered group of channel rooms and sidebar links.
 | --- | --- | --- |
 | `id` | `string` | Stable room group ID. |
 | `name` | `string` | Display name. |
-| `description` | `string` | Operator-facing description, when set. |
+| `description` | `string` | Public group description, when set. |
 | `rooms` | repeated [`DirectoryRoom`](#chatto-api-v1-DirectoryRoom) | Visible channel rooms in this group order. |
 | `items` | repeated [`RoomGroupItem`](#chatto-api-v1-RoomGroupItem) | Mixed room/sidebar-link entries in sidebar order. |
 

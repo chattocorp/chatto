@@ -82,7 +82,7 @@ message RoomGroup {
   string id = 1;
   // Display name.
   string name = 2;
-  // Operator-facing description, when set.
+  // Public group description, when set.
   string description = 3;
   // Visible channel rooms in this group order.
   repeated DirectoryRoom rooms = 4;

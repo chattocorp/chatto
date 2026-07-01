@@ -61,8 +61,8 @@ export const AdminMemberService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Updates a user's login and/or display name as an admin action. Requires
-     * user.manage-accounts for other users.
+     * Updates another user's login and/or display name as an admin action.
+     * Requires user.manage-accounts; the caller cannot target their own account.
      *
      * @generated from rpc chatto.admin.v1.AdminMemberService.UpdateUser
      */
@@ -73,8 +73,9 @@ export const AdminMemberService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Sets a user's password as an admin action. Requires user.manage-accounts
-     * for other users and a fresh credential for the caller.
+     * Sets another user's password as an admin action. Requires
+     * user.manage-accounts and a fresh credential for the caller; the caller
+     * cannot target their own account.
      *
      * @generated from rpc chatto.admin.v1.AdminMemberService.SetUserPassword
      */

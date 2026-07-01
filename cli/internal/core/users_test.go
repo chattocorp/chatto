@@ -130,48 +130,6 @@ func TestChattoCore_CreateUserLiveEventUsesProvidedActorID(t *testing.T) {
 	}
 }
 
-func TestChattoCore_DeleteUserLiveEventUsesProvidedActorID(t *testing.T) {
-	core, nc := setupTestCore(t)
-	ctx := testContext(t)
-
-	user, err := core.CreateUser(ctx, "system", "actor-live-delete", "Actor Live Delete", "password123")
-	if err != nil {
-		t.Fatalf("CreateUser setup: %v", err)
-	}
-	subject := subjects.LiveSyncUserEvent(user.GetId(), "user_deleted")
-	sub, err := nc.SubscribeSync(subject)
-	if err != nil {
-		t.Fatalf("SubscribeSync(%s): %v", subject, err)
-	}
-	defer sub.Unsubscribe()
-	if err := nc.Flush(); err != nil {
-		t.Fatalf("Flush subscription: %v", err)
-	}
-
-	if err := core.DeleteUser(ctx, SystemActorID, user.GetId()); err != nil {
-		t.Fatalf("DeleteUser: %v", err)
-	}
-
-	msg, err := sub.NextMsg(2 * time.Second)
-	if err != nil {
-		t.Fatalf("waiting for user deleted live event: %v", err)
-	}
-	var live corev1.LiveEvent
-	if err := proto.Unmarshal(msg.Data, &live); err != nil {
-		t.Fatalf("unmarshal live event: %v", err)
-	}
-	deleted := live.GetUserDeleted()
-	if deleted == nil {
-		t.Fatalf("expected UserDeletedEvent, got %T", live.Event)
-	}
-	if deleted.GetUserId() != user.GetId() {
-		t.Fatalf("deleted live user_id = %q, want %q", deleted.GetUserId(), user.GetId())
-	}
-	if got := live.GetActorId(); got != SystemActorID {
-		t.Fatalf("deleted live actor = %q, want %q", got, SystemActorID)
-	}
-}
-
 type cancelAfterWrapKeyWrapper struct {
 	kms.KeyWrapper
 	cancel    context.CancelFunc

@@ -6,9 +6,9 @@ import {
   AdminRoomLayoutItemKind,
   type AdminRoomLayoutGroup as APIAdminRoomLayoutGroup,
   type AdminRoomLayoutItem as APIAdminRoomLayoutItem,
-  type AdminRoomLayoutRoom,
 } from "@chatto/api-types/admin/v1/room_layout_pb";
 import type { SidebarLink } from "@chatto/api-types/api/v1/room_directory_pb";
+import type { Room } from "@chatto/api-types/api/v1/rooms_pb";
 
 export type AdminRoomLayoutAPIConfig = {
   serverId?: string;
@@ -286,7 +286,7 @@ function mapAdminRoomLayoutItem(
   return null;
 }
 
-function mapAdminRoom(room: AdminRoomLayoutRoom): AdminRoomInfo {
+function mapAdminRoom(room: Room): AdminRoomInfo {
   return {
     id: room.id,
     name: room.name,

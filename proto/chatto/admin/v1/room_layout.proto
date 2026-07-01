@@ -3,43 +3,29 @@ syntax = "proto3";
 package chatto.admin.v1;
 
 import "buf/validate/validate.proto";
-import "chatto/api/v1/room_directory.proto";
 import "chatto/api/v1/rooms.proto";
-
-// Room metadata used by server administrators when editing channel layout.
-message AdminRoomLayoutRoom {
-  // Stable room ID.
-  string id = 1;
-  // Display name.
-  string name = 2;
-  // Optional room description.
-  string description = 3;
-  // True when the room is archived.
-  bool archived = 4;
-  // True when the channel grants effective membership to eligible members.
-  bool universal = 5;
-}
+import "chatto/api/v1/room_directory.proto";
 
 // One ordered sidebar item in an admin room group layout.
 message AdminRoomLayoutItem {
   oneof item {
     // Channel room entry.
-    AdminRoomLayoutRoom room = 1;
+    chatto.api.v1.Room room = 1;
     // Sidebar link entry.
     chatto.api.v1.SidebarLink sidebar_link = 2;
   }
 }
 
-// Ordered room group used by the admin room layout editor.
+// Ordered room group used by authenticated clients and the admin layout editor.
 message AdminRoomLayoutGroup {
   // Stable room group ID.
   string id = 1;
   // Display name.
   string name = 2;
-  // Operator-facing description, when set.
+  // Public group description, when set.
   string description = 3;
   // Channel rooms in this group order.
-  repeated AdminRoomLayoutRoom rooms = 4;
+  repeated chatto.api.v1.Room rooms = 4;
   // Mixed room/sidebar-link entries in sidebar order.
   repeated AdminRoomLayoutItem items = 5;
 }
@@ -65,7 +51,7 @@ message AdminRoomLayoutItemInput {
 // Request to read the admin room layout.
 message ListAdminRoomLayoutRequest {}
 
-// Finite snapshot of the current admin room layout.
+// Finite snapshot of the current room layout.
 message ListAdminRoomLayoutResponse {
   // Room groups in sidebar order.
   repeated AdminRoomLayoutGroup groups = 1;
@@ -78,7 +64,7 @@ message CreateRoomGroupRequest {
     min_len: 1
     max_len: 80
   }];
-  // Optional operator-facing description.
+  // Optional public group description.
   string description = 2 [(buf.validate.field).string.max_len = 500];
 }
 
@@ -97,7 +83,7 @@ message UpdateRoomGroupRequest {
     min_len: 1
     max_len: 80
   }];
-  // Optional operator-facing description.
+  // Optional public group description.
   string description = 3 [(buf.validate.field).string.max_len = 500];
 }
 
@@ -235,10 +221,10 @@ message MoveSidebarLinkToGroupResponse {
   chatto.api.v1.SidebarLink sidebar_link = 1;
 }
 
-// Reads and mutates the server-admin channel room layout.
+// Reads authenticated channel layout data and mutates the server-admin layout.
 service AdminRoomLayoutService {
   // Lists the current room groups, rooms, and sidebar links for the admin
-  // layout editor.
+  // layout editor and sidebar rendering. Requires an authenticated user.
   rpc ListAdminRoomLayout(ListAdminRoomLayoutRequest) returns (ListAdminRoomLayoutResponse);
   // Creates a room group. Requires role.manage.
   rpc CreateRoomGroup(CreateRoomGroupRequest) returns (CreateRoomGroupResponse);

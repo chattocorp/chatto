@@ -410,7 +410,7 @@ message RoomGroup {
   string id = 1;                    // NanoID for stable identity across renames
   string name = 2;                  // Display name (e.g., "General", "Projects")
   repeated string room_ids = 3;     // Ordered list of room IDs in this group
-  string description = 4;           // Optional operator-facing description
+  string description = 4;           // Optional public group description
   // Ordered mixed sidebar entries. ROOM entries reference Room records by ID;
   // SIDEBAR_LINK entries reference payloads in sidebar_links by ID.
   repeated SidebarGroupEntry entries = 5;

@@ -127,7 +127,7 @@ func (x *AdminMember) GetUser() *v1.User {
 	return nil
 }
 
-// Legacy role reference used by operator.v1 response shapes.
+// Operator compatibility role reference used by operator.v1 response shapes.
 type AdminRoleReference struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Stable role name.
@@ -182,7 +182,7 @@ func (x *AdminRoleReference) GetDisplayName() string {
 	return ""
 }
 
-// Legacy role details used by operator.v1 response shapes.
+// Operator compatibility role details used by operator.v1 response shapes.
 type AdminMemberRole struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Stable role name.

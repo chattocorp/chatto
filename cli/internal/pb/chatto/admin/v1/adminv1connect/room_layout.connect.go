@@ -71,7 +71,7 @@ const (
 // AdminRoomLayoutServiceClient is a client for the chatto.admin.v1.AdminRoomLayoutService service.
 type AdminRoomLayoutServiceClient interface {
 	// Lists the current room groups, rooms, and sidebar links for the admin
-	// layout editor.
+	// layout editor and sidebar rendering. Requires an authenticated user.
 	ListAdminRoomLayout(context.Context, *connect.Request[v1.ListAdminRoomLayoutRequest]) (*connect.Response[v1.ListAdminRoomLayoutResponse], error)
 	// Creates a room group. Requires role.manage.
 	CreateRoomGroup(context.Context, *connect.Request[v1.CreateRoomGroupRequest]) (*connect.Response[v1.CreateRoomGroupResponse], error)
@@ -253,7 +253,7 @@ func (c *adminRoomLayoutServiceClient) MoveSidebarLinkToGroup(ctx context.Contex
 // service.
 type AdminRoomLayoutServiceHandler interface {
 	// Lists the current room groups, rooms, and sidebar links for the admin
-	// layout editor.
+	// layout editor and sidebar rendering. Requires an authenticated user.
 	ListAdminRoomLayout(context.Context, *connect.Request[v1.ListAdminRoomLayoutRequest]) (*connect.Response[v1.ListAdminRoomLayoutResponse], error)
 	// Creates a room group. Requires role.manage.
 	CreateRoomGroup(context.Context, *connect.Request[v1.CreateRoomGroupRequest]) (*connect.Response[v1.CreateRoomGroupResponse], error)
