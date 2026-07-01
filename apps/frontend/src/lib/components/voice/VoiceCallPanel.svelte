@@ -232,7 +232,7 @@ Room sidebar panel for voice/video calls.
   const activeControlButtonClass = 'btn-success btn-sm h-9 w-full !px-0';
   const dangerControlButtonClass = 'btn-danger btn-sm h-9 w-full !px-0';
   const tileActionToolbarClass =
-    'pointer-events-none absolute top-2 right-2 z-10 flex gap-0.5 rounded-md border border-border bg-surface-100/95 p-0.5 opacity-0 transition-opacity group-hover/media:opacity-100 group-focus-within/media:opacity-100';
+    'pointer-events-none absolute top-1.5 right-1.5 z-10 flex gap-0.5 rounded-md border border-border bg-surface-100/95 p-0.5 opacity-0 transition-opacity group-hover/media:opacity-100 group-focus-within/media:opacity-100';
   const tileActionButtonClass =
     'pointer-events-auto flex h-7 w-7 cursor-pointer items-center justify-center rounded text-muted transition-colors hover:bg-surface-200 hover:text-text focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary';
 
@@ -447,7 +447,7 @@ Room sidebar panel for voice/video calls.
         class="flex w-full flex-1 cursor-pointer flex-col overflow-hidden text-left text-text"
         onclick={(e) => showUserMenu(participant, e)}
       >
-        <div class={['flex min-w-0 items-center gap-2 p-2', showVoiceActions && 'pr-12']}>
+        <div class={['flex min-w-0 items-center gap-2 p-1.5', showVoiceActions && 'pr-12']}>
           <UserAvatar user={participant.avatarUser} size="sm" />
           <span class="min-w-0 flex-1 truncate text-sm font-medium">{participant.displayName}</span>
           <span class="inline-flex h-5 min-w-5 shrink-0 items-center justify-end gap-1.5 text-sm">
@@ -515,7 +515,7 @@ Room sidebar panel for voice/video calls.
         class="flex w-full flex-1 cursor-pointer flex-col overflow-hidden text-left text-text"
         onclick={(e) => showUserMenu(participant, e)}
       >
-        <div class={['flex min-w-0 items-center gap-2 p-2', showVoiceActions && 'pr-12']}>
+        <div class={['flex min-w-0 items-center gap-2 p-1.5', showVoiceActions && 'pr-12']}>
           <UserAvatar user={participant.avatarUser} size="sm" />
           <span class="min-w-0 flex-1 truncate text-sm font-medium">{participant.displayName}</span>
         </div>
@@ -552,7 +552,7 @@ Room sidebar panel for voice/video calls.
       class="flex w-full flex-1 cursor-pointer flex-col overflow-hidden text-left text-text"
       onclick={(e) => showUserMenu(participant, e)}
     >
-      <div class="flex min-w-0 items-center gap-2 p-2">
+      <div class="flex min-w-0 items-center gap-2 p-1.5">
         <UserAvatar user={participant.avatarUser} size="sm" />
         <span class="min-w-0 flex-1 truncate text-sm font-medium">
           {m['voice.screen_title']({ name: participant.displayName })}
@@ -593,7 +593,7 @@ Room sidebar panel for voice/video calls.
     >
       <div
         class={[
-          'flex min-w-0 items-center gap-2 border-b border-border/70 p-3',
+          'flex min-w-0 items-center gap-2 border-b border-border/70 p-1.5',
           !isScreen && !isVideo && isInThisCall && 'pr-12'
         ]}
       >
