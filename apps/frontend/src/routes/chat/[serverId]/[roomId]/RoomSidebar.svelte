@@ -88,7 +88,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
     presentation === 'desktop' && activePanel === 'call' && !!onToggleMaximized
   );
   const showCallFullscreenButton = $derived(
-    presentation === 'desktop' && activePanel === 'call' && maximized
+    presentation === 'desktop' && activePanel === 'call'
   );
 
   // Check if user can start DMs (from centralized server permissions)

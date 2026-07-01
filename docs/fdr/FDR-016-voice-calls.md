@@ -14,7 +14,7 @@ Rooms support real-time voice conversations with optional camera video and video
 - When the current room has an active call, the phone tab is accent-highlighted and pulses while another sidebar tab is selected.
 - Joining the call switches the call tab into participant mode with pinned screen-share tiles first, larger camera video participant cards next, and compact voice-only participant cards after that, without separate Video or Voice section headings. Participant mode exposes neutral speaking indicators, mute state, camera toggle, screen-share toggle, device selector, and hang-up controls.
 - On desktop, the call sidebar can be maximized from the pane header. Maximized mode keeps the app's left navigation sidebars visible, hides the room timeline/content area, and turns the call panel into a stage layout: the first screen share is featured, otherwise the first camera participant is featured, otherwise the first voice participant is featured; remaining screen shares, camera feeds, and voice cards stay visible as secondary tiles.
-- A maximized call can be placed into browser fullscreen from the same pane header. This is separate from maximizing the pane inside the chat route.
+- A desktop call pane can be placed into browser fullscreen from the pane header, whether it is in the normal sidebar width or maximized across the chat route. This is separate from maximizing the pane inside the chat route.
 - Camera and screen-share tiles expose hover controls for feed fullscreen and per-feed audio muting. Fullscreen is local to the viewer's browser. Remote participant mute is also local to the viewer and does not change server state or other participants' audio. Local media tiles show the same mute affordance, wired to the viewer's own microphone mute.
 - While the viewer is in any call, the lower-left current-user card shows the active call room plus quick mute, camera, screen-share, and leave controls so the call remains visible outside the room tab.
 - Other rooms with an active call replace the normal room/DM icon with the same accent phone icon and animated pulse twin used by the call tab so members know there's a conversation happening; clicking that icon opens the room with the call tab selected.
@@ -74,7 +74,7 @@ Rooms support real-time voice conversations with optional camera video and video
 
 ### 8. Fullscreen and local mute are viewer-local controls
 
-**Decision:** Fullscreen controls use the browser Fullscreen API on either an individual media tile or the maximized call pane. Per-feed mute changes only this viewer's local audio: remote participants are muted through LiveKit remote participant volume, and local media tiles reuse the viewer's microphone mute.
+**Decision:** Fullscreen controls use the browser Fullscreen API on either an individual media tile or the desktop call pane. Per-feed mute changes only this viewer's local audio: remote participants are muted through LiveKit remote participant volume, and local media tiles reuse the viewer's microphone mute.
 **Why:** Fullscreen and "I don't want to hear this feed/user right now" are personal presentation choices. They should not create durable call facts, alter room state, or surprise other participants.
 **Tradeoff:** Local mute is intentionally not visible to other participants and does not change the remote participant's published mute state. Users need to distinguish it from the normal microphone mute indicator.
 

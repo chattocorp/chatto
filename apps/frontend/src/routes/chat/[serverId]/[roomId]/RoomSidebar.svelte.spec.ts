@@ -1330,7 +1330,11 @@ describe('RoomSidebar', () => {
     ) as HTMLButtonElement | null;
     expect(maximizeButton).toBeTruthy();
     expect(maximizeButton!.querySelector('.uil--expand-arrows')).toBeTruthy();
-    expect(container.querySelector('[aria-label="Fullscreen call"]')).toBeFalsy();
+    const normalFullscreenButton = container.querySelector(
+      '[aria-label="Fullscreen call"]'
+    ) as HTMLButtonElement | null;
+    expect(normalFullscreenButton).toBeTruthy();
+    expect(normalFullscreenButton!.querySelector('.uil--window-maximize')).toBeTruthy();
 
     maximizeButton!.click();
     await tick();
@@ -1350,9 +1354,7 @@ describe('RoomSidebar', () => {
     ) as HTMLButtonElement | null;
     expect(minimizeButton).toBeTruthy();
     expect(minimizeButton!.querySelector('.uil--compress-arrows')).toBeTruthy();
-    const fullscreenButton = container.querySelector(
-      '[aria-label="Fullscreen call"]'
-    ) as HTMLButtonElement | null;
+    const fullscreenButton = container.querySelector('[aria-label="Fullscreen call"]') as HTMLButtonElement | null;
     expect(fullscreenButton).toBeTruthy();
     expect(fullscreenButton!.querySelector('.uil--window-maximize')).toBeTruthy();
 
@@ -1375,6 +1377,7 @@ describe('RoomSidebar', () => {
     });
 
     expect(container.querySelector('[aria-label="Maximize call"]')).toBeFalsy();
+    expect(container.querySelector('[aria-label="Fullscreen call"]')).toBeFalsy();
 
     await rerender({
       activePanel: 'files',
@@ -1382,6 +1385,7 @@ describe('RoomSidebar', () => {
       onToggleMaximized
     });
     expect(container.querySelector('[aria-label="Maximize call"]')).toBeFalsy();
+    expect(container.querySelector('[aria-label="Fullscreen call"]')).toBeFalsy();
 
     await rerender({
       activePanel: 'call',
@@ -1391,6 +1395,7 @@ describe('RoomSidebar', () => {
       onToggleMaximized
     });
     expect(container.querySelector('[aria-label="Maximize call"]')).toBeFalsy();
+    expect(container.querySelector('[aria-label="Fullscreen call"]')).toBeFalsy();
   });
 
   it('renders overlay presentation without desktop resizing chrome', async () => {
