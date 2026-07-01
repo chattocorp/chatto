@@ -4,6 +4,10 @@
 name = "Chatto"
 url = "http://localhost:$CONDUCTOR_PORT"
 
+[[preview_urls]]
+name = "Mailpit"
+url = "http://localhost:$CONDUCTOR_PORT+9"
+
 [scripts]
 setup = "mise trust && mise setup"
 run_mode = "concurrent"
