@@ -853,7 +853,12 @@ describe('RoomSidebar', () => {
     expect(featured).toBeTruthy();
     expect(featured!.textContent).toContain("Alice's screen");
     expect(featured!.querySelector('video')?.className).toContain('object-contain');
+    const controlsBar = q(container, '[data-testid="call-controls-bar"]');
+    expect(controlsBar).toBeTruthy();
     expect(q(container, '[data-testid="call-device-menu-button"]')).toBeTruthy();
+    expect(featured!.compareDocumentPosition(controlsBar!) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING
+    );
 
     const secondaryList = q(container, '[data-testid="call-secondary-stage-list"]');
     expect(secondaryList).toBeTruthy();

@@ -526,103 +526,107 @@ Room sidebar panel for voice/video calls.
   {/if}
 {/snippet}
 
+{#snippet callControls()}
+  {#if isInThisCall}
+    <div class={['grid grid-cols-5 gap-2', isStageLayout ? 'mx-auto max-w-2xl' : '']}>
+      <button
+        type="button"
+        class={controlButtonClass}
+        title={m['voice.devices']()}
+        aria-label={m['voice.devices']()}
+        data-testid="call-device-menu-button"
+        onclick={openDeviceMenu}
+      >
+        <span class="iconify text-lg uil--setting" aria-hidden="true"></span>
+      </button>
+
+      <button
+        type="button"
+        class={voiceCallState.isCameraEnabled ? activeControlButtonClass : controlButtonClass}
+        title={voiceCallState.isCameraEnabled
+          ? m['voice.turn_off_camera']()
+          : m['voice.turn_on_camera']()}
+        aria-label={voiceCallState.isCameraEnabled
+          ? m['voice.turn_off_camera']()
+          : m['voice.turn_on_camera']()}
+        data-testid="call-camera-toggle"
+        onclick={() => voiceCallState.toggleCamera()}
+      >
+        <span
+          class={[
+            'iconify text-lg',
+            voiceCallState.isCameraEnabled ? 'uil--video' : 'uil--video-slash'
+          ]}
+          aria-hidden="true"
+        ></span>
+      </button>
+
+      <button
+        type="button"
+        class={voiceCallState.isMuted ? controlButtonClass : activeControlButtonClass}
+        title={voiceCallState.isMuted ? m['voice.unmute']() : m['voice.mute']()}
+        aria-label={voiceCallState.isMuted ? m['voice.unmute']() : m['voice.mute']()}
+        data-testid="call-mute-toggle"
+        onclick={() => voiceCallState.toggleMute()}
+      >
+        <span
+          class={[
+            'iconify text-lg',
+            voiceCallState.isMuted ? 'uil--microphone-slash' : 'uil--microphone'
+          ]}
+          aria-hidden="true"
+        ></span>
+      </button>
+
+      <button
+        type="button"
+        class={voiceCallState.isScreenShareEnabled ? activeControlButtonClass : controlButtonClass}
+        title={voiceCallState.isScreenShareEnabled
+          ? m['voice.stop_share_screen']()
+          : m['voice.share_screen']()}
+        aria-label={voiceCallState.isScreenShareEnabled
+          ? m['voice.stop_share_screen']()
+          : m['voice.share_screen']()}
+        data-testid="call-screen-share-toggle"
+        onclick={() => voiceCallState.toggleScreenShare()}
+      >
+        <span class="iconify text-lg uil--desktop" aria-hidden="true"></span>
+      </button>
+
+      <button
+        type="button"
+        class={dangerControlButtonClass}
+        onclick={() => voiceCallState.leave()}
+        title={m['voice.leave']()}
+        aria-label={m['voice.leave']()}
+        data-testid="call-leave-button"
+      >
+        <span class="iconify text-lg uil--phone-slash" aria-hidden="true"></span>
+      </button>
+    </div>
+  {:else}
+    <button
+      type="button"
+      class={['btn-accent w-full btn-sm', isStageLayout ? 'mx-auto max-w-sm' : '']}
+      data-testid="call-join-button"
+      onclick={handleJoin}
+      disabled={isInAnotherCall || isConnecting}
+      title={isInAnotherCall ? m['voice.already_in_another_call']() : joinLabel}
+    >
+      {joinLabel}
+    </button>
+  {/if}
+{/snippet}
+
 <div
   class="flex min-h-0 flex-1 flex-col"
   data-testid={isInThisCall ? 'call-participant-panel' : 'call-observer-panel'}
 >
-  <div class="border-b border-border bg-background p-3">
-    {#if isInThisCall}
-      <div class={['grid grid-cols-5 gap-2', isStageLayout ? 'mx-auto max-w-2xl' : '']}>
-        <button
-          type="button"
-          class={controlButtonClass}
-          title={m['voice.devices']()}
-          aria-label={m['voice.devices']()}
-          data-testid="call-device-menu-button"
-          onclick={openDeviceMenu}
-        >
-          <span class="iconify text-lg uil--setting" aria-hidden="true"></span>
-        </button>
-
-        <button
-          type="button"
-          class={voiceCallState.isCameraEnabled ? activeControlButtonClass : controlButtonClass}
-          title={voiceCallState.isCameraEnabled
-            ? m['voice.turn_off_camera']()
-            : m['voice.turn_on_camera']()}
-          aria-label={voiceCallState.isCameraEnabled
-            ? m['voice.turn_off_camera']()
-            : m['voice.turn_on_camera']()}
-          data-testid="call-camera-toggle"
-          onclick={() => voiceCallState.toggleCamera()}
-        >
-          <span
-            class={[
-              'iconify text-lg',
-              voiceCallState.isCameraEnabled ? 'uil--video' : 'uil--video-slash'
-            ]}
-            aria-hidden="true"
-          ></span>
-        </button>
-
-        <button
-          type="button"
-          class={voiceCallState.isMuted ? controlButtonClass : activeControlButtonClass}
-          title={voiceCallState.isMuted ? m['voice.unmute']() : m['voice.mute']()}
-          aria-label={voiceCallState.isMuted ? m['voice.unmute']() : m['voice.mute']()}
-          data-testid="call-mute-toggle"
-          onclick={() => voiceCallState.toggleMute()}
-        >
-          <span
-            class={[
-              'iconify text-lg',
-              voiceCallState.isMuted ? 'uil--microphone-slash' : 'uil--microphone'
-            ]}
-            aria-hidden="true"
-          ></span>
-        </button>
-
-        <button
-          type="button"
-          class={voiceCallState.isScreenShareEnabled
-            ? activeControlButtonClass
-            : controlButtonClass}
-          title={voiceCallState.isScreenShareEnabled
-            ? m['voice.stop_share_screen']()
-            : m['voice.share_screen']()}
-          aria-label={voiceCallState.isScreenShareEnabled
-            ? m['voice.stop_share_screen']()
-            : m['voice.share_screen']()}
-          data-testid="call-screen-share-toggle"
-          onclick={() => voiceCallState.toggleScreenShare()}
-        >
-          <span class="iconify text-lg uil--desktop" aria-hidden="true"></span>
-        </button>
-
-        <button
-          type="button"
-          class={dangerControlButtonClass}
-          onclick={() => voiceCallState.leave()}
-          title={m['voice.leave']()}
-          aria-label={m['voice.leave']()}
-          data-testid="call-leave-button"
-        >
-          <span class="iconify text-lg uil--phone-slash" aria-hidden="true"></span>
-        </button>
-      </div>
-    {:else}
-      <button
-        type="button"
-        class={['btn-accent w-full btn-sm', isStageLayout ? 'mx-auto max-w-sm' : '']}
-        data-testid="call-join-button"
-        onclick={handleJoin}
-        disabled={isInAnotherCall || isConnecting}
-        title={isInAnotherCall ? m['voice.already_in_another_call']() : joinLabel}
-      >
-        {joinLabel}
-      </button>
-    {/if}
-  </div>
+  {#if !isStageLayout}
+    <div class="border-b border-border bg-background p-3" data-testid="call-controls-bar">
+      {@render callControls()}
+    </div>
+  {/if}
 
   <div
     class={[
@@ -678,6 +682,12 @@ Room sidebar panel for voice/video calls.
       {/if}
     {/if}
   </div>
+
+  {#if isStageLayout}
+    <div class="border-t border-border bg-background p-3" data-testid="call-controls-bar">
+      {@render callControls()}
+    </div>
+  {/if}
 </div>
 
 {#if deviceMenuAnchor}
