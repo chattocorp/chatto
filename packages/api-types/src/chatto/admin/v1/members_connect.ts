@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { AssignRoleRequest, AssignRoleResponse, ClearUsernameCooldownRequest, ClearUsernameCooldownResponse, DeleteUserRequest, DeleteUserResponse, GetMemberRequest, GetMemberResponse, ListMembersRequest, ListMembersResponse, RevokeRoleRequest, RevokeRoleResponse, SetUserPasswordRequest, SetUserPasswordResponse, UpdateUserRequest, UpdateUserResponse } from "./members_pb.js";
+import { AssignRoleRequest, AssignRoleResponse, BatchGetMembersRequest, BatchGetMembersResponse, ClearUsernameCooldownRequest, ClearUsernameCooldownResponse, DeleteUserRequest, DeleteUserResponse, GetMemberRequest, GetMemberResponse, ListMembersRequest, ListMembersResponse, RevokeRoleRequest, RevokeRoleResponse, SetUserPasswordRequest, SetUserPasswordResponse, UpdateUserRequest, UpdateUserResponse } from "./members_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -36,6 +36,17 @@ export const AdminMemberService = {
       name: "GetMember",
       I: GetMemberRequest,
       O: GetMemberResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Gets server member rows for multiple users. Requires admin.view-users.
+     *
+     * @generated from rpc chatto.admin.v1.AdminMemberService.BatchGetMembers
+     */
+    batchGetMembers: {
+      name: "BatchGetMembers",
+      I: BatchGetMembersRequest,
+      O: BatchGetMembersResponse,
       kind: MethodKind.Unary,
     },
     /**

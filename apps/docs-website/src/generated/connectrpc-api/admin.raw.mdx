@@ -449,6 +449,39 @@ Server-admin member detail payload.
 | `viewer_can_manage_user_permissions` | `bool` | Whether the caller may edit direct user permissions. |
 
 
+<a id="chatto-admin-v1-AdminMemberService-BatchGetMembers"></a>
+
+### BatchGetMembers
+
+Gets server member rows for multiple users. Requires admin.view-users.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminMemberService/BatchGetMembers
+```
+
+<a id="chatto-admin-v1-BatchGetMembersRequest"></a>
+
+#### Input: BatchGetMembersRequest
+
+Request server-admin member rows for a set of stable user IDs.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_ids` | `repeated string` | Required target user IDs. Unknown IDs are omitted from the response. |
+
+
+<a id="chatto-admin-v1-BatchGetMembersResponse"></a>
+
+#### Result: BatchGetMembersResponse
+
+Batch server-admin member response.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `members` | repeated [`AdminMember`](#chatto-admin-v1-AdminMember) | Found members. The server preserves first-seen request order and de-duplicates repeated IDs. |
+| `roles` | `repeated chatto.api.v1.Role` | Public roles for display-name lookup. |
+
+
 <a id="chatto-admin-v1-AdminMemberService-AssignRole"></a>
 
 ### AssignRole

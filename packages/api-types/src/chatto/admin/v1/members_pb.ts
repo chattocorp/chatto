@@ -461,6 +461,97 @@ export class GetMemberResponse extends Message<GetMemberResponse> {
 }
 
 /**
+ * Request server-admin member rows for a set of stable user IDs.
+ *
+ * @generated from message chatto.admin.v1.BatchGetMembersRequest
+ */
+export class BatchGetMembersRequest extends Message<BatchGetMembersRequest> {
+  /**
+   * Required target user IDs. Unknown IDs are omitted from the response.
+   *
+   * @generated from field: repeated string user_ids = 1;
+   */
+  userIds: string[] = [];
+
+  constructor(data?: PartialMessage<BatchGetMembersRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.admin.v1.BatchGetMembersRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "user_ids", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BatchGetMembersRequest {
+    return new BatchGetMembersRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): BatchGetMembersRequest {
+    return new BatchGetMembersRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): BatchGetMembersRequest {
+    return new BatchGetMembersRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: BatchGetMembersRequest | PlainMessage<BatchGetMembersRequest> | undefined, b: BatchGetMembersRequest | PlainMessage<BatchGetMembersRequest> | undefined): boolean {
+    return proto3.util.equals(BatchGetMembersRequest, a, b);
+  }
+}
+
+/**
+ * Batch server-admin member response.
+ *
+ * @generated from message chatto.admin.v1.BatchGetMembersResponse
+ */
+export class BatchGetMembersResponse extends Message<BatchGetMembersResponse> {
+  /**
+   * Found members. The server preserves first-seen request order and
+   * de-duplicates repeated IDs.
+   *
+   * @generated from field: repeated chatto.admin.v1.AdminMember members = 1;
+   */
+  members: AdminMember[] = [];
+
+  /**
+   * Public roles for display-name lookup.
+   *
+   * @generated from field: repeated chatto.api.v1.Role roles = 2;
+   */
+  roles: Role[] = [];
+
+  constructor(data?: PartialMessage<BatchGetMembersResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.admin.v1.BatchGetMembersResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "members", kind: "message", T: AdminMember, repeated: true },
+    { no: 2, name: "roles", kind: "message", T: Role, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BatchGetMembersResponse {
+    return new BatchGetMembersResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): BatchGetMembersResponse {
+    return new BatchGetMembersResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): BatchGetMembersResponse {
+    return new BatchGetMembersResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: BatchGetMembersResponse | PlainMessage<BatchGetMembersResponse> | undefined, b: BatchGetMembersResponse | PlainMessage<BatchGetMembersResponse> | undefined): boolean {
+    return proto3.util.equals(BatchGetMembersResponse, a, b);
+  }
+}
+
+/**
  * Request to assign a role to a user.
  *
  * @generated from message chatto.admin.v1.AssignRoleRequest

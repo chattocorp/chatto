@@ -36,9 +36,21 @@ const (
 	// MemberDirectoryServiceListServerMembersProcedure is the fully-qualified name of the
 	// MemberDirectoryService's ListServerMembers RPC.
 	MemberDirectoryServiceListServerMembersProcedure = "/chatto.api.v1.MemberDirectoryService/ListServerMembers"
+	// MemberDirectoryServiceGetServerMemberProcedure is the fully-qualified name of the
+	// MemberDirectoryService's GetServerMember RPC.
+	MemberDirectoryServiceGetServerMemberProcedure = "/chatto.api.v1.MemberDirectoryService/GetServerMember"
+	// MemberDirectoryServiceBatchGetServerMembersProcedure is the fully-qualified name of the
+	// MemberDirectoryService's BatchGetServerMembers RPC.
+	MemberDirectoryServiceBatchGetServerMembersProcedure = "/chatto.api.v1.MemberDirectoryService/BatchGetServerMembers"
 	// MemberDirectoryServiceListRoomMembersProcedure is the fully-qualified name of the
 	// MemberDirectoryService's ListRoomMembers RPC.
 	MemberDirectoryServiceListRoomMembersProcedure = "/chatto.api.v1.MemberDirectoryService/ListRoomMembers"
+	// MemberDirectoryServiceGetRoomMemberProcedure is the fully-qualified name of the
+	// MemberDirectoryService's GetRoomMember RPC.
+	MemberDirectoryServiceGetRoomMemberProcedure = "/chatto.api.v1.MemberDirectoryService/GetRoomMember"
+	// MemberDirectoryServiceBatchGetRoomMembersProcedure is the fully-qualified name of the
+	// MemberDirectoryService's BatchGetRoomMembers RPC.
+	MemberDirectoryServiceBatchGetRoomMembersProcedure = "/chatto.api.v1.MemberDirectoryService/BatchGetRoomMembers"
 )
 
 // MemberDirectoryServiceClient is a client for the chatto.api.v1.MemberDirectoryService service.
@@ -46,8 +58,19 @@ type MemberDirectoryServiceClient interface {
 	// Lists authenticated server members. Every authenticated user is a server
 	// member; admin-sensitive fields stay out of this public row shape.
 	ListServerMembers(context.Context, *connect.Request[v1.ListServerMembersRequest]) (*connect.Response[v1.ListServerMembersResponse], error)
+	// Gets one authenticated server member. Returns NOT_FOUND when the user ID is
+	// unknown.
+	GetServerMember(context.Context, *connect.Request[v1.GetServerMemberRequest]) (*connect.Response[v1.GetServerMemberResponse], error)
+	// Gets authenticated server member rows for multiple users.
+	BatchGetServerMembers(context.Context, *connect.Request[v1.BatchGetServerMembersRequest]) (*connect.Response[v1.BatchGetServerMembersResponse], error)
 	// Lists explicit members of a room. The caller must be a member of the room.
 	ListRoomMembers(context.Context, *connect.Request[v1.ListRoomMembersRequest]) (*connect.Response[v1.ListRoomMembersResponse], error)
+	// Gets one explicit member of a room. The caller must be a member of the
+	// room. Returns NOT_FOUND when the target is unknown or not a room member.
+	GetRoomMember(context.Context, *connect.Request[v1.GetRoomMemberRequest]) (*connect.Response[v1.GetRoomMemberResponse], error)
+	// Gets explicit room member rows for multiple users. The caller must be a
+	// member of the room.
+	BatchGetRoomMembers(context.Context, *connect.Request[v1.BatchGetRoomMembersRequest]) (*connect.Response[v1.BatchGetRoomMembersResponse], error)
 }
 
 // NewMemberDirectoryServiceClient constructs a client for the chatto.api.v1.MemberDirectoryService
@@ -67,10 +90,34 @@ func NewMemberDirectoryServiceClient(httpClient connect.HTTPClient, baseURL stri
 			connect.WithSchema(memberDirectoryServiceMethods.ByName("ListServerMembers")),
 			connect.WithClientOptions(opts...),
 		),
+		getServerMember: connect.NewClient[v1.GetServerMemberRequest, v1.GetServerMemberResponse](
+			httpClient,
+			baseURL+MemberDirectoryServiceGetServerMemberProcedure,
+			connect.WithSchema(memberDirectoryServiceMethods.ByName("GetServerMember")),
+			connect.WithClientOptions(opts...),
+		),
+		batchGetServerMembers: connect.NewClient[v1.BatchGetServerMembersRequest, v1.BatchGetServerMembersResponse](
+			httpClient,
+			baseURL+MemberDirectoryServiceBatchGetServerMembersProcedure,
+			connect.WithSchema(memberDirectoryServiceMethods.ByName("BatchGetServerMembers")),
+			connect.WithClientOptions(opts...),
+		),
 		listRoomMembers: connect.NewClient[v1.ListRoomMembersRequest, v1.ListRoomMembersResponse](
 			httpClient,
 			baseURL+MemberDirectoryServiceListRoomMembersProcedure,
 			connect.WithSchema(memberDirectoryServiceMethods.ByName("ListRoomMembers")),
+			connect.WithClientOptions(opts...),
+		),
+		getRoomMember: connect.NewClient[v1.GetRoomMemberRequest, v1.GetRoomMemberResponse](
+			httpClient,
+			baseURL+MemberDirectoryServiceGetRoomMemberProcedure,
+			connect.WithSchema(memberDirectoryServiceMethods.ByName("GetRoomMember")),
+			connect.WithClientOptions(opts...),
+		),
+		batchGetRoomMembers: connect.NewClient[v1.BatchGetRoomMembersRequest, v1.BatchGetRoomMembersResponse](
+			httpClient,
+			baseURL+MemberDirectoryServiceBatchGetRoomMembersProcedure,
+			connect.WithSchema(memberDirectoryServiceMethods.ByName("BatchGetRoomMembers")),
 			connect.WithClientOptions(opts...),
 		),
 	}
@@ -78,8 +125,12 @@ func NewMemberDirectoryServiceClient(httpClient connect.HTTPClient, baseURL stri
 
 // memberDirectoryServiceClient implements MemberDirectoryServiceClient.
 type memberDirectoryServiceClient struct {
-	listServerMembers *connect.Client[v1.ListServerMembersRequest, v1.ListServerMembersResponse]
-	listRoomMembers   *connect.Client[v1.ListRoomMembersRequest, v1.ListRoomMembersResponse]
+	listServerMembers     *connect.Client[v1.ListServerMembersRequest, v1.ListServerMembersResponse]
+	getServerMember       *connect.Client[v1.GetServerMemberRequest, v1.GetServerMemberResponse]
+	batchGetServerMembers *connect.Client[v1.BatchGetServerMembersRequest, v1.BatchGetServerMembersResponse]
+	listRoomMembers       *connect.Client[v1.ListRoomMembersRequest, v1.ListRoomMembersResponse]
+	getRoomMember         *connect.Client[v1.GetRoomMemberRequest, v1.GetRoomMemberResponse]
+	batchGetRoomMembers   *connect.Client[v1.BatchGetRoomMembersRequest, v1.BatchGetRoomMembersResponse]
 }
 
 // ListServerMembers calls chatto.api.v1.MemberDirectoryService.ListServerMembers.
@@ -87,9 +138,29 @@ func (c *memberDirectoryServiceClient) ListServerMembers(ctx context.Context, re
 	return c.listServerMembers.CallUnary(ctx, req)
 }
 
+// GetServerMember calls chatto.api.v1.MemberDirectoryService.GetServerMember.
+func (c *memberDirectoryServiceClient) GetServerMember(ctx context.Context, req *connect.Request[v1.GetServerMemberRequest]) (*connect.Response[v1.GetServerMemberResponse], error) {
+	return c.getServerMember.CallUnary(ctx, req)
+}
+
+// BatchGetServerMembers calls chatto.api.v1.MemberDirectoryService.BatchGetServerMembers.
+func (c *memberDirectoryServiceClient) BatchGetServerMembers(ctx context.Context, req *connect.Request[v1.BatchGetServerMembersRequest]) (*connect.Response[v1.BatchGetServerMembersResponse], error) {
+	return c.batchGetServerMembers.CallUnary(ctx, req)
+}
+
 // ListRoomMembers calls chatto.api.v1.MemberDirectoryService.ListRoomMembers.
 func (c *memberDirectoryServiceClient) ListRoomMembers(ctx context.Context, req *connect.Request[v1.ListRoomMembersRequest]) (*connect.Response[v1.ListRoomMembersResponse], error) {
 	return c.listRoomMembers.CallUnary(ctx, req)
+}
+
+// GetRoomMember calls chatto.api.v1.MemberDirectoryService.GetRoomMember.
+func (c *memberDirectoryServiceClient) GetRoomMember(ctx context.Context, req *connect.Request[v1.GetRoomMemberRequest]) (*connect.Response[v1.GetRoomMemberResponse], error) {
+	return c.getRoomMember.CallUnary(ctx, req)
+}
+
+// BatchGetRoomMembers calls chatto.api.v1.MemberDirectoryService.BatchGetRoomMembers.
+func (c *memberDirectoryServiceClient) BatchGetRoomMembers(ctx context.Context, req *connect.Request[v1.BatchGetRoomMembersRequest]) (*connect.Response[v1.BatchGetRoomMembersResponse], error) {
+	return c.batchGetRoomMembers.CallUnary(ctx, req)
 }
 
 // MemberDirectoryServiceHandler is an implementation of the chatto.api.v1.MemberDirectoryService
@@ -98,8 +169,19 @@ type MemberDirectoryServiceHandler interface {
 	// Lists authenticated server members. Every authenticated user is a server
 	// member; admin-sensitive fields stay out of this public row shape.
 	ListServerMembers(context.Context, *connect.Request[v1.ListServerMembersRequest]) (*connect.Response[v1.ListServerMembersResponse], error)
+	// Gets one authenticated server member. Returns NOT_FOUND when the user ID is
+	// unknown.
+	GetServerMember(context.Context, *connect.Request[v1.GetServerMemberRequest]) (*connect.Response[v1.GetServerMemberResponse], error)
+	// Gets authenticated server member rows for multiple users.
+	BatchGetServerMembers(context.Context, *connect.Request[v1.BatchGetServerMembersRequest]) (*connect.Response[v1.BatchGetServerMembersResponse], error)
 	// Lists explicit members of a room. The caller must be a member of the room.
 	ListRoomMembers(context.Context, *connect.Request[v1.ListRoomMembersRequest]) (*connect.Response[v1.ListRoomMembersResponse], error)
+	// Gets one explicit member of a room. The caller must be a member of the
+	// room. Returns NOT_FOUND when the target is unknown or not a room member.
+	GetRoomMember(context.Context, *connect.Request[v1.GetRoomMemberRequest]) (*connect.Response[v1.GetRoomMemberResponse], error)
+	// Gets explicit room member rows for multiple users. The caller must be a
+	// member of the room.
+	BatchGetRoomMembers(context.Context, *connect.Request[v1.BatchGetRoomMembersRequest]) (*connect.Response[v1.BatchGetRoomMembersResponse], error)
 }
 
 // NewMemberDirectoryServiceHandler builds an HTTP handler from the service implementation. It
@@ -115,18 +197,50 @@ func NewMemberDirectoryServiceHandler(svc MemberDirectoryServiceHandler, opts ..
 		connect.WithSchema(memberDirectoryServiceMethods.ByName("ListServerMembers")),
 		connect.WithHandlerOptions(opts...),
 	)
+	memberDirectoryServiceGetServerMemberHandler := connect.NewUnaryHandler(
+		MemberDirectoryServiceGetServerMemberProcedure,
+		svc.GetServerMember,
+		connect.WithSchema(memberDirectoryServiceMethods.ByName("GetServerMember")),
+		connect.WithHandlerOptions(opts...),
+	)
+	memberDirectoryServiceBatchGetServerMembersHandler := connect.NewUnaryHandler(
+		MemberDirectoryServiceBatchGetServerMembersProcedure,
+		svc.BatchGetServerMembers,
+		connect.WithSchema(memberDirectoryServiceMethods.ByName("BatchGetServerMembers")),
+		connect.WithHandlerOptions(opts...),
+	)
 	memberDirectoryServiceListRoomMembersHandler := connect.NewUnaryHandler(
 		MemberDirectoryServiceListRoomMembersProcedure,
 		svc.ListRoomMembers,
 		connect.WithSchema(memberDirectoryServiceMethods.ByName("ListRoomMembers")),
 		connect.WithHandlerOptions(opts...),
 	)
+	memberDirectoryServiceGetRoomMemberHandler := connect.NewUnaryHandler(
+		MemberDirectoryServiceGetRoomMemberProcedure,
+		svc.GetRoomMember,
+		connect.WithSchema(memberDirectoryServiceMethods.ByName("GetRoomMember")),
+		connect.WithHandlerOptions(opts...),
+	)
+	memberDirectoryServiceBatchGetRoomMembersHandler := connect.NewUnaryHandler(
+		MemberDirectoryServiceBatchGetRoomMembersProcedure,
+		svc.BatchGetRoomMembers,
+		connect.WithSchema(memberDirectoryServiceMethods.ByName("BatchGetRoomMembers")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/chatto.api.v1.MemberDirectoryService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case MemberDirectoryServiceListServerMembersProcedure:
 			memberDirectoryServiceListServerMembersHandler.ServeHTTP(w, r)
+		case MemberDirectoryServiceGetServerMemberProcedure:
+			memberDirectoryServiceGetServerMemberHandler.ServeHTTP(w, r)
+		case MemberDirectoryServiceBatchGetServerMembersProcedure:
+			memberDirectoryServiceBatchGetServerMembersHandler.ServeHTTP(w, r)
 		case MemberDirectoryServiceListRoomMembersProcedure:
 			memberDirectoryServiceListRoomMembersHandler.ServeHTTP(w, r)
+		case MemberDirectoryServiceGetRoomMemberProcedure:
+			memberDirectoryServiceGetRoomMemberHandler.ServeHTTP(w, r)
+		case MemberDirectoryServiceBatchGetRoomMembersProcedure:
+			memberDirectoryServiceBatchGetRoomMembersHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -140,6 +254,22 @@ func (UnimplementedMemberDirectoryServiceHandler) ListServerMembers(context.Cont
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.MemberDirectoryService.ListServerMembers is not implemented"))
 }
 
+func (UnimplementedMemberDirectoryServiceHandler) GetServerMember(context.Context, *connect.Request[v1.GetServerMemberRequest]) (*connect.Response[v1.GetServerMemberResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.MemberDirectoryService.GetServerMember is not implemented"))
+}
+
+func (UnimplementedMemberDirectoryServiceHandler) BatchGetServerMembers(context.Context, *connect.Request[v1.BatchGetServerMembersRequest]) (*connect.Response[v1.BatchGetServerMembersResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.MemberDirectoryService.BatchGetServerMembers is not implemented"))
+}
+
 func (UnimplementedMemberDirectoryServiceHandler) ListRoomMembers(context.Context, *connect.Request[v1.ListRoomMembersRequest]) (*connect.Response[v1.ListRoomMembersResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.MemberDirectoryService.ListRoomMembers is not implemented"))
+}
+
+func (UnimplementedMemberDirectoryServiceHandler) GetRoomMember(context.Context, *connect.Request[v1.GetRoomMemberRequest]) (*connect.Response[v1.GetRoomMemberResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.MemberDirectoryService.GetRoomMember is not implemented"))
+}
+
+func (UnimplementedMemberDirectoryServiceHandler) BatchGetRoomMembers(context.Context, *connect.Request[v1.BatchGetRoomMembersRequest]) (*connect.Response[v1.BatchGetRoomMembersResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.MemberDirectoryService.BatchGetRoomMembers is not implemented"))
 }

@@ -39,6 +39,9 @@ const (
 	// AdminMemberServiceGetMemberProcedure is the fully-qualified name of the AdminMemberService's
 	// GetMember RPC.
 	AdminMemberServiceGetMemberProcedure = "/chatto.admin.v1.AdminMemberService/GetMember"
+	// AdminMemberServiceBatchGetMembersProcedure is the fully-qualified name of the
+	// AdminMemberService's BatchGetMembers RPC.
+	AdminMemberServiceBatchGetMembersProcedure = "/chatto.admin.v1.AdminMemberService/BatchGetMembers"
 	// AdminMemberServiceAssignRoleProcedure is the fully-qualified name of the AdminMemberService's
 	// AssignRole RPC.
 	AdminMemberServiceAssignRoleProcedure = "/chatto.admin.v1.AdminMemberService/AssignRole"
@@ -67,6 +70,8 @@ type AdminMemberServiceClient interface {
 	// Gets one server member plus role/permission metadata for admin details.
 	// Requires admin.view-users. Returns NOT_FOUND when the user does not exist.
 	GetMember(context.Context, *connect.Request[v1.GetMemberRequest]) (*connect.Response[v1.GetMemberResponse], error)
+	// Gets server member rows for multiple users. Requires admin.view-users.
+	BatchGetMembers(context.Context, *connect.Request[v1.BatchGetMembersRequest]) (*connect.Response[v1.BatchGetMembersResponse], error)
 	// Assigns a role to a user. Requires role.assign.
 	AssignRole(context.Context, *connect.Request[v1.AssignRoleRequest]) (*connect.Response[v1.AssignRoleResponse], error)
 	// Revokes a role from a user. Requires role.assign.
@@ -108,6 +113,12 @@ func NewAdminMemberServiceClient(httpClient connect.HTTPClient, baseURL string, 
 			httpClient,
 			baseURL+AdminMemberServiceGetMemberProcedure,
 			connect.WithSchema(adminMemberServiceMethods.ByName("GetMember")),
+			connect.WithClientOptions(opts...),
+		),
+		batchGetMembers: connect.NewClient[v1.BatchGetMembersRequest, v1.BatchGetMembersResponse](
+			httpClient,
+			baseURL+AdminMemberServiceBatchGetMembersProcedure,
+			connect.WithSchema(adminMemberServiceMethods.ByName("BatchGetMembers")),
 			connect.WithClientOptions(opts...),
 		),
 		assignRole: connect.NewClient[v1.AssignRoleRequest, v1.AssignRoleResponse](
@@ -153,6 +164,7 @@ func NewAdminMemberServiceClient(httpClient connect.HTTPClient, baseURL string, 
 type adminMemberServiceClient struct {
 	listMembers           *connect.Client[v1.ListMembersRequest, v1.ListMembersResponse]
 	getMember             *connect.Client[v1.GetMemberRequest, v1.GetMemberResponse]
+	batchGetMembers       *connect.Client[v1.BatchGetMembersRequest, v1.BatchGetMembersResponse]
 	assignRole            *connect.Client[v1.AssignRoleRequest, v1.AssignRoleResponse]
 	revokeRole            *connect.Client[v1.RevokeRoleRequest, v1.RevokeRoleResponse]
 	updateUser            *connect.Client[v1.UpdateUserRequest, v1.UpdateUserResponse]
@@ -169,6 +181,11 @@ func (c *adminMemberServiceClient) ListMembers(ctx context.Context, req *connect
 // GetMember calls chatto.admin.v1.AdminMemberService.GetMember.
 func (c *adminMemberServiceClient) GetMember(ctx context.Context, req *connect.Request[v1.GetMemberRequest]) (*connect.Response[v1.GetMemberResponse], error) {
 	return c.getMember.CallUnary(ctx, req)
+}
+
+// BatchGetMembers calls chatto.admin.v1.AdminMemberService.BatchGetMembers.
+func (c *adminMemberServiceClient) BatchGetMembers(ctx context.Context, req *connect.Request[v1.BatchGetMembersRequest]) (*connect.Response[v1.BatchGetMembersResponse], error) {
+	return c.batchGetMembers.CallUnary(ctx, req)
 }
 
 // AssignRole calls chatto.admin.v1.AdminMemberService.AssignRole.
@@ -209,6 +226,8 @@ type AdminMemberServiceHandler interface {
 	// Gets one server member plus role/permission metadata for admin details.
 	// Requires admin.view-users. Returns NOT_FOUND when the user does not exist.
 	GetMember(context.Context, *connect.Request[v1.GetMemberRequest]) (*connect.Response[v1.GetMemberResponse], error)
+	// Gets server member rows for multiple users. Requires admin.view-users.
+	BatchGetMembers(context.Context, *connect.Request[v1.BatchGetMembersRequest]) (*connect.Response[v1.BatchGetMembersResponse], error)
 	// Assigns a role to a user. Requires role.assign.
 	AssignRole(context.Context, *connect.Request[v1.AssignRoleRequest]) (*connect.Response[v1.AssignRoleResponse], error)
 	// Revokes a role from a user. Requires role.assign.
@@ -246,6 +265,12 @@ func NewAdminMemberServiceHandler(svc AdminMemberServiceHandler, opts ...connect
 		AdminMemberServiceGetMemberProcedure,
 		svc.GetMember,
 		connect.WithSchema(adminMemberServiceMethods.ByName("GetMember")),
+		connect.WithHandlerOptions(opts...),
+	)
+	adminMemberServiceBatchGetMembersHandler := connect.NewUnaryHandler(
+		AdminMemberServiceBatchGetMembersProcedure,
+		svc.BatchGetMembers,
+		connect.WithSchema(adminMemberServiceMethods.ByName("BatchGetMembers")),
 		connect.WithHandlerOptions(opts...),
 	)
 	adminMemberServiceAssignRoleHandler := connect.NewUnaryHandler(
@@ -290,6 +315,8 @@ func NewAdminMemberServiceHandler(svc AdminMemberServiceHandler, opts ...connect
 			adminMemberServiceListMembersHandler.ServeHTTP(w, r)
 		case AdminMemberServiceGetMemberProcedure:
 			adminMemberServiceGetMemberHandler.ServeHTTP(w, r)
+		case AdminMemberServiceBatchGetMembersProcedure:
+			adminMemberServiceBatchGetMembersHandler.ServeHTTP(w, r)
 		case AdminMemberServiceAssignRoleProcedure:
 			adminMemberServiceAssignRoleHandler.ServeHTTP(w, r)
 		case AdminMemberServiceRevokeRoleProcedure:
@@ -317,6 +344,10 @@ func (UnimplementedAdminMemberServiceHandler) ListMembers(context.Context, *conn
 
 func (UnimplementedAdminMemberServiceHandler) GetMember(context.Context, *connect.Request[v1.GetMemberRequest]) (*connect.Response[v1.GetMemberResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.admin.v1.AdminMemberService.GetMember is not implemented"))
+}
+
+func (UnimplementedAdminMemberServiceHandler) BatchGetMembers(context.Context, *connect.Request[v1.BatchGetMembersRequest]) (*connect.Response[v1.BatchGetMembersResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.admin.v1.AdminMemberService.BatchGetMembers is not implemented"))
 }
 
 func (UnimplementedAdminMemberServiceHandler) AssignRole(context.Context, *connect.Request[v1.AssignRoleRequest]) (*connect.Response[v1.AssignRoleResponse], error) {

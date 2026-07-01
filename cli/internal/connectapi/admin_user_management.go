@@ -82,6 +82,29 @@ func (s *adminUserManagementService) GetMember(ctx context.Context, req *connect
 	return connect.NewResponse(response), nil
 }
 
+func (s *adminUserManagementService) BatchGetMembers(ctx context.Context, req *connect.Request[adminv1.BatchGetMembersRequest]) (*connect.Response[adminv1.BatchGetMembersResponse], error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	members, err := s.api.core.BatchGetAdminMembers(ctx, caller.UserID, req.Msg.GetUserIds())
+	if err != nil {
+		return nil, connectError(err)
+	}
+	response := &adminv1.BatchGetMembersResponse{
+		Members: make([]*adminv1.AdminMember, 0, len(members.Users)),
+		Roles:   make([]*apiv1.Role, 0, len(members.Roles)),
+	}
+	for _, user := range members.Users {
+		response.Members = append(response.Members, s.adminMember(ctx, user))
+	}
+	for _, role := range members.Roles {
+		response.Roles = append(response.Roles, publicAPIRoleFromAdminMemberSummary(role))
+	}
+	return connect.NewResponse(response), nil
+}
+
 func (s *adminUserManagementService) AssignRole(ctx context.Context, req *connect.Request[adminv1.AssignRoleRequest]) (*connect.Response[adminv1.AssignRoleResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {

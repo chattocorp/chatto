@@ -40,6 +40,37 @@ message ListServerMembersResponse {
   PageInfo page = 4;
 }
 
+// Request one authenticated server member by stable user ID.
+message GetServerMemberRequest {
+  // Required target user ID.
+  string user_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+// Server member response.
+message GetServerMemberResponse {
+  // Requested member.
+  DirectoryMember member = 1;
+}
+
+// Request server member rows for a set of stable user IDs.
+message BatchGetServerMembersRequest {
+  // Required target user IDs. Unknown IDs are omitted from the response.
+  repeated string user_ids = 1 [(buf.validate.field).repeated = {
+    min_items: 1
+    max_items: 100
+    items: {
+      string: {min_len: 1}
+    }
+  }];
+}
+
+// Batch server member response.
+message BatchGetServerMembersResponse {
+  // Found members. The server preserves first-seen request order and
+  // de-duplicates repeated IDs.
+  repeated DirectoryMember members = 1;
+}
+
 // Request for members of one room.
 message ListRoomMembersRequest {
   reserved 3, 4;
@@ -64,11 +95,58 @@ message ListRoomMembersResponse {
   PageInfo page = 4;
 }
 
+// Request one member of one room by stable user ID.
+message GetRoomMemberRequest {
+  // Required room ID.
+  string room_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Required target user ID.
+  string user_id = 2 [(buf.validate.field).string.min_len = 1];
+}
+
+// Room member response.
+message GetRoomMemberResponse {
+  // Requested room member.
+  DirectoryMember member = 1;
+}
+
+// Request room member rows for a set of stable user IDs.
+message BatchGetRoomMembersRequest {
+  // Required room ID.
+  string room_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Required target user IDs. Unknown IDs and users that are not members of the
+  // room are omitted from the response.
+  repeated string user_ids = 2 [(buf.validate.field).repeated = {
+    min_items: 1
+    max_items: 100
+    items: {
+      string: {min_len: 1}
+    }
+  }];
+}
+
+// Batch room member response.
+message BatchGetRoomMembersResponse {
+  // Found members. The server preserves first-seen request order and
+  // de-duplicates repeated IDs.
+  repeated DirectoryMember members = 1;
+}
+
 // Reads server and room member directories.
 service MemberDirectoryService {
   // Lists authenticated server members. Every authenticated user is a server
   // member; admin-sensitive fields stay out of this public row shape.
   rpc ListServerMembers(ListServerMembersRequest) returns (ListServerMembersResponse);
+  // Gets one authenticated server member. Returns NOT_FOUND when the user ID is
+  // unknown.
+  rpc GetServerMember(GetServerMemberRequest) returns (GetServerMemberResponse);
+  // Gets authenticated server member rows for multiple users.
+  rpc BatchGetServerMembers(BatchGetServerMembersRequest) returns (BatchGetServerMembersResponse);
   // Lists explicit members of a room. The caller must be a member of the room.
   rpc ListRoomMembers(ListRoomMembersRequest) returns (ListRoomMembersResponse);
+  // Gets one explicit member of a room. The caller must be a member of the
+  // room. Returns NOT_FOUND when the target is unknown or not a room member.
+  rpc GetRoomMember(GetRoomMemberRequest) returns (GetRoomMemberResponse);
+  // Gets explicit room member rows for multiple users. The caller must be a
+  // member of the room.
+  rpc BatchGetRoomMembers(BatchGetRoomMembersRequest) returns (BatchGetRoomMembersResponse);
 }

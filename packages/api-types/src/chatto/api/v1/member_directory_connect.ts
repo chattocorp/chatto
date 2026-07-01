@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ListRoomMembersRequest, ListRoomMembersResponse, ListServerMembersRequest, ListServerMembersResponse } from "./member_directory_pb.js";
+import { BatchGetRoomMembersRequest, BatchGetRoomMembersResponse, BatchGetServerMembersRequest, BatchGetServerMembersResponse, GetRoomMemberRequest, GetRoomMemberResponse, GetServerMemberRequest, GetServerMemberResponse, ListRoomMembersRequest, ListRoomMembersResponse, ListServerMembersRequest, ListServerMembersResponse } from "./member_directory_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -27,6 +27,29 @@ export const MemberDirectoryService = {
       kind: MethodKind.Unary,
     },
     /**
+     * Gets one authenticated server member. Returns NOT_FOUND when the user ID is
+     * unknown.
+     *
+     * @generated from rpc chatto.api.v1.MemberDirectoryService.GetServerMember
+     */
+    getServerMember: {
+      name: "GetServerMember",
+      I: GetServerMemberRequest,
+      O: GetServerMemberResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Gets authenticated server member rows for multiple users.
+     *
+     * @generated from rpc chatto.api.v1.MemberDirectoryService.BatchGetServerMembers
+     */
+    batchGetServerMembers: {
+      name: "BatchGetServerMembers",
+      I: BatchGetServerMembersRequest,
+      O: BatchGetServerMembersResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
      * Lists explicit members of a room. The caller must be a member of the room.
      *
      * @generated from rpc chatto.api.v1.MemberDirectoryService.ListRoomMembers
@@ -35,6 +58,30 @@ export const MemberDirectoryService = {
       name: "ListRoomMembers",
       I: ListRoomMembersRequest,
       O: ListRoomMembersResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Gets one explicit member of a room. The caller must be a member of the
+     * room. Returns NOT_FOUND when the target is unknown or not a room member.
+     *
+     * @generated from rpc chatto.api.v1.MemberDirectoryService.GetRoomMember
+     */
+    getRoomMember: {
+      name: "GetRoomMember",
+      I: GetRoomMemberRequest,
+      O: GetRoomMemberResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Gets explicit room member rows for multiple users. The caller must be a
+     * member of the room.
+     *
+     * @generated from rpc chatto.api.v1.MemberDirectoryService.BatchGetRoomMembers
+     */
+    batchGetRoomMembers: {
+      name: "BatchGetRoomMembers",
+      I: BatchGetRoomMembersRequest,
+      O: BatchGetRoomMembersResponse,
       kind: MethodKind.Unary,
     },
   }

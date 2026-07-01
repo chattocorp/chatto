@@ -105,6 +105,27 @@ message GetMemberResponse {
   bool viewer_can_manage_user_permissions = 6;
 }
 
+// Request server-admin member rows for a set of stable user IDs.
+message BatchGetMembersRequest {
+  // Required target user IDs. Unknown IDs are omitted from the response.
+  repeated string user_ids = 1 [(buf.validate.field).repeated = {
+    min_items: 1
+    max_items: 100
+    items: {
+      string: {min_len: 1}
+    }
+  }];
+}
+
+// Batch server-admin member response.
+message BatchGetMembersResponse {
+  // Found members. The server preserves first-seen request order and
+  // de-duplicates repeated IDs.
+  repeated AdminMember members = 1;
+  // Public roles for display-name lookup.
+  repeated chatto.api.v1.Role roles = 2;
+}
+
 // Request to assign a role to a user.
 message AssignRoleRequest {
   // Target user ID.
@@ -205,6 +226,8 @@ service AdminMemberService {
   // Gets one server member plus role/permission metadata for admin details.
   // Requires admin.view-users. Returns NOT_FOUND when the user does not exist.
   rpc GetMember(GetMemberRequest) returns (GetMemberResponse);
+  // Gets server member rows for multiple users. Requires admin.view-users.
+  rpc BatchGetMembers(BatchGetMembersRequest) returns (BatchGetMembersResponse);
   // Assigns a role to a user. Requires role.assign.
   rpc AssignRole(AssignRoleRequest) returns (AssignRoleResponse);
   // Revokes a role from a user. Requires role.assign.

@@ -1784,12 +1784,18 @@ func TestChattoCore_AdminMemberReads(t *testing.T) {
 	if _, err := c.ListAdminMembers(ctx, "", AdminMemberListInput{}); !errors.Is(err, ErrNotAuthenticated) {
 		t.Fatalf("ListAdminMembers unauth err = %v, want ErrNotAuthenticated", err)
 	}
+	if _, err := c.BatchGetAdminMembers(ctx, "", []string{target.Id}); !errors.Is(err, ErrNotAuthenticated) {
+		t.Fatalf("BatchGetAdminMembers unauth err = %v, want ErrNotAuthenticated", err)
+	}
 
 	if _, err := c.ListAdminMembers(ctx, regular.Id, AdminMemberListInput{Search: "target", Limit: 10}); !errors.Is(err, ErrPermissionDenied) {
 		t.Fatalf("ListAdminMembers regular err = %v, want ErrPermissionDenied", err)
 	}
 	if _, err := c.GetAdminMemberDetails(ctx, regular.Id, target.Id); !errors.Is(err, ErrPermissionDenied) {
 		t.Fatalf("GetAdminMemberDetails regular err = %v, want ErrPermissionDenied", err)
+	}
+	if _, err := c.BatchGetAdminMembers(ctx, regular.Id, []string{target.Id}); !errors.Is(err, ErrPermissionDenied) {
+		t.Fatalf("BatchGetAdminMembers regular err = %v, want ErrPermissionDenied", err)
 	}
 
 	list, err := c.ListAdminMembers(ctx, admin.Id, AdminMemberListInput{Search: "target", Limit: 10})
@@ -1807,6 +1813,26 @@ func TestChattoCore_AdminMemberReads(t *testing.T) {
 	}
 	if list.Users[0].LastLoginChange == nil {
 		t.Fatal("list user LastLoginChange is nil, want visible cooldown timestamp")
+	}
+
+	batch, err := c.BatchGetAdminMembers(ctx, admin.Id, []string{target.Id, "missing-user", regular.Id, target.Id})
+	if err != nil {
+		t.Fatalf("BatchGetAdminMembers: %v", err)
+	}
+	if len(batch.Users) != 2 || batch.Users[0].ID != target.Id || batch.Users[1].ID != regular.Id {
+		t.Fatalf("BatchGetAdminMembers users = %+v, want target,regular", batch.Users)
+	}
+	if got := batch.Users[0].Roles; len(got) != 1 || got[0] != RoleModerator {
+		t.Fatalf("batch target roles = %v, want explicit moderator only", got)
+	}
+	if !batch.Users[0].HasVerifiedEmail || len(batch.Users[0].VerifiedEmails) != 1 || batch.Users[0].VerifiedEmails[0] != "adminmember-target@example.test" {
+		t.Fatalf("batch target emails = has:%v emails:%v, want target email", batch.Users[0].HasVerifiedEmail, batch.Users[0].VerifiedEmails)
+	}
+	if batch.Users[0].LastLoginChange == nil {
+		t.Fatal("batch target LastLoginChange is nil, want visible cooldown timestamp")
+	}
+	if len(batch.Roles) == 0 {
+		t.Fatal("batch roles are empty")
 	}
 
 	adminDetails, err := c.GetAdminMemberDetails(ctx, admin.Id, target.Id)

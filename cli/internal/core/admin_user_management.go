@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -147,6 +148,49 @@ func (c *ChattoCore) GetAdminMemberDetails(ctx context.Context, actorID, targetU
 		ViewerCanAssignRoles:           canAssignRoles,
 		ViewerCanManageRoles:           canManageRoles,
 		ViewerCanManageUserPermissions: canManageUserPermissions,
+	}, nil
+}
+
+func (c *ChattoCore) BatchGetAdminMembers(ctx context.Context, actorID string, userIDs []string) (*AdminMemberList, error) {
+	if err := c.requireCanViewAdminMembers(ctx, actorID); err != nil {
+		return nil, err
+	}
+
+	seen := make(map[string]struct{}, len(userIDs))
+	users := make([]AdminMember, 0, len(userIDs))
+	for _, userID := range userIDs {
+		if _, ok := seen[userID]; ok {
+			continue
+		}
+		seen[userID] = struct{}{}
+
+		user, err := c.GetUser(ctx, userID)
+		if err != nil {
+			if errors.Is(err, ErrNotFound) {
+				continue
+			}
+			return nil, err
+		}
+		assignedRoles, err := c.GetUserRoles(ctx, userID)
+		if err != nil {
+			return nil, err
+		}
+		member, err := c.adminMemberForViewer(ctx, actorID, user, assignedRoles)
+		if err != nil {
+			return nil, err
+		}
+		users = append(users, *member)
+	}
+
+	roles, err := c.ListServerRoles(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return &AdminMemberList{
+		Users:      users,
+		Roles:      adminMemberRoleSummaries(roles),
+		TotalCount: len(users),
 	}, nil
 }
 
