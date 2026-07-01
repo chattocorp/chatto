@@ -74,14 +74,11 @@ func TestAPIHandlers(t *testing.T) {
 		"/" + apiv1connect.NotificationPreferencesServiceName + "/",
 		"/" + adminv1connect.AdminPermissionServiceName + "/",
 		"/" + apiv1connect.PushNotificationServiceName + "/",
-		"/" + apiv1connect.ReadStateServiceName + "/",
-		"/" + apiv1connect.ReactionServiceName + "/",
 		"/" + adminv1connect.AdminRoleServiceName + "/",
 		"/" + apiv1connect.RoleServiceName + "/",
 		"/" + apiv1connect.RoomDirectoryServiceName + "/",
 		"/" + apiv1connect.RoomMemberServiceName + "/",
 		"/" + apiv1connect.RoomServiceName + "/",
-		"/" + apiv1connect.RoomTimelineServiceName + "/",
 		"/" + discoveryv1connect.ServerDiscoveryServiceName + "/",
 		"/" + apiv1connect.ServerMemberServiceName + "/",
 		"/" + apiv1connect.ServerServiceName + "/",
@@ -122,14 +119,11 @@ func TestAPIHandlerAuthPolicies(t *testing.T) {
 		"/" + apiv1connect.NotificationPreferencesServiceName + "/": AuthPolicyAuthenticatedUser,
 		"/" + adminv1connect.AdminPermissionServiceName + "/":       AuthPolicyAuthenticatedUser,
 		"/" + apiv1connect.PushNotificationServiceName + "/":        AuthPolicyAuthenticatedUser,
-		"/" + apiv1connect.ReadStateServiceName + "/":               AuthPolicyAuthenticatedUser,
-		"/" + apiv1connect.ReactionServiceName + "/":                AuthPolicyAuthenticatedUser,
 		"/" + adminv1connect.AdminRoleServiceName + "/":             AuthPolicyAuthenticatedUser,
 		"/" + apiv1connect.RoleServiceName + "/":                    AuthPolicyAuthenticatedUser,
 		"/" + apiv1connect.RoomDirectoryServiceName + "/":           AuthPolicyAuthenticatedUser,
 		"/" + apiv1connect.RoomMemberServiceName + "/":              AuthPolicyAuthenticatedUser,
 		"/" + apiv1connect.RoomServiceName + "/":                    AuthPolicyAuthenticatedUser,
-		"/" + apiv1connect.RoomTimelineServiceName + "/":            AuthPolicyAuthenticatedUser,
 		"/" + discoveryv1connect.ServerDiscoveryServiceName + "/":   AuthPolicyPublic,
 		"/" + apiv1connect.ServerMemberServiceName + "/":            AuthPolicyAuthenticatedUser,
 		"/" + apiv1connect.ServerServiceName + "/":                  AuthPolicyAuthenticatedUser,
@@ -1768,6 +1762,15 @@ func TestViewerServiceGetViewerReturnsSelfScopedState(t *testing.T) {
 	if caps := resp.Msg.GetCapabilities(); !apiCapabilityGranted(caps.GetGrants(), viewerCapabilityAssignRoles) || apiCapabilityGranted(caps.GetGrants(), viewerCapabilityAdminManageUsers) {
 		t.Fatalf("viewer capabilities = %+v, want role.assign true and account management false", caps.GetGrants())
 	}
+	if resp.Msg.GetViewerPermissions() == nil {
+		t.Fatal("ViewerPermissions = nil")
+	}
+	if got, want := len(resp.Msg.GetViewerPermissions().GetPermissions()), len(core.AllPermissions()); got != want {
+		t.Fatalf("viewer permissions len = %d, want %d", got, want)
+	}
+	if resp.Msg.GetViewerState() == nil {
+		t.Fatal("ViewerState = nil")
+	}
 }
 
 func TestMyAccountServiceUpdatesSelfProfileAndSettings(t *testing.T) {
@@ -2473,15 +2476,6 @@ func TestServerServiceGetServerStateReturnsAuthenticatedServerState(t *testing.T
 	if msg.GetRuntime().GetMessageEditWindowSeconds() != int32(core.MessageEditWindow/time.Second) {
 		t.Fatalf("MessageEditWindowSeconds = %d, want %d", msg.GetRuntime().GetMessageEditWindowSeconds(), int32(core.MessageEditWindow/time.Second))
 	}
-	if msg.GetViewerPermissions() == nil {
-		t.Fatal("ViewerPermissions = nil")
-	}
-	if got, want := len(msg.GetViewerPermissions().GetPermissions()), len(core.AllPermissions()); got != want {
-		t.Fatalf("viewer permissions len = %d, want %d", got, want)
-	}
-	if msg.GetViewerState() == nil {
-		t.Fatal("ViewerState = nil")
-	}
 }
 
 func TestAdminServerServiceUpdateServerConfig(t *testing.T) {
@@ -3130,24 +3124,24 @@ func TestConnectServicesRejectDMOutsiders(t *testing.T) {
 	}))
 	checkInaccessible("CreateMessage", err)
 
-	_, err = env.timeline.GetRoomEvents(ctx, connect.NewRequest(&apiv1.GetRoomEventsRequest{
+	_, err = env.rooms.GetRoomEvents(ctx, connect.NewRequest(&apiv1.GetRoomEventsRequest{
 		RoomId: dm.Id,
 	}))
 	checkInaccessible("GetRoomEvents", err)
 
-	_, err = env.timeline.GetRoomEventsAround(ctx, connect.NewRequest(&apiv1.GetRoomEventsAroundRequest{
+	_, err = env.rooms.GetRoomEventsAround(ctx, connect.NewRequest(&apiv1.GetRoomEventsAroundRequest{
 		RoomId:  dm.Id,
 		EventId: root.Id,
 	}))
 	checkInaccessible("GetRoomEventsAround", err)
 
-	_, err = env.timeline.GetThreadEvents(ctx, connect.NewRequest(&apiv1.GetThreadEventsRequest{
+	_, err = env.threads.GetThreadEvents(ctx, connect.NewRequest(&apiv1.GetThreadEventsRequest{
 		RoomId:            dm.Id,
 		ThreadRootEventId: root.Id,
 	}))
 	checkInaccessible("GetThreadEvents", err)
 
-	_, err = env.timeline.GetThreadEventsAround(ctx, connect.NewRequest(&apiv1.GetThreadEventsAroundRequest{
+	_, err = env.threads.GetThreadEventsAround(ctx, connect.NewRequest(&apiv1.GetThreadEventsAroundRequest{
 		RoomId:            dm.Id,
 		ThreadRootEventId: root.Id,
 		EventId:           reply.Id,
@@ -3166,27 +3160,27 @@ func TestConnectServicesRejectDMOutsiders(t *testing.T) {
 	}))
 	checkInaccessible("RefreshMessageAttachmentUrls", err)
 
-	_, err = env.reactions.AddReaction(ctx, connect.NewRequest(&apiv1.AddReactionRequest{
+	_, err = env.messages.AddReaction(ctx, connect.NewRequest(&apiv1.AddReactionRequest{
 		RoomId:         dm.Id,
 		MessageEventId: root.Id,
 		Emoji:          "thumbsup",
 	}))
 	checkInaccessible("AddReaction", err)
 
-	_, err = env.reactions.RemoveReaction(ctx, connect.NewRequest(&apiv1.RemoveReactionRequest{
+	_, err = env.messages.RemoveReaction(ctx, connect.NewRequest(&apiv1.RemoveReactionRequest{
 		RoomId:         dm.Id,
 		MessageEventId: root.Id,
 		Emoji:          "thumbsup",
 	}))
 	checkInaccessible("RemoveReaction", err)
 
-	_, err = env.readState.MarkRoomAsRead(ctx, connect.NewRequest(&apiv1.MarkRoomAsReadRequest{
+	_, err = env.rooms.MarkRoomAsRead(ctx, connect.NewRequest(&apiv1.MarkRoomAsReadRequest{
 		RoomId:      dm.Id,
 		UpToEventId: root.Id,
 	}))
 	checkInaccessible("MarkRoomAsRead", err)
 
-	_, err = env.readState.MarkThreadAsRead(ctx, connect.NewRequest(&apiv1.MarkThreadAsReadRequest{
+	_, err = env.threads.MarkThreadAsRead(ctx, connect.NewRequest(&apiv1.MarkThreadAsReadRequest{
 		RoomId:            dm.Id,
 		ThreadRootEventId: root.Id,
 		UpToEventId:       reply.Id,
@@ -3900,16 +3894,16 @@ func TestNotificationServiceListsAndDismissesNotifications(t *testing.T) {
 	if !hasResp.Msg.GetHasNotifications() {
 		t.Fatal("HasNotifications = false, want true")
 	}
-	countsResp, err := env.notifications.ListNotificationCounts(ctx, connect.NewRequest(&apiv1.ListNotificationCountsRequest{}))
+	countsResp, err := env.notifications.ListRoomNotificationCounts(ctx, connect.NewRequest(&apiv1.ListRoomNotificationCountsRequest{}))
 	if err != nil {
-		t.Fatalf("ListNotificationCounts: %v", err)
+		t.Fatalf("ListRoomNotificationCounts: %v", err)
 	}
 	counts := make(map[string]int32)
 	for _, count := range countsResp.Msg.GetRoomCounts() {
 		counts[count.GetRoomId()] = count.GetTotalCount()
 	}
 	if counts[room.Id] != 1 || counts["dm-room"] != 1 {
-		t.Fatalf("ListNotificationCounts = %+v, want counts for channel and DM rooms", counts)
+		t.Fatalf("ListRoomNotificationCounts = %+v, want counts for channel and DM rooms", counts)
 	}
 
 	dismissResp, err := env.notifications.DismissNotification(ctx, connect.NewRequest(&apiv1.DismissNotificationRequest{NotificationId: mention.Id}))
@@ -4379,7 +4373,7 @@ func TestAbsolutizeAssetURL(t *testing.T) {
 	})
 }
 
-func TestRoomTimelineServiceRequiresAuthAndMembership(t *testing.T) {
+func TestRoomAndThreadTimelineRequiresAuthAndMembership(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 
 	room, err := env.core.CreateRoom(env.ctx, env.viewer.Id, core.KindChannel, "", "timeline-authz", "")
@@ -4391,7 +4385,7 @@ func TestRoomTimelineServiceRequiresAuthAndMembership(t *testing.T) {
 	}
 
 	req := connect.NewRequest(&apiv1.GetRoomEventsRequest{RoomId: room.Id})
-	if _, err := env.timeline.GetRoomEvents(env.ctx, req); connect.CodeOf(err) != connect.CodeUnauthenticated {
+	if _, err := env.rooms.GetRoomEvents(env.ctx, req); connect.CodeOf(err) != connect.CodeUnauthenticated {
 		t.Fatalf("unauthenticated GetRoomEvents code = %v, want %v", connect.CodeOf(err), connect.CodeUnauthenticated)
 	}
 
@@ -4399,7 +4393,7 @@ func TestRoomTimelineServiceRequiresAuthAndMembership(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateUser outsider: %v", err)
 	}
-	if _, err := env.timeline.GetRoomEvents(withCaller(env.ctx, outsider), req); connect.CodeOf(err) != connect.CodePermissionDenied {
+	if _, err := env.rooms.GetRoomEvents(withCaller(env.ctx, outsider), req); connect.CodeOf(err) != connect.CodePermissionDenied {
 		t.Fatalf("non-member GetRoomEvents code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
 	}
 }
@@ -4432,7 +4426,7 @@ func TestMessageServiceCreateMessageRequiresAuthMembershipAndPermission(t *testi
 	}
 }
 
-func TestReactionServiceAddAndRemoveRequiresAuthMembershipAndPermission(t *testing.T) {
+func TestMessageServiceAddAndRemoveRequiresAuthMembershipAndPermission(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("reaction-authz")
 	event := env.post(room.Id, env.viewer.Id, "react to me", "")
@@ -4442,7 +4436,7 @@ func TestReactionServiceAddAndRemoveRequiresAuthMembershipAndPermission(t *testi
 		Emoji:          "thumbsup",
 	})
 
-	if _, err := env.reactions.AddReaction(env.ctx, req); connect.CodeOf(err) != connect.CodeUnauthenticated {
+	if _, err := env.messages.AddReaction(env.ctx, req); connect.CodeOf(err) != connect.CodeUnauthenticated {
 		t.Fatalf("unauthenticated AddReaction code = %v, want %v", connect.CodeOf(err), connect.CodeUnauthenticated)
 	}
 
@@ -4450,19 +4444,19 @@ func TestReactionServiceAddAndRemoveRequiresAuthMembershipAndPermission(t *testi
 	if err != nil {
 		t.Fatalf("CreateUser outsider: %v", err)
 	}
-	if _, err := env.reactions.AddReaction(withCaller(env.ctx, outsider), req); connect.CodeOf(err) != connect.CodePermissionDenied {
+	if _, err := env.messages.AddReaction(withCaller(env.ctx, outsider), req); connect.CodeOf(err) != connect.CodePermissionDenied {
 		t.Fatalf("non-member AddReaction code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
 	}
 
 	if err := env.core.DenyRoomPermission(env.ctx, core.SystemActorID, room.Id, core.RoleEveryone, core.PermMessageReact); err != nil {
 		t.Fatalf("DenyRoomPermission: %v", err)
 	}
-	if _, err := env.reactions.AddReaction(withCaller(env.ctx, env.viewer), req); connect.CodeOf(err) != connect.CodePermissionDenied {
+	if _, err := env.messages.AddReaction(withCaller(env.ctx, env.viewer), req); connect.CodeOf(err) != connect.CodePermissionDenied {
 		t.Fatalf("denied AddReaction code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
 	}
 }
 
-func TestReactionServiceAddAndRemoveResponseSemantics(t *testing.T) {
+func TestMessageServiceAddAndRemoveResponseSemantics(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("reaction-response")
 	event := env.post(room.Id, env.viewer.Id, "react to me", "")
@@ -4473,7 +4467,7 @@ func TestReactionServiceAddAndRemoveResponseSemantics(t *testing.T) {
 		MessageEventId: event.Id,
 		Emoji:          "thumbsup",
 	})
-	addResp, err := env.reactions.AddReaction(ctx, addReq)
+	addResp, err := env.messages.AddReaction(ctx, addReq)
 	if err != nil {
 		t.Fatalf("AddReaction: %v", err)
 	}
@@ -4481,7 +4475,7 @@ func TestReactionServiceAddAndRemoveResponseSemantics(t *testing.T) {
 		t.Fatal("AddReaction Added = false, want true")
 	}
 
-	addResp, err = env.reactions.AddReaction(ctx, addReq)
+	addResp, err = env.messages.AddReaction(ctx, addReq)
 	if err != nil {
 		t.Fatalf("duplicate AddReaction: %v", err)
 	}
@@ -4494,7 +4488,7 @@ func TestReactionServiceAddAndRemoveResponseSemantics(t *testing.T) {
 		MessageEventId: event.Id,
 		Emoji:          "thumbsup",
 	})
-	removeResp, err := env.reactions.RemoveReaction(ctx, removeReq)
+	removeResp, err := env.messages.RemoveReaction(ctx, removeReq)
 	if err != nil {
 		t.Fatalf("RemoveReaction: %v", err)
 	}
@@ -4502,7 +4496,7 @@ func TestReactionServiceAddAndRemoveResponseSemantics(t *testing.T) {
 		t.Fatal("RemoveReaction Removed = false, want true")
 	}
 
-	removeResp, err = env.reactions.RemoveReaction(ctx, removeReq)
+	removeResp, err = env.messages.RemoveReaction(ctx, removeReq)
 	if err != nil {
 		t.Fatalf("duplicate RemoveReaction: %v", err)
 	}
@@ -4511,12 +4505,12 @@ func TestReactionServiceAddAndRemoveResponseSemantics(t *testing.T) {
 	}
 }
 
-func TestReactionServiceValidatesEmoji(t *testing.T) {
+func TestMessageServiceValidatesEmoji(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("reaction-validation")
 	event := env.post(room.Id, env.viewer.Id, "react to me", "")
 
-	_, err := env.reactions.AddReaction(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.AddReactionRequest{
+	_, err := env.messages.AddReaction(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.AddReactionRequest{
 		RoomId:         room.Id,
 		MessageEventId: event.Id,
 		Emoji:          "totally_bogus",
@@ -5149,36 +5143,36 @@ func TestMessageServiceDeleteAttachmentAndLinkPreviewAuthorOnly(t *testing.T) {
 	}
 }
 
-func TestMessageServiceSendTypingIndicatorRequiresMembershipOnly(t *testing.T) {
+func TestRoomServiceUpdateTypingIndicatorRequiresMembershipOnly(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("message-typing")
-	req := connect.NewRequest(&apiv1.SendTypingIndicatorRequest{RoomId: room.Id})
+	req := connect.NewRequest(&apiv1.UpdateTypingIndicatorRequest{RoomId: room.Id})
 
-	if _, err := env.messages.SendTypingIndicator(env.ctx, req); connect.CodeOf(err) != connect.CodeUnauthenticated {
-		t.Fatalf("unauthenticated SendTypingIndicator code = %v, want %v", connect.CodeOf(err), connect.CodeUnauthenticated)
+	if _, err := env.rooms.UpdateTypingIndicator(env.ctx, req); connect.CodeOf(err) != connect.CodeUnauthenticated {
+		t.Fatalf("unauthenticated UpdateTypingIndicator code = %v, want %v", connect.CodeOf(err), connect.CodeUnauthenticated)
 	}
 
 	outsider, err := env.core.CreateUser(env.ctx, core.SystemActorID, "message-typing-outsider", "Message Typing Outsider", "password")
 	if err != nil {
 		t.Fatalf("CreateUser outsider: %v", err)
 	}
-	if _, err := env.messages.SendTypingIndicator(withCaller(env.ctx, outsider), req); connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Fatalf("outsider SendTypingIndicator code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
+	if _, err := env.rooms.UpdateTypingIndicator(withCaller(env.ctx, outsider), req); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("outsider UpdateTypingIndicator code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
 	}
 
 	if err := env.core.DenyRoomPermission(env.ctx, core.SystemActorID, room.Id, core.RoleEveryone, core.PermMessagePost); err != nil {
 		t.Fatalf("DenyRoomPermission post: %v", err)
 	}
-	resp, err := env.messages.SendTypingIndicator(withCaller(env.ctx, env.viewer), req)
+	resp, err := env.rooms.UpdateTypingIndicator(withCaller(env.ctx, env.viewer), req)
 	if err != nil {
-		t.Fatalf("member SendTypingIndicator with post denied: %v", err)
+		t.Fatalf("member UpdateTypingIndicator with post denied: %v", err)
 	}
-	if !resp.Msg.Sent {
-		t.Fatal("SendTypingIndicator Sent = false, want true")
+	if !resp.Msg.Updated {
+		t.Fatal("UpdateTypingIndicator Updated = false, want true")
 	}
 }
 
-func TestRoomTimelineServiceGetRoomEventsPaginatesWithOpaqueCursors(t *testing.T) {
+func TestRoomAndThreadTimelineGetRoomEventsPaginatesWithOpaqueCursors(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("timeline-pagination")
 
@@ -5187,7 +5181,7 @@ func TestRoomTimelineServiceGetRoomEventsPaginatesWithOpaqueCursors(t *testing.T
 	m3 := env.post(room.Id, env.viewer.Id, "three", "")
 
 	ctx := withCaller(env.ctx, env.viewer)
-	resp, err := env.timeline.GetRoomEvents(ctx, connect.NewRequest(&apiv1.GetRoomEventsRequest{
+	resp, err := env.rooms.GetRoomEvents(ctx, connect.NewRequest(&apiv1.GetRoomEventsRequest{
 		RoomId: room.Id,
 		Limit:  2,
 	}))
@@ -5211,7 +5205,7 @@ func TestRoomTimelineServiceGetRoomEventsPaginatesWithOpaqueCursors(t *testing.T
 		t.Fatalf("cursors = %q/%q, want opaque cursors", page.StartCursor, page.EndCursor)
 	}
 
-	olderResp, err := env.timeline.GetRoomEvents(ctx, connect.NewRequest(&apiv1.GetRoomEventsRequest{
+	olderResp, err := env.rooms.GetRoomEvents(ctx, connect.NewRequest(&apiv1.GetRoomEventsRequest{
 		RoomId: room.Id,
 		Limit:  10,
 		Cursor: &apiv1.GetRoomEventsRequest_Before{Before: page.StartCursor},
@@ -5230,7 +5224,7 @@ func TestRoomTimelineServiceGetRoomEventsPaginatesWithOpaqueCursors(t *testing.T
 	if err != nil {
 		t.Fatalf("parse emitted start cursor: %v", err)
 	}
-	legacyResp, err := env.timeline.GetRoomEvents(ctx, connect.NewRequest(&apiv1.GetRoomEventsRequest{
+	legacyResp, err := env.rooms.GetRoomEvents(ctx, connect.NewRequest(&apiv1.GetRoomEventsRequest{
 		RoomId: room.Id,
 		Limit:  10,
 		Cursor: &apiv1.GetRoomEventsRequest_Before{Before: roomTimelineCursorSeqPrefix + strconv.FormatUint(startSeq, 10)},
@@ -5388,7 +5382,7 @@ func TestRoomAndMessageServicesListAndRefreshAttachments(t *testing.T) {
 	}
 }
 
-func TestRoomTimelineServiceHydratesMessagesWithoutClientNPlusOne(t *testing.T) {
+func TestRoomAndThreadTimelineHydratesMessagesWithoutClientNPlusOne(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("timeline-hydration")
 	replier, err := env.core.CreateUser(env.ctx, core.SystemActorID, "timeline-replier", "Timeline Replier", "password")
@@ -5408,7 +5402,7 @@ func TestRoomTimelineServiceHydratesMessagesWithoutClientNPlusOne(t *testing.T) 
 		t.Fatalf("AddReaction replier: %v", err)
 	}
 
-	resp, err := env.timeline.GetRoomEvents(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.GetRoomEventsRequest{
+	resp, err := env.rooms.GetRoomEvents(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.GetRoomEventsRequest{
 		RoomId: room.Id,
 		Limit:  10,
 	}))
@@ -5448,7 +5442,7 @@ func TestRoomTimelineServiceHydratesMessagesWithoutClientNPlusOne(t *testing.T) 
 	}
 }
 
-func TestRoomTimelineServiceGetThreadEventsIncludesRootAndPaginatesReplies(t *testing.T) {
+func TestRoomAndThreadTimelineGetThreadEventsIncludesRootAndPaginatesReplies(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("timeline-thread")
 
@@ -5458,7 +5452,7 @@ func TestRoomTimelineServiceGetThreadEventsIncludesRootAndPaginatesReplies(t *te
 	reply3 := env.post(room.Id, env.viewer.Id, "reply three", root.Id)
 
 	ctx := withCaller(env.ctx, env.viewer)
-	resp, err := env.timeline.GetThreadEvents(ctx, connect.NewRequest(&apiv1.GetThreadEventsRequest{
+	resp, err := env.threads.GetThreadEvents(ctx, connect.NewRequest(&apiv1.GetThreadEventsRequest{
 		RoomId:            room.Id,
 		ThreadRootEventId: root.Id,
 		Limit:             2,
@@ -5479,7 +5473,7 @@ func TestRoomTimelineServiceGetThreadEventsIncludesRootAndPaginatesReplies(t *te
 		t.Fatalf("thread reply cursors are empty, want reply-window cursors")
 	}
 
-	olderResp, err := env.timeline.GetThreadEvents(ctx, connect.NewRequest(&apiv1.GetThreadEventsRequest{
+	olderResp, err := env.threads.GetThreadEvents(ctx, connect.NewRequest(&apiv1.GetThreadEventsRequest{
 		RoomId:            room.Id,
 		ThreadRootEventId: root.Id,
 		Limit:             10,
@@ -5498,7 +5492,7 @@ func TestRoomTimelineServiceGetThreadEventsIncludesRootAndPaginatesReplies(t *te
 	}
 }
 
-func TestRoomTimelineServiceGetThreadEventsAroundRootAndReply(t *testing.T) {
+func TestRoomAndThreadTimelineGetThreadEventsAroundRootAndReply(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("timeline-thread-around")
 
@@ -5508,7 +5502,7 @@ func TestRoomTimelineServiceGetThreadEventsAroundRootAndReply(t *testing.T) {
 	reply3 := env.post(room.Id, env.viewer.Id, "reply three", root.Id)
 
 	ctx := withCaller(env.ctx, env.viewer)
-	rootResp, err := env.timeline.GetThreadEventsAround(ctx, connect.NewRequest(&apiv1.GetThreadEventsAroundRequest{
+	rootResp, err := env.threads.GetThreadEventsAround(ctx, connect.NewRequest(&apiv1.GetThreadEventsAroundRequest{
 		RoomId:            room.Id,
 		ThreadRootEventId: root.Id,
 		EventId:           root.Id,
@@ -5529,7 +5523,7 @@ func TestRoomTimelineServiceGetThreadEventsAroundRootAndReply(t *testing.T) {
 		t.Fatalf("root-anchored HasOlder/HasNewer = %v/%v, want false/true", rootResp.Msg.GetPage().HasOlder, rootResp.Msg.GetPage().HasNewer)
 	}
 
-	replyResp, err := env.timeline.GetThreadEventsAround(ctx, connect.NewRequest(&apiv1.GetThreadEventsAroundRequest{
+	replyResp, err := env.threads.GetThreadEventsAround(ctx, connect.NewRequest(&apiv1.GetThreadEventsAroundRequest{
 		RoomId:            room.Id,
 		ThreadRootEventId: root.Id,
 		EventId:           reply2.Id,
@@ -5547,7 +5541,7 @@ func TestRoomTimelineServiceGetThreadEventsAroundRootAndReply(t *testing.T) {
 		t.Fatalf("reply target index = %d, want 2", replyResp.Msg.TargetIndex)
 	}
 
-	_, err = env.timeline.GetThreadEventsAround(ctx, connect.NewRequest(&apiv1.GetThreadEventsAroundRequest{
+	_, err = env.threads.GetThreadEventsAround(ctx, connect.NewRequest(&apiv1.GetThreadEventsAroundRequest{
 		RoomId:            room.Id,
 		ThreadRootEventId: root.Id,
 		EventId:           "missing-anchor",
@@ -5558,7 +5552,7 @@ func TestRoomTimelineServiceGetThreadEventsAroundRootAndReply(t *testing.T) {
 	}
 }
 
-func TestRoomTimelineServiceResolveMessageLinkTarget(t *testing.T) {
+func TestRoomAndThreadTimelineResolveMessageLinkTarget(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("timeline-message-link")
 
@@ -5569,7 +5563,7 @@ func TestRoomTimelineServiceResolveMessageLinkTarget(t *testing.T) {
 		RoomId:  room.Id,
 		EventId: reply.Id,
 	})
-	if _, err := env.timeline.ResolveMessageLinkTarget(env.ctx, req); connect.CodeOf(err) != connect.CodeUnauthenticated {
+	if _, err := env.messages.ResolveMessageLinkTarget(env.ctx, req); connect.CodeOf(err) != connect.CodeUnauthenticated {
 		t.Fatalf("unauthenticated ResolveMessageLinkTarget code = %v, want %v", connect.CodeOf(err), connect.CodeUnauthenticated)
 	}
 
@@ -5577,12 +5571,12 @@ func TestRoomTimelineServiceResolveMessageLinkTarget(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateUser outsider: %v", err)
 	}
-	if _, err := env.timeline.ResolveMessageLinkTarget(withCaller(env.ctx, outsider), req); connect.CodeOf(err) != connect.CodePermissionDenied {
+	if _, err := env.messages.ResolveMessageLinkTarget(withCaller(env.ctx, outsider), req); connect.CodeOf(err) != connect.CodePermissionDenied {
 		t.Fatalf("non-member ResolveMessageLinkTarget code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
 	}
 
 	ctx := withCaller(env.ctx, env.viewer)
-	rootResp, err := env.timeline.ResolveMessageLinkTarget(ctx, connect.NewRequest(&apiv1.ResolveMessageLinkTargetRequest{
+	rootResp, err := env.messages.ResolveMessageLinkTarget(ctx, connect.NewRequest(&apiv1.ResolveMessageLinkTargetRequest{
 		RoomId:  room.Id,
 		EventId: root.Id,
 	}))
@@ -5599,7 +5593,7 @@ func TestRoomTimelineServiceResolveMessageLinkTarget(t *testing.T) {
 		t.Fatalf("root includes missing viewer %s", env.viewer.Id)
 	}
 
-	replyResp, err := env.timeline.ResolveMessageLinkTarget(ctx, connect.NewRequest(&apiv1.ResolveMessageLinkTargetRequest{
+	replyResp, err := env.messages.ResolveMessageLinkTarget(ctx, connect.NewRequest(&apiv1.ResolveMessageLinkTargetRequest{
 		RoomId:  room.Id,
 		EventId: reply.Id,
 	}))
@@ -5610,7 +5604,7 @@ func TestRoomTimelineServiceResolveMessageLinkTarget(t *testing.T) {
 		t.Fatalf("reply target = event %q thread %q, want event %q thread %q", replyResp.Msg.GetEvent().GetId(), replyResp.Msg.GetThreadRootEventId(), reply.Id, root.Id)
 	}
 
-	if _, err := env.timeline.ResolveMessageLinkTarget(ctx, connect.NewRequest(&apiv1.ResolveMessageLinkTargetRequest{
+	if _, err := env.messages.ResolveMessageLinkTarget(ctx, connect.NewRequest(&apiv1.ResolveMessageLinkTargetRequest{
 		RoomId:  room.Id,
 		EventId: "missing-anchor",
 	})); connect.CodeOf(err) != connect.CodeNotFound {
@@ -5618,7 +5612,7 @@ func TestRoomTimelineServiceResolveMessageLinkTarget(t *testing.T) {
 	}
 }
 
-func TestRoomTimelineServiceGetThreadEventsRequiresMembership(t *testing.T) {
+func TestRoomAndThreadTimelineGetThreadEventsRequiresMembership(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("timeline-thread-authz")
 	root := env.post(room.Id, env.viewer.Id, "root", "")
@@ -5627,7 +5621,7 @@ func TestRoomTimelineServiceGetThreadEventsRequiresMembership(t *testing.T) {
 		RoomId:            room.Id,
 		ThreadRootEventId: root.Id,
 	})
-	if _, err := env.timeline.GetThreadEvents(env.ctx, req); connect.CodeOf(err) != connect.CodeUnauthenticated {
+	if _, err := env.threads.GetThreadEvents(env.ctx, req); connect.CodeOf(err) != connect.CodeUnauthenticated {
 		t.Fatalf("unauthenticated GetThreadEvents code = %v, want %v", connect.CodeOf(err), connect.CodeUnauthenticated)
 	}
 
@@ -5635,12 +5629,12 @@ func TestRoomTimelineServiceGetThreadEventsRequiresMembership(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateUser outsider: %v", err)
 	}
-	if _, err := env.timeline.GetThreadEvents(withCaller(env.ctx, outsider), req); connect.CodeOf(err) != connect.CodePermissionDenied {
+	if _, err := env.threads.GetThreadEvents(withCaller(env.ctx, outsider), req); connect.CodeOf(err) != connect.CodePermissionDenied {
 		t.Fatalf("non-member GetThreadEvents code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
 	}
 }
 
-func TestRoomTimelineServiceHydratesProcessedVideoAttachments(t *testing.T) {
+func TestRoomAndThreadTimelineHydratesProcessedVideoAttachments(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("timeline-video")
 
@@ -5674,7 +5668,7 @@ func TestRoomTimelineServiceHydratesProcessedVideoAttachments(t *testing.T) {
 		t.Fatalf("RecordAssetProcessed: %v", err)
 	}
 
-	resp, err := env.timeline.GetRoomEvents(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.GetRoomEventsRequest{
+	resp, err := env.rooms.GetRoomEvents(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.GetRoomEventsRequest{
 		RoomId: room.Id,
 		Limit:  10,
 	}))
@@ -5841,12 +5835,12 @@ func TestRoomTimelineHydratorSupportsVisibleCoreEvents(t *testing.T) {
 	}
 }
 
-func TestReadStateServiceRequiresAuthAndMembership(t *testing.T) {
+func TestRoomAndThreadServicesRequiresAuthAndMembership(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("read-state-authz")
 
 	req := connect.NewRequest(&apiv1.MarkRoomAsReadRequest{RoomId: room.Id})
-	if _, err := env.readState.MarkRoomAsRead(env.ctx, req); connect.CodeOf(err) != connect.CodeUnauthenticated {
+	if _, err := env.rooms.MarkRoomAsRead(env.ctx, req); connect.CodeOf(err) != connect.CodeUnauthenticated {
 		t.Fatalf("unauthenticated MarkRoomAsRead code = %v, want %v", connect.CodeOf(err), connect.CodeUnauthenticated)
 	}
 
@@ -5854,12 +5848,12 @@ func TestReadStateServiceRequiresAuthAndMembership(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateUser outsider: %v", err)
 	}
-	if _, err := env.readState.MarkRoomAsRead(withCaller(env.ctx, outsider), req); connect.CodeOf(err) != connect.CodePermissionDenied {
+	if _, err := env.rooms.MarkRoomAsRead(withCaller(env.ctx, outsider), req); connect.CodeOf(err) != connect.CodePermissionDenied {
 		t.Fatalf("non-member MarkRoomAsRead code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
 	}
 }
 
-func TestReadStateServiceMarkRoomAsReadAnchorsAndDoesNotRegress(t *testing.T) {
+func TestRoomAndThreadServicesMarkRoomAsReadAnchorsAndDoesNotRegress(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("read-state-room")
 
@@ -5879,7 +5873,7 @@ func TestReadStateServiceMarkRoomAsReadAnchorsAndDoesNotRegress(t *testing.T) {
 	e3 := env.post(room.Id, env.viewer.Id, "three", "")
 
 	ctx := withCaller(env.ctx, reader)
-	resp, err := env.readState.MarkRoomAsRead(ctx, connect.NewRequest(&apiv1.MarkRoomAsReadRequest{
+	resp, err := env.rooms.MarkRoomAsRead(ctx, connect.NewRequest(&apiv1.MarkRoomAsReadRequest{
 		RoomId:      room.Id,
 		UpToEventId: e2.Id,
 	}))
@@ -5893,7 +5887,7 @@ func TestReadStateServiceMarkRoomAsReadAnchorsAndDoesNotRegress(t *testing.T) {
 		t.Fatalf("marker after e2 = %q, %v; want %s", got, err, e2.Id)
 	}
 
-	if _, err := env.readState.MarkRoomAsRead(ctx, connect.NewRequest(&apiv1.MarkRoomAsReadRequest{
+	if _, err := env.rooms.MarkRoomAsRead(ctx, connect.NewRequest(&apiv1.MarkRoomAsReadRequest{
 		RoomId:      room.Id,
 		UpToEventId: e1.Id,
 	})); err != nil {
@@ -5904,7 +5898,7 @@ func TestReadStateServiceMarkRoomAsReadAnchorsAndDoesNotRegress(t *testing.T) {
 	}
 
 	reply := env.post(room.Id, env.viewer.Id, "reply", e2.Id)
-	if _, err := env.readState.MarkRoomAsRead(ctx, connect.NewRequest(&apiv1.MarkRoomAsReadRequest{
+	if _, err := env.rooms.MarkRoomAsRead(ctx, connect.NewRequest(&apiv1.MarkRoomAsReadRequest{
 		RoomId:      room.Id,
 		UpToEventId: reply.Id,
 	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
@@ -5914,7 +5908,7 @@ func TestReadStateServiceMarkRoomAsReadAnchorsAndDoesNotRegress(t *testing.T) {
 		t.Fatalf("marker after reply anchor = %q, %v; want %s", got, err, e2.Id)
 	}
 
-	if _, err := env.readState.MarkRoomAsRead(ctx, connect.NewRequest(&apiv1.MarkRoomAsReadRequest{
+	if _, err := env.rooms.MarkRoomAsRead(ctx, connect.NewRequest(&apiv1.MarkRoomAsReadRequest{
 		RoomId:      room.Id,
 		UpToEventId: "missing-event",
 	})); connect.CodeOf(err) != connect.CodeNotFound {
@@ -5924,7 +5918,7 @@ func TestReadStateServiceMarkRoomAsReadAnchorsAndDoesNotRegress(t *testing.T) {
 		t.Fatalf("marker after missing event = %q, %v; want %s", got, err, e2.Id)
 	}
 
-	if _, err := env.readState.MarkRoomAsRead(ctx, connect.NewRequest(&apiv1.MarkRoomAsReadRequest{
+	if _, err := env.rooms.MarkRoomAsRead(ctx, connect.NewRequest(&apiv1.MarkRoomAsReadRequest{
 		RoomId: room.Id,
 	})); err != nil {
 		t.Fatalf("MarkRoomAsRead omitted anchor: %v", err)
@@ -5934,7 +5928,7 @@ func TestReadStateServiceMarkRoomAsReadAnchorsAndDoesNotRegress(t *testing.T) {
 	}
 }
 
-func TestReadStateServiceMarkRoomAsReadRejectsMissingAnchorWithoutLazyMarker(t *testing.T) {
+func TestRoomAndThreadServicesMarkRoomAsReadRejectsMissingAnchorWithoutLazyMarker(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	room, err := env.core.CreateRoom(env.ctx, env.viewer.Id, core.KindChannel, "", "read-state-universal", "", core.WithUniversalRoom(true))
 	if err != nil {
@@ -5955,7 +5949,7 @@ func TestReadStateServiceMarkRoomAsReadRejectsMissingAnchorWithoutLazyMarker(t *
 	}
 
 	ctx := withCaller(env.ctx, reader)
-	if _, err := env.readState.MarkRoomAsRead(ctx, connect.NewRequest(&apiv1.MarkRoomAsReadRequest{
+	if _, err := env.rooms.MarkRoomAsRead(ctx, connect.NewRequest(&apiv1.MarkRoomAsReadRequest{
 		RoomId:      room.Id,
 		UpToEventId: "missing-event",
 	})); connect.CodeOf(err) != connect.CodeNotFound {
@@ -5965,7 +5959,7 @@ func TestReadStateServiceMarkRoomAsReadRejectsMissingAnchorWithoutLazyMarker(t *
 		t.Fatalf("reader marker after rejected request = %q exists=%v err=%v, want absent", marker, exists, err)
 	}
 
-	resp, err := env.readState.MarkRoomAsRead(ctx, connect.NewRequest(&apiv1.MarkRoomAsReadRequest{
+	resp, err := env.rooms.MarkRoomAsRead(ctx, connect.NewRequest(&apiv1.MarkRoomAsReadRequest{
 		RoomId:      room.Id,
 		UpToEventId: e1.Id,
 	}))
@@ -5983,7 +5977,7 @@ func TestReadStateServiceMarkRoomAsReadRejectsMissingAnchorWithoutLazyMarker(t *
 	}
 }
 
-func TestReadStateServiceMarkThreadAsReadAnchorsAndDoesNotRegress(t *testing.T) {
+func TestRoomAndThreadServicesMarkThreadAsReadAnchorsAndDoesNotRegress(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("read-state-thread")
 
@@ -6000,7 +5994,7 @@ func TestReadStateServiceMarkThreadAsReadAnchorsAndDoesNotRegress(t *testing.T) 
 	reply2 := env.post(room.Id, env.viewer.Id, "reply two", root.Id)
 
 	ctx := withCaller(env.ctx, reader)
-	resp, err := env.readState.MarkThreadAsRead(ctx, connect.NewRequest(&apiv1.MarkThreadAsReadRequest{
+	resp, err := env.threads.MarkThreadAsRead(ctx, connect.NewRequest(&apiv1.MarkThreadAsReadRequest{
 		RoomId:            room.Id,
 		ThreadRootEventId: root.Id,
 		UpToEventId:       reply2.Id,
@@ -6016,7 +6010,7 @@ func TestReadStateServiceMarkThreadAsReadAnchorsAndDoesNotRegress(t *testing.T) 
 		t.Fatalf("GetThreadLastOpened after reply2: %v", err)
 	}
 
-	resp, err = env.readState.MarkThreadAsRead(ctx, connect.NewRequest(&apiv1.MarkThreadAsReadRequest{
+	resp, err = env.threads.MarkThreadAsRead(ctx, connect.NewRequest(&apiv1.MarkThreadAsReadRequest{
 		RoomId:            room.Id,
 		ThreadRootEventId: root.Id,
 		UpToEventId:       reply1.Id,
@@ -6037,7 +6031,7 @@ func TestReadStateServiceMarkThreadAsReadAnchorsAndDoesNotRegress(t *testing.T) 
 
 	otherRoot := env.post(room.Id, env.viewer.Id, "other root", "")
 	otherReply := env.post(room.Id, env.viewer.Id, "other reply", otherRoot.Id)
-	if _, err := env.readState.MarkThreadAsRead(ctx, connect.NewRequest(&apiv1.MarkThreadAsReadRequest{
+	if _, err := env.threads.MarkThreadAsRead(ctx, connect.NewRequest(&apiv1.MarkThreadAsReadRequest{
 		RoomId:            room.Id,
 		ThreadRootEventId: root.Id,
 		UpToEventId:       otherReply.Id,
@@ -6052,7 +6046,7 @@ func TestReadStateServiceMarkThreadAsReadAnchorsAndDoesNotRegress(t *testing.T) 
 		t.Fatalf("thread marker changed after invalid anchor from %v to %v", marker2, markerAfterInvalid)
 	}
 
-	if _, err := env.readState.MarkThreadAsRead(ctx, connect.NewRequest(&apiv1.MarkThreadAsReadRequest{
+	if _, err := env.threads.MarkThreadAsRead(ctx, connect.NewRequest(&apiv1.MarkThreadAsReadRequest{
 		RoomId:            room.Id,
 		ThreadRootEventId: root.Id,
 		UpToEventId:       "missing-event",
@@ -6446,13 +6440,10 @@ type connectAPITestEnv struct {
 	permissions      *permissionService
 	prefs            *notificationPreferencesService
 	push             *pushNotificationService
-	readState        *readStateService
-	reactions        *reactionService
 	publicRoles      *publicRoleService
 	roles            *roleService
 	rooms            *roomService
 	serverState      *serverService
-	timeline         *roomTimelineService
 	threads          *threadService
 	users            *userService
 	viewerService    *viewerService
@@ -6503,13 +6494,10 @@ func newConnectAPITestEnv(t *testing.T) *connectAPITestEnv {
 		permissions:      &permissionService{api: api},
 		prefs:            &notificationPreferencesService{api: api},
 		push:             &pushNotificationService{api: api},
-		readState:        &readStateService{api: api},
-		reactions:        &reactionService{api: api},
 		publicRoles:      &publicRoleService{api: api},
 		roles:            &roleService{api: api},
 		rooms:            &roomService{api: api},
 		serverState:      &serverService{api: api},
-		timeline:         &roomTimelineService{api: api},
 		threads:          &threadService{api: api},
 		users:            &userService{api: api},
 		viewerService:    &viewerService{api: api},

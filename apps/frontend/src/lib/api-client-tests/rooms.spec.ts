@@ -16,6 +16,7 @@ const mocks = vi.hoisted(() => ({
   leaveRoom: vi.fn(),
   listRoomBans: vi.fn(),
   joinRoomGroup: vi.fn(),
+  updateTypingIndicator: vi.fn(),
   banRoomMember: vi.fn(),
   unbanRoomMember: vi.fn()
 }));
@@ -45,6 +46,7 @@ describe('createRoomCommandAPI', () => {
     mocks.leaveRoom.mockReset();
     mocks.listRoomBans.mockReset();
     mocks.joinRoomGroup.mockReset();
+    mocks.updateTypingIndicator.mockReset();
     mocks.banRoomMember.mockReset();
     mocks.unbanRoomMember.mockReset();
     mocks.createConnectTransport.mockReturnValue({ kind: 'transport' });
@@ -55,6 +57,7 @@ describe('createRoomCommandAPI', () => {
       leaveRoom: mocks.leaveRoom,
       listRoomBans: mocks.listRoomBans,
       joinRoomGroup: mocks.joinRoomGroup,
+      updateTypingIndicator: mocks.updateTypingIndicator,
       banRoomMember: mocks.banRoomMember,
       unbanRoomMember: mocks.unbanRoomMember
     });
@@ -132,6 +135,22 @@ describe('createRoomCommandAPI', () => {
     expect(mocks.joinRoomGroup).toHaveBeenCalledWith(
       { groupId: 'group-1' },
       { headers: undefined }
+    );
+  });
+
+  it('updates typing indicators through RoomService', async () => {
+    mocks.updateTypingIndicator.mockResolvedValue({ updated: true });
+
+    const api = createRoomCommandAPI({
+      baseUrl: 'https://remote.example.test/api/connect',
+      bearerToken: 'remote-token'
+    });
+
+    await expect(api.updateTypingIndicator('room-1', 'thread-root-1')).resolves.toBe(true);
+
+    expect(mocks.updateTypingIndicator).toHaveBeenCalledWith(
+      { roomId: 'room-1', threadRootEventId: 'thread-root-1' },
+      { headers: { Authorization: 'Bearer remote-token' } }
     );
   });
 

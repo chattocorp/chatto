@@ -4,6 +4,7 @@ package chatto.api.v1;
 
 import "buf/validate/validate.proto";
 import "chatto/api/v1/pagination.proto";
+import "chatto/api/v1/read_state.proto";
 import "chatto/api/v1/room_timeline.proto";
 import "google/protobuf/timestamp.proto";
 
@@ -86,4 +87,15 @@ service ThreadService {
   // Stops following a thread for the current user. The response reports the
   // resulting follow state so clients can update local UI immediately.
   rpc UnfollowThread(UnfollowThreadRequest) returns (UnfollowThreadResponse);
+  // Returns one page of events in a message thread. Initial pages include the
+  // thread root message; cursor pages return replies in the requested direction.
+  rpc GetThreadEvents(GetThreadEventsRequest) returns (GetThreadEventsResponse);
+  // Returns a thread timeline window centered around a specific event. Use this
+  // to open a reply from a notification or search result in context. Returns
+  // NOT_FOUND when the thread root or anchor event is missing or hidden and
+  // PERMISSION_DENIED when the room is inaccessible.
+  rpc GetThreadEventsAround(GetThreadEventsAroundRequest) returns (GetThreadEventsAroundResponse);
+  // Marks a thread timeline as read through the supplied event without changing
+  // the room-level read marker.
+  rpc MarkThreadAsRead(MarkThreadAsReadRequest) returns (MarkThreadAsReadResponse);
 }

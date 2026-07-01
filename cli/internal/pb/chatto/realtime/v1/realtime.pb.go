@@ -1592,8 +1592,8 @@ func (*RealtimeEventEnvelope_SessionTerminated) isRealtimeEventEnvelope_Event() 
 
 // Message-posted signal.
 //
-// Hydrate the affected timeline with `RoomTimelineService.GetRoomEventsAround`
-// for room messages, or `RoomTimelineService.GetThreadEventsAround` when
+// Hydrate the affected timeline with `RoomService.GetRoomEventsAround`
+// for room messages, or `ThreadService.GetThreadEventsAround` when
 // `thread_root_event_id` is set.
 type RealtimeMessagePostedEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -1661,8 +1661,8 @@ func (x *RealtimeMessagePostedEvent) GetThreadRootEventId() string {
 // Message-edited signal.
 //
 // Refresh the affected timeline window with
-// `RoomTimelineService.GetRoomEventsAround` for room messages, or
-// `RoomTimelineService.GetThreadEventsAround` when the local message belongs to
+// `RoomService.GetRoomEventsAround` for room messages, or
+// `ThreadService.GetThreadEventsAround` when the local message belongs to
 // a thread.
 type RealtimeMessageEditedEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -1721,8 +1721,8 @@ func (x *RealtimeMessageEditedEvent) GetMessageEventId() string {
 // Message-retracted signal.
 //
 // Refresh or patch the affected timeline window with
-// `RoomTimelineService.GetRoomEventsAround` for room messages, or
-// `RoomTimelineService.GetThreadEventsAround` when the local message belongs to
+// `RoomService.GetRoomEventsAround` for room messages, or
+// `ThreadService.GetThreadEventsAround` when the local message belongs to
 // a thread.
 type RealtimeMessageRetractedEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -1790,8 +1790,8 @@ func (x *RealtimeMessageRetractedEvent) GetReason() string {
 // Reaction signal.
 //
 // Refresh or patch the affected message in its timeline window. Use
-// `RoomTimelineService.GetRoomEventsAround` for room messages, or
-// `RoomTimelineService.GetThreadEventsAround` when the local message belongs to
+// `RoomService.GetRoomEventsAround` for room messages, or
+// `ThreadService.GetThreadEventsAround` when the local message belongs to
 // a thread.
 type RealtimeReactionEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -2084,8 +2084,9 @@ func (x *RealtimeRoomUniversalChangedEvent) GetUniversal() bool {
 // Notification-created signal for the connected user.
 //
 // Hydrate full notification rows with `NotificationService.GetNotification` or
-// `NotificationService.BatchGetNotifications`. Use `RoomTimelineService`
-// anchor reads when `event_id` or `in_reply_to_id` must be opened in context.
+// `NotificationService.BatchGetNotifications`. Use `RoomService` or
+// `ThreadService` anchor reads when `event_id` or `in_reply_to_id` must be
+// opened in context.
 type RealtimeNotificationCreatedEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Notification ID.
@@ -2286,8 +2287,8 @@ func (x *RealtimeNotificationLevelChangedEvent) GetEffectiveLevel() v1.Notificat
 
 // Thread-follow signal for the connected user.
 //
-// The updated follow state is inline. Use `RoomTimelineService.GetThreadEvents`
-// or `RoomTimelineService.GetThreadEventsAround` when the thread itself needs
+// The updated follow state is inline. Use `ThreadService.GetThreadEvents`
+// or `ThreadService.GetThreadEventsAround` when the thread itself needs
 // refreshing.
 type RealtimeThreadFollowChangedEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -2354,7 +2355,7 @@ func (x *RealtimeThreadFollowChangedEvent) GetFollowing() bool {
 
 // Thread-created signal.
 //
-// Hydrate the new thread with `RoomTimelineService.GetThreadEventsAround` using
+// Hydrate the new thread with `ThreadService.GetThreadEventsAround` using
 // `thread_root_event_id` as the anchor.
 type RealtimeThreadCreatedEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`

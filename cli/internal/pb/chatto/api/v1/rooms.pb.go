@@ -1647,11 +1647,112 @@ func (x *ListRoomAttachmentsResponse) GetPage() *PageInfo {
 	return nil
 }
 
+// Request to refresh the current user's live-only typing indicator.
+type UpdateTypingIndicatorRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Required. Room where the current user is typing.
+	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	// Event ID of the thread root when typing inside a thread.
+	ThreadRootEventId string `protobuf:"bytes,2,opt,name=thread_root_event_id,json=threadRootEventId,proto3" json:"thread_root_event_id,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *UpdateTypingIndicatorRequest) Reset() {
+	*x = UpdateTypingIndicatorRequest{}
+	mi := &file_chatto_api_v1_rooms_proto_msgTypes[28]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateTypingIndicatorRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateTypingIndicatorRequest) ProtoMessage() {}
+
+func (x *UpdateTypingIndicatorRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_rooms_proto_msgTypes[28]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateTypingIndicatorRequest.ProtoReflect.Descriptor instead.
+func (*UpdateTypingIndicatorRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_rooms_proto_rawDescGZIP(), []int{28}
+}
+
+func (x *UpdateTypingIndicatorRequest) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *UpdateTypingIndicatorRequest) GetThreadRootEventId() string {
+	if x != nil {
+		return x.ThreadRootEventId
+	}
+	return ""
+}
+
+// Result of refreshing a typing indicator.
+type UpdateTypingIndicatorResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// True when the typing indicator was accepted for publish.
+	Updated       bool `protobuf:"varint,1,opt,name=updated,proto3" json:"updated,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateTypingIndicatorResponse) Reset() {
+	*x = UpdateTypingIndicatorResponse{}
+	mi := &file_chatto_api_v1_rooms_proto_msgTypes[29]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateTypingIndicatorResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateTypingIndicatorResponse) ProtoMessage() {}
+
+func (x *UpdateTypingIndicatorResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_rooms_proto_msgTypes[29]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateTypingIndicatorResponse.ProtoReflect.Descriptor instead.
+func (*UpdateTypingIndicatorResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_rooms_proto_rawDescGZIP(), []int{29}
+}
+
+func (x *UpdateTypingIndicatorResponse) GetUpdated() bool {
+	if x != nil {
+		return x.Updated
+	}
+	return false
+}
+
 var File_chatto_api_v1_rooms_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_rooms_proto_rawDesc = "" +
 	"\n" +
-	"\x19chatto/api/v1/rooms.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fchatto/api/v1/attachments.proto\x1a$chatto/api/v1/member_directory.proto\x1a\x1echatto/api/v1/pagination.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xce\x01\n" +
+	"\x19chatto/api/v1/rooms.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fchatto/api/v1/attachments.proto\x1a$chatto/api/v1/member_directory.proto\x1a\x1echatto/api/v1/pagination.proto\x1a\x1echatto/api/v1/read_state.proto\x1a!chatto/api/v1/room_timeline.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xce\x01\n" +
 	"\x04Room\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12+\n" +
 	"\x04kind\x18\x02 \x01(\x0e2\x17.chatto.api.v1.RoomKindR\x04kind\x12\x12\n" +
@@ -1744,11 +1845,16 @@ const file_chatto_api_v1_rooms_proto_rawDesc = "" +
 	"\x04page\x18\x05 \x01(\v2\x1a.chatto.api.v1.PageRequestR\x04pageJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04R\x05limitR\x06offset\"\xaa\x01\n" +
 	"\x1bListRoomAttachmentsResponse\x12;\n" +
 	"\x05items\x18\x01 \x03(\v2%.chatto.api.v1.RoomAttachmentListItemR\x05items\x12+\n" +
-	"\x04page\x18\x04 \x01(\v2\x17.chatto.api.v1.PageInfoR\x04pageJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04R\vtotal_countR\bhas_more*N\n" +
+	"\x04page\x18\x04 \x01(\v2\x17.chatto.api.v1.PageInfoR\x04pageJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04R\vtotal_countR\bhas_more\"q\n" +
+	"\x1cUpdateTypingIndicatorRequest\x12 \n" +
+	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x12/\n" +
+	"\x14thread_root_event_id\x18\x02 \x01(\tR\x11threadRootEventId\"9\n" +
+	"\x1dUpdateTypingIndicatorResponse\x12\x18\n" +
+	"\aupdated\x18\x01 \x01(\bR\aupdated*N\n" +
 	"\bRoomKind\x12\x19\n" +
 	"\x15ROOM_KIND_UNSPECIFIED\x10\x00\x12\x15\n" +
 	"\x11ROOM_KIND_CHANNEL\x10\x01\x12\x10\n" +
-	"\fROOM_KIND_DM\x10\x022\x9b\t\n" +
+	"\fROOM_KIND_DM\x10\x022\xb8\f\n" +
 	"\vRoomService\x12Q\n" +
 	"\n" +
 	"CreateRoom\x12 .chatto.api.v1.CreateRoomRequest\x1a!.chatto.api.v1.CreateRoomResponse\x12Q\n" +
@@ -1762,7 +1868,11 @@ const file_chatto_api_v1_rooms_proto_rawDesc = "" +
 	"\aStartDM\x12\x1d.chatto.api.v1.StartDMRequest\x1a\x1e.chatto.api.v1.StartDMResponse\x12N\n" +
 	"\tLeaveRoom\x12\x1f.chatto.api.v1.LeaveRoomRequest\x1a .chatto.api.v1.LeaveRoomResponse\x12W\n" +
 	"\fListRoomBans\x12\".chatto.api.v1.ListRoomBansRequest\x1a#.chatto.api.v1.ListRoomBansResponse\x12l\n" +
-	"\x13ListRoomAttachments\x12).chatto.api.v1.ListRoomAttachmentsRequest\x1a*.chatto.api.v1.ListRoomAttachmentsResponse\x12Z\n" +
+	"\x13ListRoomAttachments\x12).chatto.api.v1.ListRoomAttachmentsRequest\x1a*.chatto.api.v1.ListRoomAttachmentsResponse\x12r\n" +
+	"\x15UpdateTypingIndicator\x12+.chatto.api.v1.UpdateTypingIndicatorRequest\x1a,.chatto.api.v1.UpdateTypingIndicatorResponse\x12Z\n" +
+	"\rGetRoomEvents\x12#.chatto.api.v1.GetRoomEventsRequest\x1a$.chatto.api.v1.GetRoomEventsResponse\x12l\n" +
+	"\x13GetRoomEventsAround\x12).chatto.api.v1.GetRoomEventsAroundRequest\x1a*.chatto.api.v1.GetRoomEventsAroundResponse\x12]\n" +
+	"\x0eMarkRoomAsRead\x12$.chatto.api.v1.MarkRoomAsReadRequest\x1a%.chatto.api.v1.MarkRoomAsReadResponse\x12Z\n" +
 	"\rBanRoomMember\x12#.chatto.api.v1.BanRoomMemberRequest\x1a$.chatto.api.v1.BanRoomMemberResponse\x12`\n" +
 	"\x0fUnbanRoomMember\x12%.chatto.api.v1.UnbanRoomMemberRequest\x1a&.chatto.api.v1.UnbanRoomMemberResponseB\xa6\x01\n" +
 	"\x11com.chatto.api.v1B\n" +
@@ -1781,43 +1891,51 @@ func file_chatto_api_v1_rooms_proto_rawDescGZIP() []byte {
 }
 
 var file_chatto_api_v1_rooms_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_chatto_api_v1_rooms_proto_msgTypes = make([]protoimpl.MessageInfo, 28)
+var file_chatto_api_v1_rooms_proto_msgTypes = make([]protoimpl.MessageInfo, 30)
 var file_chatto_api_v1_rooms_proto_goTypes = []any{
-	(RoomKind)(0),                       // 0: chatto.api.v1.RoomKind
-	(*Room)(nil),                        // 1: chatto.api.v1.Room
-	(*CreateRoomRequest)(nil),           // 2: chatto.api.v1.CreateRoomRequest
-	(*CreateRoomResponse)(nil),          // 3: chatto.api.v1.CreateRoomResponse
-	(*UpdateRoomRequest)(nil),           // 4: chatto.api.v1.UpdateRoomRequest
-	(*UpdateRoomResponse)(nil),          // 5: chatto.api.v1.UpdateRoomResponse
-	(*ArchiveRoomRequest)(nil),          // 6: chatto.api.v1.ArchiveRoomRequest
-	(*ArchiveRoomResponse)(nil),         // 7: chatto.api.v1.ArchiveRoomResponse
-	(*UnarchiveRoomRequest)(nil),        // 8: chatto.api.v1.UnarchiveRoomRequest
-	(*UnarchiveRoomResponse)(nil),       // 9: chatto.api.v1.UnarchiveRoomResponse
-	(*UpdateRoomUniversalRequest)(nil),  // 10: chatto.api.v1.UpdateRoomUniversalRequest
-	(*UpdateRoomUniversalResponse)(nil), // 11: chatto.api.v1.UpdateRoomUniversalResponse
-	(*JoinRoomRequest)(nil),             // 12: chatto.api.v1.JoinRoomRequest
-	(*JoinRoomResponse)(nil),            // 13: chatto.api.v1.JoinRoomResponse
-	(*JoinRoomGroupRequest)(nil),        // 14: chatto.api.v1.JoinRoomGroupRequest
-	(*JoinRoomGroupResponse)(nil),       // 15: chatto.api.v1.JoinRoomGroupResponse
-	(*StartDMRequest)(nil),              // 16: chatto.api.v1.StartDMRequest
-	(*StartDMResponse)(nil),             // 17: chatto.api.v1.StartDMResponse
-	(*LeaveRoomRequest)(nil),            // 18: chatto.api.v1.LeaveRoomRequest
-	(*LeaveRoomResponse)(nil),           // 19: chatto.api.v1.LeaveRoomResponse
-	(*BanRoomMemberRequest)(nil),        // 20: chatto.api.v1.BanRoomMemberRequest
-	(*BanRoomMemberResponse)(nil),       // 21: chatto.api.v1.BanRoomMemberResponse
-	(*UnbanRoomMemberRequest)(nil),      // 22: chatto.api.v1.UnbanRoomMemberRequest
-	(*UnbanRoomMemberResponse)(nil),     // 23: chatto.api.v1.UnbanRoomMemberResponse
-	(*RoomBan)(nil),                     // 24: chatto.api.v1.RoomBan
-	(*ListRoomBansRequest)(nil),         // 25: chatto.api.v1.ListRoomBansRequest
-	(*ListRoomBansResponse)(nil),        // 26: chatto.api.v1.ListRoomBansResponse
-	(*ListRoomAttachmentsRequest)(nil),  // 27: chatto.api.v1.ListRoomAttachmentsRequest
-	(*ListRoomAttachmentsResponse)(nil), // 28: chatto.api.v1.ListRoomAttachmentsResponse
-	(*timestamppb.Timestamp)(nil),       // 29: google.protobuf.Timestamp
-	(*DirectoryMember)(nil),             // 30: chatto.api.v1.DirectoryMember
-	(*PageRequest)(nil),                 // 31: chatto.api.v1.PageRequest
-	(*PageInfo)(nil),                    // 32: chatto.api.v1.PageInfo
-	(*AttachmentThumbnailOptions)(nil),  // 33: chatto.api.v1.AttachmentThumbnailOptions
-	(*RoomAttachmentListItem)(nil),      // 34: chatto.api.v1.RoomAttachmentListItem
+	(RoomKind)(0),                         // 0: chatto.api.v1.RoomKind
+	(*Room)(nil),                          // 1: chatto.api.v1.Room
+	(*CreateRoomRequest)(nil),             // 2: chatto.api.v1.CreateRoomRequest
+	(*CreateRoomResponse)(nil),            // 3: chatto.api.v1.CreateRoomResponse
+	(*UpdateRoomRequest)(nil),             // 4: chatto.api.v1.UpdateRoomRequest
+	(*UpdateRoomResponse)(nil),            // 5: chatto.api.v1.UpdateRoomResponse
+	(*ArchiveRoomRequest)(nil),            // 6: chatto.api.v1.ArchiveRoomRequest
+	(*ArchiveRoomResponse)(nil),           // 7: chatto.api.v1.ArchiveRoomResponse
+	(*UnarchiveRoomRequest)(nil),          // 8: chatto.api.v1.UnarchiveRoomRequest
+	(*UnarchiveRoomResponse)(nil),         // 9: chatto.api.v1.UnarchiveRoomResponse
+	(*UpdateRoomUniversalRequest)(nil),    // 10: chatto.api.v1.UpdateRoomUniversalRequest
+	(*UpdateRoomUniversalResponse)(nil),   // 11: chatto.api.v1.UpdateRoomUniversalResponse
+	(*JoinRoomRequest)(nil),               // 12: chatto.api.v1.JoinRoomRequest
+	(*JoinRoomResponse)(nil),              // 13: chatto.api.v1.JoinRoomResponse
+	(*JoinRoomGroupRequest)(nil),          // 14: chatto.api.v1.JoinRoomGroupRequest
+	(*JoinRoomGroupResponse)(nil),         // 15: chatto.api.v1.JoinRoomGroupResponse
+	(*StartDMRequest)(nil),                // 16: chatto.api.v1.StartDMRequest
+	(*StartDMResponse)(nil),               // 17: chatto.api.v1.StartDMResponse
+	(*LeaveRoomRequest)(nil),              // 18: chatto.api.v1.LeaveRoomRequest
+	(*LeaveRoomResponse)(nil),             // 19: chatto.api.v1.LeaveRoomResponse
+	(*BanRoomMemberRequest)(nil),          // 20: chatto.api.v1.BanRoomMemberRequest
+	(*BanRoomMemberResponse)(nil),         // 21: chatto.api.v1.BanRoomMemberResponse
+	(*UnbanRoomMemberRequest)(nil),        // 22: chatto.api.v1.UnbanRoomMemberRequest
+	(*UnbanRoomMemberResponse)(nil),       // 23: chatto.api.v1.UnbanRoomMemberResponse
+	(*RoomBan)(nil),                       // 24: chatto.api.v1.RoomBan
+	(*ListRoomBansRequest)(nil),           // 25: chatto.api.v1.ListRoomBansRequest
+	(*ListRoomBansResponse)(nil),          // 26: chatto.api.v1.ListRoomBansResponse
+	(*ListRoomAttachmentsRequest)(nil),    // 27: chatto.api.v1.ListRoomAttachmentsRequest
+	(*ListRoomAttachmentsResponse)(nil),   // 28: chatto.api.v1.ListRoomAttachmentsResponse
+	(*UpdateTypingIndicatorRequest)(nil),  // 29: chatto.api.v1.UpdateTypingIndicatorRequest
+	(*UpdateTypingIndicatorResponse)(nil), // 30: chatto.api.v1.UpdateTypingIndicatorResponse
+	(*timestamppb.Timestamp)(nil),         // 31: google.protobuf.Timestamp
+	(*DirectoryMember)(nil),               // 32: chatto.api.v1.DirectoryMember
+	(*PageRequest)(nil),                   // 33: chatto.api.v1.PageRequest
+	(*PageInfo)(nil),                      // 34: chatto.api.v1.PageInfo
+	(*AttachmentThumbnailOptions)(nil),    // 35: chatto.api.v1.AttachmentThumbnailOptions
+	(*RoomAttachmentListItem)(nil),        // 36: chatto.api.v1.RoomAttachmentListItem
+	(*GetRoomEventsRequest)(nil),          // 37: chatto.api.v1.GetRoomEventsRequest
+	(*GetRoomEventsAroundRequest)(nil),    // 38: chatto.api.v1.GetRoomEventsAroundRequest
+	(*MarkRoomAsReadRequest)(nil),         // 39: chatto.api.v1.MarkRoomAsReadRequest
+	(*GetRoomEventsResponse)(nil),         // 40: chatto.api.v1.GetRoomEventsResponse
+	(*GetRoomEventsAroundResponse)(nil),   // 41: chatto.api.v1.GetRoomEventsAroundResponse
+	(*MarkRoomAsReadResponse)(nil),        // 42: chatto.api.v1.MarkRoomAsReadResponse
 }
 var file_chatto_api_v1_rooms_proto_depIdxs = []int32{
 	0,  // 0: chatto.api.v1.Room.kind:type_name -> chatto.api.v1.RoomKind
@@ -1828,19 +1946,19 @@ var file_chatto_api_v1_rooms_proto_depIdxs = []int32{
 	1,  // 5: chatto.api.v1.UpdateRoomUniversalResponse.room:type_name -> chatto.api.v1.Room
 	1,  // 6: chatto.api.v1.JoinRoomResponse.room:type_name -> chatto.api.v1.Room
 	1,  // 7: chatto.api.v1.StartDMResponse.room:type_name -> chatto.api.v1.Room
-	29, // 8: chatto.api.v1.BanRoomMemberRequest.expires_at:type_name -> google.protobuf.Timestamp
+	31, // 8: chatto.api.v1.BanRoomMemberRequest.expires_at:type_name -> google.protobuf.Timestamp
 	1,  // 9: chatto.api.v1.RoomBan.room:type_name -> chatto.api.v1.Room
-	30, // 10: chatto.api.v1.RoomBan.user:type_name -> chatto.api.v1.DirectoryMember
-	30, // 11: chatto.api.v1.RoomBan.moderator:type_name -> chatto.api.v1.DirectoryMember
-	29, // 12: chatto.api.v1.RoomBan.created_at:type_name -> google.protobuf.Timestamp
-	29, // 13: chatto.api.v1.RoomBan.expires_at:type_name -> google.protobuf.Timestamp
-	31, // 14: chatto.api.v1.ListRoomBansRequest.page:type_name -> chatto.api.v1.PageRequest
+	32, // 10: chatto.api.v1.RoomBan.user:type_name -> chatto.api.v1.DirectoryMember
+	32, // 11: chatto.api.v1.RoomBan.moderator:type_name -> chatto.api.v1.DirectoryMember
+	31, // 12: chatto.api.v1.RoomBan.created_at:type_name -> google.protobuf.Timestamp
+	31, // 13: chatto.api.v1.RoomBan.expires_at:type_name -> google.protobuf.Timestamp
+	33, // 14: chatto.api.v1.ListRoomBansRequest.page:type_name -> chatto.api.v1.PageRequest
 	24, // 15: chatto.api.v1.ListRoomBansResponse.bans:type_name -> chatto.api.v1.RoomBan
-	32, // 16: chatto.api.v1.ListRoomBansResponse.page:type_name -> chatto.api.v1.PageInfo
-	33, // 17: chatto.api.v1.ListRoomAttachmentsRequest.thumbnail:type_name -> chatto.api.v1.AttachmentThumbnailOptions
-	31, // 18: chatto.api.v1.ListRoomAttachmentsRequest.page:type_name -> chatto.api.v1.PageRequest
-	34, // 19: chatto.api.v1.ListRoomAttachmentsResponse.items:type_name -> chatto.api.v1.RoomAttachmentListItem
-	32, // 20: chatto.api.v1.ListRoomAttachmentsResponse.page:type_name -> chatto.api.v1.PageInfo
+	34, // 16: chatto.api.v1.ListRoomBansResponse.page:type_name -> chatto.api.v1.PageInfo
+	35, // 17: chatto.api.v1.ListRoomAttachmentsRequest.thumbnail:type_name -> chatto.api.v1.AttachmentThumbnailOptions
+	33, // 18: chatto.api.v1.ListRoomAttachmentsRequest.page:type_name -> chatto.api.v1.PageRequest
+	36, // 19: chatto.api.v1.ListRoomAttachmentsResponse.items:type_name -> chatto.api.v1.RoomAttachmentListItem
+	34, // 20: chatto.api.v1.ListRoomAttachmentsResponse.page:type_name -> chatto.api.v1.PageInfo
 	2,  // 21: chatto.api.v1.RoomService.CreateRoom:input_type -> chatto.api.v1.CreateRoomRequest
 	4,  // 22: chatto.api.v1.RoomService.UpdateRoom:input_type -> chatto.api.v1.UpdateRoomRequest
 	6,  // 23: chatto.api.v1.RoomService.ArchiveRoom:input_type -> chatto.api.v1.ArchiveRoomRequest
@@ -1852,23 +1970,31 @@ var file_chatto_api_v1_rooms_proto_depIdxs = []int32{
 	18, // 29: chatto.api.v1.RoomService.LeaveRoom:input_type -> chatto.api.v1.LeaveRoomRequest
 	25, // 30: chatto.api.v1.RoomService.ListRoomBans:input_type -> chatto.api.v1.ListRoomBansRequest
 	27, // 31: chatto.api.v1.RoomService.ListRoomAttachments:input_type -> chatto.api.v1.ListRoomAttachmentsRequest
-	20, // 32: chatto.api.v1.RoomService.BanRoomMember:input_type -> chatto.api.v1.BanRoomMemberRequest
-	22, // 33: chatto.api.v1.RoomService.UnbanRoomMember:input_type -> chatto.api.v1.UnbanRoomMemberRequest
-	3,  // 34: chatto.api.v1.RoomService.CreateRoom:output_type -> chatto.api.v1.CreateRoomResponse
-	5,  // 35: chatto.api.v1.RoomService.UpdateRoom:output_type -> chatto.api.v1.UpdateRoomResponse
-	7,  // 36: chatto.api.v1.RoomService.ArchiveRoom:output_type -> chatto.api.v1.ArchiveRoomResponse
-	9,  // 37: chatto.api.v1.RoomService.UnarchiveRoom:output_type -> chatto.api.v1.UnarchiveRoomResponse
-	11, // 38: chatto.api.v1.RoomService.UpdateRoomUniversal:output_type -> chatto.api.v1.UpdateRoomUniversalResponse
-	13, // 39: chatto.api.v1.RoomService.JoinRoom:output_type -> chatto.api.v1.JoinRoomResponse
-	15, // 40: chatto.api.v1.RoomService.JoinRoomGroup:output_type -> chatto.api.v1.JoinRoomGroupResponse
-	17, // 41: chatto.api.v1.RoomService.StartDM:output_type -> chatto.api.v1.StartDMResponse
-	19, // 42: chatto.api.v1.RoomService.LeaveRoom:output_type -> chatto.api.v1.LeaveRoomResponse
-	26, // 43: chatto.api.v1.RoomService.ListRoomBans:output_type -> chatto.api.v1.ListRoomBansResponse
-	28, // 44: chatto.api.v1.RoomService.ListRoomAttachments:output_type -> chatto.api.v1.ListRoomAttachmentsResponse
-	21, // 45: chatto.api.v1.RoomService.BanRoomMember:output_type -> chatto.api.v1.BanRoomMemberResponse
-	23, // 46: chatto.api.v1.RoomService.UnbanRoomMember:output_type -> chatto.api.v1.UnbanRoomMemberResponse
-	34, // [34:47] is the sub-list for method output_type
-	21, // [21:34] is the sub-list for method input_type
+	29, // 32: chatto.api.v1.RoomService.UpdateTypingIndicator:input_type -> chatto.api.v1.UpdateTypingIndicatorRequest
+	37, // 33: chatto.api.v1.RoomService.GetRoomEvents:input_type -> chatto.api.v1.GetRoomEventsRequest
+	38, // 34: chatto.api.v1.RoomService.GetRoomEventsAround:input_type -> chatto.api.v1.GetRoomEventsAroundRequest
+	39, // 35: chatto.api.v1.RoomService.MarkRoomAsRead:input_type -> chatto.api.v1.MarkRoomAsReadRequest
+	20, // 36: chatto.api.v1.RoomService.BanRoomMember:input_type -> chatto.api.v1.BanRoomMemberRequest
+	22, // 37: chatto.api.v1.RoomService.UnbanRoomMember:input_type -> chatto.api.v1.UnbanRoomMemberRequest
+	3,  // 38: chatto.api.v1.RoomService.CreateRoom:output_type -> chatto.api.v1.CreateRoomResponse
+	5,  // 39: chatto.api.v1.RoomService.UpdateRoom:output_type -> chatto.api.v1.UpdateRoomResponse
+	7,  // 40: chatto.api.v1.RoomService.ArchiveRoom:output_type -> chatto.api.v1.ArchiveRoomResponse
+	9,  // 41: chatto.api.v1.RoomService.UnarchiveRoom:output_type -> chatto.api.v1.UnarchiveRoomResponse
+	11, // 42: chatto.api.v1.RoomService.UpdateRoomUniversal:output_type -> chatto.api.v1.UpdateRoomUniversalResponse
+	13, // 43: chatto.api.v1.RoomService.JoinRoom:output_type -> chatto.api.v1.JoinRoomResponse
+	15, // 44: chatto.api.v1.RoomService.JoinRoomGroup:output_type -> chatto.api.v1.JoinRoomGroupResponse
+	17, // 45: chatto.api.v1.RoomService.StartDM:output_type -> chatto.api.v1.StartDMResponse
+	19, // 46: chatto.api.v1.RoomService.LeaveRoom:output_type -> chatto.api.v1.LeaveRoomResponse
+	26, // 47: chatto.api.v1.RoomService.ListRoomBans:output_type -> chatto.api.v1.ListRoomBansResponse
+	28, // 48: chatto.api.v1.RoomService.ListRoomAttachments:output_type -> chatto.api.v1.ListRoomAttachmentsResponse
+	30, // 49: chatto.api.v1.RoomService.UpdateTypingIndicator:output_type -> chatto.api.v1.UpdateTypingIndicatorResponse
+	40, // 50: chatto.api.v1.RoomService.GetRoomEvents:output_type -> chatto.api.v1.GetRoomEventsResponse
+	41, // 51: chatto.api.v1.RoomService.GetRoomEventsAround:output_type -> chatto.api.v1.GetRoomEventsAroundResponse
+	42, // 52: chatto.api.v1.RoomService.MarkRoomAsRead:output_type -> chatto.api.v1.MarkRoomAsReadResponse
+	21, // 53: chatto.api.v1.RoomService.BanRoomMember:output_type -> chatto.api.v1.BanRoomMemberResponse
+	23, // 54: chatto.api.v1.RoomService.UnbanRoomMember:output_type -> chatto.api.v1.UnbanRoomMemberResponse
+	38, // [38:55] is the sub-list for method output_type
+	21, // [21:38] is the sub-list for method input_type
 	21, // [21:21] is the sub-list for extension type_name
 	21, // [21:21] is the sub-list for extension extendee
 	0,  // [0:21] is the sub-list for field type_name
@@ -1882,13 +2008,15 @@ func file_chatto_api_v1_rooms_proto_init() {
 	file_chatto_api_v1_attachments_proto_init()
 	file_chatto_api_v1_member_directory_proto_init()
 	file_chatto_api_v1_pagination_proto_init()
+	file_chatto_api_v1_read_state_proto_init()
+	file_chatto_api_v1_room_timeline_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_api_v1_rooms_proto_rawDesc), len(file_chatto_api_v1_rooms_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   28,
+			NumMessages:   30,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

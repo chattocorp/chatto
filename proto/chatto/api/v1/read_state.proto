@@ -42,15 +42,3 @@ message MarkThreadAsReadResponse {
   // Previous thread read timestamp, when one existed.
   google.protobuf.Timestamp previous_read_at = 1;
 }
-
-// Updates room and thread read state for the current user.
-service ReadStateService {
-  // Marks a room timeline as read through the supplied event. If no event is
-  // supplied, the server marks through the room's latest root event. Clients
-  // usually call this after the user has viewed the latest visible event in the
-  // room.
-  rpc MarkRoomAsRead(MarkRoomAsReadRequest) returns (MarkRoomAsReadResponse);
-  // Marks a thread timeline as read through the supplied event without changing
-  // the room-level read marker.
-  rpc MarkThreadAsRead(MarkThreadAsReadRequest) returns (MarkThreadAsReadResponse);
-}

@@ -80,6 +80,8 @@ function makeViewer(overrides: Partial<ViewerState> = {}): ViewerState {
       effectiveLevel: NotificationLevel.Normal
     },
     roomNotificationPreferences: [],
+    viewerPermissions: {},
+    viewerHasUnreadRooms: false,
     ...overrides
   };
 }
@@ -89,6 +91,7 @@ function makeNotificationAPI(counts: Record<string, number> = {}): NotificationA
     listNotifications: vi.fn(),
     listRoomNotifications: vi.fn(),
     hasNotifications: vi.fn(),
+    listRoomNotificationCounts: vi.fn().mockResolvedValue(counts),
     listNotificationCounts: vi.fn().mockResolvedValue(counts),
     dismissNotification: vi.fn(),
     dismissAllNotifications: vi.fn()

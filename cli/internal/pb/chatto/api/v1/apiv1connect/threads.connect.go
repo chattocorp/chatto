@@ -42,6 +42,15 @@ const (
 	// ThreadServiceUnfollowThreadProcedure is the fully-qualified name of the ThreadService's
 	// UnfollowThread RPC.
 	ThreadServiceUnfollowThreadProcedure = "/chatto.api.v1.ThreadService/UnfollowThread"
+	// ThreadServiceGetThreadEventsProcedure is the fully-qualified name of the ThreadService's
+	// GetThreadEvents RPC.
+	ThreadServiceGetThreadEventsProcedure = "/chatto.api.v1.ThreadService/GetThreadEvents"
+	// ThreadServiceGetThreadEventsAroundProcedure is the fully-qualified name of the ThreadService's
+	// GetThreadEventsAround RPC.
+	ThreadServiceGetThreadEventsAroundProcedure = "/chatto.api.v1.ThreadService/GetThreadEventsAround"
+	// ThreadServiceMarkThreadAsReadProcedure is the fully-qualified name of the ThreadService's
+	// MarkThreadAsRead RPC.
+	ThreadServiceMarkThreadAsReadProcedure = "/chatto.api.v1.ThreadService/MarkThreadAsRead"
 )
 
 // ThreadServiceClient is a client for the chatto.api.v1.ThreadService service.
@@ -55,6 +64,17 @@ type ThreadServiceClient interface {
 	// Stops following a thread for the current user. The response reports the
 	// resulting follow state so clients can update local UI immediately.
 	UnfollowThread(context.Context, *connect.Request[v1.UnfollowThreadRequest]) (*connect.Response[v1.UnfollowThreadResponse], error)
+	// Returns one page of events in a message thread. Initial pages include the
+	// thread root message; cursor pages return replies in the requested direction.
+	GetThreadEvents(context.Context, *connect.Request[v1.GetThreadEventsRequest]) (*connect.Response[v1.GetThreadEventsResponse], error)
+	// Returns a thread timeline window centered around a specific event. Use this
+	// to open a reply from a notification or search result in context. Returns
+	// NOT_FOUND when the thread root or anchor event is missing or hidden and
+	// PERMISSION_DENIED when the room is inaccessible.
+	GetThreadEventsAround(context.Context, *connect.Request[v1.GetThreadEventsAroundRequest]) (*connect.Response[v1.GetThreadEventsAroundResponse], error)
+	// Marks a thread timeline as read through the supplied event without changing
+	// the room-level read marker.
+	MarkThreadAsRead(context.Context, *connect.Request[v1.MarkThreadAsReadRequest]) (*connect.Response[v1.MarkThreadAsReadResponse], error)
 }
 
 // NewThreadServiceClient constructs a client for the chatto.api.v1.ThreadService service. By
@@ -86,14 +106,35 @@ func NewThreadServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithSchema(threadServiceMethods.ByName("UnfollowThread")),
 			connect.WithClientOptions(opts...),
 		),
+		getThreadEvents: connect.NewClient[v1.GetThreadEventsRequest, v1.GetThreadEventsResponse](
+			httpClient,
+			baseURL+ThreadServiceGetThreadEventsProcedure,
+			connect.WithSchema(threadServiceMethods.ByName("GetThreadEvents")),
+			connect.WithClientOptions(opts...),
+		),
+		getThreadEventsAround: connect.NewClient[v1.GetThreadEventsAroundRequest, v1.GetThreadEventsAroundResponse](
+			httpClient,
+			baseURL+ThreadServiceGetThreadEventsAroundProcedure,
+			connect.WithSchema(threadServiceMethods.ByName("GetThreadEventsAround")),
+			connect.WithClientOptions(opts...),
+		),
+		markThreadAsRead: connect.NewClient[v1.MarkThreadAsReadRequest, v1.MarkThreadAsReadResponse](
+			httpClient,
+			baseURL+ThreadServiceMarkThreadAsReadProcedure,
+			connect.WithSchema(threadServiceMethods.ByName("MarkThreadAsRead")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // threadServiceClient implements ThreadServiceClient.
 type threadServiceClient struct {
-	listFollowedThreads *connect.Client[v1.ListFollowedThreadsRequest, v1.ListFollowedThreadsResponse]
-	followThread        *connect.Client[v1.FollowThreadRequest, v1.FollowThreadResponse]
-	unfollowThread      *connect.Client[v1.UnfollowThreadRequest, v1.UnfollowThreadResponse]
+	listFollowedThreads   *connect.Client[v1.ListFollowedThreadsRequest, v1.ListFollowedThreadsResponse]
+	followThread          *connect.Client[v1.FollowThreadRequest, v1.FollowThreadResponse]
+	unfollowThread        *connect.Client[v1.UnfollowThreadRequest, v1.UnfollowThreadResponse]
+	getThreadEvents       *connect.Client[v1.GetThreadEventsRequest, v1.GetThreadEventsResponse]
+	getThreadEventsAround *connect.Client[v1.GetThreadEventsAroundRequest, v1.GetThreadEventsAroundResponse]
+	markThreadAsRead      *connect.Client[v1.MarkThreadAsReadRequest, v1.MarkThreadAsReadResponse]
 }
 
 // ListFollowedThreads calls chatto.api.v1.ThreadService.ListFollowedThreads.
@@ -111,6 +152,21 @@ func (c *threadServiceClient) UnfollowThread(ctx context.Context, req *connect.R
 	return c.unfollowThread.CallUnary(ctx, req)
 }
 
+// GetThreadEvents calls chatto.api.v1.ThreadService.GetThreadEvents.
+func (c *threadServiceClient) GetThreadEvents(ctx context.Context, req *connect.Request[v1.GetThreadEventsRequest]) (*connect.Response[v1.GetThreadEventsResponse], error) {
+	return c.getThreadEvents.CallUnary(ctx, req)
+}
+
+// GetThreadEventsAround calls chatto.api.v1.ThreadService.GetThreadEventsAround.
+func (c *threadServiceClient) GetThreadEventsAround(ctx context.Context, req *connect.Request[v1.GetThreadEventsAroundRequest]) (*connect.Response[v1.GetThreadEventsAroundResponse], error) {
+	return c.getThreadEventsAround.CallUnary(ctx, req)
+}
+
+// MarkThreadAsRead calls chatto.api.v1.ThreadService.MarkThreadAsRead.
+func (c *threadServiceClient) MarkThreadAsRead(ctx context.Context, req *connect.Request[v1.MarkThreadAsReadRequest]) (*connect.Response[v1.MarkThreadAsReadResponse], error) {
+	return c.markThreadAsRead.CallUnary(ctx, req)
+}
+
 // ThreadServiceHandler is an implementation of the chatto.api.v1.ThreadService service.
 type ThreadServiceHandler interface {
 	// Returns followed threads for the current user, including enough root-message
@@ -122,6 +178,17 @@ type ThreadServiceHandler interface {
 	// Stops following a thread for the current user. The response reports the
 	// resulting follow state so clients can update local UI immediately.
 	UnfollowThread(context.Context, *connect.Request[v1.UnfollowThreadRequest]) (*connect.Response[v1.UnfollowThreadResponse], error)
+	// Returns one page of events in a message thread. Initial pages include the
+	// thread root message; cursor pages return replies in the requested direction.
+	GetThreadEvents(context.Context, *connect.Request[v1.GetThreadEventsRequest]) (*connect.Response[v1.GetThreadEventsResponse], error)
+	// Returns a thread timeline window centered around a specific event. Use this
+	// to open a reply from a notification or search result in context. Returns
+	// NOT_FOUND when the thread root or anchor event is missing or hidden and
+	// PERMISSION_DENIED when the room is inaccessible.
+	GetThreadEventsAround(context.Context, *connect.Request[v1.GetThreadEventsAroundRequest]) (*connect.Response[v1.GetThreadEventsAroundResponse], error)
+	// Marks a thread timeline as read through the supplied event without changing
+	// the room-level read marker.
+	MarkThreadAsRead(context.Context, *connect.Request[v1.MarkThreadAsReadRequest]) (*connect.Response[v1.MarkThreadAsReadResponse], error)
 }
 
 // NewThreadServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -149,6 +216,24 @@ func NewThreadServiceHandler(svc ThreadServiceHandler, opts ...connect.HandlerOp
 		connect.WithSchema(threadServiceMethods.ByName("UnfollowThread")),
 		connect.WithHandlerOptions(opts...),
 	)
+	threadServiceGetThreadEventsHandler := connect.NewUnaryHandler(
+		ThreadServiceGetThreadEventsProcedure,
+		svc.GetThreadEvents,
+		connect.WithSchema(threadServiceMethods.ByName("GetThreadEvents")),
+		connect.WithHandlerOptions(opts...),
+	)
+	threadServiceGetThreadEventsAroundHandler := connect.NewUnaryHandler(
+		ThreadServiceGetThreadEventsAroundProcedure,
+		svc.GetThreadEventsAround,
+		connect.WithSchema(threadServiceMethods.ByName("GetThreadEventsAround")),
+		connect.WithHandlerOptions(opts...),
+	)
+	threadServiceMarkThreadAsReadHandler := connect.NewUnaryHandler(
+		ThreadServiceMarkThreadAsReadProcedure,
+		svc.MarkThreadAsRead,
+		connect.WithSchema(threadServiceMethods.ByName("MarkThreadAsRead")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/chatto.api.v1.ThreadService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case ThreadServiceListFollowedThreadsProcedure:
@@ -157,6 +242,12 @@ func NewThreadServiceHandler(svc ThreadServiceHandler, opts ...connect.HandlerOp
 			threadServiceFollowThreadHandler.ServeHTTP(w, r)
 		case ThreadServiceUnfollowThreadProcedure:
 			threadServiceUnfollowThreadHandler.ServeHTTP(w, r)
+		case ThreadServiceGetThreadEventsProcedure:
+			threadServiceGetThreadEventsHandler.ServeHTTP(w, r)
+		case ThreadServiceGetThreadEventsAroundProcedure:
+			threadServiceGetThreadEventsAroundHandler.ServeHTTP(w, r)
+		case ThreadServiceMarkThreadAsReadProcedure:
+			threadServiceMarkThreadAsReadHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -176,4 +267,16 @@ func (UnimplementedThreadServiceHandler) FollowThread(context.Context, *connect.
 
 func (UnimplementedThreadServiceHandler) UnfollowThread(context.Context, *connect.Request[v1.UnfollowThreadRequest]) (*connect.Response[v1.UnfollowThreadResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.ThreadService.UnfollowThread is not implemented"))
+}
+
+func (UnimplementedThreadServiceHandler) GetThreadEvents(context.Context, *connect.Request[v1.GetThreadEventsRequest]) (*connect.Response[v1.GetThreadEventsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.ThreadService.GetThreadEvents is not implemented"))
+}
+
+func (UnimplementedThreadServiceHandler) GetThreadEventsAround(context.Context, *connect.Request[v1.GetThreadEventsAroundRequest]) (*connect.Response[v1.GetThreadEventsAroundResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.ThreadService.GetThreadEventsAround is not implemented"))
+}
+
+func (UnimplementedThreadServiceHandler) MarkThreadAsRead(context.Context, *connect.Request[v1.MarkThreadAsReadRequest]) (*connect.Response[v1.MarkThreadAsReadResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.ThreadService.MarkThreadAsRead is not implemented"))
 }

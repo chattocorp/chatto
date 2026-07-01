@@ -258,10 +258,7 @@ const file_chatto_api_v1_reactions_proto_rawDesc = "" +
 	"\x10message_event_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x0emessageEventId\x12\x1d\n" +
 	"\x05emoji\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05emoji\"2\n" +
 	"\x16RemoveReactionResponse\x12\x18\n" +
-	"\aremoved\x18\x01 \x01(\bR\aremoved2\xc6\x01\n" +
-	"\x0fReactionService\x12T\n" +
-	"\vAddReaction\x12!.chatto.api.v1.AddReactionRequest\x1a\".chatto.api.v1.AddReactionResponse\x12]\n" +
-	"\x0eRemoveReaction\x12$.chatto.api.v1.RemoveReactionRequest\x1a%.chatto.api.v1.RemoveReactionResponseB\xaa\x01\n" +
+	"\aremoved\x18\x01 \x01(\bR\aremovedB\xaa\x01\n" +
 	"\x11com.chatto.api.v1B\x0eReactionsProtoP\x01Z/hmans.de/chatto/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
 
 var (
@@ -284,12 +281,8 @@ var file_chatto_api_v1_reactions_proto_goTypes = []any{
 	(*RemoveReactionResponse)(nil), // 3: chatto.api.v1.RemoveReactionResponse
 }
 var file_chatto_api_v1_reactions_proto_depIdxs = []int32{
-	0, // 0: chatto.api.v1.ReactionService.AddReaction:input_type -> chatto.api.v1.AddReactionRequest
-	2, // 1: chatto.api.v1.ReactionService.RemoveReaction:input_type -> chatto.api.v1.RemoveReactionRequest
-	1, // 2: chatto.api.v1.ReactionService.AddReaction:output_type -> chatto.api.v1.AddReactionResponse
-	3, // 3: chatto.api.v1.ReactionService.RemoveReaction:output_type -> chatto.api.v1.RemoveReactionResponse
-	2, // [2:4] is the sub-list for method output_type
-	0, // [0:2] is the sub-list for method input_type
+	0, // [0:0] is the sub-list for method output_type
+	0, // [0:0] is the sub-list for method input_type
 	0, // [0:0] is the sub-list for extension type_name
 	0, // [0:0] is the sub-list for extension extendee
 	0, // [0:0] is the sub-list for field type_name
@@ -308,7 +301,7 @@ func file_chatto_api_v1_reactions_proto_init() {
 			NumEnums:      0,
 			NumMessages:   4,
 			NumExtensions: 0,
-			NumServices:   1,
+			NumServices:   0,
 		},
 		GoTypes:           file_chatto_api_v1_reactions_proto_goTypes,
 		DependencyIndexes: file_chatto_api_v1_reactions_proto_depIdxs,

@@ -156,26 +156,26 @@ Pending notification page scoped to one room.
 | `page` | [`PageInfo`](/reference/connectrpc-api/types/#chatto-api-v1-PageInfo) | Page metadata. |
 
 
-<a id="chatto-api-v1-NotificationService-ListNotificationCounts"></a>
+<a id="chatto-api-v1-NotificationService-ListRoomNotificationCounts"></a>
 
-### ListNotificationCounts
+### ListRoomNotificationCounts
 
 Lists pending notification counts grouped by room as a finite snapshot.
 
 ```http
-POST /api/connect/chatto.api.v1.NotificationService/ListNotificationCounts
+POST /api/connect/chatto.api.v1.NotificationService/ListRoomNotificationCounts
 ```
 
-<a id="chatto-api-v1-ListNotificationCountsRequest"></a>
+<a id="chatto-api-v1-ListRoomNotificationCountsRequest"></a>
 
-#### Input: ListNotificationCountsRequest
+#### Input: ListRoomNotificationCountsRequest
 
 Request for pending notification counts grouped by room.
 
 
-<a id="chatto-api-v1-ListNotificationCountsResponse"></a>
+<a id="chatto-api-v1-ListRoomNotificationCountsResponse"></a>
 
-#### Result: ListNotificationCountsResponse
+#### Result: ListRoomNotificationCountsResponse
 
 Finite snapshot of pending notification counts grouped by room.
 

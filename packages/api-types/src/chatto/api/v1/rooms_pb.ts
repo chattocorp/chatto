@@ -1442,3 +1442,93 @@ export class ListRoomAttachmentsResponse extends Message<ListRoomAttachmentsResp
     return proto3.util.equals(ListRoomAttachmentsResponse, a, b);
   }
 }
+
+/**
+ * Request to refresh the current user's live-only typing indicator.
+ *
+ * @generated from message chatto.api.v1.UpdateTypingIndicatorRequest
+ */
+export class UpdateTypingIndicatorRequest extends Message<UpdateTypingIndicatorRequest> {
+  /**
+   * Required. Room where the current user is typing.
+   *
+   * @generated from field: string room_id = 1;
+   */
+  roomId = "";
+
+  /**
+   * Event ID of the thread root when typing inside a thread.
+   *
+   * @generated from field: string thread_root_event_id = 2;
+   */
+  threadRootEventId = "";
+
+  constructor(data?: PartialMessage<UpdateTypingIndicatorRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.UpdateTypingIndicatorRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "thread_root_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UpdateTypingIndicatorRequest {
+    return new UpdateTypingIndicatorRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): UpdateTypingIndicatorRequest {
+    return new UpdateTypingIndicatorRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): UpdateTypingIndicatorRequest {
+    return new UpdateTypingIndicatorRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: UpdateTypingIndicatorRequest | PlainMessage<UpdateTypingIndicatorRequest> | undefined, b: UpdateTypingIndicatorRequest | PlainMessage<UpdateTypingIndicatorRequest> | undefined): boolean {
+    return proto3.util.equals(UpdateTypingIndicatorRequest, a, b);
+  }
+}
+
+/**
+ * Result of refreshing a typing indicator.
+ *
+ * @generated from message chatto.api.v1.UpdateTypingIndicatorResponse
+ */
+export class UpdateTypingIndicatorResponse extends Message<UpdateTypingIndicatorResponse> {
+  /**
+   * True when the typing indicator was accepted for publish.
+   *
+   * @generated from field: bool updated = 1;
+   */
+  updated = false;
+
+  constructor(data?: PartialMessage<UpdateTypingIndicatorResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.UpdateTypingIndicatorResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "updated", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UpdateTypingIndicatorResponse {
+    return new UpdateTypingIndicatorResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): UpdateTypingIndicatorResponse {
+    return new UpdateTypingIndicatorResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): UpdateTypingIndicatorResponse {
+    return new UpdateTypingIndicatorResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: UpdateTypingIndicatorResponse | PlainMessage<UpdateTypingIndicatorResponse> | undefined, b: UpdateTypingIndicatorResponse | PlainMessage<UpdateTypingIndicatorResponse> | undefined): boolean {
+    return proto3.util.equals(UpdateTypingIndicatorResponse, a, b);
+  }
+}

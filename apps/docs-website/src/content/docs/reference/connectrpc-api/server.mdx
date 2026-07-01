@@ -1,6 +1,6 @@
 ---
 title: ServerService
-description: Authenticated server state and current-user server capability RPCs.
+description: Authenticated server profile and runtime configuration RPCs.
 editUrl: false
 ---
 
@@ -18,7 +18,7 @@ Shared message and enum definitions are documented in [Shared Types And Enums](/
 
 ## ServerService
 
-Provides authenticated server state and current user's server capabilities.
+Provides authenticated server profile and runtime configuration.
 
 <a id="chatto-api-v1-ServerService-GetServerState"></a>
 
@@ -47,7 +47,5 @@ Authenticated server state used by the web client and public API clients.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `profile` | [`ServerMemberProfile`](/reference/connectrpc-api/types/#chatto-api-v1-ServerMemberProfile) | Authenticated server profile and branding. |
+| `profile` | [`ServerProfile`](/reference/connectrpc-api/types/#chatto-api-v1-ServerProfile) | Authenticated server profile and branding. |
 | `runtime` | [`ServerRuntimeConfig`](/reference/connectrpc-api/types/#chatto-api-v1-ServerRuntimeConfig) | Authenticated runtime settings used by clients. |
-| `viewer_permissions` | [`ServerViewerPermissions`](/reference/connectrpc-api/types/#chatto-api-v1-ServerViewerPermissions) | Effective server/channel permission decisions for the authenticated user. |
-| `viewer_state` | [`ServerViewerState`](/reference/connectrpc-api/types/#chatto-api-v1-ServerViewerState) | Non-permission server state for the authenticated user. |

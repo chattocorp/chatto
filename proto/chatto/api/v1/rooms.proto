@@ -6,6 +6,8 @@ import "buf/validate/validate.proto";
 import "chatto/api/v1/attachments.proto";
 import "chatto/api/v1/member_directory.proto";
 import "chatto/api/v1/pagination.proto";
+import "chatto/api/v1/read_state.proto";
+import "chatto/api/v1/room_timeline.proto";
 import "google/protobuf/timestamp.proto";
 
 // Kind of room represented by the public API.
@@ -275,6 +277,20 @@ message ListRoomAttachmentsResponse {
   PageInfo page = 4;
 }
 
+// Request to refresh the current user's live-only typing indicator.
+message UpdateTypingIndicatorRequest {
+  // Required. Room where the current user is typing.
+  string room_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Event ID of the thread root when typing inside a thread.
+  string thread_root_event_id = 2;
+}
+
+// Result of refreshing a typing indicator.
+message UpdateTypingIndicatorResponse {
+  // True when the typing indicator was accepted for publish.
+  bool updated = 1;
+}
+
 // Manages channel room lifecycle and room membership for the current user.
 service RoomService {
   // Creates a new channel room in a room group. The caller must be allowed to
@@ -310,6 +326,22 @@ service RoomService {
   // membership are required. Returns PERMISSION_DENIED when the room is
   // inaccessible to the caller.
   rpc ListRoomAttachments(ListRoomAttachmentsRequest) returns (ListRoomAttachmentsResponse);
+  // Refreshes the current user's live-only typing indicator for a room or
+  // thread. Room membership is required; message posting permission is not.
+  rpc UpdateTypingIndicator(UpdateTypingIndicatorRequest) returns (UpdateTypingIndicatorResponse);
+  // Returns one page of room timeline events, including related user data needed
+  // to render the page.
+  rpc GetRoomEvents(GetRoomEventsRequest) returns (GetRoomEventsResponse);
+  // Returns a room timeline window centered around a specific event. Use this to
+  // open a permalink, search result, or notification target in context. Returns
+  // NOT_FOUND when the anchor event is missing or not visible in the room
+  // timeline and PERMISSION_DENIED when the room is inaccessible.
+  rpc GetRoomEventsAround(GetRoomEventsAroundRequest) returns (GetRoomEventsAroundResponse);
+  // Marks a room timeline as read through the supplied event. If no event is
+  // supplied, the server marks through the room's latest root event. Clients
+  // usually call this after the user has viewed the latest visible event in the
+  // room.
+  rpc MarkRoomAsRead(MarkRoomAsReadRequest) returns (MarkRoomAsReadResponse);
   // Bans a member from a channel room. Direct-message rooms cannot be moderated
   // this way, and the target must currently be a room member.
   rpc BanRoomMember(BanRoomMemberRequest) returns (BanRoomMemberResponse);

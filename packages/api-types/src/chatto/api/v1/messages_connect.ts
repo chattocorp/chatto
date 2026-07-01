@@ -3,8 +3,10 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { BatchRefreshMessageAttachmentUrlsRequest, BatchRefreshMessageAttachmentUrlsResponse, CreateMessageRequest, CreateMessageResponse, DeleteAttachmentRequest, DeleteAttachmentResponse, DeleteLinkPreviewRequest, DeleteLinkPreviewResponse, DeleteMessageRequest, DeleteMessageResponse, RefreshMessageAttachmentUrlsRequest, RefreshMessageAttachmentUrlsResponse, SendTypingIndicatorRequest, SendTypingIndicatorResponse, UpdateMessageRequest, UpdateMessageResponse } from "./messages_pb.js";
+import { BatchRefreshMessageAttachmentUrlsRequest, BatchRefreshMessageAttachmentUrlsResponse, CreateMessageRequest, CreateMessageResponse, DeleteAttachmentRequest, DeleteAttachmentResponse, DeleteLinkPreviewRequest, DeleteLinkPreviewResponse, DeleteMessageRequest, DeleteMessageResponse, RefreshMessageAttachmentUrlsRequest, RefreshMessageAttachmentUrlsResponse, UpdateMessageRequest, UpdateMessageResponse } from "./messages_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
+import { ResolveMessageLinkTargetRequest, ResolveMessageLinkTargetResponse } from "./room_timeline_pb.js";
+import { AddReactionRequest, AddReactionResponse, RemoveReactionRequest, RemoveReactionResponse } from "./reactions_pb.js";
 
 /**
  * Creates messages in room and thread timelines.
@@ -107,15 +109,41 @@ export const MessageService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Publishes a live-only typing indicator. Room membership is required; message
-     * posting permission is not.
+     * Resolves a permalink target to either the room timeline or a message
+     * thread, including thread-only replies that are not room timeline rows.
+     * Returns NOT_FOUND when the target message is missing or hidden and
+     * PERMISSION_DENIED when the room is inaccessible.
      *
-     * @generated from rpc chatto.api.v1.MessageService.SendTypingIndicator
+     * @generated from rpc chatto.api.v1.MessageService.ResolveMessageLinkTarget
      */
-    sendTypingIndicator: {
-      name: "SendTypingIndicator",
-      I: SendTypingIndicatorRequest,
-      O: SendTypingIndicatorResponse,
+    resolveMessageLinkTarget: {
+      name: "ResolveMessageLinkTarget",
+      I: ResolveMessageLinkTargetRequest,
+      O: ResolveMessageLinkTargetResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Adds a reaction to a message. The user must be a room member and have
+     * message.react in the target room.
+     *
+     * @generated from rpc chatto.api.v1.MessageService.AddReaction
+     */
+    addReaction: {
+      name: "AddReaction",
+      I: AddReactionRequest,
+      O: AddReactionResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Removes a reaction from a message. The user must be a room member and have
+     * message.react in the target room.
+     *
+     * @generated from rpc chatto.api.v1.MessageService.RemoveReaction
+     */
+    removeReaction: {
+      name: "RemoveReaction",
+      I: RemoveReactionRequest,
+      O: RemoveReactionResponse,
       kind: MethodKind.Unary,
     },
   }

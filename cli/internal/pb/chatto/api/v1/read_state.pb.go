@@ -266,10 +266,7 @@ const file_chatto_api_v1_read_state_proto_rawDesc = "" +
 	"\x14thread_root_event_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x11threadRootEventId\x12#\n" +
 	"\x0eup_to_event_id\x18\x03 \x01(\tR\vupToEventId\"`\n" +
 	"\x18MarkThreadAsReadResponse\x12D\n" +
-	"\x10previous_read_at\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\x0epreviousReadAt2\xd6\x01\n" +
-	"\x10ReadStateService\x12]\n" +
-	"\x0eMarkRoomAsRead\x12$.chatto.api.v1.MarkRoomAsReadRequest\x1a%.chatto.api.v1.MarkRoomAsReadResponse\x12c\n" +
-	"\x10MarkThreadAsRead\x12&.chatto.api.v1.MarkThreadAsReadRequest\x1a'.chatto.api.v1.MarkThreadAsReadResponseB\xaa\x01\n" +
+	"\x10previous_read_at\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\x0epreviousReadAtB\xaa\x01\n" +
 	"\x11com.chatto.api.v1B\x0eReadStateProtoP\x01Z/hmans.de/chatto/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
 
 var (
@@ -296,12 +293,8 @@ var file_chatto_api_v1_read_state_proto_depIdxs = []int32{
 	4, // 0: chatto.api.v1.MarkRoomAsReadResponse.last_read_at:type_name -> google.protobuf.Timestamp
 	4, // 1: chatto.api.v1.MarkRoomAsReadResponse.previous_last_read_at:type_name -> google.protobuf.Timestamp
 	4, // 2: chatto.api.v1.MarkThreadAsReadResponse.previous_read_at:type_name -> google.protobuf.Timestamp
-	0, // 3: chatto.api.v1.ReadStateService.MarkRoomAsRead:input_type -> chatto.api.v1.MarkRoomAsReadRequest
-	2, // 4: chatto.api.v1.ReadStateService.MarkThreadAsRead:input_type -> chatto.api.v1.MarkThreadAsReadRequest
-	1, // 5: chatto.api.v1.ReadStateService.MarkRoomAsRead:output_type -> chatto.api.v1.MarkRoomAsReadResponse
-	3, // 6: chatto.api.v1.ReadStateService.MarkThreadAsRead:output_type -> chatto.api.v1.MarkThreadAsReadResponse
-	5, // [5:7] is the sub-list for method output_type
-	3, // [3:5] is the sub-list for method input_type
+	3, // [3:3] is the sub-list for method output_type
+	3, // [3:3] is the sub-list for method input_type
 	3, // [3:3] is the sub-list for extension type_name
 	3, // [3:3] is the sub-list for extension extendee
 	0, // [0:3] is the sub-list for field type_name
@@ -320,7 +313,7 @@ func file_chatto_api_v1_read_state_proto_init() {
 			NumEnums:      0,
 			NumMessages:   4,
 			NumExtensions: 0,
-			NumServices:   1,
+			NumServices:   0,
 		},
 		GoTypes:           file_chatto_api_v1_read_state_proto_goTypes,
 		DependencyIndexes: file_chatto_api_v1_read_state_proto_depIdxs,

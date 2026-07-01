@@ -6,7 +6,7 @@
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
 import { UserProfile } from "./users_pb.js";
-import { CapabilityGrant } from "./permissions_pb.js";
+import { CapabilityGrant, PermissionGrant } from "./permissions_pb.js";
 import { NotificationLevel } from "./notification_preferences_pb.js";
 
 /**
@@ -232,6 +232,88 @@ export class ViewerCapabilities extends Message<ViewerCapabilities> {
 }
 
 /**
+ * Effective server/channel permission decisions for the authenticated user.
+ *
+ * @generated from message chatto.api.v1.ServerViewerPermissions
+ */
+export class ServerViewerPermissions extends Message<ServerViewerPermissions> {
+  /**
+   * One row per permission known to the server.
+   *
+   * @generated from field: repeated chatto.api.v1.PermissionGrant permissions = 1;
+   */
+  permissions: PermissionGrant[] = [];
+
+  constructor(data?: PartialMessage<ServerViewerPermissions>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.ServerViewerPermissions";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "permissions", kind: "message", T: PermissionGrant, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ServerViewerPermissions {
+    return new ServerViewerPermissions().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ServerViewerPermissions {
+    return new ServerViewerPermissions().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ServerViewerPermissions {
+    return new ServerViewerPermissions().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ServerViewerPermissions | PlainMessage<ServerViewerPermissions> | undefined, b: ServerViewerPermissions | PlainMessage<ServerViewerPermissions> | undefined): boolean {
+    return proto3.util.equals(ServerViewerPermissions, a, b);
+  }
+}
+
+/**
+ * Non-permission server state for the authenticated user.
+ *
+ * @generated from message chatto.api.v1.ServerViewerState
+ */
+export class ServerViewerState extends Message<ServerViewerState> {
+  /**
+   * Whether any joined channel room has unread messages.
+   *
+   * @generated from field: bool has_unread_rooms = 1;
+   */
+  hasUnreadRooms = false;
+
+  constructor(data?: PartialMessage<ServerViewerState>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.ServerViewerState";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "has_unread_rooms", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ServerViewerState {
+    return new ServerViewerState().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ServerViewerState {
+    return new ServerViewerState().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ServerViewerState {
+    return new ServerViewerState().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ServerViewerState | PlainMessage<ServerViewerState> | undefined, b: ServerViewerState | PlainMessage<ServerViewerState> | undefined): boolean {
+    return proto3.util.equals(ServerViewerState, a, b);
+  }
+}
+
+/**
  * Server-wide notification preference for the authenticated user.
  *
  * @generated from message chatto.api.v1.ServerNotificationPreference
@@ -404,6 +486,20 @@ export class GetViewerResponse extends Message<GetViewerResponse> {
    */
   roomNotificationPreferences: RoomNotificationPreference[] = [];
 
+  /**
+   * Effective server/channel permission decisions for the authenticated user.
+   *
+   * @generated from field: chatto.api.v1.ServerViewerPermissions viewer_permissions = 5;
+   */
+  viewerPermissions?: ServerViewerPermissions;
+
+  /**
+   * Non-permission server state for the authenticated user.
+   *
+   * @generated from field: chatto.api.v1.ServerViewerState viewer_state = 6;
+   */
+  viewerState?: ServerViewerState;
+
   constructor(data?: PartialMessage<GetViewerResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -416,6 +512,8 @@ export class GetViewerResponse extends Message<GetViewerResponse> {
     { no: 2, name: "capabilities", kind: "message", T: ViewerCapabilities },
     { no: 3, name: "server_notification_preference", kind: "message", T: ServerNotificationPreference },
     { no: 4, name: "room_notification_preferences", kind: "message", T: RoomNotificationPreference, repeated: true },
+    { no: 5, name: "viewer_permissions", kind: "message", T: ServerViewerPermissions },
+    { no: 6, name: "viewer_state", kind: "message", T: ServerViewerState },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetViewerResponse {

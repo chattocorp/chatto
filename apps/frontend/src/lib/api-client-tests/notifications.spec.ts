@@ -13,7 +13,7 @@ const mocks = vi.hoisted(() => ({
   batchGetNotifications: vi.fn(),
   listRoomNotifications: vi.fn(),
   hasNotifications: vi.fn(),
-  listNotificationCounts: vi.fn(),
+  listRoomNotificationCounts: vi.fn(),
   dismissNotification: vi.fn(),
   dismissAllNotifications: vi.fn()
 }));
@@ -39,7 +39,7 @@ describe('createNotificationAPI', () => {
     mocks.batchGetNotifications.mockReset();
     mocks.listRoomNotifications.mockReset();
     mocks.hasNotifications.mockReset();
-    mocks.listNotificationCounts.mockReset();
+    mocks.listRoomNotificationCounts.mockReset();
     mocks.dismissNotification.mockReset();
     mocks.dismissAllNotifications.mockReset();
     mocks.createConnectTransport.mockReturnValue({ kind: 'transport' });
@@ -49,7 +49,7 @@ describe('createNotificationAPI', () => {
       batchGetNotifications: mocks.batchGetNotifications,
       listRoomNotifications: mocks.listRoomNotifications,
       hasNotifications: mocks.hasNotifications,
-      listNotificationCounts: mocks.listNotificationCounts,
+      listRoomNotificationCounts: mocks.listRoomNotificationCounts,
       dismissNotification: mocks.dismissNotification,
       dismissAllNotifications: mocks.dismissAllNotifications
     });
@@ -137,7 +137,7 @@ describe('createNotificationAPI', () => {
       ]
     });
     mocks.hasNotifications.mockResolvedValue({ hasNotifications: true });
-    mocks.listNotificationCounts.mockResolvedValue({
+    mocks.listRoomNotificationCounts.mockResolvedValue({
       roomCounts: [
         { roomId: 'room-1', totalCount: 2 },
         { roomId: 'dm-1', totalCount: 1 }

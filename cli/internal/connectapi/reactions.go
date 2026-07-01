@@ -8,11 +8,7 @@ import (
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 )
 
-type reactionService struct {
-	api *API
-}
-
-func (s *reactionService) AddReaction(ctx context.Context, req *connect.Request[apiv1.AddReactionRequest]) (*connect.Response[apiv1.AddReactionResponse], error) {
+func (s *messageService) AddReaction(ctx context.Context, req *connect.Request[apiv1.AddReactionRequest]) (*connect.Response[apiv1.AddReactionResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -30,7 +26,7 @@ func (s *reactionService) AddReaction(ctx context.Context, req *connect.Request[
 	return connect.NewResponse(&apiv1.AddReactionResponse{Added: added}), nil
 }
 
-func (s *reactionService) RemoveReaction(ctx context.Context, req *connect.Request[apiv1.RemoveReactionRequest]) (*connect.Response[apiv1.RemoveReactionResponse], error) {
+func (s *messageService) RemoveReaction(ctx context.Context, req *connect.Request[apiv1.RemoveReactionRequest]) (*connect.Response[apiv1.RemoveReactionResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err

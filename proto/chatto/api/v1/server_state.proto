@@ -2,27 +2,14 @@ syntax = "proto3";
 
 package chatto.api.v1;
 
-import "chatto/api/v1/permissions.proto";
 import "chatto/api/v1/server.proto";
 
 // Server profile fields visible to authenticated members.
-message ServerMemberProfile {
+message ServerProfile {
   // Public server profile and branding.
   ServerPublicProfile public_profile = 1;
   // Optional message of the day shown to authenticated members.
   optional string motd = 2;
-}
-
-// Effective server/channel permission decisions for the authenticated user.
-message ServerViewerPermissions {
-  // One row per permission known to the server.
-  repeated PermissionGrant permissions = 1;
-}
-
-// Non-permission server state for the authenticated user.
-message ServerViewerState {
-  // Whether any joined channel room has unread messages.
-  bool has_unread_rooms = 1;
 }
 
 // Request for authenticated server state.
@@ -51,16 +38,12 @@ message ServerRuntimeConfig {
 // Authenticated server state used by the web client and public API clients.
 message GetServerStateResponse {
   // Authenticated server profile and branding.
-  ServerMemberProfile profile = 1;
+  ServerProfile profile = 1;
   // Authenticated runtime settings used by clients.
   ServerRuntimeConfig runtime = 2;
-  // Effective server/channel permission decisions for the authenticated user.
-  ServerViewerPermissions viewer_permissions = 3;
-  // Non-permission server state for the authenticated user.
-  ServerViewerState viewer_state = 4;
 }
 
-// Provides authenticated server state and current user's server capabilities.
+// Provides authenticated server profile and runtime configuration.
 service ServerService {
   // Returns authenticated server state. This RPC requires a logged-in user;
   // public discovery remains available through

@@ -213,26 +213,6 @@ func (s *messageService) DeleteLinkPreview(ctx context.Context, req *connect.Req
 	return connect.NewResponse(&apiv1.DeleteLinkPreviewResponse{Deleted: true}), nil
 }
 
-func (s *messageService) SendTypingIndicator(ctx context.Context, req *connect.Request[apiv1.SendTypingIndicatorRequest]) (*connect.Response[apiv1.SendTypingIndicatorResponse], error) {
-	caller, err := requireCaller(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	var threadRootEventID *string
-	if req.Msg.ThreadRootEventId != "" {
-		threadRootEventID = &req.Msg.ThreadRootEventId
-	}
-	if err := s.api.core.Messages().SendTypingIndicator(ctx, core.TypingIndicatorInput{
-		ActorID:           caller.UserID,
-		RoomID:            req.Msg.RoomId,
-		ThreadRootEventID: threadRootEventID,
-	}); err != nil {
-		return nil, connectError(err)
-	}
-	return connect.NewResponse(&apiv1.SendTypingIndicatorResponse{Sent: true}), nil
-}
-
 func (s *messageService) hydratePostedEvent(ctx context.Context, viewerID string, kind core.RoomKind, event *corev1.Event) (*apiv1.RoomTimelineEvent, *apiv1.RoomTimelineIncludes, error) {
 	reactionsByMessageID, err := s.api.core.GetReactionsBatch(ctx, []string{event.Id})
 	if err != nil {

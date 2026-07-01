@@ -1941,13 +1941,7 @@ const file_chatto_api_v1_room_timeline_proto_rawDesc = "" +
 	"1ROOM_TIMELINE_VIDEO_PROCESSING_STATUS_UNSPECIFIED\x10\x00\x124\n" +
 	"0ROOM_TIMELINE_VIDEO_PROCESSING_STATUS_PROCESSING\x10\x01\x123\n" +
 	"/ROOM_TIMELINE_VIDEO_PROCESSING_STATUS_COMPLETED\x10\x02\x120\n" +
-	",ROOM_TIMELINE_VIDEO_PROCESSING_STATUS_FAILED\x10\x032\xb2\x04\n" +
-	"\x13RoomTimelineService\x12Z\n" +
-	"\rGetRoomEvents\x12#.chatto.api.v1.GetRoomEventsRequest\x1a$.chatto.api.v1.GetRoomEventsResponse\x12l\n" +
-	"\x13GetRoomEventsAround\x12).chatto.api.v1.GetRoomEventsAroundRequest\x1a*.chatto.api.v1.GetRoomEventsAroundResponse\x12{\n" +
-	"\x18ResolveMessageLinkTarget\x12..chatto.api.v1.ResolveMessageLinkTargetRequest\x1a/.chatto.api.v1.ResolveMessageLinkTargetResponse\x12`\n" +
-	"\x0fGetThreadEvents\x12%.chatto.api.v1.GetThreadEventsRequest\x1a&.chatto.api.v1.GetThreadEventsResponse\x12r\n" +
-	"\x15GetThreadEventsAround\x12+.chatto.api.v1.GetThreadEventsAroundRequest\x1a,.chatto.api.v1.GetThreadEventsAroundResponseB\xad\x01\n" +
+	",ROOM_TIMELINE_VIDEO_PROCESSING_STATUS_FAILED\x10\x03B\xad\x01\n" +
 	"\x11com.chatto.api.v1B\x11RoomTimelineProtoP\x01Z/hmans.de/chatto/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
 
 var (
@@ -2024,18 +2018,8 @@ var file_chatto_api_v1_room_timeline_proto_depIdxs = []int32{
 	10, // 29: chatto.api.v1.GetThreadEventsResponse.page:type_name -> chatto.api.v1.RoomTimelinePage
 	10, // 30: chatto.api.v1.GetThreadEventsAroundResponse.page:type_name -> chatto.api.v1.RoomTimelinePage
 	24, // 31: chatto.api.v1.RoomTimelineIncludes.UsersEntry.value:type_name -> chatto.api.v1.User
-	11, // 32: chatto.api.v1.RoomTimelineService.GetRoomEvents:input_type -> chatto.api.v1.GetRoomEventsRequest
-	13, // 33: chatto.api.v1.RoomTimelineService.GetRoomEventsAround:input_type -> chatto.api.v1.GetRoomEventsAroundRequest
-	15, // 34: chatto.api.v1.RoomTimelineService.ResolveMessageLinkTarget:input_type -> chatto.api.v1.ResolveMessageLinkTargetRequest
-	17, // 35: chatto.api.v1.RoomTimelineService.GetThreadEvents:input_type -> chatto.api.v1.GetThreadEventsRequest
-	19, // 36: chatto.api.v1.RoomTimelineService.GetThreadEventsAround:input_type -> chatto.api.v1.GetThreadEventsAroundRequest
-	12, // 37: chatto.api.v1.RoomTimelineService.GetRoomEvents:output_type -> chatto.api.v1.GetRoomEventsResponse
-	14, // 38: chatto.api.v1.RoomTimelineService.GetRoomEventsAround:output_type -> chatto.api.v1.GetRoomEventsAroundResponse
-	16, // 39: chatto.api.v1.RoomTimelineService.ResolveMessageLinkTarget:output_type -> chatto.api.v1.ResolveMessageLinkTargetResponse
-	18, // 40: chatto.api.v1.RoomTimelineService.GetThreadEvents:output_type -> chatto.api.v1.GetThreadEventsResponse
-	20, // 41: chatto.api.v1.RoomTimelineService.GetThreadEventsAround:output_type -> chatto.api.v1.GetThreadEventsAroundResponse
-	37, // [37:42] is the sub-list for method output_type
-	32, // [32:37] is the sub-list for method input_type
+	32, // [32:32] is the sub-list for method output_type
+	32, // [32:32] is the sub-list for method input_type
 	32, // [32:32] is the sub-list for extension type_name
 	32, // [32:32] is the sub-list for extension extendee
 	0,  // [0:32] is the sub-list for field type_name
@@ -2075,7 +2059,7 @@ func file_chatto_api_v1_room_timeline_proto_init() {
 			NumEnums:      1,
 			NumMessages:   21,
 			NumExtensions: 0,
-			NumServices:   1,
+			NumServices:   0,
 		},
 		GoTypes:           file_chatto_api_v1_room_timeline_proto_goTypes,
 		DependencyIndexes: file_chatto_api_v1_room_timeline_proto_depIdxs,

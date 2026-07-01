@@ -2,6 +2,7 @@ import { createClient } from "@connectrpc/connect";
 import { createConnectTransport } from "@connectrpc/connect-web";
 import { AdminServerService } from "@chatto/api-types/admin/v1/server_connect";
 import { ServerService } from "@chatto/api-types/api/v1/server_state_connect";
+import { ViewerService } from "@chatto/api-types/api/v1/viewer_connect";
 import { mapServerProfile, type ServerProfile } from "./serverProfile.js";
 
 export type ServerStateAPIConfig = {
@@ -79,11 +80,12 @@ function serverClients(config: ServerStateAPIConfig) {
     useBinaryFormat: true,
   });
   const server = createClient(ServerService, transport);
+  const viewer = createClient(ViewerService, transport);
   const adminServer = createClient(AdminServerService, transport);
   const headers = config.bearerToken
     ? { Authorization: `Bearer ${config.bearerToken}` }
     : undefined;
-  return { server, adminServer, headers };
+  return { server, viewer, adminServer, headers };
 }
 
 function mapEditableServerConfig(
@@ -119,14 +121,17 @@ function blockedUsernameEntries(text: string): string[] {
 export async function getAuthenticatedServerState(
   config: ServerStateAPIConfig,
 ): Promise<AuthenticatedServerState> {
-  const { server, headers } = serverClients(config);
-  const response = await server.getServerState({}, { headers });
+  const { server, viewer, headers } = serverClients(config);
+  const [response, viewerResponse] = await Promise.all([
+    server.getServerState({}, { headers }),
+    viewer.getViewer({}, { headers }),
+  ]);
   const profile = mapServerProfile(response.profile);
   const runtime = response.runtime;
   const viewerPermissions = mapViewerPermissions(
-    response.viewerPermissions?.permissions,
+    viewerResponse.viewerPermissions?.permissions,
   );
-  const viewerState = response.viewerState;
+  const viewerState = viewerResponse.viewerState;
   const can = (permission: string) => viewerPermissions[permission] ?? false;
 
   return {

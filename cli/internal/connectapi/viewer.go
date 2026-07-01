@@ -54,12 +54,18 @@ func (s *viewerService) GetViewer(ctx context.Context, _ *connect.Request[apiv1.
 	if err != nil {
 		return nil, err
 	}
+	viewerPermissions, viewerState, err := s.api.serverViewerState(ctx, caller.UserID)
+	if err != nil {
+		return nil, err
+	}
 
 	return connect.NewResponse(&apiv1.GetViewerResponse{
 		User:                         responseUser,
 		Capabilities:                 capabilities,
 		ServerNotificationPreference: serverPreference,
 		RoomNotificationPreferences:  roomPreferences,
+		ViewerPermissions:            viewerPermissions,
+		ViewerState:                  viewerState,
 	}), nil
 }
 

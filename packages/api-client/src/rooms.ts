@@ -273,6 +273,24 @@ export function createRoomCommandAPI(config: ConnectAPIConfig) {
       }
     },
 
+    async updateTypingIndicator(
+      roomId: string,
+      threadRootEventId?: string | null,
+    ): Promise<boolean> {
+      try {
+        const response = await rooms.updateTypingIndicator(
+          {
+            roomId,
+            threadRootEventId: threadRootEventId ?? "",
+          },
+          { headers: headers() },
+        );
+        return response.updated;
+      } catch (err) {
+        return handleAuthError(err);
+      }
+    },
+
     async banRoomMember(input: {
       roomId: string;
       userId: string;

@@ -56,7 +56,7 @@ const categories = [
         name: 'MessageService',
         slug: 'messages',
         title: 'Messages',
-        description: 'Message creation, editing, deletion, link-preview, attachment, and typing RPCs.'
+        description: 'Message creation, editing, deletion, permalink, reaction, link-preview, and attachment RPCs.'
       },
       {
         name: 'MyAccountService',
@@ -83,18 +83,6 @@ const categories = [
         description: 'Web Push subscription RPCs.'
       },
       {
-        name: 'ReactionService',
-        slug: 'reactions',
-        title: 'Reactions',
-        description: 'Message reaction command RPCs.'
-      },
-      {
-        name: 'ReadStateService',
-        slug: 'read-state',
-        title: 'Read State',
-        description: 'Room and thread read-state command RPCs.'
-      },
-      {
         name: 'RoleService',
         slug: 'roles',
         title: 'Roles',
@@ -116,13 +104,7 @@ const categories = [
         name: 'RoomService',
         slug: 'rooms',
         title: 'Rooms',
-        description: 'Room lifecycle, membership, direct-message, and moderation RPCs.'
-      },
-      {
-        name: 'RoomTimelineService',
-        slug: 'room-timeline',
-        title: 'Room Timeline',
-        description: 'Room and thread timeline read RPCs.'
+        description: 'Room lifecycle, timeline, read-state, membership, direct-message, typing indicator, and moderation RPCs.'
       },
       {
         name: 'ServerMemberService',
@@ -134,13 +116,13 @@ const categories = [
         name: 'ServerService',
         slug: 'server',
         title: 'Server',
-        description: 'Authenticated server state and current-user server capability RPCs.'
+        description: 'Authenticated server profile and runtime configuration RPCs.'
       },
       {
         name: 'ThreadService',
         slug: 'threads',
         title: 'Threads',
-        description: 'Thread follow and followed-thread listing RPCs.'
+        description: 'Thread timeline, read-state, follow, and followed-thread listing RPCs.'
       },
       {
         name: 'UserDirectoryService',

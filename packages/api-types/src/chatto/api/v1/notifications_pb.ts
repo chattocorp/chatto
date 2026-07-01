@@ -887,42 +887,42 @@ export class RoomNotificationCount extends Message<RoomNotificationCount> {
 /**
  * Request for pending notification counts grouped by room.
  *
- * @generated from message chatto.api.v1.ListNotificationCountsRequest
+ * @generated from message chatto.api.v1.ListRoomNotificationCountsRequest
  */
-export class ListNotificationCountsRequest extends Message<ListNotificationCountsRequest> {
-  constructor(data?: PartialMessage<ListNotificationCountsRequest>) {
+export class ListRoomNotificationCountsRequest extends Message<ListRoomNotificationCountsRequest> {
+  constructor(data?: PartialMessage<ListRoomNotificationCountsRequest>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.ListNotificationCountsRequest";
+  static readonly typeName = "chatto.api.v1.ListRoomNotificationCountsRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListNotificationCountsRequest {
-    return new ListNotificationCountsRequest().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListRoomNotificationCountsRequest {
+    return new ListRoomNotificationCountsRequest().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListNotificationCountsRequest {
-    return new ListNotificationCountsRequest().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListRoomNotificationCountsRequest {
+    return new ListRoomNotificationCountsRequest().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListNotificationCountsRequest {
-    return new ListNotificationCountsRequest().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListRoomNotificationCountsRequest {
+    return new ListRoomNotificationCountsRequest().fromJsonString(jsonString, options);
   }
 
-  static equals(a: ListNotificationCountsRequest | PlainMessage<ListNotificationCountsRequest> | undefined, b: ListNotificationCountsRequest | PlainMessage<ListNotificationCountsRequest> | undefined): boolean {
-    return proto3.util.equals(ListNotificationCountsRequest, a, b);
+  static equals(a: ListRoomNotificationCountsRequest | PlainMessage<ListRoomNotificationCountsRequest> | undefined, b: ListRoomNotificationCountsRequest | PlainMessage<ListRoomNotificationCountsRequest> | undefined): boolean {
+    return proto3.util.equals(ListRoomNotificationCountsRequest, a, b);
   }
 }
 
 /**
  * Finite snapshot of pending notification counts grouped by room.
  *
- * @generated from message chatto.api.v1.ListNotificationCountsResponse
+ * @generated from message chatto.api.v1.ListRoomNotificationCountsResponse
  */
-export class ListNotificationCountsResponse extends Message<ListNotificationCountsResponse> {
+export class ListRoomNotificationCountsResponse extends Message<ListRoomNotificationCountsResponse> {
   /**
    * Counts for rooms with at least one pending notification.
    *
@@ -930,31 +930,31 @@ export class ListNotificationCountsResponse extends Message<ListNotificationCoun
    */
   roomCounts: RoomNotificationCount[] = [];
 
-  constructor(data?: PartialMessage<ListNotificationCountsResponse>) {
+  constructor(data?: PartialMessage<ListRoomNotificationCountsResponse>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.ListNotificationCountsResponse";
+  static readonly typeName = "chatto.api.v1.ListRoomNotificationCountsResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "room_counts", kind: "message", T: RoomNotificationCount, repeated: true },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListNotificationCountsResponse {
-    return new ListNotificationCountsResponse().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListRoomNotificationCountsResponse {
+    return new ListRoomNotificationCountsResponse().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListNotificationCountsResponse {
-    return new ListNotificationCountsResponse().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListRoomNotificationCountsResponse {
+    return new ListRoomNotificationCountsResponse().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListNotificationCountsResponse {
-    return new ListNotificationCountsResponse().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListRoomNotificationCountsResponse {
+    return new ListRoomNotificationCountsResponse().fromJsonString(jsonString, options);
   }
 
-  static equals(a: ListNotificationCountsResponse | PlainMessage<ListNotificationCountsResponse> | undefined, b: ListNotificationCountsResponse | PlainMessage<ListNotificationCountsResponse> | undefined): boolean {
-    return proto3.util.equals(ListNotificationCountsResponse, a, b);
+  static equals(a: ListRoomNotificationCountsResponse | PlainMessage<ListRoomNotificationCountsResponse> | undefined, b: ListRoomNotificationCountsResponse | PlainMessage<ListRoomNotificationCountsResponse> | undefined): boolean {
+    return proto3.util.equals(ListRoomNotificationCountsResponse, a, b);
   }
 }
 

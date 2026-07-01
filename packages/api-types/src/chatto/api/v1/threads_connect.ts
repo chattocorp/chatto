@@ -5,6 +5,8 @@
 
 import { FollowThreadRequest, FollowThreadResponse, ListFollowedThreadsRequest, ListFollowedThreadsResponse, UnfollowThreadRequest, UnfollowThreadResponse } from "./threads_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
+import { GetThreadEventsAroundRequest, GetThreadEventsAroundResponse, GetThreadEventsRequest, GetThreadEventsResponse } from "./room_timeline_pb.js";
+import { MarkThreadAsReadRequest, MarkThreadAsReadResponse } from "./read_state_pb.js";
 
 /**
  * Manages thread follow state for the current user.
@@ -48,6 +50,44 @@ export const ThreadService = {
       name: "UnfollowThread",
       I: UnfollowThreadRequest,
       O: UnfollowThreadResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Returns one page of events in a message thread. Initial pages include the
+     * thread root message; cursor pages return replies in the requested direction.
+     *
+     * @generated from rpc chatto.api.v1.ThreadService.GetThreadEvents
+     */
+    getThreadEvents: {
+      name: "GetThreadEvents",
+      I: GetThreadEventsRequest,
+      O: GetThreadEventsResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Returns a thread timeline window centered around a specific event. Use this
+     * to open a reply from a notification or search result in context. Returns
+     * NOT_FOUND when the thread root or anchor event is missing or hidden and
+     * PERMISSION_DENIED when the room is inaccessible.
+     *
+     * @generated from rpc chatto.api.v1.ThreadService.GetThreadEventsAround
+     */
+    getThreadEventsAround: {
+      name: "GetThreadEventsAround",
+      I: GetThreadEventsAroundRequest,
+      O: GetThreadEventsAroundResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Marks a thread timeline as read through the supplied event without changing
+     * the room-level read marker.
+     *
+     * @generated from rpc chatto.api.v1.ThreadService.MarkThreadAsRead
+     */
+    markThreadAsRead: {
+      name: "MarkThreadAsRead",
+      I: MarkThreadAsReadRequest,
+      O: MarkThreadAsReadResponse,
       kind: MethodKind.Unary,
     },
   }

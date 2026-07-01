@@ -1,7 +1,8 @@
 import { notifyAuthenticationRequired } from "./hooks.js";
 import { Code, ConnectError, createClient } from "@connectrpc/connect";
 import { createConnectTransport } from "@connectrpc/connect-web";
-import { ReadStateService } from "@chatto/api-types/api/v1/read_state_connect";
+import { RoomService } from "@chatto/api-types/api/v1/rooms_connect";
+import { ThreadService } from "@chatto/api-types/api/v1/threads_connect";
 
 export type ConnectAPIConfig = {
   serverId?: string;
@@ -24,7 +25,8 @@ export function createReadStateAPI(config: ConnectAPIConfig) {
     baseUrl: config.baseUrl,
     useBinaryFormat: true,
   });
-  const client = createClient(ReadStateService, transport);
+  const rooms = createClient(RoomService, transport);
+  const threads = createClient(ThreadService, transport);
   const headers = () =>
     config.bearerToken
       ? { Authorization: `Bearer ${config.bearerToken}` }
@@ -50,7 +52,7 @@ export function createReadStateAPI(config: ConnectAPIConfig) {
       upToEventId?: string;
     }): Promise<MarkRoomAsReadResult> {
       try {
-        const response = await client.markRoomAsRead(
+        const response = await rooms.markRoomAsRead(
           {
             roomId: input.roomId,
             upToEventId: input.upToEventId ?? "",
@@ -73,7 +75,7 @@ export function createReadStateAPI(config: ConnectAPIConfig) {
       upToEventId?: string;
     }): Promise<MarkThreadAsReadResult> {
       try {
-        const response = await client.markThreadAsRead(
+        const response = await threads.markThreadAsRead(
           {
             roomId: input.roomId,
             threadRootEventId: input.threadRootEventId,

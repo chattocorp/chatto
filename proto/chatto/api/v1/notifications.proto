@@ -177,10 +177,10 @@ message RoomNotificationCount {
 }
 
 // Request for pending notification counts grouped by room.
-message ListNotificationCountsRequest {}
+message ListRoomNotificationCountsRequest {}
 
 // Finite snapshot of pending notification counts grouped by room.
-message ListNotificationCountsResponse {
+message ListRoomNotificationCountsResponse {
   // Counts for rooms with at least one pending notification.
   repeated RoomNotificationCount room_counts = 1;
 }
@@ -218,7 +218,7 @@ service NotificationService {
   // Lists pending notifications for one room. Non-members receive an empty page.
   rpc ListRoomNotifications(ListRoomNotificationsRequest) returns (ListRoomNotificationsResponse);
   // Lists pending notification counts grouped by room as a finite snapshot.
-  rpc ListNotificationCounts(ListNotificationCountsRequest) returns (ListNotificationCountsResponse);
+  rpc ListRoomNotificationCounts(ListRoomNotificationCountsRequest) returns (ListRoomNotificationCountsResponse);
   // Checks whether the authenticated viewer has any pending notifications.
   rpc HasNotifications(HasNotificationsRequest) returns (HasNotificationsResponse);
   // Dismisses one pending notification.

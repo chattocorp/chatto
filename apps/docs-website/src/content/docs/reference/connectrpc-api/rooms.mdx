@@ -1,6 +1,6 @@
 ---
 title: RoomService
-description: Room lifecycle, membership, direct-message, and moderation RPCs.
+description: Room lifecycle, timeline, read-state, membership, direct-message, typing indicator, and moderation RPCs.
 editUrl: false
 ---
 
@@ -392,6 +392,161 @@ Room-scoped attachment list response.
 | --- | --- | --- |
 | `items` | repeated [`RoomAttachmentListItem`](/reference/connectrpc-api/types/#chatto-api-v1-RoomAttachmentListItem) | Current attachments in newest message order. |
 | `page` | [`PageInfo`](/reference/connectrpc-api/types/#chatto-api-v1-PageInfo) | Page metadata. |
+
+
+<a id="chatto-api-v1-RoomService-UpdateTypingIndicator"></a>
+
+### UpdateTypingIndicator
+
+Refreshes the current user's live-only typing indicator for a room or
+thread. Room membership is required; message posting permission is not.
+
+```http
+POST /api/connect/chatto.api.v1.RoomService/UpdateTypingIndicator
+```
+
+<a id="chatto-api-v1-UpdateTypingIndicatorRequest"></a>
+
+#### Input: UpdateTypingIndicatorRequest
+
+Request to refresh the current user's live-only typing indicator.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room where the current user is typing. |
+| `thread_root_event_id` | `string` | Event ID of the thread root when typing inside a thread. |
+
+
+<a id="chatto-api-v1-UpdateTypingIndicatorResponse"></a>
+
+#### Result: UpdateTypingIndicatorResponse
+
+Result of refreshing a typing indicator.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `updated` | `bool` | True when the typing indicator was accepted for publish. |
+
+
+<a id="chatto-api-v1-RoomService-GetRoomEvents"></a>
+
+### GetRoomEvents
+
+Returns one page of room timeline events, including related user data needed
+to render the page.
+
+```http
+POST /api/connect/chatto.api.v1.RoomService/GetRoomEvents
+```
+
+<a id="chatto-api-v1-GetRoomEventsRequest"></a>
+
+#### Input: GetRoomEventsRequest
+
+Request for a page of room timeline events.
+
+Omit the cursor to load the initial page. Set before to a previously returned
+start_cursor to page toward older events, or after to a previously returned
+end_cursor to page toward newer events.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room whose timeline should be loaded. |
+| `limit` | `int32` | Maximum number of events to return. The server may clamp very large limits. |
+| `cursor.before` | `string` | Return events older than this opaque cursor. |
+| `cursor.after` | `string` | Return events newer than this opaque cursor. |
+
+
+<a id="chatto-api-v1-GetRoomEventsResponse"></a>
+
+#### Result: GetRoomEventsResponse
+
+Response containing one room timeline page.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `page` | [`RoomTimelinePage`](/reference/connectrpc-api/types/#chatto-api-v1-RoomTimelinePage) | Loaded timeline page. |
+
+
+<a id="chatto-api-v1-RoomService-GetRoomEventsAround"></a>
+
+### GetRoomEventsAround
+
+Returns a room timeline window centered around a specific event. Use this to
+open a permalink, search result, or notification target in context. Returns
+NOT_FOUND when the anchor event is missing or not visible in the room
+timeline and PERMISSION_DENIED when the room is inaccessible.
+
+```http
+POST /api/connect/chatto.api.v1.RoomService/GetRoomEventsAround
+```
+
+<a id="chatto-api-v1-GetRoomEventsAroundRequest"></a>
+
+#### Input: GetRoomEventsAroundRequest
+
+Request for room timeline events around a specific event.
+
+Use this when a client needs to jump to a known event and render enough
+context around it.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room whose timeline should be loaded. |
+| `event_id` | `string` | Required. Anchor event ID that should appear in the returned page. |
+| `limit` | `int32` | Maximum number of events to return around the anchor. |
+
+
+<a id="chatto-api-v1-GetRoomEventsAroundResponse"></a>
+
+#### Result: GetRoomEventsAroundResponse
+
+Response containing a room timeline window around a specific event.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `page` | [`RoomTimelinePage`](/reference/connectrpc-api/types/#chatto-api-v1-RoomTimelinePage) | Loaded timeline page. |
+| `target_index` | `int32` | Zero-based index of the anchor event within page.events. |
+
+
+<a id="chatto-api-v1-RoomService-MarkRoomAsRead"></a>
+
+### MarkRoomAsRead
+
+Marks a room timeline as read through the supplied event. If no event is
+supplied, the server marks through the room's latest root event. Clients
+usually call this after the user has viewed the latest visible event in the
+room.
+
+```http
+POST /api/connect/chatto.api.v1.RoomService/MarkRoomAsRead
+```
+
+<a id="chatto-api-v1-MarkRoomAsReadRequest"></a>
+
+#### Input: MarkRoomAsReadRequest
+
+Request to mark a room timeline as read.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room whose timeline should be marked read. |
+| `up_to_event_id` | `string` | Highest room event ID the current user has read. When set, the event must exist as a root event in the room timeline. Leave empty to mark through the room's current latest root event. |
+
+
+<a id="chatto-api-v1-MarkRoomAsReadResponse"></a>
+
+#### Result: MarkRoomAsReadResponse
+
+Result of marking a room timeline as read.
+
+Clients can use the previous timestamp to decide whether unread badges or
+local notification state need to be reconciled.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `last_read_at` | `google.protobuf.Timestamp` | New room read timestamp stored for the current user. |
+| `previous_last_read_at` | `google.protobuf.Timestamp` | Previous room read timestamp, when one existed. |
 
 
 <a id="chatto-api-v1-RoomService-BanRoomMember"></a>

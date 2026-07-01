@@ -204,6 +204,26 @@ func (s *roomService) ListRoomBans(ctx context.Context, req *connect.Request[api
 	}), nil
 }
 
+func (s *roomService) UpdateTypingIndicator(ctx context.Context, req *connect.Request[apiv1.UpdateTypingIndicatorRequest]) (*connect.Response[apiv1.UpdateTypingIndicatorResponse], error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var threadRootEventID *string
+	if req.Msg.ThreadRootEventId != "" {
+		threadRootEventID = &req.Msg.ThreadRootEventId
+	}
+	if err := s.api.core.Messages().SendTypingIndicator(ctx, core.TypingIndicatorInput{
+		ActorID:           caller.UserID,
+		RoomID:            req.Msg.RoomId,
+		ThreadRootEventID: threadRootEventID,
+	}); err != nil {
+		return nil, connectError(err)
+	}
+	return connect.NewResponse(&apiv1.UpdateTypingIndicatorResponse{Updated: true}), nil
+}
+
 func (s *roomService) BanRoomMember(ctx context.Context, req *connect.Request[apiv1.BanRoomMemberRequest]) (*connect.Response[apiv1.BanRoomMemberResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {

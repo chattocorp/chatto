@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { BatchGetNotificationsRequest, BatchGetNotificationsResponse, DismissAllNotificationsRequest, DismissAllNotificationsResponse, DismissNotificationRequest, DismissNotificationResponse, GetNotificationRequest, GetNotificationResponse, HasNotificationsRequest, HasNotificationsResponse, ListNotificationCountsRequest, ListNotificationCountsResponse, ListNotificationsRequest, ListNotificationsResponse, ListRoomNotificationsRequest, ListRoomNotificationsResponse } from "./notifications_pb.js";
+import { BatchGetNotificationsRequest, BatchGetNotificationsResponse, DismissAllNotificationsRequest, DismissAllNotificationsResponse, DismissNotificationRequest, DismissNotificationResponse, GetNotificationRequest, GetNotificationResponse, HasNotificationsRequest, HasNotificationsResponse, ListNotificationsRequest, ListNotificationsResponse, ListRoomNotificationCountsRequest, ListRoomNotificationCountsResponse, ListRoomNotificationsRequest, ListRoomNotificationsResponse } from "./notifications_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -62,12 +62,12 @@ export const NotificationService = {
     /**
      * Lists pending notification counts grouped by room as a finite snapshot.
      *
-     * @generated from rpc chatto.api.v1.NotificationService.ListNotificationCounts
+     * @generated from rpc chatto.api.v1.NotificationService.ListRoomNotificationCounts
      */
-    listNotificationCounts: {
-      name: "ListNotificationCounts",
-      I: ListNotificationCountsRequest,
-      O: ListNotificationCountsResponse,
+    listRoomNotificationCounts: {
+      name: "ListRoomNotificationCounts",
+      I: ListRoomNotificationCountsRequest,
+      O: ListRoomNotificationCountsResponse,
       kind: MethodKind.Unary,
     },
     /**

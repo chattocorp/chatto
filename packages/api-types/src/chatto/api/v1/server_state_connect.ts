@@ -7,7 +7,7 @@ import { GetServerStateRequest, GetServerStateResponse } from "./server_state_pb
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
- * Provides authenticated server state and current user's server capabilities.
+ * Provides authenticated server profile and runtime configuration.
  *
  * @generated from service chatto.api.v1.ServerService
  */

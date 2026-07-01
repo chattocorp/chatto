@@ -303,6 +303,8 @@ Authenticated viewer snapshot needed by application shells.
 | `capabilities` | [`ViewerCapabilities`](#chatto-api-v1-ViewerCapabilities) | Permission-derived capabilities. |
 | `server_notification_preference` | [`ServerNotificationPreference`](#chatto-api-v1-ServerNotificationPreference) | Server-wide notification preference. |
 | `room_notification_preferences` | repeated [`RoomNotificationPreference`](#chatto-api-v1-RoomNotificationPreference) | Notification preferences for rooms the user participates in. |
+| `viewer_permissions` | [`ServerViewerPermissions`](#chatto-api-v1-ServerViewerPermissions) | Effective server/channel permission decisions for the authenticated user. |
+| `viewer_state` | [`ServerViewerState`](#chatto-api-v1-ServerViewerState) | Non-permission server state for the authenticated user. |
 
 
 <a id="chatto-api-v1-MyAccountService"></a>
@@ -801,218 +803,6 @@ Result of fetching link preview metadata.
 | `preview` | [`LinkPreview`](#chatto-api-v1-LinkPreview) | Preview metadata, or absent when the URL cannot be previewed. |
 
 
-<a id="chatto-api-v1-RoomTimelineService"></a>
-
-## RoomTimelineService
-
-Reads room and thread timeline pages.
-
-<a id="chatto-api-v1-RoomTimelineService-GetRoomEvents"></a>
-
-### GetRoomEvents
-
-Returns one page of room timeline events, including related user data needed
-to render the page.
-
-```http
-POST /api/connect/chatto.api.v1.RoomTimelineService/GetRoomEvents
-```
-
-<a id="chatto-api-v1-GetRoomEventsRequest"></a>
-
-#### Input: GetRoomEventsRequest
-
-Request for a page of room timeline events.
-
-Omit the cursor to load the initial page. Set before to a previously returned
-start_cursor to page toward older events, or after to a previously returned
-end_cursor to page toward newer events.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | Required. Room whose timeline should be loaded. |
-| `limit` | `int32` | Maximum number of events to return. The server may clamp very large limits. |
-| `cursor.before` | `string` | Return events older than this opaque cursor. |
-| `cursor.after` | `string` | Return events newer than this opaque cursor. |
-
-
-<a id="chatto-api-v1-GetRoomEventsResponse"></a>
-
-#### Result: GetRoomEventsResponse
-
-Response containing one room timeline page.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `page` | [`RoomTimelinePage`](#chatto-api-v1-RoomTimelinePage) | Loaded timeline page. |
-
-
-<a id="chatto-api-v1-RoomTimelineService-GetRoomEventsAround"></a>
-
-### GetRoomEventsAround
-
-Returns a room timeline window centered around a specific event. Use this to
-open a permalink, search result, or notification target in context. Returns
-NOT_FOUND when the anchor event is missing or not visible in the room
-timeline and PERMISSION_DENIED when the room is inaccessible.
-
-```http
-POST /api/connect/chatto.api.v1.RoomTimelineService/GetRoomEventsAround
-```
-
-<a id="chatto-api-v1-GetRoomEventsAroundRequest"></a>
-
-#### Input: GetRoomEventsAroundRequest
-
-Request for room timeline events around a specific event.
-
-Use this when a client needs to jump to a known event and render enough
-context around it.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | Required. Room whose timeline should be loaded. |
-| `event_id` | `string` | Required. Anchor event ID that should appear in the returned page. |
-| `limit` | `int32` | Maximum number of events to return around the anchor. |
-
-
-<a id="chatto-api-v1-GetRoomEventsAroundResponse"></a>
-
-#### Result: GetRoomEventsAroundResponse
-
-Response containing a room timeline window around a specific event.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `page` | [`RoomTimelinePage`](#chatto-api-v1-RoomTimelinePage) | Loaded timeline page. |
-| `target_index` | `int32` | Zero-based index of the anchor event within page.events. |
-
-
-<a id="chatto-api-v1-RoomTimelineService-ResolveMessageLinkTarget"></a>
-
-### ResolveMessageLinkTarget
-
-Resolves a permalink target to either the room timeline or a message
-thread, including thread-only replies that are not room timeline rows.
-Returns NOT_FOUND when the target message is missing or hidden and
-PERMISSION_DENIED when the room is inaccessible.
-
-```http
-POST /api/connect/chatto.api.v1.RoomTimelineService/ResolveMessageLinkTarget
-```
-
-<a id="chatto-api-v1-ResolveMessageLinkTargetRequest"></a>
-
-#### Input: ResolveMessageLinkTargetRequest
-
-Request for resolving a message permalink target.
-
-Unlike GetRoomEventsAround, this can resolve thread-only replies that do not
-appear as rows in the room timeline.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | Required. Room containing the linked event. |
-| `event_id` | `string` | Required. Linked event ID. |
-
-
-<a id="chatto-api-v1-ResolveMessageLinkTargetResponse"></a>
-
-#### Result: ResolveMessageLinkTargetResponse
-
-Response describing where a message permalink should land.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `event` | [`RoomTimelineEvent`](#chatto-api-v1-RoomTimelineEvent) | Linked event, hydrated with the same shape used by timeline pages. |
-| `thread_root_event_id` | `string` | Event ID of the thread root when event is a thread-only reply. Empty when the event should open in the room timeline. |
-| `includes` | [`RoomTimelineIncludes`](#chatto-api-v1-RoomTimelineIncludes) | Related entities needed to render the event. |
-
-
-<a id="chatto-api-v1-RoomTimelineService-GetThreadEvents"></a>
-
-### GetThreadEvents
-
-Returns one page of events in a message thread. Initial pages include the
-thread root message; cursor pages return replies in the requested direction.
-
-```http
-POST /api/connect/chatto.api.v1.RoomTimelineService/GetThreadEvents
-```
-
-<a id="chatto-api-v1-GetThreadEventsRequest"></a>
-
-#### Input: GetThreadEventsRequest
-
-Request for a page of events in one thread.
-
-Omit the cursor to load the latest visible part of the thread, including the
-root message. Set before to a previously returned start_cursor to page toward
-older replies, or after to a previously returned end_cursor to page toward
-newer replies without repeating the root message.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | Required. Room containing the thread. |
-| `thread_root_event_id` | `string` | Required. Event ID of the root message for the thread. |
-| `limit` | `int32` | Maximum number of events to return. The server may clamp very large limits. |
-| `cursor.before` | `string` | Return thread events older than this opaque cursor. |
-| `cursor.after` | `string` | Return thread events newer than this opaque cursor. |
-
-
-<a id="chatto-api-v1-GetThreadEventsResponse"></a>
-
-#### Result: GetThreadEventsResponse
-
-Response containing one thread timeline page.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `page` | [`RoomTimelinePage`](#chatto-api-v1-RoomTimelinePage) | Loaded timeline page. |
-
-
-<a id="chatto-api-v1-RoomTimelineService-GetThreadEventsAround"></a>
-
-### GetThreadEventsAround
-
-Returns a thread timeline window centered around a specific event. Use this
-to open a reply from a notification or search result in context. Returns
-NOT_FOUND when the thread root or anchor event is missing or hidden and
-PERMISSION_DENIED when the room is inaccessible.
-
-```http
-POST /api/connect/chatto.api.v1.RoomTimelineService/GetThreadEventsAround
-```
-
-<a id="chatto-api-v1-GetThreadEventsAroundRequest"></a>
-
-#### Input: GetThreadEventsAroundRequest
-
-Request for thread events around a specific event.
-
-Use this when a client needs to jump to a known reply and render surrounding
-thread context.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | Required. Room containing the thread. |
-| `thread_root_event_id` | `string` | Required. Event ID of the root message for the thread. |
-| `event_id` | `string` | Required. Anchor event ID inside the thread. The event should belong to the requested thread. |
-| `limit` | `int32` | Maximum number of events to return around the anchor. |
-
-
-<a id="chatto-api-v1-GetThreadEventsAroundResponse"></a>
-
-#### Result: GetThreadEventsAroundResponse
-
-Response containing a thread timeline window around a specific event.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `page` | [`RoomTimelinePage`](#chatto-api-v1-RoomTimelinePage) | Loaded timeline page. |
-| `target_index` | `int32` | Zero-based index of the anchor event within page.events. |
-
-
 <a id="chatto-api-v1-RoomMemberService"></a>
 
 ## RoomMemberService
@@ -1495,38 +1285,115 @@ Response containing fresh signed URLs for many visible messages.
 | `messages` | repeated [`RefreshedMessageAttachmentUrls`](#chatto-api-v1-RefreshedMessageAttachmentUrls) | Refreshed messages in first-seen request order. |
 
 
-<a id="chatto-api-v1-MessageService-SendTypingIndicator"></a>
+<a id="chatto-api-v1-MessageService-ResolveMessageLinkTarget"></a>
 
-### SendTypingIndicator
+### ResolveMessageLinkTarget
 
-Publishes a live-only typing indicator. Room membership is required; message
-posting permission is not.
+Resolves a permalink target to either the room timeline or a message
+thread, including thread-only replies that are not room timeline rows.
+Returns NOT_FOUND when the target message is missing or hidden and
+PERMISSION_DENIED when the room is inaccessible.
 
 ```http
-POST /api/connect/chatto.api.v1.MessageService/SendTypingIndicator
+POST /api/connect/chatto.api.v1.MessageService/ResolveMessageLinkTarget
 ```
 
-<a id="chatto-api-v1-SendTypingIndicatorRequest"></a>
+<a id="chatto-api-v1-ResolveMessageLinkTargetRequest"></a>
 
-#### Input: SendTypingIndicatorRequest
+#### Input: ResolveMessageLinkTargetRequest
 
-Request to publish a live-only typing indicator.
+Request for resolving a message permalink target.
 
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | Required. Room where the current user is typing. |
-| `thread_root_event_id` | `string` | Event ID of the thread root when typing inside a thread. |
-
-
-<a id="chatto-api-v1-SendTypingIndicatorResponse"></a>
-
-#### Result: SendTypingIndicatorResponse
-
-Result of publishing a typing indicator.
+Unlike GetRoomEventsAround, this can resolve thread-only replies that do not
+appear as rows in the room timeline.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `sent` | `bool` | True when the typing indicator was accepted for publish. |
+| `room_id` | `string` | Required. Room containing the linked event. |
+| `event_id` | `string` | Required. Linked event ID. |
+
+
+<a id="chatto-api-v1-ResolveMessageLinkTargetResponse"></a>
+
+#### Result: ResolveMessageLinkTargetResponse
+
+Response describing where a message permalink should land.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `event` | [`RoomTimelineEvent`](#chatto-api-v1-RoomTimelineEvent) | Linked event, hydrated with the same shape used by timeline pages. |
+| `thread_root_event_id` | `string` | Event ID of the thread root when event is a thread-only reply. Empty when the event should open in the room timeline. |
+| `includes` | [`RoomTimelineIncludes`](#chatto-api-v1-RoomTimelineIncludes) | Related entities needed to render the event. |
+
+
+<a id="chatto-api-v1-MessageService-AddReaction"></a>
+
+### AddReaction
+
+Adds a reaction to a message. The user must be a room member and have
+message.react in the target room.
+
+```http
+POST /api/connect/chatto.api.v1.MessageService/AddReaction
+```
+
+<a id="chatto-api-v1-AddReactionRequest"></a>
+
+#### Input: AddReactionRequest
+
+Request to add the current user's reaction to a message.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room containing the message event. |
+| `message_event_id` | `string` | Required. Event ID of the message being reacted to. |
+| `emoji` | `string` | Required. Emoji shortcode name, such as "thumbsup" or "heart". |
+
+
+<a id="chatto-api-v1-AddReactionResponse"></a>
+
+#### Result: AddReactionResponse
+
+Result of adding a reaction.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `added` | `bool` | True when the reaction was newly added, false when it already existed. |
+
+
+<a id="chatto-api-v1-MessageService-RemoveReaction"></a>
+
+### RemoveReaction
+
+Removes a reaction from a message. The user must be a room member and have
+message.react in the target room.
+
+```http
+POST /api/connect/chatto.api.v1.MessageService/RemoveReaction
+```
+
+<a id="chatto-api-v1-RemoveReactionRequest"></a>
+
+#### Input: RemoveReactionRequest
+
+Request to remove the current user's reaction from a message.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room containing the message event. |
+| `message_event_id` | `string` | Required. Event ID of the message whose reaction should be removed. |
+| `emoji` | `string` | Required. Emoji shortcode name, such as "thumbsup" or "heart". |
+
+
+<a id="chatto-api-v1-RemoveReactionResponse"></a>
+
+#### Result: RemoveReactionResponse
+
+Result of removing a reaction.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `removed` | `bool` | True when the reaction was removed, false when it did not exist. |
 
 
 <a id="chatto-api-v1-NotificationService"></a>
@@ -1671,26 +1538,26 @@ Pending notification page scoped to one room.
 | `page` | [`PageInfo`](#chatto-api-v1-PageInfo) | Page metadata. |
 
 
-<a id="chatto-api-v1-NotificationService-ListNotificationCounts"></a>
+<a id="chatto-api-v1-NotificationService-ListRoomNotificationCounts"></a>
 
-### ListNotificationCounts
+### ListRoomNotificationCounts
 
 Lists pending notification counts grouped by room as a finite snapshot.
 
 ```http
-POST /api/connect/chatto.api.v1.NotificationService/ListNotificationCounts
+POST /api/connect/chatto.api.v1.NotificationService/ListRoomNotificationCounts
 ```
 
-<a id="chatto-api-v1-ListNotificationCountsRequest"></a>
+<a id="chatto-api-v1-ListRoomNotificationCountsRequest"></a>
 
-#### Input: ListNotificationCountsRequest
+#### Input: ListRoomNotificationCountsRequest
 
 Request for pending notification counts grouped by room.
 
 
-<a id="chatto-api-v1-ListNotificationCountsResponse"></a>
+<a id="chatto-api-v1-ListRoomNotificationCountsResponse"></a>
 
-#### Result: ListNotificationCountsResponse
+#### Result: ListRoomNotificationCountsResponse
 
 Finite snapshot of pending notification counts grouped by room.
 
@@ -1863,163 +1730,6 @@ Response from removing a browser push subscription.
 | Field | Type | Description |
 | --- | --- | --- |
 | `unsubscribed` | `bool` | True when the request completed. |
-
-
-<a id="chatto-api-v1-ReactionService"></a>
-
-## ReactionService
-
-Manages message reactions for the current user.
-
-<a id="chatto-api-v1-ReactionService-AddReaction"></a>
-
-### AddReaction
-
-Adds a reaction to a message. The user must be a room member and have
-message.react in the target room.
-
-```http
-POST /api/connect/chatto.api.v1.ReactionService/AddReaction
-```
-
-<a id="chatto-api-v1-AddReactionRequest"></a>
-
-#### Input: AddReactionRequest
-
-Request to add the current user's reaction to a message.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | Required. Room containing the message event. |
-| `message_event_id` | `string` | Required. Event ID of the message being reacted to. |
-| `emoji` | `string` | Required. Emoji shortcode name, such as "thumbsup" or "heart". |
-
-
-<a id="chatto-api-v1-AddReactionResponse"></a>
-
-#### Result: AddReactionResponse
-
-Result of adding a reaction.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `added` | `bool` | True when the reaction was newly added, false when it already existed. |
-
-
-<a id="chatto-api-v1-ReactionService-RemoveReaction"></a>
-
-### RemoveReaction
-
-Removes a reaction from a message. The user must be a room member and have
-message.react in the target room.
-
-```http
-POST /api/connect/chatto.api.v1.ReactionService/RemoveReaction
-```
-
-<a id="chatto-api-v1-RemoveReactionRequest"></a>
-
-#### Input: RemoveReactionRequest
-
-Request to remove the current user's reaction from a message.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | Required. Room containing the message event. |
-| `message_event_id` | `string` | Required. Event ID of the message whose reaction should be removed. |
-| `emoji` | `string` | Required. Emoji shortcode name, such as "thumbsup" or "heart". |
-
-
-<a id="chatto-api-v1-RemoveReactionResponse"></a>
-
-#### Result: RemoveReactionResponse
-
-Result of removing a reaction.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `removed` | `bool` | True when the reaction was removed, false when it did not exist. |
-
-
-<a id="chatto-api-v1-ReadStateService"></a>
-
-## ReadStateService
-
-Updates room and thread read state for the current user.
-
-<a id="chatto-api-v1-ReadStateService-MarkRoomAsRead"></a>
-
-### MarkRoomAsRead
-
-Marks a room timeline as read through the supplied event. If no event is
-supplied, the server marks through the room's latest root event. Clients
-usually call this after the user has viewed the latest visible event in the
-room.
-
-```http
-POST /api/connect/chatto.api.v1.ReadStateService/MarkRoomAsRead
-```
-
-<a id="chatto-api-v1-MarkRoomAsReadRequest"></a>
-
-#### Input: MarkRoomAsReadRequest
-
-Request to mark a room timeline as read.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | Required. Room whose timeline should be marked read. |
-| `up_to_event_id` | `string` | Highest room event ID the current user has read. When set, the event must exist as a root event in the room timeline. Leave empty to mark through the room's current latest root event. |
-
-
-<a id="chatto-api-v1-MarkRoomAsReadResponse"></a>
-
-#### Result: MarkRoomAsReadResponse
-
-Result of marking a room timeline as read.
-
-Clients can use the previous timestamp to decide whether unread badges or
-local notification state need to be reconciled.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `last_read_at` | `google.protobuf.Timestamp` | New room read timestamp stored for the current user. |
-| `previous_last_read_at` | `google.protobuf.Timestamp` | Previous room read timestamp, when one existed. |
-
-
-<a id="chatto-api-v1-ReadStateService-MarkThreadAsRead"></a>
-
-### MarkThreadAsRead
-
-Marks a thread timeline as read through the supplied event without changing
-the room-level read marker.
-
-```http
-POST /api/connect/chatto.api.v1.ReadStateService/MarkThreadAsRead
-```
-
-<a id="chatto-api-v1-MarkThreadAsReadRequest"></a>
-
-#### Input: MarkThreadAsReadRequest
-
-Request to mark a message thread as read.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | Required. Room containing the thread. |
-| `thread_root_event_id` | `string` | Required. Event ID of the root message for the thread. |
-| `up_to_event_id` | `string` | Highest thread event ID the current user has read. The event should belong to the thread identified by thread_root_event_id. |
-
-
-<a id="chatto-api-v1-MarkThreadAsReadResponse"></a>
-
-#### Result: MarkThreadAsReadResponse
-
-Result of marking a message thread as read.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `previous_read_at` | `google.protobuf.Timestamp` | Previous thread read timestamp, when one existed. |
 
 
 <a id="chatto-api-v1-RoleService"></a>
@@ -2503,6 +2213,161 @@ Room-scoped attachment list response.
 | `page` | [`PageInfo`](#chatto-api-v1-PageInfo) | Page metadata. |
 
 
+<a id="chatto-api-v1-RoomService-UpdateTypingIndicator"></a>
+
+### UpdateTypingIndicator
+
+Refreshes the current user's live-only typing indicator for a room or
+thread. Room membership is required; message posting permission is not.
+
+```http
+POST /api/connect/chatto.api.v1.RoomService/UpdateTypingIndicator
+```
+
+<a id="chatto-api-v1-UpdateTypingIndicatorRequest"></a>
+
+#### Input: UpdateTypingIndicatorRequest
+
+Request to refresh the current user's live-only typing indicator.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room where the current user is typing. |
+| `thread_root_event_id` | `string` | Event ID of the thread root when typing inside a thread. |
+
+
+<a id="chatto-api-v1-UpdateTypingIndicatorResponse"></a>
+
+#### Result: UpdateTypingIndicatorResponse
+
+Result of refreshing a typing indicator.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `updated` | `bool` | True when the typing indicator was accepted for publish. |
+
+
+<a id="chatto-api-v1-RoomService-GetRoomEvents"></a>
+
+### GetRoomEvents
+
+Returns one page of room timeline events, including related user data needed
+to render the page.
+
+```http
+POST /api/connect/chatto.api.v1.RoomService/GetRoomEvents
+```
+
+<a id="chatto-api-v1-GetRoomEventsRequest"></a>
+
+#### Input: GetRoomEventsRequest
+
+Request for a page of room timeline events.
+
+Omit the cursor to load the initial page. Set before to a previously returned
+start_cursor to page toward older events, or after to a previously returned
+end_cursor to page toward newer events.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room whose timeline should be loaded. |
+| `limit` | `int32` | Maximum number of events to return. The server may clamp very large limits. |
+| `cursor.before` | `string` | Return events older than this opaque cursor. |
+| `cursor.after` | `string` | Return events newer than this opaque cursor. |
+
+
+<a id="chatto-api-v1-GetRoomEventsResponse"></a>
+
+#### Result: GetRoomEventsResponse
+
+Response containing one room timeline page.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `page` | [`RoomTimelinePage`](#chatto-api-v1-RoomTimelinePage) | Loaded timeline page. |
+
+
+<a id="chatto-api-v1-RoomService-GetRoomEventsAround"></a>
+
+### GetRoomEventsAround
+
+Returns a room timeline window centered around a specific event. Use this to
+open a permalink, search result, or notification target in context. Returns
+NOT_FOUND when the anchor event is missing or not visible in the room
+timeline and PERMISSION_DENIED when the room is inaccessible.
+
+```http
+POST /api/connect/chatto.api.v1.RoomService/GetRoomEventsAround
+```
+
+<a id="chatto-api-v1-GetRoomEventsAroundRequest"></a>
+
+#### Input: GetRoomEventsAroundRequest
+
+Request for room timeline events around a specific event.
+
+Use this when a client needs to jump to a known event and render enough
+context around it.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room whose timeline should be loaded. |
+| `event_id` | `string` | Required. Anchor event ID that should appear in the returned page. |
+| `limit` | `int32` | Maximum number of events to return around the anchor. |
+
+
+<a id="chatto-api-v1-GetRoomEventsAroundResponse"></a>
+
+#### Result: GetRoomEventsAroundResponse
+
+Response containing a room timeline window around a specific event.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `page` | [`RoomTimelinePage`](#chatto-api-v1-RoomTimelinePage) | Loaded timeline page. |
+| `target_index` | `int32` | Zero-based index of the anchor event within page.events. |
+
+
+<a id="chatto-api-v1-RoomService-MarkRoomAsRead"></a>
+
+### MarkRoomAsRead
+
+Marks a room timeline as read through the supplied event. If no event is
+supplied, the server marks through the room's latest root event. Clients
+usually call this after the user has viewed the latest visible event in the
+room.
+
+```http
+POST /api/connect/chatto.api.v1.RoomService/MarkRoomAsRead
+```
+
+<a id="chatto-api-v1-MarkRoomAsReadRequest"></a>
+
+#### Input: MarkRoomAsReadRequest
+
+Request to mark a room timeline as read.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room whose timeline should be marked read. |
+| `up_to_event_id` | `string` | Highest room event ID the current user has read. When set, the event must exist as a root event in the room timeline. Leave empty to mark through the room's current latest root event. |
+
+
+<a id="chatto-api-v1-MarkRoomAsReadResponse"></a>
+
+#### Result: MarkRoomAsReadResponse
+
+Result of marking a room timeline as read.
+
+Clients can use the previous timestamp to decide whether unread badges or
+local notification state need to be reconciled.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `last_read_at` | `google.protobuf.Timestamp` | New room read timestamp stored for the current user. |
+| `previous_last_read_at` | `google.protobuf.Timestamp` | Previous room read timestamp, when one existed. |
+
+
 <a id="chatto-api-v1-RoomService-BanRoomMember"></a>
 
 ### BanRoomMember
@@ -2787,7 +2652,7 @@ Visible room batch response for direct room hydration.
 
 ## ServerService
 
-Provides authenticated server state and current user's server capabilities.
+Provides authenticated server profile and runtime configuration.
 
 <a id="chatto-api-v1-ServerService-GetServerState"></a>
 
@@ -2816,10 +2681,8 @@ Authenticated server state used by the web client and public API clients.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `profile` | [`ServerMemberProfile`](#chatto-api-v1-ServerMemberProfile) | Authenticated server profile and branding. |
+| `profile` | [`ServerProfile`](#chatto-api-v1-ServerProfile) | Authenticated server profile and branding. |
 | `runtime` | [`ServerRuntimeConfig`](#chatto-api-v1-ServerRuntimeConfig) | Authenticated runtime settings used by clients. |
-| `viewer_permissions` | [`ServerViewerPermissions`](#chatto-api-v1-ServerViewerPermissions) | Effective server/channel permission decisions for the authenticated user. |
-| `viewer_state` | [`ServerViewerState`](#chatto-api-v1-ServerViewerState) | Non-permission server state for the authenticated user. |
 
 
 <a id="chatto-api-v1-ThreadService"></a>
@@ -2929,6 +2792,125 @@ Result of unfollowing a thread.
 | Field | Type | Description |
 | --- | --- | --- |
 | `following` | `bool` | True when the current user follows the thread after the operation. |
+
+
+<a id="chatto-api-v1-ThreadService-GetThreadEvents"></a>
+
+### GetThreadEvents
+
+Returns one page of events in a message thread. Initial pages include the
+thread root message; cursor pages return replies in the requested direction.
+
+```http
+POST /api/connect/chatto.api.v1.ThreadService/GetThreadEvents
+```
+
+<a id="chatto-api-v1-GetThreadEventsRequest"></a>
+
+#### Input: GetThreadEventsRequest
+
+Request for a page of events in one thread.
+
+Omit the cursor to load the latest visible part of the thread, including the
+root message. Set before to a previously returned start_cursor to page toward
+older replies, or after to a previously returned end_cursor to page toward
+newer replies without repeating the root message.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room containing the thread. |
+| `thread_root_event_id` | `string` | Required. Event ID of the root message for the thread. |
+| `limit` | `int32` | Maximum number of events to return. The server may clamp very large limits. |
+| `cursor.before` | `string` | Return thread events older than this opaque cursor. |
+| `cursor.after` | `string` | Return thread events newer than this opaque cursor. |
+
+
+<a id="chatto-api-v1-GetThreadEventsResponse"></a>
+
+#### Result: GetThreadEventsResponse
+
+Response containing one thread timeline page.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `page` | [`RoomTimelinePage`](#chatto-api-v1-RoomTimelinePage) | Loaded timeline page. |
+
+
+<a id="chatto-api-v1-ThreadService-GetThreadEventsAround"></a>
+
+### GetThreadEventsAround
+
+Returns a thread timeline window centered around a specific event. Use this
+to open a reply from a notification or search result in context. Returns
+NOT_FOUND when the thread root or anchor event is missing or hidden and
+PERMISSION_DENIED when the room is inaccessible.
+
+```http
+POST /api/connect/chatto.api.v1.ThreadService/GetThreadEventsAround
+```
+
+<a id="chatto-api-v1-GetThreadEventsAroundRequest"></a>
+
+#### Input: GetThreadEventsAroundRequest
+
+Request for thread events around a specific event.
+
+Use this when a client needs to jump to a known reply and render surrounding
+thread context.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room containing the thread. |
+| `thread_root_event_id` | `string` | Required. Event ID of the root message for the thread. |
+| `event_id` | `string` | Required. Anchor event ID inside the thread. The event should belong to the requested thread. |
+| `limit` | `int32` | Maximum number of events to return around the anchor. |
+
+
+<a id="chatto-api-v1-GetThreadEventsAroundResponse"></a>
+
+#### Result: GetThreadEventsAroundResponse
+
+Response containing a thread timeline window around a specific event.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `page` | [`RoomTimelinePage`](#chatto-api-v1-RoomTimelinePage) | Loaded timeline page. |
+| `target_index` | `int32` | Zero-based index of the anchor event within page.events. |
+
+
+<a id="chatto-api-v1-ThreadService-MarkThreadAsRead"></a>
+
+### MarkThreadAsRead
+
+Marks a thread timeline as read through the supplied event without changing
+the room-level read marker.
+
+```http
+POST /api/connect/chatto.api.v1.ThreadService/MarkThreadAsRead
+```
+
+<a id="chatto-api-v1-MarkThreadAsReadRequest"></a>
+
+#### Input: MarkThreadAsReadRequest
+
+Request to mark a message thread as read.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room containing the thread. |
+| `thread_root_event_id` | `string` | Required. Event ID of the root message for the thread. |
+| `up_to_event_id` | `string` | Highest thread event ID the current user has read. The event should belong to the thread identified by thread_root_event_id. |
+
+
+<a id="chatto-api-v1-MarkThreadAsReadResponse"></a>
+
+#### Result: MarkThreadAsReadResponse
+
+Result of marking a message thread as read.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `previous_read_at` | `google.protobuf.Timestamp` | Previous thread read timestamp, when one existed. |
 
 
 <a id="chatto-api-v1-VoiceCallService"></a>
@@ -3343,6 +3325,30 @@ Server-wide notification preference for the authenticated user.
 | --- | --- | --- |
 | `level` | [`NotificationLevel`](#chatto-api-v1-NotificationLevel) | Explicit server-level setting. |
 | `effective_level` | [`NotificationLevel`](#chatto-api-v1-NotificationLevel) | Level after applying system defaults. |
+
+
+
+<a id="chatto-api-v1-ServerViewerPermissions"></a>
+
+### ServerViewerPermissions
+
+Effective server/channel permission decisions for the authenticated user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `permissions` | repeated [`PermissionGrant`](#chatto-api-v1-PermissionGrant) | One row per permission known to the server. |
+
+
+
+<a id="chatto-api-v1-ServerViewerState"></a>
+
+### ServerViewerState
+
+Non-permission server state for the authenticated user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `has_unread_rooms` | `bool` | Whether any joined channel room has unread messages. |
 
 
 
@@ -4025,9 +4031,9 @@ Public server profile, identity, and branding fields.
 
 
 
-<a id="chatto-api-v1-ServerMemberProfile"></a>
+<a id="chatto-api-v1-ServerProfile"></a>
 
-### ServerMemberProfile
+### ServerProfile
 
 Server profile fields visible to authenticated members.
 
@@ -4054,30 +4060,6 @@ Authenticated server runtime settings used by clients.
 | `max_upload_size` | `int64` | Maximum general upload size in bytes. |
 | `max_video_upload_size` | `int64` | Maximum video upload size in bytes. |
 | `message_edit_window_seconds` | `int32` | Message edit window in seconds. |
-
-
-
-<a id="chatto-api-v1-ServerViewerPermissions"></a>
-
-### ServerViewerPermissions
-
-Effective server/channel permission decisions for the authenticated user.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `permissions` | repeated [`PermissionGrant`](#chatto-api-v1-PermissionGrant) | One row per permission known to the server. |
-
-
-
-<a id="chatto-api-v1-ServerViewerState"></a>
-
-### ServerViewerState
-
-Non-permission server state for the authenticated user.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `has_unread_rooms` | `bool` | Whether any joined channel room has unread messages. |
 
 
 

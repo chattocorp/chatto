@@ -8,7 +8,9 @@ import type {
 } from "./events.js";
 import { RoomEventKind } from "./eventKinds.js";
 import { PresenceStatus, type RoomEventView } from "./renderTypes.js";
-import { RoomTimelineService } from "@chatto/api-types/api/v1/room_timeline_connect";
+import { MessageService } from "@chatto/api-types/api/v1/messages_connect";
+import { RoomService } from "@chatto/api-types/api/v1/rooms_connect";
+import { ThreadService } from "@chatto/api-types/api/v1/threads_connect";
 import {
   RoomTimelinePage,
   RoomTimelineVideoProcessingStatus,
@@ -71,7 +73,9 @@ export function createRoomTimelineAPI(
     baseUrl: config.baseUrl,
     useBinaryFormat: true,
   });
-  const client = createClient(RoomTimelineService, transport);
+  const messages = createClient(MessageService, transport);
+  const rooms = createClient(RoomService, transport);
+  const threads = createClient(ThreadService, transport);
   const headers = () =>
     config.bearerToken
       ? { Authorization: `Bearer ${config.bearerToken}` }
@@ -94,7 +98,7 @@ export function createRoomTimelineAPI(
   return {
     async getRoomEvents({ roomId, limit, before, after }) {
       try {
-        const response = await client.getRoomEvents(
+        const response = await rooms.getRoomEvents(
           {
             roomId,
             limit,
@@ -116,7 +120,7 @@ export function createRoomTimelineAPI(
     },
     async getRoomEventsAround({ roomId, eventId, limit }) {
       try {
-        const response = await client.getRoomEventsAround(
+        const response = await rooms.getRoomEventsAround(
           { roomId, eventId, limit },
           { headers: headers() },
         );
@@ -129,7 +133,7 @@ export function createRoomTimelineAPI(
     },
     async resolveMessageLinkTarget({ roomId, eventId }) {
       try {
-        const response = await client.resolveMessageLinkTarget(
+        const response = await messages.resolveMessageLinkTarget(
           { roomId, eventId },
           { headers: headers() },
         );
@@ -149,7 +153,7 @@ export function createRoomTimelineAPI(
     },
     async getThreadEvents({ roomId, threadRootEventId, limit, before, after }) {
       try {
-        const response = await client.getThreadEvents(
+        const response = await threads.getThreadEvents(
           {
             roomId,
             threadRootEventId,
@@ -172,7 +176,7 @@ export function createRoomTimelineAPI(
     },
     async getThreadEventsAround({ roomId, threadRootEventId, eventId, limit }) {
       try {
-        const response = await client.getThreadEventsAround(
+        const response = await threads.getThreadEventsAround(
           { roomId, threadRootEventId, eventId, limit },
           { headers: headers() },
         );

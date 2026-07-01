@@ -171,6 +171,26 @@ Server-wide notification preference for the authenticated user.
 | `level` | [`NotificationLevel`](#chatto-api-v1-NotificationLevel) | Explicit server-level setting. |
 | `effective_level` | [`NotificationLevel`](#chatto-api-v1-NotificationLevel) | Level after applying system defaults. |
 
+<a id="chatto-api-v1-ServerViewerPermissions"></a>
+
+### ServerViewerPermissions
+
+Effective server/channel permission decisions for the authenticated user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `permissions` | repeated [`PermissionGrant`](#chatto-api-v1-PermissionGrant) | One row per permission known to the server. |
+
+<a id="chatto-api-v1-ServerViewerState"></a>
+
+### ServerViewerState
+
+Non-permission server state for the authenticated user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `has_unread_rooms` | `bool` | Whether any joined channel room has unread messages. |
+
 <a id="chatto-api-v1-UserSettings"></a>
 
 ### UserSettings
@@ -768,9 +788,9 @@ Public server profile, identity, and branding fields.
 | `welcome_message` | `optional string` | Optional welcome message. |
 | `description` | `optional string` | Optional server description. |
 
-<a id="chatto-api-v1-ServerMemberProfile"></a>
+<a id="chatto-api-v1-ServerProfile"></a>
 
-### ServerMemberProfile
+### ServerProfile
 
 Server profile fields visible to authenticated members.
 
@@ -795,26 +815,6 @@ Authenticated server runtime settings used by clients.
 | `max_upload_size` | `int64` | Maximum general upload size in bytes. |
 | `max_video_upload_size` | `int64` | Maximum video upload size in bytes. |
 | `message_edit_window_seconds` | `int32` | Message edit window in seconds. |
-
-<a id="chatto-api-v1-ServerViewerPermissions"></a>
-
-### ServerViewerPermissions
-
-Effective server/channel permission decisions for the authenticated user.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `permissions` | repeated [`PermissionGrant`](#chatto-api-v1-PermissionGrant) | One row per permission known to the server. |
-
-<a id="chatto-api-v1-ServerViewerState"></a>
-
-### ServerViewerState
-
-Non-permission server state for the authenticated user.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `has_unread_rooms` | `bool` | Whether any joined channel room has unread messages. |
 
 <a id="chatto-api-v1-FollowedThread"></a>
 

@@ -535,7 +535,7 @@ func TestConnectAPIRejectsOversizedRequestMessages(t *testing.T) {
 		t.Fatalf("CreateAuthToken: %v", err)
 	}
 
-	client := apiv1connect.NewRoomTimelineServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
+	client := apiv1connect.NewRoomServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
 	req := connect.NewRequest(&apiv1.GetRoomEventsRequest{
 		RoomId: strings.Repeat("a", connectapi.MaxRequestMessageBytes+1),
 	})
@@ -577,7 +577,7 @@ func TestConnectAPIValidatesRequiredRequestFields(t *testing.T) {
 	})
 
 	t.Run("read state room id", func(t *testing.T) {
-		client := apiv1connect.NewReadStateServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
+		client := apiv1connect.NewRoomServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
 		req := connect.NewRequest(&apiv1.MarkRoomAsReadRequest{})
 		authorize(req)
 		_, err := client.MarkRoomAsRead(ctx, req)
@@ -585,7 +585,7 @@ func TestConnectAPIValidatesRequiredRequestFields(t *testing.T) {
 	})
 
 	t.Run("read state thread root id", func(t *testing.T) {
-		client := apiv1connect.NewReadStateServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
+		client := apiv1connect.NewThreadServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
 		req := connect.NewRequest(&apiv1.MarkThreadAsReadRequest{RoomId: "room"})
 		authorize(req)
 		_, err := client.MarkThreadAsRead(ctx, req)
@@ -593,7 +593,7 @@ func TestConnectAPIValidatesRequiredRequestFields(t *testing.T) {
 	})
 
 	t.Run("reaction room id", func(t *testing.T) {
-		client := apiv1connect.NewReactionServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
+		client := apiv1connect.NewMessageServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
 		req := connect.NewRequest(&apiv1.AddReactionRequest{
 			MessageEventId: "event",
 			Emoji:          "thumbsup",
@@ -604,7 +604,7 @@ func TestConnectAPIValidatesRequiredRequestFields(t *testing.T) {
 	})
 
 	t.Run("reaction message event id", func(t *testing.T) {
-		client := apiv1connect.NewReactionServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
+		client := apiv1connect.NewMessageServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
 		req := connect.NewRequest(&apiv1.AddReactionRequest{
 			RoomId: "room",
 			Emoji:  "thumbsup",
@@ -615,7 +615,7 @@ func TestConnectAPIValidatesRequiredRequestFields(t *testing.T) {
 	})
 
 	t.Run("reaction emoji", func(t *testing.T) {
-		client := apiv1connect.NewReactionServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
+		client := apiv1connect.NewMessageServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
 		req := connect.NewRequest(&apiv1.RemoveReactionRequest{
 			RoomId:         "room",
 			MessageEventId: "event",
@@ -626,7 +626,7 @@ func TestConnectAPIValidatesRequiredRequestFields(t *testing.T) {
 	})
 
 	t.Run("timeline room id", func(t *testing.T) {
-		client := apiv1connect.NewRoomTimelineServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
+		client := apiv1connect.NewRoomServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
 		req := connect.NewRequest(&apiv1.GetRoomEventsRequest{})
 		authorize(req)
 		_, err := client.GetRoomEvents(ctx, req)
@@ -634,7 +634,7 @@ func TestConnectAPIValidatesRequiredRequestFields(t *testing.T) {
 	})
 
 	t.Run("timeline event id", func(t *testing.T) {
-		client := apiv1connect.NewRoomTimelineServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
+		client := apiv1connect.NewRoomServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
 		req := connect.NewRequest(&apiv1.GetRoomEventsAroundRequest{RoomId: "room"})
 		authorize(req)
 		_, err := client.GetRoomEventsAround(ctx, req)
@@ -642,7 +642,7 @@ func TestConnectAPIValidatesRequiredRequestFields(t *testing.T) {
 	})
 
 	t.Run("thread timeline root id", func(t *testing.T) {
-		client := apiv1connect.NewRoomTimelineServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
+		client := apiv1connect.NewThreadServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
 		req := connect.NewRequest(&apiv1.GetThreadEventsRequest{RoomId: "room"})
 		authorize(req)
 		_, err := client.GetThreadEvents(ctx, req)
@@ -650,7 +650,7 @@ func TestConnectAPIValidatesRequiredRequestFields(t *testing.T) {
 	})
 
 	t.Run("thread timeline event id", func(t *testing.T) {
-		client := apiv1connect.NewRoomTimelineServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
+		client := apiv1connect.NewThreadServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
 		req := connect.NewRequest(&apiv1.GetThreadEventsAroundRequest{
 			RoomId:            "room",
 			ThreadRootEventId: "root",

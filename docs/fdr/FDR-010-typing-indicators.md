@@ -10,7 +10,8 @@ When a user is composing a message, others see a small typing indicator — the 
 ## Behavior
 
 - Typing in the composer publishes a typing event to other room members.
-- Current clients publish through ConnectRPC `MessageService.SendTypingIndicator`.
+- Current clients refresh typing state through ConnectRPC
+  `RoomService.UpdateTypingIndicator`.
 - Receiving clients show the indicator (avatar + animated dots) for a short duration after the last typing event.
 - The indicator is removed immediately when the user actually posts a message.
 - Room typing and thread typing are tracked separately. The room view only shows indicators for users typing in the room timeline (not in any thread). A thread pane only shows indicators for users typing in that specific thread.

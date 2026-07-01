@@ -116,7 +116,7 @@ func (s *notificationService) HasNotifications(ctx context.Context, _ *connect.R
 	return connect.NewResponse(&apiv1.HasNotificationsResponse{HasNotifications: has}), nil
 }
 
-func (s *notificationService) ListNotificationCounts(ctx context.Context, _ *connect.Request[apiv1.ListNotificationCountsRequest]) (*connect.Response[apiv1.ListNotificationCountsResponse], error) {
+func (s *notificationService) ListRoomNotificationCounts(ctx context.Context, _ *connect.Request[apiv1.ListRoomNotificationCountsRequest]) (*connect.Response[apiv1.ListRoomNotificationCountsResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -140,7 +140,7 @@ func (s *notificationService) ListNotificationCounts(ctx context.Context, _ *con
 			TotalCount: count,
 		})
 	}
-	return connect.NewResponse(&apiv1.ListNotificationCountsResponse{RoomCounts: roomCounts}), nil
+	return connect.NewResponse(&apiv1.ListRoomNotificationCountsResponse{RoomCounts: roomCounts}), nil
 }
 
 func (s *notificationService) DismissNotification(ctx context.Context, req *connect.Request[apiv1.DismissNotificationRequest]) (*connect.Response[apiv1.DismissNotificationResponse], error) {

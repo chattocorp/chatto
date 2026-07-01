@@ -3,8 +3,10 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ArchiveRoomRequest, ArchiveRoomResponse, BanRoomMemberRequest, BanRoomMemberResponse, CreateRoomRequest, CreateRoomResponse, JoinRoomGroupRequest, JoinRoomGroupResponse, JoinRoomRequest, JoinRoomResponse, LeaveRoomRequest, LeaveRoomResponse, ListRoomAttachmentsRequest, ListRoomAttachmentsResponse, ListRoomBansRequest, ListRoomBansResponse, StartDMRequest, StartDMResponse, UnarchiveRoomRequest, UnarchiveRoomResponse, UnbanRoomMemberRequest, UnbanRoomMemberResponse, UpdateRoomRequest, UpdateRoomResponse, UpdateRoomUniversalRequest, UpdateRoomUniversalResponse } from "./rooms_pb.js";
+import { ArchiveRoomRequest, ArchiveRoomResponse, BanRoomMemberRequest, BanRoomMemberResponse, CreateRoomRequest, CreateRoomResponse, JoinRoomGroupRequest, JoinRoomGroupResponse, JoinRoomRequest, JoinRoomResponse, LeaveRoomRequest, LeaveRoomResponse, ListRoomAttachmentsRequest, ListRoomAttachmentsResponse, ListRoomBansRequest, ListRoomBansResponse, StartDMRequest, StartDMResponse, UnarchiveRoomRequest, UnarchiveRoomResponse, UnbanRoomMemberRequest, UnbanRoomMemberResponse, UpdateRoomRequest, UpdateRoomResponse, UpdateRoomUniversalRequest, UpdateRoomUniversalResponse, UpdateTypingIndicatorRequest, UpdateTypingIndicatorResponse } from "./rooms_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
+import { GetRoomEventsAroundRequest, GetRoomEventsAroundResponse, GetRoomEventsRequest, GetRoomEventsResponse } from "./room_timeline_pb.js";
+import { MarkRoomAsReadRequest, MarkRoomAsReadResponse } from "./read_state_pb.js";
 
 /**
  * Manages channel room lifecycle and room membership for the current user.
@@ -144,6 +146,58 @@ export const RoomService = {
       name: "ListRoomAttachments",
       I: ListRoomAttachmentsRequest,
       O: ListRoomAttachmentsResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Refreshes the current user's live-only typing indicator for a room or
+     * thread. Room membership is required; message posting permission is not.
+     *
+     * @generated from rpc chatto.api.v1.RoomService.UpdateTypingIndicator
+     */
+    updateTypingIndicator: {
+      name: "UpdateTypingIndicator",
+      I: UpdateTypingIndicatorRequest,
+      O: UpdateTypingIndicatorResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Returns one page of room timeline events, including related user data needed
+     * to render the page.
+     *
+     * @generated from rpc chatto.api.v1.RoomService.GetRoomEvents
+     */
+    getRoomEvents: {
+      name: "GetRoomEvents",
+      I: GetRoomEventsRequest,
+      O: GetRoomEventsResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Returns a room timeline window centered around a specific event. Use this to
+     * open a permalink, search result, or notification target in context. Returns
+     * NOT_FOUND when the anchor event is missing or not visible in the room
+     * timeline and PERMISSION_DENIED when the room is inaccessible.
+     *
+     * @generated from rpc chatto.api.v1.RoomService.GetRoomEventsAround
+     */
+    getRoomEventsAround: {
+      name: "GetRoomEventsAround",
+      I: GetRoomEventsAroundRequest,
+      O: GetRoomEventsAroundResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Marks a room timeline as read through the supplied event. If no event is
+     * supplied, the server marks through the room's latest root event. Clients
+     * usually call this after the user has viewed the latest visible event in the
+     * room.
+     *
+     * @generated from rpc chatto.api.v1.RoomService.MarkRoomAsRead
+     */
+    markRoomAsRead: {
+      name: "MarkRoomAsRead",
+      I: MarkRoomAsReadRequest,
+      O: MarkRoomAsReadResponse,
       kind: MethodKind.Unary,
     },
     /**

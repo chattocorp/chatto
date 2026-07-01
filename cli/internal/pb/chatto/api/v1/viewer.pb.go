@@ -281,6 +281,98 @@ func (x *ViewerCapabilities) GetHasUnreadFollowedThreads() bool {
 	return false
 }
 
+// Effective server/channel permission decisions for the authenticated user.
+type ServerViewerPermissions struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// One row per permission known to the server.
+	Permissions   []*PermissionGrant `protobuf:"bytes,1,rep,name=permissions,proto3" json:"permissions,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ServerViewerPermissions) Reset() {
+	*x = ServerViewerPermissions{}
+	mi := &file_chatto_api_v1_viewer_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ServerViewerPermissions) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ServerViewerPermissions) ProtoMessage() {}
+
+func (x *ServerViewerPermissions) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_viewer_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ServerViewerPermissions.ProtoReflect.Descriptor instead.
+func (*ServerViewerPermissions) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_viewer_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *ServerViewerPermissions) GetPermissions() []*PermissionGrant {
+	if x != nil {
+		return x.Permissions
+	}
+	return nil
+}
+
+// Non-permission server state for the authenticated user.
+type ServerViewerState struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Whether any joined channel room has unread messages.
+	HasUnreadRooms bool `protobuf:"varint,1,opt,name=has_unread_rooms,json=hasUnreadRooms,proto3" json:"has_unread_rooms,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *ServerViewerState) Reset() {
+	*x = ServerViewerState{}
+	mi := &file_chatto_api_v1_viewer_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ServerViewerState) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ServerViewerState) ProtoMessage() {}
+
+func (x *ServerViewerState) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_viewer_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ServerViewerState.ProtoReflect.Descriptor instead.
+func (*ServerViewerState) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_viewer_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *ServerViewerState) GetHasUnreadRooms() bool {
+	if x != nil {
+		return x.HasUnreadRooms
+	}
+	return false
+}
+
 // Server-wide notification preference for the authenticated user.
 type ServerNotificationPreference struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -294,7 +386,7 @@ type ServerNotificationPreference struct {
 
 func (x *ServerNotificationPreference) Reset() {
 	*x = ServerNotificationPreference{}
-	mi := &file_chatto_api_v1_viewer_proto_msgTypes[3]
+	mi := &file_chatto_api_v1_viewer_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -306,7 +398,7 @@ func (x *ServerNotificationPreference) String() string {
 func (*ServerNotificationPreference) ProtoMessage() {}
 
 func (x *ServerNotificationPreference) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_viewer_proto_msgTypes[3]
+	mi := &file_chatto_api_v1_viewer_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -319,7 +411,7 @@ func (x *ServerNotificationPreference) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ServerNotificationPreference.ProtoReflect.Descriptor instead.
 func (*ServerNotificationPreference) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_viewer_proto_rawDescGZIP(), []int{3}
+	return file_chatto_api_v1_viewer_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *ServerNotificationPreference) GetLevel() NotificationLevel {
@@ -351,7 +443,7 @@ type RoomNotificationPreference struct {
 
 func (x *RoomNotificationPreference) Reset() {
 	*x = RoomNotificationPreference{}
-	mi := &file_chatto_api_v1_viewer_proto_msgTypes[4]
+	mi := &file_chatto_api_v1_viewer_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -363,7 +455,7 @@ func (x *RoomNotificationPreference) String() string {
 func (*RoomNotificationPreference) ProtoMessage() {}
 
 func (x *RoomNotificationPreference) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_viewer_proto_msgTypes[4]
+	mi := &file_chatto_api_v1_viewer_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -376,7 +468,7 @@ func (x *RoomNotificationPreference) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RoomNotificationPreference.ProtoReflect.Descriptor instead.
 func (*RoomNotificationPreference) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_viewer_proto_rawDescGZIP(), []int{4}
+	return file_chatto_api_v1_viewer_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *RoomNotificationPreference) GetRoomId() string {
@@ -409,7 +501,7 @@ type GetViewerRequest struct {
 
 func (x *GetViewerRequest) Reset() {
 	*x = GetViewerRequest{}
-	mi := &file_chatto_api_v1_viewer_proto_msgTypes[5]
+	mi := &file_chatto_api_v1_viewer_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -421,7 +513,7 @@ func (x *GetViewerRequest) String() string {
 func (*GetViewerRequest) ProtoMessage() {}
 
 func (x *GetViewerRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_viewer_proto_msgTypes[5]
+	mi := &file_chatto_api_v1_viewer_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -434,7 +526,7 @@ func (x *GetViewerRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetViewerRequest.ProtoReflect.Descriptor instead.
 func (*GetViewerRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_viewer_proto_rawDescGZIP(), []int{5}
+	return file_chatto_api_v1_viewer_proto_rawDescGZIP(), []int{7}
 }
 
 // Authenticated viewer snapshot needed by application shells.
@@ -448,13 +540,17 @@ type GetViewerResponse struct {
 	ServerNotificationPreference *ServerNotificationPreference `protobuf:"bytes,3,opt,name=server_notification_preference,json=serverNotificationPreference,proto3" json:"server_notification_preference,omitempty"`
 	// Notification preferences for rooms the user participates in.
 	RoomNotificationPreferences []*RoomNotificationPreference `protobuf:"bytes,4,rep,name=room_notification_preferences,json=roomNotificationPreferences,proto3" json:"room_notification_preferences,omitempty"`
-	unknownFields               protoimpl.UnknownFields
-	sizeCache                   protoimpl.SizeCache
+	// Effective server/channel permission decisions for the authenticated user.
+	ViewerPermissions *ServerViewerPermissions `protobuf:"bytes,5,opt,name=viewer_permissions,json=viewerPermissions,proto3" json:"viewer_permissions,omitempty"`
+	// Non-permission server state for the authenticated user.
+	ViewerState   *ServerViewerState `protobuf:"bytes,6,opt,name=viewer_state,json=viewerState,proto3" json:"viewer_state,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *GetViewerResponse) Reset() {
 	*x = GetViewerResponse{}
-	mi := &file_chatto_api_v1_viewer_proto_msgTypes[6]
+	mi := &file_chatto_api_v1_viewer_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -466,7 +562,7 @@ func (x *GetViewerResponse) String() string {
 func (*GetViewerResponse) ProtoMessage() {}
 
 func (x *GetViewerResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_viewer_proto_msgTypes[6]
+	mi := &file_chatto_api_v1_viewer_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -479,7 +575,7 @@ func (x *GetViewerResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetViewerResponse.ProtoReflect.Descriptor instead.
 func (*GetViewerResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_viewer_proto_rawDescGZIP(), []int{6}
+	return file_chatto_api_v1_viewer_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *GetViewerResponse) GetUser() *ViewerUser {
@@ -510,6 +606,20 @@ func (x *GetViewerResponse) GetRoomNotificationPreferences() []*RoomNotification
 	return nil
 }
 
+func (x *GetViewerResponse) GetViewerPermissions() *ServerViewerPermissions {
+	if x != nil {
+		return x.ViewerPermissions
+	}
+	return nil
+}
+
+func (x *GetViewerResponse) GetViewerState() *ServerViewerState {
+	if x != nil {
+		return x.ViewerState
+	}
+	return nil
+}
+
 var File_chatto_api_v1_viewer_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_viewer_proto_rawDesc = "" +
@@ -532,7 +642,11 @@ const file_chatto_api_v1_viewer_proto_rawDesc = "" +
 	"avatar_urlR\rcustom_statusR\x0fpresence_status\"\x8b\x01\n" +
 	"\x12ViewerCapabilities\x126\n" +
 	"\x06grants\x18\x01 \x03(\v2\x1e.chatto.api.v1.CapabilityGrantR\x06grants\x12=\n" +
-	"\x1bhas_unread_followed_threads\x18\x02 \x01(\bR\x18hasUnreadFollowedThreads\"\xa1\x01\n" +
+	"\x1bhas_unread_followed_threads\x18\x02 \x01(\bR\x18hasUnreadFollowedThreads\"[\n" +
+	"\x17ServerViewerPermissions\x12@\n" +
+	"\vpermissions\x18\x01 \x03(\v2\x1e.chatto.api.v1.PermissionGrantR\vpermissions\"=\n" +
+	"\x11ServerViewerState\x12(\n" +
+	"\x10has_unread_rooms\x18\x01 \x01(\bR\x0ehasUnreadRooms\"\xa1\x01\n" +
 	"\x1cServerNotificationPreference\x126\n" +
 	"\x05level\x18\x01 \x01(\x0e2 .chatto.api.v1.NotificationLevelR\x05level\x12I\n" +
 	"\x0feffective_level\x18\x02 \x01(\x0e2 .chatto.api.v1.NotificationLevelR\x0eeffectiveLevel\"\xb8\x01\n" +
@@ -540,12 +654,14 @@ const file_chatto_api_v1_viewer_proto_rawDesc = "" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x126\n" +
 	"\x05level\x18\x02 \x01(\x0e2 .chatto.api.v1.NotificationLevelR\x05level\x12I\n" +
 	"\x0feffective_level\x18\x03 \x01(\x0e2 .chatto.api.v1.NotificationLevelR\x0eeffectiveLevel\"\x12\n" +
-	"\x10GetViewerRequest\"\xeb\x02\n" +
+	"\x10GetViewerRequest\"\x87\x04\n" +
 	"\x11GetViewerResponse\x12-\n" +
 	"\x04user\x18\x01 \x01(\v2\x19.chatto.api.v1.ViewerUserR\x04user\x12E\n" +
 	"\fcapabilities\x18\x02 \x01(\v2!.chatto.api.v1.ViewerCapabilitiesR\fcapabilities\x12q\n" +
 	"\x1eserver_notification_preference\x18\x03 \x01(\v2+.chatto.api.v1.ServerNotificationPreferenceR\x1cserverNotificationPreference\x12m\n" +
-	"\x1droom_notification_preferences\x18\x04 \x03(\v2).chatto.api.v1.RoomNotificationPreferenceR\x1broomNotificationPreferences*q\n" +
+	"\x1droom_notification_preferences\x18\x04 \x03(\v2).chatto.api.v1.RoomNotificationPreferenceR\x1broomNotificationPreferences\x12U\n" +
+	"\x12viewer_permissions\x18\x05 \x01(\v2&.chatto.api.v1.ServerViewerPermissionsR\x11viewerPermissions\x12C\n" +
+	"\fviewer_state\x18\x06 \x01(\v2 .chatto.api.v1.ServerViewerStateR\vviewerState*q\n" +
 	"\n" +
 	"TimeFormat\x12\x1b\n" +
 	"\x17TIME_FORMAT_UNSPECIFIED\x10\x00\x12\x14\n" +
@@ -569,42 +685,48 @@ func file_chatto_api_v1_viewer_proto_rawDescGZIP() []byte {
 }
 
 var file_chatto_api_v1_viewer_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_chatto_api_v1_viewer_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_chatto_api_v1_viewer_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
 var file_chatto_api_v1_viewer_proto_goTypes = []any{
 	(TimeFormat)(0),                      // 0: chatto.api.v1.TimeFormat
 	(*UserSettings)(nil),                 // 1: chatto.api.v1.UserSettings
 	(*ViewerUser)(nil),                   // 2: chatto.api.v1.ViewerUser
 	(*ViewerCapabilities)(nil),           // 3: chatto.api.v1.ViewerCapabilities
-	(*ServerNotificationPreference)(nil), // 4: chatto.api.v1.ServerNotificationPreference
-	(*RoomNotificationPreference)(nil),   // 5: chatto.api.v1.RoomNotificationPreference
-	(*GetViewerRequest)(nil),             // 6: chatto.api.v1.GetViewerRequest
-	(*GetViewerResponse)(nil),            // 7: chatto.api.v1.GetViewerResponse
-	(*timestamppb.Timestamp)(nil),        // 8: google.protobuf.Timestamp
-	(*UserProfile)(nil),                  // 9: chatto.api.v1.UserProfile
-	(*CapabilityGrant)(nil),              // 10: chatto.api.v1.CapabilityGrant
-	(NotificationLevel)(0),               // 11: chatto.api.v1.NotificationLevel
+	(*ServerViewerPermissions)(nil),      // 4: chatto.api.v1.ServerViewerPermissions
+	(*ServerViewerState)(nil),            // 5: chatto.api.v1.ServerViewerState
+	(*ServerNotificationPreference)(nil), // 6: chatto.api.v1.ServerNotificationPreference
+	(*RoomNotificationPreference)(nil),   // 7: chatto.api.v1.RoomNotificationPreference
+	(*GetViewerRequest)(nil),             // 8: chatto.api.v1.GetViewerRequest
+	(*GetViewerResponse)(nil),            // 9: chatto.api.v1.GetViewerResponse
+	(*timestamppb.Timestamp)(nil),        // 10: google.protobuf.Timestamp
+	(*UserProfile)(nil),                  // 11: chatto.api.v1.UserProfile
+	(*CapabilityGrant)(nil),              // 12: chatto.api.v1.CapabilityGrant
+	(*PermissionGrant)(nil),              // 13: chatto.api.v1.PermissionGrant
+	(NotificationLevel)(0),               // 14: chatto.api.v1.NotificationLevel
 }
 var file_chatto_api_v1_viewer_proto_depIdxs = []int32{
 	0,  // 0: chatto.api.v1.UserSettings.time_format:type_name -> chatto.api.v1.TimeFormat
 	1,  // 1: chatto.api.v1.ViewerUser.settings:type_name -> chatto.api.v1.UserSettings
-	8,  // 2: chatto.api.v1.ViewerUser.last_login_change:type_name -> google.protobuf.Timestamp
-	9,  // 3: chatto.api.v1.ViewerUser.profile:type_name -> chatto.api.v1.UserProfile
-	10, // 4: chatto.api.v1.ViewerCapabilities.grants:type_name -> chatto.api.v1.CapabilityGrant
-	11, // 5: chatto.api.v1.ServerNotificationPreference.level:type_name -> chatto.api.v1.NotificationLevel
-	11, // 6: chatto.api.v1.ServerNotificationPreference.effective_level:type_name -> chatto.api.v1.NotificationLevel
-	11, // 7: chatto.api.v1.RoomNotificationPreference.level:type_name -> chatto.api.v1.NotificationLevel
-	11, // 8: chatto.api.v1.RoomNotificationPreference.effective_level:type_name -> chatto.api.v1.NotificationLevel
-	2,  // 9: chatto.api.v1.GetViewerResponse.user:type_name -> chatto.api.v1.ViewerUser
-	3,  // 10: chatto.api.v1.GetViewerResponse.capabilities:type_name -> chatto.api.v1.ViewerCapabilities
-	4,  // 11: chatto.api.v1.GetViewerResponse.server_notification_preference:type_name -> chatto.api.v1.ServerNotificationPreference
-	5,  // 12: chatto.api.v1.GetViewerResponse.room_notification_preferences:type_name -> chatto.api.v1.RoomNotificationPreference
-	6,  // 13: chatto.api.v1.ViewerService.GetViewer:input_type -> chatto.api.v1.GetViewerRequest
-	7,  // 14: chatto.api.v1.ViewerService.GetViewer:output_type -> chatto.api.v1.GetViewerResponse
-	14, // [14:15] is the sub-list for method output_type
-	13, // [13:14] is the sub-list for method input_type
-	13, // [13:13] is the sub-list for extension type_name
-	13, // [13:13] is the sub-list for extension extendee
-	0,  // [0:13] is the sub-list for field type_name
+	10, // 2: chatto.api.v1.ViewerUser.last_login_change:type_name -> google.protobuf.Timestamp
+	11, // 3: chatto.api.v1.ViewerUser.profile:type_name -> chatto.api.v1.UserProfile
+	12, // 4: chatto.api.v1.ViewerCapabilities.grants:type_name -> chatto.api.v1.CapabilityGrant
+	13, // 5: chatto.api.v1.ServerViewerPermissions.permissions:type_name -> chatto.api.v1.PermissionGrant
+	14, // 6: chatto.api.v1.ServerNotificationPreference.level:type_name -> chatto.api.v1.NotificationLevel
+	14, // 7: chatto.api.v1.ServerNotificationPreference.effective_level:type_name -> chatto.api.v1.NotificationLevel
+	14, // 8: chatto.api.v1.RoomNotificationPreference.level:type_name -> chatto.api.v1.NotificationLevel
+	14, // 9: chatto.api.v1.RoomNotificationPreference.effective_level:type_name -> chatto.api.v1.NotificationLevel
+	2,  // 10: chatto.api.v1.GetViewerResponse.user:type_name -> chatto.api.v1.ViewerUser
+	3,  // 11: chatto.api.v1.GetViewerResponse.capabilities:type_name -> chatto.api.v1.ViewerCapabilities
+	6,  // 12: chatto.api.v1.GetViewerResponse.server_notification_preference:type_name -> chatto.api.v1.ServerNotificationPreference
+	7,  // 13: chatto.api.v1.GetViewerResponse.room_notification_preferences:type_name -> chatto.api.v1.RoomNotificationPreference
+	4,  // 14: chatto.api.v1.GetViewerResponse.viewer_permissions:type_name -> chatto.api.v1.ServerViewerPermissions
+	5,  // 15: chatto.api.v1.GetViewerResponse.viewer_state:type_name -> chatto.api.v1.ServerViewerState
+	8,  // 16: chatto.api.v1.ViewerService.GetViewer:input_type -> chatto.api.v1.GetViewerRequest
+	9,  // 17: chatto.api.v1.ViewerService.GetViewer:output_type -> chatto.api.v1.GetViewerResponse
+	17, // [17:18] is the sub-list for method output_type
+	16, // [16:17] is the sub-list for method input_type
+	16, // [16:16] is the sub-list for extension type_name
+	16, // [16:16] is the sub-list for extension extendee
+	0,  // [0:16] is the sub-list for field type_name
 }
 
 func init() { file_chatto_api_v1_viewer_proto_init() }
@@ -622,7 +744,7 @@ func file_chatto_api_v1_viewer_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_api_v1_viewer_proto_rawDesc), len(file_chatto_api_v1_viewer_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   7,
+			NumMessages:   9,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -172,23 +172,6 @@ export function createMessageAPI(config: MessageAPIConfig) {
       }
     },
 
-    async sendTypingIndicator(
-      roomId: string,
-      threadRootEventId?: string | null,
-    ): Promise<boolean> {
-      try {
-        const response = await client.sendTypingIndicator(
-          {
-            roomId,
-            threadRootEventId: threadRootEventId ?? "",
-          },
-          { headers: headers() },
-        );
-        return response.sent;
-      } catch (err) {
-        return handleAuthError(err);
-      }
-    },
   };
 }
 

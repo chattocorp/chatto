@@ -1077,8 +1077,8 @@ export class RealtimeEventEnvelope extends Message<RealtimeEventEnvelope> {
 /**
  * Message-posted signal.
  *
- * Hydrate the affected timeline with `RoomTimelineService.GetRoomEventsAround`
- * for room messages, or `RoomTimelineService.GetThreadEventsAround` when
+ * Hydrate the affected timeline with `RoomService.GetRoomEventsAround`
+ * for room messages, or `ThreadService.GetThreadEventsAround` when
  * `thread_root_event_id` is set.
  *
  * @generated from message chatto.realtime.v1.RealtimeMessagePostedEvent
@@ -1139,8 +1139,8 @@ export class RealtimeMessagePostedEvent extends Message<RealtimeMessagePostedEve
  * Message-edited signal.
  *
  * Refresh the affected timeline window with
- * `RoomTimelineService.GetRoomEventsAround` for room messages, or
- * `RoomTimelineService.GetThreadEventsAround` when the local message belongs to
+ * `RoomService.GetRoomEventsAround` for room messages, or
+ * `ThreadService.GetThreadEventsAround` when the local message belongs to
  * a thread.
  *
  * @generated from message chatto.realtime.v1.RealtimeMessageEditedEvent
@@ -1193,8 +1193,8 @@ export class RealtimeMessageEditedEvent extends Message<RealtimeMessageEditedEve
  * Message-retracted signal.
  *
  * Refresh or patch the affected timeline window with
- * `RoomTimelineService.GetRoomEventsAround` for room messages, or
- * `RoomTimelineService.GetThreadEventsAround` when the local message belongs to
+ * `RoomService.GetRoomEventsAround` for room messages, or
+ * `ThreadService.GetThreadEventsAround` when the local message belongs to
  * a thread.
  *
  * @generated from message chatto.realtime.v1.RealtimeMessageRetractedEvent
@@ -1255,8 +1255,8 @@ export class RealtimeMessageRetractedEvent extends Message<RealtimeMessageRetrac
  * Reaction signal.
  *
  * Refresh or patch the affected message in its timeline window. Use
- * `RoomTimelineService.GetRoomEventsAround` for room messages, or
- * `RoomTimelineService.GetThreadEventsAround` when the local message belongs to
+ * `RoomService.GetRoomEventsAround` for room messages, or
+ * `ThreadService.GetThreadEventsAround` when the local message belongs to
  * a thread.
  *
  * @generated from message chatto.realtime.v1.RealtimeReactionEvent
@@ -1519,8 +1519,9 @@ export class RealtimeRoomUniversalChangedEvent extends Message<RealtimeRoomUnive
  * Notification-created signal for the connected user.
  *
  * Hydrate full notification rows with `NotificationService.GetNotification` or
- * `NotificationService.BatchGetNotifications`. Use `RoomTimelineService`
- * anchor reads when `event_id` or `in_reply_to_id` must be opened in context.
+ * `NotificationService.BatchGetNotifications`. Use `RoomService` or
+ * `ThreadService` anchor reads when `event_id` or `in_reply_to_id` must be
+ * opened in context.
  *
  * @generated from message chatto.realtime.v1.RealtimeNotificationCreatedEvent
  */
@@ -1700,8 +1701,8 @@ export class RealtimeNotificationLevelChangedEvent extends Message<RealtimeNotif
 /**
  * Thread-follow signal for the connected user.
  *
- * The updated follow state is inline. Use `RoomTimelineService.GetThreadEvents`
- * or `RoomTimelineService.GetThreadEventsAround` when the thread itself needs
+ * The updated follow state is inline. Use `ThreadService.GetThreadEvents`
+ * or `ThreadService.GetThreadEventsAround` when the thread itself needs
  * refreshing.
  *
  * @generated from message chatto.realtime.v1.RealtimeThreadFollowChangedEvent
@@ -1761,7 +1762,7 @@ export class RealtimeThreadFollowChangedEvent extends Message<RealtimeThreadFoll
 /**
  * Thread-created signal.
  *
- * Hydrate the new thread with `RoomTimelineService.GetThreadEventsAround` using
+ * Hydrate the new thread with `ThreadService.GetThreadEventsAround` using
  * `thread_root_event_id` as the anchor.
  *
  * @generated from message chatto.realtime.v1.RealtimeThreadCreatedEvent

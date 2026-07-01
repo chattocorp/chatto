@@ -35,13 +35,3 @@ message RemoveReactionResponse {
   // True when the reaction was removed, false when it did not exist.
   bool removed = 1;
 }
-
-// Manages message reactions for the current user.
-service ReactionService {
-  // Adds a reaction to a message. The user must be a room member and have
-  // message.react in the target room.
-  rpc AddReaction(AddReactionRequest) returns (AddReactionResponse);
-  // Removes a reaction from a message. The user must be a room member and have
-  // message.react in the target room.
-  rpc RemoveReaction(RemoveReactionRequest) returns (RemoveReactionResponse);
-}

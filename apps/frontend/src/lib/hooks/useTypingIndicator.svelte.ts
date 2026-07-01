@@ -2,7 +2,7 @@ import { SvelteMap } from 'svelte/reactivity';
 import { onTypingEvent, type TypingEventData } from '$lib/eventBus.svelte';
 import { useConnection } from '$lib/state/server/connection.svelte';
 import { getActiveServer } from '$lib/state/activeServer.svelte';
-import { createMessageAPI } from '@chatto/api-client/messages';
+import { createRoomCommandAPI } from '@chatto/api-client/rooms';
 
 /** How long to display typing indicator after receiving an event (ms) */
 export const TYPING_TIMEOUT_MS = 6000;
@@ -145,11 +145,11 @@ export function createTypingIndicator(getConfig: () => TypingIndicatorConfig) {
 
       try {
         const conn = connection();
-        await createMessageAPI({
+        await createRoomCommandAPI({
           serverId: conn.serverId ?? getActiveServer(),
           baseUrl: conn.connectBaseUrl,
           bearerToken: conn.bearerToken
-        }).sendTypingIndicator(configRoomId, configThreadRootEventId);
+        }).updateTypingIndicator(configRoomId, configThreadRootEventId);
       } catch (err) {
         console.debug('Failed to send typing indicator:', err);
       }

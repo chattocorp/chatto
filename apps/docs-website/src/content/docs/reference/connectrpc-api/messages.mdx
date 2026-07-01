@@ -1,6 +1,6 @@
 ---
 title: MessageService
-description: Message creation, editing, deletion, link-preview, attachment, and typing RPCs.
+description: Message creation, editing, deletion, permalink, reaction, link-preview, and attachment RPCs.
 editUrl: false
 ---
 
@@ -281,35 +281,112 @@ Response containing fresh signed URLs for many visible messages.
 | `messages` | repeated [`RefreshedMessageAttachmentUrls`](/reference/connectrpc-api/types/#chatto-api-v1-RefreshedMessageAttachmentUrls) | Refreshed messages in first-seen request order. |
 
 
-<a id="chatto-api-v1-MessageService-SendTypingIndicator"></a>
+<a id="chatto-api-v1-MessageService-ResolveMessageLinkTarget"></a>
 
-### SendTypingIndicator
+### ResolveMessageLinkTarget
 
-Publishes a live-only typing indicator. Room membership is required; message
-posting permission is not.
+Resolves a permalink target to either the room timeline or a message
+thread, including thread-only replies that are not room timeline rows.
+Returns NOT_FOUND when the target message is missing or hidden and
+PERMISSION_DENIED when the room is inaccessible.
 
 ```http
-POST /api/connect/chatto.api.v1.MessageService/SendTypingIndicator
+POST /api/connect/chatto.api.v1.MessageService/ResolveMessageLinkTarget
 ```
 
-<a id="chatto-api-v1-SendTypingIndicatorRequest"></a>
+<a id="chatto-api-v1-ResolveMessageLinkTargetRequest"></a>
 
-#### Input: SendTypingIndicatorRequest
+#### Input: ResolveMessageLinkTargetRequest
 
-Request to publish a live-only typing indicator.
+Request for resolving a message permalink target.
 
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | Required. Room where the current user is typing. |
-| `thread_root_event_id` | `string` | Event ID of the thread root when typing inside a thread. |
-
-
-<a id="chatto-api-v1-SendTypingIndicatorResponse"></a>
-
-#### Result: SendTypingIndicatorResponse
-
-Result of publishing a typing indicator.
+Unlike GetRoomEventsAround, this can resolve thread-only replies that do not
+appear as rows in the room timeline.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `sent` | `bool` | True when the typing indicator was accepted for publish. |
+| `room_id` | `string` | Required. Room containing the linked event. |
+| `event_id` | `string` | Required. Linked event ID. |
+
+
+<a id="chatto-api-v1-ResolveMessageLinkTargetResponse"></a>
+
+#### Result: ResolveMessageLinkTargetResponse
+
+Response describing where a message permalink should land.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `event` | [`RoomTimelineEvent`](/reference/connectrpc-api/types/#chatto-api-v1-RoomTimelineEvent) | Linked event, hydrated with the same shape used by timeline pages. |
+| `thread_root_event_id` | `string` | Event ID of the thread root when event is a thread-only reply. Empty when the event should open in the room timeline. |
+| `includes` | [`RoomTimelineIncludes`](/reference/connectrpc-api/types/#chatto-api-v1-RoomTimelineIncludes) | Related entities needed to render the event. |
+
+
+<a id="chatto-api-v1-MessageService-AddReaction"></a>
+
+### AddReaction
+
+Adds a reaction to a message. The user must be a room member and have
+message.react in the target room.
+
+```http
+POST /api/connect/chatto.api.v1.MessageService/AddReaction
+```
+
+<a id="chatto-api-v1-AddReactionRequest"></a>
+
+#### Input: AddReactionRequest
+
+Request to add the current user's reaction to a message.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room containing the message event. |
+| `message_event_id` | `string` | Required. Event ID of the message being reacted to. |
+| `emoji` | `string` | Required. Emoji shortcode name, such as "thumbsup" or "heart". |
+
+
+<a id="chatto-api-v1-AddReactionResponse"></a>
+
+#### Result: AddReactionResponse
+
+Result of adding a reaction.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `added` | `bool` | True when the reaction was newly added, false when it already existed. |
+
+
+<a id="chatto-api-v1-MessageService-RemoveReaction"></a>
+
+### RemoveReaction
+
+Removes a reaction from a message. The user must be a room member and have
+message.react in the target room.
+
+```http
+POST /api/connect/chatto.api.v1.MessageService/RemoveReaction
+```
+
+<a id="chatto-api-v1-RemoveReactionRequest"></a>
+
+#### Input: RemoveReactionRequest
+
+Request to remove the current user's reaction from a message.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room containing the message event. |
+| `message_event_id` | `string` | Required. Event ID of the message whose reaction should be removed. |
+| `emoji` | `string` | Required. Emoji shortcode name, such as "thumbsup" or "heart". |
+
+
+<a id="chatto-api-v1-RemoveReactionResponse"></a>
+
+#### Result: RemoveReactionResponse
+
+Result of removing a reaction.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `removed` | `bool` | True when the reaction was removed, false when it did not exist. |

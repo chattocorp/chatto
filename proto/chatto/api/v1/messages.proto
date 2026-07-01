@@ -5,6 +5,7 @@ package chatto.api.v1;
 import "buf/validate/validate.proto";
 import "chatto/api/v1/attachments.proto";
 import "chatto/api/v1/link_previews.proto";
+import "chatto/api/v1/reactions.proto";
 import "chatto/api/v1/room_timeline.proto";
 
 // Attachment bytes submitted with a message post.
@@ -130,20 +131,6 @@ message DeleteLinkPreviewResponse {
   bool deleted = 1;
 }
 
-// Request to publish a live-only typing indicator.
-message SendTypingIndicatorRequest {
-  // Required. Room where the current user is typing.
-  string room_id = 1 [(buf.validate.field).string.min_len = 1];
-  // Event ID of the thread root when typing inside a thread.
-  string thread_root_event_id = 2;
-}
-
-// Result of publishing a typing indicator.
-message SendTypingIndicatorResponse {
-  // True when the typing indicator was accepted for publish.
-  bool sent = 1;
-}
-
 // Request to refresh signed attachment URLs for one message.
 message RefreshMessageAttachmentUrlsRequest {
   // Required room ID.
@@ -222,7 +209,15 @@ service MessageService {
   // Existing visible messages with no current attachments are returned with an
   // empty attachment list.
   rpc BatchRefreshMessageAttachmentUrls(BatchRefreshMessageAttachmentUrlsRequest) returns (BatchRefreshMessageAttachmentUrlsResponse);
-  // Publishes a live-only typing indicator. Room membership is required; message
-  // posting permission is not.
-  rpc SendTypingIndicator(SendTypingIndicatorRequest) returns (SendTypingIndicatorResponse);
+  // Resolves a permalink target to either the room timeline or a message
+  // thread, including thread-only replies that are not room timeline rows.
+  // Returns NOT_FOUND when the target message is missing or hidden and
+  // PERMISSION_DENIED when the room is inaccessible.
+  rpc ResolveMessageLinkTarget(ResolveMessageLinkTargetRequest) returns (ResolveMessageLinkTargetResponse);
+  // Adds a reaction to a message. The user must be a room member and have
+  // message.react in the target room.
+  rpc AddReaction(AddReactionRequest) returns (AddReactionResponse);
+  // Removes a reaction from a message. The user must be a room member and have
+  // message.react in the target room.
+  rpc RemoveReaction(RemoveReactionRequest) returns (RemoveReactionResponse);
 }

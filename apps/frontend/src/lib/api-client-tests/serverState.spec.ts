@@ -16,6 +16,7 @@ const mocks = vi.hoisted(() => ({
   createClient: vi.fn(),
   createConnectTransport: vi.fn(),
   getServerState: vi.fn(),
+  getViewer: vi.fn(),
   getServerConfig: vi.fn(),
   updateServerConfig: vi.fn(),
   uploadServerLogo: vi.fn(),
@@ -43,6 +44,7 @@ describe('getAuthenticatedServerState', () => {
     mocks.createClient.mockReset();
     mocks.createConnectTransport.mockReset();
     mocks.getServerState.mockReset();
+    mocks.getViewer.mockReset();
     mocks.getServerConfig.mockReset();
     mocks.updateServerConfig.mockReset();
     mocks.uploadServerLogo.mockReset();
@@ -54,6 +56,7 @@ describe('getAuthenticatedServerState', () => {
     mocks.createConnectTransport.mockReturnValue({ kind: 'transport' });
     mocks.createClient.mockReturnValue({
       getServerState: mocks.getServerState,
+      getViewer: mocks.getViewer,
       getServerConfig: mocks.getServerConfig,
       updateServerConfig: mocks.updateServerConfig,
       uploadServerLogo: mocks.uploadServerLogo,
@@ -86,7 +89,9 @@ describe('getAuthenticatedServerState', () => {
         maxUploadSize: protoInt64.parse(123),
         maxVideoUploadSize: protoInt64.parse(456),
         messageEditWindowSeconds: 7200
-      },
+      }
+    });
+    mocks.getViewer.mockResolvedValue({
       viewerPermissions: {
         permissions: [
           { permission: 'server.manage', granted: true },
@@ -127,6 +132,10 @@ describe('getAuthenticatedServerState', () => {
       useBinaryFormat: true
     });
     expect(mocks.getServerState).toHaveBeenCalledWith(
+      {},
+      { headers: { Authorization: 'Bearer token' } }
+    );
+    expect(mocks.getViewer).toHaveBeenCalledWith(
       {},
       { headers: { Authorization: 'Bearer token' } }
     );
@@ -203,6 +212,7 @@ describe('getAuthenticatedServerState', () => {
         messageEditWindowSeconds: 10800
       }
     });
+    mocks.getViewer.mockResolvedValue({});
 
     const state = await getAuthenticatedServerState({
       baseUrl: '/api/connect',
@@ -210,6 +220,7 @@ describe('getAuthenticatedServerState', () => {
     });
 
     expect(mocks.getServerState).toHaveBeenCalledWith({}, { headers: undefined });
+    expect(mocks.getViewer).toHaveBeenCalledWith({}, { headers: undefined });
     expect(state.name).toBe('Chatto');
     expect(state.version).toBe('');
     expect(state.logoUrl).toBeNull();

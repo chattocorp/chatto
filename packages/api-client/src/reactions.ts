@@ -1,7 +1,7 @@
 import { notifyAuthenticationRequired } from "./hooks.js";
 import { Code, ConnectError, createClient } from "@connectrpc/connect";
 import { createConnectTransport } from "@connectrpc/connect-web";
-import { ReactionService } from "@chatto/api-types/api/v1/reactions_connect";
+import { MessageService } from "@chatto/api-types/api/v1/messages_connect";
 
 export type ConnectAPIConfig = {
   serverId?: string;
@@ -21,7 +21,7 @@ export function createReactionAPI(config: ConnectAPIConfig) {
     baseUrl: config.baseUrl,
     useBinaryFormat: true,
   });
-  const client = createClient(ReactionService, transport);
+  const client = createClient(MessageService, transport);
   const headers = () =>
     config.bearerToken
       ? { Authorization: `Bearer ${config.bearerToken}` }

@@ -167,7 +167,7 @@ async function addReactionViaAPI(
   messageEventId: string,
   emoji: string
 ): Promise<boolean> {
-  const resp = await connectPostResponse(page, 'chatto.api.v1.ReactionService/AddReaction', {
+  const resp = await connectPostResponse(page, 'chatto.api.v1.MessageService/AddReaction', {
     roomId,
     messageEventId,
     emoji

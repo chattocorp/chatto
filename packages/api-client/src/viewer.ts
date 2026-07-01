@@ -63,6 +63,8 @@ export type ViewerState = ViewerCapabilities & {
   user: CurrentUser;
   serverNotificationPreference: NotificationPreference;
   roomNotificationPreferences: RoomNotificationPreference[];
+  viewerPermissions: Record<string, boolean>;
+  viewerHasUnreadRooms: boolean;
 };
 
 const capabilityKeys = {
@@ -106,6 +108,9 @@ export async function getViewerStateViaConnect(
   }
   const summary = user.user;
   const grants = mapCapabilityGrants(response.capabilities?.grants);
+  const viewerPermissions = mapPermissionGrants(
+    response.viewerPermissions?.permissions,
+  );
   const can = (capability: string) => grants[capability] ?? false;
   return {
     user: {
@@ -144,6 +149,8 @@ export async function getViewerStateViaConnect(
     canAdminViewSystem: can(capabilityKeys.adminViewSystem),
     canAdminViewAudit: can(capabilityKeys.adminViewAudit),
     canManageUserPermissions: can(capabilityKeys.manageUserPermissions),
+    viewerPermissions,
+    viewerHasUnreadRooms: response.viewerState?.hasUnreadRooms ?? false,
     serverNotificationPreference: {
       level: apiNotificationLevel(response.serverNotificationPreference?.level),
       effectiveLevel: apiNotificationLevel(
@@ -158,6 +165,14 @@ export async function getViewerStateViaConnect(
       }),
     ),
   };
+}
+
+function mapPermissionGrants(
+  grants: Array<{ permission: string; granted: boolean }> | undefined,
+): Record<string, boolean> {
+  return Object.fromEntries(
+    (grants ?? []).map((grant) => [grant.permission, grant.granted]),
+  );
 }
 
 function mapCapabilityGrants(

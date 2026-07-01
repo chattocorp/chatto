@@ -323,7 +323,7 @@ export async function sendTypingOnRemote(
   token: string,
   roomId: string
 ): Promise<void> {
-  await messageClient(remoteBaseURL).sendTypingIndicator(
+  await roomClient(remoteBaseURL).updateTypingIndicator(
     { roomId },
     {
       headers: authHeaders(token)

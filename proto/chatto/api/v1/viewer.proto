@@ -55,6 +55,18 @@ message ViewerCapabilities {
   bool has_unread_followed_threads = 2;
 }
 
+// Effective server/channel permission decisions for the authenticated user.
+message ServerViewerPermissions {
+  // One row per permission known to the server.
+  repeated PermissionGrant permissions = 1;
+}
+
+// Non-permission server state for the authenticated user.
+message ServerViewerState {
+  // Whether any joined channel room has unread messages.
+  bool has_unread_rooms = 1;
+}
+
 // Server-wide notification preference for the authenticated user.
 message ServerNotificationPreference {
   // Explicit server-level setting.
@@ -86,6 +98,10 @@ message GetViewerResponse {
   ServerNotificationPreference server_notification_preference = 3;
   // Notification preferences for rooms the user participates in.
   repeated RoomNotificationPreference room_notification_preferences = 4;
+  // Effective server/channel permission decisions for the authenticated user.
+  ServerViewerPermissions viewer_permissions = 5;
+  // Non-permission server state for the authenticated user.
+  ServerViewerState viewer_state = 6;
 }
 
 // Provides authenticated user profile, preferences, and capability state.

@@ -115,6 +115,17 @@ export function createNotificationAPI(config: NotificationAPIConfig) {
     config.bearerToken
       ? { Authorization: `Bearer ${config.bearerToken}` }
       : undefined;
+  const listRoomNotificationCounts = async (): Promise<Record<string, number>> => {
+    const response = await client.listRoomNotificationCounts(
+      {},
+      { headers: headers() },
+    );
+    return Object.fromEntries(
+      response.roomCounts.map(
+        (count) => [count.roomId, count.totalCount] as const,
+      ),
+    );
+  };
 
   return {
     async listNotifications(limit = 50, offset = 0): Promise<NotificationPage> {
@@ -178,16 +189,12 @@ export function createNotificationAPI(config: NotificationAPIConfig) {
         .hasNotifications;
     },
 
+    async listRoomNotificationCounts(): Promise<Record<string, number>> {
+      return listRoomNotificationCounts();
+    },
+
     async listNotificationCounts(): Promise<Record<string, number>> {
-      const response = await client.listNotificationCounts(
-        {},
-        { headers: headers() },
-      );
-      return Object.fromEntries(
-        response.roomCounts.map(
-          (count) => [count.roomId, count.totalCount] as const,
-        ),
-      );
+      return listRoomNotificationCounts();
     },
 
     async dismissNotification(notificationId: string): Promise<boolean> {

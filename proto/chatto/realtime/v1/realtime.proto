@@ -226,8 +226,8 @@ message RealtimeEventEnvelope {
 
 // Message-posted signal.
 //
-// Hydrate the affected timeline with `RoomTimelineService.GetRoomEventsAround`
-// for room messages, or `RoomTimelineService.GetThreadEventsAround` when
+// Hydrate the affected timeline with `RoomService.GetRoomEventsAround`
+// for room messages, or `ThreadService.GetThreadEventsAround` when
 // `thread_root_event_id` is set.
 message RealtimeMessagePostedEvent {
   // Room containing the message.
@@ -241,8 +241,8 @@ message RealtimeMessagePostedEvent {
 // Message-edited signal.
 //
 // Refresh the affected timeline window with
-// `RoomTimelineService.GetRoomEventsAround` for room messages, or
-// `RoomTimelineService.GetThreadEventsAround` when the local message belongs to
+// `RoomService.GetRoomEventsAround` for room messages, or
+// `ThreadService.GetThreadEventsAround` when the local message belongs to
 // a thread.
 message RealtimeMessageEditedEvent {
   // Room containing the message.
@@ -254,8 +254,8 @@ message RealtimeMessageEditedEvent {
 // Message-retracted signal.
 //
 // Refresh or patch the affected timeline window with
-// `RoomTimelineService.GetRoomEventsAround` for room messages, or
-// `RoomTimelineService.GetThreadEventsAround` when the local message belongs to
+// `RoomService.GetRoomEventsAround` for room messages, or
+// `ThreadService.GetThreadEventsAround` when the local message belongs to
 // a thread.
 message RealtimeMessageRetractedEvent {
   // Room containing the message.
@@ -269,8 +269,8 @@ message RealtimeMessageRetractedEvent {
 // Reaction signal.
 //
 // Refresh or patch the affected message in its timeline window. Use
-// `RoomTimelineService.GetRoomEventsAround` for room messages, or
-// `RoomTimelineService.GetThreadEventsAround` when the local message belongs to
+// `RoomService.GetRoomEventsAround` for room messages, or
+// `ThreadService.GetThreadEventsAround` when the local message belongs to
 // a thread.
 message RealtimeReactionEvent {
   // Room containing the reacted-to message.
@@ -328,8 +328,9 @@ message RealtimeRoomUniversalChangedEvent {
 // Notification-created signal for the connected user.
 //
 // Hydrate full notification rows with `NotificationService.GetNotification` or
-// `NotificationService.BatchGetNotifications`. Use `RoomTimelineService`
-// anchor reads when `event_id` or `in_reply_to_id` must be opened in context.
+// `NotificationService.BatchGetNotifications`. Use `RoomService` or
+// `ThreadService` anchor reads when `event_id` or `in_reply_to_id` must be
+// opened in context.
 message RealtimeNotificationCreatedEvent {
   // Notification ID.
   string notification_id = 1;
@@ -368,8 +369,8 @@ message RealtimeNotificationLevelChangedEvent {
 
 // Thread-follow signal for the connected user.
 //
-// The updated follow state is inline. Use `RoomTimelineService.GetThreadEvents`
-// or `RoomTimelineService.GetThreadEventsAround` when the thread itself needs
+// The updated follow state is inline. Use `ThreadService.GetThreadEvents`
+// or `ThreadService.GetThreadEventsAround` when the thread itself needs
 // refreshing.
 message RealtimeThreadFollowChangedEvent {
   // Room containing the thread.
@@ -382,7 +383,7 @@ message RealtimeThreadFollowChangedEvent {
 
 // Thread-created signal.
 //
-// Hydrate the new thread with `RoomTimelineService.GetThreadEventsAround` using
+// Hydrate the new thread with `ThreadService.GetThreadEventsAround` using
 // `thread_root_event_id` as the anchor.
 message RealtimeThreadCreatedEvent {
   // Room containing the thread.
