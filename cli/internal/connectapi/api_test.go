@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -220,11 +221,13 @@ func TestBatchGetResourceRequestsValidateThroughConnectHandlers(t *testing.T) {
 	memberPath, memberHandler := apiv1connect.NewMemberDirectoryServiceHandler(env.members, HandlerOptions()...)
 	notificationPath, notificationHandler := apiv1connect.NewNotificationServiceHandler(env.notifications, HandlerOptions()...)
 	adminMemberPath, adminMemberHandler := adminv1connect.NewAdminMemberServiceHandler(env.adminUsers, HandlerOptions()...)
+	adminServerPath, adminServerHandler := adminv1connect.NewAdminServerServiceHandler(env.serverState, HandlerOptions()...)
 	mux.Handle(rolePath, roleHandler)
 	mux.Handle(roomPath, roomHandler)
 	mux.Handle(memberPath, memberHandler)
 	mux.Handle(notificationPath, notificationHandler)
 	mux.Handle(adminMemberPath, adminMemberHandler)
+	mux.Handle(adminServerPath, adminServerHandler)
 	ts := httptest.NewServer(mux)
 	t.Cleanup(ts.Close)
 
@@ -233,6 +236,7 @@ func TestBatchGetResourceRequestsValidateThroughConnectHandlers(t *testing.T) {
 	members := apiv1connect.NewMemberDirectoryServiceClient(ts.Client(), ts.URL)
 	notifications := apiv1connect.NewNotificationServiceClient(ts.Client(), ts.URL)
 	adminMembers := adminv1connect.NewAdminMemberServiceClient(ts.Client(), ts.URL)
+	adminServer := adminv1connect.NewAdminServerServiceClient(ts.Client(), ts.URL)
 
 	if _, err := roles.BatchGetRoles(context.Background(), connect.NewRequest(&apiv1.BatchGetRolesRequest{})); connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("empty BatchGetRoles code = %v, want invalid_argument", connect.CodeOf(err))
@@ -314,6 +318,14 @@ func TestBatchGetResourceRequestsValidateThroughConnectHandlers(t *testing.T) {
 	}
 	if _, err := adminMembers.BatchGetMembers(context.Background(), connect.NewRequest(&adminv1.BatchGetMembersRequest{UserIds: tooManyUserIDs})); connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("too-many BatchGetMembers code = %v, want invalid_argument", connect.CodeOf(err))
+	}
+
+	tooManyBlockedUsernames := make([]string, 1001)
+	for i := range tooManyBlockedUsernames {
+		tooManyBlockedUsernames[i] = fmt.Sprintf("blocked-%d", i)
+	}
+	if _, err := adminServer.UpdateBlockedUsernames(context.Background(), connect.NewRequest(&adminv1.UpdateBlockedUsernamesRequest{BlockedUsernames: tooManyBlockedUsernames})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("too-many UpdateBlockedUsernames code = %v, want invalid_argument", connect.CodeOf(err))
 	}
 }
 
@@ -2418,15 +2430,29 @@ func TestAdminServerServiceUpdateServerConfig(t *testing.T) {
 	})); connect.CodeOf(err) != connect.CodeUnauthenticated {
 		t.Fatalf("unauthenticated UpdateServerConfig code = %v, want unauthenticated", connect.CodeOf(err))
 	}
+	if _, err := env.serverState.GetServerConfig(env.ctx, connect.NewRequest(&adminv1.GetServerConfigRequest{})); connect.CodeOf(err) != connect.CodeUnauthenticated {
+		t.Fatalf("unauthenticated GetServerConfig code = %v, want unauthenticated", connect.CodeOf(err))
+	}
 
 	if _, err := env.serverState.UpdateServerConfig(ctx, connect.NewRequest(&adminv1.UpdateServerConfigRequest{
 		ServerName: stringPtr("Nope"),
 	})); connect.CodeOf(err) != connect.CodePermissionDenied {
 		t.Fatalf("UpdateServerConfig without permission code = %v, want permission denied", connect.CodeOf(err))
 	}
+	if _, err := env.serverState.GetServerConfig(ctx, connect.NewRequest(&adminv1.GetServerConfigRequest{})); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("GetServerConfig without permission code = %v, want permission denied", connect.CodeOf(err))
+	}
 
 	if err := env.core.GrantServerPermission(env.ctx, core.SystemActorID, core.RoleEveryone, core.PermServerManage); err != nil {
 		t.Fatalf("GrantServerPermission manage server: %v", err)
+	}
+
+	initialResp, err := env.serverState.GetServerConfig(ctx, connect.NewRequest(&adminv1.GetServerConfigRequest{}))
+	if err != nil {
+		t.Fatalf("GetServerConfig: %v", err)
+	}
+	if initialResp.Msg.GetConfig().GetServerName() != "" || initialResp.Msg.GetProfile().GetPublicProfile().GetName() != "Chatto" {
+		t.Fatalf("initial server config response = %+v", initialResp.Msg)
 	}
 
 	resp, err := env.serverState.UpdateServerConfig(ctx, connect.NewRequest(&adminv1.UpdateServerConfigRequest{
@@ -2444,6 +2470,12 @@ func TestAdminServerServiceUpdateServerConfig(t *testing.T) {
 		profile.GetMotd() != "MOTD from Connect" ||
 		profile.GetPublicProfile().GetWelcomeMessage() != "Welcome from Connect" {
 		t.Fatalf("updated profile = %+v", profile)
+	}
+	if resp.Msg.GetConfig().GetServerName() != "Connect Settings" ||
+		resp.Msg.GetConfig().GetDescription() != "Description from Connect" ||
+		resp.Msg.GetConfig().GetMotd() != "MOTD from Connect" ||
+		resp.Msg.GetConfig().GetWelcomeMessage() != "Welcome from Connect" {
+		t.Fatalf("updated config response = %+v", resp.Msg.GetConfig())
 	}
 
 	cfg, err := env.core.ConfigManager().GetServerConfig(env.ctx)
@@ -2468,6 +2500,15 @@ func TestAdminServerServiceUpdateServerConfig(t *testing.T) {
 	}
 	if cfg.GetServerName() != "Connect Settings" || cfg.GetDescription() != "Updated description only" {
 		t.Fatalf("partial stored config = %+v", cfg)
+	}
+	getResp, err := env.serverState.GetServerConfig(ctx, connect.NewRequest(&adminv1.GetServerConfigRequest{}))
+	if err != nil {
+		t.Fatalf("GetServerConfig after partial update: %v", err)
+	}
+	if getResp.Msg.GetConfig().GetServerName() != "Connect Settings" ||
+		getResp.Msg.GetConfig().GetDescription() != "Updated description only" ||
+		getResp.Msg.GetProfile().GetPublicProfile().GetDescription() != "Updated description only" {
+		t.Fatalf("partial server config response = %+v", getResp.Msg)
 	}
 }
 
@@ -2548,7 +2589,7 @@ func TestAdminServerServiceSecurityConfig(t *testing.T) {
 		t.Fatalf("GetServerSecurityConfig without permission code = %v, want permission denied", connect.CodeOf(err))
 	}
 	if _, err := env.serverState.UpdateBlockedUsernames(ctx, connect.NewRequest(&adminv1.UpdateBlockedUsernamesRequest{
-		BlockedUsernames: "root",
+		BlockedUsernames: []string{"root"},
 	})); connect.CodeOf(err) != connect.CodePermissionDenied {
 		t.Fatalf("UpdateBlockedUsernames without permission code = %v, want permission denied", connect.CodeOf(err))
 	}
@@ -2561,29 +2602,40 @@ func TestAdminServerServiceSecurityConfig(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetServerSecurityConfig: %v", err)
 	}
-	if configResp.Msg.GetBlockedUsernames() != core.DefaultBlockedUsernames {
-		t.Fatalf("default blocked usernames = %q, want %q", configResp.Msg.GetBlockedUsernames(), core.DefaultBlockedUsernames)
+	defaultBlockedUsernames := []string{"root", "admin", "superuser", "op", "operator", "support"}
+	if !slices.Equal(configResp.Msg.GetBlockedUsernames(), defaultBlockedUsernames) {
+		t.Fatalf("default blocked usernames = %q, want %q", configResp.Msg.GetBlockedUsernames(), defaultBlockedUsernames)
 	}
 
 	updateResp, err := env.serverState.UpdateBlockedUsernames(ctx, connect.NewRequest(&adminv1.UpdateBlockedUsernamesRequest{
-		BlockedUsernames: "root\nreserved",
+		BlockedUsernames: []string{"root", "Reserved", " admin "},
 	}))
 	if err != nil {
 		t.Fatalf("UpdateBlockedUsernames: %v", err)
 	}
-	if updateResp.Msg.GetBlockedUsernames() != "root\nreserved" {
-		t.Fatalf("updated blocked usernames = %q, want root/reserved", updateResp.Msg.GetBlockedUsernames())
+	if want := []string{"root", "reserved", "admin"}; !slices.Equal(updateResp.Msg.GetBlockedUsernames(), want) {
+		t.Fatalf("updated blocked usernames = %q, want %q", updateResp.Msg.GetBlockedUsernames(), want)
 	}
 	stored, err := env.core.ConfigManager().GetEffectiveBlockedUsernames(env.ctx)
 	if err != nil {
 		t.Fatalf("GetEffectiveBlockedUsernames: %v", err)
 	}
-	if stored != "root\nreserved" {
-		t.Fatalf("stored blocked usernames = %q, want root/reserved", stored)
+	if stored != "root\nreserved\nadmin" {
+		t.Fatalf("stored blocked usernames = %q, want root/reserved/admin", stored)
+	}
+
+	compatResp, err := env.serverState.UpdateBlockedUsernames(ctx, connect.NewRequest(&adminv1.UpdateBlockedUsernamesRequest{
+		BlockedUsernames: []string{"root\nreserved"},
+	}))
+	if err != nil {
+		t.Fatalf("compat UpdateBlockedUsernames: %v", err)
+	}
+	if want := []string{"root", "reserved"}; !slices.Equal(compatResp.Msg.GetBlockedUsernames(), want) {
+		t.Fatalf("compat blocked usernames = %q, want %q", compatResp.Msg.GetBlockedUsernames(), want)
 	}
 
 	if _, err := env.serverState.UpdateBlockedUsernames(ctx, connect.NewRequest(&adminv1.UpdateBlockedUsernamesRequest{
-		BlockedUsernames: strings.Repeat("u", core.MaxLoginLength+1),
+		BlockedUsernames: []string{strings.Repeat("u", core.MaxLoginLength+1)},
 	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("oversized UpdateBlockedUsernames code = %v, want invalid argument", connect.CodeOf(err))
 	}

@@ -86,6 +86,36 @@ function serverClients(config: ServerStateAPIConfig) {
   return { server, adminServer, headers };
 }
 
+function mapEditableServerConfig(
+  config:
+    | {
+        serverName?: string;
+        description?: string;
+        motd?: string;
+        welcomeMessage?: string;
+      }
+    | null
+    | undefined,
+): EditableServerConfig {
+  return {
+    name: config?.serverName ?? "",
+    description: config?.description ?? "",
+    motd: config?.motd ?? "",
+    welcomeMessage: config?.welcomeMessage ?? "",
+  };
+}
+
+function blockedUsernamesText(entries: readonly string[] | undefined): string {
+  return (entries ?? []).join("\n");
+}
+
+function blockedUsernameEntries(text: string): string[] {
+  return text
+    .split("\n")
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+}
+
 export async function getAuthenticatedServerState(
   config: ServerStateAPIConfig,
 ): Promise<AuthenticatedServerState> {
@@ -137,6 +167,14 @@ export async function getAuthenticatedServerState(
     viewerCanManageUserPermissions: can("user.manage-permissions"),
     viewerHasUnreadRooms: viewerState?.hasUnreadRooms ?? false,
   };
+}
+
+export async function getServerConfig(
+  config: ServerStateAPIConfig,
+): Promise<EditableServerConfig> {
+  const { adminServer, headers } = serverClients(config);
+  const response = await adminServer.getServerConfig({}, { headers });
+  return mapEditableServerConfig(response.config);
 }
 
 export async function updateServerConfig(
@@ -211,7 +249,7 @@ export async function getServerSecurityConfig(
   const { adminServer, headers } = serverClients(config);
   const response = await adminServer.getServerSecurityConfig({}, { headers });
   return {
-    blockedUsernames: response.blockedUsernames,
+    blockedUsernames: blockedUsernamesText(response.blockedUsernames),
   };
 }
 
@@ -221,10 +259,10 @@ export async function updateBlockedUsernames(
 ): Promise<ServerSecurityConfig> {
   const { adminServer, headers } = serverClients(config);
   const response = await adminServer.updateBlockedUsernames(
-    { blockedUsernames },
+    { blockedUsernames: blockedUsernameEntries(blockedUsernames) },
     { headers },
   );
   return {
-    blockedUsernames: response.blockedUsernames,
+    blockedUsernames: blockedUsernamesText(response.blockedUsernames),
   };
 }

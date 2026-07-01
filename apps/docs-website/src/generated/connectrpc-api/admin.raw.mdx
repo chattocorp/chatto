@@ -1341,6 +1341,36 @@ Result of moving a sidebar link.
 Provides server-administration commands for profile, branding, and security
 settings.
 
+<a id="chatto-admin-v1-AdminServerService-GetServerConfig"></a>
+
+### GetServerConfig
+
+Gets runtime-editable server profile settings. This RPC requires
+server.manage.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminServerService/GetServerConfig
+```
+
+<a id="chatto-admin-v1-GetServerConfigRequest"></a>
+
+#### Input: GetServerConfigRequest
+
+Request server profile settings.
+
+
+<a id="chatto-admin-v1-GetServerConfigResponse"></a>
+
+#### Result: GetServerConfigResponse
+
+Server profile settings plus effective member-visible profile.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `config` | [`ServerConfig`](#chatto-admin-v1-ServerConfig) | Runtime-editable server profile settings. |
+| `profile` | `chatto.api.v1.ServerMemberProfile` | Effective server profile and branding. |
+
+
 <a id="chatto-admin-v1-AdminServerService-UpdateServerConfig"></a>
 
 ### UpdateServerConfig
@@ -1375,6 +1405,7 @@ Result of updating runtime-editable server profile settings.
 | Field | Type | Description |
 | --- | --- | --- |
 | `profile` | `chatto.api.v1.ServerMemberProfile` | Updated server profile and branding. |
+| `config` | [`ServerConfig`](#chatto-admin-v1-ServerConfig) | Updated runtime-editable server profile settings. |
 
 
 <a id="chatto-admin-v1-AdminServerService-UploadServerLogo"></a>
@@ -1528,7 +1559,7 @@ manage server configuration.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `blocked_usernames` | `string` | Newline-separated blocked usernames. |
+| `blocked_usernames` | `repeated string` | Blocked usernames. Entries are normalized by the server. |
 
 
 <a id="chatto-admin-v1-AdminServerService-UpdateBlockedUsernames"></a>
@@ -1549,7 +1580,7 @@ Request to update the server blocked-username list.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `blocked_usernames` | `string` | Newline-separated blocked usernames. |
+| `blocked_usernames` | `repeated string` | Blocked usernames. Empty entries are ignored and entries are normalized by the server. |
 
 
 <a id="chatto-admin-v1-UpdateBlockedUsernamesResponse"></a>
@@ -1560,7 +1591,7 @@ Result of updating the server blocked-username list.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `blocked_usernames` | `string` | Effective newline-separated blocked usernames after the update. |
+| `blocked_usernames` | `repeated string` | Effective blocked usernames after the update. |
 
 
 
@@ -2040,6 +2071,21 @@ One item reference in a sidebar order replacement.
 | --- | --- | --- |
 | `kind` | [`AdminRoomLayoutItemKind`](#chatto-admin-v1-AdminRoomLayoutItemKind) | Item kind. |
 | `id` | `string` | Room ID when kind is ROOM, sidebar link ID when kind is SIDEBAR_LINK. |
+
+
+
+<a id="chatto-admin-v1-ServerConfig"></a>
+
+### ServerConfig
+
+Runtime-editable server profile settings.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `server_name` | `string` | Server name for page titles. Empty means the default is used. |
+| `description` | `string` | Short server description for OG link-preview metadata. |
+| `motd` | `string` | Message of the day for the authenticated header. |
+| `welcome_message` | `string` | Welcome message shown on the login page. |
 
 
 

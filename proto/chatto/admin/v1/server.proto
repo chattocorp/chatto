@@ -5,6 +5,29 @@ package chatto.admin.v1;
 import "buf/validate/validate.proto";
 import "chatto/api/v1/server_state.proto";
 
+// Runtime-editable server profile settings.
+message ServerConfig {
+  // Server name for page titles. Empty means the default is used.
+  string server_name = 1;
+  // Short server description for OG link-preview metadata.
+  string description = 2;
+  // Message of the day for the authenticated header.
+  string motd = 3;
+  // Welcome message shown on the login page.
+  string welcome_message = 4;
+}
+
+// Request server profile settings.
+message GetServerConfigRequest {}
+
+// Server profile settings plus effective member-visible profile.
+message GetServerConfigResponse {
+  // Runtime-editable server profile settings.
+  ServerConfig config = 1;
+  // Effective server profile and branding.
+  chatto.api.v1.ServerMemberProfile profile = 2;
+}
+
 // Request to update runtime-editable server profile settings.
 message UpdateServerConfigRequest {
   // Optional server name for page titles. Set to empty string to use default.
@@ -23,6 +46,8 @@ message UpdateServerConfigRequest {
 message UpdateServerConfigResponse {
   // Updated server profile and branding.
   chatto.api.v1.ServerMemberProfile profile = 1;
+  // Updated runtime-editable server profile settings.
+  ServerConfig config = 2;
 }
 
 // Request to upload and set the public server logo.
@@ -81,25 +106,29 @@ message GetServerSecurityConfigRequest {}
 // Security-sensitive server configuration. The caller must be allowed to
 // manage server configuration.
 message GetServerSecurityConfigResponse {
-  // Newline-separated blocked usernames.
-  string blocked_usernames = 1;
+  // Blocked usernames. Entries are normalized by the server.
+  repeated string blocked_usernames = 1;
 }
 
 // Request to update the server blocked-username list.
 message UpdateBlockedUsernamesRequest {
-  // Newline-separated blocked usernames.
-  string blocked_usernames = 1 [(buf.validate.field).string.max_len = 10000];
+  // Blocked usernames. Empty entries are ignored and entries are normalized by
+  // the server.
+  repeated string blocked_usernames = 1 [(buf.validate.field).repeated = {max_items: 1000}];
 }
 
 // Result of updating the server blocked-username list.
 message UpdateBlockedUsernamesResponse {
-  // Effective newline-separated blocked usernames after the update.
-  string blocked_usernames = 1;
+  // Effective blocked usernames after the update.
+  repeated string blocked_usernames = 1;
 }
 
 // Provides server-administration commands for profile, branding, and security
 // settings.
 service AdminServerService {
+  // Gets runtime-editable server profile settings. This RPC requires
+  // server.manage.
+  rpc GetServerConfig(GetServerConfigRequest) returns (GetServerConfigResponse);
   // Updates runtime-editable server profile settings. This RPC requires
   // server.manage.
   rpc UpdateServerConfig(UpdateServerConfigRequest) returns (UpdateServerConfigResponse);

@@ -33,6 +33,9 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
+	// AdminServerServiceGetServerConfigProcedure is the fully-qualified name of the
+	// AdminServerService's GetServerConfig RPC.
+	AdminServerServiceGetServerConfigProcedure = "/chatto.admin.v1.AdminServerService/GetServerConfig"
 	// AdminServerServiceUpdateServerConfigProcedure is the fully-qualified name of the
 	// AdminServerService's UpdateServerConfig RPC.
 	AdminServerServiceUpdateServerConfigProcedure = "/chatto.admin.v1.AdminServerService/UpdateServerConfig"
@@ -58,6 +61,9 @@ const (
 
 // AdminServerServiceClient is a client for the chatto.admin.v1.AdminServerService service.
 type AdminServerServiceClient interface {
+	// Gets runtime-editable server profile settings. This RPC requires
+	// server.manage.
+	GetServerConfig(context.Context, *connect.Request[v1.GetServerConfigRequest]) (*connect.Response[v1.GetServerConfigResponse], error)
 	// Updates runtime-editable server profile settings. This RPC requires
 	// server.manage.
 	UpdateServerConfig(context.Context, *connect.Request[v1.UpdateServerConfigRequest]) (*connect.Response[v1.UpdateServerConfigResponse], error)
@@ -87,6 +93,12 @@ func NewAdminServerServiceClient(httpClient connect.HTTPClient, baseURL string, 
 	baseURL = strings.TrimRight(baseURL, "/")
 	adminServerServiceMethods := v1.File_chatto_admin_v1_server_proto.Services().ByName("AdminServerService").Methods()
 	return &adminServerServiceClient{
+		getServerConfig: connect.NewClient[v1.GetServerConfigRequest, v1.GetServerConfigResponse](
+			httpClient,
+			baseURL+AdminServerServiceGetServerConfigProcedure,
+			connect.WithSchema(adminServerServiceMethods.ByName("GetServerConfig")),
+			connect.WithClientOptions(opts...),
+		),
 		updateServerConfig: connect.NewClient[v1.UpdateServerConfigRequest, v1.UpdateServerConfigResponse](
 			httpClient,
 			baseURL+AdminServerServiceUpdateServerConfigProcedure,
@@ -134,6 +146,7 @@ func NewAdminServerServiceClient(httpClient connect.HTTPClient, baseURL string, 
 
 // adminServerServiceClient implements AdminServerServiceClient.
 type adminServerServiceClient struct {
+	getServerConfig         *connect.Client[v1.GetServerConfigRequest, v1.GetServerConfigResponse]
 	updateServerConfig      *connect.Client[v1.UpdateServerConfigRequest, v1.UpdateServerConfigResponse]
 	uploadServerLogo        *connect.Client[v1.UploadServerLogoRequest, v1.UploadServerLogoResponse]
 	deleteServerLogo        *connect.Client[v1.DeleteServerLogoRequest, v1.DeleteServerLogoResponse]
@@ -141,6 +154,11 @@ type adminServerServiceClient struct {
 	deleteServerBanner      *connect.Client[v1.DeleteServerBannerRequest, v1.DeleteServerBannerResponse]
 	getServerSecurityConfig *connect.Client[v1.GetServerSecurityConfigRequest, v1.GetServerSecurityConfigResponse]
 	updateBlockedUsernames  *connect.Client[v1.UpdateBlockedUsernamesRequest, v1.UpdateBlockedUsernamesResponse]
+}
+
+// GetServerConfig calls chatto.admin.v1.AdminServerService.GetServerConfig.
+func (c *adminServerServiceClient) GetServerConfig(ctx context.Context, req *connect.Request[v1.GetServerConfigRequest]) (*connect.Response[v1.GetServerConfigResponse], error) {
+	return c.getServerConfig.CallUnary(ctx, req)
 }
 
 // UpdateServerConfig calls chatto.admin.v1.AdminServerService.UpdateServerConfig.
@@ -180,6 +198,9 @@ func (c *adminServerServiceClient) UpdateBlockedUsernames(ctx context.Context, r
 
 // AdminServerServiceHandler is an implementation of the chatto.admin.v1.AdminServerService service.
 type AdminServerServiceHandler interface {
+	// Gets runtime-editable server profile settings. This RPC requires
+	// server.manage.
+	GetServerConfig(context.Context, *connect.Request[v1.GetServerConfigRequest]) (*connect.Response[v1.GetServerConfigResponse], error)
 	// Updates runtime-editable server profile settings. This RPC requires
 	// server.manage.
 	UpdateServerConfig(context.Context, *connect.Request[v1.UpdateServerConfigRequest]) (*connect.Response[v1.UpdateServerConfigResponse], error)
@@ -205,6 +226,12 @@ type AdminServerServiceHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewAdminServerServiceHandler(svc AdminServerServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	adminServerServiceMethods := v1.File_chatto_admin_v1_server_proto.Services().ByName("AdminServerService").Methods()
+	adminServerServiceGetServerConfigHandler := connect.NewUnaryHandler(
+		AdminServerServiceGetServerConfigProcedure,
+		svc.GetServerConfig,
+		connect.WithSchema(adminServerServiceMethods.ByName("GetServerConfig")),
+		connect.WithHandlerOptions(opts...),
+	)
 	adminServerServiceUpdateServerConfigHandler := connect.NewUnaryHandler(
 		AdminServerServiceUpdateServerConfigProcedure,
 		svc.UpdateServerConfig,
@@ -249,6 +276,8 @@ func NewAdminServerServiceHandler(svc AdminServerServiceHandler, opts ...connect
 	)
 	return "/chatto.admin.v1.AdminServerService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
+		case AdminServerServiceGetServerConfigProcedure:
+			adminServerServiceGetServerConfigHandler.ServeHTTP(w, r)
 		case AdminServerServiceUpdateServerConfigProcedure:
 			adminServerServiceUpdateServerConfigHandler.ServeHTTP(w, r)
 		case AdminServerServiceUploadServerLogoProcedure:
@@ -271,6 +300,10 @@ func NewAdminServerServiceHandler(svc AdminServerServiceHandler, opts ...connect
 
 // UnimplementedAdminServerServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedAdminServerServiceHandler struct{}
+
+func (UnimplementedAdminServerServiceHandler) GetServerConfig(context.Context, *connect.Request[v1.GetServerConfigRequest]) (*connect.Response[v1.GetServerConfigResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.admin.v1.AdminServerService.GetServerConfig is not implemented"))
+}
 
 func (UnimplementedAdminServerServiceHandler) UpdateServerConfig(context.Context, *connect.Request[v1.UpdateServerConfigRequest]) (*connect.Response[v1.UpdateServerConfigResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.admin.v1.AdminServerService.UpdateServerConfig is not implemented"))

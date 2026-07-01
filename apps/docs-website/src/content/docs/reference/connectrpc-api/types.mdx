@@ -1252,6 +1252,19 @@ One item reference in a sidebar order replacement.
 | `kind` | [`AdminRoomLayoutItemKind`](#chatto-admin-v1-AdminRoomLayoutItemKind) | Item kind. |
 | `id` | `string` | Room ID when kind is ROOM, sidebar link ID when kind is SIDEBAR_LINK. |
 
+<a id="chatto-admin-v1-ServerConfig"></a>
+
+### ServerConfig
+
+Runtime-editable server profile settings.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `server_name` | `string` | Server name for page titles. Empty means the default is used. |
+| `description` | `string` | Short server description for OG link-preview metadata. |
+| `motd` | `string` | Message of the day for the authenticated header. |
+| `welcome_message` | `string` | Welcome message shown on the login page. |
+
 
 
 ## Enums

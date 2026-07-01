@@ -9,6 +9,7 @@ import (
 	"hmans.de/chatto/internal/core"
 	adminv1 "hmans.de/chatto/internal/pb/chatto/admin/v1"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
+	configv1 "hmans.de/chatto/internal/pb/chatto/config/v1"
 )
 
 type serverService struct {
@@ -58,13 +59,34 @@ func (s *serverService) GetServerState(ctx context.Context, _ *connect.Request[a
 	return connect.NewResponse(response), nil
 }
 
+func (s *serverService) GetServerConfig(ctx context.Context, _ *connect.Request[adminv1.GetServerConfigRequest]) (*connect.Response[adminv1.GetServerConfigResponse], error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	cfg, err := s.api.core.GetManagedServerConfig(ctx, caller.UserID)
+	if err != nil {
+		return nil, connectError(err)
+	}
+	profile, err := s.serverMemberProfile(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return connect.NewResponse(&adminv1.GetServerConfigResponse{
+		Config:  adminServerConfig(cfg),
+		Profile: profile,
+	}), nil
+}
+
 func (s *serverService) UpdateServerConfig(ctx context.Context, req *connect.Request[adminv1.UpdateServerConfigRequest]) (*connect.Response[adminv1.UpdateServerConfigResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	_, err = s.api.core.UpdateServerConfig(ctx, caller.UserID, core.ServerConfigUpdateInput{
+	cfg, err := s.api.core.UpdateServerConfig(ctx, caller.UserID, core.ServerConfigUpdateInput{
 		ServerName:     req.Msg.ServerName,
 		Description:    req.Msg.Description,
 		MOTD:           req.Msg.Motd,
@@ -78,7 +100,10 @@ func (s *serverService) UpdateServerConfig(ctx context.Context, req *connect.Req
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&adminv1.UpdateServerConfigResponse{Profile: profile}), nil
+	return connect.NewResponse(&adminv1.UpdateServerConfigResponse{
+		Profile: profile,
+		Config:  adminServerConfig(cfg),
+	}), nil
 }
 
 func (s *serverService) UploadServerLogo(ctx context.Context, req *connect.Request[adminv1.UploadServerLogoRequest]) (*connect.Response[adminv1.UploadServerLogoResponse], error) {
@@ -179,6 +204,18 @@ func (s *serverService) UpdateBlockedUsernames(ctx context.Context, req *connect
 	return connect.NewResponse(&adminv1.UpdateBlockedUsernamesResponse{
 		BlockedUsernames: blockedUsernames,
 	}), nil
+}
+
+func adminServerConfig(cfg *configv1.ServerConfig) *adminv1.ServerConfig {
+	if cfg == nil {
+		return &adminv1.ServerConfig{}
+	}
+	return &adminv1.ServerConfig{
+		ServerName:     cfg.GetServerName(),
+		Description:    cfg.GetDescription(),
+		Motd:           cfg.GetMotd(),
+		WelcomeMessage: cfg.GetWelcomeMessage(),
+	}
 }
 
 func (s *serverService) serverMemberProfile(ctx context.Context) (*apiv1.ServerMemberProfile, error) {

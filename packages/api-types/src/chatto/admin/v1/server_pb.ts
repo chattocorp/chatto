@@ -8,6 +8,153 @@ import { Message, proto3 } from "@bufbuild/protobuf";
 import { ServerMemberProfile } from "../../api/v1/server_state_pb.js";
 
 /**
+ * Runtime-editable server profile settings.
+ *
+ * @generated from message chatto.admin.v1.ServerConfig
+ */
+export class ServerConfig extends Message<ServerConfig> {
+  /**
+   * Server name for page titles. Empty means the default is used.
+   *
+   * @generated from field: string server_name = 1;
+   */
+  serverName = "";
+
+  /**
+   * Short server description for OG link-preview metadata.
+   *
+   * @generated from field: string description = 2;
+   */
+  description = "";
+
+  /**
+   * Message of the day for the authenticated header.
+   *
+   * @generated from field: string motd = 3;
+   */
+  motd = "";
+
+  /**
+   * Welcome message shown on the login page.
+   *
+   * @generated from field: string welcome_message = 4;
+   */
+  welcomeMessage = "";
+
+  constructor(data?: PartialMessage<ServerConfig>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.admin.v1.ServerConfig";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "server_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "description", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "motd", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "welcome_message", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ServerConfig {
+    return new ServerConfig().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ServerConfig {
+    return new ServerConfig().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ServerConfig {
+    return new ServerConfig().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ServerConfig | PlainMessage<ServerConfig> | undefined, b: ServerConfig | PlainMessage<ServerConfig> | undefined): boolean {
+    return proto3.util.equals(ServerConfig, a, b);
+  }
+}
+
+/**
+ * Request server profile settings.
+ *
+ * @generated from message chatto.admin.v1.GetServerConfigRequest
+ */
+export class GetServerConfigRequest extends Message<GetServerConfigRequest> {
+  constructor(data?: PartialMessage<GetServerConfigRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.admin.v1.GetServerConfigRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetServerConfigRequest {
+    return new GetServerConfigRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetServerConfigRequest {
+    return new GetServerConfigRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetServerConfigRequest {
+    return new GetServerConfigRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetServerConfigRequest | PlainMessage<GetServerConfigRequest> | undefined, b: GetServerConfigRequest | PlainMessage<GetServerConfigRequest> | undefined): boolean {
+    return proto3.util.equals(GetServerConfigRequest, a, b);
+  }
+}
+
+/**
+ * Server profile settings plus effective member-visible profile.
+ *
+ * @generated from message chatto.admin.v1.GetServerConfigResponse
+ */
+export class GetServerConfigResponse extends Message<GetServerConfigResponse> {
+  /**
+   * Runtime-editable server profile settings.
+   *
+   * @generated from field: chatto.admin.v1.ServerConfig config = 1;
+   */
+  config?: ServerConfig;
+
+  /**
+   * Effective server profile and branding.
+   *
+   * @generated from field: chatto.api.v1.ServerMemberProfile profile = 2;
+   */
+  profile?: ServerMemberProfile;
+
+  constructor(data?: PartialMessage<GetServerConfigResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.admin.v1.GetServerConfigResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "config", kind: "message", T: ServerConfig },
+    { no: 2, name: "profile", kind: "message", T: ServerMemberProfile },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetServerConfigResponse {
+    return new GetServerConfigResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetServerConfigResponse {
+    return new GetServerConfigResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetServerConfigResponse {
+    return new GetServerConfigResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetServerConfigResponse | PlainMessage<GetServerConfigResponse> | undefined, b: GetServerConfigResponse | PlainMessage<GetServerConfigResponse> | undefined): boolean {
+    return proto3.util.equals(GetServerConfigResponse, a, b);
+  }
+}
+
+/**
  * Request to update runtime-editable server profile settings.
  *
  * @generated from message chatto.admin.v1.UpdateServerConfigRequest
@@ -87,6 +234,13 @@ export class UpdateServerConfigResponse extends Message<UpdateServerConfigRespon
    */
   profile?: ServerMemberProfile;
 
+  /**
+   * Updated runtime-editable server profile settings.
+   *
+   * @generated from field: chatto.admin.v1.ServerConfig config = 2;
+   */
+  config?: ServerConfig;
+
   constructor(data?: PartialMessage<UpdateServerConfigResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -96,6 +250,7 @@ export class UpdateServerConfigResponse extends Message<UpdateServerConfigRespon
   static readonly typeName = "chatto.admin.v1.UpdateServerConfigResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "profile", kind: "message", T: ServerMemberProfile },
+    { no: 2, name: "config", kind: "message", T: ServerConfig },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UpdateServerConfigResponse {
@@ -500,11 +655,11 @@ export class GetServerSecurityConfigRequest extends Message<GetServerSecurityCon
  */
 export class GetServerSecurityConfigResponse extends Message<GetServerSecurityConfigResponse> {
   /**
-   * Newline-separated blocked usernames.
+   * Blocked usernames. Entries are normalized by the server.
    *
-   * @generated from field: string blocked_usernames = 1;
+   * @generated from field: repeated string blocked_usernames = 1;
    */
-  blockedUsernames = "";
+  blockedUsernames: string[] = [];
 
   constructor(data?: PartialMessage<GetServerSecurityConfigResponse>) {
     super();
@@ -514,7 +669,7 @@ export class GetServerSecurityConfigResponse extends Message<GetServerSecurityCo
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.admin.v1.GetServerSecurityConfigResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "blocked_usernames", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 1, name: "blocked_usernames", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetServerSecurityConfigResponse {
@@ -541,11 +696,12 @@ export class GetServerSecurityConfigResponse extends Message<GetServerSecurityCo
  */
 export class UpdateBlockedUsernamesRequest extends Message<UpdateBlockedUsernamesRequest> {
   /**
-   * Newline-separated blocked usernames.
+   * Blocked usernames. Empty entries are ignored and entries are normalized by
+   * the server.
    *
-   * @generated from field: string blocked_usernames = 1;
+   * @generated from field: repeated string blocked_usernames = 1;
    */
-  blockedUsernames = "";
+  blockedUsernames: string[] = [];
 
   constructor(data?: PartialMessage<UpdateBlockedUsernamesRequest>) {
     super();
@@ -555,7 +711,7 @@ export class UpdateBlockedUsernamesRequest extends Message<UpdateBlockedUsername
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.admin.v1.UpdateBlockedUsernamesRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "blocked_usernames", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 1, name: "blocked_usernames", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UpdateBlockedUsernamesRequest {
@@ -582,11 +738,11 @@ export class UpdateBlockedUsernamesRequest extends Message<UpdateBlockedUsername
  */
 export class UpdateBlockedUsernamesResponse extends Message<UpdateBlockedUsernamesResponse> {
   /**
-   * Effective newline-separated blocked usernames after the update.
+   * Effective blocked usernames after the update.
    *
-   * @generated from field: string blocked_usernames = 1;
+   * @generated from field: repeated string blocked_usernames = 1;
    */
-  blockedUsernames = "";
+  blockedUsernames: string[] = [];
 
   constructor(data?: PartialMessage<UpdateBlockedUsernamesResponse>) {
     super();
@@ -596,7 +752,7 @@ export class UpdateBlockedUsernamesResponse extends Message<UpdateBlockedUsernam
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.admin.v1.UpdateBlockedUsernamesResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "blocked_usernames", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 1, name: "blocked_usernames", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UpdateBlockedUsernamesResponse {

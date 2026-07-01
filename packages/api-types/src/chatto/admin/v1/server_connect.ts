@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { DeleteServerBannerRequest, DeleteServerBannerResponse, DeleteServerLogoRequest, DeleteServerLogoResponse, GetServerSecurityConfigRequest, GetServerSecurityConfigResponse, UpdateBlockedUsernamesRequest, UpdateBlockedUsernamesResponse, UpdateServerConfigRequest, UpdateServerConfigResponse, UploadServerBannerRequest, UploadServerBannerResponse, UploadServerLogoRequest, UploadServerLogoResponse } from "./server_pb.js";
+import { DeleteServerBannerRequest, DeleteServerBannerResponse, DeleteServerLogoRequest, DeleteServerLogoResponse, GetServerConfigRequest, GetServerConfigResponse, GetServerSecurityConfigRequest, GetServerSecurityConfigResponse, UpdateBlockedUsernamesRequest, UpdateBlockedUsernamesResponse, UpdateServerConfigRequest, UpdateServerConfigResponse, UploadServerBannerRequest, UploadServerBannerResponse, UploadServerLogoRequest, UploadServerLogoResponse } from "./server_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -15,6 +15,18 @@ import { MethodKind } from "@bufbuild/protobuf";
 export const AdminServerService = {
   typeName: "chatto.admin.v1.AdminServerService",
   methods: {
+    /**
+     * Gets runtime-editable server profile settings. This RPC requires
+     * server.manage.
+     *
+     * @generated from rpc chatto.admin.v1.AdminServerService.GetServerConfig
+     */
+    getServerConfig: {
+      name: "GetServerConfig",
+      I: GetServerConfigRequest,
+      O: GetServerConfigResponse,
+      kind: MethodKind.Unary,
+    },
     /**
      * Updates runtime-editable server profile settings. This RPC requires
      * server.manage.

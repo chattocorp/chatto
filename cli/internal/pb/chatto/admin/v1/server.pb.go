@@ -23,6 +23,171 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// Runtime-editable server profile settings.
+type ServerConfig struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Server name for page titles. Empty means the default is used.
+	ServerName string `protobuf:"bytes,1,opt,name=server_name,json=serverName,proto3" json:"server_name,omitempty"`
+	// Short server description for OG link-preview metadata.
+	Description string `protobuf:"bytes,2,opt,name=description,proto3" json:"description,omitempty"`
+	// Message of the day for the authenticated header.
+	Motd string `protobuf:"bytes,3,opt,name=motd,proto3" json:"motd,omitempty"`
+	// Welcome message shown on the login page.
+	WelcomeMessage string `protobuf:"bytes,4,opt,name=welcome_message,json=welcomeMessage,proto3" json:"welcome_message,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *ServerConfig) Reset() {
+	*x = ServerConfig{}
+	mi := &file_chatto_admin_v1_server_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ServerConfig) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ServerConfig) ProtoMessage() {}
+
+func (x *ServerConfig) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_admin_v1_server_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ServerConfig.ProtoReflect.Descriptor instead.
+func (*ServerConfig) Descriptor() ([]byte, []int) {
+	return file_chatto_admin_v1_server_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *ServerConfig) GetServerName() string {
+	if x != nil {
+		return x.ServerName
+	}
+	return ""
+}
+
+func (x *ServerConfig) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *ServerConfig) GetMotd() string {
+	if x != nil {
+		return x.Motd
+	}
+	return ""
+}
+
+func (x *ServerConfig) GetWelcomeMessage() string {
+	if x != nil {
+		return x.WelcomeMessage
+	}
+	return ""
+}
+
+// Request server profile settings.
+type GetServerConfigRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetServerConfigRequest) Reset() {
+	*x = GetServerConfigRequest{}
+	mi := &file_chatto_admin_v1_server_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetServerConfigRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetServerConfigRequest) ProtoMessage() {}
+
+func (x *GetServerConfigRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_admin_v1_server_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetServerConfigRequest.ProtoReflect.Descriptor instead.
+func (*GetServerConfigRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_admin_v1_server_proto_rawDescGZIP(), []int{1}
+}
+
+// Server profile settings plus effective member-visible profile.
+type GetServerConfigResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Runtime-editable server profile settings.
+	Config *ServerConfig `protobuf:"bytes,1,opt,name=config,proto3" json:"config,omitempty"`
+	// Effective server profile and branding.
+	Profile       *v1.ServerMemberProfile `protobuf:"bytes,2,opt,name=profile,proto3" json:"profile,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetServerConfigResponse) Reset() {
+	*x = GetServerConfigResponse{}
+	mi := &file_chatto_admin_v1_server_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetServerConfigResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetServerConfigResponse) ProtoMessage() {}
+
+func (x *GetServerConfigResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_admin_v1_server_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetServerConfigResponse.ProtoReflect.Descriptor instead.
+func (*GetServerConfigResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_admin_v1_server_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *GetServerConfigResponse) GetConfig() *ServerConfig {
+	if x != nil {
+		return x.Config
+	}
+	return nil
+}
+
+func (x *GetServerConfigResponse) GetProfile() *v1.ServerMemberProfile {
+	if x != nil {
+		return x.Profile
+	}
+	return nil
+}
+
 // Request to update runtime-editable server profile settings.
 type UpdateServerConfigRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -42,7 +207,7 @@ type UpdateServerConfigRequest struct {
 
 func (x *UpdateServerConfigRequest) Reset() {
 	*x = UpdateServerConfigRequest{}
-	mi := &file_chatto_admin_v1_server_proto_msgTypes[0]
+	mi := &file_chatto_admin_v1_server_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -54,7 +219,7 @@ func (x *UpdateServerConfigRequest) String() string {
 func (*UpdateServerConfigRequest) ProtoMessage() {}
 
 func (x *UpdateServerConfigRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_server_proto_msgTypes[0]
+	mi := &file_chatto_admin_v1_server_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -67,7 +232,7 @@ func (x *UpdateServerConfigRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateServerConfigRequest.ProtoReflect.Descriptor instead.
 func (*UpdateServerConfigRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_server_proto_rawDescGZIP(), []int{0}
+	return file_chatto_admin_v1_server_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *UpdateServerConfigRequest) GetServerName() string {
@@ -102,14 +267,16 @@ func (x *UpdateServerConfigRequest) GetWelcomeMessage() string {
 type UpdateServerConfigResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Updated server profile and branding.
-	Profile       *v1.ServerMemberProfile `protobuf:"bytes,1,opt,name=profile,proto3" json:"profile,omitempty"`
+	Profile *v1.ServerMemberProfile `protobuf:"bytes,1,opt,name=profile,proto3" json:"profile,omitempty"`
+	// Updated runtime-editable server profile settings.
+	Config        *ServerConfig `protobuf:"bytes,2,opt,name=config,proto3" json:"config,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *UpdateServerConfigResponse) Reset() {
 	*x = UpdateServerConfigResponse{}
-	mi := &file_chatto_admin_v1_server_proto_msgTypes[1]
+	mi := &file_chatto_admin_v1_server_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -121,7 +288,7 @@ func (x *UpdateServerConfigResponse) String() string {
 func (*UpdateServerConfigResponse) ProtoMessage() {}
 
 func (x *UpdateServerConfigResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_server_proto_msgTypes[1]
+	mi := &file_chatto_admin_v1_server_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -134,12 +301,19 @@ func (x *UpdateServerConfigResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateServerConfigResponse.ProtoReflect.Descriptor instead.
 func (*UpdateServerConfigResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_server_proto_rawDescGZIP(), []int{1}
+	return file_chatto_admin_v1_server_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *UpdateServerConfigResponse) GetProfile() *v1.ServerMemberProfile {
 	if x != nil {
 		return x.Profile
+	}
+	return nil
+}
+
+func (x *UpdateServerConfigResponse) GetConfig() *ServerConfig {
+	if x != nil {
+		return x.Config
 	}
 	return nil
 }
@@ -159,7 +333,7 @@ type UploadServerLogoRequest struct {
 
 func (x *UploadServerLogoRequest) Reset() {
 	*x = UploadServerLogoRequest{}
-	mi := &file_chatto_admin_v1_server_proto_msgTypes[2]
+	mi := &file_chatto_admin_v1_server_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -171,7 +345,7 @@ func (x *UploadServerLogoRequest) String() string {
 func (*UploadServerLogoRequest) ProtoMessage() {}
 
 func (x *UploadServerLogoRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_server_proto_msgTypes[2]
+	mi := &file_chatto_admin_v1_server_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -184,7 +358,7 @@ func (x *UploadServerLogoRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UploadServerLogoRequest.ProtoReflect.Descriptor instead.
 func (*UploadServerLogoRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_server_proto_rawDescGZIP(), []int{2}
+	return file_chatto_admin_v1_server_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *UploadServerLogoRequest) GetImage() []byte {
@@ -219,7 +393,7 @@ type UploadServerLogoResponse struct {
 
 func (x *UploadServerLogoResponse) Reset() {
 	*x = UploadServerLogoResponse{}
-	mi := &file_chatto_admin_v1_server_proto_msgTypes[3]
+	mi := &file_chatto_admin_v1_server_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -231,7 +405,7 @@ func (x *UploadServerLogoResponse) String() string {
 func (*UploadServerLogoResponse) ProtoMessage() {}
 
 func (x *UploadServerLogoResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_server_proto_msgTypes[3]
+	mi := &file_chatto_admin_v1_server_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -244,7 +418,7 @@ func (x *UploadServerLogoResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UploadServerLogoResponse.ProtoReflect.Descriptor instead.
 func (*UploadServerLogoResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_server_proto_rawDescGZIP(), []int{3}
+	return file_chatto_admin_v1_server_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *UploadServerLogoResponse) GetProfile() *v1.ServerMemberProfile {
@@ -263,7 +437,7 @@ type DeleteServerLogoRequest struct {
 
 func (x *DeleteServerLogoRequest) Reset() {
 	*x = DeleteServerLogoRequest{}
-	mi := &file_chatto_admin_v1_server_proto_msgTypes[4]
+	mi := &file_chatto_admin_v1_server_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -275,7 +449,7 @@ func (x *DeleteServerLogoRequest) String() string {
 func (*DeleteServerLogoRequest) ProtoMessage() {}
 
 func (x *DeleteServerLogoRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_server_proto_msgTypes[4]
+	mi := &file_chatto_admin_v1_server_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -288,7 +462,7 @@ func (x *DeleteServerLogoRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteServerLogoRequest.ProtoReflect.Descriptor instead.
 func (*DeleteServerLogoRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_server_proto_rawDescGZIP(), []int{4}
+	return file_chatto_admin_v1_server_proto_rawDescGZIP(), []int{7}
 }
 
 // Result of clearing the public server logo.
@@ -302,7 +476,7 @@ type DeleteServerLogoResponse struct {
 
 func (x *DeleteServerLogoResponse) Reset() {
 	*x = DeleteServerLogoResponse{}
-	mi := &file_chatto_admin_v1_server_proto_msgTypes[5]
+	mi := &file_chatto_admin_v1_server_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -314,7 +488,7 @@ func (x *DeleteServerLogoResponse) String() string {
 func (*DeleteServerLogoResponse) ProtoMessage() {}
 
 func (x *DeleteServerLogoResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_server_proto_msgTypes[5]
+	mi := &file_chatto_admin_v1_server_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -327,7 +501,7 @@ func (x *DeleteServerLogoResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteServerLogoResponse.ProtoReflect.Descriptor instead.
 func (*DeleteServerLogoResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_server_proto_rawDescGZIP(), []int{5}
+	return file_chatto_admin_v1_server_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *DeleteServerLogoResponse) GetProfile() *v1.ServerMemberProfile {
@@ -352,7 +526,7 @@ type UploadServerBannerRequest struct {
 
 func (x *UploadServerBannerRequest) Reset() {
 	*x = UploadServerBannerRequest{}
-	mi := &file_chatto_admin_v1_server_proto_msgTypes[6]
+	mi := &file_chatto_admin_v1_server_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -364,7 +538,7 @@ func (x *UploadServerBannerRequest) String() string {
 func (*UploadServerBannerRequest) ProtoMessage() {}
 
 func (x *UploadServerBannerRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_server_proto_msgTypes[6]
+	mi := &file_chatto_admin_v1_server_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -377,7 +551,7 @@ func (x *UploadServerBannerRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UploadServerBannerRequest.ProtoReflect.Descriptor instead.
 func (*UploadServerBannerRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_server_proto_rawDescGZIP(), []int{6}
+	return file_chatto_admin_v1_server_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *UploadServerBannerRequest) GetImage() []byte {
@@ -412,7 +586,7 @@ type UploadServerBannerResponse struct {
 
 func (x *UploadServerBannerResponse) Reset() {
 	*x = UploadServerBannerResponse{}
-	mi := &file_chatto_admin_v1_server_proto_msgTypes[7]
+	mi := &file_chatto_admin_v1_server_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -424,7 +598,7 @@ func (x *UploadServerBannerResponse) String() string {
 func (*UploadServerBannerResponse) ProtoMessage() {}
 
 func (x *UploadServerBannerResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_server_proto_msgTypes[7]
+	mi := &file_chatto_admin_v1_server_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -437,7 +611,7 @@ func (x *UploadServerBannerResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UploadServerBannerResponse.ProtoReflect.Descriptor instead.
 func (*UploadServerBannerResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_server_proto_rawDescGZIP(), []int{7}
+	return file_chatto_admin_v1_server_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *UploadServerBannerResponse) GetProfile() *v1.ServerMemberProfile {
@@ -456,7 +630,7 @@ type DeleteServerBannerRequest struct {
 
 func (x *DeleteServerBannerRequest) Reset() {
 	*x = DeleteServerBannerRequest{}
-	mi := &file_chatto_admin_v1_server_proto_msgTypes[8]
+	mi := &file_chatto_admin_v1_server_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -468,7 +642,7 @@ func (x *DeleteServerBannerRequest) String() string {
 func (*DeleteServerBannerRequest) ProtoMessage() {}
 
 func (x *DeleteServerBannerRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_server_proto_msgTypes[8]
+	mi := &file_chatto_admin_v1_server_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -481,7 +655,7 @@ func (x *DeleteServerBannerRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteServerBannerRequest.ProtoReflect.Descriptor instead.
 func (*DeleteServerBannerRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_server_proto_rawDescGZIP(), []int{8}
+	return file_chatto_admin_v1_server_proto_rawDescGZIP(), []int{11}
 }
 
 // Result of clearing the public server banner.
@@ -495,7 +669,7 @@ type DeleteServerBannerResponse struct {
 
 func (x *DeleteServerBannerResponse) Reset() {
 	*x = DeleteServerBannerResponse{}
-	mi := &file_chatto_admin_v1_server_proto_msgTypes[9]
+	mi := &file_chatto_admin_v1_server_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -507,7 +681,7 @@ func (x *DeleteServerBannerResponse) String() string {
 func (*DeleteServerBannerResponse) ProtoMessage() {}
 
 func (x *DeleteServerBannerResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_server_proto_msgTypes[9]
+	mi := &file_chatto_admin_v1_server_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -520,7 +694,7 @@ func (x *DeleteServerBannerResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteServerBannerResponse.ProtoReflect.Descriptor instead.
 func (*DeleteServerBannerResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_server_proto_rawDescGZIP(), []int{9}
+	return file_chatto_admin_v1_server_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *DeleteServerBannerResponse) GetProfile() *v1.ServerMemberProfile {
@@ -539,7 +713,7 @@ type GetServerSecurityConfigRequest struct {
 
 func (x *GetServerSecurityConfigRequest) Reset() {
 	*x = GetServerSecurityConfigRequest{}
-	mi := &file_chatto_admin_v1_server_proto_msgTypes[10]
+	mi := &file_chatto_admin_v1_server_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -551,7 +725,7 @@ func (x *GetServerSecurityConfigRequest) String() string {
 func (*GetServerSecurityConfigRequest) ProtoMessage() {}
 
 func (x *GetServerSecurityConfigRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_server_proto_msgTypes[10]
+	mi := &file_chatto_admin_v1_server_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -564,22 +738,22 @@ func (x *GetServerSecurityConfigRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetServerSecurityConfigRequest.ProtoReflect.Descriptor instead.
 func (*GetServerSecurityConfigRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_server_proto_rawDescGZIP(), []int{10}
+	return file_chatto_admin_v1_server_proto_rawDescGZIP(), []int{13}
 }
 
 // Security-sensitive server configuration. The caller must be allowed to
 // manage server configuration.
 type GetServerSecurityConfigResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Newline-separated blocked usernames.
-	BlockedUsernames string `protobuf:"bytes,1,opt,name=blocked_usernames,json=blockedUsernames,proto3" json:"blocked_usernames,omitempty"`
+	// Blocked usernames. Entries are normalized by the server.
+	BlockedUsernames []string `protobuf:"bytes,1,rep,name=blocked_usernames,json=blockedUsernames,proto3" json:"blocked_usernames,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
 
 func (x *GetServerSecurityConfigResponse) Reset() {
 	*x = GetServerSecurityConfigResponse{}
-	mi := &file_chatto_admin_v1_server_proto_msgTypes[11]
+	mi := &file_chatto_admin_v1_server_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -591,7 +765,7 @@ func (x *GetServerSecurityConfigResponse) String() string {
 func (*GetServerSecurityConfigResponse) ProtoMessage() {}
 
 func (x *GetServerSecurityConfigResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_server_proto_msgTypes[11]
+	mi := &file_chatto_admin_v1_server_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -604,28 +778,29 @@ func (x *GetServerSecurityConfigResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetServerSecurityConfigResponse.ProtoReflect.Descriptor instead.
 func (*GetServerSecurityConfigResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_server_proto_rawDescGZIP(), []int{11}
+	return file_chatto_admin_v1_server_proto_rawDescGZIP(), []int{14}
 }
 
-func (x *GetServerSecurityConfigResponse) GetBlockedUsernames() string {
+func (x *GetServerSecurityConfigResponse) GetBlockedUsernames() []string {
 	if x != nil {
 		return x.BlockedUsernames
 	}
-	return ""
+	return nil
 }
 
 // Request to update the server blocked-username list.
 type UpdateBlockedUsernamesRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Newline-separated blocked usernames.
-	BlockedUsernames string `protobuf:"bytes,1,opt,name=blocked_usernames,json=blockedUsernames,proto3" json:"blocked_usernames,omitempty"`
+	// Blocked usernames. Empty entries are ignored and entries are normalized by
+	// the server.
+	BlockedUsernames []string `protobuf:"bytes,1,rep,name=blocked_usernames,json=blockedUsernames,proto3" json:"blocked_usernames,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
 
 func (x *UpdateBlockedUsernamesRequest) Reset() {
 	*x = UpdateBlockedUsernamesRequest{}
-	mi := &file_chatto_admin_v1_server_proto_msgTypes[12]
+	mi := &file_chatto_admin_v1_server_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -637,7 +812,7 @@ func (x *UpdateBlockedUsernamesRequest) String() string {
 func (*UpdateBlockedUsernamesRequest) ProtoMessage() {}
 
 func (x *UpdateBlockedUsernamesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_server_proto_msgTypes[12]
+	mi := &file_chatto_admin_v1_server_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -650,28 +825,28 @@ func (x *UpdateBlockedUsernamesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateBlockedUsernamesRequest.ProtoReflect.Descriptor instead.
 func (*UpdateBlockedUsernamesRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_server_proto_rawDescGZIP(), []int{12}
+	return file_chatto_admin_v1_server_proto_rawDescGZIP(), []int{15}
 }
 
-func (x *UpdateBlockedUsernamesRequest) GetBlockedUsernames() string {
+func (x *UpdateBlockedUsernamesRequest) GetBlockedUsernames() []string {
 	if x != nil {
 		return x.BlockedUsernames
 	}
-	return ""
+	return nil
 }
 
 // Result of updating the server blocked-username list.
 type UpdateBlockedUsernamesResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Effective newline-separated blocked usernames after the update.
-	BlockedUsernames string `protobuf:"bytes,1,opt,name=blocked_usernames,json=blockedUsernames,proto3" json:"blocked_usernames,omitempty"`
+	// Effective blocked usernames after the update.
+	BlockedUsernames []string `protobuf:"bytes,1,rep,name=blocked_usernames,json=blockedUsernames,proto3" json:"blocked_usernames,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
 
 func (x *UpdateBlockedUsernamesResponse) Reset() {
 	*x = UpdateBlockedUsernamesResponse{}
-	mi := &file_chatto_admin_v1_server_proto_msgTypes[13]
+	mi := &file_chatto_admin_v1_server_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -683,7 +858,7 @@ func (x *UpdateBlockedUsernamesResponse) String() string {
 func (*UpdateBlockedUsernamesResponse) ProtoMessage() {}
 
 func (x *UpdateBlockedUsernamesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_server_proto_msgTypes[13]
+	mi := &file_chatto_admin_v1_server_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -696,21 +871,31 @@ func (x *UpdateBlockedUsernamesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateBlockedUsernamesResponse.ProtoReflect.Descriptor instead.
 func (*UpdateBlockedUsernamesResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_server_proto_rawDescGZIP(), []int{13}
+	return file_chatto_admin_v1_server_proto_rawDescGZIP(), []int{16}
 }
 
-func (x *UpdateBlockedUsernamesResponse) GetBlockedUsernames() string {
+func (x *UpdateBlockedUsernamesResponse) GetBlockedUsernames() []string {
 	if x != nil {
 		return x.BlockedUsernames
 	}
-	return ""
+	return nil
 }
 
 var File_chatto_admin_v1_server_proto protoreflect.FileDescriptor
 
 const file_chatto_admin_v1_server_proto_rawDesc = "" +
 	"\n" +
-	"\x1cchatto/admin/v1/server.proto\x12\x0fchatto.admin.v1\x1a\x1bbuf/validate/validate.proto\x1a chatto/api/v1/server_state.proto\"\x93\x02\n" +
+	"\x1cchatto/admin/v1/server.proto\x12\x0fchatto.admin.v1\x1a\x1bbuf/validate/validate.proto\x1a chatto/api/v1/server_state.proto\"\x8e\x01\n" +
+	"\fServerConfig\x12\x1f\n" +
+	"\vserver_name\x18\x01 \x01(\tR\n" +
+	"serverName\x12 \n" +
+	"\vdescription\x18\x02 \x01(\tR\vdescription\x12\x12\n" +
+	"\x04motd\x18\x03 \x01(\tR\x04motd\x12'\n" +
+	"\x0fwelcome_message\x18\x04 \x01(\tR\x0ewelcomeMessage\"\x18\n" +
+	"\x16GetServerConfigRequest\"\x8e\x01\n" +
+	"\x17GetServerConfigResponse\x125\n" +
+	"\x06config\x18\x01 \x01(\v2\x1d.chatto.admin.v1.ServerConfigR\x06config\x12<\n" +
+	"\aprofile\x18\x02 \x01(\v2\".chatto.api.v1.ServerMemberProfileR\aprofile\"\x93\x02\n" +
 	"\x19UpdateServerConfigRequest\x12-\n" +
 	"\vserver_name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x18PH\x00R\n" +
 	"serverName\x88\x01\x01\x12/\n" +
@@ -720,9 +905,10 @@ const file_chatto_admin_v1_server_proto_rawDesc = "" +
 	"\f_server_nameB\x0e\n" +
 	"\f_descriptionB\a\n" +
 	"\x05_motdB\x12\n" +
-	"\x10_welcome_message\"Z\n" +
+	"\x10_welcome_message\"\x91\x01\n" +
 	"\x1aUpdateServerConfigResponse\x12<\n" +
-	"\aprofile\x18\x01 \x01(\v2\".chatto.api.v1.ServerMemberProfileR\aprofile\"n\n" +
+	"\aprofile\x18\x01 \x01(\v2\".chatto.api.v1.ServerMemberProfileR\aprofile\x125\n" +
+	"\x06config\x18\x02 \x01(\v2\x1d.chatto.admin.v1.ServerConfigR\x06config\"n\n" +
 	"\x17UploadServerLogoRequest\x12\x14\n" +
 	"\x05image\x18\x01 \x01(\fR\x05image\x12\x1a\n" +
 	"\bfilename\x18\x02 \x01(\tR\bfilename\x12!\n" +
@@ -743,12 +929,13 @@ const file_chatto_admin_v1_server_proto_rawDesc = "" +
 	"\aprofile\x18\x01 \x01(\v2\".chatto.api.v1.ServerMemberProfileR\aprofile\" \n" +
 	"\x1eGetServerSecurityConfigRequest\"N\n" +
 	"\x1fGetServerSecurityConfigResponse\x12+\n" +
-	"\x11blocked_usernames\x18\x01 \x01(\tR\x10blockedUsernames\"V\n" +
-	"\x1dUpdateBlockedUsernamesRequest\x125\n" +
-	"\x11blocked_usernames\x18\x01 \x01(\tB\b\xbaH\x05r\x03\x18\x90NR\x10blockedUsernames\"M\n" +
+	"\x11blocked_usernames\x18\x01 \x03(\tR\x10blockedUsernames\"W\n" +
+	"\x1dUpdateBlockedUsernamesRequest\x126\n" +
+	"\x11blocked_usernames\x18\x01 \x03(\tB\t\xbaH\x06\x92\x01\x03\x10\xe8\aR\x10blockedUsernames\"M\n" +
 	"\x1eUpdateBlockedUsernamesResponse\x12+\n" +
-	"\x11blocked_usernames\x18\x01 \x01(\tR\x10blockedUsernames2\xac\x06\n" +
-	"\x12AdminServerService\x12m\n" +
+	"\x11blocked_usernames\x18\x01 \x03(\tR\x10blockedUsernames2\x92\a\n" +
+	"\x12AdminServerService\x12d\n" +
+	"\x0fGetServerConfig\x12'.chatto.admin.v1.GetServerConfigRequest\x1a(.chatto.admin.v1.GetServerConfigResponse\x12m\n" +
 	"\x12UpdateServerConfig\x12*.chatto.admin.v1.UpdateServerConfigRequest\x1a+.chatto.admin.v1.UpdateServerConfigResponse\x12g\n" +
 	"\x10UploadServerLogo\x12(.chatto.admin.v1.UploadServerLogoRequest\x1a).chatto.admin.v1.UploadServerLogoResponse\x12g\n" +
 	"\x10DeleteServerLogo\x12(.chatto.admin.v1.DeleteServerLogoRequest\x1a).chatto.admin.v1.DeleteServerLogoResponse\x12m\n" +
@@ -770,49 +957,57 @@ func file_chatto_admin_v1_server_proto_rawDescGZIP() []byte {
 	return file_chatto_admin_v1_server_proto_rawDescData
 }
 
-var file_chatto_admin_v1_server_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
+var file_chatto_admin_v1_server_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
 var file_chatto_admin_v1_server_proto_goTypes = []any{
-	(*UpdateServerConfigRequest)(nil),       // 0: chatto.admin.v1.UpdateServerConfigRequest
-	(*UpdateServerConfigResponse)(nil),      // 1: chatto.admin.v1.UpdateServerConfigResponse
-	(*UploadServerLogoRequest)(nil),         // 2: chatto.admin.v1.UploadServerLogoRequest
-	(*UploadServerLogoResponse)(nil),        // 3: chatto.admin.v1.UploadServerLogoResponse
-	(*DeleteServerLogoRequest)(nil),         // 4: chatto.admin.v1.DeleteServerLogoRequest
-	(*DeleteServerLogoResponse)(nil),        // 5: chatto.admin.v1.DeleteServerLogoResponse
-	(*UploadServerBannerRequest)(nil),       // 6: chatto.admin.v1.UploadServerBannerRequest
-	(*UploadServerBannerResponse)(nil),      // 7: chatto.admin.v1.UploadServerBannerResponse
-	(*DeleteServerBannerRequest)(nil),       // 8: chatto.admin.v1.DeleteServerBannerRequest
-	(*DeleteServerBannerResponse)(nil),      // 9: chatto.admin.v1.DeleteServerBannerResponse
-	(*GetServerSecurityConfigRequest)(nil),  // 10: chatto.admin.v1.GetServerSecurityConfigRequest
-	(*GetServerSecurityConfigResponse)(nil), // 11: chatto.admin.v1.GetServerSecurityConfigResponse
-	(*UpdateBlockedUsernamesRequest)(nil),   // 12: chatto.admin.v1.UpdateBlockedUsernamesRequest
-	(*UpdateBlockedUsernamesResponse)(nil),  // 13: chatto.admin.v1.UpdateBlockedUsernamesResponse
-	(*v1.ServerMemberProfile)(nil),          // 14: chatto.api.v1.ServerMemberProfile
+	(*ServerConfig)(nil),                    // 0: chatto.admin.v1.ServerConfig
+	(*GetServerConfigRequest)(nil),          // 1: chatto.admin.v1.GetServerConfigRequest
+	(*GetServerConfigResponse)(nil),         // 2: chatto.admin.v1.GetServerConfigResponse
+	(*UpdateServerConfigRequest)(nil),       // 3: chatto.admin.v1.UpdateServerConfigRequest
+	(*UpdateServerConfigResponse)(nil),      // 4: chatto.admin.v1.UpdateServerConfigResponse
+	(*UploadServerLogoRequest)(nil),         // 5: chatto.admin.v1.UploadServerLogoRequest
+	(*UploadServerLogoResponse)(nil),        // 6: chatto.admin.v1.UploadServerLogoResponse
+	(*DeleteServerLogoRequest)(nil),         // 7: chatto.admin.v1.DeleteServerLogoRequest
+	(*DeleteServerLogoResponse)(nil),        // 8: chatto.admin.v1.DeleteServerLogoResponse
+	(*UploadServerBannerRequest)(nil),       // 9: chatto.admin.v1.UploadServerBannerRequest
+	(*UploadServerBannerResponse)(nil),      // 10: chatto.admin.v1.UploadServerBannerResponse
+	(*DeleteServerBannerRequest)(nil),       // 11: chatto.admin.v1.DeleteServerBannerRequest
+	(*DeleteServerBannerResponse)(nil),      // 12: chatto.admin.v1.DeleteServerBannerResponse
+	(*GetServerSecurityConfigRequest)(nil),  // 13: chatto.admin.v1.GetServerSecurityConfigRequest
+	(*GetServerSecurityConfigResponse)(nil), // 14: chatto.admin.v1.GetServerSecurityConfigResponse
+	(*UpdateBlockedUsernamesRequest)(nil),   // 15: chatto.admin.v1.UpdateBlockedUsernamesRequest
+	(*UpdateBlockedUsernamesResponse)(nil),  // 16: chatto.admin.v1.UpdateBlockedUsernamesResponse
+	(*v1.ServerMemberProfile)(nil),          // 17: chatto.api.v1.ServerMemberProfile
 }
 var file_chatto_admin_v1_server_proto_depIdxs = []int32{
-	14, // 0: chatto.admin.v1.UpdateServerConfigResponse.profile:type_name -> chatto.api.v1.ServerMemberProfile
-	14, // 1: chatto.admin.v1.UploadServerLogoResponse.profile:type_name -> chatto.api.v1.ServerMemberProfile
-	14, // 2: chatto.admin.v1.DeleteServerLogoResponse.profile:type_name -> chatto.api.v1.ServerMemberProfile
-	14, // 3: chatto.admin.v1.UploadServerBannerResponse.profile:type_name -> chatto.api.v1.ServerMemberProfile
-	14, // 4: chatto.admin.v1.DeleteServerBannerResponse.profile:type_name -> chatto.api.v1.ServerMemberProfile
-	0,  // 5: chatto.admin.v1.AdminServerService.UpdateServerConfig:input_type -> chatto.admin.v1.UpdateServerConfigRequest
-	2,  // 6: chatto.admin.v1.AdminServerService.UploadServerLogo:input_type -> chatto.admin.v1.UploadServerLogoRequest
-	4,  // 7: chatto.admin.v1.AdminServerService.DeleteServerLogo:input_type -> chatto.admin.v1.DeleteServerLogoRequest
-	6,  // 8: chatto.admin.v1.AdminServerService.UploadServerBanner:input_type -> chatto.admin.v1.UploadServerBannerRequest
-	8,  // 9: chatto.admin.v1.AdminServerService.DeleteServerBanner:input_type -> chatto.admin.v1.DeleteServerBannerRequest
-	10, // 10: chatto.admin.v1.AdminServerService.GetServerSecurityConfig:input_type -> chatto.admin.v1.GetServerSecurityConfigRequest
-	12, // 11: chatto.admin.v1.AdminServerService.UpdateBlockedUsernames:input_type -> chatto.admin.v1.UpdateBlockedUsernamesRequest
-	1,  // 12: chatto.admin.v1.AdminServerService.UpdateServerConfig:output_type -> chatto.admin.v1.UpdateServerConfigResponse
-	3,  // 13: chatto.admin.v1.AdminServerService.UploadServerLogo:output_type -> chatto.admin.v1.UploadServerLogoResponse
-	5,  // 14: chatto.admin.v1.AdminServerService.DeleteServerLogo:output_type -> chatto.admin.v1.DeleteServerLogoResponse
-	7,  // 15: chatto.admin.v1.AdminServerService.UploadServerBanner:output_type -> chatto.admin.v1.UploadServerBannerResponse
-	9,  // 16: chatto.admin.v1.AdminServerService.DeleteServerBanner:output_type -> chatto.admin.v1.DeleteServerBannerResponse
-	11, // 17: chatto.admin.v1.AdminServerService.GetServerSecurityConfig:output_type -> chatto.admin.v1.GetServerSecurityConfigResponse
-	13, // 18: chatto.admin.v1.AdminServerService.UpdateBlockedUsernames:output_type -> chatto.admin.v1.UpdateBlockedUsernamesResponse
-	12, // [12:19] is the sub-list for method output_type
-	5,  // [5:12] is the sub-list for method input_type
-	5,  // [5:5] is the sub-list for extension type_name
-	5,  // [5:5] is the sub-list for extension extendee
-	0,  // [0:5] is the sub-list for field type_name
+	0,  // 0: chatto.admin.v1.GetServerConfigResponse.config:type_name -> chatto.admin.v1.ServerConfig
+	17, // 1: chatto.admin.v1.GetServerConfigResponse.profile:type_name -> chatto.api.v1.ServerMemberProfile
+	17, // 2: chatto.admin.v1.UpdateServerConfigResponse.profile:type_name -> chatto.api.v1.ServerMemberProfile
+	0,  // 3: chatto.admin.v1.UpdateServerConfigResponse.config:type_name -> chatto.admin.v1.ServerConfig
+	17, // 4: chatto.admin.v1.UploadServerLogoResponse.profile:type_name -> chatto.api.v1.ServerMemberProfile
+	17, // 5: chatto.admin.v1.DeleteServerLogoResponse.profile:type_name -> chatto.api.v1.ServerMemberProfile
+	17, // 6: chatto.admin.v1.UploadServerBannerResponse.profile:type_name -> chatto.api.v1.ServerMemberProfile
+	17, // 7: chatto.admin.v1.DeleteServerBannerResponse.profile:type_name -> chatto.api.v1.ServerMemberProfile
+	1,  // 8: chatto.admin.v1.AdminServerService.GetServerConfig:input_type -> chatto.admin.v1.GetServerConfigRequest
+	3,  // 9: chatto.admin.v1.AdminServerService.UpdateServerConfig:input_type -> chatto.admin.v1.UpdateServerConfigRequest
+	5,  // 10: chatto.admin.v1.AdminServerService.UploadServerLogo:input_type -> chatto.admin.v1.UploadServerLogoRequest
+	7,  // 11: chatto.admin.v1.AdminServerService.DeleteServerLogo:input_type -> chatto.admin.v1.DeleteServerLogoRequest
+	9,  // 12: chatto.admin.v1.AdminServerService.UploadServerBanner:input_type -> chatto.admin.v1.UploadServerBannerRequest
+	11, // 13: chatto.admin.v1.AdminServerService.DeleteServerBanner:input_type -> chatto.admin.v1.DeleteServerBannerRequest
+	13, // 14: chatto.admin.v1.AdminServerService.GetServerSecurityConfig:input_type -> chatto.admin.v1.GetServerSecurityConfigRequest
+	15, // 15: chatto.admin.v1.AdminServerService.UpdateBlockedUsernames:input_type -> chatto.admin.v1.UpdateBlockedUsernamesRequest
+	2,  // 16: chatto.admin.v1.AdminServerService.GetServerConfig:output_type -> chatto.admin.v1.GetServerConfigResponse
+	4,  // 17: chatto.admin.v1.AdminServerService.UpdateServerConfig:output_type -> chatto.admin.v1.UpdateServerConfigResponse
+	6,  // 18: chatto.admin.v1.AdminServerService.UploadServerLogo:output_type -> chatto.admin.v1.UploadServerLogoResponse
+	8,  // 19: chatto.admin.v1.AdminServerService.DeleteServerLogo:output_type -> chatto.admin.v1.DeleteServerLogoResponse
+	10, // 20: chatto.admin.v1.AdminServerService.UploadServerBanner:output_type -> chatto.admin.v1.UploadServerBannerResponse
+	12, // 21: chatto.admin.v1.AdminServerService.DeleteServerBanner:output_type -> chatto.admin.v1.DeleteServerBannerResponse
+	14, // 22: chatto.admin.v1.AdminServerService.GetServerSecurityConfig:output_type -> chatto.admin.v1.GetServerSecurityConfigResponse
+	16, // 23: chatto.admin.v1.AdminServerService.UpdateBlockedUsernames:output_type -> chatto.admin.v1.UpdateBlockedUsernamesResponse
+	16, // [16:24] is the sub-list for method output_type
+	8,  // [8:16] is the sub-list for method input_type
+	8,  // [8:8] is the sub-list for extension type_name
+	8,  // [8:8] is the sub-list for extension extendee
+	0,  // [0:8] is the sub-list for field type_name
 }
 
 func init() { file_chatto_admin_v1_server_proto_init() }
@@ -820,14 +1015,14 @@ func file_chatto_admin_v1_server_proto_init() {
 	if File_chatto_admin_v1_server_proto != nil {
 		return
 	}
-	file_chatto_admin_v1_server_proto_msgTypes[0].OneofWrappers = []any{}
+	file_chatto_admin_v1_server_proto_msgTypes[3].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_admin_v1_server_proto_rawDesc), len(file_chatto_admin_v1_server_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   14,
+			NumMessages:   17,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

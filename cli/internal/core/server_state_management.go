@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"strings"
 
 	configv1 "hmans.de/chatto/internal/pb/chatto/config/v1"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
@@ -14,6 +15,21 @@ type ServerConfigUpdateInput struct {
 	Description    *string
 	MOTD           *string
 	WelcomeMessage *string
+}
+
+func (c *ChattoCore) GetManagedServerConfig(ctx context.Context, actorID string) (*configv1.ServerConfig, error) {
+	if err := c.requireCanManageServer(ctx, actorID); err != nil {
+		return nil, err
+	}
+
+	cfg, err := c.ConfigManager().GetServerConfig(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if cfg == nil {
+		return &configv1.ServerConfig{}, nil
+	}
+	return cloneServerConfig(cfg), nil
 }
 
 func (c *ChattoCore) UpdateServerConfig(ctx context.Context, actorID string, input ServerConfigUpdateInput) (*configv1.ServerConfig, error) {
@@ -48,31 +64,39 @@ func (c *ChattoCore) UpdateServerConfig(ctx context.Context, actorID string, inp
 	return cfg, nil
 }
 
-func (c *ChattoCore) GetServerSecurityConfig(ctx context.Context, actorID string) (string, error) {
+func (c *ChattoCore) GetServerSecurityConfig(ctx context.Context, actorID string) ([]string, error) {
 	if err := c.requireCanManageServer(ctx, actorID); err != nil {
-		return "", err
+		return nil, err
 	}
-	return c.ConfigManager().GetEffectiveBlockedUsernames(ctx)
+	return c.ConfigManager().GetBlockedUsernamesList(ctx)
 }
 
-func (c *ChattoCore) UpdateBlockedUsernames(ctx context.Context, actorID, blockedUsernames string) (string, error) {
+func (c *ChattoCore) UpdateBlockedUsernames(ctx context.Context, actorID string, blockedUsernames []string) ([]string, error) {
 	if err := c.requireCanManageServer(ctx, actorID); err != nil {
-		return "", err
+		return nil, err
 	}
 
 	configMgr := c.ConfigManager()
+	normalized := normalizeBlockedUsernameEntries(blockedUsernames)
 	if _, err := configMgr.UpdateServerConfigFunc(ctx, actorID, func(current *configv1.ServerConfig) (*configv1.ServerConfig, error) {
 		cfg := &configv1.ServerConfig{}
 		if current != nil {
 			cfg = current
 		}
-		cfg.BlockedUsernames = blockedUsernames
+		cfg.BlockedUsernames = normalized
 		return cfg, nil
 	}); err != nil {
-		return "", err
+		return nil, err
 	}
 
-	return configMgr.GetEffectiveBlockedUsernames(ctx)
+	return configMgr.GetBlockedUsernamesList(ctx)
+}
+
+func normalizeBlockedUsernameEntries(entries []string) string {
+	if len(entries) == 0 {
+		return ""
+	}
+	return strings.Join(parseBlockedUsernames(strings.Join(entries, "\n")), "\n")
 }
 
 func (c *ChattoCore) UploadManagedServerLogo(ctx context.Context, actorID string, reader io.Reader) (*corev1.AssetRecord, error) {

@@ -4,6 +4,7 @@ import {
   deleteServerBanner,
   deleteServerLogo,
   getAuthenticatedServerState,
+  getServerConfig,
   getServerSecurityConfig,
   updateBlockedUsernames,
   updateServerConfig,
@@ -15,6 +16,7 @@ const mocks = vi.hoisted(() => ({
   createClient: vi.fn(),
   createConnectTransport: vi.fn(),
   getServerState: vi.fn(),
+  getServerConfig: vi.fn(),
   updateServerConfig: vi.fn(),
   uploadServerLogo: vi.fn(),
   deleteServerLogo: vi.fn(),
@@ -41,6 +43,7 @@ describe('getAuthenticatedServerState', () => {
     mocks.createClient.mockReset();
     mocks.createConnectTransport.mockReset();
     mocks.getServerState.mockReset();
+    mocks.getServerConfig.mockReset();
     mocks.updateServerConfig.mockReset();
     mocks.uploadServerLogo.mockReset();
     mocks.deleteServerLogo.mockReset();
@@ -51,6 +54,7 @@ describe('getAuthenticatedServerState', () => {
     mocks.createConnectTransport.mockReturnValue({ kind: 'transport' });
     mocks.createClient.mockReturnValue({
       getServerState: mocks.getServerState,
+      getServerConfig: mocks.getServerConfig,
       updateServerConfig: mocks.updateServerConfig,
       uploadServerLogo: mocks.uploadServerLogo,
       deleteServerLogo: mocks.deleteServerLogo,
@@ -274,6 +278,34 @@ describe('getAuthenticatedServerState', () => {
     });
   });
 
+  it('loads editable server config through AdminServerService', async () => {
+    mocks.getServerConfig.mockResolvedValue({
+      config: {
+        serverName: 'Connect Server',
+        description: 'Connect description',
+        motd: 'Connect MOTD',
+        welcomeMessage: 'Connect welcome'
+      }
+    });
+
+    const config = {
+      baseUrl: 'https://chat.example.test/api/connect',
+      bearerToken: 'token'
+    };
+
+    await expect(getServerConfig(config)).resolves.toEqual({
+      name: 'Connect Server',
+      description: 'Connect description',
+      motd: 'Connect MOTD',
+      welcomeMessage: 'Connect welcome'
+    });
+
+    expect(mocks.getServerConfig).toHaveBeenCalledWith(
+      {},
+      { headers: { Authorization: 'Bearer token' } }
+    );
+  });
+
   it('updates server branding through AdminServerService', async () => {
     mocks.uploadServerLogo.mockResolvedValue({
       profile: {
@@ -354,10 +386,10 @@ describe('getAuthenticatedServerState', () => {
 
   it('loads and updates security config through AdminServerService', async () => {
     mocks.getServerSecurityConfig.mockResolvedValue({
-      blockedUsernames: 'root\nadmin'
+      blockedUsernames: ['root', 'admin']
     });
     mocks.updateBlockedUsernames.mockResolvedValue({
-      blockedUsernames: 'root\nadmin\nreserved'
+      blockedUsernames: ['root', 'admin', 'reserved']
     });
 
     const config = {
@@ -377,7 +409,7 @@ describe('getAuthenticatedServerState', () => {
       { headers: { Authorization: 'Bearer token' } }
     );
     expect(mocks.updateBlockedUsernames).toHaveBeenCalledWith(
-      { blockedUsernames: 'root\nadmin\nreserved' },
+      { blockedUsernames: ['root', 'admin', 'reserved'] },
       { headers: { Authorization: 'Bearer token' } }
     );
   });
