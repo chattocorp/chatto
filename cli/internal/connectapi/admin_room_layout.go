@@ -13,17 +13,17 @@ type adminRoomLayoutService struct {
 	api *API
 }
 
-func (s *adminRoomLayoutService) ListAdminRoomLayout(ctx context.Context, _ *connect.Request[adminv1.ListAdminRoomLayoutRequest]) (*connect.Response[adminv1.ListAdminRoomLayoutResponse], error) {
+func (s *adminRoomLayoutService) GetAdminRoomLayout(ctx context.Context, _ *connect.Request[adminv1.GetAdminRoomLayoutRequest]) (*connect.Response[adminv1.GetAdminRoomLayoutResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	groups, err := s.listAdminRoomLayoutGroups(ctx, caller.UserID)
+	groups, err := s.getAdminRoomLayoutGroups(ctx, caller.UserID)
 	if err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&adminv1.ListAdminRoomLayoutResponse{Groups: groups}), nil
+	return connect.NewResponse(&adminv1.GetAdminRoomLayoutResponse{Groups: groups}), nil
 }
 
 func (s *adminRoomLayoutService) CreateRoomGroup(ctx context.Context, req *connect.Request[adminv1.CreateRoomGroupRequest]) (*connect.Response[adminv1.CreateRoomGroupResponse], error) {
@@ -81,7 +81,7 @@ func (s *adminRoomLayoutService) ReorderRoomGroups(ctx context.Context, req *con
 	if err := s.api.core.AdminReorderRoomGroups(ctx, caller.UserID, req.Msg.GetOrderedGroupIds()); err != nil {
 		return nil, connectError(err)
 	}
-	groups, err := s.listAdminRoomLayoutGroups(ctx, caller.UserID)
+	groups, err := s.getAdminRoomLayoutGroups(ctx, caller.UserID)
 	if err != nil {
 		return nil, connectError(err)
 	}
@@ -171,7 +171,7 @@ func (s *adminRoomLayoutService) MoveSidebarLinkToGroup(ctx context.Context, req
 	return connect.NewResponse(&adminv1.MoveSidebarLinkToGroupResponse{SidebarLink: apiSidebarLink(link)}), nil
 }
 
-func (s *adminRoomLayoutService) listAdminRoomLayoutGroups(ctx context.Context, userID string) ([]*adminv1.AdminRoomLayoutGroup, error) {
+func (s *adminRoomLayoutService) getAdminRoomLayoutGroups(ctx context.Context, userID string) ([]*adminv1.AdminRoomLayoutGroup, error) {
 	groups, err := s.api.core.ListRoomGroupsOrdered(ctx, core.KindChannel)
 	if err != nil {
 		return nil, err

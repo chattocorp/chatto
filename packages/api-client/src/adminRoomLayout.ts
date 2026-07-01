@@ -81,9 +81,9 @@ export function createAdminRoomLayoutAPI(config: AdminRoomLayoutAPIConfig) {
   }
 
   return {
-    async listAdminRoomLayout(): Promise<AdminRoomGroup[]> {
+    async getAdminRoomLayout(): Promise<AdminRoomGroup[]> {
       try {
-        const response = await layout.listAdminRoomLayout(
+        const response = await layout.getAdminRoomLayout(
           {},
           { headers: headers() },
         );

@@ -31,7 +31,7 @@
         baseUrl: conn.connectBaseUrl,
         bearerToken: conn.bearerToken
       });
-      const groups = await api.listAdminRoomLayout();
+      const groups = await api.getAdminRoomLayout();
       if (thisId !== loadId) return;
       group = groups.find((candidate) => candidate.id === targetGroupId) ?? null;
     } catch {

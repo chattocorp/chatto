@@ -8,7 +8,7 @@ const mocks = vi.hoisted(() => ({
   createClient: vi.fn(),
   createConnectTransport: vi.fn(),
   handleAuthenticationRequired: vi.fn(),
-  listAdminRoomLayout: vi.fn(),
+  getAdminRoomLayout: vi.fn(),
   createRoomGroup: vi.fn(),
   updateRoomGroup: vi.fn(),
   deleteRoomGroup: vi.fn(),
@@ -39,7 +39,7 @@ describe('createAdminRoomLayoutAPI', () => {
     configureApiClientHooks({ onAuthenticationRequired: mocks.handleAuthenticationRequired });
     mocks.createConnectTransport.mockReturnValue({ kind: 'transport' });
     mocks.createClient.mockReturnValue({
-      listAdminRoomLayout: mocks.listAdminRoomLayout,
+      getAdminRoomLayout: mocks.getAdminRoomLayout,
       createRoomGroup: mocks.createRoomGroup,
       updateRoomGroup: mocks.updateRoomGroup,
       deleteRoomGroup: mocks.deleteRoomGroup,
@@ -53,8 +53,8 @@ describe('createAdminRoomLayoutAPI', () => {
     });
   });
 
-  it('lists admin room layout groups and maps mixed sidebar items', async () => {
-    mocks.listAdminRoomLayout.mockResolvedValue({
+  it('gets admin room layout groups and maps mixed sidebar items', async () => {
+    mocks.getAdminRoomLayout.mockResolvedValue({
       groups: [
         {
           id: 'g1',
@@ -98,7 +98,7 @@ describe('createAdminRoomLayoutAPI', () => {
       bearerToken: 'token'
     });
 
-    await expect(api.listAdminRoomLayout()).resolves.toEqual([
+    await expect(api.getAdminRoomLayout()).resolves.toEqual([
       {
         id: 'g1',
         name: 'Lobby',
@@ -127,14 +127,14 @@ describe('createAdminRoomLayoutAPI', () => {
         ]
       }
     ]);
-    expect(mocks.listAdminRoomLayout).toHaveBeenCalledWith(
+    expect(mocks.getAdminRoomLayout).toHaveBeenCalledWith(
       {},
       { headers: { Authorization: 'Bearer token' } }
     );
   });
 
   it('uses room fallback items and maps empty descriptions to null', async () => {
-    mocks.listAdminRoomLayout.mockResolvedValue({
+    mocks.getAdminRoomLayout.mockResolvedValue({
       groups: [
         {
           id: 'g1',
@@ -147,7 +147,7 @@ describe('createAdminRoomLayoutAPI', () => {
 
     const api = createAdminRoomLayoutAPI({ baseUrl: '/api/connect', bearerToken: null });
 
-    await expect(api.listAdminRoomLayout()).resolves.toMatchObject([
+    await expect(api.getAdminRoomLayout()).resolves.toMatchObject([
       {
         rooms: [{ id: 'general', description: null, isUniversal: false }],
         items: [{ id: 'room:general', kind: 'room' }]
@@ -238,7 +238,7 @@ describe('createAdminRoomLayoutAPI', () => {
 
   it('routes unauthenticated errors through the server registry', async () => {
     const err = new ConnectError('authentication required', Code.Unauthenticated);
-    mocks.listAdminRoomLayout.mockRejectedValue(err);
+    mocks.getAdminRoomLayout.mockRejectedValue(err);
 
     const api = createAdminRoomLayoutAPI({
       serverId: 'remote',
@@ -246,7 +246,7 @@ describe('createAdminRoomLayoutAPI', () => {
       bearerToken: null
     });
 
-    await expect(api.listAdminRoomLayout()).rejects.toBe(err);
+    await expect(api.getAdminRoomLayout()).rejects.toBe(err);
     expect(mocks.handleAuthenticationRequired).toHaveBeenCalledWith('remote');
   });
 });

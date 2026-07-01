@@ -63,7 +63,7 @@ function makeClient(
     nextResult(mutations.shift() ?? {})
   );
   const client = {
-    listAdminRoomLayout: query,
+    getAdminRoomLayout: query,
     createRoomGroup: vi.fn((input) => mutation('createRoomGroup', input)),
     updateRoomGroup: vi.fn((input) => mutation('updateRoomGroup', input)),
     deleteRoomGroup: vi.fn((groupId) => mutation('deleteRoomGroup', groupId)),
@@ -233,13 +233,13 @@ describe('AdminRoomLayoutStore — loading', () => {
   it('discards stale out-of-order refresh responses', async () => {
     let resolveFirst!: (value: AdminRoomGroup[]) => void;
     let resolveSecond!: (value: AdminRoomGroup[]) => void;
-    const listAdminRoomLayout = vi
+    const getAdminRoomLayout = vi
       .fn()
       .mockImplementationOnce(() => new Promise((resolve) => (resolveFirst = resolve)))
       .mockImplementationOnce(() => new Promise((resolve) => (resolveSecond = resolve)));
     const client = {
       ...makeClient().client,
-      listAdminRoomLayout
+      getAdminRoomLayout
     };
     const store = new AdminRoomLayoutStore(client, roomAPI());
 

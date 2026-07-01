@@ -49,10 +49,10 @@ message AdminRoomLayoutItemInput {
 }
 
 // Request to read the admin room layout.
-message ListAdminRoomLayoutRequest {}
+message GetAdminRoomLayoutRequest {}
 
 // Finite snapshot of the current room layout.
-message ListAdminRoomLayoutResponse {
+message GetAdminRoomLayoutResponse {
   // Room groups in sidebar order.
   repeated AdminRoomLayoutGroup groups = 1;
 }
@@ -223,9 +223,9 @@ message MoveSidebarLinkToGroupResponse {
 
 // Reads authenticated channel layout data and mutates the server-admin layout.
 service AdminRoomLayoutService {
-  // Lists the current room groups, rooms, and sidebar links for the admin
+  // Returns the current room groups, rooms, and sidebar links for the admin
   // layout editor and sidebar rendering. Requires an authenticated user.
-  rpc ListAdminRoomLayout(ListAdminRoomLayoutRequest) returns (ListAdminRoomLayoutResponse);
+  rpc GetAdminRoomLayout(GetAdminRoomLayoutRequest) returns (GetAdminRoomLayoutResponse);
   // Creates a room group. Requires role.manage.
   rpc CreateRoomGroup(CreateRoomGroupRequest) returns (CreateRoomGroupResponse);
   // Updates a room group's metadata. Requires role.manage.

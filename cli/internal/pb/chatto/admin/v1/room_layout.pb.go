@@ -299,26 +299,26 @@ func (x *AdminRoomLayoutItemInput) GetId() string {
 }
 
 // Request to read the admin room layout.
-type ListAdminRoomLayoutRequest struct {
+type GetAdminRoomLayoutRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *ListAdminRoomLayoutRequest) Reset() {
-	*x = ListAdminRoomLayoutRequest{}
+func (x *GetAdminRoomLayoutRequest) Reset() {
+	*x = GetAdminRoomLayoutRequest{}
 	mi := &file_chatto_admin_v1_room_layout_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ListAdminRoomLayoutRequest) String() string {
+func (x *GetAdminRoomLayoutRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ListAdminRoomLayoutRequest) ProtoMessage() {}
+func (*GetAdminRoomLayoutRequest) ProtoMessage() {}
 
-func (x *ListAdminRoomLayoutRequest) ProtoReflect() protoreflect.Message {
+func (x *GetAdminRoomLayoutRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_chatto_admin_v1_room_layout_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -330,13 +330,13 @@ func (x *ListAdminRoomLayoutRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ListAdminRoomLayoutRequest.ProtoReflect.Descriptor instead.
-func (*ListAdminRoomLayoutRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use GetAdminRoomLayoutRequest.ProtoReflect.Descriptor instead.
+func (*GetAdminRoomLayoutRequest) Descriptor() ([]byte, []int) {
 	return file_chatto_admin_v1_room_layout_proto_rawDescGZIP(), []int{3}
 }
 
 // Finite snapshot of the current room layout.
-type ListAdminRoomLayoutResponse struct {
+type GetAdminRoomLayoutResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Room groups in sidebar order.
 	Groups        []*AdminRoomLayoutGroup `protobuf:"bytes,1,rep,name=groups,proto3" json:"groups,omitempty"`
@@ -344,20 +344,20 @@ type ListAdminRoomLayoutResponse struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *ListAdminRoomLayoutResponse) Reset() {
-	*x = ListAdminRoomLayoutResponse{}
+func (x *GetAdminRoomLayoutResponse) Reset() {
+	*x = GetAdminRoomLayoutResponse{}
 	mi := &file_chatto_admin_v1_room_layout_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ListAdminRoomLayoutResponse) String() string {
+func (x *GetAdminRoomLayoutResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ListAdminRoomLayoutResponse) ProtoMessage() {}
+func (*GetAdminRoomLayoutResponse) ProtoMessage() {}
 
-func (x *ListAdminRoomLayoutResponse) ProtoReflect() protoreflect.Message {
+func (x *GetAdminRoomLayoutResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_chatto_admin_v1_room_layout_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -369,12 +369,12 @@ func (x *ListAdminRoomLayoutResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ListAdminRoomLayoutResponse.ProtoReflect.Descriptor instead.
-func (*ListAdminRoomLayoutResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use GetAdminRoomLayoutResponse.ProtoReflect.Descriptor instead.
+func (*GetAdminRoomLayoutResponse) Descriptor() ([]byte, []int) {
 	return file_chatto_admin_v1_room_layout_proto_rawDescGZIP(), []int{4}
 }
 
-func (x *ListAdminRoomLayoutResponse) GetGroups() []*AdminRoomLayoutGroup {
+func (x *GetAdminRoomLayoutResponse) GetGroups() []*AdminRoomLayoutGroup {
 	if x != nil {
 		return x.Groups
 	}
@@ -1409,9 +1409,9 @@ const file_chatto_admin_v1_room_layout_proto_rawDesc = "" +
 	"\x05items\x18\x05 \x03(\v2$.chatto.admin.v1.AdminRoomLayoutItemR\x05items\"{\n" +
 	"\x18AdminRoomLayoutItemInput\x12F\n" +
 	"\x04kind\x18\x01 \x01(\x0e2(.chatto.admin.v1.AdminRoomLayoutItemKindB\b\xbaH\x05\x82\x01\x02\x10\x01R\x04kind\x12\x17\n" +
-	"\x02id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x02id\"\x1c\n" +
-	"\x1aListAdminRoomLayoutRequest\"\\\n" +
-	"\x1bListAdminRoomLayoutResponse\x12=\n" +
+	"\x02id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x02id\"\x1b\n" +
+	"\x19GetAdminRoomLayoutRequest\"[\n" +
+	"\x1aGetAdminRoomLayoutResponse\x12=\n" +
 	"\x06groups\x18\x01 \x03(\v2%.chatto.admin.v1.AdminRoomLayoutGroupR\x06groups\"c\n" +
 	"\x16CreateRoomGroupRequest\x12\x1d\n" +
 	"\x04name\x18\x01 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18PR\x04name\x12*\n" +
@@ -1468,9 +1468,9 @@ const file_chatto_admin_v1_room_layout_proto_rawDesc = "" +
 	"\x17AdminRoomLayoutItemKind\x12+\n" +
 	"'ADMIN_ROOM_LAYOUT_ITEM_KIND_UNSPECIFIED\x10\x00\x12$\n" +
 	" ADMIN_ROOM_LAYOUT_ITEM_KIND_ROOM\x10\x01\x12,\n" +
-	"(ADMIN_ROOM_LAYOUT_ITEM_KIND_SIDEBAR_LINK\x10\x022\xd5\t\n" +
-	"\x16AdminRoomLayoutService\x12p\n" +
-	"\x13ListAdminRoomLayout\x12+.chatto.admin.v1.ListAdminRoomLayoutRequest\x1a,.chatto.admin.v1.ListAdminRoomLayoutResponse\x12d\n" +
+	"(ADMIN_ROOM_LAYOUT_ITEM_KIND_SIDEBAR_LINK\x10\x022\xd2\t\n" +
+	"\x16AdminRoomLayoutService\x12m\n" +
+	"\x12GetAdminRoomLayout\x12*.chatto.admin.v1.GetAdminRoomLayoutRequest\x1a+.chatto.admin.v1.GetAdminRoomLayoutResponse\x12d\n" +
 	"\x0fCreateRoomGroup\x12'.chatto.admin.v1.CreateRoomGroupRequest\x1a(.chatto.admin.v1.CreateRoomGroupResponse\x12d\n" +
 	"\x0fUpdateRoomGroup\x12'.chatto.admin.v1.UpdateRoomGroupRequest\x1a(.chatto.admin.v1.UpdateRoomGroupResponse\x12d\n" +
 	"\x0fDeleteRoomGroup\x12'.chatto.admin.v1.DeleteRoomGroupRequest\x1a(.chatto.admin.v1.DeleteRoomGroupResponse\x12j\n" +
@@ -1502,8 +1502,8 @@ var file_chatto_admin_v1_room_layout_proto_goTypes = []any{
 	(*AdminRoomLayoutItem)(nil),                // 1: chatto.admin.v1.AdminRoomLayoutItem
 	(*AdminRoomLayoutGroup)(nil),               // 2: chatto.admin.v1.AdminRoomLayoutGroup
 	(*AdminRoomLayoutItemInput)(nil),           // 3: chatto.admin.v1.AdminRoomLayoutItemInput
-	(*ListAdminRoomLayoutRequest)(nil),         // 4: chatto.admin.v1.ListAdminRoomLayoutRequest
-	(*ListAdminRoomLayoutResponse)(nil),        // 5: chatto.admin.v1.ListAdminRoomLayoutResponse
+	(*GetAdminRoomLayoutRequest)(nil),          // 4: chatto.admin.v1.GetAdminRoomLayoutRequest
+	(*GetAdminRoomLayoutResponse)(nil),         // 5: chatto.admin.v1.GetAdminRoomLayoutResponse
 	(*CreateRoomGroupRequest)(nil),             // 6: chatto.admin.v1.CreateRoomGroupRequest
 	(*CreateRoomGroupResponse)(nil),            // 7: chatto.admin.v1.CreateRoomGroupResponse
 	(*UpdateRoomGroupRequest)(nil),             // 8: chatto.admin.v1.UpdateRoomGroupRequest
@@ -1533,7 +1533,7 @@ var file_chatto_admin_v1_room_layout_proto_depIdxs = []int32{
 	26, // 2: chatto.admin.v1.AdminRoomLayoutGroup.rooms:type_name -> chatto.api.v1.Room
 	1,  // 3: chatto.admin.v1.AdminRoomLayoutGroup.items:type_name -> chatto.admin.v1.AdminRoomLayoutItem
 	0,  // 4: chatto.admin.v1.AdminRoomLayoutItemInput.kind:type_name -> chatto.admin.v1.AdminRoomLayoutItemKind
-	2,  // 5: chatto.admin.v1.ListAdminRoomLayoutResponse.groups:type_name -> chatto.admin.v1.AdminRoomLayoutGroup
+	2,  // 5: chatto.admin.v1.GetAdminRoomLayoutResponse.groups:type_name -> chatto.admin.v1.AdminRoomLayoutGroup
 	2,  // 6: chatto.admin.v1.CreateRoomGroupResponse.group:type_name -> chatto.admin.v1.AdminRoomLayoutGroup
 	2,  // 7: chatto.admin.v1.UpdateRoomGroupResponse.group:type_name -> chatto.admin.v1.AdminRoomLayoutGroup
 	2,  // 8: chatto.admin.v1.ReorderRoomGroupsResponse.groups:type_name -> chatto.admin.v1.AdminRoomLayoutGroup
@@ -1543,7 +1543,7 @@ var file_chatto_admin_v1_room_layout_proto_depIdxs = []int32{
 	27, // 12: chatto.admin.v1.CreateSidebarLinkResponse.sidebar_link:type_name -> chatto.api.v1.SidebarLink
 	27, // 13: chatto.admin.v1.UpdateSidebarLinkResponse.sidebar_link:type_name -> chatto.api.v1.SidebarLink
 	27, // 14: chatto.admin.v1.MoveSidebarLinkToGroupResponse.sidebar_link:type_name -> chatto.api.v1.SidebarLink
-	4,  // 15: chatto.admin.v1.AdminRoomLayoutService.ListAdminRoomLayout:input_type -> chatto.admin.v1.ListAdminRoomLayoutRequest
+	4,  // 15: chatto.admin.v1.AdminRoomLayoutService.GetAdminRoomLayout:input_type -> chatto.admin.v1.GetAdminRoomLayoutRequest
 	6,  // 16: chatto.admin.v1.AdminRoomLayoutService.CreateRoomGroup:input_type -> chatto.admin.v1.CreateRoomGroupRequest
 	8,  // 17: chatto.admin.v1.AdminRoomLayoutService.UpdateRoomGroup:input_type -> chatto.admin.v1.UpdateRoomGroupRequest
 	10, // 18: chatto.admin.v1.AdminRoomLayoutService.DeleteRoomGroup:input_type -> chatto.admin.v1.DeleteRoomGroupRequest
@@ -1554,7 +1554,7 @@ var file_chatto_admin_v1_room_layout_proto_depIdxs = []int32{
 	20, // 23: chatto.admin.v1.AdminRoomLayoutService.UpdateSidebarLink:input_type -> chatto.admin.v1.UpdateSidebarLinkRequest
 	22, // 24: chatto.admin.v1.AdminRoomLayoutService.DeleteSidebarLink:input_type -> chatto.admin.v1.DeleteSidebarLinkRequest
 	24, // 25: chatto.admin.v1.AdminRoomLayoutService.MoveSidebarLinkToGroup:input_type -> chatto.admin.v1.MoveSidebarLinkToGroupRequest
-	5,  // 26: chatto.admin.v1.AdminRoomLayoutService.ListAdminRoomLayout:output_type -> chatto.admin.v1.ListAdminRoomLayoutResponse
+	5,  // 26: chatto.admin.v1.AdminRoomLayoutService.GetAdminRoomLayout:output_type -> chatto.admin.v1.GetAdminRoomLayoutResponse
 	7,  // 27: chatto.admin.v1.AdminRoomLayoutService.CreateRoomGroup:output_type -> chatto.admin.v1.CreateRoomGroupResponse
 	9,  // 28: chatto.admin.v1.AdminRoomLayoutService.UpdateRoomGroup:output_type -> chatto.admin.v1.UpdateRoomGroupResponse
 	11, // 29: chatto.admin.v1.AdminRoomLayoutService.DeleteRoomGroup:output_type -> chatto.admin.v1.DeleteRoomGroupResponse

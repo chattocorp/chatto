@@ -1596,7 +1596,7 @@ func TestAdminEventLogServiceListsFiltersAndReadsEntries(t *testing.T) {
 	}
 }
 
-func TestAdminRoomLayoutServiceListAdminRoomLayout(t *testing.T) {
+func TestAdminRoomLayoutServiceGetAdminRoomLayout(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	groupID := env.defaultRoomGroupID(t)
 	room := env.createJoinedRoom("layout-room")
@@ -1605,9 +1605,9 @@ func TestAdminRoomLayoutServiceListAdminRoomLayout(t *testing.T) {
 		t.Fatalf("CreateSidebarLink: %v", err)
 	}
 
-	resp, err := env.adminLayout.ListAdminRoomLayout(withCaller(env.ctx, env.viewer), connect.NewRequest(&adminv1.ListAdminRoomLayoutRequest{}))
+	resp, err := env.adminLayout.GetAdminRoomLayout(withCaller(env.ctx, env.viewer), connect.NewRequest(&adminv1.GetAdminRoomLayoutRequest{}))
 	if err != nil {
-		t.Fatalf("ListAdminRoomLayout: %v", err)
+		t.Fatalf("GetAdminRoomLayout: %v", err)
 	}
 
 	group := adminLayoutGroupByID(resp.Msg.GetGroups(), groupID)

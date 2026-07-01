@@ -223,42 +223,42 @@ export class AdminRoomLayoutItemInput extends Message<AdminRoomLayoutItemInput> 
 /**
  * Request to read the admin room layout.
  *
- * @generated from message chatto.admin.v1.ListAdminRoomLayoutRequest
+ * @generated from message chatto.admin.v1.GetAdminRoomLayoutRequest
  */
-export class ListAdminRoomLayoutRequest extends Message<ListAdminRoomLayoutRequest> {
-  constructor(data?: PartialMessage<ListAdminRoomLayoutRequest>) {
+export class GetAdminRoomLayoutRequest extends Message<GetAdminRoomLayoutRequest> {
+  constructor(data?: PartialMessage<GetAdminRoomLayoutRequest>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.admin.v1.ListAdminRoomLayoutRequest";
+  static readonly typeName = "chatto.admin.v1.GetAdminRoomLayoutRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListAdminRoomLayoutRequest {
-    return new ListAdminRoomLayoutRequest().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetAdminRoomLayoutRequest {
+    return new GetAdminRoomLayoutRequest().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListAdminRoomLayoutRequest {
-    return new ListAdminRoomLayoutRequest().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetAdminRoomLayoutRequest {
+    return new GetAdminRoomLayoutRequest().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListAdminRoomLayoutRequest {
-    return new ListAdminRoomLayoutRequest().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetAdminRoomLayoutRequest {
+    return new GetAdminRoomLayoutRequest().fromJsonString(jsonString, options);
   }
 
-  static equals(a: ListAdminRoomLayoutRequest | PlainMessage<ListAdminRoomLayoutRequest> | undefined, b: ListAdminRoomLayoutRequest | PlainMessage<ListAdminRoomLayoutRequest> | undefined): boolean {
-    return proto3.util.equals(ListAdminRoomLayoutRequest, a, b);
+  static equals(a: GetAdminRoomLayoutRequest | PlainMessage<GetAdminRoomLayoutRequest> | undefined, b: GetAdminRoomLayoutRequest | PlainMessage<GetAdminRoomLayoutRequest> | undefined): boolean {
+    return proto3.util.equals(GetAdminRoomLayoutRequest, a, b);
   }
 }
 
 /**
  * Finite snapshot of the current room layout.
  *
- * @generated from message chatto.admin.v1.ListAdminRoomLayoutResponse
+ * @generated from message chatto.admin.v1.GetAdminRoomLayoutResponse
  */
-export class ListAdminRoomLayoutResponse extends Message<ListAdminRoomLayoutResponse> {
+export class GetAdminRoomLayoutResponse extends Message<GetAdminRoomLayoutResponse> {
   /**
    * Room groups in sidebar order.
    *
@@ -266,31 +266,31 @@ export class ListAdminRoomLayoutResponse extends Message<ListAdminRoomLayoutResp
    */
   groups: AdminRoomLayoutGroup[] = [];
 
-  constructor(data?: PartialMessage<ListAdminRoomLayoutResponse>) {
+  constructor(data?: PartialMessage<GetAdminRoomLayoutResponse>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.admin.v1.ListAdminRoomLayoutResponse";
+  static readonly typeName = "chatto.admin.v1.GetAdminRoomLayoutResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "groups", kind: "message", T: AdminRoomLayoutGroup, repeated: true },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListAdminRoomLayoutResponse {
-    return new ListAdminRoomLayoutResponse().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetAdminRoomLayoutResponse {
+    return new GetAdminRoomLayoutResponse().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListAdminRoomLayoutResponse {
-    return new ListAdminRoomLayoutResponse().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetAdminRoomLayoutResponse {
+    return new GetAdminRoomLayoutResponse().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListAdminRoomLayoutResponse {
-    return new ListAdminRoomLayoutResponse().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetAdminRoomLayoutResponse {
+    return new GetAdminRoomLayoutResponse().fromJsonString(jsonString, options);
   }
 
-  static equals(a: ListAdminRoomLayoutResponse | PlainMessage<ListAdminRoomLayoutResponse> | undefined, b: ListAdminRoomLayoutResponse | PlainMessage<ListAdminRoomLayoutResponse> | undefined): boolean {
-    return proto3.util.equals(ListAdminRoomLayoutResponse, a, b);
+  static equals(a: GetAdminRoomLayoutResponse | PlainMessage<GetAdminRoomLayoutResponse> | undefined, b: GetAdminRoomLayoutResponse | PlainMessage<GetAdminRoomLayoutResponse> | undefined): boolean {
+    return proto3.util.equals(GetAdminRoomLayoutResponse, a, b);
   }
 }
 

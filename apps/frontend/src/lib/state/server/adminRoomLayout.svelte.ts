@@ -255,7 +255,7 @@ export class AdminRoomLayoutStore {
     const thisLoad = ++this.#loadId;
     this.isRefreshing = true;
     try {
-      const groups = await this.layoutAPI.listAdminRoomLayout();
+      const groups = await this.layoutAPI.getAdminRoomLayout();
       if (this.#loadId !== thisLoad) return;
 
       this.groups = normalizeGroups(groups);

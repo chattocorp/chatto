@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CreateRoomGroupRequest, CreateRoomGroupResponse, CreateSidebarLinkRequest, CreateSidebarLinkResponse, DeleteRoomGroupRequest, DeleteRoomGroupResponse, DeleteSidebarLinkRequest, DeleteSidebarLinkResponse, ListAdminRoomLayoutRequest, ListAdminRoomLayoutResponse, MoveRoomToGroupRequest, MoveRoomToGroupResponse, MoveSidebarLinkToGroupRequest, MoveSidebarLinkToGroupResponse, ReorderRoomGroupsRequest, ReorderRoomGroupsResponse, ReorderSidebarItemsInGroupRequest, ReorderSidebarItemsInGroupResponse, UpdateRoomGroupRequest, UpdateRoomGroupResponse, UpdateSidebarLinkRequest, UpdateSidebarLinkResponse } from "./room_layout_pb.js";
+import { CreateRoomGroupRequest, CreateRoomGroupResponse, CreateSidebarLinkRequest, CreateSidebarLinkResponse, DeleteRoomGroupRequest, DeleteRoomGroupResponse, DeleteSidebarLinkRequest, DeleteSidebarLinkResponse, GetAdminRoomLayoutRequest, GetAdminRoomLayoutResponse, MoveRoomToGroupRequest, MoveRoomToGroupResponse, MoveSidebarLinkToGroupRequest, MoveSidebarLinkToGroupResponse, ReorderRoomGroupsRequest, ReorderRoomGroupsResponse, ReorderSidebarItemsInGroupRequest, ReorderSidebarItemsInGroupResponse, UpdateRoomGroupRequest, UpdateRoomGroupResponse, UpdateSidebarLinkRequest, UpdateSidebarLinkResponse } from "./room_layout_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -15,15 +15,15 @@ export const AdminRoomLayoutService = {
   typeName: "chatto.admin.v1.AdminRoomLayoutService",
   methods: {
     /**
-     * Lists the current room groups, rooms, and sidebar links for the admin
+     * Returns the current room groups, rooms, and sidebar links for the admin
      * layout editor and sidebar rendering. Requires an authenticated user.
      *
-     * @generated from rpc chatto.admin.v1.AdminRoomLayoutService.ListAdminRoomLayout
+     * @generated from rpc chatto.admin.v1.AdminRoomLayoutService.GetAdminRoomLayout
      */
-    listAdminRoomLayout: {
-      name: "ListAdminRoomLayout",
-      I: ListAdminRoomLayoutRequest,
-      O: ListAdminRoomLayoutResponse,
+    getAdminRoomLayout: {
+      name: "GetAdminRoomLayout",
+      I: GetAdminRoomLayoutRequest,
+      O: GetAdminRoomLayoutResponse,
       kind: MethodKind.Unary,
     },
     /**
