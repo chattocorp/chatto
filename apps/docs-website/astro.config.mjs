@@ -64,11 +64,11 @@ export default defineConfig({
                 {
                   label: "chatto.api.v1",
                   items: [
-                    "reference/connectrpc-api/account",
                     "reference/connectrpc-api/external-identity-flows",
                     "reference/connectrpc-api/external-identities",
                     "reference/connectrpc-api/link-previews",
                     "reference/connectrpc-api/messages",
+                    "reference/connectrpc-api/account",
                     "reference/connectrpc-api/notification-preferences",
                     "reference/connectrpc-api/notifications",
                     "reference/connectrpc-api/push-notifications",

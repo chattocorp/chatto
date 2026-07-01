@@ -23,12 +23,6 @@ const categories = [
     title: 'chatto.api.v1',
     services: [
       {
-        name: 'MyAccountService',
-        slug: 'account',
-        title: 'My Account',
-        description: 'Self-service account, profile, avatar, presence, status, and settings RPCs for the authenticated user.'
-      },
-      {
         name: 'ExternalIdentityFlowService',
         slug: 'external-identity-flows',
         title: 'External Identity Flows',
@@ -51,6 +45,12 @@ const categories = [
         slug: 'messages',
         title: 'Messages',
         description: 'Message creation, editing, deletion, link-preview, attachment, and typing RPCs.'
+      },
+      {
+        name: 'MyAccountService',
+        slug: 'account',
+        title: 'My Account',
+        description: 'Self-service account, profile, avatar, presence, status, and settings RPCs for the authenticated user.'
       },
       {
         name: 'NotificationPreferencesService',
