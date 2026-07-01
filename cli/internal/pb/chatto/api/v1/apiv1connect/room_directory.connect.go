@@ -42,6 +42,9 @@ const (
 	// RoomDirectoryServiceGetRoomProcedure is the fully-qualified name of the RoomDirectoryService's
 	// GetRoom RPC.
 	RoomDirectoryServiceGetRoomProcedure = "/chatto.api.v1.RoomDirectoryService/GetRoom"
+	// RoomDirectoryServiceBatchGetRoomsProcedure is the fully-qualified name of the
+	// RoomDirectoryService's BatchGetRooms RPC.
+	RoomDirectoryServiceBatchGetRoomsProcedure = "/chatto.api.v1.RoomDirectoryService/BatchGetRooms"
 )
 
 // RoomDirectoryServiceClient is a client for the chatto.api.v1.RoomDirectoryService service.
@@ -59,6 +62,11 @@ type RoomDirectoryServiceClient interface {
 	// NOT_FOUND when the room does not exist and PERMISSION_DENIED when the room
 	// exists but is hidden from the caller.
 	GetRoom(context.Context, *connect.Request[v1.GetRoomRequest]) (*connect.Response[v1.GetRoomResponse], error)
+	// Returns visible rooms for a set of stable room IDs. This is a direct
+	// hydration API, so visible archived rooms may be returned. Unknown rooms and
+	// rooms hidden from the caller are omitted. Results preserve first-seen
+	// request order and repeated IDs are de-duplicated.
+	BatchGetRooms(context.Context, *connect.Request[v1.BatchGetRoomsRequest]) (*connect.Response[v1.BatchGetRoomsResponse], error)
 }
 
 // NewRoomDirectoryServiceClient constructs a client for the chatto.api.v1.RoomDirectoryService
@@ -90,6 +98,12 @@ func NewRoomDirectoryServiceClient(httpClient connect.HTTPClient, baseURL string
 			connect.WithSchema(roomDirectoryServiceMethods.ByName("GetRoom")),
 			connect.WithClientOptions(opts...),
 		),
+		batchGetRooms: connect.NewClient[v1.BatchGetRoomsRequest, v1.BatchGetRoomsResponse](
+			httpClient,
+			baseURL+RoomDirectoryServiceBatchGetRoomsProcedure,
+			connect.WithSchema(roomDirectoryServiceMethods.ByName("BatchGetRooms")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -98,6 +112,7 @@ type roomDirectoryServiceClient struct {
 	listRooms      *connect.Client[v1.ListRoomsRequest, v1.ListRoomsResponse]
 	listRoomGroups *connect.Client[v1.ListRoomGroupsRequest, v1.ListRoomGroupsResponse]
 	getRoom        *connect.Client[v1.GetRoomRequest, v1.GetRoomResponse]
+	batchGetRooms  *connect.Client[v1.BatchGetRoomsRequest, v1.BatchGetRoomsResponse]
 }
 
 // ListRooms calls chatto.api.v1.RoomDirectoryService.ListRooms.
@@ -113,6 +128,11 @@ func (c *roomDirectoryServiceClient) ListRoomGroups(ctx context.Context, req *co
 // GetRoom calls chatto.api.v1.RoomDirectoryService.GetRoom.
 func (c *roomDirectoryServiceClient) GetRoom(ctx context.Context, req *connect.Request[v1.GetRoomRequest]) (*connect.Response[v1.GetRoomResponse], error) {
 	return c.getRoom.CallUnary(ctx, req)
+}
+
+// BatchGetRooms calls chatto.api.v1.RoomDirectoryService.BatchGetRooms.
+func (c *roomDirectoryServiceClient) BatchGetRooms(ctx context.Context, req *connect.Request[v1.BatchGetRoomsRequest]) (*connect.Response[v1.BatchGetRoomsResponse], error) {
+	return c.batchGetRooms.CallUnary(ctx, req)
 }
 
 // RoomDirectoryServiceHandler is an implementation of the chatto.api.v1.RoomDirectoryService
@@ -131,6 +151,11 @@ type RoomDirectoryServiceHandler interface {
 	// NOT_FOUND when the room does not exist and PERMISSION_DENIED when the room
 	// exists but is hidden from the caller.
 	GetRoom(context.Context, *connect.Request[v1.GetRoomRequest]) (*connect.Response[v1.GetRoomResponse], error)
+	// Returns visible rooms for a set of stable room IDs. This is a direct
+	// hydration API, so visible archived rooms may be returned. Unknown rooms and
+	// rooms hidden from the caller are omitted. Results preserve first-seen
+	// request order and repeated IDs are de-duplicated.
+	BatchGetRooms(context.Context, *connect.Request[v1.BatchGetRoomsRequest]) (*connect.Response[v1.BatchGetRoomsResponse], error)
 }
 
 // NewRoomDirectoryServiceHandler builds an HTTP handler from the service implementation. It returns
@@ -158,6 +183,12 @@ func NewRoomDirectoryServiceHandler(svc RoomDirectoryServiceHandler, opts ...con
 		connect.WithSchema(roomDirectoryServiceMethods.ByName("GetRoom")),
 		connect.WithHandlerOptions(opts...),
 	)
+	roomDirectoryServiceBatchGetRoomsHandler := connect.NewUnaryHandler(
+		RoomDirectoryServiceBatchGetRoomsProcedure,
+		svc.BatchGetRooms,
+		connect.WithSchema(roomDirectoryServiceMethods.ByName("BatchGetRooms")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/chatto.api.v1.RoomDirectoryService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case RoomDirectoryServiceListRoomsProcedure:
@@ -166,6 +197,8 @@ func NewRoomDirectoryServiceHandler(svc RoomDirectoryServiceHandler, opts ...con
 			roomDirectoryServiceListRoomGroupsHandler.ServeHTTP(w, r)
 		case RoomDirectoryServiceGetRoomProcedure:
 			roomDirectoryServiceGetRoomHandler.ServeHTTP(w, r)
+		case RoomDirectoryServiceBatchGetRoomsProcedure:
+			roomDirectoryServiceBatchGetRoomsHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -185,4 +218,8 @@ func (UnimplementedRoomDirectoryServiceHandler) ListRoomGroups(context.Context, 
 
 func (UnimplementedRoomDirectoryServiceHandler) GetRoom(context.Context, *connect.Request[v1.GetRoomRequest]) (*connect.Response[v1.GetRoomResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.RoomDirectoryService.GetRoom is not implemented"))
+}
+
+func (UnimplementedRoomDirectoryServiceHandler) BatchGetRooms(context.Context, *connect.Request[v1.BatchGetRoomsRequest]) (*connect.Response[v1.BatchGetRoomsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.RoomDirectoryService.BatchGetRooms is not implemented"))
 }

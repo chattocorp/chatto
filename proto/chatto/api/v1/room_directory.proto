@@ -123,6 +123,26 @@ message GetRoomResponse {
   DirectoryRoom room = 1;
 }
 
+// Request visible rooms by stable room ID.
+message BatchGetRoomsRequest {
+  // Required room IDs. Unknown rooms and rooms hidden from the caller are
+  // omitted from the response. Archived rooms may be returned when the caller
+  // can still refresh them directly.
+  repeated string room_ids = 1 [(buf.validate.field).repeated = {
+    min_items: 1
+    max_items: 100
+    items: {
+      string: {min_len: 1}
+    }
+  }];
+}
+
+// Visible room batch response for direct room hydration.
+message BatchGetRoomsResponse {
+  // Resolved rooms in first-seen request order.
+  repeated DirectoryRoom rooms = 1;
+}
+
 // Reads room directory data.
 service RoomDirectoryService {
   // Lists rooms visible to the current user. Channel rooms are non-archived
@@ -138,4 +158,9 @@ service RoomDirectoryService {
   // NOT_FOUND when the room does not exist and PERMISSION_DENIED when the room
   // exists but is hidden from the caller.
   rpc GetRoom(GetRoomRequest) returns (GetRoomResponse);
+  // Returns visible rooms for a set of stable room IDs. This is a direct
+  // hydration API, so visible archived rooms may be returned. Unknown rooms and
+  // rooms hidden from the caller are omitted. Results preserve first-seen
+  // request order and repeated IDs are de-duplicated.
+  rpc BatchGetRooms(BatchGetRoomsRequest) returns (BatchGetRoomsResponse);
 }

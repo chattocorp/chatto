@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package chatto.api.v1;
 
+import "buf/validate/validate.proto";
+
 // Public role metadata used for rendering role mentions, labels, and catalogs.
 message Role {
   // Stable role name used in permission and assignment records.
@@ -27,9 +29,46 @@ message ListRolesResponse {
   repeated Role roles = 1;
 }
 
+// Request one public role by stable role name.
+message GetRoleRequest {
+  // Required stable role name.
+  string name = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+// Public role lookup response.
+message GetRoleResponse {
+  // Requested role.
+  Role role = 1;
+}
+
+// Request public role records for a set of stable role names.
+message BatchGetRolesRequest {
+  // Required role names. Unknown names are omitted from the response.
+  repeated string names = 1 [(buf.validate.field).repeated = {
+    min_items: 1
+    max_items: 100
+    items: {
+      string: {min_len: 1}
+    }
+  }];
+}
+
+// Batch public role response.
+message BatchGetRolesResponse {
+  // Found roles. The server preserves first-seen request order and
+  // de-duplicates repeated names.
+  repeated Role roles = 1;
+}
+
 // Provides authenticated reads for public role metadata.
 service RoleService {
   // Lists the current role catalog as a finite snapshot. Requires an
   // authenticated user.
   rpc ListRoles(ListRolesRequest) returns (ListRolesResponse);
+  // Gets one public role by stable name. Returns NOT_FOUND when the role is
+  // unknown.
+  rpc GetRole(GetRoleRequest) returns (GetRoleResponse);
+  // Gets public role records for multiple role names referenced by member rows,
+  // mentions, or integration clients.
+  rpc BatchGetRoles(BatchGetRolesRequest) returns (BatchGetRolesResponse);
 }

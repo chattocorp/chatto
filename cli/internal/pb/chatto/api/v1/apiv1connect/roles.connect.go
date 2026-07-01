@@ -35,6 +35,11 @@ const (
 const (
 	// RoleServiceListRolesProcedure is the fully-qualified name of the RoleService's ListRoles RPC.
 	RoleServiceListRolesProcedure = "/chatto.api.v1.RoleService/ListRoles"
+	// RoleServiceGetRoleProcedure is the fully-qualified name of the RoleService's GetRole RPC.
+	RoleServiceGetRoleProcedure = "/chatto.api.v1.RoleService/GetRole"
+	// RoleServiceBatchGetRolesProcedure is the fully-qualified name of the RoleService's BatchGetRoles
+	// RPC.
+	RoleServiceBatchGetRolesProcedure = "/chatto.api.v1.RoleService/BatchGetRoles"
 )
 
 // RoleServiceClient is a client for the chatto.api.v1.RoleService service.
@@ -42,6 +47,12 @@ type RoleServiceClient interface {
 	// Lists the current role catalog as a finite snapshot. Requires an
 	// authenticated user.
 	ListRoles(context.Context, *connect.Request[v1.ListRolesRequest]) (*connect.Response[v1.ListRolesResponse], error)
+	// Gets one public role by stable name. Returns NOT_FOUND when the role is
+	// unknown.
+	GetRole(context.Context, *connect.Request[v1.GetRoleRequest]) (*connect.Response[v1.GetRoleResponse], error)
+	// Gets public role records for multiple role names referenced by member rows,
+	// mentions, or integration clients.
+	BatchGetRoles(context.Context, *connect.Request[v1.BatchGetRolesRequest]) (*connect.Response[v1.BatchGetRolesResponse], error)
 }
 
 // NewRoleServiceClient constructs a client for the chatto.api.v1.RoleService service. By default,
@@ -61,12 +72,26 @@ func NewRoleServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(roleServiceMethods.ByName("ListRoles")),
 			connect.WithClientOptions(opts...),
 		),
+		getRole: connect.NewClient[v1.GetRoleRequest, v1.GetRoleResponse](
+			httpClient,
+			baseURL+RoleServiceGetRoleProcedure,
+			connect.WithSchema(roleServiceMethods.ByName("GetRole")),
+			connect.WithClientOptions(opts...),
+		),
+		batchGetRoles: connect.NewClient[v1.BatchGetRolesRequest, v1.BatchGetRolesResponse](
+			httpClient,
+			baseURL+RoleServiceBatchGetRolesProcedure,
+			connect.WithSchema(roleServiceMethods.ByName("BatchGetRoles")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // roleServiceClient implements RoleServiceClient.
 type roleServiceClient struct {
-	listRoles *connect.Client[v1.ListRolesRequest, v1.ListRolesResponse]
+	listRoles     *connect.Client[v1.ListRolesRequest, v1.ListRolesResponse]
+	getRole       *connect.Client[v1.GetRoleRequest, v1.GetRoleResponse]
+	batchGetRoles *connect.Client[v1.BatchGetRolesRequest, v1.BatchGetRolesResponse]
 }
 
 // ListRoles calls chatto.api.v1.RoleService.ListRoles.
@@ -74,11 +99,27 @@ func (c *roleServiceClient) ListRoles(ctx context.Context, req *connect.Request[
 	return c.listRoles.CallUnary(ctx, req)
 }
 
+// GetRole calls chatto.api.v1.RoleService.GetRole.
+func (c *roleServiceClient) GetRole(ctx context.Context, req *connect.Request[v1.GetRoleRequest]) (*connect.Response[v1.GetRoleResponse], error) {
+	return c.getRole.CallUnary(ctx, req)
+}
+
+// BatchGetRoles calls chatto.api.v1.RoleService.BatchGetRoles.
+func (c *roleServiceClient) BatchGetRoles(ctx context.Context, req *connect.Request[v1.BatchGetRolesRequest]) (*connect.Response[v1.BatchGetRolesResponse], error) {
+	return c.batchGetRoles.CallUnary(ctx, req)
+}
+
 // RoleServiceHandler is an implementation of the chatto.api.v1.RoleService service.
 type RoleServiceHandler interface {
 	// Lists the current role catalog as a finite snapshot. Requires an
 	// authenticated user.
 	ListRoles(context.Context, *connect.Request[v1.ListRolesRequest]) (*connect.Response[v1.ListRolesResponse], error)
+	// Gets one public role by stable name. Returns NOT_FOUND when the role is
+	// unknown.
+	GetRole(context.Context, *connect.Request[v1.GetRoleRequest]) (*connect.Response[v1.GetRoleResponse], error)
+	// Gets public role records for multiple role names referenced by member rows,
+	// mentions, or integration clients.
+	BatchGetRoles(context.Context, *connect.Request[v1.BatchGetRolesRequest]) (*connect.Response[v1.BatchGetRolesResponse], error)
 }
 
 // NewRoleServiceHandler builds an HTTP handler from the service implementation. It returns the path
@@ -94,10 +135,26 @@ func NewRoleServiceHandler(svc RoleServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(roleServiceMethods.ByName("ListRoles")),
 		connect.WithHandlerOptions(opts...),
 	)
+	roleServiceGetRoleHandler := connect.NewUnaryHandler(
+		RoleServiceGetRoleProcedure,
+		svc.GetRole,
+		connect.WithSchema(roleServiceMethods.ByName("GetRole")),
+		connect.WithHandlerOptions(opts...),
+	)
+	roleServiceBatchGetRolesHandler := connect.NewUnaryHandler(
+		RoleServiceBatchGetRolesProcedure,
+		svc.BatchGetRoles,
+		connect.WithSchema(roleServiceMethods.ByName("BatchGetRoles")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/chatto.api.v1.RoleService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case RoleServiceListRolesProcedure:
 			roleServiceListRolesHandler.ServeHTTP(w, r)
+		case RoleServiceGetRoleProcedure:
+			roleServiceGetRoleHandler.ServeHTTP(w, r)
+		case RoleServiceBatchGetRolesProcedure:
+			roleServiceBatchGetRolesHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -109,4 +166,12 @@ type UnimplementedRoleServiceHandler struct{}
 
 func (UnimplementedRoleServiceHandler) ListRoles(context.Context, *connect.Request[v1.ListRolesRequest]) (*connect.Response[v1.ListRolesResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.RoleService.ListRoles is not implemented"))
+}
+
+func (UnimplementedRoleServiceHandler) GetRole(context.Context, *connect.Request[v1.GetRoleRequest]) (*connect.Response[v1.GetRoleResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.RoleService.GetRole is not implemented"))
+}
+
+func (UnimplementedRoleServiceHandler) BatchGetRoles(context.Context, *connect.Request[v1.BatchGetRolesRequest]) (*connect.Response[v1.BatchGetRolesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.RoleService.BatchGetRoles is not implemented"))
 }

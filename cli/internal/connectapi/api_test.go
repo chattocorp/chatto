@@ -212,6 +212,48 @@ func TestPrivateHandlersRequireAuth(t *testing.T) {
 	requireConnectCode(t, err, connect.CodeUnauthenticated)
 }
 
+func TestBatchGetResourceRequestsValidateThroughConnectHandlers(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	mux := http.NewServeMux()
+	rolePath, roleHandler := apiv1connect.NewRoleServiceHandler(env.publicRoles, HandlerOptions()...)
+	roomPath, roomHandler := apiv1connect.NewRoomDirectoryServiceHandler(env.directory, HandlerOptions()...)
+	mux.Handle(rolePath, roleHandler)
+	mux.Handle(roomPath, roomHandler)
+	ts := httptest.NewServer(mux)
+	t.Cleanup(ts.Close)
+
+	roles := apiv1connect.NewRoleServiceClient(ts.Client(), ts.URL)
+	rooms := apiv1connect.NewRoomDirectoryServiceClient(ts.Client(), ts.URL)
+
+	if _, err := roles.BatchGetRoles(context.Background(), connect.NewRequest(&apiv1.BatchGetRolesRequest{})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("empty BatchGetRoles code = %v, want invalid_argument", connect.CodeOf(err))
+	}
+	if _, err := roles.BatchGetRoles(context.Background(), connect.NewRequest(&apiv1.BatchGetRolesRequest{Names: []string{""}})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("empty-name BatchGetRoles code = %v, want invalid_argument", connect.CodeOf(err))
+	}
+	tooManyRoleNames := make([]string, 101)
+	for i := range tooManyRoleNames {
+		tooManyRoleNames[i] = fmt.Sprintf("role-%d", i)
+	}
+	if _, err := roles.BatchGetRoles(context.Background(), connect.NewRequest(&apiv1.BatchGetRolesRequest{Names: tooManyRoleNames})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("too-many BatchGetRoles code = %v, want invalid_argument", connect.CodeOf(err))
+	}
+
+	if _, err := rooms.BatchGetRooms(context.Background(), connect.NewRequest(&apiv1.BatchGetRoomsRequest{})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("empty BatchGetRooms code = %v, want invalid_argument", connect.CodeOf(err))
+	}
+	if _, err := rooms.BatchGetRooms(context.Background(), connect.NewRequest(&apiv1.BatchGetRoomsRequest{RoomIds: []string{""}})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("empty-id BatchGetRooms code = %v, want invalid_argument", connect.CodeOf(err))
+	}
+	tooManyRoomIDs := make([]string, 101)
+	for i := range tooManyRoomIDs {
+		tooManyRoomIDs[i] = fmt.Sprintf("room-%d", i)
+	}
+	if _, err := rooms.BatchGetRooms(context.Background(), connect.NewRequest(&apiv1.BatchGetRoomsRequest{RoomIds: tooManyRoomIDs})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("too-many BatchGetRooms code = %v, want invalid_argument", connect.CodeOf(err))
+	}
+}
+
 func TestServerDiscoveryServiceGetServerPublicMetadata(t *testing.T) {
 	api := New(nil, config.ChattoConfig{
 		Auth: config.AuthConfig{
@@ -926,6 +968,12 @@ func TestAdminRoleServiceManagesRoles(t *testing.T) {
 	if _, err := env.publicRoles.ListRoles(env.ctx, connect.NewRequest(&apiv1.ListRolesRequest{})); connect.CodeOf(err) != connect.CodeUnauthenticated {
 		t.Fatalf("unauthenticated public ListRoles code = %v, want unauthenticated", connect.CodeOf(err))
 	}
+	if _, err := env.publicRoles.GetRole(env.ctx, connect.NewRequest(&apiv1.GetRoleRequest{Name: core.RoleEveryone})); connect.CodeOf(err) != connect.CodeUnauthenticated {
+		t.Fatalf("unauthenticated public GetRole code = %v, want unauthenticated", connect.CodeOf(err))
+	}
+	if _, err := env.publicRoles.BatchGetRoles(env.ctx, connect.NewRequest(&apiv1.BatchGetRolesRequest{Names: []string{core.RoleEveryone}})); connect.CodeOf(err) != connect.CodeUnauthenticated {
+		t.Fatalf("unauthenticated public BatchGetRoles code = %v, want unauthenticated", connect.CodeOf(err))
+	}
 
 	publicListResp, err := env.publicRoles.ListRoles(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.ListRolesRequest{}))
 	if err != nil {
@@ -991,6 +1039,25 @@ func TestAdminRoleServiceManagesRoles(t *testing.T) {
 		DisplayName: "Triage",
 	})); err != nil {
 		t.Fatalf("CreateRole triage: %v", err)
+	}
+	publicGetResp, err := env.publicRoles.GetRole(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.GetRoleRequest{Name: "helpdesk"}))
+	if err != nil {
+		t.Fatalf("public GetRole: %v", err)
+	}
+	if got := publicGetResp.Msg.GetRole(); got.GetName() != "helpdesk" || got.GetDisplayName() != "Helpdesk" || !got.GetPingable() {
+		t.Fatalf("public GetRole role = %+v, want helpdesk metadata", got)
+	}
+	if _, err := env.publicRoles.GetRole(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.GetRoleRequest{Name: "missing-role"})); connect.CodeOf(err) != connect.CodeNotFound {
+		t.Fatalf("missing public GetRole code = %v, want not found", connect.CodeOf(err))
+	}
+	publicBatchResp, err := env.publicRoles.BatchGetRoles(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.BatchGetRolesRequest{
+		Names: []string{"helpdesk", "missing-role", core.RoleEveryone, "helpdesk"},
+	}))
+	if err != nil {
+		t.Fatalf("public BatchGetRoles: %v", err)
+	}
+	if got := publicBatchResp.Msg.GetRoles(); len(got) != 2 || got[0].GetName() != "helpdesk" || got[1].GetName() != core.RoleEveryone {
+		t.Fatalf("public BatchGetRoles roles = %+v, want helpdesk,everyone", got)
 	}
 	reorderResp, err := env.roles.ReorderRoles(withCaller(env.ctx, env.viewer), connect.NewRequest(&adminv1.ReorderRolesRequest{
 		RoleNames: []string{"triage", "helpdesk"},
@@ -3011,6 +3078,15 @@ func TestRoomDirectoryServiceListRoomsVisibilityAndDMs(t *testing.T) {
 	if dmRoom.GetViewerState().GetCanJoinRoom() || dmRoom.GetViewerState().GetCanManageRoom() || dmRoom.GetViewerState().GetCanBanRoomMembers() {
 		t.Fatalf("DM viewer state exposes channel-only actions: %+v", dmRoom.GetViewerState())
 	}
+	batchResp, err := env.directory.BatchGetRooms(withCaller(env.ctx, caller), connect.NewRequest(&apiv1.BatchGetRoomsRequest{
+		RoomIds: []string{visible.Id, hidden.Id, dm.Id, visible.Id, "missing-room"},
+	}))
+	if err != nil {
+		t.Fatalf("BatchGetRooms: %v", err)
+	}
+	if got := batchResp.Msg.GetRooms(); len(got) != 2 || got[0].GetRoom().GetId() != visible.Id || got[1].GetRoom().GetId() != dm.Id {
+		t.Fatalf("BatchGetRooms rooms = %+v, want visible,dm", got)
+	}
 
 	outsider, err := env.core.CreateUser(env.ctx, core.SystemActorID, "directory-dm-outsider", "Directory DM Outsider", "password")
 	if err != nil {
@@ -3020,6 +3096,13 @@ func TestRoomDirectoryServiceListRoomsVisibilityAndDMs(t *testing.T) {
 		RoomId: dm.Id,
 	})); connect.CodeOf(err) != connect.CodePermissionDenied {
 		t.Fatalf("outsider GetRoom DM code = %v, want permission denied", connect.CodeOf(err))
+	}
+	outsiderBatchResp, err := env.directory.BatchGetRooms(withCaller(env.ctx, outsider), connect.NewRequest(&apiv1.BatchGetRoomsRequest{RoomIds: []string{dm.Id}}))
+	if err != nil {
+		t.Fatalf("outsider BatchGetRooms DM: %v", err)
+	}
+	if len(outsiderBatchResp.Msg.GetRooms()) != 0 {
+		t.Fatalf("outsider BatchGetRooms DM len = %d, want 0", len(outsiderBatchResp.Msg.GetRooms()))
 	}
 }
 
@@ -3095,6 +3178,15 @@ func TestRoomDirectoryServiceViewerStateMatchesWritePreconditions(t *testing.T) 
 	}))
 	if err != nil {
 		t.Fatalf("GetRoom archived: %v", err)
+	}
+	archivedBatchResp, err := env.directory.BatchGetRooms(withCaller(env.ctx, caller), connect.NewRequest(&apiv1.BatchGetRoomsRequest{
+		RoomIds: []string{memberArchived.Id},
+	}))
+	if err != nil {
+		t.Fatalf("BatchGetRooms archived: %v", err)
+	}
+	if got := archivedBatchResp.Msg.GetRooms(); len(got) != 1 || got[0].GetRoom().GetId() != memberArchived.Id || !got[0].GetRoom().GetArchived() {
+		t.Fatalf("BatchGetRooms archived rooms = %+v, want archived member room", got)
 	}
 	archivedState := archivedResp.Msg.GetRoom().GetViewerState()
 	if !archivedState.GetIsMember() {

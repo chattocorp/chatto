@@ -22,6 +22,45 @@ All public ConnectRPC services live under `proto/chatto/api/v1` and are implemen
 
 `chatto.api.v1` is the broad base API surface for both integrations and the bundled web client. Frontend-used features should stay in this base API when their semantics can be made coherent for external clients. A separate app-specific API namespace is acceptable only for behavior that is inherently tied to one bundled client implementation; those APIs still need enough stability for mixed bundled client/server versions. ADR-045 defines the integration API, bundled app API, and realtime protocol stability tiers.
 
+Public API packages should be resource-complete within their domain. The
+`chatto.api.v1`, `chatto.admin.v1`, and `chatto.realtime.v1` surfaces are not
+shaped only around the bundled frontend's current screens. When Chatto exposes a
+resource publicly, the service should provide the natural public, administrative,
+or realtime operations for that resource unless an operation is intentionally
+unsupported and documented. The absence of a current bundled frontend caller is
+not enough reason to omit a coherent public operation.
+
+Resource-oriented ConnectRPC services should use consistent operation
+vocabulary. The default lifecycle verbs are:
+
+- `List<ResourcePlural>` for paginated or filtered collection reads;
+- `Get<Resource>` for singular lookup by ID or other stable key;
+- `BatchGet<ResourcePlural>` for keyed multi-read when clients commonly need to
+  hydrate references or avoid N+1 request patterns;
+- `Create<Resource>` for creating a resource;
+- `Update<Resource>` for changing mutable resource fields;
+- `Delete<Resource>` for removing, revoking, or permanently deleting a resource
+  when that is the resource's actual lifecycle operation.
+
+Domain verbs remain appropriate when the operation is not a normal CRUD action
+or when the verb captures important authorization, audit, lifecycle, or product
+semantics more clearly than a generic update. Examples include archive/restore,
+join/leave, mark read, ban/unban, reorder, rotate, import/export, and call
+control operations. Even then, method names should establish a repeatable
+pattern for future services instead of mirroring one frontend control.
+
+Public resource messages should be canonical per resource. Add narrower,
+expanded, or package-specific messages only when visibility, security, lifecycle,
+or transport semantics are genuinely different. Prefer returning or embedding
+the canonical resource plus explicit related fields or include maps over
+creating multiple frontend-shaped flavors of the same resource.
+
+Performance is part of the public API shape. Resources that are commonly
+rendered together, referenced from other resources, emitted in realtime events,
+or hydrated by ID should provide either batch lookup methods, documented
+include-map responses, or another bounded fanout pattern so well-behaved clients
+do not need N+1 RPC calls.
+
 Repeated public semantics should use shared protobuf shapes instead of service-local copies. Offset-based list RPCs use `PageRequest page` and return `PageInfo page` unless they need a cursor/window model such as room timeline reads. Singular lookup RPCs return `NOT_FOUND` when the requested resource is absent. Batch/list RPCs may omit missing resources or return empty lists. Optional response fields should represent a successful nullable result, not a hidden not-found status.
 
 Public user-shaped payloads should reuse the narrowest canonical shape that represents their semantics. `User` is the lightweight render/cache identity shape. `UserProfile` adds live presence and custom status for notification and call surfaces. `DirectoryMember`, `ViewerUser`, and `AdminMember` remain separate because they carry directory, self-service, and admin-only fields with different visibility rules.

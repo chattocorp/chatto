@@ -47,6 +47,12 @@ Administrative services should live in `chatto.admin.v1` even when the bundled
 frontend is their first consumer. The project should not move rough edges into
 an app package merely to avoid cleaning the integration surface.
 
+Within each tier, public API design follows the resource-completeness and
+operation-vocabulary rules in ADR-044. The integration, administrative, and
+realtime surfaces should be coherent enough for external clients and future
+contributors to infer where new features belong. A current frontend screen is a
+useful consumer, but it is not the boundary of the API contract.
+
 The integration API follows these rules:
 
 - Field numbers and field types are stable once consumed by generated clients.

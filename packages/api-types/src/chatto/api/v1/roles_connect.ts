@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ListRolesRequest, ListRolesResponse } from "./roles_pb.js";
+import { BatchGetRolesRequest, BatchGetRolesResponse, GetRoleRequest, GetRoleResponse, ListRolesRequest, ListRolesResponse } from "./roles_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -24,6 +24,30 @@ export const RoleService = {
       name: "ListRoles",
       I: ListRolesRequest,
       O: ListRolesResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Gets one public role by stable name. Returns NOT_FOUND when the role is
+     * unknown.
+     *
+     * @generated from rpc chatto.api.v1.RoleService.GetRole
+     */
+    getRole: {
+      name: "GetRole",
+      I: GetRoleRequest,
+      O: GetRoleResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Gets public role records for multiple role names referenced by member rows,
+     * mentions, or integration clients.
+     *
+     * @generated from rpc chatto.api.v1.RoleService.BatchGetRoles
+     */
+    batchGetRoles: {
+      name: "BatchGetRoles",
+      I: BatchGetRolesRequest,
+      O: BatchGetRolesResponse,
       kind: MethodKind.Unary,
     },
   }

@@ -780,6 +780,100 @@ func (x *GetRoomResponse) GetRoom() *DirectoryRoom {
 	return nil
 }
 
+// Request visible rooms by stable room ID.
+type BatchGetRoomsRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Required room IDs. Unknown rooms and rooms hidden from the caller are
+	// omitted from the response. Archived rooms may be returned when the caller
+	// can still refresh them directly.
+	RoomIds       []string `protobuf:"bytes,1,rep,name=room_ids,json=roomIds,proto3" json:"room_ids,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BatchGetRoomsRequest) Reset() {
+	*x = BatchGetRoomsRequest{}
+	mi := &file_chatto_api_v1_room_directory_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BatchGetRoomsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BatchGetRoomsRequest) ProtoMessage() {}
+
+func (x *BatchGetRoomsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_room_directory_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BatchGetRoomsRequest.ProtoReflect.Descriptor instead.
+func (*BatchGetRoomsRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_room_directory_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *BatchGetRoomsRequest) GetRoomIds() []string {
+	if x != nil {
+		return x.RoomIds
+	}
+	return nil
+}
+
+// Visible room batch response for direct room hydration.
+type BatchGetRoomsResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Resolved rooms in first-seen request order.
+	Rooms         []*DirectoryRoom `protobuf:"bytes,1,rep,name=rooms,proto3" json:"rooms,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BatchGetRoomsResponse) Reset() {
+	*x = BatchGetRoomsResponse{}
+	mi := &file_chatto_api_v1_room_directory_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BatchGetRoomsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BatchGetRoomsResponse) ProtoMessage() {}
+
+func (x *BatchGetRoomsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_room_directory_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BatchGetRoomsResponse.ProtoReflect.Descriptor instead.
+func (*BatchGetRoomsResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_room_directory_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *BatchGetRoomsResponse) GetRooms() []*DirectoryRoom {
+	if x != nil {
+		return x.Rooms
+	}
+	return nil
+}
+
 var File_chatto_api_v1_room_directory_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_room_directory_proto_rawDesc = "" +
@@ -828,16 +922,22 @@ const file_chatto_api_v1_room_directory_proto_rawDesc = "" +
 	"\x0eGetRoomRequest\x12 \n" +
 	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\"C\n" +
 	"\x0fGetRoomResponse\x120\n" +
-	"\x04room\x18\x01 \x01(\v2\x1c.chatto.api.v1.DirectoryRoomR\x04room*\x99\x01\n" +
+	"\x04room\x18\x01 \x01(\v2\x1c.chatto.api.v1.DirectoryRoomR\x04room\"C\n" +
+	"\x14BatchGetRoomsRequest\x12+\n" +
+	"\broom_ids\x18\x01 \x03(\tB\x10\xbaH\r\x92\x01\n" +
+	"\b\x01\x10d\"\x04r\x02\x10\x01R\aroomIds\"K\n" +
+	"\x15BatchGetRoomsResponse\x122\n" +
+	"\x05rooms\x18\x01 \x03(\v2\x1c.chatto.api.v1.DirectoryRoomR\x05rooms*\x99\x01\n" +
 	"\x12RoomDirectoryScope\x12$\n" +
 	" ROOM_DIRECTORY_SCOPE_UNSPECIFIED\x10\x00\x12\x1c\n" +
 	"\x18ROOM_DIRECTORY_SCOPE_ALL\x10\x01\x12!\n" +
 	"\x1dROOM_DIRECTORY_SCOPE_CHANNELS\x10\x02\x12\x1c\n" +
-	"\x18ROOM_DIRECTORY_SCOPE_DMS\x10\x032\x8f\x02\n" +
+	"\x18ROOM_DIRECTORY_SCOPE_DMS\x10\x032\xeb\x02\n" +
 	"\x14RoomDirectoryService\x12N\n" +
 	"\tListRooms\x12\x1f.chatto.api.v1.ListRoomsRequest\x1a .chatto.api.v1.ListRoomsResponse\x12]\n" +
 	"\x0eListRoomGroups\x12$.chatto.api.v1.ListRoomGroupsRequest\x1a%.chatto.api.v1.ListRoomGroupsResponse\x12H\n" +
-	"\aGetRoom\x12\x1d.chatto.api.v1.GetRoomRequest\x1a\x1e.chatto.api.v1.GetRoomResponseB\xae\x01\n" +
+	"\aGetRoom\x12\x1d.chatto.api.v1.GetRoomRequest\x1a\x1e.chatto.api.v1.GetRoomResponse\x12Z\n" +
+	"\rBatchGetRooms\x12#.chatto.api.v1.BatchGetRoomsRequest\x1a$.chatto.api.v1.BatchGetRoomsResponseB\xae\x01\n" +
 	"\x11com.chatto.api.v1B\x12RoomDirectoryProtoP\x01Z/hmans.de/chatto/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
 
 var (
@@ -853,7 +953,7 @@ func file_chatto_api_v1_room_directory_proto_rawDescGZIP() []byte {
 }
 
 var file_chatto_api_v1_room_directory_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_chatto_api_v1_room_directory_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
+var file_chatto_api_v1_room_directory_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
 var file_chatto_api_v1_room_directory_proto_goTypes = []any{
 	(RoomDirectoryScope)(0),        // 0: chatto.api.v1.RoomDirectoryScope
 	(*RoomViewerState)(nil),        // 1: chatto.api.v1.RoomViewerState
@@ -867,10 +967,12 @@ var file_chatto_api_v1_room_directory_proto_goTypes = []any{
 	(*ListRoomGroupsResponse)(nil), // 9: chatto.api.v1.ListRoomGroupsResponse
 	(*GetRoomRequest)(nil),         // 10: chatto.api.v1.GetRoomRequest
 	(*GetRoomResponse)(nil),        // 11: chatto.api.v1.GetRoomResponse
-	(*Room)(nil),                   // 12: chatto.api.v1.Room
+	(*BatchGetRoomsRequest)(nil),   // 12: chatto.api.v1.BatchGetRoomsRequest
+	(*BatchGetRoomsResponse)(nil),  // 13: chatto.api.v1.BatchGetRoomsResponse
+	(*Room)(nil),                   // 14: chatto.api.v1.Room
 }
 var file_chatto_api_v1_room_directory_proto_depIdxs = []int32{
-	12, // 0: chatto.api.v1.DirectoryRoom.room:type_name -> chatto.api.v1.Room
+	14, // 0: chatto.api.v1.DirectoryRoom.room:type_name -> chatto.api.v1.Room
 	1,  // 1: chatto.api.v1.DirectoryRoom.viewer_state:type_name -> chatto.api.v1.RoomViewerState
 	2,  // 2: chatto.api.v1.RoomGroupItem.room:type_name -> chatto.api.v1.DirectoryRoom
 	3,  // 3: chatto.api.v1.RoomGroupItem.sidebar_link:type_name -> chatto.api.v1.SidebarLink
@@ -880,17 +982,20 @@ var file_chatto_api_v1_room_directory_proto_depIdxs = []int32{
 	2,  // 7: chatto.api.v1.ListRoomsResponse.rooms:type_name -> chatto.api.v1.DirectoryRoom
 	5,  // 8: chatto.api.v1.ListRoomGroupsResponse.groups:type_name -> chatto.api.v1.RoomGroup
 	2,  // 9: chatto.api.v1.GetRoomResponse.room:type_name -> chatto.api.v1.DirectoryRoom
-	6,  // 10: chatto.api.v1.RoomDirectoryService.ListRooms:input_type -> chatto.api.v1.ListRoomsRequest
-	8,  // 11: chatto.api.v1.RoomDirectoryService.ListRoomGroups:input_type -> chatto.api.v1.ListRoomGroupsRequest
-	10, // 12: chatto.api.v1.RoomDirectoryService.GetRoom:input_type -> chatto.api.v1.GetRoomRequest
-	7,  // 13: chatto.api.v1.RoomDirectoryService.ListRooms:output_type -> chatto.api.v1.ListRoomsResponse
-	9,  // 14: chatto.api.v1.RoomDirectoryService.ListRoomGroups:output_type -> chatto.api.v1.ListRoomGroupsResponse
-	11, // 15: chatto.api.v1.RoomDirectoryService.GetRoom:output_type -> chatto.api.v1.GetRoomResponse
-	13, // [13:16] is the sub-list for method output_type
-	10, // [10:13] is the sub-list for method input_type
-	10, // [10:10] is the sub-list for extension type_name
-	10, // [10:10] is the sub-list for extension extendee
-	0,  // [0:10] is the sub-list for field type_name
+	2,  // 10: chatto.api.v1.BatchGetRoomsResponse.rooms:type_name -> chatto.api.v1.DirectoryRoom
+	6,  // 11: chatto.api.v1.RoomDirectoryService.ListRooms:input_type -> chatto.api.v1.ListRoomsRequest
+	8,  // 12: chatto.api.v1.RoomDirectoryService.ListRoomGroups:input_type -> chatto.api.v1.ListRoomGroupsRequest
+	10, // 13: chatto.api.v1.RoomDirectoryService.GetRoom:input_type -> chatto.api.v1.GetRoomRequest
+	12, // 14: chatto.api.v1.RoomDirectoryService.BatchGetRooms:input_type -> chatto.api.v1.BatchGetRoomsRequest
+	7,  // 15: chatto.api.v1.RoomDirectoryService.ListRooms:output_type -> chatto.api.v1.ListRoomsResponse
+	9,  // 16: chatto.api.v1.RoomDirectoryService.ListRoomGroups:output_type -> chatto.api.v1.ListRoomGroupsResponse
+	11, // 17: chatto.api.v1.RoomDirectoryService.GetRoom:output_type -> chatto.api.v1.GetRoomResponse
+	13, // 18: chatto.api.v1.RoomDirectoryService.BatchGetRooms:output_type -> chatto.api.v1.BatchGetRoomsResponse
+	15, // [15:19] is the sub-list for method output_type
+	11, // [11:15] is the sub-list for method input_type
+	11, // [11:11] is the sub-list for extension type_name
+	11, // [11:11] is the sub-list for extension extendee
+	0,  // [0:11] is the sub-list for field type_name
 }
 
 func init() { file_chatto_api_v1_room_directory_proto_init() }
@@ -909,7 +1014,7 @@ func file_chatto_api_v1_room_directory_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_api_v1_room_directory_proto_rawDesc), len(file_chatto_api_v1_room_directory_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   11,
+			NumMessages:   13,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
@@ -105,6 +106,10 @@ func (s *RoomDirectoryReadModel) GetRoom(ctx context.Context, actorID, roomID st
 	if err := requireAuthenticatedActor(actorID); err != nil {
 		return nil, err
 	}
+	return s.getRoom(ctx, actorID, roomID)
+}
+
+func (s *RoomDirectoryReadModel) getRoom(ctx context.Context, actorID, roomID string) (*DirectoryRoom, error) {
 	room, err := s.core.FindRoomByID(ctx, roomID)
 	if err != nil {
 		return nil, err
@@ -118,6 +123,31 @@ func (s *RoomDirectoryReadModel) GetRoom(ctx context.Context, actorID, roomID st
 		return nil, ErrPermissionDenied
 	}
 	return s.directoryRoom(ctx, actorID, room)
+}
+
+func (s *RoomDirectoryReadModel) BatchGetRooms(ctx context.Context, actorID string, roomIDs []string) ([]*DirectoryRoom, error) {
+	if err := requireAuthenticatedActor(actorID); err != nil {
+		return nil, err
+	}
+
+	seen := make(map[string]struct{}, len(roomIDs))
+	rooms := make([]*DirectoryRoom, 0, len(roomIDs))
+	for _, roomID := range roomIDs {
+		if _, ok := seen[roomID]; ok {
+			continue
+		}
+		seen[roomID] = struct{}{}
+
+		room, err := s.getRoom(ctx, actorID, roomID)
+		if err != nil {
+			if errors.Is(err, ErrNotFound) || errors.Is(err, ErrPermissionDenied) {
+				continue
+			}
+			return nil, err
+		}
+		rooms = append(rooms, room)
+	}
+	return rooms, nil
 }
 
 func (s *RoomDirectoryReadModel) JoinGroup(ctx context.Context, actorID, groupID string) ([]string, error) {

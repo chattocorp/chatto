@@ -653,3 +653,87 @@ export class GetRoomResponse extends Message<GetRoomResponse> {
     return proto3.util.equals(GetRoomResponse, a, b);
   }
 }
+
+/**
+ * Request visible rooms by stable room ID.
+ *
+ * @generated from message chatto.api.v1.BatchGetRoomsRequest
+ */
+export class BatchGetRoomsRequest extends Message<BatchGetRoomsRequest> {
+  /**
+   * Required room IDs. Unknown rooms and rooms hidden from the caller are
+   * omitted from the response. Archived rooms may be returned when the caller
+   * can still refresh them directly.
+   *
+   * @generated from field: repeated string room_ids = 1;
+   */
+  roomIds: string[] = [];
+
+  constructor(data?: PartialMessage<BatchGetRoomsRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.BatchGetRoomsRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "room_ids", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BatchGetRoomsRequest {
+    return new BatchGetRoomsRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): BatchGetRoomsRequest {
+    return new BatchGetRoomsRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): BatchGetRoomsRequest {
+    return new BatchGetRoomsRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: BatchGetRoomsRequest | PlainMessage<BatchGetRoomsRequest> | undefined, b: BatchGetRoomsRequest | PlainMessage<BatchGetRoomsRequest> | undefined): boolean {
+    return proto3.util.equals(BatchGetRoomsRequest, a, b);
+  }
+}
+
+/**
+ * Visible room batch response for direct room hydration.
+ *
+ * @generated from message chatto.api.v1.BatchGetRoomsResponse
+ */
+export class BatchGetRoomsResponse extends Message<BatchGetRoomsResponse> {
+  /**
+   * Resolved rooms in first-seen request order.
+   *
+   * @generated from field: repeated chatto.api.v1.DirectoryRoom rooms = 1;
+   */
+  rooms: DirectoryRoom[] = [];
+
+  constructor(data?: PartialMessage<BatchGetRoomsResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.BatchGetRoomsResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "rooms", kind: "message", T: DirectoryRoom, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BatchGetRoomsResponse {
+    return new BatchGetRoomsResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): BatchGetRoomsResponse {
+    return new BatchGetRoomsResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): BatchGetRoomsResponse {
+    return new BatchGetRoomsResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: BatchGetRoomsResponse | PlainMessage<BatchGetRoomsResponse> | undefined, b: BatchGetRoomsResponse | PlainMessage<BatchGetRoomsResponse> | undefined): boolean {
+    return proto3.util.equals(BatchGetRoomsResponse, a, b);
+  }
+}

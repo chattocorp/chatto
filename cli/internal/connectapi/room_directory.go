@@ -66,6 +66,24 @@ func (s *roomDirectoryService) GetRoom(ctx context.Context, req *connect.Request
 	return connect.NewResponse(&apiv1.GetRoomResponse{Room: apiDirectoryRoom(room)}), nil
 }
 
+func (s *roomDirectoryService) BatchGetRooms(ctx context.Context, req *connect.Request[apiv1.BatchGetRoomsRequest]) (*connect.Response[apiv1.BatchGetRoomsResponse], error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	rooms, err := s.api.core.RoomDirectoryReads().BatchGetRooms(ctx, caller.UserID, req.Msg.GetRoomIds())
+	if err != nil {
+		return nil, connectError(err)
+	}
+
+	apiRooms := make([]*apiv1.DirectoryRoom, 0, len(rooms))
+	for _, room := range rooms {
+		apiRooms = append(apiRooms, apiDirectoryRoom(room))
+	}
+	return connect.NewResponse(&apiv1.BatchGetRoomsResponse{Rooms: apiRooms}), nil
+}
+
 func apiDirectoryRoom(room *core.DirectoryRoom) *apiv1.DirectoryRoom {
 	if room == nil {
 		return nil

@@ -160,3 +160,168 @@ export class ListRolesResponse extends Message<ListRolesResponse> {
     return proto3.util.equals(ListRolesResponse, a, b);
   }
 }
+
+/**
+ * Request one public role by stable role name.
+ *
+ * @generated from message chatto.api.v1.GetRoleRequest
+ */
+export class GetRoleRequest extends Message<GetRoleRequest> {
+  /**
+   * Required stable role name.
+   *
+   * @generated from field: string name = 1;
+   */
+  name = "";
+
+  constructor(data?: PartialMessage<GetRoleRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.GetRoleRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetRoleRequest {
+    return new GetRoleRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetRoleRequest {
+    return new GetRoleRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetRoleRequest {
+    return new GetRoleRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetRoleRequest | PlainMessage<GetRoleRequest> | undefined, b: GetRoleRequest | PlainMessage<GetRoleRequest> | undefined): boolean {
+    return proto3.util.equals(GetRoleRequest, a, b);
+  }
+}
+
+/**
+ * Public role lookup response.
+ *
+ * @generated from message chatto.api.v1.GetRoleResponse
+ */
+export class GetRoleResponse extends Message<GetRoleResponse> {
+  /**
+   * Requested role.
+   *
+   * @generated from field: chatto.api.v1.Role role = 1;
+   */
+  role?: Role;
+
+  constructor(data?: PartialMessage<GetRoleResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.GetRoleResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "role", kind: "message", T: Role },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetRoleResponse {
+    return new GetRoleResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetRoleResponse {
+    return new GetRoleResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetRoleResponse {
+    return new GetRoleResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetRoleResponse | PlainMessage<GetRoleResponse> | undefined, b: GetRoleResponse | PlainMessage<GetRoleResponse> | undefined): boolean {
+    return proto3.util.equals(GetRoleResponse, a, b);
+  }
+}
+
+/**
+ * Request public role records for a set of stable role names.
+ *
+ * @generated from message chatto.api.v1.BatchGetRolesRequest
+ */
+export class BatchGetRolesRequest extends Message<BatchGetRolesRequest> {
+  /**
+   * Required role names. Unknown names are omitted from the response.
+   *
+   * @generated from field: repeated string names = 1;
+   */
+  names: string[] = [];
+
+  constructor(data?: PartialMessage<BatchGetRolesRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.BatchGetRolesRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "names", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BatchGetRolesRequest {
+    return new BatchGetRolesRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): BatchGetRolesRequest {
+    return new BatchGetRolesRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): BatchGetRolesRequest {
+    return new BatchGetRolesRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: BatchGetRolesRequest | PlainMessage<BatchGetRolesRequest> | undefined, b: BatchGetRolesRequest | PlainMessage<BatchGetRolesRequest> | undefined): boolean {
+    return proto3.util.equals(BatchGetRolesRequest, a, b);
+  }
+}
+
+/**
+ * Batch public role response.
+ *
+ * @generated from message chatto.api.v1.BatchGetRolesResponse
+ */
+export class BatchGetRolesResponse extends Message<BatchGetRolesResponse> {
+  /**
+   * Found roles. The server preserves first-seen request order and
+   * de-duplicates repeated names.
+   *
+   * @generated from field: repeated chatto.api.v1.Role roles = 1;
+   */
+  roles: Role[] = [];
+
+  constructor(data?: PartialMessage<BatchGetRolesResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.BatchGetRolesResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "roles", kind: "message", T: Role, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BatchGetRolesResponse {
+    return new BatchGetRolesResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): BatchGetRolesResponse {
+    return new BatchGetRolesResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): BatchGetRolesResponse {
+    return new BatchGetRolesResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: BatchGetRolesResponse | PlainMessage<BatchGetRolesResponse> | undefined, b: BatchGetRolesResponse | PlainMessage<BatchGetRolesResponse> | undefined): boolean {
+    return proto3.util.equals(BatchGetRolesResponse, a, b);
+  }
+}

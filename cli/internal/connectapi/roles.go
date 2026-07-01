@@ -2,6 +2,7 @@ package connectapi
 
 import (
 	"context"
+	"errors"
 
 	"connectrpc.com/connect"
 	"hmans.de/chatto/internal/core"
@@ -29,6 +30,45 @@ func (s *publicRoleService) ListRoles(ctx context.Context, _ *connect.Request[ap
 	return connect.NewResponse(&apiv1.ListRolesResponse{
 		Roles: publicAPIRoles(catalog.Roles),
 	}), nil
+}
+
+func (s *publicRoleService) GetRole(ctx context.Context, req *connect.Request[apiv1.GetRoleRequest]) (*connect.Response[apiv1.GetRoleResponse], error) {
+	if _, err := requireCaller(ctx); err != nil {
+		return nil, err
+	}
+	if req.Msg.GetName() == "" {
+		return nil, invalidArgument("name is required")
+	}
+	role, err := s.api.core.GetServerRole(ctx, req.Msg.GetName())
+	if err != nil {
+		return nil, connectError(err)
+	}
+	return connect.NewResponse(&apiv1.GetRoleResponse{Role: publicAPIRole(role)}), nil
+}
+
+func (s *publicRoleService) BatchGetRoles(ctx context.Context, req *connect.Request[apiv1.BatchGetRolesRequest]) (*connect.Response[apiv1.BatchGetRolesResponse], error) {
+	if _, err := requireCaller(ctx); err != nil {
+		return nil, err
+	}
+
+	seen := make(map[string]struct{}, len(req.Msg.GetNames()))
+	roles := make([]*apiv1.Role, 0, len(req.Msg.GetNames()))
+	for _, name := range req.Msg.GetNames() {
+		if _, ok := seen[name]; ok {
+			continue
+		}
+		seen[name] = struct{}{}
+
+		role, err := s.api.core.GetServerRole(ctx, name)
+		if err != nil {
+			if errors.Is(err, core.ErrRoleNotFound) {
+				continue
+			}
+			return nil, connectError(err)
+		}
+		roles = append(roles, publicAPIRole(role))
+	}
+	return connect.NewResponse(&apiv1.BatchGetRolesResponse{Roles: roles}), nil
 }
 
 func (s *roleService) ListRoles(ctx context.Context, _ *connect.Request[adminv1.ListRolesRequest]) (*connect.Response[adminv1.ListRolesResponse], error) {

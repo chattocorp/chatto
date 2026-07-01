@@ -117,3 +117,38 @@ Room visible to the current user.
 | Field | Type | Description |
 | --- | --- | --- |
 | `room` | [`DirectoryRoom`](/reference/connectrpc-api/types/#chatto-api-v1-DirectoryRoom) | Resolved room and viewer state. |
+
+
+<a id="chatto-api-v1-RoomDirectoryService-BatchGetRooms"></a>
+
+### BatchGetRooms
+
+Returns visible rooms for a set of stable room IDs. This is a direct
+hydration API, so visible archived rooms may be returned. Unknown rooms and
+rooms hidden from the caller are omitted. Results preserve first-seen
+request order and repeated IDs are de-duplicated.
+
+```http
+POST /api/connect/chatto.api.v1.RoomDirectoryService/BatchGetRooms
+```
+
+<a id="chatto-api-v1-BatchGetRoomsRequest"></a>
+
+#### Input: BatchGetRoomsRequest
+
+Request visible rooms by stable room ID.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_ids` | `repeated string` | Required room IDs. Unknown rooms and rooms hidden from the caller are omitted from the response. Archived rooms may be returned when the caller can still refresh them directly. |
+
+
+<a id="chatto-api-v1-BatchGetRoomsResponse"></a>
+
+#### Result: BatchGetRoomsResponse
+
+Visible room batch response for direct room hydration.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `rooms` | repeated [`DirectoryRoom`](/reference/connectrpc-api/types/#chatto-api-v1-DirectoryRoom) | Resolved rooms in first-seen request order. |

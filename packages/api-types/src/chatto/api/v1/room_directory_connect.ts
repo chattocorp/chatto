@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetRoomRequest, GetRoomResponse, ListRoomGroupsRequest, ListRoomGroupsResponse, ListRoomsRequest, ListRoomsResponse } from "./room_directory_pb.js";
+import { BatchGetRoomsRequest, BatchGetRoomsResponse, GetRoomRequest, GetRoomResponse, ListRoomGroupsRequest, ListRoomGroupsResponse, ListRoomsRequest, ListRoomsResponse } from "./room_directory_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -52,6 +52,20 @@ export const RoomDirectoryService = {
       name: "GetRoom",
       I: GetRoomRequest,
       O: GetRoomResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Returns visible rooms for a set of stable room IDs. This is a direct
+     * hydration API, so visible archived rooms may be returned. Unknown rooms and
+     * rooms hidden from the caller are omitted. Results preserve first-seen
+     * request order and repeated IDs are de-duplicated.
+     *
+     * @generated from rpc chatto.api.v1.RoomDirectoryService.BatchGetRooms
+     */
+    batchGetRooms: {
+      name: "BatchGetRooms",
+      I: BatchGetRoomsRequest,
+      O: BatchGetRoomsResponse,
       kind: MethodKind.Unary,
     },
   }
