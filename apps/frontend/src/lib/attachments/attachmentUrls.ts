@@ -22,7 +22,7 @@ export type AttachmentThumbnailRefreshOptions = {
 export const DEFAULT_ATTACHMENT_THUMBNAIL_REFRESH: AttachmentThumbnailRefreshOptions = {
   width: 960,
   height: 800,
-  fit: FitMode.Cover
+  fit: FitMode.Contain
 };
 
 export const ASSET_URL_REFRESH_LEAD_MS = 2 * 60_000;

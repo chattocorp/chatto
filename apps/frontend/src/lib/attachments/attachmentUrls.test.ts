@@ -69,7 +69,7 @@ describe('refreshAttachmentUrlsForMessage', () => {
     expect(refreshMessageAttachmentUrls).toHaveBeenCalledWith('room_1', 'event_1', {
       width: 960,
       height: 800,
-      fit: FitMode.Cover
+      fit: FitMode.Contain
     });
     expect(urls.get('att_1')?.assetUrl.url).toBe('https://cdn.example.com/fresh-1.jpg');
     expect(urls.get('att_1')?.videoThumbnailAssetUrl?.url).toBe(

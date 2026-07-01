@@ -65,38 +65,40 @@ function imageFrame(container: HTMLElement, filename: string) {
 }
 
 describe('MessageAttachments', () => {
-  it('renders extreme portrait images in a cropped portrait thumbnail frame', () => {
+  it('renders very tall portrait images as contained narrow strips', () => {
     const { container } = renderAttachment(
       imageAttachment({
-        filename: 'portrait.jpg',
+        filename: 'tall.jpg',
         width: 320,
-        height: 1200
+        height: 1600
       })
     );
 
-    const { image, button } = imageFrame(container, 'portrait.jpg');
+    const { image, button } = imageFrame(container, 'tall.jpg');
 
-    expect(button.getAttribute('style')).toContain('width: 320px');
-    expect(button.getAttribute('style')).toContain('aspect-ratio: 320 / 400');
-    expect(image.className).toContain('object-cover');
+    expect(button.getAttribute('style')).toContain('width: 40px');
+    expect(button.getAttribute('style')).toContain('aspect-ratio: 40 / 200');
+    expect(image.className).toContain('object-contain');
+    expect(image.className).not.toContain('object-cover');
     expect(image.className).toContain('h-full');
     expect(image.className).toContain('w-full');
   });
 
-  it('renders extreme landscape images in a cropped landscape thumbnail frame', () => {
+  it('renders ultra-wide landscape images as contained shallow strips', () => {
     const { container } = renderAttachment(
       imageAttachment({
-        filename: 'landscape.jpg',
-        width: 1200,
-        height: 320
+        filename: 'ultra-wide.jpg',
+        width: 2000,
+        height: 100
       })
     );
 
-    const { image, button } = imageFrame(container, 'landscape.jpg');
+    const { image, button } = imageFrame(container, 'ultra-wide.jpg');
 
     expect(button.getAttribute('style')).toContain('width: 480px');
-    expect(button.getAttribute('style')).toContain('aspect-ratio: 480 / 320');
-    expect(image.className).toContain('object-cover');
+    expect(button.getAttribute('style')).toContain('aspect-ratio: 480 / 24');
+    expect(image.className).toContain('object-contain');
+    expect(image.className).not.toContain('object-cover');
     expect(image.className).toContain('h-full');
     expect(image.className).toContain('w-full');
   });

@@ -159,7 +159,7 @@ describe('createAttachmentAPI', () => {
           new RefreshedAttachmentUrls({
             attachmentId: 'att_1',
             assetUrl: assetUrl('/assets/files/att_1?fresh=1'),
-            thumbnailAssetUrl: assetUrl('/assets/files/att_1/image/960x800/cover?fresh=1'),
+            thumbnailAssetUrl: assetUrl('/assets/files/att_1/image/960x800/contain?fresh=1'),
             videoThumbnailAssetUrl: assetUrl('/assets/files/thumb?fresh=1'),
             variants: [
               new RoomTimelineVideoVariant({
@@ -183,14 +183,14 @@ describe('createAttachmentAPI', () => {
     const urls = await api.refreshMessageAttachmentUrls('room_1', 'event_1', {
       width: 960,
       height: 800,
-      fit: FitMode.Cover
+      fit: FitMode.Contain
     });
 
     expect(mocks.refreshMessageAttachmentUrls).toHaveBeenCalledWith(
       {
         roomId: 'room_1',
         eventId: 'event_1',
-        thumbnail: { width: 960, height: 800, fit: AttachmentFitMode.COVER }
+        thumbnail: { width: 960, height: 800, fit: AttachmentFitMode.CONTAIN }
       },
       { headers: undefined }
     );

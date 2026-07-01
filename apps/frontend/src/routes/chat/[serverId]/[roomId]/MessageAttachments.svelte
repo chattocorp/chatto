@@ -128,26 +128,34 @@
   const LANDSCAPE_THUMB_MAX_WIDTH = 480;
   const LANDSCAPE_THUMB_MAX_HEIGHT = 320;
   const PORTRAIT_THUMB_MAX_WIDTH = 320;
-  const PORTRAIT_THUMB_MAX_HEIGHT = 400;
+  const PORTRAIT_THUMB_MAX_HEIGHT = 200;
 
-  function thumbSize(w: number, h: number) {
+  function fitThumbWithinBounds(
+    w: number,
+    h: number,
+    maxW: number,
+    maxH: number,
+    fit: 'cover' | 'contain'
+  ) {
+    const scale = Math.min(maxW / w, maxH / h, 1);
+    return {
+      width: Math.max(Math.round(w * scale), MIN_THUMB_SIZE),
+      height: Math.max(Math.round(h * scale), MIN_THUMB_SIZE),
+      fit
+    };
+  }
+
+  function thumbDisplay(w: number, h: number) {
     const isLandscape = w > h;
     const aspectRatio = w / h;
     const maxW = isLandscape ? LANDSCAPE_THUMB_MAX_WIDTH : PORTRAIT_THUMB_MAX_WIDTH;
     const maxH = isLandscape ? LANDSCAPE_THUMB_MAX_HEIGHT : PORTRAIT_THUMB_MAX_HEIGHT;
 
-    if (aspectRatio >= EXTREME_ASPECT_RATIO || aspectRatio <= 1 / EXTREME_ASPECT_RATIO) {
-      return {
-        width: maxW,
-        height: maxH
-      };
-    }
-
-    const scale = Math.min(maxW / w, maxH / h, 1);
-    return {
-      width: Math.max(Math.round(w * scale), MIN_THUMB_SIZE),
-      height: Math.max(Math.round(h * scale), MIN_THUMB_SIZE)
-    };
+    const fit =
+      aspectRatio >= EXTREME_ASPECT_RATIO || aspectRatio <= 1 / EXTREME_ASPECT_RATIO
+        ? 'contain'
+        : 'cover';
+    return fitThumbWithinBounds(w, h, maxW, maxH, fit);
   }
 
   const imageAttachments = $derived(attachments.filter((a) => a.contentType.startsWith('image/')));
@@ -344,9 +352,9 @@
           {/if}
         </div>
       {:else if attachment.contentType.startsWith('image/')}
-        {@const size =
+        {@const display =
           attachment.width && attachment.height
-            ? thumbSize(attachment.width, attachment.height)
+            ? thumbDisplay(attachment.width, attachment.height)
             : null}
         <button
           type="button"
@@ -354,17 +362,20 @@
           aria-label={m['room.attachment.view_label']({ filename: attachment.filename })}
           class={[
             'group/attachment relative embed-frame block min-w-0 cursor-pointer',
-            !size && 'max-h-64'
+            !display && 'max-h-32'
           ]}
-          style={size
-            ? `width: ${size.width}px; max-width: 100%; aspect-ratio: ${size.width} / ${size.height}`
+          style={display
+            ? `width: ${display.width}px; max-width: 100%; aspect-ratio: ${display.width} / ${display.height}`
             : undefined}
         >
           <SkeletonImg
             loading="lazy"
             src={attachment.thumbnailUrl ?? attachment.url}
             alt={attachment.filename}
-            class={['object-cover', size ? 'h-full w-full' : 'max-h-64 w-auto']}
+            class={[
+              display?.fit === 'contain' ? 'object-contain' : 'object-cover',
+              display ? 'h-full w-full' : 'max-h-32 w-auto'
+            ]}
             onerror={() =>
               refreshAfterAssetError(attachment, attachment.thumbnailUrl ? 'thumbnail' : 'asset')}
           />

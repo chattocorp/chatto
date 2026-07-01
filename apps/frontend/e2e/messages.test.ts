@@ -1,8 +1,83 @@
 import { expect } from '@playwright/test';
+import sharp from 'sharp';
 import { TIMEOUTS } from './constants';
 import { test } from './setup';
 import { createAndLoginTestUser } from './fixtures/testUser';
 import { withServerUser } from './fixtures/serverUser';
+import type { MessageComponent, RoomPage } from './pages';
+
+type GeneratedImageAttachment = {
+  width: number;
+  height: number;
+  filename: string;
+  textPrefix: string;
+};
+
+async function sendGeneratedImageAttachment(
+  roomPage: RoomPage,
+  { width, height, filename, textPrefix }: GeneratedImageAttachment
+): Promise<MessageComponent> {
+  const image = await sharp({
+    create: {
+      width,
+      height,
+      channels: 3,
+      background: { r: 220, g: 224, b: 232 }
+    }
+  })
+    .png()
+    .toBuffer();
+  const text = `${textPrefix} ${Date.now()}`;
+
+  await roomPage.fileInput.setInputFiles({
+    name: filename,
+    mimeType: 'image/png',
+    buffer: image
+  });
+  await expect(roomPage.attachmentPreview).toBeVisible();
+  await roomPage.waitForInputEditable();
+  await roomPage.messageInput.fill(text);
+  await roomPage.messageInput.press('Enter');
+  await expect(roomPage.attachmentPreview).not.toBeVisible();
+
+  const message = roomPage.getMessage(text);
+  await expect(message.locator).toBeVisible({ timeout: TIMEOUTS.UI_FAST });
+  return message;
+}
+
+async function expectContainedAttachmentThumbnail(
+  message: MessageComponent,
+  {
+    maxHeight,
+    minWidthToHeightRatio,
+    minHeightToWidthRatio
+  }: {
+    maxHeight: number;
+    minWidthToHeightRatio?: number;
+    minHeightToWidthRatio?: number;
+  }
+) {
+  const thumbnailButton = message.locator.locator('button[aria-label^="View"]').first();
+  const thumbnailImage = thumbnailButton.locator('img').first();
+  await expect(thumbnailImage).toBeVisible({ timeout: TIMEOUTS.COMPLEX_OPERATION });
+
+  await expect.poll(() => thumbnailImage.evaluate((img) => getComputedStyle(img).objectFit)).toBe(
+    'contain'
+  );
+
+  const buttonBox = await thumbnailButton.boundingBox();
+  const messageBox = await message.locator.boundingBox();
+  expect(buttonBox).not.toBeNull();
+  expect(messageBox).not.toBeNull();
+  expect(buttonBox!.width).toBeLessThanOrEqual(messageBox!.width);
+  expect(buttonBox!.height).toBeLessThanOrEqual(maxHeight);
+  if (minWidthToHeightRatio !== undefined) {
+    expect(buttonBox!.width / buttonBox!.height).toBeGreaterThan(minWidthToHeightRatio);
+  }
+  if (minHeightToWidthRatio !== undefined) {
+    expect(buttonBox!.height / buttonBox!.width).toBeGreaterThan(minHeightToWidthRatio);
+  }
+}
 
 test('consecutive messages from same user are grouped', async ({ page, chatPage, roomPage }) => {
   const testUser = await createAndLoginTestUser(page);
@@ -182,6 +257,48 @@ test('image attachment respects container width on narrow viewport', async ({
   expect(imageBox).not.toBeNull();
   expect(containerBox).not.toBeNull();
   expect(imageBox!.width).toBeLessThanOrEqual(containerBox!.width);
+});
+
+test('ultra-wide image attachment renders as a shallow contained thumbnail', async ({
+  page,
+  chatPage,
+  roomPage
+}) => {
+  await createAndLoginTestUser(page);
+  await chatPage.goto();
+  await chatPage.enterRoom('general');
+
+  const message = await sendGeneratedImageAttachment(roomPage, {
+    width: 2000,
+    height: 100,
+    filename: 'ultra-wide.png',
+    textPrefix: 'Ultra-wide image'
+  });
+  await expectContainedAttachmentThumbnail(message, {
+    maxHeight: 50,
+    minWidthToHeightRatio: 8
+  });
+});
+
+test('very tall image attachment renders as a narrow contained thumbnail', async ({
+  page,
+  chatPage,
+  roomPage
+}) => {
+  await createAndLoginTestUser(page);
+  await chatPage.goto();
+  await chatPage.enterRoom('general');
+
+  const message = await sendGeneratedImageAttachment(roomPage, {
+    width: 100,
+    height: 2000,
+    filename: 'very-tall.png',
+    textPrefix: 'Tall image'
+  });
+  await expectContainedAttachmentThumbnail(message, {
+    maxHeight: 205,
+    minHeightToWidthRatio: 8
+  });
 });
 
 test('room scrolls to bottom on load even with slow-loading images', async ({
