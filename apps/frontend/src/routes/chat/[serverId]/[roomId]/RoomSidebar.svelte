@@ -276,7 +276,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
       {/if}
       {#if showCallFullscreenButton}
         <HeaderIconButton
-          icon="uil--window-maximize"
+          icon={fullscreenElement === sidebarElement ? 'mdi--fullscreen-exit' : 'mdi--fullscreen'}
           label={fullscreenElement === sidebarElement
             ? m['voice.exit_fullscreen_call']()
             : m['voice.fullscreen_call']()}

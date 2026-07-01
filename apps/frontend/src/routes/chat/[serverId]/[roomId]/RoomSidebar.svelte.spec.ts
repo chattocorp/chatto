@@ -939,7 +939,7 @@ describe('RoomSidebar', () => {
     const localMuteButton = q(featured, '[data-testid="call-feed-local-mute-button"]') as HTMLButtonElement;
 
     expect(fullscreenButton).toBeTruthy();
-    expect(fullscreenButton.querySelector('.uil--window-maximize')).toBeTruthy();
+    expect(fullscreenButton.querySelector('.mdi--fullscreen')).toBeTruthy();
     expect(localMuteButton).toBeTruthy();
     expect(localMuteButton.getAttribute('aria-label')).toBe('Unmute locally');
     expect(q(featured, '[data-testid="call-locally-muted-indicator"]')).toBeTruthy();
@@ -1335,7 +1335,7 @@ describe('RoomSidebar', () => {
       '[aria-label="Fullscreen call"]'
     ) as HTMLButtonElement | null;
     expect(normalFullscreenButton).toBeTruthy();
-    expect(normalFullscreenButton!.querySelector('.uil--window-maximize')).toBeTruthy();
+    expect(normalFullscreenButton!.querySelector('.mdi--fullscreen')).toBeTruthy();
 
     maximizeButton!.click();
     await tick();
@@ -1358,7 +1358,7 @@ describe('RoomSidebar', () => {
     expect(minimizeButton!.querySelector('.uil--compress-arrows')).toBeTruthy();
     const fullscreenButton = container.querySelector('[aria-label="Fullscreen call"]') as HTMLButtonElement | null;
     expect(fullscreenButton).toBeTruthy();
-    expect(fullscreenButton!.querySelector('.uil--window-maximize')).toBeTruthy();
+    expect(fullscreenButton!.querySelector('.mdi--fullscreen')).toBeTruthy();
 
     fullscreenButton!.click();
     await Promise.resolve();

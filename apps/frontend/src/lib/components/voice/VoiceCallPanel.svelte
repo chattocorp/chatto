@@ -382,7 +382,7 @@ Room sidebar panel for voice/video calls.
       data-testid="call-feed-fullscreen-button"
       onclick={toggleClosestMediaFullscreen}
     >
-      <span class="iconify text-lg uil--window-maximize" aria-hidden="true"></span>
+      <span class="iconify text-lg mdi--fullscreen" aria-hidden="true"></span>
     </button>
     {#if isInThisCall}
       <button
