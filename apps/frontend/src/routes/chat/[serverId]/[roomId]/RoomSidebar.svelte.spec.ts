@@ -1319,6 +1319,7 @@ describe('RoomSidebar', () => {
     const { container, rerender } = render(RoomSidebarTestHarness, {
       props: {
         activePanel: 'call',
+        hasActiveCall: true,
         livekitUrl: 'wss://livekit.example.test',
         roomData: roomData([member(1)], 1, false),
         onToggleMaximized
@@ -1343,6 +1344,7 @@ describe('RoomSidebar', () => {
 
     await rerender({
       activePanel: 'call',
+      hasActiveCall: true,
       livekitUrl: 'wss://livekit.example.test',
       roomData: roomData([member(1)], 1, false),
       maximized: true,
@@ -1364,6 +1366,20 @@ describe('RoomSidebar', () => {
     expect(requestFullscreen).toHaveBeenCalledOnce();
     expect(fullscreenTargets[0].getAttribute('aria-label')).toBe('Room extras');
     requestFullscreen.mockRestore();
+  });
+
+  it('hides call maximize and fullscreen actions until the call is active', async () => {
+    const { container } = render(RoomSidebarTestHarness, {
+      props: {
+        activePanel: 'call',
+        livekitUrl: 'wss://livekit.example.test',
+        roomData: roomData([member(1)], 1, false),
+        onToggleMaximized: vi.fn()
+      }
+    });
+
+    expect(container.querySelector('[aria-label="Maximize call"]')).toBeFalsy();
+    expect(container.querySelector('[aria-label="Fullscreen call"]')).toBeFalsy();
   });
 
   it('only shows the call maximize action for the desktop call panel', async () => {
@@ -1389,6 +1405,7 @@ describe('RoomSidebar', () => {
 
     await rerender({
       activePanel: 'call',
+      hasActiveCall: true,
       presentation: 'overlay',
       livekitUrl: 'wss://livekit.example.test',
       roomData: roomData([member(1)], 1, false),

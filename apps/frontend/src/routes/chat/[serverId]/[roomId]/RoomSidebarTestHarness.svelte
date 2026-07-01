@@ -19,6 +19,7 @@ mounting the full chat room shell.
     activePanel = 'members',
     presentation = 'desktop',
     maximized = false,
+    hasActiveCall = false,
     currentUserId = 'viewer',
     canBanRoomMembers = false,
     livekitUrl,
@@ -33,6 +34,7 @@ mounting the full chat room shell.
     activePanel?: RoomSidebarPanel;
     presentation?: 'desktop' | 'overlay';
     maximized?: boolean;
+    hasActiveCall?: boolean;
     currentUserId?: string | null;
     canBanRoomMembers?: boolean;
     livekitUrl?: string;
@@ -70,6 +72,7 @@ mounting the full chat room shell.
   {activePanel}
   {presentation}
   {maximized}
+  {hasActiveCall}
   loading={false}
   {canBanRoomMembers}
   {currentUserId}

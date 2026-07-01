@@ -47,6 +47,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
     activePanel = 'members',
     presentation = 'desktop',
     maximized = false,
+    hasActiveCall = false,
     canBanRoomMembers = false,
     currentUserId = null,
     membersStore,
@@ -62,6 +63,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
     activePanel?: RoomSidebarPanel;
     presentation?: 'desktop' | 'overlay';
     maximized?: boolean;
+    hasActiveCall?: boolean;
     canBanRoomMembers?: boolean;
     currentUserId?: string | null;
     membersStore: RoomMembersStore;
@@ -85,10 +87,10 @@ calls, and similar room-specific panels can plug into the same shell. See the
     return m['room.sidebar.call']();
   });
   const showMaximizeButton = $derived(
-    presentation === 'desktop' && activePanel === 'call' && !!onToggleMaximized
+    presentation === 'desktop' && activePanel === 'call' && hasActiveCall && !!onToggleMaximized
   );
   const showCallFullscreenButton = $derived(
-    presentation === 'desktop' && activePanel === 'call'
+    presentation === 'desktop' && activePanel === 'call' && hasActiveCall
   );
 
   // Check if user can start DMs (from centralized server permissions)

@@ -405,7 +405,9 @@
     roomSidebarPanelForRoom(room.isDM, roomSidebarPanels.mobilePanel, showVoiceCall)
   );
   const roomSidebarTogglePanels = $derived(roomSidebarPanelsForRoom(room.isDM, showVoiceCall));
-  const hasActiveRoomCall = $derived(stores.activeCallRooms.has(roomId));
+  const hasActiveRoomCall = $derived(
+    stores.activeCallRooms.has(roomId) || stores.voiceCall.isInCall(roomId)
+  );
   const isDesktopCallMaximized = $derived(
     activeRoomSidebarPanel === 'call' && roomSidebarPanels.isDesktopCallMaximized
   );
@@ -656,6 +658,7 @@
             {roomId}
             activePanel={mobileRoomSidebarPanel}
             presentation="overlay"
+            hasActiveCall={hasActiveRoomCall}
             loading={room.isRoomLoading}
             filesStore={roomFilesStore}
             livekitUrl={serverInfo.livekitUrl ?? undefined}
@@ -685,6 +688,7 @@
           {roomId}
           activePanel={activeRoomSidebarPanel}
           maximized={isDesktopCallMaximized}
+          hasActiveCall={hasActiveRoomCall}
           loading={room.isRoomLoading}
           filesStore={roomFilesStore}
           livekitUrl={serverInfo.livekitUrl ?? undefined}
