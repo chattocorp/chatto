@@ -6,8 +6,16 @@ url = "http://localhost:$CONDUCTOR_PORT"
 
 [scripts]
 setup = "mise trust && mise setup"
-run = "mise run chatto run"
 run_mode = "concurrent"
+
+[scripts.run.chatto]
+command = "mise dev"
+default = true
+icon = "message-square"
+
+[scripts.run.docs-website]
+command = "mise dev-docs-website"
+icon = "book-open"
 
 [git]
 delete_branch_on_archive = false

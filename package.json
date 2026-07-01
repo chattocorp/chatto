@@ -9,7 +9,7 @@
     "build:docs": "pnpm --filter docs-website build",
     "build:frontend": "pnpm run build:api-client && pnpm --filter chatto-frontend build",
     "check:frontend": "pnpm run build:api-client && pnpm --filter chatto-frontend check",
-    "dev:docs": "pnpm --filter docs-website dev",
+    "dev:docs": "mise dev-docs-website",
     "dev:frontend": "pnpm run build:api-client && pnpm --filter chatto-frontend dev",
     "knip": "pnpm run knip:prepare && knip",
     "knip:prepare": "pnpm --dir apps/frontend run paraglide && pnpm --dir apps/frontend run prepare",

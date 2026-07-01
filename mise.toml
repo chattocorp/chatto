@@ -4,7 +4,6 @@ buf = "latest"
 go = "1.26.2"
 goreleaser = "latest"
 node = "22"
-tilt = "latest"
 
 [env]
 _.file = '.env'
@@ -196,14 +195,43 @@ dir = "apps/frontend"
 run = "exec ./node_modules/.bin/vite dev"
 
 [tasks.dev]
-description = "Run the local Tilt development stack"
+description = "Run the local backend and frontend development servers"
 raw = true
 run = """
-if [ -n "${TILT_PORT:-}" ]; then
-  exec tilt up --stream --port "$TILT_PORT"
-fi
+workspace_port_base="${CONDUCTOR_PORT:-${PASEO_PORT:-4000}}"
 
-exec tilt up --stream
+export VITE_PORT="${VITE_PORT:-$workspace_port_base}"
+export CHATTO_WEBSERVER_PORT="${CHATTO_WEBSERVER_PORT:-$((workspace_port_base + 1))}"
+export CHATTO_WEBSERVER_URL="${CHATTO_WEBSERVER_URL:-http://localhost:$VITE_PORT}"
+export CHATTO_NATS_EMBEDDED_PORT="${CHATTO_NATS_EMBEDDED_PORT:-$((workspace_port_base + 2))}"
+export CHATTO_NATS_CLIENT_URL="${CHATTO_NATS_CLIENT_URL:-nats://localhost:$CHATTO_NATS_EMBEDDED_PORT}"
+export CHATTO_METRICS_ENABLED="${CHATTO_METRICS_ENABLED:-true}"
+export CHATTO_METRICS_BIND_ADDRESS="${CHATTO_METRICS_BIND_ADDRESS:-127.0.0.1}"
+export CHATTO_METRICS_PORT="${CHATTO_METRICS_PORT:-$((workspace_port_base + 3))}"
+export CHATTO_METRICS_PATH="${CHATTO_METRICS_PATH:-/metrics}"
+export CHATTO_EXPORTER_ENABLED="${CHATTO_EXPORTER_ENABLED:-true}"
+export CHATTO_EXPORTER_BIND_ADDRESS="${CHATTO_EXPORTER_BIND_ADDRESS:-127.0.0.1}"
+export CHATTO_EXPORTER_PORT="${CHATTO_EXPORTER_PORT:-$((workspace_port_base + 4))}"
+export CHATTO_EXPORTER_PATH="${CHATTO_EXPORTER_PATH:-/metrics}"
+
+printf 'Chatto frontend URL: %s\\n' "$CHATTO_WEBSERVER_URL"
+printf 'Chatto backend URL: http://localhost:%s\\n' "$CHATTO_WEBSERVER_PORT"
+
+exec mise run --jobs 2 dev-backend ::: dev-frontend
+"""
+
+[tasks.dev-docs-website]
+description = "Run the docs website development server with workspace-safe ports"
+depends = ["setup-frontend"]
+dir = "apps/docs-website"
+raw = true
+run = """
+workspace_port_base="${CONDUCTOR_PORT:-${PASEO_PORT:-4000}}"
+docs_website_port="${CHATTO_DOCS_WEBSITE_PORT:-$workspace_port_base}"
+
+printf 'Docs website URL: http://localhost:%s\\n' "$docs_website_port"
+
+exec pnpm astro dev --host 127.0.0.1 --port "$docs_website_port"
 """
 
 [tasks.chatto]
