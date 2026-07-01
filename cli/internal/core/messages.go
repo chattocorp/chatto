@@ -500,6 +500,7 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 
 	// Extract and resolve @mentions from message body
 	var mentionedUserIDs []string
+	var directMentionedUserIDs []string
 	if hasBody {
 		usernames := ExtractMentionUsernames(body)
 		if len(usernames) > 0 {
@@ -509,6 +510,14 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 				// Continue without mentions - don't fail the message
 			} else {
 				mentionedUserIDs = resolved
+			}
+			if inThread != "" {
+				directResolved, err := c.ResolveDirectRoomMentions(ctx, kind, room_id, usernames)
+				if err != nil {
+					c.logger.Warn("Failed to resolve direct mentions", "error", err)
+				} else {
+					directMentionedUserIDs = directResolved
+				}
 			}
 		}
 	}
@@ -656,7 +665,7 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 
 		// Auto-follow the thread for the poster (best-effort).
 		// Always follows, even if previously unfollowed — posting implies interest.
-		if err := c.FollowThread(ctx, kind, user_id, room_id, inThread); err != nil {
+		if err := c.FollowThreadWithSource(ctx, kind, user_id, room_id, inThread, corev1.ThreadFollowSource_THREAD_FOLLOW_SOURCE_POSTED_REPLY); err != nil {
 			c.logger.Warn("Failed to auto-follow thread for poster", "error", err, "thread_root_event_id", inThread)
 		}
 
@@ -668,7 +677,7 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 			if err != nil {
 				c.logger.Warn("Failed to get thread metadata for root author auto-follow", "error", err, "thread_root_event_id", inThread)
 			} else if threadMeta.ReplyCount == 1 {
-				if err := c.FollowThread(ctx, kind, rootAuthorID, room_id, inThread); err != nil {
+				if _, err := c.FollowThreadIfNeverSet(ctx, kind, rootAuthorID, room_id, inThread, corev1.ThreadFollowSource_THREAD_FOLLOW_SOURCE_ROOT_AUTHOR); err != nil {
 					c.logger.Warn("Failed to auto-follow thread for root author", "error", err, "thread_root_event_id", inThread)
 				}
 			}
@@ -676,8 +685,9 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 	}
 
 	// Notify mentioned users (best-effort, don't fail the message if this fails)
+	var newlyAutoFollowedMentionedUserIDs []string
 	if len(mentionedUserIDs) > 0 {
-		c.notifyMentionedUsers(ctx, kind, room_id, user_id, event.Id, inThread, mentionedUserIDs)
+		newlyAutoFollowedMentionedUserIDs = c.notifyMentionedUsers(ctx, kind, room_id, user_id, event.Id, inThread, mentionedUserIDs, directMentionedUserIDs)
 	}
 
 	// Notify the author of the message being replied to (best-effort).
@@ -690,11 +700,13 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 	}
 
 	// Notify all thread participants (best-effort).
-	// Skip users already notified by inReplyTo (they get the more specific notification).
+	// Newly auto-followed mention recipients should not also get the ambient
+	// followed-thread notification for the same message. Existing followers
+	// still receive it, matching the existing server badge count behavior.
 	if inThread != "" {
-		var skipIDs []string
+		skipIDs := append([]string(nil), newlyAutoFollowedMentionedUserIDs...)
 		if replyNotifiedUserID != "" {
-			skipIDs = []string{replyNotifiedUserID}
+			skipIDs = append(skipIDs, replyNotifiedUserID)
 		}
 		c.notifyThreadFollowers(ctx, kind, room_id, user_id, event.Id, inThread, skipIDs)
 	}

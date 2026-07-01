@@ -62,6 +62,8 @@ func TestProjectionSubjectPolicy(t *testing.T) {
 			got:  NewThreadProjection().Subjects(),
 			want: []string{
 				events.RoomEventTypeFilter(events.EventThreadCreated),
+				events.RoomEventTypeFilter(events.EventThreadFollowed),
+				events.RoomEventTypeFilter(events.EventThreadUnfollowed),
 				events.RoomEventTypeFilter(events.EventMessagePosted),
 				events.RoomEventTypeFilter(events.EventMessageEdited),
 				events.RoomEventTypeFilter(events.EventMessageRetracted),

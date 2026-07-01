@@ -1,6 +1,6 @@
-# Dev-shell image for Tilt-based local Kubernetes development.
-# Source is live-synced into running pods by Tilt — no need to rebuild on
-# every code change. The umbrella's Tiltfile builds this via docker_build().
+# Dev-shell image for containerized frontend development.
+# Mount or sync source into running containers to avoid rebuilding on every
+# code change.
 
 FROM node:22-alpine
 RUN corepack enable pnpm
@@ -11,6 +11,6 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 COPY apps/frontend/package.json apps/frontend/package.json
 RUN pnpm config set store-dir /pnpm-store && pnpm install --frozen-lockfile --filter chatto-frontend...
 
-# Layer 2: source (live-updated by Tilt afterwards, no rebuild needed)
+# Layer 2: source
 COPY apps/frontend apps/frontend
 WORKDIR /app/apps/frontend

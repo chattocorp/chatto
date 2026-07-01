@@ -296,10 +296,113 @@ func TestThreadProjection_IdempotencyDoesNotIndexIgnoredRoomEvents(t *testing.T)
 	}
 }
 
+func TestThreadProjection_ThreadFollowEventsUpdateIndexes(t *testing.T) {
+	p := NewThreadProjection()
+	applyAll(t, p, []*corev1.Event{
+		{
+			Id:      "FOLLOW-U1",
+			ActorId: "U1",
+			Event: &corev1.Event_ThreadFollowed{
+				ThreadFollowed: &corev1.ThreadFollowedEvent{
+					RoomId:            "R1",
+					ThreadRootEventId: "ROOT",
+					UserId:            "U1",
+					Source:            corev1.ThreadFollowSource_THREAD_FOLLOW_SOURCE_MANUAL,
+				},
+			},
+		},
+		{
+			Id:      "FOLLOW-U2",
+			ActorId: "U2",
+			Event: &corev1.Event_ThreadFollowed{
+				ThreadFollowed: &corev1.ThreadFollowedEvent{
+					RoomId:            "R1",
+					ThreadRootEventId: "ROOT",
+					UserId:            "U2",
+					Source:            corev1.ThreadFollowSource_THREAD_FOLLOW_SOURCE_DIRECT_MENTION,
+				},
+			},
+		},
+	})
+
+	if got := p.FollowState("U1", "R1", "ROOT"); got != ThreadFollowStateFollowing {
+		t.Fatalf("FollowState(U1) = %q, want following", got)
+	}
+	if got := p.FollowState("U2", "R1", "ROOT"); got != ThreadFollowStateFollowing {
+		t.Fatalf("FollowState(U2) = %q, want following", got)
+	}
+	followers := p.ThreadFollowers("R1", "ROOT")
+	slices.Sort(followers)
+	if !slices.Equal(followers, []string{"U1", "U2"}) {
+		t.Fatalf("ThreadFollowers = %v, want [U1 U2]", followers)
+	}
+	followed := p.FollowedThreadsForUser("U1")
+	if len(followed) != 1 || followed[0].roomID != "R1" || followed[0].threadRootEventID != "ROOT" {
+		t.Fatalf("FollowedThreadsForUser(U1) = %#v, want R1/ROOT", followed)
+	}
+
+	applyAll(t, p, []*corev1.Event{
+		{
+			Id:      "UNFOLLOW-U1",
+			ActorId: "U1",
+			Event: &corev1.Event_ThreadUnfollowed{
+				ThreadUnfollowed: &corev1.ThreadUnfollowedEvent{
+					RoomId:            "R1",
+					ThreadRootEventId: "ROOT",
+					UserId:            "U1",
+				},
+			},
+		},
+	})
+
+	if got := p.FollowState("U1", "R1", "ROOT"); got != ThreadFollowStateUnfollowed {
+		t.Fatalf("FollowState(U1) after unfollow = %q, want unfollowed", got)
+	}
+	followers = p.ThreadFollowers("R1", "ROOT")
+	if !slices.Equal(followers, []string{"U2"}) {
+		t.Fatalf("ThreadFollowers after unfollow = %v, want [U2]", followers)
+	}
+	if followed := p.FollowedThreadsForUser("U1"); len(followed) != 0 {
+		t.Fatalf("FollowedThreadsForUser(U1) after unfollow = %#v, want empty", followed)
+	}
+}
+
+func TestThreadProjection_SeedLegacyThreadFollowState(t *testing.T) {
+	p := NewThreadProjection()
+	p.SeedLegacyThreadFollowState("U1", "R1", "ROOT", ThreadFollowStateFollowing)
+
+	if got := p.FollowState("U1", "R1", "ROOT"); got != ThreadFollowStateFollowing {
+		t.Fatalf("seeded FollowState = %q, want following", got)
+	}
+	if followers := p.ThreadFollowers("R1", "ROOT"); !slices.Equal(followers, []string{"U1"}) {
+		t.Fatalf("seeded ThreadFollowers = %v, want [U1]", followers)
+	}
+
+	applyAll(t, p, []*corev1.Event{
+		{
+			Id:      "UNFOLLOW-U1",
+			ActorId: "U1",
+			Event: &corev1.Event_ThreadUnfollowed{
+				ThreadUnfollowed: &corev1.ThreadUnfollowedEvent{
+					RoomId:            "R1",
+					ThreadRootEventId: "ROOT",
+					UserId:            "U1",
+				},
+			},
+		},
+	})
+
+	if got := p.FollowState("U1", "R1", "ROOT"); got != ThreadFollowStateUnfollowed {
+		t.Fatalf("EVT should override seeded legacy state, got %q", got)
+	}
+}
+
 func TestThreadProjection_SubjectFilter(t *testing.T) {
 	subjects := NewThreadProjection().Subjects()
 	want := map[string]bool{
 		events.RoomEventTypeFilter(events.EventThreadCreated):    true,
+		events.RoomEventTypeFilter(events.EventThreadFollowed):   true,
+		events.RoomEventTypeFilter(events.EventThreadUnfollowed): true,
 		events.RoomEventTypeFilter(events.EventMessagePosted):    true,
 		events.RoomEventTypeFilter(events.EventMessageEdited):    true,
 		events.RoomEventTypeFilter(events.EventMessageRetracted): true,
