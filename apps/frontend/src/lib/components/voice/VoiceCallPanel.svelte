@@ -231,8 +231,10 @@ Room sidebar panel for voice/video calls.
   const controlButtonClass = 'btn-secondary btn-sm h-9 w-full !px-0';
   const activeControlButtonClass = 'btn-success btn-sm h-9 w-full !px-0';
   const dangerControlButtonClass = 'btn-danger btn-sm h-9 w-full !px-0';
-  const mediaActionButtonClass =
-    'pointer-events-auto flex h-8 w-8 cursor-pointer items-center justify-center rounded-md bg-black/70 text-white shadow-sm transition-colors hover:bg-black focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white';
+  const tileActionToolbarClass =
+    'pointer-events-none absolute top-2 right-2 z-10 flex gap-0.5 rounded-md border border-border bg-surface-100/95 p-0.5 opacity-0 transition-opacity group-hover/media:opacity-100 group-focus-within/media:opacity-100';
+  const tileActionButtonClass =
+    'pointer-events-auto flex h-7 w-7 cursor-pointer items-center justify-center rounded text-muted transition-colors hover:bg-surface-200 hover:text-text focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary';
 
   function hasVideo(participant: DisplayParticipant) {
     return participant.isCameraEnabled && participant.videoTrack;
@@ -368,57 +370,67 @@ Room sidebar panel for voice/video calls.
   }
 </script>
 
-{#snippet mediaTileActions(participant: DisplayParticipant)}
+{#snippet localMuteButton(participant: DisplayParticipant)}
   {@const isMutedForViewer = participant.isLocal ? voiceCallState.isMuted : participant.isLocallyMuted}
+  <button
+    type="button"
+    class={[tileActionButtonClass, isMutedForViewer && 'bg-surface-200 text-text']}
+    title={participant.isLocal
+      ? isMutedForViewer
+        ? m['voice.unmute']()
+        : m['voice.mute']()
+      : isMutedForViewer
+        ? m['voice.locally_unmute_participant']()
+        : m['voice.locally_mute_participant']()}
+    aria-label={participant.isLocal
+      ? isMutedForViewer
+        ? m['voice.unmute']()
+        : m['voice.mute']()
+      : isMutedForViewer
+        ? m['voice.locally_unmute_participant']()
+        : m['voice.locally_mute_participant']()}
+    data-testid="call-feed-local-mute-button"
+    onclick={(event) => toggleFeedMute(participant, event)}
+  >
+    <span
+      class={['iconify text-base', isMutedForViewer ? 'uil--volume-mute' : 'uil--volume-up']}
+      aria-hidden="true"
+    ></span>
+  </button>
+{/snippet}
+
+{#snippet mediaTileActions(participant: DisplayParticipant)}
   <div
-    class="pointer-events-none absolute top-2 right-2 z-10 flex gap-1 opacity-0 transition-opacity group-hover/media:opacity-100 group-focus-within/media:opacity-100"
+    class={tileActionToolbarClass}
     data-testid="call-media-actions"
   >
     <button
       type="button"
-      class={mediaActionButtonClass}
+      class={tileActionButtonClass}
       title={m['voice.fullscreen_feed']()}
       aria-label={m['voice.fullscreen_feed']()}
       data-testid="call-feed-fullscreen-button"
       onclick={toggleClosestMediaFullscreen}
     >
-      <span class="iconify text-lg mdi--fullscreen" aria-hidden="true"></span>
+      <span class="iconify text-base mdi--fullscreen" aria-hidden="true"></span>
     </button>
     {#if isInThisCall}
-      <button
-        type="button"
-        class={mediaActionButtonClass}
-        title={participant.isLocal
-          ? isMutedForViewer
-            ? m['voice.unmute']()
-            : m['voice.mute']()
-          : isMutedForViewer
-            ? m['voice.locally_unmute_participant']()
-            : m['voice.locally_mute_participant']()}
-        aria-label={participant.isLocal
-          ? isMutedForViewer
-            ? m['voice.unmute']()
-            : m['voice.mute']()
-          : isMutedForViewer
-            ? m['voice.locally_unmute_participant']()
-            : m['voice.locally_mute_participant']()}
-        data-testid="call-feed-local-mute-button"
-        onclick={(event) => toggleFeedMute(participant, event)}
-      >
-        <span
-          class={[
-            'iconify text-lg',
-            isMutedForViewer ? 'uil--volume-mute' : 'uil--volume-up'
-          ]}
-          aria-hidden="true"
-        ></span>
-      </button>
+      {@render localMuteButton(participant)}
     {/if}
   </div>
 {/snippet}
 
+{#snippet voiceTileActions(participant: DisplayParticipant)}
+  {#if isInThisCall}
+    <div class={tileActionToolbarClass} data-testid="call-voice-actions">
+      {@render localMuteButton(participant)}
+    </div>
+  {/if}
+{/snippet}
+
 {#snippet participantCard(participant: DisplayParticipant, mode: 'compact' | 'video')}
   {@const showVideo = mode === 'video' && hasVideo(participant)}
+  {@const showVoiceActions = isInThisCall && !showVideo}
   {#if isInThisCall}
     <div
       class={[
@@ -435,7 +447,7 @@ Room sidebar panel for voice/video calls.
         class="flex w-full flex-1 cursor-pointer flex-col overflow-hidden text-left text-text"
         onclick={(e) => showUserMenu(participant, e)}
       >
-        <div class="flex min-w-0 items-center gap-2 p-2">
+        <div class={['flex min-w-0 items-center gap-2 p-2', showVoiceActions && 'pr-12']}>
           <UserAvatar user={participant.avatarUser} size="sm" />
           <span class="min-w-0 flex-1 truncate text-sm font-medium">{participant.displayName}</span>
           <span class="inline-flex h-5 min-w-5 shrink-0 items-center justify-end gap-1.5 text-sm">
@@ -484,6 +496,8 @@ Room sidebar panel for voice/video calls.
       </button>
       {#if showVideo}
         {@render mediaTileActions(participant)}
+      {:else if showVoiceActions}
+        {@render voiceTileActions(participant)}
       {/if}
     </div>
   {:else}
@@ -501,7 +515,7 @@ Room sidebar panel for voice/video calls.
         class="flex w-full flex-1 cursor-pointer flex-col overflow-hidden text-left text-text"
         onclick={(e) => showUserMenu(participant, e)}
       >
-        <div class="flex min-w-0 items-center gap-2 p-2">
+        <div class={['flex min-w-0 items-center gap-2 p-2', showVoiceActions && 'pr-12']}>
           <UserAvatar user={participant.avatarUser} size="sm" />
           <span class="min-w-0 flex-1 truncate text-sm font-medium">{participant.displayName}</span>
         </div>
@@ -519,6 +533,8 @@ Room sidebar panel for voice/video calls.
       </button>
       {#if showVideo}
         {@render mediaTileActions(participant)}
+      {:else if showVoiceActions}
+        {@render voiceTileActions(participant)}
       {/if}
     </div>
   {/if}
@@ -575,7 +591,12 @@ Room sidebar panel for voice/video calls.
       class="flex h-full min-h-0 w-full cursor-pointer flex-col overflow-hidden text-left text-text"
       onclick={(e) => showUserMenu(participant, e)}
     >
-      <div class="flex min-w-0 items-center gap-2 border-b border-border/70 p-3">
+      <div
+        class={[
+          'flex min-w-0 items-center gap-2 border-b border-border/70 p-3',
+          !isScreen && !isVideo && isInThisCall && 'pr-12'
+        ]}
+      >
         <UserAvatar user={participant.avatarUser} size="sm" />
         <span class="min-w-0 flex-1 truncate text-sm font-medium">
           {isScreen
@@ -650,6 +671,8 @@ Room sidebar panel for voice/video calls.
     </button>
     {#if isScreen || isVideo}
       {@render mediaTileActions(participant)}
+    {:else}
+      {@render voiceTileActions(participant)}
     {/if}
   </div>
 {/snippet}

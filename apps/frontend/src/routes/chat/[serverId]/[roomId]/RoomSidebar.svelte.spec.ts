@@ -379,6 +379,7 @@ describe('RoomSidebar', () => {
     callStore.voiceCall.toggleMute.mockClear();
     callStore.voiceCall.toggleCamera.mockClear();
     callStore.voiceCall.toggleScreenShare.mockClear();
+    callStore.voiceCall.toggleParticipantLocalMute.mockClear();
     callStore.voiceCall.refreshDevices.mockClear();
     callStore.voiceCall.getAudioLevel.mockClear();
     callStore.voiceCall.getAudioLevel.mockImplementation(() => ({ isSpeaking: false, audioLevel: 0 }));
@@ -562,8 +563,14 @@ describe('RoomSidebar', () => {
     expect(participantCards[1].className).toContain('participant-card-compact');
     const mutedIndicator = q(participantCards[1], '[data-testid="call-muted-indicator"]');
     const speakingIndicator = q(participantCards[1], '[data-testid="call-speaking-indicator"]');
+    const voiceLocalMuteButton = q(
+      participantCards[1],
+      '[data-testid="call-feed-local-mute-button"]'
+    ) as HTMLButtonElement;
     expect(mutedIndicator).toBeTruthy();
     expect(speakingIndicator).toBeTruthy();
+    expect(voiceLocalMuteButton).toBeTruthy();
+    expect(voiceLocalMuteButton.getAttribute('aria-label')).toBe('Mute locally');
     expect(
       speakingIndicator!.compareDocumentPosition(mutedIndicator!) & Node.DOCUMENT_POSITION_FOLLOWING
     ).toBeTruthy();
@@ -589,12 +596,14 @@ describe('RoomSidebar', () => {
     muteButton.click();
     cameraButton.click();
     screenShareButton.click();
+    voiceLocalMuteButton.click();
     leaveButton.click();
     await tick();
 
     expect(callStore.voiceCall.toggleMute).toHaveBeenCalledOnce();
     expect(callStore.voiceCall.toggleCamera).toHaveBeenCalledOnce();
     expect(callStore.voiceCall.toggleScreenShare).toHaveBeenCalledOnce();
+    expect(callStore.voiceCall.toggleParticipantLocalMute).toHaveBeenCalledWith('user-2');
     expect(callStore.voiceCall.leave).toHaveBeenCalledOnce();
   });
 
@@ -935,10 +944,15 @@ describe('RoomSidebar', () => {
     });
 
     const featured = q(container, '[data-testid="call-featured-stage-card"]')!;
+    const mediaActions = q(featured, '[data-testid="call-media-actions"]')!;
     const fullscreenButton = q(featured, '[data-testid="call-feed-fullscreen-button"]') as HTMLButtonElement;
     const localMuteButton = q(featured, '[data-testid="call-feed-local-mute-button"]') as HTMLButtonElement;
 
+    expect(mediaActions.className).toContain('border-border');
+    expect(mediaActions.className).toContain('bg-surface-100/95');
     expect(fullscreenButton).toBeTruthy();
+    expect(fullscreenButton.className).toContain('text-muted');
+    expect(fullscreenButton.className).not.toContain('bg-black');
     expect(fullscreenButton.querySelector('.mdi--fullscreen')).toBeTruthy();
     expect(localMuteButton).toBeTruthy();
     expect(localMuteButton.getAttribute('aria-label')).toBe('Unmute locally');
@@ -1045,6 +1059,14 @@ describe('RoomSidebar', () => {
     expect(featured).toBeTruthy();
     expect(featured!.textContent).toContain('Alice');
     expect(featured!.querySelector('video')).toBeFalsy();
+    const localMuteButton = q(
+      featured!,
+      '[data-testid="call-feed-local-mute-button"]'
+    ) as HTMLButtonElement;
+    expect(localMuteButton).toBeTruthy();
+    expect(localMuteButton.getAttribute('aria-label')).toBe('Mute');
+    localMuteButton.click();
+    expect(callStore.voiceCall.toggleMute).toHaveBeenCalledOnce();
     expect(container.querySelector('[data-testid="call-secondary-stage-list"]')).toBeFalsy();
   });
 
