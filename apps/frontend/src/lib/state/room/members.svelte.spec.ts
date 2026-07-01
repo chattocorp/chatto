@@ -8,6 +8,10 @@ import { ROOM_MEMBERS_PAGE_SIZE, RoomMembersStore } from './members.svelte';
 class FakeMemberDirectoryAPI {
   listRoomMembers: MemberDirectoryAPI['listRoomMembers'];
   listServerMembers: MemberDirectoryAPI['listServerMembers'];
+  getServerMember: MemberDirectoryAPI['getServerMember'];
+  batchGetServerMembers: MemberDirectoryAPI['batchGetServerMembers'];
+  getRoomMember: MemberDirectoryAPI['getRoomMember'];
+  batchGetRoomMembers: MemberDirectoryAPI['batchGetRoomMembers'];
 
   constructor(results: Array<MemberDirectoryPage | Promise<MemberDirectoryPage>>) {
     const queue = [...results];
@@ -17,6 +21,10 @@ class FakeMemberDirectoryAPI {
       return result;
     });
     this.listServerMembers = vi.fn();
+    this.getServerMember = vi.fn();
+    this.batchGetServerMembers = vi.fn();
+    this.getRoomMember = vi.fn();
+    this.batchGetRoomMembers = vi.fn();
   }
 }
 

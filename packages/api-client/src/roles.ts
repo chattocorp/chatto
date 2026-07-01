@@ -1,4 +1,4 @@
-import { createClient } from "@connectrpc/connect";
+import { Code, ConnectError, createClient } from "@connectrpc/connect";
 import { createConnectTransport } from "@connectrpc/connect-web";
 import { AdminRoleService } from "@chatto/api-types/admin/v1/roles_connect";
 import type { AdminRole as APIAdminRole } from "@chatto/api-types/admin/v1/roles_pb";
@@ -74,6 +74,26 @@ export function createRoleAPI(config: RoleAPIConfig) {
         viewerCanManageRoles: false,
         viewerCanAssignRoles: false,
       };
+    },
+
+    async getPublicRole(name: string): Promise<ServerRole | null> {
+      try {
+        const response = await client.getRole({ name }, { headers: headers() });
+        return response.role ? serverRoleFromPublic(response.role) : null;
+      } catch (err) {
+        if (err instanceof ConnectError && err.code === Code.NotFound) {
+          return null;
+        }
+        throw err;
+      }
+    },
+
+    async batchGetPublicRoles(names: string[]): Promise<ServerRole[]> {
+      const response = await client.batchGetRoles(
+        { names },
+        { headers: headers() },
+      );
+      return response.roles.map((role) => serverRoleFromPublic(role));
     },
 
     async listAdminRoles(): Promise<RoleCatalog> {

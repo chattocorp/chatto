@@ -32,13 +32,15 @@ func (s *voiceCallService) ListActiveCallRooms(ctx context.Context, _ *connect.R
 	}
 	visibleRoomIDs := make([]string, 0, len(roomIDs))
 	for _, roomID := range roomIDs {
-		visible, err := s.api.core.CanSeeRoom(ctx, caller.UserID, core.KindChannel, roomID)
-		if err != nil {
+		if _, _, err := s.api.core.VoiceCallRoomForMember(ctx, caller.UserID, roomID); err != nil {
+			if errors.Is(err, core.ErrNotFound) ||
+				errors.Is(err, core.ErrPermissionDenied) ||
+				errors.Is(err, core.ErrNotRoomMember) {
+				continue
+			}
 			return nil, connectError(err)
 		}
-		if visible {
-			visibleRoomIDs = append(visibleRoomIDs, roomID)
-		}
+		visibleRoomIDs = append(visibleRoomIDs, roomID)
 	}
 	return connect.NewResponse(&apiv1.ListActiveCallRoomsResponse{RoomIds: visibleRoomIDs}), nil
 }

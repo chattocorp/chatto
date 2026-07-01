@@ -189,11 +189,13 @@ describe('ActiveCallRoomsState', () => {
     expect(state.getParticipants('R1')).toEqual([]);
   });
 
-  it('clears a room with an unknown call id when a call end event arrives', async () => {
+  it('clears a batch-loaded room when its call end event arrives', async () => {
     const state = new ActiveCallRoomsState(
       makeVoiceCallAPI({
         listActiveCallRoomIds: vi.fn().mockResolvedValue(['R1']),
-        listCallParticipants: vi.fn().mockResolvedValue([])
+        batchGetActiveCalls: vi.fn().mockResolvedValue([
+          { roomId: 'R1', callId: 'call-unknown', participants: [] }
+        ])
       }),
       { connected: false, roomId: null } as never
     );
@@ -202,10 +204,37 @@ describe('ActiveCallRoomsState', () => {
 
     expect(state.has('R1')).toBe(true);
 
-    state.handleEnd('R1', 'call-1');
+    state.handleEnd('R1', 'call-unknown');
 
     expect(state.has('R1')).toBe(false);
     expect(state.getParticipants('R1')).toEqual([]);
+  });
+
+  it('loads initial active calls through batch snapshots and omits inaccessible rooms', async () => {
+    const listActiveCallRoomIds = vi.fn().mockResolvedValue(['R1', 'R2']);
+    const batchGetActiveCalls = vi.fn().mockResolvedValue([
+      { roomId: 'R1', callId: 'call-1', participants: [participant('U1')] }
+    ]);
+    const listCallParticipants = vi.fn().mockResolvedValue([participant('U2')]);
+    const state = new ActiveCallRoomsState(
+      makeVoiceCallAPI({ listActiveCallRoomIds, batchGetActiveCalls, listCallParticipants }),
+      { connected: false, roomId: null, participants: [] } as never
+    );
+
+    await state.load();
+
+    expect(batchGetActiveCalls).toHaveBeenCalledWith(['R1', 'R2']);
+    expect(listCallParticipants).not.toHaveBeenCalled();
+    expect(state.has('R1')).toBe(true);
+    expect(state.has('R2')).toBe(false);
+    expect(state.getParticipants('R1')).toEqual([
+      {
+        userId: 'U1',
+        displayName: 'Alice',
+        login: 'alice',
+        avatarUrl: null
+      }
+    ]);
   });
 
   it('ignores stale leave and end events from an older call', () => {

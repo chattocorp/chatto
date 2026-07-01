@@ -1,4 +1,5 @@
 import { Timestamp } from '@bufbuild/protobuf';
+import { Code, ConnectError } from '@connectrpc/connect';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PresenceStatus } from '@chatto/api-client/renderTypes';
 import { PresenceStatus as APIPresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
@@ -8,12 +9,20 @@ const mocks = vi.hoisted(() => ({
   createClient: vi.fn(),
   createConnectTransport: vi.fn(),
   listServerMembers: vi.fn(),
-  listRoomMembers: vi.fn()
+  getServerMember: vi.fn(),
+  batchGetServerMembers: vi.fn(),
+  listRoomMembers: vi.fn(),
+  getRoomMember: vi.fn(),
+  batchGetRoomMembers: vi.fn()
 }));
 
-vi.mock('@connectrpc/connect', () => ({
-  createClient: mocks.createClient
-}));
+vi.mock('@connectrpc/connect', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@connectrpc/connect')>();
+  return {
+    ...actual,
+    createClient: mocks.createClient
+  };
+});
 
 vi.mock('@connectrpc/connect-web', () => ({
   createConnectTransport: mocks.createConnectTransport
@@ -24,11 +33,19 @@ describe('createMemberDirectoryAPI', () => {
     mocks.createClient.mockReset();
     mocks.createConnectTransport.mockReset();
     mocks.listServerMembers.mockReset();
+    mocks.getServerMember.mockReset();
+    mocks.batchGetServerMembers.mockReset();
     mocks.listRoomMembers.mockReset();
+    mocks.getRoomMember.mockReset();
+    mocks.batchGetRoomMembers.mockReset();
     mocks.createConnectTransport.mockReturnValue({ kind: 'transport' });
     mocks.createClient.mockReturnValue({
       listServerMembers: mocks.listServerMembers,
-      listRoomMembers: mocks.listRoomMembers
+      getServerMember: mocks.getServerMember,
+      batchGetServerMembers: mocks.batchGetServerMembers,
+      listRoomMembers: mocks.listRoomMembers,
+      getRoomMember: mocks.getRoomMember,
+      batchGetRoomMembers: mocks.batchGetRoomMembers
     });
   });
 
@@ -95,6 +112,45 @@ describe('createMemberDirectoryAPI', () => {
     );
   });
 
+  it('gets and batch gets server members', async () => {
+    const member = {
+      profile: {
+        user: {
+          id: 'U1',
+          login: 'alice',
+          displayName: 'Alice',
+          deleted: false
+        },
+        presenceStatus: APIPresenceStatus.ONLINE
+      },
+      roles: ['everyone']
+    };
+    mocks.getServerMember.mockResolvedValue({ member });
+    mocks.batchGetServerMembers.mockResolvedValue({ members: [member] });
+
+    const api = createMemberDirectoryAPI({
+      baseUrl: 'https://remote.test/api/connect',
+      bearerToken: 'token'
+    });
+
+    await expect(api.getServerMember('U1')).resolves.toMatchObject({
+      id: 'U1',
+      presenceStatus: PresenceStatus.Online
+    });
+    await expect(api.batchGetServerMembers(['U1', 'missing'])).resolves.toMatchObject([
+      { id: 'U1' }
+    ]);
+
+    expect(mocks.getServerMember).toHaveBeenCalledWith(
+      { userId: 'U1' },
+      { headers: { Authorization: 'Bearer token' } }
+    );
+    expect(mocks.batchGetServerMembers).toHaveBeenCalledWith(
+      { userIds: ['U1', 'missing'] },
+      { headers: { Authorization: 'Bearer token' } }
+    );
+  });
+
   it('maps room member pages without auth headers', async () => {
     mocks.listRoomMembers.mockResolvedValue({
       members: [
@@ -138,6 +194,49 @@ describe('createMemberDirectoryAPI', () => {
       { roomId: 'room-1', search: 'bob', page: { limit: 5, offset: 0 } },
       { headers: undefined }
     );
+  });
+
+  it('gets and batch gets room members', async () => {
+    const member = {
+      profile: {
+        user: {
+          id: 'U2',
+          login: 'bob',
+          displayName: 'Bob',
+          deleted: false
+        },
+        presenceStatus: APIPresenceStatus.OFFLINE
+      },
+      roles: []
+    };
+    mocks.getRoomMember.mockResolvedValue({ member });
+    mocks.batchGetRoomMembers.mockResolvedValue({ members: [member] });
+
+    const api = createMemberDirectoryAPI({ baseUrl: '/api/connect', bearerToken: null });
+
+    await expect(api.getRoomMember('room-1', 'U2')).resolves.toMatchObject({ id: 'U2' });
+    await expect(api.batchGetRoomMembers('room-1', ['U2', 'missing'])).resolves.toMatchObject([
+      { id: 'U2' }
+    ]);
+
+    expect(mocks.getRoomMember).toHaveBeenCalledWith(
+      { roomId: 'room-1', userId: 'U2' },
+      { headers: undefined }
+    );
+    expect(mocks.batchGetRoomMembers).toHaveBeenCalledWith(
+      { roomId: 'room-1', userIds: ['U2', 'missing'] },
+      { headers: undefined }
+    );
+  });
+
+  it('returns null when singular member lookups are missing or inaccessible', async () => {
+    mocks.getServerMember.mockRejectedValueOnce(new ConnectError('missing', Code.NotFound));
+    mocks.getRoomMember.mockRejectedValueOnce(new ConnectError('denied', Code.PermissionDenied));
+
+    const api = createMemberDirectoryAPI({ baseUrl: '/api/connect', bearerToken: null });
+
+    await expect(api.getServerMember('missing')).resolves.toBeNull();
+    await expect(api.getRoomMember('room-1', 'U2')).resolves.toBeNull();
   });
 
   it('maps offline and unspecified read statuses to offline', async () => {

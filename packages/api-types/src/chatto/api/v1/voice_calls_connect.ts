@@ -15,8 +15,8 @@ export const VoiceCallService = {
   typeName: "chatto.api.v1.VoiceCallService",
   methods: {
     /**
-     * Lists visible channel room IDs that currently have active calls as a finite
-     * runtime snapshot. Hidden rooms and rooms the caller cannot list are omitted.
+     * Lists member channel room IDs that currently have active calls as a finite
+     * runtime snapshot. Rooms the caller is not a member of are omitted.
      *
      * Returns an empty list when LiveKit is not configured.
      *

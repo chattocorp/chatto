@@ -126,6 +126,21 @@ export function createRoomDirectoryAPI(config: RoomDirectoryAPIConfig) {
       }
     },
 
+    async batchGetRooms(roomIds: string[]): Promise<DirectoryRoomDetails[]> {
+      try {
+        const response = await directory.batchGetRooms(
+          { roomIds },
+          { headers: headers() },
+        );
+        return response.rooms.flatMap((entry) => {
+          const mapped = mapDirectoryRoomDetails(entry);
+          return mapped ? [mapped] : [];
+        });
+      } catch (err) {
+        return handleAuthError(err);
+      }
+    },
+
     async listRoomGroups(): Promise<DirectoryRoomGroup[]> {
       try {
         const response = await directory.listRoomGroups(

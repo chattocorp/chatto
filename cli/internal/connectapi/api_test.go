@@ -4094,9 +4094,6 @@ func TestVoiceCallServiceRecordsAndListsCalls(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateUser nonMember: %v", err)
 	}
-	if err := env.core.DenyRoomPermission(env.ctx, core.SystemActorID, room.Id, core.RoleEveryone, core.PermRoomList); err != nil {
-		t.Fatalf("DenyRoomPermission room.list: %v", err)
-	}
 	if _, err := env.voice.JoinCall(withCaller(env.ctx, nonMember), connect.NewRequest(&apiv1.JoinCallRequest{
 		RoomId: room.Id,
 	})); connect.CodeOf(err) != connect.CodePermissionDenied {

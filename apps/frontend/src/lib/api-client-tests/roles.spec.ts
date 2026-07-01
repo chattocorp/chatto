@@ -5,6 +5,8 @@ const mocks = vi.hoisted(() => ({
   createClient: vi.fn(),
   createConnectTransport: vi.fn(),
   listRoles: vi.fn(),
+  getPublicRole: vi.fn(),
+  batchGetRoles: vi.fn(),
   listAdminRoles: vi.fn(),
   getRole: vi.fn(),
   createRole: vi.fn(),
@@ -29,6 +31,8 @@ describe('createRoleAPI', () => {
     mocks.createClient.mockReset();
     mocks.createConnectTransport.mockReset();
     mocks.listRoles.mockReset();
+    mocks.getPublicRole.mockReset();
+    mocks.batchGetRoles.mockReset();
     mocks.listAdminRoles.mockReset();
     mocks.getRole.mockReset();
     mocks.createRole.mockReset();
@@ -38,7 +42,9 @@ describe('createRoleAPI', () => {
     mocks.createClient.mockImplementation((service) => {
       if (service.typeName === 'chatto.api.v1.RoleService') {
         return {
-          listRoles: mocks.listRoles
+          listRoles: mocks.listRoles,
+          getRole: mocks.getPublicRole,
+          batchGetRoles: mocks.batchGetRoles
         };
       }
       return {
@@ -88,6 +94,37 @@ describe('createRoleAPI', () => {
       viewerCanManageRoles: false,
       viewerCanAssignRoles: false
     });
+  });
+
+  it('gets and batch gets public roles', async () => {
+    const role = {
+      name: 'moderator',
+      displayName: 'Moderator',
+      description: 'Moderates rooms',
+      isSystem: true,
+      position: 100,
+      pingable: true
+    };
+    mocks.getPublicRole.mockResolvedValue({ role });
+    mocks.batchGetRoles.mockResolvedValue({ roles: [role] });
+    const api = createRoleAPI({ baseUrl: '/api/connect', bearerToken: 'token' });
+
+    await expect(api.getPublicRole('moderator')).resolves.toMatchObject({
+      name: 'moderator',
+      permissions: []
+    });
+    await expect(api.batchGetPublicRoles(['moderator', 'missing'])).resolves.toMatchObject([
+      { name: 'moderator' }
+    ]);
+
+    expect(mocks.getPublicRole).toHaveBeenCalledWith(
+      { name: 'moderator' },
+      { headers: { Authorization: 'Bearer token' } }
+    );
+    expect(mocks.batchGetRoles).toHaveBeenCalledWith(
+      { names: ['moderator', 'missing'] },
+      { headers: { Authorization: 'Bearer token' } }
+    );
   });
 
   it('lists admin roles with viewer capabilities', async () => {

@@ -58,8 +58,8 @@ const (
 
 // VoiceCallServiceClient is a client for the chatto.api.v1.VoiceCallService service.
 type VoiceCallServiceClient interface {
-	// Lists visible channel room IDs that currently have active calls as a finite
-	// runtime snapshot. Hidden rooms and rooms the caller cannot list are omitted.
+	// Lists member channel room IDs that currently have active calls as a finite
+	// runtime snapshot. Rooms the caller is not a member of are omitted.
 	//
 	// Returns an empty list when LiveKit is not configured.
 	ListActiveCallRooms(context.Context, *connect.Request[v1.ListActiveCallRoomsRequest]) (*connect.Response[v1.ListActiveCallRoomsResponse], error)
@@ -204,8 +204,8 @@ func (c *voiceCallServiceClient) LeaveCall(ctx context.Context, req *connect.Req
 
 // VoiceCallServiceHandler is an implementation of the chatto.api.v1.VoiceCallService service.
 type VoiceCallServiceHandler interface {
-	// Lists visible channel room IDs that currently have active calls as a finite
-	// runtime snapshot. Hidden rooms and rooms the caller cannot list are omitted.
+	// Lists member channel room IDs that currently have active calls as a finite
+	// runtime snapshot. Rooms the caller is not a member of are omitted.
 	//
 	// Returns an empty list when LiveKit is not configured.
 	ListActiveCallRooms(context.Context, *connect.Request[v1.ListActiveCallRoomsRequest]) (*connect.Response[v1.ListActiveCallRoomsResponse], error)

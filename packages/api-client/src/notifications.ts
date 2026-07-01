@@ -1,4 +1,4 @@
-import { createClient } from "@connectrpc/connect";
+import { Code, ConnectError, createClient } from "@connectrpc/connect";
 import { createConnectTransport } from "@connectrpc/connect-web";
 import { NotificationService } from "@chatto/api-types/api/v1/notifications_connect";
 import type {
@@ -95,6 +95,16 @@ export type NotificationPage = {
   serverName: string | null;
 };
 
+export type NotificationItemResult = {
+  item: NotificationItem;
+  serverName: string | null;
+};
+
+export type NotificationItemsResult = {
+  items: NotificationItem[];
+  serverName: string | null;
+};
+
 export function createNotificationAPI(config: NotificationAPIConfig) {
   const transport = createConnectTransport({
     baseUrl: config.baseUrl,
@@ -127,6 +137,40 @@ export function createNotificationAPI(config: NotificationAPIConfig) {
           { headers: headers() },
         ),
       );
+    },
+
+    async getNotification(
+      notificationId: string,
+    ): Promise<NotificationItemResult | null> {
+      try {
+        const response = await client.getNotification(
+          { notificationId },
+          { headers: headers() },
+        );
+        const item = response.item ? notificationItem(response.item) : null;
+        return item ? { item, serverName: response.serverName || null } : null;
+      } catch (err) {
+        if (err instanceof ConnectError && err.code === Code.NotFound) {
+          return null;
+        }
+        throw err;
+      }
+    },
+
+    async batchGetNotifications(
+      notificationIds: string[],
+    ): Promise<NotificationItemsResult> {
+      const response = await client.batchGetNotifications(
+        { notificationIds },
+        { headers: headers() },
+      );
+      return {
+        items: response.items.flatMap((item) => {
+          const mapped = notificationItem(item);
+          return mapped ? [mapped] : [];
+        }),
+        serverName: response.serverName || null,
+      };
     },
 
     async hasNotifications(): Promise<boolean> {

@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   createConnectTransport: vi.fn(),
   listRooms: vi.fn(),
   getRoom: vi.fn(),
+  batchGetRooms: vi.fn(),
   listRoomGroups: vi.fn(),
   getRoomGroup: vi.fn(),
   batchGetRoomGroups: vi.fn(),
@@ -34,6 +35,7 @@ describe('createRoomDirectoryAPI', () => {
     mocks.createConnectTransport.mockReset();
     mocks.listRooms.mockReset();
     mocks.getRoom.mockReset();
+    mocks.batchGetRooms.mockReset();
     mocks.listRoomGroups.mockReset();
     mocks.getRoomGroup.mockReset();
     mocks.batchGetRoomGroups.mockReset();
@@ -44,6 +46,7 @@ describe('createRoomDirectoryAPI', () => {
     mocks.createClient.mockReturnValue({
       listRooms: mocks.listRooms,
       getRoom: mocks.getRoom,
+      batchGetRooms: mocks.batchGetRooms,
       listRoomGroups: mocks.listRoomGroups,
       getRoomGroup: mocks.getRoomGroup,
       batchGetRoomGroups: mocks.batchGetRoomGroups
@@ -189,6 +192,53 @@ describe('createRoomDirectoryAPI', () => {
 
     await expect(api.getRoom('hidden-room')).resolves.toBeNull();
     expect(mocks.handleAuthenticationRequired).not.toHaveBeenCalled();
+  });
+
+  it('batch gets rooms and maps viewer permissions', async () => {
+    mocks.batchGetRooms.mockResolvedValue({
+      rooms: [
+        {
+          room: {
+            id: 'room-1',
+            name: 'general',
+            description: 'Lobby channel',
+            kind: RoomKind.CHANNEL,
+            archived: false,
+            universal: true
+          },
+          viewerState: {
+            isMember: true,
+            hasUnread: false,
+            canJoinRoom: false,
+            canPostMessage: true,
+            canPostInThread: false,
+            canAttach: true,
+            canReact: true,
+            canEchoMessage: false,
+            canManageOthersMessage: false,
+            canManageRoom: false,
+            canBanRoomMembers: false
+          }
+        }
+      ]
+    });
+
+    const api = createRoomDirectoryAPI({
+      baseUrl: 'https://remote.example.com/api/connect',
+      bearerToken: 'token'
+    });
+
+    await expect(api.batchGetRooms(['room-1', 'missing'])).resolves.toMatchObject([
+      {
+        id: 'room-1',
+        canPostMessage: true,
+        canAttach: true
+      }
+    ]);
+    expect(mocks.batchGetRooms).toHaveBeenCalledWith(
+      { roomIds: ['room-1', 'missing'] },
+      { headers: { Authorization: 'Bearer token' } }
+    );
   });
 
   it('lists room groups and maps mixed sidebar items', async () => {

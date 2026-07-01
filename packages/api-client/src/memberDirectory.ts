@@ -1,4 +1,4 @@
-import { createClient } from "@connectrpc/connect";
+import { Code, ConnectError, createClient } from "@connectrpc/connect";
 import { createConnectTransport } from "@connectrpc/connect-web";
 import { MemberDirectoryService } from "@chatto/api-types/api/v1/member_directory_connect";
 import type { DirectoryMember as APIDirectoryMember } from "@chatto/api-types/api/v1/member_directory_pb";
@@ -61,6 +61,29 @@ export function createMemberDirectoryAPI(config: MemberDirectoryAPIConfig) {
       };
     },
 
+    async getServerMember(userId: string): Promise<DirectoryMember | null> {
+      try {
+        const response = await client.getServerMember(
+          { userId },
+          { headers: headers() },
+        );
+        return response.member ? mapDirectoryMember(response.member) : null;
+      } catch (err) {
+        if (err instanceof ConnectError && err.code === Code.NotFound) {
+          return null;
+        }
+        throw err;
+      }
+    },
+
+    async batchGetServerMembers(userIds: string[]): Promise<DirectoryMember[]> {
+      const response = await client.batchGetServerMembers(
+        { userIds },
+        { headers: headers() },
+      );
+      return response.members.map(mapDirectoryMember);
+    },
+
     async listRoomMembers(
       roomId: string,
       search = "",
@@ -76,6 +99,38 @@ export function createMemberDirectoryAPI(config: MemberDirectoryAPIConfig) {
         totalCount: Number(response.page?.totalCount ?? 0),
         hasMore: response.page?.hasMore ?? false,
       };
+    },
+
+    async getRoomMember(
+      roomId: string,
+      userId: string,
+    ): Promise<DirectoryMember | null> {
+      try {
+        const response = await client.getRoomMember(
+          { roomId, userId },
+          { headers: headers() },
+        );
+        return response.member ? mapDirectoryMember(response.member) : null;
+      } catch (err) {
+        if (
+          err instanceof ConnectError &&
+          (err.code === Code.NotFound || err.code === Code.PermissionDenied)
+        ) {
+          return null;
+        }
+        throw err;
+      }
+    },
+
+    async batchGetRoomMembers(
+      roomId: string,
+      userIds: string[],
+    ): Promise<DirectoryMember[]> {
+      const response = await client.batchGetRoomMembers(
+        { roomId, userIds },
+        { headers: headers() },
+      );
+      return response.members.map(mapDirectoryMember);
     },
   };
 }

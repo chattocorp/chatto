@@ -12,7 +12,11 @@
 
 import { SvelteMap } from 'svelte/reactivity';
 import type { VoiceCallState } from '$lib/state/server/voiceCall.svelte';
-import type { VoiceCallAPI, VoiceCallParticipant } from '@chatto/api-client/voiceCalls';
+import type {
+  ActiveVoiceCall,
+  VoiceCallAPI,
+  VoiceCallParticipant
+} from '@chatto/api-client/voiceCalls';
 
 /** Participant info for display in the room list sidebar. */
 export type CallRoomParticipant = {
@@ -103,8 +107,31 @@ export class ActiveCallRoomsState {
       }
     }
 
-    // Fetch participants for each active room in parallel
-    await Promise.all(roomIds.map((roomId: string) => this.loadRoomParticipants(roomId)));
+    if (roomIds.length === 0) return;
+
+    const calls = await this.#api.batchGetActiveCalls(roomIds);
+    const hydratedRoomIds: Record<string, true> = Object.create(null);
+    for (const call of calls) {
+      hydratedRoomIds[call.roomId] = true;
+      this.applyActiveCall(call);
+    }
+
+    for (const roomId of roomIds) {
+      if (!hydratedRoomIds[roomId]) {
+        this.serverRooms.delete(roomId);
+        this.pendingCallIds.delete(roomId);
+      }
+    }
+  }
+
+  private applyActiveCall(call: ActiveVoiceCall): void {
+    this.serverRooms.set(call.roomId, {
+      callId: call.callId,
+      participants: call.participants.map(toCallRoomParticipant)
+    });
+    if (this.pendingCallIds.get(call.roomId) === call.callId) {
+      this.pendingCallIds.delete(call.roomId);
+    }
   }
 
   private bumpRoomVersion(roomId: string): number {
