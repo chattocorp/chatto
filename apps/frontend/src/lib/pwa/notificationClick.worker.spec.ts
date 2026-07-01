@@ -1,9 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import {
-  clearBadgeIfNoNotificationsRemain,
-  routeNotificationClick,
-  type NotificationClickClient
-} from './notificationClick.worker';
+import { routeNotificationClick, type NotificationClickClient } from './notificationClick.worker';
 
 const ORIGIN = 'https://chatto.example';
 const TARGET_URL = `${ORIGIN}/chat/-/room-1?highlight=event-1`;
@@ -151,71 +147,5 @@ describe('routeNotificationClick', () => {
 
     expect(clients.matchAll).not.toHaveBeenCalled();
     expect(clients.openWindow).not.toHaveBeenCalled();
-  });
-});
-
-describe('clearBadgeIfNoNotificationsRemain', () => {
-  it('clears the app badge when no native notifications remain', async () => {
-    const registration = {
-      getNotifications: vi.fn(async () => [])
-    };
-    const badgeNavigator = {
-      clearAppBadge: vi.fn(async () => {})
-    };
-
-    await clearBadgeIfNoNotificationsRemain(registration, badgeNavigator);
-
-    expect(registration.getNotifications).toHaveBeenCalledOnce();
-    expect(badgeNavigator.clearAppBadge).toHaveBeenCalledOnce();
-  });
-
-  it('keeps the app badge when native notifications remain', async () => {
-    const registration = {
-      getNotifications: vi.fn(async () => [{}])
-    };
-    const badgeNavigator = {
-      clearAppBadge: vi.fn(async () => {})
-    };
-
-    await clearBadgeIfNoNotificationsRemain(registration, badgeNavigator);
-
-    expect(registration.getNotifications).toHaveBeenCalledOnce();
-    expect(badgeNavigator.clearAppBadge).not.toHaveBeenCalled();
-  });
-
-  it('preserves a flag badge when foreground unread state still exists', async () => {
-    const registration = {
-      getNotifications: vi.fn(async () => [])
-    };
-    const badgeNavigator = {
-      setAppBadge: vi.fn(async () => {}),
-      clearAppBadge: vi.fn(async () => {})
-    };
-
-    await clearBadgeIfNoNotificationsRemain(registration, badgeNavigator, { preserveFlag: true });
-
-    expect(registration.getNotifications).toHaveBeenCalledOnce();
-    expect(badgeNavigator.setAppBadge).toHaveBeenCalledOnce();
-    expect(badgeNavigator.clearAppBadge).not.toHaveBeenCalled();
-  });
-
-  it('does not throw or clear when native notification listing fails', async () => {
-    const registration = {
-      getNotifications: vi.fn(async () => {
-        throw new Error('notification store unavailable');
-      })
-    };
-    const badgeNavigator = {
-      setAppBadge: vi.fn(async () => {}),
-      clearAppBadge: vi.fn(async () => {})
-    };
-
-    await expect(
-      clearBadgeIfNoNotificationsRemain(registration, badgeNavigator)
-    ).resolves.toBeUndefined();
-
-    expect(registration.getNotifications).toHaveBeenCalledOnce();
-    expect(badgeNavigator.setAppBadge).not.toHaveBeenCalled();
-    expect(badgeNavigator.clearAppBadge).not.toHaveBeenCalled();
   });
 });

@@ -50,7 +50,9 @@ const { mocks } = vi.hoisted(() => {
         getThreadEventsAround: vi.fn()
       },
       livekitUrl: null as string | null,
+      roomKind: 1,
       notifications: {
+        notifications: [] as Array<{ id: string }>,
         dismissDMNotifications: vi.fn().mockResolvedValue({ byRoom: {} }),
         dismissMentionNotifications: vi.fn().mockResolvedValue({ byRoom: {} }),
         dismissRoomReplyNotifications: vi.fn().mockResolvedValue({ byRoom: {} }),
@@ -98,7 +100,7 @@ vi.mock('$lib/hooks', () => ({
         id: 'room-1',
         name: 'general',
         description: 'Room description',
-        type: RoomKind.CHANNEL,
+        type: mocks.roomKind,
         isUniversal: false
       },
       spaceName: 'Test Space',
@@ -112,7 +114,7 @@ vi.mock('$lib/hooks', () => ({
       canBanRoomMembers: false
     },
     dmData: null,
-    isDM: false,
+    isDM: mocks.roomKind === RoomKind.DM,
     isRoomLoading: false
   }),
   useRoomUnread: () => ({
@@ -271,6 +273,8 @@ beforeEach(() => {
   mocks.timeline.getThreadEvents.mockResolvedValue(emptyTimelinePage());
   mocks.timeline.getThreadEventsAround.mockResolvedValue(emptyTimelinePage());
   mocks.livekitUrl = null;
+  mocks.roomKind = RoomKind.CHANNEL;
+  mocks.notifications.notifications = [];
   mocks.notifications.dismissDMNotifications.mockResolvedValue({ byRoom: {} });
   mocks.notifications.dismissMentionNotifications.mockResolvedValue({ byRoom: {} });
   mocks.notifications.dismissRoomReplyNotifications.mockResolvedValue({ byRoom: {} });
@@ -313,7 +317,9 @@ describe('Room local message echo', () => {
     const rendered = render(Room, { props: { roomId: 'room-1' } });
     const { container } = rendered;
 
-    await expect.element(q(container, '[data-testid="composer-in-reply-to"]')).toHaveTextContent('');
+    await expect
+      .element(q(container, '[data-testid="composer-in-reply-to"]'))
+      .toHaveTextContent('');
 
     (q(container, '[data-testid="start-composer-reply"]') as HTMLButtonElement).click();
     await expect
@@ -322,7 +328,9 @@ describe('Room local message echo', () => {
 
     await rendered.rerender({ roomId: 'room-2' });
 
-    await expect.element(q(container, '[data-testid="composer-in-reply-to"]')).toHaveTextContent('');
+    await expect
+      .element(q(container, '[data-testid="composer-in-reply-to"]'))
+      .toHaveTextContent('');
   });
 
   it('opens a pending call panel request as a mobile sidebar after navigation', async () => {
@@ -348,6 +356,20 @@ describe('Room local message echo', () => {
 
     await vi.waitFor(() => {
       expect(mocks.rooms.decrementUnreadNotification).toHaveBeenCalledWith('room-1', 1);
+      expect(mocks.rooms.refreshNotificationCounts).toHaveBeenCalledOnce();
+    });
+  });
+
+  it('dismisses active DM notifications and refreshes room notification counts', async () => {
+    mocks.roomKind = RoomKind.DM;
+    mocks.notifications.dismissDMNotifications.mockResolvedValue({ byRoom: { 'room-1': 2 } });
+
+    render(Room, { props: { roomId: 'room-1' } });
+
+    await vi.waitFor(() => {
+      expect(mocks.notifications.dismissDMNotifications).toHaveBeenCalledWith('room-1');
+      expect(mocks.notifications.dismissMentionNotifications).not.toHaveBeenCalled();
+      expect(mocks.rooms.decrementUnreadNotification).toHaveBeenCalledWith('room-1', 2);
       expect(mocks.rooms.refreshNotificationCounts).toHaveBeenCalledOnce();
     });
   });

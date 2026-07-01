@@ -1,7 +1,7 @@
 # FDR-012: Notifications
 
 **Status:** Active
-**Last reviewed:** 2026-06-25
+**Last reviewed:** 2026-07-01
 
 ## Overview
 
@@ -14,7 +14,8 @@ Chatto has a persistent notification system surfaced through a bell icon and not
 - Mention notifications may come from direct `@username`, role `@role`, `@all`, or `@here` mentions. Sends that would notify more than 10 users require confirmation before notifications are created.
 - Notifications auto-expire after 90 days.
 - Dismissing a notification removes it everywhere — across all the user's open tabs and devices.
-- A notification sound plays and the badge updates in real time as new notifications arrive.
+- A notification sound plays and the in-app and installed PWA notification badges update in real time as new notifications arrive.
+- The installed PWA dock badge reflects pending notifications only; ordinary unread rooms stay in the in-app sidebar unless the user has configured them to create notifications.
 - Users can choose and locally shape the notification sound on each browser with volume, tone, and effect controls.
 - Sidebar orange dots for mentions, replies, DMs, and all-message subscriptions derive from pending notification records.
 - A recipient's Do Not Disturb presence still stores new notifications and updates counts, but those creation events are silent: no notification sound and no web push while DND is active.

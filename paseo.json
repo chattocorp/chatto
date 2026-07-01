@@ -5,7 +5,11 @@
   "scripts": {
     "dev": {
       "type": "service",
-      "command": "mise run chatto run"
+      "command": "mise dev"
+    },
+    "dev-docs-website": {
+      "type": "service",
+      "command": "mise dev-docs-website"
     }
   },
   "metadataGeneration": {

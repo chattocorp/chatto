@@ -7,7 +7,7 @@ and PWA badge updates.
 **Responsibilities:**
 - Listens for new notifications on all instance event buses and plays the user's selected sound
 - Syncs notification dismissals from other devices
-- Updates PWA dock badge based on aggregated notification count and unread state
+- Updates PWA dock badge based on aggregated pending-notification count
 
 Include this component once in the chat layout (unconditionally).
 -->
@@ -18,9 +18,8 @@ Include this component once in the chat layout (unconditionally).
   import { playNotificationSound } from '$lib/audio/notificationSounds';
   import {
     updateBadge,
-    setFlagBadge,
     clearBadge,
-    syncServiceWorkerUnreadBadgeState
+    syncServiceWorkerNotificationBadgeState
   } from '$lib/notifications/appBadge';
   import type { EventEnvelope, EventHandler } from '$lib/eventBus.svelte';
   import { RoomEventKind, roomEventKind } from '$lib/render/eventKinds';
@@ -98,33 +97,29 @@ Include this component once in the chat layout (unconditionally).
     };
   });
 
-  // Aggregate notification count and unread state across all authenticated instances.
-  let totalNotificationCount = $derived(
-    serverRegistry.servers.reduce((sum, instance) => {
-      const stores = serverRegistry.getStore(instance.id);
-      if (!stores.isAuthenticated) return sum;
-      return (
-        sum + Math.max(stores.notifications.unreadNotificationCount, stores.notifications.count)
-      );
-    }, 0)
-  );
+  let badgeState = $derived.by(() => {
+    let count = 0;
+    let allStoresLoaded = true;
 
-  let hasAnyUnread = $derived(
-    serverRegistry.servers.some((instance) => {
+    for (const instance of serverRegistry.servers) {
       const stores = serverRegistry.getStore(instance.id);
-      if (!stores.isAuthenticated) return false;
-      return stores.roomUnread.hasAnyUnread;
-    })
-  );
+      if (!stores.isAuthenticated) continue;
+      if (!stores.notifications.hasLoaded) allStoresLoaded = false;
+      count += Math.max(stores.notifications.unreadNotificationCount, stores.notifications.count);
+    }
 
-  // Update PWA dock badge based on aggregated state
+    return { count, allStoresLoaded };
+  });
+
+  // Update PWA dock badge based on pending notifications only. Plain unread
+  // rooms stay in-app so users can choose notification levels for important rooms.
   $effect(() => {
-    syncServiceWorkerUnreadBadgeState(hasAnyUnread);
+    if (badgeState.count === 0 && !badgeState.allStoresLoaded) return;
 
-    if (totalNotificationCount > 0) {
-      updateBadge(totalNotificationCount);
-    } else if (hasAnyUnread) {
-      setFlagBadge();
+    syncServiceWorkerNotificationBadgeState(badgeState.count);
+
+    if (badgeState.count > 0) {
+      updateBadge(badgeState.count);
     } else {
       clearBadge();
     }

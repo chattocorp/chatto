@@ -14,6 +14,7 @@ const { mocks } = vi.hoisted(() => {
     notifications: {
       count: 0,
       unreadNotificationCount: 0,
+      hasLoaded: true,
       addNotification: vi.fn(() => Promise.resolve()),
       removeNotification: vi.fn(),
       consumeLocalDismissal: vi.fn(),
@@ -36,9 +37,8 @@ const { mocks } = vi.hoisted(() => {
       store,
       playNotificationSound: vi.fn(),
       updateBadge: vi.fn(() => Promise.resolve()),
-      setFlagBadge: vi.fn(() => Promise.resolve()),
       clearBadge: vi.fn(() => Promise.resolve()),
-      syncServiceWorkerUnreadBadgeState: vi.fn()
+      syncServiceWorkerNotificationBadgeState: vi.fn()
     }
   };
 });
@@ -76,9 +76,8 @@ vi.mock('$lib/audio/notificationSounds', () => ({
 
 vi.mock('$lib/notifications/appBadge', () => ({
   updateBadge: mocks.updateBadge,
-  setFlagBadge: mocks.setFlagBadge,
   clearBadge: mocks.clearBadge,
-  syncServiceWorkerUnreadBadgeState: mocks.syncServiceWorkerUnreadBadgeState
+  syncServiceWorkerNotificationBadgeState: mocks.syncServiceWorkerNotificationBadgeState
 }));
 
 function dispatch(event: Record<string, unknown>) {
@@ -109,6 +108,7 @@ describe('NotificationSync', () => {
     mocks.store.isAuthenticated = true;
     mocks.store.notifications.count = 0;
     mocks.store.notifications.unreadNotificationCount = 0;
+    mocks.store.notifications.hasLoaded = true;
     mocks.store.roomUnread.hasAnyUnread = false;
     mocks.store.notifications.addNotification.mockResolvedValue(undefined);
     mocks.store.notifications.removeNotification.mockReturnValue(null);
@@ -192,8 +192,7 @@ describe('NotificationSync', () => {
     await renderAndWaitForSubscription();
 
     await vi.waitFor(() => expect(mocks.updateBadge).toHaveBeenCalledWith(3));
-    expect(mocks.syncServiceWorkerUnreadBadgeState).toHaveBeenCalledWith(false);
-    expect(mocks.setFlagBadge).not.toHaveBeenCalled();
+    expect(mocks.syncServiceWorkerNotificationBadgeState).toHaveBeenCalledWith(3);
     expect(mocks.clearBadge).not.toHaveBeenCalled();
   });
 
@@ -201,19 +200,38 @@ describe('NotificationSync', () => {
     await renderAndWaitForSubscription();
 
     await vi.waitFor(() => expect(mocks.clearBadge).toHaveBeenCalledOnce());
-    expect(mocks.syncServiceWorkerUnreadBadgeState).toHaveBeenCalledWith(false);
+    expect(mocks.syncServiceWorkerNotificationBadgeState).toHaveBeenCalledWith(0);
     expect(mocks.updateBadge).not.toHaveBeenCalled();
-    expect(mocks.setFlagBadge).not.toHaveBeenCalled();
   });
 
-  it('shares unread-only badge state with the service worker', async () => {
+  it('does not treat startup zero as authoritative before notifications load', async () => {
+    mocks.store.notifications.hasLoaded = false;
+
+    await renderAndWaitForSubscription();
+
+    expect(mocks.syncServiceWorkerNotificationBadgeState).not.toHaveBeenCalled();
+    expect(mocks.updateBadge).not.toHaveBeenCalled();
+    expect(mocks.clearBadge).not.toHaveBeenCalled();
+  });
+
+  it('still publishes a positive count before all stores are loaded', async () => {
+    mocks.store.notifications.hasLoaded = false;
+    mocks.store.notifications.unreadNotificationCount = 2;
+
+    await renderAndWaitForSubscription();
+
+    await vi.waitFor(() => expect(mocks.updateBadge).toHaveBeenCalledWith(2));
+    expect(mocks.syncServiceWorkerNotificationBadgeState).toHaveBeenCalledWith(2);
+    expect(mocks.clearBadge).not.toHaveBeenCalled();
+  });
+
+  it('does not set a dock badge for unread-only rooms', async () => {
     mocks.store.roomUnread.hasAnyUnread = true;
 
     await renderAndWaitForSubscription();
 
-    await vi.waitFor(() => expect(mocks.setFlagBadge).toHaveBeenCalledOnce());
-    expect(mocks.syncServiceWorkerUnreadBadgeState).toHaveBeenCalledWith(true);
+    await vi.waitFor(() => expect(mocks.clearBadge).toHaveBeenCalledOnce());
+    expect(mocks.syncServiceWorkerNotificationBadgeState).toHaveBeenCalledWith(0);
     expect(mocks.updateBadge).not.toHaveBeenCalled();
-    expect(mocks.clearBadge).not.toHaveBeenCalled();
   });
 });

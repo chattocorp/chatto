@@ -20,16 +20,17 @@ configuration for those.
 
 ## Local Development with Conductor or Paseo
 
-[Conductor](https://conductor.build) and Paseo workspaces build and run the bundled Chatto executable. The Conductor `run` script in `.conductor/settings.toml` and the Paseo service script in `paseo.json` both delegate to `mise run chatto run`. The mise task uses Conductor's assigned `$CONDUCTOR_PORT`, Paseo's assigned `$PASEO_PORT`, or `4000` outside either tool, then reserves the next ports for bundled services:
+[Conductor](https://conductor.build) and Paseo workspaces run the live local development stack. The default Conductor `chatto` run script in `.conductor/settings.toml` and the Paseo `dev` service in `paseo.json` both delegate to `mise dev`. The mise task uses Conductor's assigned `$CONDUCTOR_PORT`, Paseo's assigned `$PASEO_PORT`, or `4000` outside either tool, then reserves the next ports for bundled services:
 
-| Port                             | Process                            |
-| -------------------------------- | ---------------------------------- |
-| `$CONDUCTOR_PORT` / `$PASEO_PORT` | Chatto webserver (user-facing URL) |
-| `+1`                             | Embedded NATS                      |
-| `+2`                             | Prometheus metrics                 |
-| `+3`                             | Deployment-wide exporter metrics   |
+| Port                              | Process                                       |
+| --------------------------------- | --------------------------------------------- |
+| `$CONDUCTOR_PORT` / `$PASEO_PORT` | Vite frontend (user-facing URL)               |
+| `+1`                              | Chatto backend webserver                      |
+| `+2`                              | Embedded NATS                                 |
+| `+3`                              | Prometheus metrics                            |
+| `+4`                              | Deployment-wide exporter metrics              |
 
-The repository-level Conductor settings are shared in `.conductor/settings.toml`, and the repository-level Paseo settings are shared in `paseo.json`. Both build the frontend and development CLI, wire per-workspace ports, and start `bin/chatto run` without live reloads. Put machine-specific Conductor overrides in `.conductor/settings.local.toml`; that file is gitignored and wins over shared settings on your machine. Conductor also reads `.worktreeinclude` to copy gitignored local environment files, such as `.env` and `.env.*`, into new workspaces.
+The repository-level Conductor settings are shared in `.conductor/settings.toml`, and the repository-level Paseo settings are shared in `paseo.json`. Both wire per-workspace ports before starting the backend and frontend development servers so multiple workspaces can run side by side. Conductor also exposes a `docs-website` run script, and Paseo exposes a separate `dev-docs-website` service; both are backed by `mise dev-docs-website` and reuse the workspace base port for the docs website. Put machine-specific Conductor overrides in `.conductor/settings.local.toml`; that file is gitignored and wins over shared settings on your machine. Conductor also reads `.worktreeinclude` to copy gitignored local environment files, such as `.env` and `.env.*`, into new workspaces.
 
 ## Developing Outside of Conductor
 
@@ -40,21 +41,25 @@ mise trust
 mise run setup
 ```
 
-To run the bundled executable without live reloads using the same port wiring as Conductor:
+To run the same live development stack Conductor and Paseo use:
+
+```sh
+mise dev
+```
+
+To run the docs website development server on the workspace base port:
+
+```sh
+mise dev-docs-website
+```
+
+To run the bundled executable without live reloads:
 
 ```sh
 mise run chatto run
 ```
 
-When both `CONDUCTOR_PORT` and `PASEO_PORT` are unset, `mise run chatto run` uses `4000` for Chatto, `4001` for embedded NATS, `4002` for Prometheus metrics, and `4003` for exporter metrics. Pass explicit CLI arguments after the task name, for example `mise chatto version`.
-
-For the live-reload development stack, use Tilt:
-
-```sh
-mise run dev
-```
-
-The Tilt stack uses Vite on port `5173`, the Go backend on port `4000`, embedded NATS on port `4555`, and Prometheus metrics on `http://localhost:9090/metrics`.
+When both `CONDUCTOR_PORT` and `PASEO_PORT` are unset, `mise dev` uses `4000` for the Vite frontend, `4001` for the Chatto backend, `4002` for embedded NATS, `4003` for Prometheus metrics, and `4004` for exporter metrics. `mise dev-docs-website` uses `4000` for the docs website. `mise run chatto run` still uses the bundled-binary port layout: `4000` for Chatto, `4001` for embedded NATS, `4002` for Prometheus metrics, and `4003` for exporter metrics. Pass explicit CLI arguments after the task name, for example `mise chatto version`.
 
 ## Local Bootstrap Users
 

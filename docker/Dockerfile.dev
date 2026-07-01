@@ -18,7 +18,7 @@ RUN set -eux; \
 
 WORKDIR /app
 
-# Bake in the cli/ tree so the image can run standalone (e.g. under Tilt
-# in Kubernetes, where there's no Compose bind-mount). When used under
-# Compose this is overlaid by the bind-mount and adds no runtime cost.
+# Bake in the cli/ tree so the image can run standalone in Kubernetes or other
+# containerized development environments. When used under Compose this is
+# overlaid by the bind-mount and adds no runtime cost.
 COPY cli ./cli
