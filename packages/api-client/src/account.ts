@@ -1,6 +1,6 @@
 import { createClient } from "@connectrpc/connect";
 import { createConnectTransport } from "@connectrpc/connect-web";
-import { AccountService } from "@chatto/api-types/api/v1/account_connect";
+import { MyAccountService } from "@chatto/api-types/api/v1/account_connect";
 import type { User as APIUser } from "@chatto/api-types/api/v1/users_pb";
 import {
   TimeFormat as APITimeFormat,
@@ -46,7 +46,7 @@ export function createAccountAPI(config: AccountAPIConfig) {
     baseUrl: config.baseUrl,
     useBinaryFormat: true,
   });
-  const client = createClient(AccountService, transport);
+  const client = createClient(MyAccountService, transport);
   const headers = () =>
     config.bearerToken
       ? { Authorization: `Bearer ${config.bearerToken}` }

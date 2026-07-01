@@ -98,8 +98,8 @@ message DeleteMyAccountResponse {
 }
 
 // Self-service account, profile, avatar, display preference, presence, and
-// custom-status commands.
-service AccountService {
+// custom-status commands for the authenticated user.
+service MyAccountService {
   // Updates the authenticated user's login and/or display name.
   rpc UpdateProfile(UpdateProfileRequest) returns (UpdateProfileResponse);
   // Uploads and sets the authenticated user's avatar.

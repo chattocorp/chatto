@@ -727,8 +727,8 @@ const file_chatto_api_v1_account_proto_rawDesc = "" +
 	"\x16DeleteMyAccountRequest\x12-\n" +
 	"\x12confirmation_token\x18\x01 \x01(\tR\x11confirmationToken\"3\n" +
 	"\x17DeleteMyAccountResponse\x12\x18\n" +
-	"\adeleted\x18\x01 \x01(\bR\adeleted2\xea\a\n" +
-	"\x0eAccountService\x12Z\n" +
+	"\adeleted\x18\x01 \x01(\bR\adeleted2\xec\a\n" +
+	"\x10MyAccountService\x12Z\n" +
 	"\rUpdateProfile\x12#.chatto.api.v1.UpdateProfileRequest\x1a$.chatto.api.v1.UpdateProfileResponse\x12W\n" +
 	"\fUploadAvatar\x12\".chatto.api.v1.UploadAvatarRequest\x1a#.chatto.api.v1.UploadAvatarResponse\x12W\n" +
 	"\fDeleteAvatar\x12\".chatto.api.v1.DeleteAvatarRequest\x1a#.chatto.api.v1.DeleteAvatarResponse\x12]\n" +
@@ -785,26 +785,26 @@ var file_chatto_api_v1_account_proto_depIdxs = []int32{
 	14, // 2: chatto.api.v1.DeleteAvatarResponse.user:type_name -> chatto.api.v1.User
 	15, // 3: chatto.api.v1.UpdateSettingsRequest.time_format:type_name -> chatto.api.v1.TimeFormat
 	16, // 4: chatto.api.v1.UpdateSettingsResponse.settings:type_name -> chatto.api.v1.UserSettings
-	0,  // 5: chatto.api.v1.AccountService.UpdateProfile:input_type -> chatto.api.v1.UpdateProfileRequest
-	2,  // 6: chatto.api.v1.AccountService.UploadAvatar:input_type -> chatto.api.v1.UploadAvatarRequest
-	4,  // 7: chatto.api.v1.AccountService.DeleteAvatar:input_type -> chatto.api.v1.DeleteAvatarRequest
-	6,  // 8: chatto.api.v1.AccountService.UpdatePassword:input_type -> chatto.api.v1.UpdatePasswordRequest
-	8,  // 9: chatto.api.v1.AccountService.UpdateSettings:input_type -> chatto.api.v1.UpdateSettingsRequest
-	17, // 10: chatto.api.v1.AccountService.UpdatePresence:input_type -> chatto.api.v1.UpdatePresenceRequest
-	18, // 11: chatto.api.v1.AccountService.UpdateCustomStatus:input_type -> chatto.api.v1.UpdateCustomStatusRequest
-	19, // 12: chatto.api.v1.AccountService.DeleteCustomStatus:input_type -> chatto.api.v1.DeleteCustomStatusRequest
-	10, // 13: chatto.api.v1.AccountService.RequestAccountDeletion:input_type -> chatto.api.v1.RequestAccountDeletionRequest
-	12, // 14: chatto.api.v1.AccountService.DeleteMyAccount:input_type -> chatto.api.v1.DeleteMyAccountRequest
-	1,  // 15: chatto.api.v1.AccountService.UpdateProfile:output_type -> chatto.api.v1.UpdateProfileResponse
-	3,  // 16: chatto.api.v1.AccountService.UploadAvatar:output_type -> chatto.api.v1.UploadAvatarResponse
-	5,  // 17: chatto.api.v1.AccountService.DeleteAvatar:output_type -> chatto.api.v1.DeleteAvatarResponse
-	7,  // 18: chatto.api.v1.AccountService.UpdatePassword:output_type -> chatto.api.v1.UpdatePasswordResponse
-	9,  // 19: chatto.api.v1.AccountService.UpdateSettings:output_type -> chatto.api.v1.UpdateSettingsResponse
-	20, // 20: chatto.api.v1.AccountService.UpdatePresence:output_type -> chatto.api.v1.UpdatePresenceResponse
-	21, // 21: chatto.api.v1.AccountService.UpdateCustomStatus:output_type -> chatto.api.v1.UpdateCustomStatusResponse
-	22, // 22: chatto.api.v1.AccountService.DeleteCustomStatus:output_type -> chatto.api.v1.DeleteCustomStatusResponse
-	11, // 23: chatto.api.v1.AccountService.RequestAccountDeletion:output_type -> chatto.api.v1.RequestAccountDeletionResponse
-	13, // 24: chatto.api.v1.AccountService.DeleteMyAccount:output_type -> chatto.api.v1.DeleteMyAccountResponse
+	0,  // 5: chatto.api.v1.MyAccountService.UpdateProfile:input_type -> chatto.api.v1.UpdateProfileRequest
+	2,  // 6: chatto.api.v1.MyAccountService.UploadAvatar:input_type -> chatto.api.v1.UploadAvatarRequest
+	4,  // 7: chatto.api.v1.MyAccountService.DeleteAvatar:input_type -> chatto.api.v1.DeleteAvatarRequest
+	6,  // 8: chatto.api.v1.MyAccountService.UpdatePassword:input_type -> chatto.api.v1.UpdatePasswordRequest
+	8,  // 9: chatto.api.v1.MyAccountService.UpdateSettings:input_type -> chatto.api.v1.UpdateSettingsRequest
+	17, // 10: chatto.api.v1.MyAccountService.UpdatePresence:input_type -> chatto.api.v1.UpdatePresenceRequest
+	18, // 11: chatto.api.v1.MyAccountService.UpdateCustomStatus:input_type -> chatto.api.v1.UpdateCustomStatusRequest
+	19, // 12: chatto.api.v1.MyAccountService.DeleteCustomStatus:input_type -> chatto.api.v1.DeleteCustomStatusRequest
+	10, // 13: chatto.api.v1.MyAccountService.RequestAccountDeletion:input_type -> chatto.api.v1.RequestAccountDeletionRequest
+	12, // 14: chatto.api.v1.MyAccountService.DeleteMyAccount:input_type -> chatto.api.v1.DeleteMyAccountRequest
+	1,  // 15: chatto.api.v1.MyAccountService.UpdateProfile:output_type -> chatto.api.v1.UpdateProfileResponse
+	3,  // 16: chatto.api.v1.MyAccountService.UploadAvatar:output_type -> chatto.api.v1.UploadAvatarResponse
+	5,  // 17: chatto.api.v1.MyAccountService.DeleteAvatar:output_type -> chatto.api.v1.DeleteAvatarResponse
+	7,  // 18: chatto.api.v1.MyAccountService.UpdatePassword:output_type -> chatto.api.v1.UpdatePasswordResponse
+	9,  // 19: chatto.api.v1.MyAccountService.UpdateSettings:output_type -> chatto.api.v1.UpdateSettingsResponse
+	20, // 20: chatto.api.v1.MyAccountService.UpdatePresence:output_type -> chatto.api.v1.UpdatePresenceResponse
+	21, // 21: chatto.api.v1.MyAccountService.UpdateCustomStatus:output_type -> chatto.api.v1.UpdateCustomStatusResponse
+	22, // 22: chatto.api.v1.MyAccountService.DeleteCustomStatus:output_type -> chatto.api.v1.DeleteCustomStatusResponse
+	11, // 23: chatto.api.v1.MyAccountService.RequestAccountDeletion:output_type -> chatto.api.v1.RequestAccountDeletionResponse
+	13, // 24: chatto.api.v1.MyAccountService.DeleteMyAccount:output_type -> chatto.api.v1.DeleteMyAccountResponse
 	15, // [15:25] is the sub-list for method output_type
 	5,  // [5:15] is the sub-list for method input_type
 	5,  // [5:5] is the sub-list for extension type_name

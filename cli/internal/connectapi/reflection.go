@@ -16,7 +16,7 @@ import (
 )
 
 var publicReflectionServiceNames = []string{
-	apiv1connect.AccountServiceName,
+	apiv1connect.MyAccountServiceName,
 	adminv1connect.AdminDiagnosticsServiceName,
 	adminv1connect.AdminEventLogServiceName,
 	adminv1connect.AdminMemberServiceName,

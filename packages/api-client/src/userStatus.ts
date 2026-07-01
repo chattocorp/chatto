@@ -2,7 +2,7 @@ import { notifyAuthenticationRequired } from "./hooks.js";
 import { Code, ConnectError, createClient } from "@connectrpc/connect";
 import { Timestamp } from "@bufbuild/protobuf";
 import { createConnectTransport } from "@connectrpc/connect-web";
-import { AccountService } from "@chatto/api-types/api/v1/account_connect";
+import { MyAccountService } from "@chatto/api-types/api/v1/account_connect";
 
 export type CustomUserStatusAPIConfig = {
   serverId: string;
@@ -63,7 +63,7 @@ function createUserStatusClient(config: CustomUserStatusAPIConfig) {
     baseUrl: config.baseUrl,
     useBinaryFormat: true,
   });
-  return createClient(AccountService, transport);
+  return createClient(MyAccountService, transport);
 }
 
 function headers(config: CustomUserStatusAPIConfig) {

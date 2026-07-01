@@ -126,7 +126,7 @@ async function updateOwnProfileViaConnect(
 ): Promise<{ login?: string; displayName?: string }> {
   const data = await connectPost<{ user?: { login?: string; displayName?: string } }>(
     page,
-    'chatto.api.v1.AccountService/UpdateProfile',
+    'chatto.api.v1.MyAccountService/UpdateProfile',
     input
   );
   if (!data.user) {

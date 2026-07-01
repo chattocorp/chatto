@@ -23,10 +23,10 @@ const categories = [
     title: 'chatto.api.v1',
     services: [
       {
-        name: 'AccountService',
+        name: 'MyAccountService',
         slug: 'account',
-        title: 'Account',
-        description: 'Self-service account, profile, avatar, presence, status, and settings RPCs.'
+        title: 'My Account',
+        description: 'Self-service account, profile, avatar, presence, status, and settings RPCs for the authenticated user.'
       },
       {
         name: 'ExternalIdentityFlowService',

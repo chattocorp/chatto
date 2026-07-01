@@ -16,7 +16,7 @@ their names and docs should make the administrative scope obvious.
   example, admin user/member management should be named around users when it
   includes identity, password, cooldown, role, and member-detail operations.
 - Avoid creating extra admin services only to separate self-service and admin
-  mutations. The public `AccountService` owns current-caller self-service;
+  mutations. The public `MyAccountService` owns current-caller self-service;
   admin user management belongs in an explicitly named admin service with
   permission-gated RPC comments.
 

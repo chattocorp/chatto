@@ -21,8 +21,8 @@ import (
 const _ = connect.IsAtLeastVersion1_13_0
 
 const (
-	// AccountServiceName is the fully-qualified name of the AccountService service.
-	AccountServiceName = "chatto.api.v1.AccountService"
+	// MyAccountServiceName is the fully-qualified name of the MyAccountService service.
+	MyAccountServiceName = "chatto.api.v1.MyAccountService"
 )
 
 // These constants are the fully-qualified names of the RPCs defined in this package. They're
@@ -33,40 +33,40 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
-	// AccountServiceUpdateProfileProcedure is the fully-qualified name of the AccountService's
+	// MyAccountServiceUpdateProfileProcedure is the fully-qualified name of the MyAccountService's
 	// UpdateProfile RPC.
-	AccountServiceUpdateProfileProcedure = "/chatto.api.v1.AccountService/UpdateProfile"
-	// AccountServiceUploadAvatarProcedure is the fully-qualified name of the AccountService's
+	MyAccountServiceUpdateProfileProcedure = "/chatto.api.v1.MyAccountService/UpdateProfile"
+	// MyAccountServiceUploadAvatarProcedure is the fully-qualified name of the MyAccountService's
 	// UploadAvatar RPC.
-	AccountServiceUploadAvatarProcedure = "/chatto.api.v1.AccountService/UploadAvatar"
-	// AccountServiceDeleteAvatarProcedure is the fully-qualified name of the AccountService's
+	MyAccountServiceUploadAvatarProcedure = "/chatto.api.v1.MyAccountService/UploadAvatar"
+	// MyAccountServiceDeleteAvatarProcedure is the fully-qualified name of the MyAccountService's
 	// DeleteAvatar RPC.
-	AccountServiceDeleteAvatarProcedure = "/chatto.api.v1.AccountService/DeleteAvatar"
-	// AccountServiceUpdatePasswordProcedure is the fully-qualified name of the AccountService's
+	MyAccountServiceDeleteAvatarProcedure = "/chatto.api.v1.MyAccountService/DeleteAvatar"
+	// MyAccountServiceUpdatePasswordProcedure is the fully-qualified name of the MyAccountService's
 	// UpdatePassword RPC.
-	AccountServiceUpdatePasswordProcedure = "/chatto.api.v1.AccountService/UpdatePassword"
-	// AccountServiceUpdateSettingsProcedure is the fully-qualified name of the AccountService's
+	MyAccountServiceUpdatePasswordProcedure = "/chatto.api.v1.MyAccountService/UpdatePassword"
+	// MyAccountServiceUpdateSettingsProcedure is the fully-qualified name of the MyAccountService's
 	// UpdateSettings RPC.
-	AccountServiceUpdateSettingsProcedure = "/chatto.api.v1.AccountService/UpdateSettings"
-	// AccountServiceUpdatePresenceProcedure is the fully-qualified name of the AccountService's
+	MyAccountServiceUpdateSettingsProcedure = "/chatto.api.v1.MyAccountService/UpdateSettings"
+	// MyAccountServiceUpdatePresenceProcedure is the fully-qualified name of the MyAccountService's
 	// UpdatePresence RPC.
-	AccountServiceUpdatePresenceProcedure = "/chatto.api.v1.AccountService/UpdatePresence"
-	// AccountServiceUpdateCustomStatusProcedure is the fully-qualified name of the AccountService's
+	MyAccountServiceUpdatePresenceProcedure = "/chatto.api.v1.MyAccountService/UpdatePresence"
+	// MyAccountServiceUpdateCustomStatusProcedure is the fully-qualified name of the MyAccountService's
 	// UpdateCustomStatus RPC.
-	AccountServiceUpdateCustomStatusProcedure = "/chatto.api.v1.AccountService/UpdateCustomStatus"
-	// AccountServiceDeleteCustomStatusProcedure is the fully-qualified name of the AccountService's
+	MyAccountServiceUpdateCustomStatusProcedure = "/chatto.api.v1.MyAccountService/UpdateCustomStatus"
+	// MyAccountServiceDeleteCustomStatusProcedure is the fully-qualified name of the MyAccountService's
 	// DeleteCustomStatus RPC.
-	AccountServiceDeleteCustomStatusProcedure = "/chatto.api.v1.AccountService/DeleteCustomStatus"
-	// AccountServiceRequestAccountDeletionProcedure is the fully-qualified name of the AccountService's
-	// RequestAccountDeletion RPC.
-	AccountServiceRequestAccountDeletionProcedure = "/chatto.api.v1.AccountService/RequestAccountDeletion"
-	// AccountServiceDeleteMyAccountProcedure is the fully-qualified name of the AccountService's
+	MyAccountServiceDeleteCustomStatusProcedure = "/chatto.api.v1.MyAccountService/DeleteCustomStatus"
+	// MyAccountServiceRequestAccountDeletionProcedure is the fully-qualified name of the
+	// MyAccountService's RequestAccountDeletion RPC.
+	MyAccountServiceRequestAccountDeletionProcedure = "/chatto.api.v1.MyAccountService/RequestAccountDeletion"
+	// MyAccountServiceDeleteMyAccountProcedure is the fully-qualified name of the MyAccountService's
 	// DeleteMyAccount RPC.
-	AccountServiceDeleteMyAccountProcedure = "/chatto.api.v1.AccountService/DeleteMyAccount"
+	MyAccountServiceDeleteMyAccountProcedure = "/chatto.api.v1.MyAccountService/DeleteMyAccount"
 )
 
-// AccountServiceClient is a client for the chatto.api.v1.AccountService service.
-type AccountServiceClient interface {
+// MyAccountServiceClient is a client for the chatto.api.v1.MyAccountService service.
+type MyAccountServiceClient interface {
 	// Updates the authenticated user's login and/or display name.
 	UpdateProfile(context.Context, *connect.Request[v1.UpdateProfileRequest]) (*connect.Response[v1.UpdateProfileResponse], error)
 	// Uploads and sets the authenticated user's avatar.
@@ -93,82 +93,82 @@ type AccountServiceClient interface {
 	DeleteMyAccount(context.Context, *connect.Request[v1.DeleteMyAccountRequest]) (*connect.Response[v1.DeleteMyAccountResponse], error)
 }
 
-// NewAccountServiceClient constructs a client for the chatto.api.v1.AccountService service. By
+// NewMyAccountServiceClient constructs a client for the chatto.api.v1.MyAccountService service. By
 // default, it uses the Connect protocol with the binary Protobuf Codec, asks for gzipped responses,
 // and sends uncompressed requests. To use the gRPC or gRPC-Web protocols, supply the
 // connect.WithGRPC() or connect.WithGRPCWeb() options.
 //
 // The URL supplied here should be the base URL for the Connect or gRPC server (for example,
 // http://api.acme.com or https://acme.com/grpc).
-func NewAccountServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) AccountServiceClient {
+func NewMyAccountServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) MyAccountServiceClient {
 	baseURL = strings.TrimRight(baseURL, "/")
-	accountServiceMethods := v1.File_chatto_api_v1_account_proto.Services().ByName("AccountService").Methods()
-	return &accountServiceClient{
+	myAccountServiceMethods := v1.File_chatto_api_v1_account_proto.Services().ByName("MyAccountService").Methods()
+	return &myAccountServiceClient{
 		updateProfile: connect.NewClient[v1.UpdateProfileRequest, v1.UpdateProfileResponse](
 			httpClient,
-			baseURL+AccountServiceUpdateProfileProcedure,
-			connect.WithSchema(accountServiceMethods.ByName("UpdateProfile")),
+			baseURL+MyAccountServiceUpdateProfileProcedure,
+			connect.WithSchema(myAccountServiceMethods.ByName("UpdateProfile")),
 			connect.WithClientOptions(opts...),
 		),
 		uploadAvatar: connect.NewClient[v1.UploadAvatarRequest, v1.UploadAvatarResponse](
 			httpClient,
-			baseURL+AccountServiceUploadAvatarProcedure,
-			connect.WithSchema(accountServiceMethods.ByName("UploadAvatar")),
+			baseURL+MyAccountServiceUploadAvatarProcedure,
+			connect.WithSchema(myAccountServiceMethods.ByName("UploadAvatar")),
 			connect.WithClientOptions(opts...),
 		),
 		deleteAvatar: connect.NewClient[v1.DeleteAvatarRequest, v1.DeleteAvatarResponse](
 			httpClient,
-			baseURL+AccountServiceDeleteAvatarProcedure,
-			connect.WithSchema(accountServiceMethods.ByName("DeleteAvatar")),
+			baseURL+MyAccountServiceDeleteAvatarProcedure,
+			connect.WithSchema(myAccountServiceMethods.ByName("DeleteAvatar")),
 			connect.WithClientOptions(opts...),
 		),
 		updatePassword: connect.NewClient[v1.UpdatePasswordRequest, v1.UpdatePasswordResponse](
 			httpClient,
-			baseURL+AccountServiceUpdatePasswordProcedure,
-			connect.WithSchema(accountServiceMethods.ByName("UpdatePassword")),
+			baseURL+MyAccountServiceUpdatePasswordProcedure,
+			connect.WithSchema(myAccountServiceMethods.ByName("UpdatePassword")),
 			connect.WithClientOptions(opts...),
 		),
 		updateSettings: connect.NewClient[v1.UpdateSettingsRequest, v1.UpdateSettingsResponse](
 			httpClient,
-			baseURL+AccountServiceUpdateSettingsProcedure,
-			connect.WithSchema(accountServiceMethods.ByName("UpdateSettings")),
+			baseURL+MyAccountServiceUpdateSettingsProcedure,
+			connect.WithSchema(myAccountServiceMethods.ByName("UpdateSettings")),
 			connect.WithClientOptions(opts...),
 		),
 		updatePresence: connect.NewClient[v1.UpdatePresenceRequest, v1.UpdatePresenceResponse](
 			httpClient,
-			baseURL+AccountServiceUpdatePresenceProcedure,
-			connect.WithSchema(accountServiceMethods.ByName("UpdatePresence")),
+			baseURL+MyAccountServiceUpdatePresenceProcedure,
+			connect.WithSchema(myAccountServiceMethods.ByName("UpdatePresence")),
 			connect.WithClientOptions(opts...),
 		),
 		updateCustomStatus: connect.NewClient[v1.UpdateCustomStatusRequest, v1.UpdateCustomStatusResponse](
 			httpClient,
-			baseURL+AccountServiceUpdateCustomStatusProcedure,
-			connect.WithSchema(accountServiceMethods.ByName("UpdateCustomStatus")),
+			baseURL+MyAccountServiceUpdateCustomStatusProcedure,
+			connect.WithSchema(myAccountServiceMethods.ByName("UpdateCustomStatus")),
 			connect.WithClientOptions(opts...),
 		),
 		deleteCustomStatus: connect.NewClient[v1.DeleteCustomStatusRequest, v1.DeleteCustomStatusResponse](
 			httpClient,
-			baseURL+AccountServiceDeleteCustomStatusProcedure,
-			connect.WithSchema(accountServiceMethods.ByName("DeleteCustomStatus")),
+			baseURL+MyAccountServiceDeleteCustomStatusProcedure,
+			connect.WithSchema(myAccountServiceMethods.ByName("DeleteCustomStatus")),
 			connect.WithClientOptions(opts...),
 		),
 		requestAccountDeletion: connect.NewClient[v1.RequestAccountDeletionRequest, v1.RequestAccountDeletionResponse](
 			httpClient,
-			baseURL+AccountServiceRequestAccountDeletionProcedure,
-			connect.WithSchema(accountServiceMethods.ByName("RequestAccountDeletion")),
+			baseURL+MyAccountServiceRequestAccountDeletionProcedure,
+			connect.WithSchema(myAccountServiceMethods.ByName("RequestAccountDeletion")),
 			connect.WithClientOptions(opts...),
 		),
 		deleteMyAccount: connect.NewClient[v1.DeleteMyAccountRequest, v1.DeleteMyAccountResponse](
 			httpClient,
-			baseURL+AccountServiceDeleteMyAccountProcedure,
-			connect.WithSchema(accountServiceMethods.ByName("DeleteMyAccount")),
+			baseURL+MyAccountServiceDeleteMyAccountProcedure,
+			connect.WithSchema(myAccountServiceMethods.ByName("DeleteMyAccount")),
 			connect.WithClientOptions(opts...),
 		),
 	}
 }
 
-// accountServiceClient implements AccountServiceClient.
-type accountServiceClient struct {
+// myAccountServiceClient implements MyAccountServiceClient.
+type myAccountServiceClient struct {
 	updateProfile          *connect.Client[v1.UpdateProfileRequest, v1.UpdateProfileResponse]
 	uploadAvatar           *connect.Client[v1.UploadAvatarRequest, v1.UploadAvatarResponse]
 	deleteAvatar           *connect.Client[v1.DeleteAvatarRequest, v1.DeleteAvatarResponse]
@@ -181,58 +181,58 @@ type accountServiceClient struct {
 	deleteMyAccount        *connect.Client[v1.DeleteMyAccountRequest, v1.DeleteMyAccountResponse]
 }
 
-// UpdateProfile calls chatto.api.v1.AccountService.UpdateProfile.
-func (c *accountServiceClient) UpdateProfile(ctx context.Context, req *connect.Request[v1.UpdateProfileRequest]) (*connect.Response[v1.UpdateProfileResponse], error) {
+// UpdateProfile calls chatto.api.v1.MyAccountService.UpdateProfile.
+func (c *myAccountServiceClient) UpdateProfile(ctx context.Context, req *connect.Request[v1.UpdateProfileRequest]) (*connect.Response[v1.UpdateProfileResponse], error) {
 	return c.updateProfile.CallUnary(ctx, req)
 }
 
-// UploadAvatar calls chatto.api.v1.AccountService.UploadAvatar.
-func (c *accountServiceClient) UploadAvatar(ctx context.Context, req *connect.Request[v1.UploadAvatarRequest]) (*connect.Response[v1.UploadAvatarResponse], error) {
+// UploadAvatar calls chatto.api.v1.MyAccountService.UploadAvatar.
+func (c *myAccountServiceClient) UploadAvatar(ctx context.Context, req *connect.Request[v1.UploadAvatarRequest]) (*connect.Response[v1.UploadAvatarResponse], error) {
 	return c.uploadAvatar.CallUnary(ctx, req)
 }
 
-// DeleteAvatar calls chatto.api.v1.AccountService.DeleteAvatar.
-func (c *accountServiceClient) DeleteAvatar(ctx context.Context, req *connect.Request[v1.DeleteAvatarRequest]) (*connect.Response[v1.DeleteAvatarResponse], error) {
+// DeleteAvatar calls chatto.api.v1.MyAccountService.DeleteAvatar.
+func (c *myAccountServiceClient) DeleteAvatar(ctx context.Context, req *connect.Request[v1.DeleteAvatarRequest]) (*connect.Response[v1.DeleteAvatarResponse], error) {
 	return c.deleteAvatar.CallUnary(ctx, req)
 }
 
-// UpdatePassword calls chatto.api.v1.AccountService.UpdatePassword.
-func (c *accountServiceClient) UpdatePassword(ctx context.Context, req *connect.Request[v1.UpdatePasswordRequest]) (*connect.Response[v1.UpdatePasswordResponse], error) {
+// UpdatePassword calls chatto.api.v1.MyAccountService.UpdatePassword.
+func (c *myAccountServiceClient) UpdatePassword(ctx context.Context, req *connect.Request[v1.UpdatePasswordRequest]) (*connect.Response[v1.UpdatePasswordResponse], error) {
 	return c.updatePassword.CallUnary(ctx, req)
 }
 
-// UpdateSettings calls chatto.api.v1.AccountService.UpdateSettings.
-func (c *accountServiceClient) UpdateSettings(ctx context.Context, req *connect.Request[v1.UpdateSettingsRequest]) (*connect.Response[v1.UpdateSettingsResponse], error) {
+// UpdateSettings calls chatto.api.v1.MyAccountService.UpdateSettings.
+func (c *myAccountServiceClient) UpdateSettings(ctx context.Context, req *connect.Request[v1.UpdateSettingsRequest]) (*connect.Response[v1.UpdateSettingsResponse], error) {
 	return c.updateSettings.CallUnary(ctx, req)
 }
 
-// UpdatePresence calls chatto.api.v1.AccountService.UpdatePresence.
-func (c *accountServiceClient) UpdatePresence(ctx context.Context, req *connect.Request[v1.UpdatePresenceRequest]) (*connect.Response[v1.UpdatePresenceResponse], error) {
+// UpdatePresence calls chatto.api.v1.MyAccountService.UpdatePresence.
+func (c *myAccountServiceClient) UpdatePresence(ctx context.Context, req *connect.Request[v1.UpdatePresenceRequest]) (*connect.Response[v1.UpdatePresenceResponse], error) {
 	return c.updatePresence.CallUnary(ctx, req)
 }
 
-// UpdateCustomStatus calls chatto.api.v1.AccountService.UpdateCustomStatus.
-func (c *accountServiceClient) UpdateCustomStatus(ctx context.Context, req *connect.Request[v1.UpdateCustomStatusRequest]) (*connect.Response[v1.UpdateCustomStatusResponse], error) {
+// UpdateCustomStatus calls chatto.api.v1.MyAccountService.UpdateCustomStatus.
+func (c *myAccountServiceClient) UpdateCustomStatus(ctx context.Context, req *connect.Request[v1.UpdateCustomStatusRequest]) (*connect.Response[v1.UpdateCustomStatusResponse], error) {
 	return c.updateCustomStatus.CallUnary(ctx, req)
 }
 
-// DeleteCustomStatus calls chatto.api.v1.AccountService.DeleteCustomStatus.
-func (c *accountServiceClient) DeleteCustomStatus(ctx context.Context, req *connect.Request[v1.DeleteCustomStatusRequest]) (*connect.Response[v1.DeleteCustomStatusResponse], error) {
+// DeleteCustomStatus calls chatto.api.v1.MyAccountService.DeleteCustomStatus.
+func (c *myAccountServiceClient) DeleteCustomStatus(ctx context.Context, req *connect.Request[v1.DeleteCustomStatusRequest]) (*connect.Response[v1.DeleteCustomStatusResponse], error) {
 	return c.deleteCustomStatus.CallUnary(ctx, req)
 }
 
-// RequestAccountDeletion calls chatto.api.v1.AccountService.RequestAccountDeletion.
-func (c *accountServiceClient) RequestAccountDeletion(ctx context.Context, req *connect.Request[v1.RequestAccountDeletionRequest]) (*connect.Response[v1.RequestAccountDeletionResponse], error) {
+// RequestAccountDeletion calls chatto.api.v1.MyAccountService.RequestAccountDeletion.
+func (c *myAccountServiceClient) RequestAccountDeletion(ctx context.Context, req *connect.Request[v1.RequestAccountDeletionRequest]) (*connect.Response[v1.RequestAccountDeletionResponse], error) {
 	return c.requestAccountDeletion.CallUnary(ctx, req)
 }
 
-// DeleteMyAccount calls chatto.api.v1.AccountService.DeleteMyAccount.
-func (c *accountServiceClient) DeleteMyAccount(ctx context.Context, req *connect.Request[v1.DeleteMyAccountRequest]) (*connect.Response[v1.DeleteMyAccountResponse], error) {
+// DeleteMyAccount calls chatto.api.v1.MyAccountService.DeleteMyAccount.
+func (c *myAccountServiceClient) DeleteMyAccount(ctx context.Context, req *connect.Request[v1.DeleteMyAccountRequest]) (*connect.Response[v1.DeleteMyAccountResponse], error) {
 	return c.deleteMyAccount.CallUnary(ctx, req)
 }
 
-// AccountServiceHandler is an implementation of the chatto.api.v1.AccountService service.
-type AccountServiceHandler interface {
+// MyAccountServiceHandler is an implementation of the chatto.api.v1.MyAccountService service.
+type MyAccountServiceHandler interface {
 	// Updates the authenticated user's login and/or display name.
 	UpdateProfile(context.Context, *connect.Request[v1.UpdateProfileRequest]) (*connect.Response[v1.UpdateProfileResponse], error)
 	// Uploads and sets the authenticated user's avatar.
@@ -259,140 +259,140 @@ type AccountServiceHandler interface {
 	DeleteMyAccount(context.Context, *connect.Request[v1.DeleteMyAccountRequest]) (*connect.Response[v1.DeleteMyAccountResponse], error)
 }
 
-// NewAccountServiceHandler builds an HTTP handler from the service implementation. It returns the
+// NewMyAccountServiceHandler builds an HTTP handler from the service implementation. It returns the
 // path on which to mount the handler and the handler itself.
 //
 // By default, handlers support the Connect, gRPC, and gRPC-Web protocols with the binary Protobuf
 // and JSON codecs. They also support gzip compression.
-func NewAccountServiceHandler(svc AccountServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
-	accountServiceMethods := v1.File_chatto_api_v1_account_proto.Services().ByName("AccountService").Methods()
-	accountServiceUpdateProfileHandler := connect.NewUnaryHandler(
-		AccountServiceUpdateProfileProcedure,
+func NewMyAccountServiceHandler(svc MyAccountServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
+	myAccountServiceMethods := v1.File_chatto_api_v1_account_proto.Services().ByName("MyAccountService").Methods()
+	myAccountServiceUpdateProfileHandler := connect.NewUnaryHandler(
+		MyAccountServiceUpdateProfileProcedure,
 		svc.UpdateProfile,
-		connect.WithSchema(accountServiceMethods.ByName("UpdateProfile")),
+		connect.WithSchema(myAccountServiceMethods.ByName("UpdateProfile")),
 		connect.WithHandlerOptions(opts...),
 	)
-	accountServiceUploadAvatarHandler := connect.NewUnaryHandler(
-		AccountServiceUploadAvatarProcedure,
+	myAccountServiceUploadAvatarHandler := connect.NewUnaryHandler(
+		MyAccountServiceUploadAvatarProcedure,
 		svc.UploadAvatar,
-		connect.WithSchema(accountServiceMethods.ByName("UploadAvatar")),
+		connect.WithSchema(myAccountServiceMethods.ByName("UploadAvatar")),
 		connect.WithHandlerOptions(opts...),
 	)
-	accountServiceDeleteAvatarHandler := connect.NewUnaryHandler(
-		AccountServiceDeleteAvatarProcedure,
+	myAccountServiceDeleteAvatarHandler := connect.NewUnaryHandler(
+		MyAccountServiceDeleteAvatarProcedure,
 		svc.DeleteAvatar,
-		connect.WithSchema(accountServiceMethods.ByName("DeleteAvatar")),
+		connect.WithSchema(myAccountServiceMethods.ByName("DeleteAvatar")),
 		connect.WithHandlerOptions(opts...),
 	)
-	accountServiceUpdatePasswordHandler := connect.NewUnaryHandler(
-		AccountServiceUpdatePasswordProcedure,
+	myAccountServiceUpdatePasswordHandler := connect.NewUnaryHandler(
+		MyAccountServiceUpdatePasswordProcedure,
 		svc.UpdatePassword,
-		connect.WithSchema(accountServiceMethods.ByName("UpdatePassword")),
+		connect.WithSchema(myAccountServiceMethods.ByName("UpdatePassword")),
 		connect.WithHandlerOptions(opts...),
 	)
-	accountServiceUpdateSettingsHandler := connect.NewUnaryHandler(
-		AccountServiceUpdateSettingsProcedure,
+	myAccountServiceUpdateSettingsHandler := connect.NewUnaryHandler(
+		MyAccountServiceUpdateSettingsProcedure,
 		svc.UpdateSettings,
-		connect.WithSchema(accountServiceMethods.ByName("UpdateSettings")),
+		connect.WithSchema(myAccountServiceMethods.ByName("UpdateSettings")),
 		connect.WithHandlerOptions(opts...),
 	)
-	accountServiceUpdatePresenceHandler := connect.NewUnaryHandler(
-		AccountServiceUpdatePresenceProcedure,
+	myAccountServiceUpdatePresenceHandler := connect.NewUnaryHandler(
+		MyAccountServiceUpdatePresenceProcedure,
 		svc.UpdatePresence,
-		connect.WithSchema(accountServiceMethods.ByName("UpdatePresence")),
+		connect.WithSchema(myAccountServiceMethods.ByName("UpdatePresence")),
 		connect.WithHandlerOptions(opts...),
 	)
-	accountServiceUpdateCustomStatusHandler := connect.NewUnaryHandler(
-		AccountServiceUpdateCustomStatusProcedure,
+	myAccountServiceUpdateCustomStatusHandler := connect.NewUnaryHandler(
+		MyAccountServiceUpdateCustomStatusProcedure,
 		svc.UpdateCustomStatus,
-		connect.WithSchema(accountServiceMethods.ByName("UpdateCustomStatus")),
+		connect.WithSchema(myAccountServiceMethods.ByName("UpdateCustomStatus")),
 		connect.WithHandlerOptions(opts...),
 	)
-	accountServiceDeleteCustomStatusHandler := connect.NewUnaryHandler(
-		AccountServiceDeleteCustomStatusProcedure,
+	myAccountServiceDeleteCustomStatusHandler := connect.NewUnaryHandler(
+		MyAccountServiceDeleteCustomStatusProcedure,
 		svc.DeleteCustomStatus,
-		connect.WithSchema(accountServiceMethods.ByName("DeleteCustomStatus")),
+		connect.WithSchema(myAccountServiceMethods.ByName("DeleteCustomStatus")),
 		connect.WithHandlerOptions(opts...),
 	)
-	accountServiceRequestAccountDeletionHandler := connect.NewUnaryHandler(
-		AccountServiceRequestAccountDeletionProcedure,
+	myAccountServiceRequestAccountDeletionHandler := connect.NewUnaryHandler(
+		MyAccountServiceRequestAccountDeletionProcedure,
 		svc.RequestAccountDeletion,
-		connect.WithSchema(accountServiceMethods.ByName("RequestAccountDeletion")),
+		connect.WithSchema(myAccountServiceMethods.ByName("RequestAccountDeletion")),
 		connect.WithHandlerOptions(opts...),
 	)
-	accountServiceDeleteMyAccountHandler := connect.NewUnaryHandler(
-		AccountServiceDeleteMyAccountProcedure,
+	myAccountServiceDeleteMyAccountHandler := connect.NewUnaryHandler(
+		MyAccountServiceDeleteMyAccountProcedure,
 		svc.DeleteMyAccount,
-		connect.WithSchema(accountServiceMethods.ByName("DeleteMyAccount")),
+		connect.WithSchema(myAccountServiceMethods.ByName("DeleteMyAccount")),
 		connect.WithHandlerOptions(opts...),
 	)
-	return "/chatto.api.v1.AccountService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	return "/chatto.api.v1.MyAccountService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case AccountServiceUpdateProfileProcedure:
-			accountServiceUpdateProfileHandler.ServeHTTP(w, r)
-		case AccountServiceUploadAvatarProcedure:
-			accountServiceUploadAvatarHandler.ServeHTTP(w, r)
-		case AccountServiceDeleteAvatarProcedure:
-			accountServiceDeleteAvatarHandler.ServeHTTP(w, r)
-		case AccountServiceUpdatePasswordProcedure:
-			accountServiceUpdatePasswordHandler.ServeHTTP(w, r)
-		case AccountServiceUpdateSettingsProcedure:
-			accountServiceUpdateSettingsHandler.ServeHTTP(w, r)
-		case AccountServiceUpdatePresenceProcedure:
-			accountServiceUpdatePresenceHandler.ServeHTTP(w, r)
-		case AccountServiceUpdateCustomStatusProcedure:
-			accountServiceUpdateCustomStatusHandler.ServeHTTP(w, r)
-		case AccountServiceDeleteCustomStatusProcedure:
-			accountServiceDeleteCustomStatusHandler.ServeHTTP(w, r)
-		case AccountServiceRequestAccountDeletionProcedure:
-			accountServiceRequestAccountDeletionHandler.ServeHTTP(w, r)
-		case AccountServiceDeleteMyAccountProcedure:
-			accountServiceDeleteMyAccountHandler.ServeHTTP(w, r)
+		case MyAccountServiceUpdateProfileProcedure:
+			myAccountServiceUpdateProfileHandler.ServeHTTP(w, r)
+		case MyAccountServiceUploadAvatarProcedure:
+			myAccountServiceUploadAvatarHandler.ServeHTTP(w, r)
+		case MyAccountServiceDeleteAvatarProcedure:
+			myAccountServiceDeleteAvatarHandler.ServeHTTP(w, r)
+		case MyAccountServiceUpdatePasswordProcedure:
+			myAccountServiceUpdatePasswordHandler.ServeHTTP(w, r)
+		case MyAccountServiceUpdateSettingsProcedure:
+			myAccountServiceUpdateSettingsHandler.ServeHTTP(w, r)
+		case MyAccountServiceUpdatePresenceProcedure:
+			myAccountServiceUpdatePresenceHandler.ServeHTTP(w, r)
+		case MyAccountServiceUpdateCustomStatusProcedure:
+			myAccountServiceUpdateCustomStatusHandler.ServeHTTP(w, r)
+		case MyAccountServiceDeleteCustomStatusProcedure:
+			myAccountServiceDeleteCustomStatusHandler.ServeHTTP(w, r)
+		case MyAccountServiceRequestAccountDeletionProcedure:
+			myAccountServiceRequestAccountDeletionHandler.ServeHTTP(w, r)
+		case MyAccountServiceDeleteMyAccountProcedure:
+			myAccountServiceDeleteMyAccountHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
 	})
 }
 
-// UnimplementedAccountServiceHandler returns CodeUnimplemented from all methods.
-type UnimplementedAccountServiceHandler struct{}
+// UnimplementedMyAccountServiceHandler returns CodeUnimplemented from all methods.
+type UnimplementedMyAccountServiceHandler struct{}
 
-func (UnimplementedAccountServiceHandler) UpdateProfile(context.Context, *connect.Request[v1.UpdateProfileRequest]) (*connect.Response[v1.UpdateProfileResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.AccountService.UpdateProfile is not implemented"))
+func (UnimplementedMyAccountServiceHandler) UpdateProfile(context.Context, *connect.Request[v1.UpdateProfileRequest]) (*connect.Response[v1.UpdateProfileResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.MyAccountService.UpdateProfile is not implemented"))
 }
 
-func (UnimplementedAccountServiceHandler) UploadAvatar(context.Context, *connect.Request[v1.UploadAvatarRequest]) (*connect.Response[v1.UploadAvatarResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.AccountService.UploadAvatar is not implemented"))
+func (UnimplementedMyAccountServiceHandler) UploadAvatar(context.Context, *connect.Request[v1.UploadAvatarRequest]) (*connect.Response[v1.UploadAvatarResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.MyAccountService.UploadAvatar is not implemented"))
 }
 
-func (UnimplementedAccountServiceHandler) DeleteAvatar(context.Context, *connect.Request[v1.DeleteAvatarRequest]) (*connect.Response[v1.DeleteAvatarResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.AccountService.DeleteAvatar is not implemented"))
+func (UnimplementedMyAccountServiceHandler) DeleteAvatar(context.Context, *connect.Request[v1.DeleteAvatarRequest]) (*connect.Response[v1.DeleteAvatarResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.MyAccountService.DeleteAvatar is not implemented"))
 }
 
-func (UnimplementedAccountServiceHandler) UpdatePassword(context.Context, *connect.Request[v1.UpdatePasswordRequest]) (*connect.Response[v1.UpdatePasswordResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.AccountService.UpdatePassword is not implemented"))
+func (UnimplementedMyAccountServiceHandler) UpdatePassword(context.Context, *connect.Request[v1.UpdatePasswordRequest]) (*connect.Response[v1.UpdatePasswordResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.MyAccountService.UpdatePassword is not implemented"))
 }
 
-func (UnimplementedAccountServiceHandler) UpdateSettings(context.Context, *connect.Request[v1.UpdateSettingsRequest]) (*connect.Response[v1.UpdateSettingsResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.AccountService.UpdateSettings is not implemented"))
+func (UnimplementedMyAccountServiceHandler) UpdateSettings(context.Context, *connect.Request[v1.UpdateSettingsRequest]) (*connect.Response[v1.UpdateSettingsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.MyAccountService.UpdateSettings is not implemented"))
 }
 
-func (UnimplementedAccountServiceHandler) UpdatePresence(context.Context, *connect.Request[v1.UpdatePresenceRequest]) (*connect.Response[v1.UpdatePresenceResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.AccountService.UpdatePresence is not implemented"))
+func (UnimplementedMyAccountServiceHandler) UpdatePresence(context.Context, *connect.Request[v1.UpdatePresenceRequest]) (*connect.Response[v1.UpdatePresenceResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.MyAccountService.UpdatePresence is not implemented"))
 }
 
-func (UnimplementedAccountServiceHandler) UpdateCustomStatus(context.Context, *connect.Request[v1.UpdateCustomStatusRequest]) (*connect.Response[v1.UpdateCustomStatusResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.AccountService.UpdateCustomStatus is not implemented"))
+func (UnimplementedMyAccountServiceHandler) UpdateCustomStatus(context.Context, *connect.Request[v1.UpdateCustomStatusRequest]) (*connect.Response[v1.UpdateCustomStatusResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.MyAccountService.UpdateCustomStatus is not implemented"))
 }
 
-func (UnimplementedAccountServiceHandler) DeleteCustomStatus(context.Context, *connect.Request[v1.DeleteCustomStatusRequest]) (*connect.Response[v1.DeleteCustomStatusResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.AccountService.DeleteCustomStatus is not implemented"))
+func (UnimplementedMyAccountServiceHandler) DeleteCustomStatus(context.Context, *connect.Request[v1.DeleteCustomStatusRequest]) (*connect.Response[v1.DeleteCustomStatusResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.MyAccountService.DeleteCustomStatus is not implemented"))
 }
 
-func (UnimplementedAccountServiceHandler) RequestAccountDeletion(context.Context, *connect.Request[v1.RequestAccountDeletionRequest]) (*connect.Response[v1.RequestAccountDeletionResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.AccountService.RequestAccountDeletion is not implemented"))
+func (UnimplementedMyAccountServiceHandler) RequestAccountDeletion(context.Context, *connect.Request[v1.RequestAccountDeletionRequest]) (*connect.Response[v1.RequestAccountDeletionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.MyAccountService.RequestAccountDeletion is not implemented"))
 }
 
-func (UnimplementedAccountServiceHandler) DeleteMyAccount(context.Context, *connect.Request[v1.DeleteMyAccountRequest]) (*connect.Response[v1.DeleteMyAccountResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.AccountService.DeleteMyAccount is not implemented"))
+func (UnimplementedMyAccountServiceHandler) DeleteMyAccount(context.Context, *connect.Request[v1.DeleteMyAccountRequest]) (*connect.Response[v1.DeleteMyAccountResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.MyAccountService.DeleteMyAccount is not implemented"))
 }

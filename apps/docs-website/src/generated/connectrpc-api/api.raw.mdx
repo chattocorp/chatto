@@ -305,21 +305,21 @@ Authenticated viewer snapshot needed by application shells.
 | `room_notification_preferences` | repeated [`RoomNotificationPreference`](#chatto-api-v1-RoomNotificationPreference) | Notification preferences for rooms the user participates in. |
 
 
-<a id="chatto-api-v1-AccountService"></a>
+<a id="chatto-api-v1-MyAccountService"></a>
 
-## AccountService
+## MyAccountService
 
 Self-service account, profile, avatar, display preference, presence, and
-custom-status commands.
+custom-status commands for the authenticated user.
 
-<a id="chatto-api-v1-AccountService-UpdateProfile"></a>
+<a id="chatto-api-v1-MyAccountService-UpdateProfile"></a>
 
 ### UpdateProfile
 
 Updates the authenticated user's login and/or display name.
 
 ```http
-POST /api/connect/chatto.api.v1.AccountService/UpdateProfile
+POST /api/connect/chatto.api.v1.MyAccountService/UpdateProfile
 ```
 
 <a id="chatto-api-v1-UpdateProfileRequest"></a>
@@ -346,14 +346,14 @@ Result of a profile update.
 | `user` | [`User`](#chatto-api-v1-User) | Updated user profile. |
 
 
-<a id="chatto-api-v1-AccountService-UploadAvatar"></a>
+<a id="chatto-api-v1-MyAccountService-UploadAvatar"></a>
 
 ### UploadAvatar
 
 Uploads and sets the authenticated user's avatar.
 
 ```http
-POST /api/connect/chatto.api.v1.AccountService/UploadAvatar
+POST /api/connect/chatto.api.v1.MyAccountService/UploadAvatar
 ```
 
 <a id="chatto-api-v1-UploadAvatarRequest"></a>
@@ -380,14 +380,14 @@ Result of uploading the authenticated user's avatar.
 | `user` | [`User`](#chatto-api-v1-User) | Updated user profile. |
 
 
-<a id="chatto-api-v1-AccountService-DeleteAvatar"></a>
+<a id="chatto-api-v1-MyAccountService-DeleteAvatar"></a>
 
 ### DeleteAvatar
 
 Deletes the authenticated user's avatar. The call is idempotent.
 
 ```http
-POST /api/connect/chatto.api.v1.AccountService/DeleteAvatar
+POST /api/connect/chatto.api.v1.MyAccountService/DeleteAvatar
 ```
 
 <a id="chatto-api-v1-DeleteAvatarRequest"></a>
@@ -408,14 +408,14 @@ Result of deleting the authenticated user's avatar.
 | `user` | [`User`](#chatto-api-v1-User) | Updated user profile. |
 
 
-<a id="chatto-api-v1-AccountService-UpdatePassword"></a>
+<a id="chatto-api-v1-MyAccountService-UpdatePassword"></a>
 
 ### UpdatePassword
 
 Updates or adds the authenticated user's password.
 
 ```http
-POST /api/connect/chatto.api.v1.AccountService/UpdatePassword
+POST /api/connect/chatto.api.v1.MyAccountService/UpdatePassword
 ```
 
 <a id="chatto-api-v1-UpdatePasswordRequest"></a>
@@ -437,14 +437,14 @@ Request to update or add the authenticated user's password.
 Result of updating or adding the authenticated account password.
 
 
-<a id="chatto-api-v1-AccountService-UpdateSettings"></a>
+<a id="chatto-api-v1-MyAccountService-UpdateSettings"></a>
 
 ### UpdateSettings
 
 Updates the authenticated user's display preferences.
 
 ```http
-POST /api/connect/chatto.api.v1.AccountService/UpdateSettings
+POST /api/connect/chatto.api.v1.MyAccountService/UpdateSettings
 ```
 
 <a id="chatto-api-v1-UpdateSettingsRequest"></a>
@@ -471,7 +471,7 @@ Result of updating display preferences.
 | `settings` | [`UserSettings`](#chatto-api-v1-UserSettings) | Stored settings after merging the request. |
 
 
-<a id="chatto-api-v1-AccountService-UpdatePresence"></a>
+<a id="chatto-api-v1-MyAccountService-UpdatePresence"></a>
 
 ### UpdatePresence
 
@@ -480,7 +480,7 @@ clients should refresh it periodically while visible, and should stop
 calling this RPC when the user chooses to appear offline.
 
 ```http
-POST /api/connect/chatto.api.v1.AccountService/UpdatePresence
+POST /api/connect/chatto.api.v1.MyAccountService/UpdatePresence
 ```
 
 <a id="chatto-api-v1-UpdatePresenceRequest"></a>
@@ -506,7 +506,7 @@ Result of updating live presence.
 | `status` | [`PresenceStatus`](#chatto-api-v1-PresenceStatus) | Reportable status accepted and stored by the server. |
 
 
-<a id="chatto-api-v1-AccountService-UpdateCustomStatus"></a>
+<a id="chatto-api-v1-MyAccountService-UpdateCustomStatus"></a>
 
 ### UpdateCustomStatus
 
@@ -514,7 +514,7 @@ Updates or replaces the current user's custom status. Emoji and text are
 required, and expires_at must be omitted or in the future.
 
 ```http
-POST /api/connect/chatto.api.v1.AccountService/UpdateCustomStatus
+POST /api/connect/chatto.api.v1.MyAccountService/UpdateCustomStatus
 ```
 
 <a id="chatto-api-v1-UpdateCustomStatusRequest"></a>
@@ -541,7 +541,7 @@ Result of updating the current user's custom status.
 | `status` | [`CustomUserStatus`](#chatto-api-v1-CustomUserStatus) | Stored custom status after validation and normalization. |
 
 
-<a id="chatto-api-v1-AccountService-DeleteCustomStatus"></a>
+<a id="chatto-api-v1-MyAccountService-DeleteCustomStatus"></a>
 
 ### DeleteCustomStatus
 
@@ -549,7 +549,7 @@ Deletes the current user's custom status. The call is idempotent and returns
 the resulting empty status state.
 
 ```http
-POST /api/connect/chatto.api.v1.AccountService/DeleteCustomStatus
+POST /api/connect/chatto.api.v1.MyAccountService/DeleteCustomStatus
 ```
 
 <a id="chatto-api-v1-DeleteCustomStatusRequest"></a>
@@ -570,14 +570,14 @@ Result of deleting the current user's custom status.
 | `status` | [`CustomUserStatus`](#chatto-api-v1-CustomUserStatus) | Current custom status after the operation. Usually absent after a clear. |
 
 
-<a id="chatto-api-v1-AccountService-RequestAccountDeletion"></a>
+<a id="chatto-api-v1-MyAccountService-RequestAccountDeletion"></a>
 
 ### RequestAccountDeletion
 
 Issues a short-lived token used to confirm self-deletion.
 
 ```http
-POST /api/connect/chatto.api.v1.AccountService/RequestAccountDeletion
+POST /api/connect/chatto.api.v1.MyAccountService/RequestAccountDeletion
 ```
 
 <a id="chatto-api-v1-RequestAccountDeletionRequest"></a>
@@ -599,14 +599,14 @@ Result of issuing an account deletion confirmation token.
 | `confirmation_token` | `string` | Confirmation token. Clients must pass this to DeleteMyAccount. |
 
 
-<a id="chatto-api-v1-AccountService-DeleteMyAccount"></a>
+<a id="chatto-api-v1-MyAccountService-DeleteMyAccount"></a>
 
 ### DeleteMyAccount
 
 Permanently deletes the authenticated account after token validation.
 
 ```http
-POST /api/connect/chatto.api.v1.AccountService/DeleteMyAccount
+POST /api/connect/chatto.api.v1.MyAccountService/DeleteMyAccount
 ```
 
 <a id="chatto-api-v1-DeleteMyAccountRequest"></a>

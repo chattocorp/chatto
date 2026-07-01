@@ -55,7 +55,7 @@ func TestAPIHandlers(t *testing.T) {
 	sort.Strings(paths)
 
 	want := []string{
-		"/" + apiv1connect.AccountServiceName + "/",
+		"/" + apiv1connect.MyAccountServiceName + "/",
 		"/" + adminv1connect.AdminServerServiceName + "/",
 		"/" + apiv1connect.ExternalIdentityFlowServiceName + "/",
 		"/" + apiv1connect.ExternalIdentityServiceName + "/",
@@ -104,7 +104,7 @@ func TestAPIHandlerAuthPolicies(t *testing.T) {
 	}
 
 	want := map[string]AuthPolicy{
-		"/" + apiv1connect.AccountServiceName + "/":                 AuthPolicyAuthenticatedUser,
+		"/" + apiv1connect.MyAccountServiceName + "/":               AuthPolicyAuthenticatedUser,
 		"/" + adminv1connect.AdminServerServiceName + "/":           AuthPolicyAuthenticatedUser,
 		"/" + apiv1connect.ExternalIdentityFlowServiceName + "/":    AuthPolicyPublic,
 		"/" + apiv1connect.ExternalIdentityServiceName + "/":        AuthPolicyAuthenticatedUser,
@@ -1762,7 +1762,7 @@ func TestViewerServiceGetViewerReturnsSelfScopedState(t *testing.T) {
 	}
 }
 
-func TestAccountServiceUpdatesSelfProfileAndSettings(t *testing.T) {
+func TestMyAccountServiceUpdatesSelfProfileAndSettings(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	ctx := withCaller(env.ctx, env.viewer)
 
@@ -1810,7 +1810,7 @@ func TestAccountServiceUpdatesSelfProfileAndSettings(t *testing.T) {
 	}
 }
 
-func TestAccountServiceSetsPassword(t *testing.T) {
+func TestMyAccountServiceSetsPassword(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	passwordless, err := env.core.CreateUser(env.ctx, core.SystemActorID, "connect-passwordless", "Connect Passwordless", "")
 	if err != nil {
@@ -1882,7 +1882,7 @@ func TestAccountServiceSetsPassword(t *testing.T) {
 	}
 }
 
-func TestAccountServiceDeletesAvatarAndAccount(t *testing.T) {
+func TestMyAccountServiceDeletesAvatarAndAccount(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	ctx := withCaller(env.ctx, env.viewer)
 
@@ -3733,7 +3733,7 @@ func TestMemberDirectoryOversizedPagesClampTo500(t *testing.T) {
 	}
 }
 
-func TestAccountServiceSetAndDeleteCustomStatus(t *testing.T) {
+func TestMyAccountServiceSetAndDeleteCustomStatus(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	ctx := withCaller(env.ctx, env.viewer)
 	expiresAt := timestamppb.New(time.Now().Add(time.Hour).UTC())
@@ -4208,7 +4208,7 @@ func TestVoiceCallServiceRecordsAndListsCalls(t *testing.T) {
 	}
 }
 
-func TestAccountServiceUpdatePresence(t *testing.T) {
+func TestMyAccountServiceUpdatePresence(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	ctx := withCaller(env.ctx, env.viewer)
 

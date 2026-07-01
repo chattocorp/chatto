@@ -10,17 +10,17 @@ import { DeleteCustomStatusRequest, DeleteCustomStatusResponse, UpdateCustomStat
 
 /**
  * Self-service account, profile, avatar, display preference, presence, and
- * custom-status commands.
+ * custom-status commands for the authenticated user.
  *
- * @generated from service chatto.api.v1.AccountService
+ * @generated from service chatto.api.v1.MyAccountService
  */
-export const AccountService = {
-  typeName: "chatto.api.v1.AccountService",
+export const MyAccountService = {
+  typeName: "chatto.api.v1.MyAccountService",
   methods: {
     /**
      * Updates the authenticated user's login and/or display name.
      *
-     * @generated from rpc chatto.api.v1.AccountService.UpdateProfile
+     * @generated from rpc chatto.api.v1.MyAccountService.UpdateProfile
      */
     updateProfile: {
       name: "UpdateProfile",
@@ -31,7 +31,7 @@ export const AccountService = {
     /**
      * Uploads and sets the authenticated user's avatar.
      *
-     * @generated from rpc chatto.api.v1.AccountService.UploadAvatar
+     * @generated from rpc chatto.api.v1.MyAccountService.UploadAvatar
      */
     uploadAvatar: {
       name: "UploadAvatar",
@@ -42,7 +42,7 @@ export const AccountService = {
     /**
      * Deletes the authenticated user's avatar. The call is idempotent.
      *
-     * @generated from rpc chatto.api.v1.AccountService.DeleteAvatar
+     * @generated from rpc chatto.api.v1.MyAccountService.DeleteAvatar
      */
     deleteAvatar: {
       name: "DeleteAvatar",
@@ -53,7 +53,7 @@ export const AccountService = {
     /**
      * Updates or adds the authenticated user's password.
      *
-     * @generated from rpc chatto.api.v1.AccountService.UpdatePassword
+     * @generated from rpc chatto.api.v1.MyAccountService.UpdatePassword
      */
     updatePassword: {
       name: "UpdatePassword",
@@ -64,7 +64,7 @@ export const AccountService = {
     /**
      * Updates the authenticated user's display preferences.
      *
-     * @generated from rpc chatto.api.v1.AccountService.UpdateSettings
+     * @generated from rpc chatto.api.v1.MyAccountService.UpdateSettings
      */
     updateSettings: {
       name: "UpdateSettings",
@@ -77,7 +77,7 @@ export const AccountService = {
      * clients should refresh it periodically while visible, and should stop
      * calling this RPC when the user chooses to appear offline.
      *
-     * @generated from rpc chatto.api.v1.AccountService.UpdatePresence
+     * @generated from rpc chatto.api.v1.MyAccountService.UpdatePresence
      */
     updatePresence: {
       name: "UpdatePresence",
@@ -89,7 +89,7 @@ export const AccountService = {
      * Updates or replaces the current user's custom status. Emoji and text are
      * required, and expires_at must be omitted or in the future.
      *
-     * @generated from rpc chatto.api.v1.AccountService.UpdateCustomStatus
+     * @generated from rpc chatto.api.v1.MyAccountService.UpdateCustomStatus
      */
     updateCustomStatus: {
       name: "UpdateCustomStatus",
@@ -101,7 +101,7 @@ export const AccountService = {
      * Deletes the current user's custom status. The call is idempotent and returns
      * the resulting empty status state.
      *
-     * @generated from rpc chatto.api.v1.AccountService.DeleteCustomStatus
+     * @generated from rpc chatto.api.v1.MyAccountService.DeleteCustomStatus
      */
     deleteCustomStatus: {
       name: "DeleteCustomStatus",
@@ -112,7 +112,7 @@ export const AccountService = {
     /**
      * Issues a short-lived token used to confirm self-deletion.
      *
-     * @generated from rpc chatto.api.v1.AccountService.RequestAccountDeletion
+     * @generated from rpc chatto.api.v1.MyAccountService.RequestAccountDeletion
      */
     requestAccountDeletion: {
       name: "RequestAccountDeletion",
@@ -123,7 +123,7 @@ export const AccountService = {
     /**
      * Permanently deletes the authenticated account after token validation.
      *
-     * @generated from rpc chatto.api.v1.AccountService.DeleteMyAccount
+     * @generated from rpc chatto.api.v1.MyAccountService.DeleteMyAccount
      */
     deleteMyAccount: {
       name: "DeleteMyAccount",

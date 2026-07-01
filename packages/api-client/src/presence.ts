@@ -1,7 +1,7 @@
 import { notifyAuthenticationRequired } from "./hooks.js";
 import { Code, ConnectError, createClient } from "@connectrpc/connect";
 import { createConnectTransport } from "@connectrpc/connect-web";
-import { AccountService } from "@chatto/api-types/api/v1/account_connect";
+import { MyAccountService } from "@chatto/api-types/api/v1/account_connect";
 import { PresenceStatus } from "@chatto/api-types/api/v1/presence_pb";
 
 export type PresenceAPIConfig = {
@@ -18,7 +18,7 @@ export function createPresenceAPI(config: PresenceAPIConfig) {
     baseUrl: config.baseUrl,
     useBinaryFormat: true,
   });
-  const client = createClient(AccountService, transport);
+  const client = createClient(MyAccountService, transport);
   const headers = () =>
     config.bearerToken
       ? { Authorization: `Bearer ${config.bearerToken}` }

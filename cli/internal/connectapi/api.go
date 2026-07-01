@@ -73,7 +73,7 @@ func (a *API) Handlers() []Handler {
 		messageUploadOptions = handlerOptionsWithReadMax(messageUploadRequestMaxBytes(a.core.AssetsConfig().MaxUploadSize))
 	}
 
-	accountPath, accountHandler := apiv1connect.NewAccountServiceHandler(&accountService{api: a}, uploadOptions...)
+	accountPath, accountHandler := apiv1connect.NewMyAccountServiceHandler(&accountService{api: a}, uploadOptions...)
 	adminDiagnosticsPath, adminDiagnosticsHandler := adminv1connect.NewAdminDiagnosticsServiceHandler(&adminDiagnosticsService{api: a}, options...)
 	adminEventLogPath, adminEventLogHandler := adminv1connect.NewAdminEventLogServiceHandler(&adminEventLogService{api: a}, options...)
 	adminMemberPath, adminMemberHandler := adminv1connect.NewAdminMemberServiceHandler(&adminUserManagementService{api: a}, options...)
