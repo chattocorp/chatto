@@ -85,7 +85,8 @@ resolution to request for sidebar-width tiles.
 
 <div
 	class={[
-		'relative block w-full overflow-hidden rounded-md bg-surface-200',
+		'relative block w-full overflow-hidden rounded-md',
+		fit === 'contain' ? 'bg-black' : 'bg-surface-200',
 		fill ? 'h-full min-h-0' : 'aspect-video'
 	]}
 >
