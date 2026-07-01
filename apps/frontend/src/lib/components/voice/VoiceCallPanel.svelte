@@ -484,7 +484,7 @@ Room sidebar panel for voice/video calls.
         </div>
 
         {#if showVideo}
-          <div class="p-2 pt-0">
+          <div class="p-1.5 pt-0">
             <VideoThumbnail
               track={participant.videoTrack!}
               name={participant.displayName}
@@ -521,7 +521,7 @@ Room sidebar panel for voice/video calls.
         </div>
 
         {#if showVideo}
-          <div class="p-2 pt-0">
+          <div class="p-1.5 pt-0">
             <VideoThumbnail
               track={participant.videoTrack!}
               name={participant.displayName}
@@ -560,7 +560,7 @@ Room sidebar panel for voice/video calls.
         <span class="iconify shrink-0 text-muted uil--desktop" aria-label={m['voice.screen_share']()}
         ></span>
       </div>
-      <div class="p-2 pt-0">
+      <div class="p-1.5 pt-0">
         <VideoThumbnail
           track={participant.screenShareTrack!}
           name={m['voice.screen_title']({ name: participant.displayName })}
@@ -641,7 +641,7 @@ Room sidebar panel for voice/video calls.
       <div
         class={[
           'flex min-h-0 flex-1 items-center justify-center',
-          isScreen || isVideo ? 'bg-black p-0' : 'p-6'
+          isScreen || isVideo ? 'bg-black p-1.5' : 'p-6'
         ]}
       >
         {#if isScreen}
