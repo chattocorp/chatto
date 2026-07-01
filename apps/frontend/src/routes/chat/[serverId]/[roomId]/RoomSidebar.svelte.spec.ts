@@ -855,6 +855,14 @@ describe('RoomSidebar', () => {
     expect(featured).toBeTruthy();
     expect(featured!.textContent).toContain("Alice's screen");
     expect(featured!.querySelector('video')?.className).toContain('object-contain');
+    const localMuteButton = q(
+      featured!,
+      '[data-testid="call-feed-local-mute-button"]'
+    ) as HTMLButtonElement;
+    expect(localMuteButton).toBeTruthy();
+    expect(localMuteButton.getAttribute('aria-label')).toBe('Mute');
+    localMuteButton.click();
+    expect(callStore.voiceCall.toggleMute).toHaveBeenCalledOnce();
     const controlsBar = q(container, '[data-testid="call-controls-bar"]');
     expect(controlsBar).toBeTruthy();
     expect(q(container, '[data-testid="call-device-menu-button"]')).toBeTruthy();
@@ -926,24 +934,12 @@ describe('RoomSidebar', () => {
       }
     });
 
-    const stageFullscreenButton = q(
-      container,
-      '[data-testid="call-stage-fullscreen-button"]'
-    ) as HTMLButtonElement;
-    stageFullscreenButton.click();
-    await Promise.resolve();
-
-    expect(requestFullscreen).toHaveBeenCalledOnce();
-    expect(fullscreenTargets[0].getAttribute('data-testid')).toBe('call-participant-panel');
-
-    requestFullscreen.mockClear();
-    fullscreenTargets.length = 0;
-
     const featured = q(container, '[data-testid="call-featured-stage-card"]')!;
     const fullscreenButton = q(featured, '[data-testid="call-feed-fullscreen-button"]') as HTMLButtonElement;
     const localMuteButton = q(featured, '[data-testid="call-feed-local-mute-button"]') as HTMLButtonElement;
 
     expect(fullscreenButton).toBeTruthy();
+    expect(fullscreenButton.querySelector('.uil--window-maximize')).toBeTruthy();
     expect(localMuteButton).toBeTruthy();
     expect(localMuteButton.getAttribute('aria-label')).toBe('Unmute locally');
     expect(q(featured, '[data-testid="call-locally-muted-indicator"]')).toBeTruthy();
@@ -1313,6 +1309,13 @@ describe('RoomSidebar', () => {
 
   it('shows a desktop call maximize action and toggles to minimize copy', async () => {
     const onToggleMaximized = vi.fn();
+    const fullscreenTargets: Element[] = [];
+    const requestFullscreen = vi
+      .spyOn(HTMLElement.prototype, 'requestFullscreen')
+      .mockImplementation(function (this: HTMLElement) {
+        fullscreenTargets.push(this);
+        return Promise.resolve();
+      });
     const { container, rerender } = render(RoomSidebarTestHarness, {
       props: {
         activePanel: 'call',
@@ -1327,6 +1330,7 @@ describe('RoomSidebar', () => {
     ) as HTMLButtonElement | null;
     expect(maximizeButton).toBeTruthy();
     expect(maximizeButton!.querySelector('.uil--expand-arrows')).toBeTruthy();
+    expect(container.querySelector('[aria-label="Fullscreen call"]')).toBeFalsy();
 
     maximizeButton!.click();
     await tick();
@@ -1346,6 +1350,18 @@ describe('RoomSidebar', () => {
     ) as HTMLButtonElement | null;
     expect(minimizeButton).toBeTruthy();
     expect(minimizeButton!.querySelector('.uil--compress-arrows')).toBeTruthy();
+    const fullscreenButton = container.querySelector(
+      '[aria-label="Fullscreen call"]'
+    ) as HTMLButtonElement | null;
+    expect(fullscreenButton).toBeTruthy();
+    expect(fullscreenButton!.querySelector('.uil--window-maximize')).toBeTruthy();
+
+    fullscreenButton!.click();
+    await Promise.resolve();
+
+    expect(requestFullscreen).toHaveBeenCalledOnce();
+    expect(fullscreenTargets[0].getAttribute('aria-label')).toBe('Room extras');
+    requestFullscreen.mockRestore();
   });
 
   it('only shows the call maximize action for the desktop call panel', async () => {

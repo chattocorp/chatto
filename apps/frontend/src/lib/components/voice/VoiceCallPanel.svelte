@@ -224,8 +224,6 @@ Room sidebar panel for voice/video calls.
     featuredStageTile ? stageTiles.filter((tile) => tile.key !== featuredStageTile.key) : []
   );
   let isIdle = $derived(!hasActiveCall && !isInThisCall);
-  let callPanelElement = $state<HTMLElement | null>(null);
-  let fullscreenElement = $state<Element | null>(null);
   let joinLabel = $derived.by(() => {
     if (isConnecting) return hasActiveCall ? m['voice.joining']() : m['voice.starting']();
     return hasActiveCall ? m['voice.join_call']() : m['voice.start_call']();
@@ -360,15 +358,18 @@ Room sidebar panel for voice/video calls.
     void toggleFullscreenElement(mediaCard);
   }
 
-  function toggleParticipantLocalMute(participant: DisplayParticipant, event: MouseEvent): void {
+  function toggleFeedMute(participant: DisplayParticipant, event: MouseEvent): void {
     event.stopPropagation();
-    voiceCallState.toggleParticipantLocalMute(participant.key);
+    if (participant.isLocal) {
+      void voiceCallState.toggleMute();
+    } else {
+      voiceCallState.toggleParticipantLocalMute(participant.key);
+    }
   }
 </script>
 
-<svelte:document onfullscreenchange={() => (fullscreenElement = document.fullscreenElement)} />
-
 {#snippet mediaTileActions(participant: DisplayParticipant)}
+  {@const isMutedForViewer = participant.isLocal ? voiceCallState.isMuted : participant.isLocallyMuted}
   <div
     class="pointer-events-none absolute top-2 right-2 z-10 flex gap-1 opacity-0 transition-opacity group-hover/media:opacity-100 group-focus-within/media:opacity-100"
     data-testid="call-media-actions"
@@ -381,25 +382,33 @@ Room sidebar panel for voice/video calls.
       data-testid="call-feed-fullscreen-button"
       onclick={toggleClosestMediaFullscreen}
     >
-      <span class="iconify text-lg uil--expand-arrows" aria-hidden="true"></span>
+      <span class="iconify text-lg uil--window-maximize" aria-hidden="true"></span>
     </button>
-    {#if isInThisCall && !participant.isLocal}
+    {#if isInThisCall}
       <button
         type="button"
         class={mediaActionButtonClass}
-        title={participant.isLocallyMuted
-          ? m['voice.locally_unmute_participant']()
-          : m['voice.locally_mute_participant']()}
-        aria-label={participant.isLocallyMuted
-          ? m['voice.locally_unmute_participant']()
-          : m['voice.locally_mute_participant']()}
+        title={participant.isLocal
+          ? isMutedForViewer
+            ? m['voice.unmute']()
+            : m['voice.mute']()
+          : isMutedForViewer
+            ? m['voice.locally_unmute_participant']()
+            : m['voice.locally_mute_participant']()}
+        aria-label={participant.isLocal
+          ? isMutedForViewer
+            ? m['voice.unmute']()
+            : m['voice.mute']()
+          : isMutedForViewer
+            ? m['voice.locally_unmute_participant']()
+            : m['voice.locally_mute_participant']()}
         data-testid="call-feed-local-mute-button"
-        onclick={(event) => toggleParticipantLocalMute(participant, event)}
+        onclick={(event) => toggleFeedMute(participant, event)}
       >
         <span
           class={[
             'iconify text-lg',
-            participant.isLocallyMuted ? 'uil--volume-mute' : 'uil--volume-up'
+            isMutedForViewer ? 'uil--volume-mute' : 'uil--volume-up'
           ]}
           aria-hidden="true"
         ></span>
@@ -655,30 +664,8 @@ Room sidebar panel for voice/video calls.
 
 {#snippet callControls()}
   {#if isInThisCall}
-    <div class={isStageLayout ? 'mx-auto flex max-w-3xl items-center justify-center gap-2' : ''}>
-      {#if isStageLayout}
-        <button
-          type="button"
-          class="btn-secondary btn-sm h-9 w-9 shrink-0 !px-0"
-          title={fullscreenElement === callPanelElement
-            ? m['voice.exit_fullscreen_call']()
-            : m['voice.fullscreen_call']()}
-          aria-label={fullscreenElement === callPanelElement
-            ? m['voice.exit_fullscreen_call']()
-            : m['voice.fullscreen_call']()}
-          data-testid="call-stage-fullscreen-button"
-          onclick={() => toggleFullscreenElement(callPanelElement)}
-        >
-          <span
-            class={[
-              'iconify text-lg',
-              fullscreenElement === callPanelElement ? 'uil--compress-arrows' : 'uil--expand-arrows'
-            ]}
-            aria-hidden="true"
-          ></span>
-        </button>
-      {/if}
-      <div class={['grid grid-cols-5 gap-2', isStageLayout ? 'min-w-0 flex-1' : '']}>
+    <div class={isStageLayout ? 'mx-auto max-w-2xl' : ''}>
+      <div class="grid grid-cols-5 gap-2">
         <button
           type="button"
           class={controlButtonClass}
@@ -756,32 +743,10 @@ Room sidebar panel for voice/video calls.
       </div>
     </div>
   {:else}
-    <div class={isStageLayout ? 'mx-auto flex max-w-md items-center justify-center gap-2' : ''}>
-      {#if isStageLayout}
-        <button
-          type="button"
-          class="btn-secondary btn-sm h-9 w-9 shrink-0 !px-0"
-          title={fullscreenElement === callPanelElement
-            ? m['voice.exit_fullscreen_call']()
-            : m['voice.fullscreen_call']()}
-          aria-label={fullscreenElement === callPanelElement
-            ? m['voice.exit_fullscreen_call']()
-            : m['voice.fullscreen_call']()}
-          data-testid="call-stage-fullscreen-button"
-          onclick={() => toggleFullscreenElement(callPanelElement)}
-        >
-          <span
-            class={[
-              'iconify text-lg',
-              fullscreenElement === callPanelElement ? 'uil--compress-arrows' : 'uil--expand-arrows'
-            ]}
-            aria-hidden="true"
-          ></span>
-        </button>
-      {/if}
+    <div class={isStageLayout ? 'mx-auto max-w-sm' : ''}>
       <button
         type="button"
-        class={['btn-accent w-full btn-sm', isStageLayout ? 'min-w-0 flex-1' : '']}
+        class="btn-accent w-full btn-sm"
         data-testid="call-join-button"
         onclick={handleJoin}
         disabled={isInAnotherCall || isConnecting}
@@ -794,7 +759,6 @@ Room sidebar panel for voice/video calls.
 {/snippet}
 
 <div
-  bind:this={callPanelElement}
   class="flex min-h-0 flex-1 flex-col"
   data-testid={isInThisCall ? 'call-participant-panel' : 'call-observer-panel'}
 >

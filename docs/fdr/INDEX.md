@@ -25,7 +25,7 @@ See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the F
 | [FDR-013](FDR-013-web-push-notifications.md) | Web Push Notifications | Active | 2026-07-01 |
 | [FDR-014](FDR-014-jump-to-present.md) | Jump to Present | Active | 2026-05-19 |
 | [FDR-015](FDR-015-quick-switcher.md) | Quick Switcher (Cmd-K) | Active | 2026-05-31 |
-| [FDR-016](FDR-016-voice-calls.md) | Voice Calls | Active | 2026-06-15 |
+| [FDR-016](FDR-016-voice-calls.md) | Voice Calls | Active | 2026-07-01 |
 | [FDR-017](FDR-017-room-groups-and-sidebar-layout.md) | Room Groups & Sidebar Layout | Active | 2026-06-18 |
 | [FDR-018](FDR-018-account-lifecycle.md) | Account Lifecycle | Active | 2026-06-15 |
 | [FDR-019](FDR-019-room-lifecycle.md) | Room Lifecycle | Active | 2026-06-15 |

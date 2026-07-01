@@ -87,10 +87,15 @@ calls, and similar room-specific panels can plug into the same shell. See the
   const showMaximizeButton = $derived(
     presentation === 'desktop' && activePanel === 'call' && !!onToggleMaximized
   );
+  const showCallFullscreenButton = $derived(
+    presentation === 'desktop' && activePanel === 'call' && maximized
+  );
 
   // Check if user can start DMs (from centralized server permissions)
   const serverPerms = getServerPermissions();
   let canStartDMs = $derived(serverPerms.current.canStartDMs);
+  let sidebarElement = $state<HTMLElement | null>(null);
+  let fullscreenElement = $state<Element | null>(null);
 
   // Track which member's popover is open
   let popoverMemberId = $state<string | null>(null);
@@ -218,9 +223,26 @@ calls, and similar room-specific panels can plug into the same shell. See the
     void membersStore.setSearch('');
     memberSearchInput?.focus();
   }
+
+  async function toggleCallFullscreen(): Promise<void> {
+    if (!sidebarElement || typeof document === 'undefined') return;
+
+    try {
+      if (document.fullscreenElement === sidebarElement) {
+        await document.exitFullscreen();
+      } else {
+        await sidebarElement.requestFullscreen();
+      }
+    } catch {
+      // Fullscreen can be denied by browser or OS policy; the regular pane still works.
+    }
+  }
 </script>
 
+<svelte:document onfullscreenchange={() => (fullscreenElement = document.fullscreenElement)} />
+
 <aside
+  bind:this={sidebarElement}
   class={[
     'relative flex min-h-0 flex-col bg-background',
     presentation === 'desktop'
@@ -248,6 +270,15 @@ calls, and similar room-specific panels can plug into the same shell. See the
           icon={maximized ? 'uil--compress-arrows' : 'uil--expand-arrows'}
           label={maximized ? m['room.sidebar.minimize_call']() : m['room.sidebar.maximize_call']()}
           onclick={() => onToggleMaximized?.()}
+        />
+      {/if}
+      {#if showCallFullscreenButton}
+        <HeaderIconButton
+          icon="uil--window-maximize"
+          label={fullscreenElement === sidebarElement
+            ? m['voice.exit_fullscreen_call']()
+            : m['voice.fullscreen_call']()}
+          onclick={() => void toggleCallFullscreen()}
         />
       {/if}
       <HeaderIconButton
