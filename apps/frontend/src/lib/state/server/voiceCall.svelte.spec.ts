@@ -35,6 +35,7 @@ let localTrackPublications: Array<{
   isMuted: boolean;
   track: { source: string; mediaStreamTrack?: MediaStreamTrack };
 }> = [];
+let mockRemoteParticipants = new Map<string, unknown>();
 
 vi.mock('livekit-client', () => {
   class MockExternalE2EEKeyProvider {
@@ -92,7 +93,7 @@ vi.mock('livekit-client', () => {
       audioLevel: 0,
       getTrackPublications: vi.fn(() => localTrackPublications)
     };
-    remoteParticipants = new Map();
+    remoteParticipants = mockRemoteParticipants;
 
     constructor(options: Record<string, unknown>) {
       lastRoomOptions = options;
@@ -190,6 +191,7 @@ describe('VoiceCallState', () => {
     screenShareFailure = null;
     roomEventHandlers = new Map();
     localTrackPublications = [];
+    mockRemoteParticipants = new Map();
     vi.stubGlobal('Worker', class MockWorker {});
     vi.stubGlobal('TransformStream', class MockTransformStream {});
     vi.stubGlobal('ReadableStream', class MockReadableStream {});
@@ -458,5 +460,49 @@ describe('VoiceCallState', () => {
 
     expect(state.isScreenShareEnabled).toBe(false);
     expect(state.participants[0].screenShareTrack).toBeNull();
+  });
+
+  it('locally mutes and unmutes remote participant audio for the current session only', async () => {
+    const setVolume = vi.fn();
+    mockRemoteParticipants.set('remote-user', {
+      identity: 'remote-user',
+      name: 'Remote User',
+      metadata: '',
+      connectionQuality: 'good',
+      isSpeaking: false,
+      audioLevel: 0,
+      setVolume,
+      trackPublications: new Map(),
+      getTrackPublications: vi.fn(() => [{ isMuted: false, track: { source: 'microphone' } }])
+    });
+    const client = createVoiceCallClient();
+    const state = new VoiceCallState(client);
+
+    await state.join('wss://livekit.example.test', 'R1');
+    setVolume.mockClear();
+
+    state.toggleParticipantLocalMute('remote-user');
+
+    expect(state.isParticipantLocallyMuted('remote-user')).toBe(true);
+    expect(setVolume).toHaveBeenLastCalledWith(0);
+    expect(state.participants.find((p) => p.identity === 'remote-user')).toMatchObject({
+      isLocallyMuted: true
+    });
+
+    state.toggleParticipantLocalMute('remote-user');
+
+    expect(state.isParticipantLocallyMuted('remote-user')).toBe(false);
+    expect(setVolume).toHaveBeenLastCalledWith(1);
+
+    state.toggleParticipantLocalMute('local-user');
+    expect(state.isParticipantLocallyMuted('local-user')).toBe(false);
+
+    state.toggleParticipantLocalMute('remote-user');
+    expect(state.isParticipantLocallyMuted('remote-user')).toBe(true);
+
+    await state.leave();
+
+    expect(state.isParticipantLocallyMuted('remote-user')).toBe(false);
+    expect(state.locallyMutedParticipantIds).toEqual({});
   });
 });

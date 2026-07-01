@@ -15,7 +15,8 @@ import {
   ExternalE2EEKeyProvider,
   type Participant,
   type RemoteTrack,
-  type RemoteTrackPublication
+  type RemoteTrackPublication,
+  type RemoteParticipant
 } from 'livekit-client';
 import { toast } from '$lib/ui/toast';
 import { playCallSound } from '$lib/audio/callSounds';
@@ -34,6 +35,7 @@ export type CallParticipantInfo = {
   videoTrack: Track | null;
   isScreenShareEnabled: boolean;
   screenShareTrack: Track | null;
+  isLocallyMuted: boolean;
 };
 
 /** Non-reactive audio level snapshot, read imperatively by the UI at ~60ms. */
@@ -97,6 +99,9 @@ export class VoiceCallState {
 
   // Participants (including local)
   participants = $state<CallParticipantInfo[]>([]);
+
+  // Remote participants locally muted by this browser session only.
+  locallyMutedParticipantIds = $state<Record<string, boolean>>({});
 
   // Audio input devices
   audioDevices = $state<MediaDeviceInfo[]>([]);
@@ -206,6 +211,27 @@ export class VoiceCallState {
    */
   getAudioLevel(identity: string): AudioLevelInfo {
     return this.audioLevelCache.get(identity) ?? { isSpeaking: false, audioLevel: 0 };
+  }
+
+  isParticipantLocallyMuted(identity: string): boolean {
+    return !!this.locallyMutedParticipantIds[identity];
+  }
+
+  toggleParticipantLocalMute(identity: string): void {
+    if (!this.room || identity === this.room.localParticipant.identity) return;
+
+    const muted = !this.isParticipantLocallyMuted(identity);
+    this.locallyMutedParticipantIds = {
+      ...this.locallyMutedParticipantIds,
+      [identity]: muted
+    };
+    if (!muted) {
+      const { [identity]: _removed, ...remaining } = this.locallyMutedParticipantIds;
+      void _removed;
+      this.locallyMutedParticipantIds = remaining;
+    }
+    this.applyParticipantAudioVolume(identity);
+    this.updateParticipants();
   }
 
   /**
@@ -560,6 +586,7 @@ export class VoiceCallState {
       (track: RemoteTrack, _publication: RemoteTrackPublication) => {
         if (track.kind === Track.Kind.Audio) {
           track.attach();
+          this.applyAllParticipantAudioVolumes();
         }
         this.updateParticipants();
       }
@@ -609,23 +636,42 @@ export class VoiceCallState {
     ];
     this.isCameraEnabled = isParticipantCameraEnabled(this.room.localParticipant);
     this.isScreenShareEnabled = isParticipantScreenShareEnabled(this.room.localParticipant);
+    this.applyAllParticipantAudioVolumes();
 
     this.participants = allParticipants.map((p) => {
       const md = parseParticipantMetadata(p.metadata);
+      const isLocal = p === this.room!.localParticipant;
       return {
         identity: p.identity,
         name: p.name ?? p.identity,
         login: md.login ?? p.identity,
         avatarUrl: md.avatarUrl ?? null,
         isMuted: isParticipantMuted(p),
-        isLocal: p === this.room!.localParticipant,
+        isLocal,
         connectionQuality: p.connectionQuality as CallParticipantInfo['connectionQuality'],
         isCameraEnabled: isParticipantCameraEnabled(p),
         videoTrack: getParticipantCameraTrack(p),
         isScreenShareEnabled: isParticipantScreenShareEnabled(p),
-        screenShareTrack: getParticipantScreenShareTrack(p)
+        screenShareTrack: getParticipantScreenShareTrack(p),
+        isLocallyMuted: !isLocal && this.isParticipantLocallyMuted(p.identity)
       };
     });
+  }
+
+  private applyAllParticipantAudioVolumes(): void {
+    if (!this.room) return;
+    for (const participant of this.room.remoteParticipants.values()) {
+      this.applyRemoteParticipantAudioVolume(participant);
+    }
+  }
+
+  private applyParticipantAudioVolume(identity: string): void {
+    const participant = this.room?.remoteParticipants.get(identity);
+    if (participant) this.applyRemoteParticipantAudioVolume(participant);
+  }
+
+  private applyRemoteParticipantAudioVolume(participant: RemoteParticipant): void {
+    participant.setVolume(this.isParticipantLocallyMuted(participant.identity) ? 0 : 1);
   }
 
   /**
@@ -752,6 +798,7 @@ export class VoiceCallState {
     this.isCameraEnabled = false;
     this.isScreenShareEnabled = false;
     this.participants = [];
+    this.locallyMutedParticipantIds = {};
     this.audioDevices = [];
     this.selectedDeviceId = null;
     this.audioOutputDevices = [];

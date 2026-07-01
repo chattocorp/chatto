@@ -33,6 +33,7 @@ const callStore = vi.hoisted(() => ({
       avatarUrl: string | null;
       isMuted: boolean;
       isLocal: boolean;
+      isLocallyMuted?: boolean;
       connectionQuality: 'excellent' | 'good' | 'poor' | 'lost' | 'unknown';
       isCameraEnabled: boolean;
       videoTrack: unknown;
@@ -53,6 +54,7 @@ const callStore = vi.hoisted(() => ({
     toggleMute: vi.fn().mockResolvedValue(undefined),
     toggleCamera: vi.fn().mockResolvedValue(undefined),
     toggleScreenShare: vi.fn().mockResolvedValue(undefined),
+    toggleParticipantLocalMute: vi.fn(),
     refreshDevices: vi.fn().mockResolvedValue(undefined),
     getAudioLevel: vi.fn((_identity?: string) => ({ isSpeaking: false, audioLevel: 0 })),
     handleParticipantLeftEvent: vi.fn(),
@@ -868,6 +870,95 @@ describe('RoomSidebar', () => {
     expect(secondaryCards[0].querySelector('video')?.className).toContain('object-cover');
     expect(secondaryCards[1].textContent).toContain('Alice');
     expect(secondaryCards[2].textContent).toContain('Carol');
+  });
+
+  it('shows fullscreen and local mute controls on call media tiles', async () => {
+    const fullscreenTargets: Element[] = [];
+    const requestFullscreen = vi
+      .spyOn(HTMLElement.prototype, 'requestFullscreen')
+      .mockImplementation(function (this: HTMLElement) {
+        fullscreenTargets.push(this);
+        return Promise.resolve();
+      });
+    const cameraTrack = {
+      attach: vi.fn(),
+      detach: vi.fn()
+    };
+    callStore.voiceCall.connected = true;
+    callStore.voiceCall.isInAnyCall = true;
+    callStore.voiceCall.roomId = 'room-1';
+    callStore.voiceCall.participants = [
+      {
+        identity: 'viewer',
+        login: 'alice',
+        name: 'Alice',
+        avatarUrl: null,
+        isMuted: false,
+        isLocal: true,
+        connectionQuality: 'excellent',
+        isCameraEnabled: false,
+        videoTrack: null,
+        isScreenShareEnabled: false,
+        screenShareTrack: null
+      },
+      {
+        identity: 'user-2',
+        login: 'bob',
+        name: 'Bob',
+        avatarUrl: null,
+        isMuted: false,
+        isLocal: false,
+        isLocallyMuted: true,
+        connectionQuality: 'good',
+        isCameraEnabled: true,
+        videoTrack: cameraTrack,
+        isScreenShareEnabled: false,
+        screenShareTrack: null
+      }
+    ];
+
+    const { container } = render(RoomSidebarTestHarness, {
+      props: {
+        activePanel: 'call',
+        maximized: true,
+        roomData: roomData([], 0, false),
+        livekitUrl: 'wss://livekit.example.test'
+      }
+    });
+
+    const stageFullscreenButton = q(
+      container,
+      '[data-testid="call-stage-fullscreen-button"]'
+    ) as HTMLButtonElement;
+    stageFullscreenButton.click();
+    await Promise.resolve();
+
+    expect(requestFullscreen).toHaveBeenCalledOnce();
+    expect(fullscreenTargets[0].getAttribute('data-testid')).toBe('call-participant-panel');
+
+    requestFullscreen.mockClear();
+    fullscreenTargets.length = 0;
+
+    const featured = q(container, '[data-testid="call-featured-stage-card"]')!;
+    const fullscreenButton = q(featured, '[data-testid="call-feed-fullscreen-button"]') as HTMLButtonElement;
+    const localMuteButton = q(featured, '[data-testid="call-feed-local-mute-button"]') as HTMLButtonElement;
+
+    expect(fullscreenButton).toBeTruthy();
+    expect(localMuteButton).toBeTruthy();
+    expect(localMuteButton.getAttribute('aria-label')).toBe('Unmute locally');
+    expect(q(featured, '[data-testid="call-locally-muted-indicator"]')).toBeTruthy();
+
+    fullscreenButton.click();
+    await Promise.resolve();
+
+    expect(requestFullscreen).toHaveBeenCalledOnce();
+    expect(fullscreenTargets[0]).toBe(featured);
+
+    localMuteButton.click();
+
+    expect(callStore.voiceCall.toggleParticipantLocalMute).toHaveBeenCalledWith('user-2');
+
+    requestFullscreen.mockRestore();
   });
 
   it('falls back to a camera participant for the maximized call stage', async () => {
