@@ -190,10 +190,9 @@ func (s *roomService) ListRoomBans(ctx context.Context, req *connect.Request[api
 	limit, offset := apiPagination(req.Msg.GetPage(), defaultRoomBanListLimit, maxRoomBanListLimit)
 	page, totalCount, hasMore := apiSlicePage(bans, limit, offset)
 
-	directory := memberDirectoryService{api: s.api}
 	out := make([]*apiv1.RoomBan, 0, len(page))
 	for _, ban := range page {
-		apiBan, err := s.apiRoomBan(ctx, directory, ban)
+		apiBan, err := s.apiRoomBan(ctx, ban)
 		if err != nil {
 			return nil, err
 		}
@@ -244,7 +243,7 @@ func (s *roomService) UnbanRoomMember(ctx context.Context, req *connect.Request[
 	return connect.NewResponse(&apiv1.UnbanRoomMemberResponse{Unbanned: true}), nil
 }
 
-func (s *roomService) apiRoomBan(ctx context.Context, directory memberDirectoryService, ban core.RoomBan) (*apiv1.RoomBan, error) {
+func (s *roomService) apiRoomBan(ctx context.Context, ban core.RoomBan) (*apiv1.RoomBan, error) {
 	var expiresAt *timestamppb.Timestamp
 	if ban.ExpiresAt != nil {
 		expiresAt = timestamppb.New(*ban.ExpiresAt)
@@ -274,7 +273,7 @@ func (s *roomService) apiRoomBan(ctx context.Context, directory memberDirectoryS
 			return nil, connectError(err)
 		}
 	} else {
-		apiUser, err := directory.directoryMember(ctx, user, nil)
+		apiUser, err := directoryMember(ctx, s.api, user, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -287,7 +286,7 @@ func (s *roomService) apiRoomBan(ctx context.Context, directory memberDirectoryS
 			return nil, connectError(err)
 		}
 	} else {
-		apiModerator, err := directory.directoryMember(ctx, moderator, nil)
+		apiModerator, err := directoryMember(ctx, s.api, moderator, nil)
 		if err != nil {
 			return nil, err
 		}

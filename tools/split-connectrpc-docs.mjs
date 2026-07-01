@@ -47,12 +47,6 @@ const categories = [
         description: 'Link preview fetch RPCs.'
       },
       {
-        name: 'MemberDirectoryService',
-        slug: 'member-directory',
-        title: 'Member Directory',
-        description: 'Server and room member directory RPCs.'
-      },
-      {
         name: 'MessageService',
         slug: 'messages',
         title: 'Messages',
@@ -101,6 +95,12 @@ const categories = [
         description: 'Room navigation, room group, and room viewer-state RPCs.'
       },
       {
+        name: 'RoomMemberService',
+        slug: 'room-members',
+        title: 'Room Members',
+        description: 'Room-scoped member directory RPCs.'
+      },
+      {
         name: 'RoomService',
         slug: 'rooms',
         title: 'Rooms',
@@ -117,6 +117,12 @@ const categories = [
         slug: 'server-discovery',
         title: 'Server Discovery',
         description: 'Unauthenticated server metadata, branding, and login discovery RPCs.'
+      },
+      {
+        name: 'ServerMemberService',
+        slug: 'server-members',
+        title: 'Server Members',
+        description: 'Server-scoped member directory RPCs.'
       },
       {
         name: 'ServerService',

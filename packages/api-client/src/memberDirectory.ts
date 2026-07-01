@@ -1,6 +1,9 @@
 import { Code, ConnectError, createClient } from "@connectrpc/connect";
 import { createConnectTransport } from "@connectrpc/connect-web";
-import { MemberDirectoryService } from "@chatto/api-types/api/v1/member_directory_connect";
+import {
+  RoomMemberService,
+  ServerMemberService,
+} from "@chatto/api-types/api/v1/member_directory_connect";
 import type { DirectoryMember as APIDirectoryMember } from "@chatto/api-types/api/v1/member_directory_pb";
 import { PresenceStatus as APIPresenceStatus } from "@chatto/api-types/api/v1/presence_pb";
 import { PresenceStatus } from "./renderTypes.js";
@@ -38,7 +41,8 @@ export function createMemberDirectoryAPI(config: MemberDirectoryAPIConfig) {
     baseUrl: config.baseUrl,
     useBinaryFormat: true,
   });
-  const client = createClient(MemberDirectoryService, transport);
+  const serverMembers = createClient(ServerMemberService, transport);
+  const roomMembers = createClient(RoomMemberService, transport);
   const headers = () =>
     config.bearerToken
       ? { Authorization: `Bearer ${config.bearerToken}` }
@@ -50,7 +54,7 @@ export function createMemberDirectoryAPI(config: MemberDirectoryAPIConfig) {
       limit = 20,
       offset = 0,
     ): Promise<MemberDirectoryPage> {
-      const response = await client.listServerMembers(
+      const response = await serverMembers.listMembers(
         { search, page: { limit, offset } },
         { headers: headers() },
       );
@@ -63,7 +67,7 @@ export function createMemberDirectoryAPI(config: MemberDirectoryAPIConfig) {
 
     async getServerMember(userId: string): Promise<DirectoryMember | null> {
       try {
-        const response = await client.getServerMember(
+        const response = await serverMembers.getMember(
           { userId },
           { headers: headers() },
         );
@@ -77,7 +81,7 @@ export function createMemberDirectoryAPI(config: MemberDirectoryAPIConfig) {
     },
 
     async batchGetServerMembers(userIds: string[]): Promise<DirectoryMember[]> {
-      const response = await client.batchGetServerMembers(
+      const response = await serverMembers.batchGetMembers(
         { userIds },
         { headers: headers() },
       );
@@ -90,7 +94,7 @@ export function createMemberDirectoryAPI(config: MemberDirectoryAPIConfig) {
       limit = 20,
       offset = 0,
     ): Promise<MemberDirectoryPage> {
-      const response = await client.listRoomMembers(
+      const response = await roomMembers.listMembers(
         { roomId, search, page: { limit, offset } },
         { headers: headers() },
       );
@@ -106,7 +110,7 @@ export function createMemberDirectoryAPI(config: MemberDirectoryAPIConfig) {
       userId: string,
     ): Promise<DirectoryMember | null> {
       try {
-        const response = await client.getRoomMember(
+        const response = await roomMembers.getMember(
           { roomId, userId },
           { headers: headers() },
         );
@@ -126,7 +130,7 @@ export function createMemberDirectoryAPI(config: MemberDirectoryAPIConfig) {
       roomId: string,
       userIds: string[],
     ): Promise<DirectoryMember[]> {
-      const response = await client.batchGetRoomMembers(
+      const response = await roomMembers.batchGetMembers(
         { roomId, userIds },
         { headers: headers() },
       );

@@ -39,14 +39,17 @@ describe('createMemberDirectoryAPI', () => {
     mocks.getRoomMember.mockReset();
     mocks.batchGetRoomMembers.mockReset();
     mocks.createConnectTransport.mockReturnValue({ kind: 'transport' });
-    mocks.createClient.mockReturnValue({
-      listServerMembers: mocks.listServerMembers,
-      getServerMember: mocks.getServerMember,
-      batchGetServerMembers: mocks.batchGetServerMembers,
-      listRoomMembers: mocks.listRoomMembers,
-      getRoomMember: mocks.getRoomMember,
-      batchGetRoomMembers: mocks.batchGetRoomMembers
-    });
+    mocks.createClient
+      .mockReturnValueOnce({
+        listMembers: mocks.listServerMembers,
+        getMember: mocks.getServerMember,
+        batchGetMembers: mocks.batchGetServerMembers
+      })
+      .mockReturnValueOnce({
+        listMembers: mocks.listRoomMembers,
+        getMember: mocks.getRoomMember,
+        batchGetMembers: mocks.batchGetRoomMembers
+      });
   });
 
   it('maps server member pages and sends bearer auth', async () => {

@@ -10,7 +10,7 @@ Any authenticated user can browse the server's member directory — a paginated 
 ## Behavior
 
 - The directory query accepts an optional search string, an offset, and a limit. Returns the matching members and a total count for paginating.
-- The canonical public surface is ConnectRPC `MemberDirectoryService.ListServerMembers(search, limit, offset)`. There is no separate root users-directory query.
+- The canonical public surface is ConnectRPC `ServerMemberService.ListMembers(search, page)`. There is no separate root users-directory query.
 - Search matches a substring of either `login` or `displayName`, case-insensitive. Empty search returns all members.
 - Pagination is offset-based: caller specifies `offset` and `limit`; the response also includes `totalCount` so the caller can compute whether there are more pages.
 - Default page size is 20; the maximum is 100. Requests larger than 100 are silently clamped down.

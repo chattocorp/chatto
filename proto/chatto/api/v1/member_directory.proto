@@ -131,22 +131,26 @@ message BatchGetRoomMembersResponse {
   repeated DirectoryMember members = 1;
 }
 
-// Reads server and room member directories.
-service MemberDirectoryService {
+// Reads authenticated server members.
+service ServerMemberService {
   // Lists authenticated server members. Every authenticated user is a server
   // member; admin-sensitive fields stay out of this public row shape.
-  rpc ListServerMembers(ListServerMembersRequest) returns (ListServerMembersResponse);
+  rpc ListMembers(ListServerMembersRequest) returns (ListServerMembersResponse);
   // Gets one authenticated server member. Returns NOT_FOUND when the user ID is
   // unknown.
-  rpc GetServerMember(GetServerMemberRequest) returns (GetServerMemberResponse);
+  rpc GetMember(GetServerMemberRequest) returns (GetServerMemberResponse);
   // Gets authenticated server member rows for multiple users.
-  rpc BatchGetServerMembers(BatchGetServerMembersRequest) returns (BatchGetServerMembersResponse);
+  rpc BatchGetMembers(BatchGetServerMembersRequest) returns (BatchGetServerMembersResponse);
+}
+
+// Reads explicit room members.
+service RoomMemberService {
   // Lists explicit members of a room. The caller must be a member of the room.
-  rpc ListRoomMembers(ListRoomMembersRequest) returns (ListRoomMembersResponse);
+  rpc ListMembers(ListRoomMembersRequest) returns (ListRoomMembersResponse);
   // Gets one explicit member of a room. The caller must be a member of the
   // room. Returns NOT_FOUND when the target is unknown or not a room member.
-  rpc GetRoomMember(GetRoomMemberRequest) returns (GetRoomMemberResponse);
+  rpc GetMember(GetRoomMemberRequest) returns (GetRoomMemberResponse);
   // Gets explicit room member rows for multiple users. The caller must be a
   // member of the room.
-  rpc BatchGetRoomMembers(BatchGetRoomMembersRequest) returns (BatchGetRoomMembersResponse);
+  rpc BatchGetMembers(BatchGetRoomMembersRequest) returns (BatchGetRoomMembersResponse);
 }

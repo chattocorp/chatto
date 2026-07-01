@@ -17,11 +17,15 @@ const (
 	maxMemberDirectoryLimit     = 500
 )
 
-type memberDirectoryService struct {
+type serverMemberService struct {
 	api *API
 }
 
-func (s *memberDirectoryService) ListServerMembers(ctx context.Context, req *connect.Request[apiv1.ListServerMembersRequest]) (*connect.Response[apiv1.ListServerMembersResponse], error) {
+type roomMemberService struct {
+	api *API
+}
+
+func (s *serverMemberService) ListMembers(ctx context.Context, req *connect.Request[apiv1.ListServerMembersRequest]) (*connect.Response[apiv1.ListServerMembersResponse], error) {
 	if _, err := requireCaller(ctx); err != nil {
 		return nil, err
 	}
@@ -41,7 +45,7 @@ func (s *memberDirectoryService) ListServerMembers(ctx context.Context, req *con
 			}
 			return nil, connectError(err)
 		}
-		apiMember, err := s.directoryMember(ctx, user, member.Roles)
+		apiMember, err := directoryMember(ctx, s.api, user, member.Roles)
 		if err != nil {
 			return nil, err
 		}
@@ -54,19 +58,19 @@ func (s *memberDirectoryService) ListServerMembers(ctx context.Context, req *con
 	}), nil
 }
 
-func (s *memberDirectoryService) GetServerMember(ctx context.Context, req *connect.Request[apiv1.GetServerMemberRequest]) (*connect.Response[apiv1.GetServerMemberResponse], error) {
+func (s *serverMemberService) GetMember(ctx context.Context, req *connect.Request[apiv1.GetServerMemberRequest]) (*connect.Response[apiv1.GetServerMemberResponse], error) {
 	if _, err := requireCaller(ctx); err != nil {
 		return nil, err
 	}
 
-	member, err := s.serverMember(ctx, req.Msg.GetUserId())
+	member, err := serverMember(ctx, s.api, req.Msg.GetUserId())
 	if err != nil {
 		return nil, err
 	}
 	return connect.NewResponse(&apiv1.GetServerMemberResponse{Member: member}), nil
 }
 
-func (s *memberDirectoryService) BatchGetServerMembers(ctx context.Context, req *connect.Request[apiv1.BatchGetServerMembersRequest]) (*connect.Response[apiv1.BatchGetServerMembersResponse], error) {
+func (s *serverMemberService) BatchGetMembers(ctx context.Context, req *connect.Request[apiv1.BatchGetServerMembersRequest]) (*connect.Response[apiv1.BatchGetServerMembersResponse], error) {
 	if _, err := requireCaller(ctx); err != nil {
 		return nil, err
 	}
@@ -79,7 +83,7 @@ func (s *memberDirectoryService) BatchGetServerMembers(ctx context.Context, req 
 		}
 		seen[userID] = struct{}{}
 
-		member, err := s.serverMember(ctx, userID)
+		member, err := serverMember(ctx, s.api, userID)
 		if err != nil {
 			if connect.CodeOf(err) == connect.CodeNotFound {
 				continue
@@ -91,7 +95,7 @@ func (s *memberDirectoryService) BatchGetServerMembers(ctx context.Context, req 
 	return connect.NewResponse(&apiv1.BatchGetServerMembersResponse{Members: members}), nil
 }
 
-func (s *memberDirectoryService) ListRoomMembers(ctx context.Context, req *connect.Request[apiv1.ListRoomMembersRequest]) (*connect.Response[apiv1.ListRoomMembersResponse], error) {
+func (s *roomMemberService) ListMembers(ctx context.Context, req *connect.Request[apiv1.ListRoomMembersRequest]) (*connect.Response[apiv1.ListRoomMembersResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -127,7 +131,7 @@ func (s *memberDirectoryService) ListRoomMembers(ctx context.Context, req *conne
 	page, totalCount, hasMore := paginateDirectoryUsers(users, limit, offset)
 	out := make([]*apiv1.DirectoryMember, 0, len(page))
 	for _, user := range page {
-		apiMember, err := s.directoryMember(ctx, user, nil)
+		apiMember, err := directoryMember(ctx, s.api, user, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -140,7 +144,7 @@ func (s *memberDirectoryService) ListRoomMembers(ctx context.Context, req *conne
 	}), nil
 }
 
-func (s *memberDirectoryService) GetRoomMember(ctx context.Context, req *connect.Request[apiv1.GetRoomMemberRequest]) (*connect.Response[apiv1.GetRoomMemberResponse], error) {
+func (s *roomMemberService) GetMember(ctx context.Context, req *connect.Request[apiv1.GetRoomMemberRequest]) (*connect.Response[apiv1.GetRoomMemberResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -154,14 +158,14 @@ func (s *memberDirectoryService) GetRoomMember(ctx context.Context, req *connect
 	if user == nil {
 		return nil, connectError(core.ErrNotFound)
 	}
-	member, err := s.directoryMember(ctx, user, nil)
+	member, err := directoryMember(ctx, s.api, user, nil)
 	if err != nil {
 		return nil, err
 	}
 	return connect.NewResponse(&apiv1.GetRoomMemberResponse{Member: member}), nil
 }
 
-func (s *memberDirectoryService) BatchGetRoomMembers(ctx context.Context, req *connect.Request[apiv1.BatchGetRoomMembersRequest]) (*connect.Response[apiv1.BatchGetRoomMembersResponse], error) {
+func (s *roomMemberService) BatchGetMembers(ctx context.Context, req *connect.Request[apiv1.BatchGetRoomMembersRequest]) (*connect.Response[apiv1.BatchGetRoomMembersResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -188,7 +192,7 @@ func (s *memberDirectoryService) BatchGetRoomMembers(ctx context.Context, req *c
 		if user == nil {
 			continue
 		}
-		member, err := s.directoryMember(ctx, user, nil)
+		member, err := directoryMember(ctx, s.api, user, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -197,27 +201,27 @@ func (s *memberDirectoryService) BatchGetRoomMembers(ctx context.Context, req *c
 	return connect.NewResponse(&apiv1.BatchGetRoomMembersResponse{Members: members}), nil
 }
 
-func (s *memberDirectoryService) serverMember(ctx context.Context, userID string) (*apiv1.DirectoryMember, error) {
-	user, err := s.api.core.GetUser(ctx, userID)
+func serverMember(ctx context.Context, api *API, userID string) (*apiv1.DirectoryMember, error) {
+	user, err := api.core.GetUser(ctx, userID)
 	if err != nil {
 		return nil, connectError(err)
 	}
-	assigned, err := s.api.core.GetUserRoles(ctx, userID)
+	assigned, err := api.core.GetUserRoles(ctx, userID)
 	if err != nil {
 		return nil, connectError(err)
 	}
 	roles := append([]string{core.RoleEveryone}, assigned...)
-	return s.directoryMember(ctx, user, roles)
+	return directoryMember(ctx, api, user, roles)
 }
 
-func (s *memberDirectoryService) directoryMember(ctx context.Context, user *corev1.User, roles []string) (*apiv1.DirectoryMember, error) {
+func directoryMember(ctx context.Context, api *API, user *corev1.User, roles []string) (*apiv1.DirectoryMember, error) {
 	avatarSize := 96
 	avatar := &apiv1.UserAvatarOptions{
 		Width:  int32(avatarSize),
 		Height: int32(avatarSize),
 		Fit:    apiv1.UserAvatarFitMode_USER_AVATAR_FIT_MODE_COVER,
 	}
-	profile, err := (&userService{api: s.api}).userPresenceSummary(ctx, user, avatar)
+	profile, err := (&userService{api: api}).userPresenceSummary(ctx, user, avatar)
 	if err != nil {
 		return nil, err
 	}

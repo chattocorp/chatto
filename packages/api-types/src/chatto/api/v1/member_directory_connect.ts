@@ -7,21 +7,21 @@ import { BatchGetRoomMembersRequest, BatchGetRoomMembersResponse, BatchGetServer
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
- * Reads server and room member directories.
+ * Reads authenticated server members.
  *
- * @generated from service chatto.api.v1.MemberDirectoryService
+ * @generated from service chatto.api.v1.ServerMemberService
  */
-export const MemberDirectoryService = {
-  typeName: "chatto.api.v1.MemberDirectoryService",
+export const ServerMemberService = {
+  typeName: "chatto.api.v1.ServerMemberService",
   methods: {
     /**
      * Lists authenticated server members. Every authenticated user is a server
      * member; admin-sensitive fields stay out of this public row shape.
      *
-     * @generated from rpc chatto.api.v1.MemberDirectoryService.ListServerMembers
+     * @generated from rpc chatto.api.v1.ServerMemberService.ListMembers
      */
-    listServerMembers: {
-      name: "ListServerMembers",
+    listMembers: {
+      name: "ListMembers",
       I: ListServerMembersRequest,
       O: ListServerMembersResponse,
       kind: MethodKind.Unary,
@@ -30,10 +30,10 @@ export const MemberDirectoryService = {
      * Gets one authenticated server member. Returns NOT_FOUND when the user ID is
      * unknown.
      *
-     * @generated from rpc chatto.api.v1.MemberDirectoryService.GetServerMember
+     * @generated from rpc chatto.api.v1.ServerMemberService.GetMember
      */
-    getServerMember: {
-      name: "GetServerMember",
+    getMember: {
+      name: "GetMember",
       I: GetServerMemberRequest,
       O: GetServerMemberResponse,
       kind: MethodKind.Unary,
@@ -41,21 +41,32 @@ export const MemberDirectoryService = {
     /**
      * Gets authenticated server member rows for multiple users.
      *
-     * @generated from rpc chatto.api.v1.MemberDirectoryService.BatchGetServerMembers
+     * @generated from rpc chatto.api.v1.ServerMemberService.BatchGetMembers
      */
-    batchGetServerMembers: {
-      name: "BatchGetServerMembers",
+    batchGetMembers: {
+      name: "BatchGetMembers",
       I: BatchGetServerMembersRequest,
       O: BatchGetServerMembersResponse,
       kind: MethodKind.Unary,
     },
+  }
+} as const;
+
+/**
+ * Reads explicit room members.
+ *
+ * @generated from service chatto.api.v1.RoomMemberService
+ */
+export const RoomMemberService = {
+  typeName: "chatto.api.v1.RoomMemberService",
+  methods: {
     /**
      * Lists explicit members of a room. The caller must be a member of the room.
      *
-     * @generated from rpc chatto.api.v1.MemberDirectoryService.ListRoomMembers
+     * @generated from rpc chatto.api.v1.RoomMemberService.ListMembers
      */
-    listRoomMembers: {
-      name: "ListRoomMembers",
+    listMembers: {
+      name: "ListMembers",
       I: ListRoomMembersRequest,
       O: ListRoomMembersResponse,
       kind: MethodKind.Unary,
@@ -64,10 +75,10 @@ export const MemberDirectoryService = {
      * Gets one explicit member of a room. The caller must be a member of the
      * room. Returns NOT_FOUND when the target is unknown or not a room member.
      *
-     * @generated from rpc chatto.api.v1.MemberDirectoryService.GetRoomMember
+     * @generated from rpc chatto.api.v1.RoomMemberService.GetMember
      */
-    getRoomMember: {
-      name: "GetRoomMember",
+    getMember: {
+      name: "GetMember",
       I: GetRoomMemberRequest,
       O: GetRoomMemberResponse,
       kind: MethodKind.Unary,
@@ -76,10 +87,10 @@ export const MemberDirectoryService = {
      * Gets explicit room member rows for multiple users. The caller must be a
      * member of the room.
      *
-     * @generated from rpc chatto.api.v1.MemberDirectoryService.BatchGetRoomMembers
+     * @generated from rpc chatto.api.v1.RoomMemberService.BatchGetMembers
      */
-    batchGetRoomMembers: {
-      name: "BatchGetRoomMembers",
+    batchGetMembers: {
+      name: "BatchGetMembers",
       I: BatchGetRoomMembersRequest,
       O: BatchGetRoomMembersResponse,
       kind: MethodKind.Unary,
