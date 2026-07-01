@@ -90,10 +90,16 @@ export class VoiceCallState {
 
   // Audio state
   isMuted = $state(false);
+  // True while LiveKit is applying local device enable/disable changes.
+  isMicrophonePending = $state(false);
 
   // Video state — camera is always disabled by default
   isCameraEnabled = $state(false);
+  // True while LiveKit is applying local camera enable/disable changes.
+  isCameraPending = $state(false);
   isScreenShareEnabled = $state(false);
+  // True while LiveKit is applying local screen-share enable/disable changes.
+  isScreenSharePending = $state(false);
 
   // Participants (including local)
   participants = $state<CallParticipantInfo[]>([]);
@@ -125,6 +131,9 @@ export class VoiceCallState {
   private joinInFlight: Promise<void> | null = null;
   private joinInFlightRoomId: string | null = null;
   private leaveInFlight: Promise<void> | null = null;
+  private microphoneToggleInFlight: Promise<void> | null = null;
+  private cameraToggleInFlight: Promise<void> | null = null;
+  private screenShareToggleInFlight: Promise<void> | null = null;
   private e2eeWorker: Worker | null = null;
   private audioLevelInterval: ReturnType<typeof setInterval> | null = null;
   private suppressDisconnectToast = false;
@@ -396,10 +405,29 @@ export class VoiceCallState {
    * Toggle microphone mute.
    */
   async toggleMute(): Promise<void> {
-    if (!this.room) return;
+    if (this.microphoneToggleInFlight) return this.microphoneToggleInFlight;
 
+    const room = this.room;
+    if (!room) return;
+
+    const togglePromise = this.performToggleMute(room);
+    this.microphoneToggleInFlight = togglePromise;
+    this.isMicrophonePending = true;
+    try {
+      await togglePromise;
+    } finally {
+      if (this.microphoneToggleInFlight === togglePromise) {
+        this.microphoneToggleInFlight = null;
+        this.isMicrophonePending = false;
+      }
+    }
+  }
+
+  private async performToggleMute(room: Room): Promise<void> {
     const newMuted = !this.isMuted;
-    await this.room.localParticipant.setMicrophoneEnabled(!newMuted);
+    await room.localParticipant.setMicrophoneEnabled(!newMuted);
+    if (this.room !== room) return;
+
     this.isMuted = newMuted;
 
     if (!newMuted) {
@@ -415,14 +443,34 @@ export class VoiceCallState {
    * Toggle camera on/off. Camera is always off by default.
    */
   async toggleCamera(): Promise<void> {
-    if (!this.room) return;
+    if (this.cameraToggleInFlight) return this.cameraToggleInFlight;
 
+    const room = this.room;
+    if (!room) return;
+
+    const togglePromise = this.performToggleCamera(room);
+    this.cameraToggleInFlight = togglePromise;
+    this.isCameraPending = true;
+    try {
+      await togglePromise;
+    } finally {
+      if (this.cameraToggleInFlight === togglePromise) {
+        this.cameraToggleInFlight = null;
+        this.isCameraPending = false;
+      }
+    }
+  }
+
+  private async performToggleCamera(room: Room): Promise<void> {
     const newEnabled = !this.isCameraEnabled;
     try {
-      await this.room.localParticipant.setCameraEnabled(newEnabled);
+      await room.localParticipant.setCameraEnabled(newEnabled);
+      if (this.room !== room) return;
+
       this.isCameraEnabled = newEnabled;
     } catch {
       // Permission denied or no camera available — keep current state
+      if (this.room !== room) return;
       this.isCameraEnabled = false;
     }
     this.updateParticipants();
@@ -432,13 +480,33 @@ export class VoiceCallState {
    * Toggle video-only screen/window/tab sharing.
    */
   async toggleScreenShare(): Promise<void> {
-    if (!this.room) return;
+    if (this.screenShareToggleInFlight) return this.screenShareToggleInFlight;
 
+    const room = this.room;
+    if (!room) return;
+
+    const togglePromise = this.performToggleScreenShare(room);
+    this.screenShareToggleInFlight = togglePromise;
+    this.isScreenSharePending = true;
+    try {
+      await togglePromise;
+    } finally {
+      if (this.screenShareToggleInFlight === togglePromise) {
+        this.screenShareToggleInFlight = null;
+        this.isScreenSharePending = false;
+      }
+    }
+  }
+
+  private async performToggleScreenShare(room: Room): Promise<void> {
     const newEnabled = !this.isScreenShareEnabled;
     try {
-      await this.room.localParticipant.setScreenShareEnabled(newEnabled);
+      await room.localParticipant.setScreenShareEnabled(newEnabled);
+      if (this.room !== room) return;
+
       this.isScreenShareEnabled = newEnabled;
     } catch {
+      if (this.room !== room) return;
       this.isScreenShareEnabled = newEnabled ? false : this.isScreenShareEnabled;
     }
     this.updateParticipants();
@@ -744,13 +812,19 @@ export class VoiceCallState {
     this.pendingOwnJoinSound = null;
     this.joinInFlight = null;
     this.joinInFlightRoomId = null;
+    this.microphoneToggleInFlight = null;
+    this.cameraToggleInFlight = null;
+    this.screenShareToggleInFlight = null;
     this.suppressDisconnectToast = false;
     this.connected = false;
     this.connecting = false;
     this.roomId = null;
     this.isMuted = false;
+    this.isMicrophonePending = false;
     this.isCameraEnabled = false;
+    this.isCameraPending = false;
     this.isScreenShareEnabled = false;
+    this.isScreenSharePending = false;
     this.participants = [];
     this.audioDevices = [];
     this.selectedDeviceId = null;

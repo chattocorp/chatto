@@ -205,14 +205,20 @@ to the user settings page for the active server.
           aria-label={voiceCallState.isMuted ? m['voice.unmute']() : m['voice.mute']()}
           data-testid="current-user-call-mute"
           onclick={() => voiceCallState.toggleMute()}
+          disabled={voiceCallState.isMicrophonePending}
+          aria-busy={voiceCallState.isMicrophonePending || undefined}
         >
-          <span
-            class={[
-              'iconify',
-              voiceCallState.isMuted ? 'uil--microphone-slash' : 'uil--microphone'
-            ]}
-            aria-hidden="true"
-          ></span>
+          {#if voiceCallState.isMicrophonePending}
+            <span class="iconify animate-spin uil--spinner" aria-hidden="true"></span>
+          {:else}
+            <span
+              class={[
+                'iconify',
+                voiceCallState.isMuted ? 'uil--microphone-slash' : 'uil--microphone'
+              ]}
+              aria-hidden="true"
+            ></span>
+          {/if}
         </button>
         <button
           type="button"
@@ -227,11 +233,20 @@ to the user settings page for the active server.
             : m['voice.turn_on_camera']()}
           data-testid="current-user-call-camera"
           onclick={() => voiceCallState.toggleCamera()}
+          disabled={voiceCallState.isCameraPending}
+          aria-busy={voiceCallState.isCameraPending || undefined}
         >
-          <span
-            class={['iconify', voiceCallState.isCameraEnabled ? 'uil--video' : 'uil--video-slash']}
-            aria-hidden="true"
-          ></span>
+          {#if voiceCallState.isCameraPending}
+            <span class="iconify animate-spin uil--spinner" aria-hidden="true"></span>
+          {:else}
+            <span
+              class={[
+                'iconify',
+                voiceCallState.isCameraEnabled ? 'uil--video' : 'uil--video-slash'
+              ]}
+              aria-hidden="true"
+            ></span>
+          {/if}
         </button>
         <button
           type="button"
@@ -246,8 +261,14 @@ to the user settings page for the active server.
             : m['voice.share_screen']()}
           data-testid="current-user-call-screen-share"
           onclick={() => voiceCallState.toggleScreenShare()}
+          disabled={voiceCallState.isScreenSharePending}
+          aria-busy={voiceCallState.isScreenSharePending || undefined}
         >
-          <span class="iconify uil--desktop" aria-hidden="true"></span>
+          {#if voiceCallState.isScreenSharePending}
+            <span class="iconify animate-spin uil--spinner" aria-hidden="true"></span>
+          {:else}
+            <span class="iconify uil--desktop" aria-hidden="true"></span>
+          {/if}
         </button>
         <button
           type="button"
@@ -263,7 +284,7 @@ to the user settings page for the active server.
     {/if}
 
     <div
-      class="flex items-center gap-3 rounded-xl bg-surface py-1 pr-3 pl-1"
+      class="flex h-12 max-h-12 min-h-12 items-center gap-3 overflow-hidden rounded-xl bg-surface pr-3 pl-1"
       data-testid="current-user-identity-card"
     >
       <button
@@ -282,8 +303,8 @@ to the user settings page for the active server.
           <span class={['h-2.5 w-2.5 rounded-full', presenceDotClass]}></span>
         </span>
       </button>
-      <div class="flex min-w-0 flex-1 flex-col leading-tight">
-        <span class="flex min-w-0 items-center gap-1.5 text-sm font-semibold">
+      <div class="flex min-w-0 flex-1 flex-col overflow-hidden leading-tight">
+        <span class="flex min-w-0 items-center gap-1.5 overflow-hidden text-sm font-semibold">
           <span class="min-w-0 truncate">{displayName}</span>
           <UserCustomStatusBadge status={activeServerUser.customStatus} class="text-xs" />
         </span>
@@ -294,8 +315,11 @@ to the user settings page for the active server.
       <a
         href={resolve('/chat/[serverId]/settings', { serverId: serverSegment })}
         title={m['voice.user_settings']()}
-        class="iconify shrink-0 cursor-pointer text-muted uil--setting hover:text-text"
-      ></a>
+        aria-label={m['voice.user_settings']()}
+        class="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center text-muted hover:text-text"
+      >
+        <span class="iconify text-lg uil--setting" aria-hidden="true"></span>
+      </a>
     </div>
   </div>
 {/if}

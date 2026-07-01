@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
+import '../../app.css';
 import { q } from '$lib/test-utils';
 import { PresenceStatus } from '$lib/render/types';
 import { presencePreference } from '$lib/state/presencePreference.svelte';
@@ -47,8 +48,11 @@ const { currentUserState, voiceCallState, roomsState } = vi.hoisted(() => ({
     connected: false,
     roomId: null as string | null,
     isMuted: false,
+    isMicrophonePending: false,
     isCameraEnabled: false,
+    isCameraPending: false,
     isScreenShareEnabled: false,
+    isScreenSharePending: false,
     toggleMute: vi.fn(),
     toggleCamera: vi.fn(),
     toggleScreenShare: vi.fn(),
@@ -123,8 +127,11 @@ describe('CurrentUserBar', () => {
     voiceCallState.connected = false;
     voiceCallState.roomId = null;
     voiceCallState.isMuted = false;
+    voiceCallState.isMicrophonePending = false;
     voiceCallState.isCameraEnabled = false;
+    voiceCallState.isCameraPending = false;
     voiceCallState.isScreenShareEnabled = false;
+    voiceCallState.isScreenSharePending = false;
     voiceCallState.toggleMute.mockClear();
     voiceCallState.toggleCamera.mockClear();
     voiceCallState.toggleScreenShare.mockClear();
@@ -227,6 +234,45 @@ describe('CurrentUserBar', () => {
     );
   });
 
+  it('keeps the identity card at the same control height with long profile content', () => {
+    currentUserState.user = {
+      ...currentUserState.user!,
+      login: 'alice-with-a-very-long-login-name-that-must-truncate',
+      displayName: 'Alice With A Very Long Display Name That Must Stay Inside The User Card',
+      customStatus: {
+        emoji: '🍜',
+        text: 'chatto:status:out_for_lunch',
+        expiresAt: null
+      }
+    };
+
+    const { container } = render(CurrentUserBarTestHarness);
+    const bar = container.firstElementChild as HTMLElement;
+    bar.style.width = '224px';
+
+    const card = q(container, '[data-testid="current-user-identity-card"]')!;
+    const cardRect = card.getBoundingClientRect();
+    const controlReference = document.createElement('div');
+    controlReference.className = 'h-12';
+    document.body.append(controlReference);
+    const expectedHeight = controlReference.getBoundingClientRect().height;
+    controlReference.remove();
+
+    expect(expectedHeight).toBeGreaterThan(0);
+    expect(cardRect.height).toBe(expectedHeight);
+    expect(card.scrollHeight).toBeLessThanOrEqual(card.clientHeight);
+
+    for (const child of Array.from(card.children)) {
+      const rect = child.getBoundingClientRect();
+      expect(rect.top).toBeGreaterThanOrEqual(cardRect.top);
+      expect(rect.bottom).toBeLessThanOrEqual(cardRect.bottom);
+    }
+
+    const settingsIcon = q(card, 'a[href$="/settings"] .iconify')!;
+    const settingsIconRect = settingsIcon.getBoundingClientRect();
+    expect(settingsIconRect.height).toBeLessThan(cardRect.height / 2);
+  });
+
   it('hides call controls when the user is not in a call', () => {
     const { container } = render(CurrentUserBarTestHarness);
 
@@ -309,6 +355,27 @@ describe('CurrentUserBar', () => {
     expect(q(container, '[data-testid="current-user-call-leave"]')!.className).toContain(
       'btn-danger'
     );
+  });
+
+  it('shows spinners on pending compact call media controls', () => {
+    voiceCallState.connected = true;
+    voiceCallState.roomId = 'room-1';
+    voiceCallState.isMicrophonePending = true;
+    voiceCallState.isCameraPending = true;
+    voiceCallState.isScreenSharePending = true;
+
+    const { container } = render(CurrentUserBarTestHarness);
+
+    for (const testId of [
+      'current-user-call-mute',
+      'current-user-call-camera',
+      'current-user-call-screen-share'
+    ]) {
+      const button = q(container, `[data-testid="${testId}"]`) as HTMLButtonElement;
+      expect(button.disabled).toBe(true);
+      expect(button.getAttribute('aria-busy')).toBe('true');
+      expect(q(button, '.animate-spin.uil--spinner')).toBeTruthy();
+    }
   });
 
   it('uses the DM participant label for active direct-message calls', () => {
