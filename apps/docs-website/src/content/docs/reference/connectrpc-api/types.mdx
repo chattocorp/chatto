@@ -4,7 +4,7 @@ description: Generated shared message and enum reference for Chatto ConnectRPC s
 editUrl: false
 ---
 
-{/* Generated from proto/chatto/{discovery,api,admin,realtime}/v1/*.proto. Do not edit directly. */}
+{/* Generated from proto/chatto/{auth,discovery,api,admin,realtime}/v1/*.proto. Do not edit directly. */}
 
 Shared message and enum definitions used by the ConnectRPC service pages.
 
@@ -14,7 +14,7 @@ Shared message and enum definitions used by the ConnectRPC service pages.
 
 
 
-<a id="chatto-discovery-v1-PendingExternalIdentity"></a>
+<a id="chatto-auth-v1-PendingExternalIdentity"></a>
 
 ### PendingExternalIdentity
 
@@ -23,7 +23,7 @@ exposed; clients only need user-facing provider/profile hints.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `kind` | [`ExternalIdentityFlowKind`](#chatto-discovery-v1-ExternalIdentityFlowKind) | Pending flow kind. |
+| `kind` | [`ExternalIdentityFlowKind`](#chatto-auth-v1-ExternalIdentityFlowKind) | Pending flow kind. |
 | `provider_id` | `string` | Provider ID that produced the identity. |
 | `provider_type` | `string` | Provider type that produced the identity. |
 | `provider_label` | `string` | Provider label shown to the user. |
@@ -1294,7 +1294,7 @@ Runtime-editable server profile settings.
 
 
 
-<a id="chatto-discovery-v1-ExternalIdentityFlowKind"></a>
+<a id="chatto-auth-v1-ExternalIdentityFlowKind"></a>
 
 ### ExternalIdentityFlowKind
 

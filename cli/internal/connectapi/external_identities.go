@@ -10,24 +10,24 @@ import (
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
-	discoveryv1 "hmans.de/chatto/internal/pb/chatto/discovery/v1"
+	authv1 "hmans.de/chatto/internal/pb/chatto/auth/v1"
 )
 
-type externalIdentityFlowService struct {
+type externalIdentityAuthService struct {
 	api *API
 }
 
-func (s *externalIdentityFlowService) GetPendingExternalIdentity(ctx context.Context, req *connect.Request[discoveryv1.GetPendingExternalIdentityRequest]) (*connect.Response[discoveryv1.GetPendingExternalIdentityResponse], error) {
+func (s *externalIdentityAuthService) GetPendingExternalIdentity(ctx context.Context, req *connect.Request[authv1.GetPendingExternalIdentityRequest]) (*connect.Response[authv1.GetPendingExternalIdentityResponse], error) {
 	flow, err := s.api.core.GetPendingExternalIdentityFlow(ctx, req.Msg.GetToken())
 	if err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&discoveryv1.GetPendingExternalIdentityResponse{
+	return connect.NewResponse(&authv1.GetPendingExternalIdentityResponse{
 		Pending: apiPendingExternalIdentity(flow),
 	}), nil
 }
 
-func (s *externalIdentityFlowService) CreateExternalIdentityAccount(ctx context.Context, req *connect.Request[discoveryv1.CreateExternalIdentityAccountRequest]) (*connect.Response[discoveryv1.CreateExternalIdentityAccountResponse], error) {
+func (s *externalIdentityAuthService) CreateExternalIdentityAccount(ctx context.Context, req *connect.Request[authv1.CreateExternalIdentityAccountRequest]) (*connect.Response[authv1.CreateExternalIdentityAccountResponse], error) {
 	flow, err := s.api.core.GetPendingExternalIdentityCreateFlow(ctx, req.Msg.GetToken())
 	if err != nil {
 		return nil, connectError(err)
@@ -56,7 +56,7 @@ func (s *externalIdentityFlowService) CreateExternalIdentityAccount(ctx context.
 	if err := s.api.core.DeletePendingExternalIdentityFlow(ctx, req.Msg.GetToken()); err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&discoveryv1.CreateExternalIdentityAccountResponse{
+	return connect.NewResponse(&authv1.CreateExternalIdentityAccountResponse{
 		UserId: user.GetId(),
 		Login:  user.GetLogin(),
 		Token:  token,
@@ -73,7 +73,7 @@ func externalIdentityCreateDisplayName(login, hint string) string {
 	return displayName
 }
 
-func (s *externalIdentityFlowService) ConfirmExternalIdentityLink(ctx context.Context, req *connect.Request[discoveryv1.ConfirmExternalIdentityLinkRequest]) (*connect.Response[discoveryv1.ConfirmExternalIdentityLinkResponse], error) {
+func (s *externalIdentityAuthService) ConfirmExternalIdentityLink(ctx context.Context, req *connect.Request[authv1.ConfirmExternalIdentityLinkRequest]) (*connect.Response[authv1.ConfirmExternalIdentityLinkResponse], error) {
 	flow, err := s.api.core.GetPendingExternalIdentityFlow(ctx, req.Msg.GetToken())
 	if err != nil {
 		return nil, connectError(err)
@@ -85,16 +85,16 @@ func (s *externalIdentityFlowService) ConfirmExternalIdentityLink(ctx context.Co
 	if err := s.api.core.DeletePendingExternalIdentityFlow(ctx, req.Msg.GetToken()); err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&discoveryv1.ConfirmExternalIdentityLinkResponse{
+	return connect.NewResponse(&authv1.ConfirmExternalIdentityLinkResponse{
 		LinkedIdentity: apiLinkedExternalIdentity(identity, s.api.providerLabels()),
 	}), nil
 }
 
-func (s *externalIdentityFlowService) CancelExternalIdentityFlow(ctx context.Context, req *connect.Request[discoveryv1.CancelExternalIdentityFlowRequest]) (*connect.Response[discoveryv1.CancelExternalIdentityFlowResponse], error) {
+func (s *externalIdentityAuthService) CancelExternalIdentityFlow(ctx context.Context, req *connect.Request[authv1.CancelExternalIdentityFlowRequest]) (*connect.Response[authv1.CancelExternalIdentityFlowResponse], error) {
 	if err := s.api.core.DeletePendingExternalIdentityFlow(ctx, req.Msg.GetToken()); err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&discoveryv1.CancelExternalIdentityFlowResponse{Cancelled: true}), nil
+	return connect.NewResponse(&authv1.CancelExternalIdentityFlowResponse{Cancelled: true}), nil
 }
 
 func (s *accountService) ListExternalIdentities(ctx context.Context, _ *connect.Request[apiv1.ListExternalIdentitiesRequest]) (*connect.Response[apiv1.ListExternalIdentitiesResponse], error) {
@@ -172,18 +172,18 @@ func (s *accountService) DisconnectExternalIdentity(ctx context.Context, req *co
 	return connect.NewResponse(&apiv1.DisconnectExternalIdentityResponse{Disconnected: true}), nil
 }
 
-func apiPendingExternalIdentity(flow *core.PendingExternalIdentityFlow) *discoveryv1.PendingExternalIdentity {
+func apiPendingExternalIdentity(flow *core.PendingExternalIdentityFlow) *authv1.PendingExternalIdentity {
 	if flow == nil {
 		return nil
 	}
-	kind := discoveryv1.ExternalIdentityFlowKind_EXTERNAL_IDENTITY_FLOW_KIND_UNSPECIFIED
+	kind := authv1.ExternalIdentityFlowKind_EXTERNAL_IDENTITY_FLOW_KIND_UNSPECIFIED
 	switch flow.Kind {
 	case core.ExternalIdentityFlowKindCreate:
-		kind = discoveryv1.ExternalIdentityFlowKind_EXTERNAL_IDENTITY_FLOW_KIND_CREATE_ACCOUNT
+		kind = authv1.ExternalIdentityFlowKind_EXTERNAL_IDENTITY_FLOW_KIND_CREATE_ACCOUNT
 	case core.ExternalIdentityFlowKindLink:
-		kind = discoveryv1.ExternalIdentityFlowKind_EXTERNAL_IDENTITY_FLOW_KIND_LINK_ACCOUNT
+		kind = authv1.ExternalIdentityFlowKind_EXTERNAL_IDENTITY_FLOW_KIND_LINK_ACCOUNT
 	}
-	return &discoveryv1.PendingExternalIdentity{
+	return &authv1.PendingExternalIdentity{
 		Kind:            kind,
 		ProviderId:      flow.ProviderID,
 		ProviderType:    flow.ProviderType,

@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(scriptDir, '..');
 const rawReferencePaths = [
+  path.join(repoRoot, 'apps/docs-website/src/generated/connectrpc-api/auth.raw.mdx'),
   path.join(repoRoot, 'apps/docs-website/src/generated/connectrpc-api/discovery.raw.mdx'),
   path.join(repoRoot, 'apps/docs-website/src/generated/connectrpc-api/api.raw.mdx'),
   path.join(repoRoot, 'apps/docs-website/src/generated/connectrpc-api/admin.raw.mdx'),
@@ -21,14 +22,19 @@ const outputDir = path.join(
 
 const categories = [
   {
-    title: 'chatto.discovery.v1',
+    title: 'chatto.auth.v1',
     services: [
       {
-        name: 'ExternalIdentityFlowService',
-        slug: 'external-identity-flows',
-        title: 'External Identity Flows',
-        description: 'Capability-token external identity confirmation RPCs.'
-      },
+        name: 'ExternalIdentityAuthService',
+        slug: 'external-identity-auth',
+        title: 'External Identity Auth',
+        description: 'Capability-token external identity authentication RPCs.'
+      }
+    ]
+  },
+  {
+    title: 'chatto.discovery.v1',
+    services: [
       {
         name: 'ServerDiscoveryService',
         slug: 'server-discovery',
@@ -212,7 +218,7 @@ function frontmatter(title, description) {
 }
 
 function generatedNotice() {
-  return '{/* Generated from proto/chatto/{discovery,api,admin,realtime}/v1/*.proto. Do not edit directly. */}\n\n';
+  return '{/* Generated from proto/chatto/{auth,discovery,api,admin,realtime}/v1/*.proto. Do not edit directly. */}\n\n';
 }
 
 function parseAnchoredSections(source, heading) {
@@ -233,11 +239,11 @@ function parseAnchoredSections(source, heading) {
 function rewriteServiceTypeLinks(section) {
   return section
     .replace(
-      /\]\(#(chatto-(?:discovery|api|admin)-v1-[^)]+)\)/g,
+      /\]\(#(chatto-(?:auth|discovery|api|admin)-v1-[^)]+)\)/g,
       '](/reference/connectrpc-api/types/#$1)'
     )
     .replace(
-      /`chatto\.(discovery|api|admin)\.v1\.([A-Za-z][A-Za-z0-9_]*)`/g,
+      /`chatto\.(auth|discovery|api|admin)\.v1\.([A-Za-z][A-Za-z0-9_]*)`/g,
       (_match, pkg, typeName) =>
         `[\`chatto.${pkg}.v1.${typeName}\`](/reference/connectrpc-api/types/#chatto-${pkg}-v1-${typeName})`
     );
@@ -245,7 +251,7 @@ function rewriteServiceTypeLinks(section) {
 
 function rewriteRealtimeExternalLinks(section) {
   return section.replace(
-    /\]\(#(chatto-(?:discovery|api|admin)-v1-[^)]+)\)/g,
+    /\]\(#(chatto-(?:auth|discovery|api|admin)-v1-[^)]+)\)/g,
     '](/reference/connectrpc-api/types/#$1)'
   );
 }
@@ -286,7 +292,7 @@ function renderLanding() {
     '',
     '[ServerDiscoveryService.GetServer](/reference/connectrpc-api/server-discovery/#chatto-discovery-v1-ServerDiscoveryService-GetServer) is public so clients can discover branding, registration state, and login providers before a user signs in.',
     '',
-    '`chatto.discovery.v1` also contains capability-token flows, such as pending external identity confirmation. Those RPCs are unauthenticated at the session layer but require a valid flow token in the request.',
+    '`chatto.auth.v1` contains public auth flows with their own security model, such as pending external identity confirmation. Those RPCs are unauthenticated at the session layer but require a valid flow token in the request.',
     '',
     'Most `chatto.api.v1` calls require an authenticated user. Non-browser clients should send `Authorization: Bearer <token>`; browser clients can use the active Chatto session. See [External Login Providers](/guides/external-login-providers/) for login-provider discovery and sign-in configuration.',
     '',
@@ -299,8 +305,14 @@ function renderLanding() {
     '**`chatto.discovery.v1`**',
     '',
     '- **Transport:** ConnectRPC unary RPCs.',
-    '- **Covers:** Pre-authentication bootstrap and capability-token flows, such as server metadata/login discovery and pending external identity confirmation.',
+    '- **Covers:** Pre-authentication bootstrap, such as server metadata and login discovery.',
     '- **Contract:** Public discovery API for clients that do not have a normal Chatto session yet.',
+    '',
+    '**`chatto.auth.v1`**',
+    '',
+    '- **Transport:** ConnectRPC unary RPCs.',
+    '- **Covers:** Public auth flows with capability-token authorization, such as pending external identity confirmation.',
+    '- **Contract:** Public auth-flow API for clients that do not have a normal Chatto session yet, or that are completing a browser handoff.',
     '',
     '**`chatto.api.v1`**',
     '',
@@ -331,7 +343,7 @@ function renderLanding() {
     '/api/connect/grpc.reflection.v1alpha.ServerReflection/ServerReflectionInfo',
     '```',
     '',
-    'Reflection lets tools resolve service and message descriptors without a local copy of the `.proto` files. Chatto limits reflection to public `chatto.discovery.v1`, `chatto.api.v1`, and `chatto.admin.v1` descriptors plus required imports.',
+    'Reflection lets tools resolve service and message descriptors without a local copy of the `.proto` files. Chatto limits reflection to public `chatto.auth.v1`, `chatto.discovery.v1`, `chatto.api.v1`, and `chatto.admin.v1` descriptors plus required imports.',
     '',
     'Because Chatto mounts ConnectRPC under `/api/connect`, use tools that accept a full Connect URL, such as `buf curl`. gRPC tools that only dial services at the host root need a proxy or path rewrite.',
     '',
@@ -442,7 +454,7 @@ function renderLanding() {
     '',
     '## Versioning And Stability',
     '',
-    'Package names such as `chatto.discovery.v1`, `chatto.api.v1`, and `chatto.admin.v1` identify the public API contract that clients integrate with.',
+    'Package names such as `chatto.auth.v1`, `chatto.discovery.v1`, `chatto.api.v1`, and `chatto.admin.v1` identify the public API contract that clients integrate with.',
     '',
     'Chatto is still pre-1.0, so public API details may change between releases. Check this reference for the Chatto server version you target, and use generated clients that match that server version.',
     '',
@@ -606,13 +618,16 @@ for (const rawReferencePath of rawReferencePaths) {
   const raw = await readFile(rawReferencePath, 'utf8');
   const supportingStart = raw.indexOf('\n## Supporting Types\n');
   const enumsStart = raw.indexOf('\n## Enums\n');
-  if (supportingStart === -1 || enumsStart === -1 || enumsStart < supportingStart) {
-    throw new Error(`Unable to find generated Supporting Types and Enums sections in ${rawReferencePath}.`);
+  if (enumsStart !== -1 && supportingStart !== -1 && enumsStart < supportingStart) {
+    throw new Error(`Generated Enums section appears before Supporting Types in ${rawReferencePath}.`);
   }
 
-  const serviceSource = raw.slice(0, supportingStart);
-  const typeSource = raw.slice(supportingStart, enumsStart);
-  const enumSource = raw.slice(enumsStart);
+  const serviceEnd =
+    supportingStart === -1 ? (enumsStart === -1 ? raw.length : enumsStart) : supportingStart;
+  const typeEnd = enumsStart === -1 ? raw.length : enumsStart;
+  const serviceSource = raw.slice(0, serviceEnd);
+  const typeSource = supportingStart === -1 ? '' : raw.slice(supportingStart, typeEnd);
+  const enumSource = enumsStart === -1 ? '' : raw.slice(enumsStart);
 
   for (const [name, section] of parseAnchoredSections(serviceSource, '##')) {
     serviceSections.set(name, section);

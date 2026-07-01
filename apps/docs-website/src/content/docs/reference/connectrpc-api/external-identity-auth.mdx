@@ -1,10 +1,10 @@
 ---
-title: ExternalIdentityFlowService
-description: Capability-token external identity confirmation RPCs.
+title: ExternalIdentityAuthService
+description: Capability-token external identity authentication RPCs.
 editUrl: false
 ---
 
-{/* Generated from proto/chatto/{discovery,api,admin,realtime}/v1/*.proto. Do not edit directly. */}
+{/* Generated from proto/chatto/{auth,discovery,api,admin,realtime}/v1/*.proto. Do not edit directly. */}
 
 Chatto exposes this service below `/api/connect`.
 
@@ -14,13 +14,13 @@ Shared message and enum definitions are documented in [Shared Types And Enums](/
 
 
 
-<a id="chatto-discovery-v1-ExternalIdentityFlowService"></a>
+<a id="chatto-auth-v1-ExternalIdentityAuthService"></a>
 
-## ExternalIdentityFlowService
+## ExternalIdentityAuthService
 
-Public pending external identity flow operations.
+Public external identity authentication operations.
 
-<a id="chatto-discovery-v1-ExternalIdentityFlowService-GetPendingExternalIdentity"></a>
+<a id="chatto-auth-v1-ExternalIdentityAuthService-GetPendingExternalIdentity"></a>
 
 ### GetPendingExternalIdentity
 
@@ -29,10 +29,10 @@ requires a valid pending-flow capability token and returns NOT_FOUND when
 the token is unknown or expired.
 
 ```http
-POST /api/connect/chatto.discovery.v1.ExternalIdentityFlowService/GetPendingExternalIdentity
+POST /api/connect/chatto.auth.v1.ExternalIdentityAuthService/GetPendingExternalIdentity
 ```
 
-<a id="chatto-discovery-v1-GetPendingExternalIdentityRequest"></a>
+<a id="chatto-auth-v1-GetPendingExternalIdentityRequest"></a>
 
 #### Input: GetPendingExternalIdentityRequest
 
@@ -43,7 +43,7 @@ Request to inspect a pending external identity flow.
 | `token` | `string` | Raw pending flow token from the provider callback redirect. |
 
 
-<a id="chatto-discovery-v1-GetPendingExternalIdentityResponse"></a>
+<a id="chatto-auth-v1-GetPendingExternalIdentityResponse"></a>
 
 #### Result: GetPendingExternalIdentityResponse
 
@@ -51,10 +51,10 @@ Result of inspecting a pending external identity flow.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `pending` | [`PendingExternalIdentity`](/reference/connectrpc-api/types/#chatto-discovery-v1-PendingExternalIdentity) | Pending flow metadata. |
+| `pending` | [`PendingExternalIdentity`](/reference/connectrpc-api/types/#chatto-auth-v1-PendingExternalIdentity) | Pending flow metadata. |
 
 
-<a id="chatto-discovery-v1-ExternalIdentityFlowService-CreateExternalIdentityAccount"></a>
+<a id="chatto-auth-v1-ExternalIdentityAuthService-CreateExternalIdentityAccount"></a>
 
 ### CreateExternalIdentityAccount
 
@@ -62,10 +62,10 @@ Creates a passwordless account from a pending provider identity. This
 public RPC requires a valid create-flow capability token.
 
 ```http
-POST /api/connect/chatto.discovery.v1.ExternalIdentityFlowService/CreateExternalIdentityAccount
+POST /api/connect/chatto.auth.v1.ExternalIdentityAuthService/CreateExternalIdentityAccount
 ```
 
-<a id="chatto-discovery-v1-CreateExternalIdentityAccountRequest"></a>
+<a id="chatto-auth-v1-CreateExternalIdentityAccountRequest"></a>
 
 #### Input: CreateExternalIdentityAccountRequest
 
@@ -77,7 +77,7 @@ Request to create a new passwordless account from a pending provider identity.
 | `login` | `string` | Desired username. |
 
 
-<a id="chatto-discovery-v1-CreateExternalIdentityAccountResponse"></a>
+<a id="chatto-auth-v1-CreateExternalIdentityAccountResponse"></a>
 
 #### Result: CreateExternalIdentityAccountResponse
 
@@ -90,7 +90,7 @@ Result of creating an account from a pending provider identity.
 | `token` | `string` | Bearer token for the new session. |
 
 
-<a id="chatto-discovery-v1-ExternalIdentityFlowService-ConfirmExternalIdentityLink"></a>
+<a id="chatto-auth-v1-ExternalIdentityAuthService-ConfirmExternalIdentityLink"></a>
 
 ### ConfirmExternalIdentityLink
 
@@ -98,10 +98,10 @@ Links a provider identity using a pending link-flow capability token. This
 public RPC requires a valid link-flow capability token.
 
 ```http
-POST /api/connect/chatto.discovery.v1.ExternalIdentityFlowService/ConfirmExternalIdentityLink
+POST /api/connect/chatto.auth.v1.ExternalIdentityAuthService/ConfirmExternalIdentityLink
 ```
 
-<a id="chatto-discovery-v1-ConfirmExternalIdentityLinkRequest"></a>
+<a id="chatto-auth-v1-ConfirmExternalIdentityLinkRequest"></a>
 
 #### Input: ConfirmExternalIdentityLinkRequest
 
@@ -112,7 +112,7 @@ Request to confirm a pending provider link using the flow capability token.
 | `token` | `string` | Raw pending link token from the provider callback redirect. |
 
 
-<a id="chatto-discovery-v1-ConfirmExternalIdentityLinkResponse"></a>
+<a id="chatto-auth-v1-ConfirmExternalIdentityLinkResponse"></a>
 
 #### Result: ConfirmExternalIdentityLinkResponse
 
@@ -123,7 +123,7 @@ Result of confirming a provider identity link.
 | `linked_identity` | [`chatto.api.v1.LinkedExternalIdentity`](/reference/connectrpc-api/types/#chatto-api-v1-LinkedExternalIdentity) | Linked identity metadata. |
 
 
-<a id="chatto-discovery-v1-ExternalIdentityFlowService-CancelExternalIdentityFlow"></a>
+<a id="chatto-auth-v1-ExternalIdentityAuthService-CancelExternalIdentityFlow"></a>
 
 ### CancelExternalIdentityFlow
 
@@ -131,10 +131,10 @@ Cancels a pending provider identity flow. This public RPC requires a valid
 pending-flow capability token.
 
 ```http
-POST /api/connect/chatto.discovery.v1.ExternalIdentityFlowService/CancelExternalIdentityFlow
+POST /api/connect/chatto.auth.v1.ExternalIdentityAuthService/CancelExternalIdentityFlow
 ```
 
-<a id="chatto-discovery-v1-CancelExternalIdentityFlowRequest"></a>
+<a id="chatto-auth-v1-CancelExternalIdentityFlowRequest"></a>
 
 #### Input: CancelExternalIdentityFlowRequest
 
@@ -145,7 +145,7 @@ Request to cancel a pending external identity flow.
 | `token` | `string` | Raw pending flow token. |
 
 
-<a id="chatto-discovery-v1-CancelExternalIdentityFlowResponse"></a>
+<a id="chatto-auth-v1-CancelExternalIdentityFlowResponse"></a>
 
 #### Result: CancelExternalIdentityFlowResponse
 

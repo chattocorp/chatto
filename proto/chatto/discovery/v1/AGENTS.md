@@ -6,15 +6,14 @@ ConnectRPC surface.
 ## API Surface
 
 - Keep this package narrow: it is for pre-authentication bootstrap and
-  capability-token flows that intentionally do not require a normal user
-  session.
+  discovery metadata.
+- Keep public auth/capability-token flows in `chatto.auth.v1`; do not put them
+  here just because they intentionally do not require a normal user session.
 - Do not move ordinary authenticated integration APIs here. Those belong in
   `chatto.api.v1` unless they are visibly administrative, in which case they
   belong in `chatto.admin.v1`.
 - Public-but-authenticated read APIs are not discovery APIs.
 - Reflection remains public Connect infrastructure, not a discovery service.
-- Capability-token RPCs must validate the token inside the service/core model
-  before exposing resource state or performing changes.
 
 ## Comments And Authorization
 

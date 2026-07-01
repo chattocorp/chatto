@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package chatto.discovery.v1;
+package chatto.auth.v1;
 
 import "buf/validate/validate.proto";
 import "chatto/api/v1/external_identities.proto";
@@ -95,8 +95,8 @@ message ConfirmExternalIdentityLinkResponse {
   chatto.api.v1.LinkedExternalIdentity linked_identity = 1;
 }
 
-// Public pending external identity flow operations.
-service ExternalIdentityFlowService {
+// Public external identity authentication operations.
+service ExternalIdentityAuthService {
   // Reads safe metadata for a pending create/link flow. This public RPC
   // requires a valid pending-flow capability token and returns NOT_FOUND when
   // the token is unknown or expired.

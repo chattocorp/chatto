@@ -11,6 +11,8 @@ For public API packages:
   ConnectRPC API consistency rules.
 - Follow [chatto/admin/v1/AGENTS.md](chatto/admin/v1/AGENTS.md) for
   administrative ConnectRPC API consistency rules.
+- Follow [chatto/auth/v1/AGENTS.md](chatto/auth/v1/AGENTS.md) for public auth
+  and capability-token ConnectRPC API consistency rules.
 - Follow [chatto/discovery/v1/AGENTS.md](chatto/discovery/v1/AGENTS.md) for
   unauthenticated discovery/bootstrap ConnectRPC API consistency rules.
 - Follow [chatto/realtime/v1/AGENTS.md](chatto/realtime/v1/AGENTS.md) for the
@@ -42,9 +44,9 @@ For public API packages:
 ## Presence And API Shape
 
 - For public API messages under `chatto/api/v1`, `chatto/admin/v1`,
-  `chatto/discovery/v1`, and `chatto/realtime/v1`, use proto3 `optional` scalar
-  fields when clients must distinguish absent/unhydrated/unknown from a scalar
-  default.
+  `chatto/auth/v1`, `chatto/discovery/v1`, and `chatto/realtime/v1`, use proto3
+  `optional` scalar fields when clients must distinguish
+  absent/unhydrated/unknown from a scalar default.
 - Avoid parallel `*_present` booleans for simple scalar presence.
 - Use enums or oneofs only when modeling multiple meaningful availability states.
 

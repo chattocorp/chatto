@@ -18,8 +18,9 @@ changing an integration contract.
 Previous discussion considered splitting the surface by default into
 integration and app packages. The API cleanup work kept a broad, coherent
 `chatto.api.v1` base surface, moved reusable user, pagination, and response
-semantics into shared shapes, split unauthenticated discovery/bootstrap flows
-into `chatto.discovery.v1`, and then split clearly administrative and realtime
+semantics into shared shapes, split public auth/capability-token flows into
+`chatto.auth.v1`, split unauthenticated discovery/bootstrap into
+`chatto.discovery.v1`, and then split clearly administrative and realtime
 protocol concerns into separate packages. That leaves one remaining question:
 which parts of the protobuf API carry which stability promise?
 
@@ -27,28 +28,31 @@ which parts of the protobuf API carry which stability promise?
 
 Chatto defines five public API stability tiers:
 
-1. **Discovery API**: `chatto.discovery.v1` ConnectRPC services for
-   unauthenticated bootstrap and capability-token flows, such as server/login
-   discovery and pending external identity confirmation.
-2. **Integration API**: `chatto.api.v1` ConnectRPC services and shared messages
+1. **Auth API**: `chatto.auth.v1` ConnectRPC services for public
+   authentication flows with a distinct capability-token security model, such
+   as pending external identity confirmation.
+2. **Discovery API**: `chatto.discovery.v1` ConnectRPC services for
+   unauthenticated bootstrap, such as server/login discovery.
+3. **Integration API**: `chatto.api.v1` ConnectRPC services and shared messages
    that represent coherent external-client behavior. This is the default home
    for authenticated public and frontend-used APIs.
-3. **Administrative API**: `chatto.admin.v1` ConnectRPC services for public but
+4. **Administrative API**: `chatto.admin.v1` ConnectRPC services for public but
    visibly administrative operations such as server settings, roles,
    permissions, member administration, diagnostics, and audit-log reads.
-4. **Bundled app API**: exceptional protobuf APIs that are inherently tied to
+5. **Bundled app API**: exceptional protobuf APIs that are inherently tied to
    one bundled web-client workflow and do not make sense as an external
    integration contract. These may use a separate app-specific namespace later,
    but only with an explicit reason.
-5. **Realtime protocol**: `chatto.realtime.v1.Realtime*` protobuf frames exchanged at
+6. **Realtime protocol**: `chatto.realtime.v1.Realtime*` protobuf frames exchanged at
    `/api/realtime`. These are documented separately from ConnectRPC because
    their compatibility model includes long-lived connection control, heartbeat,
    and reconnect behavior.
 
-`chatto.discovery.v1` is intentionally narrow. It contains RPCs that must work
-before the caller has a normal session, plus RPCs whose security boundary is a
-short-lived capability token carried in the request. Public-but-authenticated
-read APIs remain integration APIs, not discovery APIs.
+`chatto.auth.v1` is intentionally narrow. It contains public auth-flow RPCs
+whose security boundary is a short-lived capability token carried in the
+request. `chatto.discovery.v1` is also intentionally narrow: it contains
+bootstrap metadata RPCs that must work before the caller has a normal session.
+Public-but-authenticated read APIs remain integration APIs, not discovery APIs.
 
 `chatto.api.v1` remains integration-first. Frontend-used APIs should stay in
 that package when they can be explained as normal external-client operations.
@@ -57,7 +61,7 @@ frontend is their first consumer. The project should not move rough edges into
 an app package merely to avoid cleaning the integration surface.
 
 Within each tier, public API design follows the resource-completeness and
-operation-vocabulary rules in ADR-044. The discovery, integration,
+operation-vocabulary rules in ADR-044. The auth, discovery, integration,
 administrative, and realtime surfaces should be coherent enough for external
 clients and future contributors to infer where new features belong. A current
 frontend screen is a useful consumer, but it is not the boundary of the API

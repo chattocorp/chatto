@@ -9,6 +9,7 @@ import (
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/pb/chatto/admin/v1/adminv1connect"
 	"hmans.de/chatto/internal/pb/chatto/api/v1/apiv1connect"
+	"hmans.de/chatto/internal/pb/chatto/auth/v1/authv1connect"
 	"hmans.de/chatto/internal/pb/chatto/discovery/v1/discoveryv1connect"
 	"hmans.de/chatto/internal/pb/chatto/operator/v1/operatorv1connect"
 )
@@ -82,7 +83,7 @@ func (a *API) Handlers() []Handler {
 	serverDiscoveryPath, serverDiscoveryHandler := discoveryv1connect.NewServerDiscoveryServiceHandler(&serverDiscoveryService{api: a}, options...)
 	serverPath, serverHandler := apiv1connect.NewServerServiceHandler(&serverService{api: a}, options...)
 	viewerPath, viewerHandler := apiv1connect.NewViewerServiceHandler(&viewerService{api: a}, options...)
-	externalFlowPath, externalFlowHandler := discoveryv1connect.NewExternalIdentityFlowServiceHandler(&externalIdentityFlowService{api: a}, options...)
+	externalAuthPath, externalAuthHandler := authv1connect.NewExternalIdentityAuthServiceHandler(&externalIdentityAuthService{api: a}, options...)
 	permissionPath, permissionHandler := adminv1connect.NewAdminPermissionServiceHandler(&permissionService{api: a}, options...)
 	linkPreviewPath, linkPreviewHandler := apiv1connect.NewLinkPreviewServiceHandler(&linkPreviewService{api: a}, options...)
 	messagePath, messageHandler := apiv1connect.NewMessageServiceHandler(&messageService{api: a}, messageUploadOptions...)
@@ -109,7 +110,7 @@ func (a *API) Handlers() []Handler {
 		{ServicePath: adminServerPath, Handler: adminServerHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: adminRoomLayoutPath, Handler: adminRoomLayoutHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: adminMemberPath, Handler: adminMemberHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
-		{ServicePath: externalFlowPath, Handler: externalFlowHandler, AuthPolicy: AuthPolicyPublic},
+		{ServicePath: externalAuthPath, Handler: externalAuthHandler, AuthPolicy: AuthPolicyPublic},
 		{ServicePath: linkPreviewPath, Handler: linkPreviewHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: messagePath, Handler: messageHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: serverMemberPath, Handler: serverMemberHandler, AuthPolicy: AuthPolicyAuthenticatedUser},

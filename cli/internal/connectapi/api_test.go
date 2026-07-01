@@ -35,6 +35,8 @@ import (
 	"hmans.de/chatto/internal/pb/chatto/admin/v1/adminv1connect"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	"hmans.de/chatto/internal/pb/chatto/api/v1/apiv1connect"
+	authv1 "hmans.de/chatto/internal/pb/chatto/auth/v1"
+	"hmans.de/chatto/internal/pb/chatto/auth/v1/authv1connect"
 	configv1 "hmans.de/chatto/internal/pb/chatto/config/v1"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	discoveryv1 "hmans.de/chatto/internal/pb/chatto/discovery/v1"
@@ -59,7 +61,7 @@ func TestAPIHandlers(t *testing.T) {
 	want := []string{
 		"/" + apiv1connect.MyAccountServiceName + "/",
 		"/" + adminv1connect.AdminServerServiceName + "/",
-		"/" + discoveryv1connect.ExternalIdentityFlowServiceName + "/",
+		"/" + authv1connect.ExternalIdentityAuthServiceName + "/",
 		"/" + adminv1connect.AdminDiagnosticsServiceName + "/",
 		"/" + adminv1connect.AdminEventLogServiceName + "/",
 		"/" + adminv1connect.AdminRoomLayoutServiceName + "/",
@@ -105,36 +107,36 @@ func TestAPIHandlerAuthPolicies(t *testing.T) {
 	}
 
 	want := map[string]AuthPolicy{
-		"/" + apiv1connect.MyAccountServiceName + "/":                  AuthPolicyAuthenticatedUser,
-		"/" + adminv1connect.AdminServerServiceName + "/":              AuthPolicyAuthenticatedUser,
-		"/" + discoveryv1connect.ExternalIdentityFlowServiceName + "/": AuthPolicyPublic,
-		"/" + adminv1connect.AdminDiagnosticsServiceName + "/":         AuthPolicyAuthenticatedUser,
-		"/" + adminv1connect.AdminEventLogServiceName + "/":            AuthPolicyAuthenticatedUser,
-		"/" + adminv1connect.AdminRoomLayoutServiceName + "/":          AuthPolicyAuthenticatedUser,
-		"/" + adminv1connect.AdminMemberServiceName + "/":              AuthPolicyAuthenticatedUser,
-		"/" + grpcreflect.ReflectV1AlphaServiceName + "/":              AuthPolicyPublic,
-		"/" + grpcreflect.ReflectV1ServiceName + "/":                   AuthPolicyPublic,
-		"/" + apiv1connect.LinkPreviewServiceName + "/":                AuthPolicyAuthenticatedUser,
-		"/" + apiv1connect.MessageServiceName + "/":                    AuthPolicyAuthenticatedUser,
-		"/" + apiv1connect.NotificationServiceName + "/":               AuthPolicyAuthenticatedUser,
-		"/" + apiv1connect.NotificationPreferencesServiceName + "/":    AuthPolicyAuthenticatedUser,
-		"/" + adminv1connect.AdminPermissionServiceName + "/":          AuthPolicyAuthenticatedUser,
-		"/" + apiv1connect.PushNotificationServiceName + "/":           AuthPolicyAuthenticatedUser,
-		"/" + apiv1connect.ReadStateServiceName + "/":                  AuthPolicyAuthenticatedUser,
-		"/" + apiv1connect.ReactionServiceName + "/":                   AuthPolicyAuthenticatedUser,
-		"/" + adminv1connect.AdminRoleServiceName + "/":                AuthPolicyAuthenticatedUser,
-		"/" + apiv1connect.RoleServiceName + "/":                       AuthPolicyAuthenticatedUser,
-		"/" + apiv1connect.RoomDirectoryServiceName + "/":              AuthPolicyAuthenticatedUser,
-		"/" + apiv1connect.RoomMemberServiceName + "/":                 AuthPolicyAuthenticatedUser,
-		"/" + apiv1connect.RoomServiceName + "/":                       AuthPolicyAuthenticatedUser,
-		"/" + apiv1connect.RoomTimelineServiceName + "/":               AuthPolicyAuthenticatedUser,
-		"/" + discoveryv1connect.ServerDiscoveryServiceName + "/":      AuthPolicyPublic,
-		"/" + apiv1connect.ServerMemberServiceName + "/":               AuthPolicyAuthenticatedUser,
-		"/" + apiv1connect.ServerServiceName + "/":                     AuthPolicyAuthenticatedUser,
-		"/" + apiv1connect.ThreadServiceName + "/":                     AuthPolicyAuthenticatedUser,
-		"/" + apiv1connect.UserDirectoryServiceName + "/":              AuthPolicyAuthenticatedUser,
-		"/" + apiv1connect.ViewerServiceName + "/":                     AuthPolicyAuthenticatedUser,
-		"/" + apiv1connect.VoiceCallServiceName + "/":                  AuthPolicyAuthenticatedUser,
+		"/" + apiv1connect.MyAccountServiceName + "/":               AuthPolicyAuthenticatedUser,
+		"/" + adminv1connect.AdminServerServiceName + "/":           AuthPolicyAuthenticatedUser,
+		"/" + authv1connect.ExternalIdentityAuthServiceName + "/":   AuthPolicyPublic,
+		"/" + adminv1connect.AdminDiagnosticsServiceName + "/":      AuthPolicyAuthenticatedUser,
+		"/" + adminv1connect.AdminEventLogServiceName + "/":         AuthPolicyAuthenticatedUser,
+		"/" + adminv1connect.AdminRoomLayoutServiceName + "/":       AuthPolicyAuthenticatedUser,
+		"/" + adminv1connect.AdminMemberServiceName + "/":           AuthPolicyAuthenticatedUser,
+		"/" + grpcreflect.ReflectV1AlphaServiceName + "/":           AuthPolicyPublic,
+		"/" + grpcreflect.ReflectV1ServiceName + "/":                AuthPolicyPublic,
+		"/" + apiv1connect.LinkPreviewServiceName + "/":             AuthPolicyAuthenticatedUser,
+		"/" + apiv1connect.MessageServiceName + "/":                 AuthPolicyAuthenticatedUser,
+		"/" + apiv1connect.NotificationServiceName + "/":            AuthPolicyAuthenticatedUser,
+		"/" + apiv1connect.NotificationPreferencesServiceName + "/": AuthPolicyAuthenticatedUser,
+		"/" + adminv1connect.AdminPermissionServiceName + "/":       AuthPolicyAuthenticatedUser,
+		"/" + apiv1connect.PushNotificationServiceName + "/":        AuthPolicyAuthenticatedUser,
+		"/" + apiv1connect.ReadStateServiceName + "/":               AuthPolicyAuthenticatedUser,
+		"/" + apiv1connect.ReactionServiceName + "/":                AuthPolicyAuthenticatedUser,
+		"/" + adminv1connect.AdminRoleServiceName + "/":             AuthPolicyAuthenticatedUser,
+		"/" + apiv1connect.RoleServiceName + "/":                    AuthPolicyAuthenticatedUser,
+		"/" + apiv1connect.RoomDirectoryServiceName + "/":           AuthPolicyAuthenticatedUser,
+		"/" + apiv1connect.RoomMemberServiceName + "/":              AuthPolicyAuthenticatedUser,
+		"/" + apiv1connect.RoomServiceName + "/":                    AuthPolicyAuthenticatedUser,
+		"/" + apiv1connect.RoomTimelineServiceName + "/":            AuthPolicyAuthenticatedUser,
+		"/" + discoveryv1connect.ServerDiscoveryServiceName + "/":   AuthPolicyPublic,
+		"/" + apiv1connect.ServerMemberServiceName + "/":            AuthPolicyAuthenticatedUser,
+		"/" + apiv1connect.ServerServiceName + "/":                  AuthPolicyAuthenticatedUser,
+		"/" + apiv1connect.ThreadServiceName + "/":                  AuthPolicyAuthenticatedUser,
+		"/" + apiv1connect.UserDirectoryServiceName + "/":           AuthPolicyAuthenticatedUser,
+		"/" + apiv1connect.ViewerServiceName + "/":                  AuthPolicyAuthenticatedUser,
+		"/" + apiv1connect.VoiceCallServiceName + "/":               AuthPolicyAuthenticatedUser,
 	}
 	if len(got) != len(want) {
 		t.Fatalf("auth policy count = %d, want %d (%v)", len(got), len(want), got)
@@ -154,6 +156,12 @@ func TestPublicReflectionResolver(t *testing.T) {
 
 	if _, err := resolver.FindDescriptorByName(protoreflect.FullName(discoveryv1connect.ServerDiscoveryServiceName)); err != nil {
 		t.Fatalf("FindDescriptorByName(%s): %v", discoveryv1connect.ServerDiscoveryServiceName, err)
+	}
+	if _, err := resolver.FindDescriptorByName(protoreflect.FullName(authv1connect.ExternalIdentityAuthServiceName)); err != nil {
+		t.Fatalf("FindDescriptorByName(%s): %v", authv1connect.ExternalIdentityAuthServiceName, err)
+	}
+	if _, err := resolver.FindFileByPath("chatto/auth/v1/external_identity_auth.proto"); err != nil {
+		t.Fatalf("FindFileByPath(chatto/auth/v1/external_identity_auth.proto): %v", err)
 	}
 	if _, err := resolver.FindFileByPath("chatto/discovery/v1/server.proto"); err != nil {
 		t.Fatalf("FindFileByPath(chatto/discovery/v1/server.proto): %v", err)
@@ -448,17 +456,17 @@ func TestExternalIdentityFlowsAndAccountManagement(t *testing.T) {
 		t.Fatalf("CreatePendingExternalIdentityCreateFlow: %v", err)
 	}
 
-	pending, err := env.flow.GetPendingExternalIdentity(env.ctx, connect.NewRequest(&discoveryv1.GetPendingExternalIdentityRequest{
+	pending, err := env.externalAuth.GetPendingExternalIdentity(env.ctx, connect.NewRequest(&authv1.GetPendingExternalIdentityRequest{
 		Token: createToken,
 	}))
 	if err != nil {
 		t.Fatalf("GetPendingExternalIdentity: %v", err)
 	}
-	if pending.Msg.Pending.GetKind() != discoveryv1.ExternalIdentityFlowKind_EXTERNAL_IDENTITY_FLOW_KIND_CREATE_ACCOUNT || pending.Msg.Pending.GetProviderId() != "github-main" {
+	if pending.Msg.Pending.GetKind() != authv1.ExternalIdentityFlowKind_EXTERNAL_IDENTITY_FLOW_KIND_CREATE_ACCOUNT || pending.Msg.Pending.GetProviderId() != "github-main" {
 		t.Fatalf("pending = %+v", pending.Msg.Pending)
 	}
 
-	created, err := env.flow.CreateExternalIdentityAccount(env.ctx, connect.NewRequest(&discoveryv1.CreateExternalIdentityAccountRequest{
+	created, err := env.externalAuth.CreateExternalIdentityAccount(env.ctx, connect.NewRequest(&authv1.CreateExternalIdentityAccountRequest{
 		Token: createToken,
 		Login: "sso-user",
 	}))
@@ -496,7 +504,7 @@ func TestExternalIdentityFlowsAndAccountManagement(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreatePendingExternalIdentityCreateFlow fallback: %v", err)
 	}
-	fallbackCreated, err := env.flow.CreateExternalIdentityAccount(env.ctx, connect.NewRequest(&discoveryv1.CreateExternalIdentityAccountRequest{
+	fallbackCreated, err := env.externalAuth.CreateExternalIdentityAccount(env.ctx, connect.NewRequest(&authv1.CreateExternalIdentityAccountRequest{
 		Token: fallbackToken,
 		Login: "fallback-user",
 	}))
@@ -630,7 +638,7 @@ func TestExternalIdentityFlowsAndAccountManagement(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreatePendingExternalIdentityLinkFlow public: %v", err)
 	}
-	publicLinked, err := env.flow.ConfirmExternalIdentityLink(env.ctx, connect.NewRequest(&discoveryv1.ConfirmExternalIdentityLinkRequest{
+	publicLinked, err := env.externalAuth.ConfirmExternalIdentityLink(env.ctx, connect.NewRequest(&authv1.ConfirmExternalIdentityLinkRequest{
 		Token: publicLinkToken,
 	}))
 	if err != nil {
@@ -6429,7 +6437,7 @@ type connectAPITestEnv struct {
 	adminLayout      *adminRoomLayoutService
 	adminUsers       *adminUserManagementService
 	directory        *roomDirectoryService
-	flow             *externalIdentityFlowService
+	externalAuth     *externalIdentityAuthService
 	linkPreviews     *linkPreviewService
 	messages         *messageService
 	serverMembers    *serverMemberService
@@ -6486,7 +6494,7 @@ func newConnectAPITestEnv(t *testing.T) *connectAPITestEnv {
 		adminLayout:      &adminRoomLayoutService{api: api},
 		adminUsers:       &adminUserManagementService{api: api},
 		directory:        &roomDirectoryService{api: api},
-		flow:             &externalIdentityFlowService{api: api},
+		externalAuth:     &externalIdentityAuthService{api: api},
 		linkPreviews:     &linkPreviewService{api: api},
 		messages:         &messageService{api: api},
 		serverMembers:    &serverMemberService{api: api},
