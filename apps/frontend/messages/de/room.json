@@ -110,6 +110,8 @@
       "extras": "Raumdetails",
       "resize": "Raumdetails-Bereich vergrößern/verkleinern",
       "hide": "Raumdetails ausblenden",
+      "maximize_call": "Anruf maximieren",
+      "minimize_call": "Anruf verkleinern",
       "members": "Mitglieder",
       "members_title": "Mitglieder ({count})",
       "search_members": "Raummitglieder suchen",

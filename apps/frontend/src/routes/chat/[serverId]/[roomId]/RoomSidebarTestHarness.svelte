@@ -18,24 +18,28 @@ mounting the full chat room shell.
     roomData: _roomData,
     activePanel = 'members',
     presentation = 'desktop',
+    maximized = false,
     currentUserId = 'viewer',
     canBanRoomMembers = false,
     livekitUrl,
     fileGroupingNow,
     onPresenceCacheReady,
     onOpenFile,
+    onToggleMaximized,
     onClose
   }: {
     roomId?: string;
     roomData: RoomData;
     activePanel?: RoomSidebarPanel;
     presentation?: 'desktop' | 'overlay';
+    maximized?: boolean;
     currentUserId?: string | null;
     canBanRoomMembers?: boolean;
     livekitUrl?: string;
     fileGroupingNow?: Date;
     onPresenceCacheReady?: (cache: PresenceCache) => void;
     onOpenFile?: (messageEventId: string, threadRootEventId: string | null) => void;
+    onToggleMaximized?: () => void;
     onClose?: () => void;
   } = $props();
 
@@ -65,6 +69,7 @@ mounting the full chat room shell.
   {roomId}
   {activePanel}
   {presentation}
+  {maximized}
   loading={false}
   {canBanRoomMembers}
   {currentUserId}
@@ -73,5 +78,6 @@ mounting the full chat room shell.
   {livekitUrl}
   {fileGroupingNow}
   {onOpenFile}
+  {onToggleMaximized}
   {onClose}
 />

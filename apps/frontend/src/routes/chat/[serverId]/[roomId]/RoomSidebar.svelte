@@ -46,6 +46,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
     roomId,
     activePanel = 'members',
     presentation = 'desktop',
+    maximized = false,
     canBanRoomMembers = false,
     currentUserId = null,
     membersStore,
@@ -53,12 +54,14 @@ calls, and similar room-specific panels can plug into the same shell. See the
     livekitUrl,
     fileGroupingNow,
     onOpenFile,
+    onToggleMaximized,
     onClose
   }: {
     loading?: boolean;
     roomId: string;
     activePanel?: RoomSidebarPanel;
     presentation?: 'desktop' | 'overlay';
+    maximized?: boolean;
     canBanRoomMembers?: boolean;
     currentUserId?: string | null;
     membersStore: RoomMembersStore;
@@ -66,6 +69,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
     livekitUrl?: string;
     fileGroupingNow?: Date;
     onOpenFile?: (messageEventId: string, threadRootEventId: string | null) => void;
+    onToggleMaximized?: () => void;
     onClose?: () => void;
   } = $props();
 
@@ -80,6 +84,9 @@ calls, and similar room-specific panels can plug into the same shell. See the
     if (activePanel === 'files') return m['room.sidebar.files']();
     return m['room.sidebar.call']();
   });
+  const showMaximizeButton = $derived(
+    presentation === 'desktop' && activePanel === 'call' && !!onToggleMaximized
+  );
 
   // Check if user can start DMs (from centralized server permissions)
   const serverPerms = getServerPermissions();
@@ -216,12 +223,14 @@ calls, and similar room-specific panels can plug into the same shell. See the
 <aside
   class={[
     'relative flex min-h-0 flex-col bg-background',
-    presentation === 'desktop' ? 'border-l border-border' : 'w-full min-w-0 flex-1 overflow-hidden'
+    presentation === 'desktop'
+      ? ['border-l border-border', maximized ? 'min-w-0 flex-1' : '']
+      : 'w-full min-w-0 flex-1 overflow-hidden'
   ]}
-  style:width={presentation === 'desktop' ? `${roomSidebarWidth.value}px` : undefined}
+  style:width={presentation === 'desktop' && !maximized ? `${roomSidebarWidth.value}px` : undefined}
   aria-label={m['room.sidebar.extras']()}
 >
-  {#if presentation === 'desktop'}
+  {#if presentation === 'desktop' && !maximized}
     <ResizeHandle
       width={roomSidebarWidth.value}
       min={ROOM_SIDEBAR_MIN_WIDTH}
@@ -234,6 +243,13 @@ calls, and similar room-specific panels can plug into the same shell. See the
   {/if}
   <PaneHeader {title} {loading} skeletonButtons={0}>
     {#snippet actions()}
+      {#if showMaximizeButton}
+        <HeaderIconButton
+          icon={maximized ? 'uil--compress-arrows' : 'uil--expand-arrows'}
+          label={maximized ? m['room.sidebar.minimize_call']() : m['room.sidebar.maximize_call']()}
+          onclick={() => onToggleMaximized?.()}
+        />
+      {/if}
       <HeaderIconButton
         icon="uil--times"
         label={m['room.sidebar.hide']()}
@@ -343,7 +359,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
     {/if}
   {:else if activePanel === 'call'}
     {#if livekitUrl}
-      <VoiceCallPanel {roomId} {livekitUrl} />
+      <VoiceCallPanel {roomId} {livekitUrl} layout={maximized ? 'stage' : 'sidebar'} />
     {:else}
       <div class="flex min-h-0 flex-1 items-center justify-center p-4 text-sm text-muted">
         {m['room.sidebar.calls_unavailable']()}

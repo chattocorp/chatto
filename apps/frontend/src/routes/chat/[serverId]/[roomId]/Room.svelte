@@ -406,6 +406,15 @@
   );
   const roomSidebarTogglePanels = $derived(roomSidebarPanelsForRoom(room.isDM, showVoiceCall));
   const hasActiveRoomCall = $derived(stores.activeCallRooms.has(roomId));
+  const isDesktopCallMaximized = $derived(
+    activeRoomSidebarPanel === 'call' && roomSidebarPanels.isDesktopCallMaximized
+  );
+
+  $effect(() => {
+    roomId;
+    getActiveServer();
+    roomSidebarPanels.syncCurrentScope();
+  });
 
   let leavingRoom = $state(false);
 
@@ -524,7 +533,8 @@
         class={[
           'relative flex min-h-0 min-w-0 flex-1 flex-col transition-opacity duration-200',
           threadId ? 'opacity-30' : '',
-          mobileRoomSidebarPanel ? 'max-lg:opacity-30' : ''
+          mobileRoomSidebarPanel ? 'max-lg:opacity-30' : '',
+          isDesktopCallMaximized ? 'lg:hidden' : ''
         ]}
         inert={threadId || mobileRoomSidebarPanel ? true : undefined}
         {@attach roomDropZone}
@@ -660,10 +670,11 @@
     </div>
 
     {#if activeRoomSidebarPanel}
-      <div class="hidden lg:flex">
+      <div class={['hidden lg:flex', isDesktopCallMaximized ? 'min-w-0 flex-1' : '']}>
         <RoomSidebar
           {roomId}
           activePanel={activeRoomSidebarPanel}
+          maximized={isDesktopCallMaximized}
           loading={room.isRoomLoading}
           filesStore={roomFilesStore}
           livekitUrl={serverInfo.livekitUrl ?? undefined}
@@ -675,6 +686,7 @@
           membersStore={roomMembersStore}
           onOpenFile={(messageEventId, threadRootEventId) =>
             openFileMessage(messageEventId, threadRootEventId)}
+          onToggleMaximized={() => roomSidebarPanels.toggleDesktopCallMaximized()}
           onClose={() => roomSidebarPanels.closeDesktop()}
         />
       </div>

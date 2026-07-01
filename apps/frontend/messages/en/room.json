@@ -110,6 +110,8 @@
       "extras": "Room extras",
       "resize": "Resize room extras pane",
       "hide": "Hide room extras",
+      "maximize_call": "Maximize call",
+      "minimize_call": "Minimize call",
       "members": "Members",
       "members_title": "Members ({count})",
       "search_members": "Search room members",

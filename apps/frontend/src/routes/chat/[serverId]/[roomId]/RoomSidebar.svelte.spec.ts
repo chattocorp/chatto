@@ -786,6 +786,176 @@ describe('RoomSidebar', () => {
     expect(participantList!.className).toContain('@min-[368px]:grid-cols-2');
   });
 
+  it('uses a screen share as the featured maximized call stage', async () => {
+    const screenShareTrack = {
+      attach: vi.fn(),
+      detach: vi.fn()
+    };
+    const cameraTrack = {
+      attach: vi.fn(),
+      detach: vi.fn()
+    };
+    callStore.voiceCall.connected = true;
+    callStore.voiceCall.isInAnyCall = true;
+    callStore.voiceCall.roomId = 'room-1';
+    callStore.voiceCall.participants = [
+      {
+        identity: 'viewer',
+        login: 'alice',
+        name: 'Alice',
+        avatarUrl: null,
+        isMuted: false,
+        isLocal: true,
+        connectionQuality: 'excellent',
+        isCameraEnabled: false,
+        videoTrack: null,
+        isScreenShareEnabled: true,
+        screenShareTrack
+      },
+      {
+        identity: 'user-2',
+        login: 'bob',
+        name: 'Bob',
+        avatarUrl: null,
+        isMuted: false,
+        isLocal: false,
+        connectionQuality: 'good',
+        isCameraEnabled: true,
+        videoTrack: cameraTrack,
+        isScreenShareEnabled: false,
+        screenShareTrack: null
+      },
+      {
+        identity: 'user-3',
+        login: 'carol',
+        name: 'Carol',
+        avatarUrl: null,
+        isMuted: false,
+        isLocal: false,
+        connectionQuality: 'good',
+        isCameraEnabled: false,
+        videoTrack: null,
+        isScreenShareEnabled: false,
+        screenShareTrack: null
+      }
+    ];
+
+    const { container } = render(RoomSidebarTestHarness, {
+      props: {
+        activePanel: 'call',
+        maximized: true,
+        roomData: roomData([], 0, false),
+        livekitUrl: 'wss://livekit.example.test'
+      }
+    });
+
+    const featured = q(container, '[data-testid="call-featured-stage-card"]');
+    expect(featured).toBeTruthy();
+    expect(featured!.textContent).toContain("Alice's screen");
+    expect(featured!.querySelector('video')?.className).toContain('object-contain');
+    expect(q(container, '[data-testid="call-device-menu-button"]')).toBeTruthy();
+
+    const secondaryList = q(container, '[data-testid="call-secondary-stage-list"]');
+    expect(secondaryList).toBeTruthy();
+    const secondaryCards = Array.from(secondaryList!.children);
+    expect(secondaryCards).toHaveLength(3);
+    expect(secondaryCards[0].textContent).toContain('Bob');
+    expect(secondaryCards[0].querySelector('video')?.className).toContain('object-cover');
+    expect(secondaryCards[1].textContent).toContain('Alice');
+    expect(secondaryCards[2].textContent).toContain('Carol');
+  });
+
+  it('falls back to a camera participant for the maximized call stage', async () => {
+    const cameraTrack = {
+      attach: vi.fn(),
+      detach: vi.fn()
+    };
+    callStore.voiceCall.connected = true;
+    callStore.voiceCall.isInAnyCall = true;
+    callStore.voiceCall.roomId = 'room-1';
+    callStore.voiceCall.participants = [
+      {
+        identity: 'viewer',
+        login: 'alice',
+        name: 'Alice',
+        avatarUrl: null,
+        isMuted: false,
+        isLocal: true,
+        connectionQuality: 'excellent',
+        isCameraEnabled: false,
+        videoTrack: null,
+        isScreenShareEnabled: false,
+        screenShareTrack: null
+      },
+      {
+        identity: 'user-2',
+        login: 'bob',
+        name: 'Bob',
+        avatarUrl: null,
+        isMuted: false,
+        isLocal: false,
+        connectionQuality: 'good',
+        isCameraEnabled: true,
+        videoTrack: cameraTrack,
+        isScreenShareEnabled: false,
+        screenShareTrack: null
+      }
+    ];
+
+    const { container } = render(RoomSidebarTestHarness, {
+      props: {
+        activePanel: 'call',
+        maximized: true,
+        roomData: roomData([], 0, false),
+        livekitUrl: 'wss://livekit.example.test'
+      }
+    });
+
+    const featured = q(container, '[data-testid="call-featured-stage-card"]');
+    expect(featured).toBeTruthy();
+    expect(featured!.textContent).toContain('Bob');
+    expect(featured!.querySelector('video')?.className).toContain('object-cover');
+    const secondaryList = q(container, '[data-testid="call-secondary-stage-list"]');
+    expect(secondaryList).toBeTruthy();
+    expect(secondaryList!.children[0].textContent).toContain('Alice');
+  });
+
+  it('falls back to a voice participant for the maximized call stage', async () => {
+    callStore.voiceCall.connected = true;
+    callStore.voiceCall.isInAnyCall = true;
+    callStore.voiceCall.roomId = 'room-1';
+    callStore.voiceCall.participants = [
+      {
+        identity: 'viewer',
+        login: 'alice',
+        name: 'Alice',
+        avatarUrl: null,
+        isMuted: false,
+        isLocal: true,
+        connectionQuality: 'excellent',
+        isCameraEnabled: false,
+        videoTrack: null,
+        isScreenShareEnabled: false,
+        screenShareTrack: null
+      }
+    ];
+
+    const { container } = render(RoomSidebarTestHarness, {
+      props: {
+        activePanel: 'call',
+        maximized: true,
+        roomData: roomData([], 0, false),
+        livekitUrl: 'wss://livekit.example.test'
+      }
+    });
+
+    const featured = q(container, '[data-testid="call-featured-stage-card"]');
+    expect(featured).toBeTruthy();
+    expect(featured!.textContent).toContain('Alice');
+    expect(featured!.querySelector('video')).toBeFalsy();
+    expect(container.querySelector('[data-testid="call-secondary-stage-list"]')).toBeFalsy();
+  });
+
   it('uses a two-column video grid when multiple videos have room', async () => {
     const videoTrackA = {
       attach: vi.fn(),
@@ -1043,6 +1213,72 @@ describe('RoomSidebar', () => {
     await tick();
 
     expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  it('shows a desktop call maximize action and toggles to minimize copy', async () => {
+    const onToggleMaximized = vi.fn();
+    const { container, rerender } = render(RoomSidebarTestHarness, {
+      props: {
+        activePanel: 'call',
+        livekitUrl: 'wss://livekit.example.test',
+        roomData: roomData([member(1)], 1, false),
+        onToggleMaximized
+      }
+    });
+
+    const maximizeButton = container.querySelector(
+      '[aria-label="Maximize call"]'
+    ) as HTMLButtonElement | null;
+    expect(maximizeButton).toBeTruthy();
+    expect(maximizeButton!.querySelector('.uil--expand-arrows')).toBeTruthy();
+
+    maximizeButton!.click();
+    await tick();
+
+    expect(onToggleMaximized).toHaveBeenCalledOnce();
+
+    await rerender({
+      activePanel: 'call',
+      livekitUrl: 'wss://livekit.example.test',
+      roomData: roomData([member(1)], 1, false),
+      maximized: true,
+      onToggleMaximized
+    });
+
+    const minimizeButton = container.querySelector(
+      '[aria-label="Minimize call"]'
+    ) as HTMLButtonElement | null;
+    expect(minimizeButton).toBeTruthy();
+    expect(minimizeButton!.querySelector('.uil--compress-arrows')).toBeTruthy();
+  });
+
+  it('only shows the call maximize action for the desktop call panel', async () => {
+    const onToggleMaximized = vi.fn();
+    const { container, rerender } = render(RoomSidebarTestHarness, {
+      props: {
+        activePanel: 'members',
+        roomData: roomData([member(1)], 1, false),
+        onToggleMaximized
+      }
+    });
+
+    expect(container.querySelector('[aria-label="Maximize call"]')).toBeFalsy();
+
+    await rerender({
+      activePanel: 'files',
+      roomData: roomData([member(1)], 1, false),
+      onToggleMaximized
+    });
+    expect(container.querySelector('[aria-label="Maximize call"]')).toBeFalsy();
+
+    await rerender({
+      activePanel: 'call',
+      presentation: 'overlay',
+      livekitUrl: 'wss://livekit.example.test',
+      roomData: roomData([member(1)], 1, false),
+      onToggleMaximized
+    });
+    expect(container.querySelector('[aria-label="Maximize call"]')).toBeFalsy();
   });
 
   it('renders overlay presentation without desktop resizing chrome', async () => {

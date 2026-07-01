@@ -657,6 +657,8 @@ const msg_room_link_preview_delete_failed = (): LocalizedString => messages().ro
 const msg_room_sidebar_extras = (): LocalizedString => messages().room_sidebar_extras(empty());
 const msg_room_sidebar_resize = (): LocalizedString => messages().room_sidebar_resize(empty());
 const msg_room_sidebar_hide = (): LocalizedString => messages().room_sidebar_hide(empty());
+const msg_room_sidebar_maximize_call = (): LocalizedString => messages().room_sidebar_maximize_call(empty());
+const msg_room_sidebar_minimize_call = (): LocalizedString => messages().room_sidebar_minimize_call(empty());
 const msg_room_sidebar_members = (): LocalizedString => messages().room_sidebar_members(empty());
 const msg_room_sidebar_members_title = (
   inputs: Parameters<LocaleMessages['room_sidebar_members_title']>[0]
@@ -1957,6 +1959,8 @@ export { msg_room_link_preview_delete_failed as 'room.link_preview.delete_failed
 export { msg_room_sidebar_extras as 'room.sidebar.extras' };
 export { msg_room_sidebar_resize as 'room.sidebar.resize' };
 export { msg_room_sidebar_hide as 'room.sidebar.hide' };
+export { msg_room_sidebar_maximize_call as 'room.sidebar.maximize_call' };
+export { msg_room_sidebar_minimize_call as 'room.sidebar.minimize_call' };
 export { msg_room_sidebar_members as 'room.sidebar.members' };
 export { msg_room_sidebar_members_title as 'room.sidebar.members_title' };
 export { msg_room_sidebar_search_members as 'room.sidebar.search_members' };

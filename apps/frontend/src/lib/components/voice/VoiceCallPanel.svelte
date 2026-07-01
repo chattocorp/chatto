@@ -41,16 +41,19 @@ Room sidebar panel for voice/video calls.
 
   let {
     roomId,
-    livekitUrl
+    livekitUrl,
+    layout = 'sidebar'
   }: {
     roomId: string;
     livekitUrl: string;
+    layout?: 'sidebar' | 'stage';
   } = $props();
 
   let isInThisCall = $derived(voiceCallState.isInCall(roomId));
   let isInAnotherCall = $derived(voiceCallState.isInAnyCall && !isInThisCall);
   let isConnecting = $derived(voiceCallState.connecting && voiceCallState.roomId === roomId);
   let hasActiveCall = $derived(activeCallRooms.has(roomId));
+  let isStageLayout = $derived(layout === 'stage');
   let deviceMenuAnchor = $state<{ top: number; bottom: number; left: number } | null>(null);
 
   function callEventPayload(
@@ -188,6 +191,32 @@ Room sidebar panel for voice/video calls.
     sortedParticipants.filter((p) => p.isCameraEnabled && p.videoTrack)
   );
   let mediaTileCount = $derived(screenShareParticipants.length + videoParticipants.length);
+  type StageTile = {
+    key: string;
+    kind: 'screen' | 'video' | 'voice';
+    participant: DisplayParticipant;
+  };
+  let screenShareTiles = $derived(
+    screenShareParticipants.map((participant) => ({
+      key: `${participant.key}:screen`,
+      kind: 'screen' as const,
+      participant
+    }))
+  );
+  let participantTiles = $derived(
+    sortedParticipants.map((participant) => ({
+      key: `${participant.key}:${hasVideo(participant) ? 'video' : 'voice'}`,
+      kind: hasVideo(participant) ? ('video' as const) : ('voice' as const),
+      participant
+    }))
+  );
+  let stageTiles = $derived([...screenShareTiles, ...participantTiles]);
+  let featuredStageTile = $derived(
+    screenShareTiles[0] ?? participantTiles.find((tile) => tile.kind === 'video') ?? participantTiles[0]
+  );
+  let secondaryStageTiles = $derived(
+    featuredStageTile ? stageTiles.filter((tile) => tile.key !== featuredStageTile.key) : []
+  );
   let isIdle = $derived(!hasActiveCall && !isInThisCall);
   let joinLabel = $derived.by(() => {
     if (isConnecting) return hasActiveCall ? m['voice.joining']() : m['voice.starting']();
@@ -412,6 +441,84 @@ Room sidebar panel for voice/video calls.
   </button>
 {/snippet}
 
+{#snippet featuredStageCard(tile: StageTile)}
+  {@const participant = tile.participant}
+  {@const isScreen = tile.kind === 'screen'}
+  {@const isVideo = tile.kind === 'video'}
+  <button
+    type="button"
+    class="flex min-h-[280px] w-full flex-1 cursor-pointer flex-col overflow-hidden rounded-md border border-border bg-surface-100 text-left text-text transition-colors hover:bg-surface-200"
+    title={isScreen
+      ? m['voice.screen_title']({ name: participant.displayName })
+      : participantTitle(participant)}
+    data-testid="call-featured-stage-card"
+    onclick={(e) => showUserMenu(participant, e)}
+  >
+    <div class="flex min-w-0 items-center gap-2 border-b border-border/70 p-3">
+      <UserAvatar user={participant.avatarUser} size="sm" />
+      <span class="min-w-0 flex-1 truncate text-sm font-medium">
+        {isScreen ? m['voice.screen_title']({ name: participant.displayName }) : participant.displayName}
+      </span>
+      {#if isScreen}
+        <span class="iconify shrink-0 text-muted uil--desktop" aria-label={m['voice.screen_share']()}
+        ></span>
+      {:else}
+        <span class="inline-flex h-5 min-w-5 shrink-0 items-center justify-end gap-1.5 text-sm">
+          {#if participant.isMuted}
+            <span
+              class="iconify text-danger uil--microphone-slash"
+              aria-label={m['voice.muted']()}
+              data-testid="call-muted-indicator"
+            ></span>
+          {/if}
+          {#if hasConnectionWarning(participant)}
+            <span
+              class={[
+                'iconify uil--exclamation-triangle',
+                participant.connectionQuality === 'lost' && 'text-danger',
+                participant.connectionQuality === 'poor' && 'text-warning'
+              ]}
+              aria-label={m['voice.poor_connection']()}
+            ></span>
+          {/if}
+        </span>
+      {/if}
+    </div>
+
+    <div class="flex min-h-0 flex-1 items-center justify-center p-3">
+      {#if isScreen}
+        <VideoThumbnail
+          track={participant.screenShareTrack!}
+          name={m['voice.screen_title']({ name: participant.displayName })}
+          user={participant.avatarUser}
+          showIdentityOverlay={false}
+          fit="contain"
+        />
+      {:else if isVideo}
+        <VideoThumbnail
+          track={participant.videoTrack!}
+          name={participant.displayName}
+          user={participant.avatarUser}
+          showIdentityOverlay={false}
+        />
+      {:else}
+        <div class="flex flex-col items-center gap-4">
+          <UserAvatar user={participant.avatarUser} size="xl" showPresence={false} />
+          <span class="max-w-full truncate text-lg font-semibold">{participant.displayName}</span>
+        </div>
+      {/if}
+    </div>
+  </button>
+{/snippet}
+
+{#snippet stageTile(tile: StageTile)}
+  {#if tile.kind === 'screen'}
+    {@render screenShareCard(tile.participant)}
+  {:else}
+    {@render participantCard(tile.participant, tile.kind === 'video' ? 'video' : 'compact')}
+  {/if}
+{/snippet}
+
 <div
   class="flex min-h-0 flex-1 flex-col"
   data-testid={isInThisCall ? 'call-participant-panel' : 'call-observer-panel'}
@@ -510,29 +617,57 @@ Room sidebar panel for voice/video calls.
     {/if}
   </div>
 
-  <div class="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto p-3">
+  <div
+    class={[
+      'flex min-h-0 flex-1 flex-col gap-5 p-3',
+      isStageLayout ? 'overflow-hidden' : 'overflow-y-auto'
+    ]}
+  >
     {#if !isIdle}
-      <section class="@container flex flex-col gap-2" aria-label={m['voice.participants']()}>
-        <div
-          class={[
-            'grid grid-cols-1 gap-3',
-            isInThisCall && mediaTileCount > 1 && '@min-[368px]:grid-cols-2'
-          ]}
-          data-testid="call-participants-list"
+      {#if isStageLayout && featuredStageTile}
+        <section
+          class="flex min-h-0 flex-1 flex-col gap-3"
+          aria-label={m['voice.participants']()}
+          data-testid="call-stage-layout"
         >
-          {#each screenShareParticipants as participant (`${participant.key}:screen`)}
-            {#if hasScreenShare(participant)}
-              {@render screenShareCard(participant)}
-            {/if}
-          {/each}
-          {#each sortedParticipants as participant (participant.key)}
-            {@render participantCard(
-              participant,
-              isInThisCall && hasVideo(participant) ? 'video' : 'compact'
-            )}
-          {/each}
-        </div>
-      </section>
+          <div class="flex min-h-0 flex-1" data-testid="call-featured-stage">
+            {@render featuredStageCard(featuredStageTile)}
+          </div>
+
+          {#if secondaryStageTiles.length > 0}
+            <div
+              class="grid max-h-[42%] shrink-0 grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-3 overflow-y-auto"
+              data-testid="call-secondary-stage-list"
+            >
+              {#each secondaryStageTiles as tile (tile.key)}
+                {@render stageTile(tile)}
+              {/each}
+            </div>
+          {/if}
+        </section>
+      {:else}
+        <section class="@container flex flex-col gap-2" aria-label={m['voice.participants']()}>
+          <div
+            class={[
+              'grid grid-cols-1 gap-3',
+              isInThisCall && mediaTileCount > 1 && '@min-[368px]:grid-cols-2'
+            ]}
+            data-testid="call-participants-list"
+          >
+            {#each screenShareParticipants as participant (`${participant.key}:screen`)}
+              {#if hasScreenShare(participant)}
+                {@render screenShareCard(participant)}
+              {/if}
+            {/each}
+            {#each sortedParticipants as participant (participant.key)}
+              {@render participantCard(
+                participant,
+                isInThisCall && hasVideo(participant) ? 'video' : 'compact'
+              )}
+            {/each}
+          </div>
+        </section>
+      {/if}
     {/if}
   </div>
 </div>
