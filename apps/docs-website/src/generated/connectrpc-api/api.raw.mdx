@@ -3148,6 +3148,79 @@ Finite runtime snapshot of active channel call room IDs.
 | `room_ids` | `repeated string` | Room IDs with active calls. |
 
 
+<a id="chatto-api-v1-VoiceCallService-GetActiveCall"></a>
+
+### GetActiveCall
+
+Gets the current active call snapshot for one room.
+
+The caller must be a member of the room. Returns NOT_FOUND when the room
+does not exist, currently has no active call, or voice calls are not
+configured. The returned call_id lets clients ignore stale realtime call
+events from previous calls in the same room.
+
+```http
+POST /api/connect/chatto.api.v1.VoiceCallService/GetActiveCall
+```
+
+<a id="chatto-api-v1-GetActiveCallRequest"></a>
+
+#### Input: GetActiveCallRequest
+
+Request for one room's active call snapshot.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room whose active call should be inspected. |
+
+
+<a id="chatto-api-v1-GetActiveCallResponse"></a>
+
+#### Result: GetActiveCallResponse
+
+Response for one room's active call snapshot.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `call` | [`ActiveCall`](#chatto-api-v1-ActiveCall) | Current active call. |
+
+
+<a id="chatto-api-v1-VoiceCallService-BatchGetActiveCalls"></a>
+
+### BatchGetActiveCalls
+
+Gets current active call snapshots for many rooms.
+
+Rooms that do not exist, are inaccessible, or currently have no active call
+are omitted. Results preserve first-seen request order and repeated room
+IDs are de-duplicated. Returns an empty list when LiveKit is not configured.
+
+```http
+POST /api/connect/chatto.api.v1.VoiceCallService/BatchGetActiveCalls
+```
+
+<a id="chatto-api-v1-BatchGetActiveCallsRequest"></a>
+
+#### Input: BatchGetActiveCallsRequest
+
+Request active call snapshots for many rooms.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_ids` | `repeated string` | Required room IDs. Unknown, inaccessible, and inactive rooms are omitted. |
+
+
+<a id="chatto-api-v1-BatchGetActiveCallsResponse"></a>
+
+#### Result: BatchGetActiveCallsResponse
+
+Active call batch response.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `calls` | repeated [`ActiveCall`](#chatto-api-v1-ActiveCall) | Active calls in first-seen request order. |
+
+
 <a id="chatto-api-v1-VoiceCallService-ListCallParticipants"></a>
 
 ### ListCallParticipants
@@ -4224,6 +4297,20 @@ One followed thread for the current user.
 | `reply_count` | `int32` | Number of replies in the thread. |
 | `last_reply_at` | `google.protobuf.Timestamp` | Creation time of the latest reply, when the thread has replies. |
 | `has_unread` | `bool` | True when the current user has unread replies in the thread. |
+
+
+
+<a id="chatto-api-v1-ActiveCall"></a>
+
+### ActiveCall
+
+Current active call snapshot for one room.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Room containing the active call. |
+| `call_id` | `string` | Active call session ID. |
+| `participants` | repeated [`CallParticipant`](#chatto-api-v1-CallParticipant) | Participants currently projected for this call. |
 
 
 

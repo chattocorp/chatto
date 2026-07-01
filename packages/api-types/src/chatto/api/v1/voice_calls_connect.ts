@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetCallTokenRequest, GetCallTokenResponse, JoinCallRequest, JoinCallResponse, LeaveCallRequest, LeaveCallResponse, ListActiveCallRoomsRequest, ListActiveCallRoomsResponse, ListCallParticipantsRequest, ListCallParticipantsResponse } from "./voice_calls_pb.js";
+import { BatchGetActiveCallsRequest, BatchGetActiveCallsResponse, GetActiveCallRequest, GetActiveCallResponse, GetCallTokenRequest, GetCallTokenResponse, JoinCallRequest, JoinCallResponse, LeaveCallRequest, LeaveCallResponse, ListActiveCallRoomsRequest, ListActiveCallRoomsResponse, ListCallParticipantsRequest, ListCallParticipantsResponse } from "./voice_calls_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -26,6 +26,37 @@ export const VoiceCallService = {
       name: "ListActiveCallRooms",
       I: ListActiveCallRoomsRequest,
       O: ListActiveCallRoomsResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Gets the current active call snapshot for one room.
+     *
+     * The caller must be a member of the room. Returns NOT_FOUND when the room
+     * does not exist, currently has no active call, or voice calls are not
+     * configured. The returned call_id lets clients ignore stale realtime call
+     * events from previous calls in the same room.
+     *
+     * @generated from rpc chatto.api.v1.VoiceCallService.GetActiveCall
+     */
+    getActiveCall: {
+      name: "GetActiveCall",
+      I: GetActiveCallRequest,
+      O: GetActiveCallResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Gets current active call snapshots for many rooms.
+     *
+     * Rooms that do not exist, are inaccessible, or currently have no active call
+     * are omitted. Results preserve first-seen request order and repeated room
+     * IDs are de-duplicated. Returns an empty list when LiveKit is not configured.
+     *
+     * @generated from rpc chatto.api.v1.VoiceCallService.BatchGetActiveCalls
+     */
+    batchGetActiveCalls: {
+      name: "BatchGetActiveCalls",
+      I: BatchGetActiveCallsRequest,
+      O: BatchGetActiveCallsResponse,
       kind: MethodKind.Unary,
     },
     /**

@@ -36,6 +36,12 @@ const (
 	// VoiceCallServiceListActiveCallRoomsProcedure is the fully-qualified name of the
 	// VoiceCallService's ListActiveCallRooms RPC.
 	VoiceCallServiceListActiveCallRoomsProcedure = "/chatto.api.v1.VoiceCallService/ListActiveCallRooms"
+	// VoiceCallServiceGetActiveCallProcedure is the fully-qualified name of the VoiceCallService's
+	// GetActiveCall RPC.
+	VoiceCallServiceGetActiveCallProcedure = "/chatto.api.v1.VoiceCallService/GetActiveCall"
+	// VoiceCallServiceBatchGetActiveCallsProcedure is the fully-qualified name of the
+	// VoiceCallService's BatchGetActiveCalls RPC.
+	VoiceCallServiceBatchGetActiveCallsProcedure = "/chatto.api.v1.VoiceCallService/BatchGetActiveCalls"
 	// VoiceCallServiceListCallParticipantsProcedure is the fully-qualified name of the
 	// VoiceCallService's ListCallParticipants RPC.
 	VoiceCallServiceListCallParticipantsProcedure = "/chatto.api.v1.VoiceCallService/ListCallParticipants"
@@ -57,6 +63,19 @@ type VoiceCallServiceClient interface {
 	//
 	// Returns an empty list when LiveKit is not configured.
 	ListActiveCallRooms(context.Context, *connect.Request[v1.ListActiveCallRoomsRequest]) (*connect.Response[v1.ListActiveCallRoomsResponse], error)
+	// Gets the current active call snapshot for one room.
+	//
+	// The caller must be a member of the room. Returns NOT_FOUND when the room
+	// does not exist, currently has no active call, or voice calls are not
+	// configured. The returned call_id lets clients ignore stale realtime call
+	// events from previous calls in the same room.
+	GetActiveCall(context.Context, *connect.Request[v1.GetActiveCallRequest]) (*connect.Response[v1.GetActiveCallResponse], error)
+	// Gets current active call snapshots for many rooms.
+	//
+	// Rooms that do not exist, are inaccessible, or currently have no active call
+	// are omitted. Results preserve first-seen request order and repeated room
+	// IDs are de-duplicated. Returns an empty list when LiveKit is not configured.
+	BatchGetActiveCalls(context.Context, *connect.Request[v1.BatchGetActiveCallsRequest]) (*connect.Response[v1.BatchGetActiveCallsResponse], error)
 	// Lists participants currently observed in a room's active call as a finite
 	// runtime snapshot.
 	//
@@ -98,6 +117,18 @@ func NewVoiceCallServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			connect.WithSchema(voiceCallServiceMethods.ByName("ListActiveCallRooms")),
 			connect.WithClientOptions(opts...),
 		),
+		getActiveCall: connect.NewClient[v1.GetActiveCallRequest, v1.GetActiveCallResponse](
+			httpClient,
+			baseURL+VoiceCallServiceGetActiveCallProcedure,
+			connect.WithSchema(voiceCallServiceMethods.ByName("GetActiveCall")),
+			connect.WithClientOptions(opts...),
+		),
+		batchGetActiveCalls: connect.NewClient[v1.BatchGetActiveCallsRequest, v1.BatchGetActiveCallsResponse](
+			httpClient,
+			baseURL+VoiceCallServiceBatchGetActiveCallsProcedure,
+			connect.WithSchema(voiceCallServiceMethods.ByName("BatchGetActiveCalls")),
+			connect.WithClientOptions(opts...),
+		),
 		listCallParticipants: connect.NewClient[v1.ListCallParticipantsRequest, v1.ListCallParticipantsResponse](
 			httpClient,
 			baseURL+VoiceCallServiceListCallParticipantsProcedure,
@@ -128,6 +159,8 @@ func NewVoiceCallServiceClient(httpClient connect.HTTPClient, baseURL string, op
 // voiceCallServiceClient implements VoiceCallServiceClient.
 type voiceCallServiceClient struct {
 	listActiveCallRooms  *connect.Client[v1.ListActiveCallRoomsRequest, v1.ListActiveCallRoomsResponse]
+	getActiveCall        *connect.Client[v1.GetActiveCallRequest, v1.GetActiveCallResponse]
+	batchGetActiveCalls  *connect.Client[v1.BatchGetActiveCallsRequest, v1.BatchGetActiveCallsResponse]
 	listCallParticipants *connect.Client[v1.ListCallParticipantsRequest, v1.ListCallParticipantsResponse]
 	joinCall             *connect.Client[v1.JoinCallRequest, v1.JoinCallResponse]
 	getCallToken         *connect.Client[v1.GetCallTokenRequest, v1.GetCallTokenResponse]
@@ -137,6 +170,16 @@ type voiceCallServiceClient struct {
 // ListActiveCallRooms calls chatto.api.v1.VoiceCallService.ListActiveCallRooms.
 func (c *voiceCallServiceClient) ListActiveCallRooms(ctx context.Context, req *connect.Request[v1.ListActiveCallRoomsRequest]) (*connect.Response[v1.ListActiveCallRoomsResponse], error) {
 	return c.listActiveCallRooms.CallUnary(ctx, req)
+}
+
+// GetActiveCall calls chatto.api.v1.VoiceCallService.GetActiveCall.
+func (c *voiceCallServiceClient) GetActiveCall(ctx context.Context, req *connect.Request[v1.GetActiveCallRequest]) (*connect.Response[v1.GetActiveCallResponse], error) {
+	return c.getActiveCall.CallUnary(ctx, req)
+}
+
+// BatchGetActiveCalls calls chatto.api.v1.VoiceCallService.BatchGetActiveCalls.
+func (c *voiceCallServiceClient) BatchGetActiveCalls(ctx context.Context, req *connect.Request[v1.BatchGetActiveCallsRequest]) (*connect.Response[v1.BatchGetActiveCallsResponse], error) {
+	return c.batchGetActiveCalls.CallUnary(ctx, req)
 }
 
 // ListCallParticipants calls chatto.api.v1.VoiceCallService.ListCallParticipants.
@@ -166,6 +209,19 @@ type VoiceCallServiceHandler interface {
 	//
 	// Returns an empty list when LiveKit is not configured.
 	ListActiveCallRooms(context.Context, *connect.Request[v1.ListActiveCallRoomsRequest]) (*connect.Response[v1.ListActiveCallRoomsResponse], error)
+	// Gets the current active call snapshot for one room.
+	//
+	// The caller must be a member of the room. Returns NOT_FOUND when the room
+	// does not exist, currently has no active call, or voice calls are not
+	// configured. The returned call_id lets clients ignore stale realtime call
+	// events from previous calls in the same room.
+	GetActiveCall(context.Context, *connect.Request[v1.GetActiveCallRequest]) (*connect.Response[v1.GetActiveCallResponse], error)
+	// Gets current active call snapshots for many rooms.
+	//
+	// Rooms that do not exist, are inaccessible, or currently have no active call
+	// are omitted. Results preserve first-seen request order and repeated room
+	// IDs are de-duplicated. Returns an empty list when LiveKit is not configured.
+	BatchGetActiveCalls(context.Context, *connect.Request[v1.BatchGetActiveCallsRequest]) (*connect.Response[v1.BatchGetActiveCallsResponse], error)
 	// Lists participants currently observed in a room's active call as a finite
 	// runtime snapshot.
 	//
@@ -203,6 +259,18 @@ func NewVoiceCallServiceHandler(svc VoiceCallServiceHandler, opts ...connect.Han
 		connect.WithSchema(voiceCallServiceMethods.ByName("ListActiveCallRooms")),
 		connect.WithHandlerOptions(opts...),
 	)
+	voiceCallServiceGetActiveCallHandler := connect.NewUnaryHandler(
+		VoiceCallServiceGetActiveCallProcedure,
+		svc.GetActiveCall,
+		connect.WithSchema(voiceCallServiceMethods.ByName("GetActiveCall")),
+		connect.WithHandlerOptions(opts...),
+	)
+	voiceCallServiceBatchGetActiveCallsHandler := connect.NewUnaryHandler(
+		VoiceCallServiceBatchGetActiveCallsProcedure,
+		svc.BatchGetActiveCalls,
+		connect.WithSchema(voiceCallServiceMethods.ByName("BatchGetActiveCalls")),
+		connect.WithHandlerOptions(opts...),
+	)
 	voiceCallServiceListCallParticipantsHandler := connect.NewUnaryHandler(
 		VoiceCallServiceListCallParticipantsProcedure,
 		svc.ListCallParticipants,
@@ -231,6 +299,10 @@ func NewVoiceCallServiceHandler(svc VoiceCallServiceHandler, opts ...connect.Han
 		switch r.URL.Path {
 		case VoiceCallServiceListActiveCallRoomsProcedure:
 			voiceCallServiceListActiveCallRoomsHandler.ServeHTTP(w, r)
+		case VoiceCallServiceGetActiveCallProcedure:
+			voiceCallServiceGetActiveCallHandler.ServeHTTP(w, r)
+		case VoiceCallServiceBatchGetActiveCallsProcedure:
+			voiceCallServiceBatchGetActiveCallsHandler.ServeHTTP(w, r)
 		case VoiceCallServiceListCallParticipantsProcedure:
 			voiceCallServiceListCallParticipantsHandler.ServeHTTP(w, r)
 		case VoiceCallServiceJoinCallProcedure:
@@ -250,6 +322,14 @@ type UnimplementedVoiceCallServiceHandler struct{}
 
 func (UnimplementedVoiceCallServiceHandler) ListActiveCallRooms(context.Context, *connect.Request[v1.ListActiveCallRoomsRequest]) (*connect.Response[v1.ListActiveCallRoomsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.VoiceCallService.ListActiveCallRooms is not implemented"))
+}
+
+func (UnimplementedVoiceCallServiceHandler) GetActiveCall(context.Context, *connect.Request[v1.GetActiveCallRequest]) (*connect.Response[v1.GetActiveCallResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.VoiceCallService.GetActiveCall is not implemented"))
+}
+
+func (UnimplementedVoiceCallServiceHandler) BatchGetActiveCalls(context.Context, *connect.Request[v1.BatchGetActiveCallsRequest]) (*connect.Response[v1.BatchGetActiveCallsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.VoiceCallService.BatchGetActiveCalls is not implemented"))
 }
 
 func (UnimplementedVoiceCallServiceHandler) ListCallParticipants(context.Context, *connect.Request[v1.ListCallParticipantsRequest]) (*connect.Response[v1.ListCallParticipantsResponse], error) {

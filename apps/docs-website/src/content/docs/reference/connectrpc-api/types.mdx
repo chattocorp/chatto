@@ -832,6 +832,18 @@ One followed thread for the current user.
 | `last_reply_at` | `google.protobuf.Timestamp` | Creation time of the latest reply, when the thread has replies. |
 | `has_unread` | `bool` | True when the current user has unread replies in the thread. |
 
+<a id="chatto-api-v1-ActiveCall"></a>
+
+### ActiveCall
+
+Current active call snapshot for one room.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Room containing the active call. |
+| `call_id` | `string` | Active call session ID. |
+| `participants` | repeated [`CallParticipant`](#chatto-api-v1-CallParticipant) | Participants currently projected for this call. |
+
 <a id="chatto-api-v1-CallParticipant"></a>
 
 ### CallParticipant

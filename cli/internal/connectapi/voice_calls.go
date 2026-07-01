@@ -43,6 +43,49 @@ func (s *voiceCallService) ListActiveCallRooms(ctx context.Context, _ *connect.R
 	return connect.NewResponse(&apiv1.ListActiveCallRoomsResponse{RoomIds: visibleRoomIDs}), nil
 }
 
+func (s *voiceCallService) GetActiveCall(ctx context.Context, req *connect.Request[apiv1.GetActiveCallRequest]) (*connect.Response[apiv1.GetActiveCallResponse], error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	call, err := s.activeCall(ctx, caller.UserID, req.Msg.GetRoomId())
+	if err != nil {
+		return nil, connectError(err)
+	}
+	return connect.NewResponse(&apiv1.GetActiveCallResponse{Call: call}), nil
+}
+
+func (s *voiceCallService) BatchGetActiveCalls(ctx context.Context, req *connect.Request[apiv1.BatchGetActiveCallsRequest]) (*connect.Response[apiv1.BatchGetActiveCallsResponse], error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if !s.api.config.LiveKit.IsConfigured() {
+		return connect.NewResponse(&apiv1.BatchGetActiveCallsResponse{}), nil
+	}
+
+	seen := make(map[string]struct{}, len(req.Msg.GetRoomIds()))
+	calls := make([]*apiv1.ActiveCall, 0, len(req.Msg.GetRoomIds()))
+	for _, roomID := range req.Msg.GetRoomIds() {
+		if _, ok := seen[roomID]; ok {
+			continue
+		}
+		seen[roomID] = struct{}{}
+
+		call, err := s.activeCall(ctx, caller.UserID, roomID)
+		if err != nil {
+			if errors.Is(err, core.ErrNotFound) ||
+				errors.Is(err, core.ErrPermissionDenied) ||
+				errors.Is(err, core.ErrNotRoomMember) {
+				continue
+			}
+			return nil, connectError(err)
+		}
+		calls = append(calls, call)
+	}
+	return connect.NewResponse(&apiv1.BatchGetActiveCallsResponse{Calls: calls}), nil
+}
+
 func (s *voiceCallService) ListCallParticipants(ctx context.Context, req *connect.Request[apiv1.ListCallParticipantsRequest]) (*connect.Response[apiv1.ListCallParticipantsResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
@@ -158,6 +201,40 @@ func (s *voiceCallService) LeaveCall(ctx context.Context, req *connect.Request[a
 		return nil, connectError(err)
 	}
 	return connect.NewResponse(&apiv1.LeaveCallResponse{Left: true}), nil
+}
+
+func (s *voiceCallService) activeCall(ctx context.Context, actorID, roomID string) (*apiv1.ActiveCall, error) {
+	room, _, err := s.api.core.VoiceCallRoomForMember(ctx, actorID, roomID)
+	if err != nil {
+		return nil, err
+	}
+	if !s.api.config.LiveKit.IsConfigured() {
+		return nil, core.ErrNotFound
+	}
+	activeCall, ok := s.api.core.CallState.ActiveCall(room.GetId())
+	if !ok {
+		return nil, core.ErrNotFound
+	}
+
+	participants, err := s.api.core.GetCallParticipants(ctx, core.LegacySpaceIDForRoomKind(core.KindOfRoom(room)), room.GetId())
+	if err != nil {
+		return nil, err
+	}
+	responseParticipants := make([]*apiv1.CallParticipant, 0, len(participants))
+	for _, participant := range participants {
+		mapped, err := s.callParticipant(ctx, participant)
+		if err != nil {
+			return nil, err
+		}
+		if mapped != nil {
+			responseParticipants = append(responseParticipants, mapped)
+		}
+	}
+	return &apiv1.ActiveCall{
+		RoomId:       room.GetId(),
+		CallId:       activeCall.CallID,
+		Participants: responseParticipants,
+	}, nil
 }
 
 func (s *voiceCallService) callParticipant(ctx context.Context, participant core.CallParticipant) (*apiv1.CallParticipant, error) {

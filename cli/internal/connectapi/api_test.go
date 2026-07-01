@@ -221,6 +221,7 @@ func TestBatchGetResourceRequestsValidateThroughConnectHandlers(t *testing.T) {
 	memberPath, memberHandler := apiv1connect.NewMemberDirectoryServiceHandler(env.members, HandlerOptions()...)
 	notificationPath, notificationHandler := apiv1connect.NewNotificationServiceHandler(env.notifications, HandlerOptions()...)
 	attachmentPath, attachmentHandler := apiv1connect.NewAttachmentServiceHandler(env.attachments, HandlerOptions()...)
+	voicePath, voiceHandler := apiv1connect.NewVoiceCallServiceHandler(env.voice, HandlerOptions()...)
 	adminMemberPath, adminMemberHandler := adminv1connect.NewAdminMemberServiceHandler(env.adminUsers, HandlerOptions()...)
 	adminServerPath, adminServerHandler := adminv1connect.NewAdminServerServiceHandler(env.serverState, HandlerOptions()...)
 	mux.Handle(rolePath, roleHandler)
@@ -228,6 +229,7 @@ func TestBatchGetResourceRequestsValidateThroughConnectHandlers(t *testing.T) {
 	mux.Handle(memberPath, memberHandler)
 	mux.Handle(notificationPath, notificationHandler)
 	mux.Handle(attachmentPath, attachmentHandler)
+	mux.Handle(voicePath, voiceHandler)
 	mux.Handle(adminMemberPath, adminMemberHandler)
 	mux.Handle(adminServerPath, adminServerHandler)
 	ts := httptest.NewServer(mux)
@@ -238,6 +240,7 @@ func TestBatchGetResourceRequestsValidateThroughConnectHandlers(t *testing.T) {
 	members := apiv1connect.NewMemberDirectoryServiceClient(ts.Client(), ts.URL)
 	notifications := apiv1connect.NewNotificationServiceClient(ts.Client(), ts.URL)
 	attachments := apiv1connect.NewAttachmentServiceClient(ts.Client(), ts.URL)
+	voice := apiv1connect.NewVoiceCallServiceClient(ts.Client(), ts.URL)
 	adminMembers := adminv1connect.NewAdminMemberServiceClient(ts.Client(), ts.URL)
 	adminServer := adminv1connect.NewAdminServerServiceClient(ts.Client(), ts.URL)
 
@@ -344,6 +347,19 @@ func TestBatchGetResourceRequestsValidateThroughConnectHandlers(t *testing.T) {
 	}
 	if _, err := attachments.BatchRefreshMessageAttachmentUrls(context.Background(), connect.NewRequest(&apiv1.BatchRefreshMessageAttachmentUrlsRequest{RoomId: "room", EventIds: tooManyEventIDs})); connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("too-many BatchRefreshMessageAttachmentUrls code = %v, want invalid_argument", connect.CodeOf(err))
+	}
+
+	if _, err := voice.GetActiveCall(context.Background(), connect.NewRequest(&apiv1.GetActiveCallRequest{})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("empty GetActiveCall code = %v, want invalid_argument", connect.CodeOf(err))
+	}
+	if _, err := voice.BatchGetActiveCalls(context.Background(), connect.NewRequest(&apiv1.BatchGetActiveCallsRequest{})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("empty BatchGetActiveCalls code = %v, want invalid_argument", connect.CodeOf(err))
+	}
+	if _, err := voice.BatchGetActiveCalls(context.Background(), connect.NewRequest(&apiv1.BatchGetActiveCallsRequest{RoomIds: []string{""}})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("empty-id BatchGetActiveCalls code = %v, want invalid_argument", connect.CodeOf(err))
+	}
+	if _, err := voice.BatchGetActiveCalls(context.Background(), connect.NewRequest(&apiv1.BatchGetActiveCallsRequest{RoomIds: tooManyRoomIDs})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("too-many BatchGetActiveCalls code = %v, want invalid_argument", connect.CodeOf(err))
 	}
 
 	if _, err := adminMembers.BatchGetMembers(context.Background(), connect.NewRequest(&adminv1.BatchGetMembersRequest{})); connect.CodeOf(err) != connect.CodeInvalidArgument {
@@ -4047,6 +4063,20 @@ func TestVoiceCallServiceRecordsAndListsCalls(t *testing.T) {
 	if len(disabledActive.Msg.GetRoomIds()) != 0 {
 		t.Fatalf("disabled active rooms = %v, want none", disabledActive.Msg.GetRoomIds())
 	}
+	if _, err := env.voice.GetActiveCall(ctx, connect.NewRequest(&apiv1.GetActiveCallRequest{
+		RoomId: room.Id,
+	})); connect.CodeOf(err) != connect.CodeNotFound {
+		t.Fatalf("disabled GetActiveCall code = %v, want not_found", connect.CodeOf(err))
+	}
+	disabledBatch, err := env.voice.BatchGetActiveCalls(ctx, connect.NewRequest(&apiv1.BatchGetActiveCallsRequest{
+		RoomIds: []string{room.Id},
+	}))
+	if err != nil {
+		t.Fatalf("disabled BatchGetActiveCalls: %v", err)
+	}
+	if len(disabledBatch.Msg.GetCalls()) != 0 {
+		t.Fatalf("disabled BatchGetActiveCalls calls = %+v, want none", disabledBatch.Msg.GetCalls())
+	}
 	if _, err := env.voice.GetCallToken(ctx, connect.NewRequest(&apiv1.GetCallTokenRequest{
 		RoomId: room.Id,
 	})); connect.CodeOf(err) != connect.CodeFailedPrecondition {
@@ -4098,6 +4128,40 @@ func TestVoiceCallServiceRecordsAndListsCalls(t *testing.T) {
 		t.Fatalf("non-member active room IDs = %v, want none", nonMemberActiveResp.Msg.GetRoomIds())
 	}
 
+	activeCallResp, err := env.voice.GetActiveCall(ctx, connect.NewRequest(&apiv1.GetActiveCallRequest{
+		RoomId: room.Id,
+	}))
+	if err != nil {
+		t.Fatalf("GetActiveCall: %v", err)
+	}
+	activeCall := activeCallResp.Msg.GetCall()
+	if activeCall.GetRoomId() != room.Id || activeCall.GetCallId() == "" || len(activeCall.GetParticipants()) != 1 {
+		t.Fatalf("GetActiveCall call = %+v, want room, call ID, and one participant", activeCall)
+	}
+	if _, err := env.voice.GetActiveCall(withCaller(env.ctx, nonMember), connect.NewRequest(&apiv1.GetActiveCallRequest{
+		RoomId: room.Id,
+	})); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("non-member GetActiveCall code = %v, want permission_denied", connect.CodeOf(err))
+	}
+	batchCallsResp, err := env.voice.BatchGetActiveCalls(ctx, connect.NewRequest(&apiv1.BatchGetActiveCallsRequest{
+		RoomIds: []string{room.Id, "missing-room", room.Id},
+	}))
+	if err != nil {
+		t.Fatalf("BatchGetActiveCalls: %v", err)
+	}
+	if calls := batchCallsResp.Msg.GetCalls(); len(calls) != 1 || calls[0].GetRoomId() != room.Id || calls[0].GetCallId() != activeCall.GetCallId() {
+		t.Fatalf("BatchGetActiveCalls calls = %+v, want one active call for %s", calls, room.Id)
+	}
+	nonMemberBatchResp, err := env.voice.BatchGetActiveCalls(withCaller(env.ctx, nonMember), connect.NewRequest(&apiv1.BatchGetActiveCallsRequest{
+		RoomIds: []string{room.Id},
+	}))
+	if err != nil {
+		t.Fatalf("non-member BatchGetActiveCalls: %v", err)
+	}
+	if len(nonMemberBatchResp.Msg.GetCalls()) != 0 {
+		t.Fatalf("non-member BatchGetActiveCalls calls = %+v, want none", nonMemberBatchResp.Msg.GetCalls())
+	}
+
 	participantsResp, err := env.voice.ListCallParticipants(ctx, connect.NewRequest(&apiv1.ListCallParticipantsRequest{
 		RoomId: room.Id,
 	}))
@@ -4136,6 +4200,11 @@ func TestVoiceCallServiceRecordsAndListsCalls(t *testing.T) {
 	}
 	if len(participantsResp.Msg.GetParticipants()) != 0 {
 		t.Fatalf("participants after leave = %+v, want none", participantsResp.Msg.GetParticipants())
+	}
+	if _, err := env.voice.GetActiveCall(ctx, connect.NewRequest(&apiv1.GetActiveCallRequest{
+		RoomId: room.Id,
+	})); connect.CodeOf(err) != connect.CodeNotFound {
+		t.Fatalf("GetActiveCall after leave code = %v, want not_found", connect.CodeOf(err))
 	}
 }
 

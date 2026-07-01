@@ -82,6 +82,227 @@ export class ListActiveCallRoomsResponse extends Message<ListActiveCallRoomsResp
 }
 
 /**
+ * Current active call snapshot for one room.
+ *
+ * @generated from message chatto.api.v1.ActiveCall
+ */
+export class ActiveCall extends Message<ActiveCall> {
+  /**
+   * Room containing the active call.
+   *
+   * @generated from field: string room_id = 1;
+   */
+  roomId = "";
+
+  /**
+   * Active call session ID.
+   *
+   * @generated from field: string call_id = 2;
+   */
+  callId = "";
+
+  /**
+   * Participants currently projected for this call.
+   *
+   * @generated from field: repeated chatto.api.v1.CallParticipant participants = 3;
+   */
+  participants: CallParticipant[] = [];
+
+  constructor(data?: PartialMessage<ActiveCall>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.ActiveCall";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "call_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "participants", kind: "message", T: CallParticipant, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ActiveCall {
+    return new ActiveCall().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ActiveCall {
+    return new ActiveCall().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ActiveCall {
+    return new ActiveCall().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ActiveCall | PlainMessage<ActiveCall> | undefined, b: ActiveCall | PlainMessage<ActiveCall> | undefined): boolean {
+    return proto3.util.equals(ActiveCall, a, b);
+  }
+}
+
+/**
+ * Request for one room's active call snapshot.
+ *
+ * @generated from message chatto.api.v1.GetActiveCallRequest
+ */
+export class GetActiveCallRequest extends Message<GetActiveCallRequest> {
+  /**
+   * Required. Room whose active call should be inspected.
+   *
+   * @generated from field: string room_id = 1;
+   */
+  roomId = "";
+
+  constructor(data?: PartialMessage<GetActiveCallRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.GetActiveCallRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetActiveCallRequest {
+    return new GetActiveCallRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetActiveCallRequest {
+    return new GetActiveCallRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetActiveCallRequest {
+    return new GetActiveCallRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetActiveCallRequest | PlainMessage<GetActiveCallRequest> | undefined, b: GetActiveCallRequest | PlainMessage<GetActiveCallRequest> | undefined): boolean {
+    return proto3.util.equals(GetActiveCallRequest, a, b);
+  }
+}
+
+/**
+ * Response for one room's active call snapshot.
+ *
+ * @generated from message chatto.api.v1.GetActiveCallResponse
+ */
+export class GetActiveCallResponse extends Message<GetActiveCallResponse> {
+  /**
+   * Current active call.
+   *
+   * @generated from field: chatto.api.v1.ActiveCall call = 1;
+   */
+  call?: ActiveCall;
+
+  constructor(data?: PartialMessage<GetActiveCallResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.GetActiveCallResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "call", kind: "message", T: ActiveCall },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetActiveCallResponse {
+    return new GetActiveCallResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetActiveCallResponse {
+    return new GetActiveCallResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetActiveCallResponse {
+    return new GetActiveCallResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetActiveCallResponse | PlainMessage<GetActiveCallResponse> | undefined, b: GetActiveCallResponse | PlainMessage<GetActiveCallResponse> | undefined): boolean {
+    return proto3.util.equals(GetActiveCallResponse, a, b);
+  }
+}
+
+/**
+ * Request active call snapshots for many rooms.
+ *
+ * @generated from message chatto.api.v1.BatchGetActiveCallsRequest
+ */
+export class BatchGetActiveCallsRequest extends Message<BatchGetActiveCallsRequest> {
+  /**
+   * Required room IDs. Unknown, inaccessible, and inactive rooms are omitted.
+   *
+   * @generated from field: repeated string room_ids = 1;
+   */
+  roomIds: string[] = [];
+
+  constructor(data?: PartialMessage<BatchGetActiveCallsRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.BatchGetActiveCallsRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "room_ids", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BatchGetActiveCallsRequest {
+    return new BatchGetActiveCallsRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): BatchGetActiveCallsRequest {
+    return new BatchGetActiveCallsRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): BatchGetActiveCallsRequest {
+    return new BatchGetActiveCallsRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: BatchGetActiveCallsRequest | PlainMessage<BatchGetActiveCallsRequest> | undefined, b: BatchGetActiveCallsRequest | PlainMessage<BatchGetActiveCallsRequest> | undefined): boolean {
+    return proto3.util.equals(BatchGetActiveCallsRequest, a, b);
+  }
+}
+
+/**
+ * Active call batch response.
+ *
+ * @generated from message chatto.api.v1.BatchGetActiveCallsResponse
+ */
+export class BatchGetActiveCallsResponse extends Message<BatchGetActiveCallsResponse> {
+  /**
+   * Active calls in first-seen request order.
+   *
+   * @generated from field: repeated chatto.api.v1.ActiveCall calls = 1;
+   */
+  calls: ActiveCall[] = [];
+
+  constructor(data?: PartialMessage<BatchGetActiveCallsResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.BatchGetActiveCallsResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "calls", kind: "message", T: ActiveCall, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BatchGetActiveCallsResponse {
+    return new BatchGetActiveCallsResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): BatchGetActiveCallsResponse {
+    return new BatchGetActiveCallsResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): BatchGetActiveCallsResponse {
+    return new BatchGetActiveCallsResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: BatchGetActiveCallsResponse | PlainMessage<BatchGetActiveCallsResponse> | undefined, b: BatchGetActiveCallsResponse | PlainMessage<BatchGetActiveCallsResponse> | undefined): boolean {
+    return proto3.util.equals(BatchGetActiveCallsResponse, a, b);
+  }
+}
+
+/**
  * Request for participants in a room call.
  *
  * @generated from message chatto.api.v1.ListCallParticipantsRequest

@@ -14,6 +14,21 @@ service VoiceCallService {
   // Returns an empty list when LiveKit is not configured.
   rpc ListActiveCallRooms(ListActiveCallRoomsRequest) returns (ListActiveCallRoomsResponse);
 
+  // Gets the current active call snapshot for one room.
+  //
+  // The caller must be a member of the room. Returns NOT_FOUND when the room
+  // does not exist, currently has no active call, or voice calls are not
+  // configured. The returned call_id lets clients ignore stale realtime call
+  // events from previous calls in the same room.
+  rpc GetActiveCall(GetActiveCallRequest) returns (GetActiveCallResponse);
+
+  // Gets current active call snapshots for many rooms.
+  //
+  // Rooms that do not exist, are inaccessible, or currently have no active call
+  // are omitted. Results preserve first-seen request order and repeated room
+  // IDs are de-duplicated. Returns an empty list when LiveKit is not configured.
+  rpc BatchGetActiveCalls(BatchGetActiveCallsRequest) returns (BatchGetActiveCallsResponse);
+
   // Lists participants currently observed in a room's active call as a finite
   // runtime snapshot.
   //
@@ -48,6 +63,46 @@ message ListActiveCallRoomsRequest {}
 message ListActiveCallRoomsResponse {
   // Room IDs with active calls.
   repeated string room_ids = 1;
+}
+
+// Current active call snapshot for one room.
+message ActiveCall {
+  // Room containing the active call.
+  string room_id = 1;
+  // Active call session ID.
+  string call_id = 2;
+  // Participants currently projected for this call.
+  repeated CallParticipant participants = 3;
+}
+
+// Request for one room's active call snapshot.
+message GetActiveCallRequest {
+  // Required. Room whose active call should be inspected.
+  string room_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+// Response for one room's active call snapshot.
+message GetActiveCallResponse {
+  // Current active call.
+  ActiveCall call = 1;
+}
+
+// Request active call snapshots for many rooms.
+message BatchGetActiveCallsRequest {
+  // Required room IDs. Unknown, inaccessible, and inactive rooms are omitted.
+  repeated string room_ids = 1 [(buf.validate.field).repeated = {
+    min_items: 1
+    max_items: 100
+    items: {
+      string: {min_len: 1}
+    }
+  }];
+}
+
+// Active call batch response.
+message BatchGetActiveCallsResponse {
+  // Active calls in first-seen request order.
+  repeated ActiveCall calls = 1;
 }
 
 // Request for participants in a room call.
