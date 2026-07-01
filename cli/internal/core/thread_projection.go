@@ -21,6 +21,19 @@ type threadSummary struct {
 	participantCounts map[string]int
 }
 
+type ThreadFollowState string
+
+const (
+	ThreadFollowStateNone       ThreadFollowState = ""
+	ThreadFollowStateFollowing  ThreadFollowState = "following"
+	ThreadFollowStateUnfollowed ThreadFollowState = "unfollowed"
+)
+
+type threadFollowRef struct {
+	roomID            string
+	threadRootEventID string
+}
+
 // ThreadProjection holds an append-only event log per thread,
 // derived from the same evt.room.> firehose RoomTimelineProjection
 // consumes.
@@ -49,6 +62,9 @@ type ThreadProjection struct {
 	messageToThread map[string]string // reply event_id → thread root event_id
 	replySummaries  map[string]*threadReplySummary
 	summaryByThread map[string]*threadSummary
+	followState     map[string]ThreadFollowState
+	followers       map[string]map[string]struct{}
+	followedByUser  map[string]map[string]threadFollowRef
 	appliedEventIDs eventIDSet
 	shreddedUsers   map[string]struct{}
 }
@@ -60,6 +76,9 @@ func NewThreadProjection() *ThreadProjection {
 		messageToThread: make(map[string]string),
 		replySummaries:  make(map[string]*threadReplySummary),
 		summaryByThread: make(map[string]*threadSummary),
+		followState:     make(map[string]ThreadFollowState),
+		followers:       make(map[string]map[string]struct{}),
+		followedByUser:  make(map[string]map[string]threadFollowRef),
 		appliedEventIDs: newEventIDSet(),
 		shreddedUsers:   make(map[string]struct{}),
 	}
@@ -71,6 +90,8 @@ func NewThreadProjection() *ThreadProjection {
 func (p *ThreadProjection) Subjects() []string {
 	return []string{
 		events.RoomEventTypeFilter(events.EventThreadCreated),
+		events.RoomEventTypeFilter(events.EventThreadFollowed),
+		events.RoomEventTypeFilter(events.EventThreadUnfollowed),
 		events.RoomEventTypeFilter(events.EventMessagePosted),
 		events.RoomEventTypeFilter(events.EventMessageEdited),
 		events.RoomEventTypeFilter(events.EventMessageRetracted),
@@ -136,6 +157,16 @@ func (p *ThreadProjection) Apply(event *corev1.Event, seq uint64) error {
 		}
 		markApplied()
 
+	case *corev1.Event_ThreadFollowed:
+		follow := e.ThreadFollowed
+		p.setThreadFollowStateLocked(follow.GetUserId(), follow.GetRoomId(), follow.GetThreadRootEventId(), ThreadFollowStateFollowing)
+		markApplied()
+
+	case *corev1.Event_ThreadUnfollowed:
+		unfollow := e.ThreadUnfollowed
+		p.setThreadFollowStateLocked(unfollow.GetUserId(), unfollow.GetRoomId(), unfollow.GetThreadRootEventId(), ThreadFollowStateUnfollowed)
+		markApplied()
+
 	case *corev1.Event_MessagePosted:
 		m := e.MessagePosted
 		threadRoot := m.GetInThread()
@@ -185,6 +216,67 @@ func (p *ThreadProjection) Apply(event *corev1.Event, seq uint64) error {
 		markApplied()
 	}
 	return nil
+}
+
+func threadFollowKeyPart(roomID, threadRootEventID string) string {
+	return roomID + "\x00" + threadRootEventID
+}
+
+func (p *ThreadProjection) setThreadFollowStateLocked(userID, roomID, threadRootEventID string, state ThreadFollowState) {
+	if userID == "" || roomID == "" || threadRootEventID == "" {
+		return
+	}
+	key := threadFollowKeyPart(roomID, threadRootEventID)
+	stateKey := userID + "\x00" + key
+	previous := p.followState[stateKey]
+	if previous == state {
+		return
+	}
+
+	if previous == ThreadFollowStateFollowing {
+		if followers := p.followers[key]; followers != nil {
+			delete(followers, userID)
+			if len(followers) == 0 {
+				delete(p.followers, key)
+			}
+		}
+		if followed := p.followedByUser[userID]; followed != nil {
+			delete(followed, key)
+			if len(followed) == 0 {
+				delete(p.followedByUser, userID)
+			}
+		}
+	}
+
+	p.followState[stateKey] = state
+
+	if state == ThreadFollowStateFollowing {
+		followers := p.followers[key]
+		if followers == nil {
+			followers = make(map[string]struct{})
+			p.followers[key] = followers
+		}
+		followers[userID] = struct{}{}
+
+		followed := p.followedByUser[userID]
+		if followed == nil {
+			followed = make(map[string]threadFollowRef)
+			p.followedByUser[userID] = followed
+		}
+		followed[key] = threadFollowRef{roomID: roomID, threadRootEventID: threadRootEventID}
+	}
+}
+
+// SeedLegacyThreadFollowState imports pre-EVT thread follow state from
+// RUNTIME_STATE. TODO(remove-after-0.4): delete after a documented cutoff or
+// migration to canonical ThreadFollowed/ThreadUnfollowed events.
+func (p *ThreadProjection) SeedLegacyThreadFollowState(userID, roomID, threadRootEventID string, state ThreadFollowState) {
+	p.Lock()
+	defer p.Unlock()
+	if _, ok := p.followState[userID+"\x00"+threadFollowKeyPart(roomID, threadRootEventID)]; ok {
+		return
+	}
+	p.setThreadFollowStateLocked(userID, roomID, threadRootEventID, state)
 }
 
 func newThreadSummary() *threadSummary {
@@ -298,6 +390,40 @@ func (p *ThreadProjection) ThreadMetadata(rootEventID string) *ThreadMetadata {
 		metadata.LastReplyAt = &at
 	}
 	return metadata
+}
+
+func (p *ThreadProjection) FollowState(userID, roomID, threadRootEventID string) ThreadFollowState {
+	p.RLock()
+	defer p.RUnlock()
+	return p.followState[userID+"\x00"+threadFollowKeyPart(roomID, threadRootEventID)]
+}
+
+func (p *ThreadProjection) ThreadFollowers(roomID, threadRootEventID string) []string {
+	p.RLock()
+	defer p.RUnlock()
+	followers := p.followers[threadFollowKeyPart(roomID, threadRootEventID)]
+	if len(followers) == 0 {
+		return nil
+	}
+	userIDs := make([]string, 0, len(followers))
+	for userID := range followers {
+		userIDs = append(userIDs, userID)
+	}
+	return userIDs
+}
+
+func (p *ThreadProjection) FollowedThreadsForUser(userID string) []threadFollowRef {
+	p.RLock()
+	defer p.RUnlock()
+	followed := p.followedByUser[userID]
+	if len(followed) == 0 {
+		return nil
+	}
+	refs := make([]threadFollowRef, 0, len(followed))
+	for _, ref := range followed {
+		refs = append(refs, ref)
+	}
+	return refs
 }
 
 // ThreadCount returns how many threads are currently in the

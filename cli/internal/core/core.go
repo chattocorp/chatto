@@ -1047,6 +1047,10 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	core.threadFollows = &ThreadFollowModel{core: core}
 	core.reactionModel = &ReactionModel{core: core}
 
+	if err := core.seedLegacyThreadFollowStateFromRuntime(ctx); err != nil {
+		return nil, fmt.Errorf("failed to seed legacy thread follow state: %w", err)
+	}
+
 	if err := core.seedDefaultRBAC(ctx); err != nil {
 		return nil, fmt.Errorf("failed to seed default RBAC: %w", err)
 	}

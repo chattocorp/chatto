@@ -12,6 +12,7 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 
 	"hmans.de/chatto/internal/core/subjects"
+	"hmans.de/chatto/internal/events"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -578,32 +579,174 @@ func threadFollowKey(userID, roomID, threadRootEventID string) string {
 	return fmt.Sprintf("thread_follow.%s.%s.%s", userID, roomID, threadRootEventID)
 }
 
-// FollowThread marks a user as following a thread so they receive reply notifications.
-// Stores a single byte in RUNTIME_STATE. Idempotent.
-// Publishes a ThreadFollowChangedEvent for multi-tab sync.
-func (c *ChattoCore) FollowThread(ctx context.Context, kind RoomKind, userID, roomID, threadRootEventID string) error {
-	bucket := c.storage.runtimeStateKV
+func parseThreadFollowState(value []byte) ThreadFollowState {
+	if len(value) == 1 && value[0] == 0x01 {
+		return ThreadFollowStateFollowing
+	}
+	switch ThreadFollowState(string(value)) {
+	case ThreadFollowStateFollowing:
+		return ThreadFollowStateFollowing
+	case ThreadFollowStateUnfollowed:
+		return ThreadFollowStateUnfollowed
+	default:
+		return ThreadFollowStateNone
+	}
+}
 
-	if _, err := bucket.Put(ctx, threadFollowKey(userID, roomID, threadRootEventID), []byte{0x01}); err != nil {
-		return fmt.Errorf("failed to follow thread: %w", err)
+func isMissingRuntimeStateKey(err error) bool {
+	return errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted)
+}
+
+func (c *ChattoCore) seedLegacyThreadFollowStateFromRuntime(ctx context.Context) error {
+	lister, err := c.storage.runtimeStateKV.ListKeysFiltered(ctx, "thread_follow.>")
+	if err != nil {
+		if errors.Is(err, jetstream.ErrNoKeysFound) {
+			return nil
+		}
+		return fmt.Errorf("list legacy thread follow keys: %w", err)
 	}
 
-	c.publishThreadFollowChangedEvent(ctx, userID, kind, roomID, threadRootEventID, true)
+	seeded := 0
+	for key := range lister.Keys() {
+		parts := strings.Split(key, ".")
+		if len(parts) != 4 || parts[0] != "thread_follow" {
+			continue
+		}
+		entry, err := c.storage.runtimeStateKV.Get(ctx, key)
+		if err != nil {
+			if isMissingRuntimeStateKey(err) {
+				continue
+			}
+			return fmt.Errorf("read legacy thread follow key %q: %w", key, err)
+		}
+		state := parseThreadFollowState(entry.Value())
+		if state == ThreadFollowStateNone {
+			continue
+		}
+		// TODO(remove-after-0.4): delete this RUNTIME_STATE compatibility
+		// import after a documented cutoff or migration to canonical
+		// ThreadFollowed/ThreadUnfollowed events.
+		c.Threads.SeedLegacyThreadFollowState(parts[1], parts[2], parts[3], state)
+		seeded++
+	}
+	if seeded > 0 {
+		c.logger.Info("Seeded legacy thread follow state from RUNTIME_STATE", "count", seeded)
+	}
 	return nil
+}
+
+func (c *ChattoCore) threadFollowState(ctx context.Context, userID, roomID, threadRootEventID string) (ThreadFollowState, error) {
+	return c.rooms().threadFollowState(userID, roomID, threadRootEventID), nil
+}
+
+func (c *ChattoCore) appendThreadFollowStateEvent(ctx context.Context, kind RoomKind, userID, roomID, threadRootEventID string, target ThreadFollowState, source corev1.ThreadFollowSource, onlyIfNeverSet bool) (bool, error) {
+	agg := events.RoomAggregate(roomID)
+	filter := agg.AllEventsFilter()
+	var lastErr error
+
+	for attempt := 1; attempt <= maxThreadCreateAppendAttempts; attempt++ {
+		pos, err := c.EventPublisher.LastSubjectPosition(ctx, filter)
+		if err != nil {
+			return false, fmt.Errorf("read thread follow OCC tail: %w", err)
+		}
+		if err := c.waitForThreadFollowStateCurrent(ctx, agg); err != nil {
+			return false, err
+		}
+
+		current := c.rooms().threadFollowState(userID, roomID, threadRootEventID)
+		if onlyIfNeverSet && current != ThreadFollowStateNone {
+			return false, nil
+		}
+		if !onlyIfNeverSet && current == target {
+			return false, nil
+		}
+
+		event := newEvent(userID, &corev1.Event{})
+		switch target {
+		case ThreadFollowStateFollowing:
+			event.Event = &corev1.Event_ThreadFollowed{
+				ThreadFollowed: &corev1.ThreadFollowedEvent{
+					RoomId:            roomID,
+					ThreadRootEventId: threadRootEventID,
+					UserId:            userID,
+					Source:            source,
+				},
+			}
+		case ThreadFollowStateUnfollowed:
+			event.Event = &corev1.Event_ThreadUnfollowed{
+				ThreadUnfollowed: &corev1.ThreadUnfollowedEvent{
+					RoomId:            roomID,
+					ThreadRootEventId: threadRootEventID,
+					UserId:            userID,
+				},
+			}
+		default:
+			return false, fmt.Errorf("unsupported thread follow state %q", target)
+		}
+
+		seq, err := c.EventPublisher.AppendAtFilter(ctx, agg.SubjectFor(event), event, filter, pos.Seq)
+		if err == nil {
+			if err := c.rooms().waitForThreads(ctx, events.SubjectPosition(agg.SubjectFor(event), seq)); err != nil {
+				return true, err
+			}
+			c.publishThreadFollowChangedEvent(ctx, userID, kind, roomID, threadRootEventID, target == ThreadFollowStateFollowing)
+			return true, nil
+		}
+		if !errors.Is(err, events.ErrConflict) {
+			return false, err
+		}
+		lastErr = err
+		select {
+		case <-ctx.Done():
+			return false, ctx.Err()
+		case <-time.After(time.Duration(1<<attempt) * time.Millisecond):
+		}
+	}
+
+	return false, fmt.Errorf("append thread follow state after %d attempts: %w", maxThreadCreateAppendAttempts, lastErr)
+}
+
+func (c *ChattoCore) waitForThreadFollowStateCurrent(ctx context.Context, agg events.Aggregate) error {
+	for _, eventType := range []string{events.EventThreadFollowed, events.EventThreadUnfollowed} {
+		pos, err := c.EventPublisher.LastSubjectPosition(ctx, agg.Subject(eventType))
+		if err != nil {
+			return fmt.Errorf("read thread follow state tail: %w", err)
+		}
+		if pos.IsZero() {
+			continue
+		}
+		if err := c.rooms().waitForThreads(ctx, pos); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// FollowThread marks a user as following a thread so they receive reply notifications.
+// Stores durable follow state in EVT. Idempotent.
+// Publishes a ThreadFollowChangedEvent for multi-tab sync when state changes.
+func (c *ChattoCore) FollowThread(ctx context.Context, kind RoomKind, userID, roomID, threadRootEventID string) error {
+	_, err := c.appendThreadFollowStateEvent(ctx, kind, userID, roomID, threadRootEventID, ThreadFollowStateFollowing, corev1.ThreadFollowSource_THREAD_FOLLOW_SOURCE_MANUAL, false)
+	return err
+}
+
+func (c *ChattoCore) FollowThreadWithSource(ctx context.Context, kind RoomKind, userID, roomID, threadRootEventID string, source corev1.ThreadFollowSource) error {
+	_, err := c.appendThreadFollowStateEvent(ctx, kind, userID, roomID, threadRootEventID, ThreadFollowStateFollowing, source, false)
+	return err
 }
 
 // UnfollowThread removes a user's follow on a thread so they stop receiving reply notifications.
 // Idempotent - calling when not following is a no-op.
-// Publishes a ThreadFollowChangedEvent for multi-tab sync.
+// Publishes a ThreadFollowChangedEvent for multi-tab sync when state changes.
 func (c *ChattoCore) UnfollowThread(ctx context.Context, kind RoomKind, userID, roomID, threadRootEventID string) error {
-	bucket := c.storage.runtimeStateKV
+	_, err := c.appendThreadFollowStateEvent(ctx, kind, userID, roomID, threadRootEventID, ThreadFollowStateUnfollowed, corev1.ThreadFollowSource_THREAD_FOLLOW_SOURCE_UNSPECIFIED, false)
+	return err
+}
 
-	if err := bucket.Delete(ctx, threadFollowKey(userID, roomID, threadRootEventID)); err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) {
-		return fmt.Errorf("failed to unfollow thread: %w", err)
-	}
-
-	c.publishThreadFollowChangedEvent(ctx, userID, kind, roomID, threadRootEventID, false)
-	return nil
+// FollowThreadIfNeverSet follows a thread only when the user has no prior
+// follow state. Explicit unfollows and existing follows are left untouched.
+func (c *ChattoCore) FollowThreadIfNeverSet(ctx context.Context, kind RoomKind, userID, roomID, threadRootEventID string, source corev1.ThreadFollowSource) (bool, error) {
+	return c.appendThreadFollowStateEvent(ctx, kind, userID, roomID, threadRootEventID, ThreadFollowStateFollowing, source, true)
 }
 
 // publishThreadFollowChangedEvent publishes a live event when a user's thread follow state changes.
@@ -627,37 +770,24 @@ func (c *ChattoCore) publishThreadFollowChangedEvent(ctx context.Context, userID
 
 // IsFollowingThread checks if a user is following a thread.
 func (c *ChattoCore) IsFollowingThread(ctx context.Context, kind RoomKind, userID, roomID, threadRootEventID string) (bool, error) {
-	bucket := c.storage.runtimeStateKV
-
-	if _, err := bucket.Get(ctx, threadFollowKey(userID, roomID, threadRootEventID)); err != nil {
-		if errors.Is(err, jetstream.ErrKeyNotFound) {
-			return false, nil
-		}
+	state, err := c.threadFollowState(ctx, userID, roomID, threadRootEventID)
+	if err != nil {
 		return false, fmt.Errorf("failed to check thread follow: %w", err)
 	}
-	return true, nil
+	return state == ThreadFollowStateFollowing, nil
 }
 
 // GetThreadFollowers returns all user IDs following a specific thread.
-// Uses ListKeysFiltered to scan for thread_follow.*.{roomID}.{threadRootEventID} keys.
 func (c *ChattoCore) GetThreadFollowers(ctx context.Context, kind RoomKind, roomID, threadRootEventID string) ([]string, error) {
-	bucket := c.storage.runtimeStateKV
-
-	pattern := fmt.Sprintf("thread_follow.*.%s.%s", roomID, threadRootEventID)
-	lister, err := bucket.ListKeysFiltered(ctx, pattern)
-	if err != nil {
-		if errors.Is(err, jetstream.ErrNoKeysFound) {
-			return nil, nil
-		}
-		return nil, fmt.Errorf("failed to list thread followers: %w", err)
-	}
-
 	var userIDs []string
-	for key := range lister.Keys() {
-		// Key format: thread_follow.{userID}.{roomID}.{threadRootEventID}
-		parts := strings.Split(key, ".")
-		if len(parts) >= 4 {
-			userIDs = append(userIDs, parts[1])
+	for _, userID := range c.rooms().threadFollowers(roomID, threadRootEventID) {
+		following, err := c.IsFollowingThread(ctx, kind, userID, roomID, threadRootEventID)
+		if err != nil {
+			c.logger.Warn("Failed to check thread follower state", "error", err, "room_id", roomID, "thread_root_event_id", threadRootEventID)
+			continue
+		}
+		if following {
+			userIDs = append(userIDs, userID)
 		}
 	}
 	return userIDs, nil
@@ -736,28 +866,19 @@ func (c *ChattoCore) ListFollowedThreadsPage(ctx context.Context, userID string,
 
 // listFollowedThreadsInSpace returns all threads followed by the user in a single space.
 func (c *ChattoCore) listFollowedThreadsInSpace(ctx context.Context, userID string, kind RoomKind) ([]*FollowedThread, error) {
-	bucket := c.storage.runtimeStateKV
-
-	// List all thread_follow keys for this user across all rooms
-	// Use ">" to match remaining parts: thread_follow.{userId}.{roomId}.{threadRootEventId}
-	pattern := fmt.Sprintf("thread_follow.%s.>", userID)
-	lister, err := bucket.ListKeysFiltered(ctx, pattern)
-	if err != nil {
-		if errors.Is(err, jetstream.ErrNoKeysFound) {
-			return nil, nil
-		}
-		return nil, fmt.Errorf("failed to list followed threads: %w", err)
-	}
-
 	var result []*FollowedThread
-	for key := range lister.Keys() {
-		// Key format: thread_follow.{userID}.{roomID}.{threadRootEventID}
-		parts := strings.Split(key, ".")
-		if len(parts) < 4 {
+	for _, ref := range c.rooms().followedThreadsForUser(userID) {
+		roomID := ref.roomID
+		threadRootEventID := ref.threadRootEventID
+
+		following, err := c.IsFollowingThread(ctx, kind, userID, roomID, threadRootEventID)
+		if err != nil {
+			c.logger.Warn("Failed to check thread follow state while listing", "error", err, "room_id", roomID, "thread_root_event_id", threadRootEventID)
 			continue
 		}
-		roomID := parts[2]
-		threadRootEventID := parts[3]
+		if !following {
+			continue
+		}
 
 		isMember, err := c.RoomMembershipExists(ctx, kind, userID, roomID)
 		if err != nil {

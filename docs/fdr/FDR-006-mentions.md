@@ -25,6 +25,7 @@ Users can mention users, roles, and room-scoped virtual groups with `@handle` sy
 - Mentioning a user who isn't a room member leaves the `@name` as plain text — the mention is not delivered.
 - If a message would notify more than 10 users, the composer asks for confirmation before sending. The backend enforces the same guard for API callers.
 - Mentions are resolved when a message is first posted. Editing a message later does not add, remove, dismiss, or re-send mention notifications.
+- A delivered direct `@username` mention inside a thread automatically follows that thread for the mentioned user if they have no prior follow state for it. Role mentions, `@all`, and `@here` do not auto-follow recipients.
 
 ## Design Decisions
 
@@ -70,7 +71,13 @@ Users can mention users, roles, and room-scoped virtual groups with `@handle` sy
 **Why:** Mention attention state has the same lifecycle as other notifications: it is pending until the user views or dismisses it, syncs across devices, and expires with notification retention. Keeping it in the notification model avoids duplicated state.
 **Tradeoff:** Mention dots follow notification dismissal semantics. Dismissing a mention notification clears the corresponding sidebar attention signal.
 
-### 8. Large mention sends require confirmation
+### 8. Direct thread mentions can subscribe the recipient
+
+**Decision:** When a direct `@username` mention is delivered inside a thread, Chatto writes a thread-follow event for the mentioned user only if they have no prior follow state for it. An explicit unfollow suppresses mention-driven re-follow, but the mention notification is still created when normal notification rules allow it.
+**Why:** A direct thread mention usually means the thread now concerns the recipient, so it should appear in My Threads by default. An explicit unfollow is a stronger preference and should not be undone by someone else's later mention.
+**Tradeoff:** Broadcast and role mentions do not populate My Threads for every recipient; authors who need someone to track a thread should mention that user directly.
+
+### 9. Large mention sends require confirmation
 
 **Decision:** A message whose mentions would notify more than 10 users requires explicit confirmation. The count is computed after deduplication, excluding the author, excluding users muted for the room, and applying room-membership constraints. The backend returns a short-lived confirmation token scoped to the author, room, message body, thread target, and echo flag; the retry uses that token so live recipient-count drift does not force repeated prompts.
 **Why:** Role and room-wide mentions are useful operational tools, but accidental broad pings are costly. Confirmation preserves the feature while catching the common "I did not realize this reaches everyone" mistake.
