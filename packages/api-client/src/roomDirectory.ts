@@ -137,6 +137,33 @@ export function createRoomDirectoryAPI(config: RoomDirectoryAPIConfig) {
         return handleAuthError(err);
       }
     },
+
+    async getRoomGroup(groupId: string): Promise<DirectoryRoomGroup | null> {
+      try {
+        const response = await directory.getRoomGroup(
+          { groupId },
+          { headers: headers() },
+        );
+        return response.group ? mapRoomGroup(response.group) : null;
+      } catch (err) {
+        if (err instanceof ConnectError && err.code === Code.NotFound) {
+          return null;
+        }
+        return handleAuthError(err);
+      }
+    },
+
+    async batchGetRoomGroups(groupIds: string[]): Promise<DirectoryRoomGroup[]> {
+      try {
+        const response = await directory.batchGetRoomGroups(
+          { groupIds },
+          { headers: headers() },
+        );
+        return response.groups.map(mapRoomGroup);
+      } catch (err) {
+        return handleAuthError(err);
+      }
+    },
   };
 }
 

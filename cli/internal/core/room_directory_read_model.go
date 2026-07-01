@@ -102,6 +102,54 @@ func (s *RoomDirectoryReadModel) ListRoomGroups(ctx context.Context, actorID str
 	return result, nil
 }
 
+func (s *RoomDirectoryReadModel) GetRoomGroup(ctx context.Context, actorID, groupID string) (*DirectoryRoomGroup, error) {
+	if err := requireAuthenticatedActor(actorID); err != nil {
+		return nil, err
+	}
+	visibleRooms, err := s.visibleChannelRoomMap(ctx, actorID)
+	if err != nil {
+		return nil, err
+	}
+	group, err := s.core.GetRoomGroup(ctx, groupID)
+	if err != nil {
+		return nil, err
+	}
+	return s.directoryGroup(ctx, actorID, group, visibleRooms)
+}
+
+func (s *RoomDirectoryReadModel) BatchGetRoomGroups(ctx context.Context, actorID string, groupIDs []string) ([]*DirectoryRoomGroup, error) {
+	if err := requireAuthenticatedActor(actorID); err != nil {
+		return nil, err
+	}
+	visibleRooms, err := s.visibleChannelRoomMap(ctx, actorID)
+	if err != nil {
+		return nil, err
+	}
+
+	seen := make(map[string]struct{}, len(groupIDs))
+	groups := make([]*DirectoryRoomGroup, 0, len(groupIDs))
+	for _, groupID := range groupIDs {
+		if _, ok := seen[groupID]; ok {
+			continue
+		}
+		seen[groupID] = struct{}{}
+
+		group, err := s.core.GetRoomGroup(ctx, groupID)
+		if err != nil {
+			if errors.Is(err, ErrRoomGroupNotFound) {
+				continue
+			}
+			return nil, err
+		}
+		dirGroup, err := s.directoryGroup(ctx, actorID, group, visibleRooms)
+		if err != nil {
+			return nil, err
+		}
+		groups = append(groups, dirGroup)
+	}
+	return groups, nil
+}
+
 func (s *RoomDirectoryReadModel) GetRoom(ctx context.Context, actorID, roomID string) (*DirectoryRoom, error) {
 	if err := requireAuthenticatedActor(actorID); err != nil {
 		return nil, err

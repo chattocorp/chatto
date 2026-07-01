@@ -265,6 +265,22 @@ func TestBatchGetResourceRequestsValidateThroughConnectHandlers(t *testing.T) {
 	if _, err := rooms.BatchGetRooms(context.Background(), connect.NewRequest(&apiv1.BatchGetRoomsRequest{RoomIds: tooManyRoomIDs})); connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("too-many BatchGetRooms code = %v, want invalid_argument", connect.CodeOf(err))
 	}
+	if _, err := rooms.GetRoomGroup(context.Background(), connect.NewRequest(&apiv1.GetRoomGroupRequest{})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("empty GetRoomGroup code = %v, want invalid_argument", connect.CodeOf(err))
+	}
+	if _, err := rooms.BatchGetRoomGroups(context.Background(), connect.NewRequest(&apiv1.BatchGetRoomGroupsRequest{})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("empty BatchGetRoomGroups code = %v, want invalid_argument", connect.CodeOf(err))
+	}
+	if _, err := rooms.BatchGetRoomGroups(context.Background(), connect.NewRequest(&apiv1.BatchGetRoomGroupsRequest{GroupIds: []string{""}})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("empty-id BatchGetRoomGroups code = %v, want invalid_argument", connect.CodeOf(err))
+	}
+	tooManyGroupIDs := make([]string, 101)
+	for i := range tooManyGroupIDs {
+		tooManyGroupIDs[i] = fmt.Sprintf("group-%d", i)
+	}
+	if _, err := rooms.BatchGetRoomGroups(context.Background(), connect.NewRequest(&apiv1.BatchGetRoomGroupsRequest{GroupIds: tooManyGroupIDs})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("too-many BatchGetRoomGroups code = %v, want invalid_argument", connect.CodeOf(err))
+	}
 
 	if _, err := members.BatchGetServerMembers(context.Background(), connect.NewRequest(&apiv1.BatchGetServerMembersRequest{})); connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("empty BatchGetServerMembers code = %v, want invalid_argument", connect.CodeOf(err))
@@ -3409,6 +3425,38 @@ func TestRoomDirectoryServiceListRoomGroupsFiltersHiddenRoomsAndKeepsLinks(t *te
 	}
 	if !roomGroupItemsContainSidebarLink(group.GetItems(), link.Id) {
 		t.Fatalf("sidebar link %s missing from group items", link.Id)
+	}
+
+	getResp, err := env.directory.GetRoomGroup(withCaller(env.ctx, caller), connect.NewRequest(&apiv1.GetRoomGroupRequest{
+		GroupId: groupID,
+	}))
+	if err != nil {
+		t.Fatalf("GetRoomGroup: %v", err)
+	}
+	getGroup := getResp.Msg.GetGroup()
+	if getGroup.GetId() != groupID {
+		t.Fatalf("GetRoomGroup id = %q, want %q", getGroup.GetId(), groupID)
+	}
+	if !roomGroupItemsContainRoom(getGroup.GetItems(), visible.Id) ||
+		roomGroupItemsContainRoom(getGroup.GetItems(), hidden.Id) ||
+		roomGroupItemsContainRoom(getGroup.GetItems(), archived.Id) ||
+		!roomGroupItemsContainSidebarLink(getGroup.GetItems(), link.Id) {
+		t.Fatalf("GetRoomGroup items = %+v, want visible room and link only", getGroup.GetItems())
+	}
+	if _, err := env.directory.GetRoomGroup(withCaller(env.ctx, caller), connect.NewRequest(&apiv1.GetRoomGroupRequest{
+		GroupId: "missing-group",
+	})); connect.CodeOf(err) != connect.CodeNotFound {
+		t.Fatalf("missing GetRoomGroup code = %v, want not_found", connect.CodeOf(err))
+	}
+
+	batchResp, err := env.directory.BatchGetRoomGroups(withCaller(env.ctx, caller), connect.NewRequest(&apiv1.BatchGetRoomGroupsRequest{
+		GroupIds: []string{groupID, "missing-group", groupID},
+	}))
+	if err != nil {
+		t.Fatalf("BatchGetRoomGroups: %v", err)
+	}
+	if got := batchResp.Msg.GetGroups(); len(got) != 1 || got[0].GetId() != groupID {
+		t.Fatalf("BatchGetRoomGroups groups = %+v, want single %s group", got, groupID)
 	}
 }
 

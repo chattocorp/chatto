@@ -11,6 +11,8 @@ const mocks = vi.hoisted(() => ({
   listRooms: vi.fn(),
   getRoom: vi.fn(),
   listRoomGroups: vi.fn(),
+  getRoomGroup: vi.fn(),
+  batchGetRoomGroups: vi.fn(),
   handleAuthenticationRequired: vi.fn()
 }));
 
@@ -33,6 +35,8 @@ describe('createRoomDirectoryAPI', () => {
     mocks.listRooms.mockReset();
     mocks.getRoom.mockReset();
     mocks.listRoomGroups.mockReset();
+    mocks.getRoomGroup.mockReset();
+    mocks.batchGetRoomGroups.mockReset();
     mocks.handleAuthenticationRequired.mockReset();
 
     configureApiClientHooks({ onAuthenticationRequired: mocks.handleAuthenticationRequired });
@@ -40,7 +44,9 @@ describe('createRoomDirectoryAPI', () => {
     mocks.createClient.mockReturnValue({
       listRooms: mocks.listRooms,
       getRoom: mocks.getRoom,
-      listRoomGroups: mocks.listRoomGroups
+      listRoomGroups: mocks.listRoomGroups,
+      getRoomGroup: mocks.getRoomGroup,
+      batchGetRoomGroups: mocks.batchGetRoomGroups
     });
   });
 
@@ -272,6 +278,55 @@ describe('createRoomDirectoryAPI', () => {
         ]
       }
     ]);
+  });
+
+  it('gets and batch gets room groups', async () => {
+    const group = {
+      id: 'g1',
+      name: 'Lobby',
+      rooms: [{ room: { id: 'general', name: 'general', kind: RoomKind.CHANNEL } }],
+      items: []
+    };
+    mocks.getRoomGroup.mockResolvedValue({ group });
+    mocks.batchGetRoomGroups.mockResolvedValue({ groups: [group] });
+
+    const api = createRoomDirectoryAPI({
+      baseUrl: 'https://remote.example.com/api/connect',
+      bearerToken: 'token'
+    });
+
+    await expect(api.getRoomGroup('g1')).resolves.toMatchObject({
+      id: 'g1',
+      roomIds: ['general']
+    });
+    await expect(api.batchGetRoomGroups(['g1', 'missing'])).resolves.toMatchObject([
+      {
+        id: 'g1',
+        roomIds: ['general']
+      }
+    ]);
+
+    expect(mocks.getRoomGroup).toHaveBeenCalledWith(
+      { groupId: 'g1' },
+      { headers: { Authorization: 'Bearer token' } }
+    );
+    expect(mocks.batchGetRoomGroups).toHaveBeenCalledWith(
+      { groupIds: ['g1', 'missing'] },
+      { headers: { Authorization: 'Bearer token' } }
+    );
+  });
+
+  it('returns null when a room group is missing', async () => {
+    mocks.getRoomGroup.mockRejectedValue(new ConnectError('not found', Code.NotFound));
+
+    const api = createRoomDirectoryAPI({
+      serverId: 'remote',
+      baseUrl: '/api/connect',
+      bearerToken: null
+    });
+
+    await expect(api.getRoomGroup('missing-group')).resolves.toBeNull();
+    expect(mocks.handleAuthenticationRequired).not.toHaveBeenCalled();
   });
 
   it('routes unauthenticated errors through the server registry', async () => {

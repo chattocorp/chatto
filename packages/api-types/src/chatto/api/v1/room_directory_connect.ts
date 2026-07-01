@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { BatchGetRoomsRequest, BatchGetRoomsResponse, GetRoomRequest, GetRoomResponse, ListRoomGroupsRequest, ListRoomGroupsResponse, ListRoomsRequest, ListRoomsResponse } from "./room_directory_pb.js";
+import { BatchGetRoomGroupsRequest, BatchGetRoomGroupsResponse, BatchGetRoomsRequest, BatchGetRoomsResponse, GetRoomGroupRequest, GetRoomGroupResponse, GetRoomRequest, GetRoomResponse, ListRoomGroupsRequest, ListRoomGroupsResponse, ListRoomsRequest, ListRoomsResponse } from "./room_directory_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -39,6 +39,33 @@ export const RoomDirectoryService = {
       name: "ListRoomGroups",
       I: ListRoomGroupsRequest,
       O: ListRoomGroupsResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Returns one ordered room group by ID. Hidden and archived room entries are
+     * omitted from the returned group. Returns NOT_FOUND when the room group does
+     * not exist.
+     *
+     * @generated from rpc chatto.api.v1.RoomDirectoryService.GetRoomGroup
+     */
+    getRoomGroup: {
+      name: "GetRoomGroup",
+      I: GetRoomGroupRequest,
+      O: GetRoomGroupResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Returns ordered room groups for a set of stable group IDs. Hidden and
+     * archived room entries are omitted from returned groups. Unknown groups are
+     * omitted. Results preserve first-seen request order and repeated IDs are
+     * de-duplicated.
+     *
+     * @generated from rpc chatto.api.v1.RoomDirectoryService.BatchGetRoomGroups
+     */
+    batchGetRoomGroups: {
+      name: "BatchGetRoomGroups",
+      I: BatchGetRoomGroupsRequest,
+      O: BatchGetRoomGroupsResponse,
       kind: MethodKind.Unary,
     },
     /**
