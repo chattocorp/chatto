@@ -490,8 +490,30 @@ func (p *ThreadProjection) adminProjectionEstimate() (int64, int64, []Projection
 	}
 	appliedEventIDsBytes := estimateStringSetBytes(p.appliedEventIDs)
 	shreddedUserBytes := estimateStringSetBytes(p.shreddedUsers)
-	totalBytes := rawBytes + indexBytes + replySummaryBytes + threadSummaryBytes + appliedEventIDsBytes + shreddedUserBytes
-	return entries, totalBytes, []ProjectionAdminMetric{
+	var followStateBytes int64
+	for key, state := range p.followState {
+		followStateBytes += projectionMapEntryOverhead + int64(len(key)+len(state))
+	}
+	var followerBytes, followerRefs int64
+	for key, followers := range p.followers {
+		followerBytes += projectionMapEntryOverhead + int64(len(key))
+		for userID := range followers {
+			followerRefs++
+			followerBytes += projectionMapEntryOverhead + int64(len(userID))
+		}
+	}
+	var followedByUserBytes, followedRefs int64
+	for userID, followed := range p.followedByUser {
+		followedByUserBytes += projectionMapEntryOverhead + int64(len(userID))
+		for key, ref := range followed {
+			followedRefs++
+			followedByUserBytes += projectionMapEntryOverhead + int64(len(key)+len(ref.roomID)+len(ref.threadRootEventID))
+		}
+	}
+	followBytes := followStateBytes + followerBytes + followedByUserBytes
+	totalEntries := entries + int64(len(p.followState))
+	totalBytes := rawBytes + indexBytes + replySummaryBytes + threadSummaryBytes + appliedEventIDsBytes + shreddedUserBytes + followBytes
+	return totalEntries, totalBytes, []ProjectionAdminMetric{
 		{Name: "threads", Value: int64(len(p.byThread)), Bytes: 0},
 		{Name: "thread_entries", Value: entries, Bytes: rawBytes},
 		{Name: "replies", Value: replies, Bytes: 0},
@@ -499,6 +521,9 @@ func (p *ThreadProjection) adminProjectionEstimate() (int64, int64, []Projection
 		{Name: "reply_summaries", Value: int64(len(p.replySummaries)), Bytes: replySummaryBytes},
 		{Name: "thread_summary_replies", Value: summaryReplies, Bytes: 0},
 		{Name: "thread_summary_participants", Value: summaryParticipants, Bytes: threadSummaryBytes},
+		{Name: "follow_states", Value: int64(len(p.followState)), Bytes: followStateBytes},
+		{Name: "follower_refs", Value: followerRefs, Bytes: followerBytes},
+		{Name: "followed_thread_refs", Value: followedRefs, Bytes: followedByUserBytes},
 		{Name: "applied_event_ids", Value: int64(len(p.appliedEventIDs)), Bytes: appliedEventIDsBytes},
 		{Name: "shredded_users", Value: int64(len(p.shreddedUsers)), Bytes: shreddedUserBytes},
 	}

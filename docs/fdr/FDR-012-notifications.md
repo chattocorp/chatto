@@ -32,6 +32,7 @@ Per space and per room, the user picks one of four levels:
 ## Thread Follow
 
 - Posting a reply in a thread automatically subscribes the user to that thread's reply notifications.
+- A direct `@username` mention in a thread subscribes the mentioned user if they have never followed or explicitly unfollowed that thread before. Role mentions, `@all`, and `@here` notify according to mention rules but do not subscribe recipients.
 - Thread followers can manually unfollow, and non-posters can manually follow.
 - Followers receive a notification for new replies in the thread (skipping their own).
 - Thread notifications respect room mute: a muted room produces no thread notifications even for followed threads.
@@ -56,11 +57,11 @@ Per space and per room, the user picks one of four levels:
 **Why:** Mute is the strongest "I don't want pings" signal. Allowing mentions through would defeat the muscle-memory of "mute the room to stop the spam".
 **Tradeoff:** Coordinators can't reliably ping someone in a muted room. The mention still renders, so eventual visibility is preserved.
 
-### 4. Thread auto-follow on post
+### 4. Thread auto-follow on post and direct mention
 
-**Decision:** Posting in a thread automatically follows it. You can manually unfollow afterwards.
-**Why:** People who participate in a thread almost always want to see the replies. Auto-follow saves a manual step in the common case. Manual unfollow handles the "I posted once and don't care any more" case.
-**Tradeoff:** A user who posts in many threads accumulates many followed-thread subscriptions over time. The 90-day TTL on notifications limits the blast radius; the thread follow state itself is cheap to store.
+**Decision:** Posting in a thread automatically follows it, even if the poster previously unfollowed. A delivered direct `@username` mention inside a thread also follows the thread for that recipient, unless they explicitly unfollowed it before. Follow and unfollow state is represented by durable room-aggregate `ThreadFollowedEvent` and `ThreadUnfollowedEvent` facts, with a projection used for notification fanout and My Threads.
+**Why:** People who participate in a thread almost always want to see the replies, and a direct mention makes the thread relevant to the recipient. Manual unfollow handles both the "I posted once and don't care any more" case and the "do not put this mentioned thread back in My Threads" case.
+**Tradeoff:** A user who posts in many threads or is directly mentioned in many threads accumulates followed-thread subscriptions over time. The 90-day TTL on notifications limits the blast radius; the thread follow state itself is cheap to store.
 
 ### 5. Broadcast mentions are sender-controlled but bounded
 

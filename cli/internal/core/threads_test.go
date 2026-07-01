@@ -6,9 +6,11 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go"
+	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core/subjects"
 	"hmans.de/chatto/internal/events"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/internal/testutil"
 )
 
 func TestChattoCore_PostMessage_Threading(t *testing.T) {
@@ -618,9 +620,22 @@ func TestChattoCore_ThreadFollow(t *testing.T) {
 			t.Fatalf("Failed to follow thread: %v", err)
 		}
 
-		key := threadFollowKey(user.Id, room.Id, threadRootEventId)
-		if _, err := core.storage.runtimeStateKV.Get(ctx, key); err != nil {
-			t.Fatalf("Expected thread follow in RUNTIME_STATE: %v", err)
+		followEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.RoomAggregate(room.Id).Subject(events.EventThreadFollowed))
+		if err != nil {
+			t.Fatalf("SubjectEvents(thread_followed): %v", err)
+		}
+		if len(followEvents) != 1 {
+			t.Fatalf("Expected one thread_followed event, got %d", len(followEvents))
+		}
+		follow := followEvents[0].GetThreadFollowed()
+		if follow == nil {
+			t.Fatalf("Expected ThreadFollowed payload, got %#v", followEvents[0])
+		}
+		if follow.GetUserId() != user.Id || follow.GetRoomId() != room.Id || follow.GetThreadRootEventId() != threadRootEventId {
+			t.Fatalf("Unexpected thread_followed payload: %#v", follow)
+		}
+		if got := follow.GetSource(); got != corev1.ThreadFollowSource_THREAD_FOLLOW_SOURCE_MANUAL {
+			t.Fatalf("ThreadFollowed source = %v, want manual", got)
 		}
 
 		isFollowing, err := core.IsFollowingThread(ctx, KindChannel, user.Id, room.Id, threadRootEventId)
@@ -651,6 +666,21 @@ func TestChattoCore_ThreadFollow(t *testing.T) {
 		}
 		if isFollowing {
 			t.Error("Expected not following after UnfollowThread")
+		}
+
+		unfollowEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.RoomAggregate(room.Id).Subject(events.EventThreadUnfollowed))
+		if err != nil {
+			t.Fatalf("SubjectEvents(thread_unfollowed): %v", err)
+		}
+		if len(unfollowEvents) != 1 {
+			t.Fatalf("Expected one thread_unfollowed event, got %d", len(unfollowEvents))
+		}
+		unfollow := unfollowEvents[0].GetThreadUnfollowed()
+		if unfollow == nil {
+			t.Fatalf("Expected ThreadUnfollowed payload, got %#v", unfollowEvents[0])
+		}
+		if unfollow.GetUserId() != user.Id || unfollow.GetRoomId() != room.Id || unfollow.GetThreadRootEventId() != threadRootEventId {
+			t.Fatalf("Unexpected thread_unfollowed payload: %#v", unfollow)
 		}
 	})
 
@@ -1079,6 +1109,221 @@ func TestChattoCore_PostMessage_RootAuthorUnfollowRespected(t *testing.T) {
 	isFollowing, _ = core.IsFollowingThread(ctx, KindChannel, userA.Id, room.Id, rootMsg.Id)
 	if isFollowing {
 		t.Error("Root author should NOT be re-followed after explicit unfollow (3-user case)")
+	}
+}
+
+func TestChattoCore_PostMessage_DirectMentionAutoFollowsThread(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	room, _ := core.CreateRoom(ctx, SystemActorID, KindChannel, "", "General", "General discussion")
+	rootAuthor, _ := core.CreateUser(ctx, SystemActorID, "mention-root", "Mention Root", "password123")
+	replyAuthor, _ := core.CreateUser(ctx, SystemActorID, "mention-reply", "Mention Reply", "password123")
+	mentioned, _ := core.CreateUser(ctx, SystemActorID, "mention-target", "Mention Target", "password123")
+	core.JoinRoom(ctx, rootAuthor.Id, KindChannel, rootAuthor.Id, room.Id)
+	core.JoinRoom(ctx, replyAuthor.Id, KindChannel, replyAuthor.Id, room.Id)
+	core.JoinRoom(ctx, mentioned.Id, KindChannel, mentioned.Id, room.Id)
+
+	rootMsg, err := core.PostMessage(ctx, KindChannel, room.Id, rootAuthor.Id, "Root", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("Post root: %v", err)
+	}
+	if _, err := core.PostMessage(ctx, KindChannel, room.Id, replyAuthor.Id, "Looping in @mention-target", nil, rootMsg.Id, "", nil, false); err != nil {
+		t.Fatalf("Post direct mention reply: %v", err)
+	}
+
+	isFollowing, err := core.IsFollowingThread(ctx, KindChannel, mentioned.Id, room.Id, rootMsg.Id)
+	if err != nil {
+		t.Fatalf("IsFollowingThread: %v", err)
+	}
+	if !isFollowing {
+		t.Fatal("directly mentioned user should be auto-following the thread")
+	}
+
+	notifications, err := core.GetNotifications(ctx, mentioned.Id)
+	if err != nil {
+		t.Fatalf("GetNotifications: %v", err)
+	}
+	if len(notifications) != 1 || notifications[0].GetMention() == nil {
+		t.Fatalf("expected one mention notification, got %#v", notifications)
+	}
+}
+
+func TestChattoCore_PostMessage_DirectMentionRespectsExplicitUnfollow(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	room, _ := core.CreateRoom(ctx, SystemActorID, KindChannel, "", "General", "General discussion")
+	rootAuthor, _ := core.CreateUser(ctx, SystemActorID, "unfollow-root", "Unfollow Root", "password123")
+	replyAuthor, _ := core.CreateUser(ctx, SystemActorID, "unfollow-reply", "Unfollow Reply", "password123")
+	mentioned, _ := core.CreateUser(ctx, SystemActorID, "unfollow-target", "Unfollow Target", "password123")
+	core.JoinRoom(ctx, rootAuthor.Id, KindChannel, rootAuthor.Id, room.Id)
+	core.JoinRoom(ctx, replyAuthor.Id, KindChannel, replyAuthor.Id, room.Id)
+	core.JoinRoom(ctx, mentioned.Id, KindChannel, mentioned.Id, room.Id)
+
+	rootMsg, _ := core.PostMessage(ctx, KindChannel, room.Id, rootAuthor.Id, "Root", nil, "", "", nil, false)
+	if err := core.FollowThread(ctx, KindChannel, mentioned.Id, room.Id, rootMsg.Id); err != nil {
+		t.Fatalf("FollowThread: %v", err)
+	}
+	if err := core.UnfollowThread(ctx, KindChannel, mentioned.Id, room.Id, rootMsg.Id); err != nil {
+		t.Fatalf("UnfollowThread: %v", err)
+	}
+
+	if _, err := core.PostMessage(ctx, KindChannel, room.Id, replyAuthor.Id, "Still need @unfollow-target here", nil, rootMsg.Id, "", nil, false); err != nil {
+		t.Fatalf("Post direct mention reply: %v", err)
+	}
+
+	isFollowing, err := core.IsFollowingThread(ctx, KindChannel, mentioned.Id, room.Id, rootMsg.Id)
+	if err != nil {
+		t.Fatalf("IsFollowingThread: %v", err)
+	}
+	if isFollowing {
+		t.Fatal("direct mention should not restore an explicitly unfollowed thread")
+	}
+
+	notifications, err := core.GetNotifications(ctx, mentioned.Id)
+	if err != nil {
+		t.Fatalf("GetNotifications: %v", err)
+	}
+	if len(notifications) != 1 || notifications[0].GetMention() == nil {
+		t.Fatalf("expected mention notification despite explicit unfollow, got %#v", notifications)
+	}
+
+	if err := core.FollowThread(ctx, KindChannel, mentioned.Id, room.Id, rootMsg.Id); err != nil {
+		t.Fatalf("FollowThread after unfollow: %v", err)
+	}
+	isFollowing, err = core.IsFollowingThread(ctx, KindChannel, mentioned.Id, room.Id, rootMsg.Id)
+	if err != nil {
+		t.Fatalf("IsFollowingThread after follow: %v", err)
+	}
+	if !isFollowing {
+		t.Fatal("manual follow should clear explicit unfollow state")
+	}
+}
+
+func TestChattoCore_PostMessage_BroadMentionsDoNotAutoFollowThread(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	room, _ := core.CreateRoom(ctx, SystemActorID, KindChannel, "", "General", "General discussion")
+	rootAuthor, _ := core.CreateUser(ctx, SystemActorID, "broad-root", "Broad Root", "password123")
+	replyAuthor, _ := core.CreateUser(ctx, SystemActorID, "broad-reply", "Broad Reply", "password123")
+	mentioned, _ := core.CreateUser(ctx, SystemActorID, "broad-target", "Broad Target", "password123")
+	core.JoinRoom(ctx, rootAuthor.Id, KindChannel, rootAuthor.Id, room.Id)
+	core.JoinRoom(ctx, replyAuthor.Id, KindChannel, replyAuthor.Id, room.Id)
+	core.JoinRoom(ctx, mentioned.Id, KindChannel, mentioned.Id, room.Id)
+	if _, err := core.CreateServerRole(ctx, SystemActorID, "supportthread", "Support Thread", "Support thread responders", true); err != nil {
+		t.Fatalf("CreateServerRole: %v", err)
+	}
+	if err := core.AssignServerRole(ctx, SystemActorID, mentioned.Id, "supportthread"); err != nil {
+		t.Fatalf("AssignServerRole: %v", err)
+	}
+
+	rootMsg, _ := core.PostMessage(ctx, KindChannel, room.Id, rootAuthor.Id, "Root", nil, "", "", nil, false)
+	if _, err := core.PostMessage(ctx, KindChannel, room.Id, replyAuthor.Id, "@supportthread @all please look", nil, rootMsg.Id, "", nil, false); err != nil {
+		t.Fatalf("Post broad mention reply: %v", err)
+	}
+
+	isFollowing, err := core.IsFollowingThread(ctx, KindChannel, mentioned.Id, room.Id, rootMsg.Id)
+	if err != nil {
+		t.Fatalf("IsFollowingThread: %v", err)
+	}
+	if isFollowing {
+		t.Fatal("role and broadcast mentions should not auto-follow recipients")
+	}
+}
+
+func TestChattoCore_PostMessage_MutedDirectMentionDoesNotAutoFollowThread(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	room, _ := core.CreateRoom(ctx, SystemActorID, KindChannel, "", "General", "General discussion")
+	rootAuthor, _ := core.CreateUser(ctx, SystemActorID, "muted-root", "Muted Root", "password123")
+	replyAuthor, _ := core.CreateUser(ctx, SystemActorID, "muted-reply", "Muted Reply", "password123")
+	mentioned, _ := core.CreateUser(ctx, SystemActorID, "muted-target", "Muted Target", "password123")
+	core.JoinRoom(ctx, rootAuthor.Id, KindChannel, rootAuthor.Id, room.Id)
+	core.JoinRoom(ctx, replyAuthor.Id, KindChannel, replyAuthor.Id, room.Id)
+	core.JoinRoom(ctx, mentioned.Id, KindChannel, mentioned.Id, room.Id)
+	if err := core.SetRoomNotificationLevel(ctx, mentioned.Id, room.Id, corev1.NotificationLevel_NOTIFICATION_LEVEL_MUTED); err != nil {
+		t.Fatalf("SetRoomNotificationLevel: %v", err)
+	}
+
+	rootMsg, _ := core.PostMessage(ctx, KindChannel, room.Id, rootAuthor.Id, "Root", nil, "", "", nil, false)
+	if _, err := core.PostMessage(ctx, KindChannel, room.Id, replyAuthor.Id, "Muted ping @muted-target", nil, rootMsg.Id, "", nil, false); err != nil {
+		t.Fatalf("Post muted direct mention reply: %v", err)
+	}
+
+	isFollowing, err := core.IsFollowingThread(ctx, KindChannel, mentioned.Id, room.Id, rootMsg.Id)
+	if err != nil {
+		t.Fatalf("IsFollowingThread: %v", err)
+	}
+	if isFollowing {
+		t.Fatal("muted direct mention should not auto-follow the recipient")
+	}
+	notifications, err := core.GetNotifications(ctx, mentioned.Id)
+	if err != nil {
+		t.Fatalf("GetNotifications: %v", err)
+	}
+	if len(notifications) != 0 {
+		t.Fatalf("expected no notifications for muted direct mention, got %#v", notifications)
+	}
+}
+
+func TestChattoCore_LegacyThreadFollowValueStillLists(t *testing.T) {
+	ctx := testContext(t)
+	_, nc := testutil.StartNATS(t)
+	cfg := config.CoreConfig{
+		SecretKey: "test-core-secret",
+		Assets: config.AssetsConfig{
+			SigningSecret: "test-signing-secret",
+		},
+	}
+
+	first, err := NewChattoCore(ctx, nc, cfg)
+	if err != nil {
+		t.Fatalf("NewChattoCore first: %v", err)
+	}
+	startCoreServices(t, first)
+
+	room, _ := first.CreateRoom(ctx, SystemActorID, KindChannel, "", "General", "General discussion")
+	rootAuthor, _ := first.CreateUser(ctx, SystemActorID, "legacy-root", "Legacy Root", "password123")
+	replyAuthor, _ := first.CreateUser(ctx, SystemActorID, "legacy-reply", "Legacy Reply", "password123")
+	legacyFollower, _ := first.CreateUser(ctx, SystemActorID, "legacy-follower", "Legacy Follower", "password123")
+	first.JoinRoom(ctx, rootAuthor.Id, KindChannel, rootAuthor.Id, room.Id)
+	first.JoinRoom(ctx, replyAuthor.Id, KindChannel, replyAuthor.Id, room.Id)
+	first.JoinRoom(ctx, legacyFollower.Id, KindChannel, legacyFollower.Id, room.Id)
+
+	rootMsg, _ := first.PostMessage(ctx, KindChannel, room.Id, rootAuthor.Id, "Root", nil, "", "", nil, false)
+	if _, err := first.PostMessage(ctx, KindChannel, room.Id, replyAuthor.Id, "Reply", nil, rootMsg.Id, "", nil, false); err != nil {
+		t.Fatalf("Post reply: %v", err)
+	}
+	if _, err := first.storage.runtimeStateKV.Put(ctx, threadFollowKey(legacyFollower.Id, room.Id, rootMsg.Id), []byte{0x01}); err != nil {
+		t.Fatalf("write legacy thread follow marker: %v", err)
+	}
+
+	second, err := NewChattoCore(ctx, nc, cfg)
+	if err != nil {
+		t.Fatalf("NewChattoCore second: %v", err)
+	}
+	startCoreServices(t, second)
+	if err := second.WaitForProjectionsCurrent(ctx); err != nil {
+		t.Fatalf("WaitForProjectionsCurrent: %v", err)
+	}
+
+	isFollowing, err := second.IsFollowingThread(ctx, KindChannel, legacyFollower.Id, room.Id, rootMsg.Id)
+	if err != nil {
+		t.Fatalf("IsFollowingThread: %v", err)
+	}
+	if !isFollowing {
+		t.Fatal("legacy positive value should still count as following")
+	}
+
+	page, err := second.ListFollowedThreadsPage(ctx, legacyFollower.Id, []string{LegacySpaceIDForRoomKind(KindChannel)}, 10, 0)
+	if err != nil {
+		t.Fatalf("ListFollowedThreadsPage: %v", err)
+	}
+	if len(page.Threads) != 1 || page.Threads[0].ThreadRootEventID != rootMsg.Id {
+		t.Fatalf("followed threads = %#v, want legacy-followed thread %s", page.Threads, rootMsg.Id)
 	}
 }
 
@@ -1542,6 +1787,46 @@ func TestChattoCore_PostMessage_InReplyToNotification(t *testing.T) {
 		}
 		if !found {
 			t.Error("Expected a ReplyNotification for thread reply")
+		}
+	})
+
+	t.Run("thread mention keeps existing follower notification", func(t *testing.T) {
+		// Clear existing notifications
+		core.DismissAllNotifications(ctx, alice.Id)
+
+		// Alice posts a root message. The first thread reply auto-follows her
+		// as root author before notifications are fanned out.
+		rootMsg, err := core.PostMessage(ctx, KindChannel, room.Id, alice.Id, "Thread root with mention", nil, "", "", nil, false)
+		if err != nil {
+			t.Fatalf("Failed to post root: %v", err)
+		}
+
+		_, err = core.PostMessage(ctx, KindChannel, room.Id, bob.Id, "Hey @alice look at this", nil, rootMsg.Id, "", nil, false)
+		if err != nil {
+			t.Fatalf("Failed to post thread reply with mention: %v", err)
+		}
+
+		notifications, err := core.GetNotifications(ctx, alice.Id)
+		if err != nil {
+			t.Fatalf("GetNotifications error: %v", err)
+		}
+
+		mentionCount := 0
+		threadReplyCount := 0
+		for _, n := range notifications {
+			if mention := n.GetMention(); mention != nil && mention.InThread == rootMsg.Id {
+				mentionCount++
+			}
+			if reply := n.GetReply(); reply != nil && reply.InThread == rootMsg.Id {
+				threadReplyCount++
+			}
+		}
+
+		if mentionCount != 1 {
+			t.Errorf("Expected 1 thread mention notification, got %d", mentionCount)
+		}
+		if threadReplyCount != 1 {
+			t.Errorf("Expected 1 followed-thread notification, got %d", threadReplyCount)
 		}
 	})
 

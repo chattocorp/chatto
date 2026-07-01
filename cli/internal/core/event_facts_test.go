@@ -78,6 +78,22 @@ func TestEventFactsRoomIDAndVisibility(t *testing.T) {
 			visible: false,
 		},
 		{
+			name: "thread followed",
+			event: &corev1.Event{Event: &corev1.Event_ThreadFollowed{
+				ThreadFollowed: &corev1.ThreadFollowedEvent{RoomId: "R1", ThreadRootEventId: "ROOT", UserId: "U1"},
+			}},
+			roomID:  "R1",
+			visible: false,
+		},
+		{
+			name: "thread unfollowed",
+			event: &corev1.Event{Event: &corev1.Event_ThreadUnfollowed{
+				ThreadUnfollowed: &corev1.ThreadUnfollowedEvent{RoomId: "R1", ThreadRootEventId: "ROOT", UserId: "U1"},
+			}},
+			roomID:  "R1",
+			visible: false,
+		},
+		{
 			name: "unlisted event variant is hidden by default",
 			event: &corev1.Event{Event: &corev1.Event_RoomGroupCreated{
 				RoomGroupCreated: &corev1.RoomGroupCreatedEvent{GroupId: "G1"},
@@ -186,6 +202,32 @@ func TestEventFactsAssetLifecycle(t *testing.T) {
 			lifecycle:   false,
 			liveAsset:   false,
 			liveRoomEVT: true,
+			reactions:   false,
+			threads:     true,
+			directory:   false,
+			callState:   false,
+		},
+		{
+			name: "thread followed",
+			event: &corev1.Event{Event: &corev1.Event_ThreadFollowed{
+				ThreadFollowed: &corev1.ThreadFollowedEvent{RoomId: "R1", ThreadRootEventId: "ROOT", UserId: "U1"},
+			}},
+			lifecycle:   false,
+			liveAsset:   false,
+			liveRoomEVT: false,
+			reactions:   false,
+			threads:     true,
+			directory:   false,
+			callState:   false,
+		},
+		{
+			name: "thread unfollowed",
+			event: &corev1.Event{Event: &corev1.Event_ThreadUnfollowed{
+				ThreadUnfollowed: &corev1.ThreadUnfollowedEvent{RoomId: "R1", ThreadRootEventId: "ROOT", UserId: "U1"},
+			}},
+			lifecycle:   false,
+			liveAsset:   false,
+			liveRoomEVT: false,
 			reactions:   false,
 			threads:     true,
 			directory:   false,

@@ -346,6 +346,52 @@ func (c *ChattoCore) ResolveRoomMentions(ctx context.Context, kind RoomKind, roo
 	return userIDs, nil
 }
 
+// ResolveDirectRoomMentions resolves only direct @user handles to room-member
+// user IDs. Role and virtual broadcast handles are intentionally ignored.
+func (c *ChattoCore) ResolveDirectRoomMentions(ctx context.Context, kind RoomKind, roomID string, handles []string) ([]string, error) {
+	if len(handles) == 0 {
+		return nil, nil
+	}
+
+	members, err := c.GetRoomMembersList(ctx, kind, roomID)
+	if err != nil {
+		return nil, err
+	}
+	roomMembers := make(map[string]struct{}, len(members))
+	for _, member := range members {
+		if member != nil && member.UserId != "" {
+			roomMembers[member.UserId] = struct{}{}
+		}
+	}
+
+	seen := make(map[string]struct{})
+	userIDs := make([]string, 0, len(handles))
+	for _, handle := range handles {
+		normalized := strings.ToLower(handle)
+		if IsVirtualMentionHandle(normalized) || normalized == RoleEveryone {
+			continue
+		}
+		if _, ok := c.RBAC.GetRole(normalized); ok {
+			continue
+		}
+
+		user, err := c.GetUserByLogin(ctx, handle)
+		if err != nil {
+			continue
+		}
+		if _, ok := roomMembers[user.Id]; !ok {
+			continue
+		}
+		if _, ok := seen[user.Id]; ok {
+			continue
+		}
+		seen[user.Id] = struct{}{}
+		userIDs = append(userIDs, user.Id)
+	}
+
+	return userIDs, nil
+}
+
 func (c *ChattoCore) mentionNotificationRecipientCount(ctx context.Context, roomID, authorID string, mentionedUserIDs []string) (int, error) {
 	count := 0
 	for _, mentionedUserID := range mentionedUserIDs {
@@ -382,7 +428,15 @@ func (c *ChattoCore) MentionNotificationRecipientCountForBody(ctx context.Contex
 // inThread is the thread root event ID when the mention is on a message inside
 // a thread, or empty string for room-level messages. The frontend uses this to
 // route notification clicks directly into the thread pane.
-func (c *ChattoCore) notifyMentionedUsers(ctx context.Context, kind RoomKind, roomID, authorID, eventID, inThread string, mentionedUserIDs []string) {
+func (c *ChattoCore) notifyMentionedUsers(ctx context.Context, kind RoomKind, roomID, authorID, eventID, inThread string, mentionedUserIDs, directMentionedUserIDs []string) []string {
+	directMentioned := make(map[string]struct{}, len(directMentionedUserIDs))
+	for _, userID := range directMentionedUserIDs {
+		if userID != "" {
+			directMentioned[userID] = struct{}{}
+		}
+	}
+
+	var newlyAutoFollowed []string
 	for _, mentionedUserID := range mentionedUserIDs {
 		// Don't notify the author if they mentioned themselves
 		if mentionedUserID == authorID {
@@ -420,6 +474,26 @@ func (c *ChattoCore) notifyMentionedUsers(ctx context.Context, kind RoomKind, ro
 		if created == nil {
 			continue
 		}
+		if inThread != "" {
+			if _, ok := directMentioned[mentionedUserID]; ok {
+				followed, err := c.FollowThreadIfNeverSet(ctx, kind, mentionedUserID, roomID, inThread, corev1.ThreadFollowSource_THREAD_FOLLOW_SOURCE_DIRECT_MENTION)
+				if err != nil {
+					c.logger.Warn("Failed to auto-follow thread for mentioned user",
+						"mentioned_user_id", mentionedUserID,
+						"kind", kind,
+						"room_id", roomID,
+						"thread_root_event_id", inThread,
+						"error", err)
+				} else if followed {
+					newlyAutoFollowed = append(newlyAutoFollowed, mentionedUserID)
+					c.logger.Debug("Auto-followed thread for mentioned user",
+						"mentioned_user_id", mentionedUserID,
+						"kind", kind,
+						"room_id", roomID,
+						"thread_root_event_id", inThread)
+				}
+			}
+		}
 		if c.suppressesNotificationAlertsForPresence(ctx, mentionedUserID) {
 			continue
 		}
@@ -447,4 +521,5 @@ func (c *ChattoCore) notifyMentionedUsers(ctx context.Context, kind RoomKind, ro
 			"kind", kind,
 			"room_id", roomID)
 	}
+	return newlyAutoFollowed
 }
