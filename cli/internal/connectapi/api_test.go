@@ -206,7 +206,7 @@ func TestPrivateHandlersRequireAuth(t *testing.T) {
 	t.Cleanup(ts.Close)
 
 	client := apiv1connect.NewMessageServiceClient(ts.Client(), ts.URL)
-	_, err := client.PostMessage(context.Background(), connect.NewRequest(&apiv1.PostMessageRequest{
+	_, err := client.CreateMessage(context.Background(), connect.NewRequest(&apiv1.CreateMessageRequest{
 		RoomId: "room",
 		Body:   "hello",
 	}))
@@ -3096,11 +3096,11 @@ func TestConnectServicesRejectDMOutsiders(t *testing.T) {
 	}
 	root, err := env.core.PostMessage(env.ctx, core.KindDM, dm.Id, env.viewer.Id, "private root", nil, "", "", nil, false)
 	if err != nil {
-		t.Fatalf("PostMessage root: %v", err)
+		t.Fatalf("CreateMessage root: %v", err)
 	}
 	reply, err := env.core.PostMessage(env.ctx, core.KindDM, dm.Id, participant.Id, "private reply", nil, root.Id, "", nil, false)
 	if err != nil {
-		t.Fatalf("PostMessage reply: %v", err)
+		t.Fatalf("CreateMessage reply: %v", err)
 	}
 
 	ctx := withCaller(env.ctx, outsider)
@@ -3113,11 +3113,11 @@ func TestConnectServicesRejectDMOutsiders(t *testing.T) {
 		}
 	}
 
-	_, err = env.messages.PostMessage(ctx, connect.NewRequest(&apiv1.PostMessageRequest{
+	_, err = env.messages.CreateMessage(ctx, connect.NewRequest(&apiv1.CreateMessageRequest{
 		RoomId: dm.Id,
 		Body:   "not a participant",
 	}))
-	checkInaccessible("PostMessage", err)
+	checkInaccessible("CreateMessage", err)
 
 	_, err = env.timeline.GetRoomEvents(ctx, connect.NewRequest(&apiv1.GetRoomEventsRequest{
 		RoomId: dm.Id,
@@ -3244,7 +3244,7 @@ func TestRoomDirectoryServiceListRoomsVisibilityAndDMs(t *testing.T) {
 		t.Fatalf("empty DM list len = %d, want 0", len(dmResp.Msg.GetRooms()))
 	}
 	if _, err := env.core.PostMessage(env.ctx, core.KindDM, dm.Id, caller.Id, "hello DM", nil, "", "", nil, false); err != nil {
-		t.Fatalf("PostMessage DM: %v", err)
+		t.Fatalf("CreateMessage DM: %v", err)
 	}
 
 	resp, err := env.directory.ListRooms(withCaller(env.ctx, caller), connect.NewRequest(&apiv1.ListRoomsRequest{}))
@@ -4396,31 +4396,31 @@ func TestRoomTimelineServiceRequiresAuthAndMembership(t *testing.T) {
 	}
 }
 
-func TestMessageServicePostMessageRequiresAuthMembershipAndPermission(t *testing.T) {
+func TestMessageServiceCreateMessageRequiresAuthMembershipAndPermission(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("message-post-authz")
-	req := connect.NewRequest(&apiv1.PostMessageRequest{
+	req := connect.NewRequest(&apiv1.CreateMessageRequest{
 		RoomId: room.Id,
 		Body:   "hello",
 	})
 
-	if _, err := env.messages.PostMessage(env.ctx, req); connect.CodeOf(err) != connect.CodeUnauthenticated {
-		t.Fatalf("unauthenticated PostMessage code = %v, want %v", connect.CodeOf(err), connect.CodeUnauthenticated)
+	if _, err := env.messages.CreateMessage(env.ctx, req); connect.CodeOf(err) != connect.CodeUnauthenticated {
+		t.Fatalf("unauthenticated CreateMessage code = %v, want %v", connect.CodeOf(err), connect.CodeUnauthenticated)
 	}
 
 	outsider, err := env.core.CreateUser(env.ctx, core.SystemActorID, "message-outsider", "Message Outsider", "password")
 	if err != nil {
 		t.Fatalf("CreateUser outsider: %v", err)
 	}
-	if _, err := env.messages.PostMessage(withCaller(env.ctx, outsider), req); connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Fatalf("non-member PostMessage code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
+	if _, err := env.messages.CreateMessage(withCaller(env.ctx, outsider), req); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("non-member CreateMessage code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
 	}
 
 	if err := env.core.DenyRoomPermission(env.ctx, core.SystemActorID, room.Id, core.RoleEveryone, core.PermMessagePost); err != nil {
 		t.Fatalf("DenyRoomPermission: %v", err)
 	}
-	if _, err := env.messages.PostMessage(withCaller(env.ctx, env.viewer), req); connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Fatalf("denied PostMessage code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
+	if _, err := env.messages.CreateMessage(withCaller(env.ctx, env.viewer), req); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("denied CreateMessage code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
 	}
 }
 
@@ -4518,7 +4518,7 @@ func TestReactionServiceValidatesEmoji(t *testing.T) {
 	}
 }
 
-func TestMessageServicePostMessageValidatesInput(t *testing.T) {
+func TestMessageServiceCreateMessageValidatesInput(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("message-post-validation")
 	ctx := withCaller(env.ctx, env.viewer)
@@ -4529,22 +4529,22 @@ func TestMessageServicePostMessageValidatesInput(t *testing.T) {
 
 	tests := []struct {
 		name string
-		req  *apiv1.PostMessageRequest
+		req  *apiv1.CreateMessageRequest
 		code connect.Code
 	}{
 		{
 			name: "missing room",
-			req:  &apiv1.PostMessageRequest{Body: "hello"},
+			req:  &apiv1.CreateMessageRequest{Body: "hello"},
 			code: connect.CodeInvalidArgument,
 		},
 		{
 			name: "empty body and no attachments",
-			req:  &apiv1.PostMessageRequest{RoomId: room.Id, Body: "   "},
+			req:  &apiv1.CreateMessageRequest{RoomId: room.Id, Body: "   "},
 			code: connect.CodeInvalidArgument,
 		},
 		{
 			name: "channel echo outside thread",
-			req: &apiv1.PostMessageRequest{
+			req: &apiv1.CreateMessageRequest{
 				RoomId:            room.Id,
 				Body:              "hello",
 				AlsoSendToChannel: true,
@@ -4553,7 +4553,7 @@ func TestMessageServicePostMessageValidatesInput(t *testing.T) {
 		},
 		{
 			name: "missing thread root",
-			req: &apiv1.PostMessageRequest{
+			req: &apiv1.CreateMessageRequest{
 				RoomId:            room.Id,
 				Body:              "reply",
 				ThreadRootEventId: "missing-thread-root",
@@ -4562,7 +4562,7 @@ func TestMessageServicePostMessageValidatesInput(t *testing.T) {
 		},
 		{
 			name: "thread reply as thread root",
-			req: &apiv1.PostMessageRequest{
+			req: &apiv1.CreateMessageRequest{
 				RoomId:            room.Id,
 				Body:              "reply",
 				ThreadRootEventId: reply.Id,
@@ -4571,7 +4571,7 @@ func TestMessageServicePostMessageValidatesInput(t *testing.T) {
 		},
 		{
 			name: "missing in-reply-to target",
-			req: &apiv1.PostMessageRequest{
+			req: &apiv1.CreateMessageRequest{
 				RoomId:    room.Id,
 				Body:      "reply",
 				InReplyTo: "missing-reply-target",
@@ -4580,7 +4580,7 @@ func TestMessageServicePostMessageValidatesInput(t *testing.T) {
 		},
 		{
 			name: "other room in-reply-to target",
-			req: &apiv1.PostMessageRequest{
+			req: &apiv1.CreateMessageRequest{
 				RoomId:    room.Id,
 				Body:      "reply",
 				InReplyTo: otherRoomMessage.Id,
@@ -4589,7 +4589,7 @@ func TestMessageServicePostMessageValidatesInput(t *testing.T) {
 		},
 		{
 			name: "link preview URL too long",
-			req: &apiv1.PostMessageRequest{
+			req: &apiv1.CreateMessageRequest{
 				RoomId: room.Id,
 				Body:   "hello",
 				LinkPreview: &apiv1.LinkPreview{
@@ -4602,14 +4602,14 @@ func TestMessageServicePostMessageValidatesInput(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if _, err := env.messages.PostMessage(ctx, connect.NewRequest(tt.req)); connect.CodeOf(err) != tt.code {
-				t.Fatalf("PostMessage code = %v, want %v", connect.CodeOf(err), tt.code)
+			if _, err := env.messages.CreateMessage(ctx, connect.NewRequest(tt.req)); connect.CodeOf(err) != tt.code {
+				t.Fatalf("CreateMessage code = %v, want %v", connect.CodeOf(err), tt.code)
 			}
 		})
 	}
 }
 
-func TestMessageServicePostMessageInfersVideoProcessingAssetIDs(t *testing.T) {
+func TestMessageServiceCreateMessageInfersVideoProcessingAssetIDs(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("message-post-video")
 
@@ -4618,11 +4618,11 @@ func TestMessageServicePostMessageInfersVideoProcessingAssetIDs(t *testing.T) {
 		t.Fatalf("UploadAttachment original: %v", err)
 	}
 
-	if _, err := env.messages.PostMessage(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.PostMessageRequest{
+	if _, err := env.messages.CreateMessage(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.CreateMessageRequest{
 		RoomId:             room.Id,
 		AttachmentAssetIds: []string{original.Id},
 	})); err != nil {
-		t.Fatalf("PostMessage: %v", err)
+		t.Fatalf("CreateMessage: %v", err)
 	}
 
 	manifest, ok := env.core.Assets.VideoAttachmentManifest(original.Id)
@@ -4631,24 +4631,24 @@ func TestMessageServicePostMessageInfersVideoProcessingAssetIDs(t *testing.T) {
 	}
 }
 
-func TestMessageServicePostMessageReturnsRenderableTimelineEvent(t *testing.T) {
+func TestMessageServiceCreateMessageReturnsRenderableTimelineEvent(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("message-post-success")
 
-	resp, err := env.messages.PostMessage(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.PostMessageRequest{
+	resp, err := env.messages.CreateMessage(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.CreateMessageRequest{
 		RoomId: room.Id,
 		Body:   "hello over connect",
 	}))
 	if err != nil {
-		t.Fatalf("PostMessage: %v", err)
+		t.Fatalf("CreateMessage: %v", err)
 	}
 	event := resp.Msg.GetEvent()
 	if event == nil {
-		t.Fatalf("PostMessage event = nil, response = %+v", resp.Msg)
+		t.Fatalf("CreateMessage event = nil, response = %+v", resp.Msg)
 	}
 	message := event.GetMessagePosted()
 	if message == nil {
-		t.Fatalf("PostMessage payload = %T, want message_posted", event.GetEvent())
+		t.Fatalf("CreateMessage payload = %T, want message_posted", event.GetEvent())
 	}
 	if message.Body == nil || message.GetBody() != "hello over connect" {
 		t.Fatalf("message body = %q present=%v, want posted body", message.GetBody(), message.Body != nil)
@@ -4658,11 +4658,11 @@ func TestMessageServicePostMessageReturnsRenderableTimelineEvent(t *testing.T) {
 	}
 }
 
-func TestMessageServicePostMessageUploadsAttachments(t *testing.T) {
+func TestMessageServiceCreateMessageUploadsAttachments(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("message-post-upload")
 
-	resp, err := env.messages.PostMessage(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.PostMessageRequest{
+	resp, err := env.messages.CreateMessage(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.CreateMessageRequest{
 		RoomId: room.Id,
 		Attachments: []*apiv1.MessageAttachmentUpload{{
 			Filename:    "note.txt",
@@ -4671,11 +4671,11 @@ func TestMessageServicePostMessageUploadsAttachments(t *testing.T) {
 		}},
 	}))
 	if err != nil {
-		t.Fatalf("PostMessage: %v", err)
+		t.Fatalf("CreateMessage: %v", err)
 	}
 	message := resp.Msg.GetEvent().GetMessagePosted()
 	if message == nil {
-		t.Fatalf("PostMessage payload = %T, want message_posted", resp.Msg.GetEvent().GetEvent())
+		t.Fatalf("CreateMessage payload = %T, want message_posted", resp.Msg.GetEvent().GetEvent())
 	}
 	attachments := message.GetAttachments()
 	if len(attachments) != 1 {
@@ -4689,7 +4689,7 @@ func TestMessageServicePostMessageUploadsAttachments(t *testing.T) {
 	}
 }
 
-func TestMessageServicePostMessageAttachmentPreflightDoesNotCreateAssets(t *testing.T) {
+func TestMessageServiceCreateMessageAttachmentPreflightDoesNotCreateAssets(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("message-post-upload-preflight")
 	ctx := withCaller(env.ctx, env.viewer)
@@ -4701,7 +4701,7 @@ func TestMessageServicePostMessageAttachmentPreflightDoesNotCreateAssets(t *test
 	if err != nil {
 		t.Fatalf("GetAssetCount before denied post: %v", err)
 	}
-	_, err = env.messages.PostMessage(ctx, connect.NewRequest(&apiv1.PostMessageRequest{
+	_, err = env.messages.CreateMessage(ctx, connect.NewRequest(&apiv1.CreateMessageRequest{
 		RoomId: room.Id,
 		Attachments: []*apiv1.MessageAttachmentUpload{{
 			Filename:    "note.txt",
@@ -4710,7 +4710,7 @@ func TestMessageServicePostMessageAttachmentPreflightDoesNotCreateAssets(t *test
 		}},
 	}))
 	if connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Fatalf("denied attachment PostMessage code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
+		t.Fatalf("denied attachment CreateMessage code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
 	}
 	after, err := env.core.GetAssetCount(env.ctx)
 	if err != nil {
@@ -4721,7 +4721,7 @@ func TestMessageServicePostMessageAttachmentPreflightDoesNotCreateAssets(t *test
 	}
 }
 
-func TestMessageServicePostMessageMentionConfirmationDoesNotCreateAssets(t *testing.T) {
+func TestMessageServiceCreateMessageMentionConfirmationDoesNotCreateAssets(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("upload-mention-confirm")
 	ctx := withCaller(env.ctx, env.viewer)
@@ -4740,7 +4740,7 @@ func TestMessageServicePostMessageMentionConfirmationDoesNotCreateAssets(t *test
 	if err != nil {
 		t.Fatalf("GetAssetCount before challenged post: %v", err)
 	}
-	resp, err := env.messages.PostMessage(ctx, connect.NewRequest(&apiv1.PostMessageRequest{
+	resp, err := env.messages.CreateMessage(ctx, connect.NewRequest(&apiv1.CreateMessageRequest{
 		RoomId: room.Id,
 		Body:   "@all please review this attachment",
 		Attachments: []*apiv1.MessageAttachmentUpload{{
@@ -4750,11 +4750,11 @@ func TestMessageServicePostMessageMentionConfirmationDoesNotCreateAssets(t *test
 		}},
 	}))
 	if err != nil {
-		t.Fatalf("PostMessage: %v", err)
+		t.Fatalf("CreateMessage: %v", err)
 	}
 	challenge := resp.Msg.GetMentionConfirmation()
 	if challenge == nil {
-		t.Fatalf("PostMessage response = %+v, want mention confirmation", resp.Msg)
+		t.Fatalf("CreateMessage response = %+v, want mention confirmation", resp.Msg)
 	}
 	if challenge.GetRecipientCount() != int32(core.LargeMentionNotificationThreshold+1) {
 		t.Fatalf("RecipientCount = %d, want %d", challenge.GetRecipientCount(), core.LargeMentionNotificationThreshold+1)
@@ -4771,7 +4771,7 @@ func TestMessageServicePostMessageMentionConfirmationDoesNotCreateAssets(t *test
 	}
 }
 
-func TestMessageServicePostMessageValidationPreflightDoesNotCreateAssets(t *testing.T) {
+func TestMessageServiceCreateMessageValidationPreflightDoesNotCreateAssets(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("upload-validation")
 	ctx := withCaller(env.ctx, env.viewer)
@@ -4783,12 +4783,12 @@ func TestMessageServicePostMessageValidationPreflightDoesNotCreateAssets(t *test
 
 	tests := []struct {
 		name string
-		req  *apiv1.PostMessageRequest
+		req  *apiv1.CreateMessageRequest
 		code connect.Code
 	}{
 		{
 			name: "missing thread root",
-			req: &apiv1.PostMessageRequest{
+			req: &apiv1.CreateMessageRequest{
 				RoomId:            room.Id,
 				Body:              "reply with file",
 				ThreadRootEventId: "missing-thread-root",
@@ -4802,7 +4802,7 @@ func TestMessageServicePostMessageValidationPreflightDoesNotCreateAssets(t *test
 		},
 		{
 			name: "thread reply as thread root",
-			req: &apiv1.PostMessageRequest{
+			req: &apiv1.CreateMessageRequest{
 				RoomId:            room.Id,
 				Body:              "reply with file",
 				ThreadRootEventId: reply.Id,
@@ -4816,7 +4816,7 @@ func TestMessageServicePostMessageValidationPreflightDoesNotCreateAssets(t *test
 		},
 		{
 			name: "missing in-reply-to target",
-			req: &apiv1.PostMessageRequest{
+			req: &apiv1.CreateMessageRequest{
 				RoomId:    room.Id,
 				Body:      "reply with file",
 				InReplyTo: "missing-reply-target",
@@ -4830,7 +4830,7 @@ func TestMessageServicePostMessageValidationPreflightDoesNotCreateAssets(t *test
 		},
 		{
 			name: "other room in-reply-to target",
-			req: &apiv1.PostMessageRequest{
+			req: &apiv1.CreateMessageRequest{
 				RoomId:    room.Id,
 				Body:      "reply with file",
 				InReplyTo: otherRoomMessage.Id,
@@ -4844,7 +4844,7 @@ func TestMessageServicePostMessageValidationPreflightDoesNotCreateAssets(t *test
 		},
 		{
 			name: "link preview URL too long",
-			req: &apiv1.PostMessageRequest{
+			req: &apiv1.CreateMessageRequest{
 				RoomId: room.Id,
 				Body:   "message with bad preview and file",
 				LinkPreview: &apiv1.LinkPreview{
@@ -4866,9 +4866,9 @@ func TestMessageServicePostMessageValidationPreflightDoesNotCreateAssets(t *test
 			if err != nil {
 				t.Fatalf("GetAssetCount before post: %v", err)
 			}
-			_, err = env.messages.PostMessage(ctx, connect.NewRequest(tt.req))
+			_, err = env.messages.CreateMessage(ctx, connect.NewRequest(tt.req))
 			if connect.CodeOf(err) != tt.code {
-				t.Fatalf("PostMessage code = %v, want %v", connect.CodeOf(err), tt.code)
+				t.Fatalf("CreateMessage code = %v, want %v", connect.CodeOf(err), tt.code)
 			}
 			after, err := env.core.GetAssetCount(env.ctx)
 			if err != nil {
@@ -4881,7 +4881,7 @@ func TestMessageServicePostMessageValidationPreflightDoesNotCreateAssets(t *test
 	}
 }
 
-func TestMessageServicePostMessageRejectsVideoUploadWhenProcessingDisabled(t *testing.T) {
+func TestMessageServiceCreateMessageRejectsVideoUploadWhenProcessingDisabled(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("message-upload-video-disabled")
 	ctx := withCaller(env.ctx, env.viewer)
@@ -4890,7 +4890,7 @@ func TestMessageServicePostMessageRejectsVideoUploadWhenProcessingDisabled(t *te
 	if err != nil {
 		t.Fatalf("GetAssetCount before video post: %v", err)
 	}
-	_, err = env.messages.PostMessage(ctx, connect.NewRequest(&apiv1.PostMessageRequest{
+	_, err = env.messages.CreateMessage(ctx, connect.NewRequest(&apiv1.CreateMessageRequest{
 		RoomId: room.Id,
 		Attachments: []*apiv1.MessageAttachmentUpload{
 			{
@@ -4906,7 +4906,7 @@ func TestMessageServicePostMessageRejectsVideoUploadWhenProcessingDisabled(t *te
 		},
 	}))
 	if connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("video upload PostMessage code = %v, want %v", connect.CodeOf(err), connect.CodeInvalidArgument)
+		t.Fatalf("video upload CreateMessage code = %v, want %v", connect.CodeOf(err), connect.CodeInvalidArgument)
 	}
 	after, err := env.core.GetAssetCount(env.ctx)
 	if err != nil {
@@ -5074,7 +5074,7 @@ func TestMessageServiceDeleteAttachmentAndLinkPreviewAuthorOnly(t *testing.T) {
 	}
 	attachmentEvent, err := env.core.PostMessage(env.ctx, core.KindChannel, room.Id, env.viewer.Id, "with attachment", []string{attachment.Id}, "", "", nil, false)
 	if err != nil {
-		t.Fatalf("PostMessage attachment: %v", err)
+		t.Fatalf("CreateMessage attachment: %v", err)
 	}
 	previewURL := "https://example.test/preview"
 	previewEvent, err := env.core.PostMessage(env.ctx, core.KindChannel, room.Id, env.viewer.Id, "with preview", nil, "", "", &corev1.LinkPreview{
@@ -5082,7 +5082,7 @@ func TestMessageServiceDeleteAttachmentAndLinkPreviewAuthorOnly(t *testing.T) {
 		Title: "Preview",
 	}, false)
 	if err != nil {
-		t.Fatalf("PostMessage preview: %v", err)
+		t.Fatalf("CreateMessage preview: %v", err)
 	}
 
 	other, err := env.core.CreateUser(env.ctx, core.SystemActorID, "message-partial-other", "Message Partial Other", "password")
@@ -5274,7 +5274,7 @@ func TestAttachmentServiceListsAndRefreshesRoomAttachments(t *testing.T) {
 	}
 	root, err := env.core.PostMessage(env.ctx, core.KindChannel, room.Id, env.viewer.Id, "root file", []string{rootAttachment.Id}, "", "", nil, false)
 	if err != nil {
-		t.Fatalf("PostMessage root: %v", err)
+		t.Fatalf("CreateMessage root: %v", err)
 	}
 	threadAttachment, err := env.core.UploadAttachment(env.ctx, env.viewer.Id, room.Id, "thread.png", "image/png", bytes.NewReader(connectAPITestPNG()))
 	if err != nil {
@@ -5282,11 +5282,11 @@ func TestAttachmentServiceListsAndRefreshesRoomAttachments(t *testing.T) {
 	}
 	reply, err := env.core.PostMessage(env.ctx, core.KindChannel, room.Id, env.viewer.Id, "thread file", []string{threadAttachment.Id}, root.Id, "", nil, false)
 	if err != nil {
-		t.Fatalf("PostMessage reply: %v", err)
+		t.Fatalf("CreateMessage reply: %v", err)
 	}
 	empty, err := env.core.PostMessage(env.ctx, core.KindChannel, room.Id, env.viewer.Id, "no files", nil, "", "", nil, false)
 	if err != nil {
-		t.Fatalf("PostMessage empty: %v", err)
+		t.Fatalf("CreateMessage empty: %v", err)
 	}
 
 	ctx := withCaller(env.ctx, env.viewer)
@@ -5651,7 +5651,7 @@ func TestRoomTimelineServiceHydratesProcessedVideoAttachments(t *testing.T) {
 
 	event, err := env.core.PostMessage(env.ctx, core.KindChannel, room.Id, env.viewer.Id, "video", []string{original.Id}, "", "", nil, false)
 	if err != nil {
-		t.Fatalf("PostMessage: %v", err)
+		t.Fatalf("CreateMessage: %v", err)
 	}
 	if err := env.core.RecordAssetProcessed(env.ctx, core.SystemActorID, core.KindChannel, room.Id, event.Id, original.Id, 1234, 1280, 720, thumbnail, []*corev1.VideoVariant{
 		{

@@ -568,9 +568,9 @@ func TestConnectAPIValidatesRequiredRequestFields(t *testing.T) {
 
 	t.Run("message room id", func(t *testing.T) {
 		client := apiv1connect.NewMessageServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
-		req := connect.NewRequest(&apiv1.PostMessageRequest{Body: "hello"})
+		req := connect.NewRequest(&apiv1.CreateMessageRequest{Body: "hello"})
 		authorize(req)
-		_, err := client.PostMessage(ctx, req)
+		_, err := client.CreateMessage(ctx, req)
 		requireInvalidArgument(t, err)
 	})
 
@@ -679,9 +679,9 @@ func TestConnectAPIAuthenticatesBeforeValidation(t *testing.T) {
 	_, ts := setupConnectTestServer(t, config.AuthConfig{})
 
 	client := apiv1connect.NewMessageServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
-	_, err := client.PostMessage(context.Background(), connect.NewRequest(&apiv1.PostMessageRequest{}))
+	_, err := client.CreateMessage(context.Background(), connect.NewRequest(&apiv1.CreateMessageRequest{}))
 	if connect.CodeOf(err) != connect.CodeUnauthenticated {
-		t.Fatalf("PostMessage err = %v, want unauthenticated", err)
+		t.Fatalf("CreateMessage err = %v, want unauthenticated", err)
 	}
 }
 

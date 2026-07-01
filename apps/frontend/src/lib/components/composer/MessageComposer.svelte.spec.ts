@@ -40,7 +40,7 @@ function postedMessageEvent(
   };
 }
 
-const mutationData = { postMessage: postedMessageEvent() };
+const mutationData = { createMessage: postedMessageEvent() };
 const updateMutationData = { updateMessage: true };
 const mentionConfirmationData = {
   mentionConfirmation: {
@@ -51,7 +51,7 @@ const mentionConfirmationData = {
 const prepareFilesMock = vi.hoisted(() => vi.fn());
 const mutationMock = vi.hoisted(() => vi.fn());
 const queryMock = vi.hoisted(() => vi.fn());
-const postMessageConnectMock = vi.hoisted(() => vi.fn());
+const createMessageConnectMock = vi.hoisted(() => vi.fn());
 const updateMessageConnectMock = vi.hoisted(() => vi.fn());
 const fetchLinkPreviewConnectMock = vi.hoisted(() => vi.fn());
 const roomStateMock = vi.hoisted(() => ({
@@ -111,7 +111,7 @@ vi.mock('$lib/state/server/connection.svelte', () => ({
 
 vi.mock('@chatto/api-client/messages', () => ({
   createMessageAPI: () => ({
-    postMessage: postMessageConnectMock,
+    createMessage: createMessageConnectMock,
     updateMessage: updateMessageConnectMock
   })
 }));
@@ -362,9 +362,9 @@ describe('MessageComposer', () => {
         return Promise.resolve({ data: updateMutationData, error: null });
       return Promise.resolve({ data: mutationData, error: null });
     });
-    postMessageConnectMock.mockReset();
-    postMessageConnectMock.mockImplementation(async (input) => {
-      const response = await mutationMock('connectPostMessage', {
+    createMessageConnectMock.mockReset();
+    createMessageConnectMock.mockImplementation(async (input) => {
+      const response = await mutationMock('connectCreateMessage', {
         input: { ...input, attachments: input.attachments ?? null }
       });
       if (response.data?.mentionConfirmation) {
@@ -377,7 +377,7 @@ describe('MessageComposer', () => {
       if (response.error) throw response.error;
       return {
         kind: 'event',
-        event: response.data?.postMessage ?? null
+        event: response.data?.createMessage ?? null
       };
     });
     updateMessageConnectMock.mockReset();

@@ -18,19 +18,19 @@ type messageService struct {
 	api *API
 }
 
-func (s *messageService) PostMessage(ctx context.Context, req *connect.Request[apiv1.PostMessageRequest]) (*connect.Response[apiv1.PostMessageResponse], error) {
+func (s *messageService) CreateMessage(ctx context.Context, req *connect.Request[apiv1.CreateMessageRequest]) (*connect.Response[apiv1.CreateMessageResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	attachmentAssetIDs, videoProcessingAssetIDs, challenge, err := s.uploadPostAttachments(ctx, caller.UserID, req.Msg)
+	attachmentAssetIDs, videoProcessingAssetIDs, challenge, err := s.uploadCreateMessageAttachments(ctx, caller.UserID, req.Msg)
 	if err != nil {
 		return nil, connectError(err)
 	}
 	if challenge != nil {
-		return connect.NewResponse(&apiv1.PostMessageResponse{
-			Result: &apiv1.PostMessageResponse_MentionConfirmation{
+		return connect.NewResponse(&apiv1.CreateMessageResponse{
+			Result: &apiv1.CreateMessageResponse_MentionConfirmation{
 				MentionConfirmation: &apiv1.MentionConfirmationChallenge{
 					RecipientCount: int32(challenge.RecipientCount),
 					Token:          challenge.Token,
@@ -55,11 +55,11 @@ func (s *messageService) PostMessage(ctx context.Context, req *connect.Request[a
 		return nil, connectError(err)
 	}
 	if result == nil {
-		return nil, connect.NewError(connect.CodeInternal, errors.New("message post returned no result"))
+		return nil, connect.NewError(connect.CodeInternal, errors.New("message create returned no result"))
 	}
 	if challenge := result.MentionConfirmation; challenge != nil {
-		return connect.NewResponse(&apiv1.PostMessageResponse{
-			Result: &apiv1.PostMessageResponse_MentionConfirmation{
+		return connect.NewResponse(&apiv1.CreateMessageResponse{
+			Result: &apiv1.CreateMessageResponse_MentionConfirmation{
 				MentionConfirmation: &apiv1.MentionConfirmationChallenge{
 					RecipientCount: int32(challenge.RecipientCount),
 					Token:          challenge.Token,
@@ -68,7 +68,7 @@ func (s *messageService) PostMessage(ctx context.Context, req *connect.Request[a
 		}), nil
 	}
 	if result.Event == nil {
-		return nil, connect.NewError(connect.CodeInternal, errors.New("message post returned no event"))
+		return nil, connect.NewError(connect.CodeInternal, errors.New("message create returned no event"))
 	}
 
 	roomID := result.Event.GetMessagePosted().GetRoomId()
@@ -80,13 +80,13 @@ func (s *messageService) PostMessage(ctx context.Context, req *connect.Request[a
 	if err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&apiv1.PostMessageResponse{
-		Result:   &apiv1.PostMessageResponse_Event{Event: apiEvent},
+	return connect.NewResponse(&apiv1.CreateMessageResponse{
+		Result:   &apiv1.CreateMessageResponse_Event{Event: apiEvent},
 		Includes: includes,
 	}), nil
 }
 
-func (s *messageService) uploadPostAttachments(ctx context.Context, actorID string, req *apiv1.PostMessageRequest) ([]string, []string, *core.MentionConfirmationChallenge, error) {
+func (s *messageService) uploadCreateMessageAttachments(ctx context.Context, actorID string, req *apiv1.CreateMessageRequest) ([]string, []string, *core.MentionConfirmationChallenge, error) {
 	attachmentAssetIDs := append([]string(nil), req.GetAttachmentAssetIds()...)
 	if len(req.GetAttachments()) == 0 {
 		return attachmentAssetIDs, nil, nil, nil

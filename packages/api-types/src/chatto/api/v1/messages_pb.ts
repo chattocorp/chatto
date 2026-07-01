@@ -70,13 +70,13 @@ export class MessageAttachmentUpload extends Message<MessageAttachmentUpload> {
 }
 
 /**
- * Request to post a message in a room or thread.
+ * Request to create a message in a room or thread.
  *
- * @generated from message chatto.api.v1.PostMessageRequest
+ * @generated from message chatto.api.v1.CreateMessageRequest
  */
-export class PostMessageRequest extends Message<PostMessageRequest> {
+export class CreateMessageRequest extends Message<CreateMessageRequest> {
   /**
-   * Required. Room where the message should be posted.
+   * Required. Room where the message should be created.
    *
    * @generated from field: string room_id = 1;
    */
@@ -140,13 +140,13 @@ export class PostMessageRequest extends Message<PostMessageRequest> {
    */
   attachments: MessageAttachmentUpload[] = [];
 
-  constructor(data?: PartialMessage<PostMessageRequest>) {
+  constructor(data?: PartialMessage<CreateMessageRequest>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.PostMessageRequest";
+  static readonly typeName = "chatto.api.v1.CreateMessageRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "body", kind: "scalar", T: 9 /* ScalarType.STRING */ },
@@ -159,20 +159,20 @@ export class PostMessageRequest extends Message<PostMessageRequest> {
     { no: 9, name: "attachments", kind: "message", T: MessageAttachmentUpload, repeated: true },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PostMessageRequest {
-    return new PostMessageRequest().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CreateMessageRequest {
+    return new CreateMessageRequest().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): PostMessageRequest {
-    return new PostMessageRequest().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): CreateMessageRequest {
+    return new CreateMessageRequest().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): PostMessageRequest {
-    return new PostMessageRequest().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): CreateMessageRequest {
+    return new CreateMessageRequest().fromJsonString(jsonString, options);
   }
 
-  static equals(a: PostMessageRequest | PlainMessage<PostMessageRequest> | undefined, b: PostMessageRequest | PlainMessage<PostMessageRequest> | undefined): boolean {
-    return proto3.util.equals(PostMessageRequest, a, b);
+  static equals(a: CreateMessageRequest | PlainMessage<CreateMessageRequest> | undefined, b: CreateMessageRequest | PlainMessage<CreateMessageRequest> | undefined): boolean {
+    return proto3.util.equals(CreateMessageRequest, a, b);
   }
 }
 
@@ -226,17 +226,17 @@ export class MentionConfirmationChallenge extends Message<MentionConfirmationCha
 }
 
 /**
- * Result of posting a message.
+ * Result of creating a message.
  *
- * @generated from message chatto.api.v1.PostMessageResponse
+ * @generated from message chatto.api.v1.CreateMessageResponse
  */
-export class PostMessageResponse extends Message<PostMessageResponse> {
+export class CreateMessageResponse extends Message<CreateMessageResponse> {
   /**
-   * @generated from oneof chatto.api.v1.PostMessageResponse.result
+   * @generated from oneof chatto.api.v1.CreateMessageResponse.result
    */
   result: {
     /**
-     * Renderable timeline event for the posted message.
+     * Renderable timeline event for the created message.
      *
      * @generated from field: chatto.api.v1.RoomTimelineEvent event = 1;
      */
@@ -253,39 +253,39 @@ export class PostMessageResponse extends Message<PostMessageResponse> {
   } | { case: undefined; value?: undefined } = { case: undefined };
 
   /**
-   * Related entities needed to render event when a message was posted.
+   * Related entities needed to render event when a message was created.
    *
    * @generated from field: chatto.api.v1.RoomTimelineIncludes includes = 3;
    */
   includes?: RoomTimelineIncludes;
 
-  constructor(data?: PartialMessage<PostMessageResponse>) {
+  constructor(data?: PartialMessage<CreateMessageResponse>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.PostMessageResponse";
+  static readonly typeName = "chatto.api.v1.CreateMessageResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "event", kind: "message", T: RoomTimelineEvent, oneof: "result" },
     { no: 2, name: "mention_confirmation", kind: "message", T: MentionConfirmationChallenge, oneof: "result" },
     { no: 3, name: "includes", kind: "message", T: RoomTimelineIncludes },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PostMessageResponse {
-    return new PostMessageResponse().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CreateMessageResponse {
+    return new CreateMessageResponse().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): PostMessageResponse {
-    return new PostMessageResponse().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): CreateMessageResponse {
+    return new CreateMessageResponse().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): PostMessageResponse {
-    return new PostMessageResponse().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): CreateMessageResponse {
+    return new CreateMessageResponse().fromJsonString(jsonString, options);
   }
 
-  static equals(a: PostMessageResponse | PlainMessage<PostMessageResponse> | undefined, b: PostMessageResponse | PlainMessage<PostMessageResponse> | undefined): boolean {
-    return proto3.util.equals(PostMessageResponse, a, b);
+  static equals(a: CreateMessageResponse | PlainMessage<CreateMessageResponse> | undefined, b: CreateMessageResponse | PlainMessage<CreateMessageResponse> | undefined): boolean {
+    return proto3.util.equals(CreateMessageResponse, a, b);
   }
 }
 

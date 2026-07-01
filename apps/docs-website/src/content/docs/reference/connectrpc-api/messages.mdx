@@ -1,6 +1,6 @@
 ---
 title: MessageService
-description: Message posting, editing, deletion, link-preview, attachment, and typing RPCs.
+description: Message creation, editing, deletion, link-preview, attachment, and typing RPCs.
 editUrl: false
 ---
 
@@ -18,30 +18,30 @@ Shared message and enum definitions are documented in [Shared Types And Enums](/
 
 ## MessageService
 
-Posts messages into room and thread timelines.
+Creates messages in room and thread timelines.
 
-<a id="chatto-api-v1-MessageService-PostMessage"></a>
+<a id="chatto-api-v1-MessageService-CreateMessage"></a>
 
-### PostMessage
+### CreateMessage
 
-Posts a message for the current user. The user must be a room member and
+Creates a message for the current user. The user must be a room member and
 must have message.post for room messages or message.post-in-thread for
 thread replies. Echoing a thread reply also requires message.echo and
 message.post.
 
 ```http
-POST /api/connect/chatto.api.v1.MessageService/PostMessage
+POST /api/connect/chatto.api.v1.MessageService/CreateMessage
 ```
 
-<a id="chatto-api-v1-PostMessageRequest"></a>
+<a id="chatto-api-v1-CreateMessageRequest"></a>
 
-#### Input: PostMessageRequest
+#### Input: CreateMessageRequest
 
-Request to post a message in a room or thread.
+Request to create a message in a room or thread.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `room_id` | `string` | Required. Room where the message should be posted. |
+| `room_id` | `string` | Required. Room where the message should be created. |
 | `body` | `string` | Message body text. Required unless attachments or attachment_asset_ids is non-empty. |
 | `attachment_asset_ids` | `repeated string` | Existing room-scoped attachment asset IDs to include with the message. |
 | `thread_root_event_id` | `string` | Event ID of the thread root message when posting a thread reply. |
@@ -52,17 +52,17 @@ Request to post a message in a room or thread.
 | `attachments` | repeated [`MessageAttachmentUpload`](/reference/connectrpc-api/types/#chatto-api-v1-MessageAttachmentUpload) | Browser-uploaded attachments to include with the message. |
 
 
-<a id="chatto-api-v1-PostMessageResponse"></a>
+<a id="chatto-api-v1-CreateMessageResponse"></a>
 
-#### Result: PostMessageResponse
+#### Result: CreateMessageResponse
 
-Result of posting a message.
+Result of creating a message.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `result.event` | [`RoomTimelineEvent`](/reference/connectrpc-api/types/#chatto-api-v1-RoomTimelineEvent) | Renderable timeline event for the posted message. |
+| `result.event` | [`RoomTimelineEvent`](/reference/connectrpc-api/types/#chatto-api-v1-RoomTimelineEvent) | Renderable timeline event for the created message. |
 | `result.mention_confirmation` | [`MentionConfirmationChallenge`](/reference/connectrpc-api/types/#chatto-api-v1-MentionConfirmationChallenge) | Challenge shown when a message would notify many people. |
-| `includes` | [`RoomTimelineIncludes`](/reference/connectrpc-api/types/#chatto-api-v1-RoomTimelineIncludes) | Related entities needed to render event when a message was posted. |
+| `includes` | [`RoomTimelineIncludes`](/reference/connectrpc-api/types/#chatto-api-v1-RoomTimelineIncludes) | Related entities needed to render event when a message was created. |
 
 
 <a id="chatto-api-v1-MessageService-UpdateMessage"></a>

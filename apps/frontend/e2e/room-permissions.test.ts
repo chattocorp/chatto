@@ -132,7 +132,7 @@ async function postMessageViaAPI(
   roomId: string,
   body: string
 ): Promise<{ id: string } | null> {
-  const resp = await connectPostResponse(page, 'chatto.api.v1.MessageService/PostMessage', {
+  const resp = await connectPostResponse(page, 'chatto.api.v1.MessageService/CreateMessage', {
     roomId,
     body
   });
@@ -149,7 +149,7 @@ async function replyToMessageViaAPI(
   inThread: string,
   body: string
 ): Promise<{ id: string } | null> {
-  const resp = await connectPostResponse(page, 'chatto.api.v1.MessageService/PostMessage', {
+  const resp = await connectPostResponse(page, 'chatto.api.v1.MessageService/CreateMessage', {
     roomId,
     body,
     threadRootEventId: inThread

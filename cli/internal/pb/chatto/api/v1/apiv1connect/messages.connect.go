@@ -33,9 +33,9 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
-	// MessageServicePostMessageProcedure is the fully-qualified name of the MessageService's
-	// PostMessage RPC.
-	MessageServicePostMessageProcedure = "/chatto.api.v1.MessageService/PostMessage"
+	// MessageServiceCreateMessageProcedure is the fully-qualified name of the MessageService's
+	// CreateMessage RPC.
+	MessageServiceCreateMessageProcedure = "/chatto.api.v1.MessageService/CreateMessage"
 	// MessageServiceUpdateMessageProcedure is the fully-qualified name of the MessageService's
 	// UpdateMessage RPC.
 	MessageServiceUpdateMessageProcedure = "/chatto.api.v1.MessageService/UpdateMessage"
@@ -55,11 +55,11 @@ const (
 
 // MessageServiceClient is a client for the chatto.api.v1.MessageService service.
 type MessageServiceClient interface {
-	// Posts a message for the current user. The user must be a room member and
+	// Creates a message for the current user. The user must be a room member and
 	// must have message.post for room messages or message.post-in-thread for
 	// thread replies. Echoing a thread reply also requires message.echo and
 	// message.post.
-	PostMessage(context.Context, *connect.Request[v1.PostMessageRequest]) (*connect.Response[v1.PostMessageResponse], error)
+	CreateMessage(context.Context, *connect.Request[v1.CreateMessageRequest]) (*connect.Response[v1.CreateMessageResponse], error)
 	// Edits a message body. Authors can edit their own messages within the edit
 	// window. Non-authors need message.manage and cannot change channel echo
 	// state.
@@ -87,10 +87,10 @@ func NewMessageServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 	baseURL = strings.TrimRight(baseURL, "/")
 	messageServiceMethods := v1.File_chatto_api_v1_messages_proto.Services().ByName("MessageService").Methods()
 	return &messageServiceClient{
-		postMessage: connect.NewClient[v1.PostMessageRequest, v1.PostMessageResponse](
+		createMessage: connect.NewClient[v1.CreateMessageRequest, v1.CreateMessageResponse](
 			httpClient,
-			baseURL+MessageServicePostMessageProcedure,
-			connect.WithSchema(messageServiceMethods.ByName("PostMessage")),
+			baseURL+MessageServiceCreateMessageProcedure,
+			connect.WithSchema(messageServiceMethods.ByName("CreateMessage")),
 			connect.WithClientOptions(opts...),
 		),
 		updateMessage: connect.NewClient[v1.UpdateMessageRequest, v1.UpdateMessageResponse](
@@ -128,7 +128,7 @@ func NewMessageServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 
 // messageServiceClient implements MessageServiceClient.
 type messageServiceClient struct {
-	postMessage         *connect.Client[v1.PostMessageRequest, v1.PostMessageResponse]
+	createMessage       *connect.Client[v1.CreateMessageRequest, v1.CreateMessageResponse]
 	updateMessage       *connect.Client[v1.UpdateMessageRequest, v1.UpdateMessageResponse]
 	deleteMessage       *connect.Client[v1.DeleteMessageRequest, v1.DeleteMessageResponse]
 	deleteAttachment    *connect.Client[v1.DeleteAttachmentRequest, v1.DeleteAttachmentResponse]
@@ -136,9 +136,9 @@ type messageServiceClient struct {
 	sendTypingIndicator *connect.Client[v1.SendTypingIndicatorRequest, v1.SendTypingIndicatorResponse]
 }
 
-// PostMessage calls chatto.api.v1.MessageService.PostMessage.
-func (c *messageServiceClient) PostMessage(ctx context.Context, req *connect.Request[v1.PostMessageRequest]) (*connect.Response[v1.PostMessageResponse], error) {
-	return c.postMessage.CallUnary(ctx, req)
+// CreateMessage calls chatto.api.v1.MessageService.CreateMessage.
+func (c *messageServiceClient) CreateMessage(ctx context.Context, req *connect.Request[v1.CreateMessageRequest]) (*connect.Response[v1.CreateMessageResponse], error) {
+	return c.createMessage.CallUnary(ctx, req)
 }
 
 // UpdateMessage calls chatto.api.v1.MessageService.UpdateMessage.
@@ -168,11 +168,11 @@ func (c *messageServiceClient) SendTypingIndicator(ctx context.Context, req *con
 
 // MessageServiceHandler is an implementation of the chatto.api.v1.MessageService service.
 type MessageServiceHandler interface {
-	// Posts a message for the current user. The user must be a room member and
+	// Creates a message for the current user. The user must be a room member and
 	// must have message.post for room messages or message.post-in-thread for
 	// thread replies. Echoing a thread reply also requires message.echo and
 	// message.post.
-	PostMessage(context.Context, *connect.Request[v1.PostMessageRequest]) (*connect.Response[v1.PostMessageResponse], error)
+	CreateMessage(context.Context, *connect.Request[v1.CreateMessageRequest]) (*connect.Response[v1.CreateMessageResponse], error)
 	// Edits a message body. Authors can edit their own messages within the edit
 	// window. Non-authors need message.manage and cannot change channel echo
 	// state.
@@ -196,10 +196,10 @@ type MessageServiceHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewMessageServiceHandler(svc MessageServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	messageServiceMethods := v1.File_chatto_api_v1_messages_proto.Services().ByName("MessageService").Methods()
-	messageServicePostMessageHandler := connect.NewUnaryHandler(
-		MessageServicePostMessageProcedure,
-		svc.PostMessage,
-		connect.WithSchema(messageServiceMethods.ByName("PostMessage")),
+	messageServiceCreateMessageHandler := connect.NewUnaryHandler(
+		MessageServiceCreateMessageProcedure,
+		svc.CreateMessage,
+		connect.WithSchema(messageServiceMethods.ByName("CreateMessage")),
 		connect.WithHandlerOptions(opts...),
 	)
 	messageServiceUpdateMessageHandler := connect.NewUnaryHandler(
@@ -234,8 +234,8 @@ func NewMessageServiceHandler(svc MessageServiceHandler, opts ...connect.Handler
 	)
 	return "/chatto.api.v1.MessageService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case MessageServicePostMessageProcedure:
-			messageServicePostMessageHandler.ServeHTTP(w, r)
+		case MessageServiceCreateMessageProcedure:
+			messageServiceCreateMessageHandler.ServeHTTP(w, r)
 		case MessageServiceUpdateMessageProcedure:
 			messageServiceUpdateMessageHandler.ServeHTTP(w, r)
 		case MessageServiceDeleteMessageProcedure:
@@ -255,8 +255,8 @@ func NewMessageServiceHandler(svc MessageServiceHandler, opts ...connect.Handler
 // UnimplementedMessageServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedMessageServiceHandler struct{}
 
-func (UnimplementedMessageServiceHandler) PostMessage(context.Context, *connect.Request[v1.PostMessageRequest]) (*connect.Response[v1.PostMessageResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.MessageService.PostMessage is not implemented"))
+func (UnimplementedMessageServiceHandler) CreateMessage(context.Context, *connect.Request[v1.CreateMessageRequest]) (*connect.Response[v1.CreateMessageResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.MessageService.CreateMessage is not implemented"))
 }
 
 func (UnimplementedMessageServiceHandler) UpdateMessage(context.Context, *connect.Request[v1.UpdateMessageRequest]) (*connect.Response[v1.UpdateMessageResponse], error) {

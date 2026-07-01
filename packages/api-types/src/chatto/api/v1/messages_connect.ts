@@ -3,11 +3,11 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { DeleteAttachmentRequest, DeleteAttachmentResponse, DeleteLinkPreviewRequest, DeleteLinkPreviewResponse, DeleteMessageRequest, DeleteMessageResponse, PostMessageRequest, PostMessageResponse, SendTypingIndicatorRequest, SendTypingIndicatorResponse, UpdateMessageRequest, UpdateMessageResponse } from "./messages_pb.js";
+import { CreateMessageRequest, CreateMessageResponse, DeleteAttachmentRequest, DeleteAttachmentResponse, DeleteLinkPreviewRequest, DeleteLinkPreviewResponse, DeleteMessageRequest, DeleteMessageResponse, SendTypingIndicatorRequest, SendTypingIndicatorResponse, UpdateMessageRequest, UpdateMessageResponse } from "./messages_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
- * Posts messages into room and thread timelines.
+ * Creates messages in room and thread timelines.
  *
  * @generated from service chatto.api.v1.MessageService
  */
@@ -15,17 +15,17 @@ export const MessageService = {
   typeName: "chatto.api.v1.MessageService",
   methods: {
     /**
-     * Posts a message for the current user. The user must be a room member and
+     * Creates a message for the current user. The user must be a room member and
      * must have message.post for room messages or message.post-in-thread for
      * thread replies. Echoing a thread reply also requires message.echo and
      * message.post.
      *
-     * @generated from rpc chatto.api.v1.MessageService.PostMessage
+     * @generated from rpc chatto.api.v1.MessageService.CreateMessage
      */
-    postMessage: {
-      name: "PostMessage",
-      I: PostMessageRequest,
-      O: PostMessageResponse,
+    createMessage: {
+      name: "CreateMessage",
+      I: CreateMessageRequest,
+      O: CreateMessageResponse,
       kind: MethodKind.Unary,
     },
     /**

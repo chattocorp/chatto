@@ -90,10 +90,10 @@ func (x *MessageAttachmentUpload) GetContentType() string {
 	return ""
 }
 
-// Request to post a message in a room or thread.
-type PostMessageRequest struct {
+// Request to create a message in a room or thread.
+type CreateMessageRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Required. Room where the message should be posted.
+	// Required. Room where the message should be created.
 	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
 	// Message body text. Required unless attachments or attachment_asset_ids is
 	// non-empty.
@@ -117,20 +117,20 @@ type PostMessageRequest struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *PostMessageRequest) Reset() {
-	*x = PostMessageRequest{}
+func (x *CreateMessageRequest) Reset() {
+	*x = CreateMessageRequest{}
 	mi := &file_chatto_api_v1_messages_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *PostMessageRequest) String() string {
+func (x *CreateMessageRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*PostMessageRequest) ProtoMessage() {}
+func (*CreateMessageRequest) ProtoMessage() {}
 
-func (x *PostMessageRequest) ProtoReflect() protoreflect.Message {
+func (x *CreateMessageRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_chatto_api_v1_messages_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -142,68 +142,68 @@ func (x *PostMessageRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use PostMessageRequest.ProtoReflect.Descriptor instead.
-func (*PostMessageRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use CreateMessageRequest.ProtoReflect.Descriptor instead.
+func (*CreateMessageRequest) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_messages_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *PostMessageRequest) GetRoomId() string {
+func (x *CreateMessageRequest) GetRoomId() string {
 	if x != nil {
 		return x.RoomId
 	}
 	return ""
 }
 
-func (x *PostMessageRequest) GetBody() string {
+func (x *CreateMessageRequest) GetBody() string {
 	if x != nil {
 		return x.Body
 	}
 	return ""
 }
 
-func (x *PostMessageRequest) GetAttachmentAssetIds() []string {
+func (x *CreateMessageRequest) GetAttachmentAssetIds() []string {
 	if x != nil {
 		return x.AttachmentAssetIds
 	}
 	return nil
 }
 
-func (x *PostMessageRequest) GetThreadRootEventId() string {
+func (x *CreateMessageRequest) GetThreadRootEventId() string {
 	if x != nil {
 		return x.ThreadRootEventId
 	}
 	return ""
 }
 
-func (x *PostMessageRequest) GetInReplyTo() string {
+func (x *CreateMessageRequest) GetInReplyTo() string {
 	if x != nil {
 		return x.InReplyTo
 	}
 	return ""
 }
 
-func (x *PostMessageRequest) GetAlsoSendToChannel() bool {
+func (x *CreateMessageRequest) GetAlsoSendToChannel() bool {
 	if x != nil {
 		return x.AlsoSendToChannel
 	}
 	return false
 }
 
-func (x *PostMessageRequest) GetMentionConfirmationToken() string {
+func (x *CreateMessageRequest) GetMentionConfirmationToken() string {
 	if x != nil {
 		return x.MentionConfirmationToken
 	}
 	return ""
 }
 
-func (x *PostMessageRequest) GetLinkPreview() *LinkPreview {
+func (x *CreateMessageRequest) GetLinkPreview() *LinkPreview {
 	if x != nil {
 		return x.LinkPreview
 	}
 	return nil
 }
 
-func (x *PostMessageRequest) GetAttachments() []*MessageAttachmentUpload {
+func (x *CreateMessageRequest) GetAttachments() []*MessageAttachmentUpload {
 	if x != nil {
 		return x.Attachments
 	}
@@ -265,34 +265,34 @@ func (x *MentionConfirmationChallenge) GetToken() string {
 	return ""
 }
 
-// Result of posting a message.
-type PostMessageResponse struct {
+// Result of creating a message.
+type CreateMessageResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Types that are valid to be assigned to Result:
 	//
-	//	*PostMessageResponse_Event
-	//	*PostMessageResponse_MentionConfirmation
-	Result isPostMessageResponse_Result `protobuf_oneof:"result"`
-	// Related entities needed to render event when a message was posted.
+	//	*CreateMessageResponse_Event
+	//	*CreateMessageResponse_MentionConfirmation
+	Result isCreateMessageResponse_Result `protobuf_oneof:"result"`
+	// Related entities needed to render event when a message was created.
 	Includes      *RoomTimelineIncludes `protobuf:"bytes,3,opt,name=includes,proto3" json:"includes,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *PostMessageResponse) Reset() {
-	*x = PostMessageResponse{}
+func (x *CreateMessageResponse) Reset() {
+	*x = CreateMessageResponse{}
 	mi := &file_chatto_api_v1_messages_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *PostMessageResponse) String() string {
+func (x *CreateMessageResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*PostMessageResponse) ProtoMessage() {}
+func (*CreateMessageResponse) ProtoMessage() {}
 
-func (x *PostMessageResponse) ProtoReflect() protoreflect.Message {
+func (x *CreateMessageResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_chatto_api_v1_messages_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -304,60 +304,60 @@ func (x *PostMessageResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use PostMessageResponse.ProtoReflect.Descriptor instead.
-func (*PostMessageResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use CreateMessageResponse.ProtoReflect.Descriptor instead.
+func (*CreateMessageResponse) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_messages_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *PostMessageResponse) GetResult() isPostMessageResponse_Result {
+func (x *CreateMessageResponse) GetResult() isCreateMessageResponse_Result {
 	if x != nil {
 		return x.Result
 	}
 	return nil
 }
 
-func (x *PostMessageResponse) GetEvent() *RoomTimelineEvent {
+func (x *CreateMessageResponse) GetEvent() *RoomTimelineEvent {
 	if x != nil {
-		if x, ok := x.Result.(*PostMessageResponse_Event); ok {
+		if x, ok := x.Result.(*CreateMessageResponse_Event); ok {
 			return x.Event
 		}
 	}
 	return nil
 }
 
-func (x *PostMessageResponse) GetMentionConfirmation() *MentionConfirmationChallenge {
+func (x *CreateMessageResponse) GetMentionConfirmation() *MentionConfirmationChallenge {
 	if x != nil {
-		if x, ok := x.Result.(*PostMessageResponse_MentionConfirmation); ok {
+		if x, ok := x.Result.(*CreateMessageResponse_MentionConfirmation); ok {
 			return x.MentionConfirmation
 		}
 	}
 	return nil
 }
 
-func (x *PostMessageResponse) GetIncludes() *RoomTimelineIncludes {
+func (x *CreateMessageResponse) GetIncludes() *RoomTimelineIncludes {
 	if x != nil {
 		return x.Includes
 	}
 	return nil
 }
 
-type isPostMessageResponse_Result interface {
-	isPostMessageResponse_Result()
+type isCreateMessageResponse_Result interface {
+	isCreateMessageResponse_Result()
 }
 
-type PostMessageResponse_Event struct {
-	// Renderable timeline event for the posted message.
+type CreateMessageResponse_Event struct {
+	// Renderable timeline event for the created message.
 	Event *RoomTimelineEvent `protobuf:"bytes,1,opt,name=event,proto3,oneof"`
 }
 
-type PostMessageResponse_MentionConfirmation struct {
+type CreateMessageResponse_MentionConfirmation struct {
 	// Challenge shown when a message would notify many people.
 	MentionConfirmation *MentionConfirmationChallenge `protobuf:"bytes,2,opt,name=mention_confirmation,json=mentionConfirmation,proto3,oneof"`
 }
 
-func (*PostMessageResponse_Event) isPostMessageResponse_Result() {}
+func (*CreateMessageResponse_Event) isCreateMessageResponse_Result() {}
 
-func (*PostMessageResponse_MentionConfirmation) isPostMessageResponse_Result() {}
+func (*CreateMessageResponse_MentionConfirmation) isCreateMessageResponse_Result() {}
 
 // Request to edit a message body.
 type UpdateMessageRequest struct {
@@ -909,8 +909,8 @@ const file_chatto_api_v1_messages_proto_rawDesc = "" +
 	"\x17MessageAttachmentUpload\x12\x18\n" +
 	"\acontent\x18\x01 \x01(\fR\acontent\x12\x1a\n" +
 	"\bfilename\x18\x02 \x01(\tR\bfilename\x12!\n" +
-	"\fcontent_type\x18\x03 \x01(\tR\vcontentType\"\xc5\x03\n" +
-	"\x12PostMessageRequest\x12 \n" +
+	"\fcontent_type\x18\x03 \x01(\tR\vcontentType\"\xc7\x03\n" +
+	"\x14CreateMessageRequest\x12 \n" +
 	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x12\x12\n" +
 	"\x04body\x18\x02 \x01(\tR\x04body\x120\n" +
 	"\x14attachment_asset_ids\x18\x03 \x03(\tR\x12attachmentAssetIds\x12/\n" +
@@ -922,8 +922,8 @@ const file_chatto_api_v1_messages_proto_rawDesc = "" +
 	"\vattachments\x18\t \x03(\v2&.chatto.api.v1.MessageAttachmentUploadR\vattachments\"]\n" +
 	"\x1cMentionConfirmationChallenge\x12'\n" +
 	"\x0frecipient_count\x18\x01 \x01(\x05R\x0erecipientCount\x12\x14\n" +
-	"\x05token\x18\x02 \x01(\tR\x05token\"\xfc\x01\n" +
-	"\x13PostMessageResponse\x128\n" +
+	"\x05token\x18\x02 \x01(\tR\x05token\"\xfe\x01\n" +
+	"\x15CreateMessageResponse\x128\n" +
 	"\x05event\x18\x01 \x01(\v2 .chatto.api.v1.RoomTimelineEventH\x00R\x05event\x12`\n" +
 	"\x14mention_confirmation\x18\x02 \x01(\v2+.chatto.api.v1.MentionConfirmationChallengeH\x00R\x13mentionConfirmation\x12?\n" +
 	"\bincludes\x18\x03 \x01(\v2#.chatto.api.v1.RoomTimelineIncludesR\bincludesB\b\n" +
@@ -957,9 +957,9 @@ const file_chatto_api_v1_messages_proto_rawDesc = "" +
 	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x12/\n" +
 	"\x14thread_root_event_id\x18\x02 \x01(\tR\x11threadRootEventId\"1\n" +
 	"\x1bSendTypingIndicatorResponse\x12\x12\n" +
-	"\x04sent\x18\x01 \x01(\bR\x04sent2\xd9\x04\n" +
-	"\x0eMessageService\x12T\n" +
-	"\vPostMessage\x12!.chatto.api.v1.PostMessageRequest\x1a\".chatto.api.v1.PostMessageResponse\x12Z\n" +
+	"\x04sent\x18\x01 \x01(\bR\x04sent2\xdf\x04\n" +
+	"\x0eMessageService\x12Z\n" +
+	"\rCreateMessage\x12#.chatto.api.v1.CreateMessageRequest\x1a$.chatto.api.v1.CreateMessageResponse\x12Z\n" +
 	"\rUpdateMessage\x12#.chatto.api.v1.UpdateMessageRequest\x1a$.chatto.api.v1.UpdateMessageResponse\x12Z\n" +
 	"\rDeleteMessage\x12#.chatto.api.v1.DeleteMessageRequest\x1a$.chatto.api.v1.DeleteMessageResponse\x12c\n" +
 	"\x10DeleteAttachment\x12&.chatto.api.v1.DeleteAttachmentRequest\x1a'.chatto.api.v1.DeleteAttachmentResponse\x12f\n" +
@@ -982,9 +982,9 @@ func file_chatto_api_v1_messages_proto_rawDescGZIP() []byte {
 var file_chatto_api_v1_messages_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
 var file_chatto_api_v1_messages_proto_goTypes = []any{
 	(*MessageAttachmentUpload)(nil),      // 0: chatto.api.v1.MessageAttachmentUpload
-	(*PostMessageRequest)(nil),           // 1: chatto.api.v1.PostMessageRequest
+	(*CreateMessageRequest)(nil),         // 1: chatto.api.v1.CreateMessageRequest
 	(*MentionConfirmationChallenge)(nil), // 2: chatto.api.v1.MentionConfirmationChallenge
-	(*PostMessageResponse)(nil),          // 3: chatto.api.v1.PostMessageResponse
+	(*CreateMessageResponse)(nil),        // 3: chatto.api.v1.CreateMessageResponse
 	(*UpdateMessageRequest)(nil),         // 4: chatto.api.v1.UpdateMessageRequest
 	(*UpdateMessageResponse)(nil),        // 5: chatto.api.v1.UpdateMessageResponse
 	(*DeleteMessageRequest)(nil),         // 6: chatto.api.v1.DeleteMessageRequest
@@ -1000,18 +1000,18 @@ var file_chatto_api_v1_messages_proto_goTypes = []any{
 	(*RoomTimelineIncludes)(nil),         // 16: chatto.api.v1.RoomTimelineIncludes
 }
 var file_chatto_api_v1_messages_proto_depIdxs = []int32{
-	14, // 0: chatto.api.v1.PostMessageRequest.link_preview:type_name -> chatto.api.v1.LinkPreview
-	0,  // 1: chatto.api.v1.PostMessageRequest.attachments:type_name -> chatto.api.v1.MessageAttachmentUpload
-	15, // 2: chatto.api.v1.PostMessageResponse.event:type_name -> chatto.api.v1.RoomTimelineEvent
-	2,  // 3: chatto.api.v1.PostMessageResponse.mention_confirmation:type_name -> chatto.api.v1.MentionConfirmationChallenge
-	16, // 4: chatto.api.v1.PostMessageResponse.includes:type_name -> chatto.api.v1.RoomTimelineIncludes
-	1,  // 5: chatto.api.v1.MessageService.PostMessage:input_type -> chatto.api.v1.PostMessageRequest
+	14, // 0: chatto.api.v1.CreateMessageRequest.link_preview:type_name -> chatto.api.v1.LinkPreview
+	0,  // 1: chatto.api.v1.CreateMessageRequest.attachments:type_name -> chatto.api.v1.MessageAttachmentUpload
+	15, // 2: chatto.api.v1.CreateMessageResponse.event:type_name -> chatto.api.v1.RoomTimelineEvent
+	2,  // 3: chatto.api.v1.CreateMessageResponse.mention_confirmation:type_name -> chatto.api.v1.MentionConfirmationChallenge
+	16, // 4: chatto.api.v1.CreateMessageResponse.includes:type_name -> chatto.api.v1.RoomTimelineIncludes
+	1,  // 5: chatto.api.v1.MessageService.CreateMessage:input_type -> chatto.api.v1.CreateMessageRequest
 	4,  // 6: chatto.api.v1.MessageService.UpdateMessage:input_type -> chatto.api.v1.UpdateMessageRequest
 	6,  // 7: chatto.api.v1.MessageService.DeleteMessage:input_type -> chatto.api.v1.DeleteMessageRequest
 	8,  // 8: chatto.api.v1.MessageService.DeleteAttachment:input_type -> chatto.api.v1.DeleteAttachmentRequest
 	10, // 9: chatto.api.v1.MessageService.DeleteLinkPreview:input_type -> chatto.api.v1.DeleteLinkPreviewRequest
 	12, // 10: chatto.api.v1.MessageService.SendTypingIndicator:input_type -> chatto.api.v1.SendTypingIndicatorRequest
-	3,  // 11: chatto.api.v1.MessageService.PostMessage:output_type -> chatto.api.v1.PostMessageResponse
+	3,  // 11: chatto.api.v1.MessageService.CreateMessage:output_type -> chatto.api.v1.CreateMessageResponse
 	5,  // 12: chatto.api.v1.MessageService.UpdateMessage:output_type -> chatto.api.v1.UpdateMessageResponse
 	7,  // 13: chatto.api.v1.MessageService.DeleteMessage:output_type -> chatto.api.v1.DeleteMessageResponse
 	9,  // 14: chatto.api.v1.MessageService.DeleteAttachment:output_type -> chatto.api.v1.DeleteAttachmentResponse
@@ -1032,8 +1032,8 @@ func file_chatto_api_v1_messages_proto_init() {
 	file_chatto_api_v1_link_previews_proto_init()
 	file_chatto_api_v1_room_timeline_proto_init()
 	file_chatto_api_v1_messages_proto_msgTypes[3].OneofWrappers = []any{
-		(*PostMessageResponse_Event)(nil),
-		(*PostMessageResponse_MentionConfirmation)(nil),
+		(*CreateMessageResponse_Event)(nil),
+		(*CreateMessageResponse_MentionConfirmation)(nil),
 	}
 	file_chatto_api_v1_messages_proto_msgTypes[4].OneofWrappers = []any{}
 	type x struct{}

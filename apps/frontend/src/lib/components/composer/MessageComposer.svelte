@@ -506,7 +506,7 @@
         serverId: conn.serverId,
         baseUrl: conn.connectBaseUrl,
         bearerToken: conn.bearerToken
-      }).postMessage({
+      }).createMessage({
         roomId: post.roomId,
         body: post.bodyToSend,
         attachments: post.filesToSend,
@@ -545,7 +545,7 @@
 
   function handlePostFailure(error: unknown, post: PreparedPost) {
     toast.error(m['composer.send_failed']());
-    console.error('Error posting message:', error);
+    console.error('Error creating message:', error);
     restorePreparedPost(post);
   }
 
@@ -600,7 +600,7 @@
     }
   }
 
-  async function postMessage() {
+  async function createMessage() {
     // Require either non-empty message body or attachments.
     // hasVisibleContent rejects messages with only invisible Unicode characters.
     const bodyToSend = bodyForSend(message);
@@ -695,7 +695,7 @@
     if (isEditing) {
       await editMessage();
     } else {
-      await postMessage();
+      await createMessage();
     }
   }
 

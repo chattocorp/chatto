@@ -80,11 +80,11 @@ function viewerClient(remoteBaseURL: string) {
 }
 
 function postedEventId(
-  response: Awaited<ReturnType<ReturnType<typeof messageClient>['postMessage']>>
+  response: Awaited<ReturnType<ReturnType<typeof messageClient>['createMessage']>>
 ) {
   const event = response.result.case === 'event' ? response.result.value : undefined;
   if (!event?.id) {
-    throw new Error(`PostMessage did not return an event: ${JSON.stringify(response.toJson())}`);
+    throw new Error(`CreateMessage did not return an event: ${JSON.stringify(response.toJson())}`);
   }
   return event.id;
 }
@@ -228,7 +228,7 @@ export async function postMessageOnRemote(
   roomId: string,
   body: string
 ): Promise<string> {
-  const response = await messageClient(remoteBaseURL).postMessage(
+  const response = await messageClient(remoteBaseURL).createMessage(
     { roomId, body },
     { headers: authHeaders(token) }
   );
@@ -249,7 +249,7 @@ export async function postMessageAttachmentOnRemote(
   contentType: string
 ): Promise<{ eventId: string; attachmentUrl: string }> {
   const fileBytes = await readFile(filePath);
-  const response = await messageClient(remoteBaseURL).postMessage(
+  const response = await messageClient(remoteBaseURL).createMessage(
     {
       roomId,
       body,
@@ -270,7 +270,7 @@ export async function postMessageAttachmentOnRemote(
   const attachmentUrl = message?.attachments[0]?.assetUrl?.url;
   if (!eventId || !attachmentUrl) {
     throw new Error(
-      `No attachment returned from remote postMessage: ${JSON.stringify(response.toJson())}`
+      `No attachment returned from remote CreateMessage: ${JSON.stringify(response.toJson())}`
     );
   }
 
@@ -287,7 +287,7 @@ export async function postThreadReplyOnRemote(
   body: string,
   threadRootEventId: string
 ): Promise<string> {
-  const response = await messageClient(remoteBaseURL).postMessage(
+  const response = await messageClient(remoteBaseURL).createMessage(
     { roomId, body, threadRootEventId },
     { headers: authHeaders(token) }
   );

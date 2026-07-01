@@ -194,7 +194,7 @@ func (env *assetTestEnv) postAssetMessageWithAttachmentContentType(t *testing.T,
 	t.Helper()
 
 	client := apiv1connect.NewMessageServiceClient(env.client, env.server.URL+connectAPIPrefix)
-	req := connect.NewRequest(&apiv1.PostMessageRequest{
+	req := connect.NewRequest(&apiv1.CreateMessageRequest{
 		RoomId: roomID,
 		Body:   body,
 		Attachments: []*apiv1.MessageAttachmentUpload{
@@ -205,7 +205,7 @@ func (env *assetTestEnv) postAssetMessageWithAttachmentContentType(t *testing.T,
 			},
 		},
 	})
-	resp, err := client.PostMessage(env.ctx, req)
+	resp, err := client.CreateMessage(env.ctx, req)
 	if err != nil {
 		t.Fatalf("Failed to post message with attachment: %v", err)
 	}

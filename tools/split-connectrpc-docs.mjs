@@ -98,7 +98,7 @@ const categories = [
         name: 'MessageService',
         slug: 'messages',
         title: 'Messages',
-        description: 'Message posting, editing, deletion, link-preview, attachment, and typing RPCs.'
+        description: 'Message creation, editing, deletion, link-preview, attachment, and typing RPCs.'
       },
       {
         name: 'AttachmentService',

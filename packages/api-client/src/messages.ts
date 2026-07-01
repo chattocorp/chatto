@@ -14,7 +14,7 @@ export type MessageAPIConfig = {
   onAuthenticationRequired?: (serverId: string) => void;
 };
 
-export type PostMessageInput = {
+export type CreateMessageInput = {
   roomId: string;
   body: string;
   attachmentAssetIds?: string[];
@@ -33,7 +33,7 @@ export type UpdateMessageInput = {
   alsoSendToChannel?: boolean;
 };
 
-export type PostMessageResult =
+export type CreateMessageResult =
   | {
       kind: "event";
       event: RoomEventView | null;
@@ -70,9 +70,9 @@ export function createMessageAPI(config: MessageAPIConfig) {
   }
 
   return {
-    async postMessage(input: PostMessageInput): Promise<PostMessageResult> {
+    async createMessage(input: CreateMessageInput): Promise<CreateMessageResult> {
       try {
-        const response = await client.postMessage(
+        const response = await client.createMessage(
           {
             roomId: input.roomId,
             body: input.body,

@@ -56,7 +56,7 @@ interface JoinRoomResponse {
   room?: { id?: string };
 }
 
-interface PostMessageResponse {
+interface CreateMessageResponse {
   event?: { id?: string };
 }
 
@@ -315,14 +315,14 @@ export async function postThreadReplyWithEchoViaConnect(
 }
 
 async function postMessageWithConnectInput(page: Page, input: ConnectRequest): Promise<string> {
-  const data = await connectPost<PostMessageResponse>(
+  const data = await connectPost<CreateMessageResponse>(
     page,
-    'chatto.api.v1.MessageService/PostMessage',
+    'chatto.api.v1.MessageService/CreateMessage',
     input
   );
   const eventId = data.event?.id;
   if (!eventId) {
-    throw new Error('PostMessage did not return an event id');
+    throw new Error('CreateMessage did not return an event id');
   }
   return eventId;
 }

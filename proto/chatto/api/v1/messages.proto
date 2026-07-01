@@ -20,9 +20,9 @@ message MessageAttachmentUpload {
   string content_type = 3;
 }
 
-// Request to post a message in a room or thread.
-message PostMessageRequest {
-  // Required. Room where the message should be posted.
+// Request to create a message in a room or thread.
+message CreateMessageRequest {
+  // Required. Room where the message should be created.
   string room_id = 1 [(buf.validate.field).string.min_len = 1];
   // Message body text. Required unless attachments or attachment_asset_ids is
   // non-empty.
@@ -52,15 +52,15 @@ message MentionConfirmationChallenge {
   string token = 2;
 }
 
-// Result of posting a message.
-message PostMessageResponse {
+// Result of creating a message.
+message CreateMessageResponse {
   oneof result {
-    // Renderable timeline event for the posted message.
+    // Renderable timeline event for the created message.
     RoomTimelineEvent event = 1;
     // Challenge shown when a message would notify many people.
     MentionConfirmationChallenge mention_confirmation = 2;
   }
-  // Related entities needed to render event when a message was posted.
+  // Related entities needed to render event when a message was created.
   RoomTimelineIncludes includes = 3;
 }
 
@@ -143,13 +143,13 @@ message SendTypingIndicatorResponse {
   bool sent = 1;
 }
 
-// Posts messages into room and thread timelines.
+// Creates messages in room and thread timelines.
 service MessageService {
-  // Posts a message for the current user. The user must be a room member and
+  // Creates a message for the current user. The user must be a room member and
   // must have message.post for room messages or message.post-in-thread for
   // thread replies. Echoing a thread reply also requires message.echo and
   // message.post.
-  rpc PostMessage(PostMessageRequest) returns (PostMessageResponse);
+  rpc CreateMessage(CreateMessageRequest) returns (CreateMessageResponse);
   // Edits a message body. Authors can edit their own messages within the edit
   // window. Non-authors need message.manage and cannot change channel echo
   // state.
