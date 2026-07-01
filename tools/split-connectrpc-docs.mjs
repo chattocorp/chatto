@@ -23,22 +23,16 @@ const categories = [
     title: 'chatto.api.v1',
     services: [
       {
-        name: 'ServerDiscoveryService',
-        slug: 'server-discovery',
-        title: 'Server Discovery',
-        description: 'Unauthenticated server metadata, branding, and login discovery RPCs.'
+        name: 'AccountService',
+        slug: 'account',
+        title: 'Account',
+        description: 'Self-service account, profile, avatar, presence, status, and settings RPCs.'
       },
       {
-        name: 'ServerService',
-        slug: 'server',
-        title: 'Server',
-        description: 'Authenticated server state and current-user server capability RPCs.'
-      },
-      {
-        name: 'ViewerService',
-        slug: 'viewer',
-        title: 'Viewer',
-        description: 'Authenticated viewer profile, preferences, and capability RPCs.'
+        name: 'AttachmentService',
+        slug: 'attachments',
+        title: 'Attachments',
+        description: 'Attachment listing and signed URL refresh RPCs.'
       },
       {
         name: 'ExternalIdentityFlowService',
@@ -53,22 +47,52 @@ const categories = [
         description: 'Authenticated external identity listing, linking, and disconnect RPCs.'
       },
       {
-        name: 'AccountService',
-        slug: 'account',
-        title: 'Account',
-        description: 'Self-service account, profile, avatar, presence, status, and settings RPCs.'
-      },
-      {
-        name: 'UserDirectoryService',
-        slug: 'user-directory',
-        title: 'User Directory',
-        description: 'Authenticated public user profile lookup RPCs.'
+        name: 'LinkPreviewService',
+        slug: 'link-previews',
+        title: 'Link Previews',
+        description: 'Link preview fetch RPCs.'
       },
       {
         name: 'MemberDirectoryService',
         slug: 'member-directory',
         title: 'Member Directory',
         description: 'Server and room member directory RPCs.'
+      },
+      {
+        name: 'MessageService',
+        slug: 'messages',
+        title: 'Messages',
+        description: 'Message creation, editing, deletion, link-preview, attachment, and typing RPCs.'
+      },
+      {
+        name: 'NotificationPreferencesService',
+        slug: 'notification-preferences',
+        title: 'Notification Preferences',
+        description: 'Server and room notification preference RPCs.'
+      },
+      {
+        name: 'NotificationService',
+        slug: 'notifications',
+        title: 'Notifications',
+        description: 'Notification listing, counts, checks, and dismissal RPCs.'
+      },
+      {
+        name: 'PushNotificationService',
+        slug: 'push-notifications',
+        title: 'Push Notifications',
+        description: 'Web Push subscription RPCs.'
+      },
+      {
+        name: 'ReactionService',
+        slug: 'reactions',
+        title: 'Reactions',
+        description: 'Message reaction command RPCs.'
+      },
+      {
+        name: 'ReadStateService',
+        slug: 'read-state',
+        title: 'Read State',
+        description: 'Room and thread read-state command RPCs.'
       },
       {
         name: 'RoleService',
@@ -95,28 +119,16 @@ const categories = [
         description: 'Room and thread timeline read RPCs.'
       },
       {
-        name: 'MessageService',
-        slug: 'messages',
-        title: 'Messages',
-        description: 'Message creation, editing, deletion, link-preview, attachment, and typing RPCs.'
+        name: 'ServerDiscoveryService',
+        slug: 'server-discovery',
+        title: 'Server Discovery',
+        description: 'Unauthenticated server metadata, branding, and login discovery RPCs.'
       },
       {
-        name: 'AttachmentService',
-        slug: 'attachments',
-        title: 'Attachments',
-        description: 'Attachment listing and signed URL refresh RPCs.'
-      },
-      {
-        name: 'ReactionService',
-        slug: 'reactions',
-        title: 'Reactions',
-        description: 'Message reaction command RPCs.'
-      },
-      {
-        name: 'ReadStateService',
-        slug: 'read-state',
-        title: 'Read State',
-        description: 'Room and thread read-state command RPCs.'
+        name: 'ServerService',
+        slug: 'server',
+        title: 'Server',
+        description: 'Authenticated server state and current-user server capability RPCs.'
       },
       {
         name: 'ThreadService',
@@ -125,70 +137,28 @@ const categories = [
         description: 'Thread follow and followed-thread listing RPCs.'
       },
       {
-        name: 'LinkPreviewService',
-        slug: 'link-previews',
-        title: 'Link Previews',
-        description: 'Link preview fetch RPCs.'
+        name: 'UserDirectoryService',
+        slug: 'user-directory',
+        title: 'User Directory',
+        description: 'Authenticated public user profile lookup RPCs.'
+      },
+      {
+        name: 'ViewerService',
+        slug: 'viewer',
+        title: 'Viewer',
+        description: 'Authenticated viewer profile, preferences, and capability RPCs.'
       },
       {
         name: 'VoiceCallService',
         slug: 'calls',
         title: 'Calls',
         description: 'Voice and video call state and token RPCs.'
-      },
-      {
-        name: 'NotificationPreferencesService',
-        slug: 'notification-preferences',
-        title: 'Notification Preferences',
-        description: 'Server and room notification preference RPCs.'
-      },
-      {
-        name: 'NotificationService',
-        slug: 'notifications',
-        title: 'Notifications',
-        description: 'Notification listing, counts, checks, and dismissal RPCs.'
-      },
-      {
-        name: 'PushNotificationService',
-        slug: 'push-notifications',
-        title: 'Push Notifications',
-        description: 'Web Push subscription RPCs.'
       }
     ]
   },
   {
     title: 'chatto.admin.v1',
     services: [
-      {
-        name: 'AdminServerService',
-        slug: 'admin-server',
-        title: 'Admin Server',
-        description: 'Server profile, branding, and security administration RPCs.'
-      },
-      {
-        name: 'AdminRoomLayoutService',
-        slug: 'admin-room-layout',
-        title: 'Admin Room Layout',
-        description: 'Room group, sidebar layout, and sidebar link administration RPCs.'
-      },
-      {
-        name: 'AdminMemberService',
-        slug: 'admin-members',
-        title: 'Admin Members',
-        description: 'Member identity, role assignment, and username-cooldown RPCs.'
-      },
-      {
-        name: 'AdminRoleService',
-        slug: 'admin-roles',
-        title: 'Admin Roles',
-        description: 'Role catalog and role definition administration RPCs.'
-      },
-      {
-        name: 'AdminPermissionService',
-        slug: 'admin-permissions',
-        title: 'Admin Permissions',
-        description: 'Permission matrix, explanation, and override administration RPCs.'
-      },
       {
         name: 'AdminDiagnosticsService',
         slug: 'admin-diagnostics',
@@ -200,6 +170,36 @@ const categories = [
         slug: 'admin-event-log',
         title: 'Admin Event Log',
         description: 'Audit event log read RPCs.'
+      },
+      {
+        name: 'AdminMemberService',
+        slug: 'admin-members',
+        title: 'Admin Members',
+        description: 'Member identity, role assignment, and username-cooldown RPCs.'
+      },
+      {
+        name: 'AdminPermissionService',
+        slug: 'admin-permissions',
+        title: 'Admin Permissions',
+        description: 'Permission matrix, explanation, and override administration RPCs.'
+      },
+      {
+        name: 'AdminRoleService',
+        slug: 'admin-roles',
+        title: 'Admin Roles',
+        description: 'Role catalog and role definition administration RPCs.'
+      },
+      {
+        name: 'AdminRoomLayoutService',
+        slug: 'admin-room-layout',
+        title: 'Admin Room Layout',
+        description: 'Room group, sidebar layout, and sidebar link administration RPCs.'
+      },
+      {
+        name: 'AdminServerService',
+        slug: 'admin-server',
+        title: 'Admin Server',
+        description: 'Server profile, branding, and security administration RPCs.'
       }
     ]
   }
