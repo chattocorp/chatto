@@ -47,8 +47,11 @@ const { currentUserState, voiceCallState, roomsState } = vi.hoisted(() => ({
     connected: false,
     roomId: null as string | null,
     isMuted: false,
+    isMicrophonePending: false,
     isCameraEnabled: false,
+    isCameraPending: false,
     isScreenShareEnabled: false,
+    isScreenSharePending: false,
     toggleMute: vi.fn(),
     toggleCamera: vi.fn(),
     toggleScreenShare: vi.fn(),
@@ -123,8 +126,11 @@ describe('CurrentUserBar', () => {
     voiceCallState.connected = false;
     voiceCallState.roomId = null;
     voiceCallState.isMuted = false;
+    voiceCallState.isMicrophonePending = false;
     voiceCallState.isCameraEnabled = false;
+    voiceCallState.isCameraPending = false;
     voiceCallState.isScreenShareEnabled = false;
+    voiceCallState.isScreenSharePending = false;
     voiceCallState.toggleMute.mockClear();
     voiceCallState.toggleCamera.mockClear();
     voiceCallState.toggleScreenShare.mockClear();
@@ -309,6 +315,27 @@ describe('CurrentUserBar', () => {
     expect(q(container, '[data-testid="current-user-call-leave"]')!.className).toContain(
       'btn-danger'
     );
+  });
+
+  it('shows spinners on pending compact call media controls', () => {
+    voiceCallState.connected = true;
+    voiceCallState.roomId = 'room-1';
+    voiceCallState.isMicrophonePending = true;
+    voiceCallState.isCameraPending = true;
+    voiceCallState.isScreenSharePending = true;
+
+    const { container } = render(CurrentUserBarTestHarness);
+
+    for (const testId of [
+      'current-user-call-mute',
+      'current-user-call-camera',
+      'current-user-call-screen-share'
+    ]) {
+      const button = q(container, `[data-testid="${testId}"]`) as HTMLButtonElement;
+      expect(button.disabled).toBe(true);
+      expect(button.getAttribute('aria-busy')).toBe('true');
+      expect(q(button, '.animate-spin.uil--spinner')).toBeTruthy();
+    }
   });
 
   it('uses the DM participant label for active direct-message calls', () => {

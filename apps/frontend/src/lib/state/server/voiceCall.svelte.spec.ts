@@ -23,12 +23,16 @@ let lastKeyProvider: { setKey: ReturnType<typeof vi.fn> } | null = null;
 let lastRoom: {
   disconnect: ReturnType<typeof vi.fn>;
   localParticipant: {
+    setMicrophoneEnabled: ReturnType<typeof vi.fn>;
     setScreenShareEnabled: ReturnType<typeof vi.fn>;
     setCameraEnabled: ReturnType<typeof vi.fn>;
   };
 } | null = null;
 let connectFailure: Error | null = null;
 let connectGate: { promise: Promise<void>; resolve: () => void } | null = null;
+let microphoneGate: { promise: Promise<void>; resolve: () => void } | null = null;
+let cameraGate: { promise: Promise<void>; resolve: () => void } | null = null;
+let screenShareGate: { promise: Promise<void>; resolve: () => void } | null = null;
 let screenShareFailure: Error | null = null;
 let roomEventHandlers = new Map<string, () => void>();
 let localTrackPublications: Array<{
@@ -55,9 +59,11 @@ vi.mock('livekit-client', () => {
     localParticipant = {
       setMicrophoneEnabled: vi.fn(async () => {
         calls.push('setMicrophoneEnabled');
+        await microphoneGate?.promise;
       }),
       setCameraEnabled: vi.fn(async (enabled: boolean) => {
         calls.push(`setCameraEnabled:${enabled}`);
+        await cameraGate?.promise;
         localTrackPublications = localTrackPublications.filter(
           (pub) => pub.track.source !== 'camera'
         );
@@ -70,6 +76,7 @@ vi.mock('livekit-client', () => {
       }),
       setScreenShareEnabled: vi.fn(async (enabled: boolean) => {
         calls.push(`setScreenShareEnabled:${enabled}`);
+        await screenShareGate?.promise;
         if (screenShareFailure) {
           throw screenShareFailure;
         }
@@ -96,7 +103,10 @@ vi.mock('livekit-client', () => {
 
     constructor(options: Record<string, unknown>) {
       lastRoomOptions = options;
-      lastRoom = { disconnect: this.disconnect, localParticipant: this.localParticipant };
+      lastRoom = {
+        disconnect: this.disconnect,
+        localParticipant: this.localParticipant
+      };
     }
 
     on = vi.fn((event: string, handler: () => void) => {
@@ -187,6 +197,9 @@ describe('VoiceCallState', () => {
     lastRoom = null;
     connectFailure = null;
     connectGate = null;
+    microphoneGate = null;
+    cameraGate = null;
+    screenShareGate = null;
     screenShareFailure = null;
     roomEventHandlers = new Map();
     localTrackPublications = [];
@@ -397,6 +410,66 @@ describe('VoiceCallState', () => {
     expect(lastRoom?.localParticipant.setScreenShareEnabled).toHaveBeenCalledWith(false);
     expect(state.isScreenShareEnabled).toBe(false);
     expect(state.participants[0].screenShareTrack).toBeNull();
+  });
+
+  it('keeps microphone pending until LiveKit applies the toggle', async () => {
+    const client = createVoiceCallClient();
+    const state = new VoiceCallState(client);
+    await state.join('wss://livekit.example.test', 'R1');
+    microphoneGate = deferredVoid();
+
+    const toggle = state.toggleMute();
+    await flushPromises();
+
+    expect(state.isMicrophonePending).toBe(true);
+    expect(state.isMuted).toBe(false);
+    expect(lastRoom?.localParticipant.setMicrophoneEnabled).toHaveBeenLastCalledWith(false);
+
+    microphoneGate.resolve();
+    await toggle;
+
+    expect(state.isMicrophonePending).toBe(false);
+    expect(state.isMuted).toBe(true);
+  });
+
+  it('keeps camera pending until LiveKit applies the toggle', async () => {
+    const client = createVoiceCallClient();
+    const state = new VoiceCallState(client);
+    await state.join('wss://livekit.example.test', 'R1');
+    cameraGate = deferredVoid();
+
+    const toggle = state.toggleCamera();
+    await flushPromises();
+
+    expect(state.isCameraPending).toBe(true);
+    expect(state.isCameraEnabled).toBe(false);
+    expect(lastRoom?.localParticipant.setCameraEnabled).toHaveBeenLastCalledWith(true);
+
+    cameraGate.resolve();
+    await toggle;
+
+    expect(state.isCameraPending).toBe(false);
+    expect(state.isCameraEnabled).toBe(true);
+  });
+
+  it('keeps screen share pending until LiveKit applies the toggle', async () => {
+    const client = createVoiceCallClient();
+    const state = new VoiceCallState(client);
+    await state.join('wss://livekit.example.test', 'R1');
+    screenShareGate = deferredVoid();
+
+    const toggle = state.toggleScreenShare();
+    await flushPromises();
+
+    expect(state.isScreenSharePending).toBe(true);
+    expect(state.isScreenShareEnabled).toBe(false);
+    expect(lastRoom?.localParticipant.setScreenShareEnabled).toHaveBeenLastCalledWith(true);
+
+    screenShareGate.resolve();
+    await toggle;
+
+    expect(state.isScreenSharePending).toBe(false);
+    expect(state.isScreenShareEnabled).toBe(true);
   });
 
   it('keeps the call connected when screen capture fails', async () => {

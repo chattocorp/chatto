@@ -441,14 +441,20 @@ Room sidebar panel for voice/video calls.
             : m['voice.turn_on_camera']()}
           data-testid="call-camera-toggle"
           onclick={() => voiceCallState.toggleCamera()}
+          disabled={voiceCallState.isCameraPending}
+          aria-busy={voiceCallState.isCameraPending || undefined}
         >
-          <span
-            class={[
-              'iconify text-lg',
-              voiceCallState.isCameraEnabled ? 'uil--video' : 'uil--video-slash'
-            ]}
-            aria-hidden="true"
-          ></span>
+          {#if voiceCallState.isCameraPending}
+            <span class="iconify animate-spin text-lg uil--spinner" aria-hidden="true"></span>
+          {:else}
+            <span
+              class={[
+                'iconify text-lg',
+                voiceCallState.isCameraEnabled ? 'uil--video' : 'uil--video-slash'
+              ]}
+              aria-hidden="true"
+            ></span>
+          {/if}
         </button>
 
         <button
@@ -458,14 +464,20 @@ Room sidebar panel for voice/video calls.
           aria-label={voiceCallState.isMuted ? m['voice.unmute']() : m['voice.mute']()}
           data-testid="call-mute-toggle"
           onclick={() => voiceCallState.toggleMute()}
+          disabled={voiceCallState.isMicrophonePending}
+          aria-busy={voiceCallState.isMicrophonePending || undefined}
         >
-          <span
-            class={[
-              'iconify text-lg',
-              voiceCallState.isMuted ? 'uil--microphone-slash' : 'uil--microphone'
-            ]}
-            aria-hidden="true"
-          ></span>
+          {#if voiceCallState.isMicrophonePending}
+            <span class="iconify animate-spin text-lg uil--spinner" aria-hidden="true"></span>
+          {:else}
+            <span
+              class={[
+                'iconify text-lg',
+                voiceCallState.isMuted ? 'uil--microphone-slash' : 'uil--microphone'
+              ]}
+              aria-hidden="true"
+            ></span>
+          {/if}
         </button>
 
         <button
@@ -481,8 +493,14 @@ Room sidebar panel for voice/video calls.
             : m['voice.share_screen']()}
           data-testid="call-screen-share-toggle"
           onclick={() => voiceCallState.toggleScreenShare()}
+          disabled={voiceCallState.isScreenSharePending}
+          aria-busy={voiceCallState.isScreenSharePending || undefined}
         >
-          <span class="iconify text-lg uil--desktop" aria-hidden="true"></span>
+          {#if voiceCallState.isScreenSharePending}
+            <span class="iconify animate-spin text-lg uil--spinner" aria-hidden="true"></span>
+          {:else}
+            <span class="iconify text-lg uil--desktop" aria-hidden="true"></span>
+          {/if}
         </button>
 
         <button

@@ -205,14 +205,20 @@ to the user settings page for the active server.
           aria-label={voiceCallState.isMuted ? m['voice.unmute']() : m['voice.mute']()}
           data-testid="current-user-call-mute"
           onclick={() => voiceCallState.toggleMute()}
+          disabled={voiceCallState.isMicrophonePending}
+          aria-busy={voiceCallState.isMicrophonePending || undefined}
         >
-          <span
-            class={[
-              'iconify',
-              voiceCallState.isMuted ? 'uil--microphone-slash' : 'uil--microphone'
-            ]}
-            aria-hidden="true"
-          ></span>
+          {#if voiceCallState.isMicrophonePending}
+            <span class="iconify animate-spin uil--spinner" aria-hidden="true"></span>
+          {:else}
+            <span
+              class={[
+                'iconify',
+                voiceCallState.isMuted ? 'uil--microphone-slash' : 'uil--microphone'
+              ]}
+              aria-hidden="true"
+            ></span>
+          {/if}
         </button>
         <button
           type="button"
@@ -227,11 +233,20 @@ to the user settings page for the active server.
             : m['voice.turn_on_camera']()}
           data-testid="current-user-call-camera"
           onclick={() => voiceCallState.toggleCamera()}
+          disabled={voiceCallState.isCameraPending}
+          aria-busy={voiceCallState.isCameraPending || undefined}
         >
-          <span
-            class={['iconify', voiceCallState.isCameraEnabled ? 'uil--video' : 'uil--video-slash']}
-            aria-hidden="true"
-          ></span>
+          {#if voiceCallState.isCameraPending}
+            <span class="iconify animate-spin uil--spinner" aria-hidden="true"></span>
+          {:else}
+            <span
+              class={[
+                'iconify',
+                voiceCallState.isCameraEnabled ? 'uil--video' : 'uil--video-slash'
+              ]}
+              aria-hidden="true"
+            ></span>
+          {/if}
         </button>
         <button
           type="button"
@@ -246,8 +261,14 @@ to the user settings page for the active server.
             : m['voice.share_screen']()}
           data-testid="current-user-call-screen-share"
           onclick={() => voiceCallState.toggleScreenShare()}
+          disabled={voiceCallState.isScreenSharePending}
+          aria-busy={voiceCallState.isScreenSharePending || undefined}
         >
-          <span class="iconify uil--desktop" aria-hidden="true"></span>
+          {#if voiceCallState.isScreenSharePending}
+            <span class="iconify animate-spin uil--spinner" aria-hidden="true"></span>
+          {:else}
+            <span class="iconify uil--desktop" aria-hidden="true"></span>
+          {/if}
         </button>
         <button
           type="button"
