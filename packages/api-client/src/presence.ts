@@ -39,12 +39,12 @@ export function createPresenceAPI(config: PresenceAPIConfig) {
   }
 
   return {
-    async reportPresence(
+    async updatePresence(
       status: PresenceStatus,
       userSelected = false,
     ): Promise<PresenceStatus> {
       try {
-        const response = await client.reportPresence(
+        const response = await client.updatePresence(
           { status, userSelected },
           { headers: headers() },
         );

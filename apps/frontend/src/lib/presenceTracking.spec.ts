@@ -4,14 +4,14 @@ import { PresenceStatus } from '$lib/render/types';
 import { presencePreference } from '$lib/state/presencePreference.svelte';
 import { initPresenceTracking, setPresenceMode } from './presenceTracking';
 
-type ReportPresence = (
+type UpdatePresence = (
 	status: APIPresenceStatus,
 	userSelected?: boolean
 ) => Promise<APIPresenceStatus>;
 type PresenceStatusHandler = (status: PresenceStatus) => void;
 
 const mocks = vi.hoisted(() => ({
-	reportPresence: vi.fn()
+	updatePresence: vi.fn()
 }));
 
 vi.mock('@chatto/api-client/presence', async (importOriginal) => {
@@ -19,7 +19,7 @@ vi.mock('@chatto/api-client/presence', async (importOriginal) => {
 	return {
 		...actual,
 		createPresenceAPI: () => ({
-			reportPresence: mocks.reportPresence
+			updatePresence: mocks.updatePresence
 		})
 	};
 });
@@ -57,17 +57,17 @@ function startTracking() {
 }
 
 function sentStatuses(): APIPresenceStatus[] {
-	return mocks.reportPresence.mock.calls.map((call) => call[0]);
+	return mocks.updatePresence.mock.calls.map((call) => call[0]);
 }
 
 function sentUserSelectedFlags(): Array<boolean | undefined> {
-	return mocks.reportPresence.mock.calls.map((call) => call[1]);
+	return mocks.updatePresence.mock.calls.map((call) => call[1]);
 }
 
 describe('initPresenceTracking', () => {
 	beforeEach(() => {
 		vi.useFakeTimers({ now: 0 });
-		mocks.reportPresence = vi.fn<ReportPresence>((status) => Promise.resolve(status));
+		mocks.updatePresence = vi.fn<UpdatePresence>((status) => Promise.resolve(status));
 		documentTarget = new EventTarget();
 		windowTarget = new EventTarget();
 		visibilityState = 'visible';
@@ -118,7 +118,7 @@ describe('initPresenceTracking', () => {
 	});
 
 	it('reconciles local status to the server-accepted presence', async () => {
-		mocks.reportPresence.mockImplementation((status, userSelected) =>
+		mocks.updatePresence.mockImplementation((status, userSelected) =>
 			Promise.resolve(
 				status === APIPresenceStatus.ONLINE && !userSelected
 					? APIPresenceStatus.DO_NOT_DISTURB
@@ -209,7 +209,7 @@ describe('initPresenceTracking', () => {
 		expect(onStatusChange).toHaveBeenLastCalledWith(PresenceStatus.DoNotDisturb);
 	});
 
-	it('does not report presence while invisible and pauses live events', () => {
+	it('does not update presence while invisible and pauses live events', () => {
 		startTracking();
 		setPresenceMode('invisible');
 		vi.advanceTimersByTime(60_000);

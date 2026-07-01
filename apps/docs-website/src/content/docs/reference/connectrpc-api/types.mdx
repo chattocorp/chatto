@@ -1314,9 +1314,9 @@ Notification delivery level for a room.
 
 Live presence status returned by public read APIs.
 
-Offline is a read-side state only. Clients cannot report Offline through the
-account presence RPC; they should stop reporting presence and let the
-server's live presence record expire.
+Offline is a read-side state only. Clients cannot update their presence to
+Offline through the account presence RPC; they should stop refreshing and let
+the server's live presence record expire.
 
 | Name | Number | Description |
 | --- | --- | --- |

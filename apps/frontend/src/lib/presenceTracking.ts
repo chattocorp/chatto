@@ -120,7 +120,7 @@ export function initPresenceTracking(
 	function sendPresenceReport(status: PresenceStatus, userSelected: boolean, revision: number) {
 		for (const config of getReporters()) {
 			createPresenceAPI(config)
-				.reportPresence(presenceStatusToAPIStatus(status), userSelected)
+				.updatePresence(presenceStatusToAPIStatus(status), userSelected)
 				.then((accepted) => applyAcceptedStatus(accepted, revision))
 				.catch(() => {});
 		}

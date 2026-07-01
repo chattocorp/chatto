@@ -48,9 +48,9 @@ const (
 	// AccountServiceUpdateSettingsProcedure is the fully-qualified name of the AccountService's
 	// UpdateSettings RPC.
 	AccountServiceUpdateSettingsProcedure = "/chatto.api.v1.AccountService/UpdateSettings"
-	// AccountServiceReportPresenceProcedure is the fully-qualified name of the AccountService's
-	// ReportPresence RPC.
-	AccountServiceReportPresenceProcedure = "/chatto.api.v1.AccountService/ReportPresence"
+	// AccountServiceUpdatePresenceProcedure is the fully-qualified name of the AccountService's
+	// UpdatePresence RPC.
+	AccountServiceUpdatePresenceProcedure = "/chatto.api.v1.AccountService/UpdatePresence"
 	// AccountServiceUpdateCustomStatusProcedure is the fully-qualified name of the AccountService's
 	// UpdateCustomStatus RPC.
 	AccountServiceUpdateCustomStatusProcedure = "/chatto.api.v1.AccountService/UpdateCustomStatus"
@@ -77,10 +77,10 @@ type AccountServiceClient interface {
 	UpdatePassword(context.Context, *connect.Request[v1.UpdatePasswordRequest]) (*connect.Response[v1.UpdatePasswordResponse], error)
 	// Updates the authenticated user's display preferences.
 	UpdateSettings(context.Context, *connect.Request[v1.UpdateSettingsRequest]) (*connect.Response[v1.UpdateSettingsResponse], error)
-	// Reports the current user's live presence status. This state is transient:
+	// Updates the current user's live presence status. This state is transient:
 	// clients should refresh it periodically while visible, and should stop
 	// calling this RPC when the user chooses to appear offline.
-	ReportPresence(context.Context, *connect.Request[v1.ReportPresenceRequest]) (*connect.Response[v1.ReportPresenceResponse], error)
+	UpdatePresence(context.Context, *connect.Request[v1.UpdatePresenceRequest]) (*connect.Response[v1.UpdatePresenceResponse], error)
 	// Updates or replaces the current user's custom status. Emoji and text are
 	// required, and expires_at must be omitted or in the future.
 	UpdateCustomStatus(context.Context, *connect.Request[v1.UpdateCustomStatusRequest]) (*connect.Response[v1.UpdateCustomStatusResponse], error)
@@ -134,10 +134,10 @@ func NewAccountServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(accountServiceMethods.ByName("UpdateSettings")),
 			connect.WithClientOptions(opts...),
 		),
-		reportPresence: connect.NewClient[v1.ReportPresenceRequest, v1.ReportPresenceResponse](
+		updatePresence: connect.NewClient[v1.UpdatePresenceRequest, v1.UpdatePresenceResponse](
 			httpClient,
-			baseURL+AccountServiceReportPresenceProcedure,
-			connect.WithSchema(accountServiceMethods.ByName("ReportPresence")),
+			baseURL+AccountServiceUpdatePresenceProcedure,
+			connect.WithSchema(accountServiceMethods.ByName("UpdatePresence")),
 			connect.WithClientOptions(opts...),
 		),
 		updateCustomStatus: connect.NewClient[v1.UpdateCustomStatusRequest, v1.UpdateCustomStatusResponse](
@@ -174,7 +174,7 @@ type accountServiceClient struct {
 	deleteAvatar           *connect.Client[v1.DeleteAvatarRequest, v1.DeleteAvatarResponse]
 	updatePassword         *connect.Client[v1.UpdatePasswordRequest, v1.UpdatePasswordResponse]
 	updateSettings         *connect.Client[v1.UpdateSettingsRequest, v1.UpdateSettingsResponse]
-	reportPresence         *connect.Client[v1.ReportPresenceRequest, v1.ReportPresenceResponse]
+	updatePresence         *connect.Client[v1.UpdatePresenceRequest, v1.UpdatePresenceResponse]
 	updateCustomStatus     *connect.Client[v1.UpdateCustomStatusRequest, v1.UpdateCustomStatusResponse]
 	deleteCustomStatus     *connect.Client[v1.DeleteCustomStatusRequest, v1.DeleteCustomStatusResponse]
 	requestAccountDeletion *connect.Client[v1.RequestAccountDeletionRequest, v1.RequestAccountDeletionResponse]
@@ -206,9 +206,9 @@ func (c *accountServiceClient) UpdateSettings(ctx context.Context, req *connect.
 	return c.updateSettings.CallUnary(ctx, req)
 }
 
-// ReportPresence calls chatto.api.v1.AccountService.ReportPresence.
-func (c *accountServiceClient) ReportPresence(ctx context.Context, req *connect.Request[v1.ReportPresenceRequest]) (*connect.Response[v1.ReportPresenceResponse], error) {
-	return c.reportPresence.CallUnary(ctx, req)
+// UpdatePresence calls chatto.api.v1.AccountService.UpdatePresence.
+func (c *accountServiceClient) UpdatePresence(ctx context.Context, req *connect.Request[v1.UpdatePresenceRequest]) (*connect.Response[v1.UpdatePresenceResponse], error) {
+	return c.updatePresence.CallUnary(ctx, req)
 }
 
 // UpdateCustomStatus calls chatto.api.v1.AccountService.UpdateCustomStatus.
@@ -243,10 +243,10 @@ type AccountServiceHandler interface {
 	UpdatePassword(context.Context, *connect.Request[v1.UpdatePasswordRequest]) (*connect.Response[v1.UpdatePasswordResponse], error)
 	// Updates the authenticated user's display preferences.
 	UpdateSettings(context.Context, *connect.Request[v1.UpdateSettingsRequest]) (*connect.Response[v1.UpdateSettingsResponse], error)
-	// Reports the current user's live presence status. This state is transient:
+	// Updates the current user's live presence status. This state is transient:
 	// clients should refresh it periodically while visible, and should stop
 	// calling this RPC when the user chooses to appear offline.
-	ReportPresence(context.Context, *connect.Request[v1.ReportPresenceRequest]) (*connect.Response[v1.ReportPresenceResponse], error)
+	UpdatePresence(context.Context, *connect.Request[v1.UpdatePresenceRequest]) (*connect.Response[v1.UpdatePresenceResponse], error)
 	// Updates or replaces the current user's custom status. Emoji and text are
 	// required, and expires_at must be omitted or in the future.
 	UpdateCustomStatus(context.Context, *connect.Request[v1.UpdateCustomStatusRequest]) (*connect.Response[v1.UpdateCustomStatusResponse], error)
@@ -296,10 +296,10 @@ func NewAccountServiceHandler(svc AccountServiceHandler, opts ...connect.Handler
 		connect.WithSchema(accountServiceMethods.ByName("UpdateSettings")),
 		connect.WithHandlerOptions(opts...),
 	)
-	accountServiceReportPresenceHandler := connect.NewUnaryHandler(
-		AccountServiceReportPresenceProcedure,
-		svc.ReportPresence,
-		connect.WithSchema(accountServiceMethods.ByName("ReportPresence")),
+	accountServiceUpdatePresenceHandler := connect.NewUnaryHandler(
+		AccountServiceUpdatePresenceProcedure,
+		svc.UpdatePresence,
+		connect.WithSchema(accountServiceMethods.ByName("UpdatePresence")),
 		connect.WithHandlerOptions(opts...),
 	)
 	accountServiceUpdateCustomStatusHandler := connect.NewUnaryHandler(
@@ -338,8 +338,8 @@ func NewAccountServiceHandler(svc AccountServiceHandler, opts ...connect.Handler
 			accountServiceUpdatePasswordHandler.ServeHTTP(w, r)
 		case AccountServiceUpdateSettingsProcedure:
 			accountServiceUpdateSettingsHandler.ServeHTTP(w, r)
-		case AccountServiceReportPresenceProcedure:
-			accountServiceReportPresenceHandler.ServeHTTP(w, r)
+		case AccountServiceUpdatePresenceProcedure:
+			accountServiceUpdatePresenceHandler.ServeHTTP(w, r)
 		case AccountServiceUpdateCustomStatusProcedure:
 			accountServiceUpdateCustomStatusHandler.ServeHTTP(w, r)
 		case AccountServiceDeleteCustomStatusProcedure:
@@ -377,8 +377,8 @@ func (UnimplementedAccountServiceHandler) UpdateSettings(context.Context, *conne
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.AccountService.UpdateSettings is not implemented"))
 }
 
-func (UnimplementedAccountServiceHandler) ReportPresence(context.Context, *connect.Request[v1.ReportPresenceRequest]) (*connect.Response[v1.ReportPresenceResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.AccountService.ReportPresence is not implemented"))
+func (UnimplementedAccountServiceHandler) UpdatePresence(context.Context, *connect.Request[v1.UpdatePresenceRequest]) (*connect.Response[v1.UpdatePresenceResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.AccountService.UpdatePresence is not implemented"))
 }
 
 func (UnimplementedAccountServiceHandler) UpdateCustomStatus(context.Context, *connect.Request[v1.UpdateCustomStatusRequest]) (*connect.Response[v1.UpdateCustomStatusResponse], error) {

@@ -9,9 +9,9 @@ import { Message, proto3 } from "@bufbuild/protobuf";
 /**
  * Live presence status returned by public read APIs.
  *
- * Offline is a read-side state only. Clients cannot report Offline through the
- * account presence RPC; they should stop reporting presence and let the
- * server's live presence record expire.
+ * Offline is a read-side state only. Clients cannot update their presence to
+ * Offline through the account presence RPC; they should stop refreshing and let
+ * the server's live presence record expire.
  *
  * @generated from enum chatto.api.v1.PresenceStatus
  */
@@ -61,62 +61,62 @@ proto3.util.setEnumType(PresenceStatus, "chatto.api.v1.PresenceStatus", [
 ]);
 
 /**
- * Request to report the current user's live presence status.
+ * Request to update the current user's live presence status.
  *
- * @generated from message chatto.api.v1.ReportPresenceRequest
+ * @generated from message chatto.api.v1.UpdatePresenceRequest
  */
-export class ReportPresenceRequest extends Message<ReportPresenceRequest> {
+export class UpdatePresenceRequest extends Message<UpdatePresenceRequest> {
   /**
-   * Live status to report for the authenticated user. Offline is rejected.
+   * Live status to store for the authenticated user. Offline is rejected.
    *
    * @generated from field: chatto.api.v1.PresenceStatus status = 1;
    */
   status = PresenceStatus.UNSPECIFIED;
 
   /**
-   * True when this report comes from a deliberate user selection rather than
-   * automatic idle/refresh reporting. Automatic reports do not overwrite an
+   * True when this update comes from a deliberate user selection rather than
+   * automatic idle/refresh updates. Automatic updates do not overwrite an
    * active manually selected Away or Do Not Disturb status from another client.
    *
    * @generated from field: bool user_selected = 2;
    */
   userSelected = false;
 
-  constructor(data?: PartialMessage<ReportPresenceRequest>) {
+  constructor(data?: PartialMessage<UpdatePresenceRequest>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.ReportPresenceRequest";
+  static readonly typeName = "chatto.api.v1.UpdatePresenceRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "status", kind: "enum", T: proto3.getEnumType(PresenceStatus) },
     { no: 2, name: "user_selected", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ReportPresenceRequest {
-    return new ReportPresenceRequest().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UpdatePresenceRequest {
+    return new UpdatePresenceRequest().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ReportPresenceRequest {
-    return new ReportPresenceRequest().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): UpdatePresenceRequest {
+    return new UpdatePresenceRequest().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ReportPresenceRequest {
-    return new ReportPresenceRequest().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): UpdatePresenceRequest {
+    return new UpdatePresenceRequest().fromJsonString(jsonString, options);
   }
 
-  static equals(a: ReportPresenceRequest | PlainMessage<ReportPresenceRequest> | undefined, b: ReportPresenceRequest | PlainMessage<ReportPresenceRequest> | undefined): boolean {
-    return proto3.util.equals(ReportPresenceRequest, a, b);
+  static equals(a: UpdatePresenceRequest | PlainMessage<UpdatePresenceRequest> | undefined, b: UpdatePresenceRequest | PlainMessage<UpdatePresenceRequest> | undefined): boolean {
+    return proto3.util.equals(UpdatePresenceRequest, a, b);
   }
 }
 
 /**
- * Result of reporting live presence.
+ * Result of updating live presence.
  *
- * @generated from message chatto.api.v1.ReportPresenceResponse
+ * @generated from message chatto.api.v1.UpdatePresenceResponse
  */
-export class ReportPresenceResponse extends Message<ReportPresenceResponse> {
+export class UpdatePresenceResponse extends Message<UpdatePresenceResponse> {
   /**
    * Reportable status accepted and stored by the server.
    *
@@ -124,30 +124,30 @@ export class ReportPresenceResponse extends Message<ReportPresenceResponse> {
    */
   status = PresenceStatus.UNSPECIFIED;
 
-  constructor(data?: PartialMessage<ReportPresenceResponse>) {
+  constructor(data?: PartialMessage<UpdatePresenceResponse>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.ReportPresenceResponse";
+  static readonly typeName = "chatto.api.v1.UpdatePresenceResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "status", kind: "enum", T: proto3.getEnumType(PresenceStatus) },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ReportPresenceResponse {
-    return new ReportPresenceResponse().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UpdatePresenceResponse {
+    return new UpdatePresenceResponse().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ReportPresenceResponse {
-    return new ReportPresenceResponse().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): UpdatePresenceResponse {
+    return new UpdatePresenceResponse().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ReportPresenceResponse {
-    return new ReportPresenceResponse().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): UpdatePresenceResponse {
+    return new UpdatePresenceResponse().fromJsonString(jsonString, options);
   }
 
-  static equals(a: ReportPresenceResponse | PlainMessage<ReportPresenceResponse> | undefined, b: ReportPresenceResponse | PlainMessage<ReportPresenceResponse> | undefined): boolean {
-    return proto3.util.equals(ReportPresenceResponse, a, b);
+  static equals(a: UpdatePresenceResponse | PlainMessage<UpdatePresenceResponse> | undefined, b: UpdatePresenceResponse | PlainMessage<UpdatePresenceResponse> | undefined): boolean {
+    return proto3.util.equals(UpdatePresenceResponse, a, b);
   }
 }

@@ -734,7 +734,7 @@ const file_chatto_api_v1_account_proto_rawDesc = "" +
 	"\fDeleteAvatar\x12\".chatto.api.v1.DeleteAvatarRequest\x1a#.chatto.api.v1.DeleteAvatarResponse\x12]\n" +
 	"\x0eUpdatePassword\x12$.chatto.api.v1.UpdatePasswordRequest\x1a%.chatto.api.v1.UpdatePasswordResponse\x12]\n" +
 	"\x0eUpdateSettings\x12$.chatto.api.v1.UpdateSettingsRequest\x1a%.chatto.api.v1.UpdateSettingsResponse\x12]\n" +
-	"\x0eReportPresence\x12$.chatto.api.v1.ReportPresenceRequest\x1a%.chatto.api.v1.ReportPresenceResponse\x12i\n" +
+	"\x0eUpdatePresence\x12$.chatto.api.v1.UpdatePresenceRequest\x1a%.chatto.api.v1.UpdatePresenceResponse\x12i\n" +
 	"\x12UpdateCustomStatus\x12(.chatto.api.v1.UpdateCustomStatusRequest\x1a).chatto.api.v1.UpdateCustomStatusResponse\x12i\n" +
 	"\x12DeleteCustomStatus\x12(.chatto.api.v1.DeleteCustomStatusRequest\x1a).chatto.api.v1.DeleteCustomStatusResponse\x12u\n" +
 	"\x16RequestAccountDeletion\x12,.chatto.api.v1.RequestAccountDeletionRequest\x1a-.chatto.api.v1.RequestAccountDeletionResponse\x12`\n" +
@@ -772,10 +772,10 @@ var file_chatto_api_v1_account_proto_goTypes = []any{
 	(*User)(nil),                           // 14: chatto.api.v1.User
 	(TimeFormat)(0),                        // 15: chatto.api.v1.TimeFormat
 	(*UserSettings)(nil),                   // 16: chatto.api.v1.UserSettings
-	(*ReportPresenceRequest)(nil),          // 17: chatto.api.v1.ReportPresenceRequest
+	(*UpdatePresenceRequest)(nil),          // 17: chatto.api.v1.UpdatePresenceRequest
 	(*UpdateCustomStatusRequest)(nil),      // 18: chatto.api.v1.UpdateCustomStatusRequest
 	(*DeleteCustomStatusRequest)(nil),      // 19: chatto.api.v1.DeleteCustomStatusRequest
-	(*ReportPresenceResponse)(nil),         // 20: chatto.api.v1.ReportPresenceResponse
+	(*UpdatePresenceResponse)(nil),         // 20: chatto.api.v1.UpdatePresenceResponse
 	(*UpdateCustomStatusResponse)(nil),     // 21: chatto.api.v1.UpdateCustomStatusResponse
 	(*DeleteCustomStatusResponse)(nil),     // 22: chatto.api.v1.DeleteCustomStatusResponse
 }
@@ -790,7 +790,7 @@ var file_chatto_api_v1_account_proto_depIdxs = []int32{
 	4,  // 7: chatto.api.v1.AccountService.DeleteAvatar:input_type -> chatto.api.v1.DeleteAvatarRequest
 	6,  // 8: chatto.api.v1.AccountService.UpdatePassword:input_type -> chatto.api.v1.UpdatePasswordRequest
 	8,  // 9: chatto.api.v1.AccountService.UpdateSettings:input_type -> chatto.api.v1.UpdateSettingsRequest
-	17, // 10: chatto.api.v1.AccountService.ReportPresence:input_type -> chatto.api.v1.ReportPresenceRequest
+	17, // 10: chatto.api.v1.AccountService.UpdatePresence:input_type -> chatto.api.v1.UpdatePresenceRequest
 	18, // 11: chatto.api.v1.AccountService.UpdateCustomStatus:input_type -> chatto.api.v1.UpdateCustomStatusRequest
 	19, // 12: chatto.api.v1.AccountService.DeleteCustomStatus:input_type -> chatto.api.v1.DeleteCustomStatusRequest
 	10, // 13: chatto.api.v1.AccountService.RequestAccountDeletion:input_type -> chatto.api.v1.RequestAccountDeletionRequest
@@ -800,7 +800,7 @@ var file_chatto_api_v1_account_proto_depIdxs = []int32{
 	5,  // 17: chatto.api.v1.AccountService.DeleteAvatar:output_type -> chatto.api.v1.DeleteAvatarResponse
 	7,  // 18: chatto.api.v1.AccountService.UpdatePassword:output_type -> chatto.api.v1.UpdatePasswordResponse
 	9,  // 19: chatto.api.v1.AccountService.UpdateSettings:output_type -> chatto.api.v1.UpdateSettingsResponse
-	20, // 20: chatto.api.v1.AccountService.ReportPresence:output_type -> chatto.api.v1.ReportPresenceResponse
+	20, // 20: chatto.api.v1.AccountService.UpdatePresence:output_type -> chatto.api.v1.UpdatePresenceResponse
 	21, // 21: chatto.api.v1.AccountService.UpdateCustomStatus:output_type -> chatto.api.v1.UpdateCustomStatusResponse
 	22, // 22: chatto.api.v1.AccountService.DeleteCustomStatus:output_type -> chatto.api.v1.DeleteCustomStatusResponse
 	11, // 23: chatto.api.v1.AccountService.RequestAccountDeletion:output_type -> chatto.api.v1.RequestAccountDeletionResponse

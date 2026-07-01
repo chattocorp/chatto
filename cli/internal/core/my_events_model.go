@@ -43,10 +43,10 @@ func NewMyEventsModel(core *ChattoCore) *MyEventsModel {
 
 // StreamMyEventsOptions controls compatibility behavior for a myEvents stream.
 type StreamMyEventsOptions struct {
-	// ReportPresence preserves the legacy behavior where opening myEvents marks
+	// TouchPresence preserves the legacy behavior where opening myEvents marks
 	// the user online and refreshes the current presence value. New clients that
-	// report presence through ConnectRPC set this to false.
-	ReportPresence bool
+	// refresh presence through ConnectRPC set this to false.
+	TouchPresence bool
 }
 
 func (c *ChattoCore) myEvents() *MyEventsModel {
@@ -111,7 +111,7 @@ func (s *MyEventsModel) Metrics() MyEventsMetrics {
 // The returned channel closes when the context is cancelled or when a
 // SessionTerminatedEvent is delivered to the user.
 func (c *ChattoCore) StreamMyEvents(ctx context.Context, userID string) (<-chan EventEnvelope, error) {
-	return c.StreamMyEventsWithOptions(ctx, userID, StreamMyEventsOptions{ReportPresence: true})
+	return c.StreamMyEventsWithOptions(ctx, userID, StreamMyEventsOptions{TouchPresence: true})
 }
 
 // StreamMyEventsWithOptions creates a myEvents stream with explicit compatibility options.
@@ -163,7 +163,7 @@ func (s *MyEventsModel) StreamMyEvents(ctx context.Context, userID string, optio
 
 		var presenceTicker *time.Ticker
 		var presenceTickerC <-chan time.Time
-		if options.ReportPresence {
+		if options.TouchPresence {
 			// Legacy behavior: subscribing implies the user is online; refresh on
 			// a ticker so the KV TTL doesn't expire while the connection is open.
 			if err := c.SetPresence(ctx, userID, PresenceStatusOnline); err != nil {

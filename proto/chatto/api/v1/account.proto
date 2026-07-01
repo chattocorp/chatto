@@ -110,10 +110,10 @@ service AccountService {
   rpc UpdatePassword(UpdatePasswordRequest) returns (UpdatePasswordResponse);
   // Updates the authenticated user's display preferences.
   rpc UpdateSettings(UpdateSettingsRequest) returns (UpdateSettingsResponse);
-  // Reports the current user's live presence status. This state is transient:
+  // Updates the current user's live presence status. This state is transient:
   // clients should refresh it periodically while visible, and should stop
   // calling this RPC when the user chooses to appear offline.
-  rpc ReportPresence(ReportPresenceRequest) returns (ReportPresenceResponse);
+  rpc UpdatePresence(UpdatePresenceRequest) returns (UpdatePresenceResponse);
   // Updates or replaces the current user's custom status. Emoji and text are
   // required, and expires_at must be omitted or in the future.
   rpc UpdateCustomStatus(UpdateCustomStatusRequest) returns (UpdateCustomStatusResponse);

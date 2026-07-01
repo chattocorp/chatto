@@ -471,35 +471,35 @@ Result of updating display preferences.
 | `settings` | [`UserSettings`](#chatto-api-v1-UserSettings) | Stored settings after merging the request. |
 
 
-<a id="chatto-api-v1-AccountService-ReportPresence"></a>
+<a id="chatto-api-v1-AccountService-UpdatePresence"></a>
 
-### ReportPresence
+### UpdatePresence
 
-Reports the current user's live presence status. This state is transient:
+Updates the current user's live presence status. This state is transient:
 clients should refresh it periodically while visible, and should stop
 calling this RPC when the user chooses to appear offline.
 
 ```http
-POST /api/connect/chatto.api.v1.AccountService/ReportPresence
+POST /api/connect/chatto.api.v1.AccountService/UpdatePresence
 ```
 
-<a id="chatto-api-v1-ReportPresenceRequest"></a>
+<a id="chatto-api-v1-UpdatePresenceRequest"></a>
 
-#### Input: ReportPresenceRequest
+#### Input: UpdatePresenceRequest
 
-Request to report the current user's live presence status.
+Request to update the current user's live presence status.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `status` | [`PresenceStatus`](#chatto-api-v1-PresenceStatus) | Live status to report for the authenticated user. Offline is rejected. |
-| `user_selected` | `bool` | True when this report comes from a deliberate user selection rather than automatic idle/refresh reporting. Automatic reports do not overwrite an active manually selected Away or Do Not Disturb status from another client. |
+| `status` | [`PresenceStatus`](#chatto-api-v1-PresenceStatus) | Live status to store for the authenticated user. Offline is rejected. |
+| `user_selected` | `bool` | True when this update comes from a deliberate user selection rather than automatic idle/refresh updates. Automatic updates do not overwrite an active manually selected Away or Do Not Disturb status from another client. |
 
 
-<a id="chatto-api-v1-ReportPresenceResponse"></a>
+<a id="chatto-api-v1-UpdatePresenceResponse"></a>
 
-#### Result: ReportPresenceResponse
+#### Result: UpdatePresenceResponse
 
-Result of reporting live presence.
+Result of updating live presence.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -4346,9 +4346,9 @@ Notification delivery level for a room.
 
 Live presence status returned by public read APIs.
 
-Offline is a read-side state only. Clients cannot report Offline through the
-account presence RPC; they should stop reporting presence and let the
-server's live presence record expire.
+Offline is a read-side state only. Clients cannot update their presence to
+Offline through the account presence RPC; they should stop refreshing and let
+the server's live presence record expire.
 
 | Name | Number | Description |
 | --- | --- | --- |

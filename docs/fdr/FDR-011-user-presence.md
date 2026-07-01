@@ -9,7 +9,7 @@ Every user has a presence status visible to others as a colored dot on their ava
 
 ## Behavior
 
-- Current clients report their own presence through `AccountService.ReportPresence` on the ConnectRPC API.
+- Current clients refresh their own presence through `AccountService.UpdatePresence` on the ConnectRPC API.
 - In automatic mode, users start Online. After 5 minutes without keyboard/mouse/touch input, the client transitions to Away.
 - If the browser tab is hidden for 10 seconds, the client also transitions to Away (debounced to avoid flashing during quick tab switches).
 - Any interaction returns the user to Online only while automatic mode is active.
@@ -36,7 +36,7 @@ Every user has a presence status visible to others as a colored dot on their ava
 
 ### 3. User-level live status with heartbeat-driven deduplication
 
-**Decision:** Presence is stored in `MEMORY_CACHE` as `presence.{userId}`. A per-process PresenceHub watches these keys and emits live events only when the user-level status changes. Current clients write `ONLINE`, `AWAY`, or `DO_NOT_DISTURB` through `AccountService.ReportPresence`; `OFFLINE` is not an accepted self-reporting value. The live record carries whether the status was manually selected so automatic reports from other clients cannot clear explicit Away/DND.
+**Decision:** Presence is stored in `MEMORY_CACHE` as `presence.{userId}`. A per-process PresenceHub watches these keys and emits live events only when the user-level status changes. Current clients write `ONLINE`, `AWAY`, or `DO_NOT_DISTURB` through `AccountService.UpdatePresence`; `OFFLINE` is not an accepted update value. The live record carries whether the status was manually selected so automatic updates from other clients cannot clear explicit Away/DND.
 **Why:** Presence is a current-state hint, not durable account history, but explicit availability choices should not be defeated by another idle detector. Closing a tab does not actively write Offline, so another open tab can keep automatic presence alive after the manual TTL expires.
 **Tradeoff:** "Look offline" remains client-local: another active browser/device can still keep the user visible because the invisible client deliberately does not tell the server about that privacy choice.
 
@@ -54,7 +54,7 @@ Every user has a presence status visible to others as a colored dot on their ava
 
 ### 6. Invisible mode is client-local privacy behavior
 
-**Decision:** "Look offline" is not a server status. The client stops self-reporting presence and stops receiving live event streams while the local mode is active. The server and other users only see the existing presence record expire.
+**Decision:** "Look offline" is not a server status. The client stops refreshing presence and stops receiving live event streams while the local mode is active. The server and other users only see the existing presence record expire.
 **Why:** Reporting an explicit invisible/offline status would make the server aware of the user's privacy choice and could leak it to other clients or operators through logs, admin tooling, or future APIs. Absence of reporting preserves the privacy property.
 **Tradeoff:** The user's own client loses realtime updates while invisible and must catch up from projected reads after returning to a reporting mode.
 

@@ -5,7 +5,7 @@
 
 import { DeleteAvatarRequest, DeleteAvatarResponse, DeleteMyAccountRequest, DeleteMyAccountResponse, RequestAccountDeletionRequest, RequestAccountDeletionResponse, UpdatePasswordRequest, UpdatePasswordResponse, UpdateProfileRequest, UpdateProfileResponse, UpdateSettingsRequest, UpdateSettingsResponse, UploadAvatarRequest, UploadAvatarResponse } from "./account_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
-import { ReportPresenceRequest, ReportPresenceResponse } from "./presence_pb.js";
+import { UpdatePresenceRequest, UpdatePresenceResponse } from "./presence_pb.js";
 import { DeleteCustomStatusRequest, DeleteCustomStatusResponse, UpdateCustomStatusRequest, UpdateCustomStatusResponse } from "./user_status_pb.js";
 
 /**
@@ -73,16 +73,16 @@ export const AccountService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Reports the current user's live presence status. This state is transient:
+     * Updates the current user's live presence status. This state is transient:
      * clients should refresh it periodically while visible, and should stop
      * calling this RPC when the user chooses to appear offline.
      *
-     * @generated from rpc chatto.api.v1.AccountService.ReportPresence
+     * @generated from rpc chatto.api.v1.AccountService.UpdatePresence
      */
-    reportPresence: {
-      name: "ReportPresence",
-      I: ReportPresenceRequest,
-      O: ReportPresenceResponse,
+    updatePresence: {
+      name: "UpdatePresence",
+      I: UpdatePresenceRequest,
+      O: UpdatePresenceResponse,
       kind: MethodKind.Unary,
     },
     /**

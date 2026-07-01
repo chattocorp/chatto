@@ -4203,36 +4203,36 @@ func TestVoiceCallServiceRecordsAndListsCalls(t *testing.T) {
 	}
 }
 
-func TestAccountServiceReportPresence(t *testing.T) {
+func TestAccountServiceUpdatePresence(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	ctx := withCaller(env.ctx, env.viewer)
 
-	if _, err := env.account.ReportPresence(env.ctx, connect.NewRequest(&apiv1.ReportPresenceRequest{
+	if _, err := env.account.UpdatePresence(env.ctx, connect.NewRequest(&apiv1.UpdatePresenceRequest{
 		Status: apiv1.PresenceStatus_PRESENCE_STATUS_ONLINE,
 	})); connect.CodeOf(err) != connect.CodeUnauthenticated {
-		t.Fatalf("unauthenticated ReportPresence code = %v, want %v", connect.CodeOf(err), connect.CodeUnauthenticated)
+		t.Fatalf("unauthenticated UpdatePresence code = %v, want %v", connect.CodeOf(err), connect.CodeUnauthenticated)
 	}
 
-	if _, err := env.account.ReportPresence(ctx, connect.NewRequest(&apiv1.ReportPresenceRequest{
+	if _, err := env.account.UpdatePresence(ctx, connect.NewRequest(&apiv1.UpdatePresenceRequest{
 		Status: apiv1.PresenceStatus_PRESENCE_STATUS_UNSPECIFIED,
 	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("unspecified ReportPresence code = %v, want %v", connect.CodeOf(err), connect.CodeInvalidArgument)
+		t.Fatalf("unspecified UpdatePresence code = %v, want %v", connect.CodeOf(err), connect.CodeInvalidArgument)
 	}
-	if _, err := env.account.ReportPresence(ctx, connect.NewRequest(&apiv1.ReportPresenceRequest{
+	if _, err := env.account.UpdatePresence(ctx, connect.NewRequest(&apiv1.UpdatePresenceRequest{
 		Status: apiv1.PresenceStatus_PRESENCE_STATUS_OFFLINE,
 	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("offline ReportPresence code = %v, want %v", connect.CodeOf(err), connect.CodeInvalidArgument)
+		t.Fatalf("offline UpdatePresence code = %v, want %v", connect.CodeOf(err), connect.CodeInvalidArgument)
 	}
 
-	resp, err := env.account.ReportPresence(ctx, connect.NewRequest(&apiv1.ReportPresenceRequest{
+	resp, err := env.account.UpdatePresence(ctx, connect.NewRequest(&apiv1.UpdatePresenceRequest{
 		Status:       apiv1.PresenceStatus_PRESENCE_STATUS_DO_NOT_DISTURB,
 		UserSelected: true,
 	}))
 	if err != nil {
-		t.Fatalf("ReportPresence: %v", err)
+		t.Fatalf("UpdatePresence: %v", err)
 	}
 	if resp.Msg.Status != apiv1.PresenceStatus_PRESENCE_STATUS_DO_NOT_DISTURB {
-		t.Fatalf("ReportPresence status = %v, want DO_NOT_DISTURB", resp.Msg.Status)
+		t.Fatalf("UpdatePresence status = %v, want DO_NOT_DISTURB", resp.Msg.Status)
 	}
 
 	stored, err := env.core.GetUserPresence(env.ctx, env.viewer.Id)
@@ -4243,11 +4243,11 @@ func TestAccountServiceReportPresence(t *testing.T) {
 		t.Fatalf("stored presence = %q, want %q", stored, core.PresenceStatusDoNotDisturb)
 	}
 
-	autoResp, err := env.account.ReportPresence(ctx, connect.NewRequest(&apiv1.ReportPresenceRequest{
+	autoResp, err := env.account.UpdatePresence(ctx, connect.NewRequest(&apiv1.UpdatePresenceRequest{
 		Status: apiv1.PresenceStatus_PRESENCE_STATUS_ONLINE,
 	}))
 	if err != nil {
-		t.Fatalf("automatic online ReportPresence: %v", err)
+		t.Fatalf("automatic online UpdatePresence: %v", err)
 	}
 	if autoResp.Msg.Status != apiv1.PresenceStatus_PRESENCE_STATUS_DO_NOT_DISTURB {
 		t.Fatalf("automatic online response status = %v, want DO_NOT_DISTURB", autoResp.Msg.Status)
@@ -4260,11 +4260,11 @@ func TestAccountServiceReportPresence(t *testing.T) {
 		t.Fatalf("automatic online stored presence = %q, want %q", stored, core.PresenceStatusDoNotDisturb)
 	}
 
-	if _, err := env.account.ReportPresence(ctx, connect.NewRequest(&apiv1.ReportPresenceRequest{
+	if _, err := env.account.UpdatePresence(ctx, connect.NewRequest(&apiv1.UpdatePresenceRequest{
 		Status:       apiv1.PresenceStatus_PRESENCE_STATUS_ONLINE,
 		UserSelected: true,
 	})); err != nil {
-		t.Fatalf("explicit online ReportPresence: %v", err)
+		t.Fatalf("explicit online UpdatePresence: %v", err)
 	}
 	stored, err = env.core.GetUserPresence(env.ctx, env.viewer.Id)
 	if err != nil {
