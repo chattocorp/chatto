@@ -32,6 +32,8 @@ Room sidebar panel for voice/video calls.
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import VideoThumbnail from './VideoThumbnail.svelte';
   import AudioDeviceMenu from './AudioDeviceMenu.svelte';
+  import CallTileActionButton from './CallTileActionButton.svelte';
+  import CallTileActionToolbar from './CallTileActionToolbar.svelte';
   import UserContextMenu from '$lib/components/menus/UserContextMenu.svelte';
   import { getVoiceCallJoinErrorMessage } from '$lib/state/server/voiceCall.svelte';
   import type { Track } from 'livekit-client';
@@ -231,10 +233,6 @@ Room sidebar panel for voice/video calls.
   const controlButtonClass = 'btn-secondary btn-sm h-9 w-full !px-0';
   const activeControlButtonClass = 'btn-success btn-sm h-9 w-full !px-0';
   const dangerControlButtonClass = 'btn-danger btn-sm h-9 w-full !px-0';
-  const tileActionToolbarClass =
-    'pointer-events-none absolute top-1.5 right-1.5 z-10 flex gap-0.5 rounded-md border border-border bg-surface-100/95 p-0.5 opacity-0 transition-opacity group-hover/media:opacity-100 group-focus-within/media:opacity-100';
-  const tileActionButtonClass =
-    'pointer-events-auto flex h-7 w-7 cursor-pointer items-center justify-center rounded text-muted transition-colors hover:bg-surface-200 hover:text-text focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary';
 
   function hasVideo(participant: DisplayParticipant) {
     return participant.isCameraEnabled && participant.videoTrack;
@@ -372,59 +370,40 @@ Room sidebar panel for voice/video calls.
 
 {#snippet localMuteButton(participant: DisplayParticipant)}
   {@const isMutedForViewer = participant.isLocal ? voiceCallState.isMuted : participant.isLocallyMuted}
-  <button
-    type="button"
-    class={[tileActionButtonClass, isMutedForViewer && 'bg-surface-200 text-text']}
-    title={participant.isLocal
+  <CallTileActionButton
+    icon={isMutedForViewer ? 'uil--volume-mute' : 'uil--volume-up'}
+    active={isMutedForViewer}
+    label={participant.isLocal
       ? isMutedForViewer
         ? m['voice.unmute']()
         : m['voice.mute']()
       : isMutedForViewer
         ? m['voice.locally_unmute_participant']()
         : m['voice.locally_mute_participant']()}
-    aria-label={participant.isLocal
-      ? isMutedForViewer
-        ? m['voice.unmute']()
-        : m['voice.mute']()
-      : isMutedForViewer
-        ? m['voice.locally_unmute_participant']()
-        : m['voice.locally_mute_participant']()}
-    data-testid="call-feed-local-mute-button"
+    testId="call-feed-local-mute-button"
     onclick={(event) => toggleFeedMute(participant, event)}
-  >
-    <span
-      class={['iconify text-base', isMutedForViewer ? 'uil--volume-mute' : 'uil--volume-up']}
-      aria-hidden="true"
-    ></span>
-  </button>
+  />
 {/snippet}
 
 {#snippet mediaTileActions(participant: DisplayParticipant)}
-  <div
-    class={tileActionToolbarClass}
-    data-testid="call-media-actions"
-  >
-    <button
-      type="button"
-      class={tileActionButtonClass}
-      title={m['voice.fullscreen_feed']()}
-      aria-label={m['voice.fullscreen_feed']()}
-      data-testid="call-feed-fullscreen-button"
+  <CallTileActionToolbar testId="call-media-actions">
+    <CallTileActionButton
+      icon="mdi--fullscreen"
+      label={m['voice.fullscreen_feed']()}
+      testId="call-feed-fullscreen-button"
       onclick={toggleClosestMediaFullscreen}
-    >
-      <span class="iconify text-base mdi--fullscreen" aria-hidden="true"></span>
-    </button>
+    />
     {#if isInThisCall}
       {@render localMuteButton(participant)}
     {/if}
-  </div>
+  </CallTileActionToolbar>
 {/snippet}
 
 {#snippet voiceTileActions(participant: DisplayParticipant)}
   {#if isInThisCall}
-    <div class={tileActionToolbarClass} data-testid="call-voice-actions">
+    <CallTileActionToolbar testId="call-voice-actions">
       {@render localMuteButton(participant)}
-    </div>
+    </CallTileActionToolbar>
   {/if}
 {/snippet}
 
