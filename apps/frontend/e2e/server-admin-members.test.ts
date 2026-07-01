@@ -174,9 +174,9 @@ test.describe('Server Admin Members', () => {
       const { page } = serverAdminPage;
 
       // Create an admin, two regular members, and grant only role.assign to
-      // everyone. Member detail reads now require admin.view-users; role
-      // assignment alone is enough for the Members navigation entry, but not
-      // enough to inspect another account's details.
+      // everyone. Member detail reads now require admin.view-users, so role
+      // assignment alone is denied by the admin layout guard before the detail
+      // page can load another account's data.
       await createAndLoginTestUser(page);
       const server = await usePrimaryServerViaAPI(page);
       const target = await createSecondTestUser(page);
@@ -187,10 +187,7 @@ test.describe('Server Admin Members', () => {
       await loginUser(page, viewer.login, viewer.password);
       await serverAdminPage.gotoMemberDetails(server.id, target.id!);
 
-      await expect(page.getByRole('heading', { name: 'Member Details' })).toBeVisible({
-        timeout: TIMEOUTS.REALTIME_EVENT
-      });
-      await expect(page.getByText('Member not found. They may have left the server.')).toBeVisible();
+      await serverAdminPage.expectAccessDenied();
       await expect(page.getByText(`${target.login}@example.com`)).not.toBeVisible();
     });
 

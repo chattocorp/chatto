@@ -303,11 +303,11 @@ test.describe('Server Admin Navigation Permissions', () => {
       await logoutUser(page);
       await loginUser(page, member.login, member.password);
       // Navigate to the concrete section unlocked by role.assign
-      await page.goto(routes.serverAdminMembers);
+      await page.goto(routes.serverAdminRoles);
 
-      // Should see Members, NOT Access Denied and NOT General settings
+      // Should see Permissions, NOT Access Denied and NOT General settings
       await serverAdminPage.expectAccessNotDenied();
-      await expect(page.getByRole('heading', { name: 'Members', exact: true })).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'Permissions', level: 1 })).toBeVisible();
       await serverAdminPage.expectGeneralSettingsNotVisible();
     });
 
