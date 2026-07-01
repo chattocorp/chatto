@@ -71,7 +71,7 @@ export function getAdminNavItems({
     });
   }
 
-  if (chrome.canManageRoles || server.canAdminViewRoles) {
+  if (chrome.canManageRoles) {
     items.push({
       href: resolve('/chat/[serverId]/server-admin/permissions', { serverId: serverSegment }),
       label: m['admin.nav.permissions'](),

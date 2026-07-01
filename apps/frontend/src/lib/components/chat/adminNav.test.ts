@@ -45,4 +45,24 @@ describe('getAdminNavItems', () => {
 
     expect(items.some((item) => item.label === 'Members')).toBe(false);
   });
+
+  it('hides Permissions without role management', () => {
+    const items = getAdminNavItems({
+      serverSegment: 'local',
+      chrome: chrome({ canViewAdmin: true, canAssignRoles: true }),
+      server: server({ canAdminViewRoles: true })
+    });
+
+    expect(items.some((item) => item.label === 'Permissions')).toBe(false);
+  });
+
+  it('shows Permissions for role managers', () => {
+    const items = getAdminNavItems({
+      serverSegment: 'local',
+      chrome: chrome({ canViewAdmin: true, canManageRoles: true }),
+      server: server()
+    });
+
+    expect(items.some((item) => item.label === 'Permissions')).toBe(true);
+  });
 });

@@ -1830,6 +1830,24 @@ func TestAdminMemberServiceUpdatesUsersAndClearsCooldown(t *testing.T) {
 	if err := env.core.GrantUserPermission(env.ctx, core.SystemActorID, accountManager.Id, core.PermUserManageAccounts); err != nil {
 		t.Fatalf("GrantUserPermission user.manage-accounts: %v", err)
 	}
+	if _, err := env.adminUsers.GetMember(withCaller(env.ctx, accountManager), connect.NewRequest(&adminv1.GetMemberRequest{
+		UserId: target.Id,
+	})); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("account manager GetMember code = %v, want permission_denied", connect.CodeOf(err))
+	}
+	accountUpdateResp, err := env.adminUsers.UpdateUser(withCaller(env.ctx, accountManager), connect.NewRequest(&adminv1.UpdateUserRequest{
+		UserId:      target.Id,
+		DisplayName: stringPtr("Account Managed Target"),
+	}))
+	if err != nil {
+		t.Fatalf("account manager UpdateUser: %v", err)
+	}
+	if accountUpdateResp.Msg.GetUser().GetDisplayName() != "Account Managed Target" {
+		t.Fatalf("account manager UpdateUser user display name = %q, want Account Managed Target", accountUpdateResp.Msg.GetUser().GetDisplayName())
+	}
+	if member := accountUpdateResp.Msg.GetMember(); member.GetUser().GetId() != target.Id || member.GetUser().GetDisplayName() != "Account Managed Target" {
+		t.Fatalf("account manager UpdateUser member = %+v, want updated target", member)
+	}
 	if _, err := env.adminUsers.SetUserPassword(withCaller(env.ctx, accountManager), connect.NewRequest(&adminv1.SetUserPasswordRequest{
 		UserId:   target.Id,
 		Password: "accountmanagerpass456",
@@ -2085,6 +2103,39 @@ func TestAdminMemberServiceAssignsAndRevokesRoles(t *testing.T) {
 		UserId: target.Id,
 	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("empty role AssignRole code = %v, want invalid_argument", connect.CodeOf(err))
+	}
+	roleAssigner, err := env.core.CreateUser(env.ctx, core.SystemActorID, "admin-role-assigner-only", "Admin Role Assigner Only", "password")
+	if err != nil {
+		t.Fatalf("CreateUser role assigner: %v", err)
+	}
+	if err := env.core.GrantUserPermission(env.ctx, core.SystemActorID, roleAssigner.Id, core.PermRoleAssign); err != nil {
+		t.Fatalf("GrantUserPermission role.assign: %v", err)
+	}
+	roleAssignerCtx := withCaller(env.ctx, roleAssigner)
+	if _, err := env.adminUsers.GetMember(roleAssignerCtx, connect.NewRequest(&adminv1.GetMemberRequest{
+		UserId: target.Id,
+	})); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("role.assign-only GetMember code = %v, want permission_denied", connect.CodeOf(err))
+	}
+	roleAssignerResp, err := env.adminUsers.AssignRole(roleAssignerCtx, connect.NewRequest(&adminv1.AssignRoleRequest{
+		UserId:   target.Id,
+		RoleName: core.RoleModerator,
+	}))
+	if err != nil {
+		t.Fatalf("role.assign-only AssignRole: %v", err)
+	}
+	if !roleAssignerResp.Msg.GetAssigned() || !stringSliceContains(roleAssignerResp.Msg.GetMember().GetRoles(), core.RoleModerator) {
+		t.Fatalf("role.assign-only AssignRole response = %+v, want assigned moderator", roleAssignerResp.Msg)
+	}
+	roleAssignerRevokeResp, err := env.adminUsers.RevokeRole(roleAssignerCtx, connect.NewRequest(&adminv1.RevokeRoleRequest{
+		UserId:   target.Id,
+		RoleName: core.RoleModerator,
+	}))
+	if err != nil {
+		t.Fatalf("role.assign-only RevokeRole: %v", err)
+	}
+	if !roleAssignerRevokeResp.Msg.GetRevoked() || stringSliceContains(roleAssignerRevokeResp.Msg.GetMember().GetRoles(), core.RoleModerator) {
+		t.Fatalf("role.assign-only RevokeRole response = %+v, want revoked moderator", roleAssignerRevokeResp.Msg)
 	}
 
 	assignResp, err := env.adminUsers.AssignRole(adminCtx, connect.NewRequest(&adminv1.AssignRoleRequest{

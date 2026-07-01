@@ -50,10 +50,10 @@
       return () => chromePermissions.current.canViewAdmin;
     }
 
-    // Permissions pages: role.manage OR admin.view-roles
+    // Permissions pages call the server/group role permission matrix APIs,
+    // which require role.manage.
     if (pathname.startsWith(permissionsBase)) {
-      return () =>
-        chromePermissions.current.canManageRoles || serverPerms.current.canAdminViewRoles;
+      return () => chromePermissions.current.canManageRoles;
     }
 
     // Security (blocked usernames) — server.manage
