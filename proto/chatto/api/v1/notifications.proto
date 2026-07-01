@@ -110,6 +110,42 @@ message ListNotificationsResponse {
   PageInfo page = 5;
 }
 
+// Request one pending notification for the authenticated viewer.
+message GetNotificationRequest {
+  // Required notification ID.
+  string notification_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+// Pending notification response.
+message GetNotificationResponse {
+  // Requested notification.
+  NotificationItem item = 1;
+  // Current server display name for non-DM location labels.
+  string server_name = 2;
+}
+
+// Request pending notifications for a set of stable notification IDs.
+message BatchGetNotificationsRequest {
+  // Required notification IDs. Unknown or dismissed IDs are omitted from the
+  // response.
+  repeated string notification_ids = 1 [(buf.validate.field).repeated = {
+    min_items: 1
+    max_items: 100
+    items: {
+      string: {min_len: 1}
+    }
+  }];
+}
+
+// Batch pending notification response.
+message BatchGetNotificationsResponse {
+  // Found notifications. The server preserves first-seen request order and
+  // de-duplicates repeated IDs.
+  repeated NotificationItem items = 1;
+  // Current server display name for non-DM location labels.
+  string server_name = 2;
+}
+
 // Pending notification page scoped to one room.
 message ListRoomNotificationsResponse {
   reserved 2, 3;
@@ -174,6 +210,11 @@ message DismissAllNotificationsResponse {
 service NotificationService {
   // Lists the authenticated viewer's pending notifications.
   rpc ListNotifications(ListNotificationsRequest) returns (ListNotificationsResponse);
+  // Gets one pending notification. Returns NOT_FOUND when the notification is
+  // unknown or has been dismissed.
+  rpc GetNotification(GetNotificationRequest) returns (GetNotificationResponse);
+  // Gets pending notifications by ID.
+  rpc BatchGetNotifications(BatchGetNotificationsRequest) returns (BatchGetNotificationsResponse);
   // Lists pending notifications for one room. Non-members receive an empty page.
   rpc ListRoomNotifications(ListRoomNotificationsRequest) returns (ListRoomNotificationsResponse);
   // Lists pending notification counts grouped by room as a finite snapshot.

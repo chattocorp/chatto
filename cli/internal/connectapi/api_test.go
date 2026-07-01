@@ -218,10 +218,12 @@ func TestBatchGetResourceRequestsValidateThroughConnectHandlers(t *testing.T) {
 	rolePath, roleHandler := apiv1connect.NewRoleServiceHandler(env.publicRoles, HandlerOptions()...)
 	roomPath, roomHandler := apiv1connect.NewRoomDirectoryServiceHandler(env.directory, HandlerOptions()...)
 	memberPath, memberHandler := apiv1connect.NewMemberDirectoryServiceHandler(env.members, HandlerOptions()...)
+	notificationPath, notificationHandler := apiv1connect.NewNotificationServiceHandler(env.notifications, HandlerOptions()...)
 	adminMemberPath, adminMemberHandler := adminv1connect.NewAdminMemberServiceHandler(env.adminUsers, HandlerOptions()...)
 	mux.Handle(rolePath, roleHandler)
 	mux.Handle(roomPath, roomHandler)
 	mux.Handle(memberPath, memberHandler)
+	mux.Handle(notificationPath, notificationHandler)
 	mux.Handle(adminMemberPath, adminMemberHandler)
 	ts := httptest.NewServer(mux)
 	t.Cleanup(ts.Close)
@@ -229,6 +231,7 @@ func TestBatchGetResourceRequestsValidateThroughConnectHandlers(t *testing.T) {
 	roles := apiv1connect.NewRoleServiceClient(ts.Client(), ts.URL)
 	rooms := apiv1connect.NewRoomDirectoryServiceClient(ts.Client(), ts.URL)
 	members := apiv1connect.NewMemberDirectoryServiceClient(ts.Client(), ts.URL)
+	notifications := apiv1connect.NewNotificationServiceClient(ts.Client(), ts.URL)
 	adminMembers := adminv1connect.NewAdminMemberServiceClient(ts.Client(), ts.URL)
 
 	if _, err := roles.BatchGetRoles(context.Background(), connect.NewRequest(&apiv1.BatchGetRolesRequest{})); connect.CodeOf(err) != connect.CodeInvalidArgument {
@@ -284,6 +287,23 @@ func TestBatchGetResourceRequestsValidateThroughConnectHandlers(t *testing.T) {
 	}
 	if _, err := members.BatchGetRoomMembers(context.Background(), connect.NewRequest(&apiv1.BatchGetRoomMembersRequest{RoomId: "room", UserIds: tooManyUserIDs})); connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("too-many BatchGetRoomMembers code = %v, want invalid_argument", connect.CodeOf(err))
+	}
+
+	if _, err := notifications.GetNotification(context.Background(), connect.NewRequest(&apiv1.GetNotificationRequest{})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("empty GetNotification code = %v, want invalid_argument", connect.CodeOf(err))
+	}
+	if _, err := notifications.BatchGetNotifications(context.Background(), connect.NewRequest(&apiv1.BatchGetNotificationsRequest{})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("empty BatchGetNotifications code = %v, want invalid_argument", connect.CodeOf(err))
+	}
+	if _, err := notifications.BatchGetNotifications(context.Background(), connect.NewRequest(&apiv1.BatchGetNotificationsRequest{NotificationIds: []string{""}})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("empty-id BatchGetNotifications code = %v, want invalid_argument", connect.CodeOf(err))
+	}
+	tooManyNotificationIDs := make([]string, 101)
+	for i := range tooManyNotificationIDs {
+		tooManyNotificationIDs[i] = fmt.Sprintf("notification-%d", i)
+	}
+	if _, err := notifications.BatchGetNotifications(context.Background(), connect.NewRequest(&apiv1.BatchGetNotificationsRequest{NotificationIds: tooManyNotificationIDs})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("too-many BatchGetNotifications code = %v, want invalid_argument", connect.CodeOf(err))
 	}
 
 	if _, err := adminMembers.BatchGetMembers(context.Background(), connect.NewRequest(&adminv1.BatchGetMembersRequest{})); connect.CodeOf(err) != connect.CodeInvalidArgument {
@@ -3643,15 +3663,23 @@ func TestNotificationServiceListsAndDismissesNotifications(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateNotification mention: %v", err)
 	}
-	if _, err := env.core.CreateNotification(env.ctx, env.viewer.Id, actor.Id, &corev1.Notification{
+	dm, err := env.core.CreateNotification(env.ctx, env.viewer.Id, actor.Id, &corev1.Notification{
 		Notification: &corev1.Notification_DmMessage{
 			DmMessage: &corev1.DMMessageNotification{
 				RoomId:  "dm-room",
 				EventId: "dm-event",
 			},
 		},
-	}); err != nil {
+	})
+	if err != nil {
 		t.Fatalf("CreateNotification dm: %v", err)
+	}
+
+	if _, err := env.notifications.GetNotification(env.ctx, connect.NewRequest(&apiv1.GetNotificationRequest{NotificationId: mention.Id})); connect.CodeOf(err) != connect.CodeUnauthenticated {
+		t.Fatalf("unauthenticated GetNotification code = %v, want unauthenticated", connect.CodeOf(err))
+	}
+	if _, err := env.notifications.BatchGetNotifications(env.ctx, connect.NewRequest(&apiv1.BatchGetNotificationsRequest{NotificationIds: []string{mention.Id}})); connect.CodeOf(err) != connect.CodeUnauthenticated {
+		t.Fatalf("unauthenticated BatchGetNotifications code = %v, want unauthenticated", connect.CodeOf(err))
 	}
 
 	listResp, err := env.notifications.ListNotifications(ctx, connect.NewRequest(&apiv1.ListNotificationsRequest{Page: &apiv1.PageRequest{Limit: 1}}))
@@ -3664,6 +3692,34 @@ func TestNotificationServiceListsAndDismissesNotifications(t *testing.T) {
 	item := listResp.Msg.GetItems()[0]
 	if item.GetActor().GetUser().GetDisplayName() != "Notification Actor" || item.GetActor().GetPresenceStatus() != apiv1.PresenceStatus_PRESENCE_STATUS_AWAY {
 		t.Fatalf("notification actor = %+v, want hydrated actor", item.GetActor())
+	}
+
+	getResp, err := env.notifications.GetNotification(ctx, connect.NewRequest(&apiv1.GetNotificationRequest{NotificationId: mention.Id}))
+	if err != nil {
+		t.Fatalf("GetNotification: %v", err)
+	}
+	if got := getResp.Msg.GetItem(); got.GetId() != mention.Id || got.GetMention().GetEventId() != "mention-event" || got.GetMention().GetThreadRootEventId() != "thread-root" {
+		t.Fatalf("GetNotification item = %+v, want mention", got)
+	}
+	if getResp.Msg.GetServerName() == "" {
+		t.Fatal("GetNotification server_name is empty")
+	}
+	if _, err := env.notifications.GetNotification(ctx, connect.NewRequest(&apiv1.GetNotificationRequest{NotificationId: "missing-notification"})); connect.CodeOf(err) != connect.CodeNotFound {
+		t.Fatalf("missing GetNotification code = %v, want not_found", connect.CodeOf(err))
+	}
+
+	batchResp, err := env.notifications.BatchGetNotifications(ctx, connect.NewRequest(&apiv1.BatchGetNotificationsRequest{
+		NotificationIds: []string{mention.Id, "missing-notification", dm.Id, mention.Id},
+	}))
+	if err != nil {
+		t.Fatalf("BatchGetNotifications: %v", err)
+	}
+	gotBatch := batchResp.Msg.GetItems()
+	if len(gotBatch) != 2 || gotBatch[0].GetId() != mention.Id || gotBatch[1].GetId() != dm.Id {
+		t.Fatalf("BatchGetNotifications items = %+v, want mention,dm", gotBatch)
+	}
+	if batchResp.Msg.GetServerName() == "" {
+		t.Fatal("BatchGetNotifications server_name is empty")
 	}
 
 	roomResp, err := env.notifications.ListRoomNotifications(ctx, connect.NewRequest(&apiv1.ListRoomNotificationsRequest{RoomId: room.Id}))
@@ -3722,6 +3778,18 @@ func TestNotificationServiceListsAndDismissesNotifications(t *testing.T) {
 	}
 	if dismissAgainResp.Msg.GetDismissed() {
 		t.Fatal("DismissNotification again dismissed = true, want false")
+	}
+	if _, err := env.notifications.GetNotification(ctx, connect.NewRequest(&apiv1.GetNotificationRequest{NotificationId: mention.Id})); connect.CodeOf(err) != connect.CodeNotFound {
+		t.Fatalf("dismissed GetNotification code = %v, want not_found", connect.CodeOf(err))
+	}
+	remainingBatchResp, err := env.notifications.BatchGetNotifications(ctx, connect.NewRequest(&apiv1.BatchGetNotificationsRequest{
+		NotificationIds: []string{mention.Id, dm.Id},
+	}))
+	if err != nil {
+		t.Fatalf("BatchGetNotifications after dismiss: %v", err)
+	}
+	if got := remainingBatchResp.Msg.GetItems(); len(got) != 1 || got[0].GetId() != dm.Id {
+		t.Fatalf("BatchGetNotifications after dismiss items = %+v, want dm only", got)
 	}
 
 	dismissAllResp, err := env.notifications.DismissAllNotifications(ctx, connect.NewRequest(&apiv1.DismissAllNotificationsRequest{}))

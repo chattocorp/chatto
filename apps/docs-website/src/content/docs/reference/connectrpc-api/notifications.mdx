@@ -54,6 +54,73 @@ Pending notification page.
 | `page` | [`PageInfo`](/reference/connectrpc-api/types/#chatto-api-v1-PageInfo) | Page metadata. |
 
 
+<a id="chatto-api-v1-NotificationService-GetNotification"></a>
+
+### GetNotification
+
+Gets one pending notification. Returns NOT_FOUND when the notification is
+unknown or has been dismissed.
+
+```http
+POST /api/connect/chatto.api.v1.NotificationService/GetNotification
+```
+
+<a id="chatto-api-v1-GetNotificationRequest"></a>
+
+#### Input: GetNotificationRequest
+
+Request one pending notification for the authenticated viewer.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `notification_id` | `string` | Required notification ID. |
+
+
+<a id="chatto-api-v1-GetNotificationResponse"></a>
+
+#### Result: GetNotificationResponse
+
+Pending notification response.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `item` | [`NotificationItem`](/reference/connectrpc-api/types/#chatto-api-v1-NotificationItem) | Requested notification. |
+| `server_name` | `string` | Current server display name for non-DM location labels. |
+
+
+<a id="chatto-api-v1-NotificationService-BatchGetNotifications"></a>
+
+### BatchGetNotifications
+
+Gets pending notifications by ID.
+
+```http
+POST /api/connect/chatto.api.v1.NotificationService/BatchGetNotifications
+```
+
+<a id="chatto-api-v1-BatchGetNotificationsRequest"></a>
+
+#### Input: BatchGetNotificationsRequest
+
+Request pending notifications for a set of stable notification IDs.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `notification_ids` | `repeated string` | Required notification IDs. Unknown or dismissed IDs are omitted from the response. |
+
+
+<a id="chatto-api-v1-BatchGetNotificationsResponse"></a>
+
+#### Result: BatchGetNotificationsResponse
+
+Batch pending notification response.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `items` | repeated [`NotificationItem`](/reference/connectrpc-api/types/#chatto-api-v1-NotificationItem) | Found notifications. The server preserves first-seen request order and de-duplicates repeated IDs. |
+| `server_name` | `string` | Current server display name for non-DM location labels. |
+
+
 <a id="chatto-api-v1-NotificationService-ListRoomNotifications"></a>
 
 ### ListRoomNotifications

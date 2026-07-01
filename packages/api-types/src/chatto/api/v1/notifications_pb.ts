@@ -523,6 +523,188 @@ export class ListNotificationsResponse extends Message<ListNotificationsResponse
 }
 
 /**
+ * Request one pending notification for the authenticated viewer.
+ *
+ * @generated from message chatto.api.v1.GetNotificationRequest
+ */
+export class GetNotificationRequest extends Message<GetNotificationRequest> {
+  /**
+   * Required notification ID.
+   *
+   * @generated from field: string notification_id = 1;
+   */
+  notificationId = "";
+
+  constructor(data?: PartialMessage<GetNotificationRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.GetNotificationRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "notification_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetNotificationRequest {
+    return new GetNotificationRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetNotificationRequest {
+    return new GetNotificationRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetNotificationRequest {
+    return new GetNotificationRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetNotificationRequest | PlainMessage<GetNotificationRequest> | undefined, b: GetNotificationRequest | PlainMessage<GetNotificationRequest> | undefined): boolean {
+    return proto3.util.equals(GetNotificationRequest, a, b);
+  }
+}
+
+/**
+ * Pending notification response.
+ *
+ * @generated from message chatto.api.v1.GetNotificationResponse
+ */
+export class GetNotificationResponse extends Message<GetNotificationResponse> {
+  /**
+   * Requested notification.
+   *
+   * @generated from field: chatto.api.v1.NotificationItem item = 1;
+   */
+  item?: NotificationItem;
+
+  /**
+   * Current server display name for non-DM location labels.
+   *
+   * @generated from field: string server_name = 2;
+   */
+  serverName = "";
+
+  constructor(data?: PartialMessage<GetNotificationResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.GetNotificationResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "item", kind: "message", T: NotificationItem },
+    { no: 2, name: "server_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetNotificationResponse {
+    return new GetNotificationResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetNotificationResponse {
+    return new GetNotificationResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetNotificationResponse {
+    return new GetNotificationResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetNotificationResponse | PlainMessage<GetNotificationResponse> | undefined, b: GetNotificationResponse | PlainMessage<GetNotificationResponse> | undefined): boolean {
+    return proto3.util.equals(GetNotificationResponse, a, b);
+  }
+}
+
+/**
+ * Request pending notifications for a set of stable notification IDs.
+ *
+ * @generated from message chatto.api.v1.BatchGetNotificationsRequest
+ */
+export class BatchGetNotificationsRequest extends Message<BatchGetNotificationsRequest> {
+  /**
+   * Required notification IDs. Unknown or dismissed IDs are omitted from the
+   * response.
+   *
+   * @generated from field: repeated string notification_ids = 1;
+   */
+  notificationIds: string[] = [];
+
+  constructor(data?: PartialMessage<BatchGetNotificationsRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.BatchGetNotificationsRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "notification_ids", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BatchGetNotificationsRequest {
+    return new BatchGetNotificationsRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): BatchGetNotificationsRequest {
+    return new BatchGetNotificationsRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): BatchGetNotificationsRequest {
+    return new BatchGetNotificationsRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: BatchGetNotificationsRequest | PlainMessage<BatchGetNotificationsRequest> | undefined, b: BatchGetNotificationsRequest | PlainMessage<BatchGetNotificationsRequest> | undefined): boolean {
+    return proto3.util.equals(BatchGetNotificationsRequest, a, b);
+  }
+}
+
+/**
+ * Batch pending notification response.
+ *
+ * @generated from message chatto.api.v1.BatchGetNotificationsResponse
+ */
+export class BatchGetNotificationsResponse extends Message<BatchGetNotificationsResponse> {
+  /**
+   * Found notifications. The server preserves first-seen request order and
+   * de-duplicates repeated IDs.
+   *
+   * @generated from field: repeated chatto.api.v1.NotificationItem items = 1;
+   */
+  items: NotificationItem[] = [];
+
+  /**
+   * Current server display name for non-DM location labels.
+   *
+   * @generated from field: string server_name = 2;
+   */
+  serverName = "";
+
+  constructor(data?: PartialMessage<BatchGetNotificationsResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.BatchGetNotificationsResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "items", kind: "message", T: NotificationItem, repeated: true },
+    { no: 2, name: "server_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BatchGetNotificationsResponse {
+    return new BatchGetNotificationsResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): BatchGetNotificationsResponse {
+    return new BatchGetNotificationsResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): BatchGetNotificationsResponse {
+    return new BatchGetNotificationsResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: BatchGetNotificationsResponse | PlainMessage<BatchGetNotificationsResponse> | undefined, b: BatchGetNotificationsResponse | PlainMessage<BatchGetNotificationsResponse> | undefined): boolean {
+    return proto3.util.equals(BatchGetNotificationsResponse, a, b);
+  }
+}
+
+/**
  * Pending notification page scoped to one room.
  *
  * @generated from message chatto.api.v1.ListRoomNotificationsResponse

@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { DismissAllNotificationsRequest, DismissAllNotificationsResponse, DismissNotificationRequest, DismissNotificationResponse, HasNotificationsRequest, HasNotificationsResponse, ListNotificationCountsRequest, ListNotificationCountsResponse, ListNotificationsRequest, ListNotificationsResponse, ListRoomNotificationsRequest, ListRoomNotificationsResponse } from "./notifications_pb.js";
+import { BatchGetNotificationsRequest, BatchGetNotificationsResponse, DismissAllNotificationsRequest, DismissAllNotificationsResponse, DismissNotificationRequest, DismissNotificationResponse, GetNotificationRequest, GetNotificationResponse, HasNotificationsRequest, HasNotificationsResponse, ListNotificationCountsRequest, ListNotificationCountsResponse, ListNotificationsRequest, ListNotificationsResponse, ListRoomNotificationsRequest, ListRoomNotificationsResponse } from "./notifications_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -23,6 +23,29 @@ export const NotificationService = {
       name: "ListNotifications",
       I: ListNotificationsRequest,
       O: ListNotificationsResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Gets one pending notification. Returns NOT_FOUND when the notification is
+     * unknown or has been dismissed.
+     *
+     * @generated from rpc chatto.api.v1.NotificationService.GetNotification
+     */
+    getNotification: {
+      name: "GetNotification",
+      I: GetNotificationRequest,
+      O: GetNotificationResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Gets pending notifications by ID.
+     *
+     * @generated from rpc chatto.api.v1.NotificationService.BatchGetNotifications
+     */
+    batchGetNotifications: {
+      name: "BatchGetNotifications",
+      I: BatchGetNotificationsRequest,
+      O: BatchGetNotificationsResponse,
       kind: MethodKind.Unary,
     },
     /**

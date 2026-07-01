@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"connectrpc.com/connect"
+	"hmans.de/chatto/internal/core"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
@@ -23,6 +24,64 @@ func (s *notificationService) ListNotifications(ctx context.Context, req *connec
 		return nil, err
 	}
 	return s.notificationPage(ctx, caller.UserID, req.Msg.GetPage(), nil)
+}
+
+func (s *notificationService) GetNotification(ctx context.Context, req *connect.Request[apiv1.GetNotificationRequest]) (*connect.Response[apiv1.GetNotificationResponse], error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	notification, err := s.api.core.GetNotification(ctx, caller.UserID, req.Msg.GetNotificationId())
+	if err != nil {
+		return nil, connectError(err)
+	}
+	if notification == nil {
+		return nil, connectError(core.ErrNotFound)
+	}
+	assembler := newNotificationAssembler(s.api)
+	item, err := assembler.item(ctx, notification)
+	if err != nil {
+		return nil, connectError(err)
+	}
+	return connect.NewResponse(&apiv1.GetNotificationResponse{
+		Item:       item,
+		ServerName: assembler.emptyPage(ctx).GetServerName(),
+	}), nil
+}
+
+func (s *notificationService) BatchGetNotifications(ctx context.Context, req *connect.Request[apiv1.BatchGetNotificationsRequest]) (*connect.Response[apiv1.BatchGetNotificationsResponse], error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	assembler := newNotificationAssembler(s.api)
+	seen := make(map[string]struct{}, len(req.Msg.GetNotificationIds()))
+	items := make([]*apiv1.NotificationItem, 0, len(req.Msg.GetNotificationIds()))
+	for _, notificationID := range req.Msg.GetNotificationIds() {
+		if _, ok := seen[notificationID]; ok {
+			continue
+		}
+		seen[notificationID] = struct{}{}
+
+		notification, err := s.api.core.GetNotification(ctx, caller.UserID, notificationID)
+		if err != nil {
+			return nil, connectError(err)
+		}
+		if notification == nil {
+			continue
+		}
+		item, err := assembler.item(ctx, notification)
+		if err != nil {
+			return nil, connectError(err)
+		}
+		items = append(items, item)
+	}
+	return connect.NewResponse(&apiv1.BatchGetNotificationsResponse{
+		Items:      items,
+		ServerName: assembler.emptyPage(ctx).GetServerName(),
+	}), nil
 }
 
 func (s *notificationService) ListRoomNotifications(ctx context.Context, req *connect.Request[apiv1.ListRoomNotificationsRequest]) (*connect.Response[apiv1.ListRoomNotificationsResponse], error) {

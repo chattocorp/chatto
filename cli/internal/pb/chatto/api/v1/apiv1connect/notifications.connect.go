@@ -36,6 +36,12 @@ const (
 	// NotificationServiceListNotificationsProcedure is the fully-qualified name of the
 	// NotificationService's ListNotifications RPC.
 	NotificationServiceListNotificationsProcedure = "/chatto.api.v1.NotificationService/ListNotifications"
+	// NotificationServiceGetNotificationProcedure is the fully-qualified name of the
+	// NotificationService's GetNotification RPC.
+	NotificationServiceGetNotificationProcedure = "/chatto.api.v1.NotificationService/GetNotification"
+	// NotificationServiceBatchGetNotificationsProcedure is the fully-qualified name of the
+	// NotificationService's BatchGetNotifications RPC.
+	NotificationServiceBatchGetNotificationsProcedure = "/chatto.api.v1.NotificationService/BatchGetNotifications"
 	// NotificationServiceListRoomNotificationsProcedure is the fully-qualified name of the
 	// NotificationService's ListRoomNotifications RPC.
 	NotificationServiceListRoomNotificationsProcedure = "/chatto.api.v1.NotificationService/ListRoomNotifications"
@@ -57,6 +63,11 @@ const (
 type NotificationServiceClient interface {
 	// Lists the authenticated viewer's pending notifications.
 	ListNotifications(context.Context, *connect.Request[v1.ListNotificationsRequest]) (*connect.Response[v1.ListNotificationsResponse], error)
+	// Gets one pending notification. Returns NOT_FOUND when the notification is
+	// unknown or has been dismissed.
+	GetNotification(context.Context, *connect.Request[v1.GetNotificationRequest]) (*connect.Response[v1.GetNotificationResponse], error)
+	// Gets pending notifications by ID.
+	BatchGetNotifications(context.Context, *connect.Request[v1.BatchGetNotificationsRequest]) (*connect.Response[v1.BatchGetNotificationsResponse], error)
 	// Lists pending notifications for one room. Non-members receive an empty page.
 	ListRoomNotifications(context.Context, *connect.Request[v1.ListRoomNotificationsRequest]) (*connect.Response[v1.ListRoomNotificationsResponse], error)
 	// Lists pending notification counts grouped by room as a finite snapshot.
@@ -84,6 +95,18 @@ func NewNotificationServiceClient(httpClient connect.HTTPClient, baseURL string,
 			httpClient,
 			baseURL+NotificationServiceListNotificationsProcedure,
 			connect.WithSchema(notificationServiceMethods.ByName("ListNotifications")),
+			connect.WithClientOptions(opts...),
+		),
+		getNotification: connect.NewClient[v1.GetNotificationRequest, v1.GetNotificationResponse](
+			httpClient,
+			baseURL+NotificationServiceGetNotificationProcedure,
+			connect.WithSchema(notificationServiceMethods.ByName("GetNotification")),
+			connect.WithClientOptions(opts...),
+		),
+		batchGetNotifications: connect.NewClient[v1.BatchGetNotificationsRequest, v1.BatchGetNotificationsResponse](
+			httpClient,
+			baseURL+NotificationServiceBatchGetNotificationsProcedure,
+			connect.WithSchema(notificationServiceMethods.ByName("BatchGetNotifications")),
 			connect.WithClientOptions(opts...),
 		),
 		listRoomNotifications: connect.NewClient[v1.ListRoomNotificationsRequest, v1.ListRoomNotificationsResponse](
@@ -122,6 +145,8 @@ func NewNotificationServiceClient(httpClient connect.HTTPClient, baseURL string,
 // notificationServiceClient implements NotificationServiceClient.
 type notificationServiceClient struct {
 	listNotifications       *connect.Client[v1.ListNotificationsRequest, v1.ListNotificationsResponse]
+	getNotification         *connect.Client[v1.GetNotificationRequest, v1.GetNotificationResponse]
+	batchGetNotifications   *connect.Client[v1.BatchGetNotificationsRequest, v1.BatchGetNotificationsResponse]
 	listRoomNotifications   *connect.Client[v1.ListRoomNotificationsRequest, v1.ListRoomNotificationsResponse]
 	listNotificationCounts  *connect.Client[v1.ListNotificationCountsRequest, v1.ListNotificationCountsResponse]
 	hasNotifications        *connect.Client[v1.HasNotificationsRequest, v1.HasNotificationsResponse]
@@ -132,6 +157,16 @@ type notificationServiceClient struct {
 // ListNotifications calls chatto.api.v1.NotificationService.ListNotifications.
 func (c *notificationServiceClient) ListNotifications(ctx context.Context, req *connect.Request[v1.ListNotificationsRequest]) (*connect.Response[v1.ListNotificationsResponse], error) {
 	return c.listNotifications.CallUnary(ctx, req)
+}
+
+// GetNotification calls chatto.api.v1.NotificationService.GetNotification.
+func (c *notificationServiceClient) GetNotification(ctx context.Context, req *connect.Request[v1.GetNotificationRequest]) (*connect.Response[v1.GetNotificationResponse], error) {
+	return c.getNotification.CallUnary(ctx, req)
+}
+
+// BatchGetNotifications calls chatto.api.v1.NotificationService.BatchGetNotifications.
+func (c *notificationServiceClient) BatchGetNotifications(ctx context.Context, req *connect.Request[v1.BatchGetNotificationsRequest]) (*connect.Response[v1.BatchGetNotificationsResponse], error) {
+	return c.batchGetNotifications.CallUnary(ctx, req)
 }
 
 // ListRoomNotifications calls chatto.api.v1.NotificationService.ListRoomNotifications.
@@ -163,6 +198,11 @@ func (c *notificationServiceClient) DismissAllNotifications(ctx context.Context,
 type NotificationServiceHandler interface {
 	// Lists the authenticated viewer's pending notifications.
 	ListNotifications(context.Context, *connect.Request[v1.ListNotificationsRequest]) (*connect.Response[v1.ListNotificationsResponse], error)
+	// Gets one pending notification. Returns NOT_FOUND when the notification is
+	// unknown or has been dismissed.
+	GetNotification(context.Context, *connect.Request[v1.GetNotificationRequest]) (*connect.Response[v1.GetNotificationResponse], error)
+	// Gets pending notifications by ID.
+	BatchGetNotifications(context.Context, *connect.Request[v1.BatchGetNotificationsRequest]) (*connect.Response[v1.BatchGetNotificationsResponse], error)
 	// Lists pending notifications for one room. Non-members receive an empty page.
 	ListRoomNotifications(context.Context, *connect.Request[v1.ListRoomNotificationsRequest]) (*connect.Response[v1.ListRoomNotificationsResponse], error)
 	// Lists pending notification counts grouped by room as a finite snapshot.
@@ -186,6 +226,18 @@ func NewNotificationServiceHandler(svc NotificationServiceHandler, opts ...conne
 		NotificationServiceListNotificationsProcedure,
 		svc.ListNotifications,
 		connect.WithSchema(notificationServiceMethods.ByName("ListNotifications")),
+		connect.WithHandlerOptions(opts...),
+	)
+	notificationServiceGetNotificationHandler := connect.NewUnaryHandler(
+		NotificationServiceGetNotificationProcedure,
+		svc.GetNotification,
+		connect.WithSchema(notificationServiceMethods.ByName("GetNotification")),
+		connect.WithHandlerOptions(opts...),
+	)
+	notificationServiceBatchGetNotificationsHandler := connect.NewUnaryHandler(
+		NotificationServiceBatchGetNotificationsProcedure,
+		svc.BatchGetNotifications,
+		connect.WithSchema(notificationServiceMethods.ByName("BatchGetNotifications")),
 		connect.WithHandlerOptions(opts...),
 	)
 	notificationServiceListRoomNotificationsHandler := connect.NewUnaryHandler(
@@ -222,6 +274,10 @@ func NewNotificationServiceHandler(svc NotificationServiceHandler, opts ...conne
 		switch r.URL.Path {
 		case NotificationServiceListNotificationsProcedure:
 			notificationServiceListNotificationsHandler.ServeHTTP(w, r)
+		case NotificationServiceGetNotificationProcedure:
+			notificationServiceGetNotificationHandler.ServeHTTP(w, r)
+		case NotificationServiceBatchGetNotificationsProcedure:
+			notificationServiceBatchGetNotificationsHandler.ServeHTTP(w, r)
 		case NotificationServiceListRoomNotificationsProcedure:
 			notificationServiceListRoomNotificationsHandler.ServeHTTP(w, r)
 		case NotificationServiceListNotificationCountsProcedure:
@@ -243,6 +299,14 @@ type UnimplementedNotificationServiceHandler struct{}
 
 func (UnimplementedNotificationServiceHandler) ListNotifications(context.Context, *connect.Request[v1.ListNotificationsRequest]) (*connect.Response[v1.ListNotificationsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.NotificationService.ListNotifications is not implemented"))
+}
+
+func (UnimplementedNotificationServiceHandler) GetNotification(context.Context, *connect.Request[v1.GetNotificationRequest]) (*connect.Response[v1.GetNotificationResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.NotificationService.GetNotification is not implemented"))
+}
+
+func (UnimplementedNotificationServiceHandler) BatchGetNotifications(context.Context, *connect.Request[v1.BatchGetNotificationsRequest]) (*connect.Response[v1.BatchGetNotificationsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.NotificationService.BatchGetNotifications is not implemented"))
 }
 
 func (UnimplementedNotificationServiceHandler) ListRoomNotifications(context.Context, *connect.Request[v1.ListRoomNotificationsRequest]) (*connect.Response[v1.ListRoomNotificationsResponse], error) {
