@@ -100,7 +100,6 @@ depends = ["setup-frontend"]
 dir = "packages/api-types"
 run = "pnpm build"
 sources = ["package.json", "tsconfig.json", "src/**/*"]
-outputs = ["dist"]
 
 [tasks.build-api-client]
 description = "Build the TypeScript API client package"
@@ -108,7 +107,6 @@ depends = ["setup-frontend", "build-api-types"]
 dir = "packages/api-client"
 run = "pnpm build"
 sources = ["package.json", "tsconfig.json", "src/**/*", "../api-types/dist/**/*"]
-outputs = ["dist"]
 
 [tasks.build-frontend]
 description = "Build the frontend application"
@@ -194,6 +192,17 @@ depends = ["setup-frontend", "build-api-client"]
 dir = "apps/frontend"
 run = "exec ./node_modules/.bin/vite dev"
 
+[tasks.dev-livekit]
+description = "Run a local LiveKit server with workspace-safe ports"
+env = {
+  CHATTO_DEV_PORT_BASE = "{{env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000'))}}",
+  CHATTO_DEV_LIVEKIT_KEYS = "devkey: devsecret",
+  CHATTO_DEV_LIVEKIT_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 5}}",
+  CHATTO_DEV_LIVEKIT_RTC_TCP_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 6}}",
+  CHATTO_DEV_LIVEKIT_UDP_PORTS = "{{env.CHATTO_DEV_PORT_BASE | int + 7}}-{{env.CHATTO_DEV_PORT_BASE | int + 9}}",
+}
+run = "exec livekit-server --dev --bind 127.0.0.1 --node-ip 127.0.0.1 --keys \"$CHATTO_DEV_LIVEKIT_KEYS\" --port \"$CHATTO_DEV_LIVEKIT_PORT\" --rtc.tcp_port \"$CHATTO_DEV_LIVEKIT_RTC_TCP_PORT\" --udp-port \"$CHATTO_DEV_LIVEKIT_UDP_PORTS\""
+
 [tasks.dev]
 description = "Run the local backend and frontend development servers"
 raw = true
@@ -213,11 +222,17 @@ export CHATTO_EXPORTER_ENABLED="${CHATTO_EXPORTER_ENABLED:-true}"
 export CHATTO_EXPORTER_BIND_ADDRESS="${CHATTO_EXPORTER_BIND_ADDRESS:-127.0.0.1}"
 export CHATTO_EXPORTER_PORT="${CHATTO_EXPORTER_PORT:-$((workspace_port_base + 4))}"
 export CHATTO_EXPORTER_PATH="${CHATTO_EXPORTER_PATH:-/metrics}"
+export CHATTO_LIVEKIT_ENABLED="${CHATTO_LIVEKIT_ENABLED:-true}"
+export CHATTO_LIVEKIT_URL="${CHATTO_LIVEKIT_URL:-ws://localhost:$((workspace_port_base + 5))}"
+export CHATTO_LIVEKIT_API_KEY="${CHATTO_LIVEKIT_API_KEY:-devkey}"
+export CHATTO_LIVEKIT_API_SECRET="${CHATTO_LIVEKIT_API_SECRET:-devsecret}"
+export CHATTO_LIVEKIT_WEBHOOK_URL="${CHATTO_LIVEKIT_WEBHOOK_URL:-http://localhost:$CHATTO_WEBSERVER_PORT/webhooks/livekit}"
 
 printf 'Chatto frontend URL: %s\\n' "$CHATTO_WEBSERVER_URL"
 printf 'Chatto backend URL: http://localhost:%s\\n' "$CHATTO_WEBSERVER_PORT"
+printf 'LiveKit URL: %s\\n' "$CHATTO_LIVEKIT_URL"
 
-exec mise run --jobs 2 dev-backend ::: dev-frontend
+exec mise run --jobs 3 dev-backend ::: dev-frontend ::: dev-livekit
 """
 
 [tasks.dev-docs-website]
@@ -251,6 +266,11 @@ env = {
   CHATTO_EXPORTER_BIND_ADDRESS = "127.0.0.1",
   CHATTO_EXPORTER_PORT = "{{env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000')) | int + 3}}",
   CHATTO_EXPORTER_PATH = "/metrics",
+  CHATTO_LIVEKIT_ENABLED = "true",
+  CHATTO_LIVEKIT_URL = "ws://localhost:{{env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000')) | int + 5}}",
+  CHATTO_LIVEKIT_API_KEY = "devkey",
+  CHATTO_LIVEKIT_API_SECRET = "devsecret",
+  CHATTO_LIVEKIT_WEBHOOK_URL = "http://localhost:{{env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000')) | int}}/webhooks/livekit",
 }
 run = "printf 'Chatto URL: %s\\n' \"$CHATTO_WEBSERVER_URL\" && exec bin/chatto"
 
