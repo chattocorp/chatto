@@ -620,7 +620,7 @@ Room sidebar panel for voice/video calls.
       <div
         class={[
           'flex min-h-0 flex-1 items-center justify-center',
-          isScreen || isVideo ? 'bg-black p-1.5' : 'p-6'
+          isScreen || isVideo ? 'p-1.5 pt-0' : 'p-6'
         ]}
       >
         {#if isScreen}

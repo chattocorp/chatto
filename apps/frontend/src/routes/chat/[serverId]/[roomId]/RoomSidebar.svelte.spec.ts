@@ -1404,7 +1404,7 @@ describe('RoomSidebar', () => {
     expect(container.querySelector('[aria-label="Fullscreen call"]')).toBeFalsy();
   });
 
-  it('only shows the call maximize action for the desktop call panel', async () => {
+  it('keeps call fullscreen available in overlay but maximizes only on desktop', async () => {
     const onToggleMaximized = vi.fn();
     const { container, rerender } = render(RoomSidebarTestHarness, {
       props: {
@@ -1434,7 +1434,7 @@ describe('RoomSidebar', () => {
       onToggleMaximized
     });
     expect(container.querySelector('[aria-label="Maximize call"]')).toBeFalsy();
-    expect(container.querySelector('[aria-label="Fullscreen call"]')).toBeFalsy();
+    expect(container.querySelector('[aria-label="Fullscreen call"]')).toBeTruthy();
   });
 
   it('renders overlay presentation without desktop resizing chrome', async () => {
