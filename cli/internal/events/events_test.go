@@ -1380,6 +1380,24 @@ func TestEventTypeOf_MessageEvents(t *testing.T) {
 			want: EventThreadCreated,
 		},
 		{
+			name: "ThreadFollowed",
+			event: &corev1.Event{
+				Event: &corev1.Event_ThreadFollowed{
+					ThreadFollowed: &corev1.ThreadFollowedEvent{RoomId: "R1", ThreadRootEventId: "M1", UserId: "U1"},
+				},
+			},
+			want: EventThreadFollowed,
+		},
+		{
+			name: "ThreadUnfollowed",
+			event: &corev1.Event{
+				Event: &corev1.Event_ThreadUnfollowed{
+					ThreadUnfollowed: &corev1.ThreadUnfollowedEvent{RoomId: "R1", ThreadRootEventId: "M1", UserId: "U1"},
+				},
+			},
+			want: EventThreadUnfollowed,
+		},
+		{
 			name: "CallStarted",
 			event: &corev1.Event{
 				Event: &corev1.Event_VoiceCallStarted{

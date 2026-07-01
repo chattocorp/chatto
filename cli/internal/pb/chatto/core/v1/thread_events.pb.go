@@ -21,6 +21,65 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type ThreadFollowSource int32
+
+const (
+	ThreadFollowSource_THREAD_FOLLOW_SOURCE_UNSPECIFIED ThreadFollowSource = 0
+	// The user explicitly clicked Follow.
+	ThreadFollowSource_THREAD_FOLLOW_SOURCE_MANUAL ThreadFollowSource = 1
+	// The user posted a reply in the thread.
+	ThreadFollowSource_THREAD_FOLLOW_SOURCE_POSTED_REPLY ThreadFollowSource = 2
+	// The root author was subscribed when the first reply created the thread.
+	ThreadFollowSource_THREAD_FOLLOW_SOURCE_ROOT_AUTHOR ThreadFollowSource = 3
+	// The user was directly mentioned in the thread.
+	ThreadFollowSource_THREAD_FOLLOW_SOURCE_DIRECT_MENTION ThreadFollowSource = 4
+)
+
+// Enum value maps for ThreadFollowSource.
+var (
+	ThreadFollowSource_name = map[int32]string{
+		0: "THREAD_FOLLOW_SOURCE_UNSPECIFIED",
+		1: "THREAD_FOLLOW_SOURCE_MANUAL",
+		2: "THREAD_FOLLOW_SOURCE_POSTED_REPLY",
+		3: "THREAD_FOLLOW_SOURCE_ROOT_AUTHOR",
+		4: "THREAD_FOLLOW_SOURCE_DIRECT_MENTION",
+	}
+	ThreadFollowSource_value = map[string]int32{
+		"THREAD_FOLLOW_SOURCE_UNSPECIFIED":    0,
+		"THREAD_FOLLOW_SOURCE_MANUAL":         1,
+		"THREAD_FOLLOW_SOURCE_POSTED_REPLY":   2,
+		"THREAD_FOLLOW_SOURCE_ROOT_AUTHOR":    3,
+		"THREAD_FOLLOW_SOURCE_DIRECT_MENTION": 4,
+	}
+)
+
+func (x ThreadFollowSource) Enum() *ThreadFollowSource {
+	p := new(ThreadFollowSource)
+	*p = x
+	return p
+}
+
+func (x ThreadFollowSource) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ThreadFollowSource) Descriptor() protoreflect.EnumDescriptor {
+	return file_chatto_core_v1_thread_events_proto_enumTypes[0].Descriptor()
+}
+
+func (ThreadFollowSource) Type() protoreflect.EnumType {
+	return &file_chatto_core_v1_thread_events_proto_enumTypes[0]
+}
+
+func (x ThreadFollowSource) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ThreadFollowSource.Descriptor instead.
+func (ThreadFollowSource) EnumDescriptor() ([]byte, []int) {
+	return file_chatto_core_v1_thread_events_proto_rawDescGZIP(), []int{0}
+}
+
 type ThreadCreatedEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Room ID - identifies which room owns the thread.
@@ -75,6 +134,141 @@ func (x *ThreadCreatedEvent) GetThreadRootEventId() string {
 	return ""
 }
 
+type ThreadFollowedEvent struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Room ID - identifies which room owns the thread.
+	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	// Event ID of the root MessagePostedEvent that identifies this thread.
+	ThreadRootEventId string `protobuf:"bytes,2,opt,name=thread_root_event_id,json=threadRootEventId,proto3" json:"thread_root_event_id,omitempty"`
+	// User whose follow state changed.
+	UserId string `protobuf:"bytes,3,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	// Why the follow was created.
+	Source        ThreadFollowSource `protobuf:"varint,4,opt,name=source,proto3,enum=chatto.core.v1.ThreadFollowSource" json:"source,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ThreadFollowedEvent) Reset() {
+	*x = ThreadFollowedEvent{}
+	mi := &file_chatto_core_v1_thread_events_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ThreadFollowedEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ThreadFollowedEvent) ProtoMessage() {}
+
+func (x *ThreadFollowedEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_v1_thread_events_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ThreadFollowedEvent.ProtoReflect.Descriptor instead.
+func (*ThreadFollowedEvent) Descriptor() ([]byte, []int) {
+	return file_chatto_core_v1_thread_events_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *ThreadFollowedEvent) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *ThreadFollowedEvent) GetThreadRootEventId() string {
+	if x != nil {
+		return x.ThreadRootEventId
+	}
+	return ""
+}
+
+func (x *ThreadFollowedEvent) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+func (x *ThreadFollowedEvent) GetSource() ThreadFollowSource {
+	if x != nil {
+		return x.Source
+	}
+	return ThreadFollowSource_THREAD_FOLLOW_SOURCE_UNSPECIFIED
+}
+
+type ThreadUnfollowedEvent struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Room ID - identifies which room owns the thread.
+	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	// Event ID of the root MessagePostedEvent that identifies this thread.
+	ThreadRootEventId string `protobuf:"bytes,2,opt,name=thread_root_event_id,json=threadRootEventId,proto3" json:"thread_root_event_id,omitempty"`
+	// User whose follow state changed.
+	UserId        string `protobuf:"bytes,3,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ThreadUnfollowedEvent) Reset() {
+	*x = ThreadUnfollowedEvent{}
+	mi := &file_chatto_core_v1_thread_events_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ThreadUnfollowedEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ThreadUnfollowedEvent) ProtoMessage() {}
+
+func (x *ThreadUnfollowedEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_v1_thread_events_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ThreadUnfollowedEvent.ProtoReflect.Descriptor instead.
+func (*ThreadUnfollowedEvent) Descriptor() ([]byte, []int) {
+	return file_chatto_core_v1_thread_events_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *ThreadUnfollowedEvent) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *ThreadUnfollowedEvent) GetThreadRootEventId() string {
+	if x != nil {
+		return x.ThreadRootEventId
+	}
+	return ""
+}
+
+func (x *ThreadUnfollowedEvent) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
 var File_chatto_core_v1_thread_events_proto protoreflect.FileDescriptor
 
 const file_chatto_core_v1_thread_events_proto_rawDesc = "" +
@@ -82,7 +276,22 @@ const file_chatto_core_v1_thread_events_proto_rawDesc = "" +
 	"\"chatto/core/v1/thread_events.proto\x12\x0echatto.core.v1\"^\n" +
 	"\x12ThreadCreatedEvent\x12\x17\n" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12/\n" +
-	"\x14thread_root_event_id\x18\x02 \x01(\tR\x11threadRootEventIdB\xb4\x01\n" +
+	"\x14thread_root_event_id\x18\x02 \x01(\tR\x11threadRootEventId\"\xb4\x01\n" +
+	"\x13ThreadFollowedEvent\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12/\n" +
+	"\x14thread_root_event_id\x18\x02 \x01(\tR\x11threadRootEventId\x12\x17\n" +
+	"\auser_id\x18\x03 \x01(\tR\x06userId\x12:\n" +
+	"\x06source\x18\x04 \x01(\x0e2\".chatto.core.v1.ThreadFollowSourceR\x06source\"z\n" +
+	"\x15ThreadUnfollowedEvent\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12/\n" +
+	"\x14thread_root_event_id\x18\x02 \x01(\tR\x11threadRootEventId\x12\x17\n" +
+	"\auser_id\x18\x03 \x01(\tR\x06userId*\xd1\x01\n" +
+	"\x12ThreadFollowSource\x12$\n" +
+	" THREAD_FOLLOW_SOURCE_UNSPECIFIED\x10\x00\x12\x1f\n" +
+	"\x1bTHREAD_FOLLOW_SOURCE_MANUAL\x10\x01\x12%\n" +
+	"!THREAD_FOLLOW_SOURCE_POSTED_REPLY\x10\x02\x12$\n" +
+	" THREAD_FOLLOW_SOURCE_ROOT_AUTHOR\x10\x03\x12'\n" +
+	"#THREAD_FOLLOW_SOURCE_DIRECT_MENTION\x10\x04B\xb4\x01\n" +
 	"\x12com.chatto.core.v1B\x11ThreadEventsProtoP\x01Z1hmans.de/chatto/internal/pb/chatto/core/v1;corev1\xa2\x02\x03CCX\xaa\x02\x0eChatto.Core.V1\xca\x02\x0eChatto\\Core\\V1\xe2\x02\x1aChatto\\Core\\V1\\GPBMetadata\xea\x02\x10Chatto::Core::V1b\x06proto3"
 
 var (
@@ -97,16 +306,21 @@ func file_chatto_core_v1_thread_events_proto_rawDescGZIP() []byte {
 	return file_chatto_core_v1_thread_events_proto_rawDescData
 }
 
-var file_chatto_core_v1_thread_events_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
+var file_chatto_core_v1_thread_events_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_chatto_core_v1_thread_events_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
 var file_chatto_core_v1_thread_events_proto_goTypes = []any{
-	(*ThreadCreatedEvent)(nil), // 0: chatto.core.v1.ThreadCreatedEvent
+	(ThreadFollowSource)(0),       // 0: chatto.core.v1.ThreadFollowSource
+	(*ThreadCreatedEvent)(nil),    // 1: chatto.core.v1.ThreadCreatedEvent
+	(*ThreadFollowedEvent)(nil),   // 2: chatto.core.v1.ThreadFollowedEvent
+	(*ThreadUnfollowedEvent)(nil), // 3: chatto.core.v1.ThreadUnfollowedEvent
 }
 var file_chatto_core_v1_thread_events_proto_depIdxs = []int32{
-	0, // [0:0] is the sub-list for method output_type
-	0, // [0:0] is the sub-list for method input_type
-	0, // [0:0] is the sub-list for extension type_name
-	0, // [0:0] is the sub-list for extension extendee
-	0, // [0:0] is the sub-list for field type_name
+	0, // 0: chatto.core.v1.ThreadFollowedEvent.source:type_name -> chatto.core.v1.ThreadFollowSource
+	1, // [1:1] is the sub-list for method output_type
+	1, // [1:1] is the sub-list for method input_type
+	1, // [1:1] is the sub-list for extension type_name
+	1, // [1:1] is the sub-list for extension extendee
+	0, // [0:1] is the sub-list for field type_name
 }
 
 func init() { file_chatto_core_v1_thread_events_proto_init() }
@@ -119,13 +333,14 @@ func file_chatto_core_v1_thread_events_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_core_v1_thread_events_proto_rawDesc), len(file_chatto_core_v1_thread_events_proto_rawDesc)),
-			NumEnums:      0,
-			NumMessages:   1,
+			NumEnums:      1,
+			NumMessages:   3,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
 		GoTypes:           file_chatto_core_v1_thread_events_proto_goTypes,
 		DependencyIndexes: file_chatto_core_v1_thread_events_proto_depIdxs,
+		EnumInfos:         file_chatto_core_v1_thread_events_proto_enumTypes,
 		MessageInfos:      file_chatto_core_v1_thread_events_proto_msgTypes,
 	}.Build()
 	File_chatto_core_v1_thread_events_proto = out.File

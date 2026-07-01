@@ -44,6 +44,10 @@ func roomIDOfEvent(event *corev1.Event) string {
 		return e.MessageBody.GetRoomId()
 	case *corev1.Event_ThreadCreated:
 		return e.ThreadCreated.GetRoomId()
+	case *corev1.Event_ThreadFollowed:
+		return e.ThreadFollowed.GetRoomId()
+	case *corev1.Event_ThreadUnfollowed:
+		return e.ThreadUnfollowed.GetRoomId()
 	case *corev1.Event_AssetCreated:
 		return ""
 	case *corev1.Event_ReactionAdded:
@@ -227,7 +231,7 @@ func eventNeedsReactionProjection(event *corev1.Event) bool {
 
 func eventNeedsThreadProjection(event *corev1.Event) bool {
 	switch event.GetEvent().(type) {
-	case *corev1.Event_ThreadCreated:
+	case *corev1.Event_ThreadCreated, *corev1.Event_ThreadFollowed, *corev1.Event_ThreadUnfollowed:
 		return true
 	case *corev1.Event_MessagePosted:
 		return event.GetMessagePosted().GetInThread() != ""

@@ -419,6 +419,14 @@ func TestChattoCore_ResolveRoomMentions(t *testing.T) {
 		requireUserIDs(t, got, roleUser.Id)
 	})
 
+	t.Run("direct room mentions ignore role and broadcast handles", func(t *testing.T) {
+		got, err := core.ResolveDirectRoomMentions(ctx, KindChannel, room.Id, []string{"alice-room", "support", "all", "here", "outsider-room"})
+		if err != nil {
+			t.Fatalf("ResolveDirectRoomMentions: %v", err)
+		}
+		requireUserIDs(t, got, alice.Id)
+	})
+
 	t.Run("non-pingable role mentions are ignored", func(t *testing.T) {
 		got, err := core.ResolveRoomMentions(ctx, KindChannel, room.Id, []string{"quiet"})
 		if err != nil {

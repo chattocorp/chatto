@@ -272,6 +272,18 @@ func (m *RoomModel) threadMetadata(rootEventID string) *ThreadMetadata {
 	return m.threads.ThreadMetadata(rootEventID)
 }
 
+func (m *RoomModel) threadFollowState(userID, roomID, threadRootEventID string) ThreadFollowState {
+	return m.threads.FollowState(userID, roomID, threadRootEventID)
+}
+
+func (m *RoomModel) threadFollowers(roomID, threadRootEventID string) []string {
+	return m.threads.ThreadFollowers(roomID, threadRootEventID)
+}
+
+func (m *RoomModel) followedThreadsForUser(userID string) []threadFollowRef {
+	return m.threads.FollowedThreadsForUser(userID)
+}
+
 func (m *RoomModel) reactionsForMessage(messageEventID string) []ReactionSummary {
 	return m.reactions.Reactions(messageEventID)
 }

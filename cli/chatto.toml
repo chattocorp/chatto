@@ -74,8 +74,7 @@ vapid_subject = 'mailto:dev@chatto.run'
 [video]
 enabled = true
 
-# LiveKit voice calls. For local development, run:
-# LIVEKIT_KEYS='devkey: devsecret' livekit-server --dev --bind 0.0.0.0
+# LiveKit voice calls. For local development, run `mise dev-livekit`.
 [livekit]
 enabled = true
 url = 'ws://localhost:7880'
