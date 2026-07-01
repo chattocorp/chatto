@@ -155,6 +155,21 @@ describe('RoomSidebarPanelsState', () => {
     expect(sidebar.isDesktopCallMaximized).toBe(false);
   });
 
+  it('clears maximized call state when the active call ends', () => {
+    const sidebar = new RoomSidebarPanelsState(
+      () => 'server-a',
+      () => 'room-1'
+    );
+
+    sidebar.openDesktopPanel('call');
+    sidebar.toggleDesktopCallMaximized();
+    expect(sidebar.isDesktopCallMaximized).toBe(true);
+
+    sidebar.clearDesktopCallMaximized();
+
+    expect(sidebar.isDesktopCallMaximized).toBe(false);
+  });
+
   it('does not leak maximized call state after the room changes', () => {
     let roomId = 'room-1';
     const sidebar = new RoomSidebarPanelsState(

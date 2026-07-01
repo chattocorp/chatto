@@ -409,12 +409,18 @@
     stores.activeCallRooms.has(roomId) || stores.voiceCall.isInCall(roomId)
   );
   const isDesktopCallMaximized = $derived(
-    activeRoomSidebarPanel === 'call' && roomSidebarPanels.isDesktopCallMaximized
+    activeRoomSidebarPanel === 'call' &&
+      hasActiveRoomCall &&
+      roomSidebarPanels.isDesktopCallMaximized
   );
 
   $effect(() => {
     const currentScope = `${getActiveServer()}:${roomId}`;
     if (currentScope) roomSidebarPanels.syncCurrentScope();
+  });
+
+  $effect(() => {
+    if (!hasActiveRoomCall) roomSidebarPanels.clearDesktopCallMaximized();
   });
 
   let leavingRoom = $state(false);

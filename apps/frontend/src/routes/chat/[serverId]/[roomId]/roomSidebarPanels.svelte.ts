@@ -81,6 +81,12 @@ export class RoomSidebarPanelsState {
     this.#maximizedCallScope = this.isDesktopCallMaximized ? null : this.#currentScope;
   }
 
+  clearDesktopCallMaximized(): void {
+    if (this.#maximizedCallScope !== null) {
+      this.#maximizedCallScope = null;
+    }
+  }
+
   syncCurrentScope(): void {
     const scope = this.#currentScope;
     if (scope === this.#lastScope) return;
