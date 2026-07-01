@@ -845,6 +845,11 @@ func (x *RealtimeClose) GetRetryAfterMs() uint32 {
 }
 
 // One authorized live event delivered over the realtime WebSocket.
+//
+// Realtime events are invalidation signals first: payloads carry stable IDs and
+// small inline hints, while durable resource state is hydrated through
+// chatto.api.v1 ConnectRPC services. Event-specific messages document the
+// intended hydration path when a referenced resource may need refreshing.
 type RealtimeEventEnvelope struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Stable event ID.
@@ -1586,6 +1591,10 @@ func (*RealtimeEventEnvelope_NewDirectMessageNotification) isRealtimeEventEnvelo
 func (*RealtimeEventEnvelope_SessionTerminated) isRealtimeEventEnvelope_Event() {}
 
 // Message-posted signal.
+//
+// Hydrate the affected timeline with `RoomTimelineService.GetRoomEventsAround`
+// for room messages, or `RoomTimelineService.GetThreadEventsAround` when
+// `thread_root_event_id` is set.
 type RealtimeMessagePostedEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Room containing the message.
@@ -1650,6 +1659,11 @@ func (x *RealtimeMessagePostedEvent) GetThreadRootEventId() string {
 }
 
 // Message-edited signal.
+//
+// Refresh the affected timeline window with
+// `RoomTimelineService.GetRoomEventsAround` for room messages, or
+// `RoomTimelineService.GetThreadEventsAround` when the local message belongs to
+// a thread.
 type RealtimeMessageEditedEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Room containing the message.
@@ -1705,6 +1719,11 @@ func (x *RealtimeMessageEditedEvent) GetMessageEventId() string {
 }
 
 // Message-retracted signal.
+//
+// Refresh or patch the affected timeline window with
+// `RoomTimelineService.GetRoomEventsAround` for room messages, or
+// `RoomTimelineService.GetThreadEventsAround` when the local message belongs to
+// a thread.
 type RealtimeMessageRetractedEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Room containing the message.
@@ -1769,6 +1788,11 @@ func (x *RealtimeMessageRetractedEvent) GetReason() string {
 }
 
 // Reaction signal.
+//
+// Refresh or patch the affected message in its timeline window. Use
+// `RoomTimelineService.GetRoomEventsAround` for room messages, or
+// `RoomTimelineService.GetThreadEventsAround` when the local message belongs to
+// a thread.
 type RealtimeReactionEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Room containing the reacted-to message.
@@ -1833,6 +1857,9 @@ func (x *RealtimeReactionEvent) GetEmoji() string {
 }
 
 // Typing signal.
+//
+// This is an ephemeral signal. `room_id` and `thread_root_event_id` identify
+// where to display typing state; clients normally do not hydrate it.
 type RealtimeTypingEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Room where the actor is typing.
@@ -1888,6 +1915,9 @@ func (x *RealtimeTypingEvent) GetThreadRootEventId() string {
 }
 
 // Presence-changed signal.
+//
+// The latest presence status is inline. Use `UserDirectoryService.GetUser` when
+// the surrounding user profile or custom status also needs refreshing.
 type RealtimePresenceChangedEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// User whose presence changed.
@@ -1943,6 +1973,11 @@ func (x *RealtimePresenceChangedEvent) GetStatus() v1.PresenceStatus {
 }
 
 // Room lifecycle or membership signal.
+//
+// Hydrate visible room state with `RoomDirectoryService.GetRoom` or
+// `RoomDirectoryService.BatchGetRooms`. Unknown/deleted rooms return
+// `NOT_FOUND` from singular reads, hidden rooms return `PERMISSION_DENIED`, and
+// batch reads omit unknown, deleted, hidden, and inaccessible rooms.
 type RealtimeRoomEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Room affected by the event.
@@ -1989,6 +2024,9 @@ func (x *RealtimeRoomEvent) GetRoomId() string {
 }
 
 // Room universal-visibility signal.
+//
+// The latest universal flag is inline. Hydrate the rest of the visible room with
+// `RoomDirectoryService.GetRoom` or `RoomDirectoryService.BatchGetRooms`.
 type RealtimeRoomUniversalChangedEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Room whose universal setting changed.
@@ -2044,6 +2082,10 @@ func (x *RealtimeRoomUniversalChangedEvent) GetUniversal() bool {
 }
 
 // Notification-created signal for the connected user.
+//
+// Hydrate full notification rows with `NotificationService.GetNotification` or
+// `NotificationService.BatchGetNotifications`. Use `RoomTimelineService`
+// anchor reads when `event_id` or `in_reply_to_id` must be opened in context.
 type RealtimeNotificationCreatedEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Notification ID.
@@ -2126,6 +2168,9 @@ func (x *RealtimeNotificationCreatedEvent) GetSilent() bool {
 }
 
 // Notification-dismissed signal for the connected user.
+//
+// Remove the local notification row by ID. A later singular notification read
+// returns `NOT_FOUND`; batch reads omit dismissed or missing notifications.
 type RealtimeNotificationDismissedEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Notification ID.
@@ -2172,6 +2217,10 @@ func (x *RealtimeNotificationDismissedEvent) GetNotificationId() string {
 }
 
 // Notification-level signal for the connected user.
+//
+// The updated level is inline. Use
+// `NotificationPreferencesService.GetRoomNotificationPreference` when clients
+// need the complete preference resource.
 type RealtimeNotificationLevelChangedEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Room whose notification level changed.
@@ -2236,6 +2285,10 @@ func (x *RealtimeNotificationLevelChangedEvent) GetEffectiveLevel() v1.Notificat
 }
 
 // Thread-follow signal for the connected user.
+//
+// The updated follow state is inline. Use `RoomTimelineService.GetThreadEvents`
+// or `RoomTimelineService.GetThreadEventsAround` when the thread itself needs
+// refreshing.
 type RealtimeThreadFollowChangedEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Room containing the thread.
@@ -2300,6 +2353,9 @@ func (x *RealtimeThreadFollowChangedEvent) GetFollowing() bool {
 }
 
 // Thread-created signal.
+//
+// Hydrate the new thread with `RoomTimelineService.GetThreadEventsAround` using
+// `thread_root_event_id` as the anchor.
 type RealtimeThreadCreatedEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Room containing the thread.
@@ -2355,6 +2411,9 @@ func (x *RealtimeThreadCreatedEvent) GetThreadRootEventId() string {
 }
 
 // Room-read signal for the connected user.
+//
+// This is a current-user read-state invalidation signal. Clients can patch local
+// unread state for the room; no separate hydration is normally needed.
 type RealtimeRoomMarkedAsReadEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Room marked read.
@@ -2401,6 +2460,9 @@ func (x *RealtimeRoomMarkedAsReadEvent) GetRoomId() string {
 }
 
 // Server-profile signal.
+//
+// Public server profile fields are inline. Use `ServerService.GetServerState`
+// when authenticated clients need the broader server state snapshot.
 type RealtimeServerUpdatedEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Server display name.
@@ -2474,6 +2536,10 @@ func (x *RealtimeServerUpdatedEvent) GetBannerUrl() string {
 }
 
 // User-profile signal.
+//
+// Basic profile fields are inline. Use `UserDirectoryService.GetUser` for a
+// complete user profile or `UserDirectoryService.BatchGetUsers` for lightweight
+// render/cache hydration.
 type RealtimeUserProfileUpdatedEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// User whose profile changed.
@@ -2547,6 +2613,9 @@ func (x *RealtimeUserProfileUpdatedEvent) GetAvatarUrl() string {
 }
 
 // User-custom-status set signal.
+//
+// The latest custom status is inline. Use `UserDirectoryService.GetUser` when
+// clients need to refresh the complete user profile.
 type RealtimeUserCustomStatusSetEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// User whose status changed.
@@ -2620,6 +2689,9 @@ func (x *RealtimeUserCustomStatusSetEvent) GetExpiresAt() *timestamppb.Timestamp
 }
 
 // User-custom-status cleared signal.
+//
+// Clear local custom status for `user_id`. Use `UserDirectoryService.GetUser`
+// when clients need to refresh the complete user profile.
 type RealtimeUserCustomStatusClearedEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// User whose status was cleared.
@@ -2666,6 +2738,8 @@ func (x *RealtimeUserCustomStatusClearedEvent) GetUserId() string {
 }
 
 // User display-preferences signal for the connected user.
+//
+// The updated display preferences are inline for the connected user.
 type RealtimeServerUserPreferencesUpdatedEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// IANA timezone name, when the user has selected a fixed timezone.
@@ -2721,6 +2795,11 @@ func (x *RealtimeServerUserPreferencesUpdatedEvent) GetTimeFormat() v1.TimeForma
 }
 
 // Room-group layout signal.
+//
+// Refetch room-group layout with `RoomDirectoryService.ListRoomGroups`. If a
+// client already knows specific group IDs, it can use
+// `RoomDirectoryService.GetRoomGroup` or
+// `RoomDirectoryService.BatchGetRoomGroups`.
 type RealtimeRoomGroupsUpdatedEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Always true; present for event-bus compatibility.
@@ -2767,6 +2846,10 @@ func (x *RealtimeRoomGroupsUpdatedEvent) GetChanged() bool {
 }
 
 // Server-member deleted signal.
+//
+// Remove or invalidate local member/user rows for `user_id`. Admin clients can
+// hydrate remaining member rows through `AdminMemberService.GetMember` or
+// `AdminMemberService.BatchGetMembers`.
 type RealtimeServerMemberDeletedEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Deleted user ID.
@@ -2813,6 +2896,12 @@ func (x *RealtimeServerMemberDeletedEvent) GetUserId() string {
 }
 
 // Asset-processing signal.
+//
+// Message attachments are message-owned subresources. When
+// `message_event_id` is known, refresh signed URLs with
+// `AttachmentService.RefreshMessageAttachmentUrls` or
+// `AttachmentService.BatchRefreshMessageAttachmentUrls`; otherwise refetch the
+// affected attachment list or timeline window.
 type RealtimeAssetProcessingEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Room containing the message that owns the asset, when known.
@@ -2877,6 +2966,11 @@ func (x *RealtimeAssetProcessingEvent) GetMessageEventId() string {
 }
 
 // Asset-deleted signal.
+//
+// Remove local attachment state by `asset_id`. When the owning message is known,
+// clients can refresh that message's attachment URLs through
+// `AttachmentService.RefreshMessageAttachmentUrls` or refetch the timeline
+// window.
 type RealtimeAssetDeletedEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Room containing the message that owned the asset, when known.
@@ -2932,6 +3026,10 @@ func (x *RealtimeAssetDeletedEvent) GetAssetId() string {
 }
 
 // Voice-call state signal.
+//
+// Hydrate current room-scoped call state with `VoiceCallService.GetActiveCall`
+// or `VoiceCallService.BatchGetActiveCalls`. Compare `call_id` to ignore stale
+// transitions from a previous call in the same room.
 type RealtimeCallEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Room containing the call.
@@ -2996,6 +3094,10 @@ func (x *RealtimeCallEvent) GetSource() RealtimeCallEventSource {
 }
 
 // Mention attention signal for the connected user.
+//
+// Inline names are display hints. Hydrate referenced rooms through
+// `RoomDirectoryService.BatchGetRooms` and users through
+// `UserDirectoryService.BatchGetUsers` when local caches are missing or stale.
 type RealtimeMentionNotificationEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Room where the mention occurred.
@@ -3069,6 +3171,11 @@ func (x *RealtimeMentionNotificationEvent) GetActorDisplayName() string {
 }
 
 // New-DM attention signal for the connected user.
+//
+// Inline names and avatar URLs are display hints. Hydrate the DM room through
+// `RoomDirectoryService.GetRoom` or `RoomDirectoryService.BatchGetRooms`, and
+// the sender through `UserDirectoryService.GetUser` or
+// `UserDirectoryService.BatchGetUsers` when local caches are missing or stale.
 type RealtimeNewDirectMessageNotificationEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// DM room ID.

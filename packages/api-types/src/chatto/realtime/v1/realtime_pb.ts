@@ -659,6 +659,11 @@ export class RealtimeClose extends Message<RealtimeClose> {
 /**
  * One authorized live event delivered over the realtime WebSocket.
  *
+ * Realtime events are invalidation signals first: payloads carry stable IDs and
+ * small inline hints, while durable resource state is hydrated through
+ * chatto.api.v1 ConnectRPC services. Event-specific messages document the
+ * intended hydration path when a referenced resource may need refreshing.
+ *
  * @generated from message chatto.realtime.v1.RealtimeEventEnvelope
  */
 export class RealtimeEventEnvelope extends Message<RealtimeEventEnvelope> {
@@ -1072,6 +1077,10 @@ export class RealtimeEventEnvelope extends Message<RealtimeEventEnvelope> {
 /**
  * Message-posted signal.
  *
+ * Hydrate the affected timeline with `RoomTimelineService.GetRoomEventsAround`
+ * for room messages, or `RoomTimelineService.GetThreadEventsAround` when
+ * `thread_root_event_id` is set.
+ *
  * @generated from message chatto.realtime.v1.RealtimeMessagePostedEvent
  */
 export class RealtimeMessagePostedEvent extends Message<RealtimeMessagePostedEvent> {
@@ -1129,6 +1138,11 @@ export class RealtimeMessagePostedEvent extends Message<RealtimeMessagePostedEve
 /**
  * Message-edited signal.
  *
+ * Refresh the affected timeline window with
+ * `RoomTimelineService.GetRoomEventsAround` for room messages, or
+ * `RoomTimelineService.GetThreadEventsAround` when the local message belongs to
+ * a thread.
+ *
  * @generated from message chatto.realtime.v1.RealtimeMessageEditedEvent
  */
 export class RealtimeMessageEditedEvent extends Message<RealtimeMessageEditedEvent> {
@@ -1177,6 +1191,11 @@ export class RealtimeMessageEditedEvent extends Message<RealtimeMessageEditedEve
 
 /**
  * Message-retracted signal.
+ *
+ * Refresh or patch the affected timeline window with
+ * `RoomTimelineService.GetRoomEventsAround` for room messages, or
+ * `RoomTimelineService.GetThreadEventsAround` when the local message belongs to
+ * a thread.
  *
  * @generated from message chatto.realtime.v1.RealtimeMessageRetractedEvent
  */
@@ -1235,6 +1254,11 @@ export class RealtimeMessageRetractedEvent extends Message<RealtimeMessageRetrac
 /**
  * Reaction signal.
  *
+ * Refresh or patch the affected message in its timeline window. Use
+ * `RoomTimelineService.GetRoomEventsAround` for room messages, or
+ * `RoomTimelineService.GetThreadEventsAround` when the local message belongs to
+ * a thread.
+ *
  * @generated from message chatto.realtime.v1.RealtimeReactionEvent
  */
 export class RealtimeReactionEvent extends Message<RealtimeReactionEvent> {
@@ -1292,6 +1316,9 @@ export class RealtimeReactionEvent extends Message<RealtimeReactionEvent> {
 /**
  * Typing signal.
  *
+ * This is an ephemeral signal. `room_id` and `thread_root_event_id` identify
+ * where to display typing state; clients normally do not hydrate it.
+ *
  * @generated from message chatto.realtime.v1.RealtimeTypingEvent
  */
 export class RealtimeTypingEvent extends Message<RealtimeTypingEvent> {
@@ -1340,6 +1367,9 @@ export class RealtimeTypingEvent extends Message<RealtimeTypingEvent> {
 
 /**
  * Presence-changed signal.
+ *
+ * The latest presence status is inline. Use `UserDirectoryService.GetUser` when
+ * the surrounding user profile or custom status also needs refreshing.
  *
  * @generated from message chatto.realtime.v1.RealtimePresenceChangedEvent
  */
@@ -1390,6 +1420,11 @@ export class RealtimePresenceChangedEvent extends Message<RealtimePresenceChange
 /**
  * Room lifecycle or membership signal.
  *
+ * Hydrate visible room state with `RoomDirectoryService.GetRoom` or
+ * `RoomDirectoryService.BatchGetRooms`. Unknown/deleted rooms return
+ * `NOT_FOUND` from singular reads, hidden rooms return `PERMISSION_DENIED`, and
+ * batch reads omit unknown, deleted, hidden, and inaccessible rooms.
+ *
  * @generated from message chatto.realtime.v1.RealtimeRoomEvent
  */
 export class RealtimeRoomEvent extends Message<RealtimeRoomEvent> {
@@ -1430,6 +1465,9 @@ export class RealtimeRoomEvent extends Message<RealtimeRoomEvent> {
 
 /**
  * Room universal-visibility signal.
+ *
+ * The latest universal flag is inline. Hydrate the rest of the visible room with
+ * `RoomDirectoryService.GetRoom` or `RoomDirectoryService.BatchGetRooms`.
  *
  * @generated from message chatto.realtime.v1.RealtimeRoomUniversalChangedEvent
  */
@@ -1479,6 +1517,10 @@ export class RealtimeRoomUniversalChangedEvent extends Message<RealtimeRoomUnive
 
 /**
  * Notification-created signal for the connected user.
+ *
+ * Hydrate full notification rows with `NotificationService.GetNotification` or
+ * `NotificationService.BatchGetNotifications`. Use `RoomTimelineService`
+ * anchor reads when `event_id` or `in_reply_to_id` must be opened in context.
  *
  * @generated from message chatto.realtime.v1.RealtimeNotificationCreatedEvent
  */
@@ -1553,6 +1595,9 @@ export class RealtimeNotificationCreatedEvent extends Message<RealtimeNotificati
 /**
  * Notification-dismissed signal for the connected user.
  *
+ * Remove the local notification row by ID. A later singular notification read
+ * returns `NOT_FOUND`; batch reads omit dismissed or missing notifications.
+ *
  * @generated from message chatto.realtime.v1.RealtimeNotificationDismissedEvent
  */
 export class RealtimeNotificationDismissedEvent extends Message<RealtimeNotificationDismissedEvent> {
@@ -1593,6 +1638,10 @@ export class RealtimeNotificationDismissedEvent extends Message<RealtimeNotifica
 
 /**
  * Notification-level signal for the connected user.
+ *
+ * The updated level is inline. Use
+ * `NotificationPreferencesService.GetRoomNotificationPreference` when clients
+ * need the complete preference resource.
  *
  * @generated from message chatto.realtime.v1.RealtimeNotificationLevelChangedEvent
  */
@@ -1651,6 +1700,10 @@ export class RealtimeNotificationLevelChangedEvent extends Message<RealtimeNotif
 /**
  * Thread-follow signal for the connected user.
  *
+ * The updated follow state is inline. Use `RoomTimelineService.GetThreadEvents`
+ * or `RoomTimelineService.GetThreadEventsAround` when the thread itself needs
+ * refreshing.
+ *
  * @generated from message chatto.realtime.v1.RealtimeThreadFollowChangedEvent
  */
 export class RealtimeThreadFollowChangedEvent extends Message<RealtimeThreadFollowChangedEvent> {
@@ -1708,6 +1761,9 @@ export class RealtimeThreadFollowChangedEvent extends Message<RealtimeThreadFoll
 /**
  * Thread-created signal.
  *
+ * Hydrate the new thread with `RoomTimelineService.GetThreadEventsAround` using
+ * `thread_root_event_id` as the anchor.
+ *
  * @generated from message chatto.realtime.v1.RealtimeThreadCreatedEvent
  */
 export class RealtimeThreadCreatedEvent extends Message<RealtimeThreadCreatedEvent> {
@@ -1757,6 +1813,9 @@ export class RealtimeThreadCreatedEvent extends Message<RealtimeThreadCreatedEve
 /**
  * Room-read signal for the connected user.
  *
+ * This is a current-user read-state invalidation signal. Clients can patch local
+ * unread state for the room; no separate hydration is normally needed.
+ *
  * @generated from message chatto.realtime.v1.RealtimeRoomMarkedAsReadEvent
  */
 export class RealtimeRoomMarkedAsReadEvent extends Message<RealtimeRoomMarkedAsReadEvent> {
@@ -1797,6 +1856,9 @@ export class RealtimeRoomMarkedAsReadEvent extends Message<RealtimeRoomMarkedAsR
 
 /**
  * Server-profile signal.
+ *
+ * Public server profile fields are inline. Use `ServerService.GetServerState`
+ * when authenticated clients need the broader server state snapshot.
  *
  * @generated from message chatto.realtime.v1.RealtimeServerUpdatedEvent
  */
@@ -1863,6 +1925,10 @@ export class RealtimeServerUpdatedEvent extends Message<RealtimeServerUpdatedEve
 /**
  * User-profile signal.
  *
+ * Basic profile fields are inline. Use `UserDirectoryService.GetUser` for a
+ * complete user profile or `UserDirectoryService.BatchGetUsers` for lightweight
+ * render/cache hydration.
+ *
  * @generated from message chatto.realtime.v1.RealtimeUserProfileUpdatedEvent
  */
 export class RealtimeUserProfileUpdatedEvent extends Message<RealtimeUserProfileUpdatedEvent> {
@@ -1927,6 +1993,9 @@ export class RealtimeUserProfileUpdatedEvent extends Message<RealtimeUserProfile
 
 /**
  * User-custom-status set signal.
+ *
+ * The latest custom status is inline. Use `UserDirectoryService.GetUser` when
+ * clients need to refresh the complete user profile.
  *
  * @generated from message chatto.realtime.v1.RealtimeUserCustomStatusSetEvent
  */
@@ -1993,6 +2062,9 @@ export class RealtimeUserCustomStatusSetEvent extends Message<RealtimeUserCustom
 /**
  * User-custom-status cleared signal.
  *
+ * Clear local custom status for `user_id`. Use `UserDirectoryService.GetUser`
+ * when clients need to refresh the complete user profile.
+ *
  * @generated from message chatto.realtime.v1.RealtimeUserCustomStatusClearedEvent
  */
 export class RealtimeUserCustomStatusClearedEvent extends Message<RealtimeUserCustomStatusClearedEvent> {
@@ -2033,6 +2105,8 @@ export class RealtimeUserCustomStatusClearedEvent extends Message<RealtimeUserCu
 
 /**
  * User display-preferences signal for the connected user.
+ *
+ * The updated display preferences are inline for the connected user.
  *
  * @generated from message chatto.realtime.v1.RealtimeServerUserPreferencesUpdatedEvent
  */
@@ -2083,6 +2157,11 @@ export class RealtimeServerUserPreferencesUpdatedEvent extends Message<RealtimeS
 /**
  * Room-group layout signal.
  *
+ * Refetch room-group layout with `RoomDirectoryService.ListRoomGroups`. If a
+ * client already knows specific group IDs, it can use
+ * `RoomDirectoryService.GetRoomGroup` or
+ * `RoomDirectoryService.BatchGetRoomGroups`.
+ *
  * @generated from message chatto.realtime.v1.RealtimeRoomGroupsUpdatedEvent
  */
 export class RealtimeRoomGroupsUpdatedEvent extends Message<RealtimeRoomGroupsUpdatedEvent> {
@@ -2124,6 +2203,10 @@ export class RealtimeRoomGroupsUpdatedEvent extends Message<RealtimeRoomGroupsUp
 /**
  * Server-member deleted signal.
  *
+ * Remove or invalidate local member/user rows for `user_id`. Admin clients can
+ * hydrate remaining member rows through `AdminMemberService.GetMember` or
+ * `AdminMemberService.BatchGetMembers`.
+ *
  * @generated from message chatto.realtime.v1.RealtimeServerMemberDeletedEvent
  */
 export class RealtimeServerMemberDeletedEvent extends Message<RealtimeServerMemberDeletedEvent> {
@@ -2164,6 +2247,12 @@ export class RealtimeServerMemberDeletedEvent extends Message<RealtimeServerMemb
 
 /**
  * Asset-processing signal.
+ *
+ * Message attachments are message-owned subresources. When
+ * `message_event_id` is known, refresh signed URLs with
+ * `AttachmentService.RefreshMessageAttachmentUrls` or
+ * `AttachmentService.BatchRefreshMessageAttachmentUrls`; otherwise refetch the
+ * affected attachment list or timeline window.
  *
  * @generated from message chatto.realtime.v1.RealtimeAssetProcessingEvent
  */
@@ -2222,6 +2311,11 @@ export class RealtimeAssetProcessingEvent extends Message<RealtimeAssetProcessin
 /**
  * Asset-deleted signal.
  *
+ * Remove local attachment state by `asset_id`. When the owning message is known,
+ * clients can refresh that message's attachment URLs through
+ * `AttachmentService.RefreshMessageAttachmentUrls` or refetch the timeline
+ * window.
+ *
  * @generated from message chatto.realtime.v1.RealtimeAssetDeletedEvent
  */
 export class RealtimeAssetDeletedEvent extends Message<RealtimeAssetDeletedEvent> {
@@ -2270,6 +2364,10 @@ export class RealtimeAssetDeletedEvent extends Message<RealtimeAssetDeletedEvent
 
 /**
  * Voice-call state signal.
+ *
+ * Hydrate current room-scoped call state with `VoiceCallService.GetActiveCall`
+ * or `VoiceCallService.BatchGetActiveCalls`. Compare `call_id` to ignore stale
+ * transitions from a previous call in the same room.
  *
  * @generated from message chatto.realtime.v1.RealtimeCallEvent
  */
@@ -2327,6 +2425,10 @@ export class RealtimeCallEvent extends Message<RealtimeCallEvent> {
 
 /**
  * Mention attention signal for the connected user.
+ *
+ * Inline names are display hints. Hydrate referenced rooms through
+ * `RoomDirectoryService.BatchGetRooms` and users through
+ * `UserDirectoryService.BatchGetUsers` when local caches are missing or stale.
  *
  * @generated from message chatto.realtime.v1.RealtimeMentionNotificationEvent
  */
@@ -2392,6 +2494,11 @@ export class RealtimeMentionNotificationEvent extends Message<RealtimeMentionNot
 
 /**
  * New-DM attention signal for the connected user.
+ *
+ * Inline names and avatar URLs are display hints. Hydrate the DM room through
+ * `RoomDirectoryService.GetRoom` or `RoomDirectoryService.BatchGetRooms`, and
+ * the sender through `UserDirectoryService.GetUser` or
+ * `UserDirectoryService.BatchGetUsers` when local caches are missing or stale.
  *
  * @generated from message chatto.realtime.v1.RealtimeNewDirectMessageNotificationEvent
  */

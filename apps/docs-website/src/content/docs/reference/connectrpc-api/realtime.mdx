@@ -24,6 +24,11 @@ Realtime frames are documented separately from ConnectRPC services because they 
 
 Asset-deleted signal.
 
+Remove local attachment state by `asset_id`. When the owning message is known,
+clients can refresh that message's attachment URLs through
+`AttachmentService.RefreshMessageAttachmentUrls` or refetch the timeline
+window.
+
 | Field | Type | Description |
 | --- | --- | --- |
 | `room_id` | `optional string` | Room containing the message that owned the asset, when known. |
@@ -34,6 +39,12 @@ Asset-deleted signal.
 ### RealtimeAssetProcessingEvent
 
 Asset-processing signal.
+
+Message attachments are message-owned subresources. When
+`message_event_id` is known, refresh signed URLs with
+`AttachmentService.RefreshMessageAttachmentUrls` or
+`AttachmentService.BatchRefreshMessageAttachmentUrls`; otherwise refetch the
+affected attachment list or timeline window.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -46,6 +57,10 @@ Asset-processing signal.
 ### RealtimeCallEvent
 
 Voice-call state signal.
+
+Hydrate current room-scoped call state with `VoiceCallService.GetActiveCall`
+or `VoiceCallService.BatchGetActiveCalls`. Compare `call_id` to ignore stale
+transitions from a previous call in the same room.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -111,6 +126,11 @@ Protocol error.
 
 One authorized live event delivered over the realtime WebSocket.
 
+Realtime events are invalidation signals first: payloads carry stable IDs and
+small inline hints, while durable resource state is hydrated through
+chatto.api.v1 ConnectRPC services. Event-specific messages document the
+intended hydration path when a referenced resource may need refreshing.
+
 | Field | Type | Description |
 | --- | --- | --- |
 | `id` | `string` | Stable event ID. |
@@ -173,6 +193,10 @@ Application-level heartbeat.
 
 Mention attention signal for the connected user.
 
+Inline names are display hints. Hydrate referenced rooms through
+`RoomDirectoryService.BatchGetRooms` and users through
+`UserDirectoryService.BatchGetUsers` when local caches are missing or stale.
+
 | Field | Type | Description |
 | --- | --- | --- |
 | `room_id` | `string` | Room where the mention occurred. |
@@ -186,6 +210,11 @@ Mention attention signal for the connected user.
 
 Message-edited signal.
 
+Refresh the affected timeline window with
+`RoomTimelineService.GetRoomEventsAround` for room messages, or
+`RoomTimelineService.GetThreadEventsAround` when the local message belongs to
+a thread.
+
 | Field | Type | Description |
 | --- | --- | --- |
 | `room_id` | `string` | Room containing the message. |
@@ -196,6 +225,10 @@ Message-edited signal.
 ### RealtimeMessagePostedEvent
 
 Message-posted signal.
+
+Hydrate the affected timeline with `RoomTimelineService.GetRoomEventsAround`
+for room messages, or `RoomTimelineService.GetThreadEventsAround` when
+`thread_root_event_id` is set.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -209,6 +242,11 @@ Message-posted signal.
 
 Message-retracted signal.
 
+Refresh or patch the affected timeline window with
+`RoomTimelineService.GetRoomEventsAround` for room messages, or
+`RoomTimelineService.GetThreadEventsAround` when the local message belongs to
+a thread.
+
 | Field | Type | Description |
 | --- | --- | --- |
 | `room_id` | `string` | Room containing the message. |
@@ -220,6 +258,11 @@ Message-retracted signal.
 ### RealtimeNewDirectMessageNotificationEvent
 
 New-DM attention signal for the connected user.
+
+Inline names and avatar URLs are display hints. Hydrate the DM room through
+`RoomDirectoryService.GetRoom` or `RoomDirectoryService.BatchGetRooms`, and
+the sender through `UserDirectoryService.GetUser` or
+`UserDirectoryService.BatchGetUsers` when local caches are missing or stale.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -235,6 +278,10 @@ New-DM attention signal for the connected user.
 
 Notification-created signal for the connected user.
 
+Hydrate full notification rows with `NotificationService.GetNotification` or
+`NotificationService.BatchGetNotifications`. Use `RoomTimelineService`
+anchor reads when `event_id` or `in_reply_to_id` must be opened in context.
+
 | Field | Type | Description |
 | --- | --- | --- |
 | `notification_id` | `string` | Notification ID. |
@@ -249,6 +296,9 @@ Notification-created signal for the connected user.
 
 Notification-dismissed signal for the connected user.
 
+Remove the local notification row by ID. A later singular notification read
+returns `NOT_FOUND`; batch reads omit dismissed or missing notifications.
+
 | Field | Type | Description |
 | --- | --- | --- |
 | `notification_id` | `string` | Notification ID. |
@@ -258,6 +308,10 @@ Notification-dismissed signal for the connected user.
 ### RealtimeNotificationLevelChangedEvent
 
 Notification-level signal for the connected user.
+
+The updated level is inline. Use
+`NotificationPreferencesService.GetRoomNotificationPreference` when clients
+need the complete preference resource.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -291,6 +345,9 @@ Application-level pong.
 
 Presence-changed signal.
 
+The latest presence status is inline. Use `UserDirectoryService.GetUser` when
+the surrounding user profile or custom status also needs refreshing.
+
 | Field | Type | Description |
 | --- | --- | --- |
 | `user_id` | `string` | User whose presence changed. |
@@ -301,6 +358,11 @@ Presence-changed signal.
 ### RealtimeReactionEvent
 
 Reaction signal.
+
+Refresh or patch the affected message in its timeline window. Use
+`RoomTimelineService.GetRoomEventsAround` for room messages, or
+`RoomTimelineService.GetThreadEventsAround` when the local message belongs to
+a thread.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -314,6 +376,11 @@ Reaction signal.
 
 Room lifecycle or membership signal.
 
+Hydrate visible room state with `RoomDirectoryService.GetRoom` or
+`RoomDirectoryService.BatchGetRooms`. Unknown/deleted rooms return
+`NOT_FOUND` from singular reads, hidden rooms return `PERMISSION_DENIED`, and
+batch reads omit unknown, deleted, hidden, and inaccessible rooms.
+
 | Field | Type | Description |
 | --- | --- | --- |
 | `room_id` | `string` | Room affected by the event. |
@@ -323,6 +390,11 @@ Room lifecycle or membership signal.
 ### RealtimeRoomGroupsUpdatedEvent
 
 Room-group layout signal.
+
+Refetch room-group layout with `RoomDirectoryService.ListRoomGroups`. If a
+client already knows specific group IDs, it can use
+`RoomDirectoryService.GetRoomGroup` or
+`RoomDirectoryService.BatchGetRoomGroups`.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -334,6 +406,9 @@ Room-group layout signal.
 
 Room-read signal for the connected user.
 
+This is a current-user read-state invalidation signal. Clients can patch local
+unread state for the room; no separate hydration is normally needed.
+
 | Field | Type | Description |
 | --- | --- | --- |
 | `room_id` | `string` | Room marked read. |
@@ -343,6 +418,9 @@ Room-read signal for the connected user.
 ### RealtimeRoomUniversalChangedEvent
 
 Room universal-visibility signal.
+
+The latest universal flag is inline. Hydrate the rest of the visible room with
+`RoomDirectoryService.GetRoom` or `RoomDirectoryService.BatchGetRooms`.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -384,6 +462,10 @@ Initial server hello.
 
 Server-member deleted signal.
 
+Remove or invalidate local member/user rows for `user_id`. Admin clients can
+hydrate remaining member rows through `AdminMemberService.GetMember` or
+`AdminMemberService.BatchGetMembers`.
+
 | Field | Type | Description |
 | --- | --- | --- |
 | `user_id` | `string` | Deleted user ID. |
@@ -393,6 +475,9 @@ Server-member deleted signal.
 ### RealtimeServerUpdatedEvent
 
 Server-profile signal.
+
+Public server profile fields are inline. Use `ServerService.GetServerState`
+when authenticated clients need the broader server state snapshot.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -406,6 +491,8 @@ Server-profile signal.
 ### RealtimeServerUserPreferencesUpdatedEvent
 
 User display-preferences signal for the connected user.
+
+The updated display preferences are inline for the connected user.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -440,6 +527,9 @@ Confirms event streaming has started.
 
 Thread-created signal.
 
+Hydrate the new thread with `RoomTimelineService.GetThreadEventsAround` using
+`thread_root_event_id` as the anchor.
+
 | Field | Type | Description |
 | --- | --- | --- |
 | `room_id` | `string` | Room containing the thread. |
@@ -450,6 +540,10 @@ Thread-created signal.
 ### RealtimeThreadFollowChangedEvent
 
 Thread-follow signal for the connected user.
+
+The updated follow state is inline. Use `RoomTimelineService.GetThreadEvents`
+or `RoomTimelineService.GetThreadEventsAround` when the thread itself needs
+refreshing.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -463,6 +557,9 @@ Thread-follow signal for the connected user.
 
 Typing signal.
 
+This is an ephemeral signal. `room_id` and `thread_root_event_id` identify
+where to display typing state; clients normally do not hydrate it.
+
 | Field | Type | Description |
 | --- | --- | --- |
 | `room_id` | `string` | Room where the actor is typing. |
@@ -474,6 +571,9 @@ Typing signal.
 
 User-custom-status cleared signal.
 
+Clear local custom status for `user_id`. Use `UserDirectoryService.GetUser`
+when clients need to refresh the complete user profile.
+
 | Field | Type | Description |
 | --- | --- | --- |
 | `user_id` | `string` | User whose status was cleared. |
@@ -483,6 +583,9 @@ User-custom-status cleared signal.
 ### RealtimeUserCustomStatusSetEvent
 
 User-custom-status set signal.
+
+The latest custom status is inline. Use `UserDirectoryService.GetUser` when
+clients need to refresh the complete user profile.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -496,6 +599,10 @@ User-custom-status set signal.
 ### RealtimeUserProfileUpdatedEvent
 
 User-profile signal.
+
+Basic profile fields are inline. Use `UserDirectoryService.GetUser` for a
+complete user profile or `UserDirectoryService.BatchGetUsers` for lightweight
+render/cache hydration.
 
 | Field | Type | Description |
 | --- | --- | --- |

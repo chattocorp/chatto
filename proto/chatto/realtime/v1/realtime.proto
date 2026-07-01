@@ -126,6 +126,11 @@ message RealtimeClose {
 }
 
 // One authorized live event delivered over the realtime WebSocket.
+//
+// Realtime events are invalidation signals first: payloads carry stable IDs and
+// small inline hints, while durable resource state is hydrated through
+// chatto.api.v1 ConnectRPC services. Event-specific messages document the
+// intended hydration path when a referenced resource may need refreshing.
 message RealtimeEventEnvelope {
   reserved 4;
   reserved "cursor";
@@ -220,6 +225,10 @@ message RealtimeEventEnvelope {
 }
 
 // Message-posted signal.
+//
+// Hydrate the affected timeline with `RoomTimelineService.GetRoomEventsAround`
+// for room messages, or `RoomTimelineService.GetThreadEventsAround` when
+// `thread_root_event_id` is set.
 message RealtimeMessagePostedEvent {
   // Room containing the message.
   string room_id = 1;
@@ -230,6 +239,11 @@ message RealtimeMessagePostedEvent {
 }
 
 // Message-edited signal.
+//
+// Refresh the affected timeline window with
+// `RoomTimelineService.GetRoomEventsAround` for room messages, or
+// `RoomTimelineService.GetThreadEventsAround` when the local message belongs to
+// a thread.
 message RealtimeMessageEditedEvent {
   // Room containing the message.
   string room_id = 1;
@@ -238,6 +252,11 @@ message RealtimeMessageEditedEvent {
 }
 
 // Message-retracted signal.
+//
+// Refresh or patch the affected timeline window with
+// `RoomTimelineService.GetRoomEventsAround` for room messages, or
+// `RoomTimelineService.GetThreadEventsAround` when the local message belongs to
+// a thread.
 message RealtimeMessageRetractedEvent {
   // Room containing the message.
   string room_id = 1;
@@ -248,6 +267,11 @@ message RealtimeMessageRetractedEvent {
 }
 
 // Reaction signal.
+//
+// Refresh or patch the affected message in its timeline window. Use
+// `RoomTimelineService.GetRoomEventsAround` for room messages, or
+// `RoomTimelineService.GetThreadEventsAround` when the local message belongs to
+// a thread.
 message RealtimeReactionEvent {
   // Room containing the reacted-to message.
   string room_id = 1;
@@ -258,6 +282,9 @@ message RealtimeReactionEvent {
 }
 
 // Typing signal.
+//
+// This is an ephemeral signal. `room_id` and `thread_root_event_id` identify
+// where to display typing state; clients normally do not hydrate it.
 message RealtimeTypingEvent {
   // Room where the actor is typing.
   string room_id = 1;
@@ -266,6 +293,9 @@ message RealtimeTypingEvent {
 }
 
 // Presence-changed signal.
+//
+// The latest presence status is inline. Use `UserDirectoryService.GetUser` when
+// the surrounding user profile or custom status also needs refreshing.
 message RealtimePresenceChangedEvent {
   // User whose presence changed.
   string user_id = 1;
@@ -274,12 +304,20 @@ message RealtimePresenceChangedEvent {
 }
 
 // Room lifecycle or membership signal.
+//
+// Hydrate visible room state with `RoomDirectoryService.GetRoom` or
+// `RoomDirectoryService.BatchGetRooms`. Unknown/deleted rooms return
+// `NOT_FOUND` from singular reads, hidden rooms return `PERMISSION_DENIED`, and
+// batch reads omit unknown, deleted, hidden, and inaccessible rooms.
 message RealtimeRoomEvent {
   // Room affected by the event.
   string room_id = 1;
 }
 
 // Room universal-visibility signal.
+//
+// The latest universal flag is inline. Hydrate the rest of the visible room with
+// `RoomDirectoryService.GetRoom` or `RoomDirectoryService.BatchGetRooms`.
 message RealtimeRoomUniversalChangedEvent {
   // Room whose universal setting changed.
   string room_id = 1;
@@ -288,6 +326,10 @@ message RealtimeRoomUniversalChangedEvent {
 }
 
 // Notification-created signal for the connected user.
+//
+// Hydrate full notification rows with `NotificationService.GetNotification` or
+// `NotificationService.BatchGetNotifications`. Use `RoomTimelineService`
+// anchor reads when `event_id` or `in_reply_to_id` must be opened in context.
 message RealtimeNotificationCreatedEvent {
   // Notification ID.
   string notification_id = 1;
@@ -302,12 +344,19 @@ message RealtimeNotificationCreatedEvent {
 }
 
 // Notification-dismissed signal for the connected user.
+//
+// Remove the local notification row by ID. A later singular notification read
+// returns `NOT_FOUND`; batch reads omit dismissed or missing notifications.
 message RealtimeNotificationDismissedEvent {
   // Notification ID.
   string notification_id = 1;
 }
 
 // Notification-level signal for the connected user.
+//
+// The updated level is inline. Use
+// `NotificationPreferencesService.GetRoomNotificationPreference` when clients
+// need the complete preference resource.
 message RealtimeNotificationLevelChangedEvent {
   // Room whose notification level changed.
   string room_id = 1;
@@ -318,6 +367,10 @@ message RealtimeNotificationLevelChangedEvent {
 }
 
 // Thread-follow signal for the connected user.
+//
+// The updated follow state is inline. Use `RoomTimelineService.GetThreadEvents`
+// or `RoomTimelineService.GetThreadEventsAround` when the thread itself needs
+// refreshing.
 message RealtimeThreadFollowChangedEvent {
   // Room containing the thread.
   string room_id = 1;
@@ -328,6 +381,9 @@ message RealtimeThreadFollowChangedEvent {
 }
 
 // Thread-created signal.
+//
+// Hydrate the new thread with `RoomTimelineService.GetThreadEventsAround` using
+// `thread_root_event_id` as the anchor.
 message RealtimeThreadCreatedEvent {
   // Room containing the thread.
   string room_id = 1;
@@ -336,12 +392,18 @@ message RealtimeThreadCreatedEvent {
 }
 
 // Room-read signal for the connected user.
+//
+// This is a current-user read-state invalidation signal. Clients can patch local
+// unread state for the room; no separate hydration is normally needed.
 message RealtimeRoomMarkedAsReadEvent {
   // Room marked read.
   string room_id = 1;
 }
 
 // Server-profile signal.
+//
+// Public server profile fields are inline. Use `ServerService.GetServerState`
+// when authenticated clients need the broader server state snapshot.
 message RealtimeServerUpdatedEvent {
   // Server display name.
   string name = 1;
@@ -354,6 +416,10 @@ message RealtimeServerUpdatedEvent {
 }
 
 // User-profile signal.
+//
+// Basic profile fields are inline. Use `UserDirectoryService.GetUser` for a
+// complete user profile or `UserDirectoryService.BatchGetUsers` for lightweight
+// render/cache hydration.
 message RealtimeUserProfileUpdatedEvent {
   // User whose profile changed.
   string user_id = 1;
@@ -366,6 +432,9 @@ message RealtimeUserProfileUpdatedEvent {
 }
 
 // User-custom-status set signal.
+//
+// The latest custom status is inline. Use `UserDirectoryService.GetUser` when
+// clients need to refresh the complete user profile.
 message RealtimeUserCustomStatusSetEvent {
   // User whose status changed.
   string user_id = 1;
@@ -378,12 +447,17 @@ message RealtimeUserCustomStatusSetEvent {
 }
 
 // User-custom-status cleared signal.
+//
+// Clear local custom status for `user_id`. Use `UserDirectoryService.GetUser`
+// when clients need to refresh the complete user profile.
 message RealtimeUserCustomStatusClearedEvent {
   // User whose status was cleared.
   string user_id = 1;
 }
 
 // User display-preferences signal for the connected user.
+//
+// The updated display preferences are inline for the connected user.
 message RealtimeServerUserPreferencesUpdatedEvent {
   // IANA timezone name, when the user has selected a fixed timezone.
   optional string timezone = 1;
@@ -392,18 +466,33 @@ message RealtimeServerUserPreferencesUpdatedEvent {
 }
 
 // Room-group layout signal.
+//
+// Refetch room-group layout with `RoomDirectoryService.ListRoomGroups`. If a
+// client already knows specific group IDs, it can use
+// `RoomDirectoryService.GetRoomGroup` or
+// `RoomDirectoryService.BatchGetRoomGroups`.
 message RealtimeRoomGroupsUpdatedEvent {
   // Always true; present for event-bus compatibility.
   bool changed = 1;
 }
 
 // Server-member deleted signal.
+//
+// Remove or invalidate local member/user rows for `user_id`. Admin clients can
+// hydrate remaining member rows through `AdminMemberService.GetMember` or
+// `AdminMemberService.BatchGetMembers`.
 message RealtimeServerMemberDeletedEvent {
   // Deleted user ID.
   string user_id = 1;
 }
 
 // Asset-processing signal.
+//
+// Message attachments are message-owned subresources. When
+// `message_event_id` is known, refresh signed URLs with
+// `AttachmentService.RefreshMessageAttachmentUrls` or
+// `AttachmentService.BatchRefreshMessageAttachmentUrls`; otherwise refetch the
+// affected attachment list or timeline window.
 message RealtimeAssetProcessingEvent {
   // Room containing the message that owns the asset, when known.
   optional string room_id = 1;
@@ -414,6 +503,11 @@ message RealtimeAssetProcessingEvent {
 }
 
 // Asset-deleted signal.
+//
+// Remove local attachment state by `asset_id`. When the owning message is known,
+// clients can refresh that message's attachment URLs through
+// `AttachmentService.RefreshMessageAttachmentUrls` or refetch the timeline
+// window.
 message RealtimeAssetDeletedEvent {
   // Room containing the message that owned the asset, when known.
   optional string room_id = 1;
@@ -422,6 +516,10 @@ message RealtimeAssetDeletedEvent {
 }
 
 // Voice-call state signal.
+//
+// Hydrate current room-scoped call state with `VoiceCallService.GetActiveCall`
+// or `VoiceCallService.BatchGetActiveCalls`. Compare `call_id` to ignore stale
+// transitions from a previous call in the same room.
 message RealtimeCallEvent {
   // Room containing the call.
   string room_id = 1;
@@ -444,6 +542,10 @@ enum RealtimeCallEventSource {
 }
 
 // Mention attention signal for the connected user.
+//
+// Inline names are display hints. Hydrate referenced rooms through
+// `RoomDirectoryService.BatchGetRooms` and users through
+// `UserDirectoryService.BatchGetUsers` when local caches are missing or stale.
 message RealtimeMentionNotificationEvent {
   // Room where the mention occurred.
   string room_id = 1;
@@ -456,6 +558,11 @@ message RealtimeMentionNotificationEvent {
 }
 
 // New-DM attention signal for the connected user.
+//
+// Inline names and avatar URLs are display hints. Hydrate the DM room through
+// `RoomDirectoryService.GetRoom` or `RoomDirectoryService.BatchGetRooms`, and
+// the sender through `UserDirectoryService.GetUser` or
+// `UserDirectoryService.BatchGetUsers` when local caches are missing or stale.
 message RealtimeNewDirectMessageNotificationEvent {
   // DM room ID.
   string room_id = 1;
