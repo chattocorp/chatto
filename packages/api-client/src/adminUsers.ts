@@ -142,8 +142,8 @@ export function createAdminUserManagementAPI(
       return adminManagedUser(response.user);
     },
 
-    async setUserPassword(userId: string, password: string): Promise<boolean> {
-      const response = await client.setUserPassword(
+    async updateUserPassword(userId: string, password: string): Promise<boolean> {
+      const response = await client.updateUserPassword(
         { userId, password },
         { headers: headers() },
       );

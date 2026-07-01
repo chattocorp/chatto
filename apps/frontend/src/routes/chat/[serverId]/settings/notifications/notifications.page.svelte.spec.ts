@@ -13,8 +13,8 @@ const mocks = vi.hoisted(() => ({
   query: vi.fn(),
   mutation: vi.fn(),
   getServerNotificationPreference: vi.fn(),
-  setServerNotificationLevel: vi.fn(),
-  setRoomNotificationLevel: vi.fn(),
+  updateServerNotificationPreference: vi.fn(),
+  updateRoomNotificationPreference: vi.fn(),
   getViewerStateViaConnect: vi.fn(),
   listRooms: vi.fn(),
   playNotificationSound: vi.fn(),
@@ -52,8 +52,8 @@ vi.mock('$lib/notifications/pushNotifications', () => ({
 
 vi.mock('@chatto/api-client/notificationPreferences', () => ({
   getServerNotificationPreference: mocks.getServerNotificationPreference,
-  setServerNotificationLevel: mocks.setServerNotificationLevel,
-  setRoomNotificationLevel: mocks.setRoomNotificationLevel
+  updateServerNotificationPreference: mocks.updateServerNotificationPreference,
+  updateRoomNotificationPreference: mocks.updateRoomNotificationPreference
 }));
 
 vi.mock('@chatto/api-client/viewer', () => ({
@@ -153,13 +153,13 @@ describe('Notification settings page', () => {
       level: ApiNotificationLevel.NORMAL,
       effectiveLevel: ApiNotificationLevel.NORMAL
     });
-    mocks.setServerNotificationLevel.mockReset();
-    mocks.setServerNotificationLevel.mockResolvedValue({
+    mocks.updateServerNotificationPreference.mockReset();
+    mocks.updateServerNotificationPreference.mockResolvedValue({
       level: ApiNotificationLevel.ALL_MESSAGES,
       effectiveLevel: ApiNotificationLevel.ALL_MESSAGES
     });
-    mocks.setRoomNotificationLevel.mockReset();
-    mocks.setRoomNotificationLevel.mockResolvedValue({
+    mocks.updateRoomNotificationPreference.mockReset();
+    mocks.updateRoomNotificationPreference.mockResolvedValue({
       level: ApiNotificationLevel.MUTED,
       effectiveLevel: ApiNotificationLevel.MUTED
     });
@@ -269,7 +269,7 @@ describe('Notification settings page', () => {
     select.dispatchEvent(new Event('change', { bubbles: true }));
     await settle();
 
-    expect(mocks.setRoomNotificationLevel).toHaveBeenCalledWith(
+    expect(mocks.updateRoomNotificationPreference).toHaveBeenCalledWith(
       {
         serverId: 'origin',
         baseUrl: 'https://origin.test/api/connect',
@@ -293,7 +293,7 @@ describe('Notification settings page', () => {
     buttonWithText(container, 'All Messages').click();
     await settle();
 
-    expect(mocks.setServerNotificationLevel).toHaveBeenCalledWith(
+    expect(mocks.updateServerNotificationPreference).toHaveBeenCalledWith(
       {
         serverId: 'origin',
         baseUrl: 'https://origin.test/api/connect',

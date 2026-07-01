@@ -49,20 +49,20 @@ Current server-level notification preference.
 | `effective_level` | [`NotificationLevel`](/reference/connectrpc-api/types/#chatto-api-v1-NotificationLevel) | Level after applying system defaults. |
 
 
-<a id="chatto-api-v1-NotificationPreferencesService-SetServerNotificationLevel"></a>
+<a id="chatto-api-v1-NotificationPreferencesService-UpdateServerNotificationPreference"></a>
 
-### SetServerNotificationLevel
+### UpdateServerNotificationPreference
 
-Sets the current user's explicit server notification level and returns the
+Updates the current user's explicit server notification level and returns the
 resulting stored and effective levels.
 
 ```http
-POST /api/connect/chatto.api.v1.NotificationPreferencesService/SetServerNotificationLevel
+POST /api/connect/chatto.api.v1.NotificationPreferencesService/UpdateServerNotificationPreference
 ```
 
-<a id="chatto-api-v1-SetServerNotificationLevelRequest"></a>
+<a id="chatto-api-v1-UpdateServerNotificationPreferenceRequest"></a>
 
-#### Input: SetServerNotificationLevelRequest
+#### Input: UpdateServerNotificationPreferenceRequest
 
 Request to update the current user's server-level notification level.
 
@@ -71,9 +71,9 @@ Request to update the current user's server-level notification level.
 | `level` | [`NotificationLevel`](/reference/connectrpc-api/types/#chatto-api-v1-NotificationLevel) | Required. New explicit notification level. Use NOTIFICATION_LEVEL_DEFAULT to return the server to default behavior. |
 
 
-<a id="chatto-api-v1-SetServerNotificationLevelResponse"></a>
+<a id="chatto-api-v1-UpdateServerNotificationPreferenceResponse"></a>
 
-#### Result: SetServerNotificationLevelResponse
+#### Result: UpdateServerNotificationPreferenceResponse
 
 Updated server-level notification preference.
 
@@ -123,20 +123,20 @@ the server will apply after defaults are resolved.
 | `effective_level` | [`NotificationLevel`](/reference/connectrpc-api/types/#chatto-api-v1-NotificationLevel) | Level after applying defaults and inheritance. |
 
 
-<a id="chatto-api-v1-NotificationPreferencesService-SetRoomNotificationLevel"></a>
+<a id="chatto-api-v1-NotificationPreferencesService-UpdateRoomNotificationPreference"></a>
 
-### SetRoomNotificationLevel
+### UpdateRoomNotificationPreference
 
-Sets the current user's explicit notification level for a room and returns
+Updates the current user's explicit notification level for a room and returns
 the resulting stored and effective levels.
 
 ```http
-POST /api/connect/chatto.api.v1.NotificationPreferencesService/SetRoomNotificationLevel
+POST /api/connect/chatto.api.v1.NotificationPreferencesService/UpdateRoomNotificationPreference
 ```
 
-<a id="chatto-api-v1-SetRoomNotificationLevelRequest"></a>
+<a id="chatto-api-v1-UpdateRoomNotificationPreferenceRequest"></a>
 
-#### Input: SetRoomNotificationLevelRequest
+#### Input: UpdateRoomNotificationPreferenceRequest
 
 Request to update the current user's notification level in one room.
 
@@ -146,9 +146,9 @@ Request to update the current user's notification level in one room.
 | `level` | [`NotificationLevel`](/reference/connectrpc-api/types/#chatto-api-v1-NotificationLevel) | Required. New explicit notification level. Use NOTIFICATION_LEVEL_DEFAULT to return the room to inherited/default behavior. |
 
 
-<a id="chatto-api-v1-SetRoomNotificationLevelResponse"></a>
+<a id="chatto-api-v1-UpdateRoomNotificationPreferenceResponse"></a>
 
-#### Result: SetRoomNotificationLevelResponse
+#### Result: UpdateRoomNotificationPreferenceResponse
 
 Updated notification preference for a room.
 

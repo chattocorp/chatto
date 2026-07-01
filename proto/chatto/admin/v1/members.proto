@@ -176,8 +176,8 @@ message UpdateUserResponse {
   AdminMember member = 2;
 }
 
-// Request to set a user's password as a server-admin action.
-message SetUserPasswordRequest {
+// Request to update a user's password as a server-admin action.
+message UpdateUserPasswordRequest {
   // Target user ID.
   string user_id = 1 [(buf.validate.field).string.min_len = 1];
   // New password. The server applies the same password policy as registration
@@ -186,7 +186,7 @@ message SetUserPasswordRequest {
 }
 
 // Result of an admin password update.
-message SetUserPasswordResponse {
+message UpdateUserPasswordResponse {
   // True when the request completed.
   bool updated = 1;
 }
@@ -235,10 +235,10 @@ service AdminMemberService {
   // Updates another user's login and/or display name as an admin action.
   // Requires user.manage-accounts; the caller cannot target their own account.
   rpc UpdateUser(UpdateUserRequest) returns (UpdateUserResponse);
-  // Sets another user's password as an admin action. Requires
+  // Updates another user's password as an admin action. Requires
   // user.manage-accounts and a fresh credential for the caller; the caller
   // cannot target their own account.
-  rpc SetUserPassword(SetUserPasswordRequest) returns (SetUserPasswordResponse);
+  rpc UpdateUserPassword(UpdateUserPasswordRequest) returns (UpdateUserPasswordResponse);
   // Clears the target user's self-service username-change cooldown. Requires
   // user.manage-accounts.
   rpc ClearUsernameCooldown(ClearUsernameCooldownRequest) returns (ClearUsernameCooldownResponse);

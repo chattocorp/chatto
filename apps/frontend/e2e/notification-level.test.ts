@@ -4,8 +4,8 @@ import {
   getRoomIdByNameViaConnect,
   getRoomNotificationPreference,
   getServerNotificationPreference,
-  setRoomNotificationLevel,
-  setServerNotificationLevel
+  updateRoomNotificationPreference,
+  updateServerNotificationPreference
 } from './fixtures/connectHelpers';
 import { test } from './setup';
 import { TIMEOUTS } from './constants';
@@ -130,7 +130,7 @@ test.describe('Notification Level - Server-Side Enforcement', () => {
     await chatPage.goto();
 
     // Set server level to MUTED via API
-    await setServerNotificationLevel(page, 'MUTED');
+    await updateServerNotificationPreference(page, 'MUTED');
 
     // Query it back
     const preference = await getServerNotificationPreference(page);
@@ -148,7 +148,7 @@ test.describe('Notification Level - Server-Side Enforcement', () => {
     const roomId = await getRoomIdByNameViaConnect(page, 'general');
 
     // Set server level to MUTED
-    await setServerNotificationLevel(page, 'MUTED');
+    await updateServerNotificationPreference(page, 'MUTED');
 
     // Room (with DEFAULT) should inherit MUTED from server
     const preference = await getRoomNotificationPreference(page, roomId);
@@ -163,10 +163,10 @@ test.describe('Notification Level - Server-Side Enforcement', () => {
     const roomId = await getRoomIdByNameViaConnect(page, 'general');
 
     // Set server level to MUTED
-    await setServerNotificationLevel(page, 'MUTED');
+    await updateServerNotificationPreference(page, 'MUTED');
 
     // Set room level to ALL_MESSAGES (overrides server MUTED)
-    await setRoomNotificationLevel(page, roomId, 'ALL_MESSAGES');
+    await updateRoomNotificationPreference(page, roomId, 'ALL_MESSAGES');
 
     // Room should show ALL_MESSAGES as effective level
     const preference = await getRoomNotificationPreference(page, roomId);

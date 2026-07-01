@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { AssignRoleRequest, AssignRoleResponse, BatchGetMembersRequest, BatchGetMembersResponse, ClearUsernameCooldownRequest, ClearUsernameCooldownResponse, DeleteUserRequest, DeleteUserResponse, GetMemberRequest, GetMemberResponse, ListMembersRequest, ListMembersResponse, RevokeRoleRequest, RevokeRoleResponse, SetUserPasswordRequest, SetUserPasswordResponse, UpdateUserRequest, UpdateUserResponse } from "./members_pb.js";
+import { AssignRoleRequest, AssignRoleResponse, BatchGetMembersRequest, BatchGetMembersResponse, ClearUsernameCooldownRequest, ClearUsernameCooldownResponse, DeleteUserRequest, DeleteUserResponse, GetMemberRequest, GetMemberResponse, ListMembersRequest, ListMembersResponse, RevokeRoleRequest, RevokeRoleResponse, UpdateUserPasswordRequest, UpdateUserPasswordResponse, UpdateUserRequest, UpdateUserResponse } from "./members_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -84,16 +84,16 @@ export const AdminMemberService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Sets another user's password as an admin action. Requires
+     * Updates another user's password as an admin action. Requires
      * user.manage-accounts and a fresh credential for the caller; the caller
      * cannot target their own account.
      *
-     * @generated from rpc chatto.admin.v1.AdminMemberService.SetUserPassword
+     * @generated from rpc chatto.admin.v1.AdminMemberService.UpdateUserPassword
      */
-    setUserPassword: {
-      name: "SetUserPassword",
-      I: SetUserPasswordRequest,
-      O: SetUserPasswordResponse,
+    updateUserPassword: {
+      name: "UpdateUserPassword",
+      I: UpdateUserPasswordRequest,
+      O: UpdateUserPasswordResponse,
       kind: MethodKind.Unary,
     },
     /**

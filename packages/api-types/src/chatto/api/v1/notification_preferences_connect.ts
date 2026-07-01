@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetRoomNotificationPreferenceRequest, GetRoomNotificationPreferenceResponse, GetServerNotificationPreferenceRequest, GetServerNotificationPreferenceResponse, SetRoomNotificationLevelRequest, SetRoomNotificationLevelResponse, SetServerNotificationLevelRequest, SetServerNotificationLevelResponse } from "./notification_preferences_pb.js";
+import { GetRoomNotificationPreferenceRequest, GetRoomNotificationPreferenceResponse, GetServerNotificationPreferenceRequest, GetServerNotificationPreferenceResponse, UpdateRoomNotificationPreferenceRequest, UpdateRoomNotificationPreferenceResponse, UpdateServerNotificationPreferenceRequest, UpdateServerNotificationPreferenceResponse } from "./notification_preferences_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -26,15 +26,15 @@ export const NotificationPreferencesService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Sets the current user's explicit server notification level and returns the
+     * Updates the current user's explicit server notification level and returns the
      * resulting stored and effective levels.
      *
-     * @generated from rpc chatto.api.v1.NotificationPreferencesService.SetServerNotificationLevel
+     * @generated from rpc chatto.api.v1.NotificationPreferencesService.UpdateServerNotificationPreference
      */
-    setServerNotificationLevel: {
-      name: "SetServerNotificationLevel",
-      I: SetServerNotificationLevelRequest,
-      O: SetServerNotificationLevelResponse,
+    updateServerNotificationPreference: {
+      name: "UpdateServerNotificationPreference",
+      I: UpdateServerNotificationPreferenceRequest,
+      O: UpdateServerNotificationPreferenceResponse,
       kind: MethodKind.Unary,
     },
     /**
@@ -53,15 +53,15 @@ export const NotificationPreferencesService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Sets the current user's explicit notification level for a room and returns
+     * Updates the current user's explicit notification level for a room and returns
      * the resulting stored and effective levels.
      *
-     * @generated from rpc chatto.api.v1.NotificationPreferencesService.SetRoomNotificationLevel
+     * @generated from rpc chatto.api.v1.NotificationPreferencesService.UpdateRoomNotificationPreference
      */
-    setRoomNotificationLevel: {
-      name: "SetRoomNotificationLevel",
-      I: SetRoomNotificationLevelRequest,
-      O: SetRoomNotificationLevelResponse,
+    updateRoomNotificationPreference: {
+      name: "UpdateRoomNotificationPreference",
+      I: UpdateRoomNotificationPreferenceRequest,
+      O: UpdateRoomNotificationPreferenceResponse,
       kind: MethodKind.Unary,
     },
   }

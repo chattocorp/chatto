@@ -504,9 +504,9 @@ export class UnarchiveRoomResponse extends Message<UnarchiveRoomResponse> {
 /**
  * Request to change a channel room's universal membership flag.
  *
- * @generated from message chatto.api.v1.SetRoomUniversalRequest
+ * @generated from message chatto.api.v1.UpdateRoomUniversalRequest
  */
-export class SetRoomUniversalRequest extends Message<SetRoomUniversalRequest> {
+export class UpdateRoomUniversalRequest extends Message<UpdateRoomUniversalRequest> {
   /**
    * Required. Channel room to update.
    *
@@ -521,41 +521,41 @@ export class SetRoomUniversalRequest extends Message<SetRoomUniversalRequest> {
    */
   universal = false;
 
-  constructor(data?: PartialMessage<SetRoomUniversalRequest>) {
+  constructor(data?: PartialMessage<UpdateRoomUniversalRequest>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.SetRoomUniversalRequest";
+  static readonly typeName = "chatto.api.v1.UpdateRoomUniversalRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "universal", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SetRoomUniversalRequest {
-    return new SetRoomUniversalRequest().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UpdateRoomUniversalRequest {
+    return new UpdateRoomUniversalRequest().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SetRoomUniversalRequest {
-    return new SetRoomUniversalRequest().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): UpdateRoomUniversalRequest {
+    return new UpdateRoomUniversalRequest().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SetRoomUniversalRequest {
-    return new SetRoomUniversalRequest().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): UpdateRoomUniversalRequest {
+    return new UpdateRoomUniversalRequest().fromJsonString(jsonString, options);
   }
 
-  static equals(a: SetRoomUniversalRequest | PlainMessage<SetRoomUniversalRequest> | undefined, b: SetRoomUniversalRequest | PlainMessage<SetRoomUniversalRequest> | undefined): boolean {
-    return proto3.util.equals(SetRoomUniversalRequest, a, b);
+  static equals(a: UpdateRoomUniversalRequest | PlainMessage<UpdateRoomUniversalRequest> | undefined, b: UpdateRoomUniversalRequest | PlainMessage<UpdateRoomUniversalRequest> | undefined): boolean {
+    return proto3.util.equals(UpdateRoomUniversalRequest, a, b);
   }
 }
 
 /**
  * Result of changing a channel room's universal membership flag.
  *
- * @generated from message chatto.api.v1.SetRoomUniversalResponse
+ * @generated from message chatto.api.v1.UpdateRoomUniversalResponse
  */
-export class SetRoomUniversalResponse extends Message<SetRoomUniversalResponse> {
+export class UpdateRoomUniversalResponse extends Message<UpdateRoomUniversalResponse> {
   /**
    * Updated room.
    *
@@ -563,31 +563,31 @@ export class SetRoomUniversalResponse extends Message<SetRoomUniversalResponse> 
    */
   room?: Room;
 
-  constructor(data?: PartialMessage<SetRoomUniversalResponse>) {
+  constructor(data?: PartialMessage<UpdateRoomUniversalResponse>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.SetRoomUniversalResponse";
+  static readonly typeName = "chatto.api.v1.UpdateRoomUniversalResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "room", kind: "message", T: Room },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SetRoomUniversalResponse {
-    return new SetRoomUniversalResponse().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UpdateRoomUniversalResponse {
+    return new UpdateRoomUniversalResponse().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SetRoomUniversalResponse {
-    return new SetRoomUniversalResponse().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): UpdateRoomUniversalResponse {
+    return new UpdateRoomUniversalResponse().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SetRoomUniversalResponse {
-    return new SetRoomUniversalResponse().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): UpdateRoomUniversalResponse {
+    return new UpdateRoomUniversalResponse().fromJsonString(jsonString, options);
   }
 
-  static equals(a: SetRoomUniversalResponse | PlainMessage<SetRoomUniversalResponse> | undefined, b: SetRoomUniversalResponse | PlainMessage<SetRoomUniversalResponse> | undefined): boolean {
-    return proto3.util.equals(SetRoomUniversalResponse, a, b);
+  static equals(a: UpdateRoomUniversalResponse | PlainMessage<UpdateRoomUniversalResponse> | undefined, b: UpdateRoomUniversalResponse | PlainMessage<UpdateRoomUniversalResponse> | undefined): boolean {
+    return proto3.util.equals(UpdateRoomUniversalResponse, a, b);
   }
 }
 

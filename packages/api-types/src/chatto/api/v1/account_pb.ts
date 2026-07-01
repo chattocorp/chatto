@@ -272,11 +272,11 @@ export class DeleteAvatarResponse extends Message<DeleteAvatarResponse> {
 }
 
 /**
- * Request to set or change the authenticated user's password.
+ * Request to update or add the authenticated user's password.
  *
- * @generated from message chatto.api.v1.SetPasswordRequest
+ * @generated from message chatto.api.v1.UpdatePasswordRequest
  */
-export class SetPasswordRequest extends Message<SetPasswordRequest> {
+export class UpdatePasswordRequest extends Message<UpdatePasswordRequest> {
   /**
    * New password. The server applies the same password policy as registration
    * and password reset.
@@ -293,65 +293,65 @@ export class SetPasswordRequest extends Message<SetPasswordRequest> {
    */
   currentPassword = "";
 
-  constructor(data?: PartialMessage<SetPasswordRequest>) {
+  constructor(data?: PartialMessage<UpdatePasswordRequest>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.SetPasswordRequest";
+  static readonly typeName = "chatto.api.v1.UpdatePasswordRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "password", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "current_password", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SetPasswordRequest {
-    return new SetPasswordRequest().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UpdatePasswordRequest {
+    return new UpdatePasswordRequest().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SetPasswordRequest {
-    return new SetPasswordRequest().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): UpdatePasswordRequest {
+    return new UpdatePasswordRequest().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SetPasswordRequest {
-    return new SetPasswordRequest().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): UpdatePasswordRequest {
+    return new UpdatePasswordRequest().fromJsonString(jsonString, options);
   }
 
-  static equals(a: SetPasswordRequest | PlainMessage<SetPasswordRequest> | undefined, b: SetPasswordRequest | PlainMessage<SetPasswordRequest> | undefined): boolean {
-    return proto3.util.equals(SetPasswordRequest, a, b);
+  static equals(a: UpdatePasswordRequest | PlainMessage<UpdatePasswordRequest> | undefined, b: UpdatePasswordRequest | PlainMessage<UpdatePasswordRequest> | undefined): boolean {
+    return proto3.util.equals(UpdatePasswordRequest, a, b);
   }
 }
 
 /**
- * Result of setting or changing the authenticated account password.
+ * Result of updating or adding the authenticated account password.
  *
- * @generated from message chatto.api.v1.SetPasswordResponse
+ * @generated from message chatto.api.v1.UpdatePasswordResponse
  */
-export class SetPasswordResponse extends Message<SetPasswordResponse> {
-  constructor(data?: PartialMessage<SetPasswordResponse>) {
+export class UpdatePasswordResponse extends Message<UpdatePasswordResponse> {
+  constructor(data?: PartialMessage<UpdatePasswordResponse>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.SetPasswordResponse";
+  static readonly typeName = "chatto.api.v1.UpdatePasswordResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SetPasswordResponse {
-    return new SetPasswordResponse().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UpdatePasswordResponse {
+    return new UpdatePasswordResponse().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SetPasswordResponse {
-    return new SetPasswordResponse().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): UpdatePasswordResponse {
+    return new UpdatePasswordResponse().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SetPasswordResponse {
-    return new SetPasswordResponse().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): UpdatePasswordResponse {
+    return new UpdatePasswordResponse().fromJsonString(jsonString, options);
   }
 
-  static equals(a: SetPasswordResponse | PlainMessage<SetPasswordResponse> | undefined, b: SetPasswordResponse | PlainMessage<SetPasswordResponse> | undefined): boolean {
-    return proto3.util.equals(SetPasswordResponse, a, b);
+  static equals(a: UpdatePasswordResponse | PlainMessage<UpdatePasswordResponse> | undefined, b: UpdatePasswordResponse | PlainMessage<UpdatePasswordResponse> | undefined): boolean {
+    return proto3.util.equals(UpdatePasswordResponse, a, b);
   }
 }
 

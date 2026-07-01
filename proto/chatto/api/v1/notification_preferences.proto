@@ -33,7 +33,7 @@ message GetRoomNotificationPreferenceResponse {
 //
 // The response mirrors the read shape so clients can update local state without
 // issuing a second read request.
-message SetRoomNotificationLevelResponse {
+message UpdateRoomNotificationPreferenceResponse {
   // Explicit level stored for the current user and room.
   NotificationLevel level = 1;
   // Level after applying defaults and inheritance.
@@ -49,7 +49,7 @@ message GetServerNotificationPreferenceResponse {
 }
 
 // Updated server-level notification preference.
-message SetServerNotificationLevelResponse {
+message UpdateServerNotificationPreferenceResponse {
   // Explicit server-level setting.
   NotificationLevel level = 1;
   // Level after applying system defaults.
@@ -60,7 +60,7 @@ message SetServerNotificationLevelResponse {
 message GetServerNotificationPreferenceRequest {}
 
 // Request to update the current user's server-level notification level.
-message SetServerNotificationLevelRequest {
+message UpdateServerNotificationPreferenceRequest {
   // Required. New explicit notification level. Use NOTIFICATION_LEVEL_DEFAULT
   // to return the server to default behavior.
   NotificationLevel level = 1 [(buf.validate.field).enum = {
@@ -76,7 +76,7 @@ message GetRoomNotificationPreferenceRequest {
 }
 
 // Request to update the current user's notification level in one room.
-message SetRoomNotificationLevelRequest {
+message UpdateRoomNotificationPreferenceRequest {
   // Required. Room whose notification level should be changed for the current user.
   string room_id = 1 [(buf.validate.field).string.min_len = 1];
   // Required. New explicit notification level. Use NOTIFICATION_LEVEL_DEFAULT
@@ -91,16 +91,16 @@ message SetRoomNotificationLevelRequest {
 service NotificationPreferencesService {
   // Returns the current user's explicit and effective server notification level.
   rpc GetServerNotificationPreference(GetServerNotificationPreferenceRequest) returns (GetServerNotificationPreferenceResponse);
-  // Sets the current user's explicit server notification level and returns the
+  // Updates the current user's explicit server notification level and returns the
   // resulting stored and effective levels.
-  rpc SetServerNotificationLevel(SetServerNotificationLevelRequest) returns (SetServerNotificationLevelResponse);
+  rpc UpdateServerNotificationPreference(UpdateServerNotificationPreferenceRequest) returns (UpdateServerNotificationPreferenceResponse);
   // Returns the current user's explicit and effective notification level for a
   // room. Use this before rendering room notification controls so the UI can
   // distinguish inherited defaults from an explicit room override. Returns
   // NOT_FOUND when the room does not exist and PERMISSION_DENIED when the room
   // exists but is inaccessible to the caller.
   rpc GetRoomNotificationPreference(GetRoomNotificationPreferenceRequest) returns (GetRoomNotificationPreferenceResponse);
-  // Sets the current user's explicit notification level for a room and returns
+  // Updates the current user's explicit notification level for a room and returns
   // the resulting stored and effective levels.
-  rpc SetRoomNotificationLevel(SetRoomNotificationLevelRequest) returns (SetRoomNotificationLevelResponse);
+  rpc UpdateRoomNotificationPreference(UpdateRoomNotificationPreferenceRequest) returns (UpdateRoomNotificationPreferenceResponse);
 }

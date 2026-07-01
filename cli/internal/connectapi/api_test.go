@@ -1825,54 +1825,54 @@ func TestAccountServiceSetsPassword(t *testing.T) {
 	}
 	oauthCtx := withBearerCredential(env.ctx, passwordless, oauthToken)
 
-	if _, err := env.account.SetPassword(env.ctx, connect.NewRequest(&apiv1.SetPasswordRequest{
+	if _, err := env.account.UpdatePassword(env.ctx, connect.NewRequest(&apiv1.UpdatePasswordRequest{
 		Password: "newpassword456",
 	})); connect.CodeOf(err) != connect.CodeUnauthenticated {
-		t.Fatalf("unauthenticated SetPassword code = %v, want unauthenticated", connect.CodeOf(err))
+		t.Fatalf("unauthenticated UpdatePassword code = %v, want unauthenticated", connect.CodeOf(err))
 	}
-	if _, err := env.account.SetPassword(ctx, connect.NewRequest(&apiv1.SetPasswordRequest{})); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("empty SetPassword code = %v, want invalid_argument", connect.CodeOf(err))
+	if _, err := env.account.UpdatePassword(ctx, connect.NewRequest(&apiv1.UpdatePasswordRequest{})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("empty UpdatePassword code = %v, want invalid_argument", connect.CodeOf(err))
 	}
-	if _, err := env.account.SetPassword(ctx, connect.NewRequest(&apiv1.SetPasswordRequest{
+	if _, err := env.account.UpdatePassword(ctx, connect.NewRequest(&apiv1.UpdatePasswordRequest{
 		Password: "short",
 	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("short SetPassword code = %v, want invalid_argument", connect.CodeOf(err))
+		t.Fatalf("short UpdatePassword code = %v, want invalid_argument", connect.CodeOf(err))
 	}
 
-	if _, err := env.account.SetPassword(ctx, connect.NewRequest(&apiv1.SetPasswordRequest{
+	if _, err := env.account.UpdatePassword(ctx, connect.NewRequest(&apiv1.UpdatePasswordRequest{
 		Password: "newpassword456",
 	})); connect.CodeOf(err) != connect.CodeFailedPrecondition {
-		t.Fatalf("SetPassword without fresh credential code = %v, want failed_precondition", connect.CodeOf(err))
+		t.Fatalf("UpdatePassword without fresh credential code = %v, want failed_precondition", connect.CodeOf(err))
 	}
-	if _, err := env.account.SetPassword(oauthCtx, connect.NewRequest(&apiv1.SetPasswordRequest{
+	if _, err := env.account.UpdatePassword(oauthCtx, connect.NewRequest(&apiv1.UpdatePasswordRequest{
 		Password: "newpassword456",
 	})); connect.CodeOf(err) != connect.CodeFailedPrecondition {
-		t.Fatalf("SetPassword with OAuth token code = %v, want failed_precondition", connect.CodeOf(err))
+		t.Fatalf("UpdatePassword with OAuth token code = %v, want failed_precondition", connect.CodeOf(err))
 	}
-	if _, err := env.account.SetPassword(freshCtx, connect.NewRequest(&apiv1.SetPasswordRequest{
+	if _, err := env.account.UpdatePassword(freshCtx, connect.NewRequest(&apiv1.UpdatePasswordRequest{
 		Password: "newpassword456",
 	})); err != nil {
-		t.Fatalf("SetPassword: %v", err)
+		t.Fatalf("UpdatePassword: %v", err)
 	}
 	if _, err := env.core.VerifyPassword(env.ctx, passwordless.Login, "newpassword456"); err != nil {
 		t.Fatalf("VerifyPassword: %v", err)
 	}
-	if _, err := env.account.SetPassword(ctx, connect.NewRequest(&apiv1.SetPasswordRequest{
+	if _, err := env.account.UpdatePassword(ctx, connect.NewRequest(&apiv1.UpdatePasswordRequest{
 		Password: "anotherpassword456",
 	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("second SetPassword without current code = %v, want invalid_argument", connect.CodeOf(err))
+		t.Fatalf("second UpdatePassword without current code = %v, want invalid_argument", connect.CodeOf(err))
 	}
-	if _, err := env.account.SetPassword(ctx, connect.NewRequest(&apiv1.SetPasswordRequest{
+	if _, err := env.account.UpdatePassword(ctx, connect.NewRequest(&apiv1.UpdatePasswordRequest{
 		Password:        "anotherpassword456",
 		CurrentPassword: "wrongpassword",
 	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("second SetPassword wrong current code = %v, want invalid_argument", connect.CodeOf(err))
+		t.Fatalf("second UpdatePassword wrong current code = %v, want invalid_argument", connect.CodeOf(err))
 	}
-	if _, err := env.account.SetPassword(ctx, connect.NewRequest(&apiv1.SetPasswordRequest{
+	if _, err := env.account.UpdatePassword(ctx, connect.NewRequest(&apiv1.UpdatePasswordRequest{
 		Password:        "anotherpassword456",
 		CurrentPassword: "newpassword456",
 	})); err != nil {
-		t.Fatalf("SetPassword with current: %v", err)
+		t.Fatalf("UpdatePassword with current: %v", err)
 	}
 	if _, err := env.core.VerifyPassword(env.ctx, passwordless.Login, "anotherpassword456"); err != nil {
 		t.Fatalf("VerifyPassword changed: %v", err)
@@ -1954,11 +1954,11 @@ func TestAdminMemberServiceUpdatesUsersAndClearsCooldown(t *testing.T) {
 	})); connect.CodeOf(err) != connect.CodeUnauthenticated {
 		t.Fatalf("unauthenticated UpdateUser code = %v, want unauthenticated", connect.CodeOf(err))
 	}
-	if _, err := env.adminUsers.SetUserPassword(env.ctx, connect.NewRequest(&adminv1.SetUserPasswordRequest{
+	if _, err := env.adminUsers.UpdateUserPassword(env.ctx, connect.NewRequest(&adminv1.UpdateUserPasswordRequest{
 		UserId:   target.Id,
 		Password: "newpassword456",
 	})); connect.CodeOf(err) != connect.CodeUnauthenticated {
-		t.Fatalf("unauthenticated SetUserPassword code = %v, want unauthenticated", connect.CodeOf(err))
+		t.Fatalf("unauthenticated UpdateUserPassword code = %v, want unauthenticated", connect.CodeOf(err))
 	}
 	if _, err := env.adminUsers.DeleteUser(env.ctx, connect.NewRequest(&adminv1.DeleteUserRequest{
 		UserId: target.Id,
@@ -1971,11 +1971,11 @@ func TestAdminMemberServiceUpdatesUsersAndClearsCooldown(t *testing.T) {
 	})); connect.CodeOf(err) != connect.CodePermissionDenied {
 		t.Fatalf("regular UpdateUser code = %v, want permission_denied", connect.CodeOf(err))
 	}
-	if _, err := env.adminUsers.SetUserPassword(withCaller(env.ctx, regular), connect.NewRequest(&adminv1.SetUserPasswordRequest{
+	if _, err := env.adminUsers.UpdateUserPassword(withCaller(env.ctx, regular), connect.NewRequest(&adminv1.UpdateUserPasswordRequest{
 		UserId:   target.Id,
 		Password: "newpassword456",
 	})); connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Fatalf("regular SetUserPassword code = %v, want permission_denied", connect.CodeOf(err))
+		t.Fatalf("regular UpdateUserPassword code = %v, want permission_denied", connect.CodeOf(err))
 	}
 	if _, err := env.adminUsers.DeleteUser(withCaller(env.ctx, regular), connect.NewRequest(&adminv1.DeleteUserRequest{
 		UserId: target.Id,
@@ -2010,11 +2010,11 @@ func TestAdminMemberServiceUpdatesUsersAndClearsCooldown(t *testing.T) {
 	if err := env.core.GrantUserPermission(env.ctx, core.SystemActorID, roleAssigner.Id, core.PermRoleAssign); err != nil {
 		t.Fatalf("GrantUserPermission role.assign: %v", err)
 	}
-	if _, err := env.adminUsers.SetUserPassword(withCaller(env.ctx, roleAssigner), connect.NewRequest(&adminv1.SetUserPasswordRequest{
+	if _, err := env.adminUsers.UpdateUserPassword(withCaller(env.ctx, roleAssigner), connect.NewRequest(&adminv1.UpdateUserPasswordRequest{
 		UserId:   target.Id,
 		Password: "newpassword456",
 	})); connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Fatalf("role.assign-only SetUserPassword code = %v, want permission_denied", connect.CodeOf(err))
+		t.Fatalf("role.assign-only UpdateUserPassword code = %v, want permission_denied", connect.CodeOf(err))
 	}
 
 	accountManager, err := env.core.CreateUser(env.ctx, core.SystemActorID, "admin-user-account-manager", "Admin User Account Manager", "password")
@@ -2042,22 +2042,22 @@ func TestAdminMemberServiceUpdatesUsersAndClearsCooldown(t *testing.T) {
 	if member := accountUpdateResp.Msg.GetMember(); member.GetUser().GetId() != target.Id || member.GetUser().GetDisplayName() != "Account Managed Target" {
 		t.Fatalf("account manager UpdateUser member = %+v, want updated target", member)
 	}
-	if _, err := env.adminUsers.SetUserPassword(withCaller(env.ctx, accountManager), connect.NewRequest(&adminv1.SetUserPasswordRequest{
+	if _, err := env.adminUsers.UpdateUserPassword(withCaller(env.ctx, accountManager), connect.NewRequest(&adminv1.UpdateUserPasswordRequest{
 		UserId:   target.Id,
 		Password: "accountmanagerpass456",
 	})); connect.CodeOf(err) != connect.CodeFailedPrecondition {
-		t.Fatalf("account manager stale SetUserPassword code = %v, want failed_precondition", connect.CodeOf(err))
+		t.Fatalf("account manager stale UpdateUserPassword code = %v, want failed_precondition", connect.CodeOf(err))
 	}
 	accountManagerToken, err := env.core.CreateAuthTokenWithSource(env.ctx, accountManager.Id, "password_login")
 	if err != nil {
 		t.Fatalf("CreateAuthTokenWithSource account manager: %v", err)
 	}
-	accountManagerResp, err := env.adminUsers.SetUserPassword(withBearerCredential(env.ctx, accountManager, accountManagerToken), connect.NewRequest(&adminv1.SetUserPasswordRequest{
+	accountManagerResp, err := env.adminUsers.UpdateUserPassword(withBearerCredential(env.ctx, accountManager, accountManagerToken), connect.NewRequest(&adminv1.UpdateUserPasswordRequest{
 		UserId:   target.Id,
 		Password: "accountmanagerpass456",
 	}))
 	if err != nil {
-		t.Fatalf("account manager SetUserPassword: %v", err)
+		t.Fatalf("account manager UpdateUserPassword: %v", err)
 	}
 	if !accountManagerResp.Msg.GetUpdated() {
 		t.Fatal("account manager Updated = false, want true")
@@ -2084,25 +2084,25 @@ func TestAdminMemberServiceUpdatesUsersAndClearsCooldown(t *testing.T) {
 	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("empty UpdateUser code = %v, want invalid_argument", connect.CodeOf(err))
 	}
-	if _, err := env.adminUsers.SetUserPassword(adminCtx, connect.NewRequest(&adminv1.SetUserPasswordRequest{
+	if _, err := env.adminUsers.UpdateUserPassword(adminCtx, connect.NewRequest(&adminv1.UpdateUserPasswordRequest{
 		UserId: target.Id,
 	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("empty SetUserPassword code = %v, want invalid_argument", connect.CodeOf(err))
+		t.Fatalf("empty UpdateUserPassword code = %v, want invalid_argument", connect.CodeOf(err))
 	}
 	if _, err := env.adminUsers.DeleteUser(adminCtx, connect.NewRequest(&adminv1.DeleteUserRequest{})); connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("empty DeleteUser code = %v, want invalid_argument", connect.CodeOf(err))
 	}
-	if _, err := env.adminUsers.SetUserPassword(adminCtx, connect.NewRequest(&adminv1.SetUserPasswordRequest{
+	if _, err := env.adminUsers.UpdateUserPassword(adminCtx, connect.NewRequest(&adminv1.UpdateUserPasswordRequest{
 		UserId:   target.Id,
 		Password: "short",
 	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("short SetUserPassword code = %v, want invalid_argument", connect.CodeOf(err))
+		t.Fatalf("short UpdateUserPassword code = %v, want invalid_argument", connect.CodeOf(err))
 	}
-	if _, err := env.adminUsers.SetUserPassword(adminCtx, connect.NewRequest(&adminv1.SetUserPasswordRequest{
+	if _, err := env.adminUsers.UpdateUserPassword(adminCtx, connect.NewRequest(&adminv1.UpdateUserPasswordRequest{
 		UserId:   admin.Id,
 		Password: "newpassword456",
 	})); connect.CodeOf(err) != connect.CodeFailedPrecondition {
-		t.Fatalf("self SetUserPassword code = %v, want failed_precondition", connect.CodeOf(err))
+		t.Fatalf("self UpdateUserPassword code = %v, want failed_precondition", connect.CodeOf(err))
 	}
 	resp, err := env.adminUsers.UpdateUser(adminCtx, connect.NewRequest(&adminv1.UpdateUserRequest{
 		UserId:      target.Id,
@@ -2115,12 +2115,12 @@ func TestAdminMemberServiceUpdatesUsersAndClearsCooldown(t *testing.T) {
 	if user := resp.Msg.GetUser(); user.GetId() != target.Id || user.GetDisplayName() != "Managed Target" || user.GetLogin() != "managed-target" {
 		t.Fatalf("updated user = %+v, want managed target", user)
 	}
-	passwordResp, err := env.adminUsers.SetUserPassword(adminCtx, connect.NewRequest(&adminv1.SetUserPasswordRequest{
+	passwordResp, err := env.adminUsers.UpdateUserPassword(adminCtx, connect.NewRequest(&adminv1.UpdateUserPasswordRequest{
 		UserId:   target.Id,
 		Password: "adminpassword456",
 	}))
 	if err != nil {
-		t.Fatalf("SetUserPassword: %v", err)
+		t.Fatalf("UpdateUserPassword: %v", err)
 	}
 	if !passwordResp.Msg.GetUpdated() {
 		t.Fatal("Updated = false, want true")
@@ -2768,15 +2768,15 @@ func TestRoomServiceLifecycleCommands(t *testing.T) {
 		t.Fatalf("UnarchiveRoom archived = true, want false")
 	}
 
-	universalResp, err := env.rooms.SetRoomUniversal(ctx, connect.NewRequest(&apiv1.SetRoomUniversalRequest{
+	universalResp, err := env.rooms.UpdateRoomUniversal(ctx, connect.NewRequest(&apiv1.UpdateRoomUniversalRequest{
 		RoomId:    room.GetId(),
 		Universal: false,
 	}))
 	if err != nil {
-		t.Fatalf("SetRoomUniversal: %v", err)
+		t.Fatalf("UpdateRoomUniversal: %v", err)
 	}
 	if universalResp.Msg.GetRoom().GetUniversal() {
-		t.Fatalf("SetRoomUniversal universal = true, want false")
+		t.Fatalf("UpdateRoomUniversal universal = true, want false")
 	}
 }
 
@@ -3049,11 +3049,11 @@ func TestRoomServiceRejectsDMRooms(t *testing.T) {
 	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("UnarchiveRoom for DM code = %v, want invalid argument", connect.CodeOf(err))
 	}
-	if _, err := env.rooms.SetRoomUniversal(ctx, connect.NewRequest(&apiv1.SetRoomUniversalRequest{
+	if _, err := env.rooms.UpdateRoomUniversal(ctx, connect.NewRequest(&apiv1.UpdateRoomUniversalRequest{
 		RoomId:    dm.Id,
 		Universal: true,
 	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("SetRoomUniversal for DM code = %v, want invalid argument", connect.CodeOf(err))
+		t.Fatalf("UpdateRoomUniversal for DM code = %v, want invalid argument", connect.CodeOf(err))
 	}
 	if _, err := env.rooms.BanRoomMember(ctx, connect.NewRequest(&apiv1.BanRoomMemberRequest{
 		RoomId: dm.Id,
@@ -3199,11 +3199,11 @@ func TestConnectServicesRejectDMOutsiders(t *testing.T) {
 	}))
 	checkInaccessible("GetRoomNotificationPreference", err)
 
-	_, err = env.prefs.SetRoomNotificationLevel(ctx, connect.NewRequest(&apiv1.SetRoomNotificationLevelRequest{
+	_, err = env.prefs.UpdateRoomNotificationPreference(ctx, connect.NewRequest(&apiv1.UpdateRoomNotificationPreferenceRequest{
 		RoomId: dm.Id,
 		Level:  apiv1.NotificationLevel_NOTIFICATION_LEVEL_MUTED,
 	}))
-	checkInaccessible("SetRoomNotificationLevel", err)
+	checkInaccessible("UpdateRoomNotificationPreference", err)
 }
 
 func TestRoomDirectoryServiceListRoomsVisibilityAndDMs(t *testing.T) {
@@ -3730,18 +3730,18 @@ func TestMemberDirectoryOversizedPagesClampTo500(t *testing.T) {
 	}
 }
 
-func TestAccountServiceSetAndClearCustomStatus(t *testing.T) {
+func TestAccountServiceSetAndDeleteCustomStatus(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	ctx := withCaller(env.ctx, env.viewer)
 	expiresAt := timestamppb.New(time.Now().Add(time.Hour).UTC())
 
-	setResp, err := env.account.SetCustomStatus(ctx, connect.NewRequest(&apiv1.SetCustomStatusRequest{
+	setResp, err := env.account.UpdateCustomStatus(ctx, connect.NewRequest(&apiv1.UpdateCustomStatusRequest{
 		Emoji:     "🌿",
 		Text:      "In focus mode",
 		ExpiresAt: expiresAt,
 	}))
 	if err != nil {
-		t.Fatalf("SetCustomStatus: %v", err)
+		t.Fatalf("UpdateCustomStatus: %v", err)
 	}
 	if got := setResp.Msg.GetStatus(); got.GetEmoji() != "🌿" || got.GetText() != "In focus mode" {
 		t.Fatalf("status = %+v, want focus status", got)
@@ -3758,17 +3758,17 @@ func TestAccountServiceSetAndClearCustomStatus(t *testing.T) {
 		t.Fatalf("stored CustomStatus = %+v, want set status", stored.GetCustomStatus())
 	}
 
-	_, err = env.account.SetCustomStatus(ctx, connect.NewRequest(&apiv1.SetCustomStatusRequest{
+	_, err = env.account.UpdateCustomStatus(ctx, connect.NewRequest(&apiv1.UpdateCustomStatusRequest{
 		Emoji: "🌿",
 		Text:  "   ",
 	}))
 	if connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("SetCustomStatus blank text error = %v, want InvalidArgument", err)
+		t.Fatalf("UpdateCustomStatus blank text error = %v, want InvalidArgument", err)
 	}
 
-	clearResp, err := env.account.ClearCustomStatus(ctx, connect.NewRequest(&apiv1.ClearCustomStatusRequest{}))
+	clearResp, err := env.account.DeleteCustomStatus(ctx, connect.NewRequest(&apiv1.DeleteCustomStatusRequest{}))
 	if err != nil {
-		t.Fatalf("ClearCustomStatus: %v", err)
+		t.Fatalf("DeleteCustomStatus: %v", err)
 	}
 	if clearResp.Msg.GetStatus() != nil {
 		t.Fatalf("cleared status = %+v, want nil", clearResp.Msg.GetStatus())
@@ -3941,20 +3941,20 @@ func TestNotificationPreferencesServiceServerLevelPreference(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	ctx := withCaller(env.ctx, env.viewer)
 
-	if _, err := env.prefs.SetServerNotificationLevel(env.ctx, connect.NewRequest(&apiv1.SetServerNotificationLevelRequest{
+	if _, err := env.prefs.UpdateServerNotificationPreference(env.ctx, connect.NewRequest(&apiv1.UpdateServerNotificationPreferenceRequest{
 		Level: apiv1.NotificationLevel_NOTIFICATION_LEVEL_MUTED,
 	})); connect.CodeOf(err) != connect.CodeUnauthenticated {
-		t.Fatalf("unauthenticated SetServerNotificationLevel code = %v, want unauthenticated", connect.CodeOf(err))
+		t.Fatalf("unauthenticated UpdateServerNotificationPreference code = %v, want unauthenticated", connect.CodeOf(err))
 	}
 
-	setResp, err := env.prefs.SetServerNotificationLevel(ctx, connect.NewRequest(&apiv1.SetServerNotificationLevelRequest{
+	setResp, err := env.prefs.UpdateServerNotificationPreference(ctx, connect.NewRequest(&apiv1.UpdateServerNotificationPreferenceRequest{
 		Level: apiv1.NotificationLevel_NOTIFICATION_LEVEL_ALL_MESSAGES,
 	}))
 	if err != nil {
-		t.Fatalf("SetServerNotificationLevel: %v", err)
+		t.Fatalf("UpdateServerNotificationPreference: %v", err)
 	}
 	if setResp.Msg.GetLevel() != apiv1.NotificationLevel_NOTIFICATION_LEVEL_ALL_MESSAGES || setResp.Msg.GetEffectiveLevel() != apiv1.NotificationLevel_NOTIFICATION_LEVEL_ALL_MESSAGES {
-		t.Fatalf("SetServerNotificationLevel response = %+v, want all/all", setResp.Msg)
+		t.Fatalf("UpdateServerNotificationPreference response = %+v, want all/all", setResp.Msg)
 	}
 
 	getResp, err := env.prefs.GetServerNotificationPreference(ctx, connect.NewRequest(&apiv1.GetServerNotificationPreferenceRequest{}))

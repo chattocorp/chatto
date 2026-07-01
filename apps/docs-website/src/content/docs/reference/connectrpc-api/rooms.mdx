@@ -157,20 +157,20 @@ Result of unarchiving a room.
 | `room` | [`Room`](/reference/connectrpc-api/types/#chatto-api-v1-Room) | Unarchived room. |
 
 
-<a id="chatto-api-v1-RoomService-SetRoomUniversal"></a>
+<a id="chatto-api-v1-RoomService-UpdateRoomUniversal"></a>
 
-### SetRoomUniversal
+### UpdateRoomUniversal
 
 Changes whether a channel room grants effective membership to eligible
 server members. Direct-message rooms cannot be universal.
 
 ```http
-POST /api/connect/chatto.api.v1.RoomService/SetRoomUniversal
+POST /api/connect/chatto.api.v1.RoomService/UpdateRoomUniversal
 ```
 
-<a id="chatto-api-v1-SetRoomUniversalRequest"></a>
+<a id="chatto-api-v1-UpdateRoomUniversalRequest"></a>
 
-#### Input: SetRoomUniversalRequest
+#### Input: UpdateRoomUniversalRequest
 
 Request to change a channel room's universal membership flag.
 
@@ -180,9 +180,9 @@ Request to change a channel room's universal membership flag.
 | `universal` | `bool` | New universal membership state. |
 
 
-<a id="chatto-api-v1-SetRoomUniversalResponse"></a>
+<a id="chatto-api-v1-UpdateRoomUniversalResponse"></a>
 
-#### Result: SetRoomUniversalResponse
+#### Result: UpdateRoomUniversalResponse
 
 Result of changing a channel room's universal membership flag.
 

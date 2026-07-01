@@ -47,8 +47,8 @@ message DeleteAvatarResponse {
   User user = 1;
 }
 
-// Request to set or change the authenticated user's password.
-message SetPasswordRequest {
+// Request to update or add the authenticated user's password.
+message UpdatePasswordRequest {
   // New password. The server applies the same password policy as registration
   // and password reset.
   string password = 1;
@@ -57,8 +57,8 @@ message SetPasswordRequest {
   string current_password = 2;
 }
 
-// Result of setting or changing the authenticated account password.
-message SetPasswordResponse {}
+// Result of updating or adding the authenticated account password.
+message UpdatePasswordResponse {}
 
 // Request to update the authenticated user's display preferences. Omitted
 // fields are left unchanged. An empty timezone clears the explicit timezone.
@@ -106,20 +106,20 @@ service AccountService {
   rpc UploadAvatar(UploadAvatarRequest) returns (UploadAvatarResponse);
   // Deletes the authenticated user's avatar. The call is idempotent.
   rpc DeleteAvatar(DeleteAvatarRequest) returns (DeleteAvatarResponse);
-  // Sets or changes the authenticated user's password.
-  rpc SetPassword(SetPasswordRequest) returns (SetPasswordResponse);
+  // Updates or adds the authenticated user's password.
+  rpc UpdatePassword(UpdatePasswordRequest) returns (UpdatePasswordResponse);
   // Updates the authenticated user's display preferences.
   rpc UpdateSettings(UpdateSettingsRequest) returns (UpdateSettingsResponse);
   // Reports the current user's live presence status. This state is transient:
   // clients should refresh it periodically while visible, and should stop
   // calling this RPC when the user chooses to appear offline.
   rpc ReportPresence(ReportPresenceRequest) returns (ReportPresenceResponse);
-  // Sets or replaces the current user's custom status. Emoji and text are
+  // Updates or replaces the current user's custom status. Emoji and text are
   // required, and expires_at must be omitted or in the future.
-  rpc SetCustomStatus(SetCustomStatusRequest) returns (SetCustomStatusResponse);
-  // Clears the current user's custom status. The call is idempotent and returns
+  rpc UpdateCustomStatus(UpdateCustomStatusRequest) returns (UpdateCustomStatusResponse);
+  // Deletes the current user's custom status. The call is idempotent and returns
   // the resulting empty status state.
-  rpc ClearCustomStatus(ClearCustomStatusRequest) returns (ClearCustomStatusResponse);
+  rpc DeleteCustomStatus(DeleteCustomStatusRequest) returns (DeleteCustomStatusResponse);
   // Issues a short-lived token used to confirm self-deletion.
   rpc RequestAccountDeletion(RequestAccountDeletionRequest) returns (RequestAccountDeletionResponse);
   // Permanently deletes the authenticated account after token validation.

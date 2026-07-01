@@ -337,13 +337,13 @@ export async function getServerNotificationPreference(
   return normalizeNotificationPreference(data);
 }
 
-export async function setServerNotificationLevel(
+export async function updateServerNotificationPreference(
   page: Page,
   level: E2ENotificationLevel
 ): Promise<E2ENotificationPreference> {
   const data = await connectPost<NotificationPreferenceResponse>(
     page,
-    'chatto.api.v1.NotificationPreferencesService/SetServerNotificationLevel',
+    'chatto.api.v1.NotificationPreferencesService/UpdateServerNotificationPreference',
     { level: notificationLevelToProtoName[level] }
   );
   return normalizeNotificationPreference(data);
@@ -361,14 +361,14 @@ export async function getRoomNotificationPreference(
   return normalizeNotificationPreference(data);
 }
 
-export async function setRoomNotificationLevel(
+export async function updateRoomNotificationPreference(
   page: Page,
   roomId: string,
   level: E2ENotificationLevel
 ): Promise<E2ENotificationPreference> {
   const data = await connectPost<NotificationPreferenceResponse>(
     page,
-    'chatto.api.v1.NotificationPreferencesService/SetRoomNotificationLevel',
+    'chatto.api.v1.NotificationPreferencesService/UpdateRoomNotificationPreference',
     { roomId, level: notificationLevelToProtoName[level] }
   );
   return normalizeNotificationPreference(data);

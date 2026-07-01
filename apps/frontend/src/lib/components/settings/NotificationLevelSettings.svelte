@@ -16,8 +16,8 @@ These preferences are server-side and sync across devices.
   import * as m from '$lib/i18n/messages';
   import {
     getServerNotificationPreference,
-    setRoomNotificationLevel,
-    setServerNotificationLevel
+    updateRoomNotificationPreference,
+    updateServerNotificationPreference
   } from '@chatto/api-client/notificationPreferences';
   import { createRoomDirectoryAPI, RoomDirectoryScope } from '@chatto/api-client/roomDirectory';
   import { getViewerStateViaConnect } from '@chatto/api-client/viewer';
@@ -104,7 +104,7 @@ These preferences are server-side and sync across devices.
 
     try {
       const pref = notificationPreferenceFromAPI(
-        await setServerNotificationLevel(connectConfig(), notificationLevelToAPI(newLevel))
+        await updateServerNotificationPreference(connectConfig(), notificationLevelToAPI(newLevel))
       );
       serverLevel = pref.level;
       serverEffectiveLevel = pref.effectiveLevel;
@@ -171,7 +171,7 @@ These preferences are server-side and sync across devices.
     roomId: string,
     newLevel: NotificationLevel
   ): Promise<NotificationPreference> {
-    const pref = await setRoomNotificationLevel(
+    const pref = await updateRoomNotificationPreference(
       connectConfig(),
       roomId,
       notificationLevelToAPI(newLevel)

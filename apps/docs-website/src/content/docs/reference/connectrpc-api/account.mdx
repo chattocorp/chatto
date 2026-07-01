@@ -117,21 +117,21 @@ Result of deleting the authenticated user's avatar.
 | `user` | [`User`](/reference/connectrpc-api/types/#chatto-api-v1-User) | Updated user profile. |
 
 
-<a id="chatto-api-v1-AccountService-SetPassword"></a>
+<a id="chatto-api-v1-AccountService-UpdatePassword"></a>
 
-### SetPassword
+### UpdatePassword
 
-Sets or changes the authenticated user's password.
+Updates or adds the authenticated user's password.
 
 ```http
-POST /api/connect/chatto.api.v1.AccountService/SetPassword
+POST /api/connect/chatto.api.v1.AccountService/UpdatePassword
 ```
 
-<a id="chatto-api-v1-SetPasswordRequest"></a>
+<a id="chatto-api-v1-UpdatePasswordRequest"></a>
 
-#### Input: SetPasswordRequest
+#### Input: UpdatePasswordRequest
 
-Request to set or change the authenticated user's password.
+Request to update or add the authenticated user's password.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -139,11 +139,11 @@ Request to set or change the authenticated user's password.
 | `current_password` | `string` | Current password. Required when the account already has a password; omitted when adding the first password to a passwordless account. |
 
 
-<a id="chatto-api-v1-SetPasswordResponse"></a>
+<a id="chatto-api-v1-UpdatePasswordResponse"></a>
 
-#### Result: SetPasswordResponse
+#### Result: UpdatePasswordResponse
 
-Result of setting or changing the authenticated account password.
+Result of updating or adding the authenticated account password.
 
 
 <a id="chatto-api-v1-AccountService-UpdateSettings"></a>
@@ -215,22 +215,22 @@ Result of reporting live presence.
 | `status` | [`PresenceStatus`](/reference/connectrpc-api/types/#chatto-api-v1-PresenceStatus) | Reportable status accepted and stored by the server. |
 
 
-<a id="chatto-api-v1-AccountService-SetCustomStatus"></a>
+<a id="chatto-api-v1-AccountService-UpdateCustomStatus"></a>
 
-### SetCustomStatus
+### UpdateCustomStatus
 
-Sets or replaces the current user's custom status. Emoji and text are
+Updates or replaces the current user's custom status. Emoji and text are
 required, and expires_at must be omitted or in the future.
 
 ```http
-POST /api/connect/chatto.api.v1.AccountService/SetCustomStatus
+POST /api/connect/chatto.api.v1.AccountService/UpdateCustomStatus
 ```
 
-<a id="chatto-api-v1-SetCustomStatusRequest"></a>
+<a id="chatto-api-v1-UpdateCustomStatusRequest"></a>
 
-#### Input: SetCustomStatusRequest
+#### Input: UpdateCustomStatusRequest
 
-Request to set or replace the current user's custom status.
+Request to update or replace the current user's custom status.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -239,40 +239,40 @@ Request to set or replace the current user's custom status.
 | `expires_at` | `google.protobuf.Timestamp` | Optional future time after which clients should stop showing the status. |
 
 
-<a id="chatto-api-v1-SetCustomStatusResponse"></a>
+<a id="chatto-api-v1-UpdateCustomStatusResponse"></a>
 
-#### Result: SetCustomStatusResponse
+#### Result: UpdateCustomStatusResponse
 
-Result of setting the current user's custom status.
+Result of updating the current user's custom status.
 
 | Field | Type | Description |
 | --- | --- | --- |
 | `status` | [`CustomUserStatus`](/reference/connectrpc-api/types/#chatto-api-v1-CustomUserStatus) | Stored custom status after validation and normalization. |
 
 
-<a id="chatto-api-v1-AccountService-ClearCustomStatus"></a>
+<a id="chatto-api-v1-AccountService-DeleteCustomStatus"></a>
 
-### ClearCustomStatus
+### DeleteCustomStatus
 
-Clears the current user's custom status. The call is idempotent and returns
+Deletes the current user's custom status. The call is idempotent and returns
 the resulting empty status state.
 
 ```http
-POST /api/connect/chatto.api.v1.AccountService/ClearCustomStatus
+POST /api/connect/chatto.api.v1.AccountService/DeleteCustomStatus
 ```
 
-<a id="chatto-api-v1-ClearCustomStatusRequest"></a>
+<a id="chatto-api-v1-DeleteCustomStatusRequest"></a>
 
-#### Input: ClearCustomStatusRequest
+#### Input: DeleteCustomStatusRequest
 
-Request to clear the current user's custom status.
+Request to delete the current user's custom status.
 
 
-<a id="chatto-api-v1-ClearCustomStatusResponse"></a>
+<a id="chatto-api-v1-DeleteCustomStatusResponse"></a>
 
-#### Result: ClearCustomStatusResponse
+#### Result: DeleteCustomStatusResponse
 
-Result of clearing the current user's custom status.
+Result of deleting the current user's custom status.
 
 | Field | Type | Description |
 | --- | --- | --- |

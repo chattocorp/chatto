@@ -79,7 +79,7 @@
       ? m['common.validation.passwords_match']()
       : undefined
   );
-  const canSetPassword = $derived(
+  const canUpdatePassword = $derived(
     password !== '' &&
       confirmPassword !== '' &&
       (!hasPassword || currentPassword !== '') &&
@@ -326,9 +326,9 @@
       : m['settings.account.sso.disconnect_button']();
   }
 
-  async function handleSetPassword(e: Event) {
+  async function handleUpdatePassword(e: Event) {
     e.preventDefault();
-    if (!canSetPassword) {
+    if (!canUpdatePassword) {
       passwordError =
         passwordValidationError ||
         currentPasswordError ||
@@ -341,7 +341,7 @@
     passwordSubmitting = true;
     passwordError = '';
     try {
-      await accountAPI().setPassword({
+      await accountAPI().updatePassword({
         password,
         currentPassword: wasChangingPassword ? currentPassword : undefined
       });
@@ -439,7 +439,7 @@
   </FormSection>
 
   <FormSection title={m['settings.account.password.title']()} maxWidth="max-w-md">
-    <form class="flex flex-col gap-4" onsubmit={handleSetPassword}>
+    <form class="flex flex-col gap-4" onsubmit={handleUpdatePassword}>
       <p class="text-sm text-muted">
         {hasPassword
           ? m['settings.account.password.change_description']()
@@ -484,7 +484,7 @@
           type="submit"
           loading={passwordSubmitting}
           loadingText={m['settings.account.password.saving']()}
-          disabled={!canSetPassword}
+          disabled={!canUpdatePassword}
         >
           <span class="iconify mdi--key-plus"></span>
           {hasPassword

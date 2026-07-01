@@ -151,7 +151,7 @@ func TestCORSMiddleware(t *testing.T) {
 			// AllowedOrigins not set — remote bearer-token clients match the wildcard.
 		})
 
-		req := httptest.NewRequest("OPTIONS", connectAPIPrefix+"/chatto.api.v1.NotificationPreferencesModel/SetRoomNotificationLevel", nil)
+		req := httptest.NewRequest("OPTIONS", connectAPIPrefix+"/chatto.api.v1.NotificationPreferencesService/UpdateRoomNotificationPreference", nil)
 		req.Header.Set("Origin", "https://integration.example.com")
 		req.Header.Set("Access-Control-Request-Method", "POST")
 		req.Header.Set("Access-Control-Request-Headers", "authorization, content-type, connect-protocol-version, connect-timeout-ms")

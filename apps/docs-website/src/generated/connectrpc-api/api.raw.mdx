@@ -49,20 +49,20 @@ Current server-level notification preference.
 | `effective_level` | [`NotificationLevel`](#chatto-api-v1-NotificationLevel) | Level after applying system defaults. |
 
 
-<a id="chatto-api-v1-NotificationPreferencesService-SetServerNotificationLevel"></a>
+<a id="chatto-api-v1-NotificationPreferencesService-UpdateServerNotificationPreference"></a>
 
-### SetServerNotificationLevel
+### UpdateServerNotificationPreference
 
-Sets the current user's explicit server notification level and returns the
+Updates the current user's explicit server notification level and returns the
 resulting stored and effective levels.
 
 ```http
-POST /api/connect/chatto.api.v1.NotificationPreferencesService/SetServerNotificationLevel
+POST /api/connect/chatto.api.v1.NotificationPreferencesService/UpdateServerNotificationPreference
 ```
 
-<a id="chatto-api-v1-SetServerNotificationLevelRequest"></a>
+<a id="chatto-api-v1-UpdateServerNotificationPreferenceRequest"></a>
 
-#### Input: SetServerNotificationLevelRequest
+#### Input: UpdateServerNotificationPreferenceRequest
 
 Request to update the current user's server-level notification level.
 
@@ -71,9 +71,9 @@ Request to update the current user's server-level notification level.
 | `level` | [`NotificationLevel`](#chatto-api-v1-NotificationLevel) | Required. New explicit notification level. Use NOTIFICATION_LEVEL_DEFAULT to return the server to default behavior. |
 
 
-<a id="chatto-api-v1-SetServerNotificationLevelResponse"></a>
+<a id="chatto-api-v1-UpdateServerNotificationPreferenceResponse"></a>
 
-#### Result: SetServerNotificationLevelResponse
+#### Result: UpdateServerNotificationPreferenceResponse
 
 Updated server-level notification preference.
 
@@ -123,20 +123,20 @@ the server will apply after defaults are resolved.
 | `effective_level` | [`NotificationLevel`](#chatto-api-v1-NotificationLevel) | Level after applying defaults and inheritance. |
 
 
-<a id="chatto-api-v1-NotificationPreferencesService-SetRoomNotificationLevel"></a>
+<a id="chatto-api-v1-NotificationPreferencesService-UpdateRoomNotificationPreference"></a>
 
-### SetRoomNotificationLevel
+### UpdateRoomNotificationPreference
 
-Sets the current user's explicit notification level for a room and returns
+Updates the current user's explicit notification level for a room and returns
 the resulting stored and effective levels.
 
 ```http
-POST /api/connect/chatto.api.v1.NotificationPreferencesService/SetRoomNotificationLevel
+POST /api/connect/chatto.api.v1.NotificationPreferencesService/UpdateRoomNotificationPreference
 ```
 
-<a id="chatto-api-v1-SetRoomNotificationLevelRequest"></a>
+<a id="chatto-api-v1-UpdateRoomNotificationPreferenceRequest"></a>
 
-#### Input: SetRoomNotificationLevelRequest
+#### Input: UpdateRoomNotificationPreferenceRequest
 
 Request to update the current user's notification level in one room.
 
@@ -146,9 +146,9 @@ Request to update the current user's notification level in one room.
 | `level` | [`NotificationLevel`](#chatto-api-v1-NotificationLevel) | Required. New explicit notification level. Use NOTIFICATION_LEVEL_DEFAULT to return the room to inherited/default behavior. |
 
 
-<a id="chatto-api-v1-SetRoomNotificationLevelResponse"></a>
+<a id="chatto-api-v1-UpdateRoomNotificationPreferenceResponse"></a>
 
-#### Result: SetRoomNotificationLevelResponse
+#### Result: UpdateRoomNotificationPreferenceResponse
 
 Updated notification preference for a room.
 
@@ -408,21 +408,21 @@ Result of deleting the authenticated user's avatar.
 | `user` | [`User`](#chatto-api-v1-User) | Updated user profile. |
 
 
-<a id="chatto-api-v1-AccountService-SetPassword"></a>
+<a id="chatto-api-v1-AccountService-UpdatePassword"></a>
 
-### SetPassword
+### UpdatePassword
 
-Sets or changes the authenticated user's password.
+Updates or adds the authenticated user's password.
 
 ```http
-POST /api/connect/chatto.api.v1.AccountService/SetPassword
+POST /api/connect/chatto.api.v1.AccountService/UpdatePassword
 ```
 
-<a id="chatto-api-v1-SetPasswordRequest"></a>
+<a id="chatto-api-v1-UpdatePasswordRequest"></a>
 
-#### Input: SetPasswordRequest
+#### Input: UpdatePasswordRequest
 
-Request to set or change the authenticated user's password.
+Request to update or add the authenticated user's password.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -430,11 +430,11 @@ Request to set or change the authenticated user's password.
 | `current_password` | `string` | Current password. Required when the account already has a password; omitted when adding the first password to a passwordless account. |
 
 
-<a id="chatto-api-v1-SetPasswordResponse"></a>
+<a id="chatto-api-v1-UpdatePasswordResponse"></a>
 
-#### Result: SetPasswordResponse
+#### Result: UpdatePasswordResponse
 
-Result of setting or changing the authenticated account password.
+Result of updating or adding the authenticated account password.
 
 
 <a id="chatto-api-v1-AccountService-UpdateSettings"></a>
@@ -506,22 +506,22 @@ Result of reporting live presence.
 | `status` | [`PresenceStatus`](#chatto-api-v1-PresenceStatus) | Reportable status accepted and stored by the server. |
 
 
-<a id="chatto-api-v1-AccountService-SetCustomStatus"></a>
+<a id="chatto-api-v1-AccountService-UpdateCustomStatus"></a>
 
-### SetCustomStatus
+### UpdateCustomStatus
 
-Sets or replaces the current user's custom status. Emoji and text are
+Updates or replaces the current user's custom status. Emoji and text are
 required, and expires_at must be omitted or in the future.
 
 ```http
-POST /api/connect/chatto.api.v1.AccountService/SetCustomStatus
+POST /api/connect/chatto.api.v1.AccountService/UpdateCustomStatus
 ```
 
-<a id="chatto-api-v1-SetCustomStatusRequest"></a>
+<a id="chatto-api-v1-UpdateCustomStatusRequest"></a>
 
-#### Input: SetCustomStatusRequest
+#### Input: UpdateCustomStatusRequest
 
-Request to set or replace the current user's custom status.
+Request to update or replace the current user's custom status.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -530,40 +530,40 @@ Request to set or replace the current user's custom status.
 | `expires_at` | `google.protobuf.Timestamp` | Optional future time after which clients should stop showing the status. |
 
 
-<a id="chatto-api-v1-SetCustomStatusResponse"></a>
+<a id="chatto-api-v1-UpdateCustomStatusResponse"></a>
 
-#### Result: SetCustomStatusResponse
+#### Result: UpdateCustomStatusResponse
 
-Result of setting the current user's custom status.
+Result of updating the current user's custom status.
 
 | Field | Type | Description |
 | --- | --- | --- |
 | `status` | [`CustomUserStatus`](#chatto-api-v1-CustomUserStatus) | Stored custom status after validation and normalization. |
 
 
-<a id="chatto-api-v1-AccountService-ClearCustomStatus"></a>
+<a id="chatto-api-v1-AccountService-DeleteCustomStatus"></a>
 
-### ClearCustomStatus
+### DeleteCustomStatus
 
-Clears the current user's custom status. The call is idempotent and returns
+Deletes the current user's custom status. The call is idempotent and returns
 the resulting empty status state.
 
 ```http
-POST /api/connect/chatto.api.v1.AccountService/ClearCustomStatus
+POST /api/connect/chatto.api.v1.AccountService/DeleteCustomStatus
 ```
 
-<a id="chatto-api-v1-ClearCustomStatusRequest"></a>
+<a id="chatto-api-v1-DeleteCustomStatusRequest"></a>
 
-#### Input: ClearCustomStatusRequest
+#### Input: DeleteCustomStatusRequest
 
-Request to clear the current user's custom status.
+Request to delete the current user's custom status.
 
 
-<a id="chatto-api-v1-ClearCustomStatusResponse"></a>
+<a id="chatto-api-v1-DeleteCustomStatusResponse"></a>
 
-#### Result: ClearCustomStatusResponse
+#### Result: DeleteCustomStatusResponse
 
-Result of clearing the current user's custom status.
+Result of deleting the current user's custom status.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -2445,20 +2445,20 @@ Result of unarchiving a room.
 | `room` | [`Room`](#chatto-api-v1-Room) | Unarchived room. |
 
 
-<a id="chatto-api-v1-RoomService-SetRoomUniversal"></a>
+<a id="chatto-api-v1-RoomService-UpdateRoomUniversal"></a>
 
-### SetRoomUniversal
+### UpdateRoomUniversal
 
 Changes whether a channel room grants effective membership to eligible
 server members. Direct-message rooms cannot be universal.
 
 ```http
-POST /api/connect/chatto.api.v1.RoomService/SetRoomUniversal
+POST /api/connect/chatto.api.v1.RoomService/UpdateRoomUniversal
 ```
 
-<a id="chatto-api-v1-SetRoomUniversalRequest"></a>
+<a id="chatto-api-v1-UpdateRoomUniversalRequest"></a>
 
-#### Input: SetRoomUniversalRequest
+#### Input: UpdateRoomUniversalRequest
 
 Request to change a channel room's universal membership flag.
 
@@ -2468,9 +2468,9 @@ Request to change a channel room's universal membership flag.
 | `universal` | `bool` | New universal membership state. |
 
 
-<a id="chatto-api-v1-SetRoomUniversalResponse"></a>
+<a id="chatto-api-v1-UpdateRoomUniversalResponse"></a>
 
-#### Result: SetRoomUniversalResponse
+#### Result: UpdateRoomUniversalResponse
 
 Result of changing a channel room's universal membership flag.
 

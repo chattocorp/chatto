@@ -36,7 +36,7 @@ export type UpdateSettingsInput = {
   timeFormat?: TimeFormat;
 };
 
-export type SetPasswordInput = {
+export type UpdatePasswordInput = {
   password: string;
   currentPassword?: string;
 };
@@ -77,8 +77,8 @@ export function createAccountAPI(config: AccountAPIConfig) {
       return accountUser(response.user);
     },
 
-    async setPassword(input: SetPasswordInput): Promise<void> {
-      await client.setPassword(
+    async updatePassword(input: UpdatePasswordInput): Promise<void> {
+      await client.updatePassword(
         { password: input.password, currentPassword: input.currentPassword },
         { headers: headers() },
       );

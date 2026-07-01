@@ -207,7 +207,7 @@
     passwordError = null;
     let updated = false;
     try {
-      updated = await adminUsersAPI().setUserPassword(member.id, adminPassword);
+      updated = await adminUsersAPI().updateUserPassword(member.id, adminPassword);
     } catch (err) {
       passwordError = err instanceof Error ? err.message : m['admin.members.set_password_failed']();
     }

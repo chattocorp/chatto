@@ -762,12 +762,12 @@ func TestConnectNotificationPreferencesService(t *testing.T) {
 		}
 
 		client := apiv1connect.NewNotificationPreferencesServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
-		_, err = client.SetRoomNotificationLevel(ctx, connect.NewRequest(&apiv1.SetRoomNotificationLevelRequest{
+		_, err = client.UpdateRoomNotificationPreference(ctx, connect.NewRequest(&apiv1.UpdateRoomNotificationPreferenceRequest{
 			RoomId: room.Id,
 			Level:  apiv1.NotificationLevel_NOTIFICATION_LEVEL_MUTED,
 		}))
 		if connect.CodeOf(err) != connect.CodeUnauthenticated {
-			t.Fatalf("SetRoomNotificationLevel err = %v, want unauthenticated", err)
+			t.Fatalf("UpdateRoomNotificationPreference err = %v, want unauthenticated", err)
 		}
 
 		_, err = client.GetRoomNotificationPreference(ctx, connect.NewRequest(&apiv1.GetRoomNotificationPreferenceRequest{
@@ -802,14 +802,14 @@ func TestConnectNotificationPreferencesService(t *testing.T) {
 		}
 
 		client := apiv1connect.NewNotificationPreferencesServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
-		req := connect.NewRequest(&apiv1.SetRoomNotificationLevelRequest{
+		req := connect.NewRequest(&apiv1.UpdateRoomNotificationPreferenceRequest{
 			RoomId: room.Id,
 			Level:  apiv1.NotificationLevel_NOTIFICATION_LEVEL_MUTED,
 		})
 		req.Header().Set("Authorization", "Bearer "+token)
-		_, err = client.SetRoomNotificationLevel(ctx, req)
+		_, err = client.UpdateRoomNotificationPreference(ctx, req)
 		if connect.CodeOf(err) != connect.CodePermissionDenied {
-			t.Fatalf("SetRoomNotificationLevel err = %v, want permission denied", err)
+			t.Fatalf("UpdateRoomNotificationPreference err = %v, want permission denied", err)
 		}
 
 		getReq := connect.NewRequest(&apiv1.GetRoomNotificationPreferenceRequest{
@@ -835,34 +835,34 @@ func TestConnectNotificationPreferencesService(t *testing.T) {
 		}
 
 		client := apiv1connect.NewNotificationPreferencesServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
-		req := connect.NewRequest(&apiv1.SetRoomNotificationLevelRequest{
+		req := connect.NewRequest(&apiv1.UpdateRoomNotificationPreferenceRequest{
 			RoomId: "",
 			Level:  apiv1.NotificationLevel_NOTIFICATION_LEVEL_MUTED,
 		})
 		req.Header().Set("Authorization", "Bearer "+token)
-		_, err = client.SetRoomNotificationLevel(ctx, req)
+		_, err = client.UpdateRoomNotificationPreference(ctx, req)
 		if connect.CodeOf(err) != connect.CodeInvalidArgument {
-			t.Fatalf("SetRoomNotificationLevel empty room err = %v, want invalid argument", err)
+			t.Fatalf("UpdateRoomNotificationPreference empty room err = %v, want invalid argument", err)
 		}
 
-		req = connect.NewRequest(&apiv1.SetRoomNotificationLevelRequest{
+		req = connect.NewRequest(&apiv1.UpdateRoomNotificationPreferenceRequest{
 			RoomId: "missing-room",
 			Level:  apiv1.NotificationLevel_NOTIFICATION_LEVEL_MUTED,
 		})
 		req.Header().Set("Authorization", "Bearer "+token)
-		_, err = client.SetRoomNotificationLevel(ctx, req)
+		_, err = client.UpdateRoomNotificationPreference(ctx, req)
 		if connect.CodeOf(err) != connect.CodeNotFound {
-			t.Fatalf("SetRoomNotificationLevel missing room err = %v, want not found", err)
+			t.Fatalf("UpdateRoomNotificationPreference missing room err = %v, want not found", err)
 		}
 
-		req = connect.NewRequest(&apiv1.SetRoomNotificationLevelRequest{
+		req = connect.NewRequest(&apiv1.UpdateRoomNotificationPreferenceRequest{
 			RoomId: "missing-room",
 			Level:  apiv1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED,
 		})
 		req.Header().Set("Authorization", "Bearer "+token)
-		_, err = client.SetRoomNotificationLevel(ctx, req)
+		_, err = client.UpdateRoomNotificationPreference(ctx, req)
 		if connect.CodeOf(err) != connect.CodeInvalidArgument {
-			t.Fatalf("SetRoomNotificationLevel unspecified level err = %v, want invalid argument", err)
+			t.Fatalf("UpdateRoomNotificationPreference unspecified level err = %v, want invalid argument", err)
 		}
 
 		getReq := connect.NewRequest(&apiv1.GetRoomNotificationPreferenceRequest{
@@ -895,14 +895,14 @@ func TestConnectNotificationPreferencesService(t *testing.T) {
 		}
 
 		client := apiv1connect.NewNotificationPreferencesServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
-		req := connect.NewRequest(&apiv1.SetRoomNotificationLevelRequest{
+		req := connect.NewRequest(&apiv1.UpdateRoomNotificationPreferenceRequest{
 			RoomId: room.Id,
 			Level:  apiv1.NotificationLevel_NOTIFICATION_LEVEL_MUTED,
 		})
 		req.Header().Set("Authorization", "Bearer "+token)
-		resp, err := client.SetRoomNotificationLevel(ctx, req)
+		resp, err := client.UpdateRoomNotificationPreference(ctx, req)
 		if err != nil {
-			t.Fatalf("SetRoomNotificationLevel: %v", err)
+			t.Fatalf("UpdateRoomNotificationPreference: %v", err)
 		}
 		if resp.Msg.Level != apiv1.NotificationLevel_NOTIFICATION_LEVEL_MUTED {
 			t.Fatalf("Level = %v, want muted", resp.Msg.Level)

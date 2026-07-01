@@ -17,7 +17,7 @@ export type CustomUserStatus = {
   expiresAt: string | null;
 };
 
-export async function setCustomStatus(
+export async function updateCustomStatus(
   config: CustomUserStatusAPIConfig,
   input: {
     emoji: string;
@@ -27,7 +27,7 @@ export async function setCustomStatus(
 ): Promise<CustomUserStatus | null> {
   const client = createUserStatusClient(config);
   try {
-    const response = await client.setCustomStatus(
+    const response = await client.updateCustomStatus(
       {
         emoji: input.emoji,
         text: input.text,
@@ -43,12 +43,12 @@ export async function setCustomStatus(
   }
 }
 
-export async function clearCustomStatus(
+export async function deleteCustomStatus(
   config: CustomUserStatusAPIConfig,
 ): Promise<CustomUserStatus | null> {
   const client = createUserStatusClient(config);
   try {
-    const response = await client.clearCustomStatus(
+    const response = await client.deleteCustomStatus(
       {},
       { headers: headers(config) },
     );

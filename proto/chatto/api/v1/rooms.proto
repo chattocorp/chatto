@@ -102,7 +102,7 @@ message UnarchiveRoomResponse {
 }
 
 // Request to change a channel room's universal membership flag.
-message SetRoomUniversalRequest {
+message UpdateRoomUniversalRequest {
   // Required. Channel room to update.
   string room_id = 1 [(buf.validate.field).string.min_len = 1];
   // New universal membership state.
@@ -110,7 +110,7 @@ message SetRoomUniversalRequest {
 }
 
 // Result of changing a channel room's universal membership flag.
-message SetRoomUniversalResponse {
+message UpdateRoomUniversalResponse {
   // Updated room.
   Room room = 1;
 }
@@ -266,7 +266,7 @@ service RoomService {
   rpc UnarchiveRoom(UnarchiveRoomRequest) returns (UnarchiveRoomResponse);
   // Changes whether a channel room grants effective membership to eligible
   // server members. Direct-message rooms cannot be universal.
-  rpc SetRoomUniversal(SetRoomUniversalRequest) returns (SetRoomUniversalResponse);
+  rpc UpdateRoomUniversal(UpdateRoomUniversalRequest) returns (UpdateRoomUniversalResponse);
   // Joins the room as the current user when room permissions allow it.
   rpc JoinRoom(JoinRoomRequest) returns (JoinRoomResponse);
   // Joins every unarchived room in a group that the current user can join.

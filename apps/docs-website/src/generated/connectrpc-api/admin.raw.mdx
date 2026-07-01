@@ -586,23 +586,23 @@ Result of an admin user update.
 | `member` | [`AdminMember`](#chatto-admin-v1-AdminMember) | Updated admin member row. |
 
 
-<a id="chatto-admin-v1-AdminMemberService-SetUserPassword"></a>
+<a id="chatto-admin-v1-AdminMemberService-UpdateUserPassword"></a>
 
-### SetUserPassword
+### UpdateUserPassword
 
-Sets another user's password as an admin action. Requires
+Updates another user's password as an admin action. Requires
 user.manage-accounts and a fresh credential for the caller; the caller
 cannot target their own account.
 
 ```http
-POST /api/connect/chatto.admin.v1.AdminMemberService/SetUserPassword
+POST /api/connect/chatto.admin.v1.AdminMemberService/UpdateUserPassword
 ```
 
-<a id="chatto-admin-v1-SetUserPasswordRequest"></a>
+<a id="chatto-admin-v1-UpdateUserPasswordRequest"></a>
 
-#### Input: SetUserPasswordRequest
+#### Input: UpdateUserPasswordRequest
 
-Request to set a user's password as a server-admin action.
+Request to update a user's password as a server-admin action.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -610,9 +610,9 @@ Request to set a user's password as a server-admin action.
 | `password` | `string` | New password. The server applies the same password policy as registration and password reset. |
 
 
-<a id="chatto-admin-v1-SetUserPasswordResponse"></a>
+<a id="chatto-admin-v1-UpdateUserPasswordResponse"></a>
 
-#### Result: SetUserPasswordResponse
+#### Result: UpdateUserPasswordResponse
 
 Result of an admin password update.
 

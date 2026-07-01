@@ -5,8 +5,8 @@
   import { Hint } from '$lib/ui';
   import { toast } from '$lib/ui/toast';
   import {
-    clearCustomStatus as clearCustomStatusViaAPI,
-    setCustomStatus as setCustomStatusViaAPI,
+    deleteCustomStatus as deleteCustomStatusViaAPI,
+    updateCustomStatus as updateCustomStatusViaAPI,
     type CustomUserStatusAPIConfig
   } from '@chatto/api-client/userStatus';
   import type { CustomUserStatus } from '$lib/state/userProfiles.svelte';
@@ -255,7 +255,7 @@
     error = '';
 
     try {
-      const customStatus = await setCustomStatusViaAPI(config, {
+      const customStatus = await updateCustomStatusViaAPI(config, {
         emoji,
         text,
         expiresAt: compact ? null : expiryInputToISO(statusExpiresAt)
@@ -285,7 +285,7 @@
     error = '';
 
     try {
-      const customStatus = await setCustomStatusViaAPI(config, {
+      const customStatus = await updateCustomStatusViaAPI(config, {
         emoji: template.emoji,
         text: customStatusTemplateText(mode),
         expiresAt: defaultTemplateExpiry(mode)?.toISOString() ?? null
@@ -312,7 +312,7 @@
     error = '';
 
     try {
-      const customStatus = await clearCustomStatusViaAPI(config);
+      const customStatus = await deleteCustomStatusViaAPI(config);
       onChange?.(customStatus);
       localStatus = customStatus;
       selectedMode = 'custom';

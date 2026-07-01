@@ -37,14 +37,14 @@ export async function getServerNotificationPreference(
   };
 }
 
-export async function setServerNotificationLevel(
+export async function updateServerNotificationPreference(
   config: ConnectAPIConfig,
   level: NotificationLevel,
 ): Promise<NotificationPreference> {
   const client = createNotificationPreferencesClient(config);
   let response;
   try {
-    response = await client.setServerNotificationLevel(
+    response = await client.updateServerNotificationPreference(
       { level },
       {
         headers: connectHeaders(config),
@@ -59,7 +59,7 @@ export async function setServerNotificationLevel(
   };
 }
 
-export async function setRoomNotificationLevel(
+export async function updateRoomNotificationPreference(
   config: ConnectAPIConfig,
   roomId: string,
   level: NotificationLevel,
@@ -67,7 +67,7 @@ export async function setRoomNotificationLevel(
   const client = createNotificationPreferencesClient(config);
   let response;
   try {
-    response = await client.setRoomNotificationLevel(
+    response = await client.updateRoomNotificationPreference(
       {
         roomId,
         level,

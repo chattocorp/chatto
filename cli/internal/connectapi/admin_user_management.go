@@ -173,7 +173,7 @@ func (s *adminUserManagementService) UpdateUser(ctx context.Context, req *connec
 	return connect.NewResponse(&adminv1.UpdateUserResponse{User: updatedUser, Member: updatedMember}), nil
 }
 
-func (s *adminUserManagementService) SetUserPassword(ctx context.Context, req *connect.Request[adminv1.SetUserPasswordRequest]) (*connect.Response[adminv1.SetUserPasswordResponse], error) {
+func (s *adminUserManagementService) UpdateUserPassword(ctx context.Context, req *connect.Request[adminv1.UpdateUserPasswordRequest]) (*connect.Response[adminv1.UpdateUserPasswordResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -199,7 +199,7 @@ func (s *adminUserManagementService) SetUserPassword(ctx context.Context, req *c
 	if err := s.api.core.AdminSetUserPasswordAuthorized(ctx, caller.UserID, req.Msg.GetUserId(), req.Msg.GetPassword()); err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&adminv1.SetUserPasswordResponse{Updated: true}), nil
+	return connect.NewResponse(&adminv1.UpdateUserPasswordResponse{Updated: true}), nil
 }
 
 func (s *adminUserManagementService) ClearUsernameCooldown(ctx context.Context, req *connect.Request[adminv1.ClearUsernameCooldownRequest]) (*connect.Response[adminv1.ClearUsernameCooldownResponse], error) {

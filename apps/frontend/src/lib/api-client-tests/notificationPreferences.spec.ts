@@ -4,8 +4,8 @@ import { configureApiClientHooks } from '@chatto/api-client/hooks';
 import { NotificationLevel } from '@chatto/api-types/api/v1/notification_preferences_pb';
 import {
   getServerNotificationPreference,
-  setRoomNotificationLevel,
-  setServerNotificationLevel
+  updateRoomNotificationPreference,
+  updateServerNotificationPreference
 } from '@chatto/api-client/notificationPreferences';
 
 const mocks = vi.hoisted(() => ({
@@ -13,8 +13,8 @@ const mocks = vi.hoisted(() => ({
   createConnectTransport: vi.fn(),
   handleAuthenticationRequired: vi.fn(),
   getServerNotificationPreference: vi.fn(),
-  setServerNotificationLevel: vi.fn(),
-  setRoomNotificationLevel: vi.fn()
+  updateServerNotificationPreference: vi.fn(),
+  updateRoomNotificationPreference: vi.fn()
 }));
 
 vi.mock('@connectrpc/connect', async (importOriginal) => {
@@ -37,13 +37,13 @@ describe('notificationPreferences API', () => {
 
     configureApiClientHooks({ onAuthenticationRequired: mocks.handleAuthenticationRequired });
     mocks.getServerNotificationPreference.mockReset();
-    mocks.setServerNotificationLevel.mockReset();
-    mocks.setRoomNotificationLevel.mockReset();
+    mocks.updateServerNotificationPreference.mockReset();
+    mocks.updateRoomNotificationPreference.mockReset();
     mocks.createConnectTransport.mockReturnValue({ kind: 'transport' });
     mocks.createClient.mockReturnValue({
       getServerNotificationPreference: mocks.getServerNotificationPreference,
-      setServerNotificationLevel: mocks.setServerNotificationLevel,
-      setRoomNotificationLevel: mocks.setRoomNotificationLevel
+      updateServerNotificationPreference: mocks.updateServerNotificationPreference,
+      updateRoomNotificationPreference: mocks.updateRoomNotificationPreference
     });
   });
 
@@ -52,7 +52,7 @@ describe('notificationPreferences API', () => {
       level: NotificationLevel.NORMAL,
       effectiveLevel: NotificationLevel.NORMAL
     });
-    mocks.setServerNotificationLevel.mockResolvedValue({
+    mocks.updateServerNotificationPreference.mockResolvedValue({
       level: NotificationLevel.ALL_MESSAGES,
       effectiveLevel: NotificationLevel.ALL_MESSAGES
     });
@@ -68,7 +68,7 @@ describe('notificationPreferences API', () => {
       effectiveLevel: NotificationLevel.NORMAL
     });
     await expect(
-      setServerNotificationLevel(config, NotificationLevel.ALL_MESSAGES)
+      updateServerNotificationPreference(config, NotificationLevel.ALL_MESSAGES)
     ).resolves.toEqual({
       level: NotificationLevel.ALL_MESSAGES,
       effectiveLevel: NotificationLevel.ALL_MESSAGES
@@ -84,7 +84,7 @@ describe('notificationPreferences API', () => {
         headers: { Authorization: 'Bearer remote-token' }
       }
     );
-    expect(mocks.setServerNotificationLevel).toHaveBeenCalledWith(
+    expect(mocks.updateServerNotificationPreference).toHaveBeenCalledWith(
       { level: NotificationLevel.ALL_MESSAGES },
       {
         headers: { Authorization: 'Bearer remote-token' }
@@ -93,12 +93,12 @@ describe('notificationPreferences API', () => {
   });
 
   it('sets room notification levels with bearer auth', async () => {
-    mocks.setRoomNotificationLevel.mockResolvedValue({
+    mocks.updateRoomNotificationPreference.mockResolvedValue({
       level: NotificationLevel.MUTED,
       effectiveLevel: NotificationLevel.MUTED
     });
 
-    const response = await setRoomNotificationLevel(
+    const response = await updateRoomNotificationPreference(
       {
         serverId: 'remote',
         baseUrl: 'https://remote.example.test/api/connect',
@@ -112,7 +112,7 @@ describe('notificationPreferences API', () => {
       baseUrl: 'https://remote.example.test/api/connect',
       useBinaryFormat: true
     });
-    expect(mocks.setRoomNotificationLevel).toHaveBeenCalledWith(
+    expect(mocks.updateRoomNotificationPreference).toHaveBeenCalledWith(
       {
         roomId: 'room-1',
         level: NotificationLevel.MUTED
@@ -129,10 +129,10 @@ describe('notificationPreferences API', () => {
 
   it('marks the server authentication stale on unauthenticated Connect errors', async () => {
     const err = new ConnectError('authentication required', Code.Unauthenticated);
-    mocks.setRoomNotificationLevel.mockRejectedValue(err);
+    mocks.updateRoomNotificationPreference.mockRejectedValue(err);
 
     await expect(
-      setRoomNotificationLevel(
+      updateRoomNotificationPreference(
         {
           serverId: 'remote',
           baseUrl: 'https://remote.example.test/api/connect',
@@ -148,10 +148,10 @@ describe('notificationPreferences API', () => {
 
   it('does not clear authentication for authorization failures', async () => {
     const err = new ConnectError('permission denied', Code.PermissionDenied);
-    mocks.setRoomNotificationLevel.mockRejectedValue(err);
+    mocks.updateRoomNotificationPreference.mockRejectedValue(err);
 
     await expect(
-      setRoomNotificationLevel(
+      updateRoomNotificationPreference(
         {
           serverId: 'remote',
           baseUrl: 'https://remote.example.test/api/connect',

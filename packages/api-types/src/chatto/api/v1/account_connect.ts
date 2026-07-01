@@ -3,10 +3,10 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { DeleteAvatarRequest, DeleteAvatarResponse, DeleteMyAccountRequest, DeleteMyAccountResponse, RequestAccountDeletionRequest, RequestAccountDeletionResponse, SetPasswordRequest, SetPasswordResponse, UpdateProfileRequest, UpdateProfileResponse, UpdateSettingsRequest, UpdateSettingsResponse, UploadAvatarRequest, UploadAvatarResponse } from "./account_pb.js";
+import { DeleteAvatarRequest, DeleteAvatarResponse, DeleteMyAccountRequest, DeleteMyAccountResponse, RequestAccountDeletionRequest, RequestAccountDeletionResponse, UpdatePasswordRequest, UpdatePasswordResponse, UpdateProfileRequest, UpdateProfileResponse, UpdateSettingsRequest, UpdateSettingsResponse, UploadAvatarRequest, UploadAvatarResponse } from "./account_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 import { ReportPresenceRequest, ReportPresenceResponse } from "./presence_pb.js";
-import { ClearCustomStatusRequest, ClearCustomStatusResponse, SetCustomStatusRequest, SetCustomStatusResponse } from "./user_status_pb.js";
+import { DeleteCustomStatusRequest, DeleteCustomStatusResponse, UpdateCustomStatusRequest, UpdateCustomStatusResponse } from "./user_status_pb.js";
 
 /**
  * Self-service account, profile, avatar, display preference, presence, and
@@ -51,14 +51,14 @@ export const AccountService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Sets or changes the authenticated user's password.
+     * Updates or adds the authenticated user's password.
      *
-     * @generated from rpc chatto.api.v1.AccountService.SetPassword
+     * @generated from rpc chatto.api.v1.AccountService.UpdatePassword
      */
-    setPassword: {
-      name: "SetPassword",
-      I: SetPasswordRequest,
-      O: SetPasswordResponse,
+    updatePassword: {
+      name: "UpdatePassword",
+      I: UpdatePasswordRequest,
+      O: UpdatePasswordResponse,
       kind: MethodKind.Unary,
     },
     /**
@@ -86,27 +86,27 @@ export const AccountService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Sets or replaces the current user's custom status. Emoji and text are
+     * Updates or replaces the current user's custom status. Emoji and text are
      * required, and expires_at must be omitted or in the future.
      *
-     * @generated from rpc chatto.api.v1.AccountService.SetCustomStatus
+     * @generated from rpc chatto.api.v1.AccountService.UpdateCustomStatus
      */
-    setCustomStatus: {
-      name: "SetCustomStatus",
-      I: SetCustomStatusRequest,
-      O: SetCustomStatusResponse,
+    updateCustomStatus: {
+      name: "UpdateCustomStatus",
+      I: UpdateCustomStatusRequest,
+      O: UpdateCustomStatusResponse,
       kind: MethodKind.Unary,
     },
     /**
-     * Clears the current user's custom status. The call is idempotent and returns
+     * Deletes the current user's custom status. The call is idempotent and returns
      * the resulting empty status state.
      *
-     * @generated from rpc chatto.api.v1.AccountService.ClearCustomStatus
+     * @generated from rpc chatto.api.v1.AccountService.DeleteCustomStatus
      */
-    clearCustomStatus: {
-      name: "ClearCustomStatus",
-      I: ClearCustomStatusRequest,
-      O: ClearCustomStatusResponse,
+    deleteCustomStatus: {
+      name: "DeleteCustomStatus",
+      I: DeleteCustomStatusRequest,
+      O: DeleteCustomStatusResponse,
       kind: MethodKind.Unary,
     },
     /**

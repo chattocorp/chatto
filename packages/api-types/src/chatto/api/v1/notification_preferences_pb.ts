@@ -114,9 +114,9 @@ export class GetRoomNotificationPreferenceResponse extends Message<GetRoomNotifi
  * The response mirrors the read shape so clients can update local state without
  * issuing a second read request.
  *
- * @generated from message chatto.api.v1.SetRoomNotificationLevelResponse
+ * @generated from message chatto.api.v1.UpdateRoomNotificationPreferenceResponse
  */
-export class SetRoomNotificationLevelResponse extends Message<SetRoomNotificationLevelResponse> {
+export class UpdateRoomNotificationPreferenceResponse extends Message<UpdateRoomNotificationPreferenceResponse> {
   /**
    * Explicit level stored for the current user and room.
    *
@@ -131,32 +131,32 @@ export class SetRoomNotificationLevelResponse extends Message<SetRoomNotificatio
    */
   effectiveLevel = NotificationLevel.UNSPECIFIED;
 
-  constructor(data?: PartialMessage<SetRoomNotificationLevelResponse>) {
+  constructor(data?: PartialMessage<UpdateRoomNotificationPreferenceResponse>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.SetRoomNotificationLevelResponse";
+  static readonly typeName = "chatto.api.v1.UpdateRoomNotificationPreferenceResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "level", kind: "enum", T: proto3.getEnumType(NotificationLevel) },
     { no: 2, name: "effective_level", kind: "enum", T: proto3.getEnumType(NotificationLevel) },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SetRoomNotificationLevelResponse {
-    return new SetRoomNotificationLevelResponse().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UpdateRoomNotificationPreferenceResponse {
+    return new UpdateRoomNotificationPreferenceResponse().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SetRoomNotificationLevelResponse {
-    return new SetRoomNotificationLevelResponse().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): UpdateRoomNotificationPreferenceResponse {
+    return new UpdateRoomNotificationPreferenceResponse().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SetRoomNotificationLevelResponse {
-    return new SetRoomNotificationLevelResponse().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): UpdateRoomNotificationPreferenceResponse {
+    return new UpdateRoomNotificationPreferenceResponse().fromJsonString(jsonString, options);
   }
 
-  static equals(a: SetRoomNotificationLevelResponse | PlainMessage<SetRoomNotificationLevelResponse> | undefined, b: SetRoomNotificationLevelResponse | PlainMessage<SetRoomNotificationLevelResponse> | undefined): boolean {
-    return proto3.util.equals(SetRoomNotificationLevelResponse, a, b);
+  static equals(a: UpdateRoomNotificationPreferenceResponse | PlainMessage<UpdateRoomNotificationPreferenceResponse> | undefined, b: UpdateRoomNotificationPreferenceResponse | PlainMessage<UpdateRoomNotificationPreferenceResponse> | undefined): boolean {
+    return proto3.util.equals(UpdateRoomNotificationPreferenceResponse, a, b);
   }
 }
 
@@ -212,9 +212,9 @@ export class GetServerNotificationPreferenceResponse extends Message<GetServerNo
 /**
  * Updated server-level notification preference.
  *
- * @generated from message chatto.api.v1.SetServerNotificationLevelResponse
+ * @generated from message chatto.api.v1.UpdateServerNotificationPreferenceResponse
  */
-export class SetServerNotificationLevelResponse extends Message<SetServerNotificationLevelResponse> {
+export class UpdateServerNotificationPreferenceResponse extends Message<UpdateServerNotificationPreferenceResponse> {
   /**
    * Explicit server-level setting.
    *
@@ -229,32 +229,32 @@ export class SetServerNotificationLevelResponse extends Message<SetServerNotific
    */
   effectiveLevel = NotificationLevel.UNSPECIFIED;
 
-  constructor(data?: PartialMessage<SetServerNotificationLevelResponse>) {
+  constructor(data?: PartialMessage<UpdateServerNotificationPreferenceResponse>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.SetServerNotificationLevelResponse";
+  static readonly typeName = "chatto.api.v1.UpdateServerNotificationPreferenceResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "level", kind: "enum", T: proto3.getEnumType(NotificationLevel) },
     { no: 2, name: "effective_level", kind: "enum", T: proto3.getEnumType(NotificationLevel) },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SetServerNotificationLevelResponse {
-    return new SetServerNotificationLevelResponse().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UpdateServerNotificationPreferenceResponse {
+    return new UpdateServerNotificationPreferenceResponse().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SetServerNotificationLevelResponse {
-    return new SetServerNotificationLevelResponse().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): UpdateServerNotificationPreferenceResponse {
+    return new UpdateServerNotificationPreferenceResponse().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SetServerNotificationLevelResponse {
-    return new SetServerNotificationLevelResponse().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): UpdateServerNotificationPreferenceResponse {
+    return new UpdateServerNotificationPreferenceResponse().fromJsonString(jsonString, options);
   }
 
-  static equals(a: SetServerNotificationLevelResponse | PlainMessage<SetServerNotificationLevelResponse> | undefined, b: SetServerNotificationLevelResponse | PlainMessage<SetServerNotificationLevelResponse> | undefined): boolean {
-    return proto3.util.equals(SetServerNotificationLevelResponse, a, b);
+  static equals(a: UpdateServerNotificationPreferenceResponse | PlainMessage<UpdateServerNotificationPreferenceResponse> | undefined, b: UpdateServerNotificationPreferenceResponse | PlainMessage<UpdateServerNotificationPreferenceResponse> | undefined): boolean {
+    return proto3.util.equals(UpdateServerNotificationPreferenceResponse, a, b);
   }
 }
 
@@ -294,9 +294,9 @@ export class GetServerNotificationPreferenceRequest extends Message<GetServerNot
 /**
  * Request to update the current user's server-level notification level.
  *
- * @generated from message chatto.api.v1.SetServerNotificationLevelRequest
+ * @generated from message chatto.api.v1.UpdateServerNotificationPreferenceRequest
  */
-export class SetServerNotificationLevelRequest extends Message<SetServerNotificationLevelRequest> {
+export class UpdateServerNotificationPreferenceRequest extends Message<UpdateServerNotificationPreferenceRequest> {
   /**
    * Required. New explicit notification level. Use NOTIFICATION_LEVEL_DEFAULT
    * to return the server to default behavior.
@@ -305,31 +305,31 @@ export class SetServerNotificationLevelRequest extends Message<SetServerNotifica
    */
   level = NotificationLevel.UNSPECIFIED;
 
-  constructor(data?: PartialMessage<SetServerNotificationLevelRequest>) {
+  constructor(data?: PartialMessage<UpdateServerNotificationPreferenceRequest>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.SetServerNotificationLevelRequest";
+  static readonly typeName = "chatto.api.v1.UpdateServerNotificationPreferenceRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "level", kind: "enum", T: proto3.getEnumType(NotificationLevel) },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SetServerNotificationLevelRequest {
-    return new SetServerNotificationLevelRequest().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UpdateServerNotificationPreferenceRequest {
+    return new UpdateServerNotificationPreferenceRequest().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SetServerNotificationLevelRequest {
-    return new SetServerNotificationLevelRequest().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): UpdateServerNotificationPreferenceRequest {
+    return new UpdateServerNotificationPreferenceRequest().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SetServerNotificationLevelRequest {
-    return new SetServerNotificationLevelRequest().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): UpdateServerNotificationPreferenceRequest {
+    return new UpdateServerNotificationPreferenceRequest().fromJsonString(jsonString, options);
   }
 
-  static equals(a: SetServerNotificationLevelRequest | PlainMessage<SetServerNotificationLevelRequest> | undefined, b: SetServerNotificationLevelRequest | PlainMessage<SetServerNotificationLevelRequest> | undefined): boolean {
-    return proto3.util.equals(SetServerNotificationLevelRequest, a, b);
+  static equals(a: UpdateServerNotificationPreferenceRequest | PlainMessage<UpdateServerNotificationPreferenceRequest> | undefined, b: UpdateServerNotificationPreferenceRequest | PlainMessage<UpdateServerNotificationPreferenceRequest> | undefined): boolean {
+    return proto3.util.equals(UpdateServerNotificationPreferenceRequest, a, b);
   }
 }
 
@@ -377,9 +377,9 @@ export class GetRoomNotificationPreferenceRequest extends Message<GetRoomNotific
 /**
  * Request to update the current user's notification level in one room.
  *
- * @generated from message chatto.api.v1.SetRoomNotificationLevelRequest
+ * @generated from message chatto.api.v1.UpdateRoomNotificationPreferenceRequest
  */
-export class SetRoomNotificationLevelRequest extends Message<SetRoomNotificationLevelRequest> {
+export class UpdateRoomNotificationPreferenceRequest extends Message<UpdateRoomNotificationPreferenceRequest> {
   /**
    * Required. Room whose notification level should be changed for the current user.
    *
@@ -395,31 +395,31 @@ export class SetRoomNotificationLevelRequest extends Message<SetRoomNotification
    */
   level = NotificationLevel.UNSPECIFIED;
 
-  constructor(data?: PartialMessage<SetRoomNotificationLevelRequest>) {
+  constructor(data?: PartialMessage<UpdateRoomNotificationPreferenceRequest>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.SetRoomNotificationLevelRequest";
+  static readonly typeName = "chatto.api.v1.UpdateRoomNotificationPreferenceRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "level", kind: "enum", T: proto3.getEnumType(NotificationLevel) },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SetRoomNotificationLevelRequest {
-    return new SetRoomNotificationLevelRequest().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UpdateRoomNotificationPreferenceRequest {
+    return new UpdateRoomNotificationPreferenceRequest().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SetRoomNotificationLevelRequest {
-    return new SetRoomNotificationLevelRequest().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): UpdateRoomNotificationPreferenceRequest {
+    return new UpdateRoomNotificationPreferenceRequest().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SetRoomNotificationLevelRequest {
-    return new SetRoomNotificationLevelRequest().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): UpdateRoomNotificationPreferenceRequest {
+    return new UpdateRoomNotificationPreferenceRequest().fromJsonString(jsonString, options);
   }
 
-  static equals(a: SetRoomNotificationLevelRequest | PlainMessage<SetRoomNotificationLevelRequest> | undefined, b: SetRoomNotificationLevelRequest | PlainMessage<SetRoomNotificationLevelRequest> | undefined): boolean {
-    return proto3.util.equals(SetRoomNotificationLevelRequest, a, b);
+  static equals(a: UpdateRoomNotificationPreferenceRequest | PlainMessage<UpdateRoomNotificationPreferenceRequest> | undefined, b: UpdateRoomNotificationPreferenceRequest | PlainMessage<UpdateRoomNotificationPreferenceRequest> | undefined): boolean {
+    return proto3.util.equals(UpdateRoomNotificationPreferenceRequest, a, b);
   }
 }

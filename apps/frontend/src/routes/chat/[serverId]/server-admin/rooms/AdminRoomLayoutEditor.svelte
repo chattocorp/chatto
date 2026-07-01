@@ -220,7 +220,7 @@
     }
 
     if (editRoomUniversalChanged) {
-      const result = await layout.setRoomUniversal(editRoomId, editRoomUniversal);
+      const result = await layout.updateRoomUniversal(editRoomId, editRoomUniversal);
       if (!result.ok) {
         toast.error(m['admin.rooms_admin.update_room_failed']({ error: result.error }));
         return;

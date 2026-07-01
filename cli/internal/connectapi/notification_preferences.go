@@ -33,7 +33,7 @@ func (s *notificationPreferencesService) GetServerNotificationPreference(ctx con
 	}), nil
 }
 
-func (s *notificationPreferencesService) SetServerNotificationLevel(ctx context.Context, req *connect.Request[apiv1.SetServerNotificationLevelRequest]) (*connect.Response[apiv1.SetServerNotificationLevelResponse], error) {
+func (s *notificationPreferencesService) UpdateServerNotificationPreference(ctx context.Context, req *connect.Request[apiv1.UpdateServerNotificationPreferenceRequest]) (*connect.Response[apiv1.UpdateServerNotificationPreferenceResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -50,7 +50,7 @@ func (s *notificationPreferencesService) SetServerNotificationLevel(ctx context.
 	if effectiveLevel == corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED {
 		effectiveLevel = corev1.NotificationLevel_NOTIFICATION_LEVEL_NORMAL
 	}
-	return connect.NewResponse(&apiv1.SetServerNotificationLevelResponse{
+	return connect.NewResponse(&apiv1.UpdateServerNotificationPreferenceResponse{
 		Level:          coreNotificationLevelToAPI(level),
 		EffectiveLevel: coreNotificationLevelToAPI(effectiveLevel),
 	}), nil
@@ -75,7 +75,7 @@ func (s *notificationPreferencesService) GetRoomNotificationPreference(ctx conte
 	}), nil
 }
 
-func (s *notificationPreferencesService) SetRoomNotificationLevel(ctx context.Context, req *connect.Request[apiv1.SetRoomNotificationLevelRequest]) (*connect.Response[apiv1.SetRoomNotificationLevelResponse], error) {
+func (s *notificationPreferencesService) UpdateRoomNotificationPreference(ctx context.Context, req *connect.Request[apiv1.UpdateRoomNotificationPreferenceRequest]) (*connect.Response[apiv1.UpdateRoomNotificationPreferenceResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -92,7 +92,7 @@ func (s *notificationPreferencesService) SetRoomNotificationLevel(ctx context.Co
 	if err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&apiv1.SetRoomNotificationLevelResponse{
+	return connect.NewResponse(&apiv1.UpdateRoomNotificationPreferenceResponse{
 		Level:          coreNotificationLevelToAPI(pref.Level),
 		EffectiveLevel: coreNotificationLevelToAPI(pref.EffectiveLevel),
 	}), nil

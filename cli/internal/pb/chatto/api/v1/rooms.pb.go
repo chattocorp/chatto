@@ -592,7 +592,7 @@ func (x *UnarchiveRoomResponse) GetRoom() *Room {
 }
 
 // Request to change a channel room's universal membership flag.
-type SetRoomUniversalRequest struct {
+type UpdateRoomUniversalRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Required. Channel room to update.
 	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
@@ -602,20 +602,20 @@ type SetRoomUniversalRequest struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *SetRoomUniversalRequest) Reset() {
-	*x = SetRoomUniversalRequest{}
+func (x *UpdateRoomUniversalRequest) Reset() {
+	*x = UpdateRoomUniversalRequest{}
 	mi := &file_chatto_api_v1_rooms_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *SetRoomUniversalRequest) String() string {
+func (x *UpdateRoomUniversalRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*SetRoomUniversalRequest) ProtoMessage() {}
+func (*UpdateRoomUniversalRequest) ProtoMessage() {}
 
-func (x *SetRoomUniversalRequest) ProtoReflect() protoreflect.Message {
+func (x *UpdateRoomUniversalRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_chatto_api_v1_rooms_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -627,19 +627,19 @@ func (x *SetRoomUniversalRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use SetRoomUniversalRequest.ProtoReflect.Descriptor instead.
-func (*SetRoomUniversalRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use UpdateRoomUniversalRequest.ProtoReflect.Descriptor instead.
+func (*UpdateRoomUniversalRequest) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_rooms_proto_rawDescGZIP(), []int{9}
 }
 
-func (x *SetRoomUniversalRequest) GetRoomId() string {
+func (x *UpdateRoomUniversalRequest) GetRoomId() string {
 	if x != nil {
 		return x.RoomId
 	}
 	return ""
 }
 
-func (x *SetRoomUniversalRequest) GetUniversal() bool {
+func (x *UpdateRoomUniversalRequest) GetUniversal() bool {
 	if x != nil {
 		return x.Universal
 	}
@@ -647,7 +647,7 @@ func (x *SetRoomUniversalRequest) GetUniversal() bool {
 }
 
 // Result of changing a channel room's universal membership flag.
-type SetRoomUniversalResponse struct {
+type UpdateRoomUniversalResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Updated room.
 	Room          *Room `protobuf:"bytes,1,opt,name=room,proto3" json:"room,omitempty"`
@@ -655,20 +655,20 @@ type SetRoomUniversalResponse struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *SetRoomUniversalResponse) Reset() {
-	*x = SetRoomUniversalResponse{}
+func (x *UpdateRoomUniversalResponse) Reset() {
+	*x = UpdateRoomUniversalResponse{}
 	mi := &file_chatto_api_v1_rooms_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *SetRoomUniversalResponse) String() string {
+func (x *UpdateRoomUniversalResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*SetRoomUniversalResponse) ProtoMessage() {}
+func (*UpdateRoomUniversalResponse) ProtoMessage() {}
 
-func (x *SetRoomUniversalResponse) ProtoReflect() protoreflect.Message {
+func (x *UpdateRoomUniversalResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_chatto_api_v1_rooms_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -680,12 +680,12 @@ func (x *SetRoomUniversalResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use SetRoomUniversalResponse.ProtoReflect.Descriptor instead.
-func (*SetRoomUniversalResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use UpdateRoomUniversalResponse.ProtoReflect.Descriptor instead.
+func (*UpdateRoomUniversalResponse) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_rooms_proto_rawDescGZIP(), []int{10}
 }
 
-func (x *SetRoomUniversalResponse) GetRoom() *Room {
+func (x *UpdateRoomUniversalResponse) GetRoom() *Room {
 	if x != nil {
 		return x.Room
 	}
@@ -1561,11 +1561,11 @@ const file_chatto_api_v1_rooms_proto_rawDesc = "" +
 	"\x14UnarchiveRoomRequest\x12 \n" +
 	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\"@\n" +
 	"\x15UnarchiveRoomResponse\x12'\n" +
-	"\x04room\x18\x01 \x01(\v2\x13.chatto.api.v1.RoomR\x04room\"Y\n" +
-	"\x17SetRoomUniversalRequest\x12 \n" +
+	"\x04room\x18\x01 \x01(\v2\x13.chatto.api.v1.RoomR\x04room\"\\\n" +
+	"\x1aUpdateRoomUniversalRequest\x12 \n" +
 	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x12\x1c\n" +
-	"\tuniversal\x18\x02 \x01(\bR\tuniversal\"C\n" +
-	"\x18SetRoomUniversalResponse\x12'\n" +
+	"\tuniversal\x18\x02 \x01(\bR\tuniversal\"F\n" +
+	"\x1bUpdateRoomUniversalResponse\x12'\n" +
 	"\x04room\x18\x01 \x01(\v2\x13.chatto.api.v1.RoomR\x04room\"3\n" +
 	"\x0fJoinRoomRequest\x12 \n" +
 	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\";\n" +
@@ -1622,15 +1622,15 @@ const file_chatto_api_v1_rooms_proto_rawDesc = "" +
 	"\bRoomKind\x12\x19\n" +
 	"\x15ROOM_KIND_UNSPECIFIED\x10\x00\x12\x15\n" +
 	"\x11ROOM_KIND_CHANNEL\x10\x01\x12\x10\n" +
-	"\fROOM_KIND_DM\x10\x022\xa4\b\n" +
+	"\fROOM_KIND_DM\x10\x022\xad\b\n" +
 	"\vRoomService\x12Q\n" +
 	"\n" +
 	"CreateRoom\x12 .chatto.api.v1.CreateRoomRequest\x1a!.chatto.api.v1.CreateRoomResponse\x12Q\n" +
 	"\n" +
 	"UpdateRoom\x12 .chatto.api.v1.UpdateRoomRequest\x1a!.chatto.api.v1.UpdateRoomResponse\x12T\n" +
 	"\vArchiveRoom\x12!.chatto.api.v1.ArchiveRoomRequest\x1a\".chatto.api.v1.ArchiveRoomResponse\x12Z\n" +
-	"\rUnarchiveRoom\x12#.chatto.api.v1.UnarchiveRoomRequest\x1a$.chatto.api.v1.UnarchiveRoomResponse\x12c\n" +
-	"\x10SetRoomUniversal\x12&.chatto.api.v1.SetRoomUniversalRequest\x1a'.chatto.api.v1.SetRoomUniversalResponse\x12K\n" +
+	"\rUnarchiveRoom\x12#.chatto.api.v1.UnarchiveRoomRequest\x1a$.chatto.api.v1.UnarchiveRoomResponse\x12l\n" +
+	"\x13UpdateRoomUniversal\x12).chatto.api.v1.UpdateRoomUniversalRequest\x1a*.chatto.api.v1.UpdateRoomUniversalResponse\x12K\n" +
 	"\bJoinRoom\x12\x1e.chatto.api.v1.JoinRoomRequest\x1a\x1f.chatto.api.v1.JoinRoomResponse\x12Z\n" +
 	"\rJoinRoomGroup\x12#.chatto.api.v1.JoinRoomGroupRequest\x1a$.chatto.api.v1.JoinRoomGroupResponse\x12H\n" +
 	"\aStartDM\x12\x1d.chatto.api.v1.StartDMRequest\x1a\x1e.chatto.api.v1.StartDMResponse\x12N\n" +
@@ -1656,37 +1656,37 @@ func file_chatto_api_v1_rooms_proto_rawDescGZIP() []byte {
 var file_chatto_api_v1_rooms_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
 var file_chatto_api_v1_rooms_proto_msgTypes = make([]protoimpl.MessageInfo, 26)
 var file_chatto_api_v1_rooms_proto_goTypes = []any{
-	(RoomKind)(0),                    // 0: chatto.api.v1.RoomKind
-	(*Room)(nil),                     // 1: chatto.api.v1.Room
-	(*CreateRoomRequest)(nil),        // 2: chatto.api.v1.CreateRoomRequest
-	(*CreateRoomResponse)(nil),       // 3: chatto.api.v1.CreateRoomResponse
-	(*UpdateRoomRequest)(nil),        // 4: chatto.api.v1.UpdateRoomRequest
-	(*UpdateRoomResponse)(nil),       // 5: chatto.api.v1.UpdateRoomResponse
-	(*ArchiveRoomRequest)(nil),       // 6: chatto.api.v1.ArchiveRoomRequest
-	(*ArchiveRoomResponse)(nil),      // 7: chatto.api.v1.ArchiveRoomResponse
-	(*UnarchiveRoomRequest)(nil),     // 8: chatto.api.v1.UnarchiveRoomRequest
-	(*UnarchiveRoomResponse)(nil),    // 9: chatto.api.v1.UnarchiveRoomResponse
-	(*SetRoomUniversalRequest)(nil),  // 10: chatto.api.v1.SetRoomUniversalRequest
-	(*SetRoomUniversalResponse)(nil), // 11: chatto.api.v1.SetRoomUniversalResponse
-	(*JoinRoomRequest)(nil),          // 12: chatto.api.v1.JoinRoomRequest
-	(*JoinRoomResponse)(nil),         // 13: chatto.api.v1.JoinRoomResponse
-	(*JoinRoomGroupRequest)(nil),     // 14: chatto.api.v1.JoinRoomGroupRequest
-	(*JoinRoomGroupResponse)(nil),    // 15: chatto.api.v1.JoinRoomGroupResponse
-	(*StartDMRequest)(nil),           // 16: chatto.api.v1.StartDMRequest
-	(*StartDMResponse)(nil),          // 17: chatto.api.v1.StartDMResponse
-	(*LeaveRoomRequest)(nil),         // 18: chatto.api.v1.LeaveRoomRequest
-	(*LeaveRoomResponse)(nil),        // 19: chatto.api.v1.LeaveRoomResponse
-	(*BanRoomMemberRequest)(nil),     // 20: chatto.api.v1.BanRoomMemberRequest
-	(*BanRoomMemberResponse)(nil),    // 21: chatto.api.v1.BanRoomMemberResponse
-	(*UnbanRoomMemberRequest)(nil),   // 22: chatto.api.v1.UnbanRoomMemberRequest
-	(*UnbanRoomMemberResponse)(nil),  // 23: chatto.api.v1.UnbanRoomMemberResponse
-	(*RoomBan)(nil),                  // 24: chatto.api.v1.RoomBan
-	(*ListRoomBansRequest)(nil),      // 25: chatto.api.v1.ListRoomBansRequest
-	(*ListRoomBansResponse)(nil),     // 26: chatto.api.v1.ListRoomBansResponse
-	(*timestamppb.Timestamp)(nil),    // 27: google.protobuf.Timestamp
-	(*DirectoryMember)(nil),          // 28: chatto.api.v1.DirectoryMember
-	(*PageRequest)(nil),              // 29: chatto.api.v1.PageRequest
-	(*PageInfo)(nil),                 // 30: chatto.api.v1.PageInfo
+	(RoomKind)(0),                       // 0: chatto.api.v1.RoomKind
+	(*Room)(nil),                        // 1: chatto.api.v1.Room
+	(*CreateRoomRequest)(nil),           // 2: chatto.api.v1.CreateRoomRequest
+	(*CreateRoomResponse)(nil),          // 3: chatto.api.v1.CreateRoomResponse
+	(*UpdateRoomRequest)(nil),           // 4: chatto.api.v1.UpdateRoomRequest
+	(*UpdateRoomResponse)(nil),          // 5: chatto.api.v1.UpdateRoomResponse
+	(*ArchiveRoomRequest)(nil),          // 6: chatto.api.v1.ArchiveRoomRequest
+	(*ArchiveRoomResponse)(nil),         // 7: chatto.api.v1.ArchiveRoomResponse
+	(*UnarchiveRoomRequest)(nil),        // 8: chatto.api.v1.UnarchiveRoomRequest
+	(*UnarchiveRoomResponse)(nil),       // 9: chatto.api.v1.UnarchiveRoomResponse
+	(*UpdateRoomUniversalRequest)(nil),  // 10: chatto.api.v1.UpdateRoomUniversalRequest
+	(*UpdateRoomUniversalResponse)(nil), // 11: chatto.api.v1.UpdateRoomUniversalResponse
+	(*JoinRoomRequest)(nil),             // 12: chatto.api.v1.JoinRoomRequest
+	(*JoinRoomResponse)(nil),            // 13: chatto.api.v1.JoinRoomResponse
+	(*JoinRoomGroupRequest)(nil),        // 14: chatto.api.v1.JoinRoomGroupRequest
+	(*JoinRoomGroupResponse)(nil),       // 15: chatto.api.v1.JoinRoomGroupResponse
+	(*StartDMRequest)(nil),              // 16: chatto.api.v1.StartDMRequest
+	(*StartDMResponse)(nil),             // 17: chatto.api.v1.StartDMResponse
+	(*LeaveRoomRequest)(nil),            // 18: chatto.api.v1.LeaveRoomRequest
+	(*LeaveRoomResponse)(nil),           // 19: chatto.api.v1.LeaveRoomResponse
+	(*BanRoomMemberRequest)(nil),        // 20: chatto.api.v1.BanRoomMemberRequest
+	(*BanRoomMemberResponse)(nil),       // 21: chatto.api.v1.BanRoomMemberResponse
+	(*UnbanRoomMemberRequest)(nil),      // 22: chatto.api.v1.UnbanRoomMemberRequest
+	(*UnbanRoomMemberResponse)(nil),     // 23: chatto.api.v1.UnbanRoomMemberResponse
+	(*RoomBan)(nil),                     // 24: chatto.api.v1.RoomBan
+	(*ListRoomBansRequest)(nil),         // 25: chatto.api.v1.ListRoomBansRequest
+	(*ListRoomBansResponse)(nil),        // 26: chatto.api.v1.ListRoomBansResponse
+	(*timestamppb.Timestamp)(nil),       // 27: google.protobuf.Timestamp
+	(*DirectoryMember)(nil),             // 28: chatto.api.v1.DirectoryMember
+	(*PageRequest)(nil),                 // 29: chatto.api.v1.PageRequest
+	(*PageInfo)(nil),                    // 30: chatto.api.v1.PageInfo
 }
 var file_chatto_api_v1_rooms_proto_depIdxs = []int32{
 	0,  // 0: chatto.api.v1.Room.kind:type_name -> chatto.api.v1.RoomKind
@@ -1694,7 +1694,7 @@ var file_chatto_api_v1_rooms_proto_depIdxs = []int32{
 	1,  // 2: chatto.api.v1.UpdateRoomResponse.room:type_name -> chatto.api.v1.Room
 	1,  // 3: chatto.api.v1.ArchiveRoomResponse.room:type_name -> chatto.api.v1.Room
 	1,  // 4: chatto.api.v1.UnarchiveRoomResponse.room:type_name -> chatto.api.v1.Room
-	1,  // 5: chatto.api.v1.SetRoomUniversalResponse.room:type_name -> chatto.api.v1.Room
+	1,  // 5: chatto.api.v1.UpdateRoomUniversalResponse.room:type_name -> chatto.api.v1.Room
 	1,  // 6: chatto.api.v1.JoinRoomResponse.room:type_name -> chatto.api.v1.Room
 	1,  // 7: chatto.api.v1.StartDMResponse.room:type_name -> chatto.api.v1.Room
 	27, // 8: chatto.api.v1.BanRoomMemberRequest.expires_at:type_name -> google.protobuf.Timestamp
@@ -1710,7 +1710,7 @@ var file_chatto_api_v1_rooms_proto_depIdxs = []int32{
 	4,  // 18: chatto.api.v1.RoomService.UpdateRoom:input_type -> chatto.api.v1.UpdateRoomRequest
 	6,  // 19: chatto.api.v1.RoomService.ArchiveRoom:input_type -> chatto.api.v1.ArchiveRoomRequest
 	8,  // 20: chatto.api.v1.RoomService.UnarchiveRoom:input_type -> chatto.api.v1.UnarchiveRoomRequest
-	10, // 21: chatto.api.v1.RoomService.SetRoomUniversal:input_type -> chatto.api.v1.SetRoomUniversalRequest
+	10, // 21: chatto.api.v1.RoomService.UpdateRoomUniversal:input_type -> chatto.api.v1.UpdateRoomUniversalRequest
 	12, // 22: chatto.api.v1.RoomService.JoinRoom:input_type -> chatto.api.v1.JoinRoomRequest
 	14, // 23: chatto.api.v1.RoomService.JoinRoomGroup:input_type -> chatto.api.v1.JoinRoomGroupRequest
 	16, // 24: chatto.api.v1.RoomService.StartDM:input_type -> chatto.api.v1.StartDMRequest
@@ -1722,7 +1722,7 @@ var file_chatto_api_v1_rooms_proto_depIdxs = []int32{
 	5,  // 30: chatto.api.v1.RoomService.UpdateRoom:output_type -> chatto.api.v1.UpdateRoomResponse
 	7,  // 31: chatto.api.v1.RoomService.ArchiveRoom:output_type -> chatto.api.v1.ArchiveRoomResponse
 	9,  // 32: chatto.api.v1.RoomService.UnarchiveRoom:output_type -> chatto.api.v1.UnarchiveRoomResponse
-	11, // 33: chatto.api.v1.RoomService.SetRoomUniversal:output_type -> chatto.api.v1.SetRoomUniversalResponse
+	11, // 33: chatto.api.v1.RoomService.UpdateRoomUniversal:output_type -> chatto.api.v1.UpdateRoomUniversalResponse
 	13, // 34: chatto.api.v1.RoomService.JoinRoom:output_type -> chatto.api.v1.JoinRoomResponse
 	15, // 35: chatto.api.v1.RoomService.JoinRoomGroup:output_type -> chatto.api.v1.JoinRoomGroupResponse
 	17, // 36: chatto.api.v1.RoomService.StartDM:output_type -> chatto.api.v1.StartDMResponse

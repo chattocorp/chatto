@@ -189,12 +189,12 @@ export function createRoomCommandAPI(config: ConnectAPIConfig) {
       }
     },
 
-    async setRoomUniversal(
+    async updateRoomUniversal(
       roomId: string,
       universal: boolean,
     ): Promise<PublicRoom | null> {
       try {
-        const response = await rooms.setRoomUniversal(
+        const response = await rooms.updateRoomUniversal(
           { roomId, universal },
           { headers: headers() },
         );

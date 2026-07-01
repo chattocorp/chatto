@@ -63,13 +63,13 @@ function group(id: string, rooms: AdminRoomInfo[], name = id): AdminRoomGroup {
 
 function roomAPI(): Pick<
   RoomCommandAPI,
-  'updateRoom' | 'archiveRoom' | 'unarchiveRoom' | 'setRoomUniversal'
+  'updateRoom' | 'archiveRoom' | 'unarchiveRoom' | 'updateRoomUniversal'
 > {
   return {
     updateRoom: vi.fn().mockResolvedValue(null),
     archiveRoom: vi.fn().mockResolvedValue(null),
     unarchiveRoom: vi.fn().mockResolvedValue(null),
-    setRoomUniversal: vi.fn().mockResolvedValue(null)
+    updateRoomUniversal: vi.fn().mockResolvedValue(null)
   };
 }
 
@@ -188,7 +188,7 @@ describe('AdminRoomLayoutEditor', () => {
     layout.initialized = true;
     layout.groups = [group('g1', [room('r1', { name: 'general' })], 'Lobby')];
     const updateRoom = vi.spyOn(layout, 'updateRoom').mockResolvedValue({ ok: true });
-    const setRoomUniversal = vi.spyOn(layout, 'setRoomUniversal').mockResolvedValue({ ok: true });
+    const updateRoomUniversal = vi.spyOn(layout, 'updateRoomUniversal').mockResolvedValue({ ok: true });
     const { container } = renderEditor(layout);
 
     expect(container.querySelector('[title="Make universal room"]')).toBeNull();
@@ -208,7 +208,7 @@ describe('AdminRoomLayoutEditor', () => {
     save.click();
 
     await vi.waitFor(() => {
-      expect(setRoomUniversal).toHaveBeenCalledWith('r1', true);
+      expect(updateRoomUniversal).toHaveBeenCalledWith('r1', true);
     });
     expect(updateRoom).not.toHaveBeenCalled();
   });

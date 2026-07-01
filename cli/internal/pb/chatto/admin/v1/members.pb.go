@@ -970,8 +970,8 @@ func (x *UpdateUserResponse) GetMember() *AdminMember {
 	return nil
 }
 
-// Request to set a user's password as a server-admin action.
-type SetUserPasswordRequest struct {
+// Request to update a user's password as a server-admin action.
+type UpdateUserPasswordRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Target user ID.
 	UserId string `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
@@ -982,20 +982,20 @@ type SetUserPasswordRequest struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *SetUserPasswordRequest) Reset() {
-	*x = SetUserPasswordRequest{}
+func (x *UpdateUserPasswordRequest) Reset() {
+	*x = UpdateUserPasswordRequest{}
 	mi := &file_chatto_admin_v1_members_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *SetUserPasswordRequest) String() string {
+func (x *UpdateUserPasswordRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*SetUserPasswordRequest) ProtoMessage() {}
+func (*UpdateUserPasswordRequest) ProtoMessage() {}
 
-func (x *SetUserPasswordRequest) ProtoReflect() protoreflect.Message {
+func (x *UpdateUserPasswordRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_chatto_admin_v1_members_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1007,19 +1007,19 @@ func (x *SetUserPasswordRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use SetUserPasswordRequest.ProtoReflect.Descriptor instead.
-func (*SetUserPasswordRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use UpdateUserPasswordRequest.ProtoReflect.Descriptor instead.
+func (*UpdateUserPasswordRequest) Descriptor() ([]byte, []int) {
 	return file_chatto_admin_v1_members_proto_rawDescGZIP(), []int{15}
 }
 
-func (x *SetUserPasswordRequest) GetUserId() string {
+func (x *UpdateUserPasswordRequest) GetUserId() string {
 	if x != nil {
 		return x.UserId
 	}
 	return ""
 }
 
-func (x *SetUserPasswordRequest) GetPassword() string {
+func (x *UpdateUserPasswordRequest) GetPassword() string {
 	if x != nil {
 		return x.Password
 	}
@@ -1027,7 +1027,7 @@ func (x *SetUserPasswordRequest) GetPassword() string {
 }
 
 // Result of an admin password update.
-type SetUserPasswordResponse struct {
+type UpdateUserPasswordResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// True when the request completed.
 	Updated       bool `protobuf:"varint,1,opt,name=updated,proto3" json:"updated,omitempty"`
@@ -1035,20 +1035,20 @@ type SetUserPasswordResponse struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *SetUserPasswordResponse) Reset() {
-	*x = SetUserPasswordResponse{}
+func (x *UpdateUserPasswordResponse) Reset() {
+	*x = UpdateUserPasswordResponse{}
 	mi := &file_chatto_admin_v1_members_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *SetUserPasswordResponse) String() string {
+func (x *UpdateUserPasswordResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*SetUserPasswordResponse) ProtoMessage() {}
+func (*UpdateUserPasswordResponse) ProtoMessage() {}
 
-func (x *SetUserPasswordResponse) ProtoReflect() protoreflect.Message {
+func (x *UpdateUserPasswordResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_chatto_admin_v1_members_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1060,12 +1060,12 @@ func (x *SetUserPasswordResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use SetUserPasswordResponse.ProtoReflect.Descriptor instead.
-func (*SetUserPasswordResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use UpdateUserPasswordResponse.ProtoReflect.Descriptor instead.
+func (*UpdateUserPasswordResponse) Descriptor() ([]byte, []int) {
 	return file_chatto_admin_v1_members_proto_rawDescGZIP(), []int{16}
 }
 
-func (x *SetUserPasswordResponse) GetUpdated() bool {
+func (x *UpdateUserPasswordResponse) GetUpdated() bool {
 	if x != nil {
 		return x.Updated
 	}
@@ -1334,11 +1334,11 @@ const file_chatto_admin_v1_members_proto_rawDesc = "" +
 	"\x06_login\"s\n" +
 	"\x12UpdateUserResponse\x12'\n" +
 	"\x04user\x18\x01 \x01(\v2\x13.chatto.api.v1.UserR\x04user\x124\n" +
-	"\x06member\x18\x02 \x01(\v2\x1c.chatto.admin.v1.AdminMemberR\x06member\"V\n" +
-	"\x16SetUserPasswordRequest\x12 \n" +
+	"\x06member\x18\x02 \x01(\v2\x1c.chatto.admin.v1.AdminMemberR\x06member\"Y\n" +
+	"\x19UpdateUserPasswordRequest\x12 \n" +
 	"\auser_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06userId\x12\x1a\n" +
-	"\bpassword\x18\x02 \x01(\tR\bpassword\"3\n" +
-	"\x17SetUserPasswordResponse\x12\x18\n" +
+	"\bpassword\x18\x02 \x01(\tR\bpassword\"6\n" +
+	"\x1aUpdateUserPasswordResponse\x12\x18\n" +
 	"\aupdated\x18\x01 \x01(\bR\aupdated\"@\n" +
 	"\x1cClearUsernameCooldownRequest\x12 \n" +
 	"\auser_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06userId\"9\n" +
@@ -1348,7 +1348,7 @@ const file_chatto_admin_v1_members_proto_rawDesc = "" +
 	"\auser_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06userId\x12)\n" +
 	"\x10current_password\x18\x02 \x01(\tR\x0fcurrentPassword\".\n" +
 	"\x12DeleteUserResponse\x12\x18\n" +
-	"\adeleted\x18\x01 \x01(\bR\adeleted2\xe2\x06\n" +
+	"\adeleted\x18\x01 \x01(\bR\adeleted2\xeb\x06\n" +
 	"\x12AdminMemberService\x12X\n" +
 	"\vListMembers\x12#.chatto.admin.v1.ListMembersRequest\x1a$.chatto.admin.v1.ListMembersResponse\x12R\n" +
 	"\tGetMember\x12!.chatto.admin.v1.GetMemberRequest\x1a\".chatto.admin.v1.GetMemberResponse\x12d\n" +
@@ -1358,8 +1358,8 @@ const file_chatto_admin_v1_members_proto_rawDesc = "" +
 	"\n" +
 	"RevokeRole\x12\".chatto.admin.v1.RevokeRoleRequest\x1a#.chatto.admin.v1.RevokeRoleResponse\x12U\n" +
 	"\n" +
-	"UpdateUser\x12\".chatto.admin.v1.UpdateUserRequest\x1a#.chatto.admin.v1.UpdateUserResponse\x12d\n" +
-	"\x0fSetUserPassword\x12'.chatto.admin.v1.SetUserPasswordRequest\x1a(.chatto.admin.v1.SetUserPasswordResponse\x12v\n" +
+	"UpdateUser\x12\".chatto.admin.v1.UpdateUserRequest\x1a#.chatto.admin.v1.UpdateUserResponse\x12m\n" +
+	"\x12UpdateUserPassword\x12*.chatto.admin.v1.UpdateUserPasswordRequest\x1a+.chatto.admin.v1.UpdateUserPasswordResponse\x12v\n" +
 	"\x15ClearUsernameCooldown\x12-.chatto.admin.v1.ClearUsernameCooldownRequest\x1a..chatto.admin.v1.ClearUsernameCooldownResponse\x12U\n" +
 	"\n" +
 	"DeleteUser\x12\".chatto.admin.v1.DeleteUserRequest\x1a#.chatto.admin.v1.DeleteUserResponseB\xb6\x01\n" +
@@ -1394,8 +1394,8 @@ var file_chatto_admin_v1_members_proto_goTypes = []any{
 	(*RevokeRoleResponse)(nil),            // 12: chatto.admin.v1.RevokeRoleResponse
 	(*UpdateUserRequest)(nil),             // 13: chatto.admin.v1.UpdateUserRequest
 	(*UpdateUserResponse)(nil),            // 14: chatto.admin.v1.UpdateUserResponse
-	(*SetUserPasswordRequest)(nil),        // 15: chatto.admin.v1.SetUserPasswordRequest
-	(*SetUserPasswordResponse)(nil),       // 16: chatto.admin.v1.SetUserPasswordResponse
+	(*UpdateUserPasswordRequest)(nil),     // 15: chatto.admin.v1.UpdateUserPasswordRequest
+	(*UpdateUserPasswordResponse)(nil),    // 16: chatto.admin.v1.UpdateUserPasswordResponse
 	(*ClearUsernameCooldownRequest)(nil),  // 17: chatto.admin.v1.ClearUsernameCooldownRequest
 	(*ClearUsernameCooldownResponse)(nil), // 18: chatto.admin.v1.ClearUsernameCooldownResponse
 	(*DeleteUserRequest)(nil),             // 19: chatto.admin.v1.DeleteUserRequest
@@ -1429,7 +1429,7 @@ var file_chatto_admin_v1_members_proto_depIdxs = []int32{
 	9,  // 18: chatto.admin.v1.AdminMemberService.AssignRole:input_type -> chatto.admin.v1.AssignRoleRequest
 	11, // 19: chatto.admin.v1.AdminMemberService.RevokeRole:input_type -> chatto.admin.v1.RevokeRoleRequest
 	13, // 20: chatto.admin.v1.AdminMemberService.UpdateUser:input_type -> chatto.admin.v1.UpdateUserRequest
-	15, // 21: chatto.admin.v1.AdminMemberService.SetUserPassword:input_type -> chatto.admin.v1.SetUserPasswordRequest
+	15, // 21: chatto.admin.v1.AdminMemberService.UpdateUserPassword:input_type -> chatto.admin.v1.UpdateUserPasswordRequest
 	17, // 22: chatto.admin.v1.AdminMemberService.ClearUsernameCooldown:input_type -> chatto.admin.v1.ClearUsernameCooldownRequest
 	19, // 23: chatto.admin.v1.AdminMemberService.DeleteUser:input_type -> chatto.admin.v1.DeleteUserRequest
 	4,  // 24: chatto.admin.v1.AdminMemberService.ListMembers:output_type -> chatto.admin.v1.ListMembersResponse
@@ -1438,7 +1438,7 @@ var file_chatto_admin_v1_members_proto_depIdxs = []int32{
 	10, // 27: chatto.admin.v1.AdminMemberService.AssignRole:output_type -> chatto.admin.v1.AssignRoleResponse
 	12, // 28: chatto.admin.v1.AdminMemberService.RevokeRole:output_type -> chatto.admin.v1.RevokeRoleResponse
 	14, // 29: chatto.admin.v1.AdminMemberService.UpdateUser:output_type -> chatto.admin.v1.UpdateUserResponse
-	16, // 30: chatto.admin.v1.AdminMemberService.SetUserPassword:output_type -> chatto.admin.v1.SetUserPasswordResponse
+	16, // 30: chatto.admin.v1.AdminMemberService.UpdateUserPassword:output_type -> chatto.admin.v1.UpdateUserPasswordResponse
 	18, // 31: chatto.admin.v1.AdminMemberService.ClearUsernameCooldown:output_type -> chatto.admin.v1.ClearUsernameCooldownResponse
 	20, // 32: chatto.admin.v1.AdminMemberService.DeleteUser:output_type -> chatto.admin.v1.DeleteUserResponse
 	24, // [24:33] is the sub-list for method output_type

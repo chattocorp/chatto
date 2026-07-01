@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ArchiveRoomRequest, ArchiveRoomResponse, BanRoomMemberRequest, BanRoomMemberResponse, CreateRoomRequest, CreateRoomResponse, JoinRoomGroupRequest, JoinRoomGroupResponse, JoinRoomRequest, JoinRoomResponse, LeaveRoomRequest, LeaveRoomResponse, ListRoomBansRequest, ListRoomBansResponse, SetRoomUniversalRequest, SetRoomUniversalResponse, StartDMRequest, StartDMResponse, UnarchiveRoomRequest, UnarchiveRoomResponse, UnbanRoomMemberRequest, UnbanRoomMemberResponse, UpdateRoomRequest, UpdateRoomResponse } from "./rooms_pb.js";
+import { ArchiveRoomRequest, ArchiveRoomResponse, BanRoomMemberRequest, BanRoomMemberResponse, CreateRoomRequest, CreateRoomResponse, JoinRoomGroupRequest, JoinRoomGroupResponse, JoinRoomRequest, JoinRoomResponse, LeaveRoomRequest, LeaveRoomResponse, ListRoomBansRequest, ListRoomBansResponse, StartDMRequest, StartDMResponse, UnarchiveRoomRequest, UnarchiveRoomResponse, UnbanRoomMemberRequest, UnbanRoomMemberResponse, UpdateRoomRequest, UpdateRoomResponse, UpdateRoomUniversalRequest, UpdateRoomUniversalResponse } from "./rooms_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -66,12 +66,12 @@ export const RoomService = {
      * Changes whether a channel room grants effective membership to eligible
      * server members. Direct-message rooms cannot be universal.
      *
-     * @generated from rpc chatto.api.v1.RoomService.SetRoomUniversal
+     * @generated from rpc chatto.api.v1.RoomService.UpdateRoomUniversal
      */
-    setRoomUniversal: {
-      name: "SetRoomUniversal",
-      I: SetRoomUniversalRequest,
-      O: SetRoomUniversalResponse,
+    updateRoomUniversal: {
+      name: "UpdateRoomUniversal",
+      I: UpdateRoomUniversalRequest,
+      O: UpdateRoomUniversalResponse,
       kind: MethodKind.Unary,
     },
     /**

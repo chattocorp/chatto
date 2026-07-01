@@ -10,7 +10,7 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-func (s *accountService) SetCustomStatus(ctx context.Context, req *connect.Request[apiv1.SetCustomStatusRequest]) (*connect.Response[apiv1.SetCustomStatusResponse], error) {
+func (s *accountService) UpdateCustomStatus(ctx context.Context, req *connect.Request[apiv1.UpdateCustomStatusRequest]) (*connect.Response[apiv1.UpdateCustomStatusResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -25,12 +25,12 @@ func (s *accountService) SetCustomStatus(ctx context.Context, req *connect.Reque
 		return nil, connectError(err)
 	}
 
-	return connect.NewResponse(&apiv1.SetCustomStatusResponse{
+	return connect.NewResponse(&apiv1.UpdateCustomStatusResponse{
 		Status: coreCustomStatusToAPI(updated.GetCustomStatus()),
 	}), nil
 }
 
-func (s *accountService) ClearCustomStatus(ctx context.Context, _ *connect.Request[apiv1.ClearCustomStatusRequest]) (*connect.Response[apiv1.ClearCustomStatusResponse], error) {
+func (s *accountService) DeleteCustomStatus(ctx context.Context, _ *connect.Request[apiv1.DeleteCustomStatusRequest]) (*connect.Response[apiv1.DeleteCustomStatusResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -40,7 +40,7 @@ func (s *accountService) ClearCustomStatus(ctx context.Context, _ *connect.Reque
 		return nil, connectError(err)
 	}
 
-	return connect.NewResponse(&apiv1.ClearCustomStatusResponse{
+	return connect.NewResponse(&apiv1.DeleteCustomStatusResponse{
 		Status: coreCustomStatusToAPI(updated.GetCustomStatus()),
 	}), nil
 }

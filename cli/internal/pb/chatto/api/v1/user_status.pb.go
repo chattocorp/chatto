@@ -86,8 +86,8 @@ func (x *CustomUserStatus) GetExpiresAt() *timestamppb.Timestamp {
 	return nil
 }
 
-// Request to set or replace the current user's custom status.
-type SetCustomStatusRequest struct {
+// Request to update or replace the current user's custom status.
+type UpdateCustomStatusRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Short emoji marker displayed with the status.
 	Emoji string `protobuf:"bytes,1,opt,name=emoji,proto3" json:"emoji,omitempty"`
@@ -99,20 +99,20 @@ type SetCustomStatusRequest struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *SetCustomStatusRequest) Reset() {
-	*x = SetCustomStatusRequest{}
+func (x *UpdateCustomStatusRequest) Reset() {
+	*x = UpdateCustomStatusRequest{}
 	mi := &file_chatto_api_v1_user_status_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *SetCustomStatusRequest) String() string {
+func (x *UpdateCustomStatusRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*SetCustomStatusRequest) ProtoMessage() {}
+func (*UpdateCustomStatusRequest) ProtoMessage() {}
 
-func (x *SetCustomStatusRequest) ProtoReflect() protoreflect.Message {
+func (x *UpdateCustomStatusRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_chatto_api_v1_user_status_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -124,34 +124,34 @@ func (x *SetCustomStatusRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use SetCustomStatusRequest.ProtoReflect.Descriptor instead.
-func (*SetCustomStatusRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use UpdateCustomStatusRequest.ProtoReflect.Descriptor instead.
+func (*UpdateCustomStatusRequest) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_user_status_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *SetCustomStatusRequest) GetEmoji() string {
+func (x *UpdateCustomStatusRequest) GetEmoji() string {
 	if x != nil {
 		return x.Emoji
 	}
 	return ""
 }
 
-func (x *SetCustomStatusRequest) GetText() string {
+func (x *UpdateCustomStatusRequest) GetText() string {
 	if x != nil {
 		return x.Text
 	}
 	return ""
 }
 
-func (x *SetCustomStatusRequest) GetExpiresAt() *timestamppb.Timestamp {
+func (x *UpdateCustomStatusRequest) GetExpiresAt() *timestamppb.Timestamp {
 	if x != nil {
 		return x.ExpiresAt
 	}
 	return nil
 }
 
-// Result of setting the current user's custom status.
-type SetCustomStatusResponse struct {
+// Result of updating the current user's custom status.
+type UpdateCustomStatusResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Stored custom status after validation and normalization.
 	Status        *CustomUserStatus `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`
@@ -159,20 +159,20 @@ type SetCustomStatusResponse struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *SetCustomStatusResponse) Reset() {
-	*x = SetCustomStatusResponse{}
+func (x *UpdateCustomStatusResponse) Reset() {
+	*x = UpdateCustomStatusResponse{}
 	mi := &file_chatto_api_v1_user_status_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *SetCustomStatusResponse) String() string {
+func (x *UpdateCustomStatusResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*SetCustomStatusResponse) ProtoMessage() {}
+func (*UpdateCustomStatusResponse) ProtoMessage() {}
 
-func (x *SetCustomStatusResponse) ProtoReflect() protoreflect.Message {
+func (x *UpdateCustomStatusResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_chatto_api_v1_user_status_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -184,39 +184,39 @@ func (x *SetCustomStatusResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use SetCustomStatusResponse.ProtoReflect.Descriptor instead.
-func (*SetCustomStatusResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use UpdateCustomStatusResponse.ProtoReflect.Descriptor instead.
+func (*UpdateCustomStatusResponse) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_user_status_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *SetCustomStatusResponse) GetStatus() *CustomUserStatus {
+func (x *UpdateCustomStatusResponse) GetStatus() *CustomUserStatus {
 	if x != nil {
 		return x.Status
 	}
 	return nil
 }
 
-// Request to clear the current user's custom status.
-type ClearCustomStatusRequest struct {
+// Request to delete the current user's custom status.
+type DeleteCustomStatusRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *ClearCustomStatusRequest) Reset() {
-	*x = ClearCustomStatusRequest{}
+func (x *DeleteCustomStatusRequest) Reset() {
+	*x = DeleteCustomStatusRequest{}
 	mi := &file_chatto_api_v1_user_status_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ClearCustomStatusRequest) String() string {
+func (x *DeleteCustomStatusRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ClearCustomStatusRequest) ProtoMessage() {}
+func (*DeleteCustomStatusRequest) ProtoMessage() {}
 
-func (x *ClearCustomStatusRequest) ProtoReflect() protoreflect.Message {
+func (x *DeleteCustomStatusRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_chatto_api_v1_user_status_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -228,13 +228,13 @@ func (x *ClearCustomStatusRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ClearCustomStatusRequest.ProtoReflect.Descriptor instead.
-func (*ClearCustomStatusRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use DeleteCustomStatusRequest.ProtoReflect.Descriptor instead.
+func (*DeleteCustomStatusRequest) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_user_status_proto_rawDescGZIP(), []int{3}
 }
 
-// Result of clearing the current user's custom status.
-type ClearCustomStatusResponse struct {
+// Result of deleting the current user's custom status.
+type DeleteCustomStatusResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Current custom status after the operation. Usually absent after a clear.
 	Status        *CustomUserStatus `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`
@@ -242,20 +242,20 @@ type ClearCustomStatusResponse struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *ClearCustomStatusResponse) Reset() {
-	*x = ClearCustomStatusResponse{}
+func (x *DeleteCustomStatusResponse) Reset() {
+	*x = DeleteCustomStatusResponse{}
 	mi := &file_chatto_api_v1_user_status_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ClearCustomStatusResponse) String() string {
+func (x *DeleteCustomStatusResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ClearCustomStatusResponse) ProtoMessage() {}
+func (*DeleteCustomStatusResponse) ProtoMessage() {}
 
-func (x *ClearCustomStatusResponse) ProtoReflect() protoreflect.Message {
+func (x *DeleteCustomStatusResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_chatto_api_v1_user_status_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -267,12 +267,12 @@ func (x *ClearCustomStatusResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ClearCustomStatusResponse.ProtoReflect.Descriptor instead.
-func (*ClearCustomStatusResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use DeleteCustomStatusResponse.ProtoReflect.Descriptor instead.
+func (*DeleteCustomStatusResponse) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_user_status_proto_rawDescGZIP(), []int{4}
 }
 
-func (x *ClearCustomStatusResponse) GetStatus() *CustomUserStatus {
+func (x *DeleteCustomStatusResponse) GetStatus() *CustomUserStatus {
 	if x != nil {
 		return x.Status
 	}
@@ -288,16 +288,16 @@ const file_chatto_api_v1_user_status_proto_rawDesc = "" +
 	"\x05emoji\x18\x01 \x01(\tR\x05emoji\x12\x12\n" +
 	"\x04text\x18\x02 \x01(\tR\x04text\x129\n" +
 	"\n" +
-	"expires_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\"}\n" +
-	"\x16SetCustomStatusRequest\x12\x14\n" +
+	"expires_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\"\x80\x01\n" +
+	"\x19UpdateCustomStatusRequest\x12\x14\n" +
 	"\x05emoji\x18\x01 \x01(\tR\x05emoji\x12\x12\n" +
 	"\x04text\x18\x02 \x01(\tR\x04text\x129\n" +
 	"\n" +
-	"expires_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\"R\n" +
-	"\x17SetCustomStatusResponse\x127\n" +
-	"\x06status\x18\x01 \x01(\v2\x1f.chatto.api.v1.CustomUserStatusR\x06status\"\x1a\n" +
-	"\x18ClearCustomStatusRequest\"T\n" +
-	"\x19ClearCustomStatusResponse\x127\n" +
+	"expires_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\"U\n" +
+	"\x1aUpdateCustomStatusResponse\x127\n" +
+	"\x06status\x18\x01 \x01(\v2\x1f.chatto.api.v1.CustomUserStatusR\x06status\"\x1b\n" +
+	"\x19DeleteCustomStatusRequest\"U\n" +
+	"\x1aDeleteCustomStatusResponse\x127\n" +
 	"\x06status\x18\x01 \x01(\v2\x1f.chatto.api.v1.CustomUserStatusR\x06statusB\xab\x01\n" +
 	"\x11com.chatto.api.v1B\x0fUserStatusProtoP\x01Z/hmans.de/chatto/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
 
@@ -315,18 +315,18 @@ func file_chatto_api_v1_user_status_proto_rawDescGZIP() []byte {
 
 var file_chatto_api_v1_user_status_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
 var file_chatto_api_v1_user_status_proto_goTypes = []any{
-	(*CustomUserStatus)(nil),          // 0: chatto.api.v1.CustomUserStatus
-	(*SetCustomStatusRequest)(nil),    // 1: chatto.api.v1.SetCustomStatusRequest
-	(*SetCustomStatusResponse)(nil),   // 2: chatto.api.v1.SetCustomStatusResponse
-	(*ClearCustomStatusRequest)(nil),  // 3: chatto.api.v1.ClearCustomStatusRequest
-	(*ClearCustomStatusResponse)(nil), // 4: chatto.api.v1.ClearCustomStatusResponse
-	(*timestamppb.Timestamp)(nil),     // 5: google.protobuf.Timestamp
+	(*CustomUserStatus)(nil),           // 0: chatto.api.v1.CustomUserStatus
+	(*UpdateCustomStatusRequest)(nil),  // 1: chatto.api.v1.UpdateCustomStatusRequest
+	(*UpdateCustomStatusResponse)(nil), // 2: chatto.api.v1.UpdateCustomStatusResponse
+	(*DeleteCustomStatusRequest)(nil),  // 3: chatto.api.v1.DeleteCustomStatusRequest
+	(*DeleteCustomStatusResponse)(nil), // 4: chatto.api.v1.DeleteCustomStatusResponse
+	(*timestamppb.Timestamp)(nil),      // 5: google.protobuf.Timestamp
 }
 var file_chatto_api_v1_user_status_proto_depIdxs = []int32{
 	5, // 0: chatto.api.v1.CustomUserStatus.expires_at:type_name -> google.protobuf.Timestamp
-	5, // 1: chatto.api.v1.SetCustomStatusRequest.expires_at:type_name -> google.protobuf.Timestamp
-	0, // 2: chatto.api.v1.SetCustomStatusResponse.status:type_name -> chatto.api.v1.CustomUserStatus
-	0, // 3: chatto.api.v1.ClearCustomStatusResponse.status:type_name -> chatto.api.v1.CustomUserStatus
+	5, // 1: chatto.api.v1.UpdateCustomStatusRequest.expires_at:type_name -> google.protobuf.Timestamp
+	0, // 2: chatto.api.v1.UpdateCustomStatusResponse.status:type_name -> chatto.api.v1.CustomUserStatus
+	0, // 3: chatto.api.v1.DeleteCustomStatusResponse.status:type_name -> chatto.api.v1.CustomUserStatus
 	4, // [4:4] is the sub-list for method output_type
 	4, // [4:4] is the sub-list for method input_type
 	4, // [4:4] is the sub-list for extension type_name

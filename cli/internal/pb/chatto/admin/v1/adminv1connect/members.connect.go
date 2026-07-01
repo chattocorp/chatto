@@ -51,9 +51,9 @@ const (
 	// AdminMemberServiceUpdateUserProcedure is the fully-qualified name of the AdminMemberService's
 	// UpdateUser RPC.
 	AdminMemberServiceUpdateUserProcedure = "/chatto.admin.v1.AdminMemberService/UpdateUser"
-	// AdminMemberServiceSetUserPasswordProcedure is the fully-qualified name of the
-	// AdminMemberService's SetUserPassword RPC.
-	AdminMemberServiceSetUserPasswordProcedure = "/chatto.admin.v1.AdminMemberService/SetUserPassword"
+	// AdminMemberServiceUpdateUserPasswordProcedure is the fully-qualified name of the
+	// AdminMemberService's UpdateUserPassword RPC.
+	AdminMemberServiceUpdateUserPasswordProcedure = "/chatto.admin.v1.AdminMemberService/UpdateUserPassword"
 	// AdminMemberServiceClearUsernameCooldownProcedure is the fully-qualified name of the
 	// AdminMemberService's ClearUsernameCooldown RPC.
 	AdminMemberServiceClearUsernameCooldownProcedure = "/chatto.admin.v1.AdminMemberService/ClearUsernameCooldown"
@@ -79,10 +79,10 @@ type AdminMemberServiceClient interface {
 	// Updates another user's login and/or display name as an admin action.
 	// Requires user.manage-accounts; the caller cannot target their own account.
 	UpdateUser(context.Context, *connect.Request[v1.UpdateUserRequest]) (*connect.Response[v1.UpdateUserResponse], error)
-	// Sets another user's password as an admin action. Requires
+	// Updates another user's password as an admin action. Requires
 	// user.manage-accounts and a fresh credential for the caller; the caller
 	// cannot target their own account.
-	SetUserPassword(context.Context, *connect.Request[v1.SetUserPasswordRequest]) (*connect.Response[v1.SetUserPasswordResponse], error)
+	UpdateUserPassword(context.Context, *connect.Request[v1.UpdateUserPasswordRequest]) (*connect.Response[v1.UpdateUserPasswordResponse], error)
 	// Clears the target user's self-service username-change cooldown. Requires
 	// user.manage-accounts.
 	ClearUsernameCooldown(context.Context, *connect.Request[v1.ClearUsernameCooldownRequest]) (*connect.Response[v1.ClearUsernameCooldownResponse], error)
@@ -139,10 +139,10 @@ func NewAdminMemberServiceClient(httpClient connect.HTTPClient, baseURL string, 
 			connect.WithSchema(adminMemberServiceMethods.ByName("UpdateUser")),
 			connect.WithClientOptions(opts...),
 		),
-		setUserPassword: connect.NewClient[v1.SetUserPasswordRequest, v1.SetUserPasswordResponse](
+		updateUserPassword: connect.NewClient[v1.UpdateUserPasswordRequest, v1.UpdateUserPasswordResponse](
 			httpClient,
-			baseURL+AdminMemberServiceSetUserPasswordProcedure,
-			connect.WithSchema(adminMemberServiceMethods.ByName("SetUserPassword")),
+			baseURL+AdminMemberServiceUpdateUserPasswordProcedure,
+			connect.WithSchema(adminMemberServiceMethods.ByName("UpdateUserPassword")),
 			connect.WithClientOptions(opts...),
 		),
 		clearUsernameCooldown: connect.NewClient[v1.ClearUsernameCooldownRequest, v1.ClearUsernameCooldownResponse](
@@ -168,7 +168,7 @@ type adminMemberServiceClient struct {
 	assignRole            *connect.Client[v1.AssignRoleRequest, v1.AssignRoleResponse]
 	revokeRole            *connect.Client[v1.RevokeRoleRequest, v1.RevokeRoleResponse]
 	updateUser            *connect.Client[v1.UpdateUserRequest, v1.UpdateUserResponse]
-	setUserPassword       *connect.Client[v1.SetUserPasswordRequest, v1.SetUserPasswordResponse]
+	updateUserPassword    *connect.Client[v1.UpdateUserPasswordRequest, v1.UpdateUserPasswordResponse]
 	clearUsernameCooldown *connect.Client[v1.ClearUsernameCooldownRequest, v1.ClearUsernameCooldownResponse]
 	deleteUser            *connect.Client[v1.DeleteUserRequest, v1.DeleteUserResponse]
 }
@@ -203,9 +203,9 @@ func (c *adminMemberServiceClient) UpdateUser(ctx context.Context, req *connect.
 	return c.updateUser.CallUnary(ctx, req)
 }
 
-// SetUserPassword calls chatto.admin.v1.AdminMemberService.SetUserPassword.
-func (c *adminMemberServiceClient) SetUserPassword(ctx context.Context, req *connect.Request[v1.SetUserPasswordRequest]) (*connect.Response[v1.SetUserPasswordResponse], error) {
-	return c.setUserPassword.CallUnary(ctx, req)
+// UpdateUserPassword calls chatto.admin.v1.AdminMemberService.UpdateUserPassword.
+func (c *adminMemberServiceClient) UpdateUserPassword(ctx context.Context, req *connect.Request[v1.UpdateUserPasswordRequest]) (*connect.Response[v1.UpdateUserPasswordResponse], error) {
+	return c.updateUserPassword.CallUnary(ctx, req)
 }
 
 // ClearUsernameCooldown calls chatto.admin.v1.AdminMemberService.ClearUsernameCooldown.
@@ -235,10 +235,10 @@ type AdminMemberServiceHandler interface {
 	// Updates another user's login and/or display name as an admin action.
 	// Requires user.manage-accounts; the caller cannot target their own account.
 	UpdateUser(context.Context, *connect.Request[v1.UpdateUserRequest]) (*connect.Response[v1.UpdateUserResponse], error)
-	// Sets another user's password as an admin action. Requires
+	// Updates another user's password as an admin action. Requires
 	// user.manage-accounts and a fresh credential for the caller; the caller
 	// cannot target their own account.
-	SetUserPassword(context.Context, *connect.Request[v1.SetUserPasswordRequest]) (*connect.Response[v1.SetUserPasswordResponse], error)
+	UpdateUserPassword(context.Context, *connect.Request[v1.UpdateUserPasswordRequest]) (*connect.Response[v1.UpdateUserPasswordResponse], error)
 	// Clears the target user's self-service username-change cooldown. Requires
 	// user.manage-accounts.
 	ClearUsernameCooldown(context.Context, *connect.Request[v1.ClearUsernameCooldownRequest]) (*connect.Response[v1.ClearUsernameCooldownResponse], error)
@@ -291,10 +291,10 @@ func NewAdminMemberServiceHandler(svc AdminMemberServiceHandler, opts ...connect
 		connect.WithSchema(adminMemberServiceMethods.ByName("UpdateUser")),
 		connect.WithHandlerOptions(opts...),
 	)
-	adminMemberServiceSetUserPasswordHandler := connect.NewUnaryHandler(
-		AdminMemberServiceSetUserPasswordProcedure,
-		svc.SetUserPassword,
-		connect.WithSchema(adminMemberServiceMethods.ByName("SetUserPassword")),
+	adminMemberServiceUpdateUserPasswordHandler := connect.NewUnaryHandler(
+		AdminMemberServiceUpdateUserPasswordProcedure,
+		svc.UpdateUserPassword,
+		connect.WithSchema(adminMemberServiceMethods.ByName("UpdateUserPassword")),
 		connect.WithHandlerOptions(opts...),
 	)
 	adminMemberServiceClearUsernameCooldownHandler := connect.NewUnaryHandler(
@@ -323,8 +323,8 @@ func NewAdminMemberServiceHandler(svc AdminMemberServiceHandler, opts ...connect
 			adminMemberServiceRevokeRoleHandler.ServeHTTP(w, r)
 		case AdminMemberServiceUpdateUserProcedure:
 			adminMemberServiceUpdateUserHandler.ServeHTTP(w, r)
-		case AdminMemberServiceSetUserPasswordProcedure:
-			adminMemberServiceSetUserPasswordHandler.ServeHTTP(w, r)
+		case AdminMemberServiceUpdateUserPasswordProcedure:
+			adminMemberServiceUpdateUserPasswordHandler.ServeHTTP(w, r)
 		case AdminMemberServiceClearUsernameCooldownProcedure:
 			adminMemberServiceClearUsernameCooldownHandler.ServeHTTP(w, r)
 		case AdminMemberServiceDeleteUserProcedure:
@@ -362,8 +362,8 @@ func (UnimplementedAdminMemberServiceHandler) UpdateUser(context.Context, *conne
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.admin.v1.AdminMemberService.UpdateUser is not implemented"))
 }
 
-func (UnimplementedAdminMemberServiceHandler) SetUserPassword(context.Context, *connect.Request[v1.SetUserPasswordRequest]) (*connect.Response[v1.SetUserPasswordResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.admin.v1.AdminMemberService.SetUserPassword is not implemented"))
+func (UnimplementedAdminMemberServiceHandler) UpdateUserPassword(context.Context, *connect.Request[v1.UpdateUserPasswordRequest]) (*connect.Response[v1.UpdateUserPasswordResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.admin.v1.AdminMemberService.UpdateUserPassword is not implemented"))
 }
 
 func (UnimplementedAdminMemberServiceHandler) ClearUsernameCooldown(context.Context, *connect.Request[v1.ClearUsernameCooldownRequest]) (*connect.Response[v1.ClearUsernameCooldownResponse], error) {
