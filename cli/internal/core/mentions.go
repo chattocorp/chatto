@@ -428,7 +428,7 @@ func (c *ChattoCore) MentionNotificationRecipientCountForBody(ctx context.Contex
 // inThread is the thread root event ID when the mention is on a message inside
 // a thread, or empty string for room-level messages. The frontend uses this to
 // route notification clicks directly into the thread pane.
-func (c *ChattoCore) notifyMentionedUsers(ctx context.Context, kind RoomKind, roomID, authorID, eventID, inThread string, mentionedUserIDs, directMentionedUserIDs []string) {
+func (c *ChattoCore) notifyMentionedUsers(ctx context.Context, kind RoomKind, roomID, authorID, eventID, inThread string, mentionedUserIDs, directMentionedUserIDs []string) []string {
 	directMentioned := make(map[string]struct{}, len(directMentionedUserIDs))
 	for _, userID := range directMentionedUserIDs {
 		if userID != "" {
@@ -436,6 +436,7 @@ func (c *ChattoCore) notifyMentionedUsers(ctx context.Context, kind RoomKind, ro
 		}
 	}
 
+	var newlyAutoFollowed []string
 	for _, mentionedUserID := range mentionedUserIDs {
 		// Don't notify the author if they mentioned themselves
 		if mentionedUserID == authorID {
@@ -484,6 +485,7 @@ func (c *ChattoCore) notifyMentionedUsers(ctx context.Context, kind RoomKind, ro
 						"thread_root_event_id", inThread,
 						"error", err)
 				} else if followed {
+					newlyAutoFollowed = append(newlyAutoFollowed, mentionedUserID)
 					c.logger.Debug("Auto-followed thread for mentioned user",
 						"mentioned_user_id", mentionedUserID,
 						"kind", kind,
@@ -519,4 +521,5 @@ func (c *ChattoCore) notifyMentionedUsers(ctx context.Context, kind RoomKind, ro
 			"kind", kind,
 			"room_id", roomID)
 	}
+	return newlyAutoFollowed
 }

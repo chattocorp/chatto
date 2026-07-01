@@ -1790,6 +1790,46 @@ func TestChattoCore_PostMessage_InReplyToNotification(t *testing.T) {
 		}
 	})
 
+	t.Run("thread mention keeps existing follower notification", func(t *testing.T) {
+		// Clear existing notifications
+		core.DismissAllNotifications(ctx, alice.Id)
+
+		// Alice posts a root message. The first thread reply auto-follows her
+		// as root author before notifications are fanned out.
+		rootMsg, err := core.PostMessage(ctx, KindChannel, room.Id, alice.Id, "Thread root with mention", nil, "", "", nil, false)
+		if err != nil {
+			t.Fatalf("Failed to post root: %v", err)
+		}
+
+		_, err = core.PostMessage(ctx, KindChannel, room.Id, bob.Id, "Hey @alice look at this", nil, rootMsg.Id, "", nil, false)
+		if err != nil {
+			t.Fatalf("Failed to post thread reply with mention: %v", err)
+		}
+
+		notifications, err := core.GetNotifications(ctx, alice.Id)
+		if err != nil {
+			t.Fatalf("GetNotifications error: %v", err)
+		}
+
+		mentionCount := 0
+		threadReplyCount := 0
+		for _, n := range notifications {
+			if mention := n.GetMention(); mention != nil && mention.InThread == rootMsg.Id {
+				mentionCount++
+			}
+			if reply := n.GetReply(); reply != nil && reply.InThread == rootMsg.Id {
+				threadReplyCount++
+			}
+		}
+
+		if mentionCount != 1 {
+			t.Errorf("Expected 1 thread mention notification, got %d", mentionCount)
+		}
+		if threadReplyCount != 1 {
+			t.Errorf("Expected 1 followed-thread notification, got %d", threadReplyCount)
+		}
+	})
+
 	t.Run("in-thread inReplyTo notifies original author with InThread set", func(t *testing.T) {
 		// Clear existing notifications
 		core.DismissAllNotifications(ctx, alice.Id)

@@ -685,8 +685,9 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 	}
 
 	// Notify mentioned users (best-effort, don't fail the message if this fails)
+	var newlyAutoFollowedMentionedUserIDs []string
 	if len(mentionedUserIDs) > 0 {
-		c.notifyMentionedUsers(ctx, kind, room_id, user_id, event.Id, inThread, mentionedUserIDs, directMentionedUserIDs)
+		newlyAutoFollowedMentionedUserIDs = c.notifyMentionedUsers(ctx, kind, room_id, user_id, event.Id, inThread, mentionedUserIDs, directMentionedUserIDs)
 	}
 
 	// Notify the author of the message being replied to (best-effort).
@@ -699,10 +700,11 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 	}
 
 	// Notify all thread participants (best-effort).
-	// Skip users already notified by mentions or inReplyTo; those are more
-	// specific notifications than the ambient followed-thread notification.
+	// Newly auto-followed mention recipients should not also get the ambient
+	// followed-thread notification for the same message. Existing followers
+	// still receive it, matching the existing server badge count behavior.
 	if inThread != "" {
-		skipIDs := append([]string(nil), mentionedUserIDs...)
+		skipIDs := append([]string(nil), newlyAutoFollowedMentionedUserIDs...)
 		if replyNotifiedUserID != "" {
 			skipIDs = append(skipIDs, replyNotifiedUserID)
 		}
