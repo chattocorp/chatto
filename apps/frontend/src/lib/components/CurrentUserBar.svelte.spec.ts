@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
+import '../../app.css';
 import { q } from '$lib/test-utils';
 import { PresenceStatus } from '$lib/render/types';
 import { presencePreference } from '$lib/state/presencePreference.svelte';
@@ -231,6 +232,45 @@ describe('CurrentUserBar', () => {
     expect(q(container, '[data-testid="current-user-identity-card"]')!.textContent).not.toContain(
       'Out for lunch'
     );
+  });
+
+  it('keeps the identity card at the same control height with long profile content', () => {
+    currentUserState.user = {
+      ...currentUserState.user!,
+      login: 'alice-with-a-very-long-login-name-that-must-truncate',
+      displayName: 'Alice With A Very Long Display Name That Must Stay Inside The User Card',
+      customStatus: {
+        emoji: '🍜',
+        text: 'chatto:status:out_for_lunch',
+        expiresAt: null
+      }
+    };
+
+    const { container } = render(CurrentUserBarTestHarness);
+    const bar = container.firstElementChild as HTMLElement;
+    bar.style.width = '224px';
+
+    const card = q(container, '[data-testid="current-user-identity-card"]')!;
+    const cardRect = card.getBoundingClientRect();
+    const controlReference = document.createElement('div');
+    controlReference.className = 'h-12';
+    document.body.append(controlReference);
+    const expectedHeight = controlReference.getBoundingClientRect().height;
+    controlReference.remove();
+
+    expect(expectedHeight).toBeGreaterThan(0);
+    expect(cardRect.height).toBe(expectedHeight);
+    expect(card.scrollHeight).toBeLessThanOrEqual(card.clientHeight);
+
+    for (const child of Array.from(card.children)) {
+      const rect = child.getBoundingClientRect();
+      expect(rect.top).toBeGreaterThanOrEqual(cardRect.top);
+      expect(rect.bottom).toBeLessThanOrEqual(cardRect.bottom);
+    }
+
+    const settingsIcon = q(card, 'a[href$="/settings"] .iconify')!;
+    const settingsIconRect = settingsIcon.getBoundingClientRect();
+    expect(settingsIconRect.height).toBeLessThan(cardRect.height / 2);
   });
 
   it('hides call controls when the user is not in a call', () => {
