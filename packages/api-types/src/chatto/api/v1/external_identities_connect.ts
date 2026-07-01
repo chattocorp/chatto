@@ -3,64 +3,8 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CancelExternalIdentityFlowRequest, CancelExternalIdentityFlowResponse, ConfirmExternalIdentityLinkRequest, ConfirmExternalIdentityLinkResponse, CreateExternalIdentityAccountRequest, CreateExternalIdentityAccountResponse, DisconnectExternalIdentityRequest, DisconnectExternalIdentityResponse, GetPendingExternalIdentityRequest, GetPendingExternalIdentityResponse, LinkExternalIdentityRequest, LinkExternalIdentityResponse, ListExternalIdentitiesRequest, ListExternalIdentitiesResponse, StartExternalIdentityLinkRequest, StartExternalIdentityLinkResponse } from "./external_identities_pb.js";
+import { DisconnectExternalIdentityRequest, DisconnectExternalIdentityResponse, LinkExternalIdentityRequest, LinkExternalIdentityResponse, ListExternalIdentitiesRequest, ListExternalIdentitiesResponse, StartExternalIdentityLinkRequest, StartExternalIdentityLinkResponse } from "./external_identities_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
-
-/**
- * Public pending external identity flow operations.
- *
- * @generated from service chatto.api.v1.ExternalIdentityFlowService
- */
-export const ExternalIdentityFlowService = {
-  typeName: "chatto.api.v1.ExternalIdentityFlowService",
-  methods: {
-    /**
-     * Reads safe metadata for a pending create/link flow. Returns NOT_FOUND when
-     * the token is unknown or expired.
-     *
-     * @generated from rpc chatto.api.v1.ExternalIdentityFlowService.GetPendingExternalIdentity
-     */
-    getPendingExternalIdentity: {
-      name: "GetPendingExternalIdentity",
-      I: GetPendingExternalIdentityRequest,
-      O: GetPendingExternalIdentityResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * Creates a passwordless account from a pending provider identity.
-     *
-     * @generated from rpc chatto.api.v1.ExternalIdentityFlowService.CreateExternalIdentityAccount
-     */
-    createExternalIdentityAccount: {
-      name: "CreateExternalIdentityAccount",
-      I: CreateExternalIdentityAccountRequest,
-      O: CreateExternalIdentityAccountResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * Links a provider identity using a pending link-flow capability token.
-     *
-     * @generated from rpc chatto.api.v1.ExternalIdentityFlowService.ConfirmExternalIdentityLink
-     */
-    confirmExternalIdentityLink: {
-      name: "ConfirmExternalIdentityLink",
-      I: ConfirmExternalIdentityLinkRequest,
-      O: ConfirmExternalIdentityLinkResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * Cancels a pending provider identity flow.
-     *
-     * @generated from rpc chatto.api.v1.ExternalIdentityFlowService.CancelExternalIdentityFlow
-     */
-    cancelExternalIdentityFlow: {
-      name: "CancelExternalIdentityFlow",
-      I: CancelExternalIdentityFlowRequest,
-      O: CancelExternalIdentityFlowResponse,
-      kind: MethodKind.Unary,
-    },
-  }
-} as const;
 
 /**
  * Authenticated external identity management.

@@ -293,7 +293,7 @@ async function expectPageStillResponsive(page: Page) {
 async function requestNetworkOnlyPaths(page: Page) {
   await page.evaluate(async () => {
     await Promise.allSettled([
-      fetch('/api/connect/chatto.api.v1.ServerDiscoveryService/GetServer', {
+      fetch('/api/connect/chatto.discovery.v1.ServerDiscoveryService/GetServer', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -315,7 +315,7 @@ async function cacheSnapshot(page: Page) {
       fallbackShellCached: Boolean(await caches.match('/200.html')),
       lazyStaticAssetCached: Boolean(await caches.match('/robots.txt')),
       apiDiscoveryCached: Boolean(
-        await caches.match('/api/connect/chatto.api.v1.ServerDiscoveryService/GetServer')
+        await caches.match('/api/connect/chatto.discovery.v1.ServerDiscoveryService/GetServer')
       ),
       apiConnectCached: Boolean(await caches.match('/api/connect')),
       uploadedAssetCached: Boolean(await caches.match('/assets/example.png'))

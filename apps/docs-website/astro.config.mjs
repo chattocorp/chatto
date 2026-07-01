@@ -62,9 +62,15 @@ export default defineConfig({
               items: [
                 "reference/connectrpc-api",
                 {
-                  label: "chatto.api.v1",
+                  label: "chatto.discovery.v1",
                   items: [
                     "reference/connectrpc-api/external-identity-flows",
+                    "reference/connectrpc-api/server-discovery",
+                  ],
+                },
+                {
+                  label: "chatto.api.v1",
+                  items: [
                     "reference/connectrpc-api/external-identities",
                     "reference/connectrpc-api/link-previews",
                     "reference/connectrpc-api/messages",
@@ -79,7 +85,6 @@ export default defineConfig({
                     "reference/connectrpc-api/room-members",
                     "reference/connectrpc-api/rooms",
                     "reference/connectrpc-api/room-timeline",
-                    "reference/connectrpc-api/server-discovery",
                     "reference/connectrpc-api/server-members",
                     "reference/connectrpc-api/server",
                     "reference/connectrpc-api/threads",

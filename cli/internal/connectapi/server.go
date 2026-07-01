@@ -8,6 +8,7 @@ import (
 	"connectrpc.com/connect"
 	"hmans.de/chatto/internal/config"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
+	discoveryv1 "hmans.de/chatto/internal/pb/chatto/discovery/v1"
 )
 
 type serverDiscoveryService struct {
@@ -18,12 +19,12 @@ type serverProfileOptions struct {
 	tolerateErrors bool
 }
 
-func (s *serverDiscoveryService) GetServer(ctx context.Context, _ *connect.Request[apiv1.GetServerRequest]) (*connect.Response[apiv1.GetServerResponse], error) {
+func (s *serverDiscoveryService) GetServer(ctx context.Context, _ *connect.Request[discoveryv1.GetServerRequest]) (*connect.Response[discoveryv1.GetServerResponse], error) {
 	profile, err := s.api.serverProfile(ctx, serverProfileOptions{tolerateErrors: true})
 	if err != nil {
 		return nil, err
 	}
-	response := &apiv1.GetServerResponse{
+	response := &discoveryv1.GetServerResponse{
 		Profile: profile,
 		Login: &apiv1.ServerLogin{
 			DirectRegistrationEnabled: s.api.config.Auth.DirectRegistrationOrDefault(),

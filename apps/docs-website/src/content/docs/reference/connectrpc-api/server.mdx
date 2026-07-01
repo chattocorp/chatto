@@ -4,7 +4,7 @@ description: Authenticated server state and current-user server capability RPCs.
 editUrl: false
 ---
 
-{/* Generated from proto/chatto/{api,admin,realtime}/v1/*.proto. Do not edit directly. */}
+{/* Generated from proto/chatto/{discovery,api,admin,realtime}/v1/*.proto. Do not edit directly. */}
 
 Chatto exposes this service below `/api/connect`.
 
@@ -26,7 +26,7 @@ Provides authenticated server state and current user's server capabilities.
 
 Returns authenticated server state. This RPC requires a logged-in user;
 public discovery remains available through
-ServerDiscoveryService.GetServer.
+chatto.discovery.v1.ServerDiscoveryService.GetServer.
 
 ```http
 POST /api/connect/chatto.api.v1.ServerService/GetServerState

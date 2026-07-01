@@ -4,7 +4,7 @@ description: Unauthenticated server metadata, branding, and login discovery RPCs
 editUrl: false
 ---
 
-{/* Generated from proto/chatto/{api,admin,realtime}/v1/*.proto. Do not edit directly. */}
+{/* Generated from proto/chatto/{discovery,api,admin,realtime}/v1/*.proto. Do not edit directly. */}
 
 Chatto exposes this service below `/api/connect`.
 
@@ -14,32 +14,32 @@ Shared message and enum definitions are documented in [Shared Types And Enums](/
 
 
 
-<a id="chatto-api-v1-ServerDiscoveryService"></a>
+<a id="chatto-discovery-v1-ServerDiscoveryService"></a>
 
 ## ServerDiscoveryService
 
-Provides public server discovery metadata.
+Provides unauthenticated server discovery metadata.
 
-<a id="chatto-api-v1-ServerDiscoveryService-GetServer"></a>
+<a id="chatto-discovery-v1-ServerDiscoveryService-GetServer"></a>
 
 ### GetServer
 
 Returns public server metadata, branding, registration status, and login
-provider information. This RPC is available before login so clients can
-render the first server screen and authentication choices.
+provider information. This fully public RPC is available before login so
+clients can render the first server screen and authentication choices.
 
 ```http
-POST /api/connect/chatto.api.v1.ServerDiscoveryService/GetServer
+POST /api/connect/chatto.discovery.v1.ServerDiscoveryService/GetServer
 ```
 
-<a id="chatto-api-v1-GetServerRequest"></a>
+<a id="chatto-discovery-v1-GetServerRequest"></a>
 
 #### Input: GetServerRequest
 
 Request for public server metadata.
 
 
-<a id="chatto-api-v1-GetServerResponse"></a>
+<a id="chatto-discovery-v1-GetServerResponse"></a>
 
 #### Result: GetServerResponse
 
@@ -48,5 +48,5 @@ initial server view.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `profile` | [`ServerPublicProfile`](/reference/connectrpc-api/types/#chatto-api-v1-ServerPublicProfile) | Public server profile and branding. |
-| `login` | [`ServerLogin`](/reference/connectrpc-api/types/#chatto-api-v1-ServerLogin) | Login and registration options. |
+| `profile` | [`chatto.api.v1.ServerPublicProfile`](/reference/connectrpc-api/types/#chatto-api-v1-ServerPublicProfile) | Public server profile and branding. |
+| `login` | [`chatto.api.v1.ServerLogin`](/reference/connectrpc-api/types/#chatto-api-v1-ServerLogin) | Login and registration options. |

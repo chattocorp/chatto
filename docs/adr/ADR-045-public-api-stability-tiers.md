@@ -18,28 +18,37 @@ changing an integration contract.
 Previous discussion considered splitting the surface by default into
 integration and app packages. The API cleanup work kept a broad, coherent
 `chatto.api.v1` base surface, moved reusable user, pagination, and response
-semantics into shared shapes, and then split clearly administrative and
-realtime protocol concerns into separate packages. That leaves one remaining
-question: which parts of the protobuf API carry which stability promise?
+semantics into shared shapes, split unauthenticated discovery/bootstrap flows
+into `chatto.discovery.v1`, and then split clearly administrative and realtime
+protocol concerns into separate packages. That leaves one remaining question:
+which parts of the protobuf API carry which stability promise?
 
 ## Decision
 
-Chatto defines four public API stability tiers:
+Chatto defines five public API stability tiers:
 
-1. **Integration API**: `chatto.api.v1` ConnectRPC services and shared messages
+1. **Discovery API**: `chatto.discovery.v1` ConnectRPC services for
+   unauthenticated bootstrap and capability-token flows, such as server/login
+   discovery and pending external identity confirmation.
+2. **Integration API**: `chatto.api.v1` ConnectRPC services and shared messages
    that represent coherent external-client behavior. This is the default home
-   for public and frontend-used APIs.
-2. **Administrative API**: `chatto.admin.v1` ConnectRPC services for public but
+   for authenticated public and frontend-used APIs.
+3. **Administrative API**: `chatto.admin.v1` ConnectRPC services for public but
    visibly administrative operations such as server settings, roles,
    permissions, member administration, diagnostics, and audit-log reads.
-3. **Bundled app API**: exceptional protobuf APIs that are inherently tied to
+4. **Bundled app API**: exceptional protobuf APIs that are inherently tied to
    one bundled web-client workflow and do not make sense as an external
    integration contract. These may use a separate app-specific namespace later,
    but only with an explicit reason.
-4. **Realtime protocol**: `chatto.realtime.v1.Realtime*` protobuf frames exchanged at
+5. **Realtime protocol**: `chatto.realtime.v1.Realtime*` protobuf frames exchanged at
    `/api/realtime`. These are documented separately from ConnectRPC because
    their compatibility model includes long-lived connection control, heartbeat,
    and reconnect behavior.
+
+`chatto.discovery.v1` is intentionally narrow. It contains RPCs that must work
+before the caller has a normal session, plus RPCs whose security boundary is a
+short-lived capability token carried in the request. Public-but-authenticated
+read APIs remain integration APIs, not discovery APIs.
 
 `chatto.api.v1` remains integration-first. Frontend-used APIs should stay in
 that package when they can be explained as normal external-client operations.
@@ -48,10 +57,11 @@ frontend is their first consumer. The project should not move rough edges into
 an app package merely to avoid cleaning the integration surface.
 
 Within each tier, public API design follows the resource-completeness and
-operation-vocabulary rules in ADR-044. The integration, administrative, and
-realtime surfaces should be coherent enough for external clients and future
-contributors to infer where new features belong. A current frontend screen is a
-useful consumer, but it is not the boundary of the API contract.
+operation-vocabulary rules in ADR-044. The discovery, integration,
+administrative, and realtime surfaces should be coherent enough for external
+clients and future contributors to infer where new features belong. A current
+frontend screen is a useful consumer, but it is not the boundary of the API
+contract.
 
 The integration API follows these rules:
 
@@ -86,23 +96,25 @@ or a new protocol version.
 Generated API reference documentation is split by domain instead of presented
 as one large mixed page. ConnectRPC service pages, shared ConnectRPC types, and
 realtime frames are distinct references, while `proto/chatto/api/v1/*.proto`,
-`proto/chatto/admin/v1/*.proto`, and `proto/chatto/realtime/v1/*.proto` remain
-the source of truth.
+`proto/chatto/admin/v1/*.proto`, `proto/chatto/discovery/v1/*.proto`, and
+`proto/chatto/realtime/v1/*.proto` remain the source of truth.
 
 CI runs Buf breaking-change checks against `origin/main` and codegen drift
 checks. These checks are guardrails, not a replacement for compatibility review:
 pre-1.0 public API breaking changes can still be accepted when the PR carries
 the `api-breaking-change` label and states the compatibility plan. That label
 only suppresses public API breaking checks for `chatto/api/v1`,
-`chatto/admin/v1`, and `chatto/realtime/v1`; storage and internal protobuf
-checks, including `chatto/core/v1`, still run.
+`chatto/admin/v1`, `chatto/discovery/v1`, and `chatto/realtime/v1`; storage and
+internal protobuf checks, including `chatto/core/v1`, still run.
 
 ## Consequences
 
-Contributors have a default answer for new RPCs: put normal client/integration
-behavior in `chatto.api.v1`, put administrative behavior in `chatto.admin.v1`,
-and make the semantics clean enough for their intended public consumers. A
-separate app namespace is available only for clearly app-specific behavior.
+Contributors have a default answer for new RPCs: put unauthenticated bootstrap
+or capability-token behavior in `chatto.discovery.v1`, put normal
+client/integration behavior in `chatto.api.v1`, put administrative behavior in
+`chatto.admin.v1`, and make the semantics clean enough for their intended
+public consumers. A separate app namespace is available only for clearly
+app-specific behavior.
 
 Generated docs become easier to navigate because ConnectRPC services are
 grouped by domain, administrative services are visibly separate, and realtime

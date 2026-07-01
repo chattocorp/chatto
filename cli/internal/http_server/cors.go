@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	serverDiscoveryConnectPath = connectAPIPrefix + "/chatto.api.v1.ServerDiscoveryService/GetServer"
+	serverDiscoveryConnectPath = connectAPIPrefix + "/chatto.discovery.v1.ServerDiscoveryService/GetServer"
 	corsAllowedHeaders         = "Authorization, Content-Type, Connect-Protocol-Version, Connect-Timeout-Ms, X-CSRF-Token, Range, If-None-Match, If-Modified-Since, X-Chatto-Asset-Proxy"
 )
 

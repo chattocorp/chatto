@@ -18,17 +18,27 @@ ConnectRPC should remain a transport boundary. Chatto's domain behavior still be
 
 ## Decision
 
-All public ConnectRPC services live under `proto/chatto/api/v1` and are implemented through generated Connect handlers. Public API protobuf comments are part of the API documentation and should describe caller-visible behavior, not implementation workflow.
+Public ConnectRPC services live under purpose-specific public proto packages and
+are implemented through generated Connect handlers. Public API protobuf comments
+are part of the API documentation and should describe caller-visible behavior,
+not implementation workflow.
 
-`chatto.api.v1` is the broad base API surface for both integrations and the bundled web client. Frontend-used features should stay in this base API when their semantics can be made coherent for external clients. A separate app-specific API namespace is acceptable only for behavior that is inherently tied to one bundled client implementation; those APIs still need enough stability for mixed bundled client/server versions. ADR-045 defines the integration API, bundled app API, and realtime protocol stability tiers.
+`chatto.discovery.v1` is the narrow unauthenticated bootstrap and
+capability-token surface. It is for calls a client can make before it has a
+normal Chatto session, such as server metadata/login discovery and pending
+external-identity confirmation. It is not a home for ordinary authenticated
+read-only APIs.
+
+`chatto.api.v1` is the broad base API surface for both integrations and the bundled web client. Frontend-used features should stay in this base API when their semantics can be made coherent for external clients. A separate app-specific API namespace is acceptable only for behavior that is inherently tied to one bundled client implementation; those APIs still need enough stability for mixed bundled client/server versions. ADR-045 defines the discovery, integration, bundled app, and realtime protocol stability tiers.
 
 Public API packages should be resource-complete within their domain. The
-`chatto.api.v1`, `chatto.admin.v1`, and `chatto.realtime.v1` surfaces are not
-shaped only around the bundled frontend's current screens. When Chatto exposes a
-resource publicly, the service should provide the natural public, administrative,
-or realtime operations for that resource unless an operation is intentionally
-unsupported and documented. The absence of a current bundled frontend caller is
-not enough reason to omit a coherent public operation.
+`chatto.discovery.v1`, `chatto.api.v1`, `chatto.admin.v1`, and
+`chatto.realtime.v1` surfaces are not shaped only around the bundled frontend's
+current screens. When Chatto exposes a resource publicly, the service should
+provide the natural discovery, public, administrative, or realtime operations
+for that resource unless an operation is intentionally unsupported and
+documented. The absence of a current bundled frontend caller is not enough
+reason to omit a coherent public operation.
 
 Resource-oriented ConnectRPC services should use consistent operation
 vocabulary. The default lifecycle verbs are:

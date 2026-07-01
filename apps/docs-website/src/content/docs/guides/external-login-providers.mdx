@@ -272,12 +272,12 @@ Verified email matters for email password reset and for `owners.emails` owner pr
 
 Public clients can discover configured providers through server discovery:
 
-- `ServerDiscoveryService.GetServer` returns provider IDs, types, labels, and login URLs in `login.providers`.
+- `chatto.discovery.v1.ServerDiscoveryService.GetServer` returns provider IDs, types, labels, and login URLs in `login.providers`.
 
 You can call the discovery RPC with Connect JSON:
 
 ```sh
-curl -X POST https://chat.example.com/api/connect/chatto.api.v1.ServerDiscoveryService/GetServer \
+curl -X POST https://chat.example.com/api/connect/chatto.discovery.v1.ServerDiscoveryService/GetServer \
   -H 'Content-Type: application/json' \
   -H 'Connect-Protocol-Version: 1' \
   --data '{}'

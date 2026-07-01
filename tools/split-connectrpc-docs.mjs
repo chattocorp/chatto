@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(scriptDir, '..');
 const rawReferencePaths = [
+  path.join(repoRoot, 'apps/docs-website/src/generated/connectrpc-api/discovery.raw.mdx'),
   path.join(repoRoot, 'apps/docs-website/src/generated/connectrpc-api/api.raw.mdx'),
   path.join(repoRoot, 'apps/docs-website/src/generated/connectrpc-api/admin.raw.mdx'),
   path.join(repoRoot, 'apps/docs-website/src/generated/connectrpc-api/realtime.raw.mdx')
@@ -20,14 +21,25 @@ const outputDir = path.join(
 
 const categories = [
   {
-    title: 'chatto.api.v1',
+    title: 'chatto.discovery.v1',
     services: [
       {
         name: 'ExternalIdentityFlowService',
         slug: 'external-identity-flows',
         title: 'External Identity Flows',
-        description: 'Public pending external-identity confirmation RPCs.'
+        description: 'Capability-token external identity confirmation RPCs.'
       },
+      {
+        name: 'ServerDiscoveryService',
+        slug: 'server-discovery',
+        title: 'Server Discovery',
+        description: 'Unauthenticated server metadata, branding, and login discovery RPCs.'
+      }
+    ]
+  },
+  {
+    title: 'chatto.api.v1',
+    services: [
       {
         name: 'ExternalIdentityService',
         slug: 'external-identities',
@@ -111,12 +123,6 @@ const categories = [
         slug: 'room-timeline',
         title: 'Room Timeline',
         description: 'Room and thread timeline read RPCs.'
-      },
-      {
-        name: 'ServerDiscoveryService',
-        slug: 'server-discovery',
-        title: 'Server Discovery',
-        description: 'Unauthenticated server metadata, branding, and login discovery RPCs.'
       },
       {
         name: 'ServerMemberService',
@@ -212,7 +218,7 @@ function frontmatter(title, description) {
 }
 
 function generatedNotice() {
-  return '{/* Generated from proto/chatto/{api,admin,realtime}/v1/*.proto. Do not edit directly. */}\n\n';
+  return '{/* Generated from proto/chatto/{discovery,api,admin,realtime}/v1/*.proto. Do not edit directly. */}\n\n';
 }
 
 function parseAnchoredSections(source, heading) {
@@ -231,15 +237,21 @@ function parseAnchoredSections(source, heading) {
 }
 
 function rewriteServiceTypeLinks(section) {
-  return section.replace(
-    /\]\(#(chatto-(?:api|admin)-v1-[^)]+)\)/g,
-    '](/reference/connectrpc-api/types/#$1)'
-  );
+  return section
+    .replace(
+      /\]\(#(chatto-(?:discovery|api|admin)-v1-[^)]+)\)/g,
+      '](/reference/connectrpc-api/types/#$1)'
+    )
+    .replace(
+      /`chatto\.(discovery|api|admin)\.v1\.([A-Za-z][A-Za-z0-9_]*)`/g,
+      (_match, pkg, typeName) =>
+        `[\`chatto.${pkg}.v1.${typeName}\`](/reference/connectrpc-api/types/#chatto-${pkg}-v1-${typeName})`
+    );
 }
 
 function rewriteRealtimeExternalLinks(section) {
   return section.replace(
-    /\]\(#(chatto-(?:api|admin)-v1-[^)]+)\)/g,
+    /\]\(#(chatto-(?:discovery|api|admin)-v1-[^)]+)\)/g,
     '](/reference/connectrpc-api/types/#$1)'
   );
 }
@@ -271,14 +283,16 @@ function renderLanding() {
     'For example, public server discovery is:',
     '',
     '```txt',
-    'POST /api/connect/chatto.api.v1.ServerDiscoveryService/GetServer',
+    'POST /api/connect/chatto.discovery.v1.ServerDiscoveryService/GetServer',
     '```',
     '',
-    'Public discovery is unauthenticated. Most other RPCs require an `Authorization: Bearer <token>` header, or a browser session when called by the bundled web client.',
+    '`chatto.discovery.v1` server discovery is unauthenticated. Most other RPCs require an `Authorization: Bearer <token>` header, a capability token carried in the request, or a browser session when called by the bundled web client.',
     '',
     '## Authentication And Permissions',
     '',
-    '[ServerDiscoveryService.GetServer](/reference/connectrpc-api/server-discovery/#chatto-api-v1-ServerDiscoveryService-GetServer) is public so clients can discover branding, registration state, and login providers before a user signs in.',
+    '[ServerDiscoveryService.GetServer](/reference/connectrpc-api/server-discovery/#chatto-discovery-v1-ServerDiscoveryService-GetServer) is public so clients can discover branding, registration state, and login providers before a user signs in.',
+    '',
+    '`chatto.discovery.v1` also contains capability-token flows, such as pending external identity confirmation. Those RPCs are unauthenticated at the session layer but require a valid flow token in the request.',
     '',
     'Most `chatto.api.v1` calls require an authenticated user. Non-browser clients should send `Authorization: Bearer <token>`; browser clients can use the active Chatto session. See [External Login Providers](/guides/external-login-providers/) for login-provider discovery and sign-in configuration.',
     '',
@@ -288,10 +302,16 @@ function renderLanding() {
     '',
     'The API is split by who uses each part and how clients connect to it.',
     '',
+    '**`chatto.discovery.v1`**',
+    '',
+    '- **Transport:** ConnectRPC unary RPCs.',
+    '- **Covers:** Pre-authentication bootstrap and capability-token flows, such as server metadata/login discovery and pending external identity confirmation.',
+    '- **Contract:** Public discovery API for clients that do not have a normal Chatto session yet.',
+    '',
     '**`chatto.api.v1`**',
     '',
     '- **Transport:** ConnectRPC unary RPCs.',
-    '- **Covers:** Normal client and integration behavior: discovery, profile reads, room navigation, messages, reactions, notifications, calls, attachments, and preferences.',
+    '- **Covers:** Normal authenticated client and integration behavior: profile reads, room navigation, messages, reactions, notifications, calls, attachments, and preferences.',
     '- **Contract:** Public client API for integrations, bots, alternate clients, and the bundled web app.',
     '',
     '**`chatto.admin.v1`**',
@@ -317,7 +337,7 @@ function renderLanding() {
     '/api/connect/grpc.reflection.v1alpha.ServerReflection/ServerReflectionInfo',
     '```',
     '',
-    'Reflection lets tools resolve service and message descriptors without a local copy of the `.proto` files. Chatto limits reflection to public `chatto.api.v1` and `chatto.admin.v1` descriptors plus required imports.',
+    'Reflection lets tools resolve service and message descriptors without a local copy of the `.proto` files. Chatto limits reflection to public `chatto.discovery.v1`, `chatto.api.v1`, and `chatto.admin.v1` descriptors plus required imports.',
     '',
     'Because Chatto mounts ConnectRPC under `/api/connect`, use tools that accept a full Connect URL, such as `buf curl`. gRPC tools that only dial services at the host root need a proxy or path rewrite.',
     '',
@@ -325,14 +345,14 @@ function renderLanding() {
     '',
     '### Public JSON request with curl',
     '',
-    'The Connect protocol accepts JSON for unary requests, which makes [ServerDiscoveryService.GetServer](/reference/connectrpc-api/server-discovery/#chatto-api-v1-ServerDiscoveryService-GetServer) easy to test with ordinary HTTP tools:',
+    'The Connect protocol accepts JSON for unary requests, which makes [ServerDiscoveryService.GetServer](/reference/connectrpc-api/server-discovery/#chatto-discovery-v1-ServerDiscoveryService-GetServer) easy to test with ordinary HTTP tools:',
     '',
     '```sh',
     'curl -X POST \\',
     '  -H "Content-Type: application/json" \\',
     '  -H "Connect-Protocol-Version: 1" \\',
     "  -d '{}' \\",
-    '  https://chat.example.com/api/connect/chatto.api.v1.ServerDiscoveryService/GetServer',
+    '  https://chat.example.com/api/connect/chatto.discovery.v1.ServerDiscoveryService/GetServer',
     '```',
     '',
     '### Authenticated JSON request',
@@ -350,12 +370,12 @@ function renderLanding() {
     '',
     '### Reflection-backed protobuf call with buf curl',
     '',
-    '`buf curl` uses protobuf schemas and can speak the Connect, gRPC, or gRPC-Web protocols. It accepts request data as protobuf JSON for CLI ergonomics, then uses reflection to resolve the request and response types. This example calls [ServerDiscoveryService.GetServer](/reference/connectrpc-api/server-discovery/#chatto-api-v1-ServerDiscoveryService-GetServer) over the Connect protocol:',
+    '`buf curl` uses protobuf schemas and can speak the Connect, gRPC, or gRPC-Web protocols. It accepts request data as protobuf JSON for CLI ergonomics, then uses reflection to resolve the request and response types. This example calls [ServerDiscoveryService.GetServer](/reference/connectrpc-api/server-discovery/#chatto-discovery-v1-ServerDiscoveryService-GetServer) over the Connect protocol:',
     '',
     '```sh',
     'buf curl --protocol connect \\',
     "  -d '{}' \\",
-    '  https://chat.example.com/api/connect/chatto.api.v1.ServerDiscoveryService/GetServer',
+    '  https://chat.example.com/api/connect/chatto.discovery.v1.ServerDiscoveryService/GetServer',
     '```',
     '',
     'For a local plaintext server, use HTTP/2 prior knowledge. You can also switch to gRPC protobuf framing with `--protocol grpc`:',
@@ -364,7 +384,7 @@ function renderLanding() {
     'buf curl --http2-prior-knowledge \\',
     '  --protocol grpc \\',
     "  -d '{}' \\",
-    '  http://localhost:4000/api/connect/chatto.api.v1.ServerDiscoveryService/GetServer',
+    '  http://localhost:4000/api/connect/chatto.discovery.v1.ServerDiscoveryService/GetServer',
     '```',
     '',
     'Add `-v` to see the reflection request before the actual RPC. The first request resolves the schema through `/api/connect/grpc.reflection.v1.ServerReflection/ServerReflectionInfo`; the second request calls your target service.',
@@ -373,14 +393,14 @@ function renderLanding() {
     '',
     'Generated clients and `buf curl` are usually easier, but unary Connect calls can also use raw protobuf wire bytes. Send `Content-Type: application/proto`; the request body is the serialized protobuf request message, and the response body is the serialized protobuf response message.',
     '',
-    '[ServerDiscoveryService.GetServer](/reference/connectrpc-api/server-discovery/#chatto-api-v1-ServerDiscoveryService-GetServer) has an empty request message, so an empty binary body is valid:',
+    '[ServerDiscoveryService.GetServer](/reference/connectrpc-api/server-discovery/#chatto-discovery-v1-ServerDiscoveryService-GetServer) has an empty request message, so an empty binary body is valid:',
     '',
     '```sh',
     'curl -X POST \\',
     '  -H "Content-Type: application/proto" \\',
     '  --data-binary "" \\',
     '  --output get-server.bin \\',
-    '  https://chat.example.com/api/connect/chatto.api.v1.ServerDiscoveryService/GetServer',
+    '  https://chat.example.com/api/connect/chatto.discovery.v1.ServerDiscoveryService/GetServer',
     '```',
     '',
     '`get-server.bin` contains a protobuf-encoded `GetServerResponse`. Decode it with generated code or a protobuf tool that has the Chatto schema.',
@@ -392,7 +412,7 @@ function renderLanding() {
     '```ts',
     'import { createClient } from "@connectrpc/connect";',
     'import { createConnectTransport } from "@connectrpc/connect-web";',
-    'import { ServerDiscoveryService } from "./gen/chatto/api/v1/server_connect";',
+    'import { ServerDiscoveryService } from "./gen/chatto/discovery/v1/server_connect";',
     '',
     'const transport = createConnectTransport({',
     '  baseUrl: "https://chat.example.com/api/connect",',
@@ -428,7 +448,7 @@ function renderLanding() {
     '',
     '## Versioning And Stability',
     '',
-    'Package names such as `chatto.api.v1` and `chatto.admin.v1` identify the public API contract that clients integrate with.',
+    'Package names such as `chatto.discovery.v1`, `chatto.api.v1`, and `chatto.admin.v1` identify the public API contract that clients integrate with.',
     '',
     'Chatto is still pre-1.0, so public API details may change between releases. Check this reference for the Chatto server version you target, and use generated clients that match that server version.',
     '',

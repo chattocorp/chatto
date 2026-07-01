@@ -64,6 +64,6 @@ message GetServerStateResponse {
 service ServerService {
   // Returns authenticated server state. This RPC requires a logged-in user;
   // public discovery remains available through
-  // ServerDiscoveryService.GetServer.
+  // chatto.discovery.v1.ServerDiscoveryService.GetServer.
   rpc GetServerState(GetServerStateRequest) returns (GetServerStateResponse);
 }

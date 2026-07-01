@@ -7,6 +7,9 @@ first consumer.
 ## API Surface
 
 - Keep ordinary public/frontend-used API in `package chatto.api.v1`.
+- Keep unauthenticated bootstrap and capability-token flows in
+  `package chatto.discovery.v1`; do not put ordinary authenticated integration
+  APIs there just because they are public.
 - Do not introduce an app-only namespace unless the behavior is inherently tied
   to one bundled client implementation and is unsuitable for external
   integrations.

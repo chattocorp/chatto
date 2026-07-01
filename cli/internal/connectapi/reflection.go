@@ -13,9 +13,12 @@ import (
 	"google.golang.org/protobuf/types/descriptorpb"
 	"hmans.de/chatto/internal/pb/chatto/admin/v1/adminv1connect"
 	"hmans.de/chatto/internal/pb/chatto/api/v1/apiv1connect"
+	"hmans.de/chatto/internal/pb/chatto/discovery/v1/discoveryv1connect"
 )
 
 var publicReflectionServiceNames = []string{
+	discoveryv1connect.ExternalIdentityFlowServiceName,
+	discoveryv1connect.ServerDiscoveryServiceName,
 	apiv1connect.MyAccountServiceName,
 	adminv1connect.AdminDiagnosticsServiceName,
 	adminv1connect.AdminEventLogServiceName,
@@ -36,7 +39,6 @@ var publicReflectionServiceNames = []string{
 	apiv1connect.RoomMemberServiceName,
 	apiv1connect.RoomServiceName,
 	apiv1connect.RoomTimelineServiceName,
-	apiv1connect.ServerDiscoveryServiceName,
 	apiv1connect.ServerMemberServiceName,
 	apiv1connect.ServerServiceName,
 	apiv1connect.ThreadServiceName,

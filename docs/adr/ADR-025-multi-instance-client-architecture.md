@@ -16,7 +16,7 @@ Users wanted to connect to multiple Chatto instances from a single client (simil
 
 The frontend is instance-agnostic by default. It doesn't assume it's served by a Chatto instance. Instead:
 
-1. **Probe-based origin detection**: On init, call `ServerDiscoveryService.GetServer` on the current origin. If it responds, auto-register the origin as an instance. If it fails (static hosting), skip.
+1. **Probe-based origin detection**: On init, call `chatto.discovery.v1.ServerDiscoveryService.GetServer` on the current origin. If it responds, auto-register the origin as an instance. If it fails (static hosting), skip.
 2. **No `isHome` flag**: The origin instance is identified by comparing `instance.url` to `window.location.origin` at runtime — no stored flag.
 3. **Bearer-first client auth**: The client stores opaque bearer tokens in `localStorage` for every authenticated instance, including the origin when direct login or registration returns a token. Cookie auth remains as an origin-only fallback for compatibility flows that have not yet handed the SPA a bearer token.
 
@@ -63,7 +63,7 @@ Bearer tokens use NATS KV TTL (default 90 days). Each successful `ValidateAuthTo
   a report-only CSP with Trusted Types reporting so deployments can surface
   dangerous script and DOM-sink patterns before policy enforcement is viable for
   the multi-server client.
-- `ServerDiscoveryService.GetServer` is the only ConnectRPC endpoint with unconditional wildcard CORS — rich data needed pre-registration must go there, not in authenticated ConnectRPC calls
+- `chatto.discovery.v1.ServerDiscoveryService.GetServer` is the only ConnectRPC endpoint with unconditional wildcard CORS — rich data needed pre-registration must go there, not in authenticated ConnectRPC calls
 - Separately hosted multi-instance frontends must be listed explicitly in each remote server's `webserver.oauth_redirect_origins` or exact `webserver.allowed_origins` before OAuth authorization codes can redirect back to them; wildcard CORS does not imply OAuth redirect trust. `oauth_redirect_origins = ["*"]` exists only as a temporary controlled-alpha escape hatch.
 - Users approve the first OAuth authorization for each trusted client origin; Chatto remembers that consent per user + origin instead of relying on an operator-managed OAuth client registry
 - The probe is async for unauthenticated users, so the origin may not be registered by the time the first render completes

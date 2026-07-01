@@ -32,6 +32,8 @@ import (
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	"hmans.de/chatto/internal/pb/chatto/api/v1/apiv1connect"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	discoveryv1 "hmans.de/chatto/internal/pb/chatto/discovery/v1"
+	"hmans.de/chatto/internal/pb/chatto/discovery/v1/discoveryv1connect"
 	operatorv1 "hmans.de/chatto/internal/pb/chatto/operator/v1"
 	"hmans.de/chatto/internal/pb/chatto/operator/v1/operatorv1connect"
 )
@@ -283,8 +285,8 @@ func TestConnectServerDiscoveryServiceGetServer(t *testing.T) {
 			},
 		})
 
-		client := apiv1connect.NewServerDiscoveryServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
-		resp, err := client.GetServer(context.Background(), connect.NewRequest(&apiv1.GetServerRequest{}))
+		client := discoveryv1connect.NewServerDiscoveryServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
+		resp, err := client.GetServer(context.Background(), connect.NewRequest(&discoveryv1.GetServerRequest{}))
 		if err != nil {
 			t.Fatalf("GetServer: %v", err)
 		}
@@ -315,7 +317,7 @@ func TestConnectServerDiscoveryServiceGetServer(t *testing.T) {
 		_, ts := setupConnectTestServer(t, config.AuthConfig{})
 
 		body := strings.NewReader("")
-		req, err := http.NewRequest(http.MethodPost, ts.URL+connectAPIPrefix+apiv1connect.ServerDiscoveryServiceGetServerProcedure, body)
+		req, err := http.NewRequest(http.MethodPost, ts.URL+connectAPIPrefix+discoveryv1connect.ServerDiscoveryServiceGetServerProcedure, body)
 		if err != nil {
 			t.Fatalf("new request: %v", err)
 		}
@@ -337,7 +339,7 @@ func TestConnectServerDiscoveryServiceGetServer(t *testing.T) {
 		if err != nil {
 			t.Fatalf("read body: %v", err)
 		}
-		var msg apiv1.GetServerResponse
+		var msg discoveryv1.GetServerResponse
 		if err := proto.Unmarshal(data, &msg); err != nil {
 			t.Fatalf("unmarshal response: %v", err)
 		}
@@ -350,7 +352,7 @@ func TestConnectServerDiscoveryServiceGetServer(t *testing.T) {
 		_, ts := setupConnectTestServer(t, config.AuthConfig{})
 
 		body := strings.NewReader("{}")
-		req, err := http.NewRequest(http.MethodPost, ts.URL+connectAPIPrefix+apiv1connect.ServerDiscoveryServiceGetServerProcedure, body)
+		req, err := http.NewRequest(http.MethodPost, ts.URL+connectAPIPrefix+discoveryv1connect.ServerDiscoveryServiceGetServerProcedure, body)
 		if err != nil {
 			t.Fatalf("new request: %v", err)
 		}
@@ -373,7 +375,7 @@ func TestConnectServerDiscoveryServiceGetServer(t *testing.T) {
 		if err != nil {
 			t.Fatalf("read body: %v", err)
 		}
-		var msg apiv1.GetServerResponse
+		var msg discoveryv1.GetServerResponse
 		if err := protojson.Unmarshal(data, &msg); err != nil {
 			t.Fatalf("unmarshal response: %v", err)
 		}
@@ -394,8 +396,8 @@ func TestConnectServerDiscoveryServiceGetServer(t *testing.T) {
 			t.Fatalf("set banner: %v", err)
 		}
 
-		client := apiv1connect.NewServerDiscoveryServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
-		resp, err := client.GetServer(context.Background(), connect.NewRequest(&apiv1.GetServerRequest{}))
+		client := discoveryv1connect.NewServerDiscoveryServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
+		resp, err := client.GetServer(context.Background(), connect.NewRequest(&discoveryv1.GetServerRequest{}))
 		if err != nil {
 			t.Fatalf("GetServer: %v", err)
 		}
@@ -424,7 +426,7 @@ func TestConnectReflection(t *testing.T) {
 		nameSet[name] = true
 	}
 	for _, want := range []protoreflect.FullName{
-		protoreflect.FullName(apiv1connect.ServerDiscoveryServiceName),
+		protoreflect.FullName(discoveryv1connect.ServerDiscoveryServiceName),
 		protoreflect.FullName(apiv1connect.RoomServiceName),
 		protoreflect.FullName(adminv1connect.AdminDiagnosticsServiceName),
 	} {
@@ -433,12 +435,12 @@ func TestConnectReflection(t *testing.T) {
 		}
 	}
 
-	files, err := stream.FileContainingSymbol(protoreflect.FullName(apiv1connect.ServerDiscoveryServiceName))
+	files, err := stream.FileContainingSymbol(protoreflect.FullName(discoveryv1connect.ServerDiscoveryServiceName))
 	if err != nil {
-		t.Fatalf("FileContainingSymbol(%s): %v", apiv1connect.ServerDiscoveryServiceName, err)
+		t.Fatalf("FileContainingSymbol(%s): %v", discoveryv1connect.ServerDiscoveryServiceName, err)
 	}
-	if !descriptorFilesContain(files, "chatto/api/v1/server.proto") {
-		t.Fatalf("descriptors for %s did not include chatto/api/v1/server.proto", apiv1connect.ServerDiscoveryServiceName)
+	if !descriptorFilesContain(files, "chatto/discovery/v1/server.proto") {
+		t.Fatalf("descriptors for %s did not include chatto/discovery/v1/server.proto", discoveryv1connect.ServerDiscoveryServiceName)
 	}
 
 	if _, err := stream.FileContainingSymbol("chatto.core.v1.Event"); connect.CodeOf(err) != connect.CodeNotFound {

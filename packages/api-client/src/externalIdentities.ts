@@ -1,15 +1,17 @@
 import { Code, ConnectError, createClient } from '@connectrpc/connect';
 import { createConnectTransport } from '@connectrpc/connect-web';
 import { notifyAuthenticationRequired } from './hooks.js';
+import { ExternalIdentityFlowService } from '@chatto/api-types/chatto/discovery/v1/external_identity_flows_connect';
 import {
-  ExternalIdentityFlowService,
+  ExternalIdentityFlowKind,
+  type PendingExternalIdentity as APIPendingExternalIdentity
+} from '@chatto/api-types/chatto/discovery/v1/external_identity_flows_pb';
+import {
   ExternalIdentityService
 } from '@chatto/api-types/api/v1/external_identities_connect';
 import {
-  ExternalIdentityFlowKind,
   type ExternalIdentityProvider as APIExternalIdentityProvider,
-  type LinkedExternalIdentity as APILinkedExternalIdentity,
-  type PendingExternalIdentity as APIPendingExternalIdentity
+  type LinkedExternalIdentity as APILinkedExternalIdentity
 } from '@chatto/api-types/api/v1/external_identities_pb';
 
 export type ExternalIdentityFlowAPIConfig = {

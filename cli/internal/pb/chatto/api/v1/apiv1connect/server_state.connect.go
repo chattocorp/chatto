@@ -42,7 +42,7 @@ const (
 type ServerServiceClient interface {
 	// Returns authenticated server state. This RPC requires a logged-in user;
 	// public discovery remains available through
-	// ServerDiscoveryService.GetServer.
+	// chatto.discovery.v1.ServerDiscoveryService.GetServer.
 	GetServerState(context.Context, *connect.Request[v1.GetServerStateRequest]) (*connect.Response[v1.GetServerStateResponse], error)
 }
 
@@ -80,7 +80,7 @@ func (c *serverServiceClient) GetServerState(ctx context.Context, req *connect.R
 type ServerServiceHandler interface {
 	// Returns authenticated server state. This RPC requires a logged-in user;
 	// public discovery remains available through
-	// ServerDiscoveryService.GetServer.
+	// chatto.discovery.v1.ServerDiscoveryService.GetServer.
 	GetServerState(context.Context, *connect.Request[v1.GetServerStateRequest]) (*connect.Response[v1.GetServerStateResponse], error)
 }
 

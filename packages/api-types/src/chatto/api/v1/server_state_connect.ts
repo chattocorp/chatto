@@ -17,7 +17,7 @@ export const ServerService = {
     /**
      * Returns authenticated server state. This RPC requires a logged-in user;
      * public discovery remains available through
-     * ServerDiscoveryService.GetServer.
+     * chatto.discovery.v1.ServerDiscoveryService.GetServer.
      *
      * @generated from rpc chatto.api.v1.ServerService.GetServerState
      */

@@ -18,9 +18,9 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core"
-	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
-	"hmans.de/chatto/internal/pb/chatto/api/v1/apiv1connect"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	discoveryv1 "hmans.de/chatto/internal/pb/chatto/discovery/v1"
+	"hmans.de/chatto/internal/pb/chatto/discovery/v1/discoveryv1connect"
 	"hmans.de/chatto/internal/testutil"
 )
 
@@ -499,8 +499,8 @@ func TestOAuthAuthorizeExternalIdentityCreateEstablishesCookieSession(t *testing
 		t.Fatalf("CreatePendingExternalIdentityCreateFlow: %v", err)
 	}
 
-	flowClient := apiv1connect.NewExternalIdentityFlowServiceClient(client, ts.URL+connectAPIPrefix)
-	created, err := flowClient.CreateExternalIdentityAccount(ctx, connect.NewRequest(&apiv1.CreateExternalIdentityAccountRequest{
+	flowClient := discoveryv1connect.NewExternalIdentityFlowServiceClient(client, ts.URL+connectAPIPrefix)
+	created, err := flowClient.CreateExternalIdentityAccount(ctx, connect.NewRequest(&discoveryv1.CreateExternalIdentityAccountRequest{
 		Token: createToken,
 		Login: "sso-oauth-created",
 	}))

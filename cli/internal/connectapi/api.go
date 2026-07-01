@@ -9,6 +9,7 @@ import (
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/pb/chatto/admin/v1/adminv1connect"
 	"hmans.de/chatto/internal/pb/chatto/api/v1/apiv1connect"
+	"hmans.de/chatto/internal/pb/chatto/discovery/v1/discoveryv1connect"
 	"hmans.de/chatto/internal/pb/chatto/operator/v1/operatorv1connect"
 )
 
@@ -78,10 +79,10 @@ func (a *API) Handlers() []Handler {
 	adminEventLogPath, adminEventLogHandler := adminv1connect.NewAdminEventLogServiceHandler(&adminEventLogService{api: a}, options...)
 	adminMemberPath, adminMemberHandler := adminv1connect.NewAdminMemberServiceHandler(&adminUserManagementService{api: a}, options...)
 	adminServerPath, adminServerHandler := adminv1connect.NewAdminServerServiceHandler(&serverService{api: a}, uploadOptions...)
-	serverDiscoveryPath, serverDiscoveryHandler := apiv1connect.NewServerDiscoveryServiceHandler(&serverDiscoveryService{api: a}, options...)
+	serverDiscoveryPath, serverDiscoveryHandler := discoveryv1connect.NewServerDiscoveryServiceHandler(&serverDiscoveryService{api: a}, options...)
 	serverPath, serverHandler := apiv1connect.NewServerServiceHandler(&serverService{api: a}, options...)
 	viewerPath, viewerHandler := apiv1connect.NewViewerServiceHandler(&viewerService{api: a}, options...)
-	externalFlowPath, externalFlowHandler := apiv1connect.NewExternalIdentityFlowServiceHandler(&externalIdentityFlowService{api: a}, options...)
+	externalFlowPath, externalFlowHandler := discoveryv1connect.NewExternalIdentityFlowServiceHandler(&externalIdentityFlowService{api: a}, options...)
 	externalIdentityPath, externalIdentityHandler := apiv1connect.NewExternalIdentityServiceHandler(&externalIdentityService{api: a}, options...)
 	permissionPath, permissionHandler := adminv1connect.NewAdminPermissionServiceHandler(&permissionService{api: a}, options...)
 	linkPreviewPath, linkPreviewHandler := apiv1connect.NewLinkPreviewServiceHandler(&linkPreviewService{api: a}, options...)

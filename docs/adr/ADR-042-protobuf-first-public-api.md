@@ -58,7 +58,7 @@ The WebSocket protocol should reserve frame shapes for future multiplexed RPC-ov
 
 JSON uses Connect's standard JSON encoding for unary APIs. Protobuf service and message definitions remain the source of truth for the public API contract.
 
-Existing non-RPC HTTP endpoints are reviewed separately from the ConnectRPC API surface. Auth, OAuth, uploads, asset delivery, webhooks, and health/metrics endpoints may remain explicit HTTP APIs where that shape is still appropriate. Public server discovery is handled by `ServerDiscoveryService.GetServer`.
+Existing non-RPC HTTP endpoints are reviewed separately from the ConnectRPC API surface. Auth, OAuth, uploads, asset delivery, webhooks, and health/metrics endpoints may remain explicit HTTP APIs where that shape is still appropriate. Public server discovery is handled by `chatto.discovery.v1.ServerDiscoveryService.GetServer`.
 
 New protobuf API methods must not duplicate operation-specific authorization in each transport. HTTP ConnectRPC and future RPC-over-WebSocket should call the same internal operation model for the use case. Transports authenticate the caller, decode/encode protocol messages, and map transport-specific errors. Internal models own authorization, validation, domain invariants, OCC/write orchestration, read-your-writes waits, and response shaping for the operation.
 

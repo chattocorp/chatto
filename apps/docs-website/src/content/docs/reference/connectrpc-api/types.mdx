@@ -4,7 +4,7 @@ description: Generated shared message and enum reference for Chatto ConnectRPC s
 editUrl: false
 ---
 
-{/* Generated from proto/chatto/{api,admin,realtime}/v1/*.proto. Do not edit directly. */}
+{/* Generated from proto/chatto/{discovery,api,admin,realtime}/v1/*.proto. Do not edit directly. */}
 
 Shared message and enum definitions used by the ConnectRPC service pages.
 
@@ -13,6 +13,25 @@ Shared message and enum definitions used by the ConnectRPC service pages.
 ## Supporting Types
 
 
+
+<a id="chatto-discovery-v1-PendingExternalIdentity"></a>
+
+### PendingExternalIdentity
+
+Metadata about a pending external identity flow. The provider subject is not
+exposed; clients only need user-facing provider/profile hints.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `kind` | [`ExternalIdentityFlowKind`](#chatto-discovery-v1-ExternalIdentityFlowKind) | Pending flow kind. |
+| `provider_id` | `string` | Provider ID that produced the identity. |
+| `provider_type` | `string` | Provider type that produced the identity. |
+| `provider_label` | `string` | Provider label shown to the user. |
+| `verified_email` | `string` | Verified email supplied by the provider, when available. |
+| `login_hint` | `string` | Suggested username derived from provider profile hints. |
+| `display_name_hint` | `string` | Suggested display name derived from provider profile hints. |
+| `bound_user_id` | `string` | User ID this link flow is bound to. Empty for create flows. |
+| `redirect_path` | `string` | Internal path the client should return to after confirmation. |
 
 <a id="chatto-api-v1-CapabilityGrant"></a>
 
@@ -427,25 +446,6 @@ Linked provider identity metadata for the authenticated user's settings UI.
 | `provider_type` | `string` | Provider type recorded when the identity was linked. |
 | `provider_label` | `string` | Current or fallback provider label. |
 | `subject_hash` | `string` | Stable one-way subject hash, useful only as a UI/list key. |
-
-<a id="chatto-api-v1-PendingExternalIdentity"></a>
-
-### PendingExternalIdentity
-
-Metadata about a pending external identity flow. The provider subject is not
-exposed; clients only need user-facing provider/profile hints.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `kind` | [`ExternalIdentityFlowKind`](#chatto-api-v1-ExternalIdentityFlowKind) | Pending flow kind. |
-| `provider_id` | `string` | Provider ID that produced the identity. |
-| `provider_type` | `string` | Provider type that produced the identity. |
-| `provider_label` | `string` | Provider label shown to the user. |
-| `verified_email` | `string` | Verified email supplied by the provider, when available. |
-| `login_hint` | `string` | Suggested username derived from provider profile hints. |
-| `display_name_hint` | `string` | Suggested display name derived from provider profile hints. |
-| `bound_user_id` | `string` | User ID this link flow is bound to. Empty for create flows. |
-| `redirect_path` | `string` | Internal path the client should return to after confirmation. |
 
 <a id="chatto-api-v1-PageInfo"></a>
 
@@ -1294,6 +1294,18 @@ Runtime-editable server profile settings.
 
 
 
+<a id="chatto-discovery-v1-ExternalIdentityFlowKind"></a>
+
+### ExternalIdentityFlowKind
+
+Mode of a pending external identity confirmation flow.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `EXTERNAL_IDENTITY_FLOW_KIND_UNSPECIFIED` | `0` | The flow kind was not specified. |
+| `EXTERNAL_IDENTITY_FLOW_KIND_CREATE_ACCOUNT` | `1` | Create a new passwordless account and link the provider identity. |
+| `EXTERNAL_IDENTITY_FLOW_KIND_LINK_ACCOUNT` | `2` | Link the provider identity to the authenticated account. |
+
 <a id="chatto-api-v1-NotificationLevel"></a>
 
 ### NotificationLevel
@@ -1375,18 +1387,6 @@ Fit mode used when generating transformed attachment thumbnails.
 | `ATTACHMENT_FIT_MODE_UNSPECIFIED` | `0` | The fit mode was not specified. |
 | `ATTACHMENT_FIT_MODE_CONTAIN` | `1` | Preserve the whole source image within the requested bounds. |
 | `ATTACHMENT_FIT_MODE_COVER` | `2` | Fill the requested bounds, cropping when needed. |
-
-<a id="chatto-api-v1-ExternalIdentityFlowKind"></a>
-
-### ExternalIdentityFlowKind
-
-Mode of a pending external identity confirmation flow.
-
-| Name | Number | Description |
-| --- | --- | --- |
-| `EXTERNAL_IDENTITY_FLOW_KIND_UNSPECIFIED` | `0` | The flow kind was not specified. |
-| `EXTERNAL_IDENTITY_FLOW_KIND_CREATE_ACCOUNT` | `1` | Create a new passwordless account and link the provider identity. |
-| `EXTERNAL_IDENTITY_FLOW_KIND_LINK_ACCOUNT` | `2` | Link the provider identity to the authenticated account. |
 
 <a id="chatto-api-v1-RoomKind"></a>
 

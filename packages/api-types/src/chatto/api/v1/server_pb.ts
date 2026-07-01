@@ -75,39 +75,6 @@ export class AuthProvider extends Message<AuthProvider> {
 }
 
 /**
- * Request for public server metadata.
- *
- * @generated from message chatto.api.v1.GetServerRequest
- */
-export class GetServerRequest extends Message<GetServerRequest> {
-  constructor(data?: PartialMessage<GetServerRequest>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.GetServerRequest";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetServerRequest {
-    return new GetServerRequest().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetServerRequest {
-    return new GetServerRequest().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetServerRequest {
-    return new GetServerRequest().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: GetServerRequest | PlainMessage<GetServerRequest> | undefined, b: GetServerRequest | PlainMessage<GetServerRequest> | undefined): boolean {
-    return proto3.util.equals(GetServerRequest, a, b);
-  }
-}
-
-/**
  * Public server profile, identity, and branding fields.
  *
  * @generated from message chatto.api.v1.ServerPublicProfile
@@ -242,55 +209,5 @@ export class ServerLogin extends Message<ServerLogin> {
 
   static equals(a: ServerLogin | PlainMessage<ServerLogin> | undefined, b: ServerLogin | PlainMessage<ServerLogin> | undefined): boolean {
     return proto3.util.equals(ServerLogin, a, b);
-  }
-}
-
-/**
- * Public metadata clients need before they can authenticate or render the
- * initial server view.
- *
- * @generated from message chatto.api.v1.GetServerResponse
- */
-export class GetServerResponse extends Message<GetServerResponse> {
-  /**
-   * Public server profile and branding.
-   *
-   * @generated from field: chatto.api.v1.ServerPublicProfile profile = 1;
-   */
-  profile?: ServerPublicProfile;
-
-  /**
-   * Login and registration options.
-   *
-   * @generated from field: chatto.api.v1.ServerLogin login = 2;
-   */
-  login?: ServerLogin;
-
-  constructor(data?: PartialMessage<GetServerResponse>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.GetServerResponse";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "profile", kind: "message", T: ServerPublicProfile },
-    { no: 2, name: "login", kind: "message", T: ServerLogin },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetServerResponse {
-    return new GetServerResponse().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetServerResponse {
-    return new GetServerResponse().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetServerResponse {
-    return new GetServerResponse().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: GetServerResponse | PlainMessage<GetServerResponse> | undefined, b: GetServerResponse | PlainMessage<GetServerResponse> | undefined): boolean {
-    return proto3.util.equals(GetServerResponse, a, b);
   }
 }

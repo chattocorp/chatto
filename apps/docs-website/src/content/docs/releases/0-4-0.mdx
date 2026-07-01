@@ -108,8 +108,9 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
   before upgrading production deployments that depend on the old GraphQL API.
 - ConnectRPC service paths, generated imports, discovery, server profile responses, and
   admin/realtime packages changed during the 0.4.0 prerelease cycle. Regenerate clients
-  and switch discovery clients to `ServerDiscoveryService.GetServer`; if you tested
-  against an earlier 0.4.0 beta, review the generated API reference again.
+  and switch discovery clients to
+  `chatto.discovery.v1.ServerDiscoveryService.GetServer`; if you tested against an
+  earlier 0.4.0 beta, review the generated API reference again.
 - Root-grade account lifecycle automation has moved to the local operator socket and
   `chatto operator user ...` commands. Enable `[operator_api]` for those workflows and
   update automation that used the earlier public admin lifecycle RPCs.

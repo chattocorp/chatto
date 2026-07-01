@@ -17,9 +17,6 @@ message AuthProvider {
   string login_url = 4;
 }
 
-// Request for public server metadata.
-message GetServerRequest {}
-
 // Public server profile, identity, and branding fields.
 message ServerPublicProfile {
   // Display name of the Chatto server.
@@ -44,21 +41,4 @@ message ServerLogin {
   repeated AuthProvider providers = 2;
   // URL for the legacy authorization flow, when enabled.
   string authorize_url = 3;
-}
-
-// Public metadata clients need before they can authenticate or render the
-// initial server view.
-message GetServerResponse {
-  // Public server profile and branding.
-  ServerPublicProfile profile = 1;
-  // Login and registration options.
-  ServerLogin login = 2;
-}
-
-// Provides public server discovery metadata.
-service ServerDiscoveryService {
-  // Returns public server metadata, branding, registration status, and login
-  // provider information. This RPC is available before login so clients can
-  // render the first server screen and authentication choices.
-  rpc GetServer(GetServerRequest) returns (GetServerResponse);
 }

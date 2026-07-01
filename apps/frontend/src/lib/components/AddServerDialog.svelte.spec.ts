@@ -76,7 +76,7 @@ describe('AddServerDialog', () => {
 
     const [requestUrl, requestInit] = vi.mocked(globalThis.fetch).mock.calls[0];
     expect(requestUrl).toBe(
-      'https://chat.example.com/api/connect/chatto.api.v1.ServerDiscoveryService/GetServer'
+      'https://chat.example.com/api/connect/chatto.discovery.v1.ServerDiscoveryService/GetServer'
     );
     expect(requestInit?.method).toBe('POST');
 

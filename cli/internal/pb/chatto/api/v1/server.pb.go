@@ -97,43 +97,6 @@ func (x *AuthProvider) GetLoginUrl() string {
 	return ""
 }
 
-// Request for public server metadata.
-type GetServerRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *GetServerRequest) Reset() {
-	*x = GetServerRequest{}
-	mi := &file_chatto_api_v1_server_proto_msgTypes[1]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *GetServerRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*GetServerRequest) ProtoMessage() {}
-
-func (x *GetServerRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_server_proto_msgTypes[1]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use GetServerRequest.ProtoReflect.Descriptor instead.
-func (*GetServerRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_server_proto_rawDescGZIP(), []int{1}
-}
-
 // Public server profile, identity, and branding fields.
 type ServerPublicProfile struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -155,7 +118,7 @@ type ServerPublicProfile struct {
 
 func (x *ServerPublicProfile) Reset() {
 	*x = ServerPublicProfile{}
-	mi := &file_chatto_api_v1_server_proto_msgTypes[2]
+	mi := &file_chatto_api_v1_server_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -167,7 +130,7 @@ func (x *ServerPublicProfile) String() string {
 func (*ServerPublicProfile) ProtoMessage() {}
 
 func (x *ServerPublicProfile) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_server_proto_msgTypes[2]
+	mi := &file_chatto_api_v1_server_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -180,7 +143,7 @@ func (x *ServerPublicProfile) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ServerPublicProfile.ProtoReflect.Descriptor instead.
 func (*ServerPublicProfile) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_server_proto_rawDescGZIP(), []int{2}
+	return file_chatto_api_v1_server_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *ServerPublicProfile) GetName() string {
@@ -240,7 +203,7 @@ type ServerLogin struct {
 
 func (x *ServerLogin) Reset() {
 	*x = ServerLogin{}
-	mi := &file_chatto_api_v1_server_proto_msgTypes[3]
+	mi := &file_chatto_api_v1_server_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -252,7 +215,7 @@ func (x *ServerLogin) String() string {
 func (*ServerLogin) ProtoMessage() {}
 
 func (x *ServerLogin) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_server_proto_msgTypes[3]
+	mi := &file_chatto_api_v1_server_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -265,7 +228,7 @@ func (x *ServerLogin) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ServerLogin.ProtoReflect.Descriptor instead.
 func (*ServerLogin) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_server_proto_rawDescGZIP(), []int{3}
+	return file_chatto_api_v1_server_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *ServerLogin) GetDirectRegistrationEnabled() bool {
@@ -289,62 +252,6 @@ func (x *ServerLogin) GetAuthorizeUrl() string {
 	return ""
 }
 
-// Public metadata clients need before they can authenticate or render the
-// initial server view.
-type GetServerResponse struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Public server profile and branding.
-	Profile *ServerPublicProfile `protobuf:"bytes,1,opt,name=profile,proto3" json:"profile,omitempty"`
-	// Login and registration options.
-	Login         *ServerLogin `protobuf:"bytes,2,opt,name=login,proto3" json:"login,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *GetServerResponse) Reset() {
-	*x = GetServerResponse{}
-	mi := &file_chatto_api_v1_server_proto_msgTypes[4]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *GetServerResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*GetServerResponse) ProtoMessage() {}
-
-func (x *GetServerResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_server_proto_msgTypes[4]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use GetServerResponse.ProtoReflect.Descriptor instead.
-func (*GetServerResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_server_proto_rawDescGZIP(), []int{4}
-}
-
-func (x *GetServerResponse) GetProfile() *ServerPublicProfile {
-	if x != nil {
-		return x.Profile
-	}
-	return nil
-}
-
-func (x *GetServerResponse) GetLogin() *ServerLogin {
-	if x != nil {
-		return x.Login
-	}
-	return nil
-}
-
 var File_chatto_api_v1_server_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_server_proto_rawDesc = "" +
@@ -354,8 +261,7 @@ const file_chatto_api_v1_server_proto_rawDesc = "" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04type\x18\x02 \x01(\tR\x04type\x12\x14\n" +
 	"\x05label\x18\x03 \x01(\tR\x05label\x12\x1b\n" +
-	"\tlogin_url\x18\x04 \x01(\tR\bloginUrl\"\x12\n" +
-	"\x10GetServerRequest\"\x9c\x02\n" +
+	"\tlogin_url\x18\x04 \x01(\tR\bloginUrl\"\x9c\x02\n" +
 	"\x13ServerPublicProfile\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\tR\aversion\x12\x1e\n" +
@@ -371,12 +277,7 @@ const file_chatto_api_v1_server_proto_rawDesc = "" +
 	"\vServerLogin\x12>\n" +
 	"\x1bdirect_registration_enabled\x18\x01 \x01(\bR\x19directRegistrationEnabled\x129\n" +
 	"\tproviders\x18\x02 \x03(\v2\x1b.chatto.api.v1.AuthProviderR\tproviders\x12#\n" +
-	"\rauthorize_url\x18\x03 \x01(\tR\fauthorizeUrl\"\x83\x01\n" +
-	"\x11GetServerResponse\x12<\n" +
-	"\aprofile\x18\x01 \x01(\v2\".chatto.api.v1.ServerPublicProfileR\aprofile\x120\n" +
-	"\x05login\x18\x02 \x01(\v2\x1a.chatto.api.v1.ServerLoginR\x05login2h\n" +
-	"\x16ServerDiscoveryService\x12N\n" +
-	"\tGetServer\x12\x1f.chatto.api.v1.GetServerRequest\x1a .chatto.api.v1.GetServerResponseB\xa7\x01\n" +
+	"\rauthorize_url\x18\x03 \x01(\tR\fauthorizeUrlB\xa7\x01\n" +
 	"\x11com.chatto.api.v1B\vServerProtoP\x01Z/hmans.de/chatto/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
 
 var (
@@ -391,25 +292,19 @@ func file_chatto_api_v1_server_proto_rawDescGZIP() []byte {
 	return file_chatto_api_v1_server_proto_rawDescData
 }
 
-var file_chatto_api_v1_server_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+var file_chatto_api_v1_server_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
 var file_chatto_api_v1_server_proto_goTypes = []any{
 	(*AuthProvider)(nil),        // 0: chatto.api.v1.AuthProvider
-	(*GetServerRequest)(nil),    // 1: chatto.api.v1.GetServerRequest
-	(*ServerPublicProfile)(nil), // 2: chatto.api.v1.ServerPublicProfile
-	(*ServerLogin)(nil),         // 3: chatto.api.v1.ServerLogin
-	(*GetServerResponse)(nil),   // 4: chatto.api.v1.GetServerResponse
+	(*ServerPublicProfile)(nil), // 1: chatto.api.v1.ServerPublicProfile
+	(*ServerLogin)(nil),         // 2: chatto.api.v1.ServerLogin
 }
 var file_chatto_api_v1_server_proto_depIdxs = []int32{
 	0, // 0: chatto.api.v1.ServerLogin.providers:type_name -> chatto.api.v1.AuthProvider
-	2, // 1: chatto.api.v1.GetServerResponse.profile:type_name -> chatto.api.v1.ServerPublicProfile
-	3, // 2: chatto.api.v1.GetServerResponse.login:type_name -> chatto.api.v1.ServerLogin
-	1, // 3: chatto.api.v1.ServerDiscoveryService.GetServer:input_type -> chatto.api.v1.GetServerRequest
-	4, // 4: chatto.api.v1.ServerDiscoveryService.GetServer:output_type -> chatto.api.v1.GetServerResponse
-	4, // [4:5] is the sub-list for method output_type
-	3, // [3:4] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	1, // [1:1] is the sub-list for method output_type
+	1, // [1:1] is the sub-list for method input_type
+	1, // [1:1] is the sub-list for extension type_name
+	1, // [1:1] is the sub-list for extension extendee
+	0, // [0:1] is the sub-list for field type_name
 }
 
 func init() { file_chatto_api_v1_server_proto_init() }
@@ -417,16 +312,16 @@ func file_chatto_api_v1_server_proto_init() {
 	if File_chatto_api_v1_server_proto != nil {
 		return
 	}
-	file_chatto_api_v1_server_proto_msgTypes[2].OneofWrappers = []any{}
+	file_chatto_api_v1_server_proto_msgTypes[1].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_api_v1_server_proto_rawDesc), len(file_chatto_api_v1_server_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   5,
+			NumMessages:   3,
 			NumExtensions: 0,
-			NumServices:   1,
+			NumServices:   0,
 		},
 		GoTypes:           file_chatto_api_v1_server_proto_goTypes,
 		DependencyIndexes: file_chatto_api_v1_server_proto_depIdxs,

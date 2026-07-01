@@ -4,7 +4,7 @@ description: Room group, sidebar layout, and sidebar link administration RPCs.
 editUrl: false
 ---
 
-{/* Generated from proto/chatto/{api,admin,realtime}/v1/*.proto. Do not edit directly. */}
+{/* Generated from proto/chatto/{discovery,api,admin,realtime}/v1/*.proto. Do not edit directly. */}
 
 Chatto exposes this service below `/api/connect`.
 
@@ -211,7 +211,7 @@ Result of moving a channel room.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `room` | `chatto.api.v1.Room` | Moved room after the operation. |
+| `room` | [`chatto.api.v1.Room`](/reference/connectrpc-api/types/#chatto-api-v1-Room) | Moved room after the operation. |
 
 
 <a id="chatto-admin-v1-AdminRoomLayoutService-ReorderSidebarItemsInGroup"></a>
@@ -279,7 +279,7 @@ Result of creating a sidebar link.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `sidebar_link` | `chatto.api.v1.SidebarLink` | Created sidebar link. |
+| `sidebar_link` | [`chatto.api.v1.SidebarLink`](/reference/connectrpc-api/types/#chatto-api-v1-SidebarLink) | Created sidebar link. |
 
 
 <a id="chatto-admin-v1-AdminRoomLayoutService-UpdateSidebarLink"></a>
@@ -313,7 +313,7 @@ Result of updating a sidebar link.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `sidebar_link` | `chatto.api.v1.SidebarLink` | Updated sidebar link. |
+| `sidebar_link` | [`chatto.api.v1.SidebarLink`](/reference/connectrpc-api/types/#chatto-api-v1-SidebarLink) | Updated sidebar link. |
 
 
 <a id="chatto-admin-v1-AdminRoomLayoutService-DeleteSidebarLink"></a>
@@ -379,4 +379,4 @@ Result of moving a sidebar link.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `sidebar_link` | `chatto.api.v1.SidebarLink` | Moved sidebar link. |
+| `sidebar_link` | [`chatto.api.v1.SidebarLink`](/reference/connectrpc-api/types/#chatto-api-v1-SidebarLink) | Moved sidebar link. |

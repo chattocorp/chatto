@@ -253,7 +253,7 @@ test.describe('External identity confirmation flows', () => {
 
     const confirmRequestStarted = new Promise<void>((resolve) => {
       page.route(
-        '**/api/connect/chatto.api.v1.ExternalIdentityFlowService/ConfirmExternalIdentityLink',
+        '**/api/connect/chatto.discovery.v1.ExternalIdentityFlowService/ConfirmExternalIdentityLink',
         async (route) => {
           resolve();
           await route.continue();
