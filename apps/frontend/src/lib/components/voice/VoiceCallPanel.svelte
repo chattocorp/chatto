@@ -447,7 +447,7 @@ Room sidebar panel for voice/video calls.
   {@const isVideo = tile.kind === 'video'}
   <button
     type="button"
-    class="flex min-h-[280px] w-full flex-1 cursor-pointer flex-col overflow-hidden rounded-md border border-border bg-surface-100 text-left text-text transition-colors hover:bg-surface-200"
+    class="flex h-full min-h-0 w-full cursor-pointer flex-col overflow-hidden rounded-md border border-border bg-surface-100 text-left text-text transition-colors hover:bg-surface-200"
     title={isScreen
       ? m['voice.screen_title']({ name: participant.displayName })
       : participantTitle(participant)}
@@ -485,7 +485,12 @@ Room sidebar panel for voice/video calls.
       {/if}
     </div>
 
-    <div class="flex min-h-0 flex-1 items-center justify-center p-3">
+    <div
+      class={[
+        'flex min-h-0 flex-1 items-center justify-center',
+        isScreen || isVideo ? 'bg-black p-0' : 'p-6'
+      ]}
+    >
       {#if isScreen}
         <VideoThumbnail
           track={participant.screenShareTrack!}
@@ -493,6 +498,7 @@ Room sidebar panel for voice/video calls.
           user={participant.avatarUser}
           showIdentityOverlay={false}
           fit="contain"
+          fill
         />
       {:else if isVideo}
         <VideoThumbnail
@@ -500,9 +506,10 @@ Room sidebar panel for voice/video calls.
           name={participant.displayName}
           user={participant.avatarUser}
           showIdentityOverlay={false}
+          fill
         />
       {:else}
-        <div class="flex flex-col items-center gap-4">
+        <div class="flex min-w-0 flex-col items-center gap-4">
           <UserAvatar user={participant.avatarUser} size="xl" showPresence={false} />
           <span class="max-w-full truncate text-lg font-semibold">{participant.displayName}</span>
         </div>
@@ -525,7 +532,7 @@ Room sidebar panel for voice/video calls.
 >
   <div class="border-b border-border bg-background p-3">
     {#if isInThisCall}
-      <div class="grid grid-cols-5 gap-2">
+      <div class={['grid grid-cols-5 gap-2', isStageLayout ? 'mx-auto max-w-2xl' : '']}>
         <button
           type="button"
           class={controlButtonClass}
@@ -606,7 +613,7 @@ Room sidebar panel for voice/video calls.
     {:else}
       <button
         type="button"
-        class="btn-accent w-full btn-sm"
+        class={['btn-accent w-full btn-sm', isStageLayout ? 'mx-auto max-w-sm' : '']}
         data-testid="call-join-button"
         onclick={handleJoin}
         disabled={isInAnotherCall || isConnecting}
@@ -619,7 +626,8 @@ Room sidebar panel for voice/video calls.
 
   <div
     class={[
-      'flex min-h-0 flex-1 flex-col gap-5 p-3',
+      'flex min-h-0 flex-1 flex-col gap-5',
+      isStageLayout ? 'p-4' : 'p-3',
       isStageLayout ? 'overflow-hidden' : 'overflow-y-auto'
     ]}
   >
@@ -636,7 +644,7 @@ Room sidebar panel for voice/video calls.
 
           {#if secondaryStageTiles.length > 0}
             <div
-              class="grid max-h-[42%] shrink-0 grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-3 overflow-y-auto"
+              class="grid max-h-[190px] shrink-0 grid-cols-[repeat(auto-fill,minmax(180px,240px))] justify-center gap-3 overflow-y-auto"
               data-testid="call-secondary-stage-list"
             >
               {#each secondaryStageTiles as tile (tile.key)}

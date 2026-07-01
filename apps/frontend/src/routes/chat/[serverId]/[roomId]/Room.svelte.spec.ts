@@ -214,8 +214,8 @@ vi.mock('./ThreadPane.svelte', async () => {
 });
 
 vi.mock('./RoomSidebar.svelte', async () => {
-  const { default: EmptyMock } = await import('./RoomLocalEchoEmptyMock.svelte');
-  return { default: EmptyMock };
+  const { default: RoomSidebarMock } = await import('./RoomLocalEchoRoomSidebarMock.svelte');
+  return { default: RoomSidebarMock };
 });
 
 vi.mock('./RoomSidebarToggle.svelte', async () => {
@@ -347,6 +347,28 @@ describe('Room local message echo', () => {
       .element(q(container, '[data-testid="room-sidebar-mobile-pane"]'))
       .toBeInTheDocument();
     expect(consumePendingRoomSidebarPanel('server-1', 'room-1')).toBeNull();
+  });
+
+  it('lets a maximized desktop call sidebar fill the room route content area', async () => {
+    mocks.livekitUrl = 'wss://livekit.example.test';
+    setPendingRoomSidebarPanel('server-1', 'room-1', 'call');
+
+    const { container } = render(Room, { props: { roomId: 'room-1' } });
+
+    const roomRegion = q(container, '[data-testid="room-view-region"]')!;
+    const desktopSidebarPane = q(container, '[data-testid="room-sidebar-desktop-pane"]')!;
+    const maximizeButton = q(container, '[data-testid="toggle-maximized-call"]') as HTMLButtonElement;
+
+    await expect.element(desktopSidebarPane).toBeInTheDocument();
+    expect(roomRegion.className).not.toContain('lg:hidden');
+    expect(desktopSidebarPane.className).toContain('shrink-0');
+
+    maximizeButton.click();
+
+    await expect.element(maximizeButton).toHaveAttribute('data-maximized', 'true');
+    expect(roomRegion.className).toContain('lg:hidden');
+    expect(desktopSidebarPane.className).toContain('flex-1');
+    expect(desktopSidebarPane.className).not.toContain('shrink-0');
   });
 
   it('refreshes room notification counts after active-room notifications auto-dismiss', async () => {

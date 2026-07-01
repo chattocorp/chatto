@@ -411,9 +411,8 @@
   );
 
   $effect(() => {
-    roomId;
-    getActiveServer();
-    roomSidebarPanels.syncCurrentScope();
+    const currentScope = `${getActiveServer()}:${roomId}`;
+    if (currentScope) roomSidebarPanels.syncCurrentScope();
   });
 
   let leavingRoom = $state(false);
@@ -528,13 +527,18 @@
   {/if}
 
   <div class="flex min-h-0 min-w-0 flex-1">
-    <div class="relative flex min-h-0 min-w-0 flex-1 overflow-hidden">
+    <div
+      class={[
+        'relative flex min-h-0 min-w-0 flex-1 overflow-hidden',
+        isDesktopCallMaximized ? 'lg:hidden' : ''
+      ]}
+      data-testid="room-view-region"
+    >
       <div
         class={[
           'relative flex min-h-0 min-w-0 flex-1 flex-col transition-opacity duration-200',
           threadId ? 'opacity-30' : '',
-          mobileRoomSidebarPanel ? 'max-lg:opacity-30' : '',
-          isDesktopCallMaximized ? 'lg:hidden' : ''
+          mobileRoomSidebarPanel ? 'max-lg:opacity-30' : ''
         ]}
         inert={threadId || mobileRoomSidebarPanel ? true : undefined}
         {@attach roomDropZone}
@@ -670,7 +674,13 @@
     </div>
 
     {#if activeRoomSidebarPanel}
-      <div class={['hidden lg:flex', isDesktopCallMaximized ? 'min-w-0 flex-1' : '']}>
+      <div
+        class={[
+          'hidden min-h-0 min-w-0 lg:flex',
+          isDesktopCallMaximized ? 'flex-1' : 'shrink-0'
+        ]}
+        data-testid="room-sidebar-desktop-pane"
+      >
         <RoomSidebar
           {roomId}
           activePanel={activeRoomSidebarPanel}
