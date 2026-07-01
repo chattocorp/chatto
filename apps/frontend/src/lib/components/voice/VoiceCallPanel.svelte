@@ -790,11 +790,13 @@ Room sidebar panel for voice/video calls.
 
           {#if secondaryStageTiles.length > 0}
             <div
-              class="grid max-h-[190px] shrink-0 grid-cols-[repeat(auto-fill,minmax(180px,240px))] justify-center gap-3 overflow-y-auto"
+              class="flex max-h-[190px] shrink-0 flex-wrap content-start justify-center gap-3 overflow-y-auto"
               data-testid="call-secondary-stage-list"
             >
               {#each secondaryStageTiles as tile (tile.key)}
-                {@render stageTile(tile)}
+                <div class="w-[clamp(180px,22vw,240px)] max-w-full min-w-0">
+                  {@render stageTile(tile)}
+                </div>
               {/each}
             </div>
           {/if}

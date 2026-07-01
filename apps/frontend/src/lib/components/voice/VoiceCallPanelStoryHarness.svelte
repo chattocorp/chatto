@@ -19,7 +19,7 @@
 		scenario = 'screen'
 	}: {
 		layout?: 'sidebar' | 'stage';
-		scenario?: 'screen' | 'camera' | 'voice';
+		scenario?: 'screen' | 'screen-single-secondary' | 'camera' | 'voice';
 	} = $props();
 
 	const roomId = 'storybook-call-room';
@@ -118,6 +118,18 @@
 			isMuted: true,
 			connectionQuality: 'poor'
 		});
+
+		if (scenario === 'screen-single-secondary') {
+			return [
+				participant('viewer', 'Alice', {
+					isLocal: true,
+					isCameraEnabled: true,
+					videoTrack: cameraTrack,
+					isScreenShareEnabled: true,
+					screenShareTrack: screenTrack
+				})
+			];
+		}
 
 		if (scenario === 'screen') {
 			return [

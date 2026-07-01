@@ -23,6 +23,12 @@
 	</div>
 </Story>
 
+<Story name="Stage with one secondary tile" asChild>
+	<div class="flex h-[720px] w-[1080px] overflow-hidden rounded-md border border-border bg-background">
+		<VoiceCallPanelStoryHarness layout="stage" scenario="screen-single-secondary" />
+	</div>
+</Story>
+
 <Story name="Stage camera fallback" asChild>
 	<div class="flex h-[720px] w-[1080px] overflow-hidden rounded-md border border-border bg-background">
 		<VoiceCallPanelStoryHarness layout="stage" scenario="camera" />
