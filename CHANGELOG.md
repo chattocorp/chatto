@@ -3,6 +3,42 @@
 All notable changes to Chatto. Maintained by release-please from the
 conventional-commit messages on `main` — do not edit by hand.
 
+## [0.4.0-beta.10](https://github.com/chattocorp/chatto/compare/v0.4.0-beta.9...v0.4.0-beta.10) (2026-07-02)
+
+
+### ⚠ BREAKING CHANGES
+
+* **api:** polish ConnectRPC API for 0.4.0 ([#1224](https://github.com/chattocorp/chatto/issues/1224))
+
+### Features
+
+* **api:** add resource batch reads ([#1232](https://github.com/chattocorp/chatto/issues/1232)) ([8a04ae0](https://github.com/chattocorp/chatto/commit/8a04ae0fa619efc180ff364098f986859f33e041))
+* **api:** polish ConnectRPC API for 0.4.0 ([#1224](https://github.com/chattocorp/chatto/issues/1224)) ([06f4361](https://github.com/chattocorp/chatto/commit/06f4361d05e27587839e31b128e38b3ee011c743))
+* **core:** store thread follows in EVT ([#1233](https://github.com/chattocorp/chatto/issues/1233)) ([01a2bb3](https://github.com/chattocorp/chatto/commit/01a2bb3d629b83dd30431afcb17e3746a4848d33))
+* **dev:** add Mailpit to mise dev ([#1238](https://github.com/chattocorp/chatto/issues/1238)) ([0d07f7e](https://github.com/chattocorp/chatto/commit/0d07f7e8d9540de1d36cf56388f151bd94cb3f2b))
+* **frontend:** add multi-image attachment gallery ([#1241](https://github.com/chattocorp/chatto/issues/1241)) ([d8338c5](https://github.com/chattocorp/chatto/commit/d8338c517ef71069a08db44f402b949458ea6e92))
+* **frontend:** maximize call pane ([#1240](https://github.com/chattocorp/chatto/issues/1240)) ([7aaa34a](https://github.com/chattocorp/chatto/commit/7aaa34ad4abb9d27cb558b10a8c8944a80240de7))
+
+
+### Bug Fixes
+
+* **api:** address 0.4.0 surface review findings ([#1228](https://github.com/chattocorp/chatto/issues/1228)) ([bd054ff](https://github.com/chattocorp/chatto/commit/bd054ff0102c3065781064726c1d128f3980700e))
+* **api:** close ConnectRPC RBAC gaps ([#1207](https://github.com/chattocorp/chatto/issues/1207)) ([da0b129](https://github.com/chattocorp/chatto/commit/da0b1298db513bdc7a95319535039a01a04010e7))
+* **docs:** keep release note cards in grid lanes ([#1204](https://github.com/chattocorp/chatto/issues/1204)) ([a6c79df](https://github.com/chattocorp/chatto/commit/a6c79df79793e9e3927a7d738b4f54ddbc1940f9))
+* **frontend:** constrain current user card height ([#1239](https://github.com/chattocorp/chatto/issues/1239)) ([1b536b9](https://github.com/chattocorp/chatto/commit/1b536b96a7d0c7abb6baa152d82d348e0f6b0218))
+* **frontend:** defer camera permission until enabled ([#1243](https://github.com/chattocorp/chatto/issues/1243)) ([2145a95](https://github.com/chattocorp/chatto/commit/2145a9535ada73b05a0938b5b6249c264eed99d1))
+* **frontend:** improve extreme image thumbnails ([#1227](https://github.com/chattocorp/chatto/issues/1227)) ([d5c596d](https://github.com/chattocorp/chatto/commit/d5c596d56bb306e4503c36d1883900b284d7b5c7))
+* **frontend:** localize date formatting ([#1242](https://github.com/chattocorp/chatto/issues/1242)) ([cfc96ec](https://github.com/chattocorp/chatto/commit/cfc96ec847220f580249031d25f5db80dbd89ecf))
+* **frontend:** reconcile PWA notification badges ([#1229](https://github.com/chattocorp/chatto/issues/1229)) ([e44645e](https://github.com/chattocorp/chatto/commit/e44645e271cf099eec2e19f9030b10891f76f937))
+* **frontend:** show loading state for call media toggles ([#1237](https://github.com/chattocorp/chatto/issues/1237)) ([9063832](https://github.com/chattocorp/chatto/commit/9063832ae074a47852f340b38fa15d755c8399a6))
+* **frontend:** style room member search clear button ([#1226](https://github.com/chattocorp/chatto/issues/1226)) ([e43f615](https://github.com/chattocorp/chatto/commit/e43f615e951b12200f1994e844d3b82de4ecdeca))
+* **frontend:** wire UI strings to i18n ([#1225](https://github.com/chattocorp/chatto/issues/1225)) ([7eafcd3](https://github.com/chattocorp/chatto/commit/7eafcd34507e6a86e4983ac2ab29c25ee0e6cb95))
+
+
+### Performance Improvements
+
+* **frontend:** load room members in larger batches ([#1206](https://github.com/chattocorp/chatto/issues/1206)) ([f465a09](https://github.com/chattocorp/chatto/commit/f465a095e88819c6f210f36b1bc334e3c4e06c5a))
+
 ## [0.4.0-beta.9](https://github.com/chattocorp/chatto/compare/v0.4.0-beta.8...v0.4.0-beta.9) (2026-06-30)
 
 
