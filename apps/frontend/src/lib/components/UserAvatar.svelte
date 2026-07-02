@@ -105,7 +105,7 @@
   const wrapperClass = $derived(
     [
       sizeClasses[size],
-      'avatar-frame inline-grid shrink-0 [corner-shape:squircle]',
+      'avatar-shape inline-grid shrink-0 [corner-shape:squircle]',
       hasOverlay && 'relative',
       className
     ]
