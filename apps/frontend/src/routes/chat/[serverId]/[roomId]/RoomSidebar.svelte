@@ -309,14 +309,14 @@ calls, and similar room-specific panels can plug into the same shell. See the
             oninput={scheduleMemberSearch}
             placeholder={m['room.sidebar.search_members_placeholder']()}
             class={[
-              'room-member-search-input h-8 w-full rounded-md bg-surface py-1 pl-8 text-sm transition-colors outline-none placeholder:text-muted',
-              membersStore.searchInput ? 'pr-8' : 'pr-2'
+              'room-member-search-input h-10 w-full rounded-md bg-surface py-1 pl-8 text-sm transition-colors outline-none placeholder:text-muted',
+              membersStore.searchInput ? 'pr-12' : 'pr-2'
             ]}
           />
           {#if membersStore.searchInput}
             <button
               type="button"
-              class="pane-header-icon-button absolute top-1/2 right-1 h-6 w-6 -translate-y-1/2"
+              class="absolute top-1/2 right-1 pane-header-icon-button -translate-y-1/2"
               aria-label={m['room.sidebar.clear_member_search']()}
               title={m['room.sidebar.clear_member_search']()}
               onclick={clearMemberSearch}
@@ -412,14 +412,6 @@ calls, and similar room-specific panels can plug into the same shell. See the
   {/if}
 </aside>
 
-<style>
-  .room-member-search-input::-webkit-search-cancel-button {
-    -webkit-appearance: none;
-    appearance: none;
-    display: none;
-  }
-</style>
-
 {#snippet memberRow(member: RoomMember)}
   {@const isOnline = isOnlineStatus(getPresence(member))}
   <button
@@ -454,3 +446,11 @@ calls, and similar room-specific panels can plug into the same shell. See the
     </div>
   </button>
 {/snippet}
+
+<style>
+  .room-member-search-input::-webkit-search-cancel-button {
+    -webkit-appearance: none;
+    appearance: none;
+    display: none;
+  }
+</style>

@@ -1209,7 +1209,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
             }
           }}
           onblur={applyLinkHref}
-          class="h-6 w-48 min-w-0 rounded border border-border bg-surface-200 px-2 text-xs text-text outline-none hover:bg-surface-300 focus:border-accent disabled:cursor-not-allowed disabled:opacity-50"
+          class="h-10 w-48 min-w-0 rounded border border-border bg-surface-200 px-2 text-xs text-text transition-[background-color,border-color] outline-none hover:bg-surface-300 focus:border-accent disabled:cursor-not-allowed disabled:opacity-50"
         />
         <button
           type="button"
@@ -1217,7 +1217,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
           title={m['composer.open_link']()}
           disabled={!activeLinkHref}
           onclick={openActiveLink}
-          class="flex h-6 w-6 cursor-pointer items-center justify-center rounded text-muted hover:bg-surface-300 hover:text-text"
+          class="flex h-10 w-10 cursor-pointer items-center justify-center rounded text-muted transition-[background-color,color,scale] hover:bg-surface-300 hover:text-text active:scale-[0.96]"
         >
           <span class="iconify text-base uil--external-link-alt"></span>
         </button>
@@ -1227,7 +1227,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
           title={m['composer.remove_link']()}
           disabled={!editable}
           onclick={removeLink}
-          class="flex h-6 w-6 cursor-pointer items-center justify-center rounded text-muted hover:bg-surface-300 hover:text-text disabled:cursor-not-allowed disabled:opacity-50"
+          class="flex h-10 w-10 cursor-pointer items-center justify-center rounded text-muted transition-[background-color,color,scale] hover:bg-surface-300 hover:text-text active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-50"
         >
           <span class="iconify text-base uil--link-broken"></span>
         </button>

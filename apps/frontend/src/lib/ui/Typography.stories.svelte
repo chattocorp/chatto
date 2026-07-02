@@ -19,16 +19,40 @@
   </div>
 </Story>
 
+<Story name="Polish rules" asChild>
+  <div class="flex max-w-prose flex-col gap-5">
+    <section class="flex flex-col gap-2">
+      <div class="text-xs text-muted uppercase">balanced headings</div>
+      <h2 class="max-w-sm text-2xl font-semibold">
+        Server administration controls that stay readable on narrow panes
+      </h2>
+    </section>
+
+    <section class="flex flex-col gap-2">
+      <div class="text-xs text-muted uppercase">pretty body copy</div>
+      <p class="max-w-md text-muted">
+        Short interface descriptions should avoid lonely trailing words while keeping natural line
+        lengths in cards, dialogs, settings panels, and empty states.
+      </p>
+    </section>
+
+    <section class="flex flex-col gap-2">
+      <div class="text-xs text-muted uppercase">tabular numbers</div>
+      <div class="font-mono text-lg tabular-nums">713 · 48,221 · 3</div>
+    </section>
+  </div>
+</Story>
+
 <Story name="Families" asChild>
   <div class="flex flex-col gap-3">
     <div>
-      <div class="text-xs uppercase text-muted">font-sans (default)</div>
+      <div class="text-xs text-muted uppercase">font-sans (default)</div>
       <p class="font-sans text-lg">
         IBM Plex Sans Variable — The quick brown fox jumps over the lazy dog. 0123456789
       </p>
     </div>
     <div>
-      <div class="text-xs uppercase text-muted">font-mono</div>
+      <div class="text-xs text-muted uppercase">font-mono</div>
       <p class="font-mono text-lg">
         IBM Plex Mono — The quick brown fox jumps over the lazy dog. 0123456789
       </p>

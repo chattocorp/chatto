@@ -159,7 +159,7 @@
       {#if text}
         <button
           type="button"
-          class="pane-header-icon-button h-7 w-7"
+          class="pane-header-icon-button"
           aria-label={clearLabel}
           title={clearLabel}
           {disabled}

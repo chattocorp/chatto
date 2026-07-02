@@ -65,6 +65,7 @@
      (bright in light, barely-there in dark) — see dark override. */
   --color-panel-tint: var(--color-surface-100);
   --color-panel-highlight: rgba(255, 255, 255, 0.7);
+  --color-image-outline: rgba(0, 0, 0, 0.1);
 
   /* Shimmer hover effect gradient */
   --shimmer-gradient: linear-gradient(
@@ -108,6 +109,7 @@
   --color-server: var(--color-indigo-400);
 
   --color-panel-highlight: rgba(255, 255, 255, 0.04);
+  --color-image-outline: rgba(255, 255, 255, 0.1);
 }
 
 @theme {
@@ -186,8 +188,8 @@
  * via opacity.
  */
 @utility btn {
-  @apply inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-lg px-4 py-2 font-medium;
-  @apply transition-all duration-150;
+  @apply inline-flex min-h-10 min-w-10 cursor-pointer items-center justify-center gap-1.5 rounded-lg px-4 py-2 font-medium;
+  @apply transition-[background-color,color,box-shadow,scale,--tw-gradient-from,--tw-gradient-to] duration-150 active:scale-[0.96];
   @apply disabled:cursor-not-allowed disabled:opacity-50;
 }
 
@@ -331,7 +333,7 @@
 }
 
 @utility embed-control-button {
-  @apply absolute top-1 right-1 flex h-6 w-6 cursor-pointer items-center justify-center rounded-full bg-black/60 text-white shadow-md ring-1 ring-white/30 transition-opacity hover:bg-black/80 md:opacity-0;
+  @apply absolute top-1 right-1 flex h-10 w-10 cursor-pointer items-center justify-center rounded-full bg-black/60 text-white shadow-md ring-1 ring-white/30 transition-[background-color,opacity,scale] hover:bg-black/80 active:scale-[0.96] md:opacity-0;
 }
 
 /* Skeleton loading utility */
@@ -376,7 +378,7 @@
    Resting inactive state is intentionally transparent; pair with
    `pane-header-icon-button-active` for selected/toggled backgrounds. */
 @utility pane-header-icon-button {
-  @apply inline-flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-sm bg-transparent leading-none text-muted transition-colors;
+  @apply inline-flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-sm bg-transparent leading-none text-muted transition-[background-color,color,scale] active:scale-[0.96];
   @apply hover:!text-text-top disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:!opacity-100;
 }
 
@@ -442,7 +444,7 @@
 /* Icon button in the app header: 44px tap target, negative margin to keep
    visual alignment tight, subtle hover/active feedback. */
 @utility app-header-icon {
-  @apply -m-2 flex h-11 w-11 cursor-pointer items-center justify-center rounded hover:text-text active:bg-surface-200;
+  @apply -m-2 flex h-11 w-11 cursor-pointer items-center justify-center rounded transition-[background-color,color,scale] hover:text-text active:scale-[0.96] active:bg-surface-200;
 }
 
 /* Compact inline icon-only action for row/input affordances such as copy,
@@ -450,7 +452,7 @@
  * pane-header-icon-button instead.
  */
 @utility icon-action {
-  @apply inline-flex cursor-pointer items-center justify-center rounded p-1 text-muted transition-colors;
+  @apply inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded text-muted transition-[background-color,color,scale] active:scale-[0.96];
   @apply hover:bg-surface-200 hover:text-text;
   @apply disabled:cursor-not-allowed disabled:opacity-50;
 }
@@ -497,7 +499,7 @@
 }
 
 @utility menu-item {
-  @apply flex w-full cursor-pointer items-center gap-3 rounded px-3 py-1.5 text-left hover:bg-surface-100;
+  @apply flex min-h-10 w-full cursor-pointer items-center gap-3 rounded px-3 py-1.5 text-left transition-[background-color,scale] hover:bg-surface-100 active:scale-[0.96];
 }
 
 @utility menu-item-active {
@@ -513,6 +515,8 @@
   html {
     height: 100%;
     overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
     /* pan-y lets the browser own vertical scroll while reserving horizontal
        pans for our own gesture handling (mobile sidebar swipe). It also
        implicitly disables pinch-zoom and double-tap-zoom — same as the
@@ -523,6 +527,27 @@
        fire pointercancel mid-drag, killing our sidebar swipe handler. */
     overscroll-behavior-x: none;
     background-color: var(--color-background);
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    text-wrap: balance;
+  }
+
+  p,
+  li,
+  figcaption,
+  blockquote {
+    text-wrap: pretty;
+  }
+
+  img {
+    outline: 1px solid var(--color-image-outline);
+    outline-offset: -1px;
   }
 
   body {

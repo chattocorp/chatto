@@ -388,7 +388,7 @@ under it. Column headers are clickable when `onRoleClick` is provided
                     ].filter(Boolean)}
                 <td
                   class="px-0 py-2 text-center"
-                  style="width: 2rem; min-width: 2rem"
+                  style="width: 2.5rem; min-width: 2.5rem"
                   data-role={role.roleName}
                   data-permission={permission}
                 >

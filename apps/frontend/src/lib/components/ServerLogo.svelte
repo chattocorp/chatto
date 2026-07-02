@@ -26,7 +26,7 @@
 	Used by ServerIcon for the server gutter icon.
 -->
 <div
-  class="shimmer-hover flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl text-3xl font-black transition-all duration-100"
+  class="shimmer-hover flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl text-3xl font-black transition-[background-color,color] duration-100"
   style:background={gradientStyle}
 >
   {#if server.logoUrl}

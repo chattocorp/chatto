@@ -137,7 +137,7 @@ Desktop only (pointer-fine); mobile uses the long-press action sheet instead.
     <div class="flex items-center menu-section-sm">
       {#each quickReactions as emoji (emoji)}
         <button
-          class="flex h-7 w-7 cursor-pointer items-center justify-center rounded text-base hover:bg-surface-100"
+          class="flex h-7 w-7 cursor-pointer items-center justify-center rounded text-base transition-[background-color,scale] hover:bg-surface-100 active:scale-[0.96]"
           onclick={() => handleReaction(emoji)}
           aria-label={hasReacted(emoji)
             ? m['room.message.actions.remove_reaction']({ emoji })
@@ -148,7 +148,7 @@ Desktop only (pointer-fine); mobile uses the long-press action sheet instead.
       {/each}
       {#if onOpenEmojiPicker}
         <button
-          class="flex h-7 w-7 cursor-pointer items-center justify-center rounded text-muted hover:bg-surface-100 hover:text-text"
+          class="flex h-7 w-7 cursor-pointer items-center justify-center rounded text-muted transition-[background-color,color,scale] hover:bg-surface-100 hover:text-text active:scale-[0.96]"
           onclick={onOpenEmojiPicker}
           aria-label={m['room.message.actions.more_reactions']()}
         >
@@ -162,7 +162,7 @@ Desktop only (pointer-fine); mobile uses the long-press action sheet instead.
     <div class="flex items-center menu-section-sm">
       {#if onReplyInRoom}
         <button
-          class="flex h-7 w-7 cursor-pointer items-center justify-center rounded text-muted hover:bg-surface-100 hover:text-text"
+          class="flex h-7 w-7 cursor-pointer items-center justify-center rounded text-muted transition-[background-color,color,scale] hover:bg-surface-100 hover:text-text active:scale-[0.96]"
           onclick={handleReplyInRoom}
           aria-label={replyInRoomActionLabel}
         >
@@ -172,7 +172,7 @@ Desktop only (pointer-fine); mobile uses the long-press action sheet instead.
 
       {#if onReply}
         <button
-          class="flex h-7 w-7 cursor-pointer items-center justify-center rounded text-muted hover:bg-surface-100 hover:text-text"
+          class="flex h-7 w-7 cursor-pointer items-center justify-center rounded text-muted transition-[background-color,color,scale] hover:bg-surface-100 hover:text-text active:scale-[0.96]"
           onclick={handleReply}
           aria-label={replyThreadActionLabel}
         >
@@ -182,7 +182,7 @@ Desktop only (pointer-fine); mobile uses the long-press action sheet instead.
 
       {#if canEdit}
         <button
-          class="flex h-7 w-7 cursor-pointer items-center justify-center rounded text-muted hover:bg-surface-100 hover:text-text"
+          class="flex h-7 w-7 cursor-pointer items-center justify-center rounded text-muted transition-[background-color,color,scale] hover:bg-surface-100 hover:text-text active:scale-[0.96]"
           onclick={handleEdit}
           aria-label={m['room.message.actions.edit']()}
         >
@@ -192,7 +192,7 @@ Desktop only (pointer-fine); mobile uses the long-press action sheet instead.
 
       {#if onOpenMenu}
         <button
-          class="flex h-7 w-7 cursor-pointer items-center justify-center rounded text-muted hover:bg-surface-100 hover:text-text"
+          class="flex h-7 w-7 cursor-pointer items-center justify-center rounded text-muted transition-[background-color,color,scale] hover:bg-surface-100 hover:text-text active:scale-[0.96]"
           onclick={onOpenMenu}
           aria-label={m['room.message.actions.more']()}
         >
