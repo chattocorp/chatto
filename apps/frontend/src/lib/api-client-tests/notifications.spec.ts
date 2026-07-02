@@ -59,7 +59,7 @@ describe('createNotificationAPI', () => {
     mocks.listNotifications.mockResolvedValue({
       page: { totalCount: 2n, hasMore: true },
       serverName: 'Remote',
-      items: [
+      notifications: [
         {
           id: 'n1',
           createdAt: Timestamp.fromDate(new Date('2026-06-01T12:00:00Z')),
@@ -129,7 +129,7 @@ describe('createNotificationAPI', () => {
   it('maps room notification reads and dismiss mutations without auth headers', async () => {
     mocks.listRoomNotifications.mockResolvedValue({
       page: { totalCount: 1n, hasMore: false },
-      items: [
+      notifications: [
         {
           id: 'n2',
           kind: { case: 'directMessage', value: { roomId: 'dm-1', eventId: 'event-2' } }
@@ -190,8 +190,8 @@ describe('createNotificationAPI', () => {
         }
       }
     };
-    mocks.getNotification.mockResolvedValue({ item, serverName: 'Remote' });
-    mocks.batchGetNotifications.mockResolvedValue({ items: [item], serverName: 'Remote' });
+    mocks.getNotification.mockResolvedValue({ notification: item, serverName: 'Remote' });
+    mocks.batchGetNotifications.mockResolvedValue({ notifications: [item], serverName: 'Remote' });
 
     const api = createNotificationAPI({
       baseUrl: 'https://remote.example.com/api/connect',

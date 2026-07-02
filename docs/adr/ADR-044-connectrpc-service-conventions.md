@@ -76,6 +76,14 @@ or transport semantics are genuinely different. Prefer returning or embedding
 the canonical resource plus explicit related fields or include maps over
 creating multiple frontend-shaped flavors of the same resource.
 
+Response contracts should lean toward returning resource-shaped protobuf
+messages instead of scalar acknowledgements when the server can do so without
+changing authorization or forcing expensive extra reads. This keeps list/get/
+batch families aligned, gives clients useful state after mutations, and leaves
+room for additive response fields. Scalar responses remain appropriate for
+simple predicates, counts, generated secrets/tokens, and commands whose updated
+resource is unavailable or not meaningful.
+
 Performance is part of the public API shape. Resources that are commonly
 rendered together, referenced from other resources, emitted in realtime events,
 or hydrated by ID should provide either batch lookup methods, documented
@@ -84,7 +92,7 @@ do not need N+1 RPC calls.
 
 Repeated public semantics should use shared protobuf shapes instead of service-local copies. Offset-based list RPCs use `PageRequest page` and return `PageInfo page` unless they need a cursor/window model such as room timeline reads. Singular lookup RPCs return `NOT_FOUND` when the requested resource is absent. Batch/list RPCs may omit missing resources or return empty lists. Optional response fields should represent a successful nullable result, not a hidden not-found status.
 
-Public user-shaped payloads should reuse the narrowest canonical shape that represents their semantics. `User` is the lightweight render/cache identity shape. `UserProfile` adds live presence and custom status for notification and call surfaces. Member rows, `ViewerUser`, and `AdminMember` remain separate because they carry membership, self-service, and admin-only fields with different visibility rules. Membership row services should be named by their scope, for example server members versus room members, rather than by the implementation concept of a directory.
+Public user-shaped payloads should reuse the narrowest canonical shape that represents their semantics. `User` is the lightweight identity shape for embeds and include maps. `UserProfile` adds live presence and custom status for user-directory, notification, and call surfaces. Member rows, `ViewerUser`, and `AdminMember` remain separate because they carry membership, self-service, and admin-only fields with different visibility rules. Membership row services should be named by their scope, for example server members versus room members, rather than by the implementation concept of a directory.
 
 `connectapi.API.Handlers()` is the authoritative registry for mounted ConnectRPC services. Each registered handler includes:
 

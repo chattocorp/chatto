@@ -322,8 +322,8 @@ func (x *ListMembersRequest) GetPage() *v1.PageRequest {
 // Server-admin member rows plus role summaries.
 type ListMembersResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Matching users.
-	Users []*AdminMember `protobuf:"bytes,1,rep,name=users,proto3" json:"users,omitempty"`
+	// Matching members.
+	Members []*AdminMember `protobuf:"bytes,1,rep,name=members,proto3" json:"members,omitempty"`
 	// Public roles for display-name lookup.
 	Roles []*v1.Role `protobuf:"bytes,2,rep,name=roles,proto3" json:"roles,omitempty"`
 	// Page metadata.
@@ -362,9 +362,9 @@ func (*ListMembersResponse) Descriptor() ([]byte, []int) {
 	return file_chatto_admin_v1_members_proto_rawDescGZIP(), []int{4}
 }
 
-func (x *ListMembersResponse) GetUsers() []*AdminMember {
+func (x *ListMembersResponse) GetMembers() []*AdminMember {
 	if x != nil {
-		return x.Users
+		return x.Members
 	}
 	return nil
 }
@@ -1029,8 +1029,8 @@ func (x *UpdateUserPasswordRequest) GetPassword() string {
 // Result of an admin password update.
 type UpdateUserPasswordResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// True when the request completed.
-	Updated       bool `protobuf:"varint,1,opt,name=updated,proto3" json:"updated,omitempty"`
+	// Updated admin member row.
+	Member        *AdminMember `protobuf:"bytes,1,opt,name=member,proto3" json:"member,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1065,11 +1065,11 @@ func (*UpdateUserPasswordResponse) Descriptor() ([]byte, []int) {
 	return file_chatto_admin_v1_members_proto_rawDescGZIP(), []int{16}
 }
 
-func (x *UpdateUserPasswordResponse) GetUpdated() bool {
+func (x *UpdateUserPasswordResponse) GetMember() *AdminMember {
 	if x != nil {
-		return x.Updated
+		return x.Member
 	}
-	return false
+	return nil
 }
 
 // Request to clear a user's self-service username-change cooldown.
@@ -1293,9 +1293,9 @@ const file_chatto_admin_v1_members_proto_rawDesc = "" +
 	"\x12permission_denials\x18\x05 \x03(\tR\x11permissionDenials\"w\n" +
 	"\x12ListMembersRequest\x12\x16\n" +
 	"\x06search\x18\x01 \x01(\tR\x06search\x12.\n" +
-	"\x04page\x18\x04 \x01(\v2\x1a.chatto.api.v1.PageRequestR\x04pageJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04R\x05limitR\x06offset\"\xc4\x01\n" +
-	"\x13ListMembersResponse\x122\n" +
-	"\x05users\x18\x01 \x03(\v2\x1c.chatto.admin.v1.AdminMemberR\x05users\x12)\n" +
+	"\x04page\x18\x04 \x01(\v2\x1a.chatto.api.v1.PageRequestR\x04pageJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04R\x05limitR\x06offset\"\xc8\x01\n" +
+	"\x13ListMembersResponse\x126\n" +
+	"\amembers\x18\x01 \x03(\v2\x1c.chatto.admin.v1.AdminMemberR\amembers\x12)\n" +
 	"\x05roles\x18\x02 \x03(\v2\x13.chatto.api.v1.RoleR\x05roles\x12+\n" +
 	"\x04page\x18\x05 \x01(\v2\x17.chatto.api.v1.PageInfoR\x04pageJ\x04\b\x03\x10\x04J\x04\b\x04\x10\x05R\vtotal_countR\bhas_more\"A\n" +
 	"\x10GetMemberRequest\x12\x17\n" +
@@ -1337,9 +1337,9 @@ const file_chatto_admin_v1_members_proto_rawDesc = "" +
 	"\x06member\x18\x02 \x01(\v2\x1c.chatto.admin.v1.AdminMemberR\x06member\"Y\n" +
 	"\x19UpdateUserPasswordRequest\x12 \n" +
 	"\auser_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06userId\x12\x1a\n" +
-	"\bpassword\x18\x02 \x01(\tR\bpassword\"6\n" +
-	"\x1aUpdateUserPasswordResponse\x12\x18\n" +
-	"\aupdated\x18\x01 \x01(\bR\aupdated\"@\n" +
+	"\bpassword\x18\x02 \x01(\tR\bpassword\"R\n" +
+	"\x1aUpdateUserPasswordResponse\x124\n" +
+	"\x06member\x18\x01 \x01(\v2\x1c.chatto.admin.v1.AdminMemberR\x06member\"@\n" +
 	"\x1cClearUsernameCooldownRequest\x12 \n" +
 	"\auser_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06userId\"9\n" +
 	"\x1dClearUsernameCooldownResponse\x12\x18\n" +
@@ -1412,7 +1412,7 @@ var file_chatto_admin_v1_members_proto_depIdxs = []int32{
 	21, // 1: chatto.admin.v1.AdminMember.last_login_change:type_name -> google.protobuf.Timestamp
 	22, // 2: chatto.admin.v1.AdminMember.user:type_name -> chatto.api.v1.User
 	23, // 3: chatto.admin.v1.ListMembersRequest.page:type_name -> chatto.api.v1.PageRequest
-	0,  // 4: chatto.admin.v1.ListMembersResponse.users:type_name -> chatto.admin.v1.AdminMember
+	0,  // 4: chatto.admin.v1.ListMembersResponse.members:type_name -> chatto.admin.v1.AdminMember
 	24, // 5: chatto.admin.v1.ListMembersResponse.roles:type_name -> chatto.api.v1.Role
 	25, // 6: chatto.admin.v1.ListMembersResponse.page:type_name -> chatto.api.v1.PageInfo
 	0,  // 7: chatto.admin.v1.GetMemberResponse.member:type_name -> chatto.admin.v1.AdminMember
@@ -1423,29 +1423,30 @@ var file_chatto_admin_v1_members_proto_depIdxs = []int32{
 	0,  // 12: chatto.admin.v1.RevokeRoleResponse.member:type_name -> chatto.admin.v1.AdminMember
 	22, // 13: chatto.admin.v1.UpdateUserResponse.user:type_name -> chatto.api.v1.User
 	0,  // 14: chatto.admin.v1.UpdateUserResponse.member:type_name -> chatto.admin.v1.AdminMember
-	3,  // 15: chatto.admin.v1.AdminMemberService.ListMembers:input_type -> chatto.admin.v1.ListMembersRequest
-	5,  // 16: chatto.admin.v1.AdminMemberService.GetMember:input_type -> chatto.admin.v1.GetMemberRequest
-	7,  // 17: chatto.admin.v1.AdminMemberService.BatchGetMembers:input_type -> chatto.admin.v1.BatchGetMembersRequest
-	9,  // 18: chatto.admin.v1.AdminMemberService.AssignRole:input_type -> chatto.admin.v1.AssignRoleRequest
-	11, // 19: chatto.admin.v1.AdminMemberService.RevokeRole:input_type -> chatto.admin.v1.RevokeRoleRequest
-	13, // 20: chatto.admin.v1.AdminMemberService.UpdateUser:input_type -> chatto.admin.v1.UpdateUserRequest
-	15, // 21: chatto.admin.v1.AdminMemberService.UpdateUserPassword:input_type -> chatto.admin.v1.UpdateUserPasswordRequest
-	17, // 22: chatto.admin.v1.AdminMemberService.ClearUsernameCooldown:input_type -> chatto.admin.v1.ClearUsernameCooldownRequest
-	19, // 23: chatto.admin.v1.AdminMemberService.DeleteUser:input_type -> chatto.admin.v1.DeleteUserRequest
-	4,  // 24: chatto.admin.v1.AdminMemberService.ListMembers:output_type -> chatto.admin.v1.ListMembersResponse
-	6,  // 25: chatto.admin.v1.AdminMemberService.GetMember:output_type -> chatto.admin.v1.GetMemberResponse
-	8,  // 26: chatto.admin.v1.AdminMemberService.BatchGetMembers:output_type -> chatto.admin.v1.BatchGetMembersResponse
-	10, // 27: chatto.admin.v1.AdminMemberService.AssignRole:output_type -> chatto.admin.v1.AssignRoleResponse
-	12, // 28: chatto.admin.v1.AdminMemberService.RevokeRole:output_type -> chatto.admin.v1.RevokeRoleResponse
-	14, // 29: chatto.admin.v1.AdminMemberService.UpdateUser:output_type -> chatto.admin.v1.UpdateUserResponse
-	16, // 30: chatto.admin.v1.AdminMemberService.UpdateUserPassword:output_type -> chatto.admin.v1.UpdateUserPasswordResponse
-	18, // 31: chatto.admin.v1.AdminMemberService.ClearUsernameCooldown:output_type -> chatto.admin.v1.ClearUsernameCooldownResponse
-	20, // 32: chatto.admin.v1.AdminMemberService.DeleteUser:output_type -> chatto.admin.v1.DeleteUserResponse
-	24, // [24:33] is the sub-list for method output_type
-	15, // [15:24] is the sub-list for method input_type
-	15, // [15:15] is the sub-list for extension type_name
-	15, // [15:15] is the sub-list for extension extendee
-	0,  // [0:15] is the sub-list for field type_name
+	0,  // 15: chatto.admin.v1.UpdateUserPasswordResponse.member:type_name -> chatto.admin.v1.AdminMember
+	3,  // 16: chatto.admin.v1.AdminMemberService.ListMembers:input_type -> chatto.admin.v1.ListMembersRequest
+	5,  // 17: chatto.admin.v1.AdminMemberService.GetMember:input_type -> chatto.admin.v1.GetMemberRequest
+	7,  // 18: chatto.admin.v1.AdminMemberService.BatchGetMembers:input_type -> chatto.admin.v1.BatchGetMembersRequest
+	9,  // 19: chatto.admin.v1.AdminMemberService.AssignRole:input_type -> chatto.admin.v1.AssignRoleRequest
+	11, // 20: chatto.admin.v1.AdminMemberService.RevokeRole:input_type -> chatto.admin.v1.RevokeRoleRequest
+	13, // 21: chatto.admin.v1.AdminMemberService.UpdateUser:input_type -> chatto.admin.v1.UpdateUserRequest
+	15, // 22: chatto.admin.v1.AdminMemberService.UpdateUserPassword:input_type -> chatto.admin.v1.UpdateUserPasswordRequest
+	17, // 23: chatto.admin.v1.AdminMemberService.ClearUsernameCooldown:input_type -> chatto.admin.v1.ClearUsernameCooldownRequest
+	19, // 24: chatto.admin.v1.AdminMemberService.DeleteUser:input_type -> chatto.admin.v1.DeleteUserRequest
+	4,  // 25: chatto.admin.v1.AdminMemberService.ListMembers:output_type -> chatto.admin.v1.ListMembersResponse
+	6,  // 26: chatto.admin.v1.AdminMemberService.GetMember:output_type -> chatto.admin.v1.GetMemberResponse
+	8,  // 27: chatto.admin.v1.AdminMemberService.BatchGetMembers:output_type -> chatto.admin.v1.BatchGetMembersResponse
+	10, // 28: chatto.admin.v1.AdminMemberService.AssignRole:output_type -> chatto.admin.v1.AssignRoleResponse
+	12, // 29: chatto.admin.v1.AdminMemberService.RevokeRole:output_type -> chatto.admin.v1.RevokeRoleResponse
+	14, // 30: chatto.admin.v1.AdminMemberService.UpdateUser:output_type -> chatto.admin.v1.UpdateUserResponse
+	16, // 31: chatto.admin.v1.AdminMemberService.UpdateUserPassword:output_type -> chatto.admin.v1.UpdateUserPasswordResponse
+	18, // 32: chatto.admin.v1.AdminMemberService.ClearUsernameCooldown:output_type -> chatto.admin.v1.ClearUsernameCooldownResponse
+	20, // 33: chatto.admin.v1.AdminMemberService.DeleteUser:output_type -> chatto.admin.v1.DeleteUserResponse
+	25, // [25:34] is the sub-list for method output_type
+	16, // [16:25] is the sub-list for method input_type
+	16, // [16:16] is the sub-list for extension type_name
+	16, // [16:16] is the sub-list for extension extendee
+	0,  // [0:16] is the sub-list for field type_name
 }
 
 func init() { file_chatto_admin_v1_members_proto_init() }

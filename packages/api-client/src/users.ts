@@ -1,7 +1,10 @@
 import { createClient } from "@connectrpc/connect";
 import { createConnectTransport } from "@connectrpc/connect-web";
 import { UserDirectoryService } from "@chatto/api-types/api/v1/users_connect";
-import type { User as APIUser } from "@chatto/api-types/api/v1/users_pb";
+import type {
+  User as APIUser,
+  UserProfile as APIUserProfile,
+} from "@chatto/api-types/api/v1/users_pb";
 
 export type UserAPIConfig = {
   baseUrl: string;
@@ -34,12 +37,19 @@ export function createUserAPI(config: UserAPIConfig) {
         { userIds },
         { headers: headers() },
       );
-      return response.users.map(mapUserSummary);
+      return response.users.flatMap((profile) => {
+        const summary = profile.user;
+        return summary ? [mapUserSummary(summary)] : [];
+      });
     },
   };
 }
 
 export type UserAPI = ReturnType<typeof createUserAPI>;
+
+export function mapUserProfileSummary(profile: APIUserProfile): UserSummary | null {
+  return profile.user ? mapUserSummary(profile.user) : null;
+}
 
 export function mapUserSummary(user: APIUser): UserSummary {
   return {

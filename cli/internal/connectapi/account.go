@@ -114,7 +114,15 @@ func (s *accountService) UpdatePassword(ctx context.Context, req *connect.Reques
 	if err := s.api.core.SetOwnPassword(ctx, caller.UserID, req.Msg.GetCurrentPassword(), req.Msg.GetPassword()); err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&apiv1.UpdatePasswordResponse{}), nil
+	user, err := s.api.core.GetUser(ctx, caller.UserID)
+	if err != nil {
+		return nil, connectError(err)
+	}
+	responseUser, err := s.accountUser(ctx, user)
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&apiv1.UpdatePasswordResponse{User: responseUser}), nil
 }
 
 func (s *accountService) UpdateSettings(ctx context.Context, req *connect.Request[apiv1.UpdateSettingsRequest]) (*connect.Response[apiv1.UpdateSettingsResponse], error) {

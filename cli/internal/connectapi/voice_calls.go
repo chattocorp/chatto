@@ -30,9 +30,10 @@ func (s *voiceCallService) ListActiveCallRooms(ctx context.Context, _ *connect.R
 	if err != nil {
 		return nil, connectError(err)
 	}
-	visibleRoomIDs := make([]string, 0, len(roomIDs))
+	calls := make([]*apiv1.ActiveCall, 0, len(roomIDs))
 	for _, roomID := range roomIDs {
-		if _, _, err := s.api.core.VoiceCallRoomForMember(ctx, caller.UserID, roomID); err != nil {
+		call, err := s.activeCall(ctx, caller.UserID, roomID)
+		if err != nil {
 			if errors.Is(err, core.ErrNotFound) ||
 				errors.Is(err, core.ErrPermissionDenied) ||
 				errors.Is(err, core.ErrNotRoomMember) {
@@ -40,9 +41,9 @@ func (s *voiceCallService) ListActiveCallRooms(ctx context.Context, _ *connect.R
 			}
 			return nil, connectError(err)
 		}
-		visibleRoomIDs = append(visibleRoomIDs, roomID)
+		calls = append(calls, call)
 	}
-	return connect.NewResponse(&apiv1.ListActiveCallRoomsResponse{RoomIds: visibleRoomIDs}), nil
+	return connect.NewResponse(&apiv1.ListActiveCallRoomsResponse{Calls: calls}), nil
 }
 
 func (s *voiceCallService) GetActiveCall(ctx context.Context, req *connect.Request[apiv1.GetActiveCallRequest]) (*connect.Response[apiv1.GetActiveCallResponse], error) {

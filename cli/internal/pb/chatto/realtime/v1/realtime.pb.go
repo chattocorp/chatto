@@ -2538,9 +2538,8 @@ func (x *RealtimeServerUpdatedEvent) GetBannerUrl() string {
 
 // User-profile signal.
 //
-// Basic profile fields are inline. Use `UserDirectoryService.GetUser` for a
-// complete user profile or `UserDirectoryService.BatchGetUsers` for lightweight
-// render/cache hydration.
+// Basic profile fields are inline. Use `UserDirectoryService.GetUser` or
+// `UserDirectoryService.BatchGetUsers` for complete user-profile hydration.
 type RealtimeUserProfileUpdatedEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// User whose profile changed.

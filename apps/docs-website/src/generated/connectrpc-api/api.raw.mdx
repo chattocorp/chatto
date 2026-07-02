@@ -90,7 +90,7 @@ Public authenticated user profile response for login lookup.
 
 ### BatchGetUsers
 
-Gets public user records for multiple users referenced by event-focused
+Gets public user profiles for multiple users referenced by event-focused
 payloads.
 
 ```http
@@ -101,7 +101,7 @@ POST /api/connect/chatto.api.v1.UserDirectoryService/BatchGetUsers
 
 #### Input: BatchGetUsersRequest
 
-Request public user records for a set of stable user IDs.
+Request public user profiles for a set of stable user IDs.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -113,11 +113,11 @@ Request public user records for a set of stable user IDs.
 
 #### Result: BatchGetUsersResponse
 
-Batch public user response.
+Batch public user profile response.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `users` | repeated [`User`](#chatto-api-v1-User) | Found users. The server preserves first-seen request order and de-duplicates repeated IDs. |
+| `users` | repeated [`UserProfile`](#chatto-api-v1-UserProfile) | Found users. The server preserves first-seen request order and de-duplicates repeated IDs. |
 
 
 <a id="chatto-api-v1-NotificationPreferencesService"></a>
@@ -438,6 +438,10 @@ Request to update or add the authenticated user's password.
 #### Result: UpdatePasswordResponse
 
 Result of updating or adding the authenticated account password.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user` | [`User`](#chatto-api-v1-User) | Current authenticated user profile after the password update. |
 
 
 <a id="chatto-api-v1-MyAccountService-UpdateSettings"></a>
@@ -1431,7 +1435,7 @@ Pending notification page.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `items` | repeated [`NotificationItem`](#chatto-api-v1-NotificationItem) | Page items, newest first. |
+| `notifications` | repeated [`NotificationItem`](#chatto-api-v1-NotificationItem) | Page notifications, newest first. |
 | `server_name` | `string` | Current server display name for non-DM location labels. |
 | `page` | [`PageInfo`](#chatto-api-v1-PageInfo) | Page metadata. |
 
@@ -1466,7 +1470,7 @@ Pending notification response.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `item` | [`NotificationItem`](#chatto-api-v1-NotificationItem) | Requested notification. |
+| `notification` | [`NotificationItem`](#chatto-api-v1-NotificationItem) | Requested notification. |
 | `server_name` | `string` | Current server display name for non-DM location labels. |
 
 
@@ -1499,7 +1503,7 @@ Batch pending notification response.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `items` | repeated [`NotificationItem`](#chatto-api-v1-NotificationItem) | Found notifications. The server preserves first-seen request order and de-duplicates repeated IDs. |
+| `notifications` | repeated [`NotificationItem`](#chatto-api-v1-NotificationItem) | Found notifications. The server preserves first-seen request order and de-duplicates repeated IDs. |
 | `server_name` | `string` | Current server display name for non-DM location labels. |
 
 
@@ -1533,7 +1537,7 @@ Pending notification page scoped to one room.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `items` | repeated [`NotificationItem`](#chatto-api-v1-NotificationItem) | Page items, newest first. |
+| `notifications` | repeated [`NotificationItem`](#chatto-api-v1-NotificationItem) | Page notifications, newest first. |
 | `server_name` | `string` | Current server display name for non-DM location labels. |
 | `page` | [`PageInfo`](#chatto-api-v1-PageInfo) | Page metadata. |
 
@@ -2209,7 +2213,7 @@ Room-scoped attachment list response.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `items` | repeated [`RoomAttachmentListItem`](#chatto-api-v1-RoomAttachmentListItem) | Current attachments in newest message order. |
+| `attachments` | repeated [`RoomAttachmentListItem`](#chatto-api-v1-RoomAttachmentListItem) | Current attachments in newest message order. |
 | `page` | [`PageInfo`](#chatto-api-v1-PageInfo) | Page metadata. |
 
 
@@ -2923,7 +2927,7 @@ Voice-call request/response APIs backed by Chatto call-state projections.
 
 ### ListActiveCallRooms
 
-Lists member channel room IDs that currently have active calls as a finite
+Lists member channel rooms that currently have active calls as a finite
 runtime snapshot. Rooms the caller is not a member of are omitted.
 
 Returns an empty list when LiveKit is not configured.
@@ -2936,18 +2940,18 @@ POST /api/connect/chatto.api.v1.VoiceCallService/ListActiveCallRooms
 
 #### Input: ListActiveCallRoomsRequest
 
-Request for active channel call room IDs.
+Request for active channel call snapshots.
 
 
 <a id="chatto-api-v1-ListActiveCallRoomsResponse"></a>
 
 #### Result: ListActiveCallRoomsResponse
 
-Finite runtime snapshot of active channel call room IDs.
+Finite runtime snapshot of active channel call rooms.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `room_ids` | `repeated string` | Room IDs with active calls. |
+| `calls` | repeated [`ActiveCall`](#chatto-api-v1-ActiveCall) | Active calls in room order returned by the call-state projection. |
 
 
 <a id="chatto-api-v1-VoiceCallService-GetActiveCall"></a>

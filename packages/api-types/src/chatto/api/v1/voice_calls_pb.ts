@@ -8,7 +8,7 @@ import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
 import { UserProfile } from "./users_pb.js";
 
 /**
- * Request for active channel call room IDs.
+ * Request for active channel call snapshots.
  *
  * @generated from message chatto.api.v1.ListActiveCallRoomsRequest
  */
@@ -41,17 +41,17 @@ export class ListActiveCallRoomsRequest extends Message<ListActiveCallRoomsReque
 }
 
 /**
- * Finite runtime snapshot of active channel call room IDs.
+ * Finite runtime snapshot of active channel call rooms.
  *
  * @generated from message chatto.api.v1.ListActiveCallRoomsResponse
  */
 export class ListActiveCallRoomsResponse extends Message<ListActiveCallRoomsResponse> {
   /**
-   * Room IDs with active calls.
+   * Active calls in room order returned by the call-state projection.
    *
-   * @generated from field: repeated string room_ids = 1;
+   * @generated from field: repeated chatto.api.v1.ActiveCall calls = 1;
    */
-  roomIds: string[] = [];
+  calls: ActiveCall[] = [];
 
   constructor(data?: PartialMessage<ListActiveCallRoomsResponse>) {
     super();
@@ -61,7 +61,7 @@ export class ListActiveCallRoomsResponse extends Message<ListActiveCallRoomsResp
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.ListActiveCallRoomsResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "room_ids", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+    { no: 1, name: "calls", kind: "message", T: ActiveCall, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListActiveCallRoomsResponse {

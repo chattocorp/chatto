@@ -24,7 +24,7 @@ Voice-call request/response APIs backed by Chatto call-state projections.
 
 ### ListActiveCallRooms
 
-Lists member channel room IDs that currently have active calls as a finite
+Lists member channel rooms that currently have active calls as a finite
 runtime snapshot. Rooms the caller is not a member of are omitted.
 
 Returns an empty list when LiveKit is not configured.
@@ -37,18 +37,18 @@ POST /api/connect/chatto.api.v1.VoiceCallService/ListActiveCallRooms
 
 #### Input: ListActiveCallRoomsRequest
 
-Request for active channel call room IDs.
+Request for active channel call snapshots.
 
 
 <a id="chatto-api-v1-ListActiveCallRoomsResponse"></a>
 
 #### Result: ListActiveCallRoomsResponse
 
-Finite runtime snapshot of active channel call room IDs.
+Finite runtime snapshot of active channel call rooms.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `room_ids` | `repeated string` | Room IDs with active calls. |
+| `calls` | repeated [`ActiveCall`](/reference/connectrpc-api/types/#chatto-api-v1-ActiveCall) | Active calls in room order returned by the call-state projection. |
 
 
 <a id="chatto-api-v1-VoiceCallService-GetActiveCall"></a>

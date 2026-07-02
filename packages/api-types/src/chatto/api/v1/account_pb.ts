@@ -328,6 +328,13 @@ export class UpdatePasswordRequest extends Message<UpdatePasswordRequest> {
  * @generated from message chatto.api.v1.UpdatePasswordResponse
  */
 export class UpdatePasswordResponse extends Message<UpdatePasswordResponse> {
+  /**
+   * Current authenticated user profile after the password update.
+   *
+   * @generated from field: chatto.api.v1.User user = 1;
+   */
+  user?: User;
+
   constructor(data?: PartialMessage<UpdatePasswordResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -336,6 +343,7 @@ export class UpdatePasswordResponse extends Message<UpdatePasswordResponse> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.UpdatePasswordResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "user", kind: "message", T: User },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UpdatePasswordResponse {

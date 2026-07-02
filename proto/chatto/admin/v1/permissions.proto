@@ -156,6 +156,16 @@ message ScopedPermissionDecision {
   PermissionDecision effective = 4;
 }
 
+// Stored permission decision returned after a write.
+message PermissionDecisionUpdate {
+  // Permission identifier.
+  string permission = 1;
+  // Server, group, or room scope this decision applies to.
+  PermissionScope scope = 2;
+  // Stored decision after the write. NONE means no explicit decision remains.
+  PermissionDecision decision = 3;
+}
+
 // Request explicit/effective permission decisions for one role.
 message ListRolePermissionDecisionsRequest {
   // Stable role name.
@@ -262,8 +272,8 @@ message SetRolePermissionRequest {
 
 // Result of setting one role permission state.
 message SetRolePermissionResponse {
-  // True when the request completed.
-  bool ok = 1;
+  // Updated permission decision for the requested role/scope cell.
+  PermissionDecisionUpdate decision = 1;
 }
 
 // Request to set one user permission state.
@@ -280,8 +290,8 @@ message SetUserPermissionRequest {
 
 // Result of setting one user permission state.
 message SetUserPermissionResponse {
-  // True when the request completed.
-  bool ok = 1;
+  // Updated permission decision for the requested user/scope cell.
+  PermissionDecisionUpdate decision = 1;
 }
 
 // Provides permission matrix reads and admin permission writes.

@@ -472,11 +472,11 @@ export class ListRoomNotificationsRequest extends Message<ListRoomNotificationsR
  */
 export class ListNotificationsResponse extends Message<ListNotificationsResponse> {
   /**
-   * Page items, newest first.
+   * Page notifications, newest first.
    *
-   * @generated from field: repeated chatto.api.v1.NotificationItem items = 1;
+   * @generated from field: repeated chatto.api.v1.NotificationItem notifications = 1;
    */
-  items: NotificationItem[] = [];
+  notifications: NotificationItem[] = [];
 
   /**
    * Current server display name for non-DM location labels.
@@ -500,7 +500,7 @@ export class ListNotificationsResponse extends Message<ListNotificationsResponse
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.ListNotificationsResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "items", kind: "message", T: NotificationItem, repeated: true },
+    { no: 1, name: "notifications", kind: "message", T: NotificationItem, repeated: true },
     { no: 4, name: "server_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 5, name: "page", kind: "message", T: PageInfo },
   ]);
@@ -572,9 +572,9 @@ export class GetNotificationResponse extends Message<GetNotificationResponse> {
   /**
    * Requested notification.
    *
-   * @generated from field: chatto.api.v1.NotificationItem item = 1;
+   * @generated from field: chatto.api.v1.NotificationItem notification = 1;
    */
-  item?: NotificationItem;
+  notification?: NotificationItem;
 
   /**
    * Current server display name for non-DM location labels.
@@ -591,7 +591,7 @@ export class GetNotificationResponse extends Message<GetNotificationResponse> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.GetNotificationResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "item", kind: "message", T: NotificationItem },
+    { no: 1, name: "notification", kind: "message", T: NotificationItem },
     { no: 2, name: "server_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
@@ -664,9 +664,9 @@ export class BatchGetNotificationsResponse extends Message<BatchGetNotifications
    * Found notifications. The server preserves first-seen request order and
    * de-duplicates repeated IDs.
    *
-   * @generated from field: repeated chatto.api.v1.NotificationItem items = 1;
+   * @generated from field: repeated chatto.api.v1.NotificationItem notifications = 1;
    */
-  items: NotificationItem[] = [];
+  notifications: NotificationItem[] = [];
 
   /**
    * Current server display name for non-DM location labels.
@@ -683,7 +683,7 @@ export class BatchGetNotificationsResponse extends Message<BatchGetNotifications
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.BatchGetNotificationsResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "items", kind: "message", T: NotificationItem, repeated: true },
+    { no: 1, name: "notifications", kind: "message", T: NotificationItem, repeated: true },
     { no: 2, name: "server_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
@@ -711,11 +711,11 @@ export class BatchGetNotificationsResponse extends Message<BatchGetNotifications
  */
 export class ListRoomNotificationsResponse extends Message<ListRoomNotificationsResponse> {
   /**
-   * Page items, newest first.
+   * Page notifications, newest first.
    *
-   * @generated from field: repeated chatto.api.v1.NotificationItem items = 1;
+   * @generated from field: repeated chatto.api.v1.NotificationItem notifications = 1;
    */
-  items: NotificationItem[] = [];
+  notifications: NotificationItem[] = [];
 
   /**
    * Current server display name for non-DM location labels.
@@ -739,7 +739,7 @@ export class ListRoomNotificationsResponse extends Message<ListRoomNotifications
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.ListRoomNotificationsResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "items", kind: "message", T: NotificationItem, repeated: true },
+    { no: 1, name: "notifications", kind: "message", T: NotificationItem, repeated: true },
     { no: 4, name: "server_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 5, name: "page", kind: "message", T: PageInfo },
   ]);

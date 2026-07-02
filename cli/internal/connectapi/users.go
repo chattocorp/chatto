@@ -52,7 +52,7 @@ func (s *userService) BatchGetUsers(ctx context.Context, req *connect.Request[ap
 	}
 
 	seen := make(map[string]struct{}, len(req.Msg.GetUserIds()))
-	users := make([]*apiv1.User, 0, len(req.Msg.GetUserIds()))
+	users := make([]*apiv1.UserProfile, 0, len(req.Msg.GetUserIds()))
 	for _, userID := range req.Msg.GetUserIds() {
 		if _, ok := seen[userID]; ok {
 			continue
@@ -66,7 +66,7 @@ func (s *userService) BatchGetUsers(ctx context.Context, req *connect.Request[ap
 			}
 			return nil, connectError(err)
 		}
-		summary, err := s.userSummary(ctx, user, req.Msg.GetAvatar())
+		summary, err := s.userPresenceSummary(ctx, user, req.Msg.GetAvatar())
 		if err != nil {
 			return nil, err
 		}

@@ -49,7 +49,7 @@ Pending notification page.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `items` | repeated [`NotificationItem`](/reference/connectrpc-api/types/#chatto-api-v1-NotificationItem) | Page items, newest first. |
+| `notifications` | repeated [`NotificationItem`](/reference/connectrpc-api/types/#chatto-api-v1-NotificationItem) | Page notifications, newest first. |
 | `server_name` | `string` | Current server display name for non-DM location labels. |
 | `page` | [`PageInfo`](/reference/connectrpc-api/types/#chatto-api-v1-PageInfo) | Page metadata. |
 
@@ -84,7 +84,7 @@ Pending notification response.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `item` | [`NotificationItem`](/reference/connectrpc-api/types/#chatto-api-v1-NotificationItem) | Requested notification. |
+| `notification` | [`NotificationItem`](/reference/connectrpc-api/types/#chatto-api-v1-NotificationItem) | Requested notification. |
 | `server_name` | `string` | Current server display name for non-DM location labels. |
 
 
@@ -117,7 +117,7 @@ Batch pending notification response.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `items` | repeated [`NotificationItem`](/reference/connectrpc-api/types/#chatto-api-v1-NotificationItem) | Found notifications. The server preserves first-seen request order and de-duplicates repeated IDs. |
+| `notifications` | repeated [`NotificationItem`](/reference/connectrpc-api/types/#chatto-api-v1-NotificationItem) | Found notifications. The server preserves first-seen request order and de-duplicates repeated IDs. |
 | `server_name` | `string` | Current server display name for non-DM location labels. |
 
 
@@ -151,7 +151,7 @@ Pending notification page scoped to one room.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `items` | repeated [`NotificationItem`](/reference/connectrpc-api/types/#chatto-api-v1-NotificationItem) | Page items, newest first. |
+| `notifications` | repeated [`NotificationItem`](/reference/connectrpc-api/types/#chatto-api-v1-NotificationItem) | Page notifications, newest first. |
 | `server_name` | `string` | Current server display name for non-DM location labels. |
 | `page` | [`PageInfo`](/reference/connectrpc-api/types/#chatto-api-v1-PageInfo) | Page metadata. |
 

@@ -1070,8 +1070,8 @@ func TestUserDirectoryServiceReadsPublicProfiles(t *testing.T) {
 	}
 	if got := batchResp.Msg.GetUsers(); len(got) != 1 {
 		t.Fatalf("BatchGetUsers len = %d, want 1: %+v", len(got), got)
-	} else if got[0].GetId() != env.viewer.Id || got[0].GetLogin() != env.viewer.Login || got[0].GetDisplayName() != env.viewer.DisplayName {
-		t.Fatalf("BatchGetUsers user = %+v, want viewer summary", got[0])
+	} else if got[0].GetUser().GetId() != env.viewer.Id || got[0].GetUser().GetLogin() != env.viewer.Login || got[0].GetUser().GetDisplayName() != env.viewer.DisplayName || got[0].GetPresenceStatus() != apiv1.PresenceStatus_PRESENCE_STATUS_ONLINE {
+		t.Fatalf("BatchGetUsers user = %+v, want viewer profile", got[0])
 	}
 
 	byLoginResp, err := env.users.GetUserByLogin(ctx, connect.NewRequest(&apiv1.GetUserByLoginRequest{Login: env.viewer.Login}))
@@ -1300,8 +1300,8 @@ func TestAdminPermissionServiceMatricesAndWrites(t *testing.T) {
 	if err != nil {
 		t.Fatalf("SetRolePermission empty scope allow: %v", err)
 	}
-	if !setResp.Msg.GetOk() {
-		t.Fatal("SetRolePermission Ok = false, want true")
+	if decision := setResp.Msg.GetDecision(); decision.GetPermission() != string(core.PermMessagePost) || decision.GetDecision() != adminv1.PermissionDecision_PERMISSION_DECISION_ALLOW || decision.GetScope().GetKind() != adminv1.PermissionScopeKind_PERMISSION_SCOPE_KIND_SERVER {
+		t.Fatalf("SetRolePermission decision = %+v, want server allow", decision)
 	}
 	roleMatrixResp, err := env.permissions.GetRolePermissionMatrix(ctx, connect.NewRequest(&adminv1.GetRolePermissionMatrixRequest{
 		RoleName: core.RoleModerator,
@@ -1346,8 +1346,8 @@ func TestAdminPermissionServiceMatricesAndWrites(t *testing.T) {
 	if err != nil {
 		t.Fatalf("SetRolePermission clear: %v", err)
 	}
-	if !clearResp.Msg.GetOk() {
-		t.Fatal("SetRolePermission clear Ok = false, want true")
+	if decision := clearResp.Msg.GetDecision(); decision.GetPermission() != string(core.PermMessagePost) || decision.GetDecision() != adminv1.PermissionDecision_PERMISSION_DECISION_NONE || decision.GetScope().GetKind() != adminv1.PermissionScopeKind_PERMISSION_SCOPE_KIND_SERVER {
+		t.Fatalf("SetRolePermission clear decision = %+v, want server none", decision)
 	}
 	roleMatrixResp, err = env.permissions.GetRolePermissionMatrix(ctx, connect.NewRequest(&adminv1.GetRolePermissionMatrixRequest{
 		RoleName: core.RoleModerator,
@@ -2073,8 +2073,8 @@ func TestAdminMemberServiceUpdatesUsersAndClearsCooldown(t *testing.T) {
 	if err != nil {
 		t.Fatalf("account manager UpdateUserPassword: %v", err)
 	}
-	if !accountManagerResp.Msg.GetUpdated() {
-		t.Fatal("account manager Updated = false, want true")
+	if got := accountManagerResp.Msg.GetMember().GetUser().GetId(); got != target.Id {
+		t.Fatalf("account manager password member ID = %q, want %q", got, target.Id)
 	}
 	if _, err := env.core.VerifyPassword(env.ctx, target.Login, "accountmanagerpass456"); err != nil {
 		t.Fatalf("account-manager-set password should verify: %v", err)
@@ -2136,8 +2136,8 @@ func TestAdminMemberServiceUpdatesUsersAndClearsCooldown(t *testing.T) {
 	if err != nil {
 		t.Fatalf("UpdateUserPassword: %v", err)
 	}
-	if !passwordResp.Msg.GetUpdated() {
-		t.Fatal("Updated = false, want true")
+	if got := passwordResp.Msg.GetMember().GetUser().GetId(); got != target.Id {
+		t.Fatalf("password member ID = %q, want %q", got, target.Id)
 	}
 	if _, err := env.core.VerifyPassword(env.ctx, "managed-target", "adminpassword456"); err != nil {
 		t.Fatalf("admin password should verify: %v", err)
@@ -2256,10 +2256,10 @@ func TestAdminMemberServiceListsAndGetsMembers(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListMembers admin: %v", err)
 	}
-	if listResp.Msg.GetPage().GetTotalCount() != 1 || len(listResp.Msg.GetUsers()) != 1 {
-		t.Fatalf("ListMembers returned %d/%d users, want 1/1", len(listResp.Msg.GetUsers()), listResp.Msg.GetPage().GetTotalCount())
+	if listResp.Msg.GetPage().GetTotalCount() != 1 || len(listResp.Msg.GetMembers()) != 1 {
+		t.Fatalf("ListMembers returned %d/%d members, want 1/1", len(listResp.Msg.GetMembers()), listResp.Msg.GetPage().GetTotalCount())
 	}
-	listUser := listResp.Msg.GetUsers()[0]
+	listUser := listResp.Msg.GetMembers()[0]
 	if listUser.GetUser().GetId() != target.Id {
 		t.Fatalf("ListMembers user ID = %q, want %q", listUser.GetUser().GetId(), target.Id)
 	}
@@ -3827,10 +3827,10 @@ func TestNotificationServiceListsAndDismissesNotifications(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListNotifications: %v", err)
 	}
-	if listResp.Msg.GetPage().GetTotalCount() != 2 || !listResp.Msg.GetPage().GetHasMore() || len(listResp.Msg.GetItems()) != 1 {
+	if listResp.Msg.GetPage().GetTotalCount() != 2 || !listResp.Msg.GetPage().GetHasMore() || len(listResp.Msg.GetNotifications()) != 1 {
 		t.Fatalf("ListNotifications page = %+v, want total 2, has_more true, one item", listResp.Msg)
 	}
-	item := listResp.Msg.GetItems()[0]
+	item := listResp.Msg.GetNotifications()[0]
 	if item.GetActor().GetUser().GetDisplayName() != "Notification Actor" || item.GetActor().GetPresenceStatus() != apiv1.PresenceStatus_PRESENCE_STATUS_AWAY {
 		t.Fatalf("notification actor = %+v, want hydrated actor", item.GetActor())
 	}
@@ -3839,7 +3839,7 @@ func TestNotificationServiceListsAndDismissesNotifications(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetNotification: %v", err)
 	}
-	if got := getResp.Msg.GetItem(); got.GetId() != mention.Id || got.GetMention().GetEventId() != "mention-event" || got.GetMention().GetThreadRootEventId() != "thread-root" {
+	if got := getResp.Msg.GetNotification(); got.GetId() != mention.Id || got.GetMention().GetEventId() != "mention-event" || got.GetMention().GetThreadRootEventId() != "thread-root" {
 		t.Fatalf("GetNotification item = %+v, want mention", got)
 	}
 	if getResp.Msg.GetServerName() == "" {
@@ -3855,7 +3855,7 @@ func TestNotificationServiceListsAndDismissesNotifications(t *testing.T) {
 	if err != nil {
 		t.Fatalf("BatchGetNotifications: %v", err)
 	}
-	gotBatch := batchResp.Msg.GetItems()
+	gotBatch := batchResp.Msg.GetNotifications()
 	if len(gotBatch) != 2 || gotBatch[0].GetId() != mention.Id || gotBatch[1].GetId() != dm.Id {
 		t.Fatalf("BatchGetNotifications items = %+v, want mention,dm", gotBatch)
 	}
@@ -3867,10 +3867,10 @@ func TestNotificationServiceListsAndDismissesNotifications(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListRoomNotifications: %v", err)
 	}
-	if roomResp.Msg.GetPage().GetTotalCount() != 1 || len(roomResp.Msg.GetItems()) != 1 {
+	if roomResp.Msg.GetPage().GetTotalCount() != 1 || len(roomResp.Msg.GetNotifications()) != 1 {
 		t.Fatalf("ListRoomNotifications page = %+v, want one room notification", roomResp.Msg)
 	}
-	mentionItem := roomResp.Msg.GetItems()[0]
+	mentionItem := roomResp.Msg.GetNotifications()[0]
 	if mentionItem.GetMention().GetRoom().GetId() != room.Id || mentionItem.GetMention().GetThreadRootEventId() != "thread-root" {
 		t.Fatalf("mention payload = %+v, want room/thread payload", mentionItem.GetMention())
 	}
@@ -3883,7 +3883,7 @@ func TestNotificationServiceListsAndDismissesNotifications(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListRoomNotifications outsider: %v", err)
 	}
-	if outsiderResp.Msg.GetPage().GetTotalCount() != 0 || len(outsiderResp.Msg.GetItems()) != 0 {
+	if outsiderResp.Msg.GetPage().GetTotalCount() != 0 || len(outsiderResp.Msg.GetNotifications()) != 0 {
 		t.Fatalf("outsider room notifications = %+v, want empty page", outsiderResp.Msg)
 	}
 
@@ -3929,7 +3929,7 @@ func TestNotificationServiceListsAndDismissesNotifications(t *testing.T) {
 	if err != nil {
 		t.Fatalf("BatchGetNotifications after dismiss: %v", err)
 	}
-	if got := remainingBatchResp.Msg.GetItems(); len(got) != 1 || got[0].GetId() != dm.Id {
+	if got := remainingBatchResp.Msg.GetNotifications(); len(got) != 1 || got[0].GetId() != dm.Id {
 		t.Fatalf("BatchGetNotifications after dismiss items = %+v, want dm only", got)
 	}
 
@@ -4065,8 +4065,8 @@ func TestVoiceCallServiceRecordsAndListsCalls(t *testing.T) {
 	if err != nil {
 		t.Fatalf("disabled ListActiveCallRooms: %v", err)
 	}
-	if len(disabledActive.Msg.GetRoomIds()) != 0 {
-		t.Fatalf("disabled active rooms = %v, want none", disabledActive.Msg.GetRoomIds())
+	if len(disabledActive.Msg.GetCalls()) != 0 {
+		t.Fatalf("disabled active calls = %v, want none", disabledActive.Msg.GetCalls())
 	}
 	if _, err := env.voice.GetActiveCall(ctx, connect.NewRequest(&apiv1.GetActiveCallRequest{
 		RoomId: room.Id,
@@ -4119,15 +4119,15 @@ func TestVoiceCallServiceRecordsAndListsCalls(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListActiveCallRooms: %v", err)
 	}
-	if got := strings.Join(activeResp.Msg.GetRoomIds(), ","); got != room.Id {
-		t.Fatalf("active room IDs = %v, want %s", activeResp.Msg.GetRoomIds(), room.Id)
+	if calls := activeResp.Msg.GetCalls(); len(calls) != 1 || calls[0].GetRoomId() != room.Id || calls[0].GetCallId() == "" {
+		t.Fatalf("active calls = %v, want one call for %s", calls, room.Id)
 	}
 	nonMemberActiveResp, err := env.voice.ListActiveCallRooms(withCaller(env.ctx, nonMember), connect.NewRequest(&apiv1.ListActiveCallRoomsRequest{}))
 	if err != nil {
 		t.Fatalf("non-member ListActiveCallRooms: %v", err)
 	}
-	if len(nonMemberActiveResp.Msg.GetRoomIds()) != 0 {
-		t.Fatalf("non-member active room IDs = %v, want none", nonMemberActiveResp.Msg.GetRoomIds())
+	if len(nonMemberActiveResp.Msg.GetCalls()) != 0 {
+		t.Fatalf("non-member active calls = %v, want none", nonMemberActiveResp.Msg.GetCalls())
 	}
 
 	activeCallResp, err := env.voice.GetActiveCall(ctx, connect.NewRequest(&apiv1.GetActiveCallRequest{
@@ -5311,10 +5311,10 @@ func TestRoomAndMessageServicesListAndRefreshAttachments(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListRoomAttachments: %v", err)
 	}
-	if resp.Msg.GetPage().GetTotalCount() != 2 || !resp.Msg.GetPage().GetHasMore() || len(resp.Msg.Items) != 1 {
-		t.Fatalf("ListRoomAttachments count/hasMore/items = %d/%v/%d, want 2/true/1", resp.Msg.GetPage().GetTotalCount(), resp.Msg.GetPage().GetHasMore(), len(resp.Msg.Items))
+	if resp.Msg.GetPage().GetTotalCount() != 2 || !resp.Msg.GetPage().GetHasMore() || len(resp.Msg.GetAttachments()) != 1 {
+		t.Fatalf("ListRoomAttachments count/hasMore/attachments = %d/%v/%d, want 2/true/1", resp.Msg.GetPage().GetTotalCount(), resp.Msg.GetPage().GetHasMore(), len(resp.Msg.GetAttachments()))
 	}
-	first := resp.Msg.Items[0]
+	first := resp.Msg.GetAttachments()[0]
 	if first.MessageEventId != reply.Id || first.ThreadRootEventId != root.Id {
 		t.Fatalf("first message/thread IDs = %q/%q, want %q/%q", first.MessageEventId, first.ThreadRootEventId, reply.Id, root.Id)
 	}

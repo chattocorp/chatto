@@ -72,7 +72,7 @@ message GetUserByLoginRequest {
   UserAvatarOptions avatar = 2;
 }
 
-// Request public user records for a set of stable user IDs.
+// Request public user profiles for a set of stable user IDs.
 message BatchGetUsersRequest {
   // Required user IDs. Unknown IDs are omitted from the response.
   repeated string user_ids = 1 [(buf.validate.field).repeated = {
@@ -98,11 +98,11 @@ message GetUserByLoginResponse {
   UserProfile user = 1;
 }
 
-// Batch public user response.
+// Batch public user profile response.
 message BatchGetUsersResponse {
-  // Found users. The server preserves first-seen request order and de-duplicates
-  // repeated IDs.
-  repeated User users = 1;
+  // Found users. The server preserves first-seen request order and
+  // de-duplicates repeated IDs.
+  repeated UserProfile users = 1;
 }
 
 // Provides authenticated public user directory lookups.
@@ -111,7 +111,7 @@ service UserDirectoryService {
   rpc GetUser(GetUserRequest) returns (GetUserResponse);
   // Gets a user by login. Returns NOT_FOUND when the login is unknown.
   rpc GetUserByLogin(GetUserByLoginRequest) returns (GetUserByLoginResponse);
-  // Gets public user records for multiple users referenced by event-focused
+  // Gets public user profiles for multiple users referenced by event-focused
   // payloads.
   rpc BatchGetUsers(BatchGetUsersRequest) returns (BatchGetUsersResponse);
 }

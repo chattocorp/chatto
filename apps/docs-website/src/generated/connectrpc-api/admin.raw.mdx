@@ -405,7 +405,7 @@ Server-admin member rows plus role summaries.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `users` | repeated [`AdminMember`](#chatto-admin-v1-AdminMember) | Matching users. |
+| `members` | repeated [`AdminMember`](#chatto-admin-v1-AdminMember) | Matching members. |
 | `roles` | `repeated chatto.api.v1.Role` | Public roles for display-name lookup. |
 | `page` | `chatto.api.v1.PageInfo` | Page metadata. |
 
@@ -618,7 +618,7 @@ Result of an admin password update.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `updated` | `bool` | True when the request completed. |
+| `member` | [`AdminMember`](#chatto-admin-v1-AdminMember) | Updated admin member row. |
 
 
 <a id="chatto-admin-v1-AdminMemberService-ClearUsernameCooldown"></a>
@@ -928,7 +928,7 @@ Result of setting one role permission state.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `ok` | `bool` | True when the request completed. |
+| `decision` | [`PermissionDecisionUpdate`](#chatto-admin-v1-PermissionDecisionUpdate) | Updated permission decision for the requested role/scope cell. |
 
 
 <a id="chatto-admin-v1-AdminPermissionService-SetUserPermission"></a>
@@ -963,7 +963,7 @@ Result of setting one user permission state.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `ok` | `bool` | True when the request completed. |
+| `decision` | [`PermissionDecisionUpdate`](#chatto-admin-v1-PermissionDecisionUpdate) | Updated permission decision for the requested user/scope cell. |
 
 
 <a id="chatto-admin-v1-AdminRoomLayoutService"></a>
@@ -1865,6 +1865,20 @@ Operator compatibility role reference used by operator.v1 response shapes.
 | --- | --- | --- |
 | `name` | `string` | Stable role name. |
 | `display_name` | `string` | Display name shown in operator UI. |
+
+
+
+<a id="chatto-admin-v1-PermissionDecisionUpdate"></a>
+
+### PermissionDecisionUpdate
+
+Stored permission decision returned after a write.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `permission` | `string` | Permission identifier. |
+| `scope` | [`PermissionScope`](#chatto-admin-v1-PermissionScope) | Server, group, or room scope this decision applies to. |
+| `decision` | [`PermissionDecision`](#chatto-admin-v1-PermissionDecision) | Stored decision after the write. NONE means no explicit decision remains. |
 
 
 

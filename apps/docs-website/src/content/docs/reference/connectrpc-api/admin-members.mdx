@@ -51,7 +51,7 @@ Server-admin member rows plus role summaries.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `users` | repeated [`AdminMember`](/reference/connectrpc-api/types/#chatto-admin-v1-AdminMember) | Matching users. |
+| `members` | repeated [`AdminMember`](/reference/connectrpc-api/types/#chatto-admin-v1-AdminMember) | Matching members. |
 | `roles` | `repeated chatto.api.v1.Role` | Public roles for display-name lookup. |
 | `page` | [`chatto.api.v1.PageInfo`](/reference/connectrpc-api/types/#chatto-api-v1-PageInfo) | Page metadata. |
 
@@ -264,7 +264,7 @@ Result of an admin password update.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `updated` | `bool` | True when the request completed. |
+| `member` | [`AdminMember`](/reference/connectrpc-api/types/#chatto-admin-v1-AdminMember) | Updated admin member row. |
 
 
 <a id="chatto-admin-v1-AdminMemberService-ClearUsernameCooldown"></a>

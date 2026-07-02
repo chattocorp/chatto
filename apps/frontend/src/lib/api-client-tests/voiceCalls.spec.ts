@@ -64,7 +64,15 @@ describe('createVoiceCallAPI', () => {
       joinedAt: Timestamp.fromDate(new Date('2026-06-01T12:00:00Z')),
       callId: 'call-1'
     };
-    mocks.listActiveCallRooms.mockResolvedValue({ roomIds: ['room-1'] });
+    mocks.listActiveCallRooms.mockResolvedValue({
+      calls: [
+        {
+          roomId: 'room-1',
+          callId: 'call-1',
+          participants: [participant]
+        }
+      ]
+    });
     mocks.getActiveCall.mockResolvedValue({
       call: {
         roomId: 'room-1',
@@ -95,7 +103,13 @@ describe('createVoiceCallAPI', () => {
       bearerToken: 'token'
     });
 
-    await expect(api.listActiveCallRoomIds()).resolves.toEqual(['room-1']);
+    await expect(api.listActiveCalls()).resolves.toMatchObject([
+      {
+        roomId: 'room-1',
+        callId: 'call-1',
+        participants: [{ user: { id: 'U1' }, callId: 'call-1' }]
+      }
+    ]);
     await expect(api.getActiveCall('room-1')).resolves.toMatchObject({
       roomId: 'room-1',
       callId: 'call-1',

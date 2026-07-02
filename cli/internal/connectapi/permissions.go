@@ -111,7 +111,9 @@ func (s *permissionService) SetRolePermission(ctx context.Context, req *connect.
 	if err := s.api.core.SetRolePermissionState(ctx, caller.UserID, req.Msg.GetRoleName(), scope, core.Permission(req.Msg.GetPermission()), state); err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&adminv1.SetRolePermissionResponse{Ok: true}), nil
+	return connect.NewResponse(&adminv1.SetRolePermissionResponse{
+		Decision: apiPermissionDecisionUpdate(scope, core.Permission(req.Msg.GetPermission()), req.Msg.GetDecision()),
+	}), nil
 }
 
 func (s *permissionService) SetUserPermission(ctx context.Context, req *connect.Request[adminv1.SetUserPermissionRequest]) (*connect.Response[adminv1.SetUserPermissionResponse], error) {
@@ -130,7 +132,9 @@ func (s *permissionService) SetUserPermission(ctx context.Context, req *connect.
 	if err := s.api.core.SetUserPermissionState(ctx, caller.UserID, req.Msg.GetUserId(), scope, core.Permission(req.Msg.GetPermission()), state); err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&adminv1.SetUserPermissionResponse{Ok: true}), nil
+	return connect.NewResponse(&adminv1.SetUserPermissionResponse{
+		Decision: apiPermissionDecisionUpdate(scope, core.Permission(req.Msg.GetPermission()), req.Msg.GetDecision()),
+	}), nil
 }
 
 func apiPermissionExplanations(explanations []core.PermissionExplanation) []*adminv1.PermissionExplanation {
@@ -281,6 +285,33 @@ func apiPermissionDecisionEntries(scopes []core.PermissionMatrixScope, cells []c
 		})
 	}
 	return out
+}
+
+func apiPermissionDecisionUpdate(scope core.PermissionTargetScope, permission core.Permission, decision adminv1.PermissionDecision) *adminv1.PermissionDecisionUpdate {
+	return &adminv1.PermissionDecisionUpdate{
+		Permission: string(permission),
+		Scope:      apiPermissionTargetScope(scope),
+		Decision:   decision,
+	}
+}
+
+func apiPermissionTargetScope(scope core.PermissionTargetScope) *adminv1.PermissionScope {
+	switch scope.Kind {
+	case core.MatrixScopeGroup:
+		return &adminv1.PermissionScope{
+			Kind: adminv1.PermissionScopeKind_PERMISSION_SCOPE_KIND_GROUP,
+			Id:   scope.ID,
+		}
+	case core.MatrixScopeRoom:
+		return &adminv1.PermissionScope{
+			Kind: adminv1.PermissionScopeKind_PERMISSION_SCOPE_KIND_ROOM,
+			Id:   scope.ID,
+		}
+	default:
+		return &adminv1.PermissionScope{
+			Kind: adminv1.PermissionScopeKind_PERMISSION_SCOPE_KIND_SERVER,
+		}
+	}
 }
 
 func apiPermissionEntryScope(scope core.PermissionMatrixScope) *adminv1.PermissionScope {

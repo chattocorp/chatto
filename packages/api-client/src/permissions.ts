@@ -6,6 +6,7 @@ import {
   PermissionScopeKind,
   type PermissionMatrixCell as APIPermissionMatrixCell,
   type PermissionMatrixScope as APIPermissionMatrixScope,
+  type PermissionDecisionUpdate as APIPermissionDecisionUpdate,
   type RolePermissionMatrix as APIRolePermissionMatrix,
   type ScopedPermissionDecision as APIScopedPermissionDecision,
   type TierRole as APITierRole,
@@ -82,6 +83,12 @@ export type PermissionDecisionEntry = {
   scope: PermissionScope;
   override: MatrixDecision;
   effective: MatrixDecision;
+};
+
+export type PermissionDecisionUpdate = {
+  permission: string;
+  scope: PermissionScope;
+  decision: MatrixDecision;
 };
 
 export type RolePermissionDecisions = {
@@ -170,7 +177,7 @@ export function createPermissionAPI(config: PermissionAPIConfig) {
       scope: PermissionScope;
       permission: string;
       state: PermissionState;
-    }): Promise<boolean> {
+    }): Promise<PermissionDecisionUpdate> {
       const response = await client.setRolePermission(
         {
           roleName: input.roleName,
@@ -180,7 +187,7 @@ export function createPermissionAPI(config: PermissionAPIConfig) {
         },
         { headers: headers() },
       );
-      return response.ok;
+      return permissionDecisionUpdate(response.decision);
     },
 
     async setUserPermission(input: {
@@ -188,7 +195,7 @@ export function createPermissionAPI(config: PermissionAPIConfig) {
       scope: PermissionScope;
       permission: string;
       state: PermissionState;
-    }): Promise<boolean> {
+    }): Promise<PermissionDecisionUpdate> {
       const response = await client.setUserPermission(
         {
           userId: input.userId,
@@ -198,7 +205,7 @@ export function createPermissionAPI(config: PermissionAPIConfig) {
         },
         { headers: headers() },
       );
-      return response.ok;
+      return permissionDecisionUpdate(response.decision);
     },
   };
 }
@@ -276,6 +283,19 @@ function permissionDecisionEntry(
     scope: permissionScope(decision.scope),
     override: matrixDecision(decision.override),
     effective: matrixDecision(decision.effective),
+  };
+}
+
+function permissionDecisionUpdate(
+  decision: APIPermissionDecisionUpdate | undefined,
+): PermissionDecisionUpdate {
+  if (!decision) {
+    throw new Error("permission write response did not include a decision");
+  }
+  return {
+    permission: decision.permission,
+    scope: permissionScope(decision.scope),
+    decision: matrixDecision(decision.decision),
   };
 }
 

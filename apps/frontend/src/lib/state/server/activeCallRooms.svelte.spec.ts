@@ -31,7 +31,7 @@ function participant(
 
 function makeVoiceCallAPI(overrides: Partial<VoiceCallAPI> = {}): VoiceCallAPI {
   return {
-    listActiveCallRoomIds: vi.fn().mockResolvedValue([]),
+    listActiveCalls: vi.fn().mockResolvedValue([]),
     getActiveCall: vi.fn().mockResolvedValue(null),
     batchGetActiveCalls: vi.fn().mockResolvedValue([]),
     listCallParticipants: vi.fn().mockResolvedValue([]),
@@ -189,13 +189,10 @@ describe('ActiveCallRoomsState', () => {
     expect(state.getParticipants('R1')).toEqual([]);
   });
 
-  it('clears a batch-loaded room when its call end event arrives', async () => {
+  it('clears a list-loaded room when its call end event arrives', async () => {
     const state = new ActiveCallRoomsState(
       makeVoiceCallAPI({
-        listActiveCallRoomIds: vi.fn().mockResolvedValue(['R1']),
-        batchGetActiveCalls: vi.fn().mockResolvedValue([
-          { roomId: 'R1', callId: 'call-unknown', participants: [] }
-        ])
+        listActiveCalls: vi.fn().mockResolvedValue([{ roomId: 'R1', callId: 'call-unknown', participants: [] }])
       }),
       { connected: false, roomId: null } as never
     );
@@ -210,23 +207,21 @@ describe('ActiveCallRoomsState', () => {
     expect(state.getParticipants('R1')).toEqual([]);
   });
 
-  it('loads initial active calls through batch snapshots and omits inaccessible rooms', async () => {
-    const listActiveCallRoomIds = vi.fn().mockResolvedValue(['R1', 'R2']);
-    const batchGetActiveCalls = vi.fn().mockResolvedValue([
+  it('loads initial active calls through list snapshots', async () => {
+    const listActiveCalls = vi.fn().mockResolvedValue([
       { roomId: 'R1', callId: 'call-1', participants: [participant('U1')] }
     ]);
     const listCallParticipants = vi.fn().mockResolvedValue([participant('U2')]);
     const state = new ActiveCallRoomsState(
-      makeVoiceCallAPI({ listActiveCallRoomIds, batchGetActiveCalls, listCallParticipants }),
+      makeVoiceCallAPI({ listActiveCalls, listCallParticipants }),
       { connected: false, roomId: null, participants: [] } as never
     );
 
     await state.load();
 
-    expect(batchGetActiveCalls).toHaveBeenCalledWith(['R1', 'R2']);
+    expect(listActiveCalls).toHaveBeenCalledTimes(1);
     expect(listCallParticipants).not.toHaveBeenCalled();
     expect(state.has('R1')).toBe(true);
-    expect(state.has('R2')).toBe(false);
     expect(state.getParticipants('R1')).toEqual([
       {
         userId: 'U1',

@@ -158,7 +158,9 @@ export function createNotificationAPI(config: NotificationAPIConfig) {
           { notificationId },
           { headers: headers() },
         );
-        const item = response.item ? notificationItem(response.item) : null;
+        const item = response.notification
+          ? notificationItem(response.notification)
+          : null;
         return item ? { item, serverName: response.serverName || null } : null;
       } catch (err) {
         if (err instanceof ConnectError && err.code === Code.NotFound) {
@@ -176,7 +178,7 @@ export function createNotificationAPI(config: NotificationAPIConfig) {
         { headers: headers() },
       );
       return {
-        items: response.items.flatMap((item) => {
+        items: response.notifications.flatMap((item) => {
           const mapped = notificationItem(item);
           return mapped ? [mapped] : [];
         }),
@@ -219,7 +221,7 @@ function notificationPage(
   response: ListNotificationsResponse | ListRoomNotificationsResponse,
 ): NotificationPage {
   return {
-    items: response.items.flatMap((item) => {
+    items: response.notifications.flatMap((item) => {
       const mapped = notificationItem(item);
       return mapped ? [mapped] : [];
     }),

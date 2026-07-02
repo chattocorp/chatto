@@ -79,7 +79,7 @@ describe('createAttachmentAPI', () => {
     mocks.listRoomAttachments.mockResolvedValue(
       new ListRoomAttachmentsResponse({
         page: { totalCount: 2n, hasMore: true },
-        items: [
+        attachments: [
           new RoomAttachmentListItem({
             messageEventId: 'event_2',
             threadRootEventId: 'event_1',

@@ -328,7 +328,7 @@ export class GetUserByLoginRequest extends Message<GetUserByLoginRequest> {
 }
 
 /**
- * Request public user records for a set of stable user IDs.
+ * Request public user profiles for a set of stable user IDs.
  *
  * @generated from message chatto.api.v1.BatchGetUsersRequest
  */
@@ -459,18 +459,18 @@ export class GetUserByLoginResponse extends Message<GetUserByLoginResponse> {
 }
 
 /**
- * Batch public user response.
+ * Batch public user profile response.
  *
  * @generated from message chatto.api.v1.BatchGetUsersResponse
  */
 export class BatchGetUsersResponse extends Message<BatchGetUsersResponse> {
   /**
-   * Found users. The server preserves first-seen request order and de-duplicates
-   * repeated IDs.
+   * Found users. The server preserves first-seen request order and
+   * de-duplicates repeated IDs.
    *
-   * @generated from field: repeated chatto.api.v1.User users = 1;
+   * @generated from field: repeated chatto.api.v1.UserProfile users = 1;
    */
-  users: User[] = [];
+  users: UserProfile[] = [];
 
   constructor(data?: PartialMessage<BatchGetUsersResponse>) {
     super();
@@ -480,7 +480,7 @@ export class BatchGetUsersResponse extends Message<BatchGetUsersResponse> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.BatchGetUsersResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "users", kind: "message", T: User, repeated: true },
+    { no: 1, name: "users", kind: "message", T: UserProfile, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BatchGetUsersResponse {

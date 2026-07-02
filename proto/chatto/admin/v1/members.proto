@@ -73,8 +73,8 @@ message ListMembersResponse {
   reserved 3, 4;
   reserved "total_count", "has_more";
 
-  // Matching users.
-  repeated AdminMember users = 1;
+  // Matching members.
+  repeated AdminMember members = 1;
   // Public roles for display-name lookup.
   repeated chatto.api.v1.Role roles = 2;
   // Page metadata.
@@ -187,8 +187,8 @@ message UpdateUserPasswordRequest {
 
 // Result of an admin password update.
 message UpdateUserPasswordResponse {
-  // True when the request completed.
-  bool updated = 1;
+  // Updated admin member row.
+  AdminMember member = 1;
 }
 
 // Request to clear a user's self-service username-change cooldown.

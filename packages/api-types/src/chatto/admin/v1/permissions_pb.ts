@@ -866,6 +866,63 @@ export class ScopedPermissionDecision extends Message<ScopedPermissionDecision> 
 }
 
 /**
+ * Stored permission decision returned after a write.
+ *
+ * @generated from message chatto.admin.v1.PermissionDecisionUpdate
+ */
+export class PermissionDecisionUpdate extends Message<PermissionDecisionUpdate> {
+  /**
+   * Permission identifier.
+   *
+   * @generated from field: string permission = 1;
+   */
+  permission = "";
+
+  /**
+   * Server, group, or room scope this decision applies to.
+   *
+   * @generated from field: chatto.admin.v1.PermissionScope scope = 2;
+   */
+  scope?: PermissionScope;
+
+  /**
+   * Stored decision after the write. NONE means no explicit decision remains.
+   *
+   * @generated from field: chatto.admin.v1.PermissionDecision decision = 3;
+   */
+  decision = PermissionDecision.UNSPECIFIED;
+
+  constructor(data?: PartialMessage<PermissionDecisionUpdate>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.admin.v1.PermissionDecisionUpdate";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "permission", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "scope", kind: "message", T: PermissionScope },
+    { no: 3, name: "decision", kind: "enum", T: proto3.getEnumType(PermissionDecision) },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PermissionDecisionUpdate {
+    return new PermissionDecisionUpdate().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): PermissionDecisionUpdate {
+    return new PermissionDecisionUpdate().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): PermissionDecisionUpdate {
+    return new PermissionDecisionUpdate().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: PermissionDecisionUpdate | PlainMessage<PermissionDecisionUpdate> | undefined, b: PermissionDecisionUpdate | PlainMessage<PermissionDecisionUpdate> | undefined): boolean {
+    return proto3.util.equals(PermissionDecisionUpdate, a, b);
+  }
+}
+
+/**
  * Request explicit/effective permission decisions for one role.
  *
  * @generated from message chatto.admin.v1.ListRolePermissionDecisionsRequest
@@ -1427,11 +1484,11 @@ export class SetRolePermissionRequest extends Message<SetRolePermissionRequest> 
  */
 export class SetRolePermissionResponse extends Message<SetRolePermissionResponse> {
   /**
-   * True when the request completed.
+   * Updated permission decision for the requested role/scope cell.
    *
-   * @generated from field: bool ok = 1;
+   * @generated from field: chatto.admin.v1.PermissionDecisionUpdate decision = 1;
    */
-  ok = false;
+  decision?: PermissionDecisionUpdate;
 
   constructor(data?: PartialMessage<SetRolePermissionResponse>) {
     super();
@@ -1441,7 +1498,7 @@ export class SetRolePermissionResponse extends Message<SetRolePermissionResponse
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.admin.v1.SetRolePermissionResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "ok", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 1, name: "decision", kind: "message", T: PermissionDecisionUpdate },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SetRolePermissionResponse {
@@ -1533,11 +1590,11 @@ export class SetUserPermissionRequest extends Message<SetUserPermissionRequest> 
  */
 export class SetUserPermissionResponse extends Message<SetUserPermissionResponse> {
   /**
-   * True when the request completed.
+   * Updated permission decision for the requested user/scope cell.
    *
-   * @generated from field: bool ok = 1;
+   * @generated from field: chatto.admin.v1.PermissionDecisionUpdate decision = 1;
    */
-  ok = false;
+  decision?: PermissionDecisionUpdate;
 
   constructor(data?: PartialMessage<SetUserPermissionResponse>) {
     super();
@@ -1547,7 +1604,7 @@ export class SetUserPermissionResponse extends Message<SetUserPermissionResponse
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.admin.v1.SetUserPermissionResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "ok", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 1, name: "decision", kind: "message", T: PermissionDecisionUpdate },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SetUserPermissionResponse {

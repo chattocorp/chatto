@@ -37,7 +37,7 @@ export const UserDirectoryService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Gets public user records for multiple users referenced by event-focused
+     * Gets public user profiles for multiple users referenced by event-focused
      * payloads.
      *
      * @generated from rpc chatto.api.v1.UserDirectoryService.BatchGetUsers

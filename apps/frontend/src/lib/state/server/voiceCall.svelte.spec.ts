@@ -162,7 +162,7 @@ vi.mock('livekit-client/e2ee-worker?worker', () => ({
 
 function createVoiceCallClient(overrides: Partial<VoiceCallAPI> = {}): VoiceCallAPI {
   return {
-    listActiveCallRoomIds: vi.fn(async () => []),
+    listActiveCalls: vi.fn(async () => []),
     getActiveCall: vi.fn(async () => null),
     batchGetActiveCalls: vi.fn(async () => []),
     listCallParticipants: vi.fn(async () => []),

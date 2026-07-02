@@ -45,8 +45,8 @@ func (s *notificationService) GetNotification(ctx context.Context, req *connect.
 		return nil, connectError(err)
 	}
 	return connect.NewResponse(&apiv1.GetNotificationResponse{
-		Item:       item,
-		ServerName: assembler.emptyPage(ctx).GetServerName(),
+		Notification: item,
+		ServerName:   assembler.emptyPage(ctx).GetServerName(),
 	}), nil
 }
 
@@ -58,7 +58,7 @@ func (s *notificationService) BatchGetNotifications(ctx context.Context, req *co
 
 	assembler := newNotificationAssembler(s.api)
 	seen := make(map[string]struct{}, len(req.Msg.GetNotificationIds()))
-	items := make([]*apiv1.NotificationItem, 0, len(req.Msg.GetNotificationIds()))
+	notifications := make([]*apiv1.NotificationItem, 0, len(req.Msg.GetNotificationIds()))
 	for _, notificationID := range req.Msg.GetNotificationIds() {
 		if _, ok := seen[notificationID]; ok {
 			continue
@@ -76,11 +76,11 @@ func (s *notificationService) BatchGetNotifications(ctx context.Context, req *co
 		if err != nil {
 			return nil, connectError(err)
 		}
-		items = append(items, item)
+		notifications = append(notifications, item)
 	}
 	return connect.NewResponse(&apiv1.BatchGetNotificationsResponse{
-		Items:      items,
-		ServerName: assembler.emptyPage(ctx).GetServerName(),
+		Notifications: notifications,
+		ServerName:    assembler.emptyPage(ctx).GetServerName(),
 	}), nil
 }
 
@@ -98,9 +98,9 @@ func (s *notificationService) ListRoomNotifications(ctx context.Context, req *co
 		return nil, connectError(err)
 	}
 	return connect.NewResponse(&apiv1.ListRoomNotificationsResponse{
-		Items:      page.GetItems(),
-		ServerName: page.GetServerName(),
-		Page:       page.GetPage(),
+		Notifications: page.GetNotifications(),
+		ServerName:    page.GetServerName(),
+		Page:          page.GetPage(),
 	}), nil
 }
 

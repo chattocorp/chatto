@@ -272,7 +272,7 @@ message ListRoomAttachmentsResponse {
   reserved "total_count", "has_more";
 
   // Current attachments in newest message order.
-  repeated RoomAttachmentListItem items = 1;
+  repeated RoomAttachmentListItem attachments = 1;
   // Page metadata.
   PageInfo page = 4;
 }

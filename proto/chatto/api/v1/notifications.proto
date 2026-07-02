@@ -102,8 +102,8 @@ message ListNotificationsResponse {
   reserved 2, 3;
   reserved "total_count", "has_more";
 
-  // Page items, newest first.
-  repeated NotificationItem items = 1;
+  // Page notifications, newest first.
+  repeated NotificationItem notifications = 1;
   // Current server display name for non-DM location labels.
   string server_name = 4;
   // Page metadata.
@@ -119,7 +119,7 @@ message GetNotificationRequest {
 // Pending notification response.
 message GetNotificationResponse {
   // Requested notification.
-  NotificationItem item = 1;
+  NotificationItem notification = 1;
   // Current server display name for non-DM location labels.
   string server_name = 2;
 }
@@ -141,7 +141,7 @@ message BatchGetNotificationsRequest {
 message BatchGetNotificationsResponse {
   // Found notifications. The server preserves first-seen request order and
   // de-duplicates repeated IDs.
-  repeated NotificationItem items = 1;
+  repeated NotificationItem notifications = 1;
   // Current server display name for non-DM location labels.
   string server_name = 2;
 }
@@ -151,8 +151,8 @@ message ListRoomNotificationsResponse {
   reserved 2, 3;
   reserved "total_count", "has_more";
 
-  // Page items, newest first.
-  repeated NotificationItem items = 1;
+  // Page notifications, newest first.
+  repeated NotificationItem notifications = 1;
   // Current server display name for non-DM location labels.
   string server_name = 4;
   // Page metadata.

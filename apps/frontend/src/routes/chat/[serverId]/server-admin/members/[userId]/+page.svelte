@@ -205,17 +205,18 @@
 
     settingPassword = true;
     passwordError = null;
-    let updated = false;
+    let updatedMember: AdminMember | null = null;
     try {
-      updated = await adminUsersAPI().updateUserPassword(member.id, adminPassword);
+      updatedMember = await adminUsersAPI().updateUserPassword(member.id, adminPassword);
     } catch (err) {
       passwordError = err instanceof Error ? err.message : m['admin.members.set_password_failed']();
     }
     settingPassword = false;
 
-    if (!updated) {
+    if (!updatedMember) {
       return;
     }
+    member = updatedMember;
     adminPassword = '';
     adminConfirmPassword = '';
     toast.success(m['admin.members.password_set']());

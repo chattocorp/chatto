@@ -50,7 +50,7 @@ type UserDirectoryServiceClient interface {
 	GetUser(context.Context, *connect.Request[v1.GetUserRequest]) (*connect.Response[v1.GetUserResponse], error)
 	// Gets a user by login. Returns NOT_FOUND when the login is unknown.
 	GetUserByLogin(context.Context, *connect.Request[v1.GetUserByLoginRequest]) (*connect.Response[v1.GetUserByLoginResponse], error)
-	// Gets public user records for multiple users referenced by event-focused
+	// Gets public user profiles for multiple users referenced by event-focused
 	// payloads.
 	BatchGetUsers(context.Context, *connect.Request[v1.BatchGetUsersRequest]) (*connect.Response[v1.BatchGetUsersResponse], error)
 }
@@ -116,7 +116,7 @@ type UserDirectoryServiceHandler interface {
 	GetUser(context.Context, *connect.Request[v1.GetUserRequest]) (*connect.Response[v1.GetUserResponse], error)
 	// Gets a user by login. Returns NOT_FOUND when the login is unknown.
 	GetUserByLogin(context.Context, *connect.Request[v1.GetUserByLoginRequest]) (*connect.Response[v1.GetUserByLoginResponse], error)
-	// Gets public user records for multiple users referenced by event-focused
+	// Gets public user profiles for multiple users referenced by event-focused
 	// payloads.
 	BatchGetUsers(context.Context, *connect.Request[v1.BatchGetUsersRequest]) (*connect.Response[v1.BatchGetUsersResponse], error)
 }

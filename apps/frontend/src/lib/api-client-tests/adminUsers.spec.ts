@@ -54,7 +54,7 @@ describe('createAdminUserManagementAPI', () => {
   it('lists admin members and maps timestamps and roles', async () => {
     const createdAt = new Date('2026-01-02T03:04:05.000Z');
     mocks.listMembers.mockResolvedValue({
-      users: [
+      members: [
         {
           user: {
             id: 'user-1',
@@ -256,13 +256,34 @@ describe('createAdminUserManagementAPI', () => {
   });
 
   it('sets a user password with auth headers', async () => {
-    mocks.updateUserPassword.mockResolvedValue({ updated: true });
+    mocks.updateUserPassword.mockResolvedValue({
+      member: {
+        user: {
+          id: 'user-1',
+          login: 'alice',
+          displayName: 'Alice',
+          avatarUrl: undefined,
+          deleted: false
+        },
+        roles: ['admin'],
+        createdAt: undefined,
+        hasVerifiedEmail: false,
+        verifiedEmails: [],
+        viewerCanDeleteAccount: true,
+        lastLoginChange: undefined
+      }
+    });
     const api = createAdminUserManagementAPI({
       baseUrl: '/api/connect',
       bearerToken: 'token'
     });
 
-    await expect(api.updateUserPassword('user-1', 'newpassword456')).resolves.toBe(true);
+    await expect(api.updateUserPassword('user-1', 'newpassword456')).resolves.toMatchObject({
+      id: 'user-1',
+      login: 'alice',
+      displayName: 'Alice',
+      roles: ['admin']
+    });
 
     expect(mocks.updateUserPassword).toHaveBeenCalledWith(
       { userId: 'user-1', password: 'newpassword456' },

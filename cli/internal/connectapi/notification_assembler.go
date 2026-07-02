@@ -22,7 +22,7 @@ func newNotificationAssembler(api *API) *notificationAssembler {
 func (a *notificationAssembler) pageFromList(ctx context.Context, notifications []*corev1.Notification, pageRequest *apiv1.PageRequest) (*apiv1.ListNotificationsResponse, error) {
 	limitVal, offsetVal := apiPagination(pageRequest, defaultNotificationLimit, maxNotificationLimit)
 	page, totalCount, hasMore := paginateNotifications(notifications, limitVal, offsetVal)
-	items, err := parallel.MapNonNil(ctx, maxConnectAPIHydrationConcurrency, page, func(ctx context.Context, _ int, notification *corev1.Notification) (*apiv1.NotificationItem, error) {
+	hydrated, err := parallel.MapNonNil(ctx, maxConnectAPIHydrationConcurrency, page, func(ctx context.Context, _ int, notification *corev1.Notification) (*apiv1.NotificationItem, error) {
 		return a.item(ctx, notification)
 	})
 	if err != nil {
@@ -30,7 +30,7 @@ func (a *notificationAssembler) pageFromList(ctx context.Context, notifications 
 	}
 
 	response := a.emptyPage(ctx)
-	response.Items = items
+	response.Notifications = hydrated
 	response.Page = apiPageInfo(totalCount, hasMore)
 	return response, nil
 }
@@ -43,8 +43,8 @@ func (a *notificationAssembler) emptyPage(ctx context.Context) *apiv1.ListNotifi
 		}
 	}
 	return &apiv1.ListNotificationsResponse{
-		Items:      []*apiv1.NotificationItem{},
-		ServerName: name,
+		Notifications: []*apiv1.NotificationItem{},
+		ServerName:    name,
 	}
 }
 

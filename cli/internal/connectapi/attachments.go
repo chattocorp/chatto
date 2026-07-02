@@ -43,12 +43,12 @@ func (s *roomService) ListRoomAttachments(ctx context.Context, req *connect.Requ
 
 	thumbnail := attachmentThumbnailOptions(req.Msg.Thumbnail)
 	mapper := attachmentMapper{api: s.api}
-	items := make([]*apiv1.RoomAttachmentListItem, 0, len(result.Items))
+	attachments := make([]*apiv1.RoomAttachmentListItem, 0, len(result.Items))
 	for _, item := range result.Items {
 		if item == nil {
 			continue
 		}
-		items = append(items, &apiv1.RoomAttachmentListItem{
+		attachments = append(attachments, &apiv1.RoomAttachmentListItem{
 			Attachment:        mapper.attachment(item.Attachment, caller.UserID, thumbnail),
 			MessageEventId:    item.MessageEventID,
 			ThreadRootEventId: item.ThreadRootEventID,
@@ -57,8 +57,8 @@ func (s *roomService) ListRoomAttachments(ctx context.Context, req *connect.Requ
 	}
 
 	return connect.NewResponse(&apiv1.ListRoomAttachmentsResponse{
-		Items: items,
-		Page:  apiPageInfo(result.TotalCount, result.HasMore),
+		Attachments: attachments,
+		Page:        apiPageInfo(result.TotalCount, result.HasMore),
 	}), nil
 }
 

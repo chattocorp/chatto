@@ -90,7 +90,7 @@ Public authenticated user profile response for login lookup.
 
 ### BatchGetUsers
 
-Gets public user records for multiple users referenced by event-focused
+Gets public user profiles for multiple users referenced by event-focused
 payloads.
 
 ```http
@@ -101,7 +101,7 @@ POST /api/connect/chatto.api.v1.UserDirectoryService/BatchGetUsers
 
 #### Input: BatchGetUsersRequest
 
-Request public user records for a set of stable user IDs.
+Request public user profiles for a set of stable user IDs.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -113,8 +113,8 @@ Request public user records for a set of stable user IDs.
 
 #### Result: BatchGetUsersResponse
 
-Batch public user response.
+Batch public user profile response.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `users` | repeated [`User`](/reference/connectrpc-api/types/#chatto-api-v1-User) | Found users. The server preserves first-seen request order and de-duplicates repeated IDs. |
+| `users` | repeated [`UserProfile`](/reference/connectrpc-api/types/#chatto-api-v1-UserProfile) | Found users. The server preserves first-seen request order and de-duplicates repeated IDs. |

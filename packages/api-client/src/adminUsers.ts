@@ -99,7 +99,7 @@ export function createAdminUserManagementAPI(
         { headers: headers() },
       );
       return {
-        users: response.users.map(adminMember),
+        users: response.members.map(adminMember),
         roles: response.roles.map(adminRoleReference),
         totalCount: Number(response.page?.totalCount ?? 0),
         hasMore: response.page?.hasMore ?? false,
@@ -142,12 +142,15 @@ export function createAdminUserManagementAPI(
       return adminManagedUser(response.user);
     },
 
-    async updateUserPassword(userId: string, password: string): Promise<boolean> {
+    async updateUserPassword(userId: string, password: string): Promise<AdminMember> {
       const response = await client.updateUserPassword(
         { userId, password },
         { headers: headers() },
       );
-      return response.updated;
+      if (!response.member) {
+        throw new Error("admin password response did not include a member");
+      }
+      return adminMember(response.member);
     },
 
     async clearUsernameCooldown(userId: string): Promise<boolean> {

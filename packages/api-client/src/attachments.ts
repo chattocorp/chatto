@@ -128,7 +128,7 @@ export function createAttachmentAPI(
           { headers: headers() },
         );
         return {
-          items: response.items.map(roomFileItem),
+          items: response.attachments.map(roomFileItem),
           totalCount: Number(response.page?.totalCount ?? 0),
           hasMore: response.page?.hasMore ?? false,
         };

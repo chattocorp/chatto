@@ -395,7 +395,7 @@ func (x *GetUserByLoginRequest) GetAvatar() *UserAvatarOptions {
 	return nil
 }
 
-// Request public user records for a set of stable user IDs.
+// Request public user profiles for a set of stable user IDs.
 type BatchGetUsersRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Required user IDs. Unknown IDs are omitted from the response.
@@ -542,12 +542,12 @@ func (x *GetUserByLoginResponse) GetUser() *UserProfile {
 	return nil
 }
 
-// Batch public user response.
+// Batch public user profile response.
 type BatchGetUsersResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Found users. The server preserves first-seen request order and de-duplicates
-	// repeated IDs.
-	Users         []*User `protobuf:"bytes,1,rep,name=users,proto3" json:"users,omitempty"`
+	// Found users. The server preserves first-seen request order and
+	// de-duplicates repeated IDs.
+	Users         []*UserProfile `protobuf:"bytes,1,rep,name=users,proto3" json:"users,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -582,7 +582,7 @@ func (*BatchGetUsersResponse) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_users_proto_rawDescGZIP(), []int{8}
 }
 
-func (x *BatchGetUsersResponse) GetUsers() []*User {
+func (x *BatchGetUsersResponse) GetUsers() []*UserProfile {
 	if x != nil {
 		return x.Users
 	}
@@ -625,9 +625,9 @@ const file_chatto_api_v1_users_proto_rawDesc = "" +
 	"\x0fGetUserResponse\x12.\n" +
 	"\x04user\x18\x01 \x01(\v2\x1a.chatto.api.v1.UserProfileR\x04user\"H\n" +
 	"\x16GetUserByLoginResponse\x12.\n" +
-	"\x04user\x18\x01 \x01(\v2\x1a.chatto.api.v1.UserProfileR\x04user\"B\n" +
-	"\x15BatchGetUsersResponse\x12)\n" +
-	"\x05users\x18\x01 \x03(\v2\x13.chatto.api.v1.UserR\x05users*{\n" +
+	"\x04user\x18\x01 \x01(\v2\x1a.chatto.api.v1.UserProfileR\x04user\"I\n" +
+	"\x15BatchGetUsersResponse\x120\n" +
+	"\x05users\x18\x01 \x03(\v2\x1a.chatto.api.v1.UserProfileR\x05users*{\n" +
 	"\x11UserAvatarFitMode\x12$\n" +
 	" USER_AVATAR_FIT_MODE_UNSPECIFIED\x10\x00\x12 \n" +
 	"\x1cUSER_AVATAR_FIT_MODE_CONTAIN\x10\x01\x12\x1e\n" +
@@ -677,7 +677,7 @@ var file_chatto_api_v1_users_proto_depIdxs = []int32{
 	1,  // 6: chatto.api.v1.BatchGetUsersRequest.avatar:type_name -> chatto.api.v1.UserAvatarOptions
 	3,  // 7: chatto.api.v1.GetUserResponse.user:type_name -> chatto.api.v1.UserProfile
 	3,  // 8: chatto.api.v1.GetUserByLoginResponse.user:type_name -> chatto.api.v1.UserProfile
-	2,  // 9: chatto.api.v1.BatchGetUsersResponse.users:type_name -> chatto.api.v1.User
+	3,  // 9: chatto.api.v1.BatchGetUsersResponse.users:type_name -> chatto.api.v1.UserProfile
 	4,  // 10: chatto.api.v1.UserDirectoryService.GetUser:input_type -> chatto.api.v1.GetUserRequest
 	5,  // 11: chatto.api.v1.UserDirectoryService.GetUserByLogin:input_type -> chatto.api.v1.GetUserByLoginRequest
 	6,  // 12: chatto.api.v1.UserDirectoryService.BatchGetUsers:input_type -> chatto.api.v1.BatchGetUsersRequest

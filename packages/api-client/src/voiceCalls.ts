@@ -60,9 +60,12 @@ export function createVoiceCallAPI(config: VoiceCallAPIConfig) {
       : undefined;
 
   return {
-    async listActiveCallRoomIds(): Promise<string[]> {
-      return (await client.listActiveCallRooms({}, { headers: headers() }))
-        .roomIds;
+    async listActiveCalls(): Promise<ActiveVoiceCall[]> {
+      const response = await client.listActiveCallRooms(
+        {},
+        { headers: headers() },
+      );
+      return response.calls.map(activeCall);
     },
 
     async getActiveCall(roomId: string): Promise<ActiveVoiceCall | null> {

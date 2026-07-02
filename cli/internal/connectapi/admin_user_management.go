@@ -37,12 +37,12 @@ func (s *adminUserManagementService) ListMembers(ctx context.Context, req *conne
 		return nil, connectError(err)
 	}
 	response := &adminv1.ListMembersResponse{
-		Users: make([]*adminv1.AdminMember, 0, len(members.Users)),
-		Roles: make([]*apiv1.Role, 0, len(members.Roles)),
-		Page:  apiPageInfo(members.TotalCount, members.HasMore),
+		Members: make([]*adminv1.AdminMember, 0, len(members.Users)),
+		Roles:   make([]*apiv1.Role, 0, len(members.Roles)),
+		Page:    apiPageInfo(members.TotalCount, members.HasMore),
 	}
 	for _, user := range members.Users {
-		response.Users = append(response.Users, s.adminMember(ctx, user))
+		response.Members = append(response.Members, s.adminMember(ctx, user))
 	}
 	for _, role := range members.Roles {
 		response.Roles = append(response.Roles, publicAPIRoleFromAdminMemberSummary(role))
@@ -199,7 +199,11 @@ func (s *adminUserManagementService) UpdateUserPassword(ctx context.Context, req
 	if err := s.api.core.AdminSetUserPasswordAuthorized(ctx, caller.UserID, req.Msg.GetUserId(), req.Msg.GetPassword()); err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&adminv1.UpdateUserPasswordResponse{Updated: true}), nil
+	member, err := s.adminMemberAfterMutation(ctx, caller.UserID, req.Msg.GetUserId())
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&adminv1.UpdateUserPasswordResponse{Member: member}), nil
 }
 
 func (s *adminUserManagementService) ClearUsernameCooldown(ctx context.Context, req *connect.Request[adminv1.ClearUsernameCooldownRequest]) (*connect.Response[adminv1.ClearUsernameCooldownResponse], error) {

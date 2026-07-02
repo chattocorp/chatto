@@ -375,7 +375,9 @@ func (x *UpdatePasswordRequest) GetCurrentPassword() string {
 
 // Result of updating or adding the authenticated account password.
 type UpdatePasswordResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Current authenticated user profile after the password update.
+	User          *User `protobuf:"bytes,1,opt,name=user,proto3" json:"user,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -408,6 +410,13 @@ func (x *UpdatePasswordResponse) ProtoReflect() protoreflect.Message {
 // Deprecated: Use UpdatePasswordResponse.ProtoReflect.Descriptor instead.
 func (*UpdatePasswordResponse) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_account_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *UpdatePasswordResponse) GetUser() *User {
+	if x != nil {
+		return x.User
+	}
+	return nil
 }
 
 // Request to update the authenticated user's display preferences. Omitted
@@ -711,8 +720,9 @@ const file_chatto_api_v1_account_proto_rawDesc = "" +
 	"\x04user\x18\x01 \x01(\v2\x13.chatto.api.v1.UserR\x04user\"^\n" +
 	"\x15UpdatePasswordRequest\x12\x1a\n" +
 	"\bpassword\x18\x01 \x01(\tR\bpassword\x12)\n" +
-	"\x10current_password\x18\x02 \x01(\tR\x0fcurrentPassword\"\x18\n" +
-	"\x16UpdatePasswordResponse\"\x96\x01\n" +
+	"\x10current_password\x18\x02 \x01(\tR\x0fcurrentPassword\"A\n" +
+	"\x16UpdatePasswordResponse\x12'\n" +
+	"\x04user\x18\x01 \x01(\v2\x13.chatto.api.v1.UserR\x04user\"\x96\x01\n" +
 	"\x15UpdateSettingsRequest\x12\x1f\n" +
 	"\btimezone\x18\x01 \x01(\tH\x00R\btimezone\x88\x01\x01\x12?\n" +
 	"\vtime_format\x18\x02 \x01(\x0e2\x19.chatto.api.v1.TimeFormatH\x01R\n" +
@@ -795,41 +805,42 @@ var file_chatto_api_v1_account_proto_depIdxs = []int32{
 	14, // 0: chatto.api.v1.UpdateProfileResponse.user:type_name -> chatto.api.v1.User
 	14, // 1: chatto.api.v1.UploadAvatarResponse.user:type_name -> chatto.api.v1.User
 	14, // 2: chatto.api.v1.DeleteAvatarResponse.user:type_name -> chatto.api.v1.User
-	15, // 3: chatto.api.v1.UpdateSettingsRequest.time_format:type_name -> chatto.api.v1.TimeFormat
-	16, // 4: chatto.api.v1.UpdateSettingsResponse.settings:type_name -> chatto.api.v1.UserSettings
-	0,  // 5: chatto.api.v1.MyAccountService.UpdateProfile:input_type -> chatto.api.v1.UpdateProfileRequest
-	2,  // 6: chatto.api.v1.MyAccountService.UploadAvatar:input_type -> chatto.api.v1.UploadAvatarRequest
-	4,  // 7: chatto.api.v1.MyAccountService.DeleteAvatar:input_type -> chatto.api.v1.DeleteAvatarRequest
-	6,  // 8: chatto.api.v1.MyAccountService.UpdatePassword:input_type -> chatto.api.v1.UpdatePasswordRequest
-	8,  // 9: chatto.api.v1.MyAccountService.UpdateSettings:input_type -> chatto.api.v1.UpdateSettingsRequest
-	17, // 10: chatto.api.v1.MyAccountService.ListExternalIdentities:input_type -> chatto.api.v1.ListExternalIdentitiesRequest
-	18, // 11: chatto.api.v1.MyAccountService.StartExternalIdentityLink:input_type -> chatto.api.v1.StartExternalIdentityLinkRequest
-	19, // 12: chatto.api.v1.MyAccountService.LinkExternalIdentity:input_type -> chatto.api.v1.LinkExternalIdentityRequest
-	20, // 13: chatto.api.v1.MyAccountService.DisconnectExternalIdentity:input_type -> chatto.api.v1.DisconnectExternalIdentityRequest
-	21, // 14: chatto.api.v1.MyAccountService.UpdatePresence:input_type -> chatto.api.v1.UpdatePresenceRequest
-	22, // 15: chatto.api.v1.MyAccountService.UpdateCustomStatus:input_type -> chatto.api.v1.UpdateCustomStatusRequest
-	23, // 16: chatto.api.v1.MyAccountService.DeleteCustomStatus:input_type -> chatto.api.v1.DeleteCustomStatusRequest
-	10, // 17: chatto.api.v1.MyAccountService.RequestAccountDeletion:input_type -> chatto.api.v1.RequestAccountDeletionRequest
-	12, // 18: chatto.api.v1.MyAccountService.DeleteMyAccount:input_type -> chatto.api.v1.DeleteMyAccountRequest
-	1,  // 19: chatto.api.v1.MyAccountService.UpdateProfile:output_type -> chatto.api.v1.UpdateProfileResponse
-	3,  // 20: chatto.api.v1.MyAccountService.UploadAvatar:output_type -> chatto.api.v1.UploadAvatarResponse
-	5,  // 21: chatto.api.v1.MyAccountService.DeleteAvatar:output_type -> chatto.api.v1.DeleteAvatarResponse
-	7,  // 22: chatto.api.v1.MyAccountService.UpdatePassword:output_type -> chatto.api.v1.UpdatePasswordResponse
-	9,  // 23: chatto.api.v1.MyAccountService.UpdateSettings:output_type -> chatto.api.v1.UpdateSettingsResponse
-	24, // 24: chatto.api.v1.MyAccountService.ListExternalIdentities:output_type -> chatto.api.v1.ListExternalIdentitiesResponse
-	25, // 25: chatto.api.v1.MyAccountService.StartExternalIdentityLink:output_type -> chatto.api.v1.StartExternalIdentityLinkResponse
-	26, // 26: chatto.api.v1.MyAccountService.LinkExternalIdentity:output_type -> chatto.api.v1.LinkExternalIdentityResponse
-	27, // 27: chatto.api.v1.MyAccountService.DisconnectExternalIdentity:output_type -> chatto.api.v1.DisconnectExternalIdentityResponse
-	28, // 28: chatto.api.v1.MyAccountService.UpdatePresence:output_type -> chatto.api.v1.UpdatePresenceResponse
-	29, // 29: chatto.api.v1.MyAccountService.UpdateCustomStatus:output_type -> chatto.api.v1.UpdateCustomStatusResponse
-	30, // 30: chatto.api.v1.MyAccountService.DeleteCustomStatus:output_type -> chatto.api.v1.DeleteCustomStatusResponse
-	11, // 31: chatto.api.v1.MyAccountService.RequestAccountDeletion:output_type -> chatto.api.v1.RequestAccountDeletionResponse
-	13, // 32: chatto.api.v1.MyAccountService.DeleteMyAccount:output_type -> chatto.api.v1.DeleteMyAccountResponse
-	19, // [19:33] is the sub-list for method output_type
-	5,  // [5:19] is the sub-list for method input_type
-	5,  // [5:5] is the sub-list for extension type_name
-	5,  // [5:5] is the sub-list for extension extendee
-	0,  // [0:5] is the sub-list for field type_name
+	14, // 3: chatto.api.v1.UpdatePasswordResponse.user:type_name -> chatto.api.v1.User
+	15, // 4: chatto.api.v1.UpdateSettingsRequest.time_format:type_name -> chatto.api.v1.TimeFormat
+	16, // 5: chatto.api.v1.UpdateSettingsResponse.settings:type_name -> chatto.api.v1.UserSettings
+	0,  // 6: chatto.api.v1.MyAccountService.UpdateProfile:input_type -> chatto.api.v1.UpdateProfileRequest
+	2,  // 7: chatto.api.v1.MyAccountService.UploadAvatar:input_type -> chatto.api.v1.UploadAvatarRequest
+	4,  // 8: chatto.api.v1.MyAccountService.DeleteAvatar:input_type -> chatto.api.v1.DeleteAvatarRequest
+	6,  // 9: chatto.api.v1.MyAccountService.UpdatePassword:input_type -> chatto.api.v1.UpdatePasswordRequest
+	8,  // 10: chatto.api.v1.MyAccountService.UpdateSettings:input_type -> chatto.api.v1.UpdateSettingsRequest
+	17, // 11: chatto.api.v1.MyAccountService.ListExternalIdentities:input_type -> chatto.api.v1.ListExternalIdentitiesRequest
+	18, // 12: chatto.api.v1.MyAccountService.StartExternalIdentityLink:input_type -> chatto.api.v1.StartExternalIdentityLinkRequest
+	19, // 13: chatto.api.v1.MyAccountService.LinkExternalIdentity:input_type -> chatto.api.v1.LinkExternalIdentityRequest
+	20, // 14: chatto.api.v1.MyAccountService.DisconnectExternalIdentity:input_type -> chatto.api.v1.DisconnectExternalIdentityRequest
+	21, // 15: chatto.api.v1.MyAccountService.UpdatePresence:input_type -> chatto.api.v1.UpdatePresenceRequest
+	22, // 16: chatto.api.v1.MyAccountService.UpdateCustomStatus:input_type -> chatto.api.v1.UpdateCustomStatusRequest
+	23, // 17: chatto.api.v1.MyAccountService.DeleteCustomStatus:input_type -> chatto.api.v1.DeleteCustomStatusRequest
+	10, // 18: chatto.api.v1.MyAccountService.RequestAccountDeletion:input_type -> chatto.api.v1.RequestAccountDeletionRequest
+	12, // 19: chatto.api.v1.MyAccountService.DeleteMyAccount:input_type -> chatto.api.v1.DeleteMyAccountRequest
+	1,  // 20: chatto.api.v1.MyAccountService.UpdateProfile:output_type -> chatto.api.v1.UpdateProfileResponse
+	3,  // 21: chatto.api.v1.MyAccountService.UploadAvatar:output_type -> chatto.api.v1.UploadAvatarResponse
+	5,  // 22: chatto.api.v1.MyAccountService.DeleteAvatar:output_type -> chatto.api.v1.DeleteAvatarResponse
+	7,  // 23: chatto.api.v1.MyAccountService.UpdatePassword:output_type -> chatto.api.v1.UpdatePasswordResponse
+	9,  // 24: chatto.api.v1.MyAccountService.UpdateSettings:output_type -> chatto.api.v1.UpdateSettingsResponse
+	24, // 25: chatto.api.v1.MyAccountService.ListExternalIdentities:output_type -> chatto.api.v1.ListExternalIdentitiesResponse
+	25, // 26: chatto.api.v1.MyAccountService.StartExternalIdentityLink:output_type -> chatto.api.v1.StartExternalIdentityLinkResponse
+	26, // 27: chatto.api.v1.MyAccountService.LinkExternalIdentity:output_type -> chatto.api.v1.LinkExternalIdentityResponse
+	27, // 28: chatto.api.v1.MyAccountService.DisconnectExternalIdentity:output_type -> chatto.api.v1.DisconnectExternalIdentityResponse
+	28, // 29: chatto.api.v1.MyAccountService.UpdatePresence:output_type -> chatto.api.v1.UpdatePresenceResponse
+	29, // 30: chatto.api.v1.MyAccountService.UpdateCustomStatus:output_type -> chatto.api.v1.UpdateCustomStatusResponse
+	30, // 31: chatto.api.v1.MyAccountService.DeleteCustomStatus:output_type -> chatto.api.v1.DeleteCustomStatusResponse
+	11, // 32: chatto.api.v1.MyAccountService.RequestAccountDeletion:output_type -> chatto.api.v1.RequestAccountDeletionResponse
+	13, // 33: chatto.api.v1.MyAccountService.DeleteMyAccount:output_type -> chatto.api.v1.DeleteMyAccountResponse
+	20, // [20:34] is the sub-list for method output_type
+	6,  // [6:20] is the sub-list for method input_type
+	6,  // [6:6] is the sub-list for extension type_name
+	6,  // [6:6] is the sub-list for extension extendee
+	0,  // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_chatto_api_v1_account_proto_init() }

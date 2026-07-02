@@ -1403,9 +1403,9 @@ export class ListRoomAttachmentsResponse extends Message<ListRoomAttachmentsResp
   /**
    * Current attachments in newest message order.
    *
-   * @generated from field: repeated chatto.api.v1.RoomAttachmentListItem items = 1;
+   * @generated from field: repeated chatto.api.v1.RoomAttachmentListItem attachments = 1;
    */
-  items: RoomAttachmentListItem[] = [];
+  attachments: RoomAttachmentListItem[] = [];
 
   /**
    * Page metadata.
@@ -1422,7 +1422,7 @@ export class ListRoomAttachmentsResponse extends Message<ListRoomAttachmentsResp
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.ListRoomAttachmentsResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "items", kind: "message", T: RoomAttachmentListItem, repeated: true },
+    { no: 1, name: "attachments", kind: "message", T: RoomAttachmentListItem, repeated: true },
     { no: 4, name: "page", kind: "message", T: PageInfo },
   ]);
 

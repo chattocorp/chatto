@@ -1097,6 +1097,18 @@ Operator compatibility role reference used by operator.v1 response shapes.
 | `name` | `string` | Stable role name. |
 | `display_name` | `string` | Display name shown in operator UI. |
 
+<a id="chatto-admin-v1-PermissionDecisionUpdate"></a>
+
+### PermissionDecisionUpdate
+
+Stored permission decision returned after a write.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `permission` | `string` | Permission identifier. |
+| `scope` | [`PermissionScope`](#chatto-admin-v1-PermissionScope) | Server, group, or room scope this decision applies to. |
+| `decision` | [`PermissionDecision`](#chatto-admin-v1-PermissionDecision) | Stored decision after the write. NONE means no explicit decision remains. |
+
 <a id="chatto-admin-v1-PermissionExplanation"></a>
 
 ### PermissionExplanation

@@ -1926,9 +1926,8 @@ export class RealtimeServerUpdatedEvent extends Message<RealtimeServerUpdatedEve
 /**
  * User-profile signal.
  *
- * Basic profile fields are inline. Use `UserDirectoryService.GetUser` for a
- * complete user profile or `UserDirectoryService.BatchGetUsers` for lightweight
- * render/cache hydration.
+ * Basic profile fields are inline. Use `UserDirectoryService.GetUser` or
+ * `UserDirectoryService.BatchGetUsers` for complete user-profile hydration.
  *
  * @generated from message chatto.realtime.v1.RealtimeUserProfileUpdatedEvent
  */

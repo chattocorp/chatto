@@ -10,7 +10,7 @@
  * Also includes the local user's active call from VoiceCallState for instant feedback.
  */
 
-import { SvelteMap } from 'svelte/reactivity';
+import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import type { VoiceCallState } from '$lib/state/server/voiceCall.svelte';
 import type {
   ActiveVoiceCall,
@@ -94,33 +94,22 @@ export class ActiveCallRoomsState {
   }
 
   /**
-   * Load active call room IDs and their participants from the server.
+   * Load active call snapshots from the server.
    * Should be called when entering the chat (alongside room list loading).
    */
   async load(): Promise<void> {
-    const roomIds = await this.#api.listActiveCallRoomIds();
+    const calls = await this.#api.listActiveCalls();
+    const activeRoomIds = new SvelteSet(calls.map((call) => call.roomId));
 
     // Remove rooms that are no longer active
     for (const id of this.serverRooms.keys()) {
-      if (!roomIds.includes(id)) {
+      if (!activeRoomIds.has(id)) {
         this.serverRooms.delete(id);
       }
     }
 
-    if (roomIds.length === 0) return;
-
-    const calls = await this.#api.batchGetActiveCalls(roomIds);
-    const hydratedRoomIds: Record<string, true> = Object.create(null);
     for (const call of calls) {
-      hydratedRoomIds[call.roomId] = true;
       this.applyActiveCall(call);
-    }
-
-    for (const roomId of roomIds) {
-      if (!hydratedRoomIds[roomId]) {
-        this.serverRooms.delete(roomId);
-        this.pendingCallIds.delete(roomId);
-      }
     }
   }
 

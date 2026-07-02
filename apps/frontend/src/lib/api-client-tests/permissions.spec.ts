@@ -254,8 +254,20 @@ describe('createPermissionAPI', () => {
   });
 
   it('sets role and user permissions with protobuf enums', async () => {
-    mocks.setRolePermission.mockResolvedValue({ ok: true });
-    mocks.setUserPermission.mockResolvedValue({ ok: true });
+    mocks.setRolePermission.mockResolvedValue({
+      decision: {
+        permission: 'message.post',
+        scope: { kind: PermissionScopeKind.ROOM, id: 'R1' },
+        decision: PermissionDecision.DENY
+      }
+    });
+    mocks.setUserPermission.mockResolvedValue({
+      decision: {
+        permission: 'room.create',
+        scope: { kind: PermissionScopeKind.GROUP, id: 'G1' },
+        decision: PermissionDecision.NONE
+      }
+    });
     const api = createPermissionAPI({ baseUrl: '/api/connect', bearerToken: 'token' });
 
     await expect(
@@ -265,7 +277,11 @@ describe('createPermissionAPI', () => {
         permission: 'message.post',
         state: 'deny'
       })
-    ).resolves.toBe(true);
+    ).resolves.toEqual({
+      permission: 'message.post',
+      scope: { tier: 'room', roomId: 'R1' },
+      decision: 'DENY'
+    });
     await expect(
       api.setUserPermission({
         userId: 'U1',
@@ -273,7 +289,11 @@ describe('createPermissionAPI', () => {
         permission: 'room.create',
         state: 'neutral'
       })
-    ).resolves.toBe(true);
+    ).resolves.toEqual({
+      permission: 'room.create',
+      scope: { tier: 'group', groupId: 'G1' },
+      decision: 'NONE'
+    });
 
     expect(mocks.setRolePermission).toHaveBeenCalledWith(
       {

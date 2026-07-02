@@ -31,7 +31,7 @@ function participant(
 
 function makeVoiceCallAPI(overrides: Partial<VoiceCallAPI> = {}): VoiceCallAPI {
   return {
-    listActiveCallRoomIds: vi.fn().mockResolvedValue([]),
+    listActiveCalls: vi.fn().mockResolvedValue([]),
     getActiveCall: vi.fn().mockResolvedValue(null),
     batchGetActiveCalls: vi.fn().mockResolvedValue([]),
     listCallParticipants: vi.fn().mockResolvedValue([]),

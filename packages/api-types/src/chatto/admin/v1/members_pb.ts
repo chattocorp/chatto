@@ -280,11 +280,11 @@ export class ListMembersRequest extends Message<ListMembersRequest> {
  */
 export class ListMembersResponse extends Message<ListMembersResponse> {
   /**
-   * Matching users.
+   * Matching members.
    *
-   * @generated from field: repeated chatto.admin.v1.AdminMember users = 1;
+   * @generated from field: repeated chatto.admin.v1.AdminMember members = 1;
    */
-  users: AdminMember[] = [];
+  members: AdminMember[] = [];
 
   /**
    * Public roles for display-name lookup.
@@ -308,7 +308,7 @@ export class ListMembersResponse extends Message<ListMembersResponse> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.admin.v1.ListMembersResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "users", kind: "message", T: AdminMember, repeated: true },
+    { no: 1, name: "members", kind: "message", T: AdminMember, repeated: true },
     { no: 2, name: "roles", kind: "message", T: Role, repeated: true },
     { no: 5, name: "page", kind: "message", T: PageInfo },
   ]);
@@ -910,11 +910,11 @@ export class UpdateUserPasswordRequest extends Message<UpdateUserPasswordRequest
  */
 export class UpdateUserPasswordResponse extends Message<UpdateUserPasswordResponse> {
   /**
-   * True when the request completed.
+   * Updated admin member row.
    *
-   * @generated from field: bool updated = 1;
+   * @generated from field: chatto.admin.v1.AdminMember member = 1;
    */
-  updated = false;
+  member?: AdminMember;
 
   constructor(data?: PartialMessage<UpdateUserPasswordResponse>) {
     super();
@@ -924,7 +924,7 @@ export class UpdateUserPasswordResponse extends Message<UpdateUserPasswordRespon
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.admin.v1.UpdateUserPasswordResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "updated", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 1, name: "member", kind: "message", T: AdminMember },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UpdateUserPasswordResponse {

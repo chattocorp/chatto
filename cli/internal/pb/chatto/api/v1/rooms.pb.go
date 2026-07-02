@@ -1596,7 +1596,7 @@ func (x *ListRoomAttachmentsRequest) GetPage() *PageRequest {
 type ListRoomAttachmentsResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Current attachments in newest message order.
-	Items []*RoomAttachmentListItem `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
+	Attachments []*RoomAttachmentListItem `protobuf:"bytes,1,rep,name=attachments,proto3" json:"attachments,omitempty"`
 	// Page metadata.
 	Page          *PageInfo `protobuf:"bytes,4,opt,name=page,proto3" json:"page,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -1633,9 +1633,9 @@ func (*ListRoomAttachmentsResponse) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_rooms_proto_rawDescGZIP(), []int{27}
 }
 
-func (x *ListRoomAttachmentsResponse) GetItems() []*RoomAttachmentListItem {
+func (x *ListRoomAttachmentsResponse) GetAttachments() []*RoomAttachmentListItem {
 	if x != nil {
-		return x.Items
+		return x.Attachments
 	}
 	return nil
 }
@@ -1842,9 +1842,9 @@ const file_chatto_api_v1_rooms_proto_rawDesc = "" +
 	"\x1aListRoomAttachmentsRequest\x12 \n" +
 	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x12G\n" +
 	"\tthumbnail\x18\x04 \x01(\v2).chatto.api.v1.AttachmentThumbnailOptionsR\tthumbnail\x12.\n" +
-	"\x04page\x18\x05 \x01(\v2\x1a.chatto.api.v1.PageRequestR\x04pageJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04R\x05limitR\x06offset\"\xaa\x01\n" +
-	"\x1bListRoomAttachmentsResponse\x12;\n" +
-	"\x05items\x18\x01 \x03(\v2%.chatto.api.v1.RoomAttachmentListItemR\x05items\x12+\n" +
+	"\x04page\x18\x05 \x01(\v2\x1a.chatto.api.v1.PageRequestR\x04pageJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04R\x05limitR\x06offset\"\xb6\x01\n" +
+	"\x1bListRoomAttachmentsResponse\x12G\n" +
+	"\vattachments\x18\x01 \x03(\v2%.chatto.api.v1.RoomAttachmentListItemR\vattachments\x12+\n" +
 	"\x04page\x18\x04 \x01(\v2\x17.chatto.api.v1.PageInfoR\x04pageJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04R\vtotal_countR\bhas_more\"q\n" +
 	"\x1cUpdateTypingIndicatorRequest\x12 \n" +
 	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x12/\n" +
@@ -1957,7 +1957,7 @@ var file_chatto_api_v1_rooms_proto_depIdxs = []int32{
 	34, // 16: chatto.api.v1.ListRoomBansResponse.page:type_name -> chatto.api.v1.PageInfo
 	35, // 17: chatto.api.v1.ListRoomAttachmentsRequest.thumbnail:type_name -> chatto.api.v1.AttachmentThumbnailOptions
 	33, // 18: chatto.api.v1.ListRoomAttachmentsRequest.page:type_name -> chatto.api.v1.PageRequest
-	36, // 19: chatto.api.v1.ListRoomAttachmentsResponse.items:type_name -> chatto.api.v1.RoomAttachmentListItem
+	36, // 19: chatto.api.v1.ListRoomAttachmentsResponse.attachments:type_name -> chatto.api.v1.RoomAttachmentListItem
 	34, // 20: chatto.api.v1.ListRoomAttachmentsResponse.page:type_name -> chatto.api.v1.PageInfo
 	2,  // 21: chatto.api.v1.RoomService.CreateRoom:input_type -> chatto.api.v1.CreateRoomRequest
 	4,  // 22: chatto.api.v1.RoomService.UpdateRoom:input_type -> chatto.api.v1.UpdateRoomRequest

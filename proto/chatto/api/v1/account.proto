@@ -59,7 +59,10 @@ message UpdatePasswordRequest {
 }
 
 // Result of updating or adding the authenticated account password.
-message UpdatePasswordResponse {}
+message UpdatePasswordResponse {
+  // Current authenticated user profile after the password update.
+  User user = 1;
+}
 
 // Request to update the authenticated user's display preferences. Omitted
 // fields are left unchanged. An empty timezone clears the explicit timezone.
