@@ -429,8 +429,12 @@ calls, and similar room-specific panels can plug into the same shell. See the
         'iconify shrink-0 text-xs leading-none text-accent',
         kind === 'video' ? 'uil--video' : 'uil--phone'
       ]}
-      title={kind === 'video' ? 'In a video call' : 'In a voice call'}
-      aria-label={kind === 'video' ? 'In a video call' : 'In a voice call'}
+      title={kind === 'video'
+        ? m['room.sidebar.in_video_call']()
+        : m['room.sidebar.in_voice_call']()}
+      aria-label={kind === 'video'
+        ? m['room.sidebar.in_video_call']()
+        : m['room.sidebar.in_voice_call']()}
       data-testid={`member-call-presence-${kind}`}
     ></span>
   {/if}

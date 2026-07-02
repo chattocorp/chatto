@@ -129,6 +129,8 @@
       "calls_unavailable": "Calls are not available on this server.",
       "deleted_user": "Deleted User",
       "view_profile": "View profile of {name}",
+      "in_voice_call": "In a voice call",
+      "in_video_call": "In a video call",
       "ban_failed": "Failed to ban member from room",
       "ban_success": "Banned {name} from room"
     },

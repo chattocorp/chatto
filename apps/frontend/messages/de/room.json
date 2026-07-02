@@ -129,6 +129,8 @@
       "calls_unavailable": "Anrufe sind auf diesem Server nicht verfügbar.",
       "deleted_user": "Gelöschter Benutzer",
       "view_profile": "Profil von {name} anzeigen",
+      "in_voice_call": "In einem Sprachanruf",
+      "in_video_call": "In einem Videoanruf",
       "ban_failed": "Mitglied konnte nicht aus dem Raum gesperrt werden",
       "ban_success": "{name} wurde aus dem Raum gesperrt"
     },

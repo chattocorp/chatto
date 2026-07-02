@@ -686,6 +686,8 @@ const msg_room_sidebar_deleted_user = (): LocalizedString => messages().room_sid
 const msg_room_sidebar_view_profile = (
   inputs: Parameters<LocaleMessages['room_sidebar_view_profile']>[0]
 ): LocalizedString => messages().room_sidebar_view_profile(inputs);
+const msg_room_sidebar_in_voice_call = (): LocalizedString => messages().room_sidebar_in_voice_call(empty());
+const msg_room_sidebar_in_video_call = (): LocalizedString => messages().room_sidebar_in_video_call(empty());
 const msg_room_sidebar_ban_failed = (): LocalizedString => messages().room_sidebar_ban_failed(empty());
 const msg_room_sidebar_ban_success = (
   inputs: Parameters<LocaleMessages['room_sidebar_ban_success']>[0]
@@ -1985,6 +1987,8 @@ export { msg_room_sidebar_loading_files as 'room.sidebar.loading_files' };
 export { msg_room_sidebar_calls_unavailable as 'room.sidebar.calls_unavailable' };
 export { msg_room_sidebar_deleted_user as 'room.sidebar.deleted_user' };
 export { msg_room_sidebar_view_profile as 'room.sidebar.view_profile' };
+export { msg_room_sidebar_in_voice_call as 'room.sidebar.in_voice_call' };
+export { msg_room_sidebar_in_video_call as 'room.sidebar.in_video_call' };
 export { msg_room_sidebar_ban_failed as 'room.sidebar.ban_failed' };
 export { msg_room_sidebar_ban_success as 'room.sidebar.ban_success' };
 export { msg_room_title_direct_message as 'room.title.direct_message' };
