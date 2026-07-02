@@ -105,10 +105,6 @@ export const PermRoleAssign: Permission = "role.assign";
  */
 export const PermAdminUsersView: Permission = "admin.view-users";
 /**
- * PermAdminSystemView allows viewing projection diagnostics in admin.
- */
-export const PermAdminSystemView: Permission = "admin.view-system";
-/**
  * PermAdminAuditView allows viewing the audit log in admin.
  */
 export const PermAdminAuditView: Permission = "admin.view-audit";

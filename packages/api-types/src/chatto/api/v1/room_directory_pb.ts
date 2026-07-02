@@ -344,6 +344,47 @@ export class RoomGroupItem extends Message<RoomGroupItem> {
 }
 
 /**
+ * Viewer-specific state for one room group.
+ *
+ * @generated from message chatto.api.v1.RoomGroupViewerState
+ */
+export class RoomGroupViewerState extends Message<RoomGroupViewerState> {
+  /**
+   * True when the current user can create rooms in this group.
+   *
+   * @generated from field: bool can_create_room = 1;
+   */
+  canCreateRoom = false;
+
+  constructor(data?: PartialMessage<RoomGroupViewerState>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.RoomGroupViewerState";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "can_create_room", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoomGroupViewerState {
+    return new RoomGroupViewerState().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RoomGroupViewerState {
+    return new RoomGroupViewerState().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RoomGroupViewerState {
+    return new RoomGroupViewerState().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: RoomGroupViewerState | PlainMessage<RoomGroupViewerState> | undefined, b: RoomGroupViewerState | PlainMessage<RoomGroupViewerState> | undefined): boolean {
+    return proto3.util.equals(RoomGroupViewerState, a, b);
+  }
+}
+
+/**
  * Ordered group of channel rooms and sidebar links.
  *
  * @generated from message chatto.api.v1.RoomGroup
@@ -377,6 +418,13 @@ export class RoomGroup extends Message<RoomGroup> {
    */
   items: RoomGroupItem[] = [];
 
+  /**
+   * State and permissions resolved for the current user.
+   *
+   * @generated from field: chatto.api.v1.RoomGroupViewerState viewer_state = 6;
+   */
+  viewerState?: RoomGroupViewerState;
+
   constructor(data?: PartialMessage<RoomGroup>) {
     super();
     proto3.util.initPartial(data, this);
@@ -389,6 +437,7 @@ export class RoomGroup extends Message<RoomGroup> {
     { no: 2, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "description", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 5, name: "items", kind: "message", T: RoomGroupItem, repeated: true },
+    { no: 6, name: "viewer_state", kind: "message", T: RoomGroupViewerState },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoomGroup {

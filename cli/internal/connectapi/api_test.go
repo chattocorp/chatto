@@ -1806,14 +1806,38 @@ func TestViewerServiceGetViewerReturnsSelfScopedState(t *testing.T) {
 	if caps := resp.Msg.GetCapabilities(); !apiCapabilityGranted(caps.GetGrants(), viewerCapabilityAssignRoles) || apiCapabilityGranted(caps.GetGrants(), viewerCapabilityAdminManageUsers) {
 		t.Fatalf("viewer capabilities = %+v, want role.assign true and account management false", caps.GetGrants())
 	}
+	if apiCapabilityGranted(resp.Msg.GetCapabilities().GetGrants(), viewerCapabilityAdminViewSystem) {
+		t.Fatalf("viewer system capability = true for regular viewer, want false")
+	}
 	if resp.Msg.GetViewerPermissions() == nil {
 		t.Fatal("ViewerPermissions = nil")
 	}
 	if got, want := len(resp.Msg.GetViewerPermissions().GetPermissions()), len(core.AllPermissions()); got != want {
 		t.Fatalf("viewer permissions len = %d, want %d", got, want)
 	}
+	if apiPermissionGrantPresent(resp.Msg.GetViewerPermissions().GetPermissions(), viewerCapabilityAdminViewSystem) {
+		t.Fatalf("%s should be exposed only as an owner-only capability, not as a permission grant", viewerCapabilityAdminViewSystem)
+	}
 	if resp.Msg.GetViewerState() == nil {
 		t.Fatal("ViewerState = nil")
+	}
+
+	owner, err := env.core.CreateUser(env.ctx, core.SystemActorID, "viewer-owner", "Viewer Owner", "password")
+	if err != nil {
+		t.Fatalf("CreateUser owner: %v", err)
+	}
+	if err := env.core.AssignOwnerRole(env.ctx, owner.Id); err != nil {
+		t.Fatalf("AssignOwnerRole: %v", err)
+	}
+	ownerResp, err := env.viewerService.GetViewer(withCaller(env.ctx, owner), connect.NewRequest(&apiv1.GetViewerRequest{}))
+	if err != nil {
+		t.Fatalf("GetViewer owner: %v", err)
+	}
+	if !apiCapabilityGranted(ownerResp.Msg.GetCapabilities().GetGrants(), viewerCapabilityAdminViewSystem) {
+		t.Fatalf("owner system capability = false, want true")
+	}
+	if apiPermissionGrantPresent(ownerResp.Msg.GetViewerPermissions().GetPermissions(), viewerCapabilityAdminViewSystem) {
+		t.Fatalf("%s should not be exposed as a permission grant for owners", viewerCapabilityAdminViewSystem)
 	}
 }
 
@@ -3513,6 +3537,9 @@ func TestRoomDirectoryServiceListRoomGroupsFiltersHiddenRoomsAndKeepsLinks(t *te
 	if group == nil {
 		t.Fatalf("group %s missing from response", groupID)
 	}
+	if group.GetViewerState().GetCanCreateRoom() {
+		t.Fatalf("group CanCreateRoom = true before group grant, want false")
+	}
 	if !roomGroupItemsContainRoom(group.GetItems(), visible.Id) {
 		t.Fatalf("visible room %s missing from group items", visible.Id)
 	}
@@ -3538,6 +3565,9 @@ func TestRoomDirectoryServiceListRoomGroupsFiltersHiddenRoomsAndKeepsLinks(t *te
 	if !roomGroupItemsContainRoom(withArchivedGroup.GetItems(), archived.Id) {
 		t.Fatalf("archived room %s missing from include archived group items", archived.Id)
 	}
+	if err := env.core.GrantUserGroupPermission(env.ctx, core.SystemActorID, groupID, caller.Id, core.PermRoomCreate); err != nil {
+		t.Fatalf("GrantUserGroupPermission room.create: %v", err)
+	}
 
 	getResp, err := env.directory.GetRoomGroup(withCaller(env.ctx, caller), connect.NewRequest(&apiv1.GetRoomGroupRequest{
 		GroupId: groupID,
@@ -3548,6 +3578,9 @@ func TestRoomDirectoryServiceListRoomGroupsFiltersHiddenRoomsAndKeepsLinks(t *te
 	getGroup := getResp.Msg.GetGroup()
 	if getGroup.GetId() != groupID {
 		t.Fatalf("GetRoomGroup id = %q, want %q", getGroup.GetId(), groupID)
+	}
+	if !getGroup.GetViewerState().GetCanCreateRoom() {
+		t.Fatalf("group CanCreateRoom = false after group grant, want true")
 	}
 	if !roomGroupItemsContainRoom(getGroup.GetItems(), visible.Id) ||
 		roomGroupItemsContainRoom(getGroup.GetItems(), hidden.Id) ||
@@ -6628,6 +6661,15 @@ func apiCapabilityGranted(grants []*apiv1.CapabilityGrant, capability string) bo
 	for _, grant := range grants {
 		if grant.GetCapability() == capability {
 			return grant.GetGranted()
+		}
+	}
+	return false
+}
+
+func apiPermissionGrantPresent(grants []*apiv1.PermissionGrant, permission string) bool {
+	for _, grant := range grants {
+		if grant.GetPermission() == permission {
+			return true
 		}
 	}
 	return false

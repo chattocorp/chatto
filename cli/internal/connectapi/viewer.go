@@ -22,7 +22,7 @@ const (
 	viewerCapabilityAssignRoles      = string(core.PermRoleAssign)
 	viewerCapabilityAdminViewRoles   = "role.view"
 	viewerCapabilityAdminManageRoles = string(core.PermRoleManage)
-	viewerCapabilityAdminViewSystem  = string(core.PermAdminSystemView)
+	viewerCapabilityAdminViewSystem  = "admin.view-system"
 	viewerCapabilityAdminViewAudit   = string(core.PermAdminAuditView)
 	viewerCapabilityManageUserPerms  = string(core.PermUserManagePermissions)
 )

@@ -76,6 +76,12 @@ message RoomGroupItem {
   }
 }
 
+// Viewer-specific state for one room group.
+message RoomGroupViewerState {
+  // True when the current user can create rooms in this group.
+  bool can_create_room = 1;
+}
+
 // Ordered group of channel rooms and sidebar links.
 message RoomGroup {
   reserved 4;
@@ -89,6 +95,8 @@ message RoomGroup {
   string description = 3;
   // Mixed room/sidebar-link entries in sidebar order.
   repeated RoomGroupItem items = 5;
+  // State and permissions resolved for the current user.
+  RoomGroupViewerState viewer_state = 6;
 }
 
 // Request for rooms visible to the current user.

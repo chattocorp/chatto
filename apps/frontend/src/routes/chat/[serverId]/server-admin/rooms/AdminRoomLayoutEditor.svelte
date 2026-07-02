@@ -516,10 +516,12 @@
               </div>
 
               <div class="flex items-center gap-2">
-                <Button variant="secondary" size="sm" onclick={() => openCreateRoom(group)}>
-                  <span class="iconify uil--plus"></span>
-                  {m['admin.rooms_admin.new_room']()}
-                </Button>
+                {#if group.canCreateRoom}
+                  <Button variant="secondary" size="sm" onclick={() => openCreateRoom(group)}>
+                    <span class="iconify uil--plus"></span>
+                    {m['admin.rooms_admin.new_room']()}
+                  </Button>
+                {/if}
                 <Button variant="secondary" size="sm" onclick={() => openCreateLink(group)}>
                   <span class="iconify uil--external-link-alt"></span>
                   {m['admin.rooms_admin.new_link']()}

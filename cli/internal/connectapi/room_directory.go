@@ -156,6 +156,9 @@ func apiRoomGroup(group *core.DirectoryRoomGroup) *apiv1.RoomGroup {
 		Id:          group.Group.GetId(),
 		Name:        group.Group.GetName(),
 		Description: group.Group.GetDescription(),
+		ViewerState: &apiv1.RoomGroupViewerState{
+			CanCreateRoom: group.ViewerState.CanCreateRoom,
+		},
 	}
 	for _, item := range group.Items {
 		switch {

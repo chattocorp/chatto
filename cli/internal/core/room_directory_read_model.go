@@ -48,9 +48,14 @@ type DirectoryRoomViewerState struct {
 }
 
 type DirectoryRoomGroup struct {
-	Group *corev1.RoomGroup
-	Rooms []*DirectoryRoom
-	Items []DirectoryRoomGroupItem
+	Group       *corev1.RoomGroup
+	ViewerState DirectoryRoomGroupViewerState
+	Rooms       []*DirectoryRoom
+	Items       []DirectoryRoomGroupItem
+}
+
+type DirectoryRoomGroupViewerState struct {
+	CanCreateRoom bool
 }
 
 type DirectoryRoomGroupItem struct {
@@ -309,7 +314,11 @@ func (s *RoomDirectoryReadModel) visibleChannelRoomMap(ctx context.Context, acto
 }
 
 func (s *RoomDirectoryReadModel) directoryGroup(ctx context.Context, actorID string, group *corev1.RoomGroup, visibleRooms map[string]*corev1.Room) (*DirectoryRoomGroup, error) {
-	dirGroup := &DirectoryRoomGroup{Group: group}
+	state, err := s.roomGroupViewerState(ctx, actorID, group.GetId())
+	if err != nil {
+		return nil, err
+	}
+	dirGroup := &DirectoryRoomGroup{Group: group, ViewerState: state}
 	for _, roomID := range group.GetRoomIds() {
 		room := visibleRooms[roomID]
 		if room == nil {
@@ -347,6 +356,14 @@ func (s *RoomDirectoryReadModel) directoryGroup(ctx context.Context, actorID str
 		}
 	}
 	return dirGroup, nil
+}
+
+func (s *RoomDirectoryReadModel) roomGroupViewerState(ctx context.Context, actorID, groupID string) (DirectoryRoomGroupViewerState, error) {
+	canCreateRoom, err := s.core.CanCreateRoom(ctx, actorID, KindChannel, groupID)
+	if err != nil {
+		return DirectoryRoomGroupViewerState{}, err
+	}
+	return DirectoryRoomGroupViewerState{CanCreateRoom: canCreateRoom}, nil
 }
 
 func (s *RoomDirectoryReadModel) directoryRoom(ctx context.Context, actorID string, room *corev1.Room) (*DirectoryRoom, error) {

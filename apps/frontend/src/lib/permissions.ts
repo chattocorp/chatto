@@ -71,9 +71,6 @@ export const PERMISSION_METADATA: Record<string, PermissionMetadata> = {
   'admin.view-users': {
     description: m['rbac.permission_descriptions.admin_view_users']
   },
-  'admin.view-system': {
-    description: m['rbac.permission_descriptions.admin_view_system']
-  },
   'admin.view-audit': {
     description: m['rbac.permission_descriptions.admin_view_audit']
   },

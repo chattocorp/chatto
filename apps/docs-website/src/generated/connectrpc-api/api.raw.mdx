@@ -3939,6 +3939,7 @@ Ordered group of channel rooms and sidebar links.
 | `name` | `string` | Display name. |
 | `description` | `string` | Public group description, when set. |
 | `items` | repeated [`RoomGroupItem`](#chatto-api-v1-RoomGroupItem) | Mixed room/sidebar-link entries in sidebar order. |
+| `viewer_state` | [`RoomGroupViewerState`](#chatto-api-v1-RoomGroupViewerState) | State and permissions resolved for the current user. |
 
 
 
@@ -3952,6 +3953,18 @@ One ordered item in a room group.
 | --- | --- | --- |
 | `item.room` | [`DirectoryRoom`](#chatto-api-v1-DirectoryRoom) | Visible room entry. |
 | `item.sidebar_link` | [`SidebarLink`](#chatto-api-v1-SidebarLink) | Sidebar link entry. |
+
+
+
+<a id="chatto-api-v1-RoomGroupViewerState"></a>
+
+### RoomGroupViewerState
+
+Viewer-specific state for one room group.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `can_create_room` | `bool` | True when the current user can create rooms in this group. |
 
 
 

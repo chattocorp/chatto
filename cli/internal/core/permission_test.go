@@ -328,6 +328,9 @@ func TestAllPermissions(t *testing.T) {
 	}
 
 	for _, p := range perms {
+		if p.Permission == "admin.view-system" {
+			t.Error("admin.view-system should not be a grantable RBAC permission")
+		}
 		if p.Permission == "" {
 			t.Error("Found permission with empty Permission field")
 		}

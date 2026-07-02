@@ -58,14 +58,14 @@ The admin section gives owners and admins visibility into the server's operation
 
 ### 7. Admin APIs use service-level grouping with field-specific capability gates
 
-**Decision:** Admin operations are grouped under dedicated ConnectRPC services, while sensitive methods check their own capabilities (`server.manage`, `admin.view-users`, `admin.view-system`, `admin.view-audit`, `role.manage`, owner-only diagnostics) before returning data.
+**Decision:** Admin operations are grouped under dedicated ConnectRPC services, while sensitive methods check their own capabilities (`server.manage`, `admin.view-users`, `admin.view-audit`, `role.manage`, owner-only diagnostics) before returning data.
 **Why:** Dedicated service grouping gives the API obvious admin-tooling namespaces, and method-level checks let operators delegate user, system, audit, and RBAC-editor visibility independently.
 **Tradeoff:** A user may be able to enter the admin area but see permission denials or empty panels for specific sections. The UI has to reflect that capability split clearly.
 
 ## Permissions
 
 - `admin.view-users` — gates user-management views, admin-only affordances, and user-sensitive fields such as other users' verified email addresses and login cooldowns. The underlying `server.members` directory query remains authenticated-user visible; see FDR-025.
-- `admin.view-system` — gates admin projection diagnostics; system info is owner-only for now.
+- System diagnostics are owner-only; `admin.view-system` is exposed only as a viewer capability key, not as a grantable RBAC permission.
 - `admin.view-audit` — gates admin event log, event type, and event detail reads.
 - `role.assign` — gates user role assignment and revocation.
 - `user.manage-accounts` — gates user creation, cross-user identity edits, password resets, verified-email attachment, and login-cooldown resets.

@@ -73,7 +73,6 @@ const PERMISSION_TO_FIELD: Record<string, keyof ViewerData> = {
   'role.assign': 'canAssignRoles',
   'user.manage-accounts': 'canAdminManageAccounts',
   'role.manage': 'canAdminManageRoles',
-  'admin.view-system': 'canAdminViewSystem',
   'admin.view-audit': 'canAdminViewAudit'
 };
 

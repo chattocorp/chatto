@@ -27,6 +27,7 @@ function group(id: string, rooms: AdminRoomInfo[], name = id): AdminRoomGroup {
   return {
     id,
     name,
+    canCreateRoom: true,
     rooms,
     items: rooms.map((room) => ({ id: `room:${room.id}`, kind: 'room', room }))
   };
@@ -36,6 +37,7 @@ function queryData(groups: AdminRoomGroup[]): DirectoryRoomGroup[] {
   return groups.map((group) => ({
     id: group.id,
     name: group.name,
+    canCreateRoom: group.canCreateRoom,
     roomIds: group.rooms.map((room) => room.id),
     items: group.items.map((item) =>
       item.kind === 'room'
@@ -210,6 +212,7 @@ describe('AdminRoomLayoutStore — loading', () => {
       {
         id: 'g1',
         name: 'Lobby',
+        canCreateRoom: true,
         rooms: [room('r1'), archived],
         items: [
           { id: 'room:r1', kind: 'room', room: room('r1') },
@@ -223,7 +226,9 @@ describe('AdminRoomLayoutStore — loading', () => {
 
   it('keeps groups empty when the API does not provide sidebar items', async () => {
     const { client, directory } = makeClient({
-      queries: [{ data: [{ id: 'g1', name: 'Lobby', roomIds: [], items: [] }] }]
+      queries: [
+        { data: [{ id: 'g1', name: 'Lobby', canCreateRoom: false, roomIds: [], items: [] }] }
+      ]
     });
     const store = new AdminRoomLayoutStore(client, directory, roomAPI());
 
@@ -234,6 +239,7 @@ describe('AdminRoomLayoutStore — loading', () => {
       {
         id: 'g1',
         name: 'Lobby',
+        canCreateRoom: false,
         rooms: [],
         items: []
       }

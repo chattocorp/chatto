@@ -5,7 +5,6 @@ describe('PERMISSION_METADATA', () => {
   it('covers every current backend permission', () => {
     expect(Object.keys(PERMISSION_METADATA).sort()).toEqual([
       'admin.view-audit',
-      'admin.view-system',
       'admin.view-users',
       'message.attach',
       'message.echo',
