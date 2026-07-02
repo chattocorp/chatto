@@ -1,0 +1,78 @@
+---
+title: Integrating With Chatto
+description: Use Chatto's ConnectRPC APIs, realtime WebSocket protocol, server discovery, and operator automation surfaces.
+---
+
+import { Aside, CardGrid, LinkCard } from "@astrojs/starlight/components";
+
+Chatto exposes typed protobuf APIs for clients, bots, tools, and operator automation. Use the public ConnectRPC API for normal integrations, the realtime WebSocket protocol for live updates, and the local operator socket only for trusted recovery workflows.
+
+<Aside type="caution">
+  Chatto is still pre-1.0. Public APIs are documented, but breaking changes can happen in the `0.x` line. Pin server versions for production integrations and read release notes before upgrading.
+</Aside>
+
+## API Surfaces
+
+| Surface | Path or transport | Use for |
+| ------- | ----------------- | ------- |
+| Public ConnectRPC API | `/api/connect/chatto.api.v1.*` | Normal client and integration behavior. |
+| Admin ConnectRPC API | `/api/connect/chatto.admin.v1.*` | Permission-gated administrative tooling on the public web listener. |
+| Realtime WebSocket | `/api/realtime` | Protobuf live event delivery for authenticated clients. |
+| Operator API | Unix socket | Root-equivalent local automation and recovery. |
+
+Do not expose the Operator API over a network. It is intentionally separate from the public web listener.
+
+## Start With Server Discovery
+
+Use `ServerDiscoveryService.GetServer` as the high-compatibility discovery endpoint. It tells clients what server they are talking to, which login providers are available, and which public profile metadata should be rendered before authentication.
+
+Discovery is also the right place for custom clients to learn public server identity before starting OAuth or login flows.
+
+## Authentication Choices
+
+| Client shape | Credential |
+| ------------ | ---------- |
+| Same-origin browser app | HTTP-only cookie session, with bearer token support in the bundled client. |
+| Cross-origin Chatto frontend | OAuth authorization code with PKCE, then opaque bearer token. |
+| Bot or service integration | Opaque bearer token from an authorized flow. |
+| Local recovery automation | Operator socket, not user auth. |
+
+Bearer tokens are opaque runtime credentials stored server-side. They are not JWTs.
+
+## Realtime Delivery
+
+Authenticated realtime clients connect to `/api/realtime` and exchange protobuf `chatto.realtime.v1` frames. The stream is live-only. If a client disconnects or wakes from sleep, use projected ConnectRPC reads to reload room, thread, notification, and read-state windows.
+
+Realtime delivery uses the same room membership, RBAC, projection readiness, and session-termination checks as the rest of the server.
+
+## Integration Patterns
+
+| Goal | Recommended API |
+| ---- | --------------- |
+| Render room navigation | `RoomDirectoryService` |
+| Read room history | `RoomTimelineService` |
+| Post, edit, or delete messages | `MessageService` |
+| React to messages | `ReactionService` |
+| Track unread state | `ReadStateService` |
+| Start DMs | `RoomService` |
+| Read members and profiles | `UserDirectoryService` and `MemberDirectoryService` |
+| Manage roles or permissions | `chatto.admin.v1` role and permission services |
+| Inspect operational health | `AdminDiagnosticsService`, metrics, and exporter |
+
+## Programmatic Safety
+
+1. Prefer generated protobuf clients over hand-built JSON or path calls.
+2. Treat `NOT_FOUND` on singular reads as the normal absence signal.
+3. Use pagination fields instead of assuming unbounded lists.
+4. Keep bearer tokens out of logs, URLs, and issue reports.
+5. Handle permission failures explicitly; admin APIs are method-gated.
+6. Watch release notes for ConnectRPC package, service, or field changes during `0.x`.
+
+## Related Reference
+
+<CardGrid>
+  <LinkCard title="ConnectRPC API" href="/reference/connectrpc-api/" description="Generated public, admin, and realtime API reference." />
+  <LinkCard title="Realtime API" href="/reference/connectrpc-api/realtime/" description="Protobuf realtime WebSocket frame reference." />
+  <LinkCard title="Server Discovery" href="/reference/connectrpc-api/server-discovery/" description="Discovery endpoint for compatible clients." />
+  <LinkCard title="Operator CLI" href="/guides/operations/operator-cli/" description="Trusted local automation over the operator socket." />
+</CardGrid>

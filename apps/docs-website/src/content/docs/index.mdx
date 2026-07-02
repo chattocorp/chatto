@@ -3,7 +3,7 @@ title: Chatto Self-Hosting Documentation
 description: A real-time chat application built for simplicity and scalability.
 template: splash
 hero:
-  tagline: A fully-featured, real-time chat application that's easy to self-host. One binary, no external dependencies required.
+  tagline: Run a full-featured real-time chat server yourself. Start with one binary and no database, then scale the same system when your community grows.
   actions:
     - text: Get Started
       link: /getting-started/introduction/
@@ -19,16 +19,19 @@ import { CardGrid, LinkCard } from "@astrojs/starlight/components";
 
 ## What is Chatto?
 
-Chatto is a fully-featured real-time chat application built for simplicity and scalability. It is designed to be particularly easy to self-host, starting with a single binary that includes everything you need to get started.
+Chatto is a self-hosted real-time chat application for communities, teams, clubs, and organizations that want their own isolated server. It ships as a compact binary with embedded storage, an embedded web app, and built-in operations tooling, so a small server can run it without a database or a stack of side services.
+
+When you need more room, the same Chatto server can move to Docker Compose, Kubernetes, external NATS, S3-compatible asset storage, Prometheus scraping, and multiple replicas.
 
 ## Key Features
 
-- **Reliable real-time messaging with a familiar UI**: rooms, threads, direct messages, reactions, typing indicators, presence, and more
-- **Easy to deploy and operate**: a simple `chatto run` will power even large communities from very modest server hardware, but it's also ready for Docker Compose and Kubernetes if you need to scale.
-- **Voice and video calls**: with **screen sharing** and all the other toys, fully end-to-end encrypted and high quality.
-- Highly flexible **configuration and permission** systems. Set up your server the way you want to.
-- **Privacy-focused design**: PII and chat data encryption at rest, user-key crypto-shredding. Yes, you'll be ready for GDPR et al.
-- Probably **the snappiest chat app you've ever used**! No, really! It's so fast!
+- **Own your deployment**: run one binary with embedded NATS, use Docker Compose for a small production server, or scale out with Kubernetes, external NATS, S3-compatible storage, and Prometheus metrics.
+- **Modern chat behavior out of the box**: channel rooms, DMs, threads, replies, reactions, mentions, typing indicators, presence modes, custom statuses, read state, and a keyboard-first quick switcher.
+- **Operator-shaped communities**: room groups, sidebar links, universal announcement rooms, custom roles, server/group/room permissions, user overrides, permission inspection, server branding, and a practical admin dashboard.
+- **Rich media and calls**: attachments, image sizing, room files, storage-backed link previews, optional video and animated-GIF processing, plus voice and video calls with screen sharing.
+- **Notifications that work like an app**: persistent notification center, per-room levels, thread follow notifications, DND-aware alerting, installed-PWA badges, and optional Web Push with self-managed VAPID keys.
+- **Privacy-first operations**: encrypted message bodies and durable user PII, crypto-shredding for account deletion, encrypted backups, key-export workflows, and an explicit boundary between operating the server and reading user content.
+- **Typed integration surface**: ConnectRPC public and admin APIs, protobuf realtime WebSocket delivery, generated API reference, and a local operator socket for trusted recovery automation.
 
 ## Get Started
 
@@ -44,18 +47,38 @@ Chatto is a fully-featured real-time chat application built for simplicity and s
     description="Get Chatto running in a few minutes."
   />
   <LinkCard
+    title="Building Your Community Structure"
+    href="/guides/planning/community-structure/"
+    description="Plan room groups, universal rooms, permissions, roles, and server branding before inviting members."
+  />
+  <LinkCard
+    title="Server Operations"
+    href="/guides/operations/server-operations/"
+    description="Use the admin dashboard, event log, metrics, exporter, backups, and operator CLI for day-to-day operations."
+  />
+  <LinkCard
+    title="Notifications & Web Push"
+    href="/guides/planning/notifications-web-push/"
+    description="Configure persistent notifications, Web Push, VAPID keys, DND behavior, and device expectations."
+  />
+  <LinkCard
+    title="Media & Attachments"
+    href="/guides/infrastructure/media-attachments/"
+    description="Understand uploads, image transforms, room files, link previews, S3 storage, and video processing."
+  />
+  <LinkCard
     title="Docker Compose"
-    href="/guides/dockercompose/"
+    href="/guides/deployment/docker-compose/"
     description="Deploy with Docker Compose for production."
   />
   <LinkCard
     title="Standalone Binary"
-    href="/guides/binary/"
+    href="/guides/deployment/binary/"
     description="Run Chatto as a single executable."
   />
   <LinkCard
     title="Kubernetes"
-    href="/guides/kubernetes/"
+    href="/guides/deployment/kubernetes/"
     description="Current status and requirements for Kubernetes deployments."
   />
 </CardGrid>

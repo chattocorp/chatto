@@ -1,0 +1,110 @@
+---
+title: Building Your Community Structure
+description: Plan rooms, room groups, universal rooms, roles, permissions, and server branding for a self-hosted Chatto server.
+---
+
+import { Aside, CardGrid, LinkCard } from "@astrojs/starlight/components";
+
+Set up the shape of your Chatto server before you invite a large group of members. The important choices are room layout, default access, announcement channels, roles, and the public identity of the server.
+
+## First-Day Checklist
+
+1. Set the server name, description, logo, banner, welcome message, and message of the day.
+2. Decide which rooms everyone should see immediately.
+3. Create room groups that match how your community thinks about topics or teams.
+4. Use universal rooms for channels that every eligible member should belong to.
+5. Create custom roles only when you need a reusable permission bundle.
+6. Use room or group permissions for local behavior, not server-wide denies.
+7. Keep at least one verified owner recovery email in `owners.emails`.
+
+## Room Groups
+
+Every channel room belongs to one room group. Groups do two jobs:
+
+| Job | Why it matters |
+| --- | --- |
+| Sidebar organization | Members see rooms and operator-managed links in grouped sidebar sections. |
+| Permission scope | Group-level permissions become the default behavior for rooms in that group. |
+
+Use groups for durable categories such as `Announcements`, `General`, `Project Teams`, `Support`, or `Off Topic`. Avoid creating a group for every tiny topic. Room-level overrides are easier to understand when the group default already matches most rooms inside it.
+
+Fresh servers start with a `Lobby` group containing `#announcements` and `#general`. You can rename the group, move rooms, add sidebar links, or replace the layout entirely.
+
+## Universal Rooms
+
+Use a universal room when membership should be automatic for everyone who is allowed to join the room.
+
+Good universal-room candidates:
+
+| Room | Typical policy |
+| ---- | -------------- |
+| `#announcements` | Everyone sees it; only owners or trusted staff can post. |
+| `#general` | Everyone can participate unless your community is invite-only or segmented. |
+| `#rules` | Everyone sees it; posts are restricted. |
+
+Universal rooms do not write one membership record per user. Chatto derives effective membership from the room's `room.join` permission and active room bans. If you later disable Universal, previous explicit memberships remain intact.
+
+<Aside type="tip">
+  Members cannot leave a universal room. Tell members to mute noisy universal rooms instead of trying to leave them.
+</Aside>
+
+## Permissions Strategy
+
+Start broad and add local exceptions:
+
+| Goal | Best place to configure it |
+| ---- | -------------------------- |
+| Ordinary member defaults | Server-scope grants on `everyone` |
+| Behavior shared by a category of rooms | Group permissions |
+| One exceptional room | Room permissions |
+| One exceptional user | User permission override |
+| Reusable staff capability | Custom role |
+
+Avoid server-scope denies unless you really want to block a capability everywhere. Chatto uses deny-wins resolution, so a broad deny can be hard to reason about later.
+
+## Common Structures
+
+### Small community
+
+- One `Lobby` group.
+- `#announcements` as universal and read-only for normal members.
+- `#general` as a normal or universal room.
+- One `moderator` or custom helper role if you need content cleanup.
+
+### Team or organization
+
+- One group for company-wide or community-wide rooms.
+- Separate groups for teams, projects, or committees.
+- Universal `#announcements` and possibly `#general`.
+- Custom roles for repeated access patterns such as staff, contractors, or project leads.
+
+### Event or course
+
+- Universal read-only `#announcements`.
+- One group per track, cohort, or topic area.
+- Sidebar links for schedules, recordings, forms, or external resources.
+- Room-level posting restrictions for high-signal rooms.
+
+## Branding And Public Presentation
+
+Operators can edit the server name, description, welcome message, message of the day, logo, banner, and blocked username list from the admin UI.
+
+Use these fields deliberately:
+
+| Field | Operator use |
+| ----- | ------------ |
+| Server name | The human name members recognize. |
+| Description | Link previews and server metadata. |
+| Welcome message | Login-page context, onboarding notes, terms, or support links. |
+| Message of the day | Short operational or community-wide notice for signed-in members. |
+| Logo and banner | Visual identity for the server and login page. |
+| Blocked usernames | Prevent impersonation, reserved names, or offensive handles before signup. |
+
+## Related Guides
+
+<CardGrid>
+  <LinkCard title="Permissions & Roles" href="/guides/planning/permissions/" description="The full permission resolution model, built-in roles, scopes, and common patterns." />
+  <LinkCard title="Identity & Login" href="/guides/planning/identity-login/" description="Local accounts, external providers, SMTP email flows, and owner recovery." />
+  <LinkCard title="Server Operations" href="/guides/operations/server-operations/" description="Admin dashboard, event log, metrics, backups, and recovery operations." />
+  <LinkCard title="Room Directory API" href="/reference/connectrpc-api/room-directory/" description="Typed API reference for room groups, sidebar layout, and visible rooms." />
+</CardGrid>

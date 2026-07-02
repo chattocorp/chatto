@@ -81,7 +81,7 @@ Chatto uses a role-based permission system with four built-in roles (everyone / 
 
 <LinkCard
   title="Permissions & Roles"
-  href="/guides/permissions/"
+  href="/guides/planning/permissions/"
   description="Roles, explicit grants and denies, owner recovery, common patterns, and how Chatto resolves any given permission check."
 />
 
@@ -89,7 +89,7 @@ Chatto uses a role-based permission system with four built-in roles (everyone / 
 
 The first owner is designated via `owners.emails` in `chatto.toml`. The match runs against **verified** emails only, so claiming an address you can't receive mail at won't grant you ownership. When a matching email is verified, the user is auto-promoted to the owner role — no restart required.
 
-Owners are effective-owner overrides: they are allowed for every normal RBAC permission, and their permissions are virtual rather than stored as editable grants. Roles still have display order, but Chatto does not use role position as an authorization rank. See the [permissions guide](/guides/permissions/) for the full resolution model.
+Owners are effective-owner overrides: they are allowed for every normal RBAC permission, and their permissions are virtual rather than stored as editable grants. Roles still have display order, but Chatto does not use role position as an authorization rank. See the [permissions guide](/guides/planning/permissions/) for the full resolution model.
 
 ### The privacy boundary
 
@@ -172,7 +172,7 @@ Backups are outside the live account-deletion flow. Restoring an old backup that
 
 <LinkCard
   title="Backup & Restore"
-  href="/guides/backup-restore/"
+  href="/guides/operations/backup-restore/"
   description="Full guide to backups, key exports, and disaster recovery."
 />
 
@@ -196,7 +196,7 @@ socket_path = "/tmp/chatto/operator.sock"
 
 Chatto serves only `chatto.operator.v1` on the operator socket, and the public web listener never mounts the Operator API. The inverse is also true: the operator socket does not serve public or admin ConnectRPC services. The socket mode is fixed at `0600`, and the parent directory must be private to the Chatto process user. This is intentional defense in depth, so normal public reverse-proxy routing for Chatto's web UI and public APIs cannot accidentally expose root-grade bootstrap access.
 
-The `chatto operator ...` CLI reads the socket path from `--operator-socket`, `CHATTO_OPERATOR_API_SOCKET_PATH`, or `chatto.toml`, falling back to `/tmp/chatto/operator.sock`. In Docker, run the command inside the container with `docker exec` or mount the socket path into a trusted sidecar/container with matching filesystem permissions. See [Operator CLI](/guides/operator-cli/) for command examples.
+The `chatto operator ...` CLI reads the socket path from `--operator-socket`, `CHATTO_OPERATOR_API_SOCKET_PATH`, or `chatto.toml`, falling back to `/tmp/chatto/operator.sock`. In Docker, run the command inside the container with `docker exec` or mount the socket path into a trusted sidecar/container with matching filesystem permissions. See [Operator CLI](/guides/operations/operator-cli/) for command examples.
 
 Operator actions are attributed to Chatto's system actor, not to an in-app user or RBAC role. Keep the socket path private to the Chatto process and explicitly trusted automation; for password workflows, prefer `--password-stdin` and `--password-file` over direct secret flags.
 

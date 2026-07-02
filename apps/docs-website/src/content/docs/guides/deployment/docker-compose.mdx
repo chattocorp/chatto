@@ -10,11 +10,11 @@ import {
   LinkCard,
   CardGrid,
 } from "@astrojs/starlight/components";
-import ArchDiagram from "../../../components/diagrams/DockerComposeDiagram.astro";
+import ArchDiagram from "../../../../components/diagrams/DockerComposeDiagram.astro";
 
 ## Introduction
 
-This guide walks through deploying Chatto with Docker Compose, in a more fully-featured setup compared to what we set up in the [Standalone Binary](/guides/binary) guide. Specifically, this includes:
+This guide walks through deploying Chatto with Docker Compose, in a more fully-featured setup compared to what we set up in the [Standalone Binary](/guides/deployment/binary) guide. Specifically, this includes:
 
 - A separate NATS server for Chatto to connect to (instead of using the embedded server.)
 - A working LiveKit service to power your voice and video calls.
@@ -111,17 +111,17 @@ Back up `nats_data` regularly. By default, file attachments and media are also s
 <CardGrid>
   <LinkCard
     title="Backup & Restore"
-    href="/guides/backup-restore/"
+    href="/guides/operations/backup-restore/"
     description="How to back up and restore your Chatto data."
   />
   <LinkCard
     title="S3 Storage"
-    href="/guides/s3-storage/"
+    href="/guides/infrastructure/s3-storage/"
     description="Use S3-compatible storage for file attachments and media."
   />
   <LinkCard
     title="Horizontal Scaling"
-    href="/guides/horizontal-scaling/"
+    href="/guides/infrastructure/horizontal-scaling/"
     description="Run multiple Chatto replicas for high availability."
   />
 </CardGrid>
@@ -159,7 +159,7 @@ CHATTO_VIDEO_ENABLED=true
 
 <LinkCard
   title="Video Processing"
-  href="/guides/video-processing/"
+  href="/guides/infrastructure/video-processing/"
   description="Transcoding options, concurrency tuning, and storage considerations."
 />
 
@@ -202,7 +202,7 @@ Networks that block UDP entirely still need TURN/TLS. Add that only when you als
   host so it does not conflict with Caddy.
 </Aside>
 
-See [Voice & Video Calls](/guides/voice-calls/#turn-for-restrictive-networks) for the full TURN tradeoffs, including when to use a dedicated TURN server.
+See [Voice & Video Calls](/guides/infrastructure/voice-calls/#turn-for-restrictive-networks) for the full TURN tradeoffs, including when to use a dedicated TURN server.
 
 ## Troubleshooting
 
@@ -223,7 +223,7 @@ See [Voice & Video Calls](/guides/voice-calls/#turn-for-restrictive-networks) fo
 <CardGrid>
   <LinkCard
     title="Voice & Video Calls"
-    href="/guides/voice-calls/"
+    href="/guides/infrastructure/voice-calls/"
     description="LiveKit setup details and production considerations."
   />
   <LinkCard

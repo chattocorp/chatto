@@ -48,7 +48,7 @@ Every `chatto.toml` setting can be overridden with an environment variable. The 
 </EnvVar>
 
 <EnvVar name="CHATTO_WEBSERVER_OAUTH_REDIRECT_ORIGINS" toml="webserver.oauth_redirect_origins">
-  Comma-separated list of origins allowed for Chatto OAuth redirect callbacks when another Chatto frontend connects to this server. Use exact HTTPS origins, such as `https://app.example.com`, when you operate a known frontend. Set to `*` if you intentionally want any valid HTTPS Chatto frontend to connect. This is convenient for open federation-style alpha deployments, but it lets any HTTPS site start an authorization request and ask the user to approve sending an authorization code back to that site. See the [Security guide](/guides/security/#chatto-frontend-oauth-redirects) for the risk tradeoff.
+  Comma-separated list of origins allowed for Chatto OAuth redirect callbacks when another Chatto frontend connects to this server. Use exact HTTPS origins, such as `https://app.example.com`, when you operate a known frontend. Set to `*` if you intentionally want any valid HTTPS Chatto frontend to connect. This is convenient for open federation-style alpha deployments, but it lets any HTTPS site start an authorization request and ask the user to approve sending an authorization code back to that site. See the [Security guide](/guides/operations/security/#chatto-frontend-oauth-redirects) for the risk tradeoff.
 </EnvVar>
 
 ### TLS
@@ -163,7 +163,7 @@ The exporter exposes deployment-wide Chatto metrics. Run it as `chatto exporter`
 
 ### S3 Storage
 
-Only used when `storage_backend` is set to `s3`. See the [S3 Storage guide](/guides/s3-storage/) for setup instructions.
+Only used when `storage_backend` is set to `s3`. See the [S3 Storage guide](/guides/infrastructure/s3-storage/) for setup instructions.
 
 <EnvVar name="CHATTO_CORE_ASSETS_S3_ENDPOINT" toml="core.assets.s3.endpoint">
   S3 endpoint URL (e.g., `s3.amazonaws.com` for AWS, or a custom endpoint for S3-compatible services).
@@ -327,7 +327,7 @@ Provider IDs are used in login URLs and external identity links, so do not chang
 
 Set `auto_provision = true` only for providers whose users should be allowed to create accounts. Unlinked identities from providers without auto-provisioning can still be linked by existing signed-in users from account settings.
 
-See [External Login Providers](/guides/external-login-providers/) for callback URLs, provider-specific examples, and discovery behavior.
+See [External Login Providers](/guides/integrations/external-login-providers/) for callback URLs, provider-specific examples, and discovery behavior.
 
 ## SMTP
 

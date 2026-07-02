@@ -10,13 +10,13 @@ import {
   LinkCard,
   CardGrid,
 } from "@astrojs/starlight/components";
-import ArchDiagram from "../../../components/diagrams/BinaryDiagram.astro";
+import ArchDiagram from "../../../../components/diagrams/BinaryDiagram.astro";
 
 <Aside type="caution">
   While it is totally possible to host Chatto just using the binary (it will
   even terminate TLS for you if you want!), it is heavily recommended to make
   use of the provided Docker image through [Docker
-  Compose](/guides/dockercompose/), [Kubernetes](/guides/kubernetes/), or
+  Compose](/guides/deployment/docker-compose/), [Kubernetes](/guides/deployment/kubernetes/), or
   another container runtime of your choice.
 </Aside>
 
@@ -92,13 +92,13 @@ sudo systemctl enable --now chatto
 
 The standalone binary doesn't include LiveKit. To add voice and video calls, you have two options:
 
-1. **Switch to Docker Compose** (recommended) — the [Docker Compose guide](/guides/dockercompose/) includes LiveKit out of the box.
+1. **Switch to Docker Compose** (recommended) — the [Docker Compose guide](/guides/deployment/docker-compose/) includes LiveKit out of the box.
 2. **Run LiveKit separately** — install and run a [LiveKit server](https://docs.livekit.io/home/self-hosting/local/) alongside Chatto, then configure the LiveKit environment variables.
 
 <CardGrid>
   <LinkCard
     title="Docker Compose"
-    href="/guides/dockercompose/"
+    href="/guides/deployment/docker-compose/"
     description="Recommended production deployment with LiveKit and Caddy."
   />
   <LinkCard
@@ -108,7 +108,7 @@ The standalone binary doesn't include LiveKit. To add voice and video calls, you
   />
   <LinkCard
     title="Backup & Restore"
-    href="/guides/backup-restore/"
+    href="/guides/operations/backup-restore/"
     description="How to back up and restore your Chatto data."
   />
 </CardGrid>

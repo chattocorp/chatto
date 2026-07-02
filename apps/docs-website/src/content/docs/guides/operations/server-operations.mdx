@@ -1,0 +1,130 @@
+---
+title: Server Operations
+description: Day-to-day operations for Chatto admins and self-hosters, including diagnostics, metrics, backups, upgrades, and recovery.
+---
+
+import { Aside, CardGrid, LinkCard, Tabs, TabItem } from "@astrojs/starlight/components";
+
+Running Chatto is mostly about keeping the process healthy, watching storage growth, testing backups, and knowing which tool to use when an account or deployment needs repair.
+
+## Operator Surfaces
+
+| Surface | Use for |
+| ------- | ------- |
+| Admin UI | Member management, roles, permissions, room layout, server branding, event log, and system diagnostics. |
+| Metrics listener | Per-process Prometheus metrics such as Go runtime, readiness, realtime counters, NATS client counters, and projection health. |
+| Exporter | Deployment-wide metrics from NATS resources and asset storage. |
+| Operator CLI | Local recovery and bootstrap actions over a Unix socket. |
+| Backups | Disaster recovery, migration rehearsal, and upgrade safety. |
+
+## Admin Dashboard
+
+Owners and permissioned admins use the admin UI for daily operations. Depending on their permissions, they can inspect members, roles, permissions, server configuration, room layout, room bans, event-log diagnostics, and system health.
+
+The system pages expose operational metadata, not conversation content. Admins can operate the server without reading message bodies or file contents.
+
+## Metrics
+
+Enable the per-process metrics listener when you want Prometheus scraping for one running Chatto process:
+
+<Tabs>
+<TabItem label="TOML">
+
+```toml
+[metrics]
+enabled = true
+bind_address = "127.0.0.1"
+port = 9090
+path = "/metrics"
+```
+
+</TabItem>
+<TabItem label="Environment">
+
+```bash
+CHATTO_METRICS_ENABLED=true
+CHATTO_METRICS_BIND_ADDRESS=127.0.0.1
+CHATTO_METRICS_PORT=9090
+CHATTO_METRICS_PATH=/metrics
+```
+
+</TabItem>
+</Tabs>
+
+Keep the metrics listener private. Enable `metrics.pprof` only while actively profiling and only on a trusted internal network or localhost.
+
+## Exporter
+
+Use the exporter for deployment-wide metrics. Single-process installs can embed it in `chatto run`:
+
+```toml
+[exporter]
+enabled = true
+bind_address = "127.0.0.1"
+port = 9100
+path = "/metrics"
+```
+
+Clustered deployments should run the embedded exporter on at most one replica, or run `chatto exporter` as a separate unit against external NATS or an exposed embedded NATS TCP listener.
+
+## Backups
+
+Backups are not optional for live servers. At minimum:
+
+1. Schedule encrypted backups.
+2. Decide whether normal backups include encryption keys.
+3. Store backup archives away from the Chatto data directory.
+4. Run a restore test before you rely on the backup.
+5. Keep backup retention aligned with account-deletion expectations.
+
+For small self-hosted servers, the simplest reliable backup includes keys:
+
+```bash
+chatto backup -c chatto.toml --encrypt --include-keys
+```
+
+Use separate key exports only when you intentionally want split retention and recovery procedures.
+
+## Recovery And Bootstrap
+
+Enable the Operator API only when you need local recovery or trusted automation:
+
+```toml
+[operator_api]
+enabled = true
+socket_path = "/tmp/chatto/operator.sock"
+```
+
+Run `chatto operator` as the same OS user as the Chatto process, or through `docker compose exec` as the `chatto` user in container deployments.
+
+Use it for tasks such as:
+
+- listing users when no admin session is available
+- setting a password for an existing user
+- creating a bootstrap user
+- adding a verified email
+- assigning or revoking a role
+- deleting an account
+
+<Aside type="danger">
+  Treat operator socket access like root access to Chatto. Do not mount the socket into untrusted containers or expose it over TCP.
+</Aside>
+
+## Upgrade Practice
+
+1. Read the release notes before upgrading.
+2. Make a fresh backup before changing versions.
+3. For larger servers, restore a copy into a scratch environment and boot the new version against it.
+4. Check admin system diagnostics and projection readiness after startup.
+5. Watch logs and metrics during the first minutes after upgrade.
+6. For `0.x` releases, review API changes if you run bots or custom clients.
+
+## Related Guides
+
+<CardGrid>
+  <LinkCard title="Backup & Restore" href="/guides/operations/backup-restore/" description="Backup, restore, key export, and disaster recovery procedures." />
+  <LinkCard title="Operator CLI" href="/guides/operations/operator-cli/" description="Local recovery and bootstrap commands." />
+  <LinkCard title="High Availability" href="/guides/infrastructure/high-availability/" description="Run Chatto with replicated infrastructure." />
+  <LinkCard title="Horizontal Scaling" href="/guides/infrastructure/horizontal-scaling/" description="Scale server processes and externalize runtime dependencies." />
+  <LinkCard title="Environment Variables" href="/reference/environment-variables/#metrics" description="Metrics, exporter, and operator API configuration reference." />
+</CardGrid>

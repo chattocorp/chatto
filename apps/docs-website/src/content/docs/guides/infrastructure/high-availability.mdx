@@ -4,7 +4,7 @@ description: How to run Chatto with a NATS cluster for fault tolerance and data 
 ---
 
 import { Aside, Tabs, TabItem, LinkCard, CardGrid } from "@astrojs/starlight/components";
-import ArchDiagram from "../../../components/diagrams/HighAvailabilityDiagram.astro";
+import ArchDiagram from "../../../../components/diagrams/HighAvailabilityDiagram.astro";
 
 Chatto stores all persistent data in NATS JetStream. For high availability, run a multi-node NATS cluster with JetStream replication so that data survives individual node failures.
 
@@ -110,7 +110,7 @@ This controls how many copies of each stream, KV bucket, and object store NATS m
 All Chatto storage — KV buckets, event streams, and object stores — uses the same replication factor. There are no per-bucket overrides.
 
 <Aside type="caution">
-  Replication multiplies storage proportionally. With `replicas=3`, every byte is stored three times across the cluster. Consider using [S3 storage](/guides/s3-storage/) for file attachments to keep replication costs manageable.
+  Replication multiplies storage proportionally. With `replicas=3`, every byte is stored three times across the cluster. Consider using [S3 storage](/guides/infrastructure/s3-storage/) for file attachments to keep replication costs manageable.
 </Aside>
 
 ## What Gets Replicated
@@ -158,10 +158,10 @@ Listing multiple URLs gives the client failover — if one node is down, it conn
 | Chatto server process down | Load balancer routes to healthy server processes | Automatic |
 | Minority of NATS nodes down | Reads and writes continue normally | Automatic |
 | Majority of NATS nodes down | Writes rejected (no quorum), reads may work | Restore nodes |
-| All NATS nodes down | Complete outage | Restore cluster or [restore from backup](/guides/backup-restore/) |
+| All NATS nodes down | Complete outage | Restore cluster or [restore from backup](/guides/operations/backup-restore/) |
 
 <CardGrid>
-  <LinkCard title="Horizontal Scaling" href="/guides/horizontal-scaling/" description="Run multiple Chatto replicas behind a load balancer." />
-  <LinkCard title="S3 Storage" href="/guides/s3-storage/" description="Offload file storage to reduce replication costs." />
-  <LinkCard title="Backup & Restore" href="/guides/backup-restore/" description="Snapshot and restore your NATS data." />
+  <LinkCard title="Horizontal Scaling" href="/guides/infrastructure/horizontal-scaling/" description="Run multiple Chatto replicas behind a load balancer." />
+  <LinkCard title="S3 Storage" href="/guides/infrastructure/s3-storage/" description="Offload file storage to reduce replication costs." />
+  <LinkCard title="Backup & Restore" href="/guides/operations/backup-restore/" description="Snapshot and restore your NATS data." />
 </CardGrid>
