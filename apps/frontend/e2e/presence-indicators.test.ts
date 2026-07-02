@@ -109,7 +109,7 @@ test.describe('Message avatar presence', () => {
 
     // The message avatar uses the shared presence ring, not an overlay dot.
     const messageArticle = page.locator('[role="article"]', { hasText: 'Hello without presence!' });
-    const avatarPresenceRing = messageArticle.locator('button.absolute .ring-1');
+    const avatarPresenceRing = messageArticle.locator('button.absolute .ring-2');
     await expect(avatarPresenceRing).toHaveClass(/ring-green-500/);
     const avatarPresenceDot = messageArticle.locator('button.absolute span.rounded-full');
     await expect(avatarPresenceDot).not.toBeVisible();

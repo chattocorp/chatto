@@ -93,7 +93,7 @@
   );
   const presenceRingClass = $derived(
     showPresenceRing && presence
-      ? `ring-1 ring-inset ${presenceRingColorClasses[presence]}`
+      ? `ring-2 ring-inset ${presenceRingColorClasses[presence]}`
       : ''
   );
   const avatarClass = $derived(

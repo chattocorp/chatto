@@ -8,7 +8,7 @@ describe('UserAvatar', () => {
     const { container } = render(UserAvatarTestHarness, { size: 'md' });
     const avatar = q(container, '[aria-label="alice"]')!;
 
-    expect(avatar.className).toContain('ring-1');
+    expect(avatar.className).toContain('ring-2');
     expect(avatar.className).toContain('ring-green-500');
     expect(q(container, '[aria-label="Online"]')).toBeTruthy();
     expect(q(container, '[aria-label="🍜 Out for lunch"]')).toBeFalsy();
@@ -24,7 +24,7 @@ describe('UserAvatar', () => {
     const { container } = render(UserAvatarTestHarness, { size: 'sm' });
     const avatar = q(container, '[aria-label="alice"]')!;
 
-    expect(avatar.className).not.toContain('ring-1');
+    expect(avatar.className).not.toContain('ring-2');
     expect(avatar.className).not.toContain('ring-green-500');
     expect(q(container, '[aria-label="Online"]')).toBeFalsy();
   });
@@ -33,7 +33,7 @@ describe('UserAvatar', () => {
     const { container } = render(UserAvatarTestHarness, { size: 'sm', showPresence: true });
     const avatar = q(container, '[aria-label="alice"]')!;
 
-    expect(avatar.className).toContain('ring-1');
+    expect(avatar.className).toContain('ring-2');
     expect(avatar.className).toContain('ring-green-500');
     expect(q(container, '[aria-label="Online"]')).toBeTruthy();
   });
@@ -42,7 +42,7 @@ describe('UserAvatar', () => {
     const { container } = render(UserAvatarTestHarness, { size: 'md', showPresence: false });
     const avatar = q(container, '[aria-label="alice"]')!;
 
-    expect(avatar.className).not.toContain('ring-1');
+    expect(avatar.className).not.toContain('ring-2');
     expect(avatar.className).not.toContain('ring-green-500');
     expect(q(container, '[aria-label="Online"]')).toBeFalsy();
   });
