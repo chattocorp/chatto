@@ -5,6 +5,9 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"image"
+	"image/color"
+	"image/gif"
 	"testing"
 	"time"
 
@@ -136,4 +139,81 @@ func TestAssetUploadStaleChunkUpdateDoesNotDeleteCommittedChunk(t *testing.T) {
 	if attachment == nil || attachment.GetId() == "" {
 		t.Fatal("CompleteUpload did not return an attachment")
 	}
+}
+
+func TestAssetUploadAnimatedGIFDoesNotRequestVideoProcessingWhenDisabled(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	user, err := core.CreateUser(ctx, SystemActorID, "disabled-gif-upload", "Disabled GIF Upload", "password")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	room, err := core.CreateRoom(ctx, user.Id, KindChannel, "", "disabled-gif-uploads", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if _, err := core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom: %v", err)
+	}
+
+	content := testAnimatedGIF(t)
+	sum := sha256.Sum256(content)
+	upload, err := core.AssetUploads().CreateUpload(ctx, AssetUploadCreateInput{
+		ActorID:     user.Id,
+		RoomID:      room.Id,
+		Filename:    "animated.gif",
+		ContentType: "image/gif",
+		Size:        int64(len(content)),
+		SHA256:      hex.EncodeToString(sum[:]),
+	})
+	if err != nil {
+		t.Fatalf("CreateUpload: %v", err)
+	}
+	if _, err := core.AssetUploads().UploadChunk(ctx, AssetUploadChunkInput{
+		ActorID:     user.Id,
+		UploadID:    upload.UploadID,
+		Offset:      0,
+		Content:     content,
+		ChunkSHA256: hex.EncodeToString(sum[:]),
+	}); err != nil {
+		t.Fatalf("UploadChunk: %v", err)
+	}
+	_, attachment, err := core.AssetUploads().CompleteUpload(ctx, AssetUploadCompleteInput{
+		ActorID:  user.Id,
+		UploadID: upload.UploadID,
+	})
+	if err != nil {
+		t.Fatalf("CompleteUpload: %v", err)
+	}
+	declared, ok := core.Assets.AssetCreation(attachment.GetId())
+	if !ok {
+		t.Fatalf("AssetCreation(%q) missing", attachment.GetId())
+	}
+	if declared.GetNeedsVideoProcessing() {
+		t.Fatal("animated GIF upload persisted needs_video_processing while video is disabled")
+	}
+
+	if _, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "gif", []string{attachment.GetId()}, "", "", nil, false); err != nil {
+		t.Fatalf("PostMessage: %v", err)
+	}
+	if manifest, ok := core.Assets.VideoAttachmentManifest(attachment.GetId()); ok && manifest != nil && manifest.Started != nil {
+		t.Fatalf("video processing manifest was started while disabled: %+v", manifest)
+	}
+}
+
+func testAnimatedGIF(t *testing.T) []byte {
+	t.Helper()
+	palette := color.Palette{color.Black, color.White}
+	frame1 := image.NewPaletted(image.Rect(0, 0, 2, 2), palette)
+	frame2 := image.NewPaletted(image.Rect(0, 0, 2, 2), palette)
+	frame2.SetColorIndex(1, 1, 1)
+	var buf bytes.Buffer
+	if err := gif.EncodeAll(&buf, &gif.GIF{
+		Image: []*image.Paletted{frame1, frame2},
+		Delay: []int{10, 10},
+	}); err != nil {
+		t.Fatalf("EncodeAll animated GIF: %v", err)
+	}
+	return buf.Bytes()
 }

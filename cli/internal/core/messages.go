@@ -592,6 +592,9 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 	// (UploadAttachment → AssetCreatedEvent); here we just trigger derivative
 	// processing for any referenced asset the caller flagged as a video.
 	for _, att := range resolvedAssets {
+		if c.OnVideoProcessingRequested == nil {
+			continue
+		}
 		declared, _ := c.assetLifecycle().AssetCreation(att.GetId())
 		if !options.shouldScheduleVideoProcessingForID(att.GetId()) && (declared == nil || !declared.GetNeedsVideoProcessing()) {
 			continue

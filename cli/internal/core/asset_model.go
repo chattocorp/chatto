@@ -230,17 +230,14 @@ func (s *AssetModel) ScheduleVideoProcessingForMessageAttachment(ctx context.Con
 			return nil
 		}
 	}
+	if s.OnVideoProcessingRequested == nil {
+		return nil
+	}
 	if s.attachmentBinaryStatus(ctx, attachment) == AttachmentBinaryMissing {
 		return s.RecordAssetProcessingFailed(ctx, actorID, roomID, messageEventID, attachment.GetId(), corev1.AssetProcessingFailureCode_ASSET_PROCESSING_FAILURE_CODE_SOURCE_MISSING)
 	}
 	if err := s.RecordAssetProcessingStarted(ctx, actorID, roomID, messageEventID, attachment.GetId()); err != nil {
 		return err
-	}
-	if s.OnVideoProcessingRequested == nil {
-		s.logger.Warn("Video processing requested but no local processor is registered",
-			"asset_id", attachment.GetId(),
-			"message_event_id", messageEventID)
-		return nil
 	}
 	if err := s.OnVideoProcessingRequested(context.Background(), attachment.GetId(), messageEventID); err != nil {
 		s.logger.Warn("Failed to start local video processing",
