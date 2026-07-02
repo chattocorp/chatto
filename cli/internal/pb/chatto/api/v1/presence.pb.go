@@ -7,6 +7,7 @@
 package apiv1
 
 import (
+	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -193,9 +194,9 @@ var File_chatto_api_v1_presence_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_presence_proto_rawDesc = "" +
 	"\n" +
-	"\x1cchatto/api/v1/presence.proto\x12\rchatto.api.v1\"s\n" +
-	"\x15UpdatePresenceRequest\x125\n" +
-	"\x06status\x18\x01 \x01(\x0e2\x1d.chatto.api.v1.PresenceStatusR\x06status\x12#\n" +
+	"\x1cchatto/api/v1/presence.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\"\x81\x01\n" +
+	"\x15UpdatePresenceRequest\x12C\n" +
+	"\x06status\x18\x01 \x01(\x0e2\x1d.chatto.api.v1.PresenceStatusB\f\xbaH\t\x82\x01\x06\x10\x01 \x00 \x04R\x06status\x12#\n" +
 	"\ruser_selected\x18\x02 \x01(\bR\fuserSelected\"O\n" +
 	"\x16UpdatePresenceResponse\x125\n" +
 	"\x06status\x18\x01 \x01(\x0e2\x1d.chatto.api.v1.PresenceStatusR\x06status*\xa8\x01\n" +

@@ -398,18 +398,19 @@ export class UpdateRoomGroupRequest extends Message<UpdateRoomGroupRequest> {
   groupId = "";
 
   /**
-   * Required group display name.
+   * New group display name, when changing it.
    *
-   * @generated from field: string name = 2;
+   * @generated from field: optional string name = 2;
    */
-  name = "";
+  name?: string;
 
   /**
-   * Optional public group description.
+   * New public group description, when changing it. Empty clears the
+   * description.
    *
-   * @generated from field: string description = 3;
+   * @generated from field: optional string description = 3;
    */
-  description = "";
+  description?: string;
 
   constructor(data?: PartialMessage<UpdateRoomGroupRequest>) {
     super();
@@ -420,8 +421,8 @@ export class UpdateRoomGroupRequest extends Message<UpdateRoomGroupRequest> {
   static readonly typeName = "chatto.admin.v1.UpdateRoomGroupRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "group_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "description", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 3, name: "description", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UpdateRoomGroupRequest {
@@ -939,18 +940,18 @@ export class UpdateSidebarLinkRequest extends Message<UpdateSidebarLinkRequest> 
   linkId = "";
 
   /**
-   * Required display label.
+   * New display label, when changing it.
    *
-   * @generated from field: string label = 2;
+   * @generated from field: optional string label = 2;
    */
-  label = "";
+  label?: string;
 
   /**
-   * Required absolute http(s) URL or server-local path.
+   * New absolute http(s) URL or server-local path, when changing it.
    *
-   * @generated from field: string url = 3;
+   * @generated from field: optional string url = 3;
    */
-  url = "";
+  url?: string;
 
   constructor(data?: PartialMessage<UpdateSidebarLinkRequest>) {
     super();
@@ -961,8 +962,8 @@ export class UpdateSidebarLinkRequest extends Message<UpdateSidebarLinkRequest> 
   static readonly typeName = "chatto.admin.v1.UpdateSidebarLinkRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "link_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "label", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "url", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "label", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 3, name: "url", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UpdateSidebarLinkRequest {

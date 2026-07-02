@@ -151,7 +151,10 @@ describe('createAdminUserManagementAPI', () => {
 
     const result = await api.getMember('user-2');
 
-    expect(mocks.getMember).toHaveBeenCalledWith({ userId: 'user-2' }, { headers: undefined });
+    expect(mocks.getMember).toHaveBeenCalledWith(
+      { target: { case: 'userId', value: 'user-2' } },
+      { headers: undefined }
+    );
     expect(result).toEqual({
       member: {
         id: 'user-2',

@@ -43,7 +43,10 @@ enum AdminRoomLayoutItemKind {
 // One item reference in a sidebar order replacement.
 message AdminRoomLayoutItemInput {
   // Item kind.
-  AdminRoomLayoutItemKind kind = 1 [(buf.validate.field).enum.defined_only = true];
+  AdminRoomLayoutItemKind kind = 1 [(buf.validate.field).enum = {
+    defined_only: true
+    not_in: [0]
+  }];
   // Room ID when kind is ROOM, sidebar link ID when kind is SIDEBAR_LINK.
   string id = 2 [(buf.validate.field).string.min_len = 1];
 }
@@ -78,13 +81,14 @@ message CreateRoomGroupResponse {
 message UpdateRoomGroupRequest {
   // Required room group ID.
   string group_id = 1 [(buf.validate.field).string.min_len = 1];
-  // Required group display name.
-  string name = 2 [(buf.validate.field).string = {
+  // New group display name, when changing it.
+  optional string name = 2 [(buf.validate.field).string = {
     min_len: 1
     max_len: 80
   }];
-  // Optional public group description.
-  string description = 3 [(buf.validate.field).string.max_len = 500];
+  // New public group description, when changing it. Empty clears the
+  // description.
+  optional string description = 3 [(buf.validate.field).string.max_len = 500];
 }
 
 // Result of updating a room group.
@@ -111,6 +115,7 @@ message ReorderRoomGroupsRequest {
   // once.
   repeated string ordered_group_ids = 1 [(buf.validate.field).repeated = {
     min_items: 1
+    max_items: 1000
     items: {
       string: {min_len: 1}
     }
@@ -142,7 +147,7 @@ message ReorderSidebarItemsInGroupRequest {
   // Required room group ID.
   string group_id = 1 [(buf.validate.field).string.min_len = 1];
   // Ordered room/sidebar-link item references.
-  repeated AdminRoomLayoutItemInput items = 2;
+  repeated AdminRoomLayoutItemInput items = 2 [(buf.validate.field).repeated = {max_items: 1000}];
 }
 
 // Result of replacing the mixed sidebar item order.
@@ -177,13 +182,13 @@ message CreateSidebarLinkResponse {
 message UpdateSidebarLinkRequest {
   // Required sidebar link ID.
   string link_id = 1 [(buf.validate.field).string.min_len = 1];
-  // Required display label.
-  string label = 2 [(buf.validate.field).string = {
+  // New display label, when changing it.
+  optional string label = 2 [(buf.validate.field).string = {
     min_len: 1
     max_len: 80
   }];
-  // Required absolute http(s) URL or server-local path.
-  string url = 3 [(buf.validate.field).string = {
+  // New absolute http(s) URL or server-local path, when changing it.
+  optional string url = 3 [(buf.validate.field).string = {
     min_len: 1
     max_len: 2048
   }];

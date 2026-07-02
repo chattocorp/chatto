@@ -237,20 +237,24 @@ var File_chatto_api_v1_push_notifications_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_push_notifications_proto_rawDesc = "" +
 	"\n" +
-	"&chatto/api/v1/push_notifications.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\"\xb9\x01\n" +
-	"\x14SubscribePushRequest\x12$\n" +
-	"\bendpoint\x18\x01 \x01(\tB\b\xbaH\x05r\x03\x18\x80 R\bendpoint\x12 \n" +
-	"\x06p256dh\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x02R\x06p256dh\x12\x1c\n" +
-	"\x04auth\x18\x03 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x01R\x04auth\x12,\n" +
+	"&chatto/api/v1/push_notifications.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\"\xbf\x01\n" +
+	"\x14SubscribePushRequest\x12&\n" +
+	"\bendpoint\x18\x01 \x01(\tB\n" +
+	"\xbaH\ar\x05\x10\x01\x18\x80 R\bendpoint\x12\"\n" +
+	"\x06p256dh\x18\x02 \x01(\tB\n" +
+	"\xbaH\ar\x05\x10\x01\x18\x80\x02R\x06p256dh\x12\x1e\n" +
+	"\x04auth\x18\x03 \x01(\tB\n" +
+	"\xbaH\ar\x05\x10\x01\x18\x80\x01R\x04auth\x12,\n" +
 	"\n" +
 	"user_agent\x18\x04 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04H\x00R\tuserAgent\x88\x01\x01B\r\n" +
 	"\v_user_agent\"7\n" +
 	"\x15SubscribePushResponse\x12\x1e\n" +
 	"\n" +
 	"subscribed\x18\x01 \x01(\bR\n" +
-	"subscribed\">\n" +
-	"\x16UnsubscribePushRequest\x12$\n" +
-	"\bendpoint\x18\x01 \x01(\tB\b\xbaH\x05r\x03\x18\x80 R\bendpoint\"=\n" +
+	"subscribed\"@\n" +
+	"\x16UnsubscribePushRequest\x12&\n" +
+	"\bendpoint\x18\x01 \x01(\tB\n" +
+	"\xbaH\ar\x05\x10\x01\x18\x80 R\bendpoint\"=\n" +
 	"\x17UnsubscribePushResponse\x12\"\n" +
 	"\funsubscribed\x18\x01 \x01(\bR\funsubscribed2\xcf\x01\n" +
 	"\x17PushNotificationService\x12V\n" +

@@ -144,8 +144,8 @@ Request to update role metadata.
 | Field | Type | Description |
 | --- | --- | --- |
 | `name` | `string` | Stable role name. |
-| `display_name` | `string` | Display name shown in admin and mention UIs. |
-| `description` | `string` | Optional role description. |
+| `display_name` | `optional string` | Display name shown in admin and mention UIs, when changing it. |
+| `description` | `optional string` | Role description, when changing it. Empty clears the description. |
 | `pingable` | `optional bool` | Whether messages may notify users assigned to this role, when changing it. |
 
 

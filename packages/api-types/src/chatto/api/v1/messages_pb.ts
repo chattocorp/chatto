@@ -5,7 +5,6 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3 } from "@bufbuild/protobuf";
-import { LinkPreview } from "./link_previews_pb.js";
 import { RoomTimelineEvent, RoomTimelineIncludes } from "./room_timeline_pb.js";
 import { AttachmentThumbnailOptions, RefreshedAttachmentUrls } from "./attachments_pb.js";
 
@@ -71,6 +70,98 @@ export class MessageAttachmentUpload extends Message<MessageAttachmentUpload> {
 }
 
 /**
+ * Link preview metadata accepted when creating a message.
+ *
+ * This request-only shape intentionally excludes response-only fields such as
+ * generated image URLs.
+ *
+ * @generated from message chatto.api.v1.MessageLinkPreviewInput
+ */
+export class MessageLinkPreviewInput extends Message<MessageLinkPreviewInput> {
+  /**
+   * Previewed URL.
+   *
+   * @generated from field: string url = 1;
+   */
+  url = "";
+
+  /**
+   * Page or embed title, when selected by the client.
+   *
+   * @generated from field: optional string title = 2;
+   */
+  title?: string;
+
+  /**
+   * Page or embed description, when selected by the client.
+   *
+   * @generated from field: optional string description = 3;
+   */
+  description?: string;
+
+  /**
+   * Existing server asset ID for the preview image, when selected by the client.
+   *
+   * @generated from field: optional string image_asset_id = 4;
+   */
+  imageAssetId?: string;
+
+  /**
+   * Site name, when known.
+   *
+   * @generated from field: optional string site_name = 5;
+   */
+  siteName?: string;
+
+  /**
+   * Embed provider or type, when recognized.
+   *
+   * @generated from field: optional string embed_type = 6;
+   */
+  embedType?: string;
+
+  /**
+   * Provider-specific embed ID, when recognized.
+   *
+   * @generated from field: optional string embed_id = 7;
+   */
+  embedId?: string;
+
+  constructor(data?: PartialMessage<MessageLinkPreviewInput>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.MessageLinkPreviewInput";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "url", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "title", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 3, name: "description", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 4, name: "image_asset_id", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 5, name: "site_name", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 6, name: "embed_type", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 7, name: "embed_id", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): MessageLinkPreviewInput {
+    return new MessageLinkPreviewInput().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): MessageLinkPreviewInput {
+    return new MessageLinkPreviewInput().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): MessageLinkPreviewInput {
+    return new MessageLinkPreviewInput().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: MessageLinkPreviewInput | PlainMessage<MessageLinkPreviewInput> | undefined, b: MessageLinkPreviewInput | PlainMessage<MessageLinkPreviewInput> | undefined): boolean {
+    return proto3.util.equals(MessageLinkPreviewInput, a, b);
+  }
+}
+
+/**
  * Request to create a message in a room or thread.
  *
  * @generated from message chatto.api.v1.CreateMessageRequest
@@ -127,12 +218,11 @@ export class CreateMessageRequest extends Message<CreateMessageRequest> {
   mentionConfirmationToken = "";
 
   /**
-   * Link preview selected by the client. Server response-only LinkPreview
-   * fields are ignored.
+   * Link preview selected by the client.
    *
-   * @generated from field: chatto.api.v1.LinkPreview link_preview = 8;
+   * @generated from field: chatto.api.v1.MessageLinkPreviewInput link_preview = 8;
    */
-  linkPreview?: LinkPreview;
+  linkPreview?: MessageLinkPreviewInput;
 
   /**
    * Browser-uploaded attachments to include with the message.
@@ -156,7 +246,7 @@ export class CreateMessageRequest extends Message<CreateMessageRequest> {
     { no: 5, name: "in_reply_to", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 6, name: "also_send_to_channel", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 7, name: "mention_confirmation_token", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 8, name: "link_preview", kind: "message", T: LinkPreview },
+    { no: 8, name: "link_preview", kind: "message", T: MessageLinkPreviewInput },
     { no: 9, name: "attachments", kind: "message", T: MessageAttachmentUpload, repeated: true },
   ]);
 

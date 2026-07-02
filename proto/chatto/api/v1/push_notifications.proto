@@ -21,13 +21,22 @@ service PushNotificationService {
 // Request to store a PushSubscription returned by the browser Push API.
 message SubscribePushRequest {
   // Push service endpoint URL.
-  string endpoint = 1 [(buf.validate.field).string.max_len = 4096];
+  string endpoint = 1 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 4096
+  }];
 
   // Client P-256 ECDH public key from PushSubscription.keys.p256dh.
-  string p256dh = 2 [(buf.validate.field).string.max_len = 256];
+  string p256dh = 2 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 256
+  }];
 
   // Authentication secret from PushSubscription.keys.auth.
-  string auth = 3 [(buf.validate.field).string.max_len = 128];
+  string auth = 3 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 128
+  }];
 
   // Optional browser user-agent string for device identification.
   optional string user_agent = 4 [(buf.validate.field).string.max_len = 512];
@@ -42,7 +51,10 @@ message SubscribePushResponse {
 // Request to remove a browser push subscription.
 message UnsubscribePushRequest {
   // Push service endpoint URL to remove.
-  string endpoint = 1 [(buf.validate.field).string.max_len = 4096];
+  string endpoint = 1 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 4096
+  }];
 }
 
 // Response from removing a browser push subscription.

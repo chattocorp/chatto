@@ -32,6 +32,13 @@ type AdminRoleInput struct {
 	Pingable    *bool
 }
 
+type AdminRoleUpdateInput struct {
+	Name        string
+	DisplayName *string
+	Description *string
+	Pingable    *bool
+}
+
 func (c *ChattoCore) ListServerRolesForUser(ctx context.Context, actorID string) (*RoleCatalog, error) {
 	if actorID == "" {
 		return nil, ErrNotAuthenticated
@@ -100,14 +107,29 @@ func (c *ChattoCore) AdminCreateServerRole(ctx context.Context, actorID string, 
 	return c.CreateServerRole(ctx, actorID, input.Name, input.DisplayName, input.Description, pingable)
 }
 
-func (c *ChattoCore) AdminUpdateServerRole(ctx context.Context, actorID string, input AdminRoleInput) (*RoleWithPermissions, error) {
+func (c *ChattoCore) AdminUpdateServerRole(ctx context.Context, actorID string, input AdminRoleUpdateInput) (*RoleWithPermissions, error) {
 	if err := c.requireCanManageAdminRoles(ctx, actorID); err != nil {
 		return nil, err
 	}
-	if input.Pingable != nil {
-		return c.UpdateServerRole(ctx, actorID, input.Name, input.DisplayName, input.Description, *input.Pingable)
+	if input.DisplayName == nil && input.Description == nil && input.Pingable == nil {
+		return nil, fmt.Errorf("%w: provide at least one role field to update", ErrInvalidArgument)
 	}
-	return c.UpdateServerRole(ctx, actorID, input.Name, input.DisplayName, input.Description)
+	role, err := c.GetServerRole(ctx, input.Name)
+	if err != nil {
+		return nil, err
+	}
+	displayName := role.DisplayName
+	if input.DisplayName != nil {
+		displayName = *input.DisplayName
+	}
+	description := role.Description
+	if input.Description != nil {
+		description = *input.Description
+	}
+	if input.Pingable != nil {
+		return c.UpdateServerRole(ctx, actorID, input.Name, displayName, description, *input.Pingable)
+	}
+	return c.UpdateServerRole(ctx, actorID, input.Name, displayName, description)
 }
 
 func (c *ChattoCore) AdminDeleteServerRole(ctx context.Context, actorID, roleName string) error {

@@ -83,10 +83,12 @@ message ListMembersResponse {
 
 // Request one server-admin member detail record.
 message GetMemberRequest {
-  // Target user ID.
-  string user_id = 1;
-  // Target login. Provide either user_id or login.
-  string login = 2;
+  oneof target {
+    // Target stable user ID.
+    string user_id = 1 [(buf.validate.field).string.min_len = 1];
+    // Target login identifier.
+    string login = 2 [(buf.validate.field).string.min_len = 1];
+  }
 }
 
 // Server-admin member detail payload.

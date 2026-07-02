@@ -237,7 +237,7 @@ func (s *messageService) hydratePostedEvent(ctx context.Context, viewerID string
 	return apiEvent, &apiv1.RoomTimelineIncludes{Users: users}, nil
 }
 
-func apiMessageLinkPreviewToCore(input *apiv1.LinkPreview) *corev1.LinkPreview {
+func apiMessageLinkPreviewToCore(input *apiv1.MessageLinkPreviewInput) *corev1.LinkPreview {
 	if input == nil {
 		return nil
 	}

@@ -65,13 +65,13 @@ message CreateRoomResponse {
 message UpdateRoomRequest {
   // Required. Room to update.
   string room_id = 1 [(buf.validate.field).string.min_len = 1];
-  // Required. New room name.
-  string name = 2 [(buf.validate.field).string = {
+  // New room name, when changing it.
+  optional string name = 2 [(buf.validate.field).string = {
     min_len: 1
     max_len: 30
   }];
-  // Optional new room description.
-  string description = 3 [(buf.validate.field).string.max_len = 500];
+  // New room description, when changing it. Empty clears the description.
+  optional string description = 3 [(buf.validate.field).string.max_len = 500];
 }
 
 // Result of updating a room.

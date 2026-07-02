@@ -265,7 +265,10 @@ message SetRolePermissionRequest {
   // Permission identifier.
   string permission = 2 [(buf.validate.field).string.min_len = 1];
   // New decision. NONE clears the explicit state.
-  PermissionDecision decision = 3;
+  PermissionDecision decision = 3 [(buf.validate.field).enum = {
+    defined_only: true
+    not_in: [0]
+  }];
   // Target scope. Omit or use SERVER for server scope.
   PermissionScope scope = 4;
 }
@@ -283,7 +286,10 @@ message SetUserPermissionRequest {
   // Permission identifier.
   string permission = 2 [(buf.validate.field).string.min_len = 1];
   // New decision. NONE clears the explicit state.
-  PermissionDecision decision = 3;
+  PermissionDecision decision = 3 [(buf.validate.field).enum = {
+    defined_only: true
+    not_in: [0]
+  }];
   // Target scope. Omit or use SERVER for server scope.
   PermissionScope scope = 4;
 }

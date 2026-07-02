@@ -15,11 +15,26 @@ func (c *ChattoCore) AdminCreateRoomGroup(ctx context.Context, actorID, name, de
 	return c.CreateRoomGroup(ctx, actorID, name, description)
 }
 
-func (c *ChattoCore) AdminUpdateRoomGroup(ctx context.Context, actorID, groupID, name, description string) (*corev1.RoomGroup, error) {
+func (c *ChattoCore) AdminUpdateRoomGroup(ctx context.Context, actorID, groupID string, name, description *string) (*corev1.RoomGroup, error) {
 	if err := c.requireCanManageRoles(ctx, actorID); err != nil {
 		return nil, err
 	}
-	return c.UpdateRoomGroup(ctx, actorID, groupID, name, description)
+	if name == nil && description == nil {
+		return nil, fmt.Errorf("%w: provide at least one room group field to update", ErrInvalidArgument)
+	}
+	group, err := c.GetRoomGroup(ctx, groupID)
+	if err != nil {
+		return nil, err
+	}
+	nextName := group.GetName()
+	if name != nil {
+		nextName = *name
+	}
+	nextDescription := group.GetDescription()
+	if description != nil {
+		nextDescription = *description
+	}
+	return c.UpdateRoomGroup(ctx, actorID, groupID, nextName, nextDescription)
 }
 
 func (c *ChattoCore) AdminDeleteRoomGroup(ctx context.Context, actorID, groupID string) error {
@@ -80,7 +95,7 @@ func (c *ChattoCore) AdminCreateSidebarLink(ctx context.Context, actorID, groupI
 	return c.CreateSidebarLink(ctx, actorID, groupID, label, rawURL)
 }
 
-func (c *ChattoCore) AdminUpdateSidebarLink(ctx context.Context, actorID, linkID, label, rawURL string) (*corev1.SidebarLink, error) {
+func (c *ChattoCore) AdminUpdateSidebarLink(ctx context.Context, actorID, linkID string, label, rawURL *string) (*corev1.SidebarLink, error) {
 	groupID, err := c.sidebarLinkGroup(ctx, linkID)
 	if err != nil {
 		return nil, err
@@ -88,7 +103,26 @@ func (c *ChattoCore) AdminUpdateSidebarLink(ctx context.Context, actorID, linkID
 	if err := c.requireCanManageRoomGroup(ctx, actorID, groupID); err != nil {
 		return nil, err
 	}
-	return c.UpdateSidebarLinkInGroup(ctx, actorID, groupID, linkID, label, rawURL)
+	if label == nil && rawURL == nil {
+		return nil, fmt.Errorf("%w: provide at least one sidebar link field to update", ErrInvalidArgument)
+	}
+	group, err := c.GetRoomGroup(ctx, groupID)
+	if err != nil {
+		return nil, err
+	}
+	link := sidebarLinkFromGroup(group, linkID)
+	if link == nil {
+		return nil, ErrSidebarLinkNotFound
+	}
+	nextLabel := link.GetLabel()
+	if label != nil {
+		nextLabel = *label
+	}
+	nextURL := link.GetUrl()
+	if rawURL != nil {
+		nextURL = *rawURL
+	}
+	return c.UpdateSidebarLinkInGroup(ctx, actorID, groupID, linkID, nextLabel, nextURL)
 }
 
 func (c *ChattoCore) AdminDeleteSidebarLink(ctx context.Context, actorID, linkID string) error {

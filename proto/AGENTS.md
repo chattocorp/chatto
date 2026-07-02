@@ -48,7 +48,18 @@ For public API packages:
   `optional` scalar fields when clients must distinguish
   absent/unhydrated/unknown from a scalar default.
 - Avoid parallel `*_present` booleans for simple scalar presence.
-- Use enums or oneofs only when modeling multiple meaningful availability states.
+- Use enums or oneofs only when modeling multiple meaningful availability states
+  or mutually exclusive request targets.
+- When one operation targets the same resource by multiple equivalent
+  identifiers, use a request `oneof`; do not use parallel optional/string
+  identifier fields. Split into separate RPCs only when authorization,
+  visibility, absence semantics, response shape, or performance behavior differ.
+- `Update*` request messages should model patch semantics with optional scalar
+  fields or a field mask. Full replacement operations should be named
+  `Replace*` or have an explicit compatibility rationale.
+- Avoid using response-rich messages as request inputs when some fields are
+  ignored. Prefer request-only input messages that contain exactly the accepted
+  fields.
 
 ## Code Generation
 

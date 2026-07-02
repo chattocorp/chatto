@@ -33,6 +33,8 @@ first consumer.
 ## Reused Shapes
 
 - Reuse shared messages when semantics are shared.
+- Do not reuse response-rich messages as request inputs when some fields are
+  ignored. Add a request-only input message instead.
 - Offset-based list RPCs should take `PageRequest page` and return
   `PageInfo page`.
 - Do not add service-local `limit`, `offset`, `total_count`, or `has_more`
@@ -65,6 +67,15 @@ first consumer.
 
 ## Field Presence
 
+- `Update*` request messages should use patch semantics by default. Use
+  proto3 `optional` scalar fields or a field mask so clients can distinguish
+  "leave unchanged" from "set to default/empty". If an operation is a full
+  replacement, name it `Replace*` or document the compatibility rationale.
+- When one operation targets the same resource by multiple equivalent
+  identifiers, model the target as a request `oneof`. Do not use parallel
+  optional/string identifier fields. Split into separate RPCs only when the
+  identifiers have different authorization, visibility, absence semantics,
+  response shape, or performance behavior.
 - Use proto3 `optional` scalar fields when clients must distinguish
   absent/unhydrated/unknown from a scalar default.
 - Avoid parallel `*_present` booleans for simple scalar presence.

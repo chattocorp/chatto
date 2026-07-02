@@ -46,7 +46,7 @@ func TestRoomCommandModelAuthorization(t *testing.T) {
 	if _, err := commands.UpdateRoom(ctx, RoomUpdateInput{
 		ActorID: actor.Id,
 		RoomID:  room.Id,
-		Name:    "room-command-renamed",
+		Name:    stringPtrForCoreTest("room-command-renamed"),
 	}); !errors.Is(err, ErrPermissionDenied) {
 		t.Fatalf("UpdateRoom without room.manage error = %v, want ErrPermissionDenied", err)
 	}
@@ -57,7 +57,7 @@ func TestRoomCommandModelAuthorization(t *testing.T) {
 	if _, err := commands.UpdateRoom(ctx, RoomUpdateInput{
 		ActorID: actor.Id,
 		RoomID:  room.Id,
-		Name:    "room-command-renamed",
+		Name:    stringPtrForCoreTest("room-command-renamed"),
 	}); err != nil {
 		t.Fatalf("UpdateRoom with room-scoped room.manage: %v", err)
 	}

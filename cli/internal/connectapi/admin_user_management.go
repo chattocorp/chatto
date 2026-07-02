@@ -55,17 +55,25 @@ func (s *adminUserManagementService) GetMember(ctx context.Context, req *connect
 	if err != nil {
 		return nil, err
 	}
-	userID := strings.TrimSpace(req.Msg.GetUserId())
-	login := strings.TrimSpace(req.Msg.GetLogin())
-	if (userID == "") == (login == "") {
-		return nil, invalidArgument("provide exactly one of user_id or login")
-	}
-	if login != "" {
+	var userID string
+	switch target := req.Msg.GetTarget().(type) {
+	case *adminv1.GetMemberRequest_UserId:
+		userID = strings.TrimSpace(target.UserId)
+		if userID == "" {
+			return nil, invalidArgument("user_id is required")
+		}
+	case *adminv1.GetMemberRequest_Login:
+		login := strings.TrimSpace(target.Login)
+		if login == "" {
+			return nil, invalidArgument("login is required")
+		}
 		user, err := s.api.core.GetUserByLogin(ctx, login)
 		if err != nil {
 			return nil, connectError(err)
 		}
 		userID = user.GetId()
+	default:
+		return nil, invalidArgument("provide exactly one of user_id or login")
 	}
 	details, err := s.api.core.GetAdminMemberDetails(ctx, caller.UserID, userID)
 	if err != nil {

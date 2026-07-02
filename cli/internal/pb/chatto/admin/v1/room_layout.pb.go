@@ -487,10 +487,11 @@ type UpdateRoomGroupRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Required room group ID.
 	GroupId string `protobuf:"bytes,1,opt,name=group_id,json=groupId,proto3" json:"group_id,omitempty"`
-	// Required group display name.
-	Name string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	// Optional public group description.
-	Description   string `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
+	// New group display name, when changing it.
+	Name *string `protobuf:"bytes,2,opt,name=name,proto3,oneof" json:"name,omitempty"`
+	// New public group description, when changing it. Empty clears the
+	// description.
+	Description   *string `protobuf:"bytes,3,opt,name=description,proto3,oneof" json:"description,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -533,15 +534,15 @@ func (x *UpdateRoomGroupRequest) GetGroupId() string {
 }
 
 func (x *UpdateRoomGroupRequest) GetName() string {
-	if x != nil {
-		return x.Name
+	if x != nil && x.Name != nil {
+		return *x.Name
 	}
 	return ""
 }
 
 func (x *UpdateRoomGroupRequest) GetDescription() string {
-	if x != nil {
-		return x.Description
+	if x != nil && x.Description != nil {
+		return *x.Description
 	}
 	return ""
 }
@@ -1094,10 +1095,10 @@ type UpdateSidebarLinkRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Required sidebar link ID.
 	LinkId string `protobuf:"bytes,1,opt,name=link_id,json=linkId,proto3" json:"link_id,omitempty"`
-	// Required display label.
-	Label string `protobuf:"bytes,2,opt,name=label,proto3" json:"label,omitempty"`
-	// Required absolute http(s) URL or server-local path.
-	Url           string `protobuf:"bytes,3,opt,name=url,proto3" json:"url,omitempty"`
+	// New display label, when changing it.
+	Label *string `protobuf:"bytes,2,opt,name=label,proto3,oneof" json:"label,omitempty"`
+	// New absolute http(s) URL or server-local path, when changing it.
+	Url           *string `protobuf:"bytes,3,opt,name=url,proto3,oneof" json:"url,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1140,15 +1141,15 @@ func (x *UpdateSidebarLinkRequest) GetLinkId() string {
 }
 
 func (x *UpdateSidebarLinkRequest) GetLabel() string {
-	if x != nil {
-		return x.Label
+	if x != nil && x.Label != nil {
+		return *x.Label
 	}
 	return ""
 }
 
 func (x *UpdateSidebarLinkRequest) GetUrl() string {
-	if x != nil {
-		return x.Url
+	if x != nil && x.Url != nil {
+		return *x.Url
 	}
 	return ""
 }
@@ -1406,9 +1407,10 @@ const file_chatto_admin_v1_room_layout_proto_rawDesc = "" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +
 	"\vdescription\x18\x03 \x01(\tR\vdescription\x12)\n" +
 	"\x05rooms\x18\x04 \x03(\v2\x13.chatto.api.v1.RoomR\x05rooms\x12:\n" +
-	"\x05items\x18\x05 \x03(\v2$.chatto.admin.v1.AdminRoomLayoutItemR\x05items\"{\n" +
-	"\x18AdminRoomLayoutItemInput\x12F\n" +
-	"\x04kind\x18\x01 \x01(\x0e2(.chatto.admin.v1.AdminRoomLayoutItemKindB\b\xbaH\x05\x82\x01\x02\x10\x01R\x04kind\x12\x17\n" +
+	"\x05items\x18\x05 \x03(\v2$.chatto.admin.v1.AdminRoomLayoutItemR\x05items\"}\n" +
+	"\x18AdminRoomLayoutItemInput\x12H\n" +
+	"\x04kind\x18\x01 \x01(\x0e2(.chatto.admin.v1.AdminRoomLayoutItemKindB\n" +
+	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\x04kind\x12\x17\n" +
 	"\x02id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x02id\"\x1b\n" +
 	"\x19GetAdminRoomLayoutRequest\"[\n" +
 	"\x1aGetAdminRoomLayoutResponse\x12=\n" +
@@ -1417,29 +1419,31 @@ const file_chatto_admin_v1_room_layout_proto_rawDesc = "" +
 	"\x04name\x18\x01 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18PR\x04name\x12*\n" +
 	"\vdescription\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\xf4\x03R\vdescription\"V\n" +
 	"\x17CreateRoomGroupResponse\x12;\n" +
-	"\x05group\x18\x01 \x01(\v2%.chatto.admin.v1.AdminRoomLayoutGroupR\x05group\"\x87\x01\n" +
+	"\x05group\x18\x01 \x01(\v2%.chatto.admin.v1.AdminRoomLayoutGroupR\x05group\"\xaa\x01\n" +
 	"\x16UpdateRoomGroupRequest\x12\"\n" +
-	"\bgroup_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\agroupId\x12\x1d\n" +
-	"\x04name\x18\x02 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18PR\x04name\x12*\n" +
-	"\vdescription\x18\x03 \x01(\tB\b\xbaH\x05r\x03\x18\xf4\x03R\vdescription\"V\n" +
+	"\bgroup_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\agroupId\x12\"\n" +
+	"\x04name\x18\x02 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18PH\x00R\x04name\x88\x01\x01\x12/\n" +
+	"\vdescription\x18\x03 \x01(\tB\b\xbaH\x05r\x03\x18\xf4\x03H\x01R\vdescription\x88\x01\x01B\a\n" +
+	"\x05_nameB\x0e\n" +
+	"\f_description\"V\n" +
 	"\x17UpdateRoomGroupResponse\x12;\n" +
 	"\x05group\x18\x01 \x01(\v2%.chatto.admin.v1.AdminRoomLayoutGroupR\x05group\"<\n" +
 	"\x16DeleteRoomGroupRequest\x12\"\n" +
 	"\bgroup_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\agroupId\"3\n" +
 	"\x17DeleteRoomGroupResponse\x12\x18\n" +
-	"\adeleted\x18\x01 \x01(\bR\adeleted\"V\n" +
-	"\x18ReorderRoomGroupsRequest\x12:\n" +
-	"\x11ordered_group_ids\x18\x01 \x03(\tB\x0e\xbaH\v\x92\x01\b\b\x01\"\x04r\x02\x10\x01R\x0forderedGroupIds\"Z\n" +
+	"\adeleted\x18\x01 \x01(\bR\adeleted\"Y\n" +
+	"\x18ReorderRoomGroupsRequest\x12=\n" +
+	"\x11ordered_group_ids\x18\x01 \x03(\tB\x11\xbaH\x0e\x92\x01\v\b\x01\x10\xe8\a\"\x04r\x02\x10\x01R\x0forderedGroupIds\"Z\n" +
 	"\x19ReorderRoomGroupsResponse\x12=\n" +
 	"\x06groups\x18\x01 \x03(\v2%.chatto.admin.v1.AdminRoomLayoutGroupR\x06groups\"^\n" +
 	"\x16MoveRoomToGroupRequest\x12 \n" +
 	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x12\"\n" +
 	"\bgroup_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\agroupId\"B\n" +
 	"\x17MoveRoomToGroupResponse\x12'\n" +
-	"\x04room\x18\x01 \x01(\v2\x13.chatto.api.v1.RoomR\x04room\"\x88\x01\n" +
+	"\x04room\x18\x01 \x01(\v2\x13.chatto.api.v1.RoomR\x04room\"\x93\x01\n" +
 	"!ReorderSidebarItemsInGroupRequest\x12\"\n" +
-	"\bgroup_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\agroupId\x12?\n" +
-	"\x05items\x18\x02 \x03(\v2).chatto.admin.v1.AdminRoomLayoutItemInputR\x05items\"a\n" +
+	"\bgroup_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\agroupId\x12J\n" +
+	"\x05items\x18\x02 \x03(\v2).chatto.admin.v1.AdminRoomLayoutItemInputB\t\xbaH\x06\x92\x01\x03\x10\xe8\aR\x05items\"a\n" +
 	"\"ReorderSidebarItemsInGroupResponse\x12;\n" +
 	"\x05group\x18\x01 \x01(\v2%.chatto.admin.v1.AdminRoomLayoutGroupR\x05group\"}\n" +
 	"\x18CreateSidebarLinkRequest\x12\"\n" +
@@ -1448,12 +1452,14 @@ const file_chatto_admin_v1_room_layout_proto_rawDesc = "" +
 	"\x03url\x18\x03 \x01(\tB\n" +
 	"\xbaH\ar\x05\x10\x01\x18\x80\x10R\x03url\"Z\n" +
 	"\x19CreateSidebarLinkResponse\x12=\n" +
-	"\fsidebar_link\x18\x01 \x01(\v2\x1a.chatto.api.v1.SidebarLinkR\vsidebarLink\"{\n" +
+	"\fsidebar_link\x18\x01 \x01(\v2\x1a.chatto.api.v1.SidebarLinkR\vsidebarLink\"\x97\x01\n" +
 	"\x18UpdateSidebarLinkRequest\x12 \n" +
-	"\alink_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06linkId\x12\x1f\n" +
-	"\x05label\x18\x02 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18PR\x05label\x12\x1c\n" +
+	"\alink_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06linkId\x12$\n" +
+	"\x05label\x18\x02 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18PH\x00R\x05label\x88\x01\x01\x12!\n" +
 	"\x03url\x18\x03 \x01(\tB\n" +
-	"\xbaH\ar\x05\x10\x01\x18\x80\x10R\x03url\"Z\n" +
+	"\xbaH\ar\x05\x10\x01\x18\x80\x10H\x01R\x03url\x88\x01\x01B\b\n" +
+	"\x06_labelB\x06\n" +
+	"\x04_url\"Z\n" +
 	"\x19UpdateSidebarLinkResponse\x12=\n" +
 	"\fsidebar_link\x18\x01 \x01(\v2\x1a.chatto.api.v1.SidebarLinkR\vsidebarLink\"<\n" +
 	"\x18DeleteSidebarLinkRequest\x12 \n" +
@@ -1581,6 +1587,8 @@ func file_chatto_admin_v1_room_layout_proto_init() {
 		(*AdminRoomLayoutItem_Room)(nil),
 		(*AdminRoomLayoutItem_SidebarLink)(nil),
 	}
+	file_chatto_admin_v1_room_layout_proto_msgTypes[7].OneofWrappers = []any{}
+	file_chatto_admin_v1_room_layout_proto_msgTypes[19].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

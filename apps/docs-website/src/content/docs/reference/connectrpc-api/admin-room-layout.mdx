@@ -101,8 +101,8 @@ Request to update a room group.
 | Field | Type | Description |
 | --- | --- | --- |
 | `group_id` | `string` | Required room group ID. |
-| `name` | `string` | Required group display name. |
-| `description` | `string` | Optional public group description. |
+| `name` | `optional string` | New group display name, when changing it. |
+| `description` | `optional string` | New public group description, when changing it. Empty clears the description. |
 
 
 <a id="chatto-admin-v1-UpdateRoomGroupResponse"></a>
@@ -301,8 +301,8 @@ Request to update a sidebar link.
 | Field | Type | Description |
 | --- | --- | --- |
 | `link_id` | `string` | Required sidebar link ID. |
-| `label` | `string` | Required display label. |
-| `url` | `string` | Required absolute http(s) URL or server-local path. |
+| `label` | `optional string` | New display label, when changing it. |
+| `url` | `optional string` | New absolute http(s) URL or server-local path, when changing it. |
 
 
 <a id="chatto-admin-v1-UpdateSidebarLinkResponse"></a>

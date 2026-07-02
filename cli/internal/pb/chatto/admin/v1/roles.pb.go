@@ -431,10 +431,10 @@ type UpdateRoleRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Stable role name.
 	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	// Display name shown in admin and mention UIs.
-	DisplayName string `protobuf:"bytes,2,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
-	// Optional role description.
-	Description string `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
+	// Display name shown in admin and mention UIs, when changing it.
+	DisplayName *string `protobuf:"bytes,2,opt,name=display_name,json=displayName,proto3,oneof" json:"display_name,omitempty"`
+	// Role description, when changing it. Empty clears the description.
+	Description *string `protobuf:"bytes,3,opt,name=description,proto3,oneof" json:"description,omitempty"`
 	// Whether messages may notify users assigned to this role, when changing it.
 	Pingable      *bool `protobuf:"varint,4,opt,name=pingable,proto3,oneof" json:"pingable,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -479,15 +479,15 @@ func (x *UpdateRoleRequest) GetName() string {
 }
 
 func (x *UpdateRoleRequest) GetDisplayName() string {
-	if x != nil {
-		return x.DisplayName
+	if x != nil && x.DisplayName != nil {
+		return *x.DisplayName
 	}
 	return ""
 }
 
 func (x *UpdateRoleRequest) GetDescription() string {
-	if x != nil {
-		return x.Description
+	if x != nil && x.Description != nil {
+		return *x.Description
 	}
 	return ""
 }
@@ -757,22 +757,24 @@ const file_chatto_admin_v1_roles_proto_rawDesc = "" +
 	"\vdescription\x18\x03 \x01(\tB\b\xbaH\x05r\x03\x18\xf4\x03R\vdescription\x12\x1a\n" +
 	"\bpingable\x18\x04 \x01(\bR\bpingable\"D\n" +
 	"\x12CreateRoleResponse\x12.\n" +
-	"\x04role\x18\x01 \x01(\v2\x1a.chatto.admin.v1.AdminRoleR\x04role\"\xb6\x01\n" +
+	"\x04role\x18\x01 \x01(\v2\x1a.chatto.admin.v1.AdminRoleR\x04role\"\xe1\x01\n" +
 	"\x11UpdateRoleRequest\x12\x1b\n" +
-	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12*\n" +
-	"\fdisplay_name\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x18PR\vdisplayName\x12*\n" +
-	"\vdescription\x18\x03 \x01(\tB\b\xbaH\x05r\x03\x18\xf4\x03R\vdescription\x12\x1f\n" +
-	"\bpingable\x18\x04 \x01(\bH\x00R\bpingable\x88\x01\x01B\v\n" +
+	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12/\n" +
+	"\fdisplay_name\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x18PH\x00R\vdisplayName\x88\x01\x01\x12/\n" +
+	"\vdescription\x18\x03 \x01(\tB\b\xbaH\x05r\x03\x18\xf4\x03H\x01R\vdescription\x88\x01\x01\x12\x1f\n" +
+	"\bpingable\x18\x04 \x01(\bH\x02R\bpingable\x88\x01\x01B\x0f\n" +
+	"\r_display_nameB\x0e\n" +
+	"\f_descriptionB\v\n" +
 	"\t_pingable\"D\n" +
 	"\x12UpdateRoleResponse\x12.\n" +
 	"\x04role\x18\x01 \x01(\v2\x1a.chatto.admin.v1.AdminRoleR\x04role\"0\n" +
 	"\x11DeleteRoleRequest\x12\x1b\n" +
 	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\".\n" +
 	"\x12DeleteRoleResponse\x12\x18\n" +
-	"\adeleted\x18\x01 \x01(\bR\adeleted\"B\n" +
-	"\x13ReorderRolesRequest\x12+\n" +
+	"\adeleted\x18\x01 \x01(\bR\adeleted\"E\n" +
+	"\x13ReorderRolesRequest\x12.\n" +
 	"\n" +
-	"role_names\x18\x01 \x03(\tB\f\xbaH\t\x92\x01\x06\"\x04r\x02\x10\x01R\troleNames\"H\n" +
+	"role_names\x18\x01 \x03(\tB\x0f\xbaH\f\x92\x01\t\x10\xe8\a\"\x04r\x02\x10\x01R\troleNames\"H\n" +
 	"\x14ReorderRolesResponse\x120\n" +
 	"\x05roles\x18\x01 \x03(\v2\x1a.chatto.admin.v1.AdminRoleR\x05roles2\x96\x04\n" +
 	"\x10AdminRoleService\x12R\n" +

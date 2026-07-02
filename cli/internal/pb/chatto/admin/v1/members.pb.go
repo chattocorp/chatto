@@ -386,10 +386,11 @@ func (x *ListMembersResponse) GetPage() *v1.PageInfo {
 // Request one server-admin member detail record.
 type GetMemberRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Target user ID.
-	UserId string `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	// Target login. Provide either user_id or login.
-	Login         string `protobuf:"bytes,2,opt,name=login,proto3" json:"login,omitempty"`
+	// Types that are valid to be assigned to Target:
+	//
+	//	*GetMemberRequest_UserId
+	//	*GetMemberRequest_Login
+	Target        isGetMemberRequest_Target `protobuf_oneof:"target"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -424,19 +425,48 @@ func (*GetMemberRequest) Descriptor() ([]byte, []int) {
 	return file_chatto_admin_v1_members_proto_rawDescGZIP(), []int{5}
 }
 
+func (x *GetMemberRequest) GetTarget() isGetMemberRequest_Target {
+	if x != nil {
+		return x.Target
+	}
+	return nil
+}
+
 func (x *GetMemberRequest) GetUserId() string {
 	if x != nil {
-		return x.UserId
+		if x, ok := x.Target.(*GetMemberRequest_UserId); ok {
+			return x.UserId
+		}
 	}
 	return ""
 }
 
 func (x *GetMemberRequest) GetLogin() string {
 	if x != nil {
-		return x.Login
+		if x, ok := x.Target.(*GetMemberRequest_Login); ok {
+			return x.Login
+		}
 	}
 	return ""
 }
+
+type isGetMemberRequest_Target interface {
+	isGetMemberRequest_Target()
+}
+
+type GetMemberRequest_UserId struct {
+	// Target stable user ID.
+	UserId string `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3,oneof"`
+}
+
+type GetMemberRequest_Login struct {
+	// Target login identifier.
+	Login string `protobuf:"bytes,2,opt,name=login,proto3,oneof"`
+}
+
+func (*GetMemberRequest_UserId) isGetMemberRequest_Target() {}
+
+func (*GetMemberRequest_Login) isGetMemberRequest_Target() {}
 
 // Server-admin member detail payload.
 type GetMemberResponse struct {
@@ -1297,10 +1327,11 @@ const file_chatto_admin_v1_members_proto_rawDesc = "" +
 	"\x13ListMembersResponse\x126\n" +
 	"\amembers\x18\x01 \x03(\v2\x1c.chatto.admin.v1.AdminMemberR\amembers\x12)\n" +
 	"\x05roles\x18\x02 \x03(\v2\x13.chatto.api.v1.RoleR\x05roles\x12+\n" +
-	"\x04page\x18\x05 \x01(\v2\x17.chatto.api.v1.PageInfoR\x04pageJ\x04\b\x03\x10\x04J\x04\b\x04\x10\x05R\vtotal_countR\bhas_more\"A\n" +
-	"\x10GetMemberRequest\x12\x17\n" +
-	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x14\n" +
-	"\x05login\x18\x02 \x01(\tR\x05login\"\xea\x02\n" +
+	"\x04page\x18\x05 \x01(\v2\x17.chatto.api.v1.PageInfoR\x04pageJ\x04\b\x03\x10\x04J\x04\b\x04\x10\x05R\vtotal_countR\bhas_more\"a\n" +
+	"\x10GetMemberRequest\x12\"\n" +
+	"\auser_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01H\x00R\x06userId\x12\x1f\n" +
+	"\x05login\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01H\x00R\x05loginB\b\n" +
+	"\x06target\"\xea\x02\n" +
 	"\x11GetMemberResponse\x124\n" +
 	"\x06member\x18\x01 \x01(\v2\x1c.chatto.admin.v1.AdminMemberR\x06member\x120\n" +
 	"\x05roles\x18\x02 \x03(\v2\x1a.chatto.admin.v1.AdminRoleR\x05roles\x123\n" +
@@ -1455,6 +1486,10 @@ func file_chatto_admin_v1_members_proto_init() {
 		return
 	}
 	file_chatto_admin_v1_roles_proto_init()
+	file_chatto_admin_v1_members_proto_msgTypes[5].OneofWrappers = []any{
+		(*GetMemberRequest_UserId)(nil),
+		(*GetMemberRequest_Login)(nil),
+	}
 	file_chatto_admin_v1_members_proto_msgTypes[13].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{

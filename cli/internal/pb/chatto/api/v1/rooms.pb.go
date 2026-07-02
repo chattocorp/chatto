@@ -302,10 +302,10 @@ type UpdateRoomRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Required. Room to update.
 	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
-	// Required. New room name.
-	Name string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	// Optional new room description.
-	Description   string `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
+	// New room name, when changing it.
+	Name *string `protobuf:"bytes,2,opt,name=name,proto3,oneof" json:"name,omitempty"`
+	// New room description, when changing it. Empty clears the description.
+	Description   *string `protobuf:"bytes,3,opt,name=description,proto3,oneof" json:"description,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -348,15 +348,15 @@ func (x *UpdateRoomRequest) GetRoomId() string {
 }
 
 func (x *UpdateRoomRequest) GetName() string {
-	if x != nil {
-		return x.Name
+	if x != nil && x.Name != nil {
+		return *x.Name
 	}
 	return ""
 }
 
 func (x *UpdateRoomRequest) GetDescription() string {
-	if x != nil {
-		return x.Description
+	if x != nil && x.Description != nil {
+		return *x.Description
 	}
 	return ""
 }
@@ -1767,11 +1767,13 @@ const file_chatto_api_v1_rooms_proto_rawDesc = "" +
 	"\bgroup_id\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\agroupId\x12\x1c\n" +
 	"\tuniversal\x18\x04 \x01(\bR\tuniversal\"=\n" +
 	"\x12CreateRoomResponse\x12'\n" +
-	"\x04room\x18\x01 \x01(\v2\x13.chatto.api.v1.RoomR\x04room\"\x80\x01\n" +
+	"\x04room\x18\x01 \x01(\v2\x13.chatto.api.v1.RoomR\x04room\"\xa3\x01\n" +
 	"\x11UpdateRoomRequest\x12 \n" +
-	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x12\x1d\n" +
-	"\x04name\x18\x02 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18\x1eR\x04name\x12*\n" +
-	"\vdescription\x18\x03 \x01(\tB\b\xbaH\x05r\x03\x18\xf4\x03R\vdescription\"=\n" +
+	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x12\"\n" +
+	"\x04name\x18\x02 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18\x1eH\x00R\x04name\x88\x01\x01\x12/\n" +
+	"\vdescription\x18\x03 \x01(\tB\b\xbaH\x05r\x03\x18\xf4\x03H\x01R\vdescription\x88\x01\x01B\a\n" +
+	"\x05_nameB\x0e\n" +
+	"\f_description\"=\n" +
 	"\x12UpdateRoomResponse\x12'\n" +
 	"\x04room\x18\x01 \x01(\v2\x13.chatto.api.v1.RoomR\x04room\"6\n" +
 	"\x12ArchiveRoomRequest\x12 \n" +
@@ -2010,6 +2012,7 @@ func file_chatto_api_v1_rooms_proto_init() {
 	file_chatto_api_v1_pagination_proto_init()
 	file_chatto_api_v1_read_state_proto_init()
 	file_chatto_api_v1_room_timeline_proto_init()
+	file_chatto_api_v1_rooms_proto_msgTypes[3].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

@@ -1966,22 +1966,24 @@ const file_chatto_admin_v1_permissions_proto_rawDesc = "" +
 	"\x1eGetUserPermissionMatrixRequest\x12 \n" +
 	"\auser_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06userId\"`\n" +
 	"\x1fGetUserPermissionMatrixResponse\x12=\n" +
-	"\x06matrix\x18\x01 \x01(\v2%.chatto.admin.v1.UserPermissionMatrixR\x06matrix\"\xe2\x01\n" +
+	"\x06matrix\x18\x01 \x01(\v2%.chatto.admin.v1.UserPermissionMatrixR\x06matrix\"\xee\x01\n" +
 	"\x18SetRolePermissionRequest\x12$\n" +
 	"\trole_name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\broleName\x12'\n" +
 	"\n" +
 	"permission\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\n" +
-	"permission\x12?\n" +
-	"\bdecision\x18\x03 \x01(\x0e2#.chatto.admin.v1.PermissionDecisionR\bdecision\x126\n" +
+	"permission\x12K\n" +
+	"\bdecision\x18\x03 \x01(\x0e2#.chatto.admin.v1.PermissionDecisionB\n" +
+	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\bdecision\x126\n" +
 	"\x05scope\x18\x04 \x01(\v2 .chatto.admin.v1.PermissionScopeR\x05scope\"b\n" +
 	"\x19SetRolePermissionResponse\x12E\n" +
-	"\bdecision\x18\x01 \x01(\v2).chatto.admin.v1.PermissionDecisionUpdateR\bdecision\"\xde\x01\n" +
+	"\bdecision\x18\x01 \x01(\v2).chatto.admin.v1.PermissionDecisionUpdateR\bdecision\"\xea\x01\n" +
 	"\x18SetUserPermissionRequest\x12 \n" +
 	"\auser_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06userId\x12'\n" +
 	"\n" +
 	"permission\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\n" +
-	"permission\x12?\n" +
-	"\bdecision\x18\x03 \x01(\x0e2#.chatto.admin.v1.PermissionDecisionR\bdecision\x126\n" +
+	"permission\x12K\n" +
+	"\bdecision\x18\x03 \x01(\x0e2#.chatto.admin.v1.PermissionDecisionB\n" +
+	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\bdecision\x126\n" +
 	"\x05scope\x18\x04 \x01(\v2 .chatto.admin.v1.PermissionScopeR\x05scope\"b\n" +
 	"\x19SetUserPermissionResponse\x12E\n" +
 	"\bdecision\x18\x01 \x01(\v2).chatto.admin.v1.PermissionDecisionUpdateR\bdecision*\x94\x01\n" +

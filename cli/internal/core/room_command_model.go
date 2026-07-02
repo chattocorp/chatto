@@ -33,8 +33,8 @@ type RoomCreateInput struct {
 type RoomUpdateInput struct {
 	ActorID     string
 	RoomID      string
-	Name        string
-	Description string
+	Name        *string
+	Description *string
 }
 
 type RoomIDInput struct {
@@ -91,14 +91,29 @@ func (s *RoomCommandModel) CreateRoom(ctx context.Context, input RoomCreateInput
 }
 
 func (s *RoomCommandModel) UpdateRoom(ctx context.Context, input RoomUpdateInput) (*corev1.Room, error) {
-	if err := validateRoomNameAndDescription(input.Name, input.Description); err != nil {
-		return nil, err
-	}
 	kind, err := s.authorizeRoomManage(ctx, input.ActorID, input.RoomID)
 	if err != nil {
 		return nil, err
 	}
-	return s.core.UpdateRoom(ctx, input.ActorID, kind, input.RoomID, input.Name, input.Description)
+	if input.Name == nil && input.Description == nil {
+		return nil, fmt.Errorf("%w: provide at least one room field to update", ErrInvalidArgument)
+	}
+	room, err := s.core.GetRoom(ctx, kind, input.RoomID)
+	if err != nil {
+		return nil, err
+	}
+	name := room.GetName()
+	if input.Name != nil {
+		name = *input.Name
+	}
+	description := room.GetDescription()
+	if input.Description != nil {
+		description = *input.Description
+	}
+	if err := validateRoomNameAndDescription(name, description); err != nil {
+		return nil, err
+	}
+	return s.core.UpdateRoom(ctx, input.ActorID, kind, input.RoomID, name, description)
 }
 
 func (s *RoomCommandModel) ArchiveRoom(ctx context.Context, input RoomIDInput) (*corev1.Room, error) {

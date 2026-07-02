@@ -69,10 +69,10 @@ message CreateRoleResponse {
 message UpdateRoleRequest {
   // Stable role name.
   string name = 1 [(buf.validate.field).string.min_len = 1];
-  // Display name shown in admin and mention UIs.
-  string display_name = 2 [(buf.validate.field).string.max_len = 80];
-  // Optional role description.
-  string description = 3 [(buf.validate.field).string.max_len = 500];
+  // Display name shown in admin and mention UIs, when changing it.
+  optional string display_name = 2 [(buf.validate.field).string.max_len = 80];
+  // Role description, when changing it. Empty clears the description.
+  optional string description = 3 [(buf.validate.field).string.max_len = 500];
   // Whether messages may notify users assigned to this role, when changing it.
   optional bool pingable = 4;
 }
@@ -100,6 +100,7 @@ message ReorderRolesRequest {
   // Ordered custom role names. The list must include every custom role exactly
   // once; system roles keep fixed positions and must not be included.
   repeated string role_names = 1 [(buf.validate.field).repeated = {
+    max_items: 1000
     items: {
       string: {min_len: 1}
     }

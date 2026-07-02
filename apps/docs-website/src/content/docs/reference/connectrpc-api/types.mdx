@@ -528,6 +528,25 @@ committed. The message service validates per-file limits and permissions.
 | `filename` | `string` | Original filename supplied by the client. |
 | `content_type` | `string` | MIME content type supplied by the client. Empty values are treated as application/octet-stream. |
 
+<a id="chatto-api-v1-MessageLinkPreviewInput"></a>
+
+### MessageLinkPreviewInput
+
+Link preview metadata accepted when creating a message.
+
+This request-only shape intentionally excludes response-only fields such as
+generated image URLs.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `url` | `string` | Previewed URL. |
+| `title` | `optional string` | Page or embed title, when selected by the client. |
+| `description` | `optional string` | Page or embed description, when selected by the client. |
+| `image_asset_id` | `optional string` | Existing server asset ID for the preview image, when selected by the client. |
+| `site_name` | `optional string` | Site name, when known. |
+| `embed_type` | `optional string` | Embed provider or type, when recognized. |
+| `embed_id` | `optional string` | Provider-specific embed ID, when recognized. |
+
 <a id="chatto-api-v1-RefreshedMessageAttachmentUrls"></a>
 
 ### RefreshedMessageAttachmentUrls

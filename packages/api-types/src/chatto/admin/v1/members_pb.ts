@@ -337,18 +337,25 @@ export class ListMembersResponse extends Message<ListMembersResponse> {
  */
 export class GetMemberRequest extends Message<GetMemberRequest> {
   /**
-   * Target user ID.
-   *
-   * @generated from field: string user_id = 1;
+   * @generated from oneof chatto.admin.v1.GetMemberRequest.target
    */
-  userId = "";
-
-  /**
-   * Target login. Provide either user_id or login.
-   *
-   * @generated from field: string login = 2;
-   */
-  login = "";
+  target: {
+    /**
+     * Target stable user ID.
+     *
+     * @generated from field: string user_id = 1;
+     */
+    value: string;
+    case: "userId";
+  } | {
+    /**
+     * Target login identifier.
+     *
+     * @generated from field: string login = 2;
+     */
+    value: string;
+    case: "login";
+  } | { case: undefined; value?: undefined } = { case: undefined };
 
   constructor(data?: PartialMessage<GetMemberRequest>) {
     super();
@@ -358,8 +365,8 @@ export class GetMemberRequest extends Message<GetMemberRequest> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.admin.v1.GetMemberRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "user_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "login", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 1, name: "user_id", kind: "scalar", T: 9 /* ScalarType.STRING */, oneof: "target" },
+    { no: 2, name: "login", kind: "scalar", T: 9 /* ScalarType.STRING */, oneof: "target" },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetMemberRequest {

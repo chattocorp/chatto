@@ -130,10 +130,10 @@ func (s *roleService) UpdateRole(ctx context.Context, req *connect.Request[admin
 	if err != nil {
 		return nil, err
 	}
-	role, err := s.api.core.AdminUpdateServerRole(ctx, caller.UserID, core.AdminRoleInput{
+	role, err := s.api.core.AdminUpdateServerRole(ctx, caller.UserID, core.AdminRoleUpdateInput{
 		Name:        req.Msg.GetName(),
-		DisplayName: req.Msg.GetDisplayName(),
-		Description: req.Msg.GetDescription(),
+		DisplayName: req.Msg.DisplayName,
+		Description: req.Msg.Description,
 		Pingable:    req.Msg.Pingable,
 	})
 	if err != nil {

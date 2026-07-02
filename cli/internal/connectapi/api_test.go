@@ -807,7 +807,9 @@ func TestAdminMemberServiceSelfCannotDeleteAccountFromMemberDetails(t *testing.T
 		t.Fatalf("AssignAdminRole setup: %v", err)
 	}
 
-	details, err := admin.GetMember(withCaller(env.ctx, user), connect.NewRequest(&adminv1.GetMemberRequest{UserId: user.GetId()}))
+	details, err := admin.GetMember(withCaller(env.ctx, user), connect.NewRequest(&adminv1.GetMemberRequest{
+		Target: &adminv1.GetMemberRequest_UserId{UserId: user.GetId()},
+	}))
 	if err != nil {
 		t.Fatalf("GetMember self: %v", err)
 	}
@@ -1229,11 +1231,16 @@ func TestAdminRoleServiceManagesRoles(t *testing.T) {
 		t.Fatalf("missing GetRole code = %v, want not found", connect.CodeOf(err))
 	}
 
+	if _, err := env.roles.UpdateRole(withCaller(env.ctx, env.viewer), connect.NewRequest(&adminv1.UpdateRoleRequest{
+		Name: "helpdesk",
+	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("empty UpdateRole code = %v, want invalid argument", connect.CodeOf(err))
+	}
 	pingable := false
 	updateResp, err := env.roles.UpdateRole(withCaller(env.ctx, env.viewer), connect.NewRequest(&adminv1.UpdateRoleRequest{
 		Name:        "helpdesk",
-		DisplayName: "Support",
-		Description: "Support team",
+		DisplayName: stringPtr("Support"),
+		Description: stringPtr("Support team"),
 		Pingable:    &pingable,
 	}))
 	if err != nil {
@@ -1241,6 +1248,16 @@ func TestAdminRoleServiceManagesRoles(t *testing.T) {
 	}
 	if updateResp.Msg.GetRole().GetRole().GetDisplayName() != "Support" || updateResp.Msg.GetRole().GetRole().GetPingable() {
 		t.Fatalf("updated role = %+v, want Support pingable false", updateResp.Msg.GetRole())
+	}
+	partialRoleResp, err := env.roles.UpdateRole(withCaller(env.ctx, env.viewer), connect.NewRequest(&adminv1.UpdateRoleRequest{
+		Name:        "helpdesk",
+		Description: stringPtr("Escalation queue"),
+	}))
+	if err != nil {
+		t.Fatalf("partial UpdateRole: %v", err)
+	}
+	if got := partialRoleResp.Msg.GetRole().GetRole(); got.GetDisplayName() != "Support" || got.GetDescription() != "Escalation queue" || got.GetPingable() {
+		t.Fatalf("partial role = %+v, want preserved display/pingable and updated description", got)
 	}
 
 	if _, err := env.roles.DeleteRole(withCaller(env.ctx, env.viewer), connect.NewRequest(&adminv1.DeleteRoleRequest{
@@ -1656,6 +1673,21 @@ func TestAdminRoomLayoutServiceCreateRoomGroupRequiresRoleManage(t *testing.T) {
 	if resp.Msg.GetGroup().GetName() != "Operations" {
 		t.Fatalf("group name = %q, want Operations", resp.Msg.GetGroup().GetName())
 	}
+	if _, err := env.adminLayout.UpdateRoomGroup(withCaller(env.ctx, env.viewer), connect.NewRequest(&adminv1.UpdateRoomGroupRequest{
+		GroupId: resp.Msg.GetGroup().GetId(),
+	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("empty UpdateRoomGroup code = %v, want invalid argument", connect.CodeOf(err))
+	}
+	partialResp, err := env.adminLayout.UpdateRoomGroup(withCaller(env.ctx, env.viewer), connect.NewRequest(&adminv1.UpdateRoomGroupRequest{
+		GroupId:     resp.Msg.GetGroup().GetId(),
+		Description: stringPtr("Updated operations description"),
+	}))
+	if err != nil {
+		t.Fatalf("partial UpdateRoomGroup: %v", err)
+	}
+	if got := partialResp.Msg.GetGroup(); got.GetName() != "Operations" || got.GetDescription() != "Updated operations description" {
+		t.Fatalf("partial group = %+v, want preserved name and updated description", got)
+	}
 }
 
 func TestAdminRoomLayoutServiceCreateSidebarLinkRequiresRoomManage(t *testing.T) {
@@ -1679,6 +1711,21 @@ func TestAdminRoomLayoutServiceCreateSidebarLinkRequiresRoomManage(t *testing.T)
 	}
 	if resp.Msg.GetSidebarLink().GetUrl() != "/status" {
 		t.Fatalf("sidebar link URL = %q, want /status", resp.Msg.GetSidebarLink().GetUrl())
+	}
+	if _, err := env.adminLayout.UpdateSidebarLink(withCaller(env.ctx, env.viewer), connect.NewRequest(&adminv1.UpdateSidebarLinkRequest{
+		LinkId: resp.Msg.GetSidebarLink().GetId(),
+	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("empty UpdateSidebarLink code = %v, want invalid argument", connect.CodeOf(err))
+	}
+	partialResp, err := env.adminLayout.UpdateSidebarLink(withCaller(env.ctx, env.viewer), connect.NewRequest(&adminv1.UpdateSidebarLinkRequest{
+		LinkId: resp.Msg.GetSidebarLink().GetId(),
+		Url:    stringPtr("/health"),
+	}))
+	if err != nil {
+		t.Fatalf("partial UpdateSidebarLink: %v", err)
+	}
+	if got := partialResp.Msg.GetSidebarLink(); got.GetLabel() != "Status" || got.GetUrl() != "/health" {
+		t.Fatalf("partial sidebar link = %+v, want preserved label and updated URL", got)
 	}
 }
 
@@ -2039,7 +2086,7 @@ func TestAdminMemberServiceUpdatesUsersAndClearsCooldown(t *testing.T) {
 		t.Fatalf("GrantUserPermission user.manage-accounts: %v", err)
 	}
 	if _, err := env.adminUsers.GetMember(withCaller(env.ctx, accountManager), connect.NewRequest(&adminv1.GetMemberRequest{
-		UserId: target.Id,
+		Target: &adminv1.GetMemberRequest_UserId{UserId: target.Id},
 	})); connect.CodeOf(err) != connect.CodePermissionDenied {
 		t.Fatalf("account manager GetMember code = %v, want permission_denied", connect.CodeOf(err))
 	}
@@ -2217,7 +2264,7 @@ func TestAdminMemberServiceListsAndGetsMembers(t *testing.T) {
 		t.Fatalf("regular ListMembers code = %v, want permission denied", connect.CodeOf(err))
 	}
 	if _, err := env.adminUsers.GetMember(regularCtx, connect.NewRequest(&adminv1.GetMemberRequest{
-		UserId: target.Id,
+		Target: &adminv1.GetMemberRequest_UserId{UserId: target.Id},
 	})); connect.CodeOf(err) != connect.CodePermissionDenied {
 		t.Fatalf("regular GetMember code = %v, want permission denied", connect.CodeOf(err))
 	}
@@ -2277,7 +2324,7 @@ func TestAdminMemberServiceListsAndGetsMembers(t *testing.T) {
 	}
 
 	getResp, err := env.adminUsers.GetMember(adminCtx, connect.NewRequest(&adminv1.GetMemberRequest{
-		UserId: target.Id,
+		Target: &adminv1.GetMemberRequest_UserId{UserId: target.Id},
 	}))
 	if err != nil {
 		t.Fatalf("GetMember admin: %v", err)
@@ -2298,8 +2345,17 @@ func TestAdminMemberServiceListsAndGetsMembers(t *testing.T) {
 	if len(getResp.Msg.GetRoles()) == 0 || len(getResp.Msg.GetAvailablePermissions()) == 0 {
 		t.Fatalf("GetMember roles/perms empty: roles=%d perms=%d", len(getResp.Msg.GetRoles()), len(getResp.Msg.GetAvailablePermissions()))
 	}
+	getByLoginResp, err := env.adminUsers.GetMember(adminCtx, connect.NewRequest(&adminv1.GetMemberRequest{
+		Target: &adminv1.GetMemberRequest_Login{Login: "admin-member-target-renamed"},
+	}))
+	if err != nil {
+		t.Fatalf("GetMember by login: %v", err)
+	}
+	if got := getByLoginResp.Msg.GetMember().GetUser().GetId(); got != target.Id {
+		t.Fatalf("GetMember by login id = %q, want %q", got, target.Id)
+	}
 	if _, err := env.adminUsers.GetMember(adminCtx, connect.NewRequest(&adminv1.GetMemberRequest{
-		UserId: "missing-user",
+		Target: &adminv1.GetMemberRequest_UserId{UserId: "missing-user"},
 	})); connect.CodeOf(err) != connect.CodeNotFound {
 		t.Fatalf("missing GetMember code = %v, want not found", connect.CodeOf(err))
 	}
@@ -2350,7 +2406,7 @@ func TestAdminMemberServiceAssignsAndRevokesRoles(t *testing.T) {
 	}
 	roleAssignerCtx := withCaller(env.ctx, roleAssigner)
 	if _, err := env.adminUsers.GetMember(roleAssignerCtx, connect.NewRequest(&adminv1.GetMemberRequest{
-		UserId: target.Id,
+		Target: &adminv1.GetMemberRequest_UserId{UserId: target.Id},
 	})); connect.CodeOf(err) != connect.CodePermissionDenied {
 		t.Fatalf("role.assign-only GetMember code = %v, want permission_denied", connect.CodeOf(err))
 	}
@@ -2747,14 +2803,29 @@ func TestRoomServiceLifecycleCommands(t *testing.T) {
 
 	updateResp, err := env.rooms.UpdateRoom(ctx, connect.NewRequest(&apiv1.UpdateRoomRequest{
 		RoomId:      room.GetId(),
-		Name:        "connect-renamed",
-		Description: "updated through ConnectRPC",
+		Name:        stringPtr("connect-renamed"),
+		Description: stringPtr("updated through ConnectRPC"),
 	}))
 	if err != nil {
 		t.Fatalf("UpdateRoom: %v", err)
 	}
 	if updateResp.Msg.GetRoom().GetName() != "connect-renamed" {
 		t.Fatalf("UpdateRoom name = %q, want connect-renamed", updateResp.Msg.GetRoom().GetName())
+	}
+	partialUpdateResp, err := env.rooms.UpdateRoom(ctx, connect.NewRequest(&apiv1.UpdateRoomRequest{
+		RoomId:      room.GetId(),
+		Description: stringPtr("description-only patch"),
+	}))
+	if err != nil {
+		t.Fatalf("partial UpdateRoom: %v", err)
+	}
+	if got := partialUpdateResp.Msg.GetRoom(); got.GetName() != "connect-renamed" || got.GetDescription() != "description-only patch" {
+		t.Fatalf("partial room update = %+v, want preserved name and updated description", got)
+	}
+	if _, err := env.rooms.UpdateRoom(ctx, connect.NewRequest(&apiv1.UpdateRoomRequest{
+		RoomId: room.GetId(),
+	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("empty UpdateRoom code = %v, want invalid argument", connect.CodeOf(err))
 	}
 
 	archiveResp, err := env.rooms.ArchiveRoom(ctx, connect.NewRequest(&apiv1.ArchiveRoomRequest{RoomId: room.GetId()}))
@@ -3039,8 +3110,8 @@ func TestRoomServiceRejectsDMRooms(t *testing.T) {
 	}
 	if _, err := env.rooms.UpdateRoom(ctx, connect.NewRequest(&apiv1.UpdateRoomRequest{
 		RoomId:      dm.Id,
-		Name:        "dm-renamed",
-		Description: "should not change",
+		Name:        stringPtr("dm-renamed"),
+		Description: stringPtr("should not change"),
 	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("UpdateRoom for DM code = %v, want invalid argument", connect.CodeOf(err))
 	}
@@ -4594,7 +4665,7 @@ func TestMessageServiceCreateMessageValidatesInput(t *testing.T) {
 			req: &apiv1.CreateMessageRequest{
 				RoomId: room.Id,
 				Body:   "hello",
-				LinkPreview: &apiv1.LinkPreview{
+				LinkPreview: &apiv1.MessageLinkPreviewInput{
 					Url: strings.Repeat("x", core.MaxLinkPreviewURLLength+1),
 				},
 			},
@@ -4849,7 +4920,7 @@ func TestMessageServiceCreateMessageValidationPreflightDoesNotCreateAssets(t *te
 			req: &apiv1.CreateMessageRequest{
 				RoomId: room.Id,
 				Body:   "message with bad preview and file",
-				LinkPreview: &apiv1.LinkPreview{
+				LinkPreview: &apiv1.MessageLinkPreviewInput{
 					Url: strings.Repeat("x", core.MaxLinkPreviewURLLength+1),
 				},
 				Attachments: []*apiv1.MessageAttachmentUpload{{

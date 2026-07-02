@@ -47,7 +47,7 @@ func (s *adminRoomLayoutService) UpdateRoomGroup(ctx context.Context, req *conne
 		return nil, err
 	}
 
-	group, err := s.api.core.AdminUpdateRoomGroup(ctx, caller.UserID, req.Msg.GetGroupId(), req.Msg.GetName(), req.Msg.GetDescription())
+	group, err := s.api.core.AdminUpdateRoomGroup(ctx, caller.UserID, req.Msg.GetGroupId(), req.Msg.Name, req.Msg.Description)
 	if err != nil {
 		return nil, connectError(err)
 	}
@@ -139,7 +139,7 @@ func (s *adminRoomLayoutService) UpdateSidebarLink(ctx context.Context, req *con
 		return nil, err
 	}
 
-	link, err := s.api.core.AdminUpdateSidebarLink(ctx, caller.UserID, req.Msg.GetLinkId(), req.Msg.GetLabel(), req.Msg.GetUrl())
+	link, err := s.api.core.AdminUpdateSidebarLink(ctx, caller.UserID, req.Msg.GetLinkId(), req.Msg.Label, req.Msg.Url)
 	if err != nil {
 		return nil, connectError(err)
 	}

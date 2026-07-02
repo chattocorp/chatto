@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package chatto.api.v1;
 
+import "buf/validate/validate.proto";
+
 // Live presence status returned by public read APIs.
 //
 // Offline is a read-side state only. Clients cannot update their presence to
@@ -23,7 +25,10 @@ enum PresenceStatus {
 // Request to update the current user's live presence status.
 message UpdatePresenceRequest {
   // Live status to store for the authenticated user. Offline is rejected.
-  PresenceStatus status = 1;
+  PresenceStatus status = 1 [(buf.validate.field).enum = {
+    defined_only: true
+    not_in: [0, 4]
+  }];
   // True when this update comes from a deliberate user selection rather than
   // automatic idle/refresh updates. Automatic updates do not overwrite an
   // active manually selected Away or Do Not Disturb status from another client.

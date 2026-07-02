@@ -3,8 +3,10 @@ import { Code, ConnectError, createClient } from "@connectrpc/connect";
 import { createConnectTransport } from "@connectrpc/connect-web";
 import type { LinkPreviewInput, RoomEventView } from "./renderTypes.js";
 import { MessageService } from "@chatto/api-types/api/v1/messages_connect";
-import { MessageAttachmentUpload } from "@chatto/api-types/api/v1/messages_pb";
-import { LinkPreview } from "@chatto/api-types/api/v1/link_previews_pb";
+import {
+  MessageAttachmentUpload,
+  MessageLinkPreviewInput,
+} from "@chatto/api-types/api/v1/messages_pb";
 import { roomTimelineEventToRawEvent } from "./roomTimeline.js";
 
 export type MessageAPIConfig = {
@@ -191,7 +193,7 @@ async function messageAttachmentUploads(files: File[] | null | undefined) {
 
 function messageLinkPreviewInput(input: LinkPreviewInput | null | undefined) {
   if (!input) return undefined;
-  return new LinkPreview({
+  return new MessageLinkPreviewInput({
     url: input.url,
     title: input.title ?? undefined,
     description: input.description ?? undefined,

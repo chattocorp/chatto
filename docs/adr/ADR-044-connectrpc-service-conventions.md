@@ -76,6 +76,17 @@ or transport semantics are genuinely different. Prefer returning or embedding
 the canonical resource plus explicit related fields or include maps over
 creating multiple frontend-shaped flavors of the same resource.
 
+Request messages should make client intent explicit. `Update*` operations use
+patch semantics by default, with proto3 `optional` scalar fields or a field mask
+to distinguish "leave unchanged" from "set to default/empty". Full resource
+replacement should be named `Replace<Resource>` or have an explicit compatibility
+rationale. When one operation targets the same resource by multiple equivalent
+identifiers, the request should use a `oneof` target instead of parallel
+optional/string fields; separate RPCs are reserved for identifiers with
+different authorization, visibility, absence, response-shape, or performance
+semantics. Request inputs should not reuse response-rich messages when some
+fields are ignored; define request-only input messages for those cases.
+
 Response contracts should lean toward returning resource-shaped protobuf
 messages instead of scalar acknowledgements when the server can do so without
 changing authorization or forcing expensive extra reads. This keeps list/get/

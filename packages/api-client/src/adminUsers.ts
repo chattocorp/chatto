@@ -108,7 +108,7 @@ export function createAdminUserManagementAPI(
 
     async getMember(userId: string): Promise<AdminMemberDetails> {
       const response = await client.getMember(
-        { userId },
+        { target: { case: "userId", value: userId } },
         { headers: headers() },
       );
       return {

@@ -254,18 +254,18 @@ export class UpdateRoomRequest extends Message<UpdateRoomRequest> {
   roomId = "";
 
   /**
-   * Required. New room name.
+   * New room name, when changing it.
    *
-   * @generated from field: string name = 2;
+   * @generated from field: optional string name = 2;
    */
-  name = "";
+  name?: string;
 
   /**
-   * Optional new room description.
+   * New room description, when changing it. Empty clears the description.
    *
-   * @generated from field: string description = 3;
+   * @generated from field: optional string description = 3;
    */
-  description = "";
+  description?: string;
 
   constructor(data?: PartialMessage<UpdateRoomRequest>) {
     super();
@@ -276,8 +276,8 @@ export class UpdateRoomRequest extends Message<UpdateRoomRequest> {
   static readonly typeName = "chatto.api.v1.UpdateRoomRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "description", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 3, name: "description", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UpdateRoomRequest {

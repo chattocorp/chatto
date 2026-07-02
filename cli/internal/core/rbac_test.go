@@ -2695,10 +2695,10 @@ func TestChattoCore_AdminRoleManagementAuthorization(t *testing.T) {
 	}
 
 	pingable = false
-	updated, err := core.AdminUpdateServerRole(ctx, admin.Id, AdminRoleInput{
+	updated, err := core.AdminUpdateServerRole(ctx, admin.Id, AdminRoleUpdateInput{
 		Name:        "helpdesk",
-		DisplayName: "Support",
-		Description: "Support queue",
+		DisplayName: stringPtrForCoreTest("Support"),
+		Description: stringPtrForCoreTest("Support queue"),
 		Pingable:    &pingable,
 	})
 	if err != nil {

@@ -76,8 +76,8 @@ Request to update a room's editable metadata.
 | Field | Type | Description |
 | --- | --- | --- |
 | `room_id` | `string` | Required. Room to update. |
-| `name` | `string` | Required. New room name. |
-| `description` | `string` | Optional new room description. |
+| `name` | `optional string` | New room name, when changing it. |
+| `description` | `optional string` | New room description, when changing it. Empty clears the description. |
 
 
 <a id="chatto-api-v1-UpdateRoomResponse"></a>

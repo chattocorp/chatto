@@ -4,7 +4,6 @@ package chatto.api.v1;
 
 import "buf/validate/validate.proto";
 import "chatto/api/v1/attachments.proto";
-import "chatto/api/v1/link_previews.proto";
 import "chatto/api/v1/reactions.proto";
 import "chatto/api/v1/room_timeline.proto";
 
@@ -20,6 +19,27 @@ message MessageAttachmentUpload {
   // MIME content type supplied by the client. Empty values are treated as
   // application/octet-stream.
   string content_type = 3;
+}
+
+// Link preview metadata accepted when creating a message.
+//
+// This request-only shape intentionally excludes response-only fields such as
+// generated image URLs.
+message MessageLinkPreviewInput {
+  // Previewed URL.
+  string url = 1 [(buf.validate.field).string.min_len = 1];
+  // Page or embed title, when selected by the client.
+  optional string title = 2;
+  // Page or embed description, when selected by the client.
+  optional string description = 3;
+  // Existing server asset ID for the preview image, when selected by the client.
+  optional string image_asset_id = 4;
+  // Site name, when known.
+  optional string site_name = 5;
+  // Embed provider or type, when recognized.
+  optional string embed_type = 6;
+  // Provider-specific embed ID, when recognized.
+  optional string embed_id = 7;
 }
 
 // Request to create a message in a room or thread.
@@ -39,9 +59,8 @@ message CreateMessageRequest {
   bool also_send_to_channel = 6;
   // Short-lived token returned by a prior mention confirmation challenge.
   string mention_confirmation_token = 7;
-  // Link preview selected by the client. Server response-only LinkPreview
-  // fields are ignored.
-  LinkPreview link_preview = 8;
+  // Link preview selected by the client.
+  MessageLinkPreviewInput link_preview = 8;
   // Browser-uploaded attachments to include with the message.
   repeated MessageAttachmentUpload attachments = 9;
 }

@@ -381,18 +381,18 @@ export class UpdateRoleRequest extends Message<UpdateRoleRequest> {
   name = "";
 
   /**
-   * Display name shown in admin and mention UIs.
+   * Display name shown in admin and mention UIs, when changing it.
    *
-   * @generated from field: string display_name = 2;
+   * @generated from field: optional string display_name = 2;
    */
-  displayName = "";
+  displayName?: string;
 
   /**
-   * Optional role description.
+   * Role description, when changing it. Empty clears the description.
    *
-   * @generated from field: string description = 3;
+   * @generated from field: optional string description = 3;
    */
-  description = "";
+  description?: string;
 
   /**
    * Whether messages may notify users assigned to this role, when changing it.
@@ -410,8 +410,8 @@ export class UpdateRoleRequest extends Message<UpdateRoleRequest> {
   static readonly typeName = "chatto.admin.v1.UpdateRoleRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "display_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "description", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "display_name", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 3, name: "description", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
     { no: 4, name: "pingable", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
   ]);
 
