@@ -5,9 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -34,11 +36,19 @@ type ffprobeOutput struct {
 }
 
 type ffprobeStream struct {
-	CodecType string `json:"codec_type"`
-	CodecName string `json:"codec_name"`
-	Width     int32  `json:"width"`
-	Height    int32  `json:"height"`
-	Duration  string `json:"duration"`
+	CodecType          string            `json:"codec_type"`
+	CodecName          string            `json:"codec_name"`
+	Width              int32             `json:"width"`
+	Height             int32             `json:"height"`
+	Duration           string            `json:"duration"`
+	DisplayAspectRatio string            `json:"display_aspect_ratio"`
+	SampleAspectRatio  string            `json:"sample_aspect_ratio"`
+	Tags               map[string]string `json:"tags"`
+	SideDataList       []ffprobeSideData `json:"side_data_list"`
+}
+
+type ffprobeSideData struct {
+	Rotation json.RawMessage `json:"rotation"`
 }
 
 type ffprobeFormat struct {
@@ -88,8 +98,7 @@ func (s *Service) probe(ctx context.Context, inputPath string, contentType strin
 	for _, stream := range probe.Streams {
 		switch stream.CodecType {
 		case "video":
-			result.Width = stream.Width
-			result.Height = stream.Height
+			result.Width, result.Height = videoDisplayDimensions(stream)
 			result.VideoCodec = stream.CodecName
 			codecParts = append(codecParts, strings.ToUpper(stream.CodecName))
 			// Use stream-level duration as fallback (e.g., when -show_format is
@@ -111,10 +120,102 @@ func (s *Service) probe(ctx context.Context, inputPath string, contentType strin
 	return result, nil
 }
 
+func videoDisplayDimensions(stream ffprobeStream) (int32, int32) {
+	width := stream.Width
+	height := stream.Height
+	if width <= 0 || height <= 0 {
+		return width, height
+	}
+
+	displayRatio := float64(width) / float64(height)
+	if ratio, ok := parseAspectRatio(stream.DisplayAspectRatio); ok {
+		displayRatio = ratio
+	} else if ratio, ok := parseAspectRatio(stream.SampleAspectRatio); ok {
+		displayRatio *= ratio
+	}
+
+	if displayRatio > 0 {
+		rawRatio := float64(width) / float64(height)
+		if displayRatio >= rawRatio {
+			width = int32(math.Round(float64(height) * displayRatio))
+		} else {
+			height = int32(math.Round(float64(width) / displayRatio))
+		}
+	}
+
+	if videoRotatedByQuarterTurn(stream) {
+		width, height = height, width
+	}
+
+	return width, height
+}
+
+func parseAspectRatio(value string) (float64, bool) {
+	parts := strings.Split(strings.TrimSpace(value), ":")
+	if len(parts) != 2 {
+		return 0, false
+	}
+	numerator, err := strconv.ParseFloat(parts[0], 64)
+	if err != nil || numerator <= 0 {
+		return 0, false
+	}
+	denominator, err := strconv.ParseFloat(parts[1], 64)
+	if err != nil || denominator <= 0 {
+		return 0, false
+	}
+	return numerator / denominator, true
+}
+
+func videoRotatedByQuarterTurn(stream ffprobeStream) bool {
+	if stream.Tags != nil {
+		if rotation, ok := parseRotation(stream.Tags["rotate"]); ok {
+			return rotation%180 != 0
+		}
+	}
+	for _, data := range stream.SideDataList {
+		if rotation, ok := parseRotationRaw(data.Rotation); ok && rotation%180 != 0 {
+			return true
+		}
+	}
+	return false
+}
+
+func parseRotation(value string) (int, bool) {
+	rotation, err := strconv.Atoi(strings.TrimSpace(value))
+	if err != nil {
+		return 0, false
+	}
+	return normalizeRotation(rotation), true
+}
+
+func parseRotationRaw(value json.RawMessage) (int, bool) {
+	raw := strings.TrimSpace(string(value))
+	if raw == "" || raw == "null" {
+		return 0, false
+	}
+	var rotation int
+	if err := json.Unmarshal(value, &rotation); err == nil {
+		return normalizeRotation(rotation), true
+	}
+	var text string
+	if err := json.Unmarshal(value, &text); err == nil {
+		return parseRotation(text)
+	}
+	return 0, false
+}
+
+func normalizeRotation(rotation int) int {
+	rotation %= 360
+	if rotation < 0 {
+		rotation += 360
+	}
+	return rotation
+}
+
 // generateThumbnail captures a frame from the video as a JPEG thumbnail.
 // Captures at 1 second or 10% into the video, whichever is earlier.
 // inputOpts are placed before -i (e.g., "-ignore_loop 1" for GIF input).
-func (s *Service) generateThumbnail(ctx context.Context, inputPath, outputPath string, durationMs int64, inputOpts []string) error {
+func (s *Service) generateThumbnail(ctx context.Context, inputPath, outputPath string, durationMs int64, inputOpts []string, displayWidth, displayHeight int32) error {
 	// Seek to 1 second or 10% of duration, whichever is earlier
 	seekMs := int64(1000)
 	if tenPercent := durationMs / 10; tenPercent < seekMs && tenPercent > 0 {
@@ -127,7 +228,7 @@ func (s *Service) generateThumbnail(ctx context.Context, inputPath, outputPath s
 		"-ss", seekTime,
 		"-i", inputPath,
 		"-vframes", "1",
-		"-vf", "scale='min(640,iw)':-2",
+		"-vf", thumbnailScaleFilter(displayWidth, displayHeight),
 		"-q:v", "3",
 		"-y",
 		outputPath,
@@ -139,6 +240,23 @@ func (s *Service) generateThumbnail(ctx context.Context, inputPath, outputPath s
 	}
 
 	return nil
+}
+
+func thumbnailScaleFilter(displayWidth, displayHeight int32) string {
+	width, height, ok := thumbnailDimensions(displayWidth, displayHeight)
+	if !ok {
+		return "scale='min(640,iw)':-2"
+	}
+	return fmt.Sprintf("scale=%d:%d,setsar=1", width, height)
+}
+
+func thumbnailDimensions(displayWidth, displayHeight int32) (int32, int32, bool) {
+	if displayWidth <= 0 || displayHeight <= 0 {
+		return 0, 0, false
+	}
+	const maxWidth = 640
+	scale := math.Min(float64(maxWidth)/float64(displayWidth), 1)
+	return int32(math.Round(float64(displayWidth) * scale)), int32(math.Round(float64(displayHeight) * scale)), true
 }
 
 // transcode converts a video to H.264 MP4 at the specified height.
@@ -246,7 +364,7 @@ func (s *Service) processVideo(ctx context.Context, req processRequest) error {
 
 	// Generate thumbnail
 	thumbPath := filepath.Join(tmpDir, "thumb.jpg")
-	if err := s.generateThumbnail(ctx, inputPath, thumbPath, probeResult.DurationMs, inputOpts); err != nil {
+	if err := s.generateThumbnail(ctx, inputPath, thumbPath, probeResult.DurationMs, inputOpts, probeResult.Width, probeResult.Height); err != nil {
 		s.logger.Warn("Thumbnail generation failed, continuing without thumbnail", "error", err)
 		thumbPath = "" // Non-fatal
 	}
@@ -289,27 +407,26 @@ func (s *Service) processVideo(ctx context.Context, req processRequest) error {
 			continue
 		}
 
+		variantProbe, err := s.probe(ctx, outputPath, "video/mp4")
+		if err != nil {
+			s.logger.Error("Failed to probe transcoded variant", "height", h, "error", err)
+			continue
+		}
+
 		// Upload variant as attachment
 		quality := fmt.Sprintf("%dp", h)
 		filename := fmt.Sprintf("%s_%s.mp4", strings.TrimSuffix(req.AssetID, filepath.Ext(req.AssetID)), quality)
-		variant, err := s.uploadDerivativeFile(ctx, req.AssetID, corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_VIDEO_VARIANT, req.RoomID, filename, "video/mp4", outputPath)
+		variant, err := s.uploadDerivativeFileWithDimensions(ctx, req.AssetID, corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_VIDEO_VARIANT, req.RoomID, filename, "video/mp4", outputPath, variantProbe.Width, variantProbe.Height)
 		if err != nil {
 			s.logger.Error("Failed to upload variant", "height", h, "error", err)
 			continue
 		}
 
-		// Calculate output width, rounding up to the nearest even number to match
-		// ffmpeg's scale=-2:HEIGHT behavior (which always outputs even dimensions).
-		variantWidth := probeResult.Width * int32(h) / probeResult.Height
-		if variantWidth%2 != 0 {
-			variantWidth++
-		}
-
 		variants = append(variants, &corev1.VideoVariant{
 			AttachmentId: variant.Id,
 			Quality:      quality,
-			Width:        variantWidth,
-			Height:       int32(h),
+			Width:        variantProbe.Width,
+			Height:       variantProbe.Height,
 			Size:         info.Size(),
 			Attachment:   variant,
 		})
@@ -385,11 +502,15 @@ func (s *Service) downloadAttachment(ctx context.Context, attachment *corev1.Att
 // AssetCreatedEvent emitted carries the parent + role so the projection
 // links the derivative to its origin immediately.
 func (s *Service) uploadDerivativeFile(ctx context.Context, parentAssetID string, derivativeRole corev1.AssetDerivativeRole, roomID, filename, contentType, srcPath string) (*corev1.Attachment, error) {
+	return s.uploadDerivativeFileWithDimensions(ctx, parentAssetID, derivativeRole, roomID, filename, contentType, srcPath, 0, 0)
+}
+
+func (s *Service) uploadDerivativeFileWithDimensions(ctx context.Context, parentAssetID string, derivativeRole corev1.AssetDerivativeRole, roomID, filename, contentType, srcPath string, width, height int32) (*corev1.Attachment, error) {
 	f, err := os.Open(srcPath)
 	if err != nil {
 		return nil, err
 	}
 	defer f.Close()
 
-	return s.core.UploadDerivativeAttachment(ctx, parentAssetID, derivativeRole, roomID, filename, contentType, f)
+	return s.core.UploadDerivativeAttachmentWithDimensions(ctx, parentAssetID, derivativeRole, roomID, filename, contentType, f, width, height)
 }

@@ -1,7 +1,7 @@
 # FDR-008: File Attachments & Video Processing
 
 **Status:** Active
-**Last reviewed:** 2026-06-17
+**Last reviewed:** 2026-07-02
 
 ## Overview
 
@@ -16,7 +16,8 @@ Users can attach files to messages — images, videos, documents — via drag-an
 - Images are inspected for dimensions at upload time and can be resized at render time via URL parameters (width, height, fit mode). Public attachment and avatar APIs expose transform parameters; public server branding images expose canonical URLs only.
 - When enabled, videos and animated GIFs are processed by the current server process after asset creation and message submission scheduling. This is best-effort and intentionally simple until a real durable worker queue exists.
 - Processing status: durable STARTED / COMPLETED / FAILED outcomes are stored as asset aggregate events (`evt.asset.{assetId}.*`) and delivered through the normal live EVT subscription path after room-membership authorization. There is no separate `video_processed` live event or new runtime KV state for video progress; failed videos still show the original message, and the UI falls back to the original upload when it is available.
-- A thumbnail is generated from an early video frame.
+- Processed video dimensions are display dimensions used for layout, not necessarily raw encoded storage pixels. Non-square-pixel and rotated sources should render in their intended orientation and aspect ratio. In the room timeline, ordinary posted landscape videos with near-square metadata are presented in a widescreen frame so common screen recordings do not appear as tall 4:3 embeds; converted animated GIF loops preserve their measured dimensions.
+- A thumbnail is generated from an early video frame using the same display dimensions, so non-square-pixel sources do not persist squished or pillarboxed poster images.
 - Resized images can be cached as WebP with an auto-expiring cache.
 - In Service Worker-controlled browser sessions, stable asset URLs are rendered as same-origin virtual URLs and proxied to the owning server with the user's registered server credentials. Successful full responses are cached privately in the browser; media `Range` requests bypass that cache.
 - Active document attachment types such as HTML, XHTML, SVG, and XML can still be uploaded and viewed inline, but original-file responses are delivered in a browser sandbox so uploaded scripts do not run as trusted Chatto application code.
@@ -44,9 +45,9 @@ Users can attach files to messages — images, videos, documents — via drag-an
 
 ### 4. Quality variants are selected per source
 
-**Decision:** Transcoding produces multiple H.264 MP4 variants whose target resolutions are derived from the source resolution. A 1080p source might yield 720p and 480p; a 480p source skips the higher tiers.
+**Decision:** Transcoding produces multiple H.264 MP4 variants whose target resolutions are derived from the source display resolution. A 1080p source might yield 720p and 480p; a 480p source skips the higher tiers. Processing metadata records display dimensions so clients can reserve the correct frame for sources with non-square pixels or rotation metadata. Generated thumbnails are rendered at display dimensions with square pixels. The chat timeline treats ambiguous near-square landscape video metadata as a widescreen presentation case for ordinary uploaded videos.
 **Why:** Producing tiers higher than the source is pointless (upscaling is lossy without benefit). Producing tiers near the source is bandwidth waste for the common case.
-**Tradeoff:** No HLS / adaptive bitrate streaming yet — the frontend picks a variant based on viewport and connection at the time of play. Adaptive streaming is tracked separately in GitHub issue #668.
+**Tradeoff:** No HLS / adaptive bitrate streaming yet — the frontend picks a variant based on viewport and connection at the time of play. Historical processed-video manifests are not rewritten when display-dimension handling improves; clients can still correct the rendered frame after media metadata loads. The widescreen presentation heuristic can crop truly 4:3 uploaded videos in the timeline, but avoids the more common failure where screen recordings appear in a tall padded frame. Adaptive streaming is tracked separately in GitHub issue #668.
 
 ### 5. Attachments are declared content; derivative manifests are durable events
 
@@ -57,7 +58,7 @@ Users can attach files to messages — images, videos, documents — via drag-an
 ### 6. Attachment URLs are per-user signed capabilities
 
 **Decision:** Public attachment APIs expose attachment media as stable asset paths plus per-user access tickets: `/assets/files/{assetId}?access={ticket}` for originals and `/assets/files/{assetId}/image/{width}x{height}/{fit}?access={ticket}` for image derivatives. Attachment, thumbnail, video thumbnail, and variant URLs also expose the ticket expiry so the client can refresh before or after a lazy-load miss. Every fetch verifies the signed user is still a member of the asset's room.
-**Why:** Cross-origin `<img>` tags (used when the SPA loads attachments from a *remote* registered server) can't carry session cookies (SameSite) or Authorization headers. A signed per-user access ticket lets browsers load remote attachments directly, while the room-membership check still auto-revokes access on kick/leave.
+**Why:** Cross-origin `<img>` tags (used when the SPA loads attachments from a _remote_ registered server) can't carry session cookies (SameSite) or Authorization headers. A signed per-user access ticket lets browsers load remote attachments directly, while the room-membership check still auto-revokes access on kick/leave.
 **Tradeoff:** The access ticket is still a bearer capability — anyone holding it can fetch until the expiry passes or the signed user loses room membership. `core.AssetAccessTicketTTL` is currently **1 hour** so normal rendering, lazy loading, media startup, and lightbox use are reliable; clients refresh URL fields through projected timeline/attachment reads when tickets approach expiry or a media load fails. In Service Worker-controlled sessions, the DOM uses non-portable same-origin virtual URLs under `/__chatto/assets/{serverId}/...`; the worker keeps the ticketed target URL out of markup, fetches through the registered server credentials when possible, and caches full successful responses in a private per-browser cache. This removes the "lazy copy URL grants access" problem for the main web app, while keeping ticketed URLs as fallback for non-Service-Worker clients and for media `Range` redirects. Legacy `/assets/attachments/{signedLocator}` URLs remain supported for compatibility/internal fallback and use the shorter 5-minute locator TTL. Rotating `[core.assets].signing_secret` invalidates all outstanding tickets and legacy locators at once.
 
 ### 7. Active document attachments render in a browser sandbox
