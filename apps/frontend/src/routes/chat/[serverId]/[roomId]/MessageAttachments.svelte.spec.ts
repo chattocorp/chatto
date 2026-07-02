@@ -62,19 +62,26 @@ function fileAttachment(overrides: Partial<MessageAttachmentView>): MessageAttac
   };
 }
 
-function renderAttachments(attachments: MessageAttachmentView[]) {
+function renderAttachments(
+  attachments: MessageAttachmentView[],
+  options: { canDeleteAttachment?: boolean } = {}
+) {
   return render(MessageAttachments, {
     props: {
       attachments,
       serverId: 'server_1',
       roomId: 'room_1',
-      eventId: 'event_1'
+      eventId: 'event_1',
+      ...options
     }
   });
 }
 
-function renderAttachment(attachment: MessageAttachmentView) {
-  return renderAttachments([attachment]);
+function renderAttachment(
+  attachment: MessageAttachmentView,
+  options: { canDeleteAttachment?: boolean } = {}
+) {
+  return renderAttachments([attachment], options);
 }
 
 function imageFrame(container: HTMLElement, filename: string) {
@@ -140,6 +147,24 @@ describe('MessageAttachments', () => {
     expect(image.className).toContain('object-cover');
     expect(image.className).toContain('h-full');
     expect(image.className).toContain('w-full');
+  });
+
+  it('uses a subtle attachment remove control when deletion is allowed', () => {
+    const { container } = renderAttachment(
+      imageAttachment({
+        filename: 'delete-me.jpg'
+      }),
+      { canDeleteAttachment: true }
+    );
+
+    const deleteControl = container.querySelector<HTMLElement>(
+      '[aria-label="Delete attachment"]'
+    );
+
+    expect(deleteControl).not.toBeNull();
+    expect(deleteControl!.getAttribute('title')).toBe('Delete attachment');
+    expect(deleteControl!.className).toContain('attachment-remove-button');
+    expect(deleteControl!.className).not.toContain('embed-control-button');
   });
 
   it('renders multiple images inside a horizontal gallery with equal-height frames', () => {

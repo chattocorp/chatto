@@ -452,7 +452,7 @@
           onkeydown={(e) => {
             if (e.key === 'Enter' || e.key === ' ') openDeleteConfirmation(attachment, e);
           }}
-          class="embed-control-button md:group-hover/attachment:opacity-100"
+          class="attachment-remove-button md:group-hover/attachment:opacity-100"
           aria-label={m['room.attachment.delete_label']()}
           title={m['room.attachment.delete_label']()}
         >
@@ -480,7 +480,7 @@
           <button
             type="button"
             onclick={(e) => openDeleteConfirmation(attachment, e)}
-            class="embed-control-button md:group-hover/attachment:opacity-100"
+            class="attachment-remove-button md:group-hover/attachment:opacity-100"
             aria-label={m['room.attachment.delete_label']()}
             title={m['room.attachment.delete_label']()}
           >
@@ -506,7 +506,7 @@
           <button
             type="button"
             onclick={(e) => openDeleteConfirmation(attachment, e)}
-            class="embed-control-button z-10 md:group-hover/attachment:opacity-100"
+            class="attachment-remove-button z-10 md:group-hover/attachment:opacity-100"
             aria-label={m['room.attachment.delete_label']()}
             title={m['room.attachment.delete_label']()}
           >
@@ -551,7 +551,7 @@
           <button
             type="button"
             onclick={(e) => openDeleteConfirmation(attachment, e)}
-            class="embed-control-button md:group-hover/attachment:opacity-100"
+            class="attachment-remove-button md:group-hover/attachment:opacity-100"
             aria-label={m['room.attachment.delete_label']()}
             title={m['room.attachment.delete_label']()}
           >
@@ -589,7 +589,7 @@
           <button
             type="button"
             onclick={(e) => openDeleteConfirmation(attachment, e)}
-            class="embed-control-button md:group-hover/attachment:opacity-100"
+            class="attachment-remove-button md:group-hover/attachment:opacity-100"
             aria-label={m['room.attachment.delete_label']()}
             title={m['room.attachment.delete_label']()}
           >

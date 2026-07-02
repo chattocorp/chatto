@@ -346,6 +346,24 @@
   @apply absolute top-1 right-1 flex h-10 w-10 cursor-pointer items-center justify-center rounded-full bg-black/60 text-white shadow-md ring-1 ring-white/30 transition-[background-color,opacity,scale] hover:bg-black/80 active:scale-[0.96] md:opacity-0;
 }
 
+@utility attachment-remove-button {
+  @apply absolute top-1 right-1 flex h-10 w-10 cursor-pointer items-center justify-center rounded-full text-white/90 outline-none transition-[opacity,scale] active:scale-[0.96] focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 focus-visible:ring-offset-background md:opacity-0;
+
+  &::before {
+    content: '';
+    @apply absolute h-7 w-7 rounded-full bg-black/45 shadow-sm ring-1 ring-white/25 transition-[background-color];
+  }
+
+  &:hover::before,
+  &:focus-visible::before {
+    @apply bg-black/65;
+  }
+
+  & > .iconify {
+    @apply relative z-10 text-sm;
+  }
+}
+
 /* Skeleton loading utility */
 @utility skeleton {
   @apply relative overflow-hidden opacity-30;
