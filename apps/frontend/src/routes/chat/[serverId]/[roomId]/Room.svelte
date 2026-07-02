@@ -127,6 +127,7 @@
     }
     if (replyStateScope === currentScope) return;
     replyStateScope = currentScope;
+    composerContext.editState.cancelEdit();
     replyState.cancelReply();
     jumpState.reset();
     pendingThreadHighlight = null;

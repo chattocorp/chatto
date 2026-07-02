@@ -48,6 +48,8 @@ These preferences are server-side and sync across devices.
 
   $effect(() => {
     const currentServerId = serverId;
+    savingServerLevel = false;
+    savingRoomId = null;
     void loadPreferences(currentServerId);
   });
 
@@ -102,45 +104,60 @@ These preferences are server-side and sync across devices.
   }
 
   async function handleServerLevelChange(newLevel: NotificationLevel) {
+    const mutationServerId = serverId;
+    const config = connectConfig();
+    const store = notificationLevelStore;
     savingServerLevel = true;
 
     try {
       const pref = notificationPreferenceFromAPI(
-        await updateServerNotificationPreference(connectConfig(), notificationLevelToAPI(newLevel))
+        await updateServerNotificationPreference(config, notificationLevelToAPI(newLevel))
       );
+      if (serverId !== mutationServerId) return;
       serverLevel = pref.level;
       serverEffectiveLevel = pref.effectiveLevel;
-      notificationLevelStore.setServerPreference(pref.level, pref.effectiveLevel);
+      store.setServerPreference(pref.level, pref.effectiveLevel);
 
-      await loadPreferences();
+      await loadPreferences(mutationServerId);
+      if (serverId !== mutationServerId) return;
       toast.success(m['settings.notifications.levels.server_updated']());
     } catch (e) {
+      if (serverId !== mutationServerId) return;
       toast.error(
         e instanceof Error ? e.message : m['settings.notifications.levels.update_failed']()
       );
     } finally {
-      savingServerLevel = false;
+      if (serverId === mutationServerId) {
+        savingServerLevel = false;
+      }
     }
   }
 
   async function handleRoomLevelChange(roomId: string, newLevel: NotificationLevel) {
+    const mutationServerId = serverId;
+    const config = connectConfig();
+    const store = notificationLevelStore;
     savingRoomId = roomId;
 
     try {
-      const pref = await setRoomLevel(roomId, newLevel);
+      const pref = await setRoomLevel(config, roomId, newLevel);
+      if (serverId !== mutationServerId) return;
       const idx = rooms.findIndex((r) => r.id === roomId);
       if (idx !== -1) {
         rooms[idx] = { ...rooms[idx], level: pref.level, effectiveLevel: pref.effectiveLevel };
       }
 
-      notificationLevelStore.setRoomPreference(roomId, pref.level, pref.effectiveLevel);
+      store.setRoomPreference(roomId, pref.level, pref.effectiveLevel);
       toast.success(m['settings.notifications.levels.room_updated']());
     } catch (e) {
+      if (serverId !== mutationServerId) return;
       toast.error(
         e instanceof Error ? e.message : m['settings.notifications.levels.update_failed']()
       );
     } finally {
-      savingRoomId = null;
+      if (serverId === mutationServerId) {
+        savingRoomId = null;
+      }
     }
   }
 
@@ -170,11 +187,12 @@ These preferences are server-side and sync across devices.
   ]);
 
   async function setRoomLevel(
+    config: ReturnType<typeof connectConfig>,
     roomId: string,
     newLevel: NotificationLevel
   ): Promise<NotificationPreference> {
     const pref = await updateRoomNotificationPreference(
-      connectConfig(),
+      config,
       roomId,
       notificationLevelToAPI(newLevel)
     );

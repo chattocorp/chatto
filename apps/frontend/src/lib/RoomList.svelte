@@ -334,12 +334,17 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     event.preventDefault();
     event.stopPropagation();
 
-    const lookup = await notificationStore.resolveRoomNotification(roomId, { isDM });
+    const currentServerId = activeServerId;
+    const currentStores = stores;
+    const currentRoomsStore = roomsStore;
+    const currentNotificationStore = notificationStore;
+    const lookup = await currentNotificationStore.resolveRoomNotification(roomId, { isDM });
+    if (activeServerId !== currentServerId) return;
     const notification = lookup.notification;
 
     if (!notification) {
       if (lookup.ok && lookup.totalCount === 0) {
-        roomsStore.clearUnreadNotifications(roomId);
+        currentRoomsStore.clearUnreadNotifications(roomId);
       } else {
         await goto(resolve('/chat/notifications'));
       }
@@ -348,18 +353,19 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 
     const target = notificationTarget(notification);
     if (target.eventId && target.roomId) {
-      stores.pendingHighlights.set(target.roomId, target.threadRootId, target.eventId);
+      currentStores.pendingHighlights.set(target.roomId, target.threadRootId, target.eventId);
     }
-    roomsStore.decrementUnreadNotification(roomId);
-    void notificationStore.dismiss(notification.id).then((dismissed) => {
+    currentRoomsStore.decrementUnreadNotification(roomId);
+    void currentNotificationStore.dismiss(notification.id).then((dismissed) => {
+      if (activeServerId !== currentServerId) return;
       if (!dismissed) {
-        roomsStore.incrementUnreadNotification(roomId);
+        currentRoomsStore.incrementUnreadNotification(roomId);
         return;
       }
-      void roomsStore.refreshNotificationCounts();
+      void currentRoomsStore.refreshNotificationCounts();
     });
 
-    const path = notificationStore.getCleanPath(activeServerId, notification);
+    const path = currentNotificationStore.getCleanPath(currentServerId, notification);
     // eslint-disable-next-line svelte/no-navigation-without-resolve -- path from getCleanPath() is already resolved
     await goto(path);
   }
