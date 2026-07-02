@@ -620,6 +620,7 @@ const msg_room_message_actions_add_reaction = (): LocalizedString => messages().
 const msg_room_message_actions_more_reactions = (): LocalizedString => messages().room_message_actions_more_reactions(empty());
 const msg_room_message_actions_reply = (): LocalizedString => messages().room_message_actions_reply(empty());
 const msg_room_message_actions_reply_thread = (): LocalizedString => messages().room_message_actions_reply_thread(empty());
+const msg_room_message_actions_open_thread = (): LocalizedString => messages().room_message_actions_open_thread(empty());
 const msg_room_message_actions_edit = (): LocalizedString => messages().room_message_actions_edit(empty());
 const msg_room_message_actions_more = (): LocalizedString => messages().room_message_actions_more(empty());
 const msg_room_message_actions_edit_short = (): LocalizedString => messages().room_message_actions_edit_short(empty());
@@ -1938,6 +1939,7 @@ export { msg_room_message_actions_add_reaction as 'room.message.actions.add_reac
 export { msg_room_message_actions_more_reactions as 'room.message.actions.more_reactions' };
 export { msg_room_message_actions_reply as 'room.message.actions.reply' };
 export { msg_room_message_actions_reply_thread as 'room.message.actions.reply_thread' };
+export { msg_room_message_actions_open_thread as 'room.message.actions.open_thread' };
 export { msg_room_message_actions_edit as 'room.message.actions.edit' };
 export { msg_room_message_actions_more as 'room.message.actions.more' };
 export { msg_room_message_actions_edit_short as 'room.message.actions.edit_short' };

@@ -55,6 +55,7 @@
   import { shouldHighlightCurrentUserMention } from './messageMentionHighlight';
   import { roomReplyTargetEventId } from './messageReplyTarget';
   import { selectedQuoteTextForMessageBody } from './selectedReplyQuote';
+  import type { OpenThreadHandler } from './threadOpenOptions';
   import { createThreadAPI } from '$lib/api-client/threads';
   import { createRoomCommandAPI } from '$lib/api-client/rooms';
   import { isMessagePostedEvent } from '$lib/render/eventKinds';
@@ -75,11 +76,7 @@
     compact?: boolean;
     roomId: string;
     messageStore?: MessagesStore | null;
-    onOpenThread?: (
-      threadRootEventId: string,
-      highlightEventId?: string,
-      quoteText?: QuoteInsertionContent
-    ) => void;
+    onOpenThread?: OpenThreadHandler;
   } = $props();
 
   const connection = useConnection();
@@ -301,6 +298,24 @@
   // Uses threadRootEventId (thread membership), not inReplyTo (attribution)
   const isRootMessage = $derived(!isEcho && messageEvent?.threadRootEventId == null);
   const hasReplies = $derived(isRootMessage && (messageEvent?.replyCount ?? 0) > 0);
+  const replyInRoomActionLabel = $derived(
+    isEcho ? m['room.message.actions.reply_thread']() : m['room.message.actions.reply']()
+  );
+  const replyThreadActionLabel = $derived(
+    isEcho ? m['room.message.actions.open_thread']() : m['room.message.actions.reply_thread']()
+  );
+  const canUseReplyAction = $derived(
+    isEcho
+      ? roomPermissions.canPostInThread &&
+          !!onOpenThread &&
+          !!messageEvent?.echoFromThreadRootEventId
+      : roomPermissions.canPostMessage
+  );
+  const canUseThreadAction = $derived(
+    isEcho
+      ? !!onOpenThread && !!messageEvent?.echoFromThreadRootEventId
+      : roomPermissions.canPostInThread && !!onOpenThread
+  );
 
   // Overridable derived state: backing event data is the default, while
   // mutations/live events can update the row immediately.
@@ -524,7 +539,9 @@
       messageEvent.echoFromThreadRootEventId &&
       onOpenThread
     ) {
-      onOpenThread(messageEvent.echoFromThreadRootEventId, messageEvent.inReplyTo);
+      onOpenThread(messageEvent.echoFromThreadRootEventId, {
+        highlightEventId: messageEvent.inReplyTo
+      });
       return;
     }
 
@@ -556,6 +573,18 @@
   function handleReplyInRoom() {
     const quote = takeSelectedReplyQuote();
     const excerpt = (msg?.body ?? '').slice(0, 80);
+    if (isEcho && messageEvent?.echoOfEventId && messageEvent.echoFromThreadRootEventId) {
+      onOpenThread?.(messageEvent.echoFromThreadRootEventId, {
+        highlightEventId: messageEvent.echoOfEventId,
+        quoteText: quote ?? undefined,
+        reply: {
+          eventId: messageEvent.echoOfEventId,
+          actorDisplayName: displayName,
+          excerpt
+        }
+      });
+      return;
+    }
     replyState.startReply(roomReplyTargetEventId(event), displayName, excerpt);
     if (quote) {
       composerContext.quoteInsertionState.requestInsertQuote(quote);
@@ -564,10 +593,15 @@
 
   function handleOpenThread() {
     if (onOpenThread) {
-      const quote = takeSelectedReplyQuote();
       // For echoes, use the original thread root event ID (not the echo's wrapper event ID)
       const threadRoot = (isEcho ? messageEvent?.echoFromThreadRootEventId : null) ?? event.id;
-      onOpenThread(threadRoot, undefined, quote ?? undefined);
+      if (isEcho) {
+        selectedReplyQuoteSnapshot = null;
+        onOpenThread(threadRoot);
+        return;
+      }
+      const quote = takeSelectedReplyQuote();
+      onOpenThread(threadRoot, { quoteText: quote ?? undefined });
       // Note: Thread notifications are dismissed by ThreadPane's $effect when it mounts,
       // which also handles direct URL navigation to threads.
     }
@@ -849,8 +883,10 @@
           canReact={roomPermissions.canReact}
           {canEdit}
           forceVisible={!!emojiPickerPos || !!contextMenuPos}
-          onReplyInRoom={roomPermissions.canPostMessage ? handleReplyInRoom : undefined}
-          onReply={roomPermissions.canPostInThread && onOpenThread ? handleOpenThread : undefined}
+          replyInRoomLabel={replyInRoomActionLabel}
+          replyThreadLabel={replyThreadActionLabel}
+          onReplyInRoom={canUseReplyAction ? handleReplyInRoom : undefined}
+          onReply={canUseThreadAction ? handleOpenThread : undefined}
           onOpenEmojiPicker={roomPermissions.canReact ? openEmojiPickerFromToolbar : undefined}
           onOpenMenu={openMenuFromToolbar}
         />
@@ -905,8 +941,10 @@
         canReact={roomPermissions.canReact}
         {canEdit}
         {canDelete}
-        onReplyInRoom={roomPermissions.canPostMessage ? handleReplyInRoom : undefined}
-        onReply={roomPermissions.canPostInThread && onOpenThread ? handleOpenThread : undefined}
+        replyInRoomLabel={replyInRoomActionLabel}
+        replyThreadLabel={replyThreadActionLabel}
+        onReplyInRoom={canUseReplyAction ? handleReplyInRoom : undefined}
+        onReply={canUseThreadAction ? handleOpenThread : undefined}
         onOpenEmojiPicker={roomPermissions.canReact ? openEmojiPicker : undefined}
         onClose={() => (contextMenuPos = null)}
       />
@@ -941,8 +979,10 @@
         canReact={roomPermissions.canReact}
         {canEdit}
         {canDelete}
-        onReplyInRoom={roomPermissions.canPostMessage ? handleReplyInRoom : undefined}
-        onReply={roomPermissions.canPostInThread && onOpenThread ? handleOpenThread : undefined}
+        replyInRoomLabel={replyInRoomActionLabel}
+        replyThreadLabel={replyThreadActionLabel}
+        onReplyInRoom={canUseReplyAction ? handleReplyInRoom : undefined}
+        onReply={canUseThreadAction ? handleOpenThread : undefined}
         onOpenEmojiPicker={roomPermissions.canReact ? openEmojiPicker : undefined}
         onClose={() => (showActionSheet = false)}
       />

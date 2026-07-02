@@ -87,6 +87,11 @@ export class MessageComponent {
    */
   async replyViaToolbar(): Promise<void> {
     await this.revealHoverToolbar();
+    const openThread = this.hoverToolbar.getByLabel('Open thread');
+    if ((await openThread.count()) > 0) {
+      await openThread.click();
+      return;
+    }
     await this.hoverToolbar.getByLabel('Reply in thread').click();
   }
 
@@ -204,8 +209,27 @@ export class MessageComponent {
    */
   async openThread(): Promise<void> {
     await this.openContextMenu();
+    const openThread = this.contextMenu.getByRole('menuitem', {
+      name: 'Open thread',
+      exact: true
+    });
+    if ((await openThread.count()) > 0) {
+      await openThread.click({ timeout: TIMEOUTS.REALTIME_EVENT });
+      return;
+    }
     await this.contextMenu
-      .getByRole('menuitem', { name: /Reply in thread/ })
+      .getByRole('menuitem', { name: 'Reply in thread', exact: true })
+      .click({ timeout: TIMEOUTS.REALTIME_EVENT });
+  }
+
+  /**
+   * Start a reply to an echoed thread message.
+   * Echo rows label this action "Reply in thread" and keep "Open thread" as navigation only.
+   */
+  async replyToEchoInThread(): Promise<void> {
+    await this.openContextMenu();
+    await this.contextMenu
+      .getByRole('menuitem', { name: 'Reply in thread', exact: true })
       .click({ timeout: TIMEOUTS.REALTIME_EVENT });
   }
 

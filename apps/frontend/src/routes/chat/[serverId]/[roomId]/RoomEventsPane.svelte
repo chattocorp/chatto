@@ -3,12 +3,12 @@
   import { RoomEventKind, roomEventKind, type RoomEventKindSource } from '$lib/render/eventKinds';
   import {
     getComposerContext,
-    type QuoteInsertionContent,
     type RefreshCurrentWindowResult,
     type RoomMember
   } from '$lib/state/room';
   import type { MessagesStore } from '$lib/state/room';
   import EventList from './EventList.svelte';
+  import type { OpenThreadHandler } from './threadOpenOptions';
 
   type MessageRetractedEventPayload = {
     roomId?: string | null;
@@ -36,11 +36,7 @@
     messageStore: MessagesStore;
     unreadAfterTime?: string | null;
     unreadBeforeTime?: string | null;
-    onOpenThread?: (
-      threadRootEventId: string,
-      highlightEventId?: string,
-      quoteText?: QuoteInsertionContent
-    ) => void;
+    onOpenThread?: OpenThreadHandler;
     typingUserIds?: string[];
     typingMembers?: RoomMember[];
   } = $props();

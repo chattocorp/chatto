@@ -27,6 +27,7 @@
   } from '$lib/components/composer/MessageComposer.svelte';
   import EventList from './EventList.svelte';
   import { onThreadFollowChanged } from '$lib/eventBus.svelte';
+  import type { PendingThreadReplyRequest } from './threadOpenOptions';
 
   let {
     roomId,
@@ -38,8 +39,10 @@
     canEchoMessage = false,
     highlightEventId = null,
     pendingQuote = null,
+    pendingReply = null,
     onHighlightComplete,
-    onQuoteConsumed
+    onQuoteConsumed,
+    onReplyConsumed
   }: {
     roomId: string;
     roomName: string;
@@ -50,8 +53,10 @@
     canEchoMessage?: boolean;
     highlightEventId?: string | null;
     pendingQuote?: QuoteInsertionRequest | null;
+    pendingReply?: PendingThreadReplyRequest | null;
     onHighlightComplete?: () => void;
     onQuoteConsumed?: () => void;
+    onReplyConsumed?: () => void;
   } = $props();
 
   const connection = useConnection();
@@ -112,6 +117,7 @@
   const composerContext = createComposerContext({ scroll: true });
   const replyState = composerContext.replyState;
   let consumedQuoteId = 0;
+  let consumedReplyId = 0;
   let composerApi = $state<MessageComposerApi | null>(null);
 
   // Thread-scoped jump state so "in reply to" clicks scroll within the thread.
@@ -142,6 +148,24 @@
     consumedQuoteId = quote.id;
     composerContext.quoteInsertionState.requestInsertQuote(quote.text);
     onQuoteConsumed?.();
+  });
+
+  $effect(() => {
+    const reply = pendingReply;
+    const api = composerApi;
+    if (
+      !reply ||
+      reply.threadRootEventId !== threadRootEventId ||
+      !api ||
+      reply.id === consumedReplyId
+    ) {
+      return;
+    }
+
+    consumedReplyId = reply.id;
+    replyState.startReply(reply.eventId, reply.actorDisplayName, reply.excerpt);
+    api.focus();
+    onReplyConsumed?.();
   });
 
   // Subscribe to server events: clear typing indicator on a thread reply,

@@ -76,6 +76,17 @@ describe('MessageActionSheet', () => {
     ]);
   });
 
+  it('uses custom reply action labels when provided', () => {
+    const { container } = renderSheet({
+      onReply: vi.fn(),
+      onReplyInRoom: vi.fn(),
+      replyInRoomLabel: 'Reply in thread',
+      replyThreadLabel: 'Open thread'
+    });
+
+    expect(actionLabels(container)).toEqual(['Reply in thread', 'Open thread', 'Copy link']);
+  });
+
   it('closes after invoking sheet actions', async () => {
     const onReplyInRoom = vi.fn();
     const onReply = vi.fn();

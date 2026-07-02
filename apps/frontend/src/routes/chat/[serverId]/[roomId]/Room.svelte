@@ -58,6 +58,7 @@
   } from './roomSidebarBehavior';
   import { RoomSidebarPanelsState } from './roomSidebarPanels.svelte';
   import ThreadPane from './ThreadPane.svelte';
+  import type { PendingThreadReplyRequest, ThreadOpenOptions } from './threadOpenOptions';
 
   let { roomId, threadId }: { roomId: string; threadId?: string } = $props();
 
@@ -73,14 +74,17 @@
   let pendingThreadHighlight = $state<string | null>(null);
   let pendingThreadQuote = $state<{ id: number; text: QuoteInsertionContent } | null>(null);
   let pendingThreadQuoteId = 0;
+  let pendingThreadReply = $state<PendingThreadReplyRequest | null>(null);
+  let pendingThreadReplyId = 0;
 
-  function openThread(
-    threadRootEventId: string,
-    highlightEventId?: string,
-    quoteText?: QuoteInsertionContent
-  ) {
-    pendingThreadHighlight = highlightEventId ?? null;
-    pendingThreadQuote = quoteText ? { id: ++pendingThreadQuoteId, text: quoteText } : null;
+  function openThread(threadRootEventId: string, options: ThreadOpenOptions = {}) {
+    pendingThreadHighlight = options.highlightEventId ?? null;
+    pendingThreadQuote = options.quoteText
+      ? { id: ++pendingThreadQuoteId, text: options.quoteText }
+      : null;
+    pendingThreadReply = options.reply
+      ? { id: ++pendingThreadReplyId, threadRootEventId, ...options.reply }
+      : null;
     goto(
       resolve('/chat/[serverId]/[roomId]/[threadId]', {
         serverId: serverSegment,
@@ -453,7 +457,7 @@
     closeMobile = false
   ): void {
     if (threadRootEventId) {
-      openThread(threadRootEventId, messageEventId);
+      openThread(threadRootEventId, { highlightEventId: messageEventId });
     } else {
       void jumpState.jumpToMessage(messageEventId);
     }
@@ -639,11 +643,15 @@
           canEchoMessage={room.roomData.canEchoMessage && room.roomData.canPostMessage}
           highlightEventId={pendingThreadHighlight}
           pendingQuote={pendingThreadQuote}
+          pendingReply={pendingThreadReply}
           onHighlightComplete={() => {
             pendingThreadHighlight = null;
           }}
           onQuoteConsumed={() => {
             pendingThreadQuote = null;
+          }}
+          onReplyConsumed={() => {
+            pendingThreadReply = null;
           }}
         />
       {/if}
@@ -684,10 +692,7 @@
 
     {#if activeRoomSidebarPanel}
       <div
-        class={[
-          'hidden min-h-0 min-w-0 lg:flex',
-          isDesktopCallMaximized ? 'flex-1' : 'shrink-0'
-        ]}
+        class={['hidden min-h-0 min-w-0 lg:flex', isDesktopCallMaximized ? 'flex-1' : 'shrink-0']}
         data-testid="room-sidebar-desktop-pane"
       >
         <RoomSidebar

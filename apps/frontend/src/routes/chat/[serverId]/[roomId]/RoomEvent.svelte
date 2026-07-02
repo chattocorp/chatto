@@ -1,9 +1,10 @@
 <script lang="ts">
   import type { RoomEventView } from '$lib/render/types';
-  import type { MessagesStore, QuoteInsertionContent } from '$lib/state/room';
+  import type { MessagesStore } from '$lib/state/room';
   import { isMessagePostedEvent } from '$lib/render/eventKinds';
   import MessageEvent from './MessageEvent.svelte';
   import SystemEvent from './SystemEvent.svelte';
+  import type { OpenThreadHandler } from './threadOpenOptions';
 
   let {
     event,
@@ -16,11 +17,7 @@
     compact?: boolean;
     roomId: string;
     messageStore?: MessagesStore | null;
-    onOpenThread?: (
-      threadRootEventId: string,
-      highlightEventId?: string,
-      quoteText?: QuoteInsertionContent
-    ) => void;
+    onOpenThread?: OpenThreadHandler;
   } = $props();
 
   // Join/leave events are confusing in DM 1:1 conversations. Post-PR(b) we
