@@ -269,6 +269,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
         <HeaderIconButton
           icon={maximized ? 'uil--compress-arrows' : 'uil--expand-arrows'}
           label={maximized ? m['room.sidebar.minimize_call']() : m['room.sidebar.maximize_call']()}
+          iconSize="sm"
           onclick={() => onToggleMaximized?.()}
         />
       {/if}
@@ -284,6 +285,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
       <HeaderIconButton
         icon="uil--times"
         label={m['room.sidebar.hide']()}
+        iconSize="lg"
         onclick={() => onClose?.()}
       />
     {/snippet}

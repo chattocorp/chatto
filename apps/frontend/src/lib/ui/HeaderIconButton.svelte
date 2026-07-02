@@ -23,6 +23,7 @@ arrow aligned with the sidebar nav items below.
 -->
 <script lang="ts">
   type Tone = 'default' | 'active' | 'danger';
+  type IconSize = 'sm' | 'md' | 'lg';
 
   let {
     icon,
@@ -30,6 +31,7 @@ arrow aligned with the sidebar nav items below.
     onclick,
     href,
     tone = 'default',
+    iconSize = 'md',
     disabled = false,
     title
   }: {
@@ -48,6 +50,8 @@ arrow aligned with the sidebar nav items below.
      * - `danger` (red tint with red hover)
      */
     tone?: Tone;
+    /** Fine-tune optical icon size when glyphs from different icon sets read unevenly. */
+    iconSize?: IconSize;
     /** Disabled state — only applies to the button variant. */
     disabled?: boolean;
     /** Override the default hover tooltip (defaults to `label`). */
@@ -59,12 +63,17 @@ arrow aligned with the sidebar nav items below.
     active: 'pane-header-icon-button-active',
     danger: 'text-danger'
   };
+  const iconSizeClasses: Record<IconSize, string> = {
+    sm: 'text-sm',
+    md: 'text-base',
+    lg: 'text-lg'
+  };
 
   const buttonClass = $derived([
     'group/pane-header-icon-button pane-header-icon-button',
     toneClasses[tone]
   ]);
-  const glyphClass = $derived(['pane-header-icon-glyph', icon]);
+  const glyphClass = $derived(['pane-header-icon-glyph', iconSizeClasses[iconSize], icon]);
 </script>
 
 {#if href}
