@@ -115,8 +115,12 @@ function startOfWeekSerial(parts: DateParts, firstDay: number): number {
 /**
  * Format a message timestamp (e.g., "2:30 PM" or "14:30").
  */
-export function formatMessageTime(date: Date | string, settings: UserSettingsState): string {
-  const fmt = getFormatter(activeLocale(), {
+export function formatMessageTime(
+  date: Date | string,
+  settings: UserSettingsState,
+  locale: string = activeLocale()
+): string {
+  const fmt = getFormatter(locale, {
     hour: '2-digit',
     minute: '2-digit',
     hour12: settings.effectiveHour12,
@@ -128,8 +132,12 @@ export function formatMessageTime(date: Date | string, settings: UserSettingsSta
 /**
  * Format a date for display (e.g., "Jan 15, 2025").
  */
-export function formatDate(date: Date | string, settings: UserSettingsState): string {
-  const fmt = getFormatter(activeLocale(), {
+export function formatDate(
+  date: Date | string,
+  settings: UserSettingsState,
+  locale: string = activeLocale()
+): string {
+  const fmt = getFormatter(locale, {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
@@ -141,8 +149,12 @@ export function formatDate(date: Date | string, settings: UserSettingsState): st
 /**
  * Format a date with time for display (e.g., "November 15, 2025, 02:30 PM").
  */
-export function formatDateTime(date: Date | string, settings: UserSettingsState): string {
-  const fmt = getFormatter(activeLocale(), {
+export function formatDateTime(
+  date: Date | string,
+  settings: UserSettingsState,
+  locale: string = activeLocale()
+): string {
+  const fmt = getFormatter(locale, {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
@@ -170,7 +182,11 @@ export function isSameDay(date1: Date, date2: Date, settings: UserSettingsState)
 /**
  * Format a day separator label ("Today", "Yesterday", or a full date).
  */
-export function formatDayLabel(date: Date | string, settings: UserSettingsState): string {
+export function formatDayLabel(
+  date: Date | string,
+  settings: UserSettingsState,
+  locale: string = activeLocale()
+): string {
   const d = toDate(date);
   const now = new Date();
 
@@ -188,7 +204,7 @@ export function formatDayLabel(date: Date | string, settings: UserSettingsState)
   const yearFmt = getFormatter('en-US', { year: 'numeric', timeZone: tz });
   const sameYear = yearFmt.format(d) === yearFmt.format(now);
 
-  const labelFmt = getFormatter(activeLocale(), {
+  const labelFmt = getFormatter(locale, {
     weekday: 'long',
     month: 'long',
     day: 'numeric',
@@ -198,8 +214,12 @@ export function formatDayLabel(date: Date | string, settings: UserSettingsState)
   return labelFmt.format(d);
 }
 
-export function formatMonthYear(date: Date | string, settings: UserSettingsState): string {
-  const fmt = getFormatter(activeLocale(), {
+export function formatMonthYear(
+  date: Date | string,
+  settings: UserSettingsState,
+  locale: string = activeLocale()
+): string {
+  const fmt = getFormatter(locale, {
     month: 'long',
     year: 'numeric',
     timeZone: settings.effectiveTimezone
@@ -232,6 +252,6 @@ export function fileDateGroup(
 
   return {
     key: `month:${itemParts.year}-${String(itemParts.month).padStart(2, '0')}`,
-    label: formatMonthYear(d, settings)
+    label: formatMonthYear(d, settings, locale)
   };
 }

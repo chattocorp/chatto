@@ -20,6 +20,7 @@
   import { toast } from '$lib/ui/toast';
   import { getAvatarInitials } from '$lib/utils/initials';
   import { formatDate, formatDateTime } from '$lib/utils/formatTime';
+  import { getLocale } from '$lib/i18n/runtime';
   import { getLiveLogin } from '$lib/state/userProfiles.svelte';
   import { getUserSettings } from '$lib/state/userSettings.svelte';
   import * as m from '$lib/i18n/messages';
@@ -36,6 +37,7 @@
   const currentUser = $derived(serverRegistry.getStore(getActiveServer()).currentUser);
   const connection = useConnection();
   const userSettings = getUserSettings();
+  const activeLocale = $derived(getLocale());
   const userId = $derived(page.params.userId!);
 
   const serverPerms = getServerPermissions();
@@ -260,14 +262,14 @@
     }
     if (lastLoginChange) {
       return m['admin.member_detail.last_self_rename']({
-        time: formatDateTime(lastLoginChange, userSettings)
+        time: formatDateTime(lastLoginChange, userSettings, activeLocale)
       });
     }
     return m['admin.member_detail.no_self_rename']();
   });
 
   function formatOptionalDate(date: string | null | undefined): string {
-    return date ? formatDate(date, userSettings) : m['admin.common.unknown']();
+    return date ? formatDate(date, userSettings, activeLocale) : m['admin.common.unknown']();
   }
 
   function emailSummary(user: AdminMember): string {
@@ -476,7 +478,7 @@
                   })}
                 {:else if lastLoginChange}
                   {m['admin.members.last_self_rename']({
-                    time: lastLoginChange.toLocaleString()
+                    time: formatDateTime(lastLoginChange, userSettings, activeLocale)
                   })}
                 {:else}
                   {m['admin.members.never_renamed']()}

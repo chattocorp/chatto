@@ -51,6 +51,10 @@ describe('formatDate', () => {
     expect(formatDate('2025-04-27T14:30:00Z', utc12)).toMatch(/Apr\s*27,?\s*2025/);
   });
 
+  it('uses an explicit locale for visible date labels', () => {
+    expect(formatDate('2025-04-27T14:30:00Z', utc12, 'de-DE')).toMatch(/27\. Apr\.? 2025/);
+  });
+
   it('crosses midnight in non-UTC zone correctly', () => {
     // 2025-04-27T01:00Z is still 2025-04-26 in Los Angeles
     const la = settings('America/Los_Angeles', false);
@@ -64,12 +68,23 @@ describe('formatDateTime', () => {
     expect(out).toMatch(/April\s*27,?\s*2025/);
     expect(out).toContain('14:30');
   });
+
+  it('uses an explicit locale for visible date-time labels', () => {
+    const out = formatDateTime('2025-04-27T14:30:00Z', utc12, 'de-DE');
+    expect(out).toMatch(/27\. April 2025/);
+    expect(out).toContain('14:30');
+  });
 });
 
 describe('formatMonthYear', () => {
   it('formats the month and year in the user timezone', () => {
     const la = settings('America/Los_Angeles', false);
     expect(formatMonthYear('2026-06-01T01:00:00Z', la)).toMatch(/May\s*2026/);
+  });
+
+  it('uses an explicit locale for visible month-year labels', () => {
+    const la = settings('America/Los_Angeles', false);
+    expect(formatMonthYear('2026-06-01T01:00:00Z', la, 'de-DE')).toBe('Mai 2026');
   });
 });
 
@@ -134,7 +149,7 @@ describe('formatDayLabel', () => {
 
     try {
       expect(formatDayLabel('2025-04-27T08:00:00Z', utc12)).toBe('Heute');
-      expect(formatDayLabel('2025-03-10T12:00:00Z', utc12)).toMatch(/Montag/);
+      expect(formatDayLabel('2025-03-10T12:00:00Z', utc12, 'de-DE')).toMatch(/Montag/);
     } finally {
       await loadLocaleMessages('en');
       setReactiveLocale('en');
@@ -218,7 +233,7 @@ describe('fileDateGroup', () => {
   it('groups older files by calendar month and year', () => {
     expect(fileDateGroup('2026-05-21T08:00:00Z', utc12, now, 'de-DE')).toEqual({
       key: 'month:2026-05',
-      label: 'May 2026'
+      label: 'Mai 2026'
     });
   });
 

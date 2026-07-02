@@ -2,6 +2,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { tick } from 'svelte';
 import { q } from '$lib/test-utils';
+import { loadLocaleMessages } from '$lib/i18n/messages';
+import { setReactiveLocale } from '$lib/i18n/state.svelte';
 import { ROOM_MEMBERS_PAGE_SIZE, type RoomMember } from '$lib/state/room/members.svelte';
 import type { PresenceCache } from '$lib/state/presenceCache.svelte';
 import type { RoomData } from '$lib/hooks/useRoomData.svelte';
@@ -338,7 +340,9 @@ function roomAudioFile(filename: string) {
 }
 
 describe('RoomSidebar', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    await loadLocaleMessages('en');
+    setReactiveLocale('en');
     queryMock.mockReset();
     memberDirectoryMocks.listRoomMembers.mockReset();
     attachmentMocks.listRoomAttachments.mockReset();
@@ -1605,6 +1609,42 @@ describe('RoomSidebar', () => {
     expect(labels[2]).toContain('week.txt');
     expect(labels[3]).toContain('month.txt');
     expect(labels[4]).toContain('older-month.txt');
+  });
+
+  it('localizes room file date groups with the active locale', async () => {
+    await loadLocaleMessages('de');
+    setReactiveLocale('de');
+    const fileGroupingNow = new Date('2026-06-17T12:00:00Z');
+
+    attachmentMocks.listRoomAttachments.mockResolvedValueOnce({
+      items: [
+        roomFile('today-message', null, 'today.txt', '2026-06-17T08:00:00Z'),
+        roomFile('yesterday-message', null, 'yesterday.txt', '2026-06-16T08:00:00Z'),
+        roomFile('week-message', null, 'week.txt', '2026-06-15T08:00:00Z'),
+        roomFile('month-message', null, 'month.txt', '2026-06-10T08:00:00Z'),
+        roomFile('older-month-message', null, 'older-month.txt', '2026-05-21T08:00:00Z')
+      ],
+      totalCount: 5,
+      hasMore: false
+    });
+
+    const { container } = render(RoomSidebarTestHarness, {
+      props: {
+        activePanel: 'files',
+        roomData: roomData([member(1)], 1, false),
+        fileGroupingNow
+      }
+    });
+
+    await flushRoomFilesPanel();
+
+    expect(roomFileGroupHeadings(container)).toEqual([
+      'Heute',
+      'Gestern',
+      'Diese Woche',
+      'Dieser Monat',
+      'Mai 2026'
+    ]);
   });
 
   it('falls back to a file icon when a video thumbnail fails to load', async () => {

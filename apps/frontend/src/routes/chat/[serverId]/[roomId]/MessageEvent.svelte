@@ -39,6 +39,7 @@
   import { isTouchDevice } from '$lib/utils/isTouchDevice';
   import { getUserSettings } from '$lib/state/userSettings.svelte';
   import { formatMessageTime } from '$lib/utils/formatTime';
+  import { getLocale } from '$lib/i18n/runtime';
   import { onThreadFollowChanged } from '$lib/eventBus.svelte';
   import { useMessageActions } from '$lib/hooks';
   import { emojiToName } from '$lib/emoji';
@@ -88,6 +89,7 @@
   const replyState = composerContext.replyState;
   const jumpState = composerContext.jumpState;
   const userSettings = getUserSettings();
+  const activeLocale = $derived(getLocale());
   const isTouch = isTouchDevice();
   // Wrap in $derived to ensure reactivity when the member list changes
   const members = $derived(getRoomMembers());
@@ -273,7 +275,9 @@
   // Common message data for rendering (body, attachments, reactions, updatedAt)
   const msg = $derived(messageEvent);
 
-  const timestamp = $derived(event ? formatMessageTime(event.createdAt, userSettings) : '');
+  const timestamp = $derived(
+    event ? formatMessageTime(event.createdAt, userSettings, activeLocale) : ''
+  );
 
   // Message links referenced in this message's body — rendered inline as previews.
   const embeddedMessageLinks = $derived.by<MessageLink[]>(() => {

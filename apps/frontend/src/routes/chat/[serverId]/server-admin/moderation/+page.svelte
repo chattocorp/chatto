@@ -10,12 +10,14 @@
   import UnbanRoomMemberModal from '$lib/components/moderation/UnbanRoomMemberModal.svelte';
   import { getUserSettings } from '$lib/state/userSettings.svelte';
   import { formatDate as formatDateUtil } from '$lib/utils/formatTime';
+  import { getLocale } from '$lib/i18n/runtime';
   import { toast } from '$lib/ui/toast';
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import * as m from '$lib/i18n/messages';
 
   const userSettings = getUserSettings();
+  const activeLocale = $derived(getLocale());
   const connection = useConnection();
 
   let bans = $state.raw<RoomBanSummary[]>([]);
@@ -70,7 +72,7 @@
 
   function formatDate(value: string | null | undefined): string {
     if (!value) return m['admin.moderation.no_expiry']();
-    return formatDateUtil(value, userSettings);
+    return formatDateUtil(value, userSettings, activeLocale);
   }
 
   function roomLabel(ban: RoomBanSummary): string {
