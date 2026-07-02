@@ -12,6 +12,7 @@ import {
   RoomDirectoryScope,
   RoomKind,
   type DirectoryRoomGroup,
+  type DirectoryRoomGroupItem,
   type DirectoryRoomSummary,
   type RoomDirectoryAPI
 } from '@chatto/api-client/roomDirectory';
@@ -33,6 +34,18 @@ function makeRoom(id: string, overrides: Partial<DirectoryRoomSummary> = {}): Di
     isMember: overrides.isMember ?? true,
     hasUnread: overrides.hasUnread ?? false,
     canJoinRoom: overrides.canJoinRoom ?? true
+  };
+}
+
+function makeGroupRoomItem(
+  id: string,
+  overrides: Partial<DirectoryRoomSummary> = {}
+): DirectoryRoomGroupItem {
+  return {
+    id: `room:${id}`,
+    type: 'room',
+    roomId: id,
+    room: makeRoom(id, overrides)
   };
 }
 
@@ -164,7 +177,7 @@ describe('RoomsStore - refresh', () => {
           id: 'g1',
           name: 'Lobby',
           roomIds: ['public'],
-          items: [{ id: 'room:public', type: 'room', roomId: 'public' }]
+          items: [makeGroupRoomItem('public')]
         }
       ]
     );
@@ -272,7 +285,7 @@ describe('RoomsStore - refresh', () => {
             id: 'g1',
             name: 'Lobby',
             roomIds: ['older'],
-            items: [{ id: 'room:older', type: 'room', roomId: 'older' }]
+            items: [makeGroupRoomItem('older')]
           }
         ]);
       }
@@ -281,7 +294,7 @@ describe('RoomsStore - refresh', () => {
           id: 'g1',
           name: 'Lobby',
           roomIds: ['newer'],
-          items: [{ id: 'room:newer', type: 'room', roomId: 'newer' }]
+          items: [makeGroupRoomItem('newer')]
         }
       ]);
     });
@@ -436,7 +449,7 @@ describe('RoomsStore - refresh', () => {
                 type: 'link',
                 link: { id: 'docs', label: 'Docs', url: 'https://example.com/docs' }
               },
-              { id: 'room:general', type: 'room', roomId: 'general' }
+              makeGroupRoomItem('general')
             ]
           }
         ]

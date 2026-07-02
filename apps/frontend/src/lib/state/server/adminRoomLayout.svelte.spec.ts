@@ -44,8 +44,12 @@ function queryData(groups: AdminRoomGroup[]): DirectoryRoomGroup[] {
             type: 'room' as const,
             roomId: item.room.id,
             room: {
-              ...item.room,
+              id: item.room.id,
+              name: item.room.name,
+              description: item.room.description ?? null,
               kind: 1,
+              archived: item.room.archived,
+              isUniversal: item.room.isUniversal,
               hasUnread: false,
               isMember: false,
               canJoinRoom: false
@@ -254,8 +258,8 @@ describe('AdminRoomLayoutStore — loading', () => {
   });
 
   it('discards stale out-of-order refresh responses', async () => {
-    let resolveFirst!: (value: AdminRoomGroup[]) => void;
-    let resolveSecond!: (value: AdminRoomGroup[]) => void;
+    let resolveFirst!: (value: DirectoryRoomGroup[]) => void;
+    let resolveSecond!: (value: DirectoryRoomGroup[]) => void;
     const listRoomGroups = vi
       .fn()
       .mockImplementationOnce(() => new Promise((resolve) => (resolveFirst = resolve)))

@@ -7,7 +7,11 @@ import {
   roomEventKind,
   type RoomEventKindSource
 } from '$lib/render/eventKinds';
-import type { RoomDirectoryAPI, DirectoryRoomSummary } from '@chatto/api-client/roomDirectory';
+import type {
+  DirectoryRoomGroupItem,
+  DirectoryRoomSummary,
+  RoomDirectoryAPI
+} from '@chatto/api-client/roomDirectory';
 import { RoomDirectoryScope, RoomKind } from '@chatto/api-client/roomDirectory';
 import type { MemberDirectoryAPI, DirectoryMember } from '@chatto/api-client/memberDirectory';
 import type { ViewerState } from '@chatto/api-client/viewer';
@@ -198,7 +202,7 @@ export class RoomsStore {
       id: group.id,
       name: group.name,
       roomIds: group.roomIds,
-      items: group.items
+      items: group.items.map(roomGroupItem)
     }));
 
     this.isInitialLoading = false;
@@ -333,4 +337,11 @@ export class RoomsStore {
       }
     }
   }
+}
+
+function roomGroupItem(item: DirectoryRoomGroupItem): RoomsListGroupItem {
+  if (item.type === 'room') {
+    return { id: item.id, type: 'room', roomId: item.roomId };
+  }
+  return { id: item.id, type: 'link', link: item.link };
 }
