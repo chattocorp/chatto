@@ -86,6 +86,18 @@ async function fetchVirtualAsset(): Promise<Response> {
   return handleAssetProxyFetch(new Request(VIRTUAL_URL), proxyRequest!);
 }
 
+function navigationRequest(url = VIRTUAL_URL): Request {
+  const request = new Request(url);
+  Object.defineProperty(request, 'mode', { value: 'navigate' });
+  return request;
+}
+
+function navigationFallbackResponse(): Response {
+  return new Response('<!doctype html><title>Chatto</title>', {
+    headers: { 'Content-Type': 'text/html' }
+  });
+}
+
 describe('service worker asset proxy fetch', () => {
   beforeEach(() => {
     stubCacheStorage();
@@ -114,6 +126,21 @@ describe('service worker asset proxy fetch', () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
+  it('falls back to the app shell for navigation to an unresolved virtual asset', async () => {
+    vi.stubGlobal('fetch', vi.fn());
+    const proxyRequest = parseAssetProxyRequest(VIRTUAL_URL, ORIGIN);
+    expect(proxyRequest).not.toBeNull();
+
+    const response = await handleAssetProxyFetch(navigationRequest(), proxyRequest!, {
+      navigationFallback: async () => navigationFallbackResponse()
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('Content-Type')).toBe('text/html');
+    await expect(response.text()).resolves.toContain('<title>Chatto</title>');
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
   it('proxies registered asset targets without attaching bearer Authorization or caching', async () => {
     await syncServer();
     await registerTarget('https://remote.example/assets/files/asset-1?access=ticket-a');
@@ -137,6 +164,51 @@ describe('service worker asset proxy fetch', () => {
       'asset bytes'
     );
     expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps direct navigation to a valid virtual asset on the asset response', async () => {
+    await syncServer();
+    await registerTarget('https://remote.example/assets/files/asset-1?access=ticket-a');
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        return new Response('asset bytes', {
+          status: 200,
+          headers: { 'Content-Type': 'image/png', 'Cache-Control': 'private, no-store' }
+        });
+      })
+    );
+
+    const proxyRequest = parseAssetProxyRequest(VIRTUAL_URL, ORIGIN);
+    expect(proxyRequest).not.toBeNull();
+    const response = await handleAssetProxyFetch(navigationRequest(), proxyRequest!, {
+      navigationFallback: async () => navigationFallbackResponse()
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('Content-Type')).toBe('image/png');
+    await expect(response.text()).resolves.toBe('asset bytes');
+  });
+
+  it('falls back to the app shell for navigation when the target asset returns an error', async () => {
+    await syncServer();
+    await registerTarget('https://remote.example/assets/files/asset-1?access=ticket-a');
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response('missing', { status: 404 }))
+    );
+
+    const proxyRequest = parseAssetProxyRequest(VIRTUAL_URL, ORIGIN);
+    expect(proxyRequest).not.toBeNull();
+    const response = await handleAssetProxyFetch(navigationRequest(), proxyRequest!, {
+      navigationFallback: async () => navigationFallbackResponse()
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('Content-Type')).toBe('text/html');
+    await expect(response.text()).resolves.toContain('<title>Chatto</title>');
   });
 
   it('uses the refreshed registered target URL for later fetches', async () => {
