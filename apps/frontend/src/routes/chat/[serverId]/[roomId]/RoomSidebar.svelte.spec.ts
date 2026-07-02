@@ -66,7 +66,9 @@ const callStore = vi.hoisted(() => ({
     active: false,
     load: vi.fn().mockResolvedValue(undefined),
     has: vi.fn(() => callStore.activeCallRooms.active),
-    getParticipantCallPresenceInAnyRoom: vi.fn(() => null as 'voice' | 'video' | null),
+    getParticipantCallPresenceInAnyRoom: vi.fn(
+      (_userId: string): 'voice' | 'video' | null => null
+    ),
     handleEnd: vi.fn()
   },
   callParticipants: {
@@ -443,8 +445,8 @@ describe('RoomSidebar', () => {
 
   it('shows call presence for members active in any room call on the server', async () => {
     mockRoomMembers([member(1), member(2)]);
-    callStore.activeCallRooms.getParticipantCallPresenceInAnyRoom.mockImplementation((userId) =>
-      userId === 'user-2' ? 'voice' : null
+    callStore.activeCallRooms.getParticipantCallPresenceInAnyRoom.mockImplementation(
+      (userId: string) => (userId === 'user-2' ? 'voice' : null)
     );
 
     const { container } = render(RoomSidebarTestHarness, {
