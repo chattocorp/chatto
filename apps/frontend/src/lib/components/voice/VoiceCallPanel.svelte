@@ -233,6 +233,10 @@ Room sidebar panel for voice/video calls.
   const controlButtonClass = 'btn-secondary btn-sm h-9 w-full !px-0';
   const activeControlButtonClass = 'btn-success btn-sm h-9 w-full !px-0';
   const dangerControlButtonClass = 'btn-danger btn-sm h-9 w-full !px-0';
+  const callTileCardClass =
+    'participant-card group/media relative flex w-full flex-col overflow-hidden rounded-md border border-border bg-surface-100 text-left text-text transition-colors hover:bg-surface-200';
+  const callTileHeaderClass = 'flex min-w-0 items-center gap-2 p-1.5';
+  const callTileMediaBodyClass = 'p-1.5';
 
   function hasVideo(participant: DisplayParticipant) {
     return participant.isCameraEnabled && participant.videoTrack;
@@ -413,7 +417,7 @@ Room sidebar panel for voice/video calls.
   {#if isInThisCall}
     <div
       class={[
-        'participant-card group/media relative flex w-full flex-col overflow-hidden rounded-md border border-border bg-surface-100 text-left text-text transition-colors hover:bg-surface-200',
+        callTileCardClass,
         mode === 'video' ? 'participant-card-video' : 'participant-card-compact'
       ]}
       {@attach speakingCard(participant.key)}
@@ -426,7 +430,7 @@ Room sidebar panel for voice/video calls.
         class="flex w-full flex-1 cursor-pointer flex-col overflow-hidden text-left text-text"
         onclick={(e) => showUserMenu(participant, e)}
       >
-        <div class={['flex min-w-0 items-center gap-2 p-1.5', showVoiceActions && 'pr-12']}>
+        <div class={[callTileHeaderClass, showVoiceActions && 'pr-12']}>
           <UserAvatar user={participant.avatarUser} size="sm" />
           <span class="min-w-0 flex-1 truncate text-sm font-medium">{participant.displayName}</span>
           <span class="inline-flex h-5 min-w-5 shrink-0 items-center justify-end gap-1.5 text-sm">
@@ -463,7 +467,7 @@ Room sidebar panel for voice/video calls.
         </div>
 
         {#if showVideo}
-          <div class="p-1.5 pt-0">
+          <div class={callTileMediaBodyClass}>
             <VideoThumbnail
               track={participant.videoTrack!}
               name={participant.displayName}
@@ -482,7 +486,7 @@ Room sidebar panel for voice/video calls.
   {:else}
     <div
       class={[
-        'participant-card group/media relative flex w-full flex-col overflow-hidden rounded-md border border-border bg-surface-100 text-left text-text transition-colors hover:bg-surface-200',
+        callTileCardClass,
         mode === 'video' ? 'participant-card-video' : 'participant-card-compact'
       ]}
       title={participantTitle(participant)}
@@ -494,13 +498,13 @@ Room sidebar panel for voice/video calls.
         class="flex w-full flex-1 cursor-pointer flex-col overflow-hidden text-left text-text"
         onclick={(e) => showUserMenu(participant, e)}
       >
-        <div class={['flex min-w-0 items-center gap-2 p-1.5', showVoiceActions && 'pr-12']}>
+        <div class={[callTileHeaderClass, showVoiceActions && 'pr-12']}>
           <UserAvatar user={participant.avatarUser} size="sm" />
           <span class="min-w-0 flex-1 truncate text-sm font-medium">{participant.displayName}</span>
         </div>
 
         {#if showVideo}
-          <div class="p-1.5 pt-0">
+          <div class={callTileMediaBodyClass}>
             <VideoThumbnail
               track={participant.videoTrack!}
               name={participant.displayName}
@@ -521,7 +525,7 @@ Room sidebar panel for voice/video calls.
 
 {#snippet screenShareCard(participant: DisplayParticipant)}
   <div
-    class="participant-card participant-card-video group/media relative flex w-full flex-col overflow-hidden rounded-md border border-border bg-surface-100 text-left text-text transition-colors hover:bg-surface-200 @min-[368px]:col-span-2"
+    class={[callTileCardClass, 'participant-card-video @min-[368px]:col-span-2']}
     title={m['voice.screen_title']({ name: participant.displayName })}
     data-testid="call-screen-share-card"
     data-call-media-card
@@ -531,7 +535,7 @@ Room sidebar panel for voice/video calls.
       class="flex w-full flex-1 cursor-pointer flex-col overflow-hidden text-left text-text"
       onclick={(e) => showUserMenu(participant, e)}
     >
-      <div class="flex min-w-0 items-center gap-2 p-1.5">
+      <div class={callTileHeaderClass}>
         <UserAvatar user={participant.avatarUser} size="sm" />
         <span class="min-w-0 flex-1 truncate text-sm font-medium">
           {m['voice.screen_title']({ name: participant.displayName })}
@@ -539,7 +543,7 @@ Room sidebar panel for voice/video calls.
         <span class="iconify shrink-0 text-muted uil--desktop" aria-label={m['voice.screen_share']()}
         ></span>
       </div>
-      <div class="p-1.5 pt-0">
+      <div class={callTileMediaBodyClass}>
         <VideoThumbnail
           track={participant.screenShareTrack!}
           name={m['voice.screen_title']({ name: participant.displayName })}
@@ -558,7 +562,7 @@ Room sidebar panel for voice/video calls.
   {@const isScreen = tile.kind === 'screen'}
   {@const isVideo = tile.kind === 'video'}
   <div
-    class="group/media relative flex h-full min-h-0 w-full flex-col overflow-hidden rounded-md border border-border bg-surface-100 text-left text-text transition-colors hover:bg-surface-200"
+    class={[callTileCardClass, 'h-full min-h-0 participant-card-video']}
     title={isScreen
       ? m['voice.screen_title']({ name: participant.displayName })
       : participantTitle(participant)}
@@ -572,7 +576,7 @@ Room sidebar panel for voice/video calls.
     >
       <div
         class={[
-          'flex min-w-0 items-center gap-2 border-b border-border/70 p-1.5',
+          callTileHeaderClass,
           !isScreen && !isVideo && isInThisCall && 'pr-12'
         ]}
       >
@@ -620,7 +624,7 @@ Room sidebar panel for voice/video calls.
       <div
         class={[
           'flex min-h-0 flex-1 items-center justify-center',
-          isScreen || isVideo ? 'p-1.5' : 'p-6'
+          isScreen || isVideo ? callTileMediaBodyClass : 'p-6'
         ]}
       >
         {#if isScreen}
