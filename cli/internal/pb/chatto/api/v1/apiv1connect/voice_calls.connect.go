@@ -73,7 +73,7 @@ type VoiceCallServiceClient interface {
 	// The caller must be a member of the room and a call must already be active.
 	// Returns NOT_FOUND when the room does not exist, PERMISSION_DENIED when the
 	// caller is not a room member, and FAILED_PRECONDITION when no call is active
-	// or voice calls are not configured.
+	// or voice and video calls are not configured.
 	GetCallToken(context.Context, *connect.Request[v1.GetCallTokenRequest]) (*connect.Response[v1.GetCallTokenResponse], error)
 	// Records the caller's intent to leave a room call.
 	//
@@ -182,7 +182,7 @@ type VoiceCallServiceHandler interface {
 	// The caller must be a member of the room and a call must already be active.
 	// Returns NOT_FOUND when the room does not exist, PERMISSION_DENIED when the
 	// caller is not a room member, and FAILED_PRECONDITION when no call is active
-	// or voice calls are not configured.
+	// or voice and video calls are not configured.
 	GetCallToken(context.Context, *connect.Request[v1.GetCallTokenRequest]) (*connect.Response[v1.GetCallTokenResponse], error)
 	// Records the caller's intent to leave a room call.
 	//

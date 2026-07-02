@@ -212,7 +212,7 @@ type ServerRuntimeConfig struct {
 	PushNotificationsEnabled bool `protobuf:"varint,1,opt,name=push_notifications_enabled,json=pushNotificationsEnabled,proto3" json:"push_notifications_enabled,omitempty"`
 	// Optional VAPID public key for Web Push registration.
 	VapidPublicKey *string `protobuf:"bytes,2,opt,name=vapid_public_key,json=vapidPublicKey,proto3,oneof" json:"vapid_public_key,omitempty"`
-	// Optional LiveKit URL for voice calls.
+	// Optional LiveKit URL for voice and video calls.
 	LivekitUrl *string `protobuf:"bytes,3,opt,name=livekit_url,json=livekitUrl,proto3,oneof" json:"livekit_url,omitempty"`
 	// Whether direct email/password registration is enabled.
 	DirectRegistrationEnabled bool `protobuf:"varint,4,opt,name=direct_registration_enabled,json=directRegistrationEnabled,proto3" json:"direct_registration_enabled,omitempty"`

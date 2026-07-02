@@ -63,7 +63,7 @@ export const VoiceCallService = {
      * The caller must be a member of the room and a call must already be active.
      * Returns NOT_FOUND when the room does not exist, PERMISSION_DENIED when the
      * caller is not a room member, and FAILED_PRECONDITION when no call is active
-     * or voice calls are not configured.
+     * or voice and video calls are not configured.
      *
      * @generated from rpc chatto.api.v1.VoiceCallService.GetCallToken
      */

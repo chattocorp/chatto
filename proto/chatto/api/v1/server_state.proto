@@ -34,7 +34,7 @@ message ServerRuntimeConfig {
   bool push_notifications_enabled = 1;
   // Optional VAPID public key for Web Push registration.
   optional string vapid_public_key = 2;
-  // Optional LiveKit URL for voice calls.
+  // Optional LiveKit URL for voice and video calls.
   optional string livekit_url = 3;
   // Whether direct email/password registration is enabled.
   bool direct_registration_enabled = 4;

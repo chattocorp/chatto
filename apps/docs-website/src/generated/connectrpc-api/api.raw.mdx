@@ -2819,7 +2819,7 @@ Issues a LiveKit token for joining the room's active call.
 The caller must be a member of the room and a call must already be active.
 Returns NOT_FOUND when the room does not exist, PERMISSION_DENIED when the
 caller is not a room member, and FAILED_PRECONDITION when no call is active
-or voice calls are not configured.
+or voice and video calls are not configured.
 
 ```http
 POST /api/connect/chatto.api.v1.VoiceCallService/GetCallToken
@@ -3754,7 +3754,7 @@ Authenticated server runtime settings used by clients.
 | --- | --- | --- |
 | `push_notifications_enabled` | `bool` | Whether Web Push notifications are fully configured. |
 | `vapid_public_key` | `optional string` | Optional VAPID public key for Web Push registration. |
-| `livekit_url` | `optional string` | Optional LiveKit URL for voice calls. |
+| `livekit_url` | `optional string` | Optional LiveKit URL for voice and video calls. |
 | `direct_registration_enabled` | `bool` | Whether direct email/password registration is enabled. |
 | `video_processing_enabled` | `bool` | Whether video processing is enabled. |
 | `max_upload_size` | `int64` | Maximum general upload size in bytes. |

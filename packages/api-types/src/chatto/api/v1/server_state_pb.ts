@@ -193,7 +193,7 @@ export class ServerRuntimeConfig extends Message<ServerRuntimeConfig> {
   vapidPublicKey?: string;
 
   /**
-   * Optional LiveKit URL for voice calls.
+   * Optional LiveKit URL for voice and video calls.
    *
    * @generated from field: optional string livekit_url = 3;
    */
