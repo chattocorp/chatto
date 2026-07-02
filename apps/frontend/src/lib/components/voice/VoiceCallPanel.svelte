@@ -235,8 +235,8 @@ Room sidebar panel for voice/video calls.
   const dangerControlButtonClass = 'btn-danger btn-sm h-9 w-full !px-0';
   const callTileCardClass =
     'participant-card group/media relative flex w-full flex-col overflow-hidden rounded-md border border-border bg-surface-100 text-left text-text transition-colors hover:bg-surface-200';
-  const callTileHeaderClass = 'flex min-w-0 items-center gap-2 p-1.5';
-  const callTileMediaBodyClass = 'px-1.5 pt-0.5 pb-1.5';
+  const callTileHeaderClass = 'flex min-w-0 items-center gap-2 p-2';
+  const callTileMediaBodyClass = 'p-2';
 
   function hasVideo(participant: DisplayParticipant) {
     return participant.isCameraEnabled && participant.videoTrack;
