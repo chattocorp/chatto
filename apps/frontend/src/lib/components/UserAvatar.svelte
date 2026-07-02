@@ -170,20 +170,10 @@
             presenceDotColorClasses[presence],
             'presence-dot rounded-full'
           ]}
+          data-testid="presence-dot"
           aria-hidden="true"
         ></span>
       </span>
     {/if}
   </div>
 {/if}
-
-<style>
-  .avatar-frame,
-  .avatar-shape {
-    border-radius: 30%;
-  }
-
-  .avatar-shape {
-    overflow: hidden;
-  }
-</style>

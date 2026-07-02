@@ -106,7 +106,7 @@ test.describe('Message avatar presence', () => {
 
     // Message avatars stay visually quiet; member lists and the current-user control opt in.
     const messageArticle = page.locator('[role="article"]', { hasText: 'Hello without presence!' });
-    const avatarPresenceDot = messageArticle.locator('button.absolute .presence-dot');
+    const avatarPresenceDot = messageArticle.locator('button.absolute').getByTestId('presence-dot');
     await expect(avatarPresenceDot).not.toBeVisible();
   });
 });

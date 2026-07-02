@@ -161,6 +161,12 @@
   @apply rounded-lg border border-border bg-surface-100;
 }
 
+/* Shared avatar corner treatment. The arbitrary `corner-shape` utility can
+ * progressively enhance this fallback in browsers that support squircles. */
+@utility avatar-shape {
+  border-radius: 30%;
+}
+
 /* Panel header band — tinted background, hairline divider underneath, and
  * a 1px inset highlight on whatever follows so the divider reads as an
  * engraved ridge rather than a flat rule. The body inset is achieved via

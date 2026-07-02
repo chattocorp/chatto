@@ -657,7 +657,7 @@
           <!-- Deleted user placeholder avatar -->
           <div
             class={[
-              'absolute left-2 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-surface-200 text-muted shadow-md ring-1 ring-surface-200/30',
+              'avatar-shape absolute left-2 z-10 flex h-11 w-11 items-center justify-center bg-surface-200 text-muted shadow-md ring-1 ring-surface-200/30 [corner-shape:squircle]',
               replyPreview ? 'top-8' : 'top-1'
             ]}
           >
