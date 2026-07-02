@@ -58,29 +58,26 @@
 
 <script lang="ts">
   import { page } from '$app/state';
-  import { useConnection } from '$lib/state/server/connection.svelte';
-  import { serverRegistry } from '$lib/state/server/registry.svelte';
-  import { getActiveServer } from '$lib/state/activeServer.svelte';
+  import { useActiveServerScope } from '$lib/state/server/activeServerScope.svelte';
 
-  const connection = useConnection();
-  const stores = $derived(serverRegistry.getStore(getActiveServer()));
+  const server = useActiveServerScope();
 
   // Wait for the active server's rooms store to settle before redirecting,
   // so a deep-link to a DM doesn't briefly resolve as a missing channel
   // room and trigger the not-found redirect.
-  const roomsStore = $derived(stores.rooms);
+  const roomsStore = $derived(server.rooms);
 
   $effect(() => {
     if (roomsStore.isInitialLoading) return;
-    const conn = connection();
+    const conn = server.connection;
     resolveAndRedirect(
       {
         serverId: conn.serverId,
         baseUrl: conn.connectBaseUrl,
         bearerToken: conn.bearerToken
       },
-      stores.pendingHighlights,
-      page.params.serverId!,
+      server.pendingHighlights,
+      server.segment,
       page.params.roomId!,
       page.params.messageId!
     );

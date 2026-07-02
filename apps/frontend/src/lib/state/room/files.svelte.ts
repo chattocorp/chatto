@@ -10,7 +10,11 @@ import {
 } from '$lib/attachments/attachmentUrls';
 import { RoomEventKind, roomEventKind } from '$lib/render/eventKinds';
 import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
-import { createAttachmentAPI, type AttachmentAPI, type RoomFileItem } from '$lib/api-client/attachments';
+import {
+  createAttachmentAPI,
+  type AttachmentAPI,
+  type RoomFileItem
+} from '$lib/api-client/attachments';
 
 export const ROOM_FILES_PAGE_SIZE = 50;
 
@@ -54,6 +58,10 @@ function isVideoAttachment(contentType: string): boolean {
   return contentType.startsWith('video/');
 }
 
+function connectionKey(serverConnection: ServerConnection): string {
+  return `${serverConnection.serverId ?? ''}\0${serverConnection.connectBaseUrl}\0${serverConnection.bearerToken ?? ''}`;
+}
+
 export class RoomFilesStore {
   items = $state.raw<RoomFileItem[]>([]);
   totalCount = $state(0);
@@ -63,11 +71,13 @@ export class RoomFilesStore {
   isUnsupported = $state(false);
   refreshedAttachmentUrls = new SvelteMap<string, RefreshedAttachmentUrls>();
 
-  private readonly attachmentAPI: AttachmentAPI;
+  private attachmentAPI: AttachmentAPI;
+  private connectionKey = '';
   private roomId = '';
   #loadId = 0;
 
   constructor(serverConnection: ServerConnection) {
+    this.connectionKey = connectionKey(serverConnection);
     this.attachmentAPI = createAttachmentAPI({
       serverId: serverConnection.serverId,
       baseUrl: serverConnection.connectBaseUrl,
@@ -75,15 +85,36 @@ export class RoomFilesStore {
     });
   }
 
+  setConnection(serverConnection: ServerConnection): void {
+    const nextKey = connectionKey(serverConnection);
+    if (this.connectionKey === nextKey) return;
+
+    this.connectionKey = nextKey;
+    this.attachmentAPI = createAttachmentAPI({
+      serverId: serverConnection.serverId,
+      baseUrl: serverConnection.connectBaseUrl,
+      bearerToken: serverConnection.bearerToken
+    });
+    this.reset();
+    if (this.roomId) void this.loadInitial();
+  }
+
   setRoom(roomId: string): void {
     if (this.roomId === roomId) return;
     this.roomId = roomId;
+    this.reset();
+    void this.loadInitial();
+  }
+
+  private reset(): void {
+    this.#loadId++;
     this.items = [];
     this.totalCount = 0;
     this.hasMore = false;
+    this.isInitialLoading = true;
+    this.isLoadingMore = false;
     this.isUnsupported = false;
     this.refreshedAttachmentUrls = new SvelteMap();
-    void this.loadInitial();
   }
 
   async loadInitial(): Promise<void> {
@@ -95,10 +126,13 @@ export class RoomFilesStore {
   async loadMore(): Promise<void> {
     if (this.isLoadingMore || !this.hasMore || !this.roomId || this.isUnsupported) return;
     this.isLoadingMore = true;
+    const loadId = this.#loadId + 1;
     try {
       await this.loadPage(this.items.length, false);
     } finally {
-      this.isLoadingMore = false;
+      if (this.#loadId === loadId) {
+        this.isLoadingMore = false;
+      }
     }
   }
 
@@ -172,6 +206,7 @@ export class RoomFilesStore {
 
   private async refreshUrlsForItems(items: RoomFileItem[]): Promise<void> {
     if (!this.roomId || this.isUnsupported || items.length === 0) return;
+    const thisLoad = this.#loadId;
     const eventIds = Array.from(new SvelteSet(items.map((item) => item.messageEventId)));
     const freshMaps = await Promise.all(
       eventIds.map((eventId) =>
@@ -182,6 +217,7 @@ export class RoomFilesStore {
         })
       )
     );
+    if (thisLoad !== this.#loadId) return;
     const fresh = new SvelteMap<string, RefreshedAttachmentUrls>();
     for (const freshMap of freshMaps) {
       for (const [attachmentId, urls] of freshMap) {

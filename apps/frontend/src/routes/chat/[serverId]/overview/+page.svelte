@@ -1,7 +1,5 @@
 <script lang="ts">
-  import { getActiveServer } from '$lib/state/activeServer.svelte';
-  import { serverIdToSegment } from '$lib/navigation';
-  import { serverRegistry } from '$lib/state/server/registry.svelte';
+  import { useActiveServerScope } from '$lib/state/server/activeServerScope.svelte';
   import * as m from '$lib/i18n/messages';
   import RoomDirectory from '$lib/RoomDirectory.svelte';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
@@ -11,10 +9,10 @@
   // live-event ingestion from inside `ServerStateStore`, so this page
   // just reads them. Re-derives reactively when the URL `[serverId]`
   // changes.
-  const stores = $derived(serverRegistry.getStore(getActiveServer()));
-  const directory = $derived(stores.roomDirectory);
-  const roomsStore = $derived(stores.rooms);
-  const serverSegment = $derived(serverIdToSegment(getActiveServer()));
+  const server = useActiveServerScope();
+  const directory = $derived(server.store.roomDirectory);
+  const roomsStore = $derived(server.rooms);
+  const serverSegment = $derived(server.segment);
 </script>
 
 <PageTitle title={m['chat.overview.title']()} />

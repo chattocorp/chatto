@@ -4,11 +4,11 @@ import { createRoomDirectoryAPI, RoomKind } from '$lib/api-client/roomDirectory'
 import { useActiveRoomLayoutUpdated } from '$lib/hooks/useEvent.svelte';
 import { useReconnectTrigger } from '$lib/hooks/useReconnectCallback.svelte';
 import { ROOM_MEMBERS_PAGE_SIZE } from '$lib/state/room/members.svelte';
-import { useConnection } from '$lib/state/server/connection.svelte';
-import { serverRegistry } from '$lib/state/server/registry.svelte';
+import { useActiveServerScope } from '$lib/state/server/activeServerScope.svelte';
 import { untrack } from 'svelte';
 
 export type RoomData = {
+  serverId: string;
   room: {
     id: string;
     name: string;
@@ -51,7 +51,7 @@ export type DMData = {
  * Must be called during component initialization (uses context).
  */
 export function useRoomData(getProps: () => { roomId: string }) {
-  const connection = useConnection();
+  const server = useActiveServerScope();
   const reconnect = useReconnectTrigger();
 
   // Refresh on room-groups-updated too: an admin renaming/reordering
@@ -82,20 +82,26 @@ export function useRoomData(getProps: () => { roomId: string }) {
     const { roomId } = getProps();
     const thisLoadId = ++roomLoadId.current;
     const currentRoomId = roomId;
+    const currentServerId = server.id;
+    const currentServerName = server.serverInfo.name ?? null;
 
     // Don't reset roomData to undefined when staying in the same room (reconnect case).
     untrack(() => {
       const currentRoom = roomData;
-      if (currentRoom && currentRoom.room.id === currentRoomId) {
+      if (
+        currentRoom &&
+        currentRoom.room.id === currentRoomId &&
+        currentRoom.serverId === currentServerId
+      ) {
         // Same room, just reconnecting — keep existing data visible while refetching
       } else {
         roomData = undefined;
       }
     });
 
-    const currentConnection = connection();
+    const currentConnection = server.connection;
     const api = createRoomDirectoryAPI({
-      serverId: currentConnection.serverId,
+      serverId: currentConnection.serverId ?? currentServerId,
       baseUrl: currentConnection.connectBaseUrl,
       bearerToken: currentConnection.bearerToken
     });
@@ -118,7 +124,8 @@ export function useRoomData(getProps: () => { roomId: string }) {
             type: loadedRoom.kind,
             isUniversal: loadedRoom.isUniversal
           },
-          spaceName: serverName(currentConnection.serverId),
+          serverId: currentServerId,
+          spaceName: currentServerName,
           canPostMessage: loadedRoom.canPostMessage,
           canPostInThread: loadedRoom.canPostInThread,
           canAttach: loadedRoom.canAttach,
@@ -154,8 +161,9 @@ export function useRoomData(getProps: () => { roomId: string }) {
     void reconnect.count;
     const currentRoomId = getProps().roomId;
     const thisLoadId = ++dmLoadId.current;
+    const currentUserId = server.currentUser.user?.id ?? null;
 
-    const currentConnection = connection();
+    const currentConnection = server.connection;
     const api = createMemberDirectoryAPI({
       baseUrl: currentConnection.connectBaseUrl,
       bearerToken: currentConnection.bearerToken
@@ -173,9 +181,7 @@ export function useRoomData(getProps: () => { roomId: string }) {
             avatarUrl: member.avatarUrl,
             presenceStatus: member.presenceStatus
           })),
-          currentUserId: currentConnection.serverId
-            ? (serverRegistry.tryGetStore(currentConnection.serverId)?.currentUser.user?.id ?? null)
-            : null
+          currentUserId
         };
       })
       .catch((err) => {
@@ -201,10 +207,6 @@ export function useRoomData(getProps: () => { roomId: string }) {
       return isRoomLoading;
     }
   };
-}
-
-function serverName(serverId: string | null | undefined): string | null {
-  return serverId ? (serverRegistry.tryGetStore(serverId)?.serverInfo.name ?? null) : null;
 }
 
 function isTransientRoomLoadError(err: unknown): boolean {

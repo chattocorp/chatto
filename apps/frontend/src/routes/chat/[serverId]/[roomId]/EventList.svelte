@@ -17,8 +17,7 @@
   import { buildVirtualItems, type VirtualItem } from './virtualItems';
   import { findLastEditableMessage } from './lastEditableMessage';
   import ScrollFader from '$lib/ui/ScrollFader.svelte';
-  import { getActiveServer } from '$lib/state/activeServer.svelte';
-  import { serverRegistry } from '$lib/state/server/registry.svelte';
+  import { useActiveServerScope } from '$lib/state/server/activeServerScope.svelte';
   import { getUserSettings } from '$lib/state/userSettings.svelte';
   import { formatDayLabel } from '$lib/utils/formatTime';
   import { useTabResumeCallback } from '$lib/hooks/useTabResumeCallback.svelte';
@@ -174,9 +173,9 @@
 
   // Register finder for up-arrow-to-edit (computed on-demand, not reactively)
   const lastEditableMessageCtx = composerContext.lastEditableMessage;
-  const stores = serverRegistry.getStore(getActiveServer());
-  const currentUser = $derived(stores.currentUser);
-  const serverInfo = stores.serverInfo;
+  const server = useActiveServerScope();
+  const currentUser = $derived(server.currentUser);
+  const serverInfo = $derived(server.serverInfo);
   const roomPermissions = $derived(getRoomPermissions());
 
   $effect(() => {
@@ -325,10 +324,9 @@
   let virtualizerHandle = $state<VirtualizerHandle>();
   let scrollFader = $state<{ refresh: () => void }>();
 
-  // Safely call scrollToIndex on the virtualizer. After a {#key roomId} transition,
-  // the new Virtualizer's bind:this fires immediately but its onMount → tick() →
-  // assignRef hasn't run yet, so the scroller has no DOM reference. Calling
-  // scrollToIndex in that window causes "Cannot read properties of null
+  // Safely call scrollToIndex while the virtualizer's bind:this has fired but
+  // its onMount -> tick() -> assignRef has not yet attached the scroller DOM.
+  // Calling scrollToIndex in that window causes "Cannot read properties of null
   // (reading 'ownerDocument')". This wrapper catches that transient error.
   function safeScrollToIndex(...args: Parameters<VirtualizerHandle['scrollToIndex']>) {
     try {

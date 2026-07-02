@@ -1,24 +1,22 @@
 <script lang="ts">
   import * as m from '$lib/i18n/messages';
   import { getLocale, setLocale, type Locale } from '$lib/i18n/runtime';
-  import { useConnection } from '$lib/state/server/connection.svelte';
+  import { useActiveServerScope } from '$lib/state/server/activeServerScope.svelte';
   import { createAccountAPI } from '$lib/api-client/account';
   import { TimeFormat } from '$lib/render/types';
   import { getUserSettings } from '$lib/state/userSettings.svelte';
   import { userPreferences, type DisplayTheme } from '$lib/state/userPreferences.svelte';
-  import { getActiveServer } from '$lib/state/activeServer.svelte';
-  import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { PaneHeader, FormSection } from '$lib/ui';
   import { Button, FormError } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
 
   const userSettings = getUserSettings();
-  const currentUser = $derived(serverRegistry.getStore(getActiveServer()).currentUser);
-  const connection = useConnection();
+  const server = useActiveServerScope();
+  const currentUser = $derived(server.currentUser);
   const activeLocale = $derived(getLocale());
 
   function accountAPI() {
-    const conn = connection();
+    const conn = server.connection;
     return createAccountAPI({
       baseUrl: conn.connectBaseUrl,
       bearerToken: conn.bearerToken

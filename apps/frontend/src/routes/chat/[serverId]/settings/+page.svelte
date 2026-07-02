@@ -1,7 +1,5 @@
 <script lang="ts">
-  import { getActiveServer } from '$lib/state/activeServer.svelte';
-  import { serverRegistry } from '$lib/state/server/registry.svelte';
-  import { useConnection } from '$lib/state/server/connection.svelte';
+  import { useActiveServerScope } from '$lib/state/server/activeServerScope.svelte';
   import { createAccountAPI } from '$lib/api-client/account';
   import { PaneHeader, FormSection, Dialog, Hint } from '$lib/ui';
   import { TextInput, Button, Form } from '$lib/ui/form';
@@ -17,18 +15,14 @@
   import { getAvatarInitials } from '$lib/utils/initials';
   import * as m from '$lib/i18n/messages';
 
-  // Capture the active server's CurrentUserState at init. The settings
-  // page is scoped to one server (it lives under `[serverId]/settings`),
-  // so we don't need the registry lookup to re-resolve reactively — and
-  // the captured CurrentUserState is itself a reactive class (`user` /
-  // `loading` are `$state`), so subsequent profile updates flow through.
-  // The connection getter resolves to the active server's API client,
-  // so profile/avatar mutations land on the right backend.
-  const currentUser = serverRegistry.getStore(getActiveServer()).currentUser;
-  const connection = useConnection();
+  // Capture the active server's CurrentUserState at init. The state object is
+  // itself reactive (`user` / `loading` are `$state`), while the form fields
+  // below are intentionally seeded once as local edit buffers.
+  const server = useActiveServerScope();
+  const currentUser = server.currentUser;
 
   function accountAPI() {
-    const conn = connection();
+    const conn = server.connection;
     return createAccountAPI({
       baseUrl: conn.connectBaseUrl,
       bearerToken: conn.bearerToken

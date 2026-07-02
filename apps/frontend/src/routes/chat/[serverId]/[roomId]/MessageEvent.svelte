@@ -20,15 +20,9 @@
     type QuoteInsertionContent,
     type RoomMember
   } from '$lib/state/room';
-  import { useConnection } from '$lib/state/server/connection.svelte';
-  import { serverRegistry } from '$lib/state/server/registry.svelte';
+  import { useActiveServerScope } from '$lib/state/server/activeServerScope.svelte';
   import { getServerPermissions } from '$lib/state/server/permissions.svelte';
-  import { getActiveServer } from '$lib/state/activeServer.svelte';
 
-  const stores = serverRegistry.getStore(getActiveServer());
-  const notificationStore = stores.notifications;
-  const serverInfo = stores.serverInfo;
-  const activeCallRooms = stores.activeCallRooms;
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
   import MessageActionSheet from './MessageActionSheet.svelte';
   import MessageContextMenu from '$lib/components/menus/MessageContextMenu.svelte';
@@ -49,7 +43,6 @@
     parseMessageLink,
     type MessageLink
   } from '$lib/messageLinks';
-  import { serverIdToSegment } from '$lib/navigation';
   import { extractURLs } from '$lib/linkPreview';
   import MessagePreviewCard from '$lib/components/MessagePreviewCard.svelte';
   import { shouldHighlightCurrentUserMention } from './messageMentionHighlight';
@@ -79,8 +72,11 @@
     onOpenThread?: OpenThreadHandler;
   } = $props();
 
-  const connection = useConnection();
-  const currentUser = $derived(serverRegistry.getStore(getActiveServer()).currentUser);
+  const server = useActiveServerScope();
+  const notificationStore = $derived(server.notifications);
+  const serverInfo = $derived(server.serverInfo);
+  const activeCallRooms = $derived(server.activeCallRooms);
+  const currentUser = $derived(server.currentUser);
   const roomPermissions = $derived(getRoomPermissions());
   const composerContext = getComposerContext();
   const replyState = composerContext.replyState;
@@ -162,7 +158,7 @@
     if (!msg) return;
 
     const params = {
-      serverId: getActiveServer(),
+      serverId: server.id,
       roomId,
       messageEventId: event.id,
       eventId: isEcho ? messageEvent!.echoOfEventId! : event.id,
@@ -288,7 +284,7 @@
     if (!event) return;
     e.preventDefault();
     e.stopPropagation();
-    await copyMessageLinkToClipboard(getActiveServer(), roomId, event.id);
+    await copyMessageLinkToClipboard(server.id, roomId, event.id);
   }
 
   // Check if message has been edited (updatedAt is non-null)
@@ -342,9 +338,9 @@
     setThreadFollowState(nextFollowing);
 
     try {
-      const conn = connection();
+      const conn = server.connection;
       const api = createThreadAPI({
-        serverId: conn.serverId ?? getActiveServer(),
+        serverId: conn.serverId ?? server.id,
         baseUrl: conn.connectBaseUrl,
         bearerToken: conn.bearerToken
       });
@@ -455,9 +451,9 @@
     banError = null;
     const displayName = member.displayName || member.login;
     try {
-      const conn = connection();
+      const conn = server.connection;
       const api = createRoomCommandAPI({
-        serverId: conn.serverId ?? getActiveServer(),
+        serverId: conn.serverId ?? server.id,
         baseUrl: conn.connectBaseUrl,
         bearerToken: conn.bearerToken
       });
@@ -653,7 +649,7 @@
         <div class="flex w-11 shrink-0 items-center justify-center">
           <a
             href={resolve('/chat/[serverId]/[roomId]/m/[messageId]', {
-              serverId: serverIdToSegment(getActiveServer()),
+              serverId: server.segment,
               roomId,
               messageId: event.id
             })}
@@ -681,11 +677,7 @@
               showPopoverForActor(e);
             }}
           >
-            <UserAvatar
-              user={actor}
-              size="md"
-              class="!h-11 !w-11 shadow-md"
-            />
+            <UserAvatar user={actor} size="md" class="!h-11 !w-11 shadow-md" />
           </button>
         {:else}
           <!-- Deleted user placeholder avatar -->
@@ -788,7 +780,7 @@
             {/if}
             <a
               href={resolve('/chat/[serverId]/[roomId]/m/[messageId]', {
-                serverId: serverIdToSegment(getActiveServer()),
+                serverId: server.segment,
                 roomId,
                 messageId: event.id
               })}
@@ -821,7 +813,7 @@
         <!-- Message attachments -->
         <MessageAttachments
           attachments={msg.attachments ?? []}
-          serverId={getActiveServer()}
+          serverId={server.id}
           {roomId}
           eventId={isEcho ? messageEvent!.echoOfEventId! : event.id}
           canDeleteAttachment={isAuthor}
@@ -852,7 +844,7 @@
           <MessageMetaBar
             {roomId}
             messageEventId={event.id}
-            serverSegment={serverIdToSegment(getActiveServer())}
+            serverSegment={server.segment}
             {threadRootEventId}
             reactions={msg?.reactions ?? []}
             replyCount={messageEvent?.replyCount}
@@ -870,7 +862,7 @@
       <!-- Quick actions toolbar (desktop only — mobile uses long-press action sheet) -->
       {#if !isDeleted && !isTouch}
         <MessageHoverBar
-          serverId={getActiveServer()}
+          serverId={server.id}
           {roomId}
           messageEventId={event.id}
           eventId={editEventId}
@@ -902,7 +894,7 @@
       canSendMessage={canStartDMs && !popoverUser.deleted}
       canBanFromRoom={canBanPopoverUser}
       banningFromRoom={banningMemberId === popoverUser.id}
-      onSendMessage={() => startDMWith(getActiveServer(), popoverUser!.id)}
+      onSendMessage={() => startDMWith(server.id, popoverUser!.id)}
       onBanFromRoom={() => openBanDialog(popoverUser!)}
       onClose={closePopover}
     />
@@ -928,7 +920,7 @@
       }}
     >
       <MessageContextMenu
-        serverId={getActiveServer()}
+        serverId={server.id}
         {roomId}
         messageEventId={event.id}
         eventId={editEventId}
@@ -955,7 +947,7 @@
   {#if emojiPickerPos && !isDeleted}
     <ContextMenu position={emojiPickerPos} onclose={closeEmojiPicker}>
       <EmojiPicker
-        serverId={getActiveServer()}
+        serverId={server.id}
         onSelect={handleEmojiSelect}
         onClose={closeEmojiPicker}
       />
@@ -966,7 +958,7 @@
   {#if showActionSheet && !isDeleted}
     <BottomSheet bind:visible={showActionSheet}>
       <MessageActionSheet
-        serverId={getActiveServer()}
+        serverId={server.id}
         {roomId}
         messageEventId={event.id}
         eventId={editEventId}

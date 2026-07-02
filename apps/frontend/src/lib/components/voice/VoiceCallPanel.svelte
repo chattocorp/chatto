@@ -14,15 +14,10 @@ Room sidebar panel for voice/video calls.
 - `livekitUrl` - The LiveKit server WebSocket URL (needed for joining)
 -->
 <script lang="ts">
-  import { serverRegistry } from '$lib/state/server/registry.svelte';
+  import { useActiveServerScope } from '$lib/state/server/activeServerScope.svelte';
   import { getServerPermissions } from '$lib/state/server/permissions.svelte';
-  import { getActiveServer } from '$lib/state/activeServer.svelte';
   import * as m from '$lib/i18n/messages';
 
-  const stores = serverRegistry.getStore(getActiveServer());
-  const voiceCallState = stores.voiceCall;
-  const activeCallRooms = stores.activeCallRooms;
-  const callParticipantsState = stores.callParticipants;
   import { useEvent } from '$lib/hooks';
   import { useRenderData } from '$lib/render/data';
   import { UserAvatarViewData } from '$lib/components/UserAvatar.svelte';
@@ -50,6 +45,12 @@ Room sidebar panel for voice/video calls.
     livekitUrl: string;
     layout?: 'sidebar' | 'stage';
   } = $props();
+
+  const server = useActiveServerScope();
+  const stores = $derived(server.store);
+  const voiceCallState = $derived(server.voiceCall);
+  const activeCallRooms = $derived(server.activeCallRooms);
+  const callParticipantsState = $derived(server.callParticipants);
 
   let isInThisCall = $derived(voiceCallState.isInCall(roomId));
   let isInAnotherCall = $derived(voiceCallState.isInAnyCall && !isInThisCall);
@@ -220,7 +221,9 @@ Room sidebar panel for voice/video calls.
   );
   let stageTiles = $derived([...screenShareTiles, ...participantTiles]);
   let featuredStageTile = $derived(
-    screenShareTiles[0] ?? participantTiles.find((tile) => tile.kind === 'video') ?? participantTiles[0]
+    screenShareTiles[0] ??
+      participantTiles.find((tile) => tile.kind === 'video') ??
+      participantTiles[0]
   );
   let secondaryStageTiles = $derived(
     featuredStageTile ? stageTiles.filter((tile) => tile.key !== featuredStageTile.key) : []
@@ -270,7 +273,10 @@ Room sidebar panel for voice/video calls.
       const opacity = audioLevel > 0.01 ? 0.35 + Math.pow(audioLevel, 0.35) * 0.65 : 0;
       const visible = isSpeaking || opacity > 0;
 
-      node.style.setProperty('--call-speaking-ring-opacity', visible ? String(opacity || 0.85) : '0');
+      node.style.setProperty(
+        '--call-speaking-ring-opacity',
+        visible ? String(opacity || 0.85) : '0'
+      );
       node.style.setProperty('--call-speaking-ring-strength', visible ? String(audioLevel) : '0');
       node.dataset.callSpeaking = visible ? 'true' : 'false';
     }
@@ -374,7 +380,9 @@ Room sidebar panel for voice/video calls.
 </script>
 
 {#snippet localMuteButton(participant: DisplayParticipant)}
-  {@const isMutedForViewer = participant.isLocal ? voiceCallState.isMuted : participant.isLocallyMuted}
+  {@const isMutedForViewer = participant.isLocal
+    ? voiceCallState.isMuted
+    : participant.isLocallyMuted}
   <CallTileActionButton
     icon={isMutedForViewer ? 'uil--volume-mute' : 'uil--volume-up'}
     active={isMutedForViewer}
@@ -567,7 +575,7 @@ Room sidebar panel for voice/video calls.
   {@const isScreen = tile.kind === 'screen'}
   {@const isVideo = tile.kind === 'video'}
   <div
-    class={[callTileCardClass, 'h-full min-h-0 participant-card-video']}
+    class={[callTileCardClass, 'participant-card-video h-full min-h-0']}
     {@attach isInThisCall && speakingCard(participant.key)}
     title={isScreen
       ? m['voice.screen_title']({ name: participant.displayName })
@@ -578,7 +586,9 @@ Room sidebar panel for voice/video calls.
   >
     {@render participantHeader(
       participant,
-      isScreen ? m['voice.screen_title']({ name: participant.displayName }) : participant.displayName,
+      isScreen
+        ? m['voice.screen_title']({ name: participant.displayName })
+        : participant.displayName,
       isScreen || isVideo ? 'media' : 'voice',
       true
     )}
@@ -693,7 +703,9 @@ Room sidebar panel for voice/video calls.
 
         <button
           type="button"
-          class={voiceCallState.isScreenShareEnabled ? activeControlButtonClass : controlButtonClass}
+          class={voiceCallState.isScreenShareEnabled
+            ? activeControlButtonClass
+            : controlButtonClass}
           title={voiceCallState.isScreenShareEnabled
             ? m['voice.stop_share_screen']()
             : m['voice.share_screen']()}
@@ -823,7 +835,7 @@ Room sidebar panel for voice/video calls.
     user={popoverParticipant.avatarUser}
     anchorRect={popoverAnchorRect}
     canSendMessage={canStartDMs}
-    onSendMessage={() => startDMWith(getActiveServer(), popoverParticipant!.avatarUser.id)}
+    onSendMessage={() => startDMWith(server.id, popoverParticipant!.avatarUser.id)}
     onClose={closeUserMenu}
   />
 {/if}

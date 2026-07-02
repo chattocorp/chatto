@@ -24,6 +24,10 @@
 </script>
 
 {#if data.user && serverRegistry.originServer}
+  <!--
+		Deliberate session boundary: AuthenticatedRoot owns user-session setup,
+		presence tracking, and cleanup that should reset when identity changes.
+	-->
   {#key data.user.id}
     {#await loadAuthenticatedRoot() then { default: AuthenticatedRoot }}
       <AuthenticatedRoot user={data.user} {userSettings}>

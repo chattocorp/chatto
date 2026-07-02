@@ -1,9 +1,7 @@
 <script lang="ts">
   import { page } from '$app/state';
   import { resolve } from '$app/paths';
-  import { serverIdToSegment } from '$lib/navigation';
-  import { getActiveServer } from '$lib/state/activeServer.svelte';
-  import { serverRegistry } from '$lib/state/server/registry.svelte';
+  import { useActiveServerScope } from '$lib/state/server/activeServerScope.svelte';
   import { Panel } from '$lib/components/admin';
   import { Hint, Pill } from '$lib/ui';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
@@ -13,15 +11,15 @@
   import * as m from '$lib/i18n/messages';
 
   const userSettings = getUserSettings();
+  const server = useActiveServerScope();
 
   const sequence = $derived(page.params.sequence!);
-  const activeServerId = $derived(getActiveServer());
-  const eventLog = $derived(serverRegistry.getStore(activeServerId).adminEventLog);
+  const eventLog = $derived(server.store.adminEventLog);
   const entryPromise = $derived(eventLog.getEvent(sequence));
 
   const backHref = $derived(
     resolve('/chat/[serverId]/server-admin/event-log', {
-      serverId: serverIdToSegment(getActiveServer())
+      serverId: server.segment
     })
   );
 

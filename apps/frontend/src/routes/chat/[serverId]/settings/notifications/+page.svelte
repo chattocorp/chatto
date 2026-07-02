@@ -18,11 +18,12 @@
     isSubscribed as checkPushSubscription
   } from '$lib/notifications/pushNotifications';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
-  import { getActiveServer } from '$lib/state/activeServer.svelte';
+  import { useActiveServerScope } from '$lib/state/server/activeServerScope.svelte';
   import * as m from '$lib/i18n/messages';
 
-  const activeServerId = $derived(getActiveServer());
-  const serverInfo = $derived(serverRegistry.getStore(activeServerId).serverInfo);
+  const server = useActiveServerScope();
+  const activeServerId = $derived(server.id);
+  const serverInfo = $derived(server.serverInfo);
   const isOriginServer = $derived(serverRegistry.isOriginServer(activeServerId));
 
   function selectSound(soundId: NotificationSoundId) {

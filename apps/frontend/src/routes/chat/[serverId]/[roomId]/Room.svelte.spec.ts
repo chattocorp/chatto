@@ -148,6 +148,18 @@ vi.mock('$lib/state/server/connection.svelte', () => ({
       mutation: mocks.mutation,
       subscription: mocks.subscription
     }
+  }),
+  useTrackedConnection: () => () => ({
+    isConnected: true,
+    showConnectionLostBanner: false,
+    serverId: 'server-1',
+    connectBaseUrl: 'http://localhost/api/connect',
+    bearerToken: null,
+    client: {
+      query: mocks.query,
+      mutation: mocks.mutation,
+      subscription: mocks.subscription
+    }
   })
 }));
 

@@ -1,10 +1,7 @@
 <script lang="ts">
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
-  import { serverIdToSegment } from '$lib/navigation';
-  import { getActiveServer } from '$lib/state/activeServer.svelte';
-  import { useConnection } from '$lib/state/server/connection.svelte';
-  import { serverRegistry } from '$lib/state/server/registry.svelte';
+  import { useActiveServerScope } from '$lib/state/server/activeServerScope.svelte';
   import {
     createAdminUserManagementAPI,
     type AdminMember,
@@ -34,8 +31,8 @@
   // Everyone role is implicit for all server members and shouldn't be assignable
   const IMPLICIT_ROLES = ['everyone'];
 
-  const currentUser = $derived(serverRegistry.getStore(getActiveServer()).currentUser);
-  const connection = useConnection();
+  const server = useActiveServerScope();
+  const currentUser = $derived(server.currentUser);
   const userSettings = getUserSettings();
   const activeLocale = $derived(getLocale());
   const userId = $derived(page.params.userId!);
@@ -112,7 +109,7 @@
   );
 
   function adminUsersAPI() {
-    const conn = connection();
+    const conn = server.connection;
     return createAdminUserManagementAPI({
       baseUrl: conn.connectBaseUrl,
       bearerToken: conn.bearerToken
@@ -330,7 +327,7 @@
     title={m['admin.members.member_details']()}
     subtitle={member?.displayName ?? m['common.loading']()}
     backHref={resolve('/chat/[serverId]/server-admin/members', {
-      serverId: serverIdToSegment(getActiveServer())
+      serverId: server.segment
     })}
     backLabel={m['admin.members.back_to_members']()}
     showMobileNav
@@ -611,7 +608,7 @@
               {#if canManageRoles}
                 <a
                   href={resolve('/chat/[serverId]/server-admin/permissions/[name]', {
-                    serverId: serverIdToSegment(getActiveServer()),
+                    serverId: server.segment,
                     name: role.name
                   })}
                   class="shrink-0 text-sm link"

@@ -9,6 +9,7 @@ import { createRoomDirectoryAPI } from '$lib/api-client/roomDirectory';
 const { mocks } = vi.hoisted(() => ({
   mocks: {
     reconnect: { count: 0 },
+    getActiveServer: vi.fn(() => 'server-1'),
     getRoom: vi.fn(),
     listRoomMembers: vi.fn()
   }
@@ -19,11 +20,24 @@ vi.mock('$lib/state/server/connection.svelte', () => ({
     connectBaseUrl: '/api/connect',
     bearerToken: null,
     serverId: 'server-1'
+  }),
+  useTrackedConnection: () => () => ({
+    connectBaseUrl: '/api/connect',
+    bearerToken: null,
+    serverId: 'server-1'
   })
+}));
+
+vi.mock('$lib/state/activeServer.svelte', () => ({
+  getActiveServer: () => mocks.getActiveServer()
 }));
 
 vi.mock('$lib/state/server/registry.svelte', () => ({
   serverRegistry: {
+    getStore: () => ({
+      currentUser: { user: { id: 'viewer' } },
+      serverInfo: { name: 'Test Server' }
+    }),
     tryGetStore: () => ({
       currentUser: { user: { id: 'viewer' } },
       serverInfo: { name: 'Test Server' }
@@ -120,6 +134,8 @@ describe('useRoomData', () => {
 
   beforeEach(() => {
     mocks.reconnect = { count: 0 };
+    mocks.getActiveServer.mockReset();
+    mocks.getActiveServer.mockReturnValue('server-1');
     mocks.getRoom.mockReset();
     mocks.listRoomMembers.mockReset();
     pendingDmQueries = new Map();

@@ -74,12 +74,6 @@
     if (jumpState) jumpState.reset();
   });
 
-  // Drive store loads from roomId changes. Silent reconnect + tab-resume
-  // catch-ups refresh the current message window without resetting the store.
-  $effect(() => {
-    store.setRoom(roomId);
-  });
-
   // Subscribe to server events: route to store, plus handle component-level
   // concerns the store doesn't own (e.g. cancel an in-progress edit).
   useEvent((serverEvent) => {

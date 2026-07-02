@@ -3,9 +3,7 @@
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
   import { SvelteURLSearchParams } from 'svelte/reactivity';
-  import { serverIdToSegment } from '$lib/navigation';
-  import { getActiveServer } from '$lib/state/activeServer.svelte';
-  import { serverRegistry } from '$lib/state/server/registry.svelte';
+  import { useActiveServerScope } from '$lib/state/server/activeServerScope.svelte';
   import type {
     AdminEventLogEntry,
     AdminEventLogFilter
@@ -24,8 +22,9 @@
   const userSettings = getUserSettings();
   const activeLocale = $derived(getLocale());
 
-  const activeServerId = $derived(getActiveServer());
-  const stores = $derived(serverRegistry.getStore(activeServerId));
+  const server = useActiveServerScope();
+  const activeServerId = $derived(server.id);
+  const stores = $derived(server.store);
   const eventLog = $derived(stores.adminEventLog);
 
   let scrollContainer = $state<HTMLDivElement>();
@@ -143,7 +142,7 @@
           ? `/chat/[serverId]/server-admin/event-log?${query}`
           : '/chat/[serverId]/server-admin/event-log',
         {
-          serverId: serverIdToSegment(activeServerId)
+          serverId: server.segment
         }
       ),
       { keepFocus: true, noScroll: true }
@@ -153,7 +152,7 @@
   function openEntry(entry: AdminEventLogEntry) {
     goto(
       resolve('/chat/[serverId]/server-admin/event-log/[sequence]', {
-        serverId: serverIdToSegment(activeServerId),
+        serverId: server.segment,
         sequence: entry.sequence
       })
     );

@@ -59,6 +59,17 @@ function eventRoomId(eventData: EventEnvelope['event']): string | null {
   return eventData.roomId;
 }
 
+function connectionKey(source: ServerConnection): string {
+  return `${source.serverId ?? ''}\0${source.connectBaseUrl}\0${source.bearerToken ?? ''}`;
+}
+
+function apiFromConnection(source: ServerConnection): MemberDirectoryAPI {
+  return createMemberDirectoryAPI({
+    baseUrl: source.connectBaseUrl,
+    bearerToken: source.bearerToken
+  });
+}
+
 /**
  * Room member store for the current room.
  *
@@ -78,7 +89,8 @@ export class RoomMembersStore {
   livePresence = new SvelteMap<string, PresenceStatus>();
   presenceVersion = $state(0);
 
-  private readonly api: MemberDirectoryAPI | null;
+  private api: MemberDirectoryAPI | null;
+  private connectionKey: string | null = null;
   private roomId = '';
   #loadId = 0;
 
@@ -88,11 +100,18 @@ export class RoomMembersStore {
     } else if ('listRoomMembers' in source) {
       this.api = source;
     } else {
-      this.api = createMemberDirectoryAPI({
-        baseUrl: source.connectBaseUrl,
-        bearerToken: source.bearerToken
-      });
+      this.connectionKey = connectionKey(source);
+      this.api = apiFromConnection(source);
     }
+  }
+
+  setConnection(source: ServerConnection): void {
+    const nextKey = connectionKey(source);
+    if (this.connectionKey === nextKey) return;
+
+    this.connectionKey = nextKey;
+    this.api = apiFromConnection(source);
+    this.reset();
   }
 
   setRoom(roomId: string): void {
@@ -120,9 +139,11 @@ export class RoomMembersStore {
   async loadInitial(): Promise<void> {
     if (!this.roomId || !this.api) return;
     const loadId = ++this.#loadId;
+    const api = this.api;
+    const roomId = this.roomId;
     this.isInitialLoading = true;
     try {
-      const page = await this.fetchAllPages();
+      const page = await this.fetchAllPages(loadId, api, roomId);
       if (loadId !== this.#loadId) return;
       this.members = page.members;
       this.totalCount = page.totalCount;
@@ -142,9 +163,11 @@ export class RoomMembersStore {
   async refresh(): Promise<void> {
     if (!this.roomId || !this.api) return;
     const loadId = ++this.#loadId;
+    const api = this.api;
+    const roomId = this.roomId;
     this.isInitialLoading = false;
     try {
-      const page = await this.fetchAllPages();
+      const page = await this.fetchAllPages(loadId, api, roomId);
       if (loadId !== this.#loadId) return;
       this.members = page.members;
       this.totalCount = page.totalCount;
@@ -178,14 +201,21 @@ export class RoomMembersStore {
     this.presenceVersion++;
   }
 
-  private async fetchAllPages(): Promise<RoomMembersPage> {
+  private async fetchAllPages(
+    loadId: number,
+    api: MemberDirectoryAPI,
+    roomId: string
+  ): Promise<RoomMembersPage> {
     const members: RoomMember[] = [];
     let totalCount = 0;
     let hasMore = true;
     let nextOffset = 0;
 
     while (hasMore) {
-      const page = await this.fetchPage(nextOffset, ROOM_MEMBERS_PAGE_SIZE, '');
+      const page = await this.fetchPage(api, roomId, nextOffset, ROOM_MEMBERS_PAGE_SIZE, '');
+      if (loadId !== this.#loadId || this.api !== api || this.roomId !== roomId) {
+        break;
+      }
       members.push(...page.members);
       totalCount = page.totalCount;
       hasMore = page.hasMore;
@@ -199,10 +229,15 @@ export class RoomMembersStore {
     return { members, totalCount, hasMore };
   }
 
-  private async fetchPage(offset: number, limit: number, search: string): Promise<RoomMembersPage> {
-    if (!this.api) return { members: [], totalCount: 0, hasMore: false };
+  private async fetchPage(
+    api: MemberDirectoryAPI,
+    roomId: string,
+    offset: number,
+    limit: number,
+    search: string
+  ): Promise<RoomMembersPage> {
     const normalizedSearch = search.trim();
-    return mapPage(await this.api.listRoomMembers(this.roomId, normalizedSearch, limit, offset));
+    return mapPage(await api.listRoomMembers(roomId, normalizedSearch, limit, offset));
   }
 
   private filterLoadedMembers(search: string): RoomMember[] {

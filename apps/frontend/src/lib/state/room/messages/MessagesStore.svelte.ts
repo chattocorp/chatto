@@ -93,6 +93,10 @@ function roomTimelineFromServerConnection(serverConnection: ServerConnection): R
   });
 }
 
+function connectionKey(serverConnection: ServerConnection): string {
+  return `${serverConnection.serverId ?? ''}\0${serverConnection.connectBaseUrl}\0${serverConnection.bearerToken ?? ''}`;
+}
+
 /**
  * Message store for both the main room timeline and a single thread pane.
  * Room history uses the protobuf ConnectRPC timeline API when available;
@@ -105,7 +109,8 @@ export class MessagesStore {
   isLoadingMore = $state(false);
   hasReachedStart = $state(false);
 
-  private readonly roomTimeline: RoomTimelineAPI;
+  private roomTimeline: RoomTimelineAPI;
+  private connectionKey = '';
   private scope: MessageScope | null = null;
   private threadRootEventId = '';
   private seenIds: SvelteSet<string> = new SvelteSet<string>();
@@ -124,6 +129,7 @@ export class MessagesStore {
     private readonly getCurrentUserId: () => string | null,
     roomTimeline?: RoomTimelineAPI
   ) {
+    this.connectionKey = connectionKey(serverConnection);
     this.roomTimeline = roomTimeline ?? roomTimelineFromServerConnection(serverConnection);
   }
 
@@ -215,8 +221,10 @@ export class MessagesStore {
     const existing = this.pendingPreviewFetches.get(key);
     if (existing) return existing;
 
+    const thisLoad = this.currentLoad();
     const promise = this.fetchEventById(eventId)
       .then((event) => {
+        if (this.isStale(thisLoad)) return;
         this.previewEvents.set(key, event);
       })
       .catch((error: unknown) => {
@@ -240,8 +248,35 @@ export class MessagesStore {
     return this.#loadId !== thisLoad;
   }
 
+  /** Snapshot the current load id without invalidating other in-flight work. */
+  private currentLoad(): number {
+    return this.#loadId;
+  }
+
   private previewKey(eventId: string): string {
     return eventCacheKey(this.roomId, eventId);
+  }
+
+  setConnection(serverConnection: ServerConnection): void {
+    const nextKey = connectionKey(serverConnection);
+    if (this.connectionKey === nextKey) return;
+
+    this.connectionKey = nextKey;
+    this.roomTimeline = roomTimelineFromServerConnection(serverConnection);
+    if (this.scope === 'thread') {
+      const thisLoad = this.startLoad();
+      this.resetState();
+      this.isInitialLoading = true;
+      this.fetchThread(thisLoad);
+      return;
+    }
+    if (this.scope === 'room') {
+      this.resetAndFetchLatest();
+    } else {
+      this.startLoad();
+      this.resetState();
+      this.isInitialLoading = true;
+    }
   }
 
   setRoom(roomId: string): void {
@@ -375,11 +410,13 @@ export class MessagesStore {
   async loadMore(): Promise<void> {
     if (this.isLoadingMore || this.hasReachedStart || !this.oldestCursor) return;
 
+    const thisLoad = this.currentLoad();
     const before = this.oldestCursor;
     this.isLoadingMore = true;
 
     try {
       const page = await this.fetchOlderPage(before);
+      if (this.isStale(thisLoad)) return;
       if (!page) return;
 
       const olderEvents = unmask(page.events);
@@ -401,7 +438,9 @@ export class MessagesStore {
       // Yield a frame so the virtualizer can settle before another loadMore.
       await tick();
       await new Promise((r) => requestAnimationFrame(r));
-      this.isLoadingMore = false;
+      if (!this.isStale(thisLoad)) {
+        this.isLoadingMore = false;
+      }
     }
   }
 
@@ -440,6 +479,7 @@ export class MessagesStore {
     if (jumpState.isLoadingNewer || jumpState.hasReachedEnd) return;
     if (!this.newestCursor) return;
 
+    const thisLoad = this.currentLoad();
     jumpState.isLoadingNewer = true;
     try {
       const page = await this.roomTimeline.getRoomEvents({
@@ -447,6 +487,8 @@ export class MessagesStore {
         limit: PAGE_SIZE,
         after: this.newestCursor
       });
+
+      if (this.isStale(thisLoad)) return;
 
       // User left jumped mode while in flight — abandon the result.
       if (!jumpState.isJumpedMode) return;
@@ -465,7 +507,9 @@ export class MessagesStore {
     } catch (error) {
       console.error('MessagesStore: loadNewer failed:', error);
     } finally {
-      jumpState.isLoadingNewer = false;
+      if (!this.isStale(thisLoad)) {
+        jumpState.isLoadingNewer = false;
+      }
     }
   }
 
@@ -476,6 +520,7 @@ export class MessagesStore {
       return;
     }
 
+    const thisLoad = this.currentLoad();
     this.isInitialLoading = true;
     try {
       const around = await this.roomTimeline.getRoomEventsAround({
@@ -483,6 +528,8 @@ export class MessagesStore {
         eventId,
         limit: PAGE_SIZE
       });
+
+      if (this.isStale(thisLoad)) return;
 
       const { events: rawEvents, hasOlder, hasNewer, startCursor, endCursor } = around;
       const parsed = unmask(rawEvents);
@@ -499,7 +546,9 @@ export class MessagesStore {
       jumpState.hasOlderMessages = hasOlder;
       jumpState.scrollToEventId = eventId;
     } finally {
-      this.isInitialLoading = false;
+      if (!this.isStale(thisLoad)) {
+        this.isInitialLoading = false;
+      }
     }
   }
 
@@ -622,7 +671,9 @@ export class MessagesStore {
   }
 
   private async fetchAndIngestSystemEvent(eventId: string): Promise<void> {
+    const thisLoad = this.currentLoad();
     const fetched = await this.fetchEventById(eventId);
+    if (this.isStale(thisLoad)) return;
     if (fetched) {
       this.ingestEvent(fetched);
     }
@@ -632,7 +683,9 @@ export class MessagesStore {
     messageEventId: string,
     threadRootEventId: string | null
   ): Promise<void> {
+    const thisLoad = this.currentLoad();
     const fetched = await this.fetchEventById(messageEventId, threadRootEventId);
+    if (this.isStale(thisLoad)) return;
     if (fetched) {
       this.ingestEvent(fetched);
       return;
@@ -663,10 +716,12 @@ export class MessagesStore {
   }
 
   private async refetchOne(eventId: string): Promise<void> {
+    const thisLoad = this.currentLoad();
     const updated = await this.fetchEventById(
       eventId,
       this.scope === 'thread' && eventId !== this.threadRootEventId ? this.threadRootEventId : null
     );
+    if (this.isStale(thisLoad)) return;
     if (!updated) return;
     const idx = this.events.findIndex((e) => e.id === eventId);
     if (idx !== -1) this.events[idx] = updated;

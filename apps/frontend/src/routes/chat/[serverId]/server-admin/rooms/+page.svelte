@@ -1,14 +1,12 @@
 <script lang="ts">
-  import { serverIdToSegment } from '$lib/navigation';
-  import { getActiveServer } from '$lib/state/activeServer.svelte';
-  import { serverRegistry } from '$lib/state/server/registry.svelte';
+  import { useActiveServerScope } from '$lib/state/server/activeServerScope.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import AdminRoomLayoutEditor from './AdminRoomLayoutEditor.svelte';
   import * as m from '$lib/i18n/messages';
 
-  const activeServerId = $derived(getActiveServer());
-  const serverSegment = $derived(serverIdToSegment(activeServerId));
-  const stores = $derived(serverRegistry.getStore(activeServerId));
+  const server = useActiveServerScope();
+  const serverSegment = $derived(server.segment);
+  const stores = $derived(server.store);
   const layout = $derived(stores.adminRoomLayout);
 
   $effect(() => stores.activateAdminRoomLayout());

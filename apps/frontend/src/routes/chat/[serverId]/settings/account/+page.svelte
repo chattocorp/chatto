@@ -1,15 +1,13 @@
 <script lang="ts">
   import { Code, ConnectError } from '@connectrpc/connect';
   import { resolve } from '$app/paths';
-  import { serverIdToSegment } from '$lib/navigation';
   import {
     createExternalIdentityAPI,
     type ExternalIdentityProviderInfo,
     type LinkedExternalIdentityInfo
   } from '$lib/api-client/externalIdentities';
-  import { getActiveServer } from '$lib/state/activeServer.svelte';
+  import { useActiveServerScope } from '$lib/state/server/activeServerScope.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
-  import { useConnection } from '$lib/state/server/connection.svelte';
   import { createAccountAPI } from '$lib/api-client/account';
   import { PaneHeader, ConfirmDialog, Dialog, FormSection, Hint } from '$lib/ui';
   import { TextInput, Button, FormError, z, validate } from '$lib/ui/form';
@@ -18,10 +16,10 @@
   import { csrfFetch } from '$lib/auth/csrf';
   import * as m from '$lib/i18n/messages';
 
-  const currentUser = $derived(serverRegistry.getStore(getActiveServer()).currentUser);
-  const connection = useConnection();
-  const serverId = $derived(getActiveServer());
-  const serverSegment = $derived(serverIdToSegment(serverId));
+  const server = useActiveServerScope();
+  const currentUser = $derived(server.currentUser);
+  const serverId = $derived(server.id);
+  const serverSegment = $derived(server.segment);
   const accountSettingsPath = $derived(
     resolve('/chat/[serverId]/settings/account', { serverId: serverSegment })
   );
@@ -30,7 +28,7 @@
   const canDeleteAccount = $derived(currentUser.user?.viewerCanDeleteAccount ?? false);
 
   function accountAPI() {
-    const conn = connection();
+    const conn = server.connection;
     return createAccountAPI({
       baseUrl: conn.connectBaseUrl,
       bearerToken: conn.bearerToken
@@ -109,7 +107,7 @@
 
   async function refreshExternalIdentities() {
     const activeServerId = serverId;
-    const client = connection();
+    const client = server.connection;
     const loadSerial = ++ssoLoadSerial;
     await loadExternalIdentities(
       loadSerial,
@@ -136,18 +134,18 @@
         bearerToken
       });
       const result = await api.list();
-      if (loadSerial !== ssoLoadSerial || activeServerId !== getActiveServer()) {
+      if (loadSerial !== ssoLoadSerial || activeServerId !== server.id) {
         return;
       }
       ssoProviders = result.providers;
       linkedSSOIdentities = result.linkedIdentities;
     } catch (err) {
-      if (loadSerial !== ssoLoadSerial || activeServerId !== getActiveServer()) {
+      if (loadSerial !== ssoLoadSerial || activeServerId !== server.id) {
         return;
       }
       ssoError = err instanceof Error ? err.message : m['settings.account.sso.load_failed']();
     } finally {
-      if (loadSerial === ssoLoadSerial && activeServerId === getActiveServer()) {
+      if (loadSerial === ssoLoadSerial && activeServerId === server.id) {
         ssoLoading = false;
       }
     }
@@ -176,7 +174,7 @@
     provider: ExternalIdentityProviderInfo,
     currentPassword?: string
   ) {
-    const client = connection();
+    const client = server.connection;
     linkingProviderId = provider.id;
     ssoError = '';
     try {
@@ -272,7 +270,7 @@
     currentPassword?: string
   ) {
     const { subjectHash, providerLabel } = target;
-    const client = connection();
+    const client = server.connection;
     disconnectingSubjectHash = subjectHash;
     ssoError = '';
     try {

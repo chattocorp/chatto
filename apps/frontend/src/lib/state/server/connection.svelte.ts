@@ -16,3 +16,19 @@ export function useConnection(): () => ServerConnection {
 	const getter = getConnectionCtx();
 	return () => untrack(getter);
 }
+
+/**
+ * Get a connection getter that tracks the caller-provided scope before reading
+ * the untracked connection context.
+ *
+ * Use this for route-derived server scopes where the connection should refresh
+ * when the active URL server changes. Keep `useConnection()` for places that
+ * deliberately need a stable, untracked snapshot.
+ */
+export function useTrackedConnection(track: () => unknown): () => ServerConnection {
+	const getter = getConnectionCtx();
+	return () => {
+		track();
+		return untrack(getter);
+	};
+}

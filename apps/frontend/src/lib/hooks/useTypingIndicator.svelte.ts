@@ -1,7 +1,7 @@
+import { untrack } from 'svelte';
 import { SvelteMap } from 'svelte/reactivity';
 import { onTypingEvent, type TypingEventData } from '$lib/eventBus.svelte';
-import { useConnection } from '$lib/state/server/connection.svelte';
-import { getActiveServer } from '$lib/state/activeServer.svelte';
+import { useActiveServerScope } from '$lib/state/server/activeServerScope.svelte';
 import { createRoomCommandAPI } from '$lib/api-client/rooms';
 
 /** How long to display typing indicator after receiving an event (ms) */
@@ -31,7 +31,7 @@ interface TypingIndicatorConfig {
  * tracked.
  */
 export function createTypingIndicator(getConfig: () => TypingIndicatorConfig) {
-  const connection = useConnection();
+  const server = useActiveServerScope();
 
   /** Current configuration snapshot */
   let configRoomId: string | null = null;
@@ -83,9 +83,20 @@ export function createTypingIndicator(getConfig: () => TypingIndicatorConfig) {
     }
   }
 
-  // Subscribe to typing events
-  const unsubscribe = onTypingEvent(handleTypingEvent);
   const cleanupInterval = setInterval(cleanupExpired, 1000);
+
+  // Subscribe to typing events for the active server. The event-bus helper
+  // binds to the current bus when called, so re-run it when the URL server
+  // changes now that Room.svelte no longer remounts on server switches.
+  $effect(() => {
+    void server.id;
+    return untrack(() => {
+      typingUsers.clear();
+      lastSentAt = 0;
+      state.version++;
+      return onTypingEvent(handleTypingEvent);
+    });
+  });
 
   // Sync config reactively — getConfig() is called inside the $effect,
   // so Svelte tracks whatever reactive values the caller reads in their closure.
@@ -98,6 +109,7 @@ export function createTypingIndicator(getConfig: () => TypingIndicatorConfig) {
       (configRoomId !== config.roomId || configThreadRootEventId !== config.threadRootEventId)
     ) {
       typingUsers.clear();
+      lastSentAt = 0;
     }
 
     configRoomId = config.roomId;
@@ -108,7 +120,6 @@ export function createTypingIndicator(getConfig: () => TypingIndicatorConfig) {
   // Cleanup on destroy
   $effect(() => {
     return () => {
-      unsubscribe();
       clearInterval(cleanupInterval);
       typingUsers.clear();
     };
@@ -144,9 +155,9 @@ export function createTypingIndicator(getConfig: () => TypingIndicatorConfig) {
       lastSentAt = now;
 
       try {
-        const conn = connection();
+        const conn = server.connection;
         await createRoomCommandAPI({
-          serverId: conn.serverId ?? getActiveServer(),
+          serverId: conn.serverId ?? server.id,
           baseUrl: conn.connectBaseUrl,
           bearerToken: conn.bearerToken
         }).updateTypingIndicator(configRoomId, configThreadRootEventId);

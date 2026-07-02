@@ -182,6 +182,34 @@ describe('RoomMembersStore', () => {
     expect(store.members.map((member) => member.id)).toEqual(['u2']);
   });
 
+  it('does not continue stale multi-page loads after the room changes', async () => {
+    const firstRoomPage = deferred<MemberDirectoryPage>();
+    const fakeAPI = new FakeMemberDirectoryAPI([
+      firstRoomPage.promise,
+      pageResult([user('u2', 'room-two')], false, 1)
+    ]);
+    const store = new RoomMembersStore(fakeAPI);
+
+    store.setRoom('room-1');
+    const firstLoad = store.loadInitial();
+    expect(fakeAPI.listRoomMembers).toHaveBeenCalledWith(
+      'room-1',
+      '',
+      ROOM_MEMBERS_PAGE_SIZE,
+      0
+    );
+
+    store.setRoom('room-2');
+    await store.loadInitial();
+    expect(store.members.map((member) => member.login)).toEqual(['room-two']);
+
+    firstRoomPage.resolve(pageResult([user('u1', 'room-one')], true, 2));
+    await firstLoad;
+
+    expect(fakeAPI.listRoomMembers).toHaveBeenCalledTimes(2);
+    expect(store.members.map((member) => member.login)).toEqual(['room-two']);
+  });
+
   it('refresh reloads all pages and preserves local search as display-only state', async () => {
     const store = createStore([
       pageResult([user('u1', 'initial')], false, 1),

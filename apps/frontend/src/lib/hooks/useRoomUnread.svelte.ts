@@ -1,7 +1,7 @@
 import { createReadStateAPI } from '$lib/api-client/readState';
-import { useConnection } from '$lib/state/server/connection.svelte';
+import { useActiveServerScope } from '$lib/state/server/activeServerScope.svelte';
 import { serverRegistry } from '$lib/state/server/registry.svelte';
-import { getActiveServer } from '$lib/state/activeServer.svelte';
+import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
 import { appState } from '$lib/state/globals.svelte';
 
 /**
@@ -13,8 +13,7 @@ import { appState } from '$lib/state/globals.svelte';
  * Must be called during component initialization (uses context).
  */
 export function useRoomUnread(getProps: () => { roomId: string }) {
-  const connection = useConnection();
-  const roomUnreadStore = serverRegistry.getStore(getActiveServer()).roomUnread;
+  const server = useActiveServerScope();
 
   let unreadAfterTime = $state<string | null>(null);
   let unreadBeforeTime = $state<string | null>(null);
@@ -30,18 +29,29 @@ export function useRoomUnread(getProps: () => { roomId: string }) {
   let pendingAwayAfterTime: string | null = null;
   let pendingAwayHasEvents = false;
 
-  async function markRoomAsRead(targetRoomId: string, upToEventId?: string) {
+  async function markRoomAsRead(
+    targetRoomId: string,
+    upToEventId?: string,
+    serverId = server.id
+  ) {
+    const roomUnreadStore =
+      serverId === server.id ? server.roomUnread : serverRegistry.getStore(serverId).roomUnread;
     roomUnreadStore.setRoomUnread(targetRoomId, false);
 
     try {
-      const conn = connection();
+      const conn =
+        serverId === server.id ? server.connection : serverConnectionManager.getClient(serverId);
       const data = await createReadStateAPI({
-        serverId: conn.serverId ?? getActiveServer(),
+        serverId: conn.serverId ?? serverId,
         baseUrl: conn.connectBaseUrl,
         bearerToken: conn.bearerToken
       }).markRoomAsRead({ roomId: targetRoomId, upToEventId });
 
-      if (data?.lastReadAt && getProps().roomId === targetRoomId) {
+      if (
+        data?.lastReadAt &&
+        getProps().roomId === targetRoomId &&
+        server.id === serverId
+      ) {
         lastCursor = data.lastReadAt;
       }
       return data;
@@ -85,11 +95,7 @@ export function useRoomUnread(getProps: () => { roomId: string }) {
       pendingAwayAfterTime = timestamp;
     }
 
-    if (
-      unreadAfterTime !== null &&
-      unreadBeforeTime === null &&
-      ts > Date.parse(unreadAfterTime)
-    ) {
+    if (unreadAfterTime !== null && unreadBeforeTime === null && ts > Date.parse(unreadAfterTime)) {
       unreadAfterTime = timestamp;
     }
   }
@@ -105,11 +111,13 @@ export function useRoomUnread(getProps: () => { roomId: string }) {
   // result drives the unread separator on room entry; same-room refocus uses
   // the deferred away anchor so the separator does not appear in the
   // background before the user returns.
-  let lastFiredRoomId = '';
+  let lastFiredScope = '';
   let wasPresent = false;
 
   $effect(() => {
+    const serverId = server.id;
     const { roomId } = getProps();
+    const scope = `${serverId}:${roomId}`;
     const present = appState.isPresent;
 
     if (!present) {
@@ -125,17 +133,18 @@ export function useRoomUnread(getProps: () => { roomId: string }) {
       return;
     }
 
-    if (wasPresent && lastFiredRoomId === roomId) return;
+    if (wasPresent && lastFiredScope === scope) return;
 
-    const isRoomChange = lastFiredRoomId !== roomId;
+    const isRoomChange = lastFiredScope !== scope;
     wasPresent = true;
-    lastFiredRoomId = roomId;
+    lastFiredScope = scope;
 
     // On a room change, clear the previous room's separator so it can't
     // flash in the new room while the mutation below is in flight. On a
     // refocus of the *same* room, reveal any deferred away anchor and leave
     // the mutation result ignored below so the marker stays stable.
     if (isRoomChange) {
+      lastCursor = null;
       pendingAwayAfterTime = null;
       pendingAwayHasEvents = false;
       unreadAfterTime = null;
@@ -150,9 +159,9 @@ export function useRoomUnread(getProps: () => { roomId: string }) {
       pendingAwayHasEvents = false;
     }
 
-    markRoomAsRead(roomId).then((result) => {
+    markRoomAsRead(roomId, undefined, serverId).then((result) => {
       const current = getProps();
-      if (current.roomId === roomId && result) {
+      if (current.roomId === roomId && server.id === serverId && result) {
         // Only adopt the server's (previousLastReadAt, lastReadAt] window on
         // a fresh room entry. On a same-room refocus the separator was just
         // revealed from the deferred away anchor with an open upper bound —

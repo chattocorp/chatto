@@ -8,14 +8,12 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   import { goto, pushState } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
-  import { serverIdToSegment } from '$lib/navigation';
   import * as m from '$lib/i18n/messages';
   import {
     sidebarLinkAnchorAttributes,
     sidebarLinkTarget
   } from '$lib/navigation/sidebarLinkTarget';
-  import { getActiveServer } from '$lib/state/activeServer.svelte';
-  import { serverRegistry } from '$lib/state/server/registry.svelte';
+  import { useActiveServerScope } from '$lib/state/server/activeServerScope.svelte';
   import CollapsibleGroup from '$lib/ui/CollapsibleGroup.svelte';
   import EmptyState from '$lib/ui/EmptyState.svelte';
   import { useEvent, useTabResumeCallback, useRoomMarkedAsRead } from '$lib/hooks';
@@ -47,11 +45,12 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   // server changes (URL [serverId] param changes), every derived read in the
   // template re-evaluates against the new server's state automatically.
 
-  const activeServerId = $derived(getActiveServer());
-  const serverSegment = $derived(serverIdToSegment(activeServerId));
-  const activeServer = $derived(serverRegistry.getServer(activeServerId));
+  const server = useActiveServerScope();
+  const activeServerId = $derived(server.id);
+  const serverSegment = $derived(server.segment);
+  const activeServer = $derived(server.registered);
   const activeServerBaseURL = $derived(activeServer?.url ?? null);
-  const stores = $derived(serverRegistry.getStore(activeServerId));
+  const stores = $derived(server.store);
   const currentUserState = $derived(stores.currentUser);
   const notificationStore = $derived(stores.notifications);
   const notificationLevelStore = $derived(stores.notificationLevels);
@@ -335,12 +334,17 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     event.preventDefault();
     event.stopPropagation();
 
-    const lookup = await notificationStore.resolveRoomNotification(roomId, { isDM });
+    const currentServerId = activeServerId;
+    const currentStores = stores;
+    const currentRoomsStore = roomsStore;
+    const currentNotificationStore = notificationStore;
+    const lookup = await currentNotificationStore.resolveRoomNotification(roomId, { isDM });
+    if (activeServerId !== currentServerId) return;
     const notification = lookup.notification;
 
     if (!notification) {
       if (lookup.ok && lookup.totalCount === 0) {
-        roomsStore.clearUnreadNotifications(roomId);
+        currentRoomsStore.clearUnreadNotifications(roomId);
       } else {
         await goto(resolve('/chat/notifications'));
       }
@@ -349,18 +353,19 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 
     const target = notificationTarget(notification);
     if (target.eventId && target.roomId) {
-      stores.pendingHighlights.set(target.roomId, target.threadRootId, target.eventId);
+      currentStores.pendingHighlights.set(target.roomId, target.threadRootId, target.eventId);
     }
-    roomsStore.decrementUnreadNotification(roomId);
-    void notificationStore.dismiss(notification.id).then((dismissed) => {
+    currentRoomsStore.decrementUnreadNotification(roomId);
+    void currentNotificationStore.dismiss(notification.id).then((dismissed) => {
+      if (activeServerId !== currentServerId) return;
       if (!dismissed) {
-        roomsStore.incrementUnreadNotification(roomId);
+        currentRoomsStore.incrementUnreadNotification(roomId);
         return;
       }
-      void roomsStore.refreshNotificationCounts();
+      void currentRoomsStore.refreshNotificationCounts();
     });
 
-    const path = notificationStore.getCleanPath(getActiveServer(), notification);
+    const path = currentNotificationStore.getCleanPath(currentServerId, notification);
     // eslint-disable-next-line svelte/no-navigation-without-resolve -- path from getCleanPath() is already resolved
     await goto(path);
   }
@@ -558,7 +563,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
           label={set.name}
           items={getSetItems(set)}
           item={sidebarLink}
-          persistKey={serverStorageKey(getActiveServer(), `collapsible:set:${set.id}`)}
+          persistKey={serverStorageKey(activeServerId, `collapsible:set:${set.id}`)}
           keepVisibleWhenCollapsed={isGroupItemHighlighted}
           class={i === 0 ? 'mt-4 first:mt-0' : 'mt-4'}
         />
@@ -569,7 +574,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
         label={m['common.rooms']()}
         items={sortedRooms}
         item={roomLink}
-        persistKey={serverStorageKey(getActiveServer(), 'collapsible:rooms')}
+        persistKey={serverStorageKey(activeServerId, 'collapsible:rooms')}
         keepVisibleWhenCollapsed={isHighlighted}
         class="mt-4 first:mt-0"
       />
@@ -580,7 +585,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
         label={m['room_list.direct_messages']()}
         items={dmRooms}
         item={dmLink}
-        persistKey={serverStorageKey(getActiveServer(), 'collapsible:dms')}
+        persistKey={serverStorageKey(activeServerId, 'collapsible:dms')}
         keepVisibleWhenCollapsed={isHighlighted}
         class="mt-4"
       />

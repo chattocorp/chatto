@@ -5,8 +5,7 @@
   import { createLinkPreviewAPI } from '$lib/api-client/linkPreviews';
   import { createRoleAPI } from '$lib/api-client/roles';
   import * as m from '$lib/i18n/messages';
-  import { useConnection } from '$lib/state/server/connection.svelte';
-  import { serverRegistry } from '$lib/state/server/registry.svelte';
+  import { useActiveServerScope } from '$lib/state/server/activeServerScope.svelte';
   import { parseMessageLink } from '$lib/messageLinks';
   import LinkPreviewCard from '$lib/components/LinkPreviewCard.svelte';
   import LinkPreviewSkeleton from '$lib/components/LinkPreviewSkeleton.svelte';
@@ -23,7 +22,6 @@
   import { shouldAutoFocus } from '$lib/utils/shouldAutoFocus';
   import { isTouchDevice } from '$lib/utils/isTouchDevice';
   import { hasVisibleContent } from '$lib/validation';
-  import { getActiveServer } from '$lib/state/activeServer.svelte';
   import EmojiAutocomplete from '$lib/components/composer/EmojiAutocomplete.svelte';
   import MentionAutocomplete from '$lib/components/composer/MentionAutocomplete.svelte';
   import type { TipTapEditorApi } from './TipTapEditor.svelte';
@@ -52,10 +50,6 @@
       ? { submit: 'Cmd+Return to Send', enterAgain: 'Return again to Send' }
       : { submit: 'Ctrl+Return to Send', enterAgain: 'Enter again to Send' };
   }
-
-  const stores = serverRegistry.getStore(getActiveServer());
-  const serverInfo = stores.serverInfo;
-  const roomUnreadStore = stores.roomUnread;
 
   export type MessageComposerApi = {
     addFiles: (files: File[]) => void;
@@ -97,7 +91,9 @@
     showAlsoSendToChannel?: boolean;
   } = $props();
 
-  const connection = useConnection();
+  const server = useActiveServerScope();
+  const serverInfo = $derived(server.serverInfo);
+  const roomUnreadStore = $derived(server.roomUnread);
 
   let alsoSendToChannel = $state(false);
 
@@ -147,7 +143,7 @@
   const draftState = new DraftState();
   const attachments = new AttachmentsState(() => serverInfo);
   const linkPreviews = new LinkPreviewState(() => {
-    const conn = connection();
+    const conn = server.connection;
     return createLinkPreviewAPI({
       serverId: conn.serverId,
       baseUrl: conn.connectBaseUrl,
@@ -265,7 +261,7 @@
   });
 
   $effect(() => {
-    const conn = connection();
+    const conn = server.connection;
     const api = createRoleAPI({
       baseUrl: conn.connectBaseUrl,
       bearerToken: conn.bearerToken
@@ -301,12 +297,15 @@
   });
 
   let loading = $state(false);
+  let submissionId = 0;
   let fileInputElement = $state<HTMLInputElement>();
 
   // Input is disabled when user can't post or websocket is disconnected.
   // Note: loading is intentionally excluded — the editor stays editable during sends
   // so users can type the next message while the current one is in flight.
-  let inputDisabled = $derived(!canPost || connection().showConnectionLostBanner);
+  let inputDisabled = $derived.by(() => {
+    return !canPost || server.connection.showConnectionLostBanner;
+  });
 
   let hasSendableAttachments = $derived(canAttach && attachments.selectedFiles.length > 0);
 
@@ -476,6 +475,7 @@
   };
 
   type PreparedPost = {
+    serverId: string;
     roomId: string;
     bodyToSend: string;
     filesToSend: File[] | null;
@@ -495,15 +495,54 @@
     mentionConfirmation: MentionConfirmation | null;
   };
 
+  type ComposerScope = {
+    serverId: string;
+    roomId: string;
+    threadRootEventId: string | null;
+  };
+
   let pendingMentionConfirmation = $state<PendingMentionConfirmation | null>(null);
   let mentionConfirmationLoading = $state(false);
+  let submissionScopeKey = '';
+
+  $effect(() => {
+    const nextScopeKey = `${server.id}:${roomId}:${inThread ?? ''}`;
+    if (submissionScopeKey === nextScopeKey) return;
+
+    submissionScopeKey = nextScopeKey;
+    submissionId++;
+    loading = false;
+    mentionConfirmationLoading = false;
+    pendingMentionConfirmation = null;
+  });
+
+  function currentComposerScope(): ComposerScope {
+    return {
+      serverId: server.id,
+      roomId,
+      threadRootEventId: inThread ?? null
+    };
+  }
+
+  function isCurrentComposerScope(scope: ComposerScope): boolean {
+    const current = currentComposerScope();
+    return (
+      current.serverId === scope.serverId &&
+      current.roomId === scope.roomId &&
+      current.threadRootEventId === scope.threadRootEventId
+    );
+  }
+
+  function isCurrentPostScope(post: PreparedPost): boolean {
+    return isCurrentComposerScope(post);
+  }
 
   async function sendPreparedPost(
     post: PreparedPost,
     mentionConfirmationToken: string | null
   ): Promise<SendPreparedPostResponse> {
     try {
-      const conn = connection();
+      const conn = server.connection;
       const result = await createMessageAPI({
         serverId: conn.serverId,
         baseUrl: conn.connectBaseUrl,
@@ -548,12 +587,15 @@
   }
 
   function handlePostFailure(error: unknown, post: PreparedPost) {
+    if (!isCurrentPostScope(post)) return;
     toast.error(m['composer.send_failed']());
     console.error('Error creating message:', error);
     restorePreparedPost(post);
   }
 
   function handlePostSuccess(response: SendPreparedPostResponse, post: PreparedPost) {
+    if (!isCurrentPostScope(post)) return;
+
     // Notify parent before scrolling so it can synchronously ingest the
     // returned event and make the target row available.
     onMessageSent?.(response.event);
@@ -586,11 +628,17 @@
   async function confirmMentionSend() {
     const pendingPost = pendingMentionConfirmation;
     if (!pendingPost || mentionConfirmationLoading) return;
+    if (!isCurrentPostScope(pendingPost)) {
+      pendingMentionConfirmation = null;
+      return;
+    }
 
     mentionConfirmationLoading = true;
     try {
       const response = await sendPreparedPost(pendingPost, pendingPost.token);
       pendingMentionConfirmation = null;
+
+      if (!isCurrentPostScope(pendingPost)) return;
 
       if (response.error) {
         handlePostFailure(response.error, pendingPost);
@@ -613,6 +661,7 @@
     if (!hasBody && !filesToSend) return;
 
     const preparedPost: PreparedPost = {
+      serverId: server.id,
       roomId,
       bodyToSend,
       filesToSend,
@@ -632,10 +681,13 @@
     attachments.clear();
     linkPreviews.clear();
 
+    const thisSubmission = ++submissionId;
     loading = true;
 
     try {
       const response = await sendPreparedPost(preparedPost, null);
+
+      if (!isCurrentPostScope(preparedPost)) return;
 
       if (response.mentionConfirmation) {
         pendingMentionConfirmation = { ...preparedPost, ...response.mentionConfirmation };
@@ -648,7 +700,9 @@
         handlePostSuccess(response, preparedPost);
       }
     } finally {
-      loading = false;
+      if (submissionId === thisSubmission) {
+        loading = false;
+      }
     }
   }
 
@@ -662,6 +716,7 @@
     const eventId = editState.eventId;
     if (!eventId) return;
 
+    const thisSubmission = ++submissionId;
     loading = true;
 
     const input: {
@@ -674,22 +729,27 @@
       input.alsoSendToChannel = alsoSendToChannel;
     }
 
+    const editScope = currentComposerScope();
     try {
-      const conn = connection();
+      const conn = server.connection;
       await createMessageAPI({
         serverId: conn.serverId,
         baseUrl: conn.connectBaseUrl,
         bearerToken: conn.bearerToken
       }).updateMessage(input);
+      if (!isCurrentComposerScope(editScope)) return;
       autocomplete.reset();
       message = '';
       editorApi?.setContent('');
       editState.cancelEdit();
     } catch (error) {
+      if (!isCurrentComposerScope(editScope)) return;
       toast.error(error instanceof Error ? error.message : m['composer.edit_failed']());
+    } finally {
+      if (submissionId === thisSubmission) {
+        loading = false;
+      }
     }
-
-    loading = false;
   }
 
   async function handleSubmit() {

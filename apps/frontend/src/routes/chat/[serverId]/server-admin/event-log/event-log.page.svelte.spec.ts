@@ -170,6 +170,22 @@ vi.mock('$lib/state/server/connection.svelte', () => ({
         })
       }))
     }
+  }),
+  useTrackedConnection: () => () => ({
+    client: {
+      query: vi.fn(() => ({
+        toPromise: vi.fn().mockResolvedValue({
+          data: {
+            server: {
+              members: {
+                users: []
+              }
+            }
+          },
+          error: null
+        })
+      }))
+    }
   })
 }));
 

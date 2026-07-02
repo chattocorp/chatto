@@ -15,12 +15,9 @@ States:
 - `livekitUrl` - The LiveKit server WebSocket URL
 -->
 <script lang="ts">
-  import { serverRegistry } from '$lib/state/server/registry.svelte';
-  import { getActiveServer } from '$lib/state/activeServer.svelte';
+  import { useActiveServerScope } from '$lib/state/server/activeServerScope.svelte';
   import * as m from '$lib/i18n/messages';
 
-  const stores = serverRegistry.getStore(getActiveServer());
-  const voiceCallState = stores.voiceCall;
   import { toast } from '$lib/ui/toast';
   import { getVoiceCallJoinErrorMessage } from '$lib/state/server/voiceCall.svelte';
 
@@ -31,6 +28,10 @@ States:
     roomId: string;
     livekitUrl: string;
   } = $props();
+
+  const server = useActiveServerScope();
+  const stores = $derived(server.store);
+  const voiceCallState = $derived(server.voiceCall);
 
   let isInThisCall = $derived(voiceCallState.isInCall(roomId));
   let isInAnotherCall = $derived(voiceCallState.isInAnyCall && !isInThisCall);
