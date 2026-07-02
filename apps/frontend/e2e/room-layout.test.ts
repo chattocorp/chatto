@@ -8,6 +8,8 @@ import {
   connectPost,
   connectPostResponse,
   createRoomViaConnect,
+  expectPermissionDecisionUpdate,
+  type E2EPermissionDecisionUpdateResponse,
   getDefaultRoomGroupIdViaConnect,
   joinRoomViaConnect
 } from './fixtures/connectHelpers';
@@ -63,20 +65,22 @@ async function denyRoomPermissionViaAPI(
   roleName: string,
   permission: string
 ): Promise<void> {
-  const data = await connectPost<{ ok?: boolean }>(
+  const decision = 'PERMISSION_DECISION_DENY';
+  const scope = {
+    kind: 'PERMISSION_SCOPE_KIND_ROOM',
+    id: roomId
+  } as const;
+  const data = await connectPost<E2EPermissionDecisionUpdateResponse>(
     page,
     'chatto.admin.v1.AdminPermissionService/SetRolePermission',
     {
       roleName,
       permission,
-      decision: 'PERMISSION_DECISION_DENY',
-      scope: {
-        kind: 'PERMISSION_SCOPE_KIND_ROOM',
-        id: roomId
-      }
+      decision,
+      scope
     }
   );
-  expect(data.ok).toBe(true);
+  expectPermissionDecisionUpdate(data, { permission, decision, scope });
 }
 
 // updateRoomLayoutViaAPI reshapes the room-group layout to match the

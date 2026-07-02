@@ -17,7 +17,14 @@ import {
   type ServerUserOptions,
   type ServerUserSession
 } from './fixtures/serverUser';
-import { connectPost, type E2EAdminRole, unwrapAdminRole } from './fixtures/connectHelpers';
+import {
+  connectPost,
+  expectPermissionDecisionUpdate,
+  type E2EAdminRole,
+  type E2EPermissionDecision,
+  type E2EPermissionDecisionUpdateResponse,
+  unwrapAdminRole
+} from './fixtures/connectHelpers';
 
 type RegularAdminSession = ServerUserSession & { adminPage: AdminPage };
 
@@ -105,19 +112,20 @@ async function setRolePermissionViaConnect(
   page: Page,
   roleName: string,
   permission: string,
-  decision: 'PERMISSION_DECISION_DENY' | 'PERMISSION_DECISION_NONE'
+  decision: Extract<E2EPermissionDecision, 'PERMISSION_DECISION_DENY' | 'PERMISSION_DECISION_NONE'>
 ): Promise<void> {
-  const data = await connectPost<{ ok?: boolean }>(
+  const scope = { kind: 'PERMISSION_SCOPE_KIND_SERVER' } as const;
+  const data = await connectPost<E2EPermissionDecisionUpdateResponse>(
     page,
     'chatto.admin.v1.AdminPermissionService/SetRolePermission',
     {
       roleName,
       permission,
       decision,
-      scope: { kind: 'PERMISSION_SCOPE_KIND_SERVER' }
+      scope
     }
   );
-  expect(data.ok).toBe(true);
+  expectPermissionDecisionUpdate(data, { permission, decision, scope });
 }
 
 async function updateOwnProfileViaConnect(

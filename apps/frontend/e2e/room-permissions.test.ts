@@ -10,7 +10,10 @@ import {
   connectPost,
   connectPostResponse,
   createRoomViaConnect,
+  expectPermissionDecisionUpdate,
   type E2EAdminRole,
+  type E2EPermissionDecision,
+  type E2EPermissionDecisionUpdateResponse,
   getDefaultRoomGroupIdViaConnect,
   getRoomIdByNameViaConnect,
   joinRoomViaConnect,
@@ -109,22 +112,23 @@ async function setRolePermission(
   page: Page,
   roleName: string,
   permission: string,
-  decision: 'PERMISSION_DECISION_ALLOW' | 'PERMISSION_DECISION_DENY' | 'PERMISSION_DECISION_NONE',
+  decision: E2EPermissionDecision,
   roomId?: string
 ): Promise<void> {
-  const data = await connectPost<{ ok?: boolean }>(
+  const scope = roomId
+    ? ({ kind: 'PERMISSION_SCOPE_KIND_ROOM', id: roomId } as const)
+    : ({ kind: 'PERMISSION_SCOPE_KIND_SERVER' } as const);
+  const data = await connectPost<E2EPermissionDecisionUpdateResponse>(
     page,
     'chatto.admin.v1.AdminPermissionService/SetRolePermission',
     {
       roleName,
       permission,
       decision,
-      ...(roomId
-        ? { scope: { kind: 'PERMISSION_SCOPE_KIND_ROOM', id: roomId } }
-        : { scope: { kind: 'PERMISSION_SCOPE_KIND_SERVER' } })
+      scope
     }
   );
-  expect(data.ok).toBe(true);
+  expectPermissionDecisionUpdate(data, { permission, decision, scope });
 }
 
 async function postMessageViaAPI(

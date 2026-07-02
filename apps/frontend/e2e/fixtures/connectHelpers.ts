@@ -4,6 +4,27 @@ type ConnectRequest = Record<string, unknown>;
 type ConnectClient = Page | APIRequestContext;
 const DEFAULT_POLL_TIMEOUT = process.env.CI ? 10_000 : 3_000;
 
+export type E2EPermissionDecision =
+  | 'PERMISSION_DECISION_ALLOW'
+  | 'PERMISSION_DECISION_DENY'
+  | 'PERMISSION_DECISION_NONE';
+
+export type E2EPermissionScopeKind =
+  | 'PERMISSION_SCOPE_KIND_SERVER'
+  | 'PERMISSION_SCOPE_KIND_GROUP'
+  | 'PERMISSION_SCOPE_KIND_ROOM';
+
+export interface E2EPermissionDecisionUpdateResponse {
+  decision?: {
+    permission?: string;
+    decision?: E2EPermissionDecision;
+    scope?: {
+      kind?: E2EPermissionScopeKind;
+      id?: string;
+    };
+  };
+}
+
 export interface E2EAdminRole {
   role?: {
     name?: string;
@@ -121,6 +142,27 @@ export function unwrapAdminRole(role: E2EAdminRole | undefined): E2EServerRole |
     permissions: [...(role.permissions ?? [])],
     permissionDenials: [...(role.permissionDenials ?? [])]
   };
+}
+
+export function expectPermissionDecisionUpdate(
+  data: E2EPermissionDecisionUpdateResponse,
+  expected: {
+    permission: string;
+    decision: E2EPermissionDecision;
+    scope?: { kind: E2EPermissionScopeKind; id?: string };
+  }
+): void {
+  expect(data.decision).toEqual(
+    expect.objectContaining({
+      permission: expected.permission,
+      decision: expected.decision,
+      ...(expected.scope
+        ? {
+            scope: expect.objectContaining(expected.scope)
+          }
+        : {})
+    })
+  );
 }
 
 export async function getRoomIdByNameViaConnect(

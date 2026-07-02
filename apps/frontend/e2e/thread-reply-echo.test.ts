@@ -4,6 +4,8 @@ import { withBootstrapAdminRequest, withServerUser } from './fixtures/serverUser
 import { waitForRoomReady } from './fixtures/realtimeSync';
 import {
   connectPost,
+  expectPermissionDecisionUpdate,
+  type E2EPermissionDecisionUpdateResponse,
   getDefaultRoomGroupIdViaConnect,
   getIdsFromUrlViaConnect,
   getRoomIdByNameViaConnect,
@@ -841,20 +843,23 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
       // channel rooms anymore). "general" lives in the seed "Lobby" group.
       await withBootstrapAdminRequest(serverURL, async (adminRequest) => {
         const seedSetId = await getDefaultRoomGroupIdViaConnect(adminRequest);
-        const response = await connectPost<{ ok?: boolean }>(
+        const permission = 'message.echo';
+        const decision = 'PERMISSION_DECISION_DENY';
+        const scope = {
+          kind: 'PERMISSION_SCOPE_KIND_GROUP',
+          id: seedSetId
+        } as const;
+        const response = await connectPost<E2EPermissionDecisionUpdateResponse>(
           adminRequest,
           'chatto.admin.v1.AdminPermissionService/SetRolePermission',
           {
             roleName: 'everyone',
-            permission: 'message.echo',
-            decision: 'PERMISSION_DECISION_DENY',
-            scope: {
-              kind: 'PERMISSION_SCOPE_KIND_GROUP',
-              id: seedSetId
-            }
+            permission,
+            decision,
+            scope
           }
         );
-        expect(response.ok).toBe(true);
+        expectPermissionDecisionUpdate(response, { permission, decision, scope });
       });
     });
 
