@@ -9,6 +9,63 @@ import { RoomTimelineEvent, RoomTimelineIncludes } from "./room_timeline_pb.js";
 import { PageInfo, PageRequest } from "./pagination_pb.js";
 
 /**
+ * Current follow state for one thread and viewer.
+ *
+ * @generated from message chatto.api.v1.ThreadFollowState
+ */
+export class ThreadFollowState extends Message<ThreadFollowState> {
+  /**
+   * Room containing the thread.
+   *
+   * @generated from field: string room_id = 1;
+   */
+  roomId = "";
+
+  /**
+   * Event ID of the root message for the thread.
+   *
+   * @generated from field: string thread_root_event_id = 2;
+   */
+  threadRootEventId = "";
+
+  /**
+   * True when the current user follows the thread.
+   *
+   * @generated from field: bool following = 3;
+   */
+  following = false;
+
+  constructor(data?: PartialMessage<ThreadFollowState>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.ThreadFollowState";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "thread_root_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "following", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ThreadFollowState {
+    return new ThreadFollowState().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ThreadFollowState {
+    return new ThreadFollowState().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ThreadFollowState {
+    return new ThreadFollowState().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ThreadFollowState | PlainMessage<ThreadFollowState> | undefined, b: ThreadFollowState | PlainMessage<ThreadFollowState> | undefined): boolean {
+    return proto3.util.equals(ThreadFollowState, a, b);
+  }
+}
+
+/**
  * Request to follow one message thread.
  *
  * @generated from message chatto.api.v1.FollowThreadRequest
@@ -70,6 +127,13 @@ export class FollowThreadResponse extends Message<FollowThreadResponse> {
    */
   following = false;
 
+  /**
+   * Current follow state after the operation.
+   *
+   * @generated from field: chatto.api.v1.ThreadFollowState state = 2;
+   */
+  state?: ThreadFollowState;
+
   constructor(data?: PartialMessage<FollowThreadResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -79,6 +143,7 @@ export class FollowThreadResponse extends Message<FollowThreadResponse> {
   static readonly typeName = "chatto.api.v1.FollowThreadResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "following", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 2, name: "state", kind: "message", T: ThreadFollowState },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): FollowThreadResponse {
@@ -160,6 +225,13 @@ export class UnfollowThreadResponse extends Message<UnfollowThreadResponse> {
    */
   following = false;
 
+  /**
+   * Current follow state after the operation.
+   *
+   * @generated from field: chatto.api.v1.ThreadFollowState state = 2;
+   */
+  state?: ThreadFollowState;
+
   constructor(data?: PartialMessage<UnfollowThreadResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -169,6 +241,7 @@ export class UnfollowThreadResponse extends Message<UnfollowThreadResponse> {
   static readonly typeName = "chatto.api.v1.UnfollowThreadResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "following", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 2, name: "state", kind: "message", T: ThreadFollowState },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UnfollowThreadResponse {

@@ -1,6 +1,6 @@
 ---
-title: AdminMemberService
-description: Member identity, role assignment, and username-cooldown RPCs.
+title: AdminUserService
+description: User identity, member detail, role assignment, and username-cooldown RPCs.
 editUrl: false
 ---
 
@@ -14,13 +14,13 @@ Shared message and enum definitions are documented in [Shared Types And Enums](/
 
 
 
-<a id="chatto-admin-v1-AdminMemberService"></a>
+<a id="chatto-admin-v1-AdminUserService"></a>
 
-## AdminMemberService
+## AdminUserService
 
-Server-admin user identity and cooldown commands.
+Server-admin user management commands and member-detail reads.
 
-<a id="chatto-admin-v1-AdminMemberService-ListMembers"></a>
+<a id="chatto-admin-v1-AdminUserService-ListMembers"></a>
 
 ### ListMembers
 
@@ -28,7 +28,7 @@ Lists server members for the admin members screen. Requires
 admin.view-users.
 
 ```http
-POST /api/connect/chatto.admin.v1.AdminMemberService/ListMembers
+POST /api/connect/chatto.admin.v1.AdminUserService/ListMembers
 ```
 
 <a id="chatto-admin-v1-ListMembersRequest"></a>
@@ -56,7 +56,7 @@ Server-admin member rows plus role summaries.
 | `page` | [`chatto.api.v1.PageInfo`](/reference/connectrpc-api/types/#chatto-api-v1-PageInfo) | Page metadata. |
 
 
-<a id="chatto-admin-v1-AdminMemberService-GetMember"></a>
+<a id="chatto-admin-v1-AdminUserService-GetMember"></a>
 
 ### GetMember
 
@@ -64,7 +64,7 @@ Gets one server member plus role/permission metadata for admin details.
 Requires admin.view-users. Returns NOT_FOUND when the user does not exist.
 
 ```http
-POST /api/connect/chatto.admin.v1.AdminMemberService/GetMember
+POST /api/connect/chatto.admin.v1.AdminUserService/GetMember
 ```
 
 <a id="chatto-admin-v1-GetMemberRequest"></a>
@@ -95,14 +95,14 @@ Server-admin member detail payload.
 | `viewer_can_manage_user_permissions` | `bool` | Whether the caller may edit direct user permissions. |
 
 
-<a id="chatto-admin-v1-AdminMemberService-BatchGetMembers"></a>
+<a id="chatto-admin-v1-AdminUserService-BatchGetMembers"></a>
 
 ### BatchGetMembers
 
 Gets server member rows for multiple users. Requires admin.view-users.
 
 ```http
-POST /api/connect/chatto.admin.v1.AdminMemberService/BatchGetMembers
+POST /api/connect/chatto.admin.v1.AdminUserService/BatchGetMembers
 ```
 
 <a id="chatto-admin-v1-BatchGetMembersRequest"></a>
@@ -128,14 +128,14 @@ Batch server-admin member response.
 | `roles` | `repeated chatto.api.v1.Role` | Public roles for display-name lookup. |
 
 
-<a id="chatto-admin-v1-AdminMemberService-AssignRole"></a>
+<a id="chatto-admin-v1-AdminUserService-AssignRole"></a>
 
 ### AssignRole
 
 Assigns a role to a user. Requires role.assign.
 
 ```http
-POST /api/connect/chatto.admin.v1.AdminMemberService/AssignRole
+POST /api/connect/chatto.admin.v1.AdminUserService/AssignRole
 ```
 
 <a id="chatto-admin-v1-AssignRoleRequest"></a>
@@ -162,14 +162,14 @@ Result of assigning a role.
 | `member` | [`AdminMember`](/reference/connectrpc-api/types/#chatto-admin-v1-AdminMember) | Updated admin member row. |
 
 
-<a id="chatto-admin-v1-AdminMemberService-RevokeRole"></a>
+<a id="chatto-admin-v1-AdminUserService-RevokeRole"></a>
 
 ### RevokeRole
 
 Revokes a role from a user. Requires role.assign.
 
 ```http
-POST /api/connect/chatto.admin.v1.AdminMemberService/RevokeRole
+POST /api/connect/chatto.admin.v1.AdminUserService/RevokeRole
 ```
 
 <a id="chatto-admin-v1-RevokeRoleRequest"></a>
@@ -196,7 +196,7 @@ Result of revoking a role.
 | `member` | [`AdminMember`](/reference/connectrpc-api/types/#chatto-admin-v1-AdminMember) | Updated admin member row. |
 
 
-<a id="chatto-admin-v1-AdminMemberService-UpdateUser"></a>
+<a id="chatto-admin-v1-AdminUserService-UpdateUser"></a>
 
 ### UpdateUser
 
@@ -204,7 +204,7 @@ Updates another user's login and/or display name as an admin action.
 Requires user.manage-accounts; the caller cannot target their own account.
 
 ```http
-POST /api/connect/chatto.admin.v1.AdminMemberService/UpdateUser
+POST /api/connect/chatto.admin.v1.AdminUserService/UpdateUser
 ```
 
 <a id="chatto-admin-v1-UpdateUserRequest"></a>
@@ -232,7 +232,7 @@ Result of an admin user update.
 | `member` | [`AdminMember`](/reference/connectrpc-api/types/#chatto-admin-v1-AdminMember) | Updated admin member row. |
 
 
-<a id="chatto-admin-v1-AdminMemberService-UpdateUserPassword"></a>
+<a id="chatto-admin-v1-AdminUserService-UpdateUserPassword"></a>
 
 ### UpdateUserPassword
 
@@ -241,7 +241,7 @@ user.manage-accounts and a fresh credential for the caller; the caller
 cannot target their own account.
 
 ```http
-POST /api/connect/chatto.admin.v1.AdminMemberService/UpdateUserPassword
+POST /api/connect/chatto.admin.v1.AdminUserService/UpdateUserPassword
 ```
 
 <a id="chatto-admin-v1-UpdateUserPasswordRequest"></a>
@@ -267,7 +267,7 @@ Result of an admin password update.
 | `member` | [`AdminMember`](/reference/connectrpc-api/types/#chatto-admin-v1-AdminMember) | Updated admin member row. |
 
 
-<a id="chatto-admin-v1-AdminMemberService-ClearUsernameCooldown"></a>
+<a id="chatto-admin-v1-AdminUserService-ClearUsernameCooldown"></a>
 
 ### ClearUsernameCooldown
 
@@ -275,7 +275,7 @@ Clears the target user's self-service username-change cooldown. Requires
 user.manage-accounts.
 
 ```http
-POST /api/connect/chatto.admin.v1.AdminMemberService/ClearUsernameCooldown
+POST /api/connect/chatto.admin.v1.AdminUserService/ClearUsernameCooldown
 ```
 
 <a id="chatto-admin-v1-ClearUsernameCooldownRequest"></a>
@@ -300,7 +300,7 @@ Result of clearing a user's username-change cooldown.
 | `cleared` | `bool` | True when the request completed. |
 
 
-<a id="chatto-admin-v1-AdminMemberService-DeleteUser"></a>
+<a id="chatto-admin-v1-AdminUserService-DeleteUser"></a>
 
 ### DeleteUser
 
@@ -309,7 +309,7 @@ other users, user.delete-self for the caller, and a fresh credential for
 the caller.
 
 ```http
-POST /api/connect/chatto.admin.v1.AdminMemberService/DeleteUser
+POST /api/connect/chatto.admin.v1.AdminUserService/DeleteUser
 ```
 
 <a id="chatto-admin-v1-DeleteUserRequest"></a>

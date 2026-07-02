@@ -1,6 +1,6 @@
 import { createClient } from "@connectrpc/connect";
 import { createConnectTransport } from "@connectrpc/connect-web";
-import { AdminMemberService } from "@chatto/api-types/admin/v1/members_connect";
+import { AdminUserService } from "@chatto/api-types/admin/v1/members_connect";
 import type { AdminMember as APIAdminMember } from "@chatto/api-types/admin/v1/members_pb";
 import type { AdminRole as APIAdminRole } from "@chatto/api-types/admin/v1/roles_pb";
 import type { Role as APIRole } from "@chatto/api-types/api/v1/roles_pb";
@@ -80,7 +80,7 @@ export function createAdminUserManagementAPI(
     baseUrl: config.baseUrl,
     useBinaryFormat: true,
   });
-  const client = createClient(AdminMemberService, transport);
+  const client = createClient(AdminUserService, transport);
   const headers = () =>
     config.bearerToken
       ? { Authorization: `Bearer ${config.bearerToken}` }

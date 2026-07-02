@@ -2848,8 +2848,8 @@ func (x *RealtimeRoomGroupsUpdatedEvent) GetChanged() bool {
 // Server-member deleted signal.
 //
 // Remove or invalidate local member/user rows for `user_id`. Admin clients can
-// hydrate remaining member rows through `AdminMemberService.GetMember` or
-// `AdminMemberService.BatchGetMembers`.
+// hydrate remaining member rows through `AdminUserService.GetMember` or
+// `AdminUserService.BatchGetMembers`.
 type RealtimeServerMemberDeletedEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Deleted user ID.

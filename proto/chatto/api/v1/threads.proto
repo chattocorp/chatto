@@ -8,6 +8,16 @@ import "chatto/api/v1/read_state.proto";
 import "chatto/api/v1/room_timeline.proto";
 import "google/protobuf/timestamp.proto";
 
+// Current follow state for one thread and viewer.
+message ThreadFollowState {
+  // Room containing the thread.
+  string room_id = 1;
+  // Event ID of the root message for the thread.
+  string thread_root_event_id = 2;
+  // True when the current user follows the thread.
+  bool following = 3;
+}
+
 // Request to follow one message thread.
 message FollowThreadRequest {
   // Required. Room containing the thread.
@@ -20,6 +30,8 @@ message FollowThreadRequest {
 message FollowThreadResponse {
   // True when the current user follows the thread after the operation.
   bool following = 1;
+  // Current follow state after the operation.
+  ThreadFollowState state = 2;
 }
 
 // Request to stop following one message thread.
@@ -34,6 +46,8 @@ message UnfollowThreadRequest {
 message UnfollowThreadResponse {
   // True when the current user follows the thread after the operation.
   bool following = 1;
+  // Current follow state after the operation.
+  ThreadFollowState state = 2;
 }
 
 // One followed thread for the current user.

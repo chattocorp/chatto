@@ -461,15 +461,15 @@ func (*CreateMessageResponse_Event) isCreateMessageResponse_Result() {}
 
 func (*CreateMessageResponse_MentionConfirmation) isCreateMessageResponse_Result() {}
 
-// Request to edit a message body.
+// Request to patch a message.
 type UpdateMessageRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Required. Room containing the message.
 	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
 	// Required. Event ID of the message to edit.
 	EventId string `protobuf:"bytes,2,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
-	// New message body text.
-	Body string `protobuf:"bytes,3,opt,name=body,proto3" json:"body,omitempty"`
+	// New message body text. Omit to preserve the current body.
+	Body *string `protobuf:"bytes,3,opt,name=body,proto3,oneof" json:"body,omitempty"`
 	// For thread replies, whether a channel echo should exist after saving.
 	// Omit to preserve the current echo state.
 	AlsoSendToChannel *bool `protobuf:"varint,4,opt,name=also_send_to_channel,json=alsoSendToChannel,proto3,oneof" json:"also_send_to_channel,omitempty"`
@@ -522,8 +522,8 @@ func (x *UpdateMessageRequest) GetEventId() string {
 }
 
 func (x *UpdateMessageRequest) GetBody() string {
-	if x != nil {
-		return x.Body
+	if x != nil && x.Body != nil {
+		return *x.Body
 	}
 	return ""
 }
@@ -539,7 +539,11 @@ func (x *UpdateMessageRequest) GetAlsoSendToChannel() bool {
 type UpdateMessageResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// True when the edit was accepted.
-	Updated       bool `protobuf:"varint,1,opt,name=updated,proto3" json:"updated,omitempty"`
+	Updated bool `protobuf:"varint,1,opt,name=updated,proto3" json:"updated,omitempty"`
+	// Renderable timeline event after the edit.
+	Event *RoomTimelineEvent `protobuf:"bytes,2,opt,name=event,proto3" json:"event,omitempty"`
+	// Related entities needed to render event after the edit.
+	Includes      *RoomTimelineIncludes `protobuf:"bytes,3,opt,name=includes,proto3" json:"includes,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -579,6 +583,20 @@ func (x *UpdateMessageResponse) GetUpdated() bool {
 		return x.Updated
 	}
 	return false
+}
+
+func (x *UpdateMessageResponse) GetEvent() *RoomTimelineEvent {
+	if x != nil {
+		return x.Event
+	}
+	return nil
+}
+
+func (x *UpdateMessageResponse) GetIncludes() *RoomTimelineIncludes {
+	if x != nil {
+		return x.Includes
+	}
+	return nil
 }
 
 // Request to retract a message.
@@ -1220,15 +1238,18 @@ const file_chatto_api_v1_messages_proto_rawDesc = "" +
 	"\x05event\x18\x01 \x01(\v2 .chatto.api.v1.RoomTimelineEventH\x00R\x05event\x12`\n" +
 	"\x14mention_confirmation\x18\x02 \x01(\v2+.chatto.api.v1.MentionConfirmationChallengeH\x00R\x13mentionConfirmation\x12?\n" +
 	"\bincludes\x18\x03 \x01(\v2#.chatto.api.v1.RoomTimelineIncludesR\bincludesB\b\n" +
-	"\x06result\"\xc9\x01\n" +
+	"\x06result\"\xd7\x01\n" +
 	"\x14UpdateMessageRequest\x12 \n" +
 	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x12\"\n" +
-	"\bevent_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\aeventId\x12\x1c\n" +
-	"\x04body\x18\x03 \x01(\tB\b\xbaH\x05r\x03\x18\x90NR\x04body\x124\n" +
-	"\x14also_send_to_channel\x18\x04 \x01(\bH\x00R\x11alsoSendToChannel\x88\x01\x01B\x17\n" +
-	"\x15_also_send_to_channel\"1\n" +
+	"\bevent_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\aeventId\x12!\n" +
+	"\x04body\x18\x03 \x01(\tB\b\xbaH\x05r\x03\x18\x90NH\x00R\x04body\x88\x01\x01\x124\n" +
+	"\x14also_send_to_channel\x18\x04 \x01(\bH\x01R\x11alsoSendToChannel\x88\x01\x01B\a\n" +
+	"\x05_bodyB\x17\n" +
+	"\x15_also_send_to_channel\"\xaa\x01\n" +
 	"\x15UpdateMessageResponse\x12\x18\n" +
-	"\aupdated\x18\x01 \x01(\bR\aupdated\"\\\n" +
+	"\aupdated\x18\x01 \x01(\bR\aupdated\x126\n" +
+	"\x05event\x18\x02 \x01(\v2 .chatto.api.v1.RoomTimelineEventR\x05event\x12?\n" +
+	"\bincludes\x18\x03 \x01(\v2#.chatto.api.v1.RoomTimelineIncludesR\bincludes\"\\\n" +
 	"\x14DeleteMessageRequest\x12 \n" +
 	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x12\"\n" +
 	"\bevent_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\aeventId\"1\n" +
@@ -1324,36 +1345,38 @@ var file_chatto_api_v1_messages_proto_depIdxs = []int32{
 	18, // 2: chatto.api.v1.CreateMessageResponse.event:type_name -> chatto.api.v1.RoomTimelineEvent
 	3,  // 3: chatto.api.v1.CreateMessageResponse.mention_confirmation:type_name -> chatto.api.v1.MentionConfirmationChallenge
 	19, // 4: chatto.api.v1.CreateMessageResponse.includes:type_name -> chatto.api.v1.RoomTimelineIncludes
-	20, // 5: chatto.api.v1.RefreshMessageAttachmentUrlsRequest.thumbnail:type_name -> chatto.api.v1.AttachmentThumbnailOptions
-	21, // 6: chatto.api.v1.RefreshMessageAttachmentUrlsResponse.attachments:type_name -> chatto.api.v1.RefreshedAttachmentUrls
-	20, // 7: chatto.api.v1.BatchRefreshMessageAttachmentUrlsRequest.thumbnail:type_name -> chatto.api.v1.AttachmentThumbnailOptions
-	21, // 8: chatto.api.v1.RefreshedMessageAttachmentUrls.attachments:type_name -> chatto.api.v1.RefreshedAttachmentUrls
-	16, // 9: chatto.api.v1.BatchRefreshMessageAttachmentUrlsResponse.messages:type_name -> chatto.api.v1.RefreshedMessageAttachmentUrls
-	2,  // 10: chatto.api.v1.MessageService.CreateMessage:input_type -> chatto.api.v1.CreateMessageRequest
-	5,  // 11: chatto.api.v1.MessageService.UpdateMessage:input_type -> chatto.api.v1.UpdateMessageRequest
-	7,  // 12: chatto.api.v1.MessageService.DeleteMessage:input_type -> chatto.api.v1.DeleteMessageRequest
-	9,  // 13: chatto.api.v1.MessageService.DeleteAttachment:input_type -> chatto.api.v1.DeleteAttachmentRequest
-	11, // 14: chatto.api.v1.MessageService.DeleteLinkPreview:input_type -> chatto.api.v1.DeleteLinkPreviewRequest
-	13, // 15: chatto.api.v1.MessageService.RefreshMessageAttachmentUrls:input_type -> chatto.api.v1.RefreshMessageAttachmentUrlsRequest
-	15, // 16: chatto.api.v1.MessageService.BatchRefreshMessageAttachmentUrls:input_type -> chatto.api.v1.BatchRefreshMessageAttachmentUrlsRequest
-	22, // 17: chatto.api.v1.MessageService.ResolveMessageLinkTarget:input_type -> chatto.api.v1.ResolveMessageLinkTargetRequest
-	23, // 18: chatto.api.v1.MessageService.AddReaction:input_type -> chatto.api.v1.AddReactionRequest
-	24, // 19: chatto.api.v1.MessageService.RemoveReaction:input_type -> chatto.api.v1.RemoveReactionRequest
-	4,  // 20: chatto.api.v1.MessageService.CreateMessage:output_type -> chatto.api.v1.CreateMessageResponse
-	6,  // 21: chatto.api.v1.MessageService.UpdateMessage:output_type -> chatto.api.v1.UpdateMessageResponse
-	8,  // 22: chatto.api.v1.MessageService.DeleteMessage:output_type -> chatto.api.v1.DeleteMessageResponse
-	10, // 23: chatto.api.v1.MessageService.DeleteAttachment:output_type -> chatto.api.v1.DeleteAttachmentResponse
-	12, // 24: chatto.api.v1.MessageService.DeleteLinkPreview:output_type -> chatto.api.v1.DeleteLinkPreviewResponse
-	14, // 25: chatto.api.v1.MessageService.RefreshMessageAttachmentUrls:output_type -> chatto.api.v1.RefreshMessageAttachmentUrlsResponse
-	17, // 26: chatto.api.v1.MessageService.BatchRefreshMessageAttachmentUrls:output_type -> chatto.api.v1.BatchRefreshMessageAttachmentUrlsResponse
-	25, // 27: chatto.api.v1.MessageService.ResolveMessageLinkTarget:output_type -> chatto.api.v1.ResolveMessageLinkTargetResponse
-	26, // 28: chatto.api.v1.MessageService.AddReaction:output_type -> chatto.api.v1.AddReactionResponse
-	27, // 29: chatto.api.v1.MessageService.RemoveReaction:output_type -> chatto.api.v1.RemoveReactionResponse
-	20, // [20:30] is the sub-list for method output_type
-	10, // [10:20] is the sub-list for method input_type
-	10, // [10:10] is the sub-list for extension type_name
-	10, // [10:10] is the sub-list for extension extendee
-	0,  // [0:10] is the sub-list for field type_name
+	18, // 5: chatto.api.v1.UpdateMessageResponse.event:type_name -> chatto.api.v1.RoomTimelineEvent
+	19, // 6: chatto.api.v1.UpdateMessageResponse.includes:type_name -> chatto.api.v1.RoomTimelineIncludes
+	20, // 7: chatto.api.v1.RefreshMessageAttachmentUrlsRequest.thumbnail:type_name -> chatto.api.v1.AttachmentThumbnailOptions
+	21, // 8: chatto.api.v1.RefreshMessageAttachmentUrlsResponse.attachments:type_name -> chatto.api.v1.RefreshedAttachmentUrls
+	20, // 9: chatto.api.v1.BatchRefreshMessageAttachmentUrlsRequest.thumbnail:type_name -> chatto.api.v1.AttachmentThumbnailOptions
+	21, // 10: chatto.api.v1.RefreshedMessageAttachmentUrls.attachments:type_name -> chatto.api.v1.RefreshedAttachmentUrls
+	16, // 11: chatto.api.v1.BatchRefreshMessageAttachmentUrlsResponse.messages:type_name -> chatto.api.v1.RefreshedMessageAttachmentUrls
+	2,  // 12: chatto.api.v1.MessageService.CreateMessage:input_type -> chatto.api.v1.CreateMessageRequest
+	5,  // 13: chatto.api.v1.MessageService.UpdateMessage:input_type -> chatto.api.v1.UpdateMessageRequest
+	7,  // 14: chatto.api.v1.MessageService.DeleteMessage:input_type -> chatto.api.v1.DeleteMessageRequest
+	9,  // 15: chatto.api.v1.MessageService.DeleteAttachment:input_type -> chatto.api.v1.DeleteAttachmentRequest
+	11, // 16: chatto.api.v1.MessageService.DeleteLinkPreview:input_type -> chatto.api.v1.DeleteLinkPreviewRequest
+	13, // 17: chatto.api.v1.MessageService.RefreshMessageAttachmentUrls:input_type -> chatto.api.v1.RefreshMessageAttachmentUrlsRequest
+	15, // 18: chatto.api.v1.MessageService.BatchRefreshMessageAttachmentUrls:input_type -> chatto.api.v1.BatchRefreshMessageAttachmentUrlsRequest
+	22, // 19: chatto.api.v1.MessageService.ResolveMessageLinkTarget:input_type -> chatto.api.v1.ResolveMessageLinkTargetRequest
+	23, // 20: chatto.api.v1.MessageService.AddReaction:input_type -> chatto.api.v1.AddReactionRequest
+	24, // 21: chatto.api.v1.MessageService.RemoveReaction:input_type -> chatto.api.v1.RemoveReactionRequest
+	4,  // 22: chatto.api.v1.MessageService.CreateMessage:output_type -> chatto.api.v1.CreateMessageResponse
+	6,  // 23: chatto.api.v1.MessageService.UpdateMessage:output_type -> chatto.api.v1.UpdateMessageResponse
+	8,  // 24: chatto.api.v1.MessageService.DeleteMessage:output_type -> chatto.api.v1.DeleteMessageResponse
+	10, // 25: chatto.api.v1.MessageService.DeleteAttachment:output_type -> chatto.api.v1.DeleteAttachmentResponse
+	12, // 26: chatto.api.v1.MessageService.DeleteLinkPreview:output_type -> chatto.api.v1.DeleteLinkPreviewResponse
+	14, // 27: chatto.api.v1.MessageService.RefreshMessageAttachmentUrls:output_type -> chatto.api.v1.RefreshMessageAttachmentUrlsResponse
+	17, // 28: chatto.api.v1.MessageService.BatchRefreshMessageAttachmentUrls:output_type -> chatto.api.v1.BatchRefreshMessageAttachmentUrlsResponse
+	25, // 29: chatto.api.v1.MessageService.ResolveMessageLinkTarget:output_type -> chatto.api.v1.ResolveMessageLinkTargetResponse
+	26, // 30: chatto.api.v1.MessageService.AddReaction:output_type -> chatto.api.v1.AddReactionResponse
+	27, // 31: chatto.api.v1.MessageService.RemoveReaction:output_type -> chatto.api.v1.RemoveReactionResponse
+	22, // [22:32] is the sub-list for method output_type
+	12, // [12:22] is the sub-list for method input_type
+	12, // [12:12] is the sub-list for extension type_name
+	12, // [12:12] is the sub-list for extension extendee
+	0,  // [0:12] is the sub-list for field type_name
 }
 
 func init() { file_chatto_api_v1_messages_proto_init() }

@@ -9,7 +9,13 @@ import { GetRoomEventsAroundRequest, GetRoomEventsAroundResponse, GetRoomEventsR
 import { MarkRoomAsReadRequest, MarkRoomAsReadResponse } from "./read_state_pb.js";
 
 /**
- * Manages channel room lifecycle and room membership for the current user.
+ * Manages room-scoped operations for the current user.
+ *
+ * RoomService owns operations whose authorization and state are primarily scoped
+ * to one room, including lifecycle, membership, moderation, room timeline reads,
+ * room read state, attachments, and live typing. Resource-specific services
+ * should still be preferred when an operation is not naturally room-scoped or
+ * when the resource needs an independent CRUD/batch surface.
  *
  * @generated from service chatto.api.v1.RoomService
  */

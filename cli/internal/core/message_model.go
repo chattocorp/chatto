@@ -46,7 +46,7 @@ type MessageUpdateInput struct {
 	ActorID           string
 	RoomID            string
 	EventID           string
-	Body              string
+	Body              *string
 	AlsoSendToChannel *bool
 }
 
@@ -357,60 +357,71 @@ func (s *MessageModel) AuthorizePost(ctx context.Context, input MessagePostAutho
 // Non-authors need message.manage. Changing a thread reply's channel echo state
 // is author-only and, when enabling the echo, additionally requires message.echo
 // and message.post.
-func (s *MessageModel) UpdateMessage(ctx context.Context, input MessageUpdateInput) error {
+func (s *MessageModel) UpdateMessage(ctx context.Context, input MessageUpdateInput) (*corev1.Event, RoomKind, error) {
 	room, kind, err := s.core.requireRoomMember(ctx, input.ActorID, input.RoomID)
 	if err != nil {
-		return err
+		return nil, KindChannel, err
 	}
 	if strings.TrimSpace(input.EventID) == "" {
-		return invalidArgument("event_id is required")
+		return nil, kind, invalidArgument("event_id is required")
 	}
-	if _, err := s.requireMessagePostedEvent(ctx, kind, room.Id, input.EventID); err != nil {
-		return err
+	event, err := s.requireMessagePostedEvent(ctx, kind, room.Id, input.EventID)
+	if err != nil {
+		return nil, kind, err
+	}
+	if input.Body == nil && input.AlsoSendToChannel == nil {
+		return nil, kind, invalidArgument("body or also_send_to_channel is required")
 	}
 
 	body, err := s.core.GetFullMessageBodyByEventID(ctx, input.EventID)
 	if err != nil {
-		return err
+		return nil, kind, err
 	}
 	if body == nil {
-		return ErrMessageNotFound
+		return nil, kind, ErrMessageNotFound
 	}
 	if body.AuthorId != input.ActorID {
 		can, err := s.core.CanManageOthersMessage(ctx, input.ActorID, kind, room.Id)
 		if err != nil {
-			return err
+			return nil, kind, err
 		}
 		if !can {
-			return ErrPermissionDenied
+			return nil, kind, ErrPermissionDenied
 		}
 	}
 
 	var editOptions []EditMessageOption
 	if input.AlsoSendToChannel != nil {
 		if body.AuthorId != input.ActorID {
-			return ErrNotMessageAuthor
+			return nil, kind, ErrNotMessageAuthor
 		}
 		if *input.AlsoSendToChannel {
 			can, err := s.core.CanEchoMessage(ctx, input.ActorID, kind, room.Id)
 			if err != nil {
-				return err
+				return nil, kind, err
 			}
 			if !can {
-				return ErrPermissionDenied
+				return nil, kind, ErrPermissionDenied
 			}
 			can, err = s.core.CanPostMessage(ctx, input.ActorID, kind, room.Id)
 			if err != nil {
-				return err
+				return nil, kind, err
 			}
 			if !can {
-				return ErrPermissionDenied
+				return nil, kind, ErrPermissionDenied
 			}
 		}
 		editOptions = append(editOptions, WithMessageChannelEcho(*input.AlsoSendToChannel))
 	}
 
-	return s.core.EditMessage(ctx, input.ActorID, kind, room.Id, input.EventID, input.Body, editOptions...)
+	newBody := body.Body
+	if input.Body != nil {
+		newBody = *input.Body
+	}
+	if err := s.core.EditMessage(ctx, input.ActorID, kind, room.Id, input.EventID, newBody, editOptions...); err != nil {
+		return nil, kind, err
+	}
+	return event, kind, nil
 }
 
 // DeleteMessage retracts an existing message. Authorization: actor must be a

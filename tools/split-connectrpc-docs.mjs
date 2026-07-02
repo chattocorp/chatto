@@ -160,10 +160,10 @@ const categories = [
         description: 'Audit event log read RPCs.'
       },
       {
-        name: 'AdminMemberService',
-        slug: 'admin-members',
-        title: 'Admin Members',
-        description: 'Member identity, role assignment, and username-cooldown RPCs.'
+        name: 'AdminUserService',
+        slug: 'admin-users',
+        title: 'Admin Users',
+        description: 'User identity, member detail, role assignment, and username-cooldown RPCs.'
       },
       {
         name: 'AdminPermissionService',

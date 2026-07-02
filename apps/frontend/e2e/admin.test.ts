@@ -50,7 +50,7 @@ async function createRoleViaAPI(page: Page, name: string, displayName: string): 
 async function assignRoleViaAPI(page: Page, userId: string, roleName: string): Promise<void> {
   const data = await connectPost<{ assigned?: boolean }>(
     page,
-    'chatto.admin.v1.AdminMemberService/AssignRole',
+    'chatto.admin.v1.AdminUserService/AssignRole',
     { userId, roleName }
   );
   expect(data.assigned).toBe(true);
@@ -59,7 +59,7 @@ async function assignRoleViaAPI(page: Page, userId: string, roleName: string): P
 async function revokeRoleViaAPI(page: Page, userId: string, roleName: string): Promise<void> {
   const data = await connectPost<{ revoked?: boolean }>(
     page,
-    'chatto.admin.v1.AdminMemberService/RevokeRole',
+    'chatto.admin.v1.AdminUserService/RevokeRole',
     { userId, roleName }
   );
   expect(data.revoked).toBe(true);

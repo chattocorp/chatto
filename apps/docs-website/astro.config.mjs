@@ -99,7 +99,7 @@ export default defineConfig({
                   items: [
                     "reference/connectrpc-api/admin-diagnostics",
                     "reference/connectrpc-api/admin-event-log",
-                    "reference/connectrpc-api/admin-members",
+                    "reference/connectrpc-api/admin-users",
                     "reference/connectrpc-api/admin-permissions",
                     "reference/connectrpc-api/admin-roles",
                     "reference/connectrpc-api/admin-room-layout",

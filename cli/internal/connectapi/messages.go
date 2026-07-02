@@ -151,16 +151,25 @@ func (s *messageService) UpdateMessage(ctx context.Context, req *connect.Request
 		return nil, err
 	}
 
-	if err := s.api.core.Messages().UpdateMessage(ctx, core.MessageUpdateInput{
+	event, kind, err := s.api.core.Messages().UpdateMessage(ctx, core.MessageUpdateInput{
 		ActorID:           caller.UserID,
 		RoomID:            req.Msg.RoomId,
 		EventID:           req.Msg.EventId,
 		Body:              req.Msg.Body,
 		AlsoSendToChannel: req.Msg.AlsoSendToChannel,
-	}); err != nil {
+	})
+	if err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&apiv1.UpdateMessageResponse{Updated: true}), nil
+	apiEvent, includes, err := newRoomTimelineAssembler(s.api).hydrateEvent(ctx, caller.UserID, kind, event)
+	if err != nil {
+		return nil, connectError(err)
+	}
+	return connect.NewResponse(&apiv1.UpdateMessageResponse{
+		Updated:  true,
+		Event:    apiEvent,
+		Includes: includes,
+	}), nil
 }
 
 func (s *messageService) DeleteMessage(ctx context.Context, req *connect.Request[apiv1.DeleteMessageRequest]) (*connect.Response[apiv1.DeleteMessageResponse], error) {

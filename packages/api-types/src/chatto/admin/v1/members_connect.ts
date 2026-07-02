@@ -7,18 +7,18 @@ import { AssignRoleRequest, AssignRoleResponse, BatchGetMembersRequest, BatchGet
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
- * Server-admin user identity and cooldown commands.
+ * Server-admin user management commands and member-detail reads.
  *
- * @generated from service chatto.admin.v1.AdminMemberService
+ * @generated from service chatto.admin.v1.AdminUserService
  */
-export const AdminMemberService = {
-  typeName: "chatto.admin.v1.AdminMemberService",
+export const AdminUserService = {
+  typeName: "chatto.admin.v1.AdminUserService",
   methods: {
     /**
      * Lists server members for the admin members screen. Requires
      * admin.view-users.
      *
-     * @generated from rpc chatto.admin.v1.AdminMemberService.ListMembers
+     * @generated from rpc chatto.admin.v1.AdminUserService.ListMembers
      */
     listMembers: {
       name: "ListMembers",
@@ -30,7 +30,7 @@ export const AdminMemberService = {
      * Gets one server member plus role/permission metadata for admin details.
      * Requires admin.view-users. Returns NOT_FOUND when the user does not exist.
      *
-     * @generated from rpc chatto.admin.v1.AdminMemberService.GetMember
+     * @generated from rpc chatto.admin.v1.AdminUserService.GetMember
      */
     getMember: {
       name: "GetMember",
@@ -41,7 +41,7 @@ export const AdminMemberService = {
     /**
      * Gets server member rows for multiple users. Requires admin.view-users.
      *
-     * @generated from rpc chatto.admin.v1.AdminMemberService.BatchGetMembers
+     * @generated from rpc chatto.admin.v1.AdminUserService.BatchGetMembers
      */
     batchGetMembers: {
       name: "BatchGetMembers",
@@ -52,7 +52,7 @@ export const AdminMemberService = {
     /**
      * Assigns a role to a user. Requires role.assign.
      *
-     * @generated from rpc chatto.admin.v1.AdminMemberService.AssignRole
+     * @generated from rpc chatto.admin.v1.AdminUserService.AssignRole
      */
     assignRole: {
       name: "AssignRole",
@@ -63,7 +63,7 @@ export const AdminMemberService = {
     /**
      * Revokes a role from a user. Requires role.assign.
      *
-     * @generated from rpc chatto.admin.v1.AdminMemberService.RevokeRole
+     * @generated from rpc chatto.admin.v1.AdminUserService.RevokeRole
      */
     revokeRole: {
       name: "RevokeRole",
@@ -75,7 +75,7 @@ export const AdminMemberService = {
      * Updates another user's login and/or display name as an admin action.
      * Requires user.manage-accounts; the caller cannot target their own account.
      *
-     * @generated from rpc chatto.admin.v1.AdminMemberService.UpdateUser
+     * @generated from rpc chatto.admin.v1.AdminUserService.UpdateUser
      */
     updateUser: {
       name: "UpdateUser",
@@ -88,7 +88,7 @@ export const AdminMemberService = {
      * user.manage-accounts and a fresh credential for the caller; the caller
      * cannot target their own account.
      *
-     * @generated from rpc chatto.admin.v1.AdminMemberService.UpdateUserPassword
+     * @generated from rpc chatto.admin.v1.AdminUserService.UpdateUserPassword
      */
     updateUserPassword: {
       name: "UpdateUserPassword",
@@ -100,7 +100,7 @@ export const AdminMemberService = {
      * Clears the target user's self-service username-change cooldown. Requires
      * user.manage-accounts.
      *
-     * @generated from rpc chatto.admin.v1.AdminMemberService.ClearUsernameCooldown
+     * @generated from rpc chatto.admin.v1.AdminUserService.ClearUsernameCooldown
      */
     clearUsernameCooldown: {
       name: "ClearUsernameCooldown",
@@ -113,7 +113,7 @@ export const AdminMemberService = {
      * other users, user.delete-self for the caller, and a fresh credential for
      * the caller.
      *
-     * @generated from rpc chatto.admin.v1.AdminMemberService.DeleteUser
+     * @generated from rpc chatto.admin.v1.AdminUserService.DeleteUser
      */
     deleteUser: {
       name: "DeleteUser",

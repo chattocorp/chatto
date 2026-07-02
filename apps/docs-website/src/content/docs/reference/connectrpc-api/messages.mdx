@@ -81,13 +81,13 @@ POST /api/connect/chatto.api.v1.MessageService/UpdateMessage
 
 #### Input: UpdateMessageRequest
 
-Request to edit a message body.
+Request to patch a message.
 
 | Field | Type | Description |
 | --- | --- | --- |
 | `room_id` | `string` | Required. Room containing the message. |
 | `event_id` | `string` | Required. Event ID of the message to edit. |
-| `body` | `string` | New message body text. |
+| `body` | `optional string` | New message body text. Omit to preserve the current body. |
 | `also_send_to_channel` | `optional bool` | For thread replies, whether a channel echo should exist after saving. Omit to preserve the current echo state. |
 
 
@@ -100,6 +100,8 @@ Result of editing a message.
 | Field | Type | Description |
 | --- | --- | --- |
 | `updated` | `bool` | True when the edit was accepted. |
+| `event` | [`RoomTimelineEvent`](/reference/connectrpc-api/types/#chatto-api-v1-RoomTimelineEvent) | Renderable timeline event after the edit. |
+| `includes` | [`RoomTimelineIncludes`](/reference/connectrpc-api/types/#chatto-api-v1-RoomTimelineIncludes) | Related entities needed to render event after the edit. |
 
 
 <a id="chatto-api-v1-MessageService-DeleteMessage"></a>
@@ -355,6 +357,7 @@ Result of adding a reaction.
 | Field | Type | Description |
 | --- | --- | --- |
 | `added` | `bool` | True when the reaction was newly added, false when it already existed. |
+| `reaction` | [`RoomTimelineReaction`](/reference/connectrpc-api/types/#chatto-api-v1-RoomTimelineReaction) | Updated aggregate reaction state for this emoji. |
 
 
 <a id="chatto-api-v1-MessageService-RemoveReaction"></a>
@@ -390,3 +393,4 @@ Result of removing a reaction.
 | Field | Type | Description |
 | --- | --- | --- |
 | `removed` | `bool` | True when the reaction was removed, false when it did not exist. |
+| `reaction` | [`RoomTimelineReaction`](/reference/connectrpc-api/types/#chatto-api-v1-RoomTimelineReaction) | Updated aggregate reaction state for this emoji. Empty when no reactions for the emoji remain. |

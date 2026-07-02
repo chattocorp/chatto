@@ -24,7 +24,8 @@ Provides authenticated public user directory lookups.
 
 ### GetUser
 
-Gets a user by stable ID. Returns NOT_FOUND when the ID is unknown.
+Gets a user by stable ID or login. Returns NOT_FOUND when the user is
+unknown.
 
 ```http
 POST /api/connect/chatto.api.v1.UserDirectoryService/GetUser
@@ -34,11 +35,12 @@ POST /api/connect/chatto.api.v1.UserDirectoryService/GetUser
 
 #### Input: GetUserRequest
 
-Request one user by stable user ID.
+Request one user by stable user ID or login identifier.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `user_id` | `string` | Required user ID. |
+| `target.user_id` | `string` | Target stable user ID. |
+| `target.login` | `string` | Target login identifier. |
 | `avatar` | [`UserAvatarOptions`](#chatto-api-v1-UserAvatarOptions) | Optional avatar URL transform parameters. Omit for the original avatar URL. |
 
 
@@ -47,39 +49,6 @@ Request one user by stable user ID.
 #### Result: GetUserResponse
 
 Public authenticated user profile response.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `user` | [`UserProfile`](#chatto-api-v1-UserProfile) | Requested user. |
-
-
-<a id="chatto-api-v1-UserDirectoryService-GetUserByLogin"></a>
-
-### GetUserByLogin
-
-Gets a user by login. Returns NOT_FOUND when the login is unknown.
-
-```http
-POST /api/connect/chatto.api.v1.UserDirectoryService/GetUserByLogin
-```
-
-<a id="chatto-api-v1-GetUserByLoginRequest"></a>
-
-#### Input: GetUserByLoginRequest
-
-Request one user by login identifier.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `login` | `string` | Required login identifier. |
-| `avatar` | [`UserAvatarOptions`](#chatto-api-v1-UserAvatarOptions) | Optional avatar URL transform parameters. Omit for the original avatar URL. |
-
-
-<a id="chatto-api-v1-GetUserByLoginResponse"></a>
-
-#### Result: GetUserByLoginResponse
-
-Public authenticated user profile response for login lookup.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -1089,13 +1058,13 @@ POST /api/connect/chatto.api.v1.MessageService/UpdateMessage
 
 #### Input: UpdateMessageRequest
 
-Request to edit a message body.
+Request to patch a message.
 
 | Field | Type | Description |
 | --- | --- | --- |
 | `room_id` | `string` | Required. Room containing the message. |
 | `event_id` | `string` | Required. Event ID of the message to edit. |
-| `body` | `string` | New message body text. |
+| `body` | `optional string` | New message body text. Omit to preserve the current body. |
 | `also_send_to_channel` | `optional bool` | For thread replies, whether a channel echo should exist after saving. Omit to preserve the current echo state. |
 
 
@@ -1108,6 +1077,8 @@ Result of editing a message.
 | Field | Type | Description |
 | --- | --- | --- |
 | `updated` | `bool` | True when the edit was accepted. |
+| `event` | [`RoomTimelineEvent`](#chatto-api-v1-RoomTimelineEvent) | Renderable timeline event after the edit. |
+| `includes` | [`RoomTimelineIncludes`](#chatto-api-v1-RoomTimelineIncludes) | Related entities needed to render event after the edit. |
 
 
 <a id="chatto-api-v1-MessageService-DeleteMessage"></a>
@@ -1363,6 +1334,7 @@ Result of adding a reaction.
 | Field | Type | Description |
 | --- | --- | --- |
 | `added` | `bool` | True when the reaction was newly added, false when it already existed. |
+| `reaction` | [`RoomTimelineReaction`](#chatto-api-v1-RoomTimelineReaction) | Updated aggregate reaction state for this emoji. |
 
 
 <a id="chatto-api-v1-MessageService-RemoveReaction"></a>
@@ -1398,6 +1370,7 @@ Result of removing a reaction.
 | Field | Type | Description |
 | --- | --- | --- |
 | `removed` | `bool` | True when the reaction was removed, false when it did not exist. |
+| `reaction` | [`RoomTimelineReaction`](#chatto-api-v1-RoomTimelineReaction) | Updated aggregate reaction state for this emoji. Empty when no reactions for the emoji remain. |
 
 
 <a id="chatto-api-v1-NotificationService"></a>
@@ -1841,7 +1814,13 @@ Batch public role response.
 
 ## RoomService
 
-Manages channel room lifecycle and room membership for the current user.
+Manages room-scoped operations for the current user.
+
+RoomService owns operations whose authorization and state are primarily scoped
+to one room, including lifecycle, membership, moderation, room timeline reads,
+room read state, attachments, and live typing. Resource-specific services
+should still be preferred when an operation is not naturally room-scoped or
+when the resource needs an independent CRUD/batch surface.
 
 <a id="chatto-api-v1-RoomService-CreateRoom"></a>
 
@@ -2762,6 +2741,7 @@ Result of following a thread.
 | Field | Type | Description |
 | --- | --- | --- |
 | `following` | `bool` | True when the current user follows the thread after the operation. |
+| `state` | [`ThreadFollowState`](#chatto-api-v1-ThreadFollowState) | Current follow state after the operation. |
 
 
 <a id="chatto-api-v1-ThreadService-UnfollowThread"></a>
@@ -2796,6 +2776,7 @@ Result of unfollowing a thread.
 | Field | Type | Description |
 | --- | --- | --- |
 | `following` | `bool` | True when the current user follows the thread after the operation. |
+| `state` | [`ThreadFollowState`](#chatto-api-v1-ThreadFollowState) | Current follow state after the operation. |
 
 
 <a id="chatto-api-v1-ThreadService-GetThreadEvents"></a>
@@ -4103,6 +4084,20 @@ One followed thread for the current user.
 | `reply_count` | `int32` | Number of replies in the thread. |
 | `last_reply_at` | `google.protobuf.Timestamp` | Creation time of the latest reply, when the thread has replies. |
 | `has_unread` | `bool` | True when the current user has unread replies in the thread. |
+
+
+
+<a id="chatto-api-v1-ThreadFollowState"></a>
+
+### ThreadFollowState
+
+Current follow state for one thread and viewer.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Room containing the thread. |
+| `thread_root_event_id` | `string` | Event ID of the root message for the thread. |
+| `following` | `bool` | True when the current user follows the thread. |
 
 
 

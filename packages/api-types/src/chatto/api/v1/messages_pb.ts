@@ -381,7 +381,7 @@ export class CreateMessageResponse extends Message<CreateMessageResponse> {
 }
 
 /**
- * Request to edit a message body.
+ * Request to patch a message.
  *
  * @generated from message chatto.api.v1.UpdateMessageRequest
  */
@@ -401,11 +401,11 @@ export class UpdateMessageRequest extends Message<UpdateMessageRequest> {
   eventId = "";
 
   /**
-   * New message body text.
+   * New message body text. Omit to preserve the current body.
    *
-   * @generated from field: string body = 3;
+   * @generated from field: optional string body = 3;
    */
-  body = "";
+  body?: string;
 
   /**
    * For thread replies, whether a channel echo should exist after saving.
@@ -425,7 +425,7 @@ export class UpdateMessageRequest extends Message<UpdateMessageRequest> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "body", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "body", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
     { no: 4, name: "also_send_to_channel", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
   ]);
 
@@ -459,6 +459,20 @@ export class UpdateMessageResponse extends Message<UpdateMessageResponse> {
    */
   updated = false;
 
+  /**
+   * Renderable timeline event after the edit.
+   *
+   * @generated from field: chatto.api.v1.RoomTimelineEvent event = 2;
+   */
+  event?: RoomTimelineEvent;
+
+  /**
+   * Related entities needed to render event after the edit.
+   *
+   * @generated from field: chatto.api.v1.RoomTimelineIncludes includes = 3;
+   */
+  includes?: RoomTimelineIncludes;
+
   constructor(data?: PartialMessage<UpdateMessageResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -468,6 +482,8 @@ export class UpdateMessageResponse extends Message<UpdateMessageResponse> {
   static readonly typeName = "chatto.api.v1.UpdateMessageResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "updated", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 2, name: "event", kind: "message", T: RoomTimelineEvent },
+    { no: 3, name: "includes", kind: "message", T: RoomTimelineIncludes },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UpdateMessageResponse {

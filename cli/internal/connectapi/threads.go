@@ -43,7 +43,10 @@ func (s *threadService) FollowThread(ctx context.Context, req *connect.Request[a
 	if err := s.api.core.ThreadFollows().FollowThread(ctx, caller.UserID, req.Msg.RoomId, req.Msg.ThreadRootEventId); err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&apiv1.FollowThreadResponse{Following: true}), nil
+	return connect.NewResponse(&apiv1.FollowThreadResponse{
+		Following: true,
+		State:     threadFollowState(req.Msg.RoomId, req.Msg.ThreadRootEventId, true),
+	}), nil
 }
 
 func (s *threadService) UnfollowThread(ctx context.Context, req *connect.Request[apiv1.UnfollowThreadRequest]) (*connect.Response[apiv1.UnfollowThreadResponse], error) {
@@ -54,5 +57,16 @@ func (s *threadService) UnfollowThread(ctx context.Context, req *connect.Request
 	if err := s.api.core.ThreadFollows().UnfollowThread(ctx, caller.UserID, req.Msg.RoomId, req.Msg.ThreadRootEventId); err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&apiv1.UnfollowThreadResponse{Following: false}), nil
+	return connect.NewResponse(&apiv1.UnfollowThreadResponse{
+		Following: false,
+		State:     threadFollowState(req.Msg.RoomId, req.Msg.ThreadRootEventId, false),
+	}), nil
+}
+
+func threadFollowState(roomID, threadRootEventID string, following bool) *apiv1.ThreadFollowState {
+	return &apiv1.ThreadFollowState{
+		RoomId:            roomID,
+		ThreadRootEventId: threadRootEventID,
+		Following:         following,
+	}
 }

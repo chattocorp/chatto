@@ -220,8 +220,8 @@ message DeleteUserResponse {
   bool deleted = 1;
 }
 
-// Server-admin user identity and cooldown commands.
-service AdminMemberService {
+// Server-admin user management commands and member-detail reads.
+service AdminUserService {
   // Lists server members for the admin members screen. Requires
   // admin.view-users.
   rpc ListMembers(ListMembersRequest) returns (ListMembersResponse);

@@ -479,8 +479,8 @@ message RealtimeRoomGroupsUpdatedEvent {
 // Server-member deleted signal.
 //
 // Remove or invalidate local member/user rows for `user_id`. Admin clients can
-// hydrate remaining member rows through `AdminMemberService.GetMember` or
-// `AdminMemberService.BatchGetMembers`.
+// hydrate remaining member rows through `AdminUserService.GetMember` or
+// `AdminUserService.BatchGetMembers`.
 message RealtimeServerMemberDeletedEvent {
   // Deleted user ID.
   string user_id = 1;

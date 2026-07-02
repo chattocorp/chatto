@@ -3,6 +3,7 @@ syntax = "proto3";
 package chatto.api.v1;
 
 import "buf/validate/validate.proto";
+import "chatto/api/v1/room_timeline.proto";
 
 // Request to add the current user's reaction to a message.
 message AddReactionRequest {
@@ -18,6 +19,8 @@ message AddReactionRequest {
 message AddReactionResponse {
   // True when the reaction was newly added, false when it already existed.
   bool added = 1;
+  // Updated aggregate reaction state for this emoji.
+  RoomTimelineReaction reaction = 2;
 }
 
 // Request to remove the current user's reaction from a message.
@@ -34,4 +37,7 @@ message RemoveReactionRequest {
 message RemoveReactionResponse {
   // True when the reaction was removed, false when it did not exist.
   bool removed = 1;
+  // Updated aggregate reaction state for this emoji. Empty when no reactions for
+  // the emoji remain.
+  RoomTimelineReaction reaction = 2;
 }

@@ -230,17 +230,31 @@ export class UserProfile extends Message<UserProfile> {
 }
 
 /**
- * Request one user by stable user ID.
+ * Request one user by stable user ID or login identifier.
  *
  * @generated from message chatto.api.v1.GetUserRequest
  */
 export class GetUserRequest extends Message<GetUserRequest> {
   /**
-   * Required user ID.
-   *
-   * @generated from field: string user_id = 1;
+   * @generated from oneof chatto.api.v1.GetUserRequest.target
    */
-  userId = "";
+  target: {
+    /**
+     * Target stable user ID.
+     *
+     * @generated from field: string user_id = 1;
+     */
+    value: string;
+    case: "userId";
+  } | {
+    /**
+     * Target login identifier.
+     *
+     * @generated from field: string login = 3;
+     */
+    value: string;
+    case: "login";
+  } | { case: undefined; value?: undefined } = { case: undefined };
 
   /**
    * Optional avatar URL transform parameters. Omit for the original avatar URL.
@@ -257,7 +271,8 @@ export class GetUserRequest extends Message<GetUserRequest> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.GetUserRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "user_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 1, name: "user_id", kind: "scalar", T: 9 /* ScalarType.STRING */, oneof: "target" },
+    { no: 3, name: "login", kind: "scalar", T: 9 /* ScalarType.STRING */, oneof: "target" },
     { no: 2, name: "avatar", kind: "message", T: UserAvatarOptions },
   ]);
 
@@ -275,55 +290,6 @@ export class GetUserRequest extends Message<GetUserRequest> {
 
   static equals(a: GetUserRequest | PlainMessage<GetUserRequest> | undefined, b: GetUserRequest | PlainMessage<GetUserRequest> | undefined): boolean {
     return proto3.util.equals(GetUserRequest, a, b);
-  }
-}
-
-/**
- * Request one user by login identifier.
- *
- * @generated from message chatto.api.v1.GetUserByLoginRequest
- */
-export class GetUserByLoginRequest extends Message<GetUserByLoginRequest> {
-  /**
-   * Required login identifier.
-   *
-   * @generated from field: string login = 1;
-   */
-  login = "";
-
-  /**
-   * Optional avatar URL transform parameters. Omit for the original avatar URL.
-   *
-   * @generated from field: chatto.api.v1.UserAvatarOptions avatar = 2;
-   */
-  avatar?: UserAvatarOptions;
-
-  constructor(data?: PartialMessage<GetUserByLoginRequest>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.GetUserByLoginRequest";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "login", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "avatar", kind: "message", T: UserAvatarOptions },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetUserByLoginRequest {
-    return new GetUserByLoginRequest().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetUserByLoginRequest {
-    return new GetUserByLoginRequest().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetUserByLoginRequest {
-    return new GetUserByLoginRequest().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: GetUserByLoginRequest | PlainMessage<GetUserByLoginRequest> | undefined, b: GetUserByLoginRequest | PlainMessage<GetUserByLoginRequest> | undefined): boolean {
-    return proto3.util.equals(GetUserByLoginRequest, a, b);
   }
 }
 
@@ -414,47 +380,6 @@ export class GetUserResponse extends Message<GetUserResponse> {
 
   static equals(a: GetUserResponse | PlainMessage<GetUserResponse> | undefined, b: GetUserResponse | PlainMessage<GetUserResponse> | undefined): boolean {
     return proto3.util.equals(GetUserResponse, a, b);
-  }
-}
-
-/**
- * Public authenticated user profile response for login lookup.
- *
- * @generated from message chatto.api.v1.GetUserByLoginResponse
- */
-export class GetUserByLoginResponse extends Message<GetUserByLoginResponse> {
-  /**
-   * Requested user.
-   *
-   * @generated from field: chatto.api.v1.UserProfile user = 1;
-   */
-  user?: UserProfile;
-
-  constructor(data?: PartialMessage<GetUserByLoginResponse>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.GetUserByLoginResponse";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "user", kind: "message", T: UserProfile },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetUserByLoginResponse {
-    return new GetUserByLoginResponse().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetUserByLoginResponse {
-    return new GetUserByLoginResponse().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetUserByLoginResponse {
-    return new GetUserByLoginResponse().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: GetUserByLoginResponse | PlainMessage<GetUserByLoginResponse> | undefined, b: GetUserByLoginResponse | PlainMessage<GetUserByLoginResponse> | undefined): boolean {
-    return proto3.util.equals(GetUserByLoginResponse, a, b);
   }
 }
 

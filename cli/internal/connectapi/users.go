@@ -19,7 +19,16 @@ func (s *userService) GetUser(ctx context.Context, req *connect.Request[apiv1.Ge
 		return nil, err
 	}
 
-	user, err := s.api.core.GetUser(ctx, req.Msg.GetUserId())
+	var user *corev1.User
+	var err error
+	switch req.Msg.GetTarget().(type) {
+	case *apiv1.GetUserRequest_UserId:
+		user, err = s.api.core.GetUser(ctx, req.Msg.GetUserId())
+	case *apiv1.GetUserRequest_Login:
+		user, err = s.api.core.GetUserByLogin(ctx, req.Msg.GetLogin())
+	default:
+		return nil, invalidArgument("user_id or login is required")
+	}
 	if err != nil {
 		return nil, connectError(err)
 	}
@@ -28,22 +37,6 @@ func (s *userService) GetUser(ctx context.Context, req *connect.Request[apiv1.Ge
 		return nil, err
 	}
 	return connect.NewResponse(&apiv1.GetUserResponse{User: profile}), nil
-}
-
-func (s *userService) GetUserByLogin(ctx context.Context, req *connect.Request[apiv1.GetUserByLoginRequest]) (*connect.Response[apiv1.GetUserByLoginResponse], error) {
-	if _, err := requireCaller(ctx); err != nil {
-		return nil, err
-	}
-
-	user, err := s.api.core.GetUserByLogin(ctx, req.Msg.GetLogin())
-	if err != nil {
-		return nil, connectError(err)
-	}
-	profile, err := s.userPresenceSummary(ctx, user, req.Msg.GetAvatar())
-	if err != nil {
-		return nil, err
-	}
-	return connect.NewResponse(&apiv1.GetUserByLoginResponse{User: profile}), nil
 }
 
 func (s *userService) BatchGetUsers(ctx context.Context, req *connect.Request[apiv1.BatchGetUsersRequest]) (*connect.Response[apiv1.BatchGetUsersResponse], error) {

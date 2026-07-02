@@ -23,7 +23,10 @@ func (s *messageService) AddReaction(ctx context.Context, req *connect.Request[a
 	if err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&apiv1.AddReactionResponse{Added: added}), nil
+	return connect.NewResponse(&apiv1.AddReactionResponse{
+		Added:    added,
+		Reaction: s.reactionSummary(ctx, caller.UserID, req.Msg.MessageEventId, req.Msg.Emoji),
+	}), nil
 }
 
 func (s *messageService) RemoveReaction(ctx context.Context, req *connect.Request[apiv1.RemoveReactionRequest]) (*connect.Response[apiv1.RemoveReactionResponse], error) {
@@ -41,5 +44,28 @@ func (s *messageService) RemoveReaction(ctx context.Context, req *connect.Reques
 	if err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&apiv1.RemoveReactionResponse{Removed: removed}), nil
+	return connect.NewResponse(&apiv1.RemoveReactionResponse{
+		Removed:  removed,
+		Reaction: s.reactionSummary(ctx, caller.UserID, req.Msg.MessageEventId, req.Msg.Emoji),
+	}), nil
+}
+
+func (s *messageService) reactionSummary(ctx context.Context, viewerID, messageEventID, emoji string) *apiv1.RoomTimelineReaction {
+	summaries, err := s.api.core.GetReactions(ctx, messageEventID)
+	if err != nil {
+		return nil
+	}
+	for _, summary := range summaries {
+		if summary.Emoji != emoji {
+			continue
+		}
+		userIDs := firstN(summary.UserIDs, 5)
+		return &apiv1.RoomTimelineReaction{
+			Emoji:      summary.Emoji,
+			Count:      int32(len(summary.UserIDs)),
+			HasReacted: containsString(summary.UserIDs, viewerID),
+			UserIds:    userIDs,
+		}
+	}
+	return nil
 }

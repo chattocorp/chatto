@@ -23,6 +23,70 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// Current follow state for one thread and viewer.
+type ThreadFollowState struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Room containing the thread.
+	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	// Event ID of the root message for the thread.
+	ThreadRootEventId string `protobuf:"bytes,2,opt,name=thread_root_event_id,json=threadRootEventId,proto3" json:"thread_root_event_id,omitempty"`
+	// True when the current user follows the thread.
+	Following     bool `protobuf:"varint,3,opt,name=following,proto3" json:"following,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ThreadFollowState) Reset() {
+	*x = ThreadFollowState{}
+	mi := &file_chatto_api_v1_threads_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ThreadFollowState) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ThreadFollowState) ProtoMessage() {}
+
+func (x *ThreadFollowState) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_threads_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ThreadFollowState.ProtoReflect.Descriptor instead.
+func (*ThreadFollowState) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_threads_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *ThreadFollowState) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *ThreadFollowState) GetThreadRootEventId() string {
+	if x != nil {
+		return x.ThreadRootEventId
+	}
+	return ""
+}
+
+func (x *ThreadFollowState) GetFollowing() bool {
+	if x != nil {
+		return x.Following
+	}
+	return false
+}
+
 // Request to follow one message thread.
 type FollowThreadRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -36,7 +100,7 @@ type FollowThreadRequest struct {
 
 func (x *FollowThreadRequest) Reset() {
 	*x = FollowThreadRequest{}
-	mi := &file_chatto_api_v1_threads_proto_msgTypes[0]
+	mi := &file_chatto_api_v1_threads_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -48,7 +112,7 @@ func (x *FollowThreadRequest) String() string {
 func (*FollowThreadRequest) ProtoMessage() {}
 
 func (x *FollowThreadRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_threads_proto_msgTypes[0]
+	mi := &file_chatto_api_v1_threads_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -61,7 +125,7 @@ func (x *FollowThreadRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FollowThreadRequest.ProtoReflect.Descriptor instead.
 func (*FollowThreadRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_threads_proto_rawDescGZIP(), []int{0}
+	return file_chatto_api_v1_threads_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *FollowThreadRequest) GetRoomId() string {
@@ -82,14 +146,16 @@ func (x *FollowThreadRequest) GetThreadRootEventId() string {
 type FollowThreadResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// True when the current user follows the thread after the operation.
-	Following     bool `protobuf:"varint,1,opt,name=following,proto3" json:"following,omitempty"`
+	Following bool `protobuf:"varint,1,opt,name=following,proto3" json:"following,omitempty"`
+	// Current follow state after the operation.
+	State         *ThreadFollowState `protobuf:"bytes,2,opt,name=state,proto3" json:"state,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *FollowThreadResponse) Reset() {
 	*x = FollowThreadResponse{}
-	mi := &file_chatto_api_v1_threads_proto_msgTypes[1]
+	mi := &file_chatto_api_v1_threads_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -101,7 +167,7 @@ func (x *FollowThreadResponse) String() string {
 func (*FollowThreadResponse) ProtoMessage() {}
 
 func (x *FollowThreadResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_threads_proto_msgTypes[1]
+	mi := &file_chatto_api_v1_threads_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -114,7 +180,7 @@ func (x *FollowThreadResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FollowThreadResponse.ProtoReflect.Descriptor instead.
 func (*FollowThreadResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_threads_proto_rawDescGZIP(), []int{1}
+	return file_chatto_api_v1_threads_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *FollowThreadResponse) GetFollowing() bool {
@@ -122,6 +188,13 @@ func (x *FollowThreadResponse) GetFollowing() bool {
 		return x.Following
 	}
 	return false
+}
+
+func (x *FollowThreadResponse) GetState() *ThreadFollowState {
+	if x != nil {
+		return x.State
+	}
+	return nil
 }
 
 // Request to stop following one message thread.
@@ -137,7 +210,7 @@ type UnfollowThreadRequest struct {
 
 func (x *UnfollowThreadRequest) Reset() {
 	*x = UnfollowThreadRequest{}
-	mi := &file_chatto_api_v1_threads_proto_msgTypes[2]
+	mi := &file_chatto_api_v1_threads_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -149,7 +222,7 @@ func (x *UnfollowThreadRequest) String() string {
 func (*UnfollowThreadRequest) ProtoMessage() {}
 
 func (x *UnfollowThreadRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_threads_proto_msgTypes[2]
+	mi := &file_chatto_api_v1_threads_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -162,7 +235,7 @@ func (x *UnfollowThreadRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UnfollowThreadRequest.ProtoReflect.Descriptor instead.
 func (*UnfollowThreadRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_threads_proto_rawDescGZIP(), []int{2}
+	return file_chatto_api_v1_threads_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *UnfollowThreadRequest) GetRoomId() string {
@@ -183,14 +256,16 @@ func (x *UnfollowThreadRequest) GetThreadRootEventId() string {
 type UnfollowThreadResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// True when the current user follows the thread after the operation.
-	Following     bool `protobuf:"varint,1,opt,name=following,proto3" json:"following,omitempty"`
+	Following bool `protobuf:"varint,1,opt,name=following,proto3" json:"following,omitempty"`
+	// Current follow state after the operation.
+	State         *ThreadFollowState `protobuf:"bytes,2,opt,name=state,proto3" json:"state,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *UnfollowThreadResponse) Reset() {
 	*x = UnfollowThreadResponse{}
-	mi := &file_chatto_api_v1_threads_proto_msgTypes[3]
+	mi := &file_chatto_api_v1_threads_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -202,7 +277,7 @@ func (x *UnfollowThreadResponse) String() string {
 func (*UnfollowThreadResponse) ProtoMessage() {}
 
 func (x *UnfollowThreadResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_threads_proto_msgTypes[3]
+	mi := &file_chatto_api_v1_threads_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -215,7 +290,7 @@ func (x *UnfollowThreadResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UnfollowThreadResponse.ProtoReflect.Descriptor instead.
 func (*UnfollowThreadResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_threads_proto_rawDescGZIP(), []int{3}
+	return file_chatto_api_v1_threads_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *UnfollowThreadResponse) GetFollowing() bool {
@@ -223,6 +298,13 @@ func (x *UnfollowThreadResponse) GetFollowing() bool {
 		return x.Following
 	}
 	return false
+}
+
+func (x *UnfollowThreadResponse) GetState() *ThreadFollowState {
+	if x != nil {
+		return x.State
+	}
+	return nil
 }
 
 // One followed thread for the current user.
@@ -248,7 +330,7 @@ type FollowedThread struct {
 
 func (x *FollowedThread) Reset() {
 	*x = FollowedThread{}
-	mi := &file_chatto_api_v1_threads_proto_msgTypes[4]
+	mi := &file_chatto_api_v1_threads_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -260,7 +342,7 @@ func (x *FollowedThread) String() string {
 func (*FollowedThread) ProtoMessage() {}
 
 func (x *FollowedThread) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_threads_proto_msgTypes[4]
+	mi := &file_chatto_api_v1_threads_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -273,7 +355,7 @@ func (x *FollowedThread) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FollowedThread.ProtoReflect.Descriptor instead.
 func (*FollowedThread) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_threads_proto_rawDescGZIP(), []int{4}
+	return file_chatto_api_v1_threads_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *FollowedThread) GetRoomId() string {
@@ -336,7 +418,7 @@ type ListFollowedThreadsRequest struct {
 
 func (x *ListFollowedThreadsRequest) Reset() {
 	*x = ListFollowedThreadsRequest{}
-	mi := &file_chatto_api_v1_threads_proto_msgTypes[5]
+	mi := &file_chatto_api_v1_threads_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -348,7 +430,7 @@ func (x *ListFollowedThreadsRequest) String() string {
 func (*ListFollowedThreadsRequest) ProtoMessage() {}
 
 func (x *ListFollowedThreadsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_threads_proto_msgTypes[5]
+	mi := &file_chatto_api_v1_threads_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -361,7 +443,7 @@ func (x *ListFollowedThreadsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListFollowedThreadsRequest.ProtoReflect.Descriptor instead.
 func (*ListFollowedThreadsRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_threads_proto_rawDescGZIP(), []int{5}
+	return file_chatto_api_v1_threads_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *ListFollowedThreadsRequest) GetPage() *PageRequest {
@@ -386,7 +468,7 @@ type ListFollowedThreadsResponse struct {
 
 func (x *ListFollowedThreadsResponse) Reset() {
 	*x = ListFollowedThreadsResponse{}
-	mi := &file_chatto_api_v1_threads_proto_msgTypes[6]
+	mi := &file_chatto_api_v1_threads_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -398,7 +480,7 @@ func (x *ListFollowedThreadsResponse) String() string {
 func (*ListFollowedThreadsResponse) ProtoMessage() {}
 
 func (x *ListFollowedThreadsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_threads_proto_msgTypes[6]
+	mi := &file_chatto_api_v1_threads_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -411,7 +493,7 @@ func (x *ListFollowedThreadsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListFollowedThreadsResponse.ProtoReflect.Descriptor instead.
 func (*ListFollowedThreadsResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_threads_proto_rawDescGZIP(), []int{6}
+	return file_chatto_api_v1_threads_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *ListFollowedThreadsResponse) GetThreads() []*FollowedThread {
@@ -439,17 +521,23 @@ var File_chatto_api_v1_threads_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_threads_proto_rawDesc = "" +
 	"\n" +
-	"\x1bchatto/api/v1/threads.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1echatto/api/v1/pagination.proto\x1a\x1echatto/api/v1/read_state.proto\x1a!chatto/api/v1/room_timeline.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"q\n" +
+	"\x1bchatto/api/v1/threads.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1echatto/api/v1/pagination.proto\x1a\x1echatto/api/v1/read_state.proto\x1a!chatto/api/v1/room_timeline.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"{\n" +
+	"\x11ThreadFollowState\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12/\n" +
+	"\x14thread_root_event_id\x18\x02 \x01(\tR\x11threadRootEventId\x12\x1c\n" +
+	"\tfollowing\x18\x03 \x01(\bR\tfollowing\"q\n" +
 	"\x13FollowThreadRequest\x12 \n" +
 	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x128\n" +
-	"\x14thread_root_event_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x11threadRootEventId\"4\n" +
+	"\x14thread_root_event_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x11threadRootEventId\"l\n" +
 	"\x14FollowThreadResponse\x12\x1c\n" +
-	"\tfollowing\x18\x01 \x01(\bR\tfollowing\"s\n" +
+	"\tfollowing\x18\x01 \x01(\bR\tfollowing\x126\n" +
+	"\x05state\x18\x02 \x01(\v2 .chatto.api.v1.ThreadFollowStateR\x05state\"s\n" +
 	"\x15UnfollowThreadRequest\x12 \n" +
 	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x128\n" +
-	"\x14thread_root_event_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x11threadRootEventId\"6\n" +
+	"\x14thread_root_event_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x11threadRootEventId\"n\n" +
 	"\x16UnfollowThreadResponse\x12\x1c\n" +
-	"\tfollowing\x18\x01 \x01(\bR\tfollowing\"\xbc\x02\n" +
+	"\tfollowing\x18\x01 \x01(\bR\tfollowing\x126\n" +
+	"\x05state\x18\x02 \x01(\v2 .chatto.api.v1.ThreadFollowStateR\x05state\"\xbc\x02\n" +
 	"\x0eFollowedThread\x12\x17\n" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x1b\n" +
 	"\troom_name\x18\x02 \x01(\tR\broomName\x12/\n" +
@@ -487,51 +575,54 @@ func file_chatto_api_v1_threads_proto_rawDescGZIP() []byte {
 	return file_chatto_api_v1_threads_proto_rawDescData
 }
 
-var file_chatto_api_v1_threads_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_chatto_api_v1_threads_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_chatto_api_v1_threads_proto_goTypes = []any{
-	(*FollowThreadRequest)(nil),           // 0: chatto.api.v1.FollowThreadRequest
-	(*FollowThreadResponse)(nil),          // 1: chatto.api.v1.FollowThreadResponse
-	(*UnfollowThreadRequest)(nil),         // 2: chatto.api.v1.UnfollowThreadRequest
-	(*UnfollowThreadResponse)(nil),        // 3: chatto.api.v1.UnfollowThreadResponse
-	(*FollowedThread)(nil),                // 4: chatto.api.v1.FollowedThread
-	(*ListFollowedThreadsRequest)(nil),    // 5: chatto.api.v1.ListFollowedThreadsRequest
-	(*ListFollowedThreadsResponse)(nil),   // 6: chatto.api.v1.ListFollowedThreadsResponse
-	(*RoomTimelineEvent)(nil),             // 7: chatto.api.v1.RoomTimelineEvent
-	(*timestamppb.Timestamp)(nil),         // 8: google.protobuf.Timestamp
-	(*PageRequest)(nil),                   // 9: chatto.api.v1.PageRequest
-	(*RoomTimelineIncludes)(nil),          // 10: chatto.api.v1.RoomTimelineIncludes
-	(*PageInfo)(nil),                      // 11: chatto.api.v1.PageInfo
-	(*GetThreadEventsRequest)(nil),        // 12: chatto.api.v1.GetThreadEventsRequest
-	(*GetThreadEventsAroundRequest)(nil),  // 13: chatto.api.v1.GetThreadEventsAroundRequest
-	(*MarkThreadAsReadRequest)(nil),       // 14: chatto.api.v1.MarkThreadAsReadRequest
-	(*GetThreadEventsResponse)(nil),       // 15: chatto.api.v1.GetThreadEventsResponse
-	(*GetThreadEventsAroundResponse)(nil), // 16: chatto.api.v1.GetThreadEventsAroundResponse
-	(*MarkThreadAsReadResponse)(nil),      // 17: chatto.api.v1.MarkThreadAsReadResponse
+	(*ThreadFollowState)(nil),             // 0: chatto.api.v1.ThreadFollowState
+	(*FollowThreadRequest)(nil),           // 1: chatto.api.v1.FollowThreadRequest
+	(*FollowThreadResponse)(nil),          // 2: chatto.api.v1.FollowThreadResponse
+	(*UnfollowThreadRequest)(nil),         // 3: chatto.api.v1.UnfollowThreadRequest
+	(*UnfollowThreadResponse)(nil),        // 4: chatto.api.v1.UnfollowThreadResponse
+	(*FollowedThread)(nil),                // 5: chatto.api.v1.FollowedThread
+	(*ListFollowedThreadsRequest)(nil),    // 6: chatto.api.v1.ListFollowedThreadsRequest
+	(*ListFollowedThreadsResponse)(nil),   // 7: chatto.api.v1.ListFollowedThreadsResponse
+	(*RoomTimelineEvent)(nil),             // 8: chatto.api.v1.RoomTimelineEvent
+	(*timestamppb.Timestamp)(nil),         // 9: google.protobuf.Timestamp
+	(*PageRequest)(nil),                   // 10: chatto.api.v1.PageRequest
+	(*RoomTimelineIncludes)(nil),          // 11: chatto.api.v1.RoomTimelineIncludes
+	(*PageInfo)(nil),                      // 12: chatto.api.v1.PageInfo
+	(*GetThreadEventsRequest)(nil),        // 13: chatto.api.v1.GetThreadEventsRequest
+	(*GetThreadEventsAroundRequest)(nil),  // 14: chatto.api.v1.GetThreadEventsAroundRequest
+	(*MarkThreadAsReadRequest)(nil),       // 15: chatto.api.v1.MarkThreadAsReadRequest
+	(*GetThreadEventsResponse)(nil),       // 16: chatto.api.v1.GetThreadEventsResponse
+	(*GetThreadEventsAroundResponse)(nil), // 17: chatto.api.v1.GetThreadEventsAroundResponse
+	(*MarkThreadAsReadResponse)(nil),      // 18: chatto.api.v1.MarkThreadAsReadResponse
 }
 var file_chatto_api_v1_threads_proto_depIdxs = []int32{
-	7,  // 0: chatto.api.v1.FollowedThread.root_message:type_name -> chatto.api.v1.RoomTimelineEvent
-	8,  // 1: chatto.api.v1.FollowedThread.last_reply_at:type_name -> google.protobuf.Timestamp
-	9,  // 2: chatto.api.v1.ListFollowedThreadsRequest.page:type_name -> chatto.api.v1.PageRequest
-	4,  // 3: chatto.api.v1.ListFollowedThreadsResponse.threads:type_name -> chatto.api.v1.FollowedThread
-	10, // 4: chatto.api.v1.ListFollowedThreadsResponse.includes:type_name -> chatto.api.v1.RoomTimelineIncludes
-	11, // 5: chatto.api.v1.ListFollowedThreadsResponse.page:type_name -> chatto.api.v1.PageInfo
-	5,  // 6: chatto.api.v1.ThreadService.ListFollowedThreads:input_type -> chatto.api.v1.ListFollowedThreadsRequest
-	0,  // 7: chatto.api.v1.ThreadService.FollowThread:input_type -> chatto.api.v1.FollowThreadRequest
-	2,  // 8: chatto.api.v1.ThreadService.UnfollowThread:input_type -> chatto.api.v1.UnfollowThreadRequest
-	12, // 9: chatto.api.v1.ThreadService.GetThreadEvents:input_type -> chatto.api.v1.GetThreadEventsRequest
-	13, // 10: chatto.api.v1.ThreadService.GetThreadEventsAround:input_type -> chatto.api.v1.GetThreadEventsAroundRequest
-	14, // 11: chatto.api.v1.ThreadService.MarkThreadAsRead:input_type -> chatto.api.v1.MarkThreadAsReadRequest
-	6,  // 12: chatto.api.v1.ThreadService.ListFollowedThreads:output_type -> chatto.api.v1.ListFollowedThreadsResponse
-	1,  // 13: chatto.api.v1.ThreadService.FollowThread:output_type -> chatto.api.v1.FollowThreadResponse
-	3,  // 14: chatto.api.v1.ThreadService.UnfollowThread:output_type -> chatto.api.v1.UnfollowThreadResponse
-	15, // 15: chatto.api.v1.ThreadService.GetThreadEvents:output_type -> chatto.api.v1.GetThreadEventsResponse
-	16, // 16: chatto.api.v1.ThreadService.GetThreadEventsAround:output_type -> chatto.api.v1.GetThreadEventsAroundResponse
-	17, // 17: chatto.api.v1.ThreadService.MarkThreadAsRead:output_type -> chatto.api.v1.MarkThreadAsReadResponse
-	12, // [12:18] is the sub-list for method output_type
-	6,  // [6:12] is the sub-list for method input_type
-	6,  // [6:6] is the sub-list for extension type_name
-	6,  // [6:6] is the sub-list for extension extendee
-	0,  // [0:6] is the sub-list for field type_name
+	0,  // 0: chatto.api.v1.FollowThreadResponse.state:type_name -> chatto.api.v1.ThreadFollowState
+	0,  // 1: chatto.api.v1.UnfollowThreadResponse.state:type_name -> chatto.api.v1.ThreadFollowState
+	8,  // 2: chatto.api.v1.FollowedThread.root_message:type_name -> chatto.api.v1.RoomTimelineEvent
+	9,  // 3: chatto.api.v1.FollowedThread.last_reply_at:type_name -> google.protobuf.Timestamp
+	10, // 4: chatto.api.v1.ListFollowedThreadsRequest.page:type_name -> chatto.api.v1.PageRequest
+	5,  // 5: chatto.api.v1.ListFollowedThreadsResponse.threads:type_name -> chatto.api.v1.FollowedThread
+	11, // 6: chatto.api.v1.ListFollowedThreadsResponse.includes:type_name -> chatto.api.v1.RoomTimelineIncludes
+	12, // 7: chatto.api.v1.ListFollowedThreadsResponse.page:type_name -> chatto.api.v1.PageInfo
+	6,  // 8: chatto.api.v1.ThreadService.ListFollowedThreads:input_type -> chatto.api.v1.ListFollowedThreadsRequest
+	1,  // 9: chatto.api.v1.ThreadService.FollowThread:input_type -> chatto.api.v1.FollowThreadRequest
+	3,  // 10: chatto.api.v1.ThreadService.UnfollowThread:input_type -> chatto.api.v1.UnfollowThreadRequest
+	13, // 11: chatto.api.v1.ThreadService.GetThreadEvents:input_type -> chatto.api.v1.GetThreadEventsRequest
+	14, // 12: chatto.api.v1.ThreadService.GetThreadEventsAround:input_type -> chatto.api.v1.GetThreadEventsAroundRequest
+	15, // 13: chatto.api.v1.ThreadService.MarkThreadAsRead:input_type -> chatto.api.v1.MarkThreadAsReadRequest
+	7,  // 14: chatto.api.v1.ThreadService.ListFollowedThreads:output_type -> chatto.api.v1.ListFollowedThreadsResponse
+	2,  // 15: chatto.api.v1.ThreadService.FollowThread:output_type -> chatto.api.v1.FollowThreadResponse
+	4,  // 16: chatto.api.v1.ThreadService.UnfollowThread:output_type -> chatto.api.v1.UnfollowThreadResponse
+	16, // 17: chatto.api.v1.ThreadService.GetThreadEvents:output_type -> chatto.api.v1.GetThreadEventsResponse
+	17, // 18: chatto.api.v1.ThreadService.GetThreadEventsAround:output_type -> chatto.api.v1.GetThreadEventsAroundResponse
+	18, // 19: chatto.api.v1.ThreadService.MarkThreadAsRead:output_type -> chatto.api.v1.MarkThreadAsReadResponse
+	14, // [14:20] is the sub-list for method output_type
+	8,  // [8:14] is the sub-list for method input_type
+	8,  // [8:8] is the sub-list for extension type_name
+	8,  // [8:8] is the sub-list for extension extendee
+	0,  // [0:8] is the sub-list for field type_name
 }
 
 func init() { file_chatto_api_v1_threads_proto_init() }
@@ -548,7 +639,7 @@ func file_chatto_api_v1_threads_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_api_v1_threads_proto_rawDesc), len(file_chatto_api_v1_threads_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   7,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

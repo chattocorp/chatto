@@ -34,7 +34,7 @@
       return () => chromePermissions.current.canManage;
     }
 
-    // Members pages call AdminMemberService.ListMembers/GetMember, which
+    // Members pages call AdminUserService.ListMembers/GetMember, which
     // require admin.view-users.
     if (pathname.startsWith(membersBase)) {
       return () => serverPerms.current.canAdminViewUsers;

@@ -23,7 +23,7 @@ var publicReflectionServiceNames = []string{
 	apiv1connect.MyAccountServiceName,
 	adminv1connect.AdminDiagnosticsServiceName,
 	adminv1connect.AdminEventLogServiceName,
-	adminv1connect.AdminMemberServiceName,
+	adminv1connect.AdminUserServiceName,
 	adminv1connect.AdminPermissionServiceName,
 	adminv1connect.AdminRoleServiceName,
 	adminv1connect.AdminRoomLayoutServiceName,

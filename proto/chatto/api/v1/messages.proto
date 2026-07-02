@@ -85,14 +85,14 @@ message CreateMessageResponse {
   RoomTimelineIncludes includes = 3;
 }
 
-// Request to edit a message body.
+// Request to patch a message.
 message UpdateMessageRequest {
   // Required. Room containing the message.
   string room_id = 1 [(buf.validate.field).string.min_len = 1];
   // Required. Event ID of the message to edit.
   string event_id = 2 [(buf.validate.field).string.min_len = 1];
-  // New message body text.
-  string body = 3 [(buf.validate.field).string.max_len = 10000];
+  // New message body text. Omit to preserve the current body.
+  optional string body = 3 [(buf.validate.field).string.max_len = 10000];
   // For thread replies, whether a channel echo should exist after saving.
   // Omit to preserve the current echo state.
   optional bool also_send_to_channel = 4;
@@ -102,6 +102,10 @@ message UpdateMessageRequest {
 message UpdateMessageResponse {
   // True when the edit was accepted.
   bool updated = 1;
+  // Renderable timeline event after the edit.
+  RoomTimelineEvent event = 2;
+  // Related entities needed to render event after the edit.
+  RoomTimelineIncludes includes = 3;
 }
 
 // Request to retract a message.

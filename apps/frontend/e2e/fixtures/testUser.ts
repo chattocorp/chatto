@@ -66,7 +66,7 @@ async function setServerRolePermission(
 async function assignRoleViaConnect(page: Page, userId: string, roleName: string): Promise<void> {
   const data = await connectPost<AssignRoleResponse>(
     page,
-    'chatto.admin.v1.AdminMemberService/AssignRole',
+    'chatto.admin.v1.AdminUserService/AssignRole',
     { userId, roleName }
   );
   expect(data.assigned).toBe(true);
@@ -75,7 +75,7 @@ async function assignRoleViaConnect(page: Page, userId: string, roleName: string
 async function revokeRoleViaConnect(page: Page, userId: string, roleName: string): Promise<void> {
   const data = await connectPost<RevokeRoleResponse>(
     page,
-    'chatto.admin.v1.AdminMemberService/RevokeRole',
+    'chatto.admin.v1.AdminUserService/RevokeRole',
     { userId, roleName }
   );
   expect(data.revoked).toBe(true);

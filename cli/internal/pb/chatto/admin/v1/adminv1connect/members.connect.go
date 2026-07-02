@@ -21,8 +21,8 @@ import (
 const _ = connect.IsAtLeastVersion1_13_0
 
 const (
-	// AdminMemberServiceName is the fully-qualified name of the AdminMemberService service.
-	AdminMemberServiceName = "chatto.admin.v1.AdminMemberService"
+	// AdminUserServiceName is the fully-qualified name of the AdminUserService service.
+	AdminUserServiceName = "chatto.admin.v1.AdminUserService"
 )
 
 // These constants are the fully-qualified names of the RPCs defined in this package. They're
@@ -33,37 +33,37 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
-	// AdminMemberServiceListMembersProcedure is the fully-qualified name of the AdminMemberService's
+	// AdminUserServiceListMembersProcedure is the fully-qualified name of the AdminUserService's
 	// ListMembers RPC.
-	AdminMemberServiceListMembersProcedure = "/chatto.admin.v1.AdminMemberService/ListMembers"
-	// AdminMemberServiceGetMemberProcedure is the fully-qualified name of the AdminMemberService's
+	AdminUserServiceListMembersProcedure = "/chatto.admin.v1.AdminUserService/ListMembers"
+	// AdminUserServiceGetMemberProcedure is the fully-qualified name of the AdminUserService's
 	// GetMember RPC.
-	AdminMemberServiceGetMemberProcedure = "/chatto.admin.v1.AdminMemberService/GetMember"
-	// AdminMemberServiceBatchGetMembersProcedure is the fully-qualified name of the
-	// AdminMemberService's BatchGetMembers RPC.
-	AdminMemberServiceBatchGetMembersProcedure = "/chatto.admin.v1.AdminMemberService/BatchGetMembers"
-	// AdminMemberServiceAssignRoleProcedure is the fully-qualified name of the AdminMemberService's
+	AdminUserServiceGetMemberProcedure = "/chatto.admin.v1.AdminUserService/GetMember"
+	// AdminUserServiceBatchGetMembersProcedure is the fully-qualified name of the AdminUserService's
+	// BatchGetMembers RPC.
+	AdminUserServiceBatchGetMembersProcedure = "/chatto.admin.v1.AdminUserService/BatchGetMembers"
+	// AdminUserServiceAssignRoleProcedure is the fully-qualified name of the AdminUserService's
 	// AssignRole RPC.
-	AdminMemberServiceAssignRoleProcedure = "/chatto.admin.v1.AdminMemberService/AssignRole"
-	// AdminMemberServiceRevokeRoleProcedure is the fully-qualified name of the AdminMemberService's
+	AdminUserServiceAssignRoleProcedure = "/chatto.admin.v1.AdminUserService/AssignRole"
+	// AdminUserServiceRevokeRoleProcedure is the fully-qualified name of the AdminUserService's
 	// RevokeRole RPC.
-	AdminMemberServiceRevokeRoleProcedure = "/chatto.admin.v1.AdminMemberService/RevokeRole"
-	// AdminMemberServiceUpdateUserProcedure is the fully-qualified name of the AdminMemberService's
+	AdminUserServiceRevokeRoleProcedure = "/chatto.admin.v1.AdminUserService/RevokeRole"
+	// AdminUserServiceUpdateUserProcedure is the fully-qualified name of the AdminUserService's
 	// UpdateUser RPC.
-	AdminMemberServiceUpdateUserProcedure = "/chatto.admin.v1.AdminMemberService/UpdateUser"
-	// AdminMemberServiceUpdateUserPasswordProcedure is the fully-qualified name of the
-	// AdminMemberService's UpdateUserPassword RPC.
-	AdminMemberServiceUpdateUserPasswordProcedure = "/chatto.admin.v1.AdminMemberService/UpdateUserPassword"
-	// AdminMemberServiceClearUsernameCooldownProcedure is the fully-qualified name of the
-	// AdminMemberService's ClearUsernameCooldown RPC.
-	AdminMemberServiceClearUsernameCooldownProcedure = "/chatto.admin.v1.AdminMemberService/ClearUsernameCooldown"
-	// AdminMemberServiceDeleteUserProcedure is the fully-qualified name of the AdminMemberService's
+	AdminUserServiceUpdateUserProcedure = "/chatto.admin.v1.AdminUserService/UpdateUser"
+	// AdminUserServiceUpdateUserPasswordProcedure is the fully-qualified name of the AdminUserService's
+	// UpdateUserPassword RPC.
+	AdminUserServiceUpdateUserPasswordProcedure = "/chatto.admin.v1.AdminUserService/UpdateUserPassword"
+	// AdminUserServiceClearUsernameCooldownProcedure is the fully-qualified name of the
+	// AdminUserService's ClearUsernameCooldown RPC.
+	AdminUserServiceClearUsernameCooldownProcedure = "/chatto.admin.v1.AdminUserService/ClearUsernameCooldown"
+	// AdminUserServiceDeleteUserProcedure is the fully-qualified name of the AdminUserService's
 	// DeleteUser RPC.
-	AdminMemberServiceDeleteUserProcedure = "/chatto.admin.v1.AdminMemberService/DeleteUser"
+	AdminUserServiceDeleteUserProcedure = "/chatto.admin.v1.AdminUserService/DeleteUser"
 )
 
-// AdminMemberServiceClient is a client for the chatto.admin.v1.AdminMemberService service.
-type AdminMemberServiceClient interface {
+// AdminUserServiceClient is a client for the chatto.admin.v1.AdminUserService service.
+type AdminUserServiceClient interface {
 	// Lists server members for the admin members screen. Requires
 	// admin.view-users.
 	ListMembers(context.Context, *connect.Request[v1.ListMembersRequest]) (*connect.Response[v1.ListMembersResponse], error)
@@ -92,76 +92,76 @@ type AdminMemberServiceClient interface {
 	DeleteUser(context.Context, *connect.Request[v1.DeleteUserRequest]) (*connect.Response[v1.DeleteUserResponse], error)
 }
 
-// NewAdminMemberServiceClient constructs a client for the chatto.admin.v1.AdminMemberService
-// service. By default, it uses the Connect protocol with the binary Protobuf Codec, asks for
-// gzipped responses, and sends uncompressed requests. To use the gRPC or gRPC-Web protocols, supply
-// the connect.WithGRPC() or connect.WithGRPCWeb() options.
+// NewAdminUserServiceClient constructs a client for the chatto.admin.v1.AdminUserService service.
+// By default, it uses the Connect protocol with the binary Protobuf Codec, asks for gzipped
+// responses, and sends uncompressed requests. To use the gRPC or gRPC-Web protocols, supply the
+// connect.WithGRPC() or connect.WithGRPCWeb() options.
 //
 // The URL supplied here should be the base URL for the Connect or gRPC server (for example,
 // http://api.acme.com or https://acme.com/grpc).
-func NewAdminMemberServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) AdminMemberServiceClient {
+func NewAdminUserServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) AdminUserServiceClient {
 	baseURL = strings.TrimRight(baseURL, "/")
-	adminMemberServiceMethods := v1.File_chatto_admin_v1_members_proto.Services().ByName("AdminMemberService").Methods()
-	return &adminMemberServiceClient{
+	adminUserServiceMethods := v1.File_chatto_admin_v1_members_proto.Services().ByName("AdminUserService").Methods()
+	return &adminUserServiceClient{
 		listMembers: connect.NewClient[v1.ListMembersRequest, v1.ListMembersResponse](
 			httpClient,
-			baseURL+AdminMemberServiceListMembersProcedure,
-			connect.WithSchema(adminMemberServiceMethods.ByName("ListMembers")),
+			baseURL+AdminUserServiceListMembersProcedure,
+			connect.WithSchema(adminUserServiceMethods.ByName("ListMembers")),
 			connect.WithClientOptions(opts...),
 		),
 		getMember: connect.NewClient[v1.GetMemberRequest, v1.GetMemberResponse](
 			httpClient,
-			baseURL+AdminMemberServiceGetMemberProcedure,
-			connect.WithSchema(adminMemberServiceMethods.ByName("GetMember")),
+			baseURL+AdminUserServiceGetMemberProcedure,
+			connect.WithSchema(adminUserServiceMethods.ByName("GetMember")),
 			connect.WithClientOptions(opts...),
 		),
 		batchGetMembers: connect.NewClient[v1.BatchGetMembersRequest, v1.BatchGetMembersResponse](
 			httpClient,
-			baseURL+AdminMemberServiceBatchGetMembersProcedure,
-			connect.WithSchema(adminMemberServiceMethods.ByName("BatchGetMembers")),
+			baseURL+AdminUserServiceBatchGetMembersProcedure,
+			connect.WithSchema(adminUserServiceMethods.ByName("BatchGetMembers")),
 			connect.WithClientOptions(opts...),
 		),
 		assignRole: connect.NewClient[v1.AssignRoleRequest, v1.AssignRoleResponse](
 			httpClient,
-			baseURL+AdminMemberServiceAssignRoleProcedure,
-			connect.WithSchema(adminMemberServiceMethods.ByName("AssignRole")),
+			baseURL+AdminUserServiceAssignRoleProcedure,
+			connect.WithSchema(adminUserServiceMethods.ByName("AssignRole")),
 			connect.WithClientOptions(opts...),
 		),
 		revokeRole: connect.NewClient[v1.RevokeRoleRequest, v1.RevokeRoleResponse](
 			httpClient,
-			baseURL+AdminMemberServiceRevokeRoleProcedure,
-			connect.WithSchema(adminMemberServiceMethods.ByName("RevokeRole")),
+			baseURL+AdminUserServiceRevokeRoleProcedure,
+			connect.WithSchema(adminUserServiceMethods.ByName("RevokeRole")),
 			connect.WithClientOptions(opts...),
 		),
 		updateUser: connect.NewClient[v1.UpdateUserRequest, v1.UpdateUserResponse](
 			httpClient,
-			baseURL+AdminMemberServiceUpdateUserProcedure,
-			connect.WithSchema(adminMemberServiceMethods.ByName("UpdateUser")),
+			baseURL+AdminUserServiceUpdateUserProcedure,
+			connect.WithSchema(adminUserServiceMethods.ByName("UpdateUser")),
 			connect.WithClientOptions(opts...),
 		),
 		updateUserPassword: connect.NewClient[v1.UpdateUserPasswordRequest, v1.UpdateUserPasswordResponse](
 			httpClient,
-			baseURL+AdminMemberServiceUpdateUserPasswordProcedure,
-			connect.WithSchema(adminMemberServiceMethods.ByName("UpdateUserPassword")),
+			baseURL+AdminUserServiceUpdateUserPasswordProcedure,
+			connect.WithSchema(adminUserServiceMethods.ByName("UpdateUserPassword")),
 			connect.WithClientOptions(opts...),
 		),
 		clearUsernameCooldown: connect.NewClient[v1.ClearUsernameCooldownRequest, v1.ClearUsernameCooldownResponse](
 			httpClient,
-			baseURL+AdminMemberServiceClearUsernameCooldownProcedure,
-			connect.WithSchema(adminMemberServiceMethods.ByName("ClearUsernameCooldown")),
+			baseURL+AdminUserServiceClearUsernameCooldownProcedure,
+			connect.WithSchema(adminUserServiceMethods.ByName("ClearUsernameCooldown")),
 			connect.WithClientOptions(opts...),
 		),
 		deleteUser: connect.NewClient[v1.DeleteUserRequest, v1.DeleteUserResponse](
 			httpClient,
-			baseURL+AdminMemberServiceDeleteUserProcedure,
-			connect.WithSchema(adminMemberServiceMethods.ByName("DeleteUser")),
+			baseURL+AdminUserServiceDeleteUserProcedure,
+			connect.WithSchema(adminUserServiceMethods.ByName("DeleteUser")),
 			connect.WithClientOptions(opts...),
 		),
 	}
 }
 
-// adminMemberServiceClient implements AdminMemberServiceClient.
-type adminMemberServiceClient struct {
+// adminUserServiceClient implements AdminUserServiceClient.
+type adminUserServiceClient struct {
 	listMembers           *connect.Client[v1.ListMembersRequest, v1.ListMembersResponse]
 	getMember             *connect.Client[v1.GetMemberRequest, v1.GetMemberResponse]
 	batchGetMembers       *connect.Client[v1.BatchGetMembersRequest, v1.BatchGetMembersResponse]
@@ -173,53 +173,53 @@ type adminMemberServiceClient struct {
 	deleteUser            *connect.Client[v1.DeleteUserRequest, v1.DeleteUserResponse]
 }
 
-// ListMembers calls chatto.admin.v1.AdminMemberService.ListMembers.
-func (c *adminMemberServiceClient) ListMembers(ctx context.Context, req *connect.Request[v1.ListMembersRequest]) (*connect.Response[v1.ListMembersResponse], error) {
+// ListMembers calls chatto.admin.v1.AdminUserService.ListMembers.
+func (c *adminUserServiceClient) ListMembers(ctx context.Context, req *connect.Request[v1.ListMembersRequest]) (*connect.Response[v1.ListMembersResponse], error) {
 	return c.listMembers.CallUnary(ctx, req)
 }
 
-// GetMember calls chatto.admin.v1.AdminMemberService.GetMember.
-func (c *adminMemberServiceClient) GetMember(ctx context.Context, req *connect.Request[v1.GetMemberRequest]) (*connect.Response[v1.GetMemberResponse], error) {
+// GetMember calls chatto.admin.v1.AdminUserService.GetMember.
+func (c *adminUserServiceClient) GetMember(ctx context.Context, req *connect.Request[v1.GetMemberRequest]) (*connect.Response[v1.GetMemberResponse], error) {
 	return c.getMember.CallUnary(ctx, req)
 }
 
-// BatchGetMembers calls chatto.admin.v1.AdminMemberService.BatchGetMembers.
-func (c *adminMemberServiceClient) BatchGetMembers(ctx context.Context, req *connect.Request[v1.BatchGetMembersRequest]) (*connect.Response[v1.BatchGetMembersResponse], error) {
+// BatchGetMembers calls chatto.admin.v1.AdminUserService.BatchGetMembers.
+func (c *adminUserServiceClient) BatchGetMembers(ctx context.Context, req *connect.Request[v1.BatchGetMembersRequest]) (*connect.Response[v1.BatchGetMembersResponse], error) {
 	return c.batchGetMembers.CallUnary(ctx, req)
 }
 
-// AssignRole calls chatto.admin.v1.AdminMemberService.AssignRole.
-func (c *adminMemberServiceClient) AssignRole(ctx context.Context, req *connect.Request[v1.AssignRoleRequest]) (*connect.Response[v1.AssignRoleResponse], error) {
+// AssignRole calls chatto.admin.v1.AdminUserService.AssignRole.
+func (c *adminUserServiceClient) AssignRole(ctx context.Context, req *connect.Request[v1.AssignRoleRequest]) (*connect.Response[v1.AssignRoleResponse], error) {
 	return c.assignRole.CallUnary(ctx, req)
 }
 
-// RevokeRole calls chatto.admin.v1.AdminMemberService.RevokeRole.
-func (c *adminMemberServiceClient) RevokeRole(ctx context.Context, req *connect.Request[v1.RevokeRoleRequest]) (*connect.Response[v1.RevokeRoleResponse], error) {
+// RevokeRole calls chatto.admin.v1.AdminUserService.RevokeRole.
+func (c *adminUserServiceClient) RevokeRole(ctx context.Context, req *connect.Request[v1.RevokeRoleRequest]) (*connect.Response[v1.RevokeRoleResponse], error) {
 	return c.revokeRole.CallUnary(ctx, req)
 }
 
-// UpdateUser calls chatto.admin.v1.AdminMemberService.UpdateUser.
-func (c *adminMemberServiceClient) UpdateUser(ctx context.Context, req *connect.Request[v1.UpdateUserRequest]) (*connect.Response[v1.UpdateUserResponse], error) {
+// UpdateUser calls chatto.admin.v1.AdminUserService.UpdateUser.
+func (c *adminUserServiceClient) UpdateUser(ctx context.Context, req *connect.Request[v1.UpdateUserRequest]) (*connect.Response[v1.UpdateUserResponse], error) {
 	return c.updateUser.CallUnary(ctx, req)
 }
 
-// UpdateUserPassword calls chatto.admin.v1.AdminMemberService.UpdateUserPassword.
-func (c *adminMemberServiceClient) UpdateUserPassword(ctx context.Context, req *connect.Request[v1.UpdateUserPasswordRequest]) (*connect.Response[v1.UpdateUserPasswordResponse], error) {
+// UpdateUserPassword calls chatto.admin.v1.AdminUserService.UpdateUserPassword.
+func (c *adminUserServiceClient) UpdateUserPassword(ctx context.Context, req *connect.Request[v1.UpdateUserPasswordRequest]) (*connect.Response[v1.UpdateUserPasswordResponse], error) {
 	return c.updateUserPassword.CallUnary(ctx, req)
 }
 
-// ClearUsernameCooldown calls chatto.admin.v1.AdminMemberService.ClearUsernameCooldown.
-func (c *adminMemberServiceClient) ClearUsernameCooldown(ctx context.Context, req *connect.Request[v1.ClearUsernameCooldownRequest]) (*connect.Response[v1.ClearUsernameCooldownResponse], error) {
+// ClearUsernameCooldown calls chatto.admin.v1.AdminUserService.ClearUsernameCooldown.
+func (c *adminUserServiceClient) ClearUsernameCooldown(ctx context.Context, req *connect.Request[v1.ClearUsernameCooldownRequest]) (*connect.Response[v1.ClearUsernameCooldownResponse], error) {
 	return c.clearUsernameCooldown.CallUnary(ctx, req)
 }
 
-// DeleteUser calls chatto.admin.v1.AdminMemberService.DeleteUser.
-func (c *adminMemberServiceClient) DeleteUser(ctx context.Context, req *connect.Request[v1.DeleteUserRequest]) (*connect.Response[v1.DeleteUserResponse], error) {
+// DeleteUser calls chatto.admin.v1.AdminUserService.DeleteUser.
+func (c *adminUserServiceClient) DeleteUser(ctx context.Context, req *connect.Request[v1.DeleteUserRequest]) (*connect.Response[v1.DeleteUserResponse], error) {
 	return c.deleteUser.CallUnary(ctx, req)
 }
 
-// AdminMemberServiceHandler is an implementation of the chatto.admin.v1.AdminMemberService service.
-type AdminMemberServiceHandler interface {
+// AdminUserServiceHandler is an implementation of the chatto.admin.v1.AdminUserService service.
+type AdminUserServiceHandler interface {
 	// Lists server members for the admin members screen. Requires
 	// admin.view-users.
 	ListMembers(context.Context, *connect.Request[v1.ListMembersRequest]) (*connect.Response[v1.ListMembersResponse], error)
@@ -248,128 +248,128 @@ type AdminMemberServiceHandler interface {
 	DeleteUser(context.Context, *connect.Request[v1.DeleteUserRequest]) (*connect.Response[v1.DeleteUserResponse], error)
 }
 
-// NewAdminMemberServiceHandler builds an HTTP handler from the service implementation. It returns
-// the path on which to mount the handler and the handler itself.
+// NewAdminUserServiceHandler builds an HTTP handler from the service implementation. It returns the
+// path on which to mount the handler and the handler itself.
 //
 // By default, handlers support the Connect, gRPC, and gRPC-Web protocols with the binary Protobuf
 // and JSON codecs. They also support gzip compression.
-func NewAdminMemberServiceHandler(svc AdminMemberServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
-	adminMemberServiceMethods := v1.File_chatto_admin_v1_members_proto.Services().ByName("AdminMemberService").Methods()
-	adminMemberServiceListMembersHandler := connect.NewUnaryHandler(
-		AdminMemberServiceListMembersProcedure,
+func NewAdminUserServiceHandler(svc AdminUserServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
+	adminUserServiceMethods := v1.File_chatto_admin_v1_members_proto.Services().ByName("AdminUserService").Methods()
+	adminUserServiceListMembersHandler := connect.NewUnaryHandler(
+		AdminUserServiceListMembersProcedure,
 		svc.ListMembers,
-		connect.WithSchema(adminMemberServiceMethods.ByName("ListMembers")),
+		connect.WithSchema(adminUserServiceMethods.ByName("ListMembers")),
 		connect.WithHandlerOptions(opts...),
 	)
-	adminMemberServiceGetMemberHandler := connect.NewUnaryHandler(
-		AdminMemberServiceGetMemberProcedure,
+	adminUserServiceGetMemberHandler := connect.NewUnaryHandler(
+		AdminUserServiceGetMemberProcedure,
 		svc.GetMember,
-		connect.WithSchema(adminMemberServiceMethods.ByName("GetMember")),
+		connect.WithSchema(adminUserServiceMethods.ByName("GetMember")),
 		connect.WithHandlerOptions(opts...),
 	)
-	adminMemberServiceBatchGetMembersHandler := connect.NewUnaryHandler(
-		AdminMemberServiceBatchGetMembersProcedure,
+	adminUserServiceBatchGetMembersHandler := connect.NewUnaryHandler(
+		AdminUserServiceBatchGetMembersProcedure,
 		svc.BatchGetMembers,
-		connect.WithSchema(adminMemberServiceMethods.ByName("BatchGetMembers")),
+		connect.WithSchema(adminUserServiceMethods.ByName("BatchGetMembers")),
 		connect.WithHandlerOptions(opts...),
 	)
-	adminMemberServiceAssignRoleHandler := connect.NewUnaryHandler(
-		AdminMemberServiceAssignRoleProcedure,
+	adminUserServiceAssignRoleHandler := connect.NewUnaryHandler(
+		AdminUserServiceAssignRoleProcedure,
 		svc.AssignRole,
-		connect.WithSchema(adminMemberServiceMethods.ByName("AssignRole")),
+		connect.WithSchema(adminUserServiceMethods.ByName("AssignRole")),
 		connect.WithHandlerOptions(opts...),
 	)
-	adminMemberServiceRevokeRoleHandler := connect.NewUnaryHandler(
-		AdminMemberServiceRevokeRoleProcedure,
+	adminUserServiceRevokeRoleHandler := connect.NewUnaryHandler(
+		AdminUserServiceRevokeRoleProcedure,
 		svc.RevokeRole,
-		connect.WithSchema(adminMemberServiceMethods.ByName("RevokeRole")),
+		connect.WithSchema(adminUserServiceMethods.ByName("RevokeRole")),
 		connect.WithHandlerOptions(opts...),
 	)
-	adminMemberServiceUpdateUserHandler := connect.NewUnaryHandler(
-		AdminMemberServiceUpdateUserProcedure,
+	adminUserServiceUpdateUserHandler := connect.NewUnaryHandler(
+		AdminUserServiceUpdateUserProcedure,
 		svc.UpdateUser,
-		connect.WithSchema(adminMemberServiceMethods.ByName("UpdateUser")),
+		connect.WithSchema(adminUserServiceMethods.ByName("UpdateUser")),
 		connect.WithHandlerOptions(opts...),
 	)
-	adminMemberServiceUpdateUserPasswordHandler := connect.NewUnaryHandler(
-		AdminMemberServiceUpdateUserPasswordProcedure,
+	adminUserServiceUpdateUserPasswordHandler := connect.NewUnaryHandler(
+		AdminUserServiceUpdateUserPasswordProcedure,
 		svc.UpdateUserPassword,
-		connect.WithSchema(adminMemberServiceMethods.ByName("UpdateUserPassword")),
+		connect.WithSchema(adminUserServiceMethods.ByName("UpdateUserPassword")),
 		connect.WithHandlerOptions(opts...),
 	)
-	adminMemberServiceClearUsernameCooldownHandler := connect.NewUnaryHandler(
-		AdminMemberServiceClearUsernameCooldownProcedure,
+	adminUserServiceClearUsernameCooldownHandler := connect.NewUnaryHandler(
+		AdminUserServiceClearUsernameCooldownProcedure,
 		svc.ClearUsernameCooldown,
-		connect.WithSchema(adminMemberServiceMethods.ByName("ClearUsernameCooldown")),
+		connect.WithSchema(adminUserServiceMethods.ByName("ClearUsernameCooldown")),
 		connect.WithHandlerOptions(opts...),
 	)
-	adminMemberServiceDeleteUserHandler := connect.NewUnaryHandler(
-		AdminMemberServiceDeleteUserProcedure,
+	adminUserServiceDeleteUserHandler := connect.NewUnaryHandler(
+		AdminUserServiceDeleteUserProcedure,
 		svc.DeleteUser,
-		connect.WithSchema(adminMemberServiceMethods.ByName("DeleteUser")),
+		connect.WithSchema(adminUserServiceMethods.ByName("DeleteUser")),
 		connect.WithHandlerOptions(opts...),
 	)
-	return "/chatto.admin.v1.AdminMemberService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	return "/chatto.admin.v1.AdminUserService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case AdminMemberServiceListMembersProcedure:
-			adminMemberServiceListMembersHandler.ServeHTTP(w, r)
-		case AdminMemberServiceGetMemberProcedure:
-			adminMemberServiceGetMemberHandler.ServeHTTP(w, r)
-		case AdminMemberServiceBatchGetMembersProcedure:
-			adminMemberServiceBatchGetMembersHandler.ServeHTTP(w, r)
-		case AdminMemberServiceAssignRoleProcedure:
-			adminMemberServiceAssignRoleHandler.ServeHTTP(w, r)
-		case AdminMemberServiceRevokeRoleProcedure:
-			adminMemberServiceRevokeRoleHandler.ServeHTTP(w, r)
-		case AdminMemberServiceUpdateUserProcedure:
-			adminMemberServiceUpdateUserHandler.ServeHTTP(w, r)
-		case AdminMemberServiceUpdateUserPasswordProcedure:
-			adminMemberServiceUpdateUserPasswordHandler.ServeHTTP(w, r)
-		case AdminMemberServiceClearUsernameCooldownProcedure:
-			adminMemberServiceClearUsernameCooldownHandler.ServeHTTP(w, r)
-		case AdminMemberServiceDeleteUserProcedure:
-			adminMemberServiceDeleteUserHandler.ServeHTTP(w, r)
+		case AdminUserServiceListMembersProcedure:
+			adminUserServiceListMembersHandler.ServeHTTP(w, r)
+		case AdminUserServiceGetMemberProcedure:
+			adminUserServiceGetMemberHandler.ServeHTTP(w, r)
+		case AdminUserServiceBatchGetMembersProcedure:
+			adminUserServiceBatchGetMembersHandler.ServeHTTP(w, r)
+		case AdminUserServiceAssignRoleProcedure:
+			adminUserServiceAssignRoleHandler.ServeHTTP(w, r)
+		case AdminUserServiceRevokeRoleProcedure:
+			adminUserServiceRevokeRoleHandler.ServeHTTP(w, r)
+		case AdminUserServiceUpdateUserProcedure:
+			adminUserServiceUpdateUserHandler.ServeHTTP(w, r)
+		case AdminUserServiceUpdateUserPasswordProcedure:
+			adminUserServiceUpdateUserPasswordHandler.ServeHTTP(w, r)
+		case AdminUserServiceClearUsernameCooldownProcedure:
+			adminUserServiceClearUsernameCooldownHandler.ServeHTTP(w, r)
+		case AdminUserServiceDeleteUserProcedure:
+			adminUserServiceDeleteUserHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
 	})
 }
 
-// UnimplementedAdminMemberServiceHandler returns CodeUnimplemented from all methods.
-type UnimplementedAdminMemberServiceHandler struct{}
+// UnimplementedAdminUserServiceHandler returns CodeUnimplemented from all methods.
+type UnimplementedAdminUserServiceHandler struct{}
 
-func (UnimplementedAdminMemberServiceHandler) ListMembers(context.Context, *connect.Request[v1.ListMembersRequest]) (*connect.Response[v1.ListMembersResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.admin.v1.AdminMemberService.ListMembers is not implemented"))
+func (UnimplementedAdminUserServiceHandler) ListMembers(context.Context, *connect.Request[v1.ListMembersRequest]) (*connect.Response[v1.ListMembersResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.admin.v1.AdminUserService.ListMembers is not implemented"))
 }
 
-func (UnimplementedAdminMemberServiceHandler) GetMember(context.Context, *connect.Request[v1.GetMemberRequest]) (*connect.Response[v1.GetMemberResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.admin.v1.AdminMemberService.GetMember is not implemented"))
+func (UnimplementedAdminUserServiceHandler) GetMember(context.Context, *connect.Request[v1.GetMemberRequest]) (*connect.Response[v1.GetMemberResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.admin.v1.AdminUserService.GetMember is not implemented"))
 }
 
-func (UnimplementedAdminMemberServiceHandler) BatchGetMembers(context.Context, *connect.Request[v1.BatchGetMembersRequest]) (*connect.Response[v1.BatchGetMembersResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.admin.v1.AdminMemberService.BatchGetMembers is not implemented"))
+func (UnimplementedAdminUserServiceHandler) BatchGetMembers(context.Context, *connect.Request[v1.BatchGetMembersRequest]) (*connect.Response[v1.BatchGetMembersResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.admin.v1.AdminUserService.BatchGetMembers is not implemented"))
 }
 
-func (UnimplementedAdminMemberServiceHandler) AssignRole(context.Context, *connect.Request[v1.AssignRoleRequest]) (*connect.Response[v1.AssignRoleResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.admin.v1.AdminMemberService.AssignRole is not implemented"))
+func (UnimplementedAdminUserServiceHandler) AssignRole(context.Context, *connect.Request[v1.AssignRoleRequest]) (*connect.Response[v1.AssignRoleResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.admin.v1.AdminUserService.AssignRole is not implemented"))
 }
 
-func (UnimplementedAdminMemberServiceHandler) RevokeRole(context.Context, *connect.Request[v1.RevokeRoleRequest]) (*connect.Response[v1.RevokeRoleResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.admin.v1.AdminMemberService.RevokeRole is not implemented"))
+func (UnimplementedAdminUserServiceHandler) RevokeRole(context.Context, *connect.Request[v1.RevokeRoleRequest]) (*connect.Response[v1.RevokeRoleResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.admin.v1.AdminUserService.RevokeRole is not implemented"))
 }
 
-func (UnimplementedAdminMemberServiceHandler) UpdateUser(context.Context, *connect.Request[v1.UpdateUserRequest]) (*connect.Response[v1.UpdateUserResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.admin.v1.AdminMemberService.UpdateUser is not implemented"))
+func (UnimplementedAdminUserServiceHandler) UpdateUser(context.Context, *connect.Request[v1.UpdateUserRequest]) (*connect.Response[v1.UpdateUserResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.admin.v1.AdminUserService.UpdateUser is not implemented"))
 }
 
-func (UnimplementedAdminMemberServiceHandler) UpdateUserPassword(context.Context, *connect.Request[v1.UpdateUserPasswordRequest]) (*connect.Response[v1.UpdateUserPasswordResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.admin.v1.AdminMemberService.UpdateUserPassword is not implemented"))
+func (UnimplementedAdminUserServiceHandler) UpdateUserPassword(context.Context, *connect.Request[v1.UpdateUserPasswordRequest]) (*connect.Response[v1.UpdateUserPasswordResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.admin.v1.AdminUserService.UpdateUserPassword is not implemented"))
 }
 
-func (UnimplementedAdminMemberServiceHandler) ClearUsernameCooldown(context.Context, *connect.Request[v1.ClearUsernameCooldownRequest]) (*connect.Response[v1.ClearUsernameCooldownResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.admin.v1.AdminMemberService.ClearUsernameCooldown is not implemented"))
+func (UnimplementedAdminUserServiceHandler) ClearUsernameCooldown(context.Context, *connect.Request[v1.ClearUsernameCooldownRequest]) (*connect.Response[v1.ClearUsernameCooldownResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.admin.v1.AdminUserService.ClearUsernameCooldown is not implemented"))
 }
 
-func (UnimplementedAdminMemberServiceHandler) DeleteUser(context.Context, *connect.Request[v1.DeleteUserRequest]) (*connect.Response[v1.DeleteUserResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.admin.v1.AdminMemberService.DeleteUser is not implemented"))
+func (UnimplementedAdminUserServiceHandler) DeleteUser(context.Context, *connect.Request[v1.DeleteUserRequest]) (*connect.Response[v1.DeleteUserResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.admin.v1.AdminUserService.DeleteUser is not implemented"))
 }

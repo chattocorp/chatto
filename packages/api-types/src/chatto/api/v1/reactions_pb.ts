@@ -5,6 +5,7 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3 } from "@bufbuild/protobuf";
+import { RoomTimelineReaction } from "./room_timeline_pb.js";
 
 /**
  * Request to add the current user's reaction to a message.
@@ -76,6 +77,13 @@ export class AddReactionResponse extends Message<AddReactionResponse> {
    */
   added = false;
 
+  /**
+   * Updated aggregate reaction state for this emoji.
+   *
+   * @generated from field: chatto.api.v1.RoomTimelineReaction reaction = 2;
+   */
+  reaction?: RoomTimelineReaction;
+
   constructor(data?: PartialMessage<AddReactionResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -85,6 +93,7 @@ export class AddReactionResponse extends Message<AddReactionResponse> {
   static readonly typeName = "chatto.api.v1.AddReactionResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "added", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 2, name: "reaction", kind: "message", T: RoomTimelineReaction },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AddReactionResponse {
@@ -174,6 +183,14 @@ export class RemoveReactionResponse extends Message<RemoveReactionResponse> {
    */
   removed = false;
 
+  /**
+   * Updated aggregate reaction state for this emoji. Empty when no reactions for
+   * the emoji remain.
+   *
+   * @generated from field: chatto.api.v1.RoomTimelineReaction reaction = 2;
+   */
+  reaction?: RoomTimelineReaction;
+
   constructor(data?: PartialMessage<RemoveReactionResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -183,6 +200,7 @@ export class RemoveReactionResponse extends Message<RemoveReactionResponse> {
   static readonly typeName = "chatto.api.v1.RemoveReactionResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "removed", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 2, name: "reaction", kind: "message", T: RoomTimelineReaction },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RemoveReactionResponse {

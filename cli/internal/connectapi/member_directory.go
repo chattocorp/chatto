@@ -37,10 +37,12 @@ func (s *serverMemberService) ListMembers(ctx context.Context, req *connect.Requ
 	}
 
 	out := make([]*apiv1.DirectoryMember, 0, len(members))
+	skipped := 0
 	for _, member := range members {
 		user, err := s.api.core.GetUser(ctx, member.UserID)
 		if err != nil {
 			if errors.Is(err, core.ErrNotFound) {
+				skipped++
 				continue
 			}
 			return nil, connectError(err)
@@ -52,9 +54,13 @@ func (s *serverMemberService) ListMembers(ctx context.Context, req *connect.Requ
 		out = append(out, apiMember)
 	}
 
+	visibleTotalCount := totalCount - skipped
+	if visibleTotalCount < len(out) {
+		visibleTotalCount = len(out)
+	}
 	return connect.NewResponse(&apiv1.ListServerMembersResponse{
 		Members: out,
-		Page:    apiPageInfo(totalCount, offset+len(out) < totalCount),
+		Page:    apiPageInfo(visibleTotalCount, offset+len(out) < visibleTotalCount),
 	}), nil
 }
 

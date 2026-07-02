@@ -851,6 +851,18 @@ One followed thread for the current user.
 | `last_reply_at` | `google.protobuf.Timestamp` | Creation time of the latest reply, when the thread has replies. |
 | `has_unread` | `bool` | True when the current user has unread replies in the thread. |
 
+<a id="chatto-api-v1-ThreadFollowState"></a>
+
+### ThreadFollowState
+
+Current follow state for one thread and viewer.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Room containing the thread. |
+| `thread_root_event_id` | `string` | Event ID of the root message for the thread. |
+| `following` | `bool` | True when the current user follows the thread. |
+
 <a id="chatto-api-v1-ActiveCall"></a>
 
 ### ActiveCall

@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { BatchGetUsersRequest, BatchGetUsersResponse, GetUserByLoginRequest, GetUserByLoginResponse, GetUserRequest, GetUserResponse } from "./users_pb.js";
+import { BatchGetUsersRequest, BatchGetUsersResponse, GetUserRequest, GetUserResponse } from "./users_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -15,7 +15,8 @@ export const UserDirectoryService = {
   typeName: "chatto.api.v1.UserDirectoryService",
   methods: {
     /**
-     * Gets a user by stable ID. Returns NOT_FOUND when the ID is unknown.
+     * Gets a user by stable ID or login. Returns NOT_FOUND when the user is
+     * unknown.
      *
      * @generated from rpc chatto.api.v1.UserDirectoryService.GetUser
      */
@@ -23,17 +24,6 @@ export const UserDirectoryService = {
       name: "GetUser",
       I: GetUserRequest,
       O: GetUserResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * Gets a user by login. Returns NOT_FOUND when the login is unknown.
-     *
-     * @generated from rpc chatto.api.v1.UserDirectoryService.GetUserByLogin
-     */
-    getUserByLogin: {
-      name: "GetUserByLogin",
-      I: GetUserByLoginRequest,
-      O: GetUserByLoginResponse,
       kind: MethodKind.Unary,
     },
     /**

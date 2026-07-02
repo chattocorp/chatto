@@ -2204,8 +2204,8 @@ export class RealtimeRoomGroupsUpdatedEvent extends Message<RealtimeRoomGroupsUp
  * Server-member deleted signal.
  *
  * Remove or invalidate local member/user rows for `user_id`. Admin clients can
- * hydrate remaining member rows through `AdminMemberService.GetMember` or
- * `AdminMemberService.BatchGetMembers`.
+ * hydrate remaining member rows through `AdminUserService.GetMember` or
+ * `AdminUserService.BatchGetMembers`.
  *
  * @generated from message chatto.realtime.v1.RealtimeServerMemberDeletedEvent
  */

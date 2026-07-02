@@ -75,9 +75,9 @@ func TestConnectOperatorAPISeparation(t *testing.T) {
 			t.Fatalf("GetUser login = %q, want operator-connect", got)
 		}
 
-		adminClient := adminv1connect.NewAdminMemberServiceClient(operatorTS.Client(), operatorTS.URL+connectAPIPrefix)
+		adminClient := adminv1connect.NewAdminUserServiceClient(operatorTS.Client(), operatorTS.URL+connectAPIPrefix)
 		if _, err := adminClient.ListMembers(ctx, connect.NewRequest(&adminv1.ListMembersRequest{})); connect.CodeOf(err) != connect.CodeUnimplemented {
-			t.Fatalf("AdminMemberService on operator server err = %v, want unimplemented", err)
+			t.Fatalf("AdminUserService on operator server err = %v, want unimplemented", err)
 		}
 	})
 

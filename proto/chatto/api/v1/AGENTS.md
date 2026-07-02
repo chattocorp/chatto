@@ -21,6 +21,11 @@ first consumer.
 - Prefer service names that make the resource and scope obvious to generated
   API consumers, even if that creates more services. Do not collapse unrelated
   resources into broad catch-all services just because they share a scope.
+- A scoped service may own operations whose authorization and state naturally
+  belong to that scope. `RoomService` is intentionally the home for room-scoped
+  lifecycle, timeline, read-state, attachment-list, moderation, membership, and
+  typing operations; split a resource out only when it needs an independent
+  resource identity, authorization model, or CRUD/batch surface.
 - When the same resource exists in distinct scopes with different authorization
   or absence semantics, split the services by scope instead of overloading one
   ambiguous service. For example, prefer `ServerMemberService` and

@@ -36,9 +36,6 @@ const (
 	// UserDirectoryServiceGetUserProcedure is the fully-qualified name of the UserDirectoryService's
 	// GetUser RPC.
 	UserDirectoryServiceGetUserProcedure = "/chatto.api.v1.UserDirectoryService/GetUser"
-	// UserDirectoryServiceGetUserByLoginProcedure is the fully-qualified name of the
-	// UserDirectoryService's GetUserByLogin RPC.
-	UserDirectoryServiceGetUserByLoginProcedure = "/chatto.api.v1.UserDirectoryService/GetUserByLogin"
 	// UserDirectoryServiceBatchGetUsersProcedure is the fully-qualified name of the
 	// UserDirectoryService's BatchGetUsers RPC.
 	UserDirectoryServiceBatchGetUsersProcedure = "/chatto.api.v1.UserDirectoryService/BatchGetUsers"
@@ -46,10 +43,9 @@ const (
 
 // UserDirectoryServiceClient is a client for the chatto.api.v1.UserDirectoryService service.
 type UserDirectoryServiceClient interface {
-	// Gets a user by stable ID. Returns NOT_FOUND when the ID is unknown.
+	// Gets a user by stable ID or login. Returns NOT_FOUND when the user is
+	// unknown.
 	GetUser(context.Context, *connect.Request[v1.GetUserRequest]) (*connect.Response[v1.GetUserResponse], error)
-	// Gets a user by login. Returns NOT_FOUND when the login is unknown.
-	GetUserByLogin(context.Context, *connect.Request[v1.GetUserByLoginRequest]) (*connect.Response[v1.GetUserByLoginResponse], error)
 	// Gets public user profiles for multiple users referenced by event-focused
 	// payloads.
 	BatchGetUsers(context.Context, *connect.Request[v1.BatchGetUsersRequest]) (*connect.Response[v1.BatchGetUsersResponse], error)
@@ -72,12 +68,6 @@ func NewUserDirectoryServiceClient(httpClient connect.HTTPClient, baseURL string
 			connect.WithSchema(userDirectoryServiceMethods.ByName("GetUser")),
 			connect.WithClientOptions(opts...),
 		),
-		getUserByLogin: connect.NewClient[v1.GetUserByLoginRequest, v1.GetUserByLoginResponse](
-			httpClient,
-			baseURL+UserDirectoryServiceGetUserByLoginProcedure,
-			connect.WithSchema(userDirectoryServiceMethods.ByName("GetUserByLogin")),
-			connect.WithClientOptions(opts...),
-		),
 		batchGetUsers: connect.NewClient[v1.BatchGetUsersRequest, v1.BatchGetUsersResponse](
 			httpClient,
 			baseURL+UserDirectoryServiceBatchGetUsersProcedure,
@@ -89,19 +79,13 @@ func NewUserDirectoryServiceClient(httpClient connect.HTTPClient, baseURL string
 
 // userDirectoryServiceClient implements UserDirectoryServiceClient.
 type userDirectoryServiceClient struct {
-	getUser        *connect.Client[v1.GetUserRequest, v1.GetUserResponse]
-	getUserByLogin *connect.Client[v1.GetUserByLoginRequest, v1.GetUserByLoginResponse]
-	batchGetUsers  *connect.Client[v1.BatchGetUsersRequest, v1.BatchGetUsersResponse]
+	getUser       *connect.Client[v1.GetUserRequest, v1.GetUserResponse]
+	batchGetUsers *connect.Client[v1.BatchGetUsersRequest, v1.BatchGetUsersResponse]
 }
 
 // GetUser calls chatto.api.v1.UserDirectoryService.GetUser.
 func (c *userDirectoryServiceClient) GetUser(ctx context.Context, req *connect.Request[v1.GetUserRequest]) (*connect.Response[v1.GetUserResponse], error) {
 	return c.getUser.CallUnary(ctx, req)
-}
-
-// GetUserByLogin calls chatto.api.v1.UserDirectoryService.GetUserByLogin.
-func (c *userDirectoryServiceClient) GetUserByLogin(ctx context.Context, req *connect.Request[v1.GetUserByLoginRequest]) (*connect.Response[v1.GetUserByLoginResponse], error) {
-	return c.getUserByLogin.CallUnary(ctx, req)
 }
 
 // BatchGetUsers calls chatto.api.v1.UserDirectoryService.BatchGetUsers.
@@ -112,10 +96,9 @@ func (c *userDirectoryServiceClient) BatchGetUsers(ctx context.Context, req *con
 // UserDirectoryServiceHandler is an implementation of the chatto.api.v1.UserDirectoryService
 // service.
 type UserDirectoryServiceHandler interface {
-	// Gets a user by stable ID. Returns NOT_FOUND when the ID is unknown.
+	// Gets a user by stable ID or login. Returns NOT_FOUND when the user is
+	// unknown.
 	GetUser(context.Context, *connect.Request[v1.GetUserRequest]) (*connect.Response[v1.GetUserResponse], error)
-	// Gets a user by login. Returns NOT_FOUND when the login is unknown.
-	GetUserByLogin(context.Context, *connect.Request[v1.GetUserByLoginRequest]) (*connect.Response[v1.GetUserByLoginResponse], error)
 	// Gets public user profiles for multiple users referenced by event-focused
 	// payloads.
 	BatchGetUsers(context.Context, *connect.Request[v1.BatchGetUsersRequest]) (*connect.Response[v1.BatchGetUsersResponse], error)
@@ -134,12 +117,6 @@ func NewUserDirectoryServiceHandler(svc UserDirectoryServiceHandler, opts ...con
 		connect.WithSchema(userDirectoryServiceMethods.ByName("GetUser")),
 		connect.WithHandlerOptions(opts...),
 	)
-	userDirectoryServiceGetUserByLoginHandler := connect.NewUnaryHandler(
-		UserDirectoryServiceGetUserByLoginProcedure,
-		svc.GetUserByLogin,
-		connect.WithSchema(userDirectoryServiceMethods.ByName("GetUserByLogin")),
-		connect.WithHandlerOptions(opts...),
-	)
 	userDirectoryServiceBatchGetUsersHandler := connect.NewUnaryHandler(
 		UserDirectoryServiceBatchGetUsersProcedure,
 		svc.BatchGetUsers,
@@ -150,8 +127,6 @@ func NewUserDirectoryServiceHandler(svc UserDirectoryServiceHandler, opts ...con
 		switch r.URL.Path {
 		case UserDirectoryServiceGetUserProcedure:
 			userDirectoryServiceGetUserHandler.ServeHTTP(w, r)
-		case UserDirectoryServiceGetUserByLoginProcedure:
-			userDirectoryServiceGetUserByLoginHandler.ServeHTTP(w, r)
 		case UserDirectoryServiceBatchGetUsersProcedure:
 			userDirectoryServiceBatchGetUsersHandler.ServeHTTP(w, r)
 		default:
@@ -165,10 +140,6 @@ type UnimplementedUserDirectoryServiceHandler struct{}
 
 func (UnimplementedUserDirectoryServiceHandler) GetUser(context.Context, *connect.Request[v1.GetUserRequest]) (*connect.Response[v1.GetUserResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.UserDirectoryService.GetUser is not implemented"))
-}
-
-func (UnimplementedUserDirectoryServiceHandler) GetUserByLogin(context.Context, *connect.Request[v1.GetUserByLoginRequest]) (*connect.Response[v1.GetUserByLoginResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.UserDirectoryService.GetUserByLogin is not implemented"))
 }
 
 func (UnimplementedUserDirectoryServiceHandler) BatchGetUsers(context.Context, *connect.Request[v1.BatchGetUsersRequest]) (*connect.Response[v1.BatchGetUsersResponse], error) {

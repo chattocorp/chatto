@@ -485,7 +485,7 @@ async function createServerRole(
 async function assignServerRole(page: Page, userId: string, roleName: string): Promise<void> {
   const data = await connectPost<{ assigned?: boolean }>(
     page,
-    'chatto.admin.v1.AdminMemberService/AssignRole',
+    'chatto.admin.v1.AdminUserService/AssignRole',
     { userId, roleName }
   );
   expect(data.assigned).toBe(true);

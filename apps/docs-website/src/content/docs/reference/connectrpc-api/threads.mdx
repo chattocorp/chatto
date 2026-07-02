@@ -87,6 +87,7 @@ Result of following a thread.
 | Field | Type | Description |
 | --- | --- | --- |
 | `following` | `bool` | True when the current user follows the thread after the operation. |
+| `state` | [`ThreadFollowState`](/reference/connectrpc-api/types/#chatto-api-v1-ThreadFollowState) | Current follow state after the operation. |
 
 
 <a id="chatto-api-v1-ThreadService-UnfollowThread"></a>
@@ -121,6 +122,7 @@ Result of unfollowing a thread.
 | Field | Type | Description |
 | --- | --- | --- |
 | `following` | `bool` | True when the current user follows the thread after the operation. |
+| `state` | [`ThreadFollowState`](/reference/connectrpc-api/types/#chatto-api-v1-ThreadFollowState) | Current follow state after the operation. |
 
 
 <a id="chatto-api-v1-ThreadService-GetThreadEvents"></a>
