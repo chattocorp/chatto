@@ -162,6 +162,20 @@ describe('CurrentUserBar', () => {
     expect(container.textContent).toContain('@alice');
   });
 
+  it('keeps the username line when display name and username match', () => {
+    currentUserState.user = {
+      ...currentUserState.user!,
+      displayName: 'alice',
+      login: 'alice'
+    };
+
+    const { container } = render(CurrentUserBarTestHarness);
+
+    const card = q(container, '[data-testid="current-user-identity-card"]')!;
+    expect(card.textContent).toContain('alice');
+    expect(card.textContent).toContain('@alice');
+  });
+
   it('opens the combined presence menu with a custom status action from the avatar', async () => {
     const { container } = render(CurrentUserBarTestHarness);
 
@@ -274,13 +288,18 @@ describe('CurrentUserBar', () => {
     }
 
     const presenceButton = q(card, '[data-testid="current-user-presence-menu"]')!;
+    const avatar = q(presenceButton, '[aria-label]')!;
     const identityText = q(card, '[data-testid="current-user-identity-text"]')!;
     const settingsLink = q(card, 'a[href$="/settings"]')!;
     const presenceRect = presenceButton.getBoundingClientRect();
+    const avatarRect = avatar.getBoundingClientRect();
     const textRect = identityText.getBoundingClientRect();
     const settingsRect = settingsLink.getBoundingClientRect();
 
     expect(presenceRect.left).toBeGreaterThanOrEqual(cardRect.left);
+    expect(avatarRect.height).toBeLessThan(cardRect.height);
+    expect(avatarRect.top - cardRect.top).toBeGreaterThanOrEqual(6);
+    expect(cardRect.bottom - avatarRect.bottom).toBeGreaterThanOrEqual(6);
     expect(textRect.left).toBeGreaterThan(presenceRect.right);
     expect(settingsRect.left).toBeGreaterThan(textRect.right);
     expect(settingsRect.right).toBeLessThanOrEqual(cardRect.right);

@@ -49,7 +49,6 @@ to the user settings page for the active server.
   );
 
   const login = $derived(activeServerUser?.login ?? '');
-  const showLogin = $derived(!!login && login !== displayName);
   const activeCallRoomId = $derived(
     voiceCallState?.connected && voiceCallState.roomId ? voiceCallState.roomId : null
   );
@@ -288,7 +287,7 @@ to the user settings page for the active server.
       >
         <UserAvatar
           user={activeServerUser}
-          size="md"
+          size="sm"
           showPresence
           presenceOverride={presencePreference.effectiveStatus}
         />
@@ -301,9 +300,7 @@ to the user settings page for the active server.
           <span class="min-w-0 truncate">{displayName}</span>
           <UserCustomStatusBadge status={activeServerUser.customStatus} class="text-xs" />
         </span>
-        {#if showLogin}
-          <span class="truncate text-xs text-muted">@{login}</span>
-        {/if}
+        <span class="truncate text-xs text-muted">@{login}</span>
       </div>
       <a
         href={resolve('/chat/[serverId]/settings', { serverId: serverSegment })}
