@@ -29,7 +29,7 @@
       <span class="{icon} text-2xl {colorClasses[color].text}"></span>
     </div>
     <div class="min-w-0">
-      <div class="text-3xl font-bold">{value}</div>
+      <div class="text-3xl font-bold tabular-nums">{value}</div>
       <div class="text-sm text-muted">{label}</div>
       {#if subtitle}
         <div class="text-xs text-muted">{subtitle}</div>

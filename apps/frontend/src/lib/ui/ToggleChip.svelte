@@ -52,7 +52,7 @@ iconify icon in the slot:
     tone?: Tone;
     /**
      * Render as a square icon-only chip (no horizontal padding, fixed
-     * 28×28). Use for icon-only affordances so they don't gain bonus
+     * 40×40). Use for icon-only affordances so they don't gain bonus
      * width from `px-2.5`.
      */
     square?: boolean;
@@ -85,13 +85,10 @@ iconify icon in the slot:
     'bg-gradient-to-br from-surface-100/80 to-surface-200/80 text-muted ring-1 ring-text/5';
 
   const inactiveHover: Record<Tone, string> = {
-    success:
-      'hover:from-success/10 hover:to-success/20 hover:text-success hover:ring-success/20',
+    success: 'hover:from-success/10 hover:to-success/20 hover:text-success hover:ring-success/20',
     danger: 'hover:from-danger/10 hover:to-danger/20 hover:text-danger hover:ring-danger/20',
-    warning:
-      'hover:from-warning/10 hover:to-warning/20 hover:text-warning hover:ring-warning/20',
-    primary:
-      'hover:from-primary/10 hover:to-primary/20 hover:text-primary hover:ring-primary/20',
+    warning: 'hover:from-warning/10 hover:to-warning/20 hover:text-warning hover:ring-warning/20',
+    primary: 'hover:from-primary/10 hover:to-primary/20 hover:text-primary hover:ring-primary/20',
     neutral: 'hover:from-surface-200 hover:to-surface-300 hover:text-text hover:ring-text/10'
   };
 </script>
@@ -99,8 +96,8 @@ iconify icon in the slot:
 <button
   type="button"
   class={[
-    'inline-flex h-7 cursor-pointer items-center justify-center gap-1.5 rounded-md text-xs font-medium transition-all duration-150',
-    square ? 'w-7' : 'min-w-7 px-2.5',
+    'inline-flex min-h-10 cursor-pointer items-center justify-center gap-1.5 rounded-md text-xs font-medium transition-[background-color,color,box-shadow,scale,--tw-gradient-from,--tw-gradient-to] duration-150 active:scale-[0.96]',
+    square ? 'w-10' : 'min-w-10 px-2.5',
     pressed ? pressedClasses[tone] : [inactiveClasses, inactiveHover[tone]],
     disabled ? 'cursor-not-allowed opacity-60' : ''
   ]}

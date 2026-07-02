@@ -943,7 +943,7 @@
         type="button"
         onclick={() => fileInputElement?.click()}
         disabled={inputDisabled}
-        class="flex h-8 w-11 shrink-0 cursor-pointer items-center justify-center rounded text-muted transition-colors duration-100 enabled:hover:text-text disabled:cursor-not-allowed"
+        class="flex h-8 w-11 shrink-0 cursor-pointer items-center justify-center rounded text-muted transition-[color,scale] duration-100 active:scale-[0.96] enabled:hover:text-text disabled:cursor-not-allowed"
         title={m['composer.attach_file']()}
       >
         <span class="iconify text-xl uil--image-upload"></span>
@@ -985,7 +985,7 @@
         onpointerdown={(e) => e.preventDefault()}
         onclick={handleSubmit}
         disabled={!canSubmit}
-        class="flex h-8 w-8 cursor-pointer items-center justify-center rounded text-muted transition-colors duration-100 enabled:hover:text-text disabled:cursor-not-allowed disabled:opacity-50"
+        class="flex h-8 w-8 cursor-pointer items-center justify-center rounded text-muted transition-[color,scale] duration-100 active:scale-[0.96] enabled:hover:text-text disabled:cursor-not-allowed disabled:opacity-50"
         aria-label={m['composer.send']()}
         title={isRichComposer ? m['composer.send_ctrl_enter']() : m['composer.send_enter']()}
       >

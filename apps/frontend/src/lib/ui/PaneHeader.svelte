@@ -84,7 +84,7 @@ choice).
         title={backLabel}
         aria-label={backLabel}
       >
-        <span class="pane-header-icon-glyph uil--arrow-left" aria-hidden="true"></span>
+        <span class="pane-header-icon-glyph text-xl uil--arrow-left" aria-hidden="true"></span>
       </button>
     {:else if backHref}
       <a
@@ -93,7 +93,7 @@ choice).
         title={backLabel}
         aria-label={backLabel}
       >
-        <span class="pane-header-icon-glyph uil--arrow-left" aria-hidden="true"></span>
+        <span class="pane-header-icon-glyph text-xl uil--arrow-left" aria-hidden="true"></span>
       </a>
     {/if}
     <div class="flex min-w-0 flex-1 flex-col gap-1 md:flex-row md:items-baseline md:gap-3">

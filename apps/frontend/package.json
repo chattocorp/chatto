@@ -17,7 +17,7 @@
     "test": "npm run test:unit -- --run && npm run test:e2e",
     "test:e2e": "playwright test",
     "storybook": "storybook dev -p 6006 --no-open",
-    "build-storybook": "storybook build"
+    "build-storybook": "pnpm --filter @chatto/api-types build && storybook build"
   },
   "devDependencies": {
     "@eslint/compat": "^1.4.1",

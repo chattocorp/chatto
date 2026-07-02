@@ -252,7 +252,7 @@ apply at that scope's tier).
                 {@const isUpdating = updatingKey === cellKey}
                 <td
                   class={['px-0 py-2 text-center', scopeColumnClass(scope.kind)]}
-                  style="width: 2rem; min-width: 2rem"
+                  style="width: 2.5rem; min-width: 2.5rem"
                   data-scope={scope.id}
                   data-permission={permission}
                 >
@@ -290,7 +290,7 @@ apply at that scope's tier).
                       onCycle={(next) => onCycle(scope, permission, next)}
                     />
                   {:else}
-                    <span class="inline-block h-5 w-5" aria-hidden="true"></span>
+                    <span class="inline-block h-10 w-10" aria-hidden="true"></span>
                   {/if}
                 </td>
               {/each}

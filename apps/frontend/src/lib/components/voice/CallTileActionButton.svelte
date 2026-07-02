@@ -24,7 +24,7 @@ for the current viewer.
 <button
   type="button"
   class={[
-    'pointer-events-auto flex h-7 w-7 cursor-pointer items-center justify-center rounded text-muted transition-colors hover:bg-surface-200 hover:text-text focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary',
+    'pointer-events-auto flex h-10 w-10 cursor-pointer items-center justify-center rounded text-muted transition-[background-color,color,scale] hover:bg-surface-200 hover:text-text focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary active:scale-[0.96]',
     active && 'bg-surface-200 text-text'
   ]}
   title={label}

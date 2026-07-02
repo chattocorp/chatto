@@ -70,9 +70,9 @@ to the user settings page for the active server.
     }
     return `# ${room.name}`;
   });
-  const compactCallButtonClass = 'btn-secondary h-7 w-7 shrink-0 !px-0 !py-0 text-xs';
-  const compactCallActiveButtonClass = 'btn-success h-7 w-7 shrink-0 !px-0 !py-0 text-xs';
-  const compactCallDangerButtonClass = 'btn-danger h-7 w-7 shrink-0 !px-0 !py-0 text-xs';
+  const compactCallButtonClass = 'btn-secondary h-10 w-10 shrink-0 !px-0 !py-0 text-xs';
+  const compactCallActiveButtonClass = 'btn-success h-10 w-10 shrink-0 !px-0 !py-0 text-xs';
+  const compactCallDangerButtonClass = 'btn-danger h-10 w-10 shrink-0 !px-0 !py-0 text-xs';
   const isTouch = isTouchDevice();
   const presenceModes: PresenceMode[] = ['auto', 'away', 'doNotDisturb', 'invisible'];
   const presenceLabel = $derived.by(() => presenceModeLabel(presencePreference.mode));
@@ -306,7 +306,7 @@ to the user settings page for the active server.
         href={resolve('/chat/[serverId]/settings', { serverId: serverSegment })}
         title={m['voice.user_settings']()}
         aria-label={m['voice.user_settings']()}
-        class="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center text-muted hover:text-text"
+        class="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded text-muted transition-[background-color,color,scale] hover:bg-surface-100 hover:text-text active:scale-[0.96]"
       >
         <span class="iconify text-lg uil--setting" aria-hidden="true"></span>
       </a>
@@ -385,7 +385,7 @@ to the user settings page for the active server.
           <button
             type="button"
             onclick={() => (customStatusDialogVisible = false)}
-            class="-m-1 grid h-8 w-8 shrink-0 cursor-pointer place-items-center rounded-md text-text/50 transition-colors hover:bg-surface-100 hover:text-text"
+            class="grid h-10 w-10 shrink-0 cursor-pointer place-items-center rounded-md text-text/50 transition-[background-color,color,scale] hover:bg-surface-100 hover:text-text active:scale-[0.96]"
             aria-label={m['ui.close']()}
           >
             <span class="iconify text-xl uil--times"></span>
