@@ -21,6 +21,28 @@ their names and docs should make the administrative scope obvious.
   mutations. The public `MyAccountService` owns current-caller self-service;
   admin user management belongs in an explicitly named admin service with
   permission-gated RPC comments.
+- Administrative services should be exhaustive for their resource and scope,
+  not limited to the current admin UI. If a normal admin client would expect
+  list, get, batch get, create, update, or delete behavior for the resource,
+  either provide it or document why that operation is intentionally absent.
+- Follow the CRUD-like naming pattern for ordinary admin resource APIs:
+  `List<ResourcePlural>`, `Get<Resource>`, `BatchGet<ResourcePlural>`,
+  `Create<Resource>`, `Update<Resource>`, and `Delete<Resource>`. Use domain
+  verbs only when a CRUD name would obscure lifecycle, authorization, audit, or
+  product semantics.
+- Add batch hydration when admin lists, audit/detail surfaces, or realtime
+  events expose resource IDs that clients are expected to hydrate. Avoid API
+  shapes that force N+1 reads.
+- Prefer rich protobuf response messages over scalars when returning the
+  mutated/read resource is cheap and does not change authorization. Scalar
+  booleans are acceptable for simple acknowledgements where returning a rich
+  resource would require extra work or misleading visibility.
+- Keep canonical resource shapes shared with `chatto.api.v1` where visibility
+  allows. Add admin-specific resource shapes only for admin-only fields or
+  different authorization/visibility semantics, and document that reason.
+- Keep list/get/batch authorization boundaries coherent. Do not let a list
+  disclose state that the corresponding get/batch APIs cannot hydrate unless
+  the response explicitly models a redacted indicator.
 - `Update*` request messages should use patch semantics by default. Use
   proto3 `optional` scalar fields or a field mask so clients can distinguish
   "leave unchanged" from "set to default/empty". If an operation is a full

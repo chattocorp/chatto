@@ -104,6 +104,14 @@ For ad-hoc tool invocations, use `mise x -- ...` rather than assuming `go`,
   client/integration behavior and `chatto.admin.v1` for visibly administrative
   behavior. App-specific API should be exceptional, explicitly documented, and
   still stable enough for mixed bundled client/server versions.
+- Public API surfaces should be resource-oriented, exhaustive for their
+  resource/scope, and not shaped only around the current frontend. Prefer the
+  repeatable `List`/`Get`/`BatchGet`/`Create`/`Update`/`Delete` pattern, with
+  domain verbs only when CRUD names would hide important semantics.
+- Prefer rich protobuf messages over scalar acknowledgements when returning the
+  affected resource is cheap and does not change authorization. Provide batch
+  hydration or include-map patterns where clients would otherwise need N+1
+  reads.
 - Reuse public protobuf shapes for repeated semantics. Offset list RPCs should
   use `PageRequest page` and return `PageInfo page`; singular lookups should
   return `NOT_FOUND` when absence is the error result, while batch/list RPCs can

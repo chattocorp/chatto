@@ -29,6 +29,17 @@ first consumer.
 - Once a service name carries the scope, use concise resource method names such
   as `ListMembers`, `GetMember`, and `BatchGetMembers` rather than repeating
   the scope in every RPC name.
+- Services should be exhaustive for their resource and scope, not limited to
+  the current frontend workflow. If a normal client would expect list, get,
+  batch get, create, update, or delete behavior for the resource, either provide
+  it or document why that operation is intentionally absent.
+- Follow the CRUD-like naming pattern for ordinary resource APIs:
+  `List<ResourcePlural>`, `Get<Resource>`, `BatchGet<ResourcePlural>`,
+  `Create<Resource>`, `Update<Resource>`, and `Delete<Resource>`. Use domain
+  verbs only when a CRUD name would obscure lifecycle, authorization, audit, or
+  product semantics.
+- Add batch hydration when list/realtime/include surfaces expose resource IDs
+  that clients are expected to hydrate. Avoid API shapes that force N+1 reads.
 
 ## Reused Shapes
 
@@ -51,6 +62,14 @@ first consumer.
   shape plus extra fields over copying identity fields into another local type.
 - When a separate user-shaped message is still needed, explain the visibility
   reason in the message comment.
+- Treat canonical shape reuse as a resource-wide rule, not only a user-shape
+  rule. Avoid adding frontend-specific flavors of the same resource unless
+  distinct authorization, visibility, lifecycle, or performance semantics
+  require it and are documented.
+- Prefer rich protobuf response messages over scalars when returning the
+  mutated/read resource is cheap and does not change authorization. Scalar
+  booleans are acceptable for simple acknowledgements where returning a rich
+  resource would require extra work or misleading visibility.
 - For extensible key spaces such as permissions, avoid one protobuf field per
   key. Use repeated keyed rows, for example `{ permission, granted }`, so
   built-in and integration-defined keys share one forward-compatible shape.
@@ -64,6 +83,9 @@ first consumer.
 - Batch and list APIs may omit missing resources or return empty result lists.
 - Prefer explicit comments on RPCs when missing-resource behavior is important
   to clients.
+- Keep list/get/batch authorization boundaries coherent. Do not let a list
+  disclose state that the corresponding get/batch APIs cannot hydrate unless
+  the response explicitly models a redacted indicator.
 
 ## Field Presence
 

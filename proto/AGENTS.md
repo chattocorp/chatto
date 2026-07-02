@@ -43,6 +43,36 @@ For public API packages:
 
 ## Presence And API Shape
 
+- Public ConnectRPC and realtime surfaces are product APIs, not adapters for the
+  current frontend. Define the natural public, administrative, auth, discovery,
+  or realtime operation even when the bundled frontend does not call every RPC
+  yet.
+- Prefer resource-oriented services with obvious ownership and scope. New
+  resource services should establish a repeatable CRUD-like pattern for future
+  features:
+  - `List<ResourcePlural>` for visible collections.
+  - `Get<Resource>` for one resource by ID or equivalent lookup target.
+  - `BatchGet<ResourcePlural>` when clients commonly hydrate many resources or
+    realtime/list results carry only IDs.
+  - `Create<Resource>`, `Update<Resource>`, and `Delete<Resource>` for normal
+    writes.
+  - Domain verbs only when CRUD names would hide important lifecycle,
+    authorization, audit, or product semantics.
+- Keep services exhaustive for their resource and scope. Do not omit sensible
+  list/get/batch/update/delete operations only because the current frontend does
+  not need them yet.
+- Batch hydration is part of the API design, not an optimization afterthought.
+  If a resource can appear by ID in lists, includes, notifications, realtime
+  events, or related resources, provide `BatchGet*`, include maps, or another
+  documented bounded-fanout pattern so clients do not need N+1 reads.
+- Public resource messages should be canonical per resource. Avoid multiple
+  frontend-shaped variants of the same thing. Add narrower messages only when
+  authorization, visibility, lifecycle, or performance semantics differ, and
+  document that reason in the message comment.
+- Prefer returning rich protobuf messages over scalar acknowledgements when the
+  server can do so without changing authorization or forcing expensive extra
+  reads. This keeps create/update/delete responses forward-compatible and
+  aligned with list/get/batch shapes.
 - For public API messages under `chatto/api/v1`, `chatto/admin/v1`,
   `chatto/auth/v1`, `chatto/discovery/v1`, and `chatto/realtime/v1`, use proto3
   `optional` scalar fields when clients must distinguish
@@ -60,6 +90,17 @@ For public API packages:
 - Avoid using response-rich messages as request inputs when some fields are
   ignored. Prefer request-only input messages that contain exactly the accepted
   fields.
+- Keep authorization, visibility, and absence boundaries consistent across
+  related APIs. A `List*` result should not reveal resource state that the
+  matching `Get*` or `BatchGet*` contract then refuses to hydrate, unless that
+  redacted/indicator state is explicitly modeled.
+- Singular `Get*` methods return `NOT_FOUND` when absence is the error result.
+  `BatchGet*` and list methods may omit missing or inaccessible resources, but
+  document that behavior on the RPC.
+- First-party client wrappers and generated public docs are part of the API
+  surface. When adding public RPCs, expose them through `@chatto/api-client`
+  unless that package is explicitly being kept app-scoped, and update generated
+  docs in the same change.
 
 ## Code Generation
 
