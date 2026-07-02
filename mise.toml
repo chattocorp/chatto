@@ -101,16 +101,9 @@ dir = "packages/api-types"
 run = "pnpm build"
 sources = ["package.json", "tsconfig.json", "src/**/*"]
 
-[tasks.build-api-client]
-description = "Build the TypeScript API client package"
-depends = ["setup-frontend", "build-api-types"]
-dir = "packages/api-client"
-run = "pnpm build"
-sources = ["package.json", "tsconfig.json", "src/**/*", "../api-types/dist/**/*"]
-
 [tasks.build-frontend]
 description = "Build the frontend application"
-depends = ["setup-frontend", "build-api-client"]
+depends = ["setup-frontend", "build-api-types"]
 dir = "apps/frontend"
 run = [
     "pnpm svelte-kit sync",
@@ -126,7 +119,6 @@ sources = [
     "../../pnpm-lock.yaml",
     "../../pnpm-workspace.yaml",
     "../../packages/api-types/dist/**/*",
-    "../../packages/api-client/dist/**/*",
     "package.json",
     "src/**/*",
     "!src/**/*.spec.*",
@@ -176,7 +168,7 @@ outputs = ["../apps/frontend/e2e/fixtures/bin/chatto"]
 
 [tasks.storybook]
 description = "Run the Storybook design-system catalog"
-depends = ["setup-frontend", "build-api-client"]
+depends = ["setup-frontend", "build-api-types"]
 dir = "apps/frontend"
 run = "pnpm storybook"
 
@@ -188,7 +180,7 @@ run = "go build -trimpath -tags bootstrap -o bin/chatto-dev . && exec ./bin/chat
 
 [tasks.dev-frontend]
 description = "Run the local development frontend"
-depends = ["setup-frontend", "build-api-client"]
+depends = ["setup-frontend", "build-api-types"]
 dir = "apps/frontend"
 run = "exec ./node_modules/.bin/vite dev"
 
@@ -315,12 +307,12 @@ sources = ["**/*.go", "cmd/embedded/LICENSE", "cmd/embedded/NOTICE"]
 
 [tasks.knip]
 description = "Find unused frontend/docs files, dependencies, and exports"
-depends = ["setup-frontend", "build-api-client"]
+depends = ["setup-frontend", "build-api-types"]
 run = "pnpm knip"
 
 [tasks.lint-frontend]
 description = "Run TypeScript and ESLint checks on frontend"
-depends = ["setup-frontend", "build-api-client"]
+depends = ["setup-frontend", "build-api-types"]
 dir = "apps/frontend"
 run = ["pnpm check", "pnpm lint"]
 
@@ -330,7 +322,7 @@ run = [{ task = "lint-*" }]
 
 [tasks.test-frontend]
 description = "Run frontend unit tests"
-depends = ["setup-frontend", "build-api-client"]
+depends = ["setup-frontend", "build-api-types"]
 dir = "apps/frontend"
 run = "pnpm vitest --run"
 

@@ -97,10 +97,10 @@ For public API packages:
 - Singular `Get*` methods return `NOT_FOUND` when absence is the error result.
   `BatchGet*` and list methods may omit missing or inaccessible resources, but
   document that behavior on the RPC.
-- First-party client wrappers and generated public docs are part of the API
-  surface. When adding public RPCs, expose them through `@chatto/api-client`
-  unless that package is explicitly being kept app-scoped, and update generated
-  docs in the same change.
+- Generated public docs and TypeScript bindings are part of the API surface.
+  When adding public RPCs, regenerate `@chatto/api-types` and docs in the same
+  change. Do not recreate a handwritten API-client package; bundled frontend
+  adapters belong under `apps/frontend/src/lib/api-client`.
 
 ## Code Generation
 

@@ -35,9 +35,6 @@ importers:
       '@bufbuild/protobuf':
         specifier: ^1.10.0
         version: 1.10.0
-      '@chatto/api-client':
-        specifier: workspace:*
-        version: link:../../packages/api-client
       '@chatto/api-types':
         specifier: workspace:*
         version: link:../../packages/api-types
@@ -249,25 +246,6 @@ importers:
       zod:
         specifier: ^4.4.3
         version: 4.4.3
-
-  packages/api-client:
-    dependencies:
-      '@bufbuild/protobuf':
-        specifier: ^1.10.0
-        version: 1.10.0
-      '@chatto/api-types':
-        specifier: workspace:*
-        version: link:../api-types
-      '@connectrpc/connect':
-        specifier: ^1.7.0
-        version: 1.7.0(@bufbuild/protobuf@1.10.0)
-      '@connectrpc/connect-web':
-        specifier: ^1.7.0
-        version: 1.7.0(@bufbuild/protobuf@1.10.0)(@connectrpc/connect@1.7.0(@bufbuild/protobuf@1.10.0))
-    devDependencies:
-      typescript:
-        specifier: ^5.9.3
-        version: 5.9.3
 
   packages/api-types:
     dependencies:

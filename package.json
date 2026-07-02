@@ -4,17 +4,16 @@
   "type": "module",
   "packageManager": "pnpm@10.26.0",
   "scripts": {
-    "build:api-client": "pnpm run build:api-types && pnpm --filter @chatto/api-client build",
     "build:api-types": "pnpm --filter @chatto/api-types build",
     "build:docs": "pnpm --filter docs-website build",
-    "build:frontend": "pnpm run build:api-client && pnpm --filter chatto-frontend build",
-    "check:frontend": "pnpm run build:api-client && pnpm --filter chatto-frontend check",
+    "build:frontend": "pnpm run build:api-types && pnpm --filter chatto-frontend build",
+    "check:frontend": "pnpm run build:api-types && pnpm --filter chatto-frontend check",
     "dev:docs": "mise dev-docs-website",
-    "dev:frontend": "pnpm run build:api-client && pnpm --filter chatto-frontend dev",
+    "dev:frontend": "pnpm run build:api-types && pnpm --filter chatto-frontend dev",
     "knip": "pnpm run knip:prepare && knip",
     "knip:prepare": "pnpm --dir apps/frontend run paraglide && pnpm --dir apps/frontend run prepare",
-    "lint:frontend": "pnpm run build:api-client && pnpm --filter chatto-frontend lint",
-    "test:frontend": "pnpm run build:api-client && pnpm --filter chatto-frontend exec vitest --run"
+    "lint:frontend": "pnpm run build:api-types && pnpm --filter chatto-frontend lint",
+    "test:frontend": "pnpm run build:api-types && pnpm --filter chatto-frontend exec vitest --run"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
