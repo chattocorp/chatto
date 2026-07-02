@@ -16,6 +16,7 @@ import {
   VoiceCallJoinError,
   VoiceCallState
 } from './voiceCall.svelte';
+import { Room } from 'livekit-client';
 
 const calls: string[] = [];
 let lastRoomOptions: Record<string, unknown> | null = null;
@@ -31,6 +32,7 @@ let lastRoom: {
 let connectFailure: Error | null = null;
 let connectGate: { promise: Promise<void>; resolve: () => void } | null = null;
 let microphoneGate: { promise: Promise<void>; resolve: () => void } | null = null;
+let microphoneFailure: Error | null = null;
 let cameraGate: { promise: Promise<void>; resolve: () => void } | null = null;
 let screenShareGate: { promise: Promise<void>; resolve: () => void } | null = null;
 let screenShareFailure: Error | null = null;
@@ -39,6 +41,7 @@ let localTrackPublications: Array<{
   isMuted: boolean;
   track: { source: string; mediaStreamTrack?: MediaStreamTrack };
 }> = [];
+let mockRemoteParticipants = new Map<string, unknown>();
 
 vi.mock('livekit-client', () => {
   class MockExternalE2EEKeyProvider {
@@ -54,12 +57,26 @@ vi.mock('livekit-client', () => {
   }
 
   class MockRoom {
-    static getLocalDevices = vi.fn(async () => []);
+    static getLocalDevices = vi.fn(async (kind?: MediaDeviceKind) => {
+      if (kind === 'audioinput') {
+        return [{ deviceId: 'audio-input-1', kind, label: 'Microphone' }];
+      }
+      if (kind === 'audiooutput') {
+        return [{ deviceId: 'audio-output-1', kind, label: 'Speaker' }];
+      }
+      if (kind === 'videoinput') {
+        return [{ deviceId: 'video-input-1', kind, label: 'Camera' }];
+      }
+      return [];
+    });
 
     localParticipant = {
-      setMicrophoneEnabled: vi.fn(async () => {
+      setMicrophoneEnabled: vi.fn(async (enabled: boolean) => {
         calls.push('setMicrophoneEnabled');
         await microphoneGate?.promise;
+        if (enabled && microphoneFailure) {
+          throw microphoneFailure;
+        }
       }),
       setCameraEnabled: vi.fn(async (enabled: boolean) => {
         calls.push(`setCameraEnabled:${enabled}`);
@@ -99,7 +116,7 @@ vi.mock('livekit-client', () => {
       audioLevel: 0,
       getTrackPublications: vi.fn(() => localTrackPublications)
     };
-    remoteParticipants = new Map();
+    remoteParticipants = mockRemoteParticipants;
 
     constructor(options: Record<string, unknown>) {
       lastRoomOptions = options;
@@ -200,11 +217,13 @@ describe('VoiceCallState', () => {
     connectFailure = null;
     connectGate = null;
     microphoneGate = null;
+    microphoneFailure = null;
     cameraGate = null;
     screenShareGate = null;
     screenShareFailure = null;
     roomEventHandlers = new Map();
     localTrackPublications = [];
+    mockRemoteParticipants = new Map();
     vi.stubGlobal('Worker', class MockWorker {});
     vi.stubGlobal('TransformStream', class MockTransformStream {});
     vi.stubGlobal('ReadableStream', class MockReadableStream {});
@@ -212,6 +231,7 @@ describe('VoiceCallState', () => {
     vi.stubGlobal('RTCRtpScriptTransform', class MockRTCRtpScriptTransform {});
     vi.stubGlobal('crypto', { subtle: {} });
     soundMocks.playCallSound.mockClear();
+    vi.mocked(Room.getLocalDevices).mockClear();
   });
 
   afterEach(() => {
@@ -242,6 +262,35 @@ describe('VoiceCallState', () => {
     await state.join('wss://livekit.example.test', 'R1');
 
     expect(soundMocks.playCallSound).not.toHaveBeenCalled();
+  });
+
+  it('joins with microphone enabled but does not request camera permission while refreshing devices', async () => {
+    const client = createVoiceCallClient();
+    const state = new VoiceCallState(client);
+
+    await state.join('wss://livekit.example.test', 'R1');
+
+    expect(lastRoom?.localParticipant.setMicrophoneEnabled).toHaveBeenCalledWith(true);
+    expect(lastRoom?.localParticipant.setCameraEnabled).not.toHaveBeenCalled();
+    expect(Room.getLocalDevices).toHaveBeenCalledWith('audioinput');
+    expect(Room.getLocalDevices).toHaveBeenCalledWith('audiooutput');
+    expect(Room.getLocalDevices).toHaveBeenCalledWith('videoinput', false);
+    expect(Room.getLocalDevices).not.toHaveBeenCalledWith('videoinput');
+    expect(Room.getLocalDevices).not.toHaveBeenCalledWith('videoinput', true);
+  });
+
+  it('joins muted when microphone enable fails without enabling the camera', async () => {
+    microphoneFailure = new Error('microphone unavailable');
+    const client = createVoiceCallClient();
+    const state = new VoiceCallState(client);
+
+    await state.join('wss://livekit.example.test', 'R1');
+
+    expect(lastRoom?.localParticipant.setMicrophoneEnabled).toHaveBeenCalledWith(true);
+    expect(lastRoom?.localParticipant.setCameraEnabled).not.toHaveBeenCalled();
+    expect(state.isMuted).toBe(true);
+    expect(state.isInAnyCall).toBe(true);
+    expect(Room.getLocalDevices).toHaveBeenCalledWith('videoinput', false);
   });
 
   it('plays a deferred current-user join event after connecting successfully', async () => {
@@ -454,6 +503,26 @@ describe('VoiceCallState', () => {
     expect(state.isCameraEnabled).toBe(true);
   });
 
+  it('refreshes devices without camera permission until camera is explicitly enabled', async () => {
+    const client = createVoiceCallClient();
+    const state = new VoiceCallState(client);
+    await state.join('wss://livekit.example.test', 'R1');
+    vi.mocked(Room.getLocalDevices).mockClear();
+
+    await state.refreshDevices();
+    roomEventHandlers.get('MediaDevicesChanged')?.();
+    await flushPromises();
+
+    expect(Room.getLocalDevices).toHaveBeenCalledWith('videoinput', false);
+    expect(Room.getLocalDevices).not.toHaveBeenCalledWith('videoinput', true);
+
+    vi.mocked(Room.getLocalDevices).mockClear();
+    await state.toggleCamera();
+
+    expect(lastRoom?.localParticipant.setCameraEnabled).toHaveBeenCalledWith(true);
+    expect(Room.getLocalDevices).toHaveBeenCalledWith('videoinput', true);
+  });
+
   it('keeps screen share pending until LiveKit applies the toggle', async () => {
     const client = createVoiceCallClient();
     const state = new VoiceCallState(client);
@@ -533,5 +602,49 @@ describe('VoiceCallState', () => {
 
     expect(state.isScreenShareEnabled).toBe(false);
     expect(state.participants[0].screenShareTrack).toBeNull();
+  });
+
+  it('locally mutes and unmutes remote participant audio for the current session only', async () => {
+    const setVolume = vi.fn();
+    mockRemoteParticipants.set('remote-user', {
+      identity: 'remote-user',
+      name: 'Remote User',
+      metadata: '',
+      connectionQuality: 'good',
+      isSpeaking: false,
+      audioLevel: 0,
+      setVolume,
+      trackPublications: new Map(),
+      getTrackPublications: vi.fn(() => [{ isMuted: false, track: { source: 'microphone' } }])
+    });
+    const client = createVoiceCallClient();
+    const state = new VoiceCallState(client);
+
+    await state.join('wss://livekit.example.test', 'R1');
+    setVolume.mockClear();
+
+    state.toggleParticipantLocalMute('remote-user');
+
+    expect(state.isParticipantLocallyMuted('remote-user')).toBe(true);
+    expect(setVolume).toHaveBeenLastCalledWith(0);
+    expect(state.participants.find((p) => p.identity === 'remote-user')).toMatchObject({
+      isLocallyMuted: true
+    });
+
+    state.toggleParticipantLocalMute('remote-user');
+
+    expect(state.isParticipantLocallyMuted('remote-user')).toBe(false);
+    expect(setVolume).toHaveBeenLastCalledWith(1);
+
+    state.toggleParticipantLocalMute('local-user');
+    expect(state.isParticipantLocallyMuted('local-user')).toBe(false);
+
+    state.toggleParticipantLocalMute('remote-user');
+    expect(state.isParticipantLocallyMuted('remote-user')).toBe(true);
+
+    await state.leave();
+
+    expect(state.isParticipantLocallyMuted('remote-user')).toBe(false);
+    expect(state.locallyMutedParticipantIds).toEqual({});
   });
 });

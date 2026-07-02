@@ -46,6 +46,8 @@ calls, and similar room-specific panels can plug into the same shell. See the
     roomId,
     activePanel = 'members',
     presentation = 'desktop',
+    maximized = false,
+    hasActiveCall = false,
     canBanRoomMembers = false,
     currentUserId = null,
     membersStore,
@@ -53,12 +55,15 @@ calls, and similar room-specific panels can plug into the same shell. See the
     livekitUrl,
     fileGroupingNow,
     onOpenFile,
+    onToggleMaximized,
     onClose
   }: {
     loading?: boolean;
     roomId: string;
     activePanel?: RoomSidebarPanel;
     presentation?: 'desktop' | 'overlay';
+    maximized?: boolean;
+    hasActiveCall?: boolean;
     canBanRoomMembers?: boolean;
     currentUserId?: string | null;
     membersStore: RoomMembersStore;
@@ -66,6 +71,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
     livekitUrl?: string;
     fileGroupingNow?: Date;
     onOpenFile?: (messageEventId: string, threadRootEventId: string | null) => void;
+    onToggleMaximized?: () => void;
     onClose?: () => void;
   } = $props();
 
@@ -80,10 +86,16 @@ calls, and similar room-specific panels can plug into the same shell. See the
     if (activePanel === 'files') return m['room.sidebar.files']();
     return m['room.sidebar.call']();
   });
+  const showMaximizeButton = $derived(
+    presentation === 'desktop' && activePanel === 'call' && hasActiveCall && !!onToggleMaximized
+  );
+  const showCallFullscreenButton = $derived(activePanel === 'call' && hasActiveCall);
 
   // Check if user can start DMs (from centralized server permissions)
   const serverPerms = getServerPermissions();
   let canStartDMs = $derived(serverPerms.current.canStartDMs);
+  let sidebarElement = $state<HTMLElement | null>(null);
+  let fullscreenElement = $state<Element | null>(null);
 
   // Track which member's popover is open
   let popoverMemberId = $state<string | null>(null);
@@ -211,17 +223,36 @@ calls, and similar room-specific panels can plug into the same shell. See the
     void membersStore.setSearch('');
     memberSearchInput?.focus();
   }
+
+  async function toggleCallFullscreen(): Promise<void> {
+    if (!sidebarElement || typeof document === 'undefined') return;
+
+    try {
+      if (document.fullscreenElement === sidebarElement) {
+        await document.exitFullscreen();
+      } else {
+        await sidebarElement.requestFullscreen();
+      }
+    } catch {
+      // Fullscreen can be denied by browser or OS policy; the regular pane still works.
+    }
+  }
 </script>
 
+<svelte:document onfullscreenchange={() => (fullscreenElement = document.fullscreenElement)} />
+
 <aside
+  bind:this={sidebarElement}
   class={[
     'relative flex min-h-0 flex-col bg-background',
-    presentation === 'desktop' ? 'border-l border-border' : 'w-full min-w-0 flex-1 overflow-hidden'
+    presentation === 'desktop'
+      ? ['border-l border-border', maximized ? 'min-w-0 flex-1' : '']
+      : 'w-full min-w-0 flex-1 overflow-hidden'
   ]}
-  style:width={presentation === 'desktop' ? `${roomSidebarWidth.value}px` : undefined}
+  style:width={presentation === 'desktop' && !maximized ? `${roomSidebarWidth.value}px` : undefined}
   aria-label={m['room.sidebar.extras']()}
 >
-  {#if presentation === 'desktop'}
+  {#if presentation === 'desktop' && !maximized}
     <ResizeHandle
       width={roomSidebarWidth.value}
       min={ROOM_SIDEBAR_MIN_WIDTH}
@@ -234,9 +265,28 @@ calls, and similar room-specific panels can plug into the same shell. See the
   {/if}
   <PaneHeader {title} {loading} skeletonButtons={0}>
     {#snippet actions()}
+      {#if showMaximizeButton}
+        <HeaderIconButton
+          icon={maximized ? 'mdi--arrow-collapse-right' : 'mdi--arrow-expand-left'}
+          label={maximized ? m['room.sidebar.minimize_call']() : m['room.sidebar.maximize_call']()}
+          onclick={() => onToggleMaximized?.()}
+        />
+      {/if}
+      {#if showCallFullscreenButton}
+        <HeaderIconButton
+          icon={fullscreenElement === sidebarElement
+            ? 'mdi--fullscreen-exit'
+            : 'mdi--monitor-share'}
+          label={fullscreenElement === sidebarElement
+            ? m['voice.exit_fullscreen_call']()
+            : m['voice.fullscreen_call']()}
+          onclick={() => void toggleCallFullscreen()}
+        />
+      {/if}
       <HeaderIconButton
         icon="uil--times"
         label={m['room.sidebar.hide']()}
+        iconSize="lg"
         onclick={() => onClose?.()}
       />
     {/snippet}
@@ -343,7 +393,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
     {/if}
   {:else if activePanel === 'call'}
     {#if livekitUrl}
-      <VoiceCallPanel {roomId} {livekitUrl} />
+      <VoiceCallPanel {roomId} {livekitUrl} layout={maximized ? 'stage' : 'sidebar'} />
     {:else}
       <div class="flex min-h-0 flex-1 items-center justify-center p-4 text-sm text-muted">
         {m['room.sidebar.calls_unavailable']()}

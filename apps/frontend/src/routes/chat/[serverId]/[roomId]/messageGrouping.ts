@@ -14,7 +14,8 @@ export type EventWithMeta = {
 
 export function computeEventMetadata(
   events: RoomEventView[],
-  settings: UserSettingsState
+  settings: UserSettingsState,
+  locale?: string
 ): EventWithMeta[] {
   const result: EventWithMeta[] = [];
 
@@ -27,7 +28,7 @@ export function computeEventMetadata(
 
     // Check if we need a day separator (timezone-aware)
     const showDaySeparator = !prevEventDate || !isSameDay(eventDate, prevEventDate, settings);
-    const dayLabel = showDaySeparator ? formatDayLabel(eventDate, settings) : '';
+    const dayLabel = showDaySeparator ? formatDayLabel(eventDate, settings, locale) : '';
 
     // Determine if this is the first message in a group
     let isFirstInGroup = true;

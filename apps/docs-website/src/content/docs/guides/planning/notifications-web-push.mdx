@@ -1,0 +1,114 @@
+---
+title: Notifications & Web Push
+description: Configure Chatto notifications, Web Push, VAPID keys, device behavior, and operator expectations.
+---
+
+import { Aside, CardGrid, LinkCard, Tabs, TabItem } from "@astrojs/starlight/components";
+
+Chatto has persistent in-app notifications and optional browser Web Push. Operators configure whether push is available; members decide which rooms, threads, and devices should alert them.
+
+## How Notifications Work
+
+Chatto creates persistent notifications for attention-worthy events:
+
+| Event | Default behavior |
+| ----- | ---------------- |
+| DM messages | Notify the recipient. |
+| Direct `@username` mentions | Notify the mentioned user. |
+| Role, `@all`, and `@here` mentions | Notify matching recipients, with confirmation for broad sends. |
+| Replies to your message | Notify you. |
+| Followed thread replies | Notify followers. |
+| Rooms set to all messages | Notify for every root message in that room. |
+
+Notifications are stored for the user, survive browser restarts, sync across tabs and devices, and expire after 90 days. Dismissing a notification clears it everywhere for that user.
+
+## Notification Levels
+
+Members can choose notification levels per room:
+
+| Level | Effect |
+| ----- | ------ |
+| Default | Inherit the parent/default behavior. |
+| Muted | Suppress notifications and unread sidebar state for that room. |
+| Normal | Notify for mentions, DMs, and thread replies. |
+| All messages | Notify for mentions, DMs, thread replies, and every root message. |
+
+Muted rooms suppress mentions too. Treat mute as "leave this room out of my attention surface."
+
+## Do Not Disturb
+
+Do Not Disturb does not discard notifications. Chatto still records the pending notification and updates counts, but suppresses interruptive delivery while the user is in DND:
+
+- no notification sound
+- no Web Push delivery
+- no active interruption
+
+This preserves "review later" behavior without waking the user's devices.
+
+## Enable Web Push
+
+Web Push is disabled until you provide VAPID keys. Without push config, Chatto hides the push UI entirely.
+
+Generate VAPID keys:
+
+```bash
+npx web-push generate-vapid-keys
+```
+
+Then configure Chatto:
+
+<Tabs>
+<TabItem label="TOML">
+
+```toml
+[push]
+enabled = true
+vapid_public_key = "<generate-me>"
+vapid_private_key = "<generate-me>"
+vapid_subject = "mailto:admin@example.com"
+```
+
+</TabItem>
+<TabItem label="Environment">
+
+```bash
+CHATTO_PUSH_ENABLED=true
+CHATTO_PUSH_VAPID_PUBLIC_KEY=<generate-me>
+CHATTO_PUSH_VAPID_PRIVATE_KEY=<generate-me>
+CHATTO_PUSH_VAPID_SUBJECT=mailto:admin@example.com
+```
+
+</TabItem>
+</Tabs>
+
+Use a `mailto:` or HTTPS contact URI for `vapid_subject`. Keep the private key secret and stable; changing it can invalidate existing browser subscriptions.
+
+## Device Behavior
+
+Each browser or installed PWA creates its own subscription. A user can have multiple subscribed devices, and each device receives the same push notification.
+
+When a user reopens Chatto, the app refreshes the server's stored subscription for that browser. Expired subscriptions are cleaned up automatically when push providers report them as gone.
+
+On iOS and iPadOS, Web Push works only for supported Home Screen web apps. Safari tabs that are not installed as an app may not receive native push.
+
+<Aside type="note">
+  In multi-server use, native Web Push registration is offered only for the server that served the installed web app. Remote servers can still update in-app badges and play sounds while Chatto is open.
+</Aside>
+
+## Operator Checklist
+
+1. Set `webserver.url` to the public HTTPS origin.
+2. Enable Web Push with stable VAPID keys.
+3. Keep the service worker path reachable through your proxy.
+4. Test from a normal member account, not only an owner account.
+5. Test one desktop browser and one mobile installed PWA if mobile push matters.
+6. Explain to members that push is per device and opt-in.
+
+## Related Guides
+
+<CardGrid>
+  <LinkCard title="Environment Variables" href="/reference/environment-variables/#push-notifications" description="Full Web Push configuration reference." />
+  <LinkCard title="Security & Privacy" href="/guides/operations/security/" description="Session, CORS, WebSocket, and runtime-state security details." />
+  <LinkCard title="Notification APIs" href="/reference/connectrpc-api/notifications/" description="Public ConnectRPC notification service reference." />
+  <LinkCard title="Push Notification APIs" href="/reference/connectrpc-api/push-notifications/" description="Public ConnectRPC push subscription service reference." />
+</CardGrid>

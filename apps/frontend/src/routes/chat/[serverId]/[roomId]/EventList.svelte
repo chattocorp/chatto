@@ -3,6 +3,7 @@
   import { fade } from 'svelte/transition';
   import { Virtualizer, type VirtualizerHandle } from 'virtua/svelte';
   import * as m from '$lib/i18n/messages';
+  import { getLocale } from '$lib/i18n/runtime';
   import type { RoomEventView } from '$lib/render/types';
   import { isMessagePostedEvent } from '$lib/render/eventKinds';
   import type {
@@ -129,12 +130,13 @@
   let shouldScrollToBottom = $state(true);
   let hasNewMessages = $state(false);
   let lastSeenNewestId = $state<string | null>(null);
-  let firstVisibleDate = $state<string | null>(null);
+  let firstVisibleAt = $state<string | null>(null);
 
   function setShouldScrollToBottom(value: boolean) {
     shouldScrollToBottom = value;
     if (value) {
       hasNewMessages = false;
+      firstVisibleAt = null;
     }
   }
 
@@ -145,6 +147,10 @@
   const composerContext = getComposerContext();
   const scrollState = composerContext.scrollState;
   const userSettings = getUserSettings();
+  const activeLocale = $derived(getLocale());
+  const firstVisibleDate = $derived(
+    firstVisibleAt ? formatDayLabel(firstVisibleAt, userSettings, activeLocale) : null
+  );
 
   // Filter events based on configuration
   let filteredEvents = $derived(
@@ -163,7 +169,7 @@
   );
 
   // Apply message grouping and day separators
-  let eventsWithMeta = $derived(computeEventMetadata(filteredEvents, userSettings));
+  let eventsWithMeta = $derived(computeEventMetadata(filteredEvents, userSettings, activeLocale));
 
   // The unread separator event ID is computed by the parent component
   // (RoomEventsPane for sequence-based, ThreadPane for time-based)
@@ -202,6 +208,7 @@
     initialScrollDone = false;
     setShouldScrollToBottom(true);
     lastSeenNewestId = null;
+    firstVisibleAt = null;
     previousOffset = null;
   });
 
@@ -677,7 +684,7 @@
       for (let i = idx; i < virtualItems.length; i++) {
         const item = virtualItems[i];
         if (item.type === 'event') {
-          firstVisibleDate = formatDayLabel(item.event.createdAt, userSettings);
+          firstVisibleAt = item.event.createdAt;
           break;
         }
       }

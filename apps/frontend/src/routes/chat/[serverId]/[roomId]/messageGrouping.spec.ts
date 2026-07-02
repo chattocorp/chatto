@@ -3,6 +3,8 @@ import { computeEventMetadata } from './messageGrouping';
 import type { RoomEventView } from '$lib/render/types';
 import { RoomEventKind } from '$lib/render/eventKinds';
 import type { UserSettingsState } from '$lib/state/userSettings.svelte';
+import { loadLocaleMessages } from '$lib/i18n/messages';
+import { setReactiveLocale } from '$lib/i18n/state.svelte';
 
 // Mock settings with explicit UTC timezone so tests are deterministic regardless of host TZ
 const defaultSettings = {
@@ -356,6 +358,23 @@ describe('computeEventMetadata', () => {
       const result = computeEventMetadata([event], defaultSettings);
 
       expect(result[0].dayLabel).toMatch(/Thursday, November 20/);
+    });
+
+    it('uses an explicit locale for visible day labels', async () => {
+      await loadLocaleMessages('de');
+      setReactiveLocale('de');
+
+      try {
+        const event = createMockEvent({ createdAt: '2025-11-20T10:00:00Z' });
+        const result = computeEventMetadata([event], defaultSettings, 'de-DE');
+
+        expect(result[0].dayLabel).toMatch(/Donnerstag/);
+        expect(result[0].dayLabel).toMatch(/November/);
+        expect(result[0].dayLabel).toMatch(/20/);
+      } finally {
+        await loadLocaleMessages('en');
+        setReactiveLocale('en');
+      }
     });
 
     it('includes year for dates from different year', () => {

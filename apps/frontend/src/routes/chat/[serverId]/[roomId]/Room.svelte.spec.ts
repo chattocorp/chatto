@@ -51,6 +51,8 @@ const { mocks } = vi.hoisted(() => {
       },
       livekitUrl: null as string | null,
       roomKind: 1,
+      activeCallRoomIds: new Set<string>(),
+      joinedCallRoomIds: new Set<string>(),
       notifications: {
         notifications: [] as Array<{ id: string }>,
         dismissDMNotifications: vi.fn().mockResolvedValue({ byRoom: {} }),
@@ -168,7 +170,10 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
         consume: vi.fn(() => null)
       },
       activeCallRooms: {
-        has: vi.fn(() => false)
+        has: vi.fn((roomId: string) => mocks.activeCallRoomIds.has(roomId))
+      },
+      voiceCall: {
+        isInCall: vi.fn((roomId: string) => mocks.joinedCallRoomIds.has(roomId))
       },
       rooms: mocks.rooms
     }),
@@ -214,8 +219,8 @@ vi.mock('./ThreadPane.svelte', async () => {
 });
 
 vi.mock('./RoomSidebar.svelte', async () => {
-  const { default: EmptyMock } = await import('./RoomLocalEchoEmptyMock.svelte');
-  return { default: EmptyMock };
+  const { default: RoomSidebarMock } = await import('./RoomLocalEchoRoomSidebarMock.svelte');
+  return { default: RoomSidebarMock };
 });
 
 vi.mock('./RoomSidebarToggle.svelte', async () => {
@@ -274,6 +279,8 @@ beforeEach(() => {
   mocks.timeline.getThreadEventsAround.mockResolvedValue(emptyTimelinePage());
   mocks.livekitUrl = null;
   mocks.roomKind = RoomKind.CHANNEL;
+  mocks.activeCallRoomIds.clear();
+  mocks.joinedCallRoomIds.clear();
   mocks.notifications.notifications = [];
   mocks.notifications.dismissDMNotifications.mockResolvedValue({ byRoom: {} });
   mocks.notifications.dismissMentionNotifications.mockResolvedValue({ byRoom: {} });
@@ -347,6 +354,56 @@ describe('Room local message echo', () => {
       .element(q(container, '[data-testid="room-sidebar-mobile-pane"]'))
       .toBeInTheDocument();
     expect(consumePendingRoomSidebarPanel('server-1', 'room-1')).toBeNull();
+  });
+
+  it('lets a maximized desktop call sidebar fill the room route content area', async () => {
+    mocks.livekitUrl = 'wss://livekit.example.test';
+    mocks.activeCallRoomIds.add('room-1');
+    setPendingRoomSidebarPanel('server-1', 'room-1', 'call');
+
+    const { container } = render(Room, { props: { roomId: 'room-1' } });
+
+    const roomRegion = q(container, '[data-testid="room-view-region"]')!;
+    const desktopSidebarPane = q(container, '[data-testid="room-sidebar-desktop-pane"]')!;
+    const maximizeButton = q(container, '[data-testid="toggle-maximized-call"]') as HTMLButtonElement;
+
+    await expect.element(desktopSidebarPane).toBeInTheDocument();
+    expect(roomRegion.className).not.toContain('lg:hidden');
+    expect(desktopSidebarPane.className).toContain('shrink-0');
+
+    maximizeButton.click();
+
+    await expect.element(maximizeButton).toHaveAttribute('data-maximized', 'true');
+    expect(roomRegion.className).toContain('lg:hidden');
+    expect(desktopSidebarPane.className).toContain('flex-1');
+    expect(desktopSidebarPane.className).not.toContain('shrink-0');
+  });
+
+  it('restores the room view when a maximized desktop call ends', async () => {
+    mocks.livekitUrl = 'wss://livekit.example.test';
+    mocks.activeCallRoomIds.add('room-1');
+    setPendingRoomSidebarPanel('server-1', 'room-1', 'call');
+
+    const rendered = render(Room, { props: { roomId: 'room-1' } });
+    const { container } = rendered;
+
+    const roomRegion = q(container, '[data-testid="room-view-region"]')!;
+    const desktopSidebarPane = q(container, '[data-testid="room-sidebar-desktop-pane"]')!;
+    const maximizeButton = q(container, '[data-testid="toggle-maximized-call"]') as HTMLButtonElement;
+
+    maximizeButton.click();
+
+    await expect.element(maximizeButton).toHaveAttribute('data-maximized', 'true');
+    expect(roomRegion.className).toContain('lg:hidden');
+    expect(desktopSidebarPane.className).toContain('flex-1');
+
+    mocks.activeCallRoomIds.clear();
+    await rendered.rerender({ roomId: 'room-1' });
+
+    await expect.element(maximizeButton).toHaveAttribute('data-maximized', 'false');
+    expect(roomRegion.className).not.toContain('lg:hidden');
+    expect(desktopSidebarPane.className).toContain('shrink-0');
+    expect(desktopSidebarPane.className).not.toContain('flex-1');
   });
 
   it('refreshes room notification counts after active-room notifications auto-dismiss', async () => {

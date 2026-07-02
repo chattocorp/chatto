@@ -48,6 +48,8 @@
   const assetRetrySalts = new SvelteMap<string, number>();
   let refreshPromise: Promise<Map<string, RefreshedAttachmentUrls>> | null = null;
   const failedAssetRefreshKeys = new SvelteSet<string>();
+  let galleryScrolledFromLeft = $state(false);
+  let galleryScrolledFromRight = $state(false);
 
   function normalizeAssetUrl(value: ExpiringAssetUrl | null | undefined): ExpiringAssetUrl | null {
     if (!value) return null;
@@ -126,9 +128,18 @@
   const MIN_THUMB_SIZE = 24;
   const EXTREME_ASPECT_RATIO = 3;
   const LANDSCAPE_THUMB_MAX_WIDTH = 480;
-  const LANDSCAPE_THUMB_MAX_HEIGHT = 320;
   const PORTRAIT_THUMB_MAX_WIDTH = 320;
-  const PORTRAIT_THUMB_MAX_HEIGHT = 200;
+  const SINGLE_THUMB_MAX_HEIGHT = 200;
+  const GALLERY_THUMB_HEIGHT = 180;
+  const GALLERY_THUMB_MIN_WIDTH = 72;
+  const GALLERY_THUMB_MAX_WIDTH = 320;
+  const GALLERY_VIEWPORT_MAX_WIDTH = 680;
+
+  type ThumbDisplay = {
+    width: number;
+    height: number;
+    fit: 'cover' | 'contain';
+  };
 
   function fitThumbWithinBounds(
     w: number,
@@ -149,16 +160,95 @@
     const isLandscape = w > h;
     const aspectRatio = w / h;
     const maxW = isLandscape ? LANDSCAPE_THUMB_MAX_WIDTH : PORTRAIT_THUMB_MAX_WIDTH;
-    const maxH = isLandscape ? LANDSCAPE_THUMB_MAX_HEIGHT : PORTRAIT_THUMB_MAX_HEIGHT;
 
     const fit =
       aspectRatio >= EXTREME_ASPECT_RATIO || aspectRatio <= 1 / EXTREME_ASPECT_RATIO
         ? 'contain'
         : 'cover';
-    return fitThumbWithinBounds(w, h, maxW, maxH, fit);
+    return fitThumbWithinBounds(w, h, maxW, SINGLE_THUMB_MAX_HEIGHT, fit);
   }
 
-  const imageAttachments = $derived(attachments.filter((a) => a.contentType.startsWith('image/')));
+  function galleryThumbDisplay(w: number, h: number): ThumbDisplay {
+    const aspectRatio = w / h;
+    return {
+      width: Math.min(
+        Math.max(Math.round(GALLERY_THUMB_HEIGHT * aspectRatio), GALLERY_THUMB_MIN_WIDTH),
+        GALLERY_THUMB_MAX_WIDTH
+      ),
+      height: GALLERY_THUMB_HEIGHT,
+      fit: 'contain'
+    };
+  }
+
+  function fallbackGalleryThumbDisplay(): ThumbDisplay {
+    return {
+      width: GALLERY_THUMB_HEIGHT,
+      height: GALLERY_THUMB_HEIGHT,
+      fit: 'contain'
+    };
+  }
+
+  function isGalleryImageAttachment(attachment: Attachment): boolean {
+    return (
+      attachment.contentType.startsWith('image/') &&
+      !(attachment.contentType === 'image/gif' && attachment.videoProcessing)
+    );
+  }
+
+  function imageButtonStyle(display: ThumbDisplay, variant: 'single' | 'gallery'): string {
+    if (variant === 'gallery') {
+      return `width: ${display.width}px; height: ${display.height}px`;
+    }
+    return `width: ${display.width}px; max-width: 100%; aspect-ratio: ${display.width} / ${display.height}`;
+  }
+
+  function galleryViewportStyle(): string {
+    return `width: min(100%, ${GALLERY_VIEWPORT_MAX_WIDTH}px)`;
+  }
+
+  function updateGalleryScrollEdges(el: HTMLElement) {
+    const maxScrollLeft = Math.max(0, el.scrollWidth - el.clientWidth);
+    const scrollLeft = Math.min(Math.max(el.scrollLeft, 0), maxScrollLeft);
+    const canScroll = maxScrollLeft > 1;
+
+    galleryScrolledFromLeft = canScroll && scrollLeft > 1;
+    galleryScrolledFromRight = canScroll && maxScrollLeft - scrollLeft > 1;
+  }
+
+  function trackGalleryScrollEdges(el: HTMLElement) {
+    const update = () => updateGalleryScrollEdges(el);
+
+    update();
+    el.addEventListener('scroll', update, { passive: true });
+
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    for (const child of el.children) {
+      if (child instanceof HTMLElement) ro.observe(child);
+    }
+
+    const mo = new MutationObserver(() => {
+      ro.disconnect();
+      ro.observe(el);
+      for (const child of el.children) {
+        if (child instanceof HTMLElement) ro.observe(child);
+      }
+      update();
+    });
+    mo.observe(el, { childList: true });
+
+    return () => {
+      el.removeEventListener('scroll', update);
+      mo.disconnect();
+      ro.disconnect();
+    };
+  }
+
+  const imageAttachments = $derived(attachments.filter(isGalleryImageAttachment));
+  const hasImageGallery = $derived(imageAttachments.length > 1);
+  const remainingAttachments = $derived(
+    hasImageGallery ? attachments.filter((a) => !isGalleryImageAttachment(a)) : attachments
+  );
 
   const connection = useConnection();
 
@@ -324,185 +414,237 @@
 </script>
 
 {#if attachments.length > 0}
-  <div class="mt-2 flex flex-wrap gap-x-2 gap-y-3 first:mt-0">
-    {#each attachments as attachment (attachment.id)}
-      {#if attachment.contentType === 'image/gif' && attachment.videoProcessing}
-        <div class="group/attachment relative min-w-0">
-          <VideoPlayer
-            status={attachment.videoProcessing.status}
-            variants={attachment.videoProcessing.variants}
-            thumbnailUrl={attachment.videoProcessing.thumbnailUrl}
-            width={attachment.videoProcessing.width}
-            height={attachment.videoProcessing.height}
-            reasonCode={attachment.videoProcessing.reasonCode}
-            filename={attachment.filename}
-            autoLoop
-            onMediaError={() => refreshAfterAssetError(attachment, 'video')}
-          />
-          {#if canDeleteAttachment}
-            <button
-              type="button"
-              onclick={(e) => openDeleteConfirmation(attachment, e)}
-              class="embed-control-button md:group-hover/attachment:opacity-100"
-              aria-label={m['room.attachment.delete_label']()}
-              title={m['room.attachment.delete_label']()}
-            >
-              <span class="iconify text-sm uil--times"></span>
-            </button>
-          {/if}
-        </div>
-      {:else if attachment.contentType.startsWith('image/')}
-        {@const display =
-          attachment.width && attachment.height
-            ? thumbDisplay(attachment.width, attachment.height)
-            : null}
-        <button
-          type="button"
-          onclick={() => openImageModal(attachment)}
-          aria-label={m['room.attachment.view_label']({ filename: attachment.filename })}
-          class={[
-            'group/attachment relative embed-frame block min-w-0 cursor-pointer',
-            !display && 'max-h-32'
-          ]}
-          style={display
-            ? `width: ${display.width}px; max-width: 100%; aspect-ratio: ${display.width} / ${display.height}`
-            : undefined}
+  {#snippet imageAttachmentButton(attachment: Attachment, variant: 'single' | 'gallery')}
+    {@const display =
+      attachment.width && attachment.height
+        ? variant === 'gallery'
+          ? galleryThumbDisplay(attachment.width, attachment.height)
+          : thumbDisplay(attachment.width, attachment.height)
+        : variant === 'gallery'
+          ? fallbackGalleryThumbDisplay()
+          : null}
+    <button
+      type="button"
+      onclick={() => openImageModal(attachment)}
+      aria-label={m['room.attachment.view_label']({ filename: attachment.filename })}
+      data-testid={variant === 'gallery' ? 'message-gallery-image' : undefined}
+      class={[
+        'group/attachment relative embed-frame block min-w-0 cursor-pointer',
+        variant === 'gallery' && 'shrink-0',
+        !display && 'max-h-32'
+      ]}
+      style={display ? imageButtonStyle(display, variant) : undefined}
+    >
+      <SkeletonImg
+        loading="lazy"
+        src={attachment.thumbnailUrl ?? attachment.url}
+        alt={attachment.filename}
+        class={[
+          display?.fit === 'contain' ? 'object-contain' : 'object-cover',
+          display ? 'h-full w-full' : 'max-h-32 w-auto'
+        ]}
+        onerror={() =>
+          refreshAfterAssetError(attachment, attachment.thumbnailUrl ? 'thumbnail' : 'asset')}
+      />
+      {#if canDeleteAttachment}
+        <span
+          role="button"
+          tabindex="-1"
+          onclick={(e) => openDeleteConfirmation(attachment, e)}
+          onkeydown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') openDeleteConfirmation(attachment, e);
+          }}
+          class="embed-control-button md:group-hover/attachment:opacity-100"
+          aria-label={m['room.attachment.delete_label']()}
+          title={m['room.attachment.delete_label']()}
         >
-          <SkeletonImg
-            loading="lazy"
-            src={attachment.thumbnailUrl ?? attachment.url}
-            alt={attachment.filename}
-            class={[
-              display?.fit === 'contain' ? 'object-contain' : 'object-cover',
-              display ? 'h-full w-full' : 'max-h-32 w-auto'
-            ]}
-            onerror={() =>
-              refreshAfterAssetError(attachment, attachment.thumbnailUrl ? 'thumbnail' : 'asset')}
-          />
-          {#if canDeleteAttachment}
-            <span
-              role="button"
-              tabindex="-1"
-              onclick={(e) => openDeleteConfirmation(attachment, e)}
-              onkeydown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') openDeleteConfirmation(attachment, e);
-              }}
-              class="embed-control-button md:group-hover/attachment:opacity-100"
-              aria-label={m['room.attachment.delete_label']()}
-              title={m['room.attachment.delete_label']()}
-            >
-              <span class="iconify text-sm uil--times"></span>
-            </span>
-          {/if}
-        </button>
-      {:else if attachment.contentType.startsWith('video/') && attachment.videoProcessing}
-        <div class="group/attachment relative min-w-0">
-          <VideoPlayer
-            status={attachment.videoProcessing.status}
-            variants={attachment.videoProcessing.variants}
-            thumbnailUrl={attachment.videoProcessing.thumbnailUrl}
-            width={attachment.videoProcessing.width}
-            height={attachment.videoProcessing.height}
-            reasonCode={attachment.videoProcessing.reasonCode}
-            filename={attachment.filename}
-            onMediaError={() => refreshAfterAssetError(attachment, 'video')}
-          />
-          {#if canDeleteAttachment}
-            <button
-              type="button"
-              onclick={(e) => openDeleteConfirmation(attachment, e)}
-              class="embed-control-button z-10 md:group-hover/attachment:opacity-100"
-              aria-label={m['room.attachment.delete_label']()}
-              title={m['room.attachment.delete_label']()}
-            >
-              <span class="iconify text-sm uil--times"></span>
-            </button>
-          {/if}
-        </div>
-      {:else if attachment.contentType.startsWith('video/')}
-        <!--
+          <span class="iconify text-sm uil--times"></span>
+        </span>
+      {/if}
+    </button>
+  {/snippet}
+
+  {#snippet attachmentItem(attachment: Attachment)}
+    {#if attachment.contentType === 'image/gif' && attachment.videoProcessing}
+      <div class="group/attachment relative min-w-0">
+        <VideoPlayer
+          status={attachment.videoProcessing.status}
+          variants={attachment.videoProcessing.variants}
+          thumbnailUrl={attachment.videoProcessing.thumbnailUrl}
+          width={attachment.videoProcessing.width}
+          height={attachment.videoProcessing.height}
+          reasonCode={attachment.videoProcessing.reasonCode}
+          filename={attachment.filename}
+          autoLoop
+          onMediaError={() => refreshAfterAssetError(attachment, 'video')}
+        />
+        {#if canDeleteAttachment}
+          <button
+            type="button"
+            onclick={(e) => openDeleteConfirmation(attachment, e)}
+            class="embed-control-button md:group-hover/attachment:opacity-100"
+            aria-label={m['room.attachment.delete_label']()}
+            title={m['room.attachment.delete_label']()}
+          >
+            <span class="iconify text-sm uil--times"></span>
+          </button>
+        {/if}
+      </div>
+    {:else if attachment.contentType.startsWith('image/')}
+      {@render imageAttachmentButton(attachment, 'single')}
+    {:else if attachment.contentType.startsWith('video/') && attachment.videoProcessing}
+      <div class="group/attachment relative min-w-0">
+        <VideoPlayer
+          status={attachment.videoProcessing.status}
+          variants={attachment.videoProcessing.variants}
+          thumbnailUrl={attachment.videoProcessing.thumbnailUrl}
+          width={attachment.videoProcessing.width}
+          height={attachment.videoProcessing.height}
+          reasonCode={attachment.videoProcessing.reasonCode}
+          filename={attachment.filename}
+          onMediaError={() => refreshAfterAssetError(attachment, 'video')}
+        />
+        {#if canDeleteAttachment}
+          <button
+            type="button"
+            onclick={(e) => openDeleteConfirmation(attachment, e)}
+            class="embed-control-button z-10 md:group-hover/attachment:opacity-100"
+            aria-label={m['room.attachment.delete_label']()}
+            title={m['room.attachment.delete_label']()}
+          >
+            <span class="iconify text-sm uil--times"></span>
+          </button>
+        {/if}
+      </div>
+    {:else if attachment.contentType.startsWith('video/')}
+      <!--
           A video attachment that hasn't been projected as a processing manifest
           yet — e.g. the message arrived before AssetProcessingStartedEvent did,
           or processing has never been requested for this asset. Render the raw
           original so the user can at least play it.
         -->
-        <div class="embed-frame">
-          <video
+      <div class="embed-frame">
+        <video
+          controls
+          preload="metadata"
+          src={attachment.url}
+          class="max-h-64 max-w-full"
+          onerror={() => refreshAfterAssetError(attachment, 'asset')}
+        >
+          <track kind="captions" />
+        </video>
+      </div>
+    {:else if attachment.contentType.startsWith('audio/')}
+      <div class="group/attachment relative min-w-0">
+        <div class="embed-frame flex items-center gap-3 px-3 py-2">
+          <audio
             controls
             preload="metadata"
             src={attachment.url}
-            class="max-h-64 max-w-full"
+            class="h-8 max-w-xs"
+            data-testid="audio-player"
             onerror={() => refreshAfterAssetError(attachment, 'asset')}
           >
-            <track kind="captions" />
-          </video>
+            {attachment.filename}
+          </audio>
+          <span class="text-sm text-muted">{attachment.filename}</span>
         </div>
-      {:else if attachment.contentType.startsWith('audio/')}
-        <div class="group/attachment relative min-w-0">
-          <div class="embed-frame flex items-center gap-3 px-3 py-2">
-            <audio
-              controls
-              preload="metadata"
-              src={attachment.url}
-              class="h-8 max-w-xs"
-              data-testid="audio-player"
-              onerror={() => refreshAfterAssetError(attachment, 'asset')}
-            >
-              {attachment.filename}
-            </audio>
-            <span class="text-sm text-muted">{attachment.filename}</span>
-          </div>
-          {#if canDeleteAttachment}
-            <button
-              type="button"
-              onclick={(e) => openDeleteConfirmation(attachment, e)}
-              class="embed-control-button md:group-hover/attachment:opacity-100"
-              aria-label={m['room.attachment.delete_label']()}
-              title={m['room.attachment.delete_label']()}
-            >
-              <span class="iconify text-sm uil--times"></span>
-            </button>
-          {/if}
-        </div>
-      {:else}
-        <div class="group/attachment relative embed-frame block">
+        {#if canDeleteAttachment}
           <button
             type="button"
-            onclick={() => openDownload(attachment)}
-            aria-label={m['room.attachment.download_label']({ filename: attachment.filename })}
-            class="block w-full cursor-pointer text-left"
+            onclick={(e) => openDeleteConfirmation(attachment, e)}
+            class="embed-control-button md:group-hover/attachment:opacity-100"
+            aria-label={m['room.attachment.delete_label']()}
+            title={m['room.attachment.delete_label']()}
           >
-            <div class="flex h-16 items-center gap-2 px-3">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                class="h-6 w-6 text-muted"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
-                />
-              </svg>
-              <span class="text-sm">{attachment.filename}</span>
-            </div>
+            <span class="iconify text-sm uil--times"></span>
           </button>
-          {#if canDeleteAttachment}
-            <button
-              type="button"
-              onclick={(e) => openDeleteConfirmation(attachment, e)}
-              class="embed-control-button md:group-hover/attachment:opacity-100"
-              aria-label={m['room.attachment.delete_label']()}
-              title={m['room.attachment.delete_label']()}
+        {/if}
+      </div>
+    {:else}
+      <div class="group/attachment relative embed-frame block">
+        <button
+          type="button"
+          onclick={() => openDownload(attachment)}
+          aria-label={m['room.attachment.download_label']({ filename: attachment.filename })}
+          class="block w-full cursor-pointer text-left"
+        >
+          <div class="flex h-16 items-center gap-2 px-3">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              class="h-6 w-6 text-muted"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
             >
-              <span class="iconify text-sm uil--times"></span>
-            </button>
-          {/if}
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
+              />
+            </svg>
+            <span class="text-sm">{attachment.filename}</span>
+          </div>
+        </button>
+        {#if canDeleteAttachment}
+          <button
+            type="button"
+            onclick={(e) => openDeleteConfirmation(attachment, e)}
+            class="embed-control-button md:group-hover/attachment:opacity-100"
+            aria-label={m['room.attachment.delete_label']()}
+            title={m['room.attachment.delete_label']()}
+          >
+            <span class="iconify text-sm uil--times"></span>
+          </button>
+        {/if}
+      </div>
+    {/if}
+  {/snippet}
+
+  {#if hasImageGallery}
+    <div class="mt-2 flex min-w-0 flex-col gap-2 first:mt-0">
+      <div class="relative max-w-full min-w-0" style={galleryViewportStyle()}>
+        <div
+          {@attach trackGalleryScrollEdges}
+          class="flex w-full gap-3 overflow-x-auto overscroll-x-contain pb-1"
+          data-testid="message-image-gallery"
+        >
+          {#each imageAttachments as attachment (attachment.id)}
+            {@render imageAttachmentButton(attachment, 'gallery')}
+          {/each}
+        </div>
+        <div
+          aria-hidden="true"
+          data-testid="message-image-gallery-left-fade"
+          class={[
+            'pointer-events-none absolute inset-y-0 left-0 z-10 w-8 bg-gradient-to-r from-background to-transparent transition-opacity',
+            !galleryScrolledFromLeft && 'opacity-0'
+          ]}
+        ></div>
+        <div
+          aria-hidden="true"
+          data-testid="message-image-gallery-right-fade"
+          class={[
+            'pointer-events-none absolute inset-y-0 right-0 z-10 w-8 bg-gradient-to-l from-background to-transparent transition-opacity',
+            !galleryScrolledFromRight && 'opacity-0'
+          ]}
+        ></div>
+      </div>
+
+      {#if remainingAttachments.length > 0}
+        <div class="flex flex-wrap gap-x-2 gap-y-3">
+          {#each remainingAttachments as attachment (attachment.id)}
+            {@render attachmentItem(attachment)}
+          {/each}
         </div>
       {/if}
-    {/each}
-  </div>
+    </div>
+  {:else}
+    <div class="mt-2 flex flex-wrap gap-x-2 gap-y-3 first:mt-0">
+      {#each remainingAttachments as attachment (attachment.id)}
+        {@render attachmentItem(attachment)}
+      {/each}
+    </div>
+  {/if}
 {/if}

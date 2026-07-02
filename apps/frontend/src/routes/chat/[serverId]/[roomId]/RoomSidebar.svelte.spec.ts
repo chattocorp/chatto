@@ -2,6 +2,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { tick } from 'svelte';
 import { q } from '$lib/test-utils';
+import { loadLocaleMessages } from '$lib/i18n/messages';
+import { setReactiveLocale } from '$lib/i18n/state.svelte';
 import { ROOM_MEMBERS_PAGE_SIZE, type RoomMember } from '$lib/state/room/members.svelte';
 import type { PresenceCache } from '$lib/state/presenceCache.svelte';
 import type { RoomData } from '$lib/hooks/useRoomData.svelte';
@@ -33,6 +35,7 @@ const callStore = vi.hoisted(() => ({
       avatarUrl: string | null;
       isMuted: boolean;
       isLocal: boolean;
+      isLocallyMuted?: boolean;
       connectionQuality: 'excellent' | 'good' | 'poor' | 'lost' | 'unknown';
       isCameraEnabled: boolean;
       videoTrack: unknown;
@@ -53,6 +56,7 @@ const callStore = vi.hoisted(() => ({
     toggleMute: vi.fn().mockResolvedValue(undefined),
     toggleCamera: vi.fn().mockResolvedValue(undefined),
     toggleScreenShare: vi.fn().mockResolvedValue(undefined),
+    toggleParticipantLocalMute: vi.fn(),
     refreshDevices: vi.fn().mockResolvedValue(undefined),
     getAudioLevel: vi.fn((_identity?: string) => ({ isSpeaking: false, audioLevel: 0 })),
     handleParticipantLeftEvent: vi.fn(),
@@ -336,7 +340,9 @@ function roomAudioFile(filename: string) {
 }
 
 describe('RoomSidebar', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    await loadLocaleMessages('en');
+    setReactiveLocale('en');
     queryMock.mockReset();
     memberDirectoryMocks.listRoomMembers.mockReset();
     attachmentMocks.listRoomAttachments.mockReset();
@@ -377,6 +383,7 @@ describe('RoomSidebar', () => {
     callStore.voiceCall.toggleMute.mockClear();
     callStore.voiceCall.toggleCamera.mockClear();
     callStore.voiceCall.toggleScreenShare.mockClear();
+    callStore.voiceCall.toggleParticipantLocalMute.mockClear();
     callStore.voiceCall.refreshDevices.mockClear();
     callStore.voiceCall.getAudioLevel.mockClear();
     callStore.voiceCall.getAudioLevel.mockImplementation(() => ({ isSpeaking: false, audioLevel: 0 }));
@@ -560,8 +567,14 @@ describe('RoomSidebar', () => {
     expect(participantCards[1].className).toContain('participant-card-compact');
     const mutedIndicator = q(participantCards[1], '[data-testid="call-muted-indicator"]');
     const speakingIndicator = q(participantCards[1], '[data-testid="call-speaking-indicator"]');
+    const voiceLocalMuteButton = q(
+      participantCards[1],
+      '[data-testid="call-feed-local-mute-button"]'
+    ) as HTMLButtonElement;
     expect(mutedIndicator).toBeTruthy();
     expect(speakingIndicator).toBeTruthy();
+    expect(voiceLocalMuteButton).toBeTruthy();
+    expect(voiceLocalMuteButton.getAttribute('aria-label')).toBe('Mute locally');
     expect(
       speakingIndicator!.compareDocumentPosition(mutedIndicator!) & Node.DOCUMENT_POSITION_FOLLOWING
     ).toBeTruthy();
@@ -587,12 +600,14 @@ describe('RoomSidebar', () => {
     muteButton.click();
     cameraButton.click();
     screenShareButton.click();
+    voiceLocalMuteButton.click();
     leaveButton.click();
     await tick();
 
     expect(callStore.voiceCall.toggleMute).toHaveBeenCalledOnce();
     expect(callStore.voiceCall.toggleCamera).toHaveBeenCalledOnce();
     expect(callStore.voiceCall.toggleScreenShare).toHaveBeenCalledOnce();
+    expect(callStore.voiceCall.toggleParticipantLocalMute).toHaveBeenCalledWith('user-2');
     expect(callStore.voiceCall.leave).toHaveBeenCalledOnce();
   });
 
@@ -784,6 +799,281 @@ describe('RoomSidebar', () => {
     expect(cards[3].getAttribute('data-testid')).toBe('call-participant-card');
     expect(cards[3].textContent).toContain('Carol');
     expect(participantList!.className).toContain('@min-[368px]:grid-cols-2');
+  });
+
+  it('uses a screen share as the featured maximized call stage', async () => {
+    const screenShareTrack = {
+      attach: vi.fn(),
+      detach: vi.fn()
+    };
+    const cameraTrack = {
+      attach: vi.fn(),
+      detach: vi.fn()
+    };
+    callStore.voiceCall.connected = true;
+    callStore.voiceCall.isInAnyCall = true;
+    callStore.voiceCall.roomId = 'room-1';
+    callStore.voiceCall.participants = [
+      {
+        identity: 'viewer',
+        login: 'alice',
+        name: 'Alice',
+        avatarUrl: null,
+        isMuted: false,
+        isLocal: true,
+        connectionQuality: 'excellent',
+        isCameraEnabled: false,
+        videoTrack: null,
+        isScreenShareEnabled: true,
+        screenShareTrack
+      },
+      {
+        identity: 'user-2',
+        login: 'bob',
+        name: 'Bob',
+        avatarUrl: null,
+        isMuted: false,
+        isLocal: false,
+        connectionQuality: 'good',
+        isCameraEnabled: true,
+        videoTrack: cameraTrack,
+        isScreenShareEnabled: false,
+        screenShareTrack: null
+      },
+      {
+        identity: 'user-3',
+        login: 'carol',
+        name: 'Carol',
+        avatarUrl: null,
+        isMuted: false,
+        isLocal: false,
+        connectionQuality: 'good',
+        isCameraEnabled: false,
+        videoTrack: null,
+        isScreenShareEnabled: false,
+        screenShareTrack: null
+      }
+    ];
+
+    const { container } = render(RoomSidebarTestHarness, {
+      props: {
+        activePanel: 'call',
+        maximized: true,
+        roomData: roomData([], 0, false),
+        livekitUrl: 'wss://livekit.example.test'
+      }
+    });
+
+    const featured = q(container, '[data-testid="call-featured-stage-card"]');
+    expect(featured).toBeTruthy();
+    expect(featured!.textContent).toContain("Alice's screen");
+    expect(featured!.querySelector('video')?.className).toContain('object-contain');
+    const localMuteButton = q(
+      featured!,
+      '[data-testid="call-feed-local-mute-button"]'
+    ) as HTMLButtonElement;
+    expect(localMuteButton).toBeTruthy();
+    expect(localMuteButton.getAttribute('aria-label')).toBe('Mute');
+    localMuteButton.click();
+    expect(callStore.voiceCall.toggleMute).toHaveBeenCalledOnce();
+    const controlsBar = q(container, '[data-testid="call-controls-bar"]');
+    expect(controlsBar).toBeTruthy();
+    expect(q(container, '[data-testid="call-device-menu-button"]')).toBeTruthy();
+    expect(featured!.compareDocumentPosition(controlsBar!) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING
+    );
+
+    const secondaryList = q(container, '[data-testid="call-secondary-stage-list"]');
+    expect(secondaryList).toBeTruthy();
+    const secondaryCards = Array.from(secondaryList!.children);
+    expect(secondaryCards).toHaveLength(3);
+    expect(secondaryCards[0].textContent).toContain('Bob');
+    expect(secondaryCards[0].querySelector('video')?.className).toContain('object-cover');
+    expect(secondaryCards[1].textContent).toContain('Alice');
+    expect(secondaryCards[2].textContent).toContain('Carol');
+  });
+
+  it('shows fullscreen and local mute controls on call media tiles', async () => {
+    const fullscreenTargets: Element[] = [];
+    const requestFullscreen = vi
+      .spyOn(HTMLElement.prototype, 'requestFullscreen')
+      .mockImplementation(function (this: HTMLElement) {
+        fullscreenTargets.push(this);
+        return Promise.resolve();
+      });
+    const cameraTrack = {
+      attach: vi.fn(),
+      detach: vi.fn()
+    };
+    callStore.voiceCall.connected = true;
+    callStore.voiceCall.isInAnyCall = true;
+    callStore.voiceCall.roomId = 'room-1';
+    callStore.voiceCall.participants = [
+      {
+        identity: 'viewer',
+        login: 'alice',
+        name: 'Alice',
+        avatarUrl: null,
+        isMuted: false,
+        isLocal: true,
+        connectionQuality: 'excellent',
+        isCameraEnabled: false,
+        videoTrack: null,
+        isScreenShareEnabled: false,
+        screenShareTrack: null
+      },
+      {
+        identity: 'user-2',
+        login: 'bob',
+        name: 'Bob',
+        avatarUrl: null,
+        isMuted: false,
+        isLocal: false,
+        isLocallyMuted: true,
+        connectionQuality: 'good',
+        isCameraEnabled: true,
+        videoTrack: cameraTrack,
+        isScreenShareEnabled: false,
+        screenShareTrack: null
+      }
+    ];
+
+    const { container } = render(RoomSidebarTestHarness, {
+      props: {
+        activePanel: 'call',
+        maximized: true,
+        roomData: roomData([], 0, false),
+        livekitUrl: 'wss://livekit.example.test'
+      }
+    });
+
+    const featured = q(container, '[data-testid="call-featured-stage-card"]')!;
+    const mediaActions = q(featured, '[data-testid="call-media-actions"]')!;
+    const fullscreenButton = q(featured, '[data-testid="call-feed-fullscreen-button"]') as HTMLButtonElement;
+    const localMuteButton = q(featured, '[data-testid="call-feed-local-mute-button"]') as HTMLButtonElement;
+
+    expect(mediaActions.className).toContain('border-text/10');
+    expect(mediaActions.className).toContain('bg-surface-100');
+    expect(mediaActions.className).toContain('flex');
+    expect(mediaActions.className).not.toContain('absolute');
+    expect(fullscreenButton).toBeTruthy();
+    expect(fullscreenButton.className).toContain('text-muted');
+    expect(fullscreenButton.className).not.toContain('bg-black');
+    expect(fullscreenButton.querySelector('.mdi--fullscreen')).toBeTruthy();
+    expect(localMuteButton).toBeTruthy();
+    expect(localMuteButton.getAttribute('aria-label')).toBe('Unmute locally');
+    expect(q(featured, '[data-testid="call-locally-muted-indicator"]')).toBeTruthy();
+
+    fullscreenButton.click();
+    await Promise.resolve();
+
+    expect(requestFullscreen).toHaveBeenCalledOnce();
+    expect(fullscreenTargets[0]).toBe(featured);
+
+    localMuteButton.click();
+
+    expect(callStore.voiceCall.toggleParticipantLocalMute).toHaveBeenCalledWith('user-2');
+
+    requestFullscreen.mockRestore();
+  });
+
+  it('falls back to a camera participant for the maximized call stage', async () => {
+    const cameraTrack = {
+      attach: vi.fn(),
+      detach: vi.fn()
+    };
+    callStore.voiceCall.connected = true;
+    callStore.voiceCall.isInAnyCall = true;
+    callStore.voiceCall.roomId = 'room-1';
+    callStore.voiceCall.participants = [
+      {
+        identity: 'viewer',
+        login: 'alice',
+        name: 'Alice',
+        avatarUrl: null,
+        isMuted: false,
+        isLocal: true,
+        connectionQuality: 'excellent',
+        isCameraEnabled: false,
+        videoTrack: null,
+        isScreenShareEnabled: false,
+        screenShareTrack: null
+      },
+      {
+        identity: 'user-2',
+        login: 'bob',
+        name: 'Bob',
+        avatarUrl: null,
+        isMuted: false,
+        isLocal: false,
+        connectionQuality: 'good',
+        isCameraEnabled: true,
+        videoTrack: cameraTrack,
+        isScreenShareEnabled: false,
+        screenShareTrack: null
+      }
+    ];
+
+    const { container } = render(RoomSidebarTestHarness, {
+      props: {
+        activePanel: 'call',
+        maximized: true,
+        roomData: roomData([], 0, false),
+        livekitUrl: 'wss://livekit.example.test'
+      }
+    });
+
+    const featured = q(container, '[data-testid="call-featured-stage-card"]');
+    expect(featured).toBeTruthy();
+    expect(featured!.textContent).toContain('Bob');
+    expect(featured!.querySelector('video')?.className).toContain('object-cover');
+    const secondaryList = q(container, '[data-testid="call-secondary-stage-list"]');
+    expect(secondaryList).toBeTruthy();
+    expect(secondaryList!.children[0].textContent).toContain('Alice');
+  });
+
+  it('falls back to a voice participant for the maximized call stage', async () => {
+    callStore.voiceCall.connected = true;
+    callStore.voiceCall.isInAnyCall = true;
+    callStore.voiceCall.roomId = 'room-1';
+    callStore.voiceCall.participants = [
+      {
+        identity: 'viewer',
+        login: 'alice',
+        name: 'Alice',
+        avatarUrl: null,
+        isMuted: false,
+        isLocal: true,
+        connectionQuality: 'excellent',
+        isCameraEnabled: false,
+        videoTrack: null,
+        isScreenShareEnabled: false,
+        screenShareTrack: null
+      }
+    ];
+
+    const { container } = render(RoomSidebarTestHarness, {
+      props: {
+        activePanel: 'call',
+        maximized: true,
+        roomData: roomData([], 0, false),
+        livekitUrl: 'wss://livekit.example.test'
+      }
+    });
+
+    const featured = q(container, '[data-testid="call-featured-stage-card"]');
+    expect(featured).toBeTruthy();
+    expect(featured!.textContent).toContain('Alice');
+    expect(featured!.querySelector('video')).toBeFalsy();
+    const localMuteButton = q(
+      featured!,
+      '[data-testid="call-feed-local-mute-button"]'
+    ) as HTMLButtonElement;
+    expect(localMuteButton).toBeTruthy();
+    expect(localMuteButton.getAttribute('aria-label')).toBe('Mute');
+    localMuteButton.click();
+    expect(callStore.voiceCall.toggleMute).toHaveBeenCalledOnce();
+    expect(container.querySelector('[data-testid="call-secondary-stage-list"]')).toBeFalsy();
   });
 
   it('uses a two-column video grid when multiple videos have room', async () => {
@@ -1045,6 +1335,114 @@ describe('RoomSidebar', () => {
     expect(onClose).toHaveBeenCalledOnce();
   });
 
+  it('shows a desktop call maximize action and toggles to minimize copy', async () => {
+    const onToggleMaximized = vi.fn();
+    const fullscreenTargets: Element[] = [];
+    const requestFullscreen = vi
+      .spyOn(HTMLElement.prototype, 'requestFullscreen')
+      .mockImplementation(function (this: HTMLElement) {
+        fullscreenTargets.push(this);
+        return Promise.resolve();
+      });
+    const { container, rerender } = render(RoomSidebarTestHarness, {
+      props: {
+        activePanel: 'call',
+        hasActiveCall: true,
+        livekitUrl: 'wss://livekit.example.test',
+        roomData: roomData([member(1)], 1, false),
+        onToggleMaximized
+      }
+    });
+
+    const maximizeButton = container.querySelector(
+      '[aria-label="Maximize call"]'
+    ) as HTMLButtonElement | null;
+    expect(maximizeButton).toBeTruthy();
+    expect(maximizeButton!.querySelector('.mdi--arrow-expand-left')).toBeTruthy();
+    const normalFullscreenButton = container.querySelector(
+      '[aria-label="Fullscreen call"]'
+    ) as HTMLButtonElement | null;
+    expect(normalFullscreenButton).toBeTruthy();
+    expect(normalFullscreenButton!.querySelector('.mdi--monitor-share')).toBeTruthy();
+
+    maximizeButton!.click();
+    await tick();
+
+    expect(onToggleMaximized).toHaveBeenCalledOnce();
+
+    await rerender({
+      activePanel: 'call',
+      hasActiveCall: true,
+      livekitUrl: 'wss://livekit.example.test',
+      roomData: roomData([member(1)], 1, false),
+      maximized: true,
+      onToggleMaximized
+    });
+
+    const minimizeButton = container.querySelector(
+      '[aria-label="Minimize call"]'
+    ) as HTMLButtonElement | null;
+    expect(minimizeButton).toBeTruthy();
+    expect(minimizeButton!.querySelector('.mdi--arrow-collapse-right')).toBeTruthy();
+    const fullscreenButton = container.querySelector('[aria-label="Fullscreen call"]') as HTMLButtonElement | null;
+    expect(fullscreenButton).toBeTruthy();
+    expect(fullscreenButton!.querySelector('.mdi--monitor-share')).toBeTruthy();
+
+    fullscreenButton!.click();
+    await Promise.resolve();
+
+    expect(requestFullscreen).toHaveBeenCalledOnce();
+    expect(fullscreenTargets[0].getAttribute('aria-label')).toBe('Room extras');
+    requestFullscreen.mockRestore();
+  });
+
+  it('hides call maximize and fullscreen actions until the call is active', async () => {
+    const { container } = render(RoomSidebarTestHarness, {
+      props: {
+        activePanel: 'call',
+        livekitUrl: 'wss://livekit.example.test',
+        roomData: roomData([member(1)], 1, false),
+        onToggleMaximized: vi.fn()
+      }
+    });
+
+    expect(container.querySelector('[aria-label="Maximize call"]')).toBeFalsy();
+    expect(container.querySelector('[aria-label="Fullscreen call"]')).toBeFalsy();
+  });
+
+  it('keeps call fullscreen available in overlay but maximizes only on desktop', async () => {
+    const onToggleMaximized = vi.fn();
+    const { container, rerender } = render(RoomSidebarTestHarness, {
+      props: {
+        activePanel: 'members',
+        roomData: roomData([member(1)], 1, false),
+        onToggleMaximized
+      }
+    });
+
+    expect(container.querySelector('[aria-label="Maximize call"]')).toBeFalsy();
+    expect(container.querySelector('[aria-label="Fullscreen call"]')).toBeFalsy();
+
+    await rerender({
+      activePanel: 'files',
+      roomData: roomData([member(1)], 1, false),
+      onToggleMaximized
+    });
+    expect(container.querySelector('[aria-label="Maximize call"]')).toBeFalsy();
+    expect(container.querySelector('[aria-label="Fullscreen call"]')).toBeFalsy();
+
+    await rerender({
+      activePanel: 'call',
+      hasActiveCall: true,
+      presentation: 'overlay',
+      livekitUrl: 'wss://livekit.example.test',
+      roomData: roomData([member(1)], 1, false),
+      onToggleMaximized
+    });
+    expect(container.querySelector('[aria-label="Maximize call"]')).toBeFalsy();
+    expect(container.querySelector('[aria-label="Fullscreen call"]')).toBeTruthy();
+  });
+
   it('renders overlay presentation without desktop resizing chrome', async () => {
     const { container } = render(RoomSidebarTestHarness, {
       props: {
@@ -1211,6 +1609,42 @@ describe('RoomSidebar', () => {
     expect(labels[2]).toContain('week.txt');
     expect(labels[3]).toContain('month.txt');
     expect(labels[4]).toContain('older-month.txt');
+  });
+
+  it('localizes room file date groups with the active locale', async () => {
+    await loadLocaleMessages('de');
+    setReactiveLocale('de');
+    const fileGroupingNow = new Date('2026-06-17T12:00:00Z');
+
+    attachmentMocks.listRoomAttachments.mockResolvedValueOnce({
+      items: [
+        roomFile('today-message', null, 'today.txt', '2026-06-17T08:00:00Z'),
+        roomFile('yesterday-message', null, 'yesterday.txt', '2026-06-16T08:00:00Z'),
+        roomFile('week-message', null, 'week.txt', '2026-06-15T08:00:00Z'),
+        roomFile('month-message', null, 'month.txt', '2026-06-10T08:00:00Z'),
+        roomFile('older-month-message', null, 'older-month.txt', '2026-05-21T08:00:00Z')
+      ],
+      totalCount: 5,
+      hasMore: false
+    });
+
+    const { container } = render(RoomSidebarTestHarness, {
+      props: {
+        activePanel: 'files',
+        roomData: roomData([member(1)], 1, false),
+        fileGroupingNow
+      }
+    });
+
+    await flushRoomFilesPanel();
+
+    expect(roomFileGroupHeadings(container)).toEqual([
+      'Heute',
+      'Gestern',
+      'Diese Woche',
+      'Dieser Monat',
+      'Mai 2026'
+    ]);
   });
 
   it('falls back to a file icon when a video thumbnail fails to load', async () => {

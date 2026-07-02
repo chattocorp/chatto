@@ -120,4 +120,94 @@ describe('RoomSidebarPanelsState', () => {
     roomId = 'room-2';
     expect(sidebar.mobilePanel).toBeNull();
   });
+
+  it('toggles maximized call state only while the desktop call panel is active', () => {
+    const sidebar = new RoomSidebarPanelsState(
+      () => 'server-a',
+      () => 'room-1'
+    );
+
+    sidebar.toggleDesktopCallMaximized();
+    expect(sidebar.isDesktopCallMaximized).toBe(false);
+
+    sidebar.openDesktopPanel('call');
+    sidebar.toggleDesktopCallMaximized();
+    expect(sidebar.isDesktopCallMaximized).toBe(true);
+
+    sidebar.toggleDesktopCallMaximized();
+    expect(sidebar.isDesktopCallMaximized).toBe(false);
+  });
+
+  it('clears maximized call state when the desktop panel closes or switches away', () => {
+    const sidebar = new RoomSidebarPanelsState(
+      () => 'server-a',
+      () => 'room-1'
+    );
+
+    sidebar.openDesktopPanel('call');
+    sidebar.toggleDesktopCallMaximized();
+    sidebar.openDesktopPanel('files');
+    expect(sidebar.isDesktopCallMaximized).toBe(false);
+
+    sidebar.openDesktopPanel('call');
+    sidebar.toggleDesktopCallMaximized();
+    sidebar.closeDesktop();
+    expect(sidebar.isDesktopCallMaximized).toBe(false);
+  });
+
+  it('clears maximized call state when the active call ends', () => {
+    const sidebar = new RoomSidebarPanelsState(
+      () => 'server-a',
+      () => 'room-1'
+    );
+
+    sidebar.openDesktopPanel('call');
+    sidebar.toggleDesktopCallMaximized();
+    expect(sidebar.isDesktopCallMaximized).toBe(true);
+
+    sidebar.clearDesktopCallMaximized();
+
+    expect(sidebar.isDesktopCallMaximized).toBe(false);
+  });
+
+  it('does not leak maximized call state after the room changes', () => {
+    let roomId = 'room-1';
+    const sidebar = new RoomSidebarPanelsState(
+      () => 'server-a',
+      () => roomId
+    );
+
+    sidebar.openDesktopPanel('call');
+    sidebar.toggleDesktopCallMaximized();
+    expect(sidebar.isDesktopCallMaximized).toBe(true);
+
+    roomId = 'room-2';
+    sidebar.syncCurrentScope();
+    sidebar.openDesktopPanel('call');
+    expect(sidebar.isDesktopCallMaximized).toBe(false);
+
+    roomId = 'room-1';
+    sidebar.syncCurrentScope();
+    expect(sidebar.isDesktopCallMaximized).toBe(false);
+  });
+
+  it('keeps maximized call state out of persisted storage', () => {
+    const sidebar = new RoomSidebarPanelsState(
+      () => 'server-a',
+      () => 'room-1'
+    );
+
+    sidebar.openDesktopPanel('call');
+    sidebar.toggleDesktopCallMaximized();
+
+    expect(sidebar.isDesktopCallMaximized).toBe(true);
+    expect(getRoomSidebarPanelState('server-a', 'room-1')).toBe('call');
+
+    const freshSession = new RoomSidebarPanelsState(
+      () => 'server-a',
+      () => 'room-1'
+    );
+    expect(freshSession.activeDesktopPanel).toBe('call');
+    expect(freshSession.isDesktopCallMaximized).toBe(false);
+  });
 });

@@ -44,3 +44,13 @@
     <HeaderIconButton icon="uil--times" label="Close" />
   </div>
 </Story>
+
+<Story name="Call pane actions" asChild>
+  <div class="flex items-center gap-3 rounded-md border border-border bg-surface-100 p-3">
+    <HeaderIconButton icon="mdi--arrow-expand-left" label="Maximize call" />
+    <HeaderIconButton icon="mdi--arrow-collapse-right" label="Minimize call" tone="active" />
+    <HeaderIconButton icon="mdi--monitor-share" label="Fullscreen call" />
+    <HeaderIconButton icon="mdi--fullscreen-exit" label="Exit fullscreen call" tone="active" />
+    <HeaderIconButton icon="uil--times" label="Close" iconSize="lg" />
+  </div>
+</Story>

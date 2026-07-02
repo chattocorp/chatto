@@ -10,8 +10,10 @@
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import { getUserSettings } from '$lib/state/userSettings.svelte';
   import { formatDate } from '$lib/utils/formatTime';
+  import { getLocale } from '$lib/i18n/runtime';
 
   const userSettings = getUserSettings();
+  const activeLocale = $derived(getLocale());
 
   // Collect notification stores from all authenticated instances
   type ServerNotification = {
@@ -88,7 +90,7 @@
     if (diffHours < 24) return m['chat.notifications.time_hours']({ count: diffHours });
     if (diffDays < 7) return m['chat.notifications.time_days']({ count: diffDays });
 
-    return formatDate(date, userSettings);
+    return formatDate(date, userSettings, activeLocale);
   }
 
   async function handleClick(item: ServerNotification) {

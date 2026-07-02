@@ -1,0 +1,91 @@
+---
+title: Media & Attachments
+description: Operate Chatto uploads, image transforms, room files, link previews, S3 storage, and video processing.
+---
+
+import { Aside, CardGrid, LinkCard } from "@astrojs/starlight/components";
+
+Chatto can handle ordinary file uploads, images, avatars, server branding images, link-preview images, and optionally videos and animated GIFs. Small deployments can keep assets in NATS ObjectStore; larger deployments should usually move assets to S3-compatible storage.
+
+## What Members Can Upload
+
+Members can attach files through drag-and-drop, paste, or the file picker when they have `message.attach` and the relevant posting permission.
+
+| Asset type | Behavior |
+| ---------- | -------- |
+| Images | Dimensions are inspected, image URLs can request resized WebP variants, and thumbnails are cached when enabled. |
+| Documents and ordinary files | Stored as persisted assets and exposed through signed URLs. |
+| Videos | Accepted only when video processing is enabled. |
+| Animated GIFs | Uploaded as images when video processing is disabled; routed through video processing when enabled. |
+| Avatars, logos, banners | Stored in the same asset system but gated by profile or admin permissions. |
+| Link-preview images | Downloaded, bounded, stored, and served through the configured storage backend. |
+
+Default upload limits are 25 MB for non-video files and 100 MB for videos when video processing is enabled.
+
+## Permission And Access Model
+
+File attachments require:
+
+- room membership
+- `message.post` or `message.post-in-thread`
+- `message.attach`
+
+Attachment URLs are signed per user and still check that the signed user can access the room. If a user leaves, is removed, or loses room access, new asset fetches fail even if an old message still contains the URL.
+
+<Aside type="note">
+  Signed attachment URLs are bearer capabilities until they expire. The bundled PWA uses same-origin virtual asset URLs where possible so normal page markup does not expose portable remote attachment URLs.
+</Aside>
+
+## Room Files
+
+The room sidebar Files panel lists current accessible attachments from root messages and thread replies. It derives from visible message state, so files disappear when their message is deleted or the attachment is removed.
+
+Use this as a member convenience surface, not as a permanent document-management system. There is no attachment search or media filtering yet.
+
+## Link Previews
+
+Chatto fetches link-preview metadata when a user composes a message with a URL. Preview images are persisted through the asset backend, so S3-backed deployments store preview media alongside uploaded files.
+
+The fetcher is designed to be SSRF-safe and caches successful and failed lookups for bounded periods. Operators do not need a separate preview worker.
+
+## Storage Backend Choice
+
+| Deployment | Recommended backend |
+| ---------- | ------------------- |
+| Small server with light uploads | NATS ObjectStore, the default. |
+| Active community with many files | S3-compatible storage. |
+| Video-heavy server | S3-compatible storage plus video processing. |
+| Replicated NATS cluster | S3-compatible storage to avoid multiplying large binary storage. |
+
+Switching to S3 affects new assets. Existing NATS-stored assets continue to work because each asset records its own backend.
+
+## Video And Animated GIF Processing
+
+Video processing is optional and disabled by default. When enabled, Chatto requires `ffmpeg` and `ffprobe`, stores the original upload, generates a thumbnail, and creates web-friendly MP4 variants based on the source resolution.
+
+Enable it only when the server has CPU and temporary disk space for transcoding:
+
+```toml
+[video]
+enabled = true
+max_concurrent = 2
+```
+
+The official Docker image includes the required ffmpeg tools. Host installs need those binaries installed separately.
+
+<Aside type="caution">
+  Video processing is currently in-process and best-effort. Chatto records durable asset processing state and retries missed unmanifested video assets on boot, but operators should still treat transcoding as CPU-heavy background work.
+</Aside>
+
+## Active Document Safety
+
+Uploaded HTML, XHTML, SVG, XML, and XML-derived active document formats are served with a sandbox policy and `nosniff`. S3-backed active documents stream through Chatto instead of redirecting directly to object storage so the sandbox headers stay in place.
+
+## Related Guides
+
+<CardGrid>
+  <LinkCard title="S3 Storage" href="/guides/infrastructure/s3-storage/" description="Configure S3-compatible storage for persisted assets." />
+  <LinkCard title="Video Processing" href="/guides/infrastructure/video-processing/" description="Enable ffmpeg-backed video and animated-GIF processing." />
+  <LinkCard title="Backup & Restore" href="/guides/operations/backup-restore/" description="Plan backups that include asset storage and encryption keys." />
+  <LinkCard title="Attachment API" href="/reference/connectrpc-api/attachments/" description="Typed API reference for room attachment reads and URL refreshes." />
+</CardGrid>

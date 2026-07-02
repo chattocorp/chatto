@@ -1,0 +1,26 @@
+---
+title: Kubernetes
+description: Current status of Kubernetes deployment guidance for Chatto.
+---
+
+import { Aside, CardGrid, LinkCard } from "@astrojs/starlight/components";
+
+<Aside type="note">
+  Kubernetes is a supported deployment target for Chatto, but the public docs do not yet provide maintained manifests, Helm charts, or a full operator workflow. Use the Docker Compose guide for the most complete example, or adapt the horizontal-scaling and high-availability notes if you already operate Kubernetes and NATS.
+</Aside>
+
+Chatto runs on Kubernetes with the same building blocks as any other horizontally scaled Chatto setup:
+
+- One or more Chatto server processes using the official `ghcr.io/chattocorp/chatto` image
+- A shared external NATS cluster with JetStream enabled
+- Stable shared secrets across all Chatto replicas
+- A public HTTP/WebSocket ingress for Chatto
+- Optional LiveKit, SMTP, Web Push, and S3-compatible object storage services
+
+Use `/readyz` for readiness and startup probes, and `/healthz` for liveness probes. See the horizontal-scaling guide for probe examples and the required shared settings.
+
+<CardGrid>
+  <LinkCard title="Docker Compose" href="/guides/deployment/docker-compose/" description="Current recommended self-hosting guide." />
+  <LinkCard title="Horizontal Scaling" href="/guides/infrastructure/horizontal-scaling/" description="Run multiple Chatto replicas behind a load balancer." />
+  <LinkCard title="High Availability" href="/guides/infrastructure/high-availability/" description="Use a replicated NATS cluster for fault tolerance." />
+</CardGrid>

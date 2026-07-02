@@ -9,6 +9,7 @@ Room-scoped file list for the room sidebar.
   import { assetUrlForServer } from '$lib/assets/assetUrls';
   import { getUserSettings } from '$lib/state/userSettings.svelte';
   import { fileDateGroup, formatDateTime } from '$lib/utils/formatTime';
+  import { getLocale } from '$lib/i18n/runtime';
   import * as m from '$lib/i18n/messages';
 
   type RoomFileGroup = {
@@ -30,6 +31,7 @@ Room-scoped file list for the room sidebar.
   } = $props();
 
   const userSettings = getUserSettings();
+  const activeLocale = $derived(getLocale());
 
   const files = $derived(store.items);
   const fileGroups = $derived.by(() => groupFiles(files));
@@ -41,8 +43,8 @@ Room-scoped file list for the room sidebar.
 
     for (const item of items) {
       const group = fileGroupingNow
-        ? fileDateGroup(item.createdAt, userSettings, fileGroupingNow)
-        : fileDateGroup(item.createdAt, userSettings);
+        ? fileDateGroup(item.createdAt, userSettings, fileGroupingNow, activeLocale)
+        : fileDateGroup(item.createdAt, userSettings, undefined, activeLocale);
       let existing = groups.find((candidate) => candidate.key === group.key);
       if (!existing) {
         existing = { ...group, items: [] };
@@ -105,7 +107,7 @@ Room-scoped file list for the room sidebar.
   }
 
   function formatTimestamp(value: string): string {
-    return formatDateTime(value, userSettings);
+    return formatDateTime(value, userSettings, activeLocale);
   }
 
   $effect(() => {

@@ -1,7 +1,7 @@
 # FDR-016: Voice Calls
 
 **Status:** Active
-**Last reviewed:** 2026-06-19
+**Last reviewed:** 2026-07-01
 
 ## Overview
 
@@ -13,6 +13,9 @@ Rooms support real-time voice conversations with optional camera video and video
 - Opening the call tab shows the current room call. If no call is active, it offers a "Start call" action. If a call is active and the viewer has not joined, it shows projected participants as ungrouped participant cards and a "Join call" action.
 - When the current room has an active call, the phone tab is accent-highlighted and pulses while another sidebar tab is selected.
 - Joining the call switches the call tab into participant mode with pinned screen-share tiles first, larger camera video participant cards next, and compact voice-only participant cards after that, without separate Video or Voice section headings. Participant mode exposes neutral speaking indicators, mute state, camera toggle, screen-share toggle, device selector, and hang-up controls.
+- On desktop, an active call sidebar can be maximized from the pane header. Maximized mode keeps the app's left navigation sidebars visible, hides the room timeline/content area, and turns the call panel into a stage layout: the first screen share is featured, otherwise the first camera participant is featured, otherwise the first voice participant is featured; remaining screen shares, camera feeds, and voice cards stay visible as secondary tiles.
+- A desktop active call pane can be placed into browser fullscreen from the pane header, whether it is in the normal sidebar width or maximized across the chat route. This is separate from maximizing the pane inside the chat route.
+- Camera and screen-share tiles expose hover controls for feed fullscreen, while all joined participant tiles expose a hover local-mute control. Fullscreen is local to the viewer's browser. Remote participant mute is also local to the viewer and does not change server state or other participants' audio. Local participant tiles show the same mute affordance, wired to the viewer's own microphone mute.
 - While the viewer is in any call, the lower-left current-user card shows the active call room plus quick mute, camera, screen-share, and leave controls so the call remains visible outside the room tab.
 - Other rooms with an active call replace the normal room/DM icon with the same accent phone icon and animated pulse twin used by the call tab so members know there's a conversation happening; clicking that icon opens the room with the call tab selected.
 - Message author names show a compact call presence icon when the author is in the current room's active call: phone for voice-only participants, video camera when the viewer has joined the LiveKit call and can see an active camera track.
@@ -63,13 +66,25 @@ Rooms support real-time voice conversations with optional camera video and video
 **Why:** Screen sharing is media-session state, and the existing durable room facts already answer the server-owned question of who is in the call. Keeping screen-share state inside LiveKit avoids adding durable state that can become stale when browser capture ends.
 **Tradeoff:** Non-joined observers know a call is active and who is in it, but not whether someone is sharing. Browser-tab audio sharing is also out of scope for this version.
 
-### 7. Test endpoints bypass webhook validation in build-tag mode
+### 7. Big-call mode is a desktop pane state, not a separate route
+
+**Decision:** Maximized call mode expands the room call sidebar across the chat route content area while leaving the app's left navigation sidebars in place. It is session-only UI state and uses one featured stage plus a secondary strip, preserving the normal ordering of screen shares before cameras before voice-only participants.
+**Why:** Calls remain room-scoped context, not a separate destination. Keeping the left navigation visible lets users stay oriented and move between rooms while giving the call enough canvas for screen shares and active video.
+**Tradeoff:** The maximized layout is desktop-first. Mobile keeps the existing overlay sidebar model instead of adding a second maximize/fullscreen interaction layer.
+
+### 8. Fullscreen and local mute are viewer-local controls
+
+**Decision:** Fullscreen controls use the browser Fullscreen API on either an individual media tile or the desktop call pane. Local mute changes only this viewer's local audio: remote participants are muted through LiveKit remote participant volume, and local participant tiles reuse the viewer's microphone mute.
+**Why:** Fullscreen and "I don't want to hear this feed/user right now" are personal presentation choices. They should not create durable call facts, alter room state, or surprise other participants.
+**Tradeoff:** Local mute is intentionally not visible to other participants and does not change the remote participant's published mute state. Users need to distinguish it from the normal microphone mute indicator.
+
+### 9. Test endpoints bypass webhook validation in build-tag mode
 
 **Decision:** E2E tests use special `/webhooks/test/call-join` and `/webhooks/test/call-leave` endpoints that skip HMAC validation and call the core methods directly. Available only with `-tags test_endpoints`.
 **Why:** Real LiveKit isn't realistic to run in CI, but webhook flow is exactly the thing E2E tests need to exercise. Build-tag gating keeps the endpoints out of production. See ADR-020.
 **Tradeoff:** Two webhook entry points (real + test); test ones are well-isolated and trivially removable from prod builds.
 
-### 8. E2EE keys are KMS-backed per-call secrets
+### 10. E2EE keys are KMS-backed per-call secrets
 
 **Decision:** `voiceCallToken` returns both `token` and `e2eeKey`. The first join for a room creates a new call ID and per-call E2EE key through Chatto's KMS boundary, stores the raw key in `ENCRYPTION_KEYS` under `call.e2ee.{callId}`, and records only the key ref in `CallStartedEvent`. The final leave records `CallEndedEvent` and shreds the key ref. The frontend creates an `ExternalE2EEKeyProvider`, configures the LiveKit E2EE worker, sets the key, enables E2EE, then connects.
 **Why:** LiveKit E2EE key generation/distribution is application responsibility. Chatto already authorizes token access by room membership, so the token resolver is the narrow place to distribute the shared call key. Keeping the raw key out of EVT and normal backups avoids turning event-log copies into permanent decrypt material for captured media.

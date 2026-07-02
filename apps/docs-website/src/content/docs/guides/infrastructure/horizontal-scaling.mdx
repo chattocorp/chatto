@@ -4,17 +4,24 @@ description: How to run multiple Chatto replicas for high availability and load 
 ---
 
 import { Aside, Tabs, TabItem, LinkCard, CardGrid } from "@astrojs/starlight/components";
-import ArchDiagram from "../../../components/diagrams/HorizontalScalingDiagram.astro";
+import ArchDiagram from "../../../../components/diagrams/HorizontalScalingDiagram.astro";
 
 By default, Chatto runs as a single process with an embedded NATS server — no external dependencies needed. This is the simplest way to run Chatto and works well for small to medium teams.
 
-When you outgrow a single process, Chatto scales horizontally. Every server process is stateless — all persistent data lives in a shared NATS cluster. You can run as many replicas as you need behind a load balancer, and they'll transparently share data.
+When you outgrow a single process, Chatto scales horizontally. Every server process is stateless — all persistent data lives in shared NATS storage. You can run as many Chatto replicas as you need behind a load balancer, and they'll transparently share data.
+
+There are two scaling layers:
+
+| Layer | What you scale | Why |
+| ----- | -------------- | --- |
+| Chatto replicas | `chatto run` server processes | More web/API/realtime capacity, zero-downtime deploys, process-level redundancy. |
+| NATS cluster | NATS servers with JetStream enabled | Shared storage capacity, message-broker capacity, and NATS-side high availability. |
 
 <ArchDiagram />
 
 ## How It Works
 
-All Chatto server processes connect to the same external NATS cluster. NATS JetStream handles:
+All Chatto server processes connect to the same external NATS deployment. NATS JetStream handles:
 
 - **Persistent storage** — messages, users, memberships, and configuration
 - **Real-time events** — subscriptions, presence updates, and call state
@@ -22,9 +29,24 @@ All Chatto server processes connect to the same external NATS cluster. NATS JetS
 
 Because there's no local state, any server process can handle any request. No session affinity is required — round-robin load balancing works perfectly.
 
+## Scaling NATS Itself
+
+A single external NATS server is enough to let multiple Chatto replicas share state, but it is still a single storage and broker node. For production high availability, run NATS as a cluster and enable JetStream replication for Chatto's streams, KV buckets, and object stores.
+
+NATS clustering gives the NATS layer its own redundancy and traffic distribution. JetStream clustering adds replicated persistent storage using a replica count such as 3 or 5, so Chatto data can survive individual NATS node failures as long as the cluster keeps quorum.
+
+Useful upstream references:
+
+- [NATS server clustering](https://docs.nats.io/running-a-nats-service/configuration/clustering) — core cluster configuration, routes, route authentication, and clustering behavior.
+- [JetStream clustering](https://docs.nats.io/running-a-nats-service/configuration/clustering/jetstream_clustering) — JetStream-enabled cluster sizing and configuration.
+- [JetStream concepts](https://docs.nats.io/nats-concepts/jetstream) — overview of JetStream persistence and replicated storage.
+- [NATS on Kubernetes](https://docs.nats.io/running-a-nats-service/nats-kubernetes) — official Kubernetes deployment entry point.
+
+Chatto controls the JetStream replica count with `nats.replicas` / `CHATTO_NATS_REPLICAS`. See [High Availability](/guides/infrastructure/high-availability/) for the Chatto-specific NATS cluster setup and failure-mode table.
+
 ## Requirements
 
-- An **external NATS cluster** (embedded NATS only supports a single server process)
+- An **external NATS deployment**. Use a NATS cluster for high availability; a single external NATS server only removes Chatto's embedded-storage coupling.
 - A **load balancer** in front of the Chatto replicas (Caddy, nginx, Traefik, etc.)
 - The **same secrets** across all server processes (cookie signing, cookie encryption if configured, core token verifier key, asset signing)
 
@@ -137,13 +159,13 @@ Chatto is fully stateless, so load balancing is straightforward:
 - **Session affinity is not required** — any server process can serve any request
 - **WebSocket connections** are long-lived; ensure your load balancer supports them
 
-The [Docker Compose deployment guide](/guides/dockercompose/) includes a Caddy configuration that handles this automatically.
+The [Docker Compose deployment guide](/guides/deployment/docker-compose/) includes a Caddy configuration that handles this automatically.
 
 ## What You Need to Keep Consistent
 
 | Setting | Must match across server processes? | Notes |
 |---------|-------------------------------------|-------|
-| NATS client URL & credentials | Yes | All connect to the same cluster |
+| NATS client URL & credentials | Yes | All connect to the same external NATS deployment |
 | `cookie_signing_secret` | Yes | Cookie validation |
 | `cookie_encryption_secret` | Yes, when configured | Cookie confidentiality |
 | `core.secret_key` | Yes | Runtime credential, OAuth-code, and account-flow verifier keys |
@@ -152,7 +174,7 @@ The [Docker Compose deployment guide](/guides/dockercompose/) includes a Caddy c
 | `livekit.server_id` | Yes, within one Chatto server | Use a different value only across Chatto servers sharing one LiveKit cluster |
 
 <CardGrid>
-  <LinkCard title="High Availability" href="/guides/high-availability/" description="NATS clustering and JetStream replication for fault tolerance." />
-  <LinkCard title="Docker Compose" href="/guides/dockercompose/" description="Full deployment walkthrough including load balancing with Caddy." />
-  <LinkCard title="S3 Storage" href="/guides/s3-storage/" description="Offload file storage to avoid replication costs." />
+  <LinkCard title="High Availability" href="/guides/infrastructure/high-availability/" description="NATS clustering and JetStream replication for fault tolerance." />
+  <LinkCard title="Docker Compose" href="/guides/deployment/docker-compose/" description="Full deployment walkthrough including load balancing with Caddy." />
+  <LinkCard title="S3 Storage" href="/guides/infrastructure/s3-storage/" description="Offload file storage to avoid replication costs." />
 </CardGrid>

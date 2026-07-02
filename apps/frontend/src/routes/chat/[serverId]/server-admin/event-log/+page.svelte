@@ -18,9 +18,11 @@
   import { Button, Combobox } from '$lib/ui/form';
   import { getUserSettings } from '$lib/state/userSettings.svelte';
   import { formatDateTime as formatDateTimeUtil, formatDayLabel } from '$lib/utils/formatTime';
+  import { getLocale } from '$lib/i18n/runtime';
   import * as m from '$lib/i18n/messages';
 
   const userSettings = getUserSettings();
+  const activeLocale = $derived(getLocale());
 
   const activeServerId = $derived(getActiveServer());
   const stores = $derived(serverRegistry.getStore(activeServerId));
@@ -86,11 +88,11 @@
   }
 
   function formatTimestamp(iso: string): string {
-    return formatDateTimeUtil(iso, userSettings);
+    return formatDateTimeUtil(iso, userSettings, activeLocale);
   }
 
   function formatDateGroup(iso: string): string {
-    return formatDayLabel(iso, userSettings);
+    return formatDayLabel(iso, userSettings, activeLocale);
   }
 
   function dateGroupKey(iso: string): string {

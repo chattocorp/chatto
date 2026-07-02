@@ -12,10 +12,13 @@ export class RoomSidebarPanelsState {
   #desktopSessionState = $state<Record<string, RoomSidebarPanelState | undefined>>({});
   #mobilePanel = $state<RoomSidebarPanelState>(null);
   #mobileScope = $state<string | null>(null);
+  #maximizedCallScope = $state<string | null>(null);
+  #lastScope: string;
 
   constructor(getServerId: () => string, getRoomId: () => string) {
     this.#getServerId = getServerId;
     this.#getRoomId = getRoomId;
+    this.#lastScope = this.#currentScope;
   }
 
   get selectedPanelForRoom(): RoomSidebarPanel {
@@ -29,6 +32,10 @@ export class RoomSidebarPanelsState {
   get mobilePanel(): RoomSidebarPanelState {
     if (this.#mobileScope !== this.#currentScope) return null;
     return this.#mobilePanel;
+  }
+
+  get isDesktopCallMaximized(): boolean {
+    return this.#desktopStateForRoom === 'call' && this.#maximizedCallScope === this.#currentScope;
   }
 
   toggleDesktopPanel(panel: RoomSidebarPanel): void {
@@ -67,6 +74,27 @@ export class RoomSidebarPanelsState {
     this.#mobilePanel = null;
   }
 
+  toggleDesktopCallMaximized(): void {
+    this.syncCurrentScope();
+    if (this.#desktopStateForRoom !== 'call') return;
+
+    this.#maximizedCallScope = this.isDesktopCallMaximized ? null : this.#currentScope;
+  }
+
+  clearDesktopCallMaximized(): void {
+    if (this.#maximizedCallScope !== null) {
+      this.#maximizedCallScope = null;
+    }
+  }
+
+  syncCurrentScope(): void {
+    const scope = this.#currentScope;
+    if (scope === this.#lastScope) return;
+
+    this.#lastScope = scope;
+    this.#maximizedCallScope = null;
+  }
+
   get #currentScope(): string {
     return `${this.#getServerId()}:${this.#getRoomId()}`;
   }
@@ -80,8 +108,12 @@ export class RoomSidebarPanelsState {
   }
 
   #setDesktopState(state: RoomSidebarPanelState): void {
+    this.syncCurrentScope();
     const serverId = this.#getServerId();
     const roomId = this.#getRoomId();
+    if (state !== 'call') {
+      this.#maximizedCallScope = null;
+    }
     if (state !== null) {
       setRoomSidebarPanelState(serverId, roomId, state);
     }

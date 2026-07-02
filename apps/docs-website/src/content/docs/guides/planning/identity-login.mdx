@@ -1,0 +1,117 @@
+---
+title: Identity & Login
+description: Configure local accounts, SMTP email flows, external login providers, account linking, and owner recovery.
+---
+
+import { Aside, CardGrid, LinkCard, Tabs, TabItem } from "@astrojs/starlight/components";
+
+Chatto supports local password accounts, email verification and reset flows, external OAuth/OIDC providers, explicit account linking, and owner recovery through verified email addresses.
+
+## Choose Your Account Model
+
+| Model | Operator setup |
+| ----- | -------------- |
+| Local accounts only | Configure SMTP if you want email verification and password reset. |
+| Invite or admin-managed server | Use local accounts plus operator-created users or restricted signup policy. |
+| Organization SSO | Configure one or more `[[auth.providers]]` entries. |
+| Mixed community | Allow local accounts and selected external providers. |
+| Passwordless external login | Ensure users keep at least one linked provider and understand recovery paths. |
+
+## SMTP Email
+
+SMTP is needed for verification and password reset email flows. Configure it before inviting members if you expect self-service account recovery.
+
+<Tabs>
+<TabItem label="TOML">
+
+```toml
+[smtp]
+enabled = true
+host = "smtp.example.com"
+port = 587
+tls = "mandatory"
+username = "chatto@example.com"
+password = "<generate-me>"
+from = "Chatto <chatto@example.com>"
+```
+
+</TabItem>
+<TabItem label="Environment">
+
+```bash
+CHATTO_SMTP_ENABLED=true
+CHATTO_SMTP_HOST=smtp.example.com
+CHATTO_SMTP_PORT=587
+CHATTO_SMTP_TLS=mandatory
+CHATTO_SMTP_USERNAME=chatto@example.com
+CHATTO_SMTP_PASSWORD=<generate-me>
+CHATTO_SMTP_FROM="Chatto <chatto@example.com>"
+```
+
+</TabItem>
+</Tabs>
+
+Use `smtp.tls_server_name` only when the SMTP host you connect to differs from the certificate name. Use `smtp.tls_skip_verify` only for a trusted internal mail server where you accept that verification tradeoff.
+
+## External Providers
+
+External login providers are configured as repeated `[[auth.providers]]` entries. Supported provider types are `oidc`, `github`, `gitlab`, `google`, and `discord`.
+
+```toml
+[webserver]
+url = "https://chat.example.com"
+
+[[auth.providers]]
+id = "company-oidc"
+type = "oidc"
+label = "Company SSO"
+issuer_url = "https://idp.example.com"
+client_id = "..."
+client_secret = "..."
+auto_provision = false
+```
+
+Provider IDs are durable local identifiers. Do not change a provider ID after users have linked accounts unless you are intentionally retiring those links.
+
+## Account Creation And Linking
+
+Chatto does not silently merge accounts by email. External identities link by verified issuer or provider namespace plus provider subject.
+
+| Flow | Behavior |
+| ---- | -------- |
+| New external identity with `auto_provision = true` | User confirms account creation before Chatto creates the account. |
+| New external identity with `auto_provision = false` | Login does not create an account automatically. |
+| Existing signed-in user starts linking | User confirms the link through a short-lived capability flow. |
+| Disconnecting a provider | Chatto refuses to remove the last sign-in method from a passwordless account. |
+
+This avoids accidental account takeover through recycled or unverified email addresses.
+
+## Owner Recovery
+
+Set owner recovery emails in `chatto.toml`:
+
+```toml
+[owners]
+emails = ["admin@example.com"]
+```
+
+The email must be verified by the user before Chatto treats the user as an effective owner. Owners are recovery-grade: they virtually receive every normal permission and cannot be locked out through ordinary RBAC denies.
+
+<Aside type="tip">
+  Keep at least one owner recovery email controlled by the server operator, not only by an external identity provider account.
+</Aside>
+
+## Sessions And Logout
+
+Chatto uses opaque runtime credentials, not JWTs. Browser sessions use signed HTTP-only cookies for same-origin flows and bearer tokens for registered cross-origin server connections. Password resets, password changes, external identity disconnects, and account deletion revoke older credentials through the user's auth generation.
+
+Operators do not normally manage sessions directly. Use password reset, password set, account deletion, or future dedicated revocation tooling when you need to force a credential cutoff.
+
+## Related Guides
+
+<CardGrid>
+  <LinkCard title="External Login Providers" href="/guides/integrations/external-login-providers/" description="Detailed provider configuration, callback URLs, scopes, and account-linking behavior." />
+  <LinkCard title="Security & Privacy" href="/guides/operations/security/" description="Authentication, sessions, CSRF, OAuth redirects, and runtime credential details." />
+  <LinkCard title="Permissions & Roles" href="/guides/planning/permissions/" description="Owner recovery, built-in roles, and permission resolution." />
+  <LinkCard title="Operator CLI" href="/guides/operations/operator-cli/" description="Trusted local account recovery commands." />
+</CardGrid>

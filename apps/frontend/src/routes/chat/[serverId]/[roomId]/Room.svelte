@@ -405,7 +405,23 @@
     roomSidebarPanelForRoom(room.isDM, roomSidebarPanels.mobilePanel, showVoiceCall)
   );
   const roomSidebarTogglePanels = $derived(roomSidebarPanelsForRoom(room.isDM, showVoiceCall));
-  const hasActiveRoomCall = $derived(stores.activeCallRooms.has(roomId));
+  const hasActiveRoomCall = $derived(
+    stores.activeCallRooms.has(roomId) || stores.voiceCall.isInCall(roomId)
+  );
+  const isDesktopCallMaximized = $derived(
+    activeRoomSidebarPanel === 'call' &&
+      hasActiveRoomCall &&
+      roomSidebarPanels.isDesktopCallMaximized
+  );
+
+  $effect(() => {
+    const currentScope = `${getActiveServer()}:${roomId}`;
+    if (currentScope) roomSidebarPanels.syncCurrentScope();
+  });
+
+  $effect(() => {
+    if (!hasActiveRoomCall) roomSidebarPanels.clearDesktopCallMaximized();
+  });
 
   let leavingRoom = $state(false);
 
@@ -519,7 +535,13 @@
   {/if}
 
   <div class="flex min-h-0 min-w-0 flex-1">
-    <div class="relative flex min-h-0 min-w-0 flex-1 overflow-hidden">
+    <div
+      class={[
+        'relative flex min-h-0 min-w-0 flex-1 overflow-hidden',
+        isDesktopCallMaximized ? 'lg:hidden' : ''
+      ]}
+      data-testid="room-view-region"
+    >
       <div
         class={[
           'relative flex min-h-0 min-w-0 flex-1 flex-col transition-opacity duration-200',
@@ -642,6 +664,7 @@
             {roomId}
             activePanel={mobileRoomSidebarPanel}
             presentation="overlay"
+            hasActiveCall={hasActiveRoomCall}
             loading={room.isRoomLoading}
             filesStore={roomFilesStore}
             livekitUrl={serverInfo.livekitUrl ?? undefined}
@@ -660,10 +683,18 @@
     </div>
 
     {#if activeRoomSidebarPanel}
-      <div class="hidden lg:flex">
+      <div
+        class={[
+          'hidden min-h-0 min-w-0 lg:flex',
+          isDesktopCallMaximized ? 'flex-1' : 'shrink-0'
+        ]}
+        data-testid="room-sidebar-desktop-pane"
+      >
         <RoomSidebar
           {roomId}
           activePanel={activeRoomSidebarPanel}
+          maximized={isDesktopCallMaximized}
+          hasActiveCall={hasActiveRoomCall}
           loading={room.isRoomLoading}
           filesStore={roomFilesStore}
           livekitUrl={serverInfo.livekitUrl ?? undefined}
@@ -675,6 +706,7 @@
           membersStore={roomMembersStore}
           onOpenFile={(messageEventId, threadRootEventId) =>
             openFileMessage(messageEventId, threadRootEventId)}
+          onToggleMaximized={() => roomSidebarPanels.toggleDesktopCallMaximized()}
           onClose={() => roomSidebarPanels.closeDesktop()}
         />
       </div>

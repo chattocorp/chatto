@@ -17,10 +17,12 @@
   import { getUserSettings } from '$lib/state/userSettings.svelte';
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { formatDate as formatDateUtil } from '$lib/utils/formatTime';
+  import { getLocale } from '$lib/i18n/runtime';
   import * as m from '$lib/i18n/messages';
 
   const userSettings = getUserSettings();
   const connection = useConnection();
+  const activeLocale = $derived(getLocale());
   const PAGE_SIZE = 20;
 
   let searchInput = $state('');
@@ -133,7 +135,7 @@
 
   function formatDate(dateStr: string | null | undefined): string {
     if (!dateStr) return '—';
-    return formatDateUtil(dateStr, userSettings);
+    return formatDateUtil(dateStr, userSettings, activeLocale);
   }
 
   // Roles to display in the members list. `everyone` is implicit on every

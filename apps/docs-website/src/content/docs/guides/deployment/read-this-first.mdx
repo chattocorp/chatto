@@ -5,7 +5,7 @@ description: Choose a Chatto deployment path and make the important production d
 
 import { Aside, CardGrid, LinkCard } from "@astrojs/starlight/components";
 
-Chatto ships in a compact, self-contained binary, and is set up to give you a fully functional chat server through a simple `chatto run`. And you can totally deploy Chatto that way; but typically you'll want to go for something a little more involved. This section of the guides will show you how to set up your Chatto server in various manners, including Docker Compose and Kubernetes.
+Chatto ships in a compact, self-contained binary, and `chatto run` gives you a fully functional chat server. You can deploy Chatto that way, but most production servers benefit from a more explicit setup. This section helps you choose between the standalone binary, Docker Compose, and Kubernetes.
 
 ## What You Should Know
 
@@ -19,7 +19,7 @@ If you don't care about redundancy and your users are fine with your chat server
 
 ### File Uploads
 
-You can configure your Chatto server to allow users to attach files (images, videos, etc.) to message. These messages need to be stored somewhere; out of the box, **this is also done in NATS**.
+You can configure your Chatto server to allow users to attach files (images, videos, etc.) to messages. These files need to be stored somewhere; out of the box, **this is also done in NATS**.
 
 But you can also **configure an external S3-compatible object storage** for Chatto to store your files in, and **we strongly recommend doing so for any but the smallest servers**. Chatto doesn't care if it's literally AWS S3 or some other provider's S3-compatible object storage or something you operate locally; it just needs to be compatible with the AWS S3 SDK.
 
@@ -29,16 +29,16 @@ Each Chatto server powers a single community with its own data, including user a
 
 A user account on your server is 100% separate from the same person's account on other servers. This is by design (see ["Chatto is not a platform"](/getting-started/introduction/)). All user data -- their PII (Personally Identifiable Information, eg. email address, user name, display name etc.) as well as their message data is **encrypted at rest**, using per-user keys that get wiped when the user decides to delete their account. This also means that outside of manually restoring a deleted user's keys, deleted user accounts and data is **unrecoverable**.
 
-Chatto ships with a simple built-in KMS (Key Managament Service); support for external KMS is planned.
+Chatto ships with a simple built-in KMS (Key Management Service); support for external KMS is planned.
 
 ### Voice and Video Calls
 
-Chatto ships with full support for voice and video calls (with screens sharing and all the other usual toys). The actual calls are powered by a tool called **LiveKit** (Apache-2.0) that you need to deploy alongside Chatto. Once again, just like with NATS, this is pretty straight-forward, and our examples will show you how.
+Chatto ships with full support for voice and video calls, including screen sharing. The actual calls are powered by **LiveKit** (Apache-2.0), which you need to deploy alongside Chatto. As with NATS, the deployment examples show the required wiring.
 
 ## What You Should Decide Beforehand
 
 - **Public URL**: you'll want your server to be reachable by your users, so pick a domain or host name, eg. `chat.yourdomain.com`.
-- **TLS**: Chatto requires HTTPS support. Be ready to provision the required certificate. (If you don't know what this means, don't worry; our examples are typically set up to provision these automatically through Let's Encrypt.)
+- **TLS**: Internet-facing production servers should use HTTPS. Be ready to provision the required certificate. The deployment examples typically provision certificates automatically through Let's Encrypt.
 - **Embedded vs. External NATS**: make a decision on whether to go with Chatto's embedded NATS server, or point Chatto at a dedicated external NATS server. The former is the more convenient option, the latter sets you up better for future scaling. Again, our examples show you how to do this.
 - **Data Storage**: make a decision on where NATS should store its data. Outside of uploaded file blobs, you're not going to need huge amounts of space.
 - **File Storage**: decide on whether to use NATS for storing file uploads, or wire up an S3 compatible object storage.
@@ -50,17 +50,17 @@ Chatto ships with full support for voice and video calls (with screens sharing a
 <CardGrid>
   <LinkCard
     title="Standalone Binary"
-    href="/guides/binary/"
+    href="/guides/deployment/binary/"
     description="Smallest setup for testing or simple VMs. Uses embedded NATS. Use for small/casual servers only."
   />
   <LinkCard
     title="Docker Compose"
-    href="/guides/dockercompose/"
+    href="/guides/deployment/docker-compose/"
     description="Recommended for most self-hosted production servers. Includes Chatto, external NATS, Caddy, and LiveKit."
   />
   <LinkCard
     title="Kubernetes"
-    href="/guides/kubernetes/"
-    description="Woah, hello there, fellow Kubernetes enjoyer! Chatto is easy to deploy in k8s, too."
+    href="/guides/deployment/kubernetes/"
+    description="Supported deployment target for operators who can supply their own manifests and NATS setup."
   />
 </CardGrid>

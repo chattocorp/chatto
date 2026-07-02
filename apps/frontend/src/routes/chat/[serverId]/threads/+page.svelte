@@ -16,6 +16,7 @@
   import RoomEvent from '../[roomId]/RoomEvent.svelte';
   import { getUserSettings } from '$lib/state/userSettings.svelte';
   import { formatDate } from '$lib/utils/formatTime';
+  import { getLocale } from '$lib/i18n/runtime';
   import { onThreadFollowChanged } from '$lib/eventBus.svelte';
   import { useEvent } from '$lib/hooks';
   import { isMessagePostedEvent } from '$lib/render/eventKinds';
@@ -37,6 +38,7 @@
 
   const connection = useConnection();
   const userSettings = getUserSettings();
+  const activeLocale = $derived(getLocale());
   const PAGE_SIZE = 20;
 
   type FollowedThreadItem = {
@@ -169,7 +171,7 @@
     if (diffHours < 24) return m['chat.notifications.time_hours']({ count: diffHours });
     if (diffDays < 7) return m['chat.notifications.time_days']({ count: diffDays });
 
-    return formatDate(date, userSettings);
+    return formatDate(date, userSettings, activeLocale);
   }
 </script>
 
