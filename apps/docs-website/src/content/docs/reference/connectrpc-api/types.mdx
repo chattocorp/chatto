@@ -342,9 +342,10 @@ participants, and follow state without additional per-message requests.
 | `channel_echo_event_id` | `string` | Channel timeline event ID for a thread echo, when applicable. |
 | `reply_count` | `int32` | Number of replies in this message's thread. |
 | `last_reply_at` | `google.protobuf.Timestamp` | Creation time of the most recent reply in this message's thread. |
-| `thread_participant_user_ids` | `repeated string` | User IDs that have participated in this message's thread. |
+| `thread_participant_preview_user_ids` | `repeated string` | Preview of up to five user IDs that have participated in this message's thread. |
 | `viewer_is_following_thread` | `optional bool` | Whether the current user follows this message's thread, when known. |
 | `reactions` | repeated [`RoomTimelineReaction`](#chatto-api-v1-RoomTimelineReaction) | Reaction summaries for this message. |
+| `thread_participant_count` | `int32` | Total number of distinct users that have participated in this message's thread. |
 
 <a id="chatto-api-v1-RoomTimelinePage"></a>
 
@@ -381,7 +382,7 @@ user has reacted with the same emoji.
 | `emoji` | `string` | Emoji or reaction key. |
 | `count` | `int32` | Number of users who reacted with this emoji. |
 | `has_reacted` | `bool` | True when the current user reacted with this emoji. |
-| `user_ids` | `repeated string` | User IDs that reacted with this emoji. |
+| `preview_user_ids` | `repeated string` | Preview of up to five user IDs that reacted with this emoji. |
 
 <a id="chatto-api-v1-RoomTimelineRoomEvent"></a>
 
@@ -715,7 +716,6 @@ Ordered group of channel rooms and sidebar links.
 | `id` | `string` | Stable room group ID. |
 | `name` | `string` | Display name. |
 | `description` | `string` | Public group description, when set. |
-| `rooms` | repeated [`DirectoryRoom`](#chatto-api-v1-DirectoryRoom) | Visible channel rooms in this group order. |
 | `items` | repeated [`RoomGroupItem`](#chatto-api-v1-RoomGroupItem) | Mixed room/sidebar-link entries in sidebar order. |
 
 <a id="chatto-api-v1-RoomGroupItem"></a>
@@ -1286,14 +1286,13 @@ Permission matrix for one user across all scopes.
 
 ### AdminRoomLayoutGroup
 
-Ordered room group used by authenticated clients and the admin layout editor.
+Ordered room group returned after admin layout mutations.
 
 | Field | Type | Description |
 | --- | --- | --- |
 | `id` | `string` | Stable room group ID. |
 | `name` | `string` | Display name. |
 | `description` | `string` | Public group description, when set. |
-| `rooms` | `repeated chatto.api.v1.Room` | Channel rooms in this group order. |
 | `items` | repeated [`AdminRoomLayoutItem`](#chatto-admin-v1-AdminRoomLayoutItem) | Mixed room/sidebar-link entries in sidebar order. |
 
 <a id="chatto-admin-v1-AdminRoomLayoutItem"></a>

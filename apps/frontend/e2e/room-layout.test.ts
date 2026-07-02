@@ -30,20 +30,26 @@ interface RoomGroup {
   roomIds: string[];
 }
 
-interface AdminRoomLayoutRoomResponse {
+interface RoomDirectoryRoomResponse {
   id?: string;
   name?: string;
   archived?: boolean;
 }
 
-interface AdminRoomLayoutGroupResponse {
-  id?: string;
-  name?: string;
-  rooms?: AdminRoomLayoutRoomResponse[];
+interface RoomDirectoryGroupItemResponse {
+  room?: {
+    room?: RoomDirectoryRoomResponse;
+  };
 }
 
-interface AdminRoomLayoutResponse {
-  groups?: AdminRoomLayoutGroupResponse[];
+interface RoomDirectoryGroupResponse {
+  id?: string;
+  name?: string;
+  items?: RoomDirectoryGroupItemResponse[];
+}
+
+interface RoomDirectoryGroupsResponse {
+  groups?: RoomDirectoryGroupResponse[];
 }
 
 async function usePrimaryServerViaAPI(page: Page, _name?: string): Promise<TestServer> {
@@ -212,19 +218,26 @@ async function updateRoomLayoutViaAPI(page: Page, groups: RoomGroup[]): Promise<
 async function getRoomLayoutViaAPI(page: Page): Promise<{
   groups: { id: string; name: string; rooms: { id: string; name: string; archived: boolean }[] }[];
 } | null> {
-  const data = await connectPost<AdminRoomLayoutResponse>(
+  const data = await connectPost<RoomDirectoryGroupsResponse>(
     page,
-    'chatto.admin.v1.AdminRoomLayoutService/GetAdminRoomLayout'
+    'chatto.api.v1.RoomDirectoryService/ListRoomGroups',
+    { includeArchivedRooms: true }
   );
   return {
     groups: (data.groups ?? []).map((group) => ({
       id: group.id ?? '',
       name: group.name ?? '',
-      rooms: (group.rooms ?? []).map((room) => ({
-        id: room.id ?? '',
-        name: room.name ?? '',
-        archived: room.archived ?? false
-      }))
+      rooms: (group.items ?? []).flatMap((item) => {
+        const room = item.room?.room;
+        if (!room?.id) return [];
+        return [
+          {
+            id: room.id ?? '',
+            name: room.name ?? '',
+            archived: room.archived ?? false
+          }
+        ];
+      })
     }))
   };
 }

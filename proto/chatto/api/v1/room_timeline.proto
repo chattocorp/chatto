@@ -110,8 +110,8 @@ message RoomTimelineReaction {
   int32 count = 2;
   // True when the current user reacted with this emoji.
   bool has_reacted = 3;
-  // User IDs that reacted with this emoji.
-  repeated string user_ids = 4;
+  // Preview of up to five user IDs that reacted with this emoji.
+  repeated string preview_user_ids = 4;
 }
 
 // Payload for a message-posted timeline event.
@@ -151,12 +151,16 @@ message RoomTimelineMessagePosted {
   int32 reply_count = 12;
   // Creation time of the most recent reply in this message's thread.
   google.protobuf.Timestamp last_reply_at = 13;
-  // User IDs that have participated in this message's thread.
-  repeated string thread_participant_user_ids = 14;
+  // Preview of up to five user IDs that have participated in this message's
+  // thread.
+  repeated string thread_participant_preview_user_ids = 14;
   // Whether the current user follows this message's thread, when known.
   optional bool viewer_is_following_thread = 15;
   // Reaction summaries for this message.
   repeated RoomTimelineReaction reactions = 17;
+  // Total number of distinct users that have participated in this message's
+  // thread.
+  int32 thread_participant_count = 18;
 }
 
 // Payload for room lifecycle and membership timeline events.

@@ -303,8 +303,8 @@ be present.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `display_name` | `optional string` | New display name, when changing it. |
-| `login` | `optional string` | New login identifier, when changing it. |
+| `display_name` | `optional string` | New display name, when changing it. Empty clears the explicit display name. The server also rejects control and confusing invisible characters. |
+| `login` | `optional string` | New login identifier, when changing it. The server accepts ASCII letters, digits, period, underscore, and hyphen, starting with a letter or digit. |
 
 
 <a id="chatto-api-v1-UpdateProfileResponse"></a>
@@ -2468,8 +2468,8 @@ Finite snapshot of rooms visible to the current user.
 ### ListRoomGroups
 
 Lists ordered channel room groups and sidebar items visible to the current
-user as a finite navigation snapshot. Archived and hidden room entries are
-omitted from group results.
+user as a finite navigation snapshot. Hidden room entries are omitted.
+Archived room entries are omitted unless include_archived_rooms is true.
 
 ```http
 POST /api/connect/chatto.api.v1.RoomDirectoryService/ListRoomGroups
@@ -2480,6 +2480,10 @@ POST /api/connect/chatto.api.v1.RoomDirectoryService/ListRoomGroups
 #### Input: ListRoomGroupsRequest
 
 Request for ordered room groups visible to the current user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `include_archived_rooms` | `bool` | Include archived room entries. Ordinary sidebar clients should leave this false; management surfaces can set it when they need archived rooms for direct actions such as unarchiving. |
 
 
 <a id="chatto-api-v1-ListRoomGroupsResponse"></a>
@@ -2497,9 +2501,9 @@ Finite snapshot of ordered room groups visible to the current user.
 
 ### GetRoomGroup
 
-Returns one ordered room group by ID. Hidden and archived room entries are
-omitted from the returned group. Returns NOT_FOUND when the room group does
-not exist.
+Returns one ordered room group by ID. Hidden room entries are omitted.
+Archived room entries are omitted unless include_archived_rooms is true.
+Returns NOT_FOUND when the room group does not exist.
 
 ```http
 POST /api/connect/chatto.api.v1.RoomDirectoryService/GetRoomGroup
@@ -2514,6 +2518,7 @@ Request for one ordered room group visible to the current user.
 | Field | Type | Description |
 | --- | --- | --- |
 | `group_id` | `string` | Required. Room group to resolve. |
+| `include_archived_rooms` | `bool` | Include archived room entries. Ordinary sidebar clients should leave this false; management surfaces can set it when they need archived rooms for direct actions such as unarchiving. |
 
 
 <a id="chatto-api-v1-GetRoomGroupResponse"></a>
@@ -2531,10 +2536,10 @@ One ordered room group visible to the current user.
 
 ### BatchGetRoomGroups
 
-Returns ordered room groups for a set of stable group IDs. Hidden and
-archived room entries are omitted from returned groups. Unknown groups are
-omitted. Results preserve first-seen request order and repeated IDs are
-de-duplicated.
+Returns ordered room groups for a set of stable group IDs. Hidden room
+entries are omitted. Archived room entries are omitted unless
+include_archived_rooms is true. Unknown groups are omitted. Results
+preserve first-seen request order and repeated IDs are de-duplicated.
 
 ```http
 POST /api/connect/chatto.api.v1.RoomDirectoryService/BatchGetRoomGroups
@@ -2549,6 +2554,7 @@ Request visible room groups by stable group ID.
 | Field | Type | Description |
 | --- | --- | --- |
 | `group_ids` | `repeated string` | Required room group IDs. Unknown groups are omitted from the response. |
+| `include_archived_rooms` | `bool` | Include archived room entries. Ordinary sidebar clients should leave this false; management surfaces can set it when they need archived rooms for direct actions such as unarchiving. |
 
 
 <a id="chatto-api-v1-BatchGetRoomGroupsResponse"></a>
@@ -3504,9 +3510,10 @@ participants, and follow state without additional per-message requests.
 | `channel_echo_event_id` | `string` | Channel timeline event ID for a thread echo, when applicable. |
 | `reply_count` | `int32` | Number of replies in this message's thread. |
 | `last_reply_at` | `google.protobuf.Timestamp` | Creation time of the most recent reply in this message's thread. |
-| `thread_participant_user_ids` | `repeated string` | User IDs that have participated in this message's thread. |
+| `thread_participant_preview_user_ids` | `repeated string` | Preview of up to five user IDs that have participated in this message's thread. |
 | `viewer_is_following_thread` | `optional bool` | Whether the current user follows this message's thread, when known. |
 | `reactions` | repeated [`RoomTimelineReaction`](#chatto-api-v1-RoomTimelineReaction) | Reaction summaries for this message. |
+| `thread_participant_count` | `int32` | Total number of distinct users that have participated in this message's thread. |
 
 
 
@@ -3547,7 +3554,7 @@ user has reacted with the same emoji.
 | `emoji` | `string` | Emoji or reaction key. |
 | `count` | `int32` | Number of users who reacted with this emoji. |
 | `has_reacted` | `bool` | True when the current user reacted with this emoji. |
-| `user_ids` | `repeated string` | User IDs that reacted with this emoji. |
+| `preview_user_ids` | `repeated string` | Preview of up to five user IDs that reacted with this emoji. |
 
 
 
@@ -3931,7 +3938,6 @@ Ordered group of channel rooms and sidebar links.
 | `id` | `string` | Stable room group ID. |
 | `name` | `string` | Display name. |
 | `description` | `string` | Public group description, when set. |
-| `rooms` | repeated [`DirectoryRoom`](#chatto-api-v1-DirectoryRoom) | Visible channel rooms in this group order. |
 | `items` | repeated [`RoomGroupItem`](#chatto-api-v1-RoomGroupItem) | Mixed room/sidebar-link entries in sidebar order. |
 
 

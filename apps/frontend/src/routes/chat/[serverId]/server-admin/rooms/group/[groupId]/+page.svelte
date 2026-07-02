@@ -3,7 +3,11 @@
   import { resolve } from '$app/paths';
   import { serverIdToSegment } from '$lib/navigation';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
-  import { createAdminRoomLayoutAPI, type AdminRoomGroup } from '@chatto/api-client/adminRoomLayout';
+  import {
+    adminRoomGroupsFromDirectoryGroups,
+    type AdminRoomGroup
+  } from '@chatto/api-client/adminRoomLayout';
+  import { createRoomDirectoryAPI } from '@chatto/api-client/roomDirectory';
   import { useConnection } from '$lib/state/server/connection.svelte';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
@@ -26,12 +30,12 @@
     group = null;
     try {
       const conn = connection();
-      const api = createAdminRoomLayoutAPI({
+      const api = createRoomDirectoryAPI({
         serverId: conn.serverId,
         baseUrl: conn.connectBaseUrl,
         bearerToken: conn.bearerToken
       });
-      const groups = await api.getAdminRoomLayout();
+      const groups = adminRoomGroupsFromDirectoryGroups(await api.listRoomGroups());
       if (thisId !== loadId) return;
       group = groups.find((candidate) => candidate.id === targetGroupId) ?? null;
     } catch {

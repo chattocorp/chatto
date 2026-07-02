@@ -3,29 +3,18 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CreateRoomGroupRequest, CreateRoomGroupResponse, CreateSidebarLinkRequest, CreateSidebarLinkResponse, DeleteRoomGroupRequest, DeleteRoomGroupResponse, DeleteSidebarLinkRequest, DeleteSidebarLinkResponse, GetAdminRoomLayoutRequest, GetAdminRoomLayoutResponse, MoveRoomToGroupRequest, MoveRoomToGroupResponse, MoveSidebarLinkToGroupRequest, MoveSidebarLinkToGroupResponse, ReorderRoomGroupsRequest, ReorderRoomGroupsResponse, ReorderSidebarItemsInGroupRequest, ReorderSidebarItemsInGroupResponse, UpdateRoomGroupRequest, UpdateRoomGroupResponse, UpdateSidebarLinkRequest, UpdateSidebarLinkResponse } from "./room_layout_pb.js";
+import { CreateRoomGroupRequest, CreateRoomGroupResponse, CreateSidebarLinkRequest, CreateSidebarLinkResponse, DeleteRoomGroupRequest, DeleteRoomGroupResponse, DeleteSidebarLinkRequest, DeleteSidebarLinkResponse, MoveRoomToGroupRequest, MoveRoomToGroupResponse, MoveSidebarLinkToGroupRequest, MoveSidebarLinkToGroupResponse, ReorderRoomGroupsRequest, ReorderRoomGroupsResponse, ReorderSidebarItemsInGroupRequest, ReorderSidebarItemsInGroupResponse, UpdateRoomGroupRequest, UpdateRoomGroupResponse, UpdateSidebarLinkRequest, UpdateSidebarLinkResponse } from "./room_layout_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
- * Reads authenticated channel layout data and mutates the server-admin layout.
+ * Mutates the server-admin room layout. Read current room-group layout through
+ * chatto.api.v1.RoomDirectoryService.
  *
  * @generated from service chatto.admin.v1.AdminRoomLayoutService
  */
 export const AdminRoomLayoutService = {
   typeName: "chatto.admin.v1.AdminRoomLayoutService",
   methods: {
-    /**
-     * Returns the current room groups, rooms, and sidebar links for the admin
-     * layout editor and sidebar rendering. Requires an authenticated user.
-     *
-     * @generated from rpc chatto.admin.v1.AdminRoomLayoutService.GetAdminRoomLayout
-     */
-    getAdminRoomLayout: {
-      name: "GetAdminRoomLayout",
-      I: GetAdminRoomLayoutRequest,
-      O: GetAdminRoomLayoutResponse,
-      kind: MethodKind.Unary,
-    },
     /**
      * Creates a room group. Requires role.manage.
      *

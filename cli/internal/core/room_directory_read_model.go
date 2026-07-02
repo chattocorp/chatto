@@ -23,6 +23,10 @@ type RoomDirectoryListOptions struct {
 	IncludeDMs      bool
 }
 
+type RoomDirectoryGroupOptions struct {
+	IncludeArchivedRooms bool
+}
+
 type DirectoryRoom struct {
 	Room        *corev1.Room
 	ViewerState DirectoryRoomViewerState
@@ -77,12 +81,12 @@ func (s *RoomDirectoryReadModel) ListRooms(ctx context.Context, actorID string, 
 	return rooms, nil
 }
 
-func (s *RoomDirectoryReadModel) ListRoomGroups(ctx context.Context, actorID string) ([]*DirectoryRoomGroup, error) {
+func (s *RoomDirectoryReadModel) ListRoomGroups(ctx context.Context, actorID string, opts RoomDirectoryGroupOptions) ([]*DirectoryRoomGroup, error) {
 	if err := requireAuthenticatedActor(actorID); err != nil {
 		return nil, err
 	}
 
-	visibleRooms, err := s.visibleChannelRoomMap(ctx, actorID)
+	visibleRooms, err := s.visibleChannelRoomMap(ctx, actorID, opts.IncludeArchivedRooms)
 	if err != nil {
 		return nil, err
 	}
@@ -102,11 +106,11 @@ func (s *RoomDirectoryReadModel) ListRoomGroups(ctx context.Context, actorID str
 	return result, nil
 }
 
-func (s *RoomDirectoryReadModel) GetRoomGroup(ctx context.Context, actorID, groupID string) (*DirectoryRoomGroup, error) {
+func (s *RoomDirectoryReadModel) GetRoomGroup(ctx context.Context, actorID, groupID string, opts RoomDirectoryGroupOptions) (*DirectoryRoomGroup, error) {
 	if err := requireAuthenticatedActor(actorID); err != nil {
 		return nil, err
 	}
-	visibleRooms, err := s.visibleChannelRoomMap(ctx, actorID)
+	visibleRooms, err := s.visibleChannelRoomMap(ctx, actorID, opts.IncludeArchivedRooms)
 	if err != nil {
 		return nil, err
 	}
@@ -117,11 +121,11 @@ func (s *RoomDirectoryReadModel) GetRoomGroup(ctx context.Context, actorID, grou
 	return s.directoryGroup(ctx, actorID, group, visibleRooms)
 }
 
-func (s *RoomDirectoryReadModel) BatchGetRoomGroups(ctx context.Context, actorID string, groupIDs []string) ([]*DirectoryRoomGroup, error) {
+func (s *RoomDirectoryReadModel) BatchGetRoomGroups(ctx context.Context, actorID string, groupIDs []string, opts RoomDirectoryGroupOptions) ([]*DirectoryRoomGroup, error) {
 	if err := requireAuthenticatedActor(actorID); err != nil {
 		return nil, err
 	}
-	visibleRooms, err := s.visibleChannelRoomMap(ctx, actorID)
+	visibleRooms, err := s.visibleChannelRoomMap(ctx, actorID, opts.IncludeArchivedRooms)
 	if err != nil {
 		return nil, err
 	}
@@ -283,14 +287,14 @@ func (s *RoomDirectoryReadModel) visibleDMRooms(ctx context.Context, actorID str
 	return result, nil
 }
 
-func (s *RoomDirectoryReadModel) visibleChannelRoomMap(ctx context.Context, actorID string) (map[string]*corev1.Room, error) {
+func (s *RoomDirectoryReadModel) visibleChannelRoomMap(ctx context.Context, actorID string, includeArchived bool) (map[string]*corev1.Room, error) {
 	rooms, err := s.core.ListRooms(ctx, KindChannel)
 	if err != nil {
 		return nil, err
 	}
 	result := make(map[string]*corev1.Room, len(rooms))
 	for _, room := range rooms {
-		if room.GetArchived() {
+		if room.GetArchived() && !includeArchived {
 			continue
 		}
 		visible, err := s.core.CanSeeRoom(ctx, actorID, KindChannel, room.Id)

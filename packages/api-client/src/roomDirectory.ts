@@ -51,6 +51,7 @@ export type DirectoryRoomGroupItem =
       id: string;
       type: "room";
       roomId: string;
+      room: DirectoryRoomSummary;
     }
   | {
       id: string;
@@ -63,6 +64,10 @@ export type DirectoryRoomGroup = {
   name: string;
   roomIds: string[];
   items: DirectoryRoomGroupItem[];
+};
+
+export type RoomGroupReadOptions = {
+  includeArchivedRooms?: boolean;
 };
 
 export { RoomDirectoryScope };
@@ -116,10 +121,7 @@ export function createRoomDirectoryAPI(config: RoomDirectoryAPIConfig) {
         );
         return mapDirectoryRoomDetails(response.room);
       } catch (err) {
-        if (
-          err instanceof ConnectError &&
-          (err.code === Code.NotFound || err.code === Code.PermissionDenied)
-        ) {
+        if (err instanceof ConnectError && err.code === Code.NotFound) {
           return null;
         }
         return handleAuthError(err);
@@ -141,10 +143,12 @@ export function createRoomDirectoryAPI(config: RoomDirectoryAPIConfig) {
       }
     },
 
-    async listRoomGroups(): Promise<DirectoryRoomGroup[]> {
+    async listRoomGroups(
+      options: RoomGroupReadOptions = {},
+    ): Promise<DirectoryRoomGroup[]> {
       try {
         const response = await directory.listRoomGroups(
-          {},
+          { includeArchivedRooms: options.includeArchivedRooms ?? false },
           { headers: headers() },
         );
         return response.groups.map(mapRoomGroup);
@@ -153,10 +157,16 @@ export function createRoomDirectoryAPI(config: RoomDirectoryAPIConfig) {
       }
     },
 
-    async getRoomGroup(groupId: string): Promise<DirectoryRoomGroup | null> {
+    async getRoomGroup(
+      groupId: string,
+      options: RoomGroupReadOptions = {},
+    ): Promise<DirectoryRoomGroup | null> {
       try {
         const response = await directory.getRoomGroup(
-          { groupId },
+          {
+            groupId,
+            includeArchivedRooms: options.includeArchivedRooms ?? false,
+          },
           { headers: headers() },
         );
         return response.group ? mapRoomGroup(response.group) : null;
@@ -168,10 +178,16 @@ export function createRoomDirectoryAPI(config: RoomDirectoryAPIConfig) {
       }
     },
 
-    async batchGetRoomGroups(groupIds: string[]): Promise<DirectoryRoomGroup[]> {
+    async batchGetRoomGroups(
+      groupIds: string[],
+      options: RoomGroupReadOptions = {},
+    ): Promise<DirectoryRoomGroup[]> {
       try {
         const response = await directory.batchGetRoomGroups(
-          { groupIds },
+          {
+            groupIds,
+            includeArchivedRooms: options.includeArchivedRooms ?? false,
+          },
           { headers: headers() },
         );
         return response.groups.map(mapRoomGroup);
@@ -222,15 +238,16 @@ function mapRoomGroup(group: RoomGroup): DirectoryRoomGroup {
   return {
     id: group.id,
     name: group.name,
-    roomIds: uniqueRoomIds(group.rooms),
+    roomIds: uniqueRoomIds(group.items),
     items: sidebarItemsFromAPI(group),
   };
 }
 
-function uniqueRoomIds(rooms: readonly DirectoryRoom[]): string[] {
+function uniqueRoomIds(items: readonly RoomGroupItem[]): string[] {
   const seen: Record<string, true> = Object.create(null);
-  return rooms.flatMap((entry) => {
-    const id = entry.room?.id;
+  return items.flatMap((item) => {
+    if (item.item.case !== "room") return [];
+    const id = item.item.value.room?.id;
     if (!id || seen[id]) return [];
     seen[id] = true;
     return [id];
@@ -238,21 +255,16 @@ function uniqueRoomIds(rooms: readonly DirectoryRoom[]): string[] {
 }
 
 function sidebarItemsFromAPI(group: RoomGroup): DirectoryRoomGroupItem[] {
-  if (group.items.length === 0) {
-    return uniqueRoomIds(group.rooms).map((roomId) => ({
-      id: `room:${roomId}`,
-      type: "room",
-      roomId,
-    }));
-  }
-
   return group.items.flatMap((item) => mapRoomGroupItem(item) ?? []);
 }
 
 function mapRoomGroupItem(item: RoomGroupItem): DirectoryRoomGroupItem | null {
   if (item.item.case === "room") {
     const roomId = item.item.value.room?.id;
-    return roomId ? { id: `room:${roomId}`, type: "room", roomId } : null;
+    const room = mapDirectoryRoom(item.item.value);
+    return roomId && room
+      ? { id: `room:${roomId}`, type: "room", roomId, room }
+      : null;
   }
   if (item.item.case === "sidebarLink") {
     return {

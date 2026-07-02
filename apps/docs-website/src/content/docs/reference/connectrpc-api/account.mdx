@@ -41,8 +41,8 @@ be present.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `display_name` | `optional string` | New display name, when changing it. |
-| `login` | `optional string` | New login identifier, when changing it. |
+| `display_name` | `optional string` | New display name, when changing it. Empty clears the explicit display name. The server also rejects control and confusing invisible characters. |
+| `login` | `optional string` | New login identifier, when changing it. The server accepts ASCII letters, digits, period, underscore, and hyphen, starting with a letter or digit. |
 
 
 <a id="chatto-api-v1-UpdateProfileResponse"></a>

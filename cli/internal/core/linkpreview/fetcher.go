@@ -3,6 +3,7 @@ package linkpreview
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -35,6 +36,10 @@ const (
 	// PageFetchTimeout is the timeout for fetching page metadata.
 	PageFetchTimeout = 10 * time.Second
 )
+
+// ErrUnavailable marks URLs that were fetched or inspected successfully enough
+// to know that Chatto cannot produce a useful preview for them.
+var ErrUnavailable = errors.New("link preview unavailable")
 
 // StoreImageFunc persists a processed preview image under the supplied asset ID.
 type StoreImageFunc func(ctx context.Context, assetID string, data []byte, contentType string) (*corev1.AssetRecord, error)
@@ -97,24 +102,24 @@ func (f *Fetcher) Fetch(ctx context.Context, rawURL string) (*FetchResult, error
 	resp, err := f.httpClient.Do(req)
 	if err != nil {
 		f.logger.Warn("Failed to fetch page", "url", rawURL, "error", err)
-		return nil, fmt.Errorf("fetch page: %w", err)
+		return nil, fmt.Errorf("%w: fetch page: %v", ErrUnavailable, err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("page returned status %d", resp.StatusCode)
+		return nil, fmt.Errorf("%w: page returned status %d", ErrUnavailable, resp.StatusCode)
 	}
 
 	contentType := resp.Header.Get("Content-Type")
 	if contentType != "" && !strings.HasPrefix(contentType, "text/html") && !strings.HasPrefix(contentType, "application/xhtml") {
-		return nil, fmt.Errorf("not an HTML page: %s", contentType)
+		return nil, fmt.Errorf("%w: not an HTML page: %s", ErrUnavailable, contentType)
 	}
 
 	// Parse OG metadata with a size-limited reader
 	og := opengraph.New(rawURL)
 	if err := og.Parse(io.LimitReader(resp.Body, MaxPageSize)); err != nil {
 		f.logger.Warn("Failed to parse OG metadata", "url", rawURL, "error", err)
-		return nil, fmt.Errorf("parse metadata: %w", err)
+		return nil, fmt.Errorf("%w: parse metadata: %v", ErrUnavailable, err)
 	}
 
 	// Convert relative URLs to absolute

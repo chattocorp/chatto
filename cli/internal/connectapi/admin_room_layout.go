@@ -13,19 +13,6 @@ type adminRoomLayoutService struct {
 	api *API
 }
 
-func (s *adminRoomLayoutService) GetAdminRoomLayout(ctx context.Context, _ *connect.Request[adminv1.GetAdminRoomLayoutRequest]) (*connect.Response[adminv1.GetAdminRoomLayoutResponse], error) {
-	caller, err := requireCaller(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	groups, err := s.getAdminRoomLayoutGroups(ctx, caller.UserID)
-	if err != nil {
-		return nil, connectError(err)
-	}
-	return connect.NewResponse(&adminv1.GetAdminRoomLayoutResponse{Groups: groups}), nil
-}
-
 func (s *adminRoomLayoutService) CreateRoomGroup(ctx context.Context, req *connect.Request[adminv1.CreateRoomGroupRequest]) (*connect.Response[adminv1.CreateRoomGroupResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
@@ -230,16 +217,6 @@ func apiAdminRoomLayoutGroup(group *corev1.RoomGroup, roomsByID map[string]*core
 	sidebarLinksByID := make(map[string]*corev1.SidebarLink, len(group.GetSidebarLinks()))
 	for _, link := range group.GetSidebarLinks() {
 		sidebarLinksByID[link.GetId()] = link
-	}
-	for _, roomID := range group.GetRoomIds() {
-		room := roomsByID[roomID]
-		if roomsByID == nil {
-			room = nil
-		}
-		if room == nil {
-			continue
-		}
-		apiGroup.Rooms = append(apiGroup.Rooms, apiRoom(room))
 	}
 	for _, entry := range group.GetEntries() {
 		switch entry.GetKind() {

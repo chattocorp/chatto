@@ -7,7 +7,11 @@ import {
   type AdminRoomLayoutGroup as APIAdminRoomLayoutGroup,
   type AdminRoomLayoutItem as APIAdminRoomLayoutItem,
 } from "@chatto/api-types/admin/v1/room_layout_pb";
-import type { SidebarLink } from "@chatto/api-types/api/v1/room_directory_pb";
+import type {
+  DirectoryRoomGroup,
+  DirectoryRoomGroupItem,
+  DirectorySidebarLink,
+} from "./roomDirectory.js";
 import type { Room } from "@chatto/api-types/api/v1/rooms_pb";
 
 export type AdminRoomLayoutAPIConfig = {
@@ -47,7 +51,7 @@ export type AdminRoomGroup = {
   id: string;
   name: string;
   rooms: AdminRoomInfo[];
-  items?: AdminSidebarItem[];
+  items: AdminSidebarItem[];
 };
 
 export type AdminRoomLayoutItemMutationInput = {
@@ -81,18 +85,6 @@ export function createAdminRoomLayoutAPI(config: AdminRoomLayoutAPIConfig) {
   }
 
   return {
-    async getAdminRoomLayout(): Promise<AdminRoomGroup[]> {
-      try {
-        const response = await layout.getAdminRoomLayout(
-          {},
-          { headers: headers() },
-        );
-        return response.groups.map(mapAdminRoomLayoutGroup);
-      } catch (err) {
-        return handleAuthError(err);
-      }
-    },
-
     async createRoomGroup(input: {
       name: string;
       description?: string | null;
@@ -253,23 +245,35 @@ export type AdminRoomLayoutAPI = ReturnType<typeof createAdminRoomLayoutAPI>;
 function mapAdminRoomLayoutGroup(
   group: APIAdminRoomLayoutGroup,
 ): AdminRoomGroup {
-  const rooms = (group.rooms ?? []).map(mapAdminRoom);
-  const items =
-    (group.items ?? []).length > 0
-      ? (group.items ?? []).flatMap(
-          (item) => mapAdminRoomLayoutItem(item) ?? [],
-        )
-      : rooms.map((room) => ({
-          id: `room:${room.id}`,
-          kind: "room" as const,
-          room,
-        }));
+  const items = (group.items ?? []).flatMap(
+    (item) => mapAdminRoomLayoutItem(item) ?? [],
+  );
   return {
     id: group.id,
     name: group.name,
-    rooms,
+    rooms: roomsFromSidebarItems(items),
     items,
   };
+}
+
+export function adminRoomGroupFromDirectoryGroup(
+  group: DirectoryRoomGroup,
+): AdminRoomGroup {
+  const items = group.items.flatMap(
+    (item) => directoryItemToAdminSidebarItem(item) ?? [],
+  );
+  return {
+    id: group.id,
+    name: group.name,
+    rooms: roomsFromSidebarItems(items),
+    items,
+  };
+}
+
+export function adminRoomGroupsFromDirectoryGroups(
+  groups: DirectoryRoomGroup[],
+): AdminRoomGroup[] {
+  return groups.map(adminRoomGroupFromDirectoryGroup);
 }
 
 function mapAdminRoomLayoutItem(
@@ -296,7 +300,28 @@ function mapAdminRoom(room: Room): AdminRoomInfo {
   };
 }
 
-function mapSidebarLink(link: SidebarLink): AdminSidebarLinkInfo {
+function directoryItemToAdminSidebarItem(
+  item: DirectoryRoomGroupItem,
+): AdminSidebarItem | null {
+  if (item.type === "room") {
+    const room: AdminRoomInfo = {
+      id: item.room.id,
+      name: item.room.name,
+      description: item.room.description,
+      archived: item.room.archived,
+      isUniversal: item.room.isUniversal,
+    };
+    return { id: `room:${room.id}`, kind: "room", room };
+  }
+  const link = mapSidebarLink(item.link);
+  return { id: `link:${link.id}`, kind: "link", link };
+}
+
+function roomsFromSidebarItems(items: AdminSidebarItem[]): AdminRoomInfo[] {
+  return items.flatMap((item) => (item.kind === "room" ? [item.room] : []));
+}
+
+function mapSidebarLink(link: DirectorySidebarLink): AdminSidebarLinkInfo {
   return {
     id: link.id,
     label: link.label,

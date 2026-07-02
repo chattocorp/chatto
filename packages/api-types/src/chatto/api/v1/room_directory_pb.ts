@@ -371,13 +371,6 @@ export class RoomGroup extends Message<RoomGroup> {
   description = "";
 
   /**
-   * Visible channel rooms in this group order.
-   *
-   * @generated from field: repeated chatto.api.v1.DirectoryRoom rooms = 4;
-   */
-  rooms: DirectoryRoom[] = [];
-
-  /**
    * Mixed room/sidebar-link entries in sidebar order.
    *
    * @generated from field: repeated chatto.api.v1.RoomGroupItem items = 5;
@@ -395,7 +388,6 @@ export class RoomGroup extends Message<RoomGroup> {
     { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "description", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 4, name: "rooms", kind: "message", T: DirectoryRoom, repeated: true },
     { no: 5, name: "items", kind: "message", T: RoomGroupItem, repeated: true },
   ]);
 
@@ -504,6 +496,15 @@ export class ListRoomsResponse extends Message<ListRoomsResponse> {
  * @generated from message chatto.api.v1.ListRoomGroupsRequest
  */
 export class ListRoomGroupsRequest extends Message<ListRoomGroupsRequest> {
+  /**
+   * Include archived room entries. Ordinary sidebar clients should leave this
+   * false; management surfaces can set it when they need archived rooms for
+   * direct actions such as unarchiving.
+   *
+   * @generated from field: bool include_archived_rooms = 1;
+   */
+  includeArchivedRooms = false;
+
   constructor(data?: PartialMessage<ListRoomGroupsRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -512,6 +513,7 @@ export class ListRoomGroupsRequest extends Message<ListRoomGroupsRequest> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.ListRoomGroupsRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "include_archived_rooms", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListRoomGroupsRequest {
@@ -585,6 +587,15 @@ export class GetRoomGroupRequest extends Message<GetRoomGroupRequest> {
    */
   groupId = "";
 
+  /**
+   * Include archived room entries. Ordinary sidebar clients should leave this
+   * false; management surfaces can set it when they need archived rooms for
+   * direct actions such as unarchiving.
+   *
+   * @generated from field: bool include_archived_rooms = 2;
+   */
+  includeArchivedRooms = false;
+
   constructor(data?: PartialMessage<GetRoomGroupRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -594,6 +605,7 @@ export class GetRoomGroupRequest extends Message<GetRoomGroupRequest> {
   static readonly typeName = "chatto.api.v1.GetRoomGroupRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "group_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "include_archived_rooms", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetRoomGroupRequest {
@@ -667,6 +679,15 @@ export class BatchGetRoomGroupsRequest extends Message<BatchGetRoomGroupsRequest
    */
   groupIds: string[] = [];
 
+  /**
+   * Include archived room entries. Ordinary sidebar clients should leave this
+   * false; management surfaces can set it when they need archived rooms for
+   * direct actions such as unarchiving.
+   *
+   * @generated from field: bool include_archived_rooms = 2;
+   */
+  includeArchivedRooms = false;
+
   constructor(data?: PartialMessage<BatchGetRoomGroupsRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -676,6 +697,7 @@ export class BatchGetRoomGroupsRequest extends Message<BatchGetRoomGroupsRequest
   static readonly typeName = "chatto.api.v1.BatchGetRoomGroupsRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "group_ids", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+    { no: 2, name: "include_archived_rooms", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BatchGetRoomGroupsRequest {

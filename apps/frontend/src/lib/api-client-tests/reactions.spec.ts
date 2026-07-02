@@ -40,14 +40,22 @@ describe('createReactionAPI', () => {
   });
 
   it('adds a reaction with bearer auth', async () => {
-    mocks.addReaction.mockResolvedValue({ added: true });
+    mocks.addReaction.mockResolvedValue({
+      added: true,
+      reaction: {
+        emoji: 'thumbsup',
+        count: 2,
+        hasReacted: true,
+        previewUserIds: ['u1', 'u2']
+      }
+    });
 
     const api = createReactionAPI({
       serverId: 'remote',
       baseUrl: 'https://remote.example.test/api/connect',
       bearerToken: 'remote-token'
     });
-    const added = await api.addReaction({
+    const result = await api.addReaction({
       roomId: 'room-1',
       messageEventId: 'event-1',
       emoji: 'thumbsup'
@@ -67,17 +75,25 @@ describe('createReactionAPI', () => {
         headers: { Authorization: 'Bearer remote-token' }
       }
     );
-    expect(added).toBe(true);
+    expect(result).toEqual({
+      added: true,
+      reaction: {
+        emoji: 'thumbsup',
+        count: 2,
+        hasReacted: true,
+        previewUserIds: ['u1', 'u2']
+      }
+    });
   });
 
   it('removes a reaction without auth headers when no token is available', async () => {
-    mocks.removeReaction.mockResolvedValue({ removed: false });
+    mocks.removeReaction.mockResolvedValue({ removed: false, reaction: undefined });
 
     const api = createReactionAPI({
       baseUrl: 'https://remote.example.test/api/connect',
       bearerToken: null
     });
-    const removed = await api.removeReaction({
+    const result = await api.removeReaction({
       roomId: 'room-1',
       messageEventId: 'event-1',
       emoji: 'thumbsup'
@@ -93,7 +109,7 @@ describe('createReactionAPI', () => {
         headers: undefined
       }
     );
-    expect(removed).toBe(false);
+    expect(result).toEqual({ removed: false, reaction: null });
   });
 
   it('marks the server authentication stale on unauthenticated Connect errors', async () => {

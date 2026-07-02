@@ -315,7 +315,8 @@ function messagePostedPayload(
     channelEchoEventId: message.channelEchoEventId || null,
     replyCount: message.replyCount,
     lastReplyAt: timestampToISOOrNull(message.lastReplyAt),
-    threadParticipants: message.threadParticipantUserIds
+    threadParticipantCount: message.threadParticipantCount,
+    threadParticipants: message.threadParticipantPreviewUserIds
       .map((id) => userView(id, users))
       .filter(
         (user): user is NonNullable<ReturnType<typeof userView>> =>
@@ -329,7 +330,7 @@ function messagePostedPayload(
       emoji: reaction.emoji,
       count: reaction.count,
       hasReacted: reaction.hasReacted,
-      users: reaction.userIds
+      users: reaction.previewUserIds
         .map((id) => userView(id, users))
         .filter(
           (user): user is NonNullable<ReturnType<typeof userView>> =>

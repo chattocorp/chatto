@@ -16,14 +16,16 @@ import { TimeFormat, UserSettings } from "./viewer_pb.js";
  */
 export class UpdateProfileRequest extends Message<UpdateProfileRequest> {
   /**
-   * New display name, when changing it.
+   * New display name, when changing it. Empty clears the explicit display
+   * name. The server also rejects control and confusing invisible characters.
    *
    * @generated from field: optional string display_name = 1;
    */
   displayName?: string;
 
   /**
-   * New login identifier, when changing it.
+   * New login identifier, when changing it. The server accepts ASCII letters,
+   * digits, period, underscore, and hyphen, starting with a letter or digit.
    *
    * @generated from field: optional string login = 2;
    */

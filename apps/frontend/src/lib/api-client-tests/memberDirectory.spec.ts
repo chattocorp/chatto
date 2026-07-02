@@ -232,14 +232,23 @@ describe('createMemberDirectoryAPI', () => {
     );
   });
 
-  it('returns null when singular member lookups are missing or inaccessible', async () => {
+  it('returns null when singular member lookups are missing', async () => {
     mocks.getServerMember.mockRejectedValueOnce(new ConnectError('missing', Code.NotFound));
-    mocks.getRoomMember.mockRejectedValueOnce(new ConnectError('denied', Code.PermissionDenied));
+    mocks.getRoomMember.mockRejectedValueOnce(new ConnectError('missing', Code.NotFound));
 
     const api = createMemberDirectoryAPI({ baseUrl: '/api/connect', bearerToken: null });
 
     await expect(api.getServerMember('missing')).resolves.toBeNull();
     await expect(api.getRoomMember('room-1', 'U2')).resolves.toBeNull();
+  });
+
+  it('preserves permission denied on singular room member reads', async () => {
+    const err = new ConnectError('denied', Code.PermissionDenied);
+    mocks.getRoomMember.mockRejectedValueOnce(err);
+
+    const api = createMemberDirectoryAPI({ baseUrl: '/api/connect', bearerToken: null });
+
+    await expect(api.getRoomMember('room-1', 'U2')).rejects.toBe(err);
   });
 
   it('maps offline and unspecified read statuses to offline', async () => {

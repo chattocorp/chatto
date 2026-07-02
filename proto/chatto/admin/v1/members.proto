@@ -164,10 +164,15 @@ message RevokeRoleResponse {
 message UpdateUserRequest {
   // Target user ID.
   string user_id = 1 [(buf.validate.field).string.min_len = 1];
-  // New display name, when changing it.
-  optional string display_name = 2;
-  // New login identifier, when changing it.
-  optional string login = 3;
+  // New display name, when changing it. Empty clears the explicit display
+  // name. The server also rejects control and confusing invisible characters.
+  optional string display_name = 2 [(buf.validate.field).string.max_len = 32];
+  // New login identifier, when changing it. The server accepts ASCII letters,
+  // digits, period, underscore, and hyphen, starting with a letter or digit.
+  optional string login = 3 [(buf.validate.field).string = {
+    min_len: 2
+    max_len: 32
+  }];
 }
 
 // Result of an admin user update.
@@ -184,7 +189,10 @@ message UpdateUserPasswordRequest {
   string user_id = 1 [(buf.validate.field).string.min_len = 1];
   // New password. The server applies the same password policy as registration
   // and password reset.
-  string password = 2;
+  string password = 2 [(buf.validate.field).string = {
+    min_len: 8
+    max_len: 128
+  }];
 }
 
 // Result of an admin password update.

@@ -2,6 +2,7 @@ import { notifyAuthenticationRequired } from "./hooks.js";
 import { Code, ConnectError, createClient } from "@connectrpc/connect";
 import { createConnectTransport } from "@connectrpc/connect-web";
 import { MessageService } from "@chatto/api-types/api/v1/messages_connect";
+import type { RoomTimelineReaction } from "@chatto/api-types/api/v1/room_timeline_pb";
 
 export type ConnectAPIConfig = {
   serverId?: string;
@@ -14,6 +15,23 @@ export type ReactionInput = {
   roomId: string;
   messageEventId: string;
   emoji: string;
+};
+
+export type ReactionSummary = {
+  emoji: string;
+  count: number;
+  hasReacted: boolean;
+  previewUserIds: string[];
+};
+
+export type AddReactionResult = {
+  added: boolean;
+  reaction: ReactionSummary | null;
+};
+
+export type RemoveReactionResult = {
+  removed: boolean;
+  reaction: ReactionSummary | null;
 };
 
 export function createReactionAPI(config: ConnectAPIConfig) {
@@ -42,26 +60,44 @@ export function createReactionAPI(config: ConnectAPIConfig) {
   }
 
   return {
-    async addReaction(input: ReactionInput): Promise<boolean> {
+    async addReaction(input: ReactionInput): Promise<AddReactionResult> {
       try {
         const response = await client.addReaction(input, {
           headers: headers(),
         });
-        return response.added;
+        return {
+          added: response.added,
+          reaction: mapReactionSummary(response.reaction),
+        };
       } catch (err) {
         return handleAuthError(err);
       }
     },
 
-    async removeReaction(input: ReactionInput): Promise<boolean> {
+    async removeReaction(input: ReactionInput): Promise<RemoveReactionResult> {
       try {
         const response = await client.removeReaction(input, {
           headers: headers(),
         });
-        return response.removed;
+        return {
+          removed: response.removed,
+          reaction: mapReactionSummary(response.reaction),
+        };
       } catch (err) {
         return handleAuthError(err);
       }
     },
+  };
+}
+
+function mapReactionSummary(
+  reaction: RoomTimelineReaction | undefined,
+): ReactionSummary | null {
+  if (!reaction || !reaction.emoji) return null;
+  return {
+    emoji: reaction.emoji,
+    count: reaction.count,
+    hasReacted: reaction.hasReacted,
+    previewUserIds: [...reaction.previewUserIds],
   };
 }

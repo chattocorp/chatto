@@ -206,8 +206,9 @@ func (h *timelineHydrator) messagePosted(ctx context.Context, event *core.RoomEv
 			if metadata.LastReplyAt != nil {
 				message.LastReplyAt = timestamppb.New(*metadata.LastReplyAt)
 			}
-			message.ThreadParticipantUserIds = firstN(metadata.ParticipantIDs, 5)
-			h.addUserIDs(message.ThreadParticipantUserIds)
+			message.ThreadParticipantPreviewUserIds = firstN(metadata.ParticipantIDs, 5)
+			message.ThreadParticipantCount = int32(len(metadata.ParticipantIDs))
+			h.addUserIDs(message.ThreadParticipantPreviewUserIds)
 		}
 		following, err := h.api.core.IsFollowingThread(ctx, h.kind, h.viewerID, payload.GetRoomId(), event.Id)
 		if err != nil {
@@ -346,10 +347,10 @@ func (h *timelineHydrator) reactions(messageEventID string) []*apiv1.RoomTimelin
 		previewUserIDs := firstN(summary.UserIDs, 5)
 		h.addUserIDs(previewUserIDs)
 		result = append(result, &apiv1.RoomTimelineReaction{
-			Emoji:      summary.Emoji,
-			Count:      int32(len(summary.UserIDs)),
-			HasReacted: containsString(summary.UserIDs, h.viewerID),
-			UserIds:    previewUserIDs,
+			Emoji:          summary.Emoji,
+			Count:          int32(len(summary.UserIDs)),
+			HasReacted:     containsString(summary.UserIDs, h.viewerID),
+			PreviewUserIds: previewUserIDs,
 		})
 	}
 	return result

@@ -47,7 +47,7 @@ func TestRoomDirectoryReadModelVisibilityAndJoinGroup(t *testing.T) {
 	if _, err := reads.GetRoom(ctx, actor.Id, hidden.Id); !errors.Is(err, ErrPermissionDenied) {
 		t.Fatalf("GetRoom hidden error = %v, want ErrPermissionDenied", err)
 	}
-	dirGroup, err := reads.GetRoomGroup(ctx, actor.Id, group.Id)
+	dirGroup, err := reads.GetRoomGroup(ctx, actor.Id, group.Id, RoomDirectoryGroupOptions{})
 	if err != nil {
 		t.Fatalf("GetRoomGroup: %v", err)
 	}
@@ -57,10 +57,10 @@ func TestRoomDirectoryReadModelVisibilityAndJoinGroup(t *testing.T) {
 	if directoryRoomsContain(dirGroup.Rooms, hidden.Id) {
 		t.Fatalf("hidden room %s appeared in GetRoomGroup", hidden.Id)
 	}
-	if _, err := reads.GetRoomGroup(ctx, actor.Id, "missing-group"); !errors.Is(err, ErrRoomGroupNotFound) {
+	if _, err := reads.GetRoomGroup(ctx, actor.Id, "missing-group", RoomDirectoryGroupOptions{}); !errors.Is(err, ErrRoomGroupNotFound) {
 		t.Fatalf("GetRoomGroup missing error = %v, want ErrRoomGroupNotFound", err)
 	}
-	batchGroups, err := reads.BatchGetRoomGroups(ctx, actor.Id, []string{group.Id, "missing-group", group.Id})
+	batchGroups, err := reads.BatchGetRoomGroups(ctx, actor.Id, []string{group.Id, "missing-group", group.Id}, RoomDirectoryGroupOptions{})
 	if err != nil {
 		t.Fatalf("BatchGetRoomGroups: %v", err)
 	}

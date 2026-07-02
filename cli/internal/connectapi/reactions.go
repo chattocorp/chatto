@@ -61,10 +61,10 @@ func (s *messageService) reactionSummary(ctx context.Context, viewerID, messageE
 		}
 		userIDs := firstN(summary.UserIDs, 5)
 		return &apiv1.RoomTimelineReaction{
-			Emoji:      summary.Emoji,
-			Count:      int32(len(summary.UserIDs)),
-			HasReacted: containsString(summary.UserIDs, viewerID),
-			UserIds:    userIDs,
+			Emoji:          summary.Emoji,
+			Count:          int32(len(summary.UserIDs)),
+			HasReacted:     containsString(summary.UserIDs, viewerID),
+			PreviewUserIds: userIDs,
 		}
 	}
 	return nil

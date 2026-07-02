@@ -278,14 +278,15 @@ describe('roomTimelinePageToEventConnectionPage', () => {
                 })
               ],
               replyCount: 1,
-              threadParticipantUserIds: ['u2'],
+              threadParticipantPreviewUserIds: ['u2'],
+              threadParticipantCount: 1,
               viewerIsFollowingThread: true,
               reactions: [
                 {
                   emoji: 'thumbsup',
                   count: 2,
                   hasReacted: true,
-                  userIds: ['u1', 'u2']
+                  previewUserIds: ['u1', 'u2']
                 }
               ]
             })

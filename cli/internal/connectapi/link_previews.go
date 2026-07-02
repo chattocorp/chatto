@@ -18,7 +18,10 @@ func (s *linkPreviewService) FetchLinkPreview(ctx context.Context, req *connect.
 	}
 
 	preview, err := s.api.core.GetLinkPreview(ctx, req.Msg.Url)
-	if err != nil || preview == nil {
+	if err != nil {
+		return nil, connectError(err)
+	}
+	if preview == nil {
 		return connect.NewResponse(&apiv1.FetchLinkPreviewResponse{}), nil
 	}
 

@@ -440,8 +440,6 @@ type RoomGroup struct {
 	Name string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	// Public group description, when set.
 	Description string `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
-	// Visible channel rooms in this group order.
-	Rooms []*DirectoryRoom `protobuf:"bytes,4,rep,name=rooms,proto3" json:"rooms,omitempty"`
 	// Mixed room/sidebar-link entries in sidebar order.
 	Items         []*RoomGroupItem `protobuf:"bytes,5,rep,name=items,proto3" json:"items,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -497,13 +495,6 @@ func (x *RoomGroup) GetDescription() string {
 		return x.Description
 	}
 	return ""
-}
-
-func (x *RoomGroup) GetRooms() []*DirectoryRoom {
-	if x != nil {
-		return x.Rooms
-	}
-	return nil
 }
 
 func (x *RoomGroup) GetItems() []*RoomGroupItem {
@@ -607,9 +598,13 @@ func (x *ListRoomsResponse) GetRooms() []*DirectoryRoom {
 
 // Request for ordered room groups visible to the current user.
 type ListRoomGroupsRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Include archived room entries. Ordinary sidebar clients should leave this
+	// false; management surfaces can set it when they need archived rooms for
+	// direct actions such as unarchiving.
+	IncludeArchivedRooms bool `protobuf:"varint,1,opt,name=include_archived_rooms,json=includeArchivedRooms,proto3" json:"include_archived_rooms,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *ListRoomGroupsRequest) Reset() {
@@ -640,6 +635,13 @@ func (x *ListRoomGroupsRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use ListRoomGroupsRequest.ProtoReflect.Descriptor instead.
 func (*ListRoomGroupsRequest) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_room_directory_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *ListRoomGroupsRequest) GetIncludeArchivedRooms() bool {
+	if x != nil {
+		return x.IncludeArchivedRooms
+	}
+	return false
 }
 
 // Finite snapshot of ordered room groups visible to the current user.
@@ -692,9 +694,13 @@ func (x *ListRoomGroupsResponse) GetGroups() []*RoomGroup {
 type GetRoomGroupRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Required. Room group to resolve.
-	GroupId       string `protobuf:"bytes,1,opt,name=group_id,json=groupId,proto3" json:"group_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	GroupId string `protobuf:"bytes,1,opt,name=group_id,json=groupId,proto3" json:"group_id,omitempty"`
+	// Include archived room entries. Ordinary sidebar clients should leave this
+	// false; management surfaces can set it when they need archived rooms for
+	// direct actions such as unarchiving.
+	IncludeArchivedRooms bool `protobuf:"varint,2,opt,name=include_archived_rooms,json=includeArchivedRooms,proto3" json:"include_archived_rooms,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *GetRoomGroupRequest) Reset() {
@@ -732,6 +738,13 @@ func (x *GetRoomGroupRequest) GetGroupId() string {
 		return x.GroupId
 	}
 	return ""
+}
+
+func (x *GetRoomGroupRequest) GetIncludeArchivedRooms() bool {
+	if x != nil {
+		return x.IncludeArchivedRooms
+	}
+	return false
 }
 
 // One ordered room group visible to the current user.
@@ -784,9 +797,13 @@ func (x *GetRoomGroupResponse) GetGroup() *RoomGroup {
 type BatchGetRoomGroupsRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Required room group IDs. Unknown groups are omitted from the response.
-	GroupIds      []string `protobuf:"bytes,1,rep,name=group_ids,json=groupIds,proto3" json:"group_ids,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	GroupIds []string `protobuf:"bytes,1,rep,name=group_ids,json=groupIds,proto3" json:"group_ids,omitempty"`
+	// Include archived room entries. Ordinary sidebar clients should leave this
+	// false; management surfaces can set it when they need archived rooms for
+	// direct actions such as unarchiving.
+	IncludeArchivedRooms bool `protobuf:"varint,2,opt,name=include_archived_rooms,json=includeArchivedRooms,proto3" json:"include_archived_rooms,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *BatchGetRoomGroupsRequest) Reset() {
@@ -824,6 +841,13 @@ func (x *BatchGetRoomGroupsRequest) GetGroupIds() []string {
 		return x.GroupIds
 	}
 	return nil
+}
+
+func (x *BatchGetRoomGroupsRequest) GetIncludeArchivedRooms() bool {
+	if x != nil {
+		return x.IncludeArchivedRooms
+	}
+	return false
 }
 
 // Visible room group batch response for direct group hydration.
@@ -1089,27 +1113,29 @@ const file_chatto_api_v1_room_directory_proto_rawDesc = "" +
 	"\rRoomGroupItem\x122\n" +
 	"\x04room\x18\x01 \x01(\v2\x1c.chatto.api.v1.DirectoryRoomH\x00R\x04room\x12?\n" +
 	"\fsidebar_link\x18\x02 \x01(\v2\x1a.chatto.api.v1.SidebarLinkH\x00R\vsidebarLinkB\x06\n" +
-	"\x04item\"\xb9\x01\n" +
+	"\x04item\"\x92\x01\n" +
 	"\tRoomGroup\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +
 	"\vdescription\x18\x03 \x01(\tR\vdescription\x122\n" +
-	"\x05rooms\x18\x04 \x03(\v2\x1c.chatto.api.v1.DirectoryRoomR\x05rooms\x122\n" +
-	"\x05items\x18\x05 \x03(\v2\x1c.chatto.api.v1.RoomGroupItemR\x05items\"U\n" +
+	"\x05items\x18\x05 \x03(\v2\x1c.chatto.api.v1.RoomGroupItemR\x05itemsJ\x04\b\x04\x10\x05R\x05rooms\"U\n" +
 	"\x10ListRoomsRequest\x12A\n" +
 	"\x05scope\x18\x01 \x01(\x0e2!.chatto.api.v1.RoomDirectoryScopeB\b\xbaH\x05\x82\x01\x02\x10\x01R\x05scope\"G\n" +
 	"\x11ListRoomsResponse\x122\n" +
-	"\x05rooms\x18\x01 \x03(\v2\x1c.chatto.api.v1.DirectoryRoomR\x05rooms\"\x17\n" +
-	"\x15ListRoomGroupsRequest\"J\n" +
+	"\x05rooms\x18\x01 \x03(\v2\x1c.chatto.api.v1.DirectoryRoomR\x05rooms\"M\n" +
+	"\x15ListRoomGroupsRequest\x124\n" +
+	"\x16include_archived_rooms\x18\x01 \x01(\bR\x14includeArchivedRooms\"J\n" +
 	"\x16ListRoomGroupsResponse\x120\n" +
-	"\x06groups\x18\x01 \x03(\v2\x18.chatto.api.v1.RoomGroupR\x06groups\"9\n" +
+	"\x06groups\x18\x01 \x03(\v2\x18.chatto.api.v1.RoomGroupR\x06groups\"o\n" +
 	"\x13GetRoomGroupRequest\x12\"\n" +
-	"\bgroup_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\agroupId\"F\n" +
+	"\bgroup_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\agroupId\x124\n" +
+	"\x16include_archived_rooms\x18\x02 \x01(\bR\x14includeArchivedRooms\"F\n" +
 	"\x14GetRoomGroupResponse\x12.\n" +
-	"\x05group\x18\x01 \x01(\v2\x18.chatto.api.v1.RoomGroupR\x05group\"J\n" +
+	"\x05group\x18\x01 \x01(\v2\x18.chatto.api.v1.RoomGroupR\x05group\"\x80\x01\n" +
 	"\x19BatchGetRoomGroupsRequest\x12-\n" +
 	"\tgroup_ids\x18\x01 \x03(\tB\x10\xbaH\r\x92\x01\n" +
-	"\b\x01\x10d\"\x04r\x02\x10\x01R\bgroupIds\"N\n" +
+	"\b\x01\x10d\"\x04r\x02\x10\x01R\bgroupIds\x124\n" +
+	"\x16include_archived_rooms\x18\x02 \x01(\bR\x14includeArchivedRooms\"N\n" +
 	"\x1aBatchGetRoomGroupsResponse\x120\n" +
 	"\x06groups\x18\x01 \x03(\v2\x18.chatto.api.v1.RoomGroupR\x06groups\"2\n" +
 	"\x0eGetRoomRequest\x12 \n" +
@@ -1175,32 +1201,31 @@ var file_chatto_api_v1_room_directory_proto_depIdxs = []int32{
 	1,  // 1: chatto.api.v1.DirectoryRoom.viewer_state:type_name -> chatto.api.v1.RoomViewerState
 	2,  // 2: chatto.api.v1.RoomGroupItem.room:type_name -> chatto.api.v1.DirectoryRoom
 	3,  // 3: chatto.api.v1.RoomGroupItem.sidebar_link:type_name -> chatto.api.v1.SidebarLink
-	2,  // 4: chatto.api.v1.RoomGroup.rooms:type_name -> chatto.api.v1.DirectoryRoom
-	4,  // 5: chatto.api.v1.RoomGroup.items:type_name -> chatto.api.v1.RoomGroupItem
-	0,  // 6: chatto.api.v1.ListRoomsRequest.scope:type_name -> chatto.api.v1.RoomDirectoryScope
-	2,  // 7: chatto.api.v1.ListRoomsResponse.rooms:type_name -> chatto.api.v1.DirectoryRoom
-	5,  // 8: chatto.api.v1.ListRoomGroupsResponse.groups:type_name -> chatto.api.v1.RoomGroup
-	5,  // 9: chatto.api.v1.GetRoomGroupResponse.group:type_name -> chatto.api.v1.RoomGroup
-	5,  // 10: chatto.api.v1.BatchGetRoomGroupsResponse.groups:type_name -> chatto.api.v1.RoomGroup
-	2,  // 11: chatto.api.v1.GetRoomResponse.room:type_name -> chatto.api.v1.DirectoryRoom
-	2,  // 12: chatto.api.v1.BatchGetRoomsResponse.rooms:type_name -> chatto.api.v1.DirectoryRoom
-	6,  // 13: chatto.api.v1.RoomDirectoryService.ListRooms:input_type -> chatto.api.v1.ListRoomsRequest
-	8,  // 14: chatto.api.v1.RoomDirectoryService.ListRoomGroups:input_type -> chatto.api.v1.ListRoomGroupsRequest
-	10, // 15: chatto.api.v1.RoomDirectoryService.GetRoomGroup:input_type -> chatto.api.v1.GetRoomGroupRequest
-	12, // 16: chatto.api.v1.RoomDirectoryService.BatchGetRoomGroups:input_type -> chatto.api.v1.BatchGetRoomGroupsRequest
-	14, // 17: chatto.api.v1.RoomDirectoryService.GetRoom:input_type -> chatto.api.v1.GetRoomRequest
-	16, // 18: chatto.api.v1.RoomDirectoryService.BatchGetRooms:input_type -> chatto.api.v1.BatchGetRoomsRequest
-	7,  // 19: chatto.api.v1.RoomDirectoryService.ListRooms:output_type -> chatto.api.v1.ListRoomsResponse
-	9,  // 20: chatto.api.v1.RoomDirectoryService.ListRoomGroups:output_type -> chatto.api.v1.ListRoomGroupsResponse
-	11, // 21: chatto.api.v1.RoomDirectoryService.GetRoomGroup:output_type -> chatto.api.v1.GetRoomGroupResponse
-	13, // 22: chatto.api.v1.RoomDirectoryService.BatchGetRoomGroups:output_type -> chatto.api.v1.BatchGetRoomGroupsResponse
-	15, // 23: chatto.api.v1.RoomDirectoryService.GetRoom:output_type -> chatto.api.v1.GetRoomResponse
-	17, // 24: chatto.api.v1.RoomDirectoryService.BatchGetRooms:output_type -> chatto.api.v1.BatchGetRoomsResponse
-	19, // [19:25] is the sub-list for method output_type
-	13, // [13:19] is the sub-list for method input_type
-	13, // [13:13] is the sub-list for extension type_name
-	13, // [13:13] is the sub-list for extension extendee
-	0,  // [0:13] is the sub-list for field type_name
+	4,  // 4: chatto.api.v1.RoomGroup.items:type_name -> chatto.api.v1.RoomGroupItem
+	0,  // 5: chatto.api.v1.ListRoomsRequest.scope:type_name -> chatto.api.v1.RoomDirectoryScope
+	2,  // 6: chatto.api.v1.ListRoomsResponse.rooms:type_name -> chatto.api.v1.DirectoryRoom
+	5,  // 7: chatto.api.v1.ListRoomGroupsResponse.groups:type_name -> chatto.api.v1.RoomGroup
+	5,  // 8: chatto.api.v1.GetRoomGroupResponse.group:type_name -> chatto.api.v1.RoomGroup
+	5,  // 9: chatto.api.v1.BatchGetRoomGroupsResponse.groups:type_name -> chatto.api.v1.RoomGroup
+	2,  // 10: chatto.api.v1.GetRoomResponse.room:type_name -> chatto.api.v1.DirectoryRoom
+	2,  // 11: chatto.api.v1.BatchGetRoomsResponse.rooms:type_name -> chatto.api.v1.DirectoryRoom
+	6,  // 12: chatto.api.v1.RoomDirectoryService.ListRooms:input_type -> chatto.api.v1.ListRoomsRequest
+	8,  // 13: chatto.api.v1.RoomDirectoryService.ListRoomGroups:input_type -> chatto.api.v1.ListRoomGroupsRequest
+	10, // 14: chatto.api.v1.RoomDirectoryService.GetRoomGroup:input_type -> chatto.api.v1.GetRoomGroupRequest
+	12, // 15: chatto.api.v1.RoomDirectoryService.BatchGetRoomGroups:input_type -> chatto.api.v1.BatchGetRoomGroupsRequest
+	14, // 16: chatto.api.v1.RoomDirectoryService.GetRoom:input_type -> chatto.api.v1.GetRoomRequest
+	16, // 17: chatto.api.v1.RoomDirectoryService.BatchGetRooms:input_type -> chatto.api.v1.BatchGetRoomsRequest
+	7,  // 18: chatto.api.v1.RoomDirectoryService.ListRooms:output_type -> chatto.api.v1.ListRoomsResponse
+	9,  // 19: chatto.api.v1.RoomDirectoryService.ListRoomGroups:output_type -> chatto.api.v1.ListRoomGroupsResponse
+	11, // 20: chatto.api.v1.RoomDirectoryService.GetRoomGroup:output_type -> chatto.api.v1.GetRoomGroupResponse
+	13, // 21: chatto.api.v1.RoomDirectoryService.BatchGetRoomGroups:output_type -> chatto.api.v1.BatchGetRoomGroupsResponse
+	15, // 22: chatto.api.v1.RoomDirectoryService.GetRoom:output_type -> chatto.api.v1.GetRoomResponse
+	17, // 23: chatto.api.v1.RoomDirectoryService.BatchGetRooms:output_type -> chatto.api.v1.BatchGetRoomsResponse
+	18, // [18:24] is the sub-list for method output_type
+	12, // [12:18] is the sub-list for method input_type
+	12, // [12:12] is the sub-list for extension type_name
+	12, // [12:12] is the sub-list for extension extendee
+	0,  // [0:12] is the sub-list for field type_name
 }
 
 func init() { file_chatto_api_v1_room_directory_proto_init() }

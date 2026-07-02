@@ -194,6 +194,19 @@ describe('createRoomDirectoryAPI', () => {
     expect(mocks.handleAuthenticationRequired).not.toHaveBeenCalled();
   });
 
+  it('preserves permission denied on singular room reads', async () => {
+    const err = new ConnectError('permission denied', Code.PermissionDenied);
+    mocks.getRoom.mockRejectedValue(err);
+
+    const api = createRoomDirectoryAPI({
+      serverId: 'remote',
+      baseUrl: '/api/connect',
+      bearerToken: null
+    });
+
+    await expect(api.getRoom('hidden-room')).rejects.toBe(err);
+  });
+
   it('batch gets rooms and maps viewer permissions', async () => {
     mocks.batchGetRooms.mockResolvedValue({
       rooms: [
@@ -247,11 +260,6 @@ describe('createRoomDirectoryAPI', () => {
         {
           id: 'g1',
           name: 'Lobby',
-          rooms: [
-            { room: { id: 'general', name: 'general', kind: RoomKind.CHANNEL } },
-            { room: { id: 'general', name: 'general', kind: RoomKind.CHANNEL } },
-            { room: { id: 'random', name: 'random', kind: RoomKind.CHANNEL } }
-          ],
           items: [
             {
               item: {
@@ -263,6 +271,12 @@ describe('createRoomDirectoryAPI', () => {
               item: {
                 case: 'room',
                 value: { room: { id: 'general', name: 'general', kind: RoomKind.CHANNEL } }
+              }
+            },
+            {
+              item: {
+                case: 'room',
+                value: { room: { id: 'random', name: 'random', kind: RoomKind.CHANNEL } }
               }
             }
           ]
@@ -278,7 +292,7 @@ describe('createRoomDirectoryAPI', () => {
     const groups = await api.listRoomGroups();
 
     expect(mocks.listRoomGroups).toHaveBeenCalledWith(
-      {},
+      { includeArchivedRooms: false },
       { headers: { Authorization: 'Bearer token' } }
     );
     expect(groups).toEqual([
@@ -292,22 +306,29 @@ describe('createRoomDirectoryAPI', () => {
             type: 'link',
             link: { id: 'docs', label: 'Docs', url: 'https://example.com/docs' }
           },
-          { id: 'room:general', type: 'room', roomId: 'general' }
+          {
+            id: 'room:general',
+            type: 'room',
+            roomId: 'general',
+            room: expect.objectContaining({ id: 'general', name: 'general' })
+          },
+          {
+            id: 'room:random',
+            type: 'room',
+            roomId: 'random',
+            room: expect.objectContaining({ id: 'random', name: 'random' })
+          }
         ]
       }
     ]);
   });
 
-  it('falls back to group rooms when no ordered sidebar items are present', async () => {
+  it('returns empty item order when no ordered sidebar items are present', async () => {
     mocks.listRoomGroups.mockResolvedValue({
       groups: [
         {
           id: 'g1',
           name: 'Lobby',
-          rooms: [
-            { room: { id: 'general', name: 'general', kind: RoomKind.CHANNEL } },
-            { room: { id: 'random', name: 'random', kind: RoomKind.CHANNEL } }
-          ],
           items: []
         }
       ]
@@ -321,21 +342,28 @@ describe('createRoomDirectoryAPI', () => {
     await expect(api.listRoomGroups()).resolves.toMatchObject([
       {
         id: 'g1',
-        roomIds: ['general', 'random'],
-        items: [
-          { id: 'room:general', type: 'room', roomId: 'general' },
-          { id: 'room:random', type: 'room', roomId: 'random' }
-        ]
+        roomIds: [],
+        items: []
       }
     ]);
+    expect(mocks.listRoomGroups).toHaveBeenCalledWith(
+      { includeArchivedRooms: false },
+      { headers: undefined }
+    );
   });
 
   it('gets and batch gets room groups', async () => {
     const group = {
       id: 'g1',
       name: 'Lobby',
-      rooms: [{ room: { id: 'general', name: 'general', kind: RoomKind.CHANNEL } }],
-      items: []
+      items: [
+        {
+          item: {
+            case: 'room',
+            value: { room: { id: 'general', name: 'general', kind: RoomKind.CHANNEL } }
+          }
+        }
+      ]
     };
     mocks.getRoomGroup.mockResolvedValue({ group });
     mocks.batchGetRoomGroups.mockResolvedValue({ groups: [group] });
@@ -357,12 +385,36 @@ describe('createRoomDirectoryAPI', () => {
     ]);
 
     expect(mocks.getRoomGroup).toHaveBeenCalledWith(
-      { groupId: 'g1' },
+      { groupId: 'g1', includeArchivedRooms: false },
       { headers: { Authorization: 'Bearer token' } }
     );
     expect(mocks.batchGetRoomGroups).toHaveBeenCalledWith(
-      { groupIds: ['g1', 'missing'] },
+      { groupIds: ['g1', 'missing'], includeArchivedRooms: false },
       { headers: { Authorization: 'Bearer token' } }
+    );
+  });
+
+  it('can request archived room entries in room groups', async () => {
+    mocks.listRoomGroups.mockResolvedValue({ groups: [] });
+    mocks.getRoomGroup.mockResolvedValue({ group: undefined });
+    mocks.batchGetRoomGroups.mockResolvedValue({ groups: [] });
+    const api = createRoomDirectoryAPI({ baseUrl: '/api/connect', bearerToken: null });
+
+    await api.listRoomGroups({ includeArchivedRooms: true });
+    await api.getRoomGroup('g1', { includeArchivedRooms: true });
+    await api.batchGetRoomGroups(['g1'], { includeArchivedRooms: true });
+
+    expect(mocks.listRoomGroups).toHaveBeenCalledWith(
+      { includeArchivedRooms: true },
+      { headers: undefined }
+    );
+    expect(mocks.getRoomGroup).toHaveBeenCalledWith(
+      { groupId: 'g1', includeArchivedRooms: true },
+      { headers: undefined }
+    );
+    expect(mocks.batchGetRoomGroups).toHaveBeenCalledWith(
+      { groupIds: ['g1'], includeArchivedRooms: true },
+      { headers: undefined }
     );
   });
 

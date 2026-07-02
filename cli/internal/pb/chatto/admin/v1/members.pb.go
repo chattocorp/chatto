@@ -886,9 +886,11 @@ type UpdateUserRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Target user ID.
 	UserId string `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	// New display name, when changing it.
+	// New display name, when changing it. Empty clears the explicit display
+	// name. The server also rejects control and confusing invisible characters.
 	DisplayName *string `protobuf:"bytes,2,opt,name=display_name,json=displayName,proto3,oneof" json:"display_name,omitempty"`
-	// New login identifier, when changing it.
+	// New login identifier, when changing it. The server accepts ASCII letters,
+	// digits, period, underscore, and hyphen, starting with a letter or digit.
 	Login         *string `protobuf:"bytes,3,opt,name=login,proto3,oneof" json:"login,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1356,19 +1358,20 @@ const file_chatto_admin_v1_members_proto_rawDesc = "" +
 	"\trole_name\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\broleName\"d\n" +
 	"\x12RevokeRoleResponse\x12\x18\n" +
 	"\arevoked\x18\x01 \x01(\bR\arevoked\x124\n" +
-	"\x06member\x18\x02 \x01(\v2\x1c.chatto.admin.v1.AdminMemberR\x06member\"\x93\x01\n" +
+	"\x06member\x18\x02 \x01(\v2\x1c.chatto.admin.v1.AdminMemberR\x06member\"\xa7\x01\n" +
 	"\x11UpdateUserRequest\x12 \n" +
-	"\auser_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06userId\x12&\n" +
-	"\fdisplay_name\x18\x02 \x01(\tH\x00R\vdisplayName\x88\x01\x01\x12\x19\n" +
-	"\x05login\x18\x03 \x01(\tH\x01R\x05login\x88\x01\x01B\x0f\n" +
+	"\auser_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06userId\x12/\n" +
+	"\fdisplay_name\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x18 H\x00R\vdisplayName\x88\x01\x01\x12$\n" +
+	"\x05login\x18\x03 \x01(\tB\t\xbaH\x06r\x04\x10\x02\x18 H\x01R\x05login\x88\x01\x01B\x0f\n" +
 	"\r_display_nameB\b\n" +
 	"\x06_login\"s\n" +
 	"\x12UpdateUserResponse\x12'\n" +
 	"\x04user\x18\x01 \x01(\v2\x13.chatto.api.v1.UserR\x04user\x124\n" +
-	"\x06member\x18\x02 \x01(\v2\x1c.chatto.admin.v1.AdminMemberR\x06member\"Y\n" +
+	"\x06member\x18\x02 \x01(\v2\x1c.chatto.admin.v1.AdminMemberR\x06member\"e\n" +
 	"\x19UpdateUserPasswordRequest\x12 \n" +
-	"\auser_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06userId\x12\x1a\n" +
-	"\bpassword\x18\x02 \x01(\tR\bpassword\"R\n" +
+	"\auser_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06userId\x12&\n" +
+	"\bpassword\x18\x02 \x01(\tB\n" +
+	"\xbaH\ar\x05\x10\b\x18\x80\x01R\bpassword\"R\n" +
 	"\x1aUpdateUserPasswordResponse\x124\n" +
 	"\x06member\x18\x01 \x01(\v2\x1c.chatto.admin.v1.AdminMemberR\x06member\"@\n" +
 	"\x1cClearUsernameCooldownRequest\x12 \n" +

@@ -116,10 +116,7 @@ export function createMemberDirectoryAPI(config: MemberDirectoryAPIConfig) {
         );
         return response.member ? mapDirectoryMember(response.member) : null;
       } catch (err) {
-        if (
-          err instanceof ConnectError &&
-          (err.code === Code.NotFound || err.code === Code.PermissionDenied)
-        ) {
+        if (err instanceof ConnectError && err.code === Code.NotFound) {
           return null;
         }
         throw err;

@@ -1618,7 +1618,7 @@ func TestAdminEventLogServiceListsFiltersAndReadsEntries(t *testing.T) {
 	}
 }
 
-func TestAdminRoomLayoutServiceGetAdminRoomLayout(t *testing.T) {
+func TestRoomDirectoryServiceListRoomGroupsIncludesSidebarItems(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	groupID := env.defaultRoomGroupID(t)
 	room := env.createJoinedRoom("layout-room")
@@ -1627,22 +1627,19 @@ func TestAdminRoomLayoutServiceGetAdminRoomLayout(t *testing.T) {
 		t.Fatalf("CreateSidebarLink: %v", err)
 	}
 
-	resp, err := env.adminLayout.GetAdminRoomLayout(withCaller(env.ctx, env.viewer), connect.NewRequest(&adminv1.GetAdminRoomLayoutRequest{}))
+	resp, err := env.directory.ListRoomGroups(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.ListRoomGroupsRequest{}))
 	if err != nil {
-		t.Fatalf("GetAdminRoomLayout: %v", err)
+		t.Fatalf("ListRoomGroups: %v", err)
 	}
 
-	group := adminLayoutGroupByID(resp.Msg.GetGroups(), groupID)
+	group := findDirectoryGroup(resp.Msg.GetGroups(), groupID)
 	if group == nil {
 		t.Fatalf("group %q missing from response", groupID)
 	}
-	if adminLayoutRoomByID(group.GetRooms(), room.Id) == nil {
-		t.Fatalf("room %q missing from group rooms", room.Id)
-	}
-	if !adminLayoutItemsContainRoom(group.GetItems(), room.Id) {
+	if !roomGroupItemsContainRoom(group.GetItems(), room.Id) {
 		t.Fatalf("room %q missing from group items", room.Id)
 	}
-	if !adminLayoutItemsContainSidebarLink(group.GetItems(), link.Id) {
+	if !roomGroupItemsContainSidebarLink(group.GetItems(), link.Id) {
 		t.Fatalf("sidebar link %q missing from group items", link.Id)
 	}
 }
@@ -2162,8 +2159,8 @@ func TestAdminUserServiceUpdatesUsersAndClearsCooldown(t *testing.T) {
 	if _, err := env.adminUsers.UpdateUserPassword(adminCtx, connect.NewRequest(&adminv1.UpdateUserPasswordRequest{
 		UserId:   admin.Id,
 		Password: "newpassword456",
-	})); connect.CodeOf(err) != connect.CodeFailedPrecondition {
-		t.Fatalf("self UpdateUserPassword code = %v, want failed_precondition", connect.CodeOf(err))
+	})); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("self UpdateUserPassword code = %v, want permission_denied", connect.CodeOf(err))
 	}
 	resp, err := env.adminUsers.UpdateUser(adminCtx, connect.NewRequest(&adminv1.UpdateUserRequest{
 		UserId:      target.Id,
@@ -3516,16 +3513,6 @@ func TestRoomDirectoryServiceListRoomGroupsFiltersHiddenRoomsAndKeepsLinks(t *te
 	if group == nil {
 		t.Fatalf("group %s missing from response", groupID)
 	}
-	groupRooms := directoryRoomsByID(group.GetRooms())
-	if _, ok := groupRooms[visible.Id]; !ok {
-		t.Fatalf("visible room %s missing from group rooms", visible.Id)
-	}
-	if _, ok := groupRooms[hidden.Id]; ok {
-		t.Fatalf("hidden room %s appeared in group rooms", hidden.Id)
-	}
-	if _, ok := groupRooms[archived.Id]; ok {
-		t.Fatalf("archived room %s appeared in group rooms", archived.Id)
-	}
 	if !roomGroupItemsContainRoom(group.GetItems(), visible.Id) {
 		t.Fatalf("visible room %s missing from group items", visible.Id)
 	}
@@ -3537,6 +3524,19 @@ func TestRoomDirectoryServiceListRoomGroupsFiltersHiddenRoomsAndKeepsLinks(t *te
 	}
 	if !roomGroupItemsContainSidebarLink(group.GetItems(), link.Id) {
 		t.Fatalf("sidebar link %s missing from group items", link.Id)
+	}
+	withArchivedResp, err := env.directory.ListRoomGroups(withCaller(env.ctx, caller), connect.NewRequest(&apiv1.ListRoomGroupsRequest{
+		IncludeArchivedRooms: true,
+	}))
+	if err != nil {
+		t.Fatalf("ListRoomGroups include archived: %v", err)
+	}
+	withArchivedGroup := findDirectoryGroup(withArchivedResp.Msg.GetGroups(), groupID)
+	if withArchivedGroup == nil {
+		t.Fatalf("group %s missing from include archived response", groupID)
+	}
+	if !roomGroupItemsContainRoom(withArchivedGroup.GetItems(), archived.Id) {
+		t.Fatalf("archived room %s missing from include archived group items", archived.Id)
 	}
 
 	getResp, err := env.directory.GetRoomGroup(withCaller(env.ctx, caller), connect.NewRequest(&apiv1.GetRoomGroupRequest{
@@ -5511,8 +5511,11 @@ func TestRoomAndThreadTimelineHydratesMessagesWithoutClientNPlusOne(t *testing.T
 	if payload.ReplyCount != 1 {
 		t.Fatalf("reply count = %d, want 1", payload.ReplyCount)
 	}
-	if got := payload.ThreadParticipantUserIds; len(got) != 1 || got[0] != replier.Id {
-		t.Fatalf("thread participants = %v, want [%s]", got, replier.Id)
+	if got := payload.ThreadParticipantCount; got != 1 {
+		t.Fatalf("thread participant count = %d, want 1", got)
+	}
+	if got := payload.ThreadParticipantPreviewUserIds; len(got) != 1 || got[0] != replier.Id {
+		t.Fatalf("thread participant preview = %v, want [%s]", got, replier.Id)
 	}
 	if len(payload.Reactions) != 1 {
 		t.Fatalf("reaction summaries = %d, want 1", len(payload.Reactions))
@@ -6691,42 +6694,6 @@ func directoryRoomsByID(rooms []*apiv1.DirectoryRoom) map[string]*apiv1.Director
 		result[room.GetRoom().GetId()] = room
 	}
 	return result
-}
-
-func adminLayoutGroupByID(groups []*adminv1.AdminRoomLayoutGroup, groupID string) *adminv1.AdminRoomLayoutGroup {
-	for _, group := range groups {
-		if group.GetId() == groupID {
-			return group
-		}
-	}
-	return nil
-}
-
-func adminLayoutRoomByID(rooms []*apiv1.Room, roomID string) *apiv1.Room {
-	for _, room := range rooms {
-		if room.GetId() == roomID {
-			return room
-		}
-	}
-	return nil
-}
-
-func adminLayoutItemsContainRoom(items []*adminv1.AdminRoomLayoutItem, roomID string) bool {
-	for _, item := range items {
-		if item.GetRoom().GetId() == roomID {
-			return true
-		}
-	}
-	return false
-}
-
-func adminLayoutItemsContainSidebarLink(items []*adminv1.AdminRoomLayoutItem, linkID string) bool {
-	for _, item := range items {
-		if item.GetSidebarLink().GetId() == linkID {
-			return true
-		}
-	}
-	return false
 }
 
 func findDirectoryGroup(groups []*apiv1.RoomGroup, groupID string) *apiv1.RoomGroup {

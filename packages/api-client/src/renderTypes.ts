@@ -201,6 +201,7 @@ export type RoomEventPayload =
       channelEchoEventId?: string | null;
       replyCount: number;
       lastReplyAt?: string | null;
+      threadParticipantCount?: number;
       threadParticipants: UserAvatarUserView[];
       viewerIsFollowingThread?: boolean | null;
     }

@@ -18,36 +18,8 @@ Shared message and enum definitions are documented in [Shared Types And Enums](/
 
 ## AdminRoomLayoutService
 
-Reads authenticated channel layout data and mutates the server-admin layout.
-
-<a id="chatto-admin-v1-AdminRoomLayoutService-GetAdminRoomLayout"></a>
-
-### GetAdminRoomLayout
-
-Returns the current room groups, rooms, and sidebar links for the admin
-layout editor and sidebar rendering. Requires an authenticated user.
-
-```http
-POST /api/connect/chatto.admin.v1.AdminRoomLayoutService/GetAdminRoomLayout
-```
-
-<a id="chatto-admin-v1-GetAdminRoomLayoutRequest"></a>
-
-#### Input: GetAdminRoomLayoutRequest
-
-Request to read the admin room layout.
-
-
-<a id="chatto-admin-v1-GetAdminRoomLayoutResponse"></a>
-
-#### Result: GetAdminRoomLayoutResponse
-
-Finite snapshot of the current room layout.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `groups` | repeated [`AdminRoomLayoutGroup`](/reference/connectrpc-api/types/#chatto-admin-v1-AdminRoomLayoutGroup) | Room groups in sidebar order. |
-
+Mutates the server-admin room layout. Read current room-group layout through
+chatto.api.v1.RoomDirectoryService.
 
 <a id="chatto-admin-v1-AdminRoomLayoutService-CreateRoomGroup"></a>
 

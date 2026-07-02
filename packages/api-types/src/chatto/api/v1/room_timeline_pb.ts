@@ -450,11 +450,11 @@ export class RoomTimelineReaction extends Message<RoomTimelineReaction> {
   hasReacted = false;
 
   /**
-   * User IDs that reacted with this emoji.
+   * Preview of up to five user IDs that reacted with this emoji.
    *
-   * @generated from field: repeated string user_ids = 4;
+   * @generated from field: repeated string preview_user_ids = 4;
    */
-  userIds: string[] = [];
+  previewUserIds: string[] = [];
 
   constructor(data?: PartialMessage<RoomTimelineReaction>) {
     super();
@@ -467,7 +467,7 @@ export class RoomTimelineReaction extends Message<RoomTimelineReaction> {
     { no: 1, name: "emoji", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "count", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
     { no: 3, name: "has_reacted", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 4, name: "user_ids", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+    { no: 4, name: "preview_user_ids", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoomTimelineReaction {
@@ -584,11 +584,12 @@ export class RoomTimelineMessagePosted extends Message<RoomTimelineMessagePosted
   lastReplyAt?: Timestamp;
 
   /**
-   * User IDs that have participated in this message's thread.
+   * Preview of up to five user IDs that have participated in this message's
+   * thread.
    *
-   * @generated from field: repeated string thread_participant_user_ids = 14;
+   * @generated from field: repeated string thread_participant_preview_user_ids = 14;
    */
-  threadParticipantUserIds: string[] = [];
+  threadParticipantPreviewUserIds: string[] = [];
 
   /**
    * Whether the current user follows this message's thread, when known.
@@ -603,6 +604,14 @@ export class RoomTimelineMessagePosted extends Message<RoomTimelineMessagePosted
    * @generated from field: repeated chatto.api.v1.RoomTimelineReaction reactions = 17;
    */
   reactions: RoomTimelineReaction[] = [];
+
+  /**
+   * Total number of distinct users that have participated in this message's
+   * thread.
+   *
+   * @generated from field: int32 thread_participant_count = 18;
+   */
+  threadParticipantCount = 0;
 
   constructor(data?: PartialMessage<RoomTimelineMessagePosted>) {
     super();
@@ -624,9 +633,10 @@ export class RoomTimelineMessagePosted extends Message<RoomTimelineMessagePosted
     { no: 11, name: "channel_echo_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 12, name: "reply_count", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
     { no: 13, name: "last_reply_at", kind: "message", T: Timestamp },
-    { no: 14, name: "thread_participant_user_ids", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+    { no: 14, name: "thread_participant_preview_user_ids", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
     { no: 15, name: "viewer_is_following_thread", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
     { no: 17, name: "reactions", kind: "message", T: RoomTimelineReaction, repeated: true },
+    { no: 18, name: "thread_participant_count", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoomTimelineMessagePosted {

@@ -192,6 +192,9 @@ func (s *adminUserManagementService) UpdateUserPassword(ctx context.Context, req
 	if req.Msg.GetPassword() == "" {
 		return nil, invalidArgument("password is required")
 	}
+	if caller.UserID == req.Msg.GetUserId() {
+		return nil, connectError(core.ErrPermissionDenied)
+	}
 	if caller.UserID != req.Msg.GetUserId() {
 		canManage, err := s.api.core.CanManageUserAccounts(ctx, caller.UserID)
 		if err != nil {

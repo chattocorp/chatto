@@ -73,6 +73,19 @@ export type AdminListMembersInput = {
   offset: number;
 };
 
+export type AdminMemberTarget =
+  | {
+      userId: string;
+    }
+  | {
+      login: string;
+    };
+
+export type AdminRoleMutationResult = {
+  changed: boolean;
+  member: AdminMember | null;
+};
+
 export function createAdminUserManagementAPI(
   config: AdminUserManagementAPIConfig,
 ) {
@@ -106,9 +119,11 @@ export function createAdminUserManagementAPI(
       };
     },
 
-    async getMember(userId: string): Promise<AdminMemberDetails> {
+    async getMember(
+      target: string | AdminMemberTarget,
+    ): Promise<AdminMemberDetails> {
       const response = await client.getMember(
-        { target: { case: "userId", value: userId } },
+        { target: adminMemberTarget(target) },
         { headers: headers() },
       );
       return {
@@ -121,20 +136,32 @@ export function createAdminUserManagementAPI(
       };
     },
 
-    async assignRole(userId: string, roleName: string): Promise<boolean> {
+    async assignRole(
+      userId: string,
+      roleName: string,
+    ): Promise<AdminRoleMutationResult> {
       const response = await client.assignRole(
         { userId, roleName },
         { headers: headers() },
       );
-      return response.assigned;
+      return {
+        changed: response.assigned,
+        member: response.member ? adminMember(response.member) : null,
+      };
     },
 
-    async revokeRole(userId: string, roleName: string): Promise<boolean> {
+    async revokeRole(
+      userId: string,
+      roleName: string,
+    ): Promise<AdminRoleMutationResult> {
       const response = await client.revokeRole(
         { userId, roleName },
         { headers: headers() },
       );
-      return response.revoked;
+      return {
+        changed: response.revoked,
+        member: response.member ? adminMember(response.member) : null,
+      };
     },
 
     async updateUser(input: AdminUpdateUserInput): Promise<AdminManagedUser> {
@@ -142,7 +169,10 @@ export function createAdminUserManagementAPI(
       return adminManagedUser(response.user);
     },
 
-    async updateUserPassword(userId: string, password: string): Promise<AdminMember> {
+    async updateUserPassword(
+      userId: string,
+      password: string,
+    ): Promise<AdminMember> {
       const response = await client.updateUserPassword(
         { userId, password },
         { headers: headers() },
@@ -171,6 +201,18 @@ export function createAdminUserManagementAPI(
 export type AdminUserManagementAPI = ReturnType<
   typeof createAdminUserManagementAPI
 >;
+
+function adminMemberTarget(
+  target: string | AdminMemberTarget,
+): { case: "userId"; value: string } | { case: "login"; value: string } {
+  if (typeof target === "string") {
+    return { case: "userId", value: target };
+  }
+  if ("login" in target) {
+    return { case: "login", value: target.login };
+  }
+  return { case: "userId", value: target.userId };
+}
 
 function adminManagedUser(user: APIUser | undefined): AdminManagedUser {
   if (!user) {
@@ -213,7 +255,9 @@ function adminRoleReference(role: APIRole): AdminRoleReference {
 
 function adminMemberRole(role: APIAdminRole): AdminMemberRole {
   if (!role.role) {
-    throw new Error("admin member role response did not include public role metadata");
+    throw new Error(
+      "admin member role response did not include public role metadata",
+    );
   }
   return {
     ...adminRoleReference(role.role),

@@ -7,6 +7,7 @@
 package apiv1
 
 import (
+	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
@@ -283,10 +284,10 @@ var File_chatto_api_v1_user_status_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_user_status_proto_rawDesc = "" +
 	"\n" +
-	"\x1fchatto/api/v1/user_status.proto\x12\rchatto.api.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"w\n" +
-	"\x10CustomUserStatus\x12\x14\n" +
-	"\x05emoji\x18\x01 \x01(\tR\x05emoji\x12\x12\n" +
-	"\x04text\x18\x02 \x01(\tR\x04text\x129\n" +
+	"\x1fchatto/api/v1/user_status.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x8d\x01\n" +
+	"\x10CustomUserStatus\x12\x1f\n" +
+	"\x05emoji\x18\x01 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18\x10R\x05emoji\x12\x1d\n" +
+	"\x04text\x18\x02 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18dR\x04text\x129\n" +
 	"\n" +
 	"expires_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\"\x80\x01\n" +
 	"\x19UpdateCustomStatusRequest\x12\x14\n" +

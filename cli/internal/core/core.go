@@ -571,6 +571,9 @@ func (c *ChattoCore) GetLinkPreview(ctx context.Context, url string) (*corev1.Li
 	if err != nil {
 		// Cache the failure to avoid repeated fetches
 		_ = c.linkPreviewCache.SetFailure(ctx, url, err.Error())
+		if errors.Is(err, linkpreview.ErrUnavailable) {
+			return nil, nil
+		}
 		return nil, err
 	}
 

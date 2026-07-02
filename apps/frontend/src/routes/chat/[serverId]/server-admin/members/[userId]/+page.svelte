@@ -285,18 +285,22 @@
     error = null;
 
     try {
-      const changed = currentlyHas
+      const result = currentlyHas
         ? await adminUsersAPI().revokeRole(member.id, roleName)
         : await adminUsersAPI().assignRole(member.id, roleName);
-      if (changed) {
+      if (result.changed) {
         const displayName = getRoleDisplayName(roleName);
         if (currentlyHas) {
           toast.success(m['admin.members.removed_role']({ role: displayName }));
         } else {
           toast.success(m['admin.members.assigned_role']({ role: displayName }));
         }
-        // Reload to get updated state
-        await loadData();
+        if (result.member) {
+          member = result.member;
+          memberServerRoles = result.member.roles;
+        } else {
+          await loadData();
+        }
       }
     } catch (err) {
       error = err instanceof Error ? err.message : m['admin.members.role_update_failed']();

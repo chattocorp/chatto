@@ -2,14 +2,21 @@ syntax = "proto3";
 
 package chatto.api.v1;
 
+import "buf/validate/validate.proto";
 import "google/protobuf/timestamp.proto";
 
 // Custom status shown on a user profile, separate from presence.
 message CustomUserStatus {
   // Short emoji marker displayed with the status.
-  string emoji = 1;
+  string emoji = 1 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 16
+  }];
   // User-written status text.
-  string text = 2;
+  string text = 2 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 100
+  }];
   // Optional time after which clients should stop showing the status.
   google.protobuf.Timestamp expires_at = 3;
 }

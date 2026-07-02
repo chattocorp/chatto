@@ -29,6 +29,17 @@ export type FollowedThreadsPage = {
   hasMore: boolean;
 };
 
+export type ThreadFollowState = {
+  roomId: string;
+  threadRootEventId: string;
+  following: boolean;
+};
+
+export type ThreadFollowResult = {
+  following: boolean;
+  state: ThreadFollowState | null;
+};
+
 export function createThreadAPI(config: ConnectAPIConfig) {
   const transport = createConnectTransport({
     baseUrl: config.baseUrl,
@@ -91,12 +102,15 @@ export function createThreadAPI(config: ConnectAPIConfig) {
     async followThread(input: {
       roomId: string;
       threadRootEventId: string;
-    }): Promise<boolean> {
+    }): Promise<ThreadFollowResult> {
       try {
         const response = await client.followThread(input, {
           headers: headers(),
         });
-        return response.following;
+        return {
+          following: response.following,
+          state: response.state ? mapThreadFollowState(response.state) : null,
+        };
       } catch (err) {
         return handleAuthError(err);
       }
@@ -105,16 +119,31 @@ export function createThreadAPI(config: ConnectAPIConfig) {
     async unfollowThread(input: {
       roomId: string;
       threadRootEventId: string;
-    }): Promise<boolean> {
+    }): Promise<ThreadFollowResult> {
       try {
         const response = await client.unfollowThread(input, {
           headers: headers(),
         });
-        return response.following;
+        return {
+          following: response.following,
+          state: response.state ? mapThreadFollowState(response.state) : null,
+        };
       } catch (err) {
         return handleAuthError(err);
       }
     },
+  };
+}
+
+function mapThreadFollowState(state: {
+  roomId: string;
+  threadRootEventId: string;
+  following: boolean;
+}): ThreadFollowState {
+  return {
+    roomId: state.roomId,
+    threadRootEventId: state.threadRootEventId,
+    following: state.following,
   };
 }
 

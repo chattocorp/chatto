@@ -570,8 +570,8 @@ Request to update a user's identity as a server-admin action.
 | Field | Type | Description |
 | --- | --- | --- |
 | `user_id` | `string` | Target user ID. |
-| `display_name` | `optional string` | New display name, when changing it. |
-| `login` | `optional string` | New login identifier, when changing it. |
+| `display_name` | `optional string` | New display name, when changing it. Empty clears the explicit display name. The server also rejects control and confusing invisible characters. |
+| `login` | `optional string` | New login identifier, when changing it. The server accepts ASCII letters, digits, period, underscore, and hyphen, starting with a letter or digit. |
 
 
 <a id="chatto-admin-v1-UpdateUserResponse"></a>
@@ -970,36 +970,8 @@ Result of setting one user permission state.
 
 ## AdminRoomLayoutService
 
-Reads authenticated channel layout data and mutates the server-admin layout.
-
-<a id="chatto-admin-v1-AdminRoomLayoutService-GetAdminRoomLayout"></a>
-
-### GetAdminRoomLayout
-
-Returns the current room groups, rooms, and sidebar links for the admin
-layout editor and sidebar rendering. Requires an authenticated user.
-
-```http
-POST /api/connect/chatto.admin.v1.AdminRoomLayoutService/GetAdminRoomLayout
-```
-
-<a id="chatto-admin-v1-GetAdminRoomLayoutRequest"></a>
-
-#### Input: GetAdminRoomLayoutRequest
-
-Request to read the admin room layout.
-
-
-<a id="chatto-admin-v1-GetAdminRoomLayoutResponse"></a>
-
-#### Result: GetAdminRoomLayoutResponse
-
-Finite snapshot of the current room layout.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `groups` | repeated [`AdminRoomLayoutGroup`](#chatto-admin-v1-AdminRoomLayoutGroup) | Room groups in sidebar order. |
-
+Mutates the server-admin room layout. Read current room-group layout through
+chatto.api.v1.RoomDirectoryService.
 
 <a id="chatto-admin-v1-AdminRoomLayoutService-CreateRoomGroup"></a>
 
@@ -2050,14 +2022,13 @@ Permission matrix for one user across all scopes.
 
 ### AdminRoomLayoutGroup
 
-Ordered room group used by authenticated clients and the admin layout editor.
+Ordered room group returned after admin layout mutations.
 
 | Field | Type | Description |
 | --- | --- | --- |
 | `id` | `string` | Stable room group ID. |
 | `name` | `string` | Display name. |
 | `description` | `string` | Public group description, when set. |
-| `rooms` | `repeated chatto.api.v1.Room` | Channel rooms in this group order. |
 | `items` | repeated [`AdminRoomLayoutItem`](#chatto-admin-v1-AdminRoomLayoutItem) | Mixed room/sidebar-link entries in sidebar order. |
 
 

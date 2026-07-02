@@ -35,13 +35,15 @@ func (s *roomDirectoryService) ListRooms(ctx context.Context, req *connect.Reque
 	return connect.NewResponse(&apiv1.ListRoomsResponse{Rooms: apiRooms}), nil
 }
 
-func (s *roomDirectoryService) ListRoomGroups(ctx context.Context, _ *connect.Request[apiv1.ListRoomGroupsRequest]) (*connect.Response[apiv1.ListRoomGroupsResponse], error) {
+func (s *roomDirectoryService) ListRoomGroups(ctx context.Context, req *connect.Request[apiv1.ListRoomGroupsRequest]) (*connect.Response[apiv1.ListRoomGroupsResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	groups, err := s.api.core.RoomDirectoryReads().ListRoomGroups(ctx, caller.UserID)
+	groups, err := s.api.core.RoomDirectoryReads().ListRoomGroups(ctx, caller.UserID, core.RoomDirectoryGroupOptions{
+		IncludeArchivedRooms: req.Msg.GetIncludeArchivedRooms(),
+	})
 	if err != nil {
 		return nil, connectError(err)
 	}
@@ -59,7 +61,9 @@ func (s *roomDirectoryService) GetRoomGroup(ctx context.Context, req *connect.Re
 		return nil, err
 	}
 
-	group, err := s.api.core.RoomDirectoryReads().GetRoomGroup(ctx, caller.UserID, req.Msg.GetGroupId())
+	group, err := s.api.core.RoomDirectoryReads().GetRoomGroup(ctx, caller.UserID, req.Msg.GetGroupId(), core.RoomDirectoryGroupOptions{
+		IncludeArchivedRooms: req.Msg.GetIncludeArchivedRooms(),
+	})
 	if err != nil {
 		return nil, connectError(err)
 	}
@@ -72,7 +76,9 @@ func (s *roomDirectoryService) BatchGetRoomGroups(ctx context.Context, req *conn
 		return nil, err
 	}
 
-	groups, err := s.api.core.RoomDirectoryReads().BatchGetRoomGroups(ctx, caller.UserID, req.Msg.GetGroupIds())
+	groups, err := s.api.core.RoomDirectoryReads().BatchGetRoomGroups(ctx, caller.UserID, req.Msg.GetGroupIds(), core.RoomDirectoryGroupOptions{
+		IncludeArchivedRooms: req.Msg.GetIncludeArchivedRooms(),
+	})
 	if err != nil {
 		return nil, connectError(err)
 	}
@@ -150,9 +156,6 @@ func apiRoomGroup(group *core.DirectoryRoomGroup) *apiv1.RoomGroup {
 		Id:          group.Group.GetId(),
 		Name:        group.Group.GetName(),
 		Description: group.Group.GetDescription(),
-	}
-	for _, room := range group.Rooms {
-		apiGroup.Rooms = append(apiGroup.Rooms, apiDirectoryRoom(room))
 	}
 	for _, item := range group.Items {
 		switch {

@@ -61,17 +61,17 @@ type RoomDirectoryServiceClient interface {
 	// navigation snapshot.
 	ListRooms(context.Context, *connect.Request[v1.ListRoomsRequest]) (*connect.Response[v1.ListRoomsResponse], error)
 	// Lists ordered channel room groups and sidebar items visible to the current
-	// user as a finite navigation snapshot. Archived and hidden room entries are
-	// omitted from group results.
+	// user as a finite navigation snapshot. Hidden room entries are omitted.
+	// Archived room entries are omitted unless include_archived_rooms is true.
 	ListRoomGroups(context.Context, *connect.Request[v1.ListRoomGroupsRequest]) (*connect.Response[v1.ListRoomGroupsResponse], error)
-	// Returns one ordered room group by ID. Hidden and archived room entries are
-	// omitted from the returned group. Returns NOT_FOUND when the room group does
-	// not exist.
+	// Returns one ordered room group by ID. Hidden room entries are omitted.
+	// Archived room entries are omitted unless include_archived_rooms is true.
+	// Returns NOT_FOUND when the room group does not exist.
 	GetRoomGroup(context.Context, *connect.Request[v1.GetRoomGroupRequest]) (*connect.Response[v1.GetRoomGroupResponse], error)
-	// Returns ordered room groups for a set of stable group IDs. Hidden and
-	// archived room entries are omitted from returned groups. Unknown groups are
-	// omitted. Results preserve first-seen request order and repeated IDs are
-	// de-duplicated.
+	// Returns ordered room groups for a set of stable group IDs. Hidden room
+	// entries are omitted. Archived room entries are omitted unless
+	// include_archived_rooms is true. Unknown groups are omitted. Results
+	// preserve first-seen request order and repeated IDs are de-duplicated.
 	BatchGetRoomGroups(context.Context, *connect.Request[v1.BatchGetRoomGroupsRequest]) (*connect.Response[v1.BatchGetRoomGroupsResponse], error)
 	// Returns one visible room by ID. DM rooms require membership. Returns
 	// NOT_FOUND when the room does not exist and PERMISSION_DENIED when the room
@@ -183,17 +183,17 @@ type RoomDirectoryServiceHandler interface {
 	// navigation snapshot.
 	ListRooms(context.Context, *connect.Request[v1.ListRoomsRequest]) (*connect.Response[v1.ListRoomsResponse], error)
 	// Lists ordered channel room groups and sidebar items visible to the current
-	// user as a finite navigation snapshot. Archived and hidden room entries are
-	// omitted from group results.
+	// user as a finite navigation snapshot. Hidden room entries are omitted.
+	// Archived room entries are omitted unless include_archived_rooms is true.
 	ListRoomGroups(context.Context, *connect.Request[v1.ListRoomGroupsRequest]) (*connect.Response[v1.ListRoomGroupsResponse], error)
-	// Returns one ordered room group by ID. Hidden and archived room entries are
-	// omitted from the returned group. Returns NOT_FOUND when the room group does
-	// not exist.
+	// Returns one ordered room group by ID. Hidden room entries are omitted.
+	// Archived room entries are omitted unless include_archived_rooms is true.
+	// Returns NOT_FOUND when the room group does not exist.
 	GetRoomGroup(context.Context, *connect.Request[v1.GetRoomGroupRequest]) (*connect.Response[v1.GetRoomGroupResponse], error)
-	// Returns ordered room groups for a set of stable group IDs. Hidden and
-	// archived room entries are omitted from returned groups. Unknown groups are
-	// omitted. Results preserve first-seen request order and repeated IDs are
-	// de-duplicated.
+	// Returns ordered room groups for a set of stable group IDs. Hidden room
+	// entries are omitted. Archived room entries are omitted unless
+	// include_archived_rooms is true. Unknown groups are omitted. Results
+	// preserve first-seen request order and repeated IDs are de-duplicated.
 	BatchGetRoomGroups(context.Context, *connect.Request[v1.BatchGetRoomGroupsRequest]) (*connect.Response[v1.BatchGetRoomGroupsResponse], error)
 	// Returns one visible room by ID. DM rooms require membership. Returns
 	// NOT_FOUND when the room does not exist and PERMISSION_DENIED when the room

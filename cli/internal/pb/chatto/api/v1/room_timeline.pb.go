@@ -505,10 +505,10 @@ type RoomTimelineReaction struct {
 	Count int32 `protobuf:"varint,2,opt,name=count,proto3" json:"count,omitempty"`
 	// True when the current user reacted with this emoji.
 	HasReacted bool `protobuf:"varint,3,opt,name=has_reacted,json=hasReacted,proto3" json:"has_reacted,omitempty"`
-	// User IDs that reacted with this emoji.
-	UserIds       []string `protobuf:"bytes,4,rep,name=user_ids,json=userIds,proto3" json:"user_ids,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	// Preview of up to five user IDs that reacted with this emoji.
+	PreviewUserIds []string `protobuf:"bytes,4,rep,name=preview_user_ids,json=previewUserIds,proto3" json:"preview_user_ids,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *RoomTimelineReaction) Reset() {
@@ -562,9 +562,9 @@ func (x *RoomTimelineReaction) GetHasReacted() bool {
 	return false
 }
 
-func (x *RoomTimelineReaction) GetUserIds() []string {
+func (x *RoomTimelineReaction) GetPreviewUserIds() []string {
 	if x != nil {
-		return x.UserIds
+		return x.PreviewUserIds
 	}
 	return nil
 }
@@ -602,14 +602,18 @@ type RoomTimelineMessagePosted struct {
 	ReplyCount int32 `protobuf:"varint,12,opt,name=reply_count,json=replyCount,proto3" json:"reply_count,omitempty"`
 	// Creation time of the most recent reply in this message's thread.
 	LastReplyAt *timestamppb.Timestamp `protobuf:"bytes,13,opt,name=last_reply_at,json=lastReplyAt,proto3" json:"last_reply_at,omitempty"`
-	// User IDs that have participated in this message's thread.
-	ThreadParticipantUserIds []string `protobuf:"bytes,14,rep,name=thread_participant_user_ids,json=threadParticipantUserIds,proto3" json:"thread_participant_user_ids,omitempty"`
+	// Preview of up to five user IDs that have participated in this message's
+	// thread.
+	ThreadParticipantPreviewUserIds []string `protobuf:"bytes,14,rep,name=thread_participant_preview_user_ids,json=threadParticipantPreviewUserIds,proto3" json:"thread_participant_preview_user_ids,omitempty"`
 	// Whether the current user follows this message's thread, when known.
 	ViewerIsFollowingThread *bool `protobuf:"varint,15,opt,name=viewer_is_following_thread,json=viewerIsFollowingThread,proto3,oneof" json:"viewer_is_following_thread,omitempty"`
 	// Reaction summaries for this message.
-	Reactions     []*RoomTimelineReaction `protobuf:"bytes,17,rep,name=reactions,proto3" json:"reactions,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Reactions []*RoomTimelineReaction `protobuf:"bytes,17,rep,name=reactions,proto3" json:"reactions,omitempty"`
+	// Total number of distinct users that have participated in this message's
+	// thread.
+	ThreadParticipantCount int32 `protobuf:"varint,18,opt,name=thread_participant_count,json=threadParticipantCount,proto3" json:"thread_participant_count,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
 }
 
 func (x *RoomTimelineMessagePosted) Reset() {
@@ -726,9 +730,9 @@ func (x *RoomTimelineMessagePosted) GetLastReplyAt() *timestamppb.Timestamp {
 	return nil
 }
 
-func (x *RoomTimelineMessagePosted) GetThreadParticipantUserIds() []string {
+func (x *RoomTimelineMessagePosted) GetThreadParticipantPreviewUserIds() []string {
 	if x != nil {
-		return x.ThreadParticipantUserIds
+		return x.ThreadParticipantPreviewUserIds
 	}
 	return nil
 }
@@ -745,6 +749,13 @@ func (x *RoomTimelineMessagePosted) GetReactions() []*RoomTimelineReaction {
 		return x.Reactions
 	}
 	return nil
+}
+
+func (x *RoomTimelineMessagePosted) GetThreadParticipantCount() int32 {
+	if x != nil {
+		return x.ThreadParticipantCount
+	}
+	return 0
 }
 
 // Payload for room lifecycle and membership timeline events.
@@ -1845,13 +1856,13 @@ const file_chatto_api_v1_room_timeline_proto_rawDesc = "" +
 	"\x06height\x18\x05 \x01(\x05R\x06height\x12@\n" +
 	"\tasset_url\x18\x06 \x01(\v2#.chatto.api.v1.RoomTimelineAssetUrlR\bassetUrl\x12S\n" +
 	"\x13thumbnail_asset_url\x18\a \x01(\v2#.chatto.api.v1.RoomTimelineAssetUrlR\x11thumbnailAssetUrl\x12U\n" +
-	"\x10video_processing\x18\b \x01(\v2*.chatto.api.v1.RoomTimelineVideoProcessingR\x0fvideoProcessing\"~\n" +
+	"\x10video_processing\x18\b \x01(\v2*.chatto.api.v1.RoomTimelineVideoProcessingR\x0fvideoProcessing\"\x8d\x01\n" +
 	"\x14RoomTimelineReaction\x12\x14\n" +
 	"\x05emoji\x18\x01 \x01(\tR\x05emoji\x12\x14\n" +
 	"\x05count\x18\x02 \x01(\x05R\x05count\x12\x1f\n" +
 	"\vhas_reacted\x18\x03 \x01(\bR\n" +
-	"hasReacted\x12\x19\n" +
-	"\buser_ids\x18\x04 \x03(\tR\auserIds\"\x8b\a\n" +
+	"hasReacted\x12(\n" +
+	"\x10preview_user_ids\x18\x04 \x03(\tR\x0epreviewUserIds\"\xd4\a\n" +
 	"\x19RoomTimelineMessagePosted\x12\x17\n" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x17\n" +
 	"\x04body\x18\x02 \x01(\tH\x00R\x04body\x88\x01\x01\x12G\n" +
@@ -1867,10 +1878,11 @@ const file_chatto_api_v1_room_timeline_proto_rawDesc = "" +
 	"\x15channel_echo_event_id\x18\v \x01(\tR\x12channelEchoEventId\x12\x1f\n" +
 	"\vreply_count\x18\f \x01(\x05R\n" +
 	"replyCount\x12>\n" +
-	"\rlast_reply_at\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\vlastReplyAt\x12=\n" +
-	"\x1bthread_participant_user_ids\x18\x0e \x03(\tR\x18threadParticipantUserIds\x12@\n" +
+	"\rlast_reply_at\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\vlastReplyAt\x12L\n" +
+	"#thread_participant_preview_user_ids\x18\x0e \x03(\tR\x1fthreadParticipantPreviewUserIds\x12@\n" +
 	"\x1aviewer_is_following_thread\x18\x0f \x01(\bH\x01R\x17viewerIsFollowingThread\x88\x01\x01\x12A\n" +
-	"\treactions\x18\x11 \x03(\v2#.chatto.api.v1.RoomTimelineReactionR\treactionsB\a\n" +
+	"\treactions\x18\x11 \x03(\v2#.chatto.api.v1.RoomTimelineReactionR\treactions\x128\n" +
+	"\x18thread_participant_count\x18\x12 \x01(\x05R\x16threadParticipantCountB\a\n" +
 	"\x05_bodyB\x1d\n" +
 	"\x1b_viewer_is_following_threadJ\x04\b\x03\x10\x04J\x04\b\x10\x10\x11R\fbody_presentR\"viewer_is_following_thread_present\"0\n" +
 	"\x15RoomTimelineRoomEvent\x12\x17\n" +
