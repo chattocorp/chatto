@@ -14,6 +14,7 @@ const backendTarget =
   process.env.CHATTO_BACKEND_URL ||
   `http://localhost:${process.env.CHATTO_WEBSERVER_PORT || '4000'}`;
 const tiptapDeps = ['@tiptap/pm/state'];
+const browserTestDeps = [...tiptapDeps, 'svelte-dnd-action'];
 const highlightLanguageMetadataModule = 'virtual:chatto-highlight-language-metadata';
 const resolvedHighlightLanguageMetadataModule = `\0${highlightLanguageMetadataModule}`;
 
@@ -164,7 +165,7 @@ export default defineConfig({
     ]
   },
   optimizeDeps: {
-    include: [...tiptapDeps]
+    include: [...browserTestDeps]
   },
   server: {
     // Proxy some URL routes to the Go backend process in development.
@@ -223,7 +224,7 @@ export default defineConfig({
           deps: {
             optimizer: {
               web: {
-                include: [...tiptapDeps]
+                include: [...browserTestDeps]
               }
             }
           }

@@ -73,7 +73,6 @@
   } = $props();
 
   const server = useActiveServerScope();
-  const stores = $derived(server.store);
   const notificationStore = $derived(server.notifications);
   const serverInfo = $derived(server.serverInfo);
   const activeCallRooms = $derived(server.activeCallRooms);
