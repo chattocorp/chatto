@@ -8,7 +8,7 @@
 
   let {
     size = 'md',
-    showPresence = false,
+    showPresence = true,
     showStatus = false
   }: {
     size?: Size;

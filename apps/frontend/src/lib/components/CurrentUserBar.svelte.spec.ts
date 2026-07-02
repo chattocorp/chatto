@@ -153,11 +153,13 @@ describe('CurrentUserBar', () => {
 
     expect(q(container, '[aria-label="Presence: Online"]')).toBeTruthy();
     expect(q(container, '[aria-label="Offline"]')).toBeFalsy();
+    const avatar = q(container, '[data-testid="current-user-presence-menu"] [aria-label="alice"]')!;
+    expect(avatar.className).toContain('ring-green-500');
     expect(container.textContent).toContain('Alice');
     expect(container.textContent).toContain('@alice');
   });
 
-  it('opens the combined presence menu with a custom status action from the avatar status dot', async () => {
+  it('opens the combined presence menu with a custom status action from the avatar', async () => {
     const { container } = render(CurrentUserBarTestHarness);
 
     (q(container, '[data-testid="current-user-presence-menu"]') as HTMLButtonElement).click();
@@ -267,6 +269,19 @@ describe('CurrentUserBar', () => {
       expect(rect.top).toBeGreaterThanOrEqual(cardRect.top);
       expect(rect.bottom).toBeLessThanOrEqual(cardRect.bottom);
     }
+
+    const presenceButton = q(card, '[data-testid="current-user-presence-menu"]')!;
+    const identityText = q(card, '[data-testid="current-user-identity-text"]')!;
+    const settingsLink = q(card, 'a[href$="/settings"]')!;
+    const presenceRect = presenceButton.getBoundingClientRect();
+    const textRect = identityText.getBoundingClientRect();
+    const settingsRect = settingsLink.getBoundingClientRect();
+
+    expect(presenceRect.left).toBeGreaterThanOrEqual(cardRect.left);
+    expect(textRect.left).toBeGreaterThan(presenceRect.right);
+    expect(settingsRect.left).toBeGreaterThan(textRect.right);
+    expect(settingsRect.right).toBeLessThanOrEqual(cardRect.right);
+    expect(textRect.left - presenceRect.right).toBeLessThanOrEqual(12);
 
     const settingsIcon = q(card, 'a[href$="/settings"] .iconify')!;
     const settingsIconRect = settingsIcon.getBoundingClientRect();

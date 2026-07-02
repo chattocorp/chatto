@@ -4,11 +4,14 @@ import { q } from '$lib/test-utils';
 import UserAvatarTestHarness from './UserAvatarTestHarness.svelte';
 
 describe('UserAvatar', () => {
-  it('hides presence and custom status badges by default', () => {
+  it('shows a presence ring by default on medium avatars', () => {
     const { container } = render(UserAvatarTestHarness, { size: 'md' });
+    const avatar = q(container, '[aria-label="alice"]')!;
 
+    expect(avatar.className).toContain('ring-1');
+    expect(avatar.className).toContain('ring-green-500');
+    expect(q(container, '[aria-label="Online"]')).toBeTruthy();
     expect(q(container, '[aria-label="🍜 Out for lunch"]')).toBeFalsy();
-    expect(q(container, '[aria-label="Online"]')).toBeFalsy();
   });
 
   it('shows custom status badges when requested', () => {
@@ -17,9 +20,21 @@ describe('UserAvatar', () => {
     expect(q(container, '[aria-label="🍜 Out for lunch"]')).toBeTruthy();
   });
 
-  it('shows presence badges when requested', () => {
+  it('does not show presence rings on small avatars', () => {
     const { container } = render(UserAvatarTestHarness, { size: 'sm', showPresence: true });
+    const avatar = q(container, '[aria-label="alice"]')!;
 
-    expect(q(container, '[aria-label="Online"]')).toBeTruthy();
+    expect(avatar.className).not.toContain('ring-1');
+    expect(avatar.className).not.toContain('ring-green-500');
+    expect(q(container, '[aria-label="Online"]')).toBeFalsy();
+  });
+
+  it('allows presence rings to be disabled', () => {
+    const { container } = render(UserAvatarTestHarness, { size: 'md', showPresence: false });
+    const avatar = q(container, '[aria-label="alice"]')!;
+
+    expect(avatar.className).not.toContain('ring-1');
+    expect(avatar.className).not.toContain('ring-green-500');
+    expect(q(container, '[aria-label="Online"]')).toBeFalsy();
   });
 });
