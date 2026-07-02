@@ -234,9 +234,9 @@ Room sidebar panel for voice/video calls.
   const activeControlButtonClass = 'btn-success btn-sm h-9 w-full !px-0';
   const dangerControlButtonClass = 'btn-danger btn-sm h-9 w-full !px-0';
   const callTileCardClass =
-    'participant-card group/media relative flex w-full flex-col overflow-hidden rounded-md border border-border bg-surface-100 text-left text-text transition-colors hover:bg-surface-200';
-  const callTileHeaderClass = 'flex min-w-0 items-center gap-2 p-2';
-  const callTileMediaBodyClass = 'p-2';
+    'participant-card group/media relative flex w-full flex-col gap-2 overflow-hidden rounded-md border border-border bg-surface-100 p-2 text-left text-text transition-colors hover:bg-surface-200';
+  const callTileHeaderClass = 'flex min-w-0 items-center gap-2';
+  const callTileMediaBodyClass = '';
 
   function hasVideo(participant: DisplayParticipant) {
     return participant.isCameraEnabled && participant.videoTrack;
@@ -427,7 +427,7 @@ Room sidebar panel for voice/video calls.
     >
       <button
         type="button"
-        class="flex w-full flex-1 cursor-pointer flex-col overflow-hidden text-left text-text"
+        class="flex w-full flex-1 cursor-pointer flex-col gap-2 overflow-hidden text-left text-text"
         onclick={(e) => showUserMenu(participant, e)}
       >
         <div class={[callTileHeaderClass, showVoiceActions && 'pr-12']}>
@@ -495,7 +495,7 @@ Room sidebar panel for voice/video calls.
     >
       <button
         type="button"
-        class="flex w-full flex-1 cursor-pointer flex-col overflow-hidden text-left text-text"
+        class="flex w-full flex-1 cursor-pointer flex-col gap-2 overflow-hidden text-left text-text"
         onclick={(e) => showUserMenu(participant, e)}
       >
         <div class={[callTileHeaderClass, showVoiceActions && 'pr-12']}>
@@ -532,7 +532,7 @@ Room sidebar panel for voice/video calls.
   >
     <button
       type="button"
-      class="flex w-full flex-1 cursor-pointer flex-col overflow-hidden text-left text-text"
+      class="flex w-full flex-1 cursor-pointer flex-col gap-2 overflow-hidden text-left text-text"
       onclick={(e) => showUserMenu(participant, e)}
     >
       <div class={callTileHeaderClass}>
@@ -569,7 +569,7 @@ Room sidebar panel for voice/video calls.
   >
     <button
       type="button"
-      class="flex h-full min-h-0 w-full cursor-pointer flex-col overflow-hidden text-left text-text"
+      class="flex h-full min-h-0 w-full cursor-pointer flex-col gap-2 overflow-hidden text-left text-text"
       onclick={(e) => showUserMenu(participant, e)}
     >
       <div
