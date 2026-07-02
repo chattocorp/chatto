@@ -16,7 +16,7 @@ to the user settings page for the active server.
   import { getLiveDisplayName, type CustomUserStatus } from '$lib/state/userProfiles.svelte';
   import { setPresenceMode } from '$lib/presenceTracking';
   import { presencePreference, type PresenceMode } from '$lib/state/presencePreference.svelte';
-  import { PresenceStatus, RoomType } from '$lib/render/types';
+  import { RoomType } from '$lib/render/types';
   import {
     roomSidebarPanelStorageSuffix,
     setPendingRoomSidebarPanel,
@@ -49,7 +49,6 @@ to the user settings page for the active server.
   );
 
   const login = $derived(activeServerUser?.login ?? '');
-  const showLogin = $derived(!!login && login !== displayName);
   const activeCallRoomId = $derived(
     voiceCallState?.connected && voiceCallState.roomId ? voiceCallState.roomId : null
   );
@@ -77,15 +76,6 @@ to the user settings page for the active server.
   const isTouch = isTouchDevice();
   const presenceModes: PresenceMode[] = ['auto', 'away', 'doNotDisturb', 'invisible'];
   const presenceLabel = $derived.by(() => presenceModeLabel(presencePreference.mode));
-  const presenceDotClass = $derived(
-    presencePreference.effectiveStatus === PresenceStatus.Online
-      ? 'bg-green-500'
-      : presencePreference.effectiveStatus === PresenceStatus.Away
-        ? 'bg-yellow-500'
-        : presencePreference.effectiveStatus === PresenceStatus.DoNotDisturb
-          ? 'bg-red-500'
-          : 'bg-gray-400'
-  );
   let statusMenuAnchor = $state<{ top: number; bottom: number; left: number } | null>(null);
   let customStatusDialogVisible = $state(false);
 
@@ -119,7 +109,7 @@ to the user settings page for the active server.
   function presenceModeDotClass(mode: PresenceMode): string {
     switch (mode) {
       case 'away':
-        return 'bg-yellow-500';
+        return 'bg-orange-500';
       case 'doNotDisturb':
         return 'bg-red-500';
       case 'invisible':
@@ -284,33 +274,33 @@ to the user settings page for the active server.
     {/if}
 
     <div
-      class="flex h-12 max-h-12 min-h-12 items-center gap-3 overflow-hidden rounded-xl bg-surface pr-3 pl-1"
+      class="flex h-12 max-h-12 min-h-12 items-center gap-2 overflow-hidden rounded-xl bg-surface px-2"
       data-testid="current-user-identity-card"
     >
       <button
         type="button"
         title={m['settings.profile.presence.button']({ status: presenceLabel })}
         aria-label={m['settings.profile.presence.button']({ status: presenceLabel })}
-        class="relative shrink-0 cursor-pointer rounded-full"
+        class="flex h-10 shrink-0 cursor-pointer items-center rounded-full"
         data-testid="current-user-presence-menu"
         onclick={openStatusMenu}
       >
-        <UserAvatar user={activeServerUser} size="md" />
-        <span
-          class="absolute right-0 bottom-0 grid h-4 w-4 translate-x-1/4 translate-y-1/4 place-items-center rounded-full border-2 border-surface bg-surface"
-          aria-hidden="true"
-        >
-          <span class={['h-2.5 w-2.5 rounded-full', presenceDotClass]}></span>
-        </span>
+        <UserAvatar
+          user={activeServerUser}
+          size="sm"
+          showPresence
+          presenceOverride={presencePreference.effectiveStatus}
+        />
       </button>
-      <div class="flex min-w-0 flex-1 flex-col overflow-hidden leading-tight">
+      <div
+        class="flex min-w-0 flex-1 flex-col overflow-hidden leading-tight"
+        data-testid="current-user-identity-text"
+      >
         <span class="flex min-w-0 items-center gap-1.5 overflow-hidden text-sm font-semibold">
           <span class="min-w-0 truncate">{displayName}</span>
           <UserCustomStatusBadge status={activeServerUser.customStatus} class="text-xs" />
         </span>
-        {#if showLogin}
-          <span class="truncate text-xs text-muted">@{login}</span>
-        {/if}
+        <span class="truncate text-xs text-muted">@{login}</span>
       </div>
       <a
         href={resolve('/chat/[serverId]/settings', { serverId: serverSegment })}

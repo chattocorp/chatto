@@ -684,7 +684,7 @@
             <UserAvatar
               user={actor}
               size="md"
-              class="!h-11 !w-11 shadow-md ring-1 ring-surface-200/30"
+              class="!h-11 !w-11 shadow-md"
             />
           </button>
         {:else}

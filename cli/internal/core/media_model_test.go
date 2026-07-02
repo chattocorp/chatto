@@ -145,6 +145,39 @@ func TestMediaModelUploadDerivativeAttachmentProjectsParentage(t *testing.T) {
 	}
 }
 
+func TestMediaModelUploadDerivativeAttachmentWithDimensionsProjectsAssetDimensions(t *testing.T) {
+	core, _ := setupTestCore(t)
+	service := core.mediaModel
+	ctx := testContext(t)
+
+	room, err := core.CreateRoom(ctx, SystemActorID, KindChannel, "", "media-derivative-dimensions", "Media derivative dimensions")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	derivative, err := service.UploadDerivativeAttachmentWithDimensions(
+		ctx,
+		"A-parent",
+		corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_VIDEO_VARIANT,
+		room.Id,
+		"clip-720p.mp4",
+		"video/mp4",
+		bytes.NewReader([]byte("video bytes")),
+		1280,
+		720,
+	)
+	if err != nil {
+		t.Fatalf("UploadDerivativeAttachmentWithDimensions returned error: %v", err)
+	}
+
+	declared, ok := core.Assets.AssetCreation(derivative.GetId())
+	if !ok {
+		t.Fatal("derivative asset creation was not projected")
+	}
+	if declared.GetAsset().GetWidth() != 1280 || declared.GetAsset().GetHeight() != 720 {
+		t.Fatalf("projected dimensions = %dx%d, want 1280x720", declared.GetAsset().GetWidth(), declared.GetAsset().GetHeight())
+	}
+}
+
 func TestMediaModelCacheOperations(t *testing.T) {
 	core, _ := setupTestCoreWithCache(t)
 	service := core.mediaModel

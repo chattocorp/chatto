@@ -153,11 +153,30 @@ describe('CurrentUserBar', () => {
 
     expect(q(container, '[aria-label="Presence: Online"]')).toBeTruthy();
     expect(q(container, '[aria-label="Offline"]')).toBeFalsy();
+    const presenceDot = q(
+      container,
+      '[data-testid="current-user-presence-menu"] [aria-label="Online"] span'
+    )!;
+    expect(presenceDot.className).toContain('bg-green-500');
     expect(container.textContent).toContain('Alice');
     expect(container.textContent).toContain('@alice');
   });
 
-  it('opens the combined presence menu with a custom status action from the avatar status dot', async () => {
+  it('keeps the username line when display name and username match', () => {
+    currentUserState.user = {
+      ...currentUserState.user!,
+      displayName: 'alice',
+      login: 'alice'
+    };
+
+    const { container } = render(CurrentUserBarTestHarness);
+
+    const card = q(container, '[data-testid="current-user-identity-card"]')!;
+    expect(card.textContent).toContain('alice');
+    expect(card.textContent).toContain('@alice');
+  });
+
+  it('opens the combined presence menu with a custom status action from the avatar', async () => {
     const { container } = render(CurrentUserBarTestHarness);
 
     (q(container, '[data-testid="current-user-presence-menu"]') as HTMLButtonElement).click();
@@ -267,6 +286,24 @@ describe('CurrentUserBar', () => {
       expect(rect.top).toBeGreaterThanOrEqual(cardRect.top);
       expect(rect.bottom).toBeLessThanOrEqual(cardRect.bottom);
     }
+
+    const presenceButton = q(card, '[data-testid="current-user-presence-menu"]')!;
+    const avatar = q(presenceButton, '[aria-label]')!;
+    const identityText = q(card, '[data-testid="current-user-identity-text"]')!;
+    const settingsLink = q(card, 'a[href$="/settings"]')!;
+    const presenceRect = presenceButton.getBoundingClientRect();
+    const avatarRect = avatar.getBoundingClientRect();
+    const textRect = identityText.getBoundingClientRect();
+    const settingsRect = settingsLink.getBoundingClientRect();
+
+    expect(presenceRect.left).toBeGreaterThanOrEqual(cardRect.left);
+    expect(avatarRect.height).toBeLessThan(cardRect.height);
+    expect(avatarRect.top - cardRect.top).toBeGreaterThanOrEqual(6);
+    expect(cardRect.bottom - avatarRect.bottom).toBeGreaterThanOrEqual(6);
+    expect(textRect.left).toBeGreaterThan(presenceRect.right);
+    expect(settingsRect.left).toBeGreaterThan(textRect.right);
+    expect(settingsRect.right).toBeLessThanOrEqual(cardRect.right);
+    expect(textRect.left - presenceRect.right).toBeLessThanOrEqual(12);
 
     const settingsIcon = q(card, 'a[href$="/settings"] .iconify')!;
     const settingsIconRect = settingsIcon.getBoundingClientRect();

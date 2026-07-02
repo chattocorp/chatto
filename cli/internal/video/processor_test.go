@@ -73,62 +73,124 @@ func TestSelectVariantHeights(t *testing.T) {
 	}
 }
 
-func TestVariantWidthCalculation(t *testing.T) {
-	// Verifies that the width calculation rounds up to the nearest even number,
-	// matching ffmpeg's scale=-2:HEIGHT behavior.
+func TestVideoDisplayDimensions(t *testing.T) {
 	tests := []struct {
-		name         string
-		sourceWidth  int32
-		sourceHeight int32
-		targetHeight int
-		wantWidth    int32
+		name       string
+		stream     ffprobeStream
+		wantWidth  int32
+		wantHeight int32
 	}{
 		{
-			name:         "1920x1080 to 480p: should be 854 (even), not 853",
-			sourceWidth:  1920,
-			sourceHeight: 1080,
-			targetHeight: 480,
-			wantWidth:    854, // 1920*480/1080 = 853.33 → rounded up to even: 854
+			name: "plain 16:9 stays unchanged",
+			stream: ffprobeStream{
+				Width:  1920,
+				Height: 1080,
+			},
+			wantWidth:  1920,
+			wantHeight: 1080,
 		},
 		{
-			name:         "1280x720 to 480p: should be 854 (even)",
-			sourceWidth:  1280,
-			sourceHeight: 720,
-			targetHeight: 480,
-			wantWidth:    854, // 1280*480/720 = 853.33 → rounded up to even: 854
+			name: "display aspect ratio expands anamorphic storage pixels",
+			stream: ffprobeStream{
+				Width:              1440,
+				Height:             1080,
+				DisplayAspectRatio: "16:9",
+			},
+			wantWidth:  1920,
+			wantHeight: 1080,
 		},
 		{
-			name:         "1920x1080 to 720p: stays 1280 (already even)",
-			sourceWidth:  1920,
-			sourceHeight: 1080,
-			targetHeight: 720,
-			wantWidth:    1280, // 1920*720/1080 = 1280 exactly
+			name: "sample aspect ratio expands anamorphic storage pixels",
+			stream: ffprobeStream{
+				Width:             1440,
+				Height:            1080,
+				SampleAspectRatio: "4:3",
+			},
+			wantWidth:  1920,
+			wantHeight: 1080,
 		},
 		{
-			name:         "odd calculated width rounds up to even",
-			sourceWidth:  853,
-			sourceHeight: 480,
-			targetHeight: 480,
-			wantWidth:    854, // 853*480/480 = 853 (odd) → 854
+			name: "quarter-turn rotation swaps display dimensions",
+			stream: ffprobeStream{
+				Width:  1920,
+				Height: 1080,
+				Tags:   map[string]string{"rotate": "90"},
+			},
+			wantWidth:  1080,
+			wantHeight: 1920,
 		},
 		{
-			name:         "even calculated width stays as-is",
-			sourceWidth:  1280,
-			sourceHeight: 720,
-			targetHeight: 720,
-			wantWidth:    1280, // exact match
+			name: "invalid aspect ratio falls back to storage dimensions",
+			stream: ffprobeStream{
+				Width:              1280,
+				Height:             720,
+				DisplayAspectRatio: "0:0",
+				SampleAspectRatio:  "not-a-ratio",
+			},
+			wantWidth:  1280,
+			wantHeight: 720,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			w := tt.sourceWidth * int32(tt.targetHeight) / tt.sourceHeight
-			if w%2 != 0 {
-				w++
+			gotWidth, gotHeight := videoDisplayDimensions(tt.stream)
+			if gotWidth != tt.wantWidth || gotHeight != tt.wantHeight {
+				t.Fatalf("videoDisplayDimensions() = %dx%d, want %dx%d", gotWidth, gotHeight, tt.wantWidth, tt.wantHeight)
 			}
-			if w != tt.wantWidth {
-				t.Errorf("width calculation for %dx%d→%dp = %d, want %d",
-					tt.sourceWidth, tt.sourceHeight, tt.targetHeight, w, tt.wantWidth)
+		})
+	}
+}
+
+func TestThumbnailDimensions(t *testing.T) {
+	tests := []struct {
+		name       string
+		width      int32
+		height     int32
+		wantWidth  int32
+		wantHeight int32
+		wantOK     bool
+	}{
+		{
+			name:       "16:9 display dimensions scale to square-pixel thumbnail",
+			width:      1920,
+			height:     1080,
+			wantWidth:  640,
+			wantHeight: 360,
+			wantOK:     true,
+		},
+		{
+			name:       "4:3 display dimensions stay 4:3",
+			width:      1024,
+			height:     768,
+			wantWidth:  640,
+			wantHeight: 480,
+			wantOK:     true,
+		},
+		{
+			name:       "small display dimensions are not upscaled",
+			width:      320,
+			height:     180,
+			wantWidth:  320,
+			wantHeight: 180,
+			wantOK:     true,
+		},
+		{
+			name:   "invalid display dimensions fall back to legacy filter",
+			width:  0,
+			height: 1080,
+			wantOK: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotWidth, gotHeight, gotOK := thumbnailDimensions(tt.width, tt.height)
+			if gotOK != tt.wantOK {
+				t.Fatalf("thumbnailDimensions() ok = %v, want %v", gotOK, tt.wantOK)
+			}
+			if gotOK && (gotWidth != tt.wantWidth || gotHeight != tt.wantHeight) {
+				t.Fatalf("thumbnailDimensions() = %dx%d, want %dx%d", gotWidth, gotHeight, tt.wantWidth, tt.wantHeight)
 			}
 		})
 	}

@@ -1325,7 +1325,7 @@ test.describe('Message Threading', () => {
     const authorButton = attribution.getByTestId('reply-attribution-author');
     await expect(authorButton).toBeVisible();
     // Avatar is either an <img> (custom avatar) or a <div> with initials
-    await expect(authorButton.locator('img, div.rounded-full')).toBeVisible();
+    await expect(authorButton.locator('img, div[aria-label]').first()).toBeVisible();
   });
 
   test('clicking reply attribution author opens user context menu', async ({ page, chatPage }) => {

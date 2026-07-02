@@ -139,10 +139,10 @@ export class RoomPage {
   }
 
   /**
-   * Get the inner colored presence dot for a member avatar.
+   * Get the presence-colored dot for a member avatar.
    */
   getMemberPresenceDot(name: string): Locator {
-    return this.getMember(name).locator('span[aria-label] > span.rounded-full');
+    return this.getMember(name).getByTestId('presence-dot');
   }
 
   /**
