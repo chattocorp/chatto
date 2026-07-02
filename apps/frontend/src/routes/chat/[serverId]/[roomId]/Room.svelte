@@ -39,7 +39,7 @@
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import { isMessagePostedEvent, RoomEventKind, roomEventKind } from '$lib/render/eventKinds';
-  import { onDestroy, tick } from 'svelte';
+  import { onDestroy, tick, untrack } from 'svelte';
   import { fly } from 'svelte/transition';
   import RoomEventsPane from './RoomEventsPane.svelte';
   import RoomSidebar from './RoomSidebar.svelte';
@@ -177,7 +177,9 @@
   const unread = useRoomUnread(() => ({ roomId }));
 
   $effect(() => {
-    roomStores.sync(server.connection, roomId);
+    const connection = server.connection;
+    const currentRoomId = roomId;
+    untrack(() => roomStores.sync(connection, currentRoomId));
   });
 
   $effect(() => {
@@ -474,6 +476,10 @@
   let isDraggingFiles = $state(false);
   let composerApi = $state<MessageComposerApi | null>(null);
 
+  function handleComposerReady(api: MessageComposerApi): void {
+    composerApi = api;
+  }
+
   // Drop zone attachment - only active when user can post and attach files.
   const roomDropZone = $derived(
     room.roomData?.canPostMessage && room.roomData?.canAttach
@@ -616,7 +622,7 @@
           replyExcerpt={replyState.excerpt || undefined}
           onCancelReply={() => replyState.cancelReply()}
           autoFocus={!threadId && !mobileRoomSidebarPanel}
-          onReady={(api) => (composerApi = api)}
+          onReady={handleComposerReady}
           onTyping={() => typingIndicator?.sendTypingIndicator()}
           onMessageSent={(event) => {
             typingIndicator?.resetDebounce();

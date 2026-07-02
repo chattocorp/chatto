@@ -144,6 +144,7 @@ export function useRoomUnread(getProps: () => { roomId: string }) {
     // refocus of the *same* room, reveal any deferred away anchor and leave
     // the mutation result ignored below so the marker stays stable.
     if (isRoomChange) {
+      lastCursor = null;
       pendingAwayAfterTime = null;
       pendingAwayHasEvents = false;
       unreadAfterTime = null;

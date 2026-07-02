@@ -26,6 +26,7 @@ export class RoomStores {
 		this.messages.setConnection(connection);
 		this.files.setConnection(connection);
 		this.members.setConnection(connection);
+		this.messages.setRoom(roomId);
 		this.files.setRoom(roomId);
 		this.members.setRoom(roomId);
 	}

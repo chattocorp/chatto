@@ -126,10 +126,13 @@ export class RoomFilesStore {
   async loadMore(): Promise<void> {
     if (this.isLoadingMore || !this.hasMore || !this.roomId || this.isUnsupported) return;
     this.isLoadingMore = true;
+    const loadId = this.#loadId + 1;
     try {
       await this.loadPage(this.items.length, false);
     } finally {
-      this.isLoadingMore = false;
+      if (this.#loadId === loadId) {
+        this.isLoadingMore = false;
+      }
     }
   }
 

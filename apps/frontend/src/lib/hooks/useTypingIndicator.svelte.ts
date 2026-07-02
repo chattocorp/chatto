@@ -1,3 +1,4 @@
+import { untrack } from 'svelte';
 import { SvelteMap } from 'svelte/reactivity';
 import { onTypingEvent, type TypingEventData } from '$lib/eventBus.svelte';
 import { useActiveServerScope } from '$lib/state/server/activeServerScope.svelte';
@@ -89,9 +90,12 @@ export function createTypingIndicator(getConfig: () => TypingIndicatorConfig) {
   // changes now that Room.svelte no longer remounts on server switches.
   $effect(() => {
     void server.id;
-    typingUsers.clear();
-    state.version++;
-    return onTypingEvent(handleTypingEvent);
+    return untrack(() => {
+      typingUsers.clear();
+      lastSentAt = 0;
+      state.version++;
+      return onTypingEvent(handleTypingEvent);
+    });
   });
 
   // Sync config reactively — getConfig() is called inside the $effect,
@@ -105,6 +109,7 @@ export function createTypingIndicator(getConfig: () => TypingIndicatorConfig) {
       (configRoomId !== config.roomId || configThreadRootEventId !== config.threadRootEventId)
     ) {
       typingUsers.clear();
+      lastSentAt = 0;
     }
 
     configRoomId = config.roomId;

@@ -134,4 +134,68 @@ describe('RoomFilesStore', () => {
       bearerToken: 'server-2-token'
     });
   });
+
+  it('does not let stale loadMore calls clear a newer pagination loading state', async () => {
+    const oldLoadMore = deferred<ReturnType<typeof emptyPage>>();
+    const newLoadMore = deferred<ReturnType<typeof emptyPage>>();
+    const firstApi = {
+      listRoomAttachments: vi
+        .fn()
+        .mockResolvedValueOnce({
+          ...emptyPage(),
+          items: [fileItem('old-initial')],
+          totalCount: 2,
+          hasMore: true
+        })
+        .mockReturnValueOnce(oldLoadMore.promise),
+      refreshMessageAttachmentUrls: vi.fn()
+    };
+    const secondApi = {
+      listRoomAttachments: vi
+        .fn()
+        .mockResolvedValueOnce({
+          ...emptyPage(),
+          items: [fileItem('new-initial')],
+          totalCount: 2,
+          hasMore: true
+        })
+        .mockReturnValueOnce(newLoadMore.promise),
+      refreshMessageAttachmentUrls: vi.fn()
+    };
+    attachmentMocks.apis.push(firstApi, secondApi);
+    const store = new RoomFilesStore(serverConnection('server-1'));
+
+    store.setRoom('room-1');
+    await vi.waitFor(() => {
+      expect(store.items.map((item) => item.attachment.id)).toEqual(['old-initial']);
+    });
+
+    const oldLoad = store.loadMore();
+    await vi.waitFor(() => expect(firstApi.listRoomAttachments).toHaveBeenCalledTimes(2));
+    expect(store.isLoadingMore).toBe(true);
+
+    store.setConnection(serverConnection('server-2'));
+    await vi.waitFor(() => {
+      expect(store.items.map((item) => item.attachment.id)).toEqual(['new-initial']);
+    });
+
+    const newLoad = store.loadMore();
+    await vi.waitFor(() => expect(secondApi.listRoomAttachments).toHaveBeenCalledTimes(2));
+    expect(store.isLoadingMore).toBe(true);
+
+    oldLoadMore.resolve({
+      ...emptyPage(),
+      items: [fileItem('old-more')]
+    });
+    await oldLoad;
+    expect(store.isLoadingMore).toBe(true);
+
+    newLoadMore.resolve({
+      ...emptyPage(),
+      items: [fileItem('new-more')]
+    });
+    await newLoad;
+    expect(store.isLoadingMore).toBe(false);
+    expect(store.items.map((item) => item.attachment.id)).toEqual(['new-initial', 'new-more']);
+  });
 });
