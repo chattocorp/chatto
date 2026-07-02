@@ -540,8 +540,6 @@ Room sidebar panel for voice/video calls.
         <span class="min-w-0 flex-1 truncate text-sm font-medium">
           {m['voice.screen_title']({ name: participant.displayName })}
         </span>
-        <span class="iconify shrink-0 text-muted uil--desktop" aria-label={m['voice.screen_share']()}
-        ></span>
       </div>
       <div class={callTileMediaBodyClass}>
         <VideoThumbnail
@@ -586,12 +584,7 @@ Room sidebar panel for voice/video calls.
             ? m['voice.screen_title']({ name: participant.displayName })
             : participant.displayName}
         </span>
-        {#if isScreen}
-          <span
-            class="iconify shrink-0 text-muted uil--desktop"
-            aria-label={m['voice.screen_share']()}
-          ></span>
-        {:else}
+        {#if !isScreen}
           <span class="inline-flex h-5 min-w-5 shrink-0 items-center justify-end gap-1.5 text-sm">
             {#if participant.isMuted}
               <span
