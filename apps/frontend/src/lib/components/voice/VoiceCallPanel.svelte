@@ -234,7 +234,7 @@ Room sidebar panel for voice/video calls.
   const activeControlButtonClass = 'btn-success btn-sm h-9 w-full !px-0';
   const dangerControlButtonClass = 'btn-danger btn-sm h-9 w-full !px-0';
   const callTileCardClass =
-    'participant-card group/media relative flex w-full flex-col gap-2 overflow-hidden rounded-md border border-border bg-surface-100 p-2 text-left text-text transition-colors hover:bg-surface-200';
+    'participant-card group/media relative flex w-full flex-col gap-2 overflow-hidden rounded-md border border-border bg-surface-100 p-1.5 text-left text-text transition-colors hover:bg-surface-200';
   const callTileHeaderClass = 'flex min-w-0 items-center gap-2';
   const callTileMediaBodyClass = '';
 
