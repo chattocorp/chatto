@@ -1,6 +1,7 @@
 import { tick } from 'svelte';
 import { describe, expect, it } from 'vitest';
 import { render } from 'vitest-browser-svelte';
+import { VideoProcessingStatus } from '$lib/render/types';
 import VideoPlayer from './VideoPlayer.svelte';
 
 const TRANSPARENT_THUMBNAIL =
@@ -9,7 +10,7 @@ const TRANSPARENT_THUMBNAIL =
 function renderAutoLoopVideo({ width, height }: { width: number; height: number }) {
   return render(VideoPlayer, {
     props: {
-      status: 'COMPLETED',
+      status: VideoProcessingStatus.Completed,
       filename: 'clip.mp4',
       autoLoop: true,
       variants: [
@@ -36,7 +37,7 @@ function renderPostedVideo({
 }) {
   return render(VideoPlayer, {
     props: {
-      status: 'COMPLETED',
+      status: VideoProcessingStatus.Completed,
       filename: 'clip.mp4',
       width,
       height,
