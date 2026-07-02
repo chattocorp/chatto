@@ -323,6 +323,27 @@ describe('AdminRoomLayoutStore — mutations', () => {
     ]);
   });
 
+  it('keeps created groups hidden from room creation when directory denies it', async () => {
+    const { client, directory, query } = makeClient({
+      queries: [
+        { data: [{ id: 'g2', name: 'Projects', canCreateRoom: false, roomIds: [], items: [] }] }
+      ],
+      mutations: [
+        { data: { id: 'g2', name: 'Projects', canCreateRoom: false, rooms: [], items: [] } }
+      ]
+    });
+    const store = new AdminRoomLayoutStore(client, directory, roomAPI());
+
+    const createResult = await store.createGroup('Projects');
+
+    expect(createResult).toEqual({
+      ok: true,
+      group: { id: 'g2', name: 'Projects', canCreateRoom: false, rooms: [], items: [] }
+    });
+    expect(query).toHaveBeenCalledWith({ includeArchivedRooms: true });
+    expect(store.groups[0]?.canCreateRoom).toBe(false);
+  });
+
   it('does not optimistically update a group when rename fails', async () => {
     const { client, directory } = makeClient({ mutations: [{ error: { message: 'nope' } }] });
     const store = new AdminRoomLayoutStore(client, directory, roomAPI());
