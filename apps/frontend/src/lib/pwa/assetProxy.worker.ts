@@ -20,6 +20,10 @@ export type AssetProxyRequest = {
   assetPath: string;
 };
 
+type AssetProxyFetchOptions = {
+  navigationFallback?: () => Promise<Response | undefined>;
+};
+
 export function handleAssetProxyMessage(event: ExtendableMessageEvent): boolean {
   const message = event.data as Record<string, unknown> | undefined;
   if (!message || typeof message.type !== 'string') return false;
@@ -78,10 +82,11 @@ export function parseAssetProxyRequest(
 
 export async function handleAssetProxyFetch(
   request: Request,
-  proxyRequest: AssetProxyRequest
+  proxyRequest: AssetProxyRequest,
+  options: AssetProxyFetchOptions = {}
 ): Promise<Response> {
   if (request.method !== 'GET') {
-    return new Response('Method not allowed', { status: 405 });
+    return assetProxyErrorResponse(request, options, 'Method not allowed', 405);
   }
 
   let server = assetProxyServers.get(proxyRequest.serverId);
@@ -92,13 +97,13 @@ export async function handleAssetProxyFetch(
     registered = matchingRegisteredAssetTarget(proxyRequest);
   }
   if (!server) {
-    return new Response('Asset target is not registered', { status: 404 });
+    return assetProxyErrorResponse(request, options, 'Asset target is not registered', 404);
   }
 
   const targetUrl =
     registered?.targetUrl ?? buildFallbackAssetTarget(server, proxyRequest.assetPath);
   if (!targetUrl) {
-    return new Response('Asset target is not registered', { status: 404 });
+    return assetProxyErrorResponse(request, options, 'Asset target is not registered', 404);
   }
 
   const rangeHeader = request.headers.get('Range');
@@ -109,11 +114,22 @@ export async function handleAssetProxyFetch(
   const headers = new Headers();
   headers.set('X-Chatto-Asset-Proxy', '1');
 
-  const networkResponse = await fetch(targetUrl, {
-    headers,
-    credentials: sameOrigin(targetUrl, self.location.origin) ? 'include' : 'omit',
-    redirect: 'follow'
-  });
+  let networkResponse: Response;
+  try {
+    networkResponse = await fetch(targetUrl, {
+      headers,
+      credentials: sameOrigin(targetUrl, self.location.origin) ? 'include' : 'omit',
+      redirect: 'follow'
+    });
+  } catch {
+    return assetProxyErrorResponse(request, options, 'Asset target is not available', 502);
+  }
+
+  if (request.mode === 'navigate' && !networkResponse.ok) {
+    const fallback = await options.navigationFallback?.();
+    if (fallback) return fallback;
+  }
+
   return new Response(networkResponse.body, {
     status: networkResponse.status,
     statusText: networkResponse.statusText,
@@ -121,13 +137,23 @@ export async function handleAssetProxyFetch(
   });
 }
 
+async function assetProxyErrorResponse(
+  request: Request,
+  options: AssetProxyFetchOptions,
+  message: string,
+  status: number
+): Promise<Response> {
+  if (request.mode === 'navigate') {
+    const fallback = await options.navigationFallback?.();
+    if (fallback) return fallback;
+  }
+  return new Response(message, { status });
+}
+
 function isAssetProxyServerMessage(value: unknown): value is AssetProxyServer {
   if (!value || typeof value !== 'object') return false;
   const server = value as Partial<AssetProxyServer>;
-  return (
-    typeof server.id === 'string' &&
-    typeof server.url === 'string'
-  );
+  return typeof server.id === 'string' && typeof server.url === 'string';
 }
 
 function isAssetProxyTargetMessage(value: unknown): value is AssetProxyTarget {
@@ -159,7 +185,9 @@ function registerAssetProxyTarget(target: AssetProxyTarget): void {
   registeredAssetTargets.set(target.virtualPath, target);
 }
 
-function matchingRegisteredAssetTarget(proxyRequest: AssetProxyRequest): AssetProxyTarget | undefined {
+function matchingRegisteredAssetTarget(
+  proxyRequest: AssetProxyRequest
+): AssetProxyTarget | undefined {
   const registered = registeredAssetTargets.get(proxyRequest.virtualPath);
   if (registered?.serverId !== proxyRequest.serverId) return undefined;
   return registered;
