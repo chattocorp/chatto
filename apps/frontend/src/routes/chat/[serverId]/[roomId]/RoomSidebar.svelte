@@ -331,7 +331,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
         <ul role="list">
           {#each Array(8) as _, i (i)}
             <li class="flex items-center gap-2 rounded-md px-2 py-1.5">
-              <div class="skeleton avatar-shape h-8 w-8 shrink-0 [corner-shape:squircle]"></div>
+              <div class="skeleton h-8 w-8 shrink-0 rounded-full"></div>
               <div class="min-w-0 flex-1 space-y-1">
                 <div class="skeleton h-3.5 w-24 rounded"></div>
                 <div class="skeleton h-3 w-16 rounded"></div>

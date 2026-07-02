@@ -4,11 +4,11 @@ import { q } from '$lib/test-utils';
 import UserAvatarTestHarness from './UserAvatarTestHarness.svelte';
 
 describe('UserAvatar', () => {
-  it('renders medium avatars as squircles without presence by default', () => {
+  it('renders medium avatars as circles without presence by default', () => {
     const { container } = render(UserAvatarTestHarness, { size: 'md' });
     const avatar = q(container, '[aria-label="alice"]')!;
 
-    expect(avatar.className).toContain('avatar-shape');
+    expect(avatar.className).toContain('rounded-full');
     expect(avatar.className).not.toContain('ring-');
     expect(q(container, '[aria-label="🍜 Out for lunch"]')).toBeFalsy();
     expect(q(container, '[aria-label="Online"]')).toBeFalsy();
@@ -24,7 +24,7 @@ describe('UserAvatar', () => {
     const { container } = render(UserAvatarTestHarness, { size: 'sm' });
     const avatar = q(container, '[aria-label="alice"]')!;
 
-    expect(avatar.className).toContain('avatar-shape');
+    expect(avatar.className).toContain('rounded-full');
     expect(q(container, '[aria-label="Online"]')).toBeFalsy();
   });
 

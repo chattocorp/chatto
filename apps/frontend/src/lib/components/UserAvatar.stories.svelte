@@ -10,7 +10,7 @@
     parameters: {
       docs: {
         description: {
-          component: 'Squircle user avatar rendering with optional presence dots.'
+          component: 'Circular user avatar rendering with optional presence dots.'
         }
       }
     }

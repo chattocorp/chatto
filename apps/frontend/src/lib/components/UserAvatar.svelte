@@ -105,14 +105,14 @@
   const wrapperClass = $derived(
     [
       sizeClasses[size],
-      'avatar-shape inline-grid shrink-0 [corner-shape:squircle]',
+      'inline-grid shrink-0 rounded-full',
       hasOverlay && 'relative',
       className
     ]
       .filter(Boolean)
       .join(' ')
   );
-  const avatarClass = $derived('avatar-shape h-full w-full [corner-shape:squircle]');
+  const avatarClass = $derived('h-full w-full overflow-hidden rounded-full');
   const placeholderClass = $derived(
     [
       avatarClass,
