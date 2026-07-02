@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { configureApiClientHooks } from '@chatto/api-client/hooks';
+import { configureApiClientHooks } from '$lib/api-client/hooks';
 import { Timestamp } from '@bufbuild/protobuf';
 import {
   RoomTimelineAssetUrl,
@@ -21,7 +21,7 @@ import {
 import {
   createRoomTimelineAPI,
   roomTimelinePageToEventConnectionPage
-} from '@chatto/api-client/roomTimeline';
+} from '$lib/api-client/roomTimeline';
 
 const mocks = vi.hoisted(() => ({
   createClient: vi.fn(),

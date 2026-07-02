@@ -9,7 +9,7 @@ const attachmentMocks = vi.hoisted(() => ({
   refreshMessageAttachmentUrls: vi.fn()
 }));
 
-vi.mock('@chatto/api-client/attachments', () => ({
+vi.mock('$lib/api-client/attachments', () => ({
   createAttachmentAPI: vi.fn(() => attachmentMocks)
 }));
 

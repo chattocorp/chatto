@@ -1,9 +1,9 @@
 import { Code, ConnectError } from '@connectrpc/connect';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { configureApiClientHooks } from '@chatto/api-client/hooks';
+import { configureApiClientHooks } from '$lib/api-client/hooks';
 import { RoomDirectoryScope } from '@chatto/api-types/api/v1/room_directory_pb';
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
-import { createRoomDirectoryAPI } from '@chatto/api-client/roomDirectory';
+import { createRoomDirectoryAPI } from '$lib/api-client/roomDirectory';
 
 const mocks = vi.hoisted(() => ({
   createClient: vi.fn(),

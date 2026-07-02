@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createPushNotificationAPI } from '@chatto/api-client/pushNotifications';
+import { createPushNotificationAPI } from '$lib/api-client/pushNotifications';
 
 const mocks = vi.hoisted(() => ({
   createClient: vi.fn(),

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { getAdminSystemInfo, type AdminSystemInfo } from '@chatto/api-client/adminDiagnostics';
+  import { getAdminSystemInfo, type AdminSystemInfo } from '$lib/api-client/adminDiagnostics';
   import { Panel, StatCard, DataTable, formatBytes, formatNumber } from '$lib/components/admin';
   import { Hint, Pill } from '$lib/ui';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';

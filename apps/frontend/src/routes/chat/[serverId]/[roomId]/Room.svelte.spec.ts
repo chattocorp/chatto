@@ -151,7 +151,7 @@ vi.mock('$lib/state/server/connection.svelte', () => ({
   })
 }));
 
-vi.mock('@chatto/api-client/roomTimeline', () => ({
+vi.mock('$lib/api-client/roomTimeline', () => ({
   createRoomTimelineAPI: () => mocks.timeline
 }));
 

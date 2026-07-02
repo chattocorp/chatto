@@ -6,7 +6,7 @@
  * still treated as a notification trigger rather than authoritative app state.
  */
 
-import { createPushNotificationAPI } from '@chatto/api-client/pushNotifications';
+import { createPushNotificationAPI } from '$lib/api-client/pushNotifications';
 import {
   NOTIFICATION_CLICK_ACK_MESSAGE_TYPE,
   NOTIFICATION_CLICK_MESSAGE_TYPE

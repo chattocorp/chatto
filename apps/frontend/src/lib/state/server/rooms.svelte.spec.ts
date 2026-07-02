@@ -15,10 +15,10 @@ import {
   type DirectoryRoomGroupItem,
   type DirectoryRoomSummary,
   type RoomDirectoryAPI
-} from '@chatto/api-client/roomDirectory';
-import type { DirectoryMember, MemberDirectoryAPI } from '@chatto/api-client/memberDirectory';
-import type { NotificationAPI } from '@chatto/api-client/notifications';
-import type { ViewerState } from '@chatto/api-client/viewer';
+} from '$lib/api-client/roomDirectory';
+import type { DirectoryMember, MemberDirectoryAPI } from '$lib/api-client/memberDirectory';
+import type { NotificationAPI } from '$lib/api-client/notifications';
+import type { ViewerState } from '$lib/api-client/viewer';
 import { NotificationLevelStore } from './notificationLevel.svelte';
 import { RoomUnreadStore } from './roomUnread.svelte';
 import { isRoomStateRefreshEvent, RoomsStore, type ViewerStateLoader } from './rooms.svelte';

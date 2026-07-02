@@ -37,7 +37,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
   import { toast } from '$lib/ui/toast';
   import HeaderIconButton from '$lib/ui/HeaderIconButton.svelte';
   import BanRoomMemberModal from '$lib/components/moderation/BanRoomMemberModal.svelte';
-  import { createRoomCommandAPI } from '@chatto/api-client/rooms';
+  import { createRoomCommandAPI } from '$lib/api-client/rooms';
   import VoiceCallPanel from '$lib/components/voice/VoiceCallPanel.svelte';
   import RoomFilesPanel from './RoomFilesPanel.svelte';
 

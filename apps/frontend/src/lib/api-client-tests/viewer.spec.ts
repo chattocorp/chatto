@@ -3,8 +3,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { NotificationLevel as APINotificationLevel } from '@chatto/api-types/api/v1/notification_preferences_pb';
 import { PresenceStatus as APIPresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { TimeFormat as APITimeFormat } from '@chatto/api-types/api/v1/viewer_pb';
-import { NotificationLevel, PresenceStatus, TimeFormat } from '@chatto/api-client/renderTypes';
-import { getCurrentUserViaConnect, getViewerStateViaConnect } from '@chatto/api-client/viewer';
+import { NotificationLevel, PresenceStatus, TimeFormat } from '$lib/api-client/renderTypes';
+import { getCurrentUserViaConnect, getViewerStateViaConnect } from '$lib/api-client/viewer';
 
 const mocks = vi.hoisted(() => ({
   createClient: vi.fn(),

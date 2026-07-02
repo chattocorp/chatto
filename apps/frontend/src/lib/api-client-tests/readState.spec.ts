@@ -1,8 +1,8 @@
 import { Timestamp } from '@bufbuild/protobuf';
 import { Code, ConnectError } from '@connectrpc/connect';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { configureApiClientHooks } from '@chatto/api-client/hooks';
-import { createReadStateAPI } from '@chatto/api-client/readState';
+import { configureApiClientHooks } from '$lib/api-client/hooks';
+import { createReadStateAPI } from '$lib/api-client/readState';
 
 const mocks = vi.hoisted(() => ({
   createClient: vi.fn(),

@@ -6,11 +6,11 @@
     createExternalIdentityAPI,
     type ExternalIdentityProviderInfo,
     type LinkedExternalIdentityInfo
-  } from '@chatto/api-client/externalIdentities';
+  } from '$lib/api-client/externalIdentities';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { useConnection } from '$lib/state/server/connection.svelte';
-  import { createAccountAPI } from '@chatto/api-client/account';
+  import { createAccountAPI } from '$lib/api-client/account';
   import { PaneHeader, ConfirmDialog, Dialog, FormSection, Hint } from '$lib/ui';
   import { TextInput, Button, FormError, z, validate } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast/toastState.svelte';

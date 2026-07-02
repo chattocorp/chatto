@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { configureApiClientHooks } from '@chatto/api-client/hooks';
+import { configureApiClientHooks } from '$lib/api-client/hooks';
 import { Code, ConnectError } from '@connectrpc/connect';
 import { Timestamp } from '@bufbuild/protobuf';
-import { FitMode } from '@chatto/api-client/renderTypes';
+import { FitMode } from '$lib/api-client/renderTypes';
 import {
   AttachmentFitMode,
   RefreshedAttachmentUrls,
@@ -21,7 +21,7 @@ import {
   RoomTimelineVideoProcessingStatus,
   RoomTimelineVideoVariant
 } from '@chatto/api-types/api/v1/room_timeline_pb';
-import { createAttachmentAPI } from '@chatto/api-client/attachments';
+import { createAttachmentAPI } from '$lib/api-client/attachments';
 
 const mocks = vi.hoisted(() => ({
   createClient: vi.fn(),

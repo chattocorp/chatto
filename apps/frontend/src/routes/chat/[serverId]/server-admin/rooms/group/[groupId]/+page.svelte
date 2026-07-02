@@ -6,8 +6,8 @@
   import {
     adminRoomGroupsFromDirectoryGroups,
     type AdminRoomGroup
-  } from '@chatto/api-client/adminRoomLayout';
-  import { createRoomDirectoryAPI } from '@chatto/api-client/roomDirectory';
+  } from '$lib/api-client/adminRoomLayout';
+  import { createRoomDirectoryAPI } from '$lib/api-client/roomDirectory';
   import { useConnection } from '$lib/state/server/connection.svelte';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';

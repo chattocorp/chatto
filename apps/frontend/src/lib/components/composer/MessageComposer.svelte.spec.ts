@@ -109,14 +109,14 @@ vi.mock('$lib/state/server/connection.svelte', () => ({
   })
 }));
 
-vi.mock('@chatto/api-client/messages', () => ({
+vi.mock('$lib/api-client/messages', () => ({
   createMessageAPI: () => ({
     createMessage: createMessageConnectMock,
     updateMessage: updateMessageConnectMock
   })
 }));
 
-vi.mock('@chatto/api-client/linkPreviews', () => ({
+vi.mock('$lib/api-client/linkPreviews', () => ({
   createLinkPreviewAPI: () => ({
     fetchLinkPreview: fetchLinkPreviewConnectMock
   })

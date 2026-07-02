@@ -1,6 +1,6 @@
 import { goto } from '$app/navigation';
 import { resolve } from '$app/paths';
-import { getCurrentUserViaConnect, type CurrentUser, type ViewerAPIConfig } from '@chatto/api-client/viewer';
+import { getCurrentUserViaConnect, type CurrentUser, type ViewerAPIConfig } from '$lib/api-client/viewer';
 import { clearCachedUser } from './loadAuth';
 import { csrfFetch } from './csrf';
 import { isAuthenticationRequiredError } from './errors';

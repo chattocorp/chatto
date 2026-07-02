@@ -1,7 +1,7 @@
 import { SvelteSet } from 'svelte/reactivity';
-import type { RoomDirectoryAPI, DirectoryRoomSummary } from '@chatto/api-client/roomDirectory';
-import { RoomDirectoryScope } from '@chatto/api-client/roomDirectory';
-import type { RoomCommandAPI } from '@chatto/api-client/rooms';
+import type { RoomDirectoryAPI, DirectoryRoomSummary } from '$lib/api-client/roomDirectory';
+import { RoomDirectoryScope } from '$lib/api-client/roomDirectory';
+import type { RoomCommandAPI } from '$lib/api-client/rooms';
 import type { RoomEventKindSource } from '$lib/render/eventKinds';
 import { isRoomStateRefreshEvent } from './rooms.svelte';
 

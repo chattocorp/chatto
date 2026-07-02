@@ -1,8 +1,8 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
   import { fly } from 'svelte/transition';
-  import { createReadStateAPI } from '@chatto/api-client/readState';
-  import { createThreadAPI } from '@chatto/api-client/threads';
+  import { createReadStateAPI } from '$lib/api-client/readState';
+  import { createThreadAPI } from '$lib/api-client/threads';
   import { useEvent, createTypingIndicator } from '$lib/hooks';
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';

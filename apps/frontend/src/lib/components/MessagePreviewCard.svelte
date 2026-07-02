@@ -27,8 +27,8 @@ unknown instance) the component renders nothing.
   import * as m from '$lib/i18n/messages';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
-  import { createRoomTimelineAPI } from '@chatto/api-client/roomTimeline';
-  import { createAttachmentAPI } from '@chatto/api-client/attachments';
+  import { createRoomTimelineAPI } from '$lib/api-client/roomTimeline';
+  import { createAttachmentAPI } from '$lib/api-client/attachments';
   import { isMessagePostedEvent } from '$lib/render/eventKinds';
   import { unmask } from '$lib/state/room/messages/helpers';
   import {

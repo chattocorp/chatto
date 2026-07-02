@@ -148,15 +148,15 @@ vi.mock('$lib/state/server/connection.svelte', () => ({
   })
 }));
 
-vi.mock('@chatto/api-client/attachments', () => ({
+vi.mock('$lib/api-client/attachments', () => ({
   createAttachmentAPI: vi.fn(() => ({
     listRoomAttachments: attachmentMocks.listRoomAttachments,
     refreshMessageAttachmentUrls: attachmentMocks.refreshMessageAttachmentUrls
   }))
 }));
 
-vi.mock('@chatto/api-client/memberDirectory', async (importActual) => ({
-  ...(await importActual<typeof import('@chatto/api-client/memberDirectory')>()),
+vi.mock('$lib/api-client/memberDirectory', async (importActual) => ({
+  ...(await importActual<typeof import('$lib/api-client/memberDirectory')>()),
   createMemberDirectoryAPI: vi.fn(() => ({
     listRoomMembers: memberDirectoryMocks.listRoomMembers
   }))

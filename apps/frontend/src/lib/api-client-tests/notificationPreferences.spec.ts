@@ -1,12 +1,12 @@
 import { Code, ConnectError } from '@connectrpc/connect';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { configureApiClientHooks } from '@chatto/api-client/hooks';
+import { configureApiClientHooks } from '$lib/api-client/hooks';
 import { NotificationLevel } from '@chatto/api-types/api/v1/notification_preferences_pb';
 import {
   getServerNotificationPreference,
   updateRoomNotificationPreference,
   updateServerNotificationPreference
-} from '@chatto/api-client/notificationPreferences';
+} from '$lib/api-client/notificationPreferences';
 
 const mocks = vi.hoisted(() => ({
   createClient: vi.fn(),

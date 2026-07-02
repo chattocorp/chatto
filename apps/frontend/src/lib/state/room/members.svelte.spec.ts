@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { EventEnvelope } from '$lib/eventBus.svelte';
 import { RoomEventKind } from '$lib/render/eventKinds';
 import { PresenceStatus } from '$lib/render/types';
-import type { MemberDirectoryAPI, MemberDirectoryPage } from '@chatto/api-client/memberDirectory';
+import type { MemberDirectoryAPI, MemberDirectoryPage } from '$lib/api-client/memberDirectory';
 import { ROOM_MEMBERS_PAGE_SIZE, RoomMembersStore } from './members.svelte';
 
 class FakeMemberDirectoryAPI {

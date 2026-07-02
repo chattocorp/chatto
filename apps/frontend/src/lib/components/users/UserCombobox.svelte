@@ -3,7 +3,7 @@
   import {
     createMemberDirectoryAPI,
     type DirectoryMember
-  } from '@chatto/api-client/memberDirectory';
+  } from '$lib/api-client/memberDirectory';
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { Combobox } from '$lib/ui/form';
   import SkeletonImg from '$lib/ui/SkeletonImg.svelte';

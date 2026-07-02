@@ -52,7 +52,7 @@ vi.mock('$lib/state/server/connection.svelte', () => ({
   })
 }));
 
-vi.mock('@chatto/api-client/account', () => ({
+vi.mock('$lib/api-client/account', () => ({
   createAccountAPI: () => ({
     updateProfile: mocks.updateProfile,
     uploadAvatar: mocks.uploadAvatar,

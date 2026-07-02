@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createAdminUserManagementAPI } from '@chatto/api-client/adminUsers';
+import { createAdminUserManagementAPI } from '$lib/api-client/adminUsers';
 
 const mocks = vi.hoisted(() => ({
   createClient: vi.fn(),

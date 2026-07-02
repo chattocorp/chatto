@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { TimeFormat as APITimeFormat } from '@chatto/api-types/api/v1/viewer_pb';
-import { TimeFormat } from '@chatto/api-client/renderTypes';
-import { createAccountAPI } from '@chatto/api-client/account';
+import { TimeFormat } from '$lib/api-client/renderTypes';
+import { createAccountAPI } from '$lib/api-client/account';
 
 const mocks = vi.hoisted(() => ({
   createClient: vi.fn(),

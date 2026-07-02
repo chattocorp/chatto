@@ -26,7 +26,7 @@ under it. Column headers are clickable when `onRoleClick` is provided
   import { Panel, DataTable } from '$lib/components/admin';
   import { Hint, HelpTooltip } from '$lib/ui';
   import { useConnection } from '$lib/state/server/connection.svelte';
-  import { createPermissionAPI } from '@chatto/api-client/permissions';
+  import { createPermissionAPI } from '$lib/api-client/permissions';
   import { toast } from '$lib/ui/toast';
   import { getPermissionDescription } from '$lib/permissions';
   import { setRolePermission, type MutationScope } from './permissionMutations';

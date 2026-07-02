@@ -11,13 +11,13 @@ import type {
   DirectoryRoomGroupItem,
   DirectoryRoomSummary,
   RoomDirectoryAPI
-} from '@chatto/api-client/roomDirectory';
-import { RoomDirectoryScope, RoomKind } from '@chatto/api-client/roomDirectory';
-import type { MemberDirectoryAPI, DirectoryMember } from '@chatto/api-client/memberDirectory';
-import type { ViewerState } from '@chatto/api-client/viewer';
+} from '$lib/api-client/roomDirectory';
+import { RoomDirectoryScope, RoomKind } from '$lib/api-client/roomDirectory';
+import type { MemberDirectoryAPI, DirectoryMember } from '$lib/api-client/memberDirectory';
+import type { ViewerState } from '$lib/api-client/viewer';
 import type { NotificationLevelStore } from '$lib/state/server/notificationLevel.svelte';
 import type { RoomUnreadStore } from '$lib/state/server/roomUnread.svelte';
-import type { NotificationAPI } from '@chatto/api-client/notifications';
+import type { NotificationAPI } from '$lib/api-client/notifications';
 import { ROOM_MEMBERS_PAGE_SIZE } from '$lib/state/room/members.svelte';
 
 export type RoomsListItem = {

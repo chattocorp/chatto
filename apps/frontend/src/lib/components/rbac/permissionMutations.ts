@@ -1,4 +1,4 @@
-import type { PermissionAPI, PermissionState } from '@chatto/api-client/permissions';
+import type { PermissionAPI, PermissionState } from '$lib/api-client/permissions';
 
 export type { PermissionState };
 

@@ -1,4 +1,10 @@
-import type { UserSummaryForCache } from "./events.js";
+export type UserSummaryForCache = {
+  id: string;
+  login: string;
+  displayName: string;
+  deleted: boolean;
+  avatarUrl: string | null;
+};
 
 export type ApiClientHooks = {
   onAuthenticationRequired?: (serverId: string) => void;

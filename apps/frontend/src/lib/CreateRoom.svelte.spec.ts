@@ -19,7 +19,7 @@ vi.mock('$lib/state/server/connection.svelte', () => ({
   })
 }));
 
-vi.mock('@chatto/api-client/rooms', () => ({
+vi.mock('$lib/api-client/rooms', () => ({
   createRoomCommandAPI: () => ({
     createRoom: mocks.createRoom,
     joinRoom: mocks.joinRoom

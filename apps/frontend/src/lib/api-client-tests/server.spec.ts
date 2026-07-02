@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { getPublicServerInfo } from '@chatto/api-client/server';
+import { getPublicServerInfo } from '$lib/api-client/server';
 
 const mocks = vi.hoisted(() => ({
   createClient: vi.fn(),

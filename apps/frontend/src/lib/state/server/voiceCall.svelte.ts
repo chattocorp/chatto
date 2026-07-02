@@ -21,7 +21,7 @@ import {
 import { toast } from '$lib/ui/toast';
 import { playCallSound } from '$lib/audio/callSounds';
 import * as m from '$lib/i18n/messages';
-import type { VoiceCallAPI } from '@chatto/api-client/voiceCalls';
+import type { VoiceCallAPI } from '$lib/api-client/voiceCalls';
 
 export type CallParticipantInfo = {
   identity: string;

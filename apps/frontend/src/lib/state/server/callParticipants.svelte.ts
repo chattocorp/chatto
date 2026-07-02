@@ -9,7 +9,7 @@
  * - Real-time updates: Optimistic adds/removes from CallParticipantJoined/Left events
  */
 
-import type { VoiceCallAPI } from '@chatto/api-client/voiceCalls';
+import type { VoiceCallAPI } from '$lib/api-client/voiceCalls';
 
 /** Participant info stored in observer mode. */
 export type ObserverParticipant = {

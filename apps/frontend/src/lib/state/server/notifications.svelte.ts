@@ -9,7 +9,7 @@ import {
   type NotificationItem,
   type ReplyNotificationItem,
   type RoomMessageNotificationItem
-} from '@chatto/api-client/notifications';
+} from '$lib/api-client/notifications';
 
 // Union type for all notification types
 export type { NotificationItem };

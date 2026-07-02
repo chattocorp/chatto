@@ -140,7 +140,7 @@ vi.mock('$lib/CreateRoom.svelte', () => ({
   default: {}
 }));
 
-vi.mock('@chatto/api-client/messages', () => ({
+vi.mock('$lib/api-client/messages', () => ({
   createMessageAPI: () => ({
     deleteMessage: mocks.deleteMessage,
     deleteAttachment: mocks.deleteAttachment,

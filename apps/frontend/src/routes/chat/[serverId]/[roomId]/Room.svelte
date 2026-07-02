@@ -7,7 +7,7 @@
     type MessageComposerApi
   } from '$lib/components/composer/MessageComposer.svelte';
   import type { EventEnvelope } from '$lib/eventBus.svelte';
-  import { createRoleAPI } from '@chatto/api-client/roles';
+  import { createRoleAPI } from '$lib/api-client/roles';
   import {
     useRoomData,
     useRoomUnread,

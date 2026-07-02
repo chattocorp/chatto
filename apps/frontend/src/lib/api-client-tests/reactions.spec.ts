@@ -1,7 +1,7 @@
 import { Code, ConnectError } from '@connectrpc/connect';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { configureApiClientHooks } from '@chatto/api-client/hooks';
-import { createReactionAPI } from '@chatto/api-client/reactions';
+import { configureApiClientHooks } from '$lib/api-client/hooks';
+import { createReactionAPI } from '$lib/api-client/reactions';
 
 const mocks = vi.hoisted(() => ({
   createClient: vi.fn(),

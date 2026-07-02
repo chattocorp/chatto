@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createRoleAPI } from '@chatto/api-client/roles';
+import { createRoleAPI } from '$lib/api-client/roles';
 
 const mocks = vi.hoisted(() => ({
   createClient: vi.fn(),

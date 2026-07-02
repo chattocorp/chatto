@@ -1,5 +1,5 @@
 import { FitMode } from '$lib/render/types';
-import type { AttachmentAPI } from '@chatto/api-client/attachments';
+import type { AttachmentAPI } from '$lib/api-client/attachments';
 
 export type ExpiringAssetUrl = {
   url: string;

@@ -7,7 +7,7 @@
     createExternalIdentityFlowAPI,
     ExternalIdentityFlowKind,
     type PendingExternalIdentityInfo
-  } from '@chatto/api-client/externalIdentities';
+  } from '$lib/api-client/externalIdentities';
   import * as m from '$lib/i18n/messages';
   import type { AuthenticatedUserSummary } from '$lib/state/server/registry.svelte';
   import Hint from '$lib/ui/Hint.svelte';

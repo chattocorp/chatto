@@ -3,8 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PresenceStatus } from '$lib/render/types';
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 import { useRoomData } from './useRoomData.svelte';
-import { createMemberDirectoryAPI } from '@chatto/api-client/memberDirectory';
-import { createRoomDirectoryAPI } from '@chatto/api-client/roomDirectory';
+import { createMemberDirectoryAPI } from '$lib/api-client/memberDirectory';
+import { createRoomDirectoryAPI } from '$lib/api-client/roomDirectory';
 
 const { mocks } = vi.hoisted(() => ({
   mocks: {
@@ -31,8 +31,8 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
   }
 }));
 
-vi.mock('@chatto/api-client/roomDirectory', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@chatto/api-client/roomDirectory')>();
+vi.mock('$lib/api-client/roomDirectory', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('$lib/api-client/roomDirectory')>();
   return {
     ...actual,
     createRoomDirectoryAPI: vi.fn(() => ({
@@ -41,7 +41,7 @@ vi.mock('@chatto/api-client/roomDirectory', async (importOriginal) => {
   };
 });
 
-vi.mock('@chatto/api-client/memberDirectory', () => ({
+vi.mock('$lib/api-client/memberDirectory', () => ({
   createMemberDirectoryAPI: vi.fn(() => ({
     listRoomMembers: mocks.listRoomMembers
   }))

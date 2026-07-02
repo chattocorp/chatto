@@ -1,7 +1,7 @@
 <script lang="ts">
   import { useConnection } from '$lib/state/server/connection.svelte';
   import * as m from '$lib/i18n/messages';
-  import { createRoomCommandAPI } from '@chatto/api-client/rooms';
+  import { createRoomCommandAPI } from '$lib/api-client/rooms';
   import {
     TextInput,
     TextArea,

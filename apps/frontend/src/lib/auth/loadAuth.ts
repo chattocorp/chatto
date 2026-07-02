@@ -10,7 +10,7 @@ import { resolve } from '$app/paths';
 import { browser } from '$app/environment';
 import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
 import { serverRegistry } from '$lib/state/server/registry.svelte';
-import { getCurrentUserViaConnect, type CurrentUser } from '@chatto/api-client/viewer';
+import { getCurrentUserViaConnect, type CurrentUser } from '$lib/api-client/viewer';
 import { isAuthenticationRequiredError } from './errors';
 
 export type { CurrentUser };

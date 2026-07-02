@@ -14,16 +14,16 @@
   import { ROOM_MEMBERS_PAGE_SIZE } from '$lib/state/room/members.svelte';
   import * as m from '$lib/i18n/messages';
   import { toast } from '$lib/ui/toast';
-  import { createRoomCommandAPI } from '@chatto/api-client/rooms';
+  import { createRoomCommandAPI } from '$lib/api-client/rooms';
   import {
     createMemberDirectoryAPI,
     type DirectoryMember
-  } from '@chatto/api-client/memberDirectory';
+  } from '$lib/api-client/memberDirectory';
   import {
     createRoomDirectoryAPI,
     RoomDirectoryScope,
     RoomKind
-  } from '@chatto/api-client/roomDirectory';
+  } from '$lib/api-client/roomDirectory';
 
   type ServerLogo = { name: string; logoUrl?: string | null };
   type AvatarUser = Pick<DirectoryMember, 'id' | 'login' | 'displayName' | 'deleted'> & {

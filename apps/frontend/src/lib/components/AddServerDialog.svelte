@@ -15,7 +15,7 @@ ADR-027 — only user-facing copy says "server".
 <script lang="ts">
   import { ConnectError } from '@connectrpc/connect';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
-  import { getPublicServerInfo, type PublicServerInfo } from '@chatto/api-client/server';
+  import { getPublicServerInfo, type PublicServerInfo } from '$lib/api-client/server';
   import * as m from '$lib/i18n/messages';
   import {
     generateCodeChallenge,

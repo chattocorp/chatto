@@ -16,7 +16,7 @@ import type {
   ActiveVoiceCall,
   VoiceCallAPI,
   VoiceCallParticipant
-} from '@chatto/api-client/voiceCalls';
+} from '$lib/api-client/voiceCalls';
 
 /** Participant info for display in the room list sidebar. */
 export type CallRoomParticipant = {

@@ -1,9 +1,9 @@
 import { Timestamp } from '@bufbuild/protobuf';
 import { Code, ConnectError } from '@connectrpc/connect';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { PresenceStatus } from '@chatto/api-client/renderTypes';
+import { PresenceStatus } from '$lib/api-client/renderTypes';
 import { PresenceStatus as APIPresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
-import { createMemberDirectoryAPI } from '@chatto/api-client/memberDirectory';
+import { createMemberDirectoryAPI } from '$lib/api-client/memberDirectory';
 
 const mocks = vi.hoisted(() => ({
   createClient: vi.fn(),

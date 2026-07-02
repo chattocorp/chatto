@@ -12,7 +12,7 @@ const mocks = vi.hoisted(() => ({
   unsubscribePush: vi.fn()
 }));
 
-vi.mock('@chatto/api-client/pushNotifications', () => ({
+vi.mock('$lib/api-client/pushNotifications', () => ({
   createPushNotificationAPI: mocks.createPushNotificationAPI
 }));
 

@@ -1,8 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
 import { flushSync } from 'svelte';
-import type { AdminRoomLayoutAPI } from '@chatto/api-client/adminRoomLayout';
-import type { DirectoryRoomGroup, RoomDirectoryAPI } from '@chatto/api-client/roomDirectory';
-import type { RoomCommandAPI } from '@chatto/api-client/rooms';
+import type { AdminRoomLayoutAPI } from '$lib/api-client/adminRoomLayout';
+import type { DirectoryRoomGroup, RoomDirectoryAPI } from '$lib/api-client/roomDirectory';
+import type { RoomCommandAPI } from '$lib/api-client/rooms';
 import { RoomEventKind } from '$lib/render/eventKinds';
 import {
   AdminRoomLayoutStore,

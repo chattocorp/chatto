@@ -10,7 +10,7 @@ import {
   updateServerConfig,
   uploadServerBanner,
   uploadServerLogo
-} from '@chatto/api-client/serverState';
+} from '$lib/api-client/serverState';
 
 const mocks = vi.hoisted(() => ({
   createClient: vi.fn(),

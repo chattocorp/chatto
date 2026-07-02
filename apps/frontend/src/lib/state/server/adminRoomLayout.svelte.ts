@@ -1,4 +1,4 @@
-import { adminRoomGroupsFromDirectoryGroups } from '@chatto/api-client/adminRoomLayout';
+import { adminRoomGroupsFromDirectoryGroups } from '$lib/api-client/adminRoomLayout';
 import type {
   AdminRoomGroup,
   AdminRoomInfo,
@@ -6,9 +6,9 @@ import type {
   AdminRoomLayoutItemMutationInput,
   AdminSidebarItem,
   AdminSidebarLinkInfo
-} from '@chatto/api-client/adminRoomLayout';
-import type { RoomDirectoryAPI } from '@chatto/api-client/roomDirectory';
-import type { RoomCommandAPI } from '@chatto/api-client/rooms';
+} from '$lib/api-client/adminRoomLayout';
+import type { RoomDirectoryAPI } from '$lib/api-client/roomDirectory';
+import type { RoomCommandAPI } from '$lib/api-client/rooms';
 import { RoomEventKind, roomEventKind, type RoomEventKindSource } from '$lib/render/eventKinds';
 import { SvelteMap } from 'svelte/reactivity';
 
@@ -19,7 +19,7 @@ export type {
   AdminRoomInfo,
   AdminSidebarItem,
   AdminSidebarLinkInfo
-} from '@chatto/api-client/adminRoomLayout';
+} from '$lib/api-client/adminRoomLayout';
 
 export type MoveRoomMutationInput = {
   roomId: string;

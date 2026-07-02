@@ -1,7 +1,7 @@
 import { protoInt64, Timestamp } from '@bufbuild/protobuf';
 import { Code, ConnectError } from '@connectrpc/connect';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createAdminEventLogAPI } from '@chatto/api-client/adminEventLog';
+import { createAdminEventLogAPI } from '$lib/api-client/adminEventLog';
 
 const mocks = vi.hoisted(() => ({
   createClient: vi.fn(),

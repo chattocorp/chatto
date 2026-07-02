@@ -1,6 +1,6 @@
 import { protoInt64 } from '@bufbuild/protobuf';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { getAdminSystemInfo } from '@chatto/api-client/adminDiagnostics';
+import { getAdminSystemInfo } from '$lib/api-client/adminDiagnostics';
 
 const mocks = vi.hoisted(() => ({
   createClient: vi.fn(),

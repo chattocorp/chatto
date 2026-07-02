@@ -1,4 +1,4 @@
-import { configureApiClientHooks } from '@chatto/api-client/hooks';
+import { configureApiClientHooks } from '$lib/api-client/hooks';
 import { serverRegistry } from '$lib/state/server/registry.svelte';
 import { primeUserSummaryCache } from '$lib/state/userSummaries.svelte';
 

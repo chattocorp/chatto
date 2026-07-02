@@ -1,8 +1,8 @@
 import { Timestamp } from '@bufbuild/protobuf';
 import { Code, ConnectError } from '@connectrpc/connect';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { configureApiClientHooks } from '@chatto/api-client/hooks';
-import { createMessageAPI } from '@chatto/api-client/messages';
+import { configureApiClientHooks } from '$lib/api-client/hooks';
+import { createMessageAPI } from '$lib/api-client/messages';
 import {
   MentionConfirmationChallenge,
   CreateMessageResponse,

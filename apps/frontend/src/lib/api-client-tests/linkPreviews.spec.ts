@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { configureApiClientHooks } from '@chatto/api-client/hooks';
+import { configureApiClientHooks } from '$lib/api-client/hooks';
 import { Code, ConnectError } from '@connectrpc/connect';
 import { LinkPreview, FetchLinkPreviewResponse } from '@chatto/api-types/api/v1/link_previews_pb';
-import { createLinkPreviewAPI } from '@chatto/api-client/linkPreviews';
+import { createLinkPreviewAPI } from '$lib/api-client/linkPreviews';
 
 const mocks = vi.hoisted(() => ({
   createClient: vi.fn(),

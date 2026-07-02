@@ -4,7 +4,7 @@ import type {
   AdminEventLogAPI,
   AdminEventLogEntry,
   AdminEventLogPage
-} from '@chatto/api-client/adminEventLog';
+} from '$lib/api-client/adminEventLog';
 
 function makeEntry(sequence: string, eventType = 'LoginSucceededEvent'): AdminEventLogEntry {
   return {

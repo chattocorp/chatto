@@ -55,8 +55,8 @@
   import { shouldHighlightCurrentUserMention } from './messageMentionHighlight';
   import { roomReplyTargetEventId } from './messageReplyTarget';
   import { selectedQuoteTextForMessageBody } from './selectedReplyQuote';
-  import { createThreadAPI } from '@chatto/api-client/threads';
-  import { createRoomCommandAPI } from '@chatto/api-client/rooms';
+  import { createThreadAPI } from '$lib/api-client/threads';
+  import { createRoomCommandAPI } from '$lib/api-client/rooms';
   import { isMessagePostedEvent } from '$lib/render/eventKinds';
   import * as m from '$lib/i18n/messages';
 

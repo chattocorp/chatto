@@ -61,7 +61,7 @@ const permissionMocks = vi.hoisted(() => ({
   setRolePermission: vi.fn()
 }));
 
-vi.mock('@chatto/api-client/permissions', () => ({
+vi.mock('$lib/api-client/permissions', () => ({
   createPermissionAPI: vi.fn(() => ({
     getRolePermissionTierMatrix: permissionMocks.getRolePermissionTierMatrix,
     setRolePermission: permissionMocks.setRolePermission

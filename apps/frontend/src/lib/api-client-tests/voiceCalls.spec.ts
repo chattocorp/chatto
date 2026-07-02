@@ -1,7 +1,7 @@
 import { Timestamp } from '@bufbuild/protobuf';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Code, ConnectError } from '@connectrpc/connect';
-import { createVoiceCallAPI } from '@chatto/api-client/voiceCalls';
+import { createVoiceCallAPI } from '$lib/api-client/voiceCalls';
 
 const mocks = vi.hoisted(() => ({
   createClient: vi.fn(),

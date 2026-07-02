@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { PublicServerInfo } from '@chatto/api-client/server';
+import type { PublicServerInfo } from '$lib/api-client/server';
 import { ServerInfoState } from './state.svelte';
 
 function publicServerInfo(overrides: Partial<PublicServerInfo> = {}): PublicServerInfo {

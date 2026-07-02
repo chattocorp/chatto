@@ -11,7 +11,7 @@ rendering to `SubjectPermissionsMatrix` (shared with the user variant).
   import { untrack } from 'svelte';
   import { Hint } from '$lib/ui';
   import { useConnection } from '$lib/state/server/connection.svelte';
-  import { createPermissionAPI } from '@chatto/api-client/permissions';
+  import { createPermissionAPI } from '$lib/api-client/permissions';
   import { toast } from '$lib/ui/toast';
   import * as m from '$lib/i18n/messages';
   import {

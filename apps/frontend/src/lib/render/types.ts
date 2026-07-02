@@ -1,1 +1,1 @@
-export * from '@chatto/api-client/renderTypes';
+export * from '$lib/api-client/renderTypes';

@@ -4,7 +4,7 @@ import { pushState } from '$app/navigation';
 import { getComposerContext } from '$lib/state/room';
 import { emojiToName } from '$lib/emoji';
 import { copyMessageLinkToClipboard } from '$lib/messageLinks';
-import { createReactionAPI } from '@chatto/api-client/reactions';
+import { createReactionAPI } from '$lib/api-client/reactions';
 
 export type MessageActionParams = {
   serverId: string;
