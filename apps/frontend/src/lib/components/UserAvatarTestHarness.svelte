@@ -9,26 +9,28 @@
   let {
     size = 'md',
     showPresence = false,
-    showStatus = false
+    showStatus = false,
+    presenceStatus = PresenceStatus.Online
   }: {
     size?: Size;
     showPresence?: boolean;
     showStatus?: boolean;
+    presenceStatus?: PresenceStatus;
   } = $props();
 
-  const user: UserAvatarUserView = {
+  const user = $derived({
     id: 'user-1',
     login: 'alice',
     displayName: 'Alice',
     deleted: false,
     avatarUrl: null,
-    presenceStatus: PresenceStatus.Online,
+    presenceStatus,
     customStatus: {
       emoji: '🍜',
       text: 'chatto:status:out_for_lunch',
       expiresAt: null
     }
-  };
+  } satisfies UserAvatarUserView);
 
   createUserProfileCache();
   createPresenceCache();

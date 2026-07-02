@@ -58,6 +58,11 @@
   --color-danger: var(--color-red-600);
   --color-error: var(--color-red-600);
   --color-server: var(--color-indigo-600);
+  --color-presence-online: var(--color-green-500);
+  --color-presence-away: var(--color-yellow-500);
+  --color-presence-do-not-disturb: var(--color-red-500);
+  --color-presence-offline: var(--color-gray-500);
+  --color-presence-invisible: var(--color-gray-400);
 
   /* Panel header band tint + 1px inset highlight just under the divider.
      Tint matches the outer app frame (`bg-surface-100`) so the header
@@ -141,6 +146,11 @@
   --color-danger: var(--color-danger);
   --color-error: var(--color-error);
   --color-server: var(--color-server);
+  --color-presence-online: var(--color-presence-online);
+  --color-presence-away: var(--color-presence-away);
+  --color-presence-do-not-disturb: var(--color-presence-do-not-disturb);
+  --color-presence-offline: var(--color-presence-offline);
+  --color-presence-invisible: var(--color-presence-invisible);
 
   --color-panel-tint: var(--color-panel-tint);
   --color-panel-highlight: var(--color-panel-highlight);

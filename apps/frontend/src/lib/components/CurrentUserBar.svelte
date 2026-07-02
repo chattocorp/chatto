@@ -109,13 +109,13 @@ to the user settings page for the active server.
   function presenceModeDotClass(mode: PresenceMode): string {
     switch (mode) {
       case 'away':
-        return 'bg-orange-500';
+        return 'bg-presence-away';
       case 'doNotDisturb':
-        return 'bg-red-500';
+        return 'bg-presence-do-not-disturb';
       case 'invisible':
-        return 'bg-gray-400';
+        return 'bg-presence-invisible';
       default:
-        return 'bg-green-500';
+        return 'bg-presence-online';
     }
   }
 

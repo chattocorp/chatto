@@ -30,7 +30,7 @@ test.describe('Presence indicators', () => {
     // User A's presence dot should be green (online)
     // Use a longer timeout as presence update requires subscription establishment
     const userAPresenceDot = roomPage.getMemberPresenceDot(userA.login);
-    await expect(userAPresenceDot).toHaveClass(/bg-green-500/, {
+    await expect(userAPresenceDot).toHaveClass(/bg-presence-online/, {
       timeout: TIMEOUTS.REALTIME_EVENT
     });
 
@@ -52,7 +52,7 @@ test.describe('Presence indicators', () => {
 
         // User B's presence dot should be green (online)
         const userBPresenceDot = roomPage.getMemberPresenceDot(userB.login);
-        await expect(userBPresenceDot).toHaveClass(/bg-green-500/, {
+        await expect(userBPresenceDot).toHaveClass(/bg-presence-online/, {
           timeout: TIMEOUTS.UI_STANDARD
         });
       }
@@ -69,7 +69,7 @@ test.describe('Presence indicators', () => {
 
     // User B should still show as online (TTL hasn't expired yet)
     const userBPresenceDot = roomPage.getMemberPresenceDot(userBLogin!);
-    await expect(userBPresenceDot).toHaveClass(/bg-green-500/, {
+    await expect(userBPresenceDot).toHaveClass(/bg-presence-online/, {
       timeout: TIMEOUTS.UI_STANDARD
     });
   });
@@ -88,7 +88,7 @@ test.describe('Presence indicators', () => {
     // User's presence dot should be green (online)
     // Use a longer timeout as presence update requires subscription establishment
     const presenceDot = roomPage.getMemberPresenceDot(user.login);
-    await expect(presenceDot).toHaveClass(/bg-green-500/, {
+    await expect(presenceDot).toHaveClass(/bg-presence-online/, {
       timeout: TIMEOUTS.REALTIME_EVENT
     });
   });

@@ -32,10 +32,10 @@
   };
 
   const presenceDotColorClasses: Record<PresenceStatus, string> = {
-    [PresenceStatus.Online]: 'bg-green-500',
-    [PresenceStatus.Away]: 'bg-orange-500',
-    [PresenceStatus.DoNotDisturb]: 'bg-red-500',
-    [PresenceStatus.Offline]: 'bg-gray-500'
+    [PresenceStatus.Online]: 'bg-presence-online',
+    [PresenceStatus.Away]: 'bg-presence-away',
+    [PresenceStatus.DoNotDisturb]: 'bg-presence-do-not-disturb',
+    [PresenceStatus.Offline]: 'bg-presence-offline'
   };
 
   const presenceDotSizeClasses: Record<Size, string> = {

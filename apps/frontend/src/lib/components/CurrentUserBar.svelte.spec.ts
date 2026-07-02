@@ -12,6 +12,15 @@ import {
 import { serverStorageKey } from '$lib/storage/serverStorage';
 import CurrentUserBarTestHarness from './CurrentUserBarTestHarness.svelte';
 
+function computedBackgroundColor(color: string): string {
+  const element = document.createElement('span');
+  element.style.backgroundColor = color;
+  document.body.append(element);
+  const computed = window.getComputedStyle(element).backgroundColor;
+  element.remove();
+  return computed;
+}
+
 type MockRoomMember = {
   id: string;
   login: string;
@@ -157,7 +166,7 @@ describe('CurrentUserBar', () => {
       container,
       '[data-testid="current-user-presence-menu"] [aria-label="Online"] span'
     )!;
-    expect(presenceDot.className).toContain('bg-green-500');
+    expect(presenceDot.className).toContain('bg-presence-online');
     expect(container.textContent).toContain('Alice');
     expect(container.textContent).toContain('@alice');
   });
@@ -187,6 +196,28 @@ describe('CurrentUserBar', () => {
       expect(q(container, '[data-testid="custom-status-editor"]')).toBeFalsy();
     });
     expect(q(container, '[data-testid="current-user-edit-status"]')).toBeFalsy();
+  });
+
+  it('renders the away presence menu dot in yellow', async () => {
+    const { container } = render(CurrentUserBarTestHarness);
+
+    (q(container, '[data-testid="current-user-presence-menu"]') as HTMLButtonElement).click();
+
+    await vi.waitFor(() => {
+      const awayOption = Array.from(container.querySelectorAll('[role="menuitemradio"]')).find(
+        (item) => item.textContent?.includes('Away')
+      )!;
+      const awayDot = awayOption.querySelector('.rounded-full')!;
+      const yellow500 = window
+        .getComputedStyle(document.documentElement)
+        .getPropertyValue('--color-yellow-500')
+        .trim();
+
+      expect(awayDot.className).toContain('bg-presence-away');
+      expect(window.getComputedStyle(awayDot).backgroundColor).toBe(
+        computedBackgroundColor(yellow500)
+      );
+    });
   });
 
   it('closes the presence menu after choosing a presence mode', async () => {
