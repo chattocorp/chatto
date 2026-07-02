@@ -93,6 +93,25 @@ describe('ActiveCallRoomsState', () => {
     expect(state.getParticipantCallPresence('R1', 'U2')).toBeNull();
   });
 
+  it('reports backend-observed participants in any active room on the server', async () => {
+    const state = new ActiveCallRoomsState(makeVoiceCallAPI(), {
+      connected: false,
+      roomId: null,
+      participants: []
+    } as never);
+
+    await state.handleJoin('R2', 'call-2', {
+      id: 'U1',
+      displayName: 'Alice',
+      login: 'alice',
+      avatarUrl: null
+    } as never);
+
+    expect(state.getParticipantCallPresence('R1', 'U1')).toBeNull();
+    expect(state.getParticipantCallPresenceInAnyRoom('U1')).toBe('voice');
+    expect(state.getParticipantCallPresenceInAnyRoom('U2')).toBeNull();
+  });
+
   it('reloads participants when a protobuf call join has no hydrated actor', async () => {
     const listCallParticipants = vi.fn().mockResolvedValueOnce([participant('U1')]);
     const state = new ActiveCallRoomsState(makeVoiceCallAPI({ listCallParticipants }), {
@@ -167,6 +186,22 @@ describe('ActiveCallRoomsState', () => {
     expect(state.getParticipantCallPresence('R2', 'U1')).toBeNull();
   });
 
+  it('upgrades server-wide local LiveKit camera participants to video', () => {
+    const state = new ActiveCallRoomsState(makeVoiceCallAPI(), {
+      connected: true,
+      roomId: 'R1',
+      participants: [
+        {
+          identity: 'U1',
+          isCameraEnabled: true,
+          videoTrack: {}
+        }
+      ]
+    } as never);
+
+    expect(state.getParticipantCallPresenceInAnyRoom('U1')).toBe('video');
+  });
+
   it('clears a room when its call ends', () => {
     const state = new ActiveCallRoomsState(makeVoiceCallAPI(), {
       connected: false,
@@ -187,6 +222,28 @@ describe('ActiveCallRoomsState', () => {
 
     expect(state.has('R1')).toBe(false);
     expect(state.getParticipants('R1')).toEqual([]);
+    expect(state.getParticipantCallPresenceInAnyRoom('U1')).toBeNull();
+  });
+
+  it('clears server-wide participant presence after the last participant leaves', async () => {
+    const state = new ActiveCallRoomsState(makeVoiceCallAPI(), {
+      connected: false,
+      roomId: null,
+      participants: []
+    } as never);
+
+    await state.handleJoin('R1', 'call-1', {
+      id: 'U1',
+      displayName: 'Alice',
+      login: 'alice',
+      avatarUrl: null
+    } as never);
+
+    expect(state.getParticipantCallPresenceInAnyRoom('U1')).toBe('voice');
+
+    state.handleLeave('R1', 'call-1', 'U1');
+
+    expect(state.getParticipantCallPresenceInAnyRoom('U1')).toBeNull();
   });
 
   it('clears a list-loaded room when its call end event arrives', async () => {

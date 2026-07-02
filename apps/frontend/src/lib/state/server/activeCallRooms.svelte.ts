@@ -81,16 +81,32 @@ export class ActiveCallRoomsState {
    */
   getParticipantCallPresence(roomId: string, userId: string): CallPresenceKind | null {
     if (this.#voiceCall.connected && this.#voiceCall.roomId === roomId) {
-      const liveParticipant = this.#voiceCall.participants.find((p) => p.identity === userId);
-      if (liveParticipant) {
-        return liveParticipant.isCameraEnabled && liveParticipant.videoTrack ? 'video' : 'voice';
-      }
+      const livePresence = this.liveParticipantCallPresence(userId);
+      if (livePresence) return livePresence;
     }
 
     const serverParticipant = this.serverRooms
       .get(roomId)
       ?.participants.some((p) => p.userId === userId);
     return serverParticipant ? 'voice' : null;
+  }
+
+  /**
+   * Return a user's call presence in any active room on this server.
+   *
+   * Server snapshots only expose membership, so they render as voice. The
+   * current LiveKit room can upgrade visible participants to video when a
+   * camera track is active.
+   */
+  getParticipantCallPresenceInAnyRoom(userId: string): CallPresenceKind | null {
+    const livePresence = this.liveParticipantCallPresence(userId);
+    if (livePresence) return livePresence;
+
+    for (const snapshot of this.serverRooms.values()) {
+      if (snapshot.participants.some((p) => p.userId === userId)) return 'voice';
+    }
+
+    return null;
   }
 
   /**
@@ -121,6 +137,15 @@ export class ActiveCallRoomsState {
     if (this.pendingCallIds.get(call.roomId) === call.callId) {
       this.pendingCallIds.delete(call.roomId);
     }
+  }
+
+  private liveParticipantCallPresence(userId: string): CallPresenceKind | null {
+    if (!this.#voiceCall.connected) return null;
+
+    const liveParticipant = this.#voiceCall.participants.find((p) => p.identity === userId);
+    if (!liveParticipant) return null;
+
+    return liveParticipant.isCameraEnabled && liveParticipant.videoTrack ? 'video' : 'voice';
   }
 
   private bumpRoomVersion(roomId: string): number {

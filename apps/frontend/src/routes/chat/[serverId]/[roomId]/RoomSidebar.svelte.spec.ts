@@ -66,6 +66,7 @@ const callStore = vi.hoisted(() => ({
     active: false,
     load: vi.fn().mockResolvedValue(undefined),
     has: vi.fn(() => callStore.activeCallRooms.active),
+    getParticipantCallPresenceInAnyRoom: vi.fn(() => null as 'voice' | 'video' | null),
     handleEnd: vi.fn()
   },
   callParticipants: {
@@ -390,6 +391,8 @@ describe('RoomSidebar', () => {
     callStore.activeCallRooms.active = false;
     callStore.activeCallRooms.load.mockClear();
     callStore.activeCallRooms.has.mockClear();
+    callStore.activeCallRooms.getParticipantCallPresenceInAnyRoom.mockClear();
+    callStore.activeCallRooms.getParticipantCallPresenceInAnyRoom.mockReturnValue(null);
     callStore.callParticipants.participants = [];
     callStore.callParticipants.load.mockClear();
     callStore.callParticipants.clear.mockClear();
@@ -436,6 +439,24 @@ describe('RoomSidebar', () => {
       expect(renderedMemberTitles(container)).toContain(`View profile of User ${index}`);
     }
     expect(container.querySelector('[data-testid="room-members-load-more-sentinel"]')).toBeFalsy();
+  });
+
+  it('shows call presence for members active in any room call on the server', async () => {
+    mockRoomMembers([member(1), member(2)]);
+    callStore.activeCallRooms.getParticipantCallPresenceInAnyRoom.mockImplementation((userId) =>
+      userId === 'user-2' ? 'voice' : null
+    );
+
+    const { container } = render(RoomSidebarTestHarness, {
+      props: {
+        roomData: roomData([], 0, false)
+      }
+    });
+
+    await vi.waitFor(() => {
+      expect(q(container, '[data-testid="member-call-presence-voice"]')).toBeTruthy();
+    });
+    expect(callStore.activeCallRooms.getParticipantCallPresenceInAnyRoom).toHaveBeenCalledWith('user-2');
   });
 
   it('renders the call tab empty state and starts a call', async () => {
@@ -566,18 +587,15 @@ describe('RoomSidebar', () => {
     expect(participantCards[0].className).toContain('participant-card-video');
     expect(participantCards[1].className).toContain('participant-card-compact');
     const mutedIndicator = q(participantCards[1], '[data-testid="call-muted-indicator"]');
-    const speakingIndicator = q(participantCards[1], '[data-testid="call-speaking-indicator"]');
     const voiceLocalMuteButton = q(
       participantCards[1],
       '[data-testid="call-feed-local-mute-button"]'
     ) as HTMLButtonElement;
     expect(mutedIndicator).toBeTruthy();
-    expect(speakingIndicator).toBeTruthy();
+    expect(participantCards[1].hasAttribute('data-speaking-ring')).toBe(true);
+    expect(q(participantCards[1], '[data-testid="call-speaking-indicator"]')).toBeFalsy();
     expect(voiceLocalMuteButton).toBeTruthy();
     expect(voiceLocalMuteButton.getAttribute('aria-label')).toBe('Mute locally');
-    expect(
-      speakingIndicator!.compareDocumentPosition(mutedIndicator!) & Node.DOCUMENT_POSITION_FOLLOWING
-    ).toBeTruthy();
 
     const deviceButton = q(
       container,
@@ -639,7 +657,7 @@ describe('RoomSidebar', () => {
     expect(q(container, '[data-testid="call-leave-button"]')!.className).toContain('btn-danger');
   });
 
-  it('shows a neutral speaking indicator for active speakers', async () => {
+  it('shows an accent speaking ring for active speakers', async () => {
     callStore.voiceCall.connected = true;
     callStore.voiceCall.isInAnyCall = true;
     callStore.voiceCall.roomId = 'room-1';
@@ -672,15 +690,14 @@ describe('RoomSidebar', () => {
     });
 
     const card = q(container, '[data-testid="call-participant-card"]') as HTMLElement;
-    const indicator = q(container, '[data-testid="call-speaking-indicator"]') as HTMLElement;
 
     await vi.waitFor(() => {
       expect(callStore.voiceCall.getAudioLevel).toHaveBeenCalledWith('viewer');
-      expect(indicator.getAttribute('aria-hidden')).toBe('false');
-      expect(Number(indicator.style.opacity)).toBeGreaterThan(0);
+      expect(card.dataset.callSpeaking).toBe('true');
+      expect(Number(card.style.getPropertyValue('--call-speaking-ring-opacity'))).toBeGreaterThan(0);
     });
-    expect(indicator.className).toContain('text-muted');
-    expect(card.className).not.toContain('voice-ring');
+    expect(card.className).toContain('call-speaking-card');
+    expect(q(card, '[data-testid="call-speaking-indicator"]')).toBeFalsy();
   });
 
   it('renders one participant list without empty section labels', async () => {
@@ -1032,10 +1049,14 @@ describe('RoomSidebar', () => {
     expect(secondaryList!.children[0].textContent).toContain('Alice');
   });
 
-  it('falls back to a voice participant for the maximized call stage', async () => {
+  it('falls back to a voice participant for the maximized call stage with speaking and quality indicators', async () => {
     callStore.voiceCall.connected = true;
     callStore.voiceCall.isInAnyCall = true;
     callStore.voiceCall.roomId = 'room-1';
+    callStore.voiceCall.getAudioLevel.mockImplementation((identity?: string) => ({
+      isSpeaking: identity === 'viewer',
+      audioLevel: identity === 'viewer' ? 0.6 : 0
+    }));
     callStore.voiceCall.participants = [
       {
         identity: 'viewer',
@@ -1044,7 +1065,7 @@ describe('RoomSidebar', () => {
         avatarUrl: null,
         isMuted: false,
         isLocal: true,
-        connectionQuality: 'excellent',
+        connectionQuality: 'poor',
         isCameraEnabled: false,
         videoTrack: null,
         isScreenShareEnabled: false,
@@ -1065,6 +1086,15 @@ describe('RoomSidebar', () => {
     expect(featured).toBeTruthy();
     expect(featured!.textContent).toContain('Alice');
     expect(featured!.querySelector('video')).toBeFalsy();
+    await vi.waitFor(() => {
+      expect(callStore.voiceCall.getAudioLevel).toHaveBeenCalledWith('viewer');
+      expect(featured!.dataset.callSpeaking).toBe('true');
+      expect(Number(featured!.style.getPropertyValue('--call-speaking-ring-opacity'))).toBeGreaterThan(
+        0
+      );
+    });
+    expect(featured!.hasAttribute('data-speaking-ring')).toBe(true);
+    expect(q(featured!, '[aria-label="Poor connection"]')).toBeTruthy();
     const localMuteButton = q(
       featured!,
       '[data-testid="call-feed-local-mute-button"]'

@@ -18,6 +18,13 @@ const { soundMocks, apiMocks } = vi.hoisted(() => ({
         hasMore: false
       })
     ),
+    listActiveCalls: vi.fn(() => Promise.resolve([])),
+    getActiveCall: vi.fn(() => Promise.resolve(null)),
+    batchGetActiveCalls: vi.fn(() => Promise.resolve([])),
+    listCallParticipants: vi.fn(() => Promise.resolve([])),
+    joinCall: vi.fn(() => Promise.resolve(true)),
+    getCallToken: vi.fn(() => Promise.resolve(null)),
+    leaveCall: vi.fn(() => Promise.resolve(true)),
     listNotificationCounts: vi.fn(() => Promise.resolve({})),
     listNotifications: vi.fn(() =>
       Promise.resolve({
@@ -152,6 +159,18 @@ vi.mock('$lib/api-client/memberDirectory', () => ({
   mapDirectoryMember: (member: unknown) => member,
   createMemberDirectoryAPI: vi.fn(() => ({
     listRoomMembers: apiMocks.listRoomMembers
+  }))
+}));
+
+vi.mock('$lib/api-client/voiceCalls', () => ({
+  createVoiceCallAPI: vi.fn(() => ({
+    listActiveCalls: apiMocks.listActiveCalls,
+    getActiveCall: apiMocks.getActiveCall,
+    batchGetActiveCalls: apiMocks.batchGetActiveCalls,
+    listCallParticipants: apiMocks.listCallParticipants,
+    joinCall: apiMocks.joinCall,
+    getCallToken: apiMocks.getCallToken,
+    leaveCall: apiMocks.leaveCall
   }))
 }));
 
@@ -297,6 +316,13 @@ beforeEach(() => {
     totalCount: 0,
     hasMore: false
   });
+  apiMocks.listActiveCalls.mockResolvedValue([]);
+  apiMocks.getActiveCall.mockResolvedValue(null);
+  apiMocks.batchGetActiveCalls.mockResolvedValue([]);
+  apiMocks.listCallParticipants.mockResolvedValue([]);
+  apiMocks.joinCall.mockResolvedValue(true);
+  apiMocks.getCallToken.mockResolvedValue(null);
+  apiMocks.leaveCall.mockResolvedValue(true);
   apiMocks.listNotificationCounts.mockResolvedValue({});
   apiMocks.listNotifications.mockResolvedValue({
     items: [],
@@ -578,6 +604,8 @@ describe('ServerStateStore live server updates', () => {
     const fake = new FakeServerConnection([]);
     const store = makeStore(fake);
     store.rooms.currentUserId = 'U1';
+    const handleJoin = vi.spyOn(store.activeCallRooms, 'handleJoin').mockResolvedValue(undefined);
+    const handleLeave = vi.spyOn(store.activeCallRooms, 'handleLeave').mockImplementation(() => {});
     const shouldPlay = vi
       .spyOn(store.voiceCall, 'callTransitionSoundDecision')
       .mockReturnValue('play');
@@ -604,11 +632,40 @@ describe('ServerStateStore live server updates', () => {
       });
     }
 
+    expect(handleJoin).toHaveBeenCalledWith('R1', 'call-1', null);
+    expect(handleLeave).toHaveBeenCalledWith('R1', 'call-1', 'U1');
     expect(shouldPlay).toHaveBeenNthCalledWith(1, 'join', 'R1', 'call-1', false);
     expect(shouldPlay).toHaveBeenNthCalledWith(2, 'leave', 'R1', 'call-1', true);
     expect(soundMocks.playCallSound).toHaveBeenCalledTimes(2);
     expect(soundMocks.playCallSound).toHaveBeenNthCalledWith(1, 'join');
     expect(soundMocks.playCallSound).toHaveBeenNthCalledWith(2, 'leave');
+  });
+
+  it('clears active call snapshots when a call end event arrives through the server bus', async () => {
+    const fake = new FakeServerConnection([]);
+    const store = makeStore(fake);
+    const handleEnd = vi.spyOn(store.activeCallRooms, 'handleEnd').mockImplementation(() => {});
+    const handleCallEndedEvent = vi
+      .spyOn(store.voiceCall, 'handleCallEndedEvent')
+      .mockImplementation(() => {});
+
+    eventBusManager.startBus(registered.id, fake as unknown as ServerConnection);
+    flushSync();
+    const bus = eventBusManager.getBus(registered.id);
+    if (!bus) throw new Error('event bus did not start');
+
+    for (const handler of bus.handlers) {
+      handler({
+        id: 'E-call-ended',
+        createdAt: new Date().toISOString(),
+        actorId: 'U2',
+        actor: null,
+        event: roomEvent(RoomEventKind.CallEnded, { roomId: 'R1', callId: 'call-1' })
+      });
+    }
+
+    expect(handleEnd).toHaveBeenCalledWith('R1', 'call-1');
+    expect(handleCallEndedEvent).toHaveBeenCalledWith('R1', 'call-1');
   });
 
   it('dedupes call sound events by event ID', async () => {

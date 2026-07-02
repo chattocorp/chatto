@@ -32,6 +32,8 @@ import type { ServerConnection } from './serverConnection.svelte';
 import type { RegisteredServer } from './registry.svelte';
 import { playCallSound } from '$lib/audio/callSounds';
 import { RoomEventKind, roomEventKind, type RoomEventKindSource } from '$lib/render/eventKinds';
+import { useRenderData } from '$lib/render/data';
+import { UserAvatarUserViewDocument } from '$lib/render/types';
 
 type CallTransitionEventPayload = {
   roomId: string;
@@ -213,7 +215,9 @@ export class ServerStateStore {
             }
           } else if (eventKind === RoomEventKind.CallParticipantJoined) {
             const callEvent = callTransitionEventPayload(event.event);
-            if (!callEvent) return;
+            if (!callEvent || !callEvent.callId) return;
+            const actor = event.actor ? useRenderData(UserAvatarUserViewDocument, event.actor) : null;
+            void this.activeCallRooms.handleJoin(callEvent.roomId, callEvent.callId, actor);
             this.playCallTransitionSound(
               event.id,
               'join',
@@ -224,6 +228,7 @@ export class ServerStateStore {
           } else if (eventKind === RoomEventKind.CallParticipantLeft) {
             const callEvent = callTransitionEventPayload(event.event);
             if (!callEvent) return;
+            this.activeCallRooms.handleLeave(callEvent.roomId, callEvent.callId, event.actorId ?? null);
             this.playCallTransitionSound(
               event.id,
               'leave',
@@ -240,6 +245,9 @@ export class ServerStateStore {
           } else if (eventKind === RoomEventKind.CallEnded) {
             const callEvent = callTransitionEventPayload(event.event);
             if (!callEvent) return;
+            if (callEvent.callId) {
+              this.activeCallRooms.handleEnd(callEvent.roomId, callEvent.callId);
+            }
             this.voiceCall.handleCallEndedEvent(callEvent.roomId, callEvent.callId);
           }
         };
