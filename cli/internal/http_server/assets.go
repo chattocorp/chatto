@@ -67,8 +67,10 @@ func protectedAssetDeliveryMode(attachment *corev1.Attachment, req *http.Request
 	if !attachmentCanUsePresignedRedirect(attachment.GetContentType()) {
 		return deliveryChattoStream
 	}
-	if _, ok := attachment.GetStorage().GetAsset().(*corev1.DeprecatedAsset_S3); !ok {
-		return deliveryChattoStream
+	if storage := attachment.GetStorage(); storage != nil {
+		if _, ok := storage.GetAsset().(*corev1.DeprecatedAsset_S3); !ok {
+			return deliveryChattoStream
+		}
 	}
 	contentType := strings.ToLower(attachment.GetContentType())
 	if strings.HasPrefix(contentType, "video/") || strings.HasPrefix(contentType, "audio/") {

@@ -28,6 +28,7 @@ import (
 	"hmans.de/chatto/internal/email"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	"hmans.de/chatto/internal/pb/chatto/api/v1/apiv1connect"
+	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	"hmans.de/chatto/internal/testutil"
 	"hmans.de/chatto/internal/testutil/fakes3"
 )
@@ -677,6 +678,73 @@ func TestAsset_StableS3VideoRedirectsUnlessProxyForcesStream(t *testing.T) {
 	streamResp.Body.Close()
 	if streamResp.StatusCode != http.StatusOK {
 		t.Fatalf("Expected proxy-forced S3 video stream to return 200, got %d", streamResp.StatusCode)
+	}
+}
+
+func TestAsset_StableNilStorageS3VideoRedirectsViaProbe(t *testing.T) {
+	env := setupAssetTestServerWithS3AndVideo(t)
+	env.core.OnVideoProcessingRequested = func(context.Context, string, string) error { return nil }
+
+	user, err := env.core.CreateUser(env.ctx, "system", "s3legacyvideouser", "S3 Legacy Video User", "password123")
+	if err != nil {
+		t.Fatalf("Failed to create user: %v", err)
+	}
+	room, err := env.core.CreateRoom(env.ctx, user.Id, "channel", "", "s3legacyvideoroom", "S3 Legacy Video Room")
+	if err != nil {
+		t.Fatalf("Failed to create room: %v", err)
+	}
+	if _, err := env.core.JoinRoom(env.ctx, user.Id, "channel", user.Id, room.Id); err != nil {
+		t.Fatalf("Failed to join room: %v", err)
+	}
+	env.login(t, "s3legacyvideouser", "password123")
+
+	videoBytes := []byte("fake legacy video bytes")
+	_, attachment := env.postAssetMessageWithAttachmentContentType(
+		t,
+		room.Id,
+		"s3 legacy video",
+		videoBytes,
+		"s3-legacy-video.mp4",
+		"video/mp4",
+	)
+	attachmentURL := attachment.GetAssetUrl().GetUrl()
+	if attachmentURL == "" {
+		t.Fatal("Expected stable attachment URL")
+	}
+
+	if err := env.core.Assets.Apply(&corev1.Event{
+		Id: "E-storage-less-" + attachment.GetId(),
+		Event: &corev1.Event_AssetCreated{
+			AssetCreated: &corev1.AssetCreatedEvent{
+				OriginalBinaryAvailable: true,
+				RoomId:                  room.Id,
+				Asset: &corev1.AssetRecord{
+					Id:          attachment.GetId(),
+					Filename:    "s3-legacy-video.mp4",
+					ContentType: "video/mp4",
+					Size:        int64(len(videoBytes)),
+				},
+			},
+		},
+	}, 999); err != nil {
+		t.Fatalf("Failed to project storage-less asset metadata: %v", err)
+	}
+
+	noRedirectClient := &http.Client{
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
+	redirectResp, err := noRedirectClient.Get(env.server.URL + attachmentURL)
+	if err != nil {
+		t.Fatalf("Failed to fetch storage-less S3 video attachment URL: %v", err)
+	}
+	redirectResp.Body.Close()
+	if redirectResp.StatusCode != http.StatusFound {
+		t.Fatalf("Expected storage-less S3 video to redirect with 302, got %d", redirectResp.StatusCode)
+	}
+	if got := redirectResp.Header.Get("Location"); got == "" || !strings.Contains(got, "X-Amz-Expires=300") {
+		t.Fatalf("Expected probed short-lived presigned S3 Location, got %q", got)
 	}
 }
 
