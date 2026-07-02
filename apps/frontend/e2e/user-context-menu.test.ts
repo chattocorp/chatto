@@ -202,7 +202,7 @@ test.describe('User context menu', () => {
 
   test.describe('Send Message button', () => {
     test('user profile dialog shows Send Message button', async ({ page, chatPage, roomPage }) => {
-      await createAndLoginTestUser(page);
+      const user = await createAndLoginTestUser(page);
       await chatPage.goto();
       await chatPage.enterRoom('general');
 
@@ -210,9 +210,9 @@ test.describe('User context menu', () => {
       await roomPage.sendMessage('Test message');
 
       // Open user profile from member list
-      const user = await roomPage.getMemberDisplayNamesInOrder();
+      await roomPage.expectMemberVisible(user.login, { timeout: TIMEOUTS.UI_STANDARD });
       const memberButton = roomPage.memberList.getByRole('button', {
-        name: new RegExp(user[0])
+        name: new RegExp(user.displayName)
       });
       await memberButton.click();
 
