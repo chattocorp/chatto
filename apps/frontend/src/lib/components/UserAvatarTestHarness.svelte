@@ -8,11 +8,11 @@
 
   let {
     size = 'md',
-    showPresence = undefined,
+    showPresence = false,
     showStatus = false
   }: {
     size?: Size;
-    showPresence?: boolean | undefined;
+    showPresence?: boolean;
     showStatus?: boolean;
   } = $props();
 

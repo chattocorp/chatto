@@ -153,8 +153,11 @@ describe('CurrentUserBar', () => {
 
     expect(q(container, '[aria-label="Presence: Online"]')).toBeTruthy();
     expect(q(container, '[aria-label="Offline"]')).toBeFalsy();
-    const avatar = q(container, '[data-testid="current-user-presence-menu"] [aria-label="alice"]')!;
-    expect(avatar.className).toContain('ring-green-500');
+    const presenceDot = q(
+      container,
+      '[data-testid="current-user-presence-menu"] [aria-label="Online"] span'
+    )!;
+    expect(presenceDot.className).toContain('bg-green-500');
     expect(container.textContent).toContain('Alice');
     expect(container.textContent).toContain('@alice');
   });

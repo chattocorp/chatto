@@ -10,8 +10,7 @@
     parameters: {
       docs: {
         description: {
-          component:
-            'User avatar rendering with presence-colored rings for medium and larger sizes.'
+          component: 'Squircle user avatar rendering with optional presence dots.'
         }
       }
     }
@@ -47,16 +46,16 @@
   createPresenceCache();
 </script>
 
-<Story name="Presence rings" asChild>
+<Story name="Presence dots" asChild>
   <div class="flex items-center gap-5 rounded-md bg-surface p-4">
-    <UserAvatar user={onlineUser} size="md" />
-    <UserAvatar user={awayUser} size="md" />
-    <UserAvatar user={dndUser} size="md" />
-    <UserAvatar user={offlineUser} size="md" />
+    <UserAvatar user={onlineUser} size="md" showPresence />
+    <UserAvatar user={awayUser} size="md" showPresence />
+    <UserAvatar user={dndUser} size="md" showPresence />
+    <UserAvatar user={offlineUser} size="md" showPresence />
   </div>
 </Story>
 
-<Story name="Small sizes stay plain" asChild>
+<Story name="Plain avatars" asChild>
   <div class="flex items-center gap-4 rounded-md bg-surface p-4">
     <UserAvatar user={onlineUser} size="xs" />
     <UserAvatar user={awayUser} size="sm" />

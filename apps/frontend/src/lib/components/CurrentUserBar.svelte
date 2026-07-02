@@ -289,6 +289,7 @@ to the user settings page for the active server.
         <UserAvatar
           user={activeServerUser}
           size="md"
+          showPresence
           presenceOverride={presencePreference.effectiveStatus}
         />
       </button>

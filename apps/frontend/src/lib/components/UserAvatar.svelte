@@ -31,11 +31,27 @@
     xl: 'text-xl'
   };
 
-  const presenceRingColorClasses: Record<PresenceStatus, string> = {
-    [PresenceStatus.Online]: 'ring-green-500',
-    [PresenceStatus.Away]: 'ring-orange-500',
-    [PresenceStatus.DoNotDisturb]: 'ring-red-500',
-    [PresenceStatus.Offline]: 'ring-gray-500'
+  const presenceDotColorClasses: Record<PresenceStatus, string> = {
+    [PresenceStatus.Online]: 'bg-green-500',
+    [PresenceStatus.Away]: 'bg-orange-500',
+    [PresenceStatus.DoNotDisturb]: 'bg-red-500',
+    [PresenceStatus.Offline]: 'bg-gray-500'
+  };
+
+  const presenceDotSizeClasses: Record<Size, string> = {
+    xs: '',
+    sm: 'h-2 w-2',
+    md: 'h-2.5 w-2.5',
+    lg: 'h-3 w-3',
+    xl: 'h-3.5 w-3.5'
+  };
+
+  const presenceDotShellSizeClasses: Record<Size, string> = {
+    xs: '',
+    sm: 'h-3.5 w-3.5',
+    md: 'h-4 w-4',
+    lg: 'h-[18px] w-[18px]',
+    xl: 'h-5 w-5'
   };
 
   const customStatusTextSizeClasses: Record<Size, string> = {
@@ -48,7 +64,7 @@
   let {
     user,
     size = 'md',
-    showPresence = undefined,
+    showPresence = false,
     presenceOverride = null,
     showStatus = false,
     class: className = ''
@@ -84,28 +100,19 @@
     user && !user.deleted ? getLiveCustomStatus(user.id, user.customStatus) : null
   );
   const showCustomStatusBadge = $derived(!!user && showStatus && !user.deleted);
-  const hasOverlay = $derived(showCustomStatusBadge);
-  const showPresenceRing = $derived(
-    !!presence &&
-      showPresence !== false &&
-      size !== 'xs' &&
-      (showPresence === true || size !== 'sm')
-  );
-  const presenceRingClass = $derived(
-    showPresenceRing && presence
-      ? `ring-2 ring-inset ${presenceRingColorClasses[presence]}`
-      : ''
-  );
-  const avatarClass = $derived(
+  const showPresenceDot = $derived(!!presence && showPresence && size !== 'xs');
+  const hasOverlay = $derived(showCustomStatusBadge || showPresenceDot);
+  const wrapperClass = $derived(
     [
       sizeClasses[size],
-      'rounded-full',
-      className,
-      presenceRingClass
+      'avatar-frame inline-grid shrink-0 [corner-shape:squircle]',
+      hasOverlay && 'relative',
+      className
     ]
       .filter(Boolean)
       .join(' ')
   );
+  const avatarClass = $derived('avatar-shape h-full w-full [corner-shape:squircle]');
   const placeholderClass = $derived(
     [
       avatarClass,
@@ -128,10 +135,7 @@
 </script>
 
 {#if user}
-  <div
-    class={['inline-block', hasOverlay && 'relative']}
-    aria-label={showPresenceRing ? presenceLabel : undefined}
-  >
+  <div class={wrapperClass}>
     {#if avatarUrl}
       <SkeletonImg
         loading="lazy"
@@ -152,5 +156,34 @@
         ]} pointer-events-none absolute top-0 right-0 translate-x-1/4 -translate-y-1/4 [text-shadow:0_1px_2px_rgb(0_0_0_/_0.9),0_0_1px_rgb(0_0_0_/_0.95)]"
       />
     {/if}
+    {#if showPresenceDot && presence}
+      <span
+        class={[
+          presenceDotShellSizeClasses[size],
+          'pointer-events-none absolute right-0 bottom-0 grid translate-x-0.5 translate-y-0.5 place-items-center rounded-full border-2 border-surface bg-surface'
+        ]}
+        aria-label={presenceLabel}
+      >
+        <span
+          class={[
+            presenceDotSizeClasses[size],
+            presenceDotColorClasses[presence],
+            'presence-dot rounded-full'
+          ]}
+          aria-hidden="true"
+        ></span>
+      </span>
+    {/if}
   </div>
 {/if}
+
+<style>
+  .avatar-frame,
+  .avatar-shape {
+    border-radius: 30%;
+  }
+
+  .avatar-shape {
+    overflow: hidden;
+  }
+</style>

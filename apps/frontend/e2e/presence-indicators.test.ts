@@ -27,10 +27,10 @@ test.describe('Presence indicators', () => {
     // User A should be in the member list
     await roomPage.expectMemberVisible(userA.login);
 
-    // User A's presence ring should be green (online)
+    // User A's presence dot should be green (online)
     // Use a longer timeout as presence update requires subscription establishment
-    const userAPresenceRing = roomPage.getMemberPresenceRing(userA.login);
-    await expect(userAPresenceRing).toHaveClass(/ring-green-500/, {
+    const userAPresenceDot = roomPage.getMemberPresenceDot(userA.login);
+    await expect(userAPresenceDot).toHaveClass(/bg-green-500/, {
       timeout: TIMEOUTS.REALTIME_EVENT
     });
 
@@ -50,9 +50,9 @@ test.describe('Presence indicators', () => {
         // Wait for User B to be visible in User A's member list (presence broadcast)
         await roomPage.expectMemberVisible(userB.login, { timeout: TIMEOUTS.REALTIME_EVENT });
 
-        // User B's presence ring should be green (online)
-        const userBPresenceRing = roomPage.getMemberPresenceRing(userB.login);
-        await expect(userBPresenceRing).toHaveClass(/ring-green-500/, {
+        // User B's presence dot should be green (online)
+        const userBPresenceDot = roomPage.getMemberPresenceDot(userB.login);
+        await expect(userBPresenceDot).toHaveClass(/bg-green-500/, {
           timeout: TIMEOUTS.UI_STANDARD
         });
       }
@@ -68,8 +68,8 @@ test.describe('Presence indicators', () => {
     await expect(userBListItem).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
 
     // User B should still show as online (TTL hasn't expired yet)
-    const userBPresenceRing = roomPage.getMemberPresenceRing(userBLogin!);
-    await expect(userBPresenceRing).toHaveClass(/ring-green-500/, {
+    const userBPresenceDot = roomPage.getMemberPresenceDot(userBLogin!);
+    await expect(userBPresenceDot).toHaveClass(/bg-green-500/, {
       timeout: TIMEOUTS.UI_STANDARD
     });
   });
@@ -85,20 +85,17 @@ test.describe('Presence indicators', () => {
     // User should see themselves in the member list
     await roomPage.expectMemberVisible(user.login);
 
-    // User's presence ring should be green (online)
+    // User's presence dot should be green (online)
     // Use a longer timeout as presence update requires subscription establishment
-    const presenceRing = roomPage.getMemberPresenceRing(user.login);
-    await expect(presenceRing).toHaveClass(/ring-green-500/, {
+    const presenceDot = roomPage.getMemberPresenceDot(user.login);
+    await expect(presenceDot).toHaveClass(/bg-green-500/, {
       timeout: TIMEOUTS.REALTIME_EVENT
     });
   });
 });
 
 test.describe('Message avatar presence', () => {
-  test('shows a presence ring without an overlay dot on message avatars', async ({
-    page,
-    chatPage
-  }) => {
+  test('does not show presence overlays on message avatars', async ({ page, chatPage }) => {
     // Create user and load the primary server
     await createAndLoginTestUser(page);
     await chatPage.goto();
@@ -107,11 +104,9 @@ test.describe('Message avatar presence', () => {
     const roomPage = await chatPage.enterRoom('general');
     await roomPage.sendMessage('Hello without presence!');
 
-    // The message avatar uses the shared presence ring, not an overlay dot.
+    // Message avatars stay visually quiet; member lists and the current-user control opt in.
     const messageArticle = page.locator('[role="article"]', { hasText: 'Hello without presence!' });
-    const avatarPresenceRing = messageArticle.locator('button.absolute .ring-2');
-    await expect(avatarPresenceRing).toHaveClass(/ring-green-500/);
-    const avatarPresenceDot = messageArticle.locator('button.absolute span.rounded-full');
+    const avatarPresenceDot = messageArticle.locator('button.absolute .presence-dot');
     await expect(avatarPresenceDot).not.toBeVisible();
   });
 });
