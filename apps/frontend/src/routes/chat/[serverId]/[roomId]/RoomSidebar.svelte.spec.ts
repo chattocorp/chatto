@@ -1354,12 +1354,12 @@ describe('RoomSidebar', () => {
       '[aria-label="Maximize call"]'
     ) as HTMLButtonElement | null;
     expect(maximizeButton).toBeTruthy();
-    expect(maximizeButton!.querySelector('.uil--expand-arrows')).toBeTruthy();
+    expect(maximizeButton!.querySelector('.mdi--arrow-expand-left')).toBeTruthy();
     const normalFullscreenButton = container.querySelector(
       '[aria-label="Fullscreen call"]'
     ) as HTMLButtonElement | null;
     expect(normalFullscreenButton).toBeTruthy();
-    expect(normalFullscreenButton!.querySelector('.mdi--fullscreen')).toBeTruthy();
+    expect(normalFullscreenButton!.querySelector('.mdi--monitor-share')).toBeTruthy();
 
     maximizeButton!.click();
     await tick();
@@ -1379,10 +1379,10 @@ describe('RoomSidebar', () => {
       '[aria-label="Minimize call"]'
     ) as HTMLButtonElement | null;
     expect(minimizeButton).toBeTruthy();
-    expect(minimizeButton!.querySelector('.uil--compress-arrows')).toBeTruthy();
+    expect(minimizeButton!.querySelector('.mdi--arrow-collapse-right')).toBeTruthy();
     const fullscreenButton = container.querySelector('[aria-label="Fullscreen call"]') as HTMLButtonElement | null;
     expect(fullscreenButton).toBeTruthy();
-    expect(fullscreenButton!.querySelector('.mdi--fullscreen')).toBeTruthy();
+    expect(fullscreenButton!.querySelector('.mdi--monitor-share')).toBeTruthy();
 
     fullscreenButton!.click();
     await Promise.resolve();

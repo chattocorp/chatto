@@ -267,15 +267,16 @@ calls, and similar room-specific panels can plug into the same shell. See the
     {#snippet actions()}
       {#if showMaximizeButton}
         <HeaderIconButton
-          icon={maximized ? 'uil--compress-arrows' : 'uil--expand-arrows'}
+          icon={maximized ? 'mdi--arrow-collapse-right' : 'mdi--arrow-expand-left'}
           label={maximized ? m['room.sidebar.minimize_call']() : m['room.sidebar.maximize_call']()}
-          iconSize="sm"
           onclick={() => onToggleMaximized?.()}
         />
       {/if}
       {#if showCallFullscreenButton}
         <HeaderIconButton
-          icon={fullscreenElement === sidebarElement ? 'mdi--fullscreen-exit' : 'mdi--fullscreen'}
+          icon={fullscreenElement === sidebarElement
+            ? 'mdi--fullscreen-exit'
+            : 'mdi--monitor-share'}
           label={fullscreenElement === sidebarElement
             ? m['voice.exit_fullscreen_call']()
             : m['voice.fullscreen_call']()}
