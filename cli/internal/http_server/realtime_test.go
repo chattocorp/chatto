@@ -436,6 +436,44 @@ func TestRealtimeWebSocketDeliversRoomMessageToMember(t *testing.T) {
 	}
 }
 
+func TestRealtimeWebSocketDeliversPresenceUpdateToOtherUser(t *testing.T) {
+	env := setupWebSocketTestServer(t)
+	actor, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-presence-actor", "RT Presence Actor", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser actor: %v", err)
+	}
+	viewer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-presence-viewer", "RT Presence Viewer", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser viewer: %v", err)
+	}
+	token, err := env.core.CreateAuthToken(env.ctx, viewer.Id)
+	if err != nil {
+		t.Fatalf("CreateAuthToken viewer: %v", err)
+	}
+
+	conn := env.connectRealtime(t)
+	subscribeRealtime(t, conn, token)
+
+	if err := env.core.SetPresenceWithOptions(env.ctx, actor.Id, core.PresenceStatusAway, true); err != nil {
+		t.Fatalf("SetPresenceWithOptions actor: %v", err)
+	}
+
+	event := waitRealtimeEvent(t, conn, 5*time.Second, func(event *realtimev1.RealtimeEventEnvelope) bool {
+		presence := event.GetPresenceChanged()
+		return presence != nil && presence.UserId == actor.Id
+	})
+	if event == nil {
+		t.Fatal("viewer did not receive actor presence_changed event")
+	}
+	if event.GetActorId() != actor.Id {
+		t.Fatalf("presence envelope actor_id = %q, want %q", event.GetActorId(), actor.Id)
+	}
+	presence := event.GetPresenceChanged()
+	if presence.Status != apiv1.PresenceStatus_PRESENCE_STATUS_AWAY {
+		t.Fatalf("presence status = %v, want AWAY", presence.Status)
+	}
+}
+
 func TestRealtimeWebSocketDoesNotDeliverRoomMessageToOutsider(t *testing.T) {
 	env := setupWebSocketTestServer(t)
 	member, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-visible-member", "RT Visible Member", "password123")
