@@ -3,6 +3,24 @@
 All notable changes to Chatto. Maintained by release-please from the
 conventional-commit messages on `main` — do not edit by hand.
 
+## [0.4.0-beta.11](https://github.com/chattocorp/chatto/compare/v0.4.0-beta.10...v0.4.0-beta.11) (2026-07-02)
+
+
+### Features
+
+* **api:** add ConnectRPC asset uploads ([#1249](https://github.com/chattocorp/chatto/issues/1249)) ([f97f1d0](https://github.com/chattocorp/chatto/commit/f97f1d097ba887279b228bcb0dd243cfd16f320b))
+
+
+### Bug Fixes
+
+* **api:** align ConnectRPC permission exposure ([#1246](https://github.com/chattocorp/chatto/issues/1246)) ([cf2eca7](https://github.com/chattocorp/chatto/commit/cf2eca7877b10406f517e64f542fd56d1e73594e))
+* **frontend:** clarify echo reply actions ([#1253](https://github.com/chattocorp/chatto/issues/1253)) ([5a2b264](https://github.com/chattocorp/chatto/commit/5a2b2645bd046c3e925bbb2c24c47eecbe534589))
+* **frontend:** improve call presence indicators ([#1257](https://github.com/chattocorp/chatto/issues/1257)) ([696a92e](https://github.com/chattocorp/chatto/commit/696a92e008919c2358c188a23963bc9d489fc166))
+* **frontend:** reset inline code state when composer clears ([#1251](https://github.com/chattocorp/chatto/issues/1251)) ([0dddeaa](https://github.com/chattocorp/chatto/commit/0dddeaa24e62d028797a93f3cd808e94a1141485))
+* **frontend:** restore circular avatars with stable presence dots ([#1252](https://github.com/chattocorp/chatto/issues/1252)) ([14b15b9](https://github.com/chattocorp/chatto/commit/14b15b93382c9b9719b068e889691b5f44f6cf2f))
+* **frontend:** use full-width image galleries ([#1247](https://github.com/chattocorp/chatto/issues/1247)) ([f5fe88a](https://github.com/chattocorp/chatto/commit/f5fe88aff3fdfc9cc676dd8735dfd850fc3a7cb3))
+* **media:** preserve video aspect ratios ([#1254](https://github.com/chattocorp/chatto/issues/1254)) ([8a85f0a](https://github.com/chattocorp/chatto/commit/8a85f0a434e688fe2a7b25a096c010ee74ebd274))
+
 ## [0.4.0-beta.10](https://github.com/chattocorp/chatto/compare/v0.4.0-beta.9...v0.4.0-beta.10) (2026-07-02)
 
 
