@@ -11,6 +11,7 @@ import (
 	"io"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -585,17 +586,21 @@ func assetUploadKey(uploadID string) string {
 }
 
 func assetUploadTempObjectKey(uploadID string, offset int64) string {
-	return fmt.Sprintf("%s%s.%020d", assetUploadTempObjectPrefix, uploadID, offset)
+	return fmt.Sprintf("%s%s.%020d.%s", assetUploadTempObjectPrefix, uploadID, offset, NewAssetID())
 }
 
 func chunkOffset(key string) int64 {
-	idx := strings.LastIndexByte(key, '.')
-	if idx < 0 || idx+1 >= len(key) {
-		return 0
+	parts := strings.Split(strings.TrimPrefix(key, assetUploadTempObjectPrefix), ".")
+	for i := len(parts) - 1; i >= 0; i-- {
+		if len(parts[i]) != 20 {
+			continue
+		}
+		offset, err := strconv.ParseInt(parts[i], 10, 64)
+		if err == nil {
+			return offset
+		}
 	}
-	var offset int64
-	_, _ = fmt.Sscanf(key[idx+1:], "%d", &offset)
-	return offset
+	return 0
 }
 
 func validSHA256Hex(value string) bool {

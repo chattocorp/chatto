@@ -42,7 +42,7 @@ Request to create a message in a room or thread.
 | Field | Type | Description |
 | --- | --- | --- |
 | `room_id` | `string` | Required. Room where the message should be created. |
-| `body` | `string` | Message body text. Required unless attachments or attachment_asset_ids is non-empty. |
+| `body` | `string` | Message body text. Required unless attachment_asset_ids is non-empty. |
 | `attachment_asset_ids` | `repeated string` | Existing room-scoped attachment asset IDs to include with the message. |
 | `thread_root_event_id` | `string` | Event ID of the thread root message when posting a thread reply. |
 | `in_reply_to` | `string` | Event ID this message replies to for attribution. |

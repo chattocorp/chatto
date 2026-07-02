@@ -130,8 +130,7 @@ type CreateMessageRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Required. Room where the message should be created.
 	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
-	// Message body text. Required unless attachments or attachment_asset_ids is
-	// non-empty.
+	// Message body text. Required unless attachment_asset_ids is non-empty.
 	Body string `protobuf:"bytes,2,opt,name=body,proto3" json:"body,omitempty"`
 	// Existing room-scoped attachment asset IDs to include with the message.
 	AttachmentAssetIds []string `protobuf:"bytes,3,rep,name=attachment_asset_ids,json=attachmentAssetIds,proto3" json:"attachment_asset_ids,omitempty"`

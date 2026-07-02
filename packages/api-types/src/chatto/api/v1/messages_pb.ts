@@ -114,8 +114,7 @@ export class CreateMessageRequest extends Message<CreateMessageRequest> {
   roomId = "";
 
   /**
-   * Message body text. Required unless attachments or attachment_asset_ids is
-   * non-empty.
+   * Message body text. Required unless attachment_asset_ids is non-empty.
    *
    * @generated from field: string body = 2;
    */

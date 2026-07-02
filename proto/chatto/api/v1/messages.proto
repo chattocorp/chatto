@@ -37,8 +37,7 @@ message CreateMessageRequest {
 
   // Required. Room where the message should be created.
   string room_id = 1 [(buf.validate.field).string.min_len = 1];
-  // Message body text. Required unless attachments or attachment_asset_ids is
-  // non-empty.
+  // Message body text. Required unless attachment_asset_ids is non-empty.
   string body = 2;
   // Existing room-scoped attachment asset IDs to include with the message.
   repeated string attachment_asset_ids = 3;
