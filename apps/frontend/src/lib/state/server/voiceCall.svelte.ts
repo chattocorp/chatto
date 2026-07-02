@@ -494,6 +494,9 @@ export class VoiceCallState {
       if (this.room !== room) return;
 
       this.isCameraEnabled = newEnabled;
+      if (newEnabled) {
+        await this.refreshDevices({ requestVideoPermissions: true });
+      }
     } catch {
       // Permission denied or no camera available — keep current state
       if (this.room !== room) return;
@@ -541,12 +544,13 @@ export class VoiceCallState {
   /**
    * Refresh available audio and video devices.
    */
-  async refreshDevices(): Promise<void> {
+  async refreshDevices(options: { requestVideoPermissions?: boolean } = {}): Promise<void> {
     try {
+      const requestVideoPermissions = options.requestVideoPermissions ?? this.isCameraEnabled;
       const [inputDevices, outputDevices, videoInputDevices] = await Promise.all([
         Room.getLocalDevices('audioinput'),
         Room.getLocalDevices('audiooutput'),
-        Room.getLocalDevices('videoinput')
+        Room.getLocalDevices('videoinput', requestVideoPermissions)
       ]);
 
       this.audioDevices = inputDevices;
