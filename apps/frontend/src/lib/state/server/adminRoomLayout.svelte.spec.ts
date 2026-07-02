@@ -291,8 +291,9 @@ describe('AdminRoomLayoutStore — loading', () => {
 });
 
 describe('AdminRoomLayoutStore — mutations', () => {
-  it('creates, renames, and deletes groups optimistically on success', async () => {
-    const { client, directory, mutation } = makeClient({
+  it('creates groups, rehydrates create permission, and mutates them on success', async () => {
+    const { client, directory, query, mutation } = makeClient({
+      queries: [{ data: queryData([group('g2', [], 'Projects')]) }],
       mutations: [
         { data: { id: 'g2', name: 'Projects', canCreateRoom: false, rooms: [], items: [] } },
         { data: { id: 'g2', name: 'Renamed', rooms: [], items: [] } },
@@ -304,9 +305,10 @@ describe('AdminRoomLayoutStore — mutations', () => {
     const createResult = await store.createGroup('Projects');
     expect(createResult).toEqual({
       ok: true,
-      group: { id: 'g2', name: 'Projects', canCreateRoom: false, rooms: [], items: [] }
+      group: { id: 'g2', name: 'Projects', canCreateRoom: true, rooms: [], items: [] }
     });
-    expect(store.groups[0]?.canCreateRoom).toBe(false);
+    expect(query).toHaveBeenCalledWith({ includeArchivedRooms: true });
+    expect(store.groups[0]?.canCreateRoom).toBe(true);
     expect(store.groups.map((g) => g.name)).toEqual(['Projects']);
 
     await expect(store.renameGroup('g2', 'Renamed')).resolves.toEqual({ ok: true });
@@ -474,19 +476,19 @@ describe('AdminRoomLayoutStore — live events', () => {
     let now = 1000;
     const { client, directory, query } = makeClient({
       mutations: [{ data: group('g1', [], 'Lobby') }],
-      queries: [{ data: queryData([group('g1', [])]) }]
+      queries: [{ data: queryData([group('g1', [])]) }, { data: queryData([group('g1', [])]) }]
     });
     const store = new AdminRoomLayoutStore(client, directory, roomAPI(), () => now);
 
     await store.createGroup('Lobby');
     now = 1500;
     expect(store.ingestRoomLayoutUpdated()).toBe(false);
-    expect(query).not.toHaveBeenCalled();
+    expect(query).toHaveBeenCalledTimes(1);
 
     now = 3100;
     expect(store.ingestRoomLayoutUpdated()).toBe(true);
     await settle();
-    expect(query).toHaveBeenCalledTimes(1);
+    expect(query).toHaveBeenCalledTimes(2);
   });
 
   it('refreshes on external room metadata/archive events', async () => {
