@@ -48,7 +48,7 @@
   let {
     user,
     size = 'md',
-    showPresence = true,
+    showPresence = undefined,
     presenceOverride = null,
     showStatus = false,
     class: className = ''
@@ -85,7 +85,12 @@
   );
   const showCustomStatusBadge = $derived(!!user && showStatus && !user.deleted);
   const hasOverlay = $derived(showCustomStatusBadge);
-  const showPresenceRing = $derived(!!presence && showPresence && size !== 'xs' && size !== 'sm');
+  const showPresenceRing = $derived(
+    !!presence &&
+      showPresence !== false &&
+      size !== 'xs' &&
+      (showPresence === true || size !== 'sm')
+  );
   const presenceRingClass = $derived(
     showPresenceRing && presence
       ? `ring-1 ring-inset ${presenceRingColorClasses[presence]}`

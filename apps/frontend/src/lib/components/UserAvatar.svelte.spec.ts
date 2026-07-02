@@ -20,13 +20,22 @@ describe('UserAvatar', () => {
     expect(q(container, '[aria-label="🍜 Out for lunch"]')).toBeTruthy();
   });
 
-  it('does not show presence rings on small avatars', () => {
-    const { container } = render(UserAvatarTestHarness, { size: 'sm', showPresence: true });
+  it('does not show presence rings on small avatars by default', () => {
+    const { container } = render(UserAvatarTestHarness, { size: 'sm' });
     const avatar = q(container, '[aria-label="alice"]')!;
 
     expect(avatar.className).not.toContain('ring-1');
     expect(avatar.className).not.toContain('ring-green-500');
     expect(q(container, '[aria-label="Online"]')).toBeFalsy();
+  });
+
+  it('shows presence rings on small avatars when explicitly requested', () => {
+    const { container } = render(UserAvatarTestHarness, { size: 'sm', showPresence: true });
+    const avatar = q(container, '[aria-label="alice"]')!;
+
+    expect(avatar.className).toContain('ring-1');
+    expect(avatar.className).toContain('ring-green-500');
+    expect(q(container, '[aria-label="Online"]')).toBeTruthy();
   });
 
   it('allows presence rings to be disabled', () => {
