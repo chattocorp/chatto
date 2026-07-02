@@ -5,7 +5,8 @@ import { configureApiClientHooks } from '@chatto/api-client/hooks';
 import { createMessageAPI } from '@chatto/api-client/messages';
 import {
   MentionConfirmationChallenge,
-  CreateMessageResponse
+  CreateMessageResponse,
+  UpdateMessageResponse
 } from '@chatto/api-types/api/v1/messages_pb';
 import {
   RoomTimelineEvent,
@@ -227,7 +228,32 @@ describe('createMessageAPI', () => {
   });
 
   it('updates a message through MessageService', async () => {
-    mocks.updateMessage.mockResolvedValue({ updated: true });
+    mocks.updateMessage.mockResolvedValue(
+      new UpdateMessageResponse({
+        updated: true,
+        event: new RoomTimelineEvent({
+          id: 'event-1',
+          actorId: 'user-1',
+          createdAt: Timestamp.fromDate(new Date('2026-06-20T10:00:00Z')),
+          event: {
+            case: 'messagePosted',
+            value: new RoomTimelineMessagePosted({
+              roomId: 'room-1',
+              body: 'edited'
+            })
+          }
+        }),
+        includes: new RoomTimelineIncludes({
+          users: {
+            'user-1': new User({
+              id: 'user-1',
+              login: 'alice',
+              displayName: 'Alice'
+            })
+          }
+        })
+      })
+    );
 
     const api = createMessageAPI({
       baseUrl: 'https://remote.example.test/api/connect',
@@ -241,7 +267,14 @@ describe('createMessageAPI', () => {
         body: 'edited',
         alsoSendToChannel: false
       })
-    ).resolves.toBe(true);
+    ).resolves.toMatchObject({
+      updated: true,
+      event: {
+        id: 'event-1',
+        actor: { id: 'user-1', displayName: 'Alice' },
+        event: { kind: 'messagePosted', body: 'edited' }
+      }
+    });
 
     expect(mocks.updateMessage).toHaveBeenCalledWith(
       {
@@ -251,6 +284,32 @@ describe('createMessageAPI', () => {
         alsoSendToChannel: false
       },
       { headers: { Authorization: 'Bearer remote-token' } }
+    );
+  });
+
+  it('can patch message echo state without sending a body', async () => {
+    mocks.updateMessage.mockResolvedValue(new UpdateMessageResponse({ updated: true }));
+
+    const api = createMessageAPI({
+      baseUrl: 'https://remote.example.test/api/connect',
+      bearerToken: null
+    });
+
+    await expect(
+      api.updateMessage({
+        roomId: 'room-1',
+        eventId: 'event-1',
+        alsoSendToChannel: true
+      })
+    ).resolves.toEqual({ updated: true, event: null });
+
+    expect(mocks.updateMessage).toHaveBeenCalledWith(
+      {
+        roomId: 'room-1',
+        eventId: 'event-1',
+        alsoSendToChannel: true
+      },
+      { headers: undefined }
     );
   });
 

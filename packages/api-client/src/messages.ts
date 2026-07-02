@@ -31,7 +31,7 @@ export type CreateMessageInput = {
 export type UpdateMessageInput = {
   roomId: string;
   eventId: string;
-  body: string;
+  body?: string;
   alsoSendToChannel?: boolean;
 };
 
@@ -45,6 +45,11 @@ export type CreateMessageResult =
       recipientCount: number;
       token: string;
     };
+
+export type UpdateMessageResult = {
+  updated: boolean;
+  event: RoomEventView | null;
+};
 
 export function createMessageAPI(config: MessageAPIConfig) {
   const transport = createConnectTransport({
@@ -113,18 +118,36 @@ export function createMessageAPI(config: MessageAPIConfig) {
       }
     },
 
-    async updateMessage(input: UpdateMessageInput): Promise<boolean> {
+    async updateMessage(input: UpdateMessageInput): Promise<UpdateMessageResult> {
       try {
+        const request: {
+          roomId: string;
+          eventId: string;
+          body?: string;
+          alsoSendToChannel?: boolean;
+        } = {
+          roomId: input.roomId,
+          eventId: input.eventId,
+        };
+        if (input.body !== undefined) {
+          request.body = input.body;
+        }
+        if (input.alsoSendToChannel !== undefined) {
+          request.alsoSendToChannel = input.alsoSendToChannel;
+        }
         const response = await client.updateMessage(
-          {
-            roomId: input.roomId,
-            eventId: input.eventId,
-            body: input.body,
-            alsoSendToChannel: input.alsoSendToChannel,
-          },
+          request,
           { headers: headers() },
         );
-        return response.updated;
+        return {
+          updated: response.updated,
+          event: response.event
+            ? (roomTimelineEventToRawEvent(
+                response.event,
+                response.includes?.users ?? {},
+              ) as RoomEventView | null)
+            : null,
+        };
       } catch (err) {
         return handleAuthError(err);
       }
