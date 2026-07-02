@@ -467,34 +467,6 @@ func cloneAssetRecord(asset *corev1.AssetRecord) *corev1.AssetRecord {
 	return proto.Clone(asset).(*corev1.AssetRecord)
 }
 
-// FindBodyAttachment fetches the named MessageBody and returns the
-// embedded Attachment with the given ID, or (nil, nil) if either is
-// missing. The returned Attachment is the in-memory copy from the body
-// proto with `MessageBodyId` populated, so callers can use it to
-// construct signed URLs directly.
-func (c *MediaModel) FindBodyAttachment(ctx context.Context, bodyKey, attachmentID string) (*corev1.Attachment, error) {
-	if bodyKey == "" || attachmentID == "" {
-		return nil, nil
-	}
-	// Post-#597, the body lives embedded on the event. bodyKey is now
-	// the message's event_id (or the legacy {userId}.{eventId} compound
-	// key — eventIDFromBodyKey normalizes both).
-	eventID := eventIDFromBodyKey(bodyKey)
-	body, retracted, ok := c.rooms().latestBody(eventID)
-	if !ok || retracted || body == nil {
-		return nil, nil
-	}
-	for _, att := range c.MessageBodyAttachments(body) {
-		if att.Id == attachmentID {
-			if att.MessageBodyId == "" {
-				att.MessageBodyId = bodyKey
-			}
-			return att, nil
-		}
-	}
-	return nil, nil
-}
-
 // MessageBodyAttachments returns the materialised attachments for a
 // MessageBody, hydrating from the asset projection when the body uses
 // asset_ids (current format) and falling back to the legacy embedded
@@ -522,62 +494,6 @@ func (c *MediaModel) MessageBodyAttachments(body *corev1.MessageBody) []*corev1.
 		}
 	}
 	return out
-}
-
-// FindVideoOriginAttachment looks up a variant or thumbnail Attachment
-// from the durable video manifest keyed by the original video's attachment
-// ID. Returns (nil, nil) if the manifest is missing or doesn't contain an
-// attachment with the given ID.
-func (c *MediaModel) FindVideoOriginAttachment(ctx context.Context, videoOriginID, attachmentID string) (*corev1.Attachment, error) {
-	if videoOriginID == "" || attachmentID == "" {
-		return nil, nil
-	}
-	manifest, ok := c.assetLifecycle().VideoAttachmentManifest(videoOriginID)
-	if !ok || manifest == nil || manifest.Succeeded == nil {
-		return nil, nil
-	}
-	video := manifest.Succeeded.GetVideo()
-	if video == nil {
-		return nil, nil
-	}
-	if video.GetThumbnailAssetId() == attachmentID {
-		if declared, ok := c.assetLifecycle().AssetCreation(attachmentID); ok {
-			return attachmentFromAsset(declared.GetAsset()), nil
-		}
-	}
-	for _, v := range video.Variants {
-		if v.GetAssetId() == attachmentID {
-			if declared, ok := c.assetLifecycle().AssetCreation(attachmentID); ok {
-				return attachmentFromAsset(declared.GetAsset()), nil
-			}
-		}
-	}
-	return nil, nil
-}
-
-// LookupAttachment resolves any attachment by its URL locator, choosing
-// the right source of truth based on the optional hint fields:
-//
-//   - BodyKey set: legacy lookup via MessageBody.attachments (older URLs,
-//     bodies that pre-date the asset projection backfill).
-//   - VideoOrigin set: legacy lookup via VideoProcessingState.
-//   - Neither set: new asset-as-aggregate lookup — fetch the asset
-//     directly from the projection by AttachmentID.
-func (c *MediaModel) LookupAttachment(ctx context.Context, loc signedurl.AttachmentLocator) (*corev1.Attachment, error) {
-	if err := loc.Validate(); err != nil {
-		return nil, err
-	}
-	if loc.BodyKey != "" {
-		return c.FindBodyAttachment(ctx, loc.BodyKey, loc.AttachmentID)
-	}
-	if loc.VideoOrigin != "" {
-		return c.FindVideoOriginAttachment(ctx, loc.VideoOrigin, loc.AttachmentID)
-	}
-	declared, ok := c.assetLifecycle().AssetCreation(loc.AttachmentID)
-	if !ok || declared == nil {
-		return nil, nil
-	}
-	return attachmentFromAsset(declared.GetAsset()), nil
 }
 
 // DeleteAttachmentFromStorage deletes an attachment's binary and its
@@ -681,21 +597,24 @@ func (c *MediaModel) deleteCachedResizesForAttachment(ctx context.Context, attac
 // layouts. See `GetAttachmentReader` for why this exists.
 //
 // Authorization is the caller's responsibility.
-func (c *MediaModel) TryPresignedAttachmentURL(ctx context.Context, attachment *corev1.Attachment) (string, error) {
+func (c *MediaModel) TryPresignedAttachmentURL(ctx context.Context, attachment *corev1.Attachment, ttl time.Duration) (string, error) {
 	if c.s3Client == nil {
 		return "", fmt.Errorf("S3 not configured")
 	}
 	if attachment == nil {
 		return "", fmt.Errorf("attachment is nil")
 	}
+	if ttl <= 0 {
+		return "", fmt.Errorf("presigned URL TTL must be positive")
+	}
 	if attachment.Storage == nil {
-		return c.probePresignedAttachmentURL(ctx, attachment.Id)
+		return c.probePresignedAttachmentURL(ctx, attachment.Id, ttl)
 	}
 	s3, ok := attachment.Storage.Asset.(*corev1.DeprecatedAsset_S3)
 	if !ok {
 		return "", fmt.Errorf("attachment %s is not stored in S3", attachment.Id)
 	}
-	presignedURL, err := c.s3Client.PresignedGetURL(ctx, s3.S3.Key, time.Hour)
+	presignedURL, err := c.s3Client.PresignedGetURL(ctx, s3.S3.Key, ttl)
 	if err != nil {
 		return "", fmt.Errorf("failed to generate presigned URL: %w", err)
 	}
@@ -705,12 +624,12 @@ func (c *MediaModel) TryPresignedAttachmentURL(ctx context.Context, attachment *
 // probePresignedAttachmentURL is the fallback when an Attachment's
 // `Storage` field isn't populated and the binary might live in S3.
 // Stats the known key layouts; presigns the first hit.
-func (c *MediaModel) probePresignedAttachmentURL(ctx context.Context, attachmentID string) (string, error) {
+func (c *MediaModel) probePresignedAttachmentURL(ctx context.Context, attachmentID string, ttl time.Duration) (string, error) {
 	for _, s3Key := range legacyAttachmentS3KeyCandidates(attachmentID) {
 		if _, err := c.s3Client.StatObject(ctx, s3Key); err != nil {
 			continue
 		}
-		presignedURL, err := c.s3Client.PresignedGetURL(ctx, s3Key, time.Hour)
+		presignedURL, err := c.s3Client.PresignedGetURL(ctx, s3Key, ttl)
 		if err != nil {
 			return "", fmt.Errorf("failed to generate presigned URL: %w", err)
 		}
@@ -719,9 +638,8 @@ func (c *MediaModel) probePresignedAttachmentURL(ctx context.Context, attachment
 	return "", fmt.Errorf("attachment %s not found in S3", attachmentID)
 }
 
-// AttachmentSignResource is the first resource component fed to the
-// signed-URL signer for attachment transform URLs (after the locator).
-// Stable so existing signatures continue to verify across deployments.
+// AttachmentSignResource is the image-cache namespace for stable attachment
+// transforms. Keep it stable so cached resize keys survive deployments.
 const AttachmentSignResource = "attachment"
 
 // ServerAssetSignResource is the first resource component fed to the
@@ -730,67 +648,15 @@ const AttachmentSignResource = "attachment"
 // server-scoped images).
 const ServerAssetSignResource = "server"
 
-// AttachmentURLTTL is how long an attachment URL stays valid after it's
-// signed. Short on purpose: the signed locator is a standalone capability
-// (no session/bearer check at the asset endpoint — see ADR-032 and
-// cli/AGENTS.md), so a leaked URL grants access for the full TTL. We
-// keep it just long enough for an in-flight render to complete; the
-// frontend regenerates URLs by refetching API response fields when needed.
-//
-// We treat this as a stopgap for cross-origin remote-server <img>
-// loading rather than a real cross-origin auth design. See the
-// "Attachment URL Authorization" section of cli/AGENTS.md for the
-// trade-off in detail.
-const AttachmentURLTTL = 5 * time.Minute
-
 // AssetAccessTicketTTL keeps direct browser/standalone-client asset URLs useful
 // for normal page render and media startup, without turning copied URLs into
 // long-lived bearer links.
 const AssetAccessTicketTTL = time.Hour
 
-// GetAttachmentURL returns the URL for accessing the binary identified
-// by the locator, signed for `userID` with a `AttachmentURLTTL`-bounded
-// expiry. The URL itself is the capability: the handler trusts the
-// signed claims (signature + expiry + room-membership check) and does
-// not require a session cookie or bearer header. This is what lets
-// cross-origin <img> tags work for remote-server attachments.
-//
-// Returns an empty string if `userID` is empty or the locator is
-// otherwise invalid (a programmer error — locators come from trusted
-// resolver code, not user input).
-func (c *MediaModel) GetAttachmentURL(loc signedurl.AttachmentLocator, userID string) string {
-	loc.UserID = userID
-	loc.ExpiresAt = time.Now().Add(AttachmentURLTTL).Unix()
-	signed, err := signedurl.SignedAttachmentLocator(c.config.Assets.SigningSecret, loc)
-	if err != nil {
-		c.logger.Warn("Failed to sign attachment locator", "error", err, "locator", loc)
-		return ""
-	}
-	return c.assetURL(fmt.Sprintf("/assets/attachments/%s", signed))
-}
-
-// GetTransformedAttachmentURL returns the URL for a transformed version
-// of the attachment identified by the locator. The transform parameters
-// are signed separately so the same locator can drive multiple
-// transforms without re-signing.
-//
-//	/assets/attachments/{signed-locator}/t/{params}.{signature}
-//
-// {params} is base64url-encoded JSON: {"w":width,"h":height,"f":"fit"}.
-//
-// `userID` and `AttachmentURLTTL`-bounded expiry are baked into the
-// signed locator — see GetAttachmentURL.
-func (c *MediaModel) GetTransformedAttachmentURL(loc signedurl.AttachmentLocator, userID string, width, height int, fit string) string {
-	loc.UserID = userID
-	loc.ExpiresAt = time.Now().Add(AttachmentURLTTL).Unix()
-	signedLoc, err := signedurl.SignedAttachmentLocator(c.config.Assets.SigningSecret, loc)
-	if err != nil {
-		c.logger.Warn("Failed to sign attachment locator", "error", err, "locator", loc)
-		return ""
-	}
-	signedTransform := signedurl.SignedTransformPath(c.config.Assets.SigningSecret, AttachmentSignResource, signedLoc, width, height, fit)
-	return c.assetURL(fmt.Sprintf("/assets/attachments/%s/t/%s", signedLoc, signedTransform))
-}
+// S3AssetRedirectTTL bounds direct object-store redirects for heavy original
+// asset responses. Chatto authorizes the request first, then hands browsers a
+// short-lived S3 URL only for cases where proxying the bytes would be costly.
+const S3AssetRedirectTTL = 5 * time.Minute
 
 // GetStableAttachmentURL returns the canonical URL for an asset binary. The
 // path identifies the asset; the asset-scoped access ticket authorizes the
@@ -867,34 +733,6 @@ func (c *MediaModel) stableAttachmentPathWithAccess(assetID, userID, path string
 	values := url.Values{}
 	values.Set("access", ticket)
 	return path + "?" + values.Encode()
-}
-
-// LocatorForBodyAttachment builds the URL locator for an attachment
-// embedded in a MessageBody. `bodyKey` defaults to attachment.MessageBodyId
-// when empty. UserID + ExpiresAt are filled in by GetAttachmentURL /
-// GetTransformedAttachmentURL at signing time.
-func LocatorForBodyAttachment(attachment *corev1.Attachment, bodyKey string) signedurl.AttachmentLocator {
-	if bodyKey == "" {
-		bodyKey = attachment.MessageBodyId
-	}
-	return signedurl.AttachmentLocator{
-		RoomID:       attachment.RoomId,
-		BodyKey:      bodyKey,
-		AttachmentID: attachment.Id,
-	}
-}
-
-// LocatorForVideoOriginAttachment builds the URL locator for a video
-// variant or thumbnail attachment owned by a projected
-// AssetProcessingSucceededEvent keyed by `videoOriginID` (the original
-// video's attachment ID). UserID + ExpiresAt are filled in at signing time
-// — see LocatorForBodyAttachment.
-func LocatorForVideoOriginAttachment(roomID, videoOriginID, attachmentID string) signedurl.AttachmentLocator {
-	return signedurl.AttachmentLocator{
-		RoomID:       roomID,
-		VideoOrigin:  videoOriginID,
-		AttachmentID: attachmentID,
-	}
 }
 
 // GetTransformedServerAssetURL returns the URL for accessing a transformed version of an server asset.

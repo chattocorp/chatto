@@ -317,9 +317,9 @@ func TestStorageBackendEncapsulation_URLGeneration(t *testing.T) {
 		s3Key := core.S3KeyAttachment(attachmentID)
 		require.Equal(t, "attachments/attach789", s3Key)
 
-		// The URL format is /assets/attachments/{attachmentId}
-		expectedURLPath := fmt.Sprintf("/assets/attachments/%s", attachmentID)
-		require.Equal(t, "/assets/attachments/attach789", expectedURLPath)
+		// Attachment serving URLs use stable asset access tickets.
+		expectedURLPath := fmt.Sprintf("/assets/files/%s", attachmentID)
+		require.Equal(t, "/assets/files/attach789", expectedURLPath)
 	})
 
 	t.Run("S3Asset.Key stores only the asset ID for server assets", func(t *testing.T) {

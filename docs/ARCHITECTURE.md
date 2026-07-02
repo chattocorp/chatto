@@ -735,22 +735,15 @@ Where:
 The HMAC uses `[core.assets].signing_secret`. The HTTP handler verifies the
 ticket signature, expiry, asset ID, and transform parameters, then resolves the
 asset and room scope from `AssetProjection`. Every request checks that the
-signed user is still a member of the asset's room
-before serving the binary. Protected asset responses, including compatibility
-locator responses, use `private, no-store`; image resize results may still be
-cached internally by the server.
+signed user is still a member of the asset's room before serving the binary.
+Protected asset responses use `private, no-store`; image resize results may
+still be cached internally by the server. Chatto streams protected asset bytes
+by default, but can redirect heavy passive originals such as video, audio, and
+large files to short-lived presigned S3 URLs after the same authorization check.
 
-Internal fallback locator URLs use this shape:
-
-```
-/assets/attachments/{base64payload}.{hexHMAC}
-/assets/attachments/{base64payload}.{hexHMAC}/t/{base64params}.{signature}
-```
-
-Those locator payloads carry room/source/attachment/user/expiry claims and use
-the shorter `AttachmentURLTTL`. They remain compatibility-only; ConnectRPC
-attachment fields use the stable `/assets/files/...` URL plus
-`AssetURL.expiresAt` shape.
+The old `/assets/attachments/{signedLocator}` compatibility route was removed
+before 0.4.0. ConnectRPC attachment fields use the stable `/assets/files/...`
+URL plus `AssetURL.expiresAt` shape.
 
 **Transform Parameters:**
 

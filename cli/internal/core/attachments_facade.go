@@ -73,20 +73,8 @@ func (c *ChattoCore) GetAttachmentReader(ctx context.Context, attachment *corev1
 	return c.media().GetAttachmentReader(ctx, attachment)
 }
 
-func (c *ChattoCore) FindBodyAttachment(ctx context.Context, bodyKey, attachmentID string) (*corev1.Attachment, error) {
-	return c.media().FindBodyAttachment(ctx, bodyKey, attachmentID)
-}
-
 func (c *ChattoCore) MessageBodyAttachments(body *corev1.MessageBody) []*corev1.Attachment {
 	return c.media().MessageBodyAttachments(body)
-}
-
-func (c *ChattoCore) FindVideoOriginAttachment(ctx context.Context, videoOriginID, attachmentID string) (*corev1.Attachment, error) {
-	return c.media().FindVideoOriginAttachment(ctx, videoOriginID, attachmentID)
-}
-
-func (c *ChattoCore) LookupAttachment(ctx context.Context, loc signedurl.AttachmentLocator) (*corev1.Attachment, error) {
-	return c.media().LookupAttachment(ctx, loc)
 }
 
 func (c *ChattoCore) DeleteAttachmentFromStorage(ctx context.Context, attachment *corev1.Attachment) error {
@@ -101,16 +89,8 @@ func (c *ChattoCore) DeleteMessageOwnedAssetsForUser(ctx context.Context, actorI
 	return c.assetLifecycle().DeleteMessageOwnedAssetsForUser(ctx, actorID, userID)
 }
 
-func (c *ChattoCore) TryPresignedAttachmentURL(ctx context.Context, attachment *corev1.Attachment) (string, error) {
-	return c.media().TryPresignedAttachmentURL(ctx, attachment)
-}
-
-func (c *ChattoCore) GetAttachmentURL(loc signedurl.AttachmentLocator, userID string) string {
-	return c.media().GetAttachmentURL(loc, userID)
-}
-
-func (c *ChattoCore) GetTransformedAttachmentURL(loc signedurl.AttachmentLocator, userID string, width, height int, fit string) string {
-	return c.media().GetTransformedAttachmentURL(loc, userID, width, height, fit)
+func (c *ChattoCore) TryPresignedAttachmentURL(ctx context.Context, attachment *corev1.Attachment, ttl time.Duration) (string, error) {
+	return c.media().TryPresignedAttachmentURL(ctx, attachment, ttl)
 }
 
 func (c *ChattoCore) GetStableAttachmentURL(assetID, userID string) string {

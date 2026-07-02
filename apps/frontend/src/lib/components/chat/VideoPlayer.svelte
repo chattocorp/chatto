@@ -121,8 +121,8 @@
     `width: ${displaySize.width}px; max-width: 100%; aspect-ratio: ${displaySize.width} / ${displaySize.height};`
   );
 
-  // Vidstack auto-detects media type from URL extensions, but our attachment
-  // URLs have no extension (/assets/attachments/...). We must provide an
+  // Vidstack auto-detects media type from URL extensions, but our stable asset
+  // URLs have no extension (/assets/files/...). We must provide an
   // explicit type so Vidstack recognizes it as video/mp4.
   const videoSrc = $derived(
     selectedVariant ? { src: selectedVariant.url, type: 'video/mp4' } : undefined

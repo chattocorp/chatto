@@ -5,9 +5,7 @@
 **Update:** This ADR now describes the low-level HMAC transform-signing
 primitive, not the whole current browser-facing asset URL model. Attachment
 URLs later moved to stable `/assets/files/{assetId}` paths with signed per-user
-access tickets (ADR-032, ADR-039, FDR-008). Legacy
-`/assets/attachments/.../t/...` locator URLs still use this primitive for
-compatibility and internal fallback.
+access tickets (ADR-032, ADR-039, FDR-008).
 
 ## Context
 
@@ -24,8 +22,7 @@ The options are:
 Use HMAC-SHA256-signed URL path components for image transform requests. The signed path encodes:
 
 1. The resource identifiers that bind the signature to the transformed object
-   (for example, a stable asset ID plus the legacy locator or server-asset
-   resource namespace)
+   (for example, a stable asset ID or server-asset resource namespace)
 2. The transform parameters as base64-encoded JSON
 3. An HMAC-SHA256 signature (truncated to 32 hex characters) computed over the combined path
 

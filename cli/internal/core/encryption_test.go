@@ -18,7 +18,6 @@ import (
 	"hmans.de/chatto/internal/kms"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	"hmans.de/chatto/internal/testutil"
-	"hmans.de/chatto/pkg/signedurl"
 )
 
 type countingKeyWrapper struct {
@@ -567,16 +566,10 @@ func TestDeleteUser_CryptoShredEventTombstonesMessagesAndDeletesAssetGraph(t *te
 	require.True(t, deletedIDs[variant.Id], "variant derivative should get AssetDeletedEvent")
 
 	for _, att := range []*corev1.Attachment{original, thumbnail, variant} {
-		got, err := core.LookupAttachment(ctx, signedurl.AttachmentLocator{
-			RoomID:       room.Id,
-			AttachmentID: att.Id,
-			UserID:       viewer.Id,
-			ExpiresAt:    time.Now().Add(time.Minute).Unix(),
-		})
-		require.NoError(t, err)
-		require.Nil(t, got, "deleted asset %s should no longer resolve through the serving projection", att.Id)
+		_, ok := core.Assets.AssetCreation(att.Id)
+		require.False(t, ok, "deleted asset %s should no longer resolve through the serving projection", att.Id)
 
-		_, _, err = core.GetAttachmentReader(ctx, att)
+		_, _, err := core.GetAttachmentReader(ctx, att)
 		require.Error(t, err, "backing bytes for %s should be deleted", att.Id)
 	}
 

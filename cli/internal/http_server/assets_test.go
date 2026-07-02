@@ -30,7 +30,6 @@ import (
 	"hmans.de/chatto/internal/pb/chatto/api/v1/apiv1connect"
 	"hmans.de/chatto/internal/testutil"
 	"hmans.de/chatto/internal/testutil/fakes3"
-	"hmans.de/chatto/pkg/signedurl"
 )
 
 // ============================================================================
@@ -58,7 +57,15 @@ func setupAssetTestServerWithS3(t *testing.T) *assetTestEnv {
 	return setupAssetTestServerWithConfig(t, true)
 }
 
+func setupAssetTestServerWithS3AndVideo(t *testing.T) *assetTestEnv {
+	return setupAssetTestServerWithOptions(t, true, true)
+}
+
 func setupAssetTestServerWithConfig(t *testing.T, useS3 bool) *assetTestEnv {
+	return setupAssetTestServerWithOptions(t, useS3, false)
+}
+
+func setupAssetTestServerWithOptions(t *testing.T, useS3 bool, videoEnabled bool) *assetTestEnv {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
 
@@ -121,6 +128,9 @@ func setupAssetTestServerWithConfig(t *testing.T, useS3 bool) *assetTestEnv {
 				CookieSigningSecret: "test-secret-key-32-bytes-long!!",
 			},
 			Core: coreConfig,
+			Video: config.VideoConfig{
+				Enabled: videoEnabled,
+			},
 		},
 		nc:     nc,
 		router: router,
@@ -513,19 +523,6 @@ func TestAsset_ActiveAttachment_UsesSandboxHeaders(t *testing.T) {
 		t.Fatalf("Expected stable attachment status 200, got %d", stableResp.StatusCode)
 	}
 	assertSandboxedOriginalAttachment(t, stableResp)
-
-	loc := signedurl.AttachmentLocator{RoomID: room.Id, AttachmentID: attachment.GetId()}
-	signedURL := env.core.GetAttachmentURL(loc, user.Id)
-	legacyResp, err := (&http.Client{}).Get(env.server.URL + signedURL)
-	if err != nil {
-		t.Fatalf("Failed to fetch legacy signed attachment URL: %v", err)
-	}
-	legacyResp.Body.Close()
-	if legacyResp.StatusCode != http.StatusOK {
-		t.Fatalf("Expected legacy signed attachment status 200, got %d", legacyResp.StatusCode)
-	}
-	assertSandboxedOriginalAttachment(t, legacyResp)
-	assertLegacySandboxedAttachmentCache(t, legacyResp)
 }
 
 func TestAsset_ActiveAttachmentOnS3_StreamsWithSandboxInsteadOfRedirect(t *testing.T) {
@@ -572,19 +569,115 @@ func TestAsset_ActiveAttachmentOnS3_StreamsWithSandboxInsteadOfRedirect(t *testi
 		t.Fatalf("Expected S3 stable attachment to stream with 200, got %d", stableResp.StatusCode)
 	}
 	assertSandboxedOriginalAttachment(t, stableResp)
+}
 
-	loc := signedurl.AttachmentLocator{RoomID: room.Id, AttachmentID: attachment.GetId()}
-	signedURL := env.core.GetAttachmentURL(loc, user.Id)
-	legacyResp, err := noRedirectClient.Get(env.server.URL + signedURL)
+func TestAsset_StableS3ImageStreamsThroughChattoByDefault(t *testing.T) {
+	env := setupAssetTestServerWithS3(t)
+
+	user, err := env.core.CreateUser(env.ctx, "system", "s3imageuser", "S3 Image User", "password123")
 	if err != nil {
-		t.Fatalf("Failed to fetch S3 legacy signed attachment URL: %v", err)
+		t.Fatalf("Failed to create user: %v", err)
 	}
-	legacyResp.Body.Close()
-	if legacyResp.StatusCode != http.StatusOK {
-		t.Fatalf("Expected S3 legacy attachment to stream with 200, got %d", legacyResp.StatusCode)
+	room, err := env.core.CreateRoom(env.ctx, user.Id, "channel", "", "s3imageroom", "S3 Image Room")
+	if err != nil {
+		t.Fatalf("Failed to create room: %v", err)
 	}
-	assertSandboxedOriginalAttachment(t, legacyResp)
-	assertLegacySandboxedAttachmentCache(t, legacyResp)
+	if _, err := env.core.JoinRoom(env.ctx, user.Id, "channel", user.Id, room.Id); err != nil {
+		t.Fatalf("Failed to join room: %v", err)
+	}
+	env.login(t, "s3imageuser", "password123")
+
+	imageData := createAssetTestPNG(t, 64, 48)
+	_, attachment := env.postAssetMessageWithAttachment(t, room.Id, "s3 image", imageData, "s3-image.png")
+	attachmentURL := attachment.GetAssetUrl().GetUrl()
+	if attachmentURL == "" {
+		t.Fatal("Expected stable attachment URL")
+	}
+
+	noRedirectClient := &http.Client{
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
+	resp, err := noRedirectClient.Get(env.server.URL + attachmentURL)
+	if err != nil {
+		t.Fatalf("Failed to fetch S3 image attachment URL: %v", err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("Expected S3 image to stream through Chatto with 200, got %d", resp.StatusCode)
+	}
+	if got := resp.Header.Get("Location"); got != "" {
+		t.Fatalf("Expected no redirect Location for ordinary S3 image, got %q", got)
+	}
+	if got := resp.Header.Get("Cache-Control"); got != protectedAssetCacheControl {
+		t.Fatalf("Cache-Control = %q, want %q", got, protectedAssetCacheControl)
+	}
+}
+
+func TestAsset_StableS3VideoRedirectsUnlessProxyForcesStream(t *testing.T) {
+	env := setupAssetTestServerWithS3AndVideo(t)
+	env.core.OnVideoProcessingRequested = func(context.Context, string, string) error { return nil }
+
+	user, err := env.core.CreateUser(env.ctx, "system", "s3videouser", "S3 Video User", "password123")
+	if err != nil {
+		t.Fatalf("Failed to create user: %v", err)
+	}
+	room, err := env.core.CreateRoom(env.ctx, user.Id, "channel", "", "s3videoroom", "S3 Video Room")
+	if err != nil {
+		t.Fatalf("Failed to create room: %v", err)
+	}
+	if _, err := env.core.JoinRoom(env.ctx, user.Id, "channel", user.Id, room.Id); err != nil {
+		t.Fatalf("Failed to join room: %v", err)
+	}
+	env.login(t, "s3videouser", "password123")
+
+	_, attachment := env.postAssetMessageWithAttachmentContentType(
+		t,
+		room.Id,
+		"s3 video",
+		[]byte("fake-video-bytes"),
+		"s3-video.mp4",
+		"video/mp4",
+	)
+	attachmentURL := attachment.GetAssetUrl().GetUrl()
+	if attachmentURL == "" {
+		t.Fatal("Expected stable attachment URL")
+	}
+
+	noRedirectClient := &http.Client{
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
+	redirectResp, err := noRedirectClient.Get(env.server.URL + attachmentURL)
+	if err != nil {
+		t.Fatalf("Failed to fetch S3 video attachment URL: %v", err)
+	}
+	redirectResp.Body.Close()
+	if redirectResp.StatusCode != http.StatusFound {
+		t.Fatalf("Expected S3 video to redirect with 302, got %d", redirectResp.StatusCode)
+	}
+	if got := redirectResp.Header.Get("Cache-Control"); got != protectedAssetCacheControl {
+		t.Fatalf("Redirect Cache-Control = %q, want %q", got, protectedAssetCacheControl)
+	}
+	if got := redirectResp.Header.Get("Location"); got == "" || !strings.Contains(got, "X-Amz-Expires=300") {
+		t.Fatalf("Expected short-lived presigned S3 Location, got %q", got)
+	}
+
+	req, err := http.NewRequest(http.MethodGet, env.server.URL+attachmentURL, nil)
+	if err != nil {
+		t.Fatalf("Failed to build proxy request: %v", err)
+	}
+	req.Header.Set("X-Chatto-Asset-Proxy", "1")
+	streamResp, err := noRedirectClient.Do(req)
+	if err != nil {
+		t.Fatalf("Failed to fetch S3 video with proxy header: %v", err)
+	}
+	streamResp.Body.Close()
+	if streamResp.StatusCode != http.StatusOK {
+		t.Fatalf("Expected proxy-forced S3 video stream to return 200, got %d", streamResp.StatusCode)
+	}
 }
 
 func TestOriginalAttachmentNeedsSandbox(t *testing.T) {
@@ -623,13 +716,6 @@ func assertSandboxedOriginalAttachment(t *testing.T, resp *http.Response) {
 	}
 	if got := resp.Header.Get("Content-Type"); !strings.HasPrefix(got, "text/html") {
 		t.Fatalf("Content-Type = %q, want text/html", got)
-	}
-}
-
-func assertLegacySandboxedAttachmentCache(t *testing.T, resp *http.Response) {
-	t.Helper()
-	if got := resp.Header.Get("Cache-Control"); got != protectedAssetCacheControl {
-		t.Fatalf("Cache-Control = %q, want %q", got, protectedAssetCacheControl)
 	}
 }
 
@@ -857,10 +943,20 @@ func TestAsset_ServerAsset_HasCacheHeaders(t *testing.T) {
 	}
 }
 
-// TestAsset_SignedURLIsCapability covers the legacy signed-locator URL
-// compatibility path. The Connect API emits authenticated stable URLs, but old
-// signed links should continue to work until callers have fully migrated.
-func TestAsset_SignedURLIsCapability(t *testing.T) {
+func TestAsset_LegacyAttachmentRouteIsGone(t *testing.T) {
+	env := setupAssetTestServer(t)
+
+	resp, err := env.client.Get(env.server.URL + "/assets/attachments/not-a-locator")
+	if err != nil {
+		t.Fatalf("Failed to make request: %v", err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusNotFound {
+		t.Fatalf("Expected removed legacy attachment route to return 404, got %d", resp.StatusCode)
+	}
+}
+
+func TestAsset_StableURLIsCapability(t *testing.T) {
 	env := setupAssetTestServer(t)
 
 	user, err := env.core.CreateUser(env.ctx, "system", "authuser", "Auth User", "password123")
@@ -881,50 +977,47 @@ func TestAsset_SignedURLIsCapability(t *testing.T) {
 
 	imageData := createAssetTestPNG(t, 400, 300)
 	_, attachment := env.postAssetMessageWithAttachment(t, room.Id, "Test message", imageData, "auth-test.png")
-	loc := signedurl.AttachmentLocator{RoomID: room.Id, AttachmentID: attachment.GetId()}
-	signedURL := env.core.GetAttachmentURL(loc, user.Id)
-	signedThumbnailURL := env.core.GetTransformedAttachmentURL(loc, user.Id, 200, 200, "contain")
+	attachmentURL := attachment.GetAssetUrl().GetUrl()
+	thumbnailURL := attachment.GetThumbnailAssetUrl().GetUrl()
+	if attachmentURL == "" || thumbnailURL == "" {
+		t.Fatal("Expected original and thumbnail stable asset URLs")
+	}
 
-	// A no-cookie / no-header client holding the signed URL should be able
-	// to fetch the binary — this is the cross-origin <img> case.
+	// A no-cookie / no-header client holding the access-ticket URL should be
+	// able to fetch the binary.
 	unauthClient := &http.Client{}
 
-	originalResp, err := unauthClient.Get(env.server.URL + signedURL)
+	originalResp, err := unauthClient.Get(env.server.URL + attachmentURL)
 	if err != nil {
 		t.Fatalf("Failed to make request: %v", err)
 	}
 	originalResp.Body.Close()
 	if originalResp.StatusCode != http.StatusOK {
-		t.Errorf("Signed URL should authorize itself; got status %d", originalResp.StatusCode)
+		t.Errorf("Stable URL should authorize itself; got status %d", originalResp.StatusCode)
 	}
 
-	transformResp, err := unauthClient.Get(env.server.URL + signedThumbnailURL)
+	transformResp, err := unauthClient.Get(env.server.URL + thumbnailURL)
 	if err != nil {
 		t.Fatalf("Failed to make request: %v", err)
 	}
 	transformResp.Body.Close()
 	if transformResp.StatusCode != http.StatusOK {
-		t.Errorf("Signed transform URL should authorize itself; got status %d", transformResp.StatusCode)
+		t.Errorf("Stable transform URL should authorize itself; got status %d", transformResp.StatusCode)
 	}
 
-	// A tampered locator must still fail.
-	tampered := strings.TrimSuffix(signedURL, "X") + "z"
+	// A tampered access ticket must fail.
+	tampered := strings.TrimSuffix(attachmentURL, "X") + "z"
 	tamperedResp, err := unauthClient.Get(env.server.URL + tampered)
 	if err != nil {
 		t.Fatalf("Failed to make request: %v", err)
 	}
 	tamperedResp.Body.Close()
 	if tamperedResp.StatusCode != http.StatusForbidden {
-		t.Errorf("Expected 403 for tampered locator, got %d", tamperedResp.StatusCode)
+		t.Errorf("Expected 403 for tampered access ticket, got %d", tamperedResp.StatusCode)
 	}
 }
 
-// TestAsset_SignedURLOnS3IsCapability is the S3-backend counterpart to
-// TestAsset_SignedURLIsCapability — verifies the signed URL is the
-// capability for S3-stored attachments too. The handler redirects to a
-// presigned S3 URL once the signed locator's claims (signature + expiry
-// + current membership) pass.
-func TestAsset_SignedURLOnS3IsCapability(t *testing.T) {
+func TestAsset_StableURLOnS3IsCapability(t *testing.T) {
 	env := setupAssetTestServerWithS3(t)
 
 	user, err := env.core.CreateUser(env.ctx, "system", "s3authuser", "S3 Auth User", "password123")
@@ -943,44 +1036,41 @@ func TestAsset_SignedURLOnS3IsCapability(t *testing.T) {
 
 	imageData := createAssetTestPNG(t, 400, 300)
 	_, attachment := env.postAssetMessageWithAttachment(t, room.Id, "Test S3 message", imageData, "s3-auth-test.png")
-	loc := signedurl.AttachmentLocator{RoomID: room.Id, AttachmentID: attachment.GetId()}
-	signedURL := env.core.GetAttachmentURL(loc, user.Id)
-	signedThumbnailURL := env.core.GetTransformedAttachmentURL(loc, user.Id, 200, 200, "contain")
+	attachmentURL := attachment.GetAssetUrl().GetUrl()
+	thumbnailURL := attachment.GetThumbnailAssetUrl().GetUrl()
+	if attachmentURL == "" || thumbnailURL == "" {
+		t.Fatal("Expected original and thumbnail stable asset URLs")
+	}
 
-	// Anonymous client — the signed URL alone should be enough to fetch.
+	// Anonymous client — the access-ticket URL alone should be enough to fetch.
 	unauthClient := &http.Client{
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			return http.ErrUseLastResponse
 		},
 	}
 
-	originalResp, err := unauthClient.Get(env.server.URL + signedURL)
+	originalResp, err := unauthClient.Get(env.server.URL + attachmentURL)
 	if err != nil {
 		t.Fatalf("Failed to make request: %v", err)
 	}
 	originalResp.Body.Close()
-	// Either a direct 200 (NATS) or a 302 redirect to presigned S3 — both prove
-	// the signed locator was accepted.
-	if originalResp.StatusCode != http.StatusOK && originalResp.StatusCode != http.StatusFound {
-		t.Errorf("S3 attachment URL: expected 200 or 302 with signed URL, got %d", originalResp.StatusCode)
+	if originalResp.StatusCode != http.StatusOK {
+		t.Errorf("S3 image stable URL: expected 200 with access ticket, got %d", originalResp.StatusCode)
 	}
 
-	transformResp, err := unauthClient.Get(env.server.URL + signedThumbnailURL)
+	transformResp, err := unauthClient.Get(env.server.URL + thumbnailURL)
 	if err != nil {
 		t.Fatalf("Failed to make request: %v", err)
 	}
 	transformResp.Body.Close()
 	if transformResp.StatusCode != http.StatusOK {
-		t.Errorf("S3 transform URL: expected 200 with signed URL, got %d", transformResp.StatusCode)
+		t.Errorf("S3 transform URL: expected 200 with access ticket, got %d", transformResp.StatusCode)
 	}
 }
 
-// TestAsset_RevokedMembership_RevokesSignedURL covers the "kick / leave"
-// path under the per-user signed URL model. The URL is signed for user
-// X; once X is removed from the room (or leaves), the handler's
-// membership re-check fails and the URL stops working — even though
-// the signature itself is still valid.
-func TestAsset_RevokedMembership_RevokesSignedURL(t *testing.T) {
+// TestAsset_RevokedMembership_RevokesStableURL covers the "kick / leave"
+// path under the per-user access-ticket model.
+func TestAsset_RevokedMembership_RevokesStableURL(t *testing.T) {
 	env := setupAssetTestServerWithS3(t)
 
 	owner, err := env.core.CreateUser(env.ctx, "system", "asset-owner", "Owner", "password123")
@@ -998,13 +1088,10 @@ func TestAsset_RevokedMembership_RevokesSignedURL(t *testing.T) {
 	env.login(t, "asset-owner", "password123")
 	imageData := createAssetTestPNG(t, 400, 300)
 	_, attachment := env.postAssetMessageWithAttachment(t, room.Id, "private", imageData, "private.png")
-	attachmentURL := env.core.GetAttachmentURL(signedurl.AttachmentLocator{
-		RoomID:       room.Id,
-		AttachmentID: attachment.GetId(),
-	}, owner.Id)
+	attachmentURL := attachment.GetAssetUrl().GetUrl()
 
-	// Sanity check: owner can fetch their own URL (cookie not required —
-	// the signed URL is the capability).
+	// Sanity check: owner can fetch their own URL without a cookie because the
+	// access ticket is the capability.
 	plainClient := &http.Client{
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			return http.ErrUseLastResponse
@@ -1015,11 +1102,11 @@ func TestAsset_RevokedMembership_RevokesSignedURL(t *testing.T) {
 		t.Fatalf("pre-leave GET: %v", err)
 	}
 	r.Body.Close()
-	if r.StatusCode != http.StatusOK && r.StatusCode != http.StatusFound {
-		t.Fatalf("expected signed URL to work pre-leave, got %d", r.StatusCode)
+	if r.StatusCode != http.StatusOK {
+		t.Fatalf("expected stable URL to work pre-leave, got %d", r.StatusCode)
 	}
 
-	// Owner leaves the room → their signed URL should stop working.
+	// Owner leaves the room, so their stable access-ticket URL should stop working.
 	if err := env.core.LeaveRoom(env.ctx, owner.Id, "channel", owner.Id, room.Id); err != nil {
 		t.Fatalf("LeaveRoom: %v", err)
 	}
@@ -1030,6 +1117,6 @@ func TestAsset_RevokedMembership_RevokesSignedURL(t *testing.T) {
 	}
 	r2.Body.Close()
 	if r2.StatusCode != http.StatusForbidden {
-		t.Errorf("expected 403 after signed user left the room, got %d", r2.StatusCode)
+		t.Errorf("expected 403 after ticket user left the room, got %d", r2.StatusCode)
 	}
 }

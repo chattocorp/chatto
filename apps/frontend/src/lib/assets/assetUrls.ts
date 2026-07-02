@@ -5,11 +5,10 @@ import {
   registerAssetProxyUrl
 } from '$lib/pwa/assetProxy';
 
-const ASSET_PATH_PREFIXES = ['/assets/files/', '/assets/attachments/'];
 const STABLE_ASSET_PATH_PREFIX = '/assets/files/';
 
 function isAssetPath(pathname: string): boolean {
-  return ASSET_PATH_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+  return pathname.startsWith(STABLE_ASSET_PATH_PREFIX);
 }
 
 function isStableAssetPath(pathname: string): boolean {

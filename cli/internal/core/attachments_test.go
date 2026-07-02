@@ -14,7 +14,6 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	"hmans.de/chatto/internal/testutil"
 	"hmans.de/chatto/internal/testutil/fakes3"
-	"hmans.de/chatto/pkg/signedurl"
 )
 
 // createTestPNG creates a simple PNG image for testing
@@ -420,7 +419,7 @@ func TestChattoCore_S3PathPrefixCanMoveBasePathWithoutChangingStoredKey(t *testi
 		t.Fatalf("content type = %q, want text/plain", info.ContentType)
 	}
 
-	presignedURL, err := core.TryPresignedAttachmentURL(ctx, attachment)
+	presignedURL, err := core.TryPresignedAttachmentURL(ctx, attachment, S3AssetRedirectTTL)
 	if err != nil {
 		t.Fatalf("TryPresignedAttachmentURL after prefix change: %v", err)
 	}
@@ -492,23 +491,6 @@ func TestChattoCore_S3PathPrefixAppliesToAllAssetUploadsWithoutPersistingPrefix(
 	checkAttachment("original attachment", original)
 	checkAttachment("derivative attachment", derivative)
 }
-
-// ============================================================================
-// Attachment URL Generation Tests
-// ============================================================================
-
-func bodyLocator(t *testing.T) signedurl.AttachmentLocator {
-	t.Helper()
-	return signedurl.AttachmentLocator{
-		RoomID:       "Rabc",
-		BodyKey:      "Uauthor.E1234",
-		AttachmentID: "attachment456",
-	}
-}
-
-// testUserID is the caller's user ID baked into URL signatures by
-// GetAttachmentURL / GetTransformedAttachmentURL.
-const testUserID = "Uviewer"
 
 // TestGetAttachmentReader_ProbesWhenStorageMissing covers the
 // fallback path GetAttachmentReader takes when handed an Attachment
@@ -604,67 +586,6 @@ func TestGetAttachmentReader_ProbesWhenStorageMissing(t *testing.T) {
 	})
 }
 
-func TestChattoCore_GetAttachmentURL(t *testing.T) {
-	core, _ := setupTestCore(t)
-
-	t.Run("generate basic attachment URL", func(t *testing.T) {
-		url := core.GetAttachmentURL(bodyLocator(t), testUserID)
-		if !bytes.HasPrefix([]byte(url), []byte("/assets/attachments/")) {
-			t.Errorf("Expected URL prefix '/assets/attachments/', got '%s'", url)
-		}
-		// Locator is a base64-encoded JSON blob plus a dot-separated
-		// signature — at minimum a few dozen characters.
-		if len(url) < len("/assets/attachments/")+20 {
-			t.Errorf("URL suspiciously short, missing signed locator: %s", url)
-		}
-	})
-
-	t.Run("different attachments produce different URLs", func(t *testing.T) {
-		a := bodyLocator(t)
-		b := a
-		b.AttachmentID = "different-attachment"
-		if core.GetAttachmentURL(a, testUserID) == core.GetAttachmentURL(b, testUserID) {
-			t.Error("Different attachment IDs should produce different URLs")
-		}
-	})
-
-	t.Run("different users produce different URLs", func(t *testing.T) {
-		loc := bodyLocator(t)
-		if core.GetAttachmentURL(loc, "UviewerA") == core.GetAttachmentURL(loc, "UviewerB") {
-			t.Error("Different users should produce different signed URLs")
-		}
-	})
-}
-
-func TestChattoCore_GetTransformedAttachmentURL(t *testing.T) {
-	core, _ := setupTestCore(t)
-
-	t.Run("generate transform URL with dimensions", func(t *testing.T) {
-		url := core.GetTransformedAttachmentURL(bodyLocator(t), testUserID, 200, 150, "contain")
-		if !bytes.Contains([]byte(url), []byte("/t/")) {
-			t.Errorf("URL missing transform path component: %s", url)
-		}
-	})
-
-	t.Run("different dimensions produce different URLs", func(t *testing.T) {
-		loc := bodyLocator(t)
-		url1 := core.GetTransformedAttachmentURL(loc, testUserID, 200, 150, "contain")
-		url2 := core.GetTransformedAttachmentURL(loc, testUserID, 400, 300, "contain")
-		if url1 == url2 {
-			t.Error("Different dimensions should produce different URLs")
-		}
-	})
-
-	t.Run("different fit modes produce different URLs", func(t *testing.T) {
-		loc := bodyLocator(t)
-		url1 := core.GetTransformedAttachmentURL(loc, testUserID, 200, 150, "contain")
-		url2 := core.GetTransformedAttachmentURL(loc, testUserID, 200, 150, "cover")
-		if url1 == url2 {
-			t.Error("Different fit modes should produce different URLs")
-		}
-	})
-}
-
 // ============================================================================
 // Absolute Asset URL Tests
 // ============================================================================
@@ -672,32 +593,32 @@ func TestChattoCore_GetTransformedAttachmentURL(t *testing.T) {
 func TestChattoCore_AssetBaseURL(t *testing.T) {
 	core, _ := setupTestCore(t)
 
-	t.Run("GetAttachmentURL returns relative when AssetBaseURL is empty", func(t *testing.T) {
+	t.Run("GetStableAttachmentURL returns relative when AssetBaseURL is empty", func(t *testing.T) {
 		core.AssetBaseURL = ""
-		url := core.GetAttachmentURL(bodyLocator(t), testUserID)
-		if !bytes.HasPrefix([]byte(url), []byte("/assets/attachments/")) {
+		url := core.GetStableAttachmentURL("attachment456", "Uviewer")
+		if !bytes.HasPrefix([]byte(url), []byte("/assets/files/attachment456?access=")) {
 			t.Errorf("Expected relative URL, got '%s'", url)
 		}
 	})
 
-	t.Run("GetAttachmentURL returns absolute when AssetBaseURL is set", func(t *testing.T) {
+	t.Run("GetStableAttachmentURL returns absolute when AssetBaseURL is set", func(t *testing.T) {
 		core.AssetBaseURL = "https://chat.example.com"
 		defer func() { core.AssetBaseURL = "" }()
 
-		url := core.GetAttachmentURL(bodyLocator(t), testUserID)
+		url := core.GetStableAttachmentURL("attachment456", "Uviewer")
 
-		if !bytes.HasPrefix([]byte(url), []byte("https://chat.example.com/assets/attachments/")) {
+		if !bytes.HasPrefix([]byte(url), []byte("https://chat.example.com/assets/files/attachment456?access=")) {
 			t.Errorf("Expected absolute URL with base, got '%s'", url)
 		}
 	})
 
-	t.Run("GetTransformedAttachmentURL returns absolute when AssetBaseURL is set", func(t *testing.T) {
+	t.Run("GetStableTransformedAttachmentURL returns absolute when AssetBaseURL is set", func(t *testing.T) {
 		core.AssetBaseURL = "https://chat.example.com"
 		defer func() { core.AssetBaseURL = "" }()
 
-		url := core.GetTransformedAttachmentURL(bodyLocator(t), testUserID, 200, 150, "contain")
+		url := core.GetStableTransformedAttachmentURL("attachment456", "Uviewer", 200, 150, "contain")
 
-		if !bytes.HasPrefix([]byte(url), []byte("https://chat.example.com/assets/attachments/")) {
+		if !bytes.HasPrefix([]byte(url), []byte("https://chat.example.com/assets/files/attachment456/image/200x150/contain?access=")) {
 			t.Errorf("Expected absolute URL with base, got '%s'", url)
 		}
 	})
@@ -779,12 +700,8 @@ func TestAttachment_FullLifecycle(t *testing.T) {
 		t.Fatalf("Upload failed: %v", err)
 	}
 
-	// 2. Verify URL generation
-	url := core.GetAttachmentURL(signedurl.AttachmentLocator{
-		RoomID:       attachment.RoomId,
-		BodyKey:      "U.E", // placeholder; URL signing doesn't validate body existence
-		AttachmentID: attachment.Id,
-	}, testUserID)
+	// 2. Verify stable access-ticket URL generation
+	url := core.GetStableAttachmentURL(attachment.Id, SystemActorID)
 	if url == "" {
 		t.Error("URL generation failed")
 	}
@@ -1304,107 +1221,5 @@ func TestChattoCore_DeleteCachedResizesForAttachment_EmptyCache(t *testing.T) {
 	}
 	if deleted != 0 {
 		t.Errorf("Should return 0 deleted on empty cache, got %d", deleted)
-	}
-}
-
-// ============================================================================
-// Attachment Lookup Tests
-// ============================================================================
-
-// TestFindBodyAttachment_RoundTrip posts a message with an attachment
-// and verifies FindBodyAttachment returns the same proto from the body.
-func TestFindBodyAttachment_RoundTrip(t *testing.T) {
-	core, _ := setupTestCore(t)
-	ctx := testContext(t)
-
-	user, err := core.CreateUser(ctx, "system", "alice", "Alice", "password123")
-	if err != nil {
-		t.Fatalf("Failed to create user: %v", err)
-	}
-	room, err := core.CreateRoom(ctx, user.Id, KindChannel, "", "test-room", "Test room")
-	if err != nil {
-		t.Fatalf("Failed to create room: %v", err)
-	}
-
-	attachment, err := core.UploadAttachment(ctx, SystemActorID, room.Id, "test.txt", "text/plain", bytes.NewReader([]byte("hello")))
-	if err != nil {
-		t.Fatalf("Failed to upload attachment: %v", err)
-	}
-
-	event, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "with attachment", []string{attachment.Id}, "", "", nil, false)
-	if err != nil {
-		t.Fatalf("PostMessage failed: %v", err)
-	}
-	bodyKey := event.Id
-
-	got, err := core.FindBodyAttachment(ctx, bodyKey, attachment.Id)
-	if err != nil {
-		t.Fatalf("FindBodyAttachment error: %v", err)
-	}
-	if got == nil {
-		t.Fatal("Expected attachment, got nil")
-	}
-	if got.Id != attachment.Id {
-		t.Errorf("Expected attachment id %q, got %q", attachment.Id, got.Id)
-	}
-	if got.MessageBodyId != bodyKey {
-		t.Errorf("Expected message_body_id %q, got %q", bodyKey, got.MessageBodyId)
-	}
-	if got.Filename != "test.txt" {
-		t.Errorf("Expected filename test.txt, got %q", got.Filename)
-	}
-}
-
-// TestFindBodyAttachment_MissingReturnsNil verifies (nil, nil) for
-// unknown body keys and unknown attachment IDs.
-func TestFindBodyAttachment_MissingReturnsNil(t *testing.T) {
-	core, _ := setupTestCore(t)
-	ctx := testContext(t)
-
-	got, err := core.FindBodyAttachment(ctx, "Uphantom.Ephantom", "ghost")
-	if err != nil {
-		t.Fatalf("Unexpected error: %v", err)
-	}
-	if got != nil {
-		t.Errorf("Expected nil for missing body, got %+v", got)
-	}
-}
-
-// TestLookupAttachment_BodyDispatch covers the body branch of the
-// locator dispatcher.
-func TestLookupAttachment_BodyDispatch(t *testing.T) {
-	core, _ := setupTestCore(t)
-	ctx := testContext(t)
-
-	user, err := core.CreateUser(ctx, "system", "alice", "Alice", "password123")
-	if err != nil {
-		t.Fatalf("CreateUser: %v", err)
-	}
-	room, err := core.CreateRoom(ctx, user.Id, KindChannel, "", "test-room", "Test room")
-	if err != nil {
-		t.Fatalf("CreateRoom: %v", err)
-	}
-	attachment, err := core.UploadAttachment(ctx, SystemActorID, room.Id, "x.txt", "text/plain", bytes.NewReader([]byte("x")))
-	if err != nil {
-		t.Fatalf("UploadAttachment: %v", err)
-	}
-	event, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "with attachment", []string{attachment.Id}, "", "", nil, false)
-	if err != nil {
-		t.Fatalf("PostMessage failed: %v", err)
-	}
-
-	loc := signedurl.AttachmentLocator{
-		RoomID:       room.Id,
-		BodyKey:      event.Id,
-		AttachmentID: attachment.Id,
-		UserID:       user.Id,
-		ExpiresAt:    1,
-	}
-	got, err := core.LookupAttachment(ctx, loc)
-	if err != nil {
-		t.Fatalf("LookupAttachment error: %v", err)
-	}
-	if got == nil || got.Id != attachment.Id {
-		t.Errorf("Expected attachment %q, got %+v", attachment.Id, got)
 	}
 }

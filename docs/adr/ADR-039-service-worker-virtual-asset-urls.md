@@ -29,7 +29,6 @@ The restart and fallback paths are explicit and intentional:
 
 - If a controlled page is still open but the browser has terminated and restarted the idle Service Worker, the worker asks open window clients to resend registered servers and the requested virtual target mapping before failing the fetch.
 - If `navigator.serviceWorker.controller` is absent, asset URL helpers return the existing direct ticketed asset URL.
-- Legacy `/assets/attachments/{signedLocator}` URLs stay on their existing compatibility path and are not rewritten through the virtual namespace.
 - Media `Range` requests are not cached by the asset proxy. The worker redirects them to the hidden target URL so browser media playback keeps current Range behavior until Chatto has deliberate Range streaming through the proxy path.
 - If the browser clears Service Worker state or Cache Storage, the app resynchronizes registered servers after the worker controls the page again. Until then, direct ticketed URLs remain the compatibility path.
 

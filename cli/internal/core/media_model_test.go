@@ -6,11 +6,9 @@ import (
 	"io"
 	"strings"
 	"testing"
-	"time"
 
 	"hmans.de/chatto/internal/events"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
-	"hmans.de/chatto/pkg/signedurl"
 )
 
 func TestNewMediaModelWiresCore(t *testing.T) {
@@ -280,59 +278,26 @@ func TestMediaModelStableAttachmentURLs(t *testing.T) {
 	}
 }
 
-func TestMediaModelSignedAttachmentURLs(t *testing.T) {
+func TestMediaModelAssetURLs(t *testing.T) {
 	core, _ := setupTestCore(t)
 	core.AssetBaseURL = "https://assets.example"
 	service := core.mediaModel
-	loc := signedurl.AttachmentLocator{RoomID: "R-url", BodyKey: "E-url", AttachmentID: "A-url"}
 
-	rawURL := service.GetAttachmentURL(loc, "U-url")
-	const prefix = "https://assets.example/assets/attachments/"
-	if !strings.HasPrefix(rawURL, prefix) {
-		t.Fatalf("GetAttachmentURL = %q, want signed attachment URL", rawURL)
-	}
-	parsed, err := signedurl.ParseSignedAttachmentLocator("test-signing-secret", strings.TrimPrefix(rawURL, prefix))
-	if err != nil {
-		t.Fatalf("ParseSignedAttachmentLocator returned error: %v", err)
-	}
-	if parsed.RoomID != loc.RoomID || parsed.BodyKey != loc.BodyKey || parsed.AttachmentID != loc.AttachmentID {
-		t.Fatalf("parsed locator = %#v, want room/body/attachment from %#v", parsed, loc)
-	}
-	if parsed.UserID != "U-url" {
-		t.Fatalf("parsed UserID = %q, want U-url", parsed.UserID)
-	}
-	if parsed.ExpiresAt <= time.Now().Unix() {
-		t.Fatalf("parsed ExpiresAt = %d, want future expiry", parsed.ExpiresAt)
+	rawURL := service.GetStableAttachmentURL("A-url", "U-url")
+	if !strings.HasPrefix(rawURL, "https://assets.example/assets/files/A-url?access=") {
+		t.Fatalf("GetStableAttachmentURL = %q, want stable asset URL", rawURL)
 	}
 
-	transformed := service.GetTransformedAttachmentURL(loc, "U-url", 64, 48, "cover")
-	if !strings.HasPrefix(transformed, prefix) || !strings.Contains(transformed, "/t/") {
-		t.Fatalf("GetTransformedAttachmentURL = %q, want signed transform URL", transformed)
+	transformed := service.GetStableTransformedAttachmentURL("A-url", "U-url", 64, 48, "cover")
+	if !strings.HasPrefix(transformed, "https://assets.example/assets/files/A-url/image/64x48/cover?access=") {
+		t.Fatalf("GetStableTransformedAttachmentURL = %q, want stable transform URL", transformed)
 	}
 	serverAsset := service.GetTransformedServerAssetURL("server.logo", 80, 80, "cover")
 	if !strings.HasPrefix(serverAsset, "https://assets.example/assets/server/server.logo/t/") {
 		t.Fatalf("GetTransformedServerAssetURL = %q, want signed server asset URL", serverAsset)
 	}
-	if got := service.GetAttachmentURL(signedurl.AttachmentLocator{RoomID: "R-url"}, "U-url"); got != "" {
-		t.Fatalf("GetAttachmentURL with invalid locator = %q, want empty", got)
-	}
-}
-
-func TestMediaModelAttachmentLocatorHelpers(t *testing.T) {
-	attachment := &corev1.Attachment{Id: "A-loc", RoomId: "R-loc", MessageBodyId: "E-default"}
-
-	body := LocatorForBodyAttachment(attachment, "")
-	if body.RoomID != "R-loc" || body.BodyKey != "E-default" || body.AttachmentID != "A-loc" {
-		t.Fatalf("LocatorForBodyAttachment default = %#v, want attachment room/body/id", body)
-	}
-	body = LocatorForBodyAttachment(attachment, "E-explicit")
-	if body.BodyKey != "E-explicit" {
-		t.Fatalf("LocatorForBodyAttachment explicit BodyKey = %q, want E-explicit", body.BodyKey)
-	}
-
-	video := LocatorForVideoOriginAttachment("R-video", "A-origin", "A-variant")
-	if video.RoomID != "R-video" || video.VideoOrigin != "A-origin" || video.AttachmentID != "A-variant" {
-		t.Fatalf("LocatorForVideoOriginAttachment = %#v, want video-origin locator", video)
+	if got := service.GetStableAttachmentURL("", "U-url"); got != "" {
+		t.Fatalf("GetStableAttachmentURL with empty asset id = %q, want empty", got)
 	}
 }
 
@@ -649,29 +614,11 @@ func TestMediaModelMessageBodyAttachmentLookups(t *testing.T) {
 	if len(attachments) != 1 || attachments[0].GetId() != attachment.GetId() {
 		t.Fatalf("MessageBodyAttachments = %#v, want attachment %s", attachments, attachment.GetId())
 	}
-	found, err := service.FindBodyAttachment(ctx, event.GetId(), attachment.GetId())
-	if err != nil {
-		t.Fatalf("FindBodyAttachment returned error: %v", err)
+	declared, ok := core.Assets.AssetCreation(attachment.GetId())
+	if !ok || declared == nil {
+		t.Fatalf("AssetCreation missing for %s", attachment.GetId())
 	}
-	if found.GetId() != attachment.GetId() {
-		t.Fatalf("FindBodyAttachment id = %q, want %q", found.GetId(), attachment.GetId())
-	}
-
-	expiresAt := time.Now().Add(time.Minute).Unix()
-	loc := signedurl.AttachmentLocator{RoomID: room.Id, BodyKey: event.GetId(), AttachmentID: attachment.GetId(), UserID: user.Id, ExpiresAt: expiresAt}
-	lookedUp, err := service.LookupAttachment(ctx, loc)
-	if err != nil {
-		t.Fatalf("LookupAttachment body locator returned error: %v", err)
-	}
-	if lookedUp.GetId() != attachment.GetId() {
-		t.Fatalf("LookupAttachment body id = %q, want %q", lookedUp.GetId(), attachment.GetId())
-	}
-
-	lookedUp, err = service.LookupAttachment(ctx, signedurl.AttachmentLocator{RoomID: room.Id, AttachmentID: attachment.GetId(), UserID: user.Id, ExpiresAt: expiresAt})
-	if err != nil {
-		t.Fatalf("LookupAttachment asset locator returned error: %v", err)
-	}
-	if lookedUp.GetId() != attachment.GetId() {
-		t.Fatalf("LookupAttachment asset id = %q, want %q", lookedUp.GetId(), attachment.GetId())
+	if declared.GetAsset().GetId() != attachment.GetId() {
+		t.Fatalf("AssetCreation id = %q, want %q", declared.GetAsset().GetId(), attachment.GetId())
 	}
 }

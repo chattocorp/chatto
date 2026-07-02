@@ -117,8 +117,11 @@ authorization, live events, backup/restore, and backend tests.
   room, so kick/leave revokes future fetches.
 - URLs are per-user and intentionally not shared/CDN-cacheable. Treat leaked URLs
   as usable until expiry or membership loss.
-- Legacy locator URLs remain for compatibility; new browser fields should prefer
-  stable `/assets/files/...` plus `access`.
+- Chatto streams protected asset bytes by default. It may redirect heavy passive
+  originals such as video, audio, and large files to short-lived presigned S3
+  URLs after the same authorization check.
+- The legacy `/assets/attachments/{signedLocator}` route has been removed; do
+  not add new callers for signed locator URLs.
 
 ## Backup, Restore, And Keys
 

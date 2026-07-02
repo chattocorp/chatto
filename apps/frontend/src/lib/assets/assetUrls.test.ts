@@ -82,12 +82,12 @@ describe('assetUrlForServer', () => {
     ).toBe('/__chatto/assets/remote/assets/files/att_1/image/960x800/contain');
   });
 
-  it('leaves legacy locator URLs on the existing compatibility path', () => {
+  it('leaves non-stable asset URLs unchanged', () => {
     const postMessage = vi.fn();
     stubBrowser(postMessage);
 
     expect(assetUrlForServer('remote', '/assets/attachments/locator.sig')).toBe(
-      'https://remote.example/assets/attachments/locator.sig'
+      '/assets/attachments/locator.sig'
     );
     expect(postMessage).not.toHaveBeenCalled();
   });

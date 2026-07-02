@@ -26,14 +26,8 @@ func (s *HTTPServer) setupAssetRoutes() {
 	// The serveServerAsset handler detects and routes transform requests appropriately
 	// These handlers probe both NATS and S3 backends automatically
 	s.router.GET("/assets/server/*path", s.serveServerAsset)
-	// Attachment routes carry a signed locator (`{base64payload}.{hexHMAC}`)
-	// as the path segment. The payload encodes roomId + (bodyKey | videoOrigin)
-	// + attachmentId — everything the handler needs to authorize and serve
-	// the binary without a separate index lookup.
 	s.router.GET("/assets/files/:assetID", s.serveStableAttachment)
 	s.router.GET("/assets/files/:assetID/image/:dimensions/:fit", s.serveStableTransformedAttachment)
-	s.router.GET("/assets/attachments/:locator", s.serveAttachment)
-	s.router.GET("/assets/attachments/:locator/t/:signedPath", s.serveTransformedAttachment)
 }
 
 // transformRequest holds the parameters for a transformed asset request.
@@ -55,6 +49,35 @@ type transformRequest struct {
 	// Authorize checks if access is allowed. Return true if authorized.
 	// If nil, asset is considered public and no authorization is needed.
 	Authorize func(c *gin.Context) bool
+}
+
+type assetDeliveryMode int
+
+const (
+	deliveryChattoStream assetDeliveryMode = iota
+	deliveryS3Redirect
+)
+
+const largeAttachmentRedirectThreshold = 32 << 20
+
+func protectedAssetDeliveryMode(attachment *corev1.Attachment, req *http.Request) assetDeliveryMode {
+	if attachment == nil || req.Header.Get("X-Chatto-Asset-Proxy") == "1" {
+		return deliveryChattoStream
+	}
+	if !attachmentCanUsePresignedRedirect(attachment.GetContentType()) {
+		return deliveryChattoStream
+	}
+	if _, ok := attachment.GetStorage().GetAsset().(*corev1.DeprecatedAsset_S3); !ok {
+		return deliveryChattoStream
+	}
+	contentType := strings.ToLower(attachment.GetContentType())
+	if strings.HasPrefix(contentType, "video/") || strings.HasPrefix(contentType, "audio/") {
+		return deliveryS3Redirect
+	}
+	if attachment.GetSize() >= largeAttachmentRedirectThreshold {
+		return deliveryS3Redirect
+	}
+	return deliveryChattoStream
 }
 
 func (s *HTTPServer) serveServerAsset(c *gin.Context) {
@@ -110,55 +133,6 @@ func (s *HTTPServer) serveServerAsset(c *gin.Context) {
 	)
 }
 
-// serveAttachment serves an attachment whose location is encoded in
-// the signed locator path segment. Verifying the locator gives us the
-// roomId (for authz) and the source pointer (body key or video-origin
-// id) plus the attachment id, with no index lookup needed.
-func (s *HTTPServer) serveAttachment(c *gin.Context) {
-	ctx := c.Request.Context()
-
-	loc, attachment, ok := s.resolveLocatorAttachment(c, ctx, c.Param("locator"))
-	if !ok {
-		return
-	}
-
-	s.logger.Debug("Serving attachment", "attachment_id", loc.AttachmentID)
-
-	// Try S3 presigned redirect first (zero-copy, full Range support) for
-	// attachment types that do not need Chatto-served security headers.
-	if attachmentCanUsePresignedRedirect(attachment.GetContentType()) {
-		if presignedURL, err := s.core.TryPresignedAttachmentURL(ctx, attachment); err == nil {
-			c.Header("Cache-Control", protectedAssetCacheControl)
-			c.Redirect(http.StatusFound, presignedURL)
-			return
-		}
-	}
-
-	// Otherwise stream from the recorded backend.
-	reader, info, err := s.core.GetAttachmentReader(ctx, attachment)
-	if err != nil {
-		s.logger.Error("Failed to get attachment", "error", err, "attachment_id", loc.AttachmentID)
-		c.JSON(http.StatusNotFound, gin.H{"error": "Attachment not found"})
-		return
-	}
-	if closer, ok := reader.(io.Closer); ok {
-		defer closer.Close()
-	}
-
-	contentType := info.ContentType
-	if contentType == "" {
-		contentType = "application/octet-stream"
-	}
-	setOriginalAttachmentSecurityHeaders(c, contentType)
-
-	c.Header("Cache-Control", protectedAssetCacheControl)
-	c.Header("ETag", fmt.Sprintf("\"%s\"", loc.AttachmentID))
-	c.Header("Vary", "Accept-Encoding")
-
-	// Stream directly — no io.ReadAll, no memory buffering
-	c.DataFromReader(http.StatusOK, info.Size, contentType, reader, nil)
-}
-
 // serveStableAttachment serves the canonical authenticated asset URL:
 //
 //	/assets/files/{assetID}
@@ -178,17 +152,11 @@ func (s *HTTPServer) serveStableAttachment(c *gin.Context) {
 		return
 	}
 
-	if c.GetHeader("X-Chatto-Asset-Proxy") != "1" {
-		// Try S3 presigned redirect first (zero-copy, full Range support) after
-		// validating the asset ticket/request credentials and room membership.
-		// Active document formats must stream through Chatto so the sandbox CSP
-		// below cannot be bypassed by S3's response headers.
-		if attachmentCanUsePresignedRedirect(attachment.GetContentType()) {
-			if presignedURL, err := s.core.TryPresignedAttachmentURL(ctx, attachment); err == nil {
-				c.Header("Cache-Control", protectedAssetCacheControl)
-				c.Redirect(http.StatusFound, presignedURL)
-				return
-			}
+	if protectedAssetDeliveryMode(attachment, c.Request) == deliveryS3Redirect {
+		if presignedURL, err := s.core.TryPresignedAttachmentURL(ctx, attachment, core.S3AssetRedirectTTL); err == nil {
+			c.Header("Cache-Control", protectedAssetCacheControl)
+			c.Redirect(http.StatusFound, presignedURL)
+			return
 		}
 	}
 
@@ -411,60 +379,6 @@ func (s *HTTPServer) resolveStableAssetViewerID(c *gin.Context, assetID string, 
 	return user.Id, true
 }
 
-// resolveLocatorAttachment parses the signed locator, validates its
-// expiry, verifies the signed user is still a member of the room, and
-// looks up the source Attachment proto. On success returns the locator,
-// the attachment, and true. On any failure, writes the appropriate HTTP
-// response and returns ok=false.
-//
-// The signed locator is the capability — no session cookie or bearer
-// token is consulted. This is what lets cross-origin <img> tags work
-// for remote-server attachments, which can't carry either credential.
-// Auto-revocation on kick/leave still works because we re-check
-// membership for the signed user on every request.
-func (s *HTTPServer) resolveLocatorAttachment(c *gin.Context, ctx context.Context, signedLocator string) (*signedurl.AttachmentLocator, *corev1.Attachment, bool) {
-	loc, err := signedurl.ParseSignedAttachmentLocator(s.config.Core.Assets.SigningSecret, signedLocator)
-	if err != nil {
-		s.logger.Warn("Invalid attachment locator", "error", err)
-		c.JSON(http.StatusForbidden, gin.H{"error": "Invalid attachment URL"})
-		return nil, nil, false
-	}
-
-	if loc.Expired(time.Now().Unix()) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "Attachment URL expired"})
-		return nil, nil, false
-	}
-
-	kind, err := s.core.FindRoomKind(ctx, loc.RoomID)
-	if err != nil {
-		s.logger.Error("Failed to resolve room kind for attachment auth", "error", err, "room_id", loc.RoomID)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to verify access"})
-		return nil, nil, false
-	}
-	isMember, err := s.core.RoomMembershipExists(ctx, kind, loc.UserID, loc.RoomID)
-	if err != nil {
-		s.logger.Error("Failed to check room membership", "error", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to verify access"})
-		return nil, nil, false
-	}
-	if !isMember {
-		c.JSON(http.StatusForbidden, gin.H{"error": "Access denied: not a member of the room"})
-		return nil, nil, false
-	}
-
-	attachment, err := s.core.LookupAttachment(ctx, *loc)
-	if err != nil {
-		s.logger.Error("Failed to look up attachment", "error", err, "attachment_id", loc.AttachmentID)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to resolve attachment"})
-		return nil, nil, false
-	}
-	if attachment == nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Attachment not found"})
-		return nil, nil, false
-	}
-	return loc, attachment, true
-}
-
 // serveTransformedAsset handles the common logic for serving transformed images.
 // It parses the signed path, checks cache, fetches the asset, transforms it, and serves the result.
 func (s *HTTPServer) serveTransformedAsset(c *gin.Context, req transformRequest) {
@@ -624,42 +538,6 @@ func (s *HTTPServer) serveTransformedServerAsset(c *gin.Context, key, signedPath
 			return reader, contentType, nil
 		},
 		Authorize: nil, // Instance assets are public
-	})
-}
-
-// serveTransformedAttachment serves a dynamically transformed version
-// of an attachment identified by the locator path segment.
-// URL format: /assets/attachments/{locator}/t/{signedPath}
-// The locator is verified, then the transform path is verified against
-// it; both signatures must be valid.
-func (s *HTTPServer) serveTransformedAttachment(c *gin.Context) {
-	signedLocator := c.Param("locator")
-	signedPath := c.Param("signedPath")
-	ctx := c.Request.Context()
-
-	loc, attachment, ok := s.resolveLocatorAttachment(c, ctx, signedLocator)
-	if !ok {
-		return
-	}
-
-	s.logger.Debug("Serving transformed attachment", "attachment_id", loc.AttachmentID)
-
-	// resolveLocatorAttachment already authorized; the inner helper
-	// runs the transform-path signature check too.
-	s.serveTransformedAsset(c, transformRequest{
-		ResourceID1: core.AttachmentSignResource,
-		ResourceID2: signedLocator,
-		SignedPath:  signedPath,
-		CachePrefix: core.AttachmentSignResource,
-		AssetID:     loc.AttachmentID,
-		FetchAsset: func(ctx context.Context) (io.Reader, string, error) {
-			reader, info, err := s.core.GetAttachmentReader(ctx, attachment)
-			if err != nil {
-				return nil, "", err
-			}
-			return reader, info.ContentType, nil
-		},
-		Authorize: func(c *gin.Context) bool { return true }, // Already authorized above; still keep private cache headers.
 	})
 }
 
