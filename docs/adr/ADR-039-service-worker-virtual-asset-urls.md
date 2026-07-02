@@ -11,7 +11,7 @@ To make remote attachments render, Chatto introduced per-user asset access ticke
 We want the normal web app to avoid putting bearer asset tickets in rendered markup, while preserving two properties:
 
 1. Assets should still render in browsers or modes where Service Workers are unavailable, disabled, not yet controlling the page, or cleared by browser storage policy.
-2. Once a user has already loaded immutable asset bytes, the browser may cache those bytes privately for performance.
+2. Protected asset bytes should not be reused from browser caches; ticket expiry, deletion, and room-membership revocation should be checked on the next fetch.
 
 ## Decision
 
@@ -23,7 +23,7 @@ In Service Worker-controlled browser sessions, the frontend renders stable asset
 
 The virtual URL is not a bearer credential. It only resolves inside a Chatto client whose Service Worker has received the matching server registration and hidden ticketed target from the app. The frontend registers a hidden mapping from the virtual URL to the current ticketed target URL, and the worker resolves fetches by using that mapping or, for same-origin cookie sessions, by rebuilding the target from the registered server URL and asset path.
 
-For full `GET` requests, the worker fetches the hidden ticketed target, adds `X-Chatto-Asset-Proxy: 1`, and stores successful cacheable `200` responses in a private `chatto-assets-v1` Cache Storage cache. The backend treats that proxy header as a request to stream the asset through Chatto instead of redirecting originals to S3, so the worker can cache the actual response body. Cache entries are keyed by the virtual URL plus a hash of the resolved target URL, so a new asset ticket or auth context cannot reuse bytes fetched under an older target. The app asks the worker to clear the asset cache for a server when that server is removed, and to clear the whole asset cache on global sign-out.
+For full `GET` requests, the worker fetches the hidden ticketed target and adds `X-Chatto-Asset-Proxy: 1`. The backend treats that proxy header as a request to stream the asset through Chatto instead of redirecting originals to S3. Protected asset responses use `private, no-store`, and the worker does not cache response bodies; every protected asset load reaches the server so ticket expiry, deletion, and room-membership revocation are rechecked.
 
 The restart and fallback paths are explicit and intentional:
 
@@ -39,7 +39,7 @@ The restart and fallback paths are explicit and intentional:
 - **Ticketed URLs remain part of the architecture.** They are still emitted by projected API responses and still authorize non-Service-Worker clients, first-load/non-controlled pages, legacy clients, and Range redirects. Their TTL and membership checks remain important security controls.
 - **Open pages are the recovery source for worker restarts.** Service Worker globals are volatile. The client keeps the virtual-target mappings it registered and answers worker resync requests so lazy-loaded assets can recover after an idle worker restart without persisting tickets to durable browser storage.
 - **The fallback is less private but more compatible.** Browsers without working Service Workers keep rendering assets using the pre-existing ticketed URL behavior. This is acceptable because it is the old behavior, not a new breakage, and because ticket expiry plus membership checks still bound exposure.
-- **Private browser caching is allowed for already-seen bytes.** The worker may cache full successful asset responses because the user has already received immutable content. Cache entries are scoped to the browser profile and cleared when server registrations are removed or the user signs out.
+- **Protected asset bodies are not cached by the worker.** Server-side image resize caching remains available for expensive transforms, but browser-visible protected responses must be revalidated through the server so authorization changes take effect on the next fetch.
 - **API bearer tokens stay out of Service Worker asset state.** The worker does not receive registered-server API tokens and does not add `Authorization` to proxied asset requests. That keeps token exposure concentrated in the foreground API clients and avoids persisting token-derived asset responses under a token-agnostic cache key.
 - **Safari, private browsing, and managed browsers may see less benefit.** Service Worker or Cache Storage behavior can be unavailable, ephemeral, or aggressively evicted. The feature must remain an enhancement with a reliable direct-URL fallback.
 - **Range support remains deliberately conservative.** Redirecting Range requests avoids partially reimplementing media streaming in the Service Worker. A future backend proxy streaming design can replace this fallback when we need cacheable or non-ticketed Range playback.

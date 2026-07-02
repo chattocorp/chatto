@@ -114,7 +114,7 @@ describe('service worker asset proxy fetch', () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
-  it('proxies registered asset targets without attaching bearer Authorization', async () => {
+  it('proxies registered asset targets without attaching bearer Authorization or caching', async () => {
     await syncServer();
     await registerTarget('https://remote.example/assets/files/asset-1?access=ticket-a');
 
@@ -125,7 +125,7 @@ describe('service worker asset proxy fetch', () => {
       expect(init?.credentials).toBe('omit');
       return new Response('asset bytes', {
         status: 200,
-        headers: { 'Cache-Control': 'private, max-age=3600' }
+        headers: { 'Cache-Control': 'private, no-store' }
       });
     });
     vi.stubGlobal('fetch', fetchMock);
@@ -136,17 +136,17 @@ describe('service worker asset proxy fetch', () => {
     await expect(fetchVirtualAsset().then((response) => response.text())).resolves.toBe(
       'asset bytes'
     );
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
-  it('scopes cache entries to the resolved asset target', async () => {
+  it('uses the refreshed registered target URL for later fetches', async () => {
     await syncServer();
     await registerTarget('https://remote.example/assets/files/asset-1?access=ticket-a');
 
     const fetchMock = vi.fn(async (url: string | URL | Request) => {
       return new Response(`body:${String(url)}`, {
         status: 200,
-        headers: { 'Cache-Control': 'private, max-age=3600' }
+        headers: { 'Cache-Control': 'private, no-store' }
       });
     });
     vi.stubGlobal('fetch', fetchMock);
@@ -163,14 +163,14 @@ describe('service worker asset proxy fetch', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
-  it('does not cache responses that opt out of caching', async () => {
+  it('does not cache protected asset responses even when a response is cacheable', async () => {
     await syncServer();
     await registerTarget('https://remote.example/assets/files/asset-1?access=ticket-a');
 
     const fetchMock = vi.fn(async () => {
-      return new Response('uncacheable', {
+      return new Response('asset bytes', {
         status: 200,
-        headers: { 'Cache-Control': 'private, no-store' }
+        headers: { 'Cache-Control': 'private, max-age=3600' }
       });
     });
     vi.stubGlobal('fetch', fetchMock);
@@ -222,7 +222,7 @@ describe('service worker asset proxy fetch', () => {
       expect(headers.get('X-Chatto-Asset-Proxy')).toBe('1');
       return new Response('resynced asset', {
         status: 200,
-        headers: { 'Cache-Control': 'private, max-age=3600' }
+        headers: { 'Cache-Control': 'private, no-store' }
       });
     });
     vi.stubGlobal('fetch', fetchMock);
@@ -257,7 +257,7 @@ describe('service worker asset proxy fetch', () => {
       expect(init?.credentials).toBe('include');
       return new Response('origin asset', {
         status: 200,
-        headers: { 'Cache-Control': 'private, max-age=3600' }
+        headers: { 'Cache-Control': 'private, no-store' }
       });
     });
     vi.stubGlobal('fetch', fetchMock);

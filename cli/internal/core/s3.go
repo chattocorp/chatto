@@ -276,8 +276,9 @@ func IsNoSuchKeyError(err error) bool {
 // The URL is valid for the specified duration (max 7 days).
 func (s *S3Client) PresignedGetURL(ctx context.Context, key string, expiry time.Duration) (*url.URL, error) {
 	resp, err := s.presign.PresignGetObject(ctx, &s3.GetObjectInput{
-		Bucket: aws.String(s.bucket),
-		Key:    aws.String(s.physicalKey(key)),
+		Bucket:               aws.String(s.bucket),
+		Key:                  aws.String(s.physicalKey(key)),
+		ResponseCacheControl: aws.String("private, no-store"),
 	}, func(opts *s3.PresignOptions) {
 		opts.Expires = expiry
 	})

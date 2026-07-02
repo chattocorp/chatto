@@ -9,7 +9,6 @@ import {
 declare const self: ServiceWorkerGlobalScope;
 
 const ASSET_CACHE_NAME = 'chatto-assets-v1';
-const MAX_ASSET_CACHE_ENTRIES = 250;
 const ASSET_PROXY_RESYNC_TIMEOUT_MS = 750;
 
 const assetProxyServers = new Map<string, AssetProxyServer>();
@@ -107,11 +106,6 @@ export async function handleAssetProxyFetch(
     return Response.redirect(targetUrl, 302);
   }
 
-  const cache = await caches.open(ASSET_CACHE_NAME);
-  const cacheKey = await assetProxyCacheKey(request.url, targetUrl);
-  const cached = await cache.match(cacheKey);
-  if (cached) return cached;
-
   const headers = new Headers();
   headers.set('X-Chatto-Asset-Proxy', '1');
 
@@ -120,18 +114,11 @@ export async function handleAssetProxyFetch(
     credentials: sameOrigin(targetUrl, self.location.origin) ? 'include' : 'omit',
     redirect: 'follow'
   });
-  const response = new Response(networkResponse.body, {
+  return new Response(networkResponse.body, {
     status: networkResponse.status,
     statusText: networkResponse.statusText,
     headers: networkResponse.headers
   });
-
-  if (shouldCacheAssetResponse(response)) {
-    await cache.put(cacheKey, response.clone());
-    await pruneAssetCache(cache);
-  }
-
-  return response;
 }
 
 function isAssetProxyServerMessage(value: unknown): value is AssetProxyServer {
@@ -250,44 +237,12 @@ function buildFallbackAssetTarget(
   }
 }
 
-async function assetProxyCacheKey(requestUrl: string, targetUrl: string): Promise<Request> {
-  const url = new URL(requestUrl);
-  url.search = '';
-  url.hash = '';
-  url.searchParams.set('__chatto_asset_scope', await sha256Hex(targetUrl));
-  return new Request(url.href, { method: 'GET' });
-}
-
 function sameOrigin(value: string, origin: string): boolean {
   try {
     return new URL(value).origin === origin;
   } catch {
     return false;
   }
-}
-
-function shouldCacheAssetResponse(response: Response): boolean {
-  if (!response.ok || response.status !== 200) return false;
-
-  const cacheControl = response.headers.get('Cache-Control')?.toLowerCase() ?? '';
-  const directives = cacheControl
-    .split(',')
-    .map((directive) => directive.trim())
-    .filter(Boolean);
-  return !directives.includes('no-store') && !directives.includes('no-cache');
-}
-
-async function sha256Hex(value: string): Promise<string> {
-  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
-  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
-}
-
-async function pruneAssetCache(cache: Cache): Promise<void> {
-  const keys = await cache.keys();
-  if (keys.length <= MAX_ASSET_CACHE_ENTRIES) return;
-  await Promise.all(
-    keys.slice(0, keys.length - MAX_ASSET_CACHE_ENTRIES).map((key) => cache.delete(key))
-  );
 }
 
 async function clearAssetCache(serverId?: string): Promise<void> {

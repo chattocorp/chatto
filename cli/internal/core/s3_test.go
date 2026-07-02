@@ -235,6 +235,7 @@ func TestS3Client_PathPrefixUsesPhysicalKeyAndReturnsLogicalKey(t *testing.T) {
 	presignedURL, err := prefixedClient.PresignedGetURL(ctx, logicalKey, 15*time.Minute)
 	require.NoError(t, err)
 	require.Contains(t, presignedURL.Path, physicalKey)
+	require.Equal(t, "private, no-store", presignedURL.Query().Get("response-cache-control"))
 
 	require.NoError(t, prefixedClient.DeleteObject(ctx, logicalKey))
 	_, err = verifierClient.StatObject(ctx, physicalKey)

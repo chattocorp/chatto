@@ -5,7 +5,7 @@
 
 ## Overview
 
-Chatto ships a service worker so the installed web app can launch reliably, handle push notifications, and proxy private asset loads through non-portable same-origin URLs. The worker caches the SPA fallback shell and SvelteKit build assets during install, then caches static PWA assets when the browser actually requests them. It deliberately does not cache chat data, API responses, or live-event traffic. It may cache uploaded asset bytes privately after the user has already loaded them, because those bytes are immutable content the browser has already received.
+Chatto ships a service worker so the installed web app can launch reliably, handle push notifications, and proxy private asset loads through non-portable same-origin URLs. The worker caches the SPA fallback shell and SvelteKit build assets during install, then caches static PWA assets when the browser actually requests them. It deliberately does not cache chat data, API responses, live-event traffic, or protected uploaded asset bodies.
 
 Offline support means the app can open and show its normal disconnected state instead of the browser's generic offline page. It does not mean offline message history, offline search, or an outbox for composing messages while disconnected.
 
@@ -19,9 +19,8 @@ Reconnect catch-up is owned by the foreground web app, not the service worker. W
 - Known shell assets are served cache-first from the versioned cache; static PWA assets are cached lazily on first request.
 - Same-origin navigations are network-first, falling back to the cached SPA shell only when the network fails.
 - API, auth, webhook, non-GET, and cross-origin requests are network-only.
-- Same-origin virtual asset requests under `/__chatto/assets/{serverId}/...` are resolved by the worker to the registered server's hidden ticketed asset URL. The worker does not receive registered-server API bearer tokens, asks Chatto to stream originals instead of redirecting to S3 for cacheable full responses, and keeps media `Range` requests network-only.
-- If the browser restarts an idle worker while controlled pages stay open, the worker asks those clients to resend registered servers and virtual asset target mappings before treating an uncached virtual asset as unresolved.
-- Successful full virtual asset responses are cached in a private `chatto-assets-v1` browser cache when their response headers allow caching. Cache entries include a hash of the resolved target URL so a refreshed asset ticket or replaced authentication context does not reuse bytes fetched under an older target. The app asks the worker to clear this cache on global sign-out and to clear per-server entries when a server is removed.
+- Same-origin virtual asset requests under `/__chatto/assets/{serverId}/...` are resolved by the worker to the registered server's hidden ticketed asset URL. The worker does not receive registered-server API bearer tokens, asks Chatto to stream originals instead of redirecting to S3 for full responses, does not cache protected asset bodies, and keeps media `Range` requests network-only.
+- If the browser restarts an idle worker while controlled pages stay open, the worker asks those clients to resend registered servers and virtual asset target mappings before treating a virtual asset as unresolved.
 - Push notifications continue to display native OS notifications and route notification clicks into the SPA.
 - Push dismiss payloads still close matching visible notifications on the device.
 

@@ -736,7 +736,9 @@ The HMAC uses `[core.assets].signing_secret`. The HTTP handler verifies the
 ticket signature, expiry, asset ID, and transform parameters, then resolves the
 asset and room scope from `AssetProjection`. Every request checks that the
 signed user is still a member of the asset's room
-before serving the binary.
+before serving the binary. Protected asset responses, including compatibility
+locator responses, use `private, no-store`; image resize results may still be
+cached internally by the server.
 
 Internal fallback locator URLs use this shape:
 
@@ -746,8 +748,9 @@ Internal fallback locator URLs use this shape:
 ```
 
 Those locator payloads carry room/source/attachment/user/expiry claims and use
-the shorter `AttachmentURLTTL`. ConnectRPC attachment fields use the stable
-`/assets/files/...` URL plus `AssetURL.expiresAt` shape.
+the shorter `AttachmentURLTTL`. They remain compatibility-only; ConnectRPC
+attachment fields use the stable `/assets/files/...` URL plus
+`AssetURL.expiresAt` shape.
 
 **Transform Parameters:**
 
@@ -769,10 +772,10 @@ URLs are signed with HMAC-SHA256 using a dedicated `signing_secret` (configured 
 **Caching:**
 
 Transformed images are generated on-demand. Public server assets can be cached
-aggressively; authenticated attachment URLs are cacheable only as private
-browser responses because their access ticket is per-user:
+aggressively; protected attachment responses are not browser-cacheable because
+ticket expiry and room-membership revocation must be checked on every fetch:
 
-- Stable attachment originals and derivatives: `Cache-Control: private, max-age=3600`
+- Stable and legacy attachment originals and derivatives: `Cache-Control: private, no-store`
 - Server-scoped public assets and signed server transforms: public immutable/cacheable responses
 - `ETag` based on asset ID and transform parameters
 - Optional `ASSET_CACHE` object-store entries can cache resized bytes server-side

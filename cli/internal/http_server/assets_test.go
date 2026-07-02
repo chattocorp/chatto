@@ -628,9 +628,8 @@ func assertSandboxedOriginalAttachment(t *testing.T, resp *http.Response) {
 
 func assertLegacySandboxedAttachmentCache(t *testing.T, resp *http.Response) {
 	t.Helper()
-	want := fmt.Sprintf("private, max-age=%d", int(core.AttachmentURLTTL.Seconds()))
-	if got := resp.Header.Get("Cache-Control"); got != want {
-		t.Fatalf("Cache-Control = %q, want %q", got, want)
+	if got := resp.Header.Get("Cache-Control"); got != protectedAssetCacheControl {
+		t.Fatalf("Cache-Control = %q, want %q", got, protectedAssetCacheControl)
 	}
 }
 
@@ -681,8 +680,8 @@ func TestAsset_OriginalAttachment_HasCacheHeaders(t *testing.T) {
 
 	// Verify caching headers
 	cacheControl := originalResp.Header.Get("Cache-Control")
-	if cacheControl != "private, max-age=3600" {
-		t.Errorf("Expected Cache-Control: private, max-age=3600, got: %s", cacheControl)
+	if cacheControl != protectedAssetCacheControl {
+		t.Errorf("Expected Cache-Control: %s, got: %s", protectedAssetCacheControl, cacheControl)
 	}
 
 	etag := originalResp.Header.Get("ETag")

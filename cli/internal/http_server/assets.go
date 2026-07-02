@@ -19,6 +19,8 @@ import (
 	"hmans.de/chatto/pkg/signedurl"
 )
 
+const protectedAssetCacheControl = "private, no-store"
+
 func (s *HTTPServer) setupAssetRoutes() {
 	// Server assets use *path which catches everything including /t/signedPath for transforms
 	// The serveServerAsset handler detects and routes transform requests appropriately
@@ -126,8 +128,7 @@ func (s *HTTPServer) serveAttachment(c *gin.Context) {
 	// attachment types that do not need Chatto-served security headers.
 	if attachmentCanUsePresignedRedirect(attachment.GetContentType()) {
 		if presignedURL, err := s.core.TryPresignedAttachmentURL(ctx, attachment); err == nil {
-			// Cache the redirect itself — the attachment URL is immutable
-			c.Header("Cache-Control", "public, max-age=3600")
+			c.Header("Cache-Control", protectedAssetCacheControl)
 			c.Redirect(http.StatusFound, presignedURL)
 			return
 		}
@@ -150,7 +151,7 @@ func (s *HTTPServer) serveAttachment(c *gin.Context) {
 	}
 	setOriginalAttachmentSecurityHeaders(c, contentType)
 
-	c.Header("Cache-Control", legacyAttachmentCacheControl(contentType))
+	c.Header("Cache-Control", protectedAssetCacheControl)
 	c.Header("ETag", fmt.Sprintf("\"%s\"", loc.AttachmentID))
 	c.Header("Vary", "Accept-Encoding")
 
@@ -184,7 +185,7 @@ func (s *HTTPServer) serveStableAttachment(c *gin.Context) {
 		// below cannot be bypassed by S3's response headers.
 		if attachmentCanUsePresignedRedirect(attachment.GetContentType()) {
 			if presignedURL, err := s.core.TryPresignedAttachmentURL(ctx, attachment); err == nil {
-				c.Header("Cache-Control", "private, max-age=3600")
+				c.Header("Cache-Control", protectedAssetCacheControl)
 				c.Redirect(http.StatusFound, presignedURL)
 				return
 			}
@@ -207,7 +208,7 @@ func (s *HTTPServer) serveStableAttachment(c *gin.Context) {
 	}
 	setOriginalAttachmentSecurityHeaders(c, contentType)
 
-	c.Header("Cache-Control", "private, max-age=3600")
+	c.Header("Cache-Control", protectedAssetCacheControl)
 	c.Header("ETag", fmt.Sprintf("\"%s\"", assetID))
 	c.Header("Vary", "Accept-Encoding, Authorization, Cookie, X-Chatto-Asset-Proxy")
 	c.DataFromReader(http.StatusOK, info.Size, contentType, reader, nil)
@@ -239,13 +240,6 @@ func originalAttachmentNeedsSandbox(contentType string) bool {
 	default:
 		return strings.HasSuffix(mediaType, "+xml")
 	}
-}
-
-func legacyAttachmentCacheControl(contentType string) string {
-	if originalAttachmentNeedsSandbox(contentType) {
-		return fmt.Sprintf("private, max-age=%d", int(core.AttachmentURLTTL.Seconds()))
-	}
-	return "public, max-age=31536000, immutable"
 }
 
 // serveStableTransformedAttachment serves an authenticated image derivative:
@@ -584,7 +578,7 @@ func transformedAssetCacheControl(public bool) string {
 	if public {
 		return "public, max-age=31536000, immutable"
 	}
-	return "private, max-age=3600"
+	return protectedAssetCacheControl
 }
 
 func transformedAssetVary(public bool) string {
@@ -665,7 +659,7 @@ func (s *HTTPServer) serveTransformedAttachment(c *gin.Context) {
 			}
 			return reader, info.ContentType, nil
 		},
-		Authorize: nil, // Already authorized above.
+		Authorize: func(c *gin.Context) bool { return true }, // Already authorized above; still keep private cache headers.
 	})
 }
 
