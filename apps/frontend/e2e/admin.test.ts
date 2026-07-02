@@ -322,7 +322,7 @@ test.describe('Admin Granular Permissions', () => {
   test.afterEach(async ({ page }) => {
     // Reset all potentially modified everyone role permissions.
     // Uses page.request which maintains the admin session cookies.
-    const permissions = ['admin.view-users', 'admin.view-system', 'role.manage', 'room.manage'];
+    const permissions = ['admin.view-users', 'role.manage', 'room.manage'];
 
     for (const permission of permissions) {
       try {
@@ -445,26 +445,6 @@ test.describe('Admin Granular Permissions', () => {
     });
   });
 
-  test('user with admin.view-system permission still cannot see owner-only system page', async ({
-    page,
-    browser,
-    serverURL
-  }) => {
-    await createAndLoginAdminUser(page);
-    await grantPermission(page, 'everyone', 'admin.view-system');
-
-    await withRegularAdminPage(browser, serverURL, async ({ adminPage: regularAdminPage }) => {
-      await regularAdminPage.gotoSystem();
-
-      await regularAdminPage.expectAccessDeniedForPermission('admin.view-system');
-      await regularAdminPage.expectSidebarLinkNotVisible('System');
-      await expect(regularAdminPage.page.getByText('Connected to Server')).toHaveCount(0);
-    });
-
-    // Clean up
-    await revokePermission(page, 'everyone', 'admin.view-system');
-  });
-
   // Note: a read-only view of the roles page (admin.view-roles without
   // admin.manage-roles) was removed when the UI moved from a per-role
   // editor to the unified matrix. The matrix's rolePermissionTierMatrix query gates on
@@ -495,9 +475,6 @@ test.describe('Admin Granular Permissions', () => {
       await regularPage.reload();
       await adminPage.expectSidebarLinkVisible('Users');
 
-      // Grant admin.view-system. System diagnostics remain owner-only for now,
-      // so this permission alone must not reveal the route.
-      await grantPermission(page, 'everyone', 'admin.view-system');
       await regularPage.reload();
       await adminPage.expectSidebarLinkNotVisible('System');
     });
@@ -505,7 +482,6 @@ test.describe('Admin Granular Permissions', () => {
     // Clean up
     await revokePermission(page, 'everyone', 'room.manage');
     await revokePermission(page, 'everyone', 'admin.view-users');
-    await revokePermission(page, 'everyone', 'admin.view-system');
   });
 });
 

@@ -5,7 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
+	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/events"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
@@ -43,7 +45,21 @@ func (s *AssetModel) RecordUploadedAsset(ctx context.Context, actorID, roomID st
 	if actorID == "" {
 		return fmt.Errorf("asset creation missing actor id")
 	}
-	return s.recordAssetCreated(ctx, actorID, roomID, attachment, nil)
+	return s.recordAssetCreated(ctx, actorID, roomID, attachment, nil, assetCreatedMetadata{})
+}
+
+// RecordUploadedPendingAttachmentAsset writes the AssetCreatedEvent for an
+// attachment produced by the public chunked upload flow. The pending expiry is
+// a cleanup hint until a MessageBody claims the asset ID.
+func (s *AssetModel) RecordUploadedPendingAttachmentAsset(ctx context.Context, actorID, roomID string, attachment *corev1.Attachment, sha256 string, pendingExpiresAt time.Time, needsVideoProcessing bool) error {
+	if actorID == "" {
+		return fmt.Errorf("asset creation missing actor id")
+	}
+	return s.recordAssetCreated(ctx, actorID, roomID, attachment, nil, assetCreatedMetadata{
+		sha256:               sha256,
+		pendingExpiresAt:     pendingExpiresAt,
+		needsVideoProcessing: needsVideoProcessing,
+	})
 }
 
 // RecordDerivativeAsset writes the AssetCreatedEvent for a worker-generated
@@ -53,10 +69,16 @@ func (s *AssetModel) RecordDerivativeAsset(ctx context.Context, parentAssetID st
 		return fmt.Errorf("derivative asset creation missing parent asset id")
 	}
 	deriv := &derivativeContext{parentAssetID: parentAssetID, derivativeRole: derivativeRole}
-	return s.recordAssetCreated(ctx, SystemActorID, roomID, attachment, deriv)
+	return s.recordAssetCreated(ctx, SystemActorID, roomID, attachment, deriv, assetCreatedMetadata{})
 }
 
-func (s *AssetModel) recordAssetCreated(ctx context.Context, actorID, roomID string, attachment *corev1.Attachment, deriv *derivativeContext) error {
+type assetCreatedMetadata struct {
+	sha256               string
+	pendingExpiresAt     time.Time
+	needsVideoProcessing bool
+}
+
+func (s *AssetModel) recordAssetCreated(ctx context.Context, actorID, roomID string, attachment *corev1.Attachment, deriv *derivativeContext, metadata assetCreatedMetadata) error {
 	created := &corev1.AssetCreatedEvent{
 		Asset:                   assetFromAttachment(attachment),
 		OriginalBinaryAvailable: true,
@@ -68,6 +90,13 @@ func (s *AssetModel) recordAssetCreated(ctx context.Context, actorID, roomID str
 	} else {
 		created.UserId = actorID
 	}
+	if metadata.sha256 != "" {
+		created.Sha256 = metadata.sha256
+	}
+	if !metadata.pendingExpiresAt.IsZero() {
+		created.PendingExpiresAt = timestamppb.New(metadata.pendingExpiresAt)
+	}
+	created.NeedsVideoProcessing = metadata.needsVideoProcessing
 	event := newEvent(actorID, &corev1.Event{
 		Event: &corev1.Event_AssetCreated{AssetCreated: created},
 	})
@@ -201,17 +230,14 @@ func (s *AssetModel) ScheduleVideoProcessingForMessageAttachment(ctx context.Con
 			return nil
 		}
 	}
+	if s.OnVideoProcessingRequested == nil {
+		return nil
+	}
 	if s.attachmentBinaryStatus(ctx, attachment) == AttachmentBinaryMissing {
 		return s.RecordAssetProcessingFailed(ctx, actorID, roomID, messageEventID, attachment.GetId(), corev1.AssetProcessingFailureCode_ASSET_PROCESSING_FAILURE_CODE_SOURCE_MISSING)
 	}
 	if err := s.RecordAssetProcessingStarted(ctx, actorID, roomID, messageEventID, attachment.GetId()); err != nil {
 		return err
-	}
-	if s.OnVideoProcessingRequested == nil {
-		s.logger.Warn("Video processing requested but no local processor is registered",
-			"asset_id", attachment.GetId(),
-			"message_event_id", messageEventID)
-		return nil
 	}
 	if err := s.OnVideoProcessingRequested(context.Background(), attachment.GetId(), messageEventID); err != nil {
 		s.logger.Warn("Failed to start local video processing",
@@ -493,6 +519,10 @@ func (s *AssetModel) VideoAttachmentManifest(assetID string) (*VideoAttachmentMa
 
 func (s *AssetModel) AssetDeleted(assetID string) bool {
 	return s.Assets.AssetDeleted(assetID)
+}
+
+func (s *AssetModel) PendingExpiredAssets(now time.Time) []*corev1.AssetCreatedEvent {
+	return s.Assets.PendingExpiredAssets(now)
 }
 
 func (s *AssetModel) AssetSubtreeIDs(assetID string) []string {

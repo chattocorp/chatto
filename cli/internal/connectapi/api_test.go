@@ -3,6 +3,8 @@ package connectapi
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"image"
@@ -60,6 +62,7 @@ func TestAPIHandlers(t *testing.T) {
 
 	want := []string{
 		"/" + apiv1connect.MyAccountServiceName + "/",
+		"/" + apiv1connect.AssetUploadServiceName + "/",
 		"/" + adminv1connect.AdminServerServiceName + "/",
 		"/" + authv1connect.ExternalIdentityAuthServiceName + "/",
 		"/" + adminv1connect.AdminDiagnosticsServiceName + "/",
@@ -105,6 +108,7 @@ func TestAPIHandlerAuthPolicies(t *testing.T) {
 
 	want := map[string]AuthPolicy{
 		"/" + apiv1connect.MyAccountServiceName + "/":               AuthPolicyAuthenticatedUser,
+		"/" + apiv1connect.AssetUploadServiceName + "/":             AuthPolicyAuthenticatedUser,
 		"/" + adminv1connect.AdminServerServiceName + "/":           AuthPolicyAuthenticatedUser,
 		"/" + authv1connect.ExternalIdentityAuthServiceName + "/":   AuthPolicyPublic,
 		"/" + adminv1connect.AdminDiagnosticsServiceName + "/":      AuthPolicyAuthenticatedUser,
@@ -1806,14 +1810,38 @@ func TestViewerServiceGetViewerReturnsSelfScopedState(t *testing.T) {
 	if caps := resp.Msg.GetCapabilities(); !apiCapabilityGranted(caps.GetGrants(), viewerCapabilityAssignRoles) || apiCapabilityGranted(caps.GetGrants(), viewerCapabilityAdminManageUsers) {
 		t.Fatalf("viewer capabilities = %+v, want role.assign true and account management false", caps.GetGrants())
 	}
+	if apiCapabilityGranted(resp.Msg.GetCapabilities().GetGrants(), viewerCapabilityAdminViewSystem) {
+		t.Fatalf("viewer system capability = true for regular viewer, want false")
+	}
 	if resp.Msg.GetViewerPermissions() == nil {
 		t.Fatal("ViewerPermissions = nil")
 	}
 	if got, want := len(resp.Msg.GetViewerPermissions().GetPermissions()), len(core.AllPermissions()); got != want {
 		t.Fatalf("viewer permissions len = %d, want %d", got, want)
 	}
+	if apiPermissionGrantPresent(resp.Msg.GetViewerPermissions().GetPermissions(), viewerCapabilityAdminViewSystem) {
+		t.Fatalf("%s should be exposed only as an owner-only capability, not as a permission grant", viewerCapabilityAdminViewSystem)
+	}
 	if resp.Msg.GetViewerState() == nil {
 		t.Fatal("ViewerState = nil")
+	}
+
+	owner, err := env.core.CreateUser(env.ctx, core.SystemActorID, "viewer-owner", "Viewer Owner", "password")
+	if err != nil {
+		t.Fatalf("CreateUser owner: %v", err)
+	}
+	if err := env.core.AssignOwnerRole(env.ctx, owner.Id); err != nil {
+		t.Fatalf("AssignOwnerRole: %v", err)
+	}
+	ownerResp, err := env.viewerService.GetViewer(withCaller(env.ctx, owner), connect.NewRequest(&apiv1.GetViewerRequest{}))
+	if err != nil {
+		t.Fatalf("GetViewer owner: %v", err)
+	}
+	if !apiCapabilityGranted(ownerResp.Msg.GetCapabilities().GetGrants(), viewerCapabilityAdminViewSystem) {
+		t.Fatalf("owner system capability = false, want true")
+	}
+	if apiPermissionGrantPresent(ownerResp.Msg.GetViewerPermissions().GetPermissions(), viewerCapabilityAdminViewSystem) {
+		t.Fatalf("%s should not be exposed as a permission grant for owners", viewerCapabilityAdminViewSystem)
 	}
 }
 
@@ -3513,6 +3541,9 @@ func TestRoomDirectoryServiceListRoomGroupsFiltersHiddenRoomsAndKeepsLinks(t *te
 	if group == nil {
 		t.Fatalf("group %s missing from response", groupID)
 	}
+	if group.GetViewerState().GetCanCreateRoom() {
+		t.Fatalf("group CanCreateRoom = true before group grant, want false")
+	}
 	if !roomGroupItemsContainRoom(group.GetItems(), visible.Id) {
 		t.Fatalf("visible room %s missing from group items", visible.Id)
 	}
@@ -3538,6 +3569,9 @@ func TestRoomDirectoryServiceListRoomGroupsFiltersHiddenRoomsAndKeepsLinks(t *te
 	if !roomGroupItemsContainRoom(withArchivedGroup.GetItems(), archived.Id) {
 		t.Fatalf("archived room %s missing from include archived group items", archived.Id)
 	}
+	if err := env.core.GrantUserGroupPermission(env.ctx, core.SystemActorID, groupID, caller.Id, core.PermRoomCreate); err != nil {
+		t.Fatalf("GrantUserGroupPermission room.create: %v", err)
+	}
 
 	getResp, err := env.directory.GetRoomGroup(withCaller(env.ctx, caller), connect.NewRequest(&apiv1.GetRoomGroupRequest{
 		GroupId: groupID,
@@ -3548,6 +3582,9 @@ func TestRoomDirectoryServiceListRoomGroupsFiltersHiddenRoomsAndKeepsLinks(t *te
 	getGroup := getResp.Msg.GetGroup()
 	if getGroup.GetId() != groupID {
 		t.Fatalf("GetRoomGroup id = %q, want %q", getGroup.GetId(), groupID)
+	}
+	if !getGroup.GetViewerState().GetCanCreateRoom() {
+		t.Fatalf("group CanCreateRoom = false after group grant, want true")
 	}
 	if !roomGroupItemsContainRoom(getGroup.GetItems(), visible.Id) ||
 		roomGroupItemsContainRoom(getGroup.GetItems(), hidden.Id) ||
@@ -4696,21 +4733,19 @@ func TestMessageServiceCreateMessageValidatesInput(t *testing.T) {
 
 func TestMessageServiceCreateMessageInfersVideoProcessingAssetIDs(t *testing.T) {
 	env := newConnectAPITestEnv(t)
+	env.api.config.Video.Enabled = true
+	env.core.OnVideoProcessingRequested = func(context.Context, string, string) error { return nil }
 	room := env.createJoinedRoom("message-post-video")
-
-	original, err := env.core.UploadAttachment(env.ctx, env.viewer.Id, room.Id, "clip.mp4", "video/mp4", bytes.NewReader([]byte("original video")))
-	if err != nil {
-		t.Fatalf("UploadAttachment original: %v", err)
-	}
+	assetID := env.uploadAttachmentAsset(t, room.Id, "clip.mp4", "video/mp4", []byte("original video"))
 
 	if _, err := env.messages.CreateMessage(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.CreateMessageRequest{
 		RoomId:             room.Id,
-		AttachmentAssetIds: []string{original.Id},
+		AttachmentAssetIds: []string{assetID},
 	})); err != nil {
 		t.Fatalf("CreateMessage: %v", err)
 	}
 
-	manifest, ok := env.core.Assets.VideoAttachmentManifest(original.Id)
+	manifest, ok := env.core.Assets.VideoAttachmentManifest(assetID)
 	if !ok || manifest.Started == nil {
 		t.Fatalf("VideoAttachmentManifest = %+v, %v; want started", manifest, ok)
 	}
@@ -4746,14 +4781,11 @@ func TestMessageServiceCreateMessageReturnsRenderableTimelineEvent(t *testing.T)
 func TestMessageServiceCreateMessageUploadsAttachments(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("message-post-upload")
+	assetID := env.uploadAttachmentAsset(t, room.Id, "note.txt", "text/plain", []byte("uploaded over connect"))
 
 	resp, err := env.messages.CreateMessage(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.CreateMessageRequest{
-		RoomId: room.Id,
-		Attachments: []*apiv1.MessageAttachmentUpload{{
-			Filename:    "note.txt",
-			ContentType: "text/plain",
-			Content:     []byte("uploaded over connect"),
-		}},
+		RoomId:             room.Id,
+		AttachmentAssetIds: []string{assetID},
 	}))
 	if err != nil {
 		t.Fatalf("CreateMessage: %v", err)
@@ -4786,16 +4818,16 @@ func TestMessageServiceCreateMessageAttachmentPreflightDoesNotCreateAssets(t *te
 	if err != nil {
 		t.Fatalf("GetAssetCount before denied post: %v", err)
 	}
-	_, err = env.messages.CreateMessage(ctx, connect.NewRequest(&apiv1.CreateMessageRequest{
-		RoomId: room.Id,
-		Attachments: []*apiv1.MessageAttachmentUpload{{
-			Filename:    "note.txt",
-			ContentType: "text/plain",
-			Content:     []byte("denied upload"),
-		}},
+	sum := sha256.Sum256([]byte("denied upload"))
+	_, err = env.assetUploads.CreateUpload(ctx, connect.NewRequest(&apiv1.CreateUploadRequest{
+		RoomId:      room.Id,
+		Filename:    "note.txt",
+		ContentType: "text/plain",
+		Size:        int64(len("denied upload")),
+		Sha256:      hex.EncodeToString(sum[:]),
 	}))
 	if connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Fatalf("denied attachment CreateMessage code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
+		t.Fatalf("denied attachment CreateUpload code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
 	}
 	after, err := env.core.GetAssetCount(env.ctx)
 	if err != nil {
@@ -4821,18 +4853,15 @@ func TestMessageServiceCreateMessageMentionConfirmationDoesNotCreateAssets(t *te
 		}
 	}
 
+	assetID := env.uploadAttachmentAsset(t, room.Id, "note.txt", "text/plain", []byte("challenged upload"))
 	before, err := env.core.GetAssetCount(env.ctx)
 	if err != nil {
 		t.Fatalf("GetAssetCount before challenged post: %v", err)
 	}
 	resp, err := env.messages.CreateMessage(ctx, connect.NewRequest(&apiv1.CreateMessageRequest{
-		RoomId: room.Id,
-		Body:   "@all please review this attachment",
-		Attachments: []*apiv1.MessageAttachmentUpload{{
-			Filename:    "note.txt",
-			ContentType: "text/plain",
-			Content:     []byte("challenged upload"),
-		}},
+		RoomId:             room.Id,
+		Body:               "@all please review this attachment",
+		AttachmentAssetIds: []string{assetID},
 	}))
 	if err != nil {
 		t.Fatalf("CreateMessage: %v", err)
@@ -4852,7 +4881,7 @@ func TestMessageServiceCreateMessageMentionConfirmationDoesNotCreateAssets(t *te
 		t.Fatalf("GetAssetCount after challenged post: %v", err)
 	}
 	if after != before {
-		t.Fatalf("asset count after challenged attachment = %d, want unchanged %d", after, before)
+		t.Fatalf("asset count after challenged message = %d, want unchanged %d", after, before)
 	}
 }
 
@@ -4877,11 +4906,6 @@ func TestMessageServiceCreateMessageValidationPreflightDoesNotCreateAssets(t *te
 				RoomId:            room.Id,
 				Body:              "reply with file",
 				ThreadRootEventId: "missing-thread-root",
-				Attachments: []*apiv1.MessageAttachmentUpload{{
-					Filename:    "note.txt",
-					ContentType: "text/plain",
-					Content:     []byte("missing root upload"),
-				}},
 			},
 			code: connect.CodeNotFound,
 		},
@@ -4891,11 +4915,6 @@ func TestMessageServiceCreateMessageValidationPreflightDoesNotCreateAssets(t *te
 				RoomId:            room.Id,
 				Body:              "reply with file",
 				ThreadRootEventId: reply.Id,
-				Attachments: []*apiv1.MessageAttachmentUpload{{
-					Filename:    "note.txt",
-					ContentType: "text/plain",
-					Content:     []byte("bad root upload"),
-				}},
 			},
 			code: connect.CodeInvalidArgument,
 		},
@@ -4905,11 +4924,6 @@ func TestMessageServiceCreateMessageValidationPreflightDoesNotCreateAssets(t *te
 				RoomId:    room.Id,
 				Body:      "reply with file",
 				InReplyTo: "missing-reply-target",
-				Attachments: []*apiv1.MessageAttachmentUpload{{
-					Filename:    "note.txt",
-					ContentType: "text/plain",
-					Content:     []byte("missing reply upload"),
-				}},
 			},
 			code: connect.CodeInvalidArgument,
 		},
@@ -4919,11 +4933,6 @@ func TestMessageServiceCreateMessageValidationPreflightDoesNotCreateAssets(t *te
 				RoomId:    room.Id,
 				Body:      "reply with file",
 				InReplyTo: otherRoomMessage.Id,
-				Attachments: []*apiv1.MessageAttachmentUpload{{
-					Filename:    "note.txt",
-					ContentType: "text/plain",
-					Content:     []byte("other room reply upload"),
-				}},
 			},
 			code: connect.CodeInvalidArgument,
 		},
@@ -4935,11 +4944,6 @@ func TestMessageServiceCreateMessageValidationPreflightDoesNotCreateAssets(t *te
 				LinkPreview: &apiv1.MessageLinkPreviewInput{
 					Url: strings.Repeat("x", core.MaxLinkPreviewURLLength+1),
 				},
-				Attachments: []*apiv1.MessageAttachmentUpload{{
-					Filename:    "note.txt",
-					ContentType: "text/plain",
-					Content:     []byte("bad preview upload"),
-				}},
 			},
 			code: connect.CodeInvalidArgument,
 		},
@@ -4975,23 +4979,16 @@ func TestMessageServiceCreateMessageRejectsVideoUploadWhenProcessingDisabled(t *
 	if err != nil {
 		t.Fatalf("GetAssetCount before video post: %v", err)
 	}
-	_, err = env.messages.CreateMessage(ctx, connect.NewRequest(&apiv1.CreateMessageRequest{
-		RoomId: room.Id,
-		Attachments: []*apiv1.MessageAttachmentUpload{
-			{
-				Filename:    "note.txt",
-				ContentType: "text/plain",
-				Content:     []byte("first"),
-			},
-			{
-				Filename:    "clip.mp4",
-				ContentType: "video/mp4",
-				Content:     []byte("video"),
-			},
-		},
+	sum := sha256.Sum256([]byte("video"))
+	_, err = env.assetUploads.CreateUpload(ctx, connect.NewRequest(&apiv1.CreateUploadRequest{
+		RoomId:      room.Id,
+		Filename:    "clip.mp4",
+		ContentType: "video/mp4",
+		Size:        int64(len("video")),
+		Sha256:      hex.EncodeToString(sum[:]),
 	}))
 	if connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("video upload CreateMessage code = %v, want %v", connect.CodeOf(err), connect.CodeInvalidArgument)
+		t.Fatalf("video upload CreateUpload code = %v, want %v", connect.CodeOf(err), connect.CodeInvalidArgument)
 	}
 	after, err := env.core.GetAssetCount(env.ctx)
 	if err != nil {
@@ -4999,6 +4996,140 @@ func TestMessageServiceCreateMessageRejectsVideoUploadWhenProcessingDisabled(t *
 	}
 	if after != before {
 		t.Fatalf("asset count after rejected video = %d, want unchanged %d", after, before)
+	}
+}
+
+func TestAssetUploadServiceChunkResumeCompleteAndCancel(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	room := env.createJoinedRoom("asset-upload-flow")
+	ctx := withCaller(env.ctx, env.viewer)
+	content := []byte("first chunk and second chunk")
+	first := content[:11]
+	second := content[11:]
+	sum := sha256.Sum256(content)
+
+	created, err := env.assetUploads.CreateUpload(ctx, connect.NewRequest(&apiv1.CreateUploadRequest{
+		RoomId:      room.Id,
+		Filename:    "note.txt",
+		ContentType: "text/plain",
+		Size:        int64(len(content)),
+		Sha256:      hex.EncodeToString(sum[:]),
+	}))
+	if err != nil {
+		t.Fatalf("CreateUpload: %v", err)
+	}
+	uploadID := created.Msg.GetUpload().GetUploadId()
+	if uploadID == "" || created.Msg.GetUpload().GetMaxChunkSize() <= 0 {
+		t.Fatalf("created upload = %+v, want id and limits", created.Msg.GetUpload())
+	}
+
+	firstSum := sha256.Sum256(first)
+	chunkResp, err := env.assetUploads.UploadChunk(ctx, connect.NewRequest(&apiv1.UploadChunkRequest{
+		UploadId:    uploadID,
+		Content:     first,
+		ChunkSha256: hex.EncodeToString(firstSum[:]),
+	}))
+	if err != nil {
+		t.Fatalf("UploadChunk first: %v", err)
+	}
+	if got := chunkResp.Msg.GetUpload().GetCommittedOffset(); got != int64(len(first)) {
+		t.Fatalf("committed offset after first chunk = %d, want %d", got, len(first))
+	}
+	resume, err := env.assetUploads.GetUpload(ctx, connect.NewRequest(&apiv1.GetUploadRequest{UploadId: uploadID}))
+	if err != nil {
+		t.Fatalf("GetUpload: %v", err)
+	}
+	if got := resume.Msg.GetUpload().GetCommittedOffset(); got != int64(len(first)) {
+		t.Fatalf("resume committed offset = %d, want %d", got, len(first))
+	}
+
+	secondSum := sha256.Sum256(second)
+	if _, err := env.assetUploads.UploadChunk(ctx, connect.NewRequest(&apiv1.UploadChunkRequest{
+		UploadId:    uploadID,
+		Offset:      int64(len(first)),
+		Content:     second,
+		ChunkSha256: hex.EncodeToString(secondSum[:]),
+	})); err != nil {
+		t.Fatalf("UploadChunk second: %v", err)
+	}
+	completed, err := env.assetUploads.CompleteUpload(ctx, connect.NewRequest(&apiv1.CompleteUploadRequest{UploadId: uploadID}))
+	if err != nil {
+		t.Fatalf("CompleteUpload: %v", err)
+	}
+	if completed.Msg.GetUpload().GetStatus() != apiv1.AssetUploadStatus_ASSET_UPLOAD_STATUS_COMPLETED {
+		t.Fatalf("completed upload status = %v, want completed", completed.Msg.GetUpload().GetStatus())
+	}
+	if completed.Msg.GetAsset().GetAssetId() == "" || completed.Msg.GetAsset().GetFilename() != "note.txt" {
+		t.Fatalf("completed asset = %+v, want note.txt asset id", completed.Msg.GetAsset())
+	}
+
+	cancelContent := []byte("cancel me")
+	cancelSum := sha256.Sum256(cancelContent)
+	cancelCreated, err := env.assetUploads.CreateUpload(ctx, connect.NewRequest(&apiv1.CreateUploadRequest{
+		RoomId:      room.Id,
+		Filename:    "cancel.txt",
+		ContentType: "text/plain",
+		Size:        int64(len(cancelContent)),
+		Sha256:      hex.EncodeToString(cancelSum[:]),
+	}))
+	if err != nil {
+		t.Fatalf("CreateUpload cancel: %v", err)
+	}
+	cancelResp, err := env.assetUploads.CancelUpload(ctx, connect.NewRequest(&apiv1.CancelUploadRequest{
+		UploadId: cancelCreated.Msg.GetUpload().GetUploadId(),
+	}))
+	if err != nil {
+		t.Fatalf("CancelUpload: %v", err)
+	}
+	if cancelResp.Msg.GetUpload().GetStatus() != apiv1.AssetUploadStatus_ASSET_UPLOAD_STATUS_CANCELLED {
+		t.Fatalf("cancel status = %v, want cancelled", cancelResp.Msg.GetUpload().GetStatus())
+	}
+	if _, err := env.assetUploads.GetUpload(ctx, connect.NewRequest(&apiv1.GetUploadRequest{
+		UploadId: cancelCreated.Msg.GetUpload().GetUploadId(),
+	})); connect.CodeOf(err) != connect.CodeNotFound {
+		t.Fatalf("GetUpload after cancel code = %v, want not_found", connect.CodeOf(err))
+	}
+}
+
+func TestAssetUploadServiceRejectsChecksumOffsetAndIncompleteComplete(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	room := env.createJoinedRoom("asset-upload-validation")
+	ctx := withCaller(env.ctx, env.viewer)
+	content := []byte("validated content")
+	sum := sha256.Sum256(content)
+
+	created, err := env.assetUploads.CreateUpload(ctx, connect.NewRequest(&apiv1.CreateUploadRequest{
+		RoomId:      room.Id,
+		Filename:    "note.txt",
+		ContentType: "text/plain",
+		Size:        int64(len(content)),
+		Sha256:      hex.EncodeToString(sum[:]),
+	}))
+	if err != nil {
+		t.Fatalf("CreateUpload: %v", err)
+	}
+	uploadID := created.Msg.GetUpload().GetUploadId()
+	if _, err := env.assetUploads.CompleteUpload(ctx, connect.NewRequest(&apiv1.CompleteUploadRequest{
+		UploadId: uploadID,
+	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("incomplete CompleteUpload code = %v, want invalid_argument", connect.CodeOf(err))
+	}
+	if _, err := env.assetUploads.UploadChunk(ctx, connect.NewRequest(&apiv1.UploadChunkRequest{
+		UploadId:    uploadID,
+		Content:     []byte("bad"),
+		ChunkSha256: strings.Repeat("0", sha256.Size*2),
+	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("bad checksum UploadChunk code = %v, want invalid_argument", connect.CodeOf(err))
+	}
+	chunk := []byte("valid")
+	chunkSum := sha256.Sum256(chunk)
+	if _, err := env.assetUploads.UploadChunk(ctx, connect.NewRequest(&apiv1.UploadChunkRequest{
+		UploadId:    uploadID,
+		Offset:      1,
+		Content:     chunk,
+		ChunkSha256: hex.EncodeToString(chunkSum[:]),
+	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("bad offset UploadChunk code = %v, want invalid_argument", connect.CodeOf(err))
 	}
 }
 
@@ -6526,6 +6657,7 @@ type connectAPITestEnv struct {
 	adminEventLog    *adminEventLogService
 	adminLayout      *adminRoomLayoutService
 	adminUsers       *adminUserManagementService
+	assetUploads     *assetUploadService
 	directory        *roomDirectoryService
 	externalAuth     *externalIdentityAuthService
 	linkPreviews     *linkPreviewService
@@ -6580,6 +6712,7 @@ func newConnectAPITestEnv(t *testing.T) *connectAPITestEnv {
 		adminEventLog:    &adminEventLogService{api: api},
 		adminLayout:      &adminRoomLayoutService{api: api},
 		adminUsers:       &adminUserManagementService{api: api},
+		assetUploads:     &assetUploadService{api: api},
 		directory:        &roomDirectoryService{api: api},
 		externalAuth:     &externalIdentityAuthService{api: api},
 		linkPreviews:     &linkPreviewService{api: api},
@@ -6633,6 +6766,15 @@ func apiCapabilityGranted(grants []*apiv1.CapabilityGrant, capability string) bo
 	return false
 }
 
+func apiPermissionGrantPresent(grants []*apiv1.PermissionGrant, permission string) bool {
+	for _, grant := range grants {
+		if grant.GetPermission() == permission {
+			return true
+		}
+	}
+	return false
+}
+
 func (e *connectAPITestEnv) createJoinedRoom(name string) *corev1.Room {
 	room, err := e.core.CreateRoom(e.ctx, e.viewer.Id, core.KindChannel, "", name, "")
 	if err != nil {
@@ -6642,6 +6784,41 @@ func (e *connectAPITestEnv) createJoinedRoom(name string) *corev1.Room {
 		panic(err)
 	}
 	return room
+}
+
+func (e *connectAPITestEnv) uploadAttachmentAsset(t testing.TB, roomID, filename, contentType string, content []byte) string {
+	t.Helper()
+	sum := sha256.Sum256(content)
+	ctx := withCaller(e.ctx, e.viewer)
+	created, err := e.assetUploads.CreateUpload(ctx, connect.NewRequest(&apiv1.CreateUploadRequest{
+		RoomId:      roomID,
+		Filename:    filename,
+		ContentType: contentType,
+		Size:        int64(len(content)),
+		Sha256:      hex.EncodeToString(sum[:]),
+	}))
+	if err != nil {
+		t.Fatalf("CreateUpload: %v", err)
+	}
+	chunkSum := sha256.Sum256(content)
+	if _, err := e.assetUploads.UploadChunk(ctx, connect.NewRequest(&apiv1.UploadChunkRequest{
+		UploadId:    created.Msg.GetUpload().GetUploadId(),
+		Content:     content,
+		ChunkSha256: hex.EncodeToString(chunkSum[:]),
+	})); err != nil {
+		t.Fatalf("UploadChunk: %v", err)
+	}
+	completed, err := e.assetUploads.CompleteUpload(ctx, connect.NewRequest(&apiv1.CompleteUploadRequest{
+		UploadId: created.Msg.GetUpload().GetUploadId(),
+	}))
+	if err != nil {
+		t.Fatalf("CompleteUpload: %v", err)
+	}
+	assetID := completed.Msg.GetAsset().GetAssetId()
+	if assetID == "" {
+		t.Fatal("completed upload asset id is empty")
+	}
+	return assetID
 }
 
 func (e *connectAPITestEnv) defaultRoomGroupID(t *testing.T) string {

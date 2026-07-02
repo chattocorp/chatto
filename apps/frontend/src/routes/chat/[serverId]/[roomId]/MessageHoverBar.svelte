@@ -18,6 +18,8 @@ Desktop only (pointer-fine); mobile uses the long-press action sheet instead.
 - `forceVisible` - Keep toolbar visible (e.g. while emoji picker is open)
 - `onReplyInRoom` - Callback to reply in room (attribution only, no thread)
 - `onReply` - Callback to open the thread pane
+- `replyInRoomLabel` - Accessible label for the reply-in-room action
+- `replyThreadLabel` - Accessible label for the thread action
 - `onOpenEmojiPicker` - Callback to open the full emoji picker
 - `onOpenMenu` - Callback to open the full context menu
 -->
@@ -41,6 +43,8 @@ Desktop only (pointer-fine); mobile uses the long-press action sheet instead.
     canReact = false,
     canEdit = false,
     forceVisible = false,
+    replyInRoomLabel,
+    replyThreadLabel,
     onReplyInRoom,
     onReply,
     onOpenEmojiPicker,
@@ -59,6 +63,8 @@ Desktop only (pointer-fine); mobile uses the long-press action sheet instead.
     canReact?: boolean;
     canEdit?: boolean;
     forceVisible?: boolean;
+    replyInRoomLabel?: string;
+    replyThreadLabel?: string;
     onReplyInRoom?: () => void;
     onReply?: () => void;
     onOpenEmojiPicker?: (e: MouseEvent) => void;
@@ -68,6 +74,10 @@ Desktop only (pointer-fine); mobile uses the long-press action sheet instead.
   const quickReactions = $derived(getRecentEmojis(serverId).quickReactions);
 
   const actions = useMessageActions();
+  const replyInRoomActionLabel = $derived(replyInRoomLabel ?? m['room.message.actions.reply']());
+  const replyThreadActionLabel = $derived(
+    replyThreadLabel ?? m['room.message.actions.reply_thread']()
+  );
 
   const params: MessageActionParams = $derived({
     serverId,
@@ -154,7 +164,7 @@ Desktop only (pointer-fine); mobile uses the long-press action sheet instead.
         <button
           class="flex h-7 w-7 cursor-pointer items-center justify-center rounded text-muted hover:bg-surface-100 hover:text-text"
           onclick={handleReplyInRoom}
-          aria-label={m['room.message.actions.reply']()}
+          aria-label={replyInRoomActionLabel}
         >
           <span class="iconify text-base uil--corner-up-left"></span>
         </button>
@@ -164,7 +174,7 @@ Desktop only (pointer-fine); mobile uses the long-press action sheet instead.
         <button
           class="flex h-7 w-7 cursor-pointer items-center justify-center rounded text-muted hover:bg-surface-100 hover:text-text"
           onclick={handleReply}
-          aria-label={m['room.message.actions.reply_thread']()}
+          aria-label={replyThreadActionLabel}
         >
           <span class="iconify text-base uil--comment-alt-lines"></span>
         </button>

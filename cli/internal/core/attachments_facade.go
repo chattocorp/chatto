@@ -47,6 +47,20 @@ func (c *ChattoCore) UploadDerivativeAttachment(
 	return c.media().UploadDerivativeAttachment(ctx, parentAssetID, derivativeRole, roomID, filename, contentType, reader)
 }
 
+func (c *ChattoCore) UploadDerivativeAttachmentWithDimensions(
+	ctx context.Context,
+	parentAssetID string,
+	derivativeRole corev1.AssetDerivativeRole,
+	roomID string,
+	filename string,
+	contentType string,
+	reader io.Reader,
+	width int32,
+	height int32,
+) (*corev1.Attachment, error) {
+	return c.media().UploadDerivativeAttachmentWithDimensions(ctx, parentAssetID, derivativeRole, roomID, filename, contentType, reader, width, height)
+}
+
 func (c *ChattoCore) GetAttachment(ctx context.Context, attachmentID string) (io.Reader, *jetstream.ObjectInfo, error) {
 	return c.media().GetAttachment(ctx, attachmentID)
 }

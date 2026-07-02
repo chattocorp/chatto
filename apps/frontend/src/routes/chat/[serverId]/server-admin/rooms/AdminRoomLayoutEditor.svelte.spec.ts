@@ -57,6 +57,7 @@ function group(id: string, rooms: AdminRoomInfo[], name = id): AdminRoomGroup {
   return {
     id,
     name,
+    canCreateRoom: true,
     rooms,
     items: rooms.map((room) => ({ id: `room:${room.id}`, kind: 'room', room }))
   };
@@ -191,7 +192,9 @@ describe('AdminRoomLayoutEditor', () => {
     layout.initialized = true;
     layout.groups = [group('g1', [room('r1', { name: 'general' })], 'Lobby')];
     const updateRoom = vi.spyOn(layout, 'updateRoom').mockResolvedValue({ ok: true });
-    const updateRoomUniversal = vi.spyOn(layout, 'updateRoomUniversal').mockResolvedValue({ ok: true });
+    const updateRoomUniversal = vi
+      .spyOn(layout, 'updateRoomUniversal')
+      .mockResolvedValue({ ok: true });
     const { container } = renderEditor(layout);
 
     expect(container.querySelector('[title="Make universal room"]')).toBeNull();

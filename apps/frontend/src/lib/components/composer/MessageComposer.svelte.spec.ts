@@ -1403,6 +1403,33 @@ describe('MessageComposer', () => {
       });
     });
 
+    it('clears inline code formatting after an inline-code-only draft is deleted', async () => {
+      const { container, roomId } = renderMessageComposer({ roomId: 'room_456' });
+      const editor = await findEditor(container);
+
+      await typeEditorKeys(editor, '`code`');
+      await vi.waitFor(() => expect(editor.querySelector('p code')?.textContent).toBe('code'));
+
+      document.execCommand('selectAll');
+      document.execCommand('delete');
+      await tick();
+      await vi.waitFor(() => expect(editor.textContent).toBe(''));
+
+      await insertEditorLiteralText(editor, 'plain');
+      await vi.waitFor(() => {
+        expect(editor.textContent).toBe('plain');
+        expect(editor.querySelector('p code')).toBeNull();
+      });
+
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      expect(mutationMock.mock.calls[0][1].input).toMatchObject({
+        roomId,
+        body: 'plain'
+      });
+    });
+
     it('posts markdown after typed markdown link syntax is applied', async () => {
       const { container, roomId } = renderMessageComposer({ roomId: 'room_456' });
       const editor = await findEditor(container);

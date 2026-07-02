@@ -182,9 +182,30 @@ func (c *MediaModel) UploadDerivativeAttachment(
 	contentType string,
 	reader io.Reader,
 ) (*corev1.Attachment, error) {
+	return c.UploadDerivativeAttachmentWithDimensions(ctx, parentAssetID, derivativeRole, roomID, filename, contentType, reader, 0, 0)
+}
+
+// UploadDerivativeAttachmentWithDimensions is UploadDerivativeAttachment with
+// explicit media dimensions supplied by the worker for generated non-image
+// derivatives such as transcoded video variants.
+func (c *MediaModel) UploadDerivativeAttachmentWithDimensions(
+	ctx context.Context,
+	parentAssetID string,
+	derivativeRole corev1.AssetDerivativeRole,
+	roomID string,
+	filename string,
+	contentType string,
+	reader io.Reader,
+	width int32,
+	height int32,
+) (*corev1.Attachment, error) {
 	attachment, err := c.uploadAttachmentBinary(ctx, roomID, filename, contentType, reader)
 	if err != nil {
 		return nil, err
+	}
+	if width > 0 && height > 0 {
+		attachment.Width = width
+		attachment.Height = height
 	}
 	if err := c.assetLifecycle().RecordDerivativeAsset(ctx, parentAssetID, derivativeRole, roomID, attachment); err != nil {
 		return nil, err

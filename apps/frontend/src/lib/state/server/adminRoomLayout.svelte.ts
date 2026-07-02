@@ -287,7 +287,8 @@ export class AdminRoomLayoutStore {
     if (!group) return { ok: false, error: 'Room group not found' };
     this.groups = [...this.groups, group];
     this.markMutation();
-    return { ok: true, group };
+    await this.refresh();
+    return { ok: true, group: this.groups.find((candidate) => candidate.id === group.id) ?? group };
   }
 
   async renameGroup(groupId: string, newName: string): Promise<StoreResult> {

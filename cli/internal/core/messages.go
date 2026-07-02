@@ -443,6 +443,11 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 				"asset_id", id, "asset_room_id", assetRoomID, "room_id", room_id, "actor_id", user_id)
 			continue
 		}
+		if expiresAt := declared.GetPendingExpiresAt(); expiresAt != nil && !expiresAt.AsTime().After(time.Now()) {
+			c.logger.Warn("PostMessage references expired pending asset; dropping",
+				"asset_id", id, "room_id", room_id, "actor_id", user_id)
+			continue
+		}
 		att := attachmentFromAsset(declared.GetAsset())
 		if att == nil {
 			continue
@@ -587,7 +592,11 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 	// (UploadAttachment → AssetCreatedEvent); here we just trigger derivative
 	// processing for any referenced asset the caller flagged as a video.
 	for _, att := range resolvedAssets {
-		if !options.shouldScheduleVideoProcessingForID(att.GetId()) {
+		if c.OnVideoProcessingRequested == nil {
+			continue
+		}
+		declared, _ := c.assetLifecycle().AssetCreation(att.GetId())
+		if !options.shouldScheduleVideoProcessingForID(att.GetId()) && (declared == nil || !declared.GetNeedsVideoProcessing()) {
 			continue
 		}
 		if err := c.ScheduleVideoProcessingForMessageAttachment(ctx, user_id, kind, room_id, event.Id, att); err != nil {

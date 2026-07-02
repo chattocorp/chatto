@@ -7,20 +7,6 @@ import "chatto/api/v1/attachments.proto";
 import "chatto/api/v1/reactions.proto";
 import "chatto/api/v1/room_timeline.proto";
 
-// Attachment bytes submitted with a message post.
-//
-// Each attachment is uploaded as a room-scoped asset before the message is
-// committed. The message service validates per-file limits and permissions.
-message MessageAttachmentUpload {
-  // Raw file bytes.
-  bytes content = 1;
-  // Original filename supplied by the client.
-  string filename = 2;
-  // MIME content type supplied by the client. Empty values are treated as
-  // application/octet-stream.
-  string content_type = 3;
-}
-
 // Link preview metadata accepted when creating a message.
 //
 // This request-only shape intentionally excludes response-only fields such as
@@ -44,10 +30,14 @@ message MessageLinkPreviewInput {
 
 // Request to create a message in a room or thread.
 message CreateMessageRequest {
+  // Field 9 was `attachments`, inline attachment bytes accepted before
+  // AssetUploadService moved uploads into a dedicated chunked API.
+  reserved 9;
+  reserved "attachments";
+
   // Required. Room where the message should be created.
   string room_id = 1 [(buf.validate.field).string.min_len = 1];
-  // Message body text. Required unless attachments or attachment_asset_ids is
-  // non-empty.
+  // Message body text. Required unless attachment_asset_ids is non-empty.
   string body = 2;
   // Existing room-scoped attachment asset IDs to include with the message.
   repeated string attachment_asset_ids = 3;
@@ -61,8 +51,6 @@ message CreateMessageRequest {
   string mention_confirmation_token = 7;
   // Link preview selected by the client.
   MessageLinkPreviewInput link_preview = 8;
-  // Browser-uploaded attachments to include with the message.
-  repeated MessageAttachmentUpload attachments = 9;
 }
 
 // Large mention confirmation details for a message that was not posted.

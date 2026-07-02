@@ -83,12 +83,13 @@
     "zod": "^4.4.3"
   },
   "dependencies": {
-    "@chatto/api-types": "workspace:*",
     "@bufbuild/protobuf": "^1.10.0",
+    "@chatto/api-types": "workspace:*",
     "@connectrpc/connect": "^1.7.0",
     "@connectrpc/connect-web": "^1.7.0",
     "gemoji": "^8.1.0",
     "heic2any": "^0.0.4",
+    "js-sha256": "^0.11.1",
     "linkify-it": "^5.0.0",
     "livekit-client": "^2.18.10",
     "tlds": "^1.261.0",

@@ -1,6 +1,8 @@
 package core
 
 import (
+	"time"
+
 	"google.golang.org/protobuf/proto"
 	"hmans.de/chatto/internal/events"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
@@ -184,6 +186,22 @@ func (p *AssetProjection) AssetDeleted(assetID string) bool {
 	}
 	_, deleted := p.deletedAssets[assetID]
 	return deleted
+}
+
+func (p *AssetProjection) PendingExpiredAssets(now time.Time) []*corev1.AssetCreatedEvent {
+	p.RLock()
+	defer p.RUnlock()
+	var out []*corev1.AssetCreatedEvent
+	for _, declared := range p.assetCreations {
+		if declared == nil || declared.GetPendingExpiresAt() == nil {
+			continue
+		}
+		if declared.GetPendingExpiresAt().AsTime().After(now) {
+			continue
+		}
+		out = append(out, proto.Clone(declared).(*corev1.AssetCreatedEvent))
+	}
+	return out
 }
 
 func (p *AssetProjection) AssetSubtreeIDs(assetID string) []string {

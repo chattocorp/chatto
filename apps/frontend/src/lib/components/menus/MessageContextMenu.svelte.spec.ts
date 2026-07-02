@@ -69,6 +69,23 @@ describe('MessageContextMenu', () => {
     expect(container.textContent).toContain('Delete');
   });
 
+  it('uses custom reply action labels when provided', () => {
+    const { container } = renderMenu({
+      onReply: vi.fn(),
+      onReplyInRoom: vi.fn(),
+      replyInRoomLabel: 'Reply in thread',
+      replyThreadLabel: 'Open thread'
+    });
+
+    const actionLabels = Array.from(
+      container.querySelectorAll<HTMLButtonElement>('[role="menuitem"]')
+    )
+      .map((button) => button.textContent?.trim())
+      .filter(Boolean);
+
+    expect(actionLabels).toEqual(['Reply in thread', 'Open thread', 'Copy link']);
+  });
+
   it('orders copy link between edit and delete', () => {
     const { container } = renderMenu({
       canEdit: true,

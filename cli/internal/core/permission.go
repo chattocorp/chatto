@@ -106,9 +106,6 @@ const (
 	// PermAdminUsersView allows viewing the users page in admin.
 	PermAdminUsersView Permission = "admin.view-users"
 
-	// PermAdminSystemView allows viewing projection diagnostics in admin.
-	PermAdminSystemView Permission = "admin.view-system"
-
 	// PermAdminAuditView allows viewing the audit log in admin.
 	PermAdminAuditView Permission = "admin.view-audit"
 
@@ -171,7 +168,6 @@ var allPermissions = []PermissionMetadata{
 
 	// Admin
 	{PermAdminUsersView, "View Users", "View the users page in admin", CategoryAdmin, []PermissionScope{ScopeServer}},
-	{PermAdminSystemView, "View System", "View projection diagnostics in admin", CategoryAdmin, []PermissionScope{ScopeServer}},
 	{PermAdminAuditView, "View Audit Log", "View the audit log in admin", CategoryAdmin, []PermissionScope{ScopeServer}},
 
 	// User management

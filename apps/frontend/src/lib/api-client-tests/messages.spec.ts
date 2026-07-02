@@ -9,6 +9,14 @@ import {
   UpdateMessageResponse
 } from '@chatto/api-types/api/v1/messages_pb';
 import {
+  AssetUpload,
+  AssetUploadStatus,
+  CompleteUploadResponse,
+  CreateUploadResponse,
+  UploadChunkResponse,
+  UploadedAttachmentAsset
+} from '@chatto/api-types/api/v1/asset_uploads_pb';
+import {
   RoomTimelineEvent,
   RoomTimelineIncludes,
   RoomTimelineMessagePosted
@@ -23,7 +31,11 @@ const mocks = vi.hoisted(() => ({
   updateMessage: vi.fn(),
   deleteMessage: vi.fn(),
   deleteAttachment: vi.fn(),
-  deleteLinkPreview: vi.fn()
+  deleteLinkPreview: vi.fn(),
+  createUpload: vi.fn(),
+  uploadChunk: vi.fn(),
+  getUpload: vi.fn(),
+  completeUpload: vi.fn()
 }));
 
 vi.mock('@connectrpc/connect', async (importOriginal) => {
@@ -50,13 +62,27 @@ describe('createMessageAPI', () => {
     mocks.deleteMessage.mockReset();
     mocks.deleteAttachment.mockReset();
     mocks.deleteLinkPreview.mockReset();
+    mocks.createUpload.mockReset();
+    mocks.uploadChunk.mockReset();
+    mocks.getUpload.mockReset();
+    mocks.completeUpload.mockReset();
     mocks.createConnectTransport.mockReturnValue({ kind: 'transport' });
-    mocks.createClient.mockReturnValue({
-      createMessage: mocks.createMessage,
-      updateMessage: mocks.updateMessage,
-      deleteMessage: mocks.deleteMessage,
-      deleteAttachment: mocks.deleteAttachment,
-      deleteLinkPreview: mocks.deleteLinkPreview
+    mocks.createClient.mockImplementation((service) => {
+      if (service?.typeName === 'chatto.api.v1.AssetUploadService') {
+        return {
+          createUpload: mocks.createUpload,
+          uploadChunk: mocks.uploadChunk,
+          getUpload: mocks.getUpload,
+          completeUpload: mocks.completeUpload
+        };
+      }
+      return {
+        createMessage: mocks.createMessage,
+        updateMessage: mocks.updateMessage,
+        deleteMessage: mocks.deleteMessage,
+        deleteAttachment: mocks.deleteAttachment,
+        deleteLinkPreview: mocks.deleteLinkPreview
+      };
     });
   });
 
@@ -167,12 +193,55 @@ describe('createMessageAPI', () => {
     await expect(api.createMessage({ roomId: 'room-1', body: '@all hello' })).resolves.toEqual({
       kind: 'mentionConfirmation',
       recipientCount: 12,
-      token: 'confirm-token'
+      token: 'confirm-token',
+      attachmentAssetIds: []
     });
     expect(mocks.createMessage).toHaveBeenCalledWith(expect.anything(), { headers: undefined });
   });
 
-  it('maps browser files to protobuf attachment uploads', async () => {
+  it('uploads browser files through AssetUploadService and posts attachment asset IDs', async () => {
+    mocks.createUpload.mockResolvedValue(
+      new CreateUploadResponse({
+        upload: new AssetUpload({
+          uploadId: 'upload-note',
+          roomId: 'room-1',
+          status: AssetUploadStatus.OPEN,
+          committedOffset: 0n,
+          size: 5n,
+          maxChunkSize: 1024,
+          sha256: '2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824'
+        })
+      })
+    );
+    mocks.uploadChunk.mockResolvedValue(
+      new UploadChunkResponse({
+        upload: new AssetUpload({
+          uploadId: 'upload-note',
+          roomId: 'room-1',
+          status: AssetUploadStatus.OPEN,
+          committedOffset: 5n,
+          size: 5n,
+          maxChunkSize: 1024
+        })
+      })
+    );
+    mocks.completeUpload.mockResolvedValue(
+      new CompleteUploadResponse({
+        upload: new AssetUpload({
+          uploadId: 'upload-note',
+          status: AssetUploadStatus.COMPLETED,
+          committedOffset: 5n,
+          size: 5n,
+          assetId: 'asset-note'
+        }),
+        asset: new UploadedAttachmentAsset({
+          assetId: 'asset-note',
+          filename: 'note.txt',
+          contentType: 'text/plain',
+          size: 5n
+        })
+      })
+    );
     mocks.createMessage.mockResolvedValue(
       new CreateMessageResponse({
         result: {
@@ -204,13 +273,34 @@ describe('createMessageAPI', () => {
       attachments: [file]
     });
 
+    expect(mocks.createUpload).toHaveBeenCalledWith(
+      expect.objectContaining({
+        roomId: 'room-1',
+        filename: 'note.txt',
+        contentType: 'text/plain',
+        size: 5n,
+        sha256: '2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824'
+      }),
+      { headers: undefined }
+    );
+    expect(mocks.uploadChunk).toHaveBeenCalledWith(
+      expect.objectContaining({
+        uploadId: 'upload-note',
+        offset: 0n,
+        chunkSha256: '2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824'
+      }),
+      { headers: undefined }
+    );
+    expect(Array.from(mocks.uploadChunk.mock.calls[0][0].content)).toEqual([
+      104, 101, 108, 108, 111
+    ]);
+    expect(mocks.completeUpload).toHaveBeenCalledWith(
+      { uploadId: 'upload-note' },
+      { headers: undefined }
+    );
     const request = mocks.createMessage.mock.calls[0][0];
-    expect(request.attachments).toHaveLength(1);
-    expect(request.attachments[0]).toMatchObject({
-      filename: 'note.txt',
-      contentType: 'text/plain'
-    });
-    expect(Array.from(request.attachments[0].content)).toEqual([104, 101, 108, 108, 111]);
+    expect(request.attachmentAssetIds).toEqual(['asset-note']);
+    expect(request.attachments).toBeUndefined();
   });
 
   it('marks the server authentication stale on unauthenticated Connect errors', async () => {
@@ -342,5 +432,4 @@ describe('createMessageAPI', () => {
       { headers: undefined }
     );
   });
-
 });

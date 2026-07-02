@@ -27,6 +27,7 @@ function group(id: string, rooms: AdminRoomInfo[], name = id): AdminRoomGroup {
   return {
     id,
     name,
+    canCreateRoom: true,
     rooms,
     items: rooms.map((room) => ({ id: `room:${room.id}`, kind: 'room', room }))
   };
@@ -36,6 +37,7 @@ function queryData(groups: AdminRoomGroup[]): DirectoryRoomGroup[] {
   return groups.map((group) => ({
     id: group.id,
     name: group.name,
+    canCreateRoom: group.canCreateRoom,
     roomIds: group.rooms.map((room) => room.id),
     items: group.items.map((item) =>
       item.kind === 'room'
@@ -210,6 +212,7 @@ describe('AdminRoomLayoutStore — loading', () => {
       {
         id: 'g1',
         name: 'Lobby',
+        canCreateRoom: true,
         rooms: [room('r1'), archived],
         items: [
           { id: 'room:r1', kind: 'room', room: room('r1') },
@@ -223,7 +226,9 @@ describe('AdminRoomLayoutStore — loading', () => {
 
   it('keeps groups empty when the API does not provide sidebar items', async () => {
     const { client, directory } = makeClient({
-      queries: [{ data: [{ id: 'g1', name: 'Lobby', roomIds: [], items: [] }] }]
+      queries: [
+        { data: [{ id: 'g1', name: 'Lobby', canCreateRoom: false, roomIds: [], items: [] }] }
+      ]
     });
     const store = new AdminRoomLayoutStore(client, directory, roomAPI());
 
@@ -234,6 +239,7 @@ describe('AdminRoomLayoutStore — loading', () => {
       {
         id: 'g1',
         name: 'Lobby',
+        canCreateRoom: false,
         rooms: [],
         items: []
       }
@@ -285,10 +291,11 @@ describe('AdminRoomLayoutStore — loading', () => {
 });
 
 describe('AdminRoomLayoutStore — mutations', () => {
-  it('creates, renames, and deletes groups optimistically on success', async () => {
-    const { client, directory, mutation } = makeClient({
+  it('creates groups, rehydrates create permission, and mutates them on success', async () => {
+    const { client, directory, query, mutation } = makeClient({
+      queries: [{ data: queryData([group('g2', [], 'Projects')]) }],
       mutations: [
-        { data: { id: 'g2', name: 'Projects', rooms: [], items: [] } },
+        { data: { id: 'g2', name: 'Projects', canCreateRoom: false, rooms: [], items: [] } },
         { data: { id: 'g2', name: 'Renamed', rooms: [], items: [] } },
         { data: true }
       ]
@@ -298,8 +305,10 @@ describe('AdminRoomLayoutStore — mutations', () => {
     const createResult = await store.createGroup('Projects');
     expect(createResult).toEqual({
       ok: true,
-      group: { id: 'g2', name: 'Projects', rooms: [], items: [] }
+      group: { id: 'g2', name: 'Projects', canCreateRoom: true, rooms: [], items: [] }
     });
+    expect(query).toHaveBeenCalledWith({ includeArchivedRooms: true });
+    expect(store.groups[0]?.canCreateRoom).toBe(true);
     expect(store.groups.map((g) => g.name)).toEqual(['Projects']);
 
     await expect(store.renameGroup('g2', 'Renamed')).resolves.toEqual({ ok: true });
@@ -312,6 +321,27 @@ describe('AdminRoomLayoutStore — mutations', () => {
       { groupId: 'g2', name: 'Renamed' },
       'g2'
     ]);
+  });
+
+  it('keeps created groups hidden from room creation when directory denies it', async () => {
+    const { client, directory, query } = makeClient({
+      queries: [
+        { data: [{ id: 'g2', name: 'Projects', canCreateRoom: false, roomIds: [], items: [] }] }
+      ],
+      mutations: [
+        { data: { id: 'g2', name: 'Projects', canCreateRoom: false, rooms: [], items: [] } }
+      ]
+    });
+    const store = new AdminRoomLayoutStore(client, directory, roomAPI());
+
+    const createResult = await store.createGroup('Projects');
+
+    expect(createResult).toEqual({
+      ok: true,
+      group: { id: 'g2', name: 'Projects', canCreateRoom: false, rooms: [], items: [] }
+    });
+    expect(query).toHaveBeenCalledWith({ includeArchivedRooms: true });
+    expect(store.groups[0]?.canCreateRoom).toBe(false);
   });
 
   it('does not optimistically update a group when rename fails', async () => {
@@ -467,19 +497,19 @@ describe('AdminRoomLayoutStore — live events', () => {
     let now = 1000;
     const { client, directory, query } = makeClient({
       mutations: [{ data: group('g1', [], 'Lobby') }],
-      queries: [{ data: queryData([group('g1', [])]) }]
+      queries: [{ data: queryData([group('g1', [])]) }, { data: queryData([group('g1', [])]) }]
     });
     const store = new AdminRoomLayoutStore(client, directory, roomAPI(), () => now);
 
     await store.createGroup('Lobby');
     now = 1500;
     expect(store.ingestRoomLayoutUpdated()).toBe(false);
-    expect(query).not.toHaveBeenCalled();
+    expect(query).toHaveBeenCalledTimes(1);
 
     now = 3100;
     expect(store.ingestRoomLayoutUpdated()).toBe(true);
     await settle();
-    expect(query).toHaveBeenCalledTimes(1);
+    expect(query).toHaveBeenCalledTimes(2);
   });
 
   it('refreshes on external room metadata/archive events', async () => {

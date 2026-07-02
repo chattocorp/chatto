@@ -18,6 +18,8 @@
     canReact = false,
     canEdit = false,
     canDelete = false,
+    replyInRoomLabel,
+    replyThreadLabel,
     onReplyInRoom,
     onReply,
     onOpenEmojiPicker,
@@ -36,6 +38,8 @@
     canReact?: boolean;
     canEdit?: boolean;
     canDelete?: boolean;
+    replyInRoomLabel?: string;
+    replyThreadLabel?: string;
     onReplyInRoom?: () => void;
     onReply?: () => void;
     onOpenEmojiPicker?: () => void;
@@ -45,6 +49,10 @@
   const quickReactions = $derived(getRecentEmojis(serverId).quickReactions);
 
   const actions = useMessageActions();
+  const replyInRoomActionLabel = $derived(replyInRoomLabel ?? m['room.message.actions.reply']());
+  const replyThreadActionLabel = $derived(
+    replyThreadLabel ?? m['room.message.actions.reply_thread']()
+  );
 
   const params: MessageActionParams = $derived({
     serverId,
@@ -130,14 +138,14 @@
     {#if onReplyInRoom}
       <button class="sidebar-item min-h-11 gap-3 px-3 py-2.5 text-base" onclick={handleReplyInRoom}>
         <span class="sidebar-icon iconify uil--corner-up-left"></span>
-        {m['room.message.actions.reply']()}
+        {replyInRoomActionLabel}
       </button>
     {/if}
 
     {#if onReply}
       <button class="sidebar-item min-h-11 gap-3 px-3 py-2.5 text-base" onclick={handleReply}>
         <span class="sidebar-icon iconify uil--comment-alt-lines"></span>
-        {m['room.message.actions.reply_thread']()}
+        {replyThreadActionLabel}
       </button>
     {/if}
 

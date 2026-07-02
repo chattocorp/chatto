@@ -43,8 +43,8 @@ func (c *ChattoCore) CanManageRoles(ctx context.Context, userID string) (bool, e
 
 // CanAdminSystemView checks if a user can view system projection diagnostics
 // in admin. The diagnostics endpoint exposes low-level system state and is
-// owner-only, so this mirrors GetAdminDiagnostics instead of the historical
-// admin.view-system permission flag.
+// owner-only, so this mirrors GetAdminDiagnostics instead of any grantable
+// RBAC permission.
 func (c *ChattoCore) CanAdminSystemView(ctx context.Context, userID string) (bool, error) {
 	return c.IsServerOwner(ctx, userID)
 }
@@ -109,7 +109,6 @@ var adminPermissions = []Permission{
 	PermUserManageAccounts,
 	PermUserManagePermissions,
 	PermAdminUsersView,
-	PermAdminSystemView,
 	PermAdminAuditView,
 }
 

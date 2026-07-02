@@ -163,6 +163,9 @@ describe('MessageAttachments', () => {
     expect(gallery!.className).toContain('overflow-x-auto');
     expect(gallery!.className).toContain('overscroll-x-contain');
     expect(gallery!.className).toContain('gap-3');
+    expect(gallery!.className).toContain('p-1');
+    expect(gallery!.parentElement?.className).toContain('w-full');
+    expect(gallery!.parentElement?.getAttribute('style')).toBeNull();
     expect(
       container.querySelector('[data-testid="message-image-gallery-left-fade"]')
     ).not.toBeNull();
@@ -174,6 +177,56 @@ describe('MessageAttachments', () => {
     expect(buttons).toHaveLength(2);
     expect(buttons.map((button) => button.style.height)).toEqual(['180px', '180px']);
     expect(buttons.every((button) => Number.parseFloat(button.style.width) <= 320)).toBe(true);
+  });
+
+  it('fills moderately wide gallery image frames', () => {
+    const { container } = renderAttachments([
+      imageAttachment({
+        id: 'moderately-wide',
+        filename: 'moderately-wide.jpg',
+        width: 1200,
+        height: 600
+      }),
+      imageAttachment({
+        id: 'ordinary',
+        filename: 'ordinary.jpg',
+        width: 800,
+        height: 600
+      })
+    ]);
+
+    const { image, button } = imageFrame(container, 'moderately-wide.jpg');
+
+    expect(button.closest('[data-testid="message-image-gallery"]')).not.toBeNull();
+    expect(button.getAttribute('style')).toContain('width: 320px');
+    expect(button.getAttribute('style')).toContain('height: 180px');
+    expect(image.className).toContain('object-cover');
+    expect(image.className).not.toContain('object-contain');
+  });
+
+  it('fills moderately tall gallery image frames', () => {
+    const { container } = renderAttachments([
+      imageAttachment({
+        id: 'moderately-tall',
+        filename: 'moderately-tall.jpg',
+        width: 400,
+        height: 1000
+      }),
+      imageAttachment({
+        id: 'ordinary',
+        filename: 'ordinary.jpg',
+        width: 800,
+        height: 600
+      })
+    ]);
+
+    const { image, button } = imageFrame(container, 'moderately-tall.jpg');
+
+    expect(button.closest('[data-testid="message-image-gallery"]')).not.toBeNull();
+    expect(button.getAttribute('style')).toContain('width: 72px');
+    expect(button.getAttribute('style')).toContain('height: 180px');
+    expect(image.className).toContain('object-cover');
+    expect(image.className).not.toContain('object-contain');
   });
 
   it('contains ultra-wide gallery images instead of creating shallow thumbnails', () => {
@@ -196,6 +249,31 @@ describe('MessageAttachments', () => {
 
     expect(button.closest('[data-testid="message-image-gallery"]')).not.toBeNull();
     expect(button.getAttribute('style')).toContain('width: 320px');
+    expect(button.getAttribute('style')).toContain('height: 180px');
+    expect(image.className).toContain('object-contain');
+    expect(image.className).not.toContain('object-cover');
+  });
+
+  it('contains ultra-tall gallery images instead of cropping them', () => {
+    const { container } = renderAttachments([
+      imageAttachment({
+        id: 'ultra-tall',
+        filename: 'ultra-tall.jpg',
+        width: 320,
+        height: 1600
+      }),
+      imageAttachment({
+        id: 'ordinary',
+        filename: 'ordinary.jpg',
+        width: 1600,
+        height: 900
+      })
+    ]);
+
+    const { image, button } = imageFrame(container, 'ultra-tall.jpg');
+
+    expect(button.closest('[data-testid="message-image-gallery"]')).not.toBeNull();
+    expect(button.getAttribute('style')).toContain('width: 72px');
     expect(button.getAttribute('style')).toContain('height: 180px');
     expect(image.className).toContain('object-contain');
     expect(image.className).not.toContain('object-cover');

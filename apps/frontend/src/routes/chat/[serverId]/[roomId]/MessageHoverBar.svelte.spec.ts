@@ -43,6 +43,8 @@ type MessageHoverBarProps = {
   canReact?: boolean;
   canEdit?: boolean;
   forceVisible?: boolean;
+  replyInRoomLabel?: string;
+  replyThreadLabel?: string;
   onReplyInRoom?: () => void;
   onReply?: () => void;
   onOpenEmojiPicker?: (e: MouseEvent) => void;
@@ -145,5 +147,17 @@ describe('MessageHoverBar', () => {
 
     (q(container, '[aria-label="More actions"]') as HTMLButtonElement).click();
     expect(onOpenMenu).toHaveBeenCalledOnce();
+  });
+
+  it('uses custom reply action labels when provided', async () => {
+    const { container } = renderBar({
+      onReplyInRoom: vi.fn(),
+      onReply: vi.fn(),
+      replyInRoomLabel: 'Reply in thread',
+      replyThreadLabel: 'Open thread'
+    });
+
+    await expect.element(q(container, '[aria-label="Reply in thread"]')).toBeInTheDocument();
+    await expect.element(q(container, '[aria-label="Open thread"]')).toBeInTheDocument();
   });
 });

@@ -72,7 +72,13 @@ describe('createAdminRoomLayoutAPI', () => {
       bearerToken: 'token'
     });
 
-    await api.createRoomGroup({ name: 'Projects' });
+    await expect(api.createRoomGroup({ name: 'Projects' })).resolves.toEqual({
+      id: 'g2',
+      name: 'Projects',
+      canCreateRoom: false,
+      rooms: [],
+      items: []
+    });
     await api.updateRoomGroup({ groupId: 'g2', name: 'Renamed' });
     await api.deleteRoomGroup('g2');
     await api.reorderRoomGroups(['g2', 'g1']);

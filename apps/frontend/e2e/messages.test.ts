@@ -697,22 +697,30 @@ test('image lightbox supports keyboard navigation with multiple images', async (
   await chatPage.goto();
   await chatPage.enterRoom('general');
 
-  const thirdImage = await sharp({
-    create: {
-      width: 1600,
-      height: 900,
-      channels: 3,
-      background: { r: 190, g: 210, b: 235 }
-    }
-  })
-    .png()
-    .toBuffer();
+  const [thirdImage, fourthImage, fifthImage] = await Promise.all(
+    [
+      { r: 190, g: 210, b: 235 },
+      { r: 210, g: 225, b: 195 },
+      { r: 230, g: 205, b: 195 }
+    ].map((background) =>
+      sharp({
+        create: {
+          width: 1600,
+          height: 900,
+          channels: 3,
+          background
+        }
+      })
+        .png()
+        .toBuffer()
+    )
+  );
   const [brightonImage, brighton2Image] = await Promise.all([
     readFile('e2e/fixtures/brighton.jpg'),
     readFile('e2e/fixtures/brighton2.jpg')
   ]);
 
-  // Upload three images in a single message so the desktop gallery overflows its viewport.
+  // Upload enough images in a single message so the full-width desktop gallery still overflows.
   await roomPage.fileInput.setInputFiles([
     {
       name: 'brighton.jpg',
@@ -728,23 +736,33 @@ test('image lightbox supports keyboard navigation with multiple images', async (
       name: 'generated-gallery-third.png',
       mimeType: 'image/png',
       buffer: thirdImage
+    },
+    {
+      name: 'generated-gallery-fourth.png',
+      mimeType: 'image/png',
+      buffer: fourthImage
+    },
+    {
+      name: 'generated-gallery-fifth.png',
+      mimeType: 'image/png',
+      buffer: fifthImage
     }
   ]);
 
   // Wait for all attachment previews to appear
-  await expect(roomPage.attachmentPreview).toHaveCount(3);
+  await expect(roomPage.attachmentPreview).toHaveCount(5);
 
   // Send the message
   await roomPage.messageInput.press('Enter');
 
   // Wait for all attachment images to appear in the message
-  await expect(roomPage.attachmentImage).toHaveCount(3, { timeout: TIMEOUTS.COMPLEX_OPERATION });
+  await expect(roomPage.attachmentImage).toHaveCount(5, { timeout: TIMEOUTS.COMPLEX_OPERATION });
 
   const gallery = page.getByTestId('message-image-gallery');
   await expect(gallery).toBeVisible();
   await expect.poll(() => gallery.evaluate((el) => getComputedStyle(el).columnGap)).toBe('12px');
   const galleryImages = gallery.locator('button[aria-label^="View"]');
-  await expect(galleryImages).toHaveCount(3);
+  await expect(galleryImages).toHaveCount(5);
   await expect.poll(() => gallery.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(true);
   await gallery.evaluate((el) => {
     el.scrollLeft = 0;
@@ -763,7 +781,7 @@ test('image lightbox supports keyboard navigation with multiple images', async (
       return { width: rect.width, height: rect.height };
     })
   );
-  expect(galleryBoxes).toHaveLength(3);
+  expect(galleryBoxes).toHaveLength(5);
   expect(Math.abs(galleryBoxes[0].height - galleryBoxes[1].height)).toBeLessThanOrEqual(1);
   expect(galleryBoxes[0].height).toBeGreaterThan(0);
   expect(Math.max(...galleryBoxes.map((box) => box.width))).toBeLessThanOrEqual(321);
@@ -786,7 +804,7 @@ test('image lightbox supports keyboard navigation with multiple images', async (
       return { width: rect.width, height: rect.height };
     })
   );
-  expect(narrowGalleryBoxes).toHaveLength(3);
+  expect(narrowGalleryBoxes).toHaveLength(5);
   expect(Math.abs(narrowGalleryBoxes[0].height - narrowGalleryBoxes[1].height)).toBeLessThanOrEqual(
     1
   );
@@ -806,33 +824,41 @@ test('image lightbox supports keyboard navigation with multiple images', async (
   // Click the first image to open the lightbox
   await roomPage.attachmentImage.first().click();
 
-  // Verify lightbox is open with counter showing "1 / 3"
+  // Verify lightbox is open with counter showing "1 / 5"
   const dialog = page.locator('dialog[open]');
   await expect(dialog).toBeVisible();
-  await expect(dialog.getByText('1 / 3')).toBeVisible();
+  await expect(dialog.getByText('1 / 5')).toBeVisible();
 
   // Verify the "brighton.jpg" filename is shown
   await expect(dialog.getByText('brighton.jpg')).toBeVisible();
 
   // Press ArrowRight to go to the next image
   await page.keyboard.press('ArrowRight');
-  await expect(dialog.getByText('2 / 3')).toBeVisible();
+  await expect(dialog.getByText('2 / 5')).toBeVisible();
   await expect(dialog.getByText('brighton2.jpg')).toBeVisible();
 
   // Press ArrowRight again to go to the third image
   await page.keyboard.press('ArrowRight');
-  await expect(dialog.getByText('3 / 3')).toBeVisible();
+  await expect(dialog.getByText('3 / 5')).toBeVisible();
   await expect(dialog.getByText('generated-gallery-third.png')).toBeVisible();
+
+  // Advance to the last image before wrapping around.
+  await page.keyboard.press('ArrowRight');
+  await expect(dialog.getByText('4 / 5')).toBeVisible();
+  await expect(dialog.getByText('generated-gallery-fourth.png')).toBeVisible();
+  await page.keyboard.press('ArrowRight');
+  await expect(dialog.getByText('5 / 5')).toBeVisible();
+  await expect(dialog.getByText('generated-gallery-fifth.png')).toBeVisible();
 
   // Press ArrowRight again to wrap around to the first image
   await page.keyboard.press('ArrowRight');
-  await expect(dialog.getByText('1 / 3')).toBeVisible();
+  await expect(dialog.getByText('1 / 5')).toBeVisible();
   await expect(dialog.getByText('brighton.jpg')).toBeVisible();
 
   // Press ArrowLeft to wrap backwards to the last image
   await page.keyboard.press('ArrowLeft');
-  await expect(dialog.getByText('3 / 3')).toBeVisible();
-  await expect(dialog.getByText('generated-gallery-third.png')).toBeVisible();
+  await expect(dialog.getByText('5 / 5')).toBeVisible();
+  await expect(dialog.getByText('generated-gallery-fifth.png')).toBeVisible();
 
   // Verify navigation buttons are present
   await expect(dialog.getByRole('button', { name: 'Previous image' })).toBeVisible();
@@ -840,7 +866,7 @@ test('image lightbox supports keyboard navigation with multiple images', async (
 
   // Click the "Next image" button
   await dialog.getByRole('button', { name: 'Next image' }).click();
-  await expect(dialog.getByText('1 / 3')).toBeVisible();
+  await expect(dialog.getByText('1 / 5')).toBeVisible();
 
   // Close with Escape
   await page.keyboard.press('Escape');

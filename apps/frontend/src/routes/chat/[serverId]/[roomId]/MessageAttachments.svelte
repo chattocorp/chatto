@@ -133,7 +133,6 @@
   const GALLERY_THUMB_HEIGHT = 180;
   const GALLERY_THUMB_MIN_WIDTH = 72;
   const GALLERY_THUMB_MAX_WIDTH = 320;
-  const GALLERY_VIEWPORT_MAX_WIDTH = 680;
 
   type ThumbDisplay = {
     width: number;
@@ -176,7 +175,10 @@
         GALLERY_THUMB_MAX_WIDTH
       ),
       height: GALLERY_THUMB_HEIGHT,
-      fit: 'contain'
+      fit:
+        aspectRatio >= EXTREME_ASPECT_RATIO || aspectRatio <= 1 / EXTREME_ASPECT_RATIO
+          ? 'contain'
+          : 'cover'
     };
   }
 
@@ -200,10 +202,6 @@
       return `width: ${display.width}px; height: ${display.height}px`;
     }
     return `width: ${display.width}px; max-width: 100%; aspect-ratio: ${display.width} / ${display.height}`;
-  }
-
-  function galleryViewportStyle(): string {
-    return `width: min(100%, ${GALLERY_VIEWPORT_MAX_WIDTH}px)`;
   }
 
   function updateGalleryScrollEdges(el: HTMLElement) {
@@ -604,10 +602,10 @@
 
   {#if hasImageGallery}
     <div class="mt-2 flex min-w-0 flex-col gap-2 first:mt-0">
-      <div class="relative max-w-full min-w-0" style={galleryViewportStyle()}>
+      <div class="relative w-full max-w-full min-w-0">
         <div
           {@attach trackGalleryScrollEdges}
-          class="flex w-full gap-3 overflow-x-auto overscroll-x-contain pb-1"
+          class="flex w-full gap-3 overflow-x-auto overscroll-x-contain p-1"
           data-testid="message-image-gallery"
         >
           {#each imageAttachments as attachment (attachment.id)}

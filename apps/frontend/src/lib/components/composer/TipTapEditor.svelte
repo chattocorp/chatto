@@ -65,6 +65,12 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     return node.textBetween(0, node.content.size, '\n', '\n');
   }
 
+  function isDefaultEmptyDocument(doc: ProseMirrorNode): boolean {
+    if (doc.childCount !== 1) return false;
+    const firstChild = doc.firstChild;
+    return firstChild?.type.name === 'paragraph' && firstChild.content.size === 0;
+  }
+
   function createParagraphFromText(schema: Schema, text: string) {
     const paragraph = schema.nodes.paragraph;
     const hardBreak = schema.nodes.hardBreak;
@@ -327,6 +333,25 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
             if (!paragraph || !lastChild || lastChild.type.name !== 'codeBlock') return null;
 
             return newState.tr.insert(newState.doc.content.size, paragraph.create());
+          }
+        })
+      ];
+    }
+  });
+
+  const ClearMarksOnEmptyDocument = Extension.create({
+    name: 'clearMarksOnEmptyDocument',
+
+    addProseMirrorPlugins() {
+      return [
+        new Plugin({
+          key: new PluginKey('clearMarksOnEmptyDocument'),
+          appendTransaction: (transactions, _oldState, newState) => {
+            if (!transactions.some((transaction) => transaction.docChanged)) return null;
+            if (!isDefaultEmptyDocument(newState.doc)) return null;
+            if ((newState.storedMarks?.length ?? 0) === 0) return null;
+
+            return newState.tr.setStoredMarks([]);
           }
         })
       ];
@@ -619,9 +644,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
   }
 
   function hasDefaultEmptyDocument(e: Editor): boolean {
-    if (e.state.doc.childCount !== 1) return false;
-    const firstChild = e.state.doc.firstChild;
-    return firstChild?.type.name === 'paragraph' && firstChild.content.size === 0;
+    return isDefaultEmptyDocument(e.state.doc);
   }
 
   function isSelectionInTrailingEmptyParagraph(e: Editor): boolean {
@@ -1097,6 +1120,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
             CompletedMarkdownCodeFence,
             MarkdownListMarkerAfterHardBreak,
             TrailingParagraphAfterCodeBlock,
+            ClearMarksOnEmptyDocument,
             Placeholder.configure({ placeholder })
           ],
           content: '',

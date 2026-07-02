@@ -9,6 +9,7 @@ package corev1
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -159,9 +160,18 @@ type AssetCreatedEvent struct {
 	// ID of the user that owns or uploaded this asset. Always set on new
 	// events: the uploader for room-scoped uploads, the avatar owner for
 	// avatar assets. Empty only for worker-generated derivatives.
-	UserId        string `protobuf:"bytes,7,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	UserId string `protobuf:"bytes,7,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	// SHA-256 digest of the original uploaded binary, lowercase hexadecimal.
+	// Empty for legacy assets and generated derivatives.
+	Sha256 string `protobuf:"bytes,8,opt,name=sha256,proto3" json:"sha256,omitempty"`
+	// Time after which an unclaimed room-scoped attachment upload may be
+	// deleted. Cleared/ignored once a message body references the asset ID.
+	PendingExpiresAt *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=pending_expires_at,json=pendingExpiresAt,proto3" json:"pending_expires_at,omitempty"`
+	// Whether this asset should be routed through attachment video processing
+	// after a message claims it. Set for videos and animated GIFs.
+	NeedsVideoProcessing bool `protobuf:"varint,10,opt,name=needs_video_processing,json=needsVideoProcessing,proto3" json:"needs_video_processing,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *AssetCreatedEvent) Reset() {
@@ -234,6 +244,27 @@ func (x *AssetCreatedEvent) GetUserId() string {
 		return x.UserId
 	}
 	return ""
+}
+
+func (x *AssetCreatedEvent) GetSha256() string {
+	if x != nil {
+		return x.Sha256
+	}
+	return ""
+}
+
+func (x *AssetCreatedEvent) GetPendingExpiresAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.PendingExpiresAt
+	}
+	return nil
+}
+
+func (x *AssetCreatedEvent) GetNeedsVideoProcessing() bool {
+	if x != nil {
+		return x.NeedsVideoProcessing
+	}
+	return false
 }
 
 // AssetDeletedEvent terminates the asset lifecycle. Subscribers drop the
@@ -609,14 +640,18 @@ var File_chatto_core_v1_asset_events_proto protoreflect.FileDescriptor
 
 const file_chatto_core_v1_asset_events_proto_rawDesc = "" +
 	"\n" +
-	"!chatto/core/v1/asset_events.proto\x12\x0echatto.core.v1\x1a\x1bchatto/core/v1/models.proto\"\xc2\x02\n" +
+	"!chatto/core/v1/asset_events.proto\x12\x0echatto.core.v1\x1a\x1bchatto/core/v1/models.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xda\x03\n" +
 	"\x11AssetCreatedEvent\x121\n" +
 	"\x05asset\x18\x01 \x01(\v2\x1b.chatto.core.v1.AssetRecordR\x05asset\x12:\n" +
 	"\x19original_binary_available\x18\x02 \x01(\bR\x17originalBinaryAvailable\x12\x17\n" +
 	"\aroom_id\x18\x03 \x01(\tR\x06roomId\x12&\n" +
 	"\x0fparent_asset_id\x18\x05 \x01(\tR\rparentAssetId\x12L\n" +
 	"\x0fderivative_role\x18\x06 \x01(\x0e2#.chatto.core.v1.AssetDerivativeRoleR\x0ederivativeRole\x12\x17\n" +
-	"\auser_id\x18\a \x01(\tR\x06userIdJ\x04\b\x04\x10\x05R\x10message_event_id\".\n" +
+	"\auser_id\x18\a \x01(\tR\x06userId\x12\x16\n" +
+	"\x06sha256\x18\b \x01(\tR\x06sha256\x12H\n" +
+	"\x12pending_expires_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\x10pendingExpiresAt\x124\n" +
+	"\x16needs_video_processing\x18\n" +
+	" \x01(\bR\x14needsVideoProcessingJ\x04\b\x04\x10\x05R\x10message_event_id\".\n" +
 	"\x11AssetDeletedEvent\x12\x19\n" +
 	"\basset_id\x18\x01 \x01(\tR\aassetId\"b\n" +
 	"\x1bAssetProcessingStartedEvent\x12\x19\n" +
@@ -675,18 +710,20 @@ var file_chatto_core_v1_asset_events_proto_goTypes = []any{
 	(*AssetProcessedVideo)(nil),           // 7: chatto.core.v1.AssetProcessedVideo
 	(*AssetVideoVariant)(nil),             // 8: chatto.core.v1.AssetVideoVariant
 	(*AssetRecord)(nil),                   // 9: chatto.core.v1.AssetRecord
+	(*timestamppb.Timestamp)(nil),         // 10: google.protobuf.Timestamp
 }
 var file_chatto_core_v1_asset_events_proto_depIdxs = []int32{
-	9, // 0: chatto.core.v1.AssetCreatedEvent.asset:type_name -> chatto.core.v1.AssetRecord
-	0, // 1: chatto.core.v1.AssetCreatedEvent.derivative_role:type_name -> chatto.core.v1.AssetDerivativeRole
-	7, // 2: chatto.core.v1.AssetProcessingSucceededEvent.video:type_name -> chatto.core.v1.AssetProcessedVideo
-	1, // 3: chatto.core.v1.AssetProcessingFailedEvent.failure_code:type_name -> chatto.core.v1.AssetProcessingFailureCode
-	8, // 4: chatto.core.v1.AssetProcessedVideo.variants:type_name -> chatto.core.v1.AssetVideoVariant
-	5, // [5:5] is the sub-list for method output_type
-	5, // [5:5] is the sub-list for method input_type
-	5, // [5:5] is the sub-list for extension type_name
-	5, // [5:5] is the sub-list for extension extendee
-	0, // [0:5] is the sub-list for field type_name
+	9,  // 0: chatto.core.v1.AssetCreatedEvent.asset:type_name -> chatto.core.v1.AssetRecord
+	0,  // 1: chatto.core.v1.AssetCreatedEvent.derivative_role:type_name -> chatto.core.v1.AssetDerivativeRole
+	10, // 2: chatto.core.v1.AssetCreatedEvent.pending_expires_at:type_name -> google.protobuf.Timestamp
+	7,  // 3: chatto.core.v1.AssetProcessingSucceededEvent.video:type_name -> chatto.core.v1.AssetProcessedVideo
+	1,  // 4: chatto.core.v1.AssetProcessingFailedEvent.failure_code:type_name -> chatto.core.v1.AssetProcessingFailureCode
+	8,  // 5: chatto.core.v1.AssetProcessedVideo.variants:type_name -> chatto.core.v1.AssetVideoVariant
+	6,  // [6:6] is the sub-list for method output_type
+	6,  // [6:6] is the sub-list for method input_type
+	6,  // [6:6] is the sub-list for extension type_name
+	6,  // [6:6] is the sub-list for extension extendee
+	0,  // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_chatto_core_v1_asset_events_proto_init() }

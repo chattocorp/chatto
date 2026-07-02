@@ -1,14 +1,10 @@
 package connectapi
 
 import (
-	"bytes"
 	"context"
 	"errors"
-	"fmt"
-	"strings"
 
 	"connectrpc.com/connect"
-	"hmans.de/chatto/internal/assets"
 	"hmans.de/chatto/internal/core"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
@@ -24,27 +20,11 @@ func (s *messageService) CreateMessage(ctx context.Context, req *connect.Request
 		return nil, err
 	}
 
-	attachmentAssetIDs, videoProcessingAssetIDs, challenge, err := s.uploadCreateMessageAttachments(ctx, caller.UserID, req.Msg)
-	if err != nil {
-		return nil, connectError(err)
-	}
-	if challenge != nil {
-		return connect.NewResponse(&apiv1.CreateMessageResponse{
-			Result: &apiv1.CreateMessageResponse_MentionConfirmation{
-				MentionConfirmation: &apiv1.MentionConfirmationChallenge{
-					RecipientCount: int32(challenge.RecipientCount),
-					Token:          challenge.Token,
-				},
-			},
-		}), nil
-	}
-
 	result, err := s.api.core.Messages().PostMessage(ctx, core.MessagePostInput{
 		ActorID:                  caller.UserID,
 		RoomID:                   req.Msg.RoomId,
 		Body:                     req.Msg.Body,
-		AttachmentAssetIDs:       attachmentAssetIDs,
-		VideoProcessingAssetIDs:  videoProcessingAssetIDs,
+		AttachmentAssetIDs:       append([]string(nil), req.Msg.GetAttachmentAssetIds()...),
 		ThreadRootEventID:        req.Msg.ThreadRootEventId,
 		InReplyTo:                req.Msg.InReplyTo,
 		AlsoSendToChannel:        req.Msg.AlsoSendToChannel,
@@ -84,65 +64,6 @@ func (s *messageService) CreateMessage(ctx context.Context, req *connect.Request
 		Result:   &apiv1.CreateMessageResponse_Event{Event: apiEvent},
 		Includes: includes,
 	}), nil
-}
-
-func (s *messageService) uploadCreateMessageAttachments(ctx context.Context, actorID string, req *apiv1.CreateMessageRequest) ([]string, []string, *core.MentionConfirmationChallenge, error) {
-	attachmentAssetIDs := append([]string(nil), req.GetAttachmentAssetIds()...)
-	if len(req.GetAttachments()) == 0 {
-		return attachmentAssetIDs, nil, nil, nil
-	}
-
-	preflight, err := s.api.core.Messages().PreflightPost(ctx, core.MessagePostInput{
-		ActorID:                  actorID,
-		RoomID:                   req.GetRoomId(),
-		Body:                     req.GetBody(),
-		AttachmentAssetIDs:       attachmentAssetIDs,
-		HasPendingAttachments:    true,
-		ThreadRootEventID:        req.GetThreadRootEventId(),
-		InReplyTo:                req.GetInReplyTo(),
-		AlsoSendToChannel:        req.GetAlsoSendToChannel(),
-		MentionConfirmationToken: req.GetMentionConfirmationToken(),
-		LinkPreview:              apiMessageLinkPreviewToCore(req.GetLinkPreview()),
-	})
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	if preflight.MentionConfirmation != nil {
-		return nil, nil, preflight.MentionConfirmation, nil
-	}
-
-	if !s.api.config.Video.Enabled {
-		for _, upload := range req.GetAttachments() {
-			if strings.HasPrefix(upload.GetContentType(), "video/") {
-				return nil, nil, nil, invalidArgument("video uploads are disabled on this server")
-			}
-		}
-	}
-
-	videoProcessingAssetIDs := make([]string, 0, len(req.GetAttachments()))
-	for i, upload := range req.GetAttachments() {
-		filename := strings.TrimSpace(upload.GetFilename())
-		if filename == "" {
-			filename = "attachment"
-		}
-		contentType := strings.TrimSpace(upload.GetContentType())
-		if contentType == "" {
-			contentType = "application/octet-stream"
-		}
-		content := upload.GetContent()
-		animatedGIF := s.api.config.Video.Enabled && contentType == "image/gif" && assets.IsAnimatedGIF(content)
-
-		attachment, err := s.api.core.UploadAttachment(ctx, actorID, req.GetRoomId(), filename, contentType, bytes.NewReader(content))
-		if err != nil {
-			return nil, nil, nil, fmt.Errorf("failed to upload attachment %d (%s): %w", i+1, filename, err)
-		}
-		attachmentAssetIDs = append(attachmentAssetIDs, attachment.GetId())
-		if s.api.config.Video.Enabled && core.AttachmentNeedsVideoProcessing(attachment, animatedGIF) {
-			videoProcessingAssetIDs = append(videoProcessingAssetIDs, attachment.GetId())
-		}
-	}
-
-	return attachmentAssetIDs, videoProcessingAssetIDs, nil, nil
 }
 
 func (s *messageService) UpdateMessage(ctx context.Context, req *connect.Request[apiv1.UpdateMessageRequest]) (*connect.Response[apiv1.UpdateMessageResponse], error) {

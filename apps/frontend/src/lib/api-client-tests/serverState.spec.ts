@@ -109,13 +109,15 @@ describe('getAuthenticatedServerState', () => {
           { permission: 'role.manage', granted: true },
           { permission: 'role.assign', granted: true },
           { permission: 'admin.view-users', granted: true },
-          { permission: 'admin.view-system', granted: false },
           { permission: 'admin.view-audit', granted: true },
           { permission: 'user.delete-any', granted: false },
           { permission: 'user.delete-self', granted: true },
           { permission: 'user.manage-permissions', granted: true },
           { permission: 'bot.example.do-thing', granted: true }
         ]
+      },
+      capabilities: {
+        grants: [{ capability: 'admin.view-system', granted: true }]
       },
       viewerState: {
         hasUnreadRooms: true
@@ -156,7 +158,6 @@ describe('getAuthenticatedServerState', () => {
       messageEditWindowSeconds: 7200,
       viewerPermissions: {
         'admin.view-audit': true,
-        'admin.view-system': false,
         'admin.view-users': true,
         'bot.example.do-thing': true,
         'message.attach': true,
@@ -192,7 +193,7 @@ describe('getAuthenticatedServerState', () => {
       viewerCanManageRoles: true,
       viewerCanAssignRoles: true,
       viewerCanViewAdminUsers: true,
-      viewerCanViewAdminSystem: false,
+      viewerCanViewAdminSystem: true,
       viewerCanViewAdminAudit: true,
       viewerCanDeleteAnyUser: false,
       viewerCanDeleteSelf: true,
@@ -248,7 +249,7 @@ describe('getAuthenticatedServerState', () => {
           logoUrl: 'https://cdn/logo.webp',
           bannerUrl: 'https://cdn/banner.webp'
         },
-        motd: 'Connect MOTD',
+        motd: 'Connect MOTD'
       }
     });
 

@@ -23,6 +23,31 @@ async function clickReplyAttributionJump(attribution: Locator): Promise<void> {
   await attribution.click({ position: { x: 8, y: 8 } });
 }
 
+async function selectTextInside(locator: Locator, selectedText: string): Promise<void> {
+  await locator.evaluate((root, text) => {
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    let node: Node | null = walker.nextNode();
+
+    while (node) {
+      const value = node.textContent ?? '';
+      const index = value.indexOf(text);
+      if (index !== -1) {
+        const range = document.createRange();
+        range.setStart(node, index);
+        range.setEnd(node, index + text.length);
+        const selection = window.getSelection();
+        selection?.removeAllRanges();
+        selection?.addRange(range);
+        return;
+      }
+
+      node = walker.nextNode();
+    }
+
+    throw new Error(`Could not find text to select: ${text}`);
+  }, selectedText);
+}
+
 test.describe('Thread Reply Echo ("Also send to channel")', () => {
   test('"Also send to channel" checkbox is visible in thread composer', async ({
     page,
@@ -230,6 +255,160 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
       await roomPage.expectTextInThreadPane(rootMessage);
       await roomPage.expectTextInThreadPane(replyMessage);
     });
+  });
+
+  test('replying to an echo opens the thread composer with reply context', async ({
+    page,
+    chatPage,
+    roomPage
+  }) => {
+    await test.step('Setup: User loads the server and posts an echoed thread reply', async () => {
+      await createAndLoginTestUser(page);
+      await chatPage.goto();
+      await chatPage.enterRoom('general');
+    });
+
+    const timestamp = Date.now();
+    const rootMessage = `Root for echo reply UX ${timestamp}`;
+    const echoedReply = `Echoed reply target ${timestamp}`;
+    const followupReply = `Follow-up from echo reply ${timestamp}`;
+
+    const rootMessageComponent = await roomPage.sendMessage(rootMessage);
+
+    await test.step('Post a thread reply with a channel echo', async () => {
+      await rootMessageComponent.openThread();
+      await roomPage.expectThreadPaneVisible();
+      await roomPage.postThreadReplyWithEcho(echoedReply);
+      await roomPage.closeThread();
+      await roomPage.expectThreadRouteClosed();
+      await expect(page.locator('[role="article"]', { hasText: echoedReply })).toBeVisible({
+        timeout: TIMEOUTS.REALTIME_EVENT
+      });
+    });
+
+    await test.step('Use Reply on the echo and verify the thread composer is seeded', async () => {
+      const echoMessage = roomPage.getMessage(echoedReply);
+      await echoMessage.replyToEchoInThread();
+
+      await roomPage.expectThreadPaneVisible();
+      await expect(page.getByTestId('thread-pane').getByText('Replying to')).toBeVisible({
+        timeout: TIMEOUTS.UI_STANDARD
+      });
+      await expect(page.getByTestId('thread-reply-input')).toBeFocused({
+        timeout: TIMEOUTS.UI_STANDARD
+      });
+    });
+
+    await test.step('Send from the seeded composer and verify it stays in the thread', async () => {
+      await roomPage.postThreadReply(followupReply);
+
+      const threadReply = roomPage.getThreadMessage(followupReply);
+      await expect(threadReply.locator.getByTestId('reply-attribution')).toBeVisible({
+        timeout: TIMEOUTS.REALTIME_EVENT
+      });
+
+      await roomPage.closeThread();
+      await roomPage.expectThreadRouteClosed();
+      await expect(page.locator('[role="article"]', { hasText: followupReply })).toHaveCount(0, {
+        timeout: TIMEOUTS.UI_STANDARD
+      });
+    });
+  });
+
+  test('opening an echo thread does not preload selected text as a composer quote', async ({
+    page,
+    chatPage,
+    roomPage
+  }) => {
+    await test.step('Setup: User loads the server and posts an echoed thread reply', async () => {
+      await createAndLoginTestUser(page);
+      await chatPage.goto();
+      await chatPage.enterRoom('general');
+    });
+
+    const timestamp = Date.now();
+    const rootMessage = `Root for echo open quote ${timestamp}`;
+    const selectedText = `selected echo text ${timestamp}`;
+    const echoedReply = `Before ${selectedText} after`;
+    const rootMessageComponent = await roomPage.sendMessage(rootMessage);
+
+    await test.step('Post a thread reply with a channel echo', async () => {
+      await rootMessageComponent.openThread();
+      await roomPage.expectThreadPaneVisible();
+      await roomPage.postThreadReplyWithEcho(echoedReply);
+      await roomPage.closeThread();
+      await roomPage.expectThreadRouteClosed();
+    });
+
+    await test.step('Select echo text and open the thread as navigation only', async () => {
+      const echoMessage = roomPage.getMessage(echoedReply);
+      await selectTextInside(echoMessage.locator, selectedText);
+      await echoMessage.openThread();
+
+      await roomPage.expectThreadPaneVisible();
+      await expect(page.getByTestId('thread-reply-input').locator('blockquote')).toHaveCount(0);
+    });
+  });
+
+  test('read-only thread posters can still open an echo thread from message actions', async ({
+    page,
+    chatPage,
+    roomPage,
+    browser,
+    serverURL
+  }) => {
+    await test.step('User A loads the server and posts an echoed thread reply', async () => {
+      await createAndLoginTestUser(page);
+      await chatPage.goto();
+      await chatPage.enterRoom('general');
+    });
+
+    const timestamp = Date.now();
+    const rootMessage = `Root for echo open permission ${timestamp}`;
+    const echoedReply = `Echo open permission target ${timestamp}`;
+    const rootMessageComponent = await roomPage.sendMessage(rootMessage);
+
+    await rootMessageComponent.openThread();
+    await roomPage.expectThreadPaneVisible();
+    await roomPage.postThreadReplyWithEcho(echoedReply);
+    await roomPage.closeThread();
+    await roomPage.expectThreadRouteClosed();
+
+    await test.step('Deny message.post-in-thread on everyone for the seed room group', async () => {
+      await withBootstrapAdminRequest(serverURL, async (adminRequest) => {
+        const seedSetId = await getDefaultRoomGroupIdViaConnect(adminRequest);
+        const permission = 'message.post-in-thread';
+        const decision = 'PERMISSION_DECISION_DENY';
+        const scope = {
+          kind: 'PERMISSION_SCOPE_KIND_GROUP',
+          id: seedSetId
+        } as const;
+        const response = await connectPost<E2EPermissionDecisionUpdateResponse>(
+          adminRequest,
+          'chatto.admin.v1.AdminPermissionService/SetRolePermission',
+          {
+            roleName: 'everyone',
+            permission,
+            decision,
+            scope
+          }
+        );
+        expectPermissionDecisionUpdate(response, { permission, decision, scope });
+      });
+    });
+
+    await withServerUser(
+      browser!,
+      serverURL,
+      async ({ page: page2, chatPage: chatPage2, roomPage: roomPage2 }) => {
+        await chatPage2.enterRoom('general');
+        await waitForRoomReady(page2, 'general');
+
+        await roomPage2.expectMessageVisible(echoedReply);
+        await roomPage2.getMessage(echoedReply).openThread();
+        await roomPage2.expectThreadPaneVisible();
+      }
+    );
   });
 
   test('echo and original have independent reactions', async ({ page, chatPage, roomPage }) => {

@@ -1,8 +1,8 @@
-import { authHeaders, createChattoClient } from "./connect.js";
-import { AdminServerService } from "@chatto/api-types/admin/v1/server_connect";
-import { ServerService } from "@chatto/api-types/api/v1/server_state_connect";
-import { ViewerService } from "@chatto/api-types/api/v1/viewer_connect";
-import { mapServerProfile, type ServerProfile } from "./serverProfile.js";
+import { authHeaders, createChattoClient } from './connect.js';
+import { AdminServerService } from '@chatto/api-types/admin/v1/server_connect';
+import { ServerService } from '@chatto/api-types/api/v1/server_state_connect';
+import { ViewerService } from '@chatto/api-types/api/v1/viewer_connect';
+import { mapServerProfile, type ServerProfile } from './serverProfile.js';
 
 export type ServerStateAPIConfig = {
   baseUrl: string;
@@ -63,13 +63,18 @@ export type ServerSecurityConfig = {
 };
 
 function mapViewerPermissions(
-  permissions: Array<{ permission: string; granted: boolean }> | undefined,
+  permissions: Array<{ permission: string; granted: boolean }> | undefined
 ): Record<string, boolean> {
   return Object.fromEntries(
-    (permissions ?? []).map((permission) => [
-      permission.permission,
-      permission.granted,
-    ]),
+    (permissions ?? []).map((permission) => [permission.permission, permission.granted])
+  );
+}
+
+function mapViewerCapabilities(
+  capabilities: Array<{ capability: string; granted: boolean }> | undefined
+): Record<string, boolean> {
+  return Object.fromEntries(
+    (capabilities ?? []).map((capability) => [capability.capability, capability.granted])
   );
 }
 
@@ -90,42 +95,42 @@ function mapEditableServerConfig(
         welcomeMessage?: string;
       }
     | null
-    | undefined,
+    | undefined
 ): EditableServerConfig {
   return {
-    name: config?.serverName ?? "",
-    description: config?.description ?? "",
-    motd: config?.motd ?? "",
-    welcomeMessage: config?.welcomeMessage ?? "",
+    name: config?.serverName ?? '',
+    description: config?.description ?? '',
+    motd: config?.motd ?? '',
+    welcomeMessage: config?.welcomeMessage ?? ''
   };
 }
 
 function blockedUsernamesText(entries: readonly string[] | undefined): string {
-  return (entries ?? []).join("\n");
+  return (entries ?? []).join('\n');
 }
 
 function blockedUsernameEntries(text: string): string[] {
   return text
-    .split("\n")
+    .split('\n')
     .map((entry) => entry.trim())
     .filter(Boolean);
 }
 
 export async function getAuthenticatedServerState(
-  config: ServerStateAPIConfig,
+  config: ServerStateAPIConfig
 ): Promise<AuthenticatedServerState> {
   const { server, viewer, headers } = serverClients(config);
   const [response, viewerResponse] = await Promise.all([
     server.getServerState({}, { headers }),
-    viewer.getViewer({}, { headers }),
+    viewer.getViewer({}, { headers })
   ]);
   const profile = mapServerProfile(response.profile);
   const runtime = response.runtime;
-  const viewerPermissions = mapViewerPermissions(
-    viewerResponse.viewerPermissions?.permissions,
-  );
+  const viewerPermissions = mapViewerPermissions(viewerResponse.viewerPermissions?.permissions);
+  const viewerCapabilities = mapViewerCapabilities(viewerResponse.capabilities?.grants);
   const viewerState = viewerResponse.viewerState;
   const can = (permission: string) => viewerPermissions[permission] ?? false;
+  const capability = (key: string) => viewerCapabilities[key] ?? false;
 
   return {
     name: profile.name,
@@ -143,33 +148,31 @@ export async function getAuthenticatedServerState(
     maxVideoUploadSize: Number(runtime?.maxVideoUploadSize ?? 0),
     messageEditWindowSeconds: runtime?.messageEditWindowSeconds ?? 0,
     viewerPermissions,
-    viewerCanManageServer: can("server.manage"),
-    viewerCanCreateRooms: can("room.create"),
-    viewerCanJoinRooms: can("room.join"),
-    viewerCanListRooms: can("room.list"),
-    viewerCanManageRooms: can("room.manage"),
-    viewerCanBanRoomMembers: can("room.ban-member"),
-    viewerCanPostMessages: can("message.post"),
-    viewerCanPostInThreads: can("message.post-in-thread"),
-    viewerCanAttachFiles: can("message.attach"),
-    viewerCanManageMessages: can("message.manage"),
-    viewerCanReactToMessages: can("message.react"),
-    viewerCanEchoMessages: can("message.echo"),
-    viewerCanManageRoles: can("role.manage"),
-    viewerCanAssignRoles: can("role.assign"),
-    viewerCanViewAdminUsers: can("admin.view-users"),
-    viewerCanViewAdminSystem: can("admin.view-system"),
-    viewerCanViewAdminAudit: can("admin.view-audit"),
-    viewerCanDeleteAnyUser: can("user.delete-any"),
-    viewerCanDeleteSelf: can("user.delete-self"),
-    viewerCanManageUserPermissions: can("user.manage-permissions"),
-    viewerHasUnreadRooms: viewerState?.hasUnreadRooms ?? false,
+    viewerCanManageServer: can('server.manage'),
+    viewerCanCreateRooms: can('room.create'),
+    viewerCanJoinRooms: can('room.join'),
+    viewerCanListRooms: can('room.list'),
+    viewerCanManageRooms: can('room.manage'),
+    viewerCanBanRoomMembers: can('room.ban-member'),
+    viewerCanPostMessages: can('message.post'),
+    viewerCanPostInThreads: can('message.post-in-thread'),
+    viewerCanAttachFiles: can('message.attach'),
+    viewerCanManageMessages: can('message.manage'),
+    viewerCanReactToMessages: can('message.react'),
+    viewerCanEchoMessages: can('message.echo'),
+    viewerCanManageRoles: can('role.manage'),
+    viewerCanAssignRoles: can('role.assign'),
+    viewerCanViewAdminUsers: can('admin.view-users'),
+    viewerCanViewAdminSystem: capability('admin.view-system'),
+    viewerCanViewAdminAudit: can('admin.view-audit'),
+    viewerCanDeleteAnyUser: can('user.delete-any'),
+    viewerCanDeleteSelf: can('user.delete-self'),
+    viewerCanManageUserPermissions: can('user.manage-permissions'),
+    viewerHasUnreadRooms: viewerState?.hasUnreadRooms ?? false
   };
 }
 
-export async function getServerConfig(
-  config: ServerStateAPIConfig,
-): Promise<EditableServerConfig> {
+export async function getServerConfig(config: ServerStateAPIConfig): Promise<EditableServerConfig> {
   const { adminServer, headers } = serverClients(config);
   const response = await adminServer.getServerConfig({}, { headers });
   return mapEditableServerConfig(response.config);
@@ -177,7 +180,7 @@ export async function getServerConfig(
 
 export async function updateServerConfig(
   config: ServerStateAPIConfig,
-  input: EditableServerConfig,
+  input: EditableServerConfig
 ): Promise<EditableServerProfile> {
   const { adminServer, headers } = serverClients(config);
   const response = await adminServer.updateServerConfig(
@@ -185,9 +188,9 @@ export async function updateServerConfig(
       serverName: input.name,
       description: input.description,
       motd: input.motd,
-      welcomeMessage: input.welcomeMessage,
+      welcomeMessage: input.welcomeMessage
     },
-    { headers },
+    { headers }
   );
 
   return mapServerProfile(response.profile);
@@ -195,22 +198,22 @@ export async function updateServerConfig(
 
 export async function uploadServerLogo(
   config: ServerStateAPIConfig,
-  file: File,
+  file: File
 ): Promise<EditableServerProfile> {
   const { adminServer, headers } = serverClients(config);
   const response = await adminServer.uploadServerLogo(
     {
       image: new Uint8Array(await file.arrayBuffer()),
       filename: file.name,
-      contentType: file.type,
+      contentType: file.type
     },
-    { headers },
+    { headers }
   );
   return mapServerProfile(response.profile);
 }
 
 export async function deleteServerLogo(
-  config: ServerStateAPIConfig,
+  config: ServerStateAPIConfig
 ): Promise<EditableServerProfile> {
   const { adminServer, headers } = serverClients(config);
   const response = await adminServer.deleteServerLogo({}, { headers });
@@ -219,22 +222,22 @@ export async function deleteServerLogo(
 
 export async function uploadServerBanner(
   config: ServerStateAPIConfig,
-  file: File,
+  file: File
 ): Promise<EditableServerProfile> {
   const { adminServer, headers } = serverClients(config);
   const response = await adminServer.uploadServerBanner(
     {
       image: new Uint8Array(await file.arrayBuffer()),
       filename: file.name,
-      contentType: file.type,
+      contentType: file.type
     },
-    { headers },
+    { headers }
   );
   return mapServerProfile(response.profile);
 }
 
 export async function deleteServerBanner(
-  config: ServerStateAPIConfig,
+  config: ServerStateAPIConfig
 ): Promise<EditableServerProfile> {
   const { adminServer, headers } = serverClients(config);
   const response = await adminServer.deleteServerBanner({}, { headers });
@@ -242,25 +245,25 @@ export async function deleteServerBanner(
 }
 
 export async function getServerSecurityConfig(
-  config: ServerStateAPIConfig,
+  config: ServerStateAPIConfig
 ): Promise<ServerSecurityConfig> {
   const { adminServer, headers } = serverClients(config);
   const response = await adminServer.getServerSecurityConfig({}, { headers });
   return {
-    blockedUsernames: blockedUsernamesText(response.blockedUsernames),
+    blockedUsernames: blockedUsernamesText(response.blockedUsernames)
   };
 }
 
 export async function updateBlockedUsernames(
   config: ServerStateAPIConfig,
-  blockedUsernames: string,
+  blockedUsernames: string
 ): Promise<ServerSecurityConfig> {
   const { adminServer, headers } = serverClients(config);
   const response = await adminServer.updateBlockedUsernames(
     { blockedUsernames: blockedUsernameEntries(blockedUsernames) },
-    { headers },
+    { headers }
   );
   return {
-    blockedUsernames: blockedUsernamesText(response.blockedUsernames),
+    blockedUsernames: blockedUsernamesText(response.blockedUsernames)
   };
 }

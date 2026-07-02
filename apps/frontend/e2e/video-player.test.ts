@@ -61,6 +61,10 @@ test.describe('video player @ffmpeg', () => {
         // Verify Vidstack rendered its default video layout with controls.
         await expect(roomPage.mediaControls).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
 
+        const mediaBox = await roomPage.mediaPlayer.boundingBox();
+        expect(mediaBox).not.toBeNull();
+        expect(mediaBox!.width / mediaBox!.height).toBeCloseTo(16 / 9, 1);
+
         // The settings menu should be hidden (via CSS).
         if ((await roomPage.videoSettingsMenu.count()) > 0) {
           const computedDisplay = await roomPage.videoSettingsMenu.evaluate(

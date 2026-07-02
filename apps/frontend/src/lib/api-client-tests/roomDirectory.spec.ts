@@ -260,6 +260,7 @@ describe('createRoomDirectoryAPI', () => {
         {
           id: 'g1',
           name: 'Lobby',
+          viewerState: { canCreateRoom: true },
           items: [
             {
               item: {
@@ -299,6 +300,7 @@ describe('createRoomDirectoryAPI', () => {
       {
         id: 'g1',
         name: 'Lobby',
+        canCreateRoom: true,
         roomIds: ['general', 'random'],
         items: [
           {
@@ -329,6 +331,7 @@ describe('createRoomDirectoryAPI', () => {
         {
           id: 'g1',
           name: 'Lobby',
+          viewerState: { canCreateRoom: false },
           items: []
         }
       ]
@@ -342,6 +345,7 @@ describe('createRoomDirectoryAPI', () => {
     await expect(api.listRoomGroups()).resolves.toMatchObject([
       {
         id: 'g1',
+        canCreateRoom: false,
         roomIds: [],
         items: []
       }
@@ -356,6 +360,7 @@ describe('createRoomDirectoryAPI', () => {
     const group = {
       id: 'g1',
       name: 'Lobby',
+      viewerState: { canCreateRoom: true },
       items: [
         {
           item: {
@@ -375,11 +380,13 @@ describe('createRoomDirectoryAPI', () => {
 
     await expect(api.getRoomGroup('g1')).resolves.toMatchObject({
       id: 'g1',
+      canCreateRoom: true,
       roomIds: ['general']
     });
     await expect(api.batchGetRoomGroups(['g1', 'missing'])).resolves.toMatchObject([
       {
         id: 'g1',
+        canCreateRoom: true,
         roomIds: ['general']
       }
     ]);

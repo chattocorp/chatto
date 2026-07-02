@@ -6,12 +6,7 @@
   import { getLocale } from '$lib/i18n/runtime';
   import type { RoomEventView } from '$lib/render/types';
   import { isMessagePostedEvent } from '$lib/render/eventKinds';
-  import type {
-    MessagesStore,
-    QuoteInsertionContent,
-    RefreshCurrentWindowResult,
-    RoomMember
-  } from '$lib/state/room';
+  import type { MessagesStore, RefreshCurrentWindowResult, RoomMember } from '$lib/state/room';
   import { getComposerContext, getRoomPermissions } from '$lib/state/room';
   import RoomEvent from './RoomEvent.svelte';
   import SystemEventGroup from './SystemEventGroup.svelte';
@@ -31,6 +26,7 @@
     useMayHaveMissedMessagesCallback,
     type MayHaveMissedMessagesReason
   } from '$lib/hooks/useMayHaveMissedMessagesCallback.svelte';
+  import type { OpenThreadHandler, ThreadOpenOptions } from './threadOpenOptions';
 
   let {
     roomId,
@@ -88,11 +84,7 @@
     // Event updates
     updateCounter?: number;
     // Threading
-    onOpenThread?: (
-      threadRootEventId: string,
-      highlightEventId?: string,
-      quoteText?: QuoteInsertionContent
-    ) => void;
+    onOpenThread?: OpenThreadHandler;
     // Filtering
     filterThreadReplies?: boolean;
     // Up-arrow-to-edit
@@ -732,20 +724,14 @@
     if (isMessagePostedEvent(eventData)) {
       // Echoes open the original thread
       if (eventData.echoOfEventId != null) {
-        return (
-          _threadRootEventId: string,
-          highlightEventId?: string,
-          quoteText?: QuoteInsertionContent
-        ) => onOpenThread(eventData.echoFromThreadRootEventId!, highlightEventId, quoteText);
+        return (_threadRootEventId: string, options: ThreadOpenOptions = {}) =>
+          onOpenThread(eventData.echoFromThreadRootEventId!, options);
       }
       // Thread replies don't open threads from the main channel
       if (eventData.threadRootEventId !== null) return undefined;
       // Root messages open their own thread
-      return (
-        _threadRootEventId?: string,
-        _highlightEventId?: string,
-        quoteText?: QuoteInsertionContent
-      ) => onOpenThread(event.id, undefined, quoteText);
+      return (_threadRootEventId?: string, options: ThreadOpenOptions = {}) =>
+        onOpenThread(event.id, options);
     }
 
     return undefined;

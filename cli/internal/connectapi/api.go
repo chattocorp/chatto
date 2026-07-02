@@ -69,13 +69,14 @@ func handlerOptionsWithReadMax(readMaxBytes int) []connect.HandlerOption {
 func (a *API) Handlers() []Handler {
 	options := HandlerOptions()
 	uploadOptions := options
-	messageUploadOptions := options
+	assetUploadOptions := options
 	if a.core != nil {
 		uploadOptions = handlerOptionsWithReadMax(uploadRequestMaxBytes(a.core.AssetsConfig().MaxUploadSize))
-		messageUploadOptions = handlerOptionsWithReadMax(messageUploadRequestMaxBytes(a.core.AssetsConfig().MaxUploadSize))
+		assetUploadOptions = handlerOptionsWithReadMax(assetUploadRequestMaxBytes())
 	}
 
 	accountPath, accountHandler := apiv1connect.NewMyAccountServiceHandler(&accountService{api: a}, uploadOptions...)
+	assetUploadPath, assetUploadHandler := apiv1connect.NewAssetUploadServiceHandler(&assetUploadService{api: a}, assetUploadOptions...)
 	adminDiagnosticsPath, adminDiagnosticsHandler := adminv1connect.NewAdminDiagnosticsServiceHandler(&adminDiagnosticsService{api: a}, options...)
 	adminEventLogPath, adminEventLogHandler := adminv1connect.NewAdminEventLogServiceHandler(&adminEventLogService{api: a}, options...)
 	adminMemberPath, adminMemberHandler := adminv1connect.NewAdminUserServiceHandler(&adminUserManagementService{api: a}, options...)
@@ -86,7 +87,7 @@ func (a *API) Handlers() []Handler {
 	externalAuthPath, externalAuthHandler := authv1connect.NewExternalIdentityAuthServiceHandler(&externalIdentityAuthService{api: a}, options...)
 	permissionPath, permissionHandler := adminv1connect.NewAdminPermissionServiceHandler(&permissionService{api: a}, options...)
 	linkPreviewPath, linkPreviewHandler := apiv1connect.NewLinkPreviewServiceHandler(&linkPreviewService{api: a}, options...)
-	messagePath, messageHandler := apiv1connect.NewMessageServiceHandler(&messageService{api: a}, messageUploadOptions...)
+	messagePath, messageHandler := apiv1connect.NewMessageServiceHandler(&messageService{api: a}, options...)
 	serverMemberPath, serverMemberHandler := apiv1connect.NewServerMemberServiceHandler(&serverMemberService{api: a}, options...)
 	roomMemberPath, roomMemberHandler := apiv1connect.NewRoomMemberServiceHandler(&roomMemberService{api: a}, options...)
 	notificationPath, notificationHandler := apiv1connect.NewNotificationServiceHandler(&notificationService{api: a}, options...)
@@ -102,6 +103,7 @@ func (a *API) Handlers() []Handler {
 	voicePath, voiceHandler := apiv1connect.NewVoiceCallServiceHandler(&voiceCallService{api: a}, options...)
 	handlers := []Handler{
 		{ServicePath: accountPath, Handler: accountHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
+		{ServicePath: assetUploadPath, Handler: assetUploadHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: adminDiagnosticsPath, Handler: adminDiagnosticsHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: adminEventLogPath, Handler: adminEventLogHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: adminServerPath, Handler: adminServerHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
@@ -152,18 +154,11 @@ func uploadRequestMaxBytes(maxUploadSize int64) int {
 	return int(maxUploadSize) + protobufOverhead
 }
 
-func messageUploadRequestMaxBytes(maxUploadSize int64) int {
-	const (
-		protobufOverhead      = 256 * 1024
-		maxAttachmentBatchLen = 10
-	)
-	maxInt := int(^uint(0) >> 1)
-	if maxUploadSize <= 0 {
-		return MaxRequestMessageBytes
-	}
-	maxPayload := int64(maxInt - protobufOverhead)
-	if maxUploadSize > maxPayload/maxAttachmentBatchLen {
-		return maxInt
-	}
-	return int(maxUploadSize)*maxAttachmentBatchLen + protobufOverhead
+func assetUploadRequestMaxBytes() int {
+	const protobufOverhead = 64 * 1024
+	return defaultAssetUploadChunkSizeForConnect() + protobufOverhead
+}
+
+func defaultAssetUploadChunkSizeForConnect() int {
+	return 512 * 1024
 }

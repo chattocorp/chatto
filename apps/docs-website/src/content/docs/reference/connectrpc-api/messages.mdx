@@ -42,14 +42,13 @@ Request to create a message in a room or thread.
 | Field | Type | Description |
 | --- | --- | --- |
 | `room_id` | `string` | Required. Room where the message should be created. |
-| `body` | `string` | Message body text. Required unless attachments or attachment_asset_ids is non-empty. |
+| `body` | `string` | Message body text. Required unless attachment_asset_ids is non-empty. |
 | `attachment_asset_ids` | `repeated string` | Existing room-scoped attachment asset IDs to include with the message. |
 | `thread_root_event_id` | `string` | Event ID of the thread root message when posting a thread reply. |
 | `in_reply_to` | `string` | Event ID this message replies to for attribution. |
 | `also_send_to_channel` | `bool` | True to also echo a thread reply into the main room timeline. |
 | `mention_confirmation_token` | `string` | Short-lived token returned by a prior mention confirmation challenge. |
 | `link_preview` | [`MessageLinkPreviewInput`](/reference/connectrpc-api/types/#chatto-api-v1-MessageLinkPreviewInput) | Link preview selected by the client. |
-| `attachments` | repeated [`MessageAttachmentUpload`](/reference/connectrpc-api/types/#chatto-api-v1-MessageAttachmentUpload) | Browser-uploaded attachments to include with the message. |
 
 
 <a id="chatto-api-v1-CreateMessageResponse"></a>

@@ -3,6 +3,8 @@ import type { TestInfo } from '@playwright/test';
 import { createClient } from '@connectrpc/connect';
 import { createConnectTransport } from '@connectrpc/connect-web';
 import { readFile } from 'fs/promises';
+import { sha256 } from 'js-sha256';
+import { AssetUploadService } from '@chatto/api-types/api/v1/asset_uploads_connect';
 import { MessageService } from '@chatto/api-types/api/v1/messages_connect';
 import { RoomDirectoryService } from '@chatto/api-types/api/v1/room_directory_connect';
 import { RoomService } from '@chatto/api-types/api/v1/rooms_connect';
@@ -22,6 +24,16 @@ function authHeaders(token: string) {
 function messageClient(remoteBaseURL: string) {
   return createClient(
     MessageService,
+    createConnectTransport({
+      baseUrl: connectBaseUrl(remoteBaseURL),
+      useBinaryFormat: true
+    })
+  );
+}
+
+function assetUploadClient(remoteBaseURL: string) {
+  return createClient(
+    AssetUploadService,
     createConnectTransport({
       baseUrl: connectBaseUrl(remoteBaseURL),
       useBinaryFormat: true
@@ -249,17 +261,57 @@ export async function postMessageAttachmentOnRemote(
   contentType: string
 ): Promise<{ eventId: string; attachmentUrl: string }> {
   const fileBytes = await readFile(filePath);
+  const uploadClient = assetUploadClient(remoteBaseURL);
+  const created = await uploadClient.createUpload(
+    {
+      roomId,
+      filename: fileName,
+      contentType,
+      size: BigInt(fileBytes.byteLength),
+      sha256: sha256(fileBytes)
+    },
+    { headers: authHeaders(token) }
+  );
+  const upload = created.upload;
+  if (!upload?.uploadId) {
+    throw new Error(
+      `No upload returned from remote CreateUpload: ${JSON.stringify(created.toJson())}`
+    );
+  }
+
+  let offset = Number(upload.committedOffset);
+  const maxChunkSize = Math.max(1, upload.maxChunkSize);
+  while (offset < fileBytes.byteLength) {
+    const end = Math.min(offset + maxChunkSize, fileBytes.byteLength);
+    const chunk = fileBytes.subarray(offset, end);
+    const chunkResponse = await uploadClient.uploadChunk(
+      {
+        uploadId: upload.uploadId,
+        offset: BigInt(offset),
+        content: chunk,
+        chunkSha256: sha256(chunk)
+      },
+      { headers: authHeaders(token) }
+    );
+    offset = Number(chunkResponse.upload?.committedOffset ?? BigInt(end));
+  }
+
+  const completed = await uploadClient.completeUpload(
+    { uploadId: upload.uploadId },
+    { headers: authHeaders(token) }
+  );
+  const assetId = completed.asset?.assetId;
+  if (!assetId) {
+    throw new Error(
+      `No asset returned from remote CompleteUpload: ${JSON.stringify(completed.toJson())}`
+    );
+  }
+
   const response = await messageClient(remoteBaseURL).createMessage(
     {
       roomId,
       body,
-      attachments: [
-        {
-          content: new Uint8Array(fileBytes),
-          filename: fileName,
-          contentType
-        }
-      ]
+      attachmentAssetIds: [assetId]
     },
     { headers: authHeaders(token) }
   );
