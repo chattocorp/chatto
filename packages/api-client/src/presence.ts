@@ -1,6 +1,4 @@
-import { notifyAuthenticationRequired } from "./hooks.js";
-import { Code, ConnectError, createClient } from "@connectrpc/connect";
-import { createConnectTransport } from "@connectrpc/connect-web";
+import { authHeaders, createChattoClient, handleAuthError } from "./connect.js";
 import { MyAccountService } from "@chatto/api-types/api/v1/account_connect";
 import { PresenceStatus } from "@chatto/api-types/api/v1/presence_pb";
 
@@ -14,30 +12,8 @@ export type PresenceAPIConfig = {
 export { PresenceStatus as APIPresenceStatus };
 
 export function createPresenceAPI(config: PresenceAPIConfig) {
-  const transport = createConnectTransport({
-    baseUrl: config.baseUrl,
-    useBinaryFormat: true,
-  });
-  const client = createClient(MyAccountService, transport);
-  const headers = () =>
-    config.bearerToken
-      ? { Authorization: `Bearer ${config.bearerToken}` }
-      : undefined;
-
-  async function handleAuthError(err: unknown): Promise<never> {
-    if (
-      err instanceof ConnectError &&
-      err.code === Code.Unauthenticated &&
-      config.serverId
-    ) {
-      notifyAuthenticationRequired(
-        config.serverId,
-        config.onAuthenticationRequired,
-      );
-    }
-    throw err;
-  }
-
+  const client = createChattoClient(MyAccountService, config);
+  const headers = () => authHeaders(config);
   return {
     async updatePresence(
       status: PresenceStatus,
@@ -50,7 +26,7 @@ export function createPresenceAPI(config: PresenceAPIConfig) {
         );
         return response.status;
       } catch (err) {
-        return handleAuthError(err);
+        return handleAuthError(config, err);
       }
     },
   };

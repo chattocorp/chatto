@@ -1,6 +1,4 @@
-import { notifyAuthenticationRequired } from "./hooks.js";
-import { Code, ConnectError, createClient } from "@connectrpc/connect";
-import { createConnectTransport } from "@connectrpc/connect-web";
+import { authHeaders, createChattoClient, handleAuthError } from "./connect.js";
 import { FitMode } from "./renderTypes.js";
 import type {
   ExpiringAssetUrl,
@@ -91,31 +89,9 @@ export type AttachmentAPI = {
 export function createAttachmentAPI(
   config: AttachmentAPIConfig,
 ): AttachmentAPI {
-  const transport = createConnectTransport({
-    baseUrl: config.baseUrl,
-    useBinaryFormat: true,
-  });
-  const messages = createClient(MessageService, transport);
-  const rooms = createClient(RoomService, transport);
-  const headers = () =>
-    config.bearerToken
-      ? { Authorization: `Bearer ${config.bearerToken}` }
-      : undefined;
-
-  async function handleAuthError(err: unknown): Promise<never> {
-    if (
-      err instanceof ConnectError &&
-      err.code === Code.Unauthenticated &&
-      config.serverId
-    ) {
-      notifyAuthenticationRequired(
-        config.serverId,
-        config.onAuthenticationRequired,
-      );
-    }
-    throw err;
-  }
-
+  const messages = createChattoClient(MessageService, config);
+  const rooms = createChattoClient(RoomService, config);
+  const headers = () => authHeaders(config);
   return {
     async listRoomAttachments({ roomId, limit, offset, thumbnail }) {
       try {
@@ -133,7 +109,7 @@ export function createAttachmentAPI(
           hasMore: response.page?.hasMore ?? false,
         };
       } catch (err) {
-        return handleAuthError(err);
+        return handleAuthError(config, err);
       }
     },
     async refreshMessageAttachmentUrls(roomId, eventId, thumbnail) {
@@ -148,7 +124,7 @@ export function createAttachmentAPI(
         );
         return refreshedAttachmentUrlMap(response.attachments);
       } catch (err) {
-        return handleAuthError(err);
+        return handleAuthError(config, err);
       }
     },
     async batchRefreshMessageAttachmentUrls(roomId, eventIds, thumbnail) {
@@ -168,7 +144,7 @@ export function createAttachmentAPI(
           ]),
         );
       } catch (err) {
-        return handleAuthError(err);
+        return handleAuthError(config, err);
       }
     },
   };

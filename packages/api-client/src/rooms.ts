@@ -1,6 +1,11 @@
-import { notifyAuthenticationRequired } from "./hooks.js";
-import { Code, ConnectError, createClient } from "@connectrpc/connect";
-import { createConnectTransport } from "@connectrpc/connect-web";
+import {
+  authHeaders,
+  Code,
+  ConnectError,
+  createChattoClient,
+  handleAuthError,
+  type ConnectAPIConfig,
+} from "./connect.js";
 import { Timestamp } from "@bufbuild/protobuf";
 import { RoomService } from "@chatto/api-types/api/v1/rooms_connect";
 import type {
@@ -9,12 +14,7 @@ import type {
 } from "@chatto/api-types/api/v1/rooms_pb";
 import { mapDirectoryMember, type DirectoryMember } from "./memberDirectory.js";
 
-export type ConnectAPIConfig = {
-  serverId?: string;
-  baseUrl: string;
-  bearerToken: string | null;
-  onAuthenticationRequired?: (serverId: string) => void;
-};
+export type { ConnectAPIConfig } from "./connect.js";
 
 export type PublicRoom = {
   id: string;
@@ -98,29 +98,8 @@ function roomValidationError(
 }
 
 export function createRoomCommandAPI(config: ConnectAPIConfig) {
-  const transport = createConnectTransport({
-    baseUrl: config.baseUrl,
-    useBinaryFormat: true,
-  });
-  const rooms = createClient(RoomService, transport);
-  const headers = () =>
-    config.bearerToken
-      ? { Authorization: `Bearer ${config.bearerToken}` }
-      : undefined;
-
-  async function handleAuthError(err: unknown): Promise<never> {
-    if (
-      err instanceof ConnectError &&
-      err.code === Code.Unauthenticated &&
-      config.serverId
-    ) {
-      notifyAuthenticationRequired(
-        config.serverId,
-        config.onAuthenticationRequired,
-      );
-    }
-    throw err;
-  }
+  const rooms = createChattoClient(RoomService, config);
+  const headers = () => authHeaders(config);
 
   return {
     async createRoom(input: {
@@ -141,7 +120,7 @@ export function createRoomCommandAPI(config: ConnectAPIConfig) {
         );
         return publicRoom(response.room);
       } catch (err) {
-        return handleAuthError(roomValidationError(err, input));
+        return handleAuthError(config, roomValidationError(err, input));
       }
     },
 
@@ -161,7 +140,7 @@ export function createRoomCommandAPI(config: ConnectAPIConfig) {
         );
         return publicRoom(response.room);
       } catch (err) {
-        return handleAuthError(roomValidationError(err, input));
+        return handleAuthError(config, roomValidationError(err, input));
       }
     },
 
@@ -173,7 +152,7 @@ export function createRoomCommandAPI(config: ConnectAPIConfig) {
         );
         return publicRoom(response.room);
       } catch (err) {
-        return handleAuthError(err);
+        return handleAuthError(config, err);
       }
     },
 
@@ -185,7 +164,7 @@ export function createRoomCommandAPI(config: ConnectAPIConfig) {
         );
         return publicRoom(response.room);
       } catch (err) {
-        return handleAuthError(err);
+        return handleAuthError(config, err);
       }
     },
 
@@ -200,7 +179,7 @@ export function createRoomCommandAPI(config: ConnectAPIConfig) {
         );
         return publicRoom(response.room);
       } catch (err) {
-        return handleAuthError(err);
+        return handleAuthError(config, err);
       }
     },
 
@@ -212,7 +191,7 @@ export function createRoomCommandAPI(config: ConnectAPIConfig) {
         );
         return publicRoom(response.room);
       } catch (err) {
-        return handleAuthError(err);
+        return handleAuthError(config, err);
       }
     },
 
@@ -224,7 +203,7 @@ export function createRoomCommandAPI(config: ConnectAPIConfig) {
         );
         return publicRoom(response.room);
       } catch (err) {
-        return handleAuthError(err);
+        return handleAuthError(config, err);
       }
     },
 
@@ -236,7 +215,7 @@ export function createRoomCommandAPI(config: ConnectAPIConfig) {
         );
         return response.left;
       } catch (err) {
-        return handleAuthError(err);
+        return handleAuthError(config, err);
       }
     },
 
@@ -257,7 +236,7 @@ export function createRoomCommandAPI(config: ConnectAPIConfig) {
           hasMore: response.page?.hasMore ?? false,
         };
       } catch (err) {
-        return handleAuthError(err);
+        return handleAuthError(config, err);
       }
     },
 
@@ -269,7 +248,7 @@ export function createRoomCommandAPI(config: ConnectAPIConfig) {
         );
         return response.joinedRoomIds;
       } catch (err) {
-        return handleAuthError(err);
+        return handleAuthError(config, err);
       }
     },
 
@@ -287,7 +266,7 @@ export function createRoomCommandAPI(config: ConnectAPIConfig) {
         );
         return response.updated;
       } catch (err) {
-        return handleAuthError(err);
+        return handleAuthError(config, err);
       }
     },
 
@@ -311,7 +290,7 @@ export function createRoomCommandAPI(config: ConnectAPIConfig) {
         );
         return response.banned;
       } catch (err) {
-        return handleAuthError(err);
+        return handleAuthError(config, err);
       }
     },
 
@@ -326,7 +305,7 @@ export function createRoomCommandAPI(config: ConnectAPIConfig) {
         });
         return response.unbanned;
       } catch (err) {
-        return handleAuthError(err);
+        return handleAuthError(config, err);
       }
     },
   };

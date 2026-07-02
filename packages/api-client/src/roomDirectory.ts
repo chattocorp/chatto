@@ -1,6 +1,11 @@
-import { notifyAuthenticationRequired } from "./hooks.js";
-import { Code, ConnectError, createClient } from "@connectrpc/connect";
-import { createConnectTransport } from "@connectrpc/connect-web";
+import {
+  authHeaders,
+  Code,
+  ConnectError,
+  createChattoClient,
+  handleAuthError,
+  type ConnectAPIConfig,
+} from "./connect.js";
 import { RoomDirectoryService } from "@chatto/api-types/api/v1/room_directory_connect";
 import type {
   DirectoryRoom,
@@ -10,12 +15,7 @@ import type {
 import { RoomDirectoryScope } from "@chatto/api-types/api/v1/room_directory_pb";
 import { RoomKind } from "@chatto/api-types/api/v1/rooms_pb";
 
-export type RoomDirectoryAPIConfig = {
-  serverId?: string;
-  baseUrl: string;
-  bearerToken: string | null;
-  onAuthenticationRequired?: (serverId: string) => void;
-};
+export type RoomDirectoryAPIConfig = ConnectAPIConfig;
 
 export type DirectoryRoomSummary = {
   id: string;
@@ -74,29 +74,8 @@ export { RoomDirectoryScope };
 export { RoomKind };
 
 export function createRoomDirectoryAPI(config: RoomDirectoryAPIConfig) {
-  const transport = createConnectTransport({
-    baseUrl: config.baseUrl,
-    useBinaryFormat: true,
-  });
-  const directory = createClient(RoomDirectoryService, transport);
-  const headers = () =>
-    config.bearerToken
-      ? { Authorization: `Bearer ${config.bearerToken}` }
-      : undefined;
-
-  async function handleAuthError(err: unknown): Promise<never> {
-    if (
-      err instanceof ConnectError &&
-      err.code === Code.Unauthenticated &&
-      config.serverId
-    ) {
-      notifyAuthenticationRequired(
-        config.serverId,
-        config.onAuthenticationRequired,
-      );
-    }
-    throw err;
-  }
+  const directory = createChattoClient(RoomDirectoryService, config);
+  const headers = () => authHeaders(config);
 
   return {
     async listRooms(
@@ -109,7 +88,7 @@ export function createRoomDirectoryAPI(config: RoomDirectoryAPIConfig) {
         );
         return response.rooms.flatMap((entry) => mapDirectoryRoom(entry) ?? []);
       } catch (err) {
-        return handleAuthError(err);
+        return handleAuthError(config, err);
       }
     },
 
@@ -124,7 +103,7 @@ export function createRoomDirectoryAPI(config: RoomDirectoryAPIConfig) {
         if (err instanceof ConnectError && err.code === Code.NotFound) {
           return null;
         }
-        return handleAuthError(err);
+        return handleAuthError(config, err);
       }
     },
 
@@ -139,7 +118,7 @@ export function createRoomDirectoryAPI(config: RoomDirectoryAPIConfig) {
           return mapped ? [mapped] : [];
         });
       } catch (err) {
-        return handleAuthError(err);
+        return handleAuthError(config, err);
       }
     },
 
@@ -153,7 +132,7 @@ export function createRoomDirectoryAPI(config: RoomDirectoryAPIConfig) {
         );
         return response.groups.map(mapRoomGroup);
       } catch (err) {
-        return handleAuthError(err);
+        return handleAuthError(config, err);
       }
     },
 
@@ -174,7 +153,7 @@ export function createRoomDirectoryAPI(config: RoomDirectoryAPIConfig) {
         if (err instanceof ConnectError && err.code === Code.NotFound) {
           return null;
         }
-        return handleAuthError(err);
+        return handleAuthError(config, err);
       }
     },
 
@@ -192,7 +171,7 @@ export function createRoomDirectoryAPI(config: RoomDirectoryAPIConfig) {
         );
         return response.groups.map(mapRoomGroup);
       } catch (err) {
-        return handleAuthError(err);
+        return handleAuthError(config, err);
       }
     },
   };

@@ -1,5 +1,9 @@
-import { Code, ConnectError, createClient } from "@connectrpc/connect";
-import { createConnectTransport } from "@connectrpc/connect-web";
+import {
+  authHeaders,
+  Code,
+  ConnectError,
+  createChattoClient,
+} from "./connect.js";
 import { AdminRoleService } from "@chatto/api-types/admin/v1/roles_connect";
 import type { AdminRole as APIAdminRole } from "@chatto/api-types/admin/v1/roles_pb";
 import { RoleService } from "@chatto/api-types/api/v1/roles_connect";
@@ -55,16 +59,9 @@ export type UpdateRoleInput = {
 };
 
 export function createRoleAPI(config: RoleAPIConfig) {
-  const transport = createConnectTransport({
-    baseUrl: config.baseUrl,
-    useBinaryFormat: true,
-  });
-  const client = createClient(RoleService, transport);
-  const adminClient = createClient(AdminRoleService, transport);
-  const headers = () =>
-    config.bearerToken
-      ? { Authorization: `Bearer ${config.bearerToken}` }
-      : undefined;
+  const client = createChattoClient(RoleService, config);
+  const adminClient = createChattoClient(AdminRoleService, config);
+  const headers = () => authHeaders(config);
 
   return {
     async listRoles(): Promise<RoleCatalog> {
@@ -106,7 +103,10 @@ export function createRoleAPI(config: RoleAPIConfig) {
     },
 
     async getRole(name: string): Promise<RoleDetails> {
-      const response = await adminClient.getRole({ name }, { headers: headers() });
+      const response = await adminClient.getRole(
+        { name },
+        { headers: headers() },
+      );
       return {
         roles: [],
         role: response.role ? serverRoleFromAdmin(response.role) : null,
@@ -117,12 +117,16 @@ export function createRoleAPI(config: RoleAPIConfig) {
     },
 
     async createRole(input: CreateRoleInput): Promise<ServerRole> {
-      const response = await adminClient.createRole(input, { headers: headers() });
+      const response = await adminClient.createRole(input, {
+        headers: headers(),
+      });
       return requiredAdminRole(response.role);
     },
 
     async updateRole(input: UpdateRoleInput): Promise<ServerRole> {
-      const response = await adminClient.updateRole(input, { headers: headers() });
+      const response = await adminClient.updateRole(input, {
+        headers: headers(),
+      });
       return requiredAdminRole(response.role);
     },
 
@@ -149,7 +153,11 @@ function serverRoleFromAdmin(role: APIAdminRole): ServerRole {
   if (!role.role) {
     throw new Error("admin role response did not include public role metadata");
   }
-  return serverRoleFromPublic(role.role, role.permissions, role.permissionDenials);
+  return serverRoleFromPublic(
+    role.role,
+    role.permissions,
+    role.permissionDenials,
+  );
 }
 
 function serverRoleFromPublic(

@@ -1,5 +1,4 @@
-import { createClient } from "@connectrpc/connect";
-import { createConnectTransport } from "@connectrpc/connect-web";
+import { authHeaders, createChattoClient } from "./connect.js";
 import { AdminPermissionService } from "@chatto/api-types/admin/v1/permissions_connect";
 import {
   PermissionDecision,
@@ -102,15 +101,8 @@ export type UserPermissionDecisions = {
 };
 
 export function createPermissionAPI(config: PermissionAPIConfig) {
-  const transport = createConnectTransport({
-    baseUrl: config.baseUrl,
-    useBinaryFormat: true,
-  });
-  const client = createClient(AdminPermissionService, transport);
-  const headers = () =>
-    config.bearerToken
-      ? { Authorization: `Bearer ${config.bearerToken}` }
-      : undefined;
+  const client = createChattoClient(AdminPermissionService, config);
+  const headers = () => authHeaders(config);
 
   return {
     async getRolePermissionTierMatrix(input: {

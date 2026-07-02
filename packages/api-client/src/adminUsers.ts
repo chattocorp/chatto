@@ -1,5 +1,4 @@
-import { createClient } from "@connectrpc/connect";
-import { createConnectTransport } from "@connectrpc/connect-web";
+import { authHeaders, createChattoClient } from "./connect.js";
 import { AdminUserService } from "@chatto/api-types/admin/v1/members_connect";
 import type { AdminMember as APIAdminMember } from "@chatto/api-types/admin/v1/members_pb";
 import type { AdminRole as APIAdminRole } from "@chatto/api-types/admin/v1/roles_pb";
@@ -89,15 +88,8 @@ export type AdminRoleMutationResult = {
 export function createAdminUserManagementAPI(
   config: AdminUserManagementAPIConfig,
 ) {
-  const transport = createConnectTransport({
-    baseUrl: config.baseUrl,
-    useBinaryFormat: true,
-  });
-  const client = createClient(AdminUserService, transport);
-  const headers = () =>
-    config.bearerToken
-      ? { Authorization: `Bearer ${config.bearerToken}` }
-      : undefined;
+  const client = createChattoClient(AdminUserService, config);
+  const headers = () => authHeaders(config);
 
   return {
     async listMembers(input: AdminListMembersInput): Promise<AdminMemberList> {

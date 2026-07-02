@@ -1,6 +1,4 @@
-import { notifyAuthenticationRequired } from "./hooks.js";
-import { Code, ConnectError, createClient } from "@connectrpc/connect";
-import { createConnectTransport } from "@connectrpc/connect-web";
+import { authHeaders, createChattoClient, handleAuthError } from "./connect.js";
 import { ThreadService } from "@chatto/api-types/api/v1/threads_connect";
 import type { User } from "@chatto/api-types/api/v1/users_pb";
 import type { RawEvent } from "./events.js";
@@ -41,30 +39,8 @@ export type ThreadFollowResult = {
 };
 
 export function createThreadAPI(config: ConnectAPIConfig) {
-  const transport = createConnectTransport({
-    baseUrl: config.baseUrl,
-    useBinaryFormat: true,
-  });
-  const client = createClient(ThreadService, transport);
-  const headers = () =>
-    config.bearerToken
-      ? { Authorization: `Bearer ${config.bearerToken}` }
-      : undefined;
-
-  async function handleAuthError(err: unknown): Promise<never> {
-    if (
-      err instanceof ConnectError &&
-      err.code === Code.Unauthenticated &&
-      config.serverId
-    ) {
-      notifyAuthenticationRequired(
-        config.serverId,
-        config.onAuthenticationRequired,
-      );
-    }
-    throw err;
-  }
-
+  const client = createChattoClient(ThreadService, config);
+  const headers = () => authHeaders(config);
   return {
     async listFollowedThreads(input: {
       limit: number;
@@ -95,7 +71,7 @@ export function createThreadAPI(config: ConnectAPIConfig) {
           hasMore: response.page?.hasMore ?? false,
         };
       } catch (err) {
-        return handleAuthError(err);
+        return handleAuthError(config, err);
       }
     },
 
@@ -112,7 +88,7 @@ export function createThreadAPI(config: ConnectAPIConfig) {
           state: response.state ? mapThreadFollowState(response.state) : null,
         };
       } catch (err) {
-        return handleAuthError(err);
+        return handleAuthError(config, err);
       }
     },
 
@@ -129,7 +105,7 @@ export function createThreadAPI(config: ConnectAPIConfig) {
           state: response.state ? mapThreadFollowState(response.state) : null,
         };
       } catch (err) {
-        return handleAuthError(err);
+        return handleAuthError(config, err);
       }
     },
   };

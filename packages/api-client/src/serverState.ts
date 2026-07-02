@@ -1,5 +1,4 @@
-import { createClient } from "@connectrpc/connect";
-import { createConnectTransport } from "@connectrpc/connect-web";
+import { authHeaders, createChattoClient } from "./connect.js";
 import { AdminServerService } from "@chatto/api-types/admin/v1/server_connect";
 import { ServerService } from "@chatto/api-types/api/v1/server_state_connect";
 import { ViewerService } from "@chatto/api-types/api/v1/viewer_connect";
@@ -75,16 +74,10 @@ function mapViewerPermissions(
 }
 
 function serverClients(config: ServerStateAPIConfig) {
-  const transport = createConnectTransport({
-    baseUrl: config.baseUrl,
-    useBinaryFormat: true,
-  });
-  const server = createClient(ServerService, transport);
-  const viewer = createClient(ViewerService, transport);
-  const adminServer = createClient(AdminServerService, transport);
-  const headers = config.bearerToken
-    ? { Authorization: `Bearer ${config.bearerToken}` }
-    : undefined;
+  const server = createChattoClient(ServerService, config);
+  const viewer = createChattoClient(ViewerService, config);
+  const adminServer = createChattoClient(AdminServerService, config);
+  const headers = authHeaders(config);
   return { server, viewer, adminServer, headers };
 }
 

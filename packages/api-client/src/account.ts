@@ -1,5 +1,4 @@
-import { createClient } from "@connectrpc/connect";
-import { createConnectTransport } from "@connectrpc/connect-web";
+import { authHeaders, createChattoClient } from "./connect.js";
 import { MyAccountService } from "@chatto/api-types/api/v1/account_connect";
 import type { User as APIUser } from "@chatto/api-types/api/v1/users_pb";
 import {
@@ -42,15 +41,8 @@ export type UpdatePasswordInput = {
 };
 
 export function createAccountAPI(config: AccountAPIConfig) {
-  const transport = createConnectTransport({
-    baseUrl: config.baseUrl,
-    useBinaryFormat: true,
-  });
-  const client = createClient(MyAccountService, transport);
-  const headers = () =>
-    config.bearerToken
-      ? { Authorization: `Bearer ${config.bearerToken}` }
-      : undefined;
+  const client = createChattoClient(MyAccountService, config);
+  const headers = () => authHeaders(config);
 
   return {
     async updateProfile(input: UpdateProfileInput): Promise<AccountUser> {

@@ -1,6 +1,4 @@
-import { notifyAuthenticationRequired } from "./hooks.js";
-import { Code, ConnectError, createClient } from "@connectrpc/connect";
-import { createConnectTransport } from "@connectrpc/connect-web";
+import { authHeaders, createChattoClient, handleAuthError } from "./connect.js";
 import { LinkPreviewService } from "@chatto/api-types/api/v1/link_previews_connect";
 import type { LinkPreview } from "@chatto/api-types/api/v1/link_previews_pb";
 
@@ -23,30 +21,8 @@ export type ComposerLinkPreview = {
 };
 
 export function createLinkPreviewAPI(config: LinkPreviewAPIConfig) {
-  const transport = createConnectTransport({
-    baseUrl: config.baseUrl,
-    useBinaryFormat: true,
-  });
-  const client = createClient(LinkPreviewService, transport);
-  const headers = () =>
-    config.bearerToken
-      ? { Authorization: `Bearer ${config.bearerToken}` }
-      : undefined;
-
-  async function handleAuthError(err: unknown): Promise<never> {
-    if (
-      err instanceof ConnectError &&
-      err.code === Code.Unauthenticated &&
-      config.serverId
-    ) {
-      notifyAuthenticationRequired(
-        config.serverId,
-        config.onAuthenticationRequired,
-      );
-    }
-    throw err;
-  }
-
+  const client = createChattoClient(LinkPreviewService, config);
+  const headers = () => authHeaders(config);
   return {
     async fetchLinkPreview(url: string): Promise<ComposerLinkPreview | null> {
       try {
@@ -56,7 +32,7 @@ export function createLinkPreviewAPI(config: LinkPreviewAPIConfig) {
         );
         return composerLinkPreview(response.preview);
       } catch (err) {
-        return handleAuthError(err);
+        return handleAuthError(config, err);
       }
     },
   };

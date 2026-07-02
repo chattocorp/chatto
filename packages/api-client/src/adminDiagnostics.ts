@@ -1,5 +1,4 @@
-import { createClient } from "@connectrpc/connect";
-import { createConnectTransport } from "@connectrpc/connect-web";
+import { authHeaders, createChattoClient } from "./connect.js";
 import { AdminDiagnosticsService } from "@chatto/api-types/admin/v1/diagnostics_connect";
 
 export type AdminDiagnosticsAPIConfig = {
@@ -110,14 +109,8 @@ export type AdminProjectionMetric = {
 };
 
 function adminDiagnosticsClient(config: AdminDiagnosticsAPIConfig) {
-  const transport = createConnectTransport({
-    baseUrl: config.baseUrl,
-    useBinaryFormat: true,
-  });
-  const client = createClient(AdminDiagnosticsService, transport);
-  const headers = config.bearerToken
-    ? { Authorization: `Bearer ${config.bearerToken}` }
-    : undefined;
+  const client = createChattoClient(AdminDiagnosticsService, config);
+  const headers = authHeaders(config);
   return { client, headers };
 }
 

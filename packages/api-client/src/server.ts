@@ -1,5 +1,4 @@
-import { createClient } from "@connectrpc/connect";
-import { createConnectTransport } from "@connectrpc/connect-web";
+import { createPublicChattoClient } from "./connect.js";
 import { ServerDiscoveryService } from "@chatto/api-types/chatto/discovery/v1/server_connect";
 import { mapServerProfile } from "./serverProfile.js";
 
@@ -26,10 +25,7 @@ export async function getPublicServerInfo(
   baseUrl: string,
   options: { signal?: AbortSignal } = {},
 ): Promise<PublicServerInfo> {
-  const transport = createConnectTransport({
-    baseUrl: new URL("/api/connect", baseUrl).toString(),
-  });
-  const client = createClient(ServerDiscoveryService, transport);
+  const client = createPublicChattoClient(ServerDiscoveryService, baseUrl);
   const response = await client.getServer({}, { signal: options.signal });
   if (!response.profile?.name) {
     throw new Error("This does not appear to be a Chatto server.");
@@ -40,7 +36,8 @@ export async function getPublicServerInfo(
     name: profile.name,
     version: profile.version,
     authorizeUrl: response.login?.authorizeUrl ?? "",
-    directRegistrationEnabled: response.login?.directRegistrationEnabled ?? false,
+    directRegistrationEnabled:
+      response.login?.directRegistrationEnabled ?? false,
     welcomeMessage: profile.welcomeMessage,
     description: profile.description,
     iconUrl: profile.logoUrl,

@@ -1,5 +1,10 @@
-import { Code, ConnectError, createClient } from "@connectrpc/connect";
-import { createConnectTransport } from "@connectrpc/connect-web";
+import {
+  authHeaders,
+  Code,
+  ConnectError,
+  createChattoClient,
+  type ConnectAPIConfig,
+} from "./connect.js";
 import {
   RoomMemberService,
   ServerMemberService,
@@ -8,11 +13,7 @@ import type { DirectoryMember as APIDirectoryMember } from "@chatto/api-types/ap
 import { PresenceStatus as APIPresenceStatus } from "@chatto/api-types/api/v1/presence_pb";
 import { PresenceStatus } from "./renderTypes.js";
 
-export type MemberDirectoryAPIConfig = {
-  baseUrl: string;
-  bearerToken: string | null;
-  onAuthenticationRequired?: (serverId: string) => void;
-};
+export type MemberDirectoryAPIConfig = ConnectAPIConfig;
 
 export type DirectoryMember = {
   id: string;
@@ -37,16 +38,9 @@ export type MemberDirectoryPage = {
 };
 
 export function createMemberDirectoryAPI(config: MemberDirectoryAPIConfig) {
-  const transport = createConnectTransport({
-    baseUrl: config.baseUrl,
-    useBinaryFormat: true,
-  });
-  const serverMembers = createClient(ServerMemberService, transport);
-  const roomMembers = createClient(RoomMemberService, transport);
-  const headers = () =>
-    config.bearerToken
-      ? { Authorization: `Bearer ${config.bearerToken}` }
-      : undefined;
+  const serverMembers = createChattoClient(ServerMemberService, config);
+  const roomMembers = createChattoClient(RoomMemberService, config);
+  const headers = () => authHeaders(config);
 
   return {
     async listServerMembers(

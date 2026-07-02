@@ -1,6 +1,4 @@
-import { notifyAuthenticationRequired } from "./hooks.js";
-import { Code, ConnectError, createClient } from "@connectrpc/connect";
-import { createConnectTransport } from "@connectrpc/connect-web";
+import { authHeaders, createChattoClient, handleAuthError } from "./connect.js";
 import { MessageService } from "@chatto/api-types/api/v1/messages_connect";
 import type { RoomTimelineReaction } from "@chatto/api-types/api/v1/room_timeline_pb";
 
@@ -35,30 +33,8 @@ export type RemoveReactionResult = {
 };
 
 export function createReactionAPI(config: ConnectAPIConfig) {
-  const transport = createConnectTransport({
-    baseUrl: config.baseUrl,
-    useBinaryFormat: true,
-  });
-  const client = createClient(MessageService, transport);
-  const headers = () =>
-    config.bearerToken
-      ? { Authorization: `Bearer ${config.bearerToken}` }
-      : undefined;
-
-  async function handleAuthError(err: unknown): Promise<never> {
-    if (
-      err instanceof ConnectError &&
-      err.code === Code.Unauthenticated &&
-      config.serverId
-    ) {
-      notifyAuthenticationRequired(
-        config.serverId,
-        config.onAuthenticationRequired,
-      );
-    }
-    throw err;
-  }
-
+  const client = createChattoClient(MessageService, config);
+  const headers = () => authHeaders(config);
   return {
     async addReaction(input: ReactionInput): Promise<AddReactionResult> {
       try {
@@ -70,7 +46,7 @@ export function createReactionAPI(config: ConnectAPIConfig) {
           reaction: mapReactionSummary(response.reaction),
         };
       } catch (err) {
-        return handleAuthError(err);
+        return handleAuthError(config, err);
       }
     },
 
@@ -84,7 +60,7 @@ export function createReactionAPI(config: ConnectAPIConfig) {
           reaction: mapReactionSummary(response.reaction),
         };
       } catch (err) {
-        return handleAuthError(err);
+        return handleAuthError(config, err);
       }
     },
   };

@@ -1,5 +1,9 @@
-import { Code, ConnectError, createClient } from "@connectrpc/connect";
-import { createConnectTransport } from "@connectrpc/connect-web";
+import {
+  authHeaders,
+  Code,
+  ConnectError,
+  createChattoClient,
+} from "./connect.js";
 import { NotificationService } from "@chatto/api-types/api/v1/notifications_connect";
 import type {
   ListRoomNotificationsResponse,
@@ -106,16 +110,11 @@ export type NotificationItemsResult = {
 };
 
 export function createNotificationAPI(config: NotificationAPIConfig) {
-  const transport = createConnectTransport({
-    baseUrl: config.baseUrl,
-    useBinaryFormat: true,
-  });
-  const client = createClient(NotificationService, transport);
-  const headers = () =>
-    config.bearerToken
-      ? { Authorization: `Bearer ${config.bearerToken}` }
-      : undefined;
-  const listRoomNotificationCounts = async (): Promise<Record<string, number>> => {
+  const client = createChattoClient(NotificationService, config);
+  const headers = () => authHeaders(config);
+  const listRoomNotificationCounts = async (): Promise<
+    Record<string, number>
+  > => {
     const response = await client.listRoomNotificationCounts(
       {},
       { headers: headers() },

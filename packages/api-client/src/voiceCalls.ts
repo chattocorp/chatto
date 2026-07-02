@@ -1,5 +1,9 @@
-import { Code, ConnectError, createClient } from "@connectrpc/connect";
-import { createConnectTransport } from "@connectrpc/connect-web";
+import {
+  authHeaders,
+  Code,
+  ConnectError,
+  createChattoClient,
+} from "./connect.js";
 import { VoiceCallService } from "@chatto/api-types/api/v1/voice_calls_connect";
 
 export type VoiceCallAPIConfig = {
@@ -49,15 +53,8 @@ type APICallParticipant = {
 };
 
 export function createVoiceCallAPI(config: VoiceCallAPIConfig) {
-  const transport = createConnectTransport({
-    baseUrl: config.baseUrl,
-    useBinaryFormat: true,
-  });
-  const client = createClient(VoiceCallService, transport);
-  const headers = () =>
-    config.bearerToken
-      ? { Authorization: `Bearer ${config.bearerToken}` }
-      : undefined;
+  const client = createChattoClient(VoiceCallService, config);
+  const headers = () => authHeaders(config);
 
   return {
     async listActiveCalls(): Promise<ActiveVoiceCall[]> {
@@ -138,7 +135,9 @@ function activeCall(call: {
   };
 }
 
-function callParticipant(participant: APICallParticipant): VoiceCallParticipant[] {
+function callParticipant(
+  participant: APICallParticipant,
+): VoiceCallParticipant[] {
   const summary = participant.user?.user;
   if (!summary) return [];
   return [

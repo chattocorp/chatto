@@ -1,5 +1,4 @@
-import { createClient } from "@connectrpc/connect";
-import { createConnectTransport } from "@connectrpc/connect-web";
+import { authHeaders, createChattoClient } from "./connect.js";
 import { PushNotificationService } from "@chatto/api-types/api/v1/push_notifications_connect";
 
 export type PushNotificationAPIConfig = {
@@ -16,15 +15,8 @@ export type SubscribePushInput = {
 };
 
 export function createPushNotificationAPI(config: PushNotificationAPIConfig) {
-  const transport = createConnectTransport({
-    baseUrl: config.baseUrl,
-    useBinaryFormat: true,
-  });
-  const client = createClient(PushNotificationService, transport);
-  const headers = () =>
-    config.bearerToken
-      ? { Authorization: `Bearer ${config.bearerToken}` }
-      : undefined;
+  const client = createChattoClient(PushNotificationService, config);
+  const headers = () => authHeaders(config);
 
   return {
     async subscribe(input: SubscribePushInput): Promise<boolean> {

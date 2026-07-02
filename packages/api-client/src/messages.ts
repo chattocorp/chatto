@@ -1,6 +1,4 @@
-import { notifyAuthenticationRequired } from "./hooks.js";
-import { Code, ConnectError, createClient } from "@connectrpc/connect";
-import { createConnectTransport } from "@connectrpc/connect-web";
+import { authHeaders, createChattoClient, handleAuthError } from "./connect.js";
 import type { LinkPreviewInput, RoomEventView } from "./renderTypes.js";
 import { MessageService } from "@chatto/api-types/api/v1/messages_connect";
 import {
@@ -52,32 +50,12 @@ export type UpdateMessageResult = {
 };
 
 export function createMessageAPI(config: MessageAPIConfig) {
-  const transport = createConnectTransport({
-    baseUrl: config.baseUrl,
-    useBinaryFormat: true,
-  });
-  const client = createClient(MessageService, transport);
-  const headers = () =>
-    config.bearerToken
-      ? { Authorization: `Bearer ${config.bearerToken}` }
-      : undefined;
-
-  async function handleAuthError(err: unknown): Promise<never> {
-    if (
-      err instanceof ConnectError &&
-      err.code === Code.Unauthenticated &&
-      config.serverId
-    ) {
-      notifyAuthenticationRequired(
-        config.serverId,
-        config.onAuthenticationRequired,
-      );
-    }
-    throw err;
-  }
-
+  const client = createChattoClient(MessageService, config);
+  const headers = () => authHeaders(config);
   return {
-    async createMessage(input: CreateMessageInput): Promise<CreateMessageResult> {
+    async createMessage(
+      input: CreateMessageInput,
+    ): Promise<CreateMessageResult> {
       try {
         const response = await client.createMessage(
           {
@@ -114,11 +92,13 @@ export function createMessageAPI(config: MessageAPIConfig) {
 
         return { kind: "event", event: null };
       } catch (err) {
-        return handleAuthError(err);
+        return handleAuthError(config, err);
       }
     },
 
-    async updateMessage(input: UpdateMessageInput): Promise<UpdateMessageResult> {
+    async updateMessage(
+      input: UpdateMessageInput,
+    ): Promise<UpdateMessageResult> {
       try {
         const request: {
           roomId: string;
@@ -135,10 +115,9 @@ export function createMessageAPI(config: MessageAPIConfig) {
         if (input.alsoSendToChannel !== undefined) {
           request.alsoSendToChannel = input.alsoSendToChannel;
         }
-        const response = await client.updateMessage(
-          request,
-          { headers: headers() },
-        );
+        const response = await client.updateMessage(request, {
+          headers: headers(),
+        });
         return {
           updated: response.updated,
           event: response.event
@@ -149,7 +128,7 @@ export function createMessageAPI(config: MessageAPIConfig) {
             : null,
         };
       } catch (err) {
-        return handleAuthError(err);
+        return handleAuthError(config, err);
       }
     },
 
@@ -161,7 +140,7 @@ export function createMessageAPI(config: MessageAPIConfig) {
         );
         return response.deleted;
       } catch (err) {
-        return handleAuthError(err);
+        return handleAuthError(config, err);
       }
     },
 
@@ -177,7 +156,7 @@ export function createMessageAPI(config: MessageAPIConfig) {
         );
         return response.deleted;
       } catch (err) {
-        return handleAuthError(err);
+        return handleAuthError(config, err);
       }
     },
 
@@ -193,10 +172,9 @@ export function createMessageAPI(config: MessageAPIConfig) {
         );
         return response.deleted;
       } catch (err) {
-        return handleAuthError(err);
+        return handleAuthError(config, err);
       }
     },
-
   };
 }
 

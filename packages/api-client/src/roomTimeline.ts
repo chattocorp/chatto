@@ -1,6 +1,5 @@
-import { notifyAuthenticationRequired, notifyUserSummaries } from "./hooks.js";
-import { Code, ConnectError, createClient } from "@connectrpc/connect";
-import { createConnectTransport } from "@connectrpc/connect-web";
+import { notifyUserSummaries } from "./hooks.js";
+import { authHeaders, createChattoClient, handleAuthError } from "./connect.js";
 import type {
   RawEvent,
   EventConnectionPage,
@@ -69,32 +68,10 @@ export type RoomTimelineAPI = {
 export function createRoomTimelineAPI(
   config: RoomTimelineAPIConfig,
 ): RoomTimelineAPI {
-  const transport = createConnectTransport({
-    baseUrl: config.baseUrl,
-    useBinaryFormat: true,
-  });
-  const messages = createClient(MessageService, transport);
-  const rooms = createClient(RoomService, transport);
-  const threads = createClient(ThreadService, transport);
-  const headers = () =>
-    config.bearerToken
-      ? { Authorization: `Bearer ${config.bearerToken}` }
-      : undefined;
-
-  async function handleAuthError(err: unknown): Promise<never> {
-    if (
-      err instanceof ConnectError &&
-      err.code === Code.Unauthenticated &&
-      config.serverId
-    ) {
-      notifyAuthenticationRequired(
-        config.serverId,
-        config.onAuthenticationRequired,
-      );
-    }
-    throw err;
-  }
-
+  const messages = createChattoClient(MessageService, config);
+  const rooms = createChattoClient(RoomService, config);
+  const threads = createChattoClient(ThreadService, config);
+  const headers = () => authHeaders(config);
   return {
     async getRoomEvents({ roomId, limit, before, after }) {
       try {
@@ -115,7 +92,7 @@ export function createRoomTimelineAPI(
           response.page ?? new RoomTimelinePage(),
         );
       } catch (err) {
-        return handleAuthError(err);
+        return handleAuthError(config, err);
       }
     },
     async getRoomEventsAround({ roomId, eventId, limit }) {
@@ -128,7 +105,7 @@ export function createRoomTimelineAPI(
         primeTimelineUserIncludes(config, response.page.includes?.users ?? {});
         return roomTimelinePageToEventConnectionPage(response.page);
       } catch (err) {
-        return handleAuthError(err);
+        return handleAuthError(config, err);
       }
     },
     async resolveMessageLinkTarget({ roomId, eventId }) {
@@ -148,7 +125,7 @@ export function createRoomTimelineAPI(
           threadRootEventId: response.threadRootEventId || null,
         };
       } catch (err) {
-        return handleAuthError(err);
+        return handleAuthError(config, err);
       }
     },
     async getThreadEvents({ roomId, threadRootEventId, limit, before, after }) {
@@ -171,7 +148,7 @@ export function createRoomTimelineAPI(
           response.page ?? new RoomTimelinePage(),
         );
       } catch (err) {
-        return handleAuthError(err);
+        return handleAuthError(config, err);
       }
     },
     async getThreadEventsAround({ roomId, threadRootEventId, eventId, limit }) {
@@ -184,7 +161,7 @@ export function createRoomTimelineAPI(
         primeTimelineUserIncludes(config, response.page.includes?.users ?? {});
         return roomTimelinePageToEventConnectionPage(response.page);
       } catch (err) {
-        return handleAuthError(err);
+        return handleAuthError(config, err);
       }
     },
   };

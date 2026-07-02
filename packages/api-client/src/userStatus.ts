@@ -1,14 +1,14 @@
-import { notifyAuthenticationRequired } from "./hooks.js";
-import { Code, ConnectError, createClient } from "@connectrpc/connect";
+import {
+  authHeaders,
+  createChattoClient,
+  handleAuthError,
+  type ConnectAPIConfig,
+} from "./connect.js";
 import { Timestamp } from "@bufbuild/protobuf";
-import { createConnectTransport } from "@connectrpc/connect-web";
 import { MyAccountService } from "@chatto/api-types/api/v1/account_connect";
 
-export type CustomUserStatusAPIConfig = {
+export type CustomUserStatusAPIConfig = ConnectAPIConfig & {
   serverId: string;
-  baseUrl: string;
-  bearerToken: string | null;
-  onAuthenticationRequired?: (serverId: string) => void;
 };
 
 export type CustomUserStatus = {
@@ -35,7 +35,7 @@ export async function updateCustomStatus(
           ? Timestamp.fromDate(new Date(input.expiresAt))
           : undefined,
       },
-      { headers: headers(config) },
+      { headers: authHeaders(config) },
     );
     return apiStatus(response.status);
   } catch (err) {
@@ -50,7 +50,7 @@ export async function deleteCustomStatus(
   try {
     const response = await client.deleteCustomStatus(
       {},
-      { headers: headers(config) },
+      { headers: authHeaders(config) },
     );
     return apiStatus(response.status);
   } catch (err) {
@@ -59,30 +59,7 @@ export async function deleteCustomStatus(
 }
 
 function createUserStatusClient(config: CustomUserStatusAPIConfig) {
-  const transport = createConnectTransport({
-    baseUrl: config.baseUrl,
-    useBinaryFormat: true,
-  });
-  return createClient(MyAccountService, transport);
-}
-
-function headers(config: CustomUserStatusAPIConfig) {
-  return config.bearerToken
-    ? { Authorization: `Bearer ${config.bearerToken}` }
-    : undefined;
-}
-
-function handleAuthError(
-  config: CustomUserStatusAPIConfig,
-  err: unknown,
-): never {
-  if (err instanceof ConnectError && err.code === Code.Unauthenticated) {
-    notifyAuthenticationRequired(
-      config.serverId,
-      config.onAuthenticationRequired,
-    );
-  }
-  throw err;
+  return createChattoClient(MyAccountService, config);
 }
 
 function apiStatus(

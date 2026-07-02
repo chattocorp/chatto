@@ -1,6 +1,4 @@
-import { notifyAuthenticationRequired } from "./hooks.js";
-import { Code, ConnectError, createClient } from "@connectrpc/connect";
-import { createConnectTransport } from "@connectrpc/connect-web";
+import { authHeaders, createChattoClient, handleAuthError } from "./connect.js";
 import { AdminRoomLayoutService } from "@chatto/api-types/admin/v1/room_layout_connect";
 import {
   AdminRoomLayoutItemKind,
@@ -60,30 +58,8 @@ export type AdminRoomLayoutItemMutationInput = {
 };
 
 export function createAdminRoomLayoutAPI(config: AdminRoomLayoutAPIConfig) {
-  const transport = createConnectTransport({
-    baseUrl: config.baseUrl,
-    useBinaryFormat: true,
-  });
-  const layout = createClient(AdminRoomLayoutService, transport);
-  const headers = () =>
-    config.bearerToken
-      ? { Authorization: `Bearer ${config.bearerToken}` }
-      : undefined;
-
-  async function handleAuthError(err: unknown): Promise<never> {
-    if (
-      err instanceof ConnectError &&
-      err.code === Code.Unauthenticated &&
-      config.serverId
-    ) {
-      notifyAuthenticationRequired(
-        config.serverId,
-        config.onAuthenticationRequired,
-      );
-    }
-    throw err;
-  }
-
+  const layout = createChattoClient(AdminRoomLayoutService, config);
+  const headers = () => authHeaders(config);
   return {
     async createRoomGroup(input: {
       name: string;
@@ -96,7 +72,7 @@ export function createAdminRoomLayoutAPI(config: AdminRoomLayoutAPIConfig) {
         );
         return response.group ? mapAdminRoomLayoutGroup(response.group) : null;
       } catch (err) {
-        return handleAuthError(err);
+        return handleAuthError(config, err);
       }
     },
 
@@ -116,7 +92,7 @@ export function createAdminRoomLayoutAPI(config: AdminRoomLayoutAPIConfig) {
         );
         return response.group ? mapAdminRoomLayoutGroup(response.group) : null;
       } catch (err) {
-        return handleAuthError(err);
+        return handleAuthError(config, err);
       }
     },
 
@@ -128,7 +104,7 @@ export function createAdminRoomLayoutAPI(config: AdminRoomLayoutAPIConfig) {
         );
         return response.deleted;
       } catch (err) {
-        return handleAuthError(err);
+        return handleAuthError(config, err);
       }
     },
 
@@ -142,7 +118,7 @@ export function createAdminRoomLayoutAPI(config: AdminRoomLayoutAPIConfig) {
         );
         return response.groups.map(mapAdminRoomLayoutGroup);
       } catch (err) {
-        return handleAuthError(err);
+        return handleAuthError(config, err);
       }
     },
 
@@ -153,7 +129,7 @@ export function createAdminRoomLayoutAPI(config: AdminRoomLayoutAPIConfig) {
       try {
         await layout.moveRoomToGroup(input, { headers: headers() });
       } catch (err) {
-        return handleAuthError(err);
+        return handleAuthError(config, err);
       }
     },
 
@@ -177,7 +153,7 @@ export function createAdminRoomLayoutAPI(config: AdminRoomLayoutAPIConfig) {
         );
         return response.group ? mapAdminRoomLayoutGroup(response.group) : null;
       } catch (err) {
-        return handleAuthError(err);
+        return handleAuthError(config, err);
       }
     },
 
@@ -194,7 +170,7 @@ export function createAdminRoomLayoutAPI(config: AdminRoomLayoutAPIConfig) {
           ? mapSidebarLink(response.sidebarLink)
           : null;
       } catch (err) {
-        return handleAuthError(err);
+        return handleAuthError(config, err);
       }
     },
 
@@ -211,7 +187,7 @@ export function createAdminRoomLayoutAPI(config: AdminRoomLayoutAPIConfig) {
           ? mapSidebarLink(response.sidebarLink)
           : null;
       } catch (err) {
-        return handleAuthError(err);
+        return handleAuthError(config, err);
       }
     },
 
@@ -223,7 +199,7 @@ export function createAdminRoomLayoutAPI(config: AdminRoomLayoutAPIConfig) {
         );
         return response.deleted;
       } catch (err) {
-        return handleAuthError(err);
+        return handleAuthError(config, err);
       }
     },
 
@@ -234,7 +210,7 @@ export function createAdminRoomLayoutAPI(config: AdminRoomLayoutAPIConfig) {
       try {
         await layout.moveSidebarLinkToGroup(input, { headers: headers() });
       } catch (err) {
-        return handleAuthError(err);
+        return handleAuthError(config, err);
       }
     },
   };

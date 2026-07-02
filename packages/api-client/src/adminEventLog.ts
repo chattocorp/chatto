@@ -1,6 +1,10 @@
 import { Timestamp } from "@bufbuild/protobuf";
-import { Code, ConnectError, createClient } from "@connectrpc/connect";
-import { createConnectTransport } from "@connectrpc/connect-web";
+import {
+  authHeaders,
+  Code,
+  ConnectError,
+  createChattoClient,
+} from "./connect.js";
 import { AdminEventLogService } from "@chatto/api-types/admin/v1/event_log_connect";
 import type { AdminEventLogEntry as APIAdminEventLogEntry } from "@chatto/api-types/admin/v1/event_log_pb";
 
@@ -49,15 +53,8 @@ export const EMPTY_ADMIN_EVENT_LOG_FILTER: AdminEventLogFilter = {
 };
 
 export function createAdminEventLogAPI(config: AdminEventLogAPIConfig) {
-  const transport = createConnectTransport({
-    baseUrl: config.baseUrl,
-    useBinaryFormat: true,
-  });
-  const client = createClient(AdminEventLogService, transport);
-  const headers = () =>
-    config.bearerToken
-      ? { Authorization: `Bearer ${config.bearerToken}` }
-      : undefined;
+  const client = createChattoClient(AdminEventLogService, config);
+  const headers = () => authHeaders(config);
 
   return {
     async listEvents(input: {

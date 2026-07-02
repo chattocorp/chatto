@@ -1,5 +1,4 @@
-import { createClient } from "@connectrpc/connect";
-import { createConnectTransport } from "@connectrpc/connect-web";
+import { authHeaders, createChattoClient } from "./connect.js";
 import { ViewerService } from "@chatto/api-types/api/v1/viewer_connect";
 import { PresenceStatus as APIPresenceStatus } from "@chatto/api-types/api/v1/presence_pb";
 import { NotificationLevel as APINotificationLevel } from "@chatto/api-types/api/v1/notification_preferences_pb";
@@ -83,17 +82,11 @@ const capabilityKeys = {
 export async function getViewerStateViaConnect(
   config: ViewerAPIConfig,
 ): Promise<ViewerState> {
-  const transport = createConnectTransport({
-    baseUrl: config.baseUrl,
-    useBinaryFormat: true,
-  });
-  const client = createClient(ViewerService, transport);
+  const client = createChattoClient(ViewerService, config);
   const response = await client.getViewer(
     {},
     {
-      headers: config.bearerToken
-        ? { Authorization: `Bearer ${config.bearerToken}` }
-        : undefined,
+      headers: authHeaders(config),
     },
   );
   if (!response.user) {

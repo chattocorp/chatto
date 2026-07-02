@@ -1,6 +1,4 @@
-import { notifyAuthenticationRequired } from "./hooks.js";
-import { Code, ConnectError, createClient } from "@connectrpc/connect";
-import { createConnectTransport } from "@connectrpc/connect-web";
+import { authHeaders, createChattoClient, handleAuthError } from "./connect.js";
 import { RoomService } from "@chatto/api-types/api/v1/rooms_connect";
 import { ThreadService } from "@chatto/api-types/api/v1/threads_connect";
 
@@ -21,31 +19,9 @@ export type MarkThreadAsReadResult = {
 };
 
 export function createReadStateAPI(config: ConnectAPIConfig) {
-  const transport = createConnectTransport({
-    baseUrl: config.baseUrl,
-    useBinaryFormat: true,
-  });
-  const rooms = createClient(RoomService, transport);
-  const threads = createClient(ThreadService, transport);
-  const headers = () =>
-    config.bearerToken
-      ? { Authorization: `Bearer ${config.bearerToken}` }
-      : undefined;
-
-  async function handleAuthError(err: unknown): Promise<never> {
-    if (
-      err instanceof ConnectError &&
-      err.code === Code.Unauthenticated &&
-      config.serverId
-    ) {
-      notifyAuthenticationRequired(
-        config.serverId,
-        config.onAuthenticationRequired,
-      );
-    }
-    throw err;
-  }
-
+  const rooms = createChattoClient(RoomService, config);
+  const threads = createChattoClient(ThreadService, config);
+  const headers = () => authHeaders(config);
   return {
     async markRoomAsRead(input: {
       roomId: string;
@@ -65,7 +41,7 @@ export function createReadStateAPI(config: ConnectAPIConfig) {
             response.previousLastReadAt?.toDate().toISOString() ?? null,
         };
       } catch (err) {
-        return handleAuthError(err);
+        return handleAuthError(config, err);
       }
     },
 
@@ -88,7 +64,7 @@ export function createReadStateAPI(config: ConnectAPIConfig) {
             response.previousReadAt?.toDate().toISOString() ?? null,
         };
       } catch (err) {
-        return handleAuthError(err);
+        return handleAuthError(config, err);
       }
     },
   };

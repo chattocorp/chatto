@@ -1,14 +1,14 @@
-import { notifyAuthenticationRequired } from "./hooks.js";
-import { Code, ConnectError, createClient } from "@connectrpc/connect";
-import { createConnectTransport } from "@connectrpc/connect-web";
+import {
+  authHeaders,
+  createChattoClient,
+  handleAuthError,
+  type ConnectAPIConfig as BaseConnectAPIConfig,
+} from "./connect.js";
 import { NotificationPreferencesService } from "@chatto/api-types/api/v1/notification_preferences_connect";
 import { NotificationLevel } from "@chatto/api-types/api/v1/notification_preferences_pb";
 
-export type ConnectAPIConfig = {
+export type ConnectAPIConfig = BaseConnectAPIConfig & {
   serverId: string;
-  baseUrl: string;
-  bearerToken: string | null;
-  onAuthenticationRequired?: (serverId: string) => void;
 };
 
 export type NotificationPreference = {
@@ -86,25 +86,9 @@ export async function updateRoomNotificationPreference(
 }
 
 function createNotificationPreferencesClient(config: ConnectAPIConfig) {
-  const transport = createConnectTransport({
-    baseUrl: config.baseUrl,
-    useBinaryFormat: true,
-  });
-  return createClient(NotificationPreferencesService, transport);
+  return createChattoClient(NotificationPreferencesService, config);
 }
 
 function connectHeaders(config: ConnectAPIConfig) {
-  return config.bearerToken
-    ? { Authorization: `Bearer ${config.bearerToken}` }
-    : undefined;
-}
-
-function handleAuthError(config: ConnectAPIConfig, err: unknown): never {
-  if (err instanceof ConnectError && err.code === Code.Unauthenticated) {
-    notifyAuthenticationRequired(
-      config.serverId,
-      config.onAuthenticationRequired,
-    );
-  }
-  throw err;
+  return authHeaders(config);
 }
