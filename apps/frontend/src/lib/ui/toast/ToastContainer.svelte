@@ -12,7 +12,7 @@
   announced, just at the next natural break.
 -->
 <div
-  class="fixed right-4 bottom-4 z-50 flex flex-col gap-2 pointer-events-none"
+  class="pointer-events-none fixed right-3 bottom-[calc(env(safe-area-inset-bottom,0px)+0.75rem)] left-3 z-50 flex flex-col items-stretch gap-2 sm:right-4 sm:bottom-[calc(env(safe-area-inset-bottom,0px)+1rem)] sm:left-auto sm:items-end"
   role="status"
   aria-live="polite"
   aria-atomic="false"
@@ -31,17 +31,33 @@
 
 <style>
   .toast-enter {
-    animation: slide-in 150ms ease-out;
+    animation: toast-in 160ms cubic-bezier(0.2, 0, 0, 1);
+    transform-origin: right bottom;
   }
 
-  @keyframes slide-in {
+  @keyframes toast-in {
     from {
       opacity: 0;
-      transform: translateX(100%);
+      transform: translate3d(0.5rem, 0.25rem, 0) scale(0.98);
     }
     to {
       opacity: 1;
-      transform: translateX(0);
+      transform: translate3d(0, 0, 0) scale(1);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .toast-enter {
+      animation: toast-fade-in 120ms ease-out;
+    }
+
+    @keyframes toast-fade-in {
+      from {
+        opacity: 0;
+      }
+      to {
+        opacity: 1;
+      }
     }
   }
 </style>
