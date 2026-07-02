@@ -234,9 +234,12 @@ Room sidebar panel for voice/video calls.
   const activeControlButtonClass = 'btn-success btn-sm h-9 w-full !px-0';
   const dangerControlButtonClass = 'btn-danger btn-sm h-9 w-full !px-0';
   const callTileCardClass =
-    'participant-card group/media relative flex w-full flex-col gap-2 overflow-hidden rounded-md border border-border bg-surface-100 p-1.5 text-left text-text transition-colors hover:bg-surface-200';
+    'participant-card group/media flex w-full flex-col gap-2 overflow-hidden rounded-lg border border-text/10 bg-surface-100 p-1.5 text-left text-text shadow-sm transition-colors hover:bg-surface-200/70';
   const callTileHeaderClass = 'flex min-w-0 items-center gap-2';
-  const callTileMediaBodyClass = '';
+  const callTileIdentityButtonClass =
+    'flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-md text-left text-text outline-none transition-colors hover:text-text focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary';
+  const callTileMediaButtonClass =
+    'flex w-full flex-1 cursor-pointer flex-col overflow-hidden rounded-sm text-left text-text outline-none focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary';
 
   function hasVideo(participant: DisplayParticipant) {
     return participant.isCameraEnabled && participant.videoTrack;
@@ -411,9 +414,76 @@ Room sidebar panel for voice/video calls.
   {/if}
 {/snippet}
 
+{#snippet participantIndicators(participant: DisplayParticipant, showSpeaking = false)}
+  <span class="inline-flex h-5 min-w-5 shrink-0 items-center justify-end gap-1.5 text-sm">
+    {#if showSpeaking}
+      <span
+        class="iconify text-muted opacity-0 transition-opacity uil--volume-up"
+        aria-label={m['voice.speaking']()}
+        aria-hidden="true"
+        data-speaking-indicator
+        data-testid="call-speaking-indicator"
+      ></span>
+    {/if}
+    {#if participant.isMuted}
+      <span
+        class="iconify text-danger uil--microphone-slash"
+        aria-label={m['voice.muted']()}
+        data-testid="call-muted-indicator"
+      ></span>
+    {/if}
+    {#if participant.isLocallyMuted}
+      <span
+        class="iconify text-muted uil--volume-mute"
+        aria-label={m['voice.locally_muted']()}
+        data-testid="call-locally-muted-indicator"
+      ></span>
+    {/if}
+    {#if hasConnectionWarning(participant)}
+      <span
+        class={[
+          'iconify uil--exclamation-triangle',
+          participant.connectionQuality === 'lost' && 'text-danger',
+          participant.connectionQuality === 'poor' && 'text-warning'
+        ]}
+        aria-label={m['voice.poor_connection']()}
+      ></span>
+    {/if}
+  </span>
+{/snippet}
+
+{#snippet participantHeader(
+  participant: DisplayParticipant,
+  label: string,
+  actions: 'media' | 'voice' | 'none',
+  showSpeaking = false,
+  showIndicators = true
+)}
+  <div class={callTileHeaderClass}>
+    <button
+      type="button"
+      class={callTileIdentityButtonClass}
+      onclick={(e) => showUserMenu(participant, e)}
+    >
+      <UserAvatar user={participant.avatarUser} size="sm" />
+      <span class="min-w-0 flex-1 truncate text-sm font-medium">{label}</span>
+      {#if showIndicators}
+        {@render participantIndicators(participant, showSpeaking)}
+      {/if}
+    </button>
+
+    {#if actions === 'media'}
+      {@render mediaTileActions(participant)}
+    {:else if actions === 'voice'}
+      {@render voiceTileActions(participant)}
+    {/if}
+  </div>
+{/snippet}
+
 {#snippet participantCard(participant: DisplayParticipant, mode: 'compact' | 'video')}
   {@const showVideo = mode === 'video' && hasVideo(participant)}
   {@const showVoiceActions = isInThisCall && !showVideo}
+  {@const actions = showVideo ? 'media' : showVoiceActions ? 'voice' : 'none'}
   {#if isInThisCall}
     <div
       class={[
@@ -425,62 +495,21 @@ Room sidebar panel for voice/video calls.
       data-testid="call-participant-card"
       data-call-media-card={showVideo ? true : undefined}
     >
-      <button
-        type="button"
-        class="flex w-full flex-1 cursor-pointer flex-col gap-2 overflow-hidden text-left text-text"
-        onclick={(e) => showUserMenu(participant, e)}
-      >
-        <div class={[callTileHeaderClass, showVoiceActions && 'pr-12']}>
-          <UserAvatar user={participant.avatarUser} size="sm" />
-          <span class="min-w-0 flex-1 truncate text-sm font-medium">{participant.displayName}</span>
-          <span class="inline-flex h-5 min-w-5 shrink-0 items-center justify-end gap-1.5 text-sm">
-            <span
-              class="iconify text-muted opacity-0 transition-opacity uil--volume-up"
-              aria-label={m['voice.speaking']()}
-              aria-hidden="true"
-              data-speaking-indicator
-              data-testid="call-speaking-indicator"
-            ></span>
-            {#if participant.isMuted}
-              <span
-                class="iconify text-danger uil--microphone-slash"
-                aria-label={m['voice.muted']()}
-                data-testid="call-muted-indicator"
-              ></span>
-            {/if}
-            {#if participant.isLocallyMuted}
-              <span
-                class="iconify text-muted uil--volume-mute"
-                aria-label={m['voice.locally_muted']()}
-                data-testid="call-locally-muted-indicator"
-              ></span>
-            {/if}
-            {#if hasConnectionWarning(participant)}
-              <span
-                class="iconify uil--exclamation-triangle"
-                class:text-danger={participant.connectionQuality === 'lost'}
-                class:text-warning={participant.connectionQuality === 'poor'}
-                aria-label={m['voice.poor_connection']()}
-              ></span>
-            {/if}
-          </span>
-        </div>
+      {@render participantHeader(participant, participant.displayName, actions, true)}
 
-        {#if showVideo}
-          <div class={callTileMediaBodyClass}>
-            <VideoThumbnail
-              track={participant.videoTrack!}
-              name={participant.displayName}
-              user={participant.avatarUser}
-              showIdentityOverlay={false}
-            />
-          </div>
-        {/if}
-      </button>
       {#if showVideo}
-        {@render mediaTileActions(participant)}
-      {:else if showVoiceActions}
-        {@render voiceTileActions(participant)}
+        <button
+          type="button"
+          class={callTileMediaButtonClass}
+          onclick={(e) => showUserMenu(participant, e)}
+        >
+          <VideoThumbnail
+            track={participant.videoTrack!}
+            name={participant.displayName}
+            user={participant.avatarUser}
+            showIdentityOverlay={false}
+          />
+        </button>
       {/if}
     </div>
   {:else}
@@ -493,31 +522,21 @@ Room sidebar panel for voice/video calls.
       data-testid="call-participant-card"
       data-call-media-card={showVideo ? true : undefined}
     >
-      <button
-        type="button"
-        class="flex w-full flex-1 cursor-pointer flex-col gap-2 overflow-hidden text-left text-text"
-        onclick={(e) => showUserMenu(participant, e)}
-      >
-        <div class={[callTileHeaderClass, showVoiceActions && 'pr-12']}>
-          <UserAvatar user={participant.avatarUser} size="sm" />
-          <span class="min-w-0 flex-1 truncate text-sm font-medium">{participant.displayName}</span>
-        </div>
+      {@render participantHeader(participant, participant.displayName, 'none', false, false)}
 
-        {#if showVideo}
-          <div class={callTileMediaBodyClass}>
-            <VideoThumbnail
-              track={participant.videoTrack!}
-              name={participant.displayName}
-              user={participant.avatarUser}
-              showIdentityOverlay={false}
-            />
-          </div>
-        {/if}
-      </button>
       {#if showVideo}
-        {@render mediaTileActions(participant)}
-      {:else if showVoiceActions}
-        {@render voiceTileActions(participant)}
+        <button
+          type="button"
+          class={callTileMediaButtonClass}
+          onclick={(e) => showUserMenu(participant, e)}
+        >
+          <VideoThumbnail
+            track={participant.videoTrack!}
+            name={participant.displayName}
+            user={participant.avatarUser}
+            showIdentityOverlay={false}
+          />
+        </button>
       {/if}
     </div>
   {/if}
@@ -530,28 +549,26 @@ Room sidebar panel for voice/video calls.
     data-testid="call-screen-share-card"
     data-call-media-card
   >
+    {@render participantHeader(
+      participant,
+      m['voice.screen_title']({ name: participant.displayName }),
+      'media',
+      false,
+      false
+    )}
     <button
       type="button"
-      class="flex w-full flex-1 cursor-pointer flex-col gap-2 overflow-hidden text-left text-text"
+      class={callTileMediaButtonClass}
       onclick={(e) => showUserMenu(participant, e)}
     >
-      <div class={callTileHeaderClass}>
-        <UserAvatar user={participant.avatarUser} size="sm" />
-        <span class="min-w-0 flex-1 truncate text-sm font-medium">
-          {m['voice.screen_title']({ name: participant.displayName })}
-        </span>
-      </div>
-      <div class={callTileMediaBodyClass}>
-        <VideoThumbnail
-          track={participant.screenShareTrack!}
-          name={m['voice.screen_title']({ name: participant.displayName })}
-          user={participant.avatarUser}
-          showIdentityOverlay={false}
-          fit="contain"
-        />
-      </div>
+      <VideoThumbnail
+        track={participant.screenShareTrack!}
+        name={m['voice.screen_title']({ name: participant.displayName })}
+        user={participant.avatarUser}
+        showIdentityOverlay={false}
+        fit="contain"
+      />
     </button>
-    {@render mediaTileActions(participant)}
   </div>
 {/snippet}
 
@@ -567,89 +584,46 @@ Room sidebar panel for voice/video calls.
     data-testid="call-featured-stage-card"
     data-call-media-card={isScreen || isVideo ? true : undefined}
   >
+    {@render participantHeader(
+      participant,
+      isScreen ? m['voice.screen_title']({ name: participant.displayName }) : participant.displayName,
+      isScreen || isVideo ? 'media' : 'voice',
+      false,
+      !isScreen
+    )}
     <button
       type="button"
-      class="flex h-full min-h-0 w-full cursor-pointer flex-col gap-2 overflow-hidden text-left text-text"
+      class={[
+        callTileMediaButtonClass,
+        'min-h-0 items-center justify-center',
+        !isScreen && !isVideo && 'p-6'
+      ]}
       onclick={(e) => showUserMenu(participant, e)}
     >
-      <div
-        class={[
-          callTileHeaderClass,
-          !isScreen && !isVideo && isInThisCall && 'pr-12'
-        ]}
-      >
-        <UserAvatar user={participant.avatarUser} size="sm" />
-        <span class="min-w-0 flex-1 truncate text-sm font-medium">
-          {isScreen
-            ? m['voice.screen_title']({ name: participant.displayName })
-            : participant.displayName}
-        </span>
-        {#if !isScreen}
-          <span class="inline-flex h-5 min-w-5 shrink-0 items-center justify-end gap-1.5 text-sm">
-            {#if participant.isMuted}
-              <span
-                class="iconify text-danger uil--microphone-slash"
-                aria-label={m['voice.muted']()}
-                data-testid="call-muted-indicator"
-              ></span>
-            {/if}
-            {#if participant.isLocallyMuted}
-              <span
-                class="iconify text-muted uil--volume-mute"
-                aria-label={m['voice.locally_muted']()}
-                data-testid="call-locally-muted-indicator"
-              ></span>
-            {/if}
-            {#if hasConnectionWarning(participant)}
-              <span
-                class={[
-                  'iconify uil--exclamation-triangle',
-                  participant.connectionQuality === 'lost' && 'text-danger',
-                  participant.connectionQuality === 'poor' && 'text-warning'
-                ]}
-                aria-label={m['voice.poor_connection']()}
-              ></span>
-            {/if}
-          </span>
-        {/if}
-      </div>
-
-      <div
-        class={[
-          'flex min-h-0 flex-1 items-center justify-center',
-          isScreen || isVideo ? callTileMediaBodyClass : 'p-6'
-        ]}
-      >
-        {#if isScreen}
-          <VideoThumbnail
-            track={participant.screenShareTrack!}
-            name={m['voice.screen_title']({ name: participant.displayName })}
-            user={participant.avatarUser}
-            showIdentityOverlay={false}
-            fit="contain"
-            fill
-          />
-        {:else if isVideo}
-          <VideoThumbnail
-            track={participant.videoTrack!}
-            name={participant.displayName}
-            user={participant.avatarUser}
-            showIdentityOverlay={false}
-            fill
-          />
-        {:else}
-          <div class="flex min-w-0 flex-col items-center gap-4">
-            <UserAvatar user={participant.avatarUser} size="xl" showPresence={false} />
-            <span class="max-w-full truncate text-lg font-semibold">{participant.displayName}</span>
-          </div>
-        {/if}
-      </div>
+      {#if isScreen}
+        <VideoThumbnail
+          track={participant.screenShareTrack!}
+          name={m['voice.screen_title']({ name: participant.displayName })}
+          user={participant.avatarUser}
+          showIdentityOverlay={false}
+          fit="contain"
+          fill
+        />
+      {:else if isVideo}
+        <VideoThumbnail
+          track={participant.videoTrack!}
+          name={participant.displayName}
+          user={participant.avatarUser}
+          showIdentityOverlay={false}
+          fill
+        />
+      {:else}
+        <div class="flex min-w-0 flex-col items-center gap-4">
+          <UserAvatar user={participant.avatarUser} size="xl" showPresence={false} />
+          <span class="max-w-full truncate text-lg font-semibold">{participant.displayName}</span>
+        </div>
+      {/if}
     </button>
-    {#if isScreen || isVideo}
-      {@render mediaTileActions(participant)}
-    {:else}
-      {@render voiceTileActions(participant)}
-    {/if}
   </div>
 {/snippet}
 

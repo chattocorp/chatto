@@ -948,8 +948,10 @@ describe('RoomSidebar', () => {
     const fullscreenButton = q(featured, '[data-testid="call-feed-fullscreen-button"]') as HTMLButtonElement;
     const localMuteButton = q(featured, '[data-testid="call-feed-local-mute-button"]') as HTMLButtonElement;
 
-    expect(mediaActions.className).toContain('border-border');
-    expect(mediaActions.className).toContain('bg-surface-100/95');
+    expect(mediaActions.className).toContain('border-text/10');
+    expect(mediaActions.className).toContain('bg-surface-100');
+    expect(mediaActions.className).toContain('flex');
+    expect(mediaActions.className).not.toContain('absolute');
     expect(fullscreenButton).toBeTruthy();
     expect(fullscreenButton.className).toContain('text-muted');
     expect(fullscreenButton.className).not.toContain('bg-black');
