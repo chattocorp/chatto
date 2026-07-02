@@ -294,7 +294,7 @@ describe('AdminRoomLayoutStore — mutations', () => {
   it('creates, renames, and deletes groups optimistically on success', async () => {
     const { client, directory, mutation } = makeClient({
       mutations: [
-        { data: { id: 'g2', name: 'Projects', rooms: [], items: [] } },
+        { data: { id: 'g2', name: 'Projects', canCreateRoom: false, rooms: [], items: [] } },
         { data: { id: 'g2', name: 'Renamed', rooms: [], items: [] } },
         { data: true }
       ]
@@ -304,8 +304,9 @@ describe('AdminRoomLayoutStore — mutations', () => {
     const createResult = await store.createGroup('Projects');
     expect(createResult).toEqual({
       ok: true,
-      group: { id: 'g2', name: 'Projects', rooms: [], items: [] }
+      group: { id: 'g2', name: 'Projects', canCreateRoom: false, rooms: [], items: [] }
     });
+    expect(store.groups[0]?.canCreateRoom).toBe(false);
     expect(store.groups.map((g) => g.name)).toEqual(['Projects']);
 
     await expect(store.renameGroup('g2', 'Renamed')).resolves.toEqual({ ok: true });

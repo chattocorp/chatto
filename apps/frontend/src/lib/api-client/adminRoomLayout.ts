@@ -206,7 +206,9 @@ function mapAdminRoomLayoutGroup(group: APIAdminRoomLayoutGroup): AdminRoomGroup
   return {
     id: group.id,
     name: group.name,
-    canCreateRoom: true,
+    // Admin layout mutations are authorized by role.manage and do not return
+    // viewer room-creation state. Directory reads rehydrate the real value.
+    canCreateRoom: false,
     rooms: roomsFromSidebarItems(items),
     items
   };
