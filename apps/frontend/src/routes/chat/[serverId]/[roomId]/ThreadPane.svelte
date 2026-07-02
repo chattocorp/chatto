@@ -114,6 +114,7 @@
   // not the main room's.
   const composerContext = createComposerContext({ scroll: true });
   const replyState = composerContext.replyState;
+  let composerScope = '';
   let consumedQuoteId = 0;
   let consumedReplyId = 0;
   let composerApi = $state<MessageComposerApi | null>(null);
@@ -129,6 +130,13 @@
   // Reload thread events when the thread prop changes. Silent reconnect +
   // tab-resume catch-ups are owned by the server event bus.
   $effect(() => {
+    const currentScope = `${server.id}:${roomId}:${threadRootEventId}`;
+    if (composerScope && composerScope !== currentScope) {
+      composerContext.editState.cancelEdit();
+      replyState.cancelReply();
+      composerApi = null;
+    }
+    composerScope = currentScope;
     store.setConnection(server.connection);
     store.setThread(roomId, threadRootEventId);
   });

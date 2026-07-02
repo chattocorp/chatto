@@ -494,11 +494,34 @@
     mentionConfirmation: MentionConfirmation | null;
   };
 
+  type ComposerScope = {
+    serverId: string;
+    roomId: string;
+    threadRootEventId: string | null;
+  };
+
   let pendingMentionConfirmation = $state<PendingMentionConfirmation | null>(null);
   let mentionConfirmationLoading = $state(false);
 
+  function currentComposerScope(): ComposerScope {
+    return {
+      serverId: server.id,
+      roomId,
+      threadRootEventId: inThread ?? null
+    };
+  }
+
+  function isCurrentComposerScope(scope: ComposerScope): boolean {
+    const current = currentComposerScope();
+    return (
+      current.serverId === scope.serverId &&
+      current.roomId === scope.roomId &&
+      current.threadRootEventId === scope.threadRootEventId
+    );
+  }
+
   function isCurrentPostScope(post: PreparedPost): boolean {
-    return post.serverId === server.id && post.roomId === roomId && post.threadRootEventId === (inThread ?? null);
+    return isCurrentComposerScope(post);
   }
 
   async function sendPreparedPost(
@@ -689,6 +712,7 @@
       input.alsoSendToChannel = alsoSendToChannel;
     }
 
+    const editScope = currentComposerScope();
     try {
       const conn = server.connection;
       await createMessageAPI({
@@ -696,11 +720,13 @@
         baseUrl: conn.connectBaseUrl,
         bearerToken: conn.bearerToken
       }).updateMessage(input);
+      if (!isCurrentComposerScope(editScope)) return;
       autocomplete.reset();
       message = '';
       editorApi?.setContent('');
       editState.cancelEdit();
     } catch (error) {
+      if (!isCurrentComposerScope(editScope)) return;
       toast.error(error instanceof Error ? error.message : m['composer.edit_failed']());
     }
 
