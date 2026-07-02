@@ -1,11 +1,9 @@
-import { authHeaders, createChattoClient, handleAuthError } from "./connect.js";
-import type { LinkPreviewInput, RoomEventView } from "./renderTypes.js";
-import { MessageService } from "@chatto/api-types/api/v1/messages_connect";
-import {
-  MessageAttachmentUpload,
-  MessageLinkPreviewInput,
-} from "@chatto/api-types/api/v1/messages_pb";
-import { roomTimelineEventToRawEvent } from "./roomTimeline.js";
+import { authHeaders, createChattoClient, handleAuthError } from './connect.js';
+import type { LinkPreviewInput, RoomEventView } from './renderTypes.js';
+import { MessageService } from '@chatto/api-types/api/v1/messages_connect';
+import { MessageLinkPreviewInput } from '@chatto/api-types/api/v1/messages_pb';
+import { roomTimelineEventToRawEvent } from './roomTimeline.js';
+import { createAssetUploadAPI } from './assetUploads.js';
 
 export type MessageAPIConfig = {
   serverId?: string;
@@ -35,13 +33,14 @@ export type UpdateMessageInput = {
 
 export type CreateMessageResult =
   | {
-      kind: "event";
+      kind: 'event';
       event: RoomEventView | null;
     }
   | {
-      kind: "mentionConfirmation";
+      kind: 'mentionConfirmation';
       recipientCount: number;
       token: string;
+      attachmentAssetIds: string[];
     };
 
 export type UpdateMessageResult = {
@@ -53,52 +52,52 @@ export function createMessageAPI(config: MessageAPIConfig) {
   const client = createChattoClient(MessageService, config);
   const headers = () => authHeaders(config);
   return {
-    async createMessage(
-      input: CreateMessageInput,
-    ): Promise<CreateMessageResult> {
+    async createMessage(input: CreateMessageInput): Promise<CreateMessageResult> {
       try {
+        const uploadedAttachmentAssetIds = await uploadMessageAttachments(config, input);
         const response = await client.createMessage(
           {
             roomId: input.roomId,
             body: input.body,
-            attachmentAssetIds: input.attachmentAssetIds ?? [],
-            attachments: await messageAttachmentUploads(input.attachments),
-            threadRootEventId: input.threadRootEventId ?? "",
-            inReplyTo: input.inReplyTo ?? "",
+            attachmentAssetIds: [
+              ...(input.attachmentAssetIds ?? []),
+              ...uploadedAttachmentAssetIds
+            ],
+            threadRootEventId: input.threadRootEventId ?? '',
+            inReplyTo: input.inReplyTo ?? '',
             alsoSendToChannel: input.alsoSendToChannel ?? false,
-            mentionConfirmationToken: input.mentionConfirmationToken ?? "",
-            linkPreview: messageLinkPreviewInput(input.linkPreview),
+            mentionConfirmationToken: input.mentionConfirmationToken ?? '',
+            linkPreview: messageLinkPreviewInput(input.linkPreview)
           },
-          { headers: headers() },
+          { headers: headers() }
         );
 
-        if (response.result.case === "mentionConfirmation") {
+        if (response.result.case === 'mentionConfirmation') {
           return {
-            kind: "mentionConfirmation",
+            kind: 'mentionConfirmation',
             recipientCount: response.result.value.recipientCount,
             token: response.result.value.token,
+            attachmentAssetIds: [...(input.attachmentAssetIds ?? []), ...uploadedAttachmentAssetIds]
           };
         }
 
-        if (response.result.case === "event") {
+        if (response.result.case === 'event') {
           return {
-            kind: "event",
+            kind: 'event',
             event: roomTimelineEventToRawEvent(
               response.result.value,
-              response.includes?.users ?? {},
-            ) as RoomEventView | null,
+              response.includes?.users ?? {}
+            ) as RoomEventView | null
           };
         }
 
-        return { kind: "event", event: null };
+        return { kind: 'event', event: null };
       } catch (err) {
         return handleAuthError(config, err);
       }
     },
 
-    async updateMessage(
-      input: UpdateMessageInput,
-    ): Promise<UpdateMessageResult> {
+    async updateMessage(input: UpdateMessageInput): Promise<UpdateMessageResult> {
       try {
         const request: {
           roomId: string;
@@ -107,7 +106,7 @@ export function createMessageAPI(config: MessageAPIConfig) {
           alsoSendToChannel?: boolean;
         } = {
           roomId: input.roomId,
-          eventId: input.eventId,
+          eventId: input.eventId
         };
         if (input.body !== undefined) {
           request.body = input.body;
@@ -116,16 +115,16 @@ export function createMessageAPI(config: MessageAPIConfig) {
           request.alsoSendToChannel = input.alsoSendToChannel;
         }
         const response = await client.updateMessage(request, {
-          headers: headers(),
+          headers: headers()
         });
         return {
           updated: response.updated,
           event: response.event
             ? (roomTimelineEventToRawEvent(
                 response.event,
-                response.includes?.users ?? {},
+                response.includes?.users ?? {}
               ) as RoomEventView | null)
-            : null,
+            : null
         };
       } catch (err) {
         return handleAuthError(config, err);
@@ -134,10 +133,7 @@ export function createMessageAPI(config: MessageAPIConfig) {
 
     async deleteMessage(roomId: string, eventId: string): Promise<boolean> {
       try {
-        const response = await client.deleteMessage(
-          { roomId, eventId },
-          { headers: headers() },
-        );
+        const response = await client.deleteMessage({ roomId, eventId }, { headers: headers() });
         return response.deleted;
       } catch (err) {
         return handleAuthError(config, err);
@@ -147,12 +143,12 @@ export function createMessageAPI(config: MessageAPIConfig) {
     async deleteAttachment(
       roomId: string,
       eventId: string,
-      attachmentId: string,
+      attachmentId: string
     ): Promise<boolean> {
       try {
         const response = await client.deleteAttachment(
           { roomId, eventId, attachmentId },
-          { headers: headers() },
+          { headers: headers() }
         );
         return response.deleted;
       } catch (err) {
@@ -160,36 +156,35 @@ export function createMessageAPI(config: MessageAPIConfig) {
       }
     },
 
-    async deleteLinkPreview(
-      roomId: string,
-      eventId: string,
-      url: string,
-    ): Promise<boolean> {
+    async deleteLinkPreview(roomId: string, eventId: string, url: string): Promise<boolean> {
       try {
         const response = await client.deleteLinkPreview(
           { roomId, eventId, url },
-          { headers: headers() },
+          { headers: headers() }
         );
         return response.deleted;
       } catch (err) {
         return handleAuthError(config, err);
       }
-    },
+    }
   };
 }
 
-async function messageAttachmentUploads(files: File[] | null | undefined) {
+async function uploadMessageAttachments(config: MessageAPIConfig, input: CreateMessageInput) {
+  const files = input.attachments;
   if (!files?.length) return [];
-  return Promise.all(
-    files.map(async (file) => {
-      const buffer = await file.arrayBuffer();
-      return new MessageAttachmentUpload({
-        content: new Uint8Array(buffer),
-        filename: file.name,
-        contentType: file.type || "application/octet-stream",
-      });
-    }),
+  const uploads = createAssetUploadAPI(config);
+  const assets = await Promise.all(
+    files.map((file) =>
+      uploads.uploadAttachment({
+        roomId: input.roomId,
+        file,
+        threadRootEventId: input.threadRootEventId,
+        alsoSendToChannel: input.alsoSendToChannel
+      })
+    )
   );
+  return assets.map((asset) => asset.assetId);
 }
 
 function messageLinkPreviewInput(input: LinkPreviewInput | null | undefined) {
@@ -201,6 +196,6 @@ function messageLinkPreviewInput(input: LinkPreviewInput | null | undefined) {
     siteName: input.siteName ?? undefined,
     imageAssetId: input.imageAssetId ?? undefined,
     embedType: input.embedType ?? undefined,
-    embedId: input.embedId ?? undefined,
+    embedId: input.embedId ?? undefined
   });
 }

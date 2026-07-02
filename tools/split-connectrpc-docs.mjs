@@ -47,6 +47,12 @@ const categories = [
     title: 'chatto.api.v1',
     services: [
       {
+        name: 'AssetUploadService',
+        slug: 'asset-uploads',
+        title: 'Asset Uploads',
+        description: 'Chunked room-scoped attachment upload RPCs.'
+      },
+      {
         name: 'LinkPreviewService',
         slug: 'link-previews',
         title: 'Link Previews',

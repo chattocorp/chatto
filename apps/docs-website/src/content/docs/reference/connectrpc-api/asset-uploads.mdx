@@ -1,0 +1,190 @@
+---
+title: AssetUploadService
+description: Chunked room-scoped attachment upload RPCs.
+editUrl: false
+---
+
+{/* Generated from proto/chatto/{auth,discovery,api,admin,realtime}/v1/*.proto. Do not edit directly. */}
+
+Chatto exposes this service below `/api/connect`.
+
+
+
+Shared message and enum definitions are documented in [Shared Types And Enums](/reference/connectrpc-api/types/).
+
+
+
+<a id="chatto-api-v1-AssetUploadService"></a>
+
+## AssetUploadService
+
+Creates room-scoped attachment assets through chunked ConnectRPC uploads.
+
+<a id="chatto-api-v1-AssetUploadService-CreateUpload"></a>
+
+### CreateUpload
+
+Starts a room-scoped attachment upload for the authenticated user.
+
+```http
+POST /api/connect/chatto.api.v1.AssetUploadService/CreateUpload
+```
+
+<a id="chatto-api-v1-CreateUploadRequest"></a>
+
+#### Input: CreateUploadRequest
+
+Request to start a room-scoped attachment upload.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required room ID. |
+| `filename` | `string` | Original filename supplied by the client. |
+| `content_type` | `string` | MIME content type. Empty values are treated as application/octet-stream. |
+| `size` | `int64` | Required total file size in bytes. |
+| `sha256` | `string` | Required SHA-256 digest of the complete file, lowercase hexadecimal. |
+| `thread_root_event_id` | `string` | Thread root event ID when the upload is for a thread reply. |
+| `also_send_to_channel` | `bool` | Whether the eventual thread reply will also be echoed to the channel. |
+
+
+<a id="chatto-api-v1-CreateUploadResponse"></a>
+
+#### Result: CreateUploadResponse
+
+Response after creating an upload.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `upload` | [`AssetUpload`](/reference/connectrpc-api/types/#chatto-api-v1-AssetUpload) | Created upload session. |
+
+
+<a id="chatto-api-v1-AssetUploadService-UploadChunk"></a>
+
+### UploadChunk
+
+Appends one chunk at the upload's current committed offset.
+
+```http
+POST /api/connect/chatto.api.v1.AssetUploadService/UploadChunk
+```
+
+<a id="chatto-api-v1-UploadChunkRequest"></a>
+
+#### Input: UploadChunkRequest
+
+Request to append one chunk to an upload.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `upload_id` | `string` | Required upload session ID. |
+| `offset` | `int64` | Byte offset where this chunk starts. |
+| `content` | `bytes` | Chunk bytes. The server enforces a per-RPC size limit. |
+| `chunk_sha256` | `string` | SHA-256 digest of this chunk, lowercase hexadecimal. |
+
+
+<a id="chatto-api-v1-UploadChunkResponse"></a>
+
+#### Result: UploadChunkResponse
+
+Response after committing an upload chunk.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `upload` | [`AssetUpload`](/reference/connectrpc-api/types/#chatto-api-v1-AssetUpload) | Updated upload session. |
+
+
+<a id="chatto-api-v1-AssetUploadService-GetUpload"></a>
+
+### GetUpload
+
+Reads current upload state for retry or resume.
+
+```http
+POST /api/connect/chatto.api.v1.AssetUploadService/GetUpload
+```
+
+<a id="chatto-api-v1-GetUploadRequest"></a>
+
+#### Input: GetUploadRequest
+
+Request to fetch upload state.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `upload_id` | `string` | Required upload session ID. |
+
+
+<a id="chatto-api-v1-GetUploadResponse"></a>
+
+#### Result: GetUploadResponse
+
+Response containing upload state.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `upload` | [`AssetUpload`](/reference/connectrpc-api/types/#chatto-api-v1-AssetUpload) | Current upload session. |
+
+
+<a id="chatto-api-v1-AssetUploadService-CompleteUpload"></a>
+
+### CompleteUpload
+
+Verifies the completed upload and creates the attachment asset.
+
+```http
+POST /api/connect/chatto.api.v1.AssetUploadService/CompleteUpload
+```
+
+<a id="chatto-api-v1-CompleteUploadRequest"></a>
+
+#### Input: CompleteUploadRequest
+
+Request to complete an upload and create its attachment asset.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `upload_id` | `string` | Required upload session ID. |
+
+
+<a id="chatto-api-v1-CompleteUploadResponse"></a>
+
+#### Result: CompleteUploadResponse
+
+Response after an upload completes.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `upload` | [`AssetUpload`](/reference/connectrpc-api/types/#chatto-api-v1-AssetUpload) | Completed upload session. |
+| `asset` | [`UploadedAttachmentAsset`](/reference/connectrpc-api/types/#chatto-api-v1-UploadedAttachmentAsset) | Attachment asset produced by this upload. |
+
+
+<a id="chatto-api-v1-AssetUploadService-CancelUpload"></a>
+
+### CancelUpload
+
+Cancels an incomplete upload and releases temporary storage.
+
+```http
+POST /api/connect/chatto.api.v1.AssetUploadService/CancelUpload
+```
+
+<a id="chatto-api-v1-CancelUploadRequest"></a>
+
+#### Input: CancelUploadRequest
+
+Request to cancel an upload.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `upload_id` | `string` | Required upload session ID. |
+
+
+<a id="chatto-api-v1-CancelUploadResponse"></a>
+
+#### Result: CancelUploadResponse
+
+Response after cancelling an upload.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `upload` | [`AssetUpload`](/reference/connectrpc-api/types/#chatto-api-v1-AssetUpload) | Updated upload session. |

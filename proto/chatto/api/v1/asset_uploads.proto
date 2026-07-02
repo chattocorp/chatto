@@ -1,0 +1,154 @@
+syntax = "proto3";
+
+package chatto.api.v1;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/timestamp.proto";
+
+// Upload lifecycle state for a room-scoped attachment upload.
+enum AssetUploadStatus {
+  // The upload status was not specified.
+  ASSET_UPLOAD_STATUS_UNSPECIFIED = 0;
+  // The upload accepts more chunks.
+  ASSET_UPLOAD_STATUS_OPEN = 1;
+  // The upload has been completed and produced an attachment asset.
+  ASSET_UPLOAD_STATUS_COMPLETED = 2;
+  // The upload was cancelled or expired.
+  ASSET_UPLOAD_STATUS_CANCELLED = 3;
+}
+
+// Current server-side state for one room-scoped attachment upload.
+message AssetUpload {
+  // Upload session ID.
+  string upload_id = 1;
+  // Room the resulting attachment asset will belong to.
+  string room_id = 2;
+  // Current upload status.
+  AssetUploadStatus status = 3;
+  // Number of bytes committed so far.
+  int64 committed_offset = 4;
+  // Total declared file size in bytes.
+  int64 size = 5;
+  // Maximum accepted chunk size in bytes.
+  int32 max_chunk_size = 6;
+  // SHA-256 digest of the complete file, lowercase hexadecimal.
+  string sha256 = 7;
+  // Upload expiry. Clients should create a new upload after this time.
+  google.protobuf.Timestamp expires_at = 8;
+  // Asset ID after completion.
+  string asset_id = 9;
+}
+
+// Metadata for a completed attachment asset.
+message UploadedAttachmentAsset {
+  // Asset ID to pass to MessageService.CreateMessage.attachment_asset_ids.
+  string asset_id = 1;
+  // Original filename.
+  string filename = 2;
+  // MIME content type.
+  string content_type = 3;
+  // Stored file size in bytes.
+  int64 size = 4;
+  // Media width when known.
+  int32 width = 5;
+  // Media height when known.
+  int32 height = 6;
+}
+
+// Request to start a room-scoped attachment upload.
+message CreateUploadRequest {
+  // Required room ID.
+  string room_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Original filename supplied by the client.
+  string filename = 2 [(buf.validate.field).string.min_len = 1];
+  // MIME content type. Empty values are treated as application/octet-stream.
+  string content_type = 3;
+  // Required total file size in bytes.
+  int64 size = 4 [(buf.validate.field).int64.gte = 0];
+  // Required SHA-256 digest of the complete file, lowercase hexadecimal.
+  string sha256 = 5 [(buf.validate.field).string = {
+    pattern: "^[a-f0-9]{64}$"
+  }];
+  // Thread root event ID when the upload is for a thread reply.
+  string thread_root_event_id = 6;
+  // Whether the eventual thread reply will also be echoed to the channel.
+  bool also_send_to_channel = 7;
+}
+
+// Response after creating an upload.
+message CreateUploadResponse {
+  // Created upload session.
+  AssetUpload upload = 1;
+}
+
+// Request to append one chunk to an upload.
+message UploadChunkRequest {
+  // Required upload session ID.
+  string upload_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Byte offset where this chunk starts.
+  int64 offset = 2 [(buf.validate.field).int64.gte = 0];
+  // Chunk bytes. The server enforces a per-RPC size limit.
+  bytes content = 3 [(buf.validate.field).bytes.min_len = 1];
+  // SHA-256 digest of this chunk, lowercase hexadecimal.
+  string chunk_sha256 = 4 [(buf.validate.field).string = {
+    pattern: "^[a-f0-9]{64}$"
+  }];
+}
+
+// Response after committing an upload chunk.
+message UploadChunkResponse {
+  // Updated upload session.
+  AssetUpload upload = 1;
+}
+
+// Request to fetch upload state.
+message GetUploadRequest {
+  // Required upload session ID.
+  string upload_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+// Response containing upload state.
+message GetUploadResponse {
+  // Current upload session.
+  AssetUpload upload = 1;
+}
+
+// Request to complete an upload and create its attachment asset.
+message CompleteUploadRequest {
+  // Required upload session ID.
+  string upload_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+// Response after an upload completes.
+message CompleteUploadResponse {
+  // Completed upload session.
+  AssetUpload upload = 1;
+  // Attachment asset produced by this upload.
+  UploadedAttachmentAsset asset = 2;
+}
+
+// Request to cancel an upload.
+message CancelUploadRequest {
+  // Required upload session ID.
+  string upload_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+// Response after cancelling an upload.
+message CancelUploadResponse {
+  // Updated upload session.
+  AssetUpload upload = 1;
+}
+
+// Creates room-scoped attachment assets through chunked ConnectRPC uploads.
+service AssetUploadService {
+  // Starts a room-scoped attachment upload for the authenticated user.
+  rpc CreateUpload(CreateUploadRequest) returns (CreateUploadResponse);
+  // Appends one chunk at the upload's current committed offset.
+  rpc UploadChunk(UploadChunkRequest) returns (UploadChunkResponse);
+  // Reads current upload state for retry or resume.
+  rpc GetUpload(GetUploadRequest) returns (GetUploadResponse);
+  // Verifies the completed upload and creates the attachment asset.
+  rpc CompleteUpload(CompleteUploadRequest) returns (CompleteUploadResponse);
+  // Cancels an incomplete upload and releases temporary storage.
+  rpc CancelUpload(CancelUploadRequest) returns (CancelUploadResponse);
+}

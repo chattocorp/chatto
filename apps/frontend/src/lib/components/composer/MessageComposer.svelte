@@ -472,12 +472,14 @@
   type MentionConfirmation = {
     recipientCount: number;
     token: string;
+    attachmentAssetIds: string[];
   };
 
   type PreparedPost = {
     roomId: string;
     bodyToSend: string;
     filesToSend: File[] | null;
+    attachmentAssetIds?: string[];
     threadRootEventId: string | null;
     inReplyTo: string | null;
     linkPreviewInput: ReturnType<typeof linkPreviews.buildInput>;
@@ -509,7 +511,8 @@
       }).createMessage({
         roomId: post.roomId,
         body: post.bodyToSend,
-        attachments: post.filesToSend,
+        attachmentAssetIds: post.attachmentAssetIds,
+        attachments: post.attachmentAssetIds?.length ? null : post.filesToSend,
         threadRootEventId: post.threadRootEventId,
         inReplyTo: post.inReplyTo,
         linkPreview: post.linkPreviewInput,
@@ -523,7 +526,8 @@
           error: null,
           mentionConfirmation: {
             recipientCount: result.recipientCount,
-            token: result.token
+            token: result.token,
+            attachmentAssetIds: result.attachmentAssetIds
           }
         };
       }

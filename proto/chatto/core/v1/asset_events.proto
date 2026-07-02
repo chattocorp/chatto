@@ -3,6 +3,7 @@ syntax = "proto3";
 package chatto.core.v1;
 
 import "chatto/core/v1/models.proto";
+import "google/protobuf/timestamp.proto";
 
 option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
 
@@ -74,6 +75,18 @@ message AssetCreatedEvent {
   // events: the uploader for room-scoped uploads, the avatar owner for
   // avatar assets. Empty only for worker-generated derivatives.
   string user_id = 7;
+
+  // SHA-256 digest of the original uploaded binary, lowercase hexadecimal.
+  // Empty for legacy assets and generated derivatives.
+  string sha256 = 8;
+
+  // Time after which an unclaimed room-scoped attachment upload may be
+  // deleted. Cleared/ignored once a message body references the asset ID.
+  google.protobuf.Timestamp pending_expires_at = 9;
+
+  // Whether this asset should be routed through attachment video processing
+  // after a message claims it. Set for videos and animated GIFs.
+  bool needs_video_processing = 10;
 }
 
 // AssetDeletedEvent terminates the asset lifecycle. Subscribers drop the

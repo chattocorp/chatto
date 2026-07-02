@@ -21,6 +21,7 @@ var publicReflectionServiceNames = []string{
 	authv1connect.ExternalIdentityAuthServiceName,
 	discoveryv1connect.ServerDiscoveryServiceName,
 	apiv1connect.MyAccountServiceName,
+	apiv1connect.AssetUploadServiceName,
 	adminv1connect.AdminDiagnosticsServiceName,
 	adminv1connect.AdminEventLogServiceName,
 	adminv1connect.AdminUserServiceName,

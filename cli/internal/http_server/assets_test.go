@@ -3,6 +3,8 @@ package http_server
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"image"
 	"image/color"
@@ -193,17 +195,42 @@ func (env *assetTestEnv) postAssetMessageWithAttachment(t *testing.T, roomID, bo
 func (env *assetTestEnv) postAssetMessageWithAttachmentContentType(t *testing.T, roomID, body string, fileData []byte, fileName, contentType string) (string, *apiv1.RoomTimelineAttachment) {
 	t.Helper()
 
+	assetUploadClient := apiv1connect.NewAssetUploadServiceClient(env.client, env.server.URL+connectAPIPrefix)
+	sum := sha256.Sum256(fileData)
+	created, err := assetUploadClient.CreateUpload(env.ctx, connect.NewRequest(&apiv1.CreateUploadRequest{
+		RoomId:      roomID,
+		Filename:    fileName,
+		ContentType: contentType,
+		Size:        int64(len(fileData)),
+		Sha256:      hex.EncodeToString(sum[:]),
+	}))
+	if err != nil {
+		t.Fatalf("Failed to create asset upload: %v", err)
+	}
+	chunkSum := sha256.Sum256(fileData)
+	if _, err := assetUploadClient.UploadChunk(env.ctx, connect.NewRequest(&apiv1.UploadChunkRequest{
+		UploadId:    created.Msg.GetUpload().GetUploadId(),
+		Content:     fileData,
+		ChunkSha256: hex.EncodeToString(chunkSum[:]),
+	})); err != nil {
+		t.Fatalf("Failed to upload asset chunk: %v", err)
+	}
+	completed, err := assetUploadClient.CompleteUpload(env.ctx, connect.NewRequest(&apiv1.CompleteUploadRequest{
+		UploadId: created.Msg.GetUpload().GetUploadId(),
+	}))
+	if err != nil {
+		t.Fatalf("Failed to complete asset upload: %v", err)
+	}
+	assetID := completed.Msg.GetAsset().GetAssetId()
+	if assetID == "" {
+		t.Fatal("Completed asset upload returned empty asset id")
+	}
+
 	client := apiv1connect.NewMessageServiceClient(env.client, env.server.URL+connectAPIPrefix)
 	req := connect.NewRequest(&apiv1.CreateMessageRequest{
-		RoomId: roomID,
-		Body:   body,
-		Attachments: []*apiv1.MessageAttachmentUpload{
-			{
-				Content:     fileData,
-				Filename:    fileName,
-				ContentType: contentType,
-			},
-		},
+		RoomId:             roomID,
+		Body:               body,
+		AttachmentAssetIds: []string{assetID},
 	})
 	resp, err := client.CreateMessage(env.ctx, req)
 	if err != nil {

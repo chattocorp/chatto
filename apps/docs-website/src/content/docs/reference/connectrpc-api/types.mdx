@@ -228,6 +228,39 @@ Current authenticated user's public profile plus self-only settings.
 | `profile` | [`UserProfile`](#chatto-api-v1-UserProfile) | Public profile and live presence fields for the authenticated user. |
 | `has_password` | `bool` | Whether this account currently has a password sign-in credential. |
 
+<a id="chatto-api-v1-AssetUpload"></a>
+
+### AssetUpload
+
+Current server-side state for one room-scoped attachment upload.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `upload_id` | `string` | Upload session ID. |
+| `room_id` | `string` | Room the resulting attachment asset will belong to. |
+| `status` | [`AssetUploadStatus`](#chatto-api-v1-AssetUploadStatus) | Current upload status. |
+| `committed_offset` | `int64` | Number of bytes committed so far. |
+| `size` | `int64` | Total declared file size in bytes. |
+| `max_chunk_size` | `int32` | Maximum accepted chunk size in bytes. |
+| `sha256` | `string` | SHA-256 digest of the complete file, lowercase hexadecimal. |
+| `expires_at` | `google.protobuf.Timestamp` | Upload expiry. Clients should create a new upload after this time. |
+| `asset_id` | `string` | Asset ID after completion. |
+
+<a id="chatto-api-v1-UploadedAttachmentAsset"></a>
+
+### UploadedAttachmentAsset
+
+Metadata for a completed attachment asset.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `asset_id` | `string` | Asset ID to pass to MessageService.CreateMessage.attachment_asset_ids. |
+| `filename` | `string` | Original filename. |
+| `content_type` | `string` | MIME content type. |
+| `size` | `int64` | Stored file size in bytes. |
+| `width` | `int32` | Media width when known. |
+| `height` | `int32` | Media height when known. |
+
 <a id="chatto-api-v1-LinkPreview"></a>
 
 ### LinkPreview
@@ -513,21 +546,6 @@ Large mention confirmation details for a message that was not posted.
 | --- | --- | --- |
 | `recipient_count` | `int32` | Number of people the message would notify. |
 | `token` | `string` | Short-lived token to send back with the same message after user approval. |
-
-<a id="chatto-api-v1-MessageAttachmentUpload"></a>
-
-### MessageAttachmentUpload
-
-Attachment bytes submitted with a message post.
-
-Each attachment is uploaded as a room-scoped asset before the message is
-committed. The message service validates per-file limits and permissions.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `content` | `bytes` | Raw file bytes. |
-| `filename` | `string` | Original filename supplied by the client. |
-| `content_type` | `string` | MIME content type supplied by the client. Empty values are treated as application/octet-stream. |
 
 <a id="chatto-api-v1-MessageLinkPreviewInput"></a>
 
@@ -1404,6 +1422,19 @@ User preference for rendering times in clients.
 | `TIME_FORMAT_AUTO` | `1` | Let the client choose based on locale and browser settings. |
 | `TIME_FORMAT_12_HOUR` | `2` | Render times using a 12-hour clock. |
 | `TIME_FORMAT_24_HOUR` | `3` | Render times using a 24-hour clock. |
+
+<a id="chatto-api-v1-AssetUploadStatus"></a>
+
+### AssetUploadStatus
+
+Upload lifecycle state for a room-scoped attachment upload.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `ASSET_UPLOAD_STATUS_UNSPECIFIED` | `0` | The upload status was not specified. |
+| `ASSET_UPLOAD_STATUS_OPEN` | `1` | The upload accepts more chunks. |
+| `ASSET_UPLOAD_STATUS_COMPLETED` | `2` | The upload has been completed and produced an attachment asset. |
+| `ASSET_UPLOAD_STATUS_CANCELLED` | `3` | The upload was cancelled or expired. |
 
 <a id="chatto-api-v1-RoomTimelineVideoProcessingStatus"></a>
 
