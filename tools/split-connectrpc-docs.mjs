@@ -166,12 +166,6 @@ const categories = [
         description: 'Audit event log read RPCs.'
       },
       {
-        name: 'AdminUserService',
-        slug: 'admin-users',
-        title: 'Admin Users',
-        description: 'User identity, member detail, role assignment, and username-cooldown RPCs.'
-      },
-      {
         name: 'AdminPermissionService',
         slug: 'admin-permissions',
         title: 'Admin Permissions',
@@ -194,6 +188,12 @@ const categories = [
         slug: 'admin-server',
         title: 'Admin Server',
         description: 'Server profile, branding, and security administration RPCs.'
+      },
+      {
+        name: 'AdminUserService',
+        slug: 'admin-users',
+        title: 'Admin Users',
+        description: 'User identity, member detail, role assignment, and username-cooldown RPCs.'
       }
     ]
   }
