@@ -11,6 +11,7 @@ import (
 const (
 	projectionMapEntryOverhead   int64 = 64
 	projectionSliceEntryOverhead int64 = 24
+	projectionIntIndexBytes      int64 = 8
 )
 
 // ProjectionAdminState is the operator-facing runtime state for one
@@ -317,7 +318,8 @@ func (p *RoomTimelineProjection) adminProjectionEstimate() (int64, int64, []Proj
 	timelineEventIDs := make(map[string]struct{}, len(p.byEventID))
 	for _, roomEntries := range p.byRoom {
 		var roomBytes int64
-		for _, entry := range roomEntries {
+		for _, idx := range roomEntries {
+			entry := p.entryAtLocked(idx)
 			entries++
 			eventBytes := timelineEntryEstimatedBytes(entry)
 			roomBytes += eventBytes
@@ -332,16 +334,17 @@ func (p *RoomTimelineProjection) adminProjectionEstimate() (int64, int64, []Proj
 	for roomID, roomEntries := range p.messagePostsByRoom {
 		messagePostIndexBytes += projectionMapEntryOverhead + int64(len(roomID))
 		messagePosts += int64(len(roomEntries))
-		messagePostIndexBytes += int64(len(roomEntries)) * projectionSliceEntryOverhead
+		messagePostIndexBytes += int64(len(roomEntries)) * projectionIntIndexBytes
 	}
 
 	var eventIndexBytes, eventIndexRetainedEntryBytes, eventIndexRetainedEntries int64
-	for eventID, entry := range p.byEventID {
+	for eventID, idx := range p.byEventID {
 		eventIndexBytes += projectionMapEntryOverhead + int64(len(eventID))
 		if _, counted := timelineEventIDs[eventID]; counted {
 			continue
 		}
 		eventIndexRetainedEntries++
+		entry := p.entryAtLocked(idx)
 		eventIndexRetainedEntryBytes += timelineEntryEstimatedBytes(entry)
 	}
 	appliedEventIDsBytes := estimateStringSetBytes(p.appliedEventIDs)
@@ -445,16 +448,13 @@ func (p *ThreadProjection) adminProjectionEstimate() (int64, int64, []Projection
 	defer p.RUnlock()
 	var entries, rawBytes, replies int64
 	for _, threadEntries := range p.byThread {
-		var threadBytes int64
 		for _, entry := range threadEntries {
 			entries++
-			eventBytes := timelineEntryEstimatedBytes(entry)
-			threadBytes += eventBytes
-			if entry != nil && entry.Event.GetMessagePosted() != nil {
+			rawBytes += projectionSliceEntryOverhead + int64(len(entry.EventID)) + 8
+			if entry.EventID != "" {
 				replies++
 			}
 		}
-		rawBytes += threadBytes
 	}
 	var indexBytes int64
 	for eventID, threadID := range p.messageToThread {

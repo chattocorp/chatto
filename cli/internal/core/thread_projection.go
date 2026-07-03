@@ -34,6 +34,11 @@ type threadFollowRef struct {
 	threadRootEventID string
 }
 
+type ThreadTimelineEntry struct {
+	EventID   string
+	StreamSeq uint64
+}
+
 // ThreadProjection holds an append-only event log per thread,
 // derived from the same evt.room.> firehose RoomTimelineProjection
 // consumes.
@@ -58,7 +63,7 @@ type threadFollowRef struct {
 // iterate later.
 type ThreadProjection struct {
 	events.MemoryProjection
-	byThread        map[string][]*TimelineEntry
+	byThread        map[string][]ThreadTimelineEntry
 	messageToThread map[string]string // reply event_id → thread root event_id
 	replySummaries  map[string]*threadReplySummary
 	summaryByThread map[string]*threadSummary
@@ -67,12 +72,13 @@ type ThreadProjection struct {
 	followedByUser  map[string]map[string]threadFollowRef
 	appliedEventIDs eventIDSet
 	shreddedUsers   map[string]struct{}
+	strings         projectionStringInterner
 }
 
 // NewThreadProjection returns an empty projection.
 func NewThreadProjection() *ThreadProjection {
 	return &ThreadProjection{
-		byThread:        make(map[string][]*TimelineEntry),
+		byThread:        make(map[string][]ThreadTimelineEntry),
 		messageToThread: make(map[string]string),
 		replySummaries:  make(map[string]*threadReplySummary),
 		summaryByThread: make(map[string]*threadSummary),
@@ -81,7 +87,12 @@ func NewThreadProjection() *ThreadProjection {
 		followedByUser:  make(map[string]map[string]threadFollowRef),
 		appliedEventIDs: newEventIDSet(),
 		shreddedUsers:   make(map[string]struct{}),
+		strings:         newProjectionStringInterner(),
 	}
+}
+
+func (p *ThreadProjection) intern(value string) string {
+	return p.strings.intern(value)
 }
 
 // Subjects implements events.Projection. Threads only need thread lifecycle
@@ -136,7 +147,7 @@ func (p *ThreadProjection) Apply(event *corev1.Event, seq uint64) error {
 
 	switch e := event.GetEvent().(type) {
 	case *corev1.Event_UserKeyShredded:
-		if userID := e.UserKeyShredded.GetUserId(); userID != "" {
+		if userID := p.intern(e.UserKeyShredded.GetUserId()); userID != "" {
 			p.shreddedUsers[userID] = struct{}{}
 			for threadRoot := range p.summaryByThread {
 				p.recomputeSummaryLocked(threadRoot)
@@ -145,7 +156,7 @@ func (p *ThreadProjection) Apply(event *corev1.Event, seq uint64) error {
 		}
 
 	case *corev1.Event_ThreadCreated:
-		threadRoot := e.ThreadCreated.GetThreadRootEventId()
+		threadRoot := p.intern(e.ThreadCreated.GetThreadRootEventId())
 		if threadRoot == "" {
 			return nil
 		}
@@ -169,18 +180,18 @@ func (p *ThreadProjection) Apply(event *corev1.Event, seq uint64) error {
 
 	case *corev1.Event_MessagePosted:
 		m := e.MessagePosted
-		threadRoot := m.GetInThread()
+		threadRoot := p.intern(m.GetInThread())
 		if threadRoot == "" {
 			return nil // root-level message; not in any thread bucket
 		}
-		replyID := event.GetId()
+		replyID := p.intern(event.GetId())
 		if replyID == "" {
 			return nil
 		}
-		p.byThread[threadRoot] = append(p.byThread[threadRoot], &TimelineEntry{StreamSeq: seq, Event: event})
+		p.byThread[threadRoot] = append(p.byThread[threadRoot], ThreadTimelineEntry{EventID: replyID, StreamSeq: seq})
 		p.messageToThread[replyID] = threadRoot
 		p.replySummaries[replyID] = &threadReplySummary{
-			actorID:   messageAuthorID(event),
+			actorID:   p.intern(messageAuthorID(event)),
 			createdAt: eventCreatedAt(event),
 		}
 		summary := p.summaryByThread[threadRoot]
@@ -193,20 +204,19 @@ func (p *ThreadProjection) Apply(event *corev1.Event, seq uint64) error {
 		markApplied()
 
 	case *corev1.Event_MessageEdited:
-		threadRoot, ok := p.messageToThread[e.MessageEdited.GetEventId()]
+		_, ok := p.messageToThread[e.MessageEdited.GetEventId()]
 		if !ok {
 			return nil // target isn't a known thread reply
 		}
-		p.byThread[threadRoot] = append(p.byThread[threadRoot], &TimelineEntry{StreamSeq: seq, Event: event})
 		markApplied()
 
 	case *corev1.Event_MessageRetracted:
-		threadRoot, ok := p.messageToThread[e.MessageRetracted.GetEventId()]
+		targetID := p.intern(e.MessageRetracted.GetEventId())
+		threadRoot, ok := p.messageToThread[targetID]
 		if !ok {
 			return nil
 		}
-		p.byThread[threadRoot] = append(p.byThread[threadRoot], &TimelineEntry{StreamSeq: seq, Event: event})
-		if reply := p.replySummaries[e.MessageRetracted.GetEventId()]; reply != nil {
+		if reply := p.replySummaries[targetID]; reply != nil {
 			reply.retracted = true
 			// Retractions are rare and can invalidate last-reply or participant
 			// ordering, so recomputing the affected thread keeps the hot reply
@@ -226,6 +236,9 @@ func (p *ThreadProjection) setThreadFollowStateLocked(userID, roomID, threadRoot
 	if userID == "" || roomID == "" || threadRootEventID == "" {
 		return
 	}
+	userID = p.intern(userID)
+	roomID = p.intern(roomID)
+	threadRootEventID = p.intern(threadRootEventID)
 	key := threadFollowKeyPart(roomID, threadRootEventID)
 	stateKey := userID + "\x00" + key
 	previous := p.followState[stateKey]
@@ -340,20 +353,20 @@ func (p *ThreadProjection) applyReplyToSummaryLocked(summary *threadSummary, rep
 	}
 }
 
-// ThreadEvents returns the full timeline of a thread (replies +
-// any edits / retracts targeting them) in stream order. Returns
-// nil if no replies have landed.
+// ThreadEvents returns reply event references for a thread in stream order.
+// Edit and retract facts are folded into the projection's summaries and latest
+// body state instead of being retained as separate rows.
 //
 // The root message is NOT included — resolvers fetch it from
 // RoomTimelineProjection.Get(rootEventID) and prepend.
-func (p *ThreadProjection) ThreadEvents(rootEventID string) []*TimelineEntry {
+func (p *ThreadProjection) ThreadEvents(rootEventID string) []ThreadTimelineEntry {
 	p.RLock()
 	defer p.RUnlock()
 	entries := p.byThread[rootEventID]
 	if len(entries) == 0 {
 		return nil
 	}
-	out := make([]*TimelineEntry, len(entries))
+	out := make([]ThreadTimelineEntry, len(entries))
 	copy(out, entries)
 	return out
 }
@@ -451,7 +464,7 @@ func (p *ThreadProjection) Stats() (threads int, entries int, replies int) {
 	for _, threadEntries := range p.byThread {
 		entries += len(threadEntries)
 		for _, entry := range threadEntries {
-			if entry != nil && entry.Event.GetMessagePosted() != nil {
+			if entry.EventID != "" {
 				replies++
 			}
 		}

@@ -15,10 +15,12 @@ import (
 // timeline readers walk on every page load.
 type RoomTimelineProjection struct {
 	events.MemoryProjection
-	byRoom             map[string][]*TimelineEntry
-	byEventID          map[string]*TimelineEntry
-	messagePostsByRoom map[string][]*TimelineEntry
+	entries            []TimelineEntry
+	byRoom             map[string][]int
+	byEventID          map[string]int
+	messagePostsByRoom map[string][]int
 	appliedEventIDs    eventIDSet
+	strings            projectionStringInterner
 	// latestBody is the derived current-body index. Updated as
 	// MessageEdited / MessageRetracted entries are applied so that
 	// LatestBody resolves in O(1) instead of an O(room size) walk
@@ -67,13 +69,43 @@ type projectedRoomAttachmentMessage struct {
 	Body  *corev1.MessageBody
 }
 
+func (p *RoomTimelineProjection) intern(value string) string {
+	return p.strings.intern(value)
+}
+
+func (p *RoomTimelineProjection) appendEntryLocked(seq uint64, event *corev1.Event) int {
+	idx := len(p.entries)
+	p.entries = append(p.entries, TimelineEntry{StreamSeq: seq, Event: event})
+	return idx
+}
+
+func (p *RoomTimelineProjection) entryAtLocked(idx int) *TimelineEntry {
+	if idx < 0 || idx >= len(p.entries) {
+		return nil
+	}
+	return &p.entries[idx]
+}
+
+func (p *RoomTimelineProjection) entryByEventIDLocked(eventID string) (*TimelineEntry, bool) {
+	idx, ok := p.byEventID[eventID]
+	if !ok {
+		return nil, false
+	}
+	entry := p.entryAtLocked(idx)
+	if entry == nil {
+		return nil, false
+	}
+	return entry, true
+}
+
 // NewRoomTimelineProjection returns an empty projection.
 func NewRoomTimelineProjection() *RoomTimelineProjection {
 	return &RoomTimelineProjection{
-		byRoom:                     make(map[string][]*TimelineEntry),
-		byEventID:                  make(map[string]*TimelineEntry),
-		messagePostsByRoom:         make(map[string][]*TimelineEntry),
+		byRoom:                     make(map[string][]int),
+		byEventID:                  make(map[string]int),
+		messagePostsByRoom:         make(map[string][]int),
 		appliedEventIDs:            newEventIDSet(),
+		strings:                    newProjectionStringInterner(),
 		latestBody:                 make(map[string]*corev1.MessageBody),
 		bodyEventSeqs:              make(map[string][]uint64),
 		currentBodySeq:             make(map[string]uint64),
@@ -110,7 +142,7 @@ func (p *RoomTimelineProjection) Apply(event *corev1.Event, seq uint64) error {
 		return nil
 	}
 
-	roomID := p.roomIDOfEventLocked(event)
+	roomID := p.intern(p.roomIDOfEventLocked(event))
 	if roomID == "" {
 		return nil
 	}
@@ -126,7 +158,7 @@ func (p *RoomTimelineProjection) Apply(event *corev1.Event, seq uint64) error {
 	}
 
 	if ev := event.GetMessageBody(); ev != nil {
-		targetID := ev.GetEventId()
+		targetID := p.intern(ev.GetEventId())
 		body := ev.GetBody()
 		if targetID != "" && body != nil {
 			if body.GetBodyEventId() != "" && body.GetBodyEventId() != event.GetId() {
@@ -154,31 +186,31 @@ func (p *RoomTimelineProjection) Apply(event *corev1.Event, seq uint64) error {
 		return nil
 	}
 
-	var entry *TimelineEntry
+	entryIdx := -1
 	if shouldIndexRoomTimelineEvent(event) {
-		entry = &TimelineEntry{StreamSeq: seq, Event: event}
-		if eid := event.GetId(); eid != "" {
-			p.byEventID[eid] = entry
+		entryIdx = p.appendEntryLocked(seq, event)
+		if eid := p.intern(event.GetId()); eid != "" {
+			p.byEventID[eid] = entryIdx
 		}
 	}
 	if event.GetMessagePosted() != nil {
-		if entry == nil {
-			entry = &TimelineEntry{StreamSeq: seq, Event: event}
+		if entryIdx < 0 {
+			entryIdx = p.appendEntryLocked(seq, event)
 		}
-		p.messagePostsByRoom[roomID] = append(p.messagePostsByRoom[roomID], entry)
+		p.messagePostsByRoom[roomID] = append(p.messagePostsByRoom[roomID], entryIdx)
 	}
 	if isVisibleRoomTimelineEntry(event) {
-		if entry == nil {
-			entry = &TimelineEntry{StreamSeq: seq, Event: event}
+		if entryIdx < 0 {
+			entryIdx = p.appendEntryLocked(seq, event)
 		}
-		p.byRoom[roomID] = append(p.byRoom[roomID], entry)
+		p.byRoom[roomID] = append(p.byRoom[roomID], entryIdx)
 	}
 
 	// Maintain the latest-body / retracted-flag derived index so
 	// LatestBody is O(1) instead of an O(room) walk per lookup.
 	switch ev := event.GetEvent().(type) {
 	case *corev1.Event_MessagePosted:
-		targetID := event.GetId()
+		targetID := p.intern(event.GetId())
 		if targetID != "" {
 			authorID := messageAuthorID(event)
 			if _, shredded := p.shreddedUsers[authorID]; shredded {
@@ -193,11 +225,11 @@ func (p *RoomTimelineProjection) Apply(event *corev1.Event, seq uint64) error {
 		// Track echo links so edits on either side can fan out to the
 		// other, and so original retractions can be reflected when
 		// rendering echoes.
-		if origID := ev.MessagePosted.GetEchoOfEventId(); origID != "" && targetID != "" {
+		if origID := p.intern(ev.MessagePosted.GetEchoOfEventId()); origID != "" && targetID != "" {
 			p.echoLinks[origID] = append(p.echoLinks[origID], targetID)
 		}
 	case *corev1.Event_MessageRetracted:
-		targetID := ev.MessageRetracted.GetEventId()
+		targetID := p.intern(ev.MessageRetracted.GetEventId())
 		if targetID != "" {
 			if origID := p.echoOriginalIDLocked(targetID); origID != "" {
 				if _, originalRetracted := p.retractedFlags[origID]; !originalRetracted {
@@ -233,8 +265,10 @@ func (p *RoomTimelineProjection) applyUserKeyShreddedLocked(userID string) {
 	if userID == "" {
 		return
 	}
+	userID = p.intern(userID)
 	p.shreddedUsers[userID] = struct{}{}
-	for eventID, entry := range p.byEventID {
+	for eventID, idx := range p.byEventID {
+		entry := p.entryAtLocked(idx)
 		if entry == nil || entry.Event == nil {
 			continue
 		}
@@ -272,13 +306,16 @@ func (p *RoomTimelineProjection) RoomEvents(roomID string, limit int, beforeStre
 	}
 	p.RLock()
 	defer p.RUnlock()
-	entries := p.byRoom[roomID]
-	if len(entries) == 0 {
+	entryIndexes := p.byRoom[roomID]
+	if len(entryIndexes) == 0 {
 		return nil
 	}
 	out := make([]*TimelineEntry, 0, limit)
-	for i := len(entries) - 1; i >= 0 && len(out) < limit; i-- {
-		e := entries[i]
+	for i := len(entryIndexes) - 1; i >= 0 && len(out) < limit; i-- {
+		e := p.entryAtLocked(entryIndexes[i])
+		if e == nil {
+			continue
+		}
 		if beforeStreamSeq > 0 && e.StreamSeq >= beforeStreamSeq {
 			continue
 		}
@@ -300,7 +337,8 @@ func (p *RoomTimelineProjection) VisibleRoomEventCount(roomID string) int {
 	p.RLock()
 	defer p.RUnlock()
 	n := 0
-	for _, entry := range p.byRoom[roomID] {
+	for _, idx := range p.byRoom[roomID] {
+		entry := p.entryAtLocked(idx)
 		if p.isHiddenEchoEntryLocked(entry) {
 			continue
 		}
@@ -340,8 +378,7 @@ func shouldIndexRoomTimelineEvent(event *corev1.Event) bool {
 func (p *RoomTimelineProjection) Get(eventID string) (*TimelineEntry, bool) {
 	p.RLock()
 	defer p.RUnlock()
-	e, ok := p.byEventID[eventID]
-	return e, ok
+	return p.entryByEventIDLocked(eventID)
 }
 
 // LastRoomMessageEntry returns the newest non-hidden MessagePostedEvent in a
@@ -349,9 +386,12 @@ func (p *RoomTimelineProjection) Get(eventID string) (*TimelineEntry, bool) {
 func (p *RoomTimelineProjection) LastRoomMessageEntry(roomID string) (*TimelineEntry, bool) {
 	p.RLock()
 	defer p.RUnlock()
-	entries := p.messagePostsByRoom[roomID]
-	for i := len(entries) - 1; i >= 0; i-- {
-		e := entries[i]
+	entryIndexes := p.messagePostsByRoom[roomID]
+	for i := len(entryIndexes) - 1; i >= 0; i-- {
+		e := p.entryAtLocked(entryIndexes[i])
+		if e == nil {
+			continue
+		}
 		if p.isHiddenEchoEntryLocked(e) {
 			continue
 		}
@@ -408,7 +448,7 @@ func (p *RoomTimelineProjection) CurrentRoomAttachmentMessages(roomID string) []
 	out := make([]projectedRoomAttachmentMessage, 0, len(ids))
 	for i := len(ids) - 1; i >= 0; i-- {
 		eventID := ids[i]
-		entry := p.byEventID[eventID]
+		entry, _ := p.entryByEventIDLocked(eventID)
 		if entry == nil || entry.Event == nil || p.isHiddenEchoEntryLocked(entry) {
 			continue
 		}
@@ -440,7 +480,7 @@ func (p *RoomTimelineProjection) refreshAttachmentMessageLocked(roomID, eventID 
 		p.removeAttachmentMessageLocked(eventID)
 		return
 	}
-	entry := p.byEventID[eventID]
+	entry, _ := p.entryByEventIDLocked(eventID)
 	if entry == nil || entry.Event == nil || p.isHiddenEchoEntryLocked(entry) {
 		return
 	}
@@ -461,7 +501,7 @@ func (p *RoomTimelineProjection) addAttachmentMessageLocked(roomID, eventID stri
 	ids := p.attachmentMessageIDsByRoom[roomID]
 	insertAt := len(ids)
 	if len(ids) > 0 {
-		last := p.byEventID[ids[len(ids)-1]]
+		last, _ := p.entryByEventIDLocked(ids[len(ids)-1])
 		if last != nil && last.StreamSeq <= streamSeq {
 			ids = append(ids, eventID)
 			p.attachmentMessageIDsByRoom[roomID] = ids
@@ -469,7 +509,7 @@ func (p *RoomTimelineProjection) addAttachmentMessageLocked(roomID, eventID stri
 			return
 		}
 		for i, existingID := range ids {
-			existing := p.byEventID[existingID]
+			existing, _ := p.entryByEventIDLocked(existingID)
 			if existing == nil || existing.StreamSeq > streamSeq {
 				insertAt = i
 				break
@@ -582,8 +622,8 @@ func (p *RoomTimelineProjection) AllObsoleteBodyEventSeqs() []uint64 {
 }
 
 func (p *RoomTimelineProjection) echoOriginalIDLocked(eventID string) string {
-	entry := p.byEventID[eventID]
-	if entry == nil || entry.Event == nil {
+	entry, ok := p.entryByEventIDLocked(eventID)
+	if !ok || entry == nil || entry.Event == nil {
 		return ""
 	}
 	posted := entry.Event.GetMessagePosted()
@@ -627,7 +667,7 @@ func (p *RoomTimelineProjection) ChannelEchoEventID(originalEventID string) (str
 		if _, retracted := p.retractedFlags[echoID]; retracted {
 			continue
 		}
-		if _, ok := p.byEventID[echoID]; !ok {
+		if _, ok := p.entryByEventIDLocked(echoID); !ok {
 			continue
 		}
 		if origID := p.echoOriginalIDLocked(echoID); origID != originalEventID {
@@ -678,7 +718,7 @@ func (p *RoomTimelineProjection) AssetMessageOwner(assetID string) (roomID, mess
 func (p *RoomTimelineProjection) MessageAssetsByAuthor(userID string) []MessageAssetRef {
 	p.RLock()
 	defer p.RUnlock()
-	return p.assets.messageAssetsByAuthor(userID, p.byEventID)
+	return p.assets.messageAssetsByAuthor(userID, p.entryByEventIDLocked)
 }
 
 func (p *RoomTimelineProjection) MessageAssetOwners() []MessageAssetRef {
@@ -761,7 +801,7 @@ func (p *RoomTimelineProjection) LinkedEventIDs(eventID string) []string {
 	}
 
 	// Backward: if this event IS an echo, include the original.
-	if entry, ok := p.byEventID[eventID]; ok {
+	if entry, ok := p.entryByEventIDLocked(eventID); ok {
 		if posted := entry.Event.GetMessagePosted(); posted != nil {
 			if origID := posted.GetEchoOfEventId(); origID != "" && origID != eventID {
 				linked = append(linked, origID)
@@ -790,9 +830,12 @@ func (p *RoomTimelineProjection) LastVisibleRoomEntry(
 ) (*TimelineEntry, bool) {
 	p.RLock()
 	defer p.RUnlock()
-	entries := p.byRoom[roomID]
-	for i := len(entries) - 1; i >= 0; i-- {
-		e := entries[i]
+	entryIndexes := p.byRoom[roomID]
+	for i := len(entryIndexes) - 1; i >= 0; i-- {
+		e := p.entryAtLocked(entryIndexes[i])
+		if e == nil {
+			continue
+		}
 		if p.isHiddenEchoEntryLocked(e) {
 			continue
 		}
@@ -826,10 +869,13 @@ func (p *RoomTimelineProjection) VisibleRoomTimeline(
 	}
 	p.RLock()
 	defer p.RUnlock()
-	entries := p.byRoom[roomID]
+	entryIndexes := p.byRoom[roomID]
 	out := make([]*TimelineEntry, 0, limit)
-	for i := len(entries) - 1; i >= 0 && len(out) < limit; i-- {
-		e := entries[i]
+	for i := len(entryIndexes) - 1; i >= 0 && len(out) < limit; i-- {
+		e := p.entryAtLocked(entryIndexes[i])
+		if e == nil {
+			continue
+		}
 		if beforeStreamSeq > 0 && e.StreamSeq >= beforeStreamSeq {
 			continue
 		}
@@ -859,9 +905,13 @@ func (p *RoomTimelineProjection) VisibleRoomTimelineAfter(
 	}
 	p.RLock()
 	defer p.RUnlock()
-	entries := p.byRoom[roomID]
+	entryIndexes := p.byRoom[roomID]
 	out := make([]*TimelineEntry, 0, limit)
-	for _, e := range entries {
+	for _, idx := range entryIndexes {
+		e := p.entryAtLocked(idx)
+		if e == nil {
+			continue
+		}
 		if e.StreamSeq <= afterStreamSeq {
 			continue
 		}
@@ -896,7 +946,8 @@ func (p *RoomTimelineProjection) VisibleRoomTimelineAround(
 	roomEntries := p.byRoom[roomID]
 	targetVisibleIndex := -1
 	visibleCount := 0
-	for _, entry := range roomEntries {
+	for _, idx := range roomEntries {
+		entry := p.entryAtLocked(idx)
 		if p.isHiddenEchoEntryLocked(entry) {
 			continue
 		}
@@ -924,7 +975,8 @@ func (p *RoomTimelineProjection) VisibleRoomTimelineAround(
 
 	out := make([]*TimelineEntry, 0, end-start)
 	visibleIndex := 0
-	for _, entry := range roomEntries {
+	for _, idx := range roomEntries {
+		entry := p.entryAtLocked(idx)
 		if p.isHiddenEchoEntryLocked(entry) {
 			continue
 		}

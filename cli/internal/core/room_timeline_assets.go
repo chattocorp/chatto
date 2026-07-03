@@ -217,13 +217,13 @@ func (idx *roomTimelineAssetIndex) assetMessageOwner(assetID string) (roomID, me
 	return owner.roomID, owner.messageEventID, true
 }
 
-func (idx *roomTimelineAssetIndex) messageAssetsByAuthor(userID string, byEventID map[string]*TimelineEntry) []MessageAssetRef {
+func (idx *roomTimelineAssetIndex) messageAssetsByAuthor(userID string, entryByEventID func(string) (*TimelineEntry, bool)) []MessageAssetRef {
 	if idx == nil || userID == "" {
 		return nil
 	}
 	out := make([]MessageAssetRef, 0)
 	for assetID, owner := range idx.messageOwners {
-		entry := byEventID[owner.messageEventID]
+		entry, _ := entryByEventID(owner.messageEventID)
 		if entry == nil || entry.Event == nil || messageAuthorID(entry.Event) != userID {
 			continue
 		}

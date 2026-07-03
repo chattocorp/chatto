@@ -179,9 +179,10 @@ func (s *MyEventsModel) StreamMyEvents(ctx context.Context, userID string, optio
 		heartbeatTicker := time.NewTicker(25 * time.Second)
 		defer heartbeatTicker.Stop()
 
-		lastKnownPresence := make(map[string]string, len(presenceSub.Snapshot))
-		for k, v := range presenceSub.Snapshot {
-			lastKnownPresence[k] = v
+		lastKnownPresence := presenceSub.Snapshot
+		presenceSub.Snapshot = nil
+		if lastKnownPresence == nil {
+			lastKnownPresence = make(map[string]string)
 		}
 
 		defer func() {

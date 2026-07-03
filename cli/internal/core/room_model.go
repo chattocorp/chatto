@@ -265,7 +265,22 @@ func (m *RoomModel) threadExists(rootEventID string) bool {
 }
 
 func (m *RoomModel) threadEvents(rootEventID string) []*TimelineEntry {
-	return m.threads.ThreadEvents(rootEventID)
+	refs := m.threads.ThreadEvents(rootEventID)
+	if len(refs) == 0 {
+		return nil
+	}
+	out := make([]*TimelineEntry, 0, len(refs))
+	for _, ref := range refs {
+		entry, ok := m.timeline.Get(ref.EventID)
+		if !ok || entry == nil {
+			continue
+		}
+		if ref.StreamSeq != 0 && entry.StreamSeq != ref.StreamSeq {
+			continue
+		}
+		out = append(out, entry)
+	}
+	return out
 }
 
 func (m *RoomModel) threadMetadata(rootEventID string) *ThreadMetadata {

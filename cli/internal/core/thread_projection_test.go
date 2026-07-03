@@ -12,6 +12,14 @@ import (
 // ThreadProjection
 // =============================================================================
 
+func threadEventIDs(entries []ThreadTimelineEntry) []string {
+	out := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		out = append(out, entry.EventID)
+	}
+	return out
+}
+
 func TestThreadProjection_Empty(t *testing.T) {
 	p := NewThreadProjection()
 	if got := p.ThreadEvents("ROOT"); got != nil {
@@ -71,8 +79,8 @@ func TestThreadProjection_RepliesAppended(t *testing.T) {
 	if len(entries) != 2 {
 		t.Fatalf("ThreadEvents(ROOT) len = %d, want 2", len(entries))
 	}
-	if entries[0].Event.GetId() != "ENV-R1" || entries[1].Event.GetId() != "ENV-R2" {
-		t.Errorf("ThreadEvents order = %v, want [ENV-R1, ENV-R2]", timelineEventIDs(entries))
+	if entries[0].EventID != "ENV-R1" || entries[1].EventID != "ENV-R2" {
+		t.Errorf("ThreadEvents order = %v, want [ENV-R1, ENV-R2]", threadEventIDs(entries))
 	}
 	if got := p.ReplyCount("ROOT"); got != 2 {
 		t.Errorf("ReplyCount = %d, want 2", got)
@@ -101,14 +109,11 @@ func TestThreadProjection_ApplyDoesNotMutateInputEvent(t *testing.T) {
 	if len(entries) != 1 {
 		t.Fatalf("ThreadEvents(ROOT) len = %d, want 1", len(entries))
 	}
-	if got := entries[0].Event.GetId(); got != "ENV-R1" {
+	if got := entries[0].EventID; got != "ENV-R1" {
 		t.Fatalf("reply id = %q, want ENV-R1", got)
 	}
-	if got := entries[0].Event.GetMessagePosted().GetRoomId(); got != "R1" {
-		t.Fatalf("reply room id = %q, want R1", got)
-	}
-	if got := entries[0].Event.GetMessagePosted().GetInThread(); got != "ROOT" {
-		t.Fatalf("reply thread root = %q, want ROOT", got)
+	if got := entries[0].StreamSeq; got != 1 {
+		t.Fatalf("reply stream seq = %d, want 1", got)
 	}
 }
 
@@ -121,18 +126,18 @@ func TestThreadProjection_ReplyWithLegacyEmptyPayloadEventID(t *testing.T) {
 	})
 
 	entries := p.ThreadEvents("ROOT")
-	if len(entries) != 2 {
-		t.Fatalf("ThreadEvents(ROOT) len = %d, want 2", len(entries))
+	if len(entries) != 1 {
+		t.Fatalf("ThreadEvents(ROOT) len = %d, want 1 reply ref", len(entries))
 	}
 	if got := p.ReplyCount("ROOT"); got != 1 {
 		t.Errorf("ReplyCount = %d, want 1", got)
 	}
-	if entries[1].Event.GetMessageEdited() == nil {
-		t.Error("expected edit to route through envelope-id fallback")
+	if got := len(p.appliedEventIDs); got != 2 {
+		t.Errorf("appliedEventIDs = %d, want 2 to confirm edit routed through envelope-id fallback", got)
 	}
 }
 
-func TestThreadProjection_EditOfReplyAppendedToThread(t *testing.T) {
+func TestThreadProjection_EditOfReplyDoesNotAddThreadRow(t *testing.T) {
 	p := NewThreadProjection()
 	applyAll(t, p, []*corev1.Event{
 		postedEvent(postedOpts{envelopeID: "ENV-ROOT", eventID: "ROOT", roomID: "R1", actorID: "U1", at: 1}),
@@ -141,11 +146,8 @@ func TestThreadProjection_EditOfReplyAppendedToThread(t *testing.T) {
 	})
 
 	entries := p.ThreadEvents("ROOT")
-	if len(entries) != 2 {
-		t.Fatalf("expected post + edit, got %d entries", len(entries))
-	}
-	if entries[1].Event.GetMessageEdited() == nil {
-		t.Error("expected entries[1] to be a MessageEditedEvent")
+	if len(entries) != 1 {
+		t.Fatalf("expected only the reply row after edit, got %d entries", len(entries))
 	}
 	// Reply count counts MessagePostedEvent only.
 	if got := p.ReplyCount("ROOT"); got != 1 {
@@ -153,7 +155,7 @@ func TestThreadProjection_EditOfReplyAppendedToThread(t *testing.T) {
 	}
 }
 
-func TestThreadProjection_RetractOfReplyAppendedToThread(t *testing.T) {
+func TestThreadProjection_RetractOfReplyFoldsIntoSummary(t *testing.T) {
 	p := NewThreadProjection()
 	applyAll(t, p, []*corev1.Event{
 		postedEvent(postedOpts{envelopeID: "ENV-ROOT", eventID: "ROOT", roomID: "R1", actorID: "U1", at: 1}),
@@ -162,11 +164,8 @@ func TestThreadProjection_RetractOfReplyAppendedToThread(t *testing.T) {
 	})
 
 	entries := p.ThreadEvents("ROOT")
-	if len(entries) != 2 {
-		t.Fatalf("expected post + retract, got %d entries", len(entries))
-	}
-	if entries[1].Event.GetMessageRetracted() == nil {
-		t.Error("expected entries[1] to be a MessageRetractedEvent")
+	if len(entries) != 1 {
+		t.Fatalf("expected only the reply row after retract, got %d entries", len(entries))
 	}
 	if got := p.ReplyCount("ROOT"); got != 0 {
 		t.Errorf("ReplyCount after retract = %d, want 0", got)
@@ -194,8 +193,8 @@ func TestThreadProjection_EditOfRootMessageNotInThreadBucket(t *testing.T) {
 	if len(entries) != 1 {
 		t.Fatalf("expected only the reply, got %d entries", len(entries))
 	}
-	if entries[0].Event.GetId() != "ENV-R1" {
-		t.Errorf("entry = %q, want ENV-R1", entries[0].Event.GetId())
+	if entries[0].EventID != "ENV-R1" {
+		t.Errorf("entry = %q, want ENV-R1", entries[0].EventID)
 	}
 }
 
