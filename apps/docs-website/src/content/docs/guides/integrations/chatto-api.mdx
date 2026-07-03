@@ -50,10 +50,10 @@ Realtime delivery uses the same room membership, RBAC, projection readiness, and
 | Goal | Recommended API |
 | ---- | --------------- |
 | Render room navigation | `RoomDirectoryService` |
-| Read room history | `RoomTimelineService` |
+| Read room history | `RoomService.GetRoomEvents` and `RoomService.GetRoomEventsAround` |
 | Post, edit, or delete messages | `MessageService` |
 | React to messages | `ReactionService` |
-| Track unread state | `ReadStateService` |
+| Track unread state | `RoomService.MarkRoomAsRead` and `ThreadService.MarkThreadAsRead` |
 | Start DMs | `RoomService` |
 | Read members and profiles | `UserDirectoryService` and `MemberDirectoryService` |
 | Manage roles or permissions | `chatto.admin.v1` role and permission services |
