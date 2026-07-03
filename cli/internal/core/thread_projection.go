@@ -43,13 +43,11 @@ type ThreadTimelineEntry struct {
 // derived from the same evt.room.> firehose RoomTimelineProjection
 // consumes.
 //
-// "Per thread" means: events whose semantic scope is a single
-// thread — reply posts (MessagePostedEvent with in_thread != "")
-// and edits / retracts targeting those replies. The thread root
-// message itself is NOT stored here; the thread-view resolver
-// fetches the root from RoomTimelineProjection.Get(rootEventID)
-// and concatenates. This keeps each projection's "what's in here?"
-// answer trivial.
+// "Per thread" means: reply posts (MessagePostedEvent with in_thread != "").
+// The thread root message itself is NOT stored here; the thread-view resolver
+// fetches the root from RoomTimelineProjection.Get(rootEventID) and
+// concatenates. Reply rows retain only event IDs and stream sequences, and
+// resolvers hydrate the full event from RoomTimelineProjection.
 //
 // To route edits and retracts to the right thread, we maintain a
 // secondary index mapping reply event_id → thread root event_id,
@@ -58,9 +56,8 @@ type ThreadTimelineEntry struct {
 // are silently skipped here; they'll be handled at the room-
 // timeline level.
 //
-// Same v1-shape framing as RoomTimelineProjection: dead simple,
-// append-only, no fold logic, full event protos preserved. We
-// iterate later.
+// Edits and retractions targeting replies are folded into cached summaries and
+// latest-body state instead of being retained as separate thread rows.
 type ThreadProjection struct {
 	events.MemoryProjection
 	byThread        map[string][]ThreadTimelineEntry
@@ -126,8 +123,10 @@ func (p *ThreadProjection) ReplaySubjects() []string {
 //     thread's slice, remember its event_id → thread mapping.
 //   - ThreadCreatedEvent → initialise the thread's bucket even before
 //     replies land.
-//   - MessageEditedEvent / MessageRetractedEvent whose target
-//     event_id is a known thread reply → append to that thread.
+//   - MessageEditedEvent whose target event_id is a known thread reply → mark
+//     the fact applied; latest body state lives in RoomTimelineProjection.
+//   - MessageRetractedEvent whose target event_id is a known thread reply →
+//     fold the retraction into the thread summary.
 //
 // Everything else (root messages, room lifecycle, memberships,
 // edits/retracts of non-reply messages) is silently ignored.
