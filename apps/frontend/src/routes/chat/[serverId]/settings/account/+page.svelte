@@ -16,6 +16,12 @@
   import { toast } from '$lib/ui/toast/toastState.svelte';
   import { notifyLogout } from '$lib/auth/sessionChannel';
   import { csrfFetch } from '$lib/auth/csrf';
+  import { clearCachedUser } from '$lib/auth/loadAuth';
+  import {
+    beginExplicitSignOutRedirect,
+    cancelExplicitSignOutRedirect,
+    hardRedirectAfterSignOut
+  } from '$lib/auth/signOut';
   import * as m from '$lib/i18n/messages';
 
   const currentUser = $derived(serverRegistry.getStore(getActiveServer()).currentUser);
@@ -267,6 +273,17 @@
     await disconnectIdentity(disconnectTarget, currentPassword);
   }
 
+  function finishDisconnectedSession(signedOutServerId: string) {
+    if (serverRegistry.isOriginServer(signedOutServerId)) {
+      clearCachedUser();
+    }
+    serverRegistry.clearServerAuthentication(signedOutServerId);
+    hardRedirectAfterSignOut('/login');
+    if (serverRegistry.isOriginServer(signedOutServerId)) {
+      notifyLogout();
+    }
+  }
+
   async function disconnectIdentity(
     target: { subjectHash: string; providerLabel: string },
     currentPassword?: string
@@ -281,14 +298,16 @@
         baseUrl: client.connectBaseUrl,
         bearerToken: client.bearerToken
       });
+      beginExplicitSignOutRedirect();
       await api.disconnect(subjectHash, currentPassword);
       disconnectTarget = null;
       disconnectFreshAuthTarget = null;
       disconnectCurrentPassword = '';
       disconnectFreshAuthError = '';
-      serverRegistry.handleAuthenticationRequired(client.serverId ?? serverId);
+      finishDisconnectedSession(client.serverId ?? serverId);
     } catch (err) {
       if (err instanceof ConnectError && err.code === Code.FailedPrecondition) {
+        cancelExplicitSignOutRedirect();
         disconnectTarget = null;
         if (hasPassword) {
           disconnectFreshAuthTarget = { subjectHash, providerLabel };
@@ -297,10 +316,14 @@
         } else {
           ssoError = m['settings.account.sso.disconnect_fresh_auth_required']();
         }
+      } else if (err instanceof ConnectError && err.code === Code.Unauthenticated) {
+        finishDisconnectedSession(client.serverId ?? serverId);
       } else if (currentPassword !== undefined) {
+        cancelExplicitSignOutRedirect();
         disconnectFreshAuthError =
           err instanceof Error ? err.message : m['settings.account.sso.disconnect_failed']();
       } else {
+        cancelExplicitSignOutRedirect();
         ssoError =
           err instanceof Error ? err.message : m['settings.account.sso.disconnect_failed']();
         disconnectTarget = null;

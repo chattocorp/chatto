@@ -18,6 +18,8 @@
     scheduleCustomStatusExpiry,
     type CustomUserStatus
   } from '$lib/state/userProfiles.svelte';
+  import { clearCachedUser } from '$lib/auth/loadAuth';
+  import { hardRedirectAfterSignOut, isExplicitSignOutRedirectInProgress } from '$lib/auth/signOut';
   import { initSessionChannel } from '$lib/auth/sessionChannel';
   import { initPresenceTracking } from '$lib/presenceTracking';
   import ReturnUrlHandler from '$lib/components/ReturnUrlHandler.svelte';
@@ -102,9 +104,16 @@
   // dropped no-op.
   const originServerId = serverRegistry.originServer?.id;
   if (originServerId) {
+    const authenticatedOriginServerId = originServerId;
     const originClient = serverConnectionManager.originClient;
-    eventBusManager.startBus(originServerId, originClient);
-    provideEventBus(() => originServerId);
+    eventBusManager.startBus(authenticatedOriginServerId, originClient);
+    provideEventBus(() => authenticatedOriginServerId);
+
+    function clearTerminatedOriginSession() {
+      clearCachedUser();
+      serverRegistry.clearServerAuthentication(authenticatedOriginServerId);
+      hardRedirectAfterSignOut('/login');
+    }
 
     // Subscribe to profile update events and populate the cache
     useUserProfileUpdate((update) => {
@@ -143,11 +152,17 @@
     // Handle session terminated events from server (logout from another tab/device, admin boot)
     useSessionTerminated((reason) => {
       console.log('Session terminated by server:', reason);
-      serverRegistry.handleAuthenticationRequired(originServerId);
+      if (isExplicitSignOutRedirectInProgress()) return;
+      clearTerminatedOriginSession();
     });
 
     // Handle logout from another tab in the same browser (instant, no server round-trip)
-    $effect(() => initSessionChannel(() => serverRegistry.handleAuthenticationRequired(originServerId)));
+    $effect(() =>
+      initSessionChannel(() => {
+        if (isExplicitSignOutRedirectInProgress()) return;
+        clearTerminatedOriginSession();
+      })
+    );
 
   }
 

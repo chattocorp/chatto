@@ -84,14 +84,17 @@ export class CurrentUserState {
 
     this.#isLoggingOut = true;
 
-    console.warn('[auth] handleAuthFailure: marking reauthentication required');
-    this.#onAuthenticationRequired?.();
-
     if (options.revokeServerSession) {
       await csrfFetch('/auth/logout', { method: 'POST' }).catch(() => {});
       this.user = undefined;
       clearCachedUser();
+      this.loading = false;
+      this.#isLoggingOut = false;
+      return;
     }
+
+    console.warn('[auth] handleAuthFailure: marking reauthentication required');
+    this.#onAuthenticationRequired?.();
 
     this.#isLoggingOut = false;
   }

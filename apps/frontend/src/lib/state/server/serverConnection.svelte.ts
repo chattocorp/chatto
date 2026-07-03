@@ -1,3 +1,4 @@
+import { isExplicitSignOutRedirectInProgress } from '$lib/auth/signOut';
 import { serverRegistry } from './registry.svelte';
 
 export type ConnectionStatus = 'connected' | 'connecting' | 'disconnected';
@@ -165,6 +166,12 @@ export class ServerConnection {
 
   handleAuthenticationRequired(): void {
     if (this.#serverId) {
+      if (
+        isExplicitSignOutRedirectInProgress() &&
+        serverRegistry.isOriginServer(this.#serverId)
+      ) {
+        return;
+      }
       serverRegistry.handleAuthenticationRequired(this.#serverId);
     }
   }

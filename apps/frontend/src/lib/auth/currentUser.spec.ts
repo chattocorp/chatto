@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { CurrentUserState } from './currentUser.svelte';
+import { PresenceStatus } from '$lib/render/types';
 
 const { clearCachedUserMock } = vi.hoisted(() => ({
   clearCachedUserMock: vi.fn()
@@ -54,9 +55,20 @@ describe('CurrentUserState', () => {
     expect(onAuthenticationRequired).toHaveBeenCalledOnce();
   });
 
-  it('revokes the server session when explicitly requested', async () => {
+  it('revokes the server session without marking reauth when explicitly requested', async () => {
     const onAuthenticationRequired = vi.fn();
     const state = new CurrentUserState(true, undefined, undefined, onAuthenticationRequired);
+    state.user = {
+      id: 'U1',
+      login: 'alice',
+      displayName: 'Alice',
+      avatarUrl: null,
+      presenceStatus: PresenceStatus.Online,
+      hasVerifiedEmail: true,
+      viewerCanDeleteAccount: false,
+      hasPassword: true,
+      settings: null
+    };
 
     await state.handleAuthFailure({ revokeServerSession: true });
 
@@ -64,7 +76,8 @@ describe('CurrentUserState', () => {
       method: 'POST',
       headers: expect.any(Headers)
     });
+    expect(state.user).toBeUndefined();
     expect(clearCachedUserMock).toHaveBeenCalledOnce();
-    expect(onAuthenticationRequired).toHaveBeenCalledOnce();
+    expect(onAuthenticationRequired).not.toHaveBeenCalled();
   });
 });

@@ -12,6 +12,7 @@ import { serverConnectionManager } from '$lib/state/server/serverConnection.svel
 import { serverRegistry } from '$lib/state/server/registry.svelte';
 import { getCurrentUserViaConnect, type CurrentUser } from '$lib/api-client/viewer';
 import { isAuthenticationRequiredError } from './errors';
+import { isExplicitSignOutRedirectInProgress } from './signOut';
 
 export type { CurrentUser };
 
@@ -34,6 +35,12 @@ export async function loadCurrentUser(): Promise<CurrentUser | null> {
     return null;
   }
 
+  if (isExplicitSignOutRedirectInProgress()) {
+    cachedUser = null;
+    serverRegistry.clearOriginAuthentication();
+    return null;
+  }
+
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
       cachedUser = await getCurrentUserViaConnect({
@@ -47,6 +54,11 @@ export async function loadCurrentUser(): Promise<CurrentUser | null> {
       return cachedUser;
     } catch (err) {
       if (isAuthenticationRequiredError(err)) {
+        if (isExplicitSignOutRedirectInProgress()) {
+          cachedUser = null;
+          serverRegistry.clearOriginAuthentication();
+          return null;
+        }
         const cached = cachedUser;
         if (cached) {
           const originId = serverRegistry.originServer?.id;

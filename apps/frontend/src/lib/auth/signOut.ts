@@ -3,6 +3,8 @@ import { csrfFetch } from './csrf';
 
 export const SIGN_OUT_TIMEOUT_MS = 5000;
 
+let explicitSignOutRedirectInProgress = false;
+
 function logoutUrl(server: RegisteredServer): string {
 	return new URL('/auth/logout', server.url).toString();
 }
@@ -48,6 +50,35 @@ export async function signOutServers(
 	);
 }
 
+export function isExplicitSignOutRedirectInProgress(): boolean {
+	return explicitSignOutRedirectInProgress;
+}
+
+export function beginExplicitSignOutRedirect(): void {
+	explicitSignOutRedirectInProgress = true;
+}
+
+export function cancelExplicitSignOutRedirect(): void {
+	explicitSignOutRedirectInProgress = false;
+}
+
 export function hardRedirectAfterSignOut(href = '/'): void {
-	window.location.href = href;
+	beginExplicitSignOutRedirect();
+	try {
+		const target = new URL(href, window.location.href);
+		if (target.origin === window.location.origin) {
+			window.history.replaceState(
+				window.history.state,
+				'',
+				target.pathname + target.search + target.hash
+			);
+			window.setTimeout(() => window.location.reload(), 0);
+			return;
+		}
+	} catch {
+		// Fall back to a regular document navigation below.
+	}
+	window.setTimeout(() => {
+		window.location.replace(href);
+	}, 0);
 }
