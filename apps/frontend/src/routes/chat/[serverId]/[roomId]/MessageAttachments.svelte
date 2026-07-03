@@ -391,12 +391,12 @@
       }))
       .filter((item) => item.src !== '');
     if (imageItems.length === 0) {
-      toast.error('Could not refresh image link');
+      toast.error(m['room.attachment.image_refresh_failed']());
       return;
     }
     const imageIndex = imageItems.findIndex((item) => item.id === attachment.id);
     if (imageIndex < 0) {
-      toast.error('Could not refresh image link');
+      toast.error(m['room.attachment.image_refresh_failed']());
       return;
     }
     pushState('', {
@@ -416,7 +416,7 @@
       freshUrls.has(attachment.id) ? freshUrls.get(attachment.id)!.assetUrl : attachment.assetUrl
     )?.url;
     if (!fresh) {
-      toast.error('Could not refresh download link');
+      toast.error(m['room.attachment.download_refresh_failed']());
       return;
     }
     window.open(fresh, '_blank', 'noopener,noreferrer');

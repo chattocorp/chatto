@@ -100,7 +100,9 @@
       "delete_label": "Anhang löschen",
       "delete_failed": "Anhang konnte nicht gelöscht werden",
       "view_label": "{filename} ansehen",
-      "download_label": "{filename} herunterladen"
+      "download_label": "{filename} herunterladen",
+      "image_refresh_failed": "Bildlink konnte nicht aktualisiert werden",
+      "download_refresh_failed": "Downloadlink konnte nicht aktualisiert werden"
     },
     "link_preview": {
       "delete_title": "Linkvorschau löschen",

@@ -100,7 +100,9 @@
       "delete_label": "Delete attachment",
       "delete_failed": "Failed to delete attachment",
       "view_label": "View {filename}",
-      "download_label": "Download {filename}"
+      "download_label": "Download {filename}",
+      "image_refresh_failed": "Could not refresh image link",
+      "download_refresh_failed": "Could not refresh download link"
     },
     "link_preview": {
       "delete_title": "Delete Link Preview",
