@@ -1,5 +1,6 @@
 <script lang="ts">
   import { pushState } from '$app/navigation';
+  import { resolve } from '$app/paths';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
@@ -47,7 +48,7 @@
 
     <!-- Notification bell - 44px tap target for mobile accessibility -->
     <a
-      href="/chat/notifications"
+      href={resolve('/chat/notifications')}
       aria-label={m['ui.notifications']()}
       title={m['ui.notifications']()}
       class="relative app-header-icon"
