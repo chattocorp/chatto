@@ -5,12 +5,13 @@ import type { MessageAttachmentView } from '$lib/render/types';
 import type { RefreshedAttachmentUrls } from '$lib/attachments/attachmentUrls';
 
 const attachmentMocks = vi.hoisted(() => ({
+  pushState: vi.fn(),
   refreshMessageAttachmentUrls: vi.fn()
 }));
 
 vi.mock('$app/navigation', () => ({
   goto: vi.fn(),
-  pushState: vi.fn(),
+  pushState: attachmentMocks.pushState,
   replaceState: vi.fn()
 }));
 
@@ -108,6 +109,7 @@ function imageFrame(container: HTMLElement, filename: string) {
 
 describe('MessageAttachments', () => {
   beforeEach(() => {
+    attachmentMocks.pushState.mockReset();
     attachmentMocks.refreshMessageAttachmentUrls.mockReset();
     attachmentMocks.refreshMessageAttachmentUrls.mockResolvedValue(new Map());
   });
@@ -217,6 +219,33 @@ describe('MessageAttachments', () => {
     await vi.waitFor(() => {
       expect(container.querySelector('img[alt="expired.jpg"]')).toBeNull();
     });
+  });
+
+  it('does not open a different gallery image when the clicked image URL is cleared', async () => {
+    attachmentMocks.refreshMessageAttachmentUrls.mockResolvedValue(
+      new Map([['cleared', emptyRefreshedUrls()]])
+    );
+    const { container } = renderAttachments([
+      imageAttachment({
+        id: 'cleared',
+        filename: 'cleared.jpg'
+      }),
+      imageAttachment({
+        id: 'kept',
+        filename: 'kept.jpg'
+      })
+    ]);
+
+    const { button } = imageFrame(container, 'cleared.jpg');
+    button.click();
+
+    await vi.waitFor(() => {
+      expect(attachmentMocks.refreshMessageAttachmentUrls).toHaveBeenCalled();
+    });
+    await vi.waitFor(() => {
+      expect(container.querySelector('img[alt="cleared.jpg"]')).toBeNull();
+    });
+    expect(attachmentMocks.pushState).not.toHaveBeenCalled();
   });
 
   it('renders multiple images inside a horizontal gallery with equal-height frames', () => {

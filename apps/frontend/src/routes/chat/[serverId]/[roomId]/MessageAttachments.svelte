@@ -377,7 +377,6 @@
   }
 
   async function openImageModal(attachment: Attachment) {
-    const idx = imageAttachments.indexOf(attachment);
     // Refresh in one round-trip so navigating between images in the
     // lightbox can't hit an expired URL mid-session.
     const freshUrls = await refreshAndApplyUrls();
@@ -396,13 +395,17 @@
       return;
     }
     const imageIndex = imageItems.findIndex((item) => item.id === attachment.id);
+    if (imageIndex < 0) {
+      toast.error('Could not refresh image link');
+      return;
+    }
     pushState('', {
       modal: {
         type: 'imageViewer',
         roomId,
         eventId,
         imageItems,
-        imageIndex: imageIndex >= 0 ? imageIndex : Math.max(0, Math.min(idx, imageItems.length - 1))
+        imageIndex
       }
     });
   }
