@@ -3,6 +3,25 @@
 All notable changes to Chatto. Maintained by release-please from the
 conventional-commit messages on `main` — do not edit by hand.
 
+## [0.4.0-beta.12](https://github.com/chattocorp/chatto/compare/v0.4.0-beta.11...v0.4.0-beta.12) (2026-07-03)
+
+
+### Features
+
+* **frontend:** refresh toast styling ([#1260](https://github.com/chattocorp/chatto/issues/1260)) ([1b728e5](https://github.com/chattocorp/chatto/commit/1b728e511e6b6310d10d59bf7c6085d4c70710d0))
+
+
+### Bug Fixes
+
+* **assets:** prevent protected attachment caching ([#1261](https://github.com/chattocorp/chatto/issues/1261)) ([e3c6eed](https://github.com/chattocorp/chatto/commit/e3c6eedab25aa279ca1cae8e3ea2497fe391053d))
+* **assets:** serve protected assets through stable gateway ([#1264](https://github.com/chattocorp/chatto/issues/1264)) ([744e93e](https://github.com/chattocorp/chatto/commit/744e93ed552e3920df9a76e0c3b6c9a90ebf6dcd))
+* **frontend:** handle API auth failures gracefully ([#1269](https://github.com/chattocorp/chatto/issues/1269)) ([e82c554](https://github.com/chattocorp/chatto/commit/e82c5543328b6999ec65b4ede625cd28b17b89b9))
+* **frontend:** make attachment remove control subtle ([#1265](https://github.com/chattocorp/chatto/issues/1265)) ([6537c27](https://github.com/chattocorp/chatto/commit/6537c2768136e633fdea9d36226ab9fb350b8875))
+* **frontend:** polish error and missing media states ([#1267](https://github.com/chattocorp/chatto/issues/1267)) ([b9dabba](https://github.com/chattocorp/chatto/commit/b9dabba0f018656fb46418868ed65e3774bea627))
+* **frontend:** restore default text smoothing ([#1268](https://github.com/chattocorp/chatto/issues/1268)) ([b3a6dc3](https://github.com/chattocorp/chatto/commit/b3a6dc3c2796181995338649e4a2a7502e56761b))
+* **frontend:** use semantic presence colors ([#1259](https://github.com/chattocorp/chatto/issues/1259)) ([ccf64db](https://github.com/chattocorp/chatto/commit/ccf64db80552887782a357b3bb23acdba7f12b0c))
+* **reactions:** canonicalize echo reaction targets ([#1272](https://github.com/chattocorp/chatto/issues/1272)) ([2b87044](https://github.com/chattocorp/chatto/commit/2b8704479e08eb66ebefc86243cd3f8aa98d338b))
+
 ## [0.4.0-beta.11](https://github.com/chattocorp/chatto/compare/v0.4.0-beta.10...v0.4.0-beta.11) (2026-07-02)
 
 
