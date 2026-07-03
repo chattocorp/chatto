@@ -6,6 +6,7 @@ import (
 	"github.com/charmbracelet/log"
 	"github.com/gin-gonic/gin"
 	"github.com/livekit/protocol/auth"
+	"github.com/livekit/protocol/livekit"
 	"github.com/livekit/protocol/webhook"
 	"hmans.de/chatto/internal/core"
 )
@@ -79,6 +80,9 @@ func (s *HTTPServer) handleLiveKitWebhook(c *gin.Context) {
 		if event.Participant == nil {
 			break
 		}
+		if liveKitParticipantLeftIsConnectionHandoff(event.Participant) {
+			break
+		}
 		md := core.ParseParticipantMetadata(event.Participant.Metadata)
 		eventCallID := callID
 		if eventCallID == "" {
@@ -107,6 +111,16 @@ func (s *HTTPServer) handleLiveKitWebhook(c *gin.Context) {
 	}
 
 	c.Status(http.StatusOK)
+}
+
+func liveKitParticipantLeftIsConnectionHandoff(participant *livekit.ParticipantInfo) bool {
+	if participant == nil {
+		return false
+	}
+	// Chatto call membership is user-scoped, while LiveKit duplicate-identity
+	// replacement is connection-scoped. A new tab/device taking over the same
+	// user identity should not become a durable domain leave.
+	return participant.GetDisconnectReason() == livekit.DisconnectReason_DUPLICATE_IDENTITY
 }
 
 func liveKitWebhookRoomBelongsToInstance(roomName, instanceID string) bool {
