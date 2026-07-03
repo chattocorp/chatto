@@ -53,6 +53,17 @@ type ParticipantMetadata = {
 };
 
 const RECENTLY_DISCONNECTED_CALL_SOUND_MS = 5_000;
+const MEDIA_DEVICE_TOAST_DEDUPLICATION_MS = 1_500;
+
+type VoiceCallMediaDeviceTarget = 'microphone' | 'camera' | 'screen' | 'speaker' | 'device';
+type VoiceCallMediaDeviceContext = 'join' | 'enable' | 'switch' | 'event';
+type MediaDeviceFailureKind =
+  | 'permission-denied'
+  | 'not-found'
+  | 'in-use'
+  | 'constraint'
+  | 'aborted'
+  | 'unknown';
 
 export class VoiceCallJoinError extends Error {
   readonly userMessage: string;
@@ -78,6 +89,70 @@ export function getVoiceCallJoinErrorMessage(err: unknown): string {
   }
 
   return m['voice.join_failed']();
+}
+
+export function getVoiceCallMediaDeviceErrorMessage(
+  target: VoiceCallMediaDeviceTarget,
+  err: unknown,
+  context: VoiceCallMediaDeviceContext = 'event'
+): string {
+  const failure = classifyMediaDeviceFailure(err);
+
+  if (target === 'microphone' && context === 'join') {
+    switch (failure) {
+      case 'permission-denied':
+        return m['voice.microphone_join_denied']();
+      case 'not-found':
+        return m['voice.microphone_join_not_found']();
+      case 'in-use':
+        return m['voice.microphone_join_in_use']();
+      default:
+        return m['voice.microphone_join_failed']();
+    }
+  }
+
+  if (target === 'microphone') {
+    switch (failure) {
+      case 'permission-denied':
+        return m['voice.microphone_denied']();
+      case 'not-found':
+        return m['voice.microphone_not_found']();
+      case 'in-use':
+        return m['voice.microphone_in_use']();
+      default:
+        return m['voice.microphone_failed']();
+    }
+  }
+
+  if (target === 'camera') {
+    switch (failure) {
+      case 'permission-denied':
+        return m['voice.camera_denied']();
+      case 'not-found':
+        return m['voice.camera_not_found']();
+      case 'in-use':
+        return m['voice.camera_in_use']();
+      default:
+        return m['voice.camera_failed']();
+    }
+  }
+
+  if (target === 'screen') {
+    if (failure === 'permission-denied' || failure === 'aborted') {
+      return m['voice.screen_share_blocked']();
+    }
+    return m['voice.screen_share_failed']();
+  }
+
+  if (target === 'speaker') {
+    return m['voice.speaker_switch_failed']();
+  }
+
+  if (context === 'switch') {
+    return m['voice.device_switch_failed']();
+  }
+
+  return m['voice.media_device_failed']();
 }
 
 export class VoiceCallState {
@@ -142,6 +217,11 @@ export class VoiceCallState {
   private e2eeWorker: Worker | null = null;
   private audioLevelInterval: ReturnType<typeof setInterval> | null = null;
   private suppressDisconnectToast = false;
+  private explicitMediaDeviceOperationDepth = 0;
+  private lastMediaDeviceToast: {
+    message: string;
+    shownAt: number;
+  } | null = null;
 
   // Non-reactive audio level cache — updated at 60ms by the polling interval.
   // Deliberately NOT $state to avoid triggering Svelte reactivity at 60Hz.
@@ -332,11 +412,14 @@ export class VoiceCallState {
 
       // Try to enable microphone, but join muted if no device is available
       try {
-        await this.room.localParticipant.setMicrophoneEnabled(true);
+        await this.runExplicitMediaDeviceOperation(() =>
+          this.room!.localParticipant.setMicrophoneEnabled(true)
+        );
         this.isMuted = false;
         this.setupLocalAudioAnalyser();
-      } catch {
+      } catch (err) {
         this.isMuted = true;
+        this.notifyMediaDeviceError(getVoiceCallMediaDeviceErrorMessage('microphone', err, 'join'));
       }
 
       this.connected = true;
@@ -451,8 +534,19 @@ export class VoiceCallState {
 
   private async performToggleMute(room: Room): Promise<void> {
     const newMuted = !this.isMuted;
-    await room.localParticipant.setMicrophoneEnabled(!newMuted);
-    if (this.room !== room) return;
+    try {
+      await this.runExplicitMediaDeviceOperation(() =>
+        room.localParticipant.setMicrophoneEnabled(!newMuted)
+      );
+      if (this.room !== room) return;
+    } catch (err) {
+      if (this.room === room && !newMuted) {
+        this.notifyMediaDeviceError(
+          getVoiceCallMediaDeviceErrorMessage('microphone', err, 'enable')
+        );
+      }
+      return;
+    }
 
     this.isMuted = newMuted;
 
@@ -490,16 +584,21 @@ export class VoiceCallState {
   private async performToggleCamera(room: Room): Promise<void> {
     const newEnabled = !this.isCameraEnabled;
     try {
-      await room.localParticipant.setCameraEnabled(newEnabled);
+      await this.runExplicitMediaDeviceOperation(() =>
+        room.localParticipant.setCameraEnabled(newEnabled)
+      );
       if (this.room !== room) return;
 
       this.isCameraEnabled = newEnabled;
       if (newEnabled) {
         await this.refreshDevices({ requestVideoPermissions: true });
       }
-    } catch {
+    } catch (err) {
       // Permission denied or no camera available — keep current state
       if (this.room !== room) return;
+      if (newEnabled) {
+        this.notifyMediaDeviceError(getVoiceCallMediaDeviceErrorMessage('camera', err, 'enable'));
+      }
       this.isCameraEnabled = false;
     }
     this.updateParticipants();
@@ -530,12 +629,17 @@ export class VoiceCallState {
   private async performToggleScreenShare(room: Room): Promise<void> {
     const newEnabled = !this.isScreenShareEnabled;
     try {
-      await room.localParticipant.setScreenShareEnabled(newEnabled);
+      await this.runExplicitMediaDeviceOperation(() =>
+        room.localParticipant.setScreenShareEnabled(newEnabled)
+      );
       if (this.room !== room) return;
 
       this.isScreenShareEnabled = newEnabled;
-    } catch {
+    } catch (err) {
       if (this.room !== room) return;
+      if (newEnabled) {
+        this.notifyMediaDeviceError(getVoiceCallMediaDeviceErrorMessage('screen', err, 'enable'));
+      }
       this.isScreenShareEnabled = newEnabled ? false : this.isScreenShareEnabled;
     }
     this.updateParticipants();
@@ -585,8 +689,15 @@ export class VoiceCallState {
   async setAudioDevice(deviceId: string): Promise<void> {
     if (!this.room) return;
 
-    await this.room.switchActiveDevice('audioinput', deviceId);
-    this.selectedDeviceId = deviceId;
+    try {
+      await this.runExplicitMediaDeviceOperation(() =>
+        this.room!.switchActiveDevice('audioinput', deviceId)
+      );
+      this.selectedDeviceId = deviceId;
+    } catch (err) {
+      this.notifyMediaDeviceError(getVoiceCallMediaDeviceErrorMessage('microphone', err, 'switch'));
+      return;
+    }
 
     // Reconnect analyser to the new mic track
     if (!this.isMuted) {
@@ -600,8 +711,14 @@ export class VoiceCallState {
   async setAudioOutputDevice(deviceId: string): Promise<void> {
     if (!this.room) return;
 
-    await this.room.switchActiveDevice('audiooutput', deviceId);
-    this.selectedOutputDeviceId = deviceId;
+    try {
+      await this.runExplicitMediaDeviceOperation(() =>
+        this.room!.switchActiveDevice('audiooutput', deviceId)
+      );
+      this.selectedOutputDeviceId = deviceId;
+    } catch (err) {
+      this.notifyMediaDeviceError(getVoiceCallMediaDeviceErrorMessage('speaker', err, 'switch'));
+    }
   }
 
   /**
@@ -610,8 +727,14 @@ export class VoiceCallState {
   async setVideoDevice(deviceId: string): Promise<void> {
     if (!this.room) return;
 
-    await this.room.switchActiveDevice('videoinput', deviceId);
-    this.selectedVideoDeviceId = deviceId;
+    try {
+      await this.runExplicitMediaDeviceOperation(() =>
+        this.room!.switchActiveDevice('videoinput', deviceId)
+      );
+      this.selectedVideoDeviceId = deviceId;
+    } catch (err) {
+      this.notifyMediaDeviceError(getVoiceCallMediaDeviceErrorMessage('camera', err, 'switch'));
+    }
   }
 
   private setupRoomEventListeners(): void {
@@ -636,13 +759,18 @@ export class VoiceCallState {
     this.room.on(RoomEvent.Disconnected, () => {
       // Only show toast if we were in an active call (not a failed join attempt)
       if (this.connected && !this.suppressDisconnectToast) {
-        toast.error('Voice call disconnected');
+        toast.error(m['voice.disconnected']());
       }
       this.cleanup();
     });
 
     this.room.on(RoomEvent.MediaDevicesChanged, () => {
       this.refreshDevices();
+    });
+
+    this.room.on(RoomEvent.MediaDevicesError, (err: Error) => {
+      if (this.explicitMediaDeviceOperationDepth > 0) return;
+      this.notifyMediaDeviceError(getVoiceCallMediaDeviceErrorMessage('device', err, 'event'));
     });
 
     this.room.on(RoomEvent.ConnectionQualityChanged, () => {
@@ -884,6 +1012,34 @@ export class VoiceCallState {
     this.videoDevices = [];
     this.selectedVideoDeviceId = null;
     this.audioLevelCache.clear();
+    this.explicitMediaDeviceOperationDepth = 0;
+    this.lastMediaDeviceToast = null;
+  }
+
+  private async runExplicitMediaDeviceOperation<T>(operation: () => Promise<T>): Promise<T> {
+    this.explicitMediaDeviceOperationDepth += 1;
+    try {
+      return await operation();
+    } finally {
+      this.explicitMediaDeviceOperationDepth = Math.max(
+        0,
+        this.explicitMediaDeviceOperationDepth - 1
+      );
+    }
+  }
+
+  private notifyMediaDeviceError(message: string): void {
+    const now = Date.now();
+    if (
+      this.lastMediaDeviceToast &&
+      this.lastMediaDeviceToast.message === message &&
+      now - this.lastMediaDeviceToast.shownAt < MEDIA_DEVICE_TOAST_DEDUPLICATION_MS
+    ) {
+      return;
+    }
+
+    this.lastMediaDeviceToast = { message, shownAt: now };
+    toast.error(message);
   }
 
   private consumePendingOwnJoinSound(): boolean {
@@ -995,6 +1151,56 @@ function summarizeJoinError(err: unknown): string {
 function errorMessage(err: unknown): string {
   if (err instanceof Error) return err.message;
   return String(err);
+}
+
+function errorName(err: unknown): string {
+  if (typeof DOMException !== 'undefined' && err instanceof DOMException) return err.name;
+  if (err instanceof Error) return err.name;
+  return '';
+}
+
+function classifyMediaDeviceFailure(err: unknown): MediaDeviceFailureKind {
+  const name = errorName(err).toLowerCase();
+  const message = errorMessage(err).toLowerCase();
+  const signal = `${name} ${message}`;
+
+  if (
+    signal.includes('notallowed') ||
+    signal.includes('permissiondenied') ||
+    signal.includes('permission denied') ||
+    signal.includes('securityerror')
+  ) {
+    return 'permission-denied';
+  }
+
+  if (
+    signal.includes('notfound') ||
+    signal.includes('devicesnotfound') ||
+    signal.includes('device not found') ||
+    signal.includes('no device')
+  ) {
+    return 'not-found';
+  }
+
+  if (
+    signal.includes('notreadable') ||
+    signal.includes('trackstarterror') ||
+    signal.includes('deviceinuse') ||
+    signal.includes('device in use') ||
+    signal.includes('already in use')
+  ) {
+    return 'in-use';
+  }
+
+  if (signal.includes('overconstrained') || signal.includes('constraint')) {
+    return 'constraint';
+  }
+
+  if (signal.includes('abort')) {
+    return 'aborted';
+  }
+
+  return 'unknown';
 }
 
 function redactSensitiveUrlParts(message: string): string {
