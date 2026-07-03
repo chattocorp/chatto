@@ -21,6 +21,9 @@ icon = "message-square"
 command = "mise dev-docs-website"
 icon = "book-open"
 
+[prompts]
+create_pr = "Create a full GitHub pull request for the current branch, not a draft PR."
+
 [git]
 delete_branch_on_archive = false
 worktree_push_auto_setup_remote = true
