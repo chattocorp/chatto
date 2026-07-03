@@ -67,12 +67,9 @@ export function hardRedirectAfterSignOut(href = '/'): void {
 	try {
 		const target = new URL(href, window.location.href);
 		if (target.origin === window.location.origin) {
-			window.history.replaceState(
-				window.history.state,
-				'',
-				target.pathname + target.search + target.hash
-			);
-			window.setTimeout(() => window.location.reload(), 0);
+			window.setTimeout(() => {
+				window.location.replace(target.pathname + target.search + target.hash);
+			}, 0);
 			return;
 		}
 	} catch {

@@ -278,7 +278,7 @@
       clearCachedUser();
     }
     serverRegistry.clearServerAuthentication(signedOutServerId);
-    hardRedirectAfterSignOut('/login');
+    hardRedirectAfterSignOut('/');
     if (serverRegistry.isOriginServer(signedOutServerId)) {
       notifyLogout();
     }

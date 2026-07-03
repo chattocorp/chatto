@@ -8,7 +8,6 @@
   import { provideConnection } from '$lib/state/server/connection.svelte';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { provideEventBus } from '$lib/eventBus.svelte';
-  import { hardRedirectAfterSignOut } from '$lib/auth/signOut';
   import Chrome from '$lib/components/chat/Chrome.svelte';
 
   let { children } = $props();
@@ -78,7 +77,7 @@
       from: currentUrl
     });
     sessionStorage.setItem('returnUrl', currentUrl);
-    hardRedirectAfterSignOut(resolve('/login'));
+    goto(resolve('/login'), { replaceState: true });
   });
 </script>
 

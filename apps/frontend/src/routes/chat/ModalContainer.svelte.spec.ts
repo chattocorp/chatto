@@ -29,6 +29,7 @@ const { mocks } = vi.hoisted(() => ({
       | { id: string; url: string; name: string; token: string | null }
       | undefined,
     authenticated: {} as Record<string, boolean>,
+    beginExplicitSignOutRedirect: vi.fn(),
     signOutServer: vi.fn(),
     signOutServers: vi.fn(),
     hardRedirectAfterSignOut: vi.fn(),
@@ -127,6 +128,7 @@ vi.mock('$lib/auth/sessionChannel', () => ({
 }));
 
 vi.mock('$lib/auth/signOut', () => ({
+  beginExplicitSignOutRedirect: mocks.beginExplicitSignOutRedirect,
   signOutServer: mocks.signOutServer,
   signOutServers: mocks.signOutServers,
   hardRedirectAfterSignOut: mocks.hardRedirectAfterSignOut
@@ -324,6 +326,7 @@ describe('ModalContainer sign out modal', () => {
 
     await vi.waitFor(() => {
       expect(mocks.signOutServer).toHaveBeenCalledWith(mocks.originServer, true);
+      expect(mocks.beginExplicitSignOutRedirect).toHaveBeenCalledOnce();
       expect(mocks.clearServerAuthentication).toHaveBeenCalledWith('origin');
       expect(mocks.removeServer).not.toHaveBeenCalled();
       expect(mocks.notifyLogout).toHaveBeenCalledOnce();
@@ -345,6 +348,7 @@ describe('ModalContainer sign out modal', () => {
     clickButton(container, 'All Servers');
 
     await vi.waitFor(() => {
+      expect(mocks.beginExplicitSignOutRedirect).toHaveBeenCalledOnce();
       expect(mocks.signOutServers).toHaveBeenCalledWith(mocks.servers, expect.any(Function));
       expect(mocks.removeAll).toHaveBeenCalledOnce();
       expect(mocks.notifyLogout).toHaveBeenCalledOnce();
@@ -369,6 +373,7 @@ describe('ModalContainer sign out modal', () => {
     clickButton(container, 'All Servers');
 
     await vi.waitFor(() => {
+      expect(mocks.beginExplicitSignOutRedirect).toHaveBeenCalledOnce();
       expect(mocks.signOutServers).toHaveBeenCalledWith([], expect.any(Function));
       expect(mocks.removeAll).toHaveBeenCalledOnce();
       expect(mocks.hardRedirectAfterSignOut).toHaveBeenCalledWith('/');
@@ -391,6 +396,7 @@ describe('ModalContainer sign out modal', () => {
     clickButton(container, 'All Servers');
 
     await vi.waitFor(() => {
+      expect(mocks.beginExplicitSignOutRedirect).toHaveBeenCalledOnce();
       expect(mocks.signOutServers).toHaveBeenCalledWith(mocks.servers, expect.any(Function));
       expect(mocks.removeAll).toHaveBeenCalledOnce();
       expect(mocks.hardRedirectAfterSignOut).toHaveBeenCalledWith('/');

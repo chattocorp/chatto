@@ -112,7 +112,7 @@
     function clearTerminatedOriginSession() {
       clearCachedUser();
       serverRegistry.clearServerAuthentication(authenticatedOriginServerId);
-      hardRedirectAfterSignOut('/login');
+      hardRedirectAfterSignOut('/');
     }
 
     // Subscribe to profile update events and populate the cache

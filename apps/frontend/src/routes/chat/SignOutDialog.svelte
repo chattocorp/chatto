@@ -7,7 +7,12 @@
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { clearLastRoom } from '$lib/storage/lastRoom';
   import { notifyLogout } from '$lib/auth/sessionChannel';
-  import { hardRedirectAfterSignOut, signOutServer, signOutServers } from '$lib/auth/signOut';
+  import {
+    beginExplicitSignOutRedirect,
+    hardRedirectAfterSignOut,
+    signOutServer,
+    signOutServers
+  } from '$lib/auth/signOut';
   import * as m from '$lib/i18n/messages';
   import Dialog from '$lib/ui/Dialog.svelte';
   import { Button } from '$lib/ui/form';
@@ -68,6 +73,10 @@
 
     signingOutCurrent = true;
 
+    if (serverRegistry.isOriginServer(signedOutServerId)) {
+      beginExplicitSignOutRedirect();
+    }
+
     await signOutServer(server, serverRegistry.isOriginServer(signedOutServerId)).catch(() => {});
 
     clearLastRoom(signedOutServerId);
@@ -84,6 +93,7 @@
 
   async function handleSignOutAllServers() {
     signingOutAll = true;
+    beginExplicitSignOutRedirect();
     await signOutServers([...serverRegistry.servers], (serverId) =>
       serverRegistry.isOriginServer(serverId)
     );

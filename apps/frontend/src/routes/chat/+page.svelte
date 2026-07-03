@@ -19,7 +19,9 @@
   // Authenticated → use $effect to wait for reactive state (instances, permissions)
   $effect(() => {
     if (!data.user) return;
-    if (sessionStorage.getItem('returnUrl')) return;
+    if (sessionStorage.getItem('returnUrl') || sessionStorage.getItem('returnUrl:navigating')) {
+      return;
+    }
 
     if (serverRegistry.servers.length === 0) {
       goto(resolve('/login'), { replaceState: true });

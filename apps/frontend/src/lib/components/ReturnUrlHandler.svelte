@@ -10,17 +10,21 @@ Include this component once in the authenticated layout.
 <script lang="ts">
   import { goto } from '$app/navigation';
 
+  const returnNavigationKey = 'returnUrl:navigating';
   const returnUrl = sessionStorage.getItem('returnUrl');
 
   if (returnUrl && returnUrl !== window.location.pathname + window.location.search) {
+    sessionStorage.setItem(returnNavigationKey, returnUrl);
+    sessionStorage.removeItem('returnUrl');
     // eslint-disable-next-line svelte/no-navigation-without-resolve -- dynamic return URL from sessionStorage
     goto(returnUrl)
-      .then(() => {
-        sessionStorage.removeItem('returnUrl');
-      })
       .catch((err) => {
-        console.warn('Return URL navigation failed, clearing:', err);
-        sessionStorage.removeItem('returnUrl');
+        console.warn('Return URL navigation failed:', err);
+      })
+      .finally(() => {
+        if (sessionStorage.getItem(returnNavigationKey) === returnUrl) {
+          sessionStorage.removeItem(returnNavigationKey);
+        }
       });
   } else {
     sessionStorage.removeItem('returnUrl');
