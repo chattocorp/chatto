@@ -69,21 +69,29 @@
     return salt ? { ...value, url: withAssetUrlRetryParam(value.url, salt) } : value;
   }
 
+  function refreshedVariantAssetUrl(
+    refreshed: RefreshedAttachmentUrls | undefined,
+    quality: string,
+    fallback: ExpiringAssetUrl | null | undefined
+  ): ExpiringAssetUrl | null | undefined {
+    return refreshed ? (refreshed.variantAssetUrls.get(quality) ?? null) : fallback;
+  }
+
   function normalizeAttachment(attachment: RawAttachment) {
     const refreshed = refreshedAttachmentUrls.get(attachment.id);
     const assetUrl = withRetrySalt(
-      normalizeAssetUrl(refreshed?.assetUrl ?? attachment.assetUrl),
+      normalizeAssetUrl(refreshed ? refreshed.assetUrl : attachment.assetUrl),
       attachment.id,
       'asset'
     );
     const thumbnailAssetUrl = withRetrySalt(
-      normalizeAssetUrl(refreshed?.thumbnailAssetUrl ?? attachment.thumbnailAssetUrl),
+      normalizeAssetUrl(refreshed ? refreshed.thumbnailAssetUrl : attachment.thumbnailAssetUrl),
       attachment.id,
       'thumbnail'
     );
     const videoThumbnailAssetUrl = withRetrySalt(
       normalizeAssetUrl(
-        refreshed?.videoThumbnailAssetUrl ?? attachment.videoProcessing?.thumbnailAssetUrl
+        refreshed ? refreshed.videoThumbnailAssetUrl : attachment.videoProcessing?.thumbnailAssetUrl
       ),
       attachment.id,
       'video'
@@ -103,7 +111,7 @@
             variants: attachment.videoProcessing.variants.flatMap((variant) => {
               const variantAssetUrl = withRetrySalt(
                 normalizeAssetUrl(
-                  refreshed?.variantAssetUrls.get(variant.quality) ?? variant.assetUrl
+                  refreshedVariantAssetUrl(refreshed, variant.quality, variant.assetUrl)
                 ),
                 attachment.id,
                 'video'
@@ -376,7 +384,9 @@
     const imageItems: ImageItem[] = imageAttachments
       .map((a) => ({
         id: a.id,
-        src: normalizeAssetUrl(freshUrls.get(a.id)?.assetUrl)?.url ?? a.url ?? '',
+        src:
+          normalizeAssetUrl(freshUrls.has(a.id) ? freshUrls.get(a.id)!.assetUrl : a.assetUrl)
+            ?.url ?? '',
         alt: a.filename,
         filename: a.filename
       }))
@@ -399,7 +409,9 @@
 
   async function openDownload(attachment: Attachment) {
     const freshUrls = await refreshAndApplyUrls();
-    const fresh = normalizeAssetUrl(freshUrls.get(attachment.id)?.assetUrl)?.url ?? attachment.url;
+    const fresh = normalizeAssetUrl(
+      freshUrls.has(attachment.id) ? freshUrls.get(attachment.id)!.assetUrl : attachment.assetUrl
+    )?.url;
     if (!fresh) {
       toast.error('Could not refresh download link');
       return;

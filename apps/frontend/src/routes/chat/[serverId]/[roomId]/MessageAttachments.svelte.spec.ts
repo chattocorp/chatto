@@ -1,7 +1,12 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import MessageAttachments from './MessageAttachments.svelte';
 import type { MessageAttachmentView } from '$lib/render/types';
+import type { RefreshedAttachmentUrls } from '$lib/attachments/attachmentUrls';
+
+const attachmentMocks = vi.hoisted(() => ({
+  refreshMessageAttachmentUrls: vi.fn()
+}));
 
 vi.mock('$app/navigation', () => ({
   goto: vi.fn(),
@@ -11,7 +16,7 @@ vi.mock('$app/navigation', () => ({
 
 vi.mock('$lib/api-client/attachments', () => ({
   createAttachmentAPI: vi.fn(() => ({
-    refreshMessageAttachmentUrls: vi.fn().mockResolvedValue(new Map())
+    refreshMessageAttachmentUrls: attachmentMocks.refreshMessageAttachmentUrls
   }))
 }));
 
@@ -24,6 +29,15 @@ vi.mock('$lib/state/server/connection.svelte', () => ({
 }));
 
 const transparentGif = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==';
+
+function emptyRefreshedUrls(): RefreshedAttachmentUrls {
+  return {
+    assetUrl: null,
+    thumbnailAssetUrl: null,
+    videoThumbnailAssetUrl: null,
+    variantAssetUrls: new Map()
+  };
+}
 
 function imageAttachment(overrides: Partial<MessageAttachmentView>): MessageAttachmentView {
   return {
@@ -93,6 +107,11 @@ function imageFrame(container: HTMLElement, filename: string) {
 }
 
 describe('MessageAttachments', () => {
+  beforeEach(() => {
+    attachmentMocks.refreshMessageAttachmentUrls.mockReset();
+    attachmentMocks.refreshMessageAttachmentUrls.mockResolvedValue(new Map());
+  });
+
   it('renders very tall portrait images as contained narrow strips', () => {
     const { container } = renderAttachment(
       imageAttachment({
@@ -178,6 +197,26 @@ describe('MessageAttachments', () => {
     expect(container.querySelector('video[src=""]')).toBeNull();
     expect(container.querySelector('audio[src=""]')).toBeNull();
     expect(container.querySelector('img[alt="pending.jpg"]')).toBeNull();
+  });
+
+  it('clears stale image URLs when refresh returns null asset URLs', async () => {
+    attachmentMocks.refreshMessageAttachmentUrls.mockResolvedValue(
+      new Map([['att_1', emptyRefreshedUrls()]])
+    );
+    const { container } = renderAttachment(
+      imageAttachment({
+        filename: 'expired.jpg',
+        thumbnailAssetUrl: null
+      })
+    );
+
+    const image = container.querySelector<HTMLImageElement>('img[alt="expired.jpg"]');
+    expect(image).not.toBeNull();
+    image!.dispatchEvent(new Event('error'));
+
+    await vi.waitFor(() => {
+      expect(container.querySelector('img[alt="expired.jpg"]')).toBeNull();
+    });
   });
 
   it('renders multiple images inside a horizontal gallery with equal-height frames', () => {

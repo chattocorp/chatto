@@ -35,10 +35,14 @@ const roomFilesInvalidatingEventKinds = new Set<RoomEventKind>([
 ]);
 
 function attachmentAssetUrls(item: RoomFileItem, refreshed: RefreshedAttachmentUrls | undefined) {
+  if (refreshed) {
+    return [refreshed.assetUrl, refreshed.thumbnailAssetUrl, refreshed.videoThumbnailAssetUrl];
+  }
+
   return [
-    refreshed?.assetUrl ?? item.attachment.assetUrl,
-    refreshed?.thumbnailAssetUrl ?? item.attachment.thumbnailAssetUrl,
-    refreshed?.videoThumbnailAssetUrl ?? item.attachment.videoProcessing?.thumbnailAssetUrl
+    item.attachment.assetUrl,
+    item.attachment.thumbnailAssetUrl,
+    item.attachment.videoProcessing?.thumbnailAssetUrl
   ];
 }
 
@@ -123,26 +127,25 @@ export class RoomFilesStore {
   }
 
   assetUrlFor(item: RoomFileItem): ExpiringAssetUrl | null {
-    return (
-      this.refreshedAttachmentUrls.get(item.attachment.id)?.assetUrl ?? item.attachment.assetUrl
-    );
+    const refreshed = this.refreshedAttachmentUrls.get(item.attachment.id);
+    return refreshed ? refreshed.assetUrl : item.attachment.assetUrl;
   }
 
   thumbnailAssetUrlFor(item: RoomFileItem): ExpiringAssetUrl | null {
     const refreshed = this.refreshedAttachmentUrls.get(item.attachment.id);
     const contentType = item.attachment.contentType;
     if (isVideoAttachment(contentType)) {
-      return (
-        refreshed?.videoThumbnailAssetUrl ??
-        item.attachment.videoProcessing?.thumbnailAssetUrl ??
-        null
-      );
+      return refreshed
+        ? refreshed.videoThumbnailAssetUrl
+        : (item.attachment.videoProcessing?.thumbnailAssetUrl ?? null);
     }
     if (!isImageAttachment(contentType)) return null;
 
+    if (refreshed) {
+      return refreshed.thumbnailAssetUrl ?? refreshed.videoThumbnailAssetUrl ?? null;
+    }
+
     return (
-      refreshed?.thumbnailAssetUrl ??
-      refreshed?.videoThumbnailAssetUrl ??
       item.attachment.thumbnailAssetUrl ??
       item.attachment.videoProcessing?.thumbnailAssetUrl ??
       null

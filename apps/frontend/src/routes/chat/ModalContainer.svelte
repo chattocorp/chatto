@@ -200,15 +200,32 @@
     ) {
       return;
     }
-    const imageItems = currentModal.imageItems.map((item) => ({
-      ...item,
-      src: item.id ? (freshUrls.get(item.id)?.assetUrl?.url ?? item.src) : item.src
-    }));
+    const imageItems = currentModal.imageItems
+      .map((item) => ({
+        ...item,
+        src:
+          item.id && freshUrls.has(item.id)
+            ? (freshUrls.get(item.id)!.assetUrl?.url ?? '')
+            : item.src
+      }))
+      .filter((item) => item.src !== '');
+    if (imageItems.length === 0) {
+      closeModal();
+      return;
+    }
+    const currentImageId = currentModal.imageItems[currentModal.imageIndex ?? 0]?.id;
+    const refreshedImageIndex = currentImageId
+      ? imageItems.findIndex((item) => item.id === currentImageId)
+      : -1;
     replaceState('', {
       ...page.state,
       modal: {
         ...currentModal,
-        imageItems
+        imageItems,
+        imageIndex:
+          refreshedImageIndex >= 0
+            ? refreshedImageIndex
+            : Math.min(currentModal.imageIndex ?? 0, imageItems.length - 1)
       }
     });
   }
