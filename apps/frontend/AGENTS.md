@@ -71,6 +71,9 @@ generated protobuf clients, Vitest browser tests, Playwright e2e, and Storybook.
 - Use Tailwind 4 utilities and established components; avoid one-off CSS.
 - Svelte files use tabs; match local style.
 - Use base text size by default. Reserve smaller text for metadata.
+- Use browser/platform default text rendering. Do not apply global font
+  smoothing such as Tailwind `antialiased`, `-webkit-font-smoothing`, or
+  `-moz-osx-font-smoothing`.
 - Clickable controls need `cursor-pointer`.
 - Do not use `{@html}` directly in feature components. Render trusted markdown
   HTML through `$lib/ui/MarkdownHtml.svelte`, which is the reviewed exception.

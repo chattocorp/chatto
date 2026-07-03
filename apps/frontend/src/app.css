@@ -543,8 +543,6 @@
   html {
     height: 100%;
     overflow: hidden;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
     /* pan-y lets the browser own vertical scroll while reserving horizontal
        pans for our own gesture handling (mobile sidebar swipe). It also
        implicitly disables pinch-zoom and double-tap-zoom — same as the
