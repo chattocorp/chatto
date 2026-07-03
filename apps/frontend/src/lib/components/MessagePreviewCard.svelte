@@ -251,18 +251,17 @@ unknown instance) the component renders nothing.
         preview = {
           ...preview,
           attachments: preview.attachments.map((attachment) => {
-            const freshThumbnail = normalizePreviewAssetUrl(
-              current.serverId,
-              freshUrls.get(attachment.id)?.thumbnailAssetUrl
-            );
-            const freshVideoThumbnail = normalizePreviewAssetUrl(
-              current.serverId,
-              freshUrls.get(attachment.id)?.videoThumbnailAssetUrl
-            );
-            if (!freshThumbnail && !freshVideoThumbnail) return attachment;
+            const freshAttachment = freshUrls.get(attachment.id);
+            if (!freshAttachment) return attachment;
 
-            const thumbnailAssetUrl = freshThumbnail ?? attachment.thumbnailAssetUrl;
-            const videoThumbnailAssetUrl = freshVideoThumbnail ?? attachment.videoThumbnailAssetUrl;
+            const thumbnailAssetUrl = normalizePreviewAssetUrl(
+              current.serverId,
+              freshAttachment.thumbnailAssetUrl
+            );
+            const videoThumbnailAssetUrl = normalizePreviewAssetUrl(
+              current.serverId,
+              freshAttachment.videoThumbnailAssetUrl
+            );
             const displayThumbnailAssetUrl = attachment.contentType.startsWith('video/')
               ? (videoThumbnailAssetUrl ?? thumbnailAssetUrl)
               : thumbnailAssetUrl;

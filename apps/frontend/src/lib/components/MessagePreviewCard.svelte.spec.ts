@@ -170,6 +170,20 @@ function videoRefreshResult(videoThumbnailUrl: string) {
   ]);
 }
 
+function clearedRefreshResult(attachmentId: string) {
+  return new Map<string, RefreshedAttachmentUrls>([
+    [
+      attachmentId,
+      {
+        assetUrl: null,
+        thumbnailAssetUrl: null,
+        videoThumbnailAssetUrl: null,
+        variantAssetUrls: new Map()
+      }
+    ]
+  ]);
+}
+
 beforeEach(() => {
   getRoomEventsAroundMock.mockReset();
   refreshMessageAttachmentUrlsMock.mockReset();
@@ -232,6 +246,24 @@ describe('MessagePreviewCard', () => {
     });
   });
 
+  it('clears stale preview thumbnail asset URLs when refresh returns null', async () => {
+    timelineResults.push(previewResult(`${transparentGif}#old-image`));
+    refreshMessageAttachmentUrlsMock.mockResolvedValueOnce(clearedRefreshResult('att_1'));
+
+    const { container } = render(MessagePreviewCard, {
+      props: { link: link(), showDismiss: false }
+    });
+
+    await vi.waitFor(() => {
+      expect(refreshMessageAttachmentUrlsMock).toHaveBeenCalled();
+    });
+
+    await vi.waitFor(() => {
+      expect(container.querySelector('img[alt="photo.jpg"]')).toBeNull();
+    });
+    expect(container.textContent).toContain('Image');
+  });
+
   it('renders video attachment thumbnails for linked message previews', async () => {
     timelineResults.push(videoPreviewResult(`${transparentGif}#old-video`));
 
@@ -270,6 +302,24 @@ describe('MessagePreviewCard', () => {
       const refreshed = container.querySelector<HTMLImageElement>('img[alt="clip.mp4"]');
       expect(refreshed?.getAttribute('src')).toContain('#fresh-video');
     });
+  });
+
+  it('clears stale preview video thumbnail asset URLs when refresh returns null', async () => {
+    timelineResults.push(videoPreviewResult(`${transparentGif}#old-video`));
+    refreshMessageAttachmentUrlsMock.mockResolvedValueOnce(clearedRefreshResult('att_video'));
+
+    const { container } = render(MessagePreviewCard, {
+      props: { link: link(), showDismiss: false }
+    });
+
+    await vi.waitFor(() => {
+      expect(refreshMessageAttachmentUrlsMock).toHaveBeenCalled();
+    });
+
+    await vi.waitFor(() => {
+      expect(container.querySelector('img[alt="clip.mp4"]')).toBeNull();
+    });
+    expect(container.querySelector('.uil--play')).not.toBeNull();
   });
 
   it('falls back to a video tile when the refreshed video thumbnail also fails', async () => {
