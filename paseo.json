@@ -10,6 +10,10 @@
     "dev-docs-website": {
       "type": "service",
       "command": "mise dev-docs-website"
+    },
+    "storybook": {
+      "type": "service",
+      "command": "mise storybook"
     }
   },
   "metadataGeneration": {

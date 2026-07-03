@@ -167,10 +167,13 @@ sources = [
 outputs = ["../apps/frontend/e2e/fixtures/bin/chatto"]
 
 [tasks.storybook]
-description = "Run the Storybook design-system catalog"
+description = "Run the Storybook design-system catalog with workspace-safe ports"
 depends = ["setup-frontend", "build-api-types"]
 dir = "apps/frontend"
-run = "pnpm storybook"
+env = {
+  CHATTO_STORYBOOK_PORT = "{{env.CHATTO_STORYBOOK_PORT | default(value=env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000')) | int + 10)}}",
+}
+run = "exec pnpm exec storybook dev --host 127.0.0.1 --port \"$CHATTO_STORYBOOK_PORT\" --no-open"
 
 [tasks.dev-backend]
 description = "Build and run the local development backend"
@@ -234,12 +237,6 @@ export CHATTO_SMTP_PORT="${CHATTO_SMTP_PORT:-$((workspace_port_base + 8))}"
 export CHATTO_SMTP_TLS="${CHATTO_SMTP_TLS:-opportunistic}"
 export CHATTO_SMTP_FROM="${CHATTO_SMTP_FROM:-chatto-dev@chatto.localhost}"
 
-printf 'Chatto frontend URL: %s\\n' "$CHATTO_WEBSERVER_URL"
-printf 'Chatto backend URL: http://localhost:%s\\n' "$CHATTO_WEBSERVER_PORT"
-printf 'LiveKit URL: %s\\n' "$CHATTO_LIVEKIT_URL"
-printf 'Mailpit SMTP: %s:%s\\n' "$CHATTO_SMTP_HOST" "$CHATTO_SMTP_PORT"
-printf 'Mailpit UI: http://localhost:%s\\n' "$((workspace_port_base + 9))"
-
 exec mise run --jobs 4 dev-backend ::: dev-frontend ::: dev-livekit ::: dev-mailpit
 """
 
@@ -251,8 +248,6 @@ raw = true
 run = """
 workspace_port_base="${CONDUCTOR_PORT:-${PASEO_PORT:-4000}}"
 docs_website_port="${CHATTO_DOCS_WEBSITE_PORT:-$workspace_port_base}"
-
-printf 'Docs website URL: http://localhost:%s\\n' "$docs_website_port"
 
 exec pnpm astro dev --host 127.0.0.1 --port "$docs_website_port"
 """
@@ -285,7 +280,7 @@ env = {
   CHATTO_SMTP_TLS = "opportunistic",
   CHATTO_SMTP_FROM = "chatto-dev@chatto.localhost",
 }
-run = "printf 'Chatto URL: %s\\n' \"$CHATTO_WEBSERVER_URL\" && exec bin/chatto"
+run = "exec bin/chatto"
 
 # =============================================================================
 # Testing

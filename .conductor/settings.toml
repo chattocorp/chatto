@@ -8,6 +8,10 @@ url = "http://localhost:$CONDUCTOR_PORT"
 name = "Mailpit"
 url = "http://localhost:$CONDUCTOR_PORT+9"
 
+[[preview_urls]]
+name = "Storybook"
+url = "http://localhost:$CONDUCTOR_PORT+10"
+
 [scripts]
 setup = "mise trust && mise setup"
 run_mode = "concurrent"
@@ -20,6 +24,10 @@ icon = "message-square"
 [scripts.run.docs-website]
 command = "mise dev-docs-website"
 icon = "book-open"
+
+[scripts.run.storybook]
+command = "mise storybook"
+icon = "palette"
 
 [prompts]
 create_pr = "Create a full GitHub pull request for the current branch, not a draft PR."
