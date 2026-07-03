@@ -985,9 +985,9 @@ describe('MessagesStore — room lifecycle ownership', () => {
     await store.refreshCurrentWindow('m2');
     await settle();
 
-    expect(store.rootEvents.map((event) => event.id)).toEqual(['m2']);
-    expect(store.hasReachedStart).toBe(false);
-    expect(store.rootEvents[0].event).toMatchObject({
+    expect(store.rootEvents.map((event) => event.id)).toEqual(['m1', 'm2', 'm3']);
+    expect(store.hasReachedStart).toBe(true);
+    expect(store.rootEvents.find((event) => event.id === 'm2')?.event).toMatchObject({
       reactions: [{ emoji: 'thumbsup', count: 1 }]
     });
     expect(fake.queryMock.mock.calls[0][1]).toEqual({
@@ -1054,14 +1054,23 @@ describe('MessagesStore — room lifecycle ownership', () => {
 
     await refresh;
     await settle();
-    expect(store.rootEvents.map((event) => event.id)).toEqual(['m3', 'm4', 'm5', 'm8']);
+    expect(store.rootEvents.map((event) => event.id)).toEqual(['m1', 'm2', 'm3', 'm4', 'm5', 'm8']);
 
     const jumpState = new JumpToMessageState();
     jumpState.isJumpedMode = true;
     await store.loadNewer(jumpState);
     await settle();
 
-    expect(store.rootEvents.map((event) => event.id)).toEqual(['m3', 'm4', 'm5', 'm6', 'm7', 'm8']);
+    expect(store.rootEvents.map((event) => event.id)).toEqual([
+      'm1',
+      'm2',
+      'm3',
+      'm4',
+      'm5',
+      'm6',
+      'm7',
+      'm8'
+    ]);
     store.dispose();
   });
 
@@ -1102,7 +1111,7 @@ describe('MessagesStore — room lifecycle ownership', () => {
     await store.refreshCurrentWindow('r20');
     await settle();
 
-    expect(store.threadEvents.map((event) => event.id)).toEqual(['t1', 'r19', 'r20', 'r21']);
+    expect(store.threadEvents.map((event) => event.id)).toEqual(['t1', 'r18', 'r19', 'r20', 'r21']);
     expect(store.hasReachedStart).toBe(false);
     expect(store.threadEvents.find((event) => event.id === 'r20')?.event).toMatchObject({
       reactions: [{ emoji: 'thumbsup', count: 1 }]
@@ -1244,7 +1253,7 @@ describe('MessagesStore — thread lifecycle ownership', () => {
       limit: 50
     });
     expect(fake.queryMock).not.toHaveBeenCalled();
-    expect(store.threadEvents.map((event) => event.id)).toEqual(['t1', 'r19', 'r20', 'r21']);
+    expect(store.threadEvents.map((event) => event.id)).toEqual(['t1', 'r18', 'r19', 'r20', 'r21']);
     expect(store.threadEvents.find((event) => event.id === 'r20')?.event).toMatchObject({
       reactions: [{ emoji: 'thumbsup', count: 1 }]
     });

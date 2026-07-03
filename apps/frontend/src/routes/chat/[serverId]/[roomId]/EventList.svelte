@@ -22,10 +22,8 @@
   import { getUserSettings } from '$lib/state/userSettings.svelte';
   import { formatDayLabel } from '$lib/utils/formatTime';
   import { useTabResumeCallback } from '$lib/hooks/useTabResumeCallback.svelte';
-  import {
-    useMayHaveMissedMessagesCallback,
-    type MayHaveMissedMessagesReason
-  } from '$lib/hooks/useMayHaveMissedMessagesCallback.svelte';
+  import { useMayHaveMissedMessagesCallback } from '$lib/hooks/useMayHaveMissedMessagesCallback.svelte';
+  import type { ResumeSignal } from '$lib/hooks/resumeCoordinator.svelte';
   import type { OpenThreadHandler, ThreadOpenOptions } from './threadOpenOptions';
 
   let {
@@ -480,7 +478,7 @@
 
   let softRefreshInFlight = false;
 
-  async function refreshAfterPossibleMiss(reason: MayHaveMissedMessagesReason): Promise<boolean> {
+  async function refreshAfterPossibleMiss(signal: ResumeSignal): Promise<boolean> {
     if (softRefreshInFlight) return false;
     if (isLoading && virtualItems.length === 0) return false;
 
@@ -494,7 +492,10 @@
     try {
       console.debug('[room-refresh] event list refresh started', {
         roomId,
-        reason,
+        reason: signal.reason,
+        phase: signal.phase,
+        hiddenDurationMs: signal.hiddenDurationMs,
+        epoch: signal.epoch,
         mode: wasAtBottom ? 'latest' : 'anchored',
         bottomDistance,
         anchorEventId: anchor?.eventId ?? null,
@@ -504,7 +505,8 @@
       if (!result.refreshed) {
         console.debug('[room-refresh] event list refresh skipped after store refresh failed', {
           roomId,
-          reason,
+          reason: signal.reason,
+          phase: signal.phase,
           result
         });
         return false;
@@ -558,7 +560,7 @@
     }
   }
 
-  useMayHaveMissedMessagesCallback((reason) => refreshAfterPossibleMiss(reason));
+  useMayHaveMissedMessagesCallback((signal) => refreshAfterPossibleMiss(signal));
 
   // Re-evaluate "are we at the bottom?" when the tab regains visibility — the
   // browser may have throttled virtua's measurements or our auto-scroll effect

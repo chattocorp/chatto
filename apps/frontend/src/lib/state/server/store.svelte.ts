@@ -27,7 +27,7 @@ import { createAdminEventLogAPI } from '$lib/api-client/adminEventLog';
 import { createMemberDirectoryAPI } from '$lib/api-client/memberDirectory';
 import { getViewerStateViaConnect } from '$lib/api-client/viewer';
 import { eventBusManager } from './eventBus.svelte';
-import type { EventBusCatchUpReason, EventHandler } from '$lib/eventBus.svelte';
+import type { EventBusCatchUpSignal, EventHandler } from '$lib/eventBus.svelte';
 import type { ServerConnection } from './serverConnection.svelte';
 import type { RegisteredServer } from './registry.svelte';
 import { playCallSound } from '$lib/audio/callSounds';
@@ -72,7 +72,7 @@ const EMPTY_PERMISSIONS: ServerPermissions = {
   canAdminViewAudit: false
 };
 
-const CATCH_UP_REFRESH_DEDUPE_MS = 1_000;
+const CATCH_UP_REFRESH_DEDUPE_MS = 5_000;
 
 export class ServerStateStore {
   readonly serverId: string;
@@ -106,7 +106,7 @@ export class ServerStateStore {
   #adminRoomLayoutSubscriptions = 0;
   #lastSuccessfulCatchUpRefreshAt = 0;
   #catchUpRefreshInFlight = false;
-  #queuedCatchUpRefreshReason: EventBusCatchUpReason | null = null;
+  #queuedCatchUpRefreshSignal: EventBusCatchUpSignal | null = null;
 
   constructor(
     registered: RegisteredServer,
@@ -217,7 +217,9 @@ export class ServerStateStore {
           } else if (eventKind === RoomEventKind.CallParticipantJoined) {
             const callEvent = callTransitionEventPayload(event.event);
             if (!callEvent || !callEvent.callId) return;
-            const actor = event.actor ? useRenderData(UserAvatarUserViewDocument, event.actor) : null;
+            const actor = event.actor
+              ? useRenderData(UserAvatarUserViewDocument, event.actor)
+              : null;
             void this.activeCallRooms.handleJoin(callEvent.roomId, callEvent.callId, actor);
             this.playCallTransitionSound(
               event.id,
@@ -229,7 +231,11 @@ export class ServerStateStore {
           } else if (eventKind === RoomEventKind.CallParticipantLeft) {
             const callEvent = callTransitionEventPayload(event.event);
             if (!callEvent) return;
-            this.activeCallRooms.handleLeave(callEvent.roomId, callEvent.callId, event.actorId ?? null);
+            this.activeCallRooms.handleLeave(
+              callEvent.roomId,
+              callEvent.callId,
+              event.actorId ?? null
+            );
             this.playCallTransitionSound(
               event.id,
               'leave',
@@ -252,8 +258,8 @@ export class ServerStateStore {
             this.voiceCall.handleCallEndedEvent(callEvent.roomId, callEvent.callId);
           }
         };
-        const catchUpHandler = (reason: EventBusCatchUpReason) => {
-          void this.refreshProjectedStateAfterMissedEvents(reason);
+        const catchUpHandler = (signal: EventBusCatchUpSignal) => {
+          void this.refreshProjectedStateAfterMissedEvents(signal);
         };
         bus.handlers.add(handler);
         bus.catchUpHandlers.add(catchUpHandler);
@@ -266,26 +272,30 @@ export class ServerStateStore {
   }
 
   private async refreshProjectedStateAfterMissedEvents(
-    reason: EventBusCatchUpReason,
-    force = false
+    signal: EventBusCatchUpSignal,
+    options: { bypassDedupe?: boolean } = {}
   ): Promise<void> {
     if (!this.isAuthenticated) return;
 
     if (this.#catchUpRefreshInFlight) {
-      this.#queuedCatchUpRefreshReason = reason;
+      this.#queuedCatchUpRefreshSignal = signal;
       console.debug(
         `[server:${this.#registered.url}] queued catch-up refresh while one is running`,
         {
-          reason
+          signal
         }
       );
       return;
     }
 
     const now = Date.now();
-    if (!force && now - this.#lastSuccessfulCatchUpRefreshAt < CATCH_UP_REFRESH_DEDUPE_MS) {
+    const canDedupe =
+      !options.bypassDedupe &&
+      signal.phase !== 'projection-grace' &&
+      now - this.#lastSuccessfulCatchUpRefreshAt < CATCH_UP_REFRESH_DEDUPE_MS;
+    if (canDedupe) {
       console.debug(`[server:${this.#registered.url}] skipped duplicate catch-up refresh`, {
-        reason
+        signal
       });
       return;
     }
@@ -297,7 +307,7 @@ export class ServerStateStore {
       console.debug(
         `[server:${this.#registered.url}] refreshing projected state after event bus gap`,
         {
-          reason
+          signal
         }
       );
 
@@ -330,19 +340,19 @@ export class ServerStateStore {
         console.debug(
           `[server:${this.#registered.url}] projected state catch-up refresh completed`,
           {
-            reason
+            signal
           }
         );
       }
     } finally {
       this.#catchUpRefreshInFlight = false;
-      const queuedReason = this.#queuedCatchUpRefreshReason;
-      this.#queuedCatchUpRefreshReason = null;
-      if (queuedReason) {
+      const queuedSignal = this.#queuedCatchUpRefreshSignal;
+      this.#queuedCatchUpRefreshSignal = null;
+      if (queuedSignal) {
         console.debug(`[server:${this.#registered.url}] running queued catch-up refresh`, {
-          reason: queuedReason
+          signal: queuedSignal
         });
-        void this.refreshProjectedStateAfterMissedEvents(queuedReason, true);
+        void this.refreshProjectedStateAfterMissedEvents(queuedSignal, { bypassDedupe: true });
       }
     }
   }

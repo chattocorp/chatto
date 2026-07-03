@@ -13,7 +13,7 @@
   import { notificationTarget } from '$lib/state/server/notifications.svelte';
   import { appState } from '$lib/state/globals.svelte';
   import ServerIcon from './ServerIcon.svelte';
-  import { useTabResumeCallback } from '$lib/hooks';
+  import { onMount } from 'svelte';
   import * as m from '$lib/i18n/messages';
 
   let {
@@ -134,8 +134,9 @@
     }
   }
 
-  // Load on mount and tab resume
-  useTabResumeCallback(() => void loadAll());
+  onMount(() => {
+    void loadAll();
+  });
 
   // Subscribe to server events. Use $effect (not onMount) so that if the
   // event bus isn't started yet on first run — possible when this component

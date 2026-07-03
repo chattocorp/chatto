@@ -91,6 +91,92 @@ function avatarUserFromDirectoryMember(member: DirectoryMember): UserAvatarUserV
   };
 }
 
+function sameStringArray(a: readonly string[], b: readonly string[]): boolean {
+  if (a.length !== b.length) return false;
+  return a.every((value, index) => value === b[index]);
+}
+
+function sameAvatarUser(a: UserAvatarUserView, b: UserAvatarUserView): boolean {
+  return (
+    a.id === b.id &&
+    a.login === b.login &&
+    a.displayName === b.displayName &&
+    a.deleted === b.deleted &&
+    a.avatarUrl === b.avatarUrl &&
+    a.presenceStatus === b.presenceStatus &&
+    a.customStatus?.emoji === b.customStatus?.emoji &&
+    a.customStatus?.text === b.customStatus?.text &&
+    a.customStatus?.expiresAt === b.customStatus?.expiresAt
+  );
+}
+
+function sameAvatarUsers(
+  a: readonly UserAvatarUserView[],
+  b: readonly UserAvatarUserView[]
+): boolean {
+  if (a.length !== b.length) return false;
+  return a.every((value, index) => {
+    const other = b[index];
+    return other !== undefined && sameAvatarUser(value, other);
+  });
+}
+
+function sameRoomListItem(a: RoomsListItem, b: RoomsListItem): boolean {
+  return (
+    a.id === b.id &&
+    a.name === b.name &&
+    a.type === b.type &&
+    a.isUniversal === b.isUniversal &&
+    a.hasUnread === b.hasUnread &&
+    a.viewerIsMember === b.viewerIsMember &&
+    a.viewerCanJoinRoom === b.viewerCanJoinRoom &&
+    a.viewerNotificationCount === b.viewerNotificationCount &&
+    sameAvatarUsers(a.members, b.members)
+  );
+}
+
+function sameSidebarLink(a: SidebarLinkListItem, b: SidebarLinkListItem): boolean {
+  return a.id === b.id && a.label === b.label && a.url === b.url;
+}
+
+function sameRoomGroupItem(a: RoomsListGroupItem, b: RoomsListGroupItem): boolean {
+  if (a.type !== b.type || a.id !== b.id) return false;
+  if (a.type === 'room' && b.type === 'room') return a.roomId === b.roomId;
+  if (a.type === 'link' && b.type === 'link') return sameSidebarLink(a.link, b.link);
+  return false;
+}
+
+function sameRoomGroupItems(
+  a: readonly RoomsListGroupItem[],
+  b: readonly RoomsListGroupItem[]
+): boolean {
+  if (a.length !== b.length) return false;
+  return a.every((value, index) => {
+    const other = b[index];
+    return other !== undefined && sameRoomGroupItem(value, other);
+  });
+}
+
+function sameRoomGroup(a: RoomsListGroup, b: RoomsListGroup): boolean {
+  return (
+    a.id === b.id &&
+    a.name === b.name &&
+    sameStringArray(a.roomIds, b.roomIds) &&
+    sameRoomGroupItems(a.items ?? [], b.items ?? [])
+  );
+}
+
+function sameRoomGroups(
+  a: readonly RoomsListGroup[] | null,
+  b: readonly RoomsListGroup[]
+): boolean {
+  if (!a || a.length !== b.length) return false;
+  return a.every((value, index) => {
+    const other = b[index];
+    return other !== undefined && sameRoomGroup(value, other);
+  });
+}
+
 const roomStateRefreshEvents = new Set<RoomEventKind>([
   RoomEventKind.RoomCreated,
   RoomEventKind.RoomDeleted,
@@ -191,19 +277,23 @@ export class RoomsStore {
     );
     if (this.loadId !== thisLoad) return;
 
-    this.rooms = [
+    const nextRooms = [
       ...visibleChannels.map((room) => this.roomListItem(room, [])),
       ...visibleDms.map((room) => this.roomListItem(room, dmMembersByRoomId.get(room.id) ?? []))
     ];
+    this.applyRooms(nextRooms);
     this.roomUnread.initRooms([...visibleChannels, ...visibleDms]);
     void this.refreshNotificationCounts();
 
-    this.roomGroups = roomGroups.map((group) => ({
+    const nextRoomGroups = roomGroups.map((group) => ({
       id: group.id,
       name: group.name,
       roomIds: group.roomIds,
       items: group.items.map(roomGroupItem)
     }));
+    if (!sameRoomGroups(this.roomGroups, nextRoomGroups)) {
+      this.roomGroups = nextRoomGroups;
+    }
 
     this.isInitialLoading = false;
   }
@@ -222,6 +312,31 @@ export class RoomsStore {
     };
   }
 
+  private applyRooms(nextRooms: RoomsListItem[]): void {
+    const previousById = new SvelteMap(this.rooms.map((room) => [room.id, room]));
+    let changed = this.rooms.length !== nextRooms.length;
+    const merged = nextRooms.map((room, index) => {
+      const previous = previousById.get(room.id);
+      const next = {
+        ...room,
+        viewerNotificationCount: previous?.viewerNotificationCount ?? room.viewerNotificationCount
+      };
+      if (!previous) {
+        changed = true;
+        return next;
+      }
+      if (this.rooms[index]?.id !== room.id || !sameRoomListItem(previous, next)) {
+        changed = true;
+        return next;
+      }
+      return previous;
+    });
+
+    if (changed) {
+      this.rooms = merged;
+    }
+  }
+
   async refreshNotificationCounts(): Promise<void> {
     const loadId = this.loadId;
     const notificationCountsLoadId = ++this.notificationCountsLoadId;
@@ -233,10 +348,14 @@ export class RoomsStore {
       }
 
       untrack(() => {
-        this.rooms = this.rooms.map((room) => ({
-          ...room,
-          viewerNotificationCount: countsByRoomId[room.id] ?? 0
-        }));
+        let changed = false;
+        const rooms = this.rooms.map((room) => {
+          const viewerNotificationCount = countsByRoomId[room.id] ?? 0;
+          if (room.viewerNotificationCount === viewerNotificationCount) return room;
+          changed = true;
+          return { ...room, viewerNotificationCount };
+        });
+        if (changed) this.rooms = rooms;
       });
     } catch (err) {
       if (this.loadId === loadId && this.notificationCountsLoadId === notificationCountsLoadId) {

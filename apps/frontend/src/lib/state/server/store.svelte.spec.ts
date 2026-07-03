@@ -3,6 +3,7 @@ import { flushSync } from 'svelte';
 import type { PublicServerInfo } from '$lib/api-client/server';
 import type { AuthenticatedServerState } from '$lib/api-client/serverState';
 import { RoomEventKind } from '$lib/render/eventKinds';
+import type { EventBusCatchUpReason, EventBusCatchUpSignal } from '$lib/eventBus.svelte';
 
 const { soundMocks, apiMocks } = vi.hoisted(() => ({
   soundMocks: {
@@ -271,6 +272,13 @@ function deferred<T = void>(): {
     reject = rej;
   });
   return { promise, resolve, reject };
+}
+
+function catchUpSignal(
+  reason: EventBusCatchUpReason,
+  phase: EventBusCatchUpSignal['phase'] = 'immediate'
+): EventBusCatchUpSignal {
+  return { reason, phase };
 }
 
 const stores: ServerStateStore[] = [];
@@ -807,7 +815,7 @@ describe('ServerStateStore live server updates', () => {
     if (!bus) throw new Error('event bus did not start');
 
     for (const handler of bus.catchUpHandlers) {
-      handler('ws-reconnected');
+      handler(catchUpSignal('ws-reconnected'));
     }
     await Promise.resolve();
 
@@ -838,7 +846,7 @@ describe('ServerStateStore live server updates', () => {
     if (!bus) throw new Error('event bus did not start');
 
     for (const handler of bus.catchUpHandlers) {
-      handler('ws-reconnected');
+      handler(catchUpSignal('ws-reconnected'));
     }
     await Promise.resolve();
 
@@ -869,14 +877,80 @@ describe('ServerStateStore live server updates', () => {
     if (!bus) throw new Error('event bus did not start');
 
     for (const handler of bus.catchUpHandlers) {
-      handler('ws-reconnected');
+      handler(catchUpSignal('ws-reconnected'));
     }
     await Promise.resolve();
 
     expect(store.adminRoomLayout.refresh).toHaveBeenCalledOnce();
   });
 
-  it('runs one queued projected-state refresh after an in-flight catch-up succeeds', async () => {
+  it('runs projection-grace full catch-up after immediate catch-up succeeds', async () => {
+    const fake = new FakeServerConnection([]);
+    const store = makeStore(fake);
+    store.serverInfo.refreshProfile = vi.fn().mockResolvedValue(undefined);
+    store.serverInfo.refreshAuthenticatedSettings = vi.fn().mockResolvedValue(undefined);
+    store.notifications.fetch = vi.fn().mockResolvedValue(undefined);
+    store.rooms.refresh = vi.fn().mockResolvedValue(undefined);
+    store.roomDirectory.refresh = vi.fn().mockResolvedValue(undefined);
+    store.adminRoomLayout.refresh = vi.fn().mockResolvedValue(undefined);
+
+    eventBusManager.startBus(registered.id, fake as unknown as ServerConnection);
+    flushSync();
+    const bus = eventBusManager.getBus(registered.id);
+    if (!bus) throw new Error('event bus did not start');
+
+    for (const handler of bus.catchUpHandlers) {
+      handler(catchUpSignal('subscription-ended', 'immediate'));
+    }
+    await flushPromises();
+
+    for (const handler of bus.catchUpHandlers) {
+      handler(catchUpSignal('subscription-ended', 'projection-grace'));
+    }
+    await flushPromises();
+
+    expect(store.serverInfo.refreshProfile).toHaveBeenCalledTimes(2);
+    expect(store.serverInfo.refreshAuthenticatedSettings).toHaveBeenCalledTimes(2);
+    expect(store.notifications.fetch).toHaveBeenCalledTimes(2);
+    expect(store.rooms.refresh).toHaveBeenCalledTimes(2);
+    expect(store.roomDirectory.refresh).toHaveBeenCalledTimes(2);
+    expect(store.adminRoomLayout.refresh).not.toHaveBeenCalled();
+  });
+
+  it('skips duplicate immediate full catch-up after recent success', async () => {
+    const fake = new FakeServerConnection([]);
+    const store = makeStore(fake);
+    store.serverInfo.refreshProfile = vi.fn().mockResolvedValue(undefined);
+    store.serverInfo.refreshAuthenticatedSettings = vi.fn().mockResolvedValue(undefined);
+    store.notifications.fetch = vi.fn().mockResolvedValue(undefined);
+    store.rooms.refresh = vi.fn().mockResolvedValue(undefined);
+    store.roomDirectory.refresh = vi.fn().mockResolvedValue(undefined);
+    store.adminRoomLayout.refresh = vi.fn().mockResolvedValue(undefined);
+
+    eventBusManager.startBus(registered.id, fake as unknown as ServerConnection);
+    flushSync();
+    const bus = eventBusManager.getBus(registered.id);
+    if (!bus) throw new Error('event bus did not start');
+
+    for (const handler of bus.catchUpHandlers) {
+      handler(catchUpSignal('subscription-ended'));
+    }
+    await flushPromises();
+
+    for (const handler of bus.catchUpHandlers) {
+      handler(catchUpSignal('ws-reconnected'));
+    }
+    await flushPromises();
+
+    expect(store.serverInfo.refreshProfile).toHaveBeenCalledOnce();
+    expect(store.serverInfo.refreshAuthenticatedSettings).toHaveBeenCalledOnce();
+    expect(store.notifications.fetch).toHaveBeenCalledOnce();
+    expect(store.rooms.refresh).toHaveBeenCalledOnce();
+    expect(store.roomDirectory.refresh).toHaveBeenCalledOnce();
+    expect(store.adminRoomLayout.refresh).not.toHaveBeenCalled();
+  });
+
+  it('runs a queued projected-state refresh after an in-flight catch-up succeeds', async () => {
     const fake = new FakeServerConnection([]);
     const store = makeStore(fake);
     const rooms = deferred();
@@ -893,8 +967,9 @@ describe('ServerStateStore live server updates', () => {
     if (!bus) throw new Error('event bus did not start');
 
     for (const handler of bus.catchUpHandlers) {
-      handler('subscription-ended');
-      handler('ws-reconnected');
+      handler(catchUpSignal('subscription-ended'));
+      await Promise.resolve();
+      handler(catchUpSignal('heartbeat-stalled'));
     }
     await Promise.resolve();
 
@@ -928,8 +1003,8 @@ describe('ServerStateStore live server updates', () => {
     if (!bus) throw new Error('event bus did not start');
 
     for (const handler of bus.catchUpHandlers) {
-      handler('subscription-ended');
-      handler('ws-reconnected');
+      handler(catchUpSignal('subscription-ended'));
+      handler(catchUpSignal('ws-reconnected'));
     }
     await Promise.resolve();
 
@@ -969,12 +1044,12 @@ describe('ServerStateStore live server updates', () => {
     if (!bus) throw new Error('event bus did not start');
 
     for (const handler of bus.catchUpHandlers) {
-      handler('heartbeat-stalled');
+      handler(catchUpSignal('heartbeat-stalled'));
     }
     await flushPromises();
 
     for (const handler of bus.catchUpHandlers) {
-      handler('ws-reconnected');
+      handler(catchUpSignal('ws-reconnected'));
     }
     await flushPromises();
 

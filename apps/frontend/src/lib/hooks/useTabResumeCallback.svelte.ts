@@ -1,15 +1,6 @@
 import { onMount } from 'svelte';
-
-// eslint-disable-next-line svelte/prefer-svelte-reactivity -- module-level callback registry, not read reactively
-const callbacks = new Set<() => void>();
-
-if (typeof document !== 'undefined') {
-	document.addEventListener('visibilitychange', () => {
-		if (document.visibilityState === 'visible') {
-			for (const cb of callbacks) cb();
-		}
-	});
-}
+import { getActiveServer } from '$lib/state/activeServer.svelte';
+import { registerServerResumeCallback } from './resumeCoordinator.svelte';
 
 /**
  * Run a callback on mount and whenever the browser tab becomes visible again.
@@ -21,10 +12,8 @@ if (typeof document !== 'undefined') {
  * Must be called during component initialization.
  */
 export function useTabResumeCallback(callback: () => void) {
-	onMount(() => {
-		callback();
-		callbacks.add(callback);
-		return () => callbacks.delete(callback);
-	});
+  onMount(() => {
+    callback();
+    return registerServerResumeCallback(getActiveServer(), () => callback());
+  });
 }
-

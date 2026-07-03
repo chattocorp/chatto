@@ -60,6 +60,7 @@ describe('useMayHaveMissedMessagesCallback', () => {
   });
 
   it('runs the callback when the active event bus reports a catch-up gap', async () => {
+    vi.useFakeTimers();
     const fake = new FakeServerConnection();
     eventBusManager.startBus(TEST_SERVER, fake as unknown as ServerConnection);
     const onSignal = vi.fn();
@@ -72,39 +73,47 @@ describe('useMayHaveMissedMessagesCallback', () => {
     await vi.waitFor(() => expect(bus.catchUpHandlers.size).toBe(1));
 
     for (const handler of bus.catchUpHandlers) {
-      handler('heartbeat-stalled');
+      handler({ reason: 'heartbeat-stalled', phase: 'immediate' });
     }
+    await vi.advanceTimersByTimeAsync(1_000);
 
-    await vi.waitFor(() => expect(onSignal).toHaveBeenCalledWith('event-bus-heartbeat-stalled'));
+    expect(onSignal).toHaveBeenCalledWith(
+      expect.objectContaining({
+        serverId: TEST_SERVER,
+        reason: 'event-bus-heartbeat-stalled',
+        phase: 'immediate',
+        source: 'event-bus'
+      })
+    );
     rendered.unmount();
   });
 
-  it('does not let a failed wake refresh suppress a queued online signal', async () => {
-    let resolveFirst!: (value: boolean) => void;
-    const firstRefresh = new Promise<boolean>((resolve) => {
-      resolveFirst = resolve;
-    });
-    const onSignal = vi
-      .fn()
-      .mockImplementationOnce(() => firstRefresh)
-      .mockResolvedValue(undefined);
+  it('coalesces a browser wake burst into one signal', async () => {
+    vi.useFakeTimers();
+    const onSignal = vi.fn().mockResolvedValue(undefined);
 
     const rendered = render(Harness, { props: { onSignal } });
     flushSync();
 
     window.dispatchEvent(new Event('pageshow'));
     window.dispatchEvent(new Event('online'));
-    expect(onSignal).toHaveBeenCalledTimes(1);
-    expect(onSignal).toHaveBeenNthCalledWith(1, 'pageshow');
+    expect(onSignal).not.toHaveBeenCalled();
 
-    resolveFirst(false);
-
-    await vi.waitFor(() => expect(onSignal).toHaveBeenCalledTimes(2));
-    expect(onSignal).toHaveBeenNthCalledWith(2, 'online');
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(onSignal).toHaveBeenCalledOnce();
+    expect(onSignal).toHaveBeenCalledWith(
+      expect.objectContaining({
+        serverId: TEST_SERVER,
+        reason: 'online',
+        phase: 'immediate',
+        source: 'browser'
+      })
+    );
     rendered.unmount();
   });
 
-  it('runs a queued event-bus catch-up even after the in-flight refresh succeeds', async () => {
+  it('runs a projection-grace event-bus catch-up after the in-flight refresh succeeds', async () => {
+    vi.useFakeTimers();
     const fake = new FakeServerConnection();
     eventBusManager.startBus(TEST_SERVER, fake as unknown as ServerConnection);
     let resolveFirst!: (value: boolean) => void;
@@ -124,16 +133,36 @@ describe('useMayHaveMissedMessagesCallback', () => {
     await vi.waitFor(() => expect(bus.catchUpHandlers.size).toBe(1));
 
     for (const handler of bus.catchUpHandlers) {
-      handler('subscription-ended');
-      handler('heartbeat-stalled');
+      handler({ reason: 'subscription-ended', phase: 'immediate' });
     }
+    await vi.advanceTimersByTimeAsync(1_000);
+
     expect(onSignal).toHaveBeenCalledTimes(1);
-    expect(onSignal).toHaveBeenNthCalledWith(1, 'event-bus-subscription-ended');
+    expect(onSignal).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        reason: 'event-bus-subscription-ended',
+        phase: 'immediate',
+        source: 'event-bus'
+      })
+    );
+
+    for (const handler of bus.catchUpHandlers) {
+      handler({ reason: 'subscription-ended', phase: 'projection-grace' });
+    }
+    await vi.advanceTimersByTimeAsync(1_000);
 
     resolveFirst(true);
 
     await vi.waitFor(() => expect(onSignal).toHaveBeenCalledTimes(2));
-    expect(onSignal).toHaveBeenNthCalledWith(2, 'event-bus-heartbeat-stalled');
+    expect(onSignal).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        reason: 'event-bus-subscription-ended',
+        phase: 'projection-grace',
+        source: 'event-bus'
+      })
+    );
     rendered.unmount();
   });
 });

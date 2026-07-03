@@ -205,7 +205,12 @@ export type EventEnvelope = {
 
 export type EventHandler = (event: EventEnvelope) => void;
 export type EventBusCatchUpReason = 'subscription-ended' | 'ws-reconnected' | 'heartbeat-stalled';
-export type EventBusCatchUpHandler = (reason: EventBusCatchUpReason) => void;
+export type EventBusCatchUpPhase = 'immediate' | 'projection-grace';
+export type EventBusCatchUpSignal = {
+  reason: EventBusCatchUpReason;
+  phase: EventBusCatchUpPhase;
+};
+export type EventBusCatchUpHandler = (signal: EventBusCatchUpSignal) => void;
 
 export interface EventBus {
   handlers: SvelteSet<EventHandler>;

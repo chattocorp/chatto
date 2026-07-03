@@ -312,7 +312,10 @@ describe('eventBusManager realtime transport', () => {
     socket.serverClose();
 
     expect(fake.status).toBe('disconnected');
-    expect(catchUp).toHaveBeenCalledWith('subscription-ended');
+    expect(catchUp).toHaveBeenCalledWith({
+      reason: 'subscription-ended',
+      phase: 'immediate'
+    });
     await vi.advanceTimersByTimeAsync(0);
     expect(sockets).toHaveLength(2);
   });
@@ -375,7 +378,10 @@ describe('eventBusManager realtime transport', () => {
     expect(catchUp).toHaveBeenCalledTimes(1);
     await vi.advanceTimersByTimeAsync(1);
     expect(catchUp).toHaveBeenCalledTimes(2);
-    expect(catchUp).toHaveBeenNthCalledWith(2, 'subscription-ended');
+    expect(catchUp).toHaveBeenNthCalledWith(2, {
+      reason: 'subscription-ended',
+      phase: 'projection-grace'
+    });
   });
 
   it('reconnects when the ServerConnection retry bridge requests it', async () => {
@@ -386,7 +392,10 @@ describe('eventBusManager realtime transport', () => {
 
     fake.forceReconnect('user retry');
 
-    expect(catchUp).toHaveBeenCalledWith('ws-reconnected');
+    expect(catchUp).toHaveBeenCalledWith({
+      reason: 'ws-reconnected',
+      phase: 'immediate'
+    });
     await vi.advanceTimersByTimeAsync(0);
     expect(sockets).toHaveLength(2);
   });
@@ -399,7 +408,10 @@ describe('eventBusManager realtime transport', () => {
 
     await vi.advanceTimersByTimeAsync(90_000);
 
-    expect(catchUp).toHaveBeenCalledWith('heartbeat-stalled');
+    expect(catchUp).toHaveBeenCalledWith({
+      reason: 'heartbeat-stalled',
+      phase: 'immediate'
+    });
     expect(sockets).toHaveLength(2);
   });
 

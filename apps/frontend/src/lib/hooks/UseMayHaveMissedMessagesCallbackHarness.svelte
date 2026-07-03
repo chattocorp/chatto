@@ -1,16 +1,14 @@
 <script lang="ts">
-  import {
-    useMayHaveMissedMessagesCallback,
-    type MayHaveMissedMessagesReason
-  } from './useMayHaveMissedMessagesCallback.svelte';
+  import { useMayHaveMissedMessagesCallback } from './useMayHaveMissedMessagesCallback.svelte';
+  import type { ResumeSignal } from './resumeCoordinator.svelte';
 
   let {
     onSignal
   }: {
-    onSignal: (reason: MayHaveMissedMessagesReason) => boolean | void | Promise<boolean | void>;
+    onSignal: (signal: ResumeSignal) => boolean | void | Promise<boolean | void>;
   } = $props();
 
-  useMayHaveMissedMessagesCallback((reason) => onSignal(reason));
+  useMayHaveMissedMessagesCallback((signal) => onSignal(signal));
 </script>
 
 <div data-testid="maybe-missed-harness"></div>

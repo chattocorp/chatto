@@ -1,8 +1,14 @@
 import { onMount } from 'svelte';
-import type { EventBusCatchUpReason } from '$lib/eventBus.svelte';
+import type { EventBusCatchUpReason, EventBusCatchUpSignal } from '$lib/eventBus.svelte';
 import { getActiveServer } from '$lib/state/activeServer.svelte';
 import { eventBusManager } from '$lib/state/server/eventBus.svelte';
 import { useReconnectCallback } from './useReconnectCallback.svelte';
+import {
+  emitActiveServerResumeSignal,
+  emitServerResumeSignal,
+  registerServerResumeCallback,
+  type ResumeSignal
+} from './resumeCoordinator.svelte';
 
 export type MayHaveMissedMessagesReason =
   | 'visibility'
@@ -43,58 +49,56 @@ function reasonForEventBusCatchUp(reason: EventBusCatchUpReason): MayHaveMissedM
 }
 
 function createRefreshRunner(
-  callback: (reason: MayHaveMissedMessagesReason) => boolean | void | Promise<boolean | void>
+  callback: (signal: ResumeSignal) => boolean | void | Promise<boolean | void>
 ) {
   let lastSucceededAt = 0;
   let inFlight = false;
-  let queuedReason: MayHaveMissedMessagesReason | null = null;
+  let queuedSignal: ResumeSignal | null = null;
 
-  async function run(reason: MayHaveMissedMessagesReason): Promise<void> {
+  async function run(signal: ResumeSignal): Promise<void> {
     inFlight = true;
     let succeeded = false;
-    let nextReason: MayHaveMissedMessagesReason | null = null;
-    console.debug('[room-refresh] maybe-missed signal', { reason });
+    let nextSignal: ResumeSignal | null = null;
+    console.debug('[room-refresh] maybe-missed signal', signal);
     try {
-      const refreshed = await callback(reason);
+      const refreshed = await callback(signal);
       if (refreshed !== false) {
         lastSucceededAt = Date.now();
         succeeded = true;
       }
     } catch (error) {
-      console.debug('[room-refresh] maybe-missed callback failed', { reason, error });
+      console.debug('[room-refresh] maybe-missed callback failed', { signal, error });
     } finally {
       inFlight = false;
-      nextReason = queuedReason;
-      queuedReason = null;
+      nextSignal = queuedSignal;
+      queuedSignal = null;
     }
 
-    if (nextReason) {
-      if (!succeeded || isEventBusReason(nextReason)) {
-        console.debug('[room-refresh] running queued maybe-missed signal', { reason: nextReason });
-        void run(nextReason);
+    if (nextSignal) {
+      if (!succeeded || isEventBusReason(nextSignal.reason)) {
+        console.debug('[room-refresh] running queued maybe-missed signal', nextSignal);
+        void run(nextSignal);
       } else {
         console.debug('[room-refresh] skipped queued duplicate after successful refresh', {
-          reason: nextReason
+          signal: nextSignal
         });
       }
     }
   }
 
   return {
-    trigger(reason: MayHaveMissedMessagesReason): void {
+    trigger(signal: ResumeSignal): void {
       const now = Date.now();
       if (inFlight) {
-        queuedReason = reason;
-        console.debug('[room-refresh] queued maybe-missed signal while refresh is running', {
-          reason
-        });
+        queuedSignal = signal;
+        console.debug('[room-refresh] queued maybe-missed signal while refresh is running', signal);
         return;
       }
       if (now - lastSucceededAt < DEDUPE_MS) {
-        console.debug('[room-refresh] skipped duplicate maybe-missed signal', { reason });
+        console.debug('[room-refresh] skipped duplicate maybe-missed signal', signal);
         return;
       }
-      void run(reason);
+      void run(signal);
     }
   };
 }
@@ -105,12 +109,23 @@ function createRefreshRunner(
  * unlock does not fan out several identical room refreshes.
  */
 export function useMayHaveMissedMessagesCallback(
-  callback: (reason: MayHaveMissedMessagesReason) => boolean | void | Promise<boolean | void>
+  callback: (signal: ResumeSignal) => boolean | void | Promise<boolean | void>
 ): void {
   const runner = createRefreshRunner(callback);
-  const trigger = (reason: MayHaveMissedMessagesReason) => runner.trigger(reason);
 
-  useReconnectCallback(() => trigger('reconnect'));
+  useReconnectCallback(() =>
+    emitActiveServerResumeSignal({
+      reason: 'reconnect',
+      source: 'reconnect'
+    })
+  );
+
+  $effect(() => {
+    const serverId = getActiveServer();
+    if (!serverId) return;
+
+    return registerServerResumeCallback(serverId, (signal) => runner.trigger(signal));
+  });
 
   $effect(() => {
     const serverId = getActiveServer();
@@ -119,8 +134,12 @@ export function useMayHaveMissedMessagesCallback(
     const bus = eventBusManager.getBus(serverId);
     if (!bus) return;
 
-    const catchUpHandler = (reason: EventBusCatchUpReason) => {
-      trigger(reasonForEventBusCatchUp(reason));
+    const catchUpHandler = (signal: EventBusCatchUpSignal) => {
+      emitServerResumeSignal(serverId, {
+        reason: reasonForEventBusCatchUp(signal.reason),
+        phase: signal.phase,
+        source: 'event-bus'
+      });
     };
     bus.catchUpHandlers.add(catchUpHandler);
     return () => {
@@ -129,30 +148,31 @@ export function useMayHaveMissedMessagesCallback(
   });
 
   onMount(() => {
-    const onVisibilityChange = () => {
-      if (document.visibilityState === 'visible') trigger('visibility');
-    };
-    const onPageShow = () => trigger('pageshow');
-    const onOnline = () => trigger('online');
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.repeat || isEditableTarget(event.target)) return;
 
       // Temporary manual refresh shortcut for visual artifact testing.
-      if (event.ctrlKey && event.altKey && event.shiftKey && !event.metaKey && event.code === 'KeyR') {
+      if (
+        event.ctrlKey &&
+        event.altKey &&
+        event.shiftKey &&
+        !event.metaKey &&
+        event.code === 'KeyR'
+      ) {
         event.preventDefault();
-        trigger('manual-shortcut');
+        emitActiveServerResumeSignal(
+          {
+            reason: 'manual-shortcut',
+            source: 'manual'
+          },
+          { coalesceMs: 0 }
+        );
       }
     };
 
-    document.addEventListener('visibilitychange', onVisibilityChange);
-    window.addEventListener('pageshow', onPageShow);
-    window.addEventListener('online', onOnline);
     window.addEventListener('keydown', onKeyDown);
 
     return () => {
-      document.removeEventListener('visibilitychange', onVisibilityChange);
-      window.removeEventListener('pageshow', onPageShow);
-      window.removeEventListener('online', onOnline);
       window.removeEventListener('keydown', onKeyDown);
     };
   });

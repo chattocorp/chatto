@@ -384,6 +384,91 @@ describe('RoomsStore - refresh', () => {
     expect(store.rooms).toMatchObject([{ id: 'general', viewerNotificationCount: 0 }]);
   });
 
+  it('preserves unchanged room rows and array identity during refresh', async () => {
+    const roomDirectoryAPI = makeRoomDirectoryAPI([makeRoom('general'), makeRoom('random')]);
+    const store = makeStore({
+      roomDirectoryAPI,
+      notificationAPI: makeNotificationAPI({ general: 1, random: 0 })
+    });
+
+    await store.refresh();
+    await vi.waitFor(() => {
+      expect(store.rooms[0]?.viewerNotificationCount).toBe(1);
+    });
+
+    const rooms = store.rooms;
+    const general = store.rooms[0];
+    const random = store.rooms[1];
+    vi.mocked(roomDirectoryAPI.listRooms).mockResolvedValue([
+      makeRoom('general'),
+      makeRoom('random')
+    ]);
+
+    await store.refresh();
+    await settle();
+
+    expect(store.rooms).toBe(rooms);
+    expect(store.rooms[0]).toBe(general);
+    expect(store.rooms[1]).toBe(random);
+  });
+
+  it('patches changed room rows without replacing unchanged neighbors', async () => {
+    const roomDirectoryAPI = makeRoomDirectoryAPI([makeRoom('general'), makeRoom('random')]);
+    const store = makeStore({
+      roomDirectoryAPI,
+      notificationAPI: makeNotificationAPI()
+    });
+
+    await store.refresh();
+    await settle();
+
+    const general = store.rooms[0];
+    const random = store.rooms[1];
+    vi.mocked(roomDirectoryAPI.listRooms).mockResolvedValue([
+      makeRoom('general'),
+      makeRoom('random', { hasUnread: true })
+    ]);
+
+    await store.refresh();
+    await settle();
+
+    expect(store.rooms[0]).toBe(general);
+    expect(store.rooms[1]).not.toBe(random);
+    expect(store.rooms[1]).toMatchObject({ id: 'random', hasUnread: true });
+  });
+
+  it('only replaces rooms whose notification counts changed', async () => {
+    const notificationAPI = makeNotificationAPI({ general: 1, random: 0 });
+    const store = makeStore({
+      roomDirectoryAPI: makeRoomDirectoryAPI([makeRoom('general'), makeRoom('random')]),
+      notificationAPI
+    });
+
+    await store.refresh();
+    await vi.waitFor(() => {
+      expect(store.rooms[0]?.viewerNotificationCount).toBe(1);
+    });
+
+    const rooms = store.rooms;
+    const general = store.rooms[0];
+    const random = store.rooms[1];
+
+    await store.refreshNotificationCounts();
+
+    expect(store.rooms).toBe(rooms);
+    expect(store.rooms[0]).toBe(general);
+    expect(store.rooms[1]).toBe(random);
+
+    vi.mocked(notificationAPI.listNotificationCounts).mockResolvedValue({ general: 1, random: 3 });
+
+    await store.refreshNotificationCounts();
+
+    expect(store.rooms).not.toBe(rooms);
+    expect(store.rooms[0]).toBe(general);
+    expect(store.rooms[1]).not.toBe(random);
+    expect(store.rooms[1]).toMatchObject({ id: 'random', viewerNotificationCount: 3 });
+  });
+
   it('discards out-of-order notification count refresh responses', async () => {
     let countQueries = 0;
     let resolveOlder!: (value: Record<string, number>) => void;

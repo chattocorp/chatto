@@ -889,11 +889,15 @@ export class MessagesStore {
       endCursor?: string | null;
       hasOlder?: boolean;
     },
-    existingBeforeFetch: ReadonlySet<string>
+    existingBeforeFetch: ReadonlySet<string>,
+    options: { preserveExistingWindow?: boolean } = {}
   ): void {
     const fetched = unmask(connection.events);
     const newSeen = new SvelteSet<string>();
     const merged: RoomEventView[] = [];
+    const previousOldestCursor = this.oldestCursor;
+    const previousNewestCursor = this.newestCursor;
+    const previousHasReachedStart = this.hasReachedStart;
 
     for (const e of fetched) {
       if (newSeen.has(e.id)) continue;
@@ -902,10 +906,12 @@ export class MessagesStore {
     }
 
     // Preserve subscription events that arrived while the refresh query was in
-    // flight. Older pre-refresh rows outside the fetched window are deliberately
-    // dropped: this is a projected-state reload of the current window.
+    // flight. Anchored refreshes also preserve already-loaded rows outside the
+    // fetched window so returning from another tab does not visually collapse a
+    // long scrolled buffer.
     for (const e of this.events) {
-      if (existingBeforeFetch.has(e.id) || newSeen.has(e.id)) continue;
+      if (!options.preserveExistingWindow && existingBeforeFetch.has(e.id)) continue;
+      if (newSeen.has(e.id)) continue;
       newSeen.add(e.id);
       merged.push(e);
     }
@@ -913,12 +919,18 @@ export class MessagesStore {
     this.events = merged;
     if (this.scope === 'room') this.sortRoomEvents();
     this.seenIds = newSeen;
-    this.oldestCursor = connection.startCursor ?? undefined;
-    this.newestCursor = connection.endCursor ?? undefined;
-    this.hasReachedStart = !(connection.hasOlder ?? false);
+    if (options.preserveExistingWindow) {
+      this.oldestCursor = previousOldestCursor ?? connection.startCursor ?? undefined;
+      this.newestCursor = previousNewestCursor ?? connection.endCursor ?? undefined;
+      this.hasReachedStart = previousHasReachedStart || !(connection.hasOlder ?? false);
+    } else {
+      this.oldestCursor = connection.startCursor ?? undefined;
+      this.newestCursor = connection.endCursor ?? undefined;
+      this.hasReachedStart = !(connection.hasOlder ?? false);
+    }
     console.debug('[room-refresh] snapshot applied', {
       fetchedCount: fetched.length,
-      preservedInFlightCount: merged.length - fetched.length,
+      preservedExistingCount: merged.length - fetched.length,
       eventCount: this.events.length,
       hasOlder: connection.hasOlder ?? false,
       hasReachedStart: this.hasReachedStart
@@ -951,7 +963,9 @@ export class MessagesStore {
     });
 
     if (this.isStale(thisLoad)) return { hasOlder: false, hasNewer: false, refreshed: false };
-    this.replaceWithSnapshotAndUpdateCursors(page, existingBeforeFetch);
+    this.replaceWithSnapshotAndUpdateCursors(page, existingBeforeFetch, {
+      preserveExistingWindow: true
+    });
     return { hasOlder: page.hasOlder, hasNewer: page.hasNewer, refreshed: true };
   }
 
@@ -973,7 +987,9 @@ export class MessagesStore {
           limit: PAGE_SIZE
         });
     if (this.isStale(thisLoad)) return { hasOlder: false, hasNewer: false, refreshed: false };
-    this.replaceWithSnapshotAndUpdateCursors(page, existingBeforeFetch);
+    this.replaceWithSnapshotAndUpdateCursors(page, existingBeforeFetch, {
+      preserveExistingWindow: anchorEventId !== null && anchorEventId !== this.threadRootEventId
+    });
     this.sortThreadEvents();
     return { hasOlder: page.hasOlder, hasNewer: page.hasNewer, refreshed: true };
   }

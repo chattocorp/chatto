@@ -8,6 +8,9 @@
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import type {
   EventBusCatchUpReason,
+  EventBusCatchUpPhase,
+  EventBusCatchUpSignal,
+  EventBusCatchUpHandler,
   EventHandler,
   EventBus,
   EventEnvelope
@@ -92,7 +95,7 @@ class EventBusManager {
     if (this.#buses.has(serverId)) return () => {};
 
     const handlers = new SvelteSet<EventHandler>();
-    const catchUpHandlers = new SvelteSet<(reason: EventBusCatchUpReason) => void>();
+    const catchUpHandlers = new SvelteSet<EventBusCatchUpHandler>();
     const bus: EventBus = { handlers, catchUpHandlers };
     let lastEventAt = Date.now();
     let heartbeatCount = 0;
@@ -116,8 +119,9 @@ class EventBusManager {
 
     const notifyCatchUpHandlers = (
       reason: EventBusCatchUpReason,
-      phase: 'immediate' | 'projection-grace' = 'immediate'
+      phase: EventBusCatchUpPhase = 'immediate'
     ) => {
+      const signal: EventBusCatchUpSignal = { reason, phase };
       console.debug(`[eventBus:${serverId}] notifying catch-up handlers`, {
         reason,
         phase,
@@ -126,7 +130,7 @@ class EventBusManager {
       });
       for (const handler of catchUpHandlers) {
         try {
-          handler(reason);
+          handler(signal);
         } catch (err) {
           console.error(`[eventBus:${serverId}] catch-up handler threw`, err);
         }
