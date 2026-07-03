@@ -6,10 +6,15 @@ import "buf/validate/validate.proto";
 import "chatto/api/v1/room_timeline.proto";
 
 // Request to add the current user's reaction to a message.
+//
+// When `message_event_id` names a channel echo of a thread reply, the server
+// treats it as an alias for the original thread reply and stores the reaction
+// on that original event.
 message AddReactionRequest {
   // Required. Room containing the message event.
   string room_id = 1 [(buf.validate.field).string.min_len = 1];
-  // Required. Event ID of the message being reacted to.
+  // Required. Event ID of the message being reacted to, or a channel echo of
+  // the message.
   string message_event_id = 2 [(buf.validate.field).string.min_len = 1];
   // Required. Emoji shortcode name, such as "thumbsup" or "heart".
   string emoji = 3 [(buf.validate.field).string.min_len = 1];
@@ -24,10 +29,15 @@ message AddReactionResponse {
 }
 
 // Request to remove the current user's reaction from a message.
+//
+// When `message_event_id` names a channel echo of a thread reply, the server
+// treats it as an alias for the original thread reply and removes the reaction
+// from that original event.
 message RemoveReactionRequest {
   // Required. Room containing the message event.
   string room_id = 1 [(buf.validate.field).string.min_len = 1];
-  // Required. Event ID of the message whose reaction should be removed.
+  // Required. Event ID of the message whose reaction should be removed, or a
+  // channel echo of the message.
   string message_event_id = 2 [(buf.validate.field).string.min_len = 1];
   // Required. Emoji shortcode name, such as "thumbsup" or "heart".
   string emoji = 3 [(buf.validate.field).string.min_len = 1];

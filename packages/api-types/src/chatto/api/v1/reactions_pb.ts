@@ -10,6 +10,10 @@ import { RoomTimelineReaction } from "./room_timeline_pb.js";
 /**
  * Request to add the current user's reaction to a message.
  *
+ * When `message_event_id` names a channel echo of a thread reply, the server
+ * treats it as an alias for the original thread reply and stores the reaction
+ * on that original event.
+ *
  * @generated from message chatto.api.v1.AddReactionRequest
  */
 export class AddReactionRequest extends Message<AddReactionRequest> {
@@ -21,7 +25,8 @@ export class AddReactionRequest extends Message<AddReactionRequest> {
   roomId = "";
 
   /**
-   * Required. Event ID of the message being reacted to.
+   * Required. Event ID of the message being reacted to, or a channel echo of
+   * the message.
    *
    * @generated from field: string message_event_id = 2;
    */
@@ -116,6 +121,10 @@ export class AddReactionResponse extends Message<AddReactionResponse> {
 /**
  * Request to remove the current user's reaction from a message.
  *
+ * When `message_event_id` names a channel echo of a thread reply, the server
+ * treats it as an alias for the original thread reply and removes the reaction
+ * from that original event.
+ *
  * @generated from message chatto.api.v1.RemoveReactionRequest
  */
 export class RemoveReactionRequest extends Message<RemoveReactionRequest> {
@@ -127,7 +136,8 @@ export class RemoveReactionRequest extends Message<RemoveReactionRequest> {
   roomId = "";
 
   /**
-   * Required. Event ID of the message whose reaction should be removed.
+   * Required. Event ID of the message whose reaction should be removed, or a
+   * channel echo of the message.
    *
    * @generated from field: string message_event_id = 2;
    */

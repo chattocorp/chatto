@@ -1792,12 +1792,15 @@ func (x *RealtimeMessageRetractedEvent) GetReason() string {
 // Refresh or patch the affected message in its timeline window. Use
 // `RoomService.GetRoomEventsAround` for room messages, or
 // `ThreadService.GetThreadEventsAround` when the local message belongs to
-// a thread.
+// a thread. `message_event_id` is canonical: reactions made through a channel
+// echo of a thread reply report the original reply event ID. Clients that show
+// channel echoes should also refresh or patch visible echo rows whose
+// `echo_of_event_id` matches this ID.
 type RealtimeReactionEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Room containing the reacted-to message.
 	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
-	// Event ID of the reacted-to message.
+	// Canonical event ID of the reacted-to message.
 	MessageEventId string `protobuf:"bytes,2,opt,name=message_event_id,json=messageEventId,proto3" json:"message_event_id,omitempty"`
 	// Reaction emoji.
 	Emoji         string `protobuf:"bytes,3,opt,name=emoji,proto3" json:"emoji,omitempty"`

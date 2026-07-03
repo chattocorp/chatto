@@ -23,11 +23,16 @@ const (
 )
 
 // Request to add the current user's reaction to a message.
+//
+// When `message_event_id` names a channel echo of a thread reply, the server
+// treats it as an alias for the original thread reply and stores the reaction
+// on that original event.
 type AddReactionRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Required. Room containing the message event.
 	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
-	// Required. Event ID of the message being reacted to.
+	// Required. Event ID of the message being reacted to, or a channel echo of
+	// the message.
 	MessageEventId string `protobuf:"bytes,2,opt,name=message_event_id,json=messageEventId,proto3" json:"message_event_id,omitempty"`
 	// Required. Emoji shortcode name, such as "thumbsup" or "heart".
 	Emoji         string `protobuf:"bytes,3,opt,name=emoji,proto3" json:"emoji,omitempty"`
@@ -142,11 +147,16 @@ func (x *AddReactionResponse) GetReaction() *RoomTimelineReaction {
 }
 
 // Request to remove the current user's reaction from a message.
+//
+// When `message_event_id` names a channel echo of a thread reply, the server
+// treats it as an alias for the original thread reply and removes the reaction
+// from that original event.
 type RemoveReactionRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Required. Room containing the message event.
 	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
-	// Required. Event ID of the message whose reaction should be removed.
+	// Required. Event ID of the message whose reaction should be removed, or a
+	// channel echo of the message.
 	MessageEventId string `protobuf:"bytes,2,opt,name=message_event_id,json=messageEventId,proto3" json:"message_event_id,omitempty"`
 	// Required. Emoji shortcode name, such as "thumbsup" or "heart".
 	Emoji         string `protobuf:"bytes,3,opt,name=emoji,proto3" json:"emoji,omitempty"`

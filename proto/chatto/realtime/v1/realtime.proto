@@ -271,11 +271,14 @@ message RealtimeMessageRetractedEvent {
 // Refresh or patch the affected message in its timeline window. Use
 // `RoomService.GetRoomEventsAround` for room messages, or
 // `ThreadService.GetThreadEventsAround` when the local message belongs to
-// a thread.
+// a thread. `message_event_id` is canonical: reactions made through a channel
+// echo of a thread reply report the original reply event ID. Clients that show
+// channel echoes should also refresh or patch visible echo rows whose
+// `echo_of_event_id` matches this ID.
 message RealtimeReactionEvent {
   // Room containing the reacted-to message.
   string room_id = 1;
-  // Event ID of the reacted-to message.
+  // Canonical event ID of the reacted-to message.
   string message_event_id = 2;
   // Reaction emoji.
   string emoji = 3;

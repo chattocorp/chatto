@@ -1493,10 +1493,14 @@ POST /api/connect/chatto.api.v1.MessageService/AddReaction
 
 Request to add the current user's reaction to a message.
 
+When `message_event_id` names a channel echo of a thread reply, the server
+treats it as an alias for the original thread reply and stores the reaction
+on that original event.
+
 | Field | Type | Description |
 | --- | --- | --- |
 | `room_id` | `string` | Required. Room containing the message event. |
-| `message_event_id` | `string` | Required. Event ID of the message being reacted to. |
+| `message_event_id` | `string` | Required. Event ID of the message being reacted to, or a channel echo of the message. |
 | `emoji` | `string` | Required. Emoji shortcode name, such as "thumbsup" or "heart". |
 
 
@@ -1529,10 +1533,14 @@ POST /api/connect/chatto.api.v1.MessageService/RemoveReaction
 
 Request to remove the current user's reaction from a message.
 
+When `message_event_id` names a channel echo of a thread reply, the server
+treats it as an alias for the original thread reply and removes the reaction
+from that original event.
+
 | Field | Type | Description |
 | --- | --- | --- |
 | `room_id` | `string` | Required. Room containing the message event. |
-| `message_event_id` | `string` | Required. Event ID of the message whose reaction should be removed. |
+| `message_event_id` | `string` | Required. Event ID of the message whose reaction should be removed, or a channel echo of the message. |
 | `emoji` | `string` | Required. Emoji shortcode name, such as "thumbsup" or "heart". |
 
 

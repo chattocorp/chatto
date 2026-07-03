@@ -1257,7 +1257,10 @@ export class RealtimeMessageRetractedEvent extends Message<RealtimeMessageRetrac
  * Refresh or patch the affected message in its timeline window. Use
  * `RoomService.GetRoomEventsAround` for room messages, or
  * `ThreadService.GetThreadEventsAround` when the local message belongs to
- * a thread.
+ * a thread. `message_event_id` is canonical: reactions made through a channel
+ * echo of a thread reply report the original reply event ID. Clients that show
+ * channel echoes should also refresh or patch visible echo rows whose
+ * `echo_of_event_id` matches this ID.
  *
  * @generated from message chatto.realtime.v1.RealtimeReactionEvent
  */
@@ -1270,7 +1273,7 @@ export class RealtimeReactionEvent extends Message<RealtimeReactionEvent> {
   roomId = "";
 
   /**
-   * Event ID of the reacted-to message.
+   * Canonical event ID of the reacted-to message.
    *
    * @generated from field: string message_event_id = 2;
    */
