@@ -1,7 +1,7 @@
 # FDR-003: Thread Reply Echo
 
 **Status:** Active
-**Last reviewed:** 2026-06-01
+**Last reviewed:** 2026-07-03
 
 ## Overview
 
@@ -16,7 +16,7 @@ When posting a reply inside a thread, the user can optionally "also send to chan
 - If the original reply was attributed to a specific message, the echo shows the same reply-attribution byline. Clicking the byline on the echo opens the thread and highlights the referenced message inside it.
 - Editing or deleting the original reply automatically affects the echo too — edit/delete events target the original reply, and read models apply the change to the linked echo.
 - Deleting the echo itself only hides that room-timeline copy. The original thread reply remains in the thread with its body readable.
-- Reactions on the original and the echo are independent — they're different events as far as reactions are concerned.
+- Reactions shown on the original reply and its channel echo are the same reaction set; reacting in either place targets the original reply.
 - The thread's reply count is not incremented by the echo; the echo represents the same reply, not an additional one.
 - Mention notifications fire once for the reply, not twice (the echo doesn't re-notify).
 - The main-room composer never shows the echo checkbox — the action only makes sense from inside a thread.
@@ -28,7 +28,7 @@ When posting a reply inside a thread, the user can optionally "also send to chan
 
 **Decision:** The echo and the original thread reply are two different EVT envelopes. The echo carries `echoOfEventId`, which points at the original reply envelope. The message identity itself lives on the envelope (`Event.id`), not inside the `MessagePostedEvent` payload.
 **Why:** Public timeline APIs and EVT now model the same wrapper/payload boundary. Echoes still render the same text, but edits and deletes are propagated through the event-link relationship instead of a shared `messageBodyId` payload crutch.
-**Tradeoff:** Read models have to keep the echo link when applying edit/delete state. Reactions remain naturally independent because they already key on the envelope event ID.
+**Tradeoff:** Read models have to keep the echo link when applying edit/delete and reaction state.
 
 ### 2. Echo deletion hides the echo artifact
 
@@ -36,11 +36,11 @@ When posting a reply inside a thread, the user can optionally "also send to chan
 **Why:** The echo is a first-class `MessagePostedEvent`, so its counterpart is the same delete/retract fact used for other messages. The special case is rendering policy: retracting an echo removes the copy, while retracting the original removes the underlying content.
 **Tradeoff:** Echo retractions are interpreted differently from original reply retractions. The projection has to know whether the target event is an echo.
 
-### 3. Reactions key on event ID, not body ID
+### 3. Reactions canonicalize to the original reply
 
-**Decision:** Reactions attach to the event ID, so the echo and original accumulate reactions independently.
-**Why:** People reacting in the channel timeline are reacting to the appearance there; people reacting in the thread are reacting to the contribution inside the thread. Conflating them would mute one of those signals.
-**Tradeoff:** Total reaction count on a "reply that was also sent to channel" is split — there's no single canonical number. In practice this matches the user's mental model.
+**Decision:** Reactions attach to the original thread reply event ID. Channel echo event IDs are accepted as aliases at API boundaries and during projection replay, but new durable reaction facts target the original reply.
+**Why:** The echo represents the same contribution in a second timeline context. A single reaction set keeps the room and thread views consistent and avoids users seeing different counts for one reply.
+**Tradeoff:** Reaction reads need the echo link to resolve aliases. Historical echo-keyed reaction facts are canonicalized during projection replay instead of rewriting EVT.
 
 ### 4. Mentions copy to the echo, but don't re-notify
 

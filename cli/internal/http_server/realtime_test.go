@@ -153,6 +153,49 @@ func TestRealtimeMapperMapsThreadCreated(t *testing.T) {
 	}
 }
 
+func TestRealtimeMapperCanonicalizesEchoReactionMessageID(t *testing.T) {
+	timeline := core.NewRoomTimelineProjection()
+	if err := timeline.Apply(&corev1.Event{
+		Id: "M1",
+		Event: &corev1.Event_MessagePosted{MessagePosted: &corev1.MessagePostedEvent{
+			RoomId:   "R1",
+			InThread: "ROOT1",
+		}},
+	}, 1); err != nil {
+		t.Fatalf("apply original message: %v", err)
+	}
+	if err := timeline.Apply(&corev1.Event{
+		Id: "ECHO1",
+		Event: &corev1.Event_MessagePosted{MessagePosted: &corev1.MessagePostedEvent{
+			RoomId:        "R1",
+			EchoOfEventId: "M1",
+		}},
+	}, 2); err != nil {
+		t.Fatalf("apply echo message: %v", err)
+	}
+
+	server := &HTTPServer{core: &core.ChattoCore{RoomTimeline: timeline}}
+	frame, err := server.realtimeEventEnvelope(context.Background(), "", core.NewEVTEventEnvelope(&corev1.Event{
+		Id:      "reaction-1",
+		ActorId: "U1",
+		Event: &corev1.Event_ReactionAdded{ReactionAdded: &corev1.ReactionAddedEvent{
+			RoomId:         "R1",
+			MessageEventId: "ECHO1",
+			Emoji:          "thumbsup",
+		}},
+	}))
+	if err != nil {
+		t.Fatalf("realtimeEventEnvelope: %v", err)
+	}
+	reaction := frame.GetReactionAdded()
+	if reaction == nil {
+		t.Fatalf("event = %T, want reaction_added", frame.GetEvent())
+	}
+	if reaction.MessageEventId != "M1" {
+		t.Fatalf("reaction message_event_id = %q, want M1", reaction.MessageEventId)
+	}
+}
+
 func TestRealtimeMapperMapsCallEventSource(t *testing.T) {
 	frame, err := (&HTTPServer{}).realtimeEventEnvelope(context.Background(), "", core.NewEVTEventEnvelope(&corev1.Event{
 		Id:      "call-joined-1",

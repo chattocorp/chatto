@@ -411,7 +411,7 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
     );
   });
 
-  test('echo and original have independent reactions', async ({ page, chatPage, roomPage }) => {
+  test('echo and original share reactions', async ({ page, chatPage, roomPage }) => {
     await test.step('Setup: User loads the server and posts root message', async () => {
       await createAndLoginTestUser(page);
       await chatPage.goto();
@@ -435,7 +435,7 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
       await threadReply.expectReaction('👍', 1);
     });
 
-    await test.step('Close thread and verify echo does not inherit the reaction', async () => {
+    await test.step('Close thread and verify echo shows the original reaction', async () => {
       await roomPage.closeThread();
       await roomPage.expectThreadRouteClosed();
 
@@ -443,10 +443,10 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
       const echo = roomPage.getMessage(replyMessage);
       await expect(echo.locator).toBeVisible();
 
-      await echo.expectNoReaction('👍');
+      await echo.expectReaction('👍', 1);
     });
 
-    await test.step('React to echo and verify thread original stays independent', async () => {
+    await test.step('React to echo and verify thread original shows the echo reaction', async () => {
       const echo = roomPage.getMessage(replyMessage);
       await echo.react('❤️');
       await echo.expectReaction('❤️', 1);
@@ -456,7 +456,7 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
 
       const threadReply = roomPage.getThreadMessage(replyMessage);
       await threadReply.expectReaction('👍', 1);
-      await threadReply.expectNoReaction('❤️');
+      await threadReply.expectReaction('❤️', 1);
     });
   });
 

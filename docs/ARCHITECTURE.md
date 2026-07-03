@@ -125,7 +125,7 @@ Projections are in-memory read models rebuilt from `EVT`. `NewChattoCore` regist
 | Room timeline      | Room Timeline        | `evt.room.>`                                               | Visible room timeline, latest message bodies, hidden echoes, current attachment-bearing message index, direct message-post lookup, and message asset references |
 | Assets             | Assets               | `evt.asset.>`, legacy `evt.room.*.asset_*`                 | Asset creation metadata, room scope, processing manifests, derivative graph, deletion state, and legacy room-asset compatibility |
 | Threads            | Threads              | `evt.room.*.thread_created`, `evt.room.*.thread_followed`, `evt.room.*.thread_unfollowed`, `evt.room.*.message_posted`, `evt.room.*.message_edited`, `evt.room.*.message_retracted`, `evt.user.*.user_key_shredded` | Per-thread reply logs, summaries, participants, reply counts, and follow state             |
-| Reactions          | Reactions            | `evt.room.>`                                               | Current per-message reaction sets and room-scoped snapshot OCC positions; intentionally broad so reaction writes can OCC against the room tail |
+| Reactions          | Reactions            | `evt.room.>`                                               | Current canonical per-message reaction sets, echo-to-original reaction aliases, and room-scoped snapshot OCC positions; intentionally broad so reaction writes can OCC against the room tail |
 | Voice calls        | Call State           | `evt.room.>`                                               | Current LiveKit call session, participants, active room IDs, and room-scoped snapshot OCC positions |
 | Server/user config | Server Config        | `evt.config.>`, selected user cleanup/preference facts     | Server config, branding refs, user preferences, notification levels, blocked usernames     |
 | Users              | Users                | `evt.user.>`                                               | Account/profile/custom-status/auth lookup state, verified emails, external identity links, encrypted user PII |
@@ -783,7 +783,7 @@ Messages are persisted as durable `EVT` facts. Public timeline facts (`MessagePo
 
 **Message Identifiers:**
 
-- **Event ID**: NanoID (e.g., `E...`) on the EVT envelope. This is the durable message identity used for reactions, thread metadata, message-body lookup, attachments, and projections.
+- **Event ID**: NanoID (e.g., `E...`) on the EVT envelope. This is the durable message identity used for thread metadata, message-body lookup, attachments, and projections. Reactions use this event ID except that channel echo IDs canonicalize to the original thread reply event ID.
 - **Payload**: `MessagePostedEvent` is payload-only. It carries room/thread/echo fields, but not an event ID, message-body ID alias, or embedded body.
 
 **Write Path:**
@@ -798,7 +798,7 @@ Messages are persisted as durable `EVT` facts. Public timeline facts (`MessagePo
 - `in_reply_to` field stores the event ID of the parent message (empty for top-level messages)
 - `in_thread` field stores the event ID of the thread root (empty for top-level messages)
 - Thread replies are ordinary `MessagePostedEvent` facts on `evt.room.{roomId}.message_posted` with `in_thread` set to the root event ID.
-- Thread replies can be echoed to the room timeline at post time or during the author's edit window. Echoes are separate `MessagePostedEvent` facts with `echo_of_event_id`; removing an edit-time echo appends a normal `MessageRetractedEvent` for the echo artifact.
+- Thread replies can be echoed to the room timeline at post time or during the author's edit window. Echoes are separate `MessagePostedEvent` facts with `echo_of_event_id`; removing an edit-time echo appends a normal `MessageRetractedEvent` for the echo artifact. Reaction writes and reads accept the echo event ID but canonicalize reaction state to the original reply event ID.
 - Thread follow and unfollow choices are durable `ThreadFollowedEvent` / `ThreadUnfollowedEvent` facts on the room aggregate. `ThreadProjection` derives current follow state, follower fanout, followed-thread pages, reply counts, participants, and last-reply timestamps. During the migration window, startup seeds pre-EVT `thread_follow.*` runtime markers into that projection before replaying EVT.
 
 **Read Path:**

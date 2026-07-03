@@ -623,6 +623,71 @@ describe('MessagesStore — room lifecycle ownership', () => {
     store.dispose();
   });
 
+  it('refetches a visible echo when a reaction event targets the original reply', async () => {
+    const baseEcho = threadMessageEvent('echo');
+    const echo = {
+      ...baseEcho,
+      event: {
+        ...baseEcho.event,
+        body: 'reply',
+        echoOfEventId: 'reply',
+        echoFromThreadRootEventId: 'root'
+      }
+    };
+    const updatedEcho = {
+      ...echo,
+      event: {
+        ...echo.event,
+        reactions: [{ emoji: 'heart', count: 1, hasReacted: false, users: [] }]
+      }
+    };
+    const fake = new FakeQueryClient([
+      roomEventsResult({
+        events: [echo],
+        startCursor: 'tl:cursor-1',
+        endCursor: 'tl:cursor-1',
+        hasOlder: false,
+        hasNewer: false
+      }),
+      { room: { event: updatedEcho } }
+    ]);
+    const store = new MessagesStore(
+      fake as unknown as ServerConnection,
+      () => null,
+      timelineFromFixtures(fake)
+    );
+
+    store.setRoom('room-1');
+    await settle();
+    fake.queryMock.mockClear();
+
+    store.ingestServerEvent({
+      id: 'reaction-echo',
+      createdAt: '2026-05-27T00:00:01Z',
+      actorId: 'u2',
+      actor: null,
+      event: {
+        kind: RoomEventKind.ReactionAdded,
+        roomId: 'room-1',
+        messageEventId: 'reply',
+        emoji: 'heart'
+      }
+    } as never);
+    await settle();
+
+    expect(fake.queryMock).toHaveBeenCalledOnce();
+    expect(fake.queryMock.mock.calls[0][1]).toEqual({
+      roomId: 'room-1',
+      eventId: 'echo',
+      limit: 1
+    });
+    expect(fake.queryMock.mock.calls[0][2]).toEqual({ requestPolicy: 'network-only' });
+    expect(store.rootEvents[0].event).toMatchObject({
+      reactions: [{ emoji: 'heart', count: 1 }]
+    });
+    store.dispose();
+  });
+
   it('hides only the echo when an echo is retracted', async () => {
     const fake = new FakeQueryClient({
       room: {

@@ -1,7 +1,7 @@
 # FDR-005: Reactions
 
 **Status:** Active
-**Last reviewed:** 2026-06-25
+**Last reviewed:** 2026-07-03
 
 ## Overview
 
@@ -17,11 +17,11 @@ Users can react to a message with emoji. Reactions are aggregated into pills sho
 
 ## Design Decisions
 
-### 1. Reactions key on message event ID
+### 1. Reactions key on canonical message event ID
 
-**Decision:** A reaction is keyed by the specific message event ID the user reacted to. A channel echo of a thread reply and the original thread reply are separate visible events, so they accumulate independent reaction state.
-**Why:** Message identity lives on the EVT envelope. Keeping reactions attached to the exact envelope matches the public timeline event model and avoids hidden canonicalization between two visible artifacts.
-**Tradeoff:** A reply echoed into the channel can show different reaction counts in the channel and thread views. That is intentional: people are reacting to the appearance they can see.
+**Decision:** A reaction is keyed by the canonical message event ID. For ordinary messages this is the visible event ID; for a channel echo of a thread reply, it is the original thread reply event ID. Echo event IDs remain accepted as aliases at API boundaries.
+**Why:** The echo and original render the same contribution in different views. Sharing one reaction set keeps counts, viewer state, and reactor previews consistent wherever the reply appears.
+**Tradeoff:** Reaction reads and replay need the room timeline's echo link to resolve aliases. Historical echo-keyed reaction facts are interpreted as reactions on the original reply without rewriting EVT.
 
 ### 2. Shortcodes, not raw Unicode
 
@@ -31,7 +31,7 @@ Users can react to a message with emoji. Reactions are aggregated into pills sho
 
 ### 3. Durable events, in-memory projection is source of truth
 
-**Decision:** Reaction add/remove changes append durable room-aggregate events to EVT (`evt.room.{roomId}.reaction_added` / `reaction_removed`). Current reaction state is derived by an in-memory projection keyed by message event ID, emoji shortcode, and actor/user ID. The projection consumes the room aggregate namespace so mutation snapshots can pair current reaction state with the room's applied OCC sequence. Live subscribers receive reactions through the EVT stream's `live.evt.>` republish path after projection readiness and authorization checks.
+**Decision:** Reaction add/remove changes append durable room-aggregate events to EVT (`evt.room.{roomId}.reaction_added` / `reaction_removed`). Current reaction state is derived by an in-memory projection keyed by canonical message event ID, emoji shortcode, and actor/user ID. The projection consumes the room aggregate namespace so mutation snapshots can pair current reaction state with the room's applied OCC sequence and so replay can resolve echo aliases from prior message facts. Live subscribers receive reactions through the EVT stream's `live.evt.>` republish path after projection readiness and authorization checks.
 **Why:** Reactions are durable room facts. Keeping them in the room stream makes add/remove ordering explicit, gives replayable state, removes the old KV bucket from the hot read/write path, and lets duplicate add/remove decisions retry safely under multi-replica contention.
 **Tradeoff:** The first projection version keeps all current reaction state in RAM and consumes more room facts than it derives. That is simple and correct; bounded or demand-loaded projections can follow once the rest of the event-sourcing architecture is in place and real access patterns are measured.
 

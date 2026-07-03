@@ -17,11 +17,12 @@ import (
 // known.
 type ReactionProjection struct {
 	events.MemoryProjection
-	byMessage   map[string]map[string]map[string]int64 // message event ID -> emoji -> user ID -> added timestamp
-	roomSeq     map[string]uint64
-	messageRoom map[string]string
-	assetRoom   map[string]string
-	seen        eventIDSet
+	byMessage    map[string]map[string]map[string]int64 // message event ID -> emoji -> user ID -> added timestamp
+	roomSeq      map[string]uint64
+	messageRoom  map[string]string
+	echoOriginal map[string]string
+	assetRoom    map[string]string
+	seen         eventIDSet
 }
 
 type ReactionMutationSnapshot struct {
@@ -31,11 +32,12 @@ type ReactionMutationSnapshot struct {
 
 func NewReactionProjection() *ReactionProjection {
 	return &ReactionProjection{
-		byMessage:   make(map[string]map[string]map[string]int64),
-		roomSeq:     make(map[string]uint64),
-		messageRoom: make(map[string]string),
-		assetRoom:   make(map[string]string),
-		seen:        newEventIDSet(),
+		byMessage:    make(map[string]map[string]map[string]int64),
+		roomSeq:      make(map[string]uint64),
+		messageRoom:  make(map[string]string),
+		echoOriginal: make(map[string]string),
+		assetRoom:    make(map[string]string),
+		seen:         newEventIDSet(),
 	}
 }
 
@@ -121,6 +123,9 @@ func (p *ReactionProjection) noteRoomOwnershipLocked(event *corev1.Event, roomID
 	case *corev1.Event_MessagePosted:
 		if event.GetId() != "" {
 			p.messageRoom[event.GetId()] = roomID
+			if originalID := e.MessagePosted.GetEchoOfEventId(); originalID != "" {
+				p.echoOriginal[event.GetId()] = originalID
+			}
 		}
 	case *corev1.Event_AssetCreated:
 		if assetID := e.AssetCreated.GetAsset().GetId(); assetID != "" {
@@ -135,10 +140,11 @@ func (p *ReactionProjection) applyAdded(e *corev1.ReactionAddedEvent, userID str
 	if e == nil || userID == "" || e.GetMessageEventId() == "" || e.GetEmoji() == "" {
 		return
 	}
-	byEmoji := p.byMessage[e.GetMessageEventId()]
+	messageEventID := p.canonicalMessageEventIDLocked(e.GetMessageEventId())
+	byEmoji := p.byMessage[messageEventID]
 	if byEmoji == nil {
 		byEmoji = make(map[string]map[string]int64)
-		p.byMessage[e.GetMessageEventId()] = byEmoji
+		p.byMessage[messageEventID] = byEmoji
 	}
 	byUser := byEmoji[e.GetEmoji()]
 	if byUser == nil {
@@ -154,7 +160,8 @@ func (p *ReactionProjection) applyRemoved(e *corev1.ReactionRemovedEvent, userID
 	if e == nil || userID == "" || e.GetMessageEventId() == "" || e.GetEmoji() == "" {
 		return
 	}
-	byEmoji := p.byMessage[e.GetMessageEventId()]
+	messageEventID := p.canonicalMessageEventIDLocked(e.GetMessageEventId())
+	byEmoji := p.byMessage[messageEventID]
 	if byEmoji == nil {
 		return
 	}
@@ -167,8 +174,15 @@ func (p *ReactionProjection) applyRemoved(e *corev1.ReactionRemovedEvent, userID
 		delete(byEmoji, e.GetEmoji())
 	}
 	if len(byEmoji) == 0 {
-		delete(p.byMessage, e.GetMessageEventId())
+		delete(p.byMessage, messageEventID)
 	}
+}
+
+func (p *ReactionProjection) canonicalMessageEventIDLocked(messageEventID string) string {
+	if originalID := p.echoOriginal[messageEventID]; originalID != "" {
+		return originalID
+	}
+	return messageEventID
 }
 
 func eventCreatedNanos(event *corev1.Event) int64 {
@@ -187,7 +201,7 @@ func (p *ReactionProjection) ReactionMutationSnapshot(roomID, messageEventID, em
 	defer p.RUnlock()
 
 	snapshot := ReactionMutationSnapshot{Seq: p.roomSeq[roomID]}
-	byEmoji := p.byMessage[messageEventID]
+	byEmoji := p.byMessage[p.canonicalMessageEventIDLocked(messageEventID)]
 	if byEmoji == nil {
 		return snapshot
 	}
@@ -202,7 +216,7 @@ func (p *ReactionProjection) ReactionMutationSnapshot(roomID, messageEventID, em
 func (p *ReactionProjection) Reactions(messageEventID string) []ReactionSummary {
 	p.RLock()
 	defer p.RUnlock()
-	return reactionSummariesForMessage(p.byMessage[messageEventID])
+	return reactionSummariesForMessage(p.byMessage[p.canonicalMessageEventIDLocked(messageEventID)])
 }
 
 func (p *ReactionProjection) ReactionsBatch(messageEventIDs []string) map[string][]ReactionSummary {
@@ -211,7 +225,7 @@ func (p *ReactionProjection) ReactionsBatch(messageEventIDs []string) map[string
 
 	result := make(map[string][]ReactionSummary, len(messageEventIDs))
 	for _, eventID := range messageEventIDs {
-		if byEmoji := p.byMessage[eventID]; byEmoji != nil {
+		if byEmoji := p.byMessage[p.canonicalMessageEventIDLocked(eventID)]; byEmoji != nil {
 			result[eventID] = reactionSummariesForMessage(byEmoji)
 		}
 	}

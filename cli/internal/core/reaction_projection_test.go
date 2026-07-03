@@ -66,6 +66,49 @@ func TestReactionProjection_IgnoresDuplicateEventID(t *testing.T) {
 	}
 }
 
+func TestReactionProjection_CanonicalizesEchoReactionReplay(t *testing.T) {
+	p := NewReactionProjection()
+
+	applyReactionProjectionEvent(t, p, messagePostedProjectionEvent("M1", ""))
+	applyReactionProjectionEvent(t, p, messagePostedProjectionEvent("ECHO1", "M1"))
+	applyReactionProjectionEvent(t, p, reactionAddedProjectionEvent("R1", "ECHO1", "U1", "thumbsup", 1))
+	applyReactionProjectionEvent(t, p, reactionAddedProjectionEvent("R2", "M1", "U1", "thumbsup", 2))
+	applyReactionProjectionEvent(t, p, reactionAddedProjectionEvent("R3", "M1", "U2", "heart", 3))
+
+	if !p.HasReaction("M1", "thumbsup", "U1") {
+		t.Fatal("expected echo-keyed add to appear on original")
+	}
+	if !p.HasReaction("ECHO1", "thumbsup", "U1") {
+		t.Fatal("expected echo reads to resolve to original reaction state")
+	}
+
+	summaries := p.Reactions("M1")
+	if len(summaries) != 2 {
+		t.Fatalf("Reactions(M1) len = %d, want 2", len(summaries))
+	}
+	for _, summary := range summaries {
+		if summary.Emoji == "thumbsup" && len(summary.UserIDs) != 1 {
+			t.Fatalf("thumbsup users = %v, want duplicate collapsed to one user", summary.UserIDs)
+		}
+	}
+
+	batch := p.ReactionsBatch([]string{"M1", "ECHO1"})
+	if len(batch["M1"]) != 2 || len(batch["ECHO1"]) != 2 {
+		t.Fatalf("batch = %+v, want original and echo keys hydrated", batch)
+	}
+
+	applyReactionProjectionEvent(t, p, reactionRemovedProjectionEvent("R4", "ECHO1", "U1", "thumbsup"))
+	if p.HasReaction("M1", "thumbsup", "U1") {
+		t.Fatal("expected echo-keyed remove to remove original reaction")
+	}
+	if p.HasReaction("ECHO1", "thumbsup", "U1") {
+		t.Fatal("expected echo reads to reflect removed original reaction")
+	}
+	if !p.HasReaction("M1", "heart", "U2") {
+		t.Fatal("expected unrelated original reaction to remain")
+	}
+}
+
 func TestReactionProjection_MutationSnapshotTracksRoomSeq(t *testing.T) {
 	p := NewReactionProjection()
 
@@ -218,6 +261,18 @@ func TestRoomLayoutProjection_ReorderCloneAndIgnore(t *testing.T) {
 	}
 	if got := p.Order(); len(got) != 2 || got[0] != "G1" || got[1] != "G2" {
 		t.Fatalf("order after unrelated event = %v, want [G1 G2]", got)
+	}
+}
+
+func messagePostedProjectionEvent(id, echoOfEventID string) *corev1.Event {
+	return &corev1.Event{
+		Id: id,
+		Event: &corev1.Event_MessagePosted{
+			MessagePosted: &corev1.MessagePostedEvent{
+				RoomId:        "R1",
+				EchoOfEventId: echoOfEventID,
+			},
+		},
 	}
 }
 

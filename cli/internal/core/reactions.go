@@ -62,6 +62,10 @@ func (c *ChattoCore) AddReaction(ctx context.Context, kind RoomKind, roomID, mes
 		return false, ErrRoomArchived
 	}
 
+	messageEventID, err = c.canonicalReactionMessageEventID(roomID, messageEventID)
+	if err != nil {
+		return false, err
+	}
 	event := newReactionAddedEvent(userID, roomID, messageEventID, emojiName)
 	added, err := c.publishReactionMutation(ctx, kind, roomID, messageEventID, emojiName, userID, event)
 	if err != nil {
@@ -92,6 +96,10 @@ func (c *ChattoCore) RemoveReaction(ctx context.Context, kind RoomKind, roomID, 
 		return false, err
 	}
 
+	messageEventID, err = c.canonicalReactionMessageEventID(roomID, messageEventID)
+	if err != nil {
+		return false, err
+	}
 	event := newReactionRemovedEvent(userID, roomID, messageEventID, emojiName)
 	removed, err := c.publishReactionMutation(ctx, kind, roomID, messageEventID, emojiName, userID, event)
 	if err != nil {
@@ -122,6 +130,7 @@ type ReactionSummary struct {
 // Returns a slice of ReactionSummary, each containing the shortcode name and list of user IDs.
 // Results are ordered by the time each emoji was first added (earliest first).
 func (c *ChattoCore) GetReactions(ctx context.Context, messageEventID string) ([]ReactionSummary, error) {
+	messageEventID, _ = c.canonicalReactionMessageEventID("", messageEventID)
 	return c.rooms().reactionsForMessage(messageEventID), nil
 }
 
@@ -131,7 +140,59 @@ func (c *ChattoCore) GetReactionsBatch(ctx context.Context, eventIDs []string) (
 	if len(eventIDs) == 0 {
 		return make(map[string][]ReactionSummary), nil
 	}
-	return c.rooms().reactionsBatch(eventIDs), nil
+	canonicalEventIDs := make([]string, 0, len(eventIDs))
+	requestedByCanonical := make(map[string][]string, len(eventIDs))
+	for _, eventID := range eventIDs {
+		canonicalID, _ := c.canonicalReactionMessageEventID("", eventID)
+		canonicalEventIDs = append(canonicalEventIDs, canonicalID)
+		requestedByCanonical[canonicalID] = append(requestedByCanonical[canonicalID], eventID)
+	}
+	canonicalReactions := c.rooms().reactionsBatch(canonicalEventIDs)
+	result := make(map[string][]ReactionSummary, len(canonicalReactions))
+	for canonicalID, summaries := range canonicalReactions {
+		for _, requestedID := range requestedByCanonical[canonicalID] {
+			result[requestedID] = summaries
+		}
+	}
+	return result, nil
+}
+
+// CanonicalReactionMessageEventID returns the original thread reply event ID
+// when messageEventID identifies a channel echo. Unknown IDs are returned
+// unchanged so legacy callers get the same behavior as direct projection reads.
+func (c *ChattoCore) CanonicalReactionMessageEventID(roomID, messageEventID string) string {
+	canonicalID, err := c.canonicalReactionMessageEventID(roomID, messageEventID)
+	if err != nil {
+		return messageEventID
+	}
+	return canonicalID
+}
+
+func (c *ChattoCore) canonicalReactionMessageEventID(roomID, messageEventID string) (string, error) {
+	if strings.TrimSpace(messageEventID) == "" {
+		return messageEventID, nil
+	}
+	if c == nil || c.RoomTimeline == nil {
+		return messageEventID, nil
+	}
+	entry, ok := c.RoomTimeline.Get(messageEventID)
+	if !ok || entry == nil || entry.Event == nil {
+		return messageEventID, nil
+	}
+	if roomID != "" && roomIDOfEvent(entry.Event) != roomID {
+		return "", ErrMessageNotFound
+	}
+	posted := entry.Event.GetMessagePosted()
+	if posted == nil || posted.GetEchoOfEventId() == "" {
+		return messageEventID, nil
+	}
+	originalID := posted.GetEchoOfEventId()
+	if roomID != "" {
+		if originalEntry, ok := c.RoomTimeline.Get(originalID); ok && originalEntry != nil && originalEntry.Event != nil && roomIDOfEvent(originalEntry.Event) != roomID {
+			return "", ErrMessageNotFound
+		}
+	}
+	return originalID, nil
 }
 
 // ============================================================================

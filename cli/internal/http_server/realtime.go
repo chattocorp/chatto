@@ -325,12 +325,16 @@ func (s *HTTPServer) mapRealtimeEVT(envelope *realtimev1.RealtimeEventEnvelope, 
 	case *corev1.Event_ReactionAdded:
 		reaction := payload.ReactionAdded
 		envelope.Event = &realtimev1.RealtimeEventEnvelope_ReactionAdded{ReactionAdded: &realtimev1.RealtimeReactionEvent{
-			RoomId: reaction.GetRoomId(), MessageEventId: reaction.GetMessageEventId(), Emoji: reaction.GetEmoji(),
+			RoomId:         reaction.GetRoomId(),
+			MessageEventId: s.core.CanonicalReactionMessageEventID(reaction.GetRoomId(), reaction.GetMessageEventId()),
+			Emoji:          reaction.GetEmoji(),
 		}}
 	case *corev1.Event_ReactionRemoved:
 		reaction := payload.ReactionRemoved
 		envelope.Event = &realtimev1.RealtimeEventEnvelope_ReactionRemoved{ReactionRemoved: &realtimev1.RealtimeReactionEvent{
-			RoomId: reaction.GetRoomId(), MessageEventId: reaction.GetMessageEventId(), Emoji: reaction.GetEmoji(),
+			RoomId:         reaction.GetRoomId(),
+			MessageEventId: s.core.CanonicalReactionMessageEventID(reaction.GetRoomId(), reaction.GetMessageEventId()),
+			Emoji:          reaction.GetEmoji(),
 		}}
 	case *corev1.Event_RoomCreated:
 		envelope.Event = &realtimev1.RealtimeEventEnvelope_RoomCreated{RoomCreated: realtimeRoomEvent(payload.RoomCreated.GetRoomId())}

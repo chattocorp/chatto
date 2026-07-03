@@ -4625,6 +4625,80 @@ func TestMessageServiceAddAndRemoveResponseSemantics(t *testing.T) {
 	}
 }
 
+func TestMessageServiceReactionOnEchoCanonicalizesToOriginal(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	room := env.createJoinedRoom("reaction-echo")
+	ctx := withCaller(env.ctx, env.viewer)
+
+	root := env.post(room.Id, env.viewer.Id, "root", "")
+	reply, err := env.core.PostMessage(env.ctx, core.KindChannel, room.Id, env.viewer.Id, "reply", nil, root.Id, root.Id, nil, true)
+	if err != nil {
+		t.Fatalf("PostMessage reply with echo: %v", err)
+	}
+	echoID, ok := env.core.RoomTimeline.ChannelEchoEventID(reply.Id)
+	if !ok {
+		t.Fatal("expected channel echo for reply")
+	}
+
+	addResp, err := env.messages.AddReaction(ctx, connect.NewRequest(&apiv1.AddReactionRequest{
+		RoomId:         room.Id,
+		MessageEventId: echoID,
+		Emoji:          "thumbsup",
+	}))
+	if err != nil {
+		t.Fatalf("AddReaction via echo: %v", err)
+	}
+	if !addResp.Msg.GetAdded() {
+		t.Fatal("AddReaction via echo Added = false, want true")
+	}
+	if got := addResp.Msg.GetReaction(); got.GetEmoji() != "thumbsup" || got.GetCount() != 1 || !got.GetHasReacted() {
+		t.Fatalf("AddReaction via echo reaction = %+v, want thumbsup count 1 hasReacted", got)
+	}
+
+	dupResp, err := env.messages.AddReaction(ctx, connect.NewRequest(&apiv1.AddReactionRequest{
+		RoomId:         room.Id,
+		MessageEventId: reply.Id,
+		Emoji:          "thumbsup",
+	}))
+	if err != nil {
+		t.Fatalf("duplicate AddReaction via original: %v", err)
+	}
+	if dupResp.Msg.GetAdded() {
+		t.Fatal("duplicate AddReaction via original Added = true, want false")
+	}
+
+	roomResp, err := env.rooms.GetRoomEvents(ctx, connect.NewRequest(&apiv1.GetRoomEventsRequest{
+		RoomId: room.Id,
+		Limit:  10,
+	}))
+	if err != nil {
+		t.Fatalf("GetRoomEvents: %v", err)
+	}
+	echoEvent := timelinePageEvent(roomResp.Msg.GetPage(), echoID)
+	if echoEvent == nil || echoEvent.GetMessagePosted() == nil {
+		t.Fatalf("echo event %s missing from room page", echoID)
+	}
+	if got := echoEvent.GetMessagePosted().GetReactions(); len(got) != 1 || got[0].GetEmoji() != "thumbsup" || got[0].GetCount() != 1 || !got[0].GetHasReacted() {
+		t.Fatalf("echo reactions = %+v, want thumbsup count 1 hasReacted", got)
+	}
+
+	threadResp, err := env.threads.GetThreadEvents(ctx, connect.NewRequest(&apiv1.GetThreadEventsRequest{
+		RoomId:            room.Id,
+		ThreadRootEventId: root.Id,
+		Limit:             10,
+	}))
+	if err != nil {
+		t.Fatalf("GetThreadEvents: %v", err)
+	}
+	replyEvent := timelinePageEvent(threadResp.Msg.GetPage(), reply.Id)
+	if replyEvent == nil || replyEvent.GetMessagePosted() == nil {
+		t.Fatalf("reply event %s missing from thread page", reply.Id)
+	}
+	if got := replyEvent.GetMessagePosted().GetReactions(); len(got) != 1 || got[0].GetEmoji() != "thumbsup" || got[0].GetCount() != 1 || !got[0].GetHasReacted() {
+		t.Fatalf("reply reactions = %+v, want thumbsup count 1 hasReacted", got)
+	}
+}
+
 func TestMessageServiceValidatesEmoji(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("reaction-validation")
