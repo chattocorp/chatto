@@ -202,7 +202,7 @@
     }
     const imageItems = currentModal.imageItems.map((item) => ({
       ...item,
-      src: item.id ? (freshUrls.get(item.id)?.assetUrl.url ?? item.src) : item.src
+      src: item.id ? (freshUrls.get(item.id)?.assetUrl?.url ?? item.src) : item.src
     }));
     replaceState('', {
       ...page.state,

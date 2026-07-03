@@ -7,10 +7,10 @@ export type ExpiringAssetUrl = {
 };
 
 export type RefreshedAttachmentUrls = {
-  assetUrl: ExpiringAssetUrl;
+  assetUrl: ExpiringAssetUrl | null;
   thumbnailAssetUrl: ExpiringAssetUrl | null;
   videoThumbnailAssetUrl: ExpiringAssetUrl | null;
-  variantAssetUrls: Map<string, ExpiringAssetUrl>;
+  variantAssetUrls: Map<string, ExpiringAssetUrl | null>;
 };
 
 export type AttachmentThumbnailRefreshOptions = {

@@ -10,7 +10,11 @@ import {
 } from '$lib/attachments/attachmentUrls';
 import { RoomEventKind, roomEventKind } from '$lib/render/eventKinds';
 import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
-import { createAttachmentAPI, type AttachmentAPI, type RoomFileItem } from '$lib/api-client/attachments';
+import {
+  createAttachmentAPI,
+  type AttachmentAPI,
+  type RoomFileItem
+} from '$lib/api-client/attachments';
 
 export const ROOM_FILES_PAGE_SIZE = 50;
 
@@ -118,7 +122,7 @@ export class RoomFilesStore {
     }
   }
 
-  assetUrlFor(item: RoomFileItem): ExpiringAssetUrl {
+  assetUrlFor(item: RoomFileItem): ExpiringAssetUrl | null {
     return (
       this.refreshedAttachmentUrls.get(item.attachment.id)?.assetUrl ?? item.attachment.assetUrl
     );

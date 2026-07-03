@@ -207,12 +207,47 @@ describe('createAttachmentAPI', () => {
       },
       { headers: undefined }
     );
-    expect(urls.get('att_1')?.assetUrl.url).toBe('/assets/files/att_1?fresh=1');
+    expect(urls.get('att_1')?.assetUrl?.url).toBe('/assets/files/att_1?fresh=1');
     expect(urls.get('att_1')?.thumbnailAssetUrl?.url).toContain('960x800');
     expect(urls.get('att_1')?.videoThumbnailAssetUrl?.url).toBe('/assets/files/thumb?fresh=1');
     expect(urls.get('att_1')?.variantAssetUrls.get('720p')?.url).toBe(
       '/assets/files/variant?fresh=1'
     );
+  });
+
+  it('keeps missing refreshed attachment URLs nullable', async () => {
+    mocks.refreshMessageAttachmentUrls.mockResolvedValue(
+      new RefreshMessageAttachmentUrlsResponse({
+        attachments: [
+          new RefreshedAttachmentUrls({
+            attachmentId: 'att_1',
+            variants: [
+              new RoomTimelineVideoVariant({
+                quality: '720p',
+                width: 1280,
+                height: 720,
+                size: 4567n
+              })
+            ]
+          })
+        ]
+      })
+    );
+
+    const api = createAttachmentAPI({
+      baseUrl: '/api/connect',
+      bearerToken: null
+    });
+
+    const urls = await api.refreshMessageAttachmentUrls('room_1', 'event_1', {
+      width: 960,
+      height: 800,
+      fit: FitMode.Contain
+    });
+
+    expect(urls.get('att_1')?.assetUrl).toBeNull();
+    expect(urls.get('att_1')?.thumbnailAssetUrl).toBeNull();
+    expect(urls.get('att_1')?.variantAssetUrls.get('720p')).toBeNull();
   });
 
   it('batch refreshes message attachment URLs', async () => {
@@ -260,11 +295,54 @@ describe('createAttachmentAPI', () => {
       },
       { headers: { Authorization: 'Bearer token' } }
     );
-    expect(messages.get('event_1')?.get('att_1')?.assetUrl.url).toBe(
+    expect(messages.get('event_1')?.get('att_1')?.assetUrl?.url).toBe(
       '/assets/files/att_1?fresh=1'
     );
     expect(messages.get('event_2')?.size).toBe(0);
     expect(messages.has('missing')).toBe(false);
+  });
+
+  it('lists attachments with missing asset URLs as null', async () => {
+    mocks.listRoomAttachments.mockResolvedValue(
+      new ListRoomAttachmentsResponse({
+        attachments: [
+          new RoomAttachmentListItem({
+            messageEventId: 'event_1',
+            attachment: new RoomTimelineAttachment({
+              id: 'att_1',
+              filename: 'clip.mp4',
+              contentType: 'video/mp4',
+              videoProcessing: new RoomTimelineVideoProcessing({
+                status: RoomTimelineVideoProcessingStatus.COMPLETED,
+                variants: [
+                  new RoomTimelineVideoVariant({
+                    quality: '720p',
+                    width: 1280,
+                    height: 720,
+                    size: 4567n
+                  })
+                ]
+              })
+            })
+          })
+        ]
+      })
+    );
+
+    const api = createAttachmentAPI({
+      baseUrl: '/api/connect',
+      bearerToken: null
+    });
+
+    const page = await api.listRoomAttachments({
+      roomId: 'room_1',
+      limit: 50,
+      offset: 0,
+      thumbnail: { width: 120, height: 120, fit: FitMode.Cover }
+    });
+
+    expect(page.items[0]?.attachment.assetUrl).toBeNull();
+    expect(page.items[0]?.attachment.videoProcessing?.variants[0]?.assetUrl).toBeNull();
   });
 
   it('notifies the registry when an authenticated server rejects the request', async () => {

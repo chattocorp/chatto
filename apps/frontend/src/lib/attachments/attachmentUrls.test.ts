@@ -71,14 +71,14 @@ describe('refreshAttachmentUrlsForMessage', () => {
       height: 800,
       fit: FitMode.Contain
     });
-    expect(urls.get('att_1')?.assetUrl.url).toBe('https://cdn.example.com/fresh-1.jpg');
+    expect(urls.get('att_1')?.assetUrl?.url).toBe('https://cdn.example.com/fresh-1.jpg');
     expect(urls.get('att_1')?.videoThumbnailAssetUrl?.url).toBe(
       'https://cdn.example.com/video-thumb.jpg'
     );
     expect(urls.get('att_1')?.variantAssetUrls.get('720p')?.url).toBe(
       'https://cdn.example.com/video-720.mp4'
     );
-    expect(urls.get('att_2')?.assetUrl.url).toBe('https://cdn.example.com/fresh-2.jpg');
+    expect(urls.get('att_2')?.assetUrl?.url).toBe('https://cdn.example.com/fresh-2.jpg');
   });
 
   it('passes caller-selected thumbnail shape to the attachment API', async () => {
@@ -131,18 +131,18 @@ describe('asset URL expiry helpers', () => {
   });
 
   it('treats expired and near-expiry URLs as needing refresh', () => {
-    expect(
-      assetUrlNeedsRefresh({ url: '/expired', expiresAt: '2026-05-29T13:59:59Z' }, now)
-    ).toBe(true);
+    expect(assetUrlNeedsRefresh({ url: '/expired', expiresAt: '2026-05-29T13:59:59Z' }, now)).toBe(
+      true
+    );
     expect(
       assetUrlNeedsRefresh(
         { url: '/near', expiresAt: new Date(now + ASSET_URL_REFRESH_LEAD_MS).toISOString() },
         now
       )
     ).toBe(true);
-    expect(
-      assetUrlNeedsRefresh({ url: '/fresh', expiresAt: '2026-05-29T15:00:00Z' }, now)
-    ).toBe(false);
+    expect(assetUrlNeedsRefresh({ url: '/fresh', expiresAt: '2026-05-29T15:00:00Z' }, now)).toBe(
+      false
+    );
   });
 
   it('treats malformed expiry timestamps as immediately refreshable', () => {
@@ -189,16 +189,14 @@ describe('asset URL expiry helpers', () => {
 
     const merged = mergeRefreshedAttachmentUrls(existing, fresh);
 
-    expect(merged.get('att_1')?.assetUrl.url).toBe('/old-1');
-    expect(merged.get('att_2')?.assetUrl.url).toBe('/fresh-2');
+    expect(merged.get('att_1')?.assetUrl?.url).toBe('/old-1');
+    expect(merged.get('att_2')?.assetUrl?.url).toBe('/fresh-2');
   });
 
   it('appends retry params while preserving query strings and hashes', () => {
     expect(withAssetUrlRetryParam('/assets/files/A?access=ticket#view', 123)).toBe(
       '/assets/files/A?access=ticket&retry=123#view'
     );
-    expect(withAssetUrlRetryParam('/assets/files/A', 'again')).toBe(
-      '/assets/files/A?retry=again'
-    );
+    expect(withAssetUrlRetryParam('/assets/files/A', 'again')).toBe('/assets/files/A?retry=again');
   });
 });

@@ -157,14 +157,27 @@ describe('MessageAttachments', () => {
       { canDeleteAttachment: true }
     );
 
-    const deleteControl = container.querySelector<HTMLElement>(
-      '[aria-label="Delete attachment"]'
-    );
+    const deleteControl = container.querySelector<HTMLElement>('[aria-label="Delete attachment"]');
 
     expect(deleteControl).not.toBeNull();
     expect(deleteControl!.getAttribute('title')).toBe('Delete attachment');
     expect(deleteControl!.className).toContain('attachment-remove-button');
     expect(deleteControl!.className).not.toContain('embed-control-button');
+  });
+
+  it('does not render empty media URLs for attachments that are missing asset URLs', () => {
+    const { container } = renderAttachment(
+      imageAttachment({
+        filename: 'pending.jpg',
+        assetUrl: null,
+        thumbnailAssetUrl: null
+      })
+    );
+
+    expect(container.querySelector('img[src=""]')).toBeNull();
+    expect(container.querySelector('video[src=""]')).toBeNull();
+    expect(container.querySelector('audio[src=""]')).toBeNull();
+    expect(container.querySelector('img[alt="pending.jpg"]')).toBeNull();
   });
 
   it('renders multiple images inside a horizontal gallery with equal-height frames', () => {

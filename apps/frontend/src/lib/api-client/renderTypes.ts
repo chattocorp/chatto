@@ -16,41 +16,41 @@ function renderDocument<T>(): RenderDocument<T> {
 }
 
 export enum FitMode {
-  Contain = "CONTAIN",
-  Cover = "COVER",
-  Exact = "EXACT",
+  Contain = 'CONTAIN',
+  Cover = 'COVER',
+  Exact = 'EXACT'
 }
 
 export enum NotificationLevel {
-  AllMessages = "ALL_MESSAGES",
-  Default = "DEFAULT",
-  Muted = "MUTED",
-  Normal = "NORMAL",
+  AllMessages = 'ALL_MESSAGES',
+  Default = 'DEFAULT',
+  Muted = 'MUTED',
+  Normal = 'NORMAL'
 }
 
 export enum PresenceStatus {
-  Away = "AWAY",
-  DoNotDisturb = "DO_NOT_DISTURB",
-  Offline = "OFFLINE",
-  Online = "ONLINE",
+  Away = 'AWAY',
+  DoNotDisturb = 'DO_NOT_DISTURB',
+  Offline = 'OFFLINE',
+  Online = 'ONLINE'
 }
 
 export enum RoomType {
-  Channel = "CHANNEL",
-  Dm = "DM",
+  Channel = 'CHANNEL',
+  Dm = 'DM'
 }
 
 export enum TimeFormat {
-  Auto = "AUTO",
-  TwelveHour = "TWELVE_HOUR",
-  TwentyFourHour = "TWENTY_FOUR_HOUR",
+  Auto = 'AUTO',
+  TwelveHour = 'TWELVE_HOUR',
+  TwentyFourHour = 'TWENTY_FOUR_HOUR'
 }
 
 export enum VideoProcessingStatus {
-  Completed = "COMPLETED",
-  Failed = "FAILED",
-  Pending = "PENDING",
-  Processing = "PROCESSING",
+  Completed = 'COMPLETED',
+  Failed = 'FAILED',
+  Pending = 'PENDING',
+  Processing = 'PROCESSING'
 }
 
 export type AssetURL = {
@@ -100,7 +100,7 @@ export type VideoVariantView = {
   width: number;
   height: number;
   size: number;
-  assetUrl: AssetURL;
+  assetUrl?: AssetURL | null;
 };
 
 export type VideoProcessingView = {
@@ -120,7 +120,7 @@ export type MessageAttachmentView = {
   contentType: string;
   width: number;
   height: number;
-  assetUrl: AssetURL;
+  assetUrl?: AssetURL | null;
   thumbnailAssetUrl?: AssetURL | null;
   videoProcessing?: VideoProcessingView | null;
 };
@@ -134,50 +134,50 @@ export type ReactionSummaryView = {
 
 export type RoomEventPayload =
   | {
-      kind: "assetDeleted";
+      kind: 'assetDeleted';
       assetId: string;
       deletedRoomId?: string | null;
     }
   | {
-      kind: "assetProcessingFailed";
+      kind: 'assetProcessingFailed';
       assetId: string;
       processingRoomId?: string | null;
       processingMessageEventId?: string | null;
     }
   | {
-      kind: "assetProcessingStarted";
+      kind: 'assetProcessingStarted';
       assetId: string;
       processingRoomId?: string | null;
       processingMessageEventId?: string | null;
     }
   | {
-      kind: "assetProcessingSucceeded";
+      kind: 'assetProcessingSucceeded';
       assetId: string;
       processingRoomId?: string | null;
       processingMessageEventId?: string | null;
     }
-  | { kind: "callEnded"; roomId: string; callId: string }
+  | { kind: 'callEnded'; roomId: string; callId: string }
   | {
-      kind: "callParticipantJoined";
+      kind: 'callParticipantJoined';
       roomId: string;
       callId: string;
     }
   | {
-      kind: "callParticipantLeft";
+      kind: 'callParticipantLeft';
       roomId: string;
       callId: string;
     }
-  | { kind: "callStarted"; roomId: string; callId: string }
-  | { kind: "heartbeat"; alive?: boolean }
+  | { kind: 'callStarted'; roomId: string; callId: string }
+  | { kind: 'heartbeat'; alive?: boolean }
   | {
-      kind: "mentionNotification";
+      kind: 'mentionNotification';
       roomId?: string;
       room?: { name: string };
       actor?: { id: string; displayName: string } | null;
     }
-  | { kind: "mentionStatusCleared" }
+  | { kind: 'mentionStatusCleared' }
   | {
-      kind: "messageEdited";
+      kind: 'messageEdited';
       roomId: string;
       messageEventId: string;
       body?: string | null;
@@ -186,7 +186,7 @@ export type RoomEventPayload =
       updatedAt?: string | null;
     }
   | {
-      kind: "messagePosted";
+      kind: 'messagePosted';
       roomId: string;
       messageEventId?: string;
       body?: string | null;
@@ -206,13 +206,13 @@ export type RoomEventPayload =
       viewerIsFollowingThread?: boolean | null;
     }
   | {
-      kind: "messageRetracted";
+      kind: 'messageRetracted';
       roomId: string;
       messageEventId: string;
       retractedReason?: string | null;
     }
   | {
-      kind: "newDirectMessageNotification";
+      kind: 'newDirectMessageNotification';
       roomId?: string;
       conversationName?: string;
       sender?: {
@@ -222,7 +222,7 @@ export type RoomEventPayload =
       } | null;
     }
   | {
-      kind: "notificationCreated";
+      kind: 'notificationCreated';
       notificationId: string;
       roomId?: string | null;
       eventId?: string | null;
@@ -230,89 +230,89 @@ export type RoomEventPayload =
       silent?: boolean;
     }
   | {
-      kind: "notificationDismissed";
+      kind: 'notificationDismissed';
       notificationId: string;
     }
   | {
-      kind: "notificationLevelChanged";
+      kind: 'notificationLevelChanged';
       level: NotificationLevel;
       effectiveLevel: NotificationLevel;
       nlcRoomId?: string | null;
     }
-  | { kind: "presenceChanged"; status: PresenceStatus }
+  | { kind: 'presenceChanged'; status: PresenceStatus }
   | {
-      kind: "reactionAdded";
+      kind: 'reactionAdded';
       roomId: string;
       messageEventId: string;
       emoji: string;
     }
   | {
-      kind: "reactionRemoved";
+      kind: 'reactionRemoved';
       roomId: string;
       messageEventId: string;
       emoji: string;
     }
-  | { kind: "roomArchived"; roomId: string }
-  | { kind: "roomCreated"; roomId?: string }
-  | { kind: "roomDeleted"; roomId: string }
-  | { kind: "roomGroupsUpdated"; changed?: boolean }
-  | { kind: "roomMarkedAsRead"; roomId?: string }
-  | { kind: "roomMemberBanned" }
-  | { kind: "roomMemberUnbanned" }
-  | { kind: "roomUnarchived"; roomId: string }
+  | { kind: 'roomArchived'; roomId: string }
+  | { kind: 'roomCreated'; roomId?: string }
+  | { kind: 'roomDeleted'; roomId: string }
+  | { kind: 'roomGroupsUpdated'; changed?: boolean }
+  | { kind: 'roomMarkedAsRead'; roomId?: string }
+  | { kind: 'roomMemberBanned' }
+  | { kind: 'roomMemberUnbanned' }
+  | { kind: 'roomUnarchived'; roomId: string }
   | {
-      kind: "roomUniversalChanged";
+      kind: 'roomUniversalChanged';
       roomId?: string;
       universal?: boolean;
     }
-  | { kind: "roomUpdated"; roomId: string }
-  | { kind: "serverMemberDeleted"; userId: string }
+  | { kind: 'roomUpdated'; roomId: string }
+  | { kind: 'serverMemberDeleted'; userId: string }
   | {
-      kind: "serverUpdated";
+      kind: 'serverUpdated';
       name?: string;
       description?: string | null;
       logoUrl?: string | null;
       bannerUrl?: string | null;
     }
   | {
-      kind: "serverUserPreferencesUpdated";
+      kind: 'serverUserPreferencesUpdated';
       timezone?: string | null;
       timeFormat?: TimeFormat;
     }
-  | { kind: "sessionTerminated"; reason?: string }
+  | { kind: 'sessionTerminated'; reason?: string }
   | {
-      kind: "threadCreated";
+      kind: 'threadCreated';
       roomId?: string;
       threadRootEventId?: string;
     }
   | {
-      kind: "threadFollowChanged";
+      kind: 'threadFollowChanged';
       isFollowing?: boolean;
       tfcRoomId?: string;
       tfcThreadRootEventId?: string;
     }
-  | { kind: "userCreated" }
+  | { kind: 'userCreated' }
   | {
-      kind: "userCustomStatusCleared";
+      kind: 'userCustomStatusCleared';
       userId?: string;
     }
   | {
-      kind: "userCustomStatusSet";
+      kind: 'userCustomStatusSet';
       userId?: string;
       setCustomStatus?: CustomUserStatusView;
     }
-  | { kind: "userDeleted" }
-  | { kind: "userJoinedRoom"; roomId: string }
-  | { kind: "userLeftRoom"; roomId: string }
+  | { kind: 'userDeleted' }
+  | { kind: 'userJoinedRoom'; roomId: string }
+  | { kind: 'userLeftRoom'; roomId: string }
   | {
-      kind: "userProfileUpdated";
+      kind: 'userProfileUpdated';
       userId?: string;
       displayName?: string;
       avatarUrl?: string | null;
       login?: string;
     }
   | {
-      kind: "userTyping";
+      kind: 'userTyping';
       roomId: string;
       typingThreadRootEventId?: string | null;
     };
@@ -326,7 +326,6 @@ export type RoomEventView = {
 };
 
 export const UserAvatarUserViewDocument = renderDocument<UserAvatarUserView>();
-export const MessageAttachmentViewDocument =
-  renderDocument<MessageAttachmentView>();
+export const MessageAttachmentViewDocument = renderDocument<MessageAttachmentView>();
 export const LinkPreviewViewDocument = renderDocument<LinkPreviewView>();
 export const RoomEventViewDocument = renderDocument<RoomEventView>();

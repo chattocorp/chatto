@@ -92,7 +92,7 @@
     return {
       ...attachment,
       assetUrl,
-      url: assetUrl?.url ?? '',
+      url: assetUrl?.url ?? null,
       thumbnailAssetUrl,
       thumbnailUrl: thumbnailAssetUrl?.url ?? null,
       videoProcessing: attachment.videoProcessing
@@ -100,7 +100,7 @@
             ...attachment.videoProcessing,
             thumbnailAssetUrl: videoThumbnailAssetUrl,
             thumbnailUrl: videoThumbnailAssetUrl?.url ?? null,
-            variants: attachment.videoProcessing.variants.map((variant) => {
+            variants: attachment.videoProcessing.variants.flatMap((variant) => {
               const variantAssetUrl = withRetrySalt(
                 normalizeAssetUrl(
                   refreshed?.variantAssetUrls.get(variant.quality) ?? variant.assetUrl
@@ -108,10 +108,11 @@
                 attachment.id,
                 'video'
               );
+              if (!variantAssetUrl) return [];
               return {
                 ...variant,
                 assetUrl: variantAssetUrl,
-                url: variantAssetUrl?.url ?? ''
+                url: variantAssetUrl.url
               };
             })
           }
@@ -202,6 +203,10 @@
       return `width: ${display.width}px; height: ${display.height}px`;
     }
     return `width: ${display.width}px; max-width: 100%; aspect-ratio: ${display.width} / ${display.height}`;
+  }
+
+  function imageAttachmentUrl(attachment: Attachment): string | null {
+    return attachment.thumbnailUrl ?? attachment.url;
   }
 
   function updateGalleryScrollEdges(el: HTMLElement) {
@@ -368,19 +373,26 @@
     // Refresh in one round-trip so navigating between images in the
     // lightbox can't hit an expired URL mid-session.
     const freshUrls = await refreshAndApplyUrls();
-    const imageItems: ImageItem[] = imageAttachments.map((a) => ({
-      id: a.id,
-      src: normalizeAssetUrl(freshUrls.get(a.id)?.assetUrl)?.url ?? a.url,
-      alt: a.filename,
-      filename: a.filename
-    }));
+    const imageItems: ImageItem[] = imageAttachments
+      .map((a) => ({
+        id: a.id,
+        src: normalizeAssetUrl(freshUrls.get(a.id)?.assetUrl)?.url ?? a.url ?? '',
+        alt: a.filename,
+        filename: a.filename
+      }))
+      .filter((item) => item.src !== '');
+    if (imageItems.length === 0) {
+      toast.error('Could not refresh image link');
+      return;
+    }
+    const imageIndex = imageItems.findIndex((item) => item.id === attachment.id);
     pushState('', {
       modal: {
         type: 'imageViewer',
         roomId,
         eventId,
         imageItems,
-        imageIndex: idx >= 0 ? idx : 0
+        imageIndex: imageIndex >= 0 ? imageIndex : Math.max(0, Math.min(idx, imageItems.length - 1))
       }
     });
   }
@@ -433,17 +445,23 @@
       ]}
       style={display ? imageButtonStyle(display, variant) : undefined}
     >
-      <SkeletonImg
-        loading="lazy"
-        src={attachment.thumbnailUrl ?? attachment.url}
-        alt={attachment.filename}
-        class={[
-          display?.fit === 'contain' ? 'object-contain' : 'object-cover',
-          display ? 'h-full w-full' : 'max-h-32 w-auto'
-        ]}
-        onerror={() =>
-          refreshAfterAssetError(attachment, attachment.thumbnailUrl ? 'thumbnail' : 'asset')}
-      />
+      {#if imageAttachmentUrl(attachment)}
+        <SkeletonImg
+          loading="lazy"
+          src={imageAttachmentUrl(attachment)}
+          alt={attachment.filename}
+          class={[
+            display?.fit === 'contain' ? 'object-contain' : 'object-cover',
+            display ? 'h-full w-full' : 'max-h-32 w-auto'
+          ]}
+          onerror={() =>
+            refreshAfterAssetError(attachment, attachment.thumbnailUrl ? 'thumbnail' : 'asset')}
+        />
+      {:else}
+        <span class="flex h-16 w-16 items-center justify-center text-muted" aria-hidden="true">
+          <span class="iconify text-2xl mdi--file-image-outline"></span>
+        </span>
+      {/if}
       {#if canDeleteAttachment}
         <span
           role="button"
@@ -514,7 +532,7 @@
           </button>
         {/if}
       </div>
-    {:else if attachment.contentType.startsWith('video/')}
+    {:else if attachment.contentType.startsWith('video/') && attachment.url}
       <!--
           A video attachment that hasn't been projected as a processing manifest
           yet — e.g. the message arrived before AssetProcessingStartedEvent did,
@@ -532,7 +550,7 @@
           <track kind="captions" />
         </video>
       </div>
-    {:else if attachment.contentType.startsWith('audio/')}
+    {:else if attachment.contentType.startsWith('audio/') && attachment.url}
       <div class="group/attachment relative min-w-0">
         <div class="embed-frame flex items-center gap-3 px-3 py-2">
           <audio
