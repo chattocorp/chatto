@@ -1,9 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { VoiceCallAPI } from '$lib/api-client/voiceCalls';
 
-const { soundMocks } = vi.hoisted(() => ({
+const { soundMocks, toastMocks } = vi.hoisted(() => ({
   soundMocks: {
     playCallSound: vi.fn(() => Promise.resolve())
+  },
+  toastMocks: {
+    error: vi.fn()
   }
 }));
 
@@ -11,7 +14,12 @@ vi.mock('$lib/audio/callSounds', () => ({
   playCallSound: soundMocks.playCallSound
 }));
 
+vi.mock('$lib/ui/toast', () => ({
+  toast: toastMocks
+}));
+
 import {
+  getVoiceCallMediaDeviceErrorMessage,
   getVoiceCallJoinErrorMessage,
   VoiceCallJoinError,
   VoiceCallState
@@ -28,15 +36,18 @@ let lastRoom: {
     setScreenShareEnabled: ReturnType<typeof vi.fn>;
     setCameraEnabled: ReturnType<typeof vi.fn>;
   };
+  switchActiveDevice: ReturnType<typeof vi.fn>;
 } | null = null;
 let connectFailure: Error | null = null;
 let connectGate: { promise: Promise<void>; resolve: () => void } | null = null;
 let microphoneGate: { promise: Promise<void>; resolve: () => void } | null = null;
 let microphoneFailure: Error | null = null;
 let cameraGate: { promise: Promise<void>; resolve: () => void } | null = null;
+let cameraFailure: Error | null = null;
 let screenShareGate: { promise: Promise<void>; resolve: () => void } | null = null;
 let screenShareFailure: Error | null = null;
-let roomEventHandlers = new Map<string, () => void>();
+let switchActiveDeviceFailure: Error | null = null;
+let roomEventHandlers = new Map<string, (...args: unknown[]) => void>();
 let localTrackPublications: Array<{
   isMuted: boolean;
   track: { source: string; mediaStreamTrack?: MediaStreamTrack };
@@ -75,12 +86,17 @@ vi.mock('livekit-client', () => {
         calls.push('setMicrophoneEnabled');
         await microphoneGate?.promise;
         if (enabled && microphoneFailure) {
+          roomEventHandlers.get('MediaDevicesError')?.(microphoneFailure, 'audioinput');
           throw microphoneFailure;
         }
       }),
       setCameraEnabled: vi.fn(async (enabled: boolean) => {
         calls.push(`setCameraEnabled:${enabled}`);
         await cameraGate?.promise;
+        if (enabled && cameraFailure) {
+          roomEventHandlers.get('MediaDevicesError')?.(cameraFailure, 'videoinput');
+          throw cameraFailure;
+        }
         localTrackPublications = localTrackPublications.filter(
           (pub) => pub.track.source !== 'camera'
         );
@@ -95,6 +111,7 @@ vi.mock('livekit-client', () => {
         calls.push(`setScreenShareEnabled:${enabled}`);
         await screenShareGate?.promise;
         if (screenShareFailure) {
+          roomEventHandlers.get('MediaDevicesError')?.(screenShareFailure, 'videoinput');
           throw screenShareFailure;
         }
         localTrackPublications = localTrackPublications.filter(
@@ -122,13 +139,21 @@ vi.mock('livekit-client', () => {
       lastRoomOptions = options;
       lastRoom = {
         disconnect: this.disconnect,
-        localParticipant: this.localParticipant
+        localParticipant: this.localParticipant,
+        switchActiveDevice: this.switchActiveDevice
       };
     }
 
     on = vi.fn((event: string, handler: () => void) => {
       roomEventHandlers.set(event, handler);
       return this;
+    });
+    switchActiveDevice = vi.fn(async (kind: MediaDeviceKind, deviceId: string) => {
+      calls.push(`switchActiveDevice:${kind}:${deviceId}`);
+      if (switchActiveDeviceFailure) {
+        roomEventHandlers.get('MediaDevicesError')?.(switchActiveDeviceFailure, kind);
+        throw switchActiveDeviceFailure;
+      }
     });
     connect = vi.fn(async () => {
       calls.push('connect');
@@ -154,6 +179,7 @@ vi.mock('livekit-client', () => {
       TrackUnmuted: 'TrackUnmuted',
       Disconnected: 'Disconnected',
       MediaDevicesChanged: 'MediaDevicesChanged',
+      MediaDevicesError: 'MediaDevicesError',
       ConnectionQualityChanged: 'ConnectionQualityChanged',
       TrackSubscribed: 'TrackSubscribed',
       TrackUnsubscribed: 'TrackUnsubscribed',
@@ -219,8 +245,10 @@ describe('VoiceCallState', () => {
     microphoneGate = null;
     microphoneFailure = null;
     cameraGate = null;
+    cameraFailure = null;
     screenShareGate = null;
     screenShareFailure = null;
+    switchActiveDeviceFailure = null;
     roomEventHandlers = new Map();
     localTrackPublications = [];
     mockRemoteParticipants = new Map();
@@ -231,6 +259,7 @@ describe('VoiceCallState', () => {
     vi.stubGlobal('RTCRtpScriptTransform', class MockRTCRtpScriptTransform {});
     vi.stubGlobal('crypto', { subtle: {} });
     soundMocks.playCallSound.mockClear();
+    toastMocks.error.mockClear();
     vi.mocked(Room.getLocalDevices).mockClear();
   });
 
@@ -291,6 +320,10 @@ describe('VoiceCallState', () => {
     expect(state.isMuted).toBe(true);
     expect(state.isInAnyCall).toBe(true);
     expect(Room.getLocalDevices).toHaveBeenCalledWith('videoinput', false);
+    expect(toastMocks.error).toHaveBeenCalledWith(
+      'Could not start your microphone. You joined muted.'
+    );
+    expect(toastMocks.error).toHaveBeenCalledOnce();
   });
 
   it('plays a deferred current-user join event after connecting successfully', async () => {
@@ -555,6 +588,97 @@ describe('VoiceCallState', () => {
     expect(state.isScreenShareEnabled).toBe(false);
     expect(state.isInAnyCall).toBe(true);
     expect(state.roomId).toBe('R1');
+    expect(toastMocks.error).toHaveBeenCalledWith('Screen sharing was canceled or blocked.');
+    expect(toastMocks.error).toHaveBeenCalledOnce();
+  });
+
+  it('reports permission failures when enabling media devices', async () => {
+    const client = createVoiceCallClient();
+    const state = new VoiceCallState(client);
+    await state.join('wss://livekit.example.test', 'R1');
+    toastMocks.error.mockClear();
+
+    microphoneFailure = Object.assign(new Error('Permission denied'), {
+      name: 'NotAllowedError'
+    });
+    await state.toggleMute();
+    expect(state.isMuted).toBe(true);
+    expect(toastMocks.error).not.toHaveBeenCalled();
+
+    await state.toggleMute();
+    expect(state.isMuted).toBe(true);
+    expect(toastMocks.error).toHaveBeenCalledWith(
+      'Microphone access was denied. Check your browser permissions and try again.'
+    );
+    expect(toastMocks.error).toHaveBeenCalledOnce();
+
+    cameraFailure = Object.assign(new Error('Device unavailable'), {
+      name: 'NotReadableError'
+    });
+    toastMocks.error.mockClear();
+    await state.toggleCamera();
+    expect(state.isCameraEnabled).toBe(false);
+    expect(toastMocks.error).toHaveBeenCalledWith('Your camera is already in use by another app.');
+    expect(toastMocks.error).toHaveBeenCalledOnce();
+  });
+
+  it('reports LiveKit media device errors without disconnecting', async () => {
+    const client = createVoiceCallClient();
+    const state = new VoiceCallState(client);
+    await state.join('wss://livekit.example.test', 'R1');
+    toastMocks.error.mockClear();
+
+    roomEventHandlers.get('MediaDevicesError')?.();
+
+    expect(toastMocks.error).toHaveBeenCalledWith('Could not access a media device.');
+    expect(toastMocks.error).toHaveBeenCalledOnce();
+    expect(state.isInAnyCall).toBe(true);
+  });
+
+  it('keeps selected devices unchanged when device switching fails', async () => {
+    const client = createVoiceCallClient();
+    const state = new VoiceCallState(client);
+    await state.join('wss://livekit.example.test', 'R1');
+    toastMocks.error.mockClear();
+    switchActiveDeviceFailure = Object.assign(new Error('device not found'), {
+      name: 'NotFoundError'
+    });
+
+    await state.setAudioDevice('missing-mic');
+    await state.setAudioOutputDevice('missing-speaker');
+    await state.setVideoDevice('missing-camera');
+
+    expect(state.selectedDeviceId).toBe('audio-input-1');
+    expect(state.selectedOutputDeviceId).toBe('audio-output-1');
+    expect(state.selectedVideoDeviceId).toBe('video-input-1');
+    expect(toastMocks.error).toHaveBeenCalledWith(
+      'No microphone was found. Choose another input device and try again.'
+    );
+    expect(toastMocks.error).toHaveBeenCalledWith(
+      'Could not switch speakers. This browser or device may not support speaker selection.'
+    );
+    expect(toastMocks.error).toHaveBeenCalledWith(
+      'No camera was found. Choose another camera and try again.'
+    );
+    expect(toastMocks.error).toHaveBeenCalledTimes(3);
+    expect(toastMocks.error).not.toHaveBeenCalledWith('Could not access a media device.');
+  });
+
+  it('maps media device failures to specific user-facing messages', () => {
+    expect(
+      getVoiceCallMediaDeviceErrorMessage(
+        'screen',
+        Object.assign(new Error('permission denied'), { name: 'NotAllowedError' }),
+        'enable'
+      )
+    ).toBe('Screen sharing was canceled or blocked.');
+    expect(
+      getVoiceCallMediaDeviceErrorMessage(
+        'microphone',
+        Object.assign(new Error('already in use'), { name: 'NotReadableError' }),
+        'join'
+      )
+    ).toBe('Your microphone is already in use by another app. You joined muted.');
   });
 
   it('keeps camera and screen-share tracks separate', async () => {

@@ -36,6 +36,24 @@
     "participants": "Call participants",
     "join_failed": "Failed to join voice call",
     "encrypted_unsupported": "This browser does not support encrypted voice calls yet. Try the latest Firefox, Chrome, or Edge.",
-    "signaling_failed": "Could not reach the voice server. Check your network and try again."
+    "signaling_failed": "Could not reach the voice server. Check your network and try again.",
+    "disconnected": "Voice call disconnected",
+    "microphone_join_denied": "Microphone access was denied. You joined muted.",
+    "microphone_join_not_found": "No microphone was found. You joined muted.",
+    "microphone_join_in_use": "Your microphone is already in use by another app. You joined muted.",
+    "microphone_join_failed": "Could not start your microphone. You joined muted.",
+    "microphone_denied": "Microphone access was denied. Check your browser permissions and try again.",
+    "microphone_not_found": "No microphone was found. Choose another input device and try again.",
+    "microphone_in_use": "Your microphone is already in use by another app.",
+    "microphone_failed": "Could not turn on your microphone.",
+    "camera_denied": "Camera access was denied. Check your browser permissions and try again.",
+    "camera_not_found": "No camera was found. Choose another camera and try again.",
+    "camera_in_use": "Your camera is already in use by another app.",
+    "camera_failed": "Could not turn on your camera.",
+    "screen_share_blocked": "Screen sharing was canceled or blocked.",
+    "screen_share_failed": "Could not start screen sharing.",
+    "speaker_switch_failed": "Could not switch speakers. This browser or device may not support speaker selection.",
+    "device_switch_failed": "Could not switch to that device.",
+    "media_device_failed": "Could not access a media device."
   }
 }

@@ -29,7 +29,7 @@ Reads available devices and current selection from `voiceCallState`.
     label: string;
     devices: MediaDeviceInfo[];
     selectedId: string | null;
-    select: (deviceId: string) => void;
+    select: (deviceId: string) => Promise<void>;
   };
 
   const sections = $derived<DeviceSection[]>([
@@ -63,8 +63,8 @@ Reads available devices and current selection from `voiceCallState`.
           <button
             class="sidebar-item"
             role="menuitem"
-            onclick={() => {
-              section.select(device.deviceId);
+            onclick={async () => {
+              await section.select(device.deviceId);
               onclose();
             }}
           >

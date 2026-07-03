@@ -36,6 +36,24 @@
     "participants": "Anrufteilnehmende",
     "join_failed": "Sprachanruf konnte nicht beigetreten werden",
     "encrypted_unsupported": "Dieser Browser unterstützt verschlüsselte Sprachanrufe noch nicht. Versuche es mit der aktuellen Version von Firefox, Chrome oder Edge.",
-    "signaling_failed": "Der Sprachserver ist nicht erreichbar. Prüfe deine Netzwerkverbindung und versuche es erneut."
+    "signaling_failed": "Der Sprachserver ist nicht erreichbar. Prüfe deine Netzwerkverbindung und versuche es erneut.",
+    "disconnected": "Sprachanruf getrennt",
+    "microphone_join_denied": "Der Zugriff auf das Mikrofon wurde verweigert. Du bist stummgeschaltet beigetreten.",
+    "microphone_join_not_found": "Es wurde kein Mikrofon gefunden. Du bist stummgeschaltet beigetreten.",
+    "microphone_join_in_use": "Dein Mikrofon wird bereits von einer anderen App verwendet. Du bist stummgeschaltet beigetreten.",
+    "microphone_join_failed": "Dein Mikrofon konnte nicht gestartet werden. Du bist stummgeschaltet beigetreten.",
+    "microphone_denied": "Der Zugriff auf das Mikrofon wurde verweigert. Prüfe deine Browserberechtigungen und versuche es erneut.",
+    "microphone_not_found": "Es wurde kein Mikrofon gefunden. Wähle ein anderes Eingabegerät und versuche es erneut.",
+    "microphone_in_use": "Dein Mikrofon wird bereits von einer anderen App verwendet.",
+    "microphone_failed": "Dein Mikrofon konnte nicht eingeschaltet werden.",
+    "camera_denied": "Der Zugriff auf die Kamera wurde verweigert. Prüfe deine Browserberechtigungen und versuche es erneut.",
+    "camera_not_found": "Es wurde keine Kamera gefunden. Wähle eine andere Kamera und versuche es erneut.",
+    "camera_in_use": "Deine Kamera wird bereits von einer anderen App verwendet.",
+    "camera_failed": "Deine Kamera konnte nicht eingeschaltet werden.",
+    "screen_share_blocked": "Die Bildschirmfreigabe wurde abgebrochen oder blockiert.",
+    "screen_share_failed": "Die Bildschirmfreigabe konnte nicht gestartet werden.",
+    "speaker_switch_failed": "Der Lautsprecher konnte nicht gewechselt werden. Dieser Browser oder dieses Gerät unterstützt die Lautsprecherauswahl möglicherweise nicht.",
+    "device_switch_failed": "Zu diesem Gerät konnte nicht gewechselt werden.",
+    "media_device_failed": "Auf ein Mediengerät konnte nicht zugegriffen werden."
   }
 }
