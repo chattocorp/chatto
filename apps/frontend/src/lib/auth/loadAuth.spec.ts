@@ -1,8 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { getCurrentUserViaConnectMock, clearOriginAuthenticationMock } = vi.hoisted(() => ({
+const {
+  getCurrentUserViaConnectMock,
+  clearOriginAuthenticationMock,
+  handleAuthenticationRequiredMock,
+  clearAuthenticationRequiredMock
+} = vi.hoisted(() => ({
   getCurrentUserViaConnectMock: vi.fn(),
-  clearOriginAuthenticationMock: vi.fn()
+  clearOriginAuthenticationMock: vi.fn(),
+  handleAuthenticationRequiredMock: vi.fn(),
+  clearAuthenticationRequiredMock: vi.fn()
 }));
 
 vi.mock('$app/environment', () => ({
@@ -28,7 +35,12 @@ vi.mock('$lib/state/server/serverConnection.svelte', () => ({
 
 vi.mock('$lib/state/server/registry.svelte', () => ({
   serverRegistry: {
-    clearOriginAuthentication: clearOriginAuthenticationMock
+    get originServer() {
+      return { id: 'origin' };
+    },
+    clearOriginAuthentication: clearOriginAuthenticationMock,
+    handleAuthenticationRequired: handleAuthenticationRequiredMock,
+    clearAuthenticationRequired: clearAuthenticationRequiredMock
   }
 }));
 
@@ -61,6 +73,7 @@ describe('loadCurrentUser', () => {
     expect(await loadCurrentUser()).toEqual(user);
     expect(await loadCurrentUser()).toEqual({ ...user, displayName: 'Alice Fresh' });
     expect(getCurrentUserViaConnectMock).toHaveBeenCalledTimes(2);
+    expect(clearAuthenticationRequiredMock).toHaveBeenCalledWith('origin');
     expect(getCurrentUserViaConnectMock).toHaveBeenCalledWith({
       baseUrl: '/api/connect',
       bearerToken: null
@@ -78,15 +91,25 @@ describe('loadCurrentUser', () => {
     expect(await loadCurrentUser()).toEqual(user);
   });
 
-  it('clears the cached user on authentication-required errors', async () => {
+  it('keeps the cached user and marks reauth required on authentication-required errors', async () => {
     const { loadCurrentUser } = await loadModule();
     getCurrentUserViaConnectMock
       .mockResolvedValueOnce(user)
       .mockRejectedValueOnce({ message: 'authentication required' });
 
     expect(await loadCurrentUser()).toEqual(user);
+    expect(await loadCurrentUser()).toEqual(user);
+    expect(handleAuthenticationRequiredMock).toHaveBeenCalledWith('origin');
+    expect(clearOriginAuthenticationMock).not.toHaveBeenCalled();
+  });
+
+  it('clears origin auth on first-load authentication-required errors', async () => {
+    const { loadCurrentUser } = await loadModule();
+    getCurrentUserViaConnectMock.mockRejectedValueOnce({ message: 'authentication required' });
+
     expect(await loadCurrentUser()).toBeNull();
     expect(clearOriginAuthenticationMock).toHaveBeenCalledOnce();
+    expect(handleAuthenticationRequiredMock).not.toHaveBeenCalled();
   });
 
   it('returns null when the first load cannot determine a user', async () => {

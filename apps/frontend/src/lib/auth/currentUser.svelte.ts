@@ -1,6 +1,8 @@
-import { goto } from '$app/navigation';
-import { resolve } from '$app/paths';
-import { getCurrentUserViaConnect, type CurrentUser, type ViewerAPIConfig } from '$lib/api-client/viewer';
+import {
+  getCurrentUserViaConnect,
+  type CurrentUser,
+  type ViewerAPIConfig
+} from '$lib/api-client/viewer';
 import { clearCachedUser } from './loadAuth';
 import { csrfFetch } from './csrf';
 import { isAuthenticationRequiredError } from './errors';
@@ -17,9 +19,9 @@ interface AuthFailureOptions {
  * instance via `serverRegistry.getStore(getServerId()).currentUser`, the
  * same way they reach every other per-server store.
  *
- * Cookie-authenticated instances (origin) handle auth failure by clearing
- * local state and redirecting. Bearer-authenticated
- * instances (remotes) just clear the local user state.
+ * Authentication-required failures are reported to the owning registry/store.
+ * The caller decides whether to prompt for reauthentication, revoke a session,
+ * or clear local state.
  */
 export class CurrentUserState {
   user = $state<CurrentUser | undefined>(undefined);
@@ -27,16 +29,19 @@ export class CurrentUserState {
   #cookieAuth: boolean;
   #apiConfig?: ViewerAPIConfig;
   #loadCurrentUser: (config: ViewerAPIConfig) => Promise<CurrentUser>;
+  #onAuthenticationRequired?: () => void;
   #isLoggingOut = false;
 
   constructor(
     cookieAuth: boolean = false,
     apiConfig?: ViewerAPIConfig,
-    loadCurrentUser = getCurrentUserViaConnect
+    loadCurrentUser = getCurrentUserViaConnect,
+    onAuthenticationRequired?: () => void
   ) {
     this.#cookieAuth = cookieAuth;
     this.#apiConfig = apiConfig;
     this.#loadCurrentUser = loadCurrentUser;
+    this.#onAuthenticationRequired = onAuthenticationRequired;
   }
 
   async load() {
@@ -47,7 +52,7 @@ export class CurrentUserState {
       this.user = await this.#loadCurrentUser(this.#apiConfig);
     } catch (err) {
       if (isAuthenticationRequiredError(err)) {
-        this.user = undefined;
+        this.#onAuthenticationRequired?.();
         this.loading = false;
         return;
       }
@@ -63,38 +68,31 @@ export class CurrentUserState {
 
   /**
    * Handle auth failure.
-   * Cookie auth (origin): clears local state and redirects to login. Explicit
-   * sign-out paths can request server-side session revocation.
-   * Bearer auth (remote): clears user state (instance becomes unauthenticated).
+   * Explicit sign-out paths can request server-side session revocation.
+   * Auth-expiry paths should use the registry's reauth-required state instead
+   * so the app can keep the current shell visible.
    */
   async handleAuthFailure(options: AuthFailureOptions = {}) {
     if (this.#isLoggingOut) return;
 
     if (!this.#cookieAuth) {
-      console.log('Remote instance auth failure — clearing user');
-      this.user = undefined;
+      console.log('Remote server auth failure — marking reauthentication required');
+      this.#onAuthenticationRequired?.();
       this.loading = false;
       return;
     }
 
     this.#isLoggingOut = true;
 
-    console.warn('[auth] handleAuthFailure -> /: clearing local session state and redirecting');
-    this.user = undefined;
-
-    clearCachedUser();
-
-    sessionStorage.setItem('returnUrl', window.location.pathname + window.location.search);
+    console.warn('[auth] handleAuthFailure: marking reauthentication required');
+    this.#onAuthenticationRequired?.();
 
     if (options.revokeServerSession) {
       await csrfFetch('/auth/logout', { method: 'POST' }).catch(() => {});
+      this.user = undefined;
+      clearCachedUser();
     }
 
-    // Redirect to / which handles both authenticated and unauthenticated users.
-    // invalidateAll forces SvelteKit to re-run all load functions so the root
-    // layout sees the cleared user state.
-    goto(resolve('/'), { invalidateAll: true }).finally(() => {
-      this.#isLoggingOut = false;
-    });
+    this.#isLoggingOut = false;
   }
 }

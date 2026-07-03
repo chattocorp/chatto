@@ -760,6 +760,18 @@ const msg_ui_update_available = (): LocalizedString => messages().ui_update_avai
 const msg_ui_reload = (): LocalizedString => messages().ui_reload(empty());
 const msg_ui_sign_out = (): LocalizedString => messages().ui_sign_out(empty());
 const msg_ui_close = (): LocalizedString => messages().ui_close(empty());
+const msg_ui_auth_status_origin_title = (): LocalizedString => messages().ui_auth_status_origin_title(empty());
+const msg_ui_auth_status_origin_message = (): LocalizedString => messages().ui_auth_status_origin_message(empty());
+const msg_ui_auth_status_origin_action = (): LocalizedString => messages().ui_auth_status_origin_action(empty());
+const msg_ui_auth_status_remote_title = (
+  inputs: Parameters<LocaleMessages['ui_auth_status_remote_title']>[0]
+): LocalizedString => messages().ui_auth_status_remote_title(inputs);
+const msg_ui_auth_status_remote_message = (): LocalizedString => messages().ui_auth_status_remote_message(empty());
+const msg_ui_auth_status_remote_action = (): LocalizedString => messages().ui_auth_status_remote_action(empty());
+const msg_ui_auth_status_remote_failed = (): LocalizedString => messages().ui_auth_status_remote_failed(empty());
+const msg_ui_auth_status_sidebar_reauth = (
+  inputs: Parameters<LocaleMessages['ui_auth_status_sidebar_reauth']>[0]
+): LocalizedString => messages().ui_auth_status_sidebar_reauth(inputs);
 const msg_ui_access_denied_title = (): LocalizedString => messages().ui_access_denied_title(empty());
 const msg_ui_access_denied_message = (): LocalizedString => messages().ui_access_denied_message(empty());
 const msg_ui_access_denied_back = (): LocalizedString => messages().ui_access_denied_back(empty());
@@ -2059,6 +2071,14 @@ export { msg_ui_update_available as 'ui.update_available' };
 export { msg_ui_reload as 'ui.reload' };
 export { msg_ui_sign_out as 'ui.sign_out' };
 export { msg_ui_close as 'ui.close' };
+export { msg_ui_auth_status_origin_title as 'ui.auth_status.origin_title' };
+export { msg_ui_auth_status_origin_message as 'ui.auth_status.origin_message' };
+export { msg_ui_auth_status_origin_action as 'ui.auth_status.origin_action' };
+export { msg_ui_auth_status_remote_title as 'ui.auth_status.remote_title' };
+export { msg_ui_auth_status_remote_message as 'ui.auth_status.remote_message' };
+export { msg_ui_auth_status_remote_action as 'ui.auth_status.remote_action' };
+export { msg_ui_auth_status_remote_failed as 'ui.auth_status.remote_failed' };
+export { msg_ui_auth_status_sidebar_reauth as 'ui.auth_status.sidebar_reauth' };
 export { msg_ui_access_denied_title as 'ui.access_denied.title' };
 export { msg_ui_access_denied_message as 'ui.access_denied.message' };
 export { msg_ui_access_denied_back as 'ui.access_denied.back' };

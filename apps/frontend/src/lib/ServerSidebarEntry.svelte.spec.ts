@@ -36,6 +36,7 @@ const { mocks } = vi.hoisted(() => {
         userLogin: 'alice',
         userDisplayName: 'Alice',
         userAvatarUrl: null,
+        reauthRequiredAt: null,
         addedAt: 0
       },
       store: {

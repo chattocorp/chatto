@@ -4,6 +4,14 @@ import { flushSync } from 'svelte';
 import AddServerDialog from './AddServerDialog.svelte';
 import { serverRegistry } from '$lib/state/server/registry.svelte';
 
+const { startServerOAuthFlowMock } = vi.hoisted(() => ({
+  startServerOAuthFlowMock: vi.fn()
+}));
+
+vi.mock('$lib/auth/reauth', () => ({
+  startServerOAuthFlow: startServerOAuthFlowMock
+}));
+
 const STORAGE_KEY = 'chatto:instances';
 
 function makeProbeResponse(body: object, ok = true, status = 200): Response {
@@ -19,6 +27,8 @@ describe('AddServerDialog', () => {
   beforeEach(() => {
     localStorage.removeItem(STORAGE_KEY);
     serverRegistry.servers = [];
+    startServerOAuthFlowMock.mockReset();
+    startServerOAuthFlowMock.mockResolvedValue(undefined);
     originalFetch = globalThis.fetch;
   });
 
@@ -137,6 +147,50 @@ describe('AddServerDialog', () => {
     expect(visible).toBe(true);
   });
 
+  it('starts the shared OAuth flow from the preview stage', async () => {
+    globalThis.fetch = vi.fn(async () =>
+      makeProbeResponse({
+        profile: {
+          name: 'Remote Chatto',
+          version: '0.0.150',
+          logoUrl: 'https://chat.example.com/logo.png'
+        },
+        login: {
+          authorizeUrl: '/oauth/authorize'
+        }
+      })
+    ) as unknown as typeof fetch;
+
+    const { container } = render(AddServerDialog, {
+      props: { visible: true, onclose: () => {} }
+    });
+
+    const input = container.querySelector<HTMLInputElement>('#add-server-url')!;
+    input.value = 'https://chat.example.com';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    flushSync();
+
+    container.querySelector('form')!.requestSubmit();
+
+    await vi.waitFor(() => {
+      expect(container.querySelector<HTMLButtonElement>('button[type="submit"]')?.textContent).toMatch(
+        /^\s*Sign in\s*$/
+      );
+    });
+
+    container.querySelector('form')!.requestSubmit();
+
+    await vi.waitFor(() => {
+      expect(startServerOAuthFlowMock).toHaveBeenCalledWith(
+        'https://chat.example.com',
+        expect.objectContaining({
+          name: 'Remote Chatto',
+          authorizeUrl: '/oauth/authorize'
+        })
+      );
+    });
+  });
+
   it('shows an error when the probe response is not a Chatto server', async () => {
     globalThis.fetch = vi.fn(async () =>
       makeProbeResponse({ unrelated: true })
@@ -170,6 +224,7 @@ describe('AddServerDialog', () => {
         userLogin: 'someone',
         userDisplayName: null,
         userAvatarUrl: null,
+        reauthRequiredAt: null,
         addedAt: 0
       }
     ];

@@ -130,7 +130,7 @@ describe('ServerConnection', () => {
     client.dispose();
   });
 
-  it('clears registered server auth on realtime authentication-required signals', () => {
+  it('notifies the registry on realtime authentication-required signals', () => {
     const client = new ServerConnection(makeConfig({ token: 'my-token', serverId: 'remote-1' }));
 
     client.handleAuthenticationRequired();

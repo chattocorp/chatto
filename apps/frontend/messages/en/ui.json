@@ -10,6 +10,16 @@
     "reload": "Reload",
     "sign_out": "Sign out",
     "close": "Close",
+    "auth_status": {
+      "origin_title": "Session expired",
+      "origin_message": "You can keep reading what is already loaded. Sign in again to send messages and refresh data.",
+      "origin_action": "Sign in again",
+      "remote_title": "{server} needs sign-in",
+      "remote_message": "This server rejected the stored sign-in. Reconnect it to resume live updates and actions.",
+      "remote_action": "Reconnect",
+      "remote_failed": "Failed to start reconnect",
+      "sidebar_reauth": "{server} needs sign-in"
+    },
     "access_denied": {
       "title": "Access Denied",
       "message": "You do not have permission to access this page.",

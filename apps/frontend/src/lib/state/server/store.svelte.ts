@@ -111,29 +111,30 @@ export class ServerStateStore {
   constructor(
     registered: RegisteredServer,
     serverConnection: ServerConnection,
-    publicServerInfoLoader?: (baseUrl: string) => Promise<PublicServerInfo>
+    publicServerInfoLoader?: (baseUrl: string) => Promise<PublicServerInfo>,
+    onAuthenticationRequired?: () => void
   ) {
     this.serverId = registered.id;
     this.#registered = registered;
     const cookieAuth = this.#cookieAuth;
 
     const connectAPIConfig = {
+      serverId: serverConnection.serverId ?? registered.id,
       baseUrl: serverConnection.connectBaseUrl,
       bearerToken: serverConnection.bearerToken
     };
     const notificationAPI = createNotificationAPI(connectAPIConfig);
     const voiceCallAPI = createVoiceCallAPI(connectAPIConfig);
-    const roomDirectoryAPI = createRoomDirectoryAPI({
-      serverId: serverConnection.serverId ?? registered.id,
-      ...connectAPIConfig
-    });
-    const adminRoomLayoutAPI = createAdminRoomLayoutAPI({
-      serverId: serverConnection.serverId ?? registered.id,
-      ...connectAPIConfig
-    });
+    const roomDirectoryAPI = createRoomDirectoryAPI(connectAPIConfig);
+    const adminRoomLayoutAPI = createAdminRoomLayoutAPI(connectAPIConfig);
     const adminEventLogAPI = createAdminEventLogAPI(connectAPIConfig);
     const memberDirectoryAPI = createMemberDirectoryAPI(connectAPIConfig);
-    this.currentUser = new CurrentUserState(cookieAuth, connectAPIConfig);
+    this.currentUser = new CurrentUserState(
+      cookieAuth,
+      connectAPIConfig,
+      undefined,
+      onAuthenticationRequired
+    );
     this.serverInfo = new ServerInfoState(registered.url, publicServerInfoLoader, connectAPIConfig);
     this.notifications = new NotificationStore(notificationAPI);
     this.roomUnread = new RoomUnreadStore();
@@ -361,6 +362,7 @@ export class ServerStateStore {
    * - Bearer auth (remote): true when an access token is registered.
    */
   get isAuthenticated(): boolean {
+    if (this.#registered.reauthRequiredAt !== null) return false;
     if (this.#cookieAuth) {
       return this.currentUser.user != null;
     }

@@ -10,6 +10,16 @@
     "reload": "Neu laden",
     "sign_out": "Abmelden",
     "close": "Schließen",
+    "auth_status": {
+      "origin_title": "Sitzung abgelaufen",
+      "origin_message": "Du kannst bereits geladene Inhalte weiter lesen. Melde dich erneut an, um Nachrichten zu senden und Daten zu aktualisieren.",
+      "origin_action": "Erneut anmelden",
+      "remote_title": "{server} benötigt eine Anmeldung",
+      "remote_message": "Dieser Server hat die gespeicherte Anmeldung abgelehnt. Verbinde ihn erneut, um Live-Aktualisierungen und Aktionen fortzusetzen.",
+      "remote_action": "Neu verbinden",
+      "remote_failed": "Neuverbinden konnte nicht gestartet werden",
+      "sidebar_reauth": "{server} benötigt eine Anmeldung"
+    },
     "access_denied": {
       "title": "Zugriff verweigert",
       "message": "Du hast keine Berechtigung, diese Seite aufzurufen.",

@@ -14,6 +14,7 @@
   import { appState } from '$lib/state/globals.svelte';
   import ServerIcon from './ServerIcon.svelte';
   import { useTabResumeCallback } from '$lib/hooks';
+  import * as m from '$lib/i18n/messages';
 
   let {
     serverId,
@@ -64,9 +65,14 @@
       logoUrl: loaded ? logoUrl : (stores.serverInfo.iconUrl ?? registeredServer?.iconUrl)
     };
   });
-  const iconDimmed = $derived(!loaded || serverConnection.showConnectionLostIcon);
+  const needsReauth = $derived(registeredServer?.reauthRequiredAt != null);
+  const iconDimmed = $derived(!loaded || serverConnection.showConnectionLostIcon || needsReauth);
   const iconTitle = $derived(
-    iconDimmed ? `${iconServer.name} (connection unavailable)` : iconServer.name
+    needsReauth
+      ? m['ui.auth_status.sidebar_reauth']({ server: iconServer.name })
+      : iconDimmed
+        ? `${iconServer.name} (connection unavailable)`
+        : iconServer.name
   );
 
   // Single dispatcher for icon clicks — kind comes from serverIndicator()
@@ -77,6 +83,10 @@
   }
 
   async function loadAll() {
+    if (registeredServer?.reauthRequiredAt != null) {
+      loaded = true;
+      return;
+    }
     try {
       const [serverState, viewer, dmRooms] = await Promise.all([
         getAuthenticatedServerState(connectAPIConfig()),
@@ -114,6 +124,7 @@
 
   // Lightweight reload for server config changes (rename, logo, etc.).
   async function reloadServer() {
+    if (registeredServer?.reauthRequiredAt != null) return;
     try {
       const serverState = await getAuthenticatedServerState(connectAPIConfig());
       displayName = serverState.name;

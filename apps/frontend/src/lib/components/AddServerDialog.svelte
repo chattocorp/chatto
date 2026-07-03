@@ -14,15 +14,10 @@ ADR-027 — only user-facing copy says "server".
 -->
 <script lang="ts">
   import { ConnectError } from '@connectrpc/connect';
+  import { startServerOAuthFlow } from '$lib/auth/reauth';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { getPublicServerInfo, type PublicServerInfo } from '$lib/api-client/server';
   import * as m from '$lib/i18n/messages';
-  import {
-    generateCodeChallenge,
-    generateCodeVerifier,
-    generateState,
-    saveFlowState
-  } from '$lib/oauth/pkce';
   import { TextInput } from '$lib/ui/form';
   import FormDialog from '$lib/ui/FormDialog.svelte';
 
@@ -162,28 +157,7 @@ ADR-027 — only user-facing copy says "server".
     connecting = true;
 
     try {
-      const verifier = generateCodeVerifier();
-      const challenge = await generateCodeChallenge(verifier);
-      const state = generateState();
-      const redirectUri = `${window.location.origin}/servers/callback`;
-
-      saveFlowState({
-        verifier,
-        state,
-        remoteUrl: probedUrl,
-        serverName: probedInfo.name,
-        serverIconUrl: probedInfo.iconUrl ?? null
-      });
-
-      const params = new URLSearchParams({
-        response_type: 'code',
-        redirect_uri: redirectUri,
-        code_challenge: challenge,
-        code_challenge_method: 'S256',
-        state
-      });
-
-      window.location.href = `${probedUrl}${probedInfo.authorizeUrl}?${params}`;
+      await startServerOAuthFlow(probedUrl, probedInfo);
     } catch (err) {
       connecting = false;
       formError = err instanceof Error ? err.message : m['add_server.start_failed']();

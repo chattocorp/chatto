@@ -28,6 +28,8 @@ export interface RegisteredServer {
 	userDisplayName: string | null;
 	/** Authenticated user's avatar URL on this server */
 	userAvatarUrl: string | null;
+	/** Epoch ms when this server last rejected auth, or null when auth is usable */
+	reauthRequiredAt: number | null;
 	/** When this server was added (epoch ms) */
 	addedAt: number;
 }
@@ -69,6 +71,13 @@ export function generateServerId(url: string, existingIds: string[] = []): strin
 // Storage key intentionally stays as 'instances' — renaming would lose users'
 // multi-server registrations (including remote bearer tokens that can't be
 // regenerated). The in-code rename is purely cosmetic.
+function normalizeRegisteredServer(server: RegisteredServer): RegisteredServer {
+	return {
+		...server,
+		reauthRequiredAt: server.reauthRequiredAt ?? null
+	};
+}
+
 const serversSlot = globalSlot(
 	'instances',
 	[] as RegisteredServer[],
@@ -92,7 +101,7 @@ const serversSlot = globalSlot(
  * and provided to components through Svelte context.
  */
 class ServerRegistry {
-	servers = $state<RegisteredServer[]>(serversSlot.get());
+	servers = $state<RegisteredServer[]>(serversSlot.get().map(normalizeRegisteredServer));
 	#stores = new SvelteMap<string, ServerStateStore>();
 
 	/**
@@ -204,6 +213,7 @@ class ServerRegistry {
 			userLogin: user?.login ?? null,
 			userDisplayName: user?.displayName ?? user?.login ?? null,
 			userAvatarUrl: user?.avatarUrl ?? null,
+			reauthRequiredAt: null,
 			addedAt: Date.now()
 		});
 	}
@@ -224,7 +234,8 @@ class ServerRegistry {
 			userId: user?.id ?? origin.userId,
 			userLogin: user?.login ?? origin.userLogin,
 			userDisplayName: user?.displayName ?? user?.login ?? origin.userDisplayName,
-			userAvatarUrl: user?.avatarUrl ?? origin.userAvatarUrl
+			userAvatarUrl: user?.avatarUrl ?? origin.userAvatarUrl,
+			reauthRequiredAt: null
 		});
 		this.originProbed = true;
 	}
@@ -248,7 +259,8 @@ class ServerRegistry {
 			userId: null,
 			userLogin: null,
 			userDisplayName: null,
-			userAvatarUrl: null
+			userAvatarUrl: null,
+			reauthRequiredAt: null
 		});
 		const store = this.tryGetStore(id);
 		if (store) {
@@ -266,16 +278,22 @@ class ServerRegistry {
 	handleAuthenticationRequired(id: string): void {
 		const server = this.getServer(id);
 		if (!server) return;
-		const isOrigin = this.isOriginServer(id);
-		if (isOrigin) {
-			this.clearServerAuthentication(id);
-		} else {
-			this.removeServer(id);
+		if (server.reauthRequiredAt !== null) return;
+
+		eventBusManager.stopBus(id);
+		server.reauthRequiredAt = Date.now();
+		serversSlot.set(this.servers);
+		const store = this.tryGetStore(id);
+		if (store) {
+			store.currentUser.loading = false;
 		}
-		if (isOrigin && typeof window !== 'undefined') {
-			sessionStorage.setItem('returnUrl', window.location.pathname + window.location.search);
-			window.location.href = '/';
-		}
+	}
+
+	clearAuthenticationRequired(id: string): void {
+		const server = this.getServer(id);
+		if (!server || server.reauthRequiredAt === null) return;
+		server.reauthRequiredAt = null;
+		serversSlot.set(this.servers);
 	}
 
 	/**
@@ -295,9 +313,10 @@ class ServerRegistry {
 		if (this.servers.some((s) => s.id === server.id)) {
 			return; // Already exists
 		}
-		this.servers.push(server);
+		const registered = normalizeRegisteredServer(server);
+		this.servers.push(registered);
 		serversSlot.set(this.servers);
-		const store = this.#createStore(server);
+		const store = this.#createStore(registered);
 
 		// Start the event bus eagerly for already-authenticated servers so
 		// child components (ServerSidebarEntry) can register handlers during
@@ -360,11 +379,21 @@ class ServerRegistry {
 		return true;
 	}
 
+	replaceServerAuthentication(
+		id: string,
+		data: Pick<
+			RegisteredServer,
+			'token' | 'userId' | 'userLogin' | 'userDisplayName' | 'userAvatarUrl' | 'reauthRequiredAt'
+		>
+	): boolean {
+		return this.#replaceServerAuth(id, data);
+	}
+
 	#replaceServerAuth(
 		id: string,
 		data: Pick<
 			RegisteredServer,
-			'token' | 'userId' | 'userLogin' | 'userDisplayName' | 'userAvatarUrl'
+			'token' | 'userId' | 'userLogin' | 'userDisplayName' | 'userAvatarUrl' | 'reauthRequiredAt'
 		>
 	): boolean {
 		const server = this.servers.find((s) => s.id === id);
@@ -378,7 +407,10 @@ class ServerRegistry {
 
 		Object.assign(server, data);
 		serversSlot.set(this.servers);
-		this.#createStore(server);
+		const store = this.#createStore(server);
+		if (store.isAuthenticated) {
+			eventBusManager.startBus(id, serverConnectionManager.getClient(id));
+		}
 		return true;
 	}
 
@@ -414,7 +446,9 @@ class ServerRegistry {
 	/** Create a state store for a server and wire up remote user sync. */
 	#createStore(server: RegisteredServer): ServerStateStore {
 		const serverConnection = serverConnectionManager.getClient(server.id);
-		const store = new ServerStateStore(server, serverConnection);
+		const store = new ServerStateStore(server, serverConnection, undefined, () => {
+			this.handleAuthenticationRequired(server.id);
+		});
 		this.#stores.set(server.id, store);
 
 		// Eagerly fetch server info (name, MOTD, upload limits, etc.).

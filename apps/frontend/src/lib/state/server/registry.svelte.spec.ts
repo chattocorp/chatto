@@ -14,6 +14,7 @@ function makeServer(overrides: Partial<RegisteredServer> = {}): RegisteredServer
 		userLogin: null,
 		userDisplayName: null,
 		userAvatarUrl: null,
+		reauthRequiredAt: null,
 		addedAt: 1000,
 		...overrides
 	};
@@ -197,7 +198,7 @@ describe('ServerRegistry', () => {
 	});
 
 	describe('handleAuthenticationRequired', () => {
-		it('removes remote instances instead of persisting unusable null-token auth', async () => {
+		it('marks remote instances as needing reauth without removing them', async () => {
 			const registry = await createRegistry();
 			registry.servers = [];
 
@@ -214,8 +215,23 @@ describe('ServerRegistry', () => {
 
 			registry.handleAuthenticationRequired('remote');
 
-			expect(registry.getServer('remote')).toBeUndefined();
-			expect(JSON.parse(localStorage.getItem(STORAGE_KEY)!)).toHaveLength(0);
+			expect(registry.getServer('remote')?.token).toBe('remote-token');
+			expect(registry.getServer('remote')?.reauthRequiredAt).toEqual(expect.any(Number));
+			const stored = JSON.parse(localStorage.getItem(STORAGE_KEY)!);
+			expect(stored).toHaveLength(1);
+			expect(stored[0].reauthRequiredAt).toEqual(expect.any(Number));
+		});
+
+		it('clears reauth-required state explicitly', async () => {
+			const registry = await createRegistry();
+			registry.servers = [];
+
+			registry.addServer(makeServer({ id: 'remote', token: 'remote-token' }));
+			registry.handleAuthenticationRequired('remote');
+			registry.clearAuthenticationRequired('remote');
+
+			expect(registry.getServer('remote')?.reauthRequiredAt).toBeNull();
+			expect(JSON.parse(localStorage.getItem(STORAGE_KEY)!)[0].reauthRequiredAt).toBeNull();
 		});
 
 		it('keeps origin instances registered when clearing origin auth', async () => {

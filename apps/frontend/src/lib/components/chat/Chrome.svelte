@@ -8,6 +8,7 @@
   import { getViewerStateViaConnect } from '$lib/api-client/viewer';
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
+  import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { serverIdToSegment } from '$lib/navigation';
   import { clearLastRoom } from '$lib/storage/lastRoom';
   import { useActiveEvent, useReconnectCallback } from '$lib/hooks';
@@ -96,6 +97,10 @@
   // null if the server says it's not accessible, or 'transient' on network
   // failure (treat as "try again later", not as access denial).
   async function validateServer(): Promise<ServerChromeData | null | 'transient'> {
+    if (serverRegistry.getServer(getActiveServer())?.reauthRequiredAt != null) {
+      return 'transient';
+    }
+
     const currentConnection = connection();
     const config = {
       baseUrl: currentConnection.connectBaseUrl,

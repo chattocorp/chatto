@@ -40,9 +40,21 @@ export async function loadCurrentUser(): Promise<CurrentUser | null> {
         baseUrl: serverConnectionManager.originClient.connectBaseUrl,
         bearerToken: serverConnectionManager.originClient.bearerToken
       });
+      const originId = serverRegistry.originServer?.id;
+      if (originId) {
+        serverRegistry.clearAuthenticationRequired(originId);
+      }
       return cachedUser;
     } catch (err) {
       if (isAuthenticationRequiredError(err)) {
+        const cached = cachedUser;
+        if (cached) {
+          const originId = serverRegistry.originServer?.id;
+          if (originId) {
+            serverRegistry.handleAuthenticationRequired(originId);
+          }
+          return cached;
+        }
         cachedUser = null;
         serverRegistry.clearOriginAuthentication();
         return null;

@@ -88,12 +88,15 @@
       if (existing) {
         serverRegistry.updateServer(existing.id, {
           name: flow.serverName ?? existing.name,
-          iconUrl: flow.serverIconUrl ?? existing.iconUrl,
+          iconUrl: flow.serverIconUrl ?? existing.iconUrl
+        });
+        serverRegistry.replaceServerAuthentication(existing.id, {
           token: result.access_token,
           userId: result.user?.id ?? null,
           userLogin: result.user?.login ?? null,
           userDisplayName: result.user?.displayName ?? null,
-          userAvatarUrl: result.user?.avatarUrl ?? null
+          userAvatarUrl: result.user?.avatarUrl ?? null,
+          reauthRequiredAt: null
         });
         serverId = existing.id;
       } else {
@@ -112,6 +115,7 @@
           userLogin: result.user?.login ?? null,
           userDisplayName: result.user?.displayName ?? null,
           userAvatarUrl: result.user?.avatarUrl ?? null,
+          reauthRequiredAt: null,
           addedAt: Date.now()
         });
         serverId = id;

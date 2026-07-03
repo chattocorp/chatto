@@ -26,6 +26,7 @@ function server(overrides: Partial<RegisteredServer> = {}): RegisteredServer {
     userLogin: 'alice',
     userDisplayName: 'Alice',
     userAvatarUrl: null,
+    reauthRequiredAt: null,
     addedAt: 1,
     ...overrides
   };

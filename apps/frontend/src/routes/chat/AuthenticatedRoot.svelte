@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
   import type { CurrentUser } from '$lib/auth/loadAuth';
+  import AuthStatusNotice from '$lib/components/AuthStatusNotice.svelte';
   import NotificationSync from '$lib/components/NotificationSync.svelte';
   import { shouldPauseLiveEventsForStoredPresence } from '$lib/presenceTracking';
   import { createPresenceCache } from '$lib/state/presenceCache.svelte';
@@ -48,6 +49,7 @@
 </script>
 
 <NotificationSync />
+<AuthStatusNotice />
 
 <AuthenticatedChatProvider {user} {userSettings} {profileCache} {presenceCache}>
   {@render children()}

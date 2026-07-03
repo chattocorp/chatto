@@ -159,6 +159,19 @@ class EventBusManager {
       if (close) current.close(1000, 'replaced');
     };
 
+    const stopForAuthenticationRequired = (current: RealtimeSocket, reason: string) => {
+      console.warn(`[eventBus:${serverId}] realtime authentication required`, {
+        reason,
+        ...debugState()
+      });
+      stopped = true;
+      current.onclose = null;
+      if (socket === current) socket = null;
+      serverConnection.setRealtimeConnectionStatus('disconnected', reconnectAttempts);
+      current.close(1000, 'authentication_required');
+      serverConnection.handleAuthenticationRequired();
+    };
+
     const dispatchEvent = (event: EventEnvelope) => {
       dispatchedEventCount++;
       console.debug(
@@ -239,7 +252,8 @@ class EventBusManager {
                 fatal: frame.frame.value.fatal
               });
               if (frame.frame.value.code === 'authentication_required') {
-                serverConnection.handleAuthenticationRequired();
+                stopForAuthenticationRequired(nextSocket, 'error frame');
+                return;
               }
               if (frame.frame.value.fatal) {
                 nextSocket.close(1011, frame.frame.value.code || 'fatal realtime error');
@@ -247,7 +261,8 @@ class EventBusManager {
               return;
             case 'close':
               if (frame.frame.value.code === 'authentication_required') {
-                serverConnection.handleAuthenticationRequired();
+                stopForAuthenticationRequired(nextSocket, 'close frame');
+                return;
               }
               nextSocket.onclose = null;
               if (socket === nextSocket) socket = null;

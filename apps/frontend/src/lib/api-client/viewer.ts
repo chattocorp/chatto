@@ -10,6 +10,7 @@ import {
 } from "./renderTypes.js";
 
 export type ViewerAPIConfig = {
+  serverId?: string;
   baseUrl: string;
   bearerToken: string | null;
   onAuthenticationRequired?: (serverId: string) => void;

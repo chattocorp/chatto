@@ -1,17 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { CurrentUserState } from './currentUser.svelte';
 
-const { gotoMock, clearCachedUserMock } = vi.hoisted(() => ({
-  gotoMock: vi.fn(() => Promise.resolve()),
+const { clearCachedUserMock } = vi.hoisted(() => ({
   clearCachedUserMock: vi.fn()
-}));
-
-vi.mock('$app/navigation', () => ({
-  goto: gotoMock
-}));
-
-vi.mock('$app/paths', () => ({
-  resolve: (path: string) => path
 }));
 
 vi.mock('./loadAuth', () => ({
@@ -52,22 +43,20 @@ describe('CurrentUserState', () => {
     expect(typeof CurrentUserState).toBe('function');
   });
 
-  it('does not revoke the server session by default for cookie auth failures', async () => {
-    const state = new CurrentUserState(true);
+  it('marks auth required without revoking the server session by default', async () => {
+    const onAuthenticationRequired = vi.fn();
+    const state = new CurrentUserState(true, undefined, undefined, onAuthenticationRequired);
 
     await state.handleAuthFailure();
 
     expect(fetch).not.toHaveBeenCalled();
-    expect(clearCachedUserMock).toHaveBeenCalledOnce();
-    expect(sessionStorage.setItem).toHaveBeenCalledWith(
-      'returnUrl',
-      '/chat/-/overview?tab=profile'
-    );
-    expect(gotoMock).toHaveBeenCalledWith('/', { invalidateAll: true });
+    expect(clearCachedUserMock).not.toHaveBeenCalled();
+    expect(onAuthenticationRequired).toHaveBeenCalledOnce();
   });
 
   it('revokes the server session when explicitly requested', async () => {
-    const state = new CurrentUserState(true);
+    const onAuthenticationRequired = vi.fn();
+    const state = new CurrentUserState(true, undefined, undefined, onAuthenticationRequired);
 
     await state.handleAuthFailure({ revokeServerSession: true });
 
@@ -75,6 +64,7 @@ describe('CurrentUserState', () => {
       method: 'POST',
       headers: expect.any(Headers)
     });
-    expect(gotoMock).toHaveBeenCalledWith('/', { invalidateAll: true });
+    expect(clearCachedUserMock).toHaveBeenCalledOnce();
+    expect(onAuthenticationRequired).toHaveBeenCalledOnce();
   });
 });

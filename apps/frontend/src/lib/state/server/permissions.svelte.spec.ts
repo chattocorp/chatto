@@ -20,6 +20,7 @@ function makeServer(overrides: Partial<RegisteredServer> = {}): RegisteredServer
     userLogin: null,
     userDisplayName: null,
     userAvatarUrl: null,
+    reauthRequiredAt: null,
     addedAt: 0,
     ...overrides
   };

@@ -58,10 +58,14 @@
 
   // Auth guard: redirect unauthenticated users to /login and save the return URL.
   const currentUserState = $derived(serverStore?.currentUser);
+  const reauthRequired = $derived(
+    !!serverStore && serverRegistry.getServer(serverId)?.reauthRequiredAt != null
+  );
   $effect(() => {
     if (!browser) return;
     if (!currentUserState) return; // No store — already redirecting above
     if (currentUserState.loading) return; // Still loading, wait
+    if (reauthRequired) return; // Session/token expired; AuthStatusNotice owns recovery.
     if (currentUserState.user) return; // Authenticated, allow
 
     // Not authenticated on this instance — save return URL and redirect
@@ -77,7 +81,7 @@
   });
 </script>
 
-{#if currentUserState?.user}
+{#if currentUserState?.user || reauthRequired}
   <Chrome>
     {@render children?.()}
   </Chrome>

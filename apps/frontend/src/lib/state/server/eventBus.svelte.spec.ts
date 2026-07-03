@@ -4,6 +4,8 @@ import { createEventBusHandlerRegistrar, getRealtimeEventEnvelope } from '$lib/e
 import { RoomEventKind } from '$lib/render/eventKinds';
 import {
   RealtimeEventEnvelope,
+  RealtimeClose,
+  RealtimeError,
   RealtimeHeartbeat,
   RealtimeMentionNotificationEvent,
   RealtimeServerFrame,
@@ -313,6 +315,51 @@ describe('eventBusManager realtime transport', () => {
     expect(catchUp).toHaveBeenCalledWith('subscription-ended');
     await vi.advanceTimersByTimeAsync(0);
     expect(sockets).toHaveLength(2);
+  });
+
+  it('does not reconnect when the realtime stream reports authentication required', async () => {
+    vi.useFakeTimers();
+    const { fake, socket } = await startAndSubscribe();
+    const catchUp = vi.fn();
+    eventBusManager.getBus(TEST_SERVER)!.catchUpHandlers.add(catchUp);
+
+    await socket.receive(
+      serverFrame({
+        case: 'error',
+        value: new RealtimeError({
+          code: 'authentication_required',
+          message: 'session expired',
+          fatal: true
+        })
+      })
+    );
+
+    expect(fake.authRequiredCalls).toBe(1);
+    expect(fake.status).toBe('disconnected');
+    expect(catchUp).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(sockets).toHaveLength(1);
+  });
+
+  it('does not reconnect when the realtime stream closes for authentication required', async () => {
+    vi.useFakeTimers();
+    const { fake, socket } = await startAndSubscribe();
+
+    await socket.receive(
+      serverFrame({
+        case: 'close',
+        value: new RealtimeClose({
+          code: 'authentication_required',
+          message: 'session expired',
+          reconnect: true
+        })
+      })
+    );
+
+    expect(fake.authRequiredCalls).toBe(1);
+    expect(fake.status).toBe('disconnected');
+    await vi.advanceTimersByTimeAsync(0);
+    expect(sockets).toHaveLength(1);
   });
 
   it('re-notifies catch-up handlers after the projection grace period', async () => {

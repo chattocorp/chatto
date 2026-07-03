@@ -169,6 +169,7 @@
 			userLogin: 'alice',
 			userDisplayName: 'Alice',
 			userAvatarUrl: null,
+			reauthRequiredAt: null,
 			addedAt: Date.now()
 		};
 		serverRegistry.addServer(server);

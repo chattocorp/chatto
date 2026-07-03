@@ -250,6 +250,7 @@ const registered: RegisteredServer = {
   userLogin: 'alice',
   userDisplayName: 'Alice',
   userAvatarUrl: null,
+  reauthRequiredAt: null,
   addedAt: 1
 };
 
@@ -283,12 +284,14 @@ function connectUnavailable() {
 function makeStore(
   fake: FakeServerConnection,
   server: RegisteredServer = registered,
-  publicServerInfoLoader = connectUnavailable()
+  publicServerInfoLoader = connectUnavailable(),
+  onAuthenticationRequired?: () => void
 ): ServerStateStore {
   const store = new ServerStateStore(
     server,
     fake as unknown as ServerConnection,
-    publicServerInfoLoader
+    publicServerInfoLoader,
+    onAuthenticationRequired
   );
   stores.push(store);
   return store;
@@ -427,6 +430,24 @@ afterEach(() => {
   setRealtimeSocketFactoryForTests(null);
   soundMocks.playCallSound.mockClear();
   vi.restoreAllMocks();
+});
+
+describe('ServerStateStore authentication state', () => {
+  it('treats reauth-required servers as unauthenticated without clearing user data', () => {
+    const fake = new FakeServerConnection([]);
+    const store = makeStore(fake, {
+      ...registered,
+      reauthRequiredAt: 123
+    });
+    store.currentUser.user = {
+      id: 'U1',
+      login: 'alice',
+      displayName: 'Alice'
+    } as typeof store.currentUser.user;
+
+    expect(store.isAuthenticated).toBe(false);
+    expect(store.currentUser.user).toMatchObject({ id: 'U1' });
+  });
 });
 
 describe('ServerStateStore live server updates', () => {

@@ -42,7 +42,7 @@ is connected to, plus the add-server button pinned to the bottom. See the
     <div class="flex flex-col gap-2 p-2 max-md:pl-3">
       {#each serverRegistry.servers as server (server.id)}
         {@const store = serverRegistry.tryGetStore(server.id)}
-        {#if store?.isAuthenticated}
+        {#if store && (store.isAuthenticated || server.reauthRequiredAt != null)}
           <ServerSidebarEntry serverId={server.id} currentUserId={store.currentUser.user?.id} />
         {/if}
       {/each}
