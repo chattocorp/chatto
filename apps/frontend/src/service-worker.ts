@@ -88,7 +88,14 @@ self.addEventListener('message', (event) => {
 self.addEventListener('fetch', (event) => {
   const assetProxyRequest = parseAssetProxyRequest(event.request.url, self.location.origin);
   if (assetProxyRequest) {
-    event.respondWith(handleAssetProxyFetch(event.request, assetProxyRequest));
+    event.respondWith(
+      handleAssetProxyFetch(event.request, assetProxyRequest, {
+        navigationFallback: async () => {
+          const cache = await caches.open(CACHE_NAME);
+          return getCachedOfflineShell(cache);
+        }
+      })
+    );
     return;
   }
 

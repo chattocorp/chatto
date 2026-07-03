@@ -492,6 +492,8 @@ const msg_error_page_title = (): LocalizedString => messages().error_page_title(
 const msg_error_page_description = (): LocalizedString => messages().error_page_description(empty());
 const msg_error_page_unknown = (): LocalizedString => messages().error_page_unknown(empty());
 const msg_error_page_home_link = (): LocalizedString => messages().error_page_home_link(empty());
+const msg_error_page_missing_media_title = (): LocalizedString => messages().error_page_missing_media_title(empty());
+const msg_error_page_missing_media_description = (): LocalizedString => messages().error_page_missing_media_description(empty());
 const msg_chat_notifications_title = (): LocalizedString => messages().chat_notifications_title(empty());
 const msg_chat_notifications_subtitle = (): LocalizedString => messages().chat_notifications_subtitle(empty());
 const msg_chat_notifications_clear_all = (): LocalizedString => messages().chat_notifications_clear_all(empty());
@@ -1845,6 +1847,8 @@ export { msg_error_page_title as 'error_page.title' };
 export { msg_error_page_description as 'error_page.description' };
 export { msg_error_page_unknown as 'error_page.unknown' };
 export { msg_error_page_home_link as 'error_page.home_link' };
+export { msg_error_page_missing_media_title as 'error_page.missing_media_title' };
+export { msg_error_page_missing_media_description as 'error_page.missing_media_description' };
 export { msg_chat_notifications_title as 'chat.notifications.title' };
 export { msg_chat_notifications_subtitle as 'chat.notifications.subtitle' };
 export { msg_chat_notifications_clear_all as 'chat.notifications.clear_all' };

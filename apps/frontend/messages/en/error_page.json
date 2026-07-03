@@ -2,8 +2,10 @@
   "$schema": "https://inlang.com/schema/inlang-message-format",
   "error_page": {
     "title": "Something went wrong",
-    "description": "An unexpected error occurred while rendering this page.",
+    "description": "This view could not be opened. You can return to Chatto and try again from there.",
     "unknown": "Unknown error",
-    "home_link": "Go back to the home page"
+    "home_link": "Back to Chatto",
+    "missing_media_title": "Media unavailable",
+    "missing_media_description": "This file could not be opened from this link. It may have been removed, or the private media link is no longer available."
   }
 }
