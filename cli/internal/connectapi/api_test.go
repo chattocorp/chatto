@@ -2901,15 +2901,15 @@ func TestRoomServiceLifecycleCommands(t *testing.T) {
 		t.Fatalf("UnarchiveRoom archived = true, want false")
 	}
 
-	universalResp, err := env.rooms.UpdateRoomUniversal(ctx, connect.NewRequest(&apiv1.UpdateRoomUniversalRequest{
+	universalResp, err := env.rooms.UpdateRoom(ctx, connect.NewRequest(&apiv1.UpdateRoomRequest{
 		RoomId:    room.GetId(),
-		Universal: false,
+		Universal: boolPtr(false),
 	}))
 	if err != nil {
-		t.Fatalf("UpdateRoomUniversal: %v", err)
+		t.Fatalf("UpdateRoom universal: %v", err)
 	}
 	if universalResp.Msg.GetRoom().GetUniversal() {
-		t.Fatalf("UpdateRoomUniversal universal = true, want false")
+		t.Fatalf("UpdateRoom universal = true, want false")
 	}
 }
 
@@ -3241,11 +3241,11 @@ func TestRoomServiceRejectsDMRooms(t *testing.T) {
 	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("UnarchiveRoom for DM code = %v, want invalid argument", connect.CodeOf(err))
 	}
-	if _, err := env.rooms.UpdateRoomUniversal(ctx, connect.NewRequest(&apiv1.UpdateRoomUniversalRequest{
+	if _, err := env.rooms.UpdateRoom(ctx, connect.NewRequest(&apiv1.UpdateRoomRequest{
 		RoomId:    dm.Id,
-		Universal: true,
+		Universal: boolPtr(true),
 	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("UpdateRoomUniversal for DM code = %v, want invalid argument", connect.CodeOf(err))
+		t.Fatalf("UpdateRoom universal for DM code = %v, want invalid argument", connect.CodeOf(err))
 	}
 	if _, err := env.rooms.AddMember(ctx, connect.NewRequest(&apiv1.AddMemberRequest{
 		RoomId: dm.Id,

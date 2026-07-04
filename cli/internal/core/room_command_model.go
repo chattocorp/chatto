@@ -35,6 +35,7 @@ type RoomUpdateInput struct {
 	RoomID      string
 	Name        *string
 	Description *string
+	Universal   *bool
 }
 
 type RoomIDInput struct {
@@ -51,12 +52,6 @@ type RoomUserInput struct {
 type RoomStartDMInput struct {
 	ActorID        string
 	ParticipantIDs []string
-}
-
-type RoomUniversalInput struct {
-	ActorID   string
-	RoomID    string
-	Universal bool
 }
 
 type RoomBanInput struct {
@@ -101,12 +96,15 @@ func (s *RoomCommandModel) UpdateRoom(ctx context.Context, input RoomUpdateInput
 	if err != nil {
 		return nil, err
 	}
-	if input.Name == nil && input.Description == nil {
+	if input.Name == nil && input.Description == nil && input.Universal == nil {
 		return nil, fmt.Errorf("%w: provide at least one room field to update", ErrInvalidArgument)
 	}
 	room, err := s.core.GetRoom(ctx, kind, input.RoomID)
 	if err != nil {
 		return nil, err
+	}
+	if input.Universal != nil && kind == KindDM {
+		return nil, fmt.Errorf("%w: DM rooms cannot be universal", ErrInvalidArgument)
 	}
 	name := room.GetName()
 	if input.Name != nil {
@@ -119,7 +117,19 @@ func (s *RoomCommandModel) UpdateRoom(ctx context.Context, input RoomUpdateInput
 	if err := validateRoomNameAndDescription(name, description); err != nil {
 		return nil, err
 	}
-	return s.core.UpdateRoom(ctx, input.ActorID, kind, input.RoomID, name, description)
+	if input.Name != nil || input.Description != nil {
+		room, err = s.core.UpdateRoom(ctx, input.ActorID, kind, input.RoomID, name, description)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if input.Universal != nil {
+		room, err = s.core.SetRoomUniversal(ctx, input.ActorID, kind, input.RoomID, *input.Universal)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return room, nil
 }
 
 func (s *RoomCommandModel) ArchiveRoom(ctx context.Context, input RoomIDInput) (*corev1.Room, error) {
@@ -136,14 +146,6 @@ func (s *RoomCommandModel) UnarchiveRoom(ctx context.Context, input RoomIDInput)
 		return nil, err
 	}
 	return s.core.UnarchiveRoom(ctx, input.ActorID, kind, input.RoomID)
-}
-
-func (s *RoomCommandModel) SetRoomUniversal(ctx context.Context, input RoomUniversalInput) (*corev1.Room, error) {
-	kind, err := s.authorizeRoomManage(ctx, input.ActorID, input.RoomID)
-	if err != nil {
-		return nil, err
-	}
-	return s.core.SetRoomUniversal(ctx, input.ActorID, kind, input.RoomID, input.Universal)
 }
 
 func (s *RoomCommandModel) JoinRoom(ctx context.Context, input RoomIDInput) (*corev1.Room, error) {

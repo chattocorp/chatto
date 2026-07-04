@@ -80,15 +80,12 @@ function makeClient(
 }
 
 function roomAPI(
-  overrides: Partial<
-    Pick<RoomCommandAPI, 'updateRoom' | 'archiveRoom' | 'unarchiveRoom' | 'updateRoomUniversal'>
-  > = {}
-): Pick<RoomCommandAPI, 'updateRoom' | 'archiveRoom' | 'unarchiveRoom' | 'updateRoomUniversal'> {
+  overrides: Partial<Pick<RoomCommandAPI, 'updateRoom' | 'archiveRoom' | 'unarchiveRoom'>> = {}
+): Pick<RoomCommandAPI, 'updateRoom' | 'archiveRoom' | 'unarchiveRoom'> {
   return {
     updateRoom: vi.fn().mockResolvedValue(null),
     archiveRoom: vi.fn().mockResolvedValue(null),
     unarchiveRoom: vi.fn().mockResolvedValue(null),
-    updateRoomUniversal: vi.fn().mockResolvedValue(null),
     ...overrides
   };
 }
@@ -378,7 +375,7 @@ describe('AdminRoomLayoutStore — mutations', () => {
 
     await expect(store.updateRoomUniversal('r1', true)).resolves.toEqual({ ok: true });
 
-    expect(api.updateRoomUniversal).toHaveBeenCalledWith('r1', true);
+    expect(api.updateRoom).toHaveBeenCalledWith({ roomId: 'r1', universal: true });
     expect(query).toHaveBeenCalledTimes(1);
     expect(store.universalRoomId).toBeNull();
   });

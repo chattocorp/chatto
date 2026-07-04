@@ -62,15 +62,11 @@ function group(id: string, rooms: AdminRoomInfo[], name = id): AdminRoomGroup {
   };
 }
 
-function roomAPI(): Pick<
-  RoomCommandAPI,
-  'updateRoom' | 'archiveRoom' | 'unarchiveRoom' | 'updateRoomUniversal'
-> {
+function roomAPI(): Pick<RoomCommandAPI, 'updateRoom' | 'archiveRoom' | 'unarchiveRoom'> {
   return {
     updateRoom: vi.fn().mockResolvedValue(null),
     archiveRoom: vi.fn().mockResolvedValue(null),
-    unarchiveRoom: vi.fn().mockResolvedValue(null),
-    updateRoomUniversal: vi.fn().mockResolvedValue(null)
+    unarchiveRoom: vi.fn().mockResolvedValue(null)
   };
 }
 

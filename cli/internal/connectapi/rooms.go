@@ -52,6 +52,7 @@ func (s *roomService) UpdateRoom(ctx context.Context, req *connect.Request[apiv1
 		RoomID:      req.Msg.RoomId,
 		Name:        req.Msg.Name,
 		Description: req.Msg.Description,
+		Universal:   req.Msg.Universal,
 	})
 	if err != nil {
 		return nil, connectError(err)
@@ -89,23 +90,6 @@ func (s *roomService) UnarchiveRoom(ctx context.Context, req *connect.Request[ap
 		return nil, connectError(err)
 	}
 	return connect.NewResponse(&apiv1.UnarchiveRoomResponse{Room: apiRoom(room)}), nil
-}
-
-func (s *roomService) UpdateRoomUniversal(ctx context.Context, req *connect.Request[apiv1.UpdateRoomUniversalRequest]) (*connect.Response[apiv1.UpdateRoomUniversalResponse], error) {
-	caller, err := requireCaller(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	room, err := s.api.core.RoomCommands().SetRoomUniversal(ctx, core.RoomUniversalInput{
-		ActorID:   caller.UserID,
-		RoomID:    req.Msg.RoomId,
-		Universal: req.Msg.Universal,
-	})
-	if err != nil {
-		return nil, connectError(err)
-	}
-	return connect.NewResponse(&apiv1.UpdateRoomUniversalResponse{Room: apiRoom(room)}), nil
 }
 
 func (s *roomService) JoinRoom(ctx context.Context, req *connect.Request[apiv1.JoinRoomRequest]) (*connect.Response[apiv1.JoinRoomResponse], error) {

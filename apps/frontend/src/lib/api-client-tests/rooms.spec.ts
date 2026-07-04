@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   createConnectTransport: vi.fn(),
   handleAuthenticationRequired: vi.fn(),
   createRoom: vi.fn(),
+  updateRoom: vi.fn(),
   joinRoom: vi.fn(),
   startDM: vi.fn(),
   leaveRoom: vi.fn(),
@@ -43,6 +44,7 @@ describe('createRoomCommandAPI', () => {
 
     configureApiClientHooks({ onAuthenticationRequired: mocks.handleAuthenticationRequired });
     mocks.createRoom.mockReset();
+    mocks.updateRoom.mockReset();
     mocks.joinRoom.mockReset();
     mocks.startDM.mockReset();
     mocks.leaveRoom.mockReset();
@@ -56,6 +58,7 @@ describe('createRoomCommandAPI', () => {
     mocks.createConnectTransport.mockReturnValue({ kind: 'transport' });
     mocks.createClient.mockReturnValue({
       createRoom: mocks.createRoom,
+      updateRoom: mocks.updateRoom,
       joinRoom: mocks.joinRoom,
       startDM: mocks.startDM,
       leaveRoom: mocks.leaveRoom,
@@ -116,6 +119,62 @@ describe('createRoomCommandAPI', () => {
     });
   });
 
+  it('updates room metadata and universal state through RoomService', async () => {
+    mocks.updateRoom.mockResolvedValue({
+      room: {
+        id: 'room-1',
+        name: 'renamed',
+        description: 'Updated',
+        archived: false,
+        groupId: 'group-1',
+        universal: true
+      }
+    });
+
+    const api = createRoomCommandAPI({
+      baseUrl: 'https://remote.example.test/api/connect',
+      bearerToken: 'remote-token'
+    });
+
+    await expect(
+      api.updateRoom({
+        roomId: 'room-1',
+        name: 'renamed',
+        description: 'Updated',
+        universal: true
+      })
+    ).resolves.toEqual({
+      id: 'room-1',
+      name: 'renamed',
+      description: 'Updated',
+      archived: false,
+      groupId: 'group-1',
+      universal: true
+    });
+
+    expect(mocks.updateRoom).toHaveBeenCalledWith(
+      {
+        roomId: 'room-1',
+        name: 'renamed',
+        description: 'Updated',
+        universal: true
+      },
+      { headers: { Authorization: 'Bearer remote-token' } }
+    );
+
+    await api.updateRoom({ roomId: 'room-1', universal: false });
+
+    expect(mocks.updateRoom).toHaveBeenLastCalledWith(
+      {
+        roomId: 'room-1',
+        name: undefined,
+        description: undefined,
+        universal: false
+      },
+      { headers: { Authorization: 'Bearer remote-token' } }
+    );
+  });
+
   it('uses Connect room and directory membership commands', async () => {
     mocks.joinRoom.mockResolvedValue({ room: { id: 'room-1', name: 'general' } });
     mocks.startDM.mockResolvedValue({ room: { id: 'dm-1', name: '' } });
@@ -149,9 +208,7 @@ describe('createRoomCommandAPI', () => {
       displayName: 'Alice',
       presenceStatus: PresenceStatus.Online
     });
-    await expect(api.removeMember({ roomId: 'room-1', userId: 'user-1' })).resolves.toBe(
-      true
-    );
+    await expect(api.removeMember({ roomId: 'room-1', userId: 'user-1' })).resolves.toBe(true);
     await expect(api.joinGroup('group-1')).resolves.toEqual(['room-1', 'room-2']);
 
     expect(mocks.joinRoom).toHaveBeenCalledWith({ roomId: 'room-1' }, { headers: undefined });

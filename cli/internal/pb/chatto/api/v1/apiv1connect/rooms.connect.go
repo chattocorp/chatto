@@ -42,9 +42,6 @@ const (
 	// RoomServiceUnarchiveRoomProcedure is the fully-qualified name of the RoomService's UnarchiveRoom
 	// RPC.
 	RoomServiceUnarchiveRoomProcedure = "/chatto.api.v1.RoomService/UnarchiveRoom"
-	// RoomServiceUpdateRoomUniversalProcedure is the fully-qualified name of the RoomService's
-	// UpdateRoomUniversal RPC.
-	RoomServiceUpdateRoomUniversalProcedure = "/chatto.api.v1.RoomService/UpdateRoomUniversal"
 	// RoomServiceJoinRoomProcedure is the fully-qualified name of the RoomService's JoinRoom RPC.
 	RoomServiceJoinRoomProcedure = "/chatto.api.v1.RoomService/JoinRoom"
 	// RoomServiceJoinRoomGroupProcedure is the fully-qualified name of the RoomService's JoinRoomGroup
@@ -94,8 +91,8 @@ type RoomServiceClient interface {
 	// Creates a new channel room in a room group. The caller must be allowed to
 	// create rooms in the target group.
 	CreateRoom(context.Context, *connect.Request[v1.CreateRoomRequest]) (*connect.Response[v1.CreateRoomResponse], error)
-	// Updates a room's name and description. The caller must be allowed to manage
-	// rooms.
+	// Updates a room's editable metadata. The caller must be allowed to manage
+	// rooms. Direct-message rooms cannot be universal.
 	UpdateRoom(context.Context, *connect.Request[v1.UpdateRoomRequest]) (*connect.Response[v1.UpdateRoomResponse], error)
 	// Archives a room so it is hidden from active room lists. The caller must be
 	// allowed to manage rooms.
@@ -103,9 +100,6 @@ type RoomServiceClient interface {
 	// Restores an archived room to active room lists. The caller must be allowed
 	// to manage rooms.
 	UnarchiveRoom(context.Context, *connect.Request[v1.UnarchiveRoomRequest]) (*connect.Response[v1.UnarchiveRoomResponse], error)
-	// Changes whether a channel room grants effective membership to eligible
-	// server members. Direct-message rooms cannot be universal.
-	UpdateRoomUniversal(context.Context, *connect.Request[v1.UpdateRoomUniversalRequest]) (*connect.Response[v1.UpdateRoomUniversalResponse], error)
 	// Joins the room as the current user when room permissions allow it.
 	JoinRoom(context.Context, *connect.Request[v1.JoinRoomRequest]) (*connect.Response[v1.JoinRoomResponse], error)
 	// Joins every unarchived room in a group that the current user can join.
@@ -197,12 +191,6 @@ func NewRoomServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			httpClient,
 			baseURL+RoomServiceUnarchiveRoomProcedure,
 			connect.WithSchema(roomServiceMethods.ByName("UnarchiveRoom")),
-			connect.WithClientOptions(opts...),
-		),
-		updateRoomUniversal: connect.NewClient[v1.UpdateRoomUniversalRequest, v1.UpdateRoomUniversalResponse](
-			httpClient,
-			baseURL+RoomServiceUpdateRoomUniversalProcedure,
-			connect.WithSchema(roomServiceMethods.ByName("UpdateRoomUniversal")),
 			connect.WithClientOptions(opts...),
 		),
 		joinRoom: connect.NewClient[v1.JoinRoomRequest, v1.JoinRoomResponse](
@@ -316,7 +304,6 @@ type roomServiceClient struct {
 	updateRoom            *connect.Client[v1.UpdateRoomRequest, v1.UpdateRoomResponse]
 	archiveRoom           *connect.Client[v1.ArchiveRoomRequest, v1.ArchiveRoomResponse]
 	unarchiveRoom         *connect.Client[v1.UnarchiveRoomRequest, v1.UnarchiveRoomResponse]
-	updateRoomUniversal   *connect.Client[v1.UpdateRoomUniversalRequest, v1.UpdateRoomUniversalResponse]
 	joinRoom              *connect.Client[v1.JoinRoomRequest, v1.JoinRoomResponse]
 	joinRoomGroup         *connect.Client[v1.JoinRoomGroupRequest, v1.JoinRoomGroupResponse]
 	startDM               *connect.Client[v1.StartDMRequest, v1.StartDMResponse]
@@ -354,11 +341,6 @@ func (c *roomServiceClient) ArchiveRoom(ctx context.Context, req *connect.Reques
 // UnarchiveRoom calls chatto.api.v1.RoomService.UnarchiveRoom.
 func (c *roomServiceClient) UnarchiveRoom(ctx context.Context, req *connect.Request[v1.UnarchiveRoomRequest]) (*connect.Response[v1.UnarchiveRoomResponse], error) {
 	return c.unarchiveRoom.CallUnary(ctx, req)
-}
-
-// UpdateRoomUniversal calls chatto.api.v1.RoomService.UpdateRoomUniversal.
-func (c *roomServiceClient) UpdateRoomUniversal(ctx context.Context, req *connect.Request[v1.UpdateRoomUniversalRequest]) (*connect.Response[v1.UpdateRoomUniversalResponse], error) {
-	return c.updateRoomUniversal.CallUnary(ctx, req)
 }
 
 // JoinRoom calls chatto.api.v1.RoomService.JoinRoom.
@@ -451,8 +433,8 @@ type RoomServiceHandler interface {
 	// Creates a new channel room in a room group. The caller must be allowed to
 	// create rooms in the target group.
 	CreateRoom(context.Context, *connect.Request[v1.CreateRoomRequest]) (*connect.Response[v1.CreateRoomResponse], error)
-	// Updates a room's name and description. The caller must be allowed to manage
-	// rooms.
+	// Updates a room's editable metadata. The caller must be allowed to manage
+	// rooms. Direct-message rooms cannot be universal.
 	UpdateRoom(context.Context, *connect.Request[v1.UpdateRoomRequest]) (*connect.Response[v1.UpdateRoomResponse], error)
 	// Archives a room so it is hidden from active room lists. The caller must be
 	// allowed to manage rooms.
@@ -460,9 +442,6 @@ type RoomServiceHandler interface {
 	// Restores an archived room to active room lists. The caller must be allowed
 	// to manage rooms.
 	UnarchiveRoom(context.Context, *connect.Request[v1.UnarchiveRoomRequest]) (*connect.Response[v1.UnarchiveRoomResponse], error)
-	// Changes whether a channel room grants effective membership to eligible
-	// server members. Direct-message rooms cannot be universal.
-	UpdateRoomUniversal(context.Context, *connect.Request[v1.UpdateRoomUniversalRequest]) (*connect.Response[v1.UpdateRoomUniversalResponse], error)
 	// Joins the room as the current user when room permissions allow it.
 	JoinRoom(context.Context, *connect.Request[v1.JoinRoomRequest]) (*connect.Response[v1.JoinRoomResponse], error)
 	// Joins every unarchived room in a group that the current user can join.
@@ -550,12 +529,6 @@ func NewRoomServiceHandler(svc RoomServiceHandler, opts ...connect.HandlerOption
 		RoomServiceUnarchiveRoomProcedure,
 		svc.UnarchiveRoom,
 		connect.WithSchema(roomServiceMethods.ByName("UnarchiveRoom")),
-		connect.WithHandlerOptions(opts...),
-	)
-	roomServiceUpdateRoomUniversalHandler := connect.NewUnaryHandler(
-		RoomServiceUpdateRoomUniversalProcedure,
-		svc.UpdateRoomUniversal,
-		connect.WithSchema(roomServiceMethods.ByName("UpdateRoomUniversal")),
 		connect.WithHandlerOptions(opts...),
 	)
 	roomServiceJoinRoomHandler := connect.NewUnaryHandler(
@@ -670,8 +643,6 @@ func NewRoomServiceHandler(svc RoomServiceHandler, opts ...connect.HandlerOption
 			roomServiceArchiveRoomHandler.ServeHTTP(w, r)
 		case RoomServiceUnarchiveRoomProcedure:
 			roomServiceUnarchiveRoomHandler.ServeHTTP(w, r)
-		case RoomServiceUpdateRoomUniversalProcedure:
-			roomServiceUpdateRoomUniversalHandler.ServeHTTP(w, r)
 		case RoomServiceJoinRoomProcedure:
 			roomServiceJoinRoomHandler.ServeHTTP(w, r)
 		case RoomServiceJoinRoomGroupProcedure:
@@ -729,10 +700,6 @@ func (UnimplementedRoomServiceHandler) ArchiveRoom(context.Context, *connect.Req
 
 func (UnimplementedRoomServiceHandler) UnarchiveRoom(context.Context, *connect.Request[v1.UnarchiveRoomRequest]) (*connect.Response[v1.UnarchiveRoomResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.RoomService.UnarchiveRoom is not implemented"))
-}
-
-func (UnimplementedRoomServiceHandler) UpdateRoomUniversal(context.Context, *connect.Request[v1.UpdateRoomUniversalRequest]) (*connect.Response[v1.UpdateRoomUniversalResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.RoomService.UpdateRoomUniversal is not implemented"))
 }
 
 func (UnimplementedRoomServiceHandler) JoinRoom(context.Context, *connect.Request[v1.JoinRoomRequest]) (*connect.Response[v1.JoinRoomResponse], error) {

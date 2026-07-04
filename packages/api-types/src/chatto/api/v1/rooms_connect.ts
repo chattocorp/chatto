@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { AddMemberRequest, AddMemberResponse, ArchiveRoomRequest, ArchiveRoomResponse, BanMemberRequest, BanMemberResponse, CreateRoomRequest, CreateRoomResponse, JoinRoomGroupRequest, JoinRoomGroupResponse, JoinRoomRequest, JoinRoomResponse, LeaveRoomRequest, LeaveRoomResponse, ListBansRequest, ListBansResponse, ListRoomAttachmentsRequest, ListRoomAttachmentsResponse, RemoveMemberRequest, RemoveMemberResponse, StartDMRequest, StartDMResponse, UnarchiveRoomRequest, UnarchiveRoomResponse, UnbanMemberRequest, UnbanMemberResponse, UpdateRoomRequest, UpdateRoomResponse, UpdateRoomUniversalRequest, UpdateRoomUniversalResponse, UpdateTypingIndicatorRequest, UpdateTypingIndicatorResponse } from "./rooms_pb.js";
+import { AddMemberRequest, AddMemberResponse, ArchiveRoomRequest, ArchiveRoomResponse, BanMemberRequest, BanMemberResponse, CreateRoomRequest, CreateRoomResponse, JoinRoomGroupRequest, JoinRoomGroupResponse, JoinRoomRequest, JoinRoomResponse, LeaveRoomRequest, LeaveRoomResponse, ListBansRequest, ListBansResponse, ListRoomAttachmentsRequest, ListRoomAttachmentsResponse, RemoveMemberRequest, RemoveMemberResponse, StartDMRequest, StartDMResponse, UnarchiveRoomRequest, UnarchiveRoomResponse, UnbanMemberRequest, UnbanMemberResponse, UpdateRoomRequest, UpdateRoomResponse, UpdateTypingIndicatorRequest, UpdateTypingIndicatorResponse } from "./rooms_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 import { BatchGetRoomMembersRequest, BatchGetRoomMembersResponse, GetRoomMemberRequest, GetRoomMemberResponse, ListRoomMembersRequest, ListRoomMembersResponse } from "./member_directory_pb.js";
 import { GetRoomEventsAroundRequest, GetRoomEventsAroundResponse, GetRoomEventsRequest, GetRoomEventsResponse } from "./room_timeline_pb.js";
@@ -36,8 +36,8 @@ export const RoomService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Updates a room's name and description. The caller must be allowed to manage
-     * rooms.
+     * Updates a room's editable metadata. The caller must be allowed to manage
+     * rooms. Direct-message rooms cannot be universal.
      *
      * @generated from rpc chatto.api.v1.RoomService.UpdateRoom
      */
@@ -69,18 +69,6 @@ export const RoomService = {
       name: "UnarchiveRoom",
       I: UnarchiveRoomRequest,
       O: UnarchiveRoomResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * Changes whether a channel room grants effective membership to eligible
-     * server members. Direct-message rooms cannot be universal.
-     *
-     * @generated from rpc chatto.api.v1.RoomService.UpdateRoomUniversal
-     */
-    updateRoomUniversal: {
-      name: "UpdateRoomUniversal",
-      I: UpdateRoomUniversalRequest,
-      O: UpdateRoomUniversalResponse,
       kind: MethodKind.Unary,
     },
     /**

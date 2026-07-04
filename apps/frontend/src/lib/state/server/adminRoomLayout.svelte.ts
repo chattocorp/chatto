@@ -240,10 +240,7 @@ export class AdminRoomLayoutStore {
 
   constructor(
     private readonly layoutAPI: AdminRoomLayoutAPI,
-    private readonly roomAPI: Pick<
-      RoomCommandAPI,
-      'updateRoom' | 'archiveRoom' | 'unarchiveRoom' | 'updateRoomUniversal'
-    >,
+    private readonly roomAPI: Pick<RoomCommandAPI, 'updateRoom' | 'archiveRoom' | 'unarchiveRoom'>,
     private readonly now: () => number = () => Date.now()
   ) {}
 
@@ -386,7 +383,7 @@ export class AdminRoomLayoutStore {
   async updateRoomUniversal(roomId: string, isUniversal: boolean): Promise<StoreResult> {
     this.universalRoomId = roomId;
     try {
-      await this.roomAPI.updateRoomUniversal(roomId, isUniversal);
+      await this.roomAPI.updateRoom({ roomId, universal: isUniversal });
       this.markMutation();
       await this.refresh();
       return { ok: true };

@@ -72,6 +72,9 @@ message UpdateRoomRequest {
   }];
   // New room description, when changing it. Empty clears the description.
   optional string description = 3 [(buf.validate.field).string.max_len = 500];
+  // New universal membership state, when changing it. Direct-message rooms
+  // cannot be universal.
+  optional bool universal = 4;
 }
 
 // Result of updating a room.
@@ -101,20 +104,6 @@ message UnarchiveRoomRequest {
 // Result of unarchiving a room.
 message UnarchiveRoomResponse {
   // Unarchived room.
-  Room room = 1;
-}
-
-// Request to change a channel room's universal membership flag.
-message UpdateRoomUniversalRequest {
-  // Required. Channel room to update.
-  string room_id = 1 [(buf.validate.field).string.min_len = 1];
-  // New universal membership state.
-  bool universal = 2;
-}
-
-// Result of changing a channel room's universal membership flag.
-message UpdateRoomUniversalResponse {
-  // Updated room.
   Room room = 1;
 }
 
@@ -330,8 +319,8 @@ service RoomService {
   // Creates a new channel room in a room group. The caller must be allowed to
   // create rooms in the target group.
   rpc CreateRoom(CreateRoomRequest) returns (CreateRoomResponse);
-  // Updates a room's name and description. The caller must be allowed to manage
-  // rooms.
+  // Updates a room's editable metadata. The caller must be allowed to manage
+  // rooms. Direct-message rooms cannot be universal.
   rpc UpdateRoom(UpdateRoomRequest) returns (UpdateRoomResponse);
   // Archives a room so it is hidden from active room lists. The caller must be
   // allowed to manage rooms.
@@ -339,9 +328,6 @@ service RoomService {
   // Restores an archived room to active room lists. The caller must be allowed
   // to manage rooms.
   rpc UnarchiveRoom(UnarchiveRoomRequest) returns (UnarchiveRoomResponse);
-  // Changes whether a channel room grants effective membership to eligible
-  // server members. Direct-message rooms cannot be universal.
-  rpc UpdateRoomUniversal(UpdateRoomUniversalRequest) returns (UpdateRoomUniversalResponse);
   // Joins the room as the current user when room permissions allow it.
   rpc JoinRoom(JoinRoomRequest) returns (JoinRoomResponse);
   // Joins every unarchived room in a group that the current user can join.

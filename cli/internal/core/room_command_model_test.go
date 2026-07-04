@@ -63,6 +63,18 @@ func TestRoomCommandModelAuthorization(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("UpdateRoom with room-scoped room.manage: %v", err)
 	}
+	universal := true
+	updatedRoom, err := commands.UpdateRoom(ctx, RoomUpdateInput{
+		ActorID:   actor.Id,
+		RoomID:    room.Id,
+		Universal: &universal,
+	})
+	if err != nil {
+		t.Fatalf("UpdateRoom universal with room-scoped room.manage: %v", err)
+	}
+	if !updatedRoom.GetUniversal() {
+		t.Fatal("UpdateRoom universal = false, want true")
+	}
 
 	dmParticipant, err := core.CreateUser(ctx, SystemActorID, "room-command-dm-participant", "Room Command DM Participant", "password")
 	if err != nil {
