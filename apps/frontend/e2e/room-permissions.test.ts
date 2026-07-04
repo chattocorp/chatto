@@ -143,8 +143,8 @@ async function postMessageViaAPI(
   if (!resp.ok()) {
     return null;
   }
-  const data = (await resp.json()) as { event?: { id?: string } };
-  return data.event?.id ? { id: data.event.id } : null;
+  const data = (await resp.json()) as { message?: { id?: string } };
+  return data.message?.id ? { id: data.message.id } : null;
 }
 
 async function replyToMessageViaAPI(
@@ -161,8 +161,8 @@ async function replyToMessageViaAPI(
   if (!resp.ok()) {
     return null;
   }
-  const data = (await resp.json()) as { event?: { id?: string } };
-  return data.event?.id ? { id: data.event.id } : null;
+  const data = (await resp.json()) as { message?: { id?: string } };
+  return data.message?.id ? { id: data.message.id } : null;
 }
 
 async function addReactionViaAPI(

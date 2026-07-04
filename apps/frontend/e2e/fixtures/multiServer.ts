@@ -94,11 +94,11 @@ function viewerClient(remoteBaseURL: string) {
 function postedEventId(
   response: Awaited<ReturnType<ReturnType<typeof messageClient>['createMessage']>>
 ) {
-  const event = response.event;
-  if (!event?.id) {
-    throw new Error(`CreateMessage did not return an event: ${JSON.stringify(response.toJson())}`);
+  const message = response.message;
+  if (!message?.id) {
+    throw new Error(`CreateMessage did not return a message: ${JSON.stringify(response.toJson())}`);
   }
-  return event.id;
+  return message.id;
 }
 
 /**
@@ -316,9 +316,8 @@ export async function postMessageAttachmentOnRemote(
     { headers: authHeaders(token) }
   );
 
-  const event = response.event;
-  const eventId = event?.id;
-  const message = event?.event.case === 'messagePosted' ? event.event.value : undefined;
+  const message = response.message;
+  const eventId = message?.id;
   const attachmentUrl = message?.attachments[0]?.assetUrl?.url;
   if (!eventId || !attachmentUrl) {
     throw new Error(

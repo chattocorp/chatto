@@ -362,9 +362,9 @@ async function postMessageWithConnectInput(page: Page, input: ConnectRequest): P
     'chatto.api.v1.MessageService/CreateMessage',
     input
   );
-  const eventId = data.event?.id;
+  const eventId = data.message?.id;
   if (!eventId) {
-    throw new Error('CreateMessage did not return an event id');
+    throw new Error('CreateMessage did not return a message id');
   }
   return eventId;
 }
