@@ -5,7 +5,7 @@
 
 ## Overview
 
-Any authenticated user can browse the server's member directory — a paginated list of all users on the server, with optional substring search. The directory powers the admin Users page, the @mention autocomplete (in part), and any feature that needs "find a user by name".
+Any authenticated user can browse the server's member directory — a paginated list of all users on the server, with optional substring search. The directory powers general member-picking surfaces such as user comboboxes, quick switching, and @mention autocomplete. Admin member-management screens use the separate `AdminUserService` because they expose administrative fields and permissions.
 
 ## Behavior
 
@@ -15,7 +15,7 @@ Any authenticated user can browse the server's member directory — a paginated 
 - Pagination is offset-based: caller specifies `offset` and `limit`; the response also includes `totalCount` so the caller can compute whether there are more pages.
 - Default page size is 20; the maximum is 500. Requests larger than 500 are silently clamped down.
 - Results are sorted by `createdAt` ascending (oldest member first). Users created before the timestamp field existed sort to the end, alphabetically by login.
-- Direct lookups by user ID or login return the same public profile information as the directory and require authentication.
+- Direct server member lookups by stable user ID return the same public member row shape as the directory and require authentication. Login-based public profile lookup is available through `UserDirectoryService.GetUser`, but it does not return member metadata such as roles and creation time.
 
 ## Design Decisions
 
@@ -34,7 +34,7 @@ Any authenticated user can browse the server's member directory — a paginated 
 ### 3. Hard limit of 500, silent clamp
 
 **Decision:** Requests with `limit > 500` are clamped to 500 without an error.
-**Why:** An error would break clients that send larger numbers naively. Clamping serves the request with a sensible cap. The frontend doesn't currently issue limits above 100, so the clamp only affects malformed requests.
+**Why:** An error would break clients that send larger numbers naively. Clamping serves the request with a sensible cap. Normal clients request smaller pages, so the clamp mainly affects malformed requests.
 **Tradeoff:** A client expecting all users in one response may get a truncated page and may not realise. The `totalCount` field in the response surfaces the discrepancy.
 
 ### 4. Sort by createdAt, with a stable fallback
@@ -45,7 +45,7 @@ Any authenticated user can browse the server's member directory — a paginated 
 
 ### 5. All authenticated users can browse member profiles
 
-**Decision:** No special permission required; any authenticated user can list members or look up a member by ID/login.
+**Decision:** No special permission required; any authenticated user can list members or look up a member by stable user ID.
 **Why:** Chatto's privacy model treats user identity (login, display name, avatar) as public to other members. Hiding members from members would be incongruent — they'd see each other in messages anyway. Operators who want a fully private member list would need a different feature.
 **Tradeoff:** Bot accounts or system users (if introduced) would surface in normal listings. The admin UI may still require admin permissions to reach its member-management page, but the underlying directory query remains available to authenticated users.
 
