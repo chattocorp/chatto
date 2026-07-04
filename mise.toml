@@ -167,11 +167,11 @@ sources = [
 outputs = ["../apps/frontend/e2e/fixtures/bin/chatto"]
 
 [tasks.storybook]
-description = "Run the Storybook design-system catalog with workspace-safe ports"
+description = "Run the Storybook design-system catalog on the workspace port"
 depends = ["setup-frontend", "build-api-types"]
 dir = "apps/frontend"
 env = {
-  CHATTO_STORYBOOK_PORT = "{{env.CHATTO_STORYBOOK_PORT | default(value=env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000')) | int + 10)}}",
+  CHATTO_STORYBOOK_PORT = "{{env.CHATTO_STORYBOOK_PORT | default(value=env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000')))}}",
 }
 run = "exec pnpm exec storybook dev --host 127.0.0.1 --port \"$CHATTO_STORYBOOK_PORT\" --no-open"
 
