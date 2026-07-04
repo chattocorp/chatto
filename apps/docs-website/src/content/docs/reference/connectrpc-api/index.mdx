@@ -4,7 +4,7 @@ description: Overview of Chatto's public protobuf API.
 editUrl: false
 ---
 
-{/* Generated from proto/chatto/{discovery,api,admin,realtime}/v1/*.proto. Do not edit directly. */}
+{/* Generated from proto/chatto/{auth,discovery,api,admin,realtime}/v1/*.proto. Do not edit directly. */}
 
 Chatto exposes a protobuf-first integration API over ConnectRPC at `/api/connect`. Use it for bots, integrations, admin tooling, and alternate clients that need the same public contract as the bundled web app.
 
@@ -32,7 +32,9 @@ POST /api/connect/chatto.discovery.v1.ServerDiscoveryService/GetServer
 
 [ServerDiscoveryService.GetServer](/reference/connectrpc-api/server-discovery/#chatto-discovery-v1-ServerDiscoveryService-GetServer) is public so clients can discover branding, registration state, and login providers before a user signs in.
 
-Most `chatto.api.v1` calls require an authenticated user. Non-browser clients should send `Authorization: Bearer <token>`; browser clients can use the active Chatto session. See [External Login Providers](/guides/integrations/external-login-providers/) for login-provider discovery and sign-in configuration.
+`chatto.auth.v1` external-identity confirmation calls are public but require short-lived capability tokens produced by the browser auth flow. See [External Login Providers](/guides/integrations/external-login-providers/) for login-provider discovery and sign-in configuration.
+
+Most `chatto.api.v1` calls require an authenticated user. Non-browser clients should send `Authorization: Bearer <token>`; browser clients can use the active Chatto session.
 
 `chatto.admin.v1` calls require authentication. Mutating calls and sensitive reads require the relevant server permission; a few catalog/layout reads are intentionally available to any authenticated user so clients can render assigned roles and sidebar layout. See [Permissions & Roles](/guides/planning/permissions/) for the permission model.
 
@@ -45,6 +47,12 @@ The API is split by who uses each part and how clients connect to it.
 - **Transport:** ConnectRPC unary RPCs.
 - **Covers:** Pre-authentication bootstrap, such as server metadata and login discovery.
 - **Contract:** Public discovery API for clients that do not have a normal Chatto session yet.
+
+**`chatto.auth.v1`**
+
+- **Transport:** ConnectRPC unary RPCs.
+- **Covers:** Public external-identity confirmation steps backed by short-lived capability tokens.
+- **Contract:** Narrow auth-flow API for the bundled client and compatible login integrations.
 
 **`chatto.api.v1`**
 
@@ -186,7 +194,7 @@ Generated clients expose those codes through their Connect client error helpers.
 
 ## Versioning And Stability
 
-Package names such as `chatto.discovery.v1`, `chatto.api.v1`, and `chatto.admin.v1` identify the public API contract that clients integrate with.
+Package names such as `chatto.auth.v1`, `chatto.discovery.v1`, `chatto.api.v1`, and `chatto.admin.v1` identify the public API contract that clients integrate with.
 
 Chatto is still pre-1.0, so public API details may change between releases. Check this reference for the Chatto server version you target, and use generated clients that match that server version.
 
@@ -199,6 +207,10 @@ The realtime protocol is versioned separately as `chatto.realtime.v1` because it
 Use the service pages below for request and response fields. Shared messages and enums are collected in [Shared Types And Enums](/reference/connectrpc-api/types/).
 
 ## ConnectRPC Services
+
+### chatto.auth.v1
+
+- [ExternalIdentityAuthService](/reference/connectrpc-api/external-identity-auth/) - Public external-identity confirmation and capability-token auth-flow RPCs.
 
 ### chatto.discovery.v1
 

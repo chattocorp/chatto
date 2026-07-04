@@ -115,12 +115,11 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
   `ServerService.GetMotd` for the member-visible MOTD and
   `ServerService.GetRuntimeConfig` for runtime settings. Public server metadata remains
   available through `chatto.discovery.v1.ServerDiscoveryService.GetServer`.
-- Server member reads moved from `ServerMemberService` to `ServerService`: replace
+- Server-wide user/member reads moved to `UserService`: replace
   `ServerMemberService.ListMembers`, `GetMember`, and `BatchGetMembers` with
-  `ServerService.ListMembers`, `GetMember`, and `BatchGetMembers`. User directory
-  reads were also folded into `ServerService`: replace `UserDirectoryService.GetUser`
-  with `ServerService.GetMember` and `UserDirectoryService.BatchGetUsers` with
-  `ServerService.BatchGetMembers`.
+  `UserService.ListUsers`, `GetUser`, and `BatchGetUsers`. Replace
+  `UserDirectoryService.GetUser` and `BatchGetUsers` with `UserService.GetUser`
+  and `UserService.BatchGetUsers`.
 - Room member reads moved from `RoomMemberService` to `RoomService`: replace
   `RoomMemberService.ListMembers`, `GetMember`, and `BatchGetMembers` with
   `RoomService.ListMembers`, `GetMember`, and `BatchGetMembers`. Room moderation RPCs
@@ -144,7 +143,7 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
   `@all`, or `@here` confirmation UX in the client before calling
   `MessageService.CreateMessage`. `CreateMessageResponse`, `GetMessageResponse`, and
   `BatchGetMessagesResponse` now return only message event data; hydrate user/member
-  details through `ServerService.GetMember` or `BatchGetMembers` when needed.
+  details through `UserService.GetUser` or `BatchGetUsers` when needed.
 - Root-grade account lifecycle automation has moved to the local operator socket and
   `chatto operator user ...` commands. Enable `[operator_api]` for those workflows and
   update automation that used the earlier public admin lifecycle RPCs.
