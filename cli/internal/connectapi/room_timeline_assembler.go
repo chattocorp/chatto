@@ -41,6 +41,25 @@ func newRoomTimelineAssemblerWithThumbnail(api *API, thumbnail attachmentThumbna
 // Hydrating them here keeps the public API free of per-field resolver N+1s
 // and gives future clients one renderable page per request.
 func (a *roomTimelineAssembler) buildPage(ctx context.Context, viewerID string, kind core.RoomKind, events []*core.RoomEvent, hasOlder, hasNewer bool) (*apiv1.RoomTimelinePage, error) {
+	apiEvents, h, err := a.hydrateEvents(ctx, viewerID, kind, events)
+	if err != nil {
+		return nil, err
+	}
+
+	users, err := h.users()
+	if err != nil {
+		return nil, err
+	}
+
+	return &apiv1.RoomTimelinePage{
+		Events:   apiEvents,
+		HasOlder: hasOlder,
+		HasNewer: hasNewer,
+		Includes: &apiv1.RoomTimelineIncludes{Users: users},
+	}, nil
+}
+
+func (a *roomTimelineAssembler) hydrateEvents(ctx context.Context, viewerID string, kind core.RoomKind, events []*core.RoomEvent) ([]*apiv1.RoomTimelineEvent, *timelineHydrator, error) {
 	ctx = core.WithDEKRequestCache(ctx)
 
 	messageIDs := make([]string, 0, len(events))
@@ -52,7 +71,7 @@ func (a *roomTimelineAssembler) buildPage(ctx context.Context, viewerID string, 
 
 	reactionsByMessageID, err := a.api.core.GetReactionsBatch(ctx, messageIDs)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	h := &timelineHydrator{
@@ -69,20 +88,10 @@ func (a *roomTimelineAssembler) buildPage(ctx context.Context, viewerID string, 
 		return h.event(ctx, event)
 	})
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	users, err := h.users()
-	if err != nil {
-		return nil, err
-	}
-
-	return &apiv1.RoomTimelinePage{
-		Events:   apiEvents,
-		HasOlder: hasOlder,
-		HasNewer: hasNewer,
-		Includes: &apiv1.RoomTimelineIncludes{Users: users},
-	}, nil
+	return apiEvents, h, nil
 }
 
 func (a *roomTimelineAssembler) buildThreadPage(ctx context.Context, viewerID string, kind core.RoomKind, root *core.RoomEvent, replies *core.RoomEventsResult, includeRoot bool) (*apiv1.RoomTimelinePage, error) {

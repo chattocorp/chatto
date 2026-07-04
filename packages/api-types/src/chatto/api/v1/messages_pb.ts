@@ -609,13 +609,6 @@ export class GetMessageResponse extends Message<GetMessageResponse> {
    */
   event?: RoomTimelineEvent;
 
-  /**
-   * Related entities needed to render the message.
-   *
-   * @generated from field: chatto.api.v1.RoomTimelineIncludes includes = 2;
-   */
-  includes?: RoomTimelineIncludes;
-
   constructor(data?: PartialMessage<GetMessageResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -625,7 +618,6 @@ export class GetMessageResponse extends Message<GetMessageResponse> {
   static readonly typeName = "chatto.api.v1.GetMessageResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "event", kind: "message", T: RoomTimelineEvent },
-    { no: 2, name: "includes", kind: "message", T: RoomTimelineIncludes },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetMessageResponse {
@@ -708,13 +700,6 @@ export class BatchGetMessagesResponse extends Message<BatchGetMessagesResponse> 
    */
   events: RoomTimelineEvent[] = [];
 
-  /**
-   * Related entities needed to render the messages.
-   *
-   * @generated from field: chatto.api.v1.RoomTimelineIncludes includes = 2;
-   */
-  includes?: RoomTimelineIncludes;
-
   constructor(data?: PartialMessage<BatchGetMessagesResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -724,7 +709,6 @@ export class BatchGetMessagesResponse extends Message<BatchGetMessagesResponse> 
   static readonly typeName = "chatto.api.v1.BatchGetMessagesResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "events", kind: "message", T: RoomTimelineEvent, repeated: true },
-    { no: 2, name: "includes", kind: "message", T: RoomTimelineIncludes },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BatchGetMessagesResponse {

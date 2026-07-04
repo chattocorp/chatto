@@ -156,16 +156,7 @@ describe('createRoomTimelineAPI', () => {
             threadRootEventId: 'root-1'
           })
         }
-      }),
-      includes: {
-        users: {
-          u1: new User({
-            id: 'u1',
-            login: 'alice',
-            displayName: 'Alice'
-          })
-        }
-      }
+      })
     });
 
     const api = createRoomTimelineAPI({
@@ -190,14 +181,7 @@ describe('createRoomTimelineAPI', () => {
     );
     expect(message).toMatchObject({
       id: 'reply-1',
-      actor: { id: 'u1', displayName: 'Alice' },
       event: { kind: 'messagePosted', body: 'thread reply', threadRootEventId: 'root-1' }
-    });
-    expect(getUserSummaryCache('remote').get('u1')).toMatchObject({
-      id: 'u1',
-      login: 'alice',
-      displayName: 'Alice',
-      avatarUrl: null
     });
   });
 });

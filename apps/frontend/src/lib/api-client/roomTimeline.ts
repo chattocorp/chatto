@@ -114,13 +114,7 @@ export function createRoomTimelineAPI(
           { roomId, eventId },
           { headers: headers() },
         );
-        primeTimelineUserIncludes(config, response.includes?.users ?? {});
-        return response.event
-          ? roomTimelineEventToRawEvent(
-              response.event,
-              response.includes?.users ?? {},
-            )
-          : null;
+        return response.event ? roomTimelineEventToRawEvent(response.event, {}) : null;
       } catch (err) {
         return handleAuthError(config, err);
       }

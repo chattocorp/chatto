@@ -88,14 +88,17 @@ func (s *messageService) GetMessage(ctx context.Context, req *connect.Request[ap
 	if err != nil {
 		return nil, connectError(err)
 	}
-	event, includes, err := newRoomTimelineAssembler(s.api).hydrateEvent(ctx, caller.UserID, result.Kind, result.Event)
+	events, _, err := newRoomTimelineAssembler(s.api).hydrateEvents(ctx, caller.UserID, result.Kind, []*core.RoomEvent{{Event: result.Event}})
 	if err != nil {
 		return nil, connectError(err)
 	}
+	var event *apiv1.RoomTimelineEvent
+	if len(events) > 0 {
+		event = events[0]
+	}
 
 	return connect.NewResponse(&apiv1.GetMessageResponse{
-		Event:    event,
-		Includes: includes,
+		Event: event,
 	}), nil
 }
 
@@ -113,14 +116,13 @@ func (s *messageService) BatchGetMessages(ctx context.Context, req *connect.Requ
 	for _, event := range result.Events {
 		events = append(events, &core.RoomEvent{Event: event})
 	}
-	page, err := newRoomTimelineAssembler(s.api).buildPage(ctx, caller.UserID, result.Kind, events, false, false)
+	apiEvents, _, err := newRoomTimelineAssembler(s.api).hydrateEvents(ctx, caller.UserID, result.Kind, events)
 	if err != nil {
 		return nil, connectError(err)
 	}
 
 	return connect.NewResponse(&apiv1.BatchGetMessagesResponse{
-		Events:   page.GetEvents(),
-		Includes: page.GetIncludes(),
+		Events: apiEvents,
 	}), nil
 }
 

@@ -6023,9 +6023,6 @@ func TestRoomAndThreadTimelineGetMessageForPermalinks(t *testing.T) {
 	if rootMessage.GetBody() != "root" {
 		t.Fatalf("root body = %q, want root", rootMessage.GetBody())
 	}
-	if rootResp.Msg.GetIncludes().GetUsers()[env.viewer.Id] == nil {
-		t.Fatalf("root includes missing viewer %s", env.viewer.Id)
-	}
 
 	replyResp, err := env.messages.GetMessage(ctx, connect.NewRequest(&apiv1.GetMessageRequest{
 		RoomId:  room.Id,
