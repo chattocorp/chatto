@@ -3,8 +3,8 @@ import { connectPost } from '../fixtures/connectHelpers';
 import * as routes from '../routes';
 import { RoomPage } from './RoomPage';
 
-interface GetMemberResponse {
-  member?: { profile?: { user?: { id?: string } } };
+interface GetUserResponse {
+  user?: { profile?: { user?: { id?: string } } };
 }
 
 interface StartDMResponse {
@@ -42,12 +42,12 @@ export class DMPage {
    */
   async startConversation(username: string): Promise<RoomPage> {
     // Look up user by login
-    const userData = await connectPost<GetMemberResponse>(
+    const userData = await connectPost<GetUserResponse>(
       this.page,
-      'chatto.api.v1.ServerService/GetMember',
+      'chatto.api.v1.UserService/GetUser',
       { login: username }
     );
-    const userId = userData.member?.profile?.user?.id;
+    const userId = userData.user?.profile?.user?.id;
     if (!userId) {
       throw new Error(`User not found: ${username}`);
     }
