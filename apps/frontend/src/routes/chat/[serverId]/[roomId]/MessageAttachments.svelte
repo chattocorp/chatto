@@ -22,7 +22,7 @@
     assetUrlNeedsRefresh,
     earliestAssetUrlRefreshAt,
     mergeRefreshedAttachmentUrls,
-    refreshAttachmentUrlsForMessage,
+    refreshAttachmentUrlsForAssets,
     withAssetUrlRetryParam,
     type ExpiringAssetUrl,
     type RefreshedAttachmentUrls
@@ -365,14 +365,14 @@
 
   async function refreshUrlsForMessage(): Promise<Map<string, RefreshedAttachmentUrls>> {
     const conn = connection();
-    return refreshAttachmentUrlsForMessage(
+    return refreshAttachmentUrlsForAssets(
       createAttachmentAPI({
         serverId: conn.serverId,
         baseUrl: conn.connectBaseUrl,
         bearerToken: conn.bearerToken
       }),
       roomId,
-      eventId
+      attachments.map((attachment) => attachment.id)
     );
   }
 

@@ -79,14 +79,14 @@ export function withAssetUrlRetryParam(url: string, retry: string | number): str
   return `${base}${separator}retry=${encodeURIComponent(String(retry))}${hash}`;
 }
 
-export async function refreshAttachmentUrlsForMessage(
-  api: Pick<AttachmentAPI, 'refreshMessageAttachmentUrls'>,
+export async function refreshAttachmentUrlsForAssets(
+  api: Pick<AttachmentAPI, 'refreshAssetUrls'>,
   roomId: string,
-  eventId: string,
+  assetIds: readonly string[],
   thumbnailOptions = DEFAULT_ATTACHMENT_THUMBNAIL_REFRESH
 ): Promise<Map<string, RefreshedAttachmentUrls>> {
   try {
-    return await api.refreshMessageAttachmentUrls(roomId, eventId, thumbnailOptions);
+    return await api.refreshAssetUrls(roomId, [...assetIds], thumbnailOptions);
   } catch (error) {
     console.warn('Failed to refresh attachment URLs', error);
     return new Map();

@@ -62,6 +62,7 @@ func TestAPIHandlers(t *testing.T) {
 
 	want := []string{
 		"/" + apiv1connect.MyAccountServiceName + "/",
+		"/" + apiv1connect.AssetServiceName + "/",
 		"/" + apiv1connect.AssetUploadServiceName + "/",
 		"/" + adminv1connect.AdminServerServiceName + "/",
 		"/" + authv1connect.ExternalIdentityAuthServiceName + "/",
@@ -105,6 +106,7 @@ func TestAPIHandlerAuthPolicies(t *testing.T) {
 
 	want := map[string]AuthPolicy{
 		"/" + apiv1connect.MyAccountServiceName + "/":               AuthPolicyAuthenticatedUser,
+		"/" + apiv1connect.AssetServiceName + "/":                   AuthPolicyAuthenticatedUser,
 		"/" + apiv1connect.AssetUploadServiceName + "/":             AuthPolicyAuthenticatedUser,
 		"/" + adminv1connect.AdminServerServiceName + "/":           AuthPolicyAuthenticatedUser,
 		"/" + authv1connect.ExternalIdentityAuthServiceName + "/":   AuthPolicyPublic,
@@ -218,6 +220,7 @@ func TestBatchGetResourceRequestsValidateThroughConnectHandlers(t *testing.T) {
 	mux := http.NewServeMux()
 	rolePath, roleHandler := apiv1connect.NewRoleServiceHandler(env.publicRoles, HandlerOptions()...)
 	roomDirectoryPath, roomDirectoryHandler := apiv1connect.NewRoomDirectoryServiceHandler(env.directory, HandlerOptions()...)
+	assetPath, assetHandler := apiv1connect.NewAssetServiceHandler(env.assets, HandlerOptions()...)
 	messagePath, messageHandler := apiv1connect.NewMessageServiceHandler(env.messages, HandlerOptions()...)
 	serverPath, serverHandler := apiv1connect.NewServerServiceHandler(env.serverState, HandlerOptions()...)
 	roomPath, roomHandler := apiv1connect.NewRoomServiceHandler(env.rooms, HandlerOptions()...)
@@ -227,6 +230,7 @@ func TestBatchGetResourceRequestsValidateThroughConnectHandlers(t *testing.T) {
 	adminServerPath, adminServerHandler := adminv1connect.NewAdminServerServiceHandler(env.serverState, HandlerOptions()...)
 	mux.Handle(rolePath, roleHandler)
 	mux.Handle(roomDirectoryPath, roomDirectoryHandler)
+	mux.Handle(assetPath, assetHandler)
 	mux.Handle(messagePath, messageHandler)
 	mux.Handle(serverPath, serverHandler)
 	mux.Handle(roomPath, roomHandler)
@@ -239,6 +243,7 @@ func TestBatchGetResourceRequestsValidateThroughConnectHandlers(t *testing.T) {
 
 	roles := apiv1connect.NewRoleServiceClient(ts.Client(), ts.URL)
 	roomDirectory := apiv1connect.NewRoomDirectoryServiceClient(ts.Client(), ts.URL)
+	assets := apiv1connect.NewAssetServiceClient(ts.Client(), ts.URL)
 	messages := apiv1connect.NewMessageServiceClient(ts.Client(), ts.URL)
 	serverMembers := apiv1connect.NewServerServiceClient(ts.Client(), ts.URL)
 	rooms := apiv1connect.NewRoomServiceClient(ts.Client(), ts.URL)
@@ -350,6 +355,23 @@ func TestBatchGetResourceRequestsValidateThroughConnectHandlers(t *testing.T) {
 	}
 	if _, err := messages.BatchGetMessages(context.Background(), connect.NewRequest(&apiv1.BatchGetMessagesRequest{RoomId: "room", EventIds: tooManyEventIDs})); connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("too-many BatchGetMessages code = %v, want invalid_argument", connect.CodeOf(err))
+	}
+
+	if _, err := assets.BatchGetAssets(context.Background(), connect.NewRequest(&apiv1.BatchGetAssetsRequest{})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("empty BatchGetAssets code = %v, want invalid_argument", connect.CodeOf(err))
+	}
+	if _, err := assets.BatchGetAssets(context.Background(), connect.NewRequest(&apiv1.BatchGetAssetsRequest{RoomId: "room", AssetIds: []string{""}})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("empty-id BatchGetAssets code = %v, want invalid_argument", connect.CodeOf(err))
+	}
+	if _, err := assets.BatchGetAssets(context.Background(), connect.NewRequest(&apiv1.BatchGetAssetsRequest{AssetIds: []string{"asset"}})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("empty-room BatchGetAssets code = %v, want invalid_argument", connect.CodeOf(err))
+	}
+	tooManyAssetIDs := make([]string, 101)
+	for i := range tooManyAssetIDs {
+		tooManyAssetIDs[i] = fmt.Sprintf("asset-%d", i)
+	}
+	if _, err := assets.BatchGetAssets(context.Background(), connect.NewRequest(&apiv1.BatchGetAssetsRequest{RoomId: "room", AssetIds: tooManyAssetIDs})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("too-many BatchGetAssets code = %v, want invalid_argument", connect.CodeOf(err))
 	}
 
 	if _, err := voice.GetActiveCall(context.Background(), connect.NewRequest(&apiv1.GetActiveCallRequest{})); connect.CodeOf(err) != connect.CodeInvalidArgument {
@@ -3325,6 +3347,12 @@ func TestConnectServicesRejectDMOutsiders(t *testing.T) {
 	}))
 	checkInaccessible("ListRoomAttachments", err)
 
+	_, err = env.assets.GetAsset(ctx, connect.NewRequest(&apiv1.GetAssetRequest{
+		RoomId:  dm.Id,
+		AssetId: "asset",
+	}))
+	checkInaccessible("GetAsset", err)
+
 	_, err = env.messages.GetMessage(ctx, connect.NewRequest(&apiv1.GetMessageRequest{
 		RoomId:  dm.Id,
 		EventId: root.Id,
@@ -5633,7 +5661,7 @@ func TestRoomTimelineCursorFormatIsOpaqueAndVersioned(t *testing.T) {
 	}
 }
 
-func TestRoomAndMessageServicesListAttachmentsAndGetMessages(t *testing.T) {
+func TestRoomMessageAndAssetServicesListAttachmentsGetMessagesAndGetAssets(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("attachment-list")
 
@@ -5669,10 +5697,10 @@ func TestRoomAndMessageServicesListAttachmentsAndGetMessages(t *testing.T) {
 	resp, err := env.rooms.ListRoomAttachments(ctx, connect.NewRequest(&apiv1.ListRoomAttachmentsRequest{
 		RoomId: room.Id,
 		Page:   &apiv1.PageRequest{Limit: 1},
-		Thumbnail: &apiv1.AttachmentThumbnailOptions{
+		Thumbnail: &apiv1.AssetThumbnailOptions{
 			Width:  120,
 			Height: 120,
-			Fit:    apiv1.AttachmentFitMode_ATTACHMENT_FIT_MODE_COVER,
+			Fit:    apiv1.AssetFitMode_ASSET_FIT_MODE_COVER,
 		},
 	}))
 	if err != nil {
@@ -5698,11 +5726,6 @@ func TestRoomAndMessageServicesListAttachmentsAndGetMessages(t *testing.T) {
 	get, err := env.messages.GetMessage(ctx, connect.NewRequest(&apiv1.GetMessageRequest{
 		RoomId:  room.Id,
 		EventId: reply.Id,
-		Thumbnail: &apiv1.AttachmentThumbnailOptions{
-			Width:  64,
-			Height: 64,
-			Fit:    apiv1.AttachmentFitMode_ATTACHMENT_FIT_MODE_CONTAIN,
-		},
 	}))
 	if err != nil {
 		t.Fatalf("GetMessage: %v", err)
@@ -5722,14 +5745,25 @@ func TestRoomAndMessageServicesListAttachmentsAndGetMessages(t *testing.T) {
 		t.Fatalf("fresh thumbnail URL missing: %+v", fresh.GetThumbnailAssetUrl())
 	}
 
+	asset, err := env.assets.GetAsset(ctx, connect.NewRequest(&apiv1.GetAssetRequest{
+		RoomId:  room.Id,
+		AssetId: threadAttachment.Id,
+		Thumbnail: &apiv1.AssetThumbnailOptions{
+			Width:  64,
+			Height: 64,
+			Fit:    apiv1.AssetFitMode_ASSET_FIT_MODE_CONTAIN,
+		},
+	}))
+	if err != nil {
+		t.Fatalf("GetAsset: %v", err)
+	}
+	if got := asset.Msg.GetAsset().GetThumbnailAssetUrl().GetUrl(); !strings.Contains(got, "/64x64/contain") {
+		t.Fatalf("GetAsset thumbnail URL = %q, want 64x64 contain transform", got)
+	}
+
 	batch, err := env.messages.BatchGetMessages(ctx, connect.NewRequest(&apiv1.BatchGetMessagesRequest{
 		RoomId:   room.Id,
 		EventIds: []string{reply.Id, "missing-event", root.Id, reply.Id, empty.Id},
-		Thumbnail: &apiv1.AttachmentThumbnailOptions{
-			Width:  64,
-			Height: 64,
-			Fit:    apiv1.AttachmentFitMode_ATTACHMENT_FIT_MODE_CONTAIN,
-		},
 	}))
 	if err != nil {
 		t.Fatalf("BatchGetMessages: %v", err)
@@ -5747,6 +5781,22 @@ func TestRoomAndMessageServicesListAttachmentsAndGetMessages(t *testing.T) {
 	}
 	if batch.Msg.Events[2].GetId() != empty.Id || len(batch.Msg.Events[2].GetMessagePosted().GetAttachments()) != 0 {
 		t.Fatalf("batch third = %+v, want empty message with no attachments", batch.Msg.Events[2])
+	}
+
+	assets, err := env.assets.BatchGetAssets(ctx, connect.NewRequest(&apiv1.BatchGetAssetsRequest{
+		RoomId:   room.Id,
+		AssetIds: []string{threadAttachment.Id, "missing-asset", rootAttachment.Id, threadAttachment.Id},
+		Thumbnail: &apiv1.AssetThumbnailOptions{
+			Width:  64,
+			Height: 64,
+			Fit:    apiv1.AssetFitMode_ASSET_FIT_MODE_CONTAIN,
+		},
+	}))
+	if err != nil {
+		t.Fatalf("BatchGetAssets: %v", err)
+	}
+	if got := assets.Msg.GetAssets(); len(got) != 2 || got[0].GetId() != threadAttachment.Id || got[1].GetId() != rootAttachment.Id {
+		t.Fatalf("BatchGetAssets assets = %+v, want thread then root attachments", got)
 	}
 }
 
@@ -6809,6 +6859,7 @@ type connectAPITestEnv struct {
 	adminEventLog    *adminEventLogService
 	adminLayout      *adminRoomLayoutService
 	adminUsers       *adminUserManagementService
+	assets           *assetService
 	assetUploads     *assetUploadService
 	directory        *roomDirectoryService
 	externalAuth     *externalIdentityAuthService
@@ -6861,6 +6912,7 @@ func newConnectAPITestEnv(t *testing.T) *connectAPITestEnv {
 		adminEventLog:    &adminEventLogService{api: api},
 		adminLayout:      &adminRoomLayoutService{api: api},
 		adminUsers:       &adminUserManagementService{api: api},
+		assets:           &assetService{api: api},
 		assetUploads:     &assetUploadService{api: api},
 		directory:        &roomDirectoryService{api: api},
 		externalAuth:     &externalIdentityAuthService{api: api},

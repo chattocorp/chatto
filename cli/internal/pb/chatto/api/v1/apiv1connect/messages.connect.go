@@ -80,11 +80,10 @@ type MessageServiceClient interface {
 	DeleteAttachment(context.Context, *connect.Request[v1.DeleteAttachmentRequest]) (*connect.Response[v1.DeleteAttachmentResponse], error)
 	// Removes the accepted link preview from the author's own message.
 	DeleteLinkPreview(context.Context, *connect.Request[v1.DeleteLinkPreviewRequest]) (*connect.Response[v1.DeleteLinkPreviewResponse], error)
-	// Reads one renderable message, including current body, attachments with
-	// freshly signed expiring URLs, link preview, reactions, and thread metadata.
-	// Authentication and room membership are required. Returns NOT_FOUND when the
-	// event does not exist, is not a message, has been retracted, or belongs to a
-	// different room.
+	// Reads one renderable message, including current body, attachment metadata,
+	// link preview, reactions, and thread metadata. Authentication and room
+	// membership are required. Returns NOT_FOUND when the event does not exist,
+	// is not a message, has been retracted, or belongs to a different room.
 	GetMessage(context.Context, *connect.Request[v1.GetMessageRequest]) (*connect.Response[v1.GetMessageResponse], error)
 	// Reads many renderable messages in one room. Authentication and room
 	// membership are required. Missing, retracted, non-message, and wrong-room
@@ -243,11 +242,10 @@ type MessageServiceHandler interface {
 	DeleteAttachment(context.Context, *connect.Request[v1.DeleteAttachmentRequest]) (*connect.Response[v1.DeleteAttachmentResponse], error)
 	// Removes the accepted link preview from the author's own message.
 	DeleteLinkPreview(context.Context, *connect.Request[v1.DeleteLinkPreviewRequest]) (*connect.Response[v1.DeleteLinkPreviewResponse], error)
-	// Reads one renderable message, including current body, attachments with
-	// freshly signed expiring URLs, link preview, reactions, and thread metadata.
-	// Authentication and room membership are required. Returns NOT_FOUND when the
-	// event does not exist, is not a message, has been retracted, or belongs to a
-	// different room.
+	// Reads one renderable message, including current body, attachment metadata,
+	// link preview, reactions, and thread metadata. Authentication and room
+	// membership are required. Returns NOT_FOUND when the event does not exist,
+	// is not a message, has been retracted, or belongs to a different room.
 	GetMessage(context.Context, *connect.Request[v1.GetMessageRequest]) (*connect.Response[v1.GetMessageResponse], error)
 	// Reads many renderable messages in one room. Authentication and room
 	// membership are required. Missing, retracted, non-message, and wrong-room

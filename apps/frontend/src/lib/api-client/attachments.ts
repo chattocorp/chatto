@@ -2,16 +2,15 @@ import { authHeaders, createChattoClient, handleAuthError } from './connect.js';
 import { FitMode } from './renderTypes.js';
 import type { ExpiringAssetUrl, RefreshedAttachmentUrls } from './attachmentUrls.js';
 import {
-  AttachmentFitMode,
-  AttachmentThumbnailOptions
+  AssetFitMode,
+  AssetThumbnailOptions
 } from '@chatto/api-types/api/v1/attachments_pb';
-import { MessageService } from '@chatto/api-types/api/v1/messages_connect';
+import { AssetService } from '@chatto/api-types/api/v1/attachments_connect';
 import { RoomService } from '@chatto/api-types/api/v1/rooms_connect';
 import {
   RoomTimelineVideoProcessingStatus,
   type RoomTimelineAssetUrl,
   type RoomTimelineAttachment,
-  type RoomTimelineEvent,
   type RoomTimelineVideoProcessing
 } from '@chatto/api-types/api/v1/room_timeline_pb';
 
@@ -72,20 +71,15 @@ export type AttachmentAPI = {
     offset: number;
     thumbnail: AttachmentRefreshOptions;
   }): Promise<RoomFilesPage>;
-  refreshMessageAttachmentUrls(
+  refreshAssetUrls(
     roomId: string,
-    eventId: string,
+    assetIds: string[],
     thumbnail: AttachmentRefreshOptions
   ): Promise<Map<string, RefreshedAttachmentUrls>>;
-  batchRefreshMessageAttachmentUrls(
-    roomId: string,
-    eventIds: string[],
-    thumbnail: AttachmentRefreshOptions
-  ): Promise<Map<string, Map<string, RefreshedAttachmentUrls>>>;
 };
 
 export function createAttachmentAPI(config: AttachmentAPIConfig): AttachmentAPI {
-  const messages = createChattoClient(MessageService, config);
+  const assets = createChattoClient(AssetService, config);
   const rooms = createChattoClient(RoomService, config);
   const headers = () => authHeaders(config);
   return {
@@ -108,47 +102,23 @@ export function createAttachmentAPI(config: AttachmentAPIConfig): AttachmentAPI 
         return handleAuthError(config, err);
       }
     },
-    async refreshMessageAttachmentUrls(roomId, eventId, thumbnail) {
+    async refreshAssetUrls(roomId, assetIds, thumbnail) {
+      if (assetIds.length === 0) return new Map();
       try {
-        const response = await messages.getMessage(
+        const response = await assets.batchGetAssets(
           {
             roomId,
-            eventId,
+            assetIds,
             thumbnail: thumbnailOptions(thumbnail)
           },
           { headers: headers() }
         );
-        return refreshedAttachmentUrlMap(messageAttachments(response.event));
-      } catch (err) {
-        return handleAuthError(config, err);
-      }
-    },
-    async batchRefreshMessageAttachmentUrls(roomId, eventIds, thumbnail) {
-      try {
-        const response = await messages.batchGetMessages(
-          {
-            roomId,
-            eventIds,
-            thumbnail: thumbnailOptions(thumbnail)
-          },
-          { headers: headers() }
-        );
-        return new Map(
-          response.events.map((event) => [
-            event.id,
-            refreshedAttachmentUrlMap(messageAttachments(event))
-          ])
-        );
+        return refreshedAttachmentUrlMap(response.assets);
       } catch (err) {
         return handleAuthError(config, err);
       }
     }
   };
-}
-
-function messageAttachments(event?: RoomTimelineEvent): readonly RoomTimelineAttachment[] {
-  if (event?.event.case !== 'messagePosted') return [];
-  return event.event.value.attachments;
 }
 
 function refreshedAttachmentUrlMap(
@@ -171,11 +141,11 @@ function refreshedAttachmentUrlMap(
   );
 }
 
-function thumbnailOptions(options: AttachmentRefreshOptions): AttachmentThumbnailOptions {
-  return new AttachmentThumbnailOptions({
+function thumbnailOptions(options: AttachmentRefreshOptions): AssetThumbnailOptions {
+  return new AssetThumbnailOptions({
     width: options.width,
     height: options.height,
-    fit: options.fit === FitMode.Contain ? AttachmentFitMode.CONTAIN : AttachmentFitMode.COVER
+    fit: options.fit === FitMode.Contain ? AssetFitMode.CONTAIN : AssetFitMode.COVER
   });
 }
 

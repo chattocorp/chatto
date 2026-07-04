@@ -8,45 +8,45 @@ import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
 import { RoomTimelineAttachment } from "./room_timeline_pb.js";
 
 /**
- * Fit mode used when generating transformed attachment thumbnails.
+ * Fit mode used when generating transformed asset thumbnails.
  *
- * @generated from enum chatto.api.v1.AttachmentFitMode
+ * @generated from enum chatto.api.v1.AssetFitMode
  */
-export enum AttachmentFitMode {
+export enum AssetFitMode {
   /**
    * The fit mode was not specified.
    *
-   * @generated from enum value: ATTACHMENT_FIT_MODE_UNSPECIFIED = 0;
+   * @generated from enum value: ASSET_FIT_MODE_UNSPECIFIED = 0;
    */
   UNSPECIFIED = 0,
 
   /**
    * Preserve the whole source image within the requested bounds.
    *
-   * @generated from enum value: ATTACHMENT_FIT_MODE_CONTAIN = 1;
+   * @generated from enum value: ASSET_FIT_MODE_CONTAIN = 1;
    */
   CONTAIN = 1,
 
   /**
    * Fill the requested bounds, cropping when needed.
    *
-   * @generated from enum value: ATTACHMENT_FIT_MODE_COVER = 2;
+   * @generated from enum value: ASSET_FIT_MODE_COVER = 2;
    */
   COVER = 2,
 }
-// Retrieve enum metadata with: proto3.getEnumType(AttachmentFitMode)
-proto3.util.setEnumType(AttachmentFitMode, "chatto.api.v1.AttachmentFitMode", [
-  { no: 0, name: "ATTACHMENT_FIT_MODE_UNSPECIFIED" },
-  { no: 1, name: "ATTACHMENT_FIT_MODE_CONTAIN" },
-  { no: 2, name: "ATTACHMENT_FIT_MODE_COVER" },
+// Retrieve enum metadata with: proto3.getEnumType(AssetFitMode)
+proto3.util.setEnumType(AssetFitMode, "chatto.api.v1.AssetFitMode", [
+  { no: 0, name: "ASSET_FIT_MODE_UNSPECIFIED" },
+  { no: 1, name: "ASSET_FIT_MODE_CONTAIN" },
+  { no: 2, name: "ASSET_FIT_MODE_COVER" },
 ]);
 
 /**
- * Thumbnail transform parameters for attachment URL reads.
+ * Thumbnail transform parameters for asset URL reads.
  *
- * @generated from message chatto.api.v1.AttachmentThumbnailOptions
+ * @generated from message chatto.api.v1.AssetThumbnailOptions
  */
-export class AttachmentThumbnailOptions extends Message<AttachmentThumbnailOptions> {
+export class AssetThumbnailOptions extends Message<AssetThumbnailOptions> {
   /**
    * Thumbnail width in pixels.
    *
@@ -64,37 +64,37 @@ export class AttachmentThumbnailOptions extends Message<AttachmentThumbnailOptio
   /**
    * Thumbnail fit mode.
    *
-   * @generated from field: chatto.api.v1.AttachmentFitMode fit = 3;
+   * @generated from field: chatto.api.v1.AssetFitMode fit = 3;
    */
-  fit = AttachmentFitMode.UNSPECIFIED;
+  fit = AssetFitMode.UNSPECIFIED;
 
-  constructor(data?: PartialMessage<AttachmentThumbnailOptions>) {
+  constructor(data?: PartialMessage<AssetThumbnailOptions>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.AttachmentThumbnailOptions";
+  static readonly typeName = "chatto.api.v1.AssetThumbnailOptions";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "width", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
     { no: 2, name: "height", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
-    { no: 3, name: "fit", kind: "enum", T: proto3.getEnumType(AttachmentFitMode) },
+    { no: 3, name: "fit", kind: "enum", T: proto3.getEnumType(AssetFitMode) },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AttachmentThumbnailOptions {
-    return new AttachmentThumbnailOptions().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AssetThumbnailOptions {
+    return new AssetThumbnailOptions().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): AttachmentThumbnailOptions {
-    return new AttachmentThumbnailOptions().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): AssetThumbnailOptions {
+    return new AssetThumbnailOptions().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): AttachmentThumbnailOptions {
-    return new AttachmentThumbnailOptions().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): AssetThumbnailOptions {
+    return new AssetThumbnailOptions().fromJsonString(jsonString, options);
   }
 
-  static equals(a: AttachmentThumbnailOptions | PlainMessage<AttachmentThumbnailOptions> | undefined, b: AttachmentThumbnailOptions | PlainMessage<AttachmentThumbnailOptions> | undefined): boolean {
-    return proto3.util.equals(AttachmentThumbnailOptions, a, b);
+  static equals(a: AssetThumbnailOptions | PlainMessage<AssetThumbnailOptions> | undefined, b: AssetThumbnailOptions | PlainMessage<AssetThumbnailOptions> | undefined): boolean {
+    return proto3.util.equals(AssetThumbnailOptions, a, b);
   }
 }
 
@@ -160,5 +160,201 @@ export class RoomAttachmentListItem extends Message<RoomAttachmentListItem> {
 
   static equals(a: RoomAttachmentListItem | PlainMessage<RoomAttachmentListItem> | undefined, b: RoomAttachmentListItem | PlainMessage<RoomAttachmentListItem> | undefined): boolean {
     return proto3.util.equals(RoomAttachmentListItem, a, b);
+  }
+}
+
+/**
+ * Request to read one room-scoped asset with freshly signed URLs.
+ *
+ * @generated from message chatto.api.v1.GetAssetRequest
+ */
+export class GetAssetRequest extends Message<GetAssetRequest> {
+  /**
+   * Required. Room that owns the asset.
+   *
+   * @generated from field: string room_id = 1;
+   */
+  roomId = "";
+
+  /**
+   * Required. Asset ID.
+   *
+   * @generated from field: string asset_id = 2;
+   */
+  assetId = "";
+
+  /**
+   * Thumbnail URL options. Defaults are applied when absent.
+   *
+   * @generated from field: chatto.api.v1.AssetThumbnailOptions thumbnail = 3;
+   */
+  thumbnail?: AssetThumbnailOptions;
+
+  constructor(data?: PartialMessage<GetAssetRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.GetAssetRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "asset_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "thumbnail", kind: "message", T: AssetThumbnailOptions },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetAssetRequest {
+    return new GetAssetRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetAssetRequest {
+    return new GetAssetRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetAssetRequest {
+    return new GetAssetRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetAssetRequest | PlainMessage<GetAssetRequest> | undefined, b: GetAssetRequest | PlainMessage<GetAssetRequest> | undefined): boolean {
+    return proto3.util.equals(GetAssetRequest, a, b);
+  }
+}
+
+/**
+ * Response containing one room-scoped asset.
+ *
+ * @generated from message chatto.api.v1.GetAssetResponse
+ */
+export class GetAssetResponse extends Message<GetAssetResponse> {
+  /**
+   * Asset metadata and signed URLs.
+   *
+   * @generated from field: chatto.api.v1.RoomTimelineAttachment asset = 1;
+   */
+  asset?: RoomTimelineAttachment;
+
+  constructor(data?: PartialMessage<GetAssetResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.GetAssetResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "asset", kind: "message", T: RoomTimelineAttachment },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetAssetResponse {
+    return new GetAssetResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetAssetResponse {
+    return new GetAssetResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetAssetResponse {
+    return new GetAssetResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetAssetResponse | PlainMessage<GetAssetResponse> | undefined, b: GetAssetResponse | PlainMessage<GetAssetResponse> | undefined): boolean {
+    return proto3.util.equals(GetAssetResponse, a, b);
+  }
+}
+
+/**
+ * Request to read many room-scoped assets with freshly signed URLs.
+ *
+ * @generated from message chatto.api.v1.BatchGetAssetsRequest
+ */
+export class BatchGetAssetsRequest extends Message<BatchGetAssetsRequest> {
+  /**
+   * Required. Room that owns the assets.
+   *
+   * @generated from field: string room_id = 1;
+   */
+  roomId = "";
+
+  /**
+   * Required. Asset IDs. Missing, deleted, and wrong-room asset IDs are omitted.
+   *
+   * @generated from field: repeated string asset_ids = 2;
+   */
+  assetIds: string[] = [];
+
+  /**
+   * Thumbnail URL options. Defaults are applied when absent.
+   *
+   * @generated from field: chatto.api.v1.AssetThumbnailOptions thumbnail = 3;
+   */
+  thumbnail?: AssetThumbnailOptions;
+
+  constructor(data?: PartialMessage<BatchGetAssetsRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.BatchGetAssetsRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "asset_ids", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+    { no: 3, name: "thumbnail", kind: "message", T: AssetThumbnailOptions },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BatchGetAssetsRequest {
+    return new BatchGetAssetsRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): BatchGetAssetsRequest {
+    return new BatchGetAssetsRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): BatchGetAssetsRequest {
+    return new BatchGetAssetsRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: BatchGetAssetsRequest | PlainMessage<BatchGetAssetsRequest> | undefined, b: BatchGetAssetsRequest | PlainMessage<BatchGetAssetsRequest> | undefined): boolean {
+    return proto3.util.equals(BatchGetAssetsRequest, a, b);
+  }
+}
+
+/**
+ * Response containing room-scoped assets.
+ *
+ * @generated from message chatto.api.v1.BatchGetAssetsResponse
+ */
+export class BatchGetAssetsResponse extends Message<BatchGetAssetsResponse> {
+  /**
+   * Assets in first-seen request order.
+   *
+   * @generated from field: repeated chatto.api.v1.RoomTimelineAttachment assets = 1;
+   */
+  assets: RoomTimelineAttachment[] = [];
+
+  constructor(data?: PartialMessage<BatchGetAssetsResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.BatchGetAssetsResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "assets", kind: "message", T: RoomTimelineAttachment, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BatchGetAssetsResponse {
+    return new BatchGetAssetsResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): BatchGetAssetsResponse {
+    return new BatchGetAssetsResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): BatchGetAssetsResponse {
+    return new BatchGetAssetsResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: BatchGetAssetsResponse | PlainMessage<BatchGetAssetsResponse> | undefined, b: BatchGetAssetsResponse | PlainMessage<BatchGetAssetsResponse> | undefined): boolean {
+    return proto3.util.equals(BatchGetAssetsResponse, a, b);
   }
 }

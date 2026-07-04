@@ -3,7 +3,6 @@ syntax = "proto3";
 package chatto.api.v1;
 
 import "buf/validate/validate.proto";
-import "chatto/api/v1/attachments.proto";
 import "chatto/api/v1/reactions.proto";
 import "chatto/api/v1/room_timeline.proto";
 
@@ -144,12 +143,15 @@ message DeleteLinkPreviewResponse {
 
 // Request to read one visible message.
 message GetMessageRequest {
+  // Field 3 was `thumbnail`, used before custom attachment URL hydration moved
+  // to AssetService.
+  reserved 3;
+  reserved "thumbnail";
+
   // Required. Room containing the message.
   string room_id = 1 [(buf.validate.field).string.min_len = 1];
   // Required. Message event ID.
   string event_id = 2 [(buf.validate.field).string.min_len = 1];
-  // Attachment thumbnail URL options. Defaults are applied when absent.
-  AttachmentThumbnailOptions thumbnail = 3;
 }
 
 // Response containing one renderable message event.
@@ -162,6 +164,11 @@ message GetMessageResponse {
 
 // Request to read many visible messages in one room.
 message BatchGetMessagesRequest {
+  // Field 3 was `thumbnail`, used before custom attachment URL hydration moved
+  // to AssetService.
+  reserved 3;
+  reserved "thumbnail";
+
   // Required. Room containing the messages.
   string room_id = 1 [(buf.validate.field).string.min_len = 1];
   // Required. Message event IDs. Missing, retracted, non-message, and
@@ -173,8 +180,6 @@ message BatchGetMessagesRequest {
       string: {min_len: 1}
     }
   }];
-  // Attachment thumbnail URL options. Defaults are applied when absent.
-  AttachmentThumbnailOptions thumbnail = 3;
 }
 
 // Response containing renderable message events.
@@ -203,11 +208,10 @@ service MessageService {
   rpc DeleteAttachment(DeleteAttachmentRequest) returns (DeleteAttachmentResponse);
   // Removes the accepted link preview from the author's own message.
   rpc DeleteLinkPreview(DeleteLinkPreviewRequest) returns (DeleteLinkPreviewResponse);
-  // Reads one renderable message, including current body, attachments with
-  // freshly signed expiring URLs, link preview, reactions, and thread metadata.
-  // Authentication and room membership are required. Returns NOT_FOUND when the
-  // event does not exist, is not a message, has been retracted, or belongs to a
-  // different room.
+  // Reads one renderable message, including current body, attachment metadata,
+  // link preview, reactions, and thread metadata. Authentication and room
+  // membership are required. Returns NOT_FOUND when the event does not exist,
+  // is not a message, has been retracted, or belongs to a different room.
   rpc GetMessage(GetMessageRequest) returns (GetMessageResponse);
   // Reads many renderable messages in one room. Authentication and room
   // membership are required. Missing, retracted, non-message, and wrong-room

@@ -6,7 +6,7 @@ import {
   assetUrlNeedsRefresh,
   earliestAssetUrlRefreshAt,
   mergeRefreshedAttachmentUrls,
-  refreshAttachmentUrlsForMessage
+  refreshAttachmentUrlsForAssets
 } from '$lib/attachments/attachmentUrls';
 import { RoomEventKind, roomEventKind } from '$lib/render/eventKinds';
 import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
@@ -179,21 +179,15 @@ export class RoomFilesStore {
 
   private async refreshUrlsForItems(items: RoomFileItem[]): Promise<void> {
     if (!this.roomId || this.isUnsupported || items.length === 0) return;
-    const eventIds = Array.from(new SvelteSet(items.map((item) => item.messageEventId)));
-    const freshMaps = await Promise.all(
-      eventIds.map((eventId) =>
-        refreshAttachmentUrlsForMessage(this.attachmentAPI, this.roomId, eventId, {
-          width: 120,
-          height: 120,
-          fit: FitMode.Cover
-        })
-      )
-    );
+    const assetIds = Array.from(new SvelteSet(items.map((item) => item.attachment.id)));
+    const freshMap = await refreshAttachmentUrlsForAssets(this.attachmentAPI, this.roomId, assetIds, {
+      width: 120,
+      height: 120,
+      fit: FitMode.Cover
+    });
     const fresh = new SvelteMap<string, RefreshedAttachmentUrls>();
-    for (const freshMap of freshMaps) {
-      for (const [attachmentId, urls] of freshMap) {
-        fresh.set(attachmentId, urls);
-      }
+    for (const [attachmentId, urls] of freshMap) {
+      fresh.set(attachmentId, urls);
     }
     this.refreshedAttachmentUrls = new SvelteMap(
       mergeRefreshedAttachmentUrls(this.refreshedAttachmentUrls, fresh)

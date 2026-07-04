@@ -1,0 +1,91 @@
+---
+title: AssetService
+description: Room-scoped asset metadata and signed URL read RPCs.
+editUrl: false
+---
+
+{/* Generated from proto/chatto/{auth,discovery,api,admin,realtime}/v1/*.proto. Do not edit directly. */}
+
+Chatto exposes this service below `/api/connect`.
+
+
+
+Shared message and enum definitions are documented in [Shared Types And Enums](/reference/connectrpc-api/types/).
+
+
+
+<a id="chatto-api-v1-AssetService"></a>
+
+## AssetService
+
+Reads room-scoped asset metadata and freshly signed asset URLs.
+
+<a id="chatto-api-v1-AssetService-GetAsset"></a>
+
+### GetAsset
+
+Reads one asset. Authentication and room membership are required. Returns
+NOT_FOUND when the asset is missing, deleted, or owned by a different room.
+
+```http
+POST /api/connect/chatto.api.v1.AssetService/GetAsset
+```
+
+<a id="chatto-api-v1-GetAssetRequest"></a>
+
+#### Input: GetAssetRequest
+
+Request to read one room-scoped asset with freshly signed URLs.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room that owns the asset. |
+| `asset_id` | `string` | Required. Asset ID. |
+| `thumbnail` | [`AssetThumbnailOptions`](/reference/connectrpc-api/types/#chatto-api-v1-AssetThumbnailOptions) | Thumbnail URL options. Defaults are applied when absent. |
+
+
+<a id="chatto-api-v1-GetAssetResponse"></a>
+
+#### Result: GetAssetResponse
+
+Response containing one room-scoped asset.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `asset` | [`RoomTimelineAttachment`](/reference/connectrpc-api/types/#chatto-api-v1-RoomTimelineAttachment) | Asset metadata and signed URLs. |
+
+
+<a id="chatto-api-v1-AssetService-BatchGetAssets"></a>
+
+### BatchGetAssets
+
+Reads many assets in one room. Authentication and room membership are
+required. Missing, deleted, and wrong-room asset IDs are omitted. Results
+preserve first-seen request order and repeated asset IDs are de-duplicated.
+
+```http
+POST /api/connect/chatto.api.v1.AssetService/BatchGetAssets
+```
+
+<a id="chatto-api-v1-BatchGetAssetsRequest"></a>
+
+#### Input: BatchGetAssetsRequest
+
+Request to read many room-scoped assets with freshly signed URLs.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room that owns the assets. |
+| `asset_ids` | `repeated string` | Required. Asset IDs. Missing, deleted, and wrong-room asset IDs are omitted. |
+| `thumbnail` | [`AssetThumbnailOptions`](/reference/connectrpc-api/types/#chatto-api-v1-AssetThumbnailOptions) | Thumbnail URL options. Defaults are applied when absent. |
+
+
+<a id="chatto-api-v1-BatchGetAssetsResponse"></a>
+
+#### Result: BatchGetAssetsResponse
+
+Response containing room-scoped assets.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `assets` | repeated [`RoomTimelineAttachment`](/reference/connectrpc-api/types/#chatto-api-v1-RoomTimelineAttachment) | Assets in first-seen request order. |

@@ -6,18 +6,18 @@ import "buf/validate/validate.proto";
 import "chatto/api/v1/room_timeline.proto";
 import "google/protobuf/timestamp.proto";
 
-// Fit mode used when generating transformed attachment thumbnails.
-enum AttachmentFitMode {
+// Fit mode used when generating transformed asset thumbnails.
+enum AssetFitMode {
   // The fit mode was not specified.
-  ATTACHMENT_FIT_MODE_UNSPECIFIED = 0;
+  ASSET_FIT_MODE_UNSPECIFIED = 0;
   // Preserve the whole source image within the requested bounds.
-  ATTACHMENT_FIT_MODE_CONTAIN = 1;
+  ASSET_FIT_MODE_CONTAIN = 1;
   // Fill the requested bounds, cropping when needed.
-  ATTACHMENT_FIT_MODE_COVER = 2;
+  ASSET_FIT_MODE_COVER = 2;
 }
 
-// Thumbnail transform parameters for attachment URL reads.
-message AttachmentThumbnailOptions {
+// Thumbnail transform parameters for asset URL reads.
+message AssetThumbnailOptions {
   // Thumbnail width in pixels.
   int32 width = 1 [(buf.validate.field).int32 = {
     gte: 1,
@@ -29,7 +29,7 @@ message AttachmentThumbnailOptions {
     lte: 4096
   }];
   // Thumbnail fit mode.
-  AttachmentFitMode fit = 3 [(buf.validate.field).enum.defined_only = true];
+  AssetFitMode fit = 3 [(buf.validate.field).enum.defined_only = true];
 }
 
 // One current room attachment and its message anchor.
@@ -42,4 +42,53 @@ message RoomAttachmentListItem {
   string thread_root_event_id = 3;
   // Message creation timestamp.
   google.protobuf.Timestamp created_at = 4;
+}
+
+// Request to read one room-scoped asset with freshly signed URLs.
+message GetAssetRequest {
+  // Required. Room that owns the asset.
+  string room_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Required. Asset ID.
+  string asset_id = 2 [(buf.validate.field).string.min_len = 1];
+  // Thumbnail URL options. Defaults are applied when absent.
+  AssetThumbnailOptions thumbnail = 3;
+}
+
+// Response containing one room-scoped asset.
+message GetAssetResponse {
+  // Asset metadata and signed URLs.
+  RoomTimelineAttachment asset = 1;
+}
+
+// Request to read many room-scoped assets with freshly signed URLs.
+message BatchGetAssetsRequest {
+  // Required. Room that owns the assets.
+  string room_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Required. Asset IDs. Missing, deleted, and wrong-room asset IDs are omitted.
+  repeated string asset_ids = 2 [(buf.validate.field).repeated = {
+    min_items: 1
+    max_items: 100
+    items: {
+      string: {min_len: 1}
+    }
+  }];
+  // Thumbnail URL options. Defaults are applied when absent.
+  AssetThumbnailOptions thumbnail = 3;
+}
+
+// Response containing room-scoped assets.
+message BatchGetAssetsResponse {
+  // Assets in first-seen request order.
+  repeated RoomTimelineAttachment assets = 1;
+}
+
+// Reads room-scoped asset metadata and freshly signed asset URLs.
+service AssetService {
+  // Reads one asset. Authentication and room membership are required. Returns
+  // NOT_FOUND when the asset is missing, deleted, or owned by a different room.
+  rpc GetAsset(GetAssetRequest) returns (GetAssetResponse);
+  // Reads many assets in one room. Authentication and room membership are
+  // required. Missing, deleted, and wrong-room asset IDs are omitted. Results
+  // preserve first-seen request order and repeated asset IDs are de-duplicated.
+  rpc BatchGetAssets(BatchGetAssetsRequest) returns (BatchGetAssetsResponse);
 }

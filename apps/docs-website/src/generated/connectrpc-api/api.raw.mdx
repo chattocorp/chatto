@@ -877,6 +877,83 @@ Result of fetching link preview metadata.
 | `preview` | [`LinkPreview`](#chatto-api-v1-LinkPreview) | Preview metadata, or absent when the URL cannot be previewed. |
 
 
+<a id="chatto-api-v1-AssetService"></a>
+
+## AssetService
+
+Reads room-scoped asset metadata and freshly signed asset URLs.
+
+<a id="chatto-api-v1-AssetService-GetAsset"></a>
+
+### GetAsset
+
+Reads one asset. Authentication and room membership are required. Returns
+NOT_FOUND when the asset is missing, deleted, or owned by a different room.
+
+```http
+POST /api/connect/chatto.api.v1.AssetService/GetAsset
+```
+
+<a id="chatto-api-v1-GetAssetRequest"></a>
+
+#### Input: GetAssetRequest
+
+Request to read one room-scoped asset with freshly signed URLs.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room that owns the asset. |
+| `asset_id` | `string` | Required. Asset ID. |
+| `thumbnail` | [`AssetThumbnailOptions`](#chatto-api-v1-AssetThumbnailOptions) | Thumbnail URL options. Defaults are applied when absent. |
+
+
+<a id="chatto-api-v1-GetAssetResponse"></a>
+
+#### Result: GetAssetResponse
+
+Response containing one room-scoped asset.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `asset` | [`RoomTimelineAttachment`](#chatto-api-v1-RoomTimelineAttachment) | Asset metadata and signed URLs. |
+
+
+<a id="chatto-api-v1-AssetService-BatchGetAssets"></a>
+
+### BatchGetAssets
+
+Reads many assets in one room. Authentication and room membership are
+required. Missing, deleted, and wrong-room asset IDs are omitted. Results
+preserve first-seen request order and repeated asset IDs are de-duplicated.
+
+```http
+POST /api/connect/chatto.api.v1.AssetService/BatchGetAssets
+```
+
+<a id="chatto-api-v1-BatchGetAssetsRequest"></a>
+
+#### Input: BatchGetAssetsRequest
+
+Request to read many room-scoped assets with freshly signed URLs.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room that owns the assets. |
+| `asset_ids` | `repeated string` | Required. Asset IDs. Missing, deleted, and wrong-room asset IDs are omitted. |
+| `thumbnail` | [`AssetThumbnailOptions`](#chatto-api-v1-AssetThumbnailOptions) | Thumbnail URL options. Defaults are applied when absent. |
+
+
+<a id="chatto-api-v1-BatchGetAssetsResponse"></a>
+
+#### Result: BatchGetAssetsResponse
+
+Response containing room-scoped assets.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `assets` | repeated [`RoomTimelineAttachment`](#chatto-api-v1-RoomTimelineAttachment) | Assets in first-seen request order. |
+
+
 <a id="chatto-api-v1-MessageService"></a>
 
 ## MessageService
@@ -1072,11 +1149,10 @@ Result of removing a link preview from a message.
 
 ### GetMessage
 
-Reads one renderable message, including current body, attachments with
-freshly signed expiring URLs, link preview, reactions, and thread metadata.
-Authentication and room membership are required. Returns NOT_FOUND when the
-event does not exist, is not a message, has been retracted, or belongs to a
-different room.
+Reads one renderable message, including current body, attachment metadata,
+link preview, reactions, and thread metadata. Authentication and room
+membership are required. Returns NOT_FOUND when the event does not exist,
+is not a message, has been retracted, or belongs to a different room.
 
 ```http
 POST /api/connect/chatto.api.v1.MessageService/GetMessage
@@ -1092,7 +1168,6 @@ Request to read one visible message.
 | --- | --- | --- |
 | `room_id` | `string` | Required. Room containing the message. |
 | `event_id` | `string` | Required. Message event ID. |
-| `thumbnail` | [`AttachmentThumbnailOptions`](#chatto-api-v1-AttachmentThumbnailOptions) | Attachment thumbnail URL options. Defaults are applied when absent. |
 
 
 <a id="chatto-api-v1-GetMessageResponse"></a>
@@ -1130,7 +1205,6 @@ Request to read many visible messages in one room.
 | --- | --- | --- |
 | `room_id` | `string` | Required. Room containing the messages. |
 | `event_ids` | `repeated string` | Required. Message event IDs. Missing, retracted, non-message, and wrong-room event IDs are omitted from the response. |
-| `thumbnail` | [`AttachmentThumbnailOptions`](#chatto-api-v1-AttachmentThumbnailOptions) | Attachment thumbnail URL options. Defaults are applied when absent. |
 
 
 <a id="chatto-api-v1-BatchGetMessagesResponse"></a>
@@ -2205,7 +2279,7 @@ Request for room-scoped attachment list pages.
 | Field | Type | Description |
 | --- | --- | --- |
 | `room_id` | `string` | Required room ID. |
-| `thumbnail` | [`AttachmentThumbnailOptions`](#chatto-api-v1-AttachmentThumbnailOptions) | Thumbnail URL options. Defaults are applied when absent. |
+| `thumbnail` | [`AssetThumbnailOptions`](#chatto-api-v1-AssetThumbnailOptions) | Thumbnail URL options. Defaults are applied when absent. |
 | `page` | [`PageRequest`](#chatto-api-v1-PageRequest) | Page request. Defaults are applied when absent or limit is zero. |
 
 
@@ -3797,17 +3871,17 @@ One transcoded video rendition.
 
 
 
-<a id="chatto-api-v1-AttachmentThumbnailOptions"></a>
+<a id="chatto-api-v1-AssetThumbnailOptions"></a>
 
-### AttachmentThumbnailOptions
+### AssetThumbnailOptions
 
-Thumbnail transform parameters for attachment URL reads.
+Thumbnail transform parameters for asset URL reads.
 
 | Field | Type | Description |
 | --- | --- | --- |
 | `width` | `int32` | Thumbnail width in pixels. |
 | `height` | `int32` | Thumbnail height in pixels. |
-| `fit` | [`AttachmentFitMode`](#chatto-api-v1-AttachmentFitMode) | Thumbnail fit mode. |
+| `fit` | [`AssetFitMode`](#chatto-api-v1-AssetFitMode) | Thumbnail fit mode. |
 
 
 
@@ -4381,17 +4455,17 @@ Processing state for a timeline video attachment.
 | `ROOM_TIMELINE_VIDEO_PROCESSING_STATUS_FAILED` | `3` | Video processing failed. |
 
 
-<a id="chatto-api-v1-AttachmentFitMode"></a>
+<a id="chatto-api-v1-AssetFitMode"></a>
 
-### AttachmentFitMode
+### AssetFitMode
 
-Fit mode used when generating transformed attachment thumbnails.
+Fit mode used when generating transformed asset thumbnails.
 
 | Name | Number | Description |
 | --- | --- | --- |
-| `ATTACHMENT_FIT_MODE_UNSPECIFIED` | `0` | The fit mode was not specified. |
-| `ATTACHMENT_FIT_MODE_CONTAIN` | `1` | Preserve the whole source image within the requested bounds. |
-| `ATTACHMENT_FIT_MODE_COVER` | `2` | Fill the requested bounds, cropping when needed. |
+| `ASSET_FIT_MODE_UNSPECIFIED` | `0` | The fit mode was not specified. |
+| `ASSET_FIT_MODE_CONTAIN` | `1` | Preserve the whole source image within the requested bounds. |
+| `ASSET_FIT_MODE_COVER` | `2` | Fill the requested bounds, cropping when needed. |
 
 
 <a id="chatto-api-v1-RoomKind"></a>

@@ -135,7 +135,7 @@ vi.mock('$lib/auth/signOut', () => ({
 }));
 
 vi.mock('$lib/attachments/attachmentUrls', () => ({
-  refreshAttachmentUrlsForMessage: vi.fn()
+  refreshAttachmentUrlsForAssets: vi.fn()
 }));
 
 vi.mock('$lib/CreateRoom.svelte', () => ({

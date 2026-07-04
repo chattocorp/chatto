@@ -55,6 +55,20 @@ type BatchMessageAttachmentsInput struct {
 	EventIDs []string
 }
 
+// RoomAssetInput is the authorized room-scoped asset read request.
+type RoomAssetInput struct {
+	ActorID string
+	RoomID  string
+	AssetID string
+}
+
+// BatchRoomAssetsInput is the authorized room-scoped asset batch read request.
+type BatchRoomAssetsInput struct {
+	ActorID  string
+	RoomID   string
+	AssetIDs []string
+}
+
 // ListRoomAttachments returns current message-owned attachments for a room the
 // actor belongs to.
 func (c *ChattoCore) ListRoomAttachments(ctx context.Context, input ListRoomAttachmentsInput) (*RoomAttachmentsResult, error) {
@@ -63,6 +77,63 @@ func (c *ChattoCore) ListRoomAttachments(ctx context.Context, input ListRoomAtta
 		return nil, err
 	}
 	return c.GetRoomAttachments(ctx, kind, input.RoomID, input.Limit, input.Offset)
+}
+
+// GetRoomAsset returns one room-scoped asset for a room the actor belongs to.
+// Missing, deleted, and wrong-room asset IDs return ErrNotFound.
+func (c *ChattoCore) GetRoomAsset(ctx context.Context, input RoomAssetInput) (*corev1.Attachment, error) {
+	room, _, err := c.requireRoomMember(ctx, input.ActorID, input.RoomID)
+	if err != nil {
+		return nil, err
+	}
+	return c.roomAsset(room.Id, input.AssetID)
+}
+
+// BatchGetRoomAssets returns room-scoped assets for a room the actor belongs
+// to. Missing, deleted, and wrong-room asset IDs are omitted.
+func (c *ChattoCore) BatchGetRoomAssets(ctx context.Context, input BatchRoomAssetsInput) ([]*corev1.Attachment, error) {
+	room, _, err := c.requireRoomMember(ctx, input.ActorID, input.RoomID)
+	if err != nil {
+		return nil, err
+	}
+
+	seen := make(map[string]struct{}, len(input.AssetIDs))
+	out := make([]*corev1.Attachment, 0, len(input.AssetIDs))
+	for _, assetID := range input.AssetIDs {
+		if _, ok := seen[assetID]; ok {
+			continue
+		}
+		seen[assetID] = struct{}{}
+		attachment, err := c.roomAsset(room.Id, assetID)
+		if err != nil {
+			if errors.Is(err, ErrNotFound) {
+				continue
+			}
+			return nil, err
+		}
+		out = append(out, attachment)
+	}
+	return out, nil
+}
+
+func (c *ChattoCore) roomAsset(roomID, assetID string) (*corev1.Attachment, error) {
+	if assetID == "" {
+		return nil, invalidArgument("asset_id is required")
+	}
+	declared, ok := c.assetLifecycle().AssetCreation(assetID)
+	if !ok || declared == nil || c.assetLifecycle().AssetDeleted(assetID) {
+		return nil, ErrNotFound
+	}
+	assetRoomID, ok := c.assetLifecycle().AssetRoomID(assetID)
+	if !ok || assetRoomID != roomID {
+		return nil, ErrNotFound
+	}
+	attachment := AttachmentFromAsset(declared.GetAsset())
+	if attachment == nil {
+		return nil, ErrNotFound
+	}
+	attachment.RoomId = roomID
+	return attachment, nil
 }
 
 // MessageAttachments returns the current attachments for one visible message in

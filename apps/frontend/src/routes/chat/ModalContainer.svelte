@@ -21,7 +21,7 @@
 
   import ImageModal from '$lib/ui/ImageModal.svelte';
 
-  import { refreshAttachmentUrlsForMessage } from '$lib/attachments/attachmentUrls';
+  import { refreshAttachmentUrlsForAssets } from '$lib/attachments/attachmentUrls';
   import { toast } from '$lib/ui/toast';
   import { clearLastRoom } from '$lib/storage/lastRoom';
   import { notifyRoomMessageMutated } from '$lib/state/room/messageMutationEvents';
@@ -183,10 +183,10 @@
     }
     const refreshRoomId = roomId;
     const refreshEventId = eventId;
-    const freshUrls = await refreshAttachmentUrlsForMessage(
+    const freshUrls = await refreshAttachmentUrlsForAssets(
       getActiveAttachmentAPI(),
       refreshRoomId,
-      refreshEventId
+      modal.imageItems.map((item) => item.id).filter((id): id is string => !!id)
     );
     if (freshUrls.size === 0) {
       return;

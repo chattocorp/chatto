@@ -6,7 +6,7 @@ import { RoomFilesStore, type RoomFileItem } from './files.svelte';
 
 const attachmentMocks = vi.hoisted(() => ({
   listRoomAttachments: vi.fn(),
-  refreshMessageAttachmentUrls: vi.fn()
+  refreshAssetUrls: vi.fn()
 }));
 
 vi.mock('$lib/api-client/attachments', () => ({
@@ -48,7 +48,7 @@ function roomFileItem(): RoomFileItem {
 describe('RoomFilesStore', () => {
   beforeEach(() => {
     attachmentMocks.listRoomAttachments.mockReset();
-    attachmentMocks.refreshMessageAttachmentUrls.mockReset();
+    attachmentMocks.refreshAssetUrls.mockReset();
     attachmentMocks.listRoomAttachments.mockResolvedValue({
       items: [],
       totalCount: 0,

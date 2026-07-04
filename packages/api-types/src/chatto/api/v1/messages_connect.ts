@@ -77,11 +77,10 @@ export const MessageService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Reads one renderable message, including current body, attachments with
-     * freshly signed expiring URLs, link preview, reactions, and thread metadata.
-     * Authentication and room membership are required. Returns NOT_FOUND when the
-     * event does not exist, is not a message, has been retracted, or belongs to a
-     * different room.
+     * Reads one renderable message, including current body, attachment metadata,
+     * link preview, reactions, and thread metadata. Authentication and room
+     * membership are required. Returns NOT_FOUND when the event does not exist,
+     * is not a message, has been retracted, or belongs to a different room.
      *
      * @generated from rpc chatto.api.v1.MessageService.GetMessage
      */

@@ -13,6 +13,10 @@ type attachmentMapper struct {
 	api *API
 }
 
+type assetService struct {
+	api *API
+}
+
 const (
 	defaultAttachmentListLimit = 50
 	maxAttachmentListLimit     = 100
@@ -40,7 +44,7 @@ func (s *roomService) ListRoomAttachments(ctx context.Context, req *connect.Requ
 		return nil, connectError(err)
 	}
 
-	thumbnail := attachmentThumbnailOptions(req.Msg.Thumbnail)
+	thumbnail := assetThumbnailOptions(req.Msg.Thumbnail)
 	mapper := attachmentMapper{api: s.api}
 	attachments := make([]*apiv1.RoomAttachmentListItem, 0, len(result.Items))
 	for _, item := range result.Items {
@@ -59,6 +63,47 @@ func (s *roomService) ListRoomAttachments(ctx context.Context, req *connect.Requ
 		Attachments: attachments,
 		Page:        apiPageInfo(result.TotalCount, result.HasMore),
 	}), nil
+}
+
+func (s *assetService) GetAsset(ctx context.Context, req *connect.Request[apiv1.GetAssetRequest]) (*connect.Response[apiv1.GetAssetResponse], error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	asset, err := s.api.core.GetRoomAsset(ctx, core.RoomAssetInput{
+		ActorID: caller.UserID,
+		RoomID:  req.Msg.RoomId,
+		AssetID: req.Msg.AssetId,
+	})
+	if err != nil {
+		return nil, connectError(err)
+	}
+	mapper := attachmentMapper{api: s.api}
+	return connect.NewResponse(&apiv1.GetAssetResponse{
+		Asset: mapper.attachment(asset, caller.UserID, assetThumbnailOptions(req.Msg.Thumbnail)),
+	}), nil
+}
+
+func (s *assetService) BatchGetAssets(ctx context.Context, req *connect.Request[apiv1.BatchGetAssetsRequest]) (*connect.Response[apiv1.BatchGetAssetsResponse], error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	assets, err := s.api.core.BatchGetRoomAssets(ctx, core.BatchRoomAssetsInput{
+		ActorID:  caller.UserID,
+		RoomID:   req.Msg.RoomId,
+		AssetIDs: req.Msg.GetAssetIds(),
+	})
+	if err != nil {
+		return nil, connectError(err)
+	}
+	thumbnail := assetThumbnailOptions(req.Msg.Thumbnail)
+	mapper := attachmentMapper{api: s.api}
+	out := make([]*apiv1.RoomTimelineAttachment, 0, len(assets))
+	for _, asset := range assets {
+		out = append(out, mapper.attachment(asset, caller.UserID, thumbnail))
+	}
+	return connect.NewResponse(&apiv1.BatchGetAssetsResponse{Assets: out}), nil
 }
 
 func (s *attachmentMapper) attachment(attachment *corev1.Attachment, viewerID string, thumbnail attachmentThumbnailRequest) *apiv1.RoomTimelineAttachment {
@@ -81,7 +126,7 @@ func (s *attachmentMapper) attachment(attachment *corev1.Attachment, viewerID st
 	}
 }
 
-func attachmentThumbnailOptions(options *apiv1.AttachmentThumbnailOptions) attachmentThumbnailRequest {
+func assetThumbnailOptions(options *apiv1.AssetThumbnailOptions) attachmentThumbnailRequest {
 	width, height := 120, 120
 	fit := "cover"
 	if options != nil {
@@ -92,30 +137,11 @@ func attachmentThumbnailOptions(options *apiv1.AttachmentThumbnailOptions) attac
 			height = int(options.GetHeight())
 		}
 		switch options.GetFit() {
-		case apiv1.AttachmentFitMode_ATTACHMENT_FIT_MODE_CONTAIN:
+		case apiv1.AssetFitMode_ASSET_FIT_MODE_CONTAIN:
 			fit = "contain"
-		case apiv1.AttachmentFitMode_ATTACHMENT_FIT_MODE_COVER:
+		case apiv1.AssetFitMode_ASSET_FIT_MODE_COVER:
 			fit = "cover"
 		}
 	}
 	return attachmentThumbnailRequest{width: width, height: height, fit: fit}
-}
-
-func messageAttachmentThumbnailOptions(options *apiv1.AttachmentThumbnailOptions) attachmentThumbnailRequest {
-	thumbnail := defaultTimelineAttachmentThumbnail()
-	if options != nil {
-		if options.GetWidth() > 0 {
-			thumbnail.width = int(options.GetWidth())
-		}
-		if options.GetHeight() > 0 {
-			thumbnail.height = int(options.GetHeight())
-		}
-		switch options.GetFit() {
-		case apiv1.AttachmentFitMode_ATTACHMENT_FIT_MODE_CONTAIN:
-			thumbnail.fit = "contain"
-		case apiv1.AttachmentFitMode_ATTACHMENT_FIT_MODE_COVER:
-			thumbnail.fit = "cover"
-		}
-	}
-	return thumbnail
 }

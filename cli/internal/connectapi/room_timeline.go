@@ -88,7 +88,7 @@ func (s *messageService) GetMessage(ctx context.Context, req *connect.Request[ap
 	if err != nil {
 		return nil, connectError(err)
 	}
-	event, includes, err := newRoomTimelineAssemblerWithThumbnail(s.api, messageAttachmentThumbnailOptions(req.Msg.Thumbnail)).hydrateEvent(ctx, caller.UserID, result.Kind, result.Event)
+	event, includes, err := newRoomTimelineAssembler(s.api).hydrateEvent(ctx, caller.UserID, result.Kind, result.Event)
 	if err != nil {
 		return nil, connectError(err)
 	}
@@ -113,7 +113,7 @@ func (s *messageService) BatchGetMessages(ctx context.Context, req *connect.Requ
 	for _, event := range result.Events {
 		events = append(events, &core.RoomEvent{Event: event})
 	}
-	page, err := newRoomTimelineAssemblerWithThumbnail(s.api, messageAttachmentThumbnailOptions(req.Msg.Thumbnail)).buildPage(ctx, caller.UserID, result.Kind, events, false, false)
+	page, err := newRoomTimelineAssembler(s.api).buildPage(ctx, caller.UserID, result.Kind, events, false, false)
 	if err != nil {
 		return nil, connectError(err)
 	}

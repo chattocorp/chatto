@@ -34,7 +34,7 @@ unknown instance) the component renders nothing.
   import {
     assetUrlNeedsRefresh,
     earliestAssetUrlRefreshAt,
-    refreshAttachmentUrlsForMessage,
+    refreshAttachmentUrlsForAssets,
     withAssetUrlRetryParam,
     type ExpiringAssetUrl
   } from '$lib/attachments/attachmentUrls';
@@ -227,14 +227,14 @@ unknown instance) the component renders nothing.
     const current = preview;
     const server = serverRegistry.getServer(current.serverId);
     if (!server) return undefined;
-    refreshPromise = refreshAttachmentUrlsForMessage(
+    refreshPromise = refreshAttachmentUrlsForAssets(
       createAttachmentAPI({
         serverId: current.serverId,
         baseUrl: connectBaseUrl(server.url),
         bearerToken: server.token
       }),
       current.roomId,
-      current.eventId,
+      current.attachments.map((attachment) => attachment.id),
       PREVIEW_THUMBNAIL_REFRESH
     )
       .then((freshUrls) => {

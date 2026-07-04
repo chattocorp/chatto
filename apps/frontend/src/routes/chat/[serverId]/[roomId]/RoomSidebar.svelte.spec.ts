@@ -17,7 +17,7 @@ const memberDirectoryMocks = vi.hoisted(() => ({
 }));
 const attachmentMocks = vi.hoisted(() => ({
   listRoomAttachments: vi.fn(),
-  refreshMessageAttachmentUrls: vi.fn()
+  refreshAssetUrls: vi.fn()
 }));
 const callStore = vi.hoisted(() => ({
   voiceCall: {
@@ -154,7 +154,7 @@ vi.mock('$lib/state/server/connection.svelte', () => ({
 vi.mock('$lib/api-client/attachments', () => ({
   createAttachmentAPI: vi.fn(() => ({
     listRoomAttachments: attachmentMocks.listRoomAttachments,
-    refreshMessageAttachmentUrls: attachmentMocks.refreshMessageAttachmentUrls
+    refreshAssetUrls: attachmentMocks.refreshAssetUrls
   }))
 }));
 
@@ -349,14 +349,14 @@ describe('RoomSidebar', () => {
     queryMock.mockReset();
     memberDirectoryMocks.listRoomMembers.mockReset();
     attachmentMocks.listRoomAttachments.mockReset();
-    attachmentMocks.refreshMessageAttachmentUrls.mockReset();
+    attachmentMocks.refreshAssetUrls.mockReset();
     memberDirectoryMocks.listRoomMembers.mockResolvedValue(memberPage([member(1)]));
     attachmentMocks.listRoomAttachments.mockResolvedValue({
       items: [],
       totalCount: 0,
       hasMore: false
     });
-    attachmentMocks.refreshMessageAttachmentUrls.mockResolvedValue(new Map());
+    attachmentMocks.refreshAssetUrls.mockResolvedValue(new Map());
     queryMock.mockResolvedValue({
       data: {
         room: {
@@ -1686,7 +1686,7 @@ describe('RoomSidebar', () => {
         totalCount: 1,
         hasMore: false
       });
-    attachmentMocks.refreshMessageAttachmentUrls.mockResolvedValueOnce(new Map());
+    attachmentMocks.refreshAssetUrls.mockResolvedValueOnce(new Map());
 
     const { container } = render(RoomSidebarTestHarness, {
       props: {

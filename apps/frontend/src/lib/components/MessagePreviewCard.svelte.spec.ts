@@ -6,11 +6,11 @@ import { FitMode } from '$lib/render/types';
 import { RoomEventKind } from '$lib/render/eventKinds';
 import type { RefreshedAttachmentUrls } from '$lib/attachments/attachmentUrls';
 
-const { getRoomEventsAroundMock, timelineResults, refreshMessageAttachmentUrlsMock } = vi.hoisted(
+const { getRoomEventsAroundMock, timelineResults, refreshAssetUrlsMock } = vi.hoisted(
   () => ({
     getRoomEventsAroundMock: vi.fn(),
     timelineResults: [] as unknown[],
-    refreshMessageAttachmentUrlsMock: vi.fn()
+    refreshAssetUrlsMock: vi.fn()
   })
 );
 
@@ -24,7 +24,7 @@ vi.mock('$lib/api-client/roomTimeline', () => ({
 
 vi.mock('$lib/api-client/attachments', () => ({
   createAttachmentAPI: vi.fn(() => ({
-    refreshMessageAttachmentUrls: refreshMessageAttachmentUrlsMock
+    refreshAssetUrls: refreshAssetUrlsMock
   }))
 }));
 
@@ -186,10 +186,10 @@ function clearedRefreshResult(attachmentId: string) {
 
 beforeEach(() => {
   getRoomEventsAroundMock.mockReset();
-  refreshMessageAttachmentUrlsMock.mockReset();
+  refreshAssetUrlsMock.mockReset();
   timelineResults.length = 0;
   getRoomEventsAroundMock.mockImplementation(() => Promise.resolve(timelineResults.shift()));
-  refreshMessageAttachmentUrlsMock.mockResolvedValue(new Map());
+  refreshAssetUrlsMock.mockResolvedValue(new Map());
 });
 
 describe('MessagePreviewCard', () => {
@@ -219,7 +219,7 @@ describe('MessagePreviewCard', () => {
 
   it('refreshes attachment thumbnail asset URLs after image load failure', async () => {
     timelineResults.push(previewResult(transparentGif));
-    refreshMessageAttachmentUrlsMock.mockResolvedValueOnce(
+    refreshAssetUrlsMock.mockResolvedValueOnce(
       refreshResult(`${transparentGif}#fresh-image`)
     );
 
@@ -239,7 +239,7 @@ describe('MessagePreviewCard', () => {
       const refreshed = container.querySelector<HTMLImageElement>('img[alt="photo.jpg"]');
       expect(refreshed?.getAttribute('src')).toContain('#fresh-image');
     });
-    expect(refreshMessageAttachmentUrlsMock).toHaveBeenCalledWith('room_1', 'event_1', {
+    expect(refreshAssetUrlsMock).toHaveBeenCalledWith('room_1', ['att_1'], {
       width: 120,
       height: 120,
       fit: FitMode.Cover
@@ -248,14 +248,14 @@ describe('MessagePreviewCard', () => {
 
   it('clears stale preview thumbnail asset URLs when refresh returns null', async () => {
     timelineResults.push(previewResult(`${transparentGif}#old-image`));
-    refreshMessageAttachmentUrlsMock.mockResolvedValueOnce(clearedRefreshResult('att_1'));
+    refreshAssetUrlsMock.mockResolvedValueOnce(clearedRefreshResult('att_1'));
 
     const { container } = render(MessagePreviewCard, {
       props: { link: link(), showDismiss: false }
     });
 
     await vi.waitFor(() => {
-      expect(refreshMessageAttachmentUrlsMock).toHaveBeenCalled();
+      expect(refreshAssetUrlsMock).toHaveBeenCalled();
     });
 
     await vi.waitFor(() => {
@@ -282,7 +282,7 @@ describe('MessagePreviewCard', () => {
 
   it('refreshes video attachment thumbnail asset URLs after image load failure', async () => {
     timelineResults.push(videoPreviewResult(`${transparentGif}#old-video`));
-    refreshMessageAttachmentUrlsMock.mockResolvedValueOnce(
+    refreshAssetUrlsMock.mockResolvedValueOnce(
       videoRefreshResult(`${transparentGif}#fresh-video`)
     );
 
@@ -306,14 +306,14 @@ describe('MessagePreviewCard', () => {
 
   it('clears stale preview video thumbnail asset URLs when refresh returns null', async () => {
     timelineResults.push(videoPreviewResult(`${transparentGif}#old-video`));
-    refreshMessageAttachmentUrlsMock.mockResolvedValueOnce(clearedRefreshResult('att_video'));
+    refreshAssetUrlsMock.mockResolvedValueOnce(clearedRefreshResult('att_video'));
 
     const { container } = render(MessagePreviewCard, {
       props: { link: link(), showDismiss: false }
     });
 
     await vi.waitFor(() => {
-      expect(refreshMessageAttachmentUrlsMock).toHaveBeenCalled();
+      expect(refreshAssetUrlsMock).toHaveBeenCalled();
     });
 
     await vi.waitFor(() => {
@@ -324,7 +324,7 @@ describe('MessagePreviewCard', () => {
 
   it('falls back to a video tile when the refreshed video thumbnail also fails', async () => {
     timelineResults.push(videoPreviewResult(`${transparentGif}#old-video`));
-    refreshMessageAttachmentUrlsMock.mockResolvedValueOnce(
+    refreshAssetUrlsMock.mockResolvedValueOnce(
       videoRefreshResult(`${transparentGif}#fresh-video`)
     );
 

@@ -462,17 +462,17 @@ One transcoded video rendition.
 | `size` | `int64` | Rendition size in bytes. |
 | `asset_url` | [`RoomTimelineAssetUrl`](#chatto-api-v1-RoomTimelineAssetUrl) | Signed URL for the rendition. |
 
-<a id="chatto-api-v1-AttachmentThumbnailOptions"></a>
+<a id="chatto-api-v1-AssetThumbnailOptions"></a>
 
-### AttachmentThumbnailOptions
+### AssetThumbnailOptions
 
-Thumbnail transform parameters for attachment URL reads.
+Thumbnail transform parameters for asset URL reads.
 
 | Field | Type | Description |
 | --- | --- | --- |
 | `width` | `int32` | Thumbnail width in pixels. |
 | `height` | `int32` | Thumbnail height in pixels. |
-| `fit` | [`AttachmentFitMode`](#chatto-api-v1-AttachmentFitMode) | Thumbnail fit mode. |
+| `fit` | [`AssetFitMode`](#chatto-api-v1-AssetFitMode) | Thumbnail fit mode. |
 
 <a id="chatto-api-v1-RoomAttachmentListItem"></a>
 
@@ -1434,17 +1434,17 @@ Processing state for a timeline video attachment.
 | `ROOM_TIMELINE_VIDEO_PROCESSING_STATUS_COMPLETED` | `2` | Video processing completed successfully. |
 | `ROOM_TIMELINE_VIDEO_PROCESSING_STATUS_FAILED` | `3` | Video processing failed. |
 
-<a id="chatto-api-v1-AttachmentFitMode"></a>
+<a id="chatto-api-v1-AssetFitMode"></a>
 
-### AttachmentFitMode
+### AssetFitMode
 
-Fit mode used when generating transformed attachment thumbnails.
+Fit mode used when generating transformed asset thumbnails.
 
 | Name | Number | Description |
 | --- | --- | --- |
-| `ATTACHMENT_FIT_MODE_UNSPECIFIED` | `0` | The fit mode was not specified. |
-| `ATTACHMENT_FIT_MODE_CONTAIN` | `1` | Preserve the whole source image within the requested bounds. |
-| `ATTACHMENT_FIT_MODE_COVER` | `2` | Fill the requested bounds, cropping when needed. |
+| `ASSET_FIT_MODE_UNSPECIFIED` | `0` | The fit mode was not specified. |
+| `ASSET_FIT_MODE_CONTAIN` | `1` | Preserve the whole source image within the requested bounds. |
+| `ASSET_FIT_MODE_COVER` | `2` | Fill the requested bounds, cropping when needed. |
 
 <a id="chatto-api-v1-RoomKind"></a>
 

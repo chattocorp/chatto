@@ -209,11 +209,10 @@ Result of removing a link preview from a message.
 
 ### GetMessage
 
-Reads one renderable message, including current body, attachments with
-freshly signed expiring URLs, link preview, reactions, and thread metadata.
-Authentication and room membership are required. Returns NOT_FOUND when the
-event does not exist, is not a message, has been retracted, or belongs to a
-different room.
+Reads one renderable message, including current body, attachment metadata,
+link preview, reactions, and thread metadata. Authentication and room
+membership are required. Returns NOT_FOUND when the event does not exist,
+is not a message, has been retracted, or belongs to a different room.
 
 ```http
 POST /api/connect/chatto.api.v1.MessageService/GetMessage
@@ -229,7 +228,6 @@ Request to read one visible message.
 | --- | --- | --- |
 | `room_id` | `string` | Required. Room containing the message. |
 | `event_id` | `string` | Required. Message event ID. |
-| `thumbnail` | [`AttachmentThumbnailOptions`](/reference/connectrpc-api/types/#chatto-api-v1-AttachmentThumbnailOptions) | Attachment thumbnail URL options. Defaults are applied when absent. |
 
 
 <a id="chatto-api-v1-GetMessageResponse"></a>
@@ -267,7 +265,6 @@ Request to read many visible messages in one room.
 | --- | --- | --- |
 | `room_id` | `string` | Required. Room containing the messages. |
 | `event_ids` | `repeated string` | Required. Message event IDs. Missing, retracted, non-message, and wrong-room event IDs are omitted from the response. |
-| `thumbnail` | [`AttachmentThumbnailOptions`](/reference/connectrpc-api/types/#chatto-api-v1-AttachmentThumbnailOptions) | Attachment thumbnail URL options. Defaults are applied when absent. |
 
 
 <a id="chatto-api-v1-BatchGetMessagesResponse"></a>

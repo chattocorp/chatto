@@ -6,7 +6,6 @@
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3 } from "@bufbuild/protobuf";
 import { RoomTimelineEvent, RoomTimelineIncludes } from "./room_timeline_pb.js";
-import { AttachmentThumbnailOptions } from "./attachments_pb.js";
 
 /**
  * Link preview metadata accepted when creating a message.
@@ -739,13 +738,6 @@ export class GetMessageRequest extends Message<GetMessageRequest> {
    */
   eventId = "";
 
-  /**
-   * Attachment thumbnail URL options. Defaults are applied when absent.
-   *
-   * @generated from field: chatto.api.v1.AttachmentThumbnailOptions thumbnail = 3;
-   */
-  thumbnail?: AttachmentThumbnailOptions;
-
   constructor(data?: PartialMessage<GetMessageRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -756,7 +748,6 @@ export class GetMessageRequest extends Message<GetMessageRequest> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "thumbnail", kind: "message", T: AttachmentThumbnailOptions },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetMessageRequest {
@@ -846,13 +837,6 @@ export class BatchGetMessagesRequest extends Message<BatchGetMessagesRequest> {
    */
   eventIds: string[] = [];
 
-  /**
-   * Attachment thumbnail URL options. Defaults are applied when absent.
-   *
-   * @generated from field: chatto.api.v1.AttachmentThumbnailOptions thumbnail = 3;
-   */
-  thumbnail?: AttachmentThumbnailOptions;
-
   constructor(data?: PartialMessage<BatchGetMessagesRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -863,7 +847,6 @@ export class BatchGetMessagesRequest extends Message<BatchGetMessagesRequest> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "event_ids", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
-    { no: 3, name: "thumbnail", kind: "message", T: AttachmentThumbnailOptions },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BatchGetMessagesRequest {

@@ -8,18 +8,18 @@ import {
   assetUrlRefreshAt,
   earliestAssetUrlRefreshAt,
   mergeRefreshedAttachmentUrls,
-  refreshAttachmentUrlsForMessage,
+  refreshAttachmentUrlsForAssets,
   withAssetUrlRetryParam,
   type RefreshedAttachmentUrls
 } from './attachmentUrls';
 
 function apiWithRefresh(
-  refreshMessageAttachmentUrls: AttachmentAPI['refreshMessageAttachmentUrls']
-): Pick<AttachmentAPI, 'refreshMessageAttachmentUrls'> {
-  return { refreshMessageAttachmentUrls };
+  refreshAssetUrls: AttachmentAPI['refreshAssetUrls']
+): Pick<AttachmentAPI, 'refreshAssetUrls'> {
+  return { refreshAssetUrls };
 }
 
-describe('refreshAttachmentUrlsForMessage', () => {
+describe('refreshAttachmentUrlsForAssets', () => {
   it('delegates refreshes to the attachment API with default thumbnail options', async () => {
     const urlsFromAPI = new Map<string, RefreshedAttachmentUrls>([
       [
@@ -58,15 +58,15 @@ describe('refreshAttachmentUrlsForMessage', () => {
         }
       ]
     ]);
-    const refreshMessageAttachmentUrls = vi.fn().mockResolvedValue(urlsFromAPI);
+    const refreshAssetUrls = vi.fn().mockResolvedValue(urlsFromAPI);
 
-    const urls = await refreshAttachmentUrlsForMessage(
-      apiWithRefresh(refreshMessageAttachmentUrls),
+    const urls = await refreshAttachmentUrlsForAssets(
+      apiWithRefresh(refreshAssetUrls),
       'room_1',
-      'event_1'
+      ['att_1', 'att_2']
     );
 
-    expect(refreshMessageAttachmentUrls).toHaveBeenCalledWith('room_1', 'event_1', {
+    expect(refreshAssetUrls).toHaveBeenCalledWith('room_1', ['att_1', 'att_2'], {
       width: 960,
       height: 800,
       fit: FitMode.Contain
@@ -82,12 +82,12 @@ describe('refreshAttachmentUrlsForMessage', () => {
   });
 
   it('passes caller-selected thumbnail shape to the attachment API', async () => {
-    const refreshMessageAttachmentUrls = vi.fn().mockResolvedValue(new Map());
+    const refreshAssetUrls = vi.fn().mockResolvedValue(new Map());
 
-    await refreshAttachmentUrlsForMessage(
-      apiWithRefresh(refreshMessageAttachmentUrls),
+    await refreshAttachmentUrlsForAssets(
+      apiWithRefresh(refreshAssetUrls),
       'room_1',
-      'event_1',
+      ['att_1'],
       {
         width: 120,
         height: 120,
@@ -95,7 +95,7 @@ describe('refreshAttachmentUrlsForMessage', () => {
       }
     );
 
-    expect(refreshMessageAttachmentUrls).toHaveBeenCalledWith('room_1', 'event_1', {
+    expect(refreshAssetUrls).toHaveBeenCalledWith('room_1', ['att_1'], {
       width: 120,
       height: 120,
       fit: FitMode.Cover
@@ -103,12 +103,12 @@ describe('refreshAttachmentUrlsForMessage', () => {
   });
 
   it('returns an empty map when the refresh request fails', async () => {
-    const refreshMessageAttachmentUrls = vi.fn().mockRejectedValue(new Error('network failed'));
+    const refreshAssetUrls = vi.fn().mockRejectedValue(new Error('network failed'));
 
-    const urls = await refreshAttachmentUrlsForMessage(
-      apiWithRefresh(refreshMessageAttachmentUrls),
+    const urls = await refreshAttachmentUrlsForAssets(
+      apiWithRefresh(refreshAssetUrls),
       'room_1',
-      'event_1'
+      ['att_1']
     );
 
     expect(urls.size).toBe(0);

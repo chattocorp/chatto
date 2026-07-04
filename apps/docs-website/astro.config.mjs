@@ -113,6 +113,7 @@ export default defineConfig({
             {
               label: "chatto.api.v1",
               items: [
+                "reference/connectrpc-api/assets",
                 "reference/connectrpc-api/asset-uploads",
                 "reference/connectrpc-api/link-previews",
                 "reference/connectrpc-api/messages",

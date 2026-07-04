@@ -6,7 +6,7 @@ import type { RefreshedAttachmentUrls } from '$lib/attachments/attachmentUrls';
 
 const attachmentMocks = vi.hoisted(() => ({
   pushState: vi.fn(),
-  refreshMessageAttachmentUrls: vi.fn()
+  refreshAssetUrls: vi.fn()
 }));
 
 vi.mock('$app/navigation', () => ({
@@ -17,7 +17,7 @@ vi.mock('$app/navigation', () => ({
 
 vi.mock('$lib/api-client/attachments', () => ({
   createAttachmentAPI: vi.fn(() => ({
-    refreshMessageAttachmentUrls: attachmentMocks.refreshMessageAttachmentUrls
+    refreshAssetUrls: attachmentMocks.refreshAssetUrls
   }))
 }));
 
@@ -110,8 +110,8 @@ function imageFrame(container: HTMLElement, filename: string) {
 describe('MessageAttachments', () => {
   beforeEach(() => {
     attachmentMocks.pushState.mockReset();
-    attachmentMocks.refreshMessageAttachmentUrls.mockReset();
-    attachmentMocks.refreshMessageAttachmentUrls.mockResolvedValue(new Map());
+    attachmentMocks.refreshAssetUrls.mockReset();
+    attachmentMocks.refreshAssetUrls.mockResolvedValue(new Map());
   });
 
   it('renders very tall portrait images as contained narrow strips', () => {
@@ -202,7 +202,7 @@ describe('MessageAttachments', () => {
   });
 
   it('clears stale image URLs when refresh returns null asset URLs', async () => {
-    attachmentMocks.refreshMessageAttachmentUrls.mockResolvedValue(
+    attachmentMocks.refreshAssetUrls.mockResolvedValue(
       new Map([['att_1', emptyRefreshedUrls()]])
     );
     const { container } = renderAttachment(
@@ -222,7 +222,7 @@ describe('MessageAttachments', () => {
   });
 
   it('does not open a different gallery image when the clicked image URL is cleared', async () => {
-    attachmentMocks.refreshMessageAttachmentUrls.mockResolvedValue(
+    attachmentMocks.refreshAssetUrls.mockResolvedValue(
       new Map([['cleared', emptyRefreshedUrls()]])
     );
     const { container } = renderAttachments([
@@ -240,7 +240,7 @@ describe('MessageAttachments', () => {
     button.click();
 
     await vi.waitFor(() => {
-      expect(attachmentMocks.refreshMessageAttachmentUrls).toHaveBeenCalled();
+      expect(attachmentMocks.refreshAssetUrls).toHaveBeenCalled();
     });
     await vi.waitFor(() => {
       expect(container.querySelector('img[alt="cleared.jpg"]')).toBeNull();

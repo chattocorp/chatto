@@ -848,9 +848,7 @@ type GetMessageRequest struct {
 	// Required. Room containing the message.
 	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
 	// Required. Message event ID.
-	EventId string `protobuf:"bytes,2,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
-	// Attachment thumbnail URL options. Defaults are applied when absent.
-	Thumbnail     *AttachmentThumbnailOptions `protobuf:"bytes,3,opt,name=thumbnail,proto3" json:"thumbnail,omitempty"`
+	EventId       string `protobuf:"bytes,2,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -897,13 +895,6 @@ func (x *GetMessageRequest) GetEventId() string {
 		return x.EventId
 	}
 	return ""
-}
-
-func (x *GetMessageRequest) GetThumbnail() *AttachmentThumbnailOptions {
-	if x != nil {
-		return x.Thumbnail
-	}
-	return nil
 }
 
 // Response containing one renderable message event.
@@ -968,9 +959,7 @@ type BatchGetMessagesRequest struct {
 	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
 	// Required. Message event IDs. Missing, retracted, non-message, and
 	// wrong-room event IDs are omitted from the response.
-	EventIds []string `protobuf:"bytes,2,rep,name=event_ids,json=eventIds,proto3" json:"event_ids,omitempty"`
-	// Attachment thumbnail URL options. Defaults are applied when absent.
-	Thumbnail     *AttachmentThumbnailOptions `protobuf:"bytes,3,opt,name=thumbnail,proto3" json:"thumbnail,omitempty"`
+	EventIds      []string `protobuf:"bytes,2,rep,name=event_ids,json=eventIds,proto3" json:"event_ids,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1015,13 +1004,6 @@ func (x *BatchGetMessagesRequest) GetRoomId() string {
 func (x *BatchGetMessagesRequest) GetEventIds() []string {
 	if x != nil {
 		return x.EventIds
-	}
-	return nil
-}
-
-func (x *BatchGetMessagesRequest) GetThumbnail() *AttachmentThumbnailOptions {
-	if x != nil {
-		return x.Thumbnail
 	}
 	return nil
 }
@@ -1085,7 +1067,7 @@ var File_chatto_api_v1_messages_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_messages_proto_rawDesc = "" +
 	"\n" +
-	"\x1cchatto/api/v1/messages.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fchatto/api/v1/attachments.proto\x1a\x1dchatto/api/v1/reactions.proto\x1a!chatto/api/v1/room_timeline.proto\"\xde\x02\n" +
+	"\x1cchatto/api/v1/messages.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1dchatto/api/v1/reactions.proto\x1a!chatto/api/v1/room_timeline.proto\"\xde\x02\n" +
 	"\x17MessageLinkPreviewInput\x12\x19\n" +
 	"\x03url\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x03url\x12\x19\n" +
 	"\x05title\x18\x02 \x01(\tH\x00R\x05title\x88\x01\x01\x12%\n" +
@@ -1147,19 +1129,17 @@ const file_chatto_api_v1_messages_proto_rawDesc = "" +
 	"\bevent_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\aeventId\x12\x19\n" +
 	"\x03url\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x03url\"5\n" +
 	"\x19DeleteLinkPreviewResponse\x12\x18\n" +
-	"\adeleted\x18\x01 \x01(\bR\adeleted\"\xa2\x01\n" +
+	"\adeleted\x18\x01 \x01(\bR\adeleted\"j\n" +
 	"\x11GetMessageRequest\x12 \n" +
 	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x12\"\n" +
-	"\bevent_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\aeventId\x12G\n" +
-	"\tthumbnail\x18\x03 \x01(\v2).chatto.api.v1.AttachmentThumbnailOptionsR\tthumbnail\"\x8d\x01\n" +
+	"\bevent_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\aeventIdJ\x04\b\x03\x10\x04R\tthumbnail\"\x8d\x01\n" +
 	"\x12GetMessageResponse\x126\n" +
 	"\x05event\x18\x01 \x01(\v2 .chatto.api.v1.RoomTimelineEventR\x05event\x12?\n" +
-	"\bincludes\x18\x02 \x01(\v2#.chatto.api.v1.RoomTimelineIncludesR\bincludes\"\xb3\x01\n" +
+	"\bincludes\x18\x02 \x01(\v2#.chatto.api.v1.RoomTimelineIncludesR\bincludes\"{\n" +
 	"\x17BatchGetMessagesRequest\x12 \n" +
 	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x12-\n" +
 	"\tevent_ids\x18\x02 \x03(\tB\x10\xbaH\r\x92\x01\n" +
-	"\b\x01\x10d\"\x04r\x02\x10\x01R\beventIds\x12G\n" +
-	"\tthumbnail\x18\x03 \x01(\v2).chatto.api.v1.AttachmentThumbnailOptionsR\tthumbnail\"\x95\x01\n" +
+	"\b\x01\x10d\"\x04r\x02\x10\x01R\beventIdsJ\x04\b\x03\x10\x04R\tthumbnail\"\x95\x01\n" +
 	"\x18BatchGetMessagesResponse\x128\n" +
 	"\x06events\x18\x01 \x03(\v2 .chatto.api.v1.RoomTimelineEventR\x06events\x12?\n" +
 	"\bincludes\x18\x02 \x01(\v2#.chatto.api.v1.RoomTimelineIncludesR\bincludes2\xde\x06\n" +
@@ -1208,11 +1188,10 @@ var file_chatto_api_v1_messages_proto_goTypes = []any{
 	(*BatchGetMessagesResponse)(nil),     // 15: chatto.api.v1.BatchGetMessagesResponse
 	(*RoomTimelineEvent)(nil),            // 16: chatto.api.v1.RoomTimelineEvent
 	(*RoomTimelineIncludes)(nil),         // 17: chatto.api.v1.RoomTimelineIncludes
-	(*AttachmentThumbnailOptions)(nil),   // 18: chatto.api.v1.AttachmentThumbnailOptions
-	(*AddReactionRequest)(nil),           // 19: chatto.api.v1.AddReactionRequest
-	(*RemoveReactionRequest)(nil),        // 20: chatto.api.v1.RemoveReactionRequest
-	(*AddReactionResponse)(nil),          // 21: chatto.api.v1.AddReactionResponse
-	(*RemoveReactionResponse)(nil),       // 22: chatto.api.v1.RemoveReactionResponse
+	(*AddReactionRequest)(nil),           // 18: chatto.api.v1.AddReactionRequest
+	(*RemoveReactionRequest)(nil),        // 19: chatto.api.v1.RemoveReactionRequest
+	(*AddReactionResponse)(nil),          // 20: chatto.api.v1.AddReactionResponse
+	(*RemoveReactionResponse)(nil),       // 21: chatto.api.v1.RemoveReactionResponse
 }
 var file_chatto_api_v1_messages_proto_depIdxs = []int32{
 	0,  // 0: chatto.api.v1.CreateMessageRequest.link_preview:type_name -> chatto.api.v1.MessageLinkPreviewInput
@@ -1221,35 +1200,33 @@ var file_chatto_api_v1_messages_proto_depIdxs = []int32{
 	17, // 3: chatto.api.v1.CreateMessageResponse.includes:type_name -> chatto.api.v1.RoomTimelineIncludes
 	16, // 4: chatto.api.v1.UpdateMessageResponse.event:type_name -> chatto.api.v1.RoomTimelineEvent
 	17, // 5: chatto.api.v1.UpdateMessageResponse.includes:type_name -> chatto.api.v1.RoomTimelineIncludes
-	18, // 6: chatto.api.v1.GetMessageRequest.thumbnail:type_name -> chatto.api.v1.AttachmentThumbnailOptions
-	16, // 7: chatto.api.v1.GetMessageResponse.event:type_name -> chatto.api.v1.RoomTimelineEvent
-	17, // 8: chatto.api.v1.GetMessageResponse.includes:type_name -> chatto.api.v1.RoomTimelineIncludes
-	18, // 9: chatto.api.v1.BatchGetMessagesRequest.thumbnail:type_name -> chatto.api.v1.AttachmentThumbnailOptions
-	16, // 10: chatto.api.v1.BatchGetMessagesResponse.events:type_name -> chatto.api.v1.RoomTimelineEvent
-	17, // 11: chatto.api.v1.BatchGetMessagesResponse.includes:type_name -> chatto.api.v1.RoomTimelineIncludes
-	1,  // 12: chatto.api.v1.MessageService.CreateMessage:input_type -> chatto.api.v1.CreateMessageRequest
-	4,  // 13: chatto.api.v1.MessageService.UpdateMessage:input_type -> chatto.api.v1.UpdateMessageRequest
-	6,  // 14: chatto.api.v1.MessageService.DeleteMessage:input_type -> chatto.api.v1.DeleteMessageRequest
-	8,  // 15: chatto.api.v1.MessageService.DeleteAttachment:input_type -> chatto.api.v1.DeleteAttachmentRequest
-	10, // 16: chatto.api.v1.MessageService.DeleteLinkPreview:input_type -> chatto.api.v1.DeleteLinkPreviewRequest
-	12, // 17: chatto.api.v1.MessageService.GetMessage:input_type -> chatto.api.v1.GetMessageRequest
-	14, // 18: chatto.api.v1.MessageService.BatchGetMessages:input_type -> chatto.api.v1.BatchGetMessagesRequest
-	19, // 19: chatto.api.v1.MessageService.AddReaction:input_type -> chatto.api.v1.AddReactionRequest
-	20, // 20: chatto.api.v1.MessageService.RemoveReaction:input_type -> chatto.api.v1.RemoveReactionRequest
-	3,  // 21: chatto.api.v1.MessageService.CreateMessage:output_type -> chatto.api.v1.CreateMessageResponse
-	5,  // 22: chatto.api.v1.MessageService.UpdateMessage:output_type -> chatto.api.v1.UpdateMessageResponse
-	7,  // 23: chatto.api.v1.MessageService.DeleteMessage:output_type -> chatto.api.v1.DeleteMessageResponse
-	9,  // 24: chatto.api.v1.MessageService.DeleteAttachment:output_type -> chatto.api.v1.DeleteAttachmentResponse
-	11, // 25: chatto.api.v1.MessageService.DeleteLinkPreview:output_type -> chatto.api.v1.DeleteLinkPreviewResponse
-	13, // 26: chatto.api.v1.MessageService.GetMessage:output_type -> chatto.api.v1.GetMessageResponse
-	15, // 27: chatto.api.v1.MessageService.BatchGetMessages:output_type -> chatto.api.v1.BatchGetMessagesResponse
-	21, // 28: chatto.api.v1.MessageService.AddReaction:output_type -> chatto.api.v1.AddReactionResponse
-	22, // 29: chatto.api.v1.MessageService.RemoveReaction:output_type -> chatto.api.v1.RemoveReactionResponse
-	21, // [21:30] is the sub-list for method output_type
-	12, // [12:21] is the sub-list for method input_type
-	12, // [12:12] is the sub-list for extension type_name
-	12, // [12:12] is the sub-list for extension extendee
-	0,  // [0:12] is the sub-list for field type_name
+	16, // 6: chatto.api.v1.GetMessageResponse.event:type_name -> chatto.api.v1.RoomTimelineEvent
+	17, // 7: chatto.api.v1.GetMessageResponse.includes:type_name -> chatto.api.v1.RoomTimelineIncludes
+	16, // 8: chatto.api.v1.BatchGetMessagesResponse.events:type_name -> chatto.api.v1.RoomTimelineEvent
+	17, // 9: chatto.api.v1.BatchGetMessagesResponse.includes:type_name -> chatto.api.v1.RoomTimelineIncludes
+	1,  // 10: chatto.api.v1.MessageService.CreateMessage:input_type -> chatto.api.v1.CreateMessageRequest
+	4,  // 11: chatto.api.v1.MessageService.UpdateMessage:input_type -> chatto.api.v1.UpdateMessageRequest
+	6,  // 12: chatto.api.v1.MessageService.DeleteMessage:input_type -> chatto.api.v1.DeleteMessageRequest
+	8,  // 13: chatto.api.v1.MessageService.DeleteAttachment:input_type -> chatto.api.v1.DeleteAttachmentRequest
+	10, // 14: chatto.api.v1.MessageService.DeleteLinkPreview:input_type -> chatto.api.v1.DeleteLinkPreviewRequest
+	12, // 15: chatto.api.v1.MessageService.GetMessage:input_type -> chatto.api.v1.GetMessageRequest
+	14, // 16: chatto.api.v1.MessageService.BatchGetMessages:input_type -> chatto.api.v1.BatchGetMessagesRequest
+	18, // 17: chatto.api.v1.MessageService.AddReaction:input_type -> chatto.api.v1.AddReactionRequest
+	19, // 18: chatto.api.v1.MessageService.RemoveReaction:input_type -> chatto.api.v1.RemoveReactionRequest
+	3,  // 19: chatto.api.v1.MessageService.CreateMessage:output_type -> chatto.api.v1.CreateMessageResponse
+	5,  // 20: chatto.api.v1.MessageService.UpdateMessage:output_type -> chatto.api.v1.UpdateMessageResponse
+	7,  // 21: chatto.api.v1.MessageService.DeleteMessage:output_type -> chatto.api.v1.DeleteMessageResponse
+	9,  // 22: chatto.api.v1.MessageService.DeleteAttachment:output_type -> chatto.api.v1.DeleteAttachmentResponse
+	11, // 23: chatto.api.v1.MessageService.DeleteLinkPreview:output_type -> chatto.api.v1.DeleteLinkPreviewResponse
+	13, // 24: chatto.api.v1.MessageService.GetMessage:output_type -> chatto.api.v1.GetMessageResponse
+	15, // 25: chatto.api.v1.MessageService.BatchGetMessages:output_type -> chatto.api.v1.BatchGetMessagesResponse
+	20, // 26: chatto.api.v1.MessageService.AddReaction:output_type -> chatto.api.v1.AddReactionResponse
+	21, // 27: chatto.api.v1.MessageService.RemoveReaction:output_type -> chatto.api.v1.RemoveReactionResponse
+	19, // [19:28] is the sub-list for method output_type
+	10, // [10:19] is the sub-list for method input_type
+	10, // [10:10] is the sub-list for extension type_name
+	10, // [10:10] is the sub-list for extension extendee
+	0,  // [0:10] is the sub-list for field type_name
 }
 
 func init() { file_chatto_api_v1_messages_proto_init() }
@@ -1257,7 +1234,6 @@ func file_chatto_api_v1_messages_proto_init() {
 	if File_chatto_api_v1_messages_proto != nil {
 		return
 	}
-	file_chatto_api_v1_attachments_proto_init()
 	file_chatto_api_v1_reactions_proto_init()
 	file_chatto_api_v1_room_timeline_proto_init()
 	file_chatto_api_v1_messages_proto_msgTypes[0].OneofWrappers = []any{}

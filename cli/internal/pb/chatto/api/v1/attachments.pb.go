@@ -23,86 +23,86 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// Fit mode used when generating transformed attachment thumbnails.
-type AttachmentFitMode int32
+// Fit mode used when generating transformed asset thumbnails.
+type AssetFitMode int32
 
 const (
 	// The fit mode was not specified.
-	AttachmentFitMode_ATTACHMENT_FIT_MODE_UNSPECIFIED AttachmentFitMode = 0
+	AssetFitMode_ASSET_FIT_MODE_UNSPECIFIED AssetFitMode = 0
 	// Preserve the whole source image within the requested bounds.
-	AttachmentFitMode_ATTACHMENT_FIT_MODE_CONTAIN AttachmentFitMode = 1
+	AssetFitMode_ASSET_FIT_MODE_CONTAIN AssetFitMode = 1
 	// Fill the requested bounds, cropping when needed.
-	AttachmentFitMode_ATTACHMENT_FIT_MODE_COVER AttachmentFitMode = 2
+	AssetFitMode_ASSET_FIT_MODE_COVER AssetFitMode = 2
 )
 
-// Enum value maps for AttachmentFitMode.
+// Enum value maps for AssetFitMode.
 var (
-	AttachmentFitMode_name = map[int32]string{
-		0: "ATTACHMENT_FIT_MODE_UNSPECIFIED",
-		1: "ATTACHMENT_FIT_MODE_CONTAIN",
-		2: "ATTACHMENT_FIT_MODE_COVER",
+	AssetFitMode_name = map[int32]string{
+		0: "ASSET_FIT_MODE_UNSPECIFIED",
+		1: "ASSET_FIT_MODE_CONTAIN",
+		2: "ASSET_FIT_MODE_COVER",
 	}
-	AttachmentFitMode_value = map[string]int32{
-		"ATTACHMENT_FIT_MODE_UNSPECIFIED": 0,
-		"ATTACHMENT_FIT_MODE_CONTAIN":     1,
-		"ATTACHMENT_FIT_MODE_COVER":       2,
+	AssetFitMode_value = map[string]int32{
+		"ASSET_FIT_MODE_UNSPECIFIED": 0,
+		"ASSET_FIT_MODE_CONTAIN":     1,
+		"ASSET_FIT_MODE_COVER":       2,
 	}
 )
 
-func (x AttachmentFitMode) Enum() *AttachmentFitMode {
-	p := new(AttachmentFitMode)
+func (x AssetFitMode) Enum() *AssetFitMode {
+	p := new(AssetFitMode)
 	*p = x
 	return p
 }
 
-func (x AttachmentFitMode) String() string {
+func (x AssetFitMode) String() string {
 	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
 }
 
-func (AttachmentFitMode) Descriptor() protoreflect.EnumDescriptor {
+func (AssetFitMode) Descriptor() protoreflect.EnumDescriptor {
 	return file_chatto_api_v1_attachments_proto_enumTypes[0].Descriptor()
 }
 
-func (AttachmentFitMode) Type() protoreflect.EnumType {
+func (AssetFitMode) Type() protoreflect.EnumType {
 	return &file_chatto_api_v1_attachments_proto_enumTypes[0]
 }
 
-func (x AttachmentFitMode) Number() protoreflect.EnumNumber {
+func (x AssetFitMode) Number() protoreflect.EnumNumber {
 	return protoreflect.EnumNumber(x)
 }
 
-// Deprecated: Use AttachmentFitMode.Descriptor instead.
-func (AttachmentFitMode) EnumDescriptor() ([]byte, []int) {
+// Deprecated: Use AssetFitMode.Descriptor instead.
+func (AssetFitMode) EnumDescriptor() ([]byte, []int) {
 	return file_chatto_api_v1_attachments_proto_rawDescGZIP(), []int{0}
 }
 
-// Thumbnail transform parameters for attachment URL reads.
-type AttachmentThumbnailOptions struct {
+// Thumbnail transform parameters for asset URL reads.
+type AssetThumbnailOptions struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Thumbnail width in pixels.
 	Width int32 `protobuf:"varint,1,opt,name=width,proto3" json:"width,omitempty"`
 	// Thumbnail height in pixels.
 	Height int32 `protobuf:"varint,2,opt,name=height,proto3" json:"height,omitempty"`
 	// Thumbnail fit mode.
-	Fit           AttachmentFitMode `protobuf:"varint,3,opt,name=fit,proto3,enum=chatto.api.v1.AttachmentFitMode" json:"fit,omitempty"`
+	Fit           AssetFitMode `protobuf:"varint,3,opt,name=fit,proto3,enum=chatto.api.v1.AssetFitMode" json:"fit,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *AttachmentThumbnailOptions) Reset() {
-	*x = AttachmentThumbnailOptions{}
+func (x *AssetThumbnailOptions) Reset() {
+	*x = AssetThumbnailOptions{}
 	mi := &file_chatto_api_v1_attachments_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *AttachmentThumbnailOptions) String() string {
+func (x *AssetThumbnailOptions) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*AttachmentThumbnailOptions) ProtoMessage() {}
+func (*AssetThumbnailOptions) ProtoMessage() {}
 
-func (x *AttachmentThumbnailOptions) ProtoReflect() protoreflect.Message {
+func (x *AssetThumbnailOptions) ProtoReflect() protoreflect.Message {
 	mi := &file_chatto_api_v1_attachments_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -114,30 +114,30 @@ func (x *AttachmentThumbnailOptions) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use AttachmentThumbnailOptions.ProtoReflect.Descriptor instead.
-func (*AttachmentThumbnailOptions) Descriptor() ([]byte, []int) {
+// Deprecated: Use AssetThumbnailOptions.ProtoReflect.Descriptor instead.
+func (*AssetThumbnailOptions) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_attachments_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *AttachmentThumbnailOptions) GetWidth() int32 {
+func (x *AssetThumbnailOptions) GetWidth() int32 {
 	if x != nil {
 		return x.Width
 	}
 	return 0
 }
 
-func (x *AttachmentThumbnailOptions) GetHeight() int32 {
+func (x *AssetThumbnailOptions) GetHeight() int32 {
 	if x != nil {
 		return x.Height
 	}
 	return 0
 }
 
-func (x *AttachmentThumbnailOptions) GetFit() AttachmentFitMode {
+func (x *AssetThumbnailOptions) GetFit() AssetFitMode {
 	if x != nil {
 		return x.Fit
 	}
-	return AttachmentFitMode_ATTACHMENT_FIT_MODE_UNSPECIFIED
+	return AssetFitMode_ASSET_FIT_MODE_UNSPECIFIED
 }
 
 // One current room attachment and its message anchor.
@@ -213,17 +213,237 @@ func (x *RoomAttachmentListItem) GetCreatedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+// Request to read one room-scoped asset with freshly signed URLs.
+type GetAssetRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Required. Room that owns the asset.
+	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	// Required. Asset ID.
+	AssetId string `protobuf:"bytes,2,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
+	// Thumbnail URL options. Defaults are applied when absent.
+	Thumbnail     *AssetThumbnailOptions `protobuf:"bytes,3,opt,name=thumbnail,proto3" json:"thumbnail,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetAssetRequest) Reset() {
+	*x = GetAssetRequest{}
+	mi := &file_chatto_api_v1_attachments_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetAssetRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetAssetRequest) ProtoMessage() {}
+
+func (x *GetAssetRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_attachments_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetAssetRequest.ProtoReflect.Descriptor instead.
+func (*GetAssetRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_attachments_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *GetAssetRequest) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *GetAssetRequest) GetAssetId() string {
+	if x != nil {
+		return x.AssetId
+	}
+	return ""
+}
+
+func (x *GetAssetRequest) GetThumbnail() *AssetThumbnailOptions {
+	if x != nil {
+		return x.Thumbnail
+	}
+	return nil
+}
+
+// Response containing one room-scoped asset.
+type GetAssetResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Asset metadata and signed URLs.
+	Asset         *RoomTimelineAttachment `protobuf:"bytes,1,opt,name=asset,proto3" json:"asset,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetAssetResponse) Reset() {
+	*x = GetAssetResponse{}
+	mi := &file_chatto_api_v1_attachments_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetAssetResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetAssetResponse) ProtoMessage() {}
+
+func (x *GetAssetResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_attachments_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetAssetResponse.ProtoReflect.Descriptor instead.
+func (*GetAssetResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_attachments_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *GetAssetResponse) GetAsset() *RoomTimelineAttachment {
+	if x != nil {
+		return x.Asset
+	}
+	return nil
+}
+
+// Request to read many room-scoped assets with freshly signed URLs.
+type BatchGetAssetsRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Required. Room that owns the assets.
+	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	// Required. Asset IDs. Missing, deleted, and wrong-room asset IDs are omitted.
+	AssetIds []string `protobuf:"bytes,2,rep,name=asset_ids,json=assetIds,proto3" json:"asset_ids,omitempty"`
+	// Thumbnail URL options. Defaults are applied when absent.
+	Thumbnail     *AssetThumbnailOptions `protobuf:"bytes,3,opt,name=thumbnail,proto3" json:"thumbnail,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BatchGetAssetsRequest) Reset() {
+	*x = BatchGetAssetsRequest{}
+	mi := &file_chatto_api_v1_attachments_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BatchGetAssetsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BatchGetAssetsRequest) ProtoMessage() {}
+
+func (x *BatchGetAssetsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_attachments_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BatchGetAssetsRequest.ProtoReflect.Descriptor instead.
+func (*BatchGetAssetsRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_attachments_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *BatchGetAssetsRequest) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *BatchGetAssetsRequest) GetAssetIds() []string {
+	if x != nil {
+		return x.AssetIds
+	}
+	return nil
+}
+
+func (x *BatchGetAssetsRequest) GetThumbnail() *AssetThumbnailOptions {
+	if x != nil {
+		return x.Thumbnail
+	}
+	return nil
+}
+
+// Response containing room-scoped assets.
+type BatchGetAssetsResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Assets in first-seen request order.
+	Assets        []*RoomTimelineAttachment `protobuf:"bytes,1,rep,name=assets,proto3" json:"assets,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BatchGetAssetsResponse) Reset() {
+	*x = BatchGetAssetsResponse{}
+	mi := &file_chatto_api_v1_attachments_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BatchGetAssetsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BatchGetAssetsResponse) ProtoMessage() {}
+
+func (x *BatchGetAssetsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_attachments_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BatchGetAssetsResponse.ProtoReflect.Descriptor instead.
+func (*BatchGetAssetsResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_attachments_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *BatchGetAssetsResponse) GetAssets() []*RoomTimelineAttachment {
+	if x != nil {
+		return x.Assets
+	}
+	return nil
+}
+
 var File_chatto_api_v1_attachments_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_attachments_proto_rawDesc = "" +
 	"\n" +
-	"\x1fchatto/api/v1/attachments.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a!chatto/api/v1/room_timeline.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xa0\x01\n" +
-	"\x1aAttachmentThumbnailOptions\x12 \n" +
+	"\x1fchatto/api/v1/attachments.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a!chatto/api/v1/room_timeline.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x96\x01\n" +
+	"\x15AssetThumbnailOptions\x12 \n" +
 	"\x05width\x18\x01 \x01(\x05B\n" +
 	"\xbaH\a\x1a\x05\x18\x80 (\x01R\x05width\x12\"\n" +
 	"\x06height\x18\x02 \x01(\x05B\n" +
-	"\xbaH\a\x1a\x05\x18\x80 (\x01R\x06height\x12<\n" +
-	"\x03fit\x18\x03 \x01(\x0e2 .chatto.api.v1.AttachmentFitModeB\b\xbaH\x05\x82\x01\x02\x10\x01R\x03fit\"\xf5\x01\n" +
+	"\xbaH\a\x1a\x05\x18\x80 (\x01R\x06height\x127\n" +
+	"\x03fit\x18\x03 \x01(\x0e2\x1b.chatto.api.v1.AssetFitModeB\b\xbaH\x05\x82\x01\x02\x10\x01R\x03fit\"\xf5\x01\n" +
 	"\x16RoomAttachmentListItem\x12E\n" +
 	"\n" +
 	"attachment\x18\x01 \x01(\v2%.chatto.api.v1.RoomTimelineAttachmentR\n" +
@@ -231,11 +451,27 @@ const file_chatto_api_v1_attachments_proto_rawDesc = "" +
 	"\x10message_event_id\x18\x02 \x01(\tR\x0emessageEventId\x12/\n" +
 	"\x14thread_root_event_id\x18\x03 \x01(\tR\x11threadRootEventId\x129\n" +
 	"\n" +
-	"created_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt*x\n" +
-	"\x11AttachmentFitMode\x12#\n" +
-	"\x1fATTACHMENT_FIT_MODE_UNSPECIFIED\x10\x00\x12\x1f\n" +
-	"\x1bATTACHMENT_FIT_MODE_CONTAIN\x10\x01\x12\x1d\n" +
-	"\x19ATTACHMENT_FIT_MODE_COVER\x10\x02B\xac\x01\n" +
+	"created_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\"\x9b\x01\n" +
+	"\x0fGetAssetRequest\x12 \n" +
+	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x12\"\n" +
+	"\basset_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\aassetId\x12B\n" +
+	"\tthumbnail\x18\x03 \x01(\v2$.chatto.api.v1.AssetThumbnailOptionsR\tthumbnail\"O\n" +
+	"\x10GetAssetResponse\x12;\n" +
+	"\x05asset\x18\x01 \x01(\v2%.chatto.api.v1.RoomTimelineAttachmentR\x05asset\"\xac\x01\n" +
+	"\x15BatchGetAssetsRequest\x12 \n" +
+	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x12-\n" +
+	"\tasset_ids\x18\x02 \x03(\tB\x10\xbaH\r\x92\x01\n" +
+	"\b\x01\x10d\"\x04r\x02\x10\x01R\bassetIds\x12B\n" +
+	"\tthumbnail\x18\x03 \x01(\v2$.chatto.api.v1.AssetThumbnailOptionsR\tthumbnail\"W\n" +
+	"\x16BatchGetAssetsResponse\x12=\n" +
+	"\x06assets\x18\x01 \x03(\v2%.chatto.api.v1.RoomTimelineAttachmentR\x06assets*d\n" +
+	"\fAssetFitMode\x12\x1e\n" +
+	"\x1aASSET_FIT_MODE_UNSPECIFIED\x10\x00\x12\x1a\n" +
+	"\x16ASSET_FIT_MODE_CONTAIN\x10\x01\x12\x18\n" +
+	"\x14ASSET_FIT_MODE_COVER\x10\x022\xba\x01\n" +
+	"\fAssetService\x12K\n" +
+	"\bGetAsset\x12\x1e.chatto.api.v1.GetAssetRequest\x1a\x1f.chatto.api.v1.GetAssetResponse\x12]\n" +
+	"\x0eBatchGetAssets\x12$.chatto.api.v1.BatchGetAssetsRequest\x1a%.chatto.api.v1.BatchGetAssetsResponseB\xac\x01\n" +
 	"\x11com.chatto.api.v1B\x10AttachmentsProtoP\x01Z/hmans.de/chatto/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
 
 var (
@@ -251,23 +487,35 @@ func file_chatto_api_v1_attachments_proto_rawDescGZIP() []byte {
 }
 
 var file_chatto_api_v1_attachments_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_chatto_api_v1_attachments_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_chatto_api_v1_attachments_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_chatto_api_v1_attachments_proto_goTypes = []any{
-	(AttachmentFitMode)(0),             // 0: chatto.api.v1.AttachmentFitMode
-	(*AttachmentThumbnailOptions)(nil), // 1: chatto.api.v1.AttachmentThumbnailOptions
-	(*RoomAttachmentListItem)(nil),     // 2: chatto.api.v1.RoomAttachmentListItem
-	(*RoomTimelineAttachment)(nil),     // 3: chatto.api.v1.RoomTimelineAttachment
-	(*timestamppb.Timestamp)(nil),      // 4: google.protobuf.Timestamp
+	(AssetFitMode)(0),              // 0: chatto.api.v1.AssetFitMode
+	(*AssetThumbnailOptions)(nil),  // 1: chatto.api.v1.AssetThumbnailOptions
+	(*RoomAttachmentListItem)(nil), // 2: chatto.api.v1.RoomAttachmentListItem
+	(*GetAssetRequest)(nil),        // 3: chatto.api.v1.GetAssetRequest
+	(*GetAssetResponse)(nil),       // 4: chatto.api.v1.GetAssetResponse
+	(*BatchGetAssetsRequest)(nil),  // 5: chatto.api.v1.BatchGetAssetsRequest
+	(*BatchGetAssetsResponse)(nil), // 6: chatto.api.v1.BatchGetAssetsResponse
+	(*RoomTimelineAttachment)(nil), // 7: chatto.api.v1.RoomTimelineAttachment
+	(*timestamppb.Timestamp)(nil),  // 8: google.protobuf.Timestamp
 }
 var file_chatto_api_v1_attachments_proto_depIdxs = []int32{
-	0, // 0: chatto.api.v1.AttachmentThumbnailOptions.fit:type_name -> chatto.api.v1.AttachmentFitMode
-	3, // 1: chatto.api.v1.RoomAttachmentListItem.attachment:type_name -> chatto.api.v1.RoomTimelineAttachment
-	4, // 2: chatto.api.v1.RoomAttachmentListItem.created_at:type_name -> google.protobuf.Timestamp
-	3, // [3:3] is the sub-list for method output_type
-	3, // [3:3] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	0, // 0: chatto.api.v1.AssetThumbnailOptions.fit:type_name -> chatto.api.v1.AssetFitMode
+	7, // 1: chatto.api.v1.RoomAttachmentListItem.attachment:type_name -> chatto.api.v1.RoomTimelineAttachment
+	8, // 2: chatto.api.v1.RoomAttachmentListItem.created_at:type_name -> google.protobuf.Timestamp
+	1, // 3: chatto.api.v1.GetAssetRequest.thumbnail:type_name -> chatto.api.v1.AssetThumbnailOptions
+	7, // 4: chatto.api.v1.GetAssetResponse.asset:type_name -> chatto.api.v1.RoomTimelineAttachment
+	1, // 5: chatto.api.v1.BatchGetAssetsRequest.thumbnail:type_name -> chatto.api.v1.AssetThumbnailOptions
+	7, // 6: chatto.api.v1.BatchGetAssetsResponse.assets:type_name -> chatto.api.v1.RoomTimelineAttachment
+	3, // 7: chatto.api.v1.AssetService.GetAsset:input_type -> chatto.api.v1.GetAssetRequest
+	5, // 8: chatto.api.v1.AssetService.BatchGetAssets:input_type -> chatto.api.v1.BatchGetAssetsRequest
+	4, // 9: chatto.api.v1.AssetService.GetAsset:output_type -> chatto.api.v1.GetAssetResponse
+	6, // 10: chatto.api.v1.AssetService.BatchGetAssets:output_type -> chatto.api.v1.BatchGetAssetsResponse
+	9, // [9:11] is the sub-list for method output_type
+	7, // [7:9] is the sub-list for method input_type
+	7, // [7:7] is the sub-list for extension type_name
+	7, // [7:7] is the sub-list for extension extendee
+	0, // [0:7] is the sub-list for field type_name
 }
 
 func init() { file_chatto_api_v1_attachments_proto_init() }
@@ -282,9 +530,9 @@ func file_chatto_api_v1_attachments_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_api_v1_attachments_proto_rawDesc), len(file_chatto_api_v1_attachments_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   2,
+			NumMessages:   6,
 			NumExtensions: 0,
-			NumServices:   0,
+			NumServices:   1,
 		},
 		GoTypes:           file_chatto_api_v1_attachments_proto_goTypes,
 		DependencyIndexes: file_chatto_api_v1_attachments_proto_depIdxs,
