@@ -155,6 +155,7 @@ func (s *messageService) hydratePostedEvent(ctx context.Context, viewerID string
 		kind:                 kind,
 		reactionsByMessageID: reactionsByMessageID,
 		userIDs:              make(map[string]struct{}),
+		thumbnail:            defaultTimelineAttachmentThumbnail(),
 	}
 	apiEvent, err := h.event(ctx, &core.RoomEvent{Event: event})
 	if err != nil {

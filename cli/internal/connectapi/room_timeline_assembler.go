@@ -238,6 +238,10 @@ func (h *timelineHydrator) messagePosted(ctx context.Context, event *core.RoomEv
 
 func (h *timelineHydrator) attachments(roomID, messageEventID string, attachments []*corev1.Attachment) []*apiv1.RoomTimelineAttachment {
 	result := make([]*apiv1.RoomTimelineAttachment, 0, len(attachments))
+	thumbnail := h.thumbnail
+	if thumbnail.width <= 0 || thumbnail.height <= 0 || thumbnail.fit == "" {
+		thumbnail = defaultTimelineAttachmentThumbnail()
+	}
 	for _, attachment := range attachments {
 		if attachment == nil {
 			continue
@@ -249,7 +253,7 @@ func (h *timelineHydrator) attachments(roomID, messageEventID string, attachment
 			attachment.MessageBodyId = messageEventID
 		}
 		assetURL := h.api.core.GetStableAttachmentAssetURL(attachment.Id, h.viewerID)
-		thumbnailURL := h.api.core.GetStableTransformedAttachmentAssetURL(attachment.Id, h.viewerID, h.thumbnail.width, h.thumbnail.height, h.thumbnail.fit)
+		thumbnailURL := h.api.core.GetStableTransformedAttachmentAssetURL(attachment.Id, h.viewerID, thumbnail.width, thumbnail.height, thumbnail.fit)
 		result = append(result, &apiv1.RoomTimelineAttachment{
 			Id:                attachment.Id,
 			Filename:          attachment.Filename,
