@@ -286,7 +286,7 @@ test.describe('Real-time synchronization', () => {
         await settingsPage2.uploadAvatar('e2e/fixtures/brighton.jpg');
 
         // User A: Verify User B's avatar now shows an image instead of initials
-        // The avatar should update in real-time via the UserProfileUpdatedEvent
+        // The avatar should update in real time via the user profile update event.
         await roomPage.expectMemberHasAvatar(userB.login, { timeout: TIMEOUTS.REALTIME_EVENT });
 
         // User B: Remove the avatar

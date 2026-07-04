@@ -139,7 +139,7 @@ func (x *UserAvatarOptions) GetFit() UserAvatarFitMode {
 	return UserAvatarFitMode_USER_AVATAR_FIT_MODE_UNSPECIFIED
 }
 
-// Public user identity fields.
+// Public user fields.
 type User struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Stable user ID.
@@ -151,7 +151,11 @@ type User struct {
 	// True when the user account has been deleted.
 	Deleted bool `protobuf:"varint,4,opt,name=deleted,proto3" json:"deleted,omitempty"`
 	// Avatar image URL, when available.
-	AvatarUrl     *string `protobuf:"bytes,5,opt,name=avatar_url,json=avatarUrl,proto3,oneof" json:"avatar_url,omitempty"`
+	AvatarUrl *string `protobuf:"bytes,5,opt,name=avatar_url,json=avatarUrl,proto3,oneof" json:"avatar_url,omitempty"`
+	// Current live presence status.
+	PresenceStatus PresenceStatus `protobuf:"varint,6,opt,name=presence_status,json=presenceStatus,proto3,enum=chatto.api.v1.PresenceStatus" json:"presence_status,omitempty"`
+	// Custom profile status, when set.
+	CustomStatus  *CustomUserStatus `protobuf:"bytes,7,opt,name=custom_status,json=customStatus,proto3" json:"custom_status,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -221,64 +225,14 @@ func (x *User) GetAvatarUrl() string {
 	return ""
 }
 
-// Public user identity fields plus live profile state.
-type UserProfile struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Public identity fields.
-	User *User `protobuf:"bytes,1,opt,name=user,proto3" json:"user,omitempty"`
-	// Current live presence status.
-	PresenceStatus PresenceStatus `protobuf:"varint,2,opt,name=presence_status,json=presenceStatus,proto3,enum=chatto.api.v1.PresenceStatus" json:"presence_status,omitempty"`
-	// Custom profile status, when set.
-	CustomStatus  *CustomUserStatus `protobuf:"bytes,3,opt,name=custom_status,json=customStatus,proto3" json:"custom_status,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *UserProfile) Reset() {
-	*x = UserProfile{}
-	mi := &file_chatto_api_v1_users_proto_msgTypes[2]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *UserProfile) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*UserProfile) ProtoMessage() {}
-
-func (x *UserProfile) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_users_proto_msgTypes[2]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use UserProfile.ProtoReflect.Descriptor instead.
-func (*UserProfile) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_users_proto_rawDescGZIP(), []int{2}
-}
-
-func (x *UserProfile) GetUser() *User {
-	if x != nil {
-		return x.User
-	}
-	return nil
-}
-
-func (x *UserProfile) GetPresenceStatus() PresenceStatus {
+func (x *User) GetPresenceStatus() PresenceStatus {
 	if x != nil {
 		return x.PresenceStatus
 	}
 	return PresenceStatus_PRESENCE_STATUS_UNSPECIFIED
 }
 
-func (x *UserProfile) GetCustomStatus() *CustomUserStatus {
+func (x *User) GetCustomStatus() *CustomUserStatus {
 	if x != nil {
 		return x.CustomStatus
 	}
@@ -295,19 +249,17 @@ const file_chatto_api_v1_users_proto_rawDesc = "" +
 	"\xbaH\a\x1a\x05\x18\x80 (\x01R\x05width\x12\"\n" +
 	"\x06height\x18\x02 \x01(\x05B\n" +
 	"\xbaH\a\x1a\x05\x18\x80 (\x01R\x06height\x12<\n" +
-	"\x03fit\x18\x03 \x01(\x0e2 .chatto.api.v1.UserAvatarFitModeB\b\xbaH\x05\x82\x01\x02\x10\x01R\x03fit\"\x9c\x01\n" +
+	"\x03fit\x18\x03 \x01(\x0e2 .chatto.api.v1.UserAvatarFitModeB\b\xbaH\x05\x82\x01\x02\x10\x01R\x03fit\"\xaa\x02\n" +
 	"\x04User\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05login\x18\x02 \x01(\tR\x05login\x12!\n" +
 	"\fdisplay_name\x18\x03 \x01(\tR\vdisplayName\x12\x18\n" +
 	"\adeleted\x18\x04 \x01(\bR\adeleted\x12\"\n" +
 	"\n" +
-	"avatar_url\x18\x05 \x01(\tH\x00R\tavatarUrl\x88\x01\x01B\r\n" +
-	"\v_avatar_url\"\xc4\x01\n" +
-	"\vUserProfile\x12'\n" +
-	"\x04user\x18\x01 \x01(\v2\x13.chatto.api.v1.UserR\x04user\x12F\n" +
-	"\x0fpresence_status\x18\x02 \x01(\x0e2\x1d.chatto.api.v1.PresenceStatusR\x0epresenceStatus\x12D\n" +
-	"\rcustom_status\x18\x03 \x01(\v2\x1f.chatto.api.v1.CustomUserStatusR\fcustomStatus*{\n" +
+	"avatar_url\x18\x05 \x01(\tH\x00R\tavatarUrl\x88\x01\x01\x12F\n" +
+	"\x0fpresence_status\x18\x06 \x01(\x0e2\x1d.chatto.api.v1.PresenceStatusR\x0epresenceStatus\x12D\n" +
+	"\rcustom_status\x18\a \x01(\v2\x1f.chatto.api.v1.CustomUserStatusR\fcustomStatusB\r\n" +
+	"\v_avatar_url*{\n" +
 	"\x11UserAvatarFitMode\x12$\n" +
 	" USER_AVATAR_FIT_MODE_UNSPECIFIED\x10\x00\x12 \n" +
 	"\x1cUSER_AVATAR_FIT_MODE_CONTAIN\x10\x01\x12\x1e\n" +
@@ -328,25 +280,23 @@ func file_chatto_api_v1_users_proto_rawDescGZIP() []byte {
 }
 
 var file_chatto_api_v1_users_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_chatto_api_v1_users_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
+var file_chatto_api_v1_users_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_chatto_api_v1_users_proto_goTypes = []any{
 	(UserAvatarFitMode)(0),    // 0: chatto.api.v1.UserAvatarFitMode
 	(*UserAvatarOptions)(nil), // 1: chatto.api.v1.UserAvatarOptions
 	(*User)(nil),              // 2: chatto.api.v1.User
-	(*UserProfile)(nil),       // 3: chatto.api.v1.UserProfile
-	(PresenceStatus)(0),       // 4: chatto.api.v1.PresenceStatus
-	(*CustomUserStatus)(nil),  // 5: chatto.api.v1.CustomUserStatus
+	(PresenceStatus)(0),       // 3: chatto.api.v1.PresenceStatus
+	(*CustomUserStatus)(nil),  // 4: chatto.api.v1.CustomUserStatus
 }
 var file_chatto_api_v1_users_proto_depIdxs = []int32{
 	0, // 0: chatto.api.v1.UserAvatarOptions.fit:type_name -> chatto.api.v1.UserAvatarFitMode
-	2, // 1: chatto.api.v1.UserProfile.user:type_name -> chatto.api.v1.User
-	4, // 2: chatto.api.v1.UserProfile.presence_status:type_name -> chatto.api.v1.PresenceStatus
-	5, // 3: chatto.api.v1.UserProfile.custom_status:type_name -> chatto.api.v1.CustomUserStatus
-	4, // [4:4] is the sub-list for method output_type
-	4, // [4:4] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	3, // 1: chatto.api.v1.User.presence_status:type_name -> chatto.api.v1.PresenceStatus
+	4, // 2: chatto.api.v1.User.custom_status:type_name -> chatto.api.v1.CustomUserStatus
+	3, // [3:3] is the sub-list for method output_type
+	3, // [3:3] is the sub-list for method input_type
+	3, // [3:3] is the sub-list for extension type_name
+	3, // [3:3] is the sub-list for extension extendee
+	0, // [0:3] is the sub-list for field type_name
 }
 
 func init() { file_chatto_api_v1_users_proto_init() }
@@ -363,7 +313,7 @@ func file_chatto_api_v1_users_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_api_v1_users_proto_rawDesc), len(file_chatto_api_v1_users_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   3,
+			NumMessages:   2,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

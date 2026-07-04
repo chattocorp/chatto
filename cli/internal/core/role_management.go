@@ -3,13 +3,16 @@ package core
 import (
 	"context"
 	"fmt"
+
+	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
 type RoleUserSummary struct {
-	ID          string
-	Login       string
-	DisplayName string
-	Deleted     bool
+	ID           string
+	Login        string
+	DisplayName  string
+	Deleted      bool
+	CustomStatus *corev1.CustomUserStatus
 }
 
 type RoleCatalog struct {
@@ -178,10 +181,11 @@ func (c *ChattoCore) serverRoleUsers(ctx context.Context, roleName string) ([]Ro
 			continue
 		}
 		users = append(users, RoleUserSummary{
-			ID:          user.GetId(),
-			Login:       user.GetLogin(),
-			DisplayName: user.GetDisplayName(),
-			Deleted:     user.GetDeleted(),
+			ID:           user.GetId(),
+			Login:        user.GetLogin(),
+			DisplayName:  user.GetDisplayName(),
+			Deleted:      user.GetDeleted(),
+			CustomStatus: user.GetCustomStatus(),
 		})
 	}
 	return users, nil

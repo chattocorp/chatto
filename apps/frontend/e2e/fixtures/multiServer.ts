@@ -426,7 +426,7 @@ export async function loginAdminOnRemote(
     {},
     { headers: authHeaders(loginData.token) }
   );
-  const userId = viewer.user?.profile?.user?.id;
+  const userId = viewer.user?.profile?.id;
   if (!userId) {
     throw new Error(
       `No userId returned from remote viewer RPC: ${JSON.stringify(viewer.toJson())}`

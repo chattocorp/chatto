@@ -56,14 +56,12 @@ describe('createMemberDirectoryAPI', () => {
     mocks.listUsers.mockResolvedValue({
       users: [
         {
-          profile: {
-            user: {
-              id: 'U1',
-              login: 'alice',
-              displayName: 'Alice',
-              deleted: false,
-              avatarUrl: 'https://cdn/avatar.webp'
-            },
+          user: {
+            id: 'U1',
+            login: 'alice',
+            displayName: 'Alice',
+            deleted: false,
+            avatarUrl: 'https://cdn/avatar.webp',
             presenceStatus: APIPresenceStatus.AWAY,
             customStatus: {
               emoji: ':seedling:',
@@ -117,13 +115,11 @@ describe('createMemberDirectoryAPI', () => {
 
   it('gets and batch gets users', async () => {
     const member = {
-      profile: {
-        user: {
-          id: 'U1',
-          login: 'alice',
-          displayName: 'Alice',
-          deleted: false
-        },
+      user: {
+        id: 'U1',
+        login: 'alice',
+        displayName: 'Alice',
+        deleted: false,
         presenceStatus: APIPresenceStatus.ONLINE
       },
       roles: ['everyone']
@@ -168,13 +164,11 @@ describe('createMemberDirectoryAPI', () => {
     mocks.listRoomMembers.mockResolvedValue({
       members: [
         {
-          profile: {
-            user: {
-              id: 'U2',
-              login: 'bob',
-              displayName: 'Bob',
-              deleted: false
-            },
+          user: {
+            id: 'U2',
+            login: 'bob',
+            displayName: 'Bob',
+            deleted: false,
             presenceStatus: APIPresenceStatus.DO_NOT_DISTURB
           },
           roles: []
@@ -211,13 +205,11 @@ describe('createMemberDirectoryAPI', () => {
 
   it('gets and batch gets room members', async () => {
     const member = {
-      profile: {
-        user: {
-          id: 'U2',
-          login: 'bob',
-          displayName: 'Bob',
-          deleted: false
-        },
+      user: {
+        id: 'U2',
+        login: 'bob',
+        displayName: 'Bob',
+        deleted: false,
         presenceStatus: APIPresenceStatus.OFFLINE
       },
       roles: []
@@ -265,25 +257,21 @@ describe('createMemberDirectoryAPI', () => {
     mocks.listUsers.mockResolvedValue({
       users: [
         {
-          profile: {
-            user: {
+          user: {
               id: 'U3',
               login: 'carol',
               displayName: 'Carol',
-              deleted: false
-            },
+              deleted: false,
             presenceStatus: APIPresenceStatus.OFFLINE
           },
           roles: []
         },
         {
-          profile: {
-            user: {
+          user: {
               id: 'U4',
               login: 'dave',
               displayName: 'Dave',
-              deleted: false
-            },
+              deleted: false,
             presenceStatus: APIPresenceStatus.UNSPECIFIED
           },
           roles: []

@@ -5,7 +5,7 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
-import { UserProfile } from "./users_pb.js";
+import { User } from "./users_pb.js";
 import { CapabilityGrant, PermissionGrant } from "./permissions_pb.js";
 import { NotificationLevel } from "./notification_preferences_pb.js";
 
@@ -136,11 +136,11 @@ export class ViewerUser extends Message<ViewerUser> {
   lastLoginChange?: Timestamp;
 
   /**
-   * Public profile and live presence fields for the authenticated user.
+   * Public user fields for the authenticated user.
    *
-   * @generated from field: chatto.api.v1.UserProfile profile = 11;
+   * @generated from field: chatto.api.v1.User profile = 11;
    */
-  profile?: UserProfile;
+  profile?: User;
 
   /**
    * Whether this account currently has a password sign-in credential.
@@ -161,7 +161,7 @@ export class ViewerUser extends Message<ViewerUser> {
     { no: 8, name: "settings", kind: "message", T: UserSettings },
     { no: 9, name: "viewer_can_delete_account", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 10, name: "last_login_change", kind: "message", T: Timestamp },
-    { no: 11, name: "profile", kind: "message", T: UserProfile },
+    { no: 11, name: "profile", kind: "message", T: User },
     { no: 12, name: "has_password", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 

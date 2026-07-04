@@ -41,8 +41,8 @@ message ViewerUser {
   bool viewer_can_delete_account = 9;
   // Last time a login credential changed, when known.
   google.protobuf.Timestamp last_login_change = 10;
-  // Public profile and live presence fields for the authenticated user.
-  UserProfile profile = 11;
+  // Public user fields for the authenticated user.
+  User profile = 11;
   // Whether this account currently has a password sign-in credential.
   bool has_password = 12;
 }

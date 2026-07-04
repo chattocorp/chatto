@@ -58,8 +58,7 @@ first consumer.
 - Keep cursor/window APIs separate when the model is not offset pagination, for
   example timeline cursors or event-log sequence scans.
 - Reuse canonical user shapes when they fit:
-  - `User` for public identity fields.
-  - `UserProfile` when presence/custom status is part of the result.
+  - `User` for public identity, avatar, presence, and custom-status fields.
   - `DirectoryMember` for directory/member rows with roles and
     membership-oriented metadata.
 - Add a new user-shaped message only when shared shapes cannot represent the

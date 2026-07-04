@@ -120,6 +120,10 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
   `UserService.ListUsers`, `GetUser`, and `BatchGetUsers`. Replace
   `UserDirectoryService.GetUser` and `BatchGetUsers` with `UserService.GetUser`
   and `UserService.BatchGetUsers`.
+- `UserProfile` was folded into `User`. Presence and custom status now live
+  directly on `User`; `DirectoryMember.profile` is now `DirectoryMember.user`,
+  and notification actors, call participants, viewer profiles, and user
+  includes also return the canonical `User` shape.
 - Room member reads moved from `RoomMemberService` to `RoomService`: replace
   `RoomMemberService.ListMembers`, `GetMember`, and `BatchGetMembers` with
   `RoomService.ListMembers`, `GetMember`, and `BatchGetMembers`. Room moderation RPCs

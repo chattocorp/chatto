@@ -105,7 +105,7 @@ export async function loginAsAdmin(page: Page): Promise<TestUser> {
   expect(loginResponse.ok()).toBeTruthy();
 
   const viewer = await connectPost<ViewerResponse>(page, 'chatto.api.v1.ViewerService/GetViewer');
-  adminUser.id = viewer.user?.profile?.user?.id;
+  adminUser.id = viewer.user?.profile?.id;
   expect(adminUser.id).toBeTruthy();
 
   return adminUser;

@@ -11,28 +11,18 @@ type userService struct {
 	api *API
 }
 
-func (s *userService) userPresenceSummary(ctx context.Context, user *corev1.User, avatar *apiv1.UserAvatarOptions) (*apiv1.UserProfile, error) {
-	summary, err := s.userSummary(ctx, user, avatar)
-	if err != nil {
-		return nil, err
-	}
+func (s *userService) userSummary(ctx context.Context, user *corev1.User, avatar *apiv1.UserAvatarOptions) (*apiv1.User, error) {
 	presence, err := s.api.core.GetUserPresence(ctx, user.GetId())
 	if err != nil {
 		return nil, connectError(err)
 	}
-	return &apiv1.UserProfile{
-		User:           summary,
+	summary := &apiv1.User{
+		Id:             user.GetId(),
+		Login:          user.GetLogin(),
+		DisplayName:    user.GetDisplayName(),
+		Deleted:        user.GetDeleted(),
 		PresenceStatus: corePresenceStatusToAPI(presence),
 		CustomStatus:   coreCustomStatusToAPI(user.GetCustomStatus()),
-	}, nil
-}
-
-func (s *userService) userSummary(ctx context.Context, user *corev1.User, avatar *apiv1.UserAvatarOptions) (*apiv1.User, error) {
-	summary := &apiv1.User{
-		Id:          user.GetId(),
-		Login:       user.GetLogin(),
-		DisplayName: user.GetDisplayName(),
-		Deleted:     user.GetDeleted(),
 	}
 	avatarURL, err := s.userAvatarURL(ctx, user.GetId(), avatar)
 	if err != nil {

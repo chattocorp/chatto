@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { DirectoryMember as APIDirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
-import { User as APIUser, UserProfile as APIUserProfile } from '@chatto/api-types/api/v1/users_pb';
+import { User as APIUser } from '@chatto/api-types/api/v1/users_pb';
 import { createUserAPI, mapUserSummary } from '$lib/api-client/users';
 
 const mocks = vi.hoisted(() => ({
@@ -32,14 +32,12 @@ describe('createUserAPI', () => {
     mocks.batchGetUsers.mockResolvedValue({
       users: [
         new APIDirectoryMember({
-          profile: new APIUserProfile({
-            user: new APIUser({
-              id: 'U1',
-              login: 'alice',
-              displayName: 'Alice',
-              deleted: false,
-              avatarUrl: 'https://cdn/avatar.webp'
-            })
+          user: new APIUser({
+            id: 'U1',
+            login: 'alice',
+            displayName: 'Alice',
+            deleted: false,
+            avatarUrl: 'https://cdn/avatar.webp'
           })
         })
       ]

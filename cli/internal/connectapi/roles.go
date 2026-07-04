@@ -101,7 +101,7 @@ func (s *roleService) GetRole(ctx context.Context, req *connect.Request[adminv1.
 	}
 	return connect.NewResponse(&adminv1.GetRoleResponse{
 		Role:                 adminAPIRole(details.Role),
-		Users:                apiRoleUsers(details.Users),
+		Users:                s.apiRoleUsers(ctx, details.Users),
 		ViewerCanManageRoles: details.ViewerCanManageRoles,
 		ViewerCanAssignRoles: details.ViewerCanAssignRoles,
 	}), nil
@@ -206,14 +206,20 @@ func adminAPIRole(role *core.RoleWithPermissions) *adminv1.AdminRole {
 	}
 }
 
-func apiRoleUsers(users []core.RoleUserSummary) []*apiv1.User {
+func (s *roleService) apiRoleUsers(ctx context.Context, users []core.RoleUserSummary) []*apiv1.User {
 	out := make([]*apiv1.User, 0, len(users))
 	for _, user := range users {
+		presence, err := s.api.core.GetUserPresence(ctx, user.ID)
+		if err != nil {
+			presence = core.PresenceStatusOffline
+		}
 		out = append(out, &apiv1.User{
-			Id:          user.ID,
-			Login:       user.Login,
-			DisplayName: user.DisplayName,
-			Deleted:     user.Deleted,
+			Id:             user.ID,
+			Login:          user.Login,
+			DisplayName:    user.DisplayName,
+			Deleted:        user.Deleted,
+			PresenceStatus: corePresenceStatusToAPI(presence),
+			CustomStatus:   coreCustomStatusToAPI(user.CustomStatus),
 		})
 	}
 	return out

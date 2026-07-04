@@ -40,13 +40,11 @@ export type VoiceCallToken = {
 
 type APICallParticipant = {
   user?: {
-    user?: {
-      id: string;
-      login: string;
-      displayName: string;
-      deleted: boolean;
-      avatarUrl?: string;
-    };
+    id: string;
+    login: string;
+    displayName: string;
+    deleted: boolean;
+    avatarUrl?: string;
   };
   joinedAt?: { toDate(): Date };
   callId: string;
@@ -138,7 +136,7 @@ function activeCall(call: {
 function callParticipant(
   participant: APICallParticipant,
 ): VoiceCallParticipant[] {
-  const summary = participant.user?.user;
+  const summary = participant.user;
   if (!summary) return [];
   return [
     {

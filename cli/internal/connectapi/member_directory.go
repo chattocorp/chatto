@@ -236,12 +236,12 @@ func directoryMember(ctx context.Context, api *API, user *corev1.User, roles []s
 		Height: int32(avatarSize),
 		Fit:    apiv1.UserAvatarFitMode_USER_AVATAR_FIT_MODE_COVER,
 	}
-	profile, err := (&userService{api: api}).userPresenceSummary(ctx, user, avatar)
+	apiUser, err := (&userService{api: api}).userSummary(ctx, user, avatar)
 	if err != nil {
 		return nil, err
 	}
 	member := &apiv1.DirectoryMember{
-		Profile:   profile,
+		User:      apiUser,
 		Roles:     append([]string(nil), roles...),
 		CreatedAt: user.GetCreatedAt(),
 	}

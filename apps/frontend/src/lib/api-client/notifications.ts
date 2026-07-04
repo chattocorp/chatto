@@ -10,7 +10,7 @@ import type {
   ListNotificationsResponse,
   NotificationItem as APINotificationItem,
 } from "@chatto/api-types/api/v1/notifications_pb";
-import type { UserProfile as APIUserProfile } from "@chatto/api-types/api/v1/users_pb";
+import type { User as APIUser } from "@chatto/api-types/api/v1/users_pb";
 import { PresenceStatus as APIPresenceStatus } from "@chatto/api-types/api/v1/presence_pb";
 import { PresenceStatus } from "./renderTypes.js";
 
@@ -289,16 +289,15 @@ function notificationSummary(
 }
 
 function notificationActor(
-  actor: APIUserProfile | undefined,
+  actor: APIUser | undefined,
 ): NotificationActor | null {
-  const summary = actor?.user;
-  if (!actor || !summary) return null;
+  if (!actor) return null;
   return {
-    id: summary.id,
-    login: summary.login,
-    displayName: summary.displayName,
-    deleted: summary.deleted,
-    avatarUrl: summary.avatarUrl ?? null,
+    id: actor.id,
+    login: actor.login,
+    displayName: actor.displayName,
+    deleted: actor.deleted,
+    avatarUrl: actor.avatarUrl ?? null,
     presenceStatus: apiPresenceStatus(actor.presenceStatus),
     customStatus: actor.customStatus
       ? {

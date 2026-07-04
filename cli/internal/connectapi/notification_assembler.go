@@ -109,7 +109,7 @@ func (a *notificationAssembler) item(ctx context.Context, notification *corev1.N
 	return item, nil
 }
 
-func (a *notificationAssembler) actor(ctx context.Context, userID string) (*apiv1.UserProfile, error) {
+func (a *notificationAssembler) actor(ctx context.Context, userID string) (*apiv1.User, error) {
 	if userID == "" {
 		return nil, nil
 	}
@@ -120,24 +120,9 @@ func (a *notificationAssembler) actor(ctx context.Context, userID string) (*apiv
 		}
 		return nil, err
 	}
-	presence, err := a.api.core.GetUserPresence(ctx, userID)
+	actor, err := (&userService{api: a.api}).userSummary(ctx, user, nil)
 	if err != nil {
 		return nil, err
-	}
-	actor := &apiv1.UserProfile{
-		User: &apiv1.User{
-			Id:          user.GetId(),
-			Login:       user.GetLogin(),
-			DisplayName: user.GetDisplayName(),
-			Deleted:     user.GetDeleted(),
-		},
-		PresenceStatus: corePresenceStatusToAPI(presence),
-		CustomStatus:   coreCustomStatusToAPI(user.GetCustomStatus()),
-	}
-	if avatarURL, err := a.api.core.GetUserAvatarURL(ctx, userID, nil, nil, ""); err != nil {
-		return nil, err
-	} else if avatarURL != "" {
-		actor.User.AvatarUrl = stringPtr(a.api.absolutizeAssetURL(ctx, avatarURL))
 	}
 	return actor, nil
 }

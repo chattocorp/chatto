@@ -450,7 +450,7 @@ func (x *ListCallParticipantsResponse) GetParticipants() []*CallParticipant {
 type CallParticipant struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Participant user.
-	User *UserProfile `protobuf:"bytes,1,opt,name=user,proto3" json:"user,omitempty"`
+	User *User `protobuf:"bytes,1,opt,name=user,proto3" json:"user,omitempty"`
 	// When the user joined this call.
 	JoinedAt *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=joined_at,json=joinedAt,proto3" json:"joined_at,omitempty"`
 	// Active call session ID.
@@ -489,7 +489,7 @@ func (*CallParticipant) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_voice_calls_proto_rawDescGZIP(), []int{9}
 }
 
-func (x *CallParticipant) GetUser() *UserProfile {
+func (x *CallParticipant) GetUser() *User {
 	if x != nil {
 		return x.User
 	}
@@ -829,9 +829,9 @@ const file_chatto_api_v1_voice_calls_proto_rawDesc = "" +
 	"\x1bListCallParticipantsRequest\x12 \n" +
 	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\"b\n" +
 	"\x1cListCallParticipantsResponse\x12B\n" +
-	"\fparticipants\x18\x01 \x03(\v2\x1e.chatto.api.v1.CallParticipantR\fparticipants\"\x93\x01\n" +
-	"\x0fCallParticipant\x12.\n" +
-	"\x04user\x18\x01 \x01(\v2\x1a.chatto.api.v1.UserProfileR\x04user\x127\n" +
+	"\fparticipants\x18\x01 \x03(\v2\x1e.chatto.api.v1.CallParticipantR\fparticipants\"\x8c\x01\n" +
+	"\x0fCallParticipant\x12'\n" +
+	"\x04user\x18\x01 \x01(\v2\x13.chatto.api.v1.UserR\x04user\x127\n" +
 	"\tjoined_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\bjoinedAt\x12\x17\n" +
 	"\acall_id\x18\x03 \x01(\tR\x06callId\"3\n" +
 	"\x0fJoinCallRequest\x12 \n" +
@@ -888,7 +888,7 @@ var file_chatto_api_v1_voice_calls_proto_goTypes = []any{
 	(*GetCallTokenResponse)(nil),         // 13: chatto.api.v1.GetCallTokenResponse
 	(*LeaveCallRequest)(nil),             // 14: chatto.api.v1.LeaveCallRequest
 	(*LeaveCallResponse)(nil),            // 15: chatto.api.v1.LeaveCallResponse
-	(*UserProfile)(nil),                  // 16: chatto.api.v1.UserProfile
+	(*User)(nil),                         // 16: chatto.api.v1.User
 	(*timestamppb.Timestamp)(nil),        // 17: google.protobuf.Timestamp
 }
 var file_chatto_api_v1_voice_calls_proto_depIdxs = []int32{
@@ -897,7 +897,7 @@ var file_chatto_api_v1_voice_calls_proto_depIdxs = []int32{
 	2,  // 2: chatto.api.v1.GetActiveCallResponse.call:type_name -> chatto.api.v1.ActiveCall
 	2,  // 3: chatto.api.v1.BatchGetActiveCallsResponse.calls:type_name -> chatto.api.v1.ActiveCall
 	9,  // 4: chatto.api.v1.ListCallParticipantsResponse.participants:type_name -> chatto.api.v1.CallParticipant
-	16, // 5: chatto.api.v1.CallParticipant.user:type_name -> chatto.api.v1.UserProfile
+	16, // 5: chatto.api.v1.CallParticipant.user:type_name -> chatto.api.v1.User
 	17, // 6: chatto.api.v1.CallParticipant.joined_at:type_name -> google.protobuf.Timestamp
 	0,  // 7: chatto.api.v1.VoiceCallService.ListActiveCallRooms:input_type -> chatto.api.v1.ListActiveCallRoomsRequest
 	3,  // 8: chatto.api.v1.VoiceCallService.GetActiveCall:input_type -> chatto.api.v1.GetActiveCallRequest

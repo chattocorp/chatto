@@ -120,7 +120,7 @@ message ListCallParticipantsResponse {
 // User currently participating in a room call.
 message CallParticipant {
   // Participant user.
-  UserProfile user = 1;
+  User user = 1;
   // When the user joined this call.
   google.protobuf.Timestamp joined_at = 2;
   // Active call session ID.

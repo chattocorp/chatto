@@ -37,12 +37,10 @@ describe('getCurrentUserViaConnect', () => {
     mocks.getViewer.mockResolvedValue({
       user: {
         profile: {
-          user: {
-            id: 'U1',
-            login: 'alice',
-            displayName: 'Alice',
-            avatarUrl: 'https://cdn/avatar.webp'
-          },
+          id: 'U1',
+          login: 'alice',
+          displayName: 'Alice',
+          avatarUrl: 'https://cdn/avatar.webp',
           customStatus: {
             emoji: ':wave:',
             text: 'here',
@@ -101,11 +99,9 @@ describe('getCurrentUserViaConnect', () => {
     mocks.getViewer.mockResolvedValue({
       user: {
         profile: {
-          user: {
-            id: 'U2',
-            login: 'bob',
-            displayName: 'Bob'
-          },
+          id: 'U2',
+          login: 'bob',
+          displayName: 'Bob',
           presenceStatus: APIPresenceStatus.UNSPECIFIED
         },
         hasVerifiedEmail: false,
@@ -132,11 +128,9 @@ describe('getCurrentUserViaConnect', () => {
     mocks.getViewer.mockResolvedValue({
       user: {
         profile: {
-          user: {
-            id: 'U3',
-            login: 'carol',
-            displayName: 'Carol'
-          },
+          id: 'U3',
+          login: 'carol',
+          displayName: 'Carol',
           presenceStatus: APIPresenceStatus.ONLINE
         },
         hasVerifiedEmail: true

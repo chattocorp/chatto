@@ -1,10 +1,7 @@
 import { authHeaders, createChattoClient } from "./connect.js";
 import { UserService } from "@chatto/api-types/api/v1/member_directory_connect";
 import type { DirectoryMember as APIDirectoryMember } from "@chatto/api-types/api/v1/member_directory_pb";
-import type {
-  User as APIUser,
-  UserProfile as APIUserProfile,
-} from "@chatto/api-types/api/v1/users_pb";
+import type { User as APIUser } from "@chatto/api-types/api/v1/users_pb";
 
 export type UserAPIConfig = {
   baseUrl: string;
@@ -31,7 +28,7 @@ export function createUserAPI(config: UserAPIConfig) {
         { headers: headers() },
       );
       return response.users.flatMap((member) => {
-        const summary = member.profile?.user;
+        const summary = member.user;
         return summary ? [mapUserSummary(summary)] : [];
       });
     },
@@ -40,16 +37,10 @@ export function createUserAPI(config: UserAPIConfig) {
 
 export type UserAPI = ReturnType<typeof createUserAPI>;
 
-export function mapUserProfileSummary(
-  profile: APIUserProfile,
-): UserSummary | null {
-  return profile.user ? mapUserSummary(profile.user) : null;
-}
-
 export function mapDirectoryMemberUserSummary(
   member: APIDirectoryMember,
 ): UserSummary | null {
-  return member.profile?.user ? mapUserSummary(member.profile.user) : null;
+  return member.user ? mapUserSummary(member.user) : null;
 }
 
 export function mapUserSummary(user: APIUser): UserSummary {

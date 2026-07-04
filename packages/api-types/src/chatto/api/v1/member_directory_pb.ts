@@ -5,22 +5,22 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
-import { UserProfile } from "./users_pb.js";
+import { User } from "./users_pb.js";
 import { PageInfo, PageRequest } from "./pagination_pb.js";
 
 /**
- * Public user/member profile used by user directory, room membership, and
- * mention surfaces.
+ * Public user/member row used by user directory, room membership, and mention
+ * surfaces.
  *
  * @generated from message chatto.api.v1.DirectoryMember
  */
 export class DirectoryMember extends Message<DirectoryMember> {
   /**
-   * Public profile and live presence fields.
+   * Public user fields.
    *
-   * @generated from field: chatto.api.v1.UserProfile profile = 1;
+   * @generated from field: chatto.api.v1.User user = 1;
    */
-  profile?: UserProfile;
+  user?: User;
 
   /**
    * Explicit roles assigned to the user. Member listings include the virtual
@@ -45,7 +45,7 @@ export class DirectoryMember extends Message<DirectoryMember> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.DirectoryMember";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "profile", kind: "message", T: UserProfile },
+    { no: 1, name: "user", kind: "message", T: User },
     { no: 2, name: "roles", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
     { no: 3, name: "created_at", kind: "message", T: Timestamp },
   ]);

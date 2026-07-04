@@ -78,7 +78,7 @@ Custom status shown on a user profile, separate from presence.
 
 ### User
 
-Public user identity fields.
+Public user fields.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -87,6 +87,8 @@ Public user identity fields.
 | `display_name` | `string` | Display name, when set. |
 | `deleted` | `bool` | True when the user account has been deleted. |
 | `avatar_url` | `optional string` | Avatar image URL, when available. |
+| `presence_status` | [`PresenceStatus`](#chatto-api-v1-PresenceStatus) | Current live presence status. |
+| `custom_status` | [`CustomUserStatus`](#chatto-api-v1-CustomUserStatus) | Custom profile status, when set. |
 
 <a id="chatto-api-v1-UserAvatarOptions"></a>
 
@@ -99,18 +101,6 @@ Avatar transform parameters for user profile reads.
 | `width` | `int32` | Avatar width in pixels. |
 | `height` | `int32` | Avatar height in pixels. |
 | `fit` | [`UserAvatarFitMode`](#chatto-api-v1-UserAvatarFitMode) | Avatar crop/fit behavior. |
-
-<a id="chatto-api-v1-UserProfile"></a>
-
-### UserProfile
-
-Public user identity fields plus live profile state.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `user` | [`User`](#chatto-api-v1-User) | Public identity fields. |
-| `presence_status` | [`PresenceStatus`](#chatto-api-v1-PresenceStatus) | Current live presence status. |
-| `custom_status` | [`CustomUserStatus`](#chatto-api-v1-CustomUserStatus) | Custom profile status, when set. |
 
 <a id="chatto-api-v1-CapabilityGrant"></a>
 
@@ -225,7 +215,7 @@ Current authenticated user's public profile plus self-only settings.
 | `settings` | [`UserSettings`](#chatto-api-v1-UserSettings) | Current user's display settings. |
 | `viewer_can_delete_account` | `bool` | Whether the authenticated user may delete this account. |
 | `last_login_change` | `google.protobuf.Timestamp` | Last time a login credential changed, when known. |
-| `profile` | [`UserProfile`](#chatto-api-v1-UserProfile) | Public profile and live presence fields for the authenticated user. |
+| `profile` | [`User`](#chatto-api-v1-User) | Public user fields for the authenticated user. |
 | `has_password` | `bool` | Whether this account currently has a password sign-in credential. |
 
 <a id="chatto-api-v1-AssetUpload"></a>
@@ -452,12 +442,12 @@ for simple list browsing.
 
 ### DirectoryMember
 
-Public user/member profile used by user directory, room membership, and
-mention surfaces.
+Public user/member row used by user directory, room membership, and mention
+surfaces.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `profile` | [`UserProfile`](#chatto-api-v1-UserProfile) | Public profile and live presence fields. |
+| `user` | [`User`](#chatto-api-v1-User) | Public user fields. |
 | `roles` | `repeated string` | Explicit roles assigned to the user. Member listings include the virtual `everyone` role for parity with Chatto's permission model. |
 | `created_at` | `google.protobuf.Timestamp` | Account creation time when known. |
 
@@ -494,7 +484,7 @@ One pending notification for the authenticated viewer.
 | --- | --- | --- |
 | `id` | `string` | Stable notification ID. |
 | `created_at` | `google.protobuf.Timestamp` | Creation time. |
-| `actor` | [`UserProfile`](#chatto-api-v1-UserProfile) | User who triggered the notification, when still resolvable. |
+| `actor` | [`User`](#chatto-api-v1-User) | User who triggered the notification, when still resolvable. |
 | `kind.direct_message` | [`DirectMessageNotification`](#chatto-api-v1-DirectMessageNotification) | Direct-message notification. |
 | `kind.mention` | [`MentionNotification`](#chatto-api-v1-MentionNotification) | Mention notification. |
 | `kind.reply` | [`ReplyNotification`](#chatto-api-v1-ReplyNotification) | Reply notification. |
@@ -858,7 +848,7 @@ User currently participating in a room call.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `user` | [`UserProfile`](#chatto-api-v1-UserProfile) | Participant user. |
+| `user` | [`User`](#chatto-api-v1-User) | Participant user. |
 | `joined_at` | `google.protobuf.Timestamp` | When the user joined this call. |
 | `call_id` | `string` | Active call session ID. |
 

@@ -168,13 +168,11 @@ describe('createRoomTimelineAPI', () => {
     mocks.batchGetUsers.mockResolvedValue({
       users: [
         {
-          profile: {
-            user: {
-              id: 'u1',
-              login: 'alice',
-              displayName: 'Alice',
-              deleted: false
-            }
+          user: {
+            id: 'u1',
+            login: 'alice',
+            displayName: 'Alice',
+            deleted: false
           }
         }
       ]

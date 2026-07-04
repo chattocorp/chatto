@@ -23,12 +23,12 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// Public user/member profile used by user directory, room membership, and
-// mention surfaces.
+// Public user/member row used by user directory, room membership, and mention
+// surfaces.
 type DirectoryMember struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Public profile and live presence fields.
-	Profile *UserProfile `protobuf:"bytes,1,opt,name=profile,proto3" json:"profile,omitempty"`
+	// Public user fields.
+	User *User `protobuf:"bytes,1,opt,name=user,proto3" json:"user,omitempty"`
 	// Explicit roles assigned to the user. Member listings include the virtual
 	// `everyone` role for parity with Chatto's permission model.
 	Roles []string `protobuf:"bytes,2,rep,name=roles,proto3" json:"roles,omitempty"`
@@ -68,9 +68,9 @@ func (*DirectoryMember) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_member_directory_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *DirectoryMember) GetProfile() *UserProfile {
+func (x *DirectoryMember) GetUser() *User {
 	if x != nil {
-		return x.Profile
+		return x.User
 	}
 	return nil
 }
@@ -750,9 +750,9 @@ var File_chatto_api_v1_member_directory_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_member_directory_proto_rawDesc = "" +
 	"\n" +
-	"$chatto/api/v1/member_directory.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1echatto/api/v1/pagination.proto\x1a\x19chatto/api/v1/users.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x98\x01\n" +
-	"\x0fDirectoryMember\x124\n" +
-	"\aprofile\x18\x01 \x01(\v2\x1a.chatto.api.v1.UserProfileR\aprofile\x12\x14\n" +
+	"$chatto/api/v1/member_directory.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1echatto/api/v1/pagination.proto\x1a\x19chatto/api/v1/users.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x8b\x01\n" +
+	"\x0fDirectoryMember\x12'\n" +
+	"\x04user\x18\x01 \x01(\v2\x13.chatto.api.v1.UserR\x04user\x12\x14\n" +
 	"\x05roles\x18\x02 \x03(\tR\x05roles\x129\n" +
 	"\n" +
 	"created_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\"~\n" +
@@ -824,13 +824,13 @@ var file_chatto_api_v1_member_directory_proto_goTypes = []any{
 	(*GetRoomMemberResponse)(nil),       // 10: chatto.api.v1.GetRoomMemberResponse
 	(*BatchGetRoomMembersRequest)(nil),  // 11: chatto.api.v1.BatchGetRoomMembersRequest
 	(*BatchGetRoomMembersResponse)(nil), // 12: chatto.api.v1.BatchGetRoomMembersResponse
-	(*UserProfile)(nil),                 // 13: chatto.api.v1.UserProfile
+	(*User)(nil),                        // 13: chatto.api.v1.User
 	(*timestamppb.Timestamp)(nil),       // 14: google.protobuf.Timestamp
 	(*PageRequest)(nil),                 // 15: chatto.api.v1.PageRequest
 	(*PageInfo)(nil),                    // 16: chatto.api.v1.PageInfo
 }
 var file_chatto_api_v1_member_directory_proto_depIdxs = []int32{
-	13, // 0: chatto.api.v1.DirectoryMember.profile:type_name -> chatto.api.v1.UserProfile
+	13, // 0: chatto.api.v1.DirectoryMember.user:type_name -> chatto.api.v1.User
 	14, // 1: chatto.api.v1.DirectoryMember.created_at:type_name -> google.protobuf.Timestamp
 	15, // 2: chatto.api.v1.ListUsersRequest.page:type_name -> chatto.api.v1.PageRequest
 	0,  // 3: chatto.api.v1.ListUsersResponse.users:type_name -> chatto.api.v1.DirectoryMember

@@ -100,7 +100,7 @@ export class UserAvatarOptions extends Message<UserAvatarOptions> {
 }
 
 /**
- * Public user identity fields.
+ * Public user fields.
  *
  * @generated from message chatto.api.v1.User
  */
@@ -140,6 +140,20 @@ export class User extends Message<User> {
    */
   avatarUrl?: string;
 
+  /**
+   * Current live presence status.
+   *
+   * @generated from field: chatto.api.v1.PresenceStatus presence_status = 6;
+   */
+  presenceStatus = PresenceStatus.UNSPECIFIED;
+
+  /**
+   * Custom profile status, when set.
+   *
+   * @generated from field: chatto.api.v1.CustomUserStatus custom_status = 7;
+   */
+  customStatus?: CustomUserStatus;
+
   constructor(data?: PartialMessage<User>) {
     super();
     proto3.util.initPartial(data, this);
@@ -153,6 +167,8 @@ export class User extends Message<User> {
     { no: 3, name: "display_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 4, name: "deleted", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 5, name: "avatar_url", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 6, name: "presence_status", kind: "enum", T: proto3.getEnumType(PresenceStatus) },
+    { no: 7, name: "custom_status", kind: "message", T: CustomUserStatus },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): User {
@@ -169,62 +185,5 @@ export class User extends Message<User> {
 
   static equals(a: User | PlainMessage<User> | undefined, b: User | PlainMessage<User> | undefined): boolean {
     return proto3.util.equals(User, a, b);
-  }
-}
-
-/**
- * Public user identity fields plus live profile state.
- *
- * @generated from message chatto.api.v1.UserProfile
- */
-export class UserProfile extends Message<UserProfile> {
-  /**
-   * Public identity fields.
-   *
-   * @generated from field: chatto.api.v1.User user = 1;
-   */
-  user?: User;
-
-  /**
-   * Current live presence status.
-   *
-   * @generated from field: chatto.api.v1.PresenceStatus presence_status = 2;
-   */
-  presenceStatus = PresenceStatus.UNSPECIFIED;
-
-  /**
-   * Custom profile status, when set.
-   *
-   * @generated from field: chatto.api.v1.CustomUserStatus custom_status = 3;
-   */
-  customStatus?: CustomUserStatus;
-
-  constructor(data?: PartialMessage<UserProfile>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.UserProfile";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "user", kind: "message", T: User },
-    { no: 2, name: "presence_status", kind: "enum", T: proto3.getEnumType(PresenceStatus) },
-    { no: 3, name: "custom_status", kind: "message", T: CustomUserStatus },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UserProfile {
-    return new UserProfile().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): UserProfile {
-    return new UserProfile().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): UserProfile {
-    return new UserProfile().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: UserProfile | PlainMessage<UserProfile> | undefined, b: UserProfile | PlainMessage<UserProfile> | undefined): boolean {
-    return proto3.util.equals(UserProfile, a, b);
   }
 }

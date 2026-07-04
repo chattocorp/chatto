@@ -53,13 +53,11 @@ describe('createVoiceCallAPI', () => {
   it('maps voice call reads and sends bearer auth', async () => {
     const participant = {
       user: {
-        user: {
-          id: 'U1',
-          login: 'alice',
-          displayName: 'Alice',
-          deleted: false,
-          avatarUrl: 'https://cdn/avatar.webp'
-        }
+        id: 'U1',
+        login: 'alice',
+        displayName: 'Alice',
+        deleted: false,
+        avatarUrl: 'https://cdn/avatar.webp'
       },
       joinedAt: Timestamp.fromDate(new Date('2026-06-01T12:00:00Z')),
       callId: 'call-1'

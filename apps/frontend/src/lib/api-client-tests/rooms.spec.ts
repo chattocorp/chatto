@@ -122,13 +122,11 @@ describe('createRoomCommandAPI', () => {
     mocks.leaveRoom.mockResolvedValue({ left: true });
     mocks.addMember.mockResolvedValue({
       member: {
-        profile: {
-          user: {
-            id: 'user-1',
-            login: 'alice',
-            displayName: 'Alice',
-            deleted: false
-          },
+        user: {
+          id: 'user-1',
+          login: 'alice',
+          displayName: 'Alice',
+          deleted: false,
           presenceStatus: APIPresenceStatus.ONLINE
         },
         roles: []
@@ -244,14 +242,12 @@ describe('createRoomCommandAPI', () => {
           },
           userId: 'user-1',
           user: {
-            profile: {
-              user: {
-                id: 'user-1',
-                login: 'alice',
-                displayName: 'Alice',
-                deleted: false,
-                avatarUrl: 'https://cdn/avatar.webp'
-              },
+            user: {
+              id: 'user-1',
+              login: 'alice',
+              displayName: 'Alice',
+              deleted: false,
+              avatarUrl: 'https://cdn/avatar.webp',
               presenceStatus: APIPresenceStatus.AWAY
             },
             roles: [],
@@ -259,13 +255,11 @@ describe('createRoomCommandAPI', () => {
           },
           moderatorId: 'mod-1',
           moderator: {
-            profile: {
-              user: {
-                id: 'mod-1',
-                login: 'mod',
-                displayName: 'Moderator',
-                deleted: false
-              },
+            user: {
+              id: 'mod-1',
+              login: 'mod',
+              displayName: 'Moderator',
+              deleted: false,
               presenceStatus: APIPresenceStatus.OFFLINE
             },
             roles: []

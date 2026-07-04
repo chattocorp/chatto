@@ -101,13 +101,11 @@ describe('createMessageAPI', () => {
     mocks.batchGetUsers.mockResolvedValue({
       users: [
         {
-          profile: {
-            user: {
-              id: 'user-1',
-              login: 'alice',
-              displayName: 'Alice',
-              deleted: false
-            }
+          user: {
+            id: 'user-1',
+            login: 'alice',
+            displayName: 'Alice',
+            deleted: false
           }
         }
       ]
@@ -295,15 +293,11 @@ describe('createMessageAPI', () => {
     mocks.batchGetUsers.mockResolvedValue({
       users: [
         {
-          profile: {
-            user: {
-              id: 'user-1',
-              login: 'alice',
-              displayName: 'Alice',
-              deleted: false
-            },
-            presenceStatus: 0,
-            customStatus: ''
+          user: {
+            id: 'user-1',
+            login: 'alice',
+            displayName: 'Alice',
+            deleted: false
           }
         }
       ]

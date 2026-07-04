@@ -97,10 +97,6 @@ export async function getViewerStateViaConnect(
     throw new Error("viewer response did not include a user profile");
   }
   const user = response.user.profile;
-  if (!user.user) {
-    throw new Error("viewer response did not include a user summary");
-  }
-  const summary = user.user;
   const grants = mapCapabilityGrants(response.capabilities?.grants);
   const viewerPermissions = mapPermissionGrants(
     response.viewerPermissions?.permissions,
@@ -108,10 +104,10 @@ export async function getViewerStateViaConnect(
   const can = (capability: string) => grants[capability] ?? false;
   return {
     user: {
-      id: summary.id,
-      login: summary.login,
-      displayName: summary.displayName,
-      avatarUrl: summary.avatarUrl ?? null,
+      id: user.id,
+      login: user.login,
+      displayName: user.displayName,
+      avatarUrl: user.avatarUrl ?? null,
       customStatus: user.customStatus
         ? {
             emoji: user.customStatus.emoji,

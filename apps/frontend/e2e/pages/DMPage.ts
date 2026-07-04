@@ -47,7 +47,7 @@ export class DMPage {
       'chatto.api.v1.UserService/GetUser',
       { login: username }
     );
-    const userId = userData.user?.profile?.user?.id;
+    const userId = userData.user?.profile?.id;
     if (!userId) {
       throw new Error(`User not found: ${username}`);
     }

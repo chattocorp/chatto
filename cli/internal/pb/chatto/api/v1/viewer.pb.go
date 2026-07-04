@@ -146,8 +146,8 @@ type ViewerUser struct {
 	ViewerCanDeleteAccount bool `protobuf:"varint,9,opt,name=viewer_can_delete_account,json=viewerCanDeleteAccount,proto3" json:"viewer_can_delete_account,omitempty"`
 	// Last time a login credential changed, when known.
 	LastLoginChange *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=last_login_change,json=lastLoginChange,proto3" json:"last_login_change,omitempty"`
-	// Public profile and live presence fields for the authenticated user.
-	Profile *UserProfile `protobuf:"bytes,11,opt,name=profile,proto3" json:"profile,omitempty"`
+	// Public user fields for the authenticated user.
+	Profile *User `protobuf:"bytes,11,opt,name=profile,proto3" json:"profile,omitempty"`
 	// Whether this account currently has a password sign-in credential.
 	HasPassword   bool `protobuf:"varint,12,opt,name=has_password,json=hasPassword,proto3" json:"has_password,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -212,7 +212,7 @@ func (x *ViewerUser) GetLastLoginChange() *timestamppb.Timestamp {
 	return nil
 }
 
-func (x *ViewerUser) GetProfile() *UserProfile {
+func (x *ViewerUser) GetProfile() *User {
 	if x != nil {
 		return x.Profile
 	}
@@ -629,15 +629,15 @@ const file_chatto_api_v1_viewer_proto_rawDesc = "" +
 	"\btimezone\x18\x01 \x01(\tH\x00R\btimezone\x88\x01\x01\x12:\n" +
 	"\vtime_format\x18\x02 \x01(\x0e2\x19.chatto.api.v1.TimeFormatR\n" +
 	"timeFormatB\v\n" +
-	"\t_timezone\"\x9a\x03\n" +
+	"\t_timezone\"\x93\x03\n" +
 	"\n" +
 	"ViewerUser\x12,\n" +
 	"\x12has_verified_email\x18\a \x01(\bR\x10hasVerifiedEmail\x127\n" +
 	"\bsettings\x18\b \x01(\v2\x1b.chatto.api.v1.UserSettingsR\bsettings\x129\n" +
 	"\x19viewer_can_delete_account\x18\t \x01(\bR\x16viewerCanDeleteAccount\x12F\n" +
 	"\x11last_login_change\x18\n" +
-	" \x01(\v2\x1a.google.protobuf.TimestampR\x0flastLoginChange\x124\n" +
-	"\aprofile\x18\v \x01(\v2\x1a.chatto.api.v1.UserProfileR\aprofile\x12!\n" +
+	" \x01(\v2\x1a.google.protobuf.TimestampR\x0flastLoginChange\x12-\n" +
+	"\aprofile\x18\v \x01(\v2\x13.chatto.api.v1.UserR\aprofile\x12!\n" +
 	"\fhas_password\x18\f \x01(\bR\vhasPasswordJ\x04\b\x01\x10\aR\x02idR\x05loginR\fdisplay_nameR\n" +
 	"avatar_urlR\rcustom_statusR\x0fpresence_status\"\x8b\x01\n" +
 	"\x12ViewerCapabilities\x126\n" +
@@ -698,7 +698,7 @@ var file_chatto_api_v1_viewer_proto_goTypes = []any{
 	(*GetViewerRequest)(nil),             // 8: chatto.api.v1.GetViewerRequest
 	(*GetViewerResponse)(nil),            // 9: chatto.api.v1.GetViewerResponse
 	(*timestamppb.Timestamp)(nil),        // 10: google.protobuf.Timestamp
-	(*UserProfile)(nil),                  // 11: chatto.api.v1.UserProfile
+	(*User)(nil),                         // 11: chatto.api.v1.User
 	(*CapabilityGrant)(nil),              // 12: chatto.api.v1.CapabilityGrant
 	(*PermissionGrant)(nil),              // 13: chatto.api.v1.PermissionGrant
 	(NotificationLevel)(0),               // 14: chatto.api.v1.NotificationLevel
@@ -707,7 +707,7 @@ var file_chatto_api_v1_viewer_proto_depIdxs = []int32{
 	0,  // 0: chatto.api.v1.UserSettings.time_format:type_name -> chatto.api.v1.TimeFormat
 	1,  // 1: chatto.api.v1.ViewerUser.settings:type_name -> chatto.api.v1.UserSettings
 	10, // 2: chatto.api.v1.ViewerUser.last_login_change:type_name -> google.protobuf.Timestamp
-	11, // 3: chatto.api.v1.ViewerUser.profile:type_name -> chatto.api.v1.UserProfile
+	11, // 3: chatto.api.v1.ViewerUser.profile:type_name -> chatto.api.v1.User
 	12, // 4: chatto.api.v1.ViewerCapabilities.grants:type_name -> chatto.api.v1.CapabilityGrant
 	13, // 5: chatto.api.v1.ServerViewerPermissions.permissions:type_name -> chatto.api.v1.PermissionGrant
 	14, // 6: chatto.api.v1.ServerNotificationPreference.level:type_name -> chatto.api.v1.NotificationLevel

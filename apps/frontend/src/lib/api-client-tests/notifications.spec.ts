@@ -63,13 +63,11 @@ describe('createNotificationAPI', () => {
           id: 'n1',
           createdAt: Timestamp.fromDate(new Date('2026-06-01T12:00:00Z')),
           actor: {
-            user: {
-              id: 'u1',
-              login: 'alice',
-              displayName: 'Alice',
-              deleted: false,
-              avatarUrl: 'https://cdn/avatar.webp'
-            },
+            id: 'u1',
+            login: 'alice',
+            displayName: 'Alice',
+            deleted: false,
+            avatarUrl: 'https://cdn/avatar.webp',
             presenceStatus: APIPresenceStatus.OFFLINE
           },
           kind: {

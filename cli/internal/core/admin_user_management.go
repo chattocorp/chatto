@@ -48,6 +48,7 @@ type AdminMember struct {
 	VerifiedEmails         []string
 	ViewerCanDeleteAccount bool
 	LastLoginChange        *time.Time
+	CustomStatus           *corev1.CustomUserStatus
 }
 
 type AdminMemberList struct {
@@ -252,13 +253,14 @@ func (c *ChattoCore) adminMemberForViewer(ctx context.Context, actorID string, u
 	}
 
 	member := &AdminMember{
-		ID:          user.GetId(),
-		Login:       user.GetLogin(),
-		DisplayName: user.GetDisplayName(),
-		AvatarURL:   avatarURL,
-		Roles:       roles,
-		CreatedAt:   user.GetCreatedAt(),
-		Deleted:     user.GetDeleted(),
+		ID:           user.GetId(),
+		Login:        user.GetLogin(),
+		DisplayName:  user.GetDisplayName(),
+		AvatarURL:    avatarURL,
+		Roles:        roles,
+		CreatedAt:    user.GetCreatedAt(),
+		Deleted:      user.GetDeleted(),
+		CustomStatus: user.GetCustomStatus(),
 	}
 
 	if canViewEmails, err := c.canViewAdminMemberEmails(ctx, actorID, user.GetId()); err != nil {

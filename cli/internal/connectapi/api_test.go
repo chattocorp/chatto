@@ -1038,7 +1038,7 @@ func TestOperatorUserServiceAssignRoleRejectsMissingUserWithoutPersistingRole(t 
 	}
 }
 
-func TestUserServiceGetUserReadsPublicUserProfiles(t *testing.T) {
+func TestUserServiceGetUserReadsPublicUsers(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 
 	if _, err := env.users.GetUser(env.ctx, connect.NewRequest(&apiv1.GetUserRequest{Target: &apiv1.GetUserRequest_UserId{UserId: env.viewer.Id}})); connect.CodeOf(err) != connect.CodeUnauthenticated {
@@ -1057,8 +1057,8 @@ func TestUserServiceGetUserReadsPublicUserProfiles(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetUser offline profile: %v", err)
 	}
-	if offlineResp.Msg.GetUser().GetProfile().GetPresenceStatus() != apiv1.PresenceStatus_PRESENCE_STATUS_OFFLINE {
-		t.Fatalf("offline profile presence = %v, want OFFLINE", offlineResp.Msg.GetUser().GetProfile().GetPresenceStatus())
+	if offlineResp.Msg.GetUser().GetUser().GetPresenceStatus() != apiv1.PresenceStatus_PRESENCE_STATUS_OFFLINE {
+		t.Fatalf("offline profile presence = %v, want OFFLINE", offlineResp.Msg.GetUser().GetUser().GetPresenceStatus())
 	}
 
 	if _, err := env.core.SetUserCustomStatus(env.ctx, env.viewer.Id, "wave", "around", nil); err != nil {
@@ -1076,9 +1076,8 @@ func TestUserServiceGetUserReadsPublicUserProfiles(t *testing.T) {
 		t.Fatalf("GetUser: %v", err)
 	}
 	userRow := resp.Msg.GetUser()
-	user := userRow.GetProfile()
-	summary := user.GetUser()
-	if summary.GetId() != env.viewer.Id || summary.GetLogin() != env.viewer.Login || summary.GetDisplayName() != env.viewer.DisplayName {
+	user := userRow.GetUser()
+	if user.GetId() != env.viewer.Id || user.GetLogin() != env.viewer.Login || user.GetDisplayName() != env.viewer.DisplayName {
 		t.Fatalf("GetUser user = %+v, want viewer public profile", user)
 	}
 	if user.GetPresenceStatus() != apiv1.PresenceStatus_PRESENCE_STATUS_ONLINE {
@@ -1098,7 +1097,7 @@ func TestUserServiceGetUserReadsPublicUserProfiles(t *testing.T) {
 	}
 	if got := batchResp.Msg.GetUsers(); len(got) != 1 {
 		t.Fatalf("BatchGetUsers len = %d, want 1: %+v", len(got), got)
-	} else if got[0].GetProfile().GetUser().GetId() != env.viewer.Id || got[0].GetProfile().GetUser().GetLogin() != env.viewer.Login || got[0].GetProfile().GetUser().GetDisplayName() != env.viewer.DisplayName || got[0].GetProfile().GetPresenceStatus() != apiv1.PresenceStatus_PRESENCE_STATUS_ONLINE {
+	} else if got[0].GetUser().GetId() != env.viewer.Id || got[0].GetUser().GetLogin() != env.viewer.Login || got[0].GetUser().GetDisplayName() != env.viewer.DisplayName || got[0].GetUser().GetPresenceStatus() != apiv1.PresenceStatus_PRESENCE_STATUS_ONLINE {
 		t.Fatalf("BatchGetUsers user = %+v, want viewer user profile", got[0])
 	}
 
@@ -1106,8 +1105,8 @@ func TestUserServiceGetUserReadsPublicUserProfiles(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetUser by login: %v", err)
 	}
-	if byLoginResp.Msg.GetUser().GetProfile().GetUser().GetId() != env.viewer.Id {
-		t.Fatalf("GetUser by login id = %q, want %q", byLoginResp.Msg.GetUser().GetProfile().GetUser().GetId(), env.viewer.Id)
+	if byLoginResp.Msg.GetUser().GetUser().GetId() != env.viewer.Id {
+		t.Fatalf("GetUser by login id = %q, want %q", byLoginResp.Msg.GetUser().GetUser().GetId(), env.viewer.Id)
 	}
 
 	if _, err := env.users.GetUser(ctx, connect.NewRequest(&apiv1.GetUserRequest{Target: &apiv1.GetUserRequest_Login{Login: "missing-user"}})); connect.CodeOf(err) != connect.CodeNotFound {
@@ -1802,8 +1801,7 @@ func TestViewerServiceGetViewerReturnsSelfScopedState(t *testing.T) {
 	}
 	user := resp.Msg.GetUser()
 	profile := user.GetProfile()
-	summary := profile.GetUser()
-	if summary.GetId() != env.viewer.Id || summary.GetLogin() != env.viewer.Login || summary.GetDisplayName() != env.viewer.DisplayName {
+	if profile.GetId() != env.viewer.Id || profile.GetLogin() != env.viewer.Login || profile.GetDisplayName() != env.viewer.DisplayName {
 		t.Fatalf("viewer user = %+v, want id/login/display name from fixture", user)
 	}
 	if !user.GetHasVerifiedEmail() {
@@ -2976,7 +2974,7 @@ func TestRoomServiceMembershipAndModerationCommands(t *testing.T) {
 	if err != nil {
 		t.Fatalf("AddMember: %v", err)
 	}
-	if addResp.Msg.GetMember().GetProfile().GetUser().GetId() != addTarget.Id {
+	if addResp.Msg.GetMember().GetUser().GetId() != addTarget.Id {
 		t.Fatalf("AddMember member = %+v, want target", addResp.Msg.GetMember())
 	}
 	if _, err := env.rooms.GetMember(ctx, connect.NewRequest(&apiv1.GetRoomMemberRequest{
@@ -3056,10 +3054,10 @@ func TestRoomServiceMembershipAndModerationCommands(t *testing.T) {
 	if listedBan.GetRoomId() != room.Id || listedBan.GetRoom().GetName() != room.Name {
 		t.Fatalf("ListBans room = %+v, want id %s name %q", listedBan.GetRoom(), room.Id, room.Name)
 	}
-	if listedBan.GetUserId() != target.Id || listedBan.GetUser().GetProfile().GetUser().GetDisplayName() != target.DisplayName {
+	if listedBan.GetUserId() != target.Id || listedBan.GetUser().GetUser().GetDisplayName() != target.DisplayName {
 		t.Fatalf("ListBans user = %+v, want target %s", listedBan.GetUser(), target.Id)
 	}
-	if listedBan.GetModeratorId() != env.viewer.Id || listedBan.GetModerator().GetProfile().GetUser().GetDisplayName() != env.viewer.DisplayName {
+	if listedBan.GetModeratorId() != env.viewer.Id || listedBan.GetModerator().GetUser().GetDisplayName() != env.viewer.DisplayName {
 		t.Fatalf("ListBans moderator = %+v, want viewer %s", listedBan.GetModerator(), env.viewer.Id)
 	}
 	if listedBan.GetReason() != "moderation test" {
@@ -3818,13 +3816,13 @@ func TestUserServiceListUsers(t *testing.T) {
 
 	gotByID := map[string]*apiv1.DirectoryMember{}
 	for _, user := range append(resp.Msg.GetUsers(), secondResp.Msg.GetUsers()...) {
-		gotByID[user.GetProfile().GetUser().GetId()] = user
+		gotByID[user.GetUser().GetId()] = user
 	}
-	if gotByID[alice.Id].GetProfile().GetPresenceStatus() != apiv1.PresenceStatus_PRESENCE_STATUS_AWAY {
-		t.Fatalf("alice presence = %v, want AWAY", gotByID[alice.Id].GetProfile().GetPresenceStatus())
+	if gotByID[alice.Id].GetUser().GetPresenceStatus() != apiv1.PresenceStatus_PRESENCE_STATUS_AWAY {
+		t.Fatalf("alice presence = %v, want AWAY", gotByID[alice.Id].GetUser().GetPresenceStatus())
 	}
-	if gotByID[bob.Id].GetProfile().GetPresenceStatus() != apiv1.PresenceStatus_PRESENCE_STATUS_OFFLINE {
-		t.Fatalf("bob presence = %v, want OFFLINE", gotByID[bob.Id].GetProfile().GetPresenceStatus())
+	if gotByID[bob.Id].GetUser().GetPresenceStatus() != apiv1.PresenceStatus_PRESENCE_STATUS_OFFLINE {
+		t.Fatalf("bob presence = %v, want OFFLINE", gotByID[bob.Id].GetUser().GetPresenceStatus())
 	}
 	if roles := strings.Join(gotByID[bob.Id].GetRoles(), ","); roles != "everyone,admin" {
 		t.Fatalf("bob roles = %q, want everyone,admin", roles)
@@ -3835,7 +3833,7 @@ func TestUserServiceListUsers(t *testing.T) {
 		t.Fatalf("GetUser alice: %v", err)
 	}
 	gotAlice := getResp.Msg.GetUser()
-	if gotAlice.GetProfile().GetUser().GetId() != alice.Id || gotAlice.GetProfile().GetPresenceStatus() != apiv1.PresenceStatus_PRESENCE_STATUS_AWAY {
+	if gotAlice.GetUser().GetId() != alice.Id || gotAlice.GetUser().GetPresenceStatus() != apiv1.PresenceStatus_PRESENCE_STATUS_AWAY {
 		t.Fatalf("GetUser alice = %+v, want hydrated away user", gotAlice)
 	}
 	if gotAlice.ProtoReflect().Descriptor().Fields().ByName("verified_emails") != nil {
@@ -3852,7 +3850,7 @@ func TestUserServiceListUsers(t *testing.T) {
 		t.Fatalf("BatchGetUsers: %v", err)
 	}
 	gotBatch := batchResp.Msg.GetUsers()
-	if len(gotBatch) != 2 || gotBatch[0].GetProfile().GetUser().GetId() != bob.Id || gotBatch[1].GetProfile().GetUser().GetId() != alice.Id {
+	if len(gotBatch) != 2 || gotBatch[0].GetUser().GetId() != bob.Id || gotBatch[1].GetUser().GetId() != alice.Id {
 		t.Fatalf("BatchGetUsers users = %+v, want bob,alice", gotBatch)
 	}
 }
@@ -3903,7 +3901,7 @@ func TestRoomServiceListMembersRequiresMembership(t *testing.T) {
 		t.Fatalf("room member page = %+v, want one alice result", resp.Msg)
 	}
 	got := resp.Msg.GetMembers()[0]
-	if got.GetProfile().GetUser().GetId() != member.Id || got.GetProfile().GetUser().GetDisplayName() != "Room Alice" || got.GetProfile().GetPresenceStatus() != apiv1.PresenceStatus_PRESENCE_STATUS_DO_NOT_DISTURB {
+	if got.GetUser().GetId() != member.Id || got.GetUser().GetDisplayName() != "Room Alice" || got.GetUser().GetPresenceStatus() != apiv1.PresenceStatus_PRESENCE_STATUS_DO_NOT_DISTURB {
 		t.Fatalf("room member = %+v, want hydrated Room Alice", got)
 	}
 
@@ -3911,7 +3909,7 @@ func TestRoomServiceListMembersRequiresMembership(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetMember: %v", err)
 	}
-	if got := getResp.Msg.GetMember(); got.GetProfile().GetUser().GetId() != member.Id || got.GetProfile().GetPresenceStatus() != apiv1.PresenceStatus_PRESENCE_STATUS_DO_NOT_DISTURB {
+	if got := getResp.Msg.GetMember(); got.GetUser().GetId() != member.Id || got.GetUser().GetPresenceStatus() != apiv1.PresenceStatus_PRESENCE_STATUS_DO_NOT_DISTURB {
 		t.Fatalf("GetMember member = %+v, want room member", got)
 	}
 	if _, err := env.rooms.GetMember(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.GetRoomMemberRequest{RoomId: room.Id, UserId: outsider.Id})); connect.CodeOf(err) != connect.CodeNotFound {
@@ -3926,7 +3924,7 @@ func TestRoomServiceListMembersRequiresMembership(t *testing.T) {
 		t.Fatalf("BatchGetMembers: %v", err)
 	}
 	gotBatch := batchResp.Msg.GetMembers()
-	if len(gotBatch) != 2 || gotBatch[0].GetProfile().GetUser().GetId() != member.Id || gotBatch[1].GetProfile().GetUser().GetId() != env.viewer.Id {
+	if len(gotBatch) != 2 || gotBatch[0].GetUser().GetId() != member.Id || gotBatch[1].GetUser().GetId() != env.viewer.Id {
 		t.Fatalf("BatchGetMembers members = %+v, want member,viewer", gotBatch)
 	}
 }
@@ -4043,7 +4041,7 @@ func TestNotificationServiceListsAndDismissesNotifications(t *testing.T) {
 		t.Fatalf("ListNotifications page = %+v, want total 2, has_more true, one item", listResp.Msg)
 	}
 	item := listResp.Msg.GetNotifications()[0]
-	if item.GetActor().GetUser().GetDisplayName() != "Notification Actor" || item.GetActor().GetPresenceStatus() != apiv1.PresenceStatus_PRESENCE_STATUS_AWAY {
+	if item.GetActor().GetDisplayName() != "Notification Actor" || item.GetActor().GetPresenceStatus() != apiv1.PresenceStatus_PRESENCE_STATUS_AWAY {
 		t.Fatalf("notification actor = %+v, want hydrated actor", item.GetActor())
 	}
 
@@ -4377,7 +4375,7 @@ func TestVoiceCallServiceRecordsAndListsCalls(t *testing.T) {
 		t.Fatalf("ListCallParticipants: %v", err)
 	}
 	participants := participantsResp.Msg.GetParticipants()
-	if len(participants) != 1 || participants[0].GetUser().GetUser().GetId() != env.viewer.Id || participants[0].GetCallId() == "" || participants[0].GetJoinedAt() == nil {
+	if len(participants) != 1 || participants[0].GetUser().GetId() != env.viewer.Id || participants[0].GetCallId() == "" || participants[0].GetJoinedAt() == nil {
 		t.Fatalf("participants = %+v, want viewer participant with call metadata", participants)
 	}
 

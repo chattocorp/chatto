@@ -262,12 +262,7 @@ func (s *adminUserManagementService) adminMember(ctx context.Context, member cor
 		HasVerifiedEmail:       member.HasVerifiedEmail,
 		VerifiedEmails:         append([]string{}, member.VerifiedEmails...),
 		ViewerCanDeleteAccount: member.ViewerCanDeleteAccount,
-		User: &apiv1.User{
-			Id:          member.ID,
-			Login:       member.Login,
-			DisplayName: member.DisplayName,
-			Deleted:     member.Deleted,
-		},
+		User:                   s.adminMemberUser(ctx, member),
 	}
 	if member.AvatarURL != "" {
 		response.User.AvatarUrl = stringPtr(s.api.absolutizeAssetURL(ctx, member.AvatarURL))
@@ -276,6 +271,21 @@ func (s *adminUserManagementService) adminMember(ctx context.Context, member cor
 		response.LastLoginChange = timestamppb.New(*member.LastLoginChange)
 	}
 	return response
+}
+
+func (s *adminUserManagementService) adminMemberUser(ctx context.Context, member core.AdminMember) *apiv1.User {
+	presence, err := s.api.core.GetUserPresence(ctx, member.ID)
+	if err != nil {
+		presence = core.PresenceStatusOffline
+	}
+	return &apiv1.User{
+		Id:             member.ID,
+		Login:          member.Login,
+		DisplayName:    member.DisplayName,
+		Deleted:        member.Deleted,
+		PresenceStatus: corePresenceStatusToAPI(presence),
+		CustomStatus:   coreCustomStatusToAPI(member.CustomStatus),
+	}
 }
 
 func (s *adminUserManagementService) adminMemberAfterMutation(ctx context.Context, actorID, userID string) (*adminv1.AdminMember, error) {
@@ -301,22 +311,14 @@ func (s *adminUserManagementService) adminMemberAfterMutationForUser(ctx context
 	if err != nil {
 		return nil, connectError(err)
 	}
-	avatarURL, err := s.api.core.GetUserAvatarURL(ctx, user.GetId(), nil, nil, "")
+	apiUser, err := (&userService{api: s.api}).userSummary(ctx, user, nil)
 	if err != nil {
-		return nil, connectError(err)
+		return nil, err
 	}
 	response := &adminv1.AdminMember{
 		Roles:     append([]string{}, roles...),
 		CreatedAt: user.GetCreatedAt(),
-		User: &apiv1.User{
-			Id:          user.GetId(),
-			Login:       user.GetLogin(),
-			DisplayName: user.GetDisplayName(),
-			Deleted:     user.GetDeleted(),
-		},
-	}
-	if avatarURL != "" {
-		response.User.AvatarUrl = stringPtr(s.api.absolutizeAssetURL(ctx, avatarURL))
+		User:      apiUser,
 	}
 	return response, nil
 }
@@ -325,13 +327,13 @@ func (s *adminUserManagementService) adminMemberForOperator(ctx context.Context,
 	if user == nil || user.User == nil {
 		return nil, connectError(core.ErrNotFound)
 	}
-	avatarURL, err := s.api.core.GetUserAvatarURL(ctx, user.User.GetId(), nil, nil, "")
-	if err != nil {
-		return nil, connectError(err)
-	}
 	verifiedEmails := make([]string, 0, len(user.VerifiedEmails))
 	for _, email := range user.VerifiedEmails {
 		verifiedEmails = append(verifiedEmails, email.Email)
+	}
+	apiUser, err := (&userService{api: s.api}).userSummary(ctx, user.User, nil)
+	if err != nil {
+		return nil, err
 	}
 	response := &adminv1.AdminMember{
 		Roles:                  append([]string(nil), user.RoleNames...),
@@ -339,15 +341,7 @@ func (s *adminUserManagementService) adminMemberForOperator(ctx context.Context,
 		HasVerifiedEmail:       len(verifiedEmails) > 0,
 		VerifiedEmails:         verifiedEmails,
 		ViewerCanDeleteAccount: true,
-		User: &apiv1.User{
-			Id:          user.User.GetId(),
-			Login:       user.User.GetLogin(),
-			DisplayName: user.User.GetDisplayName(),
-			Deleted:     user.User.GetDeleted(),
-		},
-	}
-	if avatarURL != "" {
-		response.User.AvatarUrl = stringPtr(s.api.absolutizeAssetURL(ctx, avatarURL))
+		User:                   apiUser,
 	}
 	return response, nil
 }

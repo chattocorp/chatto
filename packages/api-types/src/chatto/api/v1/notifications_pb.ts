@@ -5,7 +5,7 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
-import { UserProfile } from "./users_pb.js";
+import { User } from "./users_pb.js";
 import { PageInfo, PageRequest } from "./pagination_pb.js";
 
 /**
@@ -300,9 +300,9 @@ export class NotificationItem extends Message<NotificationItem> {
   /**
    * User who triggered the notification, when still resolvable.
    *
-   * @generated from field: chatto.api.v1.UserProfile actor = 3;
+   * @generated from field: chatto.api.v1.User actor = 3;
    */
-  actor?: UserProfile;
+  actor?: User;
 
   /**
    * @generated from oneof chatto.api.v1.NotificationItem.kind
@@ -351,7 +351,7 @@ export class NotificationItem extends Message<NotificationItem> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "created_at", kind: "message", T: Timestamp },
-    { no: 3, name: "actor", kind: "message", T: UserProfile },
+    { no: 3, name: "actor", kind: "message", T: User },
     { no: 10, name: "direct_message", kind: "message", T: DirectMessageNotification, oneof: "kind" },
     { no: 11, name: "mention", kind: "message", T: MentionNotification, oneof: "kind" },
     { no: 12, name: "reply", kind: "message", T: ReplyNotification, oneof: "kind" },

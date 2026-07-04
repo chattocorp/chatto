@@ -7,11 +7,11 @@ import "chatto/api/v1/pagination.proto";
 import "chatto/api/v1/users.proto";
 import "google/protobuf/timestamp.proto";
 
-// Public user/member profile used by user directory, room membership, and
-// mention surfaces.
+// Public user/member row used by user directory, room membership, and mention
+// surfaces.
 message DirectoryMember {
-  // Public profile and live presence fields.
-  UserProfile profile = 1;
+  // Public user fields.
+  User user = 1;
   // Explicit roles assigned to the user. Member listings include the virtual
   // `everyone` role for parity with Chatto's permission model.
   repeated string roles = 2;
