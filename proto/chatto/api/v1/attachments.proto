@@ -43,17 +43,3 @@ message RoomAttachmentListItem {
   // Message creation timestamp.
   google.protobuf.Timestamp created_at = 4;
 }
-
-// Fresh signed URLs for one message attachment.
-message RefreshedAttachmentUrls {
-  // Attachment ID these URLs belong to.
-  string attachment_id = 1;
-  // Fresh signed URL for the original attachment.
-  RoomTimelineAssetUrl asset_url = 2;
-  // Fresh signed transformed thumbnail URL for the attachment.
-  RoomTimelineAssetUrl thumbnail_asset_url = 3;
-  // Fresh signed URL for the processed video thumbnail, when present.
-  RoomTimelineAssetUrl video_thumbnail_asset_url = 4;
-  // Fresh signed URLs for processed video variants, when present.
-  repeated RoomTimelineVideoVariant variants = 5;
-}

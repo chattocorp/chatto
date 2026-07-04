@@ -2901,10 +2901,9 @@ func (x *RealtimeServerMemberDeletedEvent) GetUserId() string {
 // Asset-processing signal.
 //
 // Message attachments are message-owned subresources. When
-// `message_event_id` is known, refresh signed URLs with
-// `MessageService.RefreshMessageAttachmentUrls` or
-// `MessageService.BatchRefreshMessageAttachmentUrls`; otherwise refetch the
-// affected attachment list or timeline window.
+// `message_event_id` is known, refetch message state with
+// `MessageService.GetMessage` or `MessageService.BatchGetMessages`; otherwise
+// refetch the affected attachment list or timeline window.
 type RealtimeAssetProcessingEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Room containing the message that owns the asset, when known.
@@ -2971,9 +2970,8 @@ func (x *RealtimeAssetProcessingEvent) GetMessageEventId() string {
 // Asset-deleted signal.
 //
 // Remove local attachment state by `asset_id`. When the owning message is known,
-// clients can refresh that message's attachment URLs through
-// `MessageService.RefreshMessageAttachmentUrls` or refetch the timeline
-// window.
+// clients can refetch that message through `MessageService.GetMessage` or
+// refetch the timeline window.
 type RealtimeAssetDeletedEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Room containing the message that owned the asset, when known.

@@ -842,33 +842,33 @@ func (x *DeleteLinkPreviewResponse) GetDeleted() bool {
 	return false
 }
 
-// Request to refresh signed attachment URLs for one message.
-type RefreshMessageAttachmentUrlsRequest struct {
+// Request to read one visible message.
+type GetMessageRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Required room ID.
+	// Required. Room containing the message.
 	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
-	// Required message event ID.
+	// Required. Message event ID.
 	EventId string `protobuf:"bytes,2,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
-	// Thumbnail URL options. Defaults are applied when absent.
+	// Attachment thumbnail URL options. Defaults are applied when absent.
 	Thumbnail     *AttachmentThumbnailOptions `protobuf:"bytes,3,opt,name=thumbnail,proto3" json:"thumbnail,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *RefreshMessageAttachmentUrlsRequest) Reset() {
-	*x = RefreshMessageAttachmentUrlsRequest{}
+func (x *GetMessageRequest) Reset() {
+	*x = GetMessageRequest{}
 	mi := &file_chatto_api_v1_messages_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *RefreshMessageAttachmentUrlsRequest) String() string {
+func (x *GetMessageRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*RefreshMessageAttachmentUrlsRequest) ProtoMessage() {}
+func (*GetMessageRequest) ProtoMessage() {}
 
-func (x *RefreshMessageAttachmentUrlsRequest) ProtoReflect() protoreflect.Message {
+func (x *GetMessageRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_chatto_api_v1_messages_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -880,55 +880,57 @@ func (x *RefreshMessageAttachmentUrlsRequest) ProtoReflect() protoreflect.Messag
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use RefreshMessageAttachmentUrlsRequest.ProtoReflect.Descriptor instead.
-func (*RefreshMessageAttachmentUrlsRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use GetMessageRequest.ProtoReflect.Descriptor instead.
+func (*GetMessageRequest) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_messages_proto_rawDescGZIP(), []int{12}
 }
 
-func (x *RefreshMessageAttachmentUrlsRequest) GetRoomId() string {
+func (x *GetMessageRequest) GetRoomId() string {
 	if x != nil {
 		return x.RoomId
 	}
 	return ""
 }
 
-func (x *RefreshMessageAttachmentUrlsRequest) GetEventId() string {
+func (x *GetMessageRequest) GetEventId() string {
 	if x != nil {
 		return x.EventId
 	}
 	return ""
 }
 
-func (x *RefreshMessageAttachmentUrlsRequest) GetThumbnail() *AttachmentThumbnailOptions {
+func (x *GetMessageRequest) GetThumbnail() *AttachmentThumbnailOptions {
 	if x != nil {
 		return x.Thumbnail
 	}
 	return nil
 }
 
-// Response containing fresh signed URLs for the current message attachments.
-type RefreshMessageAttachmentUrlsResponse struct {
+// Response containing one renderable message event.
+type GetMessageResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Fresh URL bundle for each current attachment on the message.
-	Attachments   []*RefreshedAttachmentUrls `protobuf:"bytes,1,rep,name=attachments,proto3" json:"attachments,omitempty"`
+	// Renderable timeline event for the message.
+	Event *RoomTimelineEvent `protobuf:"bytes,1,opt,name=event,proto3" json:"event,omitempty"`
+	// Related entities needed to render the message.
+	Includes      *RoomTimelineIncludes `protobuf:"bytes,2,opt,name=includes,proto3" json:"includes,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *RefreshMessageAttachmentUrlsResponse) Reset() {
-	*x = RefreshMessageAttachmentUrlsResponse{}
+func (x *GetMessageResponse) Reset() {
+	*x = GetMessageResponse{}
 	mi := &file_chatto_api_v1_messages_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *RefreshMessageAttachmentUrlsResponse) String() string {
+func (x *GetMessageResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*RefreshMessageAttachmentUrlsResponse) ProtoMessage() {}
+func (*GetMessageResponse) ProtoMessage() {}
 
-func (x *RefreshMessageAttachmentUrlsResponse) ProtoReflect() protoreflect.Message {
+func (x *GetMessageResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_chatto_api_v1_messages_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -940,46 +942,53 @@ func (x *RefreshMessageAttachmentUrlsResponse) ProtoReflect() protoreflect.Messa
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use RefreshMessageAttachmentUrlsResponse.ProtoReflect.Descriptor instead.
-func (*RefreshMessageAttachmentUrlsResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use GetMessageResponse.ProtoReflect.Descriptor instead.
+func (*GetMessageResponse) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_messages_proto_rawDescGZIP(), []int{13}
 }
 
-func (x *RefreshMessageAttachmentUrlsResponse) GetAttachments() []*RefreshedAttachmentUrls {
+func (x *GetMessageResponse) GetEvent() *RoomTimelineEvent {
 	if x != nil {
-		return x.Attachments
+		return x.Event
 	}
 	return nil
 }
 
-// Request to refresh signed attachment URLs for many messages in one room.
-type BatchRefreshMessageAttachmentUrlsRequest struct {
+func (x *GetMessageResponse) GetIncludes() *RoomTimelineIncludes {
+	if x != nil {
+		return x.Includes
+	}
+	return nil
+}
+
+// Request to read many visible messages in one room.
+type BatchGetMessagesRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Required room ID.
+	// Required. Room containing the messages.
 	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
-	// Required message event IDs. Missing, retracted, non-message, and
+	// Required. Message event IDs. Missing, retracted, non-message, and
 	// wrong-room event IDs are omitted from the response.
 	EventIds []string `protobuf:"bytes,2,rep,name=event_ids,json=eventIds,proto3" json:"event_ids,omitempty"`
-	// Thumbnail URL options. Defaults are applied when absent.
+	// Attachment thumbnail URL options. Defaults are applied when absent.
 	Thumbnail     *AttachmentThumbnailOptions `protobuf:"bytes,3,opt,name=thumbnail,proto3" json:"thumbnail,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *BatchRefreshMessageAttachmentUrlsRequest) Reset() {
-	*x = BatchRefreshMessageAttachmentUrlsRequest{}
+func (x *BatchGetMessagesRequest) Reset() {
+	*x = BatchGetMessagesRequest{}
 	mi := &file_chatto_api_v1_messages_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *BatchRefreshMessageAttachmentUrlsRequest) String() string {
+func (x *BatchGetMessagesRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*BatchRefreshMessageAttachmentUrlsRequest) ProtoMessage() {}
+func (*BatchGetMessagesRequest) ProtoMessage() {}
 
-func (x *BatchRefreshMessageAttachmentUrlsRequest) ProtoReflect() protoreflect.Message {
+func (x *BatchGetMessagesRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_chatto_api_v1_messages_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -991,57 +1000,57 @@ func (x *BatchRefreshMessageAttachmentUrlsRequest) ProtoReflect() protoreflect.M
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use BatchRefreshMessageAttachmentUrlsRequest.ProtoReflect.Descriptor instead.
-func (*BatchRefreshMessageAttachmentUrlsRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use BatchGetMessagesRequest.ProtoReflect.Descriptor instead.
+func (*BatchGetMessagesRequest) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_messages_proto_rawDescGZIP(), []int{14}
 }
 
-func (x *BatchRefreshMessageAttachmentUrlsRequest) GetRoomId() string {
+func (x *BatchGetMessagesRequest) GetRoomId() string {
 	if x != nil {
 		return x.RoomId
 	}
 	return ""
 }
 
-func (x *BatchRefreshMessageAttachmentUrlsRequest) GetEventIds() []string {
+func (x *BatchGetMessagesRequest) GetEventIds() []string {
 	if x != nil {
 		return x.EventIds
 	}
 	return nil
 }
 
-func (x *BatchRefreshMessageAttachmentUrlsRequest) GetThumbnail() *AttachmentThumbnailOptions {
+func (x *BatchGetMessagesRequest) GetThumbnail() *AttachmentThumbnailOptions {
 	if x != nil {
 		return x.Thumbnail
 	}
 	return nil
 }
 
-// Fresh signed attachment URLs for one visible message.
-type RefreshedMessageAttachmentUrls struct {
+// Response containing renderable message events.
+type BatchGetMessagesResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Message event ID these attachment URLs belong to.
-	EventId string `protobuf:"bytes,1,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
-	// Fresh URL bundle for each current attachment on the message.
-	Attachments   []*RefreshedAttachmentUrls `protobuf:"bytes,2,rep,name=attachments,proto3" json:"attachments,omitempty"`
+	// Renderable timeline events in first-seen request order.
+	Events []*RoomTimelineEvent `protobuf:"bytes,1,rep,name=events,proto3" json:"events,omitempty"`
+	// Related entities needed to render the messages.
+	Includes      *RoomTimelineIncludes `protobuf:"bytes,2,opt,name=includes,proto3" json:"includes,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *RefreshedMessageAttachmentUrls) Reset() {
-	*x = RefreshedMessageAttachmentUrls{}
+func (x *BatchGetMessagesResponse) Reset() {
+	*x = BatchGetMessagesResponse{}
 	mi := &file_chatto_api_v1_messages_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *RefreshedMessageAttachmentUrls) String() string {
+func (x *BatchGetMessagesResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*RefreshedMessageAttachmentUrls) ProtoMessage() {}
+func (*BatchGetMessagesResponse) ProtoMessage() {}
 
-func (x *RefreshedMessageAttachmentUrls) ProtoReflect() protoreflect.Message {
+func (x *BatchGetMessagesResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_chatto_api_v1_messages_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1053,67 +1062,21 @@ func (x *RefreshedMessageAttachmentUrls) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use RefreshedMessageAttachmentUrls.ProtoReflect.Descriptor instead.
-func (*RefreshedMessageAttachmentUrls) Descriptor() ([]byte, []int) {
+// Deprecated: Use BatchGetMessagesResponse.ProtoReflect.Descriptor instead.
+func (*BatchGetMessagesResponse) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_messages_proto_rawDescGZIP(), []int{15}
 }
 
-func (x *RefreshedMessageAttachmentUrls) GetEventId() string {
+func (x *BatchGetMessagesResponse) GetEvents() []*RoomTimelineEvent {
 	if x != nil {
-		return x.EventId
-	}
-	return ""
-}
-
-func (x *RefreshedMessageAttachmentUrls) GetAttachments() []*RefreshedAttachmentUrls {
-	if x != nil {
-		return x.Attachments
+		return x.Events
 	}
 	return nil
 }
 
-// Response containing fresh signed URLs for many visible messages.
-type BatchRefreshMessageAttachmentUrlsResponse struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Refreshed messages in first-seen request order.
-	Messages      []*RefreshedMessageAttachmentUrls `protobuf:"bytes,1,rep,name=messages,proto3" json:"messages,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *BatchRefreshMessageAttachmentUrlsResponse) Reset() {
-	*x = BatchRefreshMessageAttachmentUrlsResponse{}
-	mi := &file_chatto_api_v1_messages_proto_msgTypes[16]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *BatchRefreshMessageAttachmentUrlsResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*BatchRefreshMessageAttachmentUrlsResponse) ProtoMessage() {}
-
-func (x *BatchRefreshMessageAttachmentUrlsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_messages_proto_msgTypes[16]
+func (x *BatchGetMessagesResponse) GetIncludes() *RoomTimelineIncludes {
 	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use BatchRefreshMessageAttachmentUrlsResponse.ProtoReflect.Descriptor instead.
-func (*BatchRefreshMessageAttachmentUrlsResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_messages_proto_rawDescGZIP(), []int{16}
-}
-
-func (x *BatchRefreshMessageAttachmentUrlsResponse) GetMessages() []*RefreshedMessageAttachmentUrls {
-	if x != nil {
-		return x.Messages
+		return x.Includes
 	}
 	return nil
 }
@@ -1184,31 +1147,31 @@ const file_chatto_api_v1_messages_proto_rawDesc = "" +
 	"\bevent_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\aeventId\x12\x19\n" +
 	"\x03url\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x03url\"5\n" +
 	"\x19DeleteLinkPreviewResponse\x12\x18\n" +
-	"\adeleted\x18\x01 \x01(\bR\adeleted\"\xb4\x01\n" +
-	"#RefreshMessageAttachmentUrlsRequest\x12 \n" +
+	"\adeleted\x18\x01 \x01(\bR\adeleted\"\xa2\x01\n" +
+	"\x11GetMessageRequest\x12 \n" +
 	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x12\"\n" +
 	"\bevent_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\aeventId\x12G\n" +
-	"\tthumbnail\x18\x03 \x01(\v2).chatto.api.v1.AttachmentThumbnailOptionsR\tthumbnail\"p\n" +
-	"$RefreshMessageAttachmentUrlsResponse\x12H\n" +
-	"\vattachments\x18\x01 \x03(\v2&.chatto.api.v1.RefreshedAttachmentUrlsR\vattachments\"\xc4\x01\n" +
-	"(BatchRefreshMessageAttachmentUrlsRequest\x12 \n" +
+	"\tthumbnail\x18\x03 \x01(\v2).chatto.api.v1.AttachmentThumbnailOptionsR\tthumbnail\"\x8d\x01\n" +
+	"\x12GetMessageResponse\x126\n" +
+	"\x05event\x18\x01 \x01(\v2 .chatto.api.v1.RoomTimelineEventR\x05event\x12?\n" +
+	"\bincludes\x18\x02 \x01(\v2#.chatto.api.v1.RoomTimelineIncludesR\bincludes\"\xb3\x01\n" +
+	"\x17BatchGetMessagesRequest\x12 \n" +
 	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x12-\n" +
 	"\tevent_ids\x18\x02 \x03(\tB\x10\xbaH\r\x92\x01\n" +
 	"\b\x01\x10d\"\x04r\x02\x10\x01R\beventIds\x12G\n" +
-	"\tthumbnail\x18\x03 \x01(\v2).chatto.api.v1.AttachmentThumbnailOptionsR\tthumbnail\"\x85\x01\n" +
-	"\x1eRefreshedMessageAttachmentUrls\x12\x19\n" +
-	"\bevent_id\x18\x01 \x01(\tR\aeventId\x12H\n" +
-	"\vattachments\x18\x02 \x03(\v2&.chatto.api.v1.RefreshedAttachmentUrlsR\vattachments\"v\n" +
-	")BatchRefreshMessageAttachmentUrlsResponse\x12I\n" +
-	"\bmessages\x18\x01 \x03(\v2-.chatto.api.v1.RefreshedMessageAttachmentUrlsR\bmessages2\xc6\b\n" +
+	"\tthumbnail\x18\x03 \x01(\v2).chatto.api.v1.AttachmentThumbnailOptionsR\tthumbnail\"\x95\x01\n" +
+	"\x18BatchGetMessagesResponse\x128\n" +
+	"\x06events\x18\x01 \x03(\v2 .chatto.api.v1.RoomTimelineEventR\x06events\x12?\n" +
+	"\bincludes\x18\x02 \x01(\v2#.chatto.api.v1.RoomTimelineIncludesR\bincludes2\xdb\a\n" +
 	"\x0eMessageService\x12Z\n" +
 	"\rCreateMessage\x12#.chatto.api.v1.CreateMessageRequest\x1a$.chatto.api.v1.CreateMessageResponse\x12Z\n" +
 	"\rUpdateMessage\x12#.chatto.api.v1.UpdateMessageRequest\x1a$.chatto.api.v1.UpdateMessageResponse\x12Z\n" +
 	"\rDeleteMessage\x12#.chatto.api.v1.DeleteMessageRequest\x1a$.chatto.api.v1.DeleteMessageResponse\x12c\n" +
 	"\x10DeleteAttachment\x12&.chatto.api.v1.DeleteAttachmentRequest\x1a'.chatto.api.v1.DeleteAttachmentResponse\x12f\n" +
-	"\x11DeleteLinkPreview\x12'.chatto.api.v1.DeleteLinkPreviewRequest\x1a(.chatto.api.v1.DeleteLinkPreviewResponse\x12\x87\x01\n" +
-	"\x1cRefreshMessageAttachmentUrls\x122.chatto.api.v1.RefreshMessageAttachmentUrlsRequest\x1a3.chatto.api.v1.RefreshMessageAttachmentUrlsResponse\x12\x96\x01\n" +
-	"!BatchRefreshMessageAttachmentUrls\x127.chatto.api.v1.BatchRefreshMessageAttachmentUrlsRequest\x1a8.chatto.api.v1.BatchRefreshMessageAttachmentUrlsResponse\x12{\n" +
+	"\x11DeleteLinkPreview\x12'.chatto.api.v1.DeleteLinkPreviewRequest\x1a(.chatto.api.v1.DeleteLinkPreviewResponse\x12Q\n" +
+	"\n" +
+	"GetMessage\x12 .chatto.api.v1.GetMessageRequest\x1a!.chatto.api.v1.GetMessageResponse\x12c\n" +
+	"\x10BatchGetMessages\x12&.chatto.api.v1.BatchGetMessagesRequest\x1a'.chatto.api.v1.BatchGetMessagesResponse\x12{\n" +
 	"\x18ResolveMessageLinkTarget\x12..chatto.api.v1.ResolveMessageLinkTargetRequest\x1a/.chatto.api.v1.ResolveMessageLinkTargetResponse\x12T\n" +
 	"\vAddReaction\x12!.chatto.api.v1.AddReactionRequest\x1a\".chatto.api.v1.AddReactionResponse\x12]\n" +
 	"\x0eRemoveReaction\x12$.chatto.api.v1.RemoveReactionRequest\x1a%.chatto.api.v1.RemoveReactionResponseB\xa9\x01\n" +
@@ -1226,73 +1189,72 @@ func file_chatto_api_v1_messages_proto_rawDescGZIP() []byte {
 	return file_chatto_api_v1_messages_proto_rawDescData
 }
 
-var file_chatto_api_v1_messages_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
+var file_chatto_api_v1_messages_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
 var file_chatto_api_v1_messages_proto_goTypes = []any{
-	(*MessageLinkPreviewInput)(nil),                   // 0: chatto.api.v1.MessageLinkPreviewInput
-	(*CreateMessageRequest)(nil),                      // 1: chatto.api.v1.CreateMessageRequest
-	(*MentionConfirmationChallenge)(nil),              // 2: chatto.api.v1.MentionConfirmationChallenge
-	(*CreateMessageResponse)(nil),                     // 3: chatto.api.v1.CreateMessageResponse
-	(*UpdateMessageRequest)(nil),                      // 4: chatto.api.v1.UpdateMessageRequest
-	(*UpdateMessageResponse)(nil),                     // 5: chatto.api.v1.UpdateMessageResponse
-	(*DeleteMessageRequest)(nil),                      // 6: chatto.api.v1.DeleteMessageRequest
-	(*DeleteMessageResponse)(nil),                     // 7: chatto.api.v1.DeleteMessageResponse
-	(*DeleteAttachmentRequest)(nil),                   // 8: chatto.api.v1.DeleteAttachmentRequest
-	(*DeleteAttachmentResponse)(nil),                  // 9: chatto.api.v1.DeleteAttachmentResponse
-	(*DeleteLinkPreviewRequest)(nil),                  // 10: chatto.api.v1.DeleteLinkPreviewRequest
-	(*DeleteLinkPreviewResponse)(nil),                 // 11: chatto.api.v1.DeleteLinkPreviewResponse
-	(*RefreshMessageAttachmentUrlsRequest)(nil),       // 12: chatto.api.v1.RefreshMessageAttachmentUrlsRequest
-	(*RefreshMessageAttachmentUrlsResponse)(nil),      // 13: chatto.api.v1.RefreshMessageAttachmentUrlsResponse
-	(*BatchRefreshMessageAttachmentUrlsRequest)(nil),  // 14: chatto.api.v1.BatchRefreshMessageAttachmentUrlsRequest
-	(*RefreshedMessageAttachmentUrls)(nil),            // 15: chatto.api.v1.RefreshedMessageAttachmentUrls
-	(*BatchRefreshMessageAttachmentUrlsResponse)(nil), // 16: chatto.api.v1.BatchRefreshMessageAttachmentUrlsResponse
-	(*RoomTimelineEvent)(nil),                         // 17: chatto.api.v1.RoomTimelineEvent
-	(*RoomTimelineIncludes)(nil),                      // 18: chatto.api.v1.RoomTimelineIncludes
-	(*AttachmentThumbnailOptions)(nil),                // 19: chatto.api.v1.AttachmentThumbnailOptions
-	(*RefreshedAttachmentUrls)(nil),                   // 20: chatto.api.v1.RefreshedAttachmentUrls
-	(*ResolveMessageLinkTargetRequest)(nil),           // 21: chatto.api.v1.ResolveMessageLinkTargetRequest
-	(*AddReactionRequest)(nil),                        // 22: chatto.api.v1.AddReactionRequest
-	(*RemoveReactionRequest)(nil),                     // 23: chatto.api.v1.RemoveReactionRequest
-	(*ResolveMessageLinkTargetResponse)(nil),          // 24: chatto.api.v1.ResolveMessageLinkTargetResponse
-	(*AddReactionResponse)(nil),                       // 25: chatto.api.v1.AddReactionResponse
-	(*RemoveReactionResponse)(nil),                    // 26: chatto.api.v1.RemoveReactionResponse
+	(*MessageLinkPreviewInput)(nil),          // 0: chatto.api.v1.MessageLinkPreviewInput
+	(*CreateMessageRequest)(nil),             // 1: chatto.api.v1.CreateMessageRequest
+	(*MentionConfirmationChallenge)(nil),     // 2: chatto.api.v1.MentionConfirmationChallenge
+	(*CreateMessageResponse)(nil),            // 3: chatto.api.v1.CreateMessageResponse
+	(*UpdateMessageRequest)(nil),             // 4: chatto.api.v1.UpdateMessageRequest
+	(*UpdateMessageResponse)(nil),            // 5: chatto.api.v1.UpdateMessageResponse
+	(*DeleteMessageRequest)(nil),             // 6: chatto.api.v1.DeleteMessageRequest
+	(*DeleteMessageResponse)(nil),            // 7: chatto.api.v1.DeleteMessageResponse
+	(*DeleteAttachmentRequest)(nil),          // 8: chatto.api.v1.DeleteAttachmentRequest
+	(*DeleteAttachmentResponse)(nil),         // 9: chatto.api.v1.DeleteAttachmentResponse
+	(*DeleteLinkPreviewRequest)(nil),         // 10: chatto.api.v1.DeleteLinkPreviewRequest
+	(*DeleteLinkPreviewResponse)(nil),        // 11: chatto.api.v1.DeleteLinkPreviewResponse
+	(*GetMessageRequest)(nil),                // 12: chatto.api.v1.GetMessageRequest
+	(*GetMessageResponse)(nil),               // 13: chatto.api.v1.GetMessageResponse
+	(*BatchGetMessagesRequest)(nil),          // 14: chatto.api.v1.BatchGetMessagesRequest
+	(*BatchGetMessagesResponse)(nil),         // 15: chatto.api.v1.BatchGetMessagesResponse
+	(*RoomTimelineEvent)(nil),                // 16: chatto.api.v1.RoomTimelineEvent
+	(*RoomTimelineIncludes)(nil),             // 17: chatto.api.v1.RoomTimelineIncludes
+	(*AttachmentThumbnailOptions)(nil),       // 18: chatto.api.v1.AttachmentThumbnailOptions
+	(*ResolveMessageLinkTargetRequest)(nil),  // 19: chatto.api.v1.ResolveMessageLinkTargetRequest
+	(*AddReactionRequest)(nil),               // 20: chatto.api.v1.AddReactionRequest
+	(*RemoveReactionRequest)(nil),            // 21: chatto.api.v1.RemoveReactionRequest
+	(*ResolveMessageLinkTargetResponse)(nil), // 22: chatto.api.v1.ResolveMessageLinkTargetResponse
+	(*AddReactionResponse)(nil),              // 23: chatto.api.v1.AddReactionResponse
+	(*RemoveReactionResponse)(nil),           // 24: chatto.api.v1.RemoveReactionResponse
 }
 var file_chatto_api_v1_messages_proto_depIdxs = []int32{
 	0,  // 0: chatto.api.v1.CreateMessageRequest.link_preview:type_name -> chatto.api.v1.MessageLinkPreviewInput
-	17, // 1: chatto.api.v1.CreateMessageResponse.event:type_name -> chatto.api.v1.RoomTimelineEvent
+	16, // 1: chatto.api.v1.CreateMessageResponse.event:type_name -> chatto.api.v1.RoomTimelineEvent
 	2,  // 2: chatto.api.v1.CreateMessageResponse.mention_confirmation:type_name -> chatto.api.v1.MentionConfirmationChallenge
-	18, // 3: chatto.api.v1.CreateMessageResponse.includes:type_name -> chatto.api.v1.RoomTimelineIncludes
-	17, // 4: chatto.api.v1.UpdateMessageResponse.event:type_name -> chatto.api.v1.RoomTimelineEvent
-	18, // 5: chatto.api.v1.UpdateMessageResponse.includes:type_name -> chatto.api.v1.RoomTimelineIncludes
-	19, // 6: chatto.api.v1.RefreshMessageAttachmentUrlsRequest.thumbnail:type_name -> chatto.api.v1.AttachmentThumbnailOptions
-	20, // 7: chatto.api.v1.RefreshMessageAttachmentUrlsResponse.attachments:type_name -> chatto.api.v1.RefreshedAttachmentUrls
-	19, // 8: chatto.api.v1.BatchRefreshMessageAttachmentUrlsRequest.thumbnail:type_name -> chatto.api.v1.AttachmentThumbnailOptions
-	20, // 9: chatto.api.v1.RefreshedMessageAttachmentUrls.attachments:type_name -> chatto.api.v1.RefreshedAttachmentUrls
-	15, // 10: chatto.api.v1.BatchRefreshMessageAttachmentUrlsResponse.messages:type_name -> chatto.api.v1.RefreshedMessageAttachmentUrls
-	1,  // 11: chatto.api.v1.MessageService.CreateMessage:input_type -> chatto.api.v1.CreateMessageRequest
-	4,  // 12: chatto.api.v1.MessageService.UpdateMessage:input_type -> chatto.api.v1.UpdateMessageRequest
-	6,  // 13: chatto.api.v1.MessageService.DeleteMessage:input_type -> chatto.api.v1.DeleteMessageRequest
-	8,  // 14: chatto.api.v1.MessageService.DeleteAttachment:input_type -> chatto.api.v1.DeleteAttachmentRequest
-	10, // 15: chatto.api.v1.MessageService.DeleteLinkPreview:input_type -> chatto.api.v1.DeleteLinkPreviewRequest
-	12, // 16: chatto.api.v1.MessageService.RefreshMessageAttachmentUrls:input_type -> chatto.api.v1.RefreshMessageAttachmentUrlsRequest
-	14, // 17: chatto.api.v1.MessageService.BatchRefreshMessageAttachmentUrls:input_type -> chatto.api.v1.BatchRefreshMessageAttachmentUrlsRequest
-	21, // 18: chatto.api.v1.MessageService.ResolveMessageLinkTarget:input_type -> chatto.api.v1.ResolveMessageLinkTargetRequest
-	22, // 19: chatto.api.v1.MessageService.AddReaction:input_type -> chatto.api.v1.AddReactionRequest
-	23, // 20: chatto.api.v1.MessageService.RemoveReaction:input_type -> chatto.api.v1.RemoveReactionRequest
-	3,  // 21: chatto.api.v1.MessageService.CreateMessage:output_type -> chatto.api.v1.CreateMessageResponse
-	5,  // 22: chatto.api.v1.MessageService.UpdateMessage:output_type -> chatto.api.v1.UpdateMessageResponse
-	7,  // 23: chatto.api.v1.MessageService.DeleteMessage:output_type -> chatto.api.v1.DeleteMessageResponse
-	9,  // 24: chatto.api.v1.MessageService.DeleteAttachment:output_type -> chatto.api.v1.DeleteAttachmentResponse
-	11, // 25: chatto.api.v1.MessageService.DeleteLinkPreview:output_type -> chatto.api.v1.DeleteLinkPreviewResponse
-	13, // 26: chatto.api.v1.MessageService.RefreshMessageAttachmentUrls:output_type -> chatto.api.v1.RefreshMessageAttachmentUrlsResponse
-	16, // 27: chatto.api.v1.MessageService.BatchRefreshMessageAttachmentUrls:output_type -> chatto.api.v1.BatchRefreshMessageAttachmentUrlsResponse
-	24, // 28: chatto.api.v1.MessageService.ResolveMessageLinkTarget:output_type -> chatto.api.v1.ResolveMessageLinkTargetResponse
-	25, // 29: chatto.api.v1.MessageService.AddReaction:output_type -> chatto.api.v1.AddReactionResponse
-	26, // 30: chatto.api.v1.MessageService.RemoveReaction:output_type -> chatto.api.v1.RemoveReactionResponse
-	21, // [21:31] is the sub-list for method output_type
-	11, // [11:21] is the sub-list for method input_type
-	11, // [11:11] is the sub-list for extension type_name
-	11, // [11:11] is the sub-list for extension extendee
-	0,  // [0:11] is the sub-list for field type_name
+	17, // 3: chatto.api.v1.CreateMessageResponse.includes:type_name -> chatto.api.v1.RoomTimelineIncludes
+	16, // 4: chatto.api.v1.UpdateMessageResponse.event:type_name -> chatto.api.v1.RoomTimelineEvent
+	17, // 5: chatto.api.v1.UpdateMessageResponse.includes:type_name -> chatto.api.v1.RoomTimelineIncludes
+	18, // 6: chatto.api.v1.GetMessageRequest.thumbnail:type_name -> chatto.api.v1.AttachmentThumbnailOptions
+	16, // 7: chatto.api.v1.GetMessageResponse.event:type_name -> chatto.api.v1.RoomTimelineEvent
+	17, // 8: chatto.api.v1.GetMessageResponse.includes:type_name -> chatto.api.v1.RoomTimelineIncludes
+	18, // 9: chatto.api.v1.BatchGetMessagesRequest.thumbnail:type_name -> chatto.api.v1.AttachmentThumbnailOptions
+	16, // 10: chatto.api.v1.BatchGetMessagesResponse.events:type_name -> chatto.api.v1.RoomTimelineEvent
+	17, // 11: chatto.api.v1.BatchGetMessagesResponse.includes:type_name -> chatto.api.v1.RoomTimelineIncludes
+	1,  // 12: chatto.api.v1.MessageService.CreateMessage:input_type -> chatto.api.v1.CreateMessageRequest
+	4,  // 13: chatto.api.v1.MessageService.UpdateMessage:input_type -> chatto.api.v1.UpdateMessageRequest
+	6,  // 14: chatto.api.v1.MessageService.DeleteMessage:input_type -> chatto.api.v1.DeleteMessageRequest
+	8,  // 15: chatto.api.v1.MessageService.DeleteAttachment:input_type -> chatto.api.v1.DeleteAttachmentRequest
+	10, // 16: chatto.api.v1.MessageService.DeleteLinkPreview:input_type -> chatto.api.v1.DeleteLinkPreviewRequest
+	12, // 17: chatto.api.v1.MessageService.GetMessage:input_type -> chatto.api.v1.GetMessageRequest
+	14, // 18: chatto.api.v1.MessageService.BatchGetMessages:input_type -> chatto.api.v1.BatchGetMessagesRequest
+	19, // 19: chatto.api.v1.MessageService.ResolveMessageLinkTarget:input_type -> chatto.api.v1.ResolveMessageLinkTargetRequest
+	20, // 20: chatto.api.v1.MessageService.AddReaction:input_type -> chatto.api.v1.AddReactionRequest
+	21, // 21: chatto.api.v1.MessageService.RemoveReaction:input_type -> chatto.api.v1.RemoveReactionRequest
+	3,  // 22: chatto.api.v1.MessageService.CreateMessage:output_type -> chatto.api.v1.CreateMessageResponse
+	5,  // 23: chatto.api.v1.MessageService.UpdateMessage:output_type -> chatto.api.v1.UpdateMessageResponse
+	7,  // 24: chatto.api.v1.MessageService.DeleteMessage:output_type -> chatto.api.v1.DeleteMessageResponse
+	9,  // 25: chatto.api.v1.MessageService.DeleteAttachment:output_type -> chatto.api.v1.DeleteAttachmentResponse
+	11, // 26: chatto.api.v1.MessageService.DeleteLinkPreview:output_type -> chatto.api.v1.DeleteLinkPreviewResponse
+	13, // 27: chatto.api.v1.MessageService.GetMessage:output_type -> chatto.api.v1.GetMessageResponse
+	15, // 28: chatto.api.v1.MessageService.BatchGetMessages:output_type -> chatto.api.v1.BatchGetMessagesResponse
+	22, // 29: chatto.api.v1.MessageService.ResolveMessageLinkTarget:output_type -> chatto.api.v1.ResolveMessageLinkTargetResponse
+	23, // 30: chatto.api.v1.MessageService.AddReaction:output_type -> chatto.api.v1.AddReactionResponse
+	24, // 31: chatto.api.v1.MessageService.RemoveReaction:output_type -> chatto.api.v1.RemoveReactionResponse
+	22, // [22:32] is the sub-list for method output_type
+	12, // [12:22] is the sub-list for method input_type
+	12, // [12:12] is the sub-list for extension type_name
+	12, // [12:12] is the sub-list for extension extendee
+	0,  // [0:12] is the sub-list for field type_name
 }
 
 func init() { file_chatto_api_v1_messages_proto_init() }
@@ -1315,7 +1277,7 @@ func file_chatto_api_v1_messages_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_api_v1_messages_proto_rawDesc), len(file_chatto_api_v1_messages_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   17,
+			NumMessages:   16,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

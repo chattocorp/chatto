@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { BatchRefreshMessageAttachmentUrlsRequest, BatchRefreshMessageAttachmentUrlsResponse, CreateMessageRequest, CreateMessageResponse, DeleteAttachmentRequest, DeleteAttachmentResponse, DeleteLinkPreviewRequest, DeleteLinkPreviewResponse, DeleteMessageRequest, DeleteMessageResponse, RefreshMessageAttachmentUrlsRequest, RefreshMessageAttachmentUrlsResponse, UpdateMessageRequest, UpdateMessageResponse } from "./messages_pb.js";
+import { BatchGetMessagesRequest, BatchGetMessagesResponse, CreateMessageRequest, CreateMessageResponse, DeleteAttachmentRequest, DeleteAttachmentResponse, DeleteLinkPreviewRequest, DeleteLinkPreviewResponse, DeleteMessageRequest, DeleteMessageResponse, GetMessageRequest, GetMessageResponse, UpdateMessageRequest, UpdateMessageResponse } from "./messages_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 import { ResolveMessageLinkTargetRequest, ResolveMessageLinkTargetResponse } from "./room_timeline_pb.js";
 import { AddReactionRequest, AddReactionResponse, RemoveReactionRequest, RemoveReactionResponse } from "./reactions_pb.js";
@@ -78,34 +78,32 @@ export const MessageService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Refreshes signed URLs for the current attachments on one message.
+     * Reads one renderable message, including current body, attachments with
+     * freshly signed expiring URLs, link preview, reactions, and thread metadata.
      * Authentication and room membership are required. Returns NOT_FOUND when the
-     * message does not exist, is not a current visible message, or belongs to a
-     * different room. Returns an empty attachment list when the message exists
-     * but currently has no attachments.
+     * event does not exist, is not a message, has been retracted, or belongs to a
+     * different room.
      *
-     * @generated from rpc chatto.api.v1.MessageService.RefreshMessageAttachmentUrls
+     * @generated from rpc chatto.api.v1.MessageService.GetMessage
      */
-    refreshMessageAttachmentUrls: {
-      name: "RefreshMessageAttachmentUrls",
-      I: RefreshMessageAttachmentUrlsRequest,
-      O: RefreshMessageAttachmentUrlsResponse,
+    getMessage: {
+      name: "GetMessage",
+      I: GetMessageRequest,
+      O: GetMessageResponse,
       kind: MethodKind.Unary,
     },
     /**
-     * Refreshes signed URLs for the current attachments on multiple messages in
-     * one room. Authentication and room membership are required. Missing,
-     * retracted, non-message, and wrong-room event IDs are omitted. Results
-     * preserve first-seen request order and repeated event IDs are de-duplicated.
-     * Existing visible messages with no current attachments are returned with an
-     * empty attachment list.
+     * Reads many renderable messages in one room. Authentication and room
+     * membership are required. Missing, retracted, non-message, and wrong-room
+     * event IDs are omitted. Results preserve first-seen request order and
+     * repeated event IDs are de-duplicated.
      *
-     * @generated from rpc chatto.api.v1.MessageService.BatchRefreshMessageAttachmentUrls
+     * @generated from rpc chatto.api.v1.MessageService.BatchGetMessages
      */
-    batchRefreshMessageAttachmentUrls: {
-      name: "BatchRefreshMessageAttachmentUrls",
-      I: BatchRefreshMessageAttachmentUrlsRequest,
-      O: BatchRefreshMessageAttachmentUrlsResponse,
+    batchGetMessages: {
+      name: "BatchGetMessages",
+      I: BatchGetMessagesRequest,
+      O: BatchGetMessagesResponse,
       kind: MethodKind.Unary,
     },
     /**

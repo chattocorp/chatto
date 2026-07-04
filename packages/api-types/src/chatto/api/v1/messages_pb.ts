@@ -6,7 +6,7 @@
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3 } from "@bufbuild/protobuf";
 import { RoomTimelineEvent, RoomTimelineIncludes } from "./room_timeline_pb.js";
-import { AttachmentThumbnailOptions, RefreshedAttachmentUrls } from "./attachments_pb.js";
+import { AttachmentThumbnailOptions } from "./attachments_pb.js";
 
 /**
  * Link preview metadata accepted when creating a message.
@@ -720,118 +720,126 @@ export class DeleteLinkPreviewResponse extends Message<DeleteLinkPreviewResponse
 }
 
 /**
- * Request to refresh signed attachment URLs for one message.
+ * Request to read one visible message.
  *
- * @generated from message chatto.api.v1.RefreshMessageAttachmentUrlsRequest
+ * @generated from message chatto.api.v1.GetMessageRequest
  */
-export class RefreshMessageAttachmentUrlsRequest extends Message<RefreshMessageAttachmentUrlsRequest> {
+export class GetMessageRequest extends Message<GetMessageRequest> {
   /**
-   * Required room ID.
+   * Required. Room containing the message.
    *
    * @generated from field: string room_id = 1;
    */
   roomId = "";
 
   /**
-   * Required message event ID.
+   * Required. Message event ID.
    *
    * @generated from field: string event_id = 2;
    */
   eventId = "";
 
   /**
-   * Thumbnail URL options. Defaults are applied when absent.
+   * Attachment thumbnail URL options. Defaults are applied when absent.
    *
    * @generated from field: chatto.api.v1.AttachmentThumbnailOptions thumbnail = 3;
    */
   thumbnail?: AttachmentThumbnailOptions;
 
-  constructor(data?: PartialMessage<RefreshMessageAttachmentUrlsRequest>) {
+  constructor(data?: PartialMessage<GetMessageRequest>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.RefreshMessageAttachmentUrlsRequest";
+  static readonly typeName = "chatto.api.v1.GetMessageRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "thumbnail", kind: "message", T: AttachmentThumbnailOptions },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RefreshMessageAttachmentUrlsRequest {
-    return new RefreshMessageAttachmentUrlsRequest().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetMessageRequest {
+    return new GetMessageRequest().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RefreshMessageAttachmentUrlsRequest {
-    return new RefreshMessageAttachmentUrlsRequest().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetMessageRequest {
+    return new GetMessageRequest().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RefreshMessageAttachmentUrlsRequest {
-    return new RefreshMessageAttachmentUrlsRequest().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetMessageRequest {
+    return new GetMessageRequest().fromJsonString(jsonString, options);
   }
 
-  static equals(a: RefreshMessageAttachmentUrlsRequest | PlainMessage<RefreshMessageAttachmentUrlsRequest> | undefined, b: RefreshMessageAttachmentUrlsRequest | PlainMessage<RefreshMessageAttachmentUrlsRequest> | undefined): boolean {
-    return proto3.util.equals(RefreshMessageAttachmentUrlsRequest, a, b);
+  static equals(a: GetMessageRequest | PlainMessage<GetMessageRequest> | undefined, b: GetMessageRequest | PlainMessage<GetMessageRequest> | undefined): boolean {
+    return proto3.util.equals(GetMessageRequest, a, b);
   }
 }
 
 /**
- * Response containing fresh signed URLs for the current message attachments.
+ * Response containing one renderable message event.
  *
- * @generated from message chatto.api.v1.RefreshMessageAttachmentUrlsResponse
+ * @generated from message chatto.api.v1.GetMessageResponse
  */
-export class RefreshMessageAttachmentUrlsResponse extends Message<RefreshMessageAttachmentUrlsResponse> {
+export class GetMessageResponse extends Message<GetMessageResponse> {
   /**
-   * Fresh URL bundle for each current attachment on the message.
+   * Renderable timeline event for the message.
    *
-   * @generated from field: repeated chatto.api.v1.RefreshedAttachmentUrls attachments = 1;
+   * @generated from field: chatto.api.v1.RoomTimelineEvent event = 1;
    */
-  attachments: RefreshedAttachmentUrls[] = [];
+  event?: RoomTimelineEvent;
 
-  constructor(data?: PartialMessage<RefreshMessageAttachmentUrlsResponse>) {
+  /**
+   * Related entities needed to render the message.
+   *
+   * @generated from field: chatto.api.v1.RoomTimelineIncludes includes = 2;
+   */
+  includes?: RoomTimelineIncludes;
+
+  constructor(data?: PartialMessage<GetMessageResponse>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.RefreshMessageAttachmentUrlsResponse";
+  static readonly typeName = "chatto.api.v1.GetMessageResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "attachments", kind: "message", T: RefreshedAttachmentUrls, repeated: true },
+    { no: 1, name: "event", kind: "message", T: RoomTimelineEvent },
+    { no: 2, name: "includes", kind: "message", T: RoomTimelineIncludes },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RefreshMessageAttachmentUrlsResponse {
-    return new RefreshMessageAttachmentUrlsResponse().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetMessageResponse {
+    return new GetMessageResponse().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RefreshMessageAttachmentUrlsResponse {
-    return new RefreshMessageAttachmentUrlsResponse().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetMessageResponse {
+    return new GetMessageResponse().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RefreshMessageAttachmentUrlsResponse {
-    return new RefreshMessageAttachmentUrlsResponse().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetMessageResponse {
+    return new GetMessageResponse().fromJsonString(jsonString, options);
   }
 
-  static equals(a: RefreshMessageAttachmentUrlsResponse | PlainMessage<RefreshMessageAttachmentUrlsResponse> | undefined, b: RefreshMessageAttachmentUrlsResponse | PlainMessage<RefreshMessageAttachmentUrlsResponse> | undefined): boolean {
-    return proto3.util.equals(RefreshMessageAttachmentUrlsResponse, a, b);
+  static equals(a: GetMessageResponse | PlainMessage<GetMessageResponse> | undefined, b: GetMessageResponse | PlainMessage<GetMessageResponse> | undefined): boolean {
+    return proto3.util.equals(GetMessageResponse, a, b);
   }
 }
 
 /**
- * Request to refresh signed attachment URLs for many messages in one room.
+ * Request to read many visible messages in one room.
  *
- * @generated from message chatto.api.v1.BatchRefreshMessageAttachmentUrlsRequest
+ * @generated from message chatto.api.v1.BatchGetMessagesRequest
  */
-export class BatchRefreshMessageAttachmentUrlsRequest extends Message<BatchRefreshMessageAttachmentUrlsRequest> {
+export class BatchGetMessagesRequest extends Message<BatchGetMessagesRequest> {
   /**
-   * Required room ID.
+   * Required. Room containing the messages.
    *
    * @generated from field: string room_id = 1;
    */
   roomId = "";
 
   /**
-   * Required message event IDs. Missing, retracted, non-message, and
+   * Required. Message event IDs. Missing, retracted, non-message, and
    * wrong-room event IDs are omitted from the response.
    *
    * @generated from field: repeated string event_ids = 2;
@@ -839,128 +847,87 @@ export class BatchRefreshMessageAttachmentUrlsRequest extends Message<BatchRefre
   eventIds: string[] = [];
 
   /**
-   * Thumbnail URL options. Defaults are applied when absent.
+   * Attachment thumbnail URL options. Defaults are applied when absent.
    *
    * @generated from field: chatto.api.v1.AttachmentThumbnailOptions thumbnail = 3;
    */
   thumbnail?: AttachmentThumbnailOptions;
 
-  constructor(data?: PartialMessage<BatchRefreshMessageAttachmentUrlsRequest>) {
+  constructor(data?: PartialMessage<BatchGetMessagesRequest>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.BatchRefreshMessageAttachmentUrlsRequest";
+  static readonly typeName = "chatto.api.v1.BatchGetMessagesRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "event_ids", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
     { no: 3, name: "thumbnail", kind: "message", T: AttachmentThumbnailOptions },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BatchRefreshMessageAttachmentUrlsRequest {
-    return new BatchRefreshMessageAttachmentUrlsRequest().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BatchGetMessagesRequest {
+    return new BatchGetMessagesRequest().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): BatchRefreshMessageAttachmentUrlsRequest {
-    return new BatchRefreshMessageAttachmentUrlsRequest().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): BatchGetMessagesRequest {
+    return new BatchGetMessagesRequest().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): BatchRefreshMessageAttachmentUrlsRequest {
-    return new BatchRefreshMessageAttachmentUrlsRequest().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): BatchGetMessagesRequest {
+    return new BatchGetMessagesRequest().fromJsonString(jsonString, options);
   }
 
-  static equals(a: BatchRefreshMessageAttachmentUrlsRequest | PlainMessage<BatchRefreshMessageAttachmentUrlsRequest> | undefined, b: BatchRefreshMessageAttachmentUrlsRequest | PlainMessage<BatchRefreshMessageAttachmentUrlsRequest> | undefined): boolean {
-    return proto3.util.equals(BatchRefreshMessageAttachmentUrlsRequest, a, b);
+  static equals(a: BatchGetMessagesRequest | PlainMessage<BatchGetMessagesRequest> | undefined, b: BatchGetMessagesRequest | PlainMessage<BatchGetMessagesRequest> | undefined): boolean {
+    return proto3.util.equals(BatchGetMessagesRequest, a, b);
   }
 }
 
 /**
- * Fresh signed attachment URLs for one visible message.
+ * Response containing renderable message events.
  *
- * @generated from message chatto.api.v1.RefreshedMessageAttachmentUrls
+ * @generated from message chatto.api.v1.BatchGetMessagesResponse
  */
-export class RefreshedMessageAttachmentUrls extends Message<RefreshedMessageAttachmentUrls> {
+export class BatchGetMessagesResponse extends Message<BatchGetMessagesResponse> {
   /**
-   * Message event ID these attachment URLs belong to.
+   * Renderable timeline events in first-seen request order.
    *
-   * @generated from field: string event_id = 1;
+   * @generated from field: repeated chatto.api.v1.RoomTimelineEvent events = 1;
    */
-  eventId = "";
+  events: RoomTimelineEvent[] = [];
 
   /**
-   * Fresh URL bundle for each current attachment on the message.
+   * Related entities needed to render the messages.
    *
-   * @generated from field: repeated chatto.api.v1.RefreshedAttachmentUrls attachments = 2;
+   * @generated from field: chatto.api.v1.RoomTimelineIncludes includes = 2;
    */
-  attachments: RefreshedAttachmentUrls[] = [];
+  includes?: RoomTimelineIncludes;
 
-  constructor(data?: PartialMessage<RefreshedMessageAttachmentUrls>) {
+  constructor(data?: PartialMessage<BatchGetMessagesResponse>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.RefreshedMessageAttachmentUrls";
+  static readonly typeName = "chatto.api.v1.BatchGetMessagesResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "attachments", kind: "message", T: RefreshedAttachmentUrls, repeated: true },
+    { no: 1, name: "events", kind: "message", T: RoomTimelineEvent, repeated: true },
+    { no: 2, name: "includes", kind: "message", T: RoomTimelineIncludes },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RefreshedMessageAttachmentUrls {
-    return new RefreshedMessageAttachmentUrls().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BatchGetMessagesResponse {
+    return new BatchGetMessagesResponse().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RefreshedMessageAttachmentUrls {
-    return new RefreshedMessageAttachmentUrls().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): BatchGetMessagesResponse {
+    return new BatchGetMessagesResponse().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RefreshedMessageAttachmentUrls {
-    return new RefreshedMessageAttachmentUrls().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): BatchGetMessagesResponse {
+    return new BatchGetMessagesResponse().fromJsonString(jsonString, options);
   }
 
-  static equals(a: RefreshedMessageAttachmentUrls | PlainMessage<RefreshedMessageAttachmentUrls> | undefined, b: RefreshedMessageAttachmentUrls | PlainMessage<RefreshedMessageAttachmentUrls> | undefined): boolean {
-    return proto3.util.equals(RefreshedMessageAttachmentUrls, a, b);
-  }
-}
-
-/**
- * Response containing fresh signed URLs for many visible messages.
- *
- * @generated from message chatto.api.v1.BatchRefreshMessageAttachmentUrlsResponse
- */
-export class BatchRefreshMessageAttachmentUrlsResponse extends Message<BatchRefreshMessageAttachmentUrlsResponse> {
-  /**
-   * Refreshed messages in first-seen request order.
-   *
-   * @generated from field: repeated chatto.api.v1.RefreshedMessageAttachmentUrls messages = 1;
-   */
-  messages: RefreshedMessageAttachmentUrls[] = [];
-
-  constructor(data?: PartialMessage<BatchRefreshMessageAttachmentUrlsResponse>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.BatchRefreshMessageAttachmentUrlsResponse";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "messages", kind: "message", T: RefreshedMessageAttachmentUrls, repeated: true },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BatchRefreshMessageAttachmentUrlsResponse {
-    return new BatchRefreshMessageAttachmentUrlsResponse().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): BatchRefreshMessageAttachmentUrlsResponse {
-    return new BatchRefreshMessageAttachmentUrlsResponse().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): BatchRefreshMessageAttachmentUrlsResponse {
-    return new BatchRefreshMessageAttachmentUrlsResponse().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: BatchRefreshMessageAttachmentUrlsResponse | PlainMessage<BatchRefreshMessageAttachmentUrlsResponse> | undefined, b: BatchRefreshMessageAttachmentUrlsResponse | PlainMessage<BatchRefreshMessageAttachmentUrlsResponse> | undefined): boolean {
-    return proto3.util.equals(BatchRefreshMessageAttachmentUrlsResponse, a, b);
+  static equals(a: BatchGetMessagesResponse | PlainMessage<BatchGetMessagesResponse> | undefined, b: BatchGetMessagesResponse | PlainMessage<BatchGetMessagesResponse> | undefined): boolean {
+    return proto3.util.equals(BatchGetMessagesResponse, a, b);
   }
 }

@@ -15,11 +15,24 @@ import (
 )
 
 type roomTimelineAssembler struct {
-	api *API
+	api       *API
+	thumbnail attachmentThumbnailRequest
 }
 
 func newRoomTimelineAssembler(api *API) *roomTimelineAssembler {
-	return &roomTimelineAssembler{api: api}
+	return newRoomTimelineAssemblerWithThumbnail(api, defaultTimelineAttachmentThumbnail())
+}
+
+func defaultTimelineAttachmentThumbnail() attachmentThumbnailRequest {
+	return attachmentThumbnailRequest{
+		width:  960,
+		height: 800,
+		fit:    "contain",
+	}
+}
+
+func newRoomTimelineAssemblerWithThumbnail(api *API, thumbnail attachmentThumbnailRequest) *roomTimelineAssembler {
+	return &roomTimelineAssembler{api: api, thumbnail: thumbnail}
 }
 
 // buildPage turns projected room timeline entries into the public Connect view.
@@ -49,6 +62,7 @@ func (a *roomTimelineAssembler) buildPage(ctx context.Context, viewerID string, 
 		kind:                 kind,
 		reactionsByMessageID: reactionsByMessageID,
 		userIDs:              make(map[string]struct{}),
+		thumbnail:            a.thumbnail,
 	}
 
 	apiEvents, err := parallel.MapNonNil(ctx, maxConnectAPIHydrationConcurrency, events, func(ctx context.Context, _ int, event *core.RoomEvent) (*apiv1.RoomTimelineEvent, error) {
@@ -107,6 +121,7 @@ func (a *roomTimelineAssembler) hydrateEvent(ctx context.Context, viewerID strin
 		kind:                 kind,
 		reactionsByMessageID: reactionsByMessageID,
 		userIDs:              make(map[string]struct{}),
+		thumbnail:            a.thumbnail,
 	}
 	apiEvent, err := h.event(ctx, &core.RoomEvent{Event: event})
 	if err != nil {
@@ -127,6 +142,7 @@ type timelineHydrator struct {
 	reactionsByMessageID map[string][]core.ReactionSummary
 	userMu               sync.Mutex
 	userIDs              map[string]struct{}
+	thumbnail            attachmentThumbnailRequest
 }
 
 func (h *timelineHydrator) event(ctx context.Context, event *core.RoomEvent) (*apiv1.RoomTimelineEvent, error) {
@@ -233,7 +249,7 @@ func (h *timelineHydrator) attachments(roomID, messageEventID string, attachment
 			attachment.MessageBodyId = messageEventID
 		}
 		assetURL := h.api.core.GetStableAttachmentAssetURL(attachment.Id, h.viewerID)
-		thumbnailURL := h.api.core.GetStableTransformedAttachmentAssetURL(attachment.Id, h.viewerID, 960, 800, "contain")
+		thumbnailURL := h.api.core.GetStableTransformedAttachmentAssetURL(attachment.Id, h.viewerID, h.thumbnail.width, h.thumbnail.height, h.thumbnail.fit)
 		result = append(result, &apiv1.RoomTimelineAttachment{
 			Id:                attachment.Id,
 			Filename:          attachment.Filename,

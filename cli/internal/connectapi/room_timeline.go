@@ -100,6 +100,51 @@ func (s *messageService) ResolveMessageLinkTarget(ctx context.Context, req *conn
 	}), nil
 }
 
+func (s *messageService) GetMessage(ctx context.Context, req *connect.Request[apiv1.GetMessageRequest]) (*connect.Response[apiv1.GetMessageResponse], error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	result, err := s.api.core.RoomTimelineReads().GetMessage(ctx, caller.UserID, req.Msg.RoomId, req.Msg.EventId)
+	if err != nil {
+		return nil, connectError(err)
+	}
+	event, includes, err := newRoomTimelineAssemblerWithThumbnail(s.api, messageAttachmentThumbnailOptions(req.Msg.Thumbnail)).hydrateEvent(ctx, caller.UserID, result.Kind, result.Event)
+	if err != nil {
+		return nil, connectError(err)
+	}
+
+	return connect.NewResponse(&apiv1.GetMessageResponse{
+		Event:    event,
+		Includes: includes,
+	}), nil
+}
+
+func (s *messageService) BatchGetMessages(ctx context.Context, req *connect.Request[apiv1.BatchGetMessagesRequest]) (*connect.Response[apiv1.BatchGetMessagesResponse], error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	result, err := s.api.core.RoomTimelineReads().BatchGetMessages(ctx, caller.UserID, req.Msg.RoomId, req.Msg.GetEventIds())
+	if err != nil {
+		return nil, connectError(err)
+	}
+
+	events := make([]*core.RoomEvent, 0, len(result.Events))
+	for _, event := range result.Events {
+		events = append(events, &core.RoomEvent{Event: event})
+	}
+	page, err := newRoomTimelineAssemblerWithThumbnail(s.api, messageAttachmentThumbnailOptions(req.Msg.Thumbnail)).buildPage(ctx, caller.UserID, result.Kind, events, false, false)
+	if err != nil {
+		return nil, connectError(err)
+	}
+
+	return connect.NewResponse(&apiv1.BatchGetMessagesResponse{
+		Events:   page.GetEvents(),
+		Includes: page.GetIncludes(),
+	}), nil
+}
+
 func (s *threadService) GetThreadEvents(ctx context.Context, req *connect.Request[apiv1.GetThreadEventsRequest]) (*connect.Response[apiv1.GetThreadEventsResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {

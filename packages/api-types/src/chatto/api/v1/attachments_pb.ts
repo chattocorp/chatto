@@ -5,7 +5,7 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
-import { RoomTimelineAssetUrl, RoomTimelineAttachment, RoomTimelineVideoVariant } from "./room_timeline_pb.js";
+import { RoomTimelineAttachment } from "./room_timeline_pb.js";
 
 /**
  * Fit mode used when generating transformed attachment thumbnails.
@@ -160,78 +160,5 @@ export class RoomAttachmentListItem extends Message<RoomAttachmentListItem> {
 
   static equals(a: RoomAttachmentListItem | PlainMessage<RoomAttachmentListItem> | undefined, b: RoomAttachmentListItem | PlainMessage<RoomAttachmentListItem> | undefined): boolean {
     return proto3.util.equals(RoomAttachmentListItem, a, b);
-  }
-}
-
-/**
- * Fresh signed URLs for one message attachment.
- *
- * @generated from message chatto.api.v1.RefreshedAttachmentUrls
- */
-export class RefreshedAttachmentUrls extends Message<RefreshedAttachmentUrls> {
-  /**
-   * Attachment ID these URLs belong to.
-   *
-   * @generated from field: string attachment_id = 1;
-   */
-  attachmentId = "";
-
-  /**
-   * Fresh signed URL for the original attachment.
-   *
-   * @generated from field: chatto.api.v1.RoomTimelineAssetUrl asset_url = 2;
-   */
-  assetUrl?: RoomTimelineAssetUrl;
-
-  /**
-   * Fresh signed transformed thumbnail URL for the attachment.
-   *
-   * @generated from field: chatto.api.v1.RoomTimelineAssetUrl thumbnail_asset_url = 3;
-   */
-  thumbnailAssetUrl?: RoomTimelineAssetUrl;
-
-  /**
-   * Fresh signed URL for the processed video thumbnail, when present.
-   *
-   * @generated from field: chatto.api.v1.RoomTimelineAssetUrl video_thumbnail_asset_url = 4;
-   */
-  videoThumbnailAssetUrl?: RoomTimelineAssetUrl;
-
-  /**
-   * Fresh signed URLs for processed video variants, when present.
-   *
-   * @generated from field: repeated chatto.api.v1.RoomTimelineVideoVariant variants = 5;
-   */
-  variants: RoomTimelineVideoVariant[] = [];
-
-  constructor(data?: PartialMessage<RefreshedAttachmentUrls>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.RefreshedAttachmentUrls";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "attachment_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "asset_url", kind: "message", T: RoomTimelineAssetUrl },
-    { no: 3, name: "thumbnail_asset_url", kind: "message", T: RoomTimelineAssetUrl },
-    { no: 4, name: "video_thumbnail_asset_url", kind: "message", T: RoomTimelineAssetUrl },
-    { no: 5, name: "variants", kind: "message", T: RoomTimelineVideoVariant, repeated: true },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RefreshedAttachmentUrls {
-    return new RefreshedAttachmentUrls().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RefreshedAttachmentUrls {
-    return new RefreshedAttachmentUrls().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RefreshedAttachmentUrls {
-    return new RefreshedAttachmentUrls().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: RefreshedAttachmentUrls | PlainMessage<RefreshedAttachmentUrls> | undefined, b: RefreshedAttachmentUrls | PlainMessage<RefreshedAttachmentUrls> | undefined): boolean {
-    return proto3.util.equals(RefreshedAttachmentUrls, a, b);
   }
 }

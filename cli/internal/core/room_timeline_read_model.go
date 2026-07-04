@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -43,6 +44,16 @@ type MessageLinkTargetResult struct {
 	Kind              RoomKind
 	Event             *corev1.Event
 	ThreadRootEventID string
+}
+
+type MessageReadResult struct {
+	Kind  RoomKind
+	Event *corev1.Event
+}
+
+type BatchMessagesReadResult struct {
+	Kind   RoomKind
+	Events []*corev1.Event
 }
 
 type ThreadTimelineEventsInput struct {
@@ -134,6 +145,44 @@ func (s *RoomTimelineReadModel) ResolveMessageLinkTarget(ctx context.Context, ac
 	}, nil
 }
 
+func (s *RoomTimelineReadModel) GetMessage(ctx context.Context, actorID, roomID, eventID string) (*MessageReadResult, error) {
+	room, kind, err := s.core.requireRoomMember(ctx, actorID, roomID)
+	if err != nil {
+		return nil, err
+	}
+	event, err := s.messageEvent(ctx, kind, room.Id, eventID)
+	if err != nil {
+		return nil, err
+	}
+	return &MessageReadResult{Kind: kind, Event: event}, nil
+}
+
+func (s *RoomTimelineReadModel) BatchGetMessages(ctx context.Context, actorID, roomID string, eventIDs []string) (*BatchMessagesReadResult, error) {
+	room, kind, err := s.core.requireRoomMember(ctx, actorID, roomID)
+	if err != nil {
+		return nil, err
+	}
+
+	seen := make(map[string]struct{}, len(eventIDs))
+	events := make([]*corev1.Event, 0, len(eventIDs))
+	for _, eventID := range eventIDs {
+		if _, ok := seen[eventID]; ok {
+			continue
+		}
+		seen[eventID] = struct{}{}
+
+		event, err := s.messageEvent(ctx, kind, room.Id, eventID)
+		if err != nil {
+			if errors.Is(err, ErrMessageNotFound) {
+				continue
+			}
+			return nil, err
+		}
+		events = append(events, event)
+	}
+	return &BatchMessagesReadResult{Kind: kind, Events: events}, nil
+}
+
 func (s *RoomTimelineReadModel) GetThreadEvents(ctx context.Context, input ThreadTimelineEventsInput) (*ThreadTimelineEventsResult, error) {
 	room, kind, err := s.core.requireRoomMember(ctx, input.ActorID, input.RoomID)
 	if err != nil {
@@ -205,6 +254,27 @@ func (s *RoomTimelineReadModel) threadRootEvent(ctx context.Context, kind RoomKi
 		return nil, fmt.Errorf("thread root event not found: %w", ErrNotFound)
 	}
 	return &RoomEvent{Event: event, Sequence: seq}, nil
+}
+
+func (s *RoomTimelineReadModel) messageEvent(ctx context.Context, kind RoomKind, roomID, eventID string) (*corev1.Event, error) {
+	if strings.TrimSpace(eventID) == "" {
+		return nil, invalidArgument("event_id is required")
+	}
+	event, err := s.core.GetRoomEventByEventID(ctx, kind, roomID, eventID)
+	if err != nil {
+		return nil, err
+	}
+	if event == nil || event.GetMessagePosted() == nil {
+		return nil, ErrMessageNotFound
+	}
+	body, err := s.core.GetFullMessageBodyByEventID(ctx, eventID)
+	if err != nil {
+		return nil, err
+	}
+	if body == nil {
+		return nil, ErrMessageNotFound
+	}
+	return event, nil
 }
 
 func threadTimelineTargetIndex(rootEventID, targetEventID string, replies []*RoomEvent) int {

@@ -11,6 +11,7 @@ import {
   RoomTimelineVideoProcessingStatus,
   type RoomTimelineAssetUrl,
   type RoomTimelineAttachment,
+  type RoomTimelineEvent,
   type RoomTimelineVideoProcessing
 } from '@chatto/api-types/api/v1/room_timeline_pb';
 
@@ -109,7 +110,7 @@ export function createAttachmentAPI(config: AttachmentAPIConfig): AttachmentAPI 
     },
     async refreshMessageAttachmentUrls(roomId, eventId, thumbnail) {
       try {
-        const response = await messages.refreshMessageAttachmentUrls(
+        const response = await messages.getMessage(
           {
             roomId,
             eventId,
@@ -117,14 +118,14 @@ export function createAttachmentAPI(config: AttachmentAPIConfig): AttachmentAPI 
           },
           { headers: headers() }
         );
-        return refreshedAttachmentUrlMap(response.attachments);
+        return refreshedAttachmentUrlMap(messageAttachments(response.event));
       } catch (err) {
         return handleAuthError(config, err);
       }
     },
     async batchRefreshMessageAttachmentUrls(roomId, eventIds, thumbnail) {
       try {
-        const response = await messages.batchRefreshMessageAttachmentUrls(
+        const response = await messages.batchGetMessages(
           {
             roomId,
             eventIds,
@@ -133,9 +134,9 @@ export function createAttachmentAPI(config: AttachmentAPIConfig): AttachmentAPI 
           { headers: headers() }
         );
         return new Map(
-          response.messages.map((message) => [
-            message.eventId,
-            refreshedAttachmentUrlMap(message.attachments)
+          response.events.map((event) => [
+            event.id,
+            refreshedAttachmentUrlMap(messageAttachments(event))
           ])
         );
       } catch (err) {
@@ -145,27 +146,23 @@ export function createAttachmentAPI(config: AttachmentAPIConfig): AttachmentAPI 
   };
 }
 
+function messageAttachments(event?: RoomTimelineEvent): readonly RoomTimelineAttachment[] {
+  if (event?.event.case !== 'messagePosted') return [];
+  return event.event.value.attachments;
+}
+
 function refreshedAttachmentUrlMap(
-  attachments: readonly {
-    attachmentId: string;
-    assetUrl?: RoomTimelineAssetUrl;
-    thumbnailAssetUrl?: RoomTimelineAssetUrl;
-    videoThumbnailAssetUrl?: RoomTimelineAssetUrl;
-    variants: readonly {
-      quality: string;
-      assetUrl?: RoomTimelineAssetUrl;
-    }[];
-  }[]
+  attachments: readonly RoomTimelineAttachment[]
 ): Map<string, RefreshedAttachmentUrls> {
   return new Map(
     attachments.map((attachment) => [
-      attachment.attachmentId,
+      attachment.id,
       {
         assetUrl: assetUrl(attachment.assetUrl),
         thumbnailAssetUrl: assetUrl(attachment.thumbnailAssetUrl),
-        videoThumbnailAssetUrl: assetUrl(attachment.videoThumbnailAssetUrl),
+        videoThumbnailAssetUrl: assetUrl(attachment.videoProcessing?.thumbnailAssetUrl),
         variantAssetUrls: new Map(
-          attachment.variants.map(
+          (attachment.videoProcessing?.variants ?? []).map(
             (variant) => [variant.quality, assetUrl(variant.assetUrl)] as const
           )
         )

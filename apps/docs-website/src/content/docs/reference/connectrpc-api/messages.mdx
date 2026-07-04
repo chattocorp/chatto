@@ -205,81 +205,81 @@ Result of removing a link preview from a message.
 | `deleted` | `bool` | True when the link preview removal was accepted. |
 
 
-<a id="chatto-api-v1-MessageService-RefreshMessageAttachmentUrls"></a>
+<a id="chatto-api-v1-MessageService-GetMessage"></a>
 
-### RefreshMessageAttachmentUrls
+### GetMessage
 
-Refreshes signed URLs for the current attachments on one message.
+Reads one renderable message, including current body, attachments with
+freshly signed expiring URLs, link preview, reactions, and thread metadata.
 Authentication and room membership are required. Returns NOT_FOUND when the
-message does not exist, is not a current visible message, or belongs to a
-different room. Returns an empty attachment list when the message exists
-but currently has no attachments.
+event does not exist, is not a message, has been retracted, or belongs to a
+different room.
 
 ```http
-POST /api/connect/chatto.api.v1.MessageService/RefreshMessageAttachmentUrls
+POST /api/connect/chatto.api.v1.MessageService/GetMessage
 ```
 
-<a id="chatto-api-v1-RefreshMessageAttachmentUrlsRequest"></a>
+<a id="chatto-api-v1-GetMessageRequest"></a>
 
-#### Input: RefreshMessageAttachmentUrlsRequest
+#### Input: GetMessageRequest
 
-Request to refresh signed attachment URLs for one message.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | Required room ID. |
-| `event_id` | `string` | Required message event ID. |
-| `thumbnail` | [`AttachmentThumbnailOptions`](/reference/connectrpc-api/types/#chatto-api-v1-AttachmentThumbnailOptions) | Thumbnail URL options. Defaults are applied when absent. |
-
-
-<a id="chatto-api-v1-RefreshMessageAttachmentUrlsResponse"></a>
-
-#### Result: RefreshMessageAttachmentUrlsResponse
-
-Response containing fresh signed URLs for the current message attachments.
+Request to read one visible message.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `attachments` | repeated [`RefreshedAttachmentUrls`](/reference/connectrpc-api/types/#chatto-api-v1-RefreshedAttachmentUrls) | Fresh URL bundle for each current attachment on the message. |
+| `room_id` | `string` | Required. Room containing the message. |
+| `event_id` | `string` | Required. Message event ID. |
+| `thumbnail` | [`AttachmentThumbnailOptions`](/reference/connectrpc-api/types/#chatto-api-v1-AttachmentThumbnailOptions) | Attachment thumbnail URL options. Defaults are applied when absent. |
 
 
-<a id="chatto-api-v1-MessageService-BatchRefreshMessageAttachmentUrls"></a>
+<a id="chatto-api-v1-GetMessageResponse"></a>
 
-### BatchRefreshMessageAttachmentUrls
+#### Result: GetMessageResponse
 
-Refreshes signed URLs for the current attachments on multiple messages in
-one room. Authentication and room membership are required. Missing,
-retracted, non-message, and wrong-room event IDs are omitted. Results
-preserve first-seen request order and repeated event IDs are de-duplicated.
-Existing visible messages with no current attachments are returned with an
-empty attachment list.
+Response containing one renderable message event.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `event` | [`RoomTimelineEvent`](/reference/connectrpc-api/types/#chatto-api-v1-RoomTimelineEvent) | Renderable timeline event for the message. |
+| `includes` | [`RoomTimelineIncludes`](/reference/connectrpc-api/types/#chatto-api-v1-RoomTimelineIncludes) | Related entities needed to render the message. |
+
+
+<a id="chatto-api-v1-MessageService-BatchGetMessages"></a>
+
+### BatchGetMessages
+
+Reads many renderable messages in one room. Authentication and room
+membership are required. Missing, retracted, non-message, and wrong-room
+event IDs are omitted. Results preserve first-seen request order and
+repeated event IDs are de-duplicated.
 
 ```http
-POST /api/connect/chatto.api.v1.MessageService/BatchRefreshMessageAttachmentUrls
+POST /api/connect/chatto.api.v1.MessageService/BatchGetMessages
 ```
 
-<a id="chatto-api-v1-BatchRefreshMessageAttachmentUrlsRequest"></a>
+<a id="chatto-api-v1-BatchGetMessagesRequest"></a>
 
-#### Input: BatchRefreshMessageAttachmentUrlsRequest
+#### Input: BatchGetMessagesRequest
 
-Request to refresh signed attachment URLs for many messages in one room.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | Required room ID. |
-| `event_ids` | `repeated string` | Required message event IDs. Missing, retracted, non-message, and wrong-room event IDs are omitted from the response. |
-| `thumbnail` | [`AttachmentThumbnailOptions`](/reference/connectrpc-api/types/#chatto-api-v1-AttachmentThumbnailOptions) | Thumbnail URL options. Defaults are applied when absent. |
-
-
-<a id="chatto-api-v1-BatchRefreshMessageAttachmentUrlsResponse"></a>
-
-#### Result: BatchRefreshMessageAttachmentUrlsResponse
-
-Response containing fresh signed URLs for many visible messages.
+Request to read many visible messages in one room.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `messages` | repeated [`RefreshedMessageAttachmentUrls`](/reference/connectrpc-api/types/#chatto-api-v1-RefreshedMessageAttachmentUrls) | Refreshed messages in first-seen request order. |
+| `room_id` | `string` | Required. Room containing the messages. |
+| `event_ids` | `repeated string` | Required. Message event IDs. Missing, retracted, non-message, and wrong-room event IDs are omitted from the response. |
+| `thumbnail` | [`AttachmentThumbnailOptions`](/reference/connectrpc-api/types/#chatto-api-v1-AttachmentThumbnailOptions) | Attachment thumbnail URL options. Defaults are applied when absent. |
+
+
+<a id="chatto-api-v1-BatchGetMessagesResponse"></a>
+
+#### Result: BatchGetMessagesResponse
+
+Response containing renderable message events.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `events` | repeated [`RoomTimelineEvent`](/reference/connectrpc-api/types/#chatto-api-v1-RoomTimelineEvent) | Renderable timeline events in first-seen request order. |
+| `includes` | [`RoomTimelineIncludes`](/reference/connectrpc-api/types/#chatto-api-v1-RoomTimelineIncludes) | Related entities needed to render the messages. |
 
 
 <a id="chatto-api-v1-MessageService-ResolveMessageLinkTarget"></a>

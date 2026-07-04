@@ -335,21 +335,21 @@ func TestBatchGetResourceRequestsValidateThroughConnectHandlers(t *testing.T) {
 		t.Fatalf("too-many BatchGetNotifications code = %v, want invalid_argument", connect.CodeOf(err))
 	}
 
-	if _, err := messages.BatchRefreshMessageAttachmentUrls(context.Background(), connect.NewRequest(&apiv1.BatchRefreshMessageAttachmentUrlsRequest{})); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("empty BatchRefreshMessageAttachmentUrls code = %v, want invalid_argument", connect.CodeOf(err))
+	if _, err := messages.BatchGetMessages(context.Background(), connect.NewRequest(&apiv1.BatchGetMessagesRequest{})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("empty BatchGetMessages code = %v, want invalid_argument", connect.CodeOf(err))
 	}
-	if _, err := messages.BatchRefreshMessageAttachmentUrls(context.Background(), connect.NewRequest(&apiv1.BatchRefreshMessageAttachmentUrlsRequest{RoomId: "room", EventIds: []string{""}})); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("empty-id BatchRefreshMessageAttachmentUrls code = %v, want invalid_argument", connect.CodeOf(err))
+	if _, err := messages.BatchGetMessages(context.Background(), connect.NewRequest(&apiv1.BatchGetMessagesRequest{RoomId: "room", EventIds: []string{""}})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("empty-id BatchGetMessages code = %v, want invalid_argument", connect.CodeOf(err))
 	}
-	if _, err := messages.BatchRefreshMessageAttachmentUrls(context.Background(), connect.NewRequest(&apiv1.BatchRefreshMessageAttachmentUrlsRequest{EventIds: []string{"event"}})); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("empty-room BatchRefreshMessageAttachmentUrls code = %v, want invalid_argument", connect.CodeOf(err))
+	if _, err := messages.BatchGetMessages(context.Background(), connect.NewRequest(&apiv1.BatchGetMessagesRequest{EventIds: []string{"event"}})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("empty-room BatchGetMessages code = %v, want invalid_argument", connect.CodeOf(err))
 	}
 	tooManyEventIDs := make([]string, 101)
 	for i := range tooManyEventIDs {
 		tooManyEventIDs[i] = fmt.Sprintf("event-%d", i)
 	}
-	if _, err := messages.BatchRefreshMessageAttachmentUrls(context.Background(), connect.NewRequest(&apiv1.BatchRefreshMessageAttachmentUrlsRequest{RoomId: "room", EventIds: tooManyEventIDs})); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("too-many BatchRefreshMessageAttachmentUrls code = %v, want invalid_argument", connect.CodeOf(err))
+	if _, err := messages.BatchGetMessages(context.Background(), connect.NewRequest(&apiv1.BatchGetMessagesRequest{RoomId: "room", EventIds: tooManyEventIDs})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("too-many BatchGetMessages code = %v, want invalid_argument", connect.CodeOf(err))
 	}
 
 	if _, err := voice.GetActiveCall(context.Background(), connect.NewRequest(&apiv1.GetActiveCallRequest{})); connect.CodeOf(err) != connect.CodeInvalidArgument {
@@ -3325,11 +3325,11 @@ func TestConnectServicesRejectDMOutsiders(t *testing.T) {
 	}))
 	checkInaccessible("ListRoomAttachments", err)
 
-	_, err = env.messages.RefreshMessageAttachmentUrls(ctx, connect.NewRequest(&apiv1.RefreshMessageAttachmentUrlsRequest{
+	_, err = env.messages.GetMessage(ctx, connect.NewRequest(&apiv1.GetMessageRequest{
 		RoomId:  dm.Id,
 		EventId: root.Id,
 	}))
-	checkInaccessible("RefreshMessageAttachmentUrls", err)
+	checkInaccessible("GetMessage", err)
 
 	_, err = env.messages.AddReaction(ctx, connect.NewRequest(&apiv1.AddReactionRequest{
 		RoomId:         dm.Id,
@@ -5633,7 +5633,7 @@ func TestRoomTimelineCursorFormatIsOpaqueAndVersioned(t *testing.T) {
 	}
 }
 
-func TestRoomAndMessageServicesListAndRefreshAttachments(t *testing.T) {
+func TestRoomAndMessageServicesListAttachmentsAndGetMessages(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("attachment-list")
 
@@ -5695,7 +5695,7 @@ func TestRoomAndMessageServicesListAndRefreshAttachments(t *testing.T) {
 		t.Fatal("created_at missing")
 	}
 
-	refresh, err := env.messages.RefreshMessageAttachmentUrls(ctx, connect.NewRequest(&apiv1.RefreshMessageAttachmentUrlsRequest{
+	get, err := env.messages.GetMessage(ctx, connect.NewRequest(&apiv1.GetMessageRequest{
 		RoomId:  room.Id,
 		EventId: reply.Id,
 		Thumbnail: &apiv1.AttachmentThumbnailOptions{
@@ -5705,14 +5705,15 @@ func TestRoomAndMessageServicesListAndRefreshAttachments(t *testing.T) {
 		},
 	}))
 	if err != nil {
-		t.Fatalf("RefreshMessageAttachmentUrls: %v", err)
+		t.Fatalf("GetMessage: %v", err)
 	}
-	if len(refresh.Msg.Attachments) != 1 {
-		t.Fatalf("refresh attachments = %d, want 1", len(refresh.Msg.Attachments))
+	getAttachments := get.Msg.GetEvent().GetMessagePosted().GetAttachments()
+	if len(getAttachments) != 1 {
+		t.Fatalf("GetMessage attachments = %d, want 1", len(getAttachments))
 	}
-	fresh := refresh.Msg.Attachments[0]
-	if fresh.AttachmentId != threadAttachment.Id {
-		t.Fatalf("refresh attachment ID = %q, want %q", fresh.AttachmentId, threadAttachment.Id)
+	fresh := getAttachments[0]
+	if fresh.GetId() != threadAttachment.Id {
+		t.Fatalf("GetMessage attachment ID = %q, want %q", fresh.GetId(), threadAttachment.Id)
 	}
 	if fresh.GetAssetUrl().GetUrl() == "" || fresh.GetAssetUrl().GetExpiresAt() == nil {
 		t.Fatalf("fresh asset URL missing: %+v", fresh.GetAssetUrl())
@@ -5721,7 +5722,7 @@ func TestRoomAndMessageServicesListAndRefreshAttachments(t *testing.T) {
 		t.Fatalf("fresh thumbnail URL missing: %+v", fresh.GetThumbnailAssetUrl())
 	}
 
-	batch, err := env.messages.BatchRefreshMessageAttachmentUrls(ctx, connect.NewRequest(&apiv1.BatchRefreshMessageAttachmentUrlsRequest{
+	batch, err := env.messages.BatchGetMessages(ctx, connect.NewRequest(&apiv1.BatchGetMessagesRequest{
 		RoomId:   room.Id,
 		EventIds: []string{reply.Id, "missing-event", root.Id, reply.Id, empty.Id},
 		Thumbnail: &apiv1.AttachmentThumbnailOptions{
@@ -5731,21 +5732,21 @@ func TestRoomAndMessageServicesListAndRefreshAttachments(t *testing.T) {
 		},
 	}))
 	if err != nil {
-		t.Fatalf("BatchRefreshMessageAttachmentUrls: %v", err)
+		t.Fatalf("BatchGetMessages: %v", err)
 	}
-	if got := batch.Msg.GetMessages(); len(got) != 3 {
-		t.Fatalf("BatchRefreshMessageAttachmentUrls messages = %d, want 3", len(got))
+	if got := batch.Msg.GetEvents(); len(got) != 3 {
+		t.Fatalf("BatchGetMessages events = %d, want 3", len(got))
 	}
-	if batch.Msg.Messages[0].GetEventId() != reply.Id || len(batch.Msg.Messages[0].GetAttachments()) != 1 {
-		t.Fatalf("batch first = %+v, want reply with one attachment", batch.Msg.Messages[0])
+	if batch.Msg.Events[0].GetId() != reply.Id || len(batch.Msg.Events[0].GetMessagePosted().GetAttachments()) != 1 {
+		t.Fatalf("batch first = %+v, want reply with one attachment", batch.Msg.Events[0])
 	}
-	if batch.Msg.Messages[1].GetEventId() != root.Id ||
-		len(batch.Msg.Messages[1].GetAttachments()) != 1 ||
-		batch.Msg.Messages[1].GetAttachments()[0].GetAttachmentId() != rootAttachment.Id {
-		t.Fatalf("batch second = %+v, want root attachment", batch.Msg.Messages[1])
+	if batch.Msg.Events[1].GetId() != root.Id ||
+		len(batch.Msg.Events[1].GetMessagePosted().GetAttachments()) != 1 ||
+		batch.Msg.Events[1].GetMessagePosted().GetAttachments()[0].GetId() != rootAttachment.Id {
+		t.Fatalf("batch second = %+v, want root attachment", batch.Msg.Events[1])
 	}
-	if batch.Msg.Messages[2].GetEventId() != empty.Id || len(batch.Msg.Messages[2].GetAttachments()) != 0 {
-		t.Fatalf("batch third = %+v, want empty message with no attachments", batch.Msg.Messages[2])
+	if batch.Msg.Events[2].GetId() != empty.Id || len(batch.Msg.Events[2].GetMessagePosted().GetAttachments()) != 0 {
+		t.Fatalf("batch third = %+v, want empty message with no attachments", batch.Msg.Events[2])
 	}
 }
 

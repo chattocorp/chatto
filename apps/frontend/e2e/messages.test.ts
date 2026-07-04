@@ -189,7 +189,7 @@ test('image attachment refreshes URL after an expired lazy-load request', async 
   let refreshQueryCount = 0;
 
   await page.route(
-    '**/api/connect/chatto.api.v1.MessageService/RefreshMessageAttachmentUrls',
+    '**/api/connect/chatto.api.v1.MessageService/GetMessage',
     async (route) => {
       refreshQueryCount += 1;
       await route.continue();

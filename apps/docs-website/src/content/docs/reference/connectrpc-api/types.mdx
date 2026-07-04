@@ -474,20 +474,6 @@ Thumbnail transform parameters for attachment URL reads.
 | `height` | `int32` | Thumbnail height in pixels. |
 | `fit` | [`AttachmentFitMode`](#chatto-api-v1-AttachmentFitMode) | Thumbnail fit mode. |
 
-<a id="chatto-api-v1-RefreshedAttachmentUrls"></a>
-
-### RefreshedAttachmentUrls
-
-Fresh signed URLs for one message attachment.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `attachment_id` | `string` | Attachment ID these URLs belong to. |
-| `asset_url` | [`RoomTimelineAssetUrl`](#chatto-api-v1-RoomTimelineAssetUrl) | Fresh signed URL for the original attachment. |
-| `thumbnail_asset_url` | [`RoomTimelineAssetUrl`](#chatto-api-v1-RoomTimelineAssetUrl) | Fresh signed transformed thumbnail URL for the attachment. |
-| `video_thumbnail_asset_url` | [`RoomTimelineAssetUrl`](#chatto-api-v1-RoomTimelineAssetUrl) | Fresh signed URL for the processed video thumbnail, when present. |
-| `variants` | repeated [`RoomTimelineVideoVariant`](#chatto-api-v1-RoomTimelineVideoVariant) | Fresh signed URLs for processed video variants, when present. |
-
 <a id="chatto-api-v1-RoomAttachmentListItem"></a>
 
 ### RoomAttachmentListItem
@@ -565,17 +551,6 @@ generated image URLs.
 | `site_name` | `optional string` | Site name, when known. |
 | `embed_type` | `optional string` | Embed provider or type, when recognized. |
 | `embed_id` | `optional string` | Provider-specific embed ID, when recognized. |
-
-<a id="chatto-api-v1-RefreshedMessageAttachmentUrls"></a>
-
-### RefreshedMessageAttachmentUrls
-
-Fresh signed attachment URLs for one visible message.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `event_id` | `string` | Message event ID these attachment URLs belong to. |
-| `attachments` | repeated [`RefreshedAttachmentUrls`](#chatto-api-v1-RefreshedAttachmentUrls) | Fresh URL bundle for each current attachment on the message. |
 
 <a id="chatto-api-v1-DirectMessageNotification"></a>
 
