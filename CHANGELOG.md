@@ -3,6 +3,38 @@
 All notable changes to Chatto. Maintained by release-please from the
 conventional-commit messages on `main` — do not edit by hand.
 
+## [0.4.0-beta.13](https://github.com/chattocorp/chatto/compare/v0.4.0-beta.12...v0.4.0-beta.13) (2026-07-04)
+
+
+### ⚠ BREAKING CHANGES
+
+* **api:** consolidate public ConnectRPC API ([#1295](https://github.com/chattocorp/chatto/issues/1295))
+
+### Features
+
+* **api:** consolidate membership services ([#1293](https://github.com/chattocorp/chatto/issues/1293)) ([7ed268c](https://github.com/chattocorp/chatto/commit/7ed268c71443c75201a1d26036f318f8df6f6e05))
+
+
+### Bug Fixes
+
+* **calls:** preserve call on tab takeover ([#1284](https://github.com/chattocorp/chatto/issues/1284)) ([451929d](https://github.com/chattocorp/chatto/commit/451929d2bf2dbbcffbc879a5e98ceac2ab1153b1))
+* **conductor:** use workspace port for Storybook ([#1290](https://github.com/chattocorp/chatto/issues/1290)) ([c5ba4dc](https://github.com/chattocorp/chatto/commit/c5ba4dc775c611e27c916cb46179a7d8264ac8f9))
+* **frontend:** clear call-wide mode on notification navigation ([#1291](https://github.com/chattocorp/chatto/issues/1291)) ([db09a62](https://github.com/chattocorp/chatto/commit/db09a62949ffdbe56a7b1436a3a10df901b889bf))
+* **frontend:** improve LiveKit media error handling ([#1281](https://github.com/chattocorp/chatto/issues/1281)) ([94a86c0](https://github.com/chattocorp/chatto/commit/94a86c0e9ed789f7e05175186b7ecfdd999af1bf))
+* **frontend:** quiet console warning noise ([#1280](https://github.com/chattocorp/chatto/issues/1280)) ([4df7b85](https://github.com/chattocorp/chatto/commit/4df7b8575f1bf489d6f0518e31367dfb8729af7a))
+* **frontend:** stabilize tab resume catch-up ([#1288](https://github.com/chattocorp/chatto/issues/1288)) ([b70916d](https://github.com/chattocorp/chatto/commit/b70916d877c231dba9ab67fbfc2983df4d774aa2))
+* **notifications:** clear read notifications server-side ([#1297](https://github.com/chattocorp/chatto/issues/1297)) ([c6f3c30](https://github.com/chattocorp/chatto/commit/c6f3c30d1729f48bebf47047963262acd32a1d4e))
+
+
+### Performance Improvements
+
+* **core:** slim timeline projection memory ([#1287](https://github.com/chattocorp/chatto/issues/1287)) ([cd026ff](https://github.com/chattocorp/chatto/commit/cd026ff14dab59b45d9bf26b78bcdca08b81edc8))
+
+
+### Code Refactoring
+
+* **api:** consolidate public ConnectRPC API ([#1295](https://github.com/chattocorp/chatto/issues/1295)) ([a0ab823](https://github.com/chattocorp/chatto/commit/a0ab82321db80f44569fd55019726b8e4c458ddb))
+
 ## [0.4.0-beta.12](https://github.com/chattocorp/chatto/compare/v0.4.0-beta.11...v0.4.0-beta.12) (2026-07-03)
 
 
