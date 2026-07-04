@@ -31,6 +31,8 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   import NotificationBadge from '$lib/ui/NotificationBadge.svelte';
   import UnreadDot from '$lib/ui/UnreadDot.svelte';
   import { notificationTarget } from '$lib/state/server/notifications.svelte';
+  import { prepareUiForNotificationTarget } from '$lib/notifications/notificationNavigationUi';
+  import { getAppUiState } from '$lib/state/appUi.svelte';
   import { appState } from '$lib/state/globals.svelte';
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
   import type { EventEnvelope } from '$lib/eventBus.svelte';
@@ -58,6 +60,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   const activeCallRooms = $derived(stores.activeCallRooms);
   const voiceCallState = $derived(stores.voiceCall);
   const serverInfo = $derived(stores.serverInfo);
+  const appUi = getAppUiState();
 
   const roomsStore = $derived(stores.rooms);
 
@@ -348,6 +351,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     }
 
     const target = notificationTarget(notification);
+    prepareUiForNotificationTarget(appUi, activeServerId, target);
     if (target.eventId && target.roomId) {
       stores.pendingHighlights.set(target.roomId, target.threadRootId, target.eventId);
     }

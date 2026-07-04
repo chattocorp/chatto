@@ -11,6 +11,8 @@
   import { getViewerStateViaConnect } from '$lib/api-client/viewer';
   import { createRoomDirectoryAPI, RoomDirectoryScope } from '$lib/api-client/roomDirectory';
   import { notificationTarget } from '$lib/state/server/notifications.svelte';
+  import { prepareUiForNotificationTarget } from '$lib/notifications/notificationNavigationUi';
+  import { getAppUiState } from '$lib/state/appUi.svelte';
   import { appState } from '$lib/state/globals.svelte';
   import ServerIcon from './ServerIcon.svelte';
   import { useTabResumeCallback } from '$lib/hooks';
@@ -33,6 +35,7 @@
   const notificationStore = stores.notifications;
   const roomUnreadStore = stores.roomUnread;
   const notificationLevelStore = stores.notificationLevels;
+  const appUi = getAppUiState();
   // eslint-disable-next-line svelte/no-unused-svelte-ignore -- Svelte compiler warning, not ESLint
   // svelte-ignore state_referenced_locally - serverId is stable per component lifetime (keyed by server.id)
   const serverConnection = serverConnectionManager.getClient(serverId);
@@ -222,6 +225,7 @@
     }
 
     const target = notificationTarget(notification);
+    prepareUiForNotificationTarget(appUi, serverId, target);
     if (target.eventId && target.roomId) {
       stores.pendingHighlights.set(target.roomId, target.threadRootId, target.eventId);
     }

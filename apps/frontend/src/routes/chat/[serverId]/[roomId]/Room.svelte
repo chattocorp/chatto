@@ -30,6 +30,7 @@
     type QuoteInsertionContent
   } from '$lib/state/room';
   import { onRoomMessageMutated } from '$lib/state/room/messageMutationEvents';
+  import { getAppUiState } from '$lib/state/appUi.svelte';
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
@@ -56,7 +57,6 @@
     roomSidebarPanelForRoom,
     roomSidebarPanelsForRoom
   } from './roomSidebarBehavior';
-  import { RoomSidebarPanelsState } from './roomSidebarPanels.svelte';
   import ThreadPane from './ThreadPane.svelte';
   import type { PendingThreadReplyRequest, ThreadOpenOptions } from './threadOpenOptions';
 
@@ -69,6 +69,7 @@
   const stores = serverRegistry.getStore(getActiveServer());
   const serverInfo = stores.serverInfo;
   const notificationStore = stores.notifications;
+  const appUi = getAppUiState();
 
   // Thread navigation functions (URL-driven state)
   let pendingThreadHighlight = $state<string | null>(null);
@@ -107,7 +108,9 @@
   const currentUser = $derived(serverRegistry.getStore(getActiveServer()).currentUser);
   const roomMessageStore = new MessagesStore(connection(), () => currentUser.user?.id ?? null);
 
-  onDestroy(() => roomMessageStore.dispose());
+  onDestroy(() => {
+    roomMessageStore.dispose();
+  });
 
   $effect(() =>
     onRoomMessageMutated((detail) => {
@@ -398,15 +401,11 @@
   let showVoiceCall = $derived(!!room.roomData && !!serverInfo.livekitUrl);
   // Channel rooms can be left unless membership is granted by Universal policy.
   let showLeaveRoom = $derived(!!room.roomData && !room.isDM && !room.roomData.room.isUniversal);
-  const roomSidebarPanels = new RoomSidebarPanelsState(
-    () => getActiveServer(),
-    () => roomId
-  );
   const activeRoomSidebarPanel = $derived(
-    roomSidebarPanelForRoom(room.isDM, roomSidebarPanels.activeDesktopPanel, showVoiceCall)
+    roomSidebarPanelForRoom(room.isDM, appUi.activeDesktopRoomSidebarPanel, showVoiceCall)
   );
   const mobileRoomSidebarPanel = $derived(
-    roomSidebarPanelForRoom(room.isDM, roomSidebarPanels.mobilePanel, showVoiceCall)
+    roomSidebarPanelForRoom(room.isDM, appUi.mobileRoomSidebarPanel, showVoiceCall)
   );
   const roomSidebarTogglePanels = $derived(roomSidebarPanelsForRoom(room.isDM, showVoiceCall));
   const hasActiveRoomCall = $derived(
@@ -415,25 +414,33 @@
   const isDesktopCallMaximized = $derived(
     activeRoomSidebarPanel === 'call' &&
       hasActiveRoomCall &&
-      roomSidebarPanels.isDesktopCallMaximized
+      appUi.isRoomCallWideFor(getActiveServer(), roomId)
   );
 
   $effect(() => {
-    const currentScope = `${getActiveServer()}:${roomId}`;
-    if (currentScope) roomSidebarPanels.syncCurrentScope();
-  });
-
-  $effect(() => {
-    if (!hasActiveRoomCall) roomSidebarPanels.clearDesktopCallMaximized();
+    if (!hasActiveRoomCall) appUi.disableRoomCallWideFor(getActiveServer(), roomId);
   });
 
   let leavingRoom = $state(false);
 
+  function toggleDesktopRoomSidebarPanel(panel: RoomSidebarPanel): void {
+    appUi.toggleDesktopRoomSidebarPanel(panel);
+  }
+
+  function closeDesktopRoomSidebarPanel(): void {
+    appUi.closeDesktopRoomSidebarPanel();
+  }
+
+  function toggleDesktopCallWide(): void {
+    if (activeRoomSidebarPanel !== 'call' || !hasActiveRoomCall) return;
+    appUi.toggleRoomCallWide(getActiveServer(), roomId);
+  }
+
   function openRoomSidebarPanel(panel: RoomSidebarPanel): void {
     if (window.matchMedia('(min-width: 1024px)').matches) {
-      roomSidebarPanels.openDesktopPanel(panel);
+      appUi.openDesktopRoomSidebarPanel(panel);
     } else {
-      roomSidebarPanels.openMobilePanel(panel);
+      appUi.openMobileRoomSidebarPanel(panel);
     }
   }
 
@@ -462,7 +469,7 @@
       void jumpState.jumpToMessage(messageEventId);
     }
     if (closeMobile) {
-      roomSidebarPanels.closeMobile();
+      appUi.closeMobileRoomSidebarPanel();
     }
   }
 
@@ -494,7 +501,7 @@
   onkeydown={(e) => {
     if (e.key === 'Escape' && mobileRoomSidebarPanel && !e.defaultPrevented) {
       e.preventDefault();
-      roomSidebarPanels.closeMobile();
+      appUi.closeMobileRoomSidebarPanel();
       return;
     }
 
@@ -513,7 +520,7 @@
       ) {
         return;
       }
-      roomSidebarPanels.closeMobile();
+      appUi.closeMobileRoomSidebarPanel();
       return;
     }
 
@@ -564,14 +571,14 @@
               activePanel={mobileRoomSidebarPanel}
               panels={roomSidebarTogglePanels}
               hasActiveCall={hasActiveRoomCall}
-              onToggle={(panel) => roomSidebarPanels.toggleMobilePanel(panel)}
+              onToggle={(panel) => appUi.toggleMobileRoomSidebarPanel(panel)}
             />
             <RoomSidebarToggle
               mode="desktop"
               activePanel={activeRoomSidebarPanel}
               panels={roomSidebarTogglePanels}
               hasActiveCall={hasActiveRoomCall}
-              onToggle={(panel) => roomSidebarPanels.toggleDesktopPanel(panel)}
+              onToggle={toggleDesktopRoomSidebarPanel}
             />
             {#if showLeaveRoom}
               <button
@@ -661,7 +668,7 @@
           type="button"
           class="absolute inset-0 z-10 bg-transparent lg:hidden"
           aria-label={m['room.close_extras']()}
-          onclick={() => roomSidebarPanels.closeMobile()}
+          onclick={() => appUi.closeMobileRoomSidebarPanel()}
         ></button>
         <div
           class="absolute inset-y-0 right-0 z-20 flex min-h-0 w-full min-w-0 flex-col overflow-hidden border-l border-border bg-background shadow-[-4px_0_12px_rgba(0,0,0,0.15)] sm:w-[90%] lg:hidden"
@@ -684,7 +691,7 @@
             membersStore={roomMembersStore}
             onOpenFile={(messageEventId, threadRootEventId) =>
               openFileMessage(messageEventId, threadRootEventId, true)}
-            onClose={() => roomSidebarPanels.closeMobile()}
+            onClose={() => appUi.closeMobileRoomSidebarPanel()}
           />
         </div>
       {/if}
@@ -711,8 +718,8 @@
           membersStore={roomMembersStore}
           onOpenFile={(messageEventId, threadRootEventId) =>
             openFileMessage(messageEventId, threadRootEventId)}
-          onToggleMaximized={() => roomSidebarPanels.toggleDesktopCallMaximized()}
-          onClose={() => roomSidebarPanels.closeDesktop()}
+          onToggleMaximized={toggleDesktopCallWide}
+          onClose={closeDesktopRoomSidebarPanel}
         />
       </div>
     {/if}

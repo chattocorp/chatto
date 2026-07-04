@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
+import { tick } from 'svelte';
 import { q } from '$lib/test-utils';
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 import {
@@ -51,6 +52,7 @@ const { mocks } = vi.hoisted(() => {
       },
       livekitUrl: null as string | null,
       roomKind: 1,
+      getAppUiState: vi.fn(),
       activeCallRoomIds: new Set<string>(),
       joinedCallRoomIds: new Set<string>(),
       notifications: {
@@ -193,6 +195,14 @@ vi.mock('$lib/state/globals.svelte', () => ({
   }
 }));
 
+vi.mock('$lib/state/appUi.svelte', async (importActual) => {
+  const actual = await importActual<typeof import('$lib/state/appUi.svelte')>();
+  return {
+    ...actual,
+    getAppUiState: mocks.getAppUiState
+  };
+});
+
 vi.mock('$lib/storage/lastRoom', () => ({
   clearLastRoom: vi.fn(),
   setLastRoom: vi.fn()
@@ -254,6 +264,9 @@ vi.mock('$lib/ui/PaneHeader.svelte', async () => {
 });
 
 import Room from './Room.svelte';
+import { AppUiState } from '$lib/state/appUi.svelte';
+
+let appUi: AppUiState;
 
 function emptyTimelinePage() {
   return {
@@ -279,6 +292,9 @@ beforeEach(() => {
   mocks.timeline.getThreadEventsAround.mockResolvedValue(emptyTimelinePage());
   mocks.livekitUrl = null;
   mocks.roomKind = RoomKind.CHANNEL;
+  appUi = new AppUiState();
+  appUi.setActiveRoomScope('server-1', 'room-1');
+  mocks.getAppUiState.mockReturnValue(appUi);
   mocks.activeCallRoomIds.clear();
   mocks.joinedCallRoomIds.clear();
   mocks.notifications.notifications = [];
@@ -404,6 +420,55 @@ describe('Room local message echo', () => {
     expect(roomRegion.className).not.toContain('lg:hidden');
     expect(desktopSidebarPane.className).toContain('shrink-0');
     expect(desktopSidebarPane.className).not.toContain('flex-1');
+  });
+
+  it('reveals the room view when call wide mode is disabled for the current room', async () => {
+    mocks.livekitUrl = 'wss://livekit.example.test';
+    mocks.activeCallRoomIds.add('room-1');
+    setPendingRoomSidebarPanel('server-1', 'room-1', 'call');
+
+    const { container } = render(Room, { props: { roomId: 'room-1' } });
+
+    const roomRegion = q(container, '[data-testid="room-view-region"]')!;
+    const desktopSidebarPane = q(container, '[data-testid="room-sidebar-desktop-pane"]')!;
+    const maximizeButton = q(container, '[data-testid="toggle-maximized-call"]') as HTMLButtonElement;
+
+    maximizeButton.click();
+
+    await expect.element(maximizeButton).toHaveAttribute('data-maximized', 'true');
+    expect(roomRegion.className).toContain('lg:hidden');
+    expect(desktopSidebarPane.className).toContain('flex-1');
+
+    appUi.disableRoomCallWideFor('server-1', 'room-1');
+    await tick();
+
+    await expect.element(maximizeButton).toHaveAttribute('data-maximized', 'false');
+    expect(roomRegion.className).not.toContain('lg:hidden');
+    expect(desktopSidebarPane.className).toContain('shrink-0');
+    expect(desktopSidebarPane.className).not.toContain('flex-1');
+  });
+
+  it('keeps the call maximized when call wide mode is disabled for another room', async () => {
+    mocks.livekitUrl = 'wss://livekit.example.test';
+    mocks.activeCallRoomIds.add('room-1');
+    setPendingRoomSidebarPanel('server-1', 'room-1', 'call');
+
+    const { container } = render(Room, { props: { roomId: 'room-1' } });
+
+    const roomRegion = q(container, '[data-testid="room-view-region"]')!;
+    const desktopSidebarPane = q(container, '[data-testid="room-sidebar-desktop-pane"]')!;
+    const maximizeButton = q(container, '[data-testid="toggle-maximized-call"]') as HTMLButtonElement;
+
+    maximizeButton.click();
+
+    await expect.element(maximizeButton).toHaveAttribute('data-maximized', 'true');
+
+    appUi.disableRoomCallWideFor('server-1', 'room-2');
+    await tick();
+
+    await expect.element(maximizeButton).toHaveAttribute('data-maximized', 'true');
+    expect(roomRegion.className).toContain('lg:hidden');
+    expect(desktopSidebarPane.className).toContain('flex-1');
   });
 
   it('refreshes room notification counts after active-room notifications auto-dismiss', async () => {

@@ -19,6 +19,9 @@ const { mocks } = vi.hoisted(() => ({
     callParticipants: new Map<string, unknown[]>(),
     pushState: vi.fn(),
     goto: vi.fn(),
+    appUi: {
+      disableRoomCallWideFor: vi.fn()
+    },
     store: {
       currentUser: { user: { id: 'me' } },
       notifications: {
@@ -121,6 +124,10 @@ vi.mock('$lib/hooks', () => ({
   useEvent: vi.fn(),
   useRoomMarkedAsRead: vi.fn(),
   useTabResumeCallback: vi.fn()
+}));
+
+vi.mock('$lib/state/appUi.svelte', () => ({
+  getAppUiState: () => mocks.appUi
 }));
 
 vi.mock('$lib/state/presenceCache.svelte', () => ({
@@ -653,6 +660,10 @@ describe('RoomList', () => {
         'thread-1',
         'event-1'
       );
+      expect(mocks.appUi.disableRoomCallWideFor).toHaveBeenCalledWith('origin', 'channel-1');
+      expect(mocks.appUi.disableRoomCallWideFor.mock.invocationCallOrder[0]).toBeLessThan(
+        mocks.goto.mock.invocationCallOrder[0]
+      );
       expect(mocks.store.rooms.decrementUnreadNotification).toHaveBeenCalledWith('channel-1');
       expect(mocks.store.notifications.dismiss).toHaveBeenCalledWith('mention-1');
       expect(mocks.store.rooms.refreshNotificationCounts).toHaveBeenCalledOnce();
@@ -684,6 +695,13 @@ describe('RoomList', () => {
       );
       expect(mocks.store.rooms.decrementUnreadNotification).toHaveBeenCalledWith(
         'dm-with-participants'
+      );
+      expect(mocks.appUi.disableRoomCallWideFor).toHaveBeenCalledWith(
+        'origin',
+        'dm-with-participants'
+      );
+      expect(mocks.appUi.disableRoomCallWideFor.mock.invocationCallOrder[0]).toBeLessThan(
+        mocks.goto.mock.invocationCallOrder[0]
       );
       expect(mocks.store.notifications.dismiss).toHaveBeenCalledWith('dm-1');
       expect(mocks.store.rooms.refreshNotificationCounts).toHaveBeenCalledOnce();

@@ -5,6 +5,8 @@
   import * as m from '$lib/i18n/messages';
   import type { NotificationItem } from '$lib/state/server/notifications.svelte';
   import { notificationTarget } from '$lib/state/server/notifications.svelte';
+  import { prepareUiForNotificationTarget } from '$lib/notifications/notificationNavigationUi';
+  import { getAppUiState } from '$lib/state/appUi.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
 
   import UserAvatar from '$lib/components/UserAvatar.svelte';
@@ -14,6 +16,7 @@
 
   const userSettings = getUserSettings();
   const activeLocale = $derived(getLocale());
+  const appUi = getAppUiState();
 
   // Collect notification stores from all authenticated instances
   type ServerNotification = {
@@ -98,6 +101,7 @@
     const store = stores.notifications;
 
     const target = notificationTarget(item.notification);
+    prepareUiForNotificationTarget(appUi, item.serverId, target);
     if (target.eventId && target.roomId) {
       stores.pendingHighlights.set(target.roomId, target.threadRootId, target.eventId);
     }

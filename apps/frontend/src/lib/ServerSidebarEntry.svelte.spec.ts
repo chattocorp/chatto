@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { NotificationLevel, PresenceStatus } from '$lib/render/types';
+import { NotificationItemKind } from '$lib/api-client/notifications';
 import { q } from '$lib/test-utils';
 import type { EventEnvelope, EventHandler } from '$lib/eventBus.svelte';
 import { RoomEventKind } from '$lib/render/eventKinds';
@@ -13,6 +14,10 @@ const { mocks } = vi.hoisted(() => {
       getViewerStateViaConnect: vi.fn(),
       createRoomDirectoryAPI: vi.fn(),
       listRooms: vi.fn(),
+      goto: vi.fn(),
+      appUi: {
+        disableRoomCallWideFor: vi.fn()
+      },
       eventHandlers,
       registrar: {
         onEvent: vi.fn((handler: EventHandler) => {
@@ -42,7 +47,12 @@ const { mocks } = vi.hoisted(() => {
       store: {
         notifications: {
           fetch: vi.fn().mockResolvedValue(undefined),
-          setUnreadNotificationCount: vi.fn()
+          setUnreadNotificationCount: vi.fn(),
+          unreadNotificationCount: 0,
+          getSpaceNotification: vi.fn().mockReturnValue(null),
+          getDMNotification: vi.fn().mockReturnValue(null),
+          dismiss: vi.fn(),
+          getCleanPath: vi.fn().mockReturnValue('/chat/remote.example.com/room-1')
         },
         roomUnread: {
           clear: vi.fn(),
@@ -78,7 +88,7 @@ vi.mock('$app/state', () => ({
 }));
 
 vi.mock('$app/navigation', () => ({
-  goto: vi.fn()
+  goto: mocks.goto
 }));
 
 vi.mock('$app/paths', () => ({
@@ -90,6 +100,10 @@ vi.mock('$lib/hooks', () => ({
   useTabResumeCallback: (callback: () => void) => {
     void callback();
   }
+}));
+
+vi.mock('$lib/state/appUi.svelte', () => ({
+  getAppUiState: () => mocks.appUi
 }));
 
 vi.mock('$lib/eventBus.svelte', () => ({
@@ -196,6 +210,8 @@ describe('ServerSidebarEntry', () => {
     mocks.getViewerStateViaConnect.mockReset();
     mocks.createRoomDirectoryAPI.mockReset();
     mocks.listRooms.mockReset();
+    mocks.goto.mockClear();
+    mocks.appUi.disableRoomCallWideFor.mockClear();
     mocks.eventHandlers.length = 0;
     mocks.registrar.onEvent.mockClear();
     mocks.registrar.onRoomMarkedAsRead.mockClear();
@@ -207,6 +223,11 @@ describe('ServerSidebarEntry', () => {
     mocks.store.notifications.fetch.mockClear();
     mocks.store.notifications.fetch.mockResolvedValue(undefined);
     mocks.store.notifications.setUnreadNotificationCount.mockClear();
+    mocks.store.notifications.unreadNotificationCount = 0;
+    mocks.store.notifications.getSpaceNotification.mockReturnValue(null);
+    mocks.store.notifications.getDMNotification.mockReturnValue(null);
+    mocks.store.notifications.dismiss.mockClear();
+    mocks.store.notifications.getCleanPath.mockReturnValue('/chat/remote.example.com/room-1');
     mocks.store.roomUnread.clear.mockClear();
     mocks.store.roomUnread.setServerHasUnread.mockClear();
     mocks.store.roomUnread.setRoomUnread.mockClear();
@@ -327,6 +348,47 @@ describe('ServerSidebarEntry', () => {
       expect(mocks.store.notifications.fetch).toHaveBeenCalled();
     });
     expect(consoleWarnSpy).not.toHaveBeenCalled();
+  });
+
+  it('reveals the target room before navigating from a server notification indicator', async () => {
+    const notification = {
+      id: 'mention-1',
+      kind: NotificationItemKind.Mention,
+      mentionRoom: { id: 'room-1', name: 'general' },
+      mentionEventId: 'event-1',
+      mentionInThread: 'thread-1'
+    };
+    mocks.store.serverIndicator.mockReturnValue('notification');
+    mocks.store.notifications.unreadNotificationCount = 1;
+    mocks.store.notifications.getSpaceNotification.mockReturnValue(notification);
+    mocks.store.notifications.getCleanPath.mockReturnValue(
+      '/chat/remote.example.com/room-1/thread-1'
+    );
+
+    const { container } = render(ServerSidebarEntry, {
+      props: {
+        serverId: 'remote',
+        currentUserId: 'user-1'
+      }
+    });
+
+    const badge = q(container, '[data-testid="server-notification-badge"]');
+    await expect.element(badge).toBeInTheDocument();
+    (badge?.closest('button') as HTMLButtonElement).click();
+
+    await vi.waitFor(() => {
+      expect(mocks.appUi.disableRoomCallWideFor).toHaveBeenCalledWith('remote', 'room-1');
+      expect(mocks.appUi.disableRoomCallWideFor.mock.invocationCallOrder[0]).toBeLessThan(
+        mocks.goto.mock.invocationCallOrder[0]
+      );
+      expect(mocks.store.pendingHighlights.set).toHaveBeenCalledWith(
+        'room-1',
+        'thread-1',
+        'event-1'
+      );
+      expect(mocks.store.notifications.dismiss).toHaveBeenCalledWith('mention-1');
+      expect(mocks.goto).toHaveBeenCalledWith('/chat/remote.example.com/room-1/thread-1');
+    });
   });
 
   it('marks remote rooms unread from local message event kind', async () => {

@@ -5,11 +5,24 @@ import {
   onNotificationClick,
   unsubscribe
 } from './pushNotifications';
+import {
+  notificationRoomTargetFromPathname,
+  prepareUiForNotificationPath,
+  prepareUiForNotificationTarget
+} from './notificationNavigationUi';
 
 const mocks = vi.hoisted(() => ({
   createPushNotificationAPI: vi.fn(),
   subscribePush: vi.fn(),
-  unsubscribePush: vi.fn()
+  unsubscribePush: vi.fn(),
+  appUi: {
+    disableRoomCallWideFor: vi.fn()
+  },
+  segmentToServerId: vi.fn((segment: string) => {
+    if (segment === '-') return 'origin';
+    if (segment === 'remote.example.com') return 'remote';
+    return null;
+  })
 }));
 
 vi.mock('$lib/api-client/pushNotifications', () => ({
@@ -23,6 +36,10 @@ vi.mock('$lib/state/server/serverConnection.svelte', () => ({
       bearerToken: 'origin-token'
     }
   }
+}));
+
+vi.mock('$lib/navigation', () => ({
+  segmentToServerId: mocks.segmentToServerId
 }));
 
 type TestPushSubscription = PushSubscription & {
@@ -297,6 +314,43 @@ describe('pushNotifications.ensureRegistered', () => {
 
     expect(mocks.unsubscribePush).toHaveBeenCalledWith('https://push.example/existing');
     expect(subscription.unsubscribe).toHaveBeenCalledOnce();
+  });
+});
+
+describe('notification navigation UI routing', () => {
+  beforeEach(() => {
+    mocks.appUi.disableRoomCallWideFor.mockClear();
+    mocks.segmentToServerId.mockClear();
+  });
+
+  it('extracts the server and room target from chat room paths', () => {
+    expect(notificationRoomTargetFromPathname('/chat/-/room-1/thread-1')).toEqual({
+      serverId: 'origin',
+      roomId: 'room-1'
+    });
+    expect(notificationRoomTargetFromPathname('/chat/remote.example.com/room%202')).toEqual({
+      serverId: 'remote',
+      roomId: 'room 2'
+    });
+  });
+
+  it('prepares shared UI state for notification room paths', () => {
+    prepareUiForNotificationPath(mocks.appUi, '/chat/-/room-1');
+
+    expect(mocks.appUi.disableRoomCallWideFor).toHaveBeenCalledWith('origin', 'room-1');
+  });
+
+  it('prepares shared UI state for notification targets', () => {
+    prepareUiForNotificationTarget(mocks.appUi, 'origin', { roomId: 'room-1' });
+
+    expect(mocks.appUi.disableRoomCallWideFor).toHaveBeenCalledWith('origin', 'room-1');
+  });
+
+  it('ignores non-room notification paths', () => {
+    prepareUiForNotificationPath(mocks.appUi, '/chat/notifications');
+    prepareUiForNotificationPath(mocks.appUi, '/settings');
+
+    expect(mocks.appUi.disableRoomCallWideFor).not.toHaveBeenCalled();
   });
 });
 
