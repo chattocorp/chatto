@@ -171,7 +171,9 @@ type AdminRoomLayoutGroup struct {
 	// Public group description, when set.
 	Description string `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
 	// Mixed room/sidebar-link entries in sidebar order.
-	Items         []*AdminRoomLayoutItem `protobuf:"bytes,5,rep,name=items,proto3" json:"items,omitempty"`
+	Items []*AdminRoomLayoutItem `protobuf:"bytes,5,rep,name=items,proto3" json:"items,omitempty"`
+	// Whether the viewer can create rooms in this group.
+	CanCreateRoom bool `protobuf:"varint,6,opt,name=can_create_room,json=canCreateRoom,proto3" json:"can_create_room,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -232,6 +234,13 @@ func (x *AdminRoomLayoutGroup) GetItems() []*AdminRoomLayoutItem {
 		return x.Items
 	}
 	return nil
+}
+
+func (x *AdminRoomLayoutGroup) GetCanCreateRoom() bool {
+	if x != nil {
+		return x.CanCreateRoom
+	}
+	return false
 }
 
 // Request for the server-admin room group layout.
@@ -1392,12 +1401,13 @@ const file_chatto_admin_v1_room_layout_proto_rawDesc = "" +
 	"\x13AdminRoomLayoutItem\x12)\n" +
 	"\x04room\x18\x01 \x01(\v2\x13.chatto.api.v1.RoomH\x00R\x04room\x12?\n" +
 	"\fsidebar_link\x18\x02 \x01(\v2\x1a.chatto.api.v1.SidebarLinkH\x00R\vsidebarLinkB\x06\n" +
-	"\x04item\"\xa5\x01\n" +
+	"\x04item\"\xcd\x01\n" +
 	"\x14AdminRoomLayoutGroup\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +
 	"\vdescription\x18\x03 \x01(\tR\vdescription\x12:\n" +
-	"\x05items\x18\x05 \x03(\v2$.chatto.admin.v1.AdminRoomLayoutItemR\x05itemsJ\x04\b\x04\x10\x05R\x05rooms\"\x17\n" +
+	"\x05items\x18\x05 \x03(\v2$.chatto.admin.v1.AdminRoomLayoutItemR\x05items\x12&\n" +
+	"\x0fcan_create_room\x18\x06 \x01(\bR\rcanCreateRoomJ\x04\b\x04\x10\x05R\x05rooms\"\x17\n" +
 	"\x15ListRoomGroupsRequest\"W\n" +
 	"\x16ListRoomGroupsResponse\x12=\n" +
 	"\x06groups\x18\x01 \x03(\v2%.chatto.admin.v1.AdminRoomLayoutGroupR\x06groups\"}\n" +

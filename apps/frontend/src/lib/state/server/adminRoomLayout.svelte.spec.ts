@@ -266,7 +266,7 @@ describe('AdminRoomLayoutStore — mutations', () => {
       queries: [
         {
           data: queryData([
-            { id: 'g2', name: 'Projects', canCreateRoom: false, rooms: [], items: [] }
+            { id: 'g2', name: 'Projects', canCreateRoom: true, rooms: [], items: [] }
           ])
         }
       ],
@@ -281,10 +281,10 @@ describe('AdminRoomLayoutStore — mutations', () => {
     const createResult = await store.createGroup('Projects');
     expect(createResult).toEqual({
       ok: true,
-      group: { id: 'g2', name: 'Projects', canCreateRoom: false, rooms: [], items: [] }
+      group: { id: 'g2', name: 'Projects', canCreateRoom: true, rooms: [], items: [] }
     });
     expect(query).toHaveBeenCalledWith();
-    expect(store.groups[0]?.canCreateRoom).toBe(false);
+    expect(store.groups[0]?.canCreateRoom).toBe(true);
     expect(store.groups.map((g) => g.name)).toEqual(['Projects']);
 
     await expect(store.renameGroup('g2', 'Renamed')).resolves.toEqual({ ok: true });
@@ -299,10 +299,10 @@ describe('AdminRoomLayoutStore — mutations', () => {
     ]);
   });
 
-  it('keeps created groups hidden from room creation after admin layout refresh', async () => {
+  it('uses the refreshed admin layout capability for created groups', async () => {
     const { client, query } = makeClient({
       queries: [
-        { data: [{ id: 'g2', name: 'Projects', canCreateRoom: false, rooms: [], items: [] }] }
+        { data: [{ id: 'g2', name: 'Projects', canCreateRoom: true, rooms: [], items: [] }] }
       ],
       mutations: [
         { data: { id: 'g2', name: 'Projects', canCreateRoom: false, rooms: [], items: [] } }
@@ -314,10 +314,10 @@ describe('AdminRoomLayoutStore — mutations', () => {
 
     expect(createResult).toEqual({
       ok: true,
-      group: { id: 'g2', name: 'Projects', canCreateRoom: false, rooms: [], items: [] }
+      group: { id: 'g2', name: 'Projects', canCreateRoom: true, rooms: [], items: [] }
     });
     expect(query).toHaveBeenCalledWith();
-    expect(store.groups[0]?.canCreateRoom).toBe(false);
+    expect(store.groups[0]?.canCreateRoom).toBe(true);
   });
 
   it('does not optimistically update a group when rename fails', async () => {

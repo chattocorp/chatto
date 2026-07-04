@@ -3667,6 +3667,9 @@ func TestRoomDirectoryServiceListRoomGroupsFiltersHiddenRoomsAndKeepsLinks(t *te
 	if err := env.core.GrantUserPermission(env.ctx, core.SystemActorID, env.viewer.Id, core.PermRoleManage); err != nil {
 		t.Fatalf("GrantUserPermission role.manage: %v", err)
 	}
+	if err := env.core.GrantUserGroupPermission(env.ctx, core.SystemActorID, groupID, env.viewer.Id, core.PermRoomCreate); err != nil {
+		t.Fatalf("GrantUserGroupPermission admin room.create: %v", err)
+	}
 	adminLayoutResp, err := env.adminLayout.ListRoomGroups(withCaller(env.ctx, env.viewer), connect.NewRequest(&adminv1.ListRoomGroupsRequest{}))
 	if err != nil {
 		t.Fatalf("AdminRoomLayout ListRoomGroups: %v", err)
@@ -3677,6 +3680,9 @@ func TestRoomDirectoryServiceListRoomGroupsFiltersHiddenRoomsAndKeepsLinks(t *te
 	}
 	if !adminRoomLayoutItemsContainRoom(adminLayoutGroup.GetItems(), archived.Id) {
 		t.Fatalf("archived room %s missing from admin layout group items", archived.Id)
+	}
+	if !adminLayoutGroup.GetCanCreateRoom() {
+		t.Fatalf("admin layout group CanCreateRoom = false after group grant, want true")
 	}
 	if err := env.core.GrantUserGroupPermission(env.ctx, core.SystemActorID, groupID, caller.Id, core.PermRoomCreate); err != nil {
 		t.Fatalf("GrantUserGroupPermission room.create: %v", err)

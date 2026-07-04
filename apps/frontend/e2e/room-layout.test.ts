@@ -36,10 +36,14 @@ interface RoomDirectoryRoomResponse {
   archived?: boolean;
 }
 
+type RoomDirectoryGroupItemRoomResponse =
+  | RoomDirectoryRoomResponse
+  | {
+      room?: RoomDirectoryRoomResponse;
+    };
+
 interface RoomDirectoryGroupItemResponse {
-  room?: {
-    room?: RoomDirectoryRoomResponse;
-  };
+  room?: RoomDirectoryGroupItemRoomResponse;
 }
 
 interface RoomDirectoryGroupResponse {
@@ -50,6 +54,10 @@ interface RoomDirectoryGroupResponse {
 
 interface RoomDirectoryGroupsResponse {
   groups?: RoomDirectoryGroupResponse[];
+}
+
+interface RoomLayoutSnapshot {
+  groups: { id: string; name: string; rooms: { id: string; name: string; archived: boolean }[] }[];
 }
 
 async function usePrimaryServerViaAPI(page: Page, _name?: string): Promise<TestServer> {
@@ -101,7 +109,7 @@ async function denyRoomPermissionViaAPI(
 async function updateRoomLayoutViaAPI(page: Page, groups: RoomGroup[]): Promise<void> {
   // Snapshot the current state once so we can decide create vs. update.
   type CurrentGroup = { id: string; name: string; roomIds: string[] };
-  const currentData = await getRoomLayoutViaAPI(page);
+  const currentData = await getAdminRoomLayoutViaAPI(page);
   const currentById = new Map<string, CurrentGroup>();
   for (const g of currentData?.groups ?? []) {
     currentById.set(g.id, { id: g.id, name: g.name, roomIds: g.rooms.map((r) => r.id) });
@@ -170,7 +178,7 @@ async function updateRoomLayoutViaAPI(page: Page, groups: RoomGroup[]): Promise<
   // Reorder rooms inside each desired group so the final sequence
   // matches the input. Read fresh state to confirm the moves landed
   // before validating room sets.
-  const refreshed = await getRoomLayoutViaAPI(page);
+  const refreshed = await getAdminRoomLayoutViaAPI(page);
   const refreshedRooms = new Map<string, string[]>();
   for (const g of refreshed?.groups ?? []) {
     refreshedRooms.set(
@@ -215,20 +223,31 @@ async function updateRoomLayoutViaAPI(page: Page, groups: RoomGroup[]): Promise<
   }
 }
 
-async function getRoomLayoutViaAPI(page: Page): Promise<{
-  groups: { id: string; name: string; rooms: { id: string; name: string; archived: boolean }[] }[];
-} | null> {
+async function getRoomLayoutViaAPI(page: Page): Promise<RoomLayoutSnapshot | null> {
+  const data = await connectPost<RoomDirectoryGroupsResponse>(
+    page,
+    'chatto.api.v1.RoomDirectoryService/ListRoomGroups',
+    {}
+  );
+  return mapRoomLayoutResponse(data);
+}
+
+async function getAdminRoomLayoutViaAPI(page: Page): Promise<RoomLayoutSnapshot | null> {
   const data = await connectPost<RoomDirectoryGroupsResponse>(
     page,
     'chatto.admin.v1.AdminRoomLayoutService/ListRoomGroups',
     {}
   );
+  return mapRoomLayoutResponse(data);
+}
+
+function mapRoomLayoutResponse(data: RoomDirectoryGroupsResponse): RoomLayoutSnapshot {
   return {
     groups: (data.groups ?? []).map((group) => ({
       id: group.id ?? '',
       name: group.name ?? '',
       rooms: (group.items ?? []).flatMap((item) => {
-        const room = item.room?.room;
+        const room = roomFromGroupItem(item);
         if (!room?.id) return [];
         return [
           {
@@ -240,6 +259,13 @@ async function getRoomLayoutViaAPI(page: Page): Promise<{
       })
     }))
   };
+}
+
+function roomFromGroupItem(item: RoomDirectoryGroupItemResponse): RoomDirectoryRoomResponse | null {
+  const room = item.room;
+  if (!room) return null;
+  if ('room' in room) return room.room ?? null;
+  return room;
 }
 
 /**
@@ -288,7 +314,7 @@ async function getDefaultRoomIds(
 }
 
 async function getRoomArchivedViaAPI(page: Page, roomId: string): Promise<boolean> {
-  const layout = await getRoomLayoutViaAPI(page);
+  const layout = await getAdminRoomLayoutViaAPI(page);
   const room = layout?.groups.flatMap((group) => group.rooms).find((entry) => entry.id === roomId);
   if (!room) throw new Error(`Room "${roomId}" not found in admin layout`);
   return room.archived ?? false;
@@ -684,7 +710,7 @@ test.describe('Room Layout', () => {
 
       // Verify layout auto-saves (poll API until it appears)
       await expect(async () => {
-        const layout = await getRoomLayoutViaAPI(page);
+        const layout = await getAdminRoomLayoutViaAPI(page);
         expect(layout).not.toBeNull();
         // The original seed set + the new "Important" set = 2 sets.
         const names = layout!.groups.map((s) => s.name);
@@ -754,7 +780,7 @@ test.describe('Room Layout', () => {
       // its row now shows the Unarchive affordance instead of Archive.
       await expect(async () => {
         await serverAdminRoomsPage.expectRoomVisible('to-archive');
-        const layout = await getRoomLayoutViaAPI(page);
+        const layout = await getAdminRoomLayoutViaAPI(page);
         if (layout) {
           const allRoomIds = layout.groups.flatMap((s) => s.rooms.map((r) => r.id));
           expect(allRoomIds).toContain(roomId);

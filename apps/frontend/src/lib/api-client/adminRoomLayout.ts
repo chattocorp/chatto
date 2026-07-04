@@ -211,9 +211,7 @@ function mapAdminRoomLayoutGroup(group: APIAdminRoomLayoutGroup): AdminRoomGroup
   return {
     id: group.id,
     name: group.name,
-    // Admin layout reads and mutations do not return viewer room-creation
-    // state; layout editing authorization is checked by each admin RPC.
-    canCreateRoom: false,
+    canCreateRoom: group.canCreateRoom ?? false,
     rooms: roomsFromSidebarItems(items),
     items
   };

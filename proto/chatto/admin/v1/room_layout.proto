@@ -29,6 +29,8 @@ message AdminRoomLayoutGroup {
   string description = 3;
   // Mixed room/sidebar-link entries in sidebar order.
   repeated AdminRoomLayoutItem items = 5;
+  // Whether the viewer can create rooms in this group.
+  bool can_create_room = 6;
 }
 
 // Request for the server-admin room group layout.

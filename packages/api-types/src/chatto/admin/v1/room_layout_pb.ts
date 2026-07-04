@@ -132,6 +132,13 @@ export class AdminRoomLayoutGroup extends Message<AdminRoomLayoutGroup> {
    */
   items: AdminRoomLayoutItem[] = [];
 
+  /**
+   * Whether the viewer can create rooms in this group.
+   *
+   * @generated from field: bool can_create_room = 6;
+   */
+  canCreateRoom = false;
+
   constructor(data?: PartialMessage<AdminRoomLayoutGroup>) {
     super();
     proto3.util.initPartial(data, this);
@@ -144,6 +151,7 @@ export class AdminRoomLayoutGroup extends Message<AdminRoomLayoutGroup> {
     { no: 2, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "description", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 5, name: "items", kind: "message", T: AdminRoomLayoutItem, repeated: true },
+    { no: 6, name: "can_create_room", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AdminRoomLayoutGroup {

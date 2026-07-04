@@ -59,6 +59,7 @@ describe('createAdminRoomLayoutAPI', () => {
         {
           id: 'g1',
           name: 'Lobby',
+          canCreateRoom: true,
           items: [
             {
               item: {
@@ -98,7 +99,7 @@ describe('createAdminRoomLayoutAPI', () => {
       {
         id: 'g1',
         name: 'Lobby',
-        canCreateRoom: false,
+        canCreateRoom: true,
         rooms: [
           {
             id: 'r1',

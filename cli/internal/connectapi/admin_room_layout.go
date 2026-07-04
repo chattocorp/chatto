@@ -189,7 +189,13 @@ func (s *adminRoomLayoutService) getAdminRoomLayoutGroups(ctx context.Context, u
 	}
 	apiGroups := make([]*adminv1.AdminRoomLayoutGroup, 0, len(groups))
 	for _, group := range groups {
-		apiGroups = append(apiGroups, apiAdminRoomLayoutGroup(group, roomsByID))
+		apiGroup := apiAdminRoomLayoutGroup(group, roomsByID)
+		canCreateRoom, err := s.api.core.CanCreateRoom(ctx, userID, core.KindChannel, group.GetId())
+		if err != nil {
+			return nil, err
+		}
+		apiGroup.CanCreateRoom = canCreateRoom
+		apiGroups = append(apiGroups, apiGroup)
 	}
 	return apiGroups, nil
 }
