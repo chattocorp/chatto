@@ -19,8 +19,6 @@ export type UploadedAttachmentAsset = {
 export type UploadAttachmentOptions = {
   roomId: string;
   file: File;
-  threadRootEventId?: string | null;
-  alsoSendToChannel?: boolean;
   onProgress?: (committedBytes: number, totalBytes: number) => void;
 };
 
@@ -40,9 +38,7 @@ export function createAssetUploadAPI(config: ConnectAPIConfig) {
             filename: options.file.name || 'attachment',
             contentType: options.file.type || 'application/octet-stream',
             size: BigInt(options.file.size),
-            sha256: fullHash,
-            threadRootEventId: options.threadRootEventId ?? '',
-            alsoSendToChannel: options.alsoSendToChannel ?? false
+            sha256: fullHash
           },
           { headers: headers() }
         );

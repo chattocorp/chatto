@@ -240,9 +240,12 @@ describe('createMessageAPI', () => {
     await api.createMessage({
       roomId: 'room-1',
       body: 'with file',
-      attachments: [file]
+      attachments: [file],
+      threadRootEventId: 'root-1',
+      alsoSendToChannel: true
     });
 
+    const uploadRequest = mocks.createUpload.mock.calls[0][0];
     expect(mocks.createUpload).toHaveBeenCalledWith(
       expect.objectContaining({
         roomId: 'room-1',
@@ -253,6 +256,8 @@ describe('createMessageAPI', () => {
       }),
       { headers: undefined }
     );
+    expect(uploadRequest.threadRootEventId).toBeUndefined();
+    expect(uploadRequest.alsoSendToChannel).toBeUndefined();
     expect(mocks.uploadChunk).toHaveBeenCalledWith(
       expect.objectContaining({
         uploadId: 'upload-note',
@@ -271,6 +276,8 @@ describe('createMessageAPI', () => {
     const request = mocks.createMessage.mock.calls[0][0];
     expect(request.attachmentAssetIds).toEqual(['asset-note']);
     expect(request.attachments).toBeUndefined();
+    expect(request.threadRootEventId).toBe('root-1');
+    expect(request.alsoSendToChannel).toBe(true);
   });
 
   it('marks the server authentication stale on unauthenticated Connect errors', async () => {

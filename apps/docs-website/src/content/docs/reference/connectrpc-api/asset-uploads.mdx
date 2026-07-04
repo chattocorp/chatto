@@ -43,8 +43,6 @@ Request to start a room-scoped attachment upload.
 | `content_type` | `string` | MIME content type. Empty values are treated as application/octet-stream. |
 | `size` | `int64` | Required total file size in bytes. |
 | `sha256` | `string` | Required SHA-256 digest of the complete file, lowercase hexadecimal. |
-| `thread_root_event_id` | `string` | Thread root event ID when the upload is for a thread reply. |
-| `also_send_to_channel` | `bool` | Whether the eventual thread reply will also be echoed to the channel. |
 
 
 <a id="chatto-api-v1-CreateUploadResponse"></a>

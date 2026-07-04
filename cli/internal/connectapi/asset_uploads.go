@@ -28,14 +28,12 @@ func (s *assetUploadService) CreateUpload(ctx context.Context, req *connect.Requ
 		return nil, invalidArgument("video uploads are disabled on this server")
 	}
 	upload, err := s.api.core.AssetUploads().CreateUpload(ctx, core.AssetUploadCreateInput{
-		ActorID:           caller.UserID,
-		RoomID:            req.Msg.GetRoomId(),
-		Filename:          req.Msg.GetFilename(),
-		ContentType:       contentType,
-		Size:              req.Msg.GetSize(),
-		SHA256:            req.Msg.GetSha256(),
-		ThreadRootEventID: req.Msg.GetThreadRootEventId(),
-		AlsoSendToChannel: req.Msg.GetAlsoSendToChannel(),
+		ActorID:     caller.UserID,
+		RoomID:      req.Msg.GetRoomId(),
+		Filename:    req.Msg.GetFilename(),
+		ContentType: contentType,
+		Size:        req.Msg.GetSize(),
+		SHA256:      req.Msg.GetSha256(),
 	})
 	if err != nil {
 		return nil, connectError(err)

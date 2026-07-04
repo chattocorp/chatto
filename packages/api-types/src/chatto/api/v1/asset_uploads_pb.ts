@@ -275,20 +275,6 @@ export class CreateUploadRequest extends Message<CreateUploadRequest> {
    */
   sha256 = "";
 
-  /**
-   * Thread root event ID when the upload is for a thread reply.
-   *
-   * @generated from field: string thread_root_event_id = 6;
-   */
-  threadRootEventId = "";
-
-  /**
-   * Whether the eventual thread reply will also be echoed to the channel.
-   *
-   * @generated from field: bool also_send_to_channel = 7;
-   */
-  alsoSendToChannel = false;
-
   constructor(data?: PartialMessage<CreateUploadRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -302,8 +288,6 @@ export class CreateUploadRequest extends Message<CreateUploadRequest> {
     { no: 3, name: "content_type", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 4, name: "size", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
     { no: 5, name: "sha256", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 6, name: "thread_root_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 7, name: "also_send_to_channel", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CreateUploadRequest {

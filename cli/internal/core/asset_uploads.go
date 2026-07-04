@@ -40,14 +40,12 @@ const (
 )
 
 type AssetUploadCreateInput struct {
-	ActorID           string
-	RoomID            string
-	Filename          string
-	ContentType       string
-	Size              int64
-	SHA256            string
-	ThreadRootEventID string
-	AlsoSendToChannel bool
+	ActorID     string
+	RoomID      string
+	Filename    string
+	ContentType string
+	Size        int64
+	SHA256      string
 }
 
 type AssetUploadChunkInput struct {
@@ -69,21 +67,19 @@ type AssetUploadCancelInput struct {
 }
 
 type AssetUploadSession struct {
-	UploadID          string            `json:"upload_id"`
-	ActorID           string            `json:"actor_id"`
-	RoomID            string            `json:"room_id"`
-	Filename          string            `json:"filename"`
-	ContentType       string            `json:"content_type"`
-	Size              int64             `json:"size"`
-	SHA256            string            `json:"sha256"`
-	ThreadRootEventID string            `json:"thread_root_event_id,omitempty"`
-	AlsoSendToChannel bool              `json:"also_send_to_channel,omitempty"`
-	Status            AssetUploadStatus `json:"status"`
-	CommittedOffset   int64             `json:"committed_offset"`
-	MaxChunkSize      int32             `json:"max_chunk_size"`
-	ExpiresAt         time.Time         `json:"expires_at"`
-	AssetID           string            `json:"asset_id,omitempty"`
-	ChunkKeys         []string          `json:"chunk_keys,omitempty"`
+	UploadID        string            `json:"upload_id"`
+	ActorID         string            `json:"actor_id"`
+	RoomID          string            `json:"room_id"`
+	Filename        string            `json:"filename"`
+	ContentType     string            `json:"content_type"`
+	Size            int64             `json:"size"`
+	SHA256          string            `json:"sha256"`
+	Status          AssetUploadStatus `json:"status"`
+	CommittedOffset int64             `json:"committed_offset"`
+	MaxChunkSize    int32             `json:"max_chunk_size"`
+	ExpiresAt       time.Time         `json:"expires_at"`
+	AssetID         string            `json:"asset_id,omitempty"`
+	ChunkKeys       []string          `json:"chunk_keys,omitempty"`
 }
 
 type AssetUploadModel struct {
@@ -112,30 +108,22 @@ func (m *AssetUploadModel) CreateUpload(ctx context.Context, input AssetUploadCr
 	if err := m.checkUploadSize(contentType, input.Size); err != nil {
 		return nil, err
 	}
-	if _, err := m.core.Messages().AuthorizePost(ctx, MessagePostAuthorizationInput{
-		ActorID:           input.ActorID,
-		RoomID:            input.RoomID,
-		HasAttachments:    true,
-		ThreadRootEventID: input.ThreadRootEventID,
-		AlsoSendToChannel: input.AlsoSendToChannel,
-	}); err != nil {
+	if err := m.authorizeUpload(ctx, input.ActorID, input.RoomID); err != nil {
 		return nil, err
 	}
 
 	now := time.Now()
 	session := &AssetUploadSession{
-		UploadID:          NewAssetID(),
-		ActorID:           input.ActorID,
-		RoomID:            input.RoomID,
-		Filename:          filename,
-		ContentType:       contentType,
-		Size:              input.Size,
-		SHA256:            strings.ToLower(input.SHA256),
-		ThreadRootEventID: strings.TrimSpace(input.ThreadRootEventID),
-		AlsoSendToChannel: input.AlsoSendToChannel,
-		Status:            AssetUploadStatusOpen,
-		MaxChunkSize:      defaultAssetUploadChunkSize,
-		ExpiresAt:         now.Add(defaultAssetUploadSessionTTL),
+		UploadID:     NewAssetID(),
+		ActorID:      input.ActorID,
+		RoomID:       input.RoomID,
+		Filename:     filename,
+		ContentType:  contentType,
+		Size:         input.Size,
+		SHA256:       strings.ToLower(input.SHA256),
+		Status:       AssetUploadStatusOpen,
+		MaxChunkSize: defaultAssetUploadChunkSize,
+		ExpiresAt:    now.Add(defaultAssetUploadSessionTTL),
 	}
 	value, err := json.Marshal(session)
 	if err != nil {
@@ -231,13 +219,7 @@ func (m *AssetUploadModel) CompleteUpload(ctx context.Context, input AssetUpload
 	if session.CommittedOffset != session.Size {
 		return nil, nil, invalidArgument("upload is incomplete")
 	}
-	if _, err := m.core.Messages().AuthorizePost(ctx, MessagePostAuthorizationInput{
-		ActorID:           input.ActorID,
-		RoomID:            session.RoomID,
-		HasAttachments:    true,
-		ThreadRootEventID: session.ThreadRootEventID,
-		AlsoSendToChannel: session.AlsoSendToChannel,
-	}); err != nil {
+	if err := m.authorizeUpload(ctx, input.ActorID, session.RoomID); err != nil {
 		return nil, nil, err
 	}
 	tmp, err := m.materializeUpload(ctx, session)
@@ -420,6 +402,24 @@ func (m *AssetUploadModel) checkUploadSize(contentType string, size int64) error
 	}
 	if size > maxSize {
 		return fmt.Errorf("attachment exceeds maximum size of %d bytes: %w", maxSize, ErrInvalidArgument)
+	}
+	return nil
+}
+
+func (m *AssetUploadModel) authorizeUpload(ctx context.Context, actorID, roomID string) error {
+	room, kind, err := m.core.requireRoomMember(ctx, actorID, roomID)
+	if err != nil {
+		return err
+	}
+	if room.Archived {
+		return ErrRoomArchived
+	}
+	canAttach, err := m.core.CanAttachFiles(ctx, actorID, kind, room.Id)
+	if err != nil {
+		return err
+	}
+	if !canAttach {
+		return ErrPermissionDenied
 	}
 	return nil
 }

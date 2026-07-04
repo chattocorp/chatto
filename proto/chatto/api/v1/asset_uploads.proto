@@ -57,6 +57,9 @@ message UploadedAttachmentAsset {
 
 // Request to start a room-scoped attachment upload.
 message CreateUploadRequest {
+  reserved 6, 7;
+  reserved "thread_root_event_id", "also_send_to_channel";
+
   // Required room ID.
   string room_id = 1 [(buf.validate.field).string.min_len = 1];
   // Original filename supplied by the client.
@@ -69,10 +72,6 @@ message CreateUploadRequest {
   string sha256 = 5 [(buf.validate.field).string = {
     pattern: "^[a-f0-9]{64}$"
   }];
-  // Thread root event ID when the upload is for a thread reply.
-  string thread_root_event_id = 6;
-  // Whether the eventual thread reply will also be echoed to the channel.
-  bool also_send_to_channel = 7;
 }
 
 // Response after creating an upload.

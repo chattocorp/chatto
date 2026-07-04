@@ -5280,6 +5280,42 @@ func TestAssetUploadServiceChunkResumeCompleteAndCancel(t *testing.T) {
 	}
 }
 
+func TestAssetUploadServiceDoesNotRequireThreadPostPermission(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	room := env.createJoinedRoom("asset-upload-thread-permission")
+	root := env.post(room.Id, env.viewer.Id, "root", "")
+	ctx := withCaller(env.ctx, env.viewer)
+	content := []byte("thread attachment")
+	sum := sha256.Sum256(content)
+
+	if err := env.core.DenyRoomPermission(env.ctx, core.SystemActorID, room.Id, core.RoleEveryone, core.PermMessagePostInThread); err != nil {
+		t.Fatalf("DenyRoomPermission thread post: %v", err)
+	}
+
+	created, err := env.assetUploads.CreateUpload(ctx, connect.NewRequest(&apiv1.CreateUploadRequest{
+		RoomId:      room.Id,
+		Filename:    "thread.txt",
+		ContentType: "text/plain",
+		Size:        int64(len(content)),
+		Sha256:      hex.EncodeToString(sum[:]),
+	}))
+	if err != nil {
+		t.Fatalf("CreateUpload with thread posting denied: %v", err)
+	}
+	if created.Msg.GetUpload().GetUploadId() == "" {
+		t.Fatal("CreateUpload upload id is empty")
+	}
+
+	_, err = env.messages.CreateMessage(ctx, connect.NewRequest(&apiv1.CreateMessageRequest{
+		RoomId:            room.Id,
+		Body:              "thread reply",
+		ThreadRootEventId: root.Id,
+	}))
+	if connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("CreateMessage thread reply code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
+	}
+}
+
 func TestAssetUploadServiceRejectsChecksumOffsetAndIncompleteComplete(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("asset-upload-validation")

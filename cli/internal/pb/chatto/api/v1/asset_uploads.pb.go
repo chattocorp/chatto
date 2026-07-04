@@ -301,13 +301,9 @@ type CreateUploadRequest struct {
 	// Required total file size in bytes.
 	Size int64 `protobuf:"varint,4,opt,name=size,proto3" json:"size,omitempty"`
 	// Required SHA-256 digest of the complete file, lowercase hexadecimal.
-	Sha256 string `protobuf:"bytes,5,opt,name=sha256,proto3" json:"sha256,omitempty"`
-	// Thread root event ID when the upload is for a thread reply.
-	ThreadRootEventId string `protobuf:"bytes,6,opt,name=thread_root_event_id,json=threadRootEventId,proto3" json:"thread_root_event_id,omitempty"`
-	// Whether the eventual thread reply will also be echoed to the channel.
-	AlsoSendToChannel bool `protobuf:"varint,7,opt,name=also_send_to_channel,json=alsoSendToChannel,proto3" json:"also_send_to_channel,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	Sha256        string `protobuf:"bytes,5,opt,name=sha256,proto3" json:"sha256,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *CreateUploadRequest) Reset() {
@@ -373,20 +369,6 @@ func (x *CreateUploadRequest) GetSha256() string {
 		return x.Sha256
 	}
 	return ""
-}
-
-func (x *CreateUploadRequest) GetThreadRootEventId() string {
-	if x != nil {
-		return x.ThreadRootEventId
-	}
-	return ""
-}
-
-func (x *CreateUploadRequest) GetAlsoSendToChannel() bool {
-	if x != nil {
-		return x.AlsoSendToChannel
-	}
-	return false
 }
 
 // Response after creating an upload.
@@ -861,15 +843,13 @@ const file_chatto_api_v1_asset_uploads_proto_rawDesc = "" +
 	"\fcontent_type\x18\x03 \x01(\tR\vcontentType\x12\x12\n" +
 	"\x04size\x18\x04 \x01(\x03R\x04size\x12\x14\n" +
 	"\x05width\x18\x05 \x01(\x05R\x05width\x12\x16\n" +
-	"\x06height\x18\x06 \x01(\x05R\x06height\"\xad\x02\n" +
+	"\x06height\x18\x06 \x01(\x05R\x06height\"\x83\x02\n" +
 	"\x13CreateUploadRequest\x12 \n" +
 	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x12#\n" +
 	"\bfilename\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\bfilename\x12!\n" +
 	"\fcontent_type\x18\x03 \x01(\tR\vcontentType\x12\x1b\n" +
 	"\x04size\x18\x04 \x01(\x03B\a\xbaH\x04\"\x02(\x00R\x04size\x12-\n" +
-	"\x06sha256\x18\x05 \x01(\tB\x15\xbaH\x12r\x102\x0e^[a-f0-9]{64}$R\x06sha256\x12/\n" +
-	"\x14thread_root_event_id\x18\x06 \x01(\tR\x11threadRootEventId\x12/\n" +
-	"\x14also_send_to_channel\x18\a \x01(\bR\x11alsoSendToChannel\"J\n" +
+	"\x06sha256\x18\x05 \x01(\tB\x15\xbaH\x12r\x102\x0e^[a-f0-9]{64}$R\x06sha256J\x04\b\x06\x10\aJ\x04\b\a\x10\bR\x14thread_root_event_idR\x14also_send_to_channel\"J\n" +
 	"\x14CreateUploadResponse\x122\n" +
 	"\x06upload\x18\x01 \x01(\v2\x1a.chatto.api.v1.AssetUploadR\x06upload\"\xb8\x01\n" +
 	"\x12UploadChunkRequest\x12$\n" +

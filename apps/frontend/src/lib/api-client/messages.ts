@@ -153,9 +153,7 @@ async function uploadMessageAttachments(config: MessageAPIConfig, input: CreateM
     files.map((file) =>
       uploads.uploadAttachment({
         roomId: input.roomId,
-        file,
-        threadRootEventId: input.threadRootEventId,
-        alsoSendToChannel: input.alsoSendToChannel
+        file
       })
     )
   );

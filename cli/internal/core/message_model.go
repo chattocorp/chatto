@@ -202,9 +202,7 @@ func (s *MessageModel) validatePostBeforeUpload(ctx context.Context, input Messa
 }
 
 // AuthorizePost checks the room, visibility, and permission gates for a
-// user-facing message post. Callers that need to write attachment binaries
-// before PostMessage can use this to avoid creating unclaimable assets for
-// requests that are already unauthorized.
+// user-facing message post.
 func (s *MessageModel) AuthorizePost(ctx context.Context, input MessagePostAuthorizationInput) (*MessagePostAuthorization, error) {
 	if strings.TrimSpace(input.ActorID) == "" {
 		return nil, ErrNotAuthenticated
