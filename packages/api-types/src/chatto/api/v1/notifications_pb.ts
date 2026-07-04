@@ -1006,7 +1006,7 @@ export class DismissNotificationRequest extends Message<DismissNotificationReque
  */
 export class DismissNotificationResponse extends Message<DismissNotificationResponse> {
   /**
-   * True when the notification existed and was dismissed.
+   * True when the notification is no longer pending.
    *
    * @generated from field: bool dismissed = 1;
    */

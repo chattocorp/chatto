@@ -79,6 +79,9 @@ func (s *ReadStateModel) MarkRoomAsRead(ctx context.Context, actorID, roomID, up
 		}
 	}
 
+	if hasLast && !lastTime.IsZero() {
+		s.core.DismissRoomReadNotifications(ctx, kind, actorID, room.Id, lastTime)
+	}
 	s.core.NotifyRoomMarkedAsRead(ctx, actorID, kind, room.Id)
 
 	result := &MarkRoomAsReadResult{}
@@ -125,6 +128,11 @@ func (s *ReadStateModel) MarkThreadAsRead(ctx context.Context, actorID, roomID, 
 	previousReadAt, err := s.core.SetThreadLastReadEventID(ctx, kind, actorID, room.Id, threadRootEventID, markerEventID)
 	if err != nil {
 		return nil, err
+	}
+	if markerEventID != "" {
+		if markerTime, err := s.core.GetEventTimestamp(ctx, kind, room.Id, markerEventID); err == nil && !markerTime.IsZero() {
+			s.core.DismissThreadReadNotifications(ctx, kind, actorID, room.Id, threadRootEventID, markerTime)
+		}
 	}
 	return &MarkThreadAsReadResult{PreviousReadAt: previousReadAt}, nil
 }

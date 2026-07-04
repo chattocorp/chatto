@@ -28,11 +28,6 @@ export type NotificationTarget = {
   threadRootId: string | null;
 };
 
-export type NotificationDismissalCounts = {
-  total: number;
-  byRoom: Record<string, number>;
-};
-
 export type RoomNotificationLookup = {
   ok: boolean;
   totalCount: number | null;
@@ -42,11 +37,6 @@ export type RoomNotificationLookup = {
 export type RoomNotificationResolveOptions = {
   isDM?: boolean;
 };
-
-const emptyDismissalCounts = (): NotificationDismissalCounts => ({
-  total: 0,
-  byRoom: {}
-});
 
 function isDMNotification(
   notification: NotificationItem
@@ -264,72 +254,6 @@ export class NotificationStore {
   }
 
   /**
-   * Dismiss all thread-scoped notifications (replies + mentions) for a thread.
-   * Called when a user opens a thread to clear the notification indicator.
-   */
-  async dismissThreadNotifications(threadRootId: string): Promise<NotificationDismissalCounts> {
-    const threadNotifications = this.notifications.filter(
-      (n) =>
-        (isReplyNotification(n) && n.replyInThread === threadRootId) ||
-        (isMentionNotification(n) && n.mentionInThread === threadRootId)
-    );
-
-    return this.#dismissNotifications(threadNotifications);
-  }
-
-  /**
-   * Dismiss room-level mention notifications for a specific room.
-   * Called when a user enters a room. Thread-scoped mentions are NOT dismissed
-   * here — they're dismissed when the user opens the specific thread (via
-   * dismissThreadNotifications), matching the symmetry with reply notifications.
-   */
-  async dismissMentionNotifications(roomId: string): Promise<NotificationDismissalCounts> {
-    const mentionNotifications = this.notifications.filter(
-      (n) => isMentionNotification(n) && !n.mentionInThread && n.mentionRoom?.id === roomId
-    );
-
-    return this.#dismissNotifications(mentionNotifications);
-  }
-
-  /**
-   * Dismiss room-level reply notifications for a specific room.
-   * Called when a user enters a room to clear reply notification indicators.
-   * Only dismisses room-level replies (not thread replies, which are dismissed
-   * separately when opening the specific thread via dismissThreadNotifications).
-   */
-  async dismissRoomReplyNotifications(roomId: string): Promise<NotificationDismissalCounts> {
-    const roomReplyNotifications = this.notifications.filter(
-      (n) => isReplyNotification(n) && !n.replyInThread && n.replyRoom?.id === roomId
-    );
-
-    return this.#dismissNotifications(roomReplyNotifications);
-  }
-
-  /**
-   * Dismiss all room message notifications for a specific room.
-   * Called when a user enters a room to clear "all messages" notification indicators.
-   */
-  async dismissRoomMessageNotifications(roomId: string): Promise<NotificationDismissalCounts> {
-    const roomMsgNotifications = this.notifications.filter(
-      (n) => isRoomMessageNotification(n) && n.roomMsgRoom?.id === roomId
-    );
-
-    return this.#dismissNotifications(roomMsgNotifications);
-  }
-
-  /**
-   * Dismiss all DM notifications for a specific conversation.
-   * Called when a user enters a DM conversation to clear notification indicators.
-   */
-  async dismissDMNotifications(roomId: string): Promise<NotificationDismissalCounts> {
-    const dmNotifications = this.notifications.filter(
-      (n) => isDMNotification(n) && n.room.id === roomId
-    );
-
-    return this.#dismissNotifications(dmNotifications);
-  }
-
-  /**
    * Fetch all notifications from the server.
    *
    * Resilience contract: a server-side error (e.g. a schema mismatch on a
@@ -489,28 +413,6 @@ export class NotificationStore {
     if (typeof timeout === 'object' && timeout !== null && 'unref' in timeout) {
       (timeout as { unref: () => void }).unref();
     }
-  }
-
-  async #dismissNotifications(
-    notifications: NotificationItem[]
-  ): Promise<NotificationDismissalCounts> {
-    if (notifications.length === 0) return emptyDismissalCounts();
-
-    const results = await Promise.all(
-      notifications.map(async (notification) => ({
-        target: notificationTarget(notification),
-        dismissed: await this.dismiss(notification.id)
-      }))
-    );
-
-    const counts = emptyDismissalCounts();
-    for (const result of results) {
-      if (!result.dismissed) continue;
-      counts.total += 1;
-      const roomId = result.target.roomId;
-      if (roomId) counts.byRoom[roomId] = (counts.byRoom[roomId] ?? 0) + 1;
-    }
-    return counts;
   }
 
   /**

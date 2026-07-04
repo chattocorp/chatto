@@ -74,7 +74,8 @@ type NotificationServiceClient interface {
 	ListRoomNotificationCounts(context.Context, *connect.Request[v1.ListRoomNotificationCountsRequest]) (*connect.Response[v1.ListRoomNotificationCountsResponse], error)
 	// Checks whether the authenticated viewer has any pending notifications.
 	HasNotifications(context.Context, *connect.Request[v1.HasNotificationsRequest]) (*connect.Response[v1.HasNotificationsResponse], error)
-	// Dismisses one pending notification.
+	// Dismisses one pending notification. Already-dismissed notifications are
+	// treated as idempotent success.
 	DismissNotification(context.Context, *connect.Request[v1.DismissNotificationRequest]) (*connect.Response[v1.DismissNotificationResponse], error)
 	// Dismisses all pending notifications.
 	DismissAllNotifications(context.Context, *connect.Request[v1.DismissAllNotificationsRequest]) (*connect.Response[v1.DismissAllNotificationsResponse], error)
@@ -209,7 +210,8 @@ type NotificationServiceHandler interface {
 	ListRoomNotificationCounts(context.Context, *connect.Request[v1.ListRoomNotificationCountsRequest]) (*connect.Response[v1.ListRoomNotificationCountsResponse], error)
 	// Checks whether the authenticated viewer has any pending notifications.
 	HasNotifications(context.Context, *connect.Request[v1.HasNotificationsRequest]) (*connect.Response[v1.HasNotificationsResponse], error)
-	// Dismisses one pending notification.
+	// Dismisses one pending notification. Already-dismissed notifications are
+	// treated as idempotent success.
 	DismissNotification(context.Context, *connect.Request[v1.DismissNotificationRequest]) (*connect.Response[v1.DismissNotificationResponse], error)
 	// Dismisses all pending notifications.
 	DismissAllNotifications(context.Context, *connect.Request[v1.DismissAllNotificationsRequest]) (*connect.Response[v1.DismissAllNotificationsResponse], error)

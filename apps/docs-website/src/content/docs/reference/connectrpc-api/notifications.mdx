@@ -216,7 +216,8 @@ Lightweight pending notification check.
 
 ### DismissNotification
 
-Dismisses one pending notification.
+Dismisses one pending notification. Already-dismissed notifications are
+treated as idempotent success.
 
 ```http
 POST /api/connect/chatto.api.v1.NotificationService/DismissNotification
@@ -241,7 +242,7 @@ Result of dismissing one pending notification.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `dismissed` | `bool` | True when the notification existed and was dismissed. |
+| `dismissed` | `bool` | True when the notification is no longer pending. |
 
 
 <a id="chatto-api-v1-NotificationService-DismissAllNotifications"></a>

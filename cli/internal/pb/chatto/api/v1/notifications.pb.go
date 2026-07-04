@@ -1174,7 +1174,7 @@ func (x *DismissNotificationRequest) GetNotificationId() string {
 // Result of dismissing one pending notification.
 type DismissNotificationResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// True when the notification existed and was dismissed.
+	// True when the notification is no longer pending.
 	Dismissed     bool `protobuf:"varint,1,opt,name=dismissed,proto3" json:"dismissed,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

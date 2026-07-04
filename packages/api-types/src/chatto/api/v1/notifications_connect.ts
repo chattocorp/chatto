@@ -82,7 +82,8 @@ export const NotificationService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Dismisses one pending notification.
+     * Dismisses one pending notification. Already-dismissed notifications are
+     * treated as idempotent success.
      *
      * @generated from rpc chatto.api.v1.NotificationService.DismissNotification
      */
