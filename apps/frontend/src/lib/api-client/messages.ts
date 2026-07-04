@@ -63,10 +63,7 @@ export function createMessageAPI(config: MessageAPIConfig) {
 
         return {
           event: response.event
-            ? (roomTimelineEventToRawEvent(
-                response.event,
-                response.includes?.users ?? {}
-              ) as RoomEventView | null)
+            ? (roomTimelineEventToRawEvent(response.event, {}) as RoomEventView | null)
             : null
         };
       } catch (err) {

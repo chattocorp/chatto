@@ -47,11 +47,13 @@ message CreateMessageResponse {
   // client-only composer affordance.
   reserved 2;
   reserved "mention_confirmation";
+  // Field 3 was `includes`, used before create responses were narrowed to the
+  // generated message event.
+  reserved 3;
+  reserved "includes";
 
   // Renderable timeline event for the created message.
   RoomTimelineEvent event = 1;
-  // Related entities needed to render event when a message was created.
-  RoomTimelineIncludes includes = 3;
 }
 
 // Request to patch a message.

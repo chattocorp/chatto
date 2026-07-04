@@ -97,15 +97,6 @@ describe('createMessageAPI', () => {
               viewerIsFollowingThread: true
             })
           }
-        }),
-        includes: new RoomTimelineIncludes({
-          users: {
-            'user-1': new User({
-              id: 'user-1',
-              login: 'alice',
-              displayName: 'Alice'
-            })
-          }
         })
       })
     );
@@ -147,7 +138,6 @@ describe('createMessageAPI', () => {
     expect(result).toMatchObject({
       event: {
         id: 'evt-1',
-        actor: { id: 'user-1', displayName: 'Alice' },
         event: { kind: 'messagePosted', body: 'hello' }
       }
     });

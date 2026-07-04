@@ -50,13 +50,12 @@ func (s *messageService) CreateMessage(ctx context.Context, req *connect.Request
 	if room, err := s.api.core.FindRoomByID(ctx, roomID); err == nil && room != nil {
 		kind = core.KindOfRoom(room)
 	}
-	apiEvent, includes, err := s.hydratePostedEvent(ctx, caller.UserID, kind, result.Event)
+	apiEvent, err := s.hydratePostedEvent(ctx, caller.UserID, kind, result.Event)
 	if err != nil {
 		return nil, connectError(err)
 	}
 	return connect.NewResponse(&apiv1.CreateMessageResponse{
-		Event:    apiEvent,
-		Includes: includes,
+		Event: apiEvent,
 	}), nil
 }
 
@@ -137,10 +136,10 @@ func (s *messageService) DeleteLinkPreview(ctx context.Context, req *connect.Req
 	return connect.NewResponse(&apiv1.DeleteLinkPreviewResponse{Deleted: true}), nil
 }
 
-func (s *messageService) hydratePostedEvent(ctx context.Context, viewerID string, kind core.RoomKind, event *corev1.Event) (*apiv1.RoomTimelineEvent, *apiv1.RoomTimelineIncludes, error) {
+func (s *messageService) hydratePostedEvent(ctx context.Context, viewerID string, kind core.RoomKind, event *corev1.Event) (*apiv1.RoomTimelineEvent, error) {
 	reactionsByMessageID, err := s.api.core.GetReactionsBatch(ctx, []string{event.Id})
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	h := &timelineHydrator{
 		api:                  s.api,
@@ -153,11 +152,7 @@ func (s *messageService) hydratePostedEvent(ctx context.Context, viewerID string
 	}
 	apiEvent, err := h.event(ctx, &core.RoomEvent{Event: event})
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	users, err := h.users()
-	if err != nil {
-		return nil, nil, err
-	}
-	return apiEvent, &apiv1.RoomTimelineIncludes{Users: users}, nil
+	return apiEvent, nil
 }

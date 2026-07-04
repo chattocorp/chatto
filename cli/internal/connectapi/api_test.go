@@ -4971,9 +4971,6 @@ func TestMessageServiceCreateMessageReturnsRenderableTimelineEvent(t *testing.T)
 	if message.Body == nil || message.GetBody() != "hello over connect" {
 		t.Fatalf("message body = %q present=%v, want posted body", message.GetBody(), message.Body != nil)
 	}
-	if got := resp.Msg.GetIncludes().GetUsers()[env.viewer.Id]; got == nil || got.DisplayName != env.viewer.DisplayName {
-		t.Fatalf("included viewer = %+v, want %q", got, env.viewer.DisplayName)
-	}
 }
 
 func TestMessageServiceCreateMessageUploadsAttachments(t *testing.T) {

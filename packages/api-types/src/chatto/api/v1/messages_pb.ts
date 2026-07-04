@@ -110,13 +110,6 @@ export class CreateMessageResponse extends Message<CreateMessageResponse> {
    */
   event?: RoomTimelineEvent;
 
-  /**
-   * Related entities needed to render event when a message was created.
-   *
-   * @generated from field: chatto.api.v1.RoomTimelineIncludes includes = 3;
-   */
-  includes?: RoomTimelineIncludes;
-
   constructor(data?: PartialMessage<CreateMessageResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -126,7 +119,6 @@ export class CreateMessageResponse extends Message<CreateMessageResponse> {
   static readonly typeName = "chatto.api.v1.CreateMessageResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "event", kind: "message", T: RoomTimelineEvent },
-    { no: 3, name: "includes", kind: "message", T: RoomTimelineIncludes },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CreateMessageResponse {
