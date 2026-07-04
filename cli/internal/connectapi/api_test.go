@@ -5449,7 +5449,7 @@ func TestMessageServiceUpdateMessageAuthorAndRBAC(t *testing.T) {
 	if err != nil {
 		t.Fatalf("author UpdateMessage: %v", err)
 	}
-	if authorResp.Msg.GetEvent().GetMessagePosted().GetBody() != "author edit" || authorResp.Msg.GetIncludes() == nil {
+	if !authorResp.Msg.GetUpdated() || authorResp.Msg.GetEvent().GetMessagePosted().GetBody() != "author edit" {
 		t.Fatalf("author UpdateMessage response = %+v, want hydrated edited event", authorResp.Msg)
 	}
 	if body, err := env.core.GetMessageBody(env.ctx, core.KindChannel, original.Id); err != nil || body != "author edit" {

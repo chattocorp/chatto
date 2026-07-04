@@ -75,14 +75,13 @@ func (s *messageService) UpdateMessage(ctx context.Context, req *connect.Request
 	if err != nil {
 		return nil, connectError(err)
 	}
-	apiEvent, includes, err := newRoomTimelineAssembler(s.api).hydrateEvent(ctx, caller.UserID, kind, event)
+	apiEvent, err := s.hydratePostedEvent(ctx, caller.UserID, kind, event)
 	if err != nil {
 		return nil, connectError(err)
 	}
 	return connect.NewResponse(&apiv1.UpdateMessageResponse{
-		Updated:  true,
-		Event:    apiEvent,
-		Includes: includes,
+		Updated: true,
+		Event:   apiEvent,
 	}), nil
 }
 

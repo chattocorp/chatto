@@ -5,7 +5,7 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3 } from "@bufbuild/protobuf";
-import { RoomTimelineEvent, RoomTimelineIncludes } from "./room_timeline_pb.js";
+import { RoomTimelineEvent } from "./room_timeline_pb.js";
 
 /**
  * Request to create a message in a room or thread.
@@ -224,13 +224,6 @@ export class UpdateMessageResponse extends Message<UpdateMessageResponse> {
    */
   event?: RoomTimelineEvent;
 
-  /**
-   * Related entities needed to render event after the edit.
-   *
-   * @generated from field: chatto.api.v1.RoomTimelineIncludes includes = 3;
-   */
-  includes?: RoomTimelineIncludes;
-
   constructor(data?: PartialMessage<UpdateMessageResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -241,7 +234,6 @@ export class UpdateMessageResponse extends Message<UpdateMessageResponse> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "updated", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 2, name: "event", kind: "message", T: RoomTimelineEvent },
-    { no: 3, name: "includes", kind: "message", T: RoomTimelineIncludes },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UpdateMessageResponse {

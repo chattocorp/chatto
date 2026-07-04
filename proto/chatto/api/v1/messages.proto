@@ -71,12 +71,15 @@ message UpdateMessageRequest {
 
 // Result of editing a message.
 message UpdateMessageResponse {
+  // Field 3 was `includes`, used before update responses were narrowed to the
+  // edited message event.
+  reserved 3;
+  reserved "includes";
+
   // True when the edit was accepted.
   bool updated = 1;
   // Renderable timeline event after the edit.
   RoomTimelineEvent event = 2;
-  // Related entities needed to render event after the edit.
-  RoomTimelineIncludes includes = 3;
 }
 
 // Request to retract a message.

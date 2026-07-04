@@ -92,13 +92,11 @@ export function createMessageAPI(config: MessageAPIConfig) {
         const response = await client.updateMessage(request, {
           headers: headers()
         });
+        const users = await timelineUsersForEvents(config, response.event ? [response.event] : []);
         return {
           updated: response.updated,
           event: response.event
-            ? (roomTimelineEventToRawEvent(
-                response.event,
-                response.includes?.users ?? {}
-              ) as RoomEventView | null)
+            ? (roomTimelineEventToRawEvent(response.event, users) as RoomEventView | null)
             : null
         };
       } catch (err) {

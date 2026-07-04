@@ -14,10 +14,8 @@ import {
 } from '@chatto/api-types/api/v1/asset_uploads_pb';
 import {
   RoomTimelineEvent,
-  RoomTimelineIncludes,
   RoomTimelineMessagePosted
 } from '@chatto/api-types/api/v1/room_timeline_pb';
-import { User } from '@chatto/api-types/api/v1/users_pb';
 
 const mocks = vi.hoisted(() => ({
   createClient: vi.fn(),
@@ -309,18 +307,25 @@ describe('createMessageAPI', () => {
               body: 'edited'
             })
           }
-        }),
-        includes: new RoomTimelineIncludes({
-          users: {
-            'user-1': new User({
-              id: 'user-1',
-              login: 'alice',
-              displayName: 'Alice'
-            })
-          }
         })
       })
     );
+    mocks.batchGetUsers.mockResolvedValue({
+      users: [
+        {
+          profile: {
+            user: {
+              id: 'user-1',
+              login: 'alice',
+              displayName: 'Alice',
+              deleted: false
+            },
+            presenceStatus: 0,
+            customStatus: ''
+          }
+        }
+      ]
+    });
 
     const api = createMessageAPI({
       baseUrl: 'https://remote.example.test/api/connect',
@@ -350,6 +355,10 @@ describe('createMessageAPI', () => {
         body: 'edited',
         alsoSendToChannel: false
       },
+      { headers: { Authorization: 'Bearer remote-token' } }
+    );
+    expect(mocks.batchGetUsers).toHaveBeenCalledWith(
+      { userIds: ['user-1'] },
       { headers: { Authorization: 'Bearer remote-token' } }
     );
   });
