@@ -4,7 +4,7 @@ import { flushSync } from 'svelte';
 import UserCombobox from './UserCombobox.svelte';
 
 const mocks = vi.hoisted(() => ({
-  listServerMembers: vi.fn()
+  listUsers: vi.fn()
 }));
 
 vi.mock('$lib/state/server/connection.svelte', () => ({
@@ -16,7 +16,7 @@ vi.mock('$lib/state/server/connection.svelte', () => ({
 
 vi.mock('$lib/api-client/memberDirectory', () => ({
   createMemberDirectoryAPI: () => ({
-    listServerMembers: mocks.listServerMembers
+    listUsers: mocks.listUsers
   })
 }));
 
@@ -29,8 +29,8 @@ async function settle() {
 describe('UserCombobox', () => {
   beforeEach(() => {
     vi.useFakeTimers();
-    mocks.listServerMembers.mockReset();
-    mocks.listServerMembers.mockResolvedValue({
+    mocks.listUsers.mockReset();
+    mocks.listUsers.mockResolvedValue({
       members: [
         {
           id: 'user-1',
@@ -67,6 +67,6 @@ describe('UserCombobox', () => {
     await vi.advanceTimersByTimeAsync(220);
     await settle();
 
-    expect(mocks.listServerMembers).toHaveBeenCalledWith('alice', 10, 0);
+    expect(mocks.listUsers).toHaveBeenCalledWith('alice', 10, 0);
   });
 });

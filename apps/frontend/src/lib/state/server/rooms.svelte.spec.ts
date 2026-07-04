@@ -125,7 +125,7 @@ function makeMemberDirectoryAPI(
   membersByRoomId: Record<string, DirectoryMember[]> = {}
 ): MemberDirectoryAPI {
   return {
-    listServerMembers: vi.fn(),
+    listUsers: vi.fn(),
     listRoomMembers: vi.fn(async (roomId: string) => ({
       members: membersByRoomId[roomId] ?? [],
       totalCount: membersByRoomId[roomId]?.length ?? 0,

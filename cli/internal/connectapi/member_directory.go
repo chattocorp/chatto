@@ -17,7 +17,7 @@ const (
 	maxMemberDirectoryLimit     = 500
 )
 
-func (s *serverService) ListMembers(ctx context.Context, req *connect.Request[apiv1.ListServerMembersRequest]) (*connect.Response[apiv1.ListServerMembersResponse], error) {
+func (s *userService) ListUsers(ctx context.Context, req *connect.Request[apiv1.ListUsersRequest]) (*connect.Response[apiv1.ListUsersResponse], error) {
 	if _, err := requireCaller(ctx); err != nil {
 		return nil, err
 	}
@@ -50,13 +50,13 @@ func (s *serverService) ListMembers(ctx context.Context, req *connect.Request[ap
 	if visibleTotalCount < len(out) {
 		visibleTotalCount = len(out)
 	}
-	return connect.NewResponse(&apiv1.ListServerMembersResponse{
-		Members: out,
-		Page:    apiPageInfo(visibleTotalCount, offset+len(out) < visibleTotalCount),
+	return connect.NewResponse(&apiv1.ListUsersResponse{
+		Users: out,
+		Page:  apiPageInfo(visibleTotalCount, offset+len(out) < visibleTotalCount),
 	}), nil
 }
 
-func (s *serverService) GetMember(ctx context.Context, req *connect.Request[apiv1.GetServerMemberRequest]) (*connect.Response[apiv1.GetServerMemberResponse], error) {
+func (s *userService) GetUser(ctx context.Context, req *connect.Request[apiv1.GetUserRequest]) (*connect.Response[apiv1.GetUserResponse], error) {
 	if _, err := requireCaller(ctx); err != nil {
 		return nil, err
 	}
@@ -64,9 +64,9 @@ func (s *serverService) GetMember(ctx context.Context, req *connect.Request[apiv
 	var user *corev1.User
 	var err error
 	switch req.Msg.GetTarget().(type) {
-	case *apiv1.GetServerMemberRequest_UserId:
+	case *apiv1.GetUserRequest_UserId:
 		user, err = s.api.core.GetUser(ctx, req.Msg.GetUserId())
-	case *apiv1.GetServerMemberRequest_Login:
+	case *apiv1.GetUserRequest_Login:
 		user, err = s.api.core.GetUserByLogin(ctx, req.Msg.GetLogin())
 	default:
 		return nil, invalidArgument("user_id or login is required")
@@ -78,10 +78,10 @@ func (s *serverService) GetMember(ctx context.Context, req *connect.Request[apiv
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&apiv1.GetServerMemberResponse{Member: member}), nil
+	return connect.NewResponse(&apiv1.GetUserResponse{User: member}), nil
 }
 
-func (s *serverService) BatchGetMembers(ctx context.Context, req *connect.Request[apiv1.BatchGetServerMembersRequest]) (*connect.Response[apiv1.BatchGetServerMembersResponse], error) {
+func (s *userService) BatchGetUsers(ctx context.Context, req *connect.Request[apiv1.BatchGetUsersRequest]) (*connect.Response[apiv1.BatchGetUsersResponse], error) {
 	if _, err := requireCaller(ctx); err != nil {
 		return nil, err
 	}
@@ -103,7 +103,7 @@ func (s *serverService) BatchGetMembers(ctx context.Context, req *connect.Reques
 		}
 		members = append(members, member)
 	}
-	return connect.NewResponse(&apiv1.BatchGetServerMembersResponse{Members: members}), nil
+	return connect.NewResponse(&apiv1.BatchGetUsersResponse{Users: members}), nil
 }
 
 func (s *roomService) ListMembers(ctx context.Context, req *connect.Request[apiv1.ListRoomMembersRequest]) (*connect.Response[apiv1.ListRoomMembersResponse], error) {

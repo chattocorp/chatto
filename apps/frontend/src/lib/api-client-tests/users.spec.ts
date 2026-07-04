@@ -6,7 +6,7 @@ import { createUserAPI, mapUserSummary } from '$lib/api-client/users';
 const mocks = vi.hoisted(() => ({
   createClient: vi.fn(),
   createConnectTransport: vi.fn(),
-  batchGetMembers: vi.fn()
+  batchGetUsers: vi.fn()
 }));
 
 vi.mock('@connectrpc/connect', () => ({
@@ -21,16 +21,16 @@ describe('createUserAPI', () => {
   beforeEach(() => {
     mocks.createClient.mockReset();
     mocks.createConnectTransport.mockReset();
-    mocks.batchGetMembers.mockReset();
+    mocks.batchGetUsers.mockReset();
     mocks.createConnectTransport.mockReturnValue({ kind: 'transport' });
     mocks.createClient.mockReturnValue({
-      batchGetMembers: mocks.batchGetMembers
+      batchGetUsers: mocks.batchGetUsers
     });
   });
 
   it('loads user summaries in batches and sends bearer auth', async () => {
-    mocks.batchGetMembers.mockResolvedValue({
-      members: [
+    mocks.batchGetUsers.mockResolvedValue({
+      users: [
         new APIDirectoryMember({
           profile: new APIUserProfile({
             user: new APIUser({
@@ -64,7 +64,7 @@ describe('createUserAPI', () => {
       baseUrl: 'https://remote.test/api/connect',
       useBinaryFormat: true
     });
-    expect(mocks.batchGetMembers).toHaveBeenCalledWith(
+    expect(mocks.batchGetUsers).toHaveBeenCalledWith(
       { userIds: ['U1', 'U2'] },
       { headers: { Authorization: 'Bearer token' } }
     );

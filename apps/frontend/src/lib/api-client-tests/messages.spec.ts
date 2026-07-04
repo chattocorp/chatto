@@ -28,7 +28,7 @@ const mocks = vi.hoisted(() => ({
   deleteMessage: vi.fn(),
   deleteAttachment: vi.fn(),
   deleteLinkPreview: vi.fn(),
-  batchGetMembers: vi.fn(),
+  batchGetUsers: vi.fn(),
   createUpload: vi.fn(),
   uploadChunk: vi.fn(),
   getUpload: vi.fn(),
@@ -59,8 +59,8 @@ describe('createMessageAPI', () => {
     mocks.deleteMessage.mockReset();
     mocks.deleteAttachment.mockReset();
     mocks.deleteLinkPreview.mockReset();
-    mocks.batchGetMembers.mockReset();
-    mocks.batchGetMembers.mockResolvedValue({ members: [] });
+    mocks.batchGetUsers.mockReset();
+    mocks.batchGetUsers.mockResolvedValue({ users: [] });
     mocks.createUpload.mockReset();
     mocks.uploadChunk.mockReset();
     mocks.getUpload.mockReset();
@@ -75,9 +75,9 @@ describe('createMessageAPI', () => {
           completeUpload: mocks.completeUpload
         };
       }
-      if (service?.typeName === 'chatto.api.v1.ServerService') {
+      if (service?.typeName === 'chatto.api.v1.UserService') {
         return {
-          batchGetMembers: mocks.batchGetMembers
+          batchGetUsers: mocks.batchGetUsers
         };
       }
       return {
@@ -108,8 +108,8 @@ describe('createMessageAPI', () => {
         })
       })
     );
-    mocks.batchGetMembers.mockResolvedValue({
-      members: [
+    mocks.batchGetUsers.mockResolvedValue({
+      users: [
         {
           profile: {
             user: {
@@ -157,7 +157,7 @@ describe('createMessageAPI', () => {
         headers: { Authorization: 'Bearer remote-token' }
       }
     );
-    expect(mocks.batchGetMembers).toHaveBeenCalledWith(
+    expect(mocks.batchGetUsers).toHaveBeenCalledWith(
       { userIds: ['user-1'] },
       {
         headers: { Authorization: 'Bearer remote-token' }

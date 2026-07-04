@@ -346,7 +346,7 @@ var File_chatto_api_v1_server_state_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_server_state_proto_rawDesc = "" +
 	"\n" +
-	" chatto/api/v1/server_state.proto\x12\rchatto.api.v1\x1a$chatto/api/v1/member_directory.proto\x1a\x1achatto/api/v1/server.proto\"|\n" +
+	" chatto/api/v1/server_state.proto\x12\rchatto.api.v1\x1a\x1achatto/api/v1/server.proto\"|\n" +
 	"\rServerProfile\x12I\n" +
 	"\x0epublic_profile\x18\x01 \x01(\v2\".chatto.api.v1.ServerPublicProfileR\rpublicProfile\x12\x17\n" +
 	"\x04motd\x18\x02 \x01(\tH\x00R\x04motd\x88\x01\x01B\a\n" +
@@ -368,13 +368,10 @@ const file_chatto_api_v1_server_state_proto_rawDesc = "" +
 	"\f_livekit_urlJ\x04\b\x04\x10\x05R\x1bdirect_registration_enabled\"\x19\n" +
 	"\x17GetRuntimeConfigRequest\"X\n" +
 	"\x18GetRuntimeConfigResponse\x12<\n" +
-	"\aruntime\x18\x01 \x01(\v2\".chatto.api.v1.ServerRuntimeConfigR\aruntime2\xea\x03\n" +
+	"\aruntime\x18\x01 \x01(\v2\".chatto.api.v1.ServerRuntimeConfigR\aruntime2\xbe\x01\n" +
 	"\rServerService\x12H\n" +
 	"\aGetMotd\x12\x1d.chatto.api.v1.GetMotdRequest\x1a\x1e.chatto.api.v1.GetMotdResponse\x12c\n" +
-	"\x10GetRuntimeConfig\x12&.chatto.api.v1.GetRuntimeConfigRequest\x1a'.chatto.api.v1.GetRuntimeConfigResponse\x12`\n" +
-	"\vListMembers\x12'.chatto.api.v1.ListServerMembersRequest\x1a(.chatto.api.v1.ListServerMembersResponse\x12Z\n" +
-	"\tGetMember\x12%.chatto.api.v1.GetServerMemberRequest\x1a&.chatto.api.v1.GetServerMemberResponse\x12l\n" +
-	"\x0fBatchGetMembers\x12+.chatto.api.v1.BatchGetServerMembersRequest\x1a,.chatto.api.v1.BatchGetServerMembersResponseB\xac\x01\n" +
+	"\x10GetRuntimeConfig\x12&.chatto.api.v1.GetRuntimeConfigRequest\x1a'.chatto.api.v1.GetRuntimeConfigResponseB\xac\x01\n" +
 	"\x11com.chatto.api.v1B\x10ServerStateProtoP\x01Z/hmans.de/chatto/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
 
 var (
@@ -391,38 +388,26 @@ func file_chatto_api_v1_server_state_proto_rawDescGZIP() []byte {
 
 var file_chatto_api_v1_server_state_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_chatto_api_v1_server_state_proto_goTypes = []any{
-	(*ServerProfile)(nil),                 // 0: chatto.api.v1.ServerProfile
-	(*GetMotdRequest)(nil),                // 1: chatto.api.v1.GetMotdRequest
-	(*GetMotdResponse)(nil),               // 2: chatto.api.v1.GetMotdResponse
-	(*ServerRuntimeConfig)(nil),           // 3: chatto.api.v1.ServerRuntimeConfig
-	(*GetRuntimeConfigRequest)(nil),       // 4: chatto.api.v1.GetRuntimeConfigRequest
-	(*GetRuntimeConfigResponse)(nil),      // 5: chatto.api.v1.GetRuntimeConfigResponse
-	(*ServerPublicProfile)(nil),           // 6: chatto.api.v1.ServerPublicProfile
-	(*ListServerMembersRequest)(nil),      // 7: chatto.api.v1.ListServerMembersRequest
-	(*GetServerMemberRequest)(nil),        // 8: chatto.api.v1.GetServerMemberRequest
-	(*BatchGetServerMembersRequest)(nil),  // 9: chatto.api.v1.BatchGetServerMembersRequest
-	(*ListServerMembersResponse)(nil),     // 10: chatto.api.v1.ListServerMembersResponse
-	(*GetServerMemberResponse)(nil),       // 11: chatto.api.v1.GetServerMemberResponse
-	(*BatchGetServerMembersResponse)(nil), // 12: chatto.api.v1.BatchGetServerMembersResponse
+	(*ServerProfile)(nil),            // 0: chatto.api.v1.ServerProfile
+	(*GetMotdRequest)(nil),           // 1: chatto.api.v1.GetMotdRequest
+	(*GetMotdResponse)(nil),          // 2: chatto.api.v1.GetMotdResponse
+	(*ServerRuntimeConfig)(nil),      // 3: chatto.api.v1.ServerRuntimeConfig
+	(*GetRuntimeConfigRequest)(nil),  // 4: chatto.api.v1.GetRuntimeConfigRequest
+	(*GetRuntimeConfigResponse)(nil), // 5: chatto.api.v1.GetRuntimeConfigResponse
+	(*ServerPublicProfile)(nil),      // 6: chatto.api.v1.ServerPublicProfile
 }
 var file_chatto_api_v1_server_state_proto_depIdxs = []int32{
-	6,  // 0: chatto.api.v1.ServerProfile.public_profile:type_name -> chatto.api.v1.ServerPublicProfile
-	3,  // 1: chatto.api.v1.GetRuntimeConfigResponse.runtime:type_name -> chatto.api.v1.ServerRuntimeConfig
-	1,  // 2: chatto.api.v1.ServerService.GetMotd:input_type -> chatto.api.v1.GetMotdRequest
-	4,  // 3: chatto.api.v1.ServerService.GetRuntimeConfig:input_type -> chatto.api.v1.GetRuntimeConfigRequest
-	7,  // 4: chatto.api.v1.ServerService.ListMembers:input_type -> chatto.api.v1.ListServerMembersRequest
-	8,  // 5: chatto.api.v1.ServerService.GetMember:input_type -> chatto.api.v1.GetServerMemberRequest
-	9,  // 6: chatto.api.v1.ServerService.BatchGetMembers:input_type -> chatto.api.v1.BatchGetServerMembersRequest
-	2,  // 7: chatto.api.v1.ServerService.GetMotd:output_type -> chatto.api.v1.GetMotdResponse
-	5,  // 8: chatto.api.v1.ServerService.GetRuntimeConfig:output_type -> chatto.api.v1.GetRuntimeConfigResponse
-	10, // 9: chatto.api.v1.ServerService.ListMembers:output_type -> chatto.api.v1.ListServerMembersResponse
-	11, // 10: chatto.api.v1.ServerService.GetMember:output_type -> chatto.api.v1.GetServerMemberResponse
-	12, // 11: chatto.api.v1.ServerService.BatchGetMembers:output_type -> chatto.api.v1.BatchGetServerMembersResponse
-	7,  // [7:12] is the sub-list for method output_type
-	2,  // [2:7] is the sub-list for method input_type
-	2,  // [2:2] is the sub-list for extension type_name
-	2,  // [2:2] is the sub-list for extension extendee
-	0,  // [0:2] is the sub-list for field type_name
+	6, // 0: chatto.api.v1.ServerProfile.public_profile:type_name -> chatto.api.v1.ServerPublicProfile
+	3, // 1: chatto.api.v1.GetRuntimeConfigResponse.runtime:type_name -> chatto.api.v1.ServerRuntimeConfig
+	1, // 2: chatto.api.v1.ServerService.GetMotd:input_type -> chatto.api.v1.GetMotdRequest
+	4, // 3: chatto.api.v1.ServerService.GetRuntimeConfig:input_type -> chatto.api.v1.GetRuntimeConfigRequest
+	2, // 4: chatto.api.v1.ServerService.GetMotd:output_type -> chatto.api.v1.GetMotdResponse
+	5, // 5: chatto.api.v1.ServerService.GetRuntimeConfig:output_type -> chatto.api.v1.GetRuntimeConfigResponse
+	4, // [4:6] is the sub-list for method output_type
+	2, // [2:4] is the sub-list for method input_type
+	2, // [2:2] is the sub-list for extension type_name
+	2, // [2:2] is the sub-list for extension extendee
+	0, // [0:2] is the sub-list for field type_name
 }
 
 func init() { file_chatto_api_v1_server_state_proto_init() }
@@ -430,7 +415,6 @@ func file_chatto_api_v1_server_state_proto_init() {
 	if File_chatto_api_v1_server_state_proto != nil {
 		return
 	}
-	file_chatto_api_v1_member_directory_proto_init()
 	file_chatto_api_v1_server_proto_init()
 	file_chatto_api_v1_server_state_proto_msgTypes[0].OneofWrappers = []any{}
 	file_chatto_api_v1_server_state_proto_msgTypes[2].OneofWrappers = []any{}

@@ -27,12 +27,10 @@ first consumer.
   typing operations; split a resource out only when it needs an independent
   resource identity, authorization model, or CRUD/batch surface.
 - A scoped lifecycle service may own the small resource reads that make that
-  scope complete. Server membership reads belong on `ServerService` because
-  every authenticated user is implicitly a server member and the reads share
-  the authenticated server scope. Room membership reads and commands belong on
-  `RoomService` because their authorization and state are room-scoped alongside
-  room lifecycle, timeline, moderation, attachments, read-state, and typing
-  operations.
+  scope complete. Server-wide user directory reads belong on `UserService`.
+  Room membership reads and commands belong on `RoomService` because their
+  authorization and state are room-scoped alongside room lifecycle, timeline,
+  moderation, attachments, read-state, and typing operations.
 - Once a service name carries the scope, use concise resource method names such
   as `ListMembers`, `GetMember`, and `BatchGetMembers` rather than repeating
   the scope in every RPC name.

@@ -66,7 +66,7 @@
         baseUrl: currentConnection.connectBaseUrl,
         bearerToken: currentConnection.bearerToken
       });
-      const result = await api.listServerMembers(search, 10, 0);
+      const result = await api.listUsers(search, 10, 0);
       if (currentRequest !== requestId) return;
       users = result.members;
     } catch {

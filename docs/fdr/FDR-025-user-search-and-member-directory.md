@@ -10,12 +10,12 @@ Any authenticated user can browse the server's member directory — a paginated 
 ## Behavior
 
 - The directory query accepts an optional search string, an offset, and a limit. Returns the matching members and a total count for paginating.
-- The canonical public surface is ConnectRPC `ServerService.ListMembers(search, page)`. There is no separate root users-directory query.
+- The canonical public surface is ConnectRPC `UserService.ListUsers(search, page)`.
 - Search matches a substring of either `login` or `displayName`, case-insensitive. Empty search returns all members.
 - Pagination is offset-based: caller specifies `offset` and `limit`; the response also includes `totalCount` so the caller can compute whether there are more pages.
 - Default page size is 20; the maximum is 500. Requests larger than 500 are silently clamped down.
 - Results are sorted by `createdAt` ascending (oldest member first). Users created before the timestamp field existed sort to the end, alphabetically by login.
-- Direct server member lookups by stable user ID or login return the same public member row shape as the directory and require authentication. Batch member hydration by stable user ID supports cache-miss loading without a separate user-directory service.
+- Direct user lookups by stable user ID or login return the same public directory row shape as the directory and require authentication. Batch user hydration by stable user ID supports cache-miss loading without N+1 reads.
 
 ## Design Decisions
 

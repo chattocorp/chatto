@@ -5,9 +5,7 @@ import {
   createChattoClient,
   type ConnectAPIConfig,
 } from "./connect.js";
-import {
-  ServerService,
-} from "@chatto/api-types/api/v1/server_state_connect";
+import { UserService } from "@chatto/api-types/api/v1/member_directory_connect";
 import { RoomService } from "@chatto/api-types/api/v1/rooms_connect";
 import type { DirectoryMember as APIDirectoryMember } from "@chatto/api-types/api/v1/member_directory_pb";
 import { PresenceStatus as APIPresenceStatus } from "@chatto/api-types/api/v1/presence_pb";
@@ -38,34 +36,34 @@ export type MemberDirectoryPage = {
 };
 
 export function createMemberDirectoryAPI(config: MemberDirectoryAPIConfig) {
-  const server = createChattoClient(ServerService, config);
+  const users = createChattoClient(UserService, config);
   const rooms = createChattoClient(RoomService, config);
   const headers = () => authHeaders(config);
 
   return {
-    async listServerMembers(
+    async listUsers(
       search = "",
       limit = 20,
       offset = 0,
     ): Promise<MemberDirectoryPage> {
-      const response = await server.listMembers(
+      const response = await users.listUsers(
         { search, page: { limit, offset } },
         { headers: headers() },
       );
       return {
-        members: response.members.map(mapDirectoryMember),
+        members: response.users.map(mapDirectoryMember),
         totalCount: Number(response.page?.totalCount ?? 0),
         hasMore: response.page?.hasMore ?? false,
       };
     },
 
-    async getServerMember(userId: string): Promise<DirectoryMember | null> {
+    async getUser(userId: string): Promise<DirectoryMember | null> {
       try {
-        const response = await server.getMember(
+        const response = await users.getUser(
           { target: { case: "userId", value: userId } },
           { headers: headers() },
         );
-        return response.member ? mapDirectoryMember(response.member) : null;
+        return response.user ? mapDirectoryMember(response.user) : null;
       } catch (err) {
         if (err instanceof ConnectError && err.code === Code.NotFound) {
           return null;
@@ -74,13 +72,13 @@ export function createMemberDirectoryAPI(config: MemberDirectoryAPIConfig) {
       }
     },
 
-    async getServerMemberByLogin(login: string): Promise<DirectoryMember | null> {
+    async getUserByLogin(login: string): Promise<DirectoryMember | null> {
       try {
-        const response = await server.getMember(
+        const response = await users.getUser(
           { target: { case: "login", value: login } },
           { headers: headers() },
         );
-        return response.member ? mapDirectoryMember(response.member) : null;
+        return response.user ? mapDirectoryMember(response.user) : null;
       } catch (err) {
         if (err instanceof ConnectError && err.code === Code.NotFound) {
           return null;
@@ -89,12 +87,12 @@ export function createMemberDirectoryAPI(config: MemberDirectoryAPIConfig) {
       }
     },
 
-    async batchGetServerMembers(userIds: string[]): Promise<DirectoryMember[]> {
-      const response = await server.batchGetMembers(
+    async batchGetUsers(userIds: string[]): Promise<DirectoryMember[]> {
+      const response = await users.batchGetUsers(
         { userIds },
         { headers: headers() },
       );
-      return response.members.map(mapDirectoryMember);
+      return response.users.map(mapDirectoryMember);
     },
 
     async listRoomMembers(

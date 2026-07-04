@@ -913,6 +913,114 @@ Response containing room-scoped assets.
 | `assets` | repeated [`RoomTimelineAttachment`](#chatto-api-v1-RoomTimelineAttachment) | Assets in first-seen request order. |
 
 
+<a id="chatto-api-v1-UserService"></a>
+
+## UserService
+
+Reads the authenticated server-wide user directory.
+
+<a id="chatto-api-v1-UserService-ListUsers"></a>
+
+### ListUsers
+
+Lists users visible to the authenticated user. Admin-sensitive account
+fields stay out of this public row shape.
+
+```http
+POST /api/connect/chatto.api.v1.UserService/ListUsers
+```
+
+<a id="chatto-api-v1-ListUsersRequest"></a>
+
+#### Input: ListUsersRequest
+
+Request for users visible to the authenticated user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `search` | `string` | Optional case-insensitive search against login and display name. |
+| `page` | [`PageRequest`](#chatto-api-v1-PageRequest) | Page request. Defaults to 20 results when absent or limit is zero. |
+
+
+<a id="chatto-api-v1-ListUsersResponse"></a>
+
+#### Result: ListUsersResponse
+
+User directory page.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `users` | repeated [`DirectoryMember`](#chatto-api-v1-DirectoryMember) | Users in the requested page. |
+| `page` | [`PageInfo`](#chatto-api-v1-PageInfo) | Page metadata. |
+
+
+<a id="chatto-api-v1-UserService-GetUser"></a>
+
+### GetUser
+
+Gets one visible user by user ID or login. Returns NOT_FOUND when the
+target is unknown.
+
+```http
+POST /api/connect/chatto.api.v1.UserService/GetUser
+```
+
+<a id="chatto-api-v1-GetUserRequest"></a>
+
+#### Input: GetUserRequest
+
+Request one visible user by stable user ID or login.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `target.user_id` | `string` | Target stable user ID. |
+| `target.login` | `string` | Target login identifier. |
+
+
+<a id="chatto-api-v1-GetUserResponse"></a>
+
+#### Result: GetUserResponse
+
+User directory response.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user` | [`DirectoryMember`](#chatto-api-v1-DirectoryMember) | Requested user. |
+
+
+<a id="chatto-api-v1-UserService-BatchGetUsers"></a>
+
+### BatchGetUsers
+
+Gets visible user rows for multiple stable user IDs. Unknown IDs are
+omitted from the response.
+
+```http
+POST /api/connect/chatto.api.v1.UserService/BatchGetUsers
+```
+
+<a id="chatto-api-v1-BatchGetUsersRequest"></a>
+
+#### Input: BatchGetUsersRequest
+
+Request user directory rows for a set of stable user IDs.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_ids` | `repeated string` | Required target user IDs. Unknown IDs are omitted from the response. |
+
+
+<a id="chatto-api-v1-BatchGetUsersResponse"></a>
+
+#### Result: BatchGetUsersResponse
+
+Batch user directory response.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `users` | repeated [`DirectoryMember`](#chatto-api-v1-DirectoryMember) | Found users. The server preserves first-seen request order and de-duplicates repeated IDs. |
+
+
 <a id="chatto-api-v1-MessageService"></a>
 
 ## MessageService
@@ -2729,7 +2837,7 @@ Visible room batch response for direct room hydration.
 
 ## ServerService
 
-Provides authenticated server-wide reads and public server member reads.
+Provides authenticated server-wide reads.
 
 <a id="chatto-api-v1-ServerService-GetMotd"></a>
 
@@ -2785,107 +2893,6 @@ Authenticated server runtime configuration response.
 | Field | Type | Description |
 | --- | --- | --- |
 | `runtime` | [`ServerRuntimeConfig`](#chatto-api-v1-ServerRuntimeConfig) | Authenticated runtime settings used by clients. |
-
-
-<a id="chatto-api-v1-ServerService-ListMembers"></a>
-
-### ListMembers
-
-Lists authenticated server members. Every authenticated user is a server
-member; admin-sensitive fields stay out of this public row shape.
-
-```http
-POST /api/connect/chatto.api.v1.ServerService/ListMembers
-```
-
-<a id="chatto-api-v1-ListServerMembersRequest"></a>
-
-#### Input: ListServerMembersRequest
-
-Request for server members visible to the authenticated user.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `search` | `string` | Optional case-insensitive search against login and display name. |
-| `page` | [`PageRequest`](#chatto-api-v1-PageRequest) | Page request. Defaults to 20 results when absent or limit is zero. |
-
-
-<a id="chatto-api-v1-ListServerMembersResponse"></a>
-
-#### Result: ListServerMembersResponse
-
-Server member page.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `members` | repeated [`DirectoryMember`](#chatto-api-v1-DirectoryMember) | Members in the requested page. |
-| `page` | [`PageInfo`](#chatto-api-v1-PageInfo) | Page metadata. |
-
-
-<a id="chatto-api-v1-ServerService-GetMember"></a>
-
-### GetMember
-
-Gets one authenticated server member by user ID or login. Returns NOT_FOUND
-when the target is unknown.
-
-```http
-POST /api/connect/chatto.api.v1.ServerService/GetMember
-```
-
-<a id="chatto-api-v1-GetServerMemberRequest"></a>
-
-#### Input: GetServerMemberRequest
-
-Request one authenticated server member by stable user ID or login.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `target.user_id` | `string` | Target stable user ID. |
-| `target.login` | `string` | Target login identifier. |
-
-
-<a id="chatto-api-v1-GetServerMemberResponse"></a>
-
-#### Result: GetServerMemberResponse
-
-Server member response.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `member` | [`DirectoryMember`](#chatto-api-v1-DirectoryMember) | Requested member. |
-
-
-<a id="chatto-api-v1-ServerService-BatchGetMembers"></a>
-
-### BatchGetMembers
-
-Gets authenticated server member rows for multiple users.
-
-```http
-POST /api/connect/chatto.api.v1.ServerService/BatchGetMembers
-```
-
-<a id="chatto-api-v1-BatchGetServerMembersRequest"></a>
-
-#### Input: BatchGetServerMembersRequest
-
-Request server member rows for a set of stable user IDs.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `user_ids` | `repeated string` | Required target user IDs. Unknown IDs are omitted from the response. |
-
-
-<a id="chatto-api-v1-BatchGetServerMembersResponse"></a>
-
-#### Result: BatchGetServerMembersResponse
-
-Batch server member response.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `members` | repeated [`DirectoryMember`](#chatto-api-v1-DirectoryMember) | Found members. The server preserves first-seen request order and de-duplicates repeated IDs. |
 
 
 <a id="chatto-api-v1-ThreadService"></a>
@@ -3919,7 +3926,8 @@ for simple list browsing.
 
 ### DirectoryMember
 
-Public user/member profile used by directory and mention surfaces.
+Public user/member profile used by user directory, room membership, and
+mention surfaces.
 
 | Field | Type | Description |
 | --- | --- | --- |

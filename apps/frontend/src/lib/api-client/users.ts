@@ -1,5 +1,5 @@
 import { authHeaders, createChattoClient } from "./connect.js";
-import { ServerService } from "@chatto/api-types/api/v1/server_state_connect";
+import { UserService } from "@chatto/api-types/api/v1/member_directory_connect";
 import type { DirectoryMember as APIDirectoryMember } from "@chatto/api-types/api/v1/member_directory_pb";
 import type {
   User as APIUser,
@@ -21,16 +21,16 @@ export type UserSummary = {
 };
 
 export function createUserAPI(config: UserAPIConfig) {
-  const client = createChattoClient(ServerService, config);
+  const client = createChattoClient(UserService, config);
   const headers = () => authHeaders(config);
 
   return {
     async batchGetUsers(userIds: string[]): Promise<UserSummary[]> {
-      const response = await client.batchGetMembers(
+      const response = await client.batchGetUsers(
         { userIds },
         { headers: headers() },
       );
-      return response.members.flatMap((member) => {
+      return response.users.flatMap((member) => {
         const summary = member.profile?.user;
         return summary ? [mapUserSummary(summary)] : [];
       });

@@ -84,6 +84,7 @@ func TestAPIHandlers(t *testing.T) {
 		"/" + discoveryv1connect.ServerDiscoveryServiceName + "/",
 		"/" + apiv1connect.ServerServiceName + "/",
 		"/" + apiv1connect.ThreadServiceName + "/",
+		"/" + apiv1connect.UserServiceName + "/",
 		"/" + apiv1connect.ViewerServiceName + "/",
 		"/" + apiv1connect.VoiceCallServiceName + "/",
 	}
@@ -127,6 +128,7 @@ func TestAPIHandlerAuthPolicies(t *testing.T) {
 		"/" + discoveryv1connect.ServerDiscoveryServiceName + "/":   AuthPolicyPublic,
 		"/" + apiv1connect.ServerServiceName + "/":                  AuthPolicyAuthenticatedUser,
 		"/" + apiv1connect.ThreadServiceName + "/":                  AuthPolicyAuthenticatedUser,
+		"/" + apiv1connect.UserServiceName + "/":                    AuthPolicyAuthenticatedUser,
 		"/" + apiv1connect.ViewerServiceName + "/":                  AuthPolicyAuthenticatedUser,
 		"/" + apiv1connect.VoiceCallServiceName + "/":               AuthPolicyAuthenticatedUser,
 	}
@@ -221,6 +223,7 @@ func TestBatchGetResourceRequestsValidateThroughConnectHandlers(t *testing.T) {
 	assetPath, assetHandler := apiv1connect.NewAssetServiceHandler(env.assets, HandlerOptions()...)
 	messagePath, messageHandler := apiv1connect.NewMessageServiceHandler(env.messages, HandlerOptions()...)
 	serverPath, serverHandler := apiv1connect.NewServerServiceHandler(env.serverState, HandlerOptions()...)
+	userPath, userHandler := apiv1connect.NewUserServiceHandler(env.users, HandlerOptions()...)
 	roomPath, roomHandler := apiv1connect.NewRoomServiceHandler(env.rooms, HandlerOptions()...)
 	notificationPath, notificationHandler := apiv1connect.NewNotificationServiceHandler(env.notifications, HandlerOptions()...)
 	voicePath, voiceHandler := apiv1connect.NewVoiceCallServiceHandler(env.voice, HandlerOptions()...)
@@ -231,6 +234,7 @@ func TestBatchGetResourceRequestsValidateThroughConnectHandlers(t *testing.T) {
 	mux.Handle(assetPath, assetHandler)
 	mux.Handle(messagePath, messageHandler)
 	mux.Handle(serverPath, serverHandler)
+	mux.Handle(userPath, userHandler)
 	mux.Handle(roomPath, roomHandler)
 	mux.Handle(notificationPath, notificationHandler)
 	mux.Handle(voicePath, voiceHandler)
@@ -243,7 +247,7 @@ func TestBatchGetResourceRequestsValidateThroughConnectHandlers(t *testing.T) {
 	roomDirectory := apiv1connect.NewRoomDirectoryServiceClient(ts.Client(), ts.URL)
 	assets := apiv1connect.NewAssetServiceClient(ts.Client(), ts.URL)
 	messages := apiv1connect.NewMessageServiceClient(ts.Client(), ts.URL)
-	serverMembers := apiv1connect.NewServerServiceClient(ts.Client(), ts.URL)
+	users := apiv1connect.NewUserServiceClient(ts.Client(), ts.URL)
 	rooms := apiv1connect.NewRoomServiceClient(ts.Client(), ts.URL)
 	notifications := apiv1connect.NewNotificationServiceClient(ts.Client(), ts.URL)
 	voice := apiv1connect.NewVoiceCallServiceClient(ts.Client(), ts.URL)
@@ -294,18 +298,18 @@ func TestBatchGetResourceRequestsValidateThroughConnectHandlers(t *testing.T) {
 		t.Fatalf("too-many BatchGetRoomGroups code = %v, want invalid_argument", connect.CodeOf(err))
 	}
 
-	if _, err := serverMembers.BatchGetMembers(context.Background(), connect.NewRequest(&apiv1.BatchGetServerMembersRequest{})); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("empty BatchGetServerMembers code = %v, want invalid_argument", connect.CodeOf(err))
+	if _, err := users.BatchGetUsers(context.Background(), connect.NewRequest(&apiv1.BatchGetUsersRequest{})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("empty BatchGetUsers code = %v, want invalid_argument", connect.CodeOf(err))
 	}
-	if _, err := serverMembers.BatchGetMembers(context.Background(), connect.NewRequest(&apiv1.BatchGetServerMembersRequest{UserIds: []string{""}})); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("empty-id BatchGetServerMembers code = %v, want invalid_argument", connect.CodeOf(err))
+	if _, err := users.BatchGetUsers(context.Background(), connect.NewRequest(&apiv1.BatchGetUsersRequest{UserIds: []string{""}})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("empty-id BatchGetUsers code = %v, want invalid_argument", connect.CodeOf(err))
 	}
 	tooManyUserIDs := make([]string, 101)
 	for i := range tooManyUserIDs {
 		tooManyUserIDs[i] = fmt.Sprintf("user-%d", i)
 	}
-	if _, err := serverMembers.BatchGetMembers(context.Background(), connect.NewRequest(&apiv1.BatchGetServerMembersRequest{UserIds: tooManyUserIDs})); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("too-many BatchGetServerMembers code = %v, want invalid_argument", connect.CodeOf(err))
+	if _, err := users.BatchGetUsers(context.Background(), connect.NewRequest(&apiv1.BatchGetUsersRequest{UserIds: tooManyUserIDs})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("too-many BatchGetUsers code = %v, want invalid_argument", connect.CodeOf(err))
 	}
 
 	if _, err := rooms.BatchGetMembers(context.Background(), connect.NewRequest(&apiv1.BatchGetRoomMembersRequest{})); connect.CodeOf(err) != connect.CodeInvalidArgument {
@@ -1034,14 +1038,14 @@ func TestOperatorUserServiceAssignRoleRejectsMissingUserWithoutPersistingRole(t 
 	}
 }
 
-func TestServerServiceGetMemberReadsPublicMemberProfiles(t *testing.T) {
+func TestUserServiceGetUserReadsPublicUserProfiles(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 
-	if _, err := env.serverState.GetMember(env.ctx, connect.NewRequest(&apiv1.GetServerMemberRequest{Target: &apiv1.GetServerMemberRequest_UserId{UserId: env.viewer.Id}})); connect.CodeOf(err) != connect.CodeUnauthenticated {
-		t.Fatalf("unauthenticated GetMember code = %v, want unauthenticated", connect.CodeOf(err))
+	if _, err := env.users.GetUser(env.ctx, connect.NewRequest(&apiv1.GetUserRequest{Target: &apiv1.GetUserRequest_UserId{UserId: env.viewer.Id}})); connect.CodeOf(err) != connect.CodeUnauthenticated {
+		t.Fatalf("unauthenticated GetUser code = %v, want unauthenticated", connect.CodeOf(err))
 	}
-	if _, err := env.serverState.BatchGetMembers(env.ctx, connect.NewRequest(&apiv1.BatchGetServerMembersRequest{UserIds: []string{env.viewer.Id}})); connect.CodeOf(err) != connect.CodeUnauthenticated {
-		t.Fatalf("unauthenticated BatchGetMembers code = %v, want unauthenticated", connect.CodeOf(err))
+	if _, err := env.users.BatchGetUsers(env.ctx, connect.NewRequest(&apiv1.BatchGetUsersRequest{UserIds: []string{env.viewer.Id}})); connect.CodeOf(err) != connect.CodeUnauthenticated {
+		t.Fatalf("unauthenticated BatchGetUsers code = %v, want unauthenticated", connect.CodeOf(err))
 	}
 
 	ctx := withCaller(env.ctx, env.viewer)
@@ -1049,12 +1053,12 @@ func TestServerServiceGetMemberReadsPublicMemberProfiles(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateUser offline profile: %v", err)
 	}
-	offlineResp, err := env.serverState.GetMember(ctx, connect.NewRequest(&apiv1.GetServerMemberRequest{Target: &apiv1.GetServerMemberRequest_UserId{UserId: offlineUser.Id}}))
+	offlineResp, err := env.users.GetUser(ctx, connect.NewRequest(&apiv1.GetUserRequest{Target: &apiv1.GetUserRequest_UserId{UserId: offlineUser.Id}}))
 	if err != nil {
-		t.Fatalf("GetMember offline profile: %v", err)
+		t.Fatalf("GetUser offline profile: %v", err)
 	}
-	if offlineResp.Msg.GetMember().GetProfile().GetPresenceStatus() != apiv1.PresenceStatus_PRESENCE_STATUS_OFFLINE {
-		t.Fatalf("offline profile presence = %v, want OFFLINE", offlineResp.Msg.GetMember().GetProfile().GetPresenceStatus())
+	if offlineResp.Msg.GetUser().GetProfile().GetPresenceStatus() != apiv1.PresenceStatus_PRESENCE_STATUS_OFFLINE {
+		t.Fatalf("offline profile presence = %v, want OFFLINE", offlineResp.Msg.GetUser().GetProfile().GetPresenceStatus())
 	}
 
 	if _, err := env.core.SetUserCustomStatus(env.ctx, env.viewer.Id, "wave", "around", nil); err != nil {
@@ -1067,15 +1071,15 @@ func TestServerServiceGetMemberReadsPublicMemberProfiles(t *testing.T) {
 		t.Fatalf("AssignServerRole: %v", err)
 	}
 
-	resp, err := env.serverState.GetMember(ctx, connect.NewRequest(&apiv1.GetServerMemberRequest{Target: &apiv1.GetServerMemberRequest_UserId{UserId: env.viewer.Id}}))
+	resp, err := env.users.GetUser(ctx, connect.NewRequest(&apiv1.GetUserRequest{Target: &apiv1.GetUserRequest_UserId{UserId: env.viewer.Id}}))
 	if err != nil {
-		t.Fatalf("GetMember: %v", err)
+		t.Fatalf("GetUser: %v", err)
 	}
-	member := resp.Msg.GetMember()
-	user := member.GetProfile()
+	userRow := resp.Msg.GetUser()
+	user := userRow.GetProfile()
 	summary := user.GetUser()
 	if summary.GetId() != env.viewer.Id || summary.GetLogin() != env.viewer.Login || summary.GetDisplayName() != env.viewer.DisplayName {
-		t.Fatalf("GetMember user = %+v, want viewer public profile", user)
+		t.Fatalf("GetUser user = %+v, want viewer public profile", user)
 	}
 	if user.GetPresenceStatus() != apiv1.PresenceStatus_PRESENCE_STATUS_ONLINE {
 		t.Fatalf("PresenceStatus = %v, want ONLINE", user.GetPresenceStatus())
@@ -1083,39 +1087,39 @@ func TestServerServiceGetMemberReadsPublicMemberProfiles(t *testing.T) {
 	if user.GetCustomStatus().GetText() != "around" {
 		t.Fatalf("CustomStatus = %+v, want status text", user.GetCustomStatus())
 	}
-	if roles := strings.Join(member.GetRoles(), ","); roles != "everyone,admin" {
-		t.Fatalf("GetMember roles = %q, want everyone,admin", roles)
+	if roles := strings.Join(userRow.GetRoles(), ","); roles != "everyone,admin" {
+		t.Fatalf("GetUser roles = %q, want everyone,admin", roles)
 	}
-	batchResp, err := env.serverState.BatchGetMembers(ctx, connect.NewRequest(&apiv1.BatchGetServerMembersRequest{
+	batchResp, err := env.users.BatchGetUsers(ctx, connect.NewRequest(&apiv1.BatchGetUsersRequest{
 		UserIds: []string{env.viewer.Id, "missing-user", env.viewer.Id},
 	}))
 	if err != nil {
-		t.Fatalf("BatchGetMembers: %v", err)
+		t.Fatalf("BatchGetUsers: %v", err)
 	}
-	if got := batchResp.Msg.GetMembers(); len(got) != 1 {
-		t.Fatalf("BatchGetMembers len = %d, want 1: %+v", len(got), got)
+	if got := batchResp.Msg.GetUsers(); len(got) != 1 {
+		t.Fatalf("BatchGetUsers len = %d, want 1: %+v", len(got), got)
 	} else if got[0].GetProfile().GetUser().GetId() != env.viewer.Id || got[0].GetProfile().GetUser().GetLogin() != env.viewer.Login || got[0].GetProfile().GetUser().GetDisplayName() != env.viewer.DisplayName || got[0].GetProfile().GetPresenceStatus() != apiv1.PresenceStatus_PRESENCE_STATUS_ONLINE {
-		t.Fatalf("BatchGetMembers member = %+v, want viewer member profile", got[0])
+		t.Fatalf("BatchGetUsers user = %+v, want viewer user profile", got[0])
 	}
 
-	byLoginResp, err := env.serverState.GetMember(ctx, connect.NewRequest(&apiv1.GetServerMemberRequest{Target: &apiv1.GetServerMemberRequest_Login{Login: env.viewer.Login}}))
+	byLoginResp, err := env.users.GetUser(ctx, connect.NewRequest(&apiv1.GetUserRequest{Target: &apiv1.GetUserRequest_Login{Login: env.viewer.Login}}))
 	if err != nil {
-		t.Fatalf("GetMember by login: %v", err)
+		t.Fatalf("GetUser by login: %v", err)
 	}
-	if byLoginResp.Msg.GetMember().GetProfile().GetUser().GetId() != env.viewer.Id {
-		t.Fatalf("GetMember by login id = %q, want %q", byLoginResp.Msg.GetMember().GetProfile().GetUser().GetId(), env.viewer.Id)
-	}
-
-	if _, err := env.serverState.GetMember(ctx, connect.NewRequest(&apiv1.GetServerMemberRequest{Target: &apiv1.GetServerMemberRequest_Login{Login: "missing-user"}})); connect.CodeOf(err) != connect.CodeNotFound {
-		t.Fatalf("missing GetMember by login code = %v, want not found", connect.CodeOf(err))
+	if byLoginResp.Msg.GetUser().GetProfile().GetUser().GetId() != env.viewer.Id {
+		t.Fatalf("GetUser by login id = %q, want %q", byLoginResp.Msg.GetUser().GetProfile().GetUser().GetId(), env.viewer.Id)
 	}
 
-	if _, err := env.serverState.GetMember(ctx, connect.NewRequest(&apiv1.GetServerMemberRequest{Target: &apiv1.GetServerMemberRequest_UserId{UserId: "missing-user"}})); connect.CodeOf(err) != connect.CodeNotFound {
-		t.Fatalf("missing GetMember code = %v, want not found", connect.CodeOf(err))
+	if _, err := env.users.GetUser(ctx, connect.NewRequest(&apiv1.GetUserRequest{Target: &apiv1.GetUserRequest_Login{Login: "missing-user"}})); connect.CodeOf(err) != connect.CodeNotFound {
+		t.Fatalf("missing GetUser by login code = %v, want not found", connect.CodeOf(err))
 	}
 
-	if _, err := env.serverState.GetMember(ctx, connect.NewRequest(&apiv1.GetServerMemberRequest{})); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("missing GetMember target code = %v, want invalid_argument", connect.CodeOf(err))
+	if _, err := env.users.GetUser(ctx, connect.NewRequest(&apiv1.GetUserRequest{Target: &apiv1.GetUserRequest_UserId{UserId: "missing-user"}})); connect.CodeOf(err) != connect.CodeNotFound {
+		t.Fatalf("missing GetUser code = %v, want not found", connect.CodeOf(err))
+	}
+
+	if _, err := env.users.GetUser(ctx, connect.NewRequest(&apiv1.GetUserRequest{})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("missing GetUser target code = %v, want invalid_argument", connect.CodeOf(err))
 	}
 }
 
@@ -3760,17 +3764,17 @@ func TestRoomServiceJoinRoomGroup(t *testing.T) {
 	}
 }
 
-func TestServerServiceListMembers(t *testing.T) {
+func TestUserServiceListUsers(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 
-	if _, err := env.serverState.ListMembers(env.ctx, connect.NewRequest(&apiv1.ListServerMembersRequest{})); connect.CodeOf(err) != connect.CodeUnauthenticated {
-		t.Fatalf("unauthenticated ListMembers code = %v, want %v", connect.CodeOf(err), connect.CodeUnauthenticated)
+	if _, err := env.users.ListUsers(env.ctx, connect.NewRequest(&apiv1.ListUsersRequest{})); connect.CodeOf(err) != connect.CodeUnauthenticated {
+		t.Fatalf("unauthenticated ListUsers code = %v, want %v", connect.CodeOf(err), connect.CodeUnauthenticated)
 	}
-	if _, err := env.serverState.GetMember(env.ctx, connect.NewRequest(&apiv1.GetServerMemberRequest{Target: &apiv1.GetServerMemberRequest_UserId{UserId: env.viewer.Id}})); connect.CodeOf(err) != connect.CodeUnauthenticated {
-		t.Fatalf("unauthenticated GetMember code = %v, want %v", connect.CodeOf(err), connect.CodeUnauthenticated)
+	if _, err := env.users.GetUser(env.ctx, connect.NewRequest(&apiv1.GetUserRequest{Target: &apiv1.GetUserRequest_UserId{UserId: env.viewer.Id}})); connect.CodeOf(err) != connect.CodeUnauthenticated {
+		t.Fatalf("unauthenticated GetUser code = %v, want %v", connect.CodeOf(err), connect.CodeUnauthenticated)
 	}
-	if _, err := env.serverState.BatchGetMembers(env.ctx, connect.NewRequest(&apiv1.BatchGetServerMembersRequest{UserIds: []string{env.viewer.Id}})); connect.CodeOf(err) != connect.CodeUnauthenticated {
-		t.Fatalf("unauthenticated BatchGetMembers code = %v, want %v", connect.CodeOf(err), connect.CodeUnauthenticated)
+	if _, err := env.users.BatchGetUsers(env.ctx, connect.NewRequest(&apiv1.BatchGetUsersRequest{UserIds: []string{env.viewer.Id}})); connect.CodeOf(err) != connect.CodeUnauthenticated {
+		t.Fatalf("unauthenticated BatchGetUsers code = %v, want %v", connect.CodeOf(err), connect.CodeUnauthenticated)
 	}
 
 	alice, err := env.core.CreateUser(env.ctx, core.SystemActorID, "member-alice", "Alice Member", "password")
@@ -3791,31 +3795,31 @@ func TestServerServiceListMembers(t *testing.T) {
 		t.Fatalf("AddVerifiedEmailDirect alice: %v", err)
 	}
 
-	resp, err := env.serverState.ListMembers(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.ListServerMembersRequest{
+	resp, err := env.users.ListUsers(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.ListUsersRequest{
 		Search: "member",
 		Page:   &apiv1.PageRequest{Limit: 1},
 	}))
 	if err != nil {
-		t.Fatalf("ListMembers: %v", err)
+		t.Fatalf("ListUsers: %v", err)
 	}
-	if resp.Msg.GetPage().GetTotalCount() != 2 || !resp.Msg.GetPage().GetHasMore() || len(resp.Msg.GetMembers()) != 1 {
-		t.Fatalf("first page = %+v, want total 2, hasMore true, one member", resp.Msg)
+	if resp.Msg.GetPage().GetTotalCount() != 2 || !resp.Msg.GetPage().GetHasMore() || len(resp.Msg.GetUsers()) != 1 {
+		t.Fatalf("first page = %+v, want total 2, hasMore true, one user", resp.Msg)
 	}
 
-	secondResp, err := env.serverState.ListMembers(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.ListServerMembersRequest{
+	secondResp, err := env.users.ListUsers(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.ListUsersRequest{
 		Search: "member",
 		Page:   &apiv1.PageRequest{Limit: 1, Offset: 1},
 	}))
 	if err != nil {
-		t.Fatalf("ListMembers second page: %v", err)
+		t.Fatalf("ListUsers second page: %v", err)
 	}
-	if secondResp.Msg.GetPage().GetHasMore() || len(secondResp.Msg.GetMembers()) != 1 {
-		t.Fatalf("second page = %+v, want hasMore false and one member", secondResp.Msg)
+	if secondResp.Msg.GetPage().GetHasMore() || len(secondResp.Msg.GetUsers()) != 1 {
+		t.Fatalf("second page = %+v, want hasMore false and one user", secondResp.Msg)
 	}
 
 	gotByID := map[string]*apiv1.DirectoryMember{}
-	for _, member := range append(resp.Msg.GetMembers(), secondResp.Msg.GetMembers()...) {
-		gotByID[member.GetProfile().GetUser().GetId()] = member
+	for _, user := range append(resp.Msg.GetUsers(), secondResp.Msg.GetUsers()...) {
+		gotByID[user.GetProfile().GetUser().GetId()] = user
 	}
 	if gotByID[alice.Id].GetProfile().GetPresenceStatus() != apiv1.PresenceStatus_PRESENCE_STATUS_AWAY {
 		t.Fatalf("alice presence = %v, want AWAY", gotByID[alice.Id].GetProfile().GetPresenceStatus())
@@ -3827,30 +3831,30 @@ func TestServerServiceListMembers(t *testing.T) {
 		t.Fatalf("bob roles = %q, want everyone,admin", roles)
 	}
 
-	getResp, err := env.serverState.GetMember(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.GetServerMemberRequest{Target: &apiv1.GetServerMemberRequest_UserId{UserId: alice.Id}}))
+	getResp, err := env.users.GetUser(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.GetUserRequest{Target: &apiv1.GetUserRequest_UserId{UserId: alice.Id}}))
 	if err != nil {
-		t.Fatalf("GetMember alice: %v", err)
+		t.Fatalf("GetUser alice: %v", err)
 	}
-	gotAlice := getResp.Msg.GetMember()
+	gotAlice := getResp.Msg.GetUser()
 	if gotAlice.GetProfile().GetUser().GetId() != alice.Id || gotAlice.GetProfile().GetPresenceStatus() != apiv1.PresenceStatus_PRESENCE_STATUS_AWAY {
-		t.Fatalf("GetMember alice = %+v, want hydrated away member", gotAlice)
+		t.Fatalf("GetUser alice = %+v, want hydrated away user", gotAlice)
 	}
 	if gotAlice.ProtoReflect().Descriptor().Fields().ByName("verified_emails") != nil {
 		t.Fatal("DirectoryMember unexpectedly exposes verified_emails")
 	}
-	if _, err := env.serverState.GetMember(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.GetServerMemberRequest{Target: &apiv1.GetServerMemberRequest_UserId{UserId: "missing-user"}})); connect.CodeOf(err) != connect.CodeNotFound {
-		t.Fatalf("missing GetMember code = %v, want not_found", connect.CodeOf(err))
+	if _, err := env.users.GetUser(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.GetUserRequest{Target: &apiv1.GetUserRequest_UserId{UserId: "missing-user"}})); connect.CodeOf(err) != connect.CodeNotFound {
+		t.Fatalf("missing GetUser code = %v, want not_found", connect.CodeOf(err))
 	}
 
-	batchResp, err := env.serverState.BatchGetMembers(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.BatchGetServerMembersRequest{
+	batchResp, err := env.users.BatchGetUsers(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.BatchGetUsersRequest{
 		UserIds: []string{bob.Id, "missing-user", alice.Id, bob.Id},
 	}))
 	if err != nil {
-		t.Fatalf("BatchGetMembers: %v", err)
+		t.Fatalf("BatchGetUsers: %v", err)
 	}
-	gotBatch := batchResp.Msg.GetMembers()
+	gotBatch := batchResp.Msg.GetUsers()
 	if len(gotBatch) != 2 || gotBatch[0].GetProfile().GetUser().GetId() != bob.Id || gotBatch[1].GetProfile().GetUser().GetId() != alice.Id {
-		t.Fatalf("BatchGetMembers members = %+v, want bob,alice", gotBatch)
+		t.Fatalf("BatchGetUsers users = %+v, want bob,alice", gotBatch)
 	}
 }
 
@@ -6956,6 +6960,7 @@ type connectAPITestEnv struct {
 	rooms            *roomService
 	serverState      *serverService
 	threads          *threadService
+	users            *userService
 	viewerService    *viewerService
 	voice            *voiceCallService
 	viewer           *corev1.User
@@ -7008,6 +7013,7 @@ func newConnectAPITestEnv(t *testing.T) *connectAPITestEnv {
 		rooms:            &roomService{api: api},
 		serverState:      &serverService{api: api},
 		threads:          &threadService{api: api},
+		users:            &userService{api: api},
 		viewerService:    &viewerService{api: api},
 		voice:            &voiceCallService{api: api},
 		viewer:           viewer,

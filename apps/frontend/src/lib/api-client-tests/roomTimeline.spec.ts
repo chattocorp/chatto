@@ -27,7 +27,7 @@ const mocks = vi.hoisted(() => ({
   createConnectTransport: vi.fn(),
   handleAuthenticationRequired: vi.fn(),
   getMessage: vi.fn(),
-  batchGetMembers: vi.fn(),
+  batchGetUsers: vi.fn(),
   getThreadEvents: vi.fn(),
   getThreadEventsAround: vi.fn()
 }));
@@ -50,8 +50,8 @@ describe('createRoomTimelineAPI', () => {
     mocks.createConnectTransport.mockReset();
     mocks.handleAuthenticationRequired.mockReset();
     mocks.getMessage.mockReset();
-    mocks.batchGetMembers.mockReset();
-    mocks.batchGetMembers.mockResolvedValue({ members: [] });
+    mocks.batchGetUsers.mockReset();
+    mocks.batchGetUsers.mockResolvedValue({ users: [] });
     mocks.getThreadEvents.mockReset();
     mocks.getThreadEventsAround.mockReset();
     __resetUserSummaryCachesForTests();
@@ -63,9 +63,9 @@ describe('createRoomTimelineAPI', () => {
     });
     mocks.createConnectTransport.mockReturnValue({ kind: 'transport' });
     mocks.createClient.mockImplementation((service) => {
-      if (service?.typeName === 'chatto.api.v1.ServerService') {
+      if (service?.typeName === 'chatto.api.v1.UserService') {
         return {
-          batchGetMembers: mocks.batchGetMembers
+          batchGetUsers: mocks.batchGetUsers
         };
       }
       return {
@@ -167,8 +167,8 @@ describe('createRoomTimelineAPI', () => {
         }
       })
     });
-    mocks.batchGetMembers.mockResolvedValue({
-      members: [
+    mocks.batchGetUsers.mockResolvedValue({
+      users: [
         {
           profile: {
             user: {
@@ -202,7 +202,7 @@ describe('createRoomTimelineAPI', () => {
         headers: { Authorization: 'Bearer remote-token' }
       }
     );
-    expect(mocks.batchGetMembers).toHaveBeenCalledWith(
+    expect(mocks.batchGetUsers).toHaveBeenCalledWith(
       { userIds: ['u1'] },
       {
         headers: { Authorization: 'Bearer remote-token' }

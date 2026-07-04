@@ -38,14 +38,6 @@ const (
 	// ServerServiceGetRuntimeConfigProcedure is the fully-qualified name of the ServerService's
 	// GetRuntimeConfig RPC.
 	ServerServiceGetRuntimeConfigProcedure = "/chatto.api.v1.ServerService/GetRuntimeConfig"
-	// ServerServiceListMembersProcedure is the fully-qualified name of the ServerService's ListMembers
-	// RPC.
-	ServerServiceListMembersProcedure = "/chatto.api.v1.ServerService/ListMembers"
-	// ServerServiceGetMemberProcedure is the fully-qualified name of the ServerService's GetMember RPC.
-	ServerServiceGetMemberProcedure = "/chatto.api.v1.ServerService/GetMember"
-	// ServerServiceBatchGetMembersProcedure is the fully-qualified name of the ServerService's
-	// BatchGetMembers RPC.
-	ServerServiceBatchGetMembersProcedure = "/chatto.api.v1.ServerService/BatchGetMembers"
 )
 
 // ServerServiceClient is a client for the chatto.api.v1.ServerService service.
@@ -54,14 +46,6 @@ type ServerServiceClient interface {
 	GetMotd(context.Context, *connect.Request[v1.GetMotdRequest]) (*connect.Response[v1.GetMotdResponse], error)
 	// Returns authenticated runtime settings used by clients.
 	GetRuntimeConfig(context.Context, *connect.Request[v1.GetRuntimeConfigRequest]) (*connect.Response[v1.GetRuntimeConfigResponse], error)
-	// Lists authenticated server members. Every authenticated user is a server
-	// member; admin-sensitive fields stay out of this public row shape.
-	ListMembers(context.Context, *connect.Request[v1.ListServerMembersRequest]) (*connect.Response[v1.ListServerMembersResponse], error)
-	// Gets one authenticated server member by user ID or login. Returns NOT_FOUND
-	// when the target is unknown.
-	GetMember(context.Context, *connect.Request[v1.GetServerMemberRequest]) (*connect.Response[v1.GetServerMemberResponse], error)
-	// Gets authenticated server member rows for multiple users.
-	BatchGetMembers(context.Context, *connect.Request[v1.BatchGetServerMembersRequest]) (*connect.Response[v1.BatchGetServerMembersResponse], error)
 }
 
 // NewServerServiceClient constructs a client for the chatto.api.v1.ServerService service. By
@@ -87,24 +71,6 @@ func NewServerServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithSchema(serverServiceMethods.ByName("GetRuntimeConfig")),
 			connect.WithClientOptions(opts...),
 		),
-		listMembers: connect.NewClient[v1.ListServerMembersRequest, v1.ListServerMembersResponse](
-			httpClient,
-			baseURL+ServerServiceListMembersProcedure,
-			connect.WithSchema(serverServiceMethods.ByName("ListMembers")),
-			connect.WithClientOptions(opts...),
-		),
-		getMember: connect.NewClient[v1.GetServerMemberRequest, v1.GetServerMemberResponse](
-			httpClient,
-			baseURL+ServerServiceGetMemberProcedure,
-			connect.WithSchema(serverServiceMethods.ByName("GetMember")),
-			connect.WithClientOptions(opts...),
-		),
-		batchGetMembers: connect.NewClient[v1.BatchGetServerMembersRequest, v1.BatchGetServerMembersResponse](
-			httpClient,
-			baseURL+ServerServiceBatchGetMembersProcedure,
-			connect.WithSchema(serverServiceMethods.ByName("BatchGetMembers")),
-			connect.WithClientOptions(opts...),
-		),
 	}
 }
 
@@ -112,9 +78,6 @@ func NewServerServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 type serverServiceClient struct {
 	getMotd          *connect.Client[v1.GetMotdRequest, v1.GetMotdResponse]
 	getRuntimeConfig *connect.Client[v1.GetRuntimeConfigRequest, v1.GetRuntimeConfigResponse]
-	listMembers      *connect.Client[v1.ListServerMembersRequest, v1.ListServerMembersResponse]
-	getMember        *connect.Client[v1.GetServerMemberRequest, v1.GetServerMemberResponse]
-	batchGetMembers  *connect.Client[v1.BatchGetServerMembersRequest, v1.BatchGetServerMembersResponse]
 }
 
 // GetMotd calls chatto.api.v1.ServerService.GetMotd.
@@ -127,35 +90,12 @@ func (c *serverServiceClient) GetRuntimeConfig(ctx context.Context, req *connect
 	return c.getRuntimeConfig.CallUnary(ctx, req)
 }
 
-// ListMembers calls chatto.api.v1.ServerService.ListMembers.
-func (c *serverServiceClient) ListMembers(ctx context.Context, req *connect.Request[v1.ListServerMembersRequest]) (*connect.Response[v1.ListServerMembersResponse], error) {
-	return c.listMembers.CallUnary(ctx, req)
-}
-
-// GetMember calls chatto.api.v1.ServerService.GetMember.
-func (c *serverServiceClient) GetMember(ctx context.Context, req *connect.Request[v1.GetServerMemberRequest]) (*connect.Response[v1.GetServerMemberResponse], error) {
-	return c.getMember.CallUnary(ctx, req)
-}
-
-// BatchGetMembers calls chatto.api.v1.ServerService.BatchGetMembers.
-func (c *serverServiceClient) BatchGetMembers(ctx context.Context, req *connect.Request[v1.BatchGetServerMembersRequest]) (*connect.Response[v1.BatchGetServerMembersResponse], error) {
-	return c.batchGetMembers.CallUnary(ctx, req)
-}
-
 // ServerServiceHandler is an implementation of the chatto.api.v1.ServerService service.
 type ServerServiceHandler interface {
 	// Returns the authenticated message of the day.
 	GetMotd(context.Context, *connect.Request[v1.GetMotdRequest]) (*connect.Response[v1.GetMotdResponse], error)
 	// Returns authenticated runtime settings used by clients.
 	GetRuntimeConfig(context.Context, *connect.Request[v1.GetRuntimeConfigRequest]) (*connect.Response[v1.GetRuntimeConfigResponse], error)
-	// Lists authenticated server members. Every authenticated user is a server
-	// member; admin-sensitive fields stay out of this public row shape.
-	ListMembers(context.Context, *connect.Request[v1.ListServerMembersRequest]) (*connect.Response[v1.ListServerMembersResponse], error)
-	// Gets one authenticated server member by user ID or login. Returns NOT_FOUND
-	// when the target is unknown.
-	GetMember(context.Context, *connect.Request[v1.GetServerMemberRequest]) (*connect.Response[v1.GetServerMemberResponse], error)
-	// Gets authenticated server member rows for multiple users.
-	BatchGetMembers(context.Context, *connect.Request[v1.BatchGetServerMembersRequest]) (*connect.Response[v1.BatchGetServerMembersResponse], error)
 }
 
 // NewServerServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -177,36 +117,12 @@ func NewServerServiceHandler(svc ServerServiceHandler, opts ...connect.HandlerOp
 		connect.WithSchema(serverServiceMethods.ByName("GetRuntimeConfig")),
 		connect.WithHandlerOptions(opts...),
 	)
-	serverServiceListMembersHandler := connect.NewUnaryHandler(
-		ServerServiceListMembersProcedure,
-		svc.ListMembers,
-		connect.WithSchema(serverServiceMethods.ByName("ListMembers")),
-		connect.WithHandlerOptions(opts...),
-	)
-	serverServiceGetMemberHandler := connect.NewUnaryHandler(
-		ServerServiceGetMemberProcedure,
-		svc.GetMember,
-		connect.WithSchema(serverServiceMethods.ByName("GetMember")),
-		connect.WithHandlerOptions(opts...),
-	)
-	serverServiceBatchGetMembersHandler := connect.NewUnaryHandler(
-		ServerServiceBatchGetMembersProcedure,
-		svc.BatchGetMembers,
-		connect.WithSchema(serverServiceMethods.ByName("BatchGetMembers")),
-		connect.WithHandlerOptions(opts...),
-	)
 	return "/chatto.api.v1.ServerService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case ServerServiceGetMotdProcedure:
 			serverServiceGetMotdHandler.ServeHTTP(w, r)
 		case ServerServiceGetRuntimeConfigProcedure:
 			serverServiceGetRuntimeConfigHandler.ServeHTTP(w, r)
-		case ServerServiceListMembersProcedure:
-			serverServiceListMembersHandler.ServeHTTP(w, r)
-		case ServerServiceGetMemberProcedure:
-			serverServiceGetMemberHandler.ServeHTTP(w, r)
-		case ServerServiceBatchGetMembersProcedure:
-			serverServiceBatchGetMembersHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -222,16 +138,4 @@ func (UnimplementedServerServiceHandler) GetMotd(context.Context, *connect.Reque
 
 func (UnimplementedServerServiceHandler) GetRuntimeConfig(context.Context, *connect.Request[v1.GetRuntimeConfigRequest]) (*connect.Response[v1.GetRuntimeConfigResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.ServerService.GetRuntimeConfig is not implemented"))
-}
-
-func (UnimplementedServerServiceHandler) ListMembers(context.Context, *connect.Request[v1.ListServerMembersRequest]) (*connect.Response[v1.ListServerMembersResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.ServerService.ListMembers is not implemented"))
-}
-
-func (UnimplementedServerServiceHandler) GetMember(context.Context, *connect.Request[v1.GetServerMemberRequest]) (*connect.Response[v1.GetServerMemberResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.ServerService.GetMember is not implemented"))
-}
-
-func (UnimplementedServerServiceHandler) BatchGetMembers(context.Context, *connect.Request[v1.BatchGetServerMembersRequest]) (*connect.Response[v1.BatchGetServerMembersResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.ServerService.BatchGetMembers is not implemented"))
 }

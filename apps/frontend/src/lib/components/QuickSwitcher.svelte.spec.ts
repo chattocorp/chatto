@@ -12,7 +12,7 @@ const mocks = vi.hoisted(() => ({
   startDM: vi.fn(),
   listRooms: vi.fn(),
   listRoomMembers: vi.fn(),
-  listServerMembers: vi.fn(),
+  listUsers: vi.fn(),
   toastError: vi.fn(),
   recents: {
     urls: [] as string[],
@@ -113,7 +113,7 @@ vi.mock('$lib/api-client/rooms', () => ({
 vi.mock('$lib/api-client/memberDirectory', () => ({
   createMemberDirectoryAPI: vi.fn(() => ({
     listRoomMembers: mocks.listRoomMembers,
-    listServerMembers: mocks.listServerMembers
+    listUsers: mocks.listUsers
   }))
 }));
 
@@ -183,7 +183,7 @@ function installQueryMocks() {
     totalCount: roomId === 'dm-existing' ? 2 : 0,
     hasMore: false
   }));
-  mocks.listServerMembers.mockImplementation(async (search: string) => ({
+  mocks.listUsers.mockImplementation(async (search: string) => ({
     members:
       search === 'river-login' ? [user('user-river-login', 'river-login', 'River Login')] : [],
     totalCount: search === 'river-login' ? 1 : 0,
@@ -235,7 +235,7 @@ function resultButtons(container: HTMLElement): HTMLButtonElement[] {
 async function waitForDebouncedUserSearch() {
   await new Promise((resolve) => setTimeout(resolve, 250));
   await vi.waitFor(() => {
-    expect(mocks.listServerMembers).toHaveBeenCalledWith('river-login', 20, 0);
+    expect(mocks.listUsers).toHaveBeenCalledWith('river-login', 20, 0);
   });
 }
 
@@ -262,7 +262,7 @@ beforeEach(() => {
   mocks.startDM.mockClear();
   mocks.listRooms.mockClear();
   mocks.listRoomMembers.mockClear();
-  mocks.listServerMembers.mockClear();
+  mocks.listUsers.mockClear();
   mocks.query.mockClear();
 });
 

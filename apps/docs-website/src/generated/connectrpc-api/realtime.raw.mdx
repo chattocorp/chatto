@@ -210,7 +210,7 @@ Mention attention signal for the connected user.
 
 Inline names are display hints. Hydrate referenced rooms through
 `RoomDirectoryService.BatchGetRooms` and users through
-`ServerService.BatchGetMembers` when local caches are missing or stale.
+`UserService.BatchGetUsers` when local caches are missing or stale.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -284,8 +284,8 @@ New-DM attention signal for the connected user.
 
 Inline names and avatar URLs are display hints. Hydrate the DM room through
 `RoomDirectoryService.GetRoom` or `RoomDirectoryService.BatchGetRooms`, and
-the sender through `ServerService.GetMember` or
-`ServerService.BatchGetMembers` when local caches are missing or stale.
+the sender through `UserService.GetUser` or `UserService.BatchGetUsers` when
+local caches are missing or stale.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -381,7 +381,7 @@ Application-level pong.
 
 Presence-changed signal.
 
-The latest presence status is inline. Use `ServerService.GetMember` when
+The latest presence status is inline. Use `UserService.GetUser` when
 the surrounding user profile or custom status also needs refreshing.
 
 | Field | Type | Description |
@@ -644,7 +644,7 @@ where to display typing state; clients normally do not hydrate it.
 
 User-custom-status cleared signal.
 
-Clear local custom status for `user_id`. Use `ServerService.GetMember`
+Clear local custom status for `user_id`. Use `UserService.GetUser`
 when clients need to refresh the complete user profile.
 
 | Field | Type | Description |
@@ -659,7 +659,7 @@ when clients need to refresh the complete user profile.
 
 User-custom-status set signal.
 
-The latest custom status is inline. Use `ServerService.GetMember` when
+The latest custom status is inline. Use `UserService.GetUser` when
 clients need to refresh the complete user profile.
 
 | Field | Type | Description |
@@ -677,8 +677,8 @@ clients need to refresh the complete user profile.
 
 User-profile signal.
 
-Basic profile fields are inline. Use `ServerService.GetMember` or
-`ServerService.BatchGetMembers` for complete member-profile hydration.
+Basic profile fields are inline. Use `UserService.GetUser` or
+`UserService.BatchGetUsers` for complete user-profile hydration.
 
 | Field | Type | Description |
 | --- | --- | --- |

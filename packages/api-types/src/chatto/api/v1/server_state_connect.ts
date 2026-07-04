@@ -5,10 +5,9 @@
 
 import { GetMotdRequest, GetMotdResponse, GetRuntimeConfigRequest, GetRuntimeConfigResponse } from "./server_state_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
-import { BatchGetServerMembersRequest, BatchGetServerMembersResponse, GetServerMemberRequest, GetServerMemberResponse, ListServerMembersRequest, ListServerMembersResponse } from "./member_directory_pb.js";
 
 /**
- * Provides authenticated server-wide reads and public server member reads.
+ * Provides authenticated server-wide reads.
  *
  * @generated from service chatto.api.v1.ServerService
  */
@@ -35,41 +34,6 @@ export const ServerService = {
       name: "GetRuntimeConfig",
       I: GetRuntimeConfigRequest,
       O: GetRuntimeConfigResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * Lists authenticated server members. Every authenticated user is a server
-     * member; admin-sensitive fields stay out of this public row shape.
-     *
-     * @generated from rpc chatto.api.v1.ServerService.ListMembers
-     */
-    listMembers: {
-      name: "ListMembers",
-      I: ListServerMembersRequest,
-      O: ListServerMembersResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * Gets one authenticated server member by user ID or login. Returns NOT_FOUND
-     * when the target is unknown.
-     *
-     * @generated from rpc chatto.api.v1.ServerService.GetMember
-     */
-    getMember: {
-      name: "GetMember",
-      I: GetServerMemberRequest,
-      O: GetServerMemberResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * Gets authenticated server member rows for multiple users.
-     *
-     * @generated from rpc chatto.api.v1.ServerService.BatchGetMembers
-     */
-    batchGetMembers: {
-      name: "BatchGetMembers",
-      I: BatchGetServerMembersRequest,
-      O: BatchGetServerMembersResponse,
       kind: MethodKind.Unary,
     },
   }

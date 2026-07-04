@@ -7,10 +7,10 @@ import { ROOM_MEMBERS_PAGE_SIZE, RoomMembersStore } from './members.svelte';
 
 class FakeMemberDirectoryAPI {
   listRoomMembers: MemberDirectoryAPI['listRoomMembers'];
-  listServerMembers: MemberDirectoryAPI['listServerMembers'];
-  getServerMember: MemberDirectoryAPI['getServerMember'];
-  getServerMemberByLogin: MemberDirectoryAPI['getServerMemberByLogin'];
-  batchGetServerMembers: MemberDirectoryAPI['batchGetServerMembers'];
+  listUsers: MemberDirectoryAPI['listUsers'];
+  getUser: MemberDirectoryAPI['getUser'];
+  getUserByLogin: MemberDirectoryAPI['getUserByLogin'];
+  batchGetUsers: MemberDirectoryAPI['batchGetUsers'];
   getRoomMember: MemberDirectoryAPI['getRoomMember'];
   batchGetRoomMembers: MemberDirectoryAPI['batchGetRoomMembers'];
 
@@ -21,10 +21,10 @@ class FakeMemberDirectoryAPI {
       if (!result) throw new Error('Unexpected room members query');
       return result;
     });
-    this.listServerMembers = vi.fn();
-    this.getServerMember = vi.fn();
-    this.getServerMemberByLogin = vi.fn();
-    this.batchGetServerMembers = vi.fn();
+    this.listUsers = vi.fn();
+    this.getUser = vi.fn();
+    this.getUserByLogin = vi.fn();
+    this.batchGetUsers = vi.fn();
     this.getRoomMember = vi.fn();
     this.batchGetRoomMembers = vi.fn();
   }

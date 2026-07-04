@@ -102,13 +102,19 @@ const categories = [
         name: 'ServerService',
         slug: 'server',
         title: 'Server',
-        description: 'Authenticated server MOTD, runtime configuration, and member directory RPCs.'
+        description: 'Authenticated server MOTD and runtime configuration RPCs.'
       },
       {
         name: 'ThreadService',
         slug: 'threads',
         title: 'Threads',
         description: 'Thread timeline, read-state, follow, and followed-thread listing RPCs.'
+      },
+      {
+        name: 'UserService',
+        slug: 'users',
+        title: 'Users',
+        description: 'Authenticated server-wide user directory RPCs.'
       },
       {
         name: 'ViewerService',

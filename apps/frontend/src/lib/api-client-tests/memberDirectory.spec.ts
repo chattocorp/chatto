@@ -8,9 +8,9 @@ import { createMemberDirectoryAPI } from '$lib/api-client/memberDirectory';
 const mocks = vi.hoisted(() => ({
   createClient: vi.fn(),
   createConnectTransport: vi.fn(),
-  listServerMembers: vi.fn(),
-  getServerMember: vi.fn(),
-  batchGetServerMembers: vi.fn(),
+  listUsers: vi.fn(),
+  getUser: vi.fn(),
+  batchGetUsers: vi.fn(),
   listRoomMembers: vi.fn(),
   getRoomMember: vi.fn(),
   batchGetRoomMembers: vi.fn()
@@ -32,18 +32,18 @@ describe('createMemberDirectoryAPI', () => {
   beforeEach(() => {
     mocks.createClient.mockReset();
     mocks.createConnectTransport.mockReset();
-    mocks.listServerMembers.mockReset();
-    mocks.getServerMember.mockReset();
-    mocks.batchGetServerMembers.mockReset();
+    mocks.listUsers.mockReset();
+    mocks.getUser.mockReset();
+    mocks.batchGetUsers.mockReset();
     mocks.listRoomMembers.mockReset();
     mocks.getRoomMember.mockReset();
     mocks.batchGetRoomMembers.mockReset();
     mocks.createConnectTransport.mockReturnValue({ kind: 'transport' });
     mocks.createClient
       .mockReturnValueOnce({
-        listMembers: mocks.listServerMembers,
-        getMember: mocks.getServerMember,
-        batchGetMembers: mocks.batchGetServerMembers
+        listUsers: mocks.listUsers,
+        getUser: mocks.getUser,
+        batchGetUsers: mocks.batchGetUsers
       })
       .mockReturnValueOnce({
         listMembers: mocks.listRoomMembers,
@@ -52,9 +52,9 @@ describe('createMemberDirectoryAPI', () => {
       });
   });
 
-  it('maps server member pages and sends bearer auth', async () => {
-    mocks.listServerMembers.mockResolvedValue({
-      members: [
+  it('maps user pages and sends bearer auth', async () => {
+    mocks.listUsers.mockResolvedValue({
+      users: [
         {
           profile: {
             user: {
@@ -83,7 +83,7 @@ describe('createMemberDirectoryAPI', () => {
       bearerToken: 'token'
     });
 
-    await expect(api.listServerMembers('ali', 10, 20)).resolves.toEqual({
+    await expect(api.listUsers('ali', 10, 20)).resolves.toEqual({
       members: [
         {
           id: 'U1',
@@ -109,13 +109,13 @@ describe('createMemberDirectoryAPI', () => {
       baseUrl: 'https://remote.test/api/connect',
       useBinaryFormat: true
     });
-    expect(mocks.listServerMembers).toHaveBeenCalledWith(
+    expect(mocks.listUsers).toHaveBeenCalledWith(
       { search: 'ali', page: { limit: 10, offset: 20 } },
       { headers: { Authorization: 'Bearer token' } }
     );
   });
 
-  it('gets and batch gets server members', async () => {
+  it('gets and batch gets users', async () => {
     const member = {
       profile: {
         user: {
@@ -128,37 +128,37 @@ describe('createMemberDirectoryAPI', () => {
       },
       roles: ['everyone']
     };
-    mocks.getServerMember.mockResolvedValue({ member });
-    mocks.batchGetServerMembers.mockResolvedValue({ members: [member] });
+    mocks.getUser.mockResolvedValue({ user: member });
+    mocks.batchGetUsers.mockResolvedValue({ users: [member] });
 
     const api = createMemberDirectoryAPI({
       baseUrl: 'https://remote.test/api/connect',
       bearerToken: 'token'
     });
 
-    await expect(api.getServerMember('U1')).resolves.toMatchObject({
+    await expect(api.getUser('U1')).resolves.toMatchObject({
       id: 'U1',
       presenceStatus: PresenceStatus.Online
     });
-    await expect(api.getServerMemberByLogin('alice')).resolves.toMatchObject({
+    await expect(api.getUserByLogin('alice')).resolves.toMatchObject({
       id: 'U1',
       presenceStatus: PresenceStatus.Online
     });
-    await expect(api.batchGetServerMembers(['U1', 'missing'])).resolves.toMatchObject([
+    await expect(api.batchGetUsers(['U1', 'missing'])).resolves.toMatchObject([
       { id: 'U1' }
     ]);
 
-    expect(mocks.getServerMember).toHaveBeenNthCalledWith(
+    expect(mocks.getUser).toHaveBeenNthCalledWith(
       1,
       { target: { case: 'userId', value: 'U1' } },
       { headers: { Authorization: 'Bearer token' } }
     );
-    expect(mocks.getServerMember).toHaveBeenNthCalledWith(
+    expect(mocks.getUser).toHaveBeenNthCalledWith(
       2,
       { target: { case: 'login', value: 'alice' } },
       { headers: { Authorization: 'Bearer token' } }
     );
-    expect(mocks.batchGetServerMembers).toHaveBeenCalledWith(
+    expect(mocks.batchGetUsers).toHaveBeenCalledWith(
       { userIds: ['U1', 'missing'] },
       { headers: { Authorization: 'Bearer token' } }
     );
@@ -243,12 +243,12 @@ describe('createMemberDirectoryAPI', () => {
   });
 
   it('returns null when singular member lookups are missing', async () => {
-    mocks.getServerMember.mockRejectedValueOnce(new ConnectError('missing', Code.NotFound));
+    mocks.getUser.mockRejectedValueOnce(new ConnectError('missing', Code.NotFound));
     mocks.getRoomMember.mockRejectedValueOnce(new ConnectError('missing', Code.NotFound));
 
     const api = createMemberDirectoryAPI({ baseUrl: '/api/connect', bearerToken: null });
 
-    await expect(api.getServerMember('missing')).resolves.toBeNull();
+    await expect(api.getUser('missing')).resolves.toBeNull();
     await expect(api.getRoomMember('room-1', 'U2')).resolves.toBeNull();
   });
 
@@ -262,8 +262,8 @@ describe('createMemberDirectoryAPI', () => {
   });
 
   it('maps offline and unspecified read statuses to offline', async () => {
-    mocks.listServerMembers.mockResolvedValue({
-      members: [
+    mocks.listUsers.mockResolvedValue({
+      users: [
         {
           profile: {
             user: {
@@ -289,13 +289,12 @@ describe('createMemberDirectoryAPI', () => {
           roles: []
         }
       ],
-      totalCount: 2,
-      hasMore: false
+      page: { totalCount: 2n, hasMore: false }
     });
 
     const api = createMemberDirectoryAPI({ baseUrl: '/api/connect', bearerToken: null });
 
-    await expect(api.listServerMembers()).resolves.toMatchObject({
+    await expect(api.listUsers()).resolves.toMatchObject({
       members: [
         { id: 'U3', presenceStatus: PresenceStatus.Offline },
         { id: 'U4', presenceStatus: PresenceStatus.Offline }

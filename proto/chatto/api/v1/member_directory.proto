@@ -7,7 +7,8 @@ import "chatto/api/v1/pagination.proto";
 import "chatto/api/v1/users.proto";
 import "google/protobuf/timestamp.proto";
 
-// Public user/member profile used by directory and mention surfaces.
+// Public user/member profile used by user directory, room membership, and
+// mention surfaces.
 message DirectoryMember {
   // Public profile and live presence fields.
   UserProfile profile = 1;
@@ -18,8 +19,8 @@ message DirectoryMember {
   google.protobuf.Timestamp created_at = 3;
 }
 
-// Request for server members visible to the authenticated user.
-message ListServerMembersRequest {
+// Request for users visible to the authenticated user.
+message ListUsersRequest {
   reserved 2, 3;
   reserved "limit", "offset";
 
@@ -29,19 +30,19 @@ message ListServerMembersRequest {
   PageRequest page = 4;
 }
 
-// Server member page.
-message ListServerMembersResponse {
+// User directory page.
+message ListUsersResponse {
   reserved 2, 3;
   reserved "total_count", "has_more";
 
-  // Members in the requested page.
-  repeated DirectoryMember members = 1;
+  // Users in the requested page.
+  repeated DirectoryMember users = 1;
   // Page metadata.
   PageInfo page = 4;
 }
 
-// Request one authenticated server member by stable user ID or login.
-message GetServerMemberRequest {
+// Request one visible user by stable user ID or login.
+message GetUserRequest {
   oneof target {
     // Target stable user ID.
     string user_id = 1 [(buf.validate.field).string.min_len = 1];
@@ -50,14 +51,14 @@ message GetServerMemberRequest {
   }
 }
 
-// Server member response.
-message GetServerMemberResponse {
-  // Requested member.
-  DirectoryMember member = 1;
+// User directory response.
+message GetUserResponse {
+  // Requested user.
+  DirectoryMember user = 1;
 }
 
-// Request server member rows for a set of stable user IDs.
-message BatchGetServerMembersRequest {
+// Request user directory rows for a set of stable user IDs.
+message BatchGetUsersRequest {
   // Required target user IDs. Unknown IDs are omitted from the response.
   repeated string user_ids = 1 [(buf.validate.field).repeated = {
     min_items: 1
@@ -68,11 +69,11 @@ message BatchGetServerMembersRequest {
   }];
 }
 
-// Batch server member response.
-message BatchGetServerMembersResponse {
-  // Found members. The server preserves first-seen request order and
+// Batch user directory response.
+message BatchGetUsersResponse {
+  // Found users. The server preserves first-seen request order and
   // de-duplicates repeated IDs.
-  repeated DirectoryMember members = 1;
+  repeated DirectoryMember users = 1;
 }
 
 // Request for members of one room.
@@ -133,4 +134,17 @@ message BatchGetRoomMembersResponse {
   // Found members. The server preserves first-seen request order and
   // de-duplicates repeated IDs.
   repeated DirectoryMember members = 1;
+}
+
+// Reads the authenticated server-wide user directory.
+service UserService {
+  // Lists users visible to the authenticated user. Admin-sensitive account
+  // fields stay out of this public row shape.
+  rpc ListUsers(ListUsersRequest) returns (ListUsersResponse);
+  // Gets one visible user by user ID or login. Returns NOT_FOUND when the
+  // target is unknown.
+  rpc GetUser(GetUserRequest) returns (GetUserResponse);
+  // Gets visible user rows for multiple stable user IDs. Unknown IDs are
+  // omitted from the response.
+  rpc BatchGetUsers(BatchGetUsersRequest) returns (BatchGetUsersResponse);
 }

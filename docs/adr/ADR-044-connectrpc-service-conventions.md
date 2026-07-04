@@ -66,8 +66,8 @@ scope belongs in the service name when it makes the resource easier to reason
 about; once the service carries that scope, RPC names can stay concise. Small
 adjacent resources should stay on an existing scoped lifecycle service when
 they share the same authorization boundary and make that service more complete:
-server membership rows live on `ServerService.ListMembers` / `GetMember` /
-`BatchGetMembers`, and room member reads live on `RoomService.ListMembers` /
+server-wide user directory rows live on `UserService.ListUsers` / `GetUser` /
+`BatchGetUsers`, and room member reads live on `RoomService.ListMembers` /
 `GetMember` / `BatchGetMembers`. Room membership commands also stay on
 `RoomService` alongside room lifecycle, timeline, read-state, attachments,
 typing, and moderation.

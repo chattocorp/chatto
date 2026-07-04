@@ -297,7 +297,7 @@ message RealtimeTypingEvent {
 
 // Presence-changed signal.
 //
-// The latest presence status is inline. Use `ServerService.GetMember` when
+// The latest presence status is inline. Use `UserService.GetUser` when
 // the surrounding user profile or custom status also needs refreshing.
 message RealtimePresenceChangedEvent {
   // User whose presence changed.
@@ -421,8 +421,8 @@ message RealtimeServerUpdatedEvent {
 
 // User-profile signal.
 //
-// Basic profile fields are inline. Use `ServerService.GetMember` or
-// `ServerService.BatchGetMembers` for complete member-profile hydration.
+// Basic profile fields are inline. Use `UserService.GetUser` or
+// `UserService.BatchGetUsers` for complete user-profile hydration.
 message RealtimeUserProfileUpdatedEvent {
   // User whose profile changed.
   string user_id = 1;
@@ -436,7 +436,7 @@ message RealtimeUserProfileUpdatedEvent {
 
 // User-custom-status set signal.
 //
-// The latest custom status is inline. Use `ServerService.GetMember` when
+// The latest custom status is inline. Use `UserService.GetUser` when
 // clients need to refresh the complete user profile.
 message RealtimeUserCustomStatusSetEvent {
   // User whose status changed.
@@ -451,7 +451,7 @@ message RealtimeUserCustomStatusSetEvent {
 
 // User-custom-status cleared signal.
 //
-// Clear local custom status for `user_id`. Use `ServerService.GetMember`
+// Clear local custom status for `user_id`. Use `UserService.GetUser`
 // when clients need to refresh the complete user profile.
 message RealtimeUserCustomStatusClearedEvent {
   // User whose status was cleared.
@@ -546,7 +546,7 @@ enum RealtimeCallEventSource {
 //
 // Inline names are display hints. Hydrate referenced rooms through
 // `RoomDirectoryService.BatchGetRooms` and users through
-// `ServerService.BatchGetMembers` when local caches are missing or stale.
+// `UserService.BatchGetUsers` when local caches are missing or stale.
 message RealtimeMentionNotificationEvent {
   // Room where the mention occurred.
   string room_id = 1;
@@ -562,8 +562,8 @@ message RealtimeMentionNotificationEvent {
 //
 // Inline names and avatar URLs are display hints. Hydrate the DM room through
 // `RoomDirectoryService.GetRoom` or `RoomDirectoryService.BatchGetRooms`, and
-// the sender through `ServerService.GetMember` or
-// `ServerService.BatchGetMembers` when local caches are missing or stale.
+// the sender through `UserService.GetUser` or `UserService.BatchGetUsers` when
+// local caches are missing or stale.
 message RealtimeNewDirectMessageNotificationEvent {
   // DM room ID.
   string room_id = 1;

@@ -196,7 +196,7 @@
           baseUrl: serverConnection.connectBaseUrl,
           bearerToken: serverConnection.bearerToken
         });
-        const result = await api.listServerMembers(search, 20, 0);
+        const result = await api.listUsers(search, 20, 0);
         for (const member of result.members) {
           const user = avatarUser(member);
           items.push({
