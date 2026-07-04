@@ -1,7 +1,7 @@
 import { authHeaders, createChattoClient, handleAuthError } from './connect.js';
 import type { LinkPreviewInput, RoomEventView } from './renderTypes.js';
 import { MessageService } from '@chatto/api-types/api/v1/messages_connect';
-import { roomTimelineEventToRawEvent } from './roomTimeline.js';
+import { roomTimelineEventToRawEvent, timelineUsersForEvents } from './roomTimeline.js';
 import { createAssetUploadAPI } from './assetUploads.js';
 
 export type MessageAPIConfig = {
@@ -61,9 +61,10 @@ export function createMessageAPI(config: MessageAPIConfig) {
           { headers: headers() }
         );
 
+        const users = await timelineUsersForEvents(config, response.event ? [response.event] : []);
         return {
           event: response.event
-            ? (roomTimelineEventToRawEvent(response.event, {}) as RoomEventView | null)
+            ? (roomTimelineEventToRawEvent(response.event, users) as RoomEventView | null)
             : null
         };
       } catch (err) {

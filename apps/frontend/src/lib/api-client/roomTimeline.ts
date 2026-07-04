@@ -10,6 +10,7 @@ import { PresenceStatus, type RoomEventView } from "./renderTypes.js";
 import { MessageService } from "@chatto/api-types/api/v1/messages_connect";
 import { RoomService } from "@chatto/api-types/api/v1/rooms_connect";
 import { ThreadService } from "@chatto/api-types/api/v1/threads_connect";
+import { createUserAPI } from "./users.js";
 import {
   RoomTimelinePage,
   RoomTimelineVideoProcessingStatus,
@@ -114,7 +115,13 @@ export function createRoomTimelineAPI(
           { roomId, eventId },
           { headers: headers() },
         );
-        return response.event ? roomTimelineEventToRawEvent(response.event, {}) : null;
+        const users = await timelineUsersForEvents(
+          config,
+          response.event ? [response.event] : [],
+        );
+        return response.event
+          ? roomTimelineEventToRawEvent(response.event, users)
+          : null;
       } catch (err) {
         return handleAuthError(config, err);
       }
@@ -156,6 +163,49 @@ export function createRoomTimelineAPI(
       }
     },
   };
+}
+
+export async function timelineUsersForEvents(
+  config: RoomTimelineAPIConfig,
+  events: RoomTimelineEvent[],
+): Promise<Record<string, User>> {
+  const userIds = timelineUserIds(events);
+  if (userIds.length === 0) return {};
+
+  try {
+    const summaries = await createUserAPI(config).batchGetUsers(userIds);
+    const users: Record<string, User> = {};
+    for (const summary of summaries) {
+      users[summary.id] = {
+        id: summary.id,
+        login: summary.login,
+        displayName: summary.displayName,
+        deleted: summary.deleted,
+        avatarUrl: summary.avatarUrl ?? undefined,
+      } as User;
+    }
+    primeTimelineUserIncludes(config, users);
+    return users;
+  } catch {
+    return {};
+  }
+}
+
+function timelineUserIds(events: RoomTimelineEvent[]): string[] {
+  const ids = new Set<string>();
+  for (const event of events) {
+    if (event.actorId) ids.add(event.actorId);
+    if (event.event.case !== "messagePosted") continue;
+    for (const userId of event.event.value.threadParticipantPreviewUserIds) {
+      if (userId) ids.add(userId);
+    }
+    for (const reaction of event.event.value.reactions) {
+      for (const userId of reaction.previewUserIds) {
+        if (userId) ids.add(userId);
+      }
+    }
+  }
+  return [...ids];
 }
 
 function primeTimelineUserIncludes(

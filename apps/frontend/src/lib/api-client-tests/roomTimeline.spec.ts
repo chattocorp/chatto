@@ -27,6 +27,7 @@ const mocks = vi.hoisted(() => ({
   createConnectTransport: vi.fn(),
   handleAuthenticationRequired: vi.fn(),
   getMessage: vi.fn(),
+  batchGetMembers: vi.fn(),
   getThreadEvents: vi.fn(),
   getThreadEventsAround: vi.fn()
 }));
@@ -49,6 +50,8 @@ describe('createRoomTimelineAPI', () => {
     mocks.createConnectTransport.mockReset();
     mocks.handleAuthenticationRequired.mockReset();
     mocks.getMessage.mockReset();
+    mocks.batchGetMembers.mockReset();
+    mocks.batchGetMembers.mockResolvedValue({ members: [] });
     mocks.getThreadEvents.mockReset();
     mocks.getThreadEventsAround.mockReset();
     __resetUserSummaryCachesForTests();
@@ -59,10 +62,17 @@ describe('createRoomTimelineAPI', () => {
       onUserSummaries: primeUserSummaryCache
     });
     mocks.createConnectTransport.mockReturnValue({ kind: 'transport' });
-    mocks.createClient.mockReturnValue({
-      getMessage: mocks.getMessage,
-      getThreadEvents: mocks.getThreadEvents,
-      getThreadEventsAround: mocks.getThreadEventsAround
+    mocks.createClient.mockImplementation((service) => {
+      if (service?.typeName === 'chatto.api.v1.ServerService') {
+        return {
+          batchGetMembers: mocks.batchGetMembers
+        };
+      }
+      return {
+        getMessage: mocks.getMessage,
+        getThreadEvents: mocks.getThreadEvents,
+        getThreadEventsAround: mocks.getThreadEventsAround
+      };
     });
   });
 
@@ -157,6 +167,20 @@ describe('createRoomTimelineAPI', () => {
         }
       })
     });
+    mocks.batchGetMembers.mockResolvedValue({
+      members: [
+        {
+          profile: {
+            user: {
+              id: 'u1',
+              login: 'alice',
+              displayName: 'Alice',
+              deleted: false
+            }
+          }
+        }
+      ]
+    });
 
     const api = createRoomTimelineAPI({
       serverId: 'remote',
@@ -178,8 +202,15 @@ describe('createRoomTimelineAPI', () => {
         headers: { Authorization: 'Bearer remote-token' }
       }
     );
+    expect(mocks.batchGetMembers).toHaveBeenCalledWith(
+      { userIds: ['u1'] },
+      {
+        headers: { Authorization: 'Bearer remote-token' }
+      }
+    );
     expect(message).toMatchObject({
       id: 'reply-1',
+      actor: { id: 'u1', displayName: 'Alice' },
       event: { kind: 'messagePosted', body: 'thread reply', threadRootEventId: 'root-1' }
     });
   });
