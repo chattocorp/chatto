@@ -31,7 +31,7 @@ export const RoomDirectoryService = {
     /**
      * Lists ordered channel room groups and sidebar items visible to the current
      * user as a finite navigation snapshot. Hidden room entries are omitted.
-     * Archived room entries are omitted unless include_archived_rooms is true.
+     * Archived room entries are omitted.
      *
      * @generated from rpc chatto.api.v1.RoomDirectoryService.ListRoomGroups
      */
@@ -43,7 +43,7 @@ export const RoomDirectoryService = {
     },
     /**
      * Returns one ordered room group by ID. Hidden room entries are omitted.
-     * Archived room entries are omitted unless include_archived_rooms is true.
+     * Archived room entries are omitted.
      * Returns NOT_FOUND when the room group does not exist.
      *
      * @generated from rpc chatto.api.v1.RoomDirectoryService.GetRoomGroup
@@ -56,9 +56,9 @@ export const RoomDirectoryService = {
     },
     /**
      * Returns ordered room groups for a set of stable group IDs. Hidden room
-     * entries are omitted. Archived room entries are omitted unless
-     * include_archived_rooms is true. Unknown groups are omitted. Results
-     * preserve first-seen request order and repeated IDs are de-duplicated.
+     * entries are omitted. Archived room entries are omitted. Unknown groups are
+     * omitted. Results preserve first-seen request order and repeated IDs are
+     * de-duplicated.
      *
      * @generated from rpc chatto.api.v1.RoomDirectoryService.BatchGetRoomGroups
      */

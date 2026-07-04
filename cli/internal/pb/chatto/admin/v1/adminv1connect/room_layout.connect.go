@@ -33,6 +33,9 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
+	// AdminRoomLayoutServiceListRoomGroupsProcedure is the fully-qualified name of the
+	// AdminRoomLayoutService's ListRoomGroups RPC.
+	AdminRoomLayoutServiceListRoomGroupsProcedure = "/chatto.admin.v1.AdminRoomLayoutService/ListRoomGroups"
 	// AdminRoomLayoutServiceCreateRoomGroupProcedure is the fully-qualified name of the
 	// AdminRoomLayoutService's CreateRoomGroup RPC.
 	AdminRoomLayoutServiceCreateRoomGroupProcedure = "/chatto.admin.v1.AdminRoomLayoutService/CreateRoomGroup"
@@ -67,6 +70,10 @@ const (
 
 // AdminRoomLayoutServiceClient is a client for the chatto.admin.v1.AdminRoomLayoutService service.
 type AdminRoomLayoutServiceClient interface {
+	// Lists the editable room group layout. Requires role.manage and returns
+	// visible room entries, including archived rooms for administrative actions
+	// such as unarchiving.
+	ListRoomGroups(context.Context, *connect.Request[v1.ListRoomGroupsRequest]) (*connect.Response[v1.ListRoomGroupsResponse], error)
 	// Creates a room group. Requires role.manage.
 	CreateRoomGroup(context.Context, *connect.Request[v1.CreateRoomGroupRequest]) (*connect.Response[v1.CreateRoomGroupResponse], error)
 	// Updates a room group's metadata. Requires role.manage.
@@ -103,6 +110,12 @@ func NewAdminRoomLayoutServiceClient(httpClient connect.HTTPClient, baseURL stri
 	baseURL = strings.TrimRight(baseURL, "/")
 	adminRoomLayoutServiceMethods := v1.File_chatto_admin_v1_room_layout_proto.Services().ByName("AdminRoomLayoutService").Methods()
 	return &adminRoomLayoutServiceClient{
+		listRoomGroups: connect.NewClient[v1.ListRoomGroupsRequest, v1.ListRoomGroupsResponse](
+			httpClient,
+			baseURL+AdminRoomLayoutServiceListRoomGroupsProcedure,
+			connect.WithSchema(adminRoomLayoutServiceMethods.ByName("ListRoomGroups")),
+			connect.WithClientOptions(opts...),
+		),
 		createRoomGroup: connect.NewClient[v1.CreateRoomGroupRequest, v1.CreateRoomGroupResponse](
 			httpClient,
 			baseURL+AdminRoomLayoutServiceCreateRoomGroupProcedure,
@@ -168,6 +181,7 @@ func NewAdminRoomLayoutServiceClient(httpClient connect.HTTPClient, baseURL stri
 
 // adminRoomLayoutServiceClient implements AdminRoomLayoutServiceClient.
 type adminRoomLayoutServiceClient struct {
+	listRoomGroups             *connect.Client[v1.ListRoomGroupsRequest, v1.ListRoomGroupsResponse]
 	createRoomGroup            *connect.Client[v1.CreateRoomGroupRequest, v1.CreateRoomGroupResponse]
 	updateRoomGroup            *connect.Client[v1.UpdateRoomGroupRequest, v1.UpdateRoomGroupResponse]
 	deleteRoomGroup            *connect.Client[v1.DeleteRoomGroupRequest, v1.DeleteRoomGroupResponse]
@@ -178,6 +192,11 @@ type adminRoomLayoutServiceClient struct {
 	updateSidebarLink          *connect.Client[v1.UpdateSidebarLinkRequest, v1.UpdateSidebarLinkResponse]
 	deleteSidebarLink          *connect.Client[v1.DeleteSidebarLinkRequest, v1.DeleteSidebarLinkResponse]
 	moveSidebarLinkToGroup     *connect.Client[v1.MoveSidebarLinkToGroupRequest, v1.MoveSidebarLinkToGroupResponse]
+}
+
+// ListRoomGroups calls chatto.admin.v1.AdminRoomLayoutService.ListRoomGroups.
+func (c *adminRoomLayoutServiceClient) ListRoomGroups(ctx context.Context, req *connect.Request[v1.ListRoomGroupsRequest]) (*connect.Response[v1.ListRoomGroupsResponse], error) {
+	return c.listRoomGroups.CallUnary(ctx, req)
 }
 
 // CreateRoomGroup calls chatto.admin.v1.AdminRoomLayoutService.CreateRoomGroup.
@@ -234,6 +253,10 @@ func (c *adminRoomLayoutServiceClient) MoveSidebarLinkToGroup(ctx context.Contex
 // AdminRoomLayoutServiceHandler is an implementation of the chatto.admin.v1.AdminRoomLayoutService
 // service.
 type AdminRoomLayoutServiceHandler interface {
+	// Lists the editable room group layout. Requires role.manage and returns
+	// visible room entries, including archived rooms for administrative actions
+	// such as unarchiving.
+	ListRoomGroups(context.Context, *connect.Request[v1.ListRoomGroupsRequest]) (*connect.Response[v1.ListRoomGroupsResponse], error)
 	// Creates a room group. Requires role.manage.
 	CreateRoomGroup(context.Context, *connect.Request[v1.CreateRoomGroupRequest]) (*connect.Response[v1.CreateRoomGroupResponse], error)
 	// Updates a room group's metadata. Requires role.manage.
@@ -266,6 +289,12 @@ type AdminRoomLayoutServiceHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewAdminRoomLayoutServiceHandler(svc AdminRoomLayoutServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	adminRoomLayoutServiceMethods := v1.File_chatto_admin_v1_room_layout_proto.Services().ByName("AdminRoomLayoutService").Methods()
+	adminRoomLayoutServiceListRoomGroupsHandler := connect.NewUnaryHandler(
+		AdminRoomLayoutServiceListRoomGroupsProcedure,
+		svc.ListRoomGroups,
+		connect.WithSchema(adminRoomLayoutServiceMethods.ByName("ListRoomGroups")),
+		connect.WithHandlerOptions(opts...),
+	)
 	adminRoomLayoutServiceCreateRoomGroupHandler := connect.NewUnaryHandler(
 		AdminRoomLayoutServiceCreateRoomGroupProcedure,
 		svc.CreateRoomGroup,
@@ -328,6 +357,8 @@ func NewAdminRoomLayoutServiceHandler(svc AdminRoomLayoutServiceHandler, opts ..
 	)
 	return "/chatto.admin.v1.AdminRoomLayoutService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
+		case AdminRoomLayoutServiceListRoomGroupsProcedure:
+			adminRoomLayoutServiceListRoomGroupsHandler.ServeHTTP(w, r)
 		case AdminRoomLayoutServiceCreateRoomGroupProcedure:
 			adminRoomLayoutServiceCreateRoomGroupHandler.ServeHTTP(w, r)
 		case AdminRoomLayoutServiceUpdateRoomGroupProcedure:
@@ -356,6 +387,10 @@ func NewAdminRoomLayoutServiceHandler(svc AdminRoomLayoutServiceHandler, opts ..
 
 // UnimplementedAdminRoomLayoutServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedAdminRoomLayoutServiceHandler struct{}
+
+func (UnimplementedAdminRoomLayoutServiceHandler) ListRoomGroups(context.Context, *connect.Request[v1.ListRoomGroupsRequest]) (*connect.Response[v1.ListRoomGroupsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.admin.v1.AdminRoomLayoutService.ListRoomGroups is not implemented"))
+}
 
 func (UnimplementedAdminRoomLayoutServiceHandler) CreateRoomGroup(context.Context, *connect.Request[v1.CreateRoomGroupRequest]) (*connect.Response[v1.CreateRoomGroupResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.admin.v1.AdminRoomLayoutService.CreateRoomGroup is not implemented"))

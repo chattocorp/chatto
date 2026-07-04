@@ -5,11 +5,7 @@ import {
   type AdminRoomLayoutGroup as APIAdminRoomLayoutGroup,
   type AdminRoomLayoutItem as APIAdminRoomLayoutItem
 } from '@chatto/api-types/admin/v1/room_layout_pb';
-import type {
-  DirectoryRoomGroup,
-  DirectoryRoomGroupItem,
-  DirectorySidebarLink
-} from './roomDirectory.js';
+import type { DirectorySidebarLink } from './roomDirectory.js';
 import type { Room } from '@chatto/api-types/api/v1/rooms_pb';
 
 export type AdminRoomLayoutAPIConfig = {
@@ -62,6 +58,15 @@ export function createAdminRoomLayoutAPI(config: AdminRoomLayoutAPIConfig) {
   const layout = createChattoClient(AdminRoomLayoutService, config);
   const headers = () => authHeaders(config);
   return {
+    async listRoomGroups(): Promise<AdminRoomGroup[]> {
+      try {
+        const response = await layout.listRoomGroups({}, { headers: headers() });
+        return response.groups.map(mapAdminRoomLayoutGroup);
+      } catch (err) {
+        return handleAuthError(config, err);
+      }
+    },
+
     async createRoomGroup(input: {
       name: string;
       description?: string | null;
@@ -206,27 +211,12 @@ function mapAdminRoomLayoutGroup(group: APIAdminRoomLayoutGroup): AdminRoomGroup
   return {
     id: group.id,
     name: group.name,
-    // Admin layout mutations are authorized by role.manage and do not return
-    // viewer room-creation state. Directory reads rehydrate the real value.
+    // Admin layout reads and mutations do not return viewer room-creation
+    // state; layout editing authorization is checked by each admin RPC.
     canCreateRoom: false,
     rooms: roomsFromSidebarItems(items),
     items
   };
-}
-
-export function adminRoomGroupFromDirectoryGroup(group: DirectoryRoomGroup): AdminRoomGroup {
-  const items = group.items.flatMap((item) => directoryItemToAdminSidebarItem(item) ?? []);
-  return {
-    id: group.id,
-    name: group.name,
-    canCreateRoom: group.canCreateRoom,
-    rooms: roomsFromSidebarItems(items),
-    items
-  };
-}
-
-export function adminRoomGroupsFromDirectoryGroups(groups: DirectoryRoomGroup[]): AdminRoomGroup[] {
-  return groups.map(adminRoomGroupFromDirectoryGroup);
 }
 
 function mapAdminRoomLayoutItem(item: APIAdminRoomLayoutItem): AdminSidebarItem | null {
@@ -249,21 +239,6 @@ function mapAdminRoom(room: Room): AdminRoomInfo {
     archived: room.archived ?? false,
     isUniversal: room.universal ?? false
   };
-}
-
-function directoryItemToAdminSidebarItem(item: DirectoryRoomGroupItem): AdminSidebarItem | null {
-  if (item.type === 'room') {
-    const room: AdminRoomInfo = {
-      id: item.room.id,
-      name: item.room.name,
-      description: item.room.description,
-      archived: item.room.archived,
-      isUniversal: item.room.isUniversal
-    };
-    return { id: `room:${room.id}`, kind: 'room', room };
-  }
-  const link = mapSidebarLink(item.link);
-  return { id: `link:${link.id}`, kind: 'link', link };
 }
 
 function roomsFromSidebarItems(items: AdminSidebarItem[]): AdminRoomInfo[] {

@@ -3,7 +3,6 @@ import { flushSync } from 'svelte';
 import { render } from 'vitest-browser-svelte';
 import { q } from '$lib/test-utils';
 import type { AdminRoomLayoutAPI } from '$lib/api-client/adminRoomLayout';
-import type { RoomDirectoryAPI } from '$lib/api-client/roomDirectory';
 import type { RoomCommandAPI } from '$lib/api-client/rooms';
 import {
   AdminRoomLayoutStore,
@@ -77,6 +76,7 @@ function roomAPI(): Pick<
 
 function makeLayout(): AdminRoomLayoutStore {
   const layoutAPI = {
+    listRoomGroups: vi.fn().mockResolvedValue([]),
     createRoomGroup: vi.fn().mockResolvedValue(null),
     updateRoomGroup: vi.fn().mockResolvedValue(null),
     deleteRoomGroup: vi.fn().mockResolvedValue(true),
@@ -88,10 +88,7 @@ function makeLayout(): AdminRoomLayoutStore {
     deleteSidebarLink: vi.fn().mockResolvedValue(true),
     moveSidebarLinkToGroup: vi.fn().mockResolvedValue(undefined)
   } satisfies AdminRoomLayoutAPI;
-  const directoryAPI = {
-    listRoomGroups: vi.fn().mockResolvedValue([])
-  } satisfies Pick<RoomDirectoryAPI, 'listRoomGroups'>;
-  return new AdminRoomLayoutStore(layoutAPI, directoryAPI, roomAPI());
+  return new AdminRoomLayoutStore(layoutAPI, roomAPI());
 }
 
 function renderEditor(layout: AdminRoomLayoutStore) {

@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   createClient: vi.fn(),
   createConnectTransport: vi.fn(),
   handleAuthenticationRequired: vi.fn(),
+  listRoomGroups: vi.fn(),
   createRoomGroup: vi.fn(),
   updateRoomGroup: vi.fn(),
   deleteRoomGroup: vi.fn(),
@@ -38,6 +39,7 @@ describe('createAdminRoomLayoutAPI', () => {
     configureApiClientHooks({ onAuthenticationRequired: mocks.handleAuthenticationRequired });
     mocks.createConnectTransport.mockReturnValue({ kind: 'transport' });
     mocks.createClient.mockReturnValue({
+      listRoomGroups: mocks.listRoomGroups,
       createRoomGroup: mocks.createRoomGroup,
       updateRoomGroup: mocks.updateRoomGroup,
       deleteRoomGroup: mocks.deleteRoomGroup,
@@ -51,7 +53,27 @@ describe('createAdminRoomLayoutAPI', () => {
     });
   });
 
-  it('sends group, room, link, and reorder commands through Connect', async () => {
+  it('reads layout and sends group, room, link, and reorder commands through Connect', async () => {
+    mocks.listRoomGroups.mockResolvedValue({
+      groups: [
+        {
+          id: 'g1',
+          name: 'Lobby',
+          items: [
+            {
+              item: {
+                case: 'room',
+                value: {
+                  id: 'r1',
+                  name: 'general',
+                  archived: true
+                }
+              }
+            }
+          ]
+        }
+      ]
+    });
     mocks.createRoomGroup.mockResolvedValue({ group: { id: 'g2', name: 'Projects', items: [] } });
     mocks.updateRoomGroup.mockResolvedValue({ group: { id: 'g2', name: 'Renamed', items: [] } });
     mocks.deleteRoomGroup.mockResolvedValue({ deleted: true });
@@ -72,6 +94,35 @@ describe('createAdminRoomLayoutAPI', () => {
       bearerToken: 'token'
     });
 
+    await expect(api.listRoomGroups()).resolves.toEqual([
+      {
+        id: 'g1',
+        name: 'Lobby',
+        canCreateRoom: false,
+        rooms: [
+          {
+            id: 'r1',
+            name: 'general',
+            description: null,
+            archived: true,
+            isUniversal: false
+          }
+        ],
+        items: [
+          {
+            id: 'room:r1',
+            kind: 'room',
+            room: {
+              id: 'r1',
+              name: 'general',
+              description: null,
+              archived: true,
+              isUniversal: false
+            }
+          }
+        ]
+      }
+    ]);
     await expect(api.createRoomGroup({ name: 'Projects' })).resolves.toEqual({
       id: 'g2',
       name: 'Projects',
@@ -96,6 +147,7 @@ describe('createAdminRoomLayoutAPI', () => {
     await api.moveSidebarLinkToGroup({ linkId: 'docs', groupId: 'g1' });
 
     const callOptions = { headers: { Authorization: 'Bearer token' } };
+    expect(mocks.listRoomGroups).toHaveBeenCalledWith({}, callOptions);
     expect(mocks.createRoomGroup).toHaveBeenCalledWith(
       { name: 'Projects', description: '' },
       callOptions

@@ -3,11 +3,7 @@
   import { resolve } from '$app/paths';
   import { serverIdToSegment } from '$lib/navigation';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
-  import {
-    adminRoomGroupsFromDirectoryGroups,
-    type AdminRoomGroup
-  } from '$lib/api-client/adminRoomLayout';
-  import { createRoomDirectoryAPI } from '$lib/api-client/roomDirectory';
+  import { createAdminRoomLayoutAPI, type AdminRoomGroup } from '$lib/api-client/adminRoomLayout';
   import { useConnection } from '$lib/state/server/connection.svelte';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
@@ -30,12 +26,12 @@
     group = null;
     try {
       const conn = connection();
-      const api = createRoomDirectoryAPI({
+      const api = createAdminRoomLayoutAPI({
         serverId: conn.serverId,
         baseUrl: conn.connectBaseUrl,
         bearerToken: conn.bearerToken
       });
-      const groups = adminRoomGroupsFromDirectoryGroups(await api.listRoomGroups());
+      const groups = await api.listRoomGroups();
       if (thisId !== loadId) return;
       group = groups.find((candidate) => candidate.id === targetGroupId) ?? null;
     } catch {

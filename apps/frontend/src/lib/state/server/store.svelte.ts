@@ -157,11 +157,7 @@ export class ServerStateStore {
       notificationAPI
     );
     this.roomDirectory = new RoomDirectoryStore(roomDirectoryAPI, roomCommandAPI);
-    this.adminRoomLayout = new AdminRoomLayoutStore(
-      adminRoomLayoutAPI,
-      roomDirectoryAPI,
-      roomCommandAPI
-    );
+    this.adminRoomLayout = new AdminRoomLayoutStore(adminRoomLayoutAPI, roomCommandAPI);
     this.adminEventLog = new AdminEventLogStore(adminEventLogAPI);
 
     // Self-managed lifecycle for the substores that need fetch / event

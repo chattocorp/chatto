@@ -67,10 +67,6 @@ export type DirectoryRoomGroup = {
   items: DirectoryRoomGroupItem[];
 };
 
-export type RoomGroupReadOptions = {
-  includeArchivedRooms?: boolean;
-};
-
 export { RoomDirectoryScope };
 export { RoomKind };
 
@@ -112,30 +108,18 @@ export function createRoomDirectoryAPI(config: RoomDirectoryAPIConfig) {
       }
     },
 
-    async listRoomGroups(options: RoomGroupReadOptions = {}): Promise<DirectoryRoomGroup[]> {
+    async listRoomGroups(): Promise<DirectoryRoomGroup[]> {
       try {
-        const response = await directory.listRoomGroups(
-          { includeArchivedRooms: options.includeArchivedRooms ?? false },
-          { headers: headers() }
-        );
+        const response = await directory.listRoomGroups({}, { headers: headers() });
         return response.groups.map(mapRoomGroup);
       } catch (err) {
         return handleAuthError(config, err);
       }
     },
 
-    async getRoomGroup(
-      groupId: string,
-      options: RoomGroupReadOptions = {}
-    ): Promise<DirectoryRoomGroup | null> {
+    async getRoomGroup(groupId: string): Promise<DirectoryRoomGroup | null> {
       try {
-        const response = await directory.getRoomGroup(
-          {
-            groupId,
-            includeArchivedRooms: options.includeArchivedRooms ?? false
-          },
-          { headers: headers() }
-        );
+        const response = await directory.getRoomGroup({ groupId }, { headers: headers() });
         return response.group ? mapRoomGroup(response.group) : null;
       } catch (err) {
         if (err instanceof ConnectError && err.code === Code.NotFound) {
@@ -145,18 +129,9 @@ export function createRoomDirectoryAPI(config: RoomDirectoryAPIConfig) {
       }
     },
 
-    async batchGetRoomGroups(
-      groupIds: string[],
-      options: RoomGroupReadOptions = {}
-    ): Promise<DirectoryRoomGroup[]> {
+    async batchGetRoomGroups(groupIds: string[]): Promise<DirectoryRoomGroup[]> {
       try {
-        const response = await directory.batchGetRoomGroups(
-          {
-            groupIds,
-            includeArchivedRooms: options.includeArchivedRooms ?? false
-          },
-          { headers: headers() }
-        );
+        const response = await directory.batchGetRoomGroups({ groupIds }, { headers: headers() });
         return response.groups.map(mapRoomGroup);
       } catch (err) {
         return handleAuthError(config, err);

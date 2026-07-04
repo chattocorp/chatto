@@ -1680,6 +1680,9 @@ func TestAdminRoomLayoutServiceCreateRoomGroupRequiresRoleManage(t *testing.T) {
 		t.Fatalf("CreateUser member: %v", err)
 	}
 
+	_, err = env.adminLayout.ListRoomGroups(withCaller(env.ctx, member), connect.NewRequest(&adminv1.ListRoomGroupsRequest{}))
+	requireConnectCode(t, err, connect.CodePermissionDenied)
+
 	_, err = env.adminLayout.CreateRoomGroup(withCaller(env.ctx, member), connect.NewRequest(&adminv1.CreateRoomGroupRequest{
 		Name:        "Operations",
 		Description: "Private operations rooms",
@@ -1688,6 +1691,9 @@ func TestAdminRoomLayoutServiceCreateRoomGroupRequiresRoleManage(t *testing.T) {
 
 	if err := env.core.GrantUserPermission(env.ctx, core.SystemActorID, env.viewer.Id, core.PermRoleManage); err != nil {
 		t.Fatalf("GrantUserPermission role.manage: %v", err)
+	}
+	if _, err := env.adminLayout.ListRoomGroups(withCaller(env.ctx, env.viewer), connect.NewRequest(&adminv1.ListRoomGroupsRequest{})); err != nil {
+		t.Fatalf("ListRoomGroups: %v", err)
 	}
 	resp, err := env.adminLayout.CreateRoomGroup(withCaller(env.ctx, env.viewer), connect.NewRequest(&adminv1.CreateRoomGroupRequest{
 		Name:        "Operations",
@@ -3658,18 +3664,19 @@ func TestRoomDirectoryServiceListRoomGroupsFiltersHiddenRoomsAndKeepsLinks(t *te
 	if !roomGroupItemsContainSidebarLink(group.GetItems(), link.Id) {
 		t.Fatalf("sidebar link %s missing from group items", link.Id)
 	}
-	withArchivedResp, err := env.directory.ListRoomGroups(withCaller(env.ctx, caller), connect.NewRequest(&apiv1.ListRoomGroupsRequest{
-		IncludeArchivedRooms: true,
-	}))
+	if err := env.core.GrantUserPermission(env.ctx, core.SystemActorID, env.viewer.Id, core.PermRoleManage); err != nil {
+		t.Fatalf("GrantUserPermission role.manage: %v", err)
+	}
+	adminLayoutResp, err := env.adminLayout.ListRoomGroups(withCaller(env.ctx, env.viewer), connect.NewRequest(&adminv1.ListRoomGroupsRequest{}))
 	if err != nil {
-		t.Fatalf("ListRoomGroups include archived: %v", err)
+		t.Fatalf("AdminRoomLayout ListRoomGroups: %v", err)
 	}
-	withArchivedGroup := findDirectoryGroup(withArchivedResp.Msg.GetGroups(), groupID)
-	if withArchivedGroup == nil {
-		t.Fatalf("group %s missing from include archived response", groupID)
+	adminLayoutGroup := findAdminRoomLayoutGroup(adminLayoutResp.Msg.GetGroups(), groupID)
+	if adminLayoutGroup == nil {
+		t.Fatalf("group %s missing from admin layout response", groupID)
 	}
-	if !roomGroupItemsContainRoom(withArchivedGroup.GetItems(), archived.Id) {
-		t.Fatalf("archived room %s missing from include archived group items", archived.Id)
+	if !adminRoomLayoutItemsContainRoom(adminLayoutGroup.GetItems(), archived.Id) {
+		t.Fatalf("archived room %s missing from admin layout group items", archived.Id)
 	}
 	if err := env.core.GrantUserGroupPermission(env.ctx, core.SystemActorID, groupID, caller.Id, core.PermRoomCreate); err != nil {
 		t.Fatalf("GrantUserGroupPermission room.create: %v", err)
@@ -7155,10 +7162,29 @@ func findDirectoryGroup(groups []*apiv1.RoomGroup, groupID string) *apiv1.RoomGr
 	return nil
 }
 
+func findAdminRoomLayoutGroup(groups []*adminv1.AdminRoomLayoutGroup, groupID string) *adminv1.AdminRoomLayoutGroup {
+	for _, group := range groups {
+		if group.GetId() == groupID {
+			return group
+		}
+	}
+	return nil
+}
+
 func roomGroupItemsContainRoom(items []*apiv1.RoomGroupItem, roomID string) bool {
 	for _, item := range items {
 		room := item.GetRoom()
 		if room != nil && room.GetRoom().GetId() == roomID {
+			return true
+		}
+	}
+	return false
+}
+
+func adminRoomLayoutItemsContainRoom(items []*adminv1.AdminRoomLayoutItem, roomID string) bool {
+	for _, item := range items {
+		room := item.GetRoom()
+		if room != nil && room.GetId() == roomID {
 			return true
 		}
 	}

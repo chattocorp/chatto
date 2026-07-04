@@ -220,8 +220,8 @@ async function getRoomLayoutViaAPI(page: Page): Promise<{
 } | null> {
   const data = await connectPost<RoomDirectoryGroupsResponse>(
     page,
-    'chatto.api.v1.RoomDirectoryService/ListRoomGroups',
-    { includeArchivedRooms: true }
+    'chatto.admin.v1.AdminRoomLayoutService/ListRoomGroups',
+    {}
   );
   return {
     groups: (data.groups ?? []).map((group) => ({

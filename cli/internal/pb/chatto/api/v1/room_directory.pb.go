@@ -605,13 +605,9 @@ func (x *ListRoomsResponse) GetRooms() []*RoomWithViewerState {
 
 // Request for ordered room groups visible to the current user.
 type ListRoomGroupsRequest struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Include archived room entries. Ordinary sidebar clients should leave this
-	// false; management surfaces can set it when they need archived rooms for
-	// direct actions such as unarchiving.
-	IncludeArchivedRooms bool `protobuf:"varint,1,opt,name=include_archived_rooms,json=includeArchivedRooms,proto3" json:"include_archived_rooms,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ListRoomGroupsRequest) Reset() {
@@ -642,13 +638,6 @@ func (x *ListRoomGroupsRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use ListRoomGroupsRequest.ProtoReflect.Descriptor instead.
 func (*ListRoomGroupsRequest) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_room_directory_proto_rawDescGZIP(), []int{7}
-}
-
-func (x *ListRoomGroupsRequest) GetIncludeArchivedRooms() bool {
-	if x != nil {
-		return x.IncludeArchivedRooms
-	}
-	return false
 }
 
 // Finite snapshot of ordered room groups visible to the current user.
@@ -701,13 +690,9 @@ func (x *ListRoomGroupsResponse) GetGroups() []*RoomGroup {
 type GetRoomGroupRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Required. Room group to resolve.
-	GroupId string `protobuf:"bytes,1,opt,name=group_id,json=groupId,proto3" json:"group_id,omitempty"`
-	// Include archived room entries. Ordinary sidebar clients should leave this
-	// false; management surfaces can set it when they need archived rooms for
-	// direct actions such as unarchiving.
-	IncludeArchivedRooms bool `protobuf:"varint,2,opt,name=include_archived_rooms,json=includeArchivedRooms,proto3" json:"include_archived_rooms,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	GroupId       string `protobuf:"bytes,1,opt,name=group_id,json=groupId,proto3" json:"group_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *GetRoomGroupRequest) Reset() {
@@ -745,13 +730,6 @@ func (x *GetRoomGroupRequest) GetGroupId() string {
 		return x.GroupId
 	}
 	return ""
-}
-
-func (x *GetRoomGroupRequest) GetIncludeArchivedRooms() bool {
-	if x != nil {
-		return x.IncludeArchivedRooms
-	}
-	return false
 }
 
 // One ordered room group visible to the current user.
@@ -804,13 +782,9 @@ func (x *GetRoomGroupResponse) GetGroup() *RoomGroup {
 type BatchGetRoomGroupsRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Required room group IDs. Unknown groups are omitted from the response.
-	GroupIds []string `protobuf:"bytes,1,rep,name=group_ids,json=groupIds,proto3" json:"group_ids,omitempty"`
-	// Include archived room entries. Ordinary sidebar clients should leave this
-	// false; management surfaces can set it when they need archived rooms for
-	// direct actions such as unarchiving.
-	IncludeArchivedRooms bool `protobuf:"varint,2,opt,name=include_archived_rooms,json=includeArchivedRooms,proto3" json:"include_archived_rooms,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	GroupIds      []string `protobuf:"bytes,1,rep,name=group_ids,json=groupIds,proto3" json:"group_ids,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *BatchGetRoomGroupsRequest) Reset() {
@@ -848,13 +822,6 @@ func (x *BatchGetRoomGroupsRequest) GetGroupIds() []string {
 		return x.GroupIds
 	}
 	return nil
-}
-
-func (x *BatchGetRoomGroupsRequest) GetIncludeArchivedRooms() bool {
-	if x != nil {
-		return x.IncludeArchivedRooms
-	}
-	return false
 }
 
 // Visible room group batch response for direct group hydration.
@@ -1130,20 +1097,17 @@ const file_chatto_api_v1_room_directory_proto_rawDesc = "" +
 	"\x10ListRoomsRequest\x12A\n" +
 	"\x05scope\x18\x01 \x01(\x0e2!.chatto.api.v1.RoomDirectoryScopeB\b\xbaH\x05\x82\x01\x02\x10\x01R\x05scope\"M\n" +
 	"\x11ListRoomsResponse\x128\n" +
-	"\x05rooms\x18\x01 \x03(\v2\".chatto.api.v1.RoomWithViewerStateR\x05rooms\"M\n" +
-	"\x15ListRoomGroupsRequest\x124\n" +
-	"\x16include_archived_rooms\x18\x01 \x01(\bR\x14includeArchivedRooms\"J\n" +
+	"\x05rooms\x18\x01 \x03(\v2\".chatto.api.v1.RoomWithViewerStateR\x05rooms\"5\n" +
+	"\x15ListRoomGroupsRequestJ\x04\b\x01\x10\x02R\x16include_archived_rooms\"J\n" +
 	"\x16ListRoomGroupsResponse\x120\n" +
-	"\x06groups\x18\x01 \x03(\v2\x18.chatto.api.v1.RoomGroupR\x06groups\"o\n" +
+	"\x06groups\x18\x01 \x03(\v2\x18.chatto.api.v1.RoomGroupR\x06groups\"W\n" +
 	"\x13GetRoomGroupRequest\x12\"\n" +
-	"\bgroup_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\agroupId\x124\n" +
-	"\x16include_archived_rooms\x18\x02 \x01(\bR\x14includeArchivedRooms\"F\n" +
+	"\bgroup_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\agroupIdJ\x04\b\x02\x10\x03R\x16include_archived_rooms\"F\n" +
 	"\x14GetRoomGroupResponse\x12.\n" +
-	"\x05group\x18\x01 \x01(\v2\x18.chatto.api.v1.RoomGroupR\x05group\"\x80\x01\n" +
+	"\x05group\x18\x01 \x01(\v2\x18.chatto.api.v1.RoomGroupR\x05group\"h\n" +
 	"\x19BatchGetRoomGroupsRequest\x12-\n" +
 	"\tgroup_ids\x18\x01 \x03(\tB\x10\xbaH\r\x92\x01\n" +
-	"\b\x01\x10d\"\x04r\x02\x10\x01R\bgroupIds\x124\n" +
-	"\x16include_archived_rooms\x18\x02 \x01(\bR\x14includeArchivedRooms\"N\n" +
+	"\b\x01\x10d\"\x04r\x02\x10\x01R\bgroupIdsJ\x04\b\x02\x10\x03R\x16include_archived_rooms\"N\n" +
 	"\x1aBatchGetRoomGroupsResponse\x120\n" +
 	"\x06groups\x18\x01 \x03(\v2\x18.chatto.api.v1.RoomGroupR\x06groups\"2\n" +
 	"\x0eGetRoomRequest\x12 \n" +

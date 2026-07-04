@@ -3,18 +3,30 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CreateRoomGroupRequest, CreateRoomGroupResponse, CreateSidebarLinkRequest, CreateSidebarLinkResponse, DeleteRoomGroupRequest, DeleteRoomGroupResponse, DeleteSidebarLinkRequest, DeleteSidebarLinkResponse, MoveRoomToGroupRequest, MoveRoomToGroupResponse, MoveSidebarLinkToGroupRequest, MoveSidebarLinkToGroupResponse, ReorderRoomGroupsRequest, ReorderRoomGroupsResponse, ReorderSidebarItemsInGroupRequest, ReorderSidebarItemsInGroupResponse, UpdateRoomGroupRequest, UpdateRoomGroupResponse, UpdateSidebarLinkRequest, UpdateSidebarLinkResponse } from "./room_layout_pb.js";
+import { CreateRoomGroupRequest, CreateRoomGroupResponse, CreateSidebarLinkRequest, CreateSidebarLinkResponse, DeleteRoomGroupRequest, DeleteRoomGroupResponse, DeleteSidebarLinkRequest, DeleteSidebarLinkResponse, ListRoomGroupsRequest, ListRoomGroupsResponse, MoveRoomToGroupRequest, MoveRoomToGroupResponse, MoveSidebarLinkToGroupRequest, MoveSidebarLinkToGroupResponse, ReorderRoomGroupsRequest, ReorderRoomGroupsResponse, ReorderSidebarItemsInGroupRequest, ReorderSidebarItemsInGroupResponse, UpdateRoomGroupRequest, UpdateRoomGroupResponse, UpdateSidebarLinkRequest, UpdateSidebarLinkResponse } from "./room_layout_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
- * Mutates the server-admin room layout. Read current room-group layout through
- * chatto.api.v1.RoomDirectoryService.
+ * Reads and mutates the server-admin room layout.
  *
  * @generated from service chatto.admin.v1.AdminRoomLayoutService
  */
 export const AdminRoomLayoutService = {
   typeName: "chatto.admin.v1.AdminRoomLayoutService",
   methods: {
+    /**
+     * Lists the editable room group layout. Requires role.manage and returns
+     * visible room entries, including archived rooms for administrative actions
+     * such as unarchiving.
+     *
+     * @generated from rpc chatto.admin.v1.AdminRoomLayoutService.ListRoomGroups
+     */
+    listRoomGroups: {
+      name: "ListRoomGroups",
+      I: ListRoomGroupsRequest,
+      O: ListRoomGroupsResponse,
+      kind: MethodKind.Unary,
+    },
     /**
      * Creates a room group. Requires role.manage.
      *

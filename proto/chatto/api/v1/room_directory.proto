@@ -105,10 +105,8 @@ message ListRoomsResponse {
 
 // Request for ordered room groups visible to the current user.
 message ListRoomGroupsRequest {
-  // Include archived room entries. Ordinary sidebar clients should leave this
-  // false; management surfaces can set it when they need archived rooms for
-  // direct actions such as unarchiving.
-  bool include_archived_rooms = 1;
+  reserved 1;
+  reserved "include_archived_rooms";
 }
 
 // Finite snapshot of ordered room groups visible to the current user.
@@ -119,12 +117,11 @@ message ListRoomGroupsResponse {
 
 // Request for one ordered room group visible to the current user.
 message GetRoomGroupRequest {
+  reserved 2;
+  reserved "include_archived_rooms";
+
   // Required. Room group to resolve.
   string group_id = 1 [(buf.validate.field).string.min_len = 1];
-  // Include archived room entries. Ordinary sidebar clients should leave this
-  // false; management surfaces can set it when they need archived rooms for
-  // direct actions such as unarchiving.
-  bool include_archived_rooms = 2;
 }
 
 // One ordered room group visible to the current user.
@@ -135,6 +132,9 @@ message GetRoomGroupResponse {
 
 // Request visible room groups by stable group ID.
 message BatchGetRoomGroupsRequest {
+  reserved 2;
+  reserved "include_archived_rooms";
+
   // Required room group IDs. Unknown groups are omitted from the response.
   repeated string group_ids = 1 [(buf.validate.field).repeated = {
     min_items: 1
@@ -143,10 +143,6 @@ message BatchGetRoomGroupsRequest {
       string: {min_len: 1}
     }
   }];
-  // Include archived room entries. Ordinary sidebar clients should leave this
-  // false; management surfaces can set it when they need archived rooms for
-  // direct actions such as unarchiving.
-  bool include_archived_rooms = 2;
 }
 
 // Visible room group batch response for direct group hydration.
@@ -196,16 +192,16 @@ service RoomDirectoryService {
   rpc ListRooms(ListRoomsRequest) returns (ListRoomsResponse);
   // Lists ordered channel room groups and sidebar items visible to the current
   // user as a finite navigation snapshot. Hidden room entries are omitted.
-  // Archived room entries are omitted unless include_archived_rooms is true.
+  // Archived room entries are omitted.
   rpc ListRoomGroups(ListRoomGroupsRequest) returns (ListRoomGroupsResponse);
   // Returns one ordered room group by ID. Hidden room entries are omitted.
-  // Archived room entries are omitted unless include_archived_rooms is true.
+  // Archived room entries are omitted.
   // Returns NOT_FOUND when the room group does not exist.
   rpc GetRoomGroup(GetRoomGroupRequest) returns (GetRoomGroupResponse);
   // Returns ordered room groups for a set of stable group IDs. Hidden room
-  // entries are omitted. Archived room entries are omitted unless
-  // include_archived_rooms is true. Unknown groups are omitted. Results
-  // preserve first-seen request order and repeated IDs are de-duplicated.
+  // entries are omitted. Archived room entries are omitted. Unknown groups are
+  // omitted. Results preserve first-seen request order and repeated IDs are
+  // de-duplicated.
   rpc BatchGetRoomGroups(BatchGetRoomGroupsRequest) returns (BatchGetRoomGroupsResponse);
   // Returns one visible room by ID. DM rooms require membership. Returns
   // NOT_FOUND when the room does not exist and PERMISSION_DENIED when the room
