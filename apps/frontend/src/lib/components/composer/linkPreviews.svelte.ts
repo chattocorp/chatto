@@ -74,13 +74,7 @@ export class LinkPreviewState {
     }
 
     return {
-      url: activePreview.url,
-      title: activePreview.title,
-      description: activePreview.description,
-      siteName: activePreview.siteName,
-      imageAssetId: activePreview.imageAssetId,
-      embedType: activePreview.embedType,
-      embedId: activePreview.embedId
+      previewToken: activePreview.previewToken
     };
   }
 }

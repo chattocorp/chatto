@@ -113,6 +113,11 @@ func NewAuthToken() string {
 	return "cht_" + newID("AT")
 }
 
+// NewLinkPreviewToken generates a composer link-preview token with "cht_LP" prefix.
+func NewLinkPreviewToken() string {
+	return "cht_" + newID("LP")
+}
+
 // NewCookieSessionID generates a new opaque cookie session ID with "cht_CS" prefix.
 func NewCookieSessionID() string {
 	return "cht_" + newID("CS")

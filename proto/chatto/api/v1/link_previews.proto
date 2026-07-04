@@ -15,10 +15,9 @@ message FetchLinkPreviewRequest {
 
 // Link preview metadata used by message composers and room timeline events.
 //
-// On message-post requests, the server accepts url, title, description,
-// site_name, image_asset_id, embed_type, and embed_id. The image_url field is
-// response-only and ignored on input. Clients should treat optional metadata as
-// unavailable when absent.
+// Clients should treat optional metadata as unavailable when absent. Message
+// creation accepts only the preview_token returned by FetchLinkPreview, not
+// client-provided metadata fields.
 message LinkPreview {
   // Previewed URL.
   string url = 1;
@@ -26,11 +25,10 @@ message LinkPreview {
   optional string title = 2;
   // Page or embed description.
   optional string description = 3;
-  // Preview image URL, when available. Response-only; ignored on message-post
-  // input.
+  // Preview image URL, when available.
   optional string image_url = 4;
-  // Existing server asset ID for the preview image, when selected by the client
-  // or stored with the message.
+  // Existing server asset ID for the preview image, when cached or stored with
+  // the message.
   optional string image_asset_id = 5;
   // Site name, when known.
   optional string site_name = 6;
@@ -44,11 +42,7 @@ message LinkPreview {
 message FetchLinkPreviewResponse {
   // Preview metadata, or absent when the URL cannot be previewed.
   LinkPreview preview = 1;
-}
-
-// Fetches link preview metadata for message composers.
-service LinkPreviewService {
-  // Fetches and caches metadata for a URL. Authentication is required to avoid
-  // exposing the preview fetcher as an unauthenticated network proxy.
-  rpc FetchLinkPreview(FetchLinkPreviewRequest) returns (FetchLinkPreviewResponse);
+  // Short-lived opaque token to pass to CreateMessage.link_preview_token when
+  // the user posts this preview.
+  string preview_token = 2;
 }

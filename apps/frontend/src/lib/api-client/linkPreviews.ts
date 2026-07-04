@@ -1,5 +1,5 @@
 import { authHeaders, createChattoClient, handleAuthError } from "./connect.js";
-import { LinkPreviewService } from "@chatto/api-types/api/v1/link_previews_connect";
+import { MessageService } from "@chatto/api-types/api/v1/messages_connect";
 import type { LinkPreview } from "@chatto/api-types/api/v1/link_previews_pb";
 
 export type LinkPreviewAPIConfig = {
@@ -11,6 +11,7 @@ export type LinkPreviewAPIConfig = {
 
 export type ComposerLinkPreview = {
   url: string;
+  previewToken: string;
   title: string | null;
   description: string | null;
   imageUrl: string | null;
@@ -21,7 +22,7 @@ export type ComposerLinkPreview = {
 };
 
 export function createLinkPreviewAPI(config: LinkPreviewAPIConfig) {
-  const client = createChattoClient(LinkPreviewService, config);
+  const client = createChattoClient(MessageService, config);
   const headers = () => authHeaders(config);
   return {
     async fetchLinkPreview(url: string): Promise<ComposerLinkPreview | null> {
@@ -30,7 +31,7 @@ export function createLinkPreviewAPI(config: LinkPreviewAPIConfig) {
           { url },
           { headers: headers() },
         );
-        return composerLinkPreview(response.preview);
+        return composerLinkPreview(response.preview, response.previewToken);
       } catch (err) {
         return handleAuthError(config, err);
       }
@@ -40,10 +41,12 @@ export function createLinkPreviewAPI(config: LinkPreviewAPIConfig) {
 
 function composerLinkPreview(
   preview: LinkPreview | undefined,
+  previewToken: string,
 ): ComposerLinkPreview | null {
-  if (!preview) return null;
+  if (!preview || !previewToken) return null;
   return {
     url: preview.url,
+    previewToken,
     title: preview.title || null,
     description: preview.description || null,
     imageUrl: preview.imageUrl || null,

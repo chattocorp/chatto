@@ -2052,6 +2052,7 @@ describe('MessageComposer', () => {
       queryMock.mockResolvedValueOnce({ data: { server: { roles: [] } }, error: null });
       fetchLinkPreviewConnectMock.mockResolvedValueOnce({
         url,
+        previewToken: 'cht_LPpreviewtoken',
         title: 'Preview title',
         description: 'Preview description',
         imageUrl: null,
@@ -2079,11 +2080,7 @@ describe('MessageComposer', () => {
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       expect(mutationMock.mock.calls[0][1].input.linkPreview).toMatchObject({
-        url,
-        title: 'Preview title',
-        description: 'Preview description',
-        siteName: 'Preview site',
-        imageAssetId: 'asset_preview'
+        previewToken: 'cht_LPpreviewtoken'
       });
     });
 

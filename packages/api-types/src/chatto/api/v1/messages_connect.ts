@@ -3,8 +3,9 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { BatchGetMessagesRequest, BatchGetMessagesResponse, CreateMessageRequest, CreateMessageResponse, DeleteAttachmentRequest, DeleteAttachmentResponse, DeleteLinkPreviewRequest, DeleteLinkPreviewResponse, DeleteMessageRequest, DeleteMessageResponse, GetMessageRequest, GetMessageResponse, UpdateMessageRequest, UpdateMessageResponse } from "./messages_pb.js";
+import { FetchLinkPreviewRequest, FetchLinkPreviewResponse } from "./link_previews_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
+import { BatchGetMessagesRequest, BatchGetMessagesResponse, CreateMessageRequest, CreateMessageResponse, DeleteAttachmentRequest, DeleteAttachmentResponse, DeleteLinkPreviewRequest, DeleteLinkPreviewResponse, DeleteMessageRequest, DeleteMessageResponse, GetMessageRequest, GetMessageResponse, UpdateMessageRequest, UpdateMessageResponse } from "./messages_pb.js";
 import { AddReactionRequest, AddReactionResponse, RemoveReactionRequest, RemoveReactionResponse } from "./reactions_pb.js";
 
 /**
@@ -15,6 +16,19 @@ import { AddReactionRequest, AddReactionResponse, RemoveReactionRequest, RemoveR
 export const MessageService = {
   typeName: "chatto.api.v1.MessageService",
   methods: {
+    /**
+     * Fetches and caches metadata for a composer URL. Authentication is required
+     * to avoid exposing the preview fetcher as an unauthenticated network proxy.
+     * Successful responses include a short-lived token accepted by CreateMessage.
+     *
+     * @generated from rpc chatto.api.v1.MessageService.FetchLinkPreview
+     */
+    fetchLinkPreview: {
+      name: "FetchLinkPreview",
+      I: FetchLinkPreviewRequest,
+      O: FetchLinkPreviewResponse,
+      kind: MethodKind.Unary,
+    },
     /**
      * Creates a message for the current user. The user must be a room member and
      * must have message.post for room messages or message.post-in-thread for

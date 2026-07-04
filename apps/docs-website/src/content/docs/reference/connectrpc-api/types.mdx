@@ -248,18 +248,17 @@ Metadata for a completed attachment asset.
 
 Link preview metadata used by message composers and room timeline events.
 
-On message-post requests, the server accepts url, title, description,
-site_name, image_asset_id, embed_type, and embed_id. The image_url field is
-response-only and ignored on input. Clients should treat optional metadata as
-unavailable when absent.
+Clients should treat optional metadata as unavailable when absent. Message
+creation accepts only the preview_token returned by FetchLinkPreview, not
+client-provided metadata fields.
 
 | Field | Type | Description |
 | --- | --- | --- |
 | `url` | `string` | Previewed URL. |
 | `title` | `optional string` | Page or embed title. |
 | `description` | `optional string` | Page or embed description. |
-| `image_url` | `optional string` | Preview image URL, when available. Response-only; ignored on message-post input. |
-| `image_asset_id` | `optional string` | Existing server asset ID for the preview image, when selected by the client or stored with the message. |
+| `image_url` | `optional string` | Preview image URL, when available. |
+| `image_asset_id` | `optional string` | Existing server asset ID for the preview image, when cached or stored with the message. |
 | `site_name` | `optional string` | Site name, when known. |
 | `embed_type` | `optional string` | Embed provider or type, when recognized. |
 | `embed_id` | `optional string` | Provider-specific embed ID, when recognized. |
@@ -513,25 +512,6 @@ Large mention confirmation details for a message that was not posted.
 | --- | --- | --- |
 | `recipient_count` | `int32` | Number of people the message would notify. |
 | `token` | `string` | Short-lived token to send back with the same message after user approval. |
-
-<a id="chatto-api-v1-MessageLinkPreviewInput"></a>
-
-### MessageLinkPreviewInput
-
-Link preview metadata accepted when creating a message.
-
-This request-only shape intentionally excludes response-only fields such as
-generated image URLs.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `url` | `string` | Previewed URL. |
-| `title` | `optional string` | Page or embed title, when selected by the client. |
-| `description` | `optional string` | Page or embed description, when selected by the client. |
-| `image_asset_id` | `optional string` | Existing server asset ID for the preview image, when selected by the client. |
-| `site_name` | `optional string` | Site name, when known. |
-| `embed_type` | `optional string` | Embed provider or type, when recognized. |
-| `embed_id` | `optional string` | Provider-specific embed ID, when recognized. |
 
 <a id="chatto-api-v1-DirectMessageNotification"></a>
 

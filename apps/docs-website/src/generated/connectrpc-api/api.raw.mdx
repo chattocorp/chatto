@@ -838,45 +838,6 @@ Response after cancelling an upload.
 | `upload` | [`AssetUpload`](#chatto-api-v1-AssetUpload) | Updated upload session. |
 
 
-<a id="chatto-api-v1-LinkPreviewService"></a>
-
-## LinkPreviewService
-
-Fetches link preview metadata for message composers.
-
-<a id="chatto-api-v1-LinkPreviewService-FetchLinkPreview"></a>
-
-### FetchLinkPreview
-
-Fetches and caches metadata for a URL. Authentication is required to avoid
-exposing the preview fetcher as an unauthenticated network proxy.
-
-```http
-POST /api/connect/chatto.api.v1.LinkPreviewService/FetchLinkPreview
-```
-
-<a id="chatto-api-v1-FetchLinkPreviewRequest"></a>
-
-#### Input: FetchLinkPreviewRequest
-
-Request to fetch server-side link preview metadata for a URL.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `url` | `string` | URL to preview. |
-
-
-<a id="chatto-api-v1-FetchLinkPreviewResponse"></a>
-
-#### Result: FetchLinkPreviewResponse
-
-Result of fetching link preview metadata.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `preview` | [`LinkPreview`](#chatto-api-v1-LinkPreview) | Preview metadata, or absent when the URL cannot be previewed. |
-
-
 <a id="chatto-api-v1-AssetService"></a>
 
 ## AssetService
@@ -960,6 +921,41 @@ Response containing room-scoped assets.
 
 Creates messages in room and thread timelines.
 
+<a id="chatto-api-v1-MessageService-FetchLinkPreview"></a>
+
+### FetchLinkPreview
+
+Fetches and caches metadata for a composer URL. Authentication is required
+to avoid exposing the preview fetcher as an unauthenticated network proxy.
+Successful responses include a short-lived token accepted by CreateMessage.
+
+```http
+POST /api/connect/chatto.api.v1.MessageService/FetchLinkPreview
+```
+
+<a id="chatto-api-v1-FetchLinkPreviewRequest"></a>
+
+#### Input: FetchLinkPreviewRequest
+
+Request to fetch server-side link preview metadata for a URL.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `url` | `string` | URL to preview. |
+
+
+<a id="chatto-api-v1-FetchLinkPreviewResponse"></a>
+
+#### Result: FetchLinkPreviewResponse
+
+Result of fetching link preview metadata.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `preview` | [`LinkPreview`](#chatto-api-v1-LinkPreview) | Preview metadata, or absent when the URL cannot be previewed. |
+| `preview_token` | `string` | Short-lived opaque token to pass to CreateMessage.link_preview_token when the user posts this preview. |
+
+
 <a id="chatto-api-v1-MessageService-CreateMessage"></a>
 
 ### CreateMessage
@@ -988,7 +984,7 @@ Request to create a message in a room or thread.
 | `in_reply_to` | `string` | Event ID this message replies to for attribution. |
 | `also_send_to_channel` | `bool` | True to also echo a thread reply into the main room timeline. |
 | `mention_confirmation_token` | `string` | Short-lived token returned by a prior mention confirmation challenge. |
-| `link_preview` | [`MessageLinkPreviewInput`](#chatto-api-v1-MessageLinkPreviewInput) | Link preview selected by the client. |
+| `link_preview_token` | `string` | Short-lived token returned by FetchLinkPreview for the selected URL. The server resolves the token to cached, server-fetched metadata during post. |
 
 
 <a id="chatto-api-v1-CreateMessageResponse"></a>
@@ -3654,18 +3650,17 @@ Metadata for a completed attachment asset.
 
 Link preview metadata used by message composers and room timeline events.
 
-On message-post requests, the server accepts url, title, description,
-site_name, image_asset_id, embed_type, and embed_id. The image_url field is
-response-only and ignored on input. Clients should treat optional metadata as
-unavailable when absent.
+Clients should treat optional metadata as unavailable when absent. Message
+creation accepts only the preview_token returned by FetchLinkPreview, not
+client-provided metadata fields.
 
 | Field | Type | Description |
 | --- | --- | --- |
 | `url` | `string` | Previewed URL. |
 | `title` | `optional string` | Page or embed title. |
 | `description` | `optional string` | Page or embed description. |
-| `image_url` | `optional string` | Preview image URL, when available. Response-only; ignored on message-post input. |
-| `image_asset_id` | `optional string` | Existing server asset ID for the preview image, when selected by the client or stored with the message. |
+| `image_url` | `optional string` | Preview image URL, when available. |
+| `image_asset_id` | `optional string` | Existing server asset ID for the preview image, when cached or stored with the message. |
 | `site_name` | `optional string` | Site name, when known. |
 | `embed_type` | `optional string` | Embed provider or type, when recognized. |
 | `embed_id` | `optional string` | Provider-specific embed ID, when recognized. |
@@ -3951,27 +3946,6 @@ Large mention confirmation details for a message that was not posted.
 | --- | --- | --- |
 | `recipient_count` | `int32` | Number of people the message would notify. |
 | `token` | `string` | Short-lived token to send back with the same message after user approval. |
-
-
-
-<a id="chatto-api-v1-MessageLinkPreviewInput"></a>
-
-### MessageLinkPreviewInput
-
-Link preview metadata accepted when creating a message.
-
-This request-only shape intentionally excludes response-only fields such as
-generated image URLs.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `url` | `string` | Previewed URL. |
-| `title` | `optional string` | Page or embed title, when selected by the client. |
-| `description` | `optional string` | Page or embed description, when selected by the client. |
-| `image_asset_id` | `optional string` | Existing server asset ID for the preview image, when selected by the client. |
-| `site_name` | `optional string` | Site name, when known. |
-| `embed_type` | `optional string` | Embed provider or type, when recognized. |
-| `embed_id` | `optional string` | Provider-specific embed ID, when recognized. |
 
 
 

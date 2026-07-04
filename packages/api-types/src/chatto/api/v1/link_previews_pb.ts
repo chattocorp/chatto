@@ -50,10 +50,9 @@ export class FetchLinkPreviewRequest extends Message<FetchLinkPreviewRequest> {
 /**
  * Link preview metadata used by message composers and room timeline events.
  *
- * On message-post requests, the server accepts url, title, description,
- * site_name, image_asset_id, embed_type, and embed_id. The image_url field is
- * response-only and ignored on input. Clients should treat optional metadata as
- * unavailable when absent.
+ * Clients should treat optional metadata as unavailable when absent. Message
+ * creation accepts only the preview_token returned by FetchLinkPreview, not
+ * client-provided metadata fields.
  *
  * @generated from message chatto.api.v1.LinkPreview
  */
@@ -80,16 +79,15 @@ export class LinkPreview extends Message<LinkPreview> {
   description?: string;
 
   /**
-   * Preview image URL, when available. Response-only; ignored on message-post
-   * input.
+   * Preview image URL, when available.
    *
    * @generated from field: optional string image_url = 4;
    */
   imageUrl?: string;
 
   /**
-   * Existing server asset ID for the preview image, when selected by the client
-   * or stored with the message.
+   * Existing server asset ID for the preview image, when cached or stored with
+   * the message.
    *
    * @generated from field: optional string image_asset_id = 5;
    */
@@ -164,6 +162,14 @@ export class FetchLinkPreviewResponse extends Message<FetchLinkPreviewResponse> 
    */
   preview?: LinkPreview;
 
+  /**
+   * Short-lived opaque token to pass to CreateMessage.link_preview_token when
+   * the user posts this preview.
+   *
+   * @generated from field: string preview_token = 2;
+   */
+  previewToken = "";
+
   constructor(data?: PartialMessage<FetchLinkPreviewResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -173,6 +179,7 @@ export class FetchLinkPreviewResponse extends Message<FetchLinkPreviewResponse> 
   static readonly typeName = "chatto.api.v1.FetchLinkPreviewResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "preview", kind: "message", T: LinkPreview },
+    { no: 2, name: "preview_token", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): FetchLinkPreviewResponse {

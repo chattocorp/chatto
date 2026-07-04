@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/nats-io/nats.go/jetstream"
+	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
 func TestChattoCore_WorkflowTokensUseRuntimeState(t *testing.T) {
@@ -48,6 +49,15 @@ func TestChattoCore_WorkflowTokensUseRuntimeState(t *testing.T) {
 		t.Fatalf("CreateAccountDeletionToken: %v", err)
 	}
 	assertRuntimeTokenOnly(t, core, core.accountDeletionTokenKey(deletionToken), accountDeletionTokenKeyPrefix+deletionToken)
+
+	if err := core.linkPreviewCache.Set(ctx, "https://runtime-token.example/story", &corev1.LinkPreview{Url: "https://runtime-token.example/story", Title: "Runtime Preview"}); err != nil {
+		t.Fatalf("cache link preview: %v", err)
+	}
+	linkPreviewToken, err := core.CreateLinkPreviewToken(ctx, "https://runtime-token.example/story")
+	if err != nil {
+		t.Fatalf("CreateLinkPreviewToken: %v", err)
+	}
+	assertRuntimeTokenOnly(t, core, core.linkPreviewTokenKey(linkPreviewToken), linkPreviewTokenKeyPrefix+linkPreviewToken)
 }
 
 func assertRuntimeTokenOnly(t *testing.T, core *ChattoCore, key, rawKey string) {

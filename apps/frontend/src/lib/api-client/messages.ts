@@ -1,7 +1,6 @@
 import { authHeaders, createChattoClient, handleAuthError } from './connect.js';
 import type { LinkPreviewInput, RoomEventView } from './renderTypes.js';
 import { MessageService } from '@chatto/api-types/api/v1/messages_connect';
-import { MessageLinkPreviewInput } from '@chatto/api-types/api/v1/messages_pb';
 import { roomTimelineEventToRawEvent } from './roomTimeline.js';
 import { createAssetUploadAPI } from './assetUploads.js';
 
@@ -67,7 +66,7 @@ export function createMessageAPI(config: MessageAPIConfig) {
             inReplyTo: input.inReplyTo ?? '',
             alsoSendToChannel: input.alsoSendToChannel ?? false,
             mentionConfirmationToken: input.mentionConfirmationToken ?? '',
-            linkPreview: messageLinkPreviewInput(input.linkPreview)
+            linkPreviewToken: input.linkPreview?.previewToken ?? ''
           },
           { headers: headers() }
         );
@@ -185,17 +184,4 @@ async function uploadMessageAttachments(config: MessageAPIConfig, input: CreateM
     )
   );
   return assets.map((asset) => asset.assetId);
-}
-
-function messageLinkPreviewInput(input: LinkPreviewInput | null | undefined) {
-  if (!input) return undefined;
-  return new MessageLinkPreviewInput({
-    url: input.url,
-    title: input.title ?? undefined,
-    description: input.description ?? undefined,
-    siteName: input.siteName ?? undefined,
-    imageAssetId: input.imageAssetId ?? undefined,
-    embedType: input.embedType ?? undefined,
-    embedId: input.embedId ?? undefined
-  });
 }

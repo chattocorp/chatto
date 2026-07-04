@@ -3,32 +3,16 @@ syntax = "proto3";
 package chatto.api.v1;
 
 import "buf/validate/validate.proto";
+import "chatto/api/v1/link_previews.proto";
 import "chatto/api/v1/reactions.proto";
 import "chatto/api/v1/room_timeline.proto";
 
-// Link preview metadata accepted when creating a message.
-//
-// This request-only shape intentionally excludes response-only fields such as
-// generated image URLs.
-message MessageLinkPreviewInput {
-  // Previewed URL.
-  string url = 1 [(buf.validate.field).string.min_len = 1];
-  // Page or embed title, when selected by the client.
-  optional string title = 2;
-  // Page or embed description, when selected by the client.
-  optional string description = 3;
-  // Existing server asset ID for the preview image, when selected by the client.
-  optional string image_asset_id = 4;
-  // Site name, when known.
-  optional string site_name = 5;
-  // Embed provider or type, when recognized.
-  optional string embed_type = 6;
-  // Provider-specific embed ID, when recognized.
-  optional string embed_id = 7;
-}
-
 // Request to create a message in a room or thread.
 message CreateMessageRequest {
+  // Field 8 was `link_preview`, a client-provided metadata message used before
+  // CreateMessage accepted only server-issued link preview tokens.
+  reserved 8;
+  reserved "link_preview";
   // Field 9 was `attachments`, inline attachment bytes accepted before
   // AssetUploadService moved uploads into a dedicated chunked API.
   reserved 9;
@@ -48,8 +32,9 @@ message CreateMessageRequest {
   bool also_send_to_channel = 6;
   // Short-lived token returned by a prior mention confirmation challenge.
   string mention_confirmation_token = 7;
-  // Link preview selected by the client.
-  MessageLinkPreviewInput link_preview = 8;
+  // Short-lived token returned by FetchLinkPreview for the selected URL. The
+  // server resolves the token to cached, server-fetched metadata during post.
+  string link_preview_token = 10;
 }
 
 // Large mention confirmation details for a message that was not posted.
@@ -192,6 +177,10 @@ message BatchGetMessagesResponse {
 
 // Creates messages in room and thread timelines.
 service MessageService {
+  // Fetches and caches metadata for a composer URL. Authentication is required
+  // to avoid exposing the preview fetcher as an unauthenticated network proxy.
+  // Successful responses include a short-lived token accepted by CreateMessage.
+  rpc FetchLinkPreview(FetchLinkPreviewRequest) returns (FetchLinkPreviewResponse);
   // Creates a message for the current user. The user must be a room member and
   // must have message.post for room messages or message.post-in-thread for
   // thread replies. Echoing a thread reply also requires message.echo and

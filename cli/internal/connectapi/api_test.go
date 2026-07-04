@@ -72,7 +72,6 @@ func TestAPIHandlers(t *testing.T) {
 		"/" + adminv1connect.AdminUserServiceName + "/",
 		"/" + grpcreflect.ReflectV1AlphaServiceName + "/",
 		"/" + grpcreflect.ReflectV1ServiceName + "/",
-		"/" + apiv1connect.LinkPreviewServiceName + "/",
 		"/" + apiv1connect.MessageServiceName + "/",
 		"/" + apiv1connect.NotificationServiceName + "/",
 		"/" + apiv1connect.NotificationPreferencesServiceName + "/",
@@ -116,7 +115,6 @@ func TestAPIHandlerAuthPolicies(t *testing.T) {
 		"/" + adminv1connect.AdminUserServiceName + "/":             AuthPolicyAuthenticatedUser,
 		"/" + grpcreflect.ReflectV1AlphaServiceName + "/":           AuthPolicyPublic,
 		"/" + grpcreflect.ReflectV1ServiceName + "/":                AuthPolicyPublic,
-		"/" + apiv1connect.LinkPreviewServiceName + "/":             AuthPolicyAuthenticatedUser,
 		"/" + apiv1connect.MessageServiceName + "/":                 AuthPolicyAuthenticatedUser,
 		"/" + apiv1connect.NotificationServiceName + "/":            AuthPolicyAuthenticatedUser,
 		"/" + apiv1connect.NotificationPreferencesServiceName + "/": AuthPolicyAuthenticatedUser,
@@ -4493,10 +4491,10 @@ func TestMyAccountServiceUpdatePresence(t *testing.T) {
 	}
 }
 
-func TestLinkPreviewServiceFetchLinkPreviewRequiresAuthAndMapsPreview(t *testing.T) {
+func TestMessageServiceFetchLinkPreviewRequiresAuthMapsPreviewAndPostsToken(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 
-	if _, err := env.linkPreviews.FetchLinkPreview(env.ctx, connect.NewRequest(&apiv1.FetchLinkPreviewRequest{Url: "https://example.test"})); connect.CodeOf(err) != connect.CodeUnauthenticated {
+	if _, err := env.messages.FetchLinkPreview(env.ctx, connect.NewRequest(&apiv1.FetchLinkPreviewRequest{Url: "https://example.test"})); connect.CodeOf(err) != connect.CodeUnauthenticated {
 		t.Fatalf("unauthenticated FetchLinkPreview code = %v, want %v", connect.CodeOf(err), connect.CodeUnauthenticated)
 	}
 
@@ -4528,7 +4526,7 @@ func TestLinkPreviewServiceFetchLinkPreviewRequiresAuthAndMapsPreview(t *testing
 	defer server.Close()
 	serverURL = server.URL
 
-	resp, err := env.linkPreviews.FetchLinkPreview(
+	resp, err := env.messages.FetchLinkPreview(
 		withCaller(env.ctx, env.viewer),
 		connect.NewRequest(&apiv1.FetchLinkPreviewRequest{Url: server.URL + "/article"}),
 	)
@@ -4550,6 +4548,31 @@ func TestLinkPreviewServiceFetchLinkPreviewRequiresAuthAndMapsPreview(t *testing
 	}
 	if !strings.Contains(preview.GetImageUrl(), preview.GetImageAssetId()) {
 		t.Fatalf("ImageUrl %q does not contain asset id %q", preview.GetImageUrl(), preview.GetImageAssetId())
+	}
+	if resp.Msg.GetPreviewToken() == "" {
+		t.Fatalf("PreviewToken is empty")
+	}
+
+	room := env.createJoinedRoom("message-preview-token")
+	createResp, err := env.messages.CreateMessage(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.CreateMessageRequest{
+		RoomId:           room.Id,
+		Body:             "message with preview",
+		LinkPreviewToken: resp.Msg.GetPreviewToken(),
+	}))
+	if err != nil {
+		t.Fatalf("CreateMessage with preview token: %v", err)
+	}
+	event := createResp.Msg.GetEvent()
+	if event == nil {
+		t.Fatalf("CreateMessage event = nil")
+	}
+	body, err := env.core.GetFullMessageBody(env.ctx, core.KindChannel, event.GetId())
+	if err != nil {
+		t.Fatalf("GetFullMessageBody: %v", err)
+	}
+	stored := body.LinkPreview
+	if stored == nil || stored.GetTitle() != "Connect Preview" || stored.GetDescription() != "Connect preview description" || stored.GetImageAssetId() == "" {
+		t.Fatalf("stored link preview = %+v", stored)
 	}
 }
 
@@ -4887,13 +4910,11 @@ func TestMessageServiceCreateMessageValidatesInput(t *testing.T) {
 			code: connect.CodeInvalidArgument,
 		},
 		{
-			name: "link preview URL too long",
+			name: "invalid link preview token",
 			req: &apiv1.CreateMessageRequest{
-				RoomId: room.Id,
-				Body:   "hello",
-				LinkPreview: &apiv1.MessageLinkPreviewInput{
-					Url: strings.Repeat("x", core.MaxLinkPreviewURLLength+1),
-				},
+				RoomId:           room.Id,
+				Body:             "hello",
+				LinkPreviewToken: "not-a-token",
 			},
 			code: connect.CodeInvalidArgument,
 		},
@@ -5114,13 +5135,12 @@ func TestMessageServiceCreateMessageValidationPreflightDoesNotCreateAssets(t *te
 			code: connect.CodeInvalidArgument,
 		},
 		{
-			name: "link preview URL too long",
+			name: "invalid link preview token",
 			req: &apiv1.CreateMessageRequest{
-				RoomId: room.Id,
-				Body:   "message with bad preview and file",
-				LinkPreview: &apiv1.MessageLinkPreviewInput{
-					Url: strings.Repeat("x", core.MaxLinkPreviewURLLength+1),
-				},
+				RoomId:             room.Id,
+				Body:               "message with bad preview and file",
+				AttachmentAssetIds: []string{"missing"},
+				LinkPreviewToken:   "not-a-token",
 			},
 			code: connect.CodeInvalidArgument,
 		},
@@ -6863,7 +6883,6 @@ type connectAPITestEnv struct {
 	assetUploads     *assetUploadService
 	directory        *roomDirectoryService
 	externalAuth     *externalIdentityAuthService
-	linkPreviews     *linkPreviewService
 	messages         *messageService
 	notifications    *notificationService
 	permissions      *permissionService
@@ -6916,7 +6935,6 @@ func newConnectAPITestEnv(t *testing.T) *connectAPITestEnv {
 		assetUploads:     &assetUploadService{api: api},
 		directory:        &roomDirectoryService{api: api},
 		externalAuth:     &externalIdentityAuthService{api: api},
-		linkPreviews:     &linkPreviewService{api: api},
 		messages:         &messageService{api: api},
 		notifications:    &notificationService{api: api},
 		permissions:      &permissionService{api: api},

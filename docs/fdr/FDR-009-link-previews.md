@@ -1,7 +1,7 @@
 # FDR-009: Link Previews
 
 **Status:** Active
-**Last reviewed:** 2026-06-15
+**Last reviewed:** 2026-07-04
 
 ## Overview
 
@@ -14,8 +14,9 @@ When a message contains a URL, Chatto can attach a preview card with the page's 
 - URLs inside code spans, code blocks, pre-formatted text, and blockquotes do not trigger link previews.
 - YouTube URLs get a specialized embed-ready card without scraping the page.
 - A preview shows up in the composer with a dismiss button. Dismissing the preview prevents it from being attached to the sent message, and the dismissal is remembered for that URL during the composition session.
-- When the message is sent, the preview data ships with it and is stored as part of the message body.
-- Client-provided preview metadata is size-limited before storage: URL 2,048 bytes, title 300 bytes, description 1,000 bytes, image asset ID 15 bytes, site name 200 bytes, embed type 64 bytes, and embed ID 256 bytes.
+- When the server returns a preview to the composer, it also returns a short-lived opaque preview token.
+- When the message is sent, the client sends only the preview token. The server resolves the token to cached, server-fetched metadata and stores that metadata as part of the message body.
+- Stored preview metadata is size-limited before storage: URL 2,048 bytes, title 300 bytes, description 1,000 bytes, image asset ID 15 bytes, site name 200 bytes, embed type 64 bytes, and embed ID 256 bytes.
 - After posting, the message author can delete the preview from the message without deleting the message.
 
 ## Design Decisions
@@ -50,11 +51,17 @@ When a message contains a URL, Chatto can attach a preview card with the page's 
 **Why:** Hot-linking preview images from third-party sites means broken previews when those sites change URLs, plus a privacy leak (the third party sees each preview fetch). Storing locally fixes both.
 **Tradeoff:** Per-server storage cost. Acceptable given the small fixed size cap and the fact that posted message previews should not lose images just because a cache expired.
 
-### 6. Stored preview metadata is bounded
+### 6. Message posting uses server-issued preview tokens
+
+**Decision:** `MessageService.FetchLinkPreview` returns display metadata plus a short-lived opaque token. `MessageService.CreateMessage` accepts only that token for link previews and never accepts client-provided title, description, image asset ID, site name, or embed metadata.
+**Why:** The composer still needs preview metadata to let the author accept or dismiss the card, but trusting the same client to send final metadata would allow spoofed titles, descriptions, and image asset references.
+**Tradeoff:** Posting a preview depends on the cached server preview and token still being valid. If either expires, the client must fetch the preview again before sending it.
+
+### 7. Stored preview metadata is bounded
 
 **Decision:** Preview metadata attached to a sent message is accepted only within generous per-field size limits.
-**Why:** Preview data is client-provided at send time and stored with the message body. Bounding it keeps a single message from carrying arbitrarily large URL metadata.
-**Tradeoff:** A page with unusually large metadata requires the client to trim or omit the preview before sending.
+**Why:** Even though metadata is server-fetched, it is persisted with the message body. Bounding it keeps a single message from carrying arbitrarily large URL metadata.
+**Tradeoff:** A page with unusually large metadata requires the server fetch/cache layer to trim or omit the preview before sending.
 
 ## Permissions
 

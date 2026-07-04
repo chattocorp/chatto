@@ -51,16 +51,10 @@ const categories = [
         description: 'Chunked room-scoped attachment upload RPCs.'
       },
       {
-        name: 'LinkPreviewService',
-        slug: 'link-previews',
-        title: 'Link Previews',
-        description: 'Link preview fetch RPCs.'
-      },
-      {
         name: 'MessageService',
         slug: 'messages',
         title: 'Messages',
-        description: 'Message creation, editing, deletion, permalink, reaction, link-preview, and attachment RPCs.'
+        description: 'Message creation, editing, deletion, composer link-preview, reaction, and attachment RPCs.'
       },
       {
         name: 'MyAccountService',

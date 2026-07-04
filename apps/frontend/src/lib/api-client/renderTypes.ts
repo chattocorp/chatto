@@ -59,14 +59,7 @@ export type AssetURL = {
 };
 
 export type LinkPreviewInput = {
-  url: string;
-  title?: string | null;
-  description?: string | null;
-  imageUrl?: string | null;
-  imageAssetId?: string | null;
-  siteName?: string | null;
-  embedType?: string | null;
-  embedId?: string | null;
+  previewToken: string;
 };
 
 export type LinkPreviewView = {

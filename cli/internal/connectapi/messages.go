@@ -20,6 +20,11 @@ func (s *messageService) CreateMessage(ctx context.Context, req *connect.Request
 		return nil, err
 	}
 
+	linkPreview, err := s.api.core.ResolveLinkPreviewToken(ctx, req.Msg.GetLinkPreviewToken())
+	if err != nil {
+		return nil, connectError(err)
+	}
+
 	result, err := s.api.core.Messages().PostMessage(ctx, core.MessagePostInput{
 		ActorID:                  caller.UserID,
 		RoomID:                   req.Msg.RoomId,
@@ -29,7 +34,7 @@ func (s *messageService) CreateMessage(ctx context.Context, req *connect.Request
 		InReplyTo:                req.Msg.InReplyTo,
 		AlsoSendToChannel:        req.Msg.AlsoSendToChannel,
 		MentionConfirmationToken: req.Msg.MentionConfirmationToken,
-		LinkPreview:              apiMessageLinkPreviewToCore(req.Msg.LinkPreview),
+		LinkPreview:              linkPreview,
 	})
 	if err != nil {
 		return nil, connectError(err)
@@ -166,24 +171,4 @@ func (s *messageService) hydratePostedEvent(ctx context.Context, viewerID string
 		return nil, nil, err
 	}
 	return apiEvent, &apiv1.RoomTimelineIncludes{Users: users}, nil
-}
-
-func apiMessageLinkPreviewToCore(input *apiv1.MessageLinkPreviewInput) *corev1.LinkPreview {
-	if input == nil {
-		return nil
-	}
-	preview := &corev1.LinkPreview{
-		Url:         input.GetUrl(),
-		Title:       input.GetTitle(),
-		Description: input.GetDescription(),
-		SiteName:    input.GetSiteName(),
-		EmbedType:   input.GetEmbedType(),
-	}
-	if imageAssetID := input.GetImageAssetId(); imageAssetID != "" {
-		preview.ImageAssetId = &imageAssetID
-	}
-	if embedID := input.GetEmbedId(); embedID != "" {
-		preview.EmbedId = &embedID
-	}
-	return preview
 }

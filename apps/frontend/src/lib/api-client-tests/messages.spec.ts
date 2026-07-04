@@ -131,13 +131,7 @@ describe('createMessageAPI', () => {
       alsoSendToChannel: true,
       mentionConfirmationToken: 'confirm-token',
       linkPreview: {
-        url: 'https://example.test',
-        title: 'Example',
-        description: null,
-        siteName: 'Example Site',
-        imageAssetId: 'asset-1',
-        embedType: null,
-        embedId: null
+        previewToken: 'cht_LPpreviewtoken'
       }
     });
 
@@ -153,10 +147,7 @@ describe('createMessageAPI', () => {
         inReplyTo: 'reply-1',
         alsoSendToChannel: true,
         mentionConfirmationToken: 'confirm-token',
-        linkPreview: expect.objectContaining({
-          url: 'https://example.test',
-          imageAssetId: 'asset-1'
-        })
+        linkPreviewToken: 'cht_LPpreviewtoken'
       }),
       {
         headers: { Authorization: 'Bearer remote-token' }

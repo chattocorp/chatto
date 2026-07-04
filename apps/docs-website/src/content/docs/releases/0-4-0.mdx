@@ -134,6 +134,11 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
 - Message permalink resolution was folded into `MessageService.GetMessage`: replace
   `MessageService.ResolveMessageLinkTarget` with `GetMessage` and use the returned
   message's `thread_root_event_id` to decide whether to open a thread.
+- Link preview fetching was folded into `MessageService`: replace
+  `LinkPreviewService.FetchLinkPreview` with `MessageService.FetchLinkPreview`.
+  `CreateMessageRequest.link_preview` was replaced by `link_preview_token`; clients
+  should pass the `preview_token` returned by `FetchLinkPreview` instead of sending
+  preview metadata.
 - Root-grade account lifecycle automation has moved to the local operator socket and
   `chatto operator user ...` commands. Enable `[operator_api]` for those workflows and
   update automation that used the earlier public admin lifecycle RPCs.

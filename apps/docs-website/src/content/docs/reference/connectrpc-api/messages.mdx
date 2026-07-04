@@ -1,6 +1,6 @@
 ---
 title: MessageService
-description: Message creation, editing, deletion, permalink, reaction, link-preview, and attachment RPCs.
+description: Message creation, editing, deletion, composer link-preview, reaction, and attachment RPCs.
 editUrl: false
 ---
 
@@ -19,6 +19,41 @@ Shared message and enum definitions are documented in [Shared Types And Enums](/
 ## MessageService
 
 Creates messages in room and thread timelines.
+
+<a id="chatto-api-v1-MessageService-FetchLinkPreview"></a>
+
+### FetchLinkPreview
+
+Fetches and caches metadata for a composer URL. Authentication is required
+to avoid exposing the preview fetcher as an unauthenticated network proxy.
+Successful responses include a short-lived token accepted by CreateMessage.
+
+```http
+POST /api/connect/chatto.api.v1.MessageService/FetchLinkPreview
+```
+
+<a id="chatto-api-v1-FetchLinkPreviewRequest"></a>
+
+#### Input: FetchLinkPreviewRequest
+
+Request to fetch server-side link preview metadata for a URL.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `url` | `string` | URL to preview. |
+
+
+<a id="chatto-api-v1-FetchLinkPreviewResponse"></a>
+
+#### Result: FetchLinkPreviewResponse
+
+Result of fetching link preview metadata.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `preview` | [`LinkPreview`](/reference/connectrpc-api/types/#chatto-api-v1-LinkPreview) | Preview metadata, or absent when the URL cannot be previewed. |
+| `preview_token` | `string` | Short-lived opaque token to pass to CreateMessage.link_preview_token when the user posts this preview. |
+
 
 <a id="chatto-api-v1-MessageService-CreateMessage"></a>
 
@@ -48,7 +83,7 @@ Request to create a message in a room or thread.
 | `in_reply_to` | `string` | Event ID this message replies to for attribution. |
 | `also_send_to_channel` | `bool` | True to also echo a thread reply into the main room timeline. |
 | `mention_confirmation_token` | `string` | Short-lived token returned by a prior mention confirmation challenge. |
-| `link_preview` | [`MessageLinkPreviewInput`](/reference/connectrpc-api/types/#chatto-api-v1-MessageLinkPreviewInput) | Link preview selected by the client. |
+| `link_preview_token` | `string` | Short-lived token returned by FetchLinkPreview for the selected URL. The server resolves the token to cached, server-fetched metadata during post. |
 
 
 <a id="chatto-api-v1-CreateMessageResponse"></a>

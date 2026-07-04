@@ -33,6 +33,9 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
+	// MessageServiceFetchLinkPreviewProcedure is the fully-qualified name of the MessageService's
+	// FetchLinkPreview RPC.
+	MessageServiceFetchLinkPreviewProcedure = "/chatto.api.v1.MessageService/FetchLinkPreview"
 	// MessageServiceCreateMessageProcedure is the fully-qualified name of the MessageService's
 	// CreateMessage RPC.
 	MessageServiceCreateMessageProcedure = "/chatto.api.v1.MessageService/CreateMessage"
@@ -64,6 +67,10 @@ const (
 
 // MessageServiceClient is a client for the chatto.api.v1.MessageService service.
 type MessageServiceClient interface {
+	// Fetches and caches metadata for a composer URL. Authentication is required
+	// to avoid exposing the preview fetcher as an unauthenticated network proxy.
+	// Successful responses include a short-lived token accepted by CreateMessage.
+	FetchLinkPreview(context.Context, *connect.Request[v1.FetchLinkPreviewRequest]) (*connect.Response[v1.FetchLinkPreviewResponse], error)
 	// Creates a message for the current user. The user must be a room member and
 	// must have message.post for room messages or message.post-in-thread for
 	// thread replies. Echoing a thread reply also requires message.echo and
@@ -109,6 +116,12 @@ func NewMessageServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 	baseURL = strings.TrimRight(baseURL, "/")
 	messageServiceMethods := v1.File_chatto_api_v1_messages_proto.Services().ByName("MessageService").Methods()
 	return &messageServiceClient{
+		fetchLinkPreview: connect.NewClient[v1.FetchLinkPreviewRequest, v1.FetchLinkPreviewResponse](
+			httpClient,
+			baseURL+MessageServiceFetchLinkPreviewProcedure,
+			connect.WithSchema(messageServiceMethods.ByName("FetchLinkPreview")),
+			connect.WithClientOptions(opts...),
+		),
 		createMessage: connect.NewClient[v1.CreateMessageRequest, v1.CreateMessageResponse](
 			httpClient,
 			baseURL+MessageServiceCreateMessageProcedure,
@@ -168,6 +181,7 @@ func NewMessageServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 
 // messageServiceClient implements MessageServiceClient.
 type messageServiceClient struct {
+	fetchLinkPreview  *connect.Client[v1.FetchLinkPreviewRequest, v1.FetchLinkPreviewResponse]
 	createMessage     *connect.Client[v1.CreateMessageRequest, v1.CreateMessageResponse]
 	updateMessage     *connect.Client[v1.UpdateMessageRequest, v1.UpdateMessageResponse]
 	deleteMessage     *connect.Client[v1.DeleteMessageRequest, v1.DeleteMessageResponse]
@@ -177,6 +191,11 @@ type messageServiceClient struct {
 	batchGetMessages  *connect.Client[v1.BatchGetMessagesRequest, v1.BatchGetMessagesResponse]
 	addReaction       *connect.Client[v1.AddReactionRequest, v1.AddReactionResponse]
 	removeReaction    *connect.Client[v1.RemoveReactionRequest, v1.RemoveReactionResponse]
+}
+
+// FetchLinkPreview calls chatto.api.v1.MessageService.FetchLinkPreview.
+func (c *messageServiceClient) FetchLinkPreview(ctx context.Context, req *connect.Request[v1.FetchLinkPreviewRequest]) (*connect.Response[v1.FetchLinkPreviewResponse], error) {
+	return c.fetchLinkPreview.CallUnary(ctx, req)
 }
 
 // CreateMessage calls chatto.api.v1.MessageService.CreateMessage.
@@ -226,6 +245,10 @@ func (c *messageServiceClient) RemoveReaction(ctx context.Context, req *connect.
 
 // MessageServiceHandler is an implementation of the chatto.api.v1.MessageService service.
 type MessageServiceHandler interface {
+	// Fetches and caches metadata for a composer URL. Authentication is required
+	// to avoid exposing the preview fetcher as an unauthenticated network proxy.
+	// Successful responses include a short-lived token accepted by CreateMessage.
+	FetchLinkPreview(context.Context, *connect.Request[v1.FetchLinkPreviewRequest]) (*connect.Response[v1.FetchLinkPreviewResponse], error)
 	// Creates a message for the current user. The user must be a room member and
 	// must have message.post for room messages or message.post-in-thread for
 	// thread replies. Echoing a thread reply also requires message.echo and
@@ -267,6 +290,12 @@ type MessageServiceHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewMessageServiceHandler(svc MessageServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	messageServiceMethods := v1.File_chatto_api_v1_messages_proto.Services().ByName("MessageService").Methods()
+	messageServiceFetchLinkPreviewHandler := connect.NewUnaryHandler(
+		MessageServiceFetchLinkPreviewProcedure,
+		svc.FetchLinkPreview,
+		connect.WithSchema(messageServiceMethods.ByName("FetchLinkPreview")),
+		connect.WithHandlerOptions(opts...),
+	)
 	messageServiceCreateMessageHandler := connect.NewUnaryHandler(
 		MessageServiceCreateMessageProcedure,
 		svc.CreateMessage,
@@ -323,6 +352,8 @@ func NewMessageServiceHandler(svc MessageServiceHandler, opts ...connect.Handler
 	)
 	return "/chatto.api.v1.MessageService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
+		case MessageServiceFetchLinkPreviewProcedure:
+			messageServiceFetchLinkPreviewHandler.ServeHTTP(w, r)
 		case MessageServiceCreateMessageProcedure:
 			messageServiceCreateMessageHandler.ServeHTTP(w, r)
 		case MessageServiceUpdateMessageProcedure:
@@ -349,6 +380,10 @@ func NewMessageServiceHandler(svc MessageServiceHandler, opts ...connect.Handler
 
 // UnimplementedMessageServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedMessageServiceHandler struct{}
+
+func (UnimplementedMessageServiceHandler) FetchLinkPreview(context.Context, *connect.Request[v1.FetchLinkPreviewRequest]) (*connect.Response[v1.FetchLinkPreviewResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.MessageService.FetchLinkPreview is not implemented"))
+}
 
 func (UnimplementedMessageServiceHandler) CreateMessage(context.Context, *connect.Request[v1.CreateMessageRequest]) (*connect.Response[v1.CreateMessageResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.MessageService.CreateMessage is not implemented"))

@@ -8,11 +8,7 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-type linkPreviewService struct {
-	api *API
-}
-
-func (s *linkPreviewService) FetchLinkPreview(ctx context.Context, req *connect.Request[apiv1.FetchLinkPreviewRequest]) (*connect.Response[apiv1.FetchLinkPreviewResponse], error) {
+func (s *messageService) FetchLinkPreview(ctx context.Context, req *connect.Request[apiv1.FetchLinkPreviewRequest]) (*connect.Response[apiv1.FetchLinkPreviewResponse], error) {
 	if _, err := requireCaller(ctx); err != nil {
 		return nil, err
 	}
@@ -24,9 +20,18 @@ func (s *linkPreviewService) FetchLinkPreview(ctx context.Context, req *connect.
 	if preview == nil {
 		return connect.NewResponse(&apiv1.FetchLinkPreviewResponse{}), nil
 	}
+	tokenURL := preview.GetUrl()
+	if tokenURL == "" {
+		tokenURL = req.Msg.Url
+	}
+	token, err := s.api.core.CreateLinkPreviewToken(ctx, tokenURL)
+	if err != nil {
+		return nil, connectError(err)
+	}
 
 	return connect.NewResponse(&apiv1.FetchLinkPreviewResponse{
-		Preview: apiLinkPreview(s.api, preview),
+		Preview:      apiLinkPreview(s.api, preview),
+		PreviewToken: token,
 	}), nil
 }
 

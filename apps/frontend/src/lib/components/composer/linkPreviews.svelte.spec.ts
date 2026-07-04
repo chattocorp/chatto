@@ -54,6 +54,7 @@ describe('LinkPreviewState', () => {
     const url = 'https://example.com/story';
     const fetchLinkPreview = vi.fn<FetchLinkPreview>().mockResolvedValue({
       url,
+      previewToken: 'cht_LPpreviewtoken',
       title: 'Preview title',
       description: 'Preview description',
       imageUrl: null,
@@ -70,11 +71,7 @@ describe('LinkPreviewState', () => {
     cleanup();
 
     expect(state.buildInput()).toMatchObject({
-      url,
-      title: 'Preview title',
-      description: 'Preview description',
-      siteName: 'Preview site',
-      imageAssetId: 'asset_preview'
+      previewToken: 'cht_LPpreviewtoken'
     });
   });
 

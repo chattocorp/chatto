@@ -70,10 +70,9 @@ func (x *FetchLinkPreviewRequest) GetUrl() string {
 
 // Link preview metadata used by message composers and room timeline events.
 //
-// On message-post requests, the server accepts url, title, description,
-// site_name, image_asset_id, embed_type, and embed_id. The image_url field is
-// response-only and ignored on input. Clients should treat optional metadata as
-// unavailable when absent.
+// Clients should treat optional metadata as unavailable when absent. Message
+// creation accepts only the preview_token returned by FetchLinkPreview, not
+// client-provided metadata fields.
 type LinkPreview struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Previewed URL.
@@ -82,11 +81,10 @@ type LinkPreview struct {
 	Title *string `protobuf:"bytes,2,opt,name=title,proto3,oneof" json:"title,omitempty"`
 	// Page or embed description.
 	Description *string `protobuf:"bytes,3,opt,name=description,proto3,oneof" json:"description,omitempty"`
-	// Preview image URL, when available. Response-only; ignored on message-post
-	// input.
+	// Preview image URL, when available.
 	ImageUrl *string `protobuf:"bytes,4,opt,name=image_url,json=imageUrl,proto3,oneof" json:"image_url,omitempty"`
-	// Existing server asset ID for the preview image, when selected by the client
-	// or stored with the message.
+	// Existing server asset ID for the preview image, when cached or stored with
+	// the message.
 	ImageAssetId *string `protobuf:"bytes,5,opt,name=image_asset_id,json=imageAssetId,proto3,oneof" json:"image_asset_id,omitempty"`
 	// Site name, when known.
 	SiteName *string `protobuf:"bytes,6,opt,name=site_name,json=siteName,proto3,oneof" json:"site_name,omitempty"`
@@ -188,7 +186,10 @@ func (x *LinkPreview) GetEmbedId() string {
 type FetchLinkPreviewResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Preview metadata, or absent when the URL cannot be previewed.
-	Preview       *LinkPreview `protobuf:"bytes,1,opt,name=preview,proto3" json:"preview,omitempty"`
+	Preview *LinkPreview `protobuf:"bytes,1,opt,name=preview,proto3" json:"preview,omitempty"`
+	// Short-lived opaque token to pass to CreateMessage.link_preview_token when
+	// the user posts this preview.
+	PreviewToken  string `protobuf:"bytes,2,opt,name=preview_token,json=previewToken,proto3" json:"preview_token,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -230,6 +231,13 @@ func (x *FetchLinkPreviewResponse) GetPreview() *LinkPreview {
 	return nil
 }
 
+func (x *FetchLinkPreviewResponse) GetPreviewToken() string {
+	if x != nil {
+		return x.PreviewToken
+	}
+	return ""
+}
+
 var File_chatto_api_v1_link_previews_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_link_previews_proto_rawDesc = "" +
@@ -256,11 +264,10 @@ const file_chatto_api_v1_link_previews_proto_rawDesc = "" +
 	"\n" +
 	"_site_nameB\r\n" +
 	"\v_embed_typeB\v\n" +
-	"\t_embed_id\"P\n" +
+	"\t_embed_id\"u\n" +
 	"\x18FetchLinkPreviewResponse\x124\n" +
-	"\apreview\x18\x01 \x01(\v2\x1a.chatto.api.v1.LinkPreviewR\apreview2y\n" +
-	"\x12LinkPreviewService\x12c\n" +
-	"\x10FetchLinkPreview\x12&.chatto.api.v1.FetchLinkPreviewRequest\x1a'.chatto.api.v1.FetchLinkPreviewResponseB\xad\x01\n" +
+	"\apreview\x18\x01 \x01(\v2\x1a.chatto.api.v1.LinkPreviewR\apreview\x12#\n" +
+	"\rpreview_token\x18\x02 \x01(\tR\fpreviewTokenB\xad\x01\n" +
 	"\x11com.chatto.api.v1B\x11LinkPreviewsProtoP\x01Z/hmans.de/chatto/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
 
 var (
@@ -283,10 +290,8 @@ var file_chatto_api_v1_link_previews_proto_goTypes = []any{
 }
 var file_chatto_api_v1_link_previews_proto_depIdxs = []int32{
 	1, // 0: chatto.api.v1.FetchLinkPreviewResponse.preview:type_name -> chatto.api.v1.LinkPreview
-	0, // 1: chatto.api.v1.LinkPreviewService.FetchLinkPreview:input_type -> chatto.api.v1.FetchLinkPreviewRequest
-	2, // 2: chatto.api.v1.LinkPreviewService.FetchLinkPreview:output_type -> chatto.api.v1.FetchLinkPreviewResponse
-	2, // [2:3] is the sub-list for method output_type
-	1, // [1:2] is the sub-list for method input_type
+	1, // [1:1] is the sub-list for method output_type
+	1, // [1:1] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name
 	1, // [1:1] is the sub-list for extension extendee
 	0, // [0:1] is the sub-list for field type_name
@@ -306,7 +311,7 @@ func file_chatto_api_v1_link_previews_proto_init() {
 			NumEnums:      0,
 			NumMessages:   3,
 			NumExtensions: 0,
-			NumServices:   1,
+			NumServices:   0,
 		},
 		GoTypes:           file_chatto_api_v1_link_previews_proto_goTypes,
 		DependencyIndexes: file_chatto_api_v1_link_previews_proto_depIdxs,

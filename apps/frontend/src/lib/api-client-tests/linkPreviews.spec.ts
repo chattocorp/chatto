@@ -48,7 +48,8 @@ describe('createLinkPreviewAPI', () => {
           imageAssetId: 'asset_preview',
           siteName: 'Example',
           embedType: 'generic'
-        })
+        }),
+        previewToken: 'cht_LPpreviewtoken'
       })
     );
 
@@ -60,6 +61,7 @@ describe('createLinkPreviewAPI', () => {
 
     await expect(api.fetchLinkPreview('https://example.com/story')).resolves.toMatchObject({
       url: 'https://example.com/story',
+      previewToken: 'cht_LPpreviewtoken',
       title: 'Story',
       description: 'Description',
       imageUrl: '/assets/preview.webp',
