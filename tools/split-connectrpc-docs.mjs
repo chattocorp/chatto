@@ -5,7 +5,6 @@ import { fileURLToPath } from 'node:url';
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(scriptDir, '..');
 const rawReferencePaths = [
-  path.join(repoRoot, 'apps/docs-website/src/generated/connectrpc-api/auth.raw.mdx'),
   path.join(repoRoot, 'apps/docs-website/src/generated/connectrpc-api/discovery.raw.mdx'),
   path.join(repoRoot, 'apps/docs-website/src/generated/connectrpc-api/api.raw.mdx'),
   path.join(repoRoot, 'apps/docs-website/src/generated/connectrpc-api/admin.raw.mdx'),
@@ -15,23 +14,16 @@ const legacyRawReferencePath = path.join(
   repoRoot,
   'apps/docs-website/src/generated/connectrpc-api/index.raw.mdx'
 );
+const staleRawReferencePaths = [
+  legacyRawReferencePath,
+  path.join(repoRoot, 'apps/docs-website/src/generated/connectrpc-api/auth.raw.mdx')
+];
 const outputDir = path.join(
   repoRoot,
   'apps/docs-website/src/content/docs/reference/connectrpc-api'
 );
 
 const categories = [
-  {
-    title: 'chatto.auth.v1',
-    services: [
-      {
-        name: 'ExternalIdentityAuthService',
-        slug: 'external-identity-auth',
-        title: 'External Identity Auth',
-        description: 'Capability-token external identity authentication RPCs.'
-      }
-    ]
-  },
   {
     title: 'chatto.discovery.v1',
     services: [
@@ -194,7 +186,7 @@ function frontmatter(title, description) {
 }
 
 function generatedNotice() {
-  return '{/* Generated from proto/chatto/{auth,discovery,api,admin,realtime}/v1/*.proto. Do not edit directly. */}\n\n';
+  return '{/* Generated from proto/chatto/{discovery,api,admin,realtime}/v1/*.proto. Do not edit directly. */}\n\n';
 }
 
 function parseAnchoredSections(source, heading) {
@@ -215,11 +207,11 @@ function parseAnchoredSections(source, heading) {
 function rewriteServiceTypeLinks(section) {
   return section
     .replace(
-      /\]\(#(chatto-(?:auth|discovery|api|admin)-v1-[^)]+)\)/g,
+      /\]\(#(chatto-(?:discovery|api|admin)-v1-[^)]+)\)/g,
       '](/reference/connectrpc-api/types/#$1)'
     )
     .replace(
-      /`chatto\.(auth|discovery|api|admin)\.v1\.([A-Za-z][A-Za-z0-9_]*)`/g,
+      /`chatto\.(discovery|api|admin)\.v1\.([A-Za-z][A-Za-z0-9_]*)`/g,
       (_match, pkg, typeName) =>
         `[\`chatto.${pkg}.v1.${typeName}\`](/reference/connectrpc-api/types/#chatto-${pkg}-v1-${typeName})`
     );
@@ -227,7 +219,7 @@ function rewriteServiceTypeLinks(section) {
 
 function rewriteRealtimeExternalLinks(section) {
   return section.replace(
-    /\]\(#(chatto-(?:auth|discovery|api|admin)-v1-[^)]+)\)/g,
+    /\]\(#(chatto-(?:discovery|api|admin)-v1-[^)]+)\)/g,
     '](/reference/connectrpc-api/types/#$1)'
   );
 }
@@ -262,13 +254,11 @@ function renderLanding() {
     'POST /api/connect/chatto.discovery.v1.ServerDiscoveryService/GetServer',
     '```',
     '',
-    '`chatto.discovery.v1` server discovery is unauthenticated. Most other RPCs require an `Authorization: Bearer <token>` header, a capability token carried in the request, or a browser session when called by the bundled web client.',
+    '`chatto.discovery.v1` server discovery is unauthenticated. Most other documented ConnectRPC services require an `Authorization: Bearer <token>` header or a browser session when called by the bundled web client.',
     '',
     '## Authentication And Permissions',
     '',
     '[ServerDiscoveryService.GetServer](/reference/connectrpc-api/server-discovery/#chatto-discovery-v1-ServerDiscoveryService-GetServer) is public so clients can discover branding, registration state, and login providers before a user signs in.',
-    '',
-    '`chatto.auth.v1` contains public auth flows with their own security model, such as pending external identity confirmation. Those RPCs are unauthenticated at the session layer but require a valid flow token in the request.',
     '',
     'Most `chatto.api.v1` calls require an authenticated user. Non-browser clients should send `Authorization: Bearer <token>`; browser clients can use the active Chatto session. See [External Login Providers](/guides/integrations/external-login-providers/) for login-provider discovery and sign-in configuration.',
     '',
@@ -283,12 +273,6 @@ function renderLanding() {
     '- **Transport:** ConnectRPC unary RPCs.',
     '- **Covers:** Pre-authentication bootstrap, such as server metadata and login discovery.',
     '- **Contract:** Public discovery API for clients that do not have a normal Chatto session yet.',
-    '',
-    '**`chatto.auth.v1`**',
-    '',
-    '- **Transport:** ConnectRPC unary RPCs.',
-    '- **Covers:** Public auth flows with capability-token authorization, such as pending external identity confirmation.',
-    '- **Contract:** Public auth-flow API for clients that do not have a normal Chatto session yet, or that are completing a browser handoff.',
     '',
     '**`chatto.api.v1`**',
     '',
@@ -319,7 +303,7 @@ function renderLanding() {
     '/api/connect/grpc.reflection.v1alpha.ServerReflection/ServerReflectionInfo',
     '```',
     '',
-    'Reflection lets tools resolve service and message descriptors without a local copy of the `.proto` files. Chatto limits reflection to public `chatto.auth.v1`, `chatto.discovery.v1`, `chatto.api.v1`, and `chatto.admin.v1` descriptors plus required imports.',
+    'Reflection lets tools resolve service and message descriptors without a local copy of the `.proto` files. Chatto limits reflection to public descriptors plus required imports.',
     '',
     'Because Chatto mounts ConnectRPC under `/api/connect`, use tools that accept a full Connect URL, such as `buf curl`. gRPC tools that only dial services at the host root need a proxy or path rewrite.',
     '',
@@ -430,7 +414,7 @@ function renderLanding() {
     '',
     '## Versioning And Stability',
     '',
-    'Package names such as `chatto.auth.v1`, `chatto.discovery.v1`, `chatto.api.v1`, and `chatto.admin.v1` identify the public API contract that clients integrate with.',
+    'Package names such as `chatto.discovery.v1`, `chatto.api.v1`, and `chatto.admin.v1` identify the public API contract that clients integrate with.',
     '',
     'Chatto is still pre-1.0, so public API details may change between releases. Check this reference for the Chatto server version you target, and use generated clients that match that server version.',
     '',
@@ -642,11 +626,13 @@ validateGeneratedPages(generatedPages);
 
 await mkdir(outputDir, { recursive: true });
 await removeStaleGeneratedPages(new Set(generatedPages.keys()));
-try {
-  await unlink(legacyRawReferencePath);
-} catch (error) {
-  if (error.code !== 'ENOENT') {
-    throw error;
+for (const staleRawReferencePath of staleRawReferencePaths) {
+  try {
+    await unlink(staleRawReferencePath);
+  } catch (error) {
+    if (error.code !== 'ENOENT') {
+      throw error;
+    }
   }
 }
 for (const [filename, content] of generatedPages.entries()) {
