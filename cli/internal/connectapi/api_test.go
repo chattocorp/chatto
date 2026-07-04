@@ -5316,6 +5316,44 @@ func TestAssetUploadServiceDoesNotRequireThreadPostPermission(t *testing.T) {
 	}
 }
 
+func TestAssetUploadServiceCompleteRechecksAttachmentPermission(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	room := env.createJoinedRoom("upload-complete-permission")
+	ctx := withCaller(env.ctx, env.viewer)
+	content := []byte("attachment permission revoked")
+	sum := sha256.Sum256(content)
+
+	created, err := env.assetUploads.CreateUpload(ctx, connect.NewRequest(&apiv1.CreateUploadRequest{
+		RoomId:      room.Id,
+		Filename:    "revoked.txt",
+		ContentType: "text/plain",
+		Size:        int64(len(content)),
+		Sha256:      hex.EncodeToString(sum[:]),
+	}))
+	if err != nil {
+		t.Fatalf("CreateUpload: %v", err)
+	}
+	chunkSum := sha256.Sum256(content)
+	if _, err := env.assetUploads.UploadChunk(ctx, connect.NewRequest(&apiv1.UploadChunkRequest{
+		UploadId:    created.Msg.GetUpload().GetUploadId(),
+		Content:     content,
+		ChunkSha256: hex.EncodeToString(chunkSum[:]),
+	})); err != nil {
+		t.Fatalf("UploadChunk: %v", err)
+	}
+
+	if err := env.core.DenyRoomPermission(env.ctx, core.SystemActorID, room.Id, core.RoleEveryone, core.PermMessageAttach); err != nil {
+		t.Fatalf("DenyRoomPermission attach: %v", err)
+	}
+
+	_, err = env.assetUploads.CompleteUpload(ctx, connect.NewRequest(&apiv1.CompleteUploadRequest{
+		UploadId: created.Msg.GetUpload().GetUploadId(),
+	}))
+	if connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("CompleteUpload after attach permission revoked code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
+	}
+}
+
 func TestAssetUploadServiceRejectsChecksumOffsetAndIncompleteComplete(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("asset-upload-validation")
