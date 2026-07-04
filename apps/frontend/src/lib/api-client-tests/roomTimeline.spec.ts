@@ -27,7 +27,7 @@ const mocks = vi.hoisted(() => ({
   createClient: vi.fn(),
   createConnectTransport: vi.fn(),
   handleAuthenticationRequired: vi.fn(),
-  resolveMessageLinkTarget: vi.fn(),
+  getMessage: vi.fn(),
   getThreadEvents: vi.fn(),
   getThreadEventsAround: vi.fn()
 }));
@@ -49,7 +49,7 @@ describe('createRoomTimelineAPI', () => {
     mocks.createClient.mockReset();
     mocks.createConnectTransport.mockReset();
     mocks.handleAuthenticationRequired.mockReset();
-    mocks.resolveMessageLinkTarget.mockReset();
+    mocks.getMessage.mockReset();
     mocks.getThreadEvents.mockReset();
     mocks.getThreadEventsAround.mockReset();
     __resetUserSummaryCachesForTests();
@@ -61,7 +61,7 @@ describe('createRoomTimelineAPI', () => {
     });
     mocks.createConnectTransport.mockReturnValue({ kind: 'transport' });
     mocks.createClient.mockReturnValue({
-      resolveMessageLinkTarget: mocks.resolveMessageLinkTarget,
+      getMessage: mocks.getMessage,
       getThreadEvents: mocks.getThreadEvents,
       getThreadEventsAround: mocks.getThreadEventsAround
     });
@@ -143,8 +143,8 @@ describe('createRoomTimelineAPI', () => {
     );
   });
 
-  it('resolves message link targets with bearer auth', async () => {
-    mocks.resolveMessageLinkTarget.mockResolvedValue({
+  it('gets messages with bearer auth', async () => {
+    mocks.getMessage.mockResolvedValue({
       event: new RoomTimelineEvent({
         id: 'reply-1',
         actorId: 'u1',
@@ -152,11 +152,11 @@ describe('createRoomTimelineAPI', () => {
           case: 'messagePosted',
           value: new RoomTimelineMessagePosted({
             roomId: 'room-1',
-            body: 'thread reply'
+            body: 'thread reply',
+            threadRootEventId: 'root-1'
           })
         }
       }),
-      threadRootEventId: 'root-1',
       includes: {
         users: {
           u1: new User({
@@ -174,12 +174,12 @@ describe('createRoomTimelineAPI', () => {
       bearerToken: 'remote-token'
     });
 
-    const target = await api.resolveMessageLinkTarget({
+    const message = await api.getMessage({
       roomId: 'room-1',
       eventId: 'reply-1'
     });
 
-    expect(mocks.resolveMessageLinkTarget).toHaveBeenCalledWith(
+    expect(mocks.getMessage).toHaveBeenCalledWith(
       {
         roomId: 'room-1',
         eventId: 'reply-1'
@@ -188,11 +188,10 @@ describe('createRoomTimelineAPI', () => {
         headers: { Authorization: 'Bearer remote-token' }
       }
     );
-    expect(target.threadRootEventId).toBe('root-1');
-    expect(target.event).toMatchObject({
+    expect(message).toMatchObject({
       id: 'reply-1',
       actor: { id: 'u1', displayName: 'Alice' },
-      event: { kind: 'messagePosted', body: 'thread reply' }
+      event: { kind: 'messagePosted', body: 'thread reply', threadRootEventId: 'root-1' }
     });
     expect(getUserSummaryCache('remote').get('u1')).toMatchObject({
       id: 'u1',

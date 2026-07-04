@@ -282,47 +282,6 @@ Response containing renderable message events.
 | `includes` | [`RoomTimelineIncludes`](/reference/connectrpc-api/types/#chatto-api-v1-RoomTimelineIncludes) | Related entities needed to render the messages. |
 
 
-<a id="chatto-api-v1-MessageService-ResolveMessageLinkTarget"></a>
-
-### ResolveMessageLinkTarget
-
-Resolves a permalink target to either the room timeline or a message
-thread, including thread-only replies that are not room timeline rows.
-Returns NOT_FOUND when the target message is missing or hidden and
-PERMISSION_DENIED when the room is inaccessible.
-
-```http
-POST /api/connect/chatto.api.v1.MessageService/ResolveMessageLinkTarget
-```
-
-<a id="chatto-api-v1-ResolveMessageLinkTargetRequest"></a>
-
-#### Input: ResolveMessageLinkTargetRequest
-
-Request for resolving a message permalink target.
-
-Unlike GetRoomEventsAround, this can resolve thread-only replies that do not
-appear as rows in the room timeline.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | Required. Room containing the linked event. |
-| `event_id` | `string` | Required. Linked event ID. |
-
-
-<a id="chatto-api-v1-ResolveMessageLinkTargetResponse"></a>
-
-#### Result: ResolveMessageLinkTargetResponse
-
-Response describing where a message permalink should land.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `event` | [`RoomTimelineEvent`](/reference/connectrpc-api/types/#chatto-api-v1-RoomTimelineEvent) | Linked event, hydrated with the same shape used by timeline pages. |
-| `thread_root_event_id` | `string` | Event ID of the thread root when event is a thread-only reply. Empty when the event should open in the room timeline. |
-| `includes` | [`RoomTimelineIncludes`](/reference/connectrpc-api/types/#chatto-api-v1-RoomTimelineIncludes) | Related entities needed to render the event. |
-
-
 <a id="chatto-api-v1-MessageService-AddReaction"></a>
 
 ### AddReaction

@@ -46,7 +46,7 @@ const { mocks } = vi.hoisted(() => {
       timeline: {
         getRoomEvents: vi.fn(),
         getRoomEventsAround: vi.fn(),
-        resolveMessageLinkTarget: vi.fn(),
+        getMessage: vi.fn(),
         getThreadEvents: vi.fn(),
         getThreadEventsAround: vi.fn()
       },
@@ -284,10 +284,7 @@ beforeEach(() => {
   sessionStorage.clear();
   mocks.timeline.getRoomEvents.mockResolvedValue(emptyTimelinePage());
   mocks.timeline.getRoomEventsAround.mockResolvedValue(emptyTimelinePage());
-  mocks.timeline.resolveMessageLinkTarget.mockResolvedValue({
-    event: null,
-    threadRootEventId: null
-  });
+  mocks.timeline.getMessage.mockResolvedValue(null);
   mocks.timeline.getThreadEvents.mockResolvedValue(emptyTimelinePage());
   mocks.timeline.getThreadEventsAround.mockResolvedValue(emptyTimelinePage());
   mocks.livekitUrl = null;

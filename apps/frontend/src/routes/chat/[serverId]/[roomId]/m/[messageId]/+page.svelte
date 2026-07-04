@@ -7,6 +7,7 @@
 <script lang="ts" module>
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
+  import { RoomEventKind } from '$lib/api-client/eventKinds';
   import { createRoomTimelineAPI, type RoomTimelineAPIConfig } from '$lib/api-client/roomTimeline';
   import type { PendingHighlightStore } from '$lib/state/server/pendingHighlight.svelte';
 
@@ -25,23 +26,28 @@
     const roomParams = { serverId: serverSegment, roomId };
 
     try {
-      const target = await createRoomTimelineAPI(config).resolveMessageLinkTarget({
+      const target = await createRoomTimelineAPI(config).getMessage({
         roomId,
         eventId: messageId
       });
 
-      if (!target.event) {
+      if (!target) {
         pendingHighlights.set(roomId, null, messageId);
         goto(resolve('/chat/[serverId]/[roomId]', roomParams), { replaceState: true });
         return;
       }
 
-      if (target.threadRootEventId) {
-        pendingHighlights.set(roomId, target.threadRootEventId, messageId);
+      const threadRootEventId =
+        target.event?.kind === RoomEventKind.MessagePosted
+          ? (target.event.threadRootEventId ?? null)
+          : null;
+
+      if (threadRootEventId) {
+        pendingHighlights.set(roomId, threadRootEventId, messageId);
         goto(
           resolve('/chat/[serverId]/[roomId]/[threadId]', {
             ...roomParams,
-            threadId: target.threadRootEventId
+            threadId: threadRootEventId
           }),
           { replaceState: true }
         );

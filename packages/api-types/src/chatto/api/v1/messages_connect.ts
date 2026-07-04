@@ -5,7 +5,6 @@
 
 import { BatchGetMessagesRequest, BatchGetMessagesResponse, CreateMessageRequest, CreateMessageResponse, DeleteAttachmentRequest, DeleteAttachmentResponse, DeleteLinkPreviewRequest, DeleteLinkPreviewResponse, DeleteMessageRequest, DeleteMessageResponse, GetMessageRequest, GetMessageResponse, UpdateMessageRequest, UpdateMessageResponse } from "./messages_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
-import { ResolveMessageLinkTargetRequest, ResolveMessageLinkTargetResponse } from "./room_timeline_pb.js";
 import { AddReactionRequest, AddReactionResponse, RemoveReactionRequest, RemoveReactionResponse } from "./reactions_pb.js";
 
 /**
@@ -104,20 +103,6 @@ export const MessageService = {
       name: "BatchGetMessages",
       I: BatchGetMessagesRequest,
       O: BatchGetMessagesResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * Resolves a permalink target to either the room timeline or a message
-     * thread, including thread-only replies that are not room timeline rows.
-     * Returns NOT_FOUND when the target message is missing or hidden and
-     * PERMISSION_DENIED when the room is inaccessible.
-     *
-     * @generated from rpc chatto.api.v1.MessageService.ResolveMessageLinkTarget
-     */
-    resolveMessageLinkTarget: {
-      name: "ResolveMessageLinkTarget",
-      I: ResolveMessageLinkTargetRequest,
-      O: ResolveMessageLinkTargetResponse,
       kind: MethodKind.Unary,
     },
     /**

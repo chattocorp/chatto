@@ -79,27 +79,6 @@ func (s *roomService) GetRoomEventsAround(ctx context.Context, req *connect.Requ
 	}), nil
 }
 
-func (s *messageService) ResolveMessageLinkTarget(ctx context.Context, req *connect.Request[apiv1.ResolveMessageLinkTargetRequest]) (*connect.Response[apiv1.ResolveMessageLinkTargetResponse], error) {
-	caller, err := requireCaller(ctx)
-	if err != nil {
-		return nil, err
-	}
-	result, err := s.api.core.RoomTimelineReads().ResolveMessageLinkTarget(ctx, caller.UserID, req.Msg.RoomId, req.Msg.EventId)
-	if err != nil {
-		return nil, connectError(err)
-	}
-	event, includes, err := newRoomTimelineAssembler(s.api).hydrateEvent(ctx, caller.UserID, result.Kind, result.Event)
-	if err != nil {
-		return nil, connectError(err)
-	}
-
-	return connect.NewResponse(&apiv1.ResolveMessageLinkTargetResponse{
-		Event:             event,
-		ThreadRootEventId: result.ThreadRootEventID,
-		Includes:          includes,
-	}), nil
-}
-
 func (s *messageService) GetMessage(ctx context.Context, req *connect.Request[apiv1.GetMessageRequest]) (*connect.Response[apiv1.GetMessageResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {

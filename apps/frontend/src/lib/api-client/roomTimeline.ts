@@ -46,10 +46,10 @@ export type RoomTimelineAPI = {
     eventId: string;
     limit: number;
   }): Promise<EventConnectionPage>;
-  resolveMessageLinkTarget(input: {
+  getMessage(input: {
     roomId: string;
     eventId: string;
-  }): Promise<{ event: RawEvent | null; threadRootEventId: string | null }>;
+  }): Promise<RawEvent | null>;
   getThreadEvents(input: {
     roomId: string;
     threadRootEventId: string;
@@ -108,22 +108,19 @@ export function createRoomTimelineAPI(
         return handleAuthError(config, err);
       }
     },
-    async resolveMessageLinkTarget({ roomId, eventId }) {
+    async getMessage({ roomId, eventId }) {
       try {
-        const response = await messages.resolveMessageLinkTarget(
+        const response = await messages.getMessage(
           { roomId, eventId },
           { headers: headers() },
         );
         primeTimelineUserIncludes(config, response.includes?.users ?? {});
-        return {
-          event: response.event
-            ? roomTimelineEventToRawEvent(
-                response.event,
-                response.includes?.users ?? {},
-              )
-            : null,
-          threadRootEventId: response.threadRootEventId || null,
-        };
+        return response.event
+          ? roomTimelineEventToRawEvent(
+              response.event,
+              response.includes?.users ?? {},
+            )
+          : null;
       } catch (err) {
         return handleAuthError(config, err);
       }

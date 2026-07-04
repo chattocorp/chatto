@@ -1162,7 +1162,7 @@ const file_chatto_api_v1_messages_proto_rawDesc = "" +
 	"\tthumbnail\x18\x03 \x01(\v2).chatto.api.v1.AttachmentThumbnailOptionsR\tthumbnail\"\x95\x01\n" +
 	"\x18BatchGetMessagesResponse\x128\n" +
 	"\x06events\x18\x01 \x03(\v2 .chatto.api.v1.RoomTimelineEventR\x06events\x12?\n" +
-	"\bincludes\x18\x02 \x01(\v2#.chatto.api.v1.RoomTimelineIncludesR\bincludes2\xdb\a\n" +
+	"\bincludes\x18\x02 \x01(\v2#.chatto.api.v1.RoomTimelineIncludesR\bincludes2\xde\x06\n" +
 	"\x0eMessageService\x12Z\n" +
 	"\rCreateMessage\x12#.chatto.api.v1.CreateMessageRequest\x1a$.chatto.api.v1.CreateMessageResponse\x12Z\n" +
 	"\rUpdateMessage\x12#.chatto.api.v1.UpdateMessageRequest\x1a$.chatto.api.v1.UpdateMessageResponse\x12Z\n" +
@@ -1171,8 +1171,7 @@ const file_chatto_api_v1_messages_proto_rawDesc = "" +
 	"\x11DeleteLinkPreview\x12'.chatto.api.v1.DeleteLinkPreviewRequest\x1a(.chatto.api.v1.DeleteLinkPreviewResponse\x12Q\n" +
 	"\n" +
 	"GetMessage\x12 .chatto.api.v1.GetMessageRequest\x1a!.chatto.api.v1.GetMessageResponse\x12c\n" +
-	"\x10BatchGetMessages\x12&.chatto.api.v1.BatchGetMessagesRequest\x1a'.chatto.api.v1.BatchGetMessagesResponse\x12{\n" +
-	"\x18ResolveMessageLinkTarget\x12..chatto.api.v1.ResolveMessageLinkTargetRequest\x1a/.chatto.api.v1.ResolveMessageLinkTargetResponse\x12T\n" +
+	"\x10BatchGetMessages\x12&.chatto.api.v1.BatchGetMessagesRequest\x1a'.chatto.api.v1.BatchGetMessagesResponse\x12T\n" +
 	"\vAddReaction\x12!.chatto.api.v1.AddReactionRequest\x1a\".chatto.api.v1.AddReactionResponse\x12]\n" +
 	"\x0eRemoveReaction\x12$.chatto.api.v1.RemoveReactionRequest\x1a%.chatto.api.v1.RemoveReactionResponseB\xa9\x01\n" +
 	"\x11com.chatto.api.v1B\rMessagesProtoP\x01Z/hmans.de/chatto/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
@@ -1191,31 +1190,29 @@ func file_chatto_api_v1_messages_proto_rawDescGZIP() []byte {
 
 var file_chatto_api_v1_messages_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
 var file_chatto_api_v1_messages_proto_goTypes = []any{
-	(*MessageLinkPreviewInput)(nil),          // 0: chatto.api.v1.MessageLinkPreviewInput
-	(*CreateMessageRequest)(nil),             // 1: chatto.api.v1.CreateMessageRequest
-	(*MentionConfirmationChallenge)(nil),     // 2: chatto.api.v1.MentionConfirmationChallenge
-	(*CreateMessageResponse)(nil),            // 3: chatto.api.v1.CreateMessageResponse
-	(*UpdateMessageRequest)(nil),             // 4: chatto.api.v1.UpdateMessageRequest
-	(*UpdateMessageResponse)(nil),            // 5: chatto.api.v1.UpdateMessageResponse
-	(*DeleteMessageRequest)(nil),             // 6: chatto.api.v1.DeleteMessageRequest
-	(*DeleteMessageResponse)(nil),            // 7: chatto.api.v1.DeleteMessageResponse
-	(*DeleteAttachmentRequest)(nil),          // 8: chatto.api.v1.DeleteAttachmentRequest
-	(*DeleteAttachmentResponse)(nil),         // 9: chatto.api.v1.DeleteAttachmentResponse
-	(*DeleteLinkPreviewRequest)(nil),         // 10: chatto.api.v1.DeleteLinkPreviewRequest
-	(*DeleteLinkPreviewResponse)(nil),        // 11: chatto.api.v1.DeleteLinkPreviewResponse
-	(*GetMessageRequest)(nil),                // 12: chatto.api.v1.GetMessageRequest
-	(*GetMessageResponse)(nil),               // 13: chatto.api.v1.GetMessageResponse
-	(*BatchGetMessagesRequest)(nil),          // 14: chatto.api.v1.BatchGetMessagesRequest
-	(*BatchGetMessagesResponse)(nil),         // 15: chatto.api.v1.BatchGetMessagesResponse
-	(*RoomTimelineEvent)(nil),                // 16: chatto.api.v1.RoomTimelineEvent
-	(*RoomTimelineIncludes)(nil),             // 17: chatto.api.v1.RoomTimelineIncludes
-	(*AttachmentThumbnailOptions)(nil),       // 18: chatto.api.v1.AttachmentThumbnailOptions
-	(*ResolveMessageLinkTargetRequest)(nil),  // 19: chatto.api.v1.ResolveMessageLinkTargetRequest
-	(*AddReactionRequest)(nil),               // 20: chatto.api.v1.AddReactionRequest
-	(*RemoveReactionRequest)(nil),            // 21: chatto.api.v1.RemoveReactionRequest
-	(*ResolveMessageLinkTargetResponse)(nil), // 22: chatto.api.v1.ResolveMessageLinkTargetResponse
-	(*AddReactionResponse)(nil),              // 23: chatto.api.v1.AddReactionResponse
-	(*RemoveReactionResponse)(nil),           // 24: chatto.api.v1.RemoveReactionResponse
+	(*MessageLinkPreviewInput)(nil),      // 0: chatto.api.v1.MessageLinkPreviewInput
+	(*CreateMessageRequest)(nil),         // 1: chatto.api.v1.CreateMessageRequest
+	(*MentionConfirmationChallenge)(nil), // 2: chatto.api.v1.MentionConfirmationChallenge
+	(*CreateMessageResponse)(nil),        // 3: chatto.api.v1.CreateMessageResponse
+	(*UpdateMessageRequest)(nil),         // 4: chatto.api.v1.UpdateMessageRequest
+	(*UpdateMessageResponse)(nil),        // 5: chatto.api.v1.UpdateMessageResponse
+	(*DeleteMessageRequest)(nil),         // 6: chatto.api.v1.DeleteMessageRequest
+	(*DeleteMessageResponse)(nil),        // 7: chatto.api.v1.DeleteMessageResponse
+	(*DeleteAttachmentRequest)(nil),      // 8: chatto.api.v1.DeleteAttachmentRequest
+	(*DeleteAttachmentResponse)(nil),     // 9: chatto.api.v1.DeleteAttachmentResponse
+	(*DeleteLinkPreviewRequest)(nil),     // 10: chatto.api.v1.DeleteLinkPreviewRequest
+	(*DeleteLinkPreviewResponse)(nil),    // 11: chatto.api.v1.DeleteLinkPreviewResponse
+	(*GetMessageRequest)(nil),            // 12: chatto.api.v1.GetMessageRequest
+	(*GetMessageResponse)(nil),           // 13: chatto.api.v1.GetMessageResponse
+	(*BatchGetMessagesRequest)(nil),      // 14: chatto.api.v1.BatchGetMessagesRequest
+	(*BatchGetMessagesResponse)(nil),     // 15: chatto.api.v1.BatchGetMessagesResponse
+	(*RoomTimelineEvent)(nil),            // 16: chatto.api.v1.RoomTimelineEvent
+	(*RoomTimelineIncludes)(nil),         // 17: chatto.api.v1.RoomTimelineIncludes
+	(*AttachmentThumbnailOptions)(nil),   // 18: chatto.api.v1.AttachmentThumbnailOptions
+	(*AddReactionRequest)(nil),           // 19: chatto.api.v1.AddReactionRequest
+	(*RemoveReactionRequest)(nil),        // 20: chatto.api.v1.RemoveReactionRequest
+	(*AddReactionResponse)(nil),          // 21: chatto.api.v1.AddReactionResponse
+	(*RemoveReactionResponse)(nil),       // 22: chatto.api.v1.RemoveReactionResponse
 }
 var file_chatto_api_v1_messages_proto_depIdxs = []int32{
 	0,  // 0: chatto.api.v1.CreateMessageRequest.link_preview:type_name -> chatto.api.v1.MessageLinkPreviewInput
@@ -1237,21 +1234,19 @@ var file_chatto_api_v1_messages_proto_depIdxs = []int32{
 	10, // 16: chatto.api.v1.MessageService.DeleteLinkPreview:input_type -> chatto.api.v1.DeleteLinkPreviewRequest
 	12, // 17: chatto.api.v1.MessageService.GetMessage:input_type -> chatto.api.v1.GetMessageRequest
 	14, // 18: chatto.api.v1.MessageService.BatchGetMessages:input_type -> chatto.api.v1.BatchGetMessagesRequest
-	19, // 19: chatto.api.v1.MessageService.ResolveMessageLinkTarget:input_type -> chatto.api.v1.ResolveMessageLinkTargetRequest
-	20, // 20: chatto.api.v1.MessageService.AddReaction:input_type -> chatto.api.v1.AddReactionRequest
-	21, // 21: chatto.api.v1.MessageService.RemoveReaction:input_type -> chatto.api.v1.RemoveReactionRequest
-	3,  // 22: chatto.api.v1.MessageService.CreateMessage:output_type -> chatto.api.v1.CreateMessageResponse
-	5,  // 23: chatto.api.v1.MessageService.UpdateMessage:output_type -> chatto.api.v1.UpdateMessageResponse
-	7,  // 24: chatto.api.v1.MessageService.DeleteMessage:output_type -> chatto.api.v1.DeleteMessageResponse
-	9,  // 25: chatto.api.v1.MessageService.DeleteAttachment:output_type -> chatto.api.v1.DeleteAttachmentResponse
-	11, // 26: chatto.api.v1.MessageService.DeleteLinkPreview:output_type -> chatto.api.v1.DeleteLinkPreviewResponse
-	13, // 27: chatto.api.v1.MessageService.GetMessage:output_type -> chatto.api.v1.GetMessageResponse
-	15, // 28: chatto.api.v1.MessageService.BatchGetMessages:output_type -> chatto.api.v1.BatchGetMessagesResponse
-	22, // 29: chatto.api.v1.MessageService.ResolveMessageLinkTarget:output_type -> chatto.api.v1.ResolveMessageLinkTargetResponse
-	23, // 30: chatto.api.v1.MessageService.AddReaction:output_type -> chatto.api.v1.AddReactionResponse
-	24, // 31: chatto.api.v1.MessageService.RemoveReaction:output_type -> chatto.api.v1.RemoveReactionResponse
-	22, // [22:32] is the sub-list for method output_type
-	12, // [12:22] is the sub-list for method input_type
+	19, // 19: chatto.api.v1.MessageService.AddReaction:input_type -> chatto.api.v1.AddReactionRequest
+	20, // 20: chatto.api.v1.MessageService.RemoveReaction:input_type -> chatto.api.v1.RemoveReactionRequest
+	3,  // 21: chatto.api.v1.MessageService.CreateMessage:output_type -> chatto.api.v1.CreateMessageResponse
+	5,  // 22: chatto.api.v1.MessageService.UpdateMessage:output_type -> chatto.api.v1.UpdateMessageResponse
+	7,  // 23: chatto.api.v1.MessageService.DeleteMessage:output_type -> chatto.api.v1.DeleteMessageResponse
+	9,  // 24: chatto.api.v1.MessageService.DeleteAttachment:output_type -> chatto.api.v1.DeleteAttachmentResponse
+	11, // 25: chatto.api.v1.MessageService.DeleteLinkPreview:output_type -> chatto.api.v1.DeleteLinkPreviewResponse
+	13, // 26: chatto.api.v1.MessageService.GetMessage:output_type -> chatto.api.v1.GetMessageResponse
+	15, // 27: chatto.api.v1.MessageService.BatchGetMessages:output_type -> chatto.api.v1.BatchGetMessagesResponse
+	21, // 28: chatto.api.v1.MessageService.AddReaction:output_type -> chatto.api.v1.AddReactionResponse
+	22, // 29: chatto.api.v1.MessageService.RemoveReaction:output_type -> chatto.api.v1.RemoveReactionResponse
+	21, // [21:30] is the sub-list for method output_type
+	12, // [12:21] is the sub-list for method input_type
 	12, // [12:12] is the sub-list for extension type_name
 	12, // [12:12] is the sub-list for extension extendee
 	0,  // [0:12] is the sub-list for field type_name

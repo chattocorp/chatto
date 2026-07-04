@@ -214,11 +214,6 @@ service MessageService {
   // event IDs are omitted. Results preserve first-seen request order and
   // repeated event IDs are de-duplicated.
   rpc BatchGetMessages(BatchGetMessagesRequest) returns (BatchGetMessagesResponse);
-  // Resolves a permalink target to either the room timeline or a message
-  // thread, including thread-only replies that are not room timeline rows.
-  // Returns NOT_FOUND when the target message is missing or hidden and
-  // PERMISSION_DENIED when the room is inaccessible.
-  rpc ResolveMessageLinkTarget(ResolveMessageLinkTargetRequest) returns (ResolveMessageLinkTargetResponse);
   // Adds a reaction to a message. The user must be a room member and have
   // message.react in the target room.
   rpc AddReaction(AddReactionRequest) returns (AddReactionResponse);

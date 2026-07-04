@@ -269,28 +269,6 @@ message GetRoomEventsAroundResponse {
   int32 target_index = 2;
 }
 
-// Request for resolving a message permalink target.
-//
-// Unlike GetRoomEventsAround, this can resolve thread-only replies that do not
-// appear as rows in the room timeline.
-message ResolveMessageLinkTargetRequest {
-  // Required. Room containing the linked event.
-  string room_id = 1 [(buf.validate.field).string.min_len = 1];
-  // Required. Linked event ID.
-  string event_id = 2 [(buf.validate.field).string.min_len = 1];
-}
-
-// Response describing where a message permalink should land.
-message ResolveMessageLinkTargetResponse {
-  // Linked event, hydrated with the same shape used by timeline pages.
-  RoomTimelineEvent event = 1;
-  // Event ID of the thread root when event is a thread-only reply. Empty when
-  // the event should open in the room timeline.
-  string thread_root_event_id = 2;
-  // Related entities needed to render the event.
-  RoomTimelineIncludes includes = 3;
-}
-
 // Request for a page of events in one thread.
 //
 // Omit the cursor to load the latest visible part of the thread, including the

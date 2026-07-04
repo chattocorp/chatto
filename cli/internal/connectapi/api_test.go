@@ -5923,63 +5923,65 @@ func TestRoomAndThreadTimelineGetThreadEventsAroundRootAndReply(t *testing.T) {
 	}
 }
 
-func TestRoomAndThreadTimelineResolveMessageLinkTarget(t *testing.T) {
+func TestRoomAndThreadTimelineGetMessageForPermalinks(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("timeline-message-link")
 
 	root := env.post(room.Id, env.viewer.Id, "root", "")
 	reply := env.post(room.Id, env.viewer.Id, "reply", root.Id)
 
-	req := connect.NewRequest(&apiv1.ResolveMessageLinkTargetRequest{
+	req := connect.NewRequest(&apiv1.GetMessageRequest{
 		RoomId:  room.Id,
 		EventId: reply.Id,
 	})
-	if _, err := env.messages.ResolveMessageLinkTarget(env.ctx, req); connect.CodeOf(err) != connect.CodeUnauthenticated {
-		t.Fatalf("unauthenticated ResolveMessageLinkTarget code = %v, want %v", connect.CodeOf(err), connect.CodeUnauthenticated)
+	if _, err := env.messages.GetMessage(env.ctx, req); connect.CodeOf(err) != connect.CodeUnauthenticated {
+		t.Fatalf("unauthenticated GetMessage code = %v, want %v", connect.CodeOf(err), connect.CodeUnauthenticated)
 	}
 
 	outsider, err := env.core.CreateUser(env.ctx, core.SystemActorID, "message-link-outsider", "Message Link Outsider", "password")
 	if err != nil {
 		t.Fatalf("CreateUser outsider: %v", err)
 	}
-	if _, err := env.messages.ResolveMessageLinkTarget(withCaller(env.ctx, outsider), req); connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Fatalf("non-member ResolveMessageLinkTarget code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
+	if _, err := env.messages.GetMessage(withCaller(env.ctx, outsider), req); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("non-member GetMessage code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
 	}
 
 	ctx := withCaller(env.ctx, env.viewer)
-	rootResp, err := env.messages.ResolveMessageLinkTarget(ctx, connect.NewRequest(&apiv1.ResolveMessageLinkTargetRequest{
+	rootResp, err := env.messages.GetMessage(ctx, connect.NewRequest(&apiv1.GetMessageRequest{
 		RoomId:  room.Id,
 		EventId: root.Id,
 	}))
 	if err != nil {
-		t.Fatalf("ResolveMessageLinkTarget root: %v", err)
+		t.Fatalf("GetMessage root: %v", err)
 	}
-	if rootResp.Msg.GetEvent().GetId() != root.Id || rootResp.Msg.GetThreadRootEventId() != "" {
-		t.Fatalf("root target = event %q thread %q, want event %q no thread", rootResp.Msg.GetEvent().GetId(), rootResp.Msg.GetThreadRootEventId(), root.Id)
+	rootMessage := rootResp.Msg.GetEvent().GetMessagePosted()
+	if rootResp.Msg.GetEvent().GetId() != root.Id || rootMessage.GetThreadRootEventId() != "" {
+		t.Fatalf("root message = event %q thread %q, want event %q no thread", rootResp.Msg.GetEvent().GetId(), rootMessage.GetThreadRootEventId(), root.Id)
 	}
-	if rootResp.Msg.GetEvent().GetMessagePosted().GetBody() != "root" {
-		t.Fatalf("root body = %q, want root", rootResp.Msg.GetEvent().GetMessagePosted().GetBody())
+	if rootMessage.GetBody() != "root" {
+		t.Fatalf("root body = %q, want root", rootMessage.GetBody())
 	}
 	if rootResp.Msg.GetIncludes().GetUsers()[env.viewer.Id] == nil {
 		t.Fatalf("root includes missing viewer %s", env.viewer.Id)
 	}
 
-	replyResp, err := env.messages.ResolveMessageLinkTarget(ctx, connect.NewRequest(&apiv1.ResolveMessageLinkTargetRequest{
+	replyResp, err := env.messages.GetMessage(ctx, connect.NewRequest(&apiv1.GetMessageRequest{
 		RoomId:  room.Id,
 		EventId: reply.Id,
 	}))
 	if err != nil {
-		t.Fatalf("ResolveMessageLinkTarget reply: %v", err)
+		t.Fatalf("GetMessage reply: %v", err)
 	}
-	if replyResp.Msg.GetEvent().GetId() != reply.Id || replyResp.Msg.GetThreadRootEventId() != root.Id {
-		t.Fatalf("reply target = event %q thread %q, want event %q thread %q", replyResp.Msg.GetEvent().GetId(), replyResp.Msg.GetThreadRootEventId(), reply.Id, root.Id)
+	replyMessage := replyResp.Msg.GetEvent().GetMessagePosted()
+	if replyResp.Msg.GetEvent().GetId() != reply.Id || replyMessage.GetThreadRootEventId() != root.Id {
+		t.Fatalf("reply message = event %q thread %q, want event %q thread %q", replyResp.Msg.GetEvent().GetId(), replyMessage.GetThreadRootEventId(), reply.Id, root.Id)
 	}
 
-	if _, err := env.messages.ResolveMessageLinkTarget(ctx, connect.NewRequest(&apiv1.ResolveMessageLinkTargetRequest{
+	if _, err := env.messages.GetMessage(ctx, connect.NewRequest(&apiv1.GetMessageRequest{
 		RoomId:  room.Id,
 		EventId: "missing-anchor",
 	})); connect.CodeOf(err) != connect.CodeNotFound {
-		t.Fatalf("missing target code = %v, want %v", connect.CodeOf(err), connect.CodeNotFound)
+		t.Fatalf("missing message code = %v, want %v", connect.CodeOf(err), connect.CodeNotFound)
 	}
 }
 

@@ -47,12 +47,12 @@ func TestRoomTimelineReadModelRequiresMembership(t *testing.T) {
 		t.Fatalf("GetRoomEventsAround outsider error = %v, want ErrNotRoomMember", err)
 	}
 
-	if _, err := core.RoomTimelineReads().ResolveMessageLinkTarget(ctx, outsider.Id, room.Id, message.Id); !errors.Is(err, ErrNotRoomMember) {
-		t.Fatalf("ResolveMessageLinkTarget outsider error = %v, want ErrNotRoomMember", err)
+	if _, err := core.RoomTimelineReads().GetMessage(ctx, outsider.Id, room.Id, message.Id); !errors.Is(err, ErrNotRoomMember) {
+		t.Fatalf("GetMessage outsider error = %v, want ErrNotRoomMember", err)
 	}
 }
 
-func TestRoomTimelineReadModelResolvesMessageLinkTargets(t *testing.T) {
+func TestRoomTimelineReadModelGetsMessages(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -77,24 +77,24 @@ func TestRoomTimelineReadModelResolvesMessageLinkTargets(t *testing.T) {
 		t.Fatalf("Post reply: %v", err)
 	}
 
-	rootResult, err := core.RoomTimelineReads().ResolveMessageLinkTarget(ctx, user.Id, room.Id, root.Id)
+	rootResult, err := core.RoomTimelineReads().GetMessage(ctx, user.Id, room.Id, root.Id)
 	if err != nil {
-		t.Fatalf("ResolveMessageLinkTarget root: %v", err)
+		t.Fatalf("GetMessage root: %v", err)
 	}
-	if rootResult.Event.GetId() != root.Id || rootResult.ThreadRootEventID != "" {
-		t.Fatalf("root target = event %q thread %q, want event %q no thread", rootResult.Event.GetId(), rootResult.ThreadRootEventID, root.Id)
+	if rootResult.Event.GetId() != root.Id || rootResult.Event.GetMessagePosted().GetInThread() != "" {
+		t.Fatalf("root message = event %q thread %q, want event %q no thread", rootResult.Event.GetId(), rootResult.Event.GetMessagePosted().GetInThread(), root.Id)
 	}
 
-	replyResult, err := core.RoomTimelineReads().ResolveMessageLinkTarget(ctx, user.Id, room.Id, reply.Id)
+	replyResult, err := core.RoomTimelineReads().GetMessage(ctx, user.Id, room.Id, reply.Id)
 	if err != nil {
-		t.Fatalf("ResolveMessageLinkTarget reply: %v", err)
+		t.Fatalf("GetMessage reply: %v", err)
 	}
-	if replyResult.Event.GetId() != reply.Id || replyResult.ThreadRootEventID != root.Id {
-		t.Fatalf("reply target = event %q thread %q, want event %q thread %q", replyResult.Event.GetId(), replyResult.ThreadRootEventID, reply.Id, root.Id)
+	if replyResult.Event.GetId() != reply.Id || replyResult.Event.GetMessagePosted().GetInThread() != root.Id {
+		t.Fatalf("reply message = event %q thread %q, want event %q thread %q", replyResult.Event.GetId(), replyResult.Event.GetMessagePosted().GetInThread(), reply.Id, root.Id)
 	}
 
-	if _, err := core.RoomTimelineReads().ResolveMessageLinkTarget(ctx, user.Id, room.Id, "missing-event"); !errors.Is(err, ErrNotFound) {
-		t.Fatalf("missing target error = %v, want ErrNotFound", err)
+	if _, err := core.RoomTimelineReads().GetMessage(ctx, user.Id, room.Id, "missing-event"); !errors.Is(err, ErrMessageNotFound) {
+		t.Fatalf("missing message error = %v, want ErrMessageNotFound", err)
 	}
 }
 

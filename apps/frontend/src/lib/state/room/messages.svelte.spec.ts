@@ -168,10 +168,7 @@ function fakeTimelineAPI(overrides: Partial<RoomTimelineAPI> = {}): RoomTimeline
       hasOlder: false,
       hasNewer: false
     })),
-    resolveMessageLinkTarget: vi.fn(async () => ({
-      event: null,
-      threadRootEventId: null
-    })),
+    getMessage: vi.fn(async () => null),
     getThreadEvents: vi.fn(async () => ({
       events: [],
       startCursor: null,
@@ -251,14 +248,11 @@ function timelineFromFixtures(fake: FakeQueryClient): RoomTimelineAPI {
       });
       return data.room?.eventsAround ?? pageFromEvent(data.room?.event);
     },
-    async resolveMessageLinkTarget(input) {
+    async getMessage(input) {
       const data = await resolveFakeResult(fake, 'timeline:message-link', input, {
         requestPolicy: 'network-only'
       });
-      return {
-        event: (data.room?.event as never) ?? null,
-        threadRootEventId: null
-      };
+      return (data.room?.event as never) ?? null;
     },
     async getThreadEvents(input) {
       const data = await resolveFakeResult(fake, 'timeline:thread-latest', input);

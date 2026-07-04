@@ -54,9 +54,6 @@ const (
 	// MessageServiceBatchGetMessagesProcedure is the fully-qualified name of the MessageService's
 	// BatchGetMessages RPC.
 	MessageServiceBatchGetMessagesProcedure = "/chatto.api.v1.MessageService/BatchGetMessages"
-	// MessageServiceResolveMessageLinkTargetProcedure is the fully-qualified name of the
-	// MessageService's ResolveMessageLinkTarget RPC.
-	MessageServiceResolveMessageLinkTargetProcedure = "/chatto.api.v1.MessageService/ResolveMessageLinkTarget"
 	// MessageServiceAddReactionProcedure is the fully-qualified name of the MessageService's
 	// AddReaction RPC.
 	MessageServiceAddReactionProcedure = "/chatto.api.v1.MessageService/AddReaction"
@@ -94,11 +91,6 @@ type MessageServiceClient interface {
 	// event IDs are omitted. Results preserve first-seen request order and
 	// repeated event IDs are de-duplicated.
 	BatchGetMessages(context.Context, *connect.Request[v1.BatchGetMessagesRequest]) (*connect.Response[v1.BatchGetMessagesResponse], error)
-	// Resolves a permalink target to either the room timeline or a message
-	// thread, including thread-only replies that are not room timeline rows.
-	// Returns NOT_FOUND when the target message is missing or hidden and
-	// PERMISSION_DENIED when the room is inaccessible.
-	ResolveMessageLinkTarget(context.Context, *connect.Request[v1.ResolveMessageLinkTargetRequest]) (*connect.Response[v1.ResolveMessageLinkTargetResponse], error)
 	// Adds a reaction to a message. The user must be a room member and have
 	// message.react in the target room.
 	AddReaction(context.Context, *connect.Request[v1.AddReactionRequest]) (*connect.Response[v1.AddReactionResponse], error)
@@ -160,12 +152,6 @@ func NewMessageServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(messageServiceMethods.ByName("BatchGetMessages")),
 			connect.WithClientOptions(opts...),
 		),
-		resolveMessageLinkTarget: connect.NewClient[v1.ResolveMessageLinkTargetRequest, v1.ResolveMessageLinkTargetResponse](
-			httpClient,
-			baseURL+MessageServiceResolveMessageLinkTargetProcedure,
-			connect.WithSchema(messageServiceMethods.ByName("ResolveMessageLinkTarget")),
-			connect.WithClientOptions(opts...),
-		),
 		addReaction: connect.NewClient[v1.AddReactionRequest, v1.AddReactionResponse](
 			httpClient,
 			baseURL+MessageServiceAddReactionProcedure,
@@ -183,16 +169,15 @@ func NewMessageServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 
 // messageServiceClient implements MessageServiceClient.
 type messageServiceClient struct {
-	createMessage            *connect.Client[v1.CreateMessageRequest, v1.CreateMessageResponse]
-	updateMessage            *connect.Client[v1.UpdateMessageRequest, v1.UpdateMessageResponse]
-	deleteMessage            *connect.Client[v1.DeleteMessageRequest, v1.DeleteMessageResponse]
-	deleteAttachment         *connect.Client[v1.DeleteAttachmentRequest, v1.DeleteAttachmentResponse]
-	deleteLinkPreview        *connect.Client[v1.DeleteLinkPreviewRequest, v1.DeleteLinkPreviewResponse]
-	getMessage               *connect.Client[v1.GetMessageRequest, v1.GetMessageResponse]
-	batchGetMessages         *connect.Client[v1.BatchGetMessagesRequest, v1.BatchGetMessagesResponse]
-	resolveMessageLinkTarget *connect.Client[v1.ResolveMessageLinkTargetRequest, v1.ResolveMessageLinkTargetResponse]
-	addReaction              *connect.Client[v1.AddReactionRequest, v1.AddReactionResponse]
-	removeReaction           *connect.Client[v1.RemoveReactionRequest, v1.RemoveReactionResponse]
+	createMessage     *connect.Client[v1.CreateMessageRequest, v1.CreateMessageResponse]
+	updateMessage     *connect.Client[v1.UpdateMessageRequest, v1.UpdateMessageResponse]
+	deleteMessage     *connect.Client[v1.DeleteMessageRequest, v1.DeleteMessageResponse]
+	deleteAttachment  *connect.Client[v1.DeleteAttachmentRequest, v1.DeleteAttachmentResponse]
+	deleteLinkPreview *connect.Client[v1.DeleteLinkPreviewRequest, v1.DeleteLinkPreviewResponse]
+	getMessage        *connect.Client[v1.GetMessageRequest, v1.GetMessageResponse]
+	batchGetMessages  *connect.Client[v1.BatchGetMessagesRequest, v1.BatchGetMessagesResponse]
+	addReaction       *connect.Client[v1.AddReactionRequest, v1.AddReactionResponse]
+	removeReaction    *connect.Client[v1.RemoveReactionRequest, v1.RemoveReactionResponse]
 }
 
 // CreateMessage calls chatto.api.v1.MessageService.CreateMessage.
@@ -228,11 +213,6 @@ func (c *messageServiceClient) GetMessage(ctx context.Context, req *connect.Requ
 // BatchGetMessages calls chatto.api.v1.MessageService.BatchGetMessages.
 func (c *messageServiceClient) BatchGetMessages(ctx context.Context, req *connect.Request[v1.BatchGetMessagesRequest]) (*connect.Response[v1.BatchGetMessagesResponse], error) {
 	return c.batchGetMessages.CallUnary(ctx, req)
-}
-
-// ResolveMessageLinkTarget calls chatto.api.v1.MessageService.ResolveMessageLinkTarget.
-func (c *messageServiceClient) ResolveMessageLinkTarget(ctx context.Context, req *connect.Request[v1.ResolveMessageLinkTargetRequest]) (*connect.Response[v1.ResolveMessageLinkTargetResponse], error) {
-	return c.resolveMessageLinkTarget.CallUnary(ctx, req)
 }
 
 // AddReaction calls chatto.api.v1.MessageService.AddReaction.
@@ -274,11 +254,6 @@ type MessageServiceHandler interface {
 	// event IDs are omitted. Results preserve first-seen request order and
 	// repeated event IDs are de-duplicated.
 	BatchGetMessages(context.Context, *connect.Request[v1.BatchGetMessagesRequest]) (*connect.Response[v1.BatchGetMessagesResponse], error)
-	// Resolves a permalink target to either the room timeline or a message
-	// thread, including thread-only replies that are not room timeline rows.
-	// Returns NOT_FOUND when the target message is missing or hidden and
-	// PERMISSION_DENIED when the room is inaccessible.
-	ResolveMessageLinkTarget(context.Context, *connect.Request[v1.ResolveMessageLinkTargetRequest]) (*connect.Response[v1.ResolveMessageLinkTargetResponse], error)
 	// Adds a reaction to a message. The user must be a room member and have
 	// message.react in the target room.
 	AddReaction(context.Context, *connect.Request[v1.AddReactionRequest]) (*connect.Response[v1.AddReactionResponse], error)
@@ -336,12 +311,6 @@ func NewMessageServiceHandler(svc MessageServiceHandler, opts ...connect.Handler
 		connect.WithSchema(messageServiceMethods.ByName("BatchGetMessages")),
 		connect.WithHandlerOptions(opts...),
 	)
-	messageServiceResolveMessageLinkTargetHandler := connect.NewUnaryHandler(
-		MessageServiceResolveMessageLinkTargetProcedure,
-		svc.ResolveMessageLinkTarget,
-		connect.WithSchema(messageServiceMethods.ByName("ResolveMessageLinkTarget")),
-		connect.WithHandlerOptions(opts...),
-	)
 	messageServiceAddReactionHandler := connect.NewUnaryHandler(
 		MessageServiceAddReactionProcedure,
 		svc.AddReaction,
@@ -370,8 +339,6 @@ func NewMessageServiceHandler(svc MessageServiceHandler, opts ...connect.Handler
 			messageServiceGetMessageHandler.ServeHTTP(w, r)
 		case MessageServiceBatchGetMessagesProcedure:
 			messageServiceBatchGetMessagesHandler.ServeHTTP(w, r)
-		case MessageServiceResolveMessageLinkTargetProcedure:
-			messageServiceResolveMessageLinkTargetHandler.ServeHTTP(w, r)
 		case MessageServiceAddReactionProcedure:
 			messageServiceAddReactionHandler.ServeHTTP(w, r)
 		case MessageServiceRemoveReactionProcedure:
@@ -411,10 +378,6 @@ func (UnimplementedMessageServiceHandler) GetMessage(context.Context, *connect.R
 
 func (UnimplementedMessageServiceHandler) BatchGetMessages(context.Context, *connect.Request[v1.BatchGetMessagesRequest]) (*connect.Response[v1.BatchGetMessagesResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.MessageService.BatchGetMessages is not implemented"))
-}
-
-func (UnimplementedMessageServiceHandler) ResolveMessageLinkTarget(context.Context, *connect.Request[v1.ResolveMessageLinkTargetRequest]) (*connect.Response[v1.ResolveMessageLinkTargetResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.MessageService.ResolveMessageLinkTarget is not implemented"))
 }
 
 func (UnimplementedMessageServiceHandler) AddReaction(context.Context, *connect.Request[v1.AddReactionRequest]) (*connect.Response[v1.AddReactionResponse], error) {
