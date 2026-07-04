@@ -17,6 +17,11 @@ message CreateMessageRequest {
   // AssetUploadService moved uploads into a dedicated chunked API.
   reserved 9;
   reserved "attachments";
+  // Field 7 was `mention_confirmation_token`, used by a server-enforced large
+  // mention confirmation flow before role mention confirmation became a
+  // client-only composer affordance.
+  reserved 7;
+  reserved "mention_confirmation_token";
 
   // Required. Room where the message should be created.
   string room_id = 1 [(buf.validate.field).string.min_len = 1];
@@ -30,29 +35,21 @@ message CreateMessageRequest {
   string in_reply_to = 5;
   // True to also echo a thread reply into the main room timeline.
   bool also_send_to_channel = 6;
-  // Short-lived token returned by a prior mention confirmation challenge.
-  string mention_confirmation_token = 7;
   // Short-lived token returned by FetchLinkPreview for the selected URL. The
   // server resolves the token to cached, server-fetched metadata during post.
   string link_preview_token = 10;
 }
 
-// Large mention confirmation details for a message that was not posted.
-message MentionConfirmationChallenge {
-  // Number of people the message would notify.
-  int32 recipient_count = 1;
-  // Short-lived token to send back with the same message after user approval.
-  string token = 2;
-}
-
 // Result of creating a message.
 message CreateMessageResponse {
-  oneof result {
-    // Renderable timeline event for the created message.
-    RoomTimelineEvent event = 1;
-    // Challenge shown when a message would notify many people.
-    MentionConfirmationChallenge mention_confirmation = 2;
-  }
+  // Field 2 was `mention_confirmation`, used by a server-enforced large
+  // mention confirmation flow before role mention confirmation became a
+  // client-only composer affordance.
+  reserved 2;
+  reserved "mention_confirmation";
+
+  // Renderable timeline event for the created message.
+  RoomTimelineEvent event = 1;
   // Related entities needed to render event when a message was created.
   RoomTimelineIncludes includes = 3;
 }

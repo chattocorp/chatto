@@ -1,7 +1,7 @@
 # FDR-006: @Mentions
 
 **Status:** Active
-**Last reviewed:** 2026-06-20
+**Last reviewed:** 2026-07-04
 
 ## Overview
 
@@ -23,7 +23,8 @@ Users can mention users, roles, and room-scoped virtual groups with `@handle` sy
 - Mentions inside code spans, code blocks, pre-formatted text, and blockquotes do not resolve, notify, or receive mention styling.
 - Mentioning yourself does not produce a notification.
 - Mentioning a user who isn't a room member leaves the `@name` as plain text — the mention is not delivered.
-- If a message would notify more than 10 users, the composer asks for confirmation before sending. The backend enforces the same guard for API callers.
+- The bundled composer asks for confirmation before sending a message that
+  mentions any role or room-wide virtual handle (`@all` or `@here`).
 - Mentions are resolved when a message is first posted. Editing a message later does not add, remove, dismiss, or re-send mention notifications.
 - A delivered direct `@username` mention inside a thread automatically follows that thread for the mentioned user if they have no prior follow state for it. Role mentions, `@all`, and `@here` do not auto-follow recipients.
 
@@ -77,11 +78,19 @@ Users can mention users, roles, and room-scoped virtual groups with `@handle` sy
 **Why:** A direct thread mention usually means the thread now concerns the recipient, so it should appear in My Threads by default. An explicit unfollow is a stronger preference and should not be undone by someone else's later mention.
 **Tradeoff:** Broadcast and role mentions do not populate My Threads for every recipient; authors who need someone to track a thread should mention that user directly.
 
-### 9. Large mention sends require confirmation
+### 9. Role and room-wide sends use client-side confirmation
 
-**Decision:** A message whose mentions would notify more than 10 users requires explicit confirmation. The count is computed after deduplication, excluding the author, excluding users muted for the room, and applying room-membership constraints. The backend returns a short-lived confirmation token scoped to the author, room, message body, thread target, and echo flag; the retry uses that token so live recipient-count drift does not force repeated prompts.
+**Decision:** The bundled composer prompts before posting any message that
+mentions a role or the room-wide virtual handles `@all` or `@here`. The prompt
+is client-side only; the public `MessageService.CreateMessage` API posts
+authorized messages directly and does not issue or require a mention
+confirmation token. Notification fanout is still resolved server-side at post
+time after deduplication, excluding the author, excluding users muted for the
+room, and applying room-membership constraints.
 **Why:** Role and room-wide mentions are useful operational tools, but accidental broad pings are costly. Confirmation preserves the feature while catching the common "I did not realize this reaches everyone" mistake.
-**Tradeoff:** Senders occasionally see one extra prompt for intentional broadcasts.
+**Tradeoff:** Integrators are responsible for their own UX friction when they
+expose role or room-wide mention sending, while the bundled client keeps the
+safeguard without adding a token round-trip to the integration API.
 
 ## Permissions
 

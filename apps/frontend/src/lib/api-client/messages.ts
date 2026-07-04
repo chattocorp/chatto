@@ -19,7 +19,6 @@ export type CreateMessageInput = {
   threadRootEventId?: string | null;
   inReplyTo?: string | null;
   alsoSendToChannel?: boolean;
-  mentionConfirmationToken?: string | null;
   linkPreview?: LinkPreviewInput | null;
 };
 
@@ -30,17 +29,9 @@ export type UpdateMessageInput = {
   alsoSendToChannel?: boolean;
 };
 
-export type CreateMessageResult =
-  | {
-      kind: 'event';
-      event: RoomEventView | null;
-    }
-  | {
-      kind: 'mentionConfirmation';
-      recipientCount: number;
-      token: string;
-      attachmentAssetIds: string[];
-    };
+export type CreateMessageResult = {
+  event: RoomEventView | null;
+};
 
 export type UpdateMessageResult = {
   updated: boolean;
@@ -65,32 +56,19 @@ export function createMessageAPI(config: MessageAPIConfig) {
             threadRootEventId: input.threadRootEventId ?? '',
             inReplyTo: input.inReplyTo ?? '',
             alsoSendToChannel: input.alsoSendToChannel ?? false,
-            mentionConfirmationToken: input.mentionConfirmationToken ?? '',
             linkPreviewToken: input.linkPreview?.previewToken ?? ''
           },
           { headers: headers() }
         );
 
-        if (response.result.case === 'mentionConfirmation') {
-          return {
-            kind: 'mentionConfirmation',
-            recipientCount: response.result.value.recipientCount,
-            token: response.result.value.token,
-            attachmentAssetIds: [...(input.attachmentAssetIds ?? []), ...uploadedAttachmentAssetIds]
-          };
-        }
-
-        if (response.result.case === 'event') {
-          return {
-            kind: 'event',
-            event: roomTimelineEventToRawEvent(
-              response.result.value,
-              response.includes?.users ?? {}
-            ) as RoomEventView | null
-          };
-        }
-
-        return { kind: 'event', event: null };
+        return {
+          event: response.event
+            ? (roomTimelineEventToRawEvent(
+                response.event,
+                response.includes?.users ?? {}
+              ) as RoomEventView | null)
+            : null
+        };
       } catch (err) {
         return handleAuthError(config, err);
       }

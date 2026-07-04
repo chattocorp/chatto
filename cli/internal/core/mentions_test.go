@@ -1,7 +1,6 @@
 package core
 
 import (
-	"errors"
 	"testing"
 	"time"
 
@@ -488,7 +487,7 @@ func requireUserIDs(t *testing.T, got []string, want ...string) {
 	}
 }
 
-func TestChattoCore_LargeMentionConfirmation(t *testing.T) {
+func TestChattoCore_BroadMentionPostsNormally(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -501,7 +500,8 @@ func TestChattoCore_LargeMentionConfirmation(t *testing.T) {
 		t.Fatalf("CreateRoom: %v", err)
 	}
 
-	for i := 0; i < LargeMentionNotificationThreshold+1; i++ {
+	const targetCount = 12
+	for i := 0; i < targetCount; i++ {
 		user, err := core.CreateUser(ctx, "system", "large-target-"+string(rune('a'+i)), "Target", "password123")
 		if err != nil {
 			t.Fatalf("CreateUser target %d: %v", i, err)
@@ -511,24 +511,12 @@ func TestChattoCore_LargeMentionConfirmation(t *testing.T) {
 		}
 	}
 
-	if _, err := core.PostMessage(ctx, KindChannel, room.Id, author.Id, "@all important", nil, "", "", nil, false); err == nil {
-		t.Fatal("PostMessage succeeded without confirmation, want confirmation error")
-	} else {
-		var confirmErr *MentionConfirmationRequiredError
-		if !errors.As(err, &confirmErr) {
-			t.Fatalf("PostMessage err = %v, want MentionConfirmationRequiredError", err)
-		}
-		if confirmErr.RecipientCount != LargeMentionNotificationThreshold+1 {
-			t.Fatalf("RecipientCount = %d, want %d", confirmErr.RecipientCount, LargeMentionNotificationThreshold+1)
-		}
+	if _, err := core.PostMessage(ctx, KindChannel, room.Id, author.Id, "@all important", nil, "", "", nil, false); err != nil {
+		t.Fatalf("PostMessage with broad mention: %v", err)
 	}
 
 	if _, err := core.PostMessage(ctx, KindChannel, room.Id, author.Id, "```\n@all\n```", nil, "", "", nil, false); err != nil {
 		t.Fatalf("PostMessage with @all inside fenced code block: %v", err)
-	}
-
-	if _, err := core.PostMessage(ctx, KindChannel, room.Id, author.Id, "@all confirmed", nil, "", "", nil, false, WithLargeMentionConfirmed()); err != nil {
-		t.Fatalf("PostMessage with confirmation: %v", err)
 	}
 }
 

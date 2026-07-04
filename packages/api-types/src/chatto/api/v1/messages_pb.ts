@@ -56,13 +56,6 @@ export class CreateMessageRequest extends Message<CreateMessageRequest> {
   alsoSendToChannel = false;
 
   /**
-   * Short-lived token returned by a prior mention confirmation challenge.
-   *
-   * @generated from field: string mention_confirmation_token = 7;
-   */
-  mentionConfirmationToken = "";
-
-  /**
    * Short-lived token returned by FetchLinkPreview for the selected URL. The
    * server resolves the token to cached, server-fetched metadata during post.
    *
@@ -84,7 +77,6 @@ export class CreateMessageRequest extends Message<CreateMessageRequest> {
     { no: 4, name: "thread_root_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 5, name: "in_reply_to", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 6, name: "also_send_to_channel", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 7, name: "mention_confirmation_token", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 10, name: "link_preview_token", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
@@ -106,80 +98,17 @@ export class CreateMessageRequest extends Message<CreateMessageRequest> {
 }
 
 /**
- * Large mention confirmation details for a message that was not posted.
- *
- * @generated from message chatto.api.v1.MentionConfirmationChallenge
- */
-export class MentionConfirmationChallenge extends Message<MentionConfirmationChallenge> {
-  /**
-   * Number of people the message would notify.
-   *
-   * @generated from field: int32 recipient_count = 1;
-   */
-  recipientCount = 0;
-
-  /**
-   * Short-lived token to send back with the same message after user approval.
-   *
-   * @generated from field: string token = 2;
-   */
-  token = "";
-
-  constructor(data?: PartialMessage<MentionConfirmationChallenge>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.MentionConfirmationChallenge";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "recipient_count", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
-    { no: 2, name: "token", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): MentionConfirmationChallenge {
-    return new MentionConfirmationChallenge().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): MentionConfirmationChallenge {
-    return new MentionConfirmationChallenge().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): MentionConfirmationChallenge {
-    return new MentionConfirmationChallenge().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: MentionConfirmationChallenge | PlainMessage<MentionConfirmationChallenge> | undefined, b: MentionConfirmationChallenge | PlainMessage<MentionConfirmationChallenge> | undefined): boolean {
-    return proto3.util.equals(MentionConfirmationChallenge, a, b);
-  }
-}
-
-/**
  * Result of creating a message.
  *
  * @generated from message chatto.api.v1.CreateMessageResponse
  */
 export class CreateMessageResponse extends Message<CreateMessageResponse> {
   /**
-   * @generated from oneof chatto.api.v1.CreateMessageResponse.result
+   * Renderable timeline event for the created message.
+   *
+   * @generated from field: chatto.api.v1.RoomTimelineEvent event = 1;
    */
-  result: {
-    /**
-     * Renderable timeline event for the created message.
-     *
-     * @generated from field: chatto.api.v1.RoomTimelineEvent event = 1;
-     */
-    value: RoomTimelineEvent;
-    case: "event";
-  } | {
-    /**
-     * Challenge shown when a message would notify many people.
-     *
-     * @generated from field: chatto.api.v1.MentionConfirmationChallenge mention_confirmation = 2;
-     */
-    value: MentionConfirmationChallenge;
-    case: "mentionConfirmation";
-  } | { case: undefined; value?: undefined } = { case: undefined };
+  event?: RoomTimelineEvent;
 
   /**
    * Related entities needed to render event when a message was created.
@@ -196,8 +125,7 @@ export class CreateMessageResponse extends Message<CreateMessageResponse> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.CreateMessageResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "event", kind: "message", T: RoomTimelineEvent, oneof: "result" },
-    { no: 2, name: "mention_confirmation", kind: "message", T: MentionConfirmationChallenge, oneof: "result" },
+    { no: 1, name: "event", kind: "message", T: RoomTimelineEvent },
     { no: 3, name: "includes", kind: "message", T: RoomTimelineIncludes },
   ]);
 

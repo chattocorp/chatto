@@ -10,17 +10,16 @@ import (
 
 // MessagePostInput describes one user-facing message post operation.
 type MessagePostInput struct {
-	ActorID                  string
-	RoomID                   string
-	Body                     string
-	AttachmentAssetIDs       []string
-	HasPendingAttachments    bool
-	VideoProcessingAssetIDs  []string
-	ThreadRootEventID        string
-	InReplyTo                string
-	AlsoSendToChannel        bool
-	MentionConfirmationToken string
-	LinkPreview              *corev1.LinkPreview
+	ActorID                 string
+	RoomID                  string
+	Body                    string
+	AttachmentAssetIDs      []string
+	HasPendingAttachments   bool
+	VideoProcessingAssetIDs []string
+	ThreadRootEventID       string
+	InReplyTo               string
+	AlsoSendToChannel       bool
+	LinkPreview             *corev1.LinkPreview
 }
 
 // MessagePostAuthorizationInput describes the authorization preflight for a
@@ -82,25 +81,15 @@ type TypingIndicatorInput struct {
 	ThreadRootEventID *string
 }
 
-// MessagePostResult is returned by MessageModel.PostMessage. Exactly one of
-// Event or MentionConfirmation is set.
+// MessagePostResult is returned by MessageModel.PostMessage.
 type MessagePostResult struct {
-	Event               *corev1.Event
-	MentionConfirmation *MentionConfirmationChallenge
-}
-
-// MentionConfirmationChallenge asks the client to confirm a large mention send.
-type MentionConfirmationChallenge struct {
-	RecipientCount int
-	Token          string
+	Event *corev1.Event
 }
 
 // MessagePostPreflight is the result of checking whether a post can proceed
 // before any transport-specific attachment uploads are performed.
 type MessagePostPreflight struct {
-	Authorization       *MessagePostAuthorization
-	MentionConfirmed    bool
-	MentionConfirmation *MentionConfirmationChallenge
+	Authorization *MessagePostAuthorization
 }
 
 // Messages returns the operation-level model for message reads/writes that
@@ -111,49 +100,30 @@ func (c *ChattoCore) Messages() *MessageModel {
 
 // MessageModel owns user-facing message operations. Lower-level ChattoCore
 // helpers still perform the event-sourced write, while this model centralizes
-// authZ, mention confirmation, and post-write sync behavior for public
-// transports.
+// authZ and post-write sync behavior for public transports.
 type MessageModel struct {
 	core *ChattoCore
 }
 
-// PostMessage posts a message as actorID and returns either the committed event
-// or a mention confirmation challenge. Authorization: actor must be a room
-// member and must have message.post or message.post-in-thread, plus
+// PostMessage posts a message as actorID and returns the committed event.
+// Authorization: actor must be a room member and must have message.post or
+// message.post-in-thread, plus
 // message.echo/message.post when echoing a thread reply.
 func (s *MessageModel) PostMessage(ctx context.Context, input MessagePostInput) (*MessagePostResult, error) {
 	preflight, err := s.PreflightPost(ctx, input)
 	if err != nil {
 		return nil, err
 	}
-	if preflight.MentionConfirmation != nil {
-		return &MessagePostResult{MentionConfirmation: preflight.MentionConfirmation}, nil
-	}
 	room := preflight.Authorization.Room
 	kind := preflight.Authorization.Kind
 
-	videoProcessingAssetIDs := s.videoProcessingAssetIDsForPost(input)
-	options := make([]PostMessageOption, 0, 2)
-	if len(videoProcessingAssetIDs) > 0 {
+	options := make([]PostMessageOption, 0, 1)
+	if videoProcessingAssetIDs := s.videoProcessingAssetIDsForPost(input); len(videoProcessingAssetIDs) > 0 {
 		options = append(options, WithVideoProcessingAssets(videoProcessingAssetIDs...))
-	}
-	if preflight.MentionConfirmed {
-		options = append(options, WithLargeMentionConfirmed())
 	}
 
 	event, err := s.core.PostMessage(ctx, kind, room.Id, input.ActorID, input.Body, input.AttachmentAssetIDs, input.ThreadRootEventID, input.InReplyTo, input.LinkPreview, input.AlsoSendToChannel, options...)
 	if err != nil {
-		if confirmErr, ok := err.(*MentionConfirmationRequiredError); ok {
-			mentionScope := messagePostMentionScope(input, preflight.Authorization)
-			token, tokenErr := s.core.CreateMentionConfirmationToken(mentionScope, confirmErr.RecipientCount)
-			if tokenErr != nil {
-				return nil, tokenErr
-			}
-			return &MessagePostResult{MentionConfirmation: &MentionConfirmationChallenge{
-				RecipientCount: confirmErr.RecipientCount,
-				Token:          token,
-			}}, nil
-		}
 		return nil, err
 	}
 
@@ -161,9 +131,8 @@ func (s *MessageModel) PostMessage(ctx context.Context, input MessagePostInput) 
 	return &MessagePostResult{Event: event}, nil
 }
 
-// PreflightPost checks authorization and large-mention confirmation before a
-// transport uploads binary attachments that would otherwise become orphaned if
-// the post must pause for explicit confirmation.
+// PreflightPost checks authorization and request validity before a transport
+// uploads binary attachments.
 func (s *MessageModel) PreflightPost(ctx context.Context, input MessagePostInput) (*MessagePostPreflight, error) {
 	authorization, err := s.AuthorizePost(ctx, MessagePostAuthorizationInput{
 		ActorID:           input.ActorID,
@@ -180,34 +149,8 @@ func (s *MessageModel) PreflightPost(ctx context.Context, input MessagePostInput
 		return nil, err
 	}
 
-	mentionConfirmed := false
-	if input.Body != "" {
-		mentionScope := messagePostMentionScope(input, authorization)
-		recipientCount, err := s.core.MentionNotificationRecipientCountForBody(ctx, authorization.Kind, authorization.Room.Id, input.ActorID, input.Body)
-		if err != nil {
-			return nil, err
-		}
-		if recipientCount > LargeMentionNotificationThreshold {
-			if err := s.core.ValidateMentionConfirmationToken(input.MentionConfirmationToken, mentionScope); err != nil {
-				token, err := s.core.CreateMentionConfirmationToken(mentionScope, recipientCount)
-				if err != nil {
-					return nil, err
-				}
-				return &MessagePostPreflight{
-					Authorization: authorization,
-					MentionConfirmation: &MentionConfirmationChallenge{
-						RecipientCount: recipientCount,
-						Token:          token,
-					},
-				}, nil
-			}
-			mentionConfirmed = true
-		}
-	}
-
 	return &MessagePostPreflight{
-		Authorization:    authorization,
-		MentionConfirmed: mentionConfirmed,
+		Authorization: authorization,
 	}, nil
 }
 
@@ -256,17 +199,6 @@ func (s *MessageModel) validatePostBeforeUpload(ctx context.Context, input Messa
 		return invalidArgument("thread root must be a root message, not a thread reply")
 	}
 	return nil
-}
-
-func messagePostMentionScope(input MessagePostInput, authorization *MessagePostAuthorization) MentionConfirmationScope {
-	return MentionConfirmationScope{
-		UserID:            input.ActorID,
-		RoomID:            authorization.Room.Id,
-		Kind:              authorization.Kind,
-		Body:              input.Body,
-		ThreadRootEventID: input.ThreadRootEventID,
-		AlsoSendToChannel: input.AlsoSendToChannel,
-	}
 }
 
 // AuthorizePost checks the room, visibility, and permission gates for a

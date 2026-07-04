@@ -3,7 +3,13 @@
  * Tests for wrapValidMentions are in mentions.svelte.test.ts (requires browser APIs).
  */
 import { describe, it, expect } from 'vitest';
-import { extractMentions, findMemberByMention, isUserMentioned, type RoomMember } from './mentions';
+import {
+  extractMentions,
+  findMemberByMention,
+  hasRoleOrVirtualMention,
+  isUserMentioned,
+  type RoomMember
+} from './mentions';
 import type { PresenceStatus } from '$lib/render/types';
 
 // Helper to create test members
@@ -198,5 +204,25 @@ describe('isUserMentioned', () => {
 
   it('returns false for a mention inside a blockquote', () => {
     expect(isUserMentioned('> Hello @alice!', 'alice', members)).toBe(false);
+  });
+});
+
+describe('hasRoleOrVirtualMention', () => {
+  it('returns true for virtual room mentions', () => {
+    expect(hasRoleOrVirtualMention('@all please read', [])).toBe(true);
+    expect(hasRoleOrVirtualMention('@HERE please read', [])).toBe(true);
+  });
+
+  it('returns true for known role handles case-insensitively', () => {
+    expect(hasRoleOrVirtualMention('Heads up @Mods', ['mods'])).toBe(true);
+  });
+
+  it('returns false for ordinary user mentions and unknown handles', () => {
+    expect(hasRoleOrVirtualMention('Hi @alice and @unknown', ['mods'])).toBe(false);
+  });
+
+  it('ignores role and virtual mentions in code and blockquotes', () => {
+    expect(hasRoleOrVirtualMention('`@mods` @alice\n> @all', ['mods'])).toBe(false);
+    expect(hasRoleOrVirtualMention('```\n@all\n```\n@mods', ['mods'])).toBe(true);
   });
 });

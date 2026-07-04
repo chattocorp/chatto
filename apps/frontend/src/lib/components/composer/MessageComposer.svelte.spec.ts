@@ -42,18 +42,13 @@ function postedMessageEvent(
 
 const mutationData = { createMessage: postedMessageEvent() };
 const updateMutationData = { updateMessage: true };
-const mentionConfirmationData = {
-  mentionConfirmation: {
-    recipientCount: 12,
-    token: 'jwt.confirmation.token'
-  }
-};
 const prepareFilesMock = vi.hoisted(() => vi.fn());
 const mutationMock = vi.hoisted(() => vi.fn());
 const queryMock = vi.hoisted(() => vi.fn());
 const createMessageConnectMock = vi.hoisted(() => vi.fn());
 const updateMessageConnectMock = vi.hoisted(() => vi.fn());
 const fetchLinkPreviewConnectMock = vi.hoisted(() => vi.fn());
+const listRolesConnectMock = vi.hoisted(() => vi.fn());
 const roomStateMock = vi.hoisted(() => ({
   members: [] as RoomMember[],
   editState: {
@@ -119,6 +114,12 @@ vi.mock('$lib/api-client/messages', () => ({
 vi.mock('$lib/api-client/linkPreviews', () => ({
   createLinkPreviewAPI: () => ({
     fetchLinkPreview: fetchLinkPreviewConnectMock
+  })
+}));
+
+vi.mock('$lib/api-client/roles', () => ({
+  createRoleAPI: () => ({
+    listRoles: listRolesConnectMock
   })
 }));
 
@@ -367,16 +368,8 @@ describe('MessageComposer', () => {
       const response = await mutationMock('connectCreateMessage', {
         input: { ...input, attachments: input.attachments ?? null }
       });
-      if (response.data?.mentionConfirmation) {
-        return {
-          kind: 'mentionConfirmation',
-          recipientCount: response.data.mentionConfirmation.recipientCount,
-          token: response.data.mentionConfirmation.token
-        };
-      }
       if (response.error) throw response.error;
       return {
-        kind: 'event',
         event: response.data?.createMessage ?? null
       };
     });
@@ -384,6 +377,8 @@ describe('MessageComposer', () => {
     updateMessageConnectMock.mockResolvedValue(true);
     fetchLinkPreviewConnectMock.mockReset();
     fetchLinkPreviewConnectMock.mockResolvedValue(null);
+    listRolesConnectMock.mockReset();
+    listRolesConnectMock.mockResolvedValue({ roles: [] });
     queryMock.mockReset();
     queryMock.mockResolvedValue({ data: null, error: null });
     sessionStorage.clear();
@@ -1952,10 +1947,8 @@ describe('MessageComposer', () => {
       expect(roomStateMock.scrollState.requestScrollToBottom).toHaveBeenCalledOnce();
     });
 
-    it('retries large mention sends with the confirmation token', async () => {
-      mutationMock
-        .mockResolvedValueOnce({ data: mentionConfirmationData, error: null })
-        .mockResolvedValueOnce({ data: mutationData, error: null });
+    it('asks for confirmation before sending a virtual role mention', async () => {
+      mutationMock.mockResolvedValueOnce({ data: mutationData, error: null });
 
       const { container, getByRole, getByText } = renderMessageComposer({ roomId: 'room_456' });
       const editor = await findEditor(container);
@@ -1963,27 +1956,94 @@ describe('MessageComposer', () => {
       await typeInEditor(editor, '@all hello');
       (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
 
-      await expect.element(getByRole('dialog', { name: 'Notify 12 people?' })).toBeInTheDocument();
+      await expect.element(getByRole('dialog', { name: 'Send mention?' })).toBeInTheDocument();
       await expect
-        .element(getByText('This message will notify 12 people. Send it anyway?'))
+        .element(getByText('This message contains a mention that may notify multiple people.'))
         .toBeInTheDocument();
-      expect(mutationMock).toHaveBeenCalledOnce();
+      expect(mutationMock).not.toHaveBeenCalled();
 
       await userEvent.click(getByRole('button', { name: 'Send Anyway' }));
 
-      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledTimes(2));
-      expect(mutationMock.mock.calls[0][1].input.mentionConfirmationToken).toBeNull();
-      expect(mutationMock.mock.calls[1][1].input.mentionConfirmationToken).toBe(
-        'jwt.confirmation.token'
-      );
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      expect(mutationMock.mock.calls[0][1].input).toMatchObject({
+        body: '@all hello',
+        attachments: null
+      });
+      expect(mutationMock.mock.calls[0][1].input).not.toHaveProperty('mentionConfirmationToken');
     });
 
-    it('restores text and attachments when cancelling a large mention send', async () => {
-      mutationMock.mockResolvedValueOnce({
-        data: mentionConfirmationData,
-        error: null
+    it('asks for confirmation before sending a known role mention', async () => {
+      listRolesConnectMock.mockResolvedValueOnce({
+        roles: [{ name: 'mods', isSystem: false, position: 10, pingable: false }]
       });
 
+      const { container, getByRole } = renderMessageComposer({ roomId: 'room_456' });
+      const editor = await findEditor(container);
+
+      await vi.waitFor(() => expect(listRolesConnectMock).toHaveBeenCalledOnce());
+      await tick();
+      await typeInEditor(editor, '@mods hello');
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+
+      await expect.element(getByRole('dialog', { name: 'Send mention?' })).toBeInTheDocument();
+      expect(mutationMock).not.toHaveBeenCalled();
+    });
+
+    it('waits for the role catalog before deciding whether a role mention needs confirmation', async () => {
+      const roleLoad = deferred<{
+        roles: { name: string; isSystem: boolean; position: number; pingable: boolean }[];
+      }>();
+      listRolesConnectMock.mockReturnValueOnce(roleLoad.promise);
+
+      const { container, getByRole } = renderMessageComposer({ roomId: 'room_456' });
+      const editor = await findEditor(container);
+
+      await typeInEditor(editor, '@mods hello');
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+
+      expect(mutationMock).not.toHaveBeenCalled();
+      expect(q(document.body, '[role="dialog"]')).toBeNull();
+
+      roleLoad.resolve({
+        roles: [{ name: 'mods', isSystem: false, position: 10, pingable: false }]
+      });
+
+      await expect.element(getByRole('dialog', { name: 'Send mention?' })).toBeInTheDocument();
+      expect(mutationMock).not.toHaveBeenCalled();
+    });
+
+    it('asks for confirmation on parsed mentions when the role catalog fails to load', async () => {
+      listRolesConnectMock.mockRejectedValueOnce(new Error('roles unavailable'));
+
+      const { container, getByRole } = renderMessageComposer({ roomId: 'room_456' });
+      const editor = await findEditor(container);
+
+      await vi.waitFor(() => expect(listRolesConnectMock).toHaveBeenCalledOnce());
+      await typeInEditor(editor, '@mods hello');
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+
+      await expect.element(getByRole('dialog', { name: 'Send mention?' })).toBeInTheDocument();
+      expect(mutationMock).not.toHaveBeenCalled();
+    });
+
+    it('does not ask for confirmation for the implicit everyone role handle', async () => {
+      listRolesConnectMock.mockResolvedValueOnce({
+        roles: [{ name: 'everyone', isSystem: true, position: 0, pingable: false }]
+      });
+
+      const { container } = renderMessageComposer({ roomId: 'room_456' });
+      const editor = await findEditor(container);
+
+      await vi.waitFor(() => expect(listRolesConnectMock).toHaveBeenCalledOnce());
+      await tick();
+      await typeInEditor(editor, '@everyone hello');
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      expect(mutationMock.mock.calls[0][1].input.body).toBe('@everyone hello');
+    });
+
+    it('leaves text and attachments in place when cancelling a role mention send', async () => {
       const { container, getByRole } = renderMessageComposer({ roomId: 'room_456' });
       const editor = await findEditor(container);
       const file = selectFirstAttachment(q(container, 'input[type="file"]') as HTMLInputElement);
@@ -1992,21 +2052,19 @@ describe('MessageComposer', () => {
       await typeInEditor(editor, '@all with attachment');
       (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
 
-      await expect.element(getByRole('dialog', { name: 'Notify 12 people?' })).toBeInTheDocument();
-      expect(mutationMock).toHaveBeenCalledOnce();
+      await expect.element(getByRole('dialog', { name: 'Send mention?' })).toBeInTheDocument();
+      expect(mutationMock).not.toHaveBeenCalled();
 
       await userEvent.click(getByRole('button', { name: 'Cancel' }));
 
       await expect.element(editor).toHaveTextContent('@all with attachment');
       await expect.poll(() => q(container, 'img')).toBeTruthy();
-      expect(mutationMock).toHaveBeenCalledOnce();
-      expect(mutationMock.mock.calls[0][1].input.attachments).toEqual([file]);
+      expect(mutationMock).not.toHaveBeenCalled();
+      expect(file.name).toBe('paste.png');
     });
 
-    it('restores text and attachments after a failed large mention confirmation retry', async () => {
-      mutationMock
-        .mockResolvedValueOnce({ data: mentionConfirmationData, error: null })
-        .mockResolvedValueOnce({ data: null, error: new Error('still nope') });
+    it('restores text and attachments after a failed confirmed role mention send', async () => {
+      mutationMock.mockResolvedValueOnce({ data: null, error: new Error('still nope') });
 
       const { container, getByRole } = renderMessageComposer({ roomId: 'room_456' });
       const editor = await findEditor(container);
@@ -2016,16 +2074,13 @@ describe('MessageComposer', () => {
       await typeInEditor(editor, '@all will retry');
       (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
 
-      await expect.element(getByRole('dialog', { name: 'Notify 12 people?' })).toBeInTheDocument();
+      await expect.element(getByRole('dialog', { name: 'Send mention?' })).toBeInTheDocument();
       await userEvent.click(getByRole('button', { name: 'Send Anyway' }));
 
-      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledTimes(2));
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       await expect.element(editor).toHaveTextContent('@all will retry');
       await expect.poll(() => q(container, 'img')).toBeTruthy();
-      expect(mutationMock.mock.calls[1][1].input.mentionConfirmationToken).toBe(
-        'jwt.confirmation.token'
-      );
-      expect(mutationMock.mock.calls[1][1].input.attachments).toEqual([file]);
+      expect(mutationMock.mock.calls[0][1].input.attachments).toEqual([file]);
       expect(getToasts().map((t) => t.message)).toContain('Failed to send message');
     });
 

@@ -23,6 +23,7 @@
   import { shouldAutoFocus } from '$lib/utils/shouldAutoFocus';
   import { isTouchDevice } from '$lib/utils/isTouchDevice';
   import { hasVisibleContent } from '$lib/validation';
+  import { extractMentions, hasRoleOrVirtualMention } from '$lib/mentions';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import EmojiAutocomplete from '$lib/components/composer/EmojiAutocomplete.svelte';
   import MentionAutocomplete from '$lib/components/composer/MentionAutocomplete.svelte';
@@ -160,6 +161,9 @@
     () => mentionRoles
   );
   let mentionRoles = $state<MentionRole[]>([]);
+  let mentionRolesLoadComplete = $state(false);
+  let mentionRolesLoadFailed = $state(false);
+  let mentionRolesLoadPromise: Promise<boolean> | null = null;
 
   $effect(() => {
     const query = autocomplete.mention?.query ?? null;
@@ -271,6 +275,9 @@
       bearerToken: conn.bearerToken
     });
     let cancelled = false;
+    mentionRoles = [];
+    mentionRolesLoadComplete = false;
+    mentionRolesLoadFailed = false;
 
     async function loadMentionRoles() {
       let roles;
@@ -279,28 +286,33 @@
       } catch {
         if (!cancelled) {
           mentionRoles = [];
+          mentionRolesLoadFailed = true;
+          mentionRolesLoadComplete = true;
         }
-        return;
+        return false;
       }
-      if (cancelled) return;
+      if (cancelled) return false;
       mentionRoles =
         roles
-          ?.filter((role) => role.name !== 'everyone')
           .map((role) => ({
             name: role.name,
             isSystem: role.isSystem,
             position: role.position,
             pingable: role.pingable
           })) ?? [];
+      mentionRolesLoadFailed = false;
+      mentionRolesLoadComplete = true;
+      return true;
     }
 
-    void loadMentionRoles();
+    mentionRolesLoadPromise = loadMentionRoles();
     return () => {
       cancelled = true;
     };
   });
 
   let loading = $state(false);
+  let roleMentionCheckLoading = $state(false);
   let fileInputElement = $state<HTMLInputElement>();
 
   // Input is disabled when user can't post or websocket is disconnected.
@@ -314,6 +326,7 @@
   // hasVisibleContent rejects messages with only invisible Unicode characters.
   let canSubmit = $derived(
     !loading &&
+      !roleMentionCheckLoading &&
       !inputDisabled &&
       attachments.pendingCount === 0 &&
       (hasVisibleContent(message) || hasSendableAttachments || isEditing)
@@ -469,12 +482,6 @@
     return normalizeMessageBody(text.trim());
   }
 
-  type MentionConfirmation = {
-    recipientCount: number;
-    token: string;
-    attachmentAssetIds: string[];
-  };
-
   type PreparedPost = {
     roomId: string;
     bodyToSend: string;
@@ -487,21 +494,31 @@
     wasRichComposer: boolean;
   };
 
-  type PendingMentionConfirmation = PreparedPost & MentionConfirmation;
-
   type SendPreparedPostResponse = {
     event: RoomEventView | null;
     error: unknown | null;
-    mentionConfirmation: MentionConfirmation | null;
   };
 
-  let pendingMentionConfirmation = $state<PendingMentionConfirmation | null>(null);
-  let mentionConfirmationLoading = $state(false);
+  let pendingRoleMentionConfirmation = $state<PreparedPost | null>(null);
+  let roleMentionConfirmationLoading = $state(false);
 
-  async function sendPreparedPost(
-    post: PreparedPost,
-    mentionConfirmationToken: string | null
-  ): Promise<SendPreparedPostResponse> {
+  async function ensureMentionRolesLoadedForConfirmation(): Promise<boolean> {
+    if (mentionRolesLoadComplete) return !mentionRolesLoadFailed;
+    return (await mentionRolesLoadPromise) ?? false;
+  }
+
+  function postMentionsRoleOrVirtualTarget(post: PreparedPost, rolesAvailable: boolean): boolean {
+    const hasKnownRoleOrVirtualMention = hasRoleOrVirtualMention(
+      post.bodyToSend,
+      mentionRoles.filter((role) => role.name !== 'everyone').map((role) => role.name)
+    );
+    if (hasKnownRoleOrVirtualMention) return true;
+    if (rolesAvailable) return false;
+
+    return extractMentions(post.bodyToSend).length > 0;
+  }
+
+  async function sendPreparedPost(post: PreparedPost): Promise<SendPreparedPostResponse> {
     try {
       const conn = connection();
       const result = await createMessageAPI({
@@ -516,24 +533,12 @@
         threadRootEventId: post.threadRootEventId,
         inReplyTo: post.inReplyTo,
         linkPreview: post.linkPreviewInput,
-        alsoSendToChannel: post.alsoSendToChannel,
-        mentionConfirmationToken
+        alsoSendToChannel: post.alsoSendToChannel
       });
 
-      if (result.kind === 'mentionConfirmation') {
-        return {
-          event: null,
-          error: null,
-          mentionConfirmation: {
-            recipientCount: result.recipientCount,
-            token: result.token,
-            attachmentAssetIds: result.attachmentAssetIds
-          }
-        };
-      }
-      return { event: result.event, error: null, mentionConfirmation: null };
+      return { event: result.event, error: null };
     } catch (error) {
-      return { event: null, error, mentionConfirmation: null };
+      return { event: null, error };
     }
   }
 
@@ -575,32 +580,45 @@
     manualRichMode = false;
   }
 
-  function cancelMentionConfirmation() {
-    const pendingPost = pendingMentionConfirmation;
-    pendingMentionConfirmation = null;
-    if (pendingPost) {
-      restorePreparedPost(pendingPost);
+  async function submitPreparedPost(preparedPost: PreparedPost) {
+    // Optimistically clear the editor so the user can start typing the next
+    // message immediately (matches Slack/Discord behavior).
+    autocomplete.reset();
+    message = '';
+    manualRichMode = false;
+    editorApi?.setContent('');
+    attachments.clear();
+    linkPreviews.clear();
+
+    loading = true;
+
+    try {
+      const response = await sendPreparedPost(preparedPost);
+
+      if (response.error) {
+        handlePostFailure(response.error, preparedPost);
+      } else {
+        handlePostSuccess(response, preparedPost);
+      }
+    } finally {
+      loading = false;
     }
   }
 
-  async function confirmMentionSend() {
-    const pendingPost = pendingMentionConfirmation;
-    if (!pendingPost || mentionConfirmationLoading) return;
+  function cancelRoleMentionConfirmation() {
+    pendingRoleMentionConfirmation = null;
+  }
 
-    mentionConfirmationLoading = true;
+  async function confirmRoleMentionSend() {
+    const pendingPost = pendingRoleMentionConfirmation;
+    if (!pendingPost || roleMentionConfirmationLoading) return;
+
+    roleMentionConfirmationLoading = true;
     try {
-      const response = await sendPreparedPost(pendingPost, pendingPost.token);
-      pendingMentionConfirmation = null;
-
-      if (response.error) {
-        handlePostFailure(response.error, pendingPost);
-      } else if (response.mentionConfirmation) {
-        pendingMentionConfirmation = { ...pendingPost, ...response.mentionConfirmation };
-      } else {
-        handlePostSuccess(response, pendingPost);
-      }
+      await submitPreparedPost(pendingPost);
+      pendingRoleMentionConfirmation = null;
     } finally {
-      mentionConfirmationLoading = false;
+      roleMentionConfirmationLoading = false;
     }
   }
 
@@ -623,33 +641,22 @@
       wasRichComposer: isRichComposer
     };
 
-    // Optimistically clear the editor so the user can start typing the next
-    // message immediately (matches Slack/Discord behavior).
-    autocomplete.reset();
-    message = '';
-    manualRichMode = false;
-    editorApi?.setContent('');
-    attachments.clear();
-    linkPreviews.clear();
-
-    loading = true;
-
-    try {
-      const response = await sendPreparedPost(preparedPost, null);
-
-      if (response.mentionConfirmation) {
-        pendingMentionConfirmation = { ...preparedPost, ...response.mentionConfirmation };
-        return;
+    let rolesAvailable = mentionRolesLoadComplete && !mentionRolesLoadFailed;
+    if (hasBody && bodyToSend.includes('@') && !mentionRolesLoadComplete) {
+      roleMentionCheckLoading = true;
+      try {
+        rolesAvailable = await ensureMentionRolesLoadedForConfirmation();
+      } finally {
+        roleMentionCheckLoading = false;
       }
-
-      if (response.error) {
-        handlePostFailure(response.error, preparedPost);
-      } else {
-        handlePostSuccess(response, preparedPost);
-      }
-    } finally {
-      loading = false;
     }
+
+    if (hasBody && postMentionsRoleOrVirtualTarget(preparedPost, rolesAvailable)) {
+      pendingRoleMentionConfirmation = preparedPost;
+      return;
+    }
+
+    await submitPreparedPost(preparedPost);
   }
 
   async function editMessage() {
@@ -695,7 +702,15 @@
   async function handleSubmit() {
     // Guard against double-sends while editor stays editable, and against
     // submitting before pasted/dropped/selected files have finished staging.
-    if (loading || inputDisabled || attachments.pendingCount > 0) return;
+    if (
+      loading ||
+      roleMentionCheckLoading ||
+      roleMentionConfirmationLoading ||
+      pendingRoleMentionConfirmation ||
+      inputDisabled ||
+      attachments.pendingCount > 0
+    )
+      return;
     if (isEditing) {
       await editMessage();
     } else {
@@ -1064,17 +1079,17 @@
   {/if}
 </div>
 
-{#if pendingMentionConfirmation}
+{#if pendingRoleMentionConfirmation}
   <ConfirmDialog
-    title={m['composer.notify_title']({ count: pendingMentionConfirmation.recipientCount })}
+    title={m['composer.role_mention_confirm_title']()}
     tone="warning"
     actionLabel={m['composer.send_anyway']()}
     actionIcon="iconify uil--telegram-alt"
-    loading={mentionConfirmationLoading}
-    onconfirm={confirmMentionSend}
-    onclose={cancelMentionConfirmation}
+    loading={roleMentionConfirmationLoading}
+    onconfirm={confirmRoleMentionSend}
+    onclose={cancelRoleMentionConfirmation}
   >
-    {m['composer.notify_body']({ count: pendingMentionConfirmation.recipientCount })}
+    {m['composer.role_mention_confirm_body']()}
   </ConfirmDialog>
 {/if}
 

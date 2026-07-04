@@ -115,6 +115,18 @@ function isVirtualMention(username: string): boolean {
   return lower === 'all' || lower === 'here';
 }
 
+/**
+ * Reports whether text mentions a room-wide virtual group or any known role
+ * handle. Uses extractMentions, so Markdown code and blockquote regions are
+ * ignored consistently with server-side mention resolution.
+ */
+export function hasRoleOrVirtualMention(text: string, roleHandles: string[]): boolean {
+  const roles = new Set(roleHandles.map((role) => role.toLowerCase()));
+  return extractMentions(text).some(
+    (mention) => isVirtualMention(mention) || roles.has(mention.toLowerCase())
+  );
+}
+
 function findRoleMention(username: string, roleHandles: string[]): string | undefined {
   const lower = username.toLowerCase();
   return roleHandles.find((role) => role.toLowerCase() === lower);

@@ -26,31 +26,20 @@ func (s *messageService) CreateMessage(ctx context.Context, req *connect.Request
 	}
 
 	result, err := s.api.core.Messages().PostMessage(ctx, core.MessagePostInput{
-		ActorID:                  caller.UserID,
-		RoomID:                   req.Msg.RoomId,
-		Body:                     req.Msg.Body,
-		AttachmentAssetIDs:       append([]string(nil), req.Msg.GetAttachmentAssetIds()...),
-		ThreadRootEventID:        req.Msg.ThreadRootEventId,
-		InReplyTo:                req.Msg.InReplyTo,
-		AlsoSendToChannel:        req.Msg.AlsoSendToChannel,
-		MentionConfirmationToken: req.Msg.MentionConfirmationToken,
-		LinkPreview:              linkPreview,
+		ActorID:            caller.UserID,
+		RoomID:             req.Msg.RoomId,
+		Body:               req.Msg.Body,
+		AttachmentAssetIDs: append([]string(nil), req.Msg.GetAttachmentAssetIds()...),
+		ThreadRootEventID:  req.Msg.ThreadRootEventId,
+		InReplyTo:          req.Msg.InReplyTo,
+		AlsoSendToChannel:  req.Msg.AlsoSendToChannel,
+		LinkPreview:        linkPreview,
 	})
 	if err != nil {
 		return nil, connectError(err)
 	}
 	if result == nil {
 		return nil, connect.NewError(connect.CodeInternal, errors.New("message create returned no result"))
-	}
-	if challenge := result.MentionConfirmation; challenge != nil {
-		return connect.NewResponse(&apiv1.CreateMessageResponse{
-			Result: &apiv1.CreateMessageResponse_MentionConfirmation{
-				MentionConfirmation: &apiv1.MentionConfirmationChallenge{
-					RecipientCount: int32(challenge.RecipientCount),
-					Token:          challenge.Token,
-				},
-			},
-		}), nil
 	}
 	if result.Event == nil {
 		return nil, connect.NewError(connect.CodeInternal, errors.New("message create returned no event"))
@@ -66,7 +55,7 @@ func (s *messageService) CreateMessage(ctx context.Context, req *connect.Request
 		return nil, connectError(err)
 	}
 	return connect.NewResponse(&apiv1.CreateMessageResponse{
-		Result:   &apiv1.CreateMessageResponse_Event{Event: apiEvent},
+		Event:    apiEvent,
 		Includes: includes,
 	}), nil
 }

@@ -20,7 +20,6 @@ const (
 
 type postMessageOptions struct {
 	videoProcessingAssetIDs map[string]struct{}
-	largeMentionConfirmed   bool
 }
 
 type editMessageOptions struct {
@@ -45,15 +44,6 @@ func WithVideoProcessingAssets(assetIDs ...string) PostMessageOption {
 				options.videoProcessingAssetIDs[assetID] = struct{}{}
 			}
 		}
-	}
-}
-
-// WithLargeMentionConfirmed confirms that the caller intentionally wants to
-// send a message whose mentions notify more than
-// LargeMentionNotificationThreshold users.
-func WithLargeMentionConfirmed() PostMessageOption {
-	return func(options *postMessageOptions) {
-		options.largeMentionConfirmed = true
 	}
 }
 
@@ -524,15 +514,6 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 					directMentionedUserIDs = directResolved
 				}
 			}
-		}
-	}
-
-	if len(mentionedUserIDs) > 0 && !options.largeMentionConfirmed {
-		recipientCount, err := c.mentionNotificationRecipientCount(ctx, room_id, user_id, mentionedUserIDs)
-		if err != nil {
-			c.logger.Warn("Failed to count mention notification recipients", "error", err, "room_id", room_id)
-		} else if recipientCount > LargeMentionNotificationThreshold {
-			return nil, &MentionConfirmationRequiredError{RecipientCount: recipientCount}
 		}
 	}
 

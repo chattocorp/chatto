@@ -5036,12 +5036,13 @@ func TestMessageServiceCreateMessageAttachmentPreflightDoesNotCreateAssets(t *te
 	}
 }
 
-func TestMessageServiceCreateMessageMentionConfirmationDoesNotCreateAssets(t *testing.T) {
+func TestMessageServiceCreateMessageBroadMentionWithAttachment(t *testing.T) {
 	env := newConnectAPITestEnv(t)
-	room := env.createJoinedRoom("upload-mention-confirm")
+	room := env.createJoinedRoom("upload-broad-mention")
 	ctx := withCaller(env.ctx, env.viewer)
 
-	for i := 0; i < core.LargeMentionNotificationThreshold+1; i++ {
+	const targetCount = 12
+	for i := 0; i < targetCount; i++ {
 		user, err := env.core.CreateUser(env.ctx, core.SystemActorID, "large-mention-target-"+strconv.Itoa(i), "Large Mention Target", "password")
 		if err != nil {
 			t.Fatalf("CreateUser target %d: %v", i, err)
@@ -5051,10 +5052,10 @@ func TestMessageServiceCreateMessageMentionConfirmationDoesNotCreateAssets(t *te
 		}
 	}
 
-	assetID := env.uploadAttachmentAsset(t, room.Id, "note.txt", "text/plain", []byte("challenged upload"))
+	assetID := env.uploadAttachmentAsset(t, room.Id, "note.txt", "text/plain", []byte("broad mention upload"))
 	before, err := env.core.GetAssetCount(env.ctx)
 	if err != nil {
-		t.Fatalf("GetAssetCount before challenged post: %v", err)
+		t.Fatalf("GetAssetCount before post: %v", err)
 	}
 	resp, err := env.messages.CreateMessage(ctx, connect.NewRequest(&apiv1.CreateMessageRequest{
 		RoomId:             room.Id,
@@ -5064,22 +5065,16 @@ func TestMessageServiceCreateMessageMentionConfirmationDoesNotCreateAssets(t *te
 	if err != nil {
 		t.Fatalf("CreateMessage: %v", err)
 	}
-	challenge := resp.Msg.GetMentionConfirmation()
-	if challenge == nil {
-		t.Fatalf("CreateMessage response = %+v, want mention confirmation", resp.Msg)
-	}
-	if challenge.GetRecipientCount() != int32(core.LargeMentionNotificationThreshold+1) {
-		t.Fatalf("RecipientCount = %d, want %d", challenge.GetRecipientCount(), core.LargeMentionNotificationThreshold+1)
-	}
-	if challenge.GetToken() == "" {
-		t.Fatal("confirmation token is empty")
+	event := resp.Msg.GetEvent()
+	if event == nil || event.GetMessagePosted() == nil {
+		t.Fatalf("CreateMessage response = %+v, want message event", resp.Msg)
 	}
 	after, err := env.core.GetAssetCount(env.ctx)
 	if err != nil {
-		t.Fatalf("GetAssetCount after challenged post: %v", err)
+		t.Fatalf("GetAssetCount after post: %v", err)
 	}
 	if after != before {
-		t.Fatalf("asset count after challenged message = %d, want unchanged %d", after, before)
+		t.Fatalf("asset count after message = %d, want unchanged %d", after, before)
 	}
 }
 

@@ -926,13 +926,9 @@ const msg_composer_also_send_to_channel = (): LocalizedString => messages().comp
 const msg_composer_replying_to = (): LocalizedString => messages().composer_replying_to(empty());
 const msg_composer_esc_to_cancel = (): LocalizedString => messages().composer_esc_to_cancel(empty());
 const msg_composer_editing = (): LocalizedString => messages().composer_editing(empty());
-const msg_composer_notify_title = (
-  inputs: Parameters<LocaleMessages['composer_notify_title']>[0]
-): LocalizedString => messages().composer_notify_title(inputs);
 const msg_composer_send_anyway = (): LocalizedString => messages().composer_send_anyway(empty());
-const msg_composer_notify_body = (
-  inputs: Parameters<LocaleMessages['composer_notify_body']>[0]
-): LocalizedString => messages().composer_notify_body(inputs);
+const msg_composer_role_mention_confirm_title = (): LocalizedString => messages().composer_role_mention_confirm_title(empty());
+const msg_composer_role_mention_confirm_body = (): LocalizedString => messages().composer_role_mention_confirm_body(empty());
 const msg_composer_link_url = (): LocalizedString => messages().composer_link_url(empty());
 const msg_composer_open_link = (): LocalizedString => messages().composer_open_link(empty());
 const msg_composer_remove_link = (): LocalizedString => messages().composer_remove_link(empty());
@@ -2235,9 +2231,9 @@ export { msg_composer_also_send_to_channel as 'composer.also_send_to_channel' };
 export { msg_composer_replying_to as 'composer.replying_to' };
 export { msg_composer_esc_to_cancel as 'composer.esc_to_cancel' };
 export { msg_composer_editing as 'composer.editing' };
-export { msg_composer_notify_title as 'composer.notify_title' };
 export { msg_composer_send_anyway as 'composer.send_anyway' };
-export { msg_composer_notify_body as 'composer.notify_body' };
+export { msg_composer_role_mention_confirm_title as 'composer.role_mention_confirm_title' };
+export { msg_composer_role_mention_confirm_body as 'composer.role_mention_confirm_body' };
 export { msg_composer_link_url as 'composer.link_url' };
 export { msg_composer_open_link as 'composer.open_link' };
 export { msg_composer_remove_link as 'composer.remove_link' };

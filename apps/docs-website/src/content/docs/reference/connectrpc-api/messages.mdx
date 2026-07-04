@@ -82,7 +82,6 @@ Request to create a message in a room or thread.
 | `thread_root_event_id` | `string` | Event ID of the thread root message when posting a thread reply. |
 | `in_reply_to` | `string` | Event ID this message replies to for attribution. |
 | `also_send_to_channel` | `bool` | True to also echo a thread reply into the main room timeline. |
-| `mention_confirmation_token` | `string` | Short-lived token returned by a prior mention confirmation challenge. |
 | `link_preview_token` | `string` | Short-lived token returned by FetchLinkPreview for the selected URL. The server resolves the token to cached, server-fetched metadata during post. |
 
 
@@ -94,8 +93,7 @@ Result of creating a message.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `result.event` | [`RoomTimelineEvent`](/reference/connectrpc-api/types/#chatto-api-v1-RoomTimelineEvent) | Renderable timeline event for the created message. |
-| `result.mention_confirmation` | [`MentionConfirmationChallenge`](/reference/connectrpc-api/types/#chatto-api-v1-MentionConfirmationChallenge) | Challenge shown when a message would notify many people. |
+| `event` | [`RoomTimelineEvent`](/reference/connectrpc-api/types/#chatto-api-v1-RoomTimelineEvent) | Renderable timeline event for the created message. |
 | `includes` | [`RoomTimelineIncludes`](/reference/connectrpc-api/types/#chatto-api-v1-RoomTimelineIncludes) | Related entities needed to render event when a message was created. |
 
 

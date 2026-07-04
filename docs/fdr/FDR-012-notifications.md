@@ -1,7 +1,7 @@
 # FDR-012: Notifications
 
 **Status:** Active
-**Last reviewed:** 2026-07-01
+**Last reviewed:** 2026-07-04
 
 ## Overview
 
@@ -11,7 +11,7 @@ Chatto has a persistent notification system surfaced through a bell icon and not
 
 - A bell icon shows an unread count and opens the notification center listing recent notifications.
 - A notification appears for: a DM message, a mention that resolves to the user, a reply to one of the user's messages, a new reply in a thread the user follows, or any root message in a room set to ALL_MESSAGES.
-- Mention notifications may come from direct `@username`, role `@role`, `@all`, or `@here` mentions. Sends that would notify more than 10 users require confirmation before notifications are created.
+- Mention notifications may come from direct `@username`, role `@role`, `@all`, or `@here` mentions. The bundled composer asks for confirmation before sending role, `@all`, or `@here` mentions, while API callers can post authorized messages directly.
 - Notifications auto-expire after 90 days.
 - Dismissing a notification removes it everywhere — across all the user's open tabs and devices.
 - A notification sound plays and the in-app and installed PWA notification badges update in real time as new notifications arrive.
@@ -63,16 +63,19 @@ Per space and per room, the user picks one of four levels:
 **Why:** People who participate in a thread almost always want to see the replies, and a direct mention makes the thread relevant to the recipient. Manual unfollow handles both the "I posted once and don't care any more" case and the "do not put this mentioned thread back in My Threads" case.
 **Tradeoff:** A user who posts in many threads or is directly mentioned in many threads accumulates followed-thread subscriptions over time. The 90-day TTL on notifications limits the blast radius; the thread follow state itself is cheap to store.
 
-### 5. Broadcast mentions are sender-controlled but bounded
+### 5. Broadcast mentions are sender-controlled with bundled-client friction
 
-**Decision:** `@all`, `@here`, and role mentions are allowed, but sends that would notify more than 10 users require confirmation and muted recipients still do not receive notifications.
-**Why:** Chatto needs explicit operational pings for small teams and rooms, but broad pings should be deliberate. Confirmation catches accidental broadcasts without removing the tool.
-**Tradeoff:** Operators can force attention in a room unless recipients have muted it. This is acceptable because the prompt adds friction and mute remains authoritative.
+**Decision:** `@all`, `@here`, and role mentions are allowed. The bundled
+composer asks for confirmation before sending them, and muted recipients still
+do not receive notifications. The server does not require a confirmation token
+from API callers.
+**Why:** Chatto needs explicit operational pings for small teams and rooms, but broad pings should be deliberate in the main client. Keeping the safeguard in the client avoids making the integration API carry a client-shaped confirmation token that does not provide meaningful abuse protection.
+**Tradeoff:** Operators and integrations can force attention in a room unless recipients have muted it. This is acceptable because mute remains authoritative and integrations can add their own policy or UX friction where appropriate.
 
 ### 6. ALL_MESSAGES is a per-room subscription, not a per-message setting
 
 **Decision:** "Notify me for every message" is configured per room by the user, not per message by the poster.
-**Why:** Receiver-controlled subscription puts the ongoing ambient-notification choice with the person who has to live with the noise. Sender-controlled broadcasts are reserved for explicit mentions with confirmation.
+**Why:** Receiver-controlled subscription puts the ongoing ambient-notification choice with the person who has to live with the noise. Sender-controlled broadcasts are reserved for explicit mentions; the bundled client adds confirmation friction for role and room-wide mentions.
 **Tradeoff:** Users who want every message still need to opt into ALL_MESSAGES; senders should use mentions only for attention events.
 
 ### 7. Push notifications piggyback on persistent notifications

@@ -94,7 +94,7 @@ function viewerClient(remoteBaseURL: string) {
 function postedEventId(
   response: Awaited<ReturnType<ReturnType<typeof messageClient>['createMessage']>>
 ) {
-  const event = response.result.case === 'event' ? response.result.value : undefined;
+  const event = response.event;
   if (!event?.id) {
     throw new Error(`CreateMessage did not return an event: ${JSON.stringify(response.toJson())}`);
   }
@@ -316,7 +316,7 @@ export async function postMessageAttachmentOnRemote(
     { headers: authHeaders(token) }
   );
 
-  const event = response.result.case === 'event' ? response.result.value : undefined;
+  const event = response.event;
   const eventId = event?.id;
   const message = event?.event.case === 'messagePosted' ? event.event.value : undefined;
   const attachmentUrl = message?.attachments[0]?.assetUrl?.url;

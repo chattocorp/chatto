@@ -3,11 +3,7 @@ import { Code, ConnectError } from '@connectrpc/connect';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { configureApiClientHooks } from '$lib/api-client/hooks';
 import { createMessageAPI } from '$lib/api-client/messages';
-import {
-  MentionConfirmationChallenge,
-  CreateMessageResponse,
-  UpdateMessageResponse
-} from '@chatto/api-types/api/v1/messages_pb';
+import { CreateMessageResponse, UpdateMessageResponse } from '@chatto/api-types/api/v1/messages_pb';
 import {
   AssetUpload,
   AssetUploadStatus,
@@ -89,22 +85,19 @@ describe('createMessageAPI', () => {
   it('posts a message with bearer auth and maps the renderable event response', async () => {
     mocks.createMessage.mockResolvedValue(
       new CreateMessageResponse({
-        result: {
-          case: 'event',
-          value: new RoomTimelineEvent({
-            id: 'evt-1',
-            actorId: 'user-1',
-            createdAt: Timestamp.fromDate(new Date('2026-06-20T10:00:00Z')),
-            event: {
-              case: 'messagePosted',
-              value: new RoomTimelineMessagePosted({
-                roomId: 'room-1',
-                body: 'hello',
-                viewerIsFollowingThread: true
-              })
-            }
-          })
-        },
+        event: new RoomTimelineEvent({
+          id: 'evt-1',
+          actorId: 'user-1',
+          createdAt: Timestamp.fromDate(new Date('2026-06-20T10:00:00Z')),
+          event: {
+            case: 'messagePosted',
+            value: new RoomTimelineMessagePosted({
+              roomId: 'room-1',
+              body: 'hello',
+              viewerIsFollowingThread: true
+            })
+          }
+        }),
         includes: new RoomTimelineIncludes({
           users: {
             'user-1': new User({
@@ -129,7 +122,6 @@ describe('createMessageAPI', () => {
       threadRootEventId: 'root-1',
       inReplyTo: 'reply-1',
       alsoSendToChannel: true,
-      mentionConfirmationToken: 'confirm-token',
       linkPreview: {
         previewToken: 'cht_LPpreviewtoken'
       }
@@ -146,7 +138,6 @@ describe('createMessageAPI', () => {
         threadRootEventId: 'root-1',
         inReplyTo: 'reply-1',
         alsoSendToChannel: true,
-        mentionConfirmationToken: 'confirm-token',
         linkPreviewToken: 'cht_LPpreviewtoken'
       }),
       {
@@ -154,40 +145,12 @@ describe('createMessageAPI', () => {
       }
     );
     expect(result).toMatchObject({
-      kind: 'event',
       event: {
         id: 'evt-1',
         actor: { id: 'user-1', displayName: 'Alice' },
         event: { kind: 'messagePosted', body: 'hello' }
       }
     });
-  });
-
-  it('returns large mention confirmation challenges without treating them as errors', async () => {
-    mocks.createMessage.mockResolvedValue(
-      new CreateMessageResponse({
-        result: {
-          case: 'mentionConfirmation',
-          value: new MentionConfirmationChallenge({
-            recipientCount: 12,
-            token: 'confirm-token'
-          })
-        }
-      })
-    );
-
-    const api = createMessageAPI({
-      baseUrl: 'https://remote.example.test/api/connect',
-      bearerToken: null
-    });
-
-    await expect(api.createMessage({ roomId: 'room-1', body: '@all hello' })).resolves.toEqual({
-      kind: 'mentionConfirmation',
-      recipientCount: 12,
-      token: 'confirm-token',
-      attachmentAssetIds: []
-    });
-    expect(mocks.createMessage).toHaveBeenCalledWith(expect.anything(), { headers: undefined });
   });
 
   it('uploads browser files through AssetUploadService and posts attachment asset IDs', async () => {
@@ -235,20 +198,17 @@ describe('createMessageAPI', () => {
     );
     mocks.createMessage.mockResolvedValue(
       new CreateMessageResponse({
-        result: {
-          case: 'event',
-          value: new RoomTimelineEvent({
-            id: 'evt-attachment',
-            actorId: 'user-1',
-            event: {
-              case: 'messagePosted',
-              value: new RoomTimelineMessagePosted({
-                roomId: 'room-1',
-                body: 'with file'
-              })
-            }
-          })
-        }
+        event: new RoomTimelineEvent({
+          id: 'evt-attachment',
+          actorId: 'user-1',
+          event: {
+            case: 'messagePosted',
+            value: new RoomTimelineMessagePosted({
+              roomId: 'room-1',
+              body: 'with file'
+            })
+          }
+        })
       })
     );
 

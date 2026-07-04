@@ -2,7 +2,6 @@ package core
 
 import (
 	"context"
-	"fmt"
 	"strings"
 
 	"github.com/yuin/goldmark"
@@ -17,19 +16,7 @@ import (
 const (
 	MentionHandleAll  = "all"
 	MentionHandleHere = "here"
-
-	LargeMentionNotificationThreshold = 10
 )
-
-// MentionConfirmationRequiredError is returned when a message would notify a
-// large number of people and the caller has not explicitly confirmed the send.
-type MentionConfirmationRequiredError struct {
-	RecipientCount int
-}
-
-func (e *MentionConfirmationRequiredError) Error() string {
-	return fmt.Sprintf("mention confirmation required for %d recipients", e.RecipientCount)
-}
 
 // IsVirtualMentionHandle reports whether a handle is owned by Chatto rather
 // than by a user or role. Handles are matched case-insensitively.
