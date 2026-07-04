@@ -15,7 +15,6 @@ import {
 import { User } from '@chatto/api-types/api/v1/users_pb';
 import {
   __resetUserSummaryCachesForTests,
-  getUserSummaryCache,
   primeUserSummaryCache
 } from '$lib/state/userSummaries.svelte';
 import {
