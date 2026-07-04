@@ -65,7 +65,9 @@ describe('createRoomDirectoryAPI', () => {
             archived: false,
             universal: true
           },
-          viewerState: { isMember: true, hasUnread: true, canJoinRoom: false }
+          isMember: true,
+          hasUnread: true,
+          canJoinRoom: false
         },
         {
           room: {
@@ -75,9 +77,11 @@ describe('createRoomDirectoryAPI', () => {
             archived: true,
             universal: false
           },
-          viewerState: { isMember: true, hasUnread: false, canJoinRoom: true }
+          isMember: true,
+          hasUnread: false,
+          canJoinRoom: true
         },
-        { viewerState: { hasUnread: true } }
+        { hasUnread: true }
       ]
     });
 
@@ -133,19 +137,17 @@ describe('createRoomDirectoryAPI', () => {
           archived: false,
           universal: true
         },
-        viewerState: {
-          isMember: true,
-          hasUnread: true,
-          canJoinRoom: false,
-          canPostMessage: true,
-          canPostInThread: true,
-          canAttach: false,
-          canReact: true,
-          canEchoMessage: true,
-          canManageOthersMessage: false,
-          canManageRoom: true,
-          canBanRoomMembers: false
-        }
+        isMember: true,
+        hasUnread: true,
+        canJoinRoom: false,
+        canPostMessage: true,
+        canPostInThread: true,
+        canAttach: false,
+        canReact: true,
+        canEchoMessage: true,
+        canManageOthersMessage: false,
+        canManageRoom: true,
+        canBanRoomMembers: false
       }
     });
 
@@ -219,19 +221,17 @@ describe('createRoomDirectoryAPI', () => {
             archived: false,
             universal: true
           },
-          viewerState: {
-            isMember: true,
-            hasUnread: false,
-            canJoinRoom: false,
-            canPostMessage: true,
-            canPostInThread: false,
-            canAttach: true,
-            canReact: true,
-            canEchoMessage: false,
-            canManageOthersMessage: false,
-            canManageRoom: false,
-            canBanRoomMembers: false
-          }
+          isMember: true,
+          hasUnread: false,
+          canJoinRoom: false,
+          canPostMessage: true,
+          canPostInThread: false,
+          canAttach: true,
+          canReact: true,
+          canEchoMessage: false,
+          canManageOthersMessage: false,
+          canManageRoom: false,
+          canBanRoomMembers: false
         }
       ]
     });

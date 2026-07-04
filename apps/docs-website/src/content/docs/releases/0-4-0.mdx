@@ -125,6 +125,9 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
   `RoomService.ListMembers`, `GetMember`, and `BatchGetMembers`. Room moderation RPCs
   were also shortened from `RoomService.ListRoomBans`, `BanRoomMember`, and
   `UnbanRoomMember` to `ListBans`, `BanMember`, and `UnbanMember`.
+- Room directory responses now return `RoomWithViewerState` entries with viewer
+  state and capability fields next to `room`. Replace `DirectoryRoom.viewer_state.*`
+  reads with direct fields such as `is_member`, `has_unread`, and `can_join_room`.
 - Message attachment URL refreshes moved to room-scoped asset reads: replace
   `MessageService.RefreshMessageAttachmentUrls` with `AssetService.GetAsset` and
   `MessageService.BatchRefreshMessageAttachmentUrls` with `AssetService.BatchGetAssets`.

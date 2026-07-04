@@ -62,7 +62,7 @@ interface NotificationPreferenceResponse {
 }
 
 interface ListRoomsResponse {
-  rooms?: Array<{ room?: { id?: string; name?: string }; viewerState?: { hasUnread?: boolean } }>;
+  rooms?: Array<{ room?: { id?: string; name?: string }; hasUnread?: boolean }>;
 }
 
 interface ListRoomGroupsResponse {
@@ -189,7 +189,7 @@ async function getRoomUnreadViaConnect(client: ConnectClient, roomId: string): P
   if (!room) {
     throw new Error(`Room "${roomId}" not found`);
   }
-  return room.viewerState?.hasUnread ?? false;
+  return room.hasUnread ?? false;
 }
 
 export async function waitForServerUnreadViaConnect(

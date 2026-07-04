@@ -52,7 +52,7 @@ Finite snapshot of rooms visible to the current user.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `rooms` | repeated [`DirectoryRoom`](/reference/connectrpc-api/types/#chatto-api-v1-DirectoryRoom) | Rooms matching the requested scope. |
+| `rooms` | repeated [`RoomWithViewerState`](/reference/connectrpc-api/types/#chatto-api-v1-RoomWithViewerState) | Rooms matching the requested scope. |
 
 
 <a id="chatto-api-v1-RoomDirectoryService-ListRoomGroups"></a>
@@ -191,7 +191,7 @@ Room visible to the current user.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `room` | [`DirectoryRoom`](/reference/connectrpc-api/types/#chatto-api-v1-DirectoryRoom) | Resolved room and viewer state. |
+| `room` | [`RoomWithViewerState`](/reference/connectrpc-api/types/#chatto-api-v1-RoomWithViewerState) | Resolved room and viewer state. |
 
 
 <a id="chatto-api-v1-RoomDirectoryService-BatchGetRooms"></a>
@@ -226,4 +226,4 @@ Visible room batch response for direct room hydration.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `rooms` | repeated [`DirectoryRoom`](/reference/connectrpc-api/types/#chatto-api-v1-DirectoryRoom) | Resolved rooms in first-seen request order. |
+| `rooms` | repeated [`RoomWithViewerState`](/reference/connectrpc-api/types/#chatto-api-v1-RoomWithViewerState) | Resolved rooms in first-seen request order. |

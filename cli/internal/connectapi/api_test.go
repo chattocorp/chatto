@@ -3471,14 +3471,14 @@ func TestRoomDirectoryServiceListRoomsVisibilityAndDMs(t *testing.T) {
 	if dmRoom.GetRoom().GetKind() != apiv1.RoomKind_ROOM_KIND_DM {
 		t.Fatalf("DM kind = %v, want DM", dmRoom.GetRoom().GetKind())
 	}
-	if !dmRoom.GetViewerState().GetIsMember() {
-		t.Fatalf("DM viewer state IsMember = false, want true")
+	if !dmRoom.GetIsMember() {
+		t.Fatalf("DM IsMember = false, want true")
 	}
-	if !dmRoom.GetViewerState().GetCanListRoom() {
-		t.Fatalf("DM viewer state CanListRoom = false, want true")
+	if !dmRoom.GetCanListRoom() {
+		t.Fatalf("DM CanListRoom = false, want true")
 	}
-	if dmRoom.GetViewerState().GetCanJoinRoom() || dmRoom.GetViewerState().GetCanManageRoom() || dmRoom.GetViewerState().GetCanBanRoomMembers() {
-		t.Fatalf("DM viewer state exposes channel-only actions: %+v", dmRoom.GetViewerState())
+	if dmRoom.GetCanJoinRoom() || dmRoom.GetCanManageRoom() || dmRoom.GetCanBanRoomMembers() {
+		t.Fatalf("DM exposes channel-only actions: %+v", dmRoom)
 	}
 	batchResp, err := env.directory.BatchGetRooms(withCaller(env.ctx, caller), connect.NewRequest(&apiv1.BatchGetRoomsRequest{
 		RoomIds: []string{visible.Id, hidden.Id, dm.Id, visible.Id, "missing-room"},
@@ -3556,20 +3556,19 @@ func TestRoomDirectoryServiceViewerStateMatchesWritePreconditions(t *testing.T) 
 	if visibleRoom == nil {
 		t.Fatalf("visible room %s missing from directory response", visible.Id)
 	}
-	visibleState := visibleRoom.GetViewerState()
-	if visibleState.GetIsMember() {
+	if visibleRoom.GetIsMember() {
 		t.Fatalf("visible room IsMember = true, want false")
 	}
-	if !visibleState.GetCanJoinRoom() {
+	if !visibleRoom.GetCanJoinRoom() {
 		t.Fatalf("visible non-member CanJoinRoom = false, want true")
 	}
-	if visibleState.GetCanPostMessage() ||
-		visibleState.GetCanPostInThread() ||
-		visibleState.GetCanAttach() ||
-		visibleState.GetCanReact() ||
-		visibleState.GetCanEchoMessage() ||
-		visibleState.GetCanManageOthersMessage() {
-		t.Fatalf("visible non-member exposes member-only actions: %+v", visibleState)
+	if visibleRoom.GetCanPostMessage() ||
+		visibleRoom.GetCanPostInThread() ||
+		visibleRoom.GetCanAttach() ||
+		visibleRoom.GetCanReact() ||
+		visibleRoom.GetCanEchoMessage() ||
+		visibleRoom.GetCanManageOthersMessage() {
+		t.Fatalf("visible non-member exposes member-only actions: %+v", visibleRoom)
 	}
 	if _, ok := rooms[memberArchived.Id]; ok {
 		t.Fatalf("archived room %s appeared in directory response", memberArchived.Id)
@@ -3590,19 +3589,19 @@ func TestRoomDirectoryServiceViewerStateMatchesWritePreconditions(t *testing.T) 
 	if got := archivedBatchResp.Msg.GetRooms(); len(got) != 1 || got[0].GetRoom().GetId() != memberArchived.Id || !got[0].GetRoom().GetArchived() {
 		t.Fatalf("BatchGetRooms archived rooms = %+v, want archived member room", got)
 	}
-	archivedState := archivedResp.Msg.GetRoom().GetViewerState()
-	if !archivedState.GetIsMember() {
+	archivedRoom := archivedResp.Msg.GetRoom()
+	if !archivedRoom.GetIsMember() {
 		t.Fatalf("archived room IsMember = false, want true")
 	}
-	if archivedState.GetCanJoinRoom() ||
-		archivedState.GetCanPostMessage() ||
-		archivedState.GetCanPostInThread() ||
-		archivedState.GetCanAttach() ||
-		archivedState.GetCanReact() ||
-		archivedState.GetCanEchoMessage() {
-		t.Fatalf("archived room exposes unavailable actions: %+v", archivedState)
+	if archivedRoom.GetCanJoinRoom() ||
+		archivedRoom.GetCanPostMessage() ||
+		archivedRoom.GetCanPostInThread() ||
+		archivedRoom.GetCanAttach() ||
+		archivedRoom.GetCanReact() ||
+		archivedRoom.GetCanEchoMessage() {
+		t.Fatalf("archived room exposes unavailable actions: %+v", archivedRoom)
 	}
-	if !archivedState.GetCanManageOthersMessage() {
+	if !archivedRoom.GetCanManageOthersMessage() {
 		t.Fatalf("archived room CanManageOthersMessage = false, want true")
 	}
 }
@@ -7138,8 +7137,8 @@ func timelinePageEventIDs(page *apiv1.RoomTimelinePage) []string {
 	return ids
 }
 
-func directoryRoomsByID(rooms []*apiv1.DirectoryRoom) map[string]*apiv1.DirectoryRoom {
-	result := make(map[string]*apiv1.DirectoryRoom, len(rooms))
+func directoryRoomsByID(rooms []*apiv1.RoomWithViewerState) map[string]*apiv1.RoomWithViewerState {
+	result := make(map[string]*apiv1.RoomWithViewerState, len(rooms))
 	for _, room := range rooms {
 		if room == nil || room.GetRoom() == nil {
 			continue

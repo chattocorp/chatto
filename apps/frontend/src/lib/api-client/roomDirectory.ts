@@ -8,9 +8,9 @@ import {
 } from './connect.js';
 import { RoomDirectoryService } from '@chatto/api-types/api/v1/room_directory_connect';
 import type {
-  DirectoryRoom,
   RoomGroup,
-  RoomGroupItem
+  RoomGroupItem,
+  RoomWithViewerState
 } from '@chatto/api-types/api/v1/room_directory_pb';
 import { RoomDirectoryScope } from '@chatto/api-types/api/v1/room_directory_pb';
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
@@ -167,24 +167,28 @@ export function createRoomDirectoryAPI(config: RoomDirectoryAPIConfig) {
 
 export type RoomDirectoryAPI = ReturnType<typeof createRoomDirectoryAPI>;
 
-function mapDirectoryRoomDetails(entry: DirectoryRoom | undefined): DirectoryRoomDetails | null {
-  const summary = entry ? mapDirectoryRoom(entry) : null;
+function mapDirectoryRoomDetails(
+  entry: RoomWithViewerState | undefined
+): DirectoryRoomDetails | null {
+  if (!entry) return null;
+
+  const summary = mapDirectoryRoom(entry);
   if (!summary) return null;
 
   return {
     ...summary,
-    canPostMessage: entry?.viewerState?.canPostMessage ?? false,
-    canPostInThread: entry?.viewerState?.canPostInThread ?? false,
-    canAttach: entry?.viewerState?.canAttach ?? false,
-    canReact: entry?.viewerState?.canReact ?? false,
-    canEchoMessage: entry?.viewerState?.canEchoMessage ?? false,
-    canManageOthersMessage: entry?.viewerState?.canManageOthersMessage ?? false,
-    canManageRoom: entry?.viewerState?.canManageRoom ?? false,
-    canBanRoomMembers: entry?.viewerState?.canBanRoomMembers ?? false
+    canPostMessage: entry.canPostMessage,
+    canPostInThread: entry.canPostInThread,
+    canAttach: entry.canAttach,
+    canReact: entry.canReact,
+    canEchoMessage: entry.canEchoMessage,
+    canManageOthersMessage: entry.canManageOthersMessage,
+    canManageRoom: entry.canManageRoom,
+    canBanRoomMembers: entry.canBanRoomMembers
   };
 }
 
-function mapDirectoryRoom(entry: DirectoryRoom): DirectoryRoomSummary | null {
+function mapDirectoryRoom(entry: RoomWithViewerState): DirectoryRoomSummary | null {
   if (!entry.room) return null;
   return {
     id: entry.room.id,
@@ -193,9 +197,9 @@ function mapDirectoryRoom(entry: DirectoryRoom): DirectoryRoomSummary | null {
     kind: entry.room.kind,
     archived: entry.room.archived,
     isUniversal: entry.room.universal,
-    isMember: entry.viewerState?.isMember ?? false,
-    hasUnread: entry.viewerState?.hasUnread ?? false,
-    canJoinRoom: entry.viewerState?.canJoinRoom ?? false
+    isMember: entry.isMember,
+    hasUnread: entry.hasUnread,
+    canJoinRoom: entry.canJoinRoom
   };
 }
 

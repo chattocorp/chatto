@@ -2651,7 +2651,7 @@ Finite snapshot of rooms visible to the current user.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `rooms` | repeated [`DirectoryRoom`](#chatto-api-v1-DirectoryRoom) | Rooms matching the requested scope. |
+| `rooms` | repeated [`RoomWithViewerState`](#chatto-api-v1-RoomWithViewerState) | Rooms matching the requested scope. |
 
 
 <a id="chatto-api-v1-RoomDirectoryService-ListRoomGroups"></a>
@@ -2790,7 +2790,7 @@ Room visible to the current user.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `room` | [`DirectoryRoom`](#chatto-api-v1-DirectoryRoom) | Resolved room and viewer state. |
+| `room` | [`RoomWithViewerState`](#chatto-api-v1-RoomWithViewerState) | Resolved room and viewer state. |
 
 
 <a id="chatto-api-v1-RoomDirectoryService-BatchGetRooms"></a>
@@ -2825,7 +2825,7 @@ Visible room batch response for direct room hydration.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `rooms` | repeated [`DirectoryRoom`](#chatto-api-v1-DirectoryRoom) | Resolved rooms in first-seen request order. |
+| `rooms` | repeated [`RoomWithViewerState`](#chatto-api-v1-RoomWithViewerState) | Resolved rooms in first-seen request order. |
 
 
 <a id="chatto-api-v1-ServerService"></a>
@@ -4103,19 +4103,6 @@ Active channel room ban with optional hydrated room and user references.
 
 
 
-<a id="chatto-api-v1-DirectoryRoom"></a>
-
-### DirectoryRoom
-
-Room metadata plus viewer-specific state.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room` | [`Room`](#chatto-api-v1-Room) | Public room metadata. |
-| `viewer_state` | [`RoomViewerState`](#chatto-api-v1-RoomViewerState) | State and permissions resolved for the current user. |
-
-
-
 <a id="chatto-api-v1-RoomGroup"></a>
 
 ### RoomGroup
@@ -4140,7 +4127,7 @@ One ordered item in a room group.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `item.room` | [`DirectoryRoom`](#chatto-api-v1-DirectoryRoom) | Visible room entry. |
+| `item.room` | [`RoomWithViewerState`](#chatto-api-v1-RoomWithViewerState) | Visible room entry. |
 | `item.sidebar_link` | [`SidebarLink`](#chatto-api-v1-SidebarLink) | Sidebar link entry. |
 
 
@@ -4157,17 +4144,16 @@ Viewer-specific state for one room group.
 
 
 
-<a id="chatto-api-v1-RoomViewerState"></a>
+<a id="chatto-api-v1-RoomWithViewerState"></a>
 
-### RoomViewerState
+### RoomWithViewerState
 
-Viewer-specific state for one room.
-
-These fields let clients render navigation rows and room action menus without
-issuing per-room permission checks.
+Room metadata plus state and capabilities resolved for the authenticated
+viewer.
 
 | Field | Type | Description |
 | --- | --- | --- |
+| `room` | [`Room`](#chatto-api-v1-Room) | Public room metadata. |
 | `is_member` | `bool` | True when the current user is an effective room member. |
 | `has_unread` | `bool` | True when the room has unread root messages for the current user. |
 | `can_list_room` | `bool` | True when the room can appear in directory surfaces for the current user. |
