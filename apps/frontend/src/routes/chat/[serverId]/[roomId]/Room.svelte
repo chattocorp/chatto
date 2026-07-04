@@ -68,7 +68,6 @@
   const serverSegment = $derived(serverIdToSegment(getActiveServer()));
   const stores = serverRegistry.getStore(getActiveServer());
   const serverInfo = stores.serverInfo;
-  const notificationStore = stores.notifications;
   const appUi = getAppUiState();
 
   // Thread navigation functions (URL-driven state)
@@ -241,37 +240,6 @@
       return `#${room.roomData.room.name} - ${room.roomData.spaceName}`;
     }
     return title;
-  });
-
-  // Dismiss notifications when entering the room, and when new notifications
-  // arrive for a room the viewer is already present in.
-  $effect(() => {
-    if (!appState.isFocused) return;
-
-    const currentRoomId = roomId;
-    const currentRoomData = room.roomData;
-    if (!currentRoomData || currentRoomData.room.id !== currentRoomId) return;
-    const notificationRevision = notificationStore.notifications.map((n) => n.id).join('\0');
-    void notificationRevision;
-
-    void (async () => {
-      const results = room.isDM
-        ? [await notificationStore.dismissDMNotifications(currentRoomId)]
-        : await Promise.all([
-            notificationStore.dismissMentionNotifications(currentRoomId),
-            notificationStore.dismissRoomReplyNotifications(currentRoomId),
-            notificationStore.dismissRoomMessageNotifications(currentRoomId)
-          ]);
-
-      const dismissedForRoom = results.reduce(
-        (sum, counts) => sum + (counts.byRoom[currentRoomId] ?? 0),
-        0
-      );
-      if (dismissedForRoom > 0) {
-        stores.rooms.decrementUnreadNotification(currentRoomId, dismissedForRoom);
-        void stores.rooms.refreshNotificationCounts();
-      }
-    })();
   });
 
   // Remember this room as the last visited (for the chat-root → last-room

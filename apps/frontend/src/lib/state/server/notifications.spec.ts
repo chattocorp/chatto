@@ -225,7 +225,7 @@ describe('NotificationStore', () => {
     );
   });
 
-  it('routes and dismisses notifications using notification item kind', async () => {
+  it('routes notifications using notification item kind', () => {
     const threadReply = {
       kind: NotificationItemKind.Reply,
       id: 'thread-reply-kind',
@@ -246,15 +246,7 @@ describe('NotificationStore', () => {
       room: { id: 'dm-room' }
     } as unknown as NotificationItem;
 
-    const dismissedIds: string[] = [];
-    const store = new NotificationStore(
-      makeAPI({
-        dismissNotification: (notificationId) => {
-          dismissedIds.push(notificationId);
-          return true;
-        }
-      })
-    );
+    const store = new NotificationStore(makeAPI());
     store.notifications = [threadReply, dm];
 
     expect(notificationTarget(threadReply)).toMatchObject({
@@ -265,11 +257,6 @@ describe('NotificationStore', () => {
     });
     expect(store.hasThreadNotification('thread-root')).toBe(true);
     expect(store.hasDMRoomNotification('dm-room')).toBe(true);
-
-    await store.dismissThreadNotifications('thread-root');
-
-    expect(dismissedIds).toEqual(['thread-reply-kind']);
-    expect(store.notifications.map((n) => n.id)).toEqual(['dm-kind']);
   });
 
   it('retains existing notifications when the server returns an API error', async () => {
@@ -305,133 +292,6 @@ describe('NotificationStore', () => {
     // Existing notifications survive a network blip too.
     expect(store.notifications).toHaveLength(1);
     expect(store.error).toBe('network down');
-  });
-
-  // Mentions inside a thread must NOT be dismissed when the user enters the
-  // parent room — they should only clear when the thread itself is opened
-  // (via dismissThreadNotifications), mirroring how thread replies behave.
-  it('dismissMentionNotifications skips mentions that are inside a thread', async () => {
-    const roomMention = {
-      kind: NotificationItemKind.Mention,
-      id: 'room-mention',
-      createdAt: new Date().toISOString(),
-      actor: {
-        id: 'a',
-        login: 't',
-        displayName: 't',
-        avatarUrl: null,
-        presenceStatus: 'OFFLINE'
-      },
-      summary: 'mentioned you',
-      mentionSpace: { id: 's1', name: 'S' },
-      mentionRoom: { id: 'r1', name: 'r' },
-      mentionEventId: 'e1',
-      mentionInThread: null
-    } as unknown as NotificationItem;
-    const threadMention = {
-      kind: NotificationItemKind.Mention,
-      id: 'thread-mention',
-      createdAt: new Date().toISOString(),
-      actor: {
-        id: 'a',
-        login: 't',
-        displayName: 't',
-        avatarUrl: null,
-        presenceStatus: 'OFFLINE'
-      },
-      summary: 'mentioned you',
-      mentionSpace: { id: 's1', name: 'S' },
-      mentionRoom: { id: 'r1', name: 'r' },
-      mentionEventId: 'e2',
-      mentionInThread: 'thread-root'
-    } as unknown as NotificationItem;
-
-    const dismissedIds: string[] = [];
-    const store = new NotificationStore(
-      makeAPI({
-        dismissNotification: (notificationId) => {
-          dismissedIds.push(notificationId);
-          return true;
-        }
-      })
-    );
-    store.notifications = [roomMention, threadMention];
-
-    await store.dismissMentionNotifications('r1');
-
-    expect(dismissedIds).toEqual(['room-mention']);
-    expect(store.notifications.map((n) => n.id)).toEqual(['thread-mention']);
-  });
-
-  it('dismissMentionNotifications reports dismissed counts by room', async () => {
-    const roomMentionA = {
-      kind: NotificationItemKind.Mention,
-      id: 'room-mention-a',
-      createdAt: new Date().toISOString(),
-      actor: {
-        id: 'a',
-        login: 't',
-        displayName: 't',
-        avatarUrl: null,
-        presenceStatus: 'OFFLINE'
-      },
-      summary: 'mentioned you',
-      mentionRoom: { id: 'r1', name: 'r' },
-      mentionEventId: 'e1',
-      mentionInThread: null
-    } as unknown as NotificationItem;
-    const roomMentionB = {
-      ...roomMentionA,
-      id: 'room-mention-b',
-      mentionEventId: 'e2'
-    } as unknown as NotificationItem;
-
-    const store = new NotificationStore(makeAPI());
-    store.notifications = [roomMentionA, roomMentionB];
-    store.setUnreadNotificationCount(2);
-
-    const counts = await store.dismissMentionNotifications('r1');
-
-    expect(counts).toEqual({ total: 2, byRoom: { r1: 2 } });
-    expect(store.unreadNotificationCount).toBe(0);
-  });
-
-  // Opening the thread clears both thread-replies AND thread-mentions in one
-  // pass (the code path called from ThreadPane).
-  it('dismissThreadNotifications clears thread-scoped mentions too', async () => {
-    const threadMention = {
-      kind: NotificationItemKind.Mention,
-      id: 'thread-mention',
-      createdAt: new Date().toISOString(),
-      actor: {
-        id: 'a',
-        login: 't',
-        displayName: 't',
-        avatarUrl: null,
-        presenceStatus: 'OFFLINE'
-      },
-      summary: 'mentioned you',
-      mentionSpace: { id: 's1', name: 'S' },
-      mentionRoom: { id: 'r1', name: 'r' },
-      mentionEventId: 'e2',
-      mentionInThread: 'thread-root'
-    } as unknown as NotificationItem;
-
-    const dismissedIds: string[] = [];
-    const store = new NotificationStore(
-      makeAPI({
-        dismissNotification: (notificationId) => {
-          dismissedIds.push(notificationId);
-          return true;
-        }
-      })
-    );
-    store.notifications = [threadMention];
-
-    await store.dismissThreadNotifications('thread-root');
-
-    expect(dismissedIds).toEqual(['thread-mention']);
-    expect(store.notifications).toHaveLength(0);
   });
 
   it('suppresses live echo refreshes for locally dismissed notifications', async () => {

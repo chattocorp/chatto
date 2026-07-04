@@ -10,8 +10,6 @@
   import { isMessagePostedEvent } from '$lib/render/eventKinds';
   import * as m from '$lib/i18n/messages';
 
-  const stores = serverRegistry.getStore(getActiveServer());
-  const notificationStore = stores.notifications;
   import { appState } from '$lib/state/globals.svelte';
   import {
     getRoomMembers,
@@ -256,20 +254,6 @@
       }
     })
   );
-
-  // Dismiss reply notifications when viewing this thread (only when window is focused)
-  $effect(() => {
-    if (!appState.isFocused) return;
-    const threadId = threadRootEventId;
-    const currentRoomId = roomId;
-    void notificationStore.dismissThreadNotifications(threadId).then((counts) => {
-      const dismissedForRoom = counts.byRoom[currentRoomId] ?? 0;
-      if (dismissedForRoom > 0) {
-        stores.rooms.decrementUnreadNotification(currentRoomId, dismissedForRoom);
-        void stores.rooms.refreshNotificationCounts();
-      }
-    });
-  });
 
   async function markThreadAsRead(currentThreadId: string, upToEventId?: string) {
     try {

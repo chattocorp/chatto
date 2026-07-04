@@ -151,11 +151,11 @@ func (s *notificationService) DismissNotification(ctx context.Context, req *conn
 	if req.Msg.NotificationId == "" {
 		return nil, invalidArgument("notification_id is required")
 	}
-	dismissed, err := s.api.core.DismissNotification(ctx, caller.UserID, req.Msg.NotificationId)
+	_, err = s.api.core.DismissNotification(ctx, caller.UserID, req.Msg.NotificationId)
 	if err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&apiv1.DismissNotificationResponse{Dismissed: dismissed}), nil
+	return connect.NewResponse(&apiv1.DismissNotificationResponse{Dismissed: true}), nil
 }
 
 func (s *notificationService) DismissAllNotifications(ctx context.Context, _ *connect.Request[apiv1.DismissAllNotificationsRequest]) (*connect.Response[apiv1.DismissAllNotificationsResponse], error) {

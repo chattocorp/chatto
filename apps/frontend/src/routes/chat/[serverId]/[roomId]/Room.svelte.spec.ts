@@ -471,29 +471,16 @@ describe('Room local message echo', () => {
     expect(desktopSidebarPane.className).toContain('flex-1');
   });
 
-  it('refreshes room notification counts after active-room notifications auto-dismiss', async () => {
-    mocks.notifications.dismissMentionNotifications.mockResolvedValue({ byRoom: { 'room-1': 1 } });
-
+  it('does not directly dismiss room notifications on room entry', async () => {
     render(Room, { props: { roomId: 'room-1' } });
 
-    await vi.waitFor(() => {
-      expect(mocks.rooms.decrementUnreadNotification).toHaveBeenCalledWith('room-1', 1);
-      expect(mocks.rooms.refreshNotificationCounts).toHaveBeenCalledOnce();
-    });
-  });
+    await tick();
 
-  it('dismisses active DM notifications and refreshes room notification counts', async () => {
-    mocks.roomKind = RoomKind.DM;
-    mocks.notifications.dismissDMNotifications.mockResolvedValue({ byRoom: { 'room-1': 2 } });
-
-    render(Room, { props: { roomId: 'room-1' } });
-
-    await vi.waitFor(() => {
-      expect(mocks.notifications.dismissDMNotifications).toHaveBeenCalledWith('room-1');
-      expect(mocks.notifications.dismissMentionNotifications).not.toHaveBeenCalled();
-      expect(mocks.rooms.decrementUnreadNotification).toHaveBeenCalledWith('room-1', 2);
-      expect(mocks.rooms.refreshNotificationCounts).toHaveBeenCalledOnce();
-    });
+    expect(mocks.notifications.dismissDMNotifications).not.toHaveBeenCalled();
+    expect(mocks.notifications.dismissMentionNotifications).not.toHaveBeenCalled();
+    expect(mocks.notifications.dismissRoomReplyNotifications).not.toHaveBeenCalled();
+    expect(mocks.notifications.dismissRoomMessageNotifications).not.toHaveBeenCalled();
+    expect(mocks.rooms.decrementUnreadNotification).not.toHaveBeenCalled();
   });
 
   it('refreshes the visible room window after a local link-preview deletion succeeds', async () => {

@@ -333,6 +333,131 @@ func (c *ChattoCore) GetRoomNotificationsForMember(ctx context.Context, actorID,
 	return filtered, nil
 }
 
+// DismissRoomReadNotifications clears pending room-level notifications covered
+// by a room read marker and emits the same cross-device dismissal side effects
+// as explicit notification dismissal.
+func (c *ChattoCore) DismissRoomReadNotifications(ctx context.Context, kind RoomKind, userID, roomID string, readThrough time.Time) int {
+	if readThrough.IsZero() {
+		return 0
+	}
+	count, err := c.dismissMatchingNotifications(ctx, userID, func(notification *corev1.Notification) bool {
+		switch payload := notification.GetNotification().(type) {
+		case *corev1.Notification_DmMessage:
+			return payload.DmMessage.GetRoomId() == roomID &&
+				c.notificationEventAtOrBefore(ctx, kind, roomID, payload.DmMessage.GetEventId(), readThrough)
+		case *corev1.Notification_Mention:
+			return payload.Mention.GetRoomId() == roomID &&
+				payload.Mention.GetInThread() == "" &&
+				c.notificationEventAtOrBefore(ctx, kind, roomID, payload.Mention.GetEventId(), readThrough)
+		case *corev1.Notification_Reply:
+			return payload.Reply.GetRoomId() == roomID &&
+				payload.Reply.GetInThread() == "" &&
+				c.notificationEventAtOrBefore(ctx, kind, roomID, payload.Reply.GetEventId(), readThrough)
+		case *corev1.Notification_RoomMessage:
+			return payload.RoomMessage.GetRoomId() == roomID &&
+				c.notificationEventAtOrBefore(ctx, kind, roomID, payload.RoomMessage.GetEventId(), readThrough)
+		default:
+			return false
+		}
+	})
+	if err != nil {
+		c.logger.Warn("Failed to dismiss read room notifications",
+			"user_id", userID,
+			"room_id", roomID,
+			"error", err)
+	}
+	return count
+}
+
+// DismissThreadReadNotifications clears pending thread-scoped notifications
+// covered by a thread read marker and emits the same cross-device dismissal
+// side effects as explicit notification dismissal.
+func (c *ChattoCore) DismissThreadReadNotifications(ctx context.Context, kind RoomKind, userID, roomID, threadRootEventID string, readThrough time.Time) int {
+	if readThrough.IsZero() {
+		return 0
+	}
+	count, err := c.dismissMatchingNotifications(ctx, userID, func(notification *corev1.Notification) bool {
+		switch payload := notification.GetNotification().(type) {
+		case *corev1.Notification_Mention:
+			return payload.Mention.GetRoomId() == roomID &&
+				payload.Mention.GetInThread() == threadRootEventID &&
+				c.notificationEventAtOrBefore(ctx, kind, roomID, payload.Mention.GetEventId(), readThrough)
+		case *corev1.Notification_Reply:
+			return payload.Reply.GetRoomId() == roomID &&
+				payload.Reply.GetInThread() == threadRootEventID &&
+				c.notificationEventAtOrBefore(ctx, kind, roomID, payload.Reply.GetEventId(), readThrough)
+		default:
+			return false
+		}
+	})
+	if err != nil {
+		c.logger.Warn("Failed to dismiss read thread notifications",
+			"user_id", userID,
+			"room_id", roomID,
+			"thread_root_event_id", threadRootEventID,
+			"error", err)
+	}
+	return count
+}
+
+func (c *ChattoCore) dismissMatchingNotifications(ctx context.Context, userID string, match func(*corev1.Notification) bool) (int, error) {
+	prefix := notificationKeyFilter(userID)
+	lister, err := c.storage.runtimeStateKV.ListKeysFiltered(ctx, prefix)
+	if err != nil {
+		if errors.Is(err, jetstream.ErrNoKeysFound) {
+			return 0, nil
+		}
+		return 0, fmt.Errorf("failed to list notification keys: %w", err)
+	}
+
+	notificationIDs := []string{}
+	for key := range lister.Keys() {
+		entry, err := c.storage.runtimeStateKV.Get(ctx, key)
+		if err != nil {
+			if errors.Is(err, jetstream.ErrKeyNotFound) {
+				continue
+			}
+			return len(notificationIDs), fmt.Errorf("failed to get notification: %w", err)
+		}
+
+		var notification corev1.Notification
+		if err := proto.Unmarshal(entry.Value(), &notification); err != nil {
+			return len(notificationIDs), fmt.Errorf("failed to unmarshal notification: %w", err)
+		}
+		if match(&notification) {
+			notificationIDs = append(notificationIDs, notification.GetId())
+		}
+	}
+
+	dismissed := 0
+	for _, notificationID := range notificationIDs {
+		ok, err := c.DismissNotification(ctx, userID, notificationID)
+		if err != nil {
+			return dismissed, err
+		}
+		if ok {
+			dismissed++
+		}
+	}
+	return dismissed, nil
+}
+
+func (c *ChattoCore) notificationEventAtOrBefore(ctx context.Context, kind RoomKind, roomID, eventID string, cutoff time.Time) bool {
+	if eventID == "" || cutoff.IsZero() {
+		return false
+	}
+	eventTime, err := c.GetEventTimestamp(ctx, kind, roomID, eventID)
+	if err != nil {
+		c.logger.Warn("Failed to resolve notification event timestamp",
+			"kind", kind,
+			"room_id", roomID,
+			"event_id", eventID,
+			"error", err)
+		return false
+	}
+	return !eventTime.IsZero() && !eventTime.After(cutoff)
+}
+
 // ============================================================================
 // Real-time Sync Events
 // ============================================================================
