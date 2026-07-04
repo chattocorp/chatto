@@ -17,11 +17,7 @@ const (
 	maxMemberDirectoryLimit     = 500
 )
 
-type serverMemberService struct {
-	api *API
-}
-
-func (s *serverMemberService) ListMembers(ctx context.Context, req *connect.Request[apiv1.ListServerMembersRequest]) (*connect.Response[apiv1.ListServerMembersResponse], error) {
+func (s *serverService) ListMembers(ctx context.Context, req *connect.Request[apiv1.ListServerMembersRequest]) (*connect.Response[apiv1.ListServerMembersResponse], error) {
 	if _, err := requireCaller(ctx); err != nil {
 		return nil, err
 	}
@@ -60,7 +56,7 @@ func (s *serverMemberService) ListMembers(ctx context.Context, req *connect.Requ
 	}), nil
 }
 
-func (s *serverMemberService) GetMember(ctx context.Context, req *connect.Request[apiv1.GetServerMemberRequest]) (*connect.Response[apiv1.GetServerMemberResponse], error) {
+func (s *serverService) GetMember(ctx context.Context, req *connect.Request[apiv1.GetServerMemberRequest]) (*connect.Response[apiv1.GetServerMemberResponse], error) {
 	if _, err := requireCaller(ctx); err != nil {
 		return nil, err
 	}
@@ -72,7 +68,7 @@ func (s *serverMemberService) GetMember(ctx context.Context, req *connect.Reques
 	return connect.NewResponse(&apiv1.GetServerMemberResponse{Member: member}), nil
 }
 
-func (s *serverMemberService) BatchGetMembers(ctx context.Context, req *connect.Request[apiv1.BatchGetServerMembersRequest]) (*connect.Response[apiv1.BatchGetServerMembersResponse], error) {
+func (s *serverService) BatchGetMembers(ctx context.Context, req *connect.Request[apiv1.BatchGetServerMembersRequest]) (*connect.Response[apiv1.BatchGetServerMembersResponse], error) {
 	if _, err := requireCaller(ctx); err != nil {
 		return nil, err
 	}

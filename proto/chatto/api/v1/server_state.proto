@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package chatto.api.v1;
 
+import "chatto/api/v1/member_directory.proto";
 import "chatto/api/v1/server.proto";
 
 // Server profile fields visible to authenticated members.
@@ -43,10 +44,19 @@ message GetServerStateResponse {
   ServerRuntimeConfig runtime = 2;
 }
 
-// Provides authenticated server profile and runtime configuration.
+// Provides authenticated server profile, runtime configuration, and public
+// server member reads.
 service ServerService {
   // Returns authenticated server state. This RPC requires a logged-in user;
   // public discovery remains available through
   // chatto.discovery.v1.ServerDiscoveryService.GetServer.
   rpc GetServerState(GetServerStateRequest) returns (GetServerStateResponse);
+  // Lists authenticated server members. Every authenticated user is a server
+  // member; admin-sensitive fields stay out of this public row shape.
+  rpc ListMembers(ListServerMembersRequest) returns (ListServerMembersResponse);
+  // Gets one authenticated server member. Returns NOT_FOUND when the user ID is
+  // unknown.
+  rpc GetMember(GetServerMemberRequest) returns (GetServerMemberResponse);
+  // Gets authenticated server member rows for multiple users.
+  rpc BatchGetMembers(BatchGetServerMembersRequest) returns (BatchGetServerMembersResponse);
 }

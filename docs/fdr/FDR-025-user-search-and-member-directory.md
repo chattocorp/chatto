@@ -10,10 +10,10 @@ Any authenticated user can browse the server's member directory — a paginated 
 ## Behavior
 
 - The directory query accepts an optional search string, an offset, and a limit. Returns the matching members and a total count for paginating.
-- The canonical public surface is ConnectRPC `ServerMemberService.ListMembers(search, page)`. There is no separate root users-directory query.
+- The canonical public surface is ConnectRPC `ServerService.ListMembers(search, page)`. There is no separate root users-directory query.
 - Search matches a substring of either `login` or `displayName`, case-insensitive. Empty search returns all members.
 - Pagination is offset-based: caller specifies `offset` and `limit`; the response also includes `totalCount` so the caller can compute whether there are more pages.
-- Default page size is 20; the maximum is 100. Requests larger than 100 are silently clamped down.
+- Default page size is 20; the maximum is 500. Requests larger than 500 are silently clamped down.
 - Results are sorted by `createdAt` ascending (oldest member first). Users created before the timestamp field existed sort to the end, alphabetically by login.
 - Direct lookups by user ID or login return the same public profile information as the directory and require authentication.
 
@@ -31,11 +31,11 @@ Any authenticated user can browse the server's member directory — a paginated 
 **Why:** Cursor pagination is what you want when results can shift between calls (an infinite scroll over a live stream). The member directory is mostly stable — new signups happen sometimes, but the page-flipping use case is rare. Offset-based is simpler to consume from the frontend and lets the UI show "Page 3 of 12".
 **Tradeoff:** If the directory changes mid-scroll, the user might see duplicates or skipped entries across pages. Acceptable given the volume and update rate.
 
-### 3. Hard limit of 100, silent clamp
+### 3. Hard limit of 500, silent clamp
 
-**Decision:** Requests with `limit > 100` are clamped to 100 without an error.
+**Decision:** Requests with `limit > 500` are clamped to 500 without an error.
 **Why:** An error would break clients that send larger numbers naively. Clamping serves the request with a sensible cap. The frontend doesn't currently issue limits above 100, so the clamp only affects malformed requests.
-**Tradeoff:** A client expecting all 500 users in one response gets 100 and may not realise. The `totalCount` field in the response surfaces the discrepancy.
+**Tradeoff:** A client expecting all users in one response may get a truncated page and may not realise. The `totalCount` field in the response surfaces the discrepancy.
 
 ### 4. Sort by createdAt, with a stable fallback
 

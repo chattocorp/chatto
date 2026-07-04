@@ -37,7 +37,6 @@ var publicReflectionServiceNames = []string{
 	apiv1connect.RoleServiceName,
 	apiv1connect.RoomDirectoryServiceName,
 	apiv1connect.RoomServiceName,
-	apiv1connect.ServerMemberServiceName,
 	apiv1connect.ServerServiceName,
 	apiv1connect.ThreadServiceName,
 	apiv1connect.UserDirectoryServiceName,

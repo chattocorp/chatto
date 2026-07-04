@@ -107,16 +107,10 @@ const categories = [
         description: 'Room lifecycle, timeline, read-state, membership, direct-message, typing indicator, and moderation RPCs.'
       },
       {
-        name: 'ServerMemberService',
-        slug: 'server-members',
-        title: 'Server Members',
-        description: 'Server-scoped member directory RPCs.'
-      },
-      {
         name: 'ServerService',
         slug: 'server',
         title: 'Server',
-        description: 'Authenticated server profile and runtime configuration RPCs.'
+        description: 'Authenticated server profile, runtime configuration, and member directory RPCs.'
       },
       {
         name: 'ThreadService',

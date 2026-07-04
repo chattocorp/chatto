@@ -130,15 +130,3 @@ message BatchGetRoomMembersResponse {
   // de-duplicates repeated IDs.
   repeated DirectoryMember members = 1;
 }
-
-// Reads authenticated server members.
-service ServerMemberService {
-  // Lists authenticated server members. Every authenticated user is a server
-  // member; admin-sensitive fields stay out of this public row shape.
-  rpc ListMembers(ListServerMembersRequest) returns (ListServerMembersResponse);
-  // Gets one authenticated server member. Returns NOT_FOUND when the user ID is
-  // unknown.
-  rpc GetMember(GetServerMemberRequest) returns (GetServerMemberResponse);
-  // Gets authenticated server member rows for multiple users.
-  rpc BatchGetMembers(BatchGetServerMembersRequest) returns (BatchGetServerMembersResponse);
-}

@@ -111,6 +111,9 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
   and switch discovery clients to
   `chatto.discovery.v1.ServerDiscoveryService.GetServer`; if you tested against an
   earlier 0.4.0 beta, review the generated API reference again.
+- Server member reads moved from `ServerMemberService` to `ServerService`: replace
+  `ServerMemberService.ListMembers`, `GetMember`, and `BatchGetMembers` with
+  `ServerService.ListMembers`, `GetMember`, and `BatchGetMembers`.
 - Room member reads moved from `RoomMemberService` to `RoomService`: replace
   `RoomMemberService.ListMembers`, `GetMember`, and `BatchGetMembers` with
   `RoomService.ListMembers`, `GetMember`, and `BatchGetMembers`. Room moderation RPCs

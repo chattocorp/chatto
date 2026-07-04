@@ -5,9 +5,11 @@
 
 import { GetServerStateRequest, GetServerStateResponse } from "./server_state_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
+import { BatchGetServerMembersRequest, BatchGetServerMembersResponse, GetServerMemberRequest, GetServerMemberResponse, ListServerMembersRequest, ListServerMembersResponse } from "./member_directory_pb.js";
 
 /**
- * Provides authenticated server profile and runtime configuration.
+ * Provides authenticated server profile, runtime configuration, and public
+ * server member reads.
  *
  * @generated from service chatto.api.v1.ServerService
  */
@@ -25,6 +27,41 @@ export const ServerService = {
       name: "GetServerState",
       I: GetServerStateRequest,
       O: GetServerStateResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Lists authenticated server members. Every authenticated user is a server
+     * member; admin-sensitive fields stay out of this public row shape.
+     *
+     * @generated from rpc chatto.api.v1.ServerService.ListMembers
+     */
+    listMembers: {
+      name: "ListMembers",
+      I: ListServerMembersRequest,
+      O: ListServerMembersResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Gets one authenticated server member. Returns NOT_FOUND when the user ID is
+     * unknown.
+     *
+     * @generated from rpc chatto.api.v1.ServerService.GetMember
+     */
+    getMember: {
+      name: "GetMember",
+      I: GetServerMemberRequest,
+      O: GetServerMemberResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Gets authenticated server member rows for multiple users.
+     *
+     * @generated from rpc chatto.api.v1.ServerService.BatchGetMembers
+     */
+    batchGetMembers: {
+      name: "BatchGetMembers",
+      I: BatchGetServerMembersRequest,
+      O: BatchGetServerMembersResponse,
       kind: MethodKind.Unary,
     },
   }

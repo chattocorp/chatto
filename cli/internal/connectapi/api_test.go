@@ -82,7 +82,6 @@ func TestAPIHandlers(t *testing.T) {
 		"/" + apiv1connect.RoomDirectoryServiceName + "/",
 		"/" + apiv1connect.RoomServiceName + "/",
 		"/" + discoveryv1connect.ServerDiscoveryServiceName + "/",
-		"/" + apiv1connect.ServerMemberServiceName + "/",
 		"/" + apiv1connect.ServerServiceName + "/",
 		"/" + apiv1connect.ThreadServiceName + "/",
 		"/" + apiv1connect.UserDirectoryServiceName + "/",
@@ -127,7 +126,6 @@ func TestAPIHandlerAuthPolicies(t *testing.T) {
 		"/" + apiv1connect.RoomDirectoryServiceName + "/":           AuthPolicyAuthenticatedUser,
 		"/" + apiv1connect.RoomServiceName + "/":                    AuthPolicyAuthenticatedUser,
 		"/" + discoveryv1connect.ServerDiscoveryServiceName + "/":   AuthPolicyPublic,
-		"/" + apiv1connect.ServerMemberServiceName + "/":            AuthPolicyAuthenticatedUser,
 		"/" + apiv1connect.ServerServiceName + "/":                  AuthPolicyAuthenticatedUser,
 		"/" + apiv1connect.ThreadServiceName + "/":                  AuthPolicyAuthenticatedUser,
 		"/" + apiv1connect.UserDirectoryServiceName + "/":           AuthPolicyAuthenticatedUser,
@@ -223,7 +221,7 @@ func TestBatchGetResourceRequestsValidateThroughConnectHandlers(t *testing.T) {
 	rolePath, roleHandler := apiv1connect.NewRoleServiceHandler(env.publicRoles, HandlerOptions()...)
 	roomDirectoryPath, roomDirectoryHandler := apiv1connect.NewRoomDirectoryServiceHandler(env.directory, HandlerOptions()...)
 	messagePath, messageHandler := apiv1connect.NewMessageServiceHandler(env.messages, HandlerOptions()...)
-	serverMemberPath, serverMemberHandler := apiv1connect.NewServerMemberServiceHandler(env.serverMembers, HandlerOptions()...)
+	serverPath, serverHandler := apiv1connect.NewServerServiceHandler(env.serverState, HandlerOptions()...)
 	roomPath, roomHandler := apiv1connect.NewRoomServiceHandler(env.rooms, HandlerOptions()...)
 	notificationPath, notificationHandler := apiv1connect.NewNotificationServiceHandler(env.notifications, HandlerOptions()...)
 	voicePath, voiceHandler := apiv1connect.NewVoiceCallServiceHandler(env.voice, HandlerOptions()...)
@@ -232,7 +230,7 @@ func TestBatchGetResourceRequestsValidateThroughConnectHandlers(t *testing.T) {
 	mux.Handle(rolePath, roleHandler)
 	mux.Handle(roomDirectoryPath, roomDirectoryHandler)
 	mux.Handle(messagePath, messageHandler)
-	mux.Handle(serverMemberPath, serverMemberHandler)
+	mux.Handle(serverPath, serverHandler)
 	mux.Handle(roomPath, roomHandler)
 	mux.Handle(notificationPath, notificationHandler)
 	mux.Handle(voicePath, voiceHandler)
@@ -244,7 +242,7 @@ func TestBatchGetResourceRequestsValidateThroughConnectHandlers(t *testing.T) {
 	roles := apiv1connect.NewRoleServiceClient(ts.Client(), ts.URL)
 	roomDirectory := apiv1connect.NewRoomDirectoryServiceClient(ts.Client(), ts.URL)
 	messages := apiv1connect.NewMessageServiceClient(ts.Client(), ts.URL)
-	serverMembers := apiv1connect.NewServerMemberServiceClient(ts.Client(), ts.URL)
+	serverMembers := apiv1connect.NewServerServiceClient(ts.Client(), ts.URL)
 	rooms := apiv1connect.NewRoomServiceClient(ts.Client(), ts.URL)
 	notifications := apiv1connect.NewNotificationServiceClient(ts.Client(), ts.URL)
 	voice := apiv1connect.NewVoiceCallServiceClient(ts.Client(), ts.URL)
@@ -3728,16 +3726,16 @@ func TestRoomServiceJoinRoomGroup(t *testing.T) {
 	}
 }
 
-func TestServerMemberServiceListMembers(t *testing.T) {
+func TestServerServiceListMembers(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 
-	if _, err := env.serverMembers.ListMembers(env.ctx, connect.NewRequest(&apiv1.ListServerMembersRequest{})); connect.CodeOf(err) != connect.CodeUnauthenticated {
+	if _, err := env.serverState.ListMembers(env.ctx, connect.NewRequest(&apiv1.ListServerMembersRequest{})); connect.CodeOf(err) != connect.CodeUnauthenticated {
 		t.Fatalf("unauthenticated ListMembers code = %v, want %v", connect.CodeOf(err), connect.CodeUnauthenticated)
 	}
-	if _, err := env.serverMembers.GetMember(env.ctx, connect.NewRequest(&apiv1.GetServerMemberRequest{UserId: env.viewer.Id})); connect.CodeOf(err) != connect.CodeUnauthenticated {
+	if _, err := env.serverState.GetMember(env.ctx, connect.NewRequest(&apiv1.GetServerMemberRequest{UserId: env.viewer.Id})); connect.CodeOf(err) != connect.CodeUnauthenticated {
 		t.Fatalf("unauthenticated GetMember code = %v, want %v", connect.CodeOf(err), connect.CodeUnauthenticated)
 	}
-	if _, err := env.serverMembers.BatchGetMembers(env.ctx, connect.NewRequest(&apiv1.BatchGetServerMembersRequest{UserIds: []string{env.viewer.Id}})); connect.CodeOf(err) != connect.CodeUnauthenticated {
+	if _, err := env.serverState.BatchGetMembers(env.ctx, connect.NewRequest(&apiv1.BatchGetServerMembersRequest{UserIds: []string{env.viewer.Id}})); connect.CodeOf(err) != connect.CodeUnauthenticated {
 		t.Fatalf("unauthenticated BatchGetMembers code = %v, want %v", connect.CodeOf(err), connect.CodeUnauthenticated)
 	}
 
@@ -3759,7 +3757,7 @@ func TestServerMemberServiceListMembers(t *testing.T) {
 		t.Fatalf("AddVerifiedEmailDirect alice: %v", err)
 	}
 
-	resp, err := env.serverMembers.ListMembers(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.ListServerMembersRequest{
+	resp, err := env.serverState.ListMembers(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.ListServerMembersRequest{
 		Search: "member",
 		Page:   &apiv1.PageRequest{Limit: 1},
 	}))
@@ -3770,7 +3768,7 @@ func TestServerMemberServiceListMembers(t *testing.T) {
 		t.Fatalf("first page = %+v, want total 2, hasMore true, one member", resp.Msg)
 	}
 
-	secondResp, err := env.serverMembers.ListMembers(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.ListServerMembersRequest{
+	secondResp, err := env.serverState.ListMembers(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.ListServerMembersRequest{
 		Search: "member",
 		Page:   &apiv1.PageRequest{Limit: 1, Offset: 1},
 	}))
@@ -3795,7 +3793,7 @@ func TestServerMemberServiceListMembers(t *testing.T) {
 		t.Fatalf("bob roles = %q, want everyone,admin", roles)
 	}
 
-	getResp, err := env.serverMembers.GetMember(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.GetServerMemberRequest{UserId: alice.Id}))
+	getResp, err := env.serverState.GetMember(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.GetServerMemberRequest{UserId: alice.Id}))
 	if err != nil {
 		t.Fatalf("GetMember alice: %v", err)
 	}
@@ -3806,11 +3804,11 @@ func TestServerMemberServiceListMembers(t *testing.T) {
 	if gotAlice.ProtoReflect().Descriptor().Fields().ByName("verified_emails") != nil {
 		t.Fatal("DirectoryMember unexpectedly exposes verified_emails")
 	}
-	if _, err := env.serverMembers.GetMember(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.GetServerMemberRequest{UserId: "missing-user"})); connect.CodeOf(err) != connect.CodeNotFound {
+	if _, err := env.serverState.GetMember(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.GetServerMemberRequest{UserId: "missing-user"})); connect.CodeOf(err) != connect.CodeNotFound {
 		t.Fatalf("missing GetMember code = %v, want not_found", connect.CodeOf(err))
 	}
 
-	batchResp, err := env.serverMembers.BatchGetMembers(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.BatchGetServerMembersRequest{
+	batchResp, err := env.serverState.BatchGetMembers(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.BatchGetServerMembersRequest{
 		UserIds: []string{bob.Id, "missing-user", alice.Id, bob.Id},
 	}))
 	if err != nil {
@@ -6805,7 +6803,6 @@ type connectAPITestEnv struct {
 	externalAuth     *externalIdentityAuthService
 	linkPreviews     *linkPreviewService
 	messages         *messageService
-	serverMembers    *serverMemberService
 	notifications    *notificationService
 	permissions      *permissionService
 	prefs            *notificationPreferencesService
@@ -6859,7 +6856,6 @@ func newConnectAPITestEnv(t *testing.T) *connectAPITestEnv {
 		externalAuth:     &externalIdentityAuthService{api: api},
 		linkPreviews:     &linkPreviewService{api: api},
 		messages:         &messageService{api: api},
-		serverMembers:    &serverMemberService{api: api},
 		notifications:    &notificationService{api: api},
 		permissions:      &permissionService{api: api},
 		prefs:            &notificationPreferencesService{api: api},
