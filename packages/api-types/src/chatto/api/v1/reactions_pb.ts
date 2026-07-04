@@ -5,7 +5,7 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3 } from "@bufbuild/protobuf";
-import { RoomTimelineReaction } from "./room_timeline_pb.js";
+import { MessageReaction } from "./message_types_pb.js";
 
 /**
  * Request to add the current user's reaction to a message.
@@ -85,9 +85,9 @@ export class AddReactionResponse extends Message<AddReactionResponse> {
   /**
    * Updated aggregate reaction state for this emoji.
    *
-   * @generated from field: chatto.api.v1.RoomTimelineReaction reaction = 2;
+   * @generated from field: chatto.api.v1.MessageReaction reaction = 2;
    */
-  reaction?: RoomTimelineReaction;
+  reaction?: MessageReaction;
 
   constructor(data?: PartialMessage<AddReactionResponse>) {
     super();
@@ -98,7 +98,7 @@ export class AddReactionResponse extends Message<AddReactionResponse> {
   static readonly typeName = "chatto.api.v1.AddReactionResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "added", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 2, name: "reaction", kind: "message", T: RoomTimelineReaction },
+    { no: 2, name: "reaction", kind: "message", T: MessageReaction },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AddReactionResponse {
@@ -197,9 +197,9 @@ export class RemoveReactionResponse extends Message<RemoveReactionResponse> {
    * Updated aggregate reaction state for this emoji. Empty when no reactions for
    * the emoji remain.
    *
-   * @generated from field: chatto.api.v1.RoomTimelineReaction reaction = 2;
+   * @generated from field: chatto.api.v1.MessageReaction reaction = 2;
    */
-  reaction?: RoomTimelineReaction;
+  reaction?: MessageReaction;
 
   constructor(data?: PartialMessage<RemoveReactionResponse>) {
     super();
@@ -210,7 +210,7 @@ export class RemoveReactionResponse extends Message<RemoveReactionResponse> {
   static readonly typeName = "chatto.api.v1.RemoveReactionResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "removed", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 2, name: "reaction", kind: "message", T: RoomTimelineReaction },
+    { no: 2, name: "reaction", kind: "message", T: MessageReaction },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RemoveReactionResponse {

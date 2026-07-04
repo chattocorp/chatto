@@ -874,7 +874,7 @@ Response containing one room-scoped asset.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `asset` | [`RoomTimelineAttachment`](#chatto-api-v1-RoomTimelineAttachment) | Asset metadata and signed URLs. |
+| `asset` | [`MessageAttachment`](#chatto-api-v1-MessageAttachment) | Asset metadata and signed URLs. |
 
 
 <a id="chatto-api-v1-AssetService-BatchGetAssets"></a>
@@ -910,7 +910,7 @@ Response containing room-scoped assets.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `assets` | repeated [`RoomTimelineAttachment`](#chatto-api-v1-RoomTimelineAttachment) | Assets in first-seen request order. |
+| `assets` | repeated [`MessageAttachment`](#chatto-api-v1-MessageAttachment) | Assets in first-seen request order. |
 
 
 <a id="chatto-api-v1-UserService"></a>
@@ -1100,7 +1100,7 @@ Result of creating a message.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `event` | [`RoomTimelineEvent`](#chatto-api-v1-RoomTimelineEvent) | Renderable timeline event for the created message. |
+| `message` | [`Message`](#chatto-api-v1-Message) | Renderable message created by the request. |
 
 
 <a id="chatto-api-v1-MessageService-UpdateMessage"></a>
@@ -1138,7 +1138,7 @@ Result of editing a message.
 | Field | Type | Description |
 | --- | --- | --- |
 | `updated` | `bool` | True when the edit was accepted. |
-| `event` | [`RoomTimelineEvent`](#chatto-api-v1-RoomTimelineEvent) | Renderable timeline event after the edit. |
+| `message` | [`Message`](#chatto-api-v1-Message) | Renderable message after the edit. |
 
 
 <a id="chatto-api-v1-MessageService-DeleteMessage"></a>
@@ -1272,11 +1272,11 @@ Request to read one visible message.
 
 #### Result: GetMessageResponse
 
-Response containing one renderable message event.
+Response containing one renderable message.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `event` | [`RoomTimelineEvent`](#chatto-api-v1-RoomTimelineEvent) | Renderable timeline event for the message. |
+| `message` | [`Message`](#chatto-api-v1-Message) | Renderable message. |
 
 
 <a id="chatto-api-v1-MessageService-BatchGetMessages"></a>
@@ -1308,11 +1308,11 @@ Request to read many visible messages in one room.
 
 #### Result: BatchGetMessagesResponse
 
-Response containing renderable message events.
+Response containing renderable messages.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `events` | repeated [`RoomTimelineEvent`](#chatto-api-v1-RoomTimelineEvent) | Renderable timeline events in first-seen request order. |
+| `messages` | repeated [`Message`](#chatto-api-v1-Message) | Renderable messages in first-seen request order. |
 
 
 <a id="chatto-api-v1-MessageService-AddReaction"></a>
@@ -1352,7 +1352,7 @@ Result of adding a reaction.
 | Field | Type | Description |
 | --- | --- | --- |
 | `added` | `bool` | True when the reaction was newly added, false when it already existed. |
-| `reaction` | [`RoomTimelineReaction`](#chatto-api-v1-RoomTimelineReaction) | Updated aggregate reaction state for this emoji. |
+| `reaction` | [`MessageReaction`](#chatto-api-v1-MessageReaction) | Updated aggregate reaction state for this emoji. |
 
 
 <a id="chatto-api-v1-MessageService-RemoveReaction"></a>
@@ -1392,7 +1392,7 @@ Result of removing a reaction.
 | Field | Type | Description |
 | --- | --- | --- |
 | `removed` | `bool` | True when the reaction was removed, false when it did not exist. |
-| `reaction` | [`RoomTimelineReaction`](#chatto-api-v1-RoomTimelineReaction) | Updated aggregate reaction state for this emoji. Empty when no reactions for the emoji remain. |
+| `reaction` | [`MessageReaction`](#chatto-api-v1-MessageReaction) | Updated aggregate reaction state for this emoji. Empty when no reactions for the emoji remain. |
 
 
 <a id="chatto-api-v1-NotificationService"></a>
@@ -3666,14 +3666,49 @@ client-provided metadata fields.
 
 
 
-<a id="chatto-api-v1-RoomTimelineAssetUrl"></a>
+<a id="chatto-api-v1-Message"></a>
 
-### RoomTimelineAssetUrl
+### Message
 
-Time-limited URL for a room timeline asset.
+Renderable message data.
 
-Clients should expect these URLs to expire and refresh the timeline data when
-an asset URL is no longer usable.
+The same shape is used for top-level room messages, thread replies, and
+thread echo entries. Thread-related fields let clients render reply counts,
+thread participants, and follow state without additional per-message
+requests.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | Stable message event ID. |
+| `room_id` | `string` | Room containing the message. |
+| `created_at` | `google.protobuf.Timestamp` | Time when the message was created. |
+| `actor_id` | `string` | User ID of the message actor. |
+| `body` | `optional string` | Message body text, when available. A present empty string is distinct from an absent body. |
+| `attachments` | repeated [`MessageAttachment`](#chatto-api-v1-MessageAttachment) | Attachments sent with the message. |
+| `link_preview` | [`LinkPreview`](#chatto-api-v1-LinkPreview) | Link preview extracted for the message, when available. |
+| `updated_at` | `google.protobuf.Timestamp` | Time when the message was last edited. |
+| `in_reply_to` | `string` | Event ID this message directly replies to, when this is a reply. |
+| `thread_root_event_id` | `string` | Event ID of the root message for the thread this message belongs to. |
+| `echo_of_event_id` | `string` | Event ID this event echoes into the current view, when applicable. Echoes allow thread activity to appear in another timeline context. |
+| `echo_from_thread_root_event_id` | `string` | Thread root ID of the echoed event, when applicable. |
+| `channel_echo_event_id` | `string` | Channel timeline event ID for a thread echo, when applicable. |
+| `reply_count` | `int32` | Number of replies in this message's thread. |
+| `last_reply_at` | `google.protobuf.Timestamp` | Creation time of the most recent reply in this message's thread. |
+| `thread_participant_preview_user_ids` | `repeated string` | Preview of up to five user IDs that have participated in this message's thread. |
+| `thread_participant_count` | `int32` | Total number of distinct users that have participated in this message's thread. |
+| `viewer_is_following_thread` | `optional bool` | Whether the current user follows this message's thread, when known. |
+| `reactions` | repeated [`MessageReaction`](#chatto-api-v1-MessageReaction) | Reaction summaries for this message. |
+
+
+
+<a id="chatto-api-v1-MessageAssetUrl"></a>
+
+### MessageAssetUrl
+
+Time-limited URL for an asset attached to a message.
+
+Clients should expect these URLs to expire and refresh the asset through
+AssetService when a URL is no longer usable.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -3682,11 +3717,11 @@ an asset URL is no longer usable.
 
 
 
-<a id="chatto-api-v1-RoomTimelineAttachment"></a>
+<a id="chatto-api-v1-MessageAttachment"></a>
 
-### RoomTimelineAttachment
+### MessageAttachment
 
-Attachment metadata included with a posted message.
+Attachment metadata included with a message.
 
 Image and video dimensions are best-effort metadata for layout. Asset URLs can
 be absent while processing is pending or when the source is unavailable.
@@ -3698,111 +3733,19 @@ be absent while processing is pending or when the source is unavailable.
 | `content_type` | `string` | MIME content type. |
 | `width` | `int32` | Image or video width in pixels, when known. |
 | `height` | `int32` | Image or video height in pixels, when known. |
-| `asset_url` | [`RoomTimelineAssetUrl`](#chatto-api-v1-RoomTimelineAssetUrl) | Signed URL for the original asset, when available. |
-| `thumbnail_asset_url` | [`RoomTimelineAssetUrl`](#chatto-api-v1-RoomTimelineAssetUrl) | Signed URL for a thumbnail image, when available. |
-| `video_processing` | [`RoomTimelineVideoProcessing`](#chatto-api-v1-RoomTimelineVideoProcessing) | Video-specific processing metadata, when this attachment is a video. |
+| `asset_url` | [`MessageAssetUrl`](#chatto-api-v1-MessageAssetUrl) | Signed URL for the original asset, when available. |
+| `thumbnail_asset_url` | [`MessageAssetUrl`](#chatto-api-v1-MessageAssetUrl) | Signed URL for a thumbnail image, when available. |
+| `video_processing` | [`MessageVideoProcessing`](#chatto-api-v1-MessageVideoProcessing) | Video-specific processing metadata, when this attachment is a video. |
 
 
 
-<a id="chatto-api-v1-RoomTimelineEvent"></a>
+<a id="chatto-api-v1-MessageReaction"></a>
 
-### RoomTimelineEvent
+### MessageReaction
 
-One event in a room or thread timeline.
+Aggregated reaction state for one emoji on one message.
 
-Clients should inspect the event oneof to choose the renderer for the event.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `id` | `string` | Stable event ID. |
-| `created_at` | `google.protobuf.Timestamp` | Time when the event was created. |
-| `actor_id` | `string` | User ID of the event actor. |
-| `event.message_posted` | [`RoomTimelineMessagePosted`](#chatto-api-v1-RoomTimelineMessagePosted) | A message was posted. |
-| `event.room_created` | [`RoomTimelineRoomEvent`](#chatto-api-v1-RoomTimelineRoomEvent) | The room was created. |
-| `event.room_updated` | [`RoomTimelineRoomEvent`](#chatto-api-v1-RoomTimelineRoomEvent) | The room metadata was updated. |
-| `event.room_deleted` | [`RoomTimelineRoomEvent`](#chatto-api-v1-RoomTimelineRoomEvent) | The room was deleted. |
-| `event.room_archived` | [`RoomTimelineRoomEvent`](#chatto-api-v1-RoomTimelineRoomEvent) | The room was archived. |
-| `event.room_unarchived` | [`RoomTimelineRoomEvent`](#chatto-api-v1-RoomTimelineRoomEvent) | The room was unarchived. |
-| `event.user_joined_room` | [`RoomTimelineRoomEvent`](#chatto-api-v1-RoomTimelineRoomEvent) | A user joined the room. |
-| `event.user_left_room` | [`RoomTimelineRoomEvent`](#chatto-api-v1-RoomTimelineRoomEvent) | A user left the room. |
-
-
-
-<a id="chatto-api-v1-RoomTimelineIncludes"></a>
-
-### RoomTimelineIncludes
-
-Related entities included beside timeline events.
-
-Includes avoid repeating the same user data on every event in a page.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `users` | map&lt;`string`, [`User`](#chatto-api-v1-User)&gt; | Users keyed by user ID. |
-
-
-
-<a id="chatto-api-v1-RoomTimelineMessagePosted"></a>
-
-### RoomTimelineMessagePosted
-
-Payload for a message-posted timeline event.
-
-The same shape is used for top-level room messages, thread replies, and thread
-echo entries. Thread-related fields let clients render reply counts, thread
-participants, and follow state without additional per-message requests.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | Room containing the message. |
-| `body` | `optional string` | Message body text, when available. A present empty string is distinct from an absent body. |
-| `attachments` | repeated [`RoomTimelineAttachment`](#chatto-api-v1-RoomTimelineAttachment) | Attachments sent with the message. |
-| `link_preview` | [`LinkPreview`](#chatto-api-v1-LinkPreview) | Link preview extracted for the message, when available. |
-| `updated_at` | `google.protobuf.Timestamp` | Time when the message was last edited. |
-| `in_reply_to` | `string` | Event ID this message directly replies to, when this is a reply. |
-| `thread_root_event_id` | `string` | Event ID of the root message for the thread this message belongs to. |
-| `echo_of_event_id` | `string` | Event ID this event echoes into the current view, when applicable. Echoes allow thread activity to appear in another timeline context. |
-| `echo_from_thread_root_event_id` | `string` | Thread root ID of the echoed event, when applicable. |
-| `channel_echo_event_id` | `string` | Channel timeline event ID for a thread echo, when applicable. |
-| `reply_count` | `int32` | Number of replies in this message's thread. |
-| `last_reply_at` | `google.protobuf.Timestamp` | Creation time of the most recent reply in this message's thread. |
-| `thread_participant_preview_user_ids` | `repeated string` | Preview of up to five user IDs that have participated in this message's thread. |
-| `viewer_is_following_thread` | `optional bool` | Whether the current user follows this message's thread, when known. |
-| `reactions` | repeated [`RoomTimelineReaction`](#chatto-api-v1-RoomTimelineReaction) | Reaction summaries for this message. |
-| `thread_participant_count` | `int32` | Total number of distinct users that have participated in this message's thread. |
-
-
-
-<a id="chatto-api-v1-RoomTimelinePage"></a>
-
-### RoomTimelinePage
-
-Cursor page of room or thread timeline events.
-
-Use opaque start_cursor and end_cursor values with before/after requests to
-continue paging in either direction. Clients must treat cursor values as
-server-owned tokens and must not parse or construct them. The has_older and
-has_newer flags tell clients whether another request can extend the current
-window.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `events` | repeated [`RoomTimelineEvent`](#chatto-api-v1-RoomTimelineEvent) | Events in display order. |
-| `start_cursor` | `string` | Opaque cursor for the first event in the page. |
-| `end_cursor` | `string` | Opaque cursor for the last event in the page. |
-| `has_older` | `bool` | True when older events are available before start_cursor. |
-| `has_newer` | `bool` | True when newer events are available after end_cursor. |
-| `includes` | [`RoomTimelineIncludes`](#chatto-api-v1-RoomTimelineIncludes) | Related entities needed to render the page. |
-
-
-
-<a id="chatto-api-v1-RoomTimelineReaction"></a>
-
-### RoomTimelineReaction
-
-Aggregated reaction state for one emoji on one event.
-
-This state is scoped to the current event and includes whether the current
+This state is scoped to the current message and includes whether the current
 user has reacted with the same emoji.
 
 | Field | Type | Description |
@@ -3814,21 +3757,9 @@ user has reacted with the same emoji.
 
 
 
-<a id="chatto-api-v1-RoomTimelineRoomEvent"></a>
+<a id="chatto-api-v1-MessageVideoProcessing"></a>
 
-### RoomTimelineRoomEvent
-
-Payload for room lifecycle and membership timeline events.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | Room affected by the event. |
-
-
-
-<a id="chatto-api-v1-RoomTimelineVideoProcessing"></a>
-
-### RoomTimelineVideoProcessing
+### MessageVideoProcessing
 
 Processing metadata for a video attachment.
 
@@ -3838,20 +3769,20 @@ state.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `status` | [`RoomTimelineVideoProcessingStatus`](#chatto-api-v1-RoomTimelineVideoProcessingStatus) | Current processing status. |
+| `status` | [`MessageVideoProcessingStatus`](#chatto-api-v1-MessageVideoProcessingStatus) | Current processing status. |
 | `duration_ms` | `int64` | Video duration in milliseconds. |
 | `width` | `int32` | Source video width in pixels. |
 | `height` | `int32` | Source video height in pixels. |
 | `source_available` | `bool` | True when the original source asset is currently available. |
 | `reason_code` | `string` | Stable reason code for a failed or incomplete processing state. |
-| `thumbnail_asset_url` | [`RoomTimelineAssetUrl`](#chatto-api-v1-RoomTimelineAssetUrl) | Signed URL for the generated thumbnail, when available. |
-| `variants` | repeated [`RoomTimelineVideoVariant`](#chatto-api-v1-RoomTimelineVideoVariant) | Available transcoded renditions. |
+| `thumbnail_asset_url` | [`MessageAssetUrl`](#chatto-api-v1-MessageAssetUrl) | Signed URL for the generated thumbnail, when available. |
+| `variants` | repeated [`MessageVideoVariant`](#chatto-api-v1-MessageVideoVariant) | Available transcoded renditions. |
 
 
 
-<a id="chatto-api-v1-RoomTimelineVideoVariant"></a>
+<a id="chatto-api-v1-MessageVideoVariant"></a>
 
-### RoomTimelineVideoVariant
+### MessageVideoVariant
 
 One transcoded video rendition.
 
@@ -3861,7 +3792,7 @@ One transcoded video rendition.
 | `width` | `int32` | Video width in pixels. |
 | `height` | `int32` | Video height in pixels. |
 | `size` | `int64` | Rendition size in bytes. |
-| `asset_url` | [`RoomTimelineAssetUrl`](#chatto-api-v1-RoomTimelineAssetUrl) | Signed URL for the rendition. |
+| `asset_url` | [`MessageAssetUrl`](#chatto-api-v1-MessageAssetUrl) | Signed URL for the rendition. |
 
 
 
@@ -3887,7 +3818,7 @@ One current room attachment and its message anchor.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `attachment` | [`RoomTimelineAttachment`](#chatto-api-v1-RoomTimelineAttachment) | Attachment metadata and signed URLs. |
+| `attachment` | [`MessageAttachment`](#chatto-api-v1-MessageAttachment) | Attachment metadata and signed URLs. |
 | `message_event_id` | `string` | Message event containing the attachment. |
 | `thread_root_event_id` | `string` | Thread root event ID when the containing message is a thread reply. |
 | `created_at` | `google.protobuf.Timestamp` | Message creation timestamp. |
@@ -4049,6 +3980,91 @@ Public role metadata used for rendering role mentions, labels, and catalogs.
 | `is_system` | `bool` | Whether this is a built-in role. |
 | `position` | `int32` | Display/order position. |
 | `pingable` | `bool` | Whether messages may notify users assigned to this role. |
+
+
+
+<a id="chatto-api-v1-RoomMessagePosted"></a>
+
+### RoomMessagePosted
+
+Payload for a message-posted timeline event.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `message` | [`Message`](#chatto-api-v1-Message) | Renderable message created by this timeline event. |
+
+
+
+<a id="chatto-api-v1-RoomTimelineEvent"></a>
+
+### RoomTimelineEvent
+
+One event in a room or thread timeline.
+
+Clients should inspect the event oneof to choose the renderer for the event.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | Stable event ID. |
+| `created_at` | `google.protobuf.Timestamp` | Time when the event was created. |
+| `actor_id` | `string` | User ID of the event actor. |
+| `event.message_posted` | [`RoomMessagePosted`](#chatto-api-v1-RoomMessagePosted) | A message was posted. |
+| `event.room_created` | [`RoomTimelineRoomEvent`](#chatto-api-v1-RoomTimelineRoomEvent) | The room was created. |
+| `event.room_updated` | [`RoomTimelineRoomEvent`](#chatto-api-v1-RoomTimelineRoomEvent) | The room metadata was updated. |
+| `event.room_deleted` | [`RoomTimelineRoomEvent`](#chatto-api-v1-RoomTimelineRoomEvent) | The room was deleted. |
+| `event.room_archived` | [`RoomTimelineRoomEvent`](#chatto-api-v1-RoomTimelineRoomEvent) | The room was archived. |
+| `event.room_unarchived` | [`RoomTimelineRoomEvent`](#chatto-api-v1-RoomTimelineRoomEvent) | The room was unarchived. |
+| `event.user_joined_room` | [`RoomTimelineRoomEvent`](#chatto-api-v1-RoomTimelineRoomEvent) | A user joined the room. |
+| `event.user_left_room` | [`RoomTimelineRoomEvent`](#chatto-api-v1-RoomTimelineRoomEvent) | A user left the room. |
+
+
+
+<a id="chatto-api-v1-RoomTimelineIncludes"></a>
+
+### RoomTimelineIncludes
+
+Related entities included beside timeline events.
+
+Includes avoid repeating the same user data on every event in a page.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `users` | map&lt;`string`, [`User`](#chatto-api-v1-User)&gt; | Users keyed by user ID. |
+
+
+
+<a id="chatto-api-v1-RoomTimelinePage"></a>
+
+### RoomTimelinePage
+
+Cursor page of room or thread timeline events.
+
+Use opaque start_cursor and end_cursor values with before/after requests to
+continue paging in either direction. Clients must treat cursor values as
+server-owned tokens and must not parse or construct them. The has_older and
+has_newer flags tell clients whether another request can extend the current
+window.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `events` | repeated [`RoomTimelineEvent`](#chatto-api-v1-RoomTimelineEvent) | Events in display order. |
+| `start_cursor` | `string` | Opaque cursor for the first event in the page. |
+| `end_cursor` | `string` | Opaque cursor for the last event in the page. |
+| `has_older` | `bool` | True when older events are available before start_cursor. |
+| `has_newer` | `bool` | True when newer events are available after end_cursor. |
+| `includes` | [`RoomTimelineIncludes`](#chatto-api-v1-RoomTimelineIncludes) | Related entities needed to render the page. |
+
+
+
+<a id="chatto-api-v1-RoomTimelineRoomEvent"></a>
+
+### RoomTimelineRoomEvent
+
+Payload for room lifecycle and membership timeline events.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Room affected by the event. |
 
 
 
@@ -4275,7 +4291,7 @@ One followed thread for the current user.
 | `room_id` | `string` | Room containing the thread. |
 | `room_name` | `string` | Current display name of the room. |
 | `thread_root_event_id` | `string` | Event ID of the root message for the thread. |
-| `root_message` | [`RoomTimelineEvent`](#chatto-api-v1-RoomTimelineEvent) | Renderable root message event, when the root is still visible. |
+| `root_message` | [`Message`](#chatto-api-v1-Message) | Renderable root message, when the root is still visible. |
 | `reply_count` | `int32` | Number of replies in the thread. |
 | `last_reply_at` | `google.protobuf.Timestamp` | Creation time of the latest reply, when the thread has replies. |
 | `has_unread` | `bool` | True when the current user has unread replies in the thread. |
@@ -4402,18 +4418,18 @@ Upload lifecycle state for a room-scoped attachment upload.
 | `ASSET_UPLOAD_STATUS_CANCELLED` | `3` | The upload was cancelled or expired. |
 
 
-<a id="chatto-api-v1-RoomTimelineVideoProcessingStatus"></a>
+<a id="chatto-api-v1-MessageVideoProcessingStatus"></a>
 
-### RoomTimelineVideoProcessingStatus
+### MessageVideoProcessingStatus
 
-Processing state for a timeline video attachment.
+Processing state for a video attachment.
 
 | Name | Number | Description |
 | --- | --- | --- |
-| `ROOM_TIMELINE_VIDEO_PROCESSING_STATUS_UNSPECIFIED` | `0` | The processing status was not specified. |
-| `ROOM_TIMELINE_VIDEO_PROCESSING_STATUS_PROCESSING` | `1` | Video processing is still running. |
-| `ROOM_TIMELINE_VIDEO_PROCESSING_STATUS_COMPLETED` | `2` | Video processing completed successfully. |
-| `ROOM_TIMELINE_VIDEO_PROCESSING_STATUS_FAILED` | `3` | Video processing failed. |
+| `MESSAGE_VIDEO_PROCESSING_STATUS_UNSPECIFIED` | `0` | The processing status was not specified. |
+| `MESSAGE_VIDEO_PROCESSING_STATUS_PROCESSING` | `1` | Video processing is still running. |
+| `MESSAGE_VIDEO_PROCESSING_STATUS_COMPLETED` | `2` | Video processing completed successfully. |
+| `MESSAGE_VIDEO_PROCESSING_STATUS_FAILED` | `3` | Video processing failed. |
 
 
 <a id="chatto-api-v1-AssetFitMode"></a>

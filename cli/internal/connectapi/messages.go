@@ -55,7 +55,7 @@ func (s *messageService) CreateMessage(ctx context.Context, req *connect.Request
 		return nil, connectError(err)
 	}
 	return connect.NewResponse(&apiv1.CreateMessageResponse{
-		Event: apiEvent,
+		Message: messageFromTimelineEvent(apiEvent),
 	}), nil
 }
 
@@ -81,7 +81,7 @@ func (s *messageService) UpdateMessage(ctx context.Context, req *connect.Request
 	}
 	return connect.NewResponse(&apiv1.UpdateMessageResponse{
 		Updated: true,
-		Event:   apiEvent,
+		Message: messageFromTimelineEvent(apiEvent),
 	}), nil
 }
 
@@ -154,4 +154,15 @@ func (s *messageService) hydratePostedEvent(ctx context.Context, viewerID string
 		return nil, err
 	}
 	return apiEvent, nil
+}
+
+func messageFromTimelineEvent(event *apiv1.RoomTimelineEvent) *apiv1.Message {
+	if event == nil {
+		return nil
+	}
+	posted := event.GetMessagePosted()
+	if posted == nil {
+		return nil
+	}
+	return posted.GetMessage()
 }

@@ -4,8 +4,8 @@ package chatto.api.v1;
 
 import "buf/validate/validate.proto";
 import "chatto/api/v1/link_previews.proto";
+import "chatto/api/v1/message_types.proto";
 import "chatto/api/v1/reactions.proto";
-import "chatto/api/v1/room_timeline.proto";
 
 // Request to create a message in a room or thread.
 message CreateMessageRequest {
@@ -48,12 +48,12 @@ message CreateMessageResponse {
   reserved 2;
   reserved "mention_confirmation";
   // Field 3 was `includes`, used before create responses were narrowed to the
-  // generated message event.
+  // generated message.
   reserved 3;
   reserved "includes";
 
-  // Renderable timeline event for the created message.
-  RoomTimelineEvent event = 1;
+  // Renderable message created by the request.
+  Message message = 1;
 }
 
 // Request to patch a message.
@@ -72,14 +72,14 @@ message UpdateMessageRequest {
 // Result of editing a message.
 message UpdateMessageResponse {
   // Field 3 was `includes`, used before update responses were narrowed to the
-  // edited message event.
+  // edited message.
   reserved 3;
   reserved "includes";
 
   // True when the edit was accepted.
   bool updated = 1;
-  // Renderable timeline event after the edit.
-  RoomTimelineEvent event = 2;
+  // Renderable message after the edit.
+  Message message = 2;
 }
 
 // Request to retract a message.
@@ -141,15 +141,15 @@ message GetMessageRequest {
   string event_id = 2 [(buf.validate.field).string.min_len = 1];
 }
 
-// Response containing one renderable message event.
+// Response containing one renderable message.
 message GetMessageResponse {
   // Field 2 was `includes`, used before message read responses were narrowed
-  // to message events.
+  // to messages.
   reserved 2;
   reserved "includes";
 
-  // Renderable timeline event for the message.
-  RoomTimelineEvent event = 1;
+  // Renderable message.
+  Message message = 1;
 }
 
 // Request to read many visible messages in one room.
@@ -172,15 +172,15 @@ message BatchGetMessagesRequest {
   }];
 }
 
-// Response containing renderable message events.
+// Response containing renderable messages.
 message BatchGetMessagesResponse {
   // Field 2 was `includes`, used before message read responses were narrowed
-  // to message events.
+  // to messages.
   reserved 2;
   reserved "includes";
 
-  // Renderable timeline events in first-seen request order.
-  repeated RoomTimelineEvent events = 1;
+  // Renderable messages in first-seen request order.
+  repeated Message messages = 1;
 }
 
 // Creates messages in room and thread timelines.

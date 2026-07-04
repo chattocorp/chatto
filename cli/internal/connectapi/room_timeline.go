@@ -92,13 +92,13 @@ func (s *messageService) GetMessage(ctx context.Context, req *connect.Request[ap
 	if err != nil {
 		return nil, connectError(err)
 	}
-	var event *apiv1.RoomTimelineEvent
+	var message *apiv1.Message
 	if len(events) > 0 {
-		event = events[0]
+		message = messageFromTimelineEvent(events[0])
 	}
 
 	return connect.NewResponse(&apiv1.GetMessageResponse{
-		Event: event,
+		Message: message,
 	}), nil
 }
 
@@ -120,9 +120,15 @@ func (s *messageService) BatchGetMessages(ctx context.Context, req *connect.Requ
 	if err != nil {
 		return nil, connectError(err)
 	}
+	messages := make([]*apiv1.Message, 0, len(apiEvents))
+	for _, event := range apiEvents {
+		if message := messageFromTimelineEvent(event); message != nil {
+			messages = append(messages, message)
+		}
+	}
 
 	return connect.NewResponse(&apiv1.BatchGetMessagesResponse{
-		Events: apiEvents,
+		Messages: messages,
 	}), nil
 }
 

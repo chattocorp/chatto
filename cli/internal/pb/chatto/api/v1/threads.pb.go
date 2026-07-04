@@ -316,8 +316,8 @@ type FollowedThread struct {
 	RoomName string `protobuf:"bytes,2,opt,name=room_name,json=roomName,proto3" json:"room_name,omitempty"`
 	// Event ID of the root message for the thread.
 	ThreadRootEventId string `protobuf:"bytes,3,opt,name=thread_root_event_id,json=threadRootEventId,proto3" json:"thread_root_event_id,omitempty"`
-	// Renderable root message event, when the root is still visible.
-	RootMessage *RoomTimelineEvent `protobuf:"bytes,4,opt,name=root_message,json=rootMessage,proto3" json:"root_message,omitempty"`
+	// Renderable root message, when the root is still visible.
+	RootMessage *Message `protobuf:"bytes,4,opt,name=root_message,json=rootMessage,proto3" json:"root_message,omitempty"`
 	// Number of replies in the thread.
 	ReplyCount int32 `protobuf:"varint,5,opt,name=reply_count,json=replyCount,proto3" json:"reply_count,omitempty"`
 	// Creation time of the latest reply, when the thread has replies.
@@ -379,7 +379,7 @@ func (x *FollowedThread) GetThreadRootEventId() string {
 	return ""
 }
 
-func (x *FollowedThread) GetRootMessage() *RoomTimelineEvent {
+func (x *FollowedThread) GetRootMessage() *Message {
 	if x != nil {
 		return x.RootMessage
 	}
@@ -521,7 +521,7 @@ var File_chatto_api_v1_threads_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_threads_proto_rawDesc = "" +
 	"\n" +
-	"\x1bchatto/api/v1/threads.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1echatto/api/v1/pagination.proto\x1a\x1echatto/api/v1/read_state.proto\x1a!chatto/api/v1/room_timeline.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"{\n" +
+	"\x1bchatto/api/v1/threads.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a!chatto/api/v1/message_types.proto\x1a\x1echatto/api/v1/pagination.proto\x1a\x1echatto/api/v1/read_state.proto\x1a!chatto/api/v1/room_timeline.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"{\n" +
 	"\x11ThreadFollowState\x12\x17\n" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12/\n" +
 	"\x14thread_root_event_id\x18\x02 \x01(\tR\x11threadRootEventId\x12\x1c\n" +
@@ -537,12 +537,12 @@ const file_chatto_api_v1_threads_proto_rawDesc = "" +
 	"\x14thread_root_event_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x11threadRootEventId\"n\n" +
 	"\x16UnfollowThreadResponse\x12\x1c\n" +
 	"\tfollowing\x18\x01 \x01(\bR\tfollowing\x126\n" +
-	"\x05state\x18\x02 \x01(\v2 .chatto.api.v1.ThreadFollowStateR\x05state\"\xbc\x02\n" +
+	"\x05state\x18\x02 \x01(\v2 .chatto.api.v1.ThreadFollowStateR\x05state\"\xb2\x02\n" +
 	"\x0eFollowedThread\x12\x17\n" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x1b\n" +
 	"\troom_name\x18\x02 \x01(\tR\broomName\x12/\n" +
-	"\x14thread_root_event_id\x18\x03 \x01(\tR\x11threadRootEventId\x12C\n" +
-	"\froot_message\x18\x04 \x01(\v2 .chatto.api.v1.RoomTimelineEventR\vrootMessage\x12\x1f\n" +
+	"\x14thread_root_event_id\x18\x03 \x01(\tR\x11threadRootEventId\x129\n" +
+	"\froot_message\x18\x04 \x01(\v2\x16.chatto.api.v1.MessageR\vrootMessage\x12\x1f\n" +
 	"\vreply_count\x18\x05 \x01(\x05R\n" +
 	"replyCount\x12>\n" +
 	"\rlast_reply_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\vlastReplyAt\x12\x1d\n" +
@@ -585,7 +585,7 @@ var file_chatto_api_v1_threads_proto_goTypes = []any{
 	(*FollowedThread)(nil),                // 5: chatto.api.v1.FollowedThread
 	(*ListFollowedThreadsRequest)(nil),    // 6: chatto.api.v1.ListFollowedThreadsRequest
 	(*ListFollowedThreadsResponse)(nil),   // 7: chatto.api.v1.ListFollowedThreadsResponse
-	(*RoomTimelineEvent)(nil),             // 8: chatto.api.v1.RoomTimelineEvent
+	(*Message)(nil),                       // 8: chatto.api.v1.Message
 	(*timestamppb.Timestamp)(nil),         // 9: google.protobuf.Timestamp
 	(*PageRequest)(nil),                   // 10: chatto.api.v1.PageRequest
 	(*RoomTimelineIncludes)(nil),          // 11: chatto.api.v1.RoomTimelineIncludes
@@ -600,7 +600,7 @@ var file_chatto_api_v1_threads_proto_goTypes = []any{
 var file_chatto_api_v1_threads_proto_depIdxs = []int32{
 	0,  // 0: chatto.api.v1.FollowThreadResponse.state:type_name -> chatto.api.v1.ThreadFollowState
 	0,  // 1: chatto.api.v1.UnfollowThreadResponse.state:type_name -> chatto.api.v1.ThreadFollowState
-	8,  // 2: chatto.api.v1.FollowedThread.root_message:type_name -> chatto.api.v1.RoomTimelineEvent
+	8,  // 2: chatto.api.v1.FollowedThread.root_message:type_name -> chatto.api.v1.Message
 	9,  // 3: chatto.api.v1.FollowedThread.last_reply_at:type_name -> google.protobuf.Timestamp
 	10, // 4: chatto.api.v1.ListFollowedThreadsRequest.page:type_name -> chatto.api.v1.PageRequest
 	5,  // 5: chatto.api.v1.ListFollowedThreadsResponse.threads:type_name -> chatto.api.v1.FollowedThread
@@ -630,6 +630,7 @@ func file_chatto_api_v1_threads_proto_init() {
 	if File_chatto_api_v1_threads_proto != nil {
 		return
 	}
+	file_chatto_api_v1_message_types_proto_init()
 	file_chatto_api_v1_pagination_proto_init()
 	file_chatto_api_v1_read_state_proto_init()
 	file_chatto_api_v1_room_timeline_proto_init()

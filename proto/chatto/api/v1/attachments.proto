@@ -3,7 +3,7 @@ syntax = "proto3";
 package chatto.api.v1;
 
 import "buf/validate/validate.proto";
-import "chatto/api/v1/room_timeline.proto";
+import "chatto/api/v1/message_types.proto";
 import "google/protobuf/timestamp.proto";
 
 // Fit mode used when generating transformed asset thumbnails.
@@ -35,7 +35,7 @@ message AssetThumbnailOptions {
 // One current room attachment and its message anchor.
 message RoomAttachmentListItem {
   // Attachment metadata and signed URLs.
-  RoomTimelineAttachment attachment = 1;
+  MessageAttachment attachment = 1;
   // Message event containing the attachment.
   string message_event_id = 2;
   // Thread root event ID when the containing message is a thread reply.
@@ -57,7 +57,7 @@ message GetAssetRequest {
 // Response containing one room-scoped asset.
 message GetAssetResponse {
   // Asset metadata and signed URLs.
-  RoomTimelineAttachment asset = 1;
+  MessageAttachment asset = 1;
 }
 
 // Request to read many room-scoped assets with freshly signed URLs.
@@ -79,7 +79,7 @@ message BatchGetAssetsRequest {
 // Response containing room-scoped assets.
 message BatchGetAssetsResponse {
   // Assets in first-seen request order.
-  repeated RoomTimelineAttachment assets = 1;
+  repeated MessageAttachment assets = 1;
 }
 
 // Reads room-scoped asset metadata and freshly signed asset URLs.

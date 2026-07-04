@@ -1,6 +1,6 @@
 import { authHeaders, createChattoClient, handleAuthError } from "./connect.js";
 import { MessageService } from "@chatto/api-types/api/v1/messages_connect";
-import type { RoomTimelineReaction } from "@chatto/api-types/api/v1/room_timeline_pb";
+import type { MessageReaction } from "@chatto/api-types/api/v1/message_types_pb";
 
 export type ConnectAPIConfig = {
   serverId?: string;
@@ -67,7 +67,7 @@ export function createReactionAPI(config: ConnectAPIConfig) {
 }
 
 function mapReactionSummary(
-  reaction: RoomTimelineReaction | undefined,
+  reaction: MessageReaction | undefined,
 ): ReactionSummary | null {
   if (!reaction || !reaction.emoji) return null;
   return {

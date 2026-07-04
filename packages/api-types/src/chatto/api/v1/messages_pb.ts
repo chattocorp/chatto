@@ -5,7 +5,7 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3 } from "@bufbuild/protobuf";
-import { RoomTimelineEvent } from "./room_timeline_pb.js";
+import { Message as Message$1 } from "./message_types_pb.js";
 
 /**
  * Request to create a message in a room or thread.
@@ -104,11 +104,11 @@ export class CreateMessageRequest extends Message<CreateMessageRequest> {
  */
 export class CreateMessageResponse extends Message<CreateMessageResponse> {
   /**
-   * Renderable timeline event for the created message.
+   * Renderable message created by the request.
    *
-   * @generated from field: chatto.api.v1.RoomTimelineEvent event = 1;
+   * @generated from field: chatto.api.v1.Message message = 1;
    */
-  event?: RoomTimelineEvent;
+  message?: Message$1;
 
   constructor(data?: PartialMessage<CreateMessageResponse>) {
     super();
@@ -118,7 +118,7 @@ export class CreateMessageResponse extends Message<CreateMessageResponse> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.CreateMessageResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "event", kind: "message", T: RoomTimelineEvent },
+    { no: 1, name: "message", kind: "message", T: Message$1 },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CreateMessageResponse {
@@ -218,11 +218,11 @@ export class UpdateMessageResponse extends Message<UpdateMessageResponse> {
   updated = false;
 
   /**
-   * Renderable timeline event after the edit.
+   * Renderable message after the edit.
    *
-   * @generated from field: chatto.api.v1.RoomTimelineEvent event = 2;
+   * @generated from field: chatto.api.v1.Message message = 2;
    */
-  event?: RoomTimelineEvent;
+  message?: Message$1;
 
   constructor(data?: PartialMessage<UpdateMessageResponse>) {
     super();
@@ -233,7 +233,7 @@ export class UpdateMessageResponse extends Message<UpdateMessageResponse> {
   static readonly typeName = "chatto.api.v1.UpdateMessageResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "updated", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 2, name: "event", kind: "message", T: RoomTimelineEvent },
+    { no: 2, name: "message", kind: "message", T: Message$1 },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UpdateMessageResponse {
@@ -589,17 +589,17 @@ export class GetMessageRequest extends Message<GetMessageRequest> {
 }
 
 /**
- * Response containing one renderable message event.
+ * Response containing one renderable message.
  *
  * @generated from message chatto.api.v1.GetMessageResponse
  */
 export class GetMessageResponse extends Message<GetMessageResponse> {
   /**
-   * Renderable timeline event for the message.
+   * Renderable message.
    *
-   * @generated from field: chatto.api.v1.RoomTimelineEvent event = 1;
+   * @generated from field: chatto.api.v1.Message message = 1;
    */
-  event?: RoomTimelineEvent;
+  message?: Message$1;
 
   constructor(data?: PartialMessage<GetMessageResponse>) {
     super();
@@ -609,7 +609,7 @@ export class GetMessageResponse extends Message<GetMessageResponse> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.GetMessageResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "event", kind: "message", T: RoomTimelineEvent },
+    { no: 1, name: "message", kind: "message", T: Message$1 },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetMessageResponse {
@@ -680,17 +680,17 @@ export class BatchGetMessagesRequest extends Message<BatchGetMessagesRequest> {
 }
 
 /**
- * Response containing renderable message events.
+ * Response containing renderable messages.
  *
  * @generated from message chatto.api.v1.BatchGetMessagesResponse
  */
 export class BatchGetMessagesResponse extends Message<BatchGetMessagesResponse> {
   /**
-   * Renderable timeline events in first-seen request order.
+   * Renderable messages in first-seen request order.
    *
-   * @generated from field: repeated chatto.api.v1.RoomTimelineEvent events = 1;
+   * @generated from field: repeated chatto.api.v1.Message messages = 1;
    */
-  events: RoomTimelineEvent[] = [];
+  messages: Message$1[] = [];
 
   constructor(data?: PartialMessage<BatchGetMessagesResponse>) {
     super();
@@ -700,7 +700,7 @@ export class BatchGetMessagesResponse extends Message<BatchGetMessagesResponse> 
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.BatchGetMessagesResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "events", kind: "message", T: RoomTimelineEvent, repeated: true },
+    { no: 1, name: "messages", kind: "message", T: Message$1, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BatchGetMessagesResponse {

@@ -198,12 +198,12 @@ func createAssetTestPNG(t *testing.T, width, height int) []byte {
 	return buf.Bytes()
 }
 
-func (env *assetTestEnv) postAssetMessageWithAttachment(t *testing.T, roomID, body string, fileData []byte, fileName string) (string, *apiv1.RoomTimelineAttachment) {
+func (env *assetTestEnv) postAssetMessageWithAttachment(t *testing.T, roomID, body string, fileData []byte, fileName string) (string, *apiv1.MessageAttachment) {
 	t.Helper()
 	return env.postAssetMessageWithAttachmentContentType(t, roomID, body, fileData, fileName, "image/png")
 }
 
-func (env *assetTestEnv) postAssetMessageWithAttachmentContentType(t *testing.T, roomID, body string, fileData []byte, fileName, contentType string) (string, *apiv1.RoomTimelineAttachment) {
+func (env *assetTestEnv) postAssetMessageWithAttachmentContentType(t *testing.T, roomID, body string, fileData []byte, fileName, contentType string) (string, *apiv1.MessageAttachment) {
 	t.Helper()
 
 	assetUploadClient := apiv1connect.NewAssetUploadServiceClient(env.client, env.server.URL+connectAPIPrefix)
@@ -247,18 +247,14 @@ func (env *assetTestEnv) postAssetMessageWithAttachmentContentType(t *testing.T,
 	if err != nil {
 		t.Fatalf("Failed to post message with attachment: %v", err)
 	}
-	event := resp.Msg.GetEvent()
-	if event == nil {
-		t.Fatal("Expected posted message event")
-	}
-	message := event.GetMessagePosted()
+	message := resp.Msg.GetMessage()
 	if message == nil {
-		t.Fatalf("Expected message posted event, got %T", event.GetEvent())
+		t.Fatal("Expected posted message")
 	}
 	if len(message.GetAttachments()) == 0 {
 		t.Fatal("Expected at least one attachment")
 	}
-	return event.GetId(), message.GetAttachments()[0]
+	return message.GetId(), message.GetAttachments()[0]
 }
 
 func (env *assetTestEnv) deleteAssetMessage(t *testing.T, roomID, eventID string) {

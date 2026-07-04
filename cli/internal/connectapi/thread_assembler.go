@@ -60,12 +60,13 @@ func (a *threadAssembler) followedThreadsResponse(ctx context.Context, viewerID 
 		if err != nil {
 			return nil, err
 		}
-		var rootMessage *apiv1.RoomTimelineEvent
+		var rootMessage *apiv1.Message
 		if event != nil {
-			rootMessage, err = h.event(ctx, &core.RoomEvent{Event: event})
+			apiEvent, err := h.event(ctx, &core.RoomEvent{Event: event})
 			if err != nil {
 				return nil, err
 			}
+			rootMessage = messageFromTimelineEvent(apiEvent)
 		}
 
 		var lastReplyAt *timestamppb.Timestamp

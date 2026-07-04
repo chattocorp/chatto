@@ -1,0 +1,156 @@
+syntax = "proto3";
+
+package chatto.api.v1;
+
+import "chatto/api/v1/link_previews.proto";
+import "google/protobuf/timestamp.proto";
+
+// Time-limited URL for an asset attached to a message.
+//
+// Clients should expect these URLs to expire and refresh the asset through
+// AssetService when a URL is no longer usable.
+message MessageAssetUrl {
+  // Signed asset URL.
+  string url = 1;
+  // Time when the signed URL expires.
+  google.protobuf.Timestamp expires_at = 2;
+}
+
+// Processing state for a video attachment.
+enum MessageVideoProcessingStatus {
+  // The processing status was not specified.
+  MESSAGE_VIDEO_PROCESSING_STATUS_UNSPECIFIED = 0;
+  // Video processing is still running.
+  MESSAGE_VIDEO_PROCESSING_STATUS_PROCESSING = 1;
+  // Video processing completed successfully.
+  MESSAGE_VIDEO_PROCESSING_STATUS_COMPLETED = 2;
+  // Video processing failed.
+  MESSAGE_VIDEO_PROCESSING_STATUS_FAILED = 3;
+}
+
+// One transcoded video rendition.
+message MessageVideoVariant {
+  // Quality label for the rendition.
+  string quality = 1;
+  // Video width in pixels.
+  int32 width = 2;
+  // Video height in pixels.
+  int32 height = 3;
+  // Rendition size in bytes.
+  int64 size = 4;
+  // Signed URL for the rendition.
+  MessageAssetUrl asset_url = 5;
+}
+
+// Processing metadata for a video attachment.
+//
+// Clients can use this object to show upload/transcoding progress and decide
+// whether to play a processed variant, show a thumbnail, or display a failure
+// state.
+message MessageVideoProcessing {
+  // Current processing status.
+  MessageVideoProcessingStatus status = 1;
+  // Video duration in milliseconds.
+  int64 duration_ms = 2;
+  // Source video width in pixels.
+  int32 width = 3;
+  // Source video height in pixels.
+  int32 height = 4;
+  // True when the original source asset is currently available.
+  bool source_available = 5;
+  // Stable reason code for a failed or incomplete processing state.
+  string reason_code = 6;
+  // Signed URL for the generated thumbnail, when available.
+  MessageAssetUrl thumbnail_asset_url = 7;
+  // Available transcoded renditions.
+  repeated MessageVideoVariant variants = 8;
+}
+
+// Attachment metadata included with a message.
+//
+// Image and video dimensions are best-effort metadata for layout. Asset URLs can
+// be absent while processing is pending or when the source is unavailable.
+message MessageAttachment {
+  // Stable attachment ID.
+  string id = 1;
+  // Original filename.
+  string filename = 2;
+  // MIME content type.
+  string content_type = 3;
+  // Image or video width in pixels, when known.
+  int32 width = 4;
+  // Image or video height in pixels, when known.
+  int32 height = 5;
+  // Signed URL for the original asset, when available.
+  MessageAssetUrl asset_url = 6;
+  // Signed URL for a thumbnail image, when available.
+  MessageAssetUrl thumbnail_asset_url = 7;
+  // Video-specific processing metadata, when this attachment is a video.
+  MessageVideoProcessing video_processing = 8;
+}
+
+// Aggregated reaction state for one emoji on one message.
+//
+// This state is scoped to the current message and includes whether the current
+// user has reacted with the same emoji.
+message MessageReaction {
+  // Emoji or reaction key.
+  string emoji = 1;
+  // Number of users who reacted with this emoji.
+  int32 count = 2;
+  // True when the current user reacted with this emoji.
+  bool has_reacted = 3;
+  // Preview of up to five user IDs that reacted with this emoji.
+  repeated string preview_user_ids = 4;
+}
+
+// Renderable message data.
+//
+// The same shape is used for top-level room messages, thread replies, and
+// thread echo entries. Thread-related fields let clients render reply counts,
+// thread participants, and follow state without additional per-message
+// requests.
+message Message {
+  // Stable message event ID.
+  string id = 1;
+  // Room containing the message.
+  string room_id = 2;
+  // Time when the message was created.
+  google.protobuf.Timestamp created_at = 3;
+  // User ID of the message actor.
+  string actor_id = 4;
+  // Message body text, when available. A present empty string is distinct from
+  // an absent body.
+  optional string body = 5;
+  // Attachments sent with the message.
+  repeated MessageAttachment attachments = 6;
+  // Link preview extracted for the message, when available.
+  LinkPreview link_preview = 7;
+  // Time when the message was last edited.
+  google.protobuf.Timestamp updated_at = 8;
+  // Event ID this message directly replies to, when this is a reply.
+  string in_reply_to = 9;
+  // Event ID of the root message for the thread this message belongs to.
+  string thread_root_event_id = 10;
+  // Event ID this event echoes into the current view, when applicable. Echoes
+  // allow thread activity to appear in another timeline context.
+  string echo_of_event_id = 11;
+  // Thread root ID of the echoed event, when applicable.
+  string echo_from_thread_root_event_id = 12;
+  // Channel timeline event ID for a thread echo, when applicable.
+  string channel_echo_event_id = 13;
+  // Number of replies in this message's thread.
+  int32 reply_count = 14;
+  // Creation time of the most recent reply in this message's thread.
+  google.protobuf.Timestamp last_reply_at = 15;
+  // Preview of up to five user IDs that have participated in this message's
+  // thread.
+  repeated string thread_participant_preview_user_ids = 16;
+  // Total number of distinct users that have participated in this message's
+  // thread.
+  int32 thread_participant_count = 17;
+  // Whether the current user follows this message's thread, when known.
+  optional bool viewer_is_following_thread = 18;
+  // Reaction summaries for this message.
+  repeated MessageReaction reactions = 19;
+}

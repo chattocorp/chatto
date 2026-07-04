@@ -50,7 +50,7 @@ func (s *messageService) RemoveReaction(ctx context.Context, req *connect.Reques
 	}), nil
 }
 
-func (s *messageService) reactionSummary(ctx context.Context, viewerID, messageEventID, emoji string) *apiv1.RoomTimelineReaction {
+func (s *messageService) reactionSummary(ctx context.Context, viewerID, messageEventID, emoji string) *apiv1.MessageReaction {
 	summaries, err := s.api.core.GetReactions(ctx, messageEventID)
 	if err != nil {
 		return nil
@@ -60,7 +60,7 @@ func (s *messageService) reactionSummary(ctx context.Context, viewerID, messageE
 			continue
 		}
 		userIDs := firstN(summary.UserIDs, 5)
-		return &apiv1.RoomTimelineReaction{
+		return &apiv1.MessageReaction{
 			Emoji:          summary.Emoji,
 			Count:          int32(len(summary.UserIDs)),
 			HasReacted:     containsString(summary.UserIDs, viewerID),

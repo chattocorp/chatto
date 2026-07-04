@@ -4566,11 +4566,11 @@ func TestMessageServiceFetchLinkPreviewRequiresAuthMapsPreviewAndPostsToken(t *t
 	if err != nil {
 		t.Fatalf("CreateMessage with preview token: %v", err)
 	}
-	event := createResp.Msg.GetEvent()
-	if event == nil {
-		t.Fatalf("CreateMessage event = nil")
+	message := createResp.Msg.GetMessage()
+	if message == nil {
+		t.Fatalf("CreateMessage message = nil")
 	}
-	body, err := env.core.GetFullMessageBody(env.ctx, core.KindChannel, event.GetId())
+	body, err := env.core.GetFullMessageBody(env.ctx, core.KindChannel, message.GetId())
 	if err != nil {
 		t.Fatalf("GetFullMessageBody: %v", err)
 	}
@@ -4808,7 +4808,7 @@ func TestMessageServiceReactionOnEchoCanonicalizesToOriginal(t *testing.T) {
 	if echoEvent == nil || echoEvent.GetMessagePosted() == nil {
 		t.Fatalf("echo event %s missing from room page", echoID)
 	}
-	if got := echoEvent.GetMessagePosted().GetReactions(); len(got) != 1 || got[0].GetEmoji() != "thumbsup" || got[0].GetCount() != 1 || !got[0].GetHasReacted() {
+	if got := echoEvent.GetMessagePosted().GetMessage().GetReactions(); len(got) != 1 || got[0].GetEmoji() != "thumbsup" || got[0].GetCount() != 1 || !got[0].GetHasReacted() {
 		t.Fatalf("echo reactions = %+v, want thumbsup count 1 hasReacted", got)
 	}
 
@@ -4824,7 +4824,7 @@ func TestMessageServiceReactionOnEchoCanonicalizesToOriginal(t *testing.T) {
 	if replyEvent == nil || replyEvent.GetMessagePosted() == nil {
 		t.Fatalf("reply event %s missing from thread page", reply.Id)
 	}
-	if got := replyEvent.GetMessagePosted().GetReactions(); len(got) != 1 || got[0].GetEmoji() != "thumbsup" || got[0].GetCount() != 1 || !got[0].GetHasReacted() {
+	if got := replyEvent.GetMessagePosted().GetMessage().GetReactions(); len(got) != 1 || got[0].GetEmoji() != "thumbsup" || got[0].GetCount() != 1 || !got[0].GetHasReacted() {
 		t.Fatalf("reply reactions = %+v, want thumbsup count 1 hasReacted", got)
 	}
 }
@@ -4953,7 +4953,7 @@ func TestMessageServiceCreateMessageInfersVideoProcessingAssetIDs(t *testing.T) 
 	}
 }
 
-func TestMessageServiceCreateMessageReturnsRenderableTimelineEvent(t *testing.T) {
+func TestMessageServiceCreateMessageReturnsRenderableMessage(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("message-post-success")
 
@@ -4964,13 +4964,9 @@ func TestMessageServiceCreateMessageReturnsRenderableTimelineEvent(t *testing.T)
 	if err != nil {
 		t.Fatalf("CreateMessage: %v", err)
 	}
-	event := resp.Msg.GetEvent()
-	if event == nil {
-		t.Fatalf("CreateMessage event = nil, response = %+v", resp.Msg)
-	}
-	message := event.GetMessagePosted()
+	message := resp.Msg.GetMessage()
 	if message == nil {
-		t.Fatalf("CreateMessage payload = %T, want message_posted", event.GetEvent())
+		t.Fatalf("CreateMessage message = nil, response = %+v", resp.Msg)
 	}
 	if message.Body == nil || message.GetBody() != "hello over connect" {
 		t.Fatalf("message body = %q present=%v, want posted body", message.GetBody(), message.Body != nil)
@@ -4989,9 +4985,9 @@ func TestMessageServiceCreateMessageUploadsAttachments(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateMessage: %v", err)
 	}
-	message := resp.Msg.GetEvent().GetMessagePosted()
+	message := resp.Msg.GetMessage()
 	if message == nil {
-		t.Fatalf("CreateMessage payload = %T, want message_posted", resp.Msg.GetEvent().GetEvent())
+		t.Fatalf("CreateMessage message = nil, response = %+v", resp.Msg)
 	}
 	attachments := message.GetAttachments()
 	if len(attachments) != 1 {
@@ -5066,9 +5062,9 @@ func TestMessageServiceCreateMessageBroadMentionWithAttachment(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateMessage: %v", err)
 	}
-	event := resp.Msg.GetEvent()
-	if event == nil || event.GetMessagePosted() == nil {
-		t.Fatalf("CreateMessage response = %+v, want message event", resp.Msg)
+	message := resp.Msg.GetMessage()
+	if message == nil {
+		t.Fatalf("CreateMessage response = %+v, want message", resp.Msg)
 	}
 	after, err := env.core.GetAssetCount(env.ctx)
 	if err != nil {
@@ -5449,7 +5445,7 @@ func TestMessageServiceUpdateMessageAuthorAndRBAC(t *testing.T) {
 	if err != nil {
 		t.Fatalf("author UpdateMessage: %v", err)
 	}
-	if !authorResp.Msg.GetUpdated() || authorResp.Msg.GetEvent().GetMessagePosted().GetBody() != "author edit" {
+	if !authorResp.Msg.GetUpdated() || authorResp.Msg.GetMessage().GetBody() != "author edit" {
 		t.Fatalf("author UpdateMessage response = %+v, want hydrated edited event", authorResp.Msg)
 	}
 	if body, err := env.core.GetMessageBody(env.ctx, core.KindChannel, original.Id); err != nil || body != "author edit" {
@@ -5820,7 +5816,7 @@ func TestRoomMessageAndAssetServicesListAttachmentsGetMessagesAndGetAssets(t *te
 	if err != nil {
 		t.Fatalf("GetMessage: %v", err)
 	}
-	getAttachments := get.Msg.GetEvent().GetMessagePosted().GetAttachments()
+	getAttachments := get.Msg.GetMessage().GetAttachments()
 	if len(getAttachments) != 1 {
 		t.Fatalf("GetMessage attachments = %d, want 1", len(getAttachments))
 	}
@@ -5858,19 +5854,19 @@ func TestRoomMessageAndAssetServicesListAttachmentsGetMessagesAndGetAssets(t *te
 	if err != nil {
 		t.Fatalf("BatchGetMessages: %v", err)
 	}
-	if got := batch.Msg.GetEvents(); len(got) != 3 {
-		t.Fatalf("BatchGetMessages events = %d, want 3", len(got))
+	if got := batch.Msg.GetMessages(); len(got) != 3 {
+		t.Fatalf("BatchGetMessages messages = %d, want 3", len(got))
 	}
-	if batch.Msg.Events[0].GetId() != reply.Id || len(batch.Msg.Events[0].GetMessagePosted().GetAttachments()) != 1 {
-		t.Fatalf("batch first = %+v, want reply with one attachment", batch.Msg.Events[0])
+	if batch.Msg.Messages[0].GetId() != reply.Id || len(batch.Msg.Messages[0].GetAttachments()) != 1 {
+		t.Fatalf("batch first = %+v, want reply with one attachment", batch.Msg.Messages[0])
 	}
-	if batch.Msg.Events[1].GetId() != root.Id ||
-		len(batch.Msg.Events[1].GetMessagePosted().GetAttachments()) != 1 ||
-		batch.Msg.Events[1].GetMessagePosted().GetAttachments()[0].GetId() != rootAttachment.Id {
-		t.Fatalf("batch second = %+v, want root attachment", batch.Msg.Events[1])
+	if batch.Msg.Messages[1].GetId() != root.Id ||
+		len(batch.Msg.Messages[1].GetAttachments()) != 1 ||
+		batch.Msg.Messages[1].GetAttachments()[0].GetId() != rootAttachment.Id {
+		t.Fatalf("batch second = %+v, want root attachment", batch.Msg.Messages[1])
 	}
-	if batch.Msg.Events[2].GetId() != empty.Id || len(batch.Msg.Events[2].GetMessagePosted().GetAttachments()) != 0 {
-		t.Fatalf("batch third = %+v, want empty message with no attachments", batch.Msg.Events[2])
+	if batch.Msg.Messages[2].GetId() != empty.Id || len(batch.Msg.Messages[2].GetAttachments()) != 0 {
+		t.Fatalf("batch third = %+v, want empty message with no attachments", batch.Msg.Messages[2])
 	}
 
 	assets, err := env.assets.BatchGetAssets(ctx, connect.NewRequest(&apiv1.BatchGetAssetsRequest{
@@ -5926,22 +5922,23 @@ func TestRoomAndThreadTimelineHydratesMessagesWithoutClientNPlusOne(t *testing.T
 	if payload == nil {
 		t.Fatalf("root payload = nil, want message_posted")
 	}
-	if payload.Body == nil || payload.GetBody() != "root" {
-		t.Fatalf("message body present/body = %v/%q, want true/root", payload.Body != nil, payload.GetBody())
+	message := payload.GetMessage()
+	if message.Body == nil || message.GetBody() != "root" {
+		t.Fatalf("message body present/body = %v/%q, want true/root", message.Body != nil, message.GetBody())
 	}
-	if payload.ReplyCount != 1 {
-		t.Fatalf("reply count = %d, want 1", payload.ReplyCount)
+	if message.ReplyCount != 1 {
+		t.Fatalf("reply count = %d, want 1", message.ReplyCount)
 	}
-	if got := payload.ThreadParticipantCount; got != 1 {
+	if got := message.ThreadParticipantCount; got != 1 {
 		t.Fatalf("thread participant count = %d, want 1", got)
 	}
-	if got := payload.ThreadParticipantPreviewUserIds; len(got) != 1 || got[0] != replier.Id {
+	if got := message.ThreadParticipantPreviewUserIds; len(got) != 1 || got[0] != replier.Id {
 		t.Fatalf("thread participant preview = %v, want [%s]", got, replier.Id)
 	}
-	if len(payload.Reactions) != 1 {
-		t.Fatalf("reaction summaries = %d, want 1", len(payload.Reactions))
+	if len(message.Reactions) != 1 {
+		t.Fatalf("reaction summaries = %d, want 1", len(message.Reactions))
 	}
-	reaction := payload.Reactions[0]
+	reaction := message.Reactions[0]
 	if reaction.Emoji != "thumbsup" || reaction.Count != 2 || !reaction.HasReacted {
 		t.Fatalf("reaction = %+v, want thumbsup count 2 hasReacted true", reaction)
 	}
@@ -6094,9 +6091,9 @@ func TestRoomAndThreadTimelineGetMessageForPermalinks(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetMessage root: %v", err)
 	}
-	rootMessage := rootResp.Msg.GetEvent().GetMessagePosted()
-	if rootResp.Msg.GetEvent().GetId() != root.Id || rootMessage.GetThreadRootEventId() != "" {
-		t.Fatalf("root message = event %q thread %q, want event %q no thread", rootResp.Msg.GetEvent().GetId(), rootMessage.GetThreadRootEventId(), root.Id)
+	rootMessage := rootResp.Msg.GetMessage()
+	if rootMessage.GetId() != root.Id || rootMessage.GetThreadRootEventId() != "" {
+		t.Fatalf("root message = event %q thread %q, want event %q no thread", rootMessage.GetId(), rootMessage.GetThreadRootEventId(), root.Id)
 	}
 	if rootMessage.GetBody() != "root" {
 		t.Fatalf("root body = %q, want root", rootMessage.GetBody())
@@ -6109,9 +6106,9 @@ func TestRoomAndThreadTimelineGetMessageForPermalinks(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetMessage reply: %v", err)
 	}
-	replyMessage := replyResp.Msg.GetEvent().GetMessagePosted()
-	if replyResp.Msg.GetEvent().GetId() != reply.Id || replyMessage.GetThreadRootEventId() != root.Id {
-		t.Fatalf("reply message = event %q thread %q, want event %q thread %q", replyResp.Msg.GetEvent().GetId(), replyMessage.GetThreadRootEventId(), reply.Id, root.Id)
+	replyMessage := replyResp.Msg.GetMessage()
+	if replyMessage.GetId() != reply.Id || replyMessage.GetThreadRootEventId() != root.Id {
+		t.Fatalf("reply message = event %q thread %q, want event %q thread %q", replyMessage.GetId(), replyMessage.GetThreadRootEventId(), reply.Id, root.Id)
 	}
 
 	if _, err := env.messages.GetMessage(ctx, connect.NewRequest(&apiv1.GetMessageRequest{
@@ -6190,7 +6187,7 @@ func TestRoomAndThreadTimelineHydratesProcessedVideoAttachments(t *testing.T) {
 	if apiEvent == nil || apiEvent.GetMessagePosted() == nil {
 		t.Fatalf("message event %s not found in page", event.Id)
 	}
-	attachments := apiEvent.GetMessagePosted().GetAttachments()
+	attachments := apiEvent.GetMessagePosted().GetMessage().GetAttachments()
 	if len(attachments) != 1 {
 		t.Fatalf("attachments = %d, want 1", len(attachments))
 	}
@@ -6201,7 +6198,7 @@ func TestRoomAndThreadTimelineHydratesProcessedVideoAttachments(t *testing.T) {
 	if processing == nil {
 		t.Fatal("videoProcessing = nil, want completed manifest")
 	}
-	if processing.GetStatus() != apiv1.RoomTimelineVideoProcessingStatus_ROOM_TIMELINE_VIDEO_PROCESSING_STATUS_COMPLETED {
+	if processing.GetStatus() != apiv1.MessageVideoProcessingStatus_MESSAGE_VIDEO_PROCESSING_STATUS_COMPLETED {
 		t.Fatalf("videoProcessing status = %v, want COMPLETED", processing.GetStatus())
 	}
 	if processing.GetDurationMs() != 1234 || processing.GetWidth() != 1280 || processing.GetHeight() != 720 {
@@ -6696,10 +6693,10 @@ func TestThreadServiceListFollowedThreadsReturnsHydratedPage(t *testing.T) {
 		t.Fatalf("followed thread metadata = replies %d unread %v lastReplyAt %v, want replies 1 unread true lastReplyAt set", thread.GetReplyCount(), thread.GetHasUnread(), thread.GetLastReplyAt())
 	}
 	rootMessage := thread.GetRootMessage()
-	if rootMessage == nil || rootMessage.GetId() != root.Id || rootMessage.GetMessagePosted() == nil {
-		t.Fatalf("root message = %+v, want hydrated message_posted event %s", rootMessage, root.Id)
+	if rootMessage == nil || rootMessage.GetId() != root.Id {
+		t.Fatalf("root message = %+v, want hydrated message %s", rootMessage, root.Id)
 	}
-	if got := rootMessage.GetMessagePosted().GetBody(); got != "root body" {
+	if got := rootMessage.GetBody(); got != "root body" {
 		t.Fatalf("root message body = %q, want root body", got)
 	}
 	users := resp.Msg.GetIncludes().GetUsers()

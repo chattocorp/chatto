@@ -2,16 +2,19 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { configureApiClientHooks } from '$lib/api-client/hooks';
 import { Timestamp } from '@bufbuild/protobuf';
 import {
-  RoomTimelineAssetUrl,
-  RoomTimelineAttachment,
   RoomTimelineEvent,
-  RoomTimelineMessagePosted,
   RoomTimelinePage,
   RoomTimelineRoomEvent,
-  RoomTimelineVideoProcessing,
-  RoomTimelineVideoProcessingStatus,
-  RoomTimelineVideoVariant
+  RoomMessagePosted
 } from '@chatto/api-types/api/v1/room_timeline_pb';
+import {
+  Message,
+  MessageAssetUrl,
+  MessageAttachment,
+  MessageVideoProcessing,
+  MessageVideoProcessingStatus,
+  MessageVideoVariant
+} from '@chatto/api-types/api/v1/message_types_pb';
 import { User } from '@chatto/api-types/api/v1/users_pb';
 import {
   __resetUserSummaryCachesForTests,
@@ -154,17 +157,12 @@ describe('createRoomTimelineAPI', () => {
 
   it('gets messages with bearer auth', async () => {
     mocks.getMessage.mockResolvedValue({
-      event: new RoomTimelineEvent({
+      message: new Message({
         id: 'reply-1',
         actorId: 'u1',
-        event: {
-          case: 'messagePosted',
-          value: new RoomTimelineMessagePosted({
-            roomId: 'room-1',
-            body: 'thread reply',
-            threadRootEventId: 'root-1'
-          })
-        }
+        roomId: 'room-1',
+        body: 'thread reply',
+        threadRootEventId: 'root-1'
       })
     });
     mocks.batchGetUsers.mockResolvedValue({
@@ -247,61 +245,66 @@ describe('roomTimelinePageToEventConnectionPage', () => {
           actorId: 'u1',
           event: {
             case: 'messagePosted',
-            value: new RoomTimelineMessagePosted({
-              roomId: 'room-1',
-              body: 'hello',
-              attachments: [
-                new RoomTimelineAttachment({
-                  id: 'a-video',
-                  filename: 'clip.mp4',
-                  contentType: 'video/mp4',
-                  width: 1280,
-                  height: 720,
-                  assetUrl: new RoomTimelineAssetUrl({
-                    url: '/assets/files/a-video',
-                    expiresAt: Timestamp.fromDate(new Date('2026-06-01T13:00:00Z'))
-                  }),
-                  thumbnailAssetUrl: new RoomTimelineAssetUrl({
-                    url: '/assets/files/a-video/image/960x800/contain',
-                    expiresAt: Timestamp.fromDate(new Date('2026-06-01T13:00:00Z'))
-                  }),
-                  videoProcessing: new RoomTimelineVideoProcessing({
-                    status: RoomTimelineVideoProcessingStatus.COMPLETED,
-                    durationMs: 1234n,
+            value: new RoomMessagePosted({
+              message: new Message({
+                id: 'm1',
+                roomId: 'room-1',
+                actorId: 'u1',
+                createdAt: Timestamp.fromDate(new Date('2026-06-01T12:00:00Z')),
+                body: 'hello',
+                attachments: [
+                  new MessageAttachment({
+                    id: 'a-video',
+                    filename: 'clip.mp4',
+                    contentType: 'video/mp4',
                     width: 1280,
                     height: 720,
-                    sourceAvailable: true,
-                    thumbnailAssetUrl: new RoomTimelineAssetUrl({
-                      url: '/assets/files/a-thumb',
+                    assetUrl: new MessageAssetUrl({
+                      url: '/assets/files/a-video',
                       expiresAt: Timestamp.fromDate(new Date('2026-06-01T13:00:00Z'))
                     }),
-                    variants: [
-                      new RoomTimelineVideoVariant({
-                        quality: '720p',
-                        width: 1280,
-                        height: 720,
-                        size: 4567n,
-                        assetUrl: new RoomTimelineAssetUrl({
-                          url: '/assets/files/a-variant',
-                          expiresAt: Timestamp.fromDate(new Date('2026-06-01T13:00:00Z'))
+                    thumbnailAssetUrl: new MessageAssetUrl({
+                      url: '/assets/files/a-video/image/960x800/contain',
+                      expiresAt: Timestamp.fromDate(new Date('2026-06-01T13:00:00Z'))
+                    }),
+                    videoProcessing: new MessageVideoProcessing({
+                      status: MessageVideoProcessingStatus.COMPLETED,
+                      durationMs: 1234n,
+                      width: 1280,
+                      height: 720,
+                      sourceAvailable: true,
+                      thumbnailAssetUrl: new MessageAssetUrl({
+                        url: '/assets/files/a-thumb',
+                        expiresAt: Timestamp.fromDate(new Date('2026-06-01T13:00:00Z'))
+                      }),
+                      variants: [
+                        new MessageVideoVariant({
+                          quality: '720p',
+                          width: 1280,
+                          height: 720,
+                          size: 4567n,
+                          assetUrl: new MessageAssetUrl({
+                            url: '/assets/files/a-variant',
+                            expiresAt: Timestamp.fromDate(new Date('2026-06-01T13:00:00Z'))
+                          })
                         })
-                      })
-                    ]
+                      ]
+                    })
                   })
-                })
-              ],
-              replyCount: 1,
-              threadParticipantPreviewUserIds: ['u2'],
-              threadParticipantCount: 1,
-              viewerIsFollowingThread: true,
-              reactions: [
-                {
-                  emoji: 'thumbsup',
-                  count: 2,
-                  hasReacted: true,
-                  previewUserIds: ['u1', 'u2']
-                }
-              ]
+                ],
+                replyCount: 1,
+                threadParticipantPreviewUserIds: ['u2'],
+                threadParticipantCount: 1,
+                viewerIsFollowingThread: true,
+                reactions: [
+                  {
+                    emoji: 'thumbsup',
+                    count: 2,
+                    hasReacted: true,
+                    previewUserIds: ['u1', 'u2']
+                  }
+                ]
+              })
             })
           }
         }),

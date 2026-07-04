@@ -126,8 +126,8 @@ func (x *CreateMessageRequest) GetLinkPreviewToken() string {
 // Result of creating a message.
 type CreateMessageResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Renderable timeline event for the created message.
-	Event         *RoomTimelineEvent `protobuf:"bytes,1,opt,name=event,proto3" json:"event,omitempty"`
+	// Renderable message created by the request.
+	Message       *Message `protobuf:"bytes,1,opt,name=message,proto3" json:"message,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -162,9 +162,9 @@ func (*CreateMessageResponse) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_messages_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *CreateMessageResponse) GetEvent() *RoomTimelineEvent {
+func (x *CreateMessageResponse) GetMessage() *Message {
 	if x != nil {
-		return x.Event
+		return x.Message
 	}
 	return nil
 }
@@ -248,8 +248,8 @@ type UpdateMessageResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// True when the edit was accepted.
 	Updated bool `protobuf:"varint,1,opt,name=updated,proto3" json:"updated,omitempty"`
-	// Renderable timeline event after the edit.
-	Event         *RoomTimelineEvent `protobuf:"bytes,2,opt,name=event,proto3" json:"event,omitempty"`
+	// Renderable message after the edit.
+	Message       *Message `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -291,9 +291,9 @@ func (x *UpdateMessageResponse) GetUpdated() bool {
 	return false
 }
 
-func (x *UpdateMessageResponse) GetEvent() *RoomTimelineEvent {
+func (x *UpdateMessageResponse) GetMessage() *Message {
 	if x != nil {
-		return x.Event
+		return x.Message
 	}
 	return nil
 }
@@ -674,11 +674,11 @@ func (x *GetMessageRequest) GetEventId() string {
 	return ""
 }
 
-// Response containing one renderable message event.
+// Response containing one renderable message.
 type GetMessageResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Renderable timeline event for the message.
-	Event         *RoomTimelineEvent `protobuf:"bytes,1,opt,name=event,proto3" json:"event,omitempty"`
+	// Renderable message.
+	Message       *Message `protobuf:"bytes,1,opt,name=message,proto3" json:"message,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -713,9 +713,9 @@ func (*GetMessageResponse) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_messages_proto_rawDescGZIP(), []int{11}
 }
 
-func (x *GetMessageResponse) GetEvent() *RoomTimelineEvent {
+func (x *GetMessageResponse) GetMessage() *Message {
 	if x != nil {
-		return x.Event
+		return x.Message
 	}
 	return nil
 }
@@ -776,11 +776,11 @@ func (x *BatchGetMessagesRequest) GetEventIds() []string {
 	return nil
 }
 
-// Response containing renderable message events.
+// Response containing renderable messages.
 type BatchGetMessagesResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Renderable timeline events in first-seen request order.
-	Events        []*RoomTimelineEvent `protobuf:"bytes,1,rep,name=events,proto3" json:"events,omitempty"`
+	// Renderable messages in first-seen request order.
+	Messages      []*Message `protobuf:"bytes,1,rep,name=messages,proto3" json:"messages,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -815,9 +815,9 @@ func (*BatchGetMessagesResponse) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_messages_proto_rawDescGZIP(), []int{13}
 }
 
-func (x *BatchGetMessagesResponse) GetEvents() []*RoomTimelineEvent {
+func (x *BatchGetMessagesResponse) GetMessages() []*Message {
 	if x != nil {
-		return x.Events
+		return x.Messages
 	}
 	return nil
 }
@@ -826,7 +826,7 @@ var File_chatto_api_v1_messages_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_messages_proto_rawDesc = "" +
 	"\n" +
-	"\x1cchatto/api/v1/messages.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a!chatto/api/v1/link_previews.proto\x1a\x1dchatto/api/v1/reactions.proto\x1a!chatto/api/v1/room_timeline.proto\"\xf7\x02\n" +
+	"\x1cchatto/api/v1/messages.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a!chatto/api/v1/link_previews.proto\x1a!chatto/api/v1/message_types.proto\x1a\x1dchatto/api/v1/reactions.proto\"\xf7\x02\n" +
 	"\x14CreateMessageRequest\x12 \n" +
 	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x12\x12\n" +
 	"\x04body\x18\x02 \x01(\tR\x04body\x120\n" +
@@ -836,19 +836,19 @@ const file_chatto_api_v1_messages_proto_rawDesc = "" +
 	"\x14also_send_to_channel\x18\x06 \x01(\bR\x11alsoSendToChannel\x12,\n" +
 	"\x12link_preview_token\x18\n" +
 	" \x01(\tR\x10linkPreviewTokenJ\x04\b\b\x10\tJ\x04\b\t\x10\n" +
-	"J\x04\b\a\x10\bR\flink_previewR\vattachmentsR\x1amention_confirmation_token\"{\n" +
-	"\x15CreateMessageResponse\x126\n" +
-	"\x05event\x18\x01 \x01(\v2 .chatto.api.v1.RoomTimelineEventR\x05eventJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04R\x14mention_confirmationR\bincludes\"\xd7\x01\n" +
+	"J\x04\b\a\x10\bR\flink_previewR\vattachmentsR\x1amention_confirmation_token\"u\n" +
+	"\x15CreateMessageResponse\x120\n" +
+	"\amessage\x18\x01 \x01(\v2\x16.chatto.api.v1.MessageR\amessageJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04R\x14mention_confirmationR\bincludes\"\xd7\x01\n" +
 	"\x14UpdateMessageRequest\x12 \n" +
 	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x12\"\n" +
 	"\bevent_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\aeventId\x12!\n" +
 	"\x04body\x18\x03 \x01(\tB\b\xbaH\x05r\x03\x18\x90NH\x00R\x04body\x88\x01\x01\x124\n" +
 	"\x14also_send_to_channel\x18\x04 \x01(\bH\x01R\x11alsoSendToChannel\x88\x01\x01B\a\n" +
 	"\x05_bodyB\x17\n" +
-	"\x15_also_send_to_channel\"y\n" +
+	"\x15_also_send_to_channel\"s\n" +
 	"\x15UpdateMessageResponse\x12\x18\n" +
-	"\aupdated\x18\x01 \x01(\bR\aupdated\x126\n" +
-	"\x05event\x18\x02 \x01(\v2 .chatto.api.v1.RoomTimelineEventR\x05eventJ\x04\b\x03\x10\x04R\bincludes\"\\\n" +
+	"\aupdated\x18\x01 \x01(\bR\aupdated\x120\n" +
+	"\amessage\x18\x02 \x01(\v2\x16.chatto.api.v1.MessageR\amessageJ\x04\b\x03\x10\x04R\bincludes\"\\\n" +
 	"\x14DeleteMessageRequest\x12 \n" +
 	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x12\"\n" +
 	"\bevent_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\aeventId\"1\n" +
@@ -868,15 +868,15 @@ const file_chatto_api_v1_messages_proto_rawDesc = "" +
 	"\adeleted\x18\x01 \x01(\bR\adeleted\"j\n" +
 	"\x11GetMessageRequest\x12 \n" +
 	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x12\"\n" +
-	"\bevent_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\aeventIdJ\x04\b\x03\x10\x04R\tthumbnail\"\\\n" +
-	"\x12GetMessageResponse\x126\n" +
-	"\x05event\x18\x01 \x01(\v2 .chatto.api.v1.RoomTimelineEventR\x05eventJ\x04\b\x02\x10\x03R\bincludes\"{\n" +
+	"\bevent_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\aeventIdJ\x04\b\x03\x10\x04R\tthumbnail\"V\n" +
+	"\x12GetMessageResponse\x120\n" +
+	"\amessage\x18\x01 \x01(\v2\x16.chatto.api.v1.MessageR\amessageJ\x04\b\x02\x10\x03R\bincludes\"{\n" +
 	"\x17BatchGetMessagesRequest\x12 \n" +
 	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x12-\n" +
 	"\tevent_ids\x18\x02 \x03(\tB\x10\xbaH\r\x92\x01\n" +
-	"\b\x01\x10d\"\x04r\x02\x10\x01R\beventIdsJ\x04\b\x03\x10\x04R\tthumbnail\"d\n" +
-	"\x18BatchGetMessagesResponse\x128\n" +
-	"\x06events\x18\x01 \x03(\v2 .chatto.api.v1.RoomTimelineEventR\x06eventsJ\x04\b\x02\x10\x03R\bincludes2\xc3\a\n" +
+	"\b\x01\x10d\"\x04r\x02\x10\x01R\beventIdsJ\x04\b\x03\x10\x04R\tthumbnail\"^\n" +
+	"\x18BatchGetMessagesResponse\x122\n" +
+	"\bmessages\x18\x01 \x03(\v2\x16.chatto.api.v1.MessageR\bmessagesJ\x04\b\x02\x10\x03R\bincludes2\xc3\a\n" +
 	"\x0eMessageService\x12c\n" +
 	"\x10FetchLinkPreview\x12&.chatto.api.v1.FetchLinkPreviewRequest\x1a'.chatto.api.v1.FetchLinkPreviewResponse\x12Z\n" +
 	"\rCreateMessage\x12#.chatto.api.v1.CreateMessageRequest\x1a$.chatto.api.v1.CreateMessageResponse\x12Z\n" +
@@ -919,7 +919,7 @@ var file_chatto_api_v1_messages_proto_goTypes = []any{
 	(*GetMessageResponse)(nil),        // 11: chatto.api.v1.GetMessageResponse
 	(*BatchGetMessagesRequest)(nil),   // 12: chatto.api.v1.BatchGetMessagesRequest
 	(*BatchGetMessagesResponse)(nil),  // 13: chatto.api.v1.BatchGetMessagesResponse
-	(*RoomTimelineEvent)(nil),         // 14: chatto.api.v1.RoomTimelineEvent
+	(*Message)(nil),                   // 14: chatto.api.v1.Message
 	(*FetchLinkPreviewRequest)(nil),   // 15: chatto.api.v1.FetchLinkPreviewRequest
 	(*AddReactionRequest)(nil),        // 16: chatto.api.v1.AddReactionRequest
 	(*RemoveReactionRequest)(nil),     // 17: chatto.api.v1.RemoveReactionRequest
@@ -928,10 +928,10 @@ var file_chatto_api_v1_messages_proto_goTypes = []any{
 	(*RemoveReactionResponse)(nil),    // 20: chatto.api.v1.RemoveReactionResponse
 }
 var file_chatto_api_v1_messages_proto_depIdxs = []int32{
-	14, // 0: chatto.api.v1.CreateMessageResponse.event:type_name -> chatto.api.v1.RoomTimelineEvent
-	14, // 1: chatto.api.v1.UpdateMessageResponse.event:type_name -> chatto.api.v1.RoomTimelineEvent
-	14, // 2: chatto.api.v1.GetMessageResponse.event:type_name -> chatto.api.v1.RoomTimelineEvent
-	14, // 3: chatto.api.v1.BatchGetMessagesResponse.events:type_name -> chatto.api.v1.RoomTimelineEvent
+	14, // 0: chatto.api.v1.CreateMessageResponse.message:type_name -> chatto.api.v1.Message
+	14, // 1: chatto.api.v1.UpdateMessageResponse.message:type_name -> chatto.api.v1.Message
+	14, // 2: chatto.api.v1.GetMessageResponse.message:type_name -> chatto.api.v1.Message
+	14, // 3: chatto.api.v1.BatchGetMessagesResponse.messages:type_name -> chatto.api.v1.Message
 	15, // 4: chatto.api.v1.MessageService.FetchLinkPreview:input_type -> chatto.api.v1.FetchLinkPreviewRequest
 	0,  // 5: chatto.api.v1.MessageService.CreateMessage:input_type -> chatto.api.v1.CreateMessageRequest
 	2,  // 6: chatto.api.v1.MessageService.UpdateMessage:input_type -> chatto.api.v1.UpdateMessageRequest
@@ -965,8 +965,8 @@ func file_chatto_api_v1_messages_proto_init() {
 		return
 	}
 	file_chatto_api_v1_link_previews_proto_init()
+	file_chatto_api_v1_message_types_proto_init()
 	file_chatto_api_v1_reactions_proto_init()
-	file_chatto_api_v1_room_timeline_proto_init()
 	file_chatto_api_v1_messages_proto_msgTypes[2].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{

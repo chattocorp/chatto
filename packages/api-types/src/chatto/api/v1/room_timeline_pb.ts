@@ -4,51 +4,9 @@
 // @ts-nocheck
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
-import { Message, proto3, protoInt64, Timestamp } from "@bufbuild/protobuf";
+import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
 import { User } from "./users_pb.js";
-import { LinkPreview } from "./link_previews_pb.js";
-
-/**
- * Processing state for a timeline video attachment.
- *
- * @generated from enum chatto.api.v1.RoomTimelineVideoProcessingStatus
- */
-export enum RoomTimelineVideoProcessingStatus {
-  /**
-   * The processing status was not specified.
-   *
-   * @generated from enum value: ROOM_TIMELINE_VIDEO_PROCESSING_STATUS_UNSPECIFIED = 0;
-   */
-  UNSPECIFIED = 0,
-
-  /**
-   * Video processing is still running.
-   *
-   * @generated from enum value: ROOM_TIMELINE_VIDEO_PROCESSING_STATUS_PROCESSING = 1;
-   */
-  PROCESSING = 1,
-
-  /**
-   * Video processing completed successfully.
-   *
-   * @generated from enum value: ROOM_TIMELINE_VIDEO_PROCESSING_STATUS_COMPLETED = 2;
-   */
-  COMPLETED = 2,
-
-  /**
-   * Video processing failed.
-   *
-   * @generated from enum value: ROOM_TIMELINE_VIDEO_PROCESSING_STATUS_FAILED = 3;
-   */
-  FAILED = 3,
-}
-// Retrieve enum metadata with: proto3.getEnumType(RoomTimelineVideoProcessingStatus)
-proto3.util.setEnumType(RoomTimelineVideoProcessingStatus, "chatto.api.v1.RoomTimelineVideoProcessingStatus", [
-  { no: 0, name: "ROOM_TIMELINE_VIDEO_PROCESSING_STATUS_UNSPECIFIED" },
-  { no: 1, name: "ROOM_TIMELINE_VIDEO_PROCESSING_STATUS_PROCESSING" },
-  { no: 2, name: "ROOM_TIMELINE_VIDEO_PROCESSING_STATUS_COMPLETED" },
-  { no: 3, name: "ROOM_TIMELINE_VIDEO_PROCESSING_STATUS_FAILED" },
-]);
+import { Message as Message$1 } from "./message_types_pb.js";
 
 /**
  * Related entities included beside timeline events.
@@ -94,569 +52,6 @@ export class RoomTimelineIncludes extends Message<RoomTimelineIncludes> {
 }
 
 /**
- * Time-limited URL for a room timeline asset.
- *
- * Clients should expect these URLs to expire and refresh the timeline data when
- * an asset URL is no longer usable.
- *
- * @generated from message chatto.api.v1.RoomTimelineAssetUrl
- */
-export class RoomTimelineAssetUrl extends Message<RoomTimelineAssetUrl> {
-  /**
-   * Signed asset URL.
-   *
-   * @generated from field: string url = 1;
-   */
-  url = "";
-
-  /**
-   * Time when the signed URL expires.
-   *
-   * @generated from field: google.protobuf.Timestamp expires_at = 2;
-   */
-  expiresAt?: Timestamp;
-
-  constructor(data?: PartialMessage<RoomTimelineAssetUrl>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.RoomTimelineAssetUrl";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "url", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "expires_at", kind: "message", T: Timestamp },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoomTimelineAssetUrl {
-    return new RoomTimelineAssetUrl().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RoomTimelineAssetUrl {
-    return new RoomTimelineAssetUrl().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RoomTimelineAssetUrl {
-    return new RoomTimelineAssetUrl().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: RoomTimelineAssetUrl | PlainMessage<RoomTimelineAssetUrl> | undefined, b: RoomTimelineAssetUrl | PlainMessage<RoomTimelineAssetUrl> | undefined): boolean {
-    return proto3.util.equals(RoomTimelineAssetUrl, a, b);
-  }
-}
-
-/**
- * One transcoded video rendition.
- *
- * @generated from message chatto.api.v1.RoomTimelineVideoVariant
- */
-export class RoomTimelineVideoVariant extends Message<RoomTimelineVideoVariant> {
-  /**
-   * Quality label for the rendition.
-   *
-   * @generated from field: string quality = 1;
-   */
-  quality = "";
-
-  /**
-   * Video width in pixels.
-   *
-   * @generated from field: int32 width = 2;
-   */
-  width = 0;
-
-  /**
-   * Video height in pixels.
-   *
-   * @generated from field: int32 height = 3;
-   */
-  height = 0;
-
-  /**
-   * Rendition size in bytes.
-   *
-   * @generated from field: int64 size = 4;
-   */
-  size = protoInt64.zero;
-
-  /**
-   * Signed URL for the rendition.
-   *
-   * @generated from field: chatto.api.v1.RoomTimelineAssetUrl asset_url = 5;
-   */
-  assetUrl?: RoomTimelineAssetUrl;
-
-  constructor(data?: PartialMessage<RoomTimelineVideoVariant>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.RoomTimelineVideoVariant";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "quality", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "width", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
-    { no: 3, name: "height", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
-    { no: 4, name: "size", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
-    { no: 5, name: "asset_url", kind: "message", T: RoomTimelineAssetUrl },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoomTimelineVideoVariant {
-    return new RoomTimelineVideoVariant().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RoomTimelineVideoVariant {
-    return new RoomTimelineVideoVariant().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RoomTimelineVideoVariant {
-    return new RoomTimelineVideoVariant().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: RoomTimelineVideoVariant | PlainMessage<RoomTimelineVideoVariant> | undefined, b: RoomTimelineVideoVariant | PlainMessage<RoomTimelineVideoVariant> | undefined): boolean {
-    return proto3.util.equals(RoomTimelineVideoVariant, a, b);
-  }
-}
-
-/**
- * Processing metadata for a video attachment.
- *
- * Clients can use this object to show upload/transcoding progress and decide
- * whether to play a processed variant, show a thumbnail, or display a failure
- * state.
- *
- * @generated from message chatto.api.v1.RoomTimelineVideoProcessing
- */
-export class RoomTimelineVideoProcessing extends Message<RoomTimelineVideoProcessing> {
-  /**
-   * Current processing status.
-   *
-   * @generated from field: chatto.api.v1.RoomTimelineVideoProcessingStatus status = 1;
-   */
-  status = RoomTimelineVideoProcessingStatus.UNSPECIFIED;
-
-  /**
-   * Video duration in milliseconds.
-   *
-   * @generated from field: int64 duration_ms = 2;
-   */
-  durationMs = protoInt64.zero;
-
-  /**
-   * Source video width in pixels.
-   *
-   * @generated from field: int32 width = 3;
-   */
-  width = 0;
-
-  /**
-   * Source video height in pixels.
-   *
-   * @generated from field: int32 height = 4;
-   */
-  height = 0;
-
-  /**
-   * True when the original source asset is currently available.
-   *
-   * @generated from field: bool source_available = 5;
-   */
-  sourceAvailable = false;
-
-  /**
-   * Stable reason code for a failed or incomplete processing state.
-   *
-   * @generated from field: string reason_code = 6;
-   */
-  reasonCode = "";
-
-  /**
-   * Signed URL for the generated thumbnail, when available.
-   *
-   * @generated from field: chatto.api.v1.RoomTimelineAssetUrl thumbnail_asset_url = 7;
-   */
-  thumbnailAssetUrl?: RoomTimelineAssetUrl;
-
-  /**
-   * Available transcoded renditions.
-   *
-   * @generated from field: repeated chatto.api.v1.RoomTimelineVideoVariant variants = 8;
-   */
-  variants: RoomTimelineVideoVariant[] = [];
-
-  constructor(data?: PartialMessage<RoomTimelineVideoProcessing>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.RoomTimelineVideoProcessing";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "status", kind: "enum", T: proto3.getEnumType(RoomTimelineVideoProcessingStatus) },
-    { no: 2, name: "duration_ms", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
-    { no: 3, name: "width", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
-    { no: 4, name: "height", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
-    { no: 5, name: "source_available", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 6, name: "reason_code", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 7, name: "thumbnail_asset_url", kind: "message", T: RoomTimelineAssetUrl },
-    { no: 8, name: "variants", kind: "message", T: RoomTimelineVideoVariant, repeated: true },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoomTimelineVideoProcessing {
-    return new RoomTimelineVideoProcessing().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RoomTimelineVideoProcessing {
-    return new RoomTimelineVideoProcessing().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RoomTimelineVideoProcessing {
-    return new RoomTimelineVideoProcessing().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: RoomTimelineVideoProcessing | PlainMessage<RoomTimelineVideoProcessing> | undefined, b: RoomTimelineVideoProcessing | PlainMessage<RoomTimelineVideoProcessing> | undefined): boolean {
-    return proto3.util.equals(RoomTimelineVideoProcessing, a, b);
-  }
-}
-
-/**
- * Attachment metadata included with a posted message.
- *
- * Image and video dimensions are best-effort metadata for layout. Asset URLs can
- * be absent while processing is pending or when the source is unavailable.
- *
- * @generated from message chatto.api.v1.RoomTimelineAttachment
- */
-export class RoomTimelineAttachment extends Message<RoomTimelineAttachment> {
-  /**
-   * Stable attachment ID.
-   *
-   * @generated from field: string id = 1;
-   */
-  id = "";
-
-  /**
-   * Original filename.
-   *
-   * @generated from field: string filename = 2;
-   */
-  filename = "";
-
-  /**
-   * MIME content type.
-   *
-   * @generated from field: string content_type = 3;
-   */
-  contentType = "";
-
-  /**
-   * Image or video width in pixels, when known.
-   *
-   * @generated from field: int32 width = 4;
-   */
-  width = 0;
-
-  /**
-   * Image or video height in pixels, when known.
-   *
-   * @generated from field: int32 height = 5;
-   */
-  height = 0;
-
-  /**
-   * Signed URL for the original asset, when available.
-   *
-   * @generated from field: chatto.api.v1.RoomTimelineAssetUrl asset_url = 6;
-   */
-  assetUrl?: RoomTimelineAssetUrl;
-
-  /**
-   * Signed URL for a thumbnail image, when available.
-   *
-   * @generated from field: chatto.api.v1.RoomTimelineAssetUrl thumbnail_asset_url = 7;
-   */
-  thumbnailAssetUrl?: RoomTimelineAssetUrl;
-
-  /**
-   * Video-specific processing metadata, when this attachment is a video.
-   *
-   * @generated from field: chatto.api.v1.RoomTimelineVideoProcessing video_processing = 8;
-   */
-  videoProcessing?: RoomTimelineVideoProcessing;
-
-  constructor(data?: PartialMessage<RoomTimelineAttachment>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.RoomTimelineAttachment";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "filename", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "content_type", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 4, name: "width", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
-    { no: 5, name: "height", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
-    { no: 6, name: "asset_url", kind: "message", T: RoomTimelineAssetUrl },
-    { no: 7, name: "thumbnail_asset_url", kind: "message", T: RoomTimelineAssetUrl },
-    { no: 8, name: "video_processing", kind: "message", T: RoomTimelineVideoProcessing },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoomTimelineAttachment {
-    return new RoomTimelineAttachment().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RoomTimelineAttachment {
-    return new RoomTimelineAttachment().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RoomTimelineAttachment {
-    return new RoomTimelineAttachment().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: RoomTimelineAttachment | PlainMessage<RoomTimelineAttachment> | undefined, b: RoomTimelineAttachment | PlainMessage<RoomTimelineAttachment> | undefined): boolean {
-    return proto3.util.equals(RoomTimelineAttachment, a, b);
-  }
-}
-
-/**
- * Aggregated reaction state for one emoji on one event.
- *
- * This state is scoped to the current event and includes whether the current
- * user has reacted with the same emoji.
- *
- * @generated from message chatto.api.v1.RoomTimelineReaction
- */
-export class RoomTimelineReaction extends Message<RoomTimelineReaction> {
-  /**
-   * Emoji or reaction key.
-   *
-   * @generated from field: string emoji = 1;
-   */
-  emoji = "";
-
-  /**
-   * Number of users who reacted with this emoji.
-   *
-   * @generated from field: int32 count = 2;
-   */
-  count = 0;
-
-  /**
-   * True when the current user reacted with this emoji.
-   *
-   * @generated from field: bool has_reacted = 3;
-   */
-  hasReacted = false;
-
-  /**
-   * Preview of up to five user IDs that reacted with this emoji.
-   *
-   * @generated from field: repeated string preview_user_ids = 4;
-   */
-  previewUserIds: string[] = [];
-
-  constructor(data?: PartialMessage<RoomTimelineReaction>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.RoomTimelineReaction";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "emoji", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "count", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
-    { no: 3, name: "has_reacted", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 4, name: "preview_user_ids", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoomTimelineReaction {
-    return new RoomTimelineReaction().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RoomTimelineReaction {
-    return new RoomTimelineReaction().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RoomTimelineReaction {
-    return new RoomTimelineReaction().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: RoomTimelineReaction | PlainMessage<RoomTimelineReaction> | undefined, b: RoomTimelineReaction | PlainMessage<RoomTimelineReaction> | undefined): boolean {
-    return proto3.util.equals(RoomTimelineReaction, a, b);
-  }
-}
-
-/**
- * Payload for a message-posted timeline event.
- *
- * The same shape is used for top-level room messages, thread replies, and thread
- * echo entries. Thread-related fields let clients render reply counts, thread
- * participants, and follow state without additional per-message requests.
- *
- * @generated from message chatto.api.v1.RoomTimelineMessagePosted
- */
-export class RoomTimelineMessagePosted extends Message<RoomTimelineMessagePosted> {
-  /**
-   * Room containing the message.
-   *
-   * @generated from field: string room_id = 1;
-   */
-  roomId = "";
-
-  /**
-   * Message body text, when available. A present empty string is distinct from
-   * an absent body.
-   *
-   * @generated from field: optional string body = 2;
-   */
-  body?: string;
-
-  /**
-   * Attachments sent with the message.
-   *
-   * @generated from field: repeated chatto.api.v1.RoomTimelineAttachment attachments = 4;
-   */
-  attachments: RoomTimelineAttachment[] = [];
-
-  /**
-   * Link preview extracted for the message, when available.
-   *
-   * @generated from field: chatto.api.v1.LinkPreview link_preview = 5;
-   */
-  linkPreview?: LinkPreview;
-
-  /**
-   * Time when the message was last edited.
-   *
-   * @generated from field: google.protobuf.Timestamp updated_at = 6;
-   */
-  updatedAt?: Timestamp;
-
-  /**
-   * Event ID this message directly replies to, when this is a reply.
-   *
-   * @generated from field: string in_reply_to = 7;
-   */
-  inReplyTo = "";
-
-  /**
-   * Event ID of the root message for the thread this message belongs to.
-   *
-   * @generated from field: string thread_root_event_id = 8;
-   */
-  threadRootEventId = "";
-
-  /**
-   * Event ID this event echoes into the current view, when applicable. Echoes
-   * allow thread activity to appear in another timeline context.
-   *
-   * @generated from field: string echo_of_event_id = 9;
-   */
-  echoOfEventId = "";
-
-  /**
-   * Thread root ID of the echoed event, when applicable.
-   *
-   * @generated from field: string echo_from_thread_root_event_id = 10;
-   */
-  echoFromThreadRootEventId = "";
-
-  /**
-   * Channel timeline event ID for a thread echo, when applicable.
-   *
-   * @generated from field: string channel_echo_event_id = 11;
-   */
-  channelEchoEventId = "";
-
-  /**
-   * Number of replies in this message's thread.
-   *
-   * @generated from field: int32 reply_count = 12;
-   */
-  replyCount = 0;
-
-  /**
-   * Creation time of the most recent reply in this message's thread.
-   *
-   * @generated from field: google.protobuf.Timestamp last_reply_at = 13;
-   */
-  lastReplyAt?: Timestamp;
-
-  /**
-   * Preview of up to five user IDs that have participated in this message's
-   * thread.
-   *
-   * @generated from field: repeated string thread_participant_preview_user_ids = 14;
-   */
-  threadParticipantPreviewUserIds: string[] = [];
-
-  /**
-   * Whether the current user follows this message's thread, when known.
-   *
-   * @generated from field: optional bool viewer_is_following_thread = 15;
-   */
-  viewerIsFollowingThread?: boolean;
-
-  /**
-   * Reaction summaries for this message.
-   *
-   * @generated from field: repeated chatto.api.v1.RoomTimelineReaction reactions = 17;
-   */
-  reactions: RoomTimelineReaction[] = [];
-
-  /**
-   * Total number of distinct users that have participated in this message's
-   * thread.
-   *
-   * @generated from field: int32 thread_participant_count = 18;
-   */
-  threadParticipantCount = 0;
-
-  constructor(data?: PartialMessage<RoomTimelineMessagePosted>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.RoomTimelineMessagePosted";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "body", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
-    { no: 4, name: "attachments", kind: "message", T: RoomTimelineAttachment, repeated: true },
-    { no: 5, name: "link_preview", kind: "message", T: LinkPreview },
-    { no: 6, name: "updated_at", kind: "message", T: Timestamp },
-    { no: 7, name: "in_reply_to", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 8, name: "thread_root_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 9, name: "echo_of_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 10, name: "echo_from_thread_root_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 11, name: "channel_echo_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 12, name: "reply_count", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
-    { no: 13, name: "last_reply_at", kind: "message", T: Timestamp },
-    { no: 14, name: "thread_participant_preview_user_ids", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
-    { no: 15, name: "viewer_is_following_thread", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
-    { no: 17, name: "reactions", kind: "message", T: RoomTimelineReaction, repeated: true },
-    { no: 18, name: "thread_participant_count", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoomTimelineMessagePosted {
-    return new RoomTimelineMessagePosted().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RoomTimelineMessagePosted {
-    return new RoomTimelineMessagePosted().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RoomTimelineMessagePosted {
-    return new RoomTimelineMessagePosted().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: RoomTimelineMessagePosted | PlainMessage<RoomTimelineMessagePosted> | undefined, b: RoomTimelineMessagePosted | PlainMessage<RoomTimelineMessagePosted> | undefined): boolean {
-    return proto3.util.equals(RoomTimelineMessagePosted, a, b);
-  }
-}
-
-/**
  * Payload for room lifecycle and membership timeline events.
  *
  * @generated from message chatto.api.v1.RoomTimelineRoomEvent
@@ -698,6 +93,47 @@ export class RoomTimelineRoomEvent extends Message<RoomTimelineRoomEvent> {
 }
 
 /**
+ * Payload for a message-posted timeline event.
+ *
+ * @generated from message chatto.api.v1.RoomMessagePosted
+ */
+export class RoomMessagePosted extends Message<RoomMessagePosted> {
+  /**
+   * Renderable message created by this timeline event.
+   *
+   * @generated from field: chatto.api.v1.Message message = 1;
+   */
+  message?: Message$1;
+
+  constructor(data?: PartialMessage<RoomMessagePosted>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.RoomMessagePosted";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "message", kind: "message", T: Message$1 },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoomMessagePosted {
+    return new RoomMessagePosted().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RoomMessagePosted {
+    return new RoomMessagePosted().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RoomMessagePosted {
+    return new RoomMessagePosted().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: RoomMessagePosted | PlainMessage<RoomMessagePosted> | undefined, b: RoomMessagePosted | PlainMessage<RoomMessagePosted> | undefined): boolean {
+    return proto3.util.equals(RoomMessagePosted, a, b);
+  }
+}
+
+/**
  * One event in a room or thread timeline.
  *
  * Clients should inspect the event oneof to choose the renderer for the event.
@@ -735,9 +171,9 @@ export class RoomTimelineEvent extends Message<RoomTimelineEvent> {
     /**
      * A message was posted.
      *
-     * @generated from field: chatto.api.v1.RoomTimelineMessagePosted message_posted = 10;
+     * @generated from field: chatto.api.v1.RoomMessagePosted message_posted = 10;
      */
-    value: RoomTimelineMessagePosted;
+    value: RoomMessagePosted;
     case: "messagePosted";
   } | {
     /**
@@ -808,7 +244,7 @@ export class RoomTimelineEvent extends Message<RoomTimelineEvent> {
     { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "created_at", kind: "message", T: Timestamp },
     { no: 3, name: "actor_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 10, name: "message_posted", kind: "message", T: RoomTimelineMessagePosted, oneof: "event" },
+    { no: 10, name: "message_posted", kind: "message", T: RoomMessagePosted, oneof: "event" },
     { no: 20, name: "room_created", kind: "message", T: RoomTimelineRoomEvent, oneof: "event" },
     { no: 21, name: "room_updated", kind: "message", T: RoomTimelineRoomEvent, oneof: "event" },
     { no: 22, name: "room_deleted", kind: "message", T: RoomTimelineRoomEvent, oneof: "event" },

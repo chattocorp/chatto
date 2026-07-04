@@ -12,10 +12,7 @@ import {
   UploadChunkResponse,
   UploadedAttachmentAsset
 } from '@chatto/api-types/api/v1/asset_uploads_pb';
-import {
-  RoomTimelineEvent,
-  RoomTimelineMessagePosted
-} from '@chatto/api-types/api/v1/room_timeline_pb';
+import { Message } from '@chatto/api-types/api/v1/message_types_pb';
 
 const mocks = vi.hoisted(() => ({
   createClient: vi.fn(),
@@ -91,18 +88,13 @@ describe('createMessageAPI', () => {
   it('posts a message with bearer auth and maps the renderable event response', async () => {
     mocks.createMessage.mockResolvedValue(
       new CreateMessageResponse({
-        event: new RoomTimelineEvent({
+        message: new Message({
           id: 'evt-1',
           actorId: 'user-1',
           createdAt: Timestamp.fromDate(new Date('2026-06-20T10:00:00Z')),
-          event: {
-            case: 'messagePosted',
-            value: new RoomTimelineMessagePosted({
-              roomId: 'room-1',
-              body: 'hello',
-              viewerIsFollowingThread: true
-            })
-          }
+          roomId: 'room-1',
+          body: 'hello',
+          viewerIsFollowingThread: true
         })
       })
     );
@@ -215,16 +207,11 @@ describe('createMessageAPI', () => {
     );
     mocks.createMessage.mockResolvedValue(
       new CreateMessageResponse({
-        event: new RoomTimelineEvent({
+        message: new Message({
           id: 'evt-attachment',
           actorId: 'user-1',
-          event: {
-            case: 'messagePosted',
-            value: new RoomTimelineMessagePosted({
-              roomId: 'room-1',
-              body: 'with file'
-            })
-          }
+          roomId: 'room-1',
+          body: 'with file'
         })
       })
     );
@@ -296,17 +283,12 @@ describe('createMessageAPI', () => {
     mocks.updateMessage.mockResolvedValue(
       new UpdateMessageResponse({
         updated: true,
-        event: new RoomTimelineEvent({
+        message: new Message({
           id: 'event-1',
           actorId: 'user-1',
           createdAt: Timestamp.fromDate(new Date('2026-06-20T10:00:00Z')),
-          event: {
-            case: 'messagePosted',
-            value: new RoomTimelineMessagePosted({
-              roomId: 'room-1',
-              body: 'edited'
-            })
-          }
+          roomId: 'room-1',
+          body: 'edited'
         })
       })
     );

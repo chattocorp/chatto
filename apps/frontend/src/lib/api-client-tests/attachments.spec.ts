@@ -10,12 +10,12 @@ import {
 } from '@chatto/api-types/api/v1/attachments_pb';
 import { ListRoomAttachmentsResponse } from '@chatto/api-types/api/v1/rooms_pb';
 import {
-  RoomTimelineAssetUrl,
-  RoomTimelineAttachment,
-  RoomTimelineVideoProcessing,
-  RoomTimelineVideoProcessingStatus,
-  RoomTimelineVideoVariant
-} from '@chatto/api-types/api/v1/room_timeline_pb';
+  MessageAssetUrl,
+  MessageAttachment,
+  MessageVideoProcessing,
+  MessageVideoProcessingStatus,
+  MessageVideoVariant
+} from '@chatto/api-types/api/v1/message_types_pb';
 import { createAttachmentAPI } from '$lib/api-client/attachments';
 
 const mocks = vi.hoisted(() => ({
@@ -39,7 +39,7 @@ vi.mock('@connectrpc/connect-web', () => ({
 }));
 
 function assetUrl(url: string) {
-  return new RoomTimelineAssetUrl({
+  return new MessageAssetUrl({
     url,
     expiresAt: Timestamp.fromDate(new Date('2026-06-01T13:00:00Z'))
   });
@@ -76,7 +76,7 @@ describe('createAttachmentAPI', () => {
             messageEventId: 'event_2',
             threadRootEventId: 'event_1',
             createdAt: Timestamp.fromDate(new Date('2026-06-01T12:00:00Z')),
-            attachment: new RoomTimelineAttachment({
+            attachment: new MessageAttachment({
               id: 'att_video',
               filename: 'clip.mp4',
               contentType: 'video/mp4',
@@ -84,15 +84,15 @@ describe('createAttachmentAPI', () => {
               height: 720,
               assetUrl: assetUrl('/assets/files/att_video'),
               thumbnailAssetUrl: assetUrl('/assets/files/att_video/image/120x120/cover'),
-              videoProcessing: new RoomTimelineVideoProcessing({
-                status: RoomTimelineVideoProcessingStatus.COMPLETED,
+              videoProcessing: new MessageVideoProcessing({
+                status: MessageVideoProcessingStatus.COMPLETED,
                 durationMs: 1234n,
                 width: 1280,
                 height: 720,
                 sourceAvailable: true,
                 thumbnailAssetUrl: assetUrl('/assets/files/att_thumb'),
                 variants: [
-                  new RoomTimelineVideoVariant({
+                  new MessageVideoVariant({
                     quality: '720p',
                     width: 1280,
                     height: 720,
@@ -161,15 +161,15 @@ describe('createAttachmentAPI', () => {
     mocks.batchGetAssets.mockResolvedValue(
       new BatchGetAssetsResponse({
         assets: [
-          new RoomTimelineAttachment({
+          new MessageAttachment({
             id: 'att_1',
             assetUrl: assetUrl('/assets/files/att_1?fresh=1'),
             thumbnailAssetUrl: assetUrl('/assets/files/att_1/image/960x800/contain?fresh=1'),
-            videoProcessing: new RoomTimelineVideoProcessing({
-              status: RoomTimelineVideoProcessingStatus.COMPLETED,
+            videoProcessing: new MessageVideoProcessing({
+              status: MessageVideoProcessingStatus.COMPLETED,
               thumbnailAssetUrl: assetUrl('/assets/files/thumb?fresh=1'),
               variants: [
-                new RoomTimelineVideoVariant({
+                new MessageVideoVariant({
                   quality: '720p',
                   width: 1280,
                   height: 720,
@@ -214,12 +214,12 @@ describe('createAttachmentAPI', () => {
     mocks.batchGetAssets.mockResolvedValue(
       new BatchGetAssetsResponse({
         assets: [
-          new RoomTimelineAttachment({
+          new MessageAttachment({
             id: 'att_1',
-            videoProcessing: new RoomTimelineVideoProcessing({
-              status: RoomTimelineVideoProcessingStatus.COMPLETED,
+            videoProcessing: new MessageVideoProcessing({
+              status: MessageVideoProcessingStatus.COMPLETED,
               variants: [
-                new RoomTimelineVideoVariant({
+                new MessageVideoVariant({
                   quality: '720p',
                   width: 1280,
                   height: 720,
@@ -252,7 +252,7 @@ describe('createAttachmentAPI', () => {
     mocks.batchGetAssets.mockResolvedValue(
       new BatchGetAssetsResponse({
         assets: [
-          new RoomTimelineAttachment({
+          new MessageAttachment({
             id: 'att_1',
             assetUrl: assetUrl('/assets/files/att_1?fresh=1'),
             thumbnailAssetUrl: assetUrl('/assets/files/att_1/image/120x120/cover?fresh=1')
@@ -294,14 +294,14 @@ describe('createAttachmentAPI', () => {
         attachments: [
           new RoomAttachmentListItem({
             messageEventId: 'event_1',
-            attachment: new RoomTimelineAttachment({
+            attachment: new MessageAttachment({
               id: 'att_1',
               filename: 'clip.mp4',
               contentType: 'video/mp4',
-              videoProcessing: new RoomTimelineVideoProcessing({
-                status: RoomTimelineVideoProcessingStatus.COMPLETED,
+              videoProcessing: new MessageVideoProcessing({
+                status: MessageVideoProcessingStatus.COMPLETED,
                 variants: [
-                  new RoomTimelineVideoVariant({
+                  new MessageVideoVariant({
                     quality: '720p',
                     width: 1280,
                     height: 720,

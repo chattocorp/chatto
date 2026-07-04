@@ -97,7 +97,7 @@ type AddReactionResponse struct {
 	// True when the reaction was newly added, false when it already existed.
 	Added bool `protobuf:"varint,1,opt,name=added,proto3" json:"added,omitempty"`
 	// Updated aggregate reaction state for this emoji.
-	Reaction      *RoomTimelineReaction `protobuf:"bytes,2,opt,name=reaction,proto3" json:"reaction,omitempty"`
+	Reaction      *MessageReaction `protobuf:"bytes,2,opt,name=reaction,proto3" json:"reaction,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -139,7 +139,7 @@ func (x *AddReactionResponse) GetAdded() bool {
 	return false
 }
 
-func (x *AddReactionResponse) GetReaction() *RoomTimelineReaction {
+func (x *AddReactionResponse) GetReaction() *MessageReaction {
 	if x != nil {
 		return x.Reaction
 	}
@@ -222,7 +222,7 @@ type RemoveReactionResponse struct {
 	Removed bool `protobuf:"varint,1,opt,name=removed,proto3" json:"removed,omitempty"`
 	// Updated aggregate reaction state for this emoji. Empty when no reactions for
 	// the emoji remain.
-	Reaction      *RoomTimelineReaction `protobuf:"bytes,2,opt,name=reaction,proto3" json:"reaction,omitempty"`
+	Reaction      *MessageReaction `protobuf:"bytes,2,opt,name=reaction,proto3" json:"reaction,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -264,7 +264,7 @@ func (x *RemoveReactionResponse) GetRemoved() bool {
 	return false
 }
 
-func (x *RemoveReactionResponse) GetReaction() *RoomTimelineReaction {
+func (x *RemoveReactionResponse) GetReaction() *MessageReaction {
 	if x != nil {
 		return x.Reaction
 	}
@@ -275,21 +275,21 @@ var File_chatto_api_v1_reactions_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_reactions_proto_rawDesc = "" +
 	"\n" +
-	"\x1dchatto/api/v1/reactions.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a!chatto/api/v1/room_timeline.proto\"\x88\x01\n" +
+	"\x1dchatto/api/v1/reactions.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a!chatto/api/v1/message_types.proto\"\x88\x01\n" +
 	"\x12AddReactionRequest\x12 \n" +
 	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x121\n" +
 	"\x10message_event_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x0emessageEventId\x12\x1d\n" +
-	"\x05emoji\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05emoji\"l\n" +
+	"\x05emoji\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05emoji\"g\n" +
 	"\x13AddReactionResponse\x12\x14\n" +
-	"\x05added\x18\x01 \x01(\bR\x05added\x12?\n" +
-	"\breaction\x18\x02 \x01(\v2#.chatto.api.v1.RoomTimelineReactionR\breaction\"\x8b\x01\n" +
+	"\x05added\x18\x01 \x01(\bR\x05added\x12:\n" +
+	"\breaction\x18\x02 \x01(\v2\x1e.chatto.api.v1.MessageReactionR\breaction\"\x8b\x01\n" +
 	"\x15RemoveReactionRequest\x12 \n" +
 	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x121\n" +
 	"\x10message_event_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x0emessageEventId\x12\x1d\n" +
-	"\x05emoji\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05emoji\"s\n" +
+	"\x05emoji\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05emoji\"n\n" +
 	"\x16RemoveReactionResponse\x12\x18\n" +
-	"\aremoved\x18\x01 \x01(\bR\aremoved\x12?\n" +
-	"\breaction\x18\x02 \x01(\v2#.chatto.api.v1.RoomTimelineReactionR\breactionB\xaa\x01\n" +
+	"\aremoved\x18\x01 \x01(\bR\aremoved\x12:\n" +
+	"\breaction\x18\x02 \x01(\v2\x1e.chatto.api.v1.MessageReactionR\breactionB\xaa\x01\n" +
 	"\x11com.chatto.api.v1B\x0eReactionsProtoP\x01Z/hmans.de/chatto/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
 
 var (
@@ -310,11 +310,11 @@ var file_chatto_api_v1_reactions_proto_goTypes = []any{
 	(*AddReactionResponse)(nil),    // 1: chatto.api.v1.AddReactionResponse
 	(*RemoveReactionRequest)(nil),  // 2: chatto.api.v1.RemoveReactionRequest
 	(*RemoveReactionResponse)(nil), // 3: chatto.api.v1.RemoveReactionResponse
-	(*RoomTimelineReaction)(nil),   // 4: chatto.api.v1.RoomTimelineReaction
+	(*MessageReaction)(nil),        // 4: chatto.api.v1.MessageReaction
 }
 var file_chatto_api_v1_reactions_proto_depIdxs = []int32{
-	4, // 0: chatto.api.v1.AddReactionResponse.reaction:type_name -> chatto.api.v1.RoomTimelineReaction
-	4, // 1: chatto.api.v1.RemoveReactionResponse.reaction:type_name -> chatto.api.v1.RoomTimelineReaction
+	4, // 0: chatto.api.v1.AddReactionResponse.reaction:type_name -> chatto.api.v1.MessageReaction
+	4, // 1: chatto.api.v1.RemoveReactionResponse.reaction:type_name -> chatto.api.v1.MessageReaction
 	2, // [2:2] is the sub-list for method output_type
 	2, // [2:2] is the sub-list for method input_type
 	2, // [2:2] is the sub-list for extension type_name
@@ -327,7 +327,7 @@ func file_chatto_api_v1_reactions_proto_init() {
 	if File_chatto_api_v1_reactions_proto != nil {
 		return
 	}
-	file_chatto_api_v1_room_timeline_proto_init()
+	file_chatto_api_v1_message_types_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

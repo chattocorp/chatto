@@ -3,6 +3,7 @@ syntax = "proto3";
 package chatto.api.v1;
 
 import "buf/validate/validate.proto";
+import "chatto/api/v1/message_types.proto";
 import "chatto/api/v1/pagination.proto";
 import "chatto/api/v1/read_state.proto";
 import "chatto/api/v1/room_timeline.proto";
@@ -58,8 +59,8 @@ message FollowedThread {
   string room_name = 2;
   // Event ID of the root message for the thread.
   string thread_root_event_id = 3;
-  // Renderable root message event, when the root is still visible.
-  RoomTimelineEvent root_message = 4;
+  // Renderable root message, when the root is still visible.
+  Message root_message = 4;
   // Number of replies in the thread.
   int32 reply_count = 5;
   // Creation time of the latest reply, when the thread has replies.

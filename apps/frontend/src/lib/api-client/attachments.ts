@@ -8,11 +8,11 @@ import {
 import { AssetService } from '@chatto/api-types/api/v1/attachments_connect';
 import { RoomService } from '@chatto/api-types/api/v1/rooms_connect';
 import {
-  RoomTimelineVideoProcessingStatus,
-  type RoomTimelineAssetUrl,
-  type RoomTimelineAttachment,
-  type RoomTimelineVideoProcessing
-} from '@chatto/api-types/api/v1/room_timeline_pb';
+  MessageVideoProcessingStatus,
+  type MessageAssetUrl,
+  type MessageAttachment,
+  type MessageVideoProcessing
+} from '@chatto/api-types/api/v1/message_types_pb';
 
 export type AttachmentAPIConfig = {
   serverId?: string;
@@ -122,7 +122,7 @@ export function createAttachmentAPI(config: AttachmentAPIConfig): AttachmentAPI 
 }
 
 function refreshedAttachmentUrlMap(
-  attachments: readonly RoomTimelineAttachment[]
+  attachments: readonly MessageAttachment[]
 ): Map<string, RefreshedAttachmentUrls> {
   return new Map(
     attachments.map((attachment) => [
@@ -153,7 +153,7 @@ function roomFileItem(item: {
   messageEventId: string;
   threadRootEventId: string;
   createdAt?: { toDate(): Date };
-  attachment?: RoomTimelineAttachment;
+  attachment?: MessageAttachment;
 }): RoomFileItem {
   return {
     messageEventId: item.messageEventId,
@@ -163,7 +163,7 @@ function roomFileItem(item: {
   };
 }
 
-function attachment(value?: RoomTimelineAttachment): RoomFileItem['attachment'] {
+function attachment(value?: MessageAttachment): RoomFileItem['attachment'] {
   return {
     id: value?.id ?? '',
     filename: value?.filename ?? '',
@@ -177,7 +177,7 @@ function attachment(value?: RoomTimelineAttachment): RoomFileItem['attachment'] 
 }
 
 function videoProcessing(
-  value?: RoomTimelineVideoProcessing
+  value?: MessageVideoProcessing
 ): NonNullable<RoomFileItem['attachment']['videoProcessing']> | null {
   if (!value) return null;
   const status = videoProcessingStatus(value.status);
@@ -201,21 +201,21 @@ function videoProcessing(
 }
 
 function videoProcessingStatus(
-  status: RoomTimelineVideoProcessingStatus
+  status: MessageVideoProcessingStatus
 ): NonNullable<RoomFileItem['attachment']['videoProcessing']>['status'] | null {
   switch (status) {
-    case RoomTimelineVideoProcessingStatus.PROCESSING:
+    case MessageVideoProcessingStatus.PROCESSING:
       return 'PROCESSING';
-    case RoomTimelineVideoProcessingStatus.COMPLETED:
+    case MessageVideoProcessingStatus.COMPLETED:
       return 'COMPLETED';
-    case RoomTimelineVideoProcessingStatus.FAILED:
+    case MessageVideoProcessingStatus.FAILED:
       return 'FAILED';
     default:
       return null;
   }
 }
 
-function assetUrl(value?: RoomTimelineAssetUrl): ExpiringAssetUrl | null {
+function assetUrl(value?: MessageAssetUrl): ExpiringAssetUrl | null {
   if (!value) return null;
   return {
     url: value.url,

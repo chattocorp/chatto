@@ -1,7 +1,7 @@
 import { authHeaders, createChattoClient, handleAuthError } from './connect.js';
 import type { LinkPreviewInput, RoomEventView } from './renderTypes.js';
 import { MessageService } from '@chatto/api-types/api/v1/messages_connect';
-import { roomTimelineEventToRawEvent, timelineUsersForEvents } from './roomTimeline.js';
+import { messageToRawEvent, timelineUsersForMessages } from './roomTimeline.js';
 import { createAssetUploadAPI } from './assetUploads.js';
 
 export type MessageAPIConfig = {
@@ -61,10 +61,10 @@ export function createMessageAPI(config: MessageAPIConfig) {
           { headers: headers() }
         );
 
-        const users = await timelineUsersForEvents(config, response.event ? [response.event] : []);
+        const users = await timelineUsersForMessages(config, response.message ? [response.message] : []);
         return {
-          event: response.event
-            ? (roomTimelineEventToRawEvent(response.event, users) as RoomEventView | null)
+          event: response.message
+            ? (messageToRawEvent(response.message, users) as RoomEventView | null)
             : null
         };
       } catch (err) {
@@ -92,11 +92,11 @@ export function createMessageAPI(config: MessageAPIConfig) {
         const response = await client.updateMessage(request, {
           headers: headers()
         });
-        const users = await timelineUsersForEvents(config, response.event ? [response.event] : []);
+        const users = await timelineUsersForMessages(config, response.message ? [response.message] : []);
         return {
           updated: response.updated,
-          event: response.event
-            ? (roomTimelineEventToRawEvent(response.event, users) as RoomEventView | null)
+          event: response.message
+            ? (messageToRawEvent(response.message, users) as RoomEventView | null)
             : null
         };
       } catch (err) {

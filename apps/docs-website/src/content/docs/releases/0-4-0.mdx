@@ -141,9 +141,10 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
 - Message posting no longer has a server-side large-mention confirmation challenge.
   Remove `CreateMessageRequest.mention_confirmation_token` and handle any role,
   `@all`, or `@here` confirmation UX in the client before calling
-  `MessageService.CreateMessage`. `CreateMessageResponse`, `GetMessageResponse`, and
-  `BatchGetMessagesResponse` now return only message event data; hydrate user/member
-  details through `UserService.GetUser` or `BatchGetUsers` when needed.
+  `MessageService.CreateMessage`. `CreateMessageResponse`, `UpdateMessageResponse`,
+  `GetMessageResponse`, and `BatchGetMessagesResponse` now return canonical `Message`
+  data; hydrate user/member details through `UserService.GetUser` or `BatchGetUsers`
+  when needed.
 - Root-grade account lifecycle automation has moved to the local operator socket and
   `chatto operator user ...` commands. Enable `[operator_api]` for those workflows and
   update automation that used the earlier public admin lifecycle RPCs.

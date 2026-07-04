@@ -23,63 +23,6 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// Processing state for a timeline video attachment.
-type RoomTimelineVideoProcessingStatus int32
-
-const (
-	// The processing status was not specified.
-	RoomTimelineVideoProcessingStatus_ROOM_TIMELINE_VIDEO_PROCESSING_STATUS_UNSPECIFIED RoomTimelineVideoProcessingStatus = 0
-	// Video processing is still running.
-	RoomTimelineVideoProcessingStatus_ROOM_TIMELINE_VIDEO_PROCESSING_STATUS_PROCESSING RoomTimelineVideoProcessingStatus = 1
-	// Video processing completed successfully.
-	RoomTimelineVideoProcessingStatus_ROOM_TIMELINE_VIDEO_PROCESSING_STATUS_COMPLETED RoomTimelineVideoProcessingStatus = 2
-	// Video processing failed.
-	RoomTimelineVideoProcessingStatus_ROOM_TIMELINE_VIDEO_PROCESSING_STATUS_FAILED RoomTimelineVideoProcessingStatus = 3
-)
-
-// Enum value maps for RoomTimelineVideoProcessingStatus.
-var (
-	RoomTimelineVideoProcessingStatus_name = map[int32]string{
-		0: "ROOM_TIMELINE_VIDEO_PROCESSING_STATUS_UNSPECIFIED",
-		1: "ROOM_TIMELINE_VIDEO_PROCESSING_STATUS_PROCESSING",
-		2: "ROOM_TIMELINE_VIDEO_PROCESSING_STATUS_COMPLETED",
-		3: "ROOM_TIMELINE_VIDEO_PROCESSING_STATUS_FAILED",
-	}
-	RoomTimelineVideoProcessingStatus_value = map[string]int32{
-		"ROOM_TIMELINE_VIDEO_PROCESSING_STATUS_UNSPECIFIED": 0,
-		"ROOM_TIMELINE_VIDEO_PROCESSING_STATUS_PROCESSING":  1,
-		"ROOM_TIMELINE_VIDEO_PROCESSING_STATUS_COMPLETED":   2,
-		"ROOM_TIMELINE_VIDEO_PROCESSING_STATUS_FAILED":      3,
-	}
-)
-
-func (x RoomTimelineVideoProcessingStatus) Enum() *RoomTimelineVideoProcessingStatus {
-	p := new(RoomTimelineVideoProcessingStatus)
-	*p = x
-	return p
-}
-
-func (x RoomTimelineVideoProcessingStatus) String() string {
-	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
-}
-
-func (RoomTimelineVideoProcessingStatus) Descriptor() protoreflect.EnumDescriptor {
-	return file_chatto_api_v1_room_timeline_proto_enumTypes[0].Descriptor()
-}
-
-func (RoomTimelineVideoProcessingStatus) Type() protoreflect.EnumType {
-	return &file_chatto_api_v1_room_timeline_proto_enumTypes[0]
-}
-
-func (x RoomTimelineVideoProcessingStatus) Number() protoreflect.EnumNumber {
-	return protoreflect.EnumNumber(x)
-}
-
-// Deprecated: Use RoomTimelineVideoProcessingStatus.Descriptor instead.
-func (RoomTimelineVideoProcessingStatus) EnumDescriptor() ([]byte, []int) {
-	return file_chatto_api_v1_room_timeline_proto_rawDescGZIP(), []int{0}
-}
-
 // Related entities included beside timeline events.
 //
 // Includes avoid repeating the same user data on every event in a page.
@@ -128,636 +71,6 @@ func (x *RoomTimelineIncludes) GetUsers() map[string]*User {
 	return nil
 }
 
-// Time-limited URL for a room timeline asset.
-//
-// Clients should expect these URLs to expire and refresh the timeline data when
-// an asset URL is no longer usable.
-type RoomTimelineAssetUrl struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Signed asset URL.
-	Url string `protobuf:"bytes,1,opt,name=url,proto3" json:"url,omitempty"`
-	// Time when the signed URL expires.
-	ExpiresAt     *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *RoomTimelineAssetUrl) Reset() {
-	*x = RoomTimelineAssetUrl{}
-	mi := &file_chatto_api_v1_room_timeline_proto_msgTypes[1]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *RoomTimelineAssetUrl) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*RoomTimelineAssetUrl) ProtoMessage() {}
-
-func (x *RoomTimelineAssetUrl) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_room_timeline_proto_msgTypes[1]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use RoomTimelineAssetUrl.ProtoReflect.Descriptor instead.
-func (*RoomTimelineAssetUrl) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_room_timeline_proto_rawDescGZIP(), []int{1}
-}
-
-func (x *RoomTimelineAssetUrl) GetUrl() string {
-	if x != nil {
-		return x.Url
-	}
-	return ""
-}
-
-func (x *RoomTimelineAssetUrl) GetExpiresAt() *timestamppb.Timestamp {
-	if x != nil {
-		return x.ExpiresAt
-	}
-	return nil
-}
-
-// One transcoded video rendition.
-type RoomTimelineVideoVariant struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Quality label for the rendition.
-	Quality string `protobuf:"bytes,1,opt,name=quality,proto3" json:"quality,omitempty"`
-	// Video width in pixels.
-	Width int32 `protobuf:"varint,2,opt,name=width,proto3" json:"width,omitempty"`
-	// Video height in pixels.
-	Height int32 `protobuf:"varint,3,opt,name=height,proto3" json:"height,omitempty"`
-	// Rendition size in bytes.
-	Size int64 `protobuf:"varint,4,opt,name=size,proto3" json:"size,omitempty"`
-	// Signed URL for the rendition.
-	AssetUrl      *RoomTimelineAssetUrl `protobuf:"bytes,5,opt,name=asset_url,json=assetUrl,proto3" json:"asset_url,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *RoomTimelineVideoVariant) Reset() {
-	*x = RoomTimelineVideoVariant{}
-	mi := &file_chatto_api_v1_room_timeline_proto_msgTypes[2]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *RoomTimelineVideoVariant) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*RoomTimelineVideoVariant) ProtoMessage() {}
-
-func (x *RoomTimelineVideoVariant) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_room_timeline_proto_msgTypes[2]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use RoomTimelineVideoVariant.ProtoReflect.Descriptor instead.
-func (*RoomTimelineVideoVariant) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_room_timeline_proto_rawDescGZIP(), []int{2}
-}
-
-func (x *RoomTimelineVideoVariant) GetQuality() string {
-	if x != nil {
-		return x.Quality
-	}
-	return ""
-}
-
-func (x *RoomTimelineVideoVariant) GetWidth() int32 {
-	if x != nil {
-		return x.Width
-	}
-	return 0
-}
-
-func (x *RoomTimelineVideoVariant) GetHeight() int32 {
-	if x != nil {
-		return x.Height
-	}
-	return 0
-}
-
-func (x *RoomTimelineVideoVariant) GetSize() int64 {
-	if x != nil {
-		return x.Size
-	}
-	return 0
-}
-
-func (x *RoomTimelineVideoVariant) GetAssetUrl() *RoomTimelineAssetUrl {
-	if x != nil {
-		return x.AssetUrl
-	}
-	return nil
-}
-
-// Processing metadata for a video attachment.
-//
-// Clients can use this object to show upload/transcoding progress and decide
-// whether to play a processed variant, show a thumbnail, or display a failure
-// state.
-type RoomTimelineVideoProcessing struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Current processing status.
-	Status RoomTimelineVideoProcessingStatus `protobuf:"varint,1,opt,name=status,proto3,enum=chatto.api.v1.RoomTimelineVideoProcessingStatus" json:"status,omitempty"`
-	// Video duration in milliseconds.
-	DurationMs int64 `protobuf:"varint,2,opt,name=duration_ms,json=durationMs,proto3" json:"duration_ms,omitempty"`
-	// Source video width in pixels.
-	Width int32 `protobuf:"varint,3,opt,name=width,proto3" json:"width,omitempty"`
-	// Source video height in pixels.
-	Height int32 `protobuf:"varint,4,opt,name=height,proto3" json:"height,omitempty"`
-	// True when the original source asset is currently available.
-	SourceAvailable bool `protobuf:"varint,5,opt,name=source_available,json=sourceAvailable,proto3" json:"source_available,omitempty"`
-	// Stable reason code for a failed or incomplete processing state.
-	ReasonCode string `protobuf:"bytes,6,opt,name=reason_code,json=reasonCode,proto3" json:"reason_code,omitempty"`
-	// Signed URL for the generated thumbnail, when available.
-	ThumbnailAssetUrl *RoomTimelineAssetUrl `protobuf:"bytes,7,opt,name=thumbnail_asset_url,json=thumbnailAssetUrl,proto3" json:"thumbnail_asset_url,omitempty"`
-	// Available transcoded renditions.
-	Variants      []*RoomTimelineVideoVariant `protobuf:"bytes,8,rep,name=variants,proto3" json:"variants,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *RoomTimelineVideoProcessing) Reset() {
-	*x = RoomTimelineVideoProcessing{}
-	mi := &file_chatto_api_v1_room_timeline_proto_msgTypes[3]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *RoomTimelineVideoProcessing) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*RoomTimelineVideoProcessing) ProtoMessage() {}
-
-func (x *RoomTimelineVideoProcessing) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_room_timeline_proto_msgTypes[3]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use RoomTimelineVideoProcessing.ProtoReflect.Descriptor instead.
-func (*RoomTimelineVideoProcessing) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_room_timeline_proto_rawDescGZIP(), []int{3}
-}
-
-func (x *RoomTimelineVideoProcessing) GetStatus() RoomTimelineVideoProcessingStatus {
-	if x != nil {
-		return x.Status
-	}
-	return RoomTimelineVideoProcessingStatus_ROOM_TIMELINE_VIDEO_PROCESSING_STATUS_UNSPECIFIED
-}
-
-func (x *RoomTimelineVideoProcessing) GetDurationMs() int64 {
-	if x != nil {
-		return x.DurationMs
-	}
-	return 0
-}
-
-func (x *RoomTimelineVideoProcessing) GetWidth() int32 {
-	if x != nil {
-		return x.Width
-	}
-	return 0
-}
-
-func (x *RoomTimelineVideoProcessing) GetHeight() int32 {
-	if x != nil {
-		return x.Height
-	}
-	return 0
-}
-
-func (x *RoomTimelineVideoProcessing) GetSourceAvailable() bool {
-	if x != nil {
-		return x.SourceAvailable
-	}
-	return false
-}
-
-func (x *RoomTimelineVideoProcessing) GetReasonCode() string {
-	if x != nil {
-		return x.ReasonCode
-	}
-	return ""
-}
-
-func (x *RoomTimelineVideoProcessing) GetThumbnailAssetUrl() *RoomTimelineAssetUrl {
-	if x != nil {
-		return x.ThumbnailAssetUrl
-	}
-	return nil
-}
-
-func (x *RoomTimelineVideoProcessing) GetVariants() []*RoomTimelineVideoVariant {
-	if x != nil {
-		return x.Variants
-	}
-	return nil
-}
-
-// Attachment metadata included with a posted message.
-//
-// Image and video dimensions are best-effort metadata for layout. Asset URLs can
-// be absent while processing is pending or when the source is unavailable.
-type RoomTimelineAttachment struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Stable attachment ID.
-	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	// Original filename.
-	Filename string `protobuf:"bytes,2,opt,name=filename,proto3" json:"filename,omitempty"`
-	// MIME content type.
-	ContentType string `protobuf:"bytes,3,opt,name=content_type,json=contentType,proto3" json:"content_type,omitempty"`
-	// Image or video width in pixels, when known.
-	Width int32 `protobuf:"varint,4,opt,name=width,proto3" json:"width,omitempty"`
-	// Image or video height in pixels, when known.
-	Height int32 `protobuf:"varint,5,opt,name=height,proto3" json:"height,omitempty"`
-	// Signed URL for the original asset, when available.
-	AssetUrl *RoomTimelineAssetUrl `protobuf:"bytes,6,opt,name=asset_url,json=assetUrl,proto3" json:"asset_url,omitempty"`
-	// Signed URL for a thumbnail image, when available.
-	ThumbnailAssetUrl *RoomTimelineAssetUrl `protobuf:"bytes,7,opt,name=thumbnail_asset_url,json=thumbnailAssetUrl,proto3" json:"thumbnail_asset_url,omitempty"`
-	// Video-specific processing metadata, when this attachment is a video.
-	VideoProcessing *RoomTimelineVideoProcessing `protobuf:"bytes,8,opt,name=video_processing,json=videoProcessing,proto3" json:"video_processing,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
-}
-
-func (x *RoomTimelineAttachment) Reset() {
-	*x = RoomTimelineAttachment{}
-	mi := &file_chatto_api_v1_room_timeline_proto_msgTypes[4]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *RoomTimelineAttachment) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*RoomTimelineAttachment) ProtoMessage() {}
-
-func (x *RoomTimelineAttachment) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_room_timeline_proto_msgTypes[4]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use RoomTimelineAttachment.ProtoReflect.Descriptor instead.
-func (*RoomTimelineAttachment) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_room_timeline_proto_rawDescGZIP(), []int{4}
-}
-
-func (x *RoomTimelineAttachment) GetId() string {
-	if x != nil {
-		return x.Id
-	}
-	return ""
-}
-
-func (x *RoomTimelineAttachment) GetFilename() string {
-	if x != nil {
-		return x.Filename
-	}
-	return ""
-}
-
-func (x *RoomTimelineAttachment) GetContentType() string {
-	if x != nil {
-		return x.ContentType
-	}
-	return ""
-}
-
-func (x *RoomTimelineAttachment) GetWidth() int32 {
-	if x != nil {
-		return x.Width
-	}
-	return 0
-}
-
-func (x *RoomTimelineAttachment) GetHeight() int32 {
-	if x != nil {
-		return x.Height
-	}
-	return 0
-}
-
-func (x *RoomTimelineAttachment) GetAssetUrl() *RoomTimelineAssetUrl {
-	if x != nil {
-		return x.AssetUrl
-	}
-	return nil
-}
-
-func (x *RoomTimelineAttachment) GetThumbnailAssetUrl() *RoomTimelineAssetUrl {
-	if x != nil {
-		return x.ThumbnailAssetUrl
-	}
-	return nil
-}
-
-func (x *RoomTimelineAttachment) GetVideoProcessing() *RoomTimelineVideoProcessing {
-	if x != nil {
-		return x.VideoProcessing
-	}
-	return nil
-}
-
-// Aggregated reaction state for one emoji on one event.
-//
-// This state is scoped to the current event and includes whether the current
-// user has reacted with the same emoji.
-type RoomTimelineReaction struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Emoji or reaction key.
-	Emoji string `protobuf:"bytes,1,opt,name=emoji,proto3" json:"emoji,omitempty"`
-	// Number of users who reacted with this emoji.
-	Count int32 `protobuf:"varint,2,opt,name=count,proto3" json:"count,omitempty"`
-	// True when the current user reacted with this emoji.
-	HasReacted bool `protobuf:"varint,3,opt,name=has_reacted,json=hasReacted,proto3" json:"has_reacted,omitempty"`
-	// Preview of up to five user IDs that reacted with this emoji.
-	PreviewUserIds []string `protobuf:"bytes,4,rep,name=preview_user_ids,json=previewUserIds,proto3" json:"preview_user_ids,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
-}
-
-func (x *RoomTimelineReaction) Reset() {
-	*x = RoomTimelineReaction{}
-	mi := &file_chatto_api_v1_room_timeline_proto_msgTypes[5]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *RoomTimelineReaction) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*RoomTimelineReaction) ProtoMessage() {}
-
-func (x *RoomTimelineReaction) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_room_timeline_proto_msgTypes[5]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use RoomTimelineReaction.ProtoReflect.Descriptor instead.
-func (*RoomTimelineReaction) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_room_timeline_proto_rawDescGZIP(), []int{5}
-}
-
-func (x *RoomTimelineReaction) GetEmoji() string {
-	if x != nil {
-		return x.Emoji
-	}
-	return ""
-}
-
-func (x *RoomTimelineReaction) GetCount() int32 {
-	if x != nil {
-		return x.Count
-	}
-	return 0
-}
-
-func (x *RoomTimelineReaction) GetHasReacted() bool {
-	if x != nil {
-		return x.HasReacted
-	}
-	return false
-}
-
-func (x *RoomTimelineReaction) GetPreviewUserIds() []string {
-	if x != nil {
-		return x.PreviewUserIds
-	}
-	return nil
-}
-
-// Payload for a message-posted timeline event.
-//
-// The same shape is used for top-level room messages, thread replies, and thread
-// echo entries. Thread-related fields let clients render reply counts, thread
-// participants, and follow state without additional per-message requests.
-type RoomTimelineMessagePosted struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Room containing the message.
-	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
-	// Message body text, when available. A present empty string is distinct from
-	// an absent body.
-	Body *string `protobuf:"bytes,2,opt,name=body,proto3,oneof" json:"body,omitempty"`
-	// Attachments sent with the message.
-	Attachments []*RoomTimelineAttachment `protobuf:"bytes,4,rep,name=attachments,proto3" json:"attachments,omitempty"`
-	// Link preview extracted for the message, when available.
-	LinkPreview *LinkPreview `protobuf:"bytes,5,opt,name=link_preview,json=linkPreview,proto3" json:"link_preview,omitempty"`
-	// Time when the message was last edited.
-	UpdatedAt *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
-	// Event ID this message directly replies to, when this is a reply.
-	InReplyTo string `protobuf:"bytes,7,opt,name=in_reply_to,json=inReplyTo,proto3" json:"in_reply_to,omitempty"`
-	// Event ID of the root message for the thread this message belongs to.
-	ThreadRootEventId string `protobuf:"bytes,8,opt,name=thread_root_event_id,json=threadRootEventId,proto3" json:"thread_root_event_id,omitempty"`
-	// Event ID this event echoes into the current view, when applicable. Echoes
-	// allow thread activity to appear in another timeline context.
-	EchoOfEventId string `protobuf:"bytes,9,opt,name=echo_of_event_id,json=echoOfEventId,proto3" json:"echo_of_event_id,omitempty"`
-	// Thread root ID of the echoed event, when applicable.
-	EchoFromThreadRootEventId string `protobuf:"bytes,10,opt,name=echo_from_thread_root_event_id,json=echoFromThreadRootEventId,proto3" json:"echo_from_thread_root_event_id,omitempty"`
-	// Channel timeline event ID for a thread echo, when applicable.
-	ChannelEchoEventId string `protobuf:"bytes,11,opt,name=channel_echo_event_id,json=channelEchoEventId,proto3" json:"channel_echo_event_id,omitempty"`
-	// Number of replies in this message's thread.
-	ReplyCount int32 `protobuf:"varint,12,opt,name=reply_count,json=replyCount,proto3" json:"reply_count,omitempty"`
-	// Creation time of the most recent reply in this message's thread.
-	LastReplyAt *timestamppb.Timestamp `protobuf:"bytes,13,opt,name=last_reply_at,json=lastReplyAt,proto3" json:"last_reply_at,omitempty"`
-	// Preview of up to five user IDs that have participated in this message's
-	// thread.
-	ThreadParticipantPreviewUserIds []string `protobuf:"bytes,14,rep,name=thread_participant_preview_user_ids,json=threadParticipantPreviewUserIds,proto3" json:"thread_participant_preview_user_ids,omitempty"`
-	// Whether the current user follows this message's thread, when known.
-	ViewerIsFollowingThread *bool `protobuf:"varint,15,opt,name=viewer_is_following_thread,json=viewerIsFollowingThread,proto3,oneof" json:"viewer_is_following_thread,omitempty"`
-	// Reaction summaries for this message.
-	Reactions []*RoomTimelineReaction `protobuf:"bytes,17,rep,name=reactions,proto3" json:"reactions,omitempty"`
-	// Total number of distinct users that have participated in this message's
-	// thread.
-	ThreadParticipantCount int32 `protobuf:"varint,18,opt,name=thread_participant_count,json=threadParticipantCount,proto3" json:"thread_participant_count,omitempty"`
-	unknownFields          protoimpl.UnknownFields
-	sizeCache              protoimpl.SizeCache
-}
-
-func (x *RoomTimelineMessagePosted) Reset() {
-	*x = RoomTimelineMessagePosted{}
-	mi := &file_chatto_api_v1_room_timeline_proto_msgTypes[6]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *RoomTimelineMessagePosted) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*RoomTimelineMessagePosted) ProtoMessage() {}
-
-func (x *RoomTimelineMessagePosted) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_room_timeline_proto_msgTypes[6]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use RoomTimelineMessagePosted.ProtoReflect.Descriptor instead.
-func (*RoomTimelineMessagePosted) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_room_timeline_proto_rawDescGZIP(), []int{6}
-}
-
-func (x *RoomTimelineMessagePosted) GetRoomId() string {
-	if x != nil {
-		return x.RoomId
-	}
-	return ""
-}
-
-func (x *RoomTimelineMessagePosted) GetBody() string {
-	if x != nil && x.Body != nil {
-		return *x.Body
-	}
-	return ""
-}
-
-func (x *RoomTimelineMessagePosted) GetAttachments() []*RoomTimelineAttachment {
-	if x != nil {
-		return x.Attachments
-	}
-	return nil
-}
-
-func (x *RoomTimelineMessagePosted) GetLinkPreview() *LinkPreview {
-	if x != nil {
-		return x.LinkPreview
-	}
-	return nil
-}
-
-func (x *RoomTimelineMessagePosted) GetUpdatedAt() *timestamppb.Timestamp {
-	if x != nil {
-		return x.UpdatedAt
-	}
-	return nil
-}
-
-func (x *RoomTimelineMessagePosted) GetInReplyTo() string {
-	if x != nil {
-		return x.InReplyTo
-	}
-	return ""
-}
-
-func (x *RoomTimelineMessagePosted) GetThreadRootEventId() string {
-	if x != nil {
-		return x.ThreadRootEventId
-	}
-	return ""
-}
-
-func (x *RoomTimelineMessagePosted) GetEchoOfEventId() string {
-	if x != nil {
-		return x.EchoOfEventId
-	}
-	return ""
-}
-
-func (x *RoomTimelineMessagePosted) GetEchoFromThreadRootEventId() string {
-	if x != nil {
-		return x.EchoFromThreadRootEventId
-	}
-	return ""
-}
-
-func (x *RoomTimelineMessagePosted) GetChannelEchoEventId() string {
-	if x != nil {
-		return x.ChannelEchoEventId
-	}
-	return ""
-}
-
-func (x *RoomTimelineMessagePosted) GetReplyCount() int32 {
-	if x != nil {
-		return x.ReplyCount
-	}
-	return 0
-}
-
-func (x *RoomTimelineMessagePosted) GetLastReplyAt() *timestamppb.Timestamp {
-	if x != nil {
-		return x.LastReplyAt
-	}
-	return nil
-}
-
-func (x *RoomTimelineMessagePosted) GetThreadParticipantPreviewUserIds() []string {
-	if x != nil {
-		return x.ThreadParticipantPreviewUserIds
-	}
-	return nil
-}
-
-func (x *RoomTimelineMessagePosted) GetViewerIsFollowingThread() bool {
-	if x != nil && x.ViewerIsFollowingThread != nil {
-		return *x.ViewerIsFollowingThread
-	}
-	return false
-}
-
-func (x *RoomTimelineMessagePosted) GetReactions() []*RoomTimelineReaction {
-	if x != nil {
-		return x.Reactions
-	}
-	return nil
-}
-
-func (x *RoomTimelineMessagePosted) GetThreadParticipantCount() int32 {
-	if x != nil {
-		return x.ThreadParticipantCount
-	}
-	return 0
-}
-
 // Payload for room lifecycle and membership timeline events.
 type RoomTimelineRoomEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -769,7 +82,7 @@ type RoomTimelineRoomEvent struct {
 
 func (x *RoomTimelineRoomEvent) Reset() {
 	*x = RoomTimelineRoomEvent{}
-	mi := &file_chatto_api_v1_room_timeline_proto_msgTypes[7]
+	mi := &file_chatto_api_v1_room_timeline_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -781,7 +94,7 @@ func (x *RoomTimelineRoomEvent) String() string {
 func (*RoomTimelineRoomEvent) ProtoMessage() {}
 
 func (x *RoomTimelineRoomEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_room_timeline_proto_msgTypes[7]
+	mi := &file_chatto_api_v1_room_timeline_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -794,7 +107,7 @@ func (x *RoomTimelineRoomEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RoomTimelineRoomEvent.ProtoReflect.Descriptor instead.
 func (*RoomTimelineRoomEvent) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_room_timeline_proto_rawDescGZIP(), []int{7}
+	return file_chatto_api_v1_room_timeline_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *RoomTimelineRoomEvent) GetRoomId() string {
@@ -802,6 +115,52 @@ func (x *RoomTimelineRoomEvent) GetRoomId() string {
 		return x.RoomId
 	}
 	return ""
+}
+
+// Payload for a message-posted timeline event.
+type RoomMessagePosted struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Renderable message created by this timeline event.
+	Message       *Message `protobuf:"bytes,1,opt,name=message,proto3" json:"message,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RoomMessagePosted) Reset() {
+	*x = RoomMessagePosted{}
+	mi := &file_chatto_api_v1_room_timeline_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RoomMessagePosted) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RoomMessagePosted) ProtoMessage() {}
+
+func (x *RoomMessagePosted) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_room_timeline_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RoomMessagePosted.ProtoReflect.Descriptor instead.
+func (*RoomMessagePosted) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_room_timeline_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *RoomMessagePosted) GetMessage() *Message {
+	if x != nil {
+		return x.Message
+	}
+	return nil
 }
 
 // One event in a room or thread timeline.
@@ -834,7 +193,7 @@ type RoomTimelineEvent struct {
 
 func (x *RoomTimelineEvent) Reset() {
 	*x = RoomTimelineEvent{}
-	mi := &file_chatto_api_v1_room_timeline_proto_msgTypes[8]
+	mi := &file_chatto_api_v1_room_timeline_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -846,7 +205,7 @@ func (x *RoomTimelineEvent) String() string {
 func (*RoomTimelineEvent) ProtoMessage() {}
 
 func (x *RoomTimelineEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_room_timeline_proto_msgTypes[8]
+	mi := &file_chatto_api_v1_room_timeline_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -859,7 +218,7 @@ func (x *RoomTimelineEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RoomTimelineEvent.ProtoReflect.Descriptor instead.
 func (*RoomTimelineEvent) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_room_timeline_proto_rawDescGZIP(), []int{8}
+	return file_chatto_api_v1_room_timeline_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *RoomTimelineEvent) GetId() string {
@@ -890,7 +249,7 @@ func (x *RoomTimelineEvent) GetEvent() isRoomTimelineEvent_Event {
 	return nil
 }
 
-func (x *RoomTimelineEvent) GetMessagePosted() *RoomTimelineMessagePosted {
+func (x *RoomTimelineEvent) GetMessagePosted() *RoomMessagePosted {
 	if x != nil {
 		if x, ok := x.Event.(*RoomTimelineEvent_MessagePosted); ok {
 			return x.MessagePosted
@@ -968,7 +327,7 @@ type isRoomTimelineEvent_Event interface {
 
 type RoomTimelineEvent_MessagePosted struct {
 	// A message was posted.
-	MessagePosted *RoomTimelineMessagePosted `protobuf:"bytes,10,opt,name=message_posted,json=messagePosted,proto3,oneof"`
+	MessagePosted *RoomMessagePosted `protobuf:"bytes,10,opt,name=message_posted,json=messagePosted,proto3,oneof"`
 }
 
 type RoomTimelineEvent_RoomCreated struct {
@@ -1049,7 +408,7 @@ type RoomTimelinePage struct {
 
 func (x *RoomTimelinePage) Reset() {
 	*x = RoomTimelinePage{}
-	mi := &file_chatto_api_v1_room_timeline_proto_msgTypes[9]
+	mi := &file_chatto_api_v1_room_timeline_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1061,7 +420,7 @@ func (x *RoomTimelinePage) String() string {
 func (*RoomTimelinePage) ProtoMessage() {}
 
 func (x *RoomTimelinePage) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_room_timeline_proto_msgTypes[9]
+	mi := &file_chatto_api_v1_room_timeline_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1074,7 +433,7 @@ func (x *RoomTimelinePage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RoomTimelinePage.ProtoReflect.Descriptor instead.
 func (*RoomTimelinePage) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_room_timeline_proto_rawDescGZIP(), []int{9}
+	return file_chatto_api_v1_room_timeline_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *RoomTimelinePage) GetEvents() []*RoomTimelineEvent {
@@ -1143,7 +502,7 @@ type GetRoomEventsRequest struct {
 
 func (x *GetRoomEventsRequest) Reset() {
 	*x = GetRoomEventsRequest{}
-	mi := &file_chatto_api_v1_room_timeline_proto_msgTypes[10]
+	mi := &file_chatto_api_v1_room_timeline_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1155,7 +514,7 @@ func (x *GetRoomEventsRequest) String() string {
 func (*GetRoomEventsRequest) ProtoMessage() {}
 
 func (x *GetRoomEventsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_room_timeline_proto_msgTypes[10]
+	mi := &file_chatto_api_v1_room_timeline_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1168,7 +527,7 @@ func (x *GetRoomEventsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRoomEventsRequest.ProtoReflect.Descriptor instead.
 func (*GetRoomEventsRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_room_timeline_proto_rawDescGZIP(), []int{10}
+	return file_chatto_api_v1_room_timeline_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *GetRoomEventsRequest) GetRoomId() string {
@@ -1239,7 +598,7 @@ type GetRoomEventsResponse struct {
 
 func (x *GetRoomEventsResponse) Reset() {
 	*x = GetRoomEventsResponse{}
-	mi := &file_chatto_api_v1_room_timeline_proto_msgTypes[11]
+	mi := &file_chatto_api_v1_room_timeline_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1251,7 +610,7 @@ func (x *GetRoomEventsResponse) String() string {
 func (*GetRoomEventsResponse) ProtoMessage() {}
 
 func (x *GetRoomEventsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_room_timeline_proto_msgTypes[11]
+	mi := &file_chatto_api_v1_room_timeline_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1264,7 +623,7 @@ func (x *GetRoomEventsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRoomEventsResponse.ProtoReflect.Descriptor instead.
 func (*GetRoomEventsResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_room_timeline_proto_rawDescGZIP(), []int{11}
+	return file_chatto_api_v1_room_timeline_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *GetRoomEventsResponse) GetPage() *RoomTimelinePage {
@@ -1292,7 +651,7 @@ type GetRoomEventsAroundRequest struct {
 
 func (x *GetRoomEventsAroundRequest) Reset() {
 	*x = GetRoomEventsAroundRequest{}
-	mi := &file_chatto_api_v1_room_timeline_proto_msgTypes[12]
+	mi := &file_chatto_api_v1_room_timeline_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1304,7 +663,7 @@ func (x *GetRoomEventsAroundRequest) String() string {
 func (*GetRoomEventsAroundRequest) ProtoMessage() {}
 
 func (x *GetRoomEventsAroundRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_room_timeline_proto_msgTypes[12]
+	mi := &file_chatto_api_v1_room_timeline_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1317,7 +676,7 @@ func (x *GetRoomEventsAroundRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRoomEventsAroundRequest.ProtoReflect.Descriptor instead.
 func (*GetRoomEventsAroundRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_room_timeline_proto_rawDescGZIP(), []int{12}
+	return file_chatto_api_v1_room_timeline_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *GetRoomEventsAroundRequest) GetRoomId() string {
@@ -1354,7 +713,7 @@ type GetRoomEventsAroundResponse struct {
 
 func (x *GetRoomEventsAroundResponse) Reset() {
 	*x = GetRoomEventsAroundResponse{}
-	mi := &file_chatto_api_v1_room_timeline_proto_msgTypes[13]
+	mi := &file_chatto_api_v1_room_timeline_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1366,7 +725,7 @@ func (x *GetRoomEventsAroundResponse) String() string {
 func (*GetRoomEventsAroundResponse) ProtoMessage() {}
 
 func (x *GetRoomEventsAroundResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_room_timeline_proto_msgTypes[13]
+	mi := &file_chatto_api_v1_room_timeline_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1379,7 +738,7 @@ func (x *GetRoomEventsAroundResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRoomEventsAroundResponse.ProtoReflect.Descriptor instead.
 func (*GetRoomEventsAroundResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_room_timeline_proto_rawDescGZIP(), []int{13}
+	return file_chatto_api_v1_room_timeline_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *GetRoomEventsAroundResponse) GetPage() *RoomTimelinePage {
@@ -1423,7 +782,7 @@ type GetThreadEventsRequest struct {
 
 func (x *GetThreadEventsRequest) Reset() {
 	*x = GetThreadEventsRequest{}
-	mi := &file_chatto_api_v1_room_timeline_proto_msgTypes[14]
+	mi := &file_chatto_api_v1_room_timeline_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1435,7 +794,7 @@ func (x *GetThreadEventsRequest) String() string {
 func (*GetThreadEventsRequest) ProtoMessage() {}
 
 func (x *GetThreadEventsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_room_timeline_proto_msgTypes[14]
+	mi := &file_chatto_api_v1_room_timeline_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1448,7 +807,7 @@ func (x *GetThreadEventsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetThreadEventsRequest.ProtoReflect.Descriptor instead.
 func (*GetThreadEventsRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_room_timeline_proto_rawDescGZIP(), []int{14}
+	return file_chatto_api_v1_room_timeline_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *GetThreadEventsRequest) GetRoomId() string {
@@ -1526,7 +885,7 @@ type GetThreadEventsResponse struct {
 
 func (x *GetThreadEventsResponse) Reset() {
 	*x = GetThreadEventsResponse{}
-	mi := &file_chatto_api_v1_room_timeline_proto_msgTypes[15]
+	mi := &file_chatto_api_v1_room_timeline_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1538,7 +897,7 @@ func (x *GetThreadEventsResponse) String() string {
 func (*GetThreadEventsResponse) ProtoMessage() {}
 
 func (x *GetThreadEventsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_room_timeline_proto_msgTypes[15]
+	mi := &file_chatto_api_v1_room_timeline_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1551,7 +910,7 @@ func (x *GetThreadEventsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetThreadEventsResponse.ProtoReflect.Descriptor instead.
 func (*GetThreadEventsResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_room_timeline_proto_rawDescGZIP(), []int{15}
+	return file_chatto_api_v1_room_timeline_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *GetThreadEventsResponse) GetPage() *RoomTimelinePage {
@@ -1582,7 +941,7 @@ type GetThreadEventsAroundRequest struct {
 
 func (x *GetThreadEventsAroundRequest) Reset() {
 	*x = GetThreadEventsAroundRequest{}
-	mi := &file_chatto_api_v1_room_timeline_proto_msgTypes[16]
+	mi := &file_chatto_api_v1_room_timeline_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1594,7 +953,7 @@ func (x *GetThreadEventsAroundRequest) String() string {
 func (*GetThreadEventsAroundRequest) ProtoMessage() {}
 
 func (x *GetThreadEventsAroundRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_room_timeline_proto_msgTypes[16]
+	mi := &file_chatto_api_v1_room_timeline_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1607,7 +966,7 @@ func (x *GetThreadEventsAroundRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetThreadEventsAroundRequest.ProtoReflect.Descriptor instead.
 func (*GetThreadEventsAroundRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_room_timeline_proto_rawDescGZIP(), []int{16}
+	return file_chatto_api_v1_room_timeline_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *GetThreadEventsAroundRequest) GetRoomId() string {
@@ -1651,7 +1010,7 @@ type GetThreadEventsAroundResponse struct {
 
 func (x *GetThreadEventsAroundResponse) Reset() {
 	*x = GetThreadEventsAroundResponse{}
-	mi := &file_chatto_api_v1_room_timeline_proto_msgTypes[17]
+	mi := &file_chatto_api_v1_room_timeline_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1663,7 +1022,7 @@ func (x *GetThreadEventsAroundResponse) String() string {
 func (*GetThreadEventsAroundResponse) ProtoMessage() {}
 
 func (x *GetThreadEventsAroundResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_room_timeline_proto_msgTypes[17]
+	mi := &file_chatto_api_v1_room_timeline_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1676,7 +1035,7 @@ func (x *GetThreadEventsAroundResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetThreadEventsAroundResponse.ProtoReflect.Descriptor instead.
 func (*GetThreadEventsAroundResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_room_timeline_proto_rawDescGZIP(), []int{17}
+	return file_chatto_api_v1_room_timeline_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *GetThreadEventsAroundResponse) GetPage() *RoomTimelinePage {
@@ -1697,80 +1056,24 @@ var File_chatto_api_v1_room_timeline_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_room_timeline_proto_rawDesc = "" +
 	"\n" +
-	"!chatto/api/v1/room_timeline.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a!chatto/api/v1/link_previews.proto\x1a\x19chatto/api/v1/users.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xab\x01\n" +
+	"!chatto/api/v1/room_timeline.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a!chatto/api/v1/message_types.proto\x1a\x19chatto/api/v1/users.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xab\x01\n" +
 	"\x14RoomTimelineIncludes\x12D\n" +
 	"\x05users\x18\x01 \x03(\v2..chatto.api.v1.RoomTimelineIncludes.UsersEntryR\x05users\x1aM\n" +
 	"\n" +
 	"UsersEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12)\n" +
-	"\x05value\x18\x02 \x01(\v2\x13.chatto.api.v1.UserR\x05value:\x028\x01\"c\n" +
-	"\x14RoomTimelineAssetUrl\x12\x10\n" +
-	"\x03url\x18\x01 \x01(\tR\x03url\x129\n" +
-	"\n" +
-	"expires_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\"\xb8\x01\n" +
-	"\x18RoomTimelineVideoVariant\x12\x18\n" +
-	"\aquality\x18\x01 \x01(\tR\aquality\x12\x14\n" +
-	"\x05width\x18\x02 \x01(\x05R\x05width\x12\x16\n" +
-	"\x06height\x18\x03 \x01(\x05R\x06height\x12\x12\n" +
-	"\x04size\x18\x04 \x01(\x03R\x04size\x12@\n" +
-	"\tasset_url\x18\x05 \x01(\v2#.chatto.api.v1.RoomTimelineAssetUrlR\bassetUrl\"\x9c\x03\n" +
-	"\x1bRoomTimelineVideoProcessing\x12H\n" +
-	"\x06status\x18\x01 \x01(\x0e20.chatto.api.v1.RoomTimelineVideoProcessingStatusR\x06status\x12\x1f\n" +
-	"\vduration_ms\x18\x02 \x01(\x03R\n" +
-	"durationMs\x12\x14\n" +
-	"\x05width\x18\x03 \x01(\x05R\x05width\x12\x16\n" +
-	"\x06height\x18\x04 \x01(\x05R\x06height\x12)\n" +
-	"\x10source_available\x18\x05 \x01(\bR\x0fsourceAvailable\x12\x1f\n" +
-	"\vreason_code\x18\x06 \x01(\tR\n" +
-	"reasonCode\x12S\n" +
-	"\x13thumbnail_asset_url\x18\a \x01(\v2#.chatto.api.v1.RoomTimelineAssetUrlR\x11thumbnailAssetUrl\x12C\n" +
-	"\bvariants\x18\b \x03(\v2'.chatto.api.v1.RoomTimelineVideoVariantR\bvariants\"\x83\x03\n" +
-	"\x16RoomTimelineAttachment\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1a\n" +
-	"\bfilename\x18\x02 \x01(\tR\bfilename\x12!\n" +
-	"\fcontent_type\x18\x03 \x01(\tR\vcontentType\x12\x14\n" +
-	"\x05width\x18\x04 \x01(\x05R\x05width\x12\x16\n" +
-	"\x06height\x18\x05 \x01(\x05R\x06height\x12@\n" +
-	"\tasset_url\x18\x06 \x01(\v2#.chatto.api.v1.RoomTimelineAssetUrlR\bassetUrl\x12S\n" +
-	"\x13thumbnail_asset_url\x18\a \x01(\v2#.chatto.api.v1.RoomTimelineAssetUrlR\x11thumbnailAssetUrl\x12U\n" +
-	"\x10video_processing\x18\b \x01(\v2*.chatto.api.v1.RoomTimelineVideoProcessingR\x0fvideoProcessing\"\x8d\x01\n" +
-	"\x14RoomTimelineReaction\x12\x14\n" +
-	"\x05emoji\x18\x01 \x01(\tR\x05emoji\x12\x14\n" +
-	"\x05count\x18\x02 \x01(\x05R\x05count\x12\x1f\n" +
-	"\vhas_reacted\x18\x03 \x01(\bR\n" +
-	"hasReacted\x12(\n" +
-	"\x10preview_user_ids\x18\x04 \x03(\tR\x0epreviewUserIds\"\xd4\a\n" +
-	"\x19RoomTimelineMessagePosted\x12\x17\n" +
-	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x17\n" +
-	"\x04body\x18\x02 \x01(\tH\x00R\x04body\x88\x01\x01\x12G\n" +
-	"\vattachments\x18\x04 \x03(\v2%.chatto.api.v1.RoomTimelineAttachmentR\vattachments\x12=\n" +
-	"\flink_preview\x18\x05 \x01(\v2\x1a.chatto.api.v1.LinkPreviewR\vlinkPreview\x129\n" +
-	"\n" +
-	"updated_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12\x1e\n" +
-	"\vin_reply_to\x18\a \x01(\tR\tinReplyTo\x12/\n" +
-	"\x14thread_root_event_id\x18\b \x01(\tR\x11threadRootEventId\x12'\n" +
-	"\x10echo_of_event_id\x18\t \x01(\tR\rechoOfEventId\x12A\n" +
-	"\x1eecho_from_thread_root_event_id\x18\n" +
-	" \x01(\tR\x19echoFromThreadRootEventId\x121\n" +
-	"\x15channel_echo_event_id\x18\v \x01(\tR\x12channelEchoEventId\x12\x1f\n" +
-	"\vreply_count\x18\f \x01(\x05R\n" +
-	"replyCount\x12>\n" +
-	"\rlast_reply_at\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\vlastReplyAt\x12L\n" +
-	"#thread_participant_preview_user_ids\x18\x0e \x03(\tR\x1fthreadParticipantPreviewUserIds\x12@\n" +
-	"\x1aviewer_is_following_thread\x18\x0f \x01(\bH\x01R\x17viewerIsFollowingThread\x88\x01\x01\x12A\n" +
-	"\treactions\x18\x11 \x03(\v2#.chatto.api.v1.RoomTimelineReactionR\treactions\x128\n" +
-	"\x18thread_participant_count\x18\x12 \x01(\x05R\x16threadParticipantCountB\a\n" +
-	"\x05_bodyB\x1d\n" +
-	"\x1b_viewer_is_following_threadJ\x04\b\x03\x10\x04J\x04\b\x10\x10\x11R\fbody_presentR\"viewer_is_following_thread_present\"0\n" +
+	"\x05value\x18\x02 \x01(\v2\x13.chatto.api.v1.UserR\x05value:\x028\x01\"0\n" +
 	"\x15RoomTimelineRoomEvent\x12\x17\n" +
-	"\aroom_id\x18\x01 \x01(\tR\x06roomId\"\xf4\x05\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\"E\n" +
+	"\x11RoomMessagePosted\x120\n" +
+	"\amessage\x18\x01 \x01(\v2\x16.chatto.api.v1.MessageR\amessage\"\xec\x05\n" +
 	"\x11RoomTimelineEvent\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x129\n" +
 	"\n" +
 	"created_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12\x19\n" +
-	"\bactor_id\x18\x03 \x01(\tR\aactorId\x12Q\n" +
+	"\bactor_id\x18\x03 \x01(\tR\aactorId\x12I\n" +
 	"\x0emessage_posted\x18\n" +
-	" \x01(\v2(.chatto.api.v1.RoomTimelineMessagePostedH\x00R\rmessagePosted\x12I\n" +
+	" \x01(\v2 .chatto.api.v1.RoomMessagePostedH\x00R\rmessagePosted\x12I\n" +
 	"\froom_created\x18\x14 \x01(\v2$.chatto.api.v1.RoomTimelineRoomEventH\x00R\vroomCreated\x12I\n" +
 	"\froom_updated\x18\x15 \x01(\v2$.chatto.api.v1.RoomTimelineRoomEventH\x00R\vroomUpdated\x12I\n" +
 	"\froom_deleted\x18\x16 \x01(\v2$.chatto.api.v1.RoomTimelineRoomEventH\x00R\vroomDeleted\x12K\n" +
@@ -1818,12 +1121,7 @@ const file_chatto_api_v1_room_timeline_proto_rawDesc = "" +
 	"\x05limit\x18\x04 \x01(\x05R\x05limit\"w\n" +
 	"\x1dGetThreadEventsAroundResponse\x123\n" +
 	"\x04page\x18\x01 \x01(\v2\x1f.chatto.api.v1.RoomTimelinePageR\x04page\x12!\n" +
-	"\ftarget_index\x18\x02 \x01(\x05R\vtargetIndex*\xf7\x01\n" +
-	"!RoomTimelineVideoProcessingStatus\x125\n" +
-	"1ROOM_TIMELINE_VIDEO_PROCESSING_STATUS_UNSPECIFIED\x10\x00\x124\n" +
-	"0ROOM_TIMELINE_VIDEO_PROCESSING_STATUS_PROCESSING\x10\x01\x123\n" +
-	"/ROOM_TIMELINE_VIDEO_PROCESSING_STATUS_COMPLETED\x10\x02\x120\n" +
-	",ROOM_TIMELINE_VIDEO_PROCESSING_STATUS_FAILED\x10\x03B\xad\x01\n" +
+	"\ftarget_index\x18\x02 \x01(\x05R\vtargetIndexB\xad\x01\n" +
 	"\x11com.chatto.api.v1B\x11RoomTimelineProtoP\x01Z/hmans.de/chatto/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
 
 var (
@@ -1838,69 +1136,50 @@ func file_chatto_api_v1_room_timeline_proto_rawDescGZIP() []byte {
 	return file_chatto_api_v1_room_timeline_proto_rawDescData
 }
 
-var file_chatto_api_v1_room_timeline_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_chatto_api_v1_room_timeline_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
+var file_chatto_api_v1_room_timeline_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
 var file_chatto_api_v1_room_timeline_proto_goTypes = []any{
-	(RoomTimelineVideoProcessingStatus)(0), // 0: chatto.api.v1.RoomTimelineVideoProcessingStatus
-	(*RoomTimelineIncludes)(nil),           // 1: chatto.api.v1.RoomTimelineIncludes
-	(*RoomTimelineAssetUrl)(nil),           // 2: chatto.api.v1.RoomTimelineAssetUrl
-	(*RoomTimelineVideoVariant)(nil),       // 3: chatto.api.v1.RoomTimelineVideoVariant
-	(*RoomTimelineVideoProcessing)(nil),    // 4: chatto.api.v1.RoomTimelineVideoProcessing
-	(*RoomTimelineAttachment)(nil),         // 5: chatto.api.v1.RoomTimelineAttachment
-	(*RoomTimelineReaction)(nil),           // 6: chatto.api.v1.RoomTimelineReaction
-	(*RoomTimelineMessagePosted)(nil),      // 7: chatto.api.v1.RoomTimelineMessagePosted
-	(*RoomTimelineRoomEvent)(nil),          // 8: chatto.api.v1.RoomTimelineRoomEvent
-	(*RoomTimelineEvent)(nil),              // 9: chatto.api.v1.RoomTimelineEvent
-	(*RoomTimelinePage)(nil),               // 10: chatto.api.v1.RoomTimelinePage
-	(*GetRoomEventsRequest)(nil),           // 11: chatto.api.v1.GetRoomEventsRequest
-	(*GetRoomEventsResponse)(nil),          // 12: chatto.api.v1.GetRoomEventsResponse
-	(*GetRoomEventsAroundRequest)(nil),     // 13: chatto.api.v1.GetRoomEventsAroundRequest
-	(*GetRoomEventsAroundResponse)(nil),    // 14: chatto.api.v1.GetRoomEventsAroundResponse
-	(*GetThreadEventsRequest)(nil),         // 15: chatto.api.v1.GetThreadEventsRequest
-	(*GetThreadEventsResponse)(nil),        // 16: chatto.api.v1.GetThreadEventsResponse
-	(*GetThreadEventsAroundRequest)(nil),   // 17: chatto.api.v1.GetThreadEventsAroundRequest
-	(*GetThreadEventsAroundResponse)(nil),  // 18: chatto.api.v1.GetThreadEventsAroundResponse
-	nil,                                    // 19: chatto.api.v1.RoomTimelineIncludes.UsersEntry
-	(*timestamppb.Timestamp)(nil),          // 20: google.protobuf.Timestamp
-	(*LinkPreview)(nil),                    // 21: chatto.api.v1.LinkPreview
-	(*User)(nil),                           // 22: chatto.api.v1.User
+	(*RoomTimelineIncludes)(nil),          // 0: chatto.api.v1.RoomTimelineIncludes
+	(*RoomTimelineRoomEvent)(nil),         // 1: chatto.api.v1.RoomTimelineRoomEvent
+	(*RoomMessagePosted)(nil),             // 2: chatto.api.v1.RoomMessagePosted
+	(*RoomTimelineEvent)(nil),             // 3: chatto.api.v1.RoomTimelineEvent
+	(*RoomTimelinePage)(nil),              // 4: chatto.api.v1.RoomTimelinePage
+	(*GetRoomEventsRequest)(nil),          // 5: chatto.api.v1.GetRoomEventsRequest
+	(*GetRoomEventsResponse)(nil),         // 6: chatto.api.v1.GetRoomEventsResponse
+	(*GetRoomEventsAroundRequest)(nil),    // 7: chatto.api.v1.GetRoomEventsAroundRequest
+	(*GetRoomEventsAroundResponse)(nil),   // 8: chatto.api.v1.GetRoomEventsAroundResponse
+	(*GetThreadEventsRequest)(nil),        // 9: chatto.api.v1.GetThreadEventsRequest
+	(*GetThreadEventsResponse)(nil),       // 10: chatto.api.v1.GetThreadEventsResponse
+	(*GetThreadEventsAroundRequest)(nil),  // 11: chatto.api.v1.GetThreadEventsAroundRequest
+	(*GetThreadEventsAroundResponse)(nil), // 12: chatto.api.v1.GetThreadEventsAroundResponse
+	nil,                                   // 13: chatto.api.v1.RoomTimelineIncludes.UsersEntry
+	(*Message)(nil),                       // 14: chatto.api.v1.Message
+	(*timestamppb.Timestamp)(nil),         // 15: google.protobuf.Timestamp
+	(*User)(nil),                          // 16: chatto.api.v1.User
 }
 var file_chatto_api_v1_room_timeline_proto_depIdxs = []int32{
-	19, // 0: chatto.api.v1.RoomTimelineIncludes.users:type_name -> chatto.api.v1.RoomTimelineIncludes.UsersEntry
-	20, // 1: chatto.api.v1.RoomTimelineAssetUrl.expires_at:type_name -> google.protobuf.Timestamp
-	2,  // 2: chatto.api.v1.RoomTimelineVideoVariant.asset_url:type_name -> chatto.api.v1.RoomTimelineAssetUrl
-	0,  // 3: chatto.api.v1.RoomTimelineVideoProcessing.status:type_name -> chatto.api.v1.RoomTimelineVideoProcessingStatus
-	2,  // 4: chatto.api.v1.RoomTimelineVideoProcessing.thumbnail_asset_url:type_name -> chatto.api.v1.RoomTimelineAssetUrl
-	3,  // 5: chatto.api.v1.RoomTimelineVideoProcessing.variants:type_name -> chatto.api.v1.RoomTimelineVideoVariant
-	2,  // 6: chatto.api.v1.RoomTimelineAttachment.asset_url:type_name -> chatto.api.v1.RoomTimelineAssetUrl
-	2,  // 7: chatto.api.v1.RoomTimelineAttachment.thumbnail_asset_url:type_name -> chatto.api.v1.RoomTimelineAssetUrl
-	4,  // 8: chatto.api.v1.RoomTimelineAttachment.video_processing:type_name -> chatto.api.v1.RoomTimelineVideoProcessing
-	5,  // 9: chatto.api.v1.RoomTimelineMessagePosted.attachments:type_name -> chatto.api.v1.RoomTimelineAttachment
-	21, // 10: chatto.api.v1.RoomTimelineMessagePosted.link_preview:type_name -> chatto.api.v1.LinkPreview
-	20, // 11: chatto.api.v1.RoomTimelineMessagePosted.updated_at:type_name -> google.protobuf.Timestamp
-	20, // 12: chatto.api.v1.RoomTimelineMessagePosted.last_reply_at:type_name -> google.protobuf.Timestamp
-	6,  // 13: chatto.api.v1.RoomTimelineMessagePosted.reactions:type_name -> chatto.api.v1.RoomTimelineReaction
-	20, // 14: chatto.api.v1.RoomTimelineEvent.created_at:type_name -> google.protobuf.Timestamp
-	7,  // 15: chatto.api.v1.RoomTimelineEvent.message_posted:type_name -> chatto.api.v1.RoomTimelineMessagePosted
-	8,  // 16: chatto.api.v1.RoomTimelineEvent.room_created:type_name -> chatto.api.v1.RoomTimelineRoomEvent
-	8,  // 17: chatto.api.v1.RoomTimelineEvent.room_updated:type_name -> chatto.api.v1.RoomTimelineRoomEvent
-	8,  // 18: chatto.api.v1.RoomTimelineEvent.room_deleted:type_name -> chatto.api.v1.RoomTimelineRoomEvent
-	8,  // 19: chatto.api.v1.RoomTimelineEvent.room_archived:type_name -> chatto.api.v1.RoomTimelineRoomEvent
-	8,  // 20: chatto.api.v1.RoomTimelineEvent.room_unarchived:type_name -> chatto.api.v1.RoomTimelineRoomEvent
-	8,  // 21: chatto.api.v1.RoomTimelineEvent.user_joined_room:type_name -> chatto.api.v1.RoomTimelineRoomEvent
-	8,  // 22: chatto.api.v1.RoomTimelineEvent.user_left_room:type_name -> chatto.api.v1.RoomTimelineRoomEvent
-	9,  // 23: chatto.api.v1.RoomTimelinePage.events:type_name -> chatto.api.v1.RoomTimelineEvent
-	1,  // 24: chatto.api.v1.RoomTimelinePage.includes:type_name -> chatto.api.v1.RoomTimelineIncludes
-	10, // 25: chatto.api.v1.GetRoomEventsResponse.page:type_name -> chatto.api.v1.RoomTimelinePage
-	10, // 26: chatto.api.v1.GetRoomEventsAroundResponse.page:type_name -> chatto.api.v1.RoomTimelinePage
-	10, // 27: chatto.api.v1.GetThreadEventsResponse.page:type_name -> chatto.api.v1.RoomTimelinePage
-	10, // 28: chatto.api.v1.GetThreadEventsAroundResponse.page:type_name -> chatto.api.v1.RoomTimelinePage
-	22, // 29: chatto.api.v1.RoomTimelineIncludes.UsersEntry.value:type_name -> chatto.api.v1.User
-	30, // [30:30] is the sub-list for method output_type
-	30, // [30:30] is the sub-list for method input_type
-	30, // [30:30] is the sub-list for extension type_name
-	30, // [30:30] is the sub-list for extension extendee
-	0,  // [0:30] is the sub-list for field type_name
+	13, // 0: chatto.api.v1.RoomTimelineIncludes.users:type_name -> chatto.api.v1.RoomTimelineIncludes.UsersEntry
+	14, // 1: chatto.api.v1.RoomMessagePosted.message:type_name -> chatto.api.v1.Message
+	15, // 2: chatto.api.v1.RoomTimelineEvent.created_at:type_name -> google.protobuf.Timestamp
+	2,  // 3: chatto.api.v1.RoomTimelineEvent.message_posted:type_name -> chatto.api.v1.RoomMessagePosted
+	1,  // 4: chatto.api.v1.RoomTimelineEvent.room_created:type_name -> chatto.api.v1.RoomTimelineRoomEvent
+	1,  // 5: chatto.api.v1.RoomTimelineEvent.room_updated:type_name -> chatto.api.v1.RoomTimelineRoomEvent
+	1,  // 6: chatto.api.v1.RoomTimelineEvent.room_deleted:type_name -> chatto.api.v1.RoomTimelineRoomEvent
+	1,  // 7: chatto.api.v1.RoomTimelineEvent.room_archived:type_name -> chatto.api.v1.RoomTimelineRoomEvent
+	1,  // 8: chatto.api.v1.RoomTimelineEvent.room_unarchived:type_name -> chatto.api.v1.RoomTimelineRoomEvent
+	1,  // 9: chatto.api.v1.RoomTimelineEvent.user_joined_room:type_name -> chatto.api.v1.RoomTimelineRoomEvent
+	1,  // 10: chatto.api.v1.RoomTimelineEvent.user_left_room:type_name -> chatto.api.v1.RoomTimelineRoomEvent
+	3,  // 11: chatto.api.v1.RoomTimelinePage.events:type_name -> chatto.api.v1.RoomTimelineEvent
+	0,  // 12: chatto.api.v1.RoomTimelinePage.includes:type_name -> chatto.api.v1.RoomTimelineIncludes
+	4,  // 13: chatto.api.v1.GetRoomEventsResponse.page:type_name -> chatto.api.v1.RoomTimelinePage
+	4,  // 14: chatto.api.v1.GetRoomEventsAroundResponse.page:type_name -> chatto.api.v1.RoomTimelinePage
+	4,  // 15: chatto.api.v1.GetThreadEventsResponse.page:type_name -> chatto.api.v1.RoomTimelinePage
+	4,  // 16: chatto.api.v1.GetThreadEventsAroundResponse.page:type_name -> chatto.api.v1.RoomTimelinePage
+	16, // 17: chatto.api.v1.RoomTimelineIncludes.UsersEntry.value:type_name -> chatto.api.v1.User
+	18, // [18:18] is the sub-list for method output_type
+	18, // [18:18] is the sub-list for method input_type
+	18, // [18:18] is the sub-list for extension type_name
+	18, // [18:18] is the sub-list for extension extendee
+	0,  // [0:18] is the sub-list for field type_name
 }
 
 func init() { file_chatto_api_v1_room_timeline_proto_init() }
@@ -1908,10 +1187,9 @@ func file_chatto_api_v1_room_timeline_proto_init() {
 	if File_chatto_api_v1_room_timeline_proto != nil {
 		return
 	}
-	file_chatto_api_v1_link_previews_proto_init()
+	file_chatto_api_v1_message_types_proto_init()
 	file_chatto_api_v1_users_proto_init()
-	file_chatto_api_v1_room_timeline_proto_msgTypes[6].OneofWrappers = []any{}
-	file_chatto_api_v1_room_timeline_proto_msgTypes[8].OneofWrappers = []any{
+	file_chatto_api_v1_room_timeline_proto_msgTypes[3].OneofWrappers = []any{
 		(*RoomTimelineEvent_MessagePosted)(nil),
 		(*RoomTimelineEvent_RoomCreated)(nil),
 		(*RoomTimelineEvent_RoomUpdated)(nil),
@@ -1921,11 +1199,11 @@ func file_chatto_api_v1_room_timeline_proto_init() {
 		(*RoomTimelineEvent_UserJoinedRoom)(nil),
 		(*RoomTimelineEvent_UserLeftRoom)(nil),
 	}
-	file_chatto_api_v1_room_timeline_proto_msgTypes[10].OneofWrappers = []any{
+	file_chatto_api_v1_room_timeline_proto_msgTypes[5].OneofWrappers = []any{
 		(*GetRoomEventsRequest_Before)(nil),
 		(*GetRoomEventsRequest_After)(nil),
 	}
-	file_chatto_api_v1_room_timeline_proto_msgTypes[14].OneofWrappers = []any{
+	file_chatto_api_v1_room_timeline_proto_msgTypes[9].OneofWrappers = []any{
 		(*GetThreadEventsRequest_Before)(nil),
 		(*GetThreadEventsRequest_After)(nil),
 	}
@@ -1934,14 +1212,13 @@ func file_chatto_api_v1_room_timeline_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_api_v1_room_timeline_proto_rawDesc), len(file_chatto_api_v1_room_timeline_proto_rawDesc)),
-			NumEnums:      1,
-			NumMessages:   19,
+			NumEnums:      0,
+			NumMessages:   14,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
 		GoTypes:           file_chatto_api_v1_room_timeline_proto_goTypes,
 		DependencyIndexes: file_chatto_api_v1_room_timeline_proto_depIdxs,
-		EnumInfos:         file_chatto_api_v1_room_timeline_proto_enumTypes,
 		MessageInfos:      file_chatto_api_v1_room_timeline_proto_msgTypes,
 	}.Build()
 	File_chatto_api_v1_room_timeline_proto = out.File

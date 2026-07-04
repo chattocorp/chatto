@@ -93,7 +93,7 @@ Result of creating a message.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `event` | [`RoomTimelineEvent`](/reference/connectrpc-api/types/#chatto-api-v1-RoomTimelineEvent) | Renderable timeline event for the created message. |
+| `message` | [`Message`](/reference/connectrpc-api/types/#chatto-api-v1-Message) | Renderable message created by the request. |
 
 
 <a id="chatto-api-v1-MessageService-UpdateMessage"></a>
@@ -131,7 +131,7 @@ Result of editing a message.
 | Field | Type | Description |
 | --- | --- | --- |
 | `updated` | `bool` | True when the edit was accepted. |
-| `event` | [`RoomTimelineEvent`](/reference/connectrpc-api/types/#chatto-api-v1-RoomTimelineEvent) | Renderable timeline event after the edit. |
+| `message` | [`Message`](/reference/connectrpc-api/types/#chatto-api-v1-Message) | Renderable message after the edit. |
 
 
 <a id="chatto-api-v1-MessageService-DeleteMessage"></a>
@@ -265,11 +265,11 @@ Request to read one visible message.
 
 #### Result: GetMessageResponse
 
-Response containing one renderable message event.
+Response containing one renderable message.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `event` | [`RoomTimelineEvent`](/reference/connectrpc-api/types/#chatto-api-v1-RoomTimelineEvent) | Renderable timeline event for the message. |
+| `message` | [`Message`](/reference/connectrpc-api/types/#chatto-api-v1-Message) | Renderable message. |
 
 
 <a id="chatto-api-v1-MessageService-BatchGetMessages"></a>
@@ -301,11 +301,11 @@ Request to read many visible messages in one room.
 
 #### Result: BatchGetMessagesResponse
 
-Response containing renderable message events.
+Response containing renderable messages.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `events` | repeated [`RoomTimelineEvent`](/reference/connectrpc-api/types/#chatto-api-v1-RoomTimelineEvent) | Renderable timeline events in first-seen request order. |
+| `messages` | repeated [`Message`](/reference/connectrpc-api/types/#chatto-api-v1-Message) | Renderable messages in first-seen request order. |
 
 
 <a id="chatto-api-v1-MessageService-AddReaction"></a>
@@ -345,7 +345,7 @@ Result of adding a reaction.
 | Field | Type | Description |
 | --- | --- | --- |
 | `added` | `bool` | True when the reaction was newly added, false when it already existed. |
-| `reaction` | [`RoomTimelineReaction`](/reference/connectrpc-api/types/#chatto-api-v1-RoomTimelineReaction) | Updated aggregate reaction state for this emoji. |
+| `reaction` | [`MessageReaction`](/reference/connectrpc-api/types/#chatto-api-v1-MessageReaction) | Updated aggregate reaction state for this emoji. |
 
 
 <a id="chatto-api-v1-MessageService-RemoveReaction"></a>
@@ -385,4 +385,4 @@ Result of removing a reaction.
 | Field | Type | Description |
 | --- | --- | --- |
 | `removed` | `bool` | True when the reaction was removed, false when it did not exist. |
-| `reaction` | [`RoomTimelineReaction`](/reference/connectrpc-api/types/#chatto-api-v1-RoomTimelineReaction) | Updated aggregate reaction state for this emoji. Empty when no reactions for the emoji remain. |
+| `reaction` | [`MessageReaction`](/reference/connectrpc-api/types/#chatto-api-v1-MessageReaction) | Updated aggregate reaction state for this emoji. Empty when no reactions for the emoji remain. |

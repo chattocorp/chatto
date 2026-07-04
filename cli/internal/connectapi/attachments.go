@@ -99,14 +99,14 @@ func (s *assetService) BatchGetAssets(ctx context.Context, req *connect.Request[
 	}
 	thumbnail := assetThumbnailOptions(req.Msg.Thumbnail)
 	mapper := attachmentMapper{api: s.api}
-	out := make([]*apiv1.RoomTimelineAttachment, 0, len(assets))
+	out := make([]*apiv1.MessageAttachment, 0, len(assets))
 	for _, asset := range assets {
 		out = append(out, mapper.attachment(asset, caller.UserID, thumbnail))
 	}
 	return connect.NewResponse(&apiv1.BatchGetAssetsResponse{Assets: out}), nil
 }
 
-func (s *attachmentMapper) attachment(attachment *corev1.Attachment, viewerID string, thumbnail attachmentThumbnailRequest) *apiv1.RoomTimelineAttachment {
+func (s *attachmentMapper) attachment(attachment *corev1.Attachment, viewerID string, thumbnail attachmentThumbnailRequest) *apiv1.MessageAttachment {
 	if attachment == nil {
 		return nil
 	}
@@ -114,7 +114,7 @@ func (s *attachmentMapper) attachment(attachment *corev1.Attachment, viewerID st
 		api:      s.api,
 		viewerID: viewerID,
 	}
-	return &apiv1.RoomTimelineAttachment{
+	return &apiv1.MessageAttachment{
 		Id:                attachment.Id,
 		Filename:          attachment.Filename,
 		ContentType:       attachment.ContentType,

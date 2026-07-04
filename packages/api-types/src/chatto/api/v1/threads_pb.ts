@@ -5,8 +5,9 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
-import { RoomTimelineEvent, RoomTimelineIncludes } from "./room_timeline_pb.js";
+import { Message as Message$1 } from "./message_types_pb.js";
 import { PageInfo, PageRequest } from "./pagination_pb.js";
+import { RoomTimelineIncludes } from "./room_timeline_pb.js";
 
 /**
  * Current follow state for one thread and viewer.
@@ -289,11 +290,11 @@ export class FollowedThread extends Message<FollowedThread> {
   threadRootEventId = "";
 
   /**
-   * Renderable root message event, when the root is still visible.
+   * Renderable root message, when the root is still visible.
    *
-   * @generated from field: chatto.api.v1.RoomTimelineEvent root_message = 4;
+   * @generated from field: chatto.api.v1.Message root_message = 4;
    */
-  rootMessage?: RoomTimelineEvent;
+  rootMessage?: Message$1;
 
   /**
    * Number of replies in the thread.
@@ -327,7 +328,7 @@ export class FollowedThread extends Message<FollowedThread> {
     { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "room_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "thread_root_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 4, name: "root_message", kind: "message", T: RoomTimelineEvent },
+    { no: 4, name: "root_message", kind: "message", T: Message$1 },
     { no: 5, name: "reply_count", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
     { no: 6, name: "last_reply_at", kind: "message", T: Timestamp },
     { no: 7, name: "has_unread", kind: "scalar", T: 8 /* ScalarType.BOOL */ },

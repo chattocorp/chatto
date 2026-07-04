@@ -3,7 +3,7 @@ syntax = "proto3";
 package chatto.api.v1;
 
 import "buf/validate/validate.proto";
-import "chatto/api/v1/link_previews.proto";
+import "chatto/api/v1/message_types.proto";
 import "chatto/api/v1/users.proto";
 import "google/protobuf/timestamp.proto";
 
@@ -15,158 +15,16 @@ message RoomTimelineIncludes {
   map<string, User> users = 1;
 }
 
-// Time-limited URL for a room timeline asset.
-//
-// Clients should expect these URLs to expire and refresh the timeline data when
-// an asset URL is no longer usable.
-message RoomTimelineAssetUrl {
-  // Signed asset URL.
-  string url = 1;
-  // Time when the signed URL expires.
-  google.protobuf.Timestamp expires_at = 2;
-}
-
-// Processing state for a timeline video attachment.
-enum RoomTimelineVideoProcessingStatus {
-  // The processing status was not specified.
-  ROOM_TIMELINE_VIDEO_PROCESSING_STATUS_UNSPECIFIED = 0;
-  // Video processing is still running.
-  ROOM_TIMELINE_VIDEO_PROCESSING_STATUS_PROCESSING = 1;
-  // Video processing completed successfully.
-  ROOM_TIMELINE_VIDEO_PROCESSING_STATUS_COMPLETED = 2;
-  // Video processing failed.
-  ROOM_TIMELINE_VIDEO_PROCESSING_STATUS_FAILED = 3;
-}
-
-// One transcoded video rendition.
-message RoomTimelineVideoVariant {
-  // Quality label for the rendition.
-  string quality = 1;
-  // Video width in pixels.
-  int32 width = 2;
-  // Video height in pixels.
-  int32 height = 3;
-  // Rendition size in bytes.
-  int64 size = 4;
-  // Signed URL for the rendition.
-  RoomTimelineAssetUrl asset_url = 5;
-}
-
-// Processing metadata for a video attachment.
-//
-// Clients can use this object to show upload/transcoding progress and decide
-// whether to play a processed variant, show a thumbnail, or display a failure
-// state.
-message RoomTimelineVideoProcessing {
-  // Current processing status.
-  RoomTimelineVideoProcessingStatus status = 1;
-  // Video duration in milliseconds.
-  int64 duration_ms = 2;
-  // Source video width in pixels.
-  int32 width = 3;
-  // Source video height in pixels.
-  int32 height = 4;
-  // True when the original source asset is currently available.
-  bool source_available = 5;
-  // Stable reason code for a failed or incomplete processing state.
-  string reason_code = 6;
-  // Signed URL for the generated thumbnail, when available.
-  RoomTimelineAssetUrl thumbnail_asset_url = 7;
-  // Available transcoded renditions.
-  repeated RoomTimelineVideoVariant variants = 8;
-}
-
-// Attachment metadata included with a posted message.
-//
-// Image and video dimensions are best-effort metadata for layout. Asset URLs can
-// be absent while processing is pending or when the source is unavailable.
-message RoomTimelineAttachment {
-  // Stable attachment ID.
-  string id = 1;
-  // Original filename.
-  string filename = 2;
-  // MIME content type.
-  string content_type = 3;
-  // Image or video width in pixels, when known.
-  int32 width = 4;
-  // Image or video height in pixels, when known.
-  int32 height = 5;
-  // Signed URL for the original asset, when available.
-  RoomTimelineAssetUrl asset_url = 6;
-  // Signed URL for a thumbnail image, when available.
-  RoomTimelineAssetUrl thumbnail_asset_url = 7;
-  // Video-specific processing metadata, when this attachment is a video.
-  RoomTimelineVideoProcessing video_processing = 8;
-}
-
-// Aggregated reaction state for one emoji on one event.
-//
-// This state is scoped to the current event and includes whether the current
-// user has reacted with the same emoji.
-message RoomTimelineReaction {
-  // Emoji or reaction key.
-  string emoji = 1;
-  // Number of users who reacted with this emoji.
-  int32 count = 2;
-  // True when the current user reacted with this emoji.
-  bool has_reacted = 3;
-  // Preview of up to five user IDs that reacted with this emoji.
-  repeated string preview_user_ids = 4;
-}
-
-// Payload for a message-posted timeline event.
-//
-// The same shape is used for top-level room messages, thread replies, and thread
-// echo entries. Thread-related fields let clients render reply counts, thread
-// participants, and follow state without additional per-message requests.
-message RoomTimelineMessagePosted {
-  reserved 3;
-  reserved 16;
-  reserved "body_present";
-  reserved "viewer_is_following_thread_present";
-
-  // Room containing the message.
-  string room_id = 1;
-  // Message body text, when available. A present empty string is distinct from
-  // an absent body.
-  optional string body = 2;
-  // Attachments sent with the message.
-  repeated RoomTimelineAttachment attachments = 4;
-  // Link preview extracted for the message, when available.
-  LinkPreview link_preview = 5;
-  // Time when the message was last edited.
-  google.protobuf.Timestamp updated_at = 6;
-  // Event ID this message directly replies to, when this is a reply.
-  string in_reply_to = 7;
-  // Event ID of the root message for the thread this message belongs to.
-  string thread_root_event_id = 8;
-  // Event ID this event echoes into the current view, when applicable. Echoes
-  // allow thread activity to appear in another timeline context.
-  string echo_of_event_id = 9;
-  // Thread root ID of the echoed event, when applicable.
-  string echo_from_thread_root_event_id = 10;
-  // Channel timeline event ID for a thread echo, when applicable.
-  string channel_echo_event_id = 11;
-  // Number of replies in this message's thread.
-  int32 reply_count = 12;
-  // Creation time of the most recent reply in this message's thread.
-  google.protobuf.Timestamp last_reply_at = 13;
-  // Preview of up to five user IDs that have participated in this message's
-  // thread.
-  repeated string thread_participant_preview_user_ids = 14;
-  // Whether the current user follows this message's thread, when known.
-  optional bool viewer_is_following_thread = 15;
-  // Reaction summaries for this message.
-  repeated RoomTimelineReaction reactions = 17;
-  // Total number of distinct users that have participated in this message's
-  // thread.
-  int32 thread_participant_count = 18;
-}
-
 // Payload for room lifecycle and membership timeline events.
 message RoomTimelineRoomEvent {
   // Room affected by the event.
   string room_id = 1;
+}
+
+// Payload for a message-posted timeline event.
+message RoomMessagePosted {
+  // Renderable message created by this timeline event.
+  Message message = 1;
 }
 
 // One event in a room or thread timeline.
@@ -183,7 +41,7 @@ message RoomTimelineEvent {
   // Concrete event payload.
   oneof event {
     // A message was posted.
-    RoomTimelineMessagePosted message_posted = 10;
+    RoomMessagePosted message_posted = 10;
     // The room was created.
     RoomTimelineRoomEvent room_created = 20;
     // The room metadata was updated.

@@ -5,7 +5,7 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
-import { RoomTimelineAttachment } from "./room_timeline_pb.js";
+import { MessageAttachment } from "./message_types_pb.js";
 
 /**
  * Fit mode used when generating transformed asset thumbnails.
@@ -107,9 +107,9 @@ export class RoomAttachmentListItem extends Message<RoomAttachmentListItem> {
   /**
    * Attachment metadata and signed URLs.
    *
-   * @generated from field: chatto.api.v1.RoomTimelineAttachment attachment = 1;
+   * @generated from field: chatto.api.v1.MessageAttachment attachment = 1;
    */
-  attachment?: RoomTimelineAttachment;
+  attachment?: MessageAttachment;
 
   /**
    * Message event containing the attachment.
@@ -140,7 +140,7 @@ export class RoomAttachmentListItem extends Message<RoomAttachmentListItem> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.RoomAttachmentListItem";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "attachment", kind: "message", T: RoomTimelineAttachment },
+    { no: 1, name: "attachment", kind: "message", T: MessageAttachment },
     { no: 2, name: "message_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "thread_root_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 4, name: "created_at", kind: "message", T: Timestamp },
@@ -229,9 +229,9 @@ export class GetAssetResponse extends Message<GetAssetResponse> {
   /**
    * Asset metadata and signed URLs.
    *
-   * @generated from field: chatto.api.v1.RoomTimelineAttachment asset = 1;
+   * @generated from field: chatto.api.v1.MessageAttachment asset = 1;
    */
-  asset?: RoomTimelineAttachment;
+  asset?: MessageAttachment;
 
   constructor(data?: PartialMessage<GetAssetResponse>) {
     super();
@@ -241,7 +241,7 @@ export class GetAssetResponse extends Message<GetAssetResponse> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.GetAssetResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "asset", kind: "message", T: RoomTimelineAttachment },
+    { no: 1, name: "asset", kind: "message", T: MessageAttachment },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetAssetResponse {
@@ -327,9 +327,9 @@ export class BatchGetAssetsResponse extends Message<BatchGetAssetsResponse> {
   /**
    * Assets in first-seen request order.
    *
-   * @generated from field: repeated chatto.api.v1.RoomTimelineAttachment assets = 1;
+   * @generated from field: repeated chatto.api.v1.MessageAttachment assets = 1;
    */
-  assets: RoomTimelineAttachment[] = [];
+  assets: MessageAttachment[] = [];
 
   constructor(data?: PartialMessage<BatchGetAssetsResponse>) {
     super();
@@ -339,7 +339,7 @@ export class BatchGetAssetsResponse extends Message<BatchGetAssetsResponse> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.BatchGetAssetsResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "assets", kind: "message", T: RoomTimelineAttachment, repeated: true },
+    { no: 1, name: "assets", kind: "message", T: MessageAttachment, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BatchGetAssetsResponse {

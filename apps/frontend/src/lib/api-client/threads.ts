@@ -2,7 +2,7 @@ import { authHeaders, createChattoClient, handleAuthError } from "./connect.js";
 import { ThreadService } from "@chatto/api-types/api/v1/threads_connect";
 import type { User } from "@chatto/api-types/api/v1/users_pb";
 import type { RawEvent } from "./events.js";
-import { roomTimelineEventToRawEvent } from "./roomTimeline.js";
+import { messageToRawEvent } from "./roomTimeline.js";
 
 export type ConnectAPIConfig = {
   serverId?: string;
@@ -58,7 +58,7 @@ export function createThreadAPI(config: ConnectAPIConfig) {
             roomName: thread.roomName,
             threadRootEventId: thread.threadRootEventId,
             rootMessage: thread.rootMessage
-              ? roomTimelineEventToRawEvent(
+              ? messageToRawEvent(
                   thread.rootMessage,
                   users as Record<string, User>,
                 )

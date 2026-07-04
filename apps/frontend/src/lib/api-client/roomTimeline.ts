@@ -11,16 +11,16 @@ import { MessageService } from "@chatto/api-types/api/v1/messages_connect";
 import { RoomService } from "@chatto/api-types/api/v1/rooms_connect";
 import { ThreadService } from "@chatto/api-types/api/v1/threads_connect";
 import { createUserAPI } from "./users.js";
-import {
-  RoomTimelinePage,
-  RoomTimelineVideoProcessingStatus,
-} from "@chatto/api-types/api/v1/room_timeline_pb";
+import { RoomTimelinePage } from "@chatto/api-types/api/v1/room_timeline_pb";
 import type { LinkPreview } from "@chatto/api-types/api/v1/link_previews_pb";
+import { MessageVideoProcessingStatus } from "@chatto/api-types/api/v1/message_types_pb";
 import type {
-  RoomTimelineAssetUrl,
+  Message,
+  MessageAssetUrl,
+  MessageVideoProcessing,
+} from "@chatto/api-types/api/v1/message_types_pb";
+import type {
   RoomTimelineEvent,
-  RoomTimelineMessagePosted,
-  RoomTimelineVideoProcessing,
 } from "@chatto/api-types/api/v1/room_timeline_pb";
 import type { User } from "@chatto/api-types/api/v1/users_pb";
 
@@ -115,12 +115,12 @@ export function createRoomTimelineAPI(
           { roomId, eventId },
           { headers: headers() },
         );
-        const users = await timelineUsersForEvents(
+        const users = await timelineUsersForMessages(
           config,
-          response.event ? [response.event] : [],
+          response.message ? [response.message] : [],
         );
-        return response.event
-          ? roomTimelineEventToRawEvent(response.event, users)
+        return response.message
+          ? messageToRawEvent(response.message, users)
           : null;
       } catch (err) {
         return handleAuthError(config, err);
@@ -169,7 +169,22 @@ export async function timelineUsersForEvents(
   config: RoomTimelineAPIConfig,
   events: RoomTimelineEvent[],
 ): Promise<Record<string, User>> {
-  const userIds = timelineUserIds(events);
+  const userIds = messageUserIds(messagesFromTimelineEvents(events));
+  return batchTimelineUsers(config, userIds);
+}
+
+export async function timelineUsersForMessages(
+  config: RoomTimelineAPIConfig,
+  messages: Message[],
+): Promise<Record<string, User>> {
+  const userIds = messageUserIds(messages);
+  return batchTimelineUsers(config, userIds);
+}
+
+async function batchTimelineUsers(
+  config: RoomTimelineAPIConfig,
+  userIds: string[],
+): Promise<Record<string, User>> {
   if (userIds.length === 0) return {};
 
   try {
@@ -191,15 +206,23 @@ export async function timelineUsersForEvents(
   }
 }
 
-function timelineUserIds(events: RoomTimelineEvent[]): string[] {
-  const ids = new Set<string>();
+function messagesFromTimelineEvents(events: RoomTimelineEvent[]): Message[] {
+  const messages: Message[] = [];
   for (const event of events) {
-    if (event.actorId) ids.add(event.actorId);
     if (event.event.case !== "messagePosted") continue;
-    for (const userId of event.event.value.threadParticipantPreviewUserIds) {
+    if (event.event.value.message) messages.push(event.event.value.message);
+  }
+  return messages;
+}
+
+function messageUserIds(messages: Message[]): string[] {
+  const ids = new Set<string>();
+  for (const message of messages) {
+    if (message.actorId) ids.add(message.actorId);
+    for (const userId of message.threadParticipantPreviewUserIds) {
       if (userId) ids.add(userId);
     }
-    for (const reaction of event.event.value.reactions) {
+    for (const reaction of message.reactions) {
       for (const userId of reaction.previewUserIds) {
         if (userId) ids.add(userId);
       }
@@ -265,14 +288,30 @@ export function roomTimelineEventToRawEvent(
   } as unknown as RawEvent;
 }
 
+export function messageToRawEvent(
+  message: Message,
+  users: Record<string, User>,
+): RawEvent | null {
+  const payload = messagePostedPayload(message, users);
+  if (!payload) return null;
+  return {
+    id: message.id,
+    createdAt: timestampToISO(message.createdAt),
+    actorId: message.actorId,
+    actor: userView(message.actorId, users),
+    event: payload,
+  } as unknown as RawEvent;
+}
+
 function timelinePayload(
   event: RoomTimelineEvent,
   users: Record<string, User>,
 ): RoomEventView["event"] | null {
   switch (event.event.case) {
     case "messagePosted":
+      if (!event.event.value.message) return null;
       return messagePostedPayload(
-        event.event.value,
+        event.event.value.message,
         users,
       ) as RoomEventView["event"];
     case "roomCreated":
@@ -316,7 +355,7 @@ function timelinePayload(
 }
 
 function messagePostedPayload(
-  message: RoomTimelineMessagePosted,
+  message: Message,
   users: Record<string, User>,
 ) {
   return {
@@ -387,9 +426,9 @@ function attachmentView(attachment: {
   contentType: string;
   width: number;
   height: number;
-  assetUrl?: RoomTimelineAssetUrl;
-  thumbnailAssetUrl?: RoomTimelineAssetUrl;
-  videoProcessing?: RoomTimelineVideoProcessing;
+  assetUrl?: MessageAssetUrl;
+  thumbnailAssetUrl?: MessageAssetUrl;
+  videoProcessing?: MessageVideoProcessing;
 }) {
   return {
     id: attachment.id,
@@ -403,7 +442,7 @@ function attachmentView(attachment: {
   };
 }
 
-function videoProcessingView(processing?: RoomTimelineVideoProcessing) {
+function videoProcessingView(processing?: MessageVideoProcessing) {
   if (!processing) return null;
   const status = videoProcessingStatusView(processing.status);
   if (!status) return null;
@@ -426,13 +465,13 @@ function videoProcessingView(processing?: RoomTimelineVideoProcessing) {
   };
 }
 
-function videoProcessingStatusView(status: RoomTimelineVideoProcessingStatus) {
+function videoProcessingStatusView(status: MessageVideoProcessingStatus) {
   switch (status) {
-    case RoomTimelineVideoProcessingStatus.PROCESSING:
+    case MessageVideoProcessingStatus.PROCESSING:
       return "PROCESSING";
-    case RoomTimelineVideoProcessingStatus.COMPLETED:
+    case MessageVideoProcessingStatus.COMPLETED:
       return "COMPLETED";
-    case RoomTimelineVideoProcessingStatus.FAILED:
+    case MessageVideoProcessingStatus.FAILED:
       return "FAILED";
     default:
       return null;
@@ -452,7 +491,7 @@ function linkPreviewView(preview?: LinkPreview) {
   };
 }
 
-function assetUrlView(assetUrl?: RoomTimelineAssetUrl) {
+function assetUrlView(assetUrl?: MessageAssetUrl) {
   if (!assetUrl) return null;
   return {
     url: assetUrl.url,
