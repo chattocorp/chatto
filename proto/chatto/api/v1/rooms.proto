@@ -173,8 +173,36 @@ message LeaveRoomResponse {
   bool left = 1;
 }
 
+// Request to add a user to a channel room.
+message AddMemberRequest {
+  // Required. Channel room to add the user to.
+  string room_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Required. User to add as an explicit room member.
+  string user_id = 2 [(buf.validate.field).string.min_len = 1];
+}
+
+// Result of adding a user to a room.
+message AddMemberResponse {
+  // Added room member.
+  DirectoryMember member = 1;
+}
+
+// Request to remove a user from a channel room.
+message RemoveMemberRequest {
+  // Required. Channel room to remove the user from.
+  string room_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Required. User to remove from the room's explicit members.
+  string user_id = 2 [(buf.validate.field).string.min_len = 1];
+}
+
+// Result of removing a user from a room.
+message RemoveMemberResponse {
+  // True when an explicit room membership was removed by this call.
+  bool removed = 1;
+}
+
 // Request to ban a member from a channel room.
-message BanRoomMemberRequest {
+message BanMemberRequest {
   // Required. Channel room to ban the user from.
   string room_id = 1 [(buf.validate.field).string.min_len = 1];
   // Required. User to ban from the room.
@@ -189,13 +217,13 @@ message BanRoomMemberRequest {
 }
 
 // Result of banning a room member.
-message BanRoomMemberResponse {
+message BanMemberResponse {
   // True when the ban operation completed.
   bool banned = 1;
 }
 
 // Request to remove a channel room ban.
-message UnbanRoomMemberRequest {
+message UnbanMemberRequest {
   // Required. Channel room to unban the user from.
   string room_id = 1 [(buf.validate.field).string.min_len = 1];
   // Required. User to unban.
@@ -208,7 +236,7 @@ message UnbanRoomMemberRequest {
 }
 
 // Result of removing a room ban.
-message UnbanRoomMemberResponse {
+message UnbanMemberResponse {
   // True when the unban operation completed.
   bool unbanned = 1;
 }
@@ -238,7 +266,7 @@ message RoomBan {
 }
 
 // Request to list active room bans.
-message ListRoomBansRequest {
+message ListBansRequest {
   // Optional channel room filter. Empty lists active bans across all rooms.
   string room_id = 1;
   // Page request. Defaults are applied when absent or limit is zero.
@@ -246,7 +274,7 @@ message ListRoomBansRequest {
 }
 
 // Active room bans visible to the current moderator.
-message ListRoomBansResponse {
+message ListBansResponse {
   // Active bans, newest first.
   repeated RoomBan bans = 1;
   // Page metadata.
@@ -325,9 +353,25 @@ service RoomService {
   // Leaves the room as the current user. Direct-message and universal rooms
   // cannot be left.
   rpc LeaveRoom(LeaveRoomRequest) returns (LeaveRoomResponse);
+  // Lists explicit members of a room. The caller must be a member of the room.
+  rpc ListMembers(ListRoomMembersRequest) returns (ListRoomMembersResponse);
+  // Gets one explicit member of a room. The caller must be a member of the
+  // room. Returns NOT_FOUND when the target is unknown or not a room member.
+  rpc GetMember(GetRoomMemberRequest) returns (GetRoomMemberResponse);
+  // Gets explicit room member rows for multiple users. The caller must be a
+  // member of the room.
+  rpc BatchGetMembers(BatchGetRoomMembersRequest) returns (BatchGetRoomMembersResponse);
+  // Adds a user as an explicit member of a channel room. The caller must be
+  // allowed to manage the room. Direct-message and universal rooms cannot be
+  // managed this way.
+  rpc AddMember(AddMemberRequest) returns (AddMemberResponse);
+  // Removes a user from a channel room's explicit members. The caller must be
+  // allowed to manage the room. Direct-message and universal rooms cannot be
+  // managed this way.
+  rpc RemoveMember(RemoveMemberRequest) returns (RemoveMemberResponse);
   // Lists active channel room bans. The caller must be allowed to moderate room
   // membership bans.
-  rpc ListRoomBans(ListRoomBansRequest) returns (ListRoomBansResponse);
+  rpc ListBans(ListBansRequest) returns (ListBansResponse);
   // Lists current message-owned room attachments. Authentication and room
   // membership are required. Returns PERMISSION_DENIED when the room is
   // inaccessible to the caller.
@@ -350,8 +394,8 @@ service RoomService {
   rpc MarkRoomAsRead(MarkRoomAsReadRequest) returns (MarkRoomAsReadResponse);
   // Bans a member from a channel room. Direct-message rooms cannot be moderated
   // this way, and the target must currently be a room member.
-  rpc BanRoomMember(BanRoomMemberRequest) returns (BanRoomMemberResponse);
+  rpc BanMember(BanMemberRequest) returns (BanMemberResponse);
   // Removes an active channel room ban. Calling this when no active ban exists
   // is allowed and still returns success.
-  rpc UnbanRoomMember(UnbanRoomMemberRequest) returns (UnbanRoomMemberResponse);
+  rpc UnbanMember(UnbanMemberRequest) returns (UnbanMemberResponse);
 }

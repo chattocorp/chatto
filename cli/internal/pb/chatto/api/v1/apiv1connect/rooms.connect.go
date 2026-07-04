@@ -54,9 +54,20 @@ const (
 	RoomServiceStartDMProcedure = "/chatto.api.v1.RoomService/StartDM"
 	// RoomServiceLeaveRoomProcedure is the fully-qualified name of the RoomService's LeaveRoom RPC.
 	RoomServiceLeaveRoomProcedure = "/chatto.api.v1.RoomService/LeaveRoom"
-	// RoomServiceListRoomBansProcedure is the fully-qualified name of the RoomService's ListRoomBans
+	// RoomServiceListMembersProcedure is the fully-qualified name of the RoomService's ListMembers RPC.
+	RoomServiceListMembersProcedure = "/chatto.api.v1.RoomService/ListMembers"
+	// RoomServiceGetMemberProcedure is the fully-qualified name of the RoomService's GetMember RPC.
+	RoomServiceGetMemberProcedure = "/chatto.api.v1.RoomService/GetMember"
+	// RoomServiceBatchGetMembersProcedure is the fully-qualified name of the RoomService's
+	// BatchGetMembers RPC.
+	RoomServiceBatchGetMembersProcedure = "/chatto.api.v1.RoomService/BatchGetMembers"
+	// RoomServiceAddMemberProcedure is the fully-qualified name of the RoomService's AddMember RPC.
+	RoomServiceAddMemberProcedure = "/chatto.api.v1.RoomService/AddMember"
+	// RoomServiceRemoveMemberProcedure is the fully-qualified name of the RoomService's RemoveMember
 	// RPC.
-	RoomServiceListRoomBansProcedure = "/chatto.api.v1.RoomService/ListRoomBans"
+	RoomServiceRemoveMemberProcedure = "/chatto.api.v1.RoomService/RemoveMember"
+	// RoomServiceListBansProcedure is the fully-qualified name of the RoomService's ListBans RPC.
+	RoomServiceListBansProcedure = "/chatto.api.v1.RoomService/ListBans"
 	// RoomServiceListRoomAttachmentsProcedure is the fully-qualified name of the RoomService's
 	// ListRoomAttachments RPC.
 	RoomServiceListRoomAttachmentsProcedure = "/chatto.api.v1.RoomService/ListRoomAttachments"
@@ -72,12 +83,10 @@ const (
 	// RoomServiceMarkRoomAsReadProcedure is the fully-qualified name of the RoomService's
 	// MarkRoomAsRead RPC.
 	RoomServiceMarkRoomAsReadProcedure = "/chatto.api.v1.RoomService/MarkRoomAsRead"
-	// RoomServiceBanRoomMemberProcedure is the fully-qualified name of the RoomService's BanRoomMember
-	// RPC.
-	RoomServiceBanRoomMemberProcedure = "/chatto.api.v1.RoomService/BanRoomMember"
-	// RoomServiceUnbanRoomMemberProcedure is the fully-qualified name of the RoomService's
-	// UnbanRoomMember RPC.
-	RoomServiceUnbanRoomMemberProcedure = "/chatto.api.v1.RoomService/UnbanRoomMember"
+	// RoomServiceBanMemberProcedure is the fully-qualified name of the RoomService's BanMember RPC.
+	RoomServiceBanMemberProcedure = "/chatto.api.v1.RoomService/BanMember"
+	// RoomServiceUnbanMemberProcedure is the fully-qualified name of the RoomService's UnbanMember RPC.
+	RoomServiceUnbanMemberProcedure = "/chatto.api.v1.RoomService/UnbanMember"
 )
 
 // RoomServiceClient is a client for the chatto.api.v1.RoomService service.
@@ -108,9 +117,25 @@ type RoomServiceClient interface {
 	// Leaves the room as the current user. Direct-message and universal rooms
 	// cannot be left.
 	LeaveRoom(context.Context, *connect.Request[v1.LeaveRoomRequest]) (*connect.Response[v1.LeaveRoomResponse], error)
+	// Lists explicit members of a room. The caller must be a member of the room.
+	ListMembers(context.Context, *connect.Request[v1.ListRoomMembersRequest]) (*connect.Response[v1.ListRoomMembersResponse], error)
+	// Gets one explicit member of a room. The caller must be a member of the
+	// room. Returns NOT_FOUND when the target is unknown or not a room member.
+	GetMember(context.Context, *connect.Request[v1.GetRoomMemberRequest]) (*connect.Response[v1.GetRoomMemberResponse], error)
+	// Gets explicit room member rows for multiple users. The caller must be a
+	// member of the room.
+	BatchGetMembers(context.Context, *connect.Request[v1.BatchGetRoomMembersRequest]) (*connect.Response[v1.BatchGetRoomMembersResponse], error)
+	// Adds a user as an explicit member of a channel room. The caller must be
+	// allowed to manage the room. Direct-message and universal rooms cannot be
+	// managed this way.
+	AddMember(context.Context, *connect.Request[v1.AddMemberRequest]) (*connect.Response[v1.AddMemberResponse], error)
+	// Removes a user from a channel room's explicit members. The caller must be
+	// allowed to manage the room. Direct-message and universal rooms cannot be
+	// managed this way.
+	RemoveMember(context.Context, *connect.Request[v1.RemoveMemberRequest]) (*connect.Response[v1.RemoveMemberResponse], error)
 	// Lists active channel room bans. The caller must be allowed to moderate room
 	// membership bans.
-	ListRoomBans(context.Context, *connect.Request[v1.ListRoomBansRequest]) (*connect.Response[v1.ListRoomBansResponse], error)
+	ListBans(context.Context, *connect.Request[v1.ListBansRequest]) (*connect.Response[v1.ListBansResponse], error)
 	// Lists current message-owned room attachments. Authentication and room
 	// membership are required. Returns PERMISSION_DENIED when the room is
 	// inaccessible to the caller.
@@ -133,10 +158,10 @@ type RoomServiceClient interface {
 	MarkRoomAsRead(context.Context, *connect.Request[v1.MarkRoomAsReadRequest]) (*connect.Response[v1.MarkRoomAsReadResponse], error)
 	// Bans a member from a channel room. Direct-message rooms cannot be moderated
 	// this way, and the target must currently be a room member.
-	BanRoomMember(context.Context, *connect.Request[v1.BanRoomMemberRequest]) (*connect.Response[v1.BanRoomMemberResponse], error)
+	BanMember(context.Context, *connect.Request[v1.BanMemberRequest]) (*connect.Response[v1.BanMemberResponse], error)
 	// Removes an active channel room ban. Calling this when no active ban exists
 	// is allowed and still returns success.
-	UnbanRoomMember(context.Context, *connect.Request[v1.UnbanRoomMemberRequest]) (*connect.Response[v1.UnbanRoomMemberResponse], error)
+	UnbanMember(context.Context, *connect.Request[v1.UnbanMemberRequest]) (*connect.Response[v1.UnbanMemberResponse], error)
 }
 
 // NewRoomServiceClient constructs a client for the chatto.api.v1.RoomService service. By default,
@@ -204,10 +229,40 @@ func NewRoomServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(roomServiceMethods.ByName("LeaveRoom")),
 			connect.WithClientOptions(opts...),
 		),
-		listRoomBans: connect.NewClient[v1.ListRoomBansRequest, v1.ListRoomBansResponse](
+		listMembers: connect.NewClient[v1.ListRoomMembersRequest, v1.ListRoomMembersResponse](
 			httpClient,
-			baseURL+RoomServiceListRoomBansProcedure,
-			connect.WithSchema(roomServiceMethods.ByName("ListRoomBans")),
+			baseURL+RoomServiceListMembersProcedure,
+			connect.WithSchema(roomServiceMethods.ByName("ListMembers")),
+			connect.WithClientOptions(opts...),
+		),
+		getMember: connect.NewClient[v1.GetRoomMemberRequest, v1.GetRoomMemberResponse](
+			httpClient,
+			baseURL+RoomServiceGetMemberProcedure,
+			connect.WithSchema(roomServiceMethods.ByName("GetMember")),
+			connect.WithClientOptions(opts...),
+		),
+		batchGetMembers: connect.NewClient[v1.BatchGetRoomMembersRequest, v1.BatchGetRoomMembersResponse](
+			httpClient,
+			baseURL+RoomServiceBatchGetMembersProcedure,
+			connect.WithSchema(roomServiceMethods.ByName("BatchGetMembers")),
+			connect.WithClientOptions(opts...),
+		),
+		addMember: connect.NewClient[v1.AddMemberRequest, v1.AddMemberResponse](
+			httpClient,
+			baseURL+RoomServiceAddMemberProcedure,
+			connect.WithSchema(roomServiceMethods.ByName("AddMember")),
+			connect.WithClientOptions(opts...),
+		),
+		removeMember: connect.NewClient[v1.RemoveMemberRequest, v1.RemoveMemberResponse](
+			httpClient,
+			baseURL+RoomServiceRemoveMemberProcedure,
+			connect.WithSchema(roomServiceMethods.ByName("RemoveMember")),
+			connect.WithClientOptions(opts...),
+		),
+		listBans: connect.NewClient[v1.ListBansRequest, v1.ListBansResponse](
+			httpClient,
+			baseURL+RoomServiceListBansProcedure,
+			connect.WithSchema(roomServiceMethods.ByName("ListBans")),
 			connect.WithClientOptions(opts...),
 		),
 		listRoomAttachments: connect.NewClient[v1.ListRoomAttachmentsRequest, v1.ListRoomAttachmentsResponse](
@@ -240,16 +295,16 @@ func NewRoomServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(roomServiceMethods.ByName("MarkRoomAsRead")),
 			connect.WithClientOptions(opts...),
 		),
-		banRoomMember: connect.NewClient[v1.BanRoomMemberRequest, v1.BanRoomMemberResponse](
+		banMember: connect.NewClient[v1.BanMemberRequest, v1.BanMemberResponse](
 			httpClient,
-			baseURL+RoomServiceBanRoomMemberProcedure,
-			connect.WithSchema(roomServiceMethods.ByName("BanRoomMember")),
+			baseURL+RoomServiceBanMemberProcedure,
+			connect.WithSchema(roomServiceMethods.ByName("BanMember")),
 			connect.WithClientOptions(opts...),
 		),
-		unbanRoomMember: connect.NewClient[v1.UnbanRoomMemberRequest, v1.UnbanRoomMemberResponse](
+		unbanMember: connect.NewClient[v1.UnbanMemberRequest, v1.UnbanMemberResponse](
 			httpClient,
-			baseURL+RoomServiceUnbanRoomMemberProcedure,
-			connect.WithSchema(roomServiceMethods.ByName("UnbanRoomMember")),
+			baseURL+RoomServiceUnbanMemberProcedure,
+			connect.WithSchema(roomServiceMethods.ByName("UnbanMember")),
 			connect.WithClientOptions(opts...),
 		),
 	}
@@ -266,14 +321,19 @@ type roomServiceClient struct {
 	joinRoomGroup         *connect.Client[v1.JoinRoomGroupRequest, v1.JoinRoomGroupResponse]
 	startDM               *connect.Client[v1.StartDMRequest, v1.StartDMResponse]
 	leaveRoom             *connect.Client[v1.LeaveRoomRequest, v1.LeaveRoomResponse]
-	listRoomBans          *connect.Client[v1.ListRoomBansRequest, v1.ListRoomBansResponse]
+	listMembers           *connect.Client[v1.ListRoomMembersRequest, v1.ListRoomMembersResponse]
+	getMember             *connect.Client[v1.GetRoomMemberRequest, v1.GetRoomMemberResponse]
+	batchGetMembers       *connect.Client[v1.BatchGetRoomMembersRequest, v1.BatchGetRoomMembersResponse]
+	addMember             *connect.Client[v1.AddMemberRequest, v1.AddMemberResponse]
+	removeMember          *connect.Client[v1.RemoveMemberRequest, v1.RemoveMemberResponse]
+	listBans              *connect.Client[v1.ListBansRequest, v1.ListBansResponse]
 	listRoomAttachments   *connect.Client[v1.ListRoomAttachmentsRequest, v1.ListRoomAttachmentsResponse]
 	updateTypingIndicator *connect.Client[v1.UpdateTypingIndicatorRequest, v1.UpdateTypingIndicatorResponse]
 	getRoomEvents         *connect.Client[v1.GetRoomEventsRequest, v1.GetRoomEventsResponse]
 	getRoomEventsAround   *connect.Client[v1.GetRoomEventsAroundRequest, v1.GetRoomEventsAroundResponse]
 	markRoomAsRead        *connect.Client[v1.MarkRoomAsReadRequest, v1.MarkRoomAsReadResponse]
-	banRoomMember         *connect.Client[v1.BanRoomMemberRequest, v1.BanRoomMemberResponse]
-	unbanRoomMember       *connect.Client[v1.UnbanRoomMemberRequest, v1.UnbanRoomMemberResponse]
+	banMember             *connect.Client[v1.BanMemberRequest, v1.BanMemberResponse]
+	unbanMember           *connect.Client[v1.UnbanMemberRequest, v1.UnbanMemberResponse]
 }
 
 // CreateRoom calls chatto.api.v1.RoomService.CreateRoom.
@@ -321,9 +381,34 @@ func (c *roomServiceClient) LeaveRoom(ctx context.Context, req *connect.Request[
 	return c.leaveRoom.CallUnary(ctx, req)
 }
 
-// ListRoomBans calls chatto.api.v1.RoomService.ListRoomBans.
-func (c *roomServiceClient) ListRoomBans(ctx context.Context, req *connect.Request[v1.ListRoomBansRequest]) (*connect.Response[v1.ListRoomBansResponse], error) {
-	return c.listRoomBans.CallUnary(ctx, req)
+// ListMembers calls chatto.api.v1.RoomService.ListMembers.
+func (c *roomServiceClient) ListMembers(ctx context.Context, req *connect.Request[v1.ListRoomMembersRequest]) (*connect.Response[v1.ListRoomMembersResponse], error) {
+	return c.listMembers.CallUnary(ctx, req)
+}
+
+// GetMember calls chatto.api.v1.RoomService.GetMember.
+func (c *roomServiceClient) GetMember(ctx context.Context, req *connect.Request[v1.GetRoomMemberRequest]) (*connect.Response[v1.GetRoomMemberResponse], error) {
+	return c.getMember.CallUnary(ctx, req)
+}
+
+// BatchGetMembers calls chatto.api.v1.RoomService.BatchGetMembers.
+func (c *roomServiceClient) BatchGetMembers(ctx context.Context, req *connect.Request[v1.BatchGetRoomMembersRequest]) (*connect.Response[v1.BatchGetRoomMembersResponse], error) {
+	return c.batchGetMembers.CallUnary(ctx, req)
+}
+
+// AddMember calls chatto.api.v1.RoomService.AddMember.
+func (c *roomServiceClient) AddMember(ctx context.Context, req *connect.Request[v1.AddMemberRequest]) (*connect.Response[v1.AddMemberResponse], error) {
+	return c.addMember.CallUnary(ctx, req)
+}
+
+// RemoveMember calls chatto.api.v1.RoomService.RemoveMember.
+func (c *roomServiceClient) RemoveMember(ctx context.Context, req *connect.Request[v1.RemoveMemberRequest]) (*connect.Response[v1.RemoveMemberResponse], error) {
+	return c.removeMember.CallUnary(ctx, req)
+}
+
+// ListBans calls chatto.api.v1.RoomService.ListBans.
+func (c *roomServiceClient) ListBans(ctx context.Context, req *connect.Request[v1.ListBansRequest]) (*connect.Response[v1.ListBansResponse], error) {
+	return c.listBans.CallUnary(ctx, req)
 }
 
 // ListRoomAttachments calls chatto.api.v1.RoomService.ListRoomAttachments.
@@ -351,14 +436,14 @@ func (c *roomServiceClient) MarkRoomAsRead(ctx context.Context, req *connect.Req
 	return c.markRoomAsRead.CallUnary(ctx, req)
 }
 
-// BanRoomMember calls chatto.api.v1.RoomService.BanRoomMember.
-func (c *roomServiceClient) BanRoomMember(ctx context.Context, req *connect.Request[v1.BanRoomMemberRequest]) (*connect.Response[v1.BanRoomMemberResponse], error) {
-	return c.banRoomMember.CallUnary(ctx, req)
+// BanMember calls chatto.api.v1.RoomService.BanMember.
+func (c *roomServiceClient) BanMember(ctx context.Context, req *connect.Request[v1.BanMemberRequest]) (*connect.Response[v1.BanMemberResponse], error) {
+	return c.banMember.CallUnary(ctx, req)
 }
 
-// UnbanRoomMember calls chatto.api.v1.RoomService.UnbanRoomMember.
-func (c *roomServiceClient) UnbanRoomMember(ctx context.Context, req *connect.Request[v1.UnbanRoomMemberRequest]) (*connect.Response[v1.UnbanRoomMemberResponse], error) {
-	return c.unbanRoomMember.CallUnary(ctx, req)
+// UnbanMember calls chatto.api.v1.RoomService.UnbanMember.
+func (c *roomServiceClient) UnbanMember(ctx context.Context, req *connect.Request[v1.UnbanMemberRequest]) (*connect.Response[v1.UnbanMemberResponse], error) {
+	return c.unbanMember.CallUnary(ctx, req)
 }
 
 // RoomServiceHandler is an implementation of the chatto.api.v1.RoomService service.
@@ -389,9 +474,25 @@ type RoomServiceHandler interface {
 	// Leaves the room as the current user. Direct-message and universal rooms
 	// cannot be left.
 	LeaveRoom(context.Context, *connect.Request[v1.LeaveRoomRequest]) (*connect.Response[v1.LeaveRoomResponse], error)
+	// Lists explicit members of a room. The caller must be a member of the room.
+	ListMembers(context.Context, *connect.Request[v1.ListRoomMembersRequest]) (*connect.Response[v1.ListRoomMembersResponse], error)
+	// Gets one explicit member of a room. The caller must be a member of the
+	// room. Returns NOT_FOUND when the target is unknown or not a room member.
+	GetMember(context.Context, *connect.Request[v1.GetRoomMemberRequest]) (*connect.Response[v1.GetRoomMemberResponse], error)
+	// Gets explicit room member rows for multiple users. The caller must be a
+	// member of the room.
+	BatchGetMembers(context.Context, *connect.Request[v1.BatchGetRoomMembersRequest]) (*connect.Response[v1.BatchGetRoomMembersResponse], error)
+	// Adds a user as an explicit member of a channel room. The caller must be
+	// allowed to manage the room. Direct-message and universal rooms cannot be
+	// managed this way.
+	AddMember(context.Context, *connect.Request[v1.AddMemberRequest]) (*connect.Response[v1.AddMemberResponse], error)
+	// Removes a user from a channel room's explicit members. The caller must be
+	// allowed to manage the room. Direct-message and universal rooms cannot be
+	// managed this way.
+	RemoveMember(context.Context, *connect.Request[v1.RemoveMemberRequest]) (*connect.Response[v1.RemoveMemberResponse], error)
 	// Lists active channel room bans. The caller must be allowed to moderate room
 	// membership bans.
-	ListRoomBans(context.Context, *connect.Request[v1.ListRoomBansRequest]) (*connect.Response[v1.ListRoomBansResponse], error)
+	ListBans(context.Context, *connect.Request[v1.ListBansRequest]) (*connect.Response[v1.ListBansResponse], error)
 	// Lists current message-owned room attachments. Authentication and room
 	// membership are required. Returns PERMISSION_DENIED when the room is
 	// inaccessible to the caller.
@@ -414,10 +515,10 @@ type RoomServiceHandler interface {
 	MarkRoomAsRead(context.Context, *connect.Request[v1.MarkRoomAsReadRequest]) (*connect.Response[v1.MarkRoomAsReadResponse], error)
 	// Bans a member from a channel room. Direct-message rooms cannot be moderated
 	// this way, and the target must currently be a room member.
-	BanRoomMember(context.Context, *connect.Request[v1.BanRoomMemberRequest]) (*connect.Response[v1.BanRoomMemberResponse], error)
+	BanMember(context.Context, *connect.Request[v1.BanMemberRequest]) (*connect.Response[v1.BanMemberResponse], error)
 	// Removes an active channel room ban. Calling this when no active ban exists
 	// is allowed and still returns success.
-	UnbanRoomMember(context.Context, *connect.Request[v1.UnbanRoomMemberRequest]) (*connect.Response[v1.UnbanRoomMemberResponse], error)
+	UnbanMember(context.Context, *connect.Request[v1.UnbanMemberRequest]) (*connect.Response[v1.UnbanMemberResponse], error)
 }
 
 // NewRoomServiceHandler builds an HTTP handler from the service implementation. It returns the path
@@ -481,10 +582,40 @@ func NewRoomServiceHandler(svc RoomServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(roomServiceMethods.ByName("LeaveRoom")),
 		connect.WithHandlerOptions(opts...),
 	)
-	roomServiceListRoomBansHandler := connect.NewUnaryHandler(
-		RoomServiceListRoomBansProcedure,
-		svc.ListRoomBans,
-		connect.WithSchema(roomServiceMethods.ByName("ListRoomBans")),
+	roomServiceListMembersHandler := connect.NewUnaryHandler(
+		RoomServiceListMembersProcedure,
+		svc.ListMembers,
+		connect.WithSchema(roomServiceMethods.ByName("ListMembers")),
+		connect.WithHandlerOptions(opts...),
+	)
+	roomServiceGetMemberHandler := connect.NewUnaryHandler(
+		RoomServiceGetMemberProcedure,
+		svc.GetMember,
+		connect.WithSchema(roomServiceMethods.ByName("GetMember")),
+		connect.WithHandlerOptions(opts...),
+	)
+	roomServiceBatchGetMembersHandler := connect.NewUnaryHandler(
+		RoomServiceBatchGetMembersProcedure,
+		svc.BatchGetMembers,
+		connect.WithSchema(roomServiceMethods.ByName("BatchGetMembers")),
+		connect.WithHandlerOptions(opts...),
+	)
+	roomServiceAddMemberHandler := connect.NewUnaryHandler(
+		RoomServiceAddMemberProcedure,
+		svc.AddMember,
+		connect.WithSchema(roomServiceMethods.ByName("AddMember")),
+		connect.WithHandlerOptions(opts...),
+	)
+	roomServiceRemoveMemberHandler := connect.NewUnaryHandler(
+		RoomServiceRemoveMemberProcedure,
+		svc.RemoveMember,
+		connect.WithSchema(roomServiceMethods.ByName("RemoveMember")),
+		connect.WithHandlerOptions(opts...),
+	)
+	roomServiceListBansHandler := connect.NewUnaryHandler(
+		RoomServiceListBansProcedure,
+		svc.ListBans,
+		connect.WithSchema(roomServiceMethods.ByName("ListBans")),
 		connect.WithHandlerOptions(opts...),
 	)
 	roomServiceListRoomAttachmentsHandler := connect.NewUnaryHandler(
@@ -517,16 +648,16 @@ func NewRoomServiceHandler(svc RoomServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(roomServiceMethods.ByName("MarkRoomAsRead")),
 		connect.WithHandlerOptions(opts...),
 	)
-	roomServiceBanRoomMemberHandler := connect.NewUnaryHandler(
-		RoomServiceBanRoomMemberProcedure,
-		svc.BanRoomMember,
-		connect.WithSchema(roomServiceMethods.ByName("BanRoomMember")),
+	roomServiceBanMemberHandler := connect.NewUnaryHandler(
+		RoomServiceBanMemberProcedure,
+		svc.BanMember,
+		connect.WithSchema(roomServiceMethods.ByName("BanMember")),
 		connect.WithHandlerOptions(opts...),
 	)
-	roomServiceUnbanRoomMemberHandler := connect.NewUnaryHandler(
-		RoomServiceUnbanRoomMemberProcedure,
-		svc.UnbanRoomMember,
-		connect.WithSchema(roomServiceMethods.ByName("UnbanRoomMember")),
+	roomServiceUnbanMemberHandler := connect.NewUnaryHandler(
+		RoomServiceUnbanMemberProcedure,
+		svc.UnbanMember,
+		connect.WithSchema(roomServiceMethods.ByName("UnbanMember")),
 		connect.WithHandlerOptions(opts...),
 	)
 	return "/chatto.api.v1.RoomService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -549,8 +680,18 @@ func NewRoomServiceHandler(svc RoomServiceHandler, opts ...connect.HandlerOption
 			roomServiceStartDMHandler.ServeHTTP(w, r)
 		case RoomServiceLeaveRoomProcedure:
 			roomServiceLeaveRoomHandler.ServeHTTP(w, r)
-		case RoomServiceListRoomBansProcedure:
-			roomServiceListRoomBansHandler.ServeHTTP(w, r)
+		case RoomServiceListMembersProcedure:
+			roomServiceListMembersHandler.ServeHTTP(w, r)
+		case RoomServiceGetMemberProcedure:
+			roomServiceGetMemberHandler.ServeHTTP(w, r)
+		case RoomServiceBatchGetMembersProcedure:
+			roomServiceBatchGetMembersHandler.ServeHTTP(w, r)
+		case RoomServiceAddMemberProcedure:
+			roomServiceAddMemberHandler.ServeHTTP(w, r)
+		case RoomServiceRemoveMemberProcedure:
+			roomServiceRemoveMemberHandler.ServeHTTP(w, r)
+		case RoomServiceListBansProcedure:
+			roomServiceListBansHandler.ServeHTTP(w, r)
 		case RoomServiceListRoomAttachmentsProcedure:
 			roomServiceListRoomAttachmentsHandler.ServeHTTP(w, r)
 		case RoomServiceUpdateTypingIndicatorProcedure:
@@ -561,10 +702,10 @@ func NewRoomServiceHandler(svc RoomServiceHandler, opts ...connect.HandlerOption
 			roomServiceGetRoomEventsAroundHandler.ServeHTTP(w, r)
 		case RoomServiceMarkRoomAsReadProcedure:
 			roomServiceMarkRoomAsReadHandler.ServeHTTP(w, r)
-		case RoomServiceBanRoomMemberProcedure:
-			roomServiceBanRoomMemberHandler.ServeHTTP(w, r)
-		case RoomServiceUnbanRoomMemberProcedure:
-			roomServiceUnbanRoomMemberHandler.ServeHTTP(w, r)
+		case RoomServiceBanMemberProcedure:
+			roomServiceBanMemberHandler.ServeHTTP(w, r)
+		case RoomServiceUnbanMemberProcedure:
+			roomServiceUnbanMemberHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -610,8 +751,28 @@ func (UnimplementedRoomServiceHandler) LeaveRoom(context.Context, *connect.Reque
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.RoomService.LeaveRoom is not implemented"))
 }
 
-func (UnimplementedRoomServiceHandler) ListRoomBans(context.Context, *connect.Request[v1.ListRoomBansRequest]) (*connect.Response[v1.ListRoomBansResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.RoomService.ListRoomBans is not implemented"))
+func (UnimplementedRoomServiceHandler) ListMembers(context.Context, *connect.Request[v1.ListRoomMembersRequest]) (*connect.Response[v1.ListRoomMembersResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.RoomService.ListMembers is not implemented"))
+}
+
+func (UnimplementedRoomServiceHandler) GetMember(context.Context, *connect.Request[v1.GetRoomMemberRequest]) (*connect.Response[v1.GetRoomMemberResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.RoomService.GetMember is not implemented"))
+}
+
+func (UnimplementedRoomServiceHandler) BatchGetMembers(context.Context, *connect.Request[v1.BatchGetRoomMembersRequest]) (*connect.Response[v1.BatchGetRoomMembersResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.RoomService.BatchGetMembers is not implemented"))
+}
+
+func (UnimplementedRoomServiceHandler) AddMember(context.Context, *connect.Request[v1.AddMemberRequest]) (*connect.Response[v1.AddMemberResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.RoomService.AddMember is not implemented"))
+}
+
+func (UnimplementedRoomServiceHandler) RemoveMember(context.Context, *connect.Request[v1.RemoveMemberRequest]) (*connect.Response[v1.RemoveMemberResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.RoomService.RemoveMember is not implemented"))
+}
+
+func (UnimplementedRoomServiceHandler) ListBans(context.Context, *connect.Request[v1.ListBansRequest]) (*connect.Response[v1.ListBansResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.RoomService.ListBans is not implemented"))
 }
 
 func (UnimplementedRoomServiceHandler) ListRoomAttachments(context.Context, *connect.Request[v1.ListRoomAttachmentsRequest]) (*connect.Response[v1.ListRoomAttachmentsResponse], error) {
@@ -634,10 +795,10 @@ func (UnimplementedRoomServiceHandler) MarkRoomAsRead(context.Context, *connect.
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.RoomService.MarkRoomAsRead is not implemented"))
 }
 
-func (UnimplementedRoomServiceHandler) BanRoomMember(context.Context, *connect.Request[v1.BanRoomMemberRequest]) (*connect.Response[v1.BanRoomMemberResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.RoomService.BanRoomMember is not implemented"))
+func (UnimplementedRoomServiceHandler) BanMember(context.Context, *connect.Request[v1.BanMemberRequest]) (*connect.Response[v1.BanMemberResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.RoomService.BanMember is not implemented"))
 }
 
-func (UnimplementedRoomServiceHandler) UnbanRoomMember(context.Context, *connect.Request[v1.UnbanRoomMemberRequest]) (*connect.Response[v1.UnbanRoomMemberResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.RoomService.UnbanRoomMember is not implemented"))
+func (UnimplementedRoomServiceHandler) UnbanMember(context.Context, *connect.Request[v1.UnbanMemberRequest]) (*connect.Response[v1.UnbanMemberResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.RoomService.UnbanMember is not implemented"))
 }

@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { BatchGetRoomMembersRequest, BatchGetRoomMembersResponse, BatchGetServerMembersRequest, BatchGetServerMembersResponse, GetRoomMemberRequest, GetRoomMemberResponse, GetServerMemberRequest, GetServerMemberResponse, ListRoomMembersRequest, ListRoomMembersResponse, ListServerMembersRequest, ListServerMembersResponse } from "./member_directory_pb.js";
+import { BatchGetServerMembersRequest, BatchGetServerMembersResponse, GetServerMemberRequest, GetServerMemberResponse, ListServerMembersRequest, ListServerMembersResponse } from "./member_directory_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -47,52 +47,6 @@ export const ServerMemberService = {
       name: "BatchGetMembers",
       I: BatchGetServerMembersRequest,
       O: BatchGetServerMembersResponse,
-      kind: MethodKind.Unary,
-    },
-  }
-} as const;
-
-/**
- * Reads explicit room members.
- *
- * @generated from service chatto.api.v1.RoomMemberService
- */
-export const RoomMemberService = {
-  typeName: "chatto.api.v1.RoomMemberService",
-  methods: {
-    /**
-     * Lists explicit members of a room. The caller must be a member of the room.
-     *
-     * @generated from rpc chatto.api.v1.RoomMemberService.ListMembers
-     */
-    listMembers: {
-      name: "ListMembers",
-      I: ListRoomMembersRequest,
-      O: ListRoomMembersResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * Gets one explicit member of a room. The caller must be a member of the
-     * room. Returns NOT_FOUND when the target is unknown or not a room member.
-     *
-     * @generated from rpc chatto.api.v1.RoomMemberService.GetMember
-     */
-    getMember: {
-      name: "GetMember",
-      I: GetRoomMemberRequest,
-      O: GetRoomMemberResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * Gets explicit room member rows for multiple users. The caller must be a
-     * member of the room.
-     *
-     * @generated from rpc chatto.api.v1.RoomMemberService.BatchGetMembers
-     */
-    batchGetMembers: {
-      name: "BatchGetMembers",
-      I: BatchGetRoomMembersRequest,
-      O: BatchGetRoomMembersResponse,
       kind: MethodKind.Unary,
     },
   }

@@ -67,6 +67,8 @@ const (
 	EventUserLeftRoom         = "user_left"
 	EventRoomMemberBanned     = "room_member_banned"
 	EventRoomMemberUnbanned   = "room_member_unbanned"
+	EventRoomMemberAdded      = "room_member_added"
+	EventRoomMemberRemoved    = "room_member_removed"
 
 	// Messages (also under the room aggregate — every message event for
 	// a room lives under evt.room.{R}.message_*, so a subscriber on
@@ -215,6 +217,10 @@ func EventTypeOf(e *corev1.Event) string {
 		return EventRoomMemberBanned
 	case *corev1.Event_RoomMemberUnbanned:
 		return EventRoomMemberUnbanned
+	case *corev1.Event_RoomMemberAdded:
+		return EventRoomMemberAdded
+	case *corev1.Event_RoomMemberRemoved:
+		return EventRoomMemberRemoved
 	case *corev1.Event_VoiceCallParticipantJoined:
 		return EventCallParticipantJoined
 	case *corev1.Event_VoiceCallParticipantLeft:

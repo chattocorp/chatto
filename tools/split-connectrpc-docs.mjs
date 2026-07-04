@@ -101,12 +101,6 @@ const categories = [
         description: 'Room navigation, room group, and room viewer-state RPCs.'
       },
       {
-        name: 'RoomMemberService',
-        slug: 'room-members',
-        title: 'Room Members',
-        description: 'Room-scoped member directory RPCs.'
-      },
-      {
         name: 'RoomService',
         slug: 'rooms',
         title: 'Rooms',

@@ -156,6 +156,116 @@ func (x *RoomMemberUnbannedEvent) GetReason() string {
 	return ""
 }
 
+// RoomMemberAddedEvent records a manager adding a user to a channel room.
+// The Event envelope actor_id is the manager. The payload user_id is the
+// target.
+type RoomMemberAddedEvent struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RoomId        string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	UserId        string                 `protobuf:"bytes,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RoomMemberAddedEvent) Reset() {
+	*x = RoomMemberAddedEvent{}
+	mi := &file_chatto_core_v1_moderation_events_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RoomMemberAddedEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RoomMemberAddedEvent) ProtoMessage() {}
+
+func (x *RoomMemberAddedEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_v1_moderation_events_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RoomMemberAddedEvent.ProtoReflect.Descriptor instead.
+func (*RoomMemberAddedEvent) Descriptor() ([]byte, []int) {
+	return file_chatto_core_v1_moderation_events_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *RoomMemberAddedEvent) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *RoomMemberAddedEvent) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+// RoomMemberRemovedEvent records a manager removing a user from a channel room.
+// The Event envelope actor_id is the manager. The payload user_id is the
+// target.
+type RoomMemberRemovedEvent struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RoomId        string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	UserId        string                 `protobuf:"bytes,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RoomMemberRemovedEvent) Reset() {
+	*x = RoomMemberRemovedEvent{}
+	mi := &file_chatto_core_v1_moderation_events_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RoomMemberRemovedEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RoomMemberRemovedEvent) ProtoMessage() {}
+
+func (x *RoomMemberRemovedEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_v1_moderation_events_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RoomMemberRemovedEvent.ProtoReflect.Descriptor instead.
+func (*RoomMemberRemovedEvent) Descriptor() ([]byte, []int) {
+	return file_chatto_core_v1_moderation_events_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *RoomMemberRemovedEvent) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *RoomMemberRemovedEvent) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
 var File_chatto_core_v1_moderation_events_proto protoreflect.FileDescriptor
 
 const file_chatto_core_v1_moderation_events_proto_rawDesc = "" +
@@ -171,7 +281,13 @@ const file_chatto_core_v1_moderation_events_proto_rawDesc = "" +
 	"\x17RoomMemberUnbannedEvent\x12\x17\n" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x17\n" +
 	"\auser_id\x18\x02 \x01(\tR\x06userId\x12\x16\n" +
-	"\x06reason\x18\x03 \x01(\tR\x06reasonB\xb8\x01\n" +
+	"\x06reason\x18\x03 \x01(\tR\x06reason\"H\n" +
+	"\x14RoomMemberAddedEvent\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x17\n" +
+	"\auser_id\x18\x02 \x01(\tR\x06userId\"J\n" +
+	"\x16RoomMemberRemovedEvent\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x17\n" +
+	"\auser_id\x18\x02 \x01(\tR\x06userIdB\xb8\x01\n" +
 	"\x12com.chatto.core.v1B\x15ModerationEventsProtoP\x01Z1hmans.de/chatto/internal/pb/chatto/core/v1;corev1\xa2\x02\x03CCX\xaa\x02\x0eChatto.Core.V1\xca\x02\x0eChatto\\Core\\V1\xe2\x02\x1aChatto\\Core\\V1\\GPBMetadata\xea\x02\x10Chatto::Core::V1b\x06proto3"
 
 var (
@@ -186,14 +302,16 @@ func file_chatto_core_v1_moderation_events_proto_rawDescGZIP() []byte {
 	return file_chatto_core_v1_moderation_events_proto_rawDescData
 }
 
-var file_chatto_core_v1_moderation_events_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_chatto_core_v1_moderation_events_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
 var file_chatto_core_v1_moderation_events_proto_goTypes = []any{
 	(*RoomMemberBannedEvent)(nil),   // 0: chatto.core.v1.RoomMemberBannedEvent
 	(*RoomMemberUnbannedEvent)(nil), // 1: chatto.core.v1.RoomMemberUnbannedEvent
-	(*timestamppb.Timestamp)(nil),   // 2: google.protobuf.Timestamp
+	(*RoomMemberAddedEvent)(nil),    // 2: chatto.core.v1.RoomMemberAddedEvent
+	(*RoomMemberRemovedEvent)(nil),  // 3: chatto.core.v1.RoomMemberRemovedEvent
+	(*timestamppb.Timestamp)(nil),   // 4: google.protobuf.Timestamp
 }
 var file_chatto_core_v1_moderation_events_proto_depIdxs = []int32{
-	2, // 0: chatto.core.v1.RoomMemberBannedEvent.expires_at:type_name -> google.protobuf.Timestamp
+	4, // 0: chatto.core.v1.RoomMemberBannedEvent.expires_at:type_name -> google.protobuf.Timestamp
 	1, // [1:1] is the sub-list for method output_type
 	1, // [1:1] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name
@@ -213,7 +331,7 @@ func file_chatto_core_v1_moderation_events_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_core_v1_moderation_events_proto_rawDesc), len(file_chatto_core_v1_moderation_events_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   2,
+			NumMessages:   4,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

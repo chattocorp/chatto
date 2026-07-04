@@ -28,9 +28,10 @@ first consumer.
   resource identity, authorization model, or CRUD/batch surface.
 - When the same resource exists in distinct scopes with different authorization
   or absence semantics, split the services by scope instead of overloading one
-  ambiguous service. For example, prefer `ServerMemberService` and
-  `RoomMemberService` over a generic member-directory service when server and
-  room membership reads are easier to understand as separate scoped resources.
+  ambiguous service. `ServerMemberService` is server-scoped; room membership
+  reads and commands belong on `RoomService` because their authorization and
+  state are room-scoped alongside room lifecycle, timeline, moderation,
+  attachments, read-state, and typing operations.
 - Once a service name carries the scope, use concise resource method names such
   as `ListMembers`, `GetMember`, and `BatchGetMembers` rather than repeating
   the scope in every RPC name.

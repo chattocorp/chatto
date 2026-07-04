@@ -35,3 +35,19 @@ message RoomMemberUnbannedEvent {
   string user_id = 2;
   string reason = 3;
 }
+
+// RoomMemberAddedEvent records a manager adding a user to a channel room.
+// The Event envelope actor_id is the manager. The payload user_id is the
+// target.
+message RoomMemberAddedEvent {
+  string room_id = 1;
+  string user_id = 2;
+}
+
+// RoomMemberRemovedEvent records a manager removing a user from a channel room.
+// The Event envelope actor_id is the manager. The payload user_id is the
+// target.
+message RoomMemberRemovedEvent {
+  string room_id = 1;
+  string user_id = 2;
+}

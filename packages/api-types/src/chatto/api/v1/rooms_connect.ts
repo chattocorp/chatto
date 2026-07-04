@@ -3,8 +3,9 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ArchiveRoomRequest, ArchiveRoomResponse, BanRoomMemberRequest, BanRoomMemberResponse, CreateRoomRequest, CreateRoomResponse, JoinRoomGroupRequest, JoinRoomGroupResponse, JoinRoomRequest, JoinRoomResponse, LeaveRoomRequest, LeaveRoomResponse, ListRoomAttachmentsRequest, ListRoomAttachmentsResponse, ListRoomBansRequest, ListRoomBansResponse, StartDMRequest, StartDMResponse, UnarchiveRoomRequest, UnarchiveRoomResponse, UnbanRoomMemberRequest, UnbanRoomMemberResponse, UpdateRoomRequest, UpdateRoomResponse, UpdateRoomUniversalRequest, UpdateRoomUniversalResponse, UpdateTypingIndicatorRequest, UpdateTypingIndicatorResponse } from "./rooms_pb.js";
+import { AddMemberRequest, AddMemberResponse, ArchiveRoomRequest, ArchiveRoomResponse, BanMemberRequest, BanMemberResponse, CreateRoomRequest, CreateRoomResponse, JoinRoomGroupRequest, JoinRoomGroupResponse, JoinRoomRequest, JoinRoomResponse, LeaveRoomRequest, LeaveRoomResponse, ListBansRequest, ListBansResponse, ListRoomAttachmentsRequest, ListRoomAttachmentsResponse, RemoveMemberRequest, RemoveMemberResponse, StartDMRequest, StartDMResponse, UnarchiveRoomRequest, UnarchiveRoomResponse, UnbanMemberRequest, UnbanMemberResponse, UpdateRoomRequest, UpdateRoomResponse, UpdateRoomUniversalRequest, UpdateRoomUniversalResponse, UpdateTypingIndicatorRequest, UpdateTypingIndicatorResponse } from "./rooms_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
+import { BatchGetRoomMembersRequest, BatchGetRoomMembersResponse, GetRoomMemberRequest, GetRoomMemberResponse, ListRoomMembersRequest, ListRoomMembersResponse } from "./member_directory_pb.js";
 import { GetRoomEventsAroundRequest, GetRoomEventsAroundResponse, GetRoomEventsRequest, GetRoomEventsResponse } from "./room_timeline_pb.js";
 import { MarkRoomAsReadRequest, MarkRoomAsReadResponse } from "./read_state_pb.js";
 
@@ -130,15 +131,76 @@ export const RoomService = {
       kind: MethodKind.Unary,
     },
     /**
+     * Lists explicit members of a room. The caller must be a member of the room.
+     *
+     * @generated from rpc chatto.api.v1.RoomService.ListMembers
+     */
+    listMembers: {
+      name: "ListMembers",
+      I: ListRoomMembersRequest,
+      O: ListRoomMembersResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Gets one explicit member of a room. The caller must be a member of the
+     * room. Returns NOT_FOUND when the target is unknown or not a room member.
+     *
+     * @generated from rpc chatto.api.v1.RoomService.GetMember
+     */
+    getMember: {
+      name: "GetMember",
+      I: GetRoomMemberRequest,
+      O: GetRoomMemberResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Gets explicit room member rows for multiple users. The caller must be a
+     * member of the room.
+     *
+     * @generated from rpc chatto.api.v1.RoomService.BatchGetMembers
+     */
+    batchGetMembers: {
+      name: "BatchGetMembers",
+      I: BatchGetRoomMembersRequest,
+      O: BatchGetRoomMembersResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Adds a user as an explicit member of a channel room. The caller must be
+     * allowed to manage the room. Direct-message and universal rooms cannot be
+     * managed this way.
+     *
+     * @generated from rpc chatto.api.v1.RoomService.AddMember
+     */
+    addMember: {
+      name: "AddMember",
+      I: AddMemberRequest,
+      O: AddMemberResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Removes a user from a channel room's explicit members. The caller must be
+     * allowed to manage the room. Direct-message and universal rooms cannot be
+     * managed this way.
+     *
+     * @generated from rpc chatto.api.v1.RoomService.RemoveMember
+     */
+    removeMember: {
+      name: "RemoveMember",
+      I: RemoveMemberRequest,
+      O: RemoveMemberResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
      * Lists active channel room bans. The caller must be allowed to moderate room
      * membership bans.
      *
-     * @generated from rpc chatto.api.v1.RoomService.ListRoomBans
+     * @generated from rpc chatto.api.v1.RoomService.ListBans
      */
-    listRoomBans: {
-      name: "ListRoomBans",
-      I: ListRoomBansRequest,
-      O: ListRoomBansResponse,
+    listBans: {
+      name: "ListBans",
+      I: ListBansRequest,
+      O: ListBansResponse,
       kind: MethodKind.Unary,
     },
     /**
@@ -210,24 +272,24 @@ export const RoomService = {
      * Bans a member from a channel room. Direct-message rooms cannot be moderated
      * this way, and the target must currently be a room member.
      *
-     * @generated from rpc chatto.api.v1.RoomService.BanRoomMember
+     * @generated from rpc chatto.api.v1.RoomService.BanMember
      */
-    banRoomMember: {
-      name: "BanRoomMember",
-      I: BanRoomMemberRequest,
-      O: BanRoomMemberResponse,
+    banMember: {
+      name: "BanMember",
+      I: BanMemberRequest,
+      O: BanMemberResponse,
       kind: MethodKind.Unary,
     },
     /**
      * Removes an active channel room ban. Calling this when no active ban exists
      * is allowed and still returns success.
      *
-     * @generated from rpc chatto.api.v1.RoomService.UnbanRoomMember
+     * @generated from rpc chatto.api.v1.RoomService.UnbanMember
      */
-    unbanRoomMember: {
-      name: "UnbanRoomMember",
-      I: UnbanRoomMemberRequest,
-      O: UnbanRoomMemberResponse,
+    unbanMember: {
+      name: "UnbanMember",
+      I: UnbanMemberRequest,
+      O: UnbanMemberResponse,
       kind: MethodKind.Unary,
     },
   }

@@ -14,10 +14,10 @@ import (
 
 const MaxRoomBanReasonLength = 1000
 
-// BanRoomMember records a durable room ban and emits an ordinary leave event
+// BanMember records a durable room ban and emits an ordinary leave event
 // for public room history. The caller is responsible for permission checks.
 // The target must currently be a room member.
-func (c *ChattoCore) BanRoomMember(ctx context.Context, actorID string, kind RoomKind, roomID, targetUserID, reason string, expiresAt *time.Time) (*RoomBan, error) {
+func (c *ChattoCore) BanMember(ctx context.Context, actorID string, kind RoomKind, roomID, targetUserID, reason string, expiresAt *time.Time) (*RoomBan, error) {
 	if kind == KindDM {
 		return nil, ErrCannotBanDMRoomMember
 	}
@@ -93,9 +93,9 @@ func (c *ChattoCore) BanRoomMember(ctx context.Context, actorID string, kind Roo
 	return &ban, nil
 }
 
-// UnbanRoomMember clears an active room ban. It is idempotent when no active
+// UnbanMember clears an active room ban. It is idempotent when no active
 // ban exists; otherwise a durable moderation event records the moderator action.
-func (c *ChattoCore) UnbanRoomMember(ctx context.Context, actorID string, kind RoomKind, roomID, targetUserID, reason string) error {
+func (c *ChattoCore) UnbanMember(ctx context.Context, actorID string, kind RoomKind, roomID, targetUserID, reason string) error {
 	if kind == KindDM {
 		return ErrCannotBanDMRoomMember
 	}

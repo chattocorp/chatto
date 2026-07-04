@@ -80,7 +80,6 @@ func TestAPIHandlers(t *testing.T) {
 		"/" + adminv1connect.AdminRoleServiceName + "/",
 		"/" + apiv1connect.RoleServiceName + "/",
 		"/" + apiv1connect.RoomDirectoryServiceName + "/",
-		"/" + apiv1connect.RoomMemberServiceName + "/",
 		"/" + apiv1connect.RoomServiceName + "/",
 		"/" + discoveryv1connect.ServerDiscoveryServiceName + "/",
 		"/" + apiv1connect.ServerMemberServiceName + "/",
@@ -126,7 +125,6 @@ func TestAPIHandlerAuthPolicies(t *testing.T) {
 		"/" + adminv1connect.AdminRoleServiceName + "/":             AuthPolicyAuthenticatedUser,
 		"/" + apiv1connect.RoleServiceName + "/":                    AuthPolicyAuthenticatedUser,
 		"/" + apiv1connect.RoomDirectoryServiceName + "/":           AuthPolicyAuthenticatedUser,
-		"/" + apiv1connect.RoomMemberServiceName + "/":              AuthPolicyAuthenticatedUser,
 		"/" + apiv1connect.RoomServiceName + "/":                    AuthPolicyAuthenticatedUser,
 		"/" + discoveryv1connect.ServerDiscoveryServiceName + "/":   AuthPolicyPublic,
 		"/" + apiv1connect.ServerMemberServiceName + "/":            AuthPolicyAuthenticatedUser,
@@ -226,7 +224,7 @@ func TestBatchGetResourceRequestsValidateThroughConnectHandlers(t *testing.T) {
 	roomDirectoryPath, roomDirectoryHandler := apiv1connect.NewRoomDirectoryServiceHandler(env.directory, HandlerOptions()...)
 	messagePath, messageHandler := apiv1connect.NewMessageServiceHandler(env.messages, HandlerOptions()...)
 	serverMemberPath, serverMemberHandler := apiv1connect.NewServerMemberServiceHandler(env.serverMembers, HandlerOptions()...)
-	roomMemberPath, roomMemberHandler := apiv1connect.NewRoomMemberServiceHandler(env.roomMembers, HandlerOptions()...)
+	roomPath, roomHandler := apiv1connect.NewRoomServiceHandler(env.rooms, HandlerOptions()...)
 	notificationPath, notificationHandler := apiv1connect.NewNotificationServiceHandler(env.notifications, HandlerOptions()...)
 	voicePath, voiceHandler := apiv1connect.NewVoiceCallServiceHandler(env.voice, HandlerOptions()...)
 	adminMemberPath, adminMemberHandler := adminv1connect.NewAdminUserServiceHandler(env.adminUsers, HandlerOptions()...)
@@ -235,7 +233,7 @@ func TestBatchGetResourceRequestsValidateThroughConnectHandlers(t *testing.T) {
 	mux.Handle(roomDirectoryPath, roomDirectoryHandler)
 	mux.Handle(messagePath, messageHandler)
 	mux.Handle(serverMemberPath, serverMemberHandler)
-	mux.Handle(roomMemberPath, roomMemberHandler)
+	mux.Handle(roomPath, roomHandler)
 	mux.Handle(notificationPath, notificationHandler)
 	mux.Handle(voicePath, voiceHandler)
 	mux.Handle(adminMemberPath, adminMemberHandler)
@@ -247,7 +245,7 @@ func TestBatchGetResourceRequestsValidateThroughConnectHandlers(t *testing.T) {
 	roomDirectory := apiv1connect.NewRoomDirectoryServiceClient(ts.Client(), ts.URL)
 	messages := apiv1connect.NewMessageServiceClient(ts.Client(), ts.URL)
 	serverMembers := apiv1connect.NewServerMemberServiceClient(ts.Client(), ts.URL)
-	roomMembers := apiv1connect.NewRoomMemberServiceClient(ts.Client(), ts.URL)
+	rooms := apiv1connect.NewRoomServiceClient(ts.Client(), ts.URL)
 	notifications := apiv1connect.NewNotificationServiceClient(ts.Client(), ts.URL)
 	voice := apiv1connect.NewVoiceCallServiceClient(ts.Client(), ts.URL)
 	adminMembers := adminv1connect.NewAdminUserServiceClient(ts.Client(), ts.URL)
@@ -311,16 +309,16 @@ func TestBatchGetResourceRequestsValidateThroughConnectHandlers(t *testing.T) {
 		t.Fatalf("too-many BatchGetServerMembers code = %v, want invalid_argument", connect.CodeOf(err))
 	}
 
-	if _, err := roomMembers.BatchGetMembers(context.Background(), connect.NewRequest(&apiv1.BatchGetRoomMembersRequest{})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+	if _, err := rooms.BatchGetMembers(context.Background(), connect.NewRequest(&apiv1.BatchGetRoomMembersRequest{})); connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("empty BatchGetRoomMembers code = %v, want invalid_argument", connect.CodeOf(err))
 	}
-	if _, err := roomMembers.BatchGetMembers(context.Background(), connect.NewRequest(&apiv1.BatchGetRoomMembersRequest{RoomId: "room", UserIds: []string{""}})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+	if _, err := rooms.BatchGetMembers(context.Background(), connect.NewRequest(&apiv1.BatchGetRoomMembersRequest{RoomId: "room", UserIds: []string{""}})); connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("empty-id BatchGetRoomMembers code = %v, want invalid_argument", connect.CodeOf(err))
 	}
-	if _, err := roomMembers.BatchGetMembers(context.Background(), connect.NewRequest(&apiv1.BatchGetRoomMembersRequest{UserIds: []string{"user"}})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+	if _, err := rooms.BatchGetMembers(context.Background(), connect.NewRequest(&apiv1.BatchGetRoomMembersRequest{UserIds: []string{"user"}})); connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("empty-room BatchGetRoomMembers code = %v, want invalid_argument", connect.CodeOf(err))
 	}
-	if _, err := roomMembers.BatchGetMembers(context.Background(), connect.NewRequest(&apiv1.BatchGetRoomMembersRequest{RoomId: "room", UserIds: tooManyUserIDs})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+	if _, err := rooms.BatchGetMembers(context.Background(), connect.NewRequest(&apiv1.BatchGetRoomMembersRequest{RoomId: "room", UserIds: tooManyUserIDs})); connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("too-many BatchGetRoomMembers code = %v, want invalid_argument", connect.CodeOf(err))
 	}
 
@@ -2893,11 +2891,11 @@ func TestRoomServiceMembershipAndModerationCommands(t *testing.T) {
 	if err := env.core.GrantServerPermission(env.ctx, core.SystemActorID, core.RoleEveryone, core.PermRoomJoin); err != nil {
 		t.Fatalf("GrantServerPermission join: %v", err)
 	}
-	if _, err := env.rooms.ListRoomBans(env.ctx, connect.NewRequest(&apiv1.ListRoomBansRequest{})); connect.CodeOf(err) != connect.CodeUnauthenticated {
-		t.Fatalf("unauthenticated ListRoomBans code = %v, want unauthenticated", connect.CodeOf(err))
+	if _, err := env.rooms.ListBans(env.ctx, connect.NewRequest(&apiv1.ListBansRequest{})); connect.CodeOf(err) != connect.CodeUnauthenticated {
+		t.Fatalf("unauthenticated ListBans code = %v, want unauthenticated", connect.CodeOf(err))
 	}
-	if _, err := env.rooms.ListRoomBans(ctx, connect.NewRequest(&apiv1.ListRoomBansRequest{})); connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Fatalf("ListRoomBans without permission code = %v, want permission denied", connect.CodeOf(err))
+	if _, err := env.rooms.ListBans(ctx, connect.NewRequest(&apiv1.ListBansRequest{})); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("ListBans without permission code = %v, want permission denied", connect.CodeOf(err))
 	}
 	if err := env.core.GrantServerPermission(env.ctx, core.SystemActorID, core.RoleEveryone, core.PermRoomMemberBan); err != nil {
 		t.Fatalf("GrantServerPermission ban: %v", err)
@@ -2925,94 +2923,153 @@ func TestRoomServiceMembershipAndModerationCommands(t *testing.T) {
 		t.Fatalf("JoinRoom room id = %q, want %s", joinResp.Msg.GetRoom().GetId(), room.Id)
 	}
 
-	if _, err := env.rooms.BanRoomMember(ctx, connect.NewRequest(&apiv1.BanRoomMemberRequest{
+	addTarget, err := env.core.CreateUser(env.ctx, core.SystemActorID, "room-add-target", "Room Add Target", "password")
+	if err != nil {
+		t.Fatalf("CreateUser add target: %v", err)
+	}
+	if _, err := env.rooms.AddMember(ctx, connect.NewRequest(&apiv1.AddMemberRequest{
+		RoomId: room.Id,
+		UserId: addTarget.Id,
+	})); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("AddMember without room.manage code = %v, want permission denied", connect.CodeOf(err))
+	}
+	if err := env.core.GrantUserRoomPermission(env.ctx, core.SystemActorID, room.Id, env.viewer.Id, core.PermRoomManage); err != nil {
+		t.Fatalf("GrantUserRoomPermission room.manage: %v", err)
+	}
+	if err := env.core.DenyRoomPermission(env.ctx, core.SystemActorID, room.Id, core.RoleEveryone, core.PermRoomJoin); err != nil {
+		t.Fatalf("DenyRoomPermission room.join: %v", err)
+	}
+	addResp, err := env.rooms.AddMember(ctx, connect.NewRequest(&apiv1.AddMemberRequest{
+		RoomId: room.Id,
+		UserId: addTarget.Id,
+	}))
+	if err != nil {
+		t.Fatalf("AddMember: %v", err)
+	}
+	if addResp.Msg.GetMember().GetProfile().GetUser().GetId() != addTarget.Id {
+		t.Fatalf("AddMember member = %+v, want target", addResp.Msg.GetMember())
+	}
+	if _, err := env.rooms.GetMember(ctx, connect.NewRequest(&apiv1.GetRoomMemberRequest{
+		RoomId: room.Id,
+		UserId: addTarget.Id,
+	})); err != nil {
+		t.Fatalf("RoomService.GetMember after AddMember: %v", err)
+	}
+	removeResp, err := env.rooms.RemoveMember(ctx, connect.NewRequest(&apiv1.RemoveMemberRequest{
+		RoomId: room.Id,
+		UserId: addTarget.Id,
+	}))
+	if err != nil {
+		t.Fatalf("RemoveMember: %v", err)
+	}
+	if !removeResp.Msg.GetRemoved() {
+		t.Fatalf("RemoveMember removed = false, want true")
+	}
+	removeAgainResp, err := env.rooms.RemoveMember(ctx, connect.NewRequest(&apiv1.RemoveMemberRequest{
+		RoomId: room.Id,
+		UserId: addTarget.Id,
+	}))
+	if err != nil {
+		t.Fatalf("idempotent RemoveMember: %v", err)
+	}
+	if removeAgainResp.Msg.GetRemoved() {
+		t.Fatalf("idempotent RemoveMember removed = true, want false")
+	}
+	if _, err := env.rooms.GetMember(ctx, connect.NewRequest(&apiv1.GetRoomMemberRequest{
+		RoomId: room.Id,
+		UserId: addTarget.Id,
+	})); connect.CodeOf(err) != connect.CodeNotFound {
+		t.Fatalf("RoomService.GetMember after RemoveMember code = %v, want not found", connect.CodeOf(err))
+	}
+
+	if _, err := env.rooms.BanMember(ctx, connect.NewRequest(&apiv1.BanMemberRequest{
 		RoomId: room.Id,
 		UserId: target.Id,
 		Reason: "  ",
 	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("blank BanRoomMember reason code = %v, want invalid argument", connect.CodeOf(err))
+		t.Fatalf("blank BanMember reason code = %v, want invalid argument", connect.CodeOf(err))
 	}
 
-	banResp, err := env.rooms.BanRoomMember(ctx, connect.NewRequest(&apiv1.BanRoomMemberRequest{
+	banResp, err := env.rooms.BanMember(ctx, connect.NewRequest(&apiv1.BanMemberRequest{
 		RoomId: room.Id,
 		UserId: target.Id,
 		Reason: "moderation test",
 	}))
 	if err != nil {
-		t.Fatalf("BanRoomMember: %v", err)
+		t.Fatalf("BanMember: %v", err)
 	}
 	if !banResp.Msg.GetBanned() {
-		t.Fatalf("BanRoomMember banned = false, want true")
+		t.Fatalf("BanMember banned = false, want true")
 	}
 	isTargetMember, err := env.core.RoomMembershipExists(env.ctx, core.KindChannel, target.Id, room.Id)
 	if err != nil {
 		t.Fatalf("RoomMembershipExists target after ban: %v", err)
 	}
 	if isTargetMember {
-		t.Fatalf("target is still a member after BanRoomMember")
+		t.Fatalf("target is still a member after BanMember")
 	}
 
-	listResp, err := env.rooms.ListRoomBans(ctx, connect.NewRequest(&apiv1.ListRoomBansRequest{}))
+	listResp, err := env.rooms.ListBans(ctx, connect.NewRequest(&apiv1.ListBansRequest{}))
 	if err != nil {
-		t.Fatalf("ListRoomBans: %v", err)
+		t.Fatalf("ListBans: %v", err)
 	}
 	if got := len(listResp.Msg.GetBans()); got != 1 {
-		t.Fatalf("ListRoomBans count = %d, want 1", got)
+		t.Fatalf("ListBans count = %d, want 1", got)
 	}
 	if listResp.Msg.GetPage().GetTotalCount() != 1 || listResp.Msg.GetPage().GetHasMore() {
-		t.Fatalf("ListRoomBans page = %+v, want total_count 1 has_more false", listResp.Msg.GetPage())
+		t.Fatalf("ListBans page = %+v, want total_count 1 has_more false", listResp.Msg.GetPage())
 	}
 	listedBan := listResp.Msg.GetBans()[0]
 	if listedBan.GetId() == "" {
-		t.Fatalf("ListRoomBans ban id is empty")
+		t.Fatalf("ListBans ban id is empty")
 	}
 	if listedBan.GetRoomId() != room.Id || listedBan.GetRoom().GetName() != room.Name {
-		t.Fatalf("ListRoomBans room = %+v, want id %s name %q", listedBan.GetRoom(), room.Id, room.Name)
+		t.Fatalf("ListBans room = %+v, want id %s name %q", listedBan.GetRoom(), room.Id, room.Name)
 	}
 	if listedBan.GetUserId() != target.Id || listedBan.GetUser().GetProfile().GetUser().GetDisplayName() != target.DisplayName {
-		t.Fatalf("ListRoomBans user = %+v, want target %s", listedBan.GetUser(), target.Id)
+		t.Fatalf("ListBans user = %+v, want target %s", listedBan.GetUser(), target.Id)
 	}
 	if listedBan.GetModeratorId() != env.viewer.Id || listedBan.GetModerator().GetProfile().GetUser().GetDisplayName() != env.viewer.DisplayName {
-		t.Fatalf("ListRoomBans moderator = %+v, want viewer %s", listedBan.GetModerator(), env.viewer.Id)
+		t.Fatalf("ListBans moderator = %+v, want viewer %s", listedBan.GetModerator(), env.viewer.Id)
 	}
 	if listedBan.GetReason() != "moderation test" {
-		t.Fatalf("ListRoomBans reason = %q, want moderation test", listedBan.GetReason())
+		t.Fatalf("ListBans reason = %q, want moderation test", listedBan.GetReason())
 	}
 	if listedBan.GetCreatedAt() == nil {
-		t.Fatalf("ListRoomBans created_at is nil")
+		t.Fatalf("ListBans created_at is nil")
 	}
 	if listedBan.GetExpiresAt() != nil {
-		t.Fatalf("ListRoomBans expires_at = %v, want nil", listedBan.GetExpiresAt())
+		t.Fatalf("ListBans expires_at = %v, want nil", listedBan.GetExpiresAt())
 	}
 
-	filteredResp, err := env.rooms.ListRoomBans(ctx, connect.NewRequest(&apiv1.ListRoomBansRequest{RoomId: room.Id}))
+	filteredResp, err := env.rooms.ListBans(ctx, connect.NewRequest(&apiv1.ListBansRequest{RoomId: room.Id}))
 	if err != nil {
-		t.Fatalf("ListRoomBans filtered: %v", err)
+		t.Fatalf("ListBans filtered: %v", err)
 	}
 	if got := len(filteredResp.Msg.GetBans()); got != 1 {
-		t.Fatalf("filtered ListRoomBans count = %d, want 1", got)
+		t.Fatalf("filtered ListBans count = %d, want 1", got)
 	}
 	if filteredResp.Msg.GetPage().GetTotalCount() != 1 || filteredResp.Msg.GetPage().GetHasMore() {
-		t.Fatalf("filtered ListRoomBans page = %+v, want total_count 1 has_more false", filteredResp.Msg.GetPage())
+		t.Fatalf("filtered ListBans page = %+v, want total_count 1 has_more false", filteredResp.Msg.GetPage())
 	}
 
-	unbanResp, err := env.rooms.UnbanRoomMember(ctx, connect.NewRequest(&apiv1.UnbanRoomMemberRequest{
+	unbanResp, err := env.rooms.UnbanMember(ctx, connect.NewRequest(&apiv1.UnbanMemberRequest{
 		RoomId: room.Id,
 		UserId: target.Id,
 		Reason: "appeal accepted",
 	}))
 	if err != nil {
-		t.Fatalf("UnbanRoomMember: %v", err)
+		t.Fatalf("UnbanMember: %v", err)
 	}
 	if !unbanResp.Msg.GetUnbanned() {
-		t.Fatalf("UnbanRoomMember unbanned = false, want true")
+		t.Fatalf("UnbanMember unbanned = false, want true")
 	}
-	afterUnbanResp, err := env.rooms.ListRoomBans(ctx, connect.NewRequest(&apiv1.ListRoomBansRequest{}))
+	afterUnbanResp, err := env.rooms.ListBans(ctx, connect.NewRequest(&apiv1.ListBansRequest{}))
 	if err != nil {
-		t.Fatalf("ListRoomBans after unban: %v", err)
+		t.Fatalf("ListBans after unban: %v", err)
 	}
 	if got := len(afterUnbanResp.Msg.GetBans()); got != 0 {
-		t.Fatalf("ListRoomBans after unban count = %d, want 0", got)
+		t.Fatalf("ListBans after unban count = %d, want 0", got)
 	}
 }
 
@@ -3156,19 +3213,31 @@ func TestRoomServiceRejectsDMRooms(t *testing.T) {
 	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("UpdateRoomUniversal for DM code = %v, want invalid argument", connect.CodeOf(err))
 	}
-	if _, err := env.rooms.BanRoomMember(ctx, connect.NewRequest(&apiv1.BanRoomMemberRequest{
+	if _, err := env.rooms.AddMember(ctx, connect.NewRequest(&apiv1.AddMemberRequest{
+		RoomId: dm.Id,
+		UserId: outsider.Id,
+	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("AddMember for DM code = %v, want invalid argument", connect.CodeOf(err))
+	}
+	if _, err := env.rooms.RemoveMember(ctx, connect.NewRequest(&apiv1.RemoveMemberRequest{
+		RoomId: dm.Id,
+		UserId: participant.Id,
+	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("RemoveMember for DM code = %v, want invalid argument", connect.CodeOf(err))
+	}
+	if _, err := env.rooms.BanMember(ctx, connect.NewRequest(&apiv1.BanMemberRequest{
 		RoomId: dm.Id,
 		UserId: participant.Id,
 		Reason: "should not ban",
 	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("BanRoomMember for DM code = %v, want invalid argument", connect.CodeOf(err))
+		t.Fatalf("BanMember for DM code = %v, want invalid argument", connect.CodeOf(err))
 	}
-	if _, err := env.rooms.UnbanRoomMember(ctx, connect.NewRequest(&apiv1.UnbanRoomMemberRequest{
+	if _, err := env.rooms.UnbanMember(ctx, connect.NewRequest(&apiv1.UnbanMemberRequest{
 		RoomId: dm.Id,
 		UserId: participant.Id,
 		Reason: "should not unban",
 	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("UnbanRoomMember for DM code = %v, want invalid argument", connect.CodeOf(err))
+		t.Fatalf("UnbanMember for DM code = %v, want invalid argument", connect.CodeOf(err))
 	}
 
 	stored, err := env.core.GetRoom(env.ctx, core.KindDM, dm.Id)
@@ -3753,7 +3822,7 @@ func TestServerMemberServiceListMembers(t *testing.T) {
 	}
 }
 
-func TestRoomMemberServiceListMembersRequiresMembership(t *testing.T) {
+func TestRoomServiceListMembersRequiresMembership(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("room-members-room")
 	member, err := env.core.CreateUser(env.ctx, core.SystemActorID, "room-member-alice", "Room Alice", "password")
@@ -3768,30 +3837,30 @@ func TestRoomMemberServiceListMembersRequiresMembership(t *testing.T) {
 	}
 
 	req := connect.NewRequest(&apiv1.ListRoomMembersRequest{RoomId: room.Id, Search: "alice", Page: &apiv1.PageRequest{Limit: 10}})
-	if _, err := env.roomMembers.ListMembers(env.ctx, req); connect.CodeOf(err) != connect.CodeUnauthenticated {
+	if _, err := env.rooms.ListMembers(env.ctx, req); connect.CodeOf(err) != connect.CodeUnauthenticated {
 		t.Fatalf("unauthenticated ListMembers code = %v, want %v", connect.CodeOf(err), connect.CodeUnauthenticated)
 	}
-	if _, err := env.roomMembers.GetMember(env.ctx, connect.NewRequest(&apiv1.GetRoomMemberRequest{RoomId: room.Id, UserId: member.Id})); connect.CodeOf(err) != connect.CodeUnauthenticated {
+	if _, err := env.rooms.GetMember(env.ctx, connect.NewRequest(&apiv1.GetRoomMemberRequest{RoomId: room.Id, UserId: member.Id})); connect.CodeOf(err) != connect.CodeUnauthenticated {
 		t.Fatalf("unauthenticated GetMember code = %v, want %v", connect.CodeOf(err), connect.CodeUnauthenticated)
 	}
-	if _, err := env.roomMembers.BatchGetMembers(env.ctx, connect.NewRequest(&apiv1.BatchGetRoomMembersRequest{RoomId: room.Id, UserIds: []string{member.Id}})); connect.CodeOf(err) != connect.CodeUnauthenticated {
+	if _, err := env.rooms.BatchGetMembers(env.ctx, connect.NewRequest(&apiv1.BatchGetRoomMembersRequest{RoomId: room.Id, UserIds: []string{member.Id}})); connect.CodeOf(err) != connect.CodeUnauthenticated {
 		t.Fatalf("unauthenticated BatchGetMembers code = %v, want %v", connect.CodeOf(err), connect.CodeUnauthenticated)
 	}
 	outsider, err := env.core.CreateUser(env.ctx, core.SystemActorID, "room-member-outsider", "Room Outsider", "password")
 	if err != nil {
 		t.Fatalf("CreateUser outsider: %v", err)
 	}
-	if _, err := env.roomMembers.ListMembers(withCaller(env.ctx, outsider), req); connect.CodeOf(err) != connect.CodePermissionDenied {
+	if _, err := env.rooms.ListMembers(withCaller(env.ctx, outsider), req); connect.CodeOf(err) != connect.CodePermissionDenied {
 		t.Fatalf("outsider ListMembers code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
 	}
-	if _, err := env.roomMembers.GetMember(withCaller(env.ctx, outsider), connect.NewRequest(&apiv1.GetRoomMemberRequest{RoomId: room.Id, UserId: member.Id})); connect.CodeOf(err) != connect.CodePermissionDenied {
+	if _, err := env.rooms.GetMember(withCaller(env.ctx, outsider), connect.NewRequest(&apiv1.GetRoomMemberRequest{RoomId: room.Id, UserId: member.Id})); connect.CodeOf(err) != connect.CodePermissionDenied {
 		t.Fatalf("outsider GetMember code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
 	}
-	if _, err := env.roomMembers.BatchGetMembers(withCaller(env.ctx, outsider), connect.NewRequest(&apiv1.BatchGetRoomMembersRequest{RoomId: room.Id, UserIds: []string{member.Id}})); connect.CodeOf(err) != connect.CodePermissionDenied {
+	if _, err := env.rooms.BatchGetMembers(withCaller(env.ctx, outsider), connect.NewRequest(&apiv1.BatchGetRoomMembersRequest{RoomId: room.Id, UserIds: []string{member.Id}})); connect.CodeOf(err) != connect.CodePermissionDenied {
 		t.Fatalf("outsider BatchGetMembers code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
 	}
 
-	resp, err := env.roomMembers.ListMembers(withCaller(env.ctx, env.viewer), req)
+	resp, err := env.rooms.ListMembers(withCaller(env.ctx, env.viewer), req)
 	if err != nil {
 		t.Fatalf("ListMembers: %v", err)
 	}
@@ -3803,18 +3872,18 @@ func TestRoomMemberServiceListMembersRequiresMembership(t *testing.T) {
 		t.Fatalf("room member = %+v, want hydrated Room Alice", got)
 	}
 
-	getResp, err := env.roomMembers.GetMember(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.GetRoomMemberRequest{RoomId: room.Id, UserId: member.Id}))
+	getResp, err := env.rooms.GetMember(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.GetRoomMemberRequest{RoomId: room.Id, UserId: member.Id}))
 	if err != nil {
 		t.Fatalf("GetMember: %v", err)
 	}
 	if got := getResp.Msg.GetMember(); got.GetProfile().GetUser().GetId() != member.Id || got.GetProfile().GetPresenceStatus() != apiv1.PresenceStatus_PRESENCE_STATUS_DO_NOT_DISTURB {
 		t.Fatalf("GetMember member = %+v, want room member", got)
 	}
-	if _, err := env.roomMembers.GetMember(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.GetRoomMemberRequest{RoomId: room.Id, UserId: outsider.Id})); connect.CodeOf(err) != connect.CodeNotFound {
+	if _, err := env.rooms.GetMember(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.GetRoomMemberRequest{RoomId: room.Id, UserId: outsider.Id})); connect.CodeOf(err) != connect.CodeNotFound {
 		t.Fatalf("non-member GetMember code = %v, want not_found", connect.CodeOf(err))
 	}
 
-	batchResp, err := env.roomMembers.BatchGetMembers(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.BatchGetRoomMembersRequest{
+	batchResp, err := env.rooms.BatchGetMembers(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.BatchGetRoomMembersRequest{
 		RoomId:  room.Id,
 		UserIds: []string{member.Id, outsider.Id, env.viewer.Id, member.Id, "missing-user"},
 	}))
@@ -6737,7 +6806,6 @@ type connectAPITestEnv struct {
 	linkPreviews     *linkPreviewService
 	messages         *messageService
 	serverMembers    *serverMemberService
-	roomMembers      *roomMemberService
 	notifications    *notificationService
 	permissions      *permissionService
 	prefs            *notificationPreferencesService
@@ -6792,7 +6860,6 @@ func newConnectAPITestEnv(t *testing.T) *connectAPITestEnv {
 		linkPreviews:     &linkPreviewService{api: api},
 		messages:         &messageService{api: api},
 		serverMembers:    &serverMemberService{api: api},
-		roomMembers:      &roomMemberService{api: api},
 		notifications:    &notificationService{api: api},
 		permissions:      &permissionService{api: api},
 		prefs:            &notificationPreferencesService{api: api},

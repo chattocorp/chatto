@@ -168,7 +168,48 @@ func (s *roomService) LeaveRoom(ctx context.Context, req *connect.Request[apiv1.
 	return connect.NewResponse(&apiv1.LeaveRoomResponse{Left: true}), nil
 }
 
-func (s *roomService) ListRoomBans(ctx context.Context, req *connect.Request[apiv1.ListRoomBansRequest]) (*connect.Response[apiv1.ListRoomBansResponse], error) {
+func (s *roomService) AddMember(ctx context.Context, req *connect.Request[apiv1.AddMemberRequest]) (*connect.Response[apiv1.AddMemberResponse], error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	membership, err := s.api.core.RoomCommands().AddMember(ctx, core.RoomUserInput{
+		ActorID: caller.UserID,
+		RoomID:  req.Msg.RoomId,
+		UserID:  req.Msg.UserId,
+	})
+	if err != nil {
+		return nil, connectError(err)
+	}
+
+	user, err := s.api.core.GetUser(ctx, membership.GetUserId())
+	if err != nil {
+		return nil, connectError(err)
+	}
+	member, err := directoryMember(ctx, s.api, user, nil)
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&apiv1.AddMemberResponse{Member: member}), nil
+}
+
+func (s *roomService) RemoveMember(ctx context.Context, req *connect.Request[apiv1.RemoveMemberRequest]) (*connect.Response[apiv1.RemoveMemberResponse], error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	removed, err := s.api.core.RoomCommands().RemoveMember(ctx, core.RoomUserInput{
+		ActorID: caller.UserID,
+		RoomID:  req.Msg.RoomId,
+		UserID:  req.Msg.UserId,
+	})
+	if err != nil {
+		return nil, connectError(err)
+	}
+	return connect.NewResponse(&apiv1.RemoveMemberResponse{Removed: removed}), nil
+}
+
+func (s *roomService) ListBans(ctx context.Context, req *connect.Request[apiv1.ListBansRequest]) (*connect.Response[apiv1.ListBansResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -198,7 +239,7 @@ func (s *roomService) ListRoomBans(ctx context.Context, req *connect.Request[api
 		}
 		out = append(out, apiBan)
 	}
-	return connect.NewResponse(&apiv1.ListRoomBansResponse{
+	return connect.NewResponse(&apiv1.ListBansResponse{
 		Bans: out,
 		Page: apiPageInfo(totalCount, hasMore),
 	}), nil
@@ -224,7 +265,7 @@ func (s *roomService) UpdateTypingIndicator(ctx context.Context, req *connect.Re
 	return connect.NewResponse(&apiv1.UpdateTypingIndicatorResponse{Updated: true}), nil
 }
 
-func (s *roomService) BanRoomMember(ctx context.Context, req *connect.Request[apiv1.BanRoomMemberRequest]) (*connect.Response[apiv1.BanRoomMemberResponse], error) {
+func (s *roomService) BanMember(ctx context.Context, req *connect.Request[apiv1.BanMemberRequest]) (*connect.Response[apiv1.BanMemberResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -235,7 +276,7 @@ func (s *roomService) BanRoomMember(ctx context.Context, req *connect.Request[ap
 		expiresAt = &t
 	}
 
-	if _, err := s.api.core.RoomCommands().BanRoomMember(ctx, core.RoomBanInput{
+	if _, err := s.api.core.RoomCommands().BanMember(ctx, core.RoomBanInput{
 		ActorID:   caller.UserID,
 		RoomID:    req.Msg.RoomId,
 		UserID:    req.Msg.UserId,
@@ -244,15 +285,15 @@ func (s *roomService) BanRoomMember(ctx context.Context, req *connect.Request[ap
 	}); err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&apiv1.BanRoomMemberResponse{Banned: true}), nil
+	return connect.NewResponse(&apiv1.BanMemberResponse{Banned: true}), nil
 }
 
-func (s *roomService) UnbanRoomMember(ctx context.Context, req *connect.Request[apiv1.UnbanRoomMemberRequest]) (*connect.Response[apiv1.UnbanRoomMemberResponse], error) {
+func (s *roomService) UnbanMember(ctx context.Context, req *connect.Request[apiv1.UnbanMemberRequest]) (*connect.Response[apiv1.UnbanMemberResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
 	}
-	if err := s.api.core.RoomCommands().UnbanRoomMember(ctx, core.RoomUnbanInput{
+	if err := s.api.core.RoomCommands().UnbanMember(ctx, core.RoomUnbanInput{
 		ActorID: caller.UserID,
 		RoomID:  req.Msg.RoomId,
 		UserID:  req.Msg.UserId,
@@ -260,7 +301,7 @@ func (s *roomService) UnbanRoomMember(ctx context.Context, req *connect.Request[
 	}); err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&apiv1.UnbanRoomMemberResponse{Unbanned: true}), nil
+	return connect.NewResponse(&apiv1.UnbanMemberResponse{Unbanned: true}), nil
 }
 
 func (s *roomService) apiRoomBan(ctx context.Context, ban core.RoomBan) (*apiv1.RoomBan, error) {

@@ -142,15 +142,3 @@ service ServerMemberService {
   // Gets authenticated server member rows for multiple users.
   rpc BatchGetMembers(BatchGetServerMembersRequest) returns (BatchGetServerMembersResponse);
 }
-
-// Reads explicit room members.
-service RoomMemberService {
-  // Lists explicit members of a room. The caller must be a member of the room.
-  rpc ListMembers(ListRoomMembersRequest) returns (ListRoomMembersResponse);
-  // Gets one explicit member of a room. The caller must be a member of the
-  // room. Returns NOT_FOUND when the target is unknown or not a room member.
-  rpc GetMember(GetRoomMemberRequest) returns (GetRoomMemberResponse);
-  // Gets explicit room member rows for multiple users. The caller must be a
-  // member of the room.
-  rpc BatchGetMembers(BatchGetRoomMembersRequest) returns (BatchGetRoomMembersResponse);
-}

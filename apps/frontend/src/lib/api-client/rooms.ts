@@ -219,11 +219,39 @@ export function createRoomCommandAPI(config: ConnectAPIConfig) {
       }
     },
 
-    async listRoomBans(
+    async addMember(input: {
+      roomId: string;
+      userId: string;
+    }): Promise<DirectoryMember | null> {
+      try {
+        const response = await rooms.addMember(input, {
+          headers: headers(),
+        });
+        return response.member ? mapDirectoryMember(response.member) : null;
+      } catch (err) {
+        return handleAuthError(config, err);
+      }
+    },
+
+    async removeMember(input: {
+      roomId: string;
+      userId: string;
+    }): Promise<boolean> {
+      try {
+        const response = await rooms.removeMember(input, {
+          headers: headers(),
+        });
+        return response.removed;
+      } catch (err) {
+        return handleAuthError(config, err);
+      }
+    },
+
+    async listBans(
       input: { roomId?: string; limit?: number; offset?: number } = {},
     ): Promise<RoomBanList> {
       try {
-        const response = await rooms.listRoomBans(
+        const response = await rooms.listBans(
           {
             roomId: input.roomId ?? "",
             page: { limit: input.limit ?? 100, offset: input.offset ?? 0 },
@@ -270,14 +298,14 @@ export function createRoomCommandAPI(config: ConnectAPIConfig) {
       }
     },
 
-    async banRoomMember(input: {
+    async banMember(input: {
       roomId: string;
       userId: string;
       reason: string;
       expiresAt?: string | null;
     }): Promise<boolean> {
       try {
-        const response = await rooms.banRoomMember(
+        const response = await rooms.banMember(
           {
             roomId: input.roomId,
             userId: input.userId,
@@ -294,13 +322,13 @@ export function createRoomCommandAPI(config: ConnectAPIConfig) {
       }
     },
 
-    async unbanRoomMember(input: {
+    async unbanMember(input: {
       roomId: string;
       userId: string;
       reason: string;
     }): Promise<boolean> {
       try {
-        const response = await rooms.unbanRoomMember(input, {
+        const response = await rooms.unbanMember(input, {
           headers: headers(),
         });
         return response.unbanned;

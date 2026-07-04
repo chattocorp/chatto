@@ -1062,8 +1062,210 @@ func (x *LeaveRoomResponse) GetLeft() bool {
 	return false
 }
 
+// Request to add a user to a channel room.
+type AddMemberRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Required. Channel room to add the user to.
+	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	// Required. User to add as an explicit room member.
+	UserId        string `protobuf:"bytes,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AddMemberRequest) Reset() {
+	*x = AddMemberRequest{}
+	mi := &file_chatto_api_v1_rooms_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AddMemberRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AddMemberRequest) ProtoMessage() {}
+
+func (x *AddMemberRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_rooms_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AddMemberRequest.ProtoReflect.Descriptor instead.
+func (*AddMemberRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_rooms_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *AddMemberRequest) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *AddMemberRequest) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+// Result of adding a user to a room.
+type AddMemberResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Added room member.
+	Member        *DirectoryMember `protobuf:"bytes,1,opt,name=member,proto3" json:"member,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AddMemberResponse) Reset() {
+	*x = AddMemberResponse{}
+	mi := &file_chatto_api_v1_rooms_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AddMemberResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AddMemberResponse) ProtoMessage() {}
+
+func (x *AddMemberResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_rooms_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AddMemberResponse.ProtoReflect.Descriptor instead.
+func (*AddMemberResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_rooms_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *AddMemberResponse) GetMember() *DirectoryMember {
+	if x != nil {
+		return x.Member
+	}
+	return nil
+}
+
+// Request to remove a user from a channel room.
+type RemoveMemberRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Required. Channel room to remove the user from.
+	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	// Required. User to remove from the room's explicit members.
+	UserId        string `protobuf:"bytes,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RemoveMemberRequest) Reset() {
+	*x = RemoveMemberRequest{}
+	mi := &file_chatto_api_v1_rooms_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RemoveMemberRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RemoveMemberRequest) ProtoMessage() {}
+
+func (x *RemoveMemberRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_rooms_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RemoveMemberRequest.ProtoReflect.Descriptor instead.
+func (*RemoveMemberRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_rooms_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *RemoveMemberRequest) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *RemoveMemberRequest) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+// Result of removing a user from a room.
+type RemoveMemberResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// True when an explicit room membership was removed by this call.
+	Removed       bool `protobuf:"varint,1,opt,name=removed,proto3" json:"removed,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RemoveMemberResponse) Reset() {
+	*x = RemoveMemberResponse{}
+	mi := &file_chatto_api_v1_rooms_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RemoveMemberResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RemoveMemberResponse) ProtoMessage() {}
+
+func (x *RemoveMemberResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_rooms_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RemoveMemberResponse.ProtoReflect.Descriptor instead.
+func (*RemoveMemberResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_rooms_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *RemoveMemberResponse) GetRemoved() bool {
+	if x != nil {
+		return x.Removed
+	}
+	return false
+}
+
 // Request to ban a member from a channel room.
-type BanRoomMemberRequest struct {
+type BanMemberRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Required. Channel room to ban the user from.
 	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
@@ -1077,21 +1279,21 @@ type BanRoomMemberRequest struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *BanRoomMemberRequest) Reset() {
-	*x = BanRoomMemberRequest{}
-	mi := &file_chatto_api_v1_rooms_proto_msgTypes[19]
+func (x *BanMemberRequest) Reset() {
+	*x = BanMemberRequest{}
+	mi := &file_chatto_api_v1_rooms_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *BanRoomMemberRequest) String() string {
+func (x *BanMemberRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*BanRoomMemberRequest) ProtoMessage() {}
+func (*BanMemberRequest) ProtoMessage() {}
 
-func (x *BanRoomMemberRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_rooms_proto_msgTypes[19]
+func (x *BanMemberRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_rooms_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1102,33 +1304,33 @@ func (x *BanRoomMemberRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use BanRoomMemberRequest.ProtoReflect.Descriptor instead.
-func (*BanRoomMemberRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_rooms_proto_rawDescGZIP(), []int{19}
+// Deprecated: Use BanMemberRequest.ProtoReflect.Descriptor instead.
+func (*BanMemberRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_rooms_proto_rawDescGZIP(), []int{23}
 }
 
-func (x *BanRoomMemberRequest) GetRoomId() string {
+func (x *BanMemberRequest) GetRoomId() string {
 	if x != nil {
 		return x.RoomId
 	}
 	return ""
 }
 
-func (x *BanRoomMemberRequest) GetUserId() string {
+func (x *BanMemberRequest) GetUserId() string {
 	if x != nil {
 		return x.UserId
 	}
 	return ""
 }
 
-func (x *BanRoomMemberRequest) GetReason() string {
+func (x *BanMemberRequest) GetReason() string {
 	if x != nil {
 		return x.Reason
 	}
 	return ""
 }
 
-func (x *BanRoomMemberRequest) GetExpiresAt() *timestamppb.Timestamp {
+func (x *BanMemberRequest) GetExpiresAt() *timestamppb.Timestamp {
 	if x != nil {
 		return x.ExpiresAt
 	}
@@ -1136,7 +1338,7 @@ func (x *BanRoomMemberRequest) GetExpiresAt() *timestamppb.Timestamp {
 }
 
 // Result of banning a room member.
-type BanRoomMemberResponse struct {
+type BanMemberResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// True when the ban operation completed.
 	Banned        bool `protobuf:"varint,1,opt,name=banned,proto3" json:"banned,omitempty"`
@@ -1144,21 +1346,21 @@ type BanRoomMemberResponse struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *BanRoomMemberResponse) Reset() {
-	*x = BanRoomMemberResponse{}
-	mi := &file_chatto_api_v1_rooms_proto_msgTypes[20]
+func (x *BanMemberResponse) Reset() {
+	*x = BanMemberResponse{}
+	mi := &file_chatto_api_v1_rooms_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *BanRoomMemberResponse) String() string {
+func (x *BanMemberResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*BanRoomMemberResponse) ProtoMessage() {}
+func (*BanMemberResponse) ProtoMessage() {}
 
-func (x *BanRoomMemberResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_rooms_proto_msgTypes[20]
+func (x *BanMemberResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_rooms_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1169,12 +1371,12 @@ func (x *BanRoomMemberResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use BanRoomMemberResponse.ProtoReflect.Descriptor instead.
-func (*BanRoomMemberResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_rooms_proto_rawDescGZIP(), []int{20}
+// Deprecated: Use BanMemberResponse.ProtoReflect.Descriptor instead.
+func (*BanMemberResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_rooms_proto_rawDescGZIP(), []int{24}
 }
 
-func (x *BanRoomMemberResponse) GetBanned() bool {
+func (x *BanMemberResponse) GetBanned() bool {
 	if x != nil {
 		return x.Banned
 	}
@@ -1182,7 +1384,7 @@ func (x *BanRoomMemberResponse) GetBanned() bool {
 }
 
 // Request to remove a channel room ban.
-type UnbanRoomMemberRequest struct {
+type UnbanMemberRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Required. Channel room to unban the user from.
 	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
@@ -1194,21 +1396,21 @@ type UnbanRoomMemberRequest struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *UnbanRoomMemberRequest) Reset() {
-	*x = UnbanRoomMemberRequest{}
-	mi := &file_chatto_api_v1_rooms_proto_msgTypes[21]
+func (x *UnbanMemberRequest) Reset() {
+	*x = UnbanMemberRequest{}
+	mi := &file_chatto_api_v1_rooms_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *UnbanRoomMemberRequest) String() string {
+func (x *UnbanMemberRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*UnbanRoomMemberRequest) ProtoMessage() {}
+func (*UnbanMemberRequest) ProtoMessage() {}
 
-func (x *UnbanRoomMemberRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_rooms_proto_msgTypes[21]
+func (x *UnbanMemberRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_rooms_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1219,26 +1421,26 @@ func (x *UnbanRoomMemberRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use UnbanRoomMemberRequest.ProtoReflect.Descriptor instead.
-func (*UnbanRoomMemberRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_rooms_proto_rawDescGZIP(), []int{21}
+// Deprecated: Use UnbanMemberRequest.ProtoReflect.Descriptor instead.
+func (*UnbanMemberRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_rooms_proto_rawDescGZIP(), []int{25}
 }
 
-func (x *UnbanRoomMemberRequest) GetRoomId() string {
+func (x *UnbanMemberRequest) GetRoomId() string {
 	if x != nil {
 		return x.RoomId
 	}
 	return ""
 }
 
-func (x *UnbanRoomMemberRequest) GetUserId() string {
+func (x *UnbanMemberRequest) GetUserId() string {
 	if x != nil {
 		return x.UserId
 	}
 	return ""
 }
 
-func (x *UnbanRoomMemberRequest) GetReason() string {
+func (x *UnbanMemberRequest) GetReason() string {
 	if x != nil {
 		return x.Reason
 	}
@@ -1246,7 +1448,7 @@ func (x *UnbanRoomMemberRequest) GetReason() string {
 }
 
 // Result of removing a room ban.
-type UnbanRoomMemberResponse struct {
+type UnbanMemberResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// True when the unban operation completed.
 	Unbanned      bool `protobuf:"varint,1,opt,name=unbanned,proto3" json:"unbanned,omitempty"`
@@ -1254,21 +1456,21 @@ type UnbanRoomMemberResponse struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *UnbanRoomMemberResponse) Reset() {
-	*x = UnbanRoomMemberResponse{}
-	mi := &file_chatto_api_v1_rooms_proto_msgTypes[22]
+func (x *UnbanMemberResponse) Reset() {
+	*x = UnbanMemberResponse{}
+	mi := &file_chatto_api_v1_rooms_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *UnbanRoomMemberResponse) String() string {
+func (x *UnbanMemberResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*UnbanRoomMemberResponse) ProtoMessage() {}
+func (*UnbanMemberResponse) ProtoMessage() {}
 
-func (x *UnbanRoomMemberResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_rooms_proto_msgTypes[22]
+func (x *UnbanMemberResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_rooms_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1279,12 +1481,12 @@ func (x *UnbanRoomMemberResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use UnbanRoomMemberResponse.ProtoReflect.Descriptor instead.
-func (*UnbanRoomMemberResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_rooms_proto_rawDescGZIP(), []int{22}
+// Deprecated: Use UnbanMemberResponse.ProtoReflect.Descriptor instead.
+func (*UnbanMemberResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_rooms_proto_rawDescGZIP(), []int{26}
 }
 
-func (x *UnbanRoomMemberResponse) GetUnbanned() bool {
+func (x *UnbanMemberResponse) GetUnbanned() bool {
 	if x != nil {
 		return x.Unbanned
 	}
@@ -1320,7 +1522,7 @@ type RoomBan struct {
 
 func (x *RoomBan) Reset() {
 	*x = RoomBan{}
-	mi := &file_chatto_api_v1_rooms_proto_msgTypes[23]
+	mi := &file_chatto_api_v1_rooms_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1332,7 +1534,7 @@ func (x *RoomBan) String() string {
 func (*RoomBan) ProtoMessage() {}
 
 func (x *RoomBan) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_rooms_proto_msgTypes[23]
+	mi := &file_chatto_api_v1_rooms_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1345,7 +1547,7 @@ func (x *RoomBan) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RoomBan.ProtoReflect.Descriptor instead.
 func (*RoomBan) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_rooms_proto_rawDescGZIP(), []int{23}
+	return file_chatto_api_v1_rooms_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *RoomBan) GetId() string {
@@ -1419,7 +1621,7 @@ func (x *RoomBan) GetExpiresAt() *timestamppb.Timestamp {
 }
 
 // Request to list active room bans.
-type ListRoomBansRequest struct {
+type ListBansRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Optional channel room filter. Empty lists active bans across all rooms.
 	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
@@ -1429,21 +1631,21 @@ type ListRoomBansRequest struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *ListRoomBansRequest) Reset() {
-	*x = ListRoomBansRequest{}
-	mi := &file_chatto_api_v1_rooms_proto_msgTypes[24]
+func (x *ListBansRequest) Reset() {
+	*x = ListBansRequest{}
+	mi := &file_chatto_api_v1_rooms_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ListRoomBansRequest) String() string {
+func (x *ListBansRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ListRoomBansRequest) ProtoMessage() {}
+func (*ListBansRequest) ProtoMessage() {}
 
-func (x *ListRoomBansRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_rooms_proto_msgTypes[24]
+func (x *ListBansRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_rooms_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1454,19 +1656,19 @@ func (x *ListRoomBansRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ListRoomBansRequest.ProtoReflect.Descriptor instead.
-func (*ListRoomBansRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_rooms_proto_rawDescGZIP(), []int{24}
+// Deprecated: Use ListBansRequest.ProtoReflect.Descriptor instead.
+func (*ListBansRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_rooms_proto_rawDescGZIP(), []int{28}
 }
 
-func (x *ListRoomBansRequest) GetRoomId() string {
+func (x *ListBansRequest) GetRoomId() string {
 	if x != nil {
 		return x.RoomId
 	}
 	return ""
 }
 
-func (x *ListRoomBansRequest) GetPage() *PageRequest {
+func (x *ListBansRequest) GetPage() *PageRequest {
 	if x != nil {
 		return x.Page
 	}
@@ -1474,7 +1676,7 @@ func (x *ListRoomBansRequest) GetPage() *PageRequest {
 }
 
 // Active room bans visible to the current moderator.
-type ListRoomBansResponse struct {
+type ListBansResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Active bans, newest first.
 	Bans []*RoomBan `protobuf:"bytes,1,rep,name=bans,proto3" json:"bans,omitempty"`
@@ -1484,21 +1686,21 @@ type ListRoomBansResponse struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *ListRoomBansResponse) Reset() {
-	*x = ListRoomBansResponse{}
-	mi := &file_chatto_api_v1_rooms_proto_msgTypes[25]
+func (x *ListBansResponse) Reset() {
+	*x = ListBansResponse{}
+	mi := &file_chatto_api_v1_rooms_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ListRoomBansResponse) String() string {
+func (x *ListBansResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ListRoomBansResponse) ProtoMessage() {}
+func (*ListBansResponse) ProtoMessage() {}
 
-func (x *ListRoomBansResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_rooms_proto_msgTypes[25]
+func (x *ListBansResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_rooms_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1509,19 +1711,19 @@ func (x *ListRoomBansResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ListRoomBansResponse.ProtoReflect.Descriptor instead.
-func (*ListRoomBansResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_rooms_proto_rawDescGZIP(), []int{25}
+// Deprecated: Use ListBansResponse.ProtoReflect.Descriptor instead.
+func (*ListBansResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_rooms_proto_rawDescGZIP(), []int{29}
 }
 
-func (x *ListRoomBansResponse) GetBans() []*RoomBan {
+func (x *ListBansResponse) GetBans() []*RoomBan {
 	if x != nil {
 		return x.Bans
 	}
 	return nil
 }
 
-func (x *ListRoomBansResponse) GetPage() *PageInfo {
+func (x *ListBansResponse) GetPage() *PageInfo {
 	if x != nil {
 		return x.Page
 	}
@@ -1543,7 +1745,7 @@ type ListRoomAttachmentsRequest struct {
 
 func (x *ListRoomAttachmentsRequest) Reset() {
 	*x = ListRoomAttachmentsRequest{}
-	mi := &file_chatto_api_v1_rooms_proto_msgTypes[26]
+	mi := &file_chatto_api_v1_rooms_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1555,7 +1757,7 @@ func (x *ListRoomAttachmentsRequest) String() string {
 func (*ListRoomAttachmentsRequest) ProtoMessage() {}
 
 func (x *ListRoomAttachmentsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_rooms_proto_msgTypes[26]
+	mi := &file_chatto_api_v1_rooms_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1568,7 +1770,7 @@ func (x *ListRoomAttachmentsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListRoomAttachmentsRequest.ProtoReflect.Descriptor instead.
 func (*ListRoomAttachmentsRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_rooms_proto_rawDescGZIP(), []int{26}
+	return file_chatto_api_v1_rooms_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *ListRoomAttachmentsRequest) GetRoomId() string {
@@ -1605,7 +1807,7 @@ type ListRoomAttachmentsResponse struct {
 
 func (x *ListRoomAttachmentsResponse) Reset() {
 	*x = ListRoomAttachmentsResponse{}
-	mi := &file_chatto_api_v1_rooms_proto_msgTypes[27]
+	mi := &file_chatto_api_v1_rooms_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1617,7 +1819,7 @@ func (x *ListRoomAttachmentsResponse) String() string {
 func (*ListRoomAttachmentsResponse) ProtoMessage() {}
 
 func (x *ListRoomAttachmentsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_rooms_proto_msgTypes[27]
+	mi := &file_chatto_api_v1_rooms_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1630,7 +1832,7 @@ func (x *ListRoomAttachmentsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListRoomAttachmentsResponse.ProtoReflect.Descriptor instead.
 func (*ListRoomAttachmentsResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_rooms_proto_rawDescGZIP(), []int{27}
+	return file_chatto_api_v1_rooms_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *ListRoomAttachmentsResponse) GetAttachments() []*RoomAttachmentListItem {
@@ -1660,7 +1862,7 @@ type UpdateTypingIndicatorRequest struct {
 
 func (x *UpdateTypingIndicatorRequest) Reset() {
 	*x = UpdateTypingIndicatorRequest{}
-	mi := &file_chatto_api_v1_rooms_proto_msgTypes[28]
+	mi := &file_chatto_api_v1_rooms_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1672,7 +1874,7 @@ func (x *UpdateTypingIndicatorRequest) String() string {
 func (*UpdateTypingIndicatorRequest) ProtoMessage() {}
 
 func (x *UpdateTypingIndicatorRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_rooms_proto_msgTypes[28]
+	mi := &file_chatto_api_v1_rooms_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1685,7 +1887,7 @@ func (x *UpdateTypingIndicatorRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateTypingIndicatorRequest.ProtoReflect.Descriptor instead.
 func (*UpdateTypingIndicatorRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_rooms_proto_rawDescGZIP(), []int{28}
+	return file_chatto_api_v1_rooms_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *UpdateTypingIndicatorRequest) GetRoomId() string {
@@ -1713,7 +1915,7 @@ type UpdateTypingIndicatorResponse struct {
 
 func (x *UpdateTypingIndicatorResponse) Reset() {
 	*x = UpdateTypingIndicatorResponse{}
-	mi := &file_chatto_api_v1_rooms_proto_msgTypes[29]
+	mi := &file_chatto_api_v1_rooms_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1725,7 +1927,7 @@ func (x *UpdateTypingIndicatorResponse) String() string {
 func (*UpdateTypingIndicatorResponse) ProtoMessage() {}
 
 func (x *UpdateTypingIndicatorResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_rooms_proto_msgTypes[29]
+	mi := &file_chatto_api_v1_rooms_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1738,7 +1940,7 @@ func (x *UpdateTypingIndicatorResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateTypingIndicatorResponse.ProtoReflect.Descriptor instead.
 func (*UpdateTypingIndicatorResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_rooms_proto_rawDescGZIP(), []int{29}
+	return file_chatto_api_v1_rooms_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *UpdateTypingIndicatorResponse) GetUpdated() bool {
@@ -1804,22 +2006,32 @@ const file_chatto_api_v1_rooms_proto_rawDesc = "" +
 	"\x10LeaveRoomRequest\x12 \n" +
 	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\"'\n" +
 	"\x11LeaveRoomResponse\x12\x12\n" +
-	"\x04left\x18\x01 \x01(\bR\x04left\"\xb9\x01\n" +
-	"\x14BanRoomMemberRequest\x12 \n" +
+	"\x04left\x18\x01 \x01(\bR\x04left\"V\n" +
+	"\x10AddMemberRequest\x12 \n" +
+	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x12 \n" +
+	"\auser_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06userId\"K\n" +
+	"\x11AddMemberResponse\x126\n" +
+	"\x06member\x18\x01 \x01(\v2\x1e.chatto.api.v1.DirectoryMemberR\x06member\"Y\n" +
+	"\x13RemoveMemberRequest\x12 \n" +
+	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x12 \n" +
+	"\auser_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06userId\"0\n" +
+	"\x14RemoveMemberResponse\x12\x18\n" +
+	"\aremoved\x18\x01 \x01(\bR\aremoved\"\xb5\x01\n" +
+	"\x10BanMemberRequest\x12 \n" +
 	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x12 \n" +
 	"\auser_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06userId\x12\"\n" +
 	"\x06reason\x18\x03 \x01(\tB\n" +
 	"\xbaH\ar\x05\x10\x01\x18\xe8\aR\x06reason\x129\n" +
 	"\n" +
-	"expires_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\"/\n" +
-	"\x15BanRoomMemberResponse\x12\x16\n" +
-	"\x06banned\x18\x01 \x01(\bR\x06banned\"\x80\x01\n" +
-	"\x16UnbanRoomMemberRequest\x12 \n" +
+	"expires_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\"+\n" +
+	"\x11BanMemberResponse\x12\x16\n" +
+	"\x06banned\x18\x01 \x01(\bR\x06banned\"|\n" +
+	"\x12UnbanMemberRequest\x12 \n" +
 	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x12 \n" +
 	"\auser_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06userId\x12\"\n" +
 	"\x06reason\x18\x03 \x01(\tB\n" +
-	"\xbaH\ar\x05\x10\x01\x18\xe8\aR\x06reason\"5\n" +
-	"\x17UnbanRoomMemberResponse\x12\x1a\n" +
+	"\xbaH\ar\x05\x10\x01\x18\xe8\aR\x06reason\"1\n" +
+	"\x13UnbanMemberResponse\x12\x1a\n" +
 	"\bunbanned\x18\x01 \x01(\bR\bunbanned\"\x97\x03\n" +
 	"\aRoomBan\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n" +
@@ -1834,11 +2046,11 @@ const file_chatto_api_v1_rooms_proto_rawDesc = "" +
 	"created_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
 	"expires_at\x18\n" +
-	" \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\"^\n" +
-	"\x13ListRoomBansRequest\x12\x17\n" +
+	" \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\"Z\n" +
+	"\x0fListBansRequest\x12\x17\n" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12.\n" +
-	"\x04page\x18\x02 \x01(\v2\x1a.chatto.api.v1.PageRequestR\x04page\"o\n" +
-	"\x14ListRoomBansResponse\x12*\n" +
+	"\x04page\x18\x02 \x01(\v2\x1a.chatto.api.v1.PageRequestR\x04page\"k\n" +
+	"\x10ListBansResponse\x12*\n" +
 	"\x04bans\x18\x01 \x03(\v2\x16.chatto.api.v1.RoomBanR\x04bans\x12+\n" +
 	"\x04page\x18\x02 \x01(\v2\x17.chatto.api.v1.PageInfoR\x04page\"\xd2\x01\n" +
 	"\x1aListRoomAttachmentsRequest\x12 \n" +
@@ -1856,7 +2068,7 @@ const file_chatto_api_v1_rooms_proto_rawDesc = "" +
 	"\bRoomKind\x12\x19\n" +
 	"\x15ROOM_KIND_UNSPECIFIED\x10\x00\x12\x15\n" +
 	"\x11ROOM_KIND_CHANNEL\x10\x01\x12\x10\n" +
-	"\fROOM_KIND_DM\x10\x022\xb8\f\n" +
+	"\fROOM_KIND_DM\x10\x022\xdd\x0f\n" +
 	"\vRoomService\x12Q\n" +
 	"\n" +
 	"CreateRoom\x12 .chatto.api.v1.CreateRoomRequest\x1a!.chatto.api.v1.CreateRoomResponse\x12Q\n" +
@@ -1868,15 +2080,20 @@ const file_chatto_api_v1_rooms_proto_rawDesc = "" +
 	"\bJoinRoom\x12\x1e.chatto.api.v1.JoinRoomRequest\x1a\x1f.chatto.api.v1.JoinRoomResponse\x12Z\n" +
 	"\rJoinRoomGroup\x12#.chatto.api.v1.JoinRoomGroupRequest\x1a$.chatto.api.v1.JoinRoomGroupResponse\x12H\n" +
 	"\aStartDM\x12\x1d.chatto.api.v1.StartDMRequest\x1a\x1e.chatto.api.v1.StartDMResponse\x12N\n" +
-	"\tLeaveRoom\x12\x1f.chatto.api.v1.LeaveRoomRequest\x1a .chatto.api.v1.LeaveRoomResponse\x12W\n" +
-	"\fListRoomBans\x12\".chatto.api.v1.ListRoomBansRequest\x1a#.chatto.api.v1.ListRoomBansResponse\x12l\n" +
+	"\tLeaveRoom\x12\x1f.chatto.api.v1.LeaveRoomRequest\x1a .chatto.api.v1.LeaveRoomResponse\x12\\\n" +
+	"\vListMembers\x12%.chatto.api.v1.ListRoomMembersRequest\x1a&.chatto.api.v1.ListRoomMembersResponse\x12V\n" +
+	"\tGetMember\x12#.chatto.api.v1.GetRoomMemberRequest\x1a$.chatto.api.v1.GetRoomMemberResponse\x12h\n" +
+	"\x0fBatchGetMembers\x12).chatto.api.v1.BatchGetRoomMembersRequest\x1a*.chatto.api.v1.BatchGetRoomMembersResponse\x12N\n" +
+	"\tAddMember\x12\x1f.chatto.api.v1.AddMemberRequest\x1a .chatto.api.v1.AddMemberResponse\x12W\n" +
+	"\fRemoveMember\x12\".chatto.api.v1.RemoveMemberRequest\x1a#.chatto.api.v1.RemoveMemberResponse\x12K\n" +
+	"\bListBans\x12\x1e.chatto.api.v1.ListBansRequest\x1a\x1f.chatto.api.v1.ListBansResponse\x12l\n" +
 	"\x13ListRoomAttachments\x12).chatto.api.v1.ListRoomAttachmentsRequest\x1a*.chatto.api.v1.ListRoomAttachmentsResponse\x12r\n" +
 	"\x15UpdateTypingIndicator\x12+.chatto.api.v1.UpdateTypingIndicatorRequest\x1a,.chatto.api.v1.UpdateTypingIndicatorResponse\x12Z\n" +
 	"\rGetRoomEvents\x12#.chatto.api.v1.GetRoomEventsRequest\x1a$.chatto.api.v1.GetRoomEventsResponse\x12l\n" +
 	"\x13GetRoomEventsAround\x12).chatto.api.v1.GetRoomEventsAroundRequest\x1a*.chatto.api.v1.GetRoomEventsAroundResponse\x12]\n" +
-	"\x0eMarkRoomAsRead\x12$.chatto.api.v1.MarkRoomAsReadRequest\x1a%.chatto.api.v1.MarkRoomAsReadResponse\x12Z\n" +
-	"\rBanRoomMember\x12#.chatto.api.v1.BanRoomMemberRequest\x1a$.chatto.api.v1.BanRoomMemberResponse\x12`\n" +
-	"\x0fUnbanRoomMember\x12%.chatto.api.v1.UnbanRoomMemberRequest\x1a&.chatto.api.v1.UnbanRoomMemberResponseB\xa6\x01\n" +
+	"\x0eMarkRoomAsRead\x12$.chatto.api.v1.MarkRoomAsReadRequest\x1a%.chatto.api.v1.MarkRoomAsReadResponse\x12N\n" +
+	"\tBanMember\x12\x1f.chatto.api.v1.BanMemberRequest\x1a .chatto.api.v1.BanMemberResponse\x12T\n" +
+	"\vUnbanMember\x12!.chatto.api.v1.UnbanMemberRequest\x1a\".chatto.api.v1.UnbanMemberResponseB\xa6\x01\n" +
 	"\x11com.chatto.api.v1B\n" +
 	"RoomsProtoP\x01Z/hmans.de/chatto/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
 
@@ -1893,7 +2110,7 @@ func file_chatto_api_v1_rooms_proto_rawDescGZIP() []byte {
 }
 
 var file_chatto_api_v1_rooms_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_chatto_api_v1_rooms_proto_msgTypes = make([]protoimpl.MessageInfo, 30)
+var file_chatto_api_v1_rooms_proto_msgTypes = make([]protoimpl.MessageInfo, 34)
 var file_chatto_api_v1_rooms_proto_goTypes = []any{
 	(RoomKind)(0),                         // 0: chatto.api.v1.RoomKind
 	(*Room)(nil),                          // 1: chatto.api.v1.Room
@@ -1915,29 +2132,39 @@ var file_chatto_api_v1_rooms_proto_goTypes = []any{
 	(*StartDMResponse)(nil),               // 17: chatto.api.v1.StartDMResponse
 	(*LeaveRoomRequest)(nil),              // 18: chatto.api.v1.LeaveRoomRequest
 	(*LeaveRoomResponse)(nil),             // 19: chatto.api.v1.LeaveRoomResponse
-	(*BanRoomMemberRequest)(nil),          // 20: chatto.api.v1.BanRoomMemberRequest
-	(*BanRoomMemberResponse)(nil),         // 21: chatto.api.v1.BanRoomMemberResponse
-	(*UnbanRoomMemberRequest)(nil),        // 22: chatto.api.v1.UnbanRoomMemberRequest
-	(*UnbanRoomMemberResponse)(nil),       // 23: chatto.api.v1.UnbanRoomMemberResponse
-	(*RoomBan)(nil),                       // 24: chatto.api.v1.RoomBan
-	(*ListRoomBansRequest)(nil),           // 25: chatto.api.v1.ListRoomBansRequest
-	(*ListRoomBansResponse)(nil),          // 26: chatto.api.v1.ListRoomBansResponse
-	(*ListRoomAttachmentsRequest)(nil),    // 27: chatto.api.v1.ListRoomAttachmentsRequest
-	(*ListRoomAttachmentsResponse)(nil),   // 28: chatto.api.v1.ListRoomAttachmentsResponse
-	(*UpdateTypingIndicatorRequest)(nil),  // 29: chatto.api.v1.UpdateTypingIndicatorRequest
-	(*UpdateTypingIndicatorResponse)(nil), // 30: chatto.api.v1.UpdateTypingIndicatorResponse
-	(*timestamppb.Timestamp)(nil),         // 31: google.protobuf.Timestamp
-	(*DirectoryMember)(nil),               // 32: chatto.api.v1.DirectoryMember
-	(*PageRequest)(nil),                   // 33: chatto.api.v1.PageRequest
-	(*PageInfo)(nil),                      // 34: chatto.api.v1.PageInfo
-	(*AttachmentThumbnailOptions)(nil),    // 35: chatto.api.v1.AttachmentThumbnailOptions
-	(*RoomAttachmentListItem)(nil),        // 36: chatto.api.v1.RoomAttachmentListItem
-	(*GetRoomEventsRequest)(nil),          // 37: chatto.api.v1.GetRoomEventsRequest
-	(*GetRoomEventsAroundRequest)(nil),    // 38: chatto.api.v1.GetRoomEventsAroundRequest
-	(*MarkRoomAsReadRequest)(nil),         // 39: chatto.api.v1.MarkRoomAsReadRequest
-	(*GetRoomEventsResponse)(nil),         // 40: chatto.api.v1.GetRoomEventsResponse
-	(*GetRoomEventsAroundResponse)(nil),   // 41: chatto.api.v1.GetRoomEventsAroundResponse
-	(*MarkRoomAsReadResponse)(nil),        // 42: chatto.api.v1.MarkRoomAsReadResponse
+	(*AddMemberRequest)(nil),              // 20: chatto.api.v1.AddMemberRequest
+	(*AddMemberResponse)(nil),             // 21: chatto.api.v1.AddMemberResponse
+	(*RemoveMemberRequest)(nil),           // 22: chatto.api.v1.RemoveMemberRequest
+	(*RemoveMemberResponse)(nil),          // 23: chatto.api.v1.RemoveMemberResponse
+	(*BanMemberRequest)(nil),              // 24: chatto.api.v1.BanMemberRequest
+	(*BanMemberResponse)(nil),             // 25: chatto.api.v1.BanMemberResponse
+	(*UnbanMemberRequest)(nil),            // 26: chatto.api.v1.UnbanMemberRequest
+	(*UnbanMemberResponse)(nil),           // 27: chatto.api.v1.UnbanMemberResponse
+	(*RoomBan)(nil),                       // 28: chatto.api.v1.RoomBan
+	(*ListBansRequest)(nil),               // 29: chatto.api.v1.ListBansRequest
+	(*ListBansResponse)(nil),              // 30: chatto.api.v1.ListBansResponse
+	(*ListRoomAttachmentsRequest)(nil),    // 31: chatto.api.v1.ListRoomAttachmentsRequest
+	(*ListRoomAttachmentsResponse)(nil),   // 32: chatto.api.v1.ListRoomAttachmentsResponse
+	(*UpdateTypingIndicatorRequest)(nil),  // 33: chatto.api.v1.UpdateTypingIndicatorRequest
+	(*UpdateTypingIndicatorResponse)(nil), // 34: chatto.api.v1.UpdateTypingIndicatorResponse
+	(*DirectoryMember)(nil),               // 35: chatto.api.v1.DirectoryMember
+	(*timestamppb.Timestamp)(nil),         // 36: google.protobuf.Timestamp
+	(*PageRequest)(nil),                   // 37: chatto.api.v1.PageRequest
+	(*PageInfo)(nil),                      // 38: chatto.api.v1.PageInfo
+	(*AttachmentThumbnailOptions)(nil),    // 39: chatto.api.v1.AttachmentThumbnailOptions
+	(*RoomAttachmentListItem)(nil),        // 40: chatto.api.v1.RoomAttachmentListItem
+	(*ListRoomMembersRequest)(nil),        // 41: chatto.api.v1.ListRoomMembersRequest
+	(*GetRoomMemberRequest)(nil),          // 42: chatto.api.v1.GetRoomMemberRequest
+	(*BatchGetRoomMembersRequest)(nil),    // 43: chatto.api.v1.BatchGetRoomMembersRequest
+	(*GetRoomEventsRequest)(nil),          // 44: chatto.api.v1.GetRoomEventsRequest
+	(*GetRoomEventsAroundRequest)(nil),    // 45: chatto.api.v1.GetRoomEventsAroundRequest
+	(*MarkRoomAsReadRequest)(nil),         // 46: chatto.api.v1.MarkRoomAsReadRequest
+	(*ListRoomMembersResponse)(nil),       // 47: chatto.api.v1.ListRoomMembersResponse
+	(*GetRoomMemberResponse)(nil),         // 48: chatto.api.v1.GetRoomMemberResponse
+	(*BatchGetRoomMembersResponse)(nil),   // 49: chatto.api.v1.BatchGetRoomMembersResponse
+	(*GetRoomEventsResponse)(nil),         // 50: chatto.api.v1.GetRoomEventsResponse
+	(*GetRoomEventsAroundResponse)(nil),   // 51: chatto.api.v1.GetRoomEventsAroundResponse
+	(*MarkRoomAsReadResponse)(nil),        // 52: chatto.api.v1.MarkRoomAsReadResponse
 }
 var file_chatto_api_v1_rooms_proto_depIdxs = []int32{
 	0,  // 0: chatto.api.v1.Room.kind:type_name -> chatto.api.v1.RoomKind
@@ -1948,58 +2175,69 @@ var file_chatto_api_v1_rooms_proto_depIdxs = []int32{
 	1,  // 5: chatto.api.v1.UpdateRoomUniversalResponse.room:type_name -> chatto.api.v1.Room
 	1,  // 6: chatto.api.v1.JoinRoomResponse.room:type_name -> chatto.api.v1.Room
 	1,  // 7: chatto.api.v1.StartDMResponse.room:type_name -> chatto.api.v1.Room
-	31, // 8: chatto.api.v1.BanRoomMemberRequest.expires_at:type_name -> google.protobuf.Timestamp
-	1,  // 9: chatto.api.v1.RoomBan.room:type_name -> chatto.api.v1.Room
-	32, // 10: chatto.api.v1.RoomBan.user:type_name -> chatto.api.v1.DirectoryMember
-	32, // 11: chatto.api.v1.RoomBan.moderator:type_name -> chatto.api.v1.DirectoryMember
-	31, // 12: chatto.api.v1.RoomBan.created_at:type_name -> google.protobuf.Timestamp
-	31, // 13: chatto.api.v1.RoomBan.expires_at:type_name -> google.protobuf.Timestamp
-	33, // 14: chatto.api.v1.ListRoomBansRequest.page:type_name -> chatto.api.v1.PageRequest
-	24, // 15: chatto.api.v1.ListRoomBansResponse.bans:type_name -> chatto.api.v1.RoomBan
-	34, // 16: chatto.api.v1.ListRoomBansResponse.page:type_name -> chatto.api.v1.PageInfo
-	35, // 17: chatto.api.v1.ListRoomAttachmentsRequest.thumbnail:type_name -> chatto.api.v1.AttachmentThumbnailOptions
-	33, // 18: chatto.api.v1.ListRoomAttachmentsRequest.page:type_name -> chatto.api.v1.PageRequest
-	36, // 19: chatto.api.v1.ListRoomAttachmentsResponse.attachments:type_name -> chatto.api.v1.RoomAttachmentListItem
-	34, // 20: chatto.api.v1.ListRoomAttachmentsResponse.page:type_name -> chatto.api.v1.PageInfo
-	2,  // 21: chatto.api.v1.RoomService.CreateRoom:input_type -> chatto.api.v1.CreateRoomRequest
-	4,  // 22: chatto.api.v1.RoomService.UpdateRoom:input_type -> chatto.api.v1.UpdateRoomRequest
-	6,  // 23: chatto.api.v1.RoomService.ArchiveRoom:input_type -> chatto.api.v1.ArchiveRoomRequest
-	8,  // 24: chatto.api.v1.RoomService.UnarchiveRoom:input_type -> chatto.api.v1.UnarchiveRoomRequest
-	10, // 25: chatto.api.v1.RoomService.UpdateRoomUniversal:input_type -> chatto.api.v1.UpdateRoomUniversalRequest
-	12, // 26: chatto.api.v1.RoomService.JoinRoom:input_type -> chatto.api.v1.JoinRoomRequest
-	14, // 27: chatto.api.v1.RoomService.JoinRoomGroup:input_type -> chatto.api.v1.JoinRoomGroupRequest
-	16, // 28: chatto.api.v1.RoomService.StartDM:input_type -> chatto.api.v1.StartDMRequest
-	18, // 29: chatto.api.v1.RoomService.LeaveRoom:input_type -> chatto.api.v1.LeaveRoomRequest
-	25, // 30: chatto.api.v1.RoomService.ListRoomBans:input_type -> chatto.api.v1.ListRoomBansRequest
-	27, // 31: chatto.api.v1.RoomService.ListRoomAttachments:input_type -> chatto.api.v1.ListRoomAttachmentsRequest
-	29, // 32: chatto.api.v1.RoomService.UpdateTypingIndicator:input_type -> chatto.api.v1.UpdateTypingIndicatorRequest
-	37, // 33: chatto.api.v1.RoomService.GetRoomEvents:input_type -> chatto.api.v1.GetRoomEventsRequest
-	38, // 34: chatto.api.v1.RoomService.GetRoomEventsAround:input_type -> chatto.api.v1.GetRoomEventsAroundRequest
-	39, // 35: chatto.api.v1.RoomService.MarkRoomAsRead:input_type -> chatto.api.v1.MarkRoomAsReadRequest
-	20, // 36: chatto.api.v1.RoomService.BanRoomMember:input_type -> chatto.api.v1.BanRoomMemberRequest
-	22, // 37: chatto.api.v1.RoomService.UnbanRoomMember:input_type -> chatto.api.v1.UnbanRoomMemberRequest
-	3,  // 38: chatto.api.v1.RoomService.CreateRoom:output_type -> chatto.api.v1.CreateRoomResponse
-	5,  // 39: chatto.api.v1.RoomService.UpdateRoom:output_type -> chatto.api.v1.UpdateRoomResponse
-	7,  // 40: chatto.api.v1.RoomService.ArchiveRoom:output_type -> chatto.api.v1.ArchiveRoomResponse
-	9,  // 41: chatto.api.v1.RoomService.UnarchiveRoom:output_type -> chatto.api.v1.UnarchiveRoomResponse
-	11, // 42: chatto.api.v1.RoomService.UpdateRoomUniversal:output_type -> chatto.api.v1.UpdateRoomUniversalResponse
-	13, // 43: chatto.api.v1.RoomService.JoinRoom:output_type -> chatto.api.v1.JoinRoomResponse
-	15, // 44: chatto.api.v1.RoomService.JoinRoomGroup:output_type -> chatto.api.v1.JoinRoomGroupResponse
-	17, // 45: chatto.api.v1.RoomService.StartDM:output_type -> chatto.api.v1.StartDMResponse
-	19, // 46: chatto.api.v1.RoomService.LeaveRoom:output_type -> chatto.api.v1.LeaveRoomResponse
-	26, // 47: chatto.api.v1.RoomService.ListRoomBans:output_type -> chatto.api.v1.ListRoomBansResponse
-	28, // 48: chatto.api.v1.RoomService.ListRoomAttachments:output_type -> chatto.api.v1.ListRoomAttachmentsResponse
-	30, // 49: chatto.api.v1.RoomService.UpdateTypingIndicator:output_type -> chatto.api.v1.UpdateTypingIndicatorResponse
-	40, // 50: chatto.api.v1.RoomService.GetRoomEvents:output_type -> chatto.api.v1.GetRoomEventsResponse
-	41, // 51: chatto.api.v1.RoomService.GetRoomEventsAround:output_type -> chatto.api.v1.GetRoomEventsAroundResponse
-	42, // 52: chatto.api.v1.RoomService.MarkRoomAsRead:output_type -> chatto.api.v1.MarkRoomAsReadResponse
-	21, // 53: chatto.api.v1.RoomService.BanRoomMember:output_type -> chatto.api.v1.BanRoomMemberResponse
-	23, // 54: chatto.api.v1.RoomService.UnbanRoomMember:output_type -> chatto.api.v1.UnbanRoomMemberResponse
-	38, // [38:55] is the sub-list for method output_type
-	21, // [21:38] is the sub-list for method input_type
-	21, // [21:21] is the sub-list for extension type_name
-	21, // [21:21] is the sub-list for extension extendee
-	0,  // [0:21] is the sub-list for field type_name
+	35, // 8: chatto.api.v1.AddMemberResponse.member:type_name -> chatto.api.v1.DirectoryMember
+	36, // 9: chatto.api.v1.BanMemberRequest.expires_at:type_name -> google.protobuf.Timestamp
+	1,  // 10: chatto.api.v1.RoomBan.room:type_name -> chatto.api.v1.Room
+	35, // 11: chatto.api.v1.RoomBan.user:type_name -> chatto.api.v1.DirectoryMember
+	35, // 12: chatto.api.v1.RoomBan.moderator:type_name -> chatto.api.v1.DirectoryMember
+	36, // 13: chatto.api.v1.RoomBan.created_at:type_name -> google.protobuf.Timestamp
+	36, // 14: chatto.api.v1.RoomBan.expires_at:type_name -> google.protobuf.Timestamp
+	37, // 15: chatto.api.v1.ListBansRequest.page:type_name -> chatto.api.v1.PageRequest
+	28, // 16: chatto.api.v1.ListBansResponse.bans:type_name -> chatto.api.v1.RoomBan
+	38, // 17: chatto.api.v1.ListBansResponse.page:type_name -> chatto.api.v1.PageInfo
+	39, // 18: chatto.api.v1.ListRoomAttachmentsRequest.thumbnail:type_name -> chatto.api.v1.AttachmentThumbnailOptions
+	37, // 19: chatto.api.v1.ListRoomAttachmentsRequest.page:type_name -> chatto.api.v1.PageRequest
+	40, // 20: chatto.api.v1.ListRoomAttachmentsResponse.attachments:type_name -> chatto.api.v1.RoomAttachmentListItem
+	38, // 21: chatto.api.v1.ListRoomAttachmentsResponse.page:type_name -> chatto.api.v1.PageInfo
+	2,  // 22: chatto.api.v1.RoomService.CreateRoom:input_type -> chatto.api.v1.CreateRoomRequest
+	4,  // 23: chatto.api.v1.RoomService.UpdateRoom:input_type -> chatto.api.v1.UpdateRoomRequest
+	6,  // 24: chatto.api.v1.RoomService.ArchiveRoom:input_type -> chatto.api.v1.ArchiveRoomRequest
+	8,  // 25: chatto.api.v1.RoomService.UnarchiveRoom:input_type -> chatto.api.v1.UnarchiveRoomRequest
+	10, // 26: chatto.api.v1.RoomService.UpdateRoomUniversal:input_type -> chatto.api.v1.UpdateRoomUniversalRequest
+	12, // 27: chatto.api.v1.RoomService.JoinRoom:input_type -> chatto.api.v1.JoinRoomRequest
+	14, // 28: chatto.api.v1.RoomService.JoinRoomGroup:input_type -> chatto.api.v1.JoinRoomGroupRequest
+	16, // 29: chatto.api.v1.RoomService.StartDM:input_type -> chatto.api.v1.StartDMRequest
+	18, // 30: chatto.api.v1.RoomService.LeaveRoom:input_type -> chatto.api.v1.LeaveRoomRequest
+	41, // 31: chatto.api.v1.RoomService.ListMembers:input_type -> chatto.api.v1.ListRoomMembersRequest
+	42, // 32: chatto.api.v1.RoomService.GetMember:input_type -> chatto.api.v1.GetRoomMemberRequest
+	43, // 33: chatto.api.v1.RoomService.BatchGetMembers:input_type -> chatto.api.v1.BatchGetRoomMembersRequest
+	20, // 34: chatto.api.v1.RoomService.AddMember:input_type -> chatto.api.v1.AddMemberRequest
+	22, // 35: chatto.api.v1.RoomService.RemoveMember:input_type -> chatto.api.v1.RemoveMemberRequest
+	29, // 36: chatto.api.v1.RoomService.ListBans:input_type -> chatto.api.v1.ListBansRequest
+	31, // 37: chatto.api.v1.RoomService.ListRoomAttachments:input_type -> chatto.api.v1.ListRoomAttachmentsRequest
+	33, // 38: chatto.api.v1.RoomService.UpdateTypingIndicator:input_type -> chatto.api.v1.UpdateTypingIndicatorRequest
+	44, // 39: chatto.api.v1.RoomService.GetRoomEvents:input_type -> chatto.api.v1.GetRoomEventsRequest
+	45, // 40: chatto.api.v1.RoomService.GetRoomEventsAround:input_type -> chatto.api.v1.GetRoomEventsAroundRequest
+	46, // 41: chatto.api.v1.RoomService.MarkRoomAsRead:input_type -> chatto.api.v1.MarkRoomAsReadRequest
+	24, // 42: chatto.api.v1.RoomService.BanMember:input_type -> chatto.api.v1.BanMemberRequest
+	26, // 43: chatto.api.v1.RoomService.UnbanMember:input_type -> chatto.api.v1.UnbanMemberRequest
+	3,  // 44: chatto.api.v1.RoomService.CreateRoom:output_type -> chatto.api.v1.CreateRoomResponse
+	5,  // 45: chatto.api.v1.RoomService.UpdateRoom:output_type -> chatto.api.v1.UpdateRoomResponse
+	7,  // 46: chatto.api.v1.RoomService.ArchiveRoom:output_type -> chatto.api.v1.ArchiveRoomResponse
+	9,  // 47: chatto.api.v1.RoomService.UnarchiveRoom:output_type -> chatto.api.v1.UnarchiveRoomResponse
+	11, // 48: chatto.api.v1.RoomService.UpdateRoomUniversal:output_type -> chatto.api.v1.UpdateRoomUniversalResponse
+	13, // 49: chatto.api.v1.RoomService.JoinRoom:output_type -> chatto.api.v1.JoinRoomResponse
+	15, // 50: chatto.api.v1.RoomService.JoinRoomGroup:output_type -> chatto.api.v1.JoinRoomGroupResponse
+	17, // 51: chatto.api.v1.RoomService.StartDM:output_type -> chatto.api.v1.StartDMResponse
+	19, // 52: chatto.api.v1.RoomService.LeaveRoom:output_type -> chatto.api.v1.LeaveRoomResponse
+	47, // 53: chatto.api.v1.RoomService.ListMembers:output_type -> chatto.api.v1.ListRoomMembersResponse
+	48, // 54: chatto.api.v1.RoomService.GetMember:output_type -> chatto.api.v1.GetRoomMemberResponse
+	49, // 55: chatto.api.v1.RoomService.BatchGetMembers:output_type -> chatto.api.v1.BatchGetRoomMembersResponse
+	21, // 56: chatto.api.v1.RoomService.AddMember:output_type -> chatto.api.v1.AddMemberResponse
+	23, // 57: chatto.api.v1.RoomService.RemoveMember:output_type -> chatto.api.v1.RemoveMemberResponse
+	30, // 58: chatto.api.v1.RoomService.ListBans:output_type -> chatto.api.v1.ListBansResponse
+	32, // 59: chatto.api.v1.RoomService.ListRoomAttachments:output_type -> chatto.api.v1.ListRoomAttachmentsResponse
+	34, // 60: chatto.api.v1.RoomService.UpdateTypingIndicator:output_type -> chatto.api.v1.UpdateTypingIndicatorResponse
+	50, // 61: chatto.api.v1.RoomService.GetRoomEvents:output_type -> chatto.api.v1.GetRoomEventsResponse
+	51, // 62: chatto.api.v1.RoomService.GetRoomEventsAround:output_type -> chatto.api.v1.GetRoomEventsAroundResponse
+	52, // 63: chatto.api.v1.RoomService.MarkRoomAsRead:output_type -> chatto.api.v1.MarkRoomAsReadResponse
+	25, // 64: chatto.api.v1.RoomService.BanMember:output_type -> chatto.api.v1.BanMemberResponse
+	27, // 65: chatto.api.v1.RoomService.UnbanMember:output_type -> chatto.api.v1.UnbanMemberResponse
+	44, // [44:66] is the sub-list for method output_type
+	22, // [22:44] is the sub-list for method input_type
+	22, // [22:22] is the sub-list for extension type_name
+	22, // [22:22] is the sub-list for extension extendee
+	0,  // [0:22] is the sub-list for field type_name
 }
 
 func init() { file_chatto_api_v1_rooms_proto_init() }
@@ -2019,7 +2257,7 @@ func file_chatto_api_v1_rooms_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_api_v1_rooms_proto_rawDesc), len(file_chatto_api_v1_rooms_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   30,
+			NumMessages:   34,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

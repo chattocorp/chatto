@@ -131,23 +131,91 @@ func (c *ChattoCore) JoinRoom(ctx context.Context, actorID string, kind RoomKind
 
 	c.logger.Info("Created room membership", "user_id", user_id, "kind", kind, "room_id", room_id)
 
-	// Initialize the read marker for new members. For non-empty rooms, mark
-	// them caught up to the current last event so existing messages don't
-	// surface as unread. For empty rooms, write an empty-string sentinel so
-	// the key's presence still distinguishes "member with nothing to read
-	// yet" from "no marker at all" (which the lazy-init path treats as a
-	// deploy-era upgrade — see GetLastReadEventID).
-	var initEventID string
-	if lastID, _, exists, err := c.GetRoomLastEvent(ctx, kind, room_id); err != nil {
-		c.logger.Warn("Failed to get room last event during join", "error", err, "room_id", room_id)
-	} else if exists {
-		initEventID = lastID
-	}
-	if err := c.SetLastReadEventID(ctx, kind, user_id, room_id, initEventID); err != nil {
-		c.logger.Warn("Failed to initialize read marker during join", "error", err, "room_id", room_id)
-	}
+	c.initializeRoomReadMarker(ctx, kind, user_id, room_id)
 
 	return membership, nil
+}
+
+// AddMember creates an explicit channel-room membership for another user.
+// Authorization: caller must verify room.manage before calling.
+//
+// The membership transition is still represented by UserJoinedRoomEvent with
+// the target user as actor, so existing membership projections and public room
+// history remain compatible. A separate moderation event records the manager
+// action for audit.
+func (c *ChattoCore) AddMember(ctx context.Context, actorID string, kind RoomKind, roomID, targetUserID string) (*corev1.RoomMembership, error) {
+	if kind == KindDM {
+		return nil, invalidArgument("DM room participants cannot be managed through RoomService")
+	}
+	room, err := c.GetRoom(ctx, kind, roomID)
+	if err != nil {
+		return nil, err
+	}
+	if room.GetUniversal() {
+		return nil, invalidArgument("universal room membership cannot be managed explicitly")
+	}
+	if room.GetArchived() {
+		return nil, ErrRoomArchived
+	}
+	if _, err := c.GetUser(ctx, targetUserID); err != nil {
+		return nil, err
+	}
+
+	membership := &corev1.RoomMembership{
+		UserId: targetUserID,
+		RoomId: roomID,
+	}
+
+	agg := events.RoomAggregate(roomID)
+	filter := agg.AllEventsFilter()
+	for attempt := 0; attempt < maxJoinRoomRetries; attempt++ {
+		expectedSeq, err := c.EventPublisher.LastSubjectSeq(ctx, filter)
+		if err != nil {
+			return nil, fmt.Errorf("read room membership add OCC tail: %w", err)
+		}
+		if expectedSeq > 0 {
+			if err := c.rooms().waitForDirectory(ctx, events.SubjectPosition(filter, expectedSeq)); err != nil {
+				return nil, fmt.Errorf("wait for room directory projection before member add: %w", err)
+			}
+		}
+		if c.RoomMembership.IsMember(roomID, targetUserID) {
+			return membership, nil
+		}
+		if kind == KindChannel && c.rooms().isRoomBanActive(roomID, targetUserID, time.Now()) {
+			return nil, ErrPermissionDenied
+		}
+
+		auditEvent := newEvent(actorID, &corev1.Event{
+			Event: &corev1.Event_RoomMemberAdded{
+				RoomMemberAdded: &corev1.RoomMemberAddedEvent{
+					RoomId: roomID,
+					UserId: targetUserID,
+				},
+			},
+		})
+		joinEvent := newEvent(targetUserID, &corev1.Event{
+			Event: &corev1.Event_UserJoinedRoom{
+				UserJoinedRoom: &corev1.UserJoinedRoomEvent{
+					RoomId: roomID,
+				},
+			},
+		})
+
+		if err := c.appendRoomMembershipAuditBatch(ctx, roomID, expectedSeq, auditEvent, joinEvent); err == nil {
+			c.initializeRoomReadMarker(ctx, kind, targetUserID, roomID)
+			c.logger.Info("Added room membership", "actor_id", actorID, "user_id", targetUserID, "kind", kind, "room_id", roomID)
+			return membership, nil
+		} else if !errors.Is(err, events.ErrConflict) {
+			return nil, err
+		}
+
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-time.After(time.Duration(1<<attempt) * time.Millisecond):
+		}
+	}
+	return nil, fmt.Errorf("publish room member add retry exhausted after %d attempts: %w", maxJoinRoomRetries, events.ErrConflict)
 }
 
 // LeaveRoom removes a room membership for a user.
@@ -199,6 +267,124 @@ func (c *ChattoCore) LeaveRoom(ctx context.Context, actorID string, kind RoomKin
 
 	c.logger.Info("Deleted room membership", "user_id", user_id, "kind", kind, "room_id", room_id)
 	return nil
+}
+
+// RemoveMember removes another user's explicit channel-room membership.
+// Authorization: caller must verify room.manage before calling.
+//
+// The public membership transition remains a UserLeftRoomEvent with the target
+// user as actor. A separate moderation event records who performed the removal.
+func (c *ChattoCore) RemoveMember(ctx context.Context, actorID string, kind RoomKind, roomID, targetUserID string) (bool, error) {
+	if kind == KindDM {
+		return false, invalidArgument("DM room participants cannot be managed through RoomService")
+	}
+	room, err := c.GetRoom(ctx, kind, roomID)
+	if err != nil {
+		return false, err
+	}
+	if room.GetUniversal() {
+		return false, invalidArgument("universal room membership cannot be managed explicitly")
+	}
+	if room.GetArchived() {
+		return false, ErrRoomArchived
+	}
+	if _, err := c.GetUser(ctx, targetUserID); err != nil {
+		return false, err
+	}
+	agg := events.RoomAggregate(roomID)
+	filter := agg.AllEventsFilter()
+	for attempt := 0; attempt < maxJoinRoomRetries; attempt++ {
+		expectedSeq, err := c.EventPublisher.LastSubjectSeq(ctx, filter)
+		if err != nil {
+			return false, fmt.Errorf("read room membership remove OCC tail: %w", err)
+		}
+		if expectedSeq > 0 {
+			if err := c.rooms().waitForDirectory(ctx, events.SubjectPosition(filter, expectedSeq)); err != nil {
+				return false, fmt.Errorf("wait for room directory projection before member remove: %w", err)
+			}
+		}
+		if !c.RoomMembership.IsMember(roomID, targetUserID) {
+			return false, nil
+		}
+
+		auditEvent := newEvent(actorID, &corev1.Event{
+			Event: &corev1.Event_RoomMemberRemoved{
+				RoomMemberRemoved: &corev1.RoomMemberRemovedEvent{
+					RoomId: roomID,
+					UserId: targetUserID,
+				},
+			},
+		})
+		leaveEvent := newEvent(targetUserID, &corev1.Event{
+			Event: &corev1.Event_UserLeftRoom{
+				UserLeftRoom: &corev1.UserLeftRoomEvent{
+					RoomId: roomID,
+				},
+			},
+		})
+
+		if err := c.appendRoomMembershipAuditBatch(ctx, roomID, expectedSeq, auditEvent, leaveEvent); err == nil {
+			c.logger.Info("Removed room membership", "actor_id", actorID, "user_id", targetUserID, "kind", kind, "room_id", roomID)
+			return true, nil
+		} else if !errors.Is(err, events.ErrConflict) {
+			return false, err
+		}
+
+		select {
+		case <-ctx.Done():
+			return false, ctx.Err()
+		case <-time.After(time.Duration(1<<attempt) * time.Millisecond):
+		}
+	}
+	return false, fmt.Errorf("publish room member remove retry exhausted after %d attempts: %w", maxJoinRoomRetries, events.ErrConflict)
+}
+
+func (c *ChattoCore) appendRoomMembershipAuditBatch(ctx context.Context, roomID string, expectedSeq uint64, auditEvent, membershipEvent *corev1.Event) error {
+	agg := events.RoomAggregate(roomID)
+	filter := agg.AllEventsFilter()
+
+	entries := []events.BatchEntry{
+		{
+			Subject:       agg.SubjectFor(auditEvent),
+			Event:         auditEvent,
+			ExpectedSeq:   expectedSeq,
+			FilterSubject: filter,
+			HasOCC:        true,
+		},
+		{
+			Subject: agg.SubjectFor(membershipEvent),
+			Event:   membershipEvent,
+		},
+	}
+	seqs, err := c.EventPublisher.AppendBatch(ctx, entries)
+	if err != nil {
+		return fmt.Errorf("publish room membership audit batch: %w", err)
+	}
+
+	lastSubject := entries[len(entries)-1].Subject
+	lastSeq := seqs[len(seqs)-1]
+	if err := c.rooms().waitForDirectoryAndTimeline(ctx, events.SubjectPosition(lastSubject, lastSeq)); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (c *ChattoCore) initializeRoomReadMarker(ctx context.Context, kind RoomKind, userID, roomID string) {
+	// Initialize the read marker for new members. For non-empty rooms, mark
+	// them caught up to the current last event so existing messages don't
+	// surface as unread. For empty rooms, write an empty-string sentinel so
+	// the key's presence still distinguishes "member with nothing to read
+	// yet" from "no marker at all" (which the lazy-init path treats as a
+	// deploy-era upgrade — see GetLastReadEventID).
+	var initEventID string
+	if lastID, _, exists, err := c.GetRoomLastEvent(ctx, kind, roomID); err != nil {
+		c.logger.Warn("Failed to get room last event during join", "error", err, "room_id", roomID)
+	} else if exists {
+		initEventID = lastID
+	}
+	if err := c.SetLastReadEventID(ctx, kind, userID, roomID, initEventID); err != nil {
+		c.logger.Warn("Failed to initialize read marker during join", "error", err, "room_id", roomID)
+	}
 }
 
 // GetUserRoomMemberships retrieves all room memberships for a given user of a

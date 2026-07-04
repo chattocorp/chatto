@@ -34,6 +34,10 @@ func roomIDOfEvent(event *corev1.Event) string {
 		return e.RoomMemberBanned.GetRoomId()
 	case *corev1.Event_RoomMemberUnbanned:
 		return e.RoomMemberUnbanned.GetRoomId()
+	case *corev1.Event_RoomMemberAdded:
+		return e.RoomMemberAdded.GetRoomId()
+	case *corev1.Event_RoomMemberRemoved:
+		return e.RoomMemberRemoved.GetRoomId()
 	case *corev1.Event_MessagePosted:
 		return e.MessagePosted.GetRoomId()
 	case *corev1.Event_MessageEdited:
@@ -124,8 +128,9 @@ func isAssetLifecycleEvent(event *corev1.Event) bool {
 //   - ReactionAddedEvent / ReactionRemovedEvent — folded into the reaction
 //     projection.
 //
-//   - RoomMemberBannedEvent / RoomMemberUnbannedEvent — moderation audit facts,
-//     projected for admin surfaces but not displayed as chat timeline items.
+//   - RoomMemberBannedEvent / RoomMemberUnbannedEvent and
+//     RoomMemberAddedEvent / RoomMemberRemovedEvent — moderation audit facts,
+//     not displayed as chat timeline items.
 //
 //   - Voice call lifecycle and participant events — projected into call state
 //     and delivered live, but not displayed as chat timeline items.
@@ -151,6 +156,7 @@ func isVisibleRoomTimelineEntry(event *corev1.Event) bool {
 		*corev1.Event_ThreadCreated,
 		*corev1.Event_RoomUniversalChanged,
 		*corev1.Event_RoomMemberBanned, *corev1.Event_RoomMemberUnbanned,
+		*corev1.Event_RoomMemberAdded, *corev1.Event_RoomMemberRemoved,
 		*corev1.Event_AssetCreated, *corev1.Event_AssetDeleted,
 		*corev1.Event_AssetProcessingStarted,
 		*corev1.Event_AssetProcessingSucceeded, *corev1.Event_AssetProcessingFailed,

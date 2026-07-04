@@ -42,6 +42,12 @@ type RoomIDInput struct {
 	RoomID  string
 }
 
+type RoomUserInput struct {
+	ActorID string
+	RoomID  string
+	UserID  string
+}
+
 type RoomStartDMInput struct {
 	ActorID        string
 	ParticipantIDs []string
@@ -175,6 +181,22 @@ func (s *RoomCommandModel) LeaveRoom(ctx context.Context, input RoomIDInput) err
 	return s.core.LeaveRoom(ctx, input.ActorID, kind, input.ActorID, input.RoomID)
 }
 
+func (s *RoomCommandModel) AddMember(ctx context.Context, input RoomUserInput) (*corev1.RoomMembership, error) {
+	kind, err := s.authorizeRoomManage(ctx, input.ActorID, input.RoomID)
+	if err != nil {
+		return nil, err
+	}
+	return s.core.AddMember(ctx, input.ActorID, kind, input.RoomID, input.UserID)
+}
+
+func (s *RoomCommandModel) RemoveMember(ctx context.Context, input RoomUserInput) (bool, error) {
+	kind, err := s.authorizeRoomManage(ctx, input.ActorID, input.RoomID)
+	if err != nil {
+		return false, err
+	}
+	return s.core.RemoveMember(ctx, input.ActorID, kind, input.RoomID, input.UserID)
+}
+
 func (s *RoomCommandModel) StartDM(ctx context.Context, input RoomStartDMInput) (*corev1.Room, bool, error) {
 	if err := requireAuthenticatedActor(input.ActorID); err != nil {
 		return nil, false, err
@@ -192,7 +214,7 @@ func (s *RoomCommandModel) StartDM(ctx context.Context, input RoomStartDMInput) 
 	return s.core.FindOrCreateDM(ctx, input.ActorID, input.ParticipantIDs)
 }
 
-func (s *RoomCommandModel) BanRoomMember(ctx context.Context, input RoomBanInput) (*RoomBan, error) {
+func (s *RoomCommandModel) BanMember(ctx context.Context, input RoomBanInput) (*RoomBan, error) {
 	kind, err := s.authorizeRoomBan(ctx, input.ActorID, input.RoomID)
 	if err != nil {
 		return nil, err
@@ -200,10 +222,10 @@ func (s *RoomCommandModel) BanRoomMember(ctx context.Context, input RoomBanInput
 	if err := validateRoomBanInput(input.Reason, input.ExpiresAt); err != nil {
 		return nil, err
 	}
-	return s.core.BanRoomMember(ctx, input.ActorID, kind, input.RoomID, input.UserID, input.Reason, input.ExpiresAt)
+	return s.core.BanMember(ctx, input.ActorID, kind, input.RoomID, input.UserID, input.Reason, input.ExpiresAt)
 }
 
-func (s *RoomCommandModel) UnbanRoomMember(ctx context.Context, input RoomUnbanInput) error {
+func (s *RoomCommandModel) UnbanMember(ctx context.Context, input RoomUnbanInput) error {
 	kind, err := s.authorizeRoomBan(ctx, input.ActorID, input.RoomID)
 	if err != nil {
 		return err
@@ -211,7 +233,7 @@ func (s *RoomCommandModel) UnbanRoomMember(ctx context.Context, input RoomUnbanI
 	if err := validateRoomBanReason(input.Reason); err != nil {
 		return err
 	}
-	return s.core.UnbanRoomMember(ctx, input.ActorID, kind, input.RoomID, input.UserID, input.Reason)
+	return s.core.UnbanMember(ctx, input.ActorID, kind, input.RoomID, input.UserID, input.Reason)
 }
 
 func (s *RoomCommandModel) ListActiveRoomBans(ctx context.Context, input RoomBanListInput) ([]RoomBan, error) {

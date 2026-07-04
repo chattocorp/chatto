@@ -193,7 +193,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
         baseUrl: conn.connectBaseUrl,
         bearerToken: conn.bearerToken
       });
-      await api.banRoomMember({ roomId, userId: member.id, reason, expiresAt });
+      await api.banMember({ roomId, userId: member.id, reason, expiresAt });
     } catch (error) {
       banningMemberId = null;
       banError = m['room.sidebar.ban_failed']();

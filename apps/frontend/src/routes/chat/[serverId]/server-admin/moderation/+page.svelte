@@ -47,7 +47,7 @@
       let offset = 0;
       let hasMore = true;
       while (hasMore) {
-        const page = await api.listRoomBans({ limit: 100, offset });
+        const page = await api.listBans({ limit: 100, offset });
         nextBans.push(...page.bans);
         hasMore = page.hasMore;
         offset += page.bans.length;
@@ -89,7 +89,7 @@
     unbanningBanId = ban.id;
     unbanError = null;
     try {
-      await roomAPI().unbanRoomMember({
+      await roomAPI().unbanMember({
         roomId: ban.roomId,
         userId: ban.userId,
         reason

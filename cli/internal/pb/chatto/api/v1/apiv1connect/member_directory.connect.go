@@ -23,8 +23,6 @@ const _ = connect.IsAtLeastVersion1_13_0
 const (
 	// ServerMemberServiceName is the fully-qualified name of the ServerMemberService service.
 	ServerMemberServiceName = "chatto.api.v1.ServerMemberService"
-	// RoomMemberServiceName is the fully-qualified name of the RoomMemberService service.
-	RoomMemberServiceName = "chatto.api.v1.RoomMemberService"
 )
 
 // These constants are the fully-qualified names of the RPCs defined in this package. They're
@@ -44,15 +42,6 @@ const (
 	// ServerMemberServiceBatchGetMembersProcedure is the fully-qualified name of the
 	// ServerMemberService's BatchGetMembers RPC.
 	ServerMemberServiceBatchGetMembersProcedure = "/chatto.api.v1.ServerMemberService/BatchGetMembers"
-	// RoomMemberServiceListMembersProcedure is the fully-qualified name of the RoomMemberService's
-	// ListMembers RPC.
-	RoomMemberServiceListMembersProcedure = "/chatto.api.v1.RoomMemberService/ListMembers"
-	// RoomMemberServiceGetMemberProcedure is the fully-qualified name of the RoomMemberService's
-	// GetMember RPC.
-	RoomMemberServiceGetMemberProcedure = "/chatto.api.v1.RoomMemberService/GetMember"
-	// RoomMemberServiceBatchGetMembersProcedure is the fully-qualified name of the RoomMemberService's
-	// BatchGetMembers RPC.
-	RoomMemberServiceBatchGetMembersProcedure = "/chatto.api.v1.RoomMemberService/BatchGetMembers"
 )
 
 // ServerMemberServiceClient is a client for the chatto.api.v1.ServerMemberService service.
@@ -185,136 +174,4 @@ func (UnimplementedServerMemberServiceHandler) GetMember(context.Context, *conne
 
 func (UnimplementedServerMemberServiceHandler) BatchGetMembers(context.Context, *connect.Request[v1.BatchGetServerMembersRequest]) (*connect.Response[v1.BatchGetServerMembersResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.ServerMemberService.BatchGetMembers is not implemented"))
-}
-
-// RoomMemberServiceClient is a client for the chatto.api.v1.RoomMemberService service.
-type RoomMemberServiceClient interface {
-	// Lists explicit members of a room. The caller must be a member of the room.
-	ListMembers(context.Context, *connect.Request[v1.ListRoomMembersRequest]) (*connect.Response[v1.ListRoomMembersResponse], error)
-	// Gets one explicit member of a room. The caller must be a member of the
-	// room. Returns NOT_FOUND when the target is unknown or not a room member.
-	GetMember(context.Context, *connect.Request[v1.GetRoomMemberRequest]) (*connect.Response[v1.GetRoomMemberResponse], error)
-	// Gets explicit room member rows for multiple users. The caller must be a
-	// member of the room.
-	BatchGetMembers(context.Context, *connect.Request[v1.BatchGetRoomMembersRequest]) (*connect.Response[v1.BatchGetRoomMembersResponse], error)
-}
-
-// NewRoomMemberServiceClient constructs a client for the chatto.api.v1.RoomMemberService service.
-// By default, it uses the Connect protocol with the binary Protobuf Codec, asks for gzipped
-// responses, and sends uncompressed requests. To use the gRPC or gRPC-Web protocols, supply the
-// connect.WithGRPC() or connect.WithGRPCWeb() options.
-//
-// The URL supplied here should be the base URL for the Connect or gRPC server (for example,
-// http://api.acme.com or https://acme.com/grpc).
-func NewRoomMemberServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) RoomMemberServiceClient {
-	baseURL = strings.TrimRight(baseURL, "/")
-	roomMemberServiceMethods := v1.File_chatto_api_v1_member_directory_proto.Services().ByName("RoomMemberService").Methods()
-	return &roomMemberServiceClient{
-		listMembers: connect.NewClient[v1.ListRoomMembersRequest, v1.ListRoomMembersResponse](
-			httpClient,
-			baseURL+RoomMemberServiceListMembersProcedure,
-			connect.WithSchema(roomMemberServiceMethods.ByName("ListMembers")),
-			connect.WithClientOptions(opts...),
-		),
-		getMember: connect.NewClient[v1.GetRoomMemberRequest, v1.GetRoomMemberResponse](
-			httpClient,
-			baseURL+RoomMemberServiceGetMemberProcedure,
-			connect.WithSchema(roomMemberServiceMethods.ByName("GetMember")),
-			connect.WithClientOptions(opts...),
-		),
-		batchGetMembers: connect.NewClient[v1.BatchGetRoomMembersRequest, v1.BatchGetRoomMembersResponse](
-			httpClient,
-			baseURL+RoomMemberServiceBatchGetMembersProcedure,
-			connect.WithSchema(roomMemberServiceMethods.ByName("BatchGetMembers")),
-			connect.WithClientOptions(opts...),
-		),
-	}
-}
-
-// roomMemberServiceClient implements RoomMemberServiceClient.
-type roomMemberServiceClient struct {
-	listMembers     *connect.Client[v1.ListRoomMembersRequest, v1.ListRoomMembersResponse]
-	getMember       *connect.Client[v1.GetRoomMemberRequest, v1.GetRoomMemberResponse]
-	batchGetMembers *connect.Client[v1.BatchGetRoomMembersRequest, v1.BatchGetRoomMembersResponse]
-}
-
-// ListMembers calls chatto.api.v1.RoomMemberService.ListMembers.
-func (c *roomMemberServiceClient) ListMembers(ctx context.Context, req *connect.Request[v1.ListRoomMembersRequest]) (*connect.Response[v1.ListRoomMembersResponse], error) {
-	return c.listMembers.CallUnary(ctx, req)
-}
-
-// GetMember calls chatto.api.v1.RoomMemberService.GetMember.
-func (c *roomMemberServiceClient) GetMember(ctx context.Context, req *connect.Request[v1.GetRoomMemberRequest]) (*connect.Response[v1.GetRoomMemberResponse], error) {
-	return c.getMember.CallUnary(ctx, req)
-}
-
-// BatchGetMembers calls chatto.api.v1.RoomMemberService.BatchGetMembers.
-func (c *roomMemberServiceClient) BatchGetMembers(ctx context.Context, req *connect.Request[v1.BatchGetRoomMembersRequest]) (*connect.Response[v1.BatchGetRoomMembersResponse], error) {
-	return c.batchGetMembers.CallUnary(ctx, req)
-}
-
-// RoomMemberServiceHandler is an implementation of the chatto.api.v1.RoomMemberService service.
-type RoomMemberServiceHandler interface {
-	// Lists explicit members of a room. The caller must be a member of the room.
-	ListMembers(context.Context, *connect.Request[v1.ListRoomMembersRequest]) (*connect.Response[v1.ListRoomMembersResponse], error)
-	// Gets one explicit member of a room. The caller must be a member of the
-	// room. Returns NOT_FOUND when the target is unknown or not a room member.
-	GetMember(context.Context, *connect.Request[v1.GetRoomMemberRequest]) (*connect.Response[v1.GetRoomMemberResponse], error)
-	// Gets explicit room member rows for multiple users. The caller must be a
-	// member of the room.
-	BatchGetMembers(context.Context, *connect.Request[v1.BatchGetRoomMembersRequest]) (*connect.Response[v1.BatchGetRoomMembersResponse], error)
-}
-
-// NewRoomMemberServiceHandler builds an HTTP handler from the service implementation. It returns
-// the path on which to mount the handler and the handler itself.
-//
-// By default, handlers support the Connect, gRPC, and gRPC-Web protocols with the binary Protobuf
-// and JSON codecs. They also support gzip compression.
-func NewRoomMemberServiceHandler(svc RoomMemberServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
-	roomMemberServiceMethods := v1.File_chatto_api_v1_member_directory_proto.Services().ByName("RoomMemberService").Methods()
-	roomMemberServiceListMembersHandler := connect.NewUnaryHandler(
-		RoomMemberServiceListMembersProcedure,
-		svc.ListMembers,
-		connect.WithSchema(roomMemberServiceMethods.ByName("ListMembers")),
-		connect.WithHandlerOptions(opts...),
-	)
-	roomMemberServiceGetMemberHandler := connect.NewUnaryHandler(
-		RoomMemberServiceGetMemberProcedure,
-		svc.GetMember,
-		connect.WithSchema(roomMemberServiceMethods.ByName("GetMember")),
-		connect.WithHandlerOptions(opts...),
-	)
-	roomMemberServiceBatchGetMembersHandler := connect.NewUnaryHandler(
-		RoomMemberServiceBatchGetMembersProcedure,
-		svc.BatchGetMembers,
-		connect.WithSchema(roomMemberServiceMethods.ByName("BatchGetMembers")),
-		connect.WithHandlerOptions(opts...),
-	)
-	return "/chatto.api.v1.RoomMemberService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
-		case RoomMemberServiceListMembersProcedure:
-			roomMemberServiceListMembersHandler.ServeHTTP(w, r)
-		case RoomMemberServiceGetMemberProcedure:
-			roomMemberServiceGetMemberHandler.ServeHTTP(w, r)
-		case RoomMemberServiceBatchGetMembersProcedure:
-			roomMemberServiceBatchGetMembersHandler.ServeHTTP(w, r)
-		default:
-			http.NotFound(w, r)
-		}
-	})
-}
-
-// UnimplementedRoomMemberServiceHandler returns CodeUnimplemented from all methods.
-type UnimplementedRoomMemberServiceHandler struct{}
-
-func (UnimplementedRoomMemberServiceHandler) ListMembers(context.Context, *connect.Request[v1.ListRoomMembersRequest]) (*connect.Response[v1.ListRoomMembersResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.RoomMemberService.ListMembers is not implemented"))
-}
-
-func (UnimplementedRoomMemberServiceHandler) GetMember(context.Context, *connect.Request[v1.GetRoomMemberRequest]) (*connect.Response[v1.GetRoomMemberResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.RoomMemberService.GetMember is not implemented"))
-}
-
-func (UnimplementedRoomMemberServiceHandler) BatchGetMembers(context.Context, *connect.Request[v1.BatchGetRoomMembersRequest]) (*connect.Response[v1.BatchGetRoomMembersResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.RoomMemberService.BatchGetMembers is not implemented"))
 }

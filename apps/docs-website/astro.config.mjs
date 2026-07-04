@@ -122,7 +122,6 @@ export default defineConfig({
                 "reference/connectrpc-api/push-notifications",
                 "reference/connectrpc-api/roles",
                 "reference/connectrpc-api/room-directory",
-                "reference/connectrpc-api/room-members",
                 "reference/connectrpc-api/rooms",
                 "reference/connectrpc-api/server-members",
                 "reference/connectrpc-api/server",

@@ -21,10 +21,6 @@ type serverMemberService struct {
 	api *API
 }
 
-type roomMemberService struct {
-	api *API
-}
-
 func (s *serverMemberService) ListMembers(ctx context.Context, req *connect.Request[apiv1.ListServerMembersRequest]) (*connect.Response[apiv1.ListServerMembersResponse], error) {
 	if _, err := requireCaller(ctx); err != nil {
 		return nil, err
@@ -101,7 +97,7 @@ func (s *serverMemberService) BatchGetMembers(ctx context.Context, req *connect.
 	return connect.NewResponse(&apiv1.BatchGetServerMembersResponse{Members: members}), nil
 }
 
-func (s *roomMemberService) ListMembers(ctx context.Context, req *connect.Request[apiv1.ListRoomMembersRequest]) (*connect.Response[apiv1.ListRoomMembersResponse], error) {
+func (s *roomService) ListMembers(ctx context.Context, req *connect.Request[apiv1.ListRoomMembersRequest]) (*connect.Response[apiv1.ListRoomMembersResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -150,7 +146,7 @@ func (s *roomMemberService) ListMembers(ctx context.Context, req *connect.Reques
 	}), nil
 }
 
-func (s *roomMemberService) GetMember(ctx context.Context, req *connect.Request[apiv1.GetRoomMemberRequest]) (*connect.Response[apiv1.GetRoomMemberResponse], error) {
+func (s *roomService) GetMember(ctx context.Context, req *connect.Request[apiv1.GetRoomMemberRequest]) (*connect.Response[apiv1.GetRoomMemberResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -171,7 +167,7 @@ func (s *roomMemberService) GetMember(ctx context.Context, req *connect.Request[
 	return connect.NewResponse(&apiv1.GetRoomMemberResponse{Member: member}), nil
 }
 
-func (s *roomMemberService) BatchGetMembers(ctx context.Context, req *connect.Request[apiv1.BatchGetRoomMembersRequest]) (*connect.Response[apiv1.BatchGetRoomMembersResponse], error) {
+func (s *roomService) BatchGetMembers(ctx context.Context, req *connect.Request[apiv1.BatchGetRoomMembersRequest]) (*connect.Response[apiv1.BatchGetRoomMembersResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err

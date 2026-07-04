@@ -1,7 +1,7 @@
 # FDR-019: Room Lifecycle
 
 **Status:** Active
-**Last reviewed:** 2026-06-25
+**Last reviewed:** 2026-07-04
 
 ## Overview
 
@@ -10,14 +10,15 @@ A channel room goes through a lifecycle of create, edit, archive, unarchive, and
 ## Behavior
 
 - **Create** — server admins (or anyone with `room.create` in the target group) create a channel room by giving it a name (1–30 chars, alphanumeric / hyphen / underscore, case-insensitive unique across the server), an optional description, a room group, and optionally the Universal setting.
-- **Edit** — `room.manage` holders can change the name, description, group, and Universal setting of an existing channel room.
+- **Edit** — `room.manage` holders can change the name, description, group, Universal setting, and explicit member set of an existing channel room.
 - **Display** — when set, the optional description appears after the channel room name in the desktop room pane header.
 - **Universal** — a channel room with Universal enabled behaves as joined for every server member who is currently eligible to join it. The system does not fan out `UserJoinedRoomEvent` facts for implicit membership. Existing explicit memberships remain intact, so disabling Universal restores the prior explicit membership set.
 - **Bootstrap defaults** — fresh servers seed `#announcements` as Universal and `#general` as a normal channel room in the default Lobby group.
 - **Join / leave** — joining a Universal room succeeds without writing an explicit membership event. Leaving a Universal room is rejected; users should mute it instead. DMs cannot be Universal.
-- **API surface** — ConnectRPC `RoomService` exposes create, edit, archive, unarchive, Universal, join, leave, ban, and unban commands. ConnectRPC `RoomDirectoryService` exposes the complementary room list, room-group/sidebar list, single-room refresh, per-room viewer capability state, and group join-all command.
+- **API surface** — ConnectRPC `RoomService` exposes create, edit, archive, unarchive, Universal, join, leave, manager add/remove, ban, and unban commands. ConnectRPC `RoomDirectoryService` exposes the complementary room list, room-group/sidebar list, single-room refresh, per-room viewer capability state, and group join-all command.
 - **Archive** — `room.manage` toggles an `archived` flag on the room. Archived rooms vanish from the sidebar, the Browse Rooms page, and search results, but members stay joined and history is intact. The owner can still navigate to the room directly.
 - **Unarchive** — same permission, flips the flag back. The room reappears in the sidebar and discovery surfaces.
+- **Manage members** — `room.manage` holders can add or remove explicit members of non-Universal channel rooms. Adding can bring a user into a private room even when that user could not self-join through `room.join`. Active room bans still block adding; the user must be unbanned first.
 - **Ban member** — `room.ban-member` holders can ban a user from a channel room with a required reason and optional expiry. The banned user loses room read/write/live access immediately and cannot rejoin until the ban is removed or expires.
 - **Delete** — `room.manage` appends `RoomDeletedEvent` to `EVT`, releases the room from its group layout, and causes projections to remove the room, its name claim, and its memberships.
 - Moving a room between groups requires `room.manage` in both groups (see FDR-017).
@@ -68,9 +69,9 @@ A channel room goes through a lifecycle of create, edit, archive, unarchive, and
 
 ### 8. Join and leave events remain actor-only
 
-**Decision:** `UserJoinedRoomEvent` and `UserLeftRoomEvent` do not carry a target user. The event actor is the user who joined or left. Moderator bans additionally use dedicated moderation events. To the target user, an active ban is evaluated as an ordinary join authorization denial rather than a distinct API/UI state.
-**Why:** Join and leave are ordinary membership facts. Keeping the user in the envelope avoids dual-subject ambiguity. A ban-generated leave intentionally uses the target user as actor so public room history remains indistinguishable from a normal leave.
-**Tradeoff:** Projections that need moderation state must listen to the moderation event family as well as join/leave.
+**Decision:** `UserJoinedRoomEvent` and `UserLeftRoomEvent` do not carry a target user. The event actor is the user who joined or left. Manager-controlled add/remove writes a normal join/leave fact with the target user as actor plus a dedicated moderation audit fact with the manager as actor. Moderator bans use the same split. To the target user, an active ban is evaluated as an ordinary join authorization denial rather than a distinct API/UI state.
+**Why:** Join and leave are ordinary membership facts. Keeping the user in the envelope avoids dual-subject ambiguity and keeps room history focused on membership transitions. Separate moderation facts preserve who performed manager actions without changing public timeline semantics.
+**Tradeoff:** Audited manager actions are represented by two durable facts: one public membership transition and one moderation fact.
 
 ### 9. Server-admin exposes active room bans
 
@@ -87,7 +88,7 @@ A channel room goes through a lifecycle of create, edit, archive, unarchive, and
 ## Permissions
 
 - `room.create` — create a new channel room in a group. Configurable per group.
-- `room.manage` — edit, archive, unarchive, delete, and change Universal state for a channel room. Configurable per group and per room.
+- `room.manage` — edit, archive, unarchive, delete, change Universal state, and add/remove explicit members for a channel room. Configurable per group and per room.
 - `room.ban-member` — ban members from a channel room. Configurable per group and per room.
 - `room.join` — gates whether a user can become an explicit member of an unarchived room and whether a user is an implicit member of a Universal room. Configurable per group and per room.
 
