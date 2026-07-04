@@ -125,7 +125,6 @@ export default defineConfig({
                 "reference/connectrpc-api/rooms",
                 "reference/connectrpc-api/server",
                 "reference/connectrpc-api/threads",
-                "reference/connectrpc-api/user-directory",
                 "reference/connectrpc-api/viewer",
                 "reference/connectrpc-api/calls",
               ],

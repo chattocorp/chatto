@@ -61,7 +61,20 @@ func (s *serverService) GetMember(ctx context.Context, req *connect.Request[apiv
 		return nil, err
 	}
 
-	member, err := serverMember(ctx, s.api, req.Msg.GetUserId())
+	var user *corev1.User
+	var err error
+	switch req.Msg.GetTarget().(type) {
+	case *apiv1.GetServerMemberRequest_UserId:
+		user, err = s.api.core.GetUser(ctx, req.Msg.GetUserId())
+	case *apiv1.GetServerMemberRequest_Login:
+		user, err = s.api.core.GetUserByLogin(ctx, req.Msg.GetLogin())
+	default:
+		return nil, invalidArgument("user_id or login is required")
+	}
+	if err != nil {
+		return nil, connectError(err)
+	}
+	member, err := serverMemberForUser(ctx, s.api, user)
 	if err != nil {
 		return nil, err
 	}
@@ -204,7 +217,11 @@ func serverMember(ctx context.Context, api *API, userID string) (*apiv1.Director
 	if err != nil {
 		return nil, connectError(err)
 	}
-	assigned, err := api.core.GetUserRoles(ctx, userID)
+	return serverMemberForUser(ctx, api, user)
+}
+
+func serverMemberForUser(ctx context.Context, api *API, user *corev1.User) (*apiv1.DirectoryMember, error) {
+	assigned, err := api.core.GetUserRoles(ctx, user.GetId())
 	if err != nil {
 		return nil, connectError(err)
 	}

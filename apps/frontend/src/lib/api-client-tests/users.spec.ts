@@ -1,11 +1,12 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { DirectoryMember as APIDirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
 import { User as APIUser, UserProfile as APIUserProfile } from '@chatto/api-types/api/v1/users_pb';
 import { createUserAPI, mapUserSummary } from '$lib/api-client/users';
 
 const mocks = vi.hoisted(() => ({
   createClient: vi.fn(),
   createConnectTransport: vi.fn(),
-  batchGetUsers: vi.fn()
+  batchGetMembers: vi.fn()
 }));
 
 vi.mock('@connectrpc/connect', () => ({
@@ -20,23 +21,25 @@ describe('createUserAPI', () => {
   beforeEach(() => {
     mocks.createClient.mockReset();
     mocks.createConnectTransport.mockReset();
-    mocks.batchGetUsers.mockReset();
+    mocks.batchGetMembers.mockReset();
     mocks.createConnectTransport.mockReturnValue({ kind: 'transport' });
     mocks.createClient.mockReturnValue({
-      batchGetUsers: mocks.batchGetUsers
+      batchGetMembers: mocks.batchGetMembers
     });
   });
 
   it('loads user summaries in batches and sends bearer auth', async () => {
-    mocks.batchGetUsers.mockResolvedValue({
-      users: [
-        new APIUserProfile({
-          user: new APIUser({
-            id: 'U1',
-            login: 'alice',
-            displayName: 'Alice',
-            deleted: false,
-            avatarUrl: 'https://cdn/avatar.webp'
+    mocks.batchGetMembers.mockResolvedValue({
+      members: [
+        new APIDirectoryMember({
+          profile: new APIUserProfile({
+            user: new APIUser({
+              id: 'U1',
+              login: 'alice',
+              displayName: 'Alice',
+              deleted: false,
+              avatarUrl: 'https://cdn/avatar.webp'
+            })
           })
         })
       ]
@@ -61,7 +64,7 @@ describe('createUserAPI', () => {
       baseUrl: 'https://remote.test/api/connect',
       useBinaryFormat: true
     });
-    expect(mocks.batchGetUsers).toHaveBeenCalledWith(
+    expect(mocks.batchGetMembers).toHaveBeenCalledWith(
       { userIds: ['U1', 'U2'] },
       { headers: { Authorization: 'Bearer token' } }
     );

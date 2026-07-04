@@ -297,7 +297,7 @@ message RealtimeTypingEvent {
 
 // Presence-changed signal.
 //
-// The latest presence status is inline. Use `UserDirectoryService.GetUser` when
+// The latest presence status is inline. Use `ServerService.GetMember` when
 // the surrounding user profile or custom status also needs refreshing.
 message RealtimePresenceChangedEvent {
   // User whose presence changed.
@@ -406,8 +406,8 @@ message RealtimeRoomMarkedAsReadEvent {
 
 // Server-profile signal.
 //
-// Public server profile fields are inline. Use `ServerService.GetServerState`
-// when authenticated clients need the broader server state snapshot.
+// Public server profile fields are inline. Use `ServerDiscoveryService.GetServer`
+// for public metadata and `ServerService.GetMotd` for the authenticated MOTD.
 message RealtimeServerUpdatedEvent {
   // Server display name.
   string name = 1;
@@ -421,8 +421,8 @@ message RealtimeServerUpdatedEvent {
 
 // User-profile signal.
 //
-// Basic profile fields are inline. Use `UserDirectoryService.GetUser` or
-// `UserDirectoryService.BatchGetUsers` for complete user-profile hydration.
+// Basic profile fields are inline. Use `ServerService.GetMember` or
+// `ServerService.BatchGetMembers` for complete member-profile hydration.
 message RealtimeUserProfileUpdatedEvent {
   // User whose profile changed.
   string user_id = 1;
@@ -436,7 +436,7 @@ message RealtimeUserProfileUpdatedEvent {
 
 // User-custom-status set signal.
 //
-// The latest custom status is inline. Use `UserDirectoryService.GetUser` when
+// The latest custom status is inline. Use `ServerService.GetMember` when
 // clients need to refresh the complete user profile.
 message RealtimeUserCustomStatusSetEvent {
   // User whose status changed.
@@ -451,7 +451,7 @@ message RealtimeUserCustomStatusSetEvent {
 
 // User-custom-status cleared signal.
 //
-// Clear local custom status for `user_id`. Use `UserDirectoryService.GetUser`
+// Clear local custom status for `user_id`. Use `ServerService.GetMember`
 // when clients need to refresh the complete user profile.
 message RealtimeUserCustomStatusClearedEvent {
   // User whose status was cleared.
@@ -548,7 +548,7 @@ enum RealtimeCallEventSource {
 //
 // Inline names are display hints. Hydrate referenced rooms through
 // `RoomDirectoryService.BatchGetRooms` and users through
-// `UserDirectoryService.BatchGetUsers` when local caches are missing or stale.
+// `ServerService.BatchGetMembers` when local caches are missing or stale.
 message RealtimeMentionNotificationEvent {
   // Room where the mention occurred.
   string room_id = 1;
@@ -564,8 +564,8 @@ message RealtimeMentionNotificationEvent {
 //
 // Inline names and avatar URLs are display hints. Hydrate the DM room through
 // `RoomDirectoryService.GetRoom` or `RoomDirectoryService.BatchGetRooms`, and
-// the sender through `UserDirectoryService.GetUser` or
-// `UserDirectoryService.BatchGetUsers` when local caches are missing or stale.
+// the sender through `ServerService.GetMember` or
+// `ServerService.BatchGetMembers` when local caches are missing or stale.
 message RealtimeNewDirectMessageNotificationEvent {
   // DM room ID.
   string room_id = 1;

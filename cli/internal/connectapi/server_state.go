@@ -16,40 +16,51 @@ type serverService struct {
 	api *API
 }
 
-func (s *serverService) GetServerState(ctx context.Context, _ *connect.Request[apiv1.GetServerStateRequest]) (*connect.Response[apiv1.GetServerStateResponse], error) {
+func (s *serverService) GetMotd(ctx context.Context, _ *connect.Request[apiv1.GetMotdRequest]) (*connect.Response[apiv1.GetMotdResponse], error) {
 	if _, err := requireCaller(ctx); err != nil {
 		return nil, err
 	}
 
-	profile, err := s.serverProfile(ctx)
+	motd, err := s.serverMotd(ctx)
 	if err != nil {
 		return nil, err
 	}
 
+	resp := &apiv1.GetMotdResponse{}
+	if motd != "" {
+		resp.Motd = stringPtr(motd)
+	}
+	return connect.NewResponse(resp), nil
+}
+
+func (s *serverService) GetRuntimeConfig(ctx context.Context, _ *connect.Request[apiv1.GetRuntimeConfigRequest]) (*connect.Response[apiv1.GetRuntimeConfigResponse], error) {
+	if _, err := requireCaller(ctx); err != nil {
+		return nil, err
+	}
+
+	return connect.NewResponse(&apiv1.GetRuntimeConfigResponse{Runtime: s.serverRuntimeConfig()}), nil
+}
+
+func (s *serverService) serverRuntimeConfig() *apiv1.ServerRuntimeConfig {
 	maxUploadSize := s.api.core.AssetsConfig().MaxUploadSize
 	maxVideoUploadSize := maxUploadSize
 	if s.api.config.Video.Enabled {
 		maxVideoUploadSize = int64(s.api.config.Video.MaxUploadSizeOrDefault())
 	}
-	response := &apiv1.GetServerStateResponse{
-		Profile: profile,
-		Runtime: &apiv1.ServerRuntimeConfig{
-			PushNotificationsEnabled:  s.api.config.Push.IsConfigured(),
-			DirectRegistrationEnabled: s.api.config.Auth.DirectRegistrationOrDefault(),
-			VideoProcessingEnabled:    s.api.config.Video.Enabled,
-			MaxUploadSize:             maxUploadSize,
-			MaxVideoUploadSize:        maxVideoUploadSize,
-			MessageEditWindowSeconds:  int32(core.MessageEditWindow / time.Second),
-		},
+	runtime := &apiv1.ServerRuntimeConfig{
+		PushNotificationsEnabled: s.api.config.Push.IsConfigured(),
+		VideoProcessingEnabled:   s.api.config.Video.Enabled,
+		MaxUploadSize:            maxUploadSize,
+		MaxVideoUploadSize:       maxVideoUploadSize,
+		MessageEditWindowSeconds: int32(core.MessageEditWindow / time.Second),
 	}
 	if s.api.config.Push.IsConfigured() {
-		response.Runtime.VapidPublicKey = stringPtr(s.api.config.Push.VAPIDPublicKey)
+		runtime.VapidPublicKey = stringPtr(s.api.config.Push.VAPIDPublicKey)
 	}
 	if s.api.config.LiveKit.IsConfigured() {
-		response.Runtime.LivekitUrl = stringPtr(s.api.config.LiveKit.URL)
+		runtime.LivekitUrl = stringPtr(s.api.config.LiveKit.URL)
 	}
-
-	return connect.NewResponse(response), nil
+	return runtime
 }
 
 func (s *serverService) GetServerConfig(ctx context.Context, _ *connect.Request[adminv1.GetServerConfigRequest]) (*connect.Response[adminv1.GetServerConfigResponse], error) {
@@ -217,16 +228,25 @@ func (s *serverService) serverProfile(ctx context.Context) (*apiv1.ServerProfile
 		return nil, err
 	}
 	profile := &apiv1.ServerProfile{PublicProfile: publicProfile}
+	motd, err := s.serverMotd(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if motd != "" {
+		profile.Motd = stringPtr(motd)
+	}
+	return profile, nil
+}
+
+func (s *serverService) serverMotd(ctx context.Context) (string, error) {
 	if cm := s.api.core.ConfigManager(); cm != nil {
 		motd, err := cm.GetEffectiveMOTD(ctx)
 		if err != nil {
-			return nil, connectError(err)
+			return "", connectError(err)
 		}
-		if motd != "" {
-			profile.Motd = stringPtr(motd)
-		}
+		return motd, nil
 	}
-	return profile, nil
+	return "", nil
 }
 
 func (a *API) serverViewerState(ctx context.Context, userID string) (*apiv1.ServerViewerPermissions, *apiv1.ServerViewerState, error) {

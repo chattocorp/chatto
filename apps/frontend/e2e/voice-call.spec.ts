@@ -60,7 +60,7 @@ interface ListCallParticipantsResponse {
   }>;
 }
 
-interface ServerStateResponse {
+interface RuntimeConfigResponse {
   runtime?: {
     livekitUrl?: string;
   };
@@ -459,9 +459,9 @@ test.describe('Voice calls', () => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
 
-    const data = await connectPost<ServerStateResponse>(
+    const data = await connectPost<RuntimeConfigResponse>(
       page,
-      'chatto.api.v1.ServerService/GetServerState'
+      'chatto.api.v1.ServerService/GetRuntimeConfig'
     );
     expect(data.runtime?.livekitUrl).toBe('ws://localhost:7880');
   });

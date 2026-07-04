@@ -1,5 +1,6 @@
 import { authHeaders, createChattoClient } from "./connect.js";
-import { UserDirectoryService } from "@chatto/api-types/api/v1/users_connect";
+import { ServerService } from "@chatto/api-types/api/v1/server_state_connect";
+import type { DirectoryMember as APIDirectoryMember } from "@chatto/api-types/api/v1/member_directory_pb";
 import type {
   User as APIUser,
   UserProfile as APIUserProfile,
@@ -20,17 +21,17 @@ export type UserSummary = {
 };
 
 export function createUserAPI(config: UserAPIConfig) {
-  const client = createChattoClient(UserDirectoryService, config);
+  const client = createChattoClient(ServerService, config);
   const headers = () => authHeaders(config);
 
   return {
     async batchGetUsers(userIds: string[]): Promise<UserSummary[]> {
-      const response = await client.batchGetUsers(
+      const response = await client.batchGetMembers(
         { userIds },
         { headers: headers() },
       );
-      return response.users.flatMap((profile) => {
-        const summary = profile.user;
+      return response.members.flatMap((member) => {
+        const summary = member.profile?.user;
         return summary ? [mapUserSummary(summary)] : [];
       });
     },
@@ -43,6 +44,12 @@ export function mapUserProfileSummary(
   profile: APIUserProfile,
 ): UserSummary | null {
   return profile.user ? mapUserSummary(profile.user) : null;
+}
+
+export function mapDirectoryMemberUserSummary(
+  member: APIDirectoryMember,
+): UserSummary | null {
+  return member.profile?.user ? mapUserSummary(member.profile.user) : null;
 }
 
 export function mapUserSummary(user: APIUser): UserSummary {

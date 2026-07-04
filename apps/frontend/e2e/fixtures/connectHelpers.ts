@@ -85,8 +85,8 @@ interface ViewerResponse {
   viewerState?: { hasUnreadRooms?: boolean };
 }
 
-interface GetUserResponse {
-  user?: { id?: string };
+interface GetMemberResponse {
+  member?: { profile?: { user?: { id?: string } } };
 }
 
 const notificationLevelToProtoName: Record<E2ENotificationLevel, string> = {
@@ -231,12 +231,12 @@ export async function waitForUserDeletedViaConnect(
   timeout = DEFAULT_POLL_TIMEOUT
 ): Promise<void> {
   await expect(async () => {
-    const response = await connectPostResponse(page, 'chatto.api.v1.UserDirectoryService/GetUser', {
+    const response = await connectPostResponse(page, 'chatto.api.v1.ServerService/GetMember', {
       userId
     });
     if (response.ok()) {
-      const data = (await response.json()) as GetUserResponse;
-      expect(data.user).toBeFalsy();
+      const data = (await response.json()) as GetMemberResponse;
+      expect(data.member).toBeFalsy();
       return;
     }
 

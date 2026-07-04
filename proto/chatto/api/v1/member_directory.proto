@@ -40,10 +40,14 @@ message ListServerMembersResponse {
   PageInfo page = 4;
 }
 
-// Request one authenticated server member by stable user ID.
+// Request one authenticated server member by stable user ID or login.
 message GetServerMemberRequest {
-  // Required target user ID.
-  string user_id = 1 [(buf.validate.field).string.min_len = 1];
+  oneof target {
+    // Target stable user ID.
+    string user_id = 1 [(buf.validate.field).string.min_len = 1];
+    // Target login identifier.
+    string login = 2 [(buf.validate.field).string.min_len = 1];
+  }
 }
 
 // Server member response.

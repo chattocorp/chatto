@@ -76,27 +76,27 @@ func (x *ServerProfile) GetMotd() string {
 	return ""
 }
 
-// Request for authenticated server state.
-type GetServerStateRequest struct {
+// Request for the authenticated message of the day.
+type GetMotdRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *GetServerStateRequest) Reset() {
-	*x = GetServerStateRequest{}
+func (x *GetMotdRequest) Reset() {
+	*x = GetMotdRequest{}
 	mi := &file_chatto_api_v1_server_state_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *GetServerStateRequest) String() string {
+func (x *GetMotdRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*GetServerStateRequest) ProtoMessage() {}
+func (*GetMotdRequest) ProtoMessage() {}
 
-func (x *GetServerStateRequest) ProtoReflect() protoreflect.Message {
+func (x *GetMotdRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_chatto_api_v1_server_state_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -108,9 +108,55 @@ func (x *GetServerStateRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use GetServerStateRequest.ProtoReflect.Descriptor instead.
-func (*GetServerStateRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use GetMotdRequest.ProtoReflect.Descriptor instead.
+func (*GetMotdRequest) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_server_state_proto_rawDescGZIP(), []int{1}
+}
+
+// Authenticated message of the day response.
+type GetMotdResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Optional message of the day shown to authenticated members.
+	Motd          *string `protobuf:"bytes,1,opt,name=motd,proto3,oneof" json:"motd,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetMotdResponse) Reset() {
+	*x = GetMotdResponse{}
+	mi := &file_chatto_api_v1_server_state_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetMotdResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetMotdResponse) ProtoMessage() {}
+
+func (x *GetMotdResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_server_state_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetMotdResponse.ProtoReflect.Descriptor instead.
+func (*GetMotdResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_server_state_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *GetMotdResponse) GetMotd() string {
+	if x != nil && x.Motd != nil {
+		return *x.Motd
+	}
+	return ""
 }
 
 // Authenticated server runtime settings used by clients.
@@ -122,8 +168,6 @@ type ServerRuntimeConfig struct {
 	VapidPublicKey *string `protobuf:"bytes,2,opt,name=vapid_public_key,json=vapidPublicKey,proto3,oneof" json:"vapid_public_key,omitempty"`
 	// Optional LiveKit URL for voice and video calls.
 	LivekitUrl *string `protobuf:"bytes,3,opt,name=livekit_url,json=livekitUrl,proto3,oneof" json:"livekit_url,omitempty"`
-	// Whether direct email/password registration is enabled.
-	DirectRegistrationEnabled bool `protobuf:"varint,4,opt,name=direct_registration_enabled,json=directRegistrationEnabled,proto3" json:"direct_registration_enabled,omitempty"`
 	// Whether video processing is enabled.
 	VideoProcessingEnabled bool `protobuf:"varint,5,opt,name=video_processing_enabled,json=videoProcessingEnabled,proto3" json:"video_processing_enabled,omitempty"`
 	// Maximum general upload size in bytes.
@@ -138,7 +182,7 @@ type ServerRuntimeConfig struct {
 
 func (x *ServerRuntimeConfig) Reset() {
 	*x = ServerRuntimeConfig{}
-	mi := &file_chatto_api_v1_server_state_proto_msgTypes[2]
+	mi := &file_chatto_api_v1_server_state_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -150,7 +194,7 @@ func (x *ServerRuntimeConfig) String() string {
 func (*ServerRuntimeConfig) ProtoMessage() {}
 
 func (x *ServerRuntimeConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_server_state_proto_msgTypes[2]
+	mi := &file_chatto_api_v1_server_state_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -163,7 +207,7 @@ func (x *ServerRuntimeConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ServerRuntimeConfig.ProtoReflect.Descriptor instead.
 func (*ServerRuntimeConfig) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_server_state_proto_rawDescGZIP(), []int{2}
+	return file_chatto_api_v1_server_state_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *ServerRuntimeConfig) GetPushNotificationsEnabled() bool {
@@ -185,13 +229,6 @@ func (x *ServerRuntimeConfig) GetLivekitUrl() string {
 		return *x.LivekitUrl
 	}
 	return ""
-}
-
-func (x *ServerRuntimeConfig) GetDirectRegistrationEnabled() bool {
-	if x != nil {
-		return x.DirectRegistrationEnabled
-	}
-	return false
 }
 
 func (x *ServerRuntimeConfig) GetVideoProcessingEnabled() bool {
@@ -222,32 +259,28 @@ func (x *ServerRuntimeConfig) GetMessageEditWindowSeconds() int32 {
 	return 0
 }
 
-// Authenticated server state used by the web client and public API clients.
-type GetServerStateResponse struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Authenticated server profile and branding.
-	Profile *ServerProfile `protobuf:"bytes,1,opt,name=profile,proto3" json:"profile,omitempty"`
-	// Authenticated runtime settings used by clients.
-	Runtime       *ServerRuntimeConfig `protobuf:"bytes,2,opt,name=runtime,proto3" json:"runtime,omitempty"`
+// Request for authenticated server runtime configuration.
+type GetRuntimeConfigRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *GetServerStateResponse) Reset() {
-	*x = GetServerStateResponse{}
-	mi := &file_chatto_api_v1_server_state_proto_msgTypes[3]
+func (x *GetRuntimeConfigRequest) Reset() {
+	*x = GetRuntimeConfigRequest{}
+	mi := &file_chatto_api_v1_server_state_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *GetServerStateResponse) String() string {
+func (x *GetRuntimeConfigRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*GetServerStateResponse) ProtoMessage() {}
+func (*GetRuntimeConfigRequest) ProtoMessage() {}
 
-func (x *GetServerStateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_server_state_proto_msgTypes[3]
+func (x *GetRuntimeConfigRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_server_state_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -258,19 +291,51 @@ func (x *GetServerStateResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use GetServerStateResponse.ProtoReflect.Descriptor instead.
-func (*GetServerStateResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_server_state_proto_rawDescGZIP(), []int{3}
+// Deprecated: Use GetRuntimeConfigRequest.ProtoReflect.Descriptor instead.
+func (*GetRuntimeConfigRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_server_state_proto_rawDescGZIP(), []int{4}
 }
 
-func (x *GetServerStateResponse) GetProfile() *ServerProfile {
+// Authenticated server runtime configuration response.
+type GetRuntimeConfigResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Authenticated runtime settings used by clients.
+	Runtime       *ServerRuntimeConfig `protobuf:"bytes,1,opt,name=runtime,proto3" json:"runtime,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetRuntimeConfigResponse) Reset() {
+	*x = GetRuntimeConfigResponse{}
+	mi := &file_chatto_api_v1_server_state_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetRuntimeConfigResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetRuntimeConfigResponse) ProtoMessage() {}
+
+func (x *GetRuntimeConfigResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_server_state_proto_msgTypes[5]
 	if x != nil {
-		return x.Profile
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
 	}
-	return nil
+	return mi.MessageOf(x)
 }
 
-func (x *GetServerStateResponse) GetRuntime() *ServerRuntimeConfig {
+// Deprecated: Use GetRuntimeConfigResponse.ProtoReflect.Descriptor instead.
+func (*GetRuntimeConfigResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_server_state_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *GetRuntimeConfigResponse) GetRuntime() *ServerRuntimeConfig {
 	if x != nil {
 		return x.Runtime
 	}
@@ -285,25 +350,28 @@ const file_chatto_api_v1_server_state_proto_rawDesc = "" +
 	"\rServerProfile\x12I\n" +
 	"\x0epublic_profile\x18\x01 \x01(\v2\".chatto.api.v1.ServerPublicProfileR\rpublicProfile\x12\x17\n" +
 	"\x04motd\x18\x02 \x01(\tH\x00R\x04motd\x88\x01\x01B\a\n" +
-	"\x05_motd\"\x17\n" +
-	"\x15GetServerStateRequest\"\xe1\x03\n" +
+	"\x05_motd\"\x10\n" +
+	"\x0eGetMotdRequest\"3\n" +
+	"\x0fGetMotdResponse\x12\x17\n" +
+	"\x04motd\x18\x01 \x01(\tH\x00R\x04motd\x88\x01\x01B\a\n" +
+	"\x05_motd\"\xc4\x03\n" +
 	"\x13ServerRuntimeConfig\x12<\n" +
 	"\x1apush_notifications_enabled\x18\x01 \x01(\bR\x18pushNotificationsEnabled\x12-\n" +
 	"\x10vapid_public_key\x18\x02 \x01(\tH\x00R\x0evapidPublicKey\x88\x01\x01\x12$\n" +
 	"\vlivekit_url\x18\x03 \x01(\tH\x01R\n" +
-	"livekitUrl\x88\x01\x01\x12>\n" +
-	"\x1bdirect_registration_enabled\x18\x04 \x01(\bR\x19directRegistrationEnabled\x128\n" +
+	"livekitUrl\x88\x01\x01\x128\n" +
 	"\x18video_processing_enabled\x18\x05 \x01(\bR\x16videoProcessingEnabled\x12&\n" +
 	"\x0fmax_upload_size\x18\x06 \x01(\x03R\rmaxUploadSize\x121\n" +
 	"\x15max_video_upload_size\x18\a \x01(\x03R\x12maxVideoUploadSize\x12=\n" +
 	"\x1bmessage_edit_window_seconds\x18\b \x01(\x05R\x18messageEditWindowSecondsB\x13\n" +
 	"\x11_vapid_public_keyB\x0e\n" +
-	"\f_livekit_url\"\x8e\x01\n" +
-	"\x16GetServerStateResponse\x126\n" +
-	"\aprofile\x18\x01 \x01(\v2\x1c.chatto.api.v1.ServerProfileR\aprofile\x12<\n" +
-	"\aruntime\x18\x02 \x01(\v2\".chatto.api.v1.ServerRuntimeConfigR\aruntime2\x9a\x03\n" +
-	"\rServerService\x12]\n" +
-	"\x0eGetServerState\x12$.chatto.api.v1.GetServerStateRequest\x1a%.chatto.api.v1.GetServerStateResponse\x12`\n" +
+	"\f_livekit_urlJ\x04\b\x04\x10\x05R\x1bdirect_registration_enabled\"\x19\n" +
+	"\x17GetRuntimeConfigRequest\"X\n" +
+	"\x18GetRuntimeConfigResponse\x12<\n" +
+	"\aruntime\x18\x01 \x01(\v2\".chatto.api.v1.ServerRuntimeConfigR\aruntime2\xea\x03\n" +
+	"\rServerService\x12H\n" +
+	"\aGetMotd\x12\x1d.chatto.api.v1.GetMotdRequest\x1a\x1e.chatto.api.v1.GetMotdResponse\x12c\n" +
+	"\x10GetRuntimeConfig\x12&.chatto.api.v1.GetRuntimeConfigRequest\x1a'.chatto.api.v1.GetRuntimeConfigResponse\x12`\n" +
 	"\vListMembers\x12'.chatto.api.v1.ListServerMembersRequest\x1a(.chatto.api.v1.ListServerMembersResponse\x12Z\n" +
 	"\tGetMember\x12%.chatto.api.v1.GetServerMemberRequest\x1a&.chatto.api.v1.GetServerMemberResponse\x12l\n" +
 	"\x0fBatchGetMembers\x12+.chatto.api.v1.BatchGetServerMembersRequest\x1a,.chatto.api.v1.BatchGetServerMembersResponseB\xac\x01\n" +
@@ -321,37 +389,40 @@ func file_chatto_api_v1_server_state_proto_rawDescGZIP() []byte {
 	return file_chatto_api_v1_server_state_proto_rawDescData
 }
 
-var file_chatto_api_v1_server_state_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_chatto_api_v1_server_state_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_chatto_api_v1_server_state_proto_goTypes = []any{
 	(*ServerProfile)(nil),                 // 0: chatto.api.v1.ServerProfile
-	(*GetServerStateRequest)(nil),         // 1: chatto.api.v1.GetServerStateRequest
-	(*ServerRuntimeConfig)(nil),           // 2: chatto.api.v1.ServerRuntimeConfig
-	(*GetServerStateResponse)(nil),        // 3: chatto.api.v1.GetServerStateResponse
-	(*ServerPublicProfile)(nil),           // 4: chatto.api.v1.ServerPublicProfile
-	(*ListServerMembersRequest)(nil),      // 5: chatto.api.v1.ListServerMembersRequest
-	(*GetServerMemberRequest)(nil),        // 6: chatto.api.v1.GetServerMemberRequest
-	(*BatchGetServerMembersRequest)(nil),  // 7: chatto.api.v1.BatchGetServerMembersRequest
-	(*ListServerMembersResponse)(nil),     // 8: chatto.api.v1.ListServerMembersResponse
-	(*GetServerMemberResponse)(nil),       // 9: chatto.api.v1.GetServerMemberResponse
-	(*BatchGetServerMembersResponse)(nil), // 10: chatto.api.v1.BatchGetServerMembersResponse
+	(*GetMotdRequest)(nil),                // 1: chatto.api.v1.GetMotdRequest
+	(*GetMotdResponse)(nil),               // 2: chatto.api.v1.GetMotdResponse
+	(*ServerRuntimeConfig)(nil),           // 3: chatto.api.v1.ServerRuntimeConfig
+	(*GetRuntimeConfigRequest)(nil),       // 4: chatto.api.v1.GetRuntimeConfigRequest
+	(*GetRuntimeConfigResponse)(nil),      // 5: chatto.api.v1.GetRuntimeConfigResponse
+	(*ServerPublicProfile)(nil),           // 6: chatto.api.v1.ServerPublicProfile
+	(*ListServerMembersRequest)(nil),      // 7: chatto.api.v1.ListServerMembersRequest
+	(*GetServerMemberRequest)(nil),        // 8: chatto.api.v1.GetServerMemberRequest
+	(*BatchGetServerMembersRequest)(nil),  // 9: chatto.api.v1.BatchGetServerMembersRequest
+	(*ListServerMembersResponse)(nil),     // 10: chatto.api.v1.ListServerMembersResponse
+	(*GetServerMemberResponse)(nil),       // 11: chatto.api.v1.GetServerMemberResponse
+	(*BatchGetServerMembersResponse)(nil), // 12: chatto.api.v1.BatchGetServerMembersResponse
 }
 var file_chatto_api_v1_server_state_proto_depIdxs = []int32{
-	4,  // 0: chatto.api.v1.ServerProfile.public_profile:type_name -> chatto.api.v1.ServerPublicProfile
-	0,  // 1: chatto.api.v1.GetServerStateResponse.profile:type_name -> chatto.api.v1.ServerProfile
-	2,  // 2: chatto.api.v1.GetServerStateResponse.runtime:type_name -> chatto.api.v1.ServerRuntimeConfig
-	1,  // 3: chatto.api.v1.ServerService.GetServerState:input_type -> chatto.api.v1.GetServerStateRequest
-	5,  // 4: chatto.api.v1.ServerService.ListMembers:input_type -> chatto.api.v1.ListServerMembersRequest
-	6,  // 5: chatto.api.v1.ServerService.GetMember:input_type -> chatto.api.v1.GetServerMemberRequest
-	7,  // 6: chatto.api.v1.ServerService.BatchGetMembers:input_type -> chatto.api.v1.BatchGetServerMembersRequest
-	3,  // 7: chatto.api.v1.ServerService.GetServerState:output_type -> chatto.api.v1.GetServerStateResponse
-	8,  // 8: chatto.api.v1.ServerService.ListMembers:output_type -> chatto.api.v1.ListServerMembersResponse
-	9,  // 9: chatto.api.v1.ServerService.GetMember:output_type -> chatto.api.v1.GetServerMemberResponse
-	10, // 10: chatto.api.v1.ServerService.BatchGetMembers:output_type -> chatto.api.v1.BatchGetServerMembersResponse
-	7,  // [7:11] is the sub-list for method output_type
-	3,  // [3:7] is the sub-list for method input_type
-	3,  // [3:3] is the sub-list for extension type_name
-	3,  // [3:3] is the sub-list for extension extendee
-	0,  // [0:3] is the sub-list for field type_name
+	6,  // 0: chatto.api.v1.ServerProfile.public_profile:type_name -> chatto.api.v1.ServerPublicProfile
+	3,  // 1: chatto.api.v1.GetRuntimeConfigResponse.runtime:type_name -> chatto.api.v1.ServerRuntimeConfig
+	1,  // 2: chatto.api.v1.ServerService.GetMotd:input_type -> chatto.api.v1.GetMotdRequest
+	4,  // 3: chatto.api.v1.ServerService.GetRuntimeConfig:input_type -> chatto.api.v1.GetRuntimeConfigRequest
+	7,  // 4: chatto.api.v1.ServerService.ListMembers:input_type -> chatto.api.v1.ListServerMembersRequest
+	8,  // 5: chatto.api.v1.ServerService.GetMember:input_type -> chatto.api.v1.GetServerMemberRequest
+	9,  // 6: chatto.api.v1.ServerService.BatchGetMembers:input_type -> chatto.api.v1.BatchGetServerMembersRequest
+	2,  // 7: chatto.api.v1.ServerService.GetMotd:output_type -> chatto.api.v1.GetMotdResponse
+	5,  // 8: chatto.api.v1.ServerService.GetRuntimeConfig:output_type -> chatto.api.v1.GetRuntimeConfigResponse
+	10, // 9: chatto.api.v1.ServerService.ListMembers:output_type -> chatto.api.v1.ListServerMembersResponse
+	11, // 10: chatto.api.v1.ServerService.GetMember:output_type -> chatto.api.v1.GetServerMemberResponse
+	12, // 11: chatto.api.v1.ServerService.BatchGetMembers:output_type -> chatto.api.v1.BatchGetServerMembersResponse
+	7,  // [7:12] is the sub-list for method output_type
+	2,  // [2:7] is the sub-list for method input_type
+	2,  // [2:2] is the sub-list for extension type_name
+	2,  // [2:2] is the sub-list for extension extendee
+	0,  // [0:2] is the sub-list for field type_name
 }
 
 func init() { file_chatto_api_v1_server_state_proto_init() }
@@ -363,13 +434,14 @@ func file_chatto_api_v1_server_state_proto_init() {
 	file_chatto_api_v1_server_proto_init()
 	file_chatto_api_v1_server_state_proto_msgTypes[0].OneofWrappers = []any{}
 	file_chatto_api_v1_server_state_proto_msgTypes[2].OneofWrappers = []any{}
+	file_chatto_api_v1_server_state_proto_msgTypes[3].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_api_v1_server_state_proto_rawDesc), len(file_chatto_api_v1_server_state_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   4,
+			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

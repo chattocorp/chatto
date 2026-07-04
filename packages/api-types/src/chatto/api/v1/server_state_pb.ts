@@ -57,35 +57,76 @@ export class ServerProfile extends Message<ServerProfile> {
 }
 
 /**
- * Request for authenticated server state.
+ * Request for the authenticated message of the day.
  *
- * @generated from message chatto.api.v1.GetServerStateRequest
+ * @generated from message chatto.api.v1.GetMotdRequest
  */
-export class GetServerStateRequest extends Message<GetServerStateRequest> {
-  constructor(data?: PartialMessage<GetServerStateRequest>) {
+export class GetMotdRequest extends Message<GetMotdRequest> {
+  constructor(data?: PartialMessage<GetMotdRequest>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.GetServerStateRequest";
+  static readonly typeName = "chatto.api.v1.GetMotdRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetServerStateRequest {
-    return new GetServerStateRequest().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetMotdRequest {
+    return new GetMotdRequest().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetServerStateRequest {
-    return new GetServerStateRequest().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetMotdRequest {
+    return new GetMotdRequest().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetServerStateRequest {
-    return new GetServerStateRequest().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetMotdRequest {
+    return new GetMotdRequest().fromJsonString(jsonString, options);
   }
 
-  static equals(a: GetServerStateRequest | PlainMessage<GetServerStateRequest> | undefined, b: GetServerStateRequest | PlainMessage<GetServerStateRequest> | undefined): boolean {
-    return proto3.util.equals(GetServerStateRequest, a, b);
+  static equals(a: GetMotdRequest | PlainMessage<GetMotdRequest> | undefined, b: GetMotdRequest | PlainMessage<GetMotdRequest> | undefined): boolean {
+    return proto3.util.equals(GetMotdRequest, a, b);
+  }
+}
+
+/**
+ * Authenticated message of the day response.
+ *
+ * @generated from message chatto.api.v1.GetMotdResponse
+ */
+export class GetMotdResponse extends Message<GetMotdResponse> {
+  /**
+   * Optional message of the day shown to authenticated members.
+   *
+   * @generated from field: optional string motd = 1;
+   */
+  motd?: string;
+
+  constructor(data?: PartialMessage<GetMotdResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.GetMotdResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "motd", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetMotdResponse {
+    return new GetMotdResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetMotdResponse {
+    return new GetMotdResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetMotdResponse {
+    return new GetMotdResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetMotdResponse | PlainMessage<GetMotdResponse> | undefined, b: GetMotdResponse | PlainMessage<GetMotdResponse> | undefined): boolean {
+    return proto3.util.equals(GetMotdResponse, a, b);
   }
 }
 
@@ -115,13 +156,6 @@ export class ServerRuntimeConfig extends Message<ServerRuntimeConfig> {
    * @generated from field: optional string livekit_url = 3;
    */
   livekitUrl?: string;
-
-  /**
-   * Whether direct email/password registration is enabled.
-   *
-   * @generated from field: bool direct_registration_enabled = 4;
-   */
-  directRegistrationEnabled = false;
 
   /**
    * Whether video processing is enabled.
@@ -162,7 +196,6 @@ export class ServerRuntimeConfig extends Message<ServerRuntimeConfig> {
     { no: 1, name: "push_notifications_enabled", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 2, name: "vapid_public_key", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
     { no: 3, name: "livekit_url", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
-    { no: 4, name: "direct_registration_enabled", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 5, name: "video_processing_enabled", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 6, name: "max_upload_size", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
     { no: 7, name: "max_video_upload_size", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
@@ -187,50 +220,75 @@ export class ServerRuntimeConfig extends Message<ServerRuntimeConfig> {
 }
 
 /**
- * Authenticated server state used by the web client and public API clients.
+ * Request for authenticated server runtime configuration.
  *
- * @generated from message chatto.api.v1.GetServerStateResponse
+ * @generated from message chatto.api.v1.GetRuntimeConfigRequest
  */
-export class GetServerStateResponse extends Message<GetServerStateResponse> {
-  /**
-   * Authenticated server profile and branding.
-   *
-   * @generated from field: chatto.api.v1.ServerProfile profile = 1;
-   */
-  profile?: ServerProfile;
-
-  /**
-   * Authenticated runtime settings used by clients.
-   *
-   * @generated from field: chatto.api.v1.ServerRuntimeConfig runtime = 2;
-   */
-  runtime?: ServerRuntimeConfig;
-
-  constructor(data?: PartialMessage<GetServerStateResponse>) {
+export class GetRuntimeConfigRequest extends Message<GetRuntimeConfigRequest> {
+  constructor(data?: PartialMessage<GetRuntimeConfigRequest>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.GetServerStateResponse";
+  static readonly typeName = "chatto.api.v1.GetRuntimeConfigRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "profile", kind: "message", T: ServerProfile },
-    { no: 2, name: "runtime", kind: "message", T: ServerRuntimeConfig },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetServerStateResponse {
-    return new GetServerStateResponse().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetRuntimeConfigRequest {
+    return new GetRuntimeConfigRequest().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetServerStateResponse {
-    return new GetServerStateResponse().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetRuntimeConfigRequest {
+    return new GetRuntimeConfigRequest().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetServerStateResponse {
-    return new GetServerStateResponse().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetRuntimeConfigRequest {
+    return new GetRuntimeConfigRequest().fromJsonString(jsonString, options);
   }
 
-  static equals(a: GetServerStateResponse | PlainMessage<GetServerStateResponse> | undefined, b: GetServerStateResponse | PlainMessage<GetServerStateResponse> | undefined): boolean {
-    return proto3.util.equals(GetServerStateResponse, a, b);
+  static equals(a: GetRuntimeConfigRequest | PlainMessage<GetRuntimeConfigRequest> | undefined, b: GetRuntimeConfigRequest | PlainMessage<GetRuntimeConfigRequest> | undefined): boolean {
+    return proto3.util.equals(GetRuntimeConfigRequest, a, b);
+  }
+}
+
+/**
+ * Authenticated server runtime configuration response.
+ *
+ * @generated from message chatto.api.v1.GetRuntimeConfigResponse
+ */
+export class GetRuntimeConfigResponse extends Message<GetRuntimeConfigResponse> {
+  /**
+   * Authenticated runtime settings used by clients.
+   *
+   * @generated from field: chatto.api.v1.ServerRuntimeConfig runtime = 1;
+   */
+  runtime?: ServerRuntimeConfig;
+
+  constructor(data?: PartialMessage<GetRuntimeConfigResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.GetRuntimeConfigResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "runtime", kind: "message", T: ServerRuntimeConfig },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetRuntimeConfigResponse {
+    return new GetRuntimeConfigResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetRuntimeConfigResponse {
+    return new GetRuntimeConfigResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetRuntimeConfigResponse {
+    return new GetRuntimeConfigResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetRuntimeConfigResponse | PlainMessage<GetRuntimeConfigResponse> | undefined, b: GetRuntimeConfigResponse | PlainMessage<GetRuntimeConfigResponse> | undefined): boolean {
+    return proto3.util.equals(GetRuntimeConfigResponse, a, b);
   }
 }

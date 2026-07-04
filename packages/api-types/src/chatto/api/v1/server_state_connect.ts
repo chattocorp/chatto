@@ -3,13 +3,12 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetServerStateRequest, GetServerStateResponse } from "./server_state_pb.js";
+import { GetMotdRequest, GetMotdResponse, GetRuntimeConfigRequest, GetRuntimeConfigResponse } from "./server_state_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 import { BatchGetServerMembersRequest, BatchGetServerMembersResponse, GetServerMemberRequest, GetServerMemberResponse, ListServerMembersRequest, ListServerMembersResponse } from "./member_directory_pb.js";
 
 /**
- * Provides authenticated server profile, runtime configuration, and public
- * server member reads.
+ * Provides authenticated server-wide reads and public server member reads.
  *
  * @generated from service chatto.api.v1.ServerService
  */
@@ -17,16 +16,25 @@ export const ServerService = {
   typeName: "chatto.api.v1.ServerService",
   methods: {
     /**
-     * Returns authenticated server state. This RPC requires a logged-in user;
-     * public discovery remains available through
-     * chatto.discovery.v1.ServerDiscoveryService.GetServer.
+     * Returns the authenticated message of the day.
      *
-     * @generated from rpc chatto.api.v1.ServerService.GetServerState
+     * @generated from rpc chatto.api.v1.ServerService.GetMotd
      */
-    getServerState: {
-      name: "GetServerState",
-      I: GetServerStateRequest,
-      O: GetServerStateResponse,
+    getMotd: {
+      name: "GetMotd",
+      I: GetMotdRequest,
+      O: GetMotdResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Returns authenticated runtime settings used by clients.
+     *
+     * @generated from rpc chatto.api.v1.ServerService.GetRuntimeConfig
+     */
+    getRuntimeConfig: {
+      name: "GetRuntimeConfig",
+      I: GetRuntimeConfigRequest,
+      O: GetRuntimeConfigResponse,
       kind: MethodKind.Unary,
     },
     /**
@@ -42,8 +50,8 @@ export const ServerService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Gets one authenticated server member. Returns NOT_FOUND when the user ID is
-     * unknown.
+     * Gets one authenticated server member by user ID or login. Returns NOT_FOUND
+     * when the target is unknown.
      *
      * @generated from rpc chatto.api.v1.ServerService.GetMember
      */

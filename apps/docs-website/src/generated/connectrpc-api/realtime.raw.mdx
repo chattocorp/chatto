@@ -212,7 +212,7 @@ Mention attention signal for the connected user.
 
 Inline names are display hints. Hydrate referenced rooms through
 `RoomDirectoryService.BatchGetRooms` and users through
-`UserDirectoryService.BatchGetUsers` when local caches are missing or stale.
+`ServerService.BatchGetMembers` when local caches are missing or stale.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -286,8 +286,8 @@ New-DM attention signal for the connected user.
 
 Inline names and avatar URLs are display hints. Hydrate the DM room through
 `RoomDirectoryService.GetRoom` or `RoomDirectoryService.BatchGetRooms`, and
-the sender through `UserDirectoryService.GetUser` or
-`UserDirectoryService.BatchGetUsers` when local caches are missing or stale.
+the sender through `ServerService.GetMember` or
+`ServerService.BatchGetMembers` when local caches are missing or stale.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -383,7 +383,7 @@ Application-level pong.
 
 Presence-changed signal.
 
-The latest presence status is inline. Use `UserDirectoryService.GetUser` when
+The latest presence status is inline. Use `ServerService.GetMember` when
 the surrounding user profile or custom status also needs refreshing.
 
 | Field | Type | Description |
@@ -535,8 +535,8 @@ hydrate remaining member rows through `AdminUserService.GetMember` or
 
 Server-profile signal.
 
-Public server profile fields are inline. Use `ServerService.GetServerState`
-when authenticated clients need the broader server state snapshot.
+Public server profile fields are inline. Use `ServerDiscoveryService.GetServer`
+for public metadata and `ServerService.GetMotd` for the authenticated MOTD.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -646,7 +646,7 @@ where to display typing state; clients normally do not hydrate it.
 
 User-custom-status cleared signal.
 
-Clear local custom status for `user_id`. Use `UserDirectoryService.GetUser`
+Clear local custom status for `user_id`. Use `ServerService.GetMember`
 when clients need to refresh the complete user profile.
 
 | Field | Type | Description |
@@ -661,7 +661,7 @@ when clients need to refresh the complete user profile.
 
 User-custom-status set signal.
 
-The latest custom status is inline. Use `UserDirectoryService.GetUser` when
+The latest custom status is inline. Use `ServerService.GetMember` when
 clients need to refresh the complete user profile.
 
 | Field | Type | Description |
@@ -679,8 +679,8 @@ clients need to refresh the complete user profile.
 
 User-profile signal.
 
-Basic profile fields are inline. Use `UserDirectoryService.GetUser` or
-`UserDirectoryService.BatchGetUsers` for complete user-profile hydration.
+Basic profile fields are inline. Use `ServerService.GetMember` or
+`ServerService.BatchGetMembers` for complete member-profile hydration.
 
 | Field | Type | Description |
 | --- | --- | --- |

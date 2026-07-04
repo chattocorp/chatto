@@ -14,81 +14,6 @@ Endpoint paths use the Connect convention:
 
 Use this reference when building clients against Chatto's public ConnectRPC API.
 
-<a id="chatto-api-v1-UserDirectoryService"></a>
-
-## UserDirectoryService
-
-Provides authenticated public user directory lookups.
-
-<a id="chatto-api-v1-UserDirectoryService-GetUser"></a>
-
-### GetUser
-
-Gets a user by stable ID or login. Returns NOT_FOUND when the user is
-unknown.
-
-```http
-POST /api/connect/chatto.api.v1.UserDirectoryService/GetUser
-```
-
-<a id="chatto-api-v1-GetUserRequest"></a>
-
-#### Input: GetUserRequest
-
-Request one user by stable user ID or login identifier.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `target.user_id` | `string` | Target stable user ID. |
-| `target.login` | `string` | Target login identifier. |
-| `avatar` | [`UserAvatarOptions`](#chatto-api-v1-UserAvatarOptions) | Optional avatar URL transform parameters. Omit for the original avatar URL. |
-
-
-<a id="chatto-api-v1-GetUserResponse"></a>
-
-#### Result: GetUserResponse
-
-Public authenticated user profile response.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `user` | [`UserProfile`](#chatto-api-v1-UserProfile) | Requested user. |
-
-
-<a id="chatto-api-v1-UserDirectoryService-BatchGetUsers"></a>
-
-### BatchGetUsers
-
-Gets public user profiles for multiple users referenced by event-focused
-payloads.
-
-```http
-POST /api/connect/chatto.api.v1.UserDirectoryService/BatchGetUsers
-```
-
-<a id="chatto-api-v1-BatchGetUsersRequest"></a>
-
-#### Input: BatchGetUsersRequest
-
-Request public user profiles for a set of stable user IDs.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `user_ids` | `repeated string` | Required user IDs. Unknown IDs are omitted from the response. |
-| `avatar` | [`UserAvatarOptions`](#chatto-api-v1-UserAvatarOptions) | Optional avatar URL transform parameters. Omit for the original avatar URL. |
-
-
-<a id="chatto-api-v1-BatchGetUsersResponse"></a>
-
-#### Result: BatchGetUsersResponse
-
-Batch public user profile response.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `users` | repeated [`UserProfile`](#chatto-api-v1-UserProfile) | Found users. The server preserves first-seen request order and de-duplicates repeated IDs. |
-
-
 <a id="chatto-api-v1-NotificationPreferencesService"></a>
 
 ## NotificationPreferencesService
@@ -2782,37 +2707,61 @@ Visible room batch response for direct room hydration.
 
 ## ServerService
 
-Provides authenticated server profile, runtime configuration, and public
-server member reads.
+Provides authenticated server-wide reads and public server member reads.
 
-<a id="chatto-api-v1-ServerService-GetServerState"></a>
+<a id="chatto-api-v1-ServerService-GetMotd"></a>
 
-### GetServerState
+### GetMotd
 
-Returns authenticated server state. This RPC requires a logged-in user;
-public discovery remains available through
-chatto.discovery.v1.ServerDiscoveryService.GetServer.
+Returns the authenticated message of the day.
 
 ```http
-POST /api/connect/chatto.api.v1.ServerService/GetServerState
+POST /api/connect/chatto.api.v1.ServerService/GetMotd
 ```
 
-<a id="chatto-api-v1-GetServerStateRequest"></a>
+<a id="chatto-api-v1-GetMotdRequest"></a>
 
-#### Input: GetServerStateRequest
+#### Input: GetMotdRequest
 
-Request for authenticated server state.
+Request for the authenticated message of the day.
 
 
-<a id="chatto-api-v1-GetServerStateResponse"></a>
+<a id="chatto-api-v1-GetMotdResponse"></a>
 
-#### Result: GetServerStateResponse
+#### Result: GetMotdResponse
 
-Authenticated server state used by the web client and public API clients.
+Authenticated message of the day response.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `profile` | [`ServerProfile`](#chatto-api-v1-ServerProfile) | Authenticated server profile and branding. |
+| `motd` | `optional string` | Optional message of the day shown to authenticated members. |
+
+
+<a id="chatto-api-v1-ServerService-GetRuntimeConfig"></a>
+
+### GetRuntimeConfig
+
+Returns authenticated runtime settings used by clients.
+
+```http
+POST /api/connect/chatto.api.v1.ServerService/GetRuntimeConfig
+```
+
+<a id="chatto-api-v1-GetRuntimeConfigRequest"></a>
+
+#### Input: GetRuntimeConfigRequest
+
+Request for authenticated server runtime configuration.
+
+
+<a id="chatto-api-v1-GetRuntimeConfigResponse"></a>
+
+#### Result: GetRuntimeConfigResponse
+
+Authenticated server runtime configuration response.
+
+| Field | Type | Description |
+| --- | --- | --- |
 | `runtime` | [`ServerRuntimeConfig`](#chatto-api-v1-ServerRuntimeConfig) | Authenticated runtime settings used by clients. |
 
 
@@ -2855,8 +2804,8 @@ Server member page.
 
 ### GetMember
 
-Gets one authenticated server member. Returns NOT_FOUND when the user ID is
-unknown.
+Gets one authenticated server member by user ID or login. Returns NOT_FOUND
+when the target is unknown.
 
 ```http
 POST /api/connect/chatto.api.v1.ServerService/GetMember
@@ -2866,11 +2815,12 @@ POST /api/connect/chatto.api.v1.ServerService/GetMember
 
 #### Input: GetServerMemberRequest
 
-Request one authenticated server member by stable user ID.
+Request one authenticated server member by stable user ID or login.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `user_id` | `string` | Required target user ID. |
+| `target.user_id` | `string` | Target stable user ID. |
+| `target.login` | `string` | Target login identifier. |
 
 
 <a id="chatto-api-v1-GetServerMemberResponse"></a>
@@ -4342,7 +4292,6 @@ Authenticated server runtime settings used by clients.
 | `push_notifications_enabled` | `bool` | Whether Web Push notifications are fully configured. |
 | `vapid_public_key` | `optional string` | Optional VAPID public key for Web Push registration. |
 | `livekit_url` | `optional string` | Optional LiveKit URL for voice and video calls. |
-| `direct_registration_enabled` | `bool` | Whether direct email/password registration is enabled. |
 | `video_processing_enabled` | `bool` | Whether video processing is enabled. |
 | `max_upload_size` | `int64` | Maximum general upload size in bytes. |
 | `max_video_upload_size` | `int64` | Maximum video upload size in bytes. |

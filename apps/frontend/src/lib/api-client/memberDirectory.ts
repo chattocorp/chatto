@@ -62,7 +62,22 @@ export function createMemberDirectoryAPI(config: MemberDirectoryAPIConfig) {
     async getServerMember(userId: string): Promise<DirectoryMember | null> {
       try {
         const response = await server.getMember(
-          { userId },
+          { target: { case: "userId", value: userId } },
+          { headers: headers() },
+        );
+        return response.member ? mapDirectoryMember(response.member) : null;
+      } catch (err) {
+        if (err instanceof ConnectError && err.code === Code.NotFound) {
+          return null;
+        }
+        throw err;
+      }
+    },
+
+    async getServerMemberByLogin(login: string): Promise<DirectoryMember | null> {
+      try {
+        const response = await server.getMember(
+          { target: { case: "login", value: login } },
           { headers: headers() },
         );
         return response.member ? mapDirectoryMember(response.member) : null;

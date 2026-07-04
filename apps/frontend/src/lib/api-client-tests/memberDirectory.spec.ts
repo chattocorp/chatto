@@ -140,12 +140,22 @@ describe('createMemberDirectoryAPI', () => {
       id: 'U1',
       presenceStatus: PresenceStatus.Online
     });
+    await expect(api.getServerMemberByLogin('alice')).resolves.toMatchObject({
+      id: 'U1',
+      presenceStatus: PresenceStatus.Online
+    });
     await expect(api.batchGetServerMembers(['U1', 'missing'])).resolves.toMatchObject([
       { id: 'U1' }
     ]);
 
-    expect(mocks.getServerMember).toHaveBeenCalledWith(
-      { userId: 'U1' },
+    expect(mocks.getServerMember).toHaveBeenNthCalledWith(
+      1,
+      { target: { case: 'userId', value: 'U1' } },
+      { headers: { Authorization: 'Bearer token' } }
+    );
+    expect(mocks.getServerMember).toHaveBeenNthCalledWith(
+      2,
+      { target: { case: 'login', value: 'alice' } },
       { headers: { Authorization: 'Bearer token' } }
     );
     expect(mocks.batchGetServerMembers).toHaveBeenCalledWith(

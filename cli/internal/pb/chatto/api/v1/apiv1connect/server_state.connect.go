@@ -33,9 +33,11 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
-	// ServerServiceGetServerStateProcedure is the fully-qualified name of the ServerService's
-	// GetServerState RPC.
-	ServerServiceGetServerStateProcedure = "/chatto.api.v1.ServerService/GetServerState"
+	// ServerServiceGetMotdProcedure is the fully-qualified name of the ServerService's GetMotd RPC.
+	ServerServiceGetMotdProcedure = "/chatto.api.v1.ServerService/GetMotd"
+	// ServerServiceGetRuntimeConfigProcedure is the fully-qualified name of the ServerService's
+	// GetRuntimeConfig RPC.
+	ServerServiceGetRuntimeConfigProcedure = "/chatto.api.v1.ServerService/GetRuntimeConfig"
 	// ServerServiceListMembersProcedure is the fully-qualified name of the ServerService's ListMembers
 	// RPC.
 	ServerServiceListMembersProcedure = "/chatto.api.v1.ServerService/ListMembers"
@@ -48,15 +50,15 @@ const (
 
 // ServerServiceClient is a client for the chatto.api.v1.ServerService service.
 type ServerServiceClient interface {
-	// Returns authenticated server state. This RPC requires a logged-in user;
-	// public discovery remains available through
-	// chatto.discovery.v1.ServerDiscoveryService.GetServer.
-	GetServerState(context.Context, *connect.Request[v1.GetServerStateRequest]) (*connect.Response[v1.GetServerStateResponse], error)
+	// Returns the authenticated message of the day.
+	GetMotd(context.Context, *connect.Request[v1.GetMotdRequest]) (*connect.Response[v1.GetMotdResponse], error)
+	// Returns authenticated runtime settings used by clients.
+	GetRuntimeConfig(context.Context, *connect.Request[v1.GetRuntimeConfigRequest]) (*connect.Response[v1.GetRuntimeConfigResponse], error)
 	// Lists authenticated server members. Every authenticated user is a server
 	// member; admin-sensitive fields stay out of this public row shape.
 	ListMembers(context.Context, *connect.Request[v1.ListServerMembersRequest]) (*connect.Response[v1.ListServerMembersResponse], error)
-	// Gets one authenticated server member. Returns NOT_FOUND when the user ID is
-	// unknown.
+	// Gets one authenticated server member by user ID or login. Returns NOT_FOUND
+	// when the target is unknown.
 	GetMember(context.Context, *connect.Request[v1.GetServerMemberRequest]) (*connect.Response[v1.GetServerMemberResponse], error)
 	// Gets authenticated server member rows for multiple users.
 	BatchGetMembers(context.Context, *connect.Request[v1.BatchGetServerMembersRequest]) (*connect.Response[v1.BatchGetServerMembersResponse], error)
@@ -73,10 +75,16 @@ func NewServerServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 	baseURL = strings.TrimRight(baseURL, "/")
 	serverServiceMethods := v1.File_chatto_api_v1_server_state_proto.Services().ByName("ServerService").Methods()
 	return &serverServiceClient{
-		getServerState: connect.NewClient[v1.GetServerStateRequest, v1.GetServerStateResponse](
+		getMotd: connect.NewClient[v1.GetMotdRequest, v1.GetMotdResponse](
 			httpClient,
-			baseURL+ServerServiceGetServerStateProcedure,
-			connect.WithSchema(serverServiceMethods.ByName("GetServerState")),
+			baseURL+ServerServiceGetMotdProcedure,
+			connect.WithSchema(serverServiceMethods.ByName("GetMotd")),
+			connect.WithClientOptions(opts...),
+		),
+		getRuntimeConfig: connect.NewClient[v1.GetRuntimeConfigRequest, v1.GetRuntimeConfigResponse](
+			httpClient,
+			baseURL+ServerServiceGetRuntimeConfigProcedure,
+			connect.WithSchema(serverServiceMethods.ByName("GetRuntimeConfig")),
 			connect.WithClientOptions(opts...),
 		),
 		listMembers: connect.NewClient[v1.ListServerMembersRequest, v1.ListServerMembersResponse](
@@ -102,15 +110,21 @@ func NewServerServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 
 // serverServiceClient implements ServerServiceClient.
 type serverServiceClient struct {
-	getServerState  *connect.Client[v1.GetServerStateRequest, v1.GetServerStateResponse]
-	listMembers     *connect.Client[v1.ListServerMembersRequest, v1.ListServerMembersResponse]
-	getMember       *connect.Client[v1.GetServerMemberRequest, v1.GetServerMemberResponse]
-	batchGetMembers *connect.Client[v1.BatchGetServerMembersRequest, v1.BatchGetServerMembersResponse]
+	getMotd          *connect.Client[v1.GetMotdRequest, v1.GetMotdResponse]
+	getRuntimeConfig *connect.Client[v1.GetRuntimeConfigRequest, v1.GetRuntimeConfigResponse]
+	listMembers      *connect.Client[v1.ListServerMembersRequest, v1.ListServerMembersResponse]
+	getMember        *connect.Client[v1.GetServerMemberRequest, v1.GetServerMemberResponse]
+	batchGetMembers  *connect.Client[v1.BatchGetServerMembersRequest, v1.BatchGetServerMembersResponse]
 }
 
-// GetServerState calls chatto.api.v1.ServerService.GetServerState.
-func (c *serverServiceClient) GetServerState(ctx context.Context, req *connect.Request[v1.GetServerStateRequest]) (*connect.Response[v1.GetServerStateResponse], error) {
-	return c.getServerState.CallUnary(ctx, req)
+// GetMotd calls chatto.api.v1.ServerService.GetMotd.
+func (c *serverServiceClient) GetMotd(ctx context.Context, req *connect.Request[v1.GetMotdRequest]) (*connect.Response[v1.GetMotdResponse], error) {
+	return c.getMotd.CallUnary(ctx, req)
+}
+
+// GetRuntimeConfig calls chatto.api.v1.ServerService.GetRuntimeConfig.
+func (c *serverServiceClient) GetRuntimeConfig(ctx context.Context, req *connect.Request[v1.GetRuntimeConfigRequest]) (*connect.Response[v1.GetRuntimeConfigResponse], error) {
+	return c.getRuntimeConfig.CallUnary(ctx, req)
 }
 
 // ListMembers calls chatto.api.v1.ServerService.ListMembers.
@@ -130,15 +144,15 @@ func (c *serverServiceClient) BatchGetMembers(ctx context.Context, req *connect.
 
 // ServerServiceHandler is an implementation of the chatto.api.v1.ServerService service.
 type ServerServiceHandler interface {
-	// Returns authenticated server state. This RPC requires a logged-in user;
-	// public discovery remains available through
-	// chatto.discovery.v1.ServerDiscoveryService.GetServer.
-	GetServerState(context.Context, *connect.Request[v1.GetServerStateRequest]) (*connect.Response[v1.GetServerStateResponse], error)
+	// Returns the authenticated message of the day.
+	GetMotd(context.Context, *connect.Request[v1.GetMotdRequest]) (*connect.Response[v1.GetMotdResponse], error)
+	// Returns authenticated runtime settings used by clients.
+	GetRuntimeConfig(context.Context, *connect.Request[v1.GetRuntimeConfigRequest]) (*connect.Response[v1.GetRuntimeConfigResponse], error)
 	// Lists authenticated server members. Every authenticated user is a server
 	// member; admin-sensitive fields stay out of this public row shape.
 	ListMembers(context.Context, *connect.Request[v1.ListServerMembersRequest]) (*connect.Response[v1.ListServerMembersResponse], error)
-	// Gets one authenticated server member. Returns NOT_FOUND when the user ID is
-	// unknown.
+	// Gets one authenticated server member by user ID or login. Returns NOT_FOUND
+	// when the target is unknown.
 	GetMember(context.Context, *connect.Request[v1.GetServerMemberRequest]) (*connect.Response[v1.GetServerMemberResponse], error)
 	// Gets authenticated server member rows for multiple users.
 	BatchGetMembers(context.Context, *connect.Request[v1.BatchGetServerMembersRequest]) (*connect.Response[v1.BatchGetServerMembersResponse], error)
@@ -151,10 +165,16 @@ type ServerServiceHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewServerServiceHandler(svc ServerServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	serverServiceMethods := v1.File_chatto_api_v1_server_state_proto.Services().ByName("ServerService").Methods()
-	serverServiceGetServerStateHandler := connect.NewUnaryHandler(
-		ServerServiceGetServerStateProcedure,
-		svc.GetServerState,
-		connect.WithSchema(serverServiceMethods.ByName("GetServerState")),
+	serverServiceGetMotdHandler := connect.NewUnaryHandler(
+		ServerServiceGetMotdProcedure,
+		svc.GetMotd,
+		connect.WithSchema(serverServiceMethods.ByName("GetMotd")),
+		connect.WithHandlerOptions(opts...),
+	)
+	serverServiceGetRuntimeConfigHandler := connect.NewUnaryHandler(
+		ServerServiceGetRuntimeConfigProcedure,
+		svc.GetRuntimeConfig,
+		connect.WithSchema(serverServiceMethods.ByName("GetRuntimeConfig")),
 		connect.WithHandlerOptions(opts...),
 	)
 	serverServiceListMembersHandler := connect.NewUnaryHandler(
@@ -177,8 +197,10 @@ func NewServerServiceHandler(svc ServerServiceHandler, opts ...connect.HandlerOp
 	)
 	return "/chatto.api.v1.ServerService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case ServerServiceGetServerStateProcedure:
-			serverServiceGetServerStateHandler.ServeHTTP(w, r)
+		case ServerServiceGetMotdProcedure:
+			serverServiceGetMotdHandler.ServeHTTP(w, r)
+		case ServerServiceGetRuntimeConfigProcedure:
+			serverServiceGetRuntimeConfigHandler.ServeHTTP(w, r)
 		case ServerServiceListMembersProcedure:
 			serverServiceListMembersHandler.ServeHTTP(w, r)
 		case ServerServiceGetMemberProcedure:
@@ -194,8 +216,12 @@ func NewServerServiceHandler(svc ServerServiceHandler, opts ...connect.HandlerOp
 // UnimplementedServerServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedServerServiceHandler struct{}
 
-func (UnimplementedServerServiceHandler) GetServerState(context.Context, *connect.Request[v1.GetServerStateRequest]) (*connect.Response[v1.GetServerStateResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.ServerService.GetServerState is not implemented"))
+func (UnimplementedServerServiceHandler) GetMotd(context.Context, *connect.Request[v1.GetMotdRequest]) (*connect.Response[v1.GetMotdResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.ServerService.GetMotd is not implemented"))
+}
+
+func (UnimplementedServerServiceHandler) GetRuntimeConfig(context.Context, *connect.Request[v1.GetRuntimeConfigRequest]) (*connect.Response[v1.GetRuntimeConfigResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.ServerService.GetRuntimeConfig is not implemented"))
 }
 
 func (UnimplementedServerServiceHandler) ListMembers(context.Context, *connect.Request[v1.ListServerMembersRequest]) (*connect.Response[v1.ListServerMembersResponse], error) {

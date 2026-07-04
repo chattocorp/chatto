@@ -44,9 +44,9 @@ export class ChatPage {
   /** Return the bootstrap server display name. */
   async getServerName(): Promise<string> {
     const data = await connectPost<{
-      profile?: { publicProfile?: { name?: string } };
-    }>(this.page, 'chatto.api.v1.ServerService/GetServerState');
-    const serverName = data.profile?.publicProfile?.name;
+      profile?: { name?: string };
+    }>(this.page, 'chatto.discovery.v1.ServerDiscoveryService/GetServer');
+    const serverName = data.profile?.name;
     if (!serverName) {
       throw new Error('Server state returned no profile name; bootstrap profile likely broken');
     }

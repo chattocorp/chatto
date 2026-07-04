@@ -1,6 +1,6 @@
 ---
 title: ServerService
-description: Authenticated server profile, runtime configuration, and member directory RPCs.
+description: Authenticated server MOTD, runtime configuration, and member directory RPCs.
 editUrl: false
 ---
 
@@ -18,37 +18,61 @@ Shared message and enum definitions are documented in [Shared Types And Enums](/
 
 ## ServerService
 
-Provides authenticated server profile, runtime configuration, and public
-server member reads.
+Provides authenticated server-wide reads and public server member reads.
 
-<a id="chatto-api-v1-ServerService-GetServerState"></a>
+<a id="chatto-api-v1-ServerService-GetMotd"></a>
 
-### GetServerState
+### GetMotd
 
-Returns authenticated server state. This RPC requires a logged-in user;
-public discovery remains available through
-chatto.discovery.v1.ServerDiscoveryService.GetServer.
+Returns the authenticated message of the day.
 
 ```http
-POST /api/connect/chatto.api.v1.ServerService/GetServerState
+POST /api/connect/chatto.api.v1.ServerService/GetMotd
 ```
 
-<a id="chatto-api-v1-GetServerStateRequest"></a>
+<a id="chatto-api-v1-GetMotdRequest"></a>
 
-#### Input: GetServerStateRequest
+#### Input: GetMotdRequest
 
-Request for authenticated server state.
+Request for the authenticated message of the day.
 
 
-<a id="chatto-api-v1-GetServerStateResponse"></a>
+<a id="chatto-api-v1-GetMotdResponse"></a>
 
-#### Result: GetServerStateResponse
+#### Result: GetMotdResponse
 
-Authenticated server state used by the web client and public API clients.
+Authenticated message of the day response.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `profile` | [`ServerProfile`](/reference/connectrpc-api/types/#chatto-api-v1-ServerProfile) | Authenticated server profile and branding. |
+| `motd` | `optional string` | Optional message of the day shown to authenticated members. |
+
+
+<a id="chatto-api-v1-ServerService-GetRuntimeConfig"></a>
+
+### GetRuntimeConfig
+
+Returns authenticated runtime settings used by clients.
+
+```http
+POST /api/connect/chatto.api.v1.ServerService/GetRuntimeConfig
+```
+
+<a id="chatto-api-v1-GetRuntimeConfigRequest"></a>
+
+#### Input: GetRuntimeConfigRequest
+
+Request for authenticated server runtime configuration.
+
+
+<a id="chatto-api-v1-GetRuntimeConfigResponse"></a>
+
+#### Result: GetRuntimeConfigResponse
+
+Authenticated server runtime configuration response.
+
+| Field | Type | Description |
+| --- | --- | --- |
 | `runtime` | [`ServerRuntimeConfig`](/reference/connectrpc-api/types/#chatto-api-v1-ServerRuntimeConfig) | Authenticated runtime settings used by clients. |
 
 
@@ -91,8 +115,8 @@ Server member page.
 
 ### GetMember
 
-Gets one authenticated server member. Returns NOT_FOUND when the user ID is
-unknown.
+Gets one authenticated server member by user ID or login. Returns NOT_FOUND
+when the target is unknown.
 
 ```http
 POST /api/connect/chatto.api.v1.ServerService/GetMember
@@ -102,11 +126,12 @@ POST /api/connect/chatto.api.v1.ServerService/GetMember
 
 #### Input: GetServerMemberRequest
 
-Request one authenticated server member by stable user ID.
+Request one authenticated server member by stable user ID or login.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `user_id` | `string` | Required target user ID. |
+| `target.user_id` | `string` | Target stable user ID. |
+| `target.login` | `string` | Target login identifier. |
 
 
 <a id="chatto-api-v1-GetServerMemberResponse"></a>

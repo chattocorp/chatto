@@ -9,7 +9,7 @@ import { MessageService } from '@chatto/api-types/api/v1/messages_connect';
 import { RoomDirectoryService } from '@chatto/api-types/api/v1/room_directory_connect';
 import { RoomService } from '@chatto/api-types/api/v1/rooms_connect';
 import { AdminServerService } from '@chatto/api-types/admin/v1/server_connect';
-import { ServerService } from '@chatto/api-types/api/v1/server_state_connect';
+import { ServerDiscoveryService } from '@chatto/api-types/chatto/discovery/v1/server_connect';
 import { ViewerService } from '@chatto/api-types/api/v1/viewer_connect';
 import { startServer, stopServer, type ServerInfo } from './server';
 
@@ -61,9 +61,9 @@ function roomDirectoryClient(remoteBaseURL: string) {
   );
 }
 
-function serverStateClient(remoteBaseURL: string) {
+function serverDiscoveryClient(remoteBaseURL: string) {
   return createClient(
-    ServerService,
+    ServerDiscoveryService,
     createConnectTransport({
       baseUrl: connectBaseUrl(remoteBaseURL),
       useBinaryFormat: true
@@ -193,12 +193,12 @@ export async function createUserOnRemote(
  */
 export async function getPrimaryServerScopeOnRemote(
   remoteBaseURL: string,
-  token: string,
+  _token: string,
   _serverName: string
 ): Promise<string> {
   // Sanity-check that the remote is reachable; the actual ID is the
   // kind discriminator constant (post-ADR-030).
-  await serverStateClient(remoteBaseURL).getServerState({}, { headers: authHeaders(token) });
+  await serverDiscoveryClient(remoteBaseURL).getServer({});
   return 'server';
 }
 

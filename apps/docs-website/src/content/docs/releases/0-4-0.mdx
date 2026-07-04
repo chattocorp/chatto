@@ -111,9 +111,16 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
   and switch discovery clients to
   `chatto.discovery.v1.ServerDiscoveryService.GetServer`; if you tested against an
   earlier 0.4.0 beta, review the generated API reference again.
+- Authenticated server state was split: replace `ServerService.GetServerState` with
+  `ServerService.GetMotd` for the member-visible MOTD and
+  `ServerService.GetRuntimeConfig` for runtime settings. Public server metadata remains
+  available through `chatto.discovery.v1.ServerDiscoveryService.GetServer`.
 - Server member reads moved from `ServerMemberService` to `ServerService`: replace
   `ServerMemberService.ListMembers`, `GetMember`, and `BatchGetMembers` with
-  `ServerService.ListMembers`, `GetMember`, and `BatchGetMembers`.
+  `ServerService.ListMembers`, `GetMember`, and `BatchGetMembers`. User directory
+  reads were also folded into `ServerService`: replace `UserDirectoryService.GetUser`
+  with `ServerService.GetMember` and `UserDirectoryService.BatchGetUsers` with
+  `ServerService.BatchGetMembers`.
 - Room member reads moved from `RoomMemberService` to `RoomService`: replace
   `RoomMemberService.ListMembers`, `GetMember`, and `BatchGetMembers` with
   `RoomService.ListMembers`, `GetMember`, and `BatchGetMembers`. Room moderation RPCs

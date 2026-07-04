@@ -33,11 +33,9 @@ interface ViewerResponse {
   };
 }
 
-interface ServerStateResponse {
+interface ServerDiscoveryResponse {
   profile?: {
-    publicProfile?: {
-      name?: string;
-    };
+    name?: string;
   };
 }
 
@@ -135,11 +133,11 @@ export async function loginAsAdminAndUsePrimaryServer(
   page: Page
 ): Promise<{ id: string; name: string }> {
   await loginAsAdmin(page);
-  const data = await connectPost<ServerStateResponse>(
+  const data = await connectPost<ServerDiscoveryResponse>(
     page,
-    'chatto.api.v1.ServerService/GetServerState'
+    'chatto.discovery.v1.ServerDiscoveryService/GetServer'
   );
-  const serverName = data.profile?.publicProfile?.name;
+  const serverName = data.profile?.name;
   if (!serverName) {
     throw new Error('Server state returned no profile name - bootstrap profile likely broken');
   }

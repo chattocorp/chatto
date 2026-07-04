@@ -513,13 +513,17 @@ func descriptorFilesContain(files []*descriptorpb.FileDescriptorProto, name stri
 	return false
 }
 
-func TestConnectServerServiceGetServerStateRequiresAuth(t *testing.T) {
+func TestConnectServerServiceProfileAndRuntimeConfigRequireAuth(t *testing.T) {
 	_, ts := setupConnectTestServer(t, config.AuthConfig{})
 
 	client := apiv1connect.NewServerServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
-	_, err := client.GetServerState(context.Background(), connect.NewRequest(&apiv1.GetServerStateRequest{}))
+	_, err := client.GetMotd(context.Background(), connect.NewRequest(&apiv1.GetMotdRequest{}))
 	if connect.CodeOf(err) != connect.CodeUnauthenticated {
-		t.Fatalf("GetServerState code = %v, want unauthenticated", connect.CodeOf(err))
+		t.Fatalf("GetMotd code = %v, want unauthenticated", connect.CodeOf(err))
+	}
+	_, err = client.GetRuntimeConfig(context.Background(), connect.NewRequest(&apiv1.GetRuntimeConfigRequest{}))
+	if connect.CodeOf(err) != connect.CodeUnauthenticated {
+		t.Fatalf("GetRuntimeConfig code = %v, want unauthenticated", connect.CodeOf(err))
 	}
 }
 

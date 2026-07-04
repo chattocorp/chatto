@@ -1,7 +1,7 @@
 # FDR-025: User Search & Member Directory
 
 **Status:** Active
-**Last reviewed:** 2026-06-06
+**Last reviewed:** 2026-07-04
 
 ## Overview
 
@@ -15,7 +15,7 @@ Any authenticated user can browse the server's member directory — a paginated 
 - Pagination is offset-based: caller specifies `offset` and `limit`; the response also includes `totalCount` so the caller can compute whether there are more pages.
 - Default page size is 20; the maximum is 500. Requests larger than 500 are silently clamped down.
 - Results are sorted by `createdAt` ascending (oldest member first). Users created before the timestamp field existed sort to the end, alphabetically by login.
-- Direct server member lookups by stable user ID return the same public member row shape as the directory and require authentication. Login-based public profile lookup is available through `UserDirectoryService.GetUser`, but it does not return member metadata such as roles and creation time.
+- Direct server member lookups by stable user ID or login return the same public member row shape as the directory and require authentication. Batch member hydration by stable user ID supports cache-miss loading without a separate user-directory service.
 
 ## Design Decisions
 

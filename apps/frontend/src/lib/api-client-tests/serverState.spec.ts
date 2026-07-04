@@ -15,7 +15,9 @@ import {
 const mocks = vi.hoisted(() => ({
   createClient: vi.fn(),
   createConnectTransport: vi.fn(),
-  getServerState: vi.fn(),
+  getServer: vi.fn(),
+  getMotd: vi.fn(),
+  getRuntimeConfig: vi.fn(),
   getViewer: vi.fn(),
   getServerConfig: vi.fn(),
   updateServerConfig: vi.fn(),
@@ -43,7 +45,9 @@ describe('getAuthenticatedServerState', () => {
   beforeEach(() => {
     mocks.createClient.mockReset();
     mocks.createConnectTransport.mockReset();
-    mocks.getServerState.mockReset();
+    mocks.getServer.mockReset();
+    mocks.getMotd.mockReset();
+    mocks.getRuntimeConfig.mockReset();
     mocks.getViewer.mockReset();
     mocks.getServerConfig.mockReset();
     mocks.updateServerConfig.mockReset();
@@ -55,7 +59,9 @@ describe('getAuthenticatedServerState', () => {
     mocks.updateBlockedUsernames.mockReset();
     mocks.createConnectTransport.mockReturnValue({ kind: 'transport' });
     mocks.createClient.mockReturnValue({
-      getServerState: mocks.getServerState,
+      getServer: mocks.getServer,
+      getMotd: mocks.getMotd,
+      getRuntimeConfig: mocks.getRuntimeConfig,
       getViewer: mocks.getViewer,
       getServerConfig: mocks.getServerConfig,
       updateServerConfig: mocks.updateServerConfig,
@@ -69,18 +75,18 @@ describe('getAuthenticatedServerState', () => {
   });
 
   it('loads authenticated server state and maps optional and int64 fields', async () => {
-    mocks.getServerState.mockResolvedValue({
+    mocks.getServer.mockResolvedValue({
       profile: {
-        publicProfile: {
-          name: 'Remote Chatto',
-          version: '9.8.7',
-          logoUrl: 'https://cdn/logo.webp',
-          bannerUrl: 'https://cdn/banner.webp',
-          welcomeMessage: 'welcome',
-          description: 'description'
-        },
-        motd: 'hello'
-      },
+        name: 'Remote Chatto',
+        version: '9.8.7',
+        logoUrl: 'https://cdn/logo.webp',
+        bannerUrl: 'https://cdn/banner.webp',
+        welcomeMessage: 'welcome',
+        description: 'description'
+      }
+    });
+    mocks.getMotd.mockResolvedValue({ motd: 'hello' });
+    mocks.getRuntimeConfig.mockResolvedValue({
       runtime: {
         pushNotificationsEnabled: true,
         vapidPublicKey: 'vapid',
@@ -133,7 +139,9 @@ describe('getAuthenticatedServerState', () => {
       baseUrl: 'https://chat.example.test/api/connect',
       useBinaryFormat: true
     });
-    expect(mocks.getServerState).toHaveBeenCalledWith(
+    expect(mocks.getServer).toHaveBeenCalledWith({});
+    expect(mocks.getMotd).toHaveBeenCalledWith({}, { headers: { Authorization: 'Bearer token' } });
+    expect(mocks.getRuntimeConfig).toHaveBeenCalledWith(
       {},
       { headers: { Authorization: 'Bearer token' } }
     );
@@ -203,8 +211,11 @@ describe('getAuthenticatedServerState', () => {
   });
 
   it('maps absent optional fields to null and omits auth headers without a token', async () => {
-    mocks.getServerState.mockResolvedValue({
-      profile: {},
+    mocks.getServer.mockResolvedValue({
+      profile: {}
+    });
+    mocks.getMotd.mockResolvedValue({});
+    mocks.getRuntimeConfig.mockResolvedValue({
       runtime: {
         pushNotificationsEnabled: false,
         videoProcessingEnabled: false,
@@ -220,7 +231,9 @@ describe('getAuthenticatedServerState', () => {
       bearerToken: null
     });
 
-    expect(mocks.getServerState).toHaveBeenCalledWith({}, { headers: undefined });
+    expect(mocks.getServer).toHaveBeenCalledWith({});
+    expect(mocks.getMotd).toHaveBeenCalledWith({}, { headers: undefined });
+    expect(mocks.getRuntimeConfig).toHaveBeenCalledWith({}, { headers: undefined });
     expect(mocks.getViewer).toHaveBeenCalledWith({}, { headers: undefined });
     expect(state.name).toBe('Chatto');
     expect(state.version).toBe('');
