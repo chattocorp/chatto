@@ -26,8 +26,7 @@ function page(items: NotificationItem[], totalCount = items.length): Notificatio
   return {
     items,
     totalCount,
-    hasMore: false,
-    serverName: 'Chatto'
+    hasMore: false
   };
 }
 
@@ -47,7 +46,7 @@ function makeAPI(
       return options.notifications ?? page([]);
     }),
     getNotification: vi.fn().mockResolvedValue(null),
-    batchGetNotifications: vi.fn().mockResolvedValue({ items: [], serverName: null }),
+    batchGetNotifications: vi.fn().mockResolvedValue([]),
     listRoomNotifications: vi.fn().mockImplementation(async () => {
       if (options.roomNotificationsError) throw options.roomNotificationsError;
       return options.roomNotifications ?? page([]);

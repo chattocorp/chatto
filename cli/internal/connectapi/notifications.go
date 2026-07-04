@@ -46,7 +46,6 @@ func (s *notificationService) GetNotification(ctx context.Context, req *connect.
 	}
 	return connect.NewResponse(&apiv1.GetNotificationResponse{
 		Notification: item,
-		ServerName:   assembler.emptyPage(ctx).GetServerName(),
 	}), nil
 }
 
@@ -80,7 +79,6 @@ func (s *notificationService) BatchGetNotifications(ctx context.Context, req *co
 	}
 	return connect.NewResponse(&apiv1.BatchGetNotificationsResponse{
 		Notifications: notifications,
-		ServerName:    assembler.emptyPage(ctx).GetServerName(),
 	}), nil
 }
 
@@ -99,7 +97,6 @@ func (s *notificationService) ListRoomNotifications(ctx context.Context, req *co
 	}
 	return connect.NewResponse(&apiv1.ListRoomNotificationsResponse{
 		Notifications: page.GetNotifications(),
-		ServerName:    page.GetServerName(),
 		Page:          page.GetPage(),
 	}), nil
 }

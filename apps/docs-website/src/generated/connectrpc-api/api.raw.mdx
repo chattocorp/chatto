@@ -1431,7 +1431,6 @@ Pending notification page.
 | Field | Type | Description |
 | --- | --- | --- |
 | `notifications` | repeated [`NotificationItem`](#chatto-api-v1-NotificationItem) | Page notifications, newest first. |
-| `server_name` | `string` | Current server display name for non-DM location labels. |
 | `page` | [`PageInfo`](#chatto-api-v1-PageInfo) | Page metadata. |
 
 
@@ -1466,7 +1465,6 @@ Pending notification response.
 | Field | Type | Description |
 | --- | --- | --- |
 | `notification` | [`NotificationItem`](#chatto-api-v1-NotificationItem) | Requested notification. |
-| `server_name` | `string` | Current server display name for non-DM location labels. |
 
 
 <a id="chatto-api-v1-NotificationService-BatchGetNotifications"></a>
@@ -1499,7 +1497,6 @@ Batch pending notification response.
 | Field | Type | Description |
 | --- | --- | --- |
 | `notifications` | repeated [`NotificationItem`](#chatto-api-v1-NotificationItem) | Found notifications. The server preserves first-seen request order and de-duplicates repeated IDs. |
-| `server_name` | `string` | Current server display name for non-DM location labels. |
 
 
 <a id="chatto-api-v1-NotificationService-ListRoomNotifications"></a>
@@ -1533,7 +1530,6 @@ Pending notification page scoped to one room.
 | Field | Type | Description |
 | --- | --- | --- |
 | `notifications` | repeated [`NotificationItem`](#chatto-api-v1-NotificationItem) | Page notifications, newest first. |
-| `server_name` | `string` | Current server display name for non-DM location labels. |
 | `page` | [`PageInfo`](#chatto-api-v1-PageInfo) | Page metadata. |
 
 

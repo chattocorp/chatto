@@ -4055,9 +4055,6 @@ func TestNotificationServiceListsAndDismissesNotifications(t *testing.T) {
 	if got := getResp.Msg.GetNotification(); got.GetId() != mention.Id || got.GetMention().GetEventId() != "mention-event" || got.GetMention().GetThreadRootEventId() != "thread-root" {
 		t.Fatalf("GetNotification item = %+v, want mention", got)
 	}
-	if getResp.Msg.GetServerName() == "" {
-		t.Fatal("GetNotification server_name is empty")
-	}
 	if _, err := env.notifications.GetNotification(ctx, connect.NewRequest(&apiv1.GetNotificationRequest{NotificationId: "missing-notification"})); connect.CodeOf(err) != connect.CodeNotFound {
 		t.Fatalf("missing GetNotification code = %v, want not_found", connect.CodeOf(err))
 	}
@@ -4071,9 +4068,6 @@ func TestNotificationServiceListsAndDismissesNotifications(t *testing.T) {
 	gotBatch := batchResp.Msg.GetNotifications()
 	if len(gotBatch) != 2 || gotBatch[0].GetId() != mention.Id || gotBatch[1].GetId() != dm.Id {
 		t.Fatalf("BatchGetNotifications items = %+v, want mention,dm", gotBatch)
-	}
-	if batchResp.Msg.GetServerName() == "" {
-		t.Fatal("BatchGetNotifications server_name is empty")
 	}
 
 	roomResp, err := env.notifications.ListRoomNotifications(ctx, connect.NewRequest(&apiv1.ListRoomNotificationsRequest{RoomId: room.Id}))

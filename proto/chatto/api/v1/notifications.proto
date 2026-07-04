@@ -99,13 +99,11 @@ message ListRoomNotificationsRequest {
 
 // Pending notification page.
 message ListNotificationsResponse {
-  reserved 2, 3;
-  reserved "total_count", "has_more";
+  reserved 2, 3, 4;
+  reserved "total_count", "has_more", "server_name";
 
   // Page notifications, newest first.
   repeated NotificationItem notifications = 1;
-  // Current server display name for non-DM location labels.
-  string server_name = 4;
   // Page metadata.
   PageInfo page = 5;
 }
@@ -118,10 +116,11 @@ message GetNotificationRequest {
 
 // Pending notification response.
 message GetNotificationResponse {
+  reserved 2;
+  reserved "server_name";
+
   // Requested notification.
   NotificationItem notification = 1;
-  // Current server display name for non-DM location labels.
-  string server_name = 2;
 }
 
 // Request pending notifications for a set of stable notification IDs.
@@ -139,22 +138,21 @@ message BatchGetNotificationsRequest {
 
 // Batch pending notification response.
 message BatchGetNotificationsResponse {
+  reserved 2;
+  reserved "server_name";
+
   // Found notifications. The server preserves first-seen request order and
   // de-duplicates repeated IDs.
   repeated NotificationItem notifications = 1;
-  // Current server display name for non-DM location labels.
-  string server_name = 2;
 }
 
 // Pending notification page scoped to one room.
 message ListRoomNotificationsResponse {
-  reserved 2, 3;
-  reserved "total_count", "has_more";
+  reserved 2, 3, 4;
+  reserved "total_count", "has_more", "server_name";
 
   // Page notifications, newest first.
   repeated NotificationItem notifications = 1;
-  // Current server display name for non-DM location labels.
-  string server_name = 4;
   // Page metadata.
   PageInfo page = 5;
 }

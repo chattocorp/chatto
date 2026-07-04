@@ -35,16 +35,9 @@ func (a *notificationAssembler) pageFromList(ctx context.Context, notifications 
 	return response, nil
 }
 
-func (a *notificationAssembler) emptyPage(ctx context.Context) *apiv1.ListNotificationsResponse {
-	name := "Chatto"
-	if cm := a.api.core.ConfigManager(); cm != nil {
-		if configuredName, err := cm.GetEffectiveServerName(ctx); err == nil && configuredName != "" {
-			name = configuredName
-		}
-	}
+func (a *notificationAssembler) emptyPage(_ context.Context) *apiv1.ListNotificationsResponse {
 	return &apiv1.ListNotificationsResponse{
 		Notifications: []*apiv1.NotificationItem{},
-		ServerName:    name,
 	}
 }
 

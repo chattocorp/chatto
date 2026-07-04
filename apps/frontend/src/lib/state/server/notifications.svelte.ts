@@ -135,13 +135,6 @@ export class NotificationStore {
   #api: NotificationAPI;
   #locallyDismissedNotificationIds = new SvelteSet<string>();
   notifications = $state<NotificationItem[]>([]);
-  /**
-   * Server display name, captured alongside the notification list and used
-   * by getLocationString() for non-DM notifications. Post-#330 PR(a) the
-   * notification's space name no longer comes from the per-notification
-   * fragment — it's the instance name.
-   */
-  serverName = $state<string | null>(null);
   unreadNotificationCount = $state(0);
   loading = $state(false);
   hasLoaded = $state(false);
@@ -348,7 +341,6 @@ export class NotificationStore {
       const page = await this.#api.listNotifications(50);
       this.notifications = page.items;
       this.unreadNotificationCount = page.totalCount;
-      this.serverName = page.serverName;
       this.hasLoaded = true;
     } catch (e) {
       this.error = e instanceof Error ? e.message : 'Failed to fetch notifications';
@@ -543,13 +535,12 @@ export class NotificationStore {
   /**
    * Get location string for a notification (e.g., "#general in My Server").
    * Returns null for DM notifications and any notification missing names.
-   * The "in <name>" suffix uses the instance display name (server = instance
-   * post-#330 PR(a)), captured alongside the notification list.
+   * The "in <name>" suffix uses the connected instance display name supplied
+   * by the caller.
    */
-  getLocationString(notification: NotificationItem): string | null {
+  getLocationString(notification: NotificationItem, serverName?: string | null): string | null {
     const t = notificationTarget(notification);
     if (t.isDM || !t.roomName) return null;
-    const serverName = this.serverName;
     if (!serverName) return `#${t.roomName}`;
     return `#${t.roomName} in ${serverName}`;
   }
