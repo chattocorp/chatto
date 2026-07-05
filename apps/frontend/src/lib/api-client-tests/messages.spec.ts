@@ -94,7 +94,7 @@ describe('createMessageAPI', () => {
           createdAt: Timestamp.fromDate(new Date('2026-06-20T10:00:00Z')),
           roomId: 'room-1',
           body: 'hello',
-          viewerIsFollowingThread: true
+          thread: { viewerState: { isFollowing: true } }
         })
       })
     );

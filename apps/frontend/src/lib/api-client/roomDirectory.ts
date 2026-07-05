@@ -10,6 +10,8 @@ import { RoomDirectoryService } from '@chatto/api-types/api/v1/room_directory_co
 import type {
   RoomGroup,
   RoomGroupItem,
+  RoomGroupViewerState,
+  RoomViewerState,
   RoomWithViewerState
 } from '@chatto/api-types/api/v1/room_directory_pb';
 import { RoomDirectoryScope } from '@chatto/api-types/api/v1/room_directory_pb';
@@ -69,6 +71,19 @@ export type DirectoryRoomGroup = {
 
 export { RoomDirectoryScope };
 export { RoomKind };
+
+const RoomPermission = {
+  Attach: 'message.attach',
+  BanMember: 'room.ban-member',
+  CreateRoom: 'room.create',
+  EchoMessage: 'message.echo',
+  JoinRoom: 'room.join',
+  ManageMessage: 'message.manage',
+  ManageRoom: 'room.manage',
+  PostInThread: 'message.post-in-thread',
+  PostMessage: 'message.post',
+  React: 'message.react'
+} as const;
 
 export function createRoomDirectoryAPI(config: RoomDirectoryAPIConfig) {
   const directory = createChattoClient(RoomDirectoryService, config);
@@ -152,14 +167,14 @@ function mapDirectoryRoomDetails(
 
   return {
     ...summary,
-    canPostMessage: entry.canPostMessage,
-    canPostInThread: entry.canPostInThread,
-    canAttach: entry.canAttach,
-    canReact: entry.canReact,
-    canEchoMessage: entry.canEchoMessage,
-    canManageOthersMessage: entry.canManageOthersMessage,
-    canManageRoom: entry.canManageRoom,
-    canBanRoomMembers: entry.canBanRoomMembers
+    canPostMessage: hasRoomPermission(entry.viewerState, RoomPermission.PostMessage),
+    canPostInThread: hasRoomPermission(entry.viewerState, RoomPermission.PostInThread),
+    canAttach: hasRoomPermission(entry.viewerState, RoomPermission.Attach),
+    canReact: hasRoomPermission(entry.viewerState, RoomPermission.React),
+    canEchoMessage: hasRoomPermission(entry.viewerState, RoomPermission.EchoMessage),
+    canManageOthersMessage: hasRoomPermission(entry.viewerState, RoomPermission.ManageMessage),
+    canManageRoom: hasRoomPermission(entry.viewerState, RoomPermission.ManageRoom),
+    canBanRoomMembers: hasRoomPermission(entry.viewerState, RoomPermission.BanMember)
   };
 }
 
@@ -172,9 +187,9 @@ function mapDirectoryRoom(entry: RoomWithViewerState): DirectoryRoomSummary | nu
     kind: entry.room.kind,
     archived: entry.room.archived,
     isUniversal: entry.room.universal,
-    isMember: entry.isMember,
-    hasUnread: entry.hasUnread,
-    canJoinRoom: entry.canJoinRoom
+    isMember: entry.viewerState?.isMember ?? false,
+    hasUnread: entry.viewerState?.hasUnread ?? false,
+    canJoinRoom: hasRoomPermission(entry.viewerState, RoomPermission.JoinRoom)
   };
 }
 
@@ -182,10 +197,25 @@ function mapRoomGroup(group: RoomGroup): DirectoryRoomGroup {
   return {
     id: group.id,
     name: group.name,
-    canCreateRoom: group.viewerState?.canCreateRoom ?? false,
+    canCreateRoom: hasRoomGroupPermission(group.viewerState, RoomPermission.CreateRoom),
     roomIds: uniqueRoomIds(group.items),
     items: sidebarItemsFromAPI(group)
   };
+}
+
+function hasRoomPermission(state: RoomViewerState | undefined, permission: string): boolean {
+  return (
+    state?.permissions.some((grant) => grant.permission === permission && grant.granted) ?? false
+  );
+}
+
+function hasRoomGroupPermission(
+  state: RoomGroupViewerState | undefined,
+  permission: string
+): boolean {
+  return (
+    state?.permissions.some((grant) => grant.permission === permission && grant.granted) ?? false
+  );
 }
 
 function uniqueRoomIds(items: readonly RoomGroupItem[]): string[] {

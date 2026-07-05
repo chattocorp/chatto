@@ -1383,440 +1383,6 @@ Result of removing a reaction.
 | `reaction` | [`MessageReaction`](#chatto-api-v1-MessageReaction) | Updated aggregate reaction state for this emoji. Empty when no reactions for the emoji remain. |
 
 
-<a id="chatto-api-v1-NotificationService"></a>
-
-## NotificationService
-
-Reads and dismisses pending notifications for the authenticated viewer.
-
-<a id="chatto-api-v1-NotificationService-ListNotifications"></a>
-
-### ListNotifications
-
-Lists the authenticated viewer's pending notifications.
-
-```http
-POST /api/connect/chatto.api.v1.NotificationService/ListNotifications
-```
-
-<a id="chatto-api-v1-ListNotificationsRequest"></a>
-
-#### Input: ListNotificationsRequest
-
-Request for the authenticated viewer's pending notifications.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `page` | [`PageRequest`](#chatto-api-v1-PageRequest) | Page request. Defaults to 50 results when absent or limit is zero. |
-
-
-<a id="chatto-api-v1-ListNotificationsResponse"></a>
-
-#### Result: ListNotificationsResponse
-
-Pending notification page.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `notifications` | repeated [`NotificationItem`](#chatto-api-v1-NotificationItem) | Page notifications, newest first. |
-| `page` | [`PageInfo`](#chatto-api-v1-PageInfo) | Page metadata. |
-
-
-<a id="chatto-api-v1-NotificationService-GetNotification"></a>
-
-### GetNotification
-
-Gets one pending notification. Returns NOT_FOUND when the notification is
-unknown or has been dismissed.
-
-```http
-POST /api/connect/chatto.api.v1.NotificationService/GetNotification
-```
-
-<a id="chatto-api-v1-GetNotificationRequest"></a>
-
-#### Input: GetNotificationRequest
-
-Request one pending notification for the authenticated viewer.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `notification_id` | `string` | Required notification ID. |
-
-
-<a id="chatto-api-v1-GetNotificationResponse"></a>
-
-#### Result: GetNotificationResponse
-
-Pending notification response.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `notification` | [`NotificationItem`](#chatto-api-v1-NotificationItem) | Requested notification. |
-
-
-<a id="chatto-api-v1-NotificationService-BatchGetNotifications"></a>
-
-### BatchGetNotifications
-
-Gets pending notifications by ID.
-
-```http
-POST /api/connect/chatto.api.v1.NotificationService/BatchGetNotifications
-```
-
-<a id="chatto-api-v1-BatchGetNotificationsRequest"></a>
-
-#### Input: BatchGetNotificationsRequest
-
-Request pending notifications for a set of stable notification IDs.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `notification_ids` | `repeated string` | Required notification IDs. Unknown or dismissed IDs are omitted from the response. |
-
-
-<a id="chatto-api-v1-BatchGetNotificationsResponse"></a>
-
-#### Result: BatchGetNotificationsResponse
-
-Batch pending notification response.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `notifications` | repeated [`NotificationItem`](#chatto-api-v1-NotificationItem) | Found notifications. The server preserves first-seen request order and de-duplicates repeated IDs. |
-
-
-<a id="chatto-api-v1-NotificationService-ListRoomNotifications"></a>
-
-### ListRoomNotifications
-
-Lists pending notifications for one room. Non-members receive an empty page.
-
-```http
-POST /api/connect/chatto.api.v1.NotificationService/ListRoomNotifications
-```
-
-<a id="chatto-api-v1-ListRoomNotificationsRequest"></a>
-
-#### Input: ListRoomNotificationsRequest
-
-Request for pending notifications scoped to one room.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | Required. Room whose notifications should be listed. |
-| `page` | [`PageRequest`](#chatto-api-v1-PageRequest) | Page request. Defaults to 50 results when absent or limit is zero. |
-
-
-<a id="chatto-api-v1-ListRoomNotificationsResponse"></a>
-
-#### Result: ListRoomNotificationsResponse
-
-Pending notification page scoped to one room.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `notifications` | repeated [`NotificationItem`](#chatto-api-v1-NotificationItem) | Page notifications, newest first. |
-| `page` | [`PageInfo`](#chatto-api-v1-PageInfo) | Page metadata. |
-
-
-<a id="chatto-api-v1-NotificationService-ListRoomNotificationCounts"></a>
-
-### ListRoomNotificationCounts
-
-Lists pending notification counts grouped by room as a finite snapshot.
-
-```http
-POST /api/connect/chatto.api.v1.NotificationService/ListRoomNotificationCounts
-```
-
-<a id="chatto-api-v1-ListRoomNotificationCountsRequest"></a>
-
-#### Input: ListRoomNotificationCountsRequest
-
-Request for pending notification counts grouped by room.
-
-
-<a id="chatto-api-v1-ListRoomNotificationCountsResponse"></a>
-
-#### Result: ListRoomNotificationCountsResponse
-
-Finite snapshot of pending notification counts grouped by room.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_counts` | repeated [`RoomNotificationCount`](#chatto-api-v1-RoomNotificationCount) | Counts for rooms with at least one pending notification. |
-
-
-<a id="chatto-api-v1-NotificationService-HasNotifications"></a>
-
-### HasNotifications
-
-Checks whether the authenticated viewer has any pending notifications.
-
-```http
-POST /api/connect/chatto.api.v1.NotificationService/HasNotifications
-```
-
-<a id="chatto-api-v1-HasNotificationsRequest"></a>
-
-#### Input: HasNotificationsRequest
-
-Request for a lightweight pending notification check.
-
-
-<a id="chatto-api-v1-HasNotificationsResponse"></a>
-
-#### Result: HasNotificationsResponse
-
-Lightweight pending notification check.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `has_notifications` | `bool` | True when the authenticated viewer has at least one pending notification. |
-
-
-<a id="chatto-api-v1-NotificationService-DismissNotification"></a>
-
-### DismissNotification
-
-Dismisses one pending notification. Already-dismissed notifications are
-treated as idempotent success.
-
-```http
-POST /api/connect/chatto.api.v1.NotificationService/DismissNotification
-```
-
-<a id="chatto-api-v1-DismissNotificationRequest"></a>
-
-#### Input: DismissNotificationRequest
-
-Request to dismiss one pending notification.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `notification_id` | `string` | Required. Notification to dismiss. |
-
-
-<a id="chatto-api-v1-DismissNotificationResponse"></a>
-
-#### Result: DismissNotificationResponse
-
-Result of dismissing one pending notification.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `dismissed` | `bool` | True when the notification is no longer pending. |
-
-
-<a id="chatto-api-v1-NotificationService-DismissAllNotifications"></a>
-
-### DismissAllNotifications
-
-Dismisses all pending notifications.
-
-```http
-POST /api/connect/chatto.api.v1.NotificationService/DismissAllNotifications
-```
-
-<a id="chatto-api-v1-DismissAllNotificationsRequest"></a>
-
-#### Input: DismissAllNotificationsRequest
-
-Request to dismiss all pending notifications.
-
-
-<a id="chatto-api-v1-DismissAllNotificationsResponse"></a>
-
-#### Result: DismissAllNotificationsResponse
-
-Result of dismissing all pending notifications.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `dismissed_count` | `int32` | Number of notifications dismissed. |
-
-
-<a id="chatto-api-v1-PushNotificationService"></a>
-
-## PushNotificationService
-
-Browser Web Push subscription commands for the current user.
-
-<a id="chatto-api-v1-PushNotificationService-Subscribe"></a>
-
-### Subscribe
-
-Stores or updates the caller's browser push subscription.
-
-The server must have Web Push configured. Clients normally call this after
-the browser grants notification permission and returns a PushSubscription.
-
-```http
-POST /api/connect/chatto.api.v1.PushNotificationService/Subscribe
-```
-
-<a id="chatto-api-v1-SubscribePushRequest"></a>
-
-#### Input: SubscribePushRequest
-
-Request to store a PushSubscription returned by the browser Push API.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `endpoint` | `string` | Push service endpoint URL. |
-| `p256dh` | `string` | Client P-256 ECDH public key from PushSubscription.keys.p256dh. |
-| `auth` | `string` | Authentication secret from PushSubscription.keys.auth. |
-| `user_agent` | `optional string` | Optional browser user-agent string for device identification. |
-
-
-<a id="chatto-api-v1-SubscribePushResponse"></a>
-
-#### Result: SubscribePushResponse
-
-Response from storing a browser push subscription.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `subscribed` | `bool` | True when the subscription was stored. |
-
-
-<a id="chatto-api-v1-PushNotificationService-Unsubscribe"></a>
-
-### Unsubscribe
-
-Removes the caller's browser push subscription by endpoint.
-
-The call is idempotent: removing an unknown endpoint still succeeds.
-
-```http
-POST /api/connect/chatto.api.v1.PushNotificationService/Unsubscribe
-```
-
-<a id="chatto-api-v1-UnsubscribePushRequest"></a>
-
-#### Input: UnsubscribePushRequest
-
-Request to remove a browser push subscription.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `endpoint` | `string` | Push service endpoint URL to remove. |
-
-
-<a id="chatto-api-v1-UnsubscribePushResponse"></a>
-
-#### Result: UnsubscribePushResponse
-
-Response from removing a browser push subscription.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `unsubscribed` | `bool` | True when the request completed. |
-
-
-<a id="chatto-api-v1-RoleService"></a>
-
-## RoleService
-
-Provides authenticated reads for public role metadata.
-
-<a id="chatto-api-v1-RoleService-ListRoles"></a>
-
-### ListRoles
-
-Lists the current role catalog as a finite snapshot. Requires an
-authenticated user.
-
-```http
-POST /api/connect/chatto.api.v1.RoleService/ListRoles
-```
-
-<a id="chatto-api-v1-ListRolesRequest"></a>
-
-#### Input: ListRolesRequest
-
-Request the current role catalog.
-
-
-<a id="chatto-api-v1-ListRolesResponse"></a>
-
-#### Result: ListRolesResponse
-
-Snapshot of the role catalog visible to the authenticated viewer.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `roles` | repeated [`Role`](#chatto-api-v1-Role) | Roles sorted by position. |
-
-
-<a id="chatto-api-v1-RoleService-GetRole"></a>
-
-### GetRole
-
-Gets one public role by stable name. Returns NOT_FOUND when the role is
-unknown.
-
-```http
-POST /api/connect/chatto.api.v1.RoleService/GetRole
-```
-
-<a id="chatto-api-v1-GetRoleRequest"></a>
-
-#### Input: GetRoleRequest
-
-Request one public role by stable role name.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `name` | `string` | Required stable role name. |
-
-
-<a id="chatto-api-v1-GetRoleResponse"></a>
-
-#### Result: GetRoleResponse
-
-Public role lookup response.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `role` | [`Role`](#chatto-api-v1-Role) | Requested role. |
-
-
-<a id="chatto-api-v1-RoleService-BatchGetRoles"></a>
-
-### BatchGetRoles
-
-Gets public role records for multiple role names referenced by member rows,
-mentions, or integration clients.
-
-```http
-POST /api/connect/chatto.api.v1.RoleService/BatchGetRoles
-```
-
-<a id="chatto-api-v1-BatchGetRolesRequest"></a>
-
-#### Input: BatchGetRolesRequest
-
-Request public role records for a set of stable role names.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `names` | `repeated string` | Required role names. Unknown names are omitted from the response. |
-
-
-<a id="chatto-api-v1-BatchGetRolesResponse"></a>
-
-#### Result: BatchGetRolesResponse
-
-Batch public role response.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `roles` | repeated [`Role`](#chatto-api-v1-Role) | Found roles. The server preserves first-seen request order and de-duplicates repeated names. |
-
-
 <a id="chatto-api-v1-RoomService"></a>
 
 ## RoomService
@@ -2567,6 +2133,440 @@ Result of removing a room ban.
 | Field | Type | Description |
 | --- | --- | --- |
 | `unbanned` | `bool` | True when the unban operation completed. |
+
+
+<a id="chatto-api-v1-NotificationService"></a>
+
+## NotificationService
+
+Reads and dismisses pending notifications for the authenticated viewer.
+
+<a id="chatto-api-v1-NotificationService-ListNotifications"></a>
+
+### ListNotifications
+
+Lists the authenticated viewer's pending notifications.
+
+```http
+POST /api/connect/chatto.api.v1.NotificationService/ListNotifications
+```
+
+<a id="chatto-api-v1-ListNotificationsRequest"></a>
+
+#### Input: ListNotificationsRequest
+
+Request for the authenticated viewer's pending notifications.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `page` | [`PageRequest`](#chatto-api-v1-PageRequest) | Page request. Defaults to 50 results when absent or limit is zero. |
+
+
+<a id="chatto-api-v1-ListNotificationsResponse"></a>
+
+#### Result: ListNotificationsResponse
+
+Pending notification page.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `notifications` | repeated [`NotificationItem`](#chatto-api-v1-NotificationItem) | Page notifications, newest first. |
+| `page` | [`PageInfo`](#chatto-api-v1-PageInfo) | Page metadata. |
+
+
+<a id="chatto-api-v1-NotificationService-GetNotification"></a>
+
+### GetNotification
+
+Gets one pending notification. Returns NOT_FOUND when the notification is
+unknown or has been dismissed.
+
+```http
+POST /api/connect/chatto.api.v1.NotificationService/GetNotification
+```
+
+<a id="chatto-api-v1-GetNotificationRequest"></a>
+
+#### Input: GetNotificationRequest
+
+Request one pending notification for the authenticated viewer.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `notification_id` | `string` | Required notification ID. |
+
+
+<a id="chatto-api-v1-GetNotificationResponse"></a>
+
+#### Result: GetNotificationResponse
+
+Pending notification response.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `notification` | [`NotificationItem`](#chatto-api-v1-NotificationItem) | Requested notification. |
+
+
+<a id="chatto-api-v1-NotificationService-BatchGetNotifications"></a>
+
+### BatchGetNotifications
+
+Gets pending notifications by ID.
+
+```http
+POST /api/connect/chatto.api.v1.NotificationService/BatchGetNotifications
+```
+
+<a id="chatto-api-v1-BatchGetNotificationsRequest"></a>
+
+#### Input: BatchGetNotificationsRequest
+
+Request pending notifications for a set of stable notification IDs.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `notification_ids` | `repeated string` | Required notification IDs. Unknown or dismissed IDs are omitted from the response. |
+
+
+<a id="chatto-api-v1-BatchGetNotificationsResponse"></a>
+
+#### Result: BatchGetNotificationsResponse
+
+Batch pending notification response.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `notifications` | repeated [`NotificationItem`](#chatto-api-v1-NotificationItem) | Found notifications. The server preserves first-seen request order and de-duplicates repeated IDs. |
+
+
+<a id="chatto-api-v1-NotificationService-ListRoomNotifications"></a>
+
+### ListRoomNotifications
+
+Lists pending notifications for one room. Non-members receive an empty page.
+
+```http
+POST /api/connect/chatto.api.v1.NotificationService/ListRoomNotifications
+```
+
+<a id="chatto-api-v1-ListRoomNotificationsRequest"></a>
+
+#### Input: ListRoomNotificationsRequest
+
+Request for pending notifications scoped to one room.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room whose notifications should be listed. |
+| `page` | [`PageRequest`](#chatto-api-v1-PageRequest) | Page request. Defaults to 50 results when absent or limit is zero. |
+
+
+<a id="chatto-api-v1-ListRoomNotificationsResponse"></a>
+
+#### Result: ListRoomNotificationsResponse
+
+Pending notification page scoped to one room.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `notifications` | repeated [`NotificationItem`](#chatto-api-v1-NotificationItem) | Page notifications, newest first. |
+| `page` | [`PageInfo`](#chatto-api-v1-PageInfo) | Page metadata. |
+
+
+<a id="chatto-api-v1-NotificationService-ListRoomNotificationCounts"></a>
+
+### ListRoomNotificationCounts
+
+Lists pending notification counts grouped by room as a finite snapshot.
+
+```http
+POST /api/connect/chatto.api.v1.NotificationService/ListRoomNotificationCounts
+```
+
+<a id="chatto-api-v1-ListRoomNotificationCountsRequest"></a>
+
+#### Input: ListRoomNotificationCountsRequest
+
+Request for pending notification counts grouped by room.
+
+
+<a id="chatto-api-v1-ListRoomNotificationCountsResponse"></a>
+
+#### Result: ListRoomNotificationCountsResponse
+
+Finite snapshot of pending notification counts grouped by room.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_counts` | repeated [`RoomNotificationCount`](#chatto-api-v1-RoomNotificationCount) | Counts for rooms with at least one pending notification. |
+
+
+<a id="chatto-api-v1-NotificationService-HasNotifications"></a>
+
+### HasNotifications
+
+Checks whether the authenticated viewer has any pending notifications.
+
+```http
+POST /api/connect/chatto.api.v1.NotificationService/HasNotifications
+```
+
+<a id="chatto-api-v1-HasNotificationsRequest"></a>
+
+#### Input: HasNotificationsRequest
+
+Request for a lightweight pending notification check.
+
+
+<a id="chatto-api-v1-HasNotificationsResponse"></a>
+
+#### Result: HasNotificationsResponse
+
+Lightweight pending notification check.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `has_notifications` | `bool` | True when the authenticated viewer has at least one pending notification. |
+
+
+<a id="chatto-api-v1-NotificationService-DismissNotification"></a>
+
+### DismissNotification
+
+Dismisses one pending notification. Already-dismissed notifications are
+treated as idempotent success.
+
+```http
+POST /api/connect/chatto.api.v1.NotificationService/DismissNotification
+```
+
+<a id="chatto-api-v1-DismissNotificationRequest"></a>
+
+#### Input: DismissNotificationRequest
+
+Request to dismiss one pending notification.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `notification_id` | `string` | Required. Notification to dismiss. |
+
+
+<a id="chatto-api-v1-DismissNotificationResponse"></a>
+
+#### Result: DismissNotificationResponse
+
+Result of dismissing one pending notification.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `dismissed` | `bool` | True when the notification is no longer pending. |
+
+
+<a id="chatto-api-v1-NotificationService-DismissAllNotifications"></a>
+
+### DismissAllNotifications
+
+Dismisses all pending notifications.
+
+```http
+POST /api/connect/chatto.api.v1.NotificationService/DismissAllNotifications
+```
+
+<a id="chatto-api-v1-DismissAllNotificationsRequest"></a>
+
+#### Input: DismissAllNotificationsRequest
+
+Request to dismiss all pending notifications.
+
+
+<a id="chatto-api-v1-DismissAllNotificationsResponse"></a>
+
+#### Result: DismissAllNotificationsResponse
+
+Result of dismissing all pending notifications.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `dismissed_count` | `int32` | Number of notifications dismissed. |
+
+
+<a id="chatto-api-v1-PushNotificationService"></a>
+
+## PushNotificationService
+
+Browser Web Push subscription commands for the current user.
+
+<a id="chatto-api-v1-PushNotificationService-Subscribe"></a>
+
+### Subscribe
+
+Stores or updates the caller's browser push subscription.
+
+The server must have Web Push configured. Clients normally call this after
+the browser grants notification permission and returns a PushSubscription.
+
+```http
+POST /api/connect/chatto.api.v1.PushNotificationService/Subscribe
+```
+
+<a id="chatto-api-v1-SubscribePushRequest"></a>
+
+#### Input: SubscribePushRequest
+
+Request to store a PushSubscription returned by the browser Push API.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `endpoint` | `string` | Push service endpoint URL. |
+| `p256dh` | `string` | Client P-256 ECDH public key from PushSubscription.keys.p256dh. |
+| `auth` | `string` | Authentication secret from PushSubscription.keys.auth. |
+| `user_agent` | `optional string` | Optional browser user-agent string for device identification. |
+
+
+<a id="chatto-api-v1-SubscribePushResponse"></a>
+
+#### Result: SubscribePushResponse
+
+Response from storing a browser push subscription.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `subscribed` | `bool` | True when the subscription was stored. |
+
+
+<a id="chatto-api-v1-PushNotificationService-Unsubscribe"></a>
+
+### Unsubscribe
+
+Removes the caller's browser push subscription by endpoint.
+
+The call is idempotent: removing an unknown endpoint still succeeds.
+
+```http
+POST /api/connect/chatto.api.v1.PushNotificationService/Unsubscribe
+```
+
+<a id="chatto-api-v1-UnsubscribePushRequest"></a>
+
+#### Input: UnsubscribePushRequest
+
+Request to remove a browser push subscription.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `endpoint` | `string` | Push service endpoint URL to remove. |
+
+
+<a id="chatto-api-v1-UnsubscribePushResponse"></a>
+
+#### Result: UnsubscribePushResponse
+
+Response from removing a browser push subscription.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `unsubscribed` | `bool` | True when the request completed. |
+
+
+<a id="chatto-api-v1-RoleService"></a>
+
+## RoleService
+
+Provides authenticated reads for public role metadata.
+
+<a id="chatto-api-v1-RoleService-ListRoles"></a>
+
+### ListRoles
+
+Lists the current role catalog as a finite snapshot. Requires an
+authenticated user.
+
+```http
+POST /api/connect/chatto.api.v1.RoleService/ListRoles
+```
+
+<a id="chatto-api-v1-ListRolesRequest"></a>
+
+#### Input: ListRolesRequest
+
+Request the current role catalog.
+
+
+<a id="chatto-api-v1-ListRolesResponse"></a>
+
+#### Result: ListRolesResponse
+
+Snapshot of the role catalog visible to the authenticated viewer.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `roles` | repeated [`Role`](#chatto-api-v1-Role) | Roles sorted by position. |
+
+
+<a id="chatto-api-v1-RoleService-GetRole"></a>
+
+### GetRole
+
+Gets one public role by stable name. Returns NOT_FOUND when the role is
+unknown.
+
+```http
+POST /api/connect/chatto.api.v1.RoleService/GetRole
+```
+
+<a id="chatto-api-v1-GetRoleRequest"></a>
+
+#### Input: GetRoleRequest
+
+Request one public role by stable role name.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `name` | `string` | Required stable role name. |
+
+
+<a id="chatto-api-v1-GetRoleResponse"></a>
+
+#### Result: GetRoleResponse
+
+Public role lookup response.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `role` | [`Role`](#chatto-api-v1-Role) | Requested role. |
+
+
+<a id="chatto-api-v1-RoleService-BatchGetRoles"></a>
+
+### BatchGetRoles
+
+Gets public role records for multiple role names referenced by member rows,
+mentions, or integration clients.
+
+```http
+POST /api/connect/chatto.api.v1.RoleService/BatchGetRoles
+```
+
+<a id="chatto-api-v1-BatchGetRolesRequest"></a>
+
+#### Input: BatchGetRolesRequest
+
+Request public role records for a set of stable role names.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `names` | `repeated string` | Required role names. Unknown names are omitted from the response. |
+
+
+<a id="chatto-api-v1-BatchGetRolesResponse"></a>
+
+#### Result: BatchGetRolesResponse
+
+Batch public role response.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `roles` | repeated [`Role`](#chatto-api-v1-Role) | Found roles. The server preserves first-seen request order and de-duplicates repeated names. |
 
 
 <a id="chatto-api-v1-RoomDirectoryService"></a>
@@ -3651,12 +3651,8 @@ requests.
 | `echo_of_event_id` | `string` | Event ID this event echoes into the current view, when applicable. Echoes allow thread activity to appear in another timeline context. |
 | `echo_from_thread_root_event_id` | `string` | Thread root ID of the echoed event, when applicable. |
 | `channel_echo_event_id` | `string` | Channel timeline event ID for a thread echo, when applicable. |
-| `reply_count` | `int32` | Number of replies in this message's thread. |
-| `last_reply_at` | `google.protobuf.Timestamp` | Creation time of the most recent reply in this message's thread. |
-| `thread_participant_preview_user_ids` | `repeated string` | Preview of up to five user IDs that have participated in this message's thread. |
-| `thread_participant_count` | `int32` | Total number of distinct users that have participated in this message's thread. |
-| `viewer_is_following_thread` | `optional bool` | Whether the current user follows this message's thread, when known. |
 | `reactions` | repeated [`MessageReaction`](#chatto-api-v1-MessageReaction) | Reaction summaries for this message. |
+| `thread` | [`ThreadSummary`](#chatto-api-v1-ThreadSummary) | Aggregated thread state, when known for a thread root message. |
 
 
 
@@ -3755,6 +3751,36 @@ One transcoded video rendition.
 
 
 
+<a id="chatto-api-v1-ThreadSummary"></a>
+
+### ThreadSummary
+
+Aggregated state for one message thread.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `thread_root_event_id` | `string` | Event ID of the root message for the thread. |
+| `reply_count` | `int32` | Number of replies in this message's thread. |
+| `last_reply_at` | `google.protobuf.Timestamp` | Creation time of the most recent reply in this message's thread. |
+| `participant_preview_user_ids` | `repeated string` | Preview of up to five user IDs that have participated in this message's thread. |
+| `participant_count` | `int32` | Total number of distinct users that have participated in this message's thread. |
+| `viewer_state` | [`ThreadViewerState`](#chatto-api-v1-ThreadViewerState) | State resolved for the current user. |
+
+
+
+<a id="chatto-api-v1-ThreadViewerState"></a>
+
+### ThreadViewerState
+
+Viewer-specific state for one message thread.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `is_following` | `optional bool` | Whether the current user follows this message's thread, when known. |
+| `has_unread` | `optional bool` | True when the thread has unread replies for the current user, when known. |
+
+
+
 <a id="chatto-api-v1-RoomAttachmentListItem"></a>
 
 ### RoomAttachmentListItem
@@ -3809,122 +3835,6 @@ surfaces.
 | `user` | [`User`](#chatto-api-v1-User) | Public user fields. |
 | `roles` | `repeated string` | Explicit roles assigned to the user. Member listings include the virtual `everyone` role for parity with Chatto's permission model. |
 | `created_at` | `google.protobuf.Timestamp` | Account creation time when known. |
-
-
-
-<a id="chatto-api-v1-DirectMessageNotification"></a>
-
-### DirectMessageNotification
-
-Direct-message notification payload.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | DM room where the message was posted. |
-| `event_id` | `string` | Message event ID. |
-
-
-
-<a id="chatto-api-v1-MentionNotification"></a>
-
-### MentionNotification
-
-Mention notification payload.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room` | [`NotificationRoom`](#chatto-api-v1-NotificationRoom) | Room where the mention occurred. |
-| `event_id` | `string` | Message event ID. |
-| `thread_root_event_id` | `optional string` | Thread root event ID when the mention happened inside a thread. |
-
-
-
-<a id="chatto-api-v1-NotificationItem"></a>
-
-### NotificationItem
-
-One pending notification for the authenticated viewer.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `id` | `string` | Stable notification ID. |
-| `created_at` | `google.protobuf.Timestamp` | Creation time. |
-| `actor` | [`User`](#chatto-api-v1-User) | User who triggered the notification, when still resolvable. |
-| `kind.direct_message` | [`DirectMessageNotification`](#chatto-api-v1-DirectMessageNotification) | Direct-message notification. |
-| `kind.mention` | [`MentionNotification`](#chatto-api-v1-MentionNotification) | Mention notification. |
-| `kind.reply` | [`ReplyNotification`](#chatto-api-v1-ReplyNotification) | Reply notification. |
-| `kind.room_message` | [`RoomMessageNotification`](#chatto-api-v1-RoomMessageNotification) | All-messages room notification. |
-
-
-
-<a id="chatto-api-v1-NotificationRoom"></a>
-
-### NotificationRoom
-
-Room summary embedded in notification responses.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `id` | `string` | Stable room ID. |
-| `name` | `string` | Room display name. Empty for DM rooms. |
-
-
-
-<a id="chatto-api-v1-ReplyNotification"></a>
-
-### ReplyNotification
-
-Reply notification payload.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room` | [`NotificationRoom`](#chatto-api-v1-NotificationRoom) | Room where the reply occurred. |
-| `event_id` | `string` | Reply event ID. |
-| `in_reply_to_id` | `string` | Event ID of the message being replied to. |
-| `thread_root_event_id` | `optional string` | Thread root event ID when the reply happened inside a thread. |
-
-
-
-<a id="chatto-api-v1-RoomMessageNotification"></a>
-
-### RoomMessageNotification
-
-All-messages room notification payload.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room` | [`NotificationRoom`](#chatto-api-v1-NotificationRoom) | Room where the message was posted. |
-| `event_id` | `string` | Message event ID. |
-
-
-
-<a id="chatto-api-v1-RoomNotificationCount"></a>
-
-### RoomNotificationCount
-
-Pending notification count for one room.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | Room ID. |
-| `total_count` | `int32` | Pending notification count for the authenticated viewer in this room. |
-
-
-
-<a id="chatto-api-v1-Role"></a>
-
-### Role
-
-Public role metadata used for rendering role mentions, labels, and catalogs.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `name` | `string` | Stable role name used in permission and assignment records. |
-| `display_name` | `string` | Display name shown in user-facing role UIs. |
-| `description` | `string` | Optional role description. |
-| `is_system` | `bool` | Whether this is a built-in role. |
-| `position` | `int32` | Display/order position. |
-| `pingable` | `bool` | Whether messages may notify users assigned to this role. |
 
 
 
@@ -4052,6 +3962,123 @@ Active channel room ban with optional hydrated room and user references.
 
 
 
+<a id="chatto-api-v1-RoomSummary"></a>
+
+### RoomSummary
+
+Lightweight room reference for cross-resource rows.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | Stable room ID. |
+| `kind` | [`RoomKind`](#chatto-api-v1-RoomKind) | Room kind. |
+| `name` | `string` | Room name. Direct-message rooms may have an empty name because clients derive their display label from participants. |
+
+
+
+<a id="chatto-api-v1-DirectMessageNotification"></a>
+
+### DirectMessageNotification
+
+Direct-message notification payload.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `event_id` | `string` | Message event ID. |
+| `room` | [`RoomSummary`](#chatto-api-v1-RoomSummary) | DM room where the message was posted. |
+
+
+
+<a id="chatto-api-v1-MentionNotification"></a>
+
+### MentionNotification
+
+Mention notification payload.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room` | [`RoomSummary`](#chatto-api-v1-RoomSummary) | Room where the mention occurred. |
+| `event_id` | `string` | Message event ID. |
+| `thread_root_event_id` | `optional string` | Thread root event ID when the mention happened inside a thread. |
+
+
+
+<a id="chatto-api-v1-NotificationItem"></a>
+
+### NotificationItem
+
+One pending notification for the authenticated viewer.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | Stable notification ID. |
+| `created_at` | `google.protobuf.Timestamp` | Creation time. |
+| `actor` | [`User`](#chatto-api-v1-User) | User who triggered the notification, when still resolvable. |
+| `kind.direct_message` | [`DirectMessageNotification`](#chatto-api-v1-DirectMessageNotification) | Direct-message notification. |
+| `kind.mention` | [`MentionNotification`](#chatto-api-v1-MentionNotification) | Mention notification. |
+| `kind.reply` | [`ReplyNotification`](#chatto-api-v1-ReplyNotification) | Reply notification. |
+| `kind.room_message` | [`RoomMessageNotification`](#chatto-api-v1-RoomMessageNotification) | All-messages room notification. |
+
+
+
+<a id="chatto-api-v1-ReplyNotification"></a>
+
+### ReplyNotification
+
+Reply notification payload.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room` | [`RoomSummary`](#chatto-api-v1-RoomSummary) | Room where the reply occurred. |
+| `event_id` | `string` | Reply event ID. |
+| `in_reply_to_id` | `string` | Event ID of the message being replied to. |
+| `thread_root_event_id` | `optional string` | Thread root event ID when the reply happened inside a thread. |
+
+
+
+<a id="chatto-api-v1-RoomMessageNotification"></a>
+
+### RoomMessageNotification
+
+All-messages room notification payload.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room` | [`RoomSummary`](#chatto-api-v1-RoomSummary) | Room where the message was posted. |
+| `event_id` | `string` | Message event ID. |
+
+
+
+<a id="chatto-api-v1-RoomNotificationCount"></a>
+
+### RoomNotificationCount
+
+Pending notification count for one room.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Room ID. |
+| `total_count` | `int32` | Pending notification count for the authenticated viewer in this room. |
+
+
+
+<a id="chatto-api-v1-Role"></a>
+
+### Role
+
+Public role metadata used for rendering role mentions, labels, and catalogs.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `name` | `string` | Stable role name used in permission and assignment records. |
+| `display_name` | `string` | Display name shown in user-facing role UIs. |
+| `description` | `string` | Optional role description. |
+| `is_system` | `bool` | Whether this is a built-in role. |
+| `position` | `int32` | Display/order position. |
+| `pingable` | `bool` | Whether messages may notify users assigned to this role. |
+
+
+
 <a id="chatto-api-v1-RoomGroup"></a>
 
 ### RoomGroup
@@ -4089,7 +4116,21 @@ Viewer-specific state for one room group.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `can_create_room` | `bool` | True when the current user can create rooms in this group. |
+| `permissions` | repeated [`PermissionGrant`](#chatto-api-v1-PermissionGrant) | Effective group-scoped permission decisions after group state constraints. |
+
+
+
+<a id="chatto-api-v1-RoomViewerState"></a>
+
+### RoomViewerState
+
+Viewer-specific state and permission decisions for one room.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `is_member` | `bool` | True when the current user is an effective room member. |
+| `has_unread` | `bool` | True when the room has unread root messages for the current user. |
+| `permissions` | repeated [`PermissionGrant`](#chatto-api-v1-PermissionGrant) | Effective room-scoped permission decisions after room state constraints. |
 
 
 
@@ -4103,18 +4144,7 @@ viewer.
 | Field | Type | Description |
 | --- | --- | --- |
 | `room` | [`Room`](#chatto-api-v1-Room) | Public room metadata. |
-| `is_member` | `bool` | True when the current user is an effective room member. |
-| `has_unread` | `bool` | True when the room has unread root messages for the current user. |
-| `can_list_room` | `bool` | True when the room can appear in directory surfaces for the current user. |
-| `can_join_room` | `bool` | True when the current user can join this room. |
-| `can_post_message` | `bool` | True when the current user can post new root messages. |
-| `can_post_in_thread` | `bool` | True when the current user can post thread replies. |
-| `can_attach` | `bool` | True when the current user can attach files to messages. |
-| `can_react` | `bool` | True when the current user can add and remove reactions. |
-| `can_echo_message` | `bool` | True when the current user can echo thread replies to the main room. |
-| `can_manage_others_message` | `bool` | True when the current user can edit or delete other users' messages. |
-| `can_manage_room` | `bool` | True when the current user can configure this room. |
-| `can_ban_room_members` | `bool` | True when the current user can ban members from this room. |
+| `viewer_state` | [`RoomViewerState`](#chatto-api-v1-RoomViewerState) | State and permission decisions resolved for the current user. |
 
 
 
@@ -4202,13 +4232,9 @@ One followed thread for the current user.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `room_id` | `string` | Room containing the thread. |
-| `room_name` | `string` | Current display name of the room. |
-| `thread_root_event_id` | `string` | Event ID of the root message for the thread. |
 | `root_message` | [`Message`](#chatto-api-v1-Message) | Renderable root message, when the root is still visible. |
-| `reply_count` | `int32` | Number of replies in the thread. |
-| `last_reply_at` | `google.protobuf.Timestamp` | Creation time of the latest reply, when the thread has replies. |
-| `has_unread` | `bool` | True when the current user has unread replies in the thread. |
+| `room` | [`RoomSummary`](#chatto-api-v1-RoomSummary) | Room containing the thread. |
+| `thread` | [`ThreadSummary`](#chatto-api-v1-ThreadSummary) | Aggregated thread state. |
 
 
 

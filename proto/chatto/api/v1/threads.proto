@@ -7,7 +7,7 @@ import "chatto/api/v1/message_types.proto";
 import "chatto/api/v1/pagination.proto";
 import "chatto/api/v1/read_state.proto";
 import "chatto/api/v1/room_timeline.proto";
-import "google/protobuf/timestamp.proto";
+import "chatto/api/v1/rooms.proto";
 
 // Current follow state for one thread and viewer.
 message ThreadFollowState {
@@ -53,20 +53,15 @@ message UnfollowThreadResponse {
 
 // One followed thread for the current user.
 message FollowedThread {
-  // Room containing the thread.
-  string room_id = 1;
-  // Current display name of the room.
-  string room_name = 2;
-  // Event ID of the root message for the thread.
-  string thread_root_event_id = 3;
+  reserved 1 to 3, 5 to 7;
+  reserved "room_id", "room_name", "thread_root_event_id", "reply_count", "last_reply_at", "has_unread";
+
   // Renderable root message, when the root is still visible.
   Message root_message = 4;
-  // Number of replies in the thread.
-  int32 reply_count = 5;
-  // Creation time of the latest reply, when the thread has replies.
-  google.protobuf.Timestamp last_reply_at = 6;
-  // True when the current user has unread replies in the thread.
-  bool has_unread = 7;
+  // Room containing the thread.
+  RoomSummary room = 8;
+  // Aggregated thread state.
+  ThreadSummary thread = 9;
 }
 
 // Request for a page of followed threads for the current user.

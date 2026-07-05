@@ -356,6 +356,17 @@ func apiRoom(room *corev1.Room) *apiv1.Room {
 	}
 }
 
+func apiRoomSummary(room *corev1.Room) *apiv1.RoomSummary {
+	if room == nil {
+		return nil
+	}
+	return &apiv1.RoomSummary{
+		Id:   room.GetId(),
+		Kind: apiRoomKind(room.GetKind()),
+		Name: room.GetName(),
+	}
+}
+
 func apiRoomKind(kind corev1.RoomKind) apiv1.RoomKind {
 	switch kind {
 	case corev1.RoomKind_ROOM_KIND_CHANNEL:

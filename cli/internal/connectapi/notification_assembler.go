@@ -58,10 +58,14 @@ func (a *notificationAssembler) item(ctx context.Context, notification *corev1.N
 
 	switch payload := notification.GetNotification().(type) {
 	case *corev1.Notification_DmMessage:
+		room, err := a.room(ctx, payload.DmMessage.GetRoomId())
+		if err != nil {
+			return nil, err
+		}
 		item.Kind = &apiv1.NotificationItem_DirectMessage{
 			DirectMessage: &apiv1.DirectMessageNotification{
-				RoomId:  payload.DmMessage.GetRoomId(),
 				EventId: payload.DmMessage.GetEventId(),
+				Room:    room,
 			},
 		}
 	case *corev1.Notification_Mention:
@@ -127,16 +131,16 @@ func (a *notificationAssembler) actor(ctx context.Context, userID string) (*apiv
 	return actor, nil
 }
 
-func (a *notificationAssembler) room(ctx context.Context, roomID string) (*apiv1.NotificationRoom, error) {
+func (a *notificationAssembler) room(ctx context.Context, roomID string) (*apiv1.RoomSummary, error) {
 	if roomID == "" {
 		return nil, nil
 	}
 	room, err := a.api.core.FindRoomByID(ctx, roomID)
 	if err != nil {
+		if errors.Is(err, core.ErrNotFound) {
+			return &apiv1.RoomSummary{Id: roomID}, nil
+		}
 		return nil, err
 	}
-	return &apiv1.NotificationRoom{
-		Id:   room.GetId(),
-		Name: room.GetName(),
-	}, nil
+	return apiRoomSummary(room), nil
 }

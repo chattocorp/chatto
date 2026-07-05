@@ -5,6 +5,19 @@ import { RoomDirectoryScope } from '@chatto/api-types/api/v1/room_directory_pb';
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 import { createRoomDirectoryAPI } from '$lib/api-client/roomDirectory';
 
+const Permission = {
+  Attach: 'message.attach',
+  BanMember: 'room.ban-member',
+  CreateRoom: 'room.create',
+  EchoMessage: 'message.echo',
+  JoinRoom: 'room.join',
+  ManageMessage: 'message.manage',
+  ManageRoom: 'room.manage',
+  PostInThread: 'message.post-in-thread',
+  PostMessage: 'message.post',
+  React: 'message.react'
+} as const;
+
 const mocks = vi.hoisted(() => ({
   createClient: vi.fn(),
   createConnectTransport: vi.fn(),
@@ -65,9 +78,11 @@ describe('createRoomDirectoryAPI', () => {
             archived: false,
             universal: true
           },
-          isMember: true,
-          hasUnread: true,
-          canJoinRoom: false
+          viewerState: roomViewerState({
+            isMember: true,
+            hasUnread: true,
+            [Permission.JoinRoom]: false
+          })
         },
         {
           room: {
@@ -77,9 +92,11 @@ describe('createRoomDirectoryAPI', () => {
             archived: true,
             universal: false
           },
-          isMember: true,
-          hasUnread: false,
-          canJoinRoom: true
+          viewerState: roomViewerState({
+            isMember: true,
+            hasUnread: false,
+            [Permission.JoinRoom]: true
+          })
         },
         { hasUnread: true }
       ]
@@ -137,17 +154,19 @@ describe('createRoomDirectoryAPI', () => {
           archived: false,
           universal: true
         },
-        isMember: true,
-        hasUnread: true,
-        canJoinRoom: false,
-        canPostMessage: true,
-        canPostInThread: true,
-        canAttach: false,
-        canReact: true,
-        canEchoMessage: true,
-        canManageOthersMessage: false,
-        canManageRoom: true,
-        canBanRoomMembers: false
+        viewerState: roomViewerState({
+          isMember: true,
+          hasUnread: true,
+          [Permission.JoinRoom]: false,
+          [Permission.PostMessage]: true,
+          [Permission.PostInThread]: true,
+          [Permission.Attach]: false,
+          [Permission.React]: true,
+          [Permission.EchoMessage]: true,
+          [Permission.ManageMessage]: false,
+          [Permission.ManageRoom]: true,
+          [Permission.BanMember]: false
+        })
       }
     });
 
@@ -221,17 +240,19 @@ describe('createRoomDirectoryAPI', () => {
             archived: false,
             universal: true
           },
-          isMember: true,
-          hasUnread: false,
-          canJoinRoom: false,
-          canPostMessage: true,
-          canPostInThread: false,
-          canAttach: true,
-          canReact: true,
-          canEchoMessage: false,
-          canManageOthersMessage: false,
-          canManageRoom: false,
-          canBanRoomMembers: false
+          viewerState: roomViewerState({
+            isMember: true,
+            hasUnread: false,
+            [Permission.JoinRoom]: false,
+            [Permission.PostMessage]: true,
+            [Permission.PostInThread]: false,
+            [Permission.Attach]: true,
+            [Permission.React]: true,
+            [Permission.EchoMessage]: false,
+            [Permission.ManageMessage]: false,
+            [Permission.ManageRoom]: false,
+            [Permission.BanMember]: false
+          })
         }
       ]
     });
@@ -260,7 +281,7 @@ describe('createRoomDirectoryAPI', () => {
         {
           id: 'g1',
           name: 'Lobby',
-          viewerState: { canCreateRoom: true },
+          viewerState: groupViewerState(true),
           items: [
             {
               item: {
@@ -331,7 +352,7 @@ describe('createRoomDirectoryAPI', () => {
         {
           id: 'g1',
           name: 'Lobby',
-          viewerState: { canCreateRoom: false },
+          viewerState: groupViewerState(false),
           items: []
         }
       ]
@@ -357,7 +378,7 @@ describe('createRoomDirectoryAPI', () => {
     const group = {
       id: 'g1',
       name: 'Lobby',
-      viewerState: { canCreateRoom: true },
+      viewerState: groupViewerState(true),
       items: [
         {
           item: {
@@ -429,3 +450,28 @@ describe('createRoomDirectoryAPI', () => {
     expect(mocks.handleAuthenticationRequired).toHaveBeenCalledWith('remote');
   });
 });
+
+function roomViewerState(
+  input: Record<string, boolean> & { isMember: boolean; hasUnread: boolean }
+) {
+  const { isMember, hasUnread, ...permissions } = input;
+  return {
+    isMember,
+    hasUnread,
+    permissions: Object.entries(permissions).map(([permission, granted]) => ({
+      permission,
+      granted
+    }))
+  };
+}
+
+function groupViewerState(canCreateRoom: boolean) {
+  return {
+    permissions: [
+      {
+        permission: Permission.CreateRoom,
+        granted: canCreateRoom
+      }
+    ]
+  };
+}

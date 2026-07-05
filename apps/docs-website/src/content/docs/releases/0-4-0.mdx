@@ -129,9 +129,21 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
   `RoomService.ListMembers`, `GetMember`, and `BatchGetMembers`. Room moderation RPCs
   were also shortened from `RoomService.ListRoomBans`, `BanRoomMember`, and
   `UnbanRoomMember` to `ListBans`, `BanMember`, and `UnbanMember`.
-- Room directory responses now return `RoomWithViewerState` entries with viewer
-  state and capability fields next to `room`. Replace `DirectoryRoom.viewer_state.*`
-  reads with direct fields such as `is_member`, `has_unread`, and `can_join_room`.
+- Room directory responses now return `RoomWithViewerState` entries containing
+  `room` plus `viewer_state`. Durable viewer state such as `is_member` and
+  `has_unread` lives on `viewer_state`; action availability is reported as
+  `viewer_state.permissions` entries keyed by permission name.
+- `Message` thread metadata moved under `Message.thread`. Replace direct reads
+  such as `reply_count`, `last_reply_at`, `thread_participant_preview_user_ids`,
+  `thread_participant_count`, and `viewer_is_following_thread` with the
+  corresponding `ThreadSummary` and `ThreadViewerState` fields.
+- Followed thread rows now return `room` as `RoomSummary` and thread metadata
+  under `thread`. Replace `FollowedThread.room_id`, `room_name`,
+  `thread_root_event_id`, `reply_count`, `last_reply_at`, and `has_unread` with
+  `FollowedThread.room.*` and `FollowedThread.thread.*`.
+- Notification room references now use the shared `RoomSummary` shape.
+  `DirectMessageNotification.room_id` was replaced by
+  `DirectMessageNotification.room.id`.
 - Message attachment URL refreshes moved to room-scoped asset reads: replace
   `MessageService.RefreshMessageAttachmentUrls` with `AssetService.GetAsset` and
   `MessageService.BatchRefreshMessageAttachmentUrls` with `AssetService.BatchGetAssets`.

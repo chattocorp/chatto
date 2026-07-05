@@ -73,14 +73,24 @@ func (a *threadAssembler) followedThreadsResponse(ctx context.Context, viewerID 
 		if thread.LastReplyAt != nil {
 			lastReplyAt = timestamppb.New(*thread.LastReplyAt)
 		}
+		participantPreviewUserIDs := firstN(thread.ParticipantIDs, 5)
+		h.addUserIDs(participantPreviewUserIDs)
+		following := true
+		hasUnread := thread.HasUnread
 		return &apiv1.FollowedThread{
-			RoomId:            thread.RoomID,
-			RoomName:          room.GetName(),
-			ThreadRootEventId: thread.ThreadRootEventID,
-			RootMessage:       rootMessage,
-			ReplyCount:        int32(thread.ReplyCount),
-			LastReplyAt:       lastReplyAt,
-			HasUnread:         thread.HasUnread,
+			RootMessage: rootMessage,
+			Room:        apiRoomSummary(room),
+			Thread: &apiv1.ThreadSummary{
+				ThreadRootEventId:         thread.ThreadRootEventID,
+				ReplyCount:                int32(thread.ReplyCount),
+				LastReplyAt:               lastReplyAt,
+				ParticipantPreviewUserIds: participantPreviewUserIDs,
+				ParticipantCount:          int32(len(thread.ParticipantIDs)),
+				ViewerState: &apiv1.ThreadViewerState{
+					IsFollowing: &following,
+					HasUnread:   &hasUnread,
+				},
+			},
 		}, nil
 	})
 	if err != nil {

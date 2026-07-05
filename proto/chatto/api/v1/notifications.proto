@@ -4,29 +4,25 @@ package chatto.api.v1;
 
 import "buf/validate/validate.proto";
 import "chatto/api/v1/pagination.proto";
+import "chatto/api/v1/rooms.proto";
 import "chatto/api/v1/users.proto";
 import "google/protobuf/timestamp.proto";
 
-// Room summary embedded in notification responses.
-message NotificationRoom {
-  // Stable room ID.
-  string id = 1;
-  // Room display name. Empty for DM rooms.
-  string name = 2;
-}
-
 // Direct-message notification payload.
 message DirectMessageNotification {
-  // DM room where the message was posted.
-  string room_id = 1;
+  reserved 1;
+  reserved "room_id";
+
   // Message event ID.
   string event_id = 2;
+  // DM room where the message was posted.
+  RoomSummary room = 3;
 }
 
 // Mention notification payload.
 message MentionNotification {
   // Room where the mention occurred.
-  NotificationRoom room = 1;
+  RoomSummary room = 1;
   // Message event ID.
   string event_id = 2;
   // Thread root event ID when the mention happened inside a thread.
@@ -36,7 +32,7 @@ message MentionNotification {
 // Reply notification payload.
 message ReplyNotification {
   // Room where the reply occurred.
-  NotificationRoom room = 1;
+  RoomSummary room = 1;
   // Reply event ID.
   string event_id = 2;
   // Event ID of the message being replied to.
@@ -48,7 +44,7 @@ message ReplyNotification {
 // All-messages room notification payload.
 message RoomMessageNotification {
   // Room where the message was posted.
-  NotificationRoom room = 1;
+  RoomSummary room = 1;
   // Message event ID.
   string event_id = 2;
 }

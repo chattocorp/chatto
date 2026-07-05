@@ -3481,13 +3481,13 @@ func TestRoomDirectoryServiceListRoomsVisibilityAndDMs(t *testing.T) {
 	if dmRoom.GetRoom().GetKind() != apiv1.RoomKind_ROOM_KIND_DM {
 		t.Fatalf("DM kind = %v, want DM", dmRoom.GetRoom().GetKind())
 	}
-	if !dmRoom.GetIsMember() {
+	if !dmRoom.GetViewerState().GetIsMember() {
 		t.Fatalf("DM IsMember = false, want true")
 	}
-	if !dmRoom.GetCanListRoom() {
+	if !apiRoomPermissionGranted(dmRoom, core.PermRoomList) {
 		t.Fatalf("DM CanListRoom = false, want true")
 	}
-	if dmRoom.GetCanJoinRoom() || dmRoom.GetCanManageRoom() || dmRoom.GetCanBanRoomMembers() {
+	if apiRoomPermissionGranted(dmRoom, core.PermRoomJoin) || apiRoomPermissionGranted(dmRoom, core.PermRoomManage) || apiRoomPermissionGranted(dmRoom, core.PermRoomMemberBan) {
 		t.Fatalf("DM exposes channel-only actions: %+v", dmRoom)
 	}
 	batchResp, err := env.directory.BatchGetRooms(withCaller(env.ctx, caller), connect.NewRequest(&apiv1.BatchGetRoomsRequest{
@@ -3566,18 +3566,18 @@ func TestRoomDirectoryServiceViewerStateMatchesWritePreconditions(t *testing.T) 
 	if visibleRoom == nil {
 		t.Fatalf("visible room %s missing from directory response", visible.Id)
 	}
-	if visibleRoom.GetIsMember() {
+	if visibleRoom.GetViewerState().GetIsMember() {
 		t.Fatalf("visible room IsMember = true, want false")
 	}
-	if !visibleRoom.GetCanJoinRoom() {
+	if !apiRoomPermissionGranted(visibleRoom, core.PermRoomJoin) {
 		t.Fatalf("visible non-member CanJoinRoom = false, want true")
 	}
-	if visibleRoom.GetCanPostMessage() ||
-		visibleRoom.GetCanPostInThread() ||
-		visibleRoom.GetCanAttach() ||
-		visibleRoom.GetCanReact() ||
-		visibleRoom.GetCanEchoMessage() ||
-		visibleRoom.GetCanManageOthersMessage() {
+	if apiRoomPermissionGranted(visibleRoom, core.PermMessagePost) ||
+		apiRoomPermissionGranted(visibleRoom, core.PermMessagePostInThread) ||
+		apiRoomPermissionGranted(visibleRoom, core.PermMessageAttach) ||
+		apiRoomPermissionGranted(visibleRoom, core.PermMessageReact) ||
+		apiRoomPermissionGranted(visibleRoom, core.PermMessageEcho) ||
+		apiRoomPermissionGranted(visibleRoom, core.PermMessageManage) {
 		t.Fatalf("visible non-member exposes member-only actions: %+v", visibleRoom)
 	}
 	if _, ok := rooms[memberArchived.Id]; ok {
@@ -3600,18 +3600,18 @@ func TestRoomDirectoryServiceViewerStateMatchesWritePreconditions(t *testing.T) 
 		t.Fatalf("BatchGetRooms archived rooms = %+v, want archived member room", got)
 	}
 	archivedRoom := archivedResp.Msg.GetRoom()
-	if !archivedRoom.GetIsMember() {
+	if !archivedRoom.GetViewerState().GetIsMember() {
 		t.Fatalf("archived room IsMember = false, want true")
 	}
-	if archivedRoom.GetCanJoinRoom() ||
-		archivedRoom.GetCanPostMessage() ||
-		archivedRoom.GetCanPostInThread() ||
-		archivedRoom.GetCanAttach() ||
-		archivedRoom.GetCanReact() ||
-		archivedRoom.GetCanEchoMessage() {
+	if apiRoomPermissionGranted(archivedRoom, core.PermRoomJoin) ||
+		apiRoomPermissionGranted(archivedRoom, core.PermMessagePost) ||
+		apiRoomPermissionGranted(archivedRoom, core.PermMessagePostInThread) ||
+		apiRoomPermissionGranted(archivedRoom, core.PermMessageAttach) ||
+		apiRoomPermissionGranted(archivedRoom, core.PermMessageReact) ||
+		apiRoomPermissionGranted(archivedRoom, core.PermMessageEcho) {
 		t.Fatalf("archived room exposes unavailable actions: %+v", archivedRoom)
 	}
-	if !archivedRoom.GetCanManageOthersMessage() {
+	if !apiRoomPermissionGranted(archivedRoom, core.PermMessageManage) {
 		t.Fatalf("archived room CanManageOthersMessage = false, want true")
 	}
 }
@@ -3655,7 +3655,7 @@ func TestRoomDirectoryServiceListRoomGroupsFiltersHiddenRoomsAndKeepsLinks(t *te
 	if group == nil {
 		t.Fatalf("group %s missing from response", groupID)
 	}
-	if group.GetViewerState().GetCanCreateRoom() {
+	if apiRoomGroupPermissionGranted(group, core.PermRoomCreate) {
 		t.Fatalf("group CanCreateRoom = true before group grant, want false")
 	}
 	if !roomGroupItemsContainRoom(group.GetItems(), visible.Id) {
@@ -3704,7 +3704,7 @@ func TestRoomDirectoryServiceListRoomGroupsFiltersHiddenRoomsAndKeepsLinks(t *te
 	if getGroup.GetId() != groupID {
 		t.Fatalf("GetRoomGroup id = %q, want %q", getGroup.GetId(), groupID)
 	}
-	if !getGroup.GetViewerState().GetCanCreateRoom() {
+	if !apiRoomGroupPermissionGranted(getGroup, core.PermRoomCreate) {
 		t.Fatalf("group CanCreateRoom = false after group grant, want true")
 	}
 	if !roomGroupItemsContainRoom(getGroup.GetItems(), visible.Id) ||
@@ -5936,13 +5936,14 @@ func TestRoomAndThreadTimelineHydratesMessagesWithoutClientNPlusOne(t *testing.T
 	if message.Body == nil || message.GetBody() != "root" {
 		t.Fatalf("message body present/body = %v/%q, want true/root", message.Body != nil, message.GetBody())
 	}
-	if message.ReplyCount != 1 {
-		t.Fatalf("reply count = %d, want 1", message.ReplyCount)
+	thread := message.GetThread()
+	if thread.GetReplyCount() != 1 {
+		t.Fatalf("reply count = %d, want 1", thread.GetReplyCount())
 	}
-	if got := message.ThreadParticipantCount; got != 1 {
+	if got := thread.GetParticipantCount(); got != 1 {
 		t.Fatalf("thread participant count = %d, want 1", got)
 	}
-	if got := message.ThreadParticipantPreviewUserIds; len(got) != 1 || got[0] != replier.Id {
+	if got := thread.GetParticipantPreviewUserIds(); len(got) != 1 || got[0] != replier.Id {
 		t.Fatalf("thread participant preview = %v, want [%s]", got, replier.Id)
 	}
 	if len(message.Reactions) != 1 {
@@ -6836,11 +6837,11 @@ func TestThreadServiceListFollowedThreadsReturnsHydratedPage(t *testing.T) {
 	}
 
 	thread := resp.Msg.GetThreads()[0]
-	if thread.GetRoomId() != room.Id || thread.GetRoomName() != room.Name || thread.GetThreadRootEventId() != root.Id {
-		t.Fatalf("followed thread identity = room %q name %q root %q, want room %q name %q root %q", thread.GetRoomId(), thread.GetRoomName(), thread.GetThreadRootEventId(), room.Id, room.Name, root.Id)
+	if thread.GetRoom().GetId() != room.Id || thread.GetRoom().GetName() != room.Name || thread.GetThread().GetThreadRootEventId() != root.Id {
+		t.Fatalf("followed thread identity = room %q name %q root %q, want room %q name %q root %q", thread.GetRoom().GetId(), thread.GetRoom().GetName(), thread.GetThread().GetThreadRootEventId(), room.Id, room.Name, root.Id)
 	}
-	if thread.GetReplyCount() != 1 || !thread.GetHasUnread() || thread.GetLastReplyAt() == nil {
-		t.Fatalf("followed thread metadata = replies %d unread %v lastReplyAt %v, want replies 1 unread true lastReplyAt set", thread.GetReplyCount(), thread.GetHasUnread(), thread.GetLastReplyAt())
+	if thread.GetThread().GetReplyCount() != 1 || !thread.GetThread().GetViewerState().GetHasUnread() || thread.GetThread().GetLastReplyAt() == nil {
+		t.Fatalf("followed thread metadata = replies %d unread %v lastReplyAt %v, want replies 1 unread true lastReplyAt set", thread.GetThread().GetReplyCount(), thread.GetThread().GetViewerState().GetHasUnread(), thread.GetThread().GetLastReplyAt())
 	}
 	rootMessage := thread.GetRootMessage()
 	if rootMessage == nil || rootMessage.GetId() != root.Id {
@@ -7202,6 +7203,23 @@ func apiPermissionGrantPresent(grants []*apiv1.PermissionGrant, permission strin
 	for _, grant := range grants {
 		if grant.GetPermission() == permission {
 			return true
+		}
+	}
+	return false
+}
+
+func apiRoomPermissionGranted(room *apiv1.RoomWithViewerState, permission core.Permission) bool {
+	return apiPermissionGranted(room.GetViewerState().GetPermissions(), string(permission))
+}
+
+func apiRoomGroupPermissionGranted(group *apiv1.RoomGroup, permission core.Permission) bool {
+	return apiPermissionGranted(group.GetViewerState().GetPermissions(), string(permission))
+}
+
+func apiPermissionGranted(grants []*apiv1.PermissionGrant, permission string) bool {
+	for _, grant := range grants {
+		if grant.GetPermission() == permission {
+			return grant.GetGranted()
 		}
 	}
 	return false

@@ -3,7 +3,18 @@ syntax = "proto3";
 package chatto.api.v1;
 
 import "buf/validate/validate.proto";
+import "chatto/api/v1/permissions.proto";
 import "chatto/api/v1/rooms.proto";
+
+// Viewer-specific state and permission decisions for one room.
+message RoomViewerState {
+  // True when the current user is an effective room member.
+  bool is_member = 1;
+  // True when the room has unread root messages for the current user.
+  bool has_unread = 2;
+  // Effective room-scoped permission decisions after room state constraints.
+  repeated PermissionGrant permissions = 3;
+}
 
 // Room kinds to include in directory responses.
 enum RoomDirectoryScope {
@@ -20,32 +31,13 @@ enum RoomDirectoryScope {
 // Room metadata plus state and capabilities resolved for the authenticated
 // viewer.
 message RoomWithViewerState {
+  reserved 2 to 13;
+  reserved "is_member", "has_unread", "can_list_room", "can_join_room", "can_post_message", "can_post_in_thread", "can_attach", "can_react", "can_echo_message", "can_manage_others_message", "can_manage_room", "can_ban_room_members";
+
   // Public room metadata.
   Room room = 1;
-  // True when the current user is an effective room member.
-  bool is_member = 2;
-  // True when the room has unread root messages for the current user.
-  bool has_unread = 3;
-  // True when the room can appear in directory surfaces for the current user.
-  bool can_list_room = 4;
-  // True when the current user can join this room.
-  bool can_join_room = 5;
-  // True when the current user can post new root messages.
-  bool can_post_message = 6;
-  // True when the current user can post thread replies.
-  bool can_post_in_thread = 7;
-  // True when the current user can attach files to messages.
-  bool can_attach = 8;
-  // True when the current user can add and remove reactions.
-  bool can_react = 9;
-  // True when the current user can echo thread replies to the main room.
-  bool can_echo_message = 10;
-  // True when the current user can edit or delete other users' messages.
-  bool can_manage_others_message = 11;
-  // True when the current user can configure this room.
-  bool can_manage_room = 12;
-  // True when the current user can ban members from this room.
-  bool can_ban_room_members = 13;
+  // State and permission decisions resolved for the current user.
+  RoomViewerState viewer_state = 14;
 }
 
 // Sidebar link metadata for room group navigation.
@@ -70,8 +62,11 @@ message RoomGroupItem {
 
 // Viewer-specific state for one room group.
 message RoomGroupViewerState {
-  // True when the current user can create rooms in this group.
-  bool can_create_room = 1;
+  reserved 1;
+  reserved "can_create_room";
+
+  // Effective group-scoped permission decisions after group state constraints.
+  repeated PermissionGrant permissions = 2;
 }
 
 // Ordered group of channel rooms and sidebar links.

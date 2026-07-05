@@ -40,6 +40,17 @@ message Room {
   bool universal = 7;
 }
 
+// Lightweight room reference for cross-resource rows.
+message RoomSummary {
+  // Stable room ID.
+  string id = 1;
+  // Room kind.
+  RoomKind kind = 2;
+  // Room name. Direct-message rooms may have an empty name because clients
+  // derive their display label from participants.
+  string name = 3;
+}
+
 // Request to create a channel room.
 message CreateRoomRequest {
   // Required. Name of the new channel room.

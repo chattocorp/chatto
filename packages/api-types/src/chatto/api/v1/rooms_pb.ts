@@ -135,6 +135,64 @@ export class Room extends Message<Room> {
 }
 
 /**
+ * Lightweight room reference for cross-resource rows.
+ *
+ * @generated from message chatto.api.v1.RoomSummary
+ */
+export class RoomSummary extends Message<RoomSummary> {
+  /**
+   * Stable room ID.
+   *
+   * @generated from field: string id = 1;
+   */
+  id = "";
+
+  /**
+   * Room kind.
+   *
+   * @generated from field: chatto.api.v1.RoomKind kind = 2;
+   */
+  kind = RoomKind.UNSPECIFIED;
+
+  /**
+   * Room name. Direct-message rooms may have an empty name because clients
+   * derive their display label from participants.
+   *
+   * @generated from field: string name = 3;
+   */
+  name = "";
+
+  constructor(data?: PartialMessage<RoomSummary>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.RoomSummary";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "kind", kind: "enum", T: proto3.getEnumType(RoomKind) },
+    { no: 3, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoomSummary {
+    return new RoomSummary().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RoomSummary {
+    return new RoomSummary().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RoomSummary {
+    return new RoomSummary().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: RoomSummary | PlainMessage<RoomSummary> | undefined, b: RoomSummary | PlainMessage<RoomSummary> | undefined): boolean {
+    return proto3.util.equals(RoomSummary, a, b);
+  }
+}
+
+/**
  * Request to create a channel room.
  *
  * @generated from message chatto.api.v1.CreateRoomRequest

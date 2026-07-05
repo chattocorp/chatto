@@ -1,8 +1,8 @@
-import { authHeaders, createChattoClient, handleAuthError } from "./connect.js";
-import { ThreadService } from "@chatto/api-types/api/v1/threads_connect";
-import type { User } from "@chatto/api-types/api/v1/users_pb";
-import type { RawEvent } from "./events.js";
-import { messageToRawEvent } from "./roomTimeline.js";
+import { authHeaders, createChattoClient, handleAuthError } from './connect.js';
+import { ThreadService } from '@chatto/api-types/api/v1/threads_connect';
+import type { User } from '@chatto/api-types/api/v1/users_pb';
+import type { RawEvent } from './events.js';
+import { messageToRawEvent } from './roomTimeline.js';
 
 export type ConnectAPIConfig = {
   serverId?: string;
@@ -49,26 +49,23 @@ export function createThreadAPI(config: ConnectAPIConfig) {
       try {
         const response = await client.listFollowedThreads(
           { page: { limit: input.limit, offset: input.offset } },
-          { headers: headers() },
+          { headers: headers() }
         );
         const users = response.includes?.users ?? {};
         return {
           threads: response.threads.map((thread) => ({
-            roomId: thread.roomId,
-            roomName: thread.roomName,
-            threadRootEventId: thread.threadRootEventId,
+            roomId: thread.room?.id ?? '',
+            roomName: thread.room?.name ?? '',
+            threadRootEventId: thread.thread?.threadRootEventId ?? '',
             rootMessage: thread.rootMessage
-              ? messageToRawEvent(
-                  thread.rootMessage,
-                  users as Record<string, User>,
-                )
+              ? messageToRawEvent(thread.rootMessage, users as Record<string, User>)
               : null,
-            replyCount: thread.replyCount,
-            lastReplyAt: timestampToISOOrNull(thread.lastReplyAt),
-            hasUnread: thread.hasUnread,
+            replyCount: thread.thread?.replyCount ?? 0,
+            lastReplyAt: timestampToISOOrNull(thread.thread?.lastReplyAt),
+            hasUnread: thread.thread?.viewerState?.hasUnread ?? false
           })),
           totalCount: Number(response.page?.totalCount ?? 0),
-          hasMore: response.page?.hasMore ?? false,
+          hasMore: response.page?.hasMore ?? false
         };
       } catch (err) {
         return handleAuthError(config, err);
@@ -81,11 +78,11 @@ export function createThreadAPI(config: ConnectAPIConfig) {
     }): Promise<ThreadFollowResult> {
       try {
         const response = await client.followThread(input, {
-          headers: headers(),
+          headers: headers()
         });
         return {
           following: response.following,
-          state: response.state ? mapThreadFollowState(response.state) : null,
+          state: response.state ? mapThreadFollowState(response.state) : null
         };
       } catch (err) {
         return handleAuthError(config, err);
@@ -98,16 +95,16 @@ export function createThreadAPI(config: ConnectAPIConfig) {
     }): Promise<ThreadFollowResult> {
       try {
         const response = await client.unfollowThread(input, {
-          headers: headers(),
+          headers: headers()
         });
         return {
           following: response.following,
-          state: response.state ? mapThreadFollowState(response.state) : null,
+          state: response.state ? mapThreadFollowState(response.state) : null
         };
       } catch (err) {
         return handleAuthError(config, err);
       }
-    },
+    }
   };
 }
 
@@ -119,12 +116,10 @@ function mapThreadFollowState(state: {
   return {
     roomId: state.roomId,
     threadRootEventId: state.threadRootEventId,
-    following: state.following,
+    following: state.following
   };
 }
 
-function timestampToISOOrNull(
-  timestamp: { toDate(): Date } | undefined,
-): string | null {
+function timestampToISOOrNull(timestamp: { toDate(): Date } | undefined): string | null {
   return timestamp ? timestamp.toDate().toISOString() : null;
 }

@@ -4,8 +4,9 @@
 // @ts-nocheck
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
-import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
-import { Message as Message$1 } from "./message_types_pb.js";
+import { Message, proto3 } from "@bufbuild/protobuf";
+import { Message as Message$1, ThreadSummary } from "./message_types_pb.js";
+import { RoomSummary } from "./rooms_pb.js";
 import { PageInfo, PageRequest } from "./pagination_pb.js";
 import { RoomTimelineIncludes } from "./room_timeline_pb.js";
 
@@ -269,27 +270,6 @@ export class UnfollowThreadResponse extends Message<UnfollowThreadResponse> {
  */
 export class FollowedThread extends Message<FollowedThread> {
   /**
-   * Room containing the thread.
-   *
-   * @generated from field: string room_id = 1;
-   */
-  roomId = "";
-
-  /**
-   * Current display name of the room.
-   *
-   * @generated from field: string room_name = 2;
-   */
-  roomName = "";
-
-  /**
-   * Event ID of the root message for the thread.
-   *
-   * @generated from field: string thread_root_event_id = 3;
-   */
-  threadRootEventId = "";
-
-  /**
    * Renderable root message, when the root is still visible.
    *
    * @generated from field: chatto.api.v1.Message root_message = 4;
@@ -297,25 +277,18 @@ export class FollowedThread extends Message<FollowedThread> {
   rootMessage?: Message$1;
 
   /**
-   * Number of replies in the thread.
+   * Room containing the thread.
    *
-   * @generated from field: int32 reply_count = 5;
+   * @generated from field: chatto.api.v1.RoomSummary room = 8;
    */
-  replyCount = 0;
+  room?: RoomSummary;
 
   /**
-   * Creation time of the latest reply, when the thread has replies.
+   * Aggregated thread state.
    *
-   * @generated from field: google.protobuf.Timestamp last_reply_at = 6;
+   * @generated from field: chatto.api.v1.ThreadSummary thread = 9;
    */
-  lastReplyAt?: Timestamp;
-
-  /**
-   * True when the current user has unread replies in the thread.
-   *
-   * @generated from field: bool has_unread = 7;
-   */
-  hasUnread = false;
+  thread?: ThreadSummary;
 
   constructor(data?: PartialMessage<FollowedThread>) {
     super();
@@ -325,13 +298,9 @@ export class FollowedThread extends Message<FollowedThread> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.FollowedThread";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "room_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "thread_root_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 4, name: "root_message", kind: "message", T: Message$1 },
-    { no: 5, name: "reply_count", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
-    { no: 6, name: "last_reply_at", kind: "message", T: Timestamp },
-    { no: 7, name: "has_unread", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 8, name: "room", kind: "message", T: RoomSummary },
+    { no: 9, name: "thread", kind: "message", T: ThreadSummary },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): FollowedThread {

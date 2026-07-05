@@ -104,6 +104,32 @@ message MessageReaction {
   repeated string preview_user_ids = 4;
 }
 
+// Viewer-specific state for one message thread.
+message ThreadViewerState {
+  // Whether the current user follows this message's thread, when known.
+  optional bool is_following = 1;
+  // True when the thread has unread replies for the current user, when known.
+  optional bool has_unread = 2;
+}
+
+// Aggregated state for one message thread.
+message ThreadSummary {
+  // Event ID of the root message for the thread.
+  string thread_root_event_id = 1;
+  // Number of replies in this message's thread.
+  int32 reply_count = 2;
+  // Creation time of the most recent reply in this message's thread.
+  google.protobuf.Timestamp last_reply_at = 3;
+  // Preview of up to five user IDs that have participated in this message's
+  // thread.
+  repeated string participant_preview_user_ids = 4;
+  // Total number of distinct users that have participated in this message's
+  // thread.
+  int32 participant_count = 5;
+  // State resolved for the current user.
+  ThreadViewerState viewer_state = 6;
+}
+
 // Renderable message data.
 //
 // The same shape is used for top-level room messages, thread replies, and
@@ -111,6 +137,9 @@ message MessageReaction {
 // thread participants, and follow state without additional per-message
 // requests.
 message Message {
+  reserved 14 to 18;
+  reserved "reply_count", "last_reply_at", "thread_participant_preview_user_ids", "thread_participant_count", "viewer_is_following_thread";
+
   // Stable message event ID.
   string id = 1;
   // Room containing the message.
@@ -139,18 +168,8 @@ message Message {
   string echo_from_thread_root_event_id = 12;
   // Channel timeline event ID for a thread echo, when applicable.
   string channel_echo_event_id = 13;
-  // Number of replies in this message's thread.
-  int32 reply_count = 14;
-  // Creation time of the most recent reply in this message's thread.
-  google.protobuf.Timestamp last_reply_at = 15;
-  // Preview of up to five user IDs that have participated in this message's
-  // thread.
-  repeated string thread_participant_preview_user_ids = 16;
-  // Total number of distinct users that have participated in this message's
-  // thread.
-  int32 thread_participant_count = 17;
-  // Whether the current user follows this message's thread, when known.
-  optional bool viewer_is_following_thread = 18;
   // Reaction summaries for this message.
   repeated MessageReaction reactions = 19;
+  // Aggregated thread state, when known for a thread root message.
+  ThreadSummary thread = 20;
 }

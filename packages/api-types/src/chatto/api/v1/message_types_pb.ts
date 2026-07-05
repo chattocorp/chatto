@@ -444,6 +444,138 @@ export class MessageReaction extends Message$1<MessageReaction> {
 }
 
 /**
+ * Viewer-specific state for one message thread.
+ *
+ * @generated from message chatto.api.v1.ThreadViewerState
+ */
+export class ThreadViewerState extends Message$1<ThreadViewerState> {
+  /**
+   * Whether the current user follows this message's thread, when known.
+   *
+   * @generated from field: optional bool is_following = 1;
+   */
+  isFollowing?: boolean;
+
+  /**
+   * True when the thread has unread replies for the current user, when known.
+   *
+   * @generated from field: optional bool has_unread = 2;
+   */
+  hasUnread?: boolean;
+
+  constructor(data?: PartialMessage<ThreadViewerState>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.ThreadViewerState";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "is_following", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
+    { no: 2, name: "has_unread", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ThreadViewerState {
+    return new ThreadViewerState().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ThreadViewerState {
+    return new ThreadViewerState().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ThreadViewerState {
+    return new ThreadViewerState().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ThreadViewerState | PlainMessage<ThreadViewerState> | undefined, b: ThreadViewerState | PlainMessage<ThreadViewerState> | undefined): boolean {
+    return proto3.util.equals(ThreadViewerState, a, b);
+  }
+}
+
+/**
+ * Aggregated state for one message thread.
+ *
+ * @generated from message chatto.api.v1.ThreadSummary
+ */
+export class ThreadSummary extends Message$1<ThreadSummary> {
+  /**
+   * Event ID of the root message for the thread.
+   *
+   * @generated from field: string thread_root_event_id = 1;
+   */
+  threadRootEventId = "";
+
+  /**
+   * Number of replies in this message's thread.
+   *
+   * @generated from field: int32 reply_count = 2;
+   */
+  replyCount = 0;
+
+  /**
+   * Creation time of the most recent reply in this message's thread.
+   *
+   * @generated from field: google.protobuf.Timestamp last_reply_at = 3;
+   */
+  lastReplyAt?: Timestamp;
+
+  /**
+   * Preview of up to five user IDs that have participated in this message's
+   * thread.
+   *
+   * @generated from field: repeated string participant_preview_user_ids = 4;
+   */
+  participantPreviewUserIds: string[] = [];
+
+  /**
+   * Total number of distinct users that have participated in this message's
+   * thread.
+   *
+   * @generated from field: int32 participant_count = 5;
+   */
+  participantCount = 0;
+
+  /**
+   * State resolved for the current user.
+   *
+   * @generated from field: chatto.api.v1.ThreadViewerState viewer_state = 6;
+   */
+  viewerState?: ThreadViewerState;
+
+  constructor(data?: PartialMessage<ThreadSummary>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.ThreadSummary";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "thread_root_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "reply_count", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
+    { no: 3, name: "last_reply_at", kind: "message", T: Timestamp },
+    { no: 4, name: "participant_preview_user_ids", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+    { no: 5, name: "participant_count", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
+    { no: 6, name: "viewer_state", kind: "message", T: ThreadViewerState },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ThreadSummary {
+    return new ThreadSummary().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ThreadSummary {
+    return new ThreadSummary().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ThreadSummary {
+    return new ThreadSummary().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ThreadSummary | PlainMessage<ThreadSummary> | undefined, b: ThreadSummary | PlainMessage<ThreadSummary> | undefined): boolean {
+    return proto3.util.equals(ThreadSummary, a, b);
+  }
+}
+
+/**
  * Renderable message data.
  *
  * The same shape is used for top-level room messages, thread replies, and
@@ -548,48 +680,18 @@ export class Message extends Message$1<Message> {
   channelEchoEventId = "";
 
   /**
-   * Number of replies in this message's thread.
-   *
-   * @generated from field: int32 reply_count = 14;
-   */
-  replyCount = 0;
-
-  /**
-   * Creation time of the most recent reply in this message's thread.
-   *
-   * @generated from field: google.protobuf.Timestamp last_reply_at = 15;
-   */
-  lastReplyAt?: Timestamp;
-
-  /**
-   * Preview of up to five user IDs that have participated in this message's
-   * thread.
-   *
-   * @generated from field: repeated string thread_participant_preview_user_ids = 16;
-   */
-  threadParticipantPreviewUserIds: string[] = [];
-
-  /**
-   * Total number of distinct users that have participated in this message's
-   * thread.
-   *
-   * @generated from field: int32 thread_participant_count = 17;
-   */
-  threadParticipantCount = 0;
-
-  /**
-   * Whether the current user follows this message's thread, when known.
-   *
-   * @generated from field: optional bool viewer_is_following_thread = 18;
-   */
-  viewerIsFollowingThread?: boolean;
-
-  /**
    * Reaction summaries for this message.
    *
    * @generated from field: repeated chatto.api.v1.MessageReaction reactions = 19;
    */
   reactions: MessageReaction[] = [];
+
+  /**
+   * Aggregated thread state, when known for a thread root message.
+   *
+   * @generated from field: chatto.api.v1.ThreadSummary thread = 20;
+   */
+  thread?: ThreadSummary;
 
   constructor(data?: PartialMessage<Message>) {
     super();
@@ -612,12 +714,8 @@ export class Message extends Message$1<Message> {
     { no: 11, name: "echo_of_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 12, name: "echo_from_thread_root_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 13, name: "channel_echo_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 14, name: "reply_count", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
-    { no: 15, name: "last_reply_at", kind: "message", T: Timestamp },
-    { no: 16, name: "thread_participant_preview_user_ids", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
-    { no: 17, name: "thread_participant_count", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
-    { no: 18, name: "viewer_is_following_thread", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
     { no: 19, name: "reactions", kind: "message", T: MessageReaction, repeated: true },
+    { no: 20, name: "thread", kind: "message", T: ThreadSummary },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Message {
