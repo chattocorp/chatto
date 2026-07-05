@@ -94,7 +94,7 @@ export function createMessageAPI(config: MessageAPIConfig) {
         });
         const users = await timelineUsersForMessages(config, response.message ? [response.message] : []);
         return {
-          updated: response.updated,
+          updated: true,
           event: response.message
             ? (messageToRawEvent(response.message, users) as RoomEventView | null)
             : null

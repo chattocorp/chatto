@@ -133,13 +133,13 @@ func (*GetServerConfigRequest) Descriptor() ([]byte, []int) {
 	return file_chatto_admin_v1_server_proto_rawDescGZIP(), []int{1}
 }
 
-// Server profile settings plus effective member-visible profile.
+// Server profile settings plus effective public branding.
 type GetServerConfigResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Runtime-editable server profile settings.
 	Config *ServerConfig `protobuf:"bytes,1,opt,name=config,proto3" json:"config,omitempty"`
-	// Effective server profile and branding.
-	Profile       *v1.ServerProfile `protobuf:"bytes,2,opt,name=profile,proto3" json:"profile,omitempty"`
+	// Effective public server profile and branding.
+	PublicProfile *v1.ServerPublicProfile `protobuf:"bytes,3,opt,name=public_profile,json=publicProfile,proto3" json:"public_profile,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -181,9 +181,9 @@ func (x *GetServerConfigResponse) GetConfig() *ServerConfig {
 	return nil
 }
 
-func (x *GetServerConfigResponse) GetProfile() *v1.ServerProfile {
+func (x *GetServerConfigResponse) GetPublicProfile() *v1.ServerPublicProfile {
 	if x != nil {
-		return x.Profile
+		return x.PublicProfile
 	}
 	return nil
 }
@@ -266,8 +266,8 @@ func (x *UpdateServerConfigRequest) GetWelcomeMessage() string {
 // Result of updating runtime-editable server profile settings.
 type UpdateServerConfigResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Updated server profile and branding.
-	Profile *v1.ServerProfile `protobuf:"bytes,1,opt,name=profile,proto3" json:"profile,omitempty"`
+	// Updated public server profile and branding.
+	PublicProfile *v1.ServerPublicProfile `protobuf:"bytes,3,opt,name=public_profile,json=publicProfile,proto3" json:"public_profile,omitempty"`
 	// Updated runtime-editable server profile settings.
 	Config        *ServerConfig `protobuf:"bytes,2,opt,name=config,proto3" json:"config,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -304,9 +304,9 @@ func (*UpdateServerConfigResponse) Descriptor() ([]byte, []int) {
 	return file_chatto_admin_v1_server_proto_rawDescGZIP(), []int{4}
 }
 
-func (x *UpdateServerConfigResponse) GetProfile() *v1.ServerProfile {
+func (x *UpdateServerConfigResponse) GetPublicProfile() *v1.ServerPublicProfile {
 	if x != nil {
-		return x.Profile
+		return x.PublicProfile
 	}
 	return nil
 }
@@ -367,8 +367,8 @@ func (x *UploadServerLogoRequest) GetImage() *v1.ImageUpload {
 // Result of uploading the public server logo.
 type UploadServerLogoResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Updated server profile and branding.
-	Profile       *v1.ServerProfile `protobuf:"bytes,1,opt,name=profile,proto3" json:"profile,omitempty"`
+	// Updated public server profile and branding.
+	PublicProfile *v1.ServerPublicProfile `protobuf:"bytes,2,opt,name=public_profile,json=publicProfile,proto3" json:"public_profile,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -403,9 +403,9 @@ func (*UploadServerLogoResponse) Descriptor() ([]byte, []int) {
 	return file_chatto_admin_v1_server_proto_rawDescGZIP(), []int{6}
 }
 
-func (x *UploadServerLogoResponse) GetProfile() *v1.ServerProfile {
+func (x *UploadServerLogoResponse) GetPublicProfile() *v1.ServerPublicProfile {
 	if x != nil {
-		return x.Profile
+		return x.PublicProfile
 	}
 	return nil
 }
@@ -450,8 +450,8 @@ func (*DeleteServerLogoRequest) Descriptor() ([]byte, []int) {
 // Result of clearing the public server logo.
 type DeleteServerLogoResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Updated server profile and branding.
-	Profile       *v1.ServerProfile `protobuf:"bytes,1,opt,name=profile,proto3" json:"profile,omitempty"`
+	// Updated public server profile and branding.
+	PublicProfile *v1.ServerPublicProfile `protobuf:"bytes,2,opt,name=public_profile,json=publicProfile,proto3" json:"public_profile,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -486,9 +486,9 @@ func (*DeleteServerLogoResponse) Descriptor() ([]byte, []int) {
 	return file_chatto_admin_v1_server_proto_rawDescGZIP(), []int{8}
 }
 
-func (x *DeleteServerLogoResponse) GetProfile() *v1.ServerProfile {
+func (x *DeleteServerLogoResponse) GetPublicProfile() *v1.ServerPublicProfile {
 	if x != nil {
-		return x.Profile
+		return x.PublicProfile
 	}
 	return nil
 }
@@ -542,8 +542,8 @@ func (x *UploadServerBannerRequest) GetImage() *v1.ImageUpload {
 // Result of uploading the public server banner.
 type UploadServerBannerResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Updated server profile and branding.
-	Profile       *v1.ServerProfile `protobuf:"bytes,1,opt,name=profile,proto3" json:"profile,omitempty"`
+	// Updated public server profile and branding.
+	PublicProfile *v1.ServerPublicProfile `protobuf:"bytes,2,opt,name=public_profile,json=publicProfile,proto3" json:"public_profile,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -578,9 +578,9 @@ func (*UploadServerBannerResponse) Descriptor() ([]byte, []int) {
 	return file_chatto_admin_v1_server_proto_rawDescGZIP(), []int{10}
 }
 
-func (x *UploadServerBannerResponse) GetProfile() *v1.ServerProfile {
+func (x *UploadServerBannerResponse) GetPublicProfile() *v1.ServerPublicProfile {
 	if x != nil {
-		return x.Profile
+		return x.PublicProfile
 	}
 	return nil
 }
@@ -625,8 +625,8 @@ func (*DeleteServerBannerRequest) Descriptor() ([]byte, []int) {
 // Result of clearing the public server banner.
 type DeleteServerBannerResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Updated server profile and branding.
-	Profile       *v1.ServerProfile `protobuf:"bytes,1,opt,name=profile,proto3" json:"profile,omitempty"`
+	// Updated public server profile and branding.
+	PublicProfile *v1.ServerPublicProfile `protobuf:"bytes,2,opt,name=public_profile,json=publicProfile,proto3" json:"public_profile,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -661,9 +661,9 @@ func (*DeleteServerBannerResponse) Descriptor() ([]byte, []int) {
 	return file_chatto_admin_v1_server_proto_rawDescGZIP(), []int{12}
 }
 
-func (x *DeleteServerBannerResponse) GetProfile() *v1.ServerProfile {
+func (x *DeleteServerBannerResponse) GetPublicProfile() *v1.ServerPublicProfile {
 	if x != nil {
-		return x.Profile
+		return x.PublicProfile
 	}
 	return nil
 }
@@ -849,17 +849,17 @@ var File_chatto_admin_v1_server_proto protoreflect.FileDescriptor
 
 const file_chatto_admin_v1_server_proto_rawDesc = "" +
 	"\n" +
-	"\x1cchatto/admin/v1/server.proto\x12\x0fchatto.admin.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1achatto/api/v1/common.proto\x1a chatto/api/v1/server_state.proto\"\x8e\x01\n" +
+	"\x1cchatto/admin/v1/server.proto\x12\x0fchatto.admin.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1achatto/api/v1/common.proto\x1a\x1achatto/api/v1/server.proto\"\x8e\x01\n" +
 	"\fServerConfig\x12\x1f\n" +
 	"\vserver_name\x18\x01 \x01(\tR\n" +
 	"serverName\x12 \n" +
 	"\vdescription\x18\x02 \x01(\tR\vdescription\x12\x12\n" +
 	"\x04motd\x18\x03 \x01(\tR\x04motd\x12'\n" +
 	"\x0fwelcome_message\x18\x04 \x01(\tR\x0ewelcomeMessage\"\x18\n" +
-	"\x16GetServerConfigRequest\"\x88\x01\n" +
+	"\x16GetServerConfigRequest\"\xaa\x01\n" +
 	"\x17GetServerConfigResponse\x125\n" +
-	"\x06config\x18\x01 \x01(\v2\x1d.chatto.admin.v1.ServerConfigR\x06config\x126\n" +
-	"\aprofile\x18\x02 \x01(\v2\x1c.chatto.api.v1.ServerProfileR\aprofile\"\x93\x02\n" +
+	"\x06config\x18\x01 \x01(\v2\x1d.chatto.admin.v1.ServerConfigR\x06config\x12I\n" +
+	"\x0epublic_profile\x18\x03 \x01(\v2\".chatto.api.v1.ServerPublicProfileR\rpublicProfileJ\x04\b\x02\x10\x03R\aprofile\"\x93\x02\n" +
 	"\x19UpdateServerConfigRequest\x12-\n" +
 	"\vserver_name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x18PH\x00R\n" +
 	"serverName\x88\x01\x01\x12/\n" +
@@ -869,24 +869,24 @@ const file_chatto_admin_v1_server_proto_rawDesc = "" +
 	"\f_server_nameB\x0e\n" +
 	"\f_descriptionB\a\n" +
 	"\x05_motdB\x12\n" +
-	"\x10_welcome_message\"\x8b\x01\n" +
-	"\x1aUpdateServerConfigResponse\x126\n" +
-	"\aprofile\x18\x01 \x01(\v2\x1c.chatto.api.v1.ServerProfileR\aprofile\x125\n" +
-	"\x06config\x18\x02 \x01(\v2\x1d.chatto.admin.v1.ServerConfigR\x06config\"i\n" +
+	"\x10_welcome_message\"\xad\x01\n" +
+	"\x1aUpdateServerConfigResponse\x12I\n" +
+	"\x0epublic_profile\x18\x03 \x01(\v2\".chatto.api.v1.ServerPublicProfileR\rpublicProfile\x125\n" +
+	"\x06config\x18\x02 \x01(\v2\x1d.chatto.admin.v1.ServerConfigR\x06configJ\x04\b\x01\x10\x02R\aprofile\"i\n" +
 	"\x17UploadServerLogoRequest\x120\n" +
-	"\x05image\x18\x04 \x01(\v2\x1a.chatto.api.v1.ImageUploadR\x05imageJ\x04\b\x01\x10\x04R\bfilenameR\fcontent_type\"R\n" +
-	"\x18UploadServerLogoResponse\x126\n" +
-	"\aprofile\x18\x01 \x01(\v2\x1c.chatto.api.v1.ServerProfileR\aprofile\"\x19\n" +
-	"\x17DeleteServerLogoRequest\"R\n" +
-	"\x18DeleteServerLogoResponse\x126\n" +
-	"\aprofile\x18\x01 \x01(\v2\x1c.chatto.api.v1.ServerProfileR\aprofile\"k\n" +
+	"\x05image\x18\x04 \x01(\v2\x1a.chatto.api.v1.ImageUploadR\x05imageJ\x04\b\x01\x10\x04R\bfilenameR\fcontent_type\"t\n" +
+	"\x18UploadServerLogoResponse\x12I\n" +
+	"\x0epublic_profile\x18\x02 \x01(\v2\".chatto.api.v1.ServerPublicProfileR\rpublicProfileJ\x04\b\x01\x10\x02R\aprofile\"\x19\n" +
+	"\x17DeleteServerLogoRequest\"t\n" +
+	"\x18DeleteServerLogoResponse\x12I\n" +
+	"\x0epublic_profile\x18\x02 \x01(\v2\".chatto.api.v1.ServerPublicProfileR\rpublicProfileJ\x04\b\x01\x10\x02R\aprofile\"k\n" +
 	"\x19UploadServerBannerRequest\x120\n" +
-	"\x05image\x18\x04 \x01(\v2\x1a.chatto.api.v1.ImageUploadR\x05imageJ\x04\b\x01\x10\x04R\bfilenameR\fcontent_type\"T\n" +
-	"\x1aUploadServerBannerResponse\x126\n" +
-	"\aprofile\x18\x01 \x01(\v2\x1c.chatto.api.v1.ServerProfileR\aprofile\"\x1b\n" +
-	"\x19DeleteServerBannerRequest\"T\n" +
-	"\x1aDeleteServerBannerResponse\x126\n" +
-	"\aprofile\x18\x01 \x01(\v2\x1c.chatto.api.v1.ServerProfileR\aprofile\" \n" +
+	"\x05image\x18\x04 \x01(\v2\x1a.chatto.api.v1.ImageUploadR\x05imageJ\x04\b\x01\x10\x04R\bfilenameR\fcontent_type\"v\n" +
+	"\x1aUploadServerBannerResponse\x12I\n" +
+	"\x0epublic_profile\x18\x02 \x01(\v2\".chatto.api.v1.ServerPublicProfileR\rpublicProfileJ\x04\b\x01\x10\x02R\aprofile\"\x1b\n" +
+	"\x19DeleteServerBannerRequest\"v\n" +
+	"\x1aDeleteServerBannerResponse\x12I\n" +
+	"\x0epublic_profile\x18\x02 \x01(\v2\".chatto.api.v1.ServerPublicProfileR\rpublicProfileJ\x04\b\x01\x10\x02R\aprofile\" \n" +
 	"\x1eGetServerSecurityConfigRequest\"N\n" +
 	"\x1fGetServerSecurityConfigResponse\x12+\n" +
 	"\x11blocked_usernames\x18\x01 \x03(\tR\x10blockedUsernames\"W\n" +
@@ -936,20 +936,20 @@ var file_chatto_admin_v1_server_proto_goTypes = []any{
 	(*GetServerSecurityConfigResponse)(nil), // 14: chatto.admin.v1.GetServerSecurityConfigResponse
 	(*UpdateBlockedUsernamesRequest)(nil),   // 15: chatto.admin.v1.UpdateBlockedUsernamesRequest
 	(*UpdateBlockedUsernamesResponse)(nil),  // 16: chatto.admin.v1.UpdateBlockedUsernamesResponse
-	(*v1.ServerProfile)(nil),                // 17: chatto.api.v1.ServerProfile
+	(*v1.ServerPublicProfile)(nil),          // 17: chatto.api.v1.ServerPublicProfile
 	(*v1.ImageUpload)(nil),                  // 18: chatto.api.v1.ImageUpload
 }
 var file_chatto_admin_v1_server_proto_depIdxs = []int32{
 	0,  // 0: chatto.admin.v1.GetServerConfigResponse.config:type_name -> chatto.admin.v1.ServerConfig
-	17, // 1: chatto.admin.v1.GetServerConfigResponse.profile:type_name -> chatto.api.v1.ServerProfile
-	17, // 2: chatto.admin.v1.UpdateServerConfigResponse.profile:type_name -> chatto.api.v1.ServerProfile
+	17, // 1: chatto.admin.v1.GetServerConfigResponse.public_profile:type_name -> chatto.api.v1.ServerPublicProfile
+	17, // 2: chatto.admin.v1.UpdateServerConfigResponse.public_profile:type_name -> chatto.api.v1.ServerPublicProfile
 	0,  // 3: chatto.admin.v1.UpdateServerConfigResponse.config:type_name -> chatto.admin.v1.ServerConfig
 	18, // 4: chatto.admin.v1.UploadServerLogoRequest.image:type_name -> chatto.api.v1.ImageUpload
-	17, // 5: chatto.admin.v1.UploadServerLogoResponse.profile:type_name -> chatto.api.v1.ServerProfile
-	17, // 6: chatto.admin.v1.DeleteServerLogoResponse.profile:type_name -> chatto.api.v1.ServerProfile
+	17, // 5: chatto.admin.v1.UploadServerLogoResponse.public_profile:type_name -> chatto.api.v1.ServerPublicProfile
+	17, // 6: chatto.admin.v1.DeleteServerLogoResponse.public_profile:type_name -> chatto.api.v1.ServerPublicProfile
 	18, // 7: chatto.admin.v1.UploadServerBannerRequest.image:type_name -> chatto.api.v1.ImageUpload
-	17, // 8: chatto.admin.v1.UploadServerBannerResponse.profile:type_name -> chatto.api.v1.ServerProfile
-	17, // 9: chatto.admin.v1.DeleteServerBannerResponse.profile:type_name -> chatto.api.v1.ServerProfile
+	17, // 8: chatto.admin.v1.UploadServerBannerResponse.public_profile:type_name -> chatto.api.v1.ServerPublicProfile
+	17, // 9: chatto.admin.v1.DeleteServerBannerResponse.public_profile:type_name -> chatto.api.v1.ServerPublicProfile
 	1,  // 10: chatto.admin.v1.AdminServerService.GetServerConfig:input_type -> chatto.admin.v1.GetServerConfigRequest
 	3,  // 11: chatto.admin.v1.AdminServerService.UpdateServerConfig:input_type -> chatto.admin.v1.UpdateServerConfigRequest
 	5,  // 12: chatto.admin.v1.AdminServerService.UploadServerLogo:input_type -> chatto.admin.v1.UploadServerLogoRequest

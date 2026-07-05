@@ -5,7 +5,7 @@
 
 import { DeleteAvatarRequest, DeleteAvatarResponse, DeleteMyAccountRequest, DeleteMyAccountResponse, RequestAccountDeletionRequest, RequestAccountDeletionResponse, UpdatePasswordRequest, UpdatePasswordResponse, UpdateProfileRequest, UpdateProfileResponse, UpdateSettingsRequest, UpdateSettingsResponse, UploadAvatarRequest, UploadAvatarResponse } from "./account_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
-import { DisconnectExternalIdentityRequest, DisconnectExternalIdentityResponse, LinkExternalIdentityRequest, LinkExternalIdentityResponse, ListExternalIdentitiesRequest, ListExternalIdentitiesResponse, StartExternalIdentityLinkRequest, StartExternalIdentityLinkResponse } from "./external_identities_pb.js";
+import { DisconnectExternalIdentityRequest, DisconnectExternalIdentityResponse, ListExternalIdentitiesRequest, ListExternalIdentitiesResponse, StartExternalIdentityLinkRequest, StartExternalIdentityLinkResponse } from "./external_identities_pb.js";
 import { UpdatePresenceRequest, UpdatePresenceResponse } from "./presence_pb.js";
 import { DeleteCustomStatusRequest, DeleteCustomStatusResponse, UpdateCustomStatusRequest, UpdateCustomStatusResponse } from "./user_status_pb.js";
 
@@ -88,7 +88,8 @@ export const MyAccountService = {
     },
     /**
      * Creates a short-lived browser handoff URL for linking a provider identity
-     * to the authenticated account.
+     * to the authenticated account. The provider callback completes through
+     * chatto.auth.v1.ExternalIdentityAuthService.ConfirmExternalIdentityLink.
      *
      * @generated from rpc chatto.api.v1.MyAccountService.StartExternalIdentityLink
      */
@@ -96,17 +97,6 @@ export const MyAccountService = {
       name: "StartExternalIdentityLink",
       I: StartExternalIdentityLinkRequest,
       O: StartExternalIdentityLinkResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * Links a pending provider identity to the authenticated account.
-     *
-     * @generated from rpc chatto.api.v1.MyAccountService.LinkExternalIdentity
-     */
-    linkExternalIdentity: {
-      name: "LinkExternalIdentity",
-      I: LinkExternalIdentityRequest,
-      O: LinkExternalIdentityResponse,
       kind: MethodKind.Unary,
     },
     /**

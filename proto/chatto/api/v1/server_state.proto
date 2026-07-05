@@ -2,16 +2,6 @@ syntax = "proto3";
 
 package chatto.api.v1;
 
-import "chatto/api/v1/server.proto";
-
-// Server profile fields visible to authenticated members.
-message ServerProfile {
-  // Public server profile and branding.
-  ServerPublicProfile public_profile = 1;
-  // Optional message of the day shown to authenticated members.
-  optional string motd = 2;
-}
-
 // Request for the authenticated message of the day.
 message GetMotdRequest {}
 

@@ -23,9 +23,12 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// Related entities included beside timeline events.
+// Related entities included beside timeline/feed events.
 //
-// Includes avoid repeating the same user data on every event in a page.
+// Includes are reserved for hot paginated feed paths where many events may
+// repeatedly reference the same render data. Other APIs should return resources
+// directly and rely on BatchGet-style follow-up hydration instead of adding
+// includes maps.
 type RoomTimelineIncludes struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Users keyed by user ID.
@@ -400,7 +403,7 @@ type RoomTimelinePage struct {
 	HasOlder bool `protobuf:"varint,4,opt,name=has_older,json=hasOlder,proto3" json:"has_older,omitempty"`
 	// True when newer events are available after end_cursor.
 	HasNewer bool `protobuf:"varint,5,opt,name=has_newer,json=hasNewer,proto3" json:"has_newer,omitempty"`
-	// Related entities needed to render the page.
+	// Hot-path related entities needed to render the page without per-event hydration.
 	Includes      *RoomTimelineIncludes `protobuf:"bytes,6,opt,name=includes,proto3" json:"includes,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

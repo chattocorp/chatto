@@ -909,6 +909,9 @@ func (x *UserPermissionMatrix) GetCells() []*PermissionMatrixCell {
 }
 
 // One resource-oriented permission decision at a concrete scope.
+//
+// This is the row-oriented counterpart to PermissionMatrixCell. Prefer this
+// shape when building integrations that do not need matrix column joins.
 type ScopedPermissionDecision struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Permission identifier.
@@ -1096,7 +1099,7 @@ type ListRolePermissionDecisionsResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Stable role name.
 	RoleName string `protobuf:"bytes,1,opt,name=role_name,json=roleName,proto3" json:"role_name,omitempty"`
-	// Permission decisions keyed by permission and scope.
+	// Permission decisions keyed by permission and typed scope.
 	Decisions     []*ScopedPermissionDecision `protobuf:"bytes,2,rep,name=decisions,proto3" json:"decisions,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1197,7 +1200,7 @@ type ListUserPermissionDecisionsResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// User ID.
 	UserId string `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	// Permission decisions keyed by permission and scope.
+	// Permission decisions keyed by permission and typed scope.
 	Decisions     []*ScopedPermissionDecision `protobuf:"bytes,2,rep,name=decisions,proto3" json:"decisions,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

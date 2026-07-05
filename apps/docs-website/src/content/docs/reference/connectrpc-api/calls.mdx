@@ -20,9 +20,9 @@ Shared message and enum definitions are documented in [Shared Types And Enums](/
 
 Voice-call request/response APIs backed by Chatto call-state projections.
 
-<a id="chatto-api-v1-VoiceCallService-ListActiveCallRooms"></a>
+<a id="chatto-api-v1-VoiceCallService-ListActiveCalls"></a>
 
-### ListActiveCallRooms
+### ListActiveCalls
 
 Lists member channel rooms that currently have active calls as a finite
 runtime snapshot. Rooms the caller is not a member of are omitted.
@@ -30,21 +30,21 @@ runtime snapshot. Rooms the caller is not a member of are omitted.
 Returns an empty list when LiveKit is not configured.
 
 ```http
-POST /api/connect/chatto.api.v1.VoiceCallService/ListActiveCallRooms
+POST /api/connect/chatto.api.v1.VoiceCallService/ListActiveCalls
 ```
 
-<a id="chatto-api-v1-ListActiveCallRoomsRequest"></a>
+<a id="chatto-api-v1-ListActiveCallsRequest"></a>
 
-#### Input: ListActiveCallRoomsRequest
+#### Input: ListActiveCallsRequest
 
 Request for active channel call snapshots.
 
 
-<a id="chatto-api-v1-ListActiveCallRoomsResponse"></a>
+<a id="chatto-api-v1-ListActiveCallsResponse"></a>
 
-#### Result: ListActiveCallRoomsResponse
+#### Result: ListActiveCallsResponse
 
-Finite runtime snapshot of active channel call rooms.
+Finite runtime snapshot of active channel calls.
 
 | Field | Type | Description |
 | --- | --- | --- |

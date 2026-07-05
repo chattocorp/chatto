@@ -5,47 +5,48 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
+import { RoomSummary } from "./rooms_pb.js";
 import { User } from "./users_pb.js";
 
 /**
  * Request for active channel call snapshots.
  *
- * @generated from message chatto.api.v1.ListActiveCallRoomsRequest
+ * @generated from message chatto.api.v1.ListActiveCallsRequest
  */
-export class ListActiveCallRoomsRequest extends Message<ListActiveCallRoomsRequest> {
-  constructor(data?: PartialMessage<ListActiveCallRoomsRequest>) {
+export class ListActiveCallsRequest extends Message<ListActiveCallsRequest> {
+  constructor(data?: PartialMessage<ListActiveCallsRequest>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.ListActiveCallRoomsRequest";
+  static readonly typeName = "chatto.api.v1.ListActiveCallsRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListActiveCallRoomsRequest {
-    return new ListActiveCallRoomsRequest().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListActiveCallsRequest {
+    return new ListActiveCallsRequest().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListActiveCallRoomsRequest {
-    return new ListActiveCallRoomsRequest().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListActiveCallsRequest {
+    return new ListActiveCallsRequest().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListActiveCallRoomsRequest {
-    return new ListActiveCallRoomsRequest().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListActiveCallsRequest {
+    return new ListActiveCallsRequest().fromJsonString(jsonString, options);
   }
 
-  static equals(a: ListActiveCallRoomsRequest | PlainMessage<ListActiveCallRoomsRequest> | undefined, b: ListActiveCallRoomsRequest | PlainMessage<ListActiveCallRoomsRequest> | undefined): boolean {
-    return proto3.util.equals(ListActiveCallRoomsRequest, a, b);
+  static equals(a: ListActiveCallsRequest | PlainMessage<ListActiveCallsRequest> | undefined, b: ListActiveCallsRequest | PlainMessage<ListActiveCallsRequest> | undefined): boolean {
+    return proto3.util.equals(ListActiveCallsRequest, a, b);
   }
 }
 
 /**
- * Finite runtime snapshot of active channel call rooms.
+ * Finite runtime snapshot of active channel calls.
  *
- * @generated from message chatto.api.v1.ListActiveCallRoomsResponse
+ * @generated from message chatto.api.v1.ListActiveCallsResponse
  */
-export class ListActiveCallRoomsResponse extends Message<ListActiveCallRoomsResponse> {
+export class ListActiveCallsResponse extends Message<ListActiveCallsResponse> {
   /**
    * Active calls in room order returned by the call-state projection.
    *
@@ -53,31 +54,31 @@ export class ListActiveCallRoomsResponse extends Message<ListActiveCallRoomsResp
    */
   calls: ActiveCall[] = [];
 
-  constructor(data?: PartialMessage<ListActiveCallRoomsResponse>) {
+  constructor(data?: PartialMessage<ListActiveCallsResponse>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.ListActiveCallRoomsResponse";
+  static readonly typeName = "chatto.api.v1.ListActiveCallsResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "calls", kind: "message", T: ActiveCall, repeated: true },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListActiveCallRoomsResponse {
-    return new ListActiveCallRoomsResponse().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListActiveCallsResponse {
+    return new ListActiveCallsResponse().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListActiveCallRoomsResponse {
-    return new ListActiveCallRoomsResponse().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListActiveCallsResponse {
+    return new ListActiveCallsResponse().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListActiveCallRoomsResponse {
-    return new ListActiveCallRoomsResponse().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListActiveCallsResponse {
+    return new ListActiveCallsResponse().fromJsonString(jsonString, options);
   }
 
-  static equals(a: ListActiveCallRoomsResponse | PlainMessage<ListActiveCallRoomsResponse> | undefined, b: ListActiveCallRoomsResponse | PlainMessage<ListActiveCallRoomsResponse> | undefined): boolean {
-    return proto3.util.equals(ListActiveCallRoomsResponse, a, b);
+  static equals(a: ListActiveCallsResponse | PlainMessage<ListActiveCallsResponse> | undefined, b: ListActiveCallsResponse | PlainMessage<ListActiveCallsResponse> | undefined): boolean {
+    return proto3.util.equals(ListActiveCallsResponse, a, b);
   }
 }
 
@@ -90,9 +91,9 @@ export class ActiveCall extends Message<ActiveCall> {
   /**
    * Room containing the active call.
    *
-   * @generated from field: string room_id = 1;
+   * @generated from field: chatto.api.v1.RoomSummary room = 4;
    */
-  roomId = "";
+  room?: RoomSummary;
 
   /**
    * Active call session ID.
@@ -116,7 +117,7 @@ export class ActiveCall extends Message<ActiveCall> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.ActiveCall";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "room", kind: "message", T: RoomSummary },
     { no: 2, name: "call_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "participants", kind: "message", T: CallParticipant, repeated: true },
   ]);

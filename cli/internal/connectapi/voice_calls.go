@@ -17,13 +17,13 @@ type voiceCallService struct {
 	api *API
 }
 
-func (s *voiceCallService) ListActiveCallRooms(ctx context.Context, _ *connect.Request[apiv1.ListActiveCallRoomsRequest]) (*connect.Response[apiv1.ListActiveCallRoomsResponse], error) {
+func (s *voiceCallService) ListActiveCalls(ctx context.Context, _ *connect.Request[apiv1.ListActiveCallsRequest]) (*connect.Response[apiv1.ListActiveCallsResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
 	}
 	if !s.api.config.LiveKit.IsConfigured() {
-		return connect.NewResponse(&apiv1.ListActiveCallRoomsResponse{}), nil
+		return connect.NewResponse(&apiv1.ListActiveCallsResponse{}), nil
 	}
 
 	roomIDs, err := s.api.core.GetActiveCallRoomIDs(ctx, core.LegacySpaceIDForRoomKind(core.KindChannel))
@@ -43,7 +43,7 @@ func (s *voiceCallService) ListActiveCallRooms(ctx context.Context, _ *connect.R
 		}
 		calls = append(calls, call)
 	}
-	return connect.NewResponse(&apiv1.ListActiveCallRoomsResponse{Calls: calls}), nil
+	return connect.NewResponse(&apiv1.ListActiveCallsResponse{Calls: calls}), nil
 }
 
 func (s *voiceCallService) GetActiveCall(ctx context.Context, req *connect.Request[apiv1.GetActiveCallRequest]) (*connect.Response[apiv1.GetActiveCallResponse], error) {
@@ -234,7 +234,7 @@ func (s *voiceCallService) activeCall(ctx context.Context, actorID, roomID strin
 		}
 	}
 	return &apiv1.ActiveCall{
-		RoomId:       room.GetId(),
+		Room:         apiRoomSummary(room),
 		CallId:       activeCall.CallID,
 		Participants: responseParticipants,
 	}, nil

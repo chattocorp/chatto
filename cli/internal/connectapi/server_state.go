@@ -73,14 +73,14 @@ func (s *serverService) GetServerConfig(ctx context.Context, _ *connect.Request[
 	if err != nil {
 		return nil, connectError(err)
 	}
-	profile, err := s.serverProfile(ctx)
+	publicProfile, err := s.api.serverProfile(ctx, serverProfileOptions{})
 	if err != nil {
 		return nil, err
 	}
 
 	return connect.NewResponse(&adminv1.GetServerConfigResponse{
-		Config:  adminServerConfig(cfg),
-		Profile: profile,
+		Config:        adminServerConfig(cfg),
+		PublicProfile: publicProfile,
 	}), nil
 }
 
@@ -100,13 +100,13 @@ func (s *serverService) UpdateServerConfig(ctx context.Context, req *connect.Req
 		return nil, connectError(err)
 	}
 
-	profile, err := s.serverProfile(ctx)
+	publicProfile, err := s.api.serverProfile(ctx, serverProfileOptions{})
 	if err != nil {
 		return nil, err
 	}
 	return connect.NewResponse(&adminv1.UpdateServerConfigResponse{
-		Profile: profile,
-		Config:  adminServerConfig(cfg),
+		PublicProfile: publicProfile,
+		Config:        adminServerConfig(cfg),
 	}), nil
 }
 
@@ -123,11 +123,11 @@ func (s *serverService) UploadServerLogo(ctx context.Context, req *connect.Reque
 	if _, err := s.api.core.UploadManagedServerLogo(ctx, caller.UserID, bytes.NewReader(image.GetImage())); err != nil {
 		return nil, connectError(err)
 	}
-	profile, err := s.serverProfile(ctx)
+	publicProfile, err := s.api.serverProfile(ctx, serverProfileOptions{})
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&adminv1.UploadServerLogoResponse{Profile: profile}), nil
+	return connect.NewResponse(&adminv1.UploadServerLogoResponse{PublicProfile: publicProfile}), nil
 }
 
 func (s *serverService) DeleteServerLogo(ctx context.Context, _ *connect.Request[adminv1.DeleteServerLogoRequest]) (*connect.Response[adminv1.DeleteServerLogoResponse], error) {
@@ -138,11 +138,11 @@ func (s *serverService) DeleteServerLogo(ctx context.Context, _ *connect.Request
 	if err := s.api.core.DeleteManagedServerLogo(ctx, caller.UserID); err != nil {
 		return nil, connectError(err)
 	}
-	profile, err := s.serverProfile(ctx)
+	publicProfile, err := s.api.serverProfile(ctx, serverProfileOptions{})
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&adminv1.DeleteServerLogoResponse{Profile: profile}), nil
+	return connect.NewResponse(&adminv1.DeleteServerLogoResponse{PublicProfile: publicProfile}), nil
 }
 
 func (s *serverService) UploadServerBanner(ctx context.Context, req *connect.Request[adminv1.UploadServerBannerRequest]) (*connect.Response[adminv1.UploadServerBannerResponse], error) {
@@ -158,11 +158,11 @@ func (s *serverService) UploadServerBanner(ctx context.Context, req *connect.Req
 	if _, err := s.api.core.UploadManagedServerBanner(ctx, caller.UserID, bytes.NewReader(image.GetImage())); err != nil {
 		return nil, connectError(err)
 	}
-	profile, err := s.serverProfile(ctx)
+	publicProfile, err := s.api.serverProfile(ctx, serverProfileOptions{})
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&adminv1.UploadServerBannerResponse{Profile: profile}), nil
+	return connect.NewResponse(&adminv1.UploadServerBannerResponse{PublicProfile: publicProfile}), nil
 }
 
 func (s *serverService) DeleteServerBanner(ctx context.Context, _ *connect.Request[adminv1.DeleteServerBannerRequest]) (*connect.Response[adminv1.DeleteServerBannerResponse], error) {
@@ -173,11 +173,11 @@ func (s *serverService) DeleteServerBanner(ctx context.Context, _ *connect.Reque
 	if err := s.api.core.DeleteManagedServerBanner(ctx, caller.UserID); err != nil {
 		return nil, connectError(err)
 	}
-	profile, err := s.serverProfile(ctx)
+	publicProfile, err := s.api.serverProfile(ctx, serverProfileOptions{})
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&adminv1.DeleteServerBannerResponse{Profile: profile}), nil
+	return connect.NewResponse(&adminv1.DeleteServerBannerResponse{PublicProfile: publicProfile}), nil
 }
 
 func (s *serverService) GetServerSecurityConfig(ctx context.Context, _ *connect.Request[adminv1.GetServerSecurityConfigRequest]) (*connect.Response[adminv1.GetServerSecurityConfigResponse], error) {
@@ -222,22 +222,6 @@ func adminServerConfig(cfg *configv1.ServerConfig) *adminv1.ServerConfig {
 		Motd:           cfg.GetMotd(),
 		WelcomeMessage: cfg.GetWelcomeMessage(),
 	}
-}
-
-func (s *serverService) serverProfile(ctx context.Context) (*apiv1.ServerProfile, error) {
-	publicProfile, err := s.api.serverProfile(ctx, serverProfileOptions{})
-	if err != nil {
-		return nil, err
-	}
-	profile := &apiv1.ServerProfile{PublicProfile: publicProfile}
-	motd, err := s.serverMotd(ctx)
-	if err != nil {
-		return nil, err
-	}
-	if motd != "" {
-		profile.Motd = stringPtr(motd)
-	}
-	return profile, nil
 }
 
 func (s *serverService) serverMotd(ctx context.Context) (string, error) {

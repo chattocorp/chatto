@@ -7,10 +7,32 @@ import "chatto/api/v1/common.proto";
 import "chatto/api/v1/message_types.proto";
 import "google/protobuf/timestamp.proto";
 
+// Room-scoped binary asset metadata and freshly signed URLs.
+message Asset {
+  // Stable asset ID.
+  string id = 1;
+  // Original filename.
+  string filename = 2;
+  // MIME content type.
+  string content_type = 3;
+  // Stored file size in bytes.
+  int64 size = 4;
+  // Media width when known.
+  int32 width = 5;
+  // Media height when known.
+  int32 height = 6;
+  // Signed URL for the original asset bytes.
+  MessageAssetUrl asset_url = 7;
+  // Signed URL for a transformed image thumbnail.
+  MessageAssetUrl thumbnail_asset_url = 8;
+  // Video processing state when this asset is a video attachment.
+  MessageVideoProcessing video_processing = 9;
+}
+
 // One current room attachment and its message anchor.
 message RoomAttachmentListItem {
   // Attachment metadata and signed URLs.
-  MessageAttachment attachment = 1;
+  Asset attachment = 1;
   // Message event containing the attachment.
   string message_event_id = 2;
   // Thread root event ID when the containing message is a thread reply.
@@ -32,7 +54,7 @@ message GetAssetRequest {
 // Response containing one room-scoped asset.
 message GetAssetResponse {
   // Asset metadata and signed URLs.
-  MessageAttachment asset = 1;
+  Asset asset = 1;
 }
 
 // Request to read many room-scoped assets with freshly signed URLs.
@@ -54,7 +76,7 @@ message BatchGetAssetsRequest {
 // Response containing room-scoped assets.
 message BatchGetAssetsResponse {
   // Assets in first-seen request order.
-  repeated MessageAttachment assets = 1;
+  repeated Asset assets = 1;
 }
 
 // Reads room-scoped asset metadata and freshly signed asset URLs.

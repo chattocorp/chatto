@@ -5,56 +5,6 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3, protoInt64 } from "@bufbuild/protobuf";
-import { ServerPublicProfile } from "./server_pb.js";
-
-/**
- * Server profile fields visible to authenticated members.
- *
- * @generated from message chatto.api.v1.ServerProfile
- */
-export class ServerProfile extends Message<ServerProfile> {
-  /**
-   * Public server profile and branding.
-   *
-   * @generated from field: chatto.api.v1.ServerPublicProfile public_profile = 1;
-   */
-  publicProfile?: ServerPublicProfile;
-
-  /**
-   * Optional message of the day shown to authenticated members.
-   *
-   * @generated from field: optional string motd = 2;
-   */
-  motd?: string;
-
-  constructor(data?: PartialMessage<ServerProfile>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.ServerProfile";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "public_profile", kind: "message", T: ServerPublicProfile },
-    { no: 2, name: "motd", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ServerProfile {
-    return new ServerProfile().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ServerProfile {
-    return new ServerProfile().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ServerProfile {
-    return new ServerProfile().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: ServerProfile | PlainMessage<ServerProfile> | undefined, b: ServerProfile | PlainMessage<ServerProfile> | undefined): boolean {
-    return proto3.util.equals(ServerProfile, a, b);
-  }
-}
 
 /**
  * Request for the authenticated message of the day.

@@ -91,7 +91,7 @@ Response containing one role's permission matrix.
 
 ### ListRolePermissionDecisions
 
-Lists one role's permission decisions by permission and scope. Requires
+Lists one role's permission decisions as resource-oriented rows. Requires
 role.manage. Returns NOT_FOUND when the role does not exist.
 
 ```http
@@ -118,7 +118,7 @@ Resource-oriented permission decisions for one role.
 | Field | Type | Description |
 | --- | --- | --- |
 | `role_name` | `string` | Stable role name. |
-| `decisions` | repeated [`ScopedPermissionDecision`](/reference/connectrpc-api/types/#chatto-admin-v1-ScopedPermissionDecision) | Permission decisions keyed by permission and scope. |
+| `decisions` | repeated [`ScopedPermissionDecision`](/reference/connectrpc-api/types/#chatto-admin-v1-ScopedPermissionDecision) | Permission decisions keyed by permission and typed scope. |
 
 
 <a id="chatto-admin-v1-AdminPermissionService-GetUserPermissionMatrix"></a>
@@ -158,7 +158,7 @@ Response containing one user's permission matrix.
 
 ### ListUserPermissionDecisions
 
-Lists one user's permission decisions by permission and scope. Requires
+Lists one user's permission decisions as resource-oriented rows. Requires
 user.manage-permissions. Returns NOT_FOUND when the user does not exist.
 
 ```http
@@ -185,7 +185,7 @@ Resource-oriented permission decisions for one user.
 | Field | Type | Description |
 | --- | --- | --- |
 | `user_id` | `string` | User ID. |
-| `decisions` | repeated [`ScopedPermissionDecision`](/reference/connectrpc-api/types/#chatto-admin-v1-ScopedPermissionDecision) | Permission decisions keyed by permission and scope. |
+| `decisions` | repeated [`ScopedPermissionDecision`](/reference/connectrpc-api/types/#chatto-admin-v1-ScopedPermissionDecision) | Permission decisions keyed by permission and typed scope. |
 
 
 <a id="chatto-admin-v1-AdminPermissionService-ExplainPermissions"></a>

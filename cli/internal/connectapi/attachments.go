@@ -52,7 +52,7 @@ func (s *roomService) ListRoomAttachments(ctx context.Context, req *connect.Requ
 			continue
 		}
 		attachments = append(attachments, &apiv1.RoomAttachmentListItem{
-			Attachment:        mapper.attachment(item.Attachment, caller.UserID, thumbnail),
+			Attachment:        mapper.asset(item.Attachment, caller.UserID, thumbnail),
 			MessageEventId:    item.MessageEventID,
 			ThreadRootEventId: item.ThreadRootEventID,
 			CreatedAt:         item.CreatedAt,
@@ -80,7 +80,7 @@ func (s *assetService) GetAsset(ctx context.Context, req *connect.Request[apiv1.
 	}
 	mapper := attachmentMapper{api: s.api}
 	return connect.NewResponse(&apiv1.GetAssetResponse{
-		Asset: mapper.attachment(asset, caller.UserID, assetThumbnailOptions(req.Msg.Thumbnail)),
+		Asset: mapper.asset(asset, caller.UserID, assetThumbnailOptions(req.Msg.Thumbnail)),
 	}), nil
 }
 
@@ -99,14 +99,14 @@ func (s *assetService) BatchGetAssets(ctx context.Context, req *connect.Request[
 	}
 	thumbnail := assetThumbnailOptions(req.Msg.Thumbnail)
 	mapper := attachmentMapper{api: s.api}
-	out := make([]*apiv1.MessageAttachment, 0, len(assets))
+	out := make([]*apiv1.Asset, 0, len(assets))
 	for _, asset := range assets {
-		out = append(out, mapper.attachment(asset, caller.UserID, thumbnail))
+		out = append(out, mapper.asset(asset, caller.UserID, thumbnail))
 	}
 	return connect.NewResponse(&apiv1.BatchGetAssetsResponse{Assets: out}), nil
 }
 
-func (s *attachmentMapper) attachment(attachment *corev1.Attachment, viewerID string, thumbnail attachmentThumbnailRequest) *apiv1.MessageAttachment {
+func (s *attachmentMapper) asset(attachment *corev1.Attachment, viewerID string, thumbnail attachmentThumbnailRequest) *apiv1.Asset {
 	if attachment == nil {
 		return nil
 	}
@@ -114,10 +114,11 @@ func (s *attachmentMapper) attachment(attachment *corev1.Attachment, viewerID st
 		api:      s.api,
 		viewerID: viewerID,
 	}
-	return &apiv1.MessageAttachment{
+	return &apiv1.Asset{
 		Id:                attachment.Id,
 		Filename:          attachment.Filename,
 		ContentType:       attachment.ContentType,
+		Size:              attachment.Size,
 		Width:             attachment.Width,
 		Height:            attachment.Height,
 		AssetUrl:          assetURLView(s.api.core.GetStableAttachmentAssetURL(attachment.Id, viewerID)),

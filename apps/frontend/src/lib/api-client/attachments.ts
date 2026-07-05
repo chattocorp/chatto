@@ -3,11 +3,11 @@ import { FitMode } from './renderTypes.js';
 import type { ExpiringAssetUrl, RefreshedAttachmentUrls } from './attachmentUrls.js';
 import { ImageFitMode, ImageTransformOptions } from '@chatto/api-types/api/v1/common_pb';
 import { AssetService } from '@chatto/api-types/api/v1/attachments_connect';
+import type { Asset } from '@chatto/api-types/api/v1/attachments_pb';
 import { RoomService } from '@chatto/api-types/api/v1/rooms_connect';
 import {
   MessageVideoProcessingStatus,
   type MessageAssetUrl,
-  type MessageAttachment,
   type MessageVideoProcessing
 } from '@chatto/api-types/api/v1/message_types_pb';
 
@@ -119,7 +119,7 @@ export function createAttachmentAPI(config: AttachmentAPIConfig): AttachmentAPI 
 }
 
 function refreshedAttachmentUrlMap(
-  attachments: readonly MessageAttachment[]
+  attachments: readonly Asset[]
 ): Map<string, RefreshedAttachmentUrls> {
   return new Map(
     attachments.map((attachment) => [
@@ -150,7 +150,7 @@ function roomFileItem(item: {
   messageEventId: string;
   threadRootEventId: string;
   createdAt?: { toDate(): Date };
-  attachment?: MessageAttachment;
+  attachment?: Asset;
 }): RoomFileItem {
   return {
     messageEventId: item.messageEventId,
@@ -160,7 +160,7 @@ function roomFileItem(item: {
   };
 }
 
-function attachment(value?: MessageAttachment): RoomFileItem['attachment'] {
+function attachment(value?: Asset): RoomFileItem['attachment'] {
   return {
     id: value?.id ?? '',
     filename: value?.filename ?? '',

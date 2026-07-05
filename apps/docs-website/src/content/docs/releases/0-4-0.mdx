@@ -115,6 +115,9 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
   `ServerService.GetMotd` for the member-visible MOTD and
   `ServerService.GetRuntimeConfig` for runtime settings. Public server metadata remains
   available through `chatto.discovery.v1.ServerDiscoveryService.GetServer`.
+  Admin server responses now return `ServerPublicProfile` directly as
+  `public_profile` beside editable config instead of wrapping public metadata and
+  MOTD in `ServerProfile`.
 - Server-wide user/member reads moved to `UserService`: replace
   `ServerMemberService.ListMembers`, `GetMember`, and `BatchGetMembers` with
   `UserService.ListUsers`, `GetUser`, and `BatchGetUsers`. Replace
@@ -147,8 +150,16 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
 - Message attachment URL refreshes moved to room-scoped asset reads: replace
   `MessageService.RefreshMessageAttachmentUrls` with `AssetService.GetAsset` and
   `MessageService.BatchRefreshMessageAttachmentUrls` with `AssetService.BatchGetAssets`.
+  Asset reads and upload completion now return the first-class `Asset` shape.
   `MessageService.GetMessage` and `BatchGetMessages` still return message attachment
   metadata, but custom thumbnail options belong to the asset read RPCs.
+- Active voice call list reads were renamed from
+  `VoiceCallService.ListActiveCallRooms` to `ListActiveCalls`; each `ActiveCall`
+  now carries a `RoomSummary` in `room` instead of a scalar `room_id`.
+- `includes` maps are intentionally limited to hot paginated timeline/feed paths
+  such as room events and followed threads. Singular resource reads and mutations
+  return their resources directly, and ordinary list/read clients should use
+  `BatchGet*` hydration when they need related resources.
 - Message permalink resolution was folded into `MessageService.GetMessage`: replace
   `MessageService.ResolveMessageLinkTarget` with `GetMessage` and use the returned
   message's `thread_root_event_id` to decide whether to open a thread.

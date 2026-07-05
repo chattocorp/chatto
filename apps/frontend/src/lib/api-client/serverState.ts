@@ -197,7 +197,7 @@ export async function updateServerConfig(
     { headers }
   );
 
-  return mapServerProfile(response.profile);
+  return mapServerProfile({ publicProfile: response.publicProfile, motd: response.config?.motd });
 }
 
 export async function uploadServerLogo(
@@ -215,7 +215,7 @@ export async function uploadServerLogo(
     },
     { headers }
   );
-  return mapServerProfile(response.profile);
+  return mapServerProfile(response.publicProfile);
 }
 
 export async function deleteServerLogo(
@@ -223,7 +223,7 @@ export async function deleteServerLogo(
 ): Promise<EditableServerProfile> {
   const { adminServer, headers } = serverClients(config);
   const response = await adminServer.deleteServerLogo({}, { headers });
-  return mapServerProfile(response.profile);
+  return mapServerProfile(response.publicProfile);
 }
 
 export async function uploadServerBanner(
@@ -241,7 +241,7 @@ export async function uploadServerBanner(
     },
     { headers }
   );
-  return mapServerProfile(response.profile);
+  return mapServerProfile(response.publicProfile);
 }
 
 export async function deleteServerBanner(
@@ -249,7 +249,7 @@ export async function deleteServerBanner(
 ): Promise<EditableServerProfile> {
   const { adminServer, headers } = serverClients(config);
   const response = await adminServer.deleteServerBanner({}, { headers });
-  return mapServerProfile(response.profile);
+  return mapServerProfile(response.publicProfile);
 }
 
 export async function getServerSecurityConfig(

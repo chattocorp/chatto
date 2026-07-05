@@ -4,7 +4,9 @@ package chatto.operator.v1;
 
 import "buf/validate/validate.proto";
 import "chatto/admin/v1/members.proto";
+import "chatto/admin/v1/roles.proto";
 import "chatto/api/v1/pagination.proto";
+import "chatto/api/v1/roles.proto";
 import "chatto/api/v1/users.proto";
 
 // Request to create a user as a local operator action.
@@ -43,7 +45,7 @@ message ListUsersResponse {
   // Matching users.
   repeated chatto.admin.v1.AdminMember users = 1;
   // Roles for display-name lookup.
-  repeated chatto.admin.v1.AdminRoleReference roles = 2;
+  repeated chatto.api.v1.Role roles = 2;
   // Page metadata.
   chatto.api.v1.PageInfo page = 3;
 }
@@ -63,7 +65,7 @@ message GetUserResponse {
   // Member record.
   chatto.admin.v1.AdminMember member = 1;
   // Roles for assignment.
-  repeated chatto.admin.v1.AdminMemberRole roles = 2;
+  repeated chatto.admin.v1.AdminRole roles = 2;
   // Permissions available for per-user overrides.
   repeated string available_permissions = 3;
 }
@@ -78,8 +80,9 @@ message AssignRoleRequest {
 
 // Result of assigning a role.
 message AssignRoleResponse {
-  // True when the request completed.
-  bool assigned = 1;
+  reserved 1;
+  reserved "assigned";
+
   // Updated member row.
   chatto.admin.v1.AdminMember member = 2;
 }
@@ -94,8 +97,9 @@ message RevokeRoleRequest {
 
 // Result of revoking a role.
 message RevokeRoleResponse {
-  // True when the request completed.
-  bool revoked = 1;
+  reserved 1;
+  reserved "revoked";
+
   // Updated member row.
   chatto.admin.v1.AdminMember member = 2;
 }

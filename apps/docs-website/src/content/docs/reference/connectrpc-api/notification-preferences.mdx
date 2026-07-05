@@ -37,11 +37,11 @@ POST /api/connect/chatto.api.v1.NotificationPreferencesService/GetServerNotifica
 Request for the current user's server-level notification preference.
 
 
-<a id="chatto-api-v1-GetServerNotificationPreferenceResponse"></a>
+<a id="chatto-api-v1-GetNotificationPreferenceResponse"></a>
 
-#### Result: GetServerNotificationPreferenceResponse
+#### Result: GetNotificationPreferenceResponse
 
-Current server-level notification preference.
+Current notification preference.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -70,11 +70,11 @@ Request to update the current user's server-level notification level.
 | `level` | [`NotificationLevel`](/reference/connectrpc-api/types/#chatto-api-v1-NotificationLevel) | Required. New explicit notification level. Use NOTIFICATION_LEVEL_DEFAULT to return the server to default behavior. |
 
 
-<a id="chatto-api-v1-UpdateServerNotificationPreferenceResponse"></a>
+<a id="chatto-api-v1-UpdateNotificationPreferenceResponse"></a>
 
-#### Result: UpdateServerNotificationPreferenceResponse
+#### Result: UpdateNotificationPreferenceResponse
 
-Updated server-level notification preference.
+Updated notification preference.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -106,16 +106,9 @@ Request for the current user's notification preference in one room.
 | `room_id` | `string` | Required. Room whose notification preference should be loaded for the current user. |
 
 
-<a id="chatto-api-v1-GetRoomNotificationPreferenceResponse"></a>
+#### Result: [GetNotificationPreferenceResponse](#chatto-api-v1-GetNotificationPreferenceResponse)
 
-#### Result: GetRoomNotificationPreferenceResponse
-
-Current notification preference for a room.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `preference` | [`NotificationPreference`](/reference/connectrpc-api/types/#chatto-api-v1-NotificationPreference) | Current stored and effective notification preference. |
-
+Uses the same result shape documented above.
 
 <a id="chatto-api-v1-NotificationPreferencesService-UpdateRoomNotificationPreference"></a>
 
@@ -140,12 +133,6 @@ Request to update the current user's notification level in one room.
 | `level` | [`NotificationLevel`](/reference/connectrpc-api/types/#chatto-api-v1-NotificationLevel) | Required. New explicit notification level. Use NOTIFICATION_LEVEL_DEFAULT to return the room to inherited/default behavior. |
 
 
-<a id="chatto-api-v1-UpdateRoomNotificationPreferenceResponse"></a>
+#### Result: [UpdateNotificationPreferenceResponse](#chatto-api-v1-UpdateNotificationPreferenceResponse)
 
-#### Result: UpdateRoomNotificationPreferenceResponse
-
-Updated notification preference for a room.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `preference` | [`NotificationPreference`](/reference/connectrpc-api/types/#chatto-api-v1-NotificationPreference) | Stored and effective notification preference after the update. |
+Uses the same result shape documented above.

@@ -4,6 +4,7 @@ import { Code, ConnectError } from '@connectrpc/connect';
 import { Timestamp } from '@bufbuild/protobuf';
 import { FitMode } from '$lib/api-client/renderTypes';
 import {
+  Asset,
   BatchGetAssetsResponse,
   RoomAttachmentListItem
 } from '@chatto/api-types/api/v1/attachments_pb';
@@ -11,7 +12,6 @@ import { ImageFitMode } from '@chatto/api-types/api/v1/common_pb';
 import { ListRoomAttachmentsResponse } from '@chatto/api-types/api/v1/rooms_pb';
 import {
   MessageAssetUrl,
-  MessageAttachment,
   MessageVideoProcessing,
   MessageVideoProcessingStatus,
   MessageVideoVariant
@@ -76,7 +76,7 @@ describe('createAttachmentAPI', () => {
             messageEventId: 'event_2',
             threadRootEventId: 'event_1',
             createdAt: Timestamp.fromDate(new Date('2026-06-01T12:00:00Z')),
-            attachment: new MessageAttachment({
+            attachment: new Asset({
               id: 'att_video',
               filename: 'clip.mp4',
               contentType: 'video/mp4',
@@ -161,7 +161,7 @@ describe('createAttachmentAPI', () => {
     mocks.batchGetAssets.mockResolvedValue(
       new BatchGetAssetsResponse({
         assets: [
-          new MessageAttachment({
+          new Asset({
             id: 'att_1',
             assetUrl: assetUrl('/assets/files/att_1?fresh=1'),
             thumbnailAssetUrl: assetUrl('/assets/files/att_1/image/960x800/contain?fresh=1'),
@@ -214,7 +214,7 @@ describe('createAttachmentAPI', () => {
     mocks.batchGetAssets.mockResolvedValue(
       new BatchGetAssetsResponse({
         assets: [
-          new MessageAttachment({
+          new Asset({
             id: 'att_1',
             videoProcessing: new MessageVideoProcessing({
               status: MessageVideoProcessingStatus.COMPLETED,
@@ -252,7 +252,7 @@ describe('createAttachmentAPI', () => {
     mocks.batchGetAssets.mockResolvedValue(
       new BatchGetAssetsResponse({
         assets: [
-          new MessageAttachment({
+          new Asset({
             id: 'att_1',
             assetUrl: assetUrl('/assets/files/att_1?fresh=1'),
             thumbnailAssetUrl: assetUrl('/assets/files/att_1/image/120x120/cover?fresh=1')
@@ -290,7 +290,7 @@ describe('createAttachmentAPI', () => {
         attachments: [
           new RoomAttachmentListItem({
             messageEventId: 'event_1',
-            attachment: new MessageAttachment({
+            attachment: new Asset({
               id: 'att_1',
               filename: 'clip.mp4',
               contentType: 'video/mp4',

@@ -217,8 +217,8 @@ describe('createAdminUserManagementAPI', () => {
       verifiedEmails: [],
       viewerCanDeleteAccount: false
     };
-    mocks.assignRole.mockResolvedValue({ assigned: true, member });
-    mocks.revokeRole.mockResolvedValue({ revoked: true, member: { ...member, roles: [] } });
+    mocks.assignRole.mockResolvedValue({ member });
+    mocks.revokeRole.mockResolvedValue({ member: { ...member, roles: [] } });
     const api = createAdminUserManagementAPI({
       baseUrl: '/api/connect',
       bearerToken: 'token'

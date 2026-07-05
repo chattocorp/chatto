@@ -80,7 +80,8 @@ message ListFollowedThreadsResponse {
 
   // Followed threads in newest-activity-first order.
   repeated FollowedThread threads = 1;
-  // Related entities needed to render root messages.
+  // Hot-path related entities needed to render this feed page without
+  // per-thread hydration.
   RoomTimelineIncludes includes = 4;
   // Page metadata.
   PageInfo page = 5;

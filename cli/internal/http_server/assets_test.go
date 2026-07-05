@@ -232,7 +232,7 @@ func (env *assetTestEnv) postAssetMessageWithAttachmentContentType(t *testing.T,
 	if err != nil {
 		t.Fatalf("Failed to complete asset upload: %v", err)
 	}
-	assetID := completed.Msg.GetAsset().GetAssetId()
+	assetID := completed.Msg.GetAsset().GetId()
 	if assetID == "" {
 		t.Fatal("Completed asset upload returned empty asset id")
 	}

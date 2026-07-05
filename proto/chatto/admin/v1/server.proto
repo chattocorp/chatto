@@ -4,7 +4,7 @@ package chatto.admin.v1;
 
 import "buf/validate/validate.proto";
 import "chatto/api/v1/common.proto";
-import "chatto/api/v1/server_state.proto";
+import "chatto/api/v1/server.proto";
 
 // Runtime-editable server profile settings.
 message ServerConfig {
@@ -21,12 +21,15 @@ message ServerConfig {
 // Request server profile settings.
 message GetServerConfigRequest {}
 
-// Server profile settings plus effective member-visible profile.
+// Server profile settings plus effective public branding.
 message GetServerConfigResponse {
+  reserved 2;
+  reserved "profile";
+
   // Runtime-editable server profile settings.
   ServerConfig config = 1;
-  // Effective server profile and branding.
-  chatto.api.v1.ServerProfile profile = 2;
+  // Effective public server profile and branding.
+  chatto.api.v1.ServerPublicProfile public_profile = 3;
 }
 
 // Request to update runtime-editable server profile settings.
@@ -45,8 +48,11 @@ message UpdateServerConfigRequest {
 
 // Result of updating runtime-editable server profile settings.
 message UpdateServerConfigResponse {
-  // Updated server profile and branding.
-  chatto.api.v1.ServerProfile profile = 1;
+  reserved 1;
+  reserved "profile";
+
+  // Updated public server profile and branding.
+  chatto.api.v1.ServerPublicProfile public_profile = 3;
   // Updated runtime-editable server profile settings.
   ServerConfig config = 2;
 }
@@ -62,8 +68,11 @@ message UploadServerLogoRequest {
 
 // Result of uploading the public server logo.
 message UploadServerLogoResponse {
-  // Updated server profile and branding.
-  chatto.api.v1.ServerProfile profile = 1;
+  reserved 1;
+  reserved "profile";
+
+  // Updated public server profile and branding.
+  chatto.api.v1.ServerPublicProfile public_profile = 2;
 }
 
 // Request to clear the public server logo.
@@ -71,8 +80,11 @@ message DeleteServerLogoRequest {}
 
 // Result of clearing the public server logo.
 message DeleteServerLogoResponse {
-  // Updated server profile and branding.
-  chatto.api.v1.ServerProfile profile = 1;
+  reserved 1;
+  reserved "profile";
+
+  // Updated public server profile and branding.
+  chatto.api.v1.ServerPublicProfile public_profile = 2;
 }
 
 // Request to upload and set the public server banner.
@@ -86,8 +98,11 @@ message UploadServerBannerRequest {
 
 // Result of uploading the public server banner.
 message UploadServerBannerResponse {
-  // Updated server profile and branding.
-  chatto.api.v1.ServerProfile profile = 1;
+  reserved 1;
+  reserved "profile";
+
+  // Updated public server profile and branding.
+  chatto.api.v1.ServerPublicProfile public_profile = 2;
 }
 
 // Request to clear the public server banner.
@@ -95,8 +110,11 @@ message DeleteServerBannerRequest {}
 
 // Result of clearing the public server banner.
 message DeleteServerBannerResponse {
-  // Updated server profile and branding.
-  chatto.api.v1.ServerProfile profile = 1;
+  reserved 1;
+  reserved "profile";
+
+  // Updated public server profile and branding.
+  chatto.api.v1.ServerPublicProfile public_profile = 2;
 }
 
 // Request for server security configuration.

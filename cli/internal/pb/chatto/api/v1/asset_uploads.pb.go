@@ -198,97 +198,6 @@ func (x *AssetUpload) GetAssetId() string {
 	return ""
 }
 
-// Metadata for a completed attachment asset.
-type UploadedAttachmentAsset struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Asset ID to pass to MessageService.CreateMessage.attachment_asset_ids.
-	AssetId string `protobuf:"bytes,1,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
-	// Original filename.
-	Filename string `protobuf:"bytes,2,opt,name=filename,proto3" json:"filename,omitempty"`
-	// MIME content type.
-	ContentType string `protobuf:"bytes,3,opt,name=content_type,json=contentType,proto3" json:"content_type,omitempty"`
-	// Stored file size in bytes.
-	Size int64 `protobuf:"varint,4,opt,name=size,proto3" json:"size,omitempty"`
-	// Media width when known.
-	Width int32 `protobuf:"varint,5,opt,name=width,proto3" json:"width,omitempty"`
-	// Media height when known.
-	Height        int32 `protobuf:"varint,6,opt,name=height,proto3" json:"height,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *UploadedAttachmentAsset) Reset() {
-	*x = UploadedAttachmentAsset{}
-	mi := &file_chatto_api_v1_asset_uploads_proto_msgTypes[1]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *UploadedAttachmentAsset) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*UploadedAttachmentAsset) ProtoMessage() {}
-
-func (x *UploadedAttachmentAsset) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_asset_uploads_proto_msgTypes[1]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use UploadedAttachmentAsset.ProtoReflect.Descriptor instead.
-func (*UploadedAttachmentAsset) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_asset_uploads_proto_rawDescGZIP(), []int{1}
-}
-
-func (x *UploadedAttachmentAsset) GetAssetId() string {
-	if x != nil {
-		return x.AssetId
-	}
-	return ""
-}
-
-func (x *UploadedAttachmentAsset) GetFilename() string {
-	if x != nil {
-		return x.Filename
-	}
-	return ""
-}
-
-func (x *UploadedAttachmentAsset) GetContentType() string {
-	if x != nil {
-		return x.ContentType
-	}
-	return ""
-}
-
-func (x *UploadedAttachmentAsset) GetSize() int64 {
-	if x != nil {
-		return x.Size
-	}
-	return 0
-}
-
-func (x *UploadedAttachmentAsset) GetWidth() int32 {
-	if x != nil {
-		return x.Width
-	}
-	return 0
-}
-
-func (x *UploadedAttachmentAsset) GetHeight() int32 {
-	if x != nil {
-		return x.Height
-	}
-	return 0
-}
-
 // Request to start a room-scoped attachment upload.
 type CreateUploadRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -308,7 +217,7 @@ type CreateUploadRequest struct {
 
 func (x *CreateUploadRequest) Reset() {
 	*x = CreateUploadRequest{}
-	mi := &file_chatto_api_v1_asset_uploads_proto_msgTypes[2]
+	mi := &file_chatto_api_v1_asset_uploads_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -320,7 +229,7 @@ func (x *CreateUploadRequest) String() string {
 func (*CreateUploadRequest) ProtoMessage() {}
 
 func (x *CreateUploadRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_asset_uploads_proto_msgTypes[2]
+	mi := &file_chatto_api_v1_asset_uploads_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -333,7 +242,7 @@ func (x *CreateUploadRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateUploadRequest.ProtoReflect.Descriptor instead.
 func (*CreateUploadRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_asset_uploads_proto_rawDescGZIP(), []int{2}
+	return file_chatto_api_v1_asset_uploads_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *CreateUploadRequest) GetRoomId() string {
@@ -382,7 +291,7 @@ type CreateUploadResponse struct {
 
 func (x *CreateUploadResponse) Reset() {
 	*x = CreateUploadResponse{}
-	mi := &file_chatto_api_v1_asset_uploads_proto_msgTypes[3]
+	mi := &file_chatto_api_v1_asset_uploads_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -394,7 +303,7 @@ func (x *CreateUploadResponse) String() string {
 func (*CreateUploadResponse) ProtoMessage() {}
 
 func (x *CreateUploadResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_asset_uploads_proto_msgTypes[3]
+	mi := &file_chatto_api_v1_asset_uploads_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -407,7 +316,7 @@ func (x *CreateUploadResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateUploadResponse.ProtoReflect.Descriptor instead.
 func (*CreateUploadResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_asset_uploads_proto_rawDescGZIP(), []int{3}
+	return file_chatto_api_v1_asset_uploads_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *CreateUploadResponse) GetUpload() *AssetUpload {
@@ -434,7 +343,7 @@ type UploadChunkRequest struct {
 
 func (x *UploadChunkRequest) Reset() {
 	*x = UploadChunkRequest{}
-	mi := &file_chatto_api_v1_asset_uploads_proto_msgTypes[4]
+	mi := &file_chatto_api_v1_asset_uploads_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -446,7 +355,7 @@ func (x *UploadChunkRequest) String() string {
 func (*UploadChunkRequest) ProtoMessage() {}
 
 func (x *UploadChunkRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_asset_uploads_proto_msgTypes[4]
+	mi := &file_chatto_api_v1_asset_uploads_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -459,7 +368,7 @@ func (x *UploadChunkRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UploadChunkRequest.ProtoReflect.Descriptor instead.
 func (*UploadChunkRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_asset_uploads_proto_rawDescGZIP(), []int{4}
+	return file_chatto_api_v1_asset_uploads_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *UploadChunkRequest) GetUploadId() string {
@@ -501,7 +410,7 @@ type UploadChunkResponse struct {
 
 func (x *UploadChunkResponse) Reset() {
 	*x = UploadChunkResponse{}
-	mi := &file_chatto_api_v1_asset_uploads_proto_msgTypes[5]
+	mi := &file_chatto_api_v1_asset_uploads_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -513,7 +422,7 @@ func (x *UploadChunkResponse) String() string {
 func (*UploadChunkResponse) ProtoMessage() {}
 
 func (x *UploadChunkResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_asset_uploads_proto_msgTypes[5]
+	mi := &file_chatto_api_v1_asset_uploads_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -526,7 +435,7 @@ func (x *UploadChunkResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UploadChunkResponse.ProtoReflect.Descriptor instead.
 func (*UploadChunkResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_asset_uploads_proto_rawDescGZIP(), []int{5}
+	return file_chatto_api_v1_asset_uploads_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *UploadChunkResponse) GetUpload() *AssetUpload {
@@ -547,7 +456,7 @@ type GetUploadRequest struct {
 
 func (x *GetUploadRequest) Reset() {
 	*x = GetUploadRequest{}
-	mi := &file_chatto_api_v1_asset_uploads_proto_msgTypes[6]
+	mi := &file_chatto_api_v1_asset_uploads_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -559,7 +468,7 @@ func (x *GetUploadRequest) String() string {
 func (*GetUploadRequest) ProtoMessage() {}
 
 func (x *GetUploadRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_asset_uploads_proto_msgTypes[6]
+	mi := &file_chatto_api_v1_asset_uploads_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -572,7 +481,7 @@ func (x *GetUploadRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetUploadRequest.ProtoReflect.Descriptor instead.
 func (*GetUploadRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_asset_uploads_proto_rawDescGZIP(), []int{6}
+	return file_chatto_api_v1_asset_uploads_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *GetUploadRequest) GetUploadId() string {
@@ -593,7 +502,7 @@ type GetUploadResponse struct {
 
 func (x *GetUploadResponse) Reset() {
 	*x = GetUploadResponse{}
-	mi := &file_chatto_api_v1_asset_uploads_proto_msgTypes[7]
+	mi := &file_chatto_api_v1_asset_uploads_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -605,7 +514,7 @@ func (x *GetUploadResponse) String() string {
 func (*GetUploadResponse) ProtoMessage() {}
 
 func (x *GetUploadResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_asset_uploads_proto_msgTypes[7]
+	mi := &file_chatto_api_v1_asset_uploads_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -618,7 +527,7 @@ func (x *GetUploadResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetUploadResponse.ProtoReflect.Descriptor instead.
 func (*GetUploadResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_asset_uploads_proto_rawDescGZIP(), []int{7}
+	return file_chatto_api_v1_asset_uploads_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *GetUploadResponse) GetUpload() *AssetUpload {
@@ -639,7 +548,7 @@ type CompleteUploadRequest struct {
 
 func (x *CompleteUploadRequest) Reset() {
 	*x = CompleteUploadRequest{}
-	mi := &file_chatto_api_v1_asset_uploads_proto_msgTypes[8]
+	mi := &file_chatto_api_v1_asset_uploads_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -651,7 +560,7 @@ func (x *CompleteUploadRequest) String() string {
 func (*CompleteUploadRequest) ProtoMessage() {}
 
 func (x *CompleteUploadRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_asset_uploads_proto_msgTypes[8]
+	mi := &file_chatto_api_v1_asset_uploads_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -664,7 +573,7 @@ func (x *CompleteUploadRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CompleteUploadRequest.ProtoReflect.Descriptor instead.
 func (*CompleteUploadRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_asset_uploads_proto_rawDescGZIP(), []int{8}
+	return file_chatto_api_v1_asset_uploads_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *CompleteUploadRequest) GetUploadId() string {
@@ -680,14 +589,14 @@ type CompleteUploadResponse struct {
 	// Completed upload session.
 	Upload *AssetUpload `protobuf:"bytes,1,opt,name=upload,proto3" json:"upload,omitempty"`
 	// Attachment asset produced by this upload.
-	Asset         *UploadedAttachmentAsset `protobuf:"bytes,2,opt,name=asset,proto3" json:"asset,omitempty"`
+	Asset         *Asset `protobuf:"bytes,2,opt,name=asset,proto3" json:"asset,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *CompleteUploadResponse) Reset() {
 	*x = CompleteUploadResponse{}
-	mi := &file_chatto_api_v1_asset_uploads_proto_msgTypes[9]
+	mi := &file_chatto_api_v1_asset_uploads_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -699,7 +608,7 @@ func (x *CompleteUploadResponse) String() string {
 func (*CompleteUploadResponse) ProtoMessage() {}
 
 func (x *CompleteUploadResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_asset_uploads_proto_msgTypes[9]
+	mi := &file_chatto_api_v1_asset_uploads_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -712,7 +621,7 @@ func (x *CompleteUploadResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CompleteUploadResponse.ProtoReflect.Descriptor instead.
 func (*CompleteUploadResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_asset_uploads_proto_rawDescGZIP(), []int{9}
+	return file_chatto_api_v1_asset_uploads_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *CompleteUploadResponse) GetUpload() *AssetUpload {
@@ -722,7 +631,7 @@ func (x *CompleteUploadResponse) GetUpload() *AssetUpload {
 	return nil
 }
 
-func (x *CompleteUploadResponse) GetAsset() *UploadedAttachmentAsset {
+func (x *CompleteUploadResponse) GetAsset() *Asset {
 	if x != nil {
 		return x.Asset
 	}
@@ -740,7 +649,7 @@ type CancelUploadRequest struct {
 
 func (x *CancelUploadRequest) Reset() {
 	*x = CancelUploadRequest{}
-	mi := &file_chatto_api_v1_asset_uploads_proto_msgTypes[10]
+	mi := &file_chatto_api_v1_asset_uploads_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -752,7 +661,7 @@ func (x *CancelUploadRequest) String() string {
 func (*CancelUploadRequest) ProtoMessage() {}
 
 func (x *CancelUploadRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_asset_uploads_proto_msgTypes[10]
+	mi := &file_chatto_api_v1_asset_uploads_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -765,7 +674,7 @@ func (x *CancelUploadRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CancelUploadRequest.ProtoReflect.Descriptor instead.
 func (*CancelUploadRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_asset_uploads_proto_rawDescGZIP(), []int{10}
+	return file_chatto_api_v1_asset_uploads_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *CancelUploadRequest) GetUploadId() string {
@@ -786,7 +695,7 @@ type CancelUploadResponse struct {
 
 func (x *CancelUploadResponse) Reset() {
 	*x = CancelUploadResponse{}
-	mi := &file_chatto_api_v1_asset_uploads_proto_msgTypes[11]
+	mi := &file_chatto_api_v1_asset_uploads_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -798,7 +707,7 @@ func (x *CancelUploadResponse) String() string {
 func (*CancelUploadResponse) ProtoMessage() {}
 
 func (x *CancelUploadResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_asset_uploads_proto_msgTypes[11]
+	mi := &file_chatto_api_v1_asset_uploads_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -811,7 +720,7 @@ func (x *CancelUploadResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CancelUploadResponse.ProtoReflect.Descriptor instead.
 func (*CancelUploadResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_asset_uploads_proto_rawDescGZIP(), []int{11}
+	return file_chatto_api_v1_asset_uploads_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *CancelUploadResponse) GetUpload() *AssetUpload {
@@ -825,7 +734,7 @@ var File_chatto_api_v1_asset_uploads_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_asset_uploads_proto_rawDesc = "" +
 	"\n" +
-	"!chatto/api/v1/asset_uploads.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xd0\x02\n" +
+	"!chatto/api/v1/asset_uploads.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fchatto/api/v1/attachments.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xd0\x02\n" +
 	"\vAssetUpload\x12\x1b\n" +
 	"\tupload_id\x18\x01 \x01(\tR\buploadId\x12\x17\n" +
 	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x128\n" +
@@ -836,14 +745,7 @@ const file_chatto_api_v1_asset_uploads_proto_rawDesc = "" +
 	"\x06sha256\x18\a \x01(\tR\x06sha256\x129\n" +
 	"\n" +
 	"expires_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\x12\x19\n" +
-	"\basset_id\x18\t \x01(\tR\aassetId\"\xb5\x01\n" +
-	"\x17UploadedAttachmentAsset\x12\x19\n" +
-	"\basset_id\x18\x01 \x01(\tR\aassetId\x12\x1a\n" +
-	"\bfilename\x18\x02 \x01(\tR\bfilename\x12!\n" +
-	"\fcontent_type\x18\x03 \x01(\tR\vcontentType\x12\x12\n" +
-	"\x04size\x18\x04 \x01(\x03R\x04size\x12\x14\n" +
-	"\x05width\x18\x05 \x01(\x05R\x05width\x12\x16\n" +
-	"\x06height\x18\x06 \x01(\x05R\x06height\"\x83\x02\n" +
+	"\basset_id\x18\t \x01(\tR\aassetId\"\x83\x02\n" +
 	"\x13CreateUploadRequest\x12 \n" +
 	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x12#\n" +
 	"\bfilename\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\bfilename\x12!\n" +
@@ -864,10 +766,10 @@ const file_chatto_api_v1_asset_uploads_proto_rawDesc = "" +
 	"\x11GetUploadResponse\x122\n" +
 	"\x06upload\x18\x01 \x01(\v2\x1a.chatto.api.v1.AssetUploadR\x06upload\"=\n" +
 	"\x15CompleteUploadRequest\x12$\n" +
-	"\tupload_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\buploadId\"\x8a\x01\n" +
+	"\tupload_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\buploadId\"x\n" +
 	"\x16CompleteUploadResponse\x122\n" +
-	"\x06upload\x18\x01 \x01(\v2\x1a.chatto.api.v1.AssetUploadR\x06upload\x12<\n" +
-	"\x05asset\x18\x02 \x01(\v2&.chatto.api.v1.UploadedAttachmentAssetR\x05asset\";\n" +
+	"\x06upload\x18\x01 \x01(\v2\x1a.chatto.api.v1.AssetUploadR\x06upload\x12*\n" +
+	"\x05asset\x18\x02 \x01(\v2\x14.chatto.api.v1.AssetR\x05asset\";\n" +
 	"\x13CancelUploadRequest\x12$\n" +
 	"\tupload_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\buploadId\"J\n" +
 	"\x14CancelUploadResponse\x122\n" +
@@ -898,42 +800,42 @@ func file_chatto_api_v1_asset_uploads_proto_rawDescGZIP() []byte {
 }
 
 var file_chatto_api_v1_asset_uploads_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_chatto_api_v1_asset_uploads_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
+var file_chatto_api_v1_asset_uploads_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
 var file_chatto_api_v1_asset_uploads_proto_goTypes = []any{
-	(AssetUploadStatus)(0),          // 0: chatto.api.v1.AssetUploadStatus
-	(*AssetUpload)(nil),             // 1: chatto.api.v1.AssetUpload
-	(*UploadedAttachmentAsset)(nil), // 2: chatto.api.v1.UploadedAttachmentAsset
-	(*CreateUploadRequest)(nil),     // 3: chatto.api.v1.CreateUploadRequest
-	(*CreateUploadResponse)(nil),    // 4: chatto.api.v1.CreateUploadResponse
-	(*UploadChunkRequest)(nil),      // 5: chatto.api.v1.UploadChunkRequest
-	(*UploadChunkResponse)(nil),     // 6: chatto.api.v1.UploadChunkResponse
-	(*GetUploadRequest)(nil),        // 7: chatto.api.v1.GetUploadRequest
-	(*GetUploadResponse)(nil),       // 8: chatto.api.v1.GetUploadResponse
-	(*CompleteUploadRequest)(nil),   // 9: chatto.api.v1.CompleteUploadRequest
-	(*CompleteUploadResponse)(nil),  // 10: chatto.api.v1.CompleteUploadResponse
-	(*CancelUploadRequest)(nil),     // 11: chatto.api.v1.CancelUploadRequest
-	(*CancelUploadResponse)(nil),    // 12: chatto.api.v1.CancelUploadResponse
-	(*timestamppb.Timestamp)(nil),   // 13: google.protobuf.Timestamp
+	(AssetUploadStatus)(0),         // 0: chatto.api.v1.AssetUploadStatus
+	(*AssetUpload)(nil),            // 1: chatto.api.v1.AssetUpload
+	(*CreateUploadRequest)(nil),    // 2: chatto.api.v1.CreateUploadRequest
+	(*CreateUploadResponse)(nil),   // 3: chatto.api.v1.CreateUploadResponse
+	(*UploadChunkRequest)(nil),     // 4: chatto.api.v1.UploadChunkRequest
+	(*UploadChunkResponse)(nil),    // 5: chatto.api.v1.UploadChunkResponse
+	(*GetUploadRequest)(nil),       // 6: chatto.api.v1.GetUploadRequest
+	(*GetUploadResponse)(nil),      // 7: chatto.api.v1.GetUploadResponse
+	(*CompleteUploadRequest)(nil),  // 8: chatto.api.v1.CompleteUploadRequest
+	(*CompleteUploadResponse)(nil), // 9: chatto.api.v1.CompleteUploadResponse
+	(*CancelUploadRequest)(nil),    // 10: chatto.api.v1.CancelUploadRequest
+	(*CancelUploadResponse)(nil),   // 11: chatto.api.v1.CancelUploadResponse
+	(*timestamppb.Timestamp)(nil),  // 12: google.protobuf.Timestamp
+	(*Asset)(nil),                  // 13: chatto.api.v1.Asset
 }
 var file_chatto_api_v1_asset_uploads_proto_depIdxs = []int32{
 	0,  // 0: chatto.api.v1.AssetUpload.status:type_name -> chatto.api.v1.AssetUploadStatus
-	13, // 1: chatto.api.v1.AssetUpload.expires_at:type_name -> google.protobuf.Timestamp
+	12, // 1: chatto.api.v1.AssetUpload.expires_at:type_name -> google.protobuf.Timestamp
 	1,  // 2: chatto.api.v1.CreateUploadResponse.upload:type_name -> chatto.api.v1.AssetUpload
 	1,  // 3: chatto.api.v1.UploadChunkResponse.upload:type_name -> chatto.api.v1.AssetUpload
 	1,  // 4: chatto.api.v1.GetUploadResponse.upload:type_name -> chatto.api.v1.AssetUpload
 	1,  // 5: chatto.api.v1.CompleteUploadResponse.upload:type_name -> chatto.api.v1.AssetUpload
-	2,  // 6: chatto.api.v1.CompleteUploadResponse.asset:type_name -> chatto.api.v1.UploadedAttachmentAsset
+	13, // 6: chatto.api.v1.CompleteUploadResponse.asset:type_name -> chatto.api.v1.Asset
 	1,  // 7: chatto.api.v1.CancelUploadResponse.upload:type_name -> chatto.api.v1.AssetUpload
-	3,  // 8: chatto.api.v1.AssetUploadService.CreateUpload:input_type -> chatto.api.v1.CreateUploadRequest
-	5,  // 9: chatto.api.v1.AssetUploadService.UploadChunk:input_type -> chatto.api.v1.UploadChunkRequest
-	7,  // 10: chatto.api.v1.AssetUploadService.GetUpload:input_type -> chatto.api.v1.GetUploadRequest
-	9,  // 11: chatto.api.v1.AssetUploadService.CompleteUpload:input_type -> chatto.api.v1.CompleteUploadRequest
-	11, // 12: chatto.api.v1.AssetUploadService.CancelUpload:input_type -> chatto.api.v1.CancelUploadRequest
-	4,  // 13: chatto.api.v1.AssetUploadService.CreateUpload:output_type -> chatto.api.v1.CreateUploadResponse
-	6,  // 14: chatto.api.v1.AssetUploadService.UploadChunk:output_type -> chatto.api.v1.UploadChunkResponse
-	8,  // 15: chatto.api.v1.AssetUploadService.GetUpload:output_type -> chatto.api.v1.GetUploadResponse
-	10, // 16: chatto.api.v1.AssetUploadService.CompleteUpload:output_type -> chatto.api.v1.CompleteUploadResponse
-	12, // 17: chatto.api.v1.AssetUploadService.CancelUpload:output_type -> chatto.api.v1.CancelUploadResponse
+	2,  // 8: chatto.api.v1.AssetUploadService.CreateUpload:input_type -> chatto.api.v1.CreateUploadRequest
+	4,  // 9: chatto.api.v1.AssetUploadService.UploadChunk:input_type -> chatto.api.v1.UploadChunkRequest
+	6,  // 10: chatto.api.v1.AssetUploadService.GetUpload:input_type -> chatto.api.v1.GetUploadRequest
+	8,  // 11: chatto.api.v1.AssetUploadService.CompleteUpload:input_type -> chatto.api.v1.CompleteUploadRequest
+	10, // 12: chatto.api.v1.AssetUploadService.CancelUpload:input_type -> chatto.api.v1.CancelUploadRequest
+	3,  // 13: chatto.api.v1.AssetUploadService.CreateUpload:output_type -> chatto.api.v1.CreateUploadResponse
+	5,  // 14: chatto.api.v1.AssetUploadService.UploadChunk:output_type -> chatto.api.v1.UploadChunkResponse
+	7,  // 15: chatto.api.v1.AssetUploadService.GetUpload:output_type -> chatto.api.v1.GetUploadResponse
+	9,  // 16: chatto.api.v1.AssetUploadService.CompleteUpload:output_type -> chatto.api.v1.CompleteUploadResponse
+	11, // 17: chatto.api.v1.AssetUploadService.CancelUpload:output_type -> chatto.api.v1.CancelUploadResponse
 	13, // [13:18] is the sub-list for method output_type
 	8,  // [8:13] is the sub-list for method input_type
 	8,  // [8:8] is the sub-list for extension type_name
@@ -946,13 +848,14 @@ func file_chatto_api_v1_asset_uploads_proto_init() {
 	if File_chatto_api_v1_asset_uploads_proto != nil {
 		return
 	}
+	file_chatto_api_v1_attachments_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_api_v1_asset_uploads_proto_rawDesc), len(file_chatto_api_v1_asset_uploads_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   12,
+			NumMessages:   11,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

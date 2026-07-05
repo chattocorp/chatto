@@ -109,9 +109,10 @@ For ad-hoc tool invocations, use `mise x -- ...` rather than assuming `go`,
   repeatable `List`/`Get`/`BatchGet`/`Create`/`Update`/`Delete` pattern, with
   domain verbs only when CRUD names would hide important semantics.
 - Prefer rich protobuf messages over scalar acknowledgements when returning the
-  affected resource is cheap and does not change authorization. Provide batch
-  hydration or include-map patterns where clients would otherwise need N+1
-  reads.
+  affected resource is cheap and does not change authorization. Prefer explicit
+  `BatchGet*` hydration over `includes` maps. Add `includes`-style properties
+  only for proven hot paths where many rows repeatedly reference the same
+  related render data and follow-up batch hydration would be materially worse.
 - Reuse public protobuf shapes for repeated semantics. Offset list RPCs should
   use `PageRequest page` and return `PageInfo page`; singular lookups should
   return `NOT_FOUND` when absence is the error result, while batch/list RPCs can

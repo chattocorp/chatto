@@ -80,7 +80,6 @@ func (s *messageService) UpdateMessage(ctx context.Context, req *connect.Request
 		return nil, connectError(err)
 	}
 	return connect.NewResponse(&apiv1.UpdateMessageResponse{
-		Updated: true,
 		Message: messageFromTimelineEvent(apiEvent),
 	}), nil
 }

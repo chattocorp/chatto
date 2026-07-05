@@ -103,128 +103,6 @@ export class AdminMember extends Message<AdminMember> {
 }
 
 /**
- * Operator compatibility role reference used by operator.v1 response shapes.
- *
- * @generated from message chatto.admin.v1.AdminRoleReference
- */
-export class AdminRoleReference extends Message<AdminRoleReference> {
-  /**
-   * Stable role name.
-   *
-   * @generated from field: string name = 1;
-   */
-  name = "";
-
-  /**
-   * Display name shown in operator UI.
-   *
-   * @generated from field: string display_name = 2;
-   */
-  displayName = "";
-
-  constructor(data?: PartialMessage<AdminRoleReference>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.admin.v1.AdminRoleReference";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "display_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AdminRoleReference {
-    return new AdminRoleReference().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): AdminRoleReference {
-    return new AdminRoleReference().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): AdminRoleReference {
-    return new AdminRoleReference().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: AdminRoleReference | PlainMessage<AdminRoleReference> | undefined, b: AdminRoleReference | PlainMessage<AdminRoleReference> | undefined): boolean {
-    return proto3.util.equals(AdminRoleReference, a, b);
-  }
-}
-
-/**
- * Operator compatibility role details used by operator.v1 response shapes.
- *
- * @generated from message chatto.admin.v1.AdminMemberRole
- */
-export class AdminMemberRole extends Message<AdminMemberRole> {
-  /**
-   * Stable role name.
-   *
-   * @generated from field: string name = 1;
-   */
-  name = "";
-
-  /**
-   * Display name shown in operator UI.
-   *
-   * @generated from field: string display_name = 2;
-   */
-  displayName = "";
-
-  /**
-   * Display/order position.
-   *
-   * @generated from field: int32 position = 3;
-   */
-  position = 0;
-
-  /**
-   * Permissions granted by this role.
-   *
-   * @generated from field: repeated string permissions = 4;
-   */
-  permissions: string[] = [];
-
-  /**
-   * Permissions denied by this role.
-   *
-   * @generated from field: repeated string permission_denials = 5;
-   */
-  permissionDenials: string[] = [];
-
-  constructor(data?: PartialMessage<AdminMemberRole>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.admin.v1.AdminMemberRole";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "display_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "position", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
-    { no: 4, name: "permissions", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
-    { no: 5, name: "permission_denials", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AdminMemberRole {
-    return new AdminMemberRole().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): AdminMemberRole {
-    return new AdminMemberRole().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): AdminMemberRole {
-    return new AdminMemberRole().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: AdminMemberRole | PlainMessage<AdminMemberRole> | undefined, b: AdminMemberRole | PlainMessage<AdminMemberRole> | undefined): boolean {
-    return proto3.util.equals(AdminMemberRole, a, b);
-  }
-}
-
-/**
  * Request server-admin member rows.
  *
  * @generated from message chatto.admin.v1.ListMembersRequest
@@ -614,13 +492,6 @@ export class AssignRoleRequest extends Message<AssignRoleRequest> {
  */
 export class AssignRoleResponse extends Message<AssignRoleResponse> {
   /**
-   * True when the request completed.
-   *
-   * @generated from field: bool assigned = 1;
-   */
-  assigned = false;
-
-  /**
    * Updated admin member row.
    *
    * @generated from field: chatto.admin.v1.AdminMember member = 2;
@@ -635,7 +506,6 @@ export class AssignRoleResponse extends Message<AssignRoleResponse> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.admin.v1.AssignRoleResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "assigned", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 2, name: "member", kind: "message", T: AdminMember },
   ]);
 
@@ -712,13 +582,6 @@ export class RevokeRoleRequest extends Message<RevokeRoleRequest> {
  */
 export class RevokeRoleResponse extends Message<RevokeRoleResponse> {
   /**
-   * True when the request completed.
-   *
-   * @generated from field: bool revoked = 1;
-   */
-  revoked = false;
-
-  /**
    * Updated admin member row.
    *
    * @generated from field: chatto.admin.v1.AdminMember member = 2;
@@ -733,7 +596,6 @@ export class RevokeRoleResponse extends Message<RevokeRoleResponse> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.admin.v1.RevokeRoleResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "revoked", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 2, name: "member", kind: "message", T: AdminMember },
   ]);
 

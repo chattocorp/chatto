@@ -141,6 +141,9 @@ message UserPermissionMatrix {
 }
 
 // One resource-oriented permission decision at a concrete scope.
+//
+// This is the row-oriented counterpart to PermissionMatrixCell. Prefer this
+// shape when building integrations that do not need matrix column joins.
 message ScopedPermissionDecision {
   // Permission identifier.
   string permission = 1;
@@ -172,7 +175,7 @@ message ListRolePermissionDecisionsRequest {
 message ListRolePermissionDecisionsResponse {
   // Stable role name.
   string role_name = 1;
-  // Permission decisions keyed by permission and scope.
+  // Permission decisions keyed by permission and typed scope.
   repeated ScopedPermissionDecision decisions = 2;
 }
 
@@ -186,7 +189,7 @@ message ListUserPermissionDecisionsRequest {
 message ListUserPermissionDecisionsResponse {
   // User ID.
   string user_id = 1;
-  // Permission decisions keyed by permission and scope.
+  // Permission decisions keyed by permission and typed scope.
   repeated ScopedPermissionDecision decisions = 2;
 }
 
@@ -305,13 +308,13 @@ service AdminPermissionService {
   // Gets one role's full permission matrix. Requires role.manage. Returns
   // NOT_FOUND when the role does not exist.
   rpc GetRolePermissionMatrix(GetRolePermissionMatrixRequest) returns (GetRolePermissionMatrixResponse);
-  // Lists one role's permission decisions by permission and scope. Requires
+  // Lists one role's permission decisions as resource-oriented rows. Requires
   // role.manage. Returns NOT_FOUND when the role does not exist.
   rpc ListRolePermissionDecisions(ListRolePermissionDecisionsRequest) returns (ListRolePermissionDecisionsResponse);
   // Gets one user's full permission matrix. Requires user.manage-permissions.
   // Returns NOT_FOUND when the user does not exist.
   rpc GetUserPermissionMatrix(GetUserPermissionMatrixRequest) returns (GetUserPermissionMatrixResponse);
-  // Lists one user's permission decisions by permission and scope. Requires
+  // Lists one user's permission decisions as resource-oriented rows. Requires
   // user.manage-permissions. Returns NOT_FOUND when the user does not exist.
   rpc ListUserPermissionDecisions(ListUserPermissionDecisionsRequest) returns (ListUserPermissionDecisionsResponse);
   // Explains permission resolution for another user. Requires role.manage.
