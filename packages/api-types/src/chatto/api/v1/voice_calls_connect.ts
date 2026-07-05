@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { BatchGetActiveCallsRequest, BatchGetActiveCallsResponse, GetActiveCallRequest, GetActiveCallResponse, GetCallTokenRequest, GetCallTokenResponse, JoinCallRequest, JoinCallResponse, LeaveCallRequest, LeaveCallResponse, ListActiveCallRoomsRequest, ListActiveCallRoomsResponse, ListCallParticipantsRequest, ListCallParticipantsResponse } from "./voice_calls_pb.js";
+import { BatchGetActiveCallsRequest, BatchGetActiveCallsResponse, GetActiveCallRequest, GetActiveCallResponse, GetCallTokenRequest, GetCallTokenResponse, JoinCallRequest, JoinCallResponse, LeaveCallRequest, LeaveCallResponse, ListActiveCallsRequest, ListActiveCallsResponse, ListCallParticipantsRequest, ListCallParticipantsResponse } from "./voice_calls_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -20,12 +20,12 @@ export const VoiceCallService = {
      *
      * Returns an empty list when LiveKit is not configured.
      *
-     * @generated from rpc chatto.api.v1.VoiceCallService.ListActiveCallRooms
+     * @generated from rpc chatto.api.v1.VoiceCallService.ListActiveCalls
      */
-    listActiveCallRooms: {
-      name: "ListActiveCallRooms",
-      I: ListActiveCallRoomsRequest,
-      O: ListActiveCallRoomsResponse,
+    listActiveCalls: {
+      name: "ListActiveCalls",
+      I: ListActiveCallsRequest,
+      O: ListActiveCallsResponse,
       kind: MethodKind.Unary,
     },
     /**

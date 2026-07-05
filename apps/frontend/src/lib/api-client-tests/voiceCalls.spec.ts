@@ -6,7 +6,7 @@ import { createVoiceCallAPI } from '$lib/api-client/voiceCalls';
 const mocks = vi.hoisted(() => ({
   createClient: vi.fn(),
   createConnectTransport: vi.fn(),
-  listActiveCallRooms: vi.fn(),
+  listActiveCalls: vi.fn(),
   getActiveCall: vi.fn(),
   batchGetActiveCalls: vi.fn(),
   listCallParticipants: vi.fn(),
@@ -31,7 +31,7 @@ describe('createVoiceCallAPI', () => {
   beforeEach(() => {
     mocks.createClient.mockReset();
     mocks.createConnectTransport.mockReset();
-    mocks.listActiveCallRooms.mockReset();
+    mocks.listActiveCalls.mockReset();
     mocks.getActiveCall.mockReset();
     mocks.batchGetActiveCalls.mockReset();
     mocks.listCallParticipants.mockReset();
@@ -40,7 +40,7 @@ describe('createVoiceCallAPI', () => {
     mocks.leaveCall.mockReset();
     mocks.createConnectTransport.mockReturnValue({ kind: 'transport' });
     mocks.createClient.mockReturnValue({
-      listActiveCallRooms: mocks.listActiveCallRooms,
+      listActiveCalls: mocks.listActiveCalls,
       getActiveCall: mocks.getActiveCall,
       batchGetActiveCalls: mocks.batchGetActiveCalls,
       listCallParticipants: mocks.listCallParticipants,
@@ -62,10 +62,10 @@ describe('createVoiceCallAPI', () => {
       joinedAt: Timestamp.fromDate(new Date('2026-06-01T12:00:00Z')),
       callId: 'call-1'
     };
-    mocks.listActiveCallRooms.mockResolvedValue({
+    mocks.listActiveCalls.mockResolvedValue({
       calls: [
         {
-          roomId: 'room-1',
+          room: { id: 'room-1', name: 'General' },
           callId: 'call-1',
           participants: [participant]
         }
@@ -73,7 +73,7 @@ describe('createVoiceCallAPI', () => {
     });
     mocks.getActiveCall.mockResolvedValue({
       call: {
-        roomId: 'room-1',
+        room: { id: 'room-1', name: 'General' },
         callId: 'call-1',
         participants: [participant]
       }
@@ -81,7 +81,7 @@ describe('createVoiceCallAPI', () => {
     mocks.batchGetActiveCalls.mockResolvedValue({
       calls: [
         {
-          roomId: 'room-1',
+          room: { id: 'room-1', name: 'General' },
           callId: 'call-1',
           participants: [participant]
         }
@@ -143,7 +143,7 @@ describe('createVoiceCallAPI', () => {
       baseUrl: 'https://remote.test/api/connect',
       useBinaryFormat: true
     });
-    expect(mocks.listActiveCallRooms).toHaveBeenCalledWith(
+    expect(mocks.listActiveCalls).toHaveBeenCalledWith(
       {},
       { headers: { Authorization: 'Bearer token' } }
     );

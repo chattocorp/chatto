@@ -50,8 +50,10 @@ interface GetCallTokenResponse {
   callId?: string;
 }
 
-interface ListActiveCallRoomsResponse {
-  roomIds?: string[];
+interface ListActiveCallsResponse {
+  calls?: Array<{
+    room?: { id?: string };
+  }>;
 }
 
 interface ListCallParticipantsResponse {
@@ -82,11 +84,11 @@ async function getCallTokenViaConnect(page: Page, roomId: string): Promise<GetCa
 }
 
 async function listActiveCallRoomIdsViaConnect(page: Page): Promise<string[]> {
-  const data = await connectPost<ListActiveCallRoomsResponse>(
+  const data = await connectPost<ListActiveCallsResponse>(
     page,
-    'chatto.api.v1.VoiceCallService/ListActiveCallRooms'
+    'chatto.api.v1.VoiceCallService/ListActiveCalls'
   );
-  return data.roomIds ?? [];
+  return (data.calls ?? []).flatMap((call) => (call.room?.id ? [call.room.id] : []));
 }
 
 async function listCallParticipantsViaConnect(

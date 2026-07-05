@@ -24,26 +24,26 @@ const (
 )
 
 // Request for active channel call snapshots.
-type ListActiveCallRoomsRequest struct {
+type ListActiveCallsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *ListActiveCallRoomsRequest) Reset() {
-	*x = ListActiveCallRoomsRequest{}
+func (x *ListActiveCallsRequest) Reset() {
+	*x = ListActiveCallsRequest{}
 	mi := &file_chatto_api_v1_voice_calls_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ListActiveCallRoomsRequest) String() string {
+func (x *ListActiveCallsRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ListActiveCallRoomsRequest) ProtoMessage() {}
+func (*ListActiveCallsRequest) ProtoMessage() {}
 
-func (x *ListActiveCallRoomsRequest) ProtoReflect() protoreflect.Message {
+func (x *ListActiveCallsRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_chatto_api_v1_voice_calls_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -55,13 +55,13 @@ func (x *ListActiveCallRoomsRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ListActiveCallRoomsRequest.ProtoReflect.Descriptor instead.
-func (*ListActiveCallRoomsRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use ListActiveCallsRequest.ProtoReflect.Descriptor instead.
+func (*ListActiveCallsRequest) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_voice_calls_proto_rawDescGZIP(), []int{0}
 }
 
-// Finite runtime snapshot of active channel call rooms.
-type ListActiveCallRoomsResponse struct {
+// Finite runtime snapshot of active channel calls.
+type ListActiveCallsResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Active calls in room order returned by the call-state projection.
 	Calls         []*ActiveCall `protobuf:"bytes,1,rep,name=calls,proto3" json:"calls,omitempty"`
@@ -69,20 +69,20 @@ type ListActiveCallRoomsResponse struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *ListActiveCallRoomsResponse) Reset() {
-	*x = ListActiveCallRoomsResponse{}
+func (x *ListActiveCallsResponse) Reset() {
+	*x = ListActiveCallsResponse{}
 	mi := &file_chatto_api_v1_voice_calls_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ListActiveCallRoomsResponse) String() string {
+func (x *ListActiveCallsResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ListActiveCallRoomsResponse) ProtoMessage() {}
+func (*ListActiveCallsResponse) ProtoMessage() {}
 
-func (x *ListActiveCallRoomsResponse) ProtoReflect() protoreflect.Message {
+func (x *ListActiveCallsResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_chatto_api_v1_voice_calls_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -94,12 +94,12 @@ func (x *ListActiveCallRoomsResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ListActiveCallRoomsResponse.ProtoReflect.Descriptor instead.
-func (*ListActiveCallRoomsResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use ListActiveCallsResponse.ProtoReflect.Descriptor instead.
+func (*ListActiveCallsResponse) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_voice_calls_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *ListActiveCallRoomsResponse) GetCalls() []*ActiveCall {
+func (x *ListActiveCallsResponse) GetCalls() []*ActiveCall {
 	if x != nil {
 		return x.Calls
 	}
@@ -110,7 +110,7 @@ func (x *ListActiveCallRoomsResponse) GetCalls() []*ActiveCall {
 type ActiveCall struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Room containing the active call.
-	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	Room *RoomSummary `protobuf:"bytes,4,opt,name=room,proto3" json:"room,omitempty"`
 	// Active call session ID.
 	CallId string `protobuf:"bytes,2,opt,name=call_id,json=callId,proto3" json:"call_id,omitempty"`
 	// Participants currently projected for this call.
@@ -149,11 +149,11 @@ func (*ActiveCall) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_voice_calls_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *ActiveCall) GetRoomId() string {
+func (x *ActiveCall) GetRoom() *RoomSummary {
 	if x != nil {
-		return x.RoomId
+		return x.Room
 	}
-	return ""
+	return nil
 }
 
 func (x *ActiveCall) GetCallId() string {
@@ -808,15 +808,15 @@ var File_chatto_api_v1_voice_calls_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_voice_calls_proto_rawDesc = "" +
 	"\n" +
-	"\x1fchatto/api/v1/voice_calls.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a\x19chatto/api/v1/users.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x1c\n" +
-	"\x1aListActiveCallRoomsRequest\"N\n" +
-	"\x1bListActiveCallRoomsResponse\x12/\n" +
-	"\x05calls\x18\x01 \x03(\v2\x19.chatto.api.v1.ActiveCallR\x05calls\"\x82\x01\n" +
+	"\x1fchatto/api/v1/voice_calls.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a\x19chatto/api/v1/rooms.proto\x1a\x19chatto/api/v1/users.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x18\n" +
+	"\x16ListActiveCallsRequest\"J\n" +
+	"\x17ListActiveCallsResponse\x12/\n" +
+	"\x05calls\x18\x01 \x03(\v2\x19.chatto.api.v1.ActiveCallR\x05calls\"\xa8\x01\n" +
 	"\n" +
-	"ActiveCall\x12\x17\n" +
-	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x17\n" +
+	"ActiveCall\x12.\n" +
+	"\x04room\x18\x04 \x01(\v2\x1a.chatto.api.v1.RoomSummaryR\x04room\x12\x17\n" +
 	"\acall_id\x18\x02 \x01(\tR\x06callId\x12B\n" +
-	"\fparticipants\x18\x03 \x03(\v2\x1e.chatto.api.v1.CallParticipantR\fparticipants\"8\n" +
+	"\fparticipants\x18\x03 \x03(\v2\x1e.chatto.api.v1.CallParticipantR\fparticipantsJ\x04\b\x01\x10\x02R\aroom_id\"8\n" +
 	"\x14GetActiveCallRequest\x12 \n" +
 	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\"F\n" +
 	"\x15GetActiveCallResponse\x12-\n" +
@@ -847,9 +847,9 @@ const file_chatto_api_v1_voice_calls_proto_rawDesc = "" +
 	"\x10LeaveCallRequest\x12 \n" +
 	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\"'\n" +
 	"\x11LeaveCallResponse\x12\x12\n" +
-	"\x04left\x18\x01 \x01(\bR\x04left2\xb1\x05\n" +
-	"\x10VoiceCallService\x12l\n" +
-	"\x13ListActiveCallRooms\x12).chatto.api.v1.ListActiveCallRoomsRequest\x1a*.chatto.api.v1.ListActiveCallRoomsResponse\x12Z\n" +
+	"\x04left\x18\x01 \x01(\bR\x04left2\xa5\x05\n" +
+	"\x10VoiceCallService\x12`\n" +
+	"\x0fListActiveCalls\x12%.chatto.api.v1.ListActiveCallsRequest\x1a&.chatto.api.v1.ListActiveCallsResponse\x12Z\n" +
 	"\rGetActiveCall\x12#.chatto.api.v1.GetActiveCallRequest\x1a$.chatto.api.v1.GetActiveCallResponse\x12l\n" +
 	"\x13BatchGetActiveCalls\x12).chatto.api.v1.BatchGetActiveCallsRequest\x1a*.chatto.api.v1.BatchGetActiveCallsResponse\x12o\n" +
 	"\x14ListCallParticipants\x12*.chatto.api.v1.ListCallParticipantsRequest\x1a+.chatto.api.v1.ListCallParticipantsResponse\x12K\n" +
@@ -872,8 +872,8 @@ func file_chatto_api_v1_voice_calls_proto_rawDescGZIP() []byte {
 
 var file_chatto_api_v1_voice_calls_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
 var file_chatto_api_v1_voice_calls_proto_goTypes = []any{
-	(*ListActiveCallRoomsRequest)(nil),   // 0: chatto.api.v1.ListActiveCallRoomsRequest
-	(*ListActiveCallRoomsResponse)(nil),  // 1: chatto.api.v1.ListActiveCallRoomsResponse
+	(*ListActiveCallsRequest)(nil),       // 0: chatto.api.v1.ListActiveCallsRequest
+	(*ListActiveCallsResponse)(nil),      // 1: chatto.api.v1.ListActiveCallsResponse
 	(*ActiveCall)(nil),                   // 2: chatto.api.v1.ActiveCall
 	(*GetActiveCallRequest)(nil),         // 3: chatto.api.v1.GetActiveCallRequest
 	(*GetActiveCallResponse)(nil),        // 4: chatto.api.v1.GetActiveCallResponse
@@ -888,36 +888,38 @@ var file_chatto_api_v1_voice_calls_proto_goTypes = []any{
 	(*GetCallTokenResponse)(nil),         // 13: chatto.api.v1.GetCallTokenResponse
 	(*LeaveCallRequest)(nil),             // 14: chatto.api.v1.LeaveCallRequest
 	(*LeaveCallResponse)(nil),            // 15: chatto.api.v1.LeaveCallResponse
-	(*User)(nil),                         // 16: chatto.api.v1.User
-	(*timestamppb.Timestamp)(nil),        // 17: google.protobuf.Timestamp
+	(*RoomSummary)(nil),                  // 16: chatto.api.v1.RoomSummary
+	(*User)(nil),                         // 17: chatto.api.v1.User
+	(*timestamppb.Timestamp)(nil),        // 18: google.protobuf.Timestamp
 }
 var file_chatto_api_v1_voice_calls_proto_depIdxs = []int32{
-	2,  // 0: chatto.api.v1.ListActiveCallRoomsResponse.calls:type_name -> chatto.api.v1.ActiveCall
-	9,  // 1: chatto.api.v1.ActiveCall.participants:type_name -> chatto.api.v1.CallParticipant
-	2,  // 2: chatto.api.v1.GetActiveCallResponse.call:type_name -> chatto.api.v1.ActiveCall
-	2,  // 3: chatto.api.v1.BatchGetActiveCallsResponse.calls:type_name -> chatto.api.v1.ActiveCall
-	9,  // 4: chatto.api.v1.ListCallParticipantsResponse.participants:type_name -> chatto.api.v1.CallParticipant
-	16, // 5: chatto.api.v1.CallParticipant.user:type_name -> chatto.api.v1.User
-	17, // 6: chatto.api.v1.CallParticipant.joined_at:type_name -> google.protobuf.Timestamp
-	0,  // 7: chatto.api.v1.VoiceCallService.ListActiveCallRooms:input_type -> chatto.api.v1.ListActiveCallRoomsRequest
-	3,  // 8: chatto.api.v1.VoiceCallService.GetActiveCall:input_type -> chatto.api.v1.GetActiveCallRequest
-	5,  // 9: chatto.api.v1.VoiceCallService.BatchGetActiveCalls:input_type -> chatto.api.v1.BatchGetActiveCallsRequest
-	7,  // 10: chatto.api.v1.VoiceCallService.ListCallParticipants:input_type -> chatto.api.v1.ListCallParticipantsRequest
-	10, // 11: chatto.api.v1.VoiceCallService.JoinCall:input_type -> chatto.api.v1.JoinCallRequest
-	12, // 12: chatto.api.v1.VoiceCallService.GetCallToken:input_type -> chatto.api.v1.GetCallTokenRequest
-	14, // 13: chatto.api.v1.VoiceCallService.LeaveCall:input_type -> chatto.api.v1.LeaveCallRequest
-	1,  // 14: chatto.api.v1.VoiceCallService.ListActiveCallRooms:output_type -> chatto.api.v1.ListActiveCallRoomsResponse
-	4,  // 15: chatto.api.v1.VoiceCallService.GetActiveCall:output_type -> chatto.api.v1.GetActiveCallResponse
-	6,  // 16: chatto.api.v1.VoiceCallService.BatchGetActiveCalls:output_type -> chatto.api.v1.BatchGetActiveCallsResponse
-	8,  // 17: chatto.api.v1.VoiceCallService.ListCallParticipants:output_type -> chatto.api.v1.ListCallParticipantsResponse
-	11, // 18: chatto.api.v1.VoiceCallService.JoinCall:output_type -> chatto.api.v1.JoinCallResponse
-	13, // 19: chatto.api.v1.VoiceCallService.GetCallToken:output_type -> chatto.api.v1.GetCallTokenResponse
-	15, // 20: chatto.api.v1.VoiceCallService.LeaveCall:output_type -> chatto.api.v1.LeaveCallResponse
-	14, // [14:21] is the sub-list for method output_type
-	7,  // [7:14] is the sub-list for method input_type
-	7,  // [7:7] is the sub-list for extension type_name
-	7,  // [7:7] is the sub-list for extension extendee
-	0,  // [0:7] is the sub-list for field type_name
+	2,  // 0: chatto.api.v1.ListActiveCallsResponse.calls:type_name -> chatto.api.v1.ActiveCall
+	16, // 1: chatto.api.v1.ActiveCall.room:type_name -> chatto.api.v1.RoomSummary
+	9,  // 2: chatto.api.v1.ActiveCall.participants:type_name -> chatto.api.v1.CallParticipant
+	2,  // 3: chatto.api.v1.GetActiveCallResponse.call:type_name -> chatto.api.v1.ActiveCall
+	2,  // 4: chatto.api.v1.BatchGetActiveCallsResponse.calls:type_name -> chatto.api.v1.ActiveCall
+	9,  // 5: chatto.api.v1.ListCallParticipantsResponse.participants:type_name -> chatto.api.v1.CallParticipant
+	17, // 6: chatto.api.v1.CallParticipant.user:type_name -> chatto.api.v1.User
+	18, // 7: chatto.api.v1.CallParticipant.joined_at:type_name -> google.protobuf.Timestamp
+	0,  // 8: chatto.api.v1.VoiceCallService.ListActiveCalls:input_type -> chatto.api.v1.ListActiveCallsRequest
+	3,  // 9: chatto.api.v1.VoiceCallService.GetActiveCall:input_type -> chatto.api.v1.GetActiveCallRequest
+	5,  // 10: chatto.api.v1.VoiceCallService.BatchGetActiveCalls:input_type -> chatto.api.v1.BatchGetActiveCallsRequest
+	7,  // 11: chatto.api.v1.VoiceCallService.ListCallParticipants:input_type -> chatto.api.v1.ListCallParticipantsRequest
+	10, // 12: chatto.api.v1.VoiceCallService.JoinCall:input_type -> chatto.api.v1.JoinCallRequest
+	12, // 13: chatto.api.v1.VoiceCallService.GetCallToken:input_type -> chatto.api.v1.GetCallTokenRequest
+	14, // 14: chatto.api.v1.VoiceCallService.LeaveCall:input_type -> chatto.api.v1.LeaveCallRequest
+	1,  // 15: chatto.api.v1.VoiceCallService.ListActiveCalls:output_type -> chatto.api.v1.ListActiveCallsResponse
+	4,  // 16: chatto.api.v1.VoiceCallService.GetActiveCall:output_type -> chatto.api.v1.GetActiveCallResponse
+	6,  // 17: chatto.api.v1.VoiceCallService.BatchGetActiveCalls:output_type -> chatto.api.v1.BatchGetActiveCallsResponse
+	8,  // 18: chatto.api.v1.VoiceCallService.ListCallParticipants:output_type -> chatto.api.v1.ListCallParticipantsResponse
+	11, // 19: chatto.api.v1.VoiceCallService.JoinCall:output_type -> chatto.api.v1.JoinCallResponse
+	13, // 20: chatto.api.v1.VoiceCallService.GetCallToken:output_type -> chatto.api.v1.GetCallTokenResponse
+	15, // 21: chatto.api.v1.VoiceCallService.LeaveCall:output_type -> chatto.api.v1.LeaveCallResponse
+	15, // [15:22] is the sub-list for method output_type
+	8,  // [8:15] is the sub-list for method input_type
+	8,  // [8:8] is the sub-list for extension type_name
+	8,  // [8:8] is the sub-list for extension extendee
+	0,  // [0:8] is the sub-list for field type_name
 }
 
 func init() { file_chatto_api_v1_voice_calls_proto_init() }
@@ -925,6 +927,7 @@ func file_chatto_api_v1_voice_calls_proto_init() {
 	if File_chatto_api_v1_voice_calls_proto != nil {
 		return
 	}
+	file_chatto_api_v1_rooms_proto_init()
 	file_chatto_api_v1_users_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{

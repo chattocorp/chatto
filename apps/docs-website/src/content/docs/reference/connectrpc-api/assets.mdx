@@ -52,7 +52,7 @@ Response containing one room-scoped asset.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `asset` | [`MessageAttachment`](/reference/connectrpc-api/types/#chatto-api-v1-MessageAttachment) | Asset metadata and signed URLs. |
+| `asset` | [`Asset`](/reference/connectrpc-api/types/#chatto-api-v1-Asset) | Asset metadata and signed URLs. |
 
 
 <a id="chatto-api-v1-AssetService-BatchGetAssets"></a>
@@ -88,4 +88,4 @@ Response containing room-scoped assets.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `assets` | repeated [`MessageAttachment`](/reference/connectrpc-api/types/#chatto-api-v1-MessageAttachment) | Assets in first-seen request order. |
+| `assets` | repeated [`Asset`](/reference/connectrpc-api/types/#chatto-api-v1-Asset) | Assets in first-seen request order. |

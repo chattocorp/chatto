@@ -4,9 +4,114 @@
 // @ts-nocheck
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
-import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
-import { MessageAttachment } from "./message_types_pb.js";
+import { Message, proto3, protoInt64, Timestamp } from "@bufbuild/protobuf";
+import { MessageAssetUrl, MessageVideoProcessing } from "./message_types_pb.js";
 import { ImageTransformOptions } from "./common_pb.js";
+
+/**
+ * Room-scoped binary asset metadata and freshly signed URLs.
+ *
+ * @generated from message chatto.api.v1.Asset
+ */
+export class Asset extends Message<Asset> {
+  /**
+   * Stable asset ID.
+   *
+   * @generated from field: string id = 1;
+   */
+  id = "";
+
+  /**
+   * Original filename.
+   *
+   * @generated from field: string filename = 2;
+   */
+  filename = "";
+
+  /**
+   * MIME content type.
+   *
+   * @generated from field: string content_type = 3;
+   */
+  contentType = "";
+
+  /**
+   * Stored file size in bytes.
+   *
+   * @generated from field: int64 size = 4;
+   */
+  size = protoInt64.zero;
+
+  /**
+   * Media width when known.
+   *
+   * @generated from field: int32 width = 5;
+   */
+  width = 0;
+
+  /**
+   * Media height when known.
+   *
+   * @generated from field: int32 height = 6;
+   */
+  height = 0;
+
+  /**
+   * Signed URL for the original asset bytes.
+   *
+   * @generated from field: chatto.api.v1.MessageAssetUrl asset_url = 7;
+   */
+  assetUrl?: MessageAssetUrl;
+
+  /**
+   * Signed URL for a transformed image thumbnail.
+   *
+   * @generated from field: chatto.api.v1.MessageAssetUrl thumbnail_asset_url = 8;
+   */
+  thumbnailAssetUrl?: MessageAssetUrl;
+
+  /**
+   * Video processing state when this asset is a video attachment.
+   *
+   * @generated from field: chatto.api.v1.MessageVideoProcessing video_processing = 9;
+   */
+  videoProcessing?: MessageVideoProcessing;
+
+  constructor(data?: PartialMessage<Asset>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.Asset";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "filename", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "content_type", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "size", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
+    { no: 5, name: "width", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
+    { no: 6, name: "height", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
+    { no: 7, name: "asset_url", kind: "message", T: MessageAssetUrl },
+    { no: 8, name: "thumbnail_asset_url", kind: "message", T: MessageAssetUrl },
+    { no: 9, name: "video_processing", kind: "message", T: MessageVideoProcessing },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Asset {
+    return new Asset().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Asset {
+    return new Asset().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Asset {
+    return new Asset().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: Asset | PlainMessage<Asset> | undefined, b: Asset | PlainMessage<Asset> | undefined): boolean {
+    return proto3.util.equals(Asset, a, b);
+  }
+}
 
 /**
  * One current room attachment and its message anchor.
@@ -17,9 +122,9 @@ export class RoomAttachmentListItem extends Message<RoomAttachmentListItem> {
   /**
    * Attachment metadata and signed URLs.
    *
-   * @generated from field: chatto.api.v1.MessageAttachment attachment = 1;
+   * @generated from field: chatto.api.v1.Asset attachment = 1;
    */
-  attachment?: MessageAttachment;
+  attachment?: Asset;
 
   /**
    * Message event containing the attachment.
@@ -50,7 +155,7 @@ export class RoomAttachmentListItem extends Message<RoomAttachmentListItem> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.RoomAttachmentListItem";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "attachment", kind: "message", T: MessageAttachment },
+    { no: 1, name: "attachment", kind: "message", T: Asset },
     { no: 2, name: "message_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "thread_root_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 4, name: "created_at", kind: "message", T: Timestamp },
@@ -139,9 +244,9 @@ export class GetAssetResponse extends Message<GetAssetResponse> {
   /**
    * Asset metadata and signed URLs.
    *
-   * @generated from field: chatto.api.v1.MessageAttachment asset = 1;
+   * @generated from field: chatto.api.v1.Asset asset = 1;
    */
-  asset?: MessageAttachment;
+  asset?: Asset;
 
   constructor(data?: PartialMessage<GetAssetResponse>) {
     super();
@@ -151,7 +256,7 @@ export class GetAssetResponse extends Message<GetAssetResponse> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.GetAssetResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "asset", kind: "message", T: MessageAttachment },
+    { no: 1, name: "asset", kind: "message", T: Asset },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetAssetResponse {
@@ -237,9 +342,9 @@ export class BatchGetAssetsResponse extends Message<BatchGetAssetsResponse> {
   /**
    * Assets in first-seen request order.
    *
-   * @generated from field: repeated chatto.api.v1.MessageAttachment assets = 1;
+   * @generated from field: repeated chatto.api.v1.Asset assets = 1;
    */
-  assets: MessageAttachment[] = [];
+  assets: Asset[] = [];
 
   constructor(data?: PartialMessage<BatchGetAssetsResponse>) {
     super();
@@ -249,7 +354,7 @@ export class BatchGetAssetsResponse extends Message<BatchGetAssetsResponse> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.BatchGetAssetsResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "assets", kind: "message", T: MessageAttachment, repeated: true },
+    { no: 1, name: "assets", kind: "message", T: Asset, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BatchGetAssetsResponse {

@@ -300,7 +300,7 @@ export async function postMessageAttachmentOnRemote(
     { uploadId: upload.uploadId },
     { headers: authHeaders(token) }
   );
-  const assetId = completed.asset?.assetId;
+  const assetId = completed.asset?.id;
   if (!assetId) {
     throw new Error(
       `No asset returned from remote CompleteUpload: ${JSON.stringify(completed.toJson())}`

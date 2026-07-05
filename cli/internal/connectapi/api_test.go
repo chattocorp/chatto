@@ -2623,7 +2623,7 @@ func TestAdminServerServiceUpdateServerConfig(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetServerConfig: %v", err)
 	}
-	if initialResp.Msg.GetConfig().GetServerName() != "" || initialResp.Msg.GetProfile().GetPublicProfile().GetName() != "Chatto" {
+	if initialResp.Msg.GetConfig().GetServerName() != "" || initialResp.Msg.GetPublicProfile().GetName() != "Chatto" {
 		t.Fatalf("initial server config response = %+v", initialResp.Msg)
 	}
 
@@ -2636,12 +2636,11 @@ func TestAdminServerServiceUpdateServerConfig(t *testing.T) {
 	if err != nil {
 		t.Fatalf("UpdateServerConfig: %v", err)
 	}
-	profile := resp.Msg.GetProfile()
-	if profile.GetPublicProfile().GetName() != "Connect Settings" ||
-		profile.GetPublicProfile().GetDescription() != "Description from Connect" ||
-		profile.GetMotd() != "MOTD from Connect" ||
-		profile.GetPublicProfile().GetWelcomeMessage() != "Welcome from Connect" {
-		t.Fatalf("updated profile = %+v", profile)
+	publicProfile := resp.Msg.GetPublicProfile()
+	if publicProfile.GetName() != "Connect Settings" ||
+		publicProfile.GetDescription() != "Description from Connect" ||
+		publicProfile.GetWelcomeMessage() != "Welcome from Connect" {
+		t.Fatalf("updated public profile = %+v", publicProfile)
 	}
 	if resp.Msg.GetConfig().GetServerName() != "Connect Settings" ||
 		resp.Msg.GetConfig().GetDescription() != "Description from Connect" ||
@@ -2679,7 +2678,7 @@ func TestAdminServerServiceUpdateServerConfig(t *testing.T) {
 	}
 	if getResp.Msg.GetConfig().GetServerName() != "Connect Settings" ||
 		getResp.Msg.GetConfig().GetDescription() != "Updated description only" ||
-		getResp.Msg.GetProfile().GetPublicProfile().GetDescription() != "Updated description only" {
+		getResp.Msg.GetPublicProfile().GetDescription() != "Updated description only" {
 		t.Fatalf("partial server config response = %+v", getResp.Msg)
 	}
 }
@@ -2716,16 +2715,16 @@ func TestAdminServerServiceUpdatesServerBranding(t *testing.T) {
 	if err != nil {
 		t.Fatalf("UploadServerLogo: %v", err)
 	}
-	if logoResp.Msg.GetProfile().GetPublicProfile().GetLogoUrl() == "" {
-		t.Fatalf("UploadServerLogo profile = %+v, want logo URL", logoResp.Msg.GetProfile())
+	if logoResp.Msg.GetPublicProfile().GetLogoUrl() == "" {
+		t.Fatalf("UploadServerLogo public profile = %+v, want logo URL", logoResp.Msg.GetPublicProfile())
 	}
 
 	deleteLogoResp, err := env.serverState.DeleteServerLogo(ctx, connect.NewRequest(&adminv1.DeleteServerLogoRequest{}))
 	if err != nil {
 		t.Fatalf("DeleteServerLogo: %v", err)
 	}
-	if deleteLogoResp.Msg.GetProfile().GetPublicProfile().LogoUrl != nil {
-		t.Fatalf("DeleteServerLogo logo URL = %q, want nil", deleteLogoResp.Msg.GetProfile().GetPublicProfile().GetLogoUrl())
+	if deleteLogoResp.Msg.GetPublicProfile().LogoUrl != nil {
+		t.Fatalf("DeleteServerLogo logo URL = %q, want nil", deleteLogoResp.Msg.GetPublicProfile().GetLogoUrl())
 	}
 
 	if _, err := env.serverState.UploadServerBanner(ctx, connect.NewRequest(&adminv1.UploadServerBannerRequest{})); connect.CodeOf(err) != connect.CodeInvalidArgument {
@@ -2741,16 +2740,16 @@ func TestAdminServerServiceUpdatesServerBranding(t *testing.T) {
 	if err != nil {
 		t.Fatalf("UploadServerBanner: %v", err)
 	}
-	if bannerResp.Msg.GetProfile().GetPublicProfile().GetBannerUrl() == "" {
-		t.Fatalf("UploadServerBanner profile = %+v, want banner URL", bannerResp.Msg.GetProfile())
+	if bannerResp.Msg.GetPublicProfile().GetBannerUrl() == "" {
+		t.Fatalf("UploadServerBanner public profile = %+v, want banner URL", bannerResp.Msg.GetPublicProfile())
 	}
 
 	deleteBannerResp, err := env.serverState.DeleteServerBanner(ctx, connect.NewRequest(&adminv1.DeleteServerBannerRequest{}))
 	if err != nil {
 		t.Fatalf("DeleteServerBanner: %v", err)
 	}
-	if deleteBannerResp.Msg.GetProfile().GetPublicProfile().BannerUrl != nil {
-		t.Fatalf("DeleteServerBanner banner URL = %q, want nil", deleteBannerResp.Msg.GetProfile().GetPublicProfile().GetBannerUrl())
+	if deleteBannerResp.Msg.GetPublicProfile().BannerUrl != nil {
+		t.Fatalf("DeleteServerBanner banner URL = %q, want nil", deleteBannerResp.Msg.GetPublicProfile().GetBannerUrl())
 	}
 }
 
@@ -4284,9 +4283,9 @@ func TestVoiceCallServiceRecordsAndListsCalls(t *testing.T) {
 	if disabledJoin.Msg.GetJoined() {
 		t.Fatal("disabled JoinCall joined = true, want false")
 	}
-	disabledActive, err := env.voice.ListActiveCallRooms(ctx, connect.NewRequest(&apiv1.ListActiveCallRoomsRequest{}))
+	disabledActive, err := env.voice.ListActiveCalls(ctx, connect.NewRequest(&apiv1.ListActiveCallsRequest{}))
 	if err != nil {
-		t.Fatalf("disabled ListActiveCallRooms: %v", err)
+		t.Fatalf("disabled ListActiveCalls: %v", err)
 	}
 	if len(disabledActive.Msg.GetCalls()) != 0 {
 		t.Fatalf("disabled active calls = %v, want none", disabledActive.Msg.GetCalls())
@@ -4338,16 +4337,16 @@ func TestVoiceCallServiceRecordsAndListsCalls(t *testing.T) {
 		t.Fatal("JoinCall joined = false, want true")
 	}
 
-	activeResp, err := env.voice.ListActiveCallRooms(ctx, connect.NewRequest(&apiv1.ListActiveCallRoomsRequest{}))
+	activeResp, err := env.voice.ListActiveCalls(ctx, connect.NewRequest(&apiv1.ListActiveCallsRequest{}))
 	if err != nil {
-		t.Fatalf("ListActiveCallRooms: %v", err)
+		t.Fatalf("ListActiveCalls: %v", err)
 	}
-	if calls := activeResp.Msg.GetCalls(); len(calls) != 1 || calls[0].GetRoomId() != room.Id || calls[0].GetCallId() == "" {
+	if calls := activeResp.Msg.GetCalls(); len(calls) != 1 || calls[0].GetRoom().GetId() != room.Id || calls[0].GetCallId() == "" {
 		t.Fatalf("active calls = %v, want one call for %s", calls, room.Id)
 	}
-	nonMemberActiveResp, err := env.voice.ListActiveCallRooms(withCaller(env.ctx, nonMember), connect.NewRequest(&apiv1.ListActiveCallRoomsRequest{}))
+	nonMemberActiveResp, err := env.voice.ListActiveCalls(withCaller(env.ctx, nonMember), connect.NewRequest(&apiv1.ListActiveCallsRequest{}))
 	if err != nil {
-		t.Fatalf("non-member ListActiveCallRooms: %v", err)
+		t.Fatalf("non-member ListActiveCalls: %v", err)
 	}
 	if len(nonMemberActiveResp.Msg.GetCalls()) != 0 {
 		t.Fatalf("non-member active calls = %v, want none", nonMemberActiveResp.Msg.GetCalls())
@@ -4360,7 +4359,7 @@ func TestVoiceCallServiceRecordsAndListsCalls(t *testing.T) {
 		t.Fatalf("GetActiveCall: %v", err)
 	}
 	activeCall := activeCallResp.Msg.GetCall()
-	if activeCall.GetRoomId() != room.Id || activeCall.GetCallId() == "" || len(activeCall.GetParticipants()) != 1 {
+	if activeCall.GetRoom().GetId() != room.Id || activeCall.GetCallId() == "" || len(activeCall.GetParticipants()) != 1 {
 		t.Fatalf("GetActiveCall call = %+v, want room, call ID, and one participant", activeCall)
 	}
 	if _, err := env.voice.GetActiveCall(withCaller(env.ctx, nonMember), connect.NewRequest(&apiv1.GetActiveCallRequest{
@@ -4374,7 +4373,7 @@ func TestVoiceCallServiceRecordsAndListsCalls(t *testing.T) {
 	if err != nil {
 		t.Fatalf("BatchGetActiveCalls: %v", err)
 	}
-	if calls := batchCallsResp.Msg.GetCalls(); len(calls) != 1 || calls[0].GetRoomId() != room.Id || calls[0].GetCallId() != activeCall.GetCallId() {
+	if calls := batchCallsResp.Msg.GetCalls(); len(calls) != 1 || calls[0].GetRoom().GetId() != room.Id || calls[0].GetCallId() != activeCall.GetCallId() {
 		t.Fatalf("BatchGetActiveCalls calls = %+v, want one active call for %s", calls, room.Id)
 	}
 	nonMemberBatchResp, err := env.voice.BatchGetActiveCalls(withCaller(env.ctx, nonMember), connect.NewRequest(&apiv1.BatchGetActiveCallsRequest{
@@ -5258,7 +5257,7 @@ func TestAssetUploadServiceChunkResumeCompleteAndCancel(t *testing.T) {
 	if completed.Msg.GetUpload().GetStatus() != apiv1.AssetUploadStatus_ASSET_UPLOAD_STATUS_COMPLETED {
 		t.Fatalf("completed upload status = %v, want completed", completed.Msg.GetUpload().GetStatus())
 	}
-	if completed.Msg.GetAsset().GetAssetId() == "" || completed.Msg.GetAsset().GetFilename() != "note.txt" {
+	if completed.Msg.GetAsset().GetId() == "" || completed.Msg.GetAsset().GetFilename() != "note.txt" {
 		t.Fatalf("completed asset = %+v, want note.txt asset id", completed.Msg.GetAsset())
 	}
 
@@ -7264,7 +7263,7 @@ func (e *connectAPITestEnv) uploadAttachmentAsset(t testing.TB, roomID, filename
 	if err != nil {
 		t.Fatalf("CompleteUpload: %v", err)
 	}
-	assetID := completed.Msg.GetAsset().GetAssetId()
+	assetID := completed.Msg.GetAsset().GetId()
 	if assetID == "" {
 		t.Fatal("completed upload asset id is empty")
 	}

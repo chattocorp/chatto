@@ -421,7 +421,8 @@ type ListFollowedThreadsResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Followed threads in newest-activity-first order.
 	Threads []*FollowedThread `protobuf:"bytes,1,rep,name=threads,proto3" json:"threads,omitempty"`
-	// Related entities needed to render root messages.
+	// Related entities needed to render this feed page without per-thread
+	// hydration. Singular resource reads and mutations do not use includes maps.
 	Includes *RoomTimelineIncludes `protobuf:"bytes,4,opt,name=includes,proto3" json:"includes,omitempty"`
 	// Page metadata.
 	Page          *PageInfo `protobuf:"bytes,5,opt,name=page,proto3" json:"page,omitempty"`

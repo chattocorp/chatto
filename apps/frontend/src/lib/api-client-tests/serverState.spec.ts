@@ -254,14 +254,14 @@ describe('getAuthenticatedServerState', () => {
 
   it('updates server config with bearer auth and maps the returned profile', async () => {
     mocks.updateServerConfig.mockResolvedValue({
-      profile: {
-        publicProfile: {
-          name: 'Connect Server',
-          description: 'Connect description',
-          welcomeMessage: 'Connect welcome',
-          logoUrl: 'https://cdn/logo.webp',
-          bannerUrl: 'https://cdn/banner.webp'
-        },
+      publicProfile: {
+        name: 'Connect Server',
+        description: 'Connect description',
+        welcomeMessage: 'Connect welcome',
+        logoUrl: 'https://cdn/logo.webp',
+        bannerUrl: 'https://cdn/banner.webp'
+      },
+      config: {
         motd: 'Connect MOTD'
       }
     });
@@ -333,33 +333,25 @@ describe('getAuthenticatedServerState', () => {
 
   it('updates server branding through AdminServerService', async () => {
     mocks.uploadServerLogo.mockResolvedValue({
-      profile: {
-        publicProfile: {
-          name: 'Connect Server',
-          logoUrl: 'https://cdn/new-logo.webp'
-        }
+      publicProfile: {
+        name: 'Connect Server',
+        logoUrl: 'https://cdn/new-logo.webp'
       }
     });
     mocks.deleteServerLogo.mockResolvedValue({
-      profile: {
-        publicProfile: {
-          name: 'Connect Server'
-        }
+      publicProfile: {
+        name: 'Connect Server'
       }
     });
     mocks.uploadServerBanner.mockResolvedValue({
-      profile: {
-        publicProfile: {
-          name: 'Connect Server',
-          bannerUrl: 'https://cdn/new-banner.webp'
-        }
+      publicProfile: {
+        name: 'Connect Server',
+        bannerUrl: 'https://cdn/new-banner.webp'
       }
     });
     mocks.deleteServerBanner.mockResolvedValue({
-      profile: {
-        publicProfile: {
-          name: 'Connect Server'
-        }
+      publicProfile: {
+        name: 'Connect Server'
       }
     });
 

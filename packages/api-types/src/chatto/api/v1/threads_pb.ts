@@ -375,7 +375,8 @@ export class ListFollowedThreadsResponse extends Message<ListFollowedThreadsResp
   threads: FollowedThread[] = [];
 
   /**
-   * Related entities needed to render root messages.
+   * Related entities needed to render this feed page without per-thread
+   * hydration. Singular resource reads and mutations do not use includes maps.
    *
    * @generated from field: chatto.api.v1.RoomTimelineIncludes includes = 4;
    */

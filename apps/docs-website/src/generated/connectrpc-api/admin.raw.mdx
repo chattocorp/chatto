@@ -1364,12 +1364,12 @@ Request server profile settings.
 
 #### Result: GetServerConfigResponse
 
-Server profile settings plus effective member-visible profile.
+Server profile settings plus effective public branding.
 
 | Field | Type | Description |
 | --- | --- | --- |
 | `config` | [`ServerConfig`](#chatto-admin-v1-ServerConfig) | Runtime-editable server profile settings. |
-| `profile` | `chatto.api.v1.ServerProfile` | Effective server profile and branding. |
+| `public_profile` | `chatto.api.v1.ServerPublicProfile` | Effective public server profile and branding. |
 
 
 <a id="chatto-admin-v1-AdminServerService-UpdateServerConfig"></a>
@@ -1405,7 +1405,7 @@ Result of updating runtime-editable server profile settings.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `profile` | `chatto.api.v1.ServerProfile` | Updated server profile and branding. |
+| `public_profile` | `chatto.api.v1.ServerPublicProfile` | Updated public server profile and branding. |
 | `config` | [`ServerConfig`](#chatto-admin-v1-ServerConfig) | Updated runtime-editable server profile settings. |
 
 
@@ -1438,7 +1438,7 @@ Result of uploading the public server logo.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `profile` | `chatto.api.v1.ServerProfile` | Updated server profile and branding. |
+| `public_profile` | `chatto.api.v1.ServerPublicProfile` | Updated public server profile and branding. |
 
 
 <a id="chatto-admin-v1-AdminServerService-DeleteServerLogo"></a>
@@ -1466,7 +1466,7 @@ Result of clearing the public server logo.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `profile` | `chatto.api.v1.ServerProfile` | Updated server profile and branding. |
+| `public_profile` | `chatto.api.v1.ServerPublicProfile` | Updated public server profile and branding. |
 
 
 <a id="chatto-admin-v1-AdminServerService-UploadServerBanner"></a>
@@ -1498,7 +1498,7 @@ Result of uploading the public server banner.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `profile` | `chatto.api.v1.ServerProfile` | Updated server profile and branding. |
+| `public_profile` | `chatto.api.v1.ServerPublicProfile` | Updated public server profile and branding. |
 
 
 <a id="chatto-admin-v1-AdminServerService-DeleteServerBanner"></a>
@@ -1526,7 +1526,7 @@ Result of clearing the public server banner.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `profile` | `chatto.api.v1.ServerProfile` | Updated server profile and branding. |
+| `public_profile` | `chatto.api.v1.ServerPublicProfile` | Updated public server profile and branding. |
 
 
 <a id="chatto-admin-v1-AdminServerService-GetServerSecurityConfig"></a>

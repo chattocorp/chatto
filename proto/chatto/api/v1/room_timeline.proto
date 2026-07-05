@@ -7,9 +7,11 @@ import "chatto/api/v1/message_types.proto";
 import "chatto/api/v1/users.proto";
 import "google/protobuf/timestamp.proto";
 
-// Related entities included beside timeline events.
+// Related entities included beside timeline/feed events.
 //
-// Includes avoid repeating the same user data on every event in a page.
+// Includes are only used on paginated feed-style responses where many events
+// may reference the same render data. Singular resource reads and mutations
+// return their resource directly and do not use includes maps.
 message RoomTimelineIncludes {
   // Users keyed by user ID.
   map<string, User> users = 1;
@@ -77,7 +79,7 @@ message RoomTimelinePage {
   bool has_older = 4;
   // True when newer events are available after end_cursor.
   bool has_newer = 5;
-  // Related entities needed to render the page.
+  // Related entities needed to render the page without per-event hydration.
   RoomTimelineIncludes includes = 6;
 }
 

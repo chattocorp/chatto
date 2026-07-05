@@ -239,39 +239,6 @@ Current authenticated user's public profile plus self-only settings.
 | `profile` | [`User`](#chatto-api-v1-User) | Public user fields for the authenticated user. |
 | `has_password` | `bool` | Whether this account currently has a password sign-in credential. |
 
-<a id="chatto-api-v1-AssetUpload"></a>
-
-### AssetUpload
-
-Current server-side state for one room-scoped attachment upload.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `upload_id` | `string` | Upload session ID. |
-| `room_id` | `string` | Room the resulting attachment asset will belong to. |
-| `status` | [`AssetUploadStatus`](#chatto-api-v1-AssetUploadStatus) | Current upload status. |
-| `committed_offset` | `int64` | Number of bytes committed so far. |
-| `size` | `int64` | Total declared file size in bytes. |
-| `max_chunk_size` | `int32` | Maximum accepted chunk size in bytes. |
-| `sha256` | `string` | SHA-256 digest of the complete file, lowercase hexadecimal. |
-| `expires_at` | `google.protobuf.Timestamp` | Upload expiry. Clients should create a new upload after this time. |
-| `asset_id` | `string` | Asset ID after completion. |
-
-<a id="chatto-api-v1-UploadedAttachmentAsset"></a>
-
-### UploadedAttachmentAsset
-
-Metadata for a completed attachment asset.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `asset_id` | `string` | Asset ID to pass to MessageService.CreateMessage.attachment_asset_ids. |
-| `filename` | `string` | Original filename. |
-| `content_type` | `string` | MIME content type. |
-| `size` | `int64` | Stored file size in bytes. |
-| `width` | `int32` | Media width when known. |
-| `height` | `int32` | Media height when known. |
-
 <a id="chatto-api-v1-LinkPreview"></a>
 
 ### LinkPreview
@@ -433,6 +400,24 @@ Viewer-specific state for one message thread.
 | `is_following` | `optional bool` | Whether the current user follows this message's thread, when known. |
 | `has_unread` | `optional bool` | True when the thread has unread replies for the current user, when known. |
 
+<a id="chatto-api-v1-Asset"></a>
+
+### Asset
+
+Room-scoped binary asset metadata and freshly signed URLs.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | Stable asset ID. |
+| `filename` | `string` | Original filename. |
+| `content_type` | `string` | MIME content type. |
+| `size` | `int64` | Stored file size in bytes. |
+| `width` | `int32` | Media width when known. |
+| `height` | `int32` | Media height when known. |
+| `asset_url` | [`MessageAssetUrl`](#chatto-api-v1-MessageAssetUrl) | Signed URL for the original asset bytes. |
+| `thumbnail_asset_url` | [`MessageAssetUrl`](#chatto-api-v1-MessageAssetUrl) | Signed URL for a transformed image thumbnail. |
+| `video_processing` | [`MessageVideoProcessing`](#chatto-api-v1-MessageVideoProcessing) | Video processing state when this asset is a video attachment. |
+
 <a id="chatto-api-v1-RoomAttachmentListItem"></a>
 
 ### RoomAttachmentListItem
@@ -441,10 +426,28 @@ One current room attachment and its message anchor.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `attachment` | [`MessageAttachment`](#chatto-api-v1-MessageAttachment) | Attachment metadata and signed URLs. |
+| `attachment` | [`Asset`](#chatto-api-v1-Asset) | Attachment metadata and signed URLs. |
 | `message_event_id` | `string` | Message event containing the attachment. |
 | `thread_root_event_id` | `string` | Thread root event ID when the containing message is a thread reply. |
 | `created_at` | `google.protobuf.Timestamp` | Message creation timestamp. |
+
+<a id="chatto-api-v1-AssetUpload"></a>
+
+### AssetUpload
+
+Current server-side state for one room-scoped attachment upload.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `upload_id` | `string` | Upload session ID. |
+| `room_id` | `string` | Room the resulting attachment asset will belong to. |
+| `status` | [`AssetUploadStatus`](#chatto-api-v1-AssetUploadStatus) | Current upload status. |
+| `committed_offset` | `int64` | Number of bytes committed so far. |
+| `size` | `int64` | Total declared file size in bytes. |
+| `max_chunk_size` | `int32` | Maximum accepted chunk size in bytes. |
+| `sha256` | `string` | SHA-256 digest of the complete file, lowercase hexadecimal. |
+| `expires_at` | `google.protobuf.Timestamp` | Upload expiry. Clients should create a new upload after this time. |
+| `asset_id` | `string` | Asset ID after completion. |
 
 <a id="chatto-api-v1-PageInfo"></a>
 
@@ -518,9 +521,11 @@ Clients should inspect the event oneof to choose the renderer for the event.
 
 ### RoomTimelineIncludes
 
-Related entities included beside timeline events.
+Related entities included beside timeline/feed events.
 
-Includes avoid repeating the same user data on every event in a page.
+Includes are only used on paginated feed-style responses where many events
+may reference the same render data. Singular resource reads and mutations
+return their resource directly and do not use includes maps.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -545,7 +550,7 @@ window.
 | `end_cursor` | `string` | Opaque cursor for the last event in the page. |
 | `has_older` | `bool` | True when older events are available before start_cursor. |
 | `has_newer` | `bool` | True when newer events are available after end_cursor. |
-| `includes` | [`RoomTimelineIncludes`](#chatto-api-v1-RoomTimelineIncludes) | Related entities needed to render the page. |
+| `includes` | [`RoomTimelineIncludes`](#chatto-api-v1-RoomTimelineIncludes) | Related entities needed to render the page without per-event hydration. |
 
 <a id="chatto-api-v1-RoomTimelineRoomEvent"></a>
 
@@ -791,17 +796,6 @@ Public server profile, identity, and branding fields.
 | `welcome_message` | `optional string` | Optional welcome message. |
 | `description` | `optional string` | Optional server description. |
 
-<a id="chatto-api-v1-ServerProfile"></a>
-
-### ServerProfile
-
-Server profile fields visible to authenticated members.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `public_profile` | [`ServerPublicProfile`](#chatto-api-v1-ServerPublicProfile) | Public server profile and branding. |
-| `motd` | `optional string` | Optional message of the day shown to authenticated members. |
-
 <a id="chatto-api-v1-ServerRuntimeConfig"></a>
 
 ### ServerRuntimeConfig
@@ -850,7 +844,7 @@ Current active call snapshot for one room.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `room_id` | `string` | Room containing the active call. |
+| `room` | [`RoomSummary`](#chatto-api-v1-RoomSummary) | Room containing the active call. |
 | `call_id` | `string` | Active call session ID. |
 | `participants` | repeated [`CallParticipant`](#chatto-api-v1-CallParticipant) | Participants currently projected for this call. |
 
@@ -1381,19 +1375,6 @@ User preference for rendering times in clients.
 | `TIME_FORMAT_12_HOUR` | `2` | Render times using a 12-hour clock. |
 | `TIME_FORMAT_24_HOUR` | `3` | Render times using a 24-hour clock. |
 
-<a id="chatto-api-v1-AssetUploadStatus"></a>
-
-### AssetUploadStatus
-
-Upload lifecycle state for a room-scoped attachment upload.
-
-| Name | Number | Description |
-| --- | --- | --- |
-| `ASSET_UPLOAD_STATUS_UNSPECIFIED` | `0` | The upload status was not specified. |
-| `ASSET_UPLOAD_STATUS_OPEN` | `1` | The upload accepts more chunks. |
-| `ASSET_UPLOAD_STATUS_COMPLETED` | `2` | The upload has been completed and produced an attachment asset. |
-| `ASSET_UPLOAD_STATUS_CANCELLED` | `3` | The upload was cancelled or expired. |
-
 <a id="chatto-api-v1-MessageVideoProcessingStatus"></a>
 
 ### MessageVideoProcessingStatus
@@ -1406,6 +1387,19 @@ Processing state for a video attachment.
 | `MESSAGE_VIDEO_PROCESSING_STATUS_PROCESSING` | `1` | Video processing is still running. |
 | `MESSAGE_VIDEO_PROCESSING_STATUS_COMPLETED` | `2` | Video processing completed successfully. |
 | `MESSAGE_VIDEO_PROCESSING_STATUS_FAILED` | `3` | Video processing failed. |
+
+<a id="chatto-api-v1-AssetUploadStatus"></a>
+
+### AssetUploadStatus
+
+Upload lifecycle state for a room-scoped attachment upload.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `ASSET_UPLOAD_STATUS_UNSPECIFIED` | `0` | The upload status was not specified. |
+| `ASSET_UPLOAD_STATUS_OPEN` | `1` | The upload accepts more chunks. |
+| `ASSET_UPLOAD_STATUS_COMPLETED` | `2` | The upload has been completed and produced an attachment asset. |
+| `ASSET_UPLOAD_STATUS_CANCELLED` | `3` | The upload was cancelled or expired. |
 
 <a id="chatto-api-v1-RoomKind"></a>
 

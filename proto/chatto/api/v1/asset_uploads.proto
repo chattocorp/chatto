@@ -3,6 +3,7 @@ syntax = "proto3";
 package chatto.api.v1;
 
 import "buf/validate/validate.proto";
+import "chatto/api/v1/attachments.proto";
 import "google/protobuf/timestamp.proto";
 
 // Upload lifecycle state for a room-scoped attachment upload.
@@ -37,22 +38,6 @@ message AssetUpload {
   google.protobuf.Timestamp expires_at = 8;
   // Asset ID after completion.
   string asset_id = 9;
-}
-
-// Metadata for a completed attachment asset.
-message UploadedAttachmentAsset {
-  // Asset ID to pass to MessageService.CreateMessage.attachment_asset_ids.
-  string asset_id = 1;
-  // Original filename.
-  string filename = 2;
-  // MIME content type.
-  string content_type = 3;
-  // Stored file size in bytes.
-  int64 size = 4;
-  // Media width when known.
-  int32 width = 5;
-  // Media height when known.
-  int32 height = 6;
 }
 
 // Request to start a room-scoped attachment upload.
@@ -123,7 +108,7 @@ message CompleteUploadResponse {
   // Completed upload session.
   AssetUpload upload = 1;
   // Attachment asset produced by this upload.
-  UploadedAttachmentAsset asset = 2;
+  Asset asset = 2;
 }
 
 // Request to cancel an upload.

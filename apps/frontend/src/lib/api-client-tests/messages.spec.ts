@@ -9,9 +9,9 @@ import {
   AssetUploadStatus,
   CompleteUploadResponse,
   CreateUploadResponse,
-  UploadChunkResponse,
-  UploadedAttachmentAsset
+  UploadChunkResponse
 } from '@chatto/api-types/api/v1/asset_uploads_pb';
+import { Asset } from '@chatto/api-types/api/v1/attachments_pb';
 import { Message } from '@chatto/api-types/api/v1/message_types_pb';
 
 const mocks = vi.hoisted(() => ({
@@ -195,11 +195,10 @@ describe('createMessageAPI', () => {
           size: 5n,
           assetId: 'asset-note'
         }),
-        asset: new UploadedAttachmentAsset({
-          assetId: 'asset-note',
+        asset: new Asset({
+          id: 'asset-note',
           filename: 'note.txt',
-          contentType: 'text/plain',
-          size: 5n
+          contentType: 'text/plain'
         })
       })
     );

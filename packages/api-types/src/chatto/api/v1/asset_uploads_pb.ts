@@ -5,6 +5,7 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3, protoInt64, Timestamp } from "@bufbuild/protobuf";
+import { Asset } from "./attachments_pb.js";
 
 /**
  * Upload lifecycle state for a room-scoped attachment upload.
@@ -150,87 +151,6 @@ export class AssetUpload extends Message<AssetUpload> {
 
   static equals(a: AssetUpload | PlainMessage<AssetUpload> | undefined, b: AssetUpload | PlainMessage<AssetUpload> | undefined): boolean {
     return proto3.util.equals(AssetUpload, a, b);
-  }
-}
-
-/**
- * Metadata for a completed attachment asset.
- *
- * @generated from message chatto.api.v1.UploadedAttachmentAsset
- */
-export class UploadedAttachmentAsset extends Message<UploadedAttachmentAsset> {
-  /**
-   * Asset ID to pass to MessageService.CreateMessage.attachment_asset_ids.
-   *
-   * @generated from field: string asset_id = 1;
-   */
-  assetId = "";
-
-  /**
-   * Original filename.
-   *
-   * @generated from field: string filename = 2;
-   */
-  filename = "";
-
-  /**
-   * MIME content type.
-   *
-   * @generated from field: string content_type = 3;
-   */
-  contentType = "";
-
-  /**
-   * Stored file size in bytes.
-   *
-   * @generated from field: int64 size = 4;
-   */
-  size = protoInt64.zero;
-
-  /**
-   * Media width when known.
-   *
-   * @generated from field: int32 width = 5;
-   */
-  width = 0;
-
-  /**
-   * Media height when known.
-   *
-   * @generated from field: int32 height = 6;
-   */
-  height = 0;
-
-  constructor(data?: PartialMessage<UploadedAttachmentAsset>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.UploadedAttachmentAsset";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "asset_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "filename", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "content_type", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 4, name: "size", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
-    { no: 5, name: "width", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
-    { no: 6, name: "height", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UploadedAttachmentAsset {
-    return new UploadedAttachmentAsset().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): UploadedAttachmentAsset {
-    return new UploadedAttachmentAsset().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): UploadedAttachmentAsset {
-    return new UploadedAttachmentAsset().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: UploadedAttachmentAsset | PlainMessage<UploadedAttachmentAsset> | undefined, b: UploadedAttachmentAsset | PlainMessage<UploadedAttachmentAsset> | undefined): boolean {
-    return proto3.util.equals(UploadedAttachmentAsset, a, b);
   }
 }
 
@@ -593,9 +513,9 @@ export class CompleteUploadResponse extends Message<CompleteUploadResponse> {
   /**
    * Attachment asset produced by this upload.
    *
-   * @generated from field: chatto.api.v1.UploadedAttachmentAsset asset = 2;
+   * @generated from field: chatto.api.v1.Asset asset = 2;
    */
-  asset?: UploadedAttachmentAsset;
+  asset?: Asset;
 
   constructor(data?: PartialMessage<CompleteUploadResponse>) {
     super();
@@ -606,7 +526,7 @@ export class CompleteUploadResponse extends Message<CompleteUploadResponse> {
   static readonly typeName = "chatto.api.v1.CompleteUploadResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "upload", kind: "message", T: AssetUpload },
-    { no: 2, name: "asset", kind: "message", T: UploadedAttachmentAsset },
+    { no: 2, name: "asset", kind: "message", T: Asset },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CompleteUploadResponse {
