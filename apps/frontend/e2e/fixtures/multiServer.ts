@@ -448,7 +448,7 @@ export async function setMotdOnRemote(
     { motd },
     { headers: authHeaders(token) }
   );
-  if (response.profile?.motd !== motd) {
+  if (response.config?.motd !== motd) {
     throw new Error(`Failed to set MOTD on remote: ${JSON.stringify(response.toJson())}`);
   }
 }
