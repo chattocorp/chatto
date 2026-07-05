@@ -173,11 +173,14 @@ function externalIdentityProvider(
   baseUrl: string
 ): ExternalIdentityProviderInfo {
   const metadata = provider.provider;
+  if (!metadata) {
+    throw new Error('external identity provider response did not include provider metadata');
+  }
   return {
-    id: metadata?.id ?? '',
-    type: metadata?.type ?? '',
-    label: metadata?.label ?? '',
-    loginUrl: resolveServerUrl(metadata?.loginUrl ?? '', baseUrl),
+    id: metadata.id,
+    type: metadata.type,
+    label: metadata.label,
+    loginUrl: resolveServerUrl(metadata.loginUrl, baseUrl),
     linkUrl: resolveServerUrl(provider.linkUrl, baseUrl),
     linked: provider.linked,
     linkedIdentitySubjectHash: provider.linkedIdentitySubjectHash || null

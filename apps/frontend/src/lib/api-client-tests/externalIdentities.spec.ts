@@ -164,6 +164,23 @@ describe('createExternalIdentityAPI', () => {
     );
   });
 
+  it('rejects provider rows without shared provider metadata', async () => {
+    mocks.listExternalIdentities.mockResolvedValue({
+      providers: [{ linkUrl: '/auth/providers/github-main?intent=link' }],
+      linkedIdentities: []
+    });
+
+    const api = createExternalIdentityAPI({
+      serverId: 'remote',
+      baseUrl: 'https://remote.example.test/api/connect',
+      bearerToken: 'token'
+    });
+
+    await expect(api.list()).rejects.toThrow(
+      'external identity provider response did not include provider metadata'
+    );
+  });
+
   it('notifies the registry when authenticated calls are rejected', async () => {
     const err = new ConnectError('nope', Code.Unauthenticated);
     mocks.listExternalIdentities.mockRejectedValue(err);

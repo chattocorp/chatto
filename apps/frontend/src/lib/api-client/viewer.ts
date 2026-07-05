@@ -135,11 +135,9 @@ export async function getViewerStateViaConnect(config: ViewerAPIConfig): Promise
       level: apiNotificationLevel(response.serverNotificationPreference?.level),
       effectiveLevel: apiNotificationLevel(response.serverNotificationPreference?.effectiveLevel)
     },
-    roomNotificationPreferences: response.roomNotificationPreferences.map((pref) => ({
-      roomId: pref.roomId,
-      level: apiNotificationLevel(pref.preference?.level),
-      effectiveLevel: apiNotificationLevel(pref.preference?.effectiveLevel)
-    }))
+    roomNotificationPreferences: response.roomNotificationPreferences.map(
+      roomNotificationPreference
+    )
   };
 }
 
@@ -157,6 +155,23 @@ function mapCapabilityGrants(
 
 export async function getCurrentUserViaConnect(config: ViewerAPIConfig): Promise<CurrentUser> {
   return (await getViewerStateViaConnect(config)).user;
+}
+
+function roomNotificationPreference(pref: {
+  roomId: string;
+  preference?: {
+    level: APINotificationLevel;
+    effectiveLevel: APINotificationLevel;
+  };
+}): RoomNotificationPreference {
+  if (!pref.preference) {
+    throw new Error('room notification preference response did not include preference metadata');
+  }
+  return {
+    roomId: pref.roomId,
+    level: apiNotificationLevel(pref.preference.level),
+    effectiveLevel: apiNotificationLevel(pref.preference.effectiveLevel)
+  };
 }
 
 function apiNotificationLevel(level: APINotificationLevel | undefined): NotificationLevel {

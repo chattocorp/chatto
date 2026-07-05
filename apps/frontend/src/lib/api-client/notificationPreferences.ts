@@ -5,7 +5,10 @@ import {
   type ConnectAPIConfig as BaseConnectAPIConfig
 } from './connect.js';
 import { NotificationPreferencesService } from '@chatto/api-types/api/v1/notification_preferences_connect';
-import { NotificationLevel } from '@chatto/api-types/api/v1/notification_preferences_pb';
+import {
+  NotificationLevel,
+  type NotificationPreference as APINotificationPreference
+} from '@chatto/api-types/api/v1/notification_preferences_pb';
 
 export type ConnectAPIConfig = BaseConnectAPIConfig & {
   serverId: string;
@@ -31,10 +34,7 @@ export async function getServerNotificationPreference(
   } catch (err) {
     handleAuthError(config, err);
   }
-  return {
-    level: response.preference?.level ?? NotificationLevel.UNSPECIFIED,
-    effectiveLevel: response.preference?.effectiveLevel ?? NotificationLevel.UNSPECIFIED
-  };
+  return notificationPreference(response.preference);
 }
 
 export async function updateServerNotificationPreference(
@@ -53,10 +53,7 @@ export async function updateServerNotificationPreference(
   } catch (err) {
     handleAuthError(config, err);
   }
-  return {
-    level: response.preference?.level ?? NotificationLevel.UNSPECIFIED,
-    effectiveLevel: response.preference?.effectiveLevel ?? NotificationLevel.UNSPECIFIED
-  };
+  return notificationPreference(response.preference);
 }
 
 export async function updateRoomNotificationPreference(
@@ -79,10 +76,7 @@ export async function updateRoomNotificationPreference(
   } catch (err) {
     handleAuthError(config, err);
   }
-  return {
-    level: response.preference?.level ?? NotificationLevel.UNSPECIFIED,
-    effectiveLevel: response.preference?.effectiveLevel ?? NotificationLevel.UNSPECIFIED
-  };
+  return notificationPreference(response.preference);
 }
 
 function createNotificationPreferencesClient(config: ConnectAPIConfig) {
@@ -91,4 +85,16 @@ function createNotificationPreferencesClient(config: ConnectAPIConfig) {
 
 function connectHeaders(config: ConnectAPIConfig) {
   return authHeaders(config);
+}
+
+function notificationPreference(
+  preference: APINotificationPreference | undefined
+): NotificationPreference {
+  if (!preference) {
+    throw new Error('notification preference response did not include preference metadata');
+  }
+  return {
+    level: preference.level,
+    effectiveLevel: preference.effectiveLevel
+  };
 }

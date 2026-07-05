@@ -133,6 +133,18 @@ describe('notificationPreferences API', () => {
     });
   });
 
+  it('rejects notification preference responses without shared preference metadata', async () => {
+    mocks.getServerNotificationPreference.mockResolvedValue({});
+
+    await expect(
+      getServerNotificationPreference({
+        serverId: 'remote',
+        baseUrl: 'https://remote.example.test/api/connect',
+        bearerToken: 'remote-token'
+      })
+    ).rejects.toThrow('notification preference response did not include preference metadata');
+  });
+
   it('marks the server authentication stale on unauthenticated Connect errors', async () => {
     const err = new ConnectError('authentication required', Code.Unauthenticated);
     mocks.updateRoomNotificationPreference.mockRejectedValue(err);

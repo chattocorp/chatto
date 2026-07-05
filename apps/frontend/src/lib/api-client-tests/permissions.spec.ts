@@ -96,6 +96,20 @@ describe('createPermissionAPI', () => {
     });
   });
 
+  it('rejects tier matrix roles without shared role metadata', async () => {
+    mocks.getRolePermissionTierMatrix.mockResolvedValue({
+      matrix: {
+        applicablePermissions: ['message.post'],
+        roles: [{ override: { permissions: [], permissionDenials: [] } }]
+      }
+    });
+    const api = createPermissionAPI({ baseUrl: '/api/connect', bearerToken: 'token' });
+
+    await expect(api.getRolePermissionTierMatrix({ roomId: 'R1' })).rejects.toThrow(
+      'permission tier role response did not include role metadata'
+    );
+  });
+
   it('maps role matrix enum values to frontend strings', async () => {
     mocks.getRolePermissionMatrix.mockResolvedValue({
       matrix: {

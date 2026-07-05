@@ -197,13 +197,16 @@ function tierRoles(matrix: APITierRoles): TierRoles {
 
 function tierRole(role: APITierRole): TierRole {
   const apiRole = role.role;
+  if (!apiRole) {
+    throw new Error('permission tier role response did not include role metadata');
+  }
   return {
-    roleName: apiRole?.name ?? '',
-    displayName: apiRole?.displayName ?? '',
-    description: apiRole?.description ?? '',
-    isSystem: apiRole?.isSystem ?? false,
-    position: apiRole?.position ?? 0,
-    pingable: apiRole?.pingable ?? false,
+    roleName: apiRole.name,
+    displayName: apiRole.displayName,
+    description: apiRole.description,
+    isSystem: apiRole.isSystem,
+    position: apiRole.position,
+    pingable: apiRole.pingable,
     override: {
       permissions: [...(role.override?.permissions ?? [])],
       permissionDenials: [...(role.override?.permissionDenials ?? [])]

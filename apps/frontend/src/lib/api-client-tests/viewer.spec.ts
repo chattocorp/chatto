@@ -207,4 +207,26 @@ describe('getCurrentUserViaConnect', () => {
       })
     );
   });
+
+  it('rejects room notification preference rows without shared preference metadata', async () => {
+    mocks.getViewer.mockResolvedValue({
+      user: {
+        profile: {
+          id: 'U3',
+          login: 'carol',
+          displayName: 'Carol',
+          presenceStatus: APIPresenceStatus.ONLINE
+        },
+        hasVerifiedEmail: true
+      },
+      roomNotificationPreferences: [{ roomId: 'room-1' }]
+    });
+
+    await expect(
+      getViewerStateViaConnect({
+        baseUrl: '/api/connect',
+        bearerToken: 'token'
+      })
+    ).rejects.toThrow('room notification preference response did not include preference metadata');
+  });
 });
