@@ -410,10 +410,10 @@ func (h *timelineHydrator) users() (map[string]*apiv1.User, error) {
 		if user == nil {
 			user = core.DeletedUserReference(id)
 		}
-		summary, err := (&userService{api: h.api}).userSummary(h.ctx, user, &apiv1.UserAvatarOptions{
+		summary, err := (&userService{api: h.api}).userSummary(h.ctx, user, &apiv1.ImageTransformOptions{
 			Width:  int32(avatarWidth),
 			Height: int32(avatarHeight),
-			Fit:    apiv1.UserAvatarFitMode_USER_AVATAR_FIT_MODE_COVER,
+			Fit:    apiv1.ImageFitMode_IMAGE_FIT_MODE_COVER,
 		})
 		if err != nil {
 			return nil, err

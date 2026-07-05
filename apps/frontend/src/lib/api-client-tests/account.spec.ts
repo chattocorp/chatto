@@ -117,9 +117,11 @@ describe('createAccountAPI', () => {
     );
     expect(mocks.uploadAvatar).toHaveBeenCalledWith(
       {
-        image: new Uint8Array([1, 2, 3]),
-        filename: 'avatar.png',
-        contentType: 'image/png'
+        image: {
+          image: new Uint8Array([1, 2, 3]),
+          filename: 'avatar.png',
+          contentType: 'image/png'
+        }
       },
       { headers: { Authorization: 'Bearer token' } }
     );

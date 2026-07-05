@@ -156,13 +156,17 @@ describe('getCurrentUserViaConnect', () => {
       roomNotificationPreferences: [
         {
           roomId: 'room-1',
-          level: APINotificationLevel.MUTED,
-          effectiveLevel: APINotificationLevel.MUTED
+          preference: {
+            level: APINotificationLevel.MUTED,
+            effectiveLevel: APINotificationLevel.MUTED
+          }
         },
         {
           roomId: 'room-2',
-          level: APINotificationLevel.DEFAULT,
-          effectiveLevel: APINotificationLevel.NORMAL
+          preference: {
+            level: APINotificationLevel.DEFAULT,
+            effectiveLevel: APINotificationLevel.NORMAL
+          }
         }
       ]
     });

@@ -33,6 +33,43 @@ exposed; clients only need user-facing provider/profile hints.
 | `bound_user_id` | `string` | User ID this link flow is bound to. Empty for create flows. |
 | `redirect_path` | `string` | Internal path the client should return to after confirmation. |
 
+<a id="chatto-api-v1-ImageTransformOptions"></a>
+
+### ImageTransformOptions
+
+Image transform parameters for generated image URLs.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `width` | `int32` | Target image width in pixels. |
+| `height` | `int32` | Target image height in pixels. |
+| `fit` | [`ImageFitMode`](#chatto-api-v1-ImageFitMode) | Image crop/fit behavior. |
+
+<a id="chatto-api-v1-ImageUpload"></a>
+
+### ImageUpload
+
+Browser-supplied image upload payload.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `image` | `bytes` | Raw image bytes. |
+| `filename` | `string` | Original browser filename, for diagnostics and future compatibility. |
+| `content_type` | `string` | Browser-provided content type, for diagnostics and future compatibility. |
+
+<a id="chatto-api-v1-ProviderMetadata"></a>
+
+### ProviderMetadata
+
+Public login/provider metadata shared by discovery and account-linking APIs.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | Stable configured provider ID. |
+| `type` | `string` | Provider type, such as "password", "oidc", "github", or "discord". |
+| `label` | `string` | Human-readable provider label. |
+| `login_url` | `string` | URL that starts login for this provider. |
+
 <a id="chatto-api-v1-ExternalIdentityProvider"></a>
 
 ### ExternalIdentityProvider
@@ -41,13 +78,10 @@ Public metadata for a configured external login provider.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `id` | `string` | Stable configured provider ID. |
-| `type` | `string` | Provider type, such as "oidc", "github", or "discord". |
-| `label` | `string` | Human-readable label. |
-| `login_url` | `string` | URL that starts login for this provider. |
 | `link_url` | `string` | URL that starts authenticated account linking for this provider. Clients should use StartExternalIdentityLink instead of navigating here directly. |
 | `linked` | `bool` | True when this provider is already linked to the authenticated user. |
 | `linked_identity_subject_hash` | `string` | Linked identity subject hash for this provider, when linked. |
+| `provider` | [`ProviderMetadata`](#chatto-api-v1-ProviderMetadata) | Shared provider metadata. |
 
 <a id="chatto-api-v1-LinkedExternalIdentity"></a>
 
@@ -90,17 +124,16 @@ Public user fields.
 | `presence_status` | [`PresenceStatus`](#chatto-api-v1-PresenceStatus) | Current live presence status. |
 | `custom_status` | [`CustomUserStatus`](#chatto-api-v1-CustomUserStatus) | Custom profile status, when set. |
 
-<a id="chatto-api-v1-UserAvatarOptions"></a>
+<a id="chatto-api-v1-NotificationPreference"></a>
 
-### UserAvatarOptions
+### NotificationPreference
 
-Avatar transform parameters for user profile reads.
+Stored and effective notification preference.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `width` | `int32` | Avatar width in pixels. |
-| `height` | `int32` | Avatar height in pixels. |
-| `fit` | [`UserAvatarFitMode`](#chatto-api-v1-UserAvatarFitMode) | Avatar crop/fit behavior. |
+| `level` | [`NotificationLevel`](#chatto-api-v1-NotificationLevel) | Explicit level stored for the current user. |
+| `effective_level` | [`NotificationLevel`](#chatto-api-v1-NotificationLevel) | Level after applying defaults and inheritance. |
 
 <a id="chatto-api-v1-CapabilityGrant"></a>
 
@@ -147,19 +180,7 @@ Room notification preference for one joined room.
 | Field | Type | Description |
 | --- | --- | --- |
 | `room_id` | `string` | Room whose preference is represented. |
-| `level` | [`NotificationLevel`](#chatto-api-v1-NotificationLevel) | Explicit room-level setting. |
-| `effective_level` | [`NotificationLevel`](#chatto-api-v1-NotificationLevel) | Level after applying room/server/system defaults. |
-
-<a id="chatto-api-v1-ServerNotificationPreference"></a>
-
-### ServerNotificationPreference
-
-Server-wide notification preference for the authenticated user.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `level` | [`NotificationLevel`](#chatto-api-v1-NotificationLevel) | Explicit server-level setting. |
-| `effective_level` | [`NotificationLevel`](#chatto-api-v1-NotificationLevel) | Level after applying system defaults. |
+| `preference` | [`NotificationPreference`](#chatto-api-v1-NotificationPreference) | Stored and effective notification preference. |
 
 <a id="chatto-api-v1-ServerViewerPermissions"></a>
 
@@ -389,18 +410,6 @@ One transcoded video rendition.
 | `height` | `int32` | Video height in pixels. |
 | `size` | `int64` | Rendition size in bytes. |
 | `asset_url` | [`MessageAssetUrl`](#chatto-api-v1-MessageAssetUrl) | Signed URL for the rendition. |
-
-<a id="chatto-api-v1-AssetThumbnailOptions"></a>
-
-### AssetThumbnailOptions
-
-Thumbnail transform parameters for asset URL reads.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `width` | `int32` | Thumbnail width in pixels. |
-| `height` | `int32` | Thumbnail height in pixels. |
-| `fit` | [`AssetFitMode`](#chatto-api-v1-AssetFitMode) | Thumbnail fit mode. |
 
 <a id="chatto-api-v1-RoomAttachmentListItem"></a>
 
@@ -731,21 +740,6 @@ Sidebar link metadata for room group navigation.
 | `label` | `string` | Display label. |
 | `url` | `string` | Absolute http(s) URL or server-local path. |
 
-<a id="chatto-api-v1-AuthProvider"></a>
-
-### AuthProvider
-
-Describes one login provider exposed by the server discovery endpoint.
-
-Clients can render these providers before a user has authenticated.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `id` | `string` | Stable provider identifier used by clients when starting login. |
-| `type` | `string` | Provider category, such as "password" or "oidc". Clients should treat unknown provider types as unsupported. |
-| `label` | `string` | Human-readable provider label for login UI. |
-| `login_url` | `string` | URL that starts login for this provider. |
-
 <a id="chatto-api-v1-ServerLogin"></a>
 
 ### ServerLogin
@@ -755,7 +749,7 @@ Login and registration options exposed before authentication.
 | Field | Type | Description |
 | --- | --- | --- |
 | `direct_registration_enabled` | `bool` | Whether users can create accounts through the public UI. |
-| `providers` | repeated [`AuthProvider`](#chatto-api-v1-AuthProvider) | Configured login providers. |
+| `providers` | repeated [`ProviderMetadata`](#chatto-api-v1-ProviderMetadata) | Configured login providers. |
 | `authorize_url` | `string` | URL for the legacy authorization flow, when enabled. |
 
 <a id="chatto-api-v1-ServerPublicProfile"></a>
@@ -1214,14 +1208,10 @@ One role's permission state at a single tier.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `role_name` | `string` | Stable role name. |
-| `display_name` | `string` | Display name. |
-| `description` | `string` | Optional role description. |
-| `is_system` | `bool` | Whether this is a built-in role. |
-| `position` | `int32` | Display/order position. |
 | `override` | [`TierPermissions`](#chatto-admin-v1-TierPermissions) | Explicit state at this tier. |
 | `inherited_allows` | `repeated string` | Allows inherited from broader tiers. |
 | `inherited_denials` | `repeated string` | Denials inherited from broader tiers. |
+| `role` | `chatto.api.v1.Role` | Public role metadata. |
 
 <a id="chatto-admin-v1-TierRoles"></a>
 
@@ -1314,6 +1304,18 @@ Mode of a pending external identity confirmation flow.
 | `EXTERNAL_IDENTITY_FLOW_KIND_CREATE_ACCOUNT` | `1` | Create a new passwordless account and link the provider identity. |
 | `EXTERNAL_IDENTITY_FLOW_KIND_LINK_ACCOUNT` | `2` | Link the provider identity to the authenticated account. |
 
+<a id="chatto-api-v1-ImageFitMode"></a>
+
+### ImageFitMode
+
+Fit mode used when generating transformed image URLs.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `IMAGE_FIT_MODE_UNSPECIFIED` | `0` | The fit mode was not specified. |
+| `IMAGE_FIT_MODE_CONTAIN` | `1` | Preserve the whole source image within the requested bounds. |
+| `IMAGE_FIT_MODE_COVER` | `2` | Fill the requested bounds, cropping when needed. |
+
 <a id="chatto-api-v1-PresenceStatus"></a>
 
 ### PresenceStatus
@@ -1331,18 +1333,6 @@ the server's live presence record expire.
 | `PRESENCE_STATUS_AWAY` | `2` | The user is connected but away or idle. |
 | `PRESENCE_STATUS_DO_NOT_DISTURB` | `3` | The user does not want notifications while this live status is active. |
 | `PRESENCE_STATUS_OFFLINE` | `4` | The user has no active live presence record. |
-
-<a id="chatto-api-v1-UserAvatarFitMode"></a>
-
-### UserAvatarFitMode
-
-Fit mode used when generating transformed user avatar URLs.
-
-| Name | Number | Description |
-| --- | --- | --- |
-| `USER_AVATAR_FIT_MODE_UNSPECIFIED` | `0` | The fit mode was not specified. |
-| `USER_AVATAR_FIT_MODE_CONTAIN` | `1` | Preserve the whole source image within the requested bounds. |
-| `USER_AVATAR_FIT_MODE_COVER` | `2` | Fill the requested bounds, cropping when needed. |
 
 <a id="chatto-api-v1-NotificationLevel"></a>
 
@@ -1396,18 +1386,6 @@ Processing state for a video attachment.
 | `MESSAGE_VIDEO_PROCESSING_STATUS_PROCESSING` | `1` | Video processing is still running. |
 | `MESSAGE_VIDEO_PROCESSING_STATUS_COMPLETED` | `2` | Video processing completed successfully. |
 | `MESSAGE_VIDEO_PROCESSING_STATUS_FAILED` | `3` | Video processing failed. |
-
-<a id="chatto-api-v1-AssetFitMode"></a>
-
-### AssetFitMode
-
-Fit mode used when generating transformed asset thumbnails.
-
-| Name | Number | Description |
-| --- | --- | --- |
-| `ASSET_FIT_MODE_UNSPECIFIED` | `0` | The fit mode was not specified. |
-| `ASSET_FIT_MODE_CONTAIN` | `1` | Preserve the whole source image within the requested bounds. |
-| `ASSET_FIT_MODE_COVER` | `2` | Fill the requested bounds, cropping when needed. |
 
 <a id="chatto-api-v1-RoomKind"></a>
 

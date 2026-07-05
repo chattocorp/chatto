@@ -3,6 +3,7 @@ syntax = "proto3";
 package chatto.admin.v1;
 
 import "buf/validate/validate.proto";
+import "chatto/api/v1/roles.proto";
 
 // Trinary permission decision used by permission matrices and write requests.
 enum PermissionDecision {
@@ -46,22 +47,17 @@ message TierPermissions {
 
 // One role's permission state at a single tier.
 message TierRole {
-  // Stable role name.
-  string role_name = 1;
-  // Display name.
-  string display_name = 2;
-  // Optional role description.
-  string description = 3;
-  // Whether this is a built-in role.
-  bool is_system = 4;
-  // Display/order position.
-  int32 position = 5;
+  reserved 1 to 5;
+  reserved "role_name", "display_name", "description", "is_system", "position";
+
   // Explicit state at this tier.
   TierPermissions override = 6;
   // Allows inherited from broader tiers.
   repeated string inherited_allows = 7;
   // Denials inherited from broader tiers.
   repeated string inherited_denials = 8;
+  // Public role metadata.
+  chatto.api.v1.Role role = 9;
 }
 
 // Role permission matrix for one tier.

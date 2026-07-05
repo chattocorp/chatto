@@ -18,42 +18,56 @@ enum NotificationLevel {
   NOTIFICATION_LEVEL_ALL_MESSAGES = 4;
 }
 
-// Current notification preference for a room.
-//
-// Clients can show both the stored room-level setting and the effective setting
-// the server will apply after defaults are resolved.
-message GetRoomNotificationPreferenceResponse {
-  // Explicit level stored for the current user and room.
+// Stored and effective notification preference.
+message NotificationPreference {
+  // Explicit level stored for the current user.
   NotificationLevel level = 1;
   // Level after applying defaults and inheritance.
   NotificationLevel effective_level = 2;
 }
 
+// Current notification preference for a room.
+message GetRoomNotificationPreferenceResponse {
+  // Field 1 was `level` and field 2 was `effective_level` before the shared
+  // NotificationPreference shape.
+  reserved 1, 2;
+  reserved "level", "effective_level";
+
+  // Current stored and effective notification preference.
+  NotificationPreference preference = 3;
+}
+
 // Updated notification preference for a room.
-//
-// The response mirrors the read shape so clients can update local state without
-// issuing a second read request.
 message UpdateRoomNotificationPreferenceResponse {
-  // Explicit level stored for the current user and room.
-  NotificationLevel level = 1;
-  // Level after applying defaults and inheritance.
-  NotificationLevel effective_level = 2;
+  // Field 1 was `level` and field 2 was `effective_level` before the shared
+  // NotificationPreference shape.
+  reserved 1, 2;
+  reserved "level", "effective_level";
+
+  // Stored and effective notification preference after the update.
+  NotificationPreference preference = 3;
 }
 
 // Current server-level notification preference.
 message GetServerNotificationPreferenceResponse {
-  // Explicit server-level setting.
-  NotificationLevel level = 1;
-  // Level after applying system defaults.
-  NotificationLevel effective_level = 2;
+  // Field 1 was `level` and field 2 was `effective_level` before the shared
+  // NotificationPreference shape.
+  reserved 1, 2;
+  reserved "level", "effective_level";
+
+  // Current stored and effective notification preference.
+  NotificationPreference preference = 3;
 }
 
 // Updated server-level notification preference.
 message UpdateServerNotificationPreferenceResponse {
-  // Explicit server-level setting.
-  NotificationLevel level = 1;
-  // Level after applying system defaults.
-  NotificationLevel effective_level = 2;
+  // Field 1 was `level` and field 2 was `effective_level` before the shared
+  // NotificationPreference shape.
+  reserved 1, 2;
+  reserved "level", "effective_level";
+
+  // Stored and effective notification preference after the update.
+  NotificationPreference preference = 3;
 }
 
 // Request for the current user's server-level notification preference.

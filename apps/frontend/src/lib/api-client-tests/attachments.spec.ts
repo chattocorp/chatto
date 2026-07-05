@@ -4,10 +4,10 @@ import { Code, ConnectError } from '@connectrpc/connect';
 import { Timestamp } from '@bufbuild/protobuf';
 import { FitMode } from '$lib/api-client/renderTypes';
 import {
-  AssetFitMode,
   BatchGetAssetsResponse,
   RoomAttachmentListItem
 } from '@chatto/api-types/api/v1/attachments_pb';
+import { ImageFitMode } from '@chatto/api-types/api/v1/common_pb';
 import { ListRoomAttachmentsResponse } from '@chatto/api-types/api/v1/rooms_pb';
 import {
   MessageAssetUrl,
@@ -128,7 +128,7 @@ describe('createAttachmentAPI', () => {
       {
         roomId: 'room_1',
         page: { limit: 50, offset: 0 },
-        thumbnail: { width: 120, height: 120, fit: AssetFitMode.COVER }
+        thumbnail: { width: 120, height: 120, fit: ImageFitMode.COVER }
       },
       { headers: { Authorization: 'Bearer token' } }
     );
@@ -198,7 +198,7 @@ describe('createAttachmentAPI', () => {
       {
         roomId: 'room_1',
         assetIds: ['att_1'],
-        thumbnail: { width: 960, height: 800, fit: AssetFitMode.CONTAIN }
+        thumbnail: { width: 960, height: 800, fit: ImageFitMode.CONTAIN }
       },
       { headers: undefined }
     );
@@ -266,21 +266,17 @@ describe('createAttachmentAPI', () => {
       bearerToken: 'token'
     });
 
-    const urls = await api.refreshAssetUrls(
-      'room_1',
-      ['att_1', 'missing'],
-      {
-        width: 120,
-        height: 120,
-        fit: FitMode.Cover
-      }
-    );
+    const urls = await api.refreshAssetUrls('room_1', ['att_1', 'missing'], {
+      width: 120,
+      height: 120,
+      fit: FitMode.Cover
+    });
 
     expect(mocks.batchGetAssets).toHaveBeenCalledWith(
       {
         roomId: 'room_1',
         assetIds: ['att_1', 'missing'],
-        thumbnail: { width: 120, height: 120, fit: AssetFitMode.COVER }
+        thumbnail: { width: 120, height: 120, fit: ImageFitMode.COVER }
       },
       { headers: { Authorization: 'Bearer token' } }
     );

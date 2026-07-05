@@ -385,9 +385,11 @@ describe('getAuthenticatedServerState', () => {
 
     expect(mocks.uploadServerLogo).toHaveBeenCalledWith(
       {
-        image: new Uint8Array([1, 2, 3]),
-        filename: 'logo.png',
-        contentType: 'image/png'
+        image: {
+          image: new Uint8Array([1, 2, 3]),
+          filename: 'logo.png',
+          contentType: 'image/png'
+        }
       },
       { headers: { Authorization: 'Bearer token' } }
     );
@@ -397,9 +399,11 @@ describe('getAuthenticatedServerState', () => {
     );
     expect(mocks.uploadServerBanner).toHaveBeenCalledWith(
       {
-        image: new Uint8Array([4, 5, 6]),
-        filename: 'banner.png',
-        contentType: 'image/png'
+        image: {
+          image: new Uint8Array([4, 5, 6]),
+          filename: 'banner.png',
+          contentType: 'image/png'
+        }
       },
       { headers: { Authorization: 'Bearer token' } }
     );

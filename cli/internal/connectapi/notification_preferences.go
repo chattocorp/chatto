@@ -28,8 +28,7 @@ func (s *notificationPreferencesService) GetServerNotificationPreference(ctx con
 		effectiveLevel = corev1.NotificationLevel_NOTIFICATION_LEVEL_NORMAL
 	}
 	return connect.NewResponse(&apiv1.GetServerNotificationPreferenceResponse{
-		Level:          coreNotificationLevelToAPI(level),
-		EffectiveLevel: coreNotificationLevelToAPI(effectiveLevel),
+		Preference: apiNotificationPreference(level, effectiveLevel),
 	}), nil
 }
 
@@ -51,8 +50,7 @@ func (s *notificationPreferencesService) UpdateServerNotificationPreference(ctx 
 		effectiveLevel = corev1.NotificationLevel_NOTIFICATION_LEVEL_NORMAL
 	}
 	return connect.NewResponse(&apiv1.UpdateServerNotificationPreferenceResponse{
-		Level:          coreNotificationLevelToAPI(level),
-		EffectiveLevel: coreNotificationLevelToAPI(effectiveLevel),
+		Preference: apiNotificationPreference(level, effectiveLevel),
 	}), nil
 }
 
@@ -70,8 +68,7 @@ func (s *notificationPreferencesService) GetRoomNotificationPreference(ctx conte
 		return nil, connectError(err)
 	}
 	return connect.NewResponse(&apiv1.GetRoomNotificationPreferenceResponse{
-		Level:          coreNotificationLevelToAPI(pref.Level),
-		EffectiveLevel: coreNotificationLevelToAPI(pref.EffectiveLevel),
+		Preference: apiNotificationPreference(pref.Level, pref.EffectiveLevel),
 	}), nil
 }
 
@@ -93,9 +90,15 @@ func (s *notificationPreferencesService) UpdateRoomNotificationPreference(ctx co
 		return nil, connectError(err)
 	}
 	return connect.NewResponse(&apiv1.UpdateRoomNotificationPreferenceResponse{
-		Level:          coreNotificationLevelToAPI(pref.Level),
-		EffectiveLevel: coreNotificationLevelToAPI(pref.EffectiveLevel),
+		Preference: apiNotificationPreference(pref.Level, pref.EffectiveLevel),
 	}), nil
+}
+
+func apiNotificationPreference(level, effectiveLevel corev1.NotificationLevel) *apiv1.NotificationPreference {
+	return &apiv1.NotificationPreference{
+		Level:          coreNotificationLevelToAPI(level),
+		EffectiveLevel: coreNotificationLevelToAPI(effectiveLevel),
+	}
 }
 
 func apiNotificationLevelToCore(level apiv1.NotificationLevel) (corev1.NotificationLevel, error) {

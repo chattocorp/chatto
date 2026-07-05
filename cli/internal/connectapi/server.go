@@ -87,17 +87,21 @@ func (a *API) serverProfile(ctx context.Context, options serverProfileOptions) (
 	return profile, nil
 }
 
-func apiAuthProviders(providers []config.AuthProviderConfig) []*apiv1.AuthProvider {
-	result := make([]*apiv1.AuthProvider, 0, len(providers))
+func apiAuthProviders(providers []config.AuthProviderConfig) []*apiv1.ProviderMetadata {
+	result := make([]*apiv1.ProviderMetadata, 0, len(providers))
 	for _, provider := range providers {
-		result = append(result, &apiv1.AuthProvider{
-			Id:       provider.ID,
-			Type:     provider.Type,
-			Label:    provider.LabelOrDefault(),
-			LoginUrl: "/auth/providers/" + url.PathEscape(provider.ID),
-		})
+		result = append(result, apiProviderMetadata(provider))
 	}
 	return result
+}
+
+func apiProviderMetadata(provider config.AuthProviderConfig) *apiv1.ProviderMetadata {
+	return &apiv1.ProviderMetadata{
+		Id:       provider.ID,
+		Type:     provider.Type,
+		Label:    provider.LabelOrDefault(),
+		LoginUrl: "/auth/providers/" + url.PathEscape(provider.ID),
+	}
 }
 
 func (a *API) absolutizeAssetURL(ctx context.Context, assetURL string) string {

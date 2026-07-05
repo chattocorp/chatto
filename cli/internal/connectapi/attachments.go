@@ -126,7 +126,7 @@ func (s *attachmentMapper) attachment(attachment *corev1.Attachment, viewerID st
 	}
 }
 
-func assetThumbnailOptions(options *apiv1.AssetThumbnailOptions) attachmentThumbnailRequest {
+func assetThumbnailOptions(options *apiv1.ImageTransformOptions) attachmentThumbnailRequest {
 	width, height := 120, 120
 	fit := "cover"
 	if options != nil {
@@ -137,9 +137,9 @@ func assetThumbnailOptions(options *apiv1.AssetThumbnailOptions) attachmentThumb
 			height = int(options.GetHeight())
 		}
 		switch options.GetFit() {
-		case apiv1.AssetFitMode_ASSET_FIT_MODE_CONTAIN:
+		case apiv1.ImageFitMode_IMAGE_FIT_MODE_CONTAIN:
 			fit = "contain"
-		case apiv1.AssetFitMode_ASSET_FIT_MODE_COVER:
+		case apiv1.ImageFitMode_IMAGE_FIT_MODE_COVER:
 			fit = "cover"
 		}
 	}

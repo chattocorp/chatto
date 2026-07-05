@@ -1,10 +1,7 @@
 import { authHeaders, createChattoClient, handleAuthError } from './connect.js';
 import { FitMode } from './renderTypes.js';
 import type { ExpiringAssetUrl, RefreshedAttachmentUrls } from './attachmentUrls.js';
-import {
-  AssetFitMode,
-  AssetThumbnailOptions
-} from '@chatto/api-types/api/v1/attachments_pb';
+import { ImageFitMode, ImageTransformOptions } from '@chatto/api-types/api/v1/common_pb';
 import { AssetService } from '@chatto/api-types/api/v1/attachments_connect';
 import { RoomService } from '@chatto/api-types/api/v1/rooms_connect';
 import {
@@ -141,11 +138,11 @@ function refreshedAttachmentUrlMap(
   );
 }
 
-function thumbnailOptions(options: AttachmentRefreshOptions): AssetThumbnailOptions {
-  return new AssetThumbnailOptions({
+function thumbnailOptions(options: AttachmentRefreshOptions): ImageTransformOptions {
+  return new ImageTransformOptions({
     width: options.width,
     height: options.height,
-    fit: options.fit === FitMode.Contain ? AssetFitMode.CONTAIN : AssetFitMode.COVER
+    fit: options.fit === FitMode.Contain ? ImageFitMode.CONTAIN : ImageFitMode.COVER
   });
 }
 

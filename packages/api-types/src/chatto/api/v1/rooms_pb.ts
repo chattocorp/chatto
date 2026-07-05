@@ -7,7 +7,8 @@ import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialM
 import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
 import { DirectoryMember } from "./member_directory_pb.js";
 import { PageInfo, PageRequest } from "./pagination_pb.js";
-import { AssetThumbnailOptions, RoomAttachmentListItem } from "./attachments_pb.js";
+import { ImageTransformOptions } from "./common_pb.js";
+import { RoomAttachmentListItem } from "./attachments_pb.js";
 
 /**
  * Kind of room represented by the public API.
@@ -1452,9 +1453,9 @@ export class ListRoomAttachmentsRequest extends Message<ListRoomAttachmentsReque
   /**
    * Thumbnail URL options. Defaults are applied when absent.
    *
-   * @generated from field: chatto.api.v1.AssetThumbnailOptions thumbnail = 4;
+   * @generated from field: chatto.api.v1.ImageTransformOptions thumbnail = 4;
    */
-  thumbnail?: AssetThumbnailOptions;
+  thumbnail?: ImageTransformOptions;
 
   /**
    * Page request. Defaults are applied when absent or limit is zero.
@@ -1472,7 +1473,7 @@ export class ListRoomAttachmentsRequest extends Message<ListRoomAttachmentsReque
   static readonly typeName = "chatto.api.v1.ListRoomAttachmentsRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 4, name: "thumbnail", kind: "message", T: AssetThumbnailOptions },
+    { no: 4, name: "thumbnail", kind: "message", T: ImageTransformOptions },
     { no: 5, name: "page", kind: "message", T: PageRequest },
   ]);
 

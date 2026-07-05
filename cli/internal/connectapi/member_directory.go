@@ -231,10 +231,10 @@ func serverMemberForUser(ctx context.Context, api *API, user *corev1.User) (*api
 
 func directoryMember(ctx context.Context, api *API, user *corev1.User, roles []string) (*apiv1.DirectoryMember, error) {
 	avatarSize := 96
-	avatar := &apiv1.UserAvatarOptions{
+	avatar := &apiv1.ImageTransformOptions{
 		Width:  int32(avatarSize),
 		Height: int32(avatarSize),
-		Fit:    apiv1.UserAvatarFitMode_USER_AVATAR_FIT_MODE_COVER,
+		Fit:    apiv1.ImageFitMode_IMAGE_FIT_MODE_COVER,
 	}
 	apiUser, err := (&userService{api: api}).userSummary(ctx, user, avatar)
 	if err != nil {

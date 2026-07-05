@@ -106,9 +106,7 @@ Request to upload and set the public server logo.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `image` | `bytes` | Raw image bytes. The server validates, resizes, and stores a WebP logo. |
-| `filename` | `string` | Original browser filename, for diagnostics and future compatibility. |
-| `content_type` | `string` | Browser-provided content type, for diagnostics and future compatibility. |
+| `image` | [`chatto.api.v1.ImageUpload`](/reference/connectrpc-api/types/#chatto-api-v1-ImageUpload) | Image payload. The server validates, resizes, and stores a WebP logo. |
 
 
 <a id="chatto-admin-v1-UploadServerLogoResponse"></a>
@@ -168,9 +166,7 @@ Request to upload and set the public server banner.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `image` | `bytes` | Raw image bytes. The server validates, resizes, and stores a WebP banner. |
-| `filename` | `string` | Original browser filename, for diagnostics and future compatibility. |
-| `content_type` | `string` | Browser-provided content type, for diagnostics and future compatibility. |
+| `image` | [`chatto.api.v1.ImageUpload`](/reference/connectrpc-api/types/#chatto-api-v1-ImageUpload) | Image payload. The server validates, resizes, and stores a WebP banner. |
 
 
 <a id="chatto-admin-v1-UploadServerBannerResponse"></a>

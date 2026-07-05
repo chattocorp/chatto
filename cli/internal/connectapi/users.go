@@ -11,7 +11,7 @@ type userService struct {
 	api *API
 }
 
-func (s *userService) userSummary(ctx context.Context, user *corev1.User, avatar *apiv1.UserAvatarOptions) (*apiv1.User, error) {
+func (s *userService) userSummary(ctx context.Context, user *corev1.User, avatar *apiv1.ImageTransformOptions) (*apiv1.User, error) {
 	presence, err := s.api.core.GetUserPresence(ctx, user.GetId())
 	if err != nil {
 		return nil, connectError(err)
@@ -34,7 +34,7 @@ func (s *userService) userSummary(ctx context.Context, user *corev1.User, avatar
 	return summary, nil
 }
 
-func (s *userService) userAvatarURL(ctx context.Context, userID string, avatar *apiv1.UserAvatarOptions) (string, error) {
+func (s *userService) userAvatarURL(ctx context.Context, userID string, avatar *apiv1.ImageTransformOptions) (string, error) {
 	if avatar == nil {
 		url, err := s.api.core.GetUserAvatarURL(ctx, userID, nil, nil, "")
 		if err != nil {
@@ -45,7 +45,7 @@ func (s *userService) userAvatarURL(ctx context.Context, userID string, avatar *
 
 	width, height := int(avatar.GetWidth()), int(avatar.GetHeight())
 	fit := "cover"
-	if avatar.GetFit() == apiv1.UserAvatarFitMode_USER_AVATAR_FIT_MODE_CONTAIN {
+	if avatar.GetFit() == apiv1.ImageFitMode_IMAGE_FIT_MODE_CONTAIN {
 		fit = "contain"
 	}
 	url, err := s.api.core.GetUserAvatarURL(ctx, userID, &width, &height, fit)

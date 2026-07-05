@@ -2,18 +2,18 @@ import {
   authHeaders,
   createChattoClient,
   handleAuthError,
-  type ConnectAPIConfig,
-} from "./connect.js";
-import { ExternalIdentityAuthService } from "@chatto/api-types/chatto/auth/v1/external_identity_auth_connect";
+  type ConnectAPIConfig
+} from './connect.js';
+import { ExternalIdentityAuthService } from '@chatto/api-types/chatto/auth/v1/external_identity_auth_connect';
 import {
   ExternalIdentityFlowKind,
-  type PendingExternalIdentity as APIPendingExternalIdentity,
-} from "@chatto/api-types/chatto/auth/v1/external_identity_auth_pb";
-import { MyAccountService } from "@chatto/api-types/api/v1/account_connect";
+  type PendingExternalIdentity as APIPendingExternalIdentity
+} from '@chatto/api-types/chatto/auth/v1/external_identity_auth_pb';
+import { MyAccountService } from '@chatto/api-types/api/v1/account_connect';
 import {
   type ExternalIdentityProvider as APIExternalIdentityProvider,
-  type LinkedExternalIdentity as APILinkedExternalIdentity,
-} from "@chatto/api-types/api/v1/external_identities_pb";
+  type LinkedExternalIdentity as APILinkedExternalIdentity
+} from '@chatto/api-types/api/v1/external_identities_pb';
 
 export type ExternalIdentityFlowAPIConfig = {
   baseUrl?: string;
@@ -61,17 +61,13 @@ export type CreatedExternalIdentityAccount = {
   token: string;
 };
 
-export function createExternalIdentityFlowAPI(
-  config: ExternalIdentityFlowAPIConfig = {},
-) {
+export function createExternalIdentityFlowAPI(config: ExternalIdentityFlowAPIConfig = {}) {
   const client = createChattoClient(ExternalIdentityAuthService, {
-    baseUrl: config.baseUrl ?? "/api/connect",
+    baseUrl: config.baseUrl ?? '/api/connect'
   });
 
   return {
-    async getPending(
-      token: string,
-    ): Promise<PendingExternalIdentityInfo | null> {
+    async getPending(token: string): Promise<PendingExternalIdentityInfo | null> {
       const response = await client.getPendingExternalIdentity({ token });
       return pendingIdentity(response.pending);
     },
@@ -84,7 +80,7 @@ export function createExternalIdentityFlowAPI(
       return {
         userId: response.userId,
         login: response.login,
-        token: response.token,
+        token: response.token
       };
     },
 
@@ -92,12 +88,10 @@ export function createExternalIdentityFlowAPI(
       await client.cancelExternalIdentityFlow({ token });
     },
 
-    async confirmLink(
-      token: string,
-    ): Promise<LinkedExternalIdentityInfo | null> {
+    async confirmLink(token: string): Promise<LinkedExternalIdentityInfo | null> {
       const response = await client.confirmExternalIdentityLink({ token });
       return linkedIdentity(response.linkedIdentity);
-    },
+    }
   };
 }
 
@@ -108,17 +102,12 @@ export function createExternalIdentityAPI(config: ExternalIdentityAPIConfig) {
   return {
     async list(): Promise<ExternalIdentityList> {
       try {
-        const response = await client.listExternalIdentities(
-          {},
-          { headers: headers() },
-        );
+        const response = await client.listExternalIdentities({}, { headers: headers() });
         return {
           providers: response.providers.map((provider) =>
-            externalIdentityProvider(provider, config.baseUrl),
+            externalIdentityProvider(provider, config.baseUrl)
           ),
-          linkedIdentities: response.linkedIdentities
-            .map(linkedIdentity)
-            .filter(isLinkedIdentity),
+          linkedIdentities: response.linkedIdentities.map(linkedIdentity).filter(isLinkedIdentity)
         };
       } catch (err) {
         return handleAuthError(config, err);
@@ -132,7 +121,7 @@ export function createExternalIdentityAPI(config: ExternalIdentityAPIConfig) {
     }): Promise<string> {
       try {
         const response = await client.startExternalIdentityLink(input, {
-          headers: headers(),
+          headers: headers()
         });
         return response.startUrl;
       } catch (err) {
@@ -142,37 +131,29 @@ export function createExternalIdentityAPI(config: ExternalIdentityAPIConfig) {
 
     async link(token: string): Promise<LinkedExternalIdentityInfo | null> {
       try {
-        const response = await client.linkExternalIdentity(
-          { token },
-          { headers: headers() },
-        );
+        const response = await client.linkExternalIdentity({ token }, { headers: headers() });
         return linkedIdentity(response.linkedIdentity);
       } catch (err) {
         return handleAuthError(config, err);
       }
     },
 
-    async disconnect(
-      subjectHash: string,
-      currentPassword?: string,
-    ): Promise<void> {
+    async disconnect(subjectHash: string, currentPassword?: string): Promise<void> {
       try {
         await client.disconnectExternalIdentity(
           { subjectHash, currentPassword },
-          { headers: headers() },
+          { headers: headers() }
         );
       } catch (err) {
         return handleAuthError(config, err);
       }
-    },
+    }
   };
 }
 
 export { ExternalIdentityFlowKind };
 
-function pendingIdentity(
-  pending?: APIPendingExternalIdentity,
-): PendingExternalIdentityInfo | null {
+function pendingIdentity(pending?: APIPendingExternalIdentity): PendingExternalIdentityInfo | null {
   if (!pending) return null;
   return {
     kind: pending.kind,
@@ -183,52 +164,48 @@ function pendingIdentity(
     loginHint: pending.loginHint,
     displayNameHint: pending.displayNameHint,
     boundUserId: pending.boundUserId || null,
-    redirectPath: pending.redirectPath || null,
+    redirectPath: pending.redirectPath || null
   };
 }
 
 function externalIdentityProvider(
   provider: APIExternalIdentityProvider,
-  baseUrl: string,
+  baseUrl: string
 ): ExternalIdentityProviderInfo {
+  const metadata = provider.provider;
   return {
-    id: provider.id,
-    type: provider.type,
-    label: provider.label,
-    loginUrl: resolveServerUrl(provider.loginUrl, baseUrl),
+    id: metadata?.id ?? '',
+    type: metadata?.type ?? '',
+    label: metadata?.label ?? '',
+    loginUrl: resolveServerUrl(metadata?.loginUrl ?? '', baseUrl),
     linkUrl: resolveServerUrl(provider.linkUrl, baseUrl),
     linked: provider.linked,
-    linkedIdentitySubjectHash: provider.linkedIdentitySubjectHash || null,
+    linkedIdentitySubjectHash: provider.linkedIdentitySubjectHash || null
   };
 }
 
 function resolveServerUrl(value: string, baseUrl: string): string {
   if (!value) return value;
   try {
-    const base = new URL(
-      baseUrl,
-      globalThis.location?.origin ?? "http://localhost",
-    );
+    const base = new URL(baseUrl, globalThis.location?.origin ?? 'http://localhost');
     return new URL(value, base.origin).toString();
   } catch {
     return value;
   }
 }
 
-function linkedIdentity(
-  identity?: APILinkedExternalIdentity,
-): LinkedExternalIdentityInfo | null {
+function linkedIdentity(identity?: APILinkedExternalIdentity): LinkedExternalIdentityInfo | null {
   if (!identity) return null;
   return {
     providerId: identity.providerId,
     providerType: identity.providerType,
     providerLabel: identity.providerLabel,
-    subjectHash: identity.subjectHash,
+    subjectHash: identity.subjectHash
   };
 }
 
 function isLinkedIdentity(
-  identity: LinkedExternalIdentityInfo | null,
+  identity: LinkedExternalIdentityInfo | null
 ): identity is LinkedExternalIdentityInfo {
   return identity !== null;
 }

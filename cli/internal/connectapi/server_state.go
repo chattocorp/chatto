@@ -115,11 +115,12 @@ func (s *serverService) UploadServerLogo(ctx context.Context, req *connect.Reque
 	if err != nil {
 		return nil, err
 	}
-	if len(req.Msg.GetImage()) == 0 {
+	image := req.Msg.GetImage()
+	if image == nil || len(image.GetImage()) == 0 {
 		return nil, invalidArgument("image is required")
 	}
 
-	if _, err := s.api.core.UploadManagedServerLogo(ctx, caller.UserID, bytes.NewReader(req.Msg.GetImage())); err != nil {
+	if _, err := s.api.core.UploadManagedServerLogo(ctx, caller.UserID, bytes.NewReader(image.GetImage())); err != nil {
 		return nil, connectError(err)
 	}
 	profile, err := s.serverProfile(ctx)
@@ -149,11 +150,12 @@ func (s *serverService) UploadServerBanner(ctx context.Context, req *connect.Req
 	if err != nil {
 		return nil, err
 	}
-	if len(req.Msg.GetImage()) == 0 {
+	image := req.Msg.GetImage()
+	if image == nil || len(image.GetImage()) == 0 {
 		return nil, invalidArgument("image is required")
 	}
 
-	if _, err := s.api.core.UploadManagedServerBanner(ctx, caller.UserID, bytes.NewReader(req.Msg.GetImage())); err != nil {
+	if _, err := s.api.core.UploadManagedServerBanner(ctx, caller.UserID, bytes.NewReader(image.GetImage())); err != nil {
 		return nil, connectError(err)
 	}
 	profile, err := s.serverProfile(ctx)

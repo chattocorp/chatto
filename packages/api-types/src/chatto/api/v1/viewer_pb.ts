@@ -7,7 +7,7 @@ import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialM
 import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
 import { User } from "./users_pb.js";
 import { CapabilityGrant, PermissionGrant } from "./permissions_pb.js";
-import { NotificationLevel } from "./notification_preferences_pb.js";
+import { NotificationPreference } from "./notification_preferences_pb.js";
 
 /**
  * User preference for rendering times in clients.
@@ -314,55 +314,6 @@ export class ServerViewerState extends Message<ServerViewerState> {
 }
 
 /**
- * Server-wide notification preference for the authenticated user.
- *
- * @generated from message chatto.api.v1.ServerNotificationPreference
- */
-export class ServerNotificationPreference extends Message<ServerNotificationPreference> {
-  /**
-   * Explicit server-level setting.
-   *
-   * @generated from field: chatto.api.v1.NotificationLevel level = 1;
-   */
-  level = NotificationLevel.UNSPECIFIED;
-
-  /**
-   * Level after applying system defaults.
-   *
-   * @generated from field: chatto.api.v1.NotificationLevel effective_level = 2;
-   */
-  effectiveLevel = NotificationLevel.UNSPECIFIED;
-
-  constructor(data?: PartialMessage<ServerNotificationPreference>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.ServerNotificationPreference";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "level", kind: "enum", T: proto3.getEnumType(NotificationLevel) },
-    { no: 2, name: "effective_level", kind: "enum", T: proto3.getEnumType(NotificationLevel) },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ServerNotificationPreference {
-    return new ServerNotificationPreference().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ServerNotificationPreference {
-    return new ServerNotificationPreference().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ServerNotificationPreference {
-    return new ServerNotificationPreference().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: ServerNotificationPreference | PlainMessage<ServerNotificationPreference> | undefined, b: ServerNotificationPreference | PlainMessage<ServerNotificationPreference> | undefined): boolean {
-    return proto3.util.equals(ServerNotificationPreference, a, b);
-  }
-}
-
-/**
  * Room notification preference for one joined room.
  *
  * @generated from message chatto.api.v1.RoomNotificationPreference
@@ -376,18 +327,11 @@ export class RoomNotificationPreference extends Message<RoomNotificationPreferen
   roomId = "";
 
   /**
-   * Explicit room-level setting.
+   * Stored and effective notification preference.
    *
-   * @generated from field: chatto.api.v1.NotificationLevel level = 2;
+   * @generated from field: chatto.api.v1.NotificationPreference preference = 4;
    */
-  level = NotificationLevel.UNSPECIFIED;
-
-  /**
-   * Level after applying room/server/system defaults.
-   *
-   * @generated from field: chatto.api.v1.NotificationLevel effective_level = 3;
-   */
-  effectiveLevel = NotificationLevel.UNSPECIFIED;
+  preference?: NotificationPreference;
 
   constructor(data?: PartialMessage<RoomNotificationPreference>) {
     super();
@@ -398,8 +342,7 @@ export class RoomNotificationPreference extends Message<RoomNotificationPreferen
   static readonly typeName = "chatto.api.v1.RoomNotificationPreference";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "level", kind: "enum", T: proto3.getEnumType(NotificationLevel) },
-    { no: 3, name: "effective_level", kind: "enum", T: proto3.getEnumType(NotificationLevel) },
+    { no: 4, name: "preference", kind: "message", T: NotificationPreference },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoomNotificationPreference {
@@ -475,9 +418,9 @@ export class GetViewerResponse extends Message<GetViewerResponse> {
   /**
    * Server-wide notification preference.
    *
-   * @generated from field: chatto.api.v1.ServerNotificationPreference server_notification_preference = 3;
+   * @generated from field: chatto.api.v1.NotificationPreference server_notification_preference = 3;
    */
-  serverNotificationPreference?: ServerNotificationPreference;
+  serverNotificationPreference?: NotificationPreference;
 
   /**
    * Notification preferences for rooms the user participates in.
@@ -510,7 +453,7 @@ export class GetViewerResponse extends Message<GetViewerResponse> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "user", kind: "message", T: ViewerUser },
     { no: 2, name: "capabilities", kind: "message", T: ViewerCapabilities },
-    { no: 3, name: "server_notification_preference", kind: "message", T: ServerNotificationPreference },
+    { no: 3, name: "server_notification_preference", kind: "message", T: NotificationPreference },
     { no: 4, name: "room_notification_preferences", kind: "message", T: RoomNotificationPreference, repeated: true },
     { no: 5, name: "viewer_permissions", kind: "message", T: ServerViewerPermissions },
     { no: 6, name: "viewer_state", kind: "message", T: ServerViewerState },

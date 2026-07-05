@@ -6,6 +6,7 @@
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3 } from "@bufbuild/protobuf";
 import { User } from "./users_pb.js";
+import { ImageUpload } from "./common_pb.js";
 import { TimeFormat, UserSettings } from "./viewer_pb.js";
 
 /**
@@ -108,25 +109,11 @@ export class UpdateProfileResponse extends Message<UpdateProfileResponse> {
  */
 export class UploadAvatarRequest extends Message<UploadAvatarRequest> {
   /**
-   * Raw image bytes. The server validates, resizes, and stores a WebP avatar.
+   * Image payload. The server validates, resizes, and stores a WebP avatar.
    *
-   * @generated from field: bytes image = 1;
+   * @generated from field: chatto.api.v1.ImageUpload image = 4;
    */
-  image = new Uint8Array(0);
-
-  /**
-   * Original browser filename, for diagnostics and future compatibility.
-   *
-   * @generated from field: string filename = 2;
-   */
-  filename = "";
-
-  /**
-   * Browser-provided content type, for diagnostics and future compatibility.
-   *
-   * @generated from field: string content_type = 3;
-   */
-  contentType = "";
+  image?: ImageUpload;
 
   constructor(data?: PartialMessage<UploadAvatarRequest>) {
     super();
@@ -136,9 +123,7 @@ export class UploadAvatarRequest extends Message<UploadAvatarRequest> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.UploadAvatarRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "image", kind: "scalar", T: 12 /* ScalarType.BYTES */ },
-    { no: 2, name: "filename", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "content_type", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "image", kind: "message", T: ImageUpload },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UploadAvatarRequest {

@@ -74,9 +74,7 @@ Request to upload and set the authenticated user's avatar.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `image` | `bytes` | Raw image bytes. The server validates, resizes, and stores a WebP avatar. |
-| `filename` | `string` | Original browser filename, for diagnostics and future compatibility. |
-| `content_type` | `string` | Browser-provided content type, for diagnostics and future compatibility. |
+| `image` | [`ImageUpload`](/reference/connectrpc-api/types/#chatto-api-v1-ImageUpload) | Image payload. The server validates, resizes, and stores a WebP avatar. |
 
 
 <a id="chatto-api-v1-UploadAvatarResponse"></a>

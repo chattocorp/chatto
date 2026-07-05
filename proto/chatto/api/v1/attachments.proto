@@ -3,34 +3,9 @@ syntax = "proto3";
 package chatto.api.v1;
 
 import "buf/validate/validate.proto";
+import "chatto/api/v1/common.proto";
 import "chatto/api/v1/message_types.proto";
 import "google/protobuf/timestamp.proto";
-
-// Fit mode used when generating transformed asset thumbnails.
-enum AssetFitMode {
-  // The fit mode was not specified.
-  ASSET_FIT_MODE_UNSPECIFIED = 0;
-  // Preserve the whole source image within the requested bounds.
-  ASSET_FIT_MODE_CONTAIN = 1;
-  // Fill the requested bounds, cropping when needed.
-  ASSET_FIT_MODE_COVER = 2;
-}
-
-// Thumbnail transform parameters for asset URL reads.
-message AssetThumbnailOptions {
-  // Thumbnail width in pixels.
-  int32 width = 1 [(buf.validate.field).int32 = {
-    gte: 1,
-    lte: 4096
-  }];
-  // Thumbnail height in pixels.
-  int32 height = 2 [(buf.validate.field).int32 = {
-    gte: 1,
-    lte: 4096
-  }];
-  // Thumbnail fit mode.
-  AssetFitMode fit = 3 [(buf.validate.field).enum.defined_only = true];
-}
 
 // One current room attachment and its message anchor.
 message RoomAttachmentListItem {
@@ -51,7 +26,7 @@ message GetAssetRequest {
   // Required. Asset ID.
   string asset_id = 2 [(buf.validate.field).string.min_len = 1];
   // Thumbnail URL options. Defaults are applied when absent.
-  AssetThumbnailOptions thumbnail = 3;
+  ImageTransformOptions thumbnail = 3;
 }
 
 // Response containing one room-scoped asset.
@@ -73,7 +48,7 @@ message BatchGetAssetsRequest {
     }
   }];
   // Thumbnail URL options. Defaults are applied when absent.
-  AssetThumbnailOptions thumbnail = 3;
+  ImageTransformOptions thumbnail = 3;
 }
 
 // Response containing room-scoped assets.

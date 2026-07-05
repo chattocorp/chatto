@@ -5,6 +5,7 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3 } from "@bufbuild/protobuf";
+import { ProviderMetadata } from "./common_pb.js";
 
 /**
  * Public metadata for a configured external login provider.
@@ -12,34 +13,6 @@ import { Message, proto3 } from "@bufbuild/protobuf";
  * @generated from message chatto.api.v1.ExternalIdentityProvider
  */
 export class ExternalIdentityProvider extends Message<ExternalIdentityProvider> {
-  /**
-   * Stable configured provider ID.
-   *
-   * @generated from field: string id = 1;
-   */
-  id = "";
-
-  /**
-   * Provider type, such as "oidc", "github", or "discord".
-   *
-   * @generated from field: string type = 2;
-   */
-  type = "";
-
-  /**
-   * Human-readable label.
-   *
-   * @generated from field: string label = 3;
-   */
-  label = "";
-
-  /**
-   * URL that starts login for this provider.
-   *
-   * @generated from field: string login_url = 4;
-   */
-  loginUrl = "";
-
   /**
    * URL that starts authenticated account linking for this provider. Clients
    * should use StartExternalIdentityLink instead of navigating here directly.
@@ -62,6 +35,13 @@ export class ExternalIdentityProvider extends Message<ExternalIdentityProvider> 
    */
   linkedIdentitySubjectHash = "";
 
+  /**
+   * Shared provider metadata.
+   *
+   * @generated from field: chatto.api.v1.ProviderMetadata provider = 8;
+   */
+  provider?: ProviderMetadata;
+
   constructor(data?: PartialMessage<ExternalIdentityProvider>) {
     super();
     proto3.util.initPartial(data, this);
@@ -70,13 +50,10 @@ export class ExternalIdentityProvider extends Message<ExternalIdentityProvider> 
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.ExternalIdentityProvider";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "type", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "label", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 4, name: "login_url", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 5, name: "link_url", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 6, name: "linked", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 7, name: "linked_identity_subject_hash", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 8, name: "provider", kind: "message", T: ProviderMetadata },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ExternalIdentityProvider {

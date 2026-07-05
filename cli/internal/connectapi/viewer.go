@@ -169,7 +169,7 @@ func (s *viewerService) viewerCapabilities(ctx context.Context, userID string) (
 	}, nil
 }
 
-func (s *viewerService) serverNotificationPreference(ctx context.Context, userID string) (*apiv1.ServerNotificationPreference, error) {
+func (s *viewerService) serverNotificationPreference(ctx context.Context, userID string) (*apiv1.NotificationPreference, error) {
 	level, err := s.api.core.GetSpaceNotificationLevel(ctx, userID)
 	if err != nil {
 		return nil, connectError(err)
@@ -178,10 +178,7 @@ func (s *viewerService) serverNotificationPreference(ctx context.Context, userID
 	if effectiveLevel == corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED {
 		effectiveLevel = corev1.NotificationLevel_NOTIFICATION_LEVEL_NORMAL
 	}
-	return &apiv1.ServerNotificationPreference{
-		Level:          coreNotificationLevelToAPI(level),
-		EffectiveLevel: coreNotificationLevelToAPI(effectiveLevel),
-	}, nil
+	return apiNotificationPreference(level, effectiveLevel), nil
 }
 
 func (s *viewerService) roomNotificationPreferences(ctx context.Context, userID string) ([]*apiv1.RoomNotificationPreference, error) {
@@ -192,9 +189,8 @@ func (s *viewerService) roomNotificationPreferences(ctx context.Context, userID 
 	result := make([]*apiv1.RoomNotificationPreference, 0, len(prefs))
 	for _, pref := range prefs {
 		result = append(result, &apiv1.RoomNotificationPreference{
-			RoomId:         pref.RoomID,
-			Level:          coreNotificationLevelToAPI(pref.Level),
-			EffectiveLevel: coreNotificationLevelToAPI(pref.EffectiveLevel),
+			RoomId:     pref.RoomID,
+			Preference: apiNotificationPreference(pref.Level, pref.EffectiveLevel),
 		})
 	}
 	return result, nil

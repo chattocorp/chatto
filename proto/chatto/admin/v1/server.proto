@@ -3,6 +3,7 @@ syntax = "proto3";
 package chatto.admin.v1;
 
 import "buf/validate/validate.proto";
+import "chatto/api/v1/common.proto";
 import "chatto/api/v1/server_state.proto";
 
 // Runtime-editable server profile settings.
@@ -52,12 +53,11 @@ message UpdateServerConfigResponse {
 
 // Request to upload and set the public server logo.
 message UploadServerLogoRequest {
-  // Raw image bytes. The server validates, resizes, and stores a WebP logo.
-  bytes image = 1;
-  // Original browser filename, for diagnostics and future compatibility.
-  string filename = 2;
-  // Browser-provided content type, for diagnostics and future compatibility.
-  string content_type = 3;
+  reserved 1 to 3;
+  reserved "filename", "content_type";
+
+  // Image payload. The server validates, resizes, and stores a WebP logo.
+  chatto.api.v1.ImageUpload image = 4;
 }
 
 // Result of uploading the public server logo.
@@ -77,12 +77,11 @@ message DeleteServerLogoResponse {
 
 // Request to upload and set the public server banner.
 message UploadServerBannerRequest {
-  // Raw image bytes. The server validates, resizes, and stores a WebP banner.
-  bytes image = 1;
-  // Original browser filename, for diagnostics and future compatibility.
-  string filename = 2;
-  // Browser-provided content type, for diagnostics and future compatibility.
-  string content_type = 3;
+  reserved 1 to 3;
+  reserved "filename", "content_type";
+
+  // Image payload. The server validates, resizes, and stores a WebP banner.
+  chatto.api.v1.ImageUpload image = 4;
 }
 
 // Result of uploading the public server banner.

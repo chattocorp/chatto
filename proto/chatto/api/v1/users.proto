@@ -2,35 +2,8 @@ syntax = "proto3";
 
 package chatto.api.v1;
 
-import "buf/validate/validate.proto";
 import "chatto/api/v1/presence.proto";
 import "chatto/api/v1/user_status.proto";
-
-// Fit mode used when generating transformed user avatar URLs.
-enum UserAvatarFitMode {
-  // The fit mode was not specified.
-  USER_AVATAR_FIT_MODE_UNSPECIFIED = 0;
-  // Preserve the whole source image within the requested bounds.
-  USER_AVATAR_FIT_MODE_CONTAIN = 1;
-  // Fill the requested bounds, cropping when needed.
-  USER_AVATAR_FIT_MODE_COVER = 2;
-}
-
-// Avatar transform parameters for user profile reads.
-message UserAvatarOptions {
-  // Avatar width in pixels.
-  int32 width = 1 [(buf.validate.field).int32 = {
-    gte: 1,
-    lte: 4096
-  }];
-  // Avatar height in pixels.
-  int32 height = 2 [(buf.validate.field).int32 = {
-    gte: 1,
-    lte: 4096
-  }];
-  // Avatar crop/fit behavior.
-  UserAvatarFitMode fit = 3 [(buf.validate.field).enum.defined_only = true];
-}
 
 // Public user fields.
 message User {

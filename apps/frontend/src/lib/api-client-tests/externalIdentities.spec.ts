@@ -110,10 +110,12 @@ describe('createExternalIdentityAPI', () => {
     mocks.listExternalIdentities.mockResolvedValue({
       providers: [
         {
-          id: 'github-main',
-          type: 'github',
-          label: 'GitHub',
-          loginUrl: '/auth/providers/github-main',
+          provider: {
+            id: 'github-main',
+            type: 'github',
+            label: 'GitHub',
+            loginUrl: '/auth/providers/github-main'
+          },
           linkUrl: '/auth/providers/github-main?intent=link',
           linked: true,
           linkedIdentitySubjectHash: 'abc123'

@@ -321,12 +321,8 @@ func (x *UpdateServerConfigResponse) GetConfig() *ServerConfig {
 // Request to upload and set the public server logo.
 type UploadServerLogoRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Raw image bytes. The server validates, resizes, and stores a WebP logo.
-	Image []byte `protobuf:"bytes,1,opt,name=image,proto3" json:"image,omitempty"`
-	// Original browser filename, for diagnostics and future compatibility.
-	Filename string `protobuf:"bytes,2,opt,name=filename,proto3" json:"filename,omitempty"`
-	// Browser-provided content type, for diagnostics and future compatibility.
-	ContentType   string `protobuf:"bytes,3,opt,name=content_type,json=contentType,proto3" json:"content_type,omitempty"`
+	// Image payload. The server validates, resizes, and stores a WebP logo.
+	Image         *v1.ImageUpload `protobuf:"bytes,4,opt,name=image,proto3" json:"image,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -361,25 +357,11 @@ func (*UploadServerLogoRequest) Descriptor() ([]byte, []int) {
 	return file_chatto_admin_v1_server_proto_rawDescGZIP(), []int{5}
 }
 
-func (x *UploadServerLogoRequest) GetImage() []byte {
+func (x *UploadServerLogoRequest) GetImage() *v1.ImageUpload {
 	if x != nil {
 		return x.Image
 	}
 	return nil
-}
-
-func (x *UploadServerLogoRequest) GetFilename() string {
-	if x != nil {
-		return x.Filename
-	}
-	return ""
-}
-
-func (x *UploadServerLogoRequest) GetContentType() string {
-	if x != nil {
-		return x.ContentType
-	}
-	return ""
 }
 
 // Result of uploading the public server logo.
@@ -514,12 +496,8 @@ func (x *DeleteServerLogoResponse) GetProfile() *v1.ServerProfile {
 // Request to upload and set the public server banner.
 type UploadServerBannerRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Raw image bytes. The server validates, resizes, and stores a WebP banner.
-	Image []byte `protobuf:"bytes,1,opt,name=image,proto3" json:"image,omitempty"`
-	// Original browser filename, for diagnostics and future compatibility.
-	Filename string `protobuf:"bytes,2,opt,name=filename,proto3" json:"filename,omitempty"`
-	// Browser-provided content type, for diagnostics and future compatibility.
-	ContentType   string `protobuf:"bytes,3,opt,name=content_type,json=contentType,proto3" json:"content_type,omitempty"`
+	// Image payload. The server validates, resizes, and stores a WebP banner.
+	Image         *v1.ImageUpload `protobuf:"bytes,4,opt,name=image,proto3" json:"image,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -554,25 +532,11 @@ func (*UploadServerBannerRequest) Descriptor() ([]byte, []int) {
 	return file_chatto_admin_v1_server_proto_rawDescGZIP(), []int{9}
 }
 
-func (x *UploadServerBannerRequest) GetImage() []byte {
+func (x *UploadServerBannerRequest) GetImage() *v1.ImageUpload {
 	if x != nil {
 		return x.Image
 	}
 	return nil
-}
-
-func (x *UploadServerBannerRequest) GetFilename() string {
-	if x != nil {
-		return x.Filename
-	}
-	return ""
-}
-
-func (x *UploadServerBannerRequest) GetContentType() string {
-	if x != nil {
-		return x.ContentType
-	}
-	return ""
 }
 
 // Result of uploading the public server banner.
@@ -885,7 +849,7 @@ var File_chatto_admin_v1_server_proto protoreflect.FileDescriptor
 
 const file_chatto_admin_v1_server_proto_rawDesc = "" +
 	"\n" +
-	"\x1cchatto/admin/v1/server.proto\x12\x0fchatto.admin.v1\x1a\x1bbuf/validate/validate.proto\x1a chatto/api/v1/server_state.proto\"\x8e\x01\n" +
+	"\x1cchatto/admin/v1/server.proto\x12\x0fchatto.admin.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1achatto/api/v1/common.proto\x1a chatto/api/v1/server_state.proto\"\x8e\x01\n" +
 	"\fServerConfig\x12\x1f\n" +
 	"\vserver_name\x18\x01 \x01(\tR\n" +
 	"serverName\x12 \n" +
@@ -908,20 +872,16 @@ const file_chatto_admin_v1_server_proto_rawDesc = "" +
 	"\x10_welcome_message\"\x8b\x01\n" +
 	"\x1aUpdateServerConfigResponse\x126\n" +
 	"\aprofile\x18\x01 \x01(\v2\x1c.chatto.api.v1.ServerProfileR\aprofile\x125\n" +
-	"\x06config\x18\x02 \x01(\v2\x1d.chatto.admin.v1.ServerConfigR\x06config\"n\n" +
-	"\x17UploadServerLogoRequest\x12\x14\n" +
-	"\x05image\x18\x01 \x01(\fR\x05image\x12\x1a\n" +
-	"\bfilename\x18\x02 \x01(\tR\bfilename\x12!\n" +
-	"\fcontent_type\x18\x03 \x01(\tR\vcontentType\"R\n" +
+	"\x06config\x18\x02 \x01(\v2\x1d.chatto.admin.v1.ServerConfigR\x06config\"i\n" +
+	"\x17UploadServerLogoRequest\x120\n" +
+	"\x05image\x18\x04 \x01(\v2\x1a.chatto.api.v1.ImageUploadR\x05imageJ\x04\b\x01\x10\x04R\bfilenameR\fcontent_type\"R\n" +
 	"\x18UploadServerLogoResponse\x126\n" +
 	"\aprofile\x18\x01 \x01(\v2\x1c.chatto.api.v1.ServerProfileR\aprofile\"\x19\n" +
 	"\x17DeleteServerLogoRequest\"R\n" +
 	"\x18DeleteServerLogoResponse\x126\n" +
-	"\aprofile\x18\x01 \x01(\v2\x1c.chatto.api.v1.ServerProfileR\aprofile\"p\n" +
-	"\x19UploadServerBannerRequest\x12\x14\n" +
-	"\x05image\x18\x01 \x01(\fR\x05image\x12\x1a\n" +
-	"\bfilename\x18\x02 \x01(\tR\bfilename\x12!\n" +
-	"\fcontent_type\x18\x03 \x01(\tR\vcontentType\"T\n" +
+	"\aprofile\x18\x01 \x01(\v2\x1c.chatto.api.v1.ServerProfileR\aprofile\"k\n" +
+	"\x19UploadServerBannerRequest\x120\n" +
+	"\x05image\x18\x04 \x01(\v2\x1a.chatto.api.v1.ImageUploadR\x05imageJ\x04\b\x01\x10\x04R\bfilenameR\fcontent_type\"T\n" +
 	"\x1aUploadServerBannerResponse\x126\n" +
 	"\aprofile\x18\x01 \x01(\v2\x1c.chatto.api.v1.ServerProfileR\aprofile\"\x1b\n" +
 	"\x19DeleteServerBannerRequest\"T\n" +
@@ -977,37 +937,40 @@ var file_chatto_admin_v1_server_proto_goTypes = []any{
 	(*UpdateBlockedUsernamesRequest)(nil),   // 15: chatto.admin.v1.UpdateBlockedUsernamesRequest
 	(*UpdateBlockedUsernamesResponse)(nil),  // 16: chatto.admin.v1.UpdateBlockedUsernamesResponse
 	(*v1.ServerProfile)(nil),                // 17: chatto.api.v1.ServerProfile
+	(*v1.ImageUpload)(nil),                  // 18: chatto.api.v1.ImageUpload
 }
 var file_chatto_admin_v1_server_proto_depIdxs = []int32{
 	0,  // 0: chatto.admin.v1.GetServerConfigResponse.config:type_name -> chatto.admin.v1.ServerConfig
 	17, // 1: chatto.admin.v1.GetServerConfigResponse.profile:type_name -> chatto.api.v1.ServerProfile
 	17, // 2: chatto.admin.v1.UpdateServerConfigResponse.profile:type_name -> chatto.api.v1.ServerProfile
 	0,  // 3: chatto.admin.v1.UpdateServerConfigResponse.config:type_name -> chatto.admin.v1.ServerConfig
-	17, // 4: chatto.admin.v1.UploadServerLogoResponse.profile:type_name -> chatto.api.v1.ServerProfile
-	17, // 5: chatto.admin.v1.DeleteServerLogoResponse.profile:type_name -> chatto.api.v1.ServerProfile
-	17, // 6: chatto.admin.v1.UploadServerBannerResponse.profile:type_name -> chatto.api.v1.ServerProfile
-	17, // 7: chatto.admin.v1.DeleteServerBannerResponse.profile:type_name -> chatto.api.v1.ServerProfile
-	1,  // 8: chatto.admin.v1.AdminServerService.GetServerConfig:input_type -> chatto.admin.v1.GetServerConfigRequest
-	3,  // 9: chatto.admin.v1.AdminServerService.UpdateServerConfig:input_type -> chatto.admin.v1.UpdateServerConfigRequest
-	5,  // 10: chatto.admin.v1.AdminServerService.UploadServerLogo:input_type -> chatto.admin.v1.UploadServerLogoRequest
-	7,  // 11: chatto.admin.v1.AdminServerService.DeleteServerLogo:input_type -> chatto.admin.v1.DeleteServerLogoRequest
-	9,  // 12: chatto.admin.v1.AdminServerService.UploadServerBanner:input_type -> chatto.admin.v1.UploadServerBannerRequest
-	11, // 13: chatto.admin.v1.AdminServerService.DeleteServerBanner:input_type -> chatto.admin.v1.DeleteServerBannerRequest
-	13, // 14: chatto.admin.v1.AdminServerService.GetServerSecurityConfig:input_type -> chatto.admin.v1.GetServerSecurityConfigRequest
-	15, // 15: chatto.admin.v1.AdminServerService.UpdateBlockedUsernames:input_type -> chatto.admin.v1.UpdateBlockedUsernamesRequest
-	2,  // 16: chatto.admin.v1.AdminServerService.GetServerConfig:output_type -> chatto.admin.v1.GetServerConfigResponse
-	4,  // 17: chatto.admin.v1.AdminServerService.UpdateServerConfig:output_type -> chatto.admin.v1.UpdateServerConfigResponse
-	6,  // 18: chatto.admin.v1.AdminServerService.UploadServerLogo:output_type -> chatto.admin.v1.UploadServerLogoResponse
-	8,  // 19: chatto.admin.v1.AdminServerService.DeleteServerLogo:output_type -> chatto.admin.v1.DeleteServerLogoResponse
-	10, // 20: chatto.admin.v1.AdminServerService.UploadServerBanner:output_type -> chatto.admin.v1.UploadServerBannerResponse
-	12, // 21: chatto.admin.v1.AdminServerService.DeleteServerBanner:output_type -> chatto.admin.v1.DeleteServerBannerResponse
-	14, // 22: chatto.admin.v1.AdminServerService.GetServerSecurityConfig:output_type -> chatto.admin.v1.GetServerSecurityConfigResponse
-	16, // 23: chatto.admin.v1.AdminServerService.UpdateBlockedUsernames:output_type -> chatto.admin.v1.UpdateBlockedUsernamesResponse
-	16, // [16:24] is the sub-list for method output_type
-	8,  // [8:16] is the sub-list for method input_type
-	8,  // [8:8] is the sub-list for extension type_name
-	8,  // [8:8] is the sub-list for extension extendee
-	0,  // [0:8] is the sub-list for field type_name
+	18, // 4: chatto.admin.v1.UploadServerLogoRequest.image:type_name -> chatto.api.v1.ImageUpload
+	17, // 5: chatto.admin.v1.UploadServerLogoResponse.profile:type_name -> chatto.api.v1.ServerProfile
+	17, // 6: chatto.admin.v1.DeleteServerLogoResponse.profile:type_name -> chatto.api.v1.ServerProfile
+	18, // 7: chatto.admin.v1.UploadServerBannerRequest.image:type_name -> chatto.api.v1.ImageUpload
+	17, // 8: chatto.admin.v1.UploadServerBannerResponse.profile:type_name -> chatto.api.v1.ServerProfile
+	17, // 9: chatto.admin.v1.DeleteServerBannerResponse.profile:type_name -> chatto.api.v1.ServerProfile
+	1,  // 10: chatto.admin.v1.AdminServerService.GetServerConfig:input_type -> chatto.admin.v1.GetServerConfigRequest
+	3,  // 11: chatto.admin.v1.AdminServerService.UpdateServerConfig:input_type -> chatto.admin.v1.UpdateServerConfigRequest
+	5,  // 12: chatto.admin.v1.AdminServerService.UploadServerLogo:input_type -> chatto.admin.v1.UploadServerLogoRequest
+	7,  // 13: chatto.admin.v1.AdminServerService.DeleteServerLogo:input_type -> chatto.admin.v1.DeleteServerLogoRequest
+	9,  // 14: chatto.admin.v1.AdminServerService.UploadServerBanner:input_type -> chatto.admin.v1.UploadServerBannerRequest
+	11, // 15: chatto.admin.v1.AdminServerService.DeleteServerBanner:input_type -> chatto.admin.v1.DeleteServerBannerRequest
+	13, // 16: chatto.admin.v1.AdminServerService.GetServerSecurityConfig:input_type -> chatto.admin.v1.GetServerSecurityConfigRequest
+	15, // 17: chatto.admin.v1.AdminServerService.UpdateBlockedUsernames:input_type -> chatto.admin.v1.UpdateBlockedUsernamesRequest
+	2,  // 18: chatto.admin.v1.AdminServerService.GetServerConfig:output_type -> chatto.admin.v1.GetServerConfigResponse
+	4,  // 19: chatto.admin.v1.AdminServerService.UpdateServerConfig:output_type -> chatto.admin.v1.UpdateServerConfigResponse
+	6,  // 20: chatto.admin.v1.AdminServerService.UploadServerLogo:output_type -> chatto.admin.v1.UploadServerLogoResponse
+	8,  // 21: chatto.admin.v1.AdminServerService.DeleteServerLogo:output_type -> chatto.admin.v1.DeleteServerLogoResponse
+	10, // 22: chatto.admin.v1.AdminServerService.UploadServerBanner:output_type -> chatto.admin.v1.UploadServerBannerResponse
+	12, // 23: chatto.admin.v1.AdminServerService.DeleteServerBanner:output_type -> chatto.admin.v1.DeleteServerBannerResponse
+	14, // 24: chatto.admin.v1.AdminServerService.GetServerSecurityConfig:output_type -> chatto.admin.v1.GetServerSecurityConfigResponse
+	16, // 25: chatto.admin.v1.AdminServerService.UpdateBlockedUsernames:output_type -> chatto.admin.v1.UpdateBlockedUsernamesResponse
+	18, // [18:26] is the sub-list for method output_type
+	10, // [10:18] is the sub-list for method input_type
+	10, // [10:10] is the sub-list for extension type_name
+	10, // [10:10] is the sub-list for extension extendee
+	0,  // [0:10] is the sub-list for field type_name
 }
 
 func init() { file_chatto_admin_v1_server_proto_init() }

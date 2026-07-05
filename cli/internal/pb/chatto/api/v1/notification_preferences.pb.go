@@ -83,13 +83,10 @@ func (NotificationLevel) EnumDescriptor() ([]byte, []int) {
 	return file_chatto_api_v1_notification_preferences_proto_rawDescGZIP(), []int{0}
 }
 
-// Current notification preference for a room.
-//
-// Clients can show both the stored room-level setting and the effective setting
-// the server will apply after defaults are resolved.
-type GetRoomNotificationPreferenceResponse struct {
+// Stored and effective notification preference.
+type NotificationPreference struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Explicit level stored for the current user and room.
+	// Explicit level stored for the current user.
 	Level NotificationLevel `protobuf:"varint,1,opt,name=level,proto3,enum=chatto.api.v1.NotificationLevel" json:"level,omitempty"`
 	// Level after applying defaults and inheritance.
 	EffectiveLevel NotificationLevel `protobuf:"varint,2,opt,name=effective_level,json=effectiveLevel,proto3,enum=chatto.api.v1.NotificationLevel" json:"effective_level,omitempty"`
@@ -97,9 +94,62 @@ type GetRoomNotificationPreferenceResponse struct {
 	sizeCache      protoimpl.SizeCache
 }
 
+func (x *NotificationPreference) Reset() {
+	*x = NotificationPreference{}
+	mi := &file_chatto_api_v1_notification_preferences_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NotificationPreference) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NotificationPreference) ProtoMessage() {}
+
+func (x *NotificationPreference) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_notification_preferences_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NotificationPreference.ProtoReflect.Descriptor instead.
+func (*NotificationPreference) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_notification_preferences_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *NotificationPreference) GetLevel() NotificationLevel {
+	if x != nil {
+		return x.Level
+	}
+	return NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED
+}
+
+func (x *NotificationPreference) GetEffectiveLevel() NotificationLevel {
+	if x != nil {
+		return x.EffectiveLevel
+	}
+	return NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED
+}
+
+// Current notification preference for a room.
+type GetRoomNotificationPreferenceResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Current stored and effective notification preference.
+	Preference    *NotificationPreference `protobuf:"bytes,3,opt,name=preference,proto3" json:"preference,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
 func (x *GetRoomNotificationPreferenceResponse) Reset() {
 	*x = GetRoomNotificationPreferenceResponse{}
-	mi := &file_chatto_api_v1_notification_preferences_proto_msgTypes[0]
+	mi := &file_chatto_api_v1_notification_preferences_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -111,7 +161,7 @@ func (x *GetRoomNotificationPreferenceResponse) String() string {
 func (*GetRoomNotificationPreferenceResponse) ProtoMessage() {}
 
 func (x *GetRoomNotificationPreferenceResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_notification_preferences_proto_msgTypes[0]
+	mi := &file_chatto_api_v1_notification_preferences_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -124,40 +174,28 @@ func (x *GetRoomNotificationPreferenceResponse) ProtoReflect() protoreflect.Mess
 
 // Deprecated: Use GetRoomNotificationPreferenceResponse.ProtoReflect.Descriptor instead.
 func (*GetRoomNotificationPreferenceResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_notification_preferences_proto_rawDescGZIP(), []int{0}
+	return file_chatto_api_v1_notification_preferences_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *GetRoomNotificationPreferenceResponse) GetLevel() NotificationLevel {
+func (x *GetRoomNotificationPreferenceResponse) GetPreference() *NotificationPreference {
 	if x != nil {
-		return x.Level
+		return x.Preference
 	}
-	return NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED
-}
-
-func (x *GetRoomNotificationPreferenceResponse) GetEffectiveLevel() NotificationLevel {
-	if x != nil {
-		return x.EffectiveLevel
-	}
-	return NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED
+	return nil
 }
 
 // Updated notification preference for a room.
-//
-// The response mirrors the read shape so clients can update local state without
-// issuing a second read request.
 type UpdateRoomNotificationPreferenceResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Explicit level stored for the current user and room.
-	Level NotificationLevel `protobuf:"varint,1,opt,name=level,proto3,enum=chatto.api.v1.NotificationLevel" json:"level,omitempty"`
-	// Level after applying defaults and inheritance.
-	EffectiveLevel NotificationLevel `protobuf:"varint,2,opt,name=effective_level,json=effectiveLevel,proto3,enum=chatto.api.v1.NotificationLevel" json:"effective_level,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// Stored and effective notification preference after the update.
+	Preference    *NotificationPreference `protobuf:"bytes,3,opt,name=preference,proto3" json:"preference,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *UpdateRoomNotificationPreferenceResponse) Reset() {
 	*x = UpdateRoomNotificationPreferenceResponse{}
-	mi := &file_chatto_api_v1_notification_preferences_proto_msgTypes[1]
+	mi := &file_chatto_api_v1_notification_preferences_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -169,7 +207,7 @@ func (x *UpdateRoomNotificationPreferenceResponse) String() string {
 func (*UpdateRoomNotificationPreferenceResponse) ProtoMessage() {}
 
 func (x *UpdateRoomNotificationPreferenceResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_notification_preferences_proto_msgTypes[1]
+	mi := &file_chatto_api_v1_notification_preferences_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -182,37 +220,28 @@ func (x *UpdateRoomNotificationPreferenceResponse) ProtoReflect() protoreflect.M
 
 // Deprecated: Use UpdateRoomNotificationPreferenceResponse.ProtoReflect.Descriptor instead.
 func (*UpdateRoomNotificationPreferenceResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_notification_preferences_proto_rawDescGZIP(), []int{1}
+	return file_chatto_api_v1_notification_preferences_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *UpdateRoomNotificationPreferenceResponse) GetLevel() NotificationLevel {
+func (x *UpdateRoomNotificationPreferenceResponse) GetPreference() *NotificationPreference {
 	if x != nil {
-		return x.Level
+		return x.Preference
 	}
-	return NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED
-}
-
-func (x *UpdateRoomNotificationPreferenceResponse) GetEffectiveLevel() NotificationLevel {
-	if x != nil {
-		return x.EffectiveLevel
-	}
-	return NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED
+	return nil
 }
 
 // Current server-level notification preference.
 type GetServerNotificationPreferenceResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Explicit server-level setting.
-	Level NotificationLevel `protobuf:"varint,1,opt,name=level,proto3,enum=chatto.api.v1.NotificationLevel" json:"level,omitempty"`
-	// Level after applying system defaults.
-	EffectiveLevel NotificationLevel `protobuf:"varint,2,opt,name=effective_level,json=effectiveLevel,proto3,enum=chatto.api.v1.NotificationLevel" json:"effective_level,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// Current stored and effective notification preference.
+	Preference    *NotificationPreference `protobuf:"bytes,3,opt,name=preference,proto3" json:"preference,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *GetServerNotificationPreferenceResponse) Reset() {
 	*x = GetServerNotificationPreferenceResponse{}
-	mi := &file_chatto_api_v1_notification_preferences_proto_msgTypes[2]
+	mi := &file_chatto_api_v1_notification_preferences_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -224,7 +253,7 @@ func (x *GetServerNotificationPreferenceResponse) String() string {
 func (*GetServerNotificationPreferenceResponse) ProtoMessage() {}
 
 func (x *GetServerNotificationPreferenceResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_notification_preferences_proto_msgTypes[2]
+	mi := &file_chatto_api_v1_notification_preferences_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -237,37 +266,28 @@ func (x *GetServerNotificationPreferenceResponse) ProtoReflect() protoreflect.Me
 
 // Deprecated: Use GetServerNotificationPreferenceResponse.ProtoReflect.Descriptor instead.
 func (*GetServerNotificationPreferenceResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_notification_preferences_proto_rawDescGZIP(), []int{2}
+	return file_chatto_api_v1_notification_preferences_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *GetServerNotificationPreferenceResponse) GetLevel() NotificationLevel {
+func (x *GetServerNotificationPreferenceResponse) GetPreference() *NotificationPreference {
 	if x != nil {
-		return x.Level
+		return x.Preference
 	}
-	return NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED
-}
-
-func (x *GetServerNotificationPreferenceResponse) GetEffectiveLevel() NotificationLevel {
-	if x != nil {
-		return x.EffectiveLevel
-	}
-	return NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED
+	return nil
 }
 
 // Updated server-level notification preference.
 type UpdateServerNotificationPreferenceResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Explicit server-level setting.
-	Level NotificationLevel `protobuf:"varint,1,opt,name=level,proto3,enum=chatto.api.v1.NotificationLevel" json:"level,omitempty"`
-	// Level after applying system defaults.
-	EffectiveLevel NotificationLevel `protobuf:"varint,2,opt,name=effective_level,json=effectiveLevel,proto3,enum=chatto.api.v1.NotificationLevel" json:"effective_level,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// Stored and effective notification preference after the update.
+	Preference    *NotificationPreference `protobuf:"bytes,3,opt,name=preference,proto3" json:"preference,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *UpdateServerNotificationPreferenceResponse) Reset() {
 	*x = UpdateServerNotificationPreferenceResponse{}
-	mi := &file_chatto_api_v1_notification_preferences_proto_msgTypes[3]
+	mi := &file_chatto_api_v1_notification_preferences_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -279,7 +299,7 @@ func (x *UpdateServerNotificationPreferenceResponse) String() string {
 func (*UpdateServerNotificationPreferenceResponse) ProtoMessage() {}
 
 func (x *UpdateServerNotificationPreferenceResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_notification_preferences_proto_msgTypes[3]
+	mi := &file_chatto_api_v1_notification_preferences_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -292,21 +312,14 @@ func (x *UpdateServerNotificationPreferenceResponse) ProtoReflect() protoreflect
 
 // Deprecated: Use UpdateServerNotificationPreferenceResponse.ProtoReflect.Descriptor instead.
 func (*UpdateServerNotificationPreferenceResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_notification_preferences_proto_rawDescGZIP(), []int{3}
+	return file_chatto_api_v1_notification_preferences_proto_rawDescGZIP(), []int{4}
 }
 
-func (x *UpdateServerNotificationPreferenceResponse) GetLevel() NotificationLevel {
+func (x *UpdateServerNotificationPreferenceResponse) GetPreference() *NotificationPreference {
 	if x != nil {
-		return x.Level
+		return x.Preference
 	}
-	return NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED
-}
-
-func (x *UpdateServerNotificationPreferenceResponse) GetEffectiveLevel() NotificationLevel {
-	if x != nil {
-		return x.EffectiveLevel
-	}
-	return NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED
+	return nil
 }
 
 // Request for the current user's server-level notification preference.
@@ -318,7 +331,7 @@ type GetServerNotificationPreferenceRequest struct {
 
 func (x *GetServerNotificationPreferenceRequest) Reset() {
 	*x = GetServerNotificationPreferenceRequest{}
-	mi := &file_chatto_api_v1_notification_preferences_proto_msgTypes[4]
+	mi := &file_chatto_api_v1_notification_preferences_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -330,7 +343,7 @@ func (x *GetServerNotificationPreferenceRequest) String() string {
 func (*GetServerNotificationPreferenceRequest) ProtoMessage() {}
 
 func (x *GetServerNotificationPreferenceRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_notification_preferences_proto_msgTypes[4]
+	mi := &file_chatto_api_v1_notification_preferences_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -343,7 +356,7 @@ func (x *GetServerNotificationPreferenceRequest) ProtoReflect() protoreflect.Mes
 
 // Deprecated: Use GetServerNotificationPreferenceRequest.ProtoReflect.Descriptor instead.
 func (*GetServerNotificationPreferenceRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_notification_preferences_proto_rawDescGZIP(), []int{4}
+	return file_chatto_api_v1_notification_preferences_proto_rawDescGZIP(), []int{5}
 }
 
 // Request to update the current user's server-level notification level.
@@ -358,7 +371,7 @@ type UpdateServerNotificationPreferenceRequest struct {
 
 func (x *UpdateServerNotificationPreferenceRequest) Reset() {
 	*x = UpdateServerNotificationPreferenceRequest{}
-	mi := &file_chatto_api_v1_notification_preferences_proto_msgTypes[5]
+	mi := &file_chatto_api_v1_notification_preferences_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -370,7 +383,7 @@ func (x *UpdateServerNotificationPreferenceRequest) String() string {
 func (*UpdateServerNotificationPreferenceRequest) ProtoMessage() {}
 
 func (x *UpdateServerNotificationPreferenceRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_notification_preferences_proto_msgTypes[5]
+	mi := &file_chatto_api_v1_notification_preferences_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -383,7 +396,7 @@ func (x *UpdateServerNotificationPreferenceRequest) ProtoReflect() protoreflect.
 
 // Deprecated: Use UpdateServerNotificationPreferenceRequest.ProtoReflect.Descriptor instead.
 func (*UpdateServerNotificationPreferenceRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_notification_preferences_proto_rawDescGZIP(), []int{5}
+	return file_chatto_api_v1_notification_preferences_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *UpdateServerNotificationPreferenceRequest) GetLevel() NotificationLevel {
@@ -404,7 +417,7 @@ type GetRoomNotificationPreferenceRequest struct {
 
 func (x *GetRoomNotificationPreferenceRequest) Reset() {
 	*x = GetRoomNotificationPreferenceRequest{}
-	mi := &file_chatto_api_v1_notification_preferences_proto_msgTypes[6]
+	mi := &file_chatto_api_v1_notification_preferences_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -416,7 +429,7 @@ func (x *GetRoomNotificationPreferenceRequest) String() string {
 func (*GetRoomNotificationPreferenceRequest) ProtoMessage() {}
 
 func (x *GetRoomNotificationPreferenceRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_notification_preferences_proto_msgTypes[6]
+	mi := &file_chatto_api_v1_notification_preferences_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -429,7 +442,7 @@ func (x *GetRoomNotificationPreferenceRequest) ProtoReflect() protoreflect.Messa
 
 // Deprecated: Use GetRoomNotificationPreferenceRequest.ProtoReflect.Descriptor instead.
 func (*GetRoomNotificationPreferenceRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_notification_preferences_proto_rawDescGZIP(), []int{6}
+	return file_chatto_api_v1_notification_preferences_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *GetRoomNotificationPreferenceRequest) GetRoomId() string {
@@ -453,7 +466,7 @@ type UpdateRoomNotificationPreferenceRequest struct {
 
 func (x *UpdateRoomNotificationPreferenceRequest) Reset() {
 	*x = UpdateRoomNotificationPreferenceRequest{}
-	mi := &file_chatto_api_v1_notification_preferences_proto_msgTypes[7]
+	mi := &file_chatto_api_v1_notification_preferences_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -465,7 +478,7 @@ func (x *UpdateRoomNotificationPreferenceRequest) String() string {
 func (*UpdateRoomNotificationPreferenceRequest) ProtoMessage() {}
 
 func (x *UpdateRoomNotificationPreferenceRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_notification_preferences_proto_msgTypes[7]
+	mi := &file_chatto_api_v1_notification_preferences_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -478,7 +491,7 @@ func (x *UpdateRoomNotificationPreferenceRequest) ProtoReflect() protoreflect.Me
 
 // Deprecated: Use UpdateRoomNotificationPreferenceRequest.ProtoReflect.Descriptor instead.
 func (*UpdateRoomNotificationPreferenceRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_notification_preferences_proto_rawDescGZIP(), []int{7}
+	return file_chatto_api_v1_notification_preferences_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *UpdateRoomNotificationPreferenceRequest) GetRoomId() string {
@@ -499,19 +512,26 @@ var File_chatto_api_v1_notification_preferences_proto protoreflect.FileDescripto
 
 const file_chatto_api_v1_notification_preferences_proto_rawDesc = "" +
 	"\n" +
-	",chatto/api/v1/notification_preferences.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\"\xaa\x01\n" +
-	"%GetRoomNotificationPreferenceResponse\x126\n" +
+	",chatto/api/v1/notification_preferences.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\"\x9b\x01\n" +
+	"\x16NotificationPreference\x126\n" +
 	"\x05level\x18\x01 \x01(\x0e2 .chatto.api.v1.NotificationLevelR\x05level\x12I\n" +
-	"\x0feffective_level\x18\x02 \x01(\x0e2 .chatto.api.v1.NotificationLevelR\x0eeffectiveLevel\"\xad\x01\n" +
-	"(UpdateRoomNotificationPreferenceResponse\x126\n" +
-	"\x05level\x18\x01 \x01(\x0e2 .chatto.api.v1.NotificationLevelR\x05level\x12I\n" +
-	"\x0feffective_level\x18\x02 \x01(\x0e2 .chatto.api.v1.NotificationLevelR\x0eeffectiveLevel\"\xac\x01\n" +
-	"'GetServerNotificationPreferenceResponse\x126\n" +
-	"\x05level\x18\x01 \x01(\x0e2 .chatto.api.v1.NotificationLevelR\x05level\x12I\n" +
-	"\x0feffective_level\x18\x02 \x01(\x0e2 .chatto.api.v1.NotificationLevelR\x0eeffectiveLevel\"\xaf\x01\n" +
-	"*UpdateServerNotificationPreferenceResponse\x126\n" +
-	"\x05level\x18\x01 \x01(\x0e2 .chatto.api.v1.NotificationLevelR\x05level\x12I\n" +
-	"\x0feffective_level\x18\x02 \x01(\x0e2 .chatto.api.v1.NotificationLevelR\x0eeffectiveLevel\"(\n" +
+	"\x0feffective_level\x18\x02 \x01(\x0e2 .chatto.api.v1.NotificationLevelR\x0eeffectiveLevel\"\x92\x01\n" +
+	"%GetRoomNotificationPreferenceResponse\x12E\n" +
+	"\n" +
+	"preference\x18\x03 \x01(\v2%.chatto.api.v1.NotificationPreferenceR\n" +
+	"preferenceJ\x04\b\x01\x10\x02J\x04\b\x02\x10\x03R\x05levelR\x0feffective_level\"\x95\x01\n" +
+	"(UpdateRoomNotificationPreferenceResponse\x12E\n" +
+	"\n" +
+	"preference\x18\x03 \x01(\v2%.chatto.api.v1.NotificationPreferenceR\n" +
+	"preferenceJ\x04\b\x01\x10\x02J\x04\b\x02\x10\x03R\x05levelR\x0feffective_level\"\x94\x01\n" +
+	"'GetServerNotificationPreferenceResponse\x12E\n" +
+	"\n" +
+	"preference\x18\x03 \x01(\v2%.chatto.api.v1.NotificationPreferenceR\n" +
+	"preferenceJ\x04\b\x01\x10\x02J\x04\b\x02\x10\x03R\x05levelR\x0feffective_level\"\x97\x01\n" +
+	"*UpdateServerNotificationPreferenceResponse\x12E\n" +
+	"\n" +
+	"preference\x18\x03 \x01(\v2%.chatto.api.v1.NotificationPreferenceR\n" +
+	"preferenceJ\x04\b\x01\x10\x02J\x04\b\x02\x10\x03R\x05levelR\x0feffective_level\"(\n" +
 	"&GetServerNotificationPreferenceRequest\"o\n" +
 	")UpdateServerNotificationPreferenceRequest\x12B\n" +
 	"\x05level\x18\x01 \x01(\x0e2 .chatto.api.v1.NotificationLevelB\n" +
@@ -548,42 +568,41 @@ func file_chatto_api_v1_notification_preferences_proto_rawDescGZIP() []byte {
 }
 
 var file_chatto_api_v1_notification_preferences_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_chatto_api_v1_notification_preferences_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
+var file_chatto_api_v1_notification_preferences_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
 var file_chatto_api_v1_notification_preferences_proto_goTypes = []any{
 	(NotificationLevel)(0),                             // 0: chatto.api.v1.NotificationLevel
-	(*GetRoomNotificationPreferenceResponse)(nil),      // 1: chatto.api.v1.GetRoomNotificationPreferenceResponse
-	(*UpdateRoomNotificationPreferenceResponse)(nil),   // 2: chatto.api.v1.UpdateRoomNotificationPreferenceResponse
-	(*GetServerNotificationPreferenceResponse)(nil),    // 3: chatto.api.v1.GetServerNotificationPreferenceResponse
-	(*UpdateServerNotificationPreferenceResponse)(nil), // 4: chatto.api.v1.UpdateServerNotificationPreferenceResponse
-	(*GetServerNotificationPreferenceRequest)(nil),     // 5: chatto.api.v1.GetServerNotificationPreferenceRequest
-	(*UpdateServerNotificationPreferenceRequest)(nil),  // 6: chatto.api.v1.UpdateServerNotificationPreferenceRequest
-	(*GetRoomNotificationPreferenceRequest)(nil),       // 7: chatto.api.v1.GetRoomNotificationPreferenceRequest
-	(*UpdateRoomNotificationPreferenceRequest)(nil),    // 8: chatto.api.v1.UpdateRoomNotificationPreferenceRequest
+	(*NotificationPreference)(nil),                     // 1: chatto.api.v1.NotificationPreference
+	(*GetRoomNotificationPreferenceResponse)(nil),      // 2: chatto.api.v1.GetRoomNotificationPreferenceResponse
+	(*UpdateRoomNotificationPreferenceResponse)(nil),   // 3: chatto.api.v1.UpdateRoomNotificationPreferenceResponse
+	(*GetServerNotificationPreferenceResponse)(nil),    // 4: chatto.api.v1.GetServerNotificationPreferenceResponse
+	(*UpdateServerNotificationPreferenceResponse)(nil), // 5: chatto.api.v1.UpdateServerNotificationPreferenceResponse
+	(*GetServerNotificationPreferenceRequest)(nil),     // 6: chatto.api.v1.GetServerNotificationPreferenceRequest
+	(*UpdateServerNotificationPreferenceRequest)(nil),  // 7: chatto.api.v1.UpdateServerNotificationPreferenceRequest
+	(*GetRoomNotificationPreferenceRequest)(nil),       // 8: chatto.api.v1.GetRoomNotificationPreferenceRequest
+	(*UpdateRoomNotificationPreferenceRequest)(nil),    // 9: chatto.api.v1.UpdateRoomNotificationPreferenceRequest
 }
 var file_chatto_api_v1_notification_preferences_proto_depIdxs = []int32{
-	0,  // 0: chatto.api.v1.GetRoomNotificationPreferenceResponse.level:type_name -> chatto.api.v1.NotificationLevel
-	0,  // 1: chatto.api.v1.GetRoomNotificationPreferenceResponse.effective_level:type_name -> chatto.api.v1.NotificationLevel
-	0,  // 2: chatto.api.v1.UpdateRoomNotificationPreferenceResponse.level:type_name -> chatto.api.v1.NotificationLevel
-	0,  // 3: chatto.api.v1.UpdateRoomNotificationPreferenceResponse.effective_level:type_name -> chatto.api.v1.NotificationLevel
-	0,  // 4: chatto.api.v1.GetServerNotificationPreferenceResponse.level:type_name -> chatto.api.v1.NotificationLevel
-	0,  // 5: chatto.api.v1.GetServerNotificationPreferenceResponse.effective_level:type_name -> chatto.api.v1.NotificationLevel
-	0,  // 6: chatto.api.v1.UpdateServerNotificationPreferenceResponse.level:type_name -> chatto.api.v1.NotificationLevel
-	0,  // 7: chatto.api.v1.UpdateServerNotificationPreferenceResponse.effective_level:type_name -> chatto.api.v1.NotificationLevel
-	0,  // 8: chatto.api.v1.UpdateServerNotificationPreferenceRequest.level:type_name -> chatto.api.v1.NotificationLevel
-	0,  // 9: chatto.api.v1.UpdateRoomNotificationPreferenceRequest.level:type_name -> chatto.api.v1.NotificationLevel
-	5,  // 10: chatto.api.v1.NotificationPreferencesService.GetServerNotificationPreference:input_type -> chatto.api.v1.GetServerNotificationPreferenceRequest
-	6,  // 11: chatto.api.v1.NotificationPreferencesService.UpdateServerNotificationPreference:input_type -> chatto.api.v1.UpdateServerNotificationPreferenceRequest
-	7,  // 12: chatto.api.v1.NotificationPreferencesService.GetRoomNotificationPreference:input_type -> chatto.api.v1.GetRoomNotificationPreferenceRequest
-	8,  // 13: chatto.api.v1.NotificationPreferencesService.UpdateRoomNotificationPreference:input_type -> chatto.api.v1.UpdateRoomNotificationPreferenceRequest
-	3,  // 14: chatto.api.v1.NotificationPreferencesService.GetServerNotificationPreference:output_type -> chatto.api.v1.GetServerNotificationPreferenceResponse
-	4,  // 15: chatto.api.v1.NotificationPreferencesService.UpdateServerNotificationPreference:output_type -> chatto.api.v1.UpdateServerNotificationPreferenceResponse
-	1,  // 16: chatto.api.v1.NotificationPreferencesService.GetRoomNotificationPreference:output_type -> chatto.api.v1.GetRoomNotificationPreferenceResponse
-	2,  // 17: chatto.api.v1.NotificationPreferencesService.UpdateRoomNotificationPreference:output_type -> chatto.api.v1.UpdateRoomNotificationPreferenceResponse
-	14, // [14:18] is the sub-list for method output_type
-	10, // [10:14] is the sub-list for method input_type
-	10, // [10:10] is the sub-list for extension type_name
-	10, // [10:10] is the sub-list for extension extendee
-	0,  // [0:10] is the sub-list for field type_name
+	0,  // 0: chatto.api.v1.NotificationPreference.level:type_name -> chatto.api.v1.NotificationLevel
+	0,  // 1: chatto.api.v1.NotificationPreference.effective_level:type_name -> chatto.api.v1.NotificationLevel
+	1,  // 2: chatto.api.v1.GetRoomNotificationPreferenceResponse.preference:type_name -> chatto.api.v1.NotificationPreference
+	1,  // 3: chatto.api.v1.UpdateRoomNotificationPreferenceResponse.preference:type_name -> chatto.api.v1.NotificationPreference
+	1,  // 4: chatto.api.v1.GetServerNotificationPreferenceResponse.preference:type_name -> chatto.api.v1.NotificationPreference
+	1,  // 5: chatto.api.v1.UpdateServerNotificationPreferenceResponse.preference:type_name -> chatto.api.v1.NotificationPreference
+	0,  // 6: chatto.api.v1.UpdateServerNotificationPreferenceRequest.level:type_name -> chatto.api.v1.NotificationLevel
+	0,  // 7: chatto.api.v1.UpdateRoomNotificationPreferenceRequest.level:type_name -> chatto.api.v1.NotificationLevel
+	6,  // 8: chatto.api.v1.NotificationPreferencesService.GetServerNotificationPreference:input_type -> chatto.api.v1.GetServerNotificationPreferenceRequest
+	7,  // 9: chatto.api.v1.NotificationPreferencesService.UpdateServerNotificationPreference:input_type -> chatto.api.v1.UpdateServerNotificationPreferenceRequest
+	8,  // 10: chatto.api.v1.NotificationPreferencesService.GetRoomNotificationPreference:input_type -> chatto.api.v1.GetRoomNotificationPreferenceRequest
+	9,  // 11: chatto.api.v1.NotificationPreferencesService.UpdateRoomNotificationPreference:input_type -> chatto.api.v1.UpdateRoomNotificationPreferenceRequest
+	4,  // 12: chatto.api.v1.NotificationPreferencesService.GetServerNotificationPreference:output_type -> chatto.api.v1.GetServerNotificationPreferenceResponse
+	5,  // 13: chatto.api.v1.NotificationPreferencesService.UpdateServerNotificationPreference:output_type -> chatto.api.v1.UpdateServerNotificationPreferenceResponse
+	2,  // 14: chatto.api.v1.NotificationPreferencesService.GetRoomNotificationPreference:output_type -> chatto.api.v1.GetRoomNotificationPreferenceResponse
+	3,  // 15: chatto.api.v1.NotificationPreferencesService.UpdateRoomNotificationPreference:output_type -> chatto.api.v1.UpdateRoomNotificationPreferenceResponse
+	12, // [12:16] is the sub-list for method output_type
+	8,  // [8:12] is the sub-list for method input_type
+	8,  // [8:8] is the sub-list for extension type_name
+	8,  // [8:8] is the sub-list for extension extendee
+	0,  // [0:8] is the sub-list for field type_name
 }
 
 func init() { file_chatto_api_v1_notification_preferences_proto_init() }
@@ -597,7 +616,7 @@ func file_chatto_api_v1_notification_preferences_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_api_v1_notification_preferences_proto_rawDesc), len(file_chatto_api_v1_notification_preferences_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   8,
+			NumMessages:   9,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

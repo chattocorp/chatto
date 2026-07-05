@@ -4,6 +4,7 @@ package chatto.api.v1;
 
 import "buf/validate/validate.proto";
 import "chatto/api/v1/attachments.proto";
+import "chatto/api/v1/common.proto";
 import "chatto/api/v1/member_directory.proto";
 import "chatto/api/v1/pagination.proto";
 import "chatto/api/v1/read_state.proto";
@@ -278,7 +279,7 @@ message ListRoomAttachmentsRequest {
   // Required room ID.
   string room_id = 1 [(buf.validate.field).string.min_len = 1];
   // Thumbnail URL options. Defaults are applied when absent.
-  AssetThumbnailOptions thumbnail = 4;
+  ImageTransformOptions thumbnail = 4;
   // Page request. Defaults are applied when absent or limit is zero.
   PageRequest page = 5;
 }

@@ -1645,7 +1645,7 @@ type ListRoomAttachmentsRequest struct {
 	// Required room ID.
 	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
 	// Thumbnail URL options. Defaults are applied when absent.
-	Thumbnail *AssetThumbnailOptions `protobuf:"bytes,4,opt,name=thumbnail,proto3" json:"thumbnail,omitempty"`
+	Thumbnail *ImageTransformOptions `protobuf:"bytes,4,opt,name=thumbnail,proto3" json:"thumbnail,omitempty"`
 	// Page request. Defaults are applied when absent or limit is zero.
 	Page          *PageRequest `protobuf:"bytes,5,opt,name=page,proto3" json:"page,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -1689,7 +1689,7 @@ func (x *ListRoomAttachmentsRequest) GetRoomId() string {
 	return ""
 }
 
-func (x *ListRoomAttachmentsRequest) GetThumbnail() *AssetThumbnailOptions {
+func (x *ListRoomAttachmentsRequest) GetThumbnail() *ImageTransformOptions {
 	if x != nil {
 		return x.Thumbnail
 	}
@@ -1863,7 +1863,7 @@ var File_chatto_api_v1_rooms_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_rooms_proto_rawDesc = "" +
 	"\n" +
-	"\x19chatto/api/v1/rooms.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fchatto/api/v1/attachments.proto\x1a$chatto/api/v1/member_directory.proto\x1a\x1echatto/api/v1/pagination.proto\x1a\x1echatto/api/v1/read_state.proto\x1a!chatto/api/v1/room_timeline.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xce\x01\n" +
+	"\x19chatto/api/v1/rooms.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fchatto/api/v1/attachments.proto\x1a\x1achatto/api/v1/common.proto\x1a$chatto/api/v1/member_directory.proto\x1a\x1echatto/api/v1/pagination.proto\x1a\x1echatto/api/v1/read_state.proto\x1a!chatto/api/v1/room_timeline.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xce\x01\n" +
 	"\x04Room\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12+\n" +
 	"\x04kind\x18\x02 \x01(\x0e2\x17.chatto.api.v1.RoomKindR\x04kind\x12\x12\n" +
@@ -1962,7 +1962,7 @@ const file_chatto_api_v1_rooms_proto_rawDesc = "" +
 	"\x04page\x18\x02 \x01(\v2\x17.chatto.api.v1.PageInfoR\x04page\"\xcd\x01\n" +
 	"\x1aListRoomAttachmentsRequest\x12 \n" +
 	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x12B\n" +
-	"\tthumbnail\x18\x04 \x01(\v2$.chatto.api.v1.AssetThumbnailOptionsR\tthumbnail\x12.\n" +
+	"\tthumbnail\x18\x04 \x01(\v2$.chatto.api.v1.ImageTransformOptionsR\tthumbnail\x12.\n" +
 	"\x04page\x18\x05 \x01(\v2\x1a.chatto.api.v1.PageRequestR\x04pageJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04R\x05limitR\x06offset\"\xb6\x01\n" +
 	"\x1bListRoomAttachmentsResponse\x12G\n" +
 	"\vattachments\x18\x01 \x03(\v2%.chatto.api.v1.RoomAttachmentListItemR\vattachments\x12+\n" +
@@ -2055,7 +2055,7 @@ var file_chatto_api_v1_rooms_proto_goTypes = []any{
 	(*timestamppb.Timestamp)(nil),         // 34: google.protobuf.Timestamp
 	(*PageRequest)(nil),                   // 35: chatto.api.v1.PageRequest
 	(*PageInfo)(nil),                      // 36: chatto.api.v1.PageInfo
-	(*AssetThumbnailOptions)(nil),         // 37: chatto.api.v1.AssetThumbnailOptions
+	(*ImageTransformOptions)(nil),         // 37: chatto.api.v1.ImageTransformOptions
 	(*RoomAttachmentListItem)(nil),        // 38: chatto.api.v1.RoomAttachmentListItem
 	(*ListRoomMembersRequest)(nil),        // 39: chatto.api.v1.ListRoomMembersRequest
 	(*GetRoomMemberRequest)(nil),          // 40: chatto.api.v1.GetRoomMemberRequest
@@ -2088,7 +2088,7 @@ var file_chatto_api_v1_rooms_proto_depIdxs = []int32{
 	35, // 14: chatto.api.v1.ListBansRequest.page:type_name -> chatto.api.v1.PageRequest
 	26, // 15: chatto.api.v1.ListBansResponse.bans:type_name -> chatto.api.v1.RoomBan
 	36, // 16: chatto.api.v1.ListBansResponse.page:type_name -> chatto.api.v1.PageInfo
-	37, // 17: chatto.api.v1.ListRoomAttachmentsRequest.thumbnail:type_name -> chatto.api.v1.AssetThumbnailOptions
+	37, // 17: chatto.api.v1.ListRoomAttachmentsRequest.thumbnail:type_name -> chatto.api.v1.ImageTransformOptions
 	35, // 18: chatto.api.v1.ListRoomAttachmentsRequest.page:type_name -> chatto.api.v1.PageRequest
 	38, // 19: chatto.api.v1.ListRoomAttachmentsResponse.attachments:type_name -> chatto.api.v1.RoomAttachmentListItem
 	36, // 20: chatto.api.v1.ListRoomAttachmentsResponse.page:type_name -> chatto.api.v1.PageInfo
@@ -2147,6 +2147,7 @@ func file_chatto_api_v1_rooms_proto_init() {
 		return
 	}
 	file_chatto_api_v1_attachments_proto_init()
+	file_chatto_api_v1_common_proto_init()
 	file_chatto_api_v1_member_directory_proto_init()
 	file_chatto_api_v1_pagination_proto_init()
 	file_chatto_api_v1_read_state_proto_init()

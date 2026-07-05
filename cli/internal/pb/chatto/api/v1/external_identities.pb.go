@@ -25,14 +25,6 @@ const (
 // Public metadata for a configured external login provider.
 type ExternalIdentityProvider struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Stable configured provider ID.
-	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	// Provider type, such as "oidc", "github", or "discord".
-	Type string `protobuf:"bytes,2,opt,name=type,proto3" json:"type,omitempty"`
-	// Human-readable label.
-	Label string `protobuf:"bytes,3,opt,name=label,proto3" json:"label,omitempty"`
-	// URL that starts login for this provider.
-	LoginUrl string `protobuf:"bytes,4,opt,name=login_url,json=loginUrl,proto3" json:"login_url,omitempty"`
 	// URL that starts authenticated account linking for this provider. Clients
 	// should use StartExternalIdentityLink instead of navigating here directly.
 	LinkUrl string `protobuf:"bytes,5,opt,name=link_url,json=linkUrl,proto3" json:"link_url,omitempty"`
@@ -40,8 +32,10 @@ type ExternalIdentityProvider struct {
 	Linked bool `protobuf:"varint,6,opt,name=linked,proto3" json:"linked,omitempty"`
 	// Linked identity subject hash for this provider, when linked.
 	LinkedIdentitySubjectHash string `protobuf:"bytes,7,opt,name=linked_identity_subject_hash,json=linkedIdentitySubjectHash,proto3" json:"linked_identity_subject_hash,omitempty"`
-	unknownFields             protoimpl.UnknownFields
-	sizeCache                 protoimpl.SizeCache
+	// Shared provider metadata.
+	Provider      *ProviderMetadata `protobuf:"bytes,8,opt,name=provider,proto3" json:"provider,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ExternalIdentityProvider) Reset() {
@@ -74,34 +68,6 @@ func (*ExternalIdentityProvider) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_external_identities_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *ExternalIdentityProvider) GetId() string {
-	if x != nil {
-		return x.Id
-	}
-	return ""
-}
-
-func (x *ExternalIdentityProvider) GetType() string {
-	if x != nil {
-		return x.Type
-	}
-	return ""
-}
-
-func (x *ExternalIdentityProvider) GetLabel() string {
-	if x != nil {
-		return x.Label
-	}
-	return ""
-}
-
-func (x *ExternalIdentityProvider) GetLoginUrl() string {
-	if x != nil {
-		return x.LoginUrl
-	}
-	return ""
-}
-
 func (x *ExternalIdentityProvider) GetLinkUrl() string {
 	if x != nil {
 		return x.LinkUrl
@@ -121,6 +87,13 @@ func (x *ExternalIdentityProvider) GetLinkedIdentitySubjectHash() string {
 		return x.LinkedIdentitySubjectHash
 	}
 	return ""
+}
+
+func (x *ExternalIdentityProvider) GetProvider() *ProviderMetadata {
+	if x != nil {
+		return x.Provider
+	}
+	return nil
 }
 
 // Linked provider identity metadata for the authenticated user's settings UI.
@@ -597,15 +570,12 @@ var File_chatto_api_v1_external_identities_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_external_identities_proto_rawDesc = "" +
 	"\n" +
-	"'chatto/api/v1/external_identities.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\"\xe5\x01\n" +
-	"\x18ExternalIdentityProvider\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
-	"\x04type\x18\x02 \x01(\tR\x04type\x12\x14\n" +
-	"\x05label\x18\x03 \x01(\tR\x05label\x12\x1b\n" +
-	"\tlogin_url\x18\x04 \x01(\tR\bloginUrl\x12\x19\n" +
+	"'chatto/api/v1/external_identities.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1achatto/api/v1/common.proto\"\xed\x01\n" +
+	"\x18ExternalIdentityProvider\x12\x19\n" +
 	"\blink_url\x18\x05 \x01(\tR\alinkUrl\x12\x16\n" +
 	"\x06linked\x18\x06 \x01(\bR\x06linked\x12?\n" +
-	"\x1clinked_identity_subject_hash\x18\a \x01(\tR\x19linkedIdentitySubjectHash\"\xa8\x01\n" +
+	"\x1clinked_identity_subject_hash\x18\a \x01(\tR\x19linkedIdentitySubjectHash\x12;\n" +
+	"\bprovider\x18\b \x01(\v2\x1f.chatto.api.v1.ProviderMetadataR\bproviderJ\x04\b\x01\x10\x05R\x02idR\x04typeR\x05labelR\tlogin_url\"\xa8\x01\n" +
 	"\x16LinkedExternalIdentity\x12\x1f\n" +
 	"\vprovider_id\x18\x01 \x01(\tR\n" +
 	"providerId\x12#\n" +
@@ -658,16 +628,18 @@ var file_chatto_api_v1_external_identities_proto_goTypes = []any{
 	(*LinkExternalIdentityResponse)(nil),       // 7: chatto.api.v1.LinkExternalIdentityResponse
 	(*DisconnectExternalIdentityRequest)(nil),  // 8: chatto.api.v1.DisconnectExternalIdentityRequest
 	(*DisconnectExternalIdentityResponse)(nil), // 9: chatto.api.v1.DisconnectExternalIdentityResponse
+	(*ProviderMetadata)(nil),                   // 10: chatto.api.v1.ProviderMetadata
 }
 var file_chatto_api_v1_external_identities_proto_depIdxs = []int32{
-	0, // 0: chatto.api.v1.ListExternalIdentitiesResponse.providers:type_name -> chatto.api.v1.ExternalIdentityProvider
-	1, // 1: chatto.api.v1.ListExternalIdentitiesResponse.linked_identities:type_name -> chatto.api.v1.LinkedExternalIdentity
-	1, // 2: chatto.api.v1.LinkExternalIdentityResponse.linked_identity:type_name -> chatto.api.v1.LinkedExternalIdentity
-	3, // [3:3] is the sub-list for method output_type
-	3, // [3:3] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	10, // 0: chatto.api.v1.ExternalIdentityProvider.provider:type_name -> chatto.api.v1.ProviderMetadata
+	0,  // 1: chatto.api.v1.ListExternalIdentitiesResponse.providers:type_name -> chatto.api.v1.ExternalIdentityProvider
+	1,  // 2: chatto.api.v1.ListExternalIdentitiesResponse.linked_identities:type_name -> chatto.api.v1.LinkedExternalIdentity
+	1,  // 3: chatto.api.v1.LinkExternalIdentityResponse.linked_identity:type_name -> chatto.api.v1.LinkedExternalIdentity
+	4,  // [4:4] is the sub-list for method output_type
+	4,  // [4:4] is the sub-list for method input_type
+	4,  // [4:4] is the sub-list for extension type_name
+	4,  // [4:4] is the sub-list for extension extendee
+	0,  // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_chatto_api_v1_external_identities_proto_init() }
@@ -675,6 +647,7 @@ func file_chatto_api_v1_external_identities_proto_init() {
 	if File_chatto_api_v1_external_identities_proto != nil {
 		return
 	}
+	file_chatto_api_v1_common_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

@@ -5,6 +5,7 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3 } from "@bufbuild/protobuf";
+import { Role } from "../../api/v1/roles_pb.js";
 
 /**
  * Trinary permission decision used by permission matrices and write requests.
@@ -237,41 +238,6 @@ export class TierPermissions extends Message<TierPermissions> {
  */
 export class TierRole extends Message<TierRole> {
   /**
-   * Stable role name.
-   *
-   * @generated from field: string role_name = 1;
-   */
-  roleName = "";
-
-  /**
-   * Display name.
-   *
-   * @generated from field: string display_name = 2;
-   */
-  displayName = "";
-
-  /**
-   * Optional role description.
-   *
-   * @generated from field: string description = 3;
-   */
-  description = "";
-
-  /**
-   * Whether this is a built-in role.
-   *
-   * @generated from field: bool is_system = 4;
-   */
-  isSystem = false;
-
-  /**
-   * Display/order position.
-   *
-   * @generated from field: int32 position = 5;
-   */
-  position = 0;
-
-  /**
    * Explicit state at this tier.
    *
    * @generated from field: chatto.admin.v1.TierPermissions override = 6;
@@ -292,6 +258,13 @@ export class TierRole extends Message<TierRole> {
    */
   inheritedDenials: string[] = [];
 
+  /**
+   * Public role metadata.
+   *
+   * @generated from field: chatto.api.v1.Role role = 9;
+   */
+  role?: Role;
+
   constructor(data?: PartialMessage<TierRole>) {
     super();
     proto3.util.initPartial(data, this);
@@ -300,14 +273,10 @@ export class TierRole extends Message<TierRole> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.admin.v1.TierRole";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "role_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "display_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "description", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 4, name: "is_system", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 5, name: "position", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
     { no: 6, name: "override", kind: "message", T: TierPermissions },
     { no: 7, name: "inherited_allows", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
     { no: 8, name: "inherited_denials", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+    { no: 9, name: "role", kind: "message", T: Role },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): TierRole {

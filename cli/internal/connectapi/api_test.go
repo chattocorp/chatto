@@ -1829,7 +1829,7 @@ func TestViewerServiceGetViewerReturnsSelfScopedState(t *testing.T) {
 	for _, pref := range resp.Msg.GetRoomNotificationPreferences() {
 		if pref.GetRoomId() == room.Id {
 			foundRoomPref = true
-			if pref.GetLevel() != apiv1.NotificationLevel_NOTIFICATION_LEVEL_ALL_MESSAGES || pref.GetEffectiveLevel() != apiv1.NotificationLevel_NOTIFICATION_LEVEL_ALL_MESSAGES {
+			if pref.GetPreference().GetLevel() != apiv1.NotificationLevel_NOTIFICATION_LEVEL_ALL_MESSAGES || pref.GetPreference().GetEffectiveLevel() != apiv1.NotificationLevel_NOTIFICATION_LEVEL_ALL_MESSAGES {
 				t.Fatalf("room notification preference = %+v, want all/all", pref)
 			}
 		}
@@ -2000,7 +2000,7 @@ func TestMyAccountServiceDeletesAvatarAndAccount(t *testing.T) {
 	ctx := withCaller(env.ctx, env.viewer)
 
 	if _, err := env.account.UploadAvatar(env.ctx, connect.NewRequest(&apiv1.UploadAvatarRequest{
-		Image: connectAPITestPNG(),
+		Image: &apiv1.ImageUpload{Image: connectAPITestPNG()},
 	})); connect.CodeOf(err) != connect.CodeUnauthenticated {
 		t.Fatalf("unauthenticated UploadAvatar code = %v, want unauthenticated", connect.CodeOf(err))
 	}
@@ -2009,9 +2009,11 @@ func TestMyAccountServiceDeletesAvatarAndAccount(t *testing.T) {
 	}
 
 	uploadAvatarResp, err := env.account.UploadAvatar(ctx, connect.NewRequest(&apiv1.UploadAvatarRequest{
-		Image:       connectAPITestPNG(),
-		Filename:    "avatar.png",
-		ContentType: "image/png",
+		Image: &apiv1.ImageUpload{
+			Image:       connectAPITestPNG(),
+			Filename:    "avatar.png",
+			ContentType: "image/png",
+		},
 	}))
 	if err != nil {
 		t.Fatalf("UploadAvatar: %v", err)
@@ -2687,12 +2689,12 @@ func TestAdminServerServiceUpdatesServerBranding(t *testing.T) {
 	ctx := withCaller(env.ctx, env.viewer)
 
 	if _, err := env.serverState.UploadServerLogo(env.ctx, connect.NewRequest(&adminv1.UploadServerLogoRequest{
-		Image: connectAPITestPNG(),
+		Image: &apiv1.ImageUpload{Image: connectAPITestPNG()},
 	})); connect.CodeOf(err) != connect.CodeUnauthenticated {
 		t.Fatalf("unauthenticated UploadServerLogo code = %v, want unauthenticated", connect.CodeOf(err))
 	}
 	if _, err := env.serverState.UploadServerLogo(ctx, connect.NewRequest(&adminv1.UploadServerLogoRequest{
-		Image: connectAPITestPNG(),
+		Image: &apiv1.ImageUpload{Image: connectAPITestPNG()},
 	})); connect.CodeOf(err) != connect.CodePermissionDenied {
 		t.Fatalf("UploadServerLogo without permission code = %v, want permission_denied", connect.CodeOf(err))
 	}
@@ -2705,9 +2707,11 @@ func TestAdminServerServiceUpdatesServerBranding(t *testing.T) {
 		t.Fatalf("empty UploadServerLogo code = %v, want invalid_argument", connect.CodeOf(err))
 	}
 	logoResp, err := env.serverState.UploadServerLogo(ctx, connect.NewRequest(&adminv1.UploadServerLogoRequest{
-		Image:       connectAPITestPNG(),
-		Filename:    "logo.png",
-		ContentType: "image/png",
+		Image: &apiv1.ImageUpload{
+			Image:       connectAPITestPNG(),
+			Filename:    "logo.png",
+			ContentType: "image/png",
+		},
 	}))
 	if err != nil {
 		t.Fatalf("UploadServerLogo: %v", err)
@@ -2728,9 +2732,11 @@ func TestAdminServerServiceUpdatesServerBranding(t *testing.T) {
 		t.Fatalf("empty UploadServerBanner code = %v, want invalid_argument", connect.CodeOf(err))
 	}
 	bannerResp, err := env.serverState.UploadServerBanner(ctx, connect.NewRequest(&adminv1.UploadServerBannerRequest{
-		Image:       connectAPITestPNG(),
-		Filename:    "banner.png",
-		ContentType: "image/png",
+		Image: &apiv1.ImageUpload{
+			Image:       connectAPITestPNG(),
+			Filename:    "banner.png",
+			ContentType: "image/png",
+		},
 	}))
 	if err != nil {
 		t.Fatalf("UploadServerBanner: %v", err)
@@ -4175,7 +4181,7 @@ func TestNotificationPreferencesServiceServerLevelPreference(t *testing.T) {
 	if err != nil {
 		t.Fatalf("UpdateServerNotificationPreference: %v", err)
 	}
-	if setResp.Msg.GetLevel() != apiv1.NotificationLevel_NOTIFICATION_LEVEL_ALL_MESSAGES || setResp.Msg.GetEffectiveLevel() != apiv1.NotificationLevel_NOTIFICATION_LEVEL_ALL_MESSAGES {
+	if setResp.Msg.GetPreference().GetLevel() != apiv1.NotificationLevel_NOTIFICATION_LEVEL_ALL_MESSAGES || setResp.Msg.GetPreference().GetEffectiveLevel() != apiv1.NotificationLevel_NOTIFICATION_LEVEL_ALL_MESSAGES {
 		t.Fatalf("UpdateServerNotificationPreference response = %+v, want all/all", setResp.Msg)
 	}
 
@@ -4183,7 +4189,7 @@ func TestNotificationPreferencesServiceServerLevelPreference(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetServerNotificationPreference: %v", err)
 	}
-	if getResp.Msg.GetLevel() != apiv1.NotificationLevel_NOTIFICATION_LEVEL_ALL_MESSAGES || getResp.Msg.GetEffectiveLevel() != apiv1.NotificationLevel_NOTIFICATION_LEVEL_ALL_MESSAGES {
+	if getResp.Msg.GetPreference().GetLevel() != apiv1.NotificationLevel_NOTIFICATION_LEVEL_ALL_MESSAGES || getResp.Msg.GetPreference().GetEffectiveLevel() != apiv1.NotificationLevel_NOTIFICATION_LEVEL_ALL_MESSAGES {
 		t.Fatalf("GetServerNotificationPreference response = %+v, want all/all", getResp.Msg)
 	}
 }
@@ -5787,10 +5793,10 @@ func TestRoomMessageAndAssetServicesListAttachmentsGetMessagesAndGetAssets(t *te
 	resp, err := env.rooms.ListRoomAttachments(ctx, connect.NewRequest(&apiv1.ListRoomAttachmentsRequest{
 		RoomId: room.Id,
 		Page:   &apiv1.PageRequest{Limit: 1},
-		Thumbnail: &apiv1.AssetThumbnailOptions{
+		Thumbnail: &apiv1.ImageTransformOptions{
 			Width:  120,
 			Height: 120,
-			Fit:    apiv1.AssetFitMode_ASSET_FIT_MODE_COVER,
+			Fit:    apiv1.ImageFitMode_IMAGE_FIT_MODE_COVER,
 		},
 	}))
 	if err != nil {
@@ -5838,10 +5844,10 @@ func TestRoomMessageAndAssetServicesListAttachmentsGetMessagesAndGetAssets(t *te
 	asset, err := env.assets.GetAsset(ctx, connect.NewRequest(&apiv1.GetAssetRequest{
 		RoomId:  room.Id,
 		AssetId: threadAttachment.Id,
-		Thumbnail: &apiv1.AssetThumbnailOptions{
+		Thumbnail: &apiv1.ImageTransformOptions{
 			Width:  64,
 			Height: 64,
-			Fit:    apiv1.AssetFitMode_ASSET_FIT_MODE_CONTAIN,
+			Fit:    apiv1.ImageFitMode_IMAGE_FIT_MODE_CONTAIN,
 		},
 	}))
 	if err != nil {
@@ -5876,10 +5882,10 @@ func TestRoomMessageAndAssetServicesListAttachmentsGetMessagesAndGetAssets(t *te
 	assets, err := env.assets.BatchGetAssets(ctx, connect.NewRequest(&apiv1.BatchGetAssetsRequest{
 		RoomId:   room.Id,
 		AssetIds: []string{threadAttachment.Id, "missing-asset", rootAttachment.Id, threadAttachment.Id},
-		Thumbnail: &apiv1.AssetThumbnailOptions{
+		Thumbnail: &apiv1.ImageTransformOptions{
 			Width:  64,
 			Height: 64,
-			Fit:    apiv1.AssetFitMode_ASSET_FIT_MODE_CONTAIN,
+			Fit:    apiv1.ImageFitMode_IMAGE_FIT_MODE_CONTAIN,
 		},
 	}))
 	if err != nil {
@@ -7058,7 +7064,7 @@ func findAPIPermissionDecision(decisions []*adminv1.ScopedPermissionDecision, ki
 
 func findAPITierRole(roles []*adminv1.TierRole, roleName string) *adminv1.TierRole {
 	for _, role := range roles {
-		if role.GetRoleName() == roleName {
+		if role.GetRole().GetName() == roleName {
 			return role
 		}
 	}

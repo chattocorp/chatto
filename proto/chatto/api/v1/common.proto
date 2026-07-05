@@ -1,0 +1,53 @@
+syntax = "proto3";
+
+package chatto.api.v1;
+
+import "buf/validate/validate.proto";
+
+// Fit mode used when generating transformed image URLs.
+enum ImageFitMode {
+  // The fit mode was not specified.
+  IMAGE_FIT_MODE_UNSPECIFIED = 0;
+  // Preserve the whole source image within the requested bounds.
+  IMAGE_FIT_MODE_CONTAIN = 1;
+  // Fill the requested bounds, cropping when needed.
+  IMAGE_FIT_MODE_COVER = 2;
+}
+
+// Image transform parameters for generated image URLs.
+message ImageTransformOptions {
+  // Target image width in pixels.
+  int32 width = 1 [(buf.validate.field).int32 = {
+    gte: 1
+    lte: 4096
+  }];
+  // Target image height in pixels.
+  int32 height = 2 [(buf.validate.field).int32 = {
+    gte: 1
+    lte: 4096
+  }];
+  // Image crop/fit behavior.
+  ImageFitMode fit = 3 [(buf.validate.field).enum.defined_only = true];
+}
+
+// Browser-supplied image upload payload.
+message ImageUpload {
+  // Raw image bytes.
+  bytes image = 1;
+  // Original browser filename, for diagnostics and future compatibility.
+  string filename = 2;
+  // Browser-provided content type, for diagnostics and future compatibility.
+  string content_type = 3;
+}
+
+// Public login/provider metadata shared by discovery and account-linking APIs.
+message ProviderMetadata {
+  // Stable configured provider ID.
+  string id = 1;
+  // Provider type, such as "password", "oidc", "github", or "discord".
+  string type = 2;
+  // Human-readable provider label.
+  string label = 3;
+  // URL that starts login for this provider.
+  string login_url = 4;
+}

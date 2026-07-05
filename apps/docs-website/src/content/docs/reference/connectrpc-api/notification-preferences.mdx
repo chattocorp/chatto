@@ -45,8 +45,7 @@ Current server-level notification preference.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `level` | [`NotificationLevel`](/reference/connectrpc-api/types/#chatto-api-v1-NotificationLevel) | Explicit server-level setting. |
-| `effective_level` | [`NotificationLevel`](/reference/connectrpc-api/types/#chatto-api-v1-NotificationLevel) | Level after applying system defaults. |
+| `preference` | [`NotificationPreference`](/reference/connectrpc-api/types/#chatto-api-v1-NotificationPreference) | Current stored and effective notification preference. |
 
 
 <a id="chatto-api-v1-NotificationPreferencesService-UpdateServerNotificationPreference"></a>
@@ -79,8 +78,7 @@ Updated server-level notification preference.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `level` | [`NotificationLevel`](/reference/connectrpc-api/types/#chatto-api-v1-NotificationLevel) | Explicit server-level setting. |
-| `effective_level` | [`NotificationLevel`](/reference/connectrpc-api/types/#chatto-api-v1-NotificationLevel) | Level after applying system defaults. |
+| `preference` | [`NotificationPreference`](/reference/connectrpc-api/types/#chatto-api-v1-NotificationPreference) | Stored and effective notification preference after the update. |
 
 
 <a id="chatto-api-v1-NotificationPreferencesService-GetRoomNotificationPreference"></a>
@@ -114,13 +112,9 @@ Request for the current user's notification preference in one room.
 
 Current notification preference for a room.
 
-Clients can show both the stored room-level setting and the effective setting
-the server will apply after defaults are resolved.
-
 | Field | Type | Description |
 | --- | --- | --- |
-| `level` | [`NotificationLevel`](/reference/connectrpc-api/types/#chatto-api-v1-NotificationLevel) | Explicit level stored for the current user and room. |
-| `effective_level` | [`NotificationLevel`](/reference/connectrpc-api/types/#chatto-api-v1-NotificationLevel) | Level after applying defaults and inheritance. |
+| `preference` | [`NotificationPreference`](/reference/connectrpc-api/types/#chatto-api-v1-NotificationPreference) | Current stored and effective notification preference. |
 
 
 <a id="chatto-api-v1-NotificationPreferencesService-UpdateRoomNotificationPreference"></a>
@@ -152,10 +146,6 @@ Request to update the current user's notification level in one room.
 
 Updated notification preference for a room.
 
-The response mirrors the read shape so clients can update local state without
-issuing a second read request.
-
 | Field | Type | Description |
 | --- | --- | --- |
-| `level` | [`NotificationLevel`](/reference/connectrpc-api/types/#chatto-api-v1-NotificationLevel) | Explicit level stored for the current user and room. |
-| `effective_level` | [`NotificationLevel`](/reference/connectrpc-api/types/#chatto-api-v1-NotificationLevel) | Level after applying defaults and inheritance. |
+| `preference` | [`NotificationPreference`](/reference/connectrpc-api/types/#chatto-api-v1-NotificationPreference) | Stored and effective notification preference after the update. |

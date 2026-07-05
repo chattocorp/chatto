@@ -3,17 +3,13 @@ syntax = "proto3";
 package chatto.api.v1;
 
 import "buf/validate/validate.proto";
+import "chatto/api/v1/common.proto";
 
 // Public metadata for a configured external login provider.
 message ExternalIdentityProvider {
-  // Stable configured provider ID.
-  string id = 1;
-  // Provider type, such as "oidc", "github", or "discord".
-  string type = 2;
-  // Human-readable label.
-  string label = 3;
-  // URL that starts login for this provider.
-  string login_url = 4;
+  reserved 1 to 4;
+  reserved "id", "type", "label", "login_url";
+
   // URL that starts authenticated account linking for this provider. Clients
   // should use StartExternalIdentityLink instead of navigating here directly.
   string link_url = 5;
@@ -21,6 +17,8 @@ message ExternalIdentityProvider {
   bool linked = 6;
   // Linked identity subject hash for this provider, when linked.
   string linked_identity_subject_hash = 7;
+  // Shared provider metadata.
+  ProviderMetadata provider = 8;
 }
 
 // Linked provider identity metadata for the authenticated user's settings UI.

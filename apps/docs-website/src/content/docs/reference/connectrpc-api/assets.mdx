@@ -41,7 +41,7 @@ Request to read one room-scoped asset with freshly signed URLs.
 | --- | --- | --- |
 | `room_id` | `string` | Required. Room that owns the asset. |
 | `asset_id` | `string` | Required. Asset ID. |
-| `thumbnail` | [`AssetThumbnailOptions`](/reference/connectrpc-api/types/#chatto-api-v1-AssetThumbnailOptions) | Thumbnail URL options. Defaults are applied when absent. |
+| `thumbnail` | [`ImageTransformOptions`](/reference/connectrpc-api/types/#chatto-api-v1-ImageTransformOptions) | Thumbnail URL options. Defaults are applied when absent. |
 
 
 <a id="chatto-api-v1-GetAssetResponse"></a>
@@ -77,7 +77,7 @@ Request to read many room-scoped assets with freshly signed URLs.
 | --- | --- | --- |
 | `room_id` | `string` | Required. Room that owns the assets. |
 | `asset_ids` | `repeated string` | Required. Asset IDs. Missing, deleted, and wrong-room asset IDs are omitted. |
-| `thumbnail` | [`AssetThumbnailOptions`](/reference/connectrpc-api/types/#chatto-api-v1-AssetThumbnailOptions) | Thumbnail URL options. Defaults are applied when absent. |
+| `thumbnail` | [`ImageTransformOptions`](/reference/connectrpc-api/types/#chatto-api-v1-ImageTransformOptions) | Thumbnail URL options. Defaults are applied when absent. |
 
 
 <a id="chatto-api-v1-BatchGetAssetsResponse"></a>

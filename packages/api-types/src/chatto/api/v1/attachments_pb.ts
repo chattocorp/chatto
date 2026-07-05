@@ -6,97 +6,7 @@
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
 import { MessageAttachment } from "./message_types_pb.js";
-
-/**
- * Fit mode used when generating transformed asset thumbnails.
- *
- * @generated from enum chatto.api.v1.AssetFitMode
- */
-export enum AssetFitMode {
-  /**
-   * The fit mode was not specified.
-   *
-   * @generated from enum value: ASSET_FIT_MODE_UNSPECIFIED = 0;
-   */
-  UNSPECIFIED = 0,
-
-  /**
-   * Preserve the whole source image within the requested bounds.
-   *
-   * @generated from enum value: ASSET_FIT_MODE_CONTAIN = 1;
-   */
-  CONTAIN = 1,
-
-  /**
-   * Fill the requested bounds, cropping when needed.
-   *
-   * @generated from enum value: ASSET_FIT_MODE_COVER = 2;
-   */
-  COVER = 2,
-}
-// Retrieve enum metadata with: proto3.getEnumType(AssetFitMode)
-proto3.util.setEnumType(AssetFitMode, "chatto.api.v1.AssetFitMode", [
-  { no: 0, name: "ASSET_FIT_MODE_UNSPECIFIED" },
-  { no: 1, name: "ASSET_FIT_MODE_CONTAIN" },
-  { no: 2, name: "ASSET_FIT_MODE_COVER" },
-]);
-
-/**
- * Thumbnail transform parameters for asset URL reads.
- *
- * @generated from message chatto.api.v1.AssetThumbnailOptions
- */
-export class AssetThumbnailOptions extends Message<AssetThumbnailOptions> {
-  /**
-   * Thumbnail width in pixels.
-   *
-   * @generated from field: int32 width = 1;
-   */
-  width = 0;
-
-  /**
-   * Thumbnail height in pixels.
-   *
-   * @generated from field: int32 height = 2;
-   */
-  height = 0;
-
-  /**
-   * Thumbnail fit mode.
-   *
-   * @generated from field: chatto.api.v1.AssetFitMode fit = 3;
-   */
-  fit = AssetFitMode.UNSPECIFIED;
-
-  constructor(data?: PartialMessage<AssetThumbnailOptions>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.AssetThumbnailOptions";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "width", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
-    { no: 2, name: "height", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
-    { no: 3, name: "fit", kind: "enum", T: proto3.getEnumType(AssetFitMode) },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AssetThumbnailOptions {
-    return new AssetThumbnailOptions().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): AssetThumbnailOptions {
-    return new AssetThumbnailOptions().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): AssetThumbnailOptions {
-    return new AssetThumbnailOptions().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: AssetThumbnailOptions | PlainMessage<AssetThumbnailOptions> | undefined, b: AssetThumbnailOptions | PlainMessage<AssetThumbnailOptions> | undefined): boolean {
-    return proto3.util.equals(AssetThumbnailOptions, a, b);
-  }
-}
+import { ImageTransformOptions } from "./common_pb.js";
 
 /**
  * One current room attachment and its message anchor.
@@ -186,9 +96,9 @@ export class GetAssetRequest extends Message<GetAssetRequest> {
   /**
    * Thumbnail URL options. Defaults are applied when absent.
    *
-   * @generated from field: chatto.api.v1.AssetThumbnailOptions thumbnail = 3;
+   * @generated from field: chatto.api.v1.ImageTransformOptions thumbnail = 3;
    */
-  thumbnail?: AssetThumbnailOptions;
+  thumbnail?: ImageTransformOptions;
 
   constructor(data?: PartialMessage<GetAssetRequest>) {
     super();
@@ -200,7 +110,7 @@ export class GetAssetRequest extends Message<GetAssetRequest> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "asset_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "thumbnail", kind: "message", T: AssetThumbnailOptions },
+    { no: 3, name: "thumbnail", kind: "message", T: ImageTransformOptions },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetAssetRequest {
@@ -284,9 +194,9 @@ export class BatchGetAssetsRequest extends Message<BatchGetAssetsRequest> {
   /**
    * Thumbnail URL options. Defaults are applied when absent.
    *
-   * @generated from field: chatto.api.v1.AssetThumbnailOptions thumbnail = 3;
+   * @generated from field: chatto.api.v1.ImageTransformOptions thumbnail = 3;
    */
-  thumbnail?: AssetThumbnailOptions;
+  thumbnail?: ImageTransformOptions;
 
   constructor(data?: PartialMessage<BatchGetAssetsRequest>) {
     super();
@@ -298,7 +208,7 @@ export class BatchGetAssetsRequest extends Message<BatchGetAssetsRequest> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "asset_ids", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
-    { no: 3, name: "thumbnail", kind: "message", T: AssetThumbnailOptions },
+    { no: 3, name: "thumbnail", kind: "message", T: ImageTransformOptions },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BatchGetAssetsRequest {

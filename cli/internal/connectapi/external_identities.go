@@ -202,13 +202,10 @@ func apiExternalIdentityProviders(providers []config.AuthProviderConfig, identit
 		escapedID := url.PathEscape(provider.ID)
 		linkedIdentity, linked := providerLinkedIdentity(provider, identities)
 		result = append(result, &apiv1.ExternalIdentityProvider{
-			Id:                        provider.ID,
-			Type:                      provider.Type,
-			Label:                     provider.LabelOrDefault(),
-			LoginUrl:                  "/auth/providers/" + escapedID,
 			LinkUrl:                   "/auth/providers/" + escapedID + "?intent=link",
 			Linked:                    linked,
 			LinkedIdentitySubjectHash: linkedIdentity.SubjectHash,
+			Provider:                  apiProviderMetadata(provider),
 		})
 	}
 	return result

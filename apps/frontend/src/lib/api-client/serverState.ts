@@ -207,9 +207,11 @@ export async function uploadServerLogo(
   const { adminServer, headers } = serverClients(config);
   const response = await adminServer.uploadServerLogo(
     {
-      image: new Uint8Array(await file.arrayBuffer()),
-      filename: file.name,
-      contentType: file.type
+      image: {
+        image: new Uint8Array(await file.arrayBuffer()),
+        filename: file.name,
+        contentType: file.type
+      }
     },
     { headers }
   );
@@ -231,9 +233,11 @@ export async function uploadServerBanner(
   const { adminServer, headers } = serverClients(config);
   const response = await adminServer.uploadServerBanner(
     {
-      image: new Uint8Array(await file.arrayBuffer()),
-      filename: file.name,
-      contentType: file.type
+      image: {
+        image: new Uint8Array(await file.arrayBuffer()),
+        filename: file.name,
+        contentType: file.type
+      }
     },
     { headers }
   );

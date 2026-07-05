@@ -2,10 +2,10 @@ import {
   authHeaders,
   createChattoClient,
   handleAuthError,
-  type ConnectAPIConfig as BaseConnectAPIConfig,
-} from "./connect.js";
-import { NotificationPreferencesService } from "@chatto/api-types/api/v1/notification_preferences_connect";
-import { NotificationLevel } from "@chatto/api-types/api/v1/notification_preferences_pb";
+  type ConnectAPIConfig as BaseConnectAPIConfig
+} from './connect.js';
+import { NotificationPreferencesService } from '@chatto/api-types/api/v1/notification_preferences_connect';
+import { NotificationLevel } from '@chatto/api-types/api/v1/notification_preferences_pb';
 
 export type ConnectAPIConfig = BaseConnectAPIConfig & {
   serverId: string;
@@ -17,7 +17,7 @@ export type NotificationPreference = {
 };
 
 export async function getServerNotificationPreference(
-  config: ConnectAPIConfig,
+  config: ConnectAPIConfig
 ): Promise<NotificationPreference> {
   const client = createNotificationPreferencesClient(config);
   let response;
@@ -25,21 +25,21 @@ export async function getServerNotificationPreference(
     response = await client.getServerNotificationPreference(
       {},
       {
-        headers: connectHeaders(config),
-      },
+        headers: connectHeaders(config)
+      }
     );
   } catch (err) {
     handleAuthError(config, err);
   }
   return {
-    level: response.level,
-    effectiveLevel: response.effectiveLevel,
+    level: response.preference?.level ?? NotificationLevel.UNSPECIFIED,
+    effectiveLevel: response.preference?.effectiveLevel ?? NotificationLevel.UNSPECIFIED
   };
 }
 
 export async function updateServerNotificationPreference(
   config: ConnectAPIConfig,
-  level: NotificationLevel,
+  level: NotificationLevel
 ): Promise<NotificationPreference> {
   const client = createNotificationPreferencesClient(config);
   let response;
@@ -47,22 +47,22 @@ export async function updateServerNotificationPreference(
     response = await client.updateServerNotificationPreference(
       { level },
       {
-        headers: connectHeaders(config),
-      },
+        headers: connectHeaders(config)
+      }
     );
   } catch (err) {
     handleAuthError(config, err);
   }
   return {
-    level: response.level,
-    effectiveLevel: response.effectiveLevel,
+    level: response.preference?.level ?? NotificationLevel.UNSPECIFIED,
+    effectiveLevel: response.preference?.effectiveLevel ?? NotificationLevel.UNSPECIFIED
   };
 }
 
 export async function updateRoomNotificationPreference(
   config: ConnectAPIConfig,
   roomId: string,
-  level: NotificationLevel,
+  level: NotificationLevel
 ): Promise<NotificationPreference> {
   const client = createNotificationPreferencesClient(config);
   let response;
@@ -70,18 +70,18 @@ export async function updateRoomNotificationPreference(
     response = await client.updateRoomNotificationPreference(
       {
         roomId,
-        level,
+        level
       },
       {
-        headers: connectHeaders(config),
-      },
+        headers: connectHeaders(config)
+      }
     );
   } catch (err) {
     handleAuthError(config, err);
   }
   return {
-    level: response.level,
-    effectiveLevel: response.effectiveLevel,
+    level: response.preference?.level ?? NotificationLevel.UNSPECIFIED,
+    effectiveLevel: response.preference?.effectiveLevel ?? NotificationLevel.UNSPECIFIED
   };
 }
 
