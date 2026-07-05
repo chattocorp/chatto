@@ -3,6 +3,33 @@
 All notable changes to Chatto. Maintained by release-please from the
 conventional-commit messages on `main` — do not edit by hand.
 
+## [0.4.0-beta.14](https://github.com/chattocorp/chatto/compare/v0.4.0-beta.13...v0.4.0-beta.14) (2026-07-05)
+
+
+### ⚠ BREAKING CHANGES
+
+* **api:** consolidate ConnectRPC surface ([#1306](https://github.com/chattocorp/chatto/issues/1306))
+* **api:** clean up server assets calls and includes ([#1303](https://github.com/chattocorp/chatto/issues/1303))
+* **api:** consolidate shared api shapes ([#1302](https://github.com/chattocorp/chatto/issues/1302))
+* **api:** consolidate shared public API types ([#1299](https://github.com/chattocorp/chatto/issues/1299))
+
+### Features
+
+* **api:** clean up server assets calls and includes ([#1303](https://github.com/chattocorp/chatto/issues/1303)) ([e960def](https://github.com/chattocorp/chatto/commit/e960defc9c3a1cc77ae1958a8c98d9cc54919c25))
+* **api:** consolidate shared api shapes ([#1302](https://github.com/chattocorp/chatto/issues/1302)) ([4429009](https://github.com/chattocorp/chatto/commit/4429009ba3dd1b4ce0800b928c55fb8eaa308376))
+* **api:** consolidate shared public API types ([#1299](https://github.com/chattocorp/chatto/issues/1299)) ([1ec2015](https://github.com/chattocorp/chatto/commit/1ec201551881142d8d5498902d0ff192e7b8bf7e))
+
+
+### Bug Fixes
+
+* **frontend:** sync presence badge across tabs ([#1301](https://github.com/chattocorp/chatto/issues/1301)) ([5fbfb22](https://github.com/chattocorp/chatto/commit/5fbfb22d715f6a315f61a0c9f3a063879842468b))
+* **release:** publish release before updating tap ([#1298](https://github.com/chattocorp/chatto/issues/1298)) ([c5c8aa6](https://github.com/chattocorp/chatto/commit/c5c8aa64b255b423a2b01c074f1e7155a2a7f3ef))
+
+
+### Code Refactoring
+
+* **api:** consolidate ConnectRPC surface ([#1306](https://github.com/chattocorp/chatto/issues/1306)) ([900233d](https://github.com/chattocorp/chatto/commit/900233da483c64de8aa6f7fd2d6d7a6d6f2cc16b))
+
 ## [0.4.0-beta.13](https://github.com/chattocorp/chatto/compare/v0.4.0-beta.12...v0.4.0-beta.13) (2026-07-04)
 
 
