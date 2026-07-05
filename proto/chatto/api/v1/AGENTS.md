@@ -43,8 +43,13 @@ first consumer.
   `Create<Resource>`, `Update<Resource>`, and `Delete<Resource>`. Use domain
   verbs only when a CRUD name would obscure lifecycle, authorization, audit, or
   product semantics.
-- Add batch hydration when list/realtime/include surfaces expose resource IDs
-  that clients are expected to hydrate. Avoid API shapes that force N+1 reads.
+- Add batch hydration when list/realtime surfaces expose resource IDs that
+  clients are expected to hydrate. Avoid API shapes that force N+1 reads.
+- Do not add `includes`-style response properties by default. Prefer direct
+  resource fields plus `BatchGet*` follow-up hydration. `includes` maps are an
+  exception for proven hot paths where one paginated response carries many rows
+  that repeatedly reference the same related render data and the extra batch
+  call would be materially harmful.
 
 ## Reused Shapes
 

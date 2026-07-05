@@ -156,9 +156,10 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
 - Active voice call list reads were renamed from
   `VoiceCallService.ListActiveCallRooms` to `ListActiveCalls`; each `ActiveCall`
   now carries a `RoomSummary` in `room` instead of a scalar `room_id`.
-- `includes` maps are intentionally limited to paginated timeline/feed responses
+- `includes` maps are intentionally limited to hot paginated timeline/feed paths
   such as room events and followed threads. Singular resource reads and mutations
-  return their resources directly.
+  return their resources directly, and ordinary list/read clients should use
+  `BatchGet*` hydration when they need related resources.
 - Message permalink resolution was folded into `MessageService.GetMessage`: replace
   `MessageService.ResolveMessageLinkTarget` with `GetMessage` and use the returned
   message's `thread_root_event_id` to decide whether to open a thread.

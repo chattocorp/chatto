@@ -62,9 +62,14 @@ For public API packages:
   list/get/batch/update/delete operations only because the current frontend does
   not need them yet.
 - Batch hydration is part of the API design, not an optimization afterthought.
-  If a resource can appear by ID in lists, includes, notifications, realtime
-  events, or related resources, provide `BatchGet*`, include maps, or another
-  documented bounded-fanout pattern so clients do not need N+1 reads.
+  If a resource can appear by ID in lists, notifications, realtime events, or
+  related resources, provide `BatchGet*` or another documented bounded-fanout
+  pattern so clients do not need N+1 reads.
+- Actively discourage `includes`-style response properties as a default API
+  shape. Prefer singular resources plus explicit `BatchGet*` hydration.
+  `includes` maps are reserved for proven hot paths where one paginated response
+  contains many rows that repeatedly reference the same related render data and
+  avoiding a follow-up batch call is materially important.
 - Public resource messages should be canonical per resource. Avoid multiple
   frontend-shaped variants of the same thing. Add narrower messages only when
   authorization, visibility, lifecycle, or performance semantics differ, and
