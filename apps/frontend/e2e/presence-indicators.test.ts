@@ -1,4 +1,4 @@
-import { expect } from '@playwright/test';
+import { expect, type Locator, type Page } from '@playwright/test';
 import { TIMEOUTS } from './constants';
 import { createAndLoginTestUser } from './fixtures/testUser';
 import { withServerUser } from './fixtures/serverUser';
@@ -6,6 +6,15 @@ import { waitForRoomReady } from './fixtures/realtimeSync';
 import { test } from './setup';
 import { SettingsPage } from './pages';
 import * as routes from './routes';
+
+function currentUserPresenceDot(page: Page): Locator {
+  return page.getByTestId('current-user-presence-menu').getByTestId('presence-dot');
+}
+
+async function choosePresenceMode(page: Page, modeLabel: string): Promise<void> {
+  await page.getByTestId('current-user-presence-menu').click();
+  await page.getByRole('menuitemradio', { name: modeLabel }).click();
+}
 
 test.describe('Presence indicators', () => {
   test('shows online indicator when another user opens the server', async ({
@@ -91,6 +100,46 @@ test.describe('Presence indicators', () => {
     await expect(presenceDot).toHaveClass(/bg-presence-online/, {
       timeout: TIMEOUTS.REALTIME_EVENT
     });
+  });
+
+  test('same-user tab updates current user badge when away is cleared from another tab', async ({
+    page,
+    chatPage
+  }) => {
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+    await expect(page.getByTestId('current-user-presence-menu')).toBeVisible({
+      timeout: TIMEOUTS.REALTIME_EVENT
+    });
+
+    const otherTab = await page.context().newPage();
+    try {
+      await otherTab.goto(routes.chat);
+      await otherTab.waitForURL((url) => url.pathname.startsWith('/chat'));
+      await expect(otherTab.getByTestId('current-user-presence-menu')).toBeVisible({
+        timeout: TIMEOUTS.REALTIME_EVENT
+      });
+
+      await page.bringToFront();
+
+      await choosePresenceMode(page, 'Away');
+      await expect(currentUserPresenceDot(page)).toHaveClass(/bg-presence-away/, {
+        timeout: TIMEOUTS.REALTIME_EVENT
+      });
+      await expect(currentUserPresenceDot(otherTab)).toHaveClass(/bg-presence-away/, {
+        timeout: TIMEOUTS.REALTIME_EVENT
+      });
+
+      await choosePresenceMode(page, 'Online');
+      await expect(currentUserPresenceDot(page)).toHaveClass(/bg-presence-online/, {
+        timeout: TIMEOUTS.REALTIME_EVENT
+      });
+      await expect(currentUserPresenceDot(otherTab)).toHaveClass(/bg-presence-online/, {
+        timeout: TIMEOUTS.REALTIME_EVENT
+      });
+    } finally {
+      await otherTab.close();
+    }
   });
 });
 

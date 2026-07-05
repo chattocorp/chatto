@@ -159,7 +159,7 @@ export function initPresenceTracking(
 		return state === 'active' ? PresenceStatus.Online : PresenceStatus.Away;
 	}
 
-	function applyMode(mode: PresenceMode, persist = false) {
+	function applyMode(mode: PresenceMode, persist = false, syncedFromStorage = false) {
 		currentMode = mode;
 		presencePreference.mode = mode;
 		if (persist) storeMode(mode);
@@ -176,7 +176,11 @@ export function initPresenceTracking(
 		options.onResumeLiveEvents?.();
 		if (mode === 'auto') {
 			currentState = document.visibilityState === 'hidden' ? 'hidden' : 'active';
-			reportStatus(statusForAutoState(currentState), persist);
+			const userSelected = persist || syncedFromStorage;
+			reportStatus(
+				userSelected ? PresenceStatus.Online : statusForAutoState(currentState),
+				userSelected
+			);
 			ensureRefreshTimer();
 			resetIdleTimer();
 			return;
@@ -248,7 +252,7 @@ export function initPresenceTracking(
 			event.newValue === 'doNotDisturb' ||
 			event.newValue === 'invisible'
 		) {
-			applyMode(event.newValue);
+			applyMode(event.newValue, false, true);
 		}
 	}
 
