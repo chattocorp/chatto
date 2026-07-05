@@ -136,6 +136,44 @@ jobs:
         id: version
         run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
 
+      - name: Build frontend Docker tags
+        id: frontend_tags
+        shell: bash
+        run: |
+          {
+            echo "tags<<EOF"
+            echo "ghcr.io/chattocorp/chatto-client:${{ steps.version.outputs.version }}"
+            if [[ "${{ steps.version.outputs.version }}" == *-* ]]; then
+              echo "ghcr.io/chattocorp/chatto-client:next"
+            elif [[ "${{ steps.release_meta.outputs.push_latest }}" == "true" ]]; then
+              echo "ghcr.io/chattocorp/chatto-client:latest"
+            fi
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Build and push frontend Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile.frontend.prebuilt
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: ${{ steps.frontend_tags.outputs.tags }}
+          cache-from: type=gha,scope=chatto-client
+          cache-to: type=gha,scope=chatto-client,mode=max
+
+      - name: Publish GitHub Release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GORELEASER_GITHUB_TOKEN }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+
+          gh release edit "v${VERSION}" \
+            --repo chattocorp/chatto \
+            --draft=false
+
       - name: Update Homebrew tap
         if: ${{ !contains(steps.version.outputs.version, '-') }}
         shell: bash
@@ -230,29 +268,3 @@ jobs:
           git -C "${tap_dir}" add Formula/chatto.rb
           git -C "${tap_dir}" commit -m "chore: update chatto to v${VERSION}"
           git -C "${tap_dir}" push origin HEAD:main
-
-      - name: Build frontend Docker tags
-        id: frontend_tags
-        shell: bash
-        run: |
-          {
-            echo "tags<<EOF"
-            echo "ghcr.io/chattocorp/chatto-client:${{ steps.version.outputs.version }}"
-            if [[ "${{ steps.version.outputs.version }}" == *-* ]]; then
-              echo "ghcr.io/chattocorp/chatto-client:next"
-            elif [[ "${{ steps.release_meta.outputs.push_latest }}" == "true" ]]; then
-              echo "ghcr.io/chattocorp/chatto-client:latest"
-            fi
-            echo "EOF"
-          } >> "$GITHUB_OUTPUT"
-
-      - name: Build and push frontend Docker image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: docker/Dockerfile.frontend.prebuilt
-          push: true
-          platforms: linux/amd64,linux/arm64
-          tags: ${{ steps.frontend_tags.outputs.tags }}
-          cache-from: type=gha,scope=chatto-client
-          cache-to: type=gha,scope=chatto-client,mode=max

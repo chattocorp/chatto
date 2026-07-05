@@ -117,9 +117,13 @@ release:
   github:
     owner: chattocorp
     name: chatto
-  # release-please creates the GitHub Release with its changelog body.
-  # GoReleaser must NOT overwrite it — `keep-existing` makes GoReleaser
-  # only attach artifacts to the existing release.
+  # release-please creates a draft GitHub Release with its changelog body.
+  # GoReleaser must NOT overwrite it: it should attach artifacts to that
+  # draft and leave publication to the workflow step that runs after release
+  # artifacts and container images have been pushed.
+  draft: true
+  use_existing_draft: true
+  replace_existing_artifacts: true
   mode: keep-existing
   # `auto` marks the GitHub Release as prerelease when the tag carries
   # a prerelease suffix (e.g. v0.1.0-alpha.1). release-please-action
