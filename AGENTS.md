@@ -141,6 +141,15 @@ For ad-hoc tool invocations, use `mise x -- ...` rather than assuming `go`,
 - Keep `NOTICE` current when adding, removing, or materially changing bundled
   dependencies or shipped assets.
 
+## License Metadata
+
+- Chatto uses REUSE/SPDX license metadata. Keep `mise license-check` passing
+  when adding files or changing license boundaries.
+- Files are Apache-2.0 by default unless `REUSE.toml`, an SPDX header, or an
+  adjacent `.license` file says otherwise.
+- Files under `cli/` are AGPL-3.0-or-later because they are part of the Chatto
+  server/CLI implementation.
+
 ## Code Generation
 
 - Public `.proto` or ConnectRPC changes require `mise codegen-proto` after

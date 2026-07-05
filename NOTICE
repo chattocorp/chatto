@@ -116,12 +116,13 @@ Twirp
 Copyright 2018 Twitch Interactive, Inc. All Rights Reserved.
 
 Trademark Notice:
-Chatto's source code is licensed under the GNU Affero General Public License
-version 3 or any later version. That license does not grant
-permission to use the "Chatto" name, Chatto logos, or other Chatto marks
-except as otherwise permitted by law. "Chatto" and the Chatto logos are
-marks and trade names of ChattoCorp GmbH, and are not registered trademarks
-at this time.
+Chatto's source code uses mixed licensing. The default repository license is
+the Apache License 2.0, and the cli/ directory containing the Chatto server and
+CLI implementation is licensed under the GNU Affero General Public License
+version 3 or any later version. These licenses do not grant permission to use
+the "Chatto" name, Chatto logos, or other Chatto marks except as otherwise
+permitted by law. "Chatto" and the Chatto logos are marks and trade names of
+ChattoCorp GmbH, and are not registered trademarks at this time.
 
 You may truthfully refer to Chatto to describe the origin of the software, for
 example by saying that a project is "based on Chatto" or "forked from Chatto".

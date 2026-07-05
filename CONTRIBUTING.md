@@ -59,6 +59,12 @@ To run the bundled executable without live reloads:
 mise run chatto run
 ```
 
+To check SPDX/REUSE license metadata:
+
+```sh
+mise license-check
+```
+
 When both `CONDUCTOR_PORT` and `PASEO_PORT` are unset, `mise dev` uses `4000` for the Vite frontend, `4001` for the Chatto backend, `4002` for embedded NATS, `4003` for Prometheus metrics, and `4004` for exporter metrics. `mise dev-docs-website` uses `4000` for the docs website. `mise run chatto run` still uses the bundled-binary port layout: `4000` for Chatto, `4001` for embedded NATS, `4002` for Prometheus metrics, and `4003` for exporter metrics. Pass explicit CLI arguments after the task name, for example `mise chatto version`.
 
 ## Local Bootstrap Users
