@@ -128,10 +128,9 @@ service MyAccountService {
   // authenticated account.
   rpc ListExternalIdentities(ListExternalIdentitiesRequest) returns (ListExternalIdentitiesResponse);
   // Creates a short-lived browser handoff URL for linking a provider identity
-  // to the authenticated account.
+  // to the authenticated account. The provider callback completes through
+  // chatto.auth.v1.ExternalIdentityAuthService.ConfirmExternalIdentityLink.
   rpc StartExternalIdentityLink(StartExternalIdentityLinkRequest) returns (StartExternalIdentityLinkResponse);
-  // Links a pending provider identity to the authenticated account.
-  rpc LinkExternalIdentity(LinkExternalIdentityRequest) returns (LinkExternalIdentityResponse);
   // Disconnects a provider identity from the authenticated account.
   rpc DisconnectExternalIdentity(DisconnectExternalIdentityRequest) returns (DisconnectExternalIdentityResponse);
   // Updates the current user's live presence status. This state is transient:

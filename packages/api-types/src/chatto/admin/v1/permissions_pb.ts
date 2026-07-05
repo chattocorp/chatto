@@ -772,6 +772,9 @@ export class UserPermissionMatrix extends Message<UserPermissionMatrix> {
 /**
  * One resource-oriented permission decision at a concrete scope.
  *
+ * This is the row-oriented counterpart to PermissionMatrixCell. Prefer this
+ * shape when building integrations that do not need matrix column joins.
+ *
  * @generated from message chatto.admin.v1.ScopedPermissionDecision
  */
 export class ScopedPermissionDecision extends Message<ScopedPermissionDecision> {
@@ -946,7 +949,7 @@ export class ListRolePermissionDecisionsResponse extends Message<ListRolePermiss
   roleName = "";
 
   /**
-   * Permission decisions keyed by permission and scope.
+   * Permission decisions keyed by permission and typed scope.
    *
    * @generated from field: repeated chatto.admin.v1.ScopedPermissionDecision decisions = 2;
    */
@@ -1036,7 +1039,7 @@ export class ListUserPermissionDecisionsResponse extends Message<ListUserPermiss
   userId = "";
 
   /**
-   * Permission decisions keyed by permission and scope.
+   * Permission decisions keyed by permission and typed scope.
    *
    * @generated from field: repeated chatto.admin.v1.ScopedPermissionDecision decisions = 2;
    */

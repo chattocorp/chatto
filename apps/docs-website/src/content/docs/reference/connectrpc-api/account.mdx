@@ -218,7 +218,8 @@ Finite snapshot of configured providers and linked external identities.
 ### StartExternalIdentityLink
 
 Creates a short-lived browser handoff URL for linking a provider identity
-to the authenticated account.
+to the authenticated account. The provider callback completes through
+chatto.auth.v1.ExternalIdentityAuthService.ConfirmExternalIdentityLink.
 
 ```http
 POST /api/connect/chatto.api.v1.MyAccountService/StartExternalIdentityLink
@@ -246,38 +247,6 @@ Result of preparing an external identity link flow.
 | Field | Type | Description |
 | --- | --- | --- |
 | `start_url` | `string` | Browser URL that starts provider authorization on the target server origin. |
-
-
-<a id="chatto-api-v1-MyAccountService-LinkExternalIdentity"></a>
-
-### LinkExternalIdentity
-
-Links a pending provider identity to the authenticated account.
-
-```http
-POST /api/connect/chatto.api.v1.MyAccountService/LinkExternalIdentity
-```
-
-<a id="chatto-api-v1-LinkExternalIdentityRequest"></a>
-
-#### Input: LinkExternalIdentityRequest
-
-Request to link a pending provider identity to the authenticated user.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `token` | `string` | Raw pending link token from the provider callback redirect. |
-
-
-<a id="chatto-api-v1-LinkExternalIdentityResponse"></a>
-
-#### Result: LinkExternalIdentityResponse
-
-Result of linking a provider identity.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `linked_identity` | [`LinkedExternalIdentity`](/reference/connectrpc-api/types/#chatto-api-v1-LinkedExternalIdentity) | Linked identity metadata. |
 
 
 <a id="chatto-api-v1-MyAccountService-DisconnectExternalIdentity"></a>

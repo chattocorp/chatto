@@ -512,7 +512,6 @@ Result of assigning a role.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `assigned` | `bool` | True when the request completed. |
 | `member` | [`AdminMember`](#chatto-admin-v1-AdminMember) | Updated admin member row. |
 
 
@@ -546,7 +545,6 @@ Result of revoking a role.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `revoked` | `bool` | True when the request completed. |
 | `member` | [`AdminMember`](#chatto-admin-v1-AdminMember) | Updated admin member row. |
 
 
@@ -766,7 +764,7 @@ Response containing one role's permission matrix.
 
 ### ListRolePermissionDecisions
 
-Lists one role's permission decisions by permission and scope. Requires
+Lists one role's permission decisions as resource-oriented rows. Requires
 role.manage. Returns NOT_FOUND when the role does not exist.
 
 ```http
@@ -793,7 +791,7 @@ Resource-oriented permission decisions for one role.
 | Field | Type | Description |
 | --- | --- | --- |
 | `role_name` | `string` | Stable role name. |
-| `decisions` | repeated [`ScopedPermissionDecision`](#chatto-admin-v1-ScopedPermissionDecision) | Permission decisions keyed by permission and scope. |
+| `decisions` | repeated [`ScopedPermissionDecision`](#chatto-admin-v1-ScopedPermissionDecision) | Permission decisions keyed by permission and typed scope. |
 
 
 <a id="chatto-admin-v1-AdminPermissionService-GetUserPermissionMatrix"></a>
@@ -833,7 +831,7 @@ Response containing one user's permission matrix.
 
 ### ListUserPermissionDecisions
 
-Lists one user's permission decisions by permission and scope. Requires
+Lists one user's permission decisions as resource-oriented rows. Requires
 user.manage-permissions. Returns NOT_FOUND when the user does not exist.
 
 ```http
@@ -860,7 +858,7 @@ Resource-oriented permission decisions for one user.
 | Field | Type | Description |
 | --- | --- | --- |
 | `user_id` | `string` | User ID. |
-| `decisions` | repeated [`ScopedPermissionDecision`](#chatto-admin-v1-ScopedPermissionDecision) | Permission decisions keyed by permission and scope. |
+| `decisions` | repeated [`ScopedPermissionDecision`](#chatto-admin-v1-ScopedPermissionDecision) | Permission decisions keyed by permission and typed scope. |
 
 
 <a id="chatto-admin-v1-AdminPermissionService-ExplainPermissions"></a>
@@ -1836,35 +1834,6 @@ admin/member metadata with visibility controlled by the service.
 
 
 
-<a id="chatto-admin-v1-AdminMemberRole"></a>
-
-### AdminMemberRole
-
-Operator compatibility role details used by operator.v1 response shapes.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `name` | `string` | Stable role name. |
-| `display_name` | `string` | Display name shown in operator UI. |
-| `position` | `int32` | Display/order position. |
-| `permissions` | `repeated string` | Permissions granted by this role. |
-| `permission_denials` | `repeated string` | Permissions denied by this role. |
-
-
-
-<a id="chatto-admin-v1-AdminRoleReference"></a>
-
-### AdminRoleReference
-
-Operator compatibility role reference used by operator.v1 response shapes.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `name` | `string` | Stable role name. |
-| `display_name` | `string` | Display name shown in operator UI. |
-
-
-
 <a id="chatto-admin-v1-PermissionDecisionUpdate"></a>
 
 ### PermissionDecisionUpdate
@@ -1973,6 +1942,9 @@ Permission matrix for one role across all scopes.
 ### ScopedPermissionDecision
 
 One resource-oriented permission decision at a concrete scope.
+
+This is the row-oriented counterpart to PermissionMatrixCell. Prefer this
+shape when building integrations that do not need matrix column joins.
 
 | Field | Type | Description |
 | --- | --- | --- |

@@ -37,11 +37,11 @@ POST /api/connect/chatto.api.v1.NotificationPreferencesService/GetServerNotifica
 Request for the current user's server-level notification preference.
 
 
-<a id="chatto-api-v1-GetServerNotificationPreferenceResponse"></a>
+<a id="chatto-api-v1-GetNotificationPreferenceResponse"></a>
 
-#### Result: GetServerNotificationPreferenceResponse
+#### Result: GetNotificationPreferenceResponse
 
-Current server-level notification preference.
+Current notification preference.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -70,11 +70,11 @@ Request to update the current user's server-level notification level.
 | `level` | [`NotificationLevel`](#chatto-api-v1-NotificationLevel) | Required. New explicit notification level. Use NOTIFICATION_LEVEL_DEFAULT to return the server to default behavior. |
 
 
-<a id="chatto-api-v1-UpdateServerNotificationPreferenceResponse"></a>
+<a id="chatto-api-v1-UpdateNotificationPreferenceResponse"></a>
 
-#### Result: UpdateServerNotificationPreferenceResponse
+#### Result: UpdateNotificationPreferenceResponse
 
-Updated server-level notification preference.
+Updated notification preference.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -106,11 +106,11 @@ Request for the current user's notification preference in one room.
 | `room_id` | `string` | Required. Room whose notification preference should be loaded for the current user. |
 
 
-<a id="chatto-api-v1-GetRoomNotificationPreferenceResponse"></a>
+<a id="chatto-api-v1-GetNotificationPreferenceResponse"></a>
 
-#### Result: GetRoomNotificationPreferenceResponse
+#### Result: GetNotificationPreferenceResponse
 
-Current notification preference for a room.
+Current notification preference.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -140,11 +140,11 @@ Request to update the current user's notification level in one room.
 | `level` | [`NotificationLevel`](#chatto-api-v1-NotificationLevel) | Required. New explicit notification level. Use NOTIFICATION_LEVEL_DEFAULT to return the room to inherited/default behavior. |
 
 
-<a id="chatto-api-v1-UpdateRoomNotificationPreferenceResponse"></a>
+<a id="chatto-api-v1-UpdateNotificationPreferenceResponse"></a>
 
-#### Result: UpdateRoomNotificationPreferenceResponse
+#### Result: UpdateNotificationPreferenceResponse
 
-Updated notification preference for a room.
+Updated notification preference.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -395,7 +395,8 @@ Finite snapshot of configured providers and linked external identities.
 ### StartExternalIdentityLink
 
 Creates a short-lived browser handoff URL for linking a provider identity
-to the authenticated account.
+to the authenticated account. The provider callback completes through
+chatto.auth.v1.ExternalIdentityAuthService.ConfirmExternalIdentityLink.
 
 ```http
 POST /api/connect/chatto.api.v1.MyAccountService/StartExternalIdentityLink
@@ -423,38 +424,6 @@ Result of preparing an external identity link flow.
 | Field | Type | Description |
 | --- | --- | --- |
 | `start_url` | `string` | Browser URL that starts provider authorization on the target server origin. |
-
-
-<a id="chatto-api-v1-MyAccountService-LinkExternalIdentity"></a>
-
-### LinkExternalIdentity
-
-Links a pending provider identity to the authenticated account.
-
-```http
-POST /api/connect/chatto.api.v1.MyAccountService/LinkExternalIdentity
-```
-
-<a id="chatto-api-v1-LinkExternalIdentityRequest"></a>
-
-#### Input: LinkExternalIdentityRequest
-
-Request to link a pending provider identity to the authenticated user.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `token` | `string` | Raw pending link token from the provider callback redirect. |
-
-
-<a id="chatto-api-v1-LinkExternalIdentityResponse"></a>
-
-#### Result: LinkExternalIdentityResponse
-
-Result of linking a provider identity.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `linked_identity` | [`LinkedExternalIdentity`](#chatto-api-v1-LinkedExternalIdentity) | Linked identity metadata. |
 
 
 <a id="chatto-api-v1-MyAccountService-DisconnectExternalIdentity"></a>
@@ -1125,7 +1094,6 @@ Result of editing a message.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `updated` | `bool` | True when the edit was accepted. |
 | `message` | [`Message`](#chatto-api-v1-Message) | Renderable message after the edit. |
 
 

@@ -17,7 +17,6 @@ const mocks = vi.hoisted(() => ({
   confirmExternalIdentityLink: vi.fn(),
   listExternalIdentities: vi.fn(),
   startExternalIdentityLink: vi.fn(),
-  linkExternalIdentity: vi.fn(),
   disconnectExternalIdentity: vi.fn()
 }));
 
@@ -95,13 +94,11 @@ describe('createExternalIdentityAPI', () => {
     configureApiClientHooks({ onAuthenticationRequired: mocks.handleAuthenticationRequired });
     mocks.listExternalIdentities.mockReset();
     mocks.startExternalIdentityLink.mockReset();
-    mocks.linkExternalIdentity.mockReset();
     mocks.disconnectExternalIdentity.mockReset();
     mocks.createConnectTransport.mockReturnValue({ kind: 'transport' });
     mocks.createClient.mockReturnValue({
       listExternalIdentities: mocks.listExternalIdentities,
       startExternalIdentityLink: mocks.startExternalIdentityLink,
-      linkExternalIdentity: mocks.linkExternalIdentity,
       disconnectExternalIdentity: mocks.disconnectExternalIdentity
     });
   });

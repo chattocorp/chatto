@@ -246,8 +246,6 @@ func (x *UpdateMessageRequest) GetAlsoSendToChannel() bool {
 // Result of editing a message.
 type UpdateMessageResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// True when the edit was accepted.
-	Updated bool `protobuf:"varint,1,opt,name=updated,proto3" json:"updated,omitempty"`
 	// Renderable message after the edit.
 	Message       *Message `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -282,13 +280,6 @@ func (x *UpdateMessageResponse) ProtoReflect() protoreflect.Message {
 // Deprecated: Use UpdateMessageResponse.ProtoReflect.Descriptor instead.
 func (*UpdateMessageResponse) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_messages_proto_rawDescGZIP(), []int{3}
-}
-
-func (x *UpdateMessageResponse) GetUpdated() bool {
-	if x != nil {
-		return x.Updated
-	}
-	return false
 }
 
 func (x *UpdateMessageResponse) GetMessage() *Message {
@@ -845,10 +836,9 @@ const file_chatto_api_v1_messages_proto_rawDesc = "" +
 	"\x04body\x18\x03 \x01(\tB\b\xbaH\x05r\x03\x18\x90NH\x00R\x04body\x88\x01\x01\x124\n" +
 	"\x14also_send_to_channel\x18\x04 \x01(\bH\x01R\x11alsoSendToChannel\x88\x01\x01B\a\n" +
 	"\x05_bodyB\x17\n" +
-	"\x15_also_send_to_channel\"s\n" +
-	"\x15UpdateMessageResponse\x12\x18\n" +
-	"\aupdated\x18\x01 \x01(\bR\aupdated\x120\n" +
-	"\amessage\x18\x02 \x01(\v2\x16.chatto.api.v1.MessageR\amessageJ\x04\b\x03\x10\x04R\bincludes\"\\\n" +
+	"\x15_also_send_to_channel\"h\n" +
+	"\x15UpdateMessageResponse\x120\n" +
+	"\amessage\x18\x02 \x01(\v2\x16.chatto.api.v1.MessageR\amessageJ\x04\b\x01\x10\x02J\x04\b\x03\x10\x04R\aupdatedR\bincludes\"\\\n" +
 	"\x14DeleteMessageRequest\x12 \n" +
 	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x12\"\n" +
 	"\bevent_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\aeventId\"1\n" +

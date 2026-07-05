@@ -54,9 +54,6 @@ const (
 	// MyAccountServiceStartExternalIdentityLinkProcedure is the fully-qualified name of the
 	// MyAccountService's StartExternalIdentityLink RPC.
 	MyAccountServiceStartExternalIdentityLinkProcedure = "/chatto.api.v1.MyAccountService/StartExternalIdentityLink"
-	// MyAccountServiceLinkExternalIdentityProcedure is the fully-qualified name of the
-	// MyAccountService's LinkExternalIdentity RPC.
-	MyAccountServiceLinkExternalIdentityProcedure = "/chatto.api.v1.MyAccountService/LinkExternalIdentity"
 	// MyAccountServiceDisconnectExternalIdentityProcedure is the fully-qualified name of the
 	// MyAccountService's DisconnectExternalIdentity RPC.
 	MyAccountServiceDisconnectExternalIdentityProcedure = "/chatto.api.v1.MyAccountService/DisconnectExternalIdentity"
@@ -93,10 +90,9 @@ type MyAccountServiceClient interface {
 	// authenticated account.
 	ListExternalIdentities(context.Context, *connect.Request[v1.ListExternalIdentitiesRequest]) (*connect.Response[v1.ListExternalIdentitiesResponse], error)
 	// Creates a short-lived browser handoff URL for linking a provider identity
-	// to the authenticated account.
+	// to the authenticated account. The provider callback completes through
+	// chatto.auth.v1.ExternalIdentityAuthService.ConfirmExternalIdentityLink.
 	StartExternalIdentityLink(context.Context, *connect.Request[v1.StartExternalIdentityLinkRequest]) (*connect.Response[v1.StartExternalIdentityLinkResponse], error)
-	// Links a pending provider identity to the authenticated account.
-	LinkExternalIdentity(context.Context, *connect.Request[v1.LinkExternalIdentityRequest]) (*connect.Response[v1.LinkExternalIdentityResponse], error)
 	// Disconnects a provider identity from the authenticated account.
 	DisconnectExternalIdentity(context.Context, *connect.Request[v1.DisconnectExternalIdentityRequest]) (*connect.Response[v1.DisconnectExternalIdentityResponse], error)
 	// Updates the current user's live presence status. This state is transient:
@@ -168,12 +164,6 @@ func NewMyAccountServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			connect.WithSchema(myAccountServiceMethods.ByName("StartExternalIdentityLink")),
 			connect.WithClientOptions(opts...),
 		),
-		linkExternalIdentity: connect.NewClient[v1.LinkExternalIdentityRequest, v1.LinkExternalIdentityResponse](
-			httpClient,
-			baseURL+MyAccountServiceLinkExternalIdentityProcedure,
-			connect.WithSchema(myAccountServiceMethods.ByName("LinkExternalIdentity")),
-			connect.WithClientOptions(opts...),
-		),
 		disconnectExternalIdentity: connect.NewClient[v1.DisconnectExternalIdentityRequest, v1.DisconnectExternalIdentityResponse](
 			httpClient,
 			baseURL+MyAccountServiceDisconnectExternalIdentityProcedure,
@@ -222,7 +212,6 @@ type myAccountServiceClient struct {
 	updateSettings             *connect.Client[v1.UpdateSettingsRequest, v1.UpdateSettingsResponse]
 	listExternalIdentities     *connect.Client[v1.ListExternalIdentitiesRequest, v1.ListExternalIdentitiesResponse]
 	startExternalIdentityLink  *connect.Client[v1.StartExternalIdentityLinkRequest, v1.StartExternalIdentityLinkResponse]
-	linkExternalIdentity       *connect.Client[v1.LinkExternalIdentityRequest, v1.LinkExternalIdentityResponse]
 	disconnectExternalIdentity *connect.Client[v1.DisconnectExternalIdentityRequest, v1.DisconnectExternalIdentityResponse]
 	updatePresence             *connect.Client[v1.UpdatePresenceRequest, v1.UpdatePresenceResponse]
 	updateCustomStatus         *connect.Client[v1.UpdateCustomStatusRequest, v1.UpdateCustomStatusResponse]
@@ -264,11 +253,6 @@ func (c *myAccountServiceClient) ListExternalIdentities(ctx context.Context, req
 // StartExternalIdentityLink calls chatto.api.v1.MyAccountService.StartExternalIdentityLink.
 func (c *myAccountServiceClient) StartExternalIdentityLink(ctx context.Context, req *connect.Request[v1.StartExternalIdentityLinkRequest]) (*connect.Response[v1.StartExternalIdentityLinkResponse], error) {
 	return c.startExternalIdentityLink.CallUnary(ctx, req)
-}
-
-// LinkExternalIdentity calls chatto.api.v1.MyAccountService.LinkExternalIdentity.
-func (c *myAccountServiceClient) LinkExternalIdentity(ctx context.Context, req *connect.Request[v1.LinkExternalIdentityRequest]) (*connect.Response[v1.LinkExternalIdentityResponse], error) {
-	return c.linkExternalIdentity.CallUnary(ctx, req)
 }
 
 // DisconnectExternalIdentity calls chatto.api.v1.MyAccountService.DisconnectExternalIdentity.
@@ -317,10 +301,9 @@ type MyAccountServiceHandler interface {
 	// authenticated account.
 	ListExternalIdentities(context.Context, *connect.Request[v1.ListExternalIdentitiesRequest]) (*connect.Response[v1.ListExternalIdentitiesResponse], error)
 	// Creates a short-lived browser handoff URL for linking a provider identity
-	// to the authenticated account.
+	// to the authenticated account. The provider callback completes through
+	// chatto.auth.v1.ExternalIdentityAuthService.ConfirmExternalIdentityLink.
 	StartExternalIdentityLink(context.Context, *connect.Request[v1.StartExternalIdentityLinkRequest]) (*connect.Response[v1.StartExternalIdentityLinkResponse], error)
-	// Links a pending provider identity to the authenticated account.
-	LinkExternalIdentity(context.Context, *connect.Request[v1.LinkExternalIdentityRequest]) (*connect.Response[v1.LinkExternalIdentityResponse], error)
 	// Disconnects a provider identity from the authenticated account.
 	DisconnectExternalIdentity(context.Context, *connect.Request[v1.DisconnectExternalIdentityRequest]) (*connect.Response[v1.DisconnectExternalIdentityResponse], error)
 	// Updates the current user's live presence status. This state is transient:
@@ -388,12 +371,6 @@ func NewMyAccountServiceHandler(svc MyAccountServiceHandler, opts ...connect.Han
 		connect.WithSchema(myAccountServiceMethods.ByName("StartExternalIdentityLink")),
 		connect.WithHandlerOptions(opts...),
 	)
-	myAccountServiceLinkExternalIdentityHandler := connect.NewUnaryHandler(
-		MyAccountServiceLinkExternalIdentityProcedure,
-		svc.LinkExternalIdentity,
-		connect.WithSchema(myAccountServiceMethods.ByName("LinkExternalIdentity")),
-		connect.WithHandlerOptions(opts...),
-	)
 	myAccountServiceDisconnectExternalIdentityHandler := connect.NewUnaryHandler(
 		MyAccountServiceDisconnectExternalIdentityProcedure,
 		svc.DisconnectExternalIdentity,
@@ -446,8 +423,6 @@ func NewMyAccountServiceHandler(svc MyAccountServiceHandler, opts ...connect.Han
 			myAccountServiceListExternalIdentitiesHandler.ServeHTTP(w, r)
 		case MyAccountServiceStartExternalIdentityLinkProcedure:
 			myAccountServiceStartExternalIdentityLinkHandler.ServeHTTP(w, r)
-		case MyAccountServiceLinkExternalIdentityProcedure:
-			myAccountServiceLinkExternalIdentityHandler.ServeHTTP(w, r)
 		case MyAccountServiceDisconnectExternalIdentityProcedure:
 			myAccountServiceDisconnectExternalIdentityHandler.ServeHTTP(w, r)
 		case MyAccountServiceUpdatePresenceProcedure:
@@ -495,10 +470,6 @@ func (UnimplementedMyAccountServiceHandler) ListExternalIdentities(context.Conte
 
 func (UnimplementedMyAccountServiceHandler) StartExternalIdentityLink(context.Context, *connect.Request[v1.StartExternalIdentityLinkRequest]) (*connect.Response[v1.StartExternalIdentityLinkResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.MyAccountService.StartExternalIdentityLink is not implemented"))
-}
-
-func (UnimplementedMyAccountServiceHandler) LinkExternalIdentity(context.Context, *connect.Request[v1.LinkExternalIdentityRequest]) (*connect.Response[v1.LinkExternalIdentityResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.MyAccountService.LinkExternalIdentity is not implemented"))
 }
 
 func (UnimplementedMyAccountServiceHandler) DisconnectExternalIdentity(context.Context, *connect.Request[v1.DisconnectExternalIdentityRequest]) (*connect.Response[v1.DisconnectExternalIdentityResponse], error) {

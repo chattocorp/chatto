@@ -71,13 +71,14 @@ message UpdateMessageRequest {
 
 // Result of editing a message.
 message UpdateMessageResponse {
+  reserved 1;
+  reserved "updated";
+
   // Field 3 was `includes`, used before update responses were narrowed to the
   // edited message.
   reserved 3;
   reserved "includes";
 
-  // True when the edit was accepted.
-  bool updated = 1;
   // Renderable message after the edit.
   Message message = 2;
 }

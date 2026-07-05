@@ -40,11 +40,21 @@ interface ServerDiscoveryResponse {
 }
 
 interface AssignRoleResponse {
-  assigned?: boolean;
+  member?: {
+    roles?: string[];
+    user?: {
+      id?: string;
+    };
+  };
 }
 
 interface RevokeRoleResponse {
-  revoked?: boolean;
+  member?: {
+    roles?: string[];
+    user?: {
+      id?: string;
+    };
+  };
 }
 
 async function setServerRolePermission(
@@ -67,7 +77,8 @@ async function assignRoleViaConnect(page: Page, userId: string, roleName: string
     'chatto.admin.v1.AdminUserService/AssignRole',
     { userId, roleName }
   );
-  expect(data.assigned).toBe(true);
+  expect(data.member?.user?.id).toBe(userId);
+  expect(data.member?.roles ?? []).toContain(roleName);
 }
 
 async function revokeRoleViaConnect(page: Page, userId: string, roleName: string): Promise<void> {
@@ -76,7 +87,8 @@ async function revokeRoleViaConnect(page: Page, userId: string, roleName: string
     'chatto.admin.v1.AdminUserService/RevokeRole',
     { userId, roleName }
   );
-  expect(data.revoked).toBe(true);
+  expect(data.member?.user?.id).toBe(userId);
+  expect(data.member?.roles ?? []).not.toContain(roleName);
 }
 
 /**

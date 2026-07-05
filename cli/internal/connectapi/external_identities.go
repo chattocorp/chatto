@@ -137,27 +137,6 @@ func (s *accountService) StartExternalIdentityLink(ctx context.Context, req *con
 	}), nil
 }
 
-func (s *accountService) LinkExternalIdentity(ctx context.Context, req *connect.Request[apiv1.LinkExternalIdentityRequest]) (*connect.Response[apiv1.LinkExternalIdentityResponse], error) {
-	caller, err := requireCaller(ctx)
-	if err != nil {
-		return nil, err
-	}
-	flow, err := s.api.core.GetPendingExternalIdentityLinkFlow(ctx, req.Msg.GetToken(), caller.UserID)
-	if err != nil {
-		return nil, connectError(err)
-	}
-	identity, err := s.api.core.LinkPendingExternalIdentity(ctx, caller.UserID, flow)
-	if err != nil {
-		return nil, connectError(err)
-	}
-	if err := s.api.core.DeletePendingExternalIdentityFlow(ctx, req.Msg.GetToken()); err != nil {
-		return nil, connectError(err)
-	}
-	return connect.NewResponse(&apiv1.LinkExternalIdentityResponse{
-		LinkedIdentity: apiLinkedExternalIdentity(identity, s.api.providerLabels()),
-	}), nil
-}
-
 func (s *accountService) DisconnectExternalIdentity(ctx context.Context, req *connect.Request[apiv1.DisconnectExternalIdentityRequest]) (*connect.Response[apiv1.DisconnectExternalIdentityResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {

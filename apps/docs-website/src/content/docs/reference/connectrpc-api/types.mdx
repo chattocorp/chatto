@@ -1077,31 +1077,6 @@ admin/member metadata with visibility controlled by the service.
 | `last_login_change` | `google.protobuf.Timestamp` | Last self-service username change, when visible and known. |
 | `user` | `chatto.api.v1.User` | Public identity fields for this user. |
 
-<a id="chatto-admin-v1-AdminMemberRole"></a>
-
-### AdminMemberRole
-
-Operator compatibility role details used by operator.v1 response shapes.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `name` | `string` | Stable role name. |
-| `display_name` | `string` | Display name shown in operator UI. |
-| `position` | `int32` | Display/order position. |
-| `permissions` | `repeated string` | Permissions granted by this role. |
-| `permission_denials` | `repeated string` | Permissions denied by this role. |
-
-<a id="chatto-admin-v1-AdminRoleReference"></a>
-
-### AdminRoleReference
-
-Operator compatibility role reference used by operator.v1 response shapes.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `name` | `string` | Stable role name. |
-| `display_name` | `string` | Display name shown in operator UI. |
-
 <a id="chatto-admin-v1-PermissionDecisionUpdate"></a>
 
 ### PermissionDecisionUpdate
@@ -1196,6 +1171,9 @@ Permission matrix for one role across all scopes.
 ### ScopedPermissionDecision
 
 One resource-oriented permission decision at a concrete scope.
+
+This is the row-oriented counterpart to PermissionMatrixCell. Prefer this
+shape when building integrations that do not need matrix column joins.
 
 | Field | Type | Description |
 | --- | --- | --- |

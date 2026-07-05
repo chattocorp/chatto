@@ -592,14 +592,11 @@ func TestExternalIdentityFlowsAndAccountManagement(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreatePendingExternalIdentityLinkFlow: %v", err)
 	}
-	_, err = env.account.LinkExternalIdentity(createdCtx, connect.NewRequest(&apiv1.LinkExternalIdentityRequest{Token: linkToken}))
-	requireConnectCode(t, err, connect.CodeInvalidArgument)
-
-	linked, err := env.account.LinkExternalIdentity(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.LinkExternalIdentityRequest{
+	linked, err := env.externalAuth.ConfirmExternalIdentityLink(env.ctx, connect.NewRequest(&authv1.ConfirmExternalIdentityLinkRequest{
 		Token: linkToken,
 	}))
 	if err != nil {
-		t.Fatalf("LinkExternalIdentity: %v", err)
+		t.Fatalf("ConfirmExternalIdentityLink: %v", err)
 	}
 	if linked.Msg.LinkedIdentity.GetProviderId() != "discord-main" || linked.Msg.LinkedIdentity.GetSubjectHash() == "" {
 		t.Fatalf("linked identity = %+v", linked.Msg.LinkedIdentity)
@@ -645,24 +642,6 @@ func TestExternalIdentityFlowsAndAccountManagement(t *testing.T) {
 		t.Fatalf("pending link flow after confirmation error = %v, want ErrExternalIdentityFlowNotFound", err)
 	}
 
-	publicLinkToken, err := env.core.CreatePendingExternalIdentityLinkFlow(env.ctx, core.PendingExternalIdentityFlow{
-		ProviderID:   "gitlab-main",
-		ProviderType: config.AuthProviderTypeGitLab,
-		Issuer:       "gitlab-main",
-		Subject:      "gitlab-123",
-	}, env.viewer.Id)
-	if err != nil {
-		t.Fatalf("CreatePendingExternalIdentityLinkFlow public: %v", err)
-	}
-	publicLinked, err := env.externalAuth.ConfirmExternalIdentityLink(env.ctx, connect.NewRequest(&authv1.ConfirmExternalIdentityLinkRequest{
-		Token: publicLinkToken,
-	}))
-	if err != nil {
-		t.Fatalf("ConfirmExternalIdentityLink: %v", err)
-	}
-	if publicLinked.Msg.LinkedIdentity.GetProviderId() != "gitlab-main" {
-		t.Fatalf("public linked identity = %+v", publicLinked.Msg.LinkedIdentity)
-	}
 }
 
 func TestExternalIdentityCreateDisplayName(t *testing.T) {
@@ -2474,7 +2453,7 @@ func TestAdminUserServiceAssignsAndRevokesRoles(t *testing.T) {
 	if err != nil {
 		t.Fatalf("role.assign-only AssignRole: %v", err)
 	}
-	if !roleAssignerResp.Msg.GetAssigned() || !stringSliceContains(roleAssignerResp.Msg.GetMember().GetRoles(), core.RoleModerator) {
+	if !stringSliceContains(roleAssignerResp.Msg.GetMember().GetRoles(), core.RoleModerator) {
 		t.Fatalf("role.assign-only AssignRole response = %+v, want assigned moderator", roleAssignerResp.Msg)
 	}
 	roleAssignerRevokeResp, err := env.adminUsers.RevokeRole(roleAssignerCtx, connect.NewRequest(&adminv1.RevokeRoleRequest{
@@ -2484,7 +2463,7 @@ func TestAdminUserServiceAssignsAndRevokesRoles(t *testing.T) {
 	if err != nil {
 		t.Fatalf("role.assign-only RevokeRole: %v", err)
 	}
-	if !roleAssignerRevokeResp.Msg.GetRevoked() || stringSliceContains(roleAssignerRevokeResp.Msg.GetMember().GetRoles(), core.RoleModerator) {
+	if stringSliceContains(roleAssignerRevokeResp.Msg.GetMember().GetRoles(), core.RoleModerator) {
 		t.Fatalf("role.assign-only RevokeRole response = %+v, want revoked moderator", roleAssignerRevokeResp.Msg)
 	}
 
@@ -2495,8 +2474,8 @@ func TestAdminUserServiceAssignsAndRevokesRoles(t *testing.T) {
 	if err != nil {
 		t.Fatalf("AssignRole: %v", err)
 	}
-	if !assignResp.Msg.GetAssigned() {
-		t.Fatal("Assigned = false, want true")
+	if !stringSliceContains(assignResp.Msg.GetMember().GetRoles(), core.RoleModerator) {
+		t.Fatalf("AssignRole response = %+v, want assigned moderator", assignResp.Msg)
 	}
 	roles, err := env.core.GetUserRoles(env.ctx, target.Id)
 	if err != nil {
@@ -2513,8 +2492,8 @@ func TestAdminUserServiceAssignsAndRevokesRoles(t *testing.T) {
 	if err != nil {
 		t.Fatalf("RevokeRole: %v", err)
 	}
-	if !revokeResp.Msg.GetRevoked() {
-		t.Fatal("Revoked = false, want true")
+	if stringSliceContains(revokeResp.Msg.GetMember().GetRoles(), core.RoleModerator) {
+		t.Fatalf("RevokeRole response = %+v, want revoked moderator", revokeResp.Msg)
 	}
 	roles, err = env.core.GetUserRoles(env.ctx, target.Id)
 	if err != nil {
@@ -5454,7 +5433,7 @@ func TestMessageServiceUpdateMessageAuthorAndRBAC(t *testing.T) {
 	if err != nil {
 		t.Fatalf("author UpdateMessage: %v", err)
 	}
-	if !authorResp.Msg.GetUpdated() || authorResp.Msg.GetMessage().GetBody() != "author edit" {
+	if authorResp.Msg.GetMessage().GetBody() != "author edit" {
 		t.Fatalf("author UpdateMessage response = %+v, want hydrated edited event", authorResp.Msg)
 	}
 	if body, err := env.core.GetMessageBody(env.ctx, core.KindChannel, original.Id); err != nil || body != "author edit" {

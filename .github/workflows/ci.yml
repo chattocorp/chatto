@@ -48,6 +48,7 @@ jobs:
             --exclude-imports \
             --exclude-path chatto/api/v1 \
             --exclude-path chatto/admin/v1 \
+            --exclude-path chatto/operator/v1 \
             --exclude-path chatto/realtime/v1
 
       - name: Check public API protobuf breaking changes
@@ -58,6 +59,7 @@ jobs:
           mise x -- buf breaking . --against "../.git#branch=origin/${base_ref},subdir=proto" \
             --path chatto/api/v1 \
             --path chatto/admin/v1 \
+            --path chatto/operator/v1 \
             --path chatto/realtime/v1
 
       - name: Acknowledge intentional public API protobuf breaking changes

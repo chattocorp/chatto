@@ -235,6 +235,39 @@ function rewriteRealtimeExternalLinks(section) {
   );
 }
 
+function dedupeInlineMethodTypes(content) {
+  const pattern = /<a id="([^"]+)"><\/a>\n\n(#{1,6}) ([^\n]+)\n/g;
+  const matches = [...content.matchAll(pattern)];
+  const seenInlineTypeAnchors = new Set();
+  let output = '';
+  let cursor = 0;
+
+  for (let i = 0; i < matches.length; i += 1) {
+    const match = matches[i];
+    const start = match.index;
+    const end = matches[i + 1]?.index ?? content.length;
+    const anchor = match[1];
+    const headingLevel = match[2];
+    const title = match[3];
+    const inlineTypeMatch = title.match(/^(Input|Result): (.+)$/);
+
+    output += content.slice(cursor, start);
+    if (headingLevel === '####' && inlineTypeMatch && seenInlineTypeAnchors.has(anchor)) {
+      const [, kind, typeName] = inlineTypeMatch;
+      output += `#### ${kind}: [${typeName}](#${anchor})\n\nUses the same ${kind.toLowerCase()} shape documented above.\n\n`;
+    } else {
+      output += content.slice(start, end);
+      if (headingLevel === '####' && inlineTypeMatch) {
+        seenInlineTypeAnchors.add(anchor);
+      }
+    }
+    cursor = end;
+  }
+
+  output += content.slice(cursor);
+  return output;
+}
+
 function isRealtimeType(name) {
   return name.startsWith('Realtime');
 }
@@ -467,12 +500,15 @@ function renderLanding() {
 }
 
 function renderServicePage(service, serviceSections) {
+  const serviceContent = dedupeInlineMethodTypes(
+    rewriteServiceTypeLinks(serviceSections.get(service.name).content)
+  );
   const body = [
     `Chatto exposes this service below \`/api/connect\`.`,
     '',
     'Shared message and enum definitions are documented in [Shared Types And Enums](/reference/connectrpc-api/types/).',
     '',
-    rewriteServiceTypeLinks(serviceSections.get(service.name).content)
+    serviceContent
   ];
   return renderPage(service.name, service.description, body.join('\n\n'));
 }
@@ -537,6 +573,20 @@ function collectAnchors(content) {
   return new Set([...content.matchAll(/<a id="([^"]+)"><\/a>/g)].map((match) => match[1]));
 }
 
+function collectDuplicateAnchors(content) {
+  const seen = new Set();
+  const duplicates = new Set();
+  for (const match of content.matchAll(/<a id="([^"]+)"><\/a>/g)) {
+    const anchor = match[1];
+    if (seen.has(anchor)) {
+      duplicates.add(anchor);
+    } else {
+      seen.add(anchor);
+    }
+  }
+  return duplicates;
+}
+
 function collectLocalLinks(content) {
   return [...content.matchAll(/\]\(#([^)]+)\)/g)].map((match) => match[1]);
 }
@@ -552,6 +602,9 @@ function validateGeneratedPages(pages) {
   const problems = [];
   for (const [filename, content] of pages.entries()) {
     const anchors = collectAnchors(content);
+    for (const anchor of collectDuplicateAnchors(content)) {
+      problems.push(`${filename} contains duplicate local anchor #${anchor}`);
+    }
     for (const anchor of collectLocalLinks(content)) {
       if (!anchors.has(anchor)) {
         problems.push(`${filename} links to missing local anchor #${anchor}`);

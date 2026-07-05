@@ -61,18 +61,6 @@ message StartExternalIdentityLinkResponse {
   string start_url = 1;
 }
 
-// Request to link a pending provider identity to the authenticated user.
-message LinkExternalIdentityRequest {
-  // Raw pending link token from the provider callback redirect.
-  string token = 1 [(buf.validate.field).string.min_len = 1];
-}
-
-// Result of linking a provider identity.
-message LinkExternalIdentityResponse {
-  // Linked identity metadata.
-  LinkedExternalIdentity linked_identity = 1;
-}
-
 // Request to disconnect a linked provider identity from the authenticated user.
 message DisconnectExternalIdentityRequest {
   // Stable one-way subject hash of the linked identity to disconnect.

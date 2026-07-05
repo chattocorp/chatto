@@ -26,8 +26,8 @@ message NotificationPreference {
   NotificationLevel effective_level = 2;
 }
 
-// Current notification preference for a room.
-message GetRoomNotificationPreferenceResponse {
+// Current notification preference.
+message GetNotificationPreferenceResponse {
   // Field 1 was `level` and field 2 was `effective_level` before the shared
   // NotificationPreference shape.
   reserved 1, 2;
@@ -37,30 +37,8 @@ message GetRoomNotificationPreferenceResponse {
   NotificationPreference preference = 3;
 }
 
-// Updated notification preference for a room.
-message UpdateRoomNotificationPreferenceResponse {
-  // Field 1 was `level` and field 2 was `effective_level` before the shared
-  // NotificationPreference shape.
-  reserved 1, 2;
-  reserved "level", "effective_level";
-
-  // Stored and effective notification preference after the update.
-  NotificationPreference preference = 3;
-}
-
-// Current server-level notification preference.
-message GetServerNotificationPreferenceResponse {
-  // Field 1 was `level` and field 2 was `effective_level` before the shared
-  // NotificationPreference shape.
-  reserved 1, 2;
-  reserved "level", "effective_level";
-
-  // Current stored and effective notification preference.
-  NotificationPreference preference = 3;
-}
-
-// Updated server-level notification preference.
-message UpdateServerNotificationPreferenceResponse {
+// Updated notification preference.
+message UpdateNotificationPreferenceResponse {
   // Field 1 was `level` and field 2 was `effective_level` before the shared
   // NotificationPreference shape.
   reserved 1, 2;
@@ -104,17 +82,17 @@ message UpdateRoomNotificationPreferenceRequest {
 // Reads and updates per-room notification preferences for the current user.
 service NotificationPreferencesService {
   // Returns the current user's explicit and effective server notification level.
-  rpc GetServerNotificationPreference(GetServerNotificationPreferenceRequest) returns (GetServerNotificationPreferenceResponse);
+  rpc GetServerNotificationPreference(GetServerNotificationPreferenceRequest) returns (GetNotificationPreferenceResponse);
   // Updates the current user's explicit server notification level and returns the
   // resulting stored and effective levels.
-  rpc UpdateServerNotificationPreference(UpdateServerNotificationPreferenceRequest) returns (UpdateServerNotificationPreferenceResponse);
+  rpc UpdateServerNotificationPreference(UpdateServerNotificationPreferenceRequest) returns (UpdateNotificationPreferenceResponse);
   // Returns the current user's explicit and effective notification level for a
   // room. Use this before rendering room notification controls so the UI can
   // distinguish inherited defaults from an explicit room override. Returns
   // NOT_FOUND when the room does not exist and PERMISSION_DENIED when the room
   // exists but is inaccessible to the caller.
-  rpc GetRoomNotificationPreference(GetRoomNotificationPreferenceRequest) returns (GetRoomNotificationPreferenceResponse);
+  rpc GetRoomNotificationPreference(GetRoomNotificationPreferenceRequest) returns (GetNotificationPreferenceResponse);
   // Updates the current user's explicit notification level for a room and returns
   // the resulting stored and effective levels.
-  rpc UpdateRoomNotificationPreference(UpdateRoomNotificationPreferenceRequest) returns (UpdateRoomNotificationPreferenceResponse);
+  rpc UpdateRoomNotificationPreference(UpdateRoomNotificationPreferenceRequest) returns (UpdateNotificationPreferenceResponse);
 }

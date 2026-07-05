@@ -260,13 +260,6 @@ test.describe('External identity confirmation flows', () => {
         }
       );
     });
-    await page.route(
-      '**/api/connect/chatto.api.v1.MyAccountService/LinkExternalIdentity',
-      async (route) => {
-        throw new Error(`unexpected authenticated link RPC: ${route.request().url()}`);
-      }
-    );
-
     await page.goto(flow.confirmUrl);
     await page.getByRole('button', { name: 'Link Account' }).click();
     await confirmRequestStarted;

@@ -129,15 +129,6 @@ export function createExternalIdentityAPI(config: ExternalIdentityAPIConfig) {
       }
     },
 
-    async link(token: string): Promise<LinkedExternalIdentityInfo | null> {
-      try {
-        const response = await client.linkExternalIdentity({ token }, { headers: headers() });
-        return linkedIdentity(response.linkedIdentity);
-      } catch (err) {
-        return handleAuthError(config, err);
-      }
-    },
-
     async disconnect(subjectHash: string, currentPassword?: string): Promise<void> {
       try {
         await client.disconnectExternalIdentity(

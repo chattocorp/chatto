@@ -279,7 +279,6 @@ describe('createMessageAPI', () => {
   it('updates a message through MessageService', async () => {
     mocks.updateMessage.mockResolvedValue(
       new UpdateMessageResponse({
-        updated: true,
         message: new Message({
           id: 'event-1',
           actorId: 'user-1',
@@ -339,7 +338,7 @@ describe('createMessageAPI', () => {
   });
 
   it('can patch message echo state without sending a body', async () => {
-    mocks.updateMessage.mockResolvedValue(new UpdateMessageResponse({ updated: true }));
+    mocks.updateMessage.mockResolvedValue(new UpdateMessageResponse());
 
     const api = createMessageAPI({
       baseUrl: 'https://remote.example.test/api/connect',
