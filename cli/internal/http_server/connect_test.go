@@ -910,11 +910,11 @@ func TestConnectNotificationPreferencesService(t *testing.T) {
 		if err != nil {
 			t.Fatalf("UpdateRoomNotificationPreference: %v", err)
 		}
-		if resp.Msg.Level != apiv1.NotificationLevel_NOTIFICATION_LEVEL_MUTED {
-			t.Fatalf("Level = %v, want muted", resp.Msg.Level)
+		if resp.Msg.GetPreference().GetLevel() != apiv1.NotificationLevel_NOTIFICATION_LEVEL_MUTED {
+			t.Fatalf("Level = %v, want muted", resp.Msg.GetPreference().GetLevel())
 		}
-		if resp.Msg.EffectiveLevel != apiv1.NotificationLevel_NOTIFICATION_LEVEL_MUTED {
-			t.Fatalf("EffectiveLevel = %v, want muted", resp.Msg.EffectiveLevel)
+		if resp.Msg.GetPreference().GetEffectiveLevel() != apiv1.NotificationLevel_NOTIFICATION_LEVEL_MUTED {
+			t.Fatalf("EffectiveLevel = %v, want muted", resp.Msg.GetPreference().GetEffectiveLevel())
 		}
 
 		getReq := connect.NewRequest(&apiv1.GetRoomNotificationPreferenceRequest{
@@ -925,11 +925,11 @@ func TestConnectNotificationPreferencesService(t *testing.T) {
 		if err != nil {
 			t.Fatalf("GetRoomNotificationPreference: %v", err)
 		}
-		if getResp.Msg.Level != apiv1.NotificationLevel_NOTIFICATION_LEVEL_MUTED {
-			t.Fatalf("Get level = %v, want muted", getResp.Msg.Level)
+		if getResp.Msg.GetPreference().GetLevel() != apiv1.NotificationLevel_NOTIFICATION_LEVEL_MUTED {
+			t.Fatalf("Get level = %v, want muted", getResp.Msg.GetPreference().GetLevel())
 		}
-		if getResp.Msg.EffectiveLevel != apiv1.NotificationLevel_NOTIFICATION_LEVEL_MUTED {
-			t.Fatalf("Get effective level = %v, want muted", getResp.Msg.EffectiveLevel)
+		if getResp.Msg.GetPreference().GetEffectiveLevel() != apiv1.NotificationLevel_NOTIFICATION_LEVEL_MUTED {
+			t.Fatalf("Get effective level = %v, want muted", getResp.Msg.GetPreference().GetEffectiveLevel())
 		}
 
 		got, err := s.core.GetRoomNotificationLevel(ctx, member.Id, room.Id)
