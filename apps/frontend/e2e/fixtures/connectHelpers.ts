@@ -57,8 +57,10 @@ export interface E2ENotificationPreference {
 }
 
 interface NotificationPreferenceResponse {
-  level?: unknown;
-  effectiveLevel?: unknown;
+  preference?: {
+    level?: unknown;
+    effectiveLevel?: unknown;
+  };
 }
 
 interface ListRoomsResponse {
@@ -419,9 +421,13 @@ export async function updateRoomNotificationPreference(
 function normalizeNotificationPreference(
   data: NotificationPreferenceResponse
 ): E2ENotificationPreference {
+  if (!data.preference) {
+    throw new Error('Notification preference response did not include preference metadata');
+  }
+
   return {
-    level: normalizeNotificationLevel(data.level),
-    effectiveLevel: normalizeNotificationLevel(data.effectiveLevel)
+    level: normalizeNotificationLevel(data.preference.level),
+    effectiveLevel: normalizeNotificationLevel(data.preference.effectiveLevel)
   };
 }
 
