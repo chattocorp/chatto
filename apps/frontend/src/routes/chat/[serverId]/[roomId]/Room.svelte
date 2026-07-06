@@ -15,7 +15,7 @@
     usePresenceChange,
     createTypingIndicator
   } from '$lib/hooks';
-  import { appState } from '$lib/state/globals.svelte';
+  import { appState, sidebarNav } from '$lib/state/globals.svelte';
   import * as m from '$lib/i18n/messages';
   import {
     createComposerContext,
@@ -487,7 +487,8 @@
 
     if (!threadId || e.button !== 0) return;
     const target = e.target as HTMLElement;
-    if (target.closest('[data-testid="thread-pane"], [data-app-sidebar], dialog')) return;
+    if (target.closest('[data-testid="thread-pane"], dialog')) return;
+    if (sidebarNav.isMobile && target.closest('[data-app-sidebar]')) return;
     closeThread();
   }}
 />
