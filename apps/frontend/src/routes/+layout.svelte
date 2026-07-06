@@ -1,5 +1,6 @@
 <script lang="ts">
   import { afterNavigate, goto } from '$app/navigation';
+  import { resolve } from '$app/paths';
   import { page } from '$app/state';
   import * as m from '$lib/i18n/messages';
   import { onNotificationClick } from '$lib/notifications/pushNotifications';
@@ -56,7 +57,7 @@
         const target = new URL(url);
         if (target.origin !== window.location.origin) return;
         prepareUiForNotificationPath(appUi, target.pathname);
-        return goto(target.pathname + target.search + target.hash);
+        return goto(resolve((target.pathname + target.search + target.hash) as '/'));
       } catch {
         // Ignore malformed URLs from the SW.
       }
