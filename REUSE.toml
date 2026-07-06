@@ -18,6 +18,7 @@ path = [
   "docker/Dockerfile.frontend.prebuilt",
   "docker/Dockerfile.frontend.prebuilt.dockerignore",
   "examples/**",
+  "LICENSING.md",
   "packages/api-types/**",
   "README.md",
   "SECURITY.md",
@@ -35,3 +36,8 @@ path = [
 ]
 SPDX-FileCopyrightText = "2026 ChattoCorp GmbH"
 SPDX-License-Identifier = "Apache-2.0"
+
+[[annotations]]
+path = "LICENSE"
+SPDX-FileCopyrightText = "2007 Free Software Foundation, Inc."
+SPDX-License-Identifier = "AGPL-3.0-or-later"

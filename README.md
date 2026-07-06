@@ -16,12 +16,10 @@ A really good chat application for teams and communities, free and easy to self-
 
 ## License
 
-Chatto is licensed under `AGPL-3.0-or-later` by default. Apache-2.0 exceptions
-cover the standalone frontend source and image, public protocol/API
-definitions, generated TypeScript API client/types, documentation, and
-deployment examples where annotated in [REUSE.toml](REUSE.toml). Full license
-texts live in [LICENSES/](LICENSES/), and the top-level [LICENSE](LICENSE)
-file explains the repository boundary.
+Chatto is licensed under `AGPL-3.0-or-later` by default, with Apache-2.0
+exceptions for the standalone frontend, integration surfaces, documentation,
+and examples. See [LICENSING.md](LICENSING.md) and [REUSE.toml](REUSE.toml)
+for the exact boundary.
 
 The project licenses do not grant permission to use Chatto names or logos as
 official branding for a fork or modified version; see [NOTICE](NOTICE).
