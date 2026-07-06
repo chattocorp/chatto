@@ -22,14 +22,8 @@ path-specific guidance.
 ## Project Status
 
 - Chatto is public, self-hosted, and has real user data.
-- The project is pre-1.0, so breaking changes can be acceptable, but storage,
-  protobuf, discovery, and client compatibility still need an explicit plan.
-- Some self-hosters track `:latest`; assume mixed deployed versions can exist.
-- The ConnectRPC API is still settling. Prefer making `chatto.api.v1` a clean,
-  broad base API and `chatto.admin.v1` a clearly administrative public API,
-  with explicit compatibility notes over moving ordinary frontend-used features
-  into an app-only namespace.
-- As long as we haven't released 0.4.0, breaking changes to the ConnectRPC are not only okay, but even encouraged (if they are for cleanup/DRY/etc.) - after we've released 0.4.0, we'll want to be more careful.
+- The project is pre-1.0, but people are already self-hosting Chatto, so we want to avoid breaking changes where possible. For new API surface, prefer new protobuf fields on existing protobuf types, then new protobuf types. Only implement _breaking_ API changes if absolutely necessary, but discuss this with the user first. Changes to the `core` protobuf messages (used by our persistence layer) must never be breaking.
+- Assume that mixed versions are in use in the wider ecosystem; but self-hosters have been advised to track `:latest`, or upgrade to newly released versions quickly.
 
 ## Prime Directives
 
