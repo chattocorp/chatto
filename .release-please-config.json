@@ -3,6 +3,7 @@
   "release-type": "simple",
   "bump-minor-pre-major": true,
   "bump-patch-for-minor-pre-major": false,
+  "always-update": true,
   "draft": true,
   "force-tag-creation": true,
   "include-component-in-tag": false,
