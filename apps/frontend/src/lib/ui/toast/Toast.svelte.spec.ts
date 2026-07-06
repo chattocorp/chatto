@@ -17,6 +17,12 @@ function actionButton(container: Element, label: string): HTMLButtonElement {
   return button;
 }
 
+function toastSection(container: Element): HTMLElement {
+  const section = container.querySelector('.menu-section') as HTMLElement | null;
+  if (!section) throw new Error('Toast menu section not found');
+  return section;
+}
+
 describe('Toast', () => {
   it.each([
     ['error', 'text-error'],
@@ -35,8 +41,8 @@ describe('Toast', () => {
     const icon = container.querySelector('.iconify');
     expect(icon).not.toBeNull();
     expect(icon?.classList.contains(color)).toBe(true);
-    expect(toastButton(container).classList.contains('bg-surface-100')).toBe(true);
-    expect(toastButton(container).classList.contains('border-text/10')).toBe(true);
+    expect(toastButton(container).classList.contains('menu')).toBe(true);
+    expect(toastSection(container).classList.contains('menu-section')).toBe(true);
   });
 
   it('renders message and compact action styling', async () => {
