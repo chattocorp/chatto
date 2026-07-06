@@ -202,6 +202,9 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
 - Same-tab message links stay in the right context.
 - Thread follow controls no longer show stale bell state.
 - Unread separators wait until you return to a room instead of appearing too early.
+- New-message separators stay anchored to the right event through focus changes, tab
+  resume, and late read-state updates.
+- Thread panes now use the same unread marker lifecycle as room timelines.
 
 ### Notifications and unread state
 
@@ -221,6 +224,8 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
 - Extreme image thumbnails crop predictably instead of distorting the media layout.
 - Scrollbars follow the selected display theme.
 - Asset proxy token handling is more defensive.
+- Protected media loads no longer depend on the service-worker asset proxy.
+- Markdown rendering now uses the frontend Trusted Types policy.
 
 ### API and operations
 
@@ -238,5 +243,5 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
 
 ## GitHub release
 
-The generated GitHub release will list every PR and commit once 0.4.0 is published:
+The generated GitHub release lists every PR and commit:
 [github.com/chattocorp/chatto/releases/tag/v0.4.0](https://github.com/chattocorp/chatto/releases/tag/v0.4.0)
