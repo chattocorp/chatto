@@ -13,7 +13,11 @@
   import IdleTracker from '$lib/components/IdleTracker.svelte';
   import UpdateNotifier from '$lib/components/UpdateNotifier.svelte';
   import { usePageTitle, usePinchZoomPrevention, useVisualViewport } from '$lib/hooks';
-  import { SIDEBAR_PANEL_WIDTH_PX, sidebarSwipe } from '$lib/hooks/useSidebarSwipe.svelte';
+  import {
+    SIDEBAR_PANEL_WIDTH_PX,
+    sidebarEdgeSwipe,
+    sidebarSwipe
+  } from '$lib/hooks/useSidebarSwipe.svelte';
   import { chatRoomIdFromRoute } from '$lib/navigation/chatRoomRoute';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { sidebarNav } from '$lib/state/globals.svelte';
@@ -103,11 +107,12 @@
           Edge gesture zone (swipe-to-open). `touch-action: none` is essential:
           without it, Chrome / iOS Safari fire pointercancel ~8px into a
           horizontal drag (text-selection / back-navigation gesture detection).
-          Hidden when sidebar is open (the backdrop takes over).
+          Hidden when sidebar is open (the backdrop takes over). Plain taps are
+          intentionally swallowed here; this target exists only to start swipes.
         -->
         {#if !sidebarNav.isOpen || dragging}
           <div
-            use:sidebarSwipe
+            use:sidebarEdgeSwipe
             class="fixed top-11 bottom-0 left-0 z-40 w-6 touch-none md:hidden"
             aria-hidden="true"
           ></div>
