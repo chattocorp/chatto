@@ -149,10 +149,10 @@ For ad-hoc tool invocations, use `mise x -- ...` rather than assuming `go`,
 - Files are AGPL-3.0-or-later by default unless `REUSE.toml`, an SPDX header,
   or an adjacent `.license` file says otherwise.
 - Apache-2.0 is reserved for explicit integration and documentation surfaces,
-  such as public protocol/API definitions, generated TypeScript API clients,
-  documentation, and examples.
-- The Chatto server, CLI, frontend application, and release artifacts should
-  stay AGPL-3.0-or-later unless the license boundary is deliberately changed.
+  such as the standalone frontend source and image, public protocol/API
+  definitions, generated TypeScript API clients, documentation, and examples.
+- The Chatto server, CLI, and bundled server release artifacts should stay
+  AGPL-3.0-or-later unless the license boundary is deliberately changed.
 
 ## Code Generation
 

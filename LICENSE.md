@@ -8,17 +8,18 @@ Unless a file declares another license through an SPDX header, adjacent
 `.license` file, or [REUSE.toml](REUSE.toml) annotation, files in this
 repository are licensed under the GNU Affero General Public License version 3
 or any later version (`AGPL-3.0-or-later`). This is the license for the core
-Chatto product, including the server, CLI, frontend application, and release
+Chatto server product, including the server, CLI, and bundled server release
 artifacts. The full AGPL-3.0-or-later text is available in
 [LICENSE-AGPL](LICENSE-AGPL) and
 [LICENSES/AGPL-3.0-or-later.txt](LICENSES/AGPL-3.0-or-later.txt).
 
-Apache-2.0 exceptions are reserved for interoperability and documentation
-surfaces where permissive reuse is intentional. These include public
-protocol/API definitions, the generated TypeScript API client/types package,
-the documentation website, documentation files, and deployment examples. The
-exact machine-readable boundary is in [REUSE.toml](REUSE.toml). The full
-Apache-2.0 text is available in [LICENSE-APACHE](LICENSE-APACHE) and
+Apache-2.0 exceptions are reserved for frontend, interoperability, and
+documentation surfaces where permissive reuse is intentional. These include the
+standalone frontend source and image, public protocol/API definitions, the
+generated TypeScript API client/types package, the documentation website,
+documentation files, and deployment examples. The exact machine-readable
+boundary is in [REUSE.toml](REUSE.toml). The full Apache-2.0 text is available
+in [LICENSE-APACHE](LICENSE-APACHE) and
 [LICENSES/Apache-2.0.txt](LICENSES/Apache-2.0.txt).
 
 The top-level [LICENSE](LICENSE) file is a mixed-license notice rather than a

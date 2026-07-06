@@ -22,12 +22,12 @@ Chatto is licensed under the
 few Apache-2.0 exceptions. This means:
 
 - You are free to use, modify, and distribute Chatto.
-- If you run a modified version of the AGPL-licensed Chatto app as a network
-  service, you must make the source code of your modifications available to
-  its users.
-- Public protocol/API definitions, generated TypeScript API client/types,
-  documentation, and deployment examples are Apache-2.0 where annotated in
-  [REUSE.toml](REUSE.toml).
+- If you run a modified version of the AGPL-licensed Chatto server/CLI as a
+  network service, you must make the source code of your modifications
+  available to its users.
+- The standalone frontend source and image, public protocol/API definitions,
+  generated TypeScript API client/types, documentation, and deployment examples
+  are Apache-2.0 where annotated in [REUSE.toml](REUSE.toml).
 
 For full details, see [LICENSE.md](LICENSE.md), [REUSE.toml](REUSE.toml), and
 the license texts in [LICENSE-AGPL](LICENSE-AGPL),

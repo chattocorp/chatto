@@ -11,9 +11,12 @@ SPDX-License-Identifier = "AGPL-3.0-or-later"
 [[annotations]]
 path = [
   "apps/docs-website/**",
+  "apps/frontend/**",
   "CHANGELOG.md",
   "CONTRIBUTING.md",
   "docs/**",
+  "docker/Dockerfile.frontend.prebuilt",
+  "docker/Dockerfile.frontend.prebuilt.dockerignore",
   "examples/**",
   "LICENSE.md",
   "packages/api-types/**",
