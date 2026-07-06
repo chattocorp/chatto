@@ -16,9 +16,5 @@ client/types, documentation, and examples as annotated in REUSE.toml.
 
 The full license texts are available in:
 
-- LICENSE-APACHE
-- LICENSE-AGPL
 - LICENSES/Apache-2.0.txt
 - LICENSES/AGPL-3.0-or-later.txt
-
-See LICENSE.md for a human-readable overview of the license boundary.
