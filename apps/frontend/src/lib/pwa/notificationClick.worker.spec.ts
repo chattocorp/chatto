@@ -26,7 +26,7 @@ function clientsWith(matches: NotificationClickClient[]) {
 }
 
 describe('routeNotificationClick', () => {
-  it('uses acknowledged SPA routing, then focuses the window without navigating', async () => {
+  it('focuses the window before using acknowledged SPA routing', async () => {
     const channel = createAcknowledgingMessageChannel();
     const focus = vi.fn(async () => client);
     const navigate = vi.fn(async () => client);
@@ -50,7 +50,7 @@ describe('routeNotificationClick', () => {
     expect(postMessage).toHaveBeenCalledWith({ type: 'notification-click', url: TARGET_URL }, [
       channel.port2
     ]);
-    expect(postMessage.mock.invocationCallOrder[0]).toBeLessThan(focus.mock.invocationCallOrder[0]);
+    expect(focus.mock.invocationCallOrder[0]).toBeLessThan(postMessage.mock.invocationCallOrder[0]);
     expect(navigate).not.toHaveBeenCalled();
     expect(clients.openWindow).not.toHaveBeenCalled();
   });
@@ -75,7 +75,8 @@ describe('routeNotificationClick', () => {
     expect(postMessage).toHaveBeenCalledOnce();
     expect(navigate).toHaveBeenCalledWith(TARGET_URL);
     expect(focus).toHaveBeenCalledOnce();
-    expect(navigate.mock.invocationCallOrder[0]).toBeLessThan(focus.mock.invocationCallOrder[0]);
+    expect(focus.mock.invocationCallOrder[0]).toBeLessThan(postMessage.mock.invocationCallOrder[0]);
+    expect(focus.mock.invocationCallOrder[0]).toBeLessThan(navigate.mock.invocationCallOrder[0]);
     expect(clients.openWindow).not.toHaveBeenCalled();
   });
 
@@ -103,7 +104,7 @@ describe('routeNotificationClick', () => {
     expect(result).toBe('client');
     expect(staleClient.postMessage).toHaveBeenCalledOnce();
     expect(staleClient.navigate).toHaveBeenCalledWith(TARGET_URL);
-    expect(staleClient.focus).not.toHaveBeenCalled();
+    expect(staleClient.focus).toHaveBeenCalledOnce();
     expect(activeClient.postMessage).toHaveBeenCalledOnce();
     expect(activeClient.focus).toHaveBeenCalledOnce();
     expect(clients.openWindow).not.toHaveBeenCalled();
@@ -137,15 +138,34 @@ describe('routeNotificationClick', () => {
     }
   });
 
-  it('rejects malformed and cross-origin notification URLs', async () => {
+  it('maps cross-origin chat payload URLs onto the service worker origin', async () => {
     const clients = clientsWith([]);
 
-    await expect(routeNotificationClick('http://[', ORIGIN, clients)).resolves.toBe('ignored');
     await expect(
-      routeNotificationClick('https://other.example/chat', ORIGIN, clients)
-    ).resolves.toBe('ignored');
+      routeNotificationClick(
+        'https://configured.example/chat/-/room-1?highlight=event-1#message',
+        ORIGIN,
+        clients
+      )
+    ).resolves.toBe('open');
 
-    expect(clients.matchAll).not.toHaveBeenCalled();
-    expect(clients.openWindow).not.toHaveBeenCalled();
+    expect(clients.openWindow).toHaveBeenCalledWith(
+      `${ORIGIN}/chat/-/room-1?highlight=event-1#message`
+    );
+  });
+
+  it('falls back to the chat entry point for malformed or non-chat cross-origin URLs', async () => {
+    const malformedClients = clientsWith([]);
+    const crossOriginClients = clientsWith([]);
+
+    await expect(routeNotificationClick('http://[', ORIGIN, malformedClients)).resolves.toBe(
+      'open'
+    );
+    await expect(
+      routeNotificationClick('https://other.example/settings', ORIGIN, crossOriginClients)
+    ).resolves.toBe('open');
+
+    expect(malformedClients.openWindow).toHaveBeenCalledWith(`${ORIGIN}/chat`);
+    expect(crossOriginClients.openWindow).toHaveBeenCalledWith(`${ORIGIN}/chat`);
   });
 });
