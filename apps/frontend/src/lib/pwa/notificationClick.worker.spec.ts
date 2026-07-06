@@ -44,12 +44,16 @@ describe('routeNotificationClick', () => {
   });
 
   it('persists the normalized target before trying client routing fallbacks', async () => {
-    const writePendingNotificationClickTarget = vi.fn(async () => {});
+    const writePendingNotificationClickTarget = vi.fn(async () => ({
+      id: 'click-1',
+      url: TARGET_URL
+    }));
     const focus = vi.fn(async () => client);
+    const postMessage = vi.fn();
     const client: NotificationClickClient = {
       focus,
       navigate: vi.fn(async () => client),
-      postMessage: vi.fn()
+      postMessage
     };
     const clients = clientsWith([client]);
 
@@ -61,6 +65,10 @@ describe('routeNotificationClick', () => {
 
     expect(result).toBe('navigate');
     expect(writePendingNotificationClickTarget).toHaveBeenCalledWith(TARGET_URL);
+    expect(postMessage).toHaveBeenCalledWith(
+      { type: 'notification-click', url: TARGET_URL, clickId: 'click-1' },
+      expect.any(Array)
+    );
     expect(writePendingNotificationClickTarget.mock.invocationCallOrder[0]).toBeLessThan(
       focus.mock.invocationCallOrder[0]
     );

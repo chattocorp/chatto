@@ -30,9 +30,9 @@ describe('createNotificationClickUrlHandler', () => {
       handleNotificationClickUrl('https://chatto.example/chat/-/room-1?highlight=event-1')
     ).resolves.toBe(true);
 
-    expect(clearPendingUrl).toHaveBeenCalledWith(
-      'https://chatto.example/chat/-/room-1?highlight=event-1'
-    );
+    expect(clearPendingUrl).toHaveBeenCalledWith({
+      expectedUrl: 'https://chatto.example/chat/-/room-1?highlight=event-1'
+    });
     expect(appUi.disableRoomCallWideFor).toHaveBeenCalledWith('origin', 'room-1');
     expect(navigate).toHaveBeenCalledWith('/chat/-/room-1?highlight=event-1');
     expect(clearPendingUrl.mock.invocationCallOrder[0]).toBeLessThan(
@@ -91,19 +91,30 @@ describe('createNotificationClickUrlHandler', () => {
       origin: 'https://chatto.example'
     });
 
-    await expect(handleNotificationClickUrl('https://chatto.example/chat/-/room-1')).resolves.toBe(
-      true
-    );
+    await expect(
+      handleNotificationClickUrl('https://chatto.example/chat/-/room-1', { clickId: 'click-1' })
+    ).resolves.toBe(true);
     now = 250;
-    await expect(handleNotificationClickUrl('https://chatto.example/chat/-/room-1')).resolves.toBe(
-      false
-    );
+    await expect(
+      handleNotificationClickUrl('https://chatto.example/chat/-/room-1', { clickId: 'click-2' })
+    ).resolves.toBe(false);
     now = 3_000;
-    await expect(handleNotificationClickUrl('https://chatto.example/chat/-/room-1')).resolves.toBe(
-      true
-    );
+    await expect(
+      handleNotificationClickUrl('https://chatto.example/chat/-/room-1', { clickId: 'click-3' })
+    ).resolves.toBe(true);
 
     expect(navigate).toHaveBeenCalledTimes(2);
-    expect(clearPendingUrl).toHaveBeenCalledTimes(3);
+    expect(clearPendingUrl).toHaveBeenNthCalledWith(1, {
+      clickId: 'click-1',
+      expectedUrl: 'https://chatto.example/chat/-/room-1'
+    });
+    expect(clearPendingUrl).toHaveBeenNthCalledWith(2, {
+      clickId: 'click-2',
+      expectedUrl: 'https://chatto.example/chat/-/room-1'
+    });
+    expect(clearPendingUrl).toHaveBeenNthCalledWith(3, {
+      clickId: 'click-3',
+      expectedUrl: 'https://chatto.example/chat/-/room-1'
+    });
   });
 });

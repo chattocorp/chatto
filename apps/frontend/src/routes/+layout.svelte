@@ -80,8 +80,8 @@
   // the intended URL after the OS/browser resumes an old app window.
   $effect(() => {
     void drainPendingNotificationClickUrl();
-    return onNotificationClick(async (url) => {
-      await handleNotificationClickUrl(url);
+    return onNotificationClick(async (url, clickId) => {
+      await handleNotificationClickUrl(url, { clickId });
     });
   });
 

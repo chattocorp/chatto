@@ -272,10 +272,16 @@ export async function consumePendingNotificationClickUrl(): Promise<string | nul
   }
 }
 
-export async function clearPendingNotificationClickUrl(expectedUrl?: string): Promise<void> {
+export async function clearPendingNotificationClickUrl(options: {
+  clickId?: string;
+  expectedUrl?: string;
+}): Promise<void> {
   if (!notificationClickTargetStorageAvailable()) return;
   try {
-    await clearPendingNotificationClickTarget(window.caches, window.location.origin, expectedUrl);
+    await clearPendingNotificationClickTarget(window.caches, window.location.origin, {
+      id: options.clickId,
+      expectedUrl: options.expectedUrl
+    });
   } catch {
     // Cache API failure must not block immediate notification-click navigation.
   }
@@ -286,7 +292,9 @@ export async function clearPendingNotificationClickUrl(expectedUrl?: string): Pr
  * The SW posts these instead of calling `WindowClient.navigate()` so the
  * SPA can route via `goto()` (client-side navigation, no full reload).
  */
-export function onNotificationClick(callback: (url: string) => void | Promise<void>): () => void {
+export function onNotificationClick(
+  callback: (url: string, clickId?: string) => void | Promise<void>
+): () => void {
   if (!('serviceWorker' in navigator)) {
     return () => {};
   }
@@ -297,9 +305,10 @@ export function onNotificationClick(callback: (url: string) => void | Promise<vo
       typeof event.data.url === 'string'
     ) {
       const responsePort = event.ports[0];
+      const clickId = typeof event.data.clickId === 'string' ? event.data.clickId : undefined;
       void (async () => {
         try {
-          await callback(event.data.url);
+          await callback(event.data.url, clickId);
           responsePort?.postMessage({ type: NOTIFICATION_CLICK_ACK_MESSAGE_TYPE });
         } catch {
           // Leave the service worker unacknowledged so it can fall back to

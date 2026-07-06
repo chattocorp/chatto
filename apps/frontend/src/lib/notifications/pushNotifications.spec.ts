@@ -367,13 +367,14 @@ describe('onNotificationClick', () => {
     serviceWorker.dispatchMessage({
       data: {
         type: 'notification-click',
-        url: 'https://chatto.example/chat/-/room-1'
+        url: 'https://chatto.example/chat/-/room-1',
+        clickId: 'click-1'
       },
       ports: [responsePort as unknown as MessagePort]
     });
 
     await Promise.resolve();
-    expect(callback).toHaveBeenCalledWith('https://chatto.example/chat/-/room-1');
+    expect(callback).toHaveBeenCalledWith('https://chatto.example/chat/-/room-1', 'click-1');
     expect(responsePort.postMessage).not.toHaveBeenCalled();
 
     navigation.resolve();
@@ -422,7 +423,10 @@ describe('pending notification click target wrappers', () => {
 
     await expect(consumePendingNotificationClickUrl()).resolves.toBeNull();
     await expect(
-      clearPendingNotificationClickUrl('https://chatto.example/chat/-/room-1')
+      clearPendingNotificationClickUrl({
+        clickId: 'click-1',
+        expectedUrl: 'https://chatto.example/chat/-/room-1'
+      })
     ).resolves.toBe(undefined);
     expect(open).toHaveBeenCalledTimes(2);
   });

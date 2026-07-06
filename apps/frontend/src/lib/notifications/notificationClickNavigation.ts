@@ -7,13 +7,14 @@ type NotificationClickUiController = Pick<AppUiState, 'disableRoomCallWideFor'>;
 
 type NotificationClickUrlHandlerOptions = {
   appUi: NotificationClickUiController;
-  clearPendingUrl?: (expectedUrl?: string) => Promise<void>;
+  clearPendingUrl?: (target: { clickId?: string; expectedUrl: string }) => Promise<void>;
   navigate: (path: string) => Promise<void>;
   now?: () => number;
   origin?: string;
 };
 
 type HandleNotificationClickUrlOptions = {
+  clickId?: string;
   pendingAlreadyConsumed?: boolean;
 };
 
@@ -37,7 +38,10 @@ export function createNotificationClickUrlHandler(options: NotificationClickUrlH
     const now = options.now?.() ?? Date.now();
     if (lastUrl === target.href && now - lastHandledAt < NOTIFICATION_CLICK_NAVIGATION_DEDUPE_MS) {
       if (!handleOptions.pendingAlreadyConsumed) {
-        await options.clearPendingUrl?.(target.href);
+        await options.clearPendingUrl?.({
+          clickId: handleOptions.clickId,
+          expectedUrl: target.href
+        });
       }
       return false;
     }
@@ -45,7 +49,10 @@ export function createNotificationClickUrlHandler(options: NotificationClickUrlH
     lastHandledAt = now;
 
     if (!handleOptions.pendingAlreadyConsumed) {
-      await options.clearPendingUrl?.(target.href);
+      await options.clearPendingUrl?.({
+        clickId: handleOptions.clickId,
+        expectedUrl: target.href
+      });
     }
 
     prepareUiForNotificationPath(options.appUi, target.pathname);
