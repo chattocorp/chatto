@@ -11,6 +11,7 @@
   import MarkdownHtml from '$lib/ui/MarkdownHtml.svelte';
   import { classifyMessageBodyChatLink, buildMessageLinkPath } from '$lib/messageLinks';
   import { wrapValidMentions, type RoomMember } from '$lib/mentions';
+  import { parseTrustedMarkdownHtml } from '$lib/security/trustedHtml';
 
   let {
     body,
@@ -36,7 +37,7 @@
   );
 
   function injectEditedMarker(html: string): string {
-    const doc = new DOMParser().parseFromString(`<div>${html}</div>`, 'text/html');
+    const doc = parseTrustedMarkdownHtml(`<div>${html}</div>`);
     const root = doc.body.firstElementChild;
     if (!root) return html;
     const badge = doc.createElement('span');

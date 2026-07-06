@@ -33,6 +33,7 @@ const config = {
     }
   },
   compilerOptions: {
+    fragments: 'tree',
     experimental: {
       async: true
     }
