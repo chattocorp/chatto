@@ -155,6 +155,26 @@ describe('root layout mobile sidebar animation', () => {
     resetSidebar();
   });
 
+  it('keeps edge target presses from bubbling to app-level outside-click handlers', async () => {
+    const { container } = renderLayout();
+    const onWindowPointerDown = vi.fn();
+    window.addEventListener('pointerdown', onWindowPointerDown);
+
+    try {
+      await tick();
+
+      const edge = q(container, '[data-testid="mobile-sidebar-edge"]');
+      expect(edge).not.toBeNull();
+      if (!edge) return;
+
+      edge.dispatchEvent(pointer('pointerdown', 2));
+
+      expect(onWindowPointerDown).not.toHaveBeenCalled();
+    } finally {
+      window.removeEventListener('pointerdown', onWindowPointerDown);
+    }
+  });
+
   it('keeps the sidebar and backdrop mounted while the mobile close animation runs', async () => {
     const { container } = renderLayout();
     await tick();

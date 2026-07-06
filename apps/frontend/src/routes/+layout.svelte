@@ -75,6 +75,10 @@
 
   const getFullTitle = usePageTitle();
   const fullTitle = $derived(getFullTitle());
+
+  function stopPropagation(event: Event) {
+    event.stopPropagation();
+  }
 </script>
 
 <GlobalKeyboardShortcuts />
@@ -114,8 +118,13 @@
           <div
             use:sidebarEdgeSwipe
             data-app-sidebar="true"
+            data-testid="mobile-sidebar-edge"
             class="fixed top-11 bottom-0 left-0 z-40 w-6 touch-none md:hidden"
             aria-hidden="true"
+            onpointerdown={stopPropagation}
+            onpointerup={stopPropagation}
+            onclick={stopPropagation}
+            oncontextmenu={stopPropagation}
           ></div>
         {/if}
 
