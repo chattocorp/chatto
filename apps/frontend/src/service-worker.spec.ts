@@ -46,9 +46,7 @@ function createMemoryCacheStorage() {
       }
 
       return {
-        match: vi.fn(async (request: RequestInfo | URL) =>
-          cache.get(request.toString())?.clone()
-        ),
+        match: vi.fn(async (request: RequestInfo | URL) => cache.get(request.toString())?.clone()),
         put: vi.fn(async (request: RequestInfo | URL, response: Response) => {
           cache.set(request.toString(), response.clone());
         }),
@@ -180,6 +178,9 @@ describe('service worker badge orchestration', () => {
 
     expect(worker.clearAppBadge).not.toHaveBeenCalled();
     expect(worker.setAppBadge).toHaveBeenLastCalledWith(3);
+    expect(worker.clients.openWindow.mock.invocationCallOrder[0]).toBeLessThan(
+      worker.registration.getNotifications.mock.invocationCallOrder[0]
+    );
   });
 
   it('preserves a foreground authoritative count after a service worker restart', async () => {

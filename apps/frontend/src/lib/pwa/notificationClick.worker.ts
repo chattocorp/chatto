@@ -33,19 +33,24 @@ interface NotificationClickLogger {
   warn: (...args: unknown[]) => void;
 }
 
+interface NotificationClickPendingTargetStorage {
+  writePendingNotificationClickTarget(url: string): Promise<void>;
+}
+
 export type NotificationClickRouteResult = 'client' | 'navigate' | 'open';
 
 export interface NotificationClickRouteOptions {
   ackTimeoutMs?: number;
   createMessageChannel?: () => NotificationClickMessageChannel;
   logger?: NotificationClickLogger;
+  pendingTargetStorage?: NotificationClickPendingTargetStorage;
 }
 
 function sameOriginURLForPath(origin: string, pathname: string, search = '', hash = ''): string {
   return new URL(`${pathname}${search}${hash}`, origin).href;
 }
 
-function normalizeNotificationClickUrl(rawUrl: string | undefined, origin: string): string {
+export function normalizeNotificationClickUrl(rawUrl: string | undefined, origin: string): string {
   const sameOriginUrl = normalizeSameOriginUrl(rawUrl, origin);
   if (sameOriginUrl) return sameOriginUrl;
 
@@ -130,6 +135,11 @@ export async function routeNotificationClick(
   options: NotificationClickRouteOptions = {}
 ): Promise<NotificationClickRouteResult> {
   const url = normalizeNotificationClickUrl(rawUrl, origin);
+  try {
+    await options.pendingTargetStorage?.writePendingNotificationClickTarget(url);
+  } catch (err) {
+    options.logger?.warn('[SW] Failed to persist notification click target:', err);
+  }
 
   const ackOptions = {
     ackTimeoutMs: options.ackTimeoutMs ?? NOTIFICATION_CLICK_ACK_TIMEOUT_MS,

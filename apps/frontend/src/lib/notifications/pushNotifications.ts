@@ -11,6 +11,10 @@ import {
   NOTIFICATION_CLICK_ACK_MESSAGE_TYPE,
   NOTIFICATION_CLICK_MESSAGE_TYPE
 } from '$lib/pwa/notificationClick.worker';
+import {
+  clearPendingNotificationClickTarget,
+  consumePendingNotificationClickTarget
+} from '$lib/pwa/notificationClickTarget';
 import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
 
 type EnsureRegisteredOptions = {
@@ -253,6 +257,28 @@ function originPushAPI() {
     baseUrl: origin.connectBaseUrl,
     bearerToken: origin.bearerToken
   });
+}
+
+function notificationClickTargetStorageAvailable(): boolean {
+  return typeof window !== 'undefined' && 'caches' in window;
+}
+
+export async function consumePendingNotificationClickUrl(): Promise<string | null> {
+  if (!notificationClickTargetStorageAvailable()) return null;
+  try {
+    return await consumePendingNotificationClickTarget(window.caches, window.location.origin);
+  } catch {
+    return null;
+  }
+}
+
+export async function clearPendingNotificationClickUrl(expectedUrl?: string): Promise<void> {
+  if (!notificationClickTargetStorageAvailable()) return;
+  try {
+    await clearPendingNotificationClickTarget(window.caches, window.location.origin, expectedUrl);
+  } catch {
+    // Cache API failure must not block immediate notification-click navigation.
+  }
 }
 
 /**
