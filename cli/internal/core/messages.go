@@ -230,7 +230,7 @@ func (c *ChattoCore) appendThreadReplyEcho(
 			if err := c.roomModel.waitForTimeline(ctx, events.SubjectPosition(messageSubject, echoSeq)); err != nil {
 				return echoID, true, err
 			}
-			c.logger.Info("Thread reply echo posted",
+			c.logger.Debug("Thread reply echo posted",
 				"kind", kind, "room_id", roomID,
 				"echo_event_id", echoID, "original_event_id", originalID,
 				"echo_sequence_id", echoSeq)
@@ -281,7 +281,7 @@ func (c *ChattoCore) hideChannelEchoForReply(ctx context.Context, actorID string
 			if err := c.roomModel.waitForTimeline(ctx, events.SubjectPosition(retractSubject, seq)); err != nil {
 				return err
 			}
-			c.logger.Info("Message echo hidden", "kind", kind, "room_id", roomID, "event_id", echoID, "actor_id", actorID)
+			c.logger.Debug("Message echo hidden", "kind", kind, "room_id", roomID, "event_id", echoID, "actor_id", actorID)
 			return nil
 		}
 		if !errors.Is(err, events.ErrConflict) {
@@ -611,7 +611,7 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 	// notifications that historically logged the compound key — the
 	// projection-keyed event_id is the new canonical identifier.
 	messageBodyKey := event.Id
-	c.logger.Info("Message posted", "kind", kind, "room_id", room_id, "message_body_key", messageBodyKey, "sequence_id", sequenceID, "user_id", user_id)
+	c.logger.Debug("Message posted", "kind", kind, "room_id", room_id, "message_body_key", messageBodyKey, "sequence_id", sequenceID, "user_id", user_id)
 
 	// Mark the room as read for the poster. For root posts, the just-
 	// published event is the new last root. For thread replies, we look up
@@ -847,7 +847,7 @@ func (c *ChattoCore) DeleteMessage(ctx context.Context, actorID string, kind Roo
 	}
 	c.secureDeleteAllMessageBodyEvents(ctx, eventID)
 	if isEcho {
-		c.logger.Info("Message echo hidden", "kind", kind, "room_id", roomID, "event_id", eventID, "actor_id", actorID, "envelope_seq", originalEntry.StreamSeq)
+		c.logger.Debug("Message echo hidden", "kind", kind, "room_id", roomID, "event_id", eventID, "actor_id", actorID, "envelope_seq", originalEntry.StreamSeq)
 		return nil
 	}
 	for _, linkedID := range c.rooms().linkedEventIDs(eventID) {
@@ -877,7 +877,7 @@ func (c *ChattoCore) DeleteMessage(ctx context.Context, actorID string, kind Roo
 		}
 	}
 
-	c.logger.Info("Message retracted", "kind", kind, "room_id", roomID, "event_id", eventID, "actor_id", actorID, "envelope_seq", originalEntry.StreamSeq)
+	c.logger.Debug("Message retracted", "kind", kind, "room_id", roomID, "event_id", eventID, "actor_id", actorID, "envelope_seq", originalEntry.StreamSeq)
 	return nil
 }
 
@@ -997,7 +997,7 @@ func (c *ChattoCore) EditMessage(ctx context.Context, actorID string, kind RoomK
 		c.secureDeleteObsoleteMessageBodyEvents(ctx, linkedID)
 	}
 
-	c.logger.Info("Message edited", "kind", kind, "room_id", roomID, "event_id", eventID, "actor_id", actorID)
+	c.logger.Debug("Message edited", "kind", kind, "room_id", roomID, "event_id", eventID, "actor_id", actorID)
 	if options.channelEcho != nil {
 		if err := c.reconcileEditedMessageChannelEcho(ctx, actorID, kind, roomID, eventID, *options.channelEcho); err != nil {
 			return err
@@ -1330,7 +1330,7 @@ func (c *ChattoCore) DeleteAttachmentFromMessage(ctx context.Context, actorID st
 		}
 	}
 
-	c.logger.Info("Attachment deleted from message",
+	c.logger.Debug("Attachment deleted from message",
 		"kind", kind,
 		"room_id", roomID,
 		"message_body_key", messageBodyKey,
@@ -1353,11 +1353,11 @@ func (c *ChattoCore) DeleteLinkPreviewFromMessage(ctx context.Context, actorID s
 	if err != nil {
 		return err
 	}
-	c.logger.Info("Link preview deleted from message",
+	c.logger.Debug("Link preview deleted from message",
 		"kind", kind,
 		"room_id", roomID,
 		"message_body_key", messageBodyKey,
-		"preview_url", previewURL,
+		"link_preview_removed", true,
 		"actor_id", actorID)
 	return nil
 }

@@ -147,7 +147,7 @@ func requestLogger(logger *log.Logger) gin.HandlerFunc {
 		case status >= http.StatusBadRequest:
 			logger.Warn("HTTP request", fields...)
 		default:
-			logger.Info("HTTP request", fields...)
+			logger.Debug("HTTP request", fields...)
 		}
 	}
 }
