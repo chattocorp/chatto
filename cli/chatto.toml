@@ -60,10 +60,10 @@ auto_provision = false
 
 [smtp]
 enabled = true
-host = 'mailpit.k8s.orb.local'
+host = '127.0.0.1'
 port = 1025
 tls = 'opportunistic'
-from = 'Chatto Local Development <chatto@chatto.run>'
+from = 'chatto-dev@chatto.localhost'
 
 [push]
 enabled = true

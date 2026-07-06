@@ -209,36 +209,20 @@ run = "exec mailpit --smtp \"127.0.0.1:$CHATTO_DEV_MAILPIT_SMTP_PORT\" --listen 
 
 [tasks.dev]
 description = "Run the local backend and frontend development servers"
-raw = true
-run = """
-workspace_port_base="${CONDUCTOR_PORT:-${PASEO_PORT:-4000}}"
-
-export VITE_PORT="${VITE_PORT:-$workspace_port_base}"
-export CHATTO_WEBSERVER_PORT="${CHATTO_WEBSERVER_PORT:-$((workspace_port_base + 1))}"
-export CHATTO_WEBSERVER_URL="${CHATTO_WEBSERVER_URL:-http://localhost:$VITE_PORT}"
-export CHATTO_NATS_EMBEDDED_PORT="${CHATTO_NATS_EMBEDDED_PORT:-$((workspace_port_base + 2))}"
-export CHATTO_NATS_CLIENT_URL="${CHATTO_NATS_CLIENT_URL:-nats://localhost:$CHATTO_NATS_EMBEDDED_PORT}"
-export CHATTO_METRICS_ENABLED="${CHATTO_METRICS_ENABLED:-true}"
-export CHATTO_METRICS_BIND_ADDRESS="${CHATTO_METRICS_BIND_ADDRESS:-127.0.0.1}"
-export CHATTO_METRICS_PORT="${CHATTO_METRICS_PORT:-$((workspace_port_base + 3))}"
-export CHATTO_METRICS_PATH="${CHATTO_METRICS_PATH:-/metrics}"
-export CHATTO_EXPORTER_ENABLED="${CHATTO_EXPORTER_ENABLED:-true}"
-export CHATTO_EXPORTER_BIND_ADDRESS="${CHATTO_EXPORTER_BIND_ADDRESS:-127.0.0.1}"
-export CHATTO_EXPORTER_PORT="${CHATTO_EXPORTER_PORT:-$((workspace_port_base + 4))}"
-export CHATTO_EXPORTER_PATH="${CHATTO_EXPORTER_PATH:-/metrics}"
-export CHATTO_LIVEKIT_ENABLED="${CHATTO_LIVEKIT_ENABLED:-true}"
-export CHATTO_LIVEKIT_URL="${CHATTO_LIVEKIT_URL:-ws://localhost:$((workspace_port_base + 5))}"
-export CHATTO_LIVEKIT_API_KEY="${CHATTO_LIVEKIT_API_KEY:-devkey}"
-export CHATTO_LIVEKIT_API_SECRET="${CHATTO_LIVEKIT_API_SECRET:-devsecret}"
-export CHATTO_LIVEKIT_WEBHOOK_URL="${CHATTO_LIVEKIT_WEBHOOK_URL:-http://localhost:$CHATTO_WEBSERVER_PORT/webhooks/livekit}"
-export CHATTO_SMTP_ENABLED="${CHATTO_SMTP_ENABLED:-true}"
-export CHATTO_SMTP_HOST="${CHATTO_SMTP_HOST:-127.0.0.1}"
-export CHATTO_SMTP_PORT="${CHATTO_SMTP_PORT:-$((workspace_port_base + 8))}"
-export CHATTO_SMTP_TLS="${CHATTO_SMTP_TLS:-opportunistic}"
-export CHATTO_SMTP_FROM="${CHATTO_SMTP_FROM:-chatto-dev@chatto.localhost}"
-
-exec mise run --jobs 4 dev-backend ::: dev-frontend ::: dev-livekit ::: dev-mailpit
-"""
+depends = ["setup-cli", "build-api-types"]
+env = {
+  VITE_PORT = "{{env.VITE_PORT | default(value=env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000')))}}",
+  CHATTO_WEBSERVER_PORT = "{{env.CHATTO_WEBSERVER_PORT | default(value=env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000')) | int + 1)}}",
+  CHATTO_WEBSERVER_URL = "{% if env.CHATTO_WEBSERVER_URL is defined and env.CHATTO_WEBSERVER_URL != '' %}{{env.CHATTO_WEBSERVER_URL}}{% else %}http://localhost:{{env.VITE_PORT | default(value=env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000')))}}{% endif %}",
+  CHATTO_NATS_EMBEDDED_PORT = "{{env.CHATTO_NATS_EMBEDDED_PORT | default(value=env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000')) | int + 2)}}",
+  CHATTO_NATS_CLIENT_URL = "{% if env.CHATTO_NATS_CLIENT_URL is defined and env.CHATTO_NATS_CLIENT_URL != '' %}{{env.CHATTO_NATS_CLIENT_URL}}{% else %}nats://localhost:{{env.CHATTO_NATS_EMBEDDED_PORT | default(value=env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000')) | int + 2)}}{% endif %}",
+  CHATTO_METRICS_PORT = "{{env.CHATTO_METRICS_PORT | default(value=env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000')) | int + 3)}}",
+  CHATTO_EXPORTER_PORT = "{{env.CHATTO_EXPORTER_PORT | default(value=env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000')) | int + 4)}}",
+  CHATTO_LIVEKIT_URL = "{% if env.CHATTO_LIVEKIT_URL is defined and env.CHATTO_LIVEKIT_URL != '' %}{{env.CHATTO_LIVEKIT_URL}}{% else %}ws://localhost:{{env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000')) | int + 5}}{% endif %}",
+  CHATTO_LIVEKIT_WEBHOOK_URL = "{% if env.CHATTO_LIVEKIT_WEBHOOK_URL is defined and env.CHATTO_LIVEKIT_WEBHOOK_URL != '' %}{{env.CHATTO_LIVEKIT_WEBHOOK_URL}}{% else %}http://localhost:{{env.CHATTO_WEBSERVER_PORT | default(value=env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000')) | int + 1)}}/webhooks/livekit{% endif %}",
+  CHATTO_SMTP_PORT = "{{env.CHATTO_SMTP_PORT | default(value=env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000')) | int + 8)}}",
+}
+run = { tasks = ["dev-backend", "dev-frontend", "dev-livekit", "dev-mailpit"] }
 
 [tasks.dev-docs-website]
 description = "Run the docs website development server with workspace-safe ports"
