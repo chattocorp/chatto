@@ -78,7 +78,27 @@ export function sidebarSwipe(node: HTMLElement) {
 }
 
 export function sidebarEdgeSwipe(node: HTMLElement) {
-  return createSidebarSwipe(node, false);
+  const swipe = createSidebarSwipe(node, false);
+
+  function stopEdgeEvent(e: Event) {
+    if (sidebarNav.isMobile) e.stopPropagation();
+  }
+
+  node.addEventListener('pointerdown', stopEdgeEvent);
+  node.addEventListener('pointerup', stopEdgeEvent);
+  node.addEventListener('click', stopEdgeEvent);
+  node.addEventListener('contextmenu', stopEdgeEvent);
+
+  return {
+    update: swipe.update,
+    destroy() {
+      swipe.destroy();
+      node.removeEventListener('pointerdown', stopEdgeEvent);
+      node.removeEventListener('pointerup', stopEdgeEvent);
+      node.removeEventListener('click', stopEdgeEvent);
+      node.removeEventListener('contextmenu', stopEdgeEvent);
+    }
+  };
 }
 
 export { SIDEBAR_PANEL_WIDTH_PX };

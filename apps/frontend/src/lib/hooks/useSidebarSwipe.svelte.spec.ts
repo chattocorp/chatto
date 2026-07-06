@@ -53,18 +53,24 @@ describe('sidebarEdgeSwipe', () => {
     const { edge, underlying } = makeEdgeGestureHost();
     const onUnderlyingPointerDown = vi.fn();
     const onUnderlyingClick = vi.fn();
+    const onWindowPointerDown = vi.fn();
     underlying.addEventListener('pointerdown', onUnderlyingPointerDown);
     underlying.addEventListener('click', onUnderlyingClick);
+    window.addEventListener('pointerdown', onWindowPointerDown);
 
     const action = sidebarEdgeSwipe(edge);
-    edge.dispatchEvent(pointer('pointerdown', 2));
-    edge.dispatchEvent(pointer('pointerup', 2));
+    try {
+      edge.dispatchEvent(pointer('pointerdown', 2));
+      edge.dispatchEvent(pointer('pointerup', 2));
 
-    expect(onUnderlyingPointerDown).not.toHaveBeenCalled();
-    expect(onUnderlyingClick).not.toHaveBeenCalled();
-    expect(sidebarNav.isOpen).toBe(false);
-
-    action.destroy();
+      expect(onUnderlyingPointerDown).not.toHaveBeenCalled();
+      expect(onUnderlyingClick).not.toHaveBeenCalled();
+      expect(onWindowPointerDown).not.toHaveBeenCalled();
+      expect(sidebarNav.isOpen).toBe(false);
+    } finally {
+      window.removeEventListener('pointerdown', onWindowPointerDown);
+      action.destroy();
+    }
   });
 
   it('still opens the mobile sidebar on a rightward edge drag', () => {
