@@ -290,7 +290,7 @@ function renderLanding() {
     'https://chat.example.com/api/connect/<fully-qualified-service>/<method>',
     '```',
     '',
-    'Replace `chat.example.com` with the host of the Chatto instance you want to interact with.',
+    'Replace `chat.example.com` with the host of the Chatto server you want to interact with.',
     '',
     'For example, public server discovery is:',
     '',

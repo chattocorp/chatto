@@ -157,9 +157,9 @@ git diff --name-only <previous-minor-highest-stable-tag>..HEAD
   the target stable release.
 - Inspect commits and PRs in the comparison range. Use PR bodies when available;
   they usually explain impact better than commit titles.
-- Build a complete bug-fix inventory from every `Bug Fixes` section in the
+- Build a candidate bug-fix inventory from every `Bug Fixes` section in the
   comparison range, plus any post-prerelease `fix:` commits not yet in
-  `CHANGELOG.md`.
+  `CHANGELOG.md`. Then filter it for stable-release readers.
 - Cross-check docs/FDRs/ADRs only when they clarify user behavior or operator
   implications.
 - Filter aggressively for the release-page audience. Keep a scratch list of
@@ -168,6 +168,10 @@ git diff --name-only <previous-minor-highest-stable-tag>..HEAD
   stable release should not be listed as a separate stable-release fix unless it
   changes the final user/operator behavior. Fold it into the feature wording or
   omit it.
+- For newly introduced APIs or subsystems, do not list beta-to-beta hardening,
+  validation, generated-doc coverage, method-shape fixes, auth plumbing, or
+  error mapping as stable-release fixes. Those details are useful to maintainers
+  and prerelease testers, but stable users only see the final API/subsystem.
 
 Useful commands:
 
@@ -203,6 +207,11 @@ use `Release notes for Chatto <version>.` as the description.
   Integrating Chatto` by default unless a more specific title fits the release
   better.
 - Use one `ReleaseFeatureCard` per notable feature.
+- Keep feature card body text concise and scannable. Use one short paragraph:
+  usually one sentence for small cards, one or two sentences for normal cards,
+  and at most two sentences for large headline cards. If a card needs more
+  detail, move operator action to `## Upgrade Notes`, bug fixes to "Smaller
+  fixes you'll appreciate", or exhaustive links/PR detail to `## GitHub release`.
 - Do not put bug fixes in `ReleaseFeatureCard`, even if several fixes share a
   theme or feel user-visible. Bug fixes belong only in the grouped "Smaller
   fixes you'll appreciate" section.
@@ -216,15 +225,23 @@ use `Release notes for Chatto <version>.` as the description.
 - Add a plain `## Upgrade Notes` section only when server operators, admins, or
   integration authors need to act or review compatibility. Do not put upgrade
   notes in a box or card.
-- Add an exhaustive "Smaller fixes you'll appreciate" section for
+- Do not list every shape change for an API that is new in this stable release.
+  If a public API replaced an older integration surface, name the replacement
+  and required migration once, then point prerelease testers at the stable
+  generated reference. Detailed method/message churn from beta releases does not
+  belong on the release page.
+- Add a "Smaller fixes you'll appreciate" section for stable-release
   user/operator/integration-impacting bug fixes. Group the fixes by
   functionality with concise `###` subheadings such as "Messages and Threads",
   "Notifications and Unread State", "Calls and Media", or "API and Operations".
   Do not use one ungrouped catch-all list.
-- The fixes section must cover every relevant bug fix in the comparison range.
-  Skip only internal/CI/test fixes and prerelease-only repairs to unreleased
-  behavior; if a fix is skipped for that reason, be ready to explain that in the
-  final response.
+- The fixes section must cover every bug fix relevant to readers upgrading from
+  the previous stable release. Skip internal/CI/test fixes, prerelease-only
+  repairs to unreleased behavior, generated-doc fixes, low-level API polish for
+  an API introduced in this release, and implementation hardening that does not
+  change the stable user/operator/integration outcome. Do not create an API
+  subsection just to account for changelog entries that only mattered between
+  betas.
 - Keep bug-fix bullets concrete, but vary the phrasing in longer lists so the
   section reads naturally. Use `Fixed ...`, `Prevented ...`, `Kept ...`, or
   another direct verb when it is clearer than repeating `Fixed an issue where`.
@@ -324,6 +341,20 @@ new page. Preserve existing order and labels.
   operating a running deployment.
 - Mention breaking changes and upgrade work only when they affect server
   operators, admins, users, or self-hosted integrations.
+- Feature cards should sell the outcome, not enumerate every touched service,
+  screen, component, RPC, or edge case. Prefer plain product-level summaries
+  such as "The first layer of localization has landed, with the frontend now
+  available in English and German" over inventories like "the app shell,
+  sidebar, settings, auth, chat, room, composer, calls, admin, media, and shared
+  UI strings now use message catalogs." Leave implementation coverage for
+  upgrade notes, reference docs, or the generated GitHub release.
+- For performance cards, name the user/operator-visible improvement and keep it
+  in the right audience section. In `## Running and Integrating Chatto`, focus
+  on operator outcomes such as faster startup, replay, backup, restore,
+  deployment, or resource use. Put frontend-only loading wins in a user-facing
+  section only when users will actually notice them. Prefer titles like "Faster
+  startup performance" or "Pages load faster" over internal labels like "Faster
+  loading paths", "projection replay improvements", or "bundle splitting".
 - For fixes, use direct, concrete wording. Avoid vague bullets, but do not force
   every item into the same sentence template.
 - Keep cards independent so maintainers can move, delete, or rewrite one card at

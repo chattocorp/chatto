@@ -3,7 +3,7 @@ title: Chatto Self-Hosting Documentation
 description: A real-time chat application built for simplicity and scalability.
 template: splash
 hero:
-  tagline: Run a full-featured real-time chat server yourself. Start with one binary and no database, then scale the same system when your community grows.
+  tagline: A fully-featured, compact, and really, <i>really</i> snappy team chat server that you can host on your own infrastructure.
   actions:
     - text: Get Started
       link: /getting-started/introduction/
@@ -16,12 +16,9 @@ hero:
 ---
 
 import { CardGrid, LinkCard } from "@astrojs/starlight/components";
+import HomeScreenshot from "../../components/HomeScreenshot.astro";
 
-## What is Chatto?
-
-Chatto is a self-hosted real-time chat application for communities, teams, clubs, and organizations that want their own isolated server. It ships as a compact binary with embedded storage, an embedded web app, and built-in operations tooling, so a small server can run it without a database or a stack of side services.
-
-When you need more room, the same Chatto server can move to Docker Compose, Kubernetes, external NATS, S3-compatible asset storage, Prometheus scraping, and multiple replicas.
+<HomeScreenshot />
 
 ## Key Features
 

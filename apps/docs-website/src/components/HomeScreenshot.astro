@@ -1,0 +1,47 @@
+---
+import { Image } from "astro:assets";
+import chattoDark from "../assets/chatto_dark.png";
+import chattoLight from "../assets/chatto_light.png";
+---
+
+<figure class="chatto-home-screenshot">
+  <Image
+    class="chatto-home-screenshot__image chatto-home-screenshot__image--light"
+    src={chattoLight}
+    alt="Chatto room view showing messages, reactions, room navigation, and the member list."
+    widths={[720, 1080, 1440, 1920]}
+    sizes="(min-width: 72rem) 72rem, calc(100vw - 2rem)"
+  />
+  <Image
+    class="chatto-home-screenshot__image chatto-home-screenshot__image--dark"
+    src={chattoDark}
+    alt="Chatto room view showing messages, reactions, room navigation, and the member list."
+    widths={[720, 1080, 1440, 1920]}
+    sizes="(min-width: 72rem) 72rem, calc(100vw - 2rem)"
+  />
+</figure>
+
+<style>
+  .chatto-home-screenshot {
+    max-width: 72rem;
+    margin: 0 auto;
+  }
+
+  .chatto-home-screenshot__image {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-radius: 1rem;
+  }
+
+  :global(:root[data-theme="dark"]) .chatto-home-screenshot__image--light,
+  :global(:root:not([data-theme="dark"])) .chatto-home-screenshot__image--dark {
+    display: none;
+  }
+
+  @media (min-width: 64rem) {
+    .chatto-home-screenshot {
+      margin-top: -6rem;
+    }
+  }
+</style>

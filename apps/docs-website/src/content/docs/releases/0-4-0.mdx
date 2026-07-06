@@ -1,6 +1,6 @@
 ---
-title: Chatto 0.4.0 (unreleased)
-description: Unreleased release notes for Chatto 0.4.0.
+title: Chatto 0.4.0
+description: Release notes for Chatto 0.4.0.
 ---
 
 import ReleaseFeatureCard from "../../../components/release-notes/ReleaseFeatureCard.astro";
@@ -9,48 +9,41 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
 
 <ReleaseHero
   version="0.4.0"
-  status="Unreleased"
   summary="0.4.0 replaces GraphQL with ConnectRPC and adds universal rooms, richer presence controls, custom statuses, SSO account linking, and broader interface localization."
 />
 
 <ReleaseFeatureGrid>
   <ReleaseFeatureCard title="ConnectRPC replaces GraphQL" size="large">
-    The public API has moved from GraphQL to ConnectRPC. The bundled web app uses the new
-    API for room, message, reaction, direct-message, typing, and realtime flows, and custom
-    clients, bots, and integrations need to move to the generated protobuf/ConnectRPC
-    clients before upgrading production deployments.
+    The public API has moved from GraphQL to ConnectRPC. Custom clients, bots, and
+    integrations need to move to the generated protobuf/ConnectRPC clients before
+    upgrading production deployments.
   </ReleaseFeatureCard>
 
   <ReleaseFeatureCard title="Universal rooms" size="large">
-    Important channels can now be made available to the whole server without asking every
-    member to join manually. The seeded announcements room, hidden leave actions, directory
-    behavior, and sidebar updates make shared rooms feel like part of the server rather
-    than another room membership chore.
+    Important channels can now be available to the whole server without manual joins.
+    Shared rooms feel like part of the server from the moment a member signs in.
   </ReleaseFeatureCard>
 
   <ReleaseFeatureCard title="Presence modes and custom statuses">
     Choose automatic presence, Away, Do Not Disturb, or Look offline, and add a custom
-    status with built-in templates for lunch, vacation, sick leave, or your own text and
-    emoji. Do Not Disturb suppresses notification sounds and push alerts, while Look
-    offline stops presence reports for better privacy.
+    status with text and emoji. Do Not Disturb quiets alerts, while Look offline stops
+    presence reports for better privacy.
   </ReleaseFeatureCard>
 
   <ReleaseFeatureCard title="SSO account creation and linking">
-    External identity providers can guide new users through explicit account creation and
-    account linking flows. Existing members can connect providers from account settings,
-    while operators keep control through provider auto-provisioning policy.
+    Support for SSO integrations has been significantly expanded, with clearer paths for
+    creating new accounts and linking existing ones. Operators still control when providers
+    may create accounts automatically.
   </ReleaseFeatureCard>
 
   <ReleaseFeatureCard title="A localized interface foundation">
-    The app shell, sidebar, settings, auth, chat, room, composer, calls, admin, media, and
-    shared UI strings now flow through English and German message catalogs. Display
-    settings include a browser-local language preference that updates without a full
-    reload.
+    The first layer of localization has landed, with the frontend now available in English
+    and German. More languages are coming soon.
   </ReleaseFeatureCard>
 
   <ReleaseFeatureCard title="Clearer room and call context" size="small">
-    Room headers show channel descriptions on desktop, room rows show active call
-    participants, and reaction popups show readable reaction names.
+    Rooms are easier to understand at a glance, with clearer descriptions, active-call
+    context, and readable reaction names.
   </ReleaseFeatureCard>
 
 </ReleaseFeatureGrid>
@@ -58,47 +51,30 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
 ## Running and Integrating Chatto
 
 <ReleaseFeatureGrid>
-  <ReleaseFeatureCard title="A broader public API surface" size="large">
-    ConnectRPC now covers room lifecycle, room directory reads, message management,
-    reactions, direct-message starts, presence reporting, custom statuses, and protobuf
-    realtime delivery. The generated API reference is split by `chatto.api.v1`,
-    `chatto.admin.v1`, and `chatto.realtime.v1`, and reflection is available for public
-    and admin services.
-  </ReleaseFeatureCard>
-
-  <ReleaseFeatureCard title="Admin screens for daily operations">
-    The system dashboard has clearer broker, JetStream, stream activity, consumer, and
-    projection sections. Member detail pages expose account status, join date, verified
-    email visibility, copyable user IDs, role count, deletion capability, and username
-    cooldown state. Event log filters make investigations less noisy.
-  </ReleaseFeatureCard>
-
   <ReleaseFeatureCard title="Local operator account administration" size="large">
     A new socket-backed `chatto operator user ...` CLI handles trusted local recovery and
-    bootstrap tasks such as creating users, setting passwords, deleting accounts, and
-    managing verified email addresses. Root-grade account lifecycle operations no longer
-    live on the public admin API.
+    bootstrap account tasks. Root-grade account lifecycle operations no longer live on the
+    public admin API.
   </ReleaseFeatureCard>
 
   <ReleaseFeatureCard title="Deployment-wide Prometheus metrics" size="small">
-    The new `chatto exporter` command and `[exporter]` config expose deployment-wide
-    Prometheus metrics, either standalone or embedded in `chatto run`.
+    The new `chatto exporter` command and `[exporter]` config expose Prometheus metrics,
+    standalone or embedded in `chatto run`.
   </ReleaseFeatureCard>
 
   <ReleaseFeatureCard title="Storage-backed link previews" size="small">
     Link preview assets now use the configured storage backend, which makes preview media
-    behave like other persisted uploaded assets when S3-compatible storage is configured.
+    behave like other uploaded assets when S3-compatible storage is configured.
   </ReleaseFeatureCard>
 
   <ReleaseFeatureCard title="SMTP TLS controls" size="small">
-    New SMTP TLS server-name and skip-verify settings handle internal mail servers with
-    self-signed or mismatched certificates without changing existing TLS policy behavior.
+    New SMTP TLS server-name and skip-verify settings support internal mail servers with
+    self-signed or mismatched certificates.
   </ReleaseFeatureCard>
 
-  <ReleaseFeatureCard title="Faster loading paths">
-    The frontend splits chat code from the application shell, and server-side projection
-    startup/replay paths have been tightened. Large or long-running deployments should
-    spend less time on avoidable loading work.
+  <ReleaseFeatureCard title="Faster startup performance">
+    Servers with more history should start and catch up faster after deploys, restarts, or
+    maintenance windows.
   </ReleaseFeatureCard>
 </ReleaseFeatureGrid>
 
@@ -106,77 +82,8 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
 
 - GraphQL has been replaced by ConnectRPC. Update custom clients, bots, and integrations
   before upgrading production deployments that depend on the old GraphQL API.
-- ConnectRPC service paths, generated imports, discovery, server profile responses, and
-  admin/realtime packages changed during the 0.4.0 prerelease cycle. Regenerate clients
-  and switch discovery clients to
-  `chatto.discovery.v1.ServerDiscoveryService.GetServer`; if you tested against an
-  earlier 0.4.0 beta, review the generated API reference again.
-- Authenticated server state was split: replace `ServerService.GetServerState` with
-  `ServerService.GetMotd` for the member-visible MOTD and
-  `ServerService.GetRuntimeConfig` for runtime settings. Public server metadata remains
-  available through `chatto.discovery.v1.ServerDiscoveryService.GetServer`.
-  Admin server responses now return `ServerPublicProfile` directly as
-  `public_profile` beside editable config instead of wrapping public metadata and
-  MOTD in `ServerProfile`.
-- Server-wide user/member reads moved to `UserService`: replace
-  `ServerMemberService.ListMembers`, `GetMember`, and `BatchGetMembers` with
-  `UserService.ListUsers`, `GetUser`, and `BatchGetUsers`. Replace
-  `UserDirectoryService.GetUser` and `BatchGetUsers` with `UserService.GetUser`
-  and `UserService.BatchGetUsers`.
-- `UserProfile` was folded into `User`. Presence and custom status now live
-  directly on `User`; `DirectoryMember.profile` is now `DirectoryMember.user`,
-  and notification actors, call participants, viewer profiles, and user
-  includes also return the canonical `User` shape.
-- Room member reads moved from `RoomMemberService` to `RoomService`: replace
-  `RoomMemberService.ListMembers`, `GetMember`, and `BatchGetMembers` with
-  `RoomService.ListMembers`, `GetMember`, and `BatchGetMembers`. Room moderation RPCs
-  were also shortened from `RoomService.ListRoomBans`, `BanRoomMember`, and
-  `UnbanRoomMember` to `ListBans`, `BanMember`, and `UnbanMember`.
-- Room directory responses now return `RoomWithViewerState` entries containing
-  `room` plus `viewer_state`. Durable viewer state such as `is_member` and
-  `has_unread` lives on `viewer_state`; action availability is reported as
-  `viewer_state.permissions` entries keyed by permission name.
-- `Message` thread metadata moved under `Message.thread`. Replace direct reads
-  such as `reply_count`, `last_reply_at`, `thread_participant_preview_user_ids`,
-  `thread_participant_count`, and `viewer_is_following_thread` with the
-  corresponding `ThreadSummary` and `ThreadViewerState` fields.
-- Followed thread rows now return `room` as `RoomSummary` and thread metadata
-  under `thread`. Replace `FollowedThread.room_id`, `room_name`,
-  `thread_root_event_id`, `reply_count`, `last_reply_at`, and `has_unread` with
-  `FollowedThread.room.*` and `FollowedThread.thread.*`.
-- Notification room references now use the shared `RoomSummary` shape.
-  `DirectMessageNotification.room_id` was replaced by
-  `DirectMessageNotification.room.id`.
-- Message attachment URL refreshes moved to room-scoped asset reads: replace
-  `MessageService.RefreshMessageAttachmentUrls` with `AssetService.GetAsset` and
-  `MessageService.BatchRefreshMessageAttachmentUrls` with `AssetService.BatchGetAssets`.
-  Asset reads and upload completion now return the first-class `Asset` shape.
-  `MessageService.GetMessage` and `BatchGetMessages` still return message attachment
-  metadata, but custom thumbnail options belong to the asset read RPCs.
-- Active voice call list reads were renamed from
-  `VoiceCallService.ListActiveCallRooms` to `ListActiveCalls`; each `ActiveCall`
-  now carries a `RoomSummary` in `room` instead of a scalar `room_id`.
-- `includes` maps are intentionally limited to hot paginated timeline/feed paths
-  such as room events and followed threads. Singular resource reads and mutations
-  return their resources directly, and ordinary list/read clients should use
-  `BatchGet*` hydration when they need related resources.
-- Message permalink resolution was folded into `MessageService.GetMessage`: replace
-  `MessageService.ResolveMessageLinkTarget` with `GetMessage` and use the returned
-  message's `thread_root_event_id` to decide whether to open a thread.
-- Link preview fetching was folded into `MessageService`: replace
-  `LinkPreviewService.FetchLinkPreview` with `MessageService.FetchLinkPreview`.
-  `CreateMessageRequest.link_preview` was replaced by `link_preview_token`; clients
-  should pass the `preview_token` returned by `FetchLinkPreview` instead of sending
-  preview metadata.
-- Message posting no longer has a server-side large-mention confirmation challenge.
-  Remove `CreateMessageRequest.mention_confirmation_token` and handle any role,
-  `@all`, or `@here` confirmation UX in the client before calling
-  `MessageService.CreateMessage`. `CreateMessageResponse`, `UpdateMessageResponse`,
-  `GetMessageResponse`, and `BatchGetMessagesResponse` now return canonical `Message`
-  data; hydrate user/member details through `UserService.GetUser` or `BatchGetUsers`
-  when needed.
-- Notification responses no longer include `server_name`; clients should use the
-  connected server metadata they already have for labels and grouping.
+- If you tested against an earlier 0.4.0 beta, regenerate clients from the stable
+  generated reference instead of carrying beta-era API assumptions forward.
 - Root-grade account lifecycle automation has moved to the local operator socket and
   `chatto operator user ...` commands. Enable `[operator_api]` for those workflows and
   update automation that used the earlier public admin lifecycle RPCs.
@@ -227,19 +134,9 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
 - Protected media loads no longer depend on the service-worker asset proxy.
 - Markdown rendering now uses the frontend Trusted Types policy.
 
-### API and operations
+### Operations
 
-- ConnectRPC room commands and directory reads share the same core authorization checks as
-  room behavior.
-- ConnectRPC message posting returns clearer errors, avoids exposing raw backend text, and
-  keeps video attachment processing intact.
-- ConnectRPC caller authentication checks fail closed.
-- ConnectRPC timeline and thread reads reject missing or unsupported anchors with the right
-  error.
-- ConnectRPC requests now have a message-size cap.
-- Presence snapshots preserve offline state in public read APIs.
-- Generated API docs include the custom user status service.
-- Service inventory metrics cover the full service set.
+- Service inventory metrics now cover the full service set.
 
 ## GitHub release
 

@@ -81,7 +81,7 @@ The full list is visible in the admin UI.
 
 ### Owner-only announcements
 
-Fresh development/bootstrap servers create announcements as a read-only room by denying `message.post` for `everyone` at room scope.
+Fresh servers create announcements as a read-only room by denying `message.post` for `everyone` at room scope.
 
 Because every authenticated user has `everyone` and any deny wins, this blocks root posting for all non-owner users, including admins and moderators. Owners can still post because owner permissions are virtual and cannot be denied through RBAC.
 
