@@ -3,7 +3,6 @@ import { ServerStateStore } from './store.svelte';
 import { serverConnectionManager } from './serverConnection.svelte';
 import { eventBusManager } from './eventBus.svelte';
 import { Codecs, globalSlot } from '$lib/storage/slot';
-import { clearAssetProxyCache } from '$lib/pwa/assetProxy';
 import { getPublicServerInfo } from '$lib/api-client/server';
 
 /**
@@ -346,7 +345,6 @@ class ServerRegistry {
 
 		// Dispose connection state
 		serverConnectionManager.destroyClient(id);
-		clearAssetProxyCache(id);
 
 		this.servers = this.servers.filter((s) => s.id !== id);
 		serversSlot.set(this.servers);
@@ -362,7 +360,6 @@ class ServerRegistry {
 			this.#stores.delete(server.id);
 			serverConnectionManager.destroyClient(server.id);
 		}
-		clearAssetProxyCache();
 		this.servers = [];
 		serversSlot.set(this.servers);
 	}
@@ -403,7 +400,6 @@ class ServerRegistry {
 		this.#stores.get(id)?.dispose();
 		this.#stores.delete(id);
 		serverConnectionManager.destroyClient(id);
-		clearAssetProxyCache(id);
 
 		Object.assign(server, data);
 		serversSlot.set(this.servers);

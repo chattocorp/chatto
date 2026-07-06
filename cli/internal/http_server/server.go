@@ -11,7 +11,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -50,7 +49,6 @@ type HTTPServer struct {
 
 	// Optional test hook used to make password-login revocation races deterministic.
 	passwordLoginSessionCreatedHook func(*gin.Context, string, uint64)
-	failAssetProxyRequests          atomic.Int64
 }
 
 const (

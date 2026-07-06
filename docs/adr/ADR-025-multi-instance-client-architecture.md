@@ -21,10 +21,9 @@ The frontend is instance-agnostic by default. It doesn't assume it's served by a
 3. **Bearer-first client auth**: The client stores opaque bearer tokens in `localStorage` for every authenticated instance, including the origin when direct login or registration returns a token. Cookie auth remains as an origin-only fallback for compatibility flows that have not yet handed the SPA a bearer token.
 
 Bearer tokens are only handed to API clients that need to authenticate
-ConnectRPC, realtime WebSocket, or direct HTTP API traffic. The Service Worker
-asset proxy receives server IDs, base URLs, and hidden ticketed asset targets,
-but not API bearer tokens; virtual asset fetches use the asset ticket target and
-same-origin cookie fallback instead.
+ConnectRPC, realtime WebSocket, or direct HTTP API traffic. Browser media
+elements do not receive bearer tokens; remote attachment media uses direct
+per-user asset access tickets on stable asset URLs instead.
 
 ### Unified Registry + State
 

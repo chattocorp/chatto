@@ -17,7 +17,7 @@ See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the F
 | [FDR-005](FDR-005-reactions.md) | Reactions | Active | 2026-05-19 |
 | [FDR-006](FDR-006-mentions.md) | @Mentions | Active | 2026-06-15 |
 | [FDR-007](FDR-007-direct-messages.md) | Direct Messages | Active | 2026-05-31 |
-| [FDR-008](FDR-008-file-attachments-and-video.md) | File Attachments & Video Processing | Active | 2026-06-17 |
+| [FDR-008](FDR-008-file-attachments-and-video.md) | File Attachments & Video Processing | Active | 2026-07-05 |
 | [FDR-009](FDR-009-link-previews.md) | Link Previews | Active | 2026-07-04 |
 | [FDR-010](FDR-010-typing-indicators.md) | Typing Indicators | Active | 2026-05-19 |
 | [FDR-011](FDR-011-user-presence.md) | User Presence | Active | 2026-06-23 |
@@ -36,5 +36,5 @@ See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the F
 | [FDR-024](FDR-024-permission-inspection-tool.md) | Permission Inspection Tool | Active | 2026-06-15 |
 | [FDR-025](FDR-025-user-search-and-member-directory.md) | User Search & Member Directory | Active | 2026-05-19 |
 | [FDR-026](FDR-026-last-room-memory.md) | Last-Room Memory | Active | 2026-05-19 |
-| [FDR-027](FDR-027-pwa-shell-and-service-worker.md) | PWA Shell & Service Worker | Active | 2026-06-08 |
+| [FDR-027](FDR-027-pwa-shell-and-service-worker.md) | PWA Shell & Service Worker | Active | 2026-07-05 |
 | [FDR-028](FDR-028-operator-api-and-cli.md) | Operator API & CLI | Active | 2026-06-29 |

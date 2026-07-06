@@ -38,7 +38,13 @@ describe('classifyServiceWorkerRequest', () => {
     });
   });
 
-  it.each(['/api/connect', '/auth/login', '/assets/avatar.png', '/webhooks/livekit'])(
+  it.each([
+    '/api/connect',
+    '/auth/login',
+    '/oauth/authorize',
+    '/assets/avatar.png',
+    '/webhooks/livekit'
+  ])(
     'keeps %s network-only',
     (path) => {
       expect(classify(path)).toMatchObject({

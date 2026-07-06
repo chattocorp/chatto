@@ -31,7 +31,7 @@ async function ensureServiceWorkerControlsPage(page: Page): Promise<void> {
     .toBe(true);
 }
 
-test.describe('service worker asset proxy', () => {
+test.describe('authorized remote asset URLs', () => {
   let remoteServer: ServerInfo | undefined;
 
   test.afterEach(async ({}, testInfo) => {
@@ -41,7 +41,7 @@ test.describe('service worker asset proxy', () => {
     }
   });
 
-  test('renders remote server attachments through virtual asset URLs', async ({
+  test('renders remote server attachments through signed asset URLs', async ({
     page,
     chatPage
   }) => {
@@ -85,12 +85,13 @@ test.describe('service worker asset proxy', () => {
 
     const src = await attachmentImage.getAttribute('src');
     expect(src).toBeTruthy();
-    expect(src).not.toContain('access=');
+    expect(src).toContain('access=');
 
     const srcUrl = new URL(src!, page.url());
-    expect(srcUrl.origin).toBe(new URL(page.url()).origin);
-    expect(srcUrl.pathname.startsWith('/__chatto/assets/')).toBe(true);
+    const expectedRemoteUrl = new URL(baseURL);
+    expect(srcUrl.protocol).toBe(expectedRemoteUrl.protocol);
+    expect(srcUrl.port).toBe(expectedRemoteUrl.port);
     expect(srcUrl.pathname).toContain('/assets/files/');
-    expect(srcUrl.search).toBe('');
+    expect(srcUrl.pathname).not.toContain('/__chatto/');
   });
 });

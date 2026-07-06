@@ -662,19 +662,6 @@ func TestAsset_StableS3VideoRedirectsUnlessProxyForcesStream(t *testing.T) {
 		t.Fatalf("Expected short-lived presigned S3 Location, got %q", got)
 	}
 
-	req, err := http.NewRequest(http.MethodGet, env.server.URL+attachmentURL, nil)
-	if err != nil {
-		t.Fatalf("Failed to build proxy request: %v", err)
-	}
-	req.Header.Set("X-Chatto-Asset-Proxy", "1")
-	streamResp, err := noRedirectClient.Do(req)
-	if err != nil {
-		t.Fatalf("Failed to fetch S3 video with proxy header: %v", err)
-	}
-	streamResp.Body.Close()
-	if streamResp.StatusCode != http.StatusOK {
-		t.Fatalf("Expected proxy-forced S3 video stream to return 200, got %d", streamResp.StatusCode)
-	}
 }
 
 func TestAsset_StableNilStorageS3VideoRedirectsViaProbe(t *testing.T) {
@@ -840,8 +827,8 @@ func TestAsset_OriginalAttachment_HasCacheHeaders(t *testing.T) {
 	}
 
 	vary := originalResp.Header.Get("Vary")
-	if vary != "Accept-Encoding, Authorization, Cookie, X-Chatto-Asset-Proxy" {
-		t.Errorf("Expected Vary: Accept-Encoding, Authorization, Cookie, X-Chatto-Asset-Proxy, got: %s", vary)
+	if vary != "Accept-Encoding, Authorization, Cookie" {
+		t.Errorf("Expected Vary: Accept-Encoding, Authorization, Cookie, got: %s", vary)
 	}
 }
 

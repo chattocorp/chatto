@@ -60,8 +60,8 @@ const (
 
 const largeAttachmentRedirectThreshold = 32 << 20
 
-func protectedAssetDeliveryMode(attachment *corev1.Attachment, req *http.Request) assetDeliveryMode {
-	if attachment == nil || req.Header.Get("X-Chatto-Asset-Proxy") == "1" {
+func protectedAssetDeliveryMode(attachment *corev1.Attachment) assetDeliveryMode {
+	if attachment == nil {
 		return deliveryChattoStream
 	}
 	if !attachmentCanUsePresignedRedirect(attachment.GetContentType()) {
@@ -145,16 +145,12 @@ func (s *HTTPServer) serveStableAttachment(c *gin.Context) {
 	ctx := c.Request.Context()
 	assetID := c.Param("assetID")
 
-	if s.failAssetProxyRequest(c) {
-		return
-	}
-
 	attachment, ok := s.resolveStableAttachment(c, ctx, assetID, nil)
 	if !ok {
 		return
 	}
 
-	if protectedAssetDeliveryMode(attachment, c.Request) == deliveryS3Redirect {
+	if protectedAssetDeliveryMode(attachment) == deliveryS3Redirect {
 		if presignedURL, err := s.core.TryPresignedAttachmentURL(ctx, attachment, core.S3AssetRedirectTTL); err == nil {
 			c.Header("Cache-Control", protectedAssetCacheControl)
 			c.Redirect(http.StatusFound, presignedURL)
@@ -180,7 +176,7 @@ func (s *HTTPServer) serveStableAttachment(c *gin.Context) {
 
 	c.Header("Cache-Control", protectedAssetCacheControl)
 	c.Header("ETag", fmt.Sprintf("\"%s\"", assetID))
-	c.Header("Vary", "Accept-Encoding, Authorization, Cookie, X-Chatto-Asset-Proxy")
+	c.Header("Vary", "Accept-Encoding, Authorization, Cookie")
 	c.DataFromReader(http.StatusOK, info.Size, contentType, reader, nil)
 }
 
@@ -227,10 +223,6 @@ func (s *HTTPServer) serveStableTransformedAttachment(c *gin.Context) {
 		return
 	}
 
-	if s.failAssetProxyRequest(c) {
-		return
-	}
-
 	attachment, ok := s.resolveStableAttachment(c, ctx, assetID, params)
 	if !ok {
 		return
@@ -248,23 +240,6 @@ func (s *HTTPServer) serveStableTransformedAttachment(c *gin.Context) {
 		},
 		Authorize: func(c *gin.Context) bool { return true },
 	}, params)
-}
-
-func (s *HTTPServer) failAssetProxyRequest(c *gin.Context) bool {
-	if c.GetHeader("X-Chatto-Asset-Proxy") != "1" {
-		return false
-	}
-
-	for {
-		remaining := s.failAssetProxyRequests.Load()
-		if remaining <= 0 {
-			return false
-		}
-		if s.failAssetProxyRequests.CompareAndSwap(remaining, remaining-1) {
-			c.JSON(http.StatusForbidden, gin.H{"error": "expired asset access ticket"})
-			return true
-		}
-	}
 }
 
 const AttachmentStableCachePrefix = "attachment-stable"

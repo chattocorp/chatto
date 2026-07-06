@@ -1,11 +1,11 @@
 # FDR-027: PWA Shell & Service Worker
 
 **Status:** Active
-**Last reviewed:** 2026-06-20
+**Last reviewed:** 2026-07-05
 
 ## Overview
 
-Chatto ships a service worker so the installed web app can launch reliably, handle push notifications, and proxy private asset loads through non-portable same-origin URLs. The worker caches the SPA fallback shell and SvelteKit build assets during install, then caches static PWA assets when the browser actually requests them. It deliberately does not cache chat data, API responses, live-event traffic, or protected uploaded asset bodies.
+Chatto ships a service worker so the installed web app can launch reliably and handle push notifications. The worker caches the SPA fallback shell and SvelteKit build assets during install, then caches static PWA assets when the browser actually requests them. It deliberately does not cache chat data, API responses, live-event traffic, or protected uploaded asset bodies.
 
 Offline support means the app can open and show its normal disconnected state instead of the browser's generic offline page. It does not mean offline message history, offline search, or an outbox for composing messages while disconnected.
 
@@ -18,9 +18,8 @@ Reconnect catch-up is owned by the foreground web app, not the service worker. W
 - On activate, old Chatto shell caches are deleted and the new worker claims open clients.
 - Known shell assets are served cache-first from the versioned cache; static PWA assets are cached lazily on first request.
 - Same-origin navigations are network-first, falling back to the cached SPA shell only when the network fails.
-- API, auth, webhook, non-GET, and cross-origin requests are network-only.
-- Same-origin virtual asset requests under `/__chatto/assets/{serverId}/...` are resolved by the worker to the registered server's hidden ticketed asset URL. The worker does not receive registered-server API bearer tokens, asks Chatto to stream originals instead of redirecting to S3 for full responses, does not cache protected asset bodies, and keeps media `Range` requests network-only.
-- If the browser restarts an idle worker while controlled pages stay open, the worker asks those clients to resend registered servers and virtual asset target mappings before treating a virtual asset as unresolved.
+- API, auth, OAuth, webhook, uploaded-asset, non-GET, and cross-origin requests are network-only.
+- Protected uploaded asset loads use direct signed asset URLs owned by the foreground app. The worker does not receive registered-server API bearer tokens, does not proxy asset requests, and does not cache protected asset bodies.
 - Push notifications continue to display native OS notifications and route notification clicks into the SPA.
 - Push dismiss payloads still close matching visible notifications on the device.
 
@@ -44,13 +43,13 @@ Reconnect catch-up is owned by the foreground web app, not the service worker. W
 **Why:** The service worker is now useful even when Web Push is not enabled. Registration should be tied to the PWA shell, not to push settings.
 **Tradeoff:** Production users get the service worker whenever the app includes one. The worker's fetch policy is conservative to make that safe.
 
-### 4. Virtual private asset URLs
+### 4. Protected assets stay outside the worker
 
-**Decision:** In controlled browser sessions, the frontend renders stable asset URLs through a same-origin Service Worker namespace (`/__chatto/assets/{serverId}/...`) instead of putting the ticketed remote URL directly in markup.
-**Why:** Remote-server cookies are not reliable for third-party media loads, while ticketed asset URLs are bearer capabilities if copied. The virtual URL is only useful inside a Chatto client that has the server registration and credentials needed to resolve it.
-**Tradeoff:** The worker keeps a hidden mapping from virtual URL to the current ticketed target URL so existing backend transform signing keeps working. API bearer tokens are deliberately not copied into worker asset state, so remote assets depend on that ticketed target mapping instead of a bearer-token fallback. If the worker is not controlling the page, the frontend falls back to the direct ticketed URL. Media `Range` requests are redirected to the hidden target URL rather than cached until the backend grows deliberate Range streaming through Chatto.
+**Decision:** Protected uploaded assets are loaded through direct signed asset URLs and refreshed by foreground components when they approach expiry or fail to load. The service worker treats uploaded assets as network-only and never proxies or caches their bodies.
+**Why:** The asset tickets and `AssetService` refresh flow are the actual reliability and authorization mechanism. Keeping asset routing out of the worker removes hidden worker/client state and keeps the service worker focused on shell availability and notifications.
+**Tradeoff:** Ticketed asset URLs are visible in normal page markup. Their exposure is bounded by the ticket expiry and by the server's room-membership check on every fetch.
 
 ## Related
 
-- **ADRs:** ADR-039 (Service Worker virtual asset URLs with ticketed fallback), ADR-043 (client-shell internationalization)
+- **ADRs:** ADR-043 (client-shell internationalization), ADR-047 (direct ticketed asset URLs)
 - **FDRs:** FDR-008 (File Attachments & Video Processing), FDR-012 (Notifications), FDR-013 (Web Push Notifications)

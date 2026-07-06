@@ -1,17 +1,8 @@
 import { serverRegistry } from '$lib/state/server/registry.svelte';
-import {
-  buildVirtualAssetPath,
-  isAssetProxyAvailable,
-  registerAssetProxyUrl
-} from '$lib/pwa/assetProxy';
 
 const STABLE_ASSET_PATH_PREFIX = '/assets/files/';
 
 function isAssetPath(pathname: string): boolean {
-  return pathname.startsWith(STABLE_ASSET_PATH_PREFIX);
-}
-
-function isStableAssetPath(pathname: string): boolean {
   return pathname.startsWith(STABLE_ASSET_PATH_PREFIX);
 }
 
@@ -31,12 +22,6 @@ export function assetUrlForServer(
 
     if (!isAssetPath(parsed.pathname)) {
       return rawUrl;
-    }
-
-    if (isStableAssetPath(parsed.pathname) && isAssetProxyAvailable()) {
-      const virtualPath = buildVirtualAssetPath(serverId, parsed.pathname);
-      registerAssetProxyUrl(serverId, virtualPath, parsed.href);
-      return virtualPath;
     }
 
     if (parsed.origin === window.location.origin) {

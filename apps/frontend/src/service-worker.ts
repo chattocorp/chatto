@@ -16,11 +16,6 @@ import {
   type NotificationClickClients
 } from '$lib/pwa/notificationClick.worker';
 import {
-  handleAssetProxyFetch,
-  handleAssetProxyMessage,
-  parseAssetProxyRequest
-} from '$lib/pwa/assetProxy.worker';
-import {
   ServiceWorkerBadgeCoordinator,
   createCacheForegroundNotificationCountStorage
 } from '$lib/pwa/notificationBadge.worker';
@@ -74,7 +69,6 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('message', (event) => {
-  if (handleAssetProxyMessage(event)) return;
   handleBadgeStateMessage(event);
 });
 
@@ -86,19 +80,6 @@ self.addEventListener('message', (event) => {
  * requests stay network-only so stale data never masquerades as live state.
  */
 self.addEventListener('fetch', (event) => {
-  const assetProxyRequest = parseAssetProxyRequest(event.request.url, self.location.origin);
-  if (assetProxyRequest) {
-    event.respondWith(
-      handleAssetProxyFetch(event.request, assetProxyRequest, {
-        navigationFallback: async () => {
-          const cache = await caches.open(CACHE_NAME);
-          return getCachedOfflineShell(cache);
-        }
-      })
-    );
-    return;
-  }
-
   const policy = classifyServiceWorkerRequest(
     event.request,
     event.request.url,

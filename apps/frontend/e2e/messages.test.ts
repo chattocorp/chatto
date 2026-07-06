@@ -196,16 +196,19 @@ test('image attachment refreshes URL after an expired lazy-load request', async 
     }
   );
 
-  const failNextAssetResponse = await page.request.post(
-    '/auth/test/fail-next-asset-proxy-request',
-    {
-      data: { count: 1 }
+  let failedAssetLoad = false;
+  await page.route('**/assets/files/**', async (route) => {
+    if (!failedAssetLoad && route.request().method() === 'GET') {
+      failedAssetLoad = true;
+      await route.fulfill({ status: 403, body: 'expired asset access ticket' });
+      return;
     }
-  );
-  expect(failNextAssetResponse.ok()).toBe(true);
+    await route.continue();
+  });
 
   await roomPage.sendAttachment('e2e/fixtures/brighton.jpg', 'Expired lazy image');
 
+  await expect.poll(() => failedAssetLoad, { timeout: TIMEOUTS.UI_STANDARD }).toBe(true);
   await expect.poll(() => refreshQueryCount, { timeout: TIMEOUTS.UI_STANDARD }).toBeGreaterThan(0);
   await expect
     .poll(

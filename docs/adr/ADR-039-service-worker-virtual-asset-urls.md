@@ -2,6 +2,13 @@
 
 **Date:** 2026-06-08
 
+**Status:** Superseded by [ADR-047](ADR-047-direct-ticketed-asset-urls.md)
+
+**Update (2026-07-05):** Chatto no longer uses Service Worker virtual asset
+URLs. Browser media now uses direct ticketed asset URLs and foreground clients
+refresh those URLs before expiry or after media load errors. This ADR remains as
+historical context for the removed privacy-hardening design.
+
 ## Context
 
 Chatto's browser client can connect to multiple registered servers. A page served by one Chatto server may render attachment media from another registered server. Native browser media elements such as `<img>` and `<video>` cannot reliably attach Chatto's registered-server bearer token to those cross-origin subresource requests, and SameSite cookie behavior makes relying on remote-server cookies brittle.

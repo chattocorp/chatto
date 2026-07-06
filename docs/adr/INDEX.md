@@ -54,3 +54,4 @@ For more about ADRs, see [Michael Nygard's article](https://cognitect.com/blog/2
 | [ADR-044](ADR-044-connectrpc-service-conventions.md) | ConnectRPC Service Conventions | 2026-06-25 |
 | [ADR-045](ADR-045-public-api-stability-tiers.md) | Public API Stability Tiers | 2026-06-28 |
 | [ADR-046](ADR-046-typed-runtime-credentials.md) | Typed Runtime Credentials | 2026-06-30 |
+| [ADR-047](ADR-047-direct-ticketed-asset-urls.md) | Direct Ticketed Asset URLs for Browser Media | 2026-07-05 |

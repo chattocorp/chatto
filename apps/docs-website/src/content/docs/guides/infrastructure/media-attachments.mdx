@@ -33,7 +33,7 @@ File attachments require:
 Attachment URLs are signed per user and still check that the signed user can access the room. If a user leaves, is removed, or loses room access, new asset fetches fail even if an old message still contains the URL.
 
 <Aside type="note">
-  Signed attachment URLs are bearer capabilities until they expire. The bundled PWA uses same-origin virtual asset URLs where possible so normal page markup does not expose portable remote attachment URLs.
+  Signed attachment URLs are bearer capabilities until they expire. Chatto keeps their TTL bounded and checks the signed user's current room access on every protected asset fetch.
 </Aside>
 
 ## Room Files

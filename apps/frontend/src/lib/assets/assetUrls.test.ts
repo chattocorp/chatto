@@ -32,13 +32,8 @@ function server(overrides: Partial<RegisteredServer> = {}): RegisteredServer {
   };
 }
 
-function stubBrowser(postMessage?: (message: unknown) => void) {
+function stubBrowser() {
   vi.stubGlobal('window', { location: { origin: ORIGIN } });
-  vi.stubGlobal('navigator', {
-    serviceWorker: {
-      controller: postMessage ? { postMessage } : null
-    }
-  });
 }
 
 describe('assetUrlForServer', () => {
@@ -51,7 +46,7 @@ describe('assetUrlForServer', () => {
     vi.unstubAllGlobals();
   });
 
-  it('keeps remote asset URLs direct when the service worker is not controlling the page', () => {
+  it('resolves remote relative asset URLs to direct signed server URLs', () => {
     stubBrowser();
 
     expect(assetUrlForServer('remote', '/assets/files/att_1?access=ticket')).toBe(
@@ -59,37 +54,19 @@ describe('assetUrlForServer', () => {
     );
   });
 
-  it('routes stable asset URLs through the same-origin service worker proxy', () => {
-    const postMessage = vi.fn();
-    stubBrowser(postMessage);
-
-    expect(assetUrlForServer('remote', '/assets/files/att_1?access=ticket')).toBe(
-      '/__chatto/assets/remote/assets/files/att_1'
-    );
-    expect(postMessage).toHaveBeenCalledWith({
-      type: 'chatto-asset-proxy-register-url',
-      serverId: 'remote',
-      virtualPath: '/__chatto/assets/remote/assets/files/att_1',
-      targetUrl: 'https://remote.example/assets/files/att_1?access=ticket'
-    });
-  });
-
-  it('routes transformed stable asset URLs through a credential-free virtual URL', () => {
-    const postMessage = vi.fn();
-    stubBrowser(postMessage);
+  it('keeps transformed asset URLs signed and direct', () => {
+    stubBrowser();
 
     expect(
       assetUrlForServer('remote', '/assets/files/att_1/image/960x800/contain?access=ticket')
-    ).toBe('/__chatto/assets/remote/assets/files/att_1/image/960x800/contain');
+    ).toBe('https://remote.example/assets/files/att_1/image/960x800/contain?access=ticket');
   });
 
   it('leaves non-stable asset URLs unchanged', () => {
-    const postMessage = vi.fn();
-    stubBrowser(postMessage);
+    stubBrowser();
 
     expect(assetUrlForServer('remote', '/assets/attachments/locator.sig')).toBe(
       '/assets/attachments/locator.sig'
     );
-    expect(postMessage).not.toHaveBeenCalled();
   });
 });

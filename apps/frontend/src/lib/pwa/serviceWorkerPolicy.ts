@@ -1,6 +1,6 @@
 export const OFFLINE_SHELL_PATH = '/200.html';
 
-const NETWORK_ONLY_PREFIXES = ['/api', '/auth', '/assets', '/webhooks'];
+const NETWORK_ONLY_PREFIXES = ['/api', '/auth', '/oauth', '/assets', '/webhooks'];
 
 export interface ServiceWorkerPolicy {
   cacheableShellAsset: boolean;
