@@ -40,7 +40,7 @@ Every `chatto.toml` setting can be overridden with an environment variable. The 
 </EnvVar>
 
 <EnvVar name="CHATTO_WEBSERVER_REQUEST_LOGGING" toml="webserver.request_logging" default="false">
-  Log HTTP requests.
+  Log HTTP requests. Successful requests are debug-level and require `CHATTO_LOG_LEVEL=debug`; 4xx and 5xx responses remain visible at warning and error levels.
 </EnvVar>
 
 <EnvVar name="CHATTO_WEBSERVER_ALLOWED_ORIGINS" toml="webserver.allowed_origins">
