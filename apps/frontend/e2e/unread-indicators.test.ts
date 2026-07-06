@@ -759,10 +759,9 @@ test.describe('Room unread separator', () => {
     // Regression test for: user posts a message, backgrounds the tab,
     // refocuses (same room, no navigation), then posts another message —
     // a "New messages" separator must NOT appear between the two own
-    // messages. The presence-false branch in useRoomUnread anchors the
-    // open-window separator at lastCursor; without advancing that anchor
-    // on subsequent own posts, the second message renders below the
-    // separator even though the user obviously saw their first message.
+    // messages. The unread marker is now driven by actual missed event ids,
+    // so a blur/refocus cycle without another user's event must not create
+    // a separator.
     await createAndLoginTestUser(page);
     await chatPage.goto();
 
@@ -770,8 +769,8 @@ test.describe('Room unread separator', () => {
     await waitForRoomReady(page, 'general');
     const generalRoomId = await getRoomIdByNameViaConnect(page, 'general');
 
-    // First own message — establishes a real client-side lastCursor that
-    // the presence-false branch will anchor on.
+    // First own message — establishes a real server read cursor, but no
+    // missed event id.
     const firstMessage = `First own message ${Date.now()}`;
     await roomPage.sendMessage(firstMessage);
     await roomPage.expectMessageVisible(firstMessage);
@@ -789,9 +788,8 @@ test.describe('Room unread separator', () => {
       document.dispatchEvent(new Event('visibilitychange'));
     });
 
-    // Refocus. The effect's presence-true branch does NOT overwrite the
-    // open-bound separator (intentional — preserves "you missed messages"
-    // markers across blur/focus cycles).
+    // Refocus. No missed event id was captured while hidden, so the marker
+    // should stay absent.
     await page.evaluate(() => {
       Object.defineProperty(document, 'visibilityState', {
         value: 'visible',
@@ -801,8 +799,8 @@ test.describe('Room unread separator', () => {
       document.dispatchEvent(new Event('visibilitychange'));
     });
 
-    // Second own message — the bug case. Pre-fix this would render below
-    // a "New messages" separator anchored at the first message's time.
+    // Second own message — the bug case. It must not render below a
+    // separator created from a blur/refocus cycle alone.
     const secondMessage = `Second own message ${Date.now()}`;
     await roomPage.sendMessage(secondMessage);
     await roomPage.expectMessageVisible(secondMessage);

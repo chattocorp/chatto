@@ -48,6 +48,20 @@ vi.mock('$lib/api-client/threads', () => ({
 
 vi.mock('$lib/hooks', () => ({
   useEvent: vi.fn(),
+  useUnreadMarker: (
+    getTargetId: () => string,
+    options: { markAsRead: (targetId: string, upToEventId?: string) => unknown }
+  ) => {
+    void options.markAsRead(getTargetId());
+    return {
+      unreadMarkerEventId: null,
+      unreadMarkerWindow: null,
+      markAsRead: options.markAsRead,
+      noteAwayEvent: vi.fn(),
+      setUnreadMarkerEventId: vi.fn(),
+      clearUnreadMarker: vi.fn()
+    };
+  },
   createTypingIndicator: () => ({
     userIds: [],
     removeTypingUser: mocks.removeTypingUser,
@@ -125,7 +139,7 @@ vi.mock('$lib/eventBus.svelte', () => ({
   onThreadFollowChanged: vi.fn(() => vi.fn())
 }));
 
-vi.mock('./EventList.svelte', async () => {
+vi.mock('./TimelineEventsPane.svelte', async () => {
   const { default: EmptyMock } = await import('./RoomLocalEchoEmptyMock.svelte');
   return { default: EmptyMock };
 });

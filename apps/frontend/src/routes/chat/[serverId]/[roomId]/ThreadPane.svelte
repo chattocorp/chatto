@@ -1,9 +1,9 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
   import { fly } from 'svelte/transition';
-  import { createReadStateAPI } from '$lib/api-client/readState';
+  import { createReadStateAPI, type MarkThreadAsReadResult } from '$lib/api-client/readState';
   import { createThreadAPI } from '$lib/api-client/threads';
-  import { useEvent, createTypingIndicator } from '$lib/hooks';
+  import { useEvent, createTypingIndicator, useUnreadMarker } from '$lib/hooks';
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
@@ -23,7 +23,7 @@
   import MessageComposer, {
     type MessageComposerApi
   } from '$lib/components/composer/MessageComposer.svelte';
-  import EventList from './EventList.svelte';
+  import TimelineEventsPane from './TimelineEventsPane.svelte';
   import { onThreadFollowChanged } from '$lib/eventBus.svelte';
   import type { PendingThreadReplyRequest } from './threadOpenOptions';
 
@@ -80,25 +80,10 @@
   let threadEvents = $derived(store.threadEvents);
   let updateCounter = $derived(threadEvents.length);
 
-  // Track the timestamp when the thread was last opened (for unread separator)
-  let unreadAfterTime = $state<Date | null>(null);
-  // Upper bound - messages arriving after we opened the thread don't show the separator
-  let unreadBeforeTime = $state<Date | null>(null);
-
-  // Resolve time-based unread boundary to an event ID for EventList
-  let unreadAfterEventId = $derived.by(() => {
-    if (unreadAfterTime === null) return null;
-    const currentUserId = currentUser.user?.id ?? null;
-    const afterTime = unreadAfterTime.getTime();
-    const beforeTime = unreadBeforeTime?.getTime() ?? Infinity;
-    for (const event of threadEvents) {
-      if (currentUserId && event.actorId === currentUserId) continue;
-      const eventTime = new Date(event.createdAt).getTime();
-      if (eventTime > afterTime && eventTime <= beforeTime) {
-        return event.id;
-      }
-    }
-    return null;
+  const unread = useUnreadMarker(() => threadRootEventId, {
+    markAsRead: markThreadAsRead,
+    markerWindowFromReadResult: (result, markedAtMs) =>
+      result.previousReadAt ? { afterTime: result.previousReadAt, beforeTime: markedAtMs } : null
   });
 
   // Typing indicator for this thread
@@ -183,8 +168,12 @@
         typingIndicator.removeTypingUser(actorId);
       }
 
-      if (currentUser.user && actorId !== currentUser.user.id && appState.isPresent) {
-        void markThreadAsRead(threadRootEventId, serverEvent.id);
+      if (currentUser.user && actorId !== currentUser.user.id) {
+        if (appState.isPresent) {
+          void unread.markAsRead(threadRootEventId, serverEvent.id);
+        } else {
+          unread.noteAwayEvent(serverEvent.id);
+        }
       }
     }
 
@@ -255,7 +244,10 @@
     })
   );
 
-  async function markThreadAsRead(currentThreadId: string, upToEventId?: string) {
+  async function markThreadAsRead(
+    currentThreadId: string,
+    upToEventId?: string
+  ): Promise<MarkThreadAsReadResult | null> {
     try {
       const conn = connection();
       return await createReadStateAPI({
@@ -268,46 +260,6 @@
       return null;
     }
   }
-
-  // Fire mark-thread-as-read on every presence-true edge (fresh open or
-  // refocus/tab-reveal) and on thread changes while present. The result
-  // drives the unread separator so a refocus shows what arrived during
-  // the away period.
-  let lastFiredThreadId = '';
-  let wasPresentThread = false;
-
-  $effect(() => {
-    const currentThreadId = threadRootEventId;
-    const present = appState.isPresent;
-
-    if (!present) {
-      // Presence-false edge: anchor the unread separator at "now" with no
-      // upper bound so replies arriving while the user is away show up
-      // below the marker in real time, rather than only on return. The
-      // presence-true edge below refines it when the user comes back.
-      if (wasPresentThread) {
-        unreadAfterTime = new Date();
-        unreadBeforeTime = null;
-      }
-      wasPresentThread = false;
-      return;
-    }
-
-    if (wasPresentThread && lastFiredThreadId === currentThreadId) return;
-    wasPresentThread = true;
-    lastFiredThreadId = currentThreadId;
-
-    unreadAfterTime = null;
-    unreadBeforeTime = null;
-
-    const openedAt = new Date();
-    markThreadAsRead(currentThreadId).then((data) => {
-      if (!data) return;
-      const prevTime = data.previousReadAt;
-      unreadAfterTime = prevTime ? new Date(prevTime) : null;
-      unreadBeforeTime = openedAt;
-    });
-  });
 </script>
 
 <div
@@ -331,7 +283,7 @@
     {/snippet}
   </PaneHeader>
 
-  <EventList
+  <TimelineEventsPane
     {roomId}
     messageStore={store}
     events={threadEvents}
@@ -347,7 +299,11 @@
     enableLastEditableFinder={true}
     isLoading={store.isInitialLoading}
     emptyMessage={m['room.thread.not_found']()}
-    {unreadAfterEventId}
+    unreadMarkerEventId={unread.unreadMarkerEventId}
+    unreadMarkerWindow={unread.unreadMarkerWindow}
+    unreadMarkerSkipActorId={currentUser.user?.id ?? null}
+    onUnreadMarkerResolved={(eventId) => unread.setUnreadMarkerEventId(eventId)}
+    onUnreadMarkerCleared={() => unread.clearUnreadMarker()}
     typingUserIds={typingIndicator.userIds}
     typingMembers={members}
     scrollToEventId={jumpState.scrollToEventId}
@@ -378,7 +334,7 @@
       typingIndicator?.resetDebounce();
       if (event) {
         store.ingestEvent(event);
-        void markThreadAsRead(threadRootEventId, event.id);
+        void unread.markAsRead(threadRootEventId, event.id);
       } else {
         void store.refreshCurrentWindow(null);
       }

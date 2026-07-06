@@ -7,7 +7,7 @@
     type RoomMember
   } from '$lib/state/room';
   import type { MessagesStore } from '$lib/state/room';
-  import EventList from './EventList.svelte';
+  import TimelineEventsPane from './TimelineEventsPane.svelte';
   import type { OpenThreadHandler } from './threadOpenOptions';
 
   type MessageRetractedEventPayload = {
@@ -51,27 +51,6 @@
 
   let roomEvents = $derived(store.rootEvents);
   let updateCounter = $derived(roomEvents.length);
-
-  // Resolve a fresh-entry server timestamp window once, then commit the
-  // concrete event id back to the unread hook. EventList only renders an
-  // explicit event-id marker.
-  let resolvedUnreadMarkerEventId = $derived.by(() => {
-    if (unreadMarkerWindow === null) return null;
-    const afterMs = new Date(unreadMarkerWindow.afterTime).getTime();
-    const beforeMs = new Date(unreadMarkerWindow.beforeTime).getTime();
-    for (const event of roomEvents) {
-      const eventMs = new Date(event.createdAt).getTime();
-      if (eventMs > afterMs && eventMs <= beforeMs) {
-        return event.id;
-      }
-    }
-    return null;
-  });
-
-  $effect(() => {
-    if (!resolvedUnreadMarkerEventId) return;
-    onUnreadMarkerResolved?.(resolvedUnreadMarkerEventId);
-  });
 
   // Wire jumpState handlers to the store
   if (jumpState) {
@@ -134,7 +113,7 @@
   }
 </script>
 
-<EventList
+<TimelineEventsPane
   {roomId}
   messageStore={store}
   events={roomEvents}
@@ -148,7 +127,9 @@
   {onOpenThread}
   enableLastEditableFinder={true}
   isLoading={store.isInitialLoading}
-  unreadAfterEventId={unreadMarkerEventId}
+  {unreadMarkerEventId}
+  {unreadMarkerWindow}
+  {onUnreadMarkerResolved}
   {typingUserIds}
   {typingMembers}
   scrollToEventId={jumpState?.scrollToEventId ?? null}
@@ -161,6 +142,6 @@
   onLoadNewer={() => store.loadNewer(jumpState)}
   onJumpToPresent={() => store.jumpToPresent(jumpState)}
   onReachedPresent={handleReachedPresent}
-  onReachedBottom={onUnreadMarkerCleared}
+  {onUnreadMarkerCleared}
   onSoftRefresh={handleSoftRefresh}
 />

@@ -24,7 +24,8 @@ export type { MessageActionParams } from './useMessageActions.svelte';
 // Data hooks
 export { useRoomData } from './useRoomData.svelte';
 export { useRoomUnread } from './useRoomUnread.svelte';
-export type { UnreadMarkerWindow } from './useRoomUnread.svelte';
+export { useUnreadMarker } from './useUnreadMarker.svelte';
+export type { UnreadMarkerWindow } from './useUnreadMarker.svelte';
 
 // Lifecycle hooks
 export { useTabResumeCallback } from './useTabResumeCallback.svelte';

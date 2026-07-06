@@ -32,7 +32,6 @@ const { mocks } = vi.hoisted(() => {
       goto: vi.fn(),
       pushState: vi.fn(),
       replaceState: vi.fn(),
-      noteReadCursor: vi.fn(),
       noteAwayEvent: vi.fn(),
       markRoomAsRead: vi.fn(),
       resetTypingDebounce: vi.fn(),
@@ -125,7 +124,6 @@ vi.mock('$lib/hooks', () => ({
     unreadMarkerEventId: null,
     unreadMarkerWindow: null,
     markRoomAsRead: mocks.markRoomAsRead,
-    noteReadCursor: mocks.noteReadCursor,
     noteAwayEvent: mocks.noteAwayEvent,
     setUnreadMarkerEventId: vi.fn(),
     clearUnreadMarker: vi.fn()
@@ -320,7 +318,6 @@ describe('Room local message echo', () => {
       .element(q(container, '[data-testid="room-event-ids"]'))
       .toHaveTextContent('msg-local');
     expect(mocks.resetTypingDebounce).toHaveBeenCalledOnce();
-    expect(mocks.noteReadCursor).toHaveBeenCalledWith('2026-06-17T10:47:00Z');
   });
 
   it('does not advance the current room read cursor for a stale returned post from another room', async () => {
@@ -332,7 +329,6 @@ describe('Room local message echo', () => {
 
     await expect.element(q(container, '[data-testid="room-event-ids"]')).toHaveTextContent('');
     expect(mocks.resetTypingDebounce).toHaveBeenCalledOnce();
-    expect(mocks.noteReadCursor).not.toHaveBeenCalled();
   });
 
   it('clears pending in-room reply state when the room changes', async () => {

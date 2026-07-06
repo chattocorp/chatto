@@ -955,7 +955,7 @@ test.describe('Message Threading', () => {
     );
   });
 
-  test('thread unread separator appears in real time while the tab is hidden', async ({
+  test('thread unread separator is deferred until the hidden tab returns', async ({
     page,
     chatPage,
     roomPage,
@@ -992,8 +992,9 @@ test.describe('Message Threading', () => {
           await roomPage2.expectNoUnreadSeparatorInThreadPane();
         }).toPass({ timeout: TIMEOUTS.UI_STANDARD, intervals: [100, 250, 500, 1000] });
 
-        // User B's tab goes to the background. They stay in the thread; presence
-        // just drops, which anchors the unread separator at "now".
+        // User B's tab goes to the background. They stay in the thread; the
+        // missed reply is collected as pending state, but the rendered
+        // separator must not move until the user returns.
         await page2.evaluate(() => {
           Object.defineProperty(document, 'visibilityState', {
             value: 'hidden',
@@ -1007,10 +1008,22 @@ test.describe('Message Threading', () => {
         const replyMessage = `Reply while hidden ${Date.now()}`;
         await roomPage.postThreadReply(replyMessage);
 
-        // The reply streams in over the live subscription, and because the
-        // separator was anchored the moment presence dropped, it shows up
-        // immediately — without User B re-opening the thread.
+        // The reply streams in over the live subscription, but while hidden
+        // it should not render a separator yet.
         await roomPage2.expectTextInThreadPane(replyMessage);
+        await expect(async () => {
+          await roomPage2.expectNoUnreadSeparatorInThreadPane();
+        }).toPass({ timeout: TIMEOUTS.UI_STANDARD, intervals: [100, 250, 500, 1000] });
+
+        await page2.evaluate(() => {
+          Object.defineProperty(document, 'visibilityState', {
+            value: 'visible',
+            writable: true,
+            configurable: true
+          });
+          document.dispatchEvent(new Event('visibilitychange'));
+        });
+
         await roomPage2.expectUnreadSeparatorInThreadPane();
       }
     );

@@ -325,14 +325,9 @@
     }
   }
 
-  // Keep the read cursor in sync with incoming root messages:
-  // - Other users' messages mark the room read (with explicit event ID, so
-  //   the server cursor matches what the client rendered) while the user is
-  //   actually present (focused + visible).
-  // - The user's own posts already auto-mark the room read server-side, so
-  //   we just mirror that onto the local cursor — without it, backgrounding
-  //   the tab would strand the user's own latest message below the unread
-  //   separator.
+  // Keep the server read cursor in sync with incoming root messages. Other
+  // users' messages mark the room read while the user is actually present;
+  // own messages are already auto-marked read by the post mutation.
   useEvent((event) => {
     roomFilesStore.ingestServerEvent(event);
     roomMembersStore.ingestServerEvent(event);
@@ -352,9 +347,7 @@
       }
 
       if (!event.event.threadRootEventId && currentUser.user) {
-        if (actorId === currentUser.user.id) {
-          unread.noteReadCursor(event.createdAt);
-        } else if (appState.isPresent) {
+        if (actorId !== currentUser.user.id && appState.isPresent) {
           unread.markRoomAsRead(roomId, event.id);
         }
       }
@@ -595,13 +588,6 @@
             typingIndicator?.resetDebounce();
             if (event) {
               roomMessageStore.ingestEvent(event);
-              if (
-                isMessagePostedEvent(event.event) &&
-                event.event.roomId === roomId &&
-                !event.event.threadRootEventId
-              ) {
-                unread.noteReadCursor(event.createdAt);
-              }
             } else {
               void roomMessageStore.refreshCurrentWindow(null);
             }
