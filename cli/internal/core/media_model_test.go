@@ -4,11 +4,14 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"net/url"
 	"strings"
 	"testing"
+	"time"
 
 	"hmans.de/chatto/internal/events"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/pkg/signedurl"
 )
 
 func TestNewMediaModelWiresCore(t *testing.T) {
@@ -245,6 +248,7 @@ func TestMediaModelStableAttachmentURLs(t *testing.T) {
 	core.AssetBaseURL = "https://assets.example"
 	service := core.mediaModel
 
+	before := time.Now()
 	stable := service.GetStableAttachmentAssetURL("A-url", "U-url")
 	if stable.URL == "" {
 		t.Fatal("GetStableAttachmentAssetURL returned empty URL")
@@ -255,6 +259,7 @@ func TestMediaModelStableAttachmentURLs(t *testing.T) {
 	if stable.ExpiresAt.IsZero() {
 		t.Fatal("stable URL expiry was zero")
 	}
+	assertStableAssetURLTicket(t, core, stable, nil, before)
 
 	if got := service.GetStableAttachmentURL("", "U-url"); got != "" {
 		t.Fatalf("GetStableAttachmentURL with empty asset id = %q, want empty", got)
@@ -273,8 +278,46 @@ func TestMediaModelStableAttachmentURLs(t *testing.T) {
 	if transformed.ExpiresAt.IsZero() {
 		t.Fatal("stable transformed URL expiry was zero")
 	}
+	assertStableAssetURLTicket(t, core, transformed, &signedurl.TransformParams{
+		Width:  128,
+		Height: 96,
+		Fit:    "contain",
+	}, before)
 	if got := service.GetStableTransformedAttachmentURL("", "U-url", 128, 96, "contain"); got != "" {
 		t.Fatalf("GetStableTransformedAttachmentURL with empty asset id = %q, want empty", got)
+	}
+}
+
+func assertStableAssetURLTicket(t *testing.T, core *ChattoCore, stable StableAssetURL, params *signedurl.TransformParams, before time.Time) {
+	t.Helper()
+
+	parsedURL, err := url.Parse(stable.URL)
+	if err != nil {
+		t.Fatalf("stable URL parse failed: %v", err)
+	}
+	access := parsedURL.Query().Get("access")
+	if access == "" {
+		t.Fatalf("stable URL %q did not include access ticket", stable.URL)
+	}
+	ticket, err := signedurl.ParseSignedAssetAccessTicket(core.config.Assets.SigningSecret, access)
+	if err != nil {
+		t.Fatalf("stable URL access ticket parse failed: %v", err)
+	}
+	if ticket.UserID != "U-url" {
+		t.Fatalf("stable URL ticket user = %q, want U-url", ticket.UserID)
+	}
+	if ticket.AssetID != "A-url" {
+		t.Fatalf("stable URL ticket asset = %q, want A-url", ticket.AssetID)
+	}
+	if !ticket.MatchesTransform(params) {
+		t.Fatalf("stable URL ticket transform = %#v, want %#v", ticket, params)
+	}
+	if ticket.ExpiresAt != stable.ExpiresAt.Unix() {
+		t.Fatalf("stable URL ticket expiry = %d, want %d", ticket.ExpiresAt, stable.ExpiresAt.Unix())
+	}
+	ttl := stable.ExpiresAt.Sub(before)
+	if ttl < AssetAccessTicketTTL-2*time.Second || ttl > AssetAccessTicketTTL+2*time.Second {
+		t.Fatalf("stable URL ticket TTL = %v, want about %v", ttl, AssetAccessTicketTTL)
 	}
 }
 

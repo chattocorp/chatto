@@ -649,9 +649,9 @@ const AttachmentSignResource = "attachment"
 const ServerAssetSignResource = "server"
 
 // AssetAccessTicketTTL keeps direct browser/standalone-client asset URLs useful
-// for normal page render and media startup, without turning copied URLs into
-// long-lived bearer links.
-const AssetAccessTicketTTL = time.Hour
+// across long-lived room views and deferred media playback, without turning
+// copied URLs into indefinite bearer links.
+const AssetAccessTicketTTL = 24 * time.Hour
 
 // S3AssetRedirectTTL bounds direct object-store redirects for heavy original
 // asset responses. Chatto authorizes the request first, then hands browsers a

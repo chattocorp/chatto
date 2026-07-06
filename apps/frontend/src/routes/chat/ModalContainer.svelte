@@ -59,8 +59,8 @@
   let deletingLinkPreview = $state(false);
   let deletingAttachment = $state(false);
 
-  // Keep the lightbox ahead of the one-hour access ticket expiry.
-  const IMAGE_MODAL_URL_REFRESH_MS = 50 * 60 * 1000;
+  // Keep the lightbox ahead of the 24-hour access ticket expiry.
+  const IMAGE_MODAL_URL_REFRESH_MS = 23 * 60 * 60 * 1000;
 
   async function handleLeaveRoom(roomId: string) {
     leavingRoom = true;

@@ -1,7 +1,7 @@
 # FDR-008: File Attachments & Video Processing
 
 **Status:** Active
-**Last reviewed:** 2026-07-05
+**Last reviewed:** 2026-07-06
 
 ## Overview
 
@@ -67,7 +67,7 @@ Users can attach files to messages — images, videos, documents — via drag-an
 
 **Decision:** Public attachment APIs expose attachment media as stable asset paths plus per-user access tickets: `/assets/files/{assetId}?access={ticket}` for originals and `/assets/files/{assetId}/image/{width}x{height}/{fit}?access={ticket}` for image derivatives. Attachment, thumbnail, video thumbnail, and variant URLs also expose the ticket expiry so the client can refresh before or after a lazy-load miss. Every fetch verifies the signed user is still a member of the asset's room.
 **Why:** Cross-origin `<img>` tags (used when the SPA loads attachments from a _remote_ registered server) can't carry session cookies (SameSite) or Authorization headers. A signed per-user access ticket lets browsers load remote attachments directly, while the room-membership check still auto-revokes access on kick/leave.
-**Tradeoff:** The access ticket is a bearer capability — anyone holding it can fetch until the expiry passes or the signed user loses room membership. `core.AssetAccessTicketTTL` is currently **1 hour** so normal rendering, lazy loading, media startup, and lightbox use are reliable; clients refresh URL fields through projected timeline, message, or attachment-list reads when tickets approach expiry or a media load fails. Protected asset responses use `private, no-store`, so browser-visible protected bytes are not reused as authorization state. Chatto streams protected bytes by default, with short-lived S3 redirects reserved for heavy passive originals such as video, audio, and large files. Rotating `[core.assets].signing_secret` invalidates all outstanding access tickets.
+**Tradeoff:** The access ticket is a bearer capability — anyone holding it can fetch until the expiry passes or the signed user loses room membership. `core.AssetAccessTicketTTL` is currently **24 hours** so normal rendering, lazy loading, deferred media startup, and lightbox use are reliable across long-lived room views; clients still refresh URL fields through projected timeline, message, or attachment-list reads when tickets approach expiry or a media load fails. Protected asset responses use `private, no-store`, so browser-visible protected bytes are not reused as authorization state. Chatto streams protected bytes by default, with short-lived S3 redirects reserved for heavy passive originals such as video, audio, and large files. Rotating `[core.assets].signing_secret` invalidates all outstanding access tickets.
 
 ### 8. Active document attachments render in a browser sandbox
 
