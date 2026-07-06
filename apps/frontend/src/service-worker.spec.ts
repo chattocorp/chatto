@@ -183,6 +183,37 @@ describe('service worker badge orchestration', () => {
     );
   });
 
+  it('reconciles badge state even when notification click routing fails', async () => {
+    const worker = await importServiceWorker();
+    await worker.dispatch('message', {
+      data: {
+        type: 'chatto-badge-state',
+        notificationCount: 0,
+        serviceWorkerAppBadgeEnabled: true
+      }
+    });
+    worker.clearAppBadge.mockClear();
+    worker.registration.getNotifications.mockClear();
+    worker.clients.openWindow.mockRejectedValueOnce(new Error('window activation failed'));
+    worker.registration.getNotifications.mockResolvedValueOnce([]);
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    try {
+      await worker.dispatch('notificationclick', {
+        notification: {
+          close: vi.fn(),
+          data: { url: 'https://chatto.example/chat/-/room-1' }
+        }
+      });
+
+      expect(worker.registration.getNotifications).toHaveBeenCalledOnce();
+      expect(worker.clearAppBadge).toHaveBeenCalledOnce();
+      expect(consoleError).toHaveBeenCalledOnce();
+    } finally {
+      consoleError.mockRestore();
+    }
+  });
+
   it('preserves a foreground authoritative count after a service worker restart', async () => {
     const cacheStorage = createMemoryCacheStorage();
     const firstWorker = await importServiceWorker(cacheStorage);

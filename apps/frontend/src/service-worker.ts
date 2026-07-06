@@ -231,19 +231,22 @@ self.addEventListener('notificationclick', (event) => {
     typeof event.notification.data?.url === 'string' ? event.notification.data.url : undefined;
   event.waitUntil(
     (async () => {
-      await routeNotificationClick(
-        rawUrl,
-        self.location.origin,
-        self.clients as unknown as NotificationClickClients,
-        {
-          logger: console,
-          pendingTargetStorage: {
-            writePendingNotificationClickTarget: (url) =>
-              writePendingNotificationClickTarget(caches, self.location.origin, url)
+      try {
+        await routeNotificationClick(
+          rawUrl,
+          self.location.origin,
+          self.clients as unknown as NotificationClickClients,
+          {
+            logger: console,
+            pendingTargetStorage: {
+              writePendingNotificationClickTarget: (url) =>
+                writePendingNotificationClickTarget(caches, self.location.origin, url)
+            }
           }
-        }
-      );
-      await badgeCoordinator.reconcileAfterNotificationClick().catch(() => {});
+        );
+      } finally {
+        await badgeCoordinator.reconcileAfterNotificationClick().catch(() => {});
+      }
     })().catch((err) => {
       console.error('[SW] Error handling notification click:', err);
     })
