@@ -644,6 +644,34 @@ func TestExternalIdentityFlowsAndAccountManagement(t *testing.T) {
 
 }
 
+func TestAPIExternalIdentityProvidersIncludesLinkedATProto(t *testing.T) {
+	providers := []config.AuthProviderConfig{
+		{ID: "github-main", Type: config.AuthProviderTypeGitHub, Label: "GitHub"},
+		{ID: "atproto", Type: config.AuthProviderTypeATProto, Label: "AT Protocol"},
+	}
+
+	unlinked := apiExternalIdentityProviders(providers, nil)
+	if len(unlinked) != 1 || unlinked[0].GetProvider().GetId() != "github-main" {
+		t.Fatalf("unlinked providers = %+v, want only github-main", unlinked)
+	}
+
+	linked := apiExternalIdentityProviders(providers, []core.ExternalIdentity{{
+		ProviderID:   "atproto",
+		ProviderType: config.AuthProviderTypeATProto,
+		SubjectHash:  "hash-atproto",
+	}})
+	if len(linked) != 2 {
+		t.Fatalf("linked providers len = %d, want 2: %+v", len(linked), linked)
+	}
+	atproto := linked[1]
+	if atproto.GetProvider().GetId() != "atproto" ||
+		!atproto.GetLinked() ||
+		atproto.GetLinkedIdentitySubjectHash() != "hash-atproto" ||
+		atproto.GetLinkUrl() != "/auth/atproto?intent=link" {
+		t.Fatalf("linked atproto provider = %+v", atproto)
+	}
+}
+
 func TestExternalIdentityCreateDisplayName(t *testing.T) {
 	tests := []struct {
 		name  string

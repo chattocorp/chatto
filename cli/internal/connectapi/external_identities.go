@@ -178,19 +178,25 @@ func apiPendingExternalIdentity(flow *core.PendingExternalIdentityFlow) *authv1.
 func apiExternalIdentityProviders(providers []config.AuthProviderConfig, identities []core.ExternalIdentity) []*apiv1.ExternalIdentityProvider {
 	result := make([]*apiv1.ExternalIdentityProvider, 0, len(providers))
 	for _, provider := range providers {
-		if provider.Type == config.AuthProviderTypeATProto {
+		linkedIdentity, linked := providerLinkedIdentity(provider, identities)
+		if provider.Type == config.AuthProviderTypeATProto && !linked {
 			continue
 		}
-		escapedID := url.PathEscape(provider.ID)
-		linkedIdentity, linked := providerLinkedIdentity(provider, identities)
 		result = append(result, &apiv1.ExternalIdentityProvider{
-			LinkUrl:                   "/auth/providers/" + escapedID + "?intent=link",
+			LinkUrl:                   providerLinkURL(provider),
 			Linked:                    linked,
 			LinkedIdentitySubjectHash: linkedIdentity.SubjectHash,
 			Provider:                  apiProviderMetadata(provider),
 		})
 	}
 	return result
+}
+
+func providerLinkURL(provider config.AuthProviderConfig) string {
+	if provider.Type == config.AuthProviderTypeATProto {
+		return "/auth/atproto?intent=link"
+	}
+	return "/auth/providers/" + url.PathEscape(provider.ID) + "?intent=link"
 }
 
 func apiLinkedExternalIdentities(identities []core.ExternalIdentity, labels map[string]string) []*apiv1.LinkedExternalIdentity {
