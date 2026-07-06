@@ -47,6 +47,14 @@ description = "Set up the frontend module"
 depends = ["deps-frontend"]
 
 # =============================================================================
+# License Metadata
+# =============================================================================
+
+[tasks.license-check]
+description = "Check SPDX/REUSE license metadata"
+run = "mise x uv@latest -- uvx reuse lint"
+
+# =============================================================================
 # Code Generation
 # =============================================================================
 
@@ -84,11 +92,13 @@ run = { task = "codegen-*" }
 description = "Copy root legal files into the CLI module for go:embed"
 run = [
     "mkdir -p cli/cmd/embedded",
-    "cp LICENSE cli/cmd/embedded/LICENSE",
+    "cp LICENSES/AGPL-3.0-or-later.txt cli/LICENSE",
+    "cp NOTICE cli/NOTICE",
+    "cp LICENSES/AGPL-3.0-or-later.txt cli/cmd/embedded/LICENSE",
     "cp NOTICE cli/cmd/embedded/NOTICE",
 ]
-sources = ["LICENSE", "NOTICE"]
-outputs = ["cli/cmd/embedded/LICENSE", "cli/cmd/embedded/NOTICE"]
+sources = ["LICENSES/AGPL-3.0-or-later.txt", "NOTICE"]
+outputs = ["cli/LICENSE", "cli/NOTICE", "cli/cmd/embedded/LICENSE", "cli/cmd/embedded/NOTICE"]
 
 [tasks.build]
 description = "Build the entire project for all architectures"

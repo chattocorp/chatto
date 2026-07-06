@@ -161,6 +161,11 @@ jobs:
           tags: ${{ steps.frontend_tags.outputs.tags }}
           cache-from: type=gha,scope=chatto-client
           cache-to: type=gha,scope=chatto-client,mode=max
+          labels: |
+            org.opencontainers.image.source=https://github.com/chattocorp/chatto
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ steps.version.outputs.version }}
+            org.opencontainers.image.licenses=Apache-2.0
 
       - name: Publish GitHub Release
         shell: bash

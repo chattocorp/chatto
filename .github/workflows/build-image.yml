@@ -65,6 +65,9 @@ jobs:
           cp docker/Dockerfile.goreleaser "$context/Dockerfile"
           mkdir -p "$context/docker"
           cp docker/docker-entrypoint.sh "$context/docker/docker-entrypoint.sh"
+          mkdir -p "$context/LICENSES"
+          cp LICENSES/AGPL-3.0-or-later.txt "$context/LICENSES/AGPL-3.0-or-later.txt"
+          cp NOTICE "$context/NOTICE"
 
           (
             cd cli
@@ -85,3 +88,4 @@ jobs:
             org.opencontainers.image.source=https://github.com/chattocorp/chatto
             org.opencontainers.image.revision=${{ steps.image.outputs.sha }}
             org.opencontainers.image.version=${{ steps.image.outputs.sha }}
+            org.opencontainers.image.licenses=AGPL-3.0-or-later

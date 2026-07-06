@@ -4,5 +4,7 @@ FROM fholzer/nginx-brotli:v1.28.0
 
 COPY apps/frontend/nginx.conf /etc/nginx/conf.d/default.conf
 COPY apps/frontend/build /usr/share/nginx/html
+COPY LICENSES/Apache-2.0.txt /usr/share/doc/chatto-client/LICENSE
+COPY NOTICE /usr/share/doc/chatto-client/NOTICE
 
 EXPOSE 80

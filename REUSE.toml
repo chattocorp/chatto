@@ -1,0 +1,37 @@
+# SPDX-FileCopyrightText: 2026 ChattoCorp GmbH
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+version = 1
+
+[[annotations]]
+path = "**"
+SPDX-FileCopyrightText = "2026 ChattoCorp GmbH"
+SPDX-License-Identifier = "AGPL-3.0-or-later"
+
+[[annotations]]
+path = [
+  "apps/docs-website/**",
+  "apps/frontend/**",
+  "CHANGELOG.md",
+  "CONTRIBUTING.md",
+  "docs/**",
+  "docker/Dockerfile.frontend.prebuilt",
+  "docker/Dockerfile.frontend.prebuilt.dockerignore",
+  "examples/**",
+  "packages/api-types/**",
+  "README.md",
+  "SECURITY.md",
+  "proto/AGENTS.md",
+  "proto/buf.gen.yaml",
+  "proto/buf.lock",
+  "proto/buf.yaml",
+  "proto/templates/**",
+  "proto/chatto/admin/**",
+  "proto/chatto/api/**",
+  "proto/chatto/auth/**",
+  "proto/chatto/discovery/**",
+  "proto/chatto/operator/**",
+  "proto/chatto/realtime/**",
+]
+SPDX-FileCopyrightText = "2026 ChattoCorp GmbH"
+SPDX-License-Identifier = "Apache-2.0"

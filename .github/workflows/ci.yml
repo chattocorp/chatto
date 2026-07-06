@@ -25,6 +25,21 @@ permissions:
   contents: read
 
 jobs:
+  license-check:
+    # runs-on: ubicloud-standard-4
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup mise
+        uses: jdx/mise-action@v4
+        with:
+          experimental: true
+
+      - name: Check license metadata
+        run: mise license-check
+
   codegen-proto-drift:
     # runs-on: ubicloud-standard-4
     runs-on: ubuntu-latest
