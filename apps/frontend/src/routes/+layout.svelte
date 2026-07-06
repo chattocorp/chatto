@@ -113,6 +113,7 @@
         {#if !sidebarNav.isOpen || dragging}
           <div
             use:sidebarEdgeSwipe
+            data-app-sidebar="true"
             class="fixed top-11 bottom-0 left-0 z-40 w-6 touch-none md:hidden"
             aria-hidden="true"
           ></div>
@@ -121,6 +122,7 @@
         <button
           type="button"
           use:sidebarSwipe
+          data-app-sidebar="true"
           data-testid="mobile-sidebar-backdrop"
           class={[
             'fixed inset-0 top-11 z-40 touch-none bg-black/50 md:hidden',
@@ -139,6 +141,7 @@
       <div class="flex min-h-0 flex-1 flex-row">
         <div
           use:sidebarSwipe
+          data-app-sidebar="true"
           data-testid="mobile-sidebar-panel"
           class={[
             'z-50 min-h-0 flex-col self-stretch bg-background',

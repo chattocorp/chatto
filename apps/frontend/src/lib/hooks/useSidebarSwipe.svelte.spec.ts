@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { sidebarEdgeSwipe } from './useSidebarSwipe.svelte';
+import { sidebarEdgeSwipe, sidebarSwipe } from './useSidebarSwipe.svelte';
 import { sidebarNav } from '$lib/state/globals.svelte';
 
 const originalElementsFromPoint = document.elementsFromPoint;
@@ -82,6 +82,20 @@ describe('sidebarEdgeSwipe', () => {
     edge.dispatchEvent(pointer('pointerup', 210));
 
     expect(sidebarNav.isOpen).toBe(true);
+
+    action.destroy();
+  });
+
+  it('still closes the mobile sidebar on a leftward drag', () => {
+    const { edge } = makeEdgeGestureHost();
+    sidebarNav.isOpen = true;
+    const action = sidebarSwipe(edge);
+
+    edge.dispatchEvent(pointer('pointerdown', 320));
+    edge.dispatchEvent(pointer('pointermove', 0));
+    edge.dispatchEvent(pointer('pointerup', 0));
+
+    expect(sidebarNav.isOpen).toBe(false);
 
     action.destroy();
   });

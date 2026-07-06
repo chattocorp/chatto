@@ -487,7 +487,7 @@
 
     if (!threadId || e.button !== 0) return;
     const target = e.target as HTMLElement;
-    if (target.closest('[data-testid="thread-pane"], dialog')) return;
+    if (target.closest('[data-testid="thread-pane"], [data-app-sidebar], dialog')) return;
     closeThread();
   }}
 />

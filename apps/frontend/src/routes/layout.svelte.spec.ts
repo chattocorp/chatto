@@ -138,6 +138,16 @@ function renderLayout() {
   });
 }
 
+function pointer(type: string, x: number, y = 120) {
+  return new PointerEvent(type, {
+    bubbles: true,
+    cancelable: true,
+    pointerId: 1,
+    clientX: x,
+    clientY: y
+  });
+}
+
 describe('root layout mobile sidebar animation', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -178,5 +188,25 @@ describe('root layout mobile sidebar animation', () => {
 
     await new Promise((resolve) => setTimeout(resolve, 250));
     expect(getComputedStyle(panel).visibility).toBe('hidden');
+  });
+
+  it('keeps drag-to-close working for the mobile sidebar', async () => {
+    const { container } = renderLayout();
+    await tick();
+
+    sidebarNav.toggle();
+    await tick();
+
+    const panel = q(container, '[data-testid="mobile-sidebar-panel"]');
+    expect(panel).not.toBeNull();
+    if (!panel) return;
+
+    panel.dispatchEvent(pointer('pointerdown', 320));
+    panel.dispatchEvent(pointer('pointermove', 0));
+    panel.dispatchEvent(pointer('pointerup', 0));
+    await tick();
+
+    expect(sidebarNav.isOpen).toBe(false);
+    expect(panel.style.transform).toBe('translateX(-324px)');
   });
 });

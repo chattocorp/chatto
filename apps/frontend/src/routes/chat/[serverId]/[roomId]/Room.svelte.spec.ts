@@ -367,6 +367,29 @@ describe('Room local message echo', () => {
     expect(consumePendingRoomSidebarPanel('server-1', 'room-1')).toBeNull();
   });
 
+  it('keeps the thread open when pressing the app sidebar surface', async () => {
+    render(Room, { props: { roomId: 'room-1', threadId: 'thread-root' } });
+    await tick();
+    mocks.goto.mockClear();
+
+    const appSidebar = document.createElement('div');
+    appSidebar.dataset.appSidebar = 'true';
+    document.body.append(appSidebar);
+
+    try {
+      appSidebar.dispatchEvent(
+        new PointerEvent('pointerdown', {
+          bubbles: true,
+          button: 0
+        })
+      );
+
+      expect(mocks.goto).not.toHaveBeenCalled();
+    } finally {
+      appSidebar.remove();
+    }
+  });
+
   it('lets a maximized desktop call sidebar fill the room route content area', async () => {
     mocks.livekitUrl = 'wss://livekit.example.test';
     mocks.activeCallRoomIds.add('room-1');
