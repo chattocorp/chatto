@@ -126,6 +126,28 @@ function callEvent(
   };
 }
 
+function roomSystemEvent(
+  id: string,
+  kind:
+    | typeof RoomEventKind.UserJoinedRoom
+    | typeof RoomEventKind.UserLeftRoom
+    | typeof RoomEventKind.RoomUpdated
+    | typeof RoomEventKind.RoomArchived
+    | typeof RoomEventKind.RoomUnarchived,
+  actor: unknown = null
+) {
+  return {
+    id,
+    createdAt: '2026-05-27T00:00:01Z',
+    actorId: 'u1',
+    actor,
+    event: {
+      kind,
+      roomId: 'room-1'
+    }
+  };
+}
+
 function roomEventsResult({
   events,
   startCursor,
@@ -570,6 +592,49 @@ describe('MessagesStore — room lifecycle ownership', () => {
 
     expect(store.rootEvents).toEqual([]);
     expect(fake.queryMock).not.toHaveBeenCalled();
+    store.dispose();
+  });
+
+  it('hydrates actorless live room lifecycle events before inserting them', async () => {
+    const hydratedArchive = roomSystemEvent('archive-1', RoomEventKind.RoomArchived, {
+      id: 'u1',
+      displayName: 'Alice'
+    });
+    const fake = new FakeQueryClient([
+      roomEventsResult({
+        events: [],
+        startCursor: null,
+        endCursor: null,
+        hasOlder: false,
+        hasNewer: false
+      }),
+      { room: { event: hydratedArchive } }
+    ]);
+    const store = new MessagesStore(
+      fake as unknown as ServerConnection,
+      () => null,
+      timelineFromFixtures(fake)
+    );
+
+    store.setRoom('room-1');
+    await settle();
+    fake.queryMock.mockClear();
+
+    store.ingestServerEvent(roomSystemEvent('archive-1', RoomEventKind.RoomArchived) as never);
+    await settle();
+
+    expect(fake.queryMock).toHaveBeenCalledOnce();
+    expect(fake.queryMock.mock.calls[0][1]).toEqual({
+      roomId: 'room-1',
+      eventId: 'archive-1',
+      limit: 1
+    });
+    expect(store.rootEvents).toHaveLength(1);
+    expect(store.rootEvents[0]).toMatchObject({
+      id: 'archive-1',
+      actor: { id: 'u1', displayName: 'Alice' },
+      event: { kind: RoomEventKind.RoomArchived, roomId: 'room-1' }
+    });
     store.dispose();
   });
 

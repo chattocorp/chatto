@@ -362,9 +362,7 @@ export class MessagesStore {
       kind === RoomEventKind.RoomArchived ||
       kind === RoomEventKind.RoomUnarchived
     ) {
-      const isMembershipEvent =
-        kind === RoomEventKind.UserJoinedRoom || kind === RoomEventKind.UserLeftRoom;
-      if (!spaceEvent.actor && this.roomTimeline && isMembershipEvent) {
+      if (!spaceEvent.actor && this.roomTimeline) {
         void this.fetchAndIngestSystemEvent(spaceEvent.id);
         return;
       }
