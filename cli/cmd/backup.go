@@ -73,9 +73,8 @@ var backupCmd = &cobra.Command{
 Excluded from backups by default:
 - Encryption keys (security: keeps backup data encrypted at rest)
 - User presence (ephemeral, memory-only)
-- Link preview cache (regeneratable)
+- Retired standalone link preview cache, if present (regeneratable)
 - Asset cache (regeneratable)
-- Auth tokens (security: prevents token leakage via backups)
 
 Pass --include-keys to include KV_ENCRYPTION_KEYS in the archive. This
 makes the backup self-contained (encrypted message bodies become
@@ -242,7 +241,7 @@ func runBackup(cmd *cobra.Command, args []string) {
 				"Treat the archive as sensitive material — keep it on trusted media or use --encrypt.")
 		} else {
 			log.Warn("Encryption keys are excluded from backups by default. " +
-				"Encrypted message bodies in this backup cannot be decrypted without the keys. " +
+				"Encrypted message bodies and durable user PII in this backup cannot be decrypted without the keys. " +
 				"Back up your encryption keys separately, or pass --include-keys to embed them.")
 		}
 	}
@@ -344,6 +343,8 @@ func backupStream(ctx context.Context, mgr *jsm.Manager, streamName, streamsDir 
 // KV_ENCRYPTION_KEYS is backed up; the archive must then be treated as sensitive.
 func skipReason(name string, includeKeys bool) string {
 	switch name {
+	case "KV_MEMORY_CACHE":
+		return "ephemeral (memory storage)"
 	case "KV_USER_PRESENCE":
 		return "ephemeral (memory storage)"
 	case "KV_CALL_STATE":

@@ -109,6 +109,8 @@ Update these values (generate secrets with `openssl rand -hex 32`):
 - `NATS_TOKEN` and `CHATTO_NATS_CLIENT_TOKEN` - Must match
 - `CHATTO_WEBSERVER_URL` - Your domain (e.g., `https://chat.example.com`)
 - `CHATTO_WEBSERVER_COOKIE_SIGNING_SECRET` - Session signing secret
+- `CHATTO_WEBSERVER_COOKIE_ENCRYPTION_SECRET` - Session encryption secret
+- `CHATTO_CORE_SECRET_KEY` - Bearer-token and account-flow verifier key
 - `CHATTO_CORE_ASSETS_SIGNING_SECRET` - Asset URL signing secret
 
 ### ingress.local.yaml
@@ -153,7 +155,7 @@ kubectl -n chatto rollout status deployment/chatto
 
 ```bash
 # Update to a new image
-kubectl -n chatto set image deployment/chatto chatto=ghcr.io/hmans/chatto:v1.2.3
+kubectl -n chatto set image deployment/chatto chatto=ghcr.io/chattocorp/chatto:v1.2.3
 
 # Or update the manifest and apply
 kubectl apply -f chatto.yaml

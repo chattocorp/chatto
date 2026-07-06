@@ -1,0 +1,244 @@
+---
+title: ThreadService
+description: Thread timeline, read-state, follow, and followed-thread listing RPCs.
+editUrl: false
+---
+
+{/* Generated from proto/chatto/{auth,discovery,api,admin,realtime}/v1/*.proto. Do not edit directly. */}
+
+Chatto exposes this service below `/api/connect`.
+
+
+
+Shared message and enum definitions are documented in [Shared Types And Enums](/reference/connectrpc-api/types/).
+
+
+
+<a id="chatto-api-v1-ThreadService"></a>
+
+## ThreadService
+
+Manages thread follow state for the current user.
+
+<a id="chatto-api-v1-ThreadService-ListFollowedThreads"></a>
+
+### ListFollowedThreads
+
+Returns followed threads for the current user, including enough root-message
+data for clients to render the list without extra per-field fetches.
+
+```http
+POST /api/connect/chatto.api.v1.ThreadService/ListFollowedThreads
+```
+
+<a id="chatto-api-v1-ListFollowedThreadsRequest"></a>
+
+#### Input: ListFollowedThreadsRequest
+
+Request for a page of followed threads for the current user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `page` | [`PageRequest`](/reference/connectrpc-api/types/#chatto-api-v1-PageRequest) | Page request. Defaults to 20 results when absent or limit is zero. |
+
+
+<a id="chatto-api-v1-ListFollowedThreadsResponse"></a>
+
+#### Result: ListFollowedThreadsResponse
+
+Response containing one followed-thread page.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `threads` | repeated [`FollowedThread`](/reference/connectrpc-api/types/#chatto-api-v1-FollowedThread) | Followed threads in newest-activity-first order. |
+| `includes` | [`RoomTimelineIncludes`](/reference/connectrpc-api/types/#chatto-api-v1-RoomTimelineIncludes) | Hot-path related entities needed to render this feed page without per-thread hydration. |
+| `page` | [`PageInfo`](/reference/connectrpc-api/types/#chatto-api-v1-PageInfo) | Page metadata. |
+
+
+<a id="chatto-api-v1-ThreadService-FollowThread"></a>
+
+### FollowThread
+
+Follows a thread for the current user. Followed threads can be surfaced in
+clients and can participate in thread notification behavior.
+
+```http
+POST /api/connect/chatto.api.v1.ThreadService/FollowThread
+```
+
+<a id="chatto-api-v1-FollowThreadRequest"></a>
+
+#### Input: FollowThreadRequest
+
+Request to follow one message thread.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room containing the thread. |
+| `thread_root_event_id` | `string` | Required. Event ID of the root message for the thread. |
+
+
+<a id="chatto-api-v1-FollowThreadResponse"></a>
+
+#### Result: FollowThreadResponse
+
+Result of following a thread.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `following` | `bool` | True when the current user follows the thread after the operation. |
+| `state` | [`ThreadFollowState`](/reference/connectrpc-api/types/#chatto-api-v1-ThreadFollowState) | Current follow state after the operation. |
+
+
+<a id="chatto-api-v1-ThreadService-UnfollowThread"></a>
+
+### UnfollowThread
+
+Stops following a thread for the current user. The response reports the
+resulting follow state so clients can update local UI immediately.
+
+```http
+POST /api/connect/chatto.api.v1.ThreadService/UnfollowThread
+```
+
+<a id="chatto-api-v1-UnfollowThreadRequest"></a>
+
+#### Input: UnfollowThreadRequest
+
+Request to stop following one message thread.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room containing the thread. |
+| `thread_root_event_id` | `string` | Required. Event ID of the root message for the thread. |
+
+
+<a id="chatto-api-v1-UnfollowThreadResponse"></a>
+
+#### Result: UnfollowThreadResponse
+
+Result of unfollowing a thread.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `following` | `bool` | True when the current user follows the thread after the operation. |
+| `state` | [`ThreadFollowState`](/reference/connectrpc-api/types/#chatto-api-v1-ThreadFollowState) | Current follow state after the operation. |
+
+
+<a id="chatto-api-v1-ThreadService-GetThreadEvents"></a>
+
+### GetThreadEvents
+
+Returns one page of events in a message thread. Initial pages include the
+thread root message; cursor pages return replies in the requested direction.
+
+```http
+POST /api/connect/chatto.api.v1.ThreadService/GetThreadEvents
+```
+
+<a id="chatto-api-v1-GetThreadEventsRequest"></a>
+
+#### Input: GetThreadEventsRequest
+
+Request for a page of events in one thread.
+
+Omit the cursor to load the latest visible part of the thread, including the
+root message. Set before to a previously returned start_cursor to page toward
+older replies, or after to a previously returned end_cursor to page toward
+newer replies without repeating the root message.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room containing the thread. |
+| `thread_root_event_id` | `string` | Required. Event ID of the root message for the thread. |
+| `limit` | `int32` | Maximum number of events to return. The server may clamp very large limits. |
+| `cursor.before` | `string` | Return thread events older than this opaque cursor. |
+| `cursor.after` | `string` | Return thread events newer than this opaque cursor. |
+
+
+<a id="chatto-api-v1-GetThreadEventsResponse"></a>
+
+#### Result: GetThreadEventsResponse
+
+Response containing one thread timeline page.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `page` | [`RoomTimelinePage`](/reference/connectrpc-api/types/#chatto-api-v1-RoomTimelinePage) | Loaded timeline page. |
+
+
+<a id="chatto-api-v1-ThreadService-GetThreadEventsAround"></a>
+
+### GetThreadEventsAround
+
+Returns a thread timeline window centered around a specific event. Use this
+to open a reply from a notification or search result in context. Returns
+NOT_FOUND when the thread root or anchor event is missing or hidden and
+PERMISSION_DENIED when the room is inaccessible.
+
+```http
+POST /api/connect/chatto.api.v1.ThreadService/GetThreadEventsAround
+```
+
+<a id="chatto-api-v1-GetThreadEventsAroundRequest"></a>
+
+#### Input: GetThreadEventsAroundRequest
+
+Request for thread events around a specific event.
+
+Use this when a client needs to jump to a known reply and render surrounding
+thread context.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room containing the thread. |
+| `thread_root_event_id` | `string` | Required. Event ID of the root message for the thread. |
+| `event_id` | `string` | Required. Anchor event ID inside the thread. The event should belong to the requested thread. |
+| `limit` | `int32` | Maximum number of events to return around the anchor. |
+
+
+<a id="chatto-api-v1-GetThreadEventsAroundResponse"></a>
+
+#### Result: GetThreadEventsAroundResponse
+
+Response containing a thread timeline window around a specific event.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `page` | [`RoomTimelinePage`](/reference/connectrpc-api/types/#chatto-api-v1-RoomTimelinePage) | Loaded timeline page. |
+| `target_index` | `int32` | Zero-based index of the anchor event within page.events. |
+
+
+<a id="chatto-api-v1-ThreadService-MarkThreadAsRead"></a>
+
+### MarkThreadAsRead
+
+Marks a thread timeline as read through the supplied event without changing
+the room-level read marker.
+
+```http
+POST /api/connect/chatto.api.v1.ThreadService/MarkThreadAsRead
+```
+
+<a id="chatto-api-v1-MarkThreadAsReadRequest"></a>
+
+#### Input: MarkThreadAsReadRequest
+
+Request to mark a message thread as read.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room containing the thread. |
+| `thread_root_event_id` | `string` | Required. Event ID of the root message for the thread. |
+| `up_to_event_id` | `string` | Highest thread event ID the current user has read. The event should belong to the thread identified by thread_root_event_id. |
+
+
+<a id="chatto-api-v1-MarkThreadAsReadResponse"></a>
+
+#### Result: MarkThreadAsReadResponse
+
+Result of marking a message thread as read.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `previous_read_at` | `google.protobuf.Timestamp` | Previous thread read timestamp, when one existed. |

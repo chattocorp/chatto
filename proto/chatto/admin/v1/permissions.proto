@@ -1,0 +1,326 @@
+syntax = "proto3";
+
+package chatto.admin.v1;
+
+import "buf/validate/validate.proto";
+import "chatto/api/v1/roles.proto";
+
+// Trinary permission decision used by permission matrices and write requests.
+enum PermissionDecision {
+  // Unspecified decision; rejected for writes.
+  PERMISSION_DECISION_UNSPECIFIED = 0;
+  // Explicit allow.
+  PERMISSION_DECISION_ALLOW = 1;
+  // Explicit deny.
+  PERMISSION_DECISION_DENY = 2;
+  // No explicit decision; clears the permission state on writes.
+  PERMISSION_DECISION_NONE = 3;
+}
+
+// Scope tier for permission matrices and write requests.
+enum PermissionScopeKind {
+  // Unspecified scope; treated as server scope where older clients omit it.
+  PERMISSION_SCOPE_KIND_UNSPECIFIED = 0;
+  // Server tier.
+  PERMISSION_SCOPE_KIND_SERVER = 1;
+  // Room-group tier.
+  PERMISSION_SCOPE_KIND_GROUP = 2;
+  // Room tier.
+  PERMISSION_SCOPE_KIND_ROOM = 3;
+}
+
+// Permission scope reference.
+message PermissionScope {
+  // Scope tier.
+  PermissionScopeKind kind = 1 [(buf.validate.field).enum.defined_only = true];
+  // Scope ID for group or room scope. Empty for server scope.
+  string id = 2;
+}
+
+// Permission grants and denials at a single tier.
+message TierPermissions {
+  // Explicitly granted permissions.
+  repeated string permissions = 1;
+  // Explicitly denied permissions.
+  repeated string permission_denials = 2;
+}
+
+// One role's permission state at a single tier.
+message TierRole {
+  reserved 1 to 5;
+  reserved "role_name", "display_name", "description", "is_system", "position";
+
+  // Explicit state at this tier.
+  TierPermissions override = 6;
+  // Allows inherited from broader tiers.
+  repeated string inherited_allows = 7;
+  // Denials inherited from broader tiers.
+  repeated string inherited_denials = 8;
+  // Public role metadata.
+  chatto.api.v1.Role role = 9;
+}
+
+// Role permission matrix for one tier.
+message TierRoles {
+  // Permissions configurable at this tier.
+  repeated string applicable_permissions = 1;
+  // Roles sorted by position.
+  repeated TierRole roles = 2;
+}
+
+// Request a role-permission tier matrix.
+message GetRolePermissionTierMatrixRequest {
+  // Target scope. Omit or use SERVER for server scope.
+  PermissionScope scope = 1;
+}
+
+// Response containing a role-permission tier matrix.
+message GetRolePermissionTierMatrixResponse {
+  // Requested matrix.
+  TierRoles matrix = 1;
+}
+
+// Matrix column scope.
+message PermissionMatrixScope {
+  // Stable scope ID for the server, a group, or a room.
+  string id = 1;
+  // Human-readable label.
+  string label = 2;
+  // Scope tier.
+  PermissionScopeKind kind = 3;
+  // Parent group ID for room scopes.
+  string parent_group_id = 4;
+}
+
+// Matrix cell for one permission and scope.
+message PermissionMatrixCell {
+  // Permission identifier.
+  string permission = 1;
+  // Scope ID matching PermissionMatrixScope.id.
+  string scope_id = 2;
+  // Explicit decision at this scope.
+  PermissionDecision override = 3;
+  // Effective decision at this scope.
+  PermissionDecision effective = 4;
+}
+
+// Permission matrix for one role across all scopes.
+message RolePermissionMatrix {
+  // Role name.
+  string role_name = 1;
+  // Permissions rendered as rows.
+  repeated string applicable_permissions = 2;
+  // Scopes rendered as columns.
+  repeated PermissionMatrixScope scopes = 3;
+  // Sparse matrix cells.
+  repeated PermissionMatrixCell cells = 4;
+}
+
+// Request one role's permission matrix.
+message GetRolePermissionMatrixRequest {
+  // Stable role name.
+  string role_name = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+// Response containing one role's permission matrix.
+message GetRolePermissionMatrixResponse {
+  // Requested matrix.
+  RolePermissionMatrix matrix = 1;
+}
+
+// Permission matrix for one user across all scopes.
+message UserPermissionMatrix {
+  // User ID.
+  string user_id = 1;
+  // Permissions rendered as rows.
+  repeated string applicable_permissions = 2;
+  // Scopes rendered as columns.
+  repeated PermissionMatrixScope scopes = 3;
+  // Sparse matrix cells.
+  repeated PermissionMatrixCell cells = 4;
+}
+
+// One resource-oriented permission decision at a concrete scope.
+//
+// This is the row-oriented counterpart to PermissionMatrixCell. Prefer this
+// shape when building integrations that do not need matrix column joins.
+message ScopedPermissionDecision {
+  // Permission identifier.
+  string permission = 1;
+  // Server, group, or room scope this decision applies to.
+  PermissionScope scope = 2;
+  // Explicit decision stored at this scope.
+  PermissionDecision override = 3;
+  // Effective decision after inherited broader scopes are applied.
+  PermissionDecision effective = 4;
+}
+
+// Stored permission decision returned after a write.
+message PermissionDecisionUpdate {
+  // Permission identifier.
+  string permission = 1;
+  // Server, group, or room scope this decision applies to.
+  PermissionScope scope = 2;
+  // Stored decision after the write. NONE means no explicit decision remains.
+  PermissionDecision decision = 3;
+}
+
+// Request explicit/effective permission decisions for one role.
+message ListRolePermissionDecisionsRequest {
+  // Stable role name.
+  string role_name = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+// Resource-oriented permission decisions for one role.
+message ListRolePermissionDecisionsResponse {
+  // Stable role name.
+  string role_name = 1;
+  // Permission decisions keyed by permission and typed scope.
+  repeated ScopedPermissionDecision decisions = 2;
+}
+
+// Request explicit/effective permission decisions for one user.
+message ListUserPermissionDecisionsRequest {
+  // User ID.
+  string user_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+// Resource-oriented permission decisions for one user.
+message ListUserPermissionDecisionsResponse {
+  // User ID.
+  string user_id = 1;
+  // Permission decisions keyed by permission and typed scope.
+  repeated ScopedPermissionDecision decisions = 2;
+}
+
+// Level at which a permission explanation found a decision.
+enum PermissionDecisionLevel {
+  // No decision level was reached.
+  PERMISSION_DECISION_LEVEL_UNSPECIFIED = 0;
+  // Server-level role or user decision.
+  PERMISSION_DECISION_LEVEL_SERVER = 1;
+  // Room-group-level role or user decision.
+  PERMISSION_DECISION_LEVEL_GROUP = 2;
+  // Room-level role or user decision.
+  PERMISSION_DECISION_LEVEL_ROOM = 3;
+}
+
+// One explicit decision encountered while explaining a permission.
+message PermissionTraceEntry {
+  // Level at which this decision was observed.
+  PermissionDecisionLevel level = 1;
+  // Role name or policy marker that produced the decision.
+  string role_name = 2;
+  // Decision observed at this trace step.
+  PermissionDecision decision = 3;
+  // Whether this entry is the winning decision.
+  bool applied = 4;
+}
+
+// Full decision trace for one permission and target user.
+message PermissionExplanation {
+  // Permission identifier.
+  string permission = 1;
+  // Overall decision after applying deny-wins resolution.
+  PermissionDecision state = 2;
+  // Level of the winning decision, when state is not NONE.
+  PermissionDecisionLevel decided_at = 3;
+  // Role name or policy marker that produced the winning decision.
+  string decided_by_role = 4;
+  // Ordered decision trace. The first entry is the winning decision.
+  repeated PermissionTraceEntry trace = 5;
+}
+
+// Request permission explanations for a user at server or room scope.
+message ExplainPermissionsRequest {
+  // User whose permissions should be explained.
+  string user_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Optional room scope. Omit for server-scoped permissions.
+  string room_id = 2;
+}
+
+// Permission explanations for all permissions applicable at the requested scope.
+message ExplainPermissionsResponse {
+  // Explanation rows sorted by permission metadata order.
+  repeated PermissionExplanation explanations = 1;
+}
+
+// Request one user's permission matrix.
+message GetUserPermissionMatrixRequest {
+  // User ID.
+  string user_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+// Response containing one user's permission matrix.
+message GetUserPermissionMatrixResponse {
+  // Requested matrix.
+  UserPermissionMatrix matrix = 1;
+}
+
+// Request to set one role permission state.
+message SetRolePermissionRequest {
+  // Role name.
+  string role_name = 1 [(buf.validate.field).string.min_len = 1];
+  // Permission identifier.
+  string permission = 2 [(buf.validate.field).string.min_len = 1];
+  // New decision. NONE clears the explicit state.
+  PermissionDecision decision = 3 [(buf.validate.field).enum = {
+    defined_only: true
+    not_in: [0]
+  }];
+  // Target scope. Omit or use SERVER for server scope.
+  PermissionScope scope = 4;
+}
+
+// Result of setting one role permission state.
+message SetRolePermissionResponse {
+  // Updated permission decision for the requested role/scope cell.
+  PermissionDecisionUpdate decision = 1;
+}
+
+// Request to set one user permission state.
+message SetUserPermissionRequest {
+  // Target user ID.
+  string user_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Permission identifier.
+  string permission = 2 [(buf.validate.field).string.min_len = 1];
+  // New decision. NONE clears the explicit state.
+  PermissionDecision decision = 3 [(buf.validate.field).enum = {
+    defined_only: true
+    not_in: [0]
+  }];
+  // Target scope. Omit or use SERVER for server scope.
+  PermissionScope scope = 4;
+}
+
+// Result of setting one user permission state.
+message SetUserPermissionResponse {
+  // Updated permission decision for the requested user/scope cell.
+  PermissionDecisionUpdate decision = 1;
+}
+
+// Provides permission matrix reads and admin permission writes.
+service AdminPermissionService {
+  // Gets the role-permission matrix for a single tier. Requires role.manage
+  // for server/group scope; room scope requires role.manage or room.manage in
+  // that room.
+  rpc GetRolePermissionTierMatrix(GetRolePermissionTierMatrixRequest) returns (GetRolePermissionTierMatrixResponse);
+  // Gets one role's full permission matrix. Requires role.manage. Returns
+  // NOT_FOUND when the role does not exist.
+  rpc GetRolePermissionMatrix(GetRolePermissionMatrixRequest) returns (GetRolePermissionMatrixResponse);
+  // Lists one role's permission decisions as resource-oriented rows. Requires
+  // role.manage. Returns NOT_FOUND when the role does not exist.
+  rpc ListRolePermissionDecisions(ListRolePermissionDecisionsRequest) returns (ListRolePermissionDecisionsResponse);
+  // Gets one user's full permission matrix. Requires user.manage-permissions.
+  // Returns NOT_FOUND when the user does not exist.
+  rpc GetUserPermissionMatrix(GetUserPermissionMatrixRequest) returns (GetUserPermissionMatrixResponse);
+  // Lists one user's permission decisions as resource-oriented rows. Requires
+  // user.manage-permissions. Returns NOT_FOUND when the user does not exist.
+  rpc ListUserPermissionDecisions(ListUserPermissionDecisionsRequest) returns (ListUserPermissionDecisionsResponse);
+  // Explains permission resolution for another user. Requires role.manage.
+  rpc ExplainPermissions(ExplainPermissionsRequest) returns (ExplainPermissionsResponse);
+  // Sets one role permission decision. Requires role.manage or scoped room.manage for room scope.
+  rpc SetRolePermission(SetRolePermissionRequest) returns (SetRolePermissionResponse);
+  // Sets one user permission decision. Requires user.manage-permissions.
+  rpc SetUserPermission(SetUserPermissionRequest) returns (SetUserPermissionResponse);
+}

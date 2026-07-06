@@ -11,26 +11,27 @@ import (
 // from the bool path: both share the same walk*Permission function, but a future
 // refactor that breaks one must break the other equally.
 //
-// It also asserts trace structure: when bool is true the first entry is allow;
-// when bool is false but trace is non-empty, the first entry is deny.
+// It also asserts trace structure under the deny-wins model: if any trace
+// entry is a deny, the explanation state is deny; otherwise any allow trace
+// produces allow.
 func TestPermissionExplainer_AgreesWithHas(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
 	// Three subjects with distinct role configurations:
 	//   regular: just everyone
-	//   adminUser: instance admin role
-	//   denyUser: custom instance role denying space.list
+	//   adminUser: admin role
+	//   denyUser: custom role denying message.post
 	regular, _ := core.CreateUser(ctx, SystemActorID, "regular", "Regular", "password123")
 	adminUser, _ := core.CreateUser(ctx, SystemActorID, "adminuser", "Admin User", "password123")
 	if err := core.AssignServerRole(ctx, SystemActorID, adminUser.Id, RoleAdmin); err != nil {
 		t.Fatalf("assign admin role: %v", err)
 	}
 	denyUser, _ := core.CreateUser(ctx, SystemActorID, "denyuser", "Deny User", "password123")
-	if _, err := core.CreateServerRole(ctx, "denytest", "Deny dm.view", "Test deny role"); err != nil {
+	if _, err := core.CreateServerRole(ctx, SystemActorID, "denytest", "Deny message.post", "Test deny role"); err != nil {
 		t.Fatalf("create deny role: %v", err)
 	}
-	if err := core.DenyInstancePermission(ctx, "denytest", PermDMView); err != nil {
+	if err := core.DenyServerPermission(ctx, SystemActorID, "denytest", PermMessagePost); err != nil {
 		t.Fatalf("deny perm: %v", err)
 	}
 	if err := core.AssignServerRole(ctx, SystemActorID, denyUser.Id, "denytest"); err != nil {
@@ -48,9 +49,9 @@ func TestPermissionExplainer_AgreesWithHas(t *testing.T) {
 		t.Fatalf("regular joins room: %v", err)
 	}
 
-	// Room-level override: deny message.post for the everyone space role in this
-	// room. Higher-rank roles (owner) should still post via the hierarchy walk.
-	if err := core.DenyRoomPermission(ctx, room.Id, "everyone", PermMessagePost); err != nil {
+	// Room-level override: deny message.post for the everyone role in this room.
+	// Owners should still post via the effective-owner override.
+	if err := core.DenyRoomPermission(ctx, SystemActorID, room.Id, "everyone", PermMessagePost); err != nil {
 		t.Fatalf("deny room perm: %v", err)
 	}
 
@@ -79,7 +80,7 @@ func TestPermissionExplainer_AgreesWithHas(t *testing.T) {
 			s := s
 			t.Run(s.name, func(t *testing.T) {
 				for _, meta := range PermissionsForScope(ScopeRoom) {
-					assertAgreement(t, ctx, core, s.id, ServerSpaceID, room.Id, meta.Permission, ScopeRoom)
+					assertAgreement(t, ctx, core, s.id, LegacyServerSpaceID, room.Id, meta.Permission, ScopeRoom)
 				}
 			})
 		}
@@ -136,11 +137,11 @@ func assertAgreement(
 	)
 	switch scope {
 	case ScopeServer:
-		hasResult, hasErr = core.permissionResolver.HasInstancePermission(ctx, userID, perm)
+		hasResult, hasErr = core.permissionResolver.HasServerPermission(ctx, userID, perm)
 		exp, expErr = core.permissionResolver.ExplainServerPermission(ctx, userID, perm)
 	case ScopeRoom:
-		hasResult, hasErr = core.permissionResolver.HasRoomPermission(ctx, userID, KindForSpace(spaceID), roomID, perm)
-		exp, expErr = core.permissionResolver.ExplainRoomPermission(ctx, userID, KindForSpace(spaceID), roomID, perm)
+		hasResult, hasErr = core.permissionResolver.HasRoomPermission(ctx, userID, RoomKindFromLegacySpaceID(spaceID), roomID, perm)
+		exp, expErr = core.permissionResolver.ExplainRoomPermission(ctx, userID, RoomKindFromLegacySpaceID(spaceID), roomID, perm)
 	default:
 		t.Fatalf("unknown scope %v", scope)
 	}
@@ -159,28 +160,22 @@ func assertAgreement(
 			perm, userID, spaceID, roomID, hasResult, exp.State, exp.DecidedAt, exp.DecidedByRole)
 	}
 
-	// Trace structure invariants.
-	if hasResult {
-		if len(exp.Trace) == 0 {
-			t.Errorf("perm %s: Has=true but trace is empty", perm)
-		} else if exp.Trace[0].Decision != DecisionAllow {
-			t.Errorf("perm %s: Has=true but first trace entry is %s (expected allow)", perm, exp.Trace[0].Decision)
-		}
-	} else if len(exp.Trace) > 0 && exp.Trace[0].Decision != DecisionDeny {
-		t.Errorf("perm %s: Has=false but first trace entry is %s (expected deny when trace non-empty)", perm, exp.Trace[0].Decision)
-	}
-
-	// State / DecidedAt / DecidedByRole must match the first trace entry.
+	// State / DecidedAt / DecidedByRole must match the winning trace entry.
 	if len(exp.Trace) > 0 {
-		first := exp.Trace[0]
-		if exp.State != first.Decision {
-			t.Errorf("perm %s: State=%s but first trace decision=%s", perm, exp.State, first.Decision)
+		winning := exp.Trace[0]
+		for _, entry := range exp.Trace {
+			if entry.Decision == DecisionDeny {
+				winning = entry
+			}
 		}
-		if exp.DecidedAt != first.Level {
-			t.Errorf("perm %s: DecidedAt=%s but first trace level=%s", perm, exp.DecidedAt, first.Level)
+		if exp.State != winning.Decision {
+			t.Errorf("perm %s: State=%s but winning trace decision=%s", perm, exp.State, winning.Decision)
 		}
-		if exp.DecidedByRole != first.RoleName {
-			t.Errorf("perm %s: DecidedByRole=%s but first trace role=%s", perm, exp.DecidedByRole, first.RoleName)
+		if exp.DecidedAt != winning.Level {
+			t.Errorf("perm %s: DecidedAt=%s but winning trace level=%s", perm, exp.DecidedAt, winning.Level)
+		}
+		if exp.DecidedByRole != winning.RoleName {
+			t.Errorf("perm %s: DecidedByRole=%s but winning trace role=%s", perm, exp.DecidedByRole, winning.RoleName)
 		}
 	} else {
 		if exp.State != DecisionNone {
@@ -200,10 +195,10 @@ func TestPermissionExplainer_UserLevelTrace(t *testing.T) {
 	user, _ := core.CreateUser(ctx, SystemActorID, "explainer-user-level", "User", "password123")
 
 	t.Run("server-level user grant appears in trace", func(t *testing.T) {
-		if err := core.GrantUserPermission(ctx, user.Id, PermAdminAccess); err != nil {
+		if err := core.GrantUserPermission(ctx, SystemActorID, user.Id, PermAdminUsersView); err != nil {
 			t.Fatalf("GrantUserPermission: %v", err)
 		}
-		exp, err := core.permissionResolver.ExplainServerPermission(ctx, user.Id, PermAdminAccess)
+		exp, err := core.permissionResolver.ExplainServerPermission(ctx, user.Id, PermAdminUsersView)
 		if err != nil {
 			t.Fatalf("ExplainServerPermission: %v", err)
 		}
@@ -224,7 +219,7 @@ func TestPermissionExplainer_UserLevelTrace(t *testing.T) {
 
 	t.Run("server-level user deny appears in trace", func(t *testing.T) {
 		other, _ := core.CreateUser(ctx, SystemActorID, "explainer-user-deny", "Other", "password123")
-		if err := core.DenyUserPermission(ctx, other.Id, PermMessagePost); err != nil {
+		if err := core.DenyUserPermission(ctx, SystemActorID, other.Id, PermMessagePost); err != nil {
 			t.Fatalf("DenyUserPermission: %v", err)
 		}
 		exp, err := core.permissionResolver.ExplainServerPermission(ctx, other.Id, PermMessagePost)
@@ -242,7 +237,7 @@ func TestPermissionExplainer_UserLevelTrace(t *testing.T) {
 	t.Run("room-scoped user grant appears in trace at LevelRoom", func(t *testing.T) {
 		roomUser, _ := core.CreateUser(ctx, SystemActorID, "explainer-room-user", "Room User", "password123")
 		room, _ := core.CreateRoom(ctx, SystemActorID, KindChannel, "", "explainer-room", "Room")
-		if err := core.GrantUserRoomPermission(ctx, room.Id, roomUser.Id, PermMessageManage); err != nil {
+		if err := core.GrantUserRoomPermission(ctx, SystemActorID, room.Id, roomUser.Id, PermMessageManage); err != nil {
 			t.Fatalf("GrantUserRoomPermission: %v", err)
 		}
 		exp, err := core.permissionResolver.ExplainRoomPermission(ctx, roomUser.Id, KindChannel, room.Id, PermMessageManage)

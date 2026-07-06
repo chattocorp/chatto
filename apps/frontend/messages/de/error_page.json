@@ -1,0 +1,11 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "error_page": {
+    "title": "Etwas ist schiefgelaufen",
+    "description": "Diese Ansicht konnte nicht geöffnet werden. Du kannst zu Chatto zurückkehren und es dort erneut versuchen.",
+    "unknown": "Unbekannter Fehler",
+    "home_link": "Zurück zu Chatto",
+    "missing_media_title": "Medium nicht verfügbar",
+    "missing_media_description": "Diese Datei konnte über diesen Link nicht geöffnet werden. Sie wurde möglicherweise entfernt oder der private Medienlink ist nicht mehr verfügbar."
+  }
+}

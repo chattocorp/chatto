@@ -8,23 +8,24 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/proto"
 	atprotov1 "hmans.de/chatto/internal/pb/chatto/atproto/v1"
 )
 
-// AT Protocol OAuth flow state lives in the AUTH_TOKENS KV bucket under two
+// AT Protocol OAuth flow state lives in the MEMORY_CACHE KV bucket under two
 // key prefixes:
 //
 //   atproto.auth_request.{state}          - in-flight PAR state, 10-min TTL
-//   atproto.session.{sha256(did+sid)}     - post-callback session, bucket TTL
+//   atproto.session.{sha256(did+sid)}     - post-callback session, 10-min TTL
 //
 // In the current sign-in flow, session entries are written and deleted within
 // milliseconds (the callback handler revokes immediately once the user's DID
 // is known). The store nevertheless exists to make sign-in survive a server
-// restart mid-flow and to work in multi-replica deployments where the
-// callback may land on a different replica than the one that started the
-// flow. See ADR-024 (AUTH_TOKENS bucket) and FDR-027 for context.
+// multi-replica deployment where the callback may land on a different replica
+// than the one that started the flow. See ADR-036 (runtime-state boundary) and
+// FDR-029 for context.
 //
 // Session entries contain plaintext access tokens, refresh tokens, and a
 // DPoP private key. This matches the in-memory exposure of the previous
@@ -43,6 +44,11 @@ const (
 	// human-mediated approval that can pause indefinitely, so we want more
 	// slack here.
 	atprotoAuthRequestTTL = 10 * time.Minute
+
+	// atprotoSessionTTL bounds the exposure window for ATProto access tokens,
+	// refresh tokens, and DPoP key material if a callback crashes before the
+	// handler can revoke and delete the session.
+	atprotoSessionTTL = 10 * time.Minute
 )
 
 // atprotoSessionKey hashes the DID + session ID into a NATS-clean key. DIDs
@@ -65,7 +71,7 @@ func (c *ChattoCore) SaveATProtoAuthRequest(ctx context.Context, req *atprotov1.
 		return fmt.Errorf("marshal ATProto auth request: %w", err)
 	}
 
-	if _, err := c.storage.authTokensKV.Create(ctx, atprotoAuthRequestKeyPrefix+req.State, bytes, jetstream.KeyTTL(atprotoAuthRequestTTL)); err != nil {
+	if _, err := c.storage.memoryCacheKV.Create(ctx, atprotoAuthRequestKeyPrefix+req.State, bytes, jetstream.KeyTTL(atprotoAuthRequestTTL)); err != nil {
 		return fmt.Errorf("store ATProto auth request: %w", err)
 	}
 	return nil
@@ -75,7 +81,7 @@ func (c *ChattoCore) SaveATProtoAuthRequest(ctx context.Context, req *atprotov1.
 // `state` token. Returns ErrNotFound if the entry is missing (typically
 // because the TTL elapsed before the callback arrived).
 func (c *ChattoCore) GetATProtoAuthRequest(ctx context.Context, state string) (*atprotov1.ATProtoAuthRequest, error) {
-	entry, err := c.storage.authTokensKV.Get(ctx, atprotoAuthRequestKeyPrefix+state)
+	entry, err := c.storage.memoryCacheKV.Get(ctx, atprotoAuthRequestKeyPrefix+state)
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) {
 			return nil, ErrNotFound
@@ -93,7 +99,7 @@ func (c *ChattoCore) GetATProtoAuthRequest(ctx context.Context, state string) (*
 // DeleteATProtoAuthRequest removes an in-flight ATProto OAuth flow's state.
 // Idempotent — succeeds if the entry is already gone.
 func (c *ChattoCore) DeleteATProtoAuthRequest(ctx context.Context, state string) error {
-	if err := c.storage.authTokensKV.Delete(ctx, atprotoAuthRequestKeyPrefix+state); err != nil {
+	if err := c.storage.memoryCacheKV.Delete(ctx, atprotoAuthRequestKeyPrefix+state); err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) {
 			return nil
 		}
@@ -103,10 +109,8 @@ func (c *ChattoCore) DeleteATProtoAuthRequest(ctx context.Context, state string)
 }
 
 // SaveATProtoSession persists a post-callback ATProto OAuth session. The
-// entry uses the bucket-wide TTL (90 days by default) — long enough to
-// outlive any reasonable refresh-token lifetime, harmless if it lingers
-// because the actual revocation is driven by explicit DeleteATProtoSession
-// calls from the callback handler.
+// callback handler revokes and deletes this immediately after reading the
+// account email; the per-key TTL keeps crash leftovers short-lived.
 func (c *ChattoCore) SaveATProtoSession(ctx context.Context, sess *atprotov1.ATProtoSession) error {
 	if sess == nil || sess.AccountDid == "" || sess.SessionId == "" {
 		return errors.New("ATProto session: account_did and session_id are required")
@@ -117,8 +121,18 @@ func (c *ChattoCore) SaveATProtoSession(ctx context.Context, sess *atprotov1.ATP
 		return fmt.Errorf("marshal ATProto session: %w", err)
 	}
 
-	if _, err := c.storage.authTokensKV.Put(ctx, atprotoSessionKey(sess.AccountDid, sess.SessionId), bytes); err != nil {
-		return fmt.Errorf("store ATProto session: %w", err)
+	key := atprotoSessionKey(sess.AccountDid, sess.SessionId)
+	if _, err := c.storage.memoryCacheKV.Create(ctx, key, bytes, jetstream.KeyTTL(atprotoSessionTTL)); err != nil {
+		if !errors.Is(err, jetstream.ErrKeyExists) {
+			return fmt.Errorf("store ATProto session: %w", err)
+		}
+		entry, err := c.storage.memoryCacheKV.Get(ctx, key)
+		if err != nil {
+			return fmt.Errorf("get existing ATProto session for update: %w", err)
+		}
+		if _, err := c.updateMemoryCacheTokenTTL(ctx, key, bytes, entry.Revision(), atprotoSessionTTL); err != nil {
+			return fmt.Errorf("update ATProto session: %w", err)
+		}
 	}
 	return nil
 }
@@ -126,7 +140,7 @@ func (c *ChattoCore) SaveATProtoSession(ctx context.Context, sess *atprotov1.ATP
 // GetATProtoSession retrieves a session by DID + session ID. Returns
 // ErrNotFound if no entry exists for that pair.
 func (c *ChattoCore) GetATProtoSession(ctx context.Context, did, sessionID string) (*atprotov1.ATProtoSession, error) {
-	entry, err := c.storage.authTokensKV.Get(ctx, atprotoSessionKey(did, sessionID))
+	entry, err := c.storage.memoryCacheKV.Get(ctx, atprotoSessionKey(did, sessionID))
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) {
 			return nil, ErrNotFound
@@ -143,11 +157,24 @@ func (c *ChattoCore) GetATProtoSession(ctx context.Context, did, sessionID strin
 
 // DeleteATProtoSession removes a session. Idempotent.
 func (c *ChattoCore) DeleteATProtoSession(ctx context.Context, did, sessionID string) error {
-	if err := c.storage.authTokensKV.Delete(ctx, atprotoSessionKey(did, sessionID)); err != nil {
+	if err := c.storage.memoryCacheKV.Delete(ctx, atprotoSessionKey(did, sessionID)); err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) {
 			return nil
 		}
 		return fmt.Errorf("delete ATProto session: %w", err)
 	}
 	return nil
+}
+
+func (c *ChattoCore) updateMemoryCacheTokenTTL(ctx context.Context, key string, value []byte, revision uint64, ttl time.Duration) (uint64, error) {
+	msg := nats.NewMsg("$KV.MEMORY_CACHE." + key)
+	msg.Data = value
+	ack, err := c.js.PublishMsg(ctx, msg,
+		jetstream.WithExpectLastSequencePerSubject(revision),
+		jetstream.WithMsgTTL(ttl),
+	)
+	if err != nil {
+		return 0, err
+	}
+	return ack.Sequence, nil
 }

@@ -3,7 +3,7 @@
 
 packages:
   - path: "hmans.de/chatto/internal/core"
-    output_path: "../frontend/src/lib/types/core.ts"
+    output_path: "../apps/frontend/src/lib/types/core.ts"
     # Only include permission-related types
     include_files:
       - "instance_permissions.go"

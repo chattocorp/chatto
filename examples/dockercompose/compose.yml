@@ -17,10 +17,11 @@ services:
       - /etc/livekit.yaml
     ports:
       - "50000-50200:50000-50200/udp"  # WebRTC media (UDP, must be direct)
+      - "3478:3478/udp"  # TURN/STUN relay for NAT traversal
     expose:
       - "7880"  # WebSocket signaling (proxied through Caddy)
     volumes:
-      - ./livekit.yaml:/etc/livekit.yaml:ro
+      - ${LIVEKIT_CONFIG_FILE:-./livekit.yaml}:/etc/livekit.yaml:ro
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:7880"]
       interval: 5s
@@ -28,8 +29,11 @@ services:
       retries: 3
 
   chatto:
-    image: ghcr.io/hmans/chatto:latest
+    image: ghcr.io/chattocorp/chatto:latest
     env_file: .env
+    environment:
+      PUID: "${PUID:-1000}"
+      PGID: "${PGID:-1000}"
     depends_on:
       nats:
         condition: service_healthy

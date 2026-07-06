@@ -79,8 +79,8 @@ func (TimeFormat) EnumDescriptor() ([]byte, []int) {
 type NotificationLevel int32
 
 const (
-	// Use inherited default (space default for rooms, NORMAL for spaces).
-	NotificationLevel_NOTIFICATION_LEVEL_DEFAULT NotificationLevel = 0
+	// Use inherited default (server default for rooms, NORMAL for server).
+	NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED NotificationLevel = 0
 	// Suppress all notifications and unread markers.
 	NotificationLevel_NOTIFICATION_LEVEL_MUTED NotificationLevel = 1
 	// Standard behavior: unread markers + notifications for mentions/DMs/threads.
@@ -92,13 +92,13 @@ const (
 // Enum value maps for NotificationLevel.
 var (
 	NotificationLevel_name = map[int32]string{
-		0: "NOTIFICATION_LEVEL_DEFAULT",
+		0: "NOTIFICATION_LEVEL_UNSPECIFIED",
 		1: "NOTIFICATION_LEVEL_MUTED",
 		2: "NOTIFICATION_LEVEL_NORMAL",
 		3: "NOTIFICATION_LEVEL_ALL_MESSAGES",
 	}
 	NotificationLevel_value = map[string]int32{
-		"NOTIFICATION_LEVEL_DEFAULT":      0,
+		"NOTIFICATION_LEVEL_UNSPECIFIED":  0,
 		"NOTIFICATION_LEVEL_MUTED":        1,
 		"NOTIFICATION_LEVEL_NORMAL":       2,
 		"NOTIFICATION_LEVEL_ALL_MESSAGES": 3,
@@ -196,7 +196,7 @@ func (x *ServerUserPreferences) GetTimeFormat() TimeFormat {
 // Stored in the server's CONFIG KV bucket with key "user_preferences.{userId}".
 type UserPreferences struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Notification level for the server (DEFAULT = inherit system default of NORMAL).
+	// Notification level for the server (UNSPECIFIED = inherit system default of NORMAL).
 	NotificationLevel NotificationLevel `protobuf:"varint,1,opt,name=notification_level,json=notificationLevel,proto3,enum=chatto.core.v1.NotificationLevel" json:"notification_level,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
@@ -236,14 +236,14 @@ func (x *UserPreferences) GetNotificationLevel() NotificationLevel {
 	if x != nil {
 		return x.NotificationLevel
 	}
-	return NotificationLevel_NOTIFICATION_LEVEL_DEFAULT
+	return NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED
 }
 
 // RoomUserPreferences stores per-user preferences for a room within a space.
 // Stored in SPACE_{spaceId}_CONFIG KV bucket with key "room_user_preferences.{userId}.{roomId}".
 type RoomUserPreferences struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Notification level for the room (DEFAULT = inherit from space preference).
+	// Notification level for the room (UNSPECIFIED = inherit from server preference).
 	NotificationLevel NotificationLevel `protobuf:"varint,1,opt,name=notification_level,json=notificationLevel,proto3,enum=chatto.core.v1.NotificationLevel" json:"notification_level,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
@@ -283,7 +283,7 @@ func (x *RoomUserPreferences) GetNotificationLevel() NotificationLevel {
 	if x != nil {
 		return x.NotificationLevel
 	}
-	return NotificationLevel_NOTIFICATION_LEVEL_DEFAULT
+	return NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED
 }
 
 var File_chatto_core_v1_user_preferences_proto protoreflect.FileDescriptor
@@ -304,9 +304,9 @@ const file_chatto_core_v1_user_preferences_proto_rawDesc = "" +
 	"TimeFormat\x12\x1b\n" +
 	"\x17TIME_FORMAT_UNSPECIFIED\x10\x00\x12\x13\n" +
 	"\x0fTIME_FORMAT_12H\x10\x01\x12\x13\n" +
-	"\x0fTIME_FORMAT_24H\x10\x02*\x95\x01\n" +
-	"\x11NotificationLevel\x12\x1e\n" +
-	"\x1aNOTIFICATION_LEVEL_DEFAULT\x10\x00\x12\x1c\n" +
+	"\x0fTIME_FORMAT_24H\x10\x02*\x99\x01\n" +
+	"\x11NotificationLevel\x12\"\n" +
+	"\x1eNOTIFICATION_LEVEL_UNSPECIFIED\x10\x00\x12\x1c\n" +
 	"\x18NOTIFICATION_LEVEL_MUTED\x10\x01\x12\x1d\n" +
 	"\x19NOTIFICATION_LEVEL_NORMAL\x10\x02\x12#\n" +
 	"\x1fNOTIFICATION_LEVEL_ALL_MESSAGES\x10\x03B\xb7\x01\n" +

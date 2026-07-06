@@ -2,12 +2,18 @@ package push
 
 import (
 	"context"
+	"crypto/elliptic"
+	"crypto/rand"
+	"encoding/base64"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 
+	webpush "github.com/SherClockHolmes/webpush-go"
 	"github.com/charmbracelet/log"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -49,6 +55,24 @@ func TestNewSender(t *testing.T) {
 			t.Error("Expected non-nil sender when configured")
 		}
 	})
+}
+
+func TestEndpointLogID(t *testing.T) {
+	endpoint := "https://push.example.com/send/private-device-token"
+
+	got := EndpointLogID(endpoint)
+	if got == "" {
+		t.Fatal("EndpointLogID returned empty string")
+	}
+	if len(got) != 16 {
+		t.Fatalf("EndpointLogID length = %d, want 16", len(got))
+	}
+	if got != EndpointLogID(endpoint) {
+		t.Fatal("EndpointLogID should be stable for the same endpoint")
+	}
+	if got == endpoint || strings.Contains(got, "private-device-token") {
+		t.Fatalf("EndpointLogID leaked endpoint material: %q", got)
+	}
 }
 
 func TestPayloadMarshal(t *testing.T) {
@@ -108,6 +132,38 @@ func TestPayloadMarshal(t *testing.T) {
 			t.Error("Expected notificationId to be omitted when empty")
 		}
 	})
+}
+
+func TestNormalizeVAPIDSubject(t *testing.T) {
+	tests := []struct {
+		name    string
+		subject string
+		want    string
+	}{
+		{
+			name:    "strips mailto prefix",
+			subject: "mailto:admin@example.com",
+			want:    "admin@example.com",
+		},
+		{
+			name:    "keeps bare email",
+			subject: "admin@example.com",
+			want:    "admin@example.com",
+		},
+		{
+			name:    "keeps https URL",
+			subject: "https://example.com/push-contact",
+			want:    "https://example.com/push-contact",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := normalizeVAPIDSubject(tt.subject); got != tt.want {
+				t.Fatalf("normalizeVAPIDSubject(%q) = %q, want %q", tt.subject, got, tt.want)
+			}
+		})
+	}
 }
 
 func TestBuildPayloadFromNotification(t *testing.T) {
@@ -172,7 +228,6 @@ func TestBuildPayloadFromNotification(t *testing.T) {
 			Id: "notif-456",
 			Notification: &corev1.Notification_Mention{
 				Mention: &corev1.MentionNotification{
-					SpaceId: "space-1",
 					RoomId:  "room-2",
 					EventId: "event-3",
 				},
@@ -197,7 +252,6 @@ func TestBuildPayloadFromNotification(t *testing.T) {
 			Id: "notif-456",
 			Notification: &corev1.Notification_Mention{
 				Mention: &corev1.MentionNotification{
-					SpaceId: "space-1",
 					RoomId:  "room-2",
 					EventId: "event-3",
 				},
@@ -220,8 +274,7 @@ func TestBuildPayloadFromNotification(t *testing.T) {
 			Id: "notif-789",
 			Notification: &corev1.Notification_Mention{
 				Mention: &corev1.MentionNotification{
-					SpaceId: "space-1",
-					RoomId:  "room-2",
+					RoomId: "room-2",
 					// No EventId
 				},
 			},
@@ -234,12 +287,31 @@ func TestBuildPayloadFromNotification(t *testing.T) {
 		}
 	})
 
+	t.Run("builds thread mention payload", func(t *testing.T) {
+		notif := &corev1.Notification{
+			Id: "notif-thread-mention",
+			Notification: &corev1.Notification_Mention{
+				Mention: &corev1.MentionNotification{
+					RoomId:   "room-2",
+					EventId:  "mention-event",
+					InThread: "thread-root",
+				},
+			},
+		}
+
+		payload := BuildPayloadFromNotification(notif, "Bob", baseURL, nil)
+
+		expectedURL := "https://chatto.example.com/chat/-/room-2/thread-root?highlight=mention-event"
+		if payload.URL != expectedURL {
+			t.Errorf("Expected URL %s, got %s", expectedURL, payload.URL)
+		}
+	})
+
 	t.Run("builds room-level reply payload without context", func(t *testing.T) {
 		notif := &corev1.Notification{
 			Id: "notif-abc",
 			Notification: &corev1.Notification_Reply{
 				Reply: &corev1.ReplyNotification{
-					SpaceId:     "space-x",
 					RoomId:      "room-y",
 					EventId:     "reply-event",
 					InReplyToId: "root-event",
@@ -270,7 +342,6 @@ func TestBuildPayloadFromNotification(t *testing.T) {
 			Id: "notif-abc",
 			Notification: &corev1.Notification_Reply{
 				Reply: &corev1.ReplyNotification{
-					SpaceId:     "space-x",
 					RoomId:      "room-y",
 					EventId:     "reply-event",
 					InReplyToId: "mid-thread-msg", // The specific message replied to (not the root)
@@ -284,8 +355,8 @@ func TestBuildPayloadFromNotification(t *testing.T) {
 		if payload.Title != "@Diana replied to you" {
 			t.Errorf("Expected '@Diana replied to you', got %s", payload.Title)
 		}
-		// Thread reply: navigate to thread root and highlight the replied-to message
-		expectedURL := "https://chatto.example.com/chat/-/room-y/thread-root?highlight=mid-thread-msg"
+		// Thread reply: navigate to thread root and highlight the reply event itself.
+		expectedURL := "https://chatto.example.com/chat/-/room-y/thread-root?highlight=reply-event"
 		if payload.URL != expectedURL {
 			t.Errorf("Expected URL %s, got %s", expectedURL, payload.URL)
 		}
@@ -296,7 +367,6 @@ func TestBuildPayloadFromNotification(t *testing.T) {
 			Id: "notif-abc",
 			Notification: &corev1.Notification_Reply{
 				Reply: &corev1.ReplyNotification{
-					SpaceId:     "space-x",
 					RoomId:      "room-y",
 					EventId:     "reply-event",
 					InReplyToId: "root-event",
@@ -320,7 +390,6 @@ func TestBuildPayloadFromNotification(t *testing.T) {
 			Id: "notif-abc",
 			Notification: &corev1.Notification_Reply{
 				Reply: &corev1.ReplyNotification{
-					SpaceId:     "space-x",
 					RoomId:      "room-y",
 					EventId:     "reply-event",
 					InReplyToId: "root-event",
@@ -336,6 +405,54 @@ func TestBuildPayloadFromNotification(t *testing.T) {
 		}
 		if payload.Body != "Thanks for the update!" {
 			t.Errorf("Expected 'Thanks for the update!', got %s", payload.Body)
+		}
+	})
+
+	t.Run("builds room message payload with room name and preview", func(t *testing.T) {
+		notif := &corev1.Notification{
+			Id: "notif-room-message",
+			Notification: &corev1.Notification_RoomMessage{
+				RoomMessage: &corev1.RoomMessageNotification{
+					RoomId:  "room-news",
+					EventId: "room-event",
+				},
+			},
+		}
+		ctx := &PayloadContext{MessagePreview: "A watched room has a new message", RoomName: "news"}
+
+		payload := BuildPayloadFromNotification(notif, "Eve", baseURL, ctx)
+
+		if payload.Title != "@Eve posted in #news" {
+			t.Errorf("Expected '@Eve posted in #news', got %s", payload.Title)
+		}
+		if payload.Body != "A watched room has a new message" {
+			t.Errorf("Expected room message preview, got %s", payload.Body)
+		}
+		if payload.Tag != "room-message-room-event" {
+			t.Errorf("Expected tag 'room-message-room-event', got %s", payload.Tag)
+		}
+		expectedURL := "https://chatto.example.com/chat/-/room-news?highlight=room-event"
+		if payload.URL != expectedURL {
+			t.Errorf("Expected URL %s, got %s", expectedURL, payload.URL)
+		}
+	})
+
+	t.Run("escapes notification URL path segments and highlight query", func(t *testing.T) {
+		notif := &corev1.Notification{
+			Id: "notif-escaped",
+			Notification: &corev1.Notification_Mention{
+				Mention: &corev1.MentionNotification{
+					RoomId:  "room with spaces",
+					EventId: "event+plus",
+				},
+			},
+		}
+
+		payload := BuildPayloadFromNotification(notif, "Bob", baseURL, nil)
+
+		expectedURL := "https://chatto.example.com/chat/-/room%20with%20spaces?highlight=event%2Bplus"
+		if payload.URL != expectedURL {
+			t.Errorf("Expected URL %s, got %s", expectedURL, payload.URL)
 		}
 	})
 
@@ -434,6 +551,18 @@ func TestNotificationTag(t *testing.T) {
 		}
 	})
 
+	t.Run("returns room message tag with event ID", func(t *testing.T) {
+		notif := &corev1.Notification{
+			Notification: &corev1.Notification_RoomMessage{
+				RoomMessage: &corev1.RoomMessageNotification{RoomId: "room-101", EventId: "event-room"},
+			},
+		}
+		tag := NotificationTag(notif)
+		if tag != "room-message-event-room" {
+			t.Errorf("Expected 'room-message-event-room', got %s", tag)
+		}
+	})
+
 	t.Run("returns empty for unknown type", func(t *testing.T) {
 		notif := &corev1.Notification{}
 		tag := NotificationTag(notif)
@@ -487,8 +616,129 @@ func TestSendResult(t *testing.T) {
 	})
 }
 
-// TestSendToMany tests the SendToMany method with a mock server.
-// Note: This doesn't test actual webpush encryption, just the high-level flow.
+func TestSend(t *testing.T) {
+	t.Run("sends compact encrypted request", func(t *testing.T) {
+		var bodyLen int
+		var contentEncoding string
+		var ttl string
+		var readErr error
+
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			var body []byte
+			body, readErr = io.ReadAll(r.Body)
+			if readErr != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			bodyLen = len(body)
+			contentEncoding = r.Header.Get("Content-Encoding")
+			ttl = r.Header.Get("TTL")
+			w.WriteHeader(http.StatusCreated)
+		}))
+		defer server.Close()
+
+		sender := newTestSender(t, server.Client())
+		result := sender.Send(context.Background(), newTestPushSubscription(t, server.URL), &Payload{
+			Title: "Test",
+			Body:  "Test body",
+		})
+
+		if result.Error != nil {
+			t.Fatalf("Send error: %v", result.Error)
+		}
+		if readErr != nil {
+			t.Fatalf("ReadAll request body: %v", readErr)
+		}
+		if !result.Success {
+			t.Fatal("expected success")
+		}
+		if bodyLen != int(pushRecordSize) {
+			t.Fatalf("request body length = %d, want %d", bodyLen, pushRecordSize)
+		}
+		if bodyLen >= 4096 {
+			t.Fatalf("request body length = %d, want under 4096", bodyLen)
+		}
+		if contentEncoding != "aes128gcm" {
+			t.Fatalf("Content-Encoding = %q, want aes128gcm", contentEncoding)
+		}
+		if ttl != "86400" {
+			t.Fatalf("TTL = %q, want 86400", ttl)
+		}
+	})
+
+	t.Run("includes provider response body for non-gone failures", func(t *testing.T) {
+		tests := []struct {
+			name       string
+			statusCode int
+			body       string
+		}{
+			{name: "apple forbidden", statusCode: http.StatusForbidden, body: "invalid VAPID subject"},
+			{name: "mozilla too large", statusCode: http.StatusRequestEntityTooLarge, body: "payload too large"},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					w.WriteHeader(tt.statusCode)
+					_, _ = w.Write([]byte(tt.body))
+				}))
+				defer server.Close()
+
+				sender := newTestSender(t, server.Client())
+				result := sender.Send(context.Background(), newTestPushSubscription(t, server.URL), &Payload{
+					Title: "Test",
+				})
+
+				if result.Error == nil {
+					t.Fatal("expected error")
+				}
+				if result.Gone {
+					t.Fatal("expected non-gone failure")
+				}
+				if !strings.Contains(result.Error.Error(), tt.body) {
+					t.Fatalf("error %q does not contain provider body %q", result.Error, tt.body)
+				}
+				if !strings.Contains(result.Error.Error(), strconv.Itoa(tt.statusCode)) {
+					t.Fatalf("error %q does not contain status %d", result.Error, tt.statusCode)
+				}
+			})
+		}
+	})
+
+	t.Run("marks missing and gone subscriptions as gone", func(t *testing.T) {
+		tests := []struct {
+			name       string
+			statusCode int
+		}{
+			{name: "not found", statusCode: http.StatusNotFound},
+			{name: "gone", statusCode: http.StatusGone},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					w.WriteHeader(tt.statusCode)
+					_, _ = w.Write([]byte("subscription is gone"))
+				}))
+				defer server.Close()
+
+				sender := newTestSender(t, server.Client())
+				result := sender.Send(context.Background(), newTestPushSubscription(t, server.URL), &Payload{
+					Title: "Test",
+				})
+
+				if result.Error == nil {
+					t.Fatal("expected error")
+				}
+				if !result.Gone {
+					t.Fatal("expected gone result")
+				}
+			})
+		}
+	})
+}
+
+// TestSendToMany tests the SendToMany method with invalid subscription material.
 func TestSendToMany(t *testing.T) {
 	// Create a mock push service that returns various statuses
 	callCount := 0
@@ -505,15 +755,7 @@ func TestSendToMany(t *testing.T) {
 	}))
 	defer server.Close()
 
-	// Note: We can't easily test the actual Send method because webpush
-	// requires valid VAPID keys and proper encryption. The above test
-	// would need the subscriptions to point to our mock server, which
-	// isn't straightforward with the webpush library.
-	//
-	// For now, we test the payload building and result handling separately.
 	t.Run("SendToMany returns results for each subscription", func(t *testing.T) {
-		// This is a partial test - in a real scenario we'd need valid VAPID keys
-		// and mock the webpush library itself.
 		logger := log.New(nil)
 		cfg := config.PushConfig{
 			Enabled:         true,
@@ -538,4 +780,45 @@ func TestSendToMany(t *testing.T) {
 			t.Errorf("Expected %d results, got %d", len(subscriptions), len(results))
 		}
 	})
+}
+
+func newTestSender(t *testing.T, client webpush.HTTPClient) *Sender {
+	t.Helper()
+
+	privateKey, publicKey, err := webpush.GenerateVAPIDKeys()
+	if err != nil {
+		t.Fatalf("GenerateVAPIDKeys: %v", err)
+	}
+
+	sender := NewSender(config.PushConfig{
+		Enabled:         true,
+		VAPIDPublicKey:  publicKey,
+		VAPIDPrivateKey: privateKey,
+		VAPIDSubject:    "mailto:test@example.com",
+	}, log.New(nil))
+	if sender == nil {
+		t.Fatal("expected configured sender")
+	}
+	sender.httpClient = client
+	return sender
+}
+
+func newTestPushSubscription(t *testing.T, endpoint string) *corev1.PushSubscription {
+	t.Helper()
+
+	_, x, y, err := elliptic.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatalf("GenerateKey: %v", err)
+	}
+
+	auth := make([]byte, 16)
+	if _, err := rand.Read(auth); err != nil {
+		t.Fatalf("Read auth: %v", err)
+	}
+
+	return &corev1.PushSubscription{
+		Endpoint: endpoint,
+		P256Dh:   base64.RawURLEncoding.EncodeToString(elliptic.Marshal(elliptic.P256(), x, y)),
+		Auth:     base64.RawURLEncoding.EncodeToString(auth),
+	}
 }

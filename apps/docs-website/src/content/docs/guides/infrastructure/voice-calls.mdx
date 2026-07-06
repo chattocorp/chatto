@@ -1,0 +1,149 @@
+---
+title: Voice & Video Calls
+description: How to set up and configure voice and video call capabilities in Chatto using LiveKit.
+---
+
+import { Steps, Tabs, TabItem } from "@astrojs/starlight/components";
+
+Chatto supports real-time voice and video calls inside rooms using [LiveKit](https://livekit.io/), an open-source WebRTC media server. When enabled, any room member can start or join a call directly from the room header.
+
+## How It Works
+
+LiveKit runs as a **separate service** alongside Chatto. Chatto handles authentication and call state, while LiveKit handles the WebRTC media transport:
+
+1. A user joins the call from the room header.
+2. Chatto verifies the user's room membership and generates a short-lived LiveKit JWT token.
+3. The user's browser connects directly to the LiveKit server using the token and a per-call E2EE key from Chatto.
+4. Other room members see active call indicators update in real time.
+
+Calls are **implicit** — there's no "start call" action. The first person to join creates the call and a fresh E2EE key; when the last person leaves, the call ends and Chatto shreds that key.
+
+Chatto records call start/join/leave/end facts durably and reconciles active participants against LiveKit webhooks, so call indicators recover after server restarts. These call facts update the active call UI without appearing as room timeline messages. LiveKit media is end-to-end encrypted by current Chatto clients; older clients that do not support this call encryption cannot decode encrypted media.
+
+## Requirements
+
+- A running [LiveKit server](https://docs.livekit.io/home/self-hosting/local/) (self-hosted or cloud)
+- An API key and secret configured on both the LiveKit server and Chatto
+
+## Setup
+
+<Steps>
+
+1. **Install and run LiveKit**
+
+   For local development, the quickest option is the LiveKit CLI:
+
+   ```bash
+   # macOS
+   brew install livekit
+
+   # Then run in dev mode
+   livekit-server --dev
+   ```
+
+   This starts LiveKit on `ws://localhost:7880` with a default API key of `devkey` and secret of `secret`.
+
+   For production, see the [LiveKit self-hosting guide](https://docs.livekit.io/home/self-hosting/local/).
+
+2. **Configure Chatto**
+
+   Add a `[livekit]` section to your `chatto.toml`:
+
+   <Tabs>
+   <TabItem label="Development">
+   ```toml
+   [livekit]
+   enabled = true
+   url = 'ws://localhost:7880'
+   api_key = 'devkey'
+   api_secret = 'secret'
+   ```
+   </TabItem>
+   <TabItem label="Production">
+   ```toml
+   [livekit]
+   enabled = true
+   url = 'wss://livekit.example.com'
+   api_key = 'your-api-key'
+   api_secret = 'your-api-secret'
+   # webhook_url = 'https://chatto.example.com/webhooks/livekit'  # defaults to {webserver.url}/webhooks/livekit
+   ```
+   </TabItem>
+   </Tabs>
+
+   Or use environment variables:
+
+   ```bash
+   CHATTO_LIVEKIT_ENABLED=true
+   CHATTO_LIVEKIT_URL=wss://livekit.example.com
+   CHATTO_LIVEKIT_API_KEY=your-api-key
+   CHATTO_LIVEKIT_API_SECRET=your-api-secret
+   # CHATTO_LIVEKIT_WEBHOOK_URL=https://chatto.example.com/webhooks/livekit  # defaults to {webserver.url}/webhooks/livekit
+   ```
+
+3. **Configure LiveKit webhooks**
+
+   LiveKit must send webhook events to Chatto so it can track who's in a call. Add the webhook URL to your LiveKit server config (`livekit.yaml`):
+
+   ```yaml
+   webhook:
+     urls:
+       - https://chatto.example.com/webhooks/livekit
+     api_key: your-api-key
+   ```
+
+   For local development with `livekit-server --dev`, the `--dev` flag disables webhooks. That is useful for testing local media connectivity, but active-call indicators and participant reconciliation require webhook delivery in normal deployments.
+
+4. **Restart Chatto**
+
+   Calls will be available immediately. Call controls appear in room headers when LiveKit is configured.
+
+</Steps>
+
+## Production Considerations
+
+:::note
+Use `wss://` (WebSocket Secure) URLs in production. Plain `ws://` should only be used for local development.
+:::
+
+- **Network**: Users connect directly to the LiveKit server from their browsers. Make sure your LiveKit server is reachable from the public internet (or your private network, for internal deployments).
+- **TURN/STUN**: LiveKit includes a built-in TURN server for NAT traversal. TURN/UDP on port 3478 helps many NAT traversal failures; networks that block UDP entirely need TURN/TLS, often on port 443.
+- **Scaling**: A single LiveKit server handles hundreds of concurrent participants for typical small deployments. For larger deployments, LiveKit supports multi-node clustering with Redis.
+- **End-to-end encryption**: Chatto enables LiveKit E2EE automatically for clients. No additional LiveKit server configuration is required.
+- **API Secret**: Keep your API secret confidential. It's used to sign JWT tokens and should never be exposed to clients.
+
+## TURN for Restrictive Networks
+
+LiveKit can usually connect browsers directly over UDP. Users behind symmetric NATs, mobile networks, or browser/network combinations that fail direct ICE checks need a TURN relay.
+
+For most self-hosted deployments, enable LiveKit's built-in TURN/UDP server first:
+
+```yaml
+turn:
+  enabled: true
+  udp_port: 3478
+```
+
+Expose UDP 3478 on the LiveKit host and keep the UDP media range open. Networks that block UDP entirely need TURN/TLS instead. If your users can only reach outbound TCP 443, LiveKit or TURN needs a dedicated IP address or host so it can listen on 443 without conflicting with your HTTPS reverse proxy, and the TURN TLS certificate must match the advertised TURN domain.
+
+Use a dedicated TURN server such as [coturn](https://github.com/coturn/coturn) when you need tighter network separation, a shared TURN service for multiple LiveKit deployments, or TURN/TLS on port 443 without moving LiveKit itself. Configure static credentials on the TURN server and list it under LiveKit's `rtc.turn_servers` configuration.
+
+## Features
+
+- **Mute/unmute** — Toggle your microphone during a call
+- **Audio device selection** — Switch between microphones without leaving the call
+- **Camera toggle** — Turn your camera on and off during a call
+- **Video device selection** — Switch between cameras without leaving the call
+- **Active call indicators** — Rooms with active calls show a call indicator in the room list
+- **Audio level visualization** — Participant avatars pulse with accent-colored rings based on speaking volume
+
+## Disabling Voice & Video Calls
+
+To disable voice and video calls, either remove the `[livekit]` section from `chatto.toml` or set:
+
+```toml
+[livekit]
+enabled = false
+```
+
+When disabled, call controls are hidden and all call API endpoints return `null`.

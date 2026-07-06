@@ -5,37 +5,28 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"net/http/httptest"
+	"strings"
 	"testing"
+	"time"
 
-	"github.com/johannesboyne/gofakes3"
-	"github.com/johannesboyne/gofakes3/backend/s3mem"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/internal/testutil/fakes3"
 )
 
 // setupFakeS3Server creates an in-memory S3 server for testing.
-func setupFakeS3Server(t *testing.T) (*httptest.Server, string) {
+func setupFakeS3Server(t *testing.T) string {
 	t.Helper()
 
-	backend := s3mem.New()
-	faker := gofakes3.New(backend)
-	server := httptest.NewServer(faker.Server())
-	t.Cleanup(server.Close)
-
-	return server, server.URL
+	return fakes3.NewServer(t).EndpointHost()
 }
 
 // TestS3Client_PutAndGetObject tests uploading and retrieving objects.
 func TestS3Client_PutAndGetObject(t *testing.T) {
-	server, endpoint := setupFakeS3Server(t)
-	defer server.Close()
-
-	// Parse endpoint to get host without protocol
-	endpointHost := endpoint[7:] // Remove "http://"
+	endpointHost := setupFakeS3Server(t)
 
 	// Create S3 client with test config
 	cfg := config.S3Config{
@@ -85,12 +76,41 @@ func TestS3Client_PutAndGetObject(t *testing.T) {
 	require.Equal(t, testData, content)
 }
 
+func TestS3Client_DefaultsToPathStyleForCustomEndpoint(t *testing.T) {
+	endpointHost := setupFakeS3Server(t)
+	useSSL := false
+
+	cfg := config.S3Config{
+		Endpoint:        endpointHost,
+		Bucket:          "test-bucket",
+		AccessKeyID:     "test-key",
+		SecretAccessKey: "test-secret",
+		UseSSL:          &useSSL,
+	}
+
+	client, err := core.NewS3Client(cfg)
+	require.NoError(t, err)
+	require.NotNil(t, client)
+
+	ctx := context.Background()
+	require.NoError(t, client.EnsureBucket(ctx))
+
+	_, err = client.PutObjectFromBytes(ctx, "default-path-style.txt", []byte("ok"), "text/plain")
+	require.NoError(t, err)
+
+	reader, info, err := client.GetObject(ctx, "default-path-style.txt")
+	require.NoError(t, err)
+	defer reader.Close()
+	require.Equal(t, "default-path-style.txt", info.Key)
+
+	content, err := io.ReadAll(reader)
+	require.NoError(t, err)
+	require.Equal(t, []byte("ok"), content)
+}
+
 // TestS3Client_DeleteObject tests deleting objects.
 func TestS3Client_DeleteObject(t *testing.T) {
-	server, endpoint := setupFakeS3Server(t)
-	defer server.Close()
-
-	endpointHost := endpoint[7:]
+	endpointHost := setupFakeS3Server(t)
 
 	cfg := config.S3Config{
 		Endpoint:        endpointHost,
@@ -130,10 +150,7 @@ func TestS3Client_DeleteObject(t *testing.T) {
 
 // TestS3Client_StatObject tests getting object metadata without downloading.
 func TestS3Client_StatObject(t *testing.T) {
-	server, endpoint := setupFakeS3Server(t)
-	defer server.Close()
-
-	endpointHost := endpoint[7:]
+	endpointHost := setupFakeS3Server(t)
 
 	cfg := config.S3Config{
 		Endpoint:        endpointHost,
@@ -166,6 +183,65 @@ func TestS3Client_StatObject(t *testing.T) {
 	require.Equal(t, int64(1024), info.Size)
 }
 
+func TestS3Client_PathPrefixUsesPhysicalKeyAndReturnsLogicalKey(t *testing.T) {
+	endpointHost := setupFakeS3Server(t)
+	useSSL := false
+	pathStyle := true
+
+	prefixedCfg := config.S3Config{
+		Endpoint:        endpointHost,
+		Bucket:          "test-bucket",
+		PathPrefix:      "/tenant-a/chatto/",
+		AccessKeyID:     "test-key",
+		SecretAccessKey: "test-secret",
+		UseSSL:          &useSSL,
+		PathStyle:       &pathStyle,
+	}
+	prefixedClient, err := core.NewS3Client(prefixedCfg)
+	require.NoError(t, err)
+	require.Equal(t, "tenant-a/chatto", prefixedClient.PathPrefix())
+
+	verifierCfg := prefixedCfg
+	verifierCfg.PathPrefix = ""
+	verifierClient, err := core.NewS3Client(verifierCfg)
+	require.NoError(t, err)
+
+	ctx := context.Background()
+	require.NoError(t, prefixedClient.EnsureBucket(ctx))
+
+	logicalKey := "test/object.txt"
+	physicalKey := "tenant-a/chatto/test/object.txt"
+	testData := []byte("under a prefix")
+
+	putInfo, err := prefixedClient.PutObjectFromBytes(ctx, logicalKey, testData, "text/plain")
+	require.NoError(t, err)
+	require.Equal(t, logicalKey, putInfo.Key)
+
+	_, err = verifierClient.StatObject(ctx, logicalKey)
+	require.Error(t, err)
+
+	physicalInfo, err := verifierClient.StatObject(ctx, physicalKey)
+	require.NoError(t, err)
+	require.Equal(t, physicalKey, physicalInfo.Key)
+
+	reader, getInfo, err := prefixedClient.GetObject(ctx, logicalKey)
+	require.NoError(t, err)
+	defer reader.Close()
+	require.Equal(t, logicalKey, getInfo.Key)
+	content, err := io.ReadAll(reader)
+	require.NoError(t, err)
+	require.Equal(t, testData, content)
+
+	presignedURL, err := prefixedClient.PresignedGetURL(ctx, logicalKey, 15*time.Minute)
+	require.NoError(t, err)
+	require.Contains(t, presignedURL.Path, physicalKey)
+	require.Equal(t, "private, no-store", presignedURL.Query().Get("response-cache-control"))
+
+	require.NoError(t, prefixedClient.DeleteObject(ctx, logicalKey))
+	_, err = verifierClient.StatObject(ctx, physicalKey)
+	require.Error(t, err)
+}
+
 // TestS3KeyHelpers tests the S3 key generation helpers.
 func TestS3KeyHelpers(t *testing.T) {
 	tests := []struct {
@@ -174,14 +250,14 @@ func TestS3KeyHelpers(t *testing.T) {
 		expected string
 	}{
 		{
-			name: "SpaceAttachment",
+			name: "Attachment",
 			function: func() string {
-				return core.S3KeySpaceAttachment("space123", "attach456")
+				return core.S3KeyAttachment("attach456")
 			},
-			expected: "spaces/space123/attachments/attach456",
+			expected: "attachments/attach456",
 		},
 		{
-			name: "InstanceAsset",
+			name: "ServerAsset",
 			function: func() string {
 				return core.S3KeyServerAsset("asset789")
 			},
@@ -205,49 +281,62 @@ func TestS3Client_NilWhenNotConfigured(t *testing.T) {
 	require.Nil(t, client)
 }
 
+func TestS3Client_InvalidPathPrefix(t *testing.T) {
+	cfg := config.S3Config{
+		Endpoint:        "s3.amazonaws.com",
+		Bucket:          "test-bucket",
+		PathPrefix:      "tenant//chatto",
+		AccessKeyID:     "test-key",
+		SecretAccessKey: "test-secret",
+	}
+	client, err := core.NewS3Client(cfg)
+	require.Nil(t, client)
+	require.Error(t, err)
+	require.True(t, strings.Contains(err.Error(), "path_prefix"))
+}
+
 // TestStorageBackendEncapsulation_URLGeneration tests that URL generation always uses
 // standard formats regardless of storage backend. The storage backend should be an
 // internal implementation detail that is not exposed in URLs.
 func TestStorageBackendEncapsulation_URLGeneration(t *testing.T) {
-	t.Run("S3 asset keys use consistent format for instance assets", func(t *testing.T) {
+	t.Run("S3 asset keys use consistent format for server assets", func(t *testing.T) {
 		// Instance assets should all use the same key format: instance/{assetId}
 		assetID := "abc123xyz"
 		s3Key := core.S3KeyServerAsset(assetID)
 		require.Equal(t, "instance/abc123xyz", s3Key)
 
-		// The URL format should be /assets/instance/{assetId}
+		// The URL format should be /assets/server/{assetId}
 		// This is what the HTTP handler expects regardless of backend
-		expectedURLPath := fmt.Sprintf("/assets/instance/%s", assetID)
-		require.Equal(t, "/assets/instance/abc123xyz", expectedURLPath)
+		expectedURLPath := fmt.Sprintf("/assets/server/%s", assetID)
+		require.Equal(t, "/assets/server/abc123xyz", expectedURLPath)
 	})
 
-	t.Run("S3 asset keys use consistent format for space attachments", func(t *testing.T) {
-		// Space attachments use: spaces/{spaceId}/attachments/{attachmentId}
-		spaceID := "space456"
+	t.Run("S3 asset keys use consistent format for attachments", func(t *testing.T) {
+		// Attachments use: attachments/{attachmentId}
 		attachmentID := "attach789"
-		s3Key := core.S3KeySpaceAttachment(spaceID, attachmentID)
-		require.Equal(t, "spaces/space456/attachments/attach789", s3Key)
+		s3Key := core.S3KeyAttachment(attachmentID)
+		require.Equal(t, "attachments/attach789", s3Key)
 
-		// The URL format should be /assets/space/{spaceId}/attachments/{attachmentId}
-		expectedURLPath := fmt.Sprintf("/assets/space/%s/attachments/%s", spaceID, attachmentID)
-		require.Equal(t, "/assets/space/space456/attachments/attach789", expectedURLPath)
+		// Attachment serving URLs use stable asset access tickets.
+		expectedURLPath := fmt.Sprintf("/assets/files/%s", attachmentID)
+		require.Equal(t, "/assets/files/attach789", expectedURLPath)
 	})
 
-	t.Run("S3Asset.Key stores only the asset ID for instance assets", func(t *testing.T) {
+	t.Run("S3Asset.Key stores only the asset ID for server assets", func(t *testing.T) {
 		// When storing an S3 asset, we should store only the assetID
 		// (same as NATS) so URL generation is consistent
 		assetID := "myasset123"
 
 		// NATS asset stores assetID in Key
-		natsAsset := &corev1.Asset{
-			Asset: &corev1.Asset_Nats{
+		natsAsset := &corev1.DeprecatedAsset{
+			Asset: &corev1.DeprecatedAsset_Nats{
 				Nats: &corev1.NATSAsset{Key: assetID},
 			},
 		}
 
 		// S3 asset should also store assetID in Key (not the full S3 path)
-		s3Asset := &corev1.Asset{
-			Asset: &corev1.Asset_S3{
+		s3Asset := &corev1.DeprecatedAsset{
+			Asset: &corev1.DeprecatedAsset_S3{
 				S3: &corev1.S3Asset{Key: assetID, Bucket: proto.String("test-bucket")},
 			},
 		}
@@ -257,4 +346,3 @@ func TestStorageBackendEncapsulation_URLGeneration(t *testing.T) {
 		require.Equal(t, assetID, s3Asset.GetS3().Key)
 	})
 }
-

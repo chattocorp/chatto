@@ -1,0 +1,35 @@
+# Ignore everything by default.
+*
+
+# The frontend dev image builds from the repo root so it can use the root pnpm workspace.
+!package.json
+!pnpm-lock.yaml
+!pnpm-workspace.yaml
+!.npmrc
+!apps/
+!apps/frontend/
+!apps/frontend/**
+
+# Keep local/generated app state out of Docker contexts and images.
+apps/frontend/node_modules
+apps/frontend/.env
+apps/frontend/.env.*
+!apps/frontend/.env.example
+!apps/frontend/.env.test
+apps/frontend/.svelte-kit
+apps/frontend/build
+apps/frontend/.output
+apps/frontend/.vercel
+apps/frontend/.netlify
+apps/frontend/.wrangler
+apps/frontend/playwright-report
+apps/frontend/test-results
+apps/frontend/.vitest-attachments
+apps/frontend/**/__screenshots__
+apps/frontend/storybook-static
+apps/frontend/*storybook.log
+apps/frontend/project.inlang/cache
+apps/frontend/.DS_Store
+apps/frontend/**/.DS_Store
+apps/frontend/Thumbs.db
+apps/frontend/**/Thumbs.db

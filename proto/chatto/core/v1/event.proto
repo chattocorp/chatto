@@ -3,20 +3,24 @@ syntax = "proto3";
 package chatto.core.v1;
 
 import "google/protobuf/timestamp.proto";
-import "chatto/core/v1/user_preferences.proto";
+import "chatto/core/v1/auth_events.proto";
+import "chatto/core/v1/asset_events.proto";
+import "chatto/core/v1/message_events.proto";
+import "chatto/core/v1/moderation_events.proto";
+import "chatto/core/v1/rbac_events.proto";
+import "chatto/core/v1/reaction_events.proto";
+import "chatto/core/v1/room_events.proto";
+import "chatto/core/v1/room_group_events.proto";
+import "chatto/core/v1/config_events.proto";
+import "chatto/core/v1/thread_events.proto";
+import "chatto/core/v1/user_events.proto";
 
 option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
 
 /*
-   Event is the wire-format envelope for every event a user can receive.
-   Both the room-scoped events that ride the SERVER_EVENTS JetStream and
-   the `live.server.room.*` / `live.server.member.*` subjects, and the
-   deployment-scoped events that ride the `live.server.{user,space,
-   config}.*` subjects, all travel as Event messages.
-
-   The split into two wrappers (ServerEvent + LiveEvent) was retired in
-   favour of this single union — storage decisions (JetStream vs. NATS
-   Core) belong to the publisher path, not the message type.
+   Event is the wire-format envelope for durable domain facts. New writes
+   to the event-sourced EVT stream use this wrapper; projections consume it
+   as source-of-truth input.
 
    Field-number convention for the `event` oneof:
 
@@ -24,17 +28,17 @@ option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
        field number is part of the on-disk wire format. **Don't change
        or reuse these numbers** — old stream bytes have to decode.
 
-     - **>= 1000**: live-only variants. NATS Core only, never written
-       to disk. Field numbers can be reassigned freely (the only
-       in-flight constraint is a single deployment cycle).
+     - **1050-1051**: durable reaction variants that kept their legacy
+       live tags during the EVT cutover. Treat them like persisted tags.
 
-   The numeric boundary makes it obvious at a glance whether a given
-   variant is durable or ephemeral.
+     - **>= 1000, except 1050-1051**: retired legacy live-only variant
+       numbers. New transient pubsub signals belong in LiveEvent, not Event.
 
-   Authorization is determined by NATS subject, not by the wrapper:
-   - Room-scoped: server.room.{kind}.{roomId}.> (JetStream) or
-     live.server.room.{kind}.{roomId}.> (NATS Core)
-   - Deployment-scoped: live.server.{user,space,config}.>
+   Category ownership for the top-level oneof tags is documented in the
+   sibling *_events.proto files. The top-level tag is the durable/event
+   envelope ID; message-internal field numbers remain local to that message.
+
+   Authorization is handled by the API boundary, not this wrapper.
 */
 message Event {
   // Universal event identifier (NanoID) for forward-compatibility with
@@ -47,14 +51,17 @@ message Event {
   // ID of the user who triggered this event.
   string actor_id = 3;
 
+  reserved 500, 1000, 1010 to 1015, 1030 to 1032, 1040 to 1041, 1060, 1070, 1080, 1090 to 1091, 1100 to 1101, 1110 to 1111, 1121 to 1122, 1130, 1140, 1200;
+  reserved "server_config_changed", "config_updated", "user_created", "user_deleted", "user_profile_updated", "server_user_preferences_updated", "notification_level_changed", "thread_follow_changed", "server_created", "server_updated", "server_deleted", "message_updated", "message_deleted", "user_typing", "video_processing_completed", "presence_changed", "mention_notification", "new_direct_message_notification", "call_participant_joined", "call_participant_left", "notification_created", "notification_dismissed", "room_marked_as_read", "mention_status_cleared", "room_groups_updated", "session_terminated", "heartbeat";
   reserved 9001; // was sequence_id (removed — sequence is a JetStream transport detail, not part of the event)
+  reserved "sequence_id";
 
   // The concrete event payload.
   oneof event {
     // =================================================================
     // PERSISTED VARIANTS (< 1000) — stored in JetStream.
     // Changing field numbers or message structure below affects stored
-    // data. Definitions are at the bottom of this file.
+    // data. Message definitions live in the sibling *_events.proto files.
     // =================================================================
 
     // ----- Room lifecycle (300-309) -----
@@ -63,578 +70,157 @@ message Event {
     RoomDeletedEvent room_deleted = 302;
     RoomArchivedEvent room_archived = 303;
     RoomUnarchivedEvent room_unarchived = 304;
-    // Fields 305 / 306 were RoomBecameAutoJoinEvent / RoomBecameRegularEvent.
-    // Removed alongside the auto-join feature; oneof tags don't reserve,
-    // so don't reuse those numbers.
+    RoomUniversalChangedEvent room_universal_changed = 305;
+    // Field 306 was RoomBecameRegularEvent. Removed alongside the auto-join
+    // feature; oneof tags don't reserve, so don't reuse that number.
 
     // ----- Room membership (310-329) -----
     UserJoinedRoomEvent user_joined_room = 310;
     UserLeftRoomEvent user_left_room = 311;
-    SpaceMemberDeletedEvent space_member_deleted = 320;
+    ServerMemberDeletedEvent server_member_deleted = 320;
 
-    // ----- Messages (400-409) -----
+    // ----- Voice calls (330-339, durable room facts) -----
+    CallParticipantJoinedEvent voice_call_participant_joined = 330;
+    CallParticipantLeftEvent voice_call_participant_left = 331;
+    CallStartedEvent voice_call_started = 332;
+    CallEndedEvent voice_call_ended = 333;
+
+    // ----- Messages (400-424) -----
     MessagePostedEvent message_posted = 400;
+    // Durable edit / retract variants for the EVT stream (ADR-033/034/035,
+    // issue #597). The old live-only MessageUpdatedEvent/MessageDeletedEvent
+    // tags at 1040/1041 are now retired and reserved.
+    MessageEditedEvent message_edited = 401;
+    MessageRetractedEvent message_retracted = 402;
     // Field 403 was ThreadReplyEchoEvent, now folded into MessagePostedEvent.
+    MessageBodyEvent message_body = 404;
 
-    // =================================================================
-    // LIVE-ONLY VARIANTS (>= 1000) — never persisted.
-    // These ride NATS Core only; field numbers can be renumbered
-    // freely. Grouped by category for readability.
-    // =================================================================
+    // ----- Threads (425-449, durable, room-owned) -----
+    ThreadCreatedEvent thread_created = 425;
+    ThreadFollowedEvent thread_followed = 426;
+    ThreadUnfollowedEvent thread_unfollowed = 427;
 
-    // ----- Server config (1000-1009) -----
-    ServerConfigUpdatedEvent config_updated = 1000;
+    // ----- Assets (450-474, durable) -----
+    // The asset aggregate. AssetCreated establishes content identity for
+    // one uploaded or generated binary; AssetProcessingStarted/Succeeded/
+    // Failed track derivative work; AssetDeleted terminates the lifecycle.
+    AssetCreatedEvent asset_created = 450;
+    AssetProcessingStartedEvent asset_processing_started = 451;
+    AssetProcessingSucceededEvent asset_processing_succeeded = 452;
+    AssetProcessingFailedEvent asset_processing_failed = 453;
+    AssetDeletedEvent asset_deleted = 454;
 
-    // ----- User lifecycle (1010-1029) -----
-    UserCreatedEvent user_created = 1010;
-    UserDeletedEvent user_deleted = 1011;
-    UserProfileUpdatedEvent user_profile_updated = 1012;
-    ServerUserPreferencesUpdatedEvent server_user_preferences_updated = 1013;
-    NotificationLevelChangedEvent notification_level_changed = 1014;
-    ThreadFollowChangedEvent thread_follow_changed = 1015;
+    // ----- Config / preferences (500-599, durable) -----
+    // These variants live on the EVT stream (subjects under evt.config.>)
+    // per ADRs 033/034/035. Member-visible server profile/config live
+    // invalidation uses LiveEvent.ServerUpdatedEvent instead.
+    ServerNameChangedEvent server_name_changed = 501;
+    ServerDescriptionChangedEvent server_description_changed = 502;
+    ServerWelcomeMessageChangedEvent server_welcome_message_changed = 503;
+    ServerMotdChangedEvent server_motd_changed = 504;
+    ServerBlockedUsernamesChangedEvent server_blocked_usernames_changed = 505;
+    ServerLogoSetEvent server_logo_set = 506;
+    ServerLogoClearedEvent server_logo_cleared = 507;
+    ServerBannerSetEvent server_banner_set = 508;
+    ServerBannerClearedEvent server_banner_cleared = 509;
 
-    // 1020-1029 was server-membership (UserJoinedSpaceEvent /
-    // UserLeftSpaceEvent), retired. Live-only field numbers can be
-    // reassigned freely, but skip these for now to keep grep
-    // breadcrumbs working when tracing old logs.
+    UserTimezoneChangedEvent user_timezone_changed = 510;
+    UserTimezoneClearedEvent user_timezone_cleared = 511;
+    UserTimeFormatChangedEvent user_time_format_changed = 512;
+    UserTimeFormatClearedEvent user_time_format_cleared = 513;
+    UserServerNotificationLevelSetEvent user_server_notification_level_set = 514;
+    UserServerNotificationLevelClearedEvent user_server_notification_level_cleared = 515;
+    UserRoomNotificationLevelSetEvent user_room_notification_level_set = 516;
+    UserRoomNotificationLevelClearedEvent user_room_notification_level_cleared = 517;
 
-    // ----- Server lifecycle (1030-1039) -----
-    ServerCreatedEvent server_created = 1030;
-    ServerUpdatedEvent server_updated = 1031;
-    ServerDeletedEvent server_deleted = 1032;
+    // ----- Room groups (600-609, durable, evt.group.{groupId}) -----
+    // The group aggregate owns its room-membership AND room-ordering.
+    // Move-room is two events (RoomRemovedFromGroup on source +
+    // RoomAddedToGroup on target), matching ADR-034 Approach A.
+    RoomGroupCreatedEvent room_group_created = 600;
+    RoomGroupUpdatedEvent room_group_updated = 601;
+    RoomGroupDeletedEvent room_group_deleted = 602;
+    RoomAddedToGroupEvent room_added_to_group = 603;
+    RoomRemovedFromGroupEvent room_removed_from_group = 604;
+    RoomsInGroupReorderedEvent rooms_in_group_reordered = 605;
+    SidebarLinkAddedToGroupEvent sidebar_link_added_to_group = 606;
+    SidebarLinkUpdatedEvent sidebar_link_updated = 607;
+    SidebarLinkRemovedFromGroupEvent sidebar_link_removed_from_group = 608;
+    SidebarGroupEntriesReorderedEvent sidebar_group_entries_reordered = 609;
 
-    // ----- Message mutations (1040-1049) — KV is source of truth -----
-    MessageUpdatedEvent message_updated = 1040;
-    MessageDeletedEvent message_deleted = 1041;
+    // ----- Room layout (650-659, durable, evt.layout.{singleton}) -----
+    // The layout aggregate is a singleton; the singletonID is a stable
+    // constant ("default"). It owns the operator-defined inter-group
+    // ordering for the sidebar. New groups appear at the end of the
+    // sidebar implicitly via the RoomGroup projection's All() + the
+    // reconciler in ListRoomGroupsOrdered; the layout aggregate only
+    // tracks explicit reorders.
+    RoomGroupsReorderedEvent room_groups_reordered = 650;
 
-    // ----- Reactions (1050-1059) — KV is source of truth -----
+    // ----- Users (700-799, durable, evt.user.{userId}) -----
+    UserAccountCreatedEvent user_account_created = 700;
+    UserLoginChangedEvent user_login_changed = 701;
+    UserDisplayNameChangedEvent user_display_name_changed = 702;
+    UserAvatarSetEvent user_avatar_set = 703;
+    UserAvatarClearedEvent user_avatar_cleared = 704;
+    UserVerifiedEmailAddedEvent user_verified_email_added = 705;
+    UserPasswordHashChangedEvent user_password_hash_changed = 706;
+    UserOIDCSubjectLinkedEvent user_oidc_subject_linked = 707;
+    UserServerPreferencesChangedEvent user_server_preferences_changed = 708;
+    UserLoginCooldownClearedEvent user_login_cooldown_cleared = 709;
+    UserAccountDeletedEvent user_account_deleted = 710;
+    UserLoginCooldownStartedEvent user_login_cooldown_started = 711;
+    UserKeyShreddedEvent user_key_shredded = 712;
+    UserDEKGeneratedEvent user_dek_generated = 713;
+    UserExternalIdentityLinkedEvent user_external_identity_linked = 714;
+    UserCustomStatusSetEvent user_custom_status_set = 715;
+    UserCustomStatusClearedEvent user_custom_status_cleared = 716;
+    UserExternalIdentityUnlinkedEvent user_external_identity_unlinked = 717;
+
+    // ----- RBAC (800-839, durable, evt.rbac.>) -----
+    RbacRoleCreatedEvent rbac_role_created = 800;
+    RbacRoleDisplayNameChangedEvent rbac_role_display_name_changed = 801;
+    RbacRoleDescriptionChangedEvent rbac_role_description_changed = 802;
+    RbacRoleDeletedEvent rbac_role_deleted = 803;
+    RbacRolesReorderedEvent rbac_roles_reordered = 804;
+    RbacRoleAssignedEvent rbac_role_assigned = 805;
+    RbacRoleRevokedEvent rbac_role_revoked = 806;
+    RbacPermissionGrantedEvent rbac_permission_granted = 810;
+    RbacPermissionDeniedEvent rbac_permission_denied = 811;
+    RbacPermissionClearedEvent rbac_permission_cleared = 812;
+    RbacRolePingableChangedEvent rbac_role_pingable_changed = 813;
+
+    // ----- Moderation (840-899, durable, room-owned) -----
+    RoomMemberBannedEvent room_member_banned = 840;
+    RoomMemberUnbannedEvent room_member_unbanned = 841;
+    RoomMemberAddedEvent room_member_added = 842;
+    RoomMemberRemovedEvent room_member_removed = 843;
+
+    // ----- Auth/security audit (900-999, durable, evt.auth.server / evt.user.{userId}) -----
+    // These facts are intentionally minimal: no raw token, verification code,
+    // link, IP address, password, auth code, bearer token, OAuth redirect URI,
+    // or unhashed email is persisted in EVT.
+    RegistrationVerificationCodeIssuedEvent registration_verification_code_issued = 900;
+    EmailVerificationCodeIssuedEvent email_verification_code_issued = 901;
+    PasswordResetLinkIssuedEvent password_reset_link_issued = 902;
+    AccountDeletionConfirmationIssuedEvent account_deletion_confirmation_issued = 903;
+    PasswordResetCompletedEvent password_reset_completed = 904;
+    LoginSucceededEvent login_succeeded = 905;
+    LoginFailedEvent login_failed = 906;
+    LogoutSucceededEvent logout_succeeded = 907;
+    AuthCodeIssuedEvent auth_code_issued = 908;
+    AuthCodeExchangeSucceededEvent auth_code_exchange_succeeded = 909;
+    AuthCodeExchangeFailedEvent auth_code_exchange_failed = 910;
+    BearerTokenIssuedEvent bearer_token_issued = 911;
+    BearerTokenRevokedEvent bearer_token_revoked = 912;
+    OAuthConsentGrantedEvent oauth_consent_granted = 913;
+    OAuthConsentDeniedEvent oauth_consent_denied = 914;
+
+    // ----- Reactions (1050-1059) — durable legacy-tag exception -----
+    // Reaction events are stored on EVT today. They kept the legacy
+    // 1050/1051 tags during the cutover, so treat these two tags as
+    // frozen durable IDs even though they sit in the >=1000 range.
     ReactionAddedEvent reaction_added = 1050;
     ReactionRemovedEvent reaction_removed = 1051;
-
-    // ----- Typing indicators (1060-1069) -----
-    UserTypingEvent user_typing = 1060;
-
-    // ----- Video processing (1070-1079) -----
-    VideoProcessingCompletedEvent video_processing_completed = 1070;
-
-    // ----- Presence (1080-1089) -----
-    PresenceChangedEvent presence_changed = 1080;
-
-    // ----- Notifications (1090-1099) -----
-    MentionNotificationEvent mention_notification = 1090;
-    NewDirectMessageNotificationEvent new_direct_message_notification = 1091;
-
-    // ----- Voice calls (1100-1109) -----
-    CallParticipantJoinedEvent call_participant_joined = 1100;
-    CallParticipantLeftEvent call_participant_left = 1101;
-
-    // ----- Notification sync (1110-1119) -----
-    NotificationCreatedEvent notification_created = 1110;
-    NotificationDismissedEvent notification_dismissed = 1111;
-
-    // ----- Unread indicators (1120-1129) -----
-    // 1120 was NewMessageInSpaceEvent (retired in ADR-030 cleanup —
-    // MessagePostedEvent on the per-room subject covers the same use case).
-    RoomMarkedAsReadEvent room_marked_as_read = 1121;
-
-    // ----- Room layout (1130-1139) -----
-    RoomGroupsUpdatedEvent room_groups_updated = 1130;
-
-    // ----- Session termination (1140-1149) -----
-    SessionTerminatedEvent session_terminated = 1140;
-
-    // ----- Subscription liveness (1200-1209) -----
-    // Synthetic heartbeat — never published over NATS. Emitted directly
-    // into the subscription channel by StreamMyEvents so clients can
-    // detect a dead subscription on an otherwise-healthy WebSocket and
-    // trigger a reconnect.
-    HeartbeatEvent heartbeat = 1200;
   }
-}
-
-// ============================================================================
-// SUBSCRIPTION LIVENESS
-// ============================================================================
-
-// HeartbeatEvent is a synthetic event with no payload. StreamMyEvents
-// emits one every ~25 seconds so clients can detect a dead subscription
-// on an otherwise-healthy WebSocket. It is never persisted and never
-// travels over NATS.
-message HeartbeatEvent {}
-
-// ============================================================================
-// PERSISTED EVENT MESSAGE DEFINITIONS
-// Changing field numbers or structure below affects JetStream-stored data.
-// ============================================================================
-
-// ============================================================================
-// ROOM LIFECYCLE EVENTS
-// ============================================================================
-
-message RoomCreatedEvent {
-  string space_id = 1;
-  string room_id = 2;
-  string name = 3;
-  string description = 4;
-}
-
-message RoomUpdatedEvent {
-  string space_id = 1;
-  string room_id = 2;
-  string name = 3;
-  string description = 4;
-}
-
-message RoomDeletedEvent {
-  string space_id = 1;
-  string room_id = 2;
-}
-
-// RoomArchivedEvent is published when a room is archived.
-// Archived rooms are hidden from sidebars and Browse Rooms.
-message RoomArchivedEvent {
-  string space_id = 1;
-  string room_id = 2;
-}
-
-// RoomUnarchivedEvent is published when a room is unarchived.
-// The room becomes visible again in sidebars and Browse Rooms.
-message RoomUnarchivedEvent {
-  string space_id = 1;
-  string room_id = 2;
-}
-
-// ============================================================================
-// ROOM MEMBERSHIP EVENTS
-// ============================================================================
-
-message UserJoinedRoomEvent {
-  string space_id = 1;
-  string room_id = 2;
-}
-
-message UserLeftRoomEvent {
-  string space_id = 1;
-  string room_id = 2;
-}
-
-// SpaceMemberDeletedEvent is published when a user's account is deleted.
-// This notifies all space members that the user is gone, so they can:
-// - Update their member lists
-// - Refresh messages to show "Deleted User" and unavailable content
-message SpaceMemberDeletedEvent {
-  string space_id = 1;
-  string user_id = 2;
-}
-
-// ============================================================================
-// MESSAGE EVENTS
-// ============================================================================
-
-message MessagePostedEvent {
-  // Space ID - required to locate the message body in the correct
-  // SPACE_{spaceId}_BODIES KV bucket for lazy-loading
-  string space_id = 1;
-
-  // Room ID - identifies which room this message belongs to
-  string room_id = 2;
-
-  // Compound key for body storage in KV: {userId}.{eventId}
-  // The userId prefix enables efficient per-user filtering for GDPR deletion.
-  string message_body_id = 3;
-
-  // Threading: event ID of the message this is replying to (empty = top-level message)
-  string in_reply_to = 4;
-
-  // Threading: event ID of the thread root message (empty = top-level message)
-  // For direct replies to a root, in_thread == in_reply_to.
-  // For nested replies, in_thread references the original root.
-  string in_thread = 5;
-
-  // User IDs of users mentioned via @username in the message body.
-  // Only includes valid, resolved user IDs (invalid mentions are silently ignored).
-  repeated string mentioned_user_ids = 6;
-
-  // Echo fields (empty for regular messages, set for "also send to channel" echoes).
-  // When set, this event is an echo of a thread reply — the message body is shared
-  // with the original thread reply (same message_body_id), so edits/deletions propagate.
-
-  // Event ID of the original thread reply this echoes (empty = not an echo)
-  string echo_of_event_id = 7;
-
-  // Thread root event ID — the thread this echo originates from (empty = not an echo)
-  string echo_from_thread_root_event_id = 8;
-
-  // Parent event's ID (populated at read time for resolver access)
-  // Used for reactions lookup since reactions are keyed by event ID
-  string event_id = 1001;
-
-  reserved 1000; // was sequence_id (dead field, never read)
-}
-
-// ============================================================================
-// LIVE-ONLY EVENT MESSAGE DEFINITIONS
-// Inner message structure can be changed freely; only the wrapper-level
-// oneof field numbers are wire-format relevant (and only within a single
-// deployment cycle, since live events never persist).
-// ============================================================================
-
-// Notifies clients that server configuration was updated.
-// Clients should refetch server info to get the new values.
-message ServerConfigUpdatedEvent {
-  // The updated server name
-  string server_name = 1;
-
-  // The updated MOTD (empty if cleared)
-  string motd = 2;
-
-  // The updated welcome message (empty if cleared)
-  string welcome_message = 3;
-
-  // The updated blocked usernames (newline-separated, empty if cleared)
-  string blocked_usernames = 4;
-}
-
-// ============================================================================
-// USER LIFECYCLE EVENTS (server-scoped)
-// ============================================================================
-
-message UserCreatedEvent {
-  string user_id = 1;
-  string login = 2;
-  string display_name = 3;
-}
-
-// UserDeletedEvent is published when a user deletes their own account.
-// Server-level event for audit logging and admin UI updates.
-message UserDeletedEvent {
-  string user_id = 1;
-}
-
-// UserProfileUpdatedEvent is published when a user's profile changes.
-// This includes avatar uploads/deletions, display name changes, and login changes.
-// Allows other users to see profile changes in real-time.
-message UserProfileUpdatedEvent {
-  string user_id = 1;
-  string display_name = 2;
-  // URL to the user's avatar, or empty if no avatar is set.
-  string avatar_url = 3;
-  // The user's current login/username.
-  string login = 4;
-}
-
-// ============================================================================
-// USER PREFERENCE EVENTS (user-scoped)
-// ============================================================================
-
-// ServerUserPreferencesUpdatedEvent is published when a user updates their display preferences.
-// User-scoped private event for multi-tab/multi-device sync.
-message ServerUserPreferencesUpdatedEvent {
-  // IANA timezone name (empty = cleared/browser default).
-  string timezone = 1;
-  // Time display format preference.
-  TimeFormat time_format = 2;
-}
-
-// NotificationLevelChangedEvent is published when a user changes their notification
-// level for a space or room. User-scoped: only delivered to the user who changed it.
-message NotificationLevelChangedEvent {
-  // The space whose notification level was changed.
-  string space_id = 1;
-  // The room whose notification level was changed (empty for space-level changes).
-  string room_id = 2;
-  // The explicitly set level.
-  NotificationLevel level = 3;
-  // The effective level after inheritance resolution.
-  NotificationLevel effective_level = 4;
-}
-
-// ============================================================================
-// SERVER LIFECYCLE EVENTS (deployment-scoped)
-// ============================================================================
-
-message ServerCreatedEvent {
-  string server_id = 1;
-  string name = 2;
-  string description = 3;
-}
-
-message ServerUpdatedEvent {
-  string server_id = 1;
-  string name = 2;
-  string description = 3;
-  // URL to the server's logo, or empty if no logo is set.
-  string logo_url = 4;
-  // URL to the server's banner, or empty if no banner is set.
-  string banner_url = 5;
-}
-
-message ServerDeletedEvent {
-  string server_id = 1;
-}
-
-// ============================================================================
-// MESSAGE MUTATION EVENTS (space-scoped)
-// ============================================================================
-
-message MessageUpdatedEvent {
-  // Space ID - required to locate the message body in the correct
-  // SPACE_{spaceId}_BODIES KV bucket for lazy-loading
-  string space_id = 1;
-
-  // Room ID - identifies which room this message belongs to
-  string room_id = 2;
-
-  reserved 3; // was sequence_id (dead field, never read)
-
-  // Compound key for body storage in KV: {userId}.{eventId}
-  // The userId prefix enables efficient per-user filtering for GDPR deletion.
-  string message_body_id = 4;
-
-  // Threading: event ID of the message this is replying to (empty = top-level message)
-  string in_reply_to = 5;
-
-  // Threading: event ID of the thread root message (empty = top-level message)
-  string in_thread = 6;
-
-  // Event ID of the updated message (for GraphQL API consumers).
-  // Populated at publish time from the body key.
-  string message_event_id = 7;
-
-  // Parent event's ID (populated at read time for resolver access)
-  // Used for reactions lookup since reactions are keyed by event ID
-  string event_id = 1000;
-}
-
-message MessageDeletedEvent {
-  // Space ID - identifies which space the message belonged to
-  string space_id = 1;
-
-  // Room ID - identifies which room the message belonged to
-  string room_id = 2;
-
-  // Compound key for body storage in KV: {userId}.{eventId}
-  // The userId prefix enables efficient per-user filtering for GDPR deletion.
-  string message_body_id = 3;
-
-  // Event ID of the deleted message (for GraphQL API consumers).
-  // Populated at publish time from the body key.
-  string message_event_id = 4;
-}
-
-// ============================================================================
-// REACTION EVENTS (space-scoped — KV bucket is source of truth)
-// ============================================================================
-
-message ReactionAddedEvent {
-  // Space ID - identifies the space containing the message
-  string space_id = 1;
-
-  // Room ID - identifies the room containing the message
-  string room_id = 2;
-
-  // Event ID of the message being reacted to (NanoID)
-  string message_event_id = 3;
-
-  // The emoji used for the reaction (Unicode emoji string)
-  string emoji = 4;
-}
-
-message ReactionRemovedEvent {
-  // Space ID - identifies the space containing the message
-  string space_id = 1;
-
-  // Room ID - identifies the room containing the message
-  string room_id = 2;
-
-  // Event ID of the message the reaction was removed from (NanoID)
-  string message_event_id = 3;
-
-  // The emoji that was removed
-  string emoji = 4;
-}
-
-// ============================================================================
-// TYPING INDICATOR EVENTS (space-scoped)
-// ============================================================================
-
-// Notifies clients that a user is typing in a room or thread.
-// Published directly to NATS Core (bypasses JetStream storage).
-// Clients should implement timeout-based clearing (e.g., 6 seconds).
-message UserTypingEvent {
-  // Space ID where the user is typing
-  string space_id = 1;
-
-  // Room ID where the user is typing
-  string room_id = 2;
-
-  // Thread root event ID (optional). If set, the user is typing a reply in this thread.
-  // If empty, the user is typing in the main room view.
-  optional string thread_root_event_id = 3;
-}
-
-// ============================================================================
-// PRESENCE EVENTS (space-scoped, constructed from KV watcher)
-// ============================================================================
-
-// Notifies clients that a user's presence status changed.
-// Published when a user comes online, goes offline, or changes their status.
-// The user whose presence changed is identified by the parent envelope's actor_id.
-// Presence is server-wide; the space context is implicit in the subscription.
-message PresenceChangedEvent {
-  // The user's new presence status ("ONLINE", "OFFLINE", "AWAY", "DO_NOT_DISTURB")
-  string status = 1;
-}
-
-// ============================================================================
-// NOTIFICATION EVENTS (server-scoped — KV tracks persistent state)
-// ============================================================================
-
-// Notifies a user that they were mentioned in a message.
-// Published as a server-scoped live event to the mentioned user.
-// This is a transient notification — the KV bucket tracks persistent state.
-message MentionNotificationEvent {
-  // Space ID where the mention occurred
-  string space_id = 1;
-
-  // Room ID where the mention occurred
-  string room_id = 2;
-
-  // User ID of the person who mentioned them (the message author)
-  string mentioned_by_user_id = 3;
-}
-
-// Notifies a user that a new message was posted in a DM conversation they're part of.
-// Published as a server-scoped live event to all participants except the sender.
-// Every DM message triggers this notification (unlike mentions which are opt-in).
-message NewDirectMessageNotificationEvent {
-  // Room ID of the DM conversation
-  string room_id = 1;
-
-  // User ID of the person who sent the message
-  string sender_id = 2;
-}
-
-// ============================================================================
-// NOTIFICATION SYNC EVENTS (server-scoped)
-// ============================================================================
-
-// Published when a new notification is created for a user.
-// Enables real-time notification updates in the UI.
-message NotificationCreatedEvent {
-  // The notification ID
-  string notification_id = 1;
-
-  // Navigation context (optional fields for routing)
-  string space_id = 2;
-  string room_id = 3;
-  string event_id = 4;
-  string in_reply_to_id = 5;
-}
-
-// Published when a notification is dismissed by the user.
-// Enables cross-device sync of dismissed notifications.
-message NotificationDismissedEvent {
-  // The dismissed notification ID
-  string notification_id = 1;
-}
-
-// ============================================================================
-// THREAD FOLLOW EVENTS (user-scoped)
-// ============================================================================
-
-// ThreadFollowChangedEvent is published when a user's thread follow state changes
-// (follow or unfollow, including auto-follow on posting). User-scoped: delivered
-// only to the user whose follow state changed, for multi-tab/multi-device sync.
-message ThreadFollowChangedEvent {
-  // The space containing the thread.
-  string space_id = 1;
-  // The room containing the thread.
-  string room_id = 2;
-  // The root event ID of the thread.
-  string thread_root_event_id = 3;
-  // Whether the user is now following (true) or not following (false).
-  bool is_following = 4;
-}
-
-// ============================================================================
-// UNREAD INDICATOR EVENTS (server-scoped)
-// ============================================================================
-
-// Published to the user who marked a room as read.
-// This enables real-time updates to space unread indicators when the user
-// reads rooms within a space.
-message RoomMarkedAsReadEvent {
-  // Space ID containing the room
-  string space_id = 1;
-
-  // Room ID that was marked as read
-  string room_id = 2;
-}
-
-// ============================================================================
-// ROOM LAYOUT EVENTS (server-scoped — KV bucket is source of truth)
-// ============================================================================
-
-// Notifies clients that the channel-room groups (their ordering, names,
-// or membership) were updated. Clients should refetch `Server.roomGroups`.
-// Published as a live server event (not stored in JetStream).
-message RoomGroupsUpdatedEvent {
-  // Space ID whose groups were updated
-  string space_id = 1;
-}
-
-// ============================================================================
-// SESSION TERMINATION EVENTS (user-scoped)
-// ============================================================================
-
-// Notifies a user that their session has been terminated.
-// Published as a user-scoped event on logout or admin boot.
-// The subscription handler closes the stream after forwarding this event,
-// ensuring the WebSocket connection is torn down server-side.
-message SessionTerminatedEvent {
-  // Reason for termination: "logout", "admin_boot", "account_deleted"
-  string reason = 1;
-}
-
-// ============================================================================
-// VIDEO PROCESSING EVENTS (space-scoped)
-// ============================================================================
-
-// Notifies clients that video processing has completed (or failed) for an attachment.
-// Published on live.space.{spaceId}.video.processed so room subscribers receive it.
-message VideoProcessingCompletedEvent {
-  // Space ID containing the video
-  string space_id = 1;
-
-  // Room ID containing the message with the video
-  string room_id = 2;
-
-  // Attachment ID of the original video
-  string attachment_id = 3;
-
-  // Message body ID (internal, used by core for KV lookups)
-  string message_body_id = 4;
-
-  // Event ID of the message containing the attachment (for GraphQL API consumers).
-  // Populated at publish time from the body key.
-  string message_event_id = 5;
-}
-
-// ============================================================================
-// VOICE CALL EVENTS (space-scoped)
-// ============================================================================
-
-// Notifies room members that a user joined a voice call.
-// Published as a live space event when a user requests a call token.
-message CallParticipantJoinedEvent {
-  string space_id = 1;
-  string room_id = 2;
-}
-
-// Notifies room members that a user left a voice call.
-// Published as a live space event when a user explicitly leaves.
-message CallParticipantLeftEvent {
-  string space_id = 1;
-  string room_id = 2;
 }

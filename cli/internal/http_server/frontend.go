@@ -2,7 +2,9 @@ package http_server
 
 import (
 	"context"
+	"crypto/sha256"
 	"embed"
+	"fmt"
 	"io/fs"
 	"mime"
 	"net/http"
@@ -12,7 +14,6 @@ import (
 	"time"
 
 	"github.com/charmbracelet/log"
-	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 )
 
@@ -23,9 +24,21 @@ var embeddedWebUIFS embed.FS
 const (
 	// HTML files must never be cached to ensure users get the latest version
 	cacheControlNoCache = "no-store, no-cache, must-revalidate"
+	// Service worker bytes should be revalidated without forcing a full refetch
+	cacheControlRevalidate = "no-cache, must-revalidate"
 	// Hashed assets (in _app/) are immutable - cache for 1 year
 	cacheControlImmutable = "public, max-age=31536000, immutable"
+	// Report-only CSP preserves Chatto's multi-server client model while surfacing
+	// violations during development/staging before we consider enforcement.
+	contentSecurityPolicyReportOnly = "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: http: https:; media-src 'self' blob: http: https:; connect-src 'self' http: https: ws: wss:; frame-src https://www.youtube-nocookie.com; worker-src 'self'; require-trusted-types-for 'script'; trusted-types chatto-markdown-html"
 )
+
+func setFrontendSecurityHeaders(c *gin.Context) {
+	c.Header("X-Content-Type-Options", "nosniff")
+	c.Header("X-Frame-Options", "DENY")
+	c.Header("Referrer-Policy", "strict-origin-when-cross-origin")
+	c.Header("Content-Security-Policy-Report-Only", contentSecurityPolicyReportOnly)
+}
 
 // extractImmutableETag extracts an ETag from a SvelteKit immutable asset path.
 // SvelteKit filenames include content hashes, e.g.:
@@ -48,6 +61,58 @@ func extractImmutableETag(urlPath string) string {
 	}
 	// Pattern 2: the entire name is the hash
 	return name
+}
+
+func serviceWorkerETag(content []byte) string {
+	sum := sha256.Sum256(content)
+	return fmt.Sprintf(`W/"%x"`, sum)
+}
+
+func etagMatches(ifNoneMatch string, etag string) bool {
+	for _, part := range strings.Split(ifNoneMatch, ",") {
+		if strings.TrimSpace(part) == etag {
+			return true
+		}
+	}
+	return false
+}
+
+func setServiceWorkerETag(c *gin.Context, content []byte) bool {
+	etag := serviceWorkerETag(content)
+	c.Header("ETag", etag)
+	if etagMatches(c.GetHeader("If-None-Match"), etag) {
+		c.Status(http.StatusNotModified)
+		return true
+	}
+	return false
+}
+
+func setFrontendCacheHeaders(c *gin.Context) {
+	urlPath := c.Request.URL.Path
+	if strings.HasPrefix(urlPath, "/_app/immutable/") {
+		c.Header("Cache-Control", cacheControlImmutable)
+
+		// Extract ETag from the content-hashed filename
+		if etag := extractImmutableETag(urlPath); etag != "" {
+			quotedETag := `"` + etag + `"`
+			c.Header("ETag", quotedETag)
+
+			// Check If-None-Match for conditional requests
+			if match := c.GetHeader("If-None-Match"); match != "" {
+				// Handle both quoted and unquoted ETags, and weak ETags (W/"...")
+				if match == quotedETag || match == etag || match == `W/`+quotedETag {
+					c.AbortWithStatus(http.StatusNotModified)
+					return
+				}
+			}
+		}
+	} else if urlPath == "/service-worker.js" {
+		c.Header("Cache-Control", cacheControlRevalidate)
+	} else {
+		// For HTML and other non-hashed files, prevent caching
+		c.Header("Cache-Control", cacheControlNoCache)
+	}
+	c.Next()
 }
 
 // clientAcceptsEncoding checks if the client accepts a specific encoding.
@@ -135,6 +200,16 @@ func servePrecompressedFile(c *gin.Context, clientFS fs.FS, filePath string) boo
 	return false
 }
 
+func isReservedNonFrontendPath(urlPath string) bool {
+	return hasPathSegmentPrefix(urlPath, "/api") ||
+		hasPathSegmentPrefix(urlPath, "/auth") ||
+		hasPathSegmentPrefix(urlPath, "/assets")
+}
+
+func hasPathSegmentPrefix(urlPath string, prefix string) bool {
+	return urlPath == prefix || strings.HasPrefix(urlPath, prefix+"/")
+}
+
 func (s *HTTPServer) setupFrontendRoutes() error {
 	// Get a sub-filesystem rooted at .client
 	clientFS, err := fs.Sub(embeddedWebUIFS, ".client")
@@ -144,9 +219,7 @@ func (s *HTTPServer) setupFrontendRoutes() error {
 
 	// Security headers middleware - applied to all frontend routes
 	s.router.Use(func(c *gin.Context) {
-		c.Header("X-Content-Type-Options", "nosniff")
-		c.Header("X-Frame-Options", "DENY")
-		c.Header("Referrer-Policy", "strict-origin-when-cross-origin")
+		setFrontendSecurityHeaders(c)
 		c.Next()
 	})
 
@@ -154,41 +227,16 @@ func (s *HTTPServer) setupFrontendRoutes() error {
 	// SvelteKit puts all hashed/immutable assets under /_app/immutable/
 	// Other files under /_app/ (like version.json, env.js) are NOT content-hashed
 	// and must not be cached immutably.
-	s.router.Use(func(c *gin.Context) {
-		urlPath := c.Request.URL.Path
-		if strings.HasPrefix(urlPath, "/_app/immutable/") {
-			c.Header("Cache-Control", cacheControlImmutable)
+	s.router.Use(setFrontendCacheHeaders)
 
-			// Extract ETag from the content-hashed filename
-			if etag := extractImmutableETag(urlPath); etag != "" {
-				quotedETag := `"` + etag + `"`
-				c.Header("ETag", quotedETag)
-
-				// Check If-None-Match for conditional requests
-				if match := c.GetHeader("If-None-Match"); match != "" {
-					// Handle both quoted and unquoted ETags, and weak ETags (W/"...")
-					if match == quotedETag || match == etag || match == `W/`+quotedETag {
-						c.AbortWithStatus(http.StatusNotModified)
-						return
-					}
-				}
-			}
-		} else {
-			// For HTML and other non-hashed files, prevent caching
-			c.Header("Cache-Control", cacheControlNoCache)
-		}
-		c.Next()
-	})
-
-	// refreshSessionIfAuthenticated extends the session cookie lifetime for authenticated users.
-	// This prevents session expiration while the user is actively using the app.
-	// Note: We must call Set() before Save() because gin-contrib/sessions only saves
-	// if the session has been "written" to. Get() alone doesn't mark it as modified.
+	// refreshSessionIfAuthenticated validates and rotates authenticated
+	// cookie-session records for active SPA browsing. KV TTL is set only when
+	// a session is created, so near-expiry sessions are rotated instead of
+	// "touched" in place.
 	refreshSessionIfAuthenticated := func(c *gin.Context) {
-		session := sessions.Default(c)
-		if userID := session.Get("user_id"); userID != nil {
-			session.Set("user_id", userID) // Mark session as modified
-			session.Save()                  // Now actually saves and refreshes cookie
+		credential, ok := s.cookiePresentedCredential(c)
+		if ok {
+			s.rotateCookieSessionIfNeeded(c, credential.auth.UserID, credential.auth.Handle, credential.cookieRecord)
 		}
 	}
 
@@ -215,6 +263,17 @@ func (s *HTTPServer) setupFrontendRoutes() error {
 		if filePath == "200.html" {
 			s.serveSPAFallback(c, clientFS)
 			return
+		}
+
+		if filePath == "service-worker.js" {
+			content, err := fs.ReadFile(clientFS, filePath)
+			if err != nil {
+				c.Status(http.StatusInternalServerError)
+				return
+			}
+			if setServiceWorkerETag(c, content) {
+				return
+			}
 		}
 
 		// Try to serve precompressed version first
@@ -251,9 +310,7 @@ func (s *HTTPServer) setupFrontendRoutes() error {
 
 		// Skip if path starts with /api, /auth, /assets (handled by other routes)
 		urlPath := c.Request.URL.Path
-		if strings.HasPrefix(urlPath, "/api") ||
-			strings.HasPrefix(urlPath, "/auth") ||
-			strings.HasPrefix(urlPath, "/assets") {
+		if isReservedNonFrontendPath(urlPath) {
 			c.Next()
 			return
 		}
@@ -264,6 +321,10 @@ func (s *HTTPServer) setupFrontendRoutes() error {
 
 	// Fall back to 200.html for SPA routing (NoRoute handler)
 	s.router.NoRoute(func(c *gin.Context) {
+		if isReservedNonFrontendPath(c.Request.URL.Path) {
+			c.Status(http.StatusNotFound)
+			return
+		}
 		serveStatic(c, "200.html")
 	})
 

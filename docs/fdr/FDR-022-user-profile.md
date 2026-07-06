@@ -1,11 +1,11 @@
 # FDR-022: User Profile
 
 **Status:** Active
-**Last reviewed:** 2026-05-19
+**Last reviewed:** 2026-06-23
 
 ## Overview
 
-A user's profile carries the public identity they present to the rest of the server (login, display name, avatar) plus personal settings (timezone, time format). Most of the profile is self-editable; one field — the login — is throttled to discourage identity-confusion abuse, with an admin escape hatch for legitimate needs.
+A user's profile carries the public identity they present to the rest of the server (login, display name, avatar, custom status) plus server-synced personal settings (timezone, time format). Most of the profile is self-editable; one field — the login — is throttled to discourage identity-confusion abuse, with an admin escape hatch for legitimate needs. Browser-local display preferences, such as theme, live outside the profile.
 
 ## Behavior
 
@@ -13,7 +13,11 @@ A user's profile carries the public identity they present to the rest of the ser
 - **Login (username)** — editable by the user with a 30-day cooldown between changes. Each successful change records a timestamp; subsequent changes within the window are rejected with a clear error message.
 - **Case-only changes** (e.g., `alice` → `Alice`) bypass the cooldown.
 - **Avatar** — users upload an image; the server resizes to 256×256 max and stores it as lossless WebP. The old avatar is deleted after the new one is committed. Users can also delete their avatar (falling back to an initial-letter placeholder).
-- **Settings** — currently timezone (IANA name, e.g., `Europe/Berlin`) and time format (12-hour / 24-hour). Stored server-side so they sync across devices. If not set, the frontend uses the browser timezone.
+- **Custom status** — users can set an emoji plus short text. The emoji is shown next to their name; the text is shown alongside it where space allows and as hover/accessible text in compact places.
+- **Custom status templates** — the web client offers preset statuses for lunch, vacation, and sick leave plus a custom mode. Presets store reserved text tokens in the same free-form status text field so each client can render the label in its active language. Custom mode stores the user's literal text.
+- **Custom status expiry** — users can optionally choose an expiry date and time. After that instant, projected reads and the web client hide the status automatically. Users can also clear it manually.
+- **Settings** — currently timezone (IANA name, e.g., `Europe/Berlin`) and time format (browser default / 12-hour / 24-hour). Stored server-side so they sync across devices. If not set, the frontend uses the browser timezone and locale time-format default.
+- **Display theme** — users can choose System, Light, or Dark. System follows the browser or OS color-scheme preference. The choice is browser-local and applies immediately on that device.
 - **Admin overrides** — operators with the right permissions can update other users' profiles, bypass the login cooldown, clear the cooldown so the user can change again before the 30 days expire, and force-delete an avatar.
 - **SSO seeding on first sign-in** — when a user first arrives via an external identity provider, the provider's public profile data is copied into the new Chatto profile (OIDC: `picture` claim → avatar; AT Protocol: `app.bsky.actor.profile` display name + avatar). Subsequent profile edits are local — Chatto doesn't re-sync from the provider.
 
@@ -25,11 +29,11 @@ A user's profile carries the public identity they present to the rest of the ser
 **Why:** Logins are the basis for `@mentions`, search results, and recognition across the server. Frequent changes are an impersonation/confusion risk — `@alice` today might be a different person tomorrow. A 30-day cooldown discourages rapid churn while still allowing occasional rename for legitimate reasons. Case-only changes are exempt because they don't change identity.
 **Tradeoff:** A user who legitimately needs to change twice in 30 days (e.g., picked a typo'd name) is stuck. The admin clear-cooldown affordance handles those cases.
 
-### 2. Login swap is atomic via KV claim
+### 2. Login uniqueness is enforced with projection catch-up and OCC
 
-**Decision:** A new login is claimed via `kv.Create()` on a `login_index.*` key *before* the old claim is released. If the new login is taken, the operation fails without touching the old state.
-**Why:** Read-then-write would race: two users could grab the same login simultaneously. Atomic claim is the only safe shape.
-**Tradeoff:** A failed marshal partway through means the new claim has to be rolled back. The code does this explicitly.
+**Decision:** Login changes wait for the user projection to catch up, check the decrypted login index, and append the login-change event with optimistic concurrency over the user subject family. If another writer wins first, the operation retries against the updated projection.
+**Why:** User profile state now lives in the event-sourced user aggregate, and new durable login-change facts carry encrypted PII. Projection catch-up plus OCC keeps uniqueness race-safe without reintroducing a separate login KV as source of truth.
+**Tradeoff:** The write path depends on projection readiness and may retry under contention. In exchange, the durable event stream remains append-only and the login index stays derived state.
 
 ### 3. Admin path doesn't advance the cooldown timestamp
 
@@ -45,9 +49,9 @@ A user's profile carries the public identity they present to the rest of the ser
 
 ### 5. Server-side settings, not browser-local
 
-**Decision:** Timezone and time format live in the user's profile (in `User.settings`), synced server-side.
+**Decision:** Timezone and time format live in the user's profile (in `User.settings`), synced server-side. Display theme is browser-local.
 **Why:** A user signing in from a new browser shouldn't have to re-pick their preferences. Local storage works fine for one device; for multi-device users it's actively worse than server-side.
-**Tradeoff:** Every settings change requires a mutation, but settings change rarely so the cost is negligible.
+**Tradeoff:** Every timezone or time-format change requires a mutation, but settings change rarely so the cost is negligible. Theme can differ per browser, which is appropriate for device-specific light/dark preferences but means it does not sync across devices.
 
 ### 6. Browser timezone fallback when unset
 
@@ -55,19 +59,37 @@ A user's profile carries the public identity they present to the rest of the ser
 **Why:** Forcing every new user to pick a timezone at signup is friction. The browser usually knows.
 **Tradeoff:** Travelers see times rendered in their travel timezone if they haven't explicitly set one. Most users either don't notice or prefer this.
 
-### 7. Cross-user edits gated by `role.assign` + outranking
+### 7. Cross-user edits gated by `user.manage-accounts`
 
-**Decision:** Admin updates to other users' profiles use the `requireUserAdminTarget` helper, which requires `role.assign` permission *and* that the actor outranks the target. Self-edits bypass both — they're an identity edit, not an authorization edit (see FDR-001).
-**Why:** Without the outrank check, a moderator with `role.assign` could rename the server owner. The combination prevents that without inventing new permissions.
-**Tradeoff:** Two-step authorization for one operation. The helper centralizes it.
+**Decision:** Admin updates to other users' profiles require `user.manage-accounts` for cross-user edits. Self-edits bypass that permission because they're privilege-neutral identity edits.
+**Why:** Chatto's simplified RBAC model is permission-based for everyone except effective owners, who are protected by the owner override rather than target-rank gates.
+**Tradeoff:** A user with `user.manage-accounts` can edit any target user's profile.
+
+### 8. Custom status is durable profile metadata, not presence
+
+**Decision:** Custom statuses are stored as user-aggregate EVT facts (`custom_status_set` / `custom_status_cleared`) and projected into `User.customStatus`. The status is independent of online/away/DND presence and does not affect notification routing.
+**Why:** The product meaning is user-authored profile context ("working on X", "back after lunch"), not a current connection-state hint. Persisting it in EVT makes it replayable, backup-safe, and consistent across replicas and devices while keeping presence ephemeral.
+**Tradeoff:** An expired status remains in historical EVT facts. Projections and clients hide it after `expiresAt`; clearing is a separate explicit fact rather than a background rewrite or KV delete.
+
+### 9. Custom status writes use the protobuf-first API
+
+**Decision:** The web client writes custom status through `MyAccountService` on the ConnectRPC `/api/connect` surface. Projected profile reads and realtime profile-change signals are also consumed through the ConnectRPC/realtime surface.
+**Why:** Keeping profile writes, projected reads, and live refetch signals on the protobuf-first path avoids transport drift and keeps profile behavior aligned with the rest of the public API migration.
+**Tradeoff:** Clients need to combine request/response profile APIs with the app-session realtime stream rather than relying on one subscription protocol for both.
+
+### 10. Status templates are client-side reserved text tokens
+
+**Decision:** Built-in templates use the same persisted `CustomUserStatus` shape as custom statuses. The emoji is stored normally, while the text field stores a reserved token such as `chatto:status:out_for_lunch`. Clients that understand the token render a localized label; unknown/custom text is rendered literally.
+**Why:** This keeps the durable EVT model simple and preserves the "any emoji plus any text" API while allowing built-in statuses to be localized for each viewer.
+**Tradeoff:** Older clients that do not know the reserved tokens may display the raw token. This is acceptable during early development and avoids a protobuf shape change solely for UI presets.
 
 ## Permissions
 
-- Self-edit (display name, avatar, settings, own login subject to cooldown) — no explicit permission; just authentication.
-- Cross-user edit — `role.assign` + outrank target (via `requireUserAdminTarget`).
+- Self-edit (display name, avatar, custom status, settings, own login subject to cooldown) — no explicit permission; just authentication.
+- Cross-user edit — `user.manage-accounts`.
 - Clear another user's login cooldown — same gate.
 
 ## Related
 
-- **ADRs:** ADR-007 (per-user encryption with crypto-shredding), ADR-021 (dual asset storage), ADR-032 (external identity integration boundaries)
-- **FDRs:** FDR-001 (Roles & Permissions), FDR-008 (File Attachments & Video Processing), FDR-018 (Account Lifecycle), FDR-027 (Sign in with AT Protocol)
+- **ADRs:** ADR-007 (per-user encryption with crypto-shredding), ADR-021 (dual asset storage), ADR-043 (client-shell internationalization), ADR-048 (external identity integration boundaries)
+- **FDRs:** FDR-001 (Roles & Permissions), FDR-008 (File Attachments & Video Processing), FDR-011 (User Presence), FDR-018 (Account Lifecycle), FDR-029 (Sign in with AT Protocol)

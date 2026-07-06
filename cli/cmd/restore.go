@@ -12,6 +12,7 @@ import (
 	"filippo.io/age"
 	"github.com/charmbracelet/log"
 	"github.com/nats-io/jsm.go"
+	"github.com/nats-io/jsm.go/api"
 	"github.com/nats-io/nats-server/v2/server"
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
@@ -171,6 +172,7 @@ func runRestore(cmd *cobra.Command, args []string) {
 
 	// Restore each stream from the manifest
 	streamsDir := filepath.Join(backupDir, "streams")
+	targetReplicas := cfg.NATS.ReplicasOrDefault()
 	var restored, skipped, failed int
 
 	for i, streamInfo := range manifest.Streams {
@@ -212,7 +214,23 @@ func runRestore(cmd *cobra.Command, args []string) {
 
 		log.Info(fmt.Sprintf("%s Restoring %s (%s, %d messages)", prefix, streamInfo.Name, streamInfo.Type, streamInfo.Messages))
 
-		_, _, err := mgr.RestoreSnapshotFromDirectory(ctx, streamInfo.Name, streamDir)
+		var restoreOpts []jsm.SnapshotOption
+		override, err := restoreConfigForTarget(streamDir, streamInfo.Name, targetReplicas)
+		if err != nil {
+			log.Error("Failed to read restore metadata", "name", streamInfo.Name, "error", err)
+			failed++
+			continue
+		}
+		if override != nil {
+			log.Info("Adjusting stream replicas for restore target",
+				"name", streamInfo.Name,
+				"backup_replicas", override.backupReplicas,
+				"restore_replicas", override.config.Replicas,
+			)
+			restoreOpts = append(restoreOpts, jsm.RestoreConfiguration(override.config))
+		}
+
+		_, _, err = mgr.RestoreSnapshotFromDirectory(ctx, streamInfo.Name, streamDir, restoreOpts...)
 		if err != nil {
 			log.Error("Failed to restore stream", "name", streamInfo.Name, "error", err)
 			failed++
@@ -243,6 +261,42 @@ func runRestore(cmd *cobra.Command, args []string) {
 			"Encrypted message bodies cannot be decrypted without them — restore your " +
 			"encryption keys separately, or recreate the backup with --include-keys.")
 	}
+}
+
+type restoreConfigOverride struct {
+	config         api.StreamConfig
+	backupReplicas int
+}
+
+func restoreConfigForTarget(streamDir, streamName string, targetReplicas int) (*restoreConfigOverride, error) {
+	if targetReplicas <= 0 {
+		targetReplicas = 1
+	}
+
+	metaPath := filepath.Join(streamDir, "backup.json")
+	data, err := os.ReadFile(metaPath)
+	if err != nil {
+		return nil, err
+	}
+
+	var req api.JSApiStreamRestoreRequest
+	if err := json.Unmarshal(data, &req); err != nil {
+		return nil, err
+	}
+	if req.Config.Name != streamName {
+		return nil, fmt.Errorf("snapshot metadata stream name %q does not match manifest name %q", req.Config.Name, streamName)
+	}
+
+	if req.Config.Replicas == targetReplicas {
+		return nil, nil
+	}
+
+	backupReplicas := req.Config.Replicas
+	req.Config.Replicas = targetReplicas
+	return &restoreConfigOverride{
+		config:         req.Config,
+		backupReplicas: backupReplicas,
+	}, nil
 }
 
 // manifestIncludesEncryptionKeys reports whether KV_ENCRYPTION_KEYS was actually

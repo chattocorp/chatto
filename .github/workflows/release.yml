@@ -1,0 +1,275 @@
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+  packages: write
+  id-token: write
+
+jobs:
+  release:
+    # runs-on: ubicloud-standard-4
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Fetch release branches
+        run: git fetch origin '+refs/heads/main:refs/remotes/origin/main' '+refs/heads/release-*:refs/remotes/origin/release-*'
+
+      - name: Verify release-please tag
+        id: release_meta
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          tag_commit="$(git rev-parse "${GITHUB_REF_NAME}^{commit}")"
+
+          source_branch=""
+          if git merge-base --is-ancestor "$tag_commit" origin/main; then
+            source_branch="main"
+          else
+            while IFS= read -r ref; do
+              if git merge-base --is-ancestor "$tag_commit" "$ref"; then
+                source_branch="${ref#refs/remotes/origin/}"
+                break
+              fi
+            done < <(git for-each-ref --format='%(refname)' refs/remotes/origin/release-)
+          fi
+
+          if [[ -z "$source_branch" ]]; then
+            echo "::error::Refusing to release ${GITHUB_REF_NAME}: tagged commit is not reachable from origin/main or an origin/release-* branch."
+            exit 1
+          fi
+
+          echo "source_branch=${source_branch}" >> "$GITHUB_OUTPUT"
+
+          parent_count="$(git rev-list --parents -n 1 "$tag_commit" | awk '{ print NF - 1 }')"
+          if [[ "$parent_count" -lt 1 ]]; then
+            echo "::error::Refusing to release ${GITHUB_REF_NAME}: tagged commit has no parent to compare against."
+            exit 1
+          fi
+
+          disallowed=()
+          while IFS= read -r path; do
+            case "$path" in
+              .release-please-config.json|\
+              .release-please-config-main.json|\
+              .release-please-manifest.json|\
+              .release-please-manifest-main.json|\
+              CHANGELOG.md|\
+              cli/version.go|\
+              apps/frontend/package.json)
+                ;;
+              *)
+                disallowed+=("$path")
+                ;;
+            esac
+          done < <(git diff --name-only "${tag_commit}^" "$tag_commit")
+
+          if (( ${#disallowed[@]} > 0 )); then
+            echo "::error::Refusing to release ${GITHUB_REF_NAME}: tagged commit contains non-release-please files."
+            printf 'Disallowed file: %s\n' "${disallowed[@]}"
+            exit 1
+          fi
+
+          version="${GITHUB_REF_NAME#v}"
+          push_latest=false
+          if [[ "$version" != *-* ]]; then
+            highest_stable="$(
+              git tag --list 'v[0-9]*.[0-9]*.[0-9]*' |
+                sed 's/^v//' |
+                grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' |
+                sort -V |
+                tail -n 1
+            )"
+
+            if [[ "$version" == "$highest_stable" ]]; then
+              push_latest=true
+            fi
+          fi
+
+          echo "push_latest=${push_latest}" >> "$GITHUB_OUTPUT"
+
+      - name: Setup environment
+        uses: ./.github/actions/setup
+
+      - name: Build frontend once
+        run: mise build-frontend
+        env:
+          CHATTO_FRONTEND_PRECOMPRESS: "1"
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: "~> v2"
+          args: release --clean
+        env:
+          # Use a PAT so the release is authored by a user account rather
+          # than github-actions[bot]. Bot-authored releases don't get
+          # GitHub's autolink rendering for commit SHAs and #NNN PR refs.
+          GITHUB_TOKEN: ${{ secrets.GORELEASER_GITHUB_TOKEN }}
+          CHATTO_PUSH_LATEST: ${{ steps.release_meta.outputs.push_latest }}
+
+      - name: Extract version from tag
+        id: version
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Build frontend Docker tags
+        id: frontend_tags
+        shell: bash
+        run: |
+          {
+            echo "tags<<EOF"
+            echo "ghcr.io/chattocorp/chatto-client:${{ steps.version.outputs.version }}"
+            if [[ "${{ steps.version.outputs.version }}" == *-* ]]; then
+              echo "ghcr.io/chattocorp/chatto-client:next"
+            elif [[ "${{ steps.release_meta.outputs.push_latest }}" == "true" ]]; then
+              echo "ghcr.io/chattocorp/chatto-client:latest"
+            fi
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Build and push frontend Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile.frontend.prebuilt
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: ${{ steps.frontend_tags.outputs.tags }}
+          cache-from: type=gha,scope=chatto-client
+          cache-to: type=gha,scope=chatto-client,mode=max
+          labels: |
+            org.opencontainers.image.source=https://github.com/chattocorp/chatto
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ steps.version.outputs.version }}
+            org.opencontainers.image.licenses=Apache-2.0
+
+      - name: Publish GitHub Release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GORELEASER_GITHUB_TOKEN }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+
+          gh release edit "v${VERSION}" \
+            --repo chattocorp/chatto \
+            --draft=false
+
+      - name: Update Homebrew tap
+        if: ${{ !contains(steps.version.outputs.version, '-') }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GORELEASER_GITHUB_TOKEN }}
+          HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${HOMEBREW_TAP_GITHUB_TOKEN:-}" ]]; then
+            echo "::error::HOMEBREW_TAP_GITHUB_TOKEN is required to update chattocorp/homebrew-tap."
+            exit 1
+          fi
+
+          workdir="$(mktemp -d)"
+          checksums="${workdir}/chatto_${VERSION}_checksums.txt"
+
+          gh release download "v${VERSION}" \
+            --repo chattocorp/chatto \
+            --pattern "chatto_${VERSION}_checksums.txt" \
+            --dir "${workdir}"
+
+          checksum_for() {
+            awk -v artifact="$1" '$2 == artifact { print $1 }' "${checksums}"
+          }
+
+          darwin_arm64_sha="$(checksum_for chatto_Darwin_arm64.tar.gz)"
+          linux_arm64_sha="$(checksum_for chatto_Linux_arm64.tar.gz)"
+          linux_x86_64_sha="$(checksum_for chatto_Linux_x86_64.tar.gz)"
+
+          for checksum in darwin_arm64_sha linux_arm64_sha linux_x86_64_sha; do
+            if [[ -z "${!checksum}" ]]; then
+              echo "::error::Missing ${checksum} in ${checksums}."
+              exit 1
+            fi
+          done
+
+          tap_dir="${workdir}/homebrew-tap"
+          git clone "https://x-access-token:${HOMEBREW_TAP_GITHUB_TOKEN}@github.com/chattocorp/homebrew-tap.git" "${tap_dir}"
+
+          mkdir -p "${tap_dir}/Formula"
+          cat > "${tap_dir}/Formula/chatto.rb" <<FORMULA
+          class Chatto < Formula
+            desc "Real-time chat app CLI and server"
+            homepage "https://github.com/chattocorp/chatto"
+            version "${VERSION}"
+            license "AGPL-3.0-or-later"
+
+            on_macos do
+              on_arm do
+                url "https://github.com/chattocorp/chatto/releases/download/v#{version}/chatto_Darwin_arm64.tar.gz"
+                sha256 "${darwin_arm64_sha}"
+              end
+
+              on_intel do
+                odie "Chatto currently provides Homebrew builds for Apple Silicon macOS only."
+              end
+            end
+
+            on_linux do
+              on_arm do
+                url "https://github.com/chattocorp/chatto/releases/download/v#{version}/chatto_Linux_arm64.tar.gz"
+                sha256 "${linux_arm64_sha}"
+              end
+
+              on_intel do
+                url "https://github.com/chattocorp/chatto/releases/download/v#{version}/chatto_Linux_x86_64.tar.gz"
+                sha256 "${linux_x86_64_sha}"
+              end
+            end
+
+            def install
+              bin.install "chatto"
+              system "codesign", "--force", "--sign", "-", bin/"chatto" if OS.mac?
+            end
+
+            test do
+              assert_match "chatto version #{version}", shell_output("#{bin}/chatto version")
+            end
+          end
+          FORMULA
+
+          git -C "${tap_dir}" config user.name "github-actions[bot]"
+          git -C "${tap_dir}" config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          if git -C "${tap_dir}" diff --quiet -- Formula/chatto.rb; then
+            echo "Homebrew tap already contains Chatto ${VERSION}."
+            exit 0
+          fi
+
+          git -C "${tap_dir}" add Formula/chatto.rb
+          git -C "${tap_dir}" commit -m "chore: update chatto to v${VERSION}"
+          git -C "${tap_dir}" push origin HEAD:main

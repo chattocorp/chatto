@@ -1,0 +1,129 @@
+---
+interface Props {
+  version: string;
+  status?: string;
+  kicker?: string;
+  title?: string;
+  summary: string;
+}
+
+const { version, status, kicker = "Release notes", title, summary } = Astro.props;
+---
+
+<header class="release-hero">
+  <div>
+    <p class="release-kicker">{kicker}</p>
+    {title && <h2>{title}</h2>}
+    <p class="release-summary">{summary}</p>
+  </div>
+  <div class="release-badges" aria-label="Release status">
+    <span class="release-version">{version}</span>
+    {status && <span class="release-status">{status}</span>}
+  </div>
+</header>
+
+<style>
+  .release-hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 1.5rem;
+    align-items: start;
+    padding: 2rem;
+    margin-block: 1rem 2rem;
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.5rem;
+    background:
+      linear-gradient(135deg, color-mix(in srgb, var(--sl-color-accent-low), transparent 35%), transparent 65%),
+      var(--sl-color-bg);
+  }
+
+  .release-kicker {
+    margin: 0 0 0.35rem;
+    color: var(--sl-color-accent-high);
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .release-hero h2 {
+    margin: 0;
+    color: var(--sl-color-white);
+    font-size: clamp(1.75rem, 5vw, 2.45rem);
+    line-height: 1.05;
+  }
+
+  .release-summary {
+    max-width: 44rem;
+    margin: 1rem 0 0;
+    color: var(--sl-color-gray-2);
+    font-size: 1.2rem;
+    line-height: 1.55;
+  }
+
+  .release-version {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 5.5rem;
+    padding: 0.45rem 0.75rem;
+    border: 1px solid var(--sl-color-accent);
+    border-radius: 999px;
+    color: var(--sl-color-accent-high);
+    background: var(--sl-color-accent-low);
+    font-size: 0.95rem;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  .release-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    justify-content: flex-end;
+  }
+
+  .release-status {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.45rem 0.75rem;
+    border: 1px solid var(--sl-color-orange);
+    border-radius: 999px;
+    color: var(--sl-color-orange-high);
+    background: var(--sl-color-orange-low);
+    font-size: 0.95rem;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  :root[data-theme="dark"] .release-hero h2 {
+    color: var(--sl-color-gray-1);
+  }
+
+  :root[data-theme="dark"] .release-kicker,
+  :root[data-theme="dark"] .release-version,
+  :root[data-theme="dark"] .release-status {
+    color: var(--sl-color-accent-high);
+  }
+
+  :root[data-theme="dark"] .release-status {
+    color: var(--sl-color-orange-high);
+  }
+
+  @media (max-width: 42rem) {
+    .release-hero {
+      grid-template-columns: 1fr;
+      padding: 1.25rem;
+    }
+
+    .release-badges {
+      justify-content: flex-start;
+    }
+
+    .release-version,
+    .release-status {
+      width: fit-content;
+    }
+  }
+</style>

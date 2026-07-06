@@ -23,7 +23,7 @@ const (
 
 // ATProtoAuthRequest persists the state of an in-flight OAuth flow between
 // the initial PAR submission and the callback. Stored at
-// `atproto.auth_request.{state}` in the AUTH_TOKENS KV bucket with a short
+// `atproto.auth_request.{state}` in the MEMORY_CACHE KV bucket with a short
 // per-key TTL — the consent screen is the only thing keeping these alive.
 //
 // Field names mirror the indigo `oauth.AuthRequestData` struct one-to-one so
@@ -150,7 +150,7 @@ func (x *ATProtoAuthRequest) GetDpopPrivateKeyMultibase() string {
 
 // ATProtoSession persists an authenticated OAuth session post-callback.
 // Stored at `atproto.session.{sha256(did + ":" + session_id)}` in the
-// AUTH_TOKENS KV bucket. In the current sign-in flow, sessions are revoked
+// MEMORY_CACHE KV bucket. In the current sign-in flow, sessions are revoked
 // (and the entry deleted) within milliseconds of being written; the KV
 // store exists primarily so the auth-request flow survives a server restart
 // or multi-replica callback. Any future feature that retains sessions

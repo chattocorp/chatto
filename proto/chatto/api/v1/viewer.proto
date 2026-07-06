@@ -1,0 +1,105 @@
+syntax = "proto3";
+
+package chatto.api.v1;
+
+import "chatto/api/v1/notification_preferences.proto";
+import "chatto/api/v1/permissions.proto";
+import "chatto/api/v1/users.proto";
+import "google/protobuf/timestamp.proto";
+
+// User preference for rendering times in clients.
+enum TimeFormat {
+  // No explicit preference was stored.
+  TIME_FORMAT_UNSPECIFIED = 0;
+  // Let the client choose based on locale and browser settings.
+  TIME_FORMAT_AUTO = 1;
+  // Render times using a 12-hour clock.
+  TIME_FORMAT_12_HOUR = 2;
+  // Render times using a 24-hour clock.
+  TIME_FORMAT_24_HOUR = 3;
+}
+
+// Server-level display settings for the authenticated user.
+message UserSettings {
+  // Optional IANA timezone override. Absent means the client should use the
+  // browser's local timezone.
+  optional string timezone = 1;
+  // Preferred time format.
+  TimeFormat time_format = 2;
+}
+
+// Current authenticated user's public profile plus self-only settings.
+message ViewerUser {
+  reserved 1 to 6;
+  reserved "id", "login", "display_name", "avatar_url", "custom_status", "presence_status";
+
+  // Whether the account has at least one verified email address.
+  bool has_verified_email = 7;
+  // Current user's display settings.
+  UserSettings settings = 8;
+  // Whether the authenticated user may delete this account.
+  bool viewer_can_delete_account = 9;
+  // Last time a login credential changed, when known.
+  google.protobuf.Timestamp last_login_change = 10;
+  // Public user fields for the authenticated user.
+  User profile = 11;
+  // Whether this account currently has a password sign-in credential.
+  bool has_password = 12;
+}
+
+// Permission-derived capabilities for the authenticated user.
+message ViewerCapabilities {
+  // Keyed capability decisions for the authenticated user.
+  repeated CapabilityGrant grants = 1;
+  // Whether the user has unread followed threads.
+  bool has_unread_followed_threads = 2;
+}
+
+// Effective server/channel permission decisions for the authenticated user.
+message ServerViewerPermissions {
+  // One row per permission known to the server.
+  repeated PermissionGrant permissions = 1;
+}
+
+// Non-permission server state for the authenticated user.
+message ServerViewerState {
+  // Whether any joined channel room has unread messages.
+  bool has_unread_rooms = 1;
+}
+
+// Room notification preference for one joined room.
+message RoomNotificationPreference {
+  reserved 2, 3;
+  reserved "level", "effective_level";
+
+  // Room whose preference is represented.
+  string room_id = 1;
+  // Stored and effective notification preference.
+  NotificationPreference preference = 4;
+}
+
+// Request for the authenticated viewer snapshot.
+message GetViewerRequest {}
+
+// Authenticated viewer snapshot needed by application shells.
+message GetViewerResponse {
+  // Current authenticated user.
+  ViewerUser user = 1;
+  // Permission-derived capabilities.
+  ViewerCapabilities capabilities = 2;
+  // Server-wide notification preference.
+  NotificationPreference server_notification_preference = 3;
+  // Notification preferences for rooms the user participates in.
+  repeated RoomNotificationPreference room_notification_preferences = 4;
+  // Effective server/channel permission decisions for the authenticated user.
+  ServerViewerPermissions viewer_permissions = 5;
+  // Non-permission server state for the authenticated user.
+  ServerViewerState viewer_state = 6;
+}
+
+// Provides authenticated user profile, preferences, and capability state.
+service ViewerService {
+  // Returns the current authenticated viewer. This RPC requires a logged-in
+  // user; unauthenticated callers receive an UNAUTHENTICATED error.
+  rpc GetViewer(GetViewerRequest) returns (GetViewerResponse);
+}

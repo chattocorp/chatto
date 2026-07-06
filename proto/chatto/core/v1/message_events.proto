@@ -1,0 +1,153 @@
+syntax = "proto3";
+
+package chatto.core.v1;
+
+import "chatto/core/v1/models.proto";
+
+option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
+
+// ============================================================================
+// MESSAGE EVENTS
+//
+// Top-level Event oneof tags owned by this file:
+//   - 400-424: durable message timeline events on evt.room.{roomId}.*
+//   - 1040-1041: retired legacy live-only adapter payloads
+//
+// Keep these tags coordinated with event.proto. Message-internal field numbers
+// are local to each message and do not consume top-level Event tag space.
+// ============================================================================
+
+message MessagePostedEvent {
+  reserved 1, 3, 9;
+  reserved "space_id", "message_body_id", "body";
+
+  // Room ID - identifies which room this message belongs to
+  string room_id = 2;
+
+  // Threading: event ID of the message this is replying to (empty = top-level message)
+  string in_reply_to = 4;
+
+  // Threading: event ID of the thread root message (empty = top-level message)
+  // For direct replies to a root, in_thread == in_reply_to.
+  // For nested replies, in_thread references the original root.
+  string in_thread = 5;
+
+  // User IDs of users mentioned via @username in the message body.
+  // Only includes valid, resolved user IDs (invalid mentions are silently ignored).
+  repeated string mentioned_user_ids = 6;
+
+  // Echo fields (empty for regular messages, set for "also send to channel" echoes).
+  // When set, this event is an echo of a thread reply. Echoes are independent
+  // message events that reference the original reply by event ID.
+
+  // Event ID of the original thread reply this echoes (empty = not an echo)
+  string echo_of_event_id = 7;
+
+  // Thread root event ID — the thread this echo originates from (empty = not an echo)
+  string echo_from_thread_root_event_id = 8;
+
+  // The message's durable event ID lives on the Event envelope, not on this
+  // payload.
+}
+// ============================================================================
+// MESSAGE MUTATION EVENTS (room-scoped)
+// ============================================================================
+//
+// MessageEditedEvent / MessageRetractedEvent are the durable mutation facts on
+// EVT. The older MessageUpdatedEvent / MessageDeletedEvent messages below are
+// retired legacy live-only payload shapes; they are no longer carried by the
+// durable Event envelope or public realtime payloads.
+
+// MessageBodyEvent carries the encrypted body payload for a message post or
+// body update. It is durable, room-scoped projection input but is not delivered
+// as a public live event. The target message event remains MessagePostedEvent;
+// edits also emit a bodyless MessageEditedEvent as the public semantic signal.
+message MessageBodyEvent {
+  // Room ID — identifies which room this message body belongs to.
+  string room_id = 1;
+
+  // Event ID of the message whose current body is being set.
+  string event_id = 2;
+
+  // Encrypted body envelope. For new writes body.body_event_id must match the
+  // outer Event envelope ID that carries this MessageBodyEvent.
+  MessageBody body = 3;
+}
+
+// MessageEditedEvent is the durable semantic event published when a message's
+// body or body metadata changes. The new body is published in a preceding
+// MessageBodyEvent.
+message MessageEditedEvent {
+  // Room ID — identifies which room this message belongs to.
+  string room_id = 1;
+
+  // Event ID of the message being edited (the original MessagePostedEvent's
+  // ID). The actor performing the edit lives on the Event envelope's
+  // actor_id.
+  string event_id = 2;
+
+  reserved 3;
+  reserved "body";
+}
+
+// MessageRetractedEvent is the durable event published when a message is
+// deleted. The projection marks the message tombstoned; the event log
+// keeps full history for audit. Named "Retracted" rather than "Deleted"
+// because we keep the original event around — only the visible body is
+// dropped.
+message MessageRetractedEvent {
+  // Room ID — identifies which room this message belonged to.
+  string room_id = 1;
+
+  // Event ID of the message being retracted. The actor performing the
+  // retraction lives on the Event envelope's actor_id.
+  string event_id = 2;
+
+  // Optional human-readable reason (e.g. "spam", "user requested",
+  // "moderator action"). May be empty.
+  string reason = 3;
+}
+
+message MessageUpdatedEvent {
+  reserved 1;
+  reserved "space_id", "sequence_id";
+
+  // Room ID - identifies which room this message belongs to
+  string room_id = 2;
+
+  reserved 3; // was sequence_id (dead field, never read)
+
+  // Compound key for body storage in KV: {userId}.{eventId}
+  // The userId prefix enables efficient per-user filtering for GDPR deletion.
+  string message_body_id = 4;
+
+  // Threading: event ID of the message this is replying to (empty = top-level message)
+  string in_reply_to = 5;
+
+  // Threading: event ID of the thread root message (empty = top-level message)
+  string in_thread = 6;
+
+  // Event ID of the updated message for legacy live payload consumers.
+  // Populated at publish time from the body key.
+  string message_event_id = 7;
+
+  // Parent event's ID (populated at read time for resolver access)
+  // Used for reactions lookup since reactions are keyed by event ID
+  string event_id = 1000;
+}
+
+message MessageDeletedEvent {
+  reserved 1;
+  reserved "space_id";
+
+  // Room ID - identifies which room the message belonged to
+  string room_id = 2;
+
+  // Compound key for body storage in KV: {userId}.{eventId}
+  // The userId prefix enables efficient per-user filtering for GDPR deletion.
+  string message_body_id = 3;
+
+  // Event ID of the deleted message for legacy live payload consumers.
+  // Populated at publish time from the body key.
+  string message_event_id = 4;
+}

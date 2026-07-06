@@ -4,25 +4,25 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"os"
 	"os/signal"
 	"strings"
-	"syscall"
-	"time"
 
 	"github.com/charmbracelet/log"
 	"github.com/gin-gonic/gin"
 	"github.com/nats-io/nats-server/v2/server"
-	"github.com/nats-io/nats.go"
 	"github.com/spf13/cobra"
 	"golang.org/x/sync/errgroup"
+	"golang.org/x/term"
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/embedded_nats"
+	"hmans.de/chatto/internal/exporter"
 	"hmans.de/chatto/internal/http_server"
-	"hmans.de/chatto/pkg/natsauth"
-	"hmans.de/chatto/internal/push"
-	"hmans.de/chatto/internal/video"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/internal/push"
+	"hmans.de/chatto/internal/runtimeunit"
+	"hmans.de/chatto/internal/video"
 )
 
 // devStartupHook is called after core is initialized. Set by build-tagged init().
@@ -68,11 +68,46 @@ func runServer(configPath string) {
 		log.Fatal("Failed to read configuration", "error", err)
 	}
 
-	setLogLevel(cfg.General.LogLevel)
-	printBanner()
+	configureLogging(cfg.General)
+	if shouldPrintBanner(cfg.General.LogFormat, isLogOutputTerminal()) {
+		printBanner()
+	}
 
-	// Create context that cancels on SIGINT/SIGTERM
-	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	stopStartupCPUProfile := startStartupCPUProfile(cfg.Diagnostics.StartupCPUProfile)
+	startupCPUProfileStopped := false
+	defer func() {
+		if !startupCPUProfileStopped {
+			stopStartupCPUProfile()
+		}
+	}()
+
+	exitCode := 0
+	defer func() {
+		if exitCode != 0 {
+			os.Exit(exitCode)
+		}
+	}()
+
+	// Conductor stops foreground run scripts with SIGHUP before escalating.
+	// Chatto has no reload-on-HUP behavior, so treat it as graceful shutdown
+	// alongside the usual terminal and supervisor stop signals.
+	shutdownSignals := runtimeunit.ShutdownSignals()
+	signalLog := make(chan os.Signal, 1)
+	stopSignalLog := make(chan struct{})
+	signal.Notify(signalLog, shutdownSignals...)
+	defer func() {
+		signal.Stop(signalLog)
+		close(stopSignalLog)
+	}()
+	go func() {
+		select {
+		case sig := <-signalLog:
+			log.Info("Received shutdown signal", "signal", sig.String())
+		case <-stopSignalLog:
+		}
+	}()
+
+	ctx, stop := signal.NotifyContext(context.Background(), shutdownSignals...)
 	defer stop()
 
 	// Use errgroup to coordinate services
@@ -82,27 +117,33 @@ func runServer(configPath string) {
 	var embeddedNATS *server.Server
 	if cfg.NATS.Embedded.Enabled {
 		var err error
-		embeddedNATS, err = embedded_nats.Start(ctx, g, &cfg.NATS.Embedded)
+		embeddedNATS, err = embedded_nats.StartServer(&cfg.NATS.Embedded)
 		if err != nil {
 			log.Fatal("Failed to start embedded NATS server", "error", err)
 		}
+		defer embedded_nats.ShutdownServer(embeddedNATS)
 	}
 
 	// Connect to NATS
-	nc, err := connectToNATS(cfg, embeddedNATS)
+	nc, err := runtimeunit.ConnectToNATS(ctx, cfg, embeddedNATS)
 	if err != nil {
-		log.Fatal("Failed to connect to NATS", "error", err)
+		log.Error("Failed to connect to NATS", "error", err)
+		exitCode = 1
+		return
 	}
-	defer nc.Close()
+	defer runtimeunit.CloseNATSConnection(nc)
 
 	// Create Chatto core
 	cfg.Core.AuthTokenTTL = cfg.Auth.TokenTTLOrDefault()
+	cfg.Core.EmailOTP = cfg.Auth.EmailOTP
 	cfg.Core.Replicas = cfg.NATS.ReplicasOrDefault()
 	cfg.Core.Limits = cfg.Limits
 	cfg.Core.Owners = cfg.Owners
 	chattoCore, err := core.NewChattoCore(ctx, nc, cfg.Core)
 	if err != nil {
-		log.Fatal("Failed to create Chatto core", "error", err)
+		log.Error("Failed to create Chatto core", "error", err)
+		exitCode = 1
+		return
 	}
 
 	// Set asset base URL for absolute asset URLs (required for cross-origin clients)
@@ -117,16 +158,79 @@ func runServer(configPath string) {
 		chattoCore.VideoMaxUploadSize = int64(cfg.Video.MaxUploadSizeOrDefault())
 	}
 
+	if err := chattoCore.EnableLiveKitCallReconciliation(cfg.LiveKit); err != nil {
+		log.Error("Failed to configure LiveKit call-state reconciliation", "error", err)
+		exitCode = 1
+		return
+	}
+
 	// Set up push notification callback if push is enabled
 	setupPushNotifications(chattoCore, cfg)
+
+	// Start core's background services (PresenceHub + projectors) BEFORE
+	// bootstrap. Bootstrap triggers JoinRoom, which calls WaitForSeq on
+	// the room-membership projector — if it's not running yet, the wait
+	// blocks until the bootstrap context cancels.
+	g.Go(func() error {
+		return chattoCore.Run(ctx)
+	})
+
+	// Block until core.Run has finished its boot phase (projectors
+	// started + ensureChannelRoomsAreInAGroup done). SeedDefaultRooms
+	// issues CreateRoom calls whose default-group lookup hits the
+	// RoomGroups projection — without this wait, the projection is
+	// still empty and the seeded rooms land without a group.
+	if err := chattoCore.WaitForBoot(ctx); err != nil {
+		if ctx.Err() != nil {
+			return
+		}
+		log.Error("Core boot never completed", "error", err)
+		exitCode = 1
+		return
+	}
+	stopStartupCPUProfile()
+	startupCPUProfileStopped = true
+
+	// Seed `announcements` + `general` on first boot of a fresh server.
+	// Idempotent — no-op once any channel room exists.
+	if err := chattoCore.SeedDefaultRooms(ctx); err != nil {
+		if ctx.Err() != nil {
+			return
+		}
+		log.Error("Failed to seed default rooms", "error", err)
+		exitCode = 1
+		return
+	}
 
 	// Run dev startup hook (auto-bootstrap in dev builds, no-op in prod)
 	devStartupHook(ctx, chattoCore, cfg)
 
-	// Start presence hub (single KV watcher per process for presence fan-out)
-	g.Go(func() error {
-		return chattoCore.PresenceHub.Run(ctx)
-	})
+	if cfg.Exporter.Enabled {
+		env, err := runtimeunit.NewEnv(ctx, cfg, nc, log.WithPrefix("exporter"), Version)
+		if err != nil {
+			log.Error("Failed to create exporter environment", "error", err)
+			exitCode = 1
+			return
+		}
+		g.Go(func() error {
+			return runtimeunit.Run(ctx, env, exporter.Unit{})
+		})
+	}
+
+	// Start video processing service if enabled before the HTTP server begins
+	// accepting uploads. The service registers a process-local callback on
+	// core, so no transient NATS worker subject is involved.
+	if cfg.Video.Enabled {
+		videoSvc, err := video.NewService(chattoCore, cfg.Video, log.WithPrefix("video"))
+		if err != nil {
+			log.Error("ffmpeg not found — video processing disabled", "error", err)
+			log.Error("Install ffmpeg: brew install ffmpeg (macOS) or apk add ffmpeg (Alpine)")
+		} else {
+			g.Go(func() error {
+				return videoSvc.Run(ctx)
+			})
+		}
+	}
 
 	// Create and run HTTP server
 	addr := fmt.Sprintf(":%d", cfg.Webserver.EffectivePort())
@@ -138,113 +242,63 @@ func runServer(configPath string) {
 		Version: Version,
 	})
 	if err != nil {
-		log.Fatal("Failed to create HTTP server", "error", err)
+		log.Error("Failed to create HTTP server", "error", err)
+		exitCode = 1
+		return
 	}
 	g.Go(func() error {
 		return httpServer.Run(ctx)
 	})
 
-	// Start video processing service if enabled
-	if cfg.Video.Enabled {
-		videoSvc := video.NewService(chattoCore, nc, cfg.Video, log.WithPrefix("video"))
-		g.Go(func() error {
-			return videoSvc.Run(ctx)
-		})
-	}
-
 	// Wait for all services to complete (or one to fail)
 	if err := g.Wait(); err != nil && err != context.Canceled {
-		log.Fatal("Server failed", "error", err)
+		log.Error("Server failed", "error", err)
+		exitCode = 1
 	}
-}
-
-// connectToNATS establishes a connection to NATS with appropriate options.
-func connectToNATS(cfg config.ChattoConfig, embeddedNATS *server.Server) (*nats.Conn, error) {
-	logger := log.WithPrefix("nats")
-
-	var connectOpts []nats.Option
-
-	if embeddedNATS != nil {
-		// Use in-process connection for embedded NATS
-		connectOpts = append(connectOpts, embedded_nats.InProcessConnectOption(embeddedNATS))
-		// Provide token if server has auth enabled
-		if cfg.NATS.Embedded.AuthToken != "" {
-			connectOpts = append(connectOpts, nats.Token(cfg.NATS.Embedded.AuthToken))
-		}
-	} else {
-		// Get auth options for external NATS
-		authOpts, err := natsauth.ConnectOptions(cfg.NATS.Client.NATSAuthConfig())
-		if err != nil {
-			return nil, fmt.Errorf("failed to get NATS auth options: %w", err)
-		}
-		connectOpts = append(connectOpts, authOpts...)
-	}
-
-	// Add resilience options
-	connectOpts = append(connectOpts,
-		nats.MaxReconnects(-1),                   // Unlimited reconnection attempts
-		nats.ReconnectWait(100*time.Millisecond), // Quick initial reconnection
-		nats.ReconnectBufSize(8*1024*1024),       // 8MB buffer for pending messages during reconnect
-		nats.ErrorHandler(func(_ *nats.Conn, sub *nats.Subscription, err error) {
-			if sub != nil {
-				logger.Error("NATS subscription error", "subject", sub.Subject, "error", err)
-			} else {
-				logger.Error("NATS error", "error", err)
-			}
-		}),
-		nats.DisconnectErrHandler(func(_ *nats.Conn, err error) {
-			if err != nil {
-				logger.Warn("NATS disconnected", "error", err)
-			} else {
-				logger.Info("NATS disconnected (graceful)")
-			}
-		}),
-		nats.ReconnectHandler(func(nc *nats.Conn) {
-			logger.Info("NATS reconnected", "url", nc.ConnectedUrl())
-		}),
-		nats.ClosedHandler(func(_ *nats.Conn) {
-			logger.Info("NATS connection closed")
-		}),
-	)
-
-	// Connect to NATS (URL is ignored for in-process connections)
-	natsURL := cfg.NATS.Client.URL
-	if embeddedNATS != nil {
-		natsURL = nats.DefaultURL // Not used for in-process, but nats.Connect requires a valid URL
-	}
-
-	// Retry initial connection to handle transient failures at startup
-	// (e.g. Kubernetes secret volume mounts not yet propagated).
-	var (
-		nc  *nats.Conn
-		err error
-	)
-	for attempt := range 10 {
-		nc, err = nats.Connect(natsURL, connectOpts...)
-		if err == nil {
-			break
-		}
-		if attempt < 9 {
-			logger.Warn("Failed to connect to NATS, retrying", "error", err, "attempt", attempt+1)
-			time.Sleep(2 * time.Second)
-		}
-	}
-	if err != nil {
-		return nil, err
-	}
-
-	if embeddedNATS != nil {
-		logger.Info("Connected to embedded NATS server")
-	} else {
-		logger.Info("Connected to NATS", "url", nc.ConnectedUrl())
-	}
-	return nc, nil
 }
 
 func printBanner() {
 	for line := range strings.SplitSeq(banner, "\n") {
 		log.Info(line)
 	}
+}
+
+func configureLogging(cfg config.GeneralConfig) {
+	setLogFormat(cfg.LogFormat, isLogOutputTerminal())
+	setLogLevel(cfg.LogLevel)
+}
+
+func setLogFormat(format string, outputIsTerminal bool) {
+	switch effectiveLogFormat(format, outputIsTerminal) {
+	case "json":
+		log.SetFormatter(log.JSONFormatter)
+	case "logfmt":
+		log.SetFormatter(log.LogfmtFormatter)
+	default:
+		log.SetFormatter(log.TextFormatter)
+	}
+}
+
+func effectiveLogFormat(format string, outputIsTerminal bool) string {
+	switch strings.ToLower(format) {
+	case "", "auto":
+		if outputIsTerminal {
+			return "text"
+		}
+		return "json"
+	case "json", "logfmt", "text":
+		return strings.ToLower(format)
+	default:
+		return "text"
+	}
+}
+
+func shouldPrintBanner(format string, outputIsTerminal bool) bool {
+	return effectiveLogFormat(format, outputIsTerminal) == "text"
+}
+
+func isLogOutputTerminal() bool {
+	return term.IsTerminal(int(os.Stderr.Fd()))
 }
 
 func setLogLevel(level string) {
@@ -317,15 +371,15 @@ func setupPushNotifications(chattoCore *core.ChattoCore, cfg config.ChattoConfig
 				// Subscription is no longer valid, delete it
 				if err := chattoCore.DeletePushSubscription(ctx, notification.RecipientId, result.Endpoint); err != nil {
 					logger.Warn("Failed to delete expired push subscription",
-						"endpoint", result.Endpoint[:min(50, len(result.Endpoint))],
+						"endpoint_id", push.EndpointLogID(result.Endpoint),
 						"error", err)
 				} else {
 					logger.Debug("Deleted expired push subscription",
-						"endpoint", result.Endpoint[:min(50, len(result.Endpoint))])
+						"endpoint_id", push.EndpointLogID(result.Endpoint))
 				}
 			} else if result.Error != nil {
 				logger.Warn("Failed to send push notification",
-					"endpoint", result.Endpoint[:min(50, len(result.Endpoint))],
+					"endpoint_id", push.EndpointLogID(result.Endpoint),
 					"error", result.Error)
 			} else if result.Success {
 				logger.Debug("Push notification sent",
@@ -368,12 +422,12 @@ func setupPushNotifications(chattoCore *core.ChattoCore, cfg config.ChattoConfig
 			if result.Gone {
 				if err := chattoCore.DeletePushSubscription(ctx, userID, result.Endpoint); err != nil {
 					logger.Warn("Failed to delete expired push subscription",
-						"endpoint", result.Endpoint[:min(50, len(result.Endpoint))],
+						"endpoint_id", push.EndpointLogID(result.Endpoint),
 						"error", err)
 				}
 			} else if result.Error != nil {
 				logger.Debug("Failed to send dismiss push",
-					"endpoint", result.Endpoint[:min(50, len(result.Endpoint))],
+					"endpoint_id", push.EndpointLogID(result.Endpoint),
 					"error", result.Error)
 			} else if result.Success {
 				logger.Debug("Dismiss push sent",
@@ -387,21 +441,23 @@ func setupPushNotifications(chattoCore *core.ChattoCore, cfg config.ChattoConfig
 // fetchPayloadContext builds the payload context with message preview and room name.
 // This is best-effort - if fetching fails, returns nil and the notification will have a generic body.
 func fetchPayloadContext(ctx context.Context, chattoCore *core.ChattoCore, notification *corev1.Notification, logger *log.Logger) *push.PayloadContext {
-	var spaceID, roomID, eventID string
+	var roomID, eventID string
+	var kind core.RoomKind
 
 	switch n := notification.Notification.(type) {
 	case *corev1.Notification_DmMessage:
-		spaceID = core.DMSpaceID
+		kind = core.KindDM
 		roomID = n.DmMessage.RoomId
 		eventID = n.DmMessage.EventId
 	case *corev1.Notification_Mention:
-		spaceID = n.Mention.SpaceId
 		roomID = n.Mention.RoomId
 		eventID = n.Mention.EventId
 	case *corev1.Notification_Reply:
-		spaceID = n.Reply.SpaceId
 		roomID = n.Reply.RoomId
 		eventID = n.Reply.EventId
+	case *corev1.Notification_RoomMessage:
+		roomID = n.RoomMessage.RoomId
+		eventID = n.RoomMessage.EventId
 	default:
 		return nil
 	}
@@ -412,7 +468,17 @@ func fetchPayloadContext(ctx context.Context, chattoCore *core.ChattoCore, notif
 
 	payloadCtx := &push.PayloadContext{}
 
-	kind := core.KindForSpace(spaceID)
+	if kind == "" {
+		// Mention and reply notifications no longer carry a kind on the
+		// wire — recover from the room record (mostly channels in practice).
+		var err error
+		kind, err = chattoCore.FindRoomKind(ctx, roomID)
+		if err != nil {
+			logger.Debug("Failed to resolve room kind for push notification preview",
+				"room_id", roomID, "error", err)
+			return nil
+		}
+	}
 
 	// Fetch the message to get its body
 	event, err := chattoCore.GetRoomEventByEventID(ctx, kind, roomID, eventID)
@@ -427,20 +493,20 @@ func fetchPayloadContext(ctx context.Context, chattoCore *core.ChattoCore, notif
 	}
 
 	// Extract message body from the event
-	if msgPosted, ok := event.Event.(*corev1.Event_MessagePosted); ok {
-		body, err := chattoCore.GetMessageBody(ctx, kind, msgPosted.MessagePosted.MessageBodyId)
+	if _, ok := event.Event.(*corev1.Event_MessagePosted); ok {
+		body, err := chattoCore.GetMessageBody(ctx, kind, event.Id)
 		if err != nil {
 			logger.Debug("Failed to fetch message body for push notification preview",
-				"message_body_id", msgPosted.MessagePosted.MessageBodyId,
+				"event_id", event.Id,
 				"error", err)
 		} else {
 			payloadCtx.MessagePreview = body
 		}
 	}
 
-	// For mentions and replies, also fetch the room name
+	// For notifications shown as channel activity, also fetch the room name.
 	switch notification.Notification.(type) {
-	case *corev1.Notification_Mention, *corev1.Notification_Reply:
+	case *corev1.Notification_Mention, *corev1.Notification_Reply, *corev1.Notification_RoomMessage:
 		room, err := chattoCore.GetRoom(ctx, kind, roomID)
 		if err != nil {
 			logger.Debug("Failed to fetch room for push notification",
@@ -453,4 +519,3 @@ func fetchPayloadContext(ctx context.Context, chattoCore *core.ChattoCore, notif
 
 	return payloadCtx
 }
-

@@ -63,10 +63,9 @@ func TestChattoCore_GetAccountInfo(t *testing.T) {
 	})
 
 	t.Run("returns positive numbers for storage usage", func(t *testing.T) {
-		// All chat data lives in the SERVER_* buckets, eager-created at
-		// boot. Creating a Space record (or rooms within it) doesn't add
-		// streams; what's there at boot is what's there. We just check the
-		// numbers look sensible.
+		// Current storage is deployment-wide and created at boot. Creating a
+		// Space record (or rooms within it) doesn't add streams; what's there
+		// at boot is what's there. We just check the numbers look sensible.
 		info, err := core.GetAccountInfo(ctx)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -75,6 +74,38 @@ func TestChattoCore_GetAccountInfo(t *testing.T) {
 			t.Errorf("expected positive StreamsUsed, got %d", info.StreamsUsed)
 		}
 	})
+}
+
+func TestChattoCore_GetJetStreamStats(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	stats, err := core.GetJetStreamStats(ctx)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if stats == nil {
+		t.Fatal("expected non-nil stats")
+	}
+	if len(stats.Streams) == 0 {
+		t.Fatal("expected at least one stream")
+	}
+
+	var foundEVT bool
+	for _, stream := range stats.Streams {
+		if stream.Name == "EVT" {
+			foundEVT = true
+		}
+		if stream.Name == "" {
+			t.Error("stream should expose a name")
+		}
+		if stream.Storage == "" {
+			t.Errorf("stream %q should expose storage", stream.Name)
+		}
+	}
+	if !foundEVT {
+		t.Error("expected EVT stream in stats")
+	}
 }
 
 func TestConnectionInfo_Fields(t *testing.T) {

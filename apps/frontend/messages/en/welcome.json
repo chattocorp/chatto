@@ -1,0 +1,6 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "welcome": {
+    "verified": "Your email has been verified and your account is ready."
+  }
+}

@@ -24,7 +24,7 @@ const (
 
 // PushSubscription stores the Web Push subscription data for a user's browser.
 //
-// Subscriptions are stored in the INSTANCE KV bucket with key format:
+// Subscriptions are stored in the RUNTIME_STATE KV bucket with key format:
 // push_subscription.{userId}.{subscriptionHash}
 //
 // The subscriptionHash is derived from the endpoint URL to allow multiple

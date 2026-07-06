@@ -7,35 +7,14 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
-	"github.com/nats-io/nats-server/v2/server"
 	"github.com/nats-io/nats.go"
+	"hmans.de/chatto/internal/testutil"
 )
 
 func TestHealthEndpoints(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	// Start embedded NATS server for testing
-	opts := &server.Options{
-		Host: "127.0.0.1",
-		Port: -1, // Random available port
-	}
-	ns, err := server.NewServer(opts)
-	if err != nil {
-		t.Fatalf("failed to create NATS server: %v", err)
-	}
-	go ns.Start()
-	defer ns.Shutdown()
-
-	if !ns.ReadyForConnections(5 * 1e9) {
-		t.Fatal("NATS server not ready")
-	}
-
-	// Connect to NATS
-	nc, err := nats.Connect(ns.ClientURL())
-	if err != nil {
-		t.Fatalf("failed to connect to NATS: %v", err)
-	}
-	defer nc.Close()
+	_, nc := testutil.StartNATS(t)
 
 	t.Run("healthz returns ok", func(t *testing.T) {
 		router := gin.New()

@@ -1,0 +1,165 @@
+syntax = "proto3";
+
+package chatto.admin.v1;
+
+import "buf/validate/validate.proto";
+import "chatto/api/v1/common.proto";
+import "chatto/api/v1/server.proto";
+
+// Runtime-editable server profile settings.
+message ServerConfig {
+  // Server name for page titles. Empty means the default is used.
+  string server_name = 1;
+  // Short server description for OG link-preview metadata.
+  string description = 2;
+  // Message of the day for the authenticated header.
+  string motd = 3;
+  // Welcome message shown on the login page.
+  string welcome_message = 4;
+}
+
+// Request server profile settings.
+message GetServerConfigRequest {}
+
+// Server profile settings plus effective public branding.
+message GetServerConfigResponse {
+  reserved 2;
+  reserved "profile";
+
+  // Runtime-editable server profile settings.
+  ServerConfig config = 1;
+  // Effective public server profile and branding.
+  chatto.api.v1.ServerPublicProfile public_profile = 3;
+}
+
+// Request to update runtime-editable server profile settings.
+message UpdateServerConfigRequest {
+  // Optional server name for page titles. Set to empty string to use default.
+  optional string server_name = 1 [(buf.validate.field).string.max_len = 80];
+  // Optional short server description for OG link-preview metadata. Set to
+  // empty string to clear.
+  optional string description = 2 [(buf.validate.field).string.max_len = 500];
+  // Optional message of the day for the header. Set to empty string to clear.
+  optional string motd = 3 [(buf.validate.field).string.max_len = 1000];
+  // Optional welcome message shown on the login page. Set to empty string to
+  // clear.
+  optional string welcome_message = 4 [(buf.validate.field).string.max_len = 10000];
+}
+
+// Result of updating runtime-editable server profile settings.
+message UpdateServerConfigResponse {
+  reserved 1;
+  reserved "profile";
+
+  // Updated public server profile and branding.
+  chatto.api.v1.ServerPublicProfile public_profile = 3;
+  // Updated runtime-editable server profile settings.
+  ServerConfig config = 2;
+}
+
+// Request to upload and set the public server logo.
+message UploadServerLogoRequest {
+  reserved 1 to 3;
+  reserved "filename", "content_type";
+
+  // Image payload. The server validates, resizes, and stores a WebP logo.
+  chatto.api.v1.ImageUpload image = 4;
+}
+
+// Result of uploading the public server logo.
+message UploadServerLogoResponse {
+  reserved 1;
+  reserved "profile";
+
+  // Updated public server profile and branding.
+  chatto.api.v1.ServerPublicProfile public_profile = 2;
+}
+
+// Request to clear the public server logo.
+message DeleteServerLogoRequest {}
+
+// Result of clearing the public server logo.
+message DeleteServerLogoResponse {
+  reserved 1;
+  reserved "profile";
+
+  // Updated public server profile and branding.
+  chatto.api.v1.ServerPublicProfile public_profile = 2;
+}
+
+// Request to upload and set the public server banner.
+message UploadServerBannerRequest {
+  reserved 1 to 3;
+  reserved "filename", "content_type";
+
+  // Image payload. The server validates, resizes, and stores a WebP banner.
+  chatto.api.v1.ImageUpload image = 4;
+}
+
+// Result of uploading the public server banner.
+message UploadServerBannerResponse {
+  reserved 1;
+  reserved "profile";
+
+  // Updated public server profile and branding.
+  chatto.api.v1.ServerPublicProfile public_profile = 2;
+}
+
+// Request to clear the public server banner.
+message DeleteServerBannerRequest {}
+
+// Result of clearing the public server banner.
+message DeleteServerBannerResponse {
+  reserved 1;
+  reserved "profile";
+
+  // Updated public server profile and branding.
+  chatto.api.v1.ServerPublicProfile public_profile = 2;
+}
+
+// Request for server security configuration.
+message GetServerSecurityConfigRequest {}
+
+// Security-sensitive server configuration. The caller must be allowed to
+// manage server configuration.
+message GetServerSecurityConfigResponse {
+  // Blocked usernames. Entries are normalized by the server.
+  repeated string blocked_usernames = 1;
+}
+
+// Request to update the server blocked-username list.
+message UpdateBlockedUsernamesRequest {
+  // Blocked usernames. Empty entries are ignored and entries are normalized by
+  // the server.
+  repeated string blocked_usernames = 1 [(buf.validate.field).repeated = {max_items: 1000}];
+}
+
+// Result of updating the server blocked-username list.
+message UpdateBlockedUsernamesResponse {
+  // Effective blocked usernames after the update.
+  repeated string blocked_usernames = 1;
+}
+
+// Provides server-administration commands for profile, branding, and security
+// settings.
+service AdminServerService {
+  // Gets runtime-editable server profile settings. This RPC requires
+  // server.manage.
+  rpc GetServerConfig(GetServerConfigRequest) returns (GetServerConfigResponse);
+  // Updates runtime-editable server profile settings. This RPC requires
+  // server.manage.
+  rpc UpdateServerConfig(UpdateServerConfigRequest) returns (UpdateServerConfigResponse);
+  // Uploads and sets the public server logo. This RPC requires server.manage.
+  rpc UploadServerLogo(UploadServerLogoRequest) returns (UploadServerLogoResponse);
+  // Clears the public server logo. This RPC requires server.manage.
+  rpc DeleteServerLogo(DeleteServerLogoRequest) returns (DeleteServerLogoResponse);
+  // Uploads and sets the public server banner. This RPC requires server.manage.
+  rpc UploadServerBanner(UploadServerBannerRequest) returns (UploadServerBannerResponse);
+  // Clears the public server banner. This RPC requires server.manage.
+  rpc DeleteServerBanner(DeleteServerBannerRequest) returns (DeleteServerBannerResponse);
+  // Returns security-sensitive server configuration. This RPC requires
+  // server.manage.
+  rpc GetServerSecurityConfig(GetServerSecurityConfigRequest) returns (GetServerSecurityConfigResponse);
+  // Updates the blocked-username list. This RPC requires server.manage.
+  rpc UpdateBlockedUsernames(UpdateBlockedUsernamesRequest) returns (UpdateBlockedUsernamesResponse);
+}

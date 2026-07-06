@@ -5,79 +5,55 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
-	"google.golang.org/protobuf/proto"
 
-	"hmans.de/chatto/internal/core/subjects"
+	"hmans.de/chatto/internal/events"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-// getRoomLastMessage fetches the last message in a room directly from JetStream.
-// Returns nil if no messages exist for this room yet.
-func (c *ChattoCore) getRoomLastMessage(ctx context.Context, kind RoomKind, roomID string) (*jetstream.RawStreamMsg, error) {
-	stream := c.storage.serverEventsStream
-
-	msg, err := stream.GetLastMsgForSubject(ctx, subjects.RoomAllMessages(string(kind), roomID))
-	if err != nil {
-		if errors.Is(err, jetstream.ErrMsgNotFound) {
-			return nil, nil // No messages yet
-		}
-		return nil, fmt.Errorf("failed to get last message for room: %w", err)
+// getRoomLastRootEvent returns the most recent root MessagePostedEvent
+// (excluding thread replies) in a room, or nil if none have been
+// projected yet. Bounded O(walk-until-found) via the projection's
+// LastVisibleRoomEntry helper.
+func (c *ChattoCore) getRoomLastRootEvent(roomID string) *corev1.Event {
+	entry, ok := c.rooms().lastVisibleRoomEntry(roomID, func(e *corev1.Event) bool {
+		msg := e.GetMessagePosted()
+		return msg != nil && msg.GetInThread() == ""
+	})
+	if !ok {
+		return nil
 	}
-	return msg, nil
+	return entry.Event
 }
 
-// getRoomLastRootMessage fetches the last root message (excluding thread replies) in a room.
-// Returns nil if no root messages exist for this room yet.
-// Used for unread tracking where thread replies should not affect room-level unread state.
-func (c *ChattoCore) getRoomLastRootMessage(ctx context.Context, kind RoomKind, roomID string) (*jetstream.RawStreamMsg, error) {
-	stream := c.storage.serverEventsStream
-
-	msg, err := stream.GetLastMsgForSubject(ctx, subjects.RoomRootMessages(string(kind), roomID))
-	if err != nil {
-		if errors.Is(err, jetstream.ErrMsgNotFound) {
-			return nil, nil // No root messages yet
-		}
-		return nil, fmt.Errorf("failed to get last root message for room: %w", err)
+// getRoomLastMessageEvent returns the most recent MessagePostedEvent
+// of any kind (root or thread reply) in a room, or nil. It uses the
+// projection's message-post index because thread replies are not part of the
+// visible room timeline.
+func (c *ChattoCore) getRoomLastMessageEvent(roomID string) *corev1.Event {
+	entry, ok := c.rooms().lastRoomMessageEntry(roomID)
+	if !ok {
+		return nil
 	}
-	return msg, nil
+	return entry.Event
 }
 
-// GetRoomLastMessageAt returns the timestamp of the last message in a room.
-// Derived directly from JetStream — no KV cache needed.
-// Returns zero time if no messages exist for this room yet.
-//
-// The timestamp comes from the proto's `created_at` field rather than
-// JetStream's stored time. The two are nearly identical for messages
-// published after #354 phase 4d, but messages migrated by phase 4d have
-// a fresh JetStream stamp; the proto time stays correct in both cases.
+// GetRoomLastMessageAt returns the timestamp of the last message in a
+// room, including thread replies. Reads from the in-memory room
+// timeline projection.
 func (c *ChattoCore) GetRoomLastMessageAt(ctx context.Context, kind RoomKind, roomID string) (time.Time, error) {
-	msg, err := c.getRoomLastMessage(ctx, kind, roomID)
-	if err != nil {
-		return time.Time{}, err
-	}
-	if msg == nil {
+	ev := c.getRoomLastMessageEvent(roomID)
+	if ev == nil {
 		return time.Time{}, nil
 	}
-	return rawMsgEventCreatedAt(msg)
-}
-
-// rawMsgEventCreatedAt unmarshals a JetStream message as a SpaceEvent and
-// returns its `created_at` time. Returns zero time + nil error if the
-// message has no proto-level timestamp (defensive — every event we
-// publish carries one).
-func rawMsgEventCreatedAt(msg *jetstream.RawStreamMsg) (time.Time, error) {
-	var event corev1.Event
-	if err := proto.Unmarshal(msg.Data, &event); err != nil {
-		return time.Time{}, fmt.Errorf("unmarshal event for timestamp: %w", err)
-	}
-	if event.CreatedAt == nil {
+	if ev.GetCreatedAt() == nil {
 		return time.Time{}, nil
 	}
-	return event.CreatedAt.AsTime(), nil
+	return ev.GetCreatedAt().AsTime(), nil
 }
 
 // Room name validation constants
@@ -128,32 +104,66 @@ func ValidateRoomDescription(description string) error {
 	return nil
 }
 
-// CreateRoom creates a new room in a space.
-// KV store is written first, then an event is published for audit trail (best-effort).
+// maxRoomNameClaimRetries bounds the OCC retry loop for cross-room
+// uniqueness checks. Each retry refreshes the projection and re-checks
+// the name; conflicts come from other processes publishing room events
+// concurrently. Five attempts with exponential backoff (~31ms worst
+// case) is generous for normal workloads.
+const maxRoomNameClaimRetries = 5
+
+type createRoomOptions struct {
+	universal bool
+}
+
+// CreateRoomOption customizes room creation for trusted/internal callers.
+type CreateRoomOption func(*createRoomOptions)
+
+// WithUniversalRoom sets the initial universal membership flag for a channel
+// room. DM rooms reject universal membership at CreateRoom validation time.
+func WithUniversalRoom(universal bool) CreateRoomOption {
+	return func(options *createRoomOptions) {
+		options.universal = universal
+	}
+}
+
+func collectCreateRoomOptions(opts []CreateRoomOption) createRoomOptions {
+	var options createRoomOptions
+	for _, opt := range opts {
+		if opt != nil {
+			opt(&options)
+		}
+	}
+	return options
+}
+
+// CreateRoom creates a new room.
 // Authorization: Caller must verify CanCreateRoom before calling.
 //
-// groupID identifies the RoomGroup the room belongs to. For channel rooms
-// this should be a real set's ID once the room-sets feature is fully
-// wired (see ADR-031); during the transition, an empty string is still
-// accepted and the room is created without a set membership. DM rooms
-// always pass an empty groupID. When a non-empty groupID is provided the
-// set must exist; the room is automatically added to its room_ids list.
-func (c *ChattoCore) CreateRoom(ctx context.Context, actorID string, kind RoomKind, groupID, name, description string) (*corev1.Room, error) {
-	// Validate room name
+// groupID identifies the RoomGroup the room belongs to. DM rooms pass
+// empty. For channel rooms an empty groupID auto-routes to the first
+// group in the layout (seed "Lobby" group on fresh deployments) — see
+// ADR-031.
+//
+// ADR-035 phase 6: event-only. Name uniqueness is enforced via
+// JetStream wildcard OCC against `evt.room.>` — the room service
+// reads a catalog snapshot containing both the name owner and the
+// applied evt.room.> sequence, then publishes RoomCreatedEvent with
+// that seq as the expected-last for the filter. Concurrent room
+// mutations from any process (this one or another replica) advance the
+// filter's seq and cause our publish to fail; we re-check uniqueness
+// from the (now-caught-up) projection and retry.
+func (c *ChattoCore) CreateRoom(ctx context.Context, actorID string, kind RoomKind, groupID, name, description string, opts ...CreateRoomOption) (*corev1.Room, error) {
 	if err := ValidateRoomName(name); err != nil {
 		return nil, err
 	}
-
-	// Validate room description
 	if err := ValidateRoomDescription(description); err != nil {
 		return nil, err
 	}
+	options := collectCreateRoomOptions(opts)
+	if kind == KindDM && options.universal {
+		return nil, fmt.Errorf("DM rooms cannot be universal")
+	}
 
-	// If a groupID is provided, verify it exists before creating the room.
-	// DM rooms always pass empty. For channel rooms, an empty groupID
-	// auto-routes to the first group in the layout (the seed "Lobby" group
-	// on fresh deployments) so existing callers don't need to pick one
-	// explicitly. See ADR-031.
 	if groupID != "" {
 		if _, err := c.GetRoomGroup(ctx, groupID); err != nil {
 			return nil, err
@@ -168,239 +178,274 @@ func (c *ChattoCore) CreateRoom(ctx context.Context, actorID string, kind RoomKi
 		}
 	}
 
-	// Trim whitespace from name
 	name = strings.TrimSpace(name)
-
-	bucket := c.storage.serverConfigKV
-
-	// Backfill name index for any pre-existing rooms (no-op after first call per process).
-	if err := c.ensureRoomNameIndex(ctx, kind, bucket); err != nil {
-		return nil, fmt.Errorf("failed to ensure room name index: %w", err)
-	}
-
 	room_id := NewRoomID()
 
-	// Atomically claim the name. kv.Create fails with ErrKeyExists if the name is taken,
-	// which removes the read-then-write race that the previous list-and-scan check had.
-	indexKey := roomNameIndexKey(name)
-	if _, err := bucket.Create(ctx, indexKey, []byte(room_id)); err != nil {
-		if errors.Is(err, jetstream.ErrKeyExists) {
-			return nil, ErrRoomNameExists
-		}
-		return nil, fmt.Errorf("failed to claim room name: %w", err)
-	}
-
-	// Create room entity
 	room := &corev1.Room{
 		Id:          room_id,
-		SpaceId:     SpaceIDForKind(kind),
+		Kind:        ProtoKindForRoomKind(kind),
 		Name:        name,
 		Description: description,
 		GroupId:     groupID,
+		Universal:   options.universal,
 	}
 
-	roomData, err := proto.Marshal(room)
-	if err != nil {
-		// Roll back the name claim so the name doesn't end up reserved with no room behind it.
-		c.bestEffortReleaseRoomNameClaim(ctx, bucket, indexKey, room_id)
-		return nil, fmt.Errorf("failed to marshal room: %w", err)
-	}
-	if _, err := bucket.Put(ctx, roomKey(kind, room.Id), roomData); err != nil {
-		c.bestEffortReleaseRoomNameClaim(ctx, bucket, indexKey, room_id)
-		return nil, fmt.Errorf("failed to store room: %w", err)
-	}
-
-	// If the room belongs to a set, append it to the set's room_ids.
-	// Best-effort — if this fails the room exists with its GroupId stamped
-	// but the layout isn't updated; the inconsistency is detectable and
-	// can be repaired by an admin re-move.
-	if groupID != "" {
-		if err := c.MoveRoomToGroup(ctx, actorID, room_id, groupID); err != nil {
-			c.logger.Warn("Failed to add new room to set layout; room.GroupId is set but set membership is not reflected in the layout",
-				"error", err, "room_id", room_id, "group_id", groupID)
-		}
-	}
-
-	// Create and publish audit event to space stream
-	// Room events are stored in the unified space stream
-	event := newEvent(actorID, &corev1.Event{
+	createdEvent := newEvent(actorID, &corev1.Event{
 		Event: &corev1.Event_RoomCreated{
 			RoomCreated: &corev1.RoomCreatedEvent{
 				RoomId:      room_id,
 				Name:        name,
 				Description: description,
-				SpaceId:     SpaceIDForKind(kind),
+				Kind:        ProtoKindForRoomKind(kind),
+				Universal:   options.universal,
 			},
 		},
 	})
-	subject := subjects.RoomMeta(string(kind), room_id)
-	_, err = c.publishServerEventWithAck(ctx, subject, event)
+
+	createdSeq, err := c.publishRoomEventWithNameOCC(ctx, name, createdEvent, room_id)
 	if err != nil {
-		// Room was created in KV but event failed - log but don't fail
-		c.logger.Error("failed to publish room created event", "error", err, "room_id", room_id)
+		return nil, err
 	}
 
-	// Set up special permissions for announcements rooms
-	if strings.EqualFold(name, AnnouncementsRoomName) {
-		if err := c.SetupAnnouncementsRoomPermissions(ctx, room_id); err != nil {
-			c.logger.Warn("Failed to set up announcements room permissions", "error", err, "room_id", room_id)
-			// Don't fail room creation if permission setup fails
+	// Move the room into its group's room_ids list. Best-effort — a
+	// failed move leaves a room in the catalog with no group
+	// membership; an admin can repair via re-move. (Channel rooms only;
+	// DMs don't belong to groups.)
+	if groupID != "" {
+		if err := c.MoveRoomToGroup(ctx, actorID, room_id, groupID); err != nil {
+			c.logger.Warn("Failed to add new room to set layout",
+				"error", err, "room_id", room_id, "group_id", groupID)
+		}
+	}
+
+	if kind == KindChannel {
+		if err := c.SeedDefaultChannelRoomPermissions(ctx, room_id, name); err != nil {
+			c.logger.Warn("Failed to seed channel room permissions", "error", err, "room_id", room_id)
 		}
 	}
 
 	c.logger.Info("Room created", "kind", kind, "room_id", room_id, "name", name, "group_id", groupID)
 
-	// Notify connected clients so they pick up the new room in the
-	// directory and (if joined) the sidebar. Channel rooms only — DMs
-	// live outside the channel layout. When the room was placed in a
-	// group, MoveRoomToGroup already published this event; only emit
-	// here as a fallback for the (rare) groupless channel-room case.
 	if kind == KindChannel && groupID == "" {
 		c.notifyRoomLayoutChanged(ctx, actorID, "create_room")
 	}
 
+	createdSubject := events.RoomAggregate(room_id).SubjectFor(createdEvent)
+	if err := c.rooms().waitForDirectoryAndTimeline(ctx, events.SubjectPosition(createdSubject, createdSeq)); err != nil {
+		return nil, err
+	}
 	return room, nil
 }
 
-// UpdateRoom updates an existing room.
-// KV store is updated first, then an event is published for audit trail (best-effort).
+// SetRoomUniversal updates a channel room's universal membership flag.
 // Authorization: Caller must verify CanManageAnyRoom before calling.
-func (c *ChattoCore) UpdateRoom(ctx context.Context, actorID string, kind RoomKind, room_id, name, description string) (*corev1.Room, error) {
-	// Validate room name
-	if err := ValidateRoomName(name); err != nil {
+func (c *ChattoCore) SetRoomUniversal(ctx context.Context, actorID string, kind RoomKind, roomID string, universal bool) (*corev1.Room, error) {
+	if kind == KindDM {
+		return nil, fmt.Errorf("DM rooms cannot be universal")
+	}
+	room, err := c.GetRoom(ctx, kind, roomID)
+	if err != nil {
+		return nil, err
+	}
+	if room.GetUniversal() == universal {
+		return room, nil
+	}
+
+	event := newEvent(actorID, &corev1.Event{
+		Event: &corev1.Event_RoomUniversalChanged{
+			RoomUniversalChanged: &corev1.RoomUniversalChangedEvent{
+				RoomId:    roomID,
+				Universal: universal,
+			},
+		},
+	})
+	pos, err := c.rooms().appendDirectoryEventually(ctx, c.EventPublisher, events.RoomAggregate(roomID), event)
+	if err != nil {
+		return nil, fmt.Errorf("publish RoomUniversalChangedEvent: %w", err)
+	}
+	if err := c.rooms().waitForTimeline(ctx, pos); err != nil {
 		return nil, err
 	}
 
-	// Validate room description
+	c.logger.Info("Room universal flag updated", "kind", kind, "room_id", roomID, "universal", universal)
+	return c.GetRoom(ctx, kind, roomID)
+}
+
+// publishRoomEventWithNameOCC publishes a name-claiming room event
+// (RoomCreated or RoomUpdated) with cluster-wide name uniqueness
+// enforced via JetStream wildcard OCC against `evt.room.>`.
+//
+// The flow per attempt:
+//  1. Read the catalog name-claim snapshot for the desired `name`;
+//     if any other room holds it, return ErrRoomNameExists immediately.
+//  2. Publish the event with the snapshot's applied evt.room.> seq.
+//     The projected state and OCC token describe the same observed
+//     event-log prefix.
+//  3. JetStream
+//     rejects with ErrConflict if any evt.room.> message landed in the
+//     read-publish window — backoff briefly and retry.
+//
+// excludeRoomID is the ID to exclude from the uniqueness check —
+// used by UpdateRoom so a room can keep a name it already holds
+// (e.g. case-only changes, or no-op renames).
+func (c *ChattoCore) publishRoomEventWithNameOCC(ctx context.Context, name string, event *corev1.Event, excludeRoomID string) (uint64, error) {
+	// Determine publish subject from the event payload. Room events
+	// all target the per-room aggregate subject; this doesn't change
+	// across retries.
+	var roomID string
+	switch e := event.GetEvent().(type) {
+	case *corev1.Event_RoomCreated:
+		roomID = e.RoomCreated.GetRoomId()
+	case *corev1.Event_RoomUpdated:
+		roomID = e.RoomUpdated.GetRoomId()
+	default:
+		return 0, fmt.Errorf("publishRoomEventWithNameOCC: unsupported event type %T", e)
+	}
+	publishSubject := events.RoomAggregate(roomID).SubjectFor(event)
+	occFilter := events.RoomSubjectFilter()
+
+	for attempt := 0; attempt < maxRoomNameClaimRetries; attempt++ {
+		snapshot := c.rooms().nameClaimSnapshot(name)
+		if owner := snapshot.OwnerRoomID; owner != "" && owner != excludeRoomID {
+			return 0, ErrRoomNameExists
+		}
+
+		seq, err := c.EventPublisher.AppendAtFilter(ctx, publishSubject, event, occFilter, snapshot.Seq)
+		if err == nil {
+			return seq, nil
+		}
+		if !errors.Is(err, events.ErrConflict) {
+			return 0, err
+		}
+
+		if err := c.rooms().waitForDirectoryCurrent(ctx, c.EventPublisher); err != nil {
+			return 0, fmt.Errorf("wait for room directory after OCC conflict: %w", err)
+		}
+
+		// Filter advanced under us after the snapshot. Backoff briefly
+		// and retry — the next attempt reads a fresh projection snapshot.
+		select {
+		case <-ctx.Done():
+			return 0, ctx.Err()
+		case <-time.After(time.Duration(1<<attempt) * time.Millisecond):
+		}
+	}
+	return 0, fmt.Errorf("room name OCC retry exhausted after %d attempts: %w", maxRoomNameClaimRetries, events.ErrConflict)
+}
+
+// UpdateRoom updates an existing room's mutable fields (name +
+// description). Authorization: Caller must verify CanManageAnyRoom
+// before calling.
+//
+// ADR-035 phase 6: event-only. Renames go through the wildcard-OCC
+// path to enforce cluster-wide name uniqueness (see
+// publishRoomEventWithNameOCC); description-only edits skip the
+// uniqueness check and use a plain per-subject OCC.
+func (c *ChattoCore) UpdateRoom(ctx context.Context, actorID string, kind RoomKind, room_id, name, description string) (*corev1.Room, error) {
+	if err := ValidateRoomName(name); err != nil {
+		return nil, err
+	}
 	if err := ValidateRoomDescription(description); err != nil {
 		return nil, err
 	}
 
-	// Trim whitespace from name
 	name = strings.TrimSpace(name)
 
-	// Fetch existing room (preserves all fields like Archived)
 	room, err := c.GetRoom(ctx, kind, room_id)
 	if err != nil {
 		return nil, err
 	}
 
-	bucket := c.storage.serverConfigKV
+	// "Rename" here means the case-folded name changed. Case-only
+	// edits (e.g. "general" → "General") don't change the uniqueness
+	// slot and can skip the wildcard OCC dance.
+	renamed := !strings.EqualFold(room.Name, name)
 
-	// Backfill name index for pre-existing rooms (no-op after first call per process).
-	if err := c.ensureRoomNameIndex(ctx, kind, bucket); err != nil {
-		return nil, fmt.Errorf("failed to ensure room name index: %w", err)
-	}
-
-	// Detect rename. Case-changes-only count as a rename for index purposes only when the
-	// lowercased form actually changes (e.g. "general" → "General" keeps the same index key).
-	oldIndexKey := roomNameIndexKey(room.Name)
-	newIndexKey := roomNameIndexKey(name)
-	renamed := oldIndexKey != newIndexKey
-
-	if renamed {
-		// Atomically claim the new name before writing the room. ErrKeyExists means the
-		// name is taken by another room — fail without touching the room record.
-		if _, err := bucket.Create(ctx, newIndexKey, []byte(room_id)); err != nil {
-			if errors.Is(err, jetstream.ErrKeyExists) {
-				return nil, ErrRoomNameExists
-			}
-			return nil, fmt.Errorf("failed to claim room name: %w", err)
-		}
-	}
-
-	// Update only the mutable fields
 	room.Name = name
 	room.Description = description
 
-	// Write to KV store (source of truth)
-	roomData, err := proto.Marshal(room)
-	if err != nil {
-		if renamed {
-			c.bestEffortReleaseRoomNameClaim(ctx, bucket, newIndexKey, room_id)
-		}
-		return nil, fmt.Errorf("failed to marshal room: %w", err)
-	}
-	if _, err := bucket.Put(ctx, roomKey(kind, room.Id), roomData); err != nil {
-		if renamed {
-			c.bestEffortReleaseRoomNameClaim(ctx, bucket, newIndexKey, room_id)
-		}
-		return nil, fmt.Errorf("failed to update room: %w", err)
-	}
-
-	// Release the old name now that the room record points at the new one. Best-effort:
-	// a leftover index entry is harmless (it would be reclaimed by the same room ID on a
-	// retry, and a fresh CreateRoom for that name would still see ErrKeyExists, which is
-	// the conservative choice).
-	if renamed {
-		c.bestEffortReleaseRoomNameClaim(ctx, bucket, oldIndexKey, room_id)
-	}
-
-	// Create and publish audit event to space stream (best-effort)
-	event := newEvent(actorID, &corev1.Event{
+	updatedEvent := newEvent(actorID, &corev1.Event{
 		Event: &corev1.Event_RoomUpdated{
 			RoomUpdated: &corev1.RoomUpdatedEvent{
 				RoomId:      room_id,
 				Name:        name,
 				Description: description,
-				SpaceId:     SpaceIDForKind(kind),
 			},
 		},
 	})
-	subject := subjects.RoomMeta(string(kind), room_id)
-	if err := c.publishServerEvent(ctx, subject, event); err != nil {
-		c.logger.Error("failed to publish room updated event", "error", err, "room_id", room_id)
+
+	var updatedSeq uint64
+	if renamed {
+		updatedSeq, err = c.publishRoomEventWithNameOCC(ctx, name, updatedEvent, room_id)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		updatedSeq, err = c.EventPublisher.Append(ctx, events.RoomAggregate(room_id).SubjectFor(updatedEvent), updatedEvent)
+		if err != nil {
+			return nil, fmt.Errorf("publish RoomUpdatedEvent: %w", err)
+		}
 	}
 
 	c.logger.Info("Room updated", "kind", kind, "room_id", room_id, "name", name)
 
+	updatedSubject := events.RoomAggregate(room_id).SubjectFor(updatedEvent)
+	if err := c.rooms().waitForDirectoryAndTimeline(ctx, events.SubjectPosition(updatedSubject, updatedSeq)); err != nil {
+		return nil, err
+	}
 	return room, nil
 }
 
 // DeleteRoom deletes a room.
-// Publishes event first, then deletes from KV store, then deletes the stream.
 // Authorization: Caller must verify CanManageAnyRoom before calling.
+//
+// ADR-035 phase 6: event-only. Publishes RoomDeletedEvent (which the
+// room directory applies to both catalog and membership indexes) and, for
+// channel rooms in a group, a RoomRemovedFromGroupEvent cascade per
+// ADR-034 Approach A. Historical room events are retained in EVT; the
+// legacy KV room record is no longer touched here.
 func (c *ChattoCore) DeleteRoom(ctx context.Context, actorID string, kind RoomKind, room_id string) error {
-	// Verify room exists
 	room, err := c.GetRoom(ctx, kind, room_id)
 	if err != nil {
 		return err
 	}
 
-	// Create and publish audit event to space stream BEFORE deletion (best-effort)
 	event := newEvent(actorID, &corev1.Event{
 		Event: &corev1.Event_RoomDeleted{
 			RoomDeleted: &corev1.RoomDeletedEvent{
-				SpaceId: SpaceIDForKind(kind),
-				RoomId:  room_id,
+				RoomId: room_id,
 			},
 		},
 	})
-	subject := subjects.RoomMeta(string(kind), room_id)
-	if err := c.publishServerEvent(ctx, subject, event); err != nil {
-		c.logger.Error("failed to publish room deleted event", "error", err, "room_id", room_id)
-	}
-
-	// Delete from KV store (source of truth)
-	bucket := c.storage.serverConfigKV
-	err = bucket.Delete(ctx, roomKey(kind, room_id))
+	deletedSubject := events.RoomAggregate(room_id).SubjectFor(event)
+	seq, err := c.EventPublisher.AppendEventually(ctx, deletedSubject, event)
 	if err != nil {
-		return fmt.Errorf("failed to delete room: %w", err)
+		return fmt.Errorf("publish RoomDeletedEvent: %w", err)
 	}
 
-	// Release the room name so a new room can claim it. Best-effort: a stale entry only
-	// blocks reuse of that exact name, and the next CreateRoom for it would log a clear
-	// ErrRoomNameExists rather than silently wedging anything.
-	c.bestEffortReleaseRoomNameClaim(ctx, bucket, roomNameIndexKey(room.Name), room_id)
-
-	// Purge room events from the space stream
-	if err := c.purgeRoomEvents(ctx, kind, room_id); err != nil {
-		c.logger.Error("failed to purge room events", "error", err, "kind", kind, "room_id", room_id)
-		// Continue anyway - orphaned events can be cleaned up manually if needed
+	// Cascade (ADR-034 Approach A): a channel room that lives in a
+	// group emits a per-group event so the group projection drops the
+	// room from its room_ids. DMs don't belong to groups.
+	var groupRemovedSeq uint64
+	if kind == KindChannel && room.GetGroupId() != "" {
+		removed := newEvent(actorID, &corev1.Event{
+			Event: &corev1.Event_RoomRemovedFromGroup{
+				RoomRemovedFromGroup: &corev1.RoomRemovedFromGroupEvent{
+					GroupId: room.GetGroupId(),
+					RoomId:  room_id,
+				},
+			},
+		})
+		groupRemovedSeq, err = c.EventPublisher.AppendEventually(ctx, events.GroupAggregate(room.GetGroupId()).SubjectFor(removed), removed)
+		if err != nil {
+			c.logger.Error("failed to publish RoomRemovedFromGroupEvent for delete cascade", "error", err, "room_id", room_id, "group_id", room.GetGroupId())
+		}
 	}
 
-	// Best-effort: remove room from layout if present
-	c.removeRoomFromLayout(ctx, kind, room_id)
+	// (Phase-6 note: pre-phase-6 we had to walk room_group docs to
+	// drop the deleted room from group.room_ids. The cascade
+	// RoomRemovedFromGroupEvent above handles that automatically
+	// via the RoomGroups projection now.)
 
 	c.logger.Info("Room deleted", "kind", kind, "room_id", room_id)
 
@@ -408,45 +453,47 @@ func (c *ChattoCore) DeleteRoom(ctx context.Context, actorID string, kind RoomKi
 		c.notifyRoomLayoutChanged(ctx, actorID, "delete_room")
 	}
 
+	// Read-your-writes: every projection that needs to drop state
+	// must have applied its event before we return.
+	if err := c.rooms().waitForDirectoryAndTimeline(ctx, events.SubjectPosition(deletedSubject, seq)); err != nil {
+		return err
+	}
+	if groupRemovedSeq > 0 {
+		groupRemovedSubject := events.GroupAggregate(room.GetGroupId()).Subject(events.EventRoomRemovedFromGroup)
+		if err := c.rooms().waitForGroupLayout(ctx, events.SubjectPosition(groupRemovedSubject, groupRemovedSeq)); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
-// ArchiveRoom sets a room's archived flag to true.
-// Archived rooms are hidden from sidebars and Browse Rooms. Existing memberships are preserved.
+// ArchiveRoom sets a room's archived flag. Archived rooms are hidden
+// from sidebars and Browse Rooms; existing memberships are preserved.
 // Authorization: Caller must verify CanManageAnyRoom before calling.
+//
+// ADR-035 phase 6: event-only.
 func (c *ChattoCore) ArchiveRoom(ctx context.Context, actorID string, kind RoomKind, roomID string) (*corev1.Room, error) {
 	room, err := c.GetRoom(ctx, kind, roomID)
 	if err != nil {
 		return nil, err
 	}
-
 	room.Archived = true
 
-	bucket := c.storage.serverConfigKV
-	roomData, err := proto.Marshal(room)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal room: %w", err)
-	}
-	_, err = bucket.Put(ctx, roomKey(kind, room.Id), roomData)
-	if err != nil {
-		return nil, fmt.Errorf("failed to archive room: %w", err)
-	}
-
-	// Publish persisted event to space stream (best-effort)
-	event := newEvent(actorID, &corev1.Event{
+	archivedEvent := newEvent(actorID, &corev1.Event{
 		Event: &corev1.Event_RoomArchived{
 			RoomArchived: &corev1.RoomArchivedEvent{
-				SpaceId: SpaceIDForKind(kind),
-				RoomId:  roomID,
+				RoomId: roomID,
 			},
 		},
 	})
-	subject := subjects.RoomMeta(string(kind), roomID)
-	if err := c.publishServerEvent(ctx, subject, event); err != nil {
-		c.logger.Error("failed to publish room archived event", "error", err, "room_id", roomID)
+	pos, err := c.rooms().appendDirectoryEventually(ctx, c.EventPublisher, events.RoomAggregate(roomID), archivedEvent)
+	if err != nil {
+		return nil, fmt.Errorf("publish RoomArchivedEvent: %w", err)
+	}
+	if err := c.rooms().waitForTimeline(ctx, pos); err != nil {
+		return nil, err
 	}
 
-	// Publish live event for real-time sync (sidebar/layout updates)
 	if err := c.PublishRoomGroupsUpdated(ctx, actorID, kind); err != nil {
 		c.logger.Error("failed to publish room layout updated event after archive", "error", err)
 	}
@@ -455,43 +502,33 @@ func (c *ChattoCore) ArchiveRoom(ctx context.Context, actorID string, kind RoomK
 	return room, nil
 }
 
-// UnarchiveRoom sets a room's archived flag to false. Archive/unarchive
-// only toggles the flag — the room keeps its set position throughout the
-// cycle.
+// UnarchiveRoom clears a room's archived flag. The room keeps its set
+// position throughout the archive/unarchive cycle.
 // Authorization: Caller must verify CanManageAnyRoom before calling.
+//
+// ADR-035 phase 6: event-only.
 func (c *ChattoCore) UnarchiveRoom(ctx context.Context, actorID string, kind RoomKind, roomID string) (*corev1.Room, error) {
 	room, err := c.GetRoom(ctx, kind, roomID)
 	if err != nil {
 		return nil, err
 	}
-
 	room.Archived = false
 
-	bucket := c.storage.serverConfigKV
-	roomData, err := proto.Marshal(room)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal room: %w", err)
-	}
-	_, err = bucket.Put(ctx, roomKey(kind, room.Id), roomData)
-	if err != nil {
-		return nil, fmt.Errorf("failed to unarchive room: %w", err)
-	}
-
-	// Publish persisted event to space stream (best-effort)
-	event := newEvent(actorID, &corev1.Event{
+	unarchivedEvent := newEvent(actorID, &corev1.Event{
 		Event: &corev1.Event_RoomUnarchived{
 			RoomUnarchived: &corev1.RoomUnarchivedEvent{
-				SpaceId: SpaceIDForKind(kind),
-				RoomId:  roomID,
+				RoomId: roomID,
 			},
 		},
 	})
-	subject := subjects.RoomMeta(string(kind), roomID)
-	if err := c.publishServerEvent(ctx, subject, event); err != nil {
-		c.logger.Error("failed to publish room unarchived event", "error", err, "room_id", roomID)
+	pos, err := c.rooms().appendDirectoryEventually(ctx, c.EventPublisher, events.RoomAggregate(roomID), unarchivedEvent)
+	if err != nil {
+		return nil, fmt.Errorf("publish RoomUnarchivedEvent: %w", err)
+	}
+	if err := c.rooms().waitForTimeline(ctx, pos); err != nil {
+		return nil, err
 	}
 
-	// Publish live event for real-time sync (sidebar/layout updates)
 	if err := c.PublishRoomGroupsUpdated(ctx, actorID, kind); err != nil {
 		c.logger.Error("failed to publish room layout updated event after unarchive", "error", err)
 	}
@@ -500,178 +537,171 @@ func (c *ChattoCore) UnarchiveRoom(ctx context.Context, actorID string, kind Roo
 	return room, nil
 }
 
-// GetRoom retrieves a room from the space-specific CONFIG bucket.
+// GetRoom retrieves a room by id.
+//
+// Reads come from RoomCatalog composed with RoomGroups for the
+// group_id field. Returns ErrNotFound (wrapped) if the room isn't
+// projected OR if its kind doesn't match the requested kind —
+// keeping the "the wrong kind is not found" semantic so callers
+// don't accidentally read a DM via a channel-kind probe.
 func (c *ChattoCore) GetRoom(ctx context.Context, kind RoomKind, room_id string) (*corev1.Room, error) {
-	bucket := c.storage.serverConfigKV
-
-	entry, err := bucket.Get(ctx, roomKey(kind, room_id))
-	if err != nil {
-		return nil, fmt.Errorf("room not found: %w", err)
+	room, ok := c.rooms().room(room_id)
+	if !ok || room.Kind != ProtoKindForRoomKind(kind) {
+		return nil, fmt.Errorf("room not found: %w", jetstream.ErrKeyNotFound)
 	}
-
-	room := &corev1.Room{}
-	if err := proto.Unmarshal(entry.Value(), room); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal room: %w", err)
+	if gid := c.RoomGroups.GroupForRoom(room_id); gid != "" {
+		room.GroupId = gid
 	}
-
 	return room, nil
 }
 
-// FindRoomKind resolves the room kind ("channel" or "dm") for a room given
-// only its ID. Tries the channel kind first, then DMs. Returns ErrNotFound
-// if neither has the room.
+// FindRoomByID resolves a room from its ID alone (no kind probe).
+// Returns ErrNotFound if the room isn't in the catalog.
 //
-// Post-PR(b) the GraphQL surface no longer carries `spaceId`, so resolvers
-// that take just a room ID use this to recover the kind context the core
-// API still needs for KV partitioning.
-func (c *ChattoCore) FindRoomKind(ctx context.Context, room_id string) (RoomKind, error) {
-	if _, err := c.GetRoom(ctx, KindChannel, room_id); err == nil {
-		return KindChannel, nil
+// Live events carry only a room ID (no kind discriminator on the
+// wire), so resolvers and consumers downstream of those events use
+// this to recover both the room and the kind context (via
+// KindOfRoom on the result).
+func (c *ChattoCore) FindRoomByID(ctx context.Context, room_id string) (*corev1.Room, error) {
+	room, ok := c.rooms().room(room_id)
+	if !ok {
+		return nil, ErrNotFound
 	}
-	if _, err := c.GetRoom(ctx, KindDM, room_id); err == nil {
-		return KindDM, nil
+	if gid := c.RoomGroups.GroupForRoom(room_id); gid != "" {
+		room.GroupId = gid
 	}
-	return "", ErrNotFound
+	return room, nil
 }
 
-// ListRooms retrieves all rooms of the given kind from the CONFIG bucket.
-//
-// Post-#330 phase 4b: channels and DM rooms share SERVER_CONFIG, with the
-// kind encoded in the key prefix (`room.channel.{X}` vs `room.dm.{X}`).
-// The prefix scan returns only the matching kind, so no in-memory filter
-// is needed.
-func (c *ChattoCore) ListRooms(ctx context.Context, kind RoomKind) ([]*corev1.Room, error) {
-	bucket := c.storage.serverConfigKV
-
-	prefix := roomKeyPrefix(kind)
-	keyLister, err := bucket.ListKeysFiltered(ctx, prefix)
+// FindRoomKind is a thin wrapper around FindRoomByID for callers that
+// only need the kind. The room load is paid either way; the wrapper is
+// just there for ergonomics.
+func (c *ChattoCore) FindRoomKind(ctx context.Context, room_id string) (RoomKind, error) {
+	room, err := c.FindRoomByID(ctx, room_id)
 	if err != nil {
-		if err == jetstream.ErrNoKeysFound {
-			return []*corev1.Room{}, nil
-		}
-		return nil, fmt.Errorf("failed to list room keys: %w", err)
+		return "", err
 	}
+	return KindOfRoom(room), nil
+}
 
-	var rooms []*corev1.Room
-	for key := range keyLister.Keys() {
-		entry, err := bucket.Get(ctx, key)
-		if err != nil {
-			c.logger.Warn("Failed to get room", "key", key, "error", err)
-			continue
+// ListRooms retrieves all rooms of the given kind from the
+// RoomCatalog projection, composed with RoomGroups for the group_id
+// field.
+func (c *ChattoCore) ListRooms(ctx context.Context, kind RoomKind) ([]*corev1.Room, error) {
+	rooms := c.rooms().roomsByKind(ProtoKindForRoomKind(kind))
+	for _, r := range rooms {
+		if gid := c.RoomGroups.GroupForRoom(r.Id); gid != "" {
+			r.GroupId = gid
 		}
-
-		room := &corev1.Room{}
-		if err := proto.Unmarshal(entry.Value(), room); err != nil {
-			c.logger.Warn("Failed to unmarshal room", "key", key, "error", err)
-			continue
-		}
-
-		rooms = append(rooms, room)
 	}
-
 	return rooms, nil
 }
 
-// RoomNameExists checks if a room with the given name already exists in the space.
-// It performs a case-insensitive comparison after trimming whitespace.
-func (c *ChattoCore) RoomNameExists(ctx context.Context, kind RoomKind, name string) (bool, error) {
-	return c.RoomNameExistsExcluding(ctx, kind, name, "")
+// MemberRoomListOptions controls optional filtering/sorting for ListMemberRooms.
+type MemberRoomListOptions struct {
+	// RequireLastMessage excludes rooms that have never received a message.
+	RequireLastMessage bool
+	// SortByLastMessageDesc sorts rooms by latest message time, newest first.
+	// Rooms without messages sort last when RequireLastMessage is false.
+	SortByLastMessageDesc bool
 }
 
-// RoomNameExistsExcluding checks if a room with the given name exists, excluding a specific room.
-// This is used by UpdateRoom to allow a room to keep its own name (with different casing).
-// It performs a case-insensitive comparison after trimming whitespace.
-//
-// Backed by the room_name_index.* keys, so it's O(1) per call after the per-space backfill
-// has run once. CreateRoom and UpdateRoom enforce uniqueness via atomic kv.Create rather
-// than calling this — this method exists for callers that want to query without mutating.
-func (c *ChattoCore) RoomNameExistsExcluding(ctx context.Context, kind RoomKind, name, excludeRoomID string) (bool, error) {
-	bucket := c.storage.serverConfigKV
+// ListMemberRooms retrieves rooms of the given kind that the user participates
+// in. It is the shared room-list primitive for member-scoped room surfaces;
+// callers layer product policy on top with MemberRoomListOptions.
+func (c *ChattoCore) ListMemberRooms(ctx context.Context, kind RoomKind, userID string, opts MemberRoomListOptions) ([]*corev1.Room, error) {
+	roomIDs := c.RoomMembership.Rooms(userID)
+	seen := make(map[string]struct{}, len(roomIDs))
 
-	if err := c.ensureRoomNameIndex(ctx, kind, bucket); err != nil {
-		return false, fmt.Errorf("failed to ensure room name index: %w", err)
+	type listedRoom struct {
+		room          *corev1.Room
+		lastMessageAt time.Time
 	}
+	listed := make([]listedRoom, 0, len(roomIDs))
 
-	entry, err := bucket.Get(ctx, roomNameIndexKey(name))
-	if err != nil {
-		if errors.Is(err, jetstream.ErrKeyNotFound) {
-			return false, nil
-		}
-		return false, fmt.Errorf("failed to look up room name index: %w", err)
-	}
-
-	if string(entry.Value()) == excludeRoomID {
-		return false, nil
-	}
-	return true, nil
-}
-
-// ensureRoomNameIndex backfills room_name_index.<name> entries for any pre-existing rooms
-// that were created before atomic name claiming was introduced. Idempotent and cached
-// per-space-per-process so the cost is paid at most once. After that, every CreateRoom /
-// UpdateRoom / DeleteRoom keeps the index in sync directly.
-func (c *ChattoCore) ensureRoomNameIndex(ctx context.Context, kind RoomKind, bucket jetstream.KeyValue) error {
-	if _, ok := c.roomNameIndexBackfilled.Load(kind); ok {
-		return nil
-	}
-
-	// Channels only — DM rooms have empty names so there's nothing to index.
-	keyLister, err := bucket.ListKeysFiltered(ctx, roomKeyPrefix(kind))
-	if err != nil {
-		if errors.Is(err, jetstream.ErrNoKeysFound) {
-			c.roomNameIndexBackfilled.Store(kind, struct{}{})
-			return nil
-		}
-		return fmt.Errorf("failed to list room keys for backfill: %w", err)
-	}
-
-	for key := range keyLister.Keys() {
-		entry, err := bucket.Get(ctx, key)
+	for _, roomID := range roomIDs {
+		room, err := c.GetRoom(ctx, kind, roomID)
 		if err != nil {
-			c.logger.Warn("Skipping room during name-index backfill: get failed", "key", key, "error", err)
-			continue
-		}
-
-		room := &corev1.Room{}
-		if err := proto.Unmarshal(entry.Value(), room); err != nil {
-			c.logger.Warn("Skipping room during name-index backfill: unmarshal failed", "key", key, "error", err)
-			continue
-		}
-
-		indexKey := roomNameIndexKey(room.Name)
-		if _, err := bucket.Create(ctx, indexKey, []byte(room.Id)); err != nil {
-			if errors.Is(err, jetstream.ErrKeyExists) {
-				continue // already indexed (idempotent retry)
+			if errors.Is(err, jetstream.ErrKeyNotFound) {
+				continue
 			}
-			c.logger.Warn("Failed to backfill room name index entry", "kind", kind, "room_id", room.Id, "error", err)
+			return nil, fmt.Errorf("lookup room %s: %w", roomID, err)
+		}
+
+		var lastMessageAt time.Time
+		if opts.RequireLastMessage || opts.SortByLastMessageDesc {
+			lastMessageAt, err = c.GetRoomLastMessageAt(ctx, kind, room.Id)
+			if err != nil {
+				return nil, fmt.Errorf("lookup last message for room %s: %w", room.Id, err)
+			}
+			if opts.RequireLastMessage && lastMessageAt.IsZero() {
+				continue
+			}
+		}
+
+		listed = append(listed, listedRoom{room: room, lastMessageAt: lastMessageAt})
+		seen[room.Id] = struct{}{}
+	}
+
+	if kind == KindChannel {
+		all, err := c.ListRooms(ctx, kind)
+		if err != nil {
+			return nil, err
+		}
+		for _, room := range all {
+			if room == nil || !room.GetUniversal() {
+				continue
+			}
+			if _, ok := seen[room.Id]; ok {
+				continue
+			}
+			canJoin, err := c.CanJoinRoomAt(ctx, userID, kind, room.Id)
+			if err != nil {
+				return nil, err
+			}
+			if !canJoin {
+				continue
+			}
+
+			var lastMessageAt time.Time
+			if opts.RequireLastMessage || opts.SortByLastMessageDesc {
+				lastMessageAt, err = c.GetRoomLastMessageAt(ctx, kind, room.Id)
+				if err != nil {
+					return nil, fmt.Errorf("lookup last message for room %s: %w", room.Id, err)
+				}
+				if opts.RequireLastMessage && lastMessageAt.IsZero() {
+					continue
+				}
+			}
+			listed = append(listed, listedRoom{room: room, lastMessageAt: lastMessageAt})
+			seen[room.Id] = struct{}{}
 		}
 	}
 
-	c.roomNameIndexBackfilled.Store(kind, struct{}{})
-	return nil
+	if opts.SortByLastMessageDesc {
+		sort.SliceStable(listed, func(i, j int) bool {
+			return listed[i].lastMessageAt.After(listed[j].lastMessageAt)
+		})
+	}
+
+	rooms := make([]*corev1.Room, len(listed))
+	for i, r := range listed {
+		rooms[i] = r.room
+	}
+	return rooms, nil
 }
 
-// bestEffortReleaseRoomNameClaim removes a room_name_index entry but only if it still
-// points at the expected room ID. This protects against accidentally deleting an index
-// entry that another room has already claimed (e.g. after a partial failure that left
-// the value rewritten by a retry).
-func (c *ChattoCore) bestEffortReleaseRoomNameClaim(ctx context.Context, bucket jetstream.KeyValue, indexKey, expectedRoomID string) {
-	entry, err := bucket.Get(ctx, indexKey)
-	if err != nil {
-		if !errors.Is(err, jetstream.ErrKeyNotFound) {
-			c.logger.Warn("Failed to read room name index for release", "key", indexKey, "error", err)
-		}
-		return
-	}
-	if string(entry.Value()) != expectedRoomID {
-		// Some other room owns this name now — leave it alone.
-		return
-	}
-	if err := bucket.Delete(ctx, indexKey, jetstream.LastRevision(entry.Revision())); err != nil {
-		// LastRevision guards against racing with a concurrent update; if that race
-		// happened, the new owner still has the claim, which is exactly what we want.
-		if !errors.Is(err, jetstream.ErrKeyNotFound) {
-			c.logger.Warn("Failed to release room name index", "key", indexKey, "error", err)
-		}
-	}
+// RoomNameExists reports whether a channel room with the given name
+// (case-insensitive, whitespace-trimmed) currently exists. ADR-035
+// phase 6: served from RoomCatalog.FindByName.
+func (c *ChattoCore) RoomNameExists(_ context.Context, _ RoomKind, name string) (bool, error) {
+	return c.rooms().roomIDByName(name) != "", nil
+}
+
+// RoomNameExistsExcluding is like RoomNameExists but treats
+// excludeRoomID as "free." Used by callers checking whether a rename
+// would collide.
+func (c *ChattoCore) RoomNameExistsExcluding(_ context.Context, _ RoomKind, name, excludeRoomID string) (bool, error) {
+	owner := c.rooms().roomIDByName(name)
+	return owner != "" && owner != excludeRoomID, nil
 }

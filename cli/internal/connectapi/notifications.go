@@ -1,0 +1,221 @@
+package connectapi
+
+import (
+	"context"
+
+	"connectrpc.com/connect"
+	"hmans.de/chatto/internal/core"
+	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
+	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+)
+
+const (
+	defaultNotificationLimit = 50
+	maxNotificationLimit     = 100
+)
+
+type notificationService struct {
+	api *API
+}
+
+func (s *notificationService) ListNotifications(ctx context.Context, req *connect.Request[apiv1.ListNotificationsRequest]) (*connect.Response[apiv1.ListNotificationsResponse], error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return s.notificationPage(ctx, caller.UserID, req.Msg.GetPage(), nil)
+}
+
+func (s *notificationService) GetNotification(ctx context.Context, req *connect.Request[apiv1.GetNotificationRequest]) (*connect.Response[apiv1.GetNotificationResponse], error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	notification, err := s.api.core.GetNotification(ctx, caller.UserID, req.Msg.GetNotificationId())
+	if err != nil {
+		return nil, connectError(err)
+	}
+	if notification == nil {
+		return nil, connectError(core.ErrNotFound)
+	}
+	assembler := newNotificationAssembler(s.api)
+	item, err := assembler.item(ctx, notification)
+	if err != nil {
+		return nil, connectError(err)
+	}
+	return connect.NewResponse(&apiv1.GetNotificationResponse{
+		Notification: item,
+	}), nil
+}
+
+func (s *notificationService) BatchGetNotifications(ctx context.Context, req *connect.Request[apiv1.BatchGetNotificationsRequest]) (*connect.Response[apiv1.BatchGetNotificationsResponse], error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	assembler := newNotificationAssembler(s.api)
+	seen := make(map[string]struct{}, len(req.Msg.GetNotificationIds()))
+	notifications := make([]*apiv1.NotificationItem, 0, len(req.Msg.GetNotificationIds()))
+	for _, notificationID := range req.Msg.GetNotificationIds() {
+		if _, ok := seen[notificationID]; ok {
+			continue
+		}
+		seen[notificationID] = struct{}{}
+
+		notification, err := s.api.core.GetNotification(ctx, caller.UserID, notificationID)
+		if err != nil {
+			return nil, connectError(err)
+		}
+		if notification == nil {
+			continue
+		}
+		item, err := assembler.item(ctx, notification)
+		if err != nil {
+			return nil, connectError(err)
+		}
+		notifications = append(notifications, item)
+	}
+	return connect.NewResponse(&apiv1.BatchGetNotificationsResponse{
+		Notifications: notifications,
+	}), nil
+}
+
+func (s *notificationService) ListRoomNotifications(ctx context.Context, req *connect.Request[apiv1.ListRoomNotificationsRequest]) (*connect.Response[apiv1.ListRoomNotificationsResponse], error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	notifications, err := s.api.core.GetRoomNotificationsForMember(ctx, caller.UserID, req.Msg.GetRoomId())
+	if err != nil {
+		return nil, connectError(err)
+	}
+	page, err := newNotificationAssembler(s.api).pageFromList(ctx, notifications, req.Msg.GetPage())
+	if err != nil {
+		return nil, connectError(err)
+	}
+	return connect.NewResponse(&apiv1.ListRoomNotificationsResponse{
+		Notifications: page.GetNotifications(),
+		Page:          page.GetPage(),
+	}), nil
+}
+
+func (s *notificationService) HasNotifications(ctx context.Context, _ *connect.Request[apiv1.HasNotificationsRequest]) (*connect.Response[apiv1.HasNotificationsResponse], error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	has, err := s.api.core.HasUnreadNotifications(ctx, caller.UserID)
+	if err != nil {
+		return nil, connectError(err)
+	}
+	return connect.NewResponse(&apiv1.HasNotificationsResponse{HasNotifications: has}), nil
+}
+
+func (s *notificationService) ListRoomNotificationCounts(ctx context.Context, _ *connect.Request[apiv1.ListRoomNotificationCountsRequest]) (*connect.Response[apiv1.ListRoomNotificationCountsResponse], error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	notifications, err := s.api.core.GetNotifications(ctx, caller.UserID)
+	if err != nil {
+		return nil, connectError(err)
+	}
+	countsByRoom := make(map[string]int32)
+	for _, notification := range notifications {
+		roomID := notificationTargetRoomID(notification)
+		if roomID == "" {
+			continue
+		}
+		countsByRoom[roomID]++
+	}
+	roomCounts := make([]*apiv1.RoomNotificationCount, 0, len(countsByRoom))
+	for roomID, count := range countsByRoom {
+		roomCounts = append(roomCounts, &apiv1.RoomNotificationCount{
+			RoomId:     roomID,
+			TotalCount: count,
+		})
+	}
+	return connect.NewResponse(&apiv1.ListRoomNotificationCountsResponse{RoomCounts: roomCounts}), nil
+}
+
+func (s *notificationService) DismissNotification(ctx context.Context, req *connect.Request[apiv1.DismissNotificationRequest]) (*connect.Response[apiv1.DismissNotificationResponse], error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if req.Msg.NotificationId == "" {
+		return nil, invalidArgument("notification_id is required")
+	}
+	_, err = s.api.core.DismissNotification(ctx, caller.UserID, req.Msg.NotificationId)
+	if err != nil {
+		return nil, connectError(err)
+	}
+	return connect.NewResponse(&apiv1.DismissNotificationResponse{Dismissed: true}), nil
+}
+
+func (s *notificationService) DismissAllNotifications(ctx context.Context, _ *connect.Request[apiv1.DismissAllNotificationsRequest]) (*connect.Response[apiv1.DismissAllNotificationsResponse], error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	count, err := s.api.core.DismissAllNotifications(ctx, caller.UserID)
+	if err != nil {
+		return nil, connectError(err)
+	}
+	return connect.NewResponse(&apiv1.DismissAllNotificationsResponse{DismissedCount: int32(count)}), nil
+}
+
+func (s *notificationService) notificationPage(ctx context.Context, userID string, pageRequest *apiv1.PageRequest, matches func(*corev1.Notification) bool) (*connect.Response[apiv1.ListNotificationsResponse], error) {
+	notifications, err := s.api.core.GetNotifications(ctx, userID)
+	if err != nil {
+		return nil, connectError(err)
+	}
+
+	filtered := notifications
+	if matches != nil {
+		filtered = make([]*corev1.Notification, 0, len(notifications))
+		for _, notification := range notifications {
+			if matches(notification) {
+				filtered = append(filtered, notification)
+			}
+		}
+	}
+
+	page, err := newNotificationAssembler(s.api).pageFromList(ctx, filtered, pageRequest)
+	if err != nil {
+		return nil, connectError(err)
+	}
+	return connect.NewResponse(page), nil
+}
+
+func notificationTargetRoomID(notification *corev1.Notification) string {
+	if notification == nil {
+		return ""
+	}
+	switch payload := notification.GetNotification().(type) {
+	case *corev1.Notification_DmMessage:
+		return payload.DmMessage.GetRoomId()
+	case *corev1.Notification_Mention:
+		return payload.Mention.GetRoomId()
+	case *corev1.Notification_Reply:
+		return payload.Reply.GetRoomId()
+	case *corev1.Notification_RoomMessage:
+		return payload.RoomMessage.GetRoomId()
+	default:
+		return ""
+	}
+}
+
+func paginateNotifications(notifications []*corev1.Notification, limit, offset int) ([]*corev1.Notification, int, bool) {
+	total := len(notifications)
+	if offset >= total {
+		return []*corev1.Notification{}, total, false
+	}
+	end := offset + limit
+	if end > total {
+		end = total
+	}
+	return notifications[offset:end], total, end < total
+}

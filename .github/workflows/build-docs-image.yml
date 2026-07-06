@@ -1,0 +1,96 @@
+name: build docs image
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/docs-website/**"
+      - ".npmrc"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "LICENSES/Apache-2.0.txt"
+      - "NOTICE"
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Git ref or SHA to build. Defaults to the selected workflow ref."
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build-docs-image:
+    # runs-on: ubicloud-standard-4
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+
+      - name: Resolve image metadata
+        id: image
+        run: |
+          set -euo pipefail
+
+          sha="$(git rev-parse HEAD)"
+          docs_tag="$(node --input-type=module <<'NODE'
+          import { execFileSync } from "node:child_process";
+
+          const sha = execFileSync("git", ["rev-parse", "HEAD"]).toString("utf8").trim();
+          const commitDate = execFileSync("git", ["show", "-s", "--format=%cI", "HEAD"])
+            .toString("utf8")
+            .trim();
+          const stamp = new Date(commitDate)
+            .toISOString()
+            .replace(/[-:]/g, "")
+            .replace(/\.\d{3}Z$/, "Z");
+
+          process.stdout.write(`docs-${stamp}-${sha.slice(0, 12)}`);
+          NODE
+          )"
+
+          echo "sha=${sha}" >> "$GITHUB_OUTPUT"
+          echo "docs_tag=${docs_tag}" >> "$GITHUB_OUTPUT"
+
+          {
+            echo "### Docs image"
+            echo
+            echo "- Commit: \`${sha}\`"
+            echo "- Image: \`ghcr.io/chattocorp/chatto-docs:${sha}\`"
+            echo "- Docs tag: \`ghcr.io/chattocorp/chatto-docs:${docs_tag}\`"
+            echo "- Platform: \`linux/amd64\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build docs image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./apps/docs-website/Dockerfile
+          push: ${{ github.event_name != 'pull_request' }}
+          platforms: linux/amd64
+          tags: |
+            ghcr.io/chattocorp/chatto-docs:${{ steps.image.outputs.sha }}
+            ghcr.io/chattocorp/chatto-docs:${{ steps.image.outputs.docs_tag }}
+          cache-from: type=gha,scope=chatto-docs-amd64
+          cache-to: type=gha,mode=max,scope=chatto-docs-amd64
+          labels: |
+            org.opencontainers.image.source=https://github.com/chattocorp/chatto
+            org.opencontainers.image.revision=${{ steps.image.outputs.sha }}
+            org.opencontainers.image.version=${{ steps.image.outputs.docs_tag }}
+            org.opencontainers.image.licenses=Apache-2.0

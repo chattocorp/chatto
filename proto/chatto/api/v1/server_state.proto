@@ -1,0 +1,49 @@
+syntax = "proto3";
+
+package chatto.api.v1;
+
+// Request for the authenticated message of the day.
+message GetMotdRequest {}
+
+// Authenticated message of the day response.
+message GetMotdResponse {
+  // Optional message of the day shown to authenticated members.
+  optional string motd = 1;
+}
+
+// Authenticated server runtime settings used by clients.
+message ServerRuntimeConfig {
+  // Whether Web Push notifications are fully configured.
+  bool push_notifications_enabled = 1;
+  // Optional VAPID public key for Web Push registration.
+  optional string vapid_public_key = 2;
+  // Optional LiveKit URL for voice and video calls.
+  optional string livekit_url = 3;
+  reserved 4;
+  reserved "direct_registration_enabled";
+  // Whether video processing is enabled.
+  bool video_processing_enabled = 5;
+  // Maximum general upload size in bytes.
+  int64 max_upload_size = 6;
+  // Maximum video upload size in bytes.
+  int64 max_video_upload_size = 7;
+  // Message edit window in seconds.
+  int32 message_edit_window_seconds = 8;
+}
+
+// Request for authenticated server runtime configuration.
+message GetRuntimeConfigRequest {}
+
+// Authenticated server runtime configuration response.
+message GetRuntimeConfigResponse {
+  // Authenticated runtime settings used by clients.
+  ServerRuntimeConfig runtime = 1;
+}
+
+// Provides authenticated server-wide reads.
+service ServerService {
+  // Returns the authenticated message of the day.
+  rpc GetMotd(GetMotdRequest) returns (GetMotdResponse);
+  // Returns authenticated runtime settings used by clients.
+  rpc GetRuntimeConfig(GetRuntimeConfigRequest) returns (GetRuntimeConfigResponse);
+}

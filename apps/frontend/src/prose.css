@@ -1,0 +1,254 @@
+/*
+ * Custom prose styles for markdown content.
+ * Replaces @tailwindcss/typography with minimal, opinionated styles.
+ */
+.prose {
+  --composer-code-text: #24292f;
+  --composer-code-comment: #6e7781;
+  --composer-code-keyword: #cf222e;
+  --composer-code-string: #0a3069;
+  --composer-code-title: #8250df;
+  --composer-code-literal: #0550ae;
+  --composer-code-attribute: #953800;
+  --prose-quote-border: color-mix(in srgb, var(--color-muted), var(--color-accent) 42%);
+  --prose-quote-text: color-mix(in srgb, var(--color-text), var(--color-muted) 48%);
+
+  font-size: inherit;
+  line-height: 1.5;
+  overflow: hidden;
+
+  /* Block element spacing */
+  & > * + * {
+    margin-top: 0.75em;
+  }
+
+  /* Headings: inherited font size, bold, underlined. */
+  & h1,
+  & h2,
+  & h3,
+  & h4,
+  & h5,
+  & h6 {
+    font-size: inherit;
+    font-weight: 600;
+    text-decoration: underline;
+  }
+
+  /* First child has no top margin */
+  & > :first-child {
+    margin-top: 0;
+  }
+
+  /* Blockquotes keep their top margin even as the first child, so the
+     left border has breathing room from whatever sits above (e.g. the
+     message header). */
+  & > blockquote:first-child {
+    margin-top: 0.25em;
+  }
+
+  /* Links */
+  & a {
+    color: var(--color-link);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    overflow-wrap: anywhere;
+
+    &:hover {
+      color: var(--color-link-hover);
+    }
+  }
+
+  /* Lists */
+  & ul,
+  & ol {
+    padding-left: 1.5em;
+  }
+
+  & ul {
+    list-style-type: disc;
+  }
+
+  & ol {
+    list-style-type: decimal;
+  }
+
+  & li {
+    margin: 0;
+  }
+
+  /* Nested lists */
+  & li > ul,
+  & li > ol {
+    margin-top: 0.25em;
+  }
+
+  /* Blockquotes */
+  & blockquote {
+    border-left: 3px solid var(--prose-quote-border);
+    padding: 0.35em 0 0.35em 0.9em;
+    color: var(--prose-quote-text);
+    font-style: italic;
+  }
+
+  & blockquote > * {
+    margin-block: 0;
+  }
+
+  & blockquote > * + * {
+    margin-top: 0.45em;
+  }
+
+  /* Inline code */
+  & code:not(pre code) {
+    @apply rounded bg-surface-200 px-1.5 py-0.5 font-mono text-[0.9em];
+  }
+
+  /* Code blocks */
+  & pre {
+    @apply overflow-x-auto rounded-md bg-surface-200 p-3 font-mono text-sm;
+  }
+
+  /* Highlighted code block styling - overflow moved to code element so the
+	   language label (positioned on pre) stays fixed during horizontal scroll */
+  & pre.hljs {
+    @apply relative overflow-hidden border border-surface-200 py-2 shadow-xs;
+    background-color: transparent !important;
+    color: var(--composer-code-text);
+    line-height: 1.5;
+  }
+
+  /* Language label */
+  & pre.hljs[data-language]::after {
+    content: attr(data-language);
+    @apply absolute right-0 bottom-0 rounded-tl-md bg-surface-200 px-2 py-0.5 text-xs tracking-wide text-muted uppercase;
+  }
+
+  /* Line numbers */
+  & pre.hljs code {
+    counter-reset: line;
+    display: block;
+    overflow-x: auto;
+    line-height: inherit;
+  }
+
+  & pre.hljs .line {
+    @apply block pl-12;
+    line-height: inherit;
+  }
+
+  & pre.hljs .line::before {
+    counter-increment: line;
+    content: counter(line);
+    @apply -ml-12 inline-block w-8 pr-4 text-right text-muted/50 select-none;
+  }
+
+  & .hljs-comment,
+  & .hljs-quote {
+    color: var(--composer-code-comment);
+    font-style: italic;
+  }
+
+  & .hljs-keyword,
+  & .hljs-selector-tag,
+  & .hljs-subst {
+    color: var(--composer-code-keyword);
+  }
+
+  & .hljs-string,
+  & .hljs-regexp,
+  & .hljs-symbol,
+  & .hljs-bullet {
+    color: var(--composer-code-string);
+  }
+
+  & .hljs-title,
+  & .hljs-section,
+  & .hljs-name,
+  & .hljs-selector-id,
+  & .hljs-selector-class {
+    color: var(--composer-code-title);
+  }
+
+  & .hljs-number,
+  & .hljs-literal,
+  & .hljs-type,
+  & .hljs-built_in {
+    color: var(--composer-code-literal);
+  }
+
+  & .hljs-attr,
+  & .hljs-attribute,
+  & .hljs-variable,
+  & .hljs-template-variable {
+    color: var(--composer-code-attribute);
+  }
+
+  /* Horizontal rules */
+  & hr {
+    border: none;
+    border-top: 1px solid var(--color-border);
+    margin: 1.5em 0;
+  }
+
+  /* Strong and emphasis */
+  & strong {
+    font-weight: 600;
+  }
+
+  /* Images */
+  & img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 0.375rem;
+  }
+
+  /* Tables */
+  & table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875em;
+  }
+
+  & th,
+  & td {
+    border: 1px solid var(--color-border);
+    padding: 0.5em 0.75em;
+    text-align: left;
+  }
+
+  & th {
+    font-weight: 600;
+    background-color: var(--color-surface-100);
+  }
+}
+
+:root[data-theme='dark'] .prose {
+  --composer-code-text: #d0d7de;
+  --composer-code-comment: #8b949e;
+  --composer-code-keyword: #ff7b72;
+  --composer-code-string: #a5d6ff;
+  --composer-code-title: #d2a8ff;
+  --composer-code-literal: #79c0ff;
+  --composer-code-attribute: #ffa657;
+}
+
+/* Compact prose - for inline contexts like MOTD */
+.prose-compact {
+  & p {
+    display: inline;
+    margin: 0;
+  }
+
+  & > * + * {
+    margin-top: 0;
+  }
+
+  & a {
+    color: inherit;
+
+    &:hover {
+      color: inherit;
+      opacity: 0.8;
+    }
+  }
+}

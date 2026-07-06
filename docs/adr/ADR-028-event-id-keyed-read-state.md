@@ -8,7 +8,7 @@
 
 **Related:** [ADR-026](ADR-026-event-identity-via-nanoid.md), [ADR-027](ADR-027-instance-space-server-consolidation.md), [ADR-029](ADR-029-instance-to-server-rename.md), [ADR-030](ADR-030-space-tier-retirement.md)
 
-**Naming note:** This ADR was written during the consolidation work and refers to subjects like `space.{s}.room.{r}.msg.*` and the legacy `SPACE_{id}_RUNTIME` KV bucket. Post-ADR-029/030, the subject is `server.room.{kind}.{roomId}.msg.*` and the bucket is the unified `SERVER_RUNTIME`. The event-ID keying pattern (`room_read_event.{userId}.{roomId}` holding a 14-char NanoID) is unchanged and lives in `SERVER_RUNTIME` today.
+**Naming note:** This ADR was written during the consolidation work and refers to subjects like `space.{s}.room.{r}.msg.*` and the legacy `SPACE_{id}_RUNTIME` KV bucket. Post-ADR-029/030, the subject became `server.room.{kind}.{roomId}.msg.*`; post-#596 read markers live in `RUNTIME_STATE` as `read.room.{userId}.{roomId}`. The core event-ID keying decision is unchanged.
 
 ## Context
 
@@ -36,9 +36,9 @@ A *missing* `room_read_event` key, by contrast, only happens for users who were 
 
 The honest semantic is "caught up at first read post-deploy", not strictly "at deploy time": if a deploy-era user's first post-deploy interaction with a room comes after new messages have arrived, those messages are silently swallowed into the lazy-init. For active users this window is small (next page load); for inactive users it's the price of avoiding a per-instance migration step. We accept that trade given Chatto's alpha posture and the fact that read state is the most disposable data class in a chat app.
 
-A related consequence: on a deploy-era user's *first* `markRoomAsRead` call, the GraphQL response's `previousLastReadAt` is null (because lazy-init makes the previous and new markers identical). The frontend's "messages since last read" highlight window is therefore empty for that one call. From the next mark-read onwards it works normally.
+A related consequence: on a deploy-era user's *first* `markRoomAsRead` call, the API response's `previousLastReadAt` is null (because lazy-init makes the previous and new markers identical). The frontend's "messages since last read" highlight window is therefore empty for that one call. From the next mark-read onwards it works normally.
 
-Concurrency safety: lazy-init uses `bucket.Create` (atomic insert), not `Put`. If another writer (`MarkRoomAsRead`, `JoinRoom`, `PostMessage` auto-mark) wrote a real marker between our not-found read and our write, `Create` returns `ErrKeyExists` and we re-read instead of clobbering. This follows the project convention spelled out in `.claude/rules/backend.md`.
+Concurrency safety: lazy-init uses `bucket.Create` (atomic insert), not `Put`. If another writer (`MarkRoomAsRead`, `JoinRoom`, `PostMessage` auto-mark) wrote a real marker between our not-found read and our write, `Create` returns `ErrKeyExists` and we re-read instead of clobbering. This follows the project convention spelled out in `cli/AGENTS.md`.
 
 ## Consequences
 
@@ -48,4 +48,4 @@ Concurrency safety: lazy-init uses `bucket.Create` (atomic insert), not `Put`. I
 - **`JoinRoom` / `joinDMRoom` always write a marker**, even for empty rooms. The empty-string sentinel is what lets `GetLastReadEventID` distinguish "fresh member, nothing read" from "deploy-era user, no marker at all".
 - **Auto-mark on `PostMessage` for thread replies looks up the room's last root event** (one extra subject lookup per thread-reply auto-mark) so the marker always points to a real root event ID. Previously this worked by accident because seqs are linear across root and thread events; with event IDs, we have to be explicit. Whether thread replies should dismiss room-level unread *at all* is a separate question for a future ADR.
 - **Lazy init can silently swallow messages that arrived between deploy and a user's first post-deploy read.** Documented above; accepted.
-- **GraphQL contract is unchanged.** `MarkRoomAsReadResult` still returns `lastReadAt` and `previousLastReadAt` Times — the same shape the frontend already consumed under ADR-026.
+- **API contract is unchanged.** `MarkRoomAsReadResult` still returns `lastReadAt` and `previousLastReadAt` times — the same shape the frontend already consumed under ADR-026.

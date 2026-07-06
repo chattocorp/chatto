@@ -1,0 +1,100 @@
+syntax = "proto3";
+
+package chatto.core.v1;
+
+import "google/protobuf/timestamp.proto";
+import "chatto/core/v1/models.proto";
+
+option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
+
+message RegistrationVerificationCodeIssuedEvent {
+  string email_hash = 1;
+  google.protobuf.Timestamp expires_at = 2;
+  AuditRequestMetadata request = 3;
+}
+
+message EmailVerificationCodeIssuedEvent {
+  string user_id = 1;
+  string email_hash = 2;
+  google.protobuf.Timestamp expires_at = 3;
+  AuditRequestMetadata request = 4;
+}
+
+message PasswordResetLinkIssuedEvent {
+  string user_id = 1;
+  string email_hash = 2;
+  google.protobuf.Timestamp expires_at = 3;
+  AuditRequestMetadata request = 4;
+}
+
+message AccountDeletionConfirmationIssuedEvent {
+  string user_id = 1;
+  google.protobuf.Timestamp expires_at = 2;
+  AuditRequestMetadata request = 3;
+}
+
+message PasswordResetCompletedEvent {
+  string user_id = 1;
+  AuditRequestMetadata request = 2;
+}
+
+message LoginSucceededEvent {
+  string user_id = 1;
+  string identifier_hash = 2;
+  AuditRequestMetadata request = 3;
+}
+
+message LoginFailedEvent {
+  string identifier_hash = 1;
+  AuditRequestMetadata request = 2;
+}
+
+message LogoutSucceededEvent {
+  string user_id = 1;
+  AuditRequestMetadata request = 2;
+}
+
+message AuthCodeIssuedEvent {
+  string user_id = 1;
+  string redirect_uri_hash = 2;
+  google.protobuf.Timestamp expires_at = 3;
+  AuditRequestMetadata request = 4;
+}
+
+message AuthCodeExchangeSucceededEvent {
+  string user_id = 1;
+  string redirect_uri_hash = 2;
+  AuditRequestMetadata request = 3;
+}
+
+message AuthCodeExchangeFailedEvent {
+  string user_id = 1;
+  string redirect_uri_hash = 2;
+  string reason = 3;
+  AuditRequestMetadata request = 4;
+}
+
+message BearerTokenIssuedEvent {
+  string user_id = 1;
+  google.protobuf.Timestamp expires_at = 2;
+  string source = 3;
+  AuditRequestMetadata request = 4;
+}
+
+message BearerTokenRevokedEvent {
+  string user_id = 1;
+  string reason = 2;
+  AuditRequestMetadata request = 3;
+}
+
+message OAuthConsentGrantedEvent {
+  string user_id = 1;
+  string redirect_origin = 2;
+  AuditRequestMetadata request = 3;
+}
+
+message OAuthConsentDeniedEvent {
+  string user_id = 1;
+  string redirect_origin = 2;
+  AuditRequestMetadata request = 3;
+}

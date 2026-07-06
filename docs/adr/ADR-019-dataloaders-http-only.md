@@ -2,6 +2,8 @@
 
 **Date:** 2026-03-01
 
+**Status:** Superseded by the GraphQL API removal in ADR-042. This record is preserved as historical context for the former gqlgen resolver implementation.
+
 ## Context
 
 GraphQL field resolvers for messages often need to fetch the same related data (user profiles, reaction counts) multiple times within a single response. DataLoaders batch and deduplicate these lookups — instead of N individual user fetches, a single batched fetch resolves all N users.

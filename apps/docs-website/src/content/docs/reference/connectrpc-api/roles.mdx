@@ -1,0 +1,115 @@
+---
+title: RoleService
+description: Authenticated role catalog read RPCs.
+editUrl: false
+---
+
+{/* Generated from proto/chatto/{auth,discovery,api,admin,realtime}/v1/*.proto. Do not edit directly. */}
+
+Chatto exposes this service below `/api/connect`.
+
+
+
+Shared message and enum definitions are documented in [Shared Types And Enums](/reference/connectrpc-api/types/).
+
+
+
+<a id="chatto-api-v1-RoleService"></a>
+
+## RoleService
+
+Provides authenticated reads for public role metadata.
+
+<a id="chatto-api-v1-RoleService-ListRoles"></a>
+
+### ListRoles
+
+Lists the current role catalog as a finite snapshot. Requires an
+authenticated user.
+
+```http
+POST /api/connect/chatto.api.v1.RoleService/ListRoles
+```
+
+<a id="chatto-api-v1-ListRolesRequest"></a>
+
+#### Input: ListRolesRequest
+
+Request the current role catalog.
+
+
+<a id="chatto-api-v1-ListRolesResponse"></a>
+
+#### Result: ListRolesResponse
+
+Snapshot of the role catalog visible to the authenticated viewer.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `roles` | repeated [`Role`](/reference/connectrpc-api/types/#chatto-api-v1-Role) | Roles sorted by position. |
+
+
+<a id="chatto-api-v1-RoleService-GetRole"></a>
+
+### GetRole
+
+Gets one public role by stable name. Returns NOT_FOUND when the role is
+unknown.
+
+```http
+POST /api/connect/chatto.api.v1.RoleService/GetRole
+```
+
+<a id="chatto-api-v1-GetRoleRequest"></a>
+
+#### Input: GetRoleRequest
+
+Request one public role by stable role name.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `name` | `string` | Required stable role name. |
+
+
+<a id="chatto-api-v1-GetRoleResponse"></a>
+
+#### Result: GetRoleResponse
+
+Public role lookup response.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `role` | [`Role`](/reference/connectrpc-api/types/#chatto-api-v1-Role) | Requested role. |
+
+
+<a id="chatto-api-v1-RoleService-BatchGetRoles"></a>
+
+### BatchGetRoles
+
+Gets public role records for multiple role names referenced by member rows,
+mentions, or integration clients.
+
+```http
+POST /api/connect/chatto.api.v1.RoleService/BatchGetRoles
+```
+
+<a id="chatto-api-v1-BatchGetRolesRequest"></a>
+
+#### Input: BatchGetRolesRequest
+
+Request public role records for a set of stable role names.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `names` | `repeated string` | Required role names. Unknown names are omitted from the response. |
+
+
+<a id="chatto-api-v1-BatchGetRolesResponse"></a>
+
+#### Result: BatchGetRolesResponse
+
+Batch public role response.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `roles` | repeated [`Role`](/reference/connectrpc-api/types/#chatto-api-v1-Role) | Found roles. The server preserves first-seen request order and de-duplicates repeated names. |

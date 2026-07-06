@@ -8,9 +8,9 @@ import (
 // Instance Permission Can* Helper Tests
 // ============================================================================
 
-// TestInstanceCanHelpers verifies that the semantic Can* helper functions
-// for instance-level permissions correctly wrap HasPermission.
-func TestInstanceCanHelpers(t *testing.T) {
+// TestServerCanHelpers verifies that the semantic Can* helper functions
+// for server-level permissions correctly wrap HasPermission.
+func TestServerCanHelpers(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -20,12 +20,12 @@ func TestInstanceCanHelpers(t *testing.T) {
 		t.Fatalf("failed to create user: %v", err)
 	}
 
-	// Create an admin user using AssignInstanceAdminRole
+	// Create an admin user using AssignAdminRole
 	adminUser, err := core.CreateUser(ctx, SystemActorID, "adminuser", "Admin User", "password123")
 	if err != nil {
 		t.Fatalf("failed to create admin user: %v", err)
 	}
-	if err := core.AssignInstanceAdminRole(ctx, adminUser.Id); err != nil {
+	if err := core.AssignAdminRole(ctx, adminUser.Id); err != nil {
 		t.Fatalf("failed to assign admin role: %v", err)
 	}
 
@@ -35,8 +35,8 @@ func TestInstanceCanHelpers(t *testing.T) {
 			name  string
 			check func() (bool, error)
 		}{
-			{"CanDMView", func() (bool, error) { return core.CanDMView(ctx, regularUser.Id) }},
-			{"CanDMWrite", func() (bool, error) { return core.CanDMWrite(ctx, regularUser.Id) }},
+			{"CanStartDM", func() (bool, error) { return core.CanStartDM(ctx, regularUser.Id) }},
+			{"CanDeleteUserSelf", func() (bool, error) { return core.CanDeleteUser(ctx, regularUser.Id, regularUser.Id) }},
 		}
 		for _, tc := range tests {
 			t.Run(tc.name, func(t *testing.T) {
@@ -52,12 +52,12 @@ func TestInstanceCanHelpers(t *testing.T) {
 	})
 
 	t.Run("regular user does NOT have admin permissions", func(t *testing.T) {
-		can, err := core.CanAdminAccess(ctx, regularUser.Id)
+		can, err := core.HasAnyAdminPermission(ctx, regularUser.Id)
 		if err != nil {
-			t.Fatalf("CanAdminAccess error: %v", err)
+			t.Fatalf("HasAnyAdminPermission error: %v", err)
 		}
 		if can {
-			t.Error("regular user should NOT have CanAdminAccess permission")
+			t.Error("regular user should NOT have any admin capability")
 		}
 
 		can, err = core.CanAdminUsersView(ctx, regularUser.Id)
@@ -74,11 +74,10 @@ func TestInstanceCanHelpers(t *testing.T) {
 			name  string
 			check func() (bool, error)
 		}{
-			{"CanAdminAccess", func() (bool, error) { return core.CanAdminAccess(ctx, adminUser.Id) }},
+			{"HasAnyAdminPermission", func() (bool, error) { return core.HasAnyAdminPermission(ctx, adminUser.Id) }},
 			{"CanAdminUsersView", func() (bool, error) { return core.CanAdminUsersView(ctx, adminUser.Id) }},
 			{"CanAssignRoles", func() (bool, error) { return core.CanAssignRoles(ctx, adminUser.Id) }},
 			{"CanManageRoles", func() (bool, error) { return core.CanManageRoles(ctx, adminUser.Id) }},
-			{"CanAdminSystemView", func() (bool, error) { return core.CanAdminSystemView(ctx, adminUser.Id) }},
 		}
 
 		for _, tc := range adminTests {
@@ -91,6 +90,31 @@ func TestInstanceCanHelpers(t *testing.T) {
 					t.Errorf("admin user should have %s permission", tc.name)
 				}
 			})
+		}
+	})
+
+	t.Run("system diagnostics capability is owner-only", func(t *testing.T) {
+		can, err := core.CanAdminSystemView(ctx, adminUser.Id)
+		if err != nil {
+			t.Fatalf("CanAdminSystemView admin error: %v", err)
+		}
+		if can {
+			t.Error("admin user should NOT have owner-only CanAdminSystemView capability")
+		}
+
+		ownerUser, err := core.CreateUser(ctx, SystemActorID, "owneruser", "Owner User", "password123")
+		if err != nil {
+			t.Fatalf("failed to create owner user: %v", err)
+		}
+		if err := core.AssignOwnerRole(ctx, ownerUser.Id); err != nil {
+			t.Fatalf("failed to assign owner role: %v", err)
+		}
+		can, err = core.CanAdminSystemView(ctx, ownerUser.Id)
+		if err != nil {
+			t.Fatalf("CanAdminSystemView owner error: %v", err)
+		}
+		if !can {
+			t.Error("owner user should have CanAdminSystemView capability")
 		}
 	})
 
@@ -116,7 +140,7 @@ func TestCanDeleteUser(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create admin: %v", err)
 	}
-	if err := core.AssignInstanceAdminRole(ctx, adminUser.Id); err != nil {
+	if err := core.AssignAdminRole(ctx, adminUser.Id); err != nil {
 		t.Fatalf("failed to assign admin role: %v", err)
 	}
 
@@ -170,10 +194,10 @@ func TestCanDeleteUser(t *testing.T) {
 
 	t.Run("self-deletion denied when user.delete.self permission is revoked", func(t *testing.T) {
 		// Create a custom role that denies self-deletion
-		if _, err := core.CreateServerRole(ctx, "noselfdelete", "No Self Delete", ""); err != nil {
+		if _, err := core.CreateServerRole(ctx, SystemActorID, "selfdelete-denied", "No Self Delete", ""); err != nil {
 			t.Fatalf("failed to create role: %v", err)
 		}
-		if err := core.DenyInstancePermission(ctx, "noselfdelete", PermUserDeleteSelf); err != nil {
+		if err := core.DenyServerPermission(ctx, SystemActorID, "selfdelete-denied", PermUserDeleteSelf); err != nil {
 			t.Fatalf("failed to deny permission: %v", err)
 		}
 
@@ -182,7 +206,7 @@ func TestCanDeleteUser(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to create user: %v", err)
 		}
-		if err := core.AssignServerRole(ctx, SystemActorID, blockedUser.Id, "noselfdelete"); err != nil {
+		if err := core.AssignServerRole(ctx, SystemActorID, blockedUser.Id, "selfdelete-denied"); err != nil {
 			t.Fatalf("failed to assign role: %v", err)
 		}
 
@@ -207,24 +231,20 @@ func TestCanDeleteUser(t *testing.T) {
 	})
 }
 
-// TestPermissionsWithCustomRoles tests that custom instance roles
+// TestPermissionsWithCustomRoles tests that custom roles
 // with specific permissions work correctly with the Can* helpers.
 func TestPermissionsWithCustomRoles(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
 	// Create a custom role with limited admin permissions
-	customRole, err := core.CreateServerRole(ctx, "viewer", "Viewer Admin", "Can only view admin pages")
+	customRole, err := core.CreateServerRole(ctx, SystemActorID, "viewer", "Viewer Admin", "Can only view admin pages")
 	if err != nil {
 		t.Fatalf("failed to create custom role: %v", err)
 	}
 
-	// Grant only view permissions using GrantPermission
-	err = core.GrantInstancePermission(ctx, customRole.Name, PermAdminAccess)
-	if err != nil {
-		t.Fatalf("failed to grant admin permission: %v", err)
-	}
-	err = core.GrantInstancePermission(ctx, customRole.Name, PermAdminUsersView)
+	// Grant only a concrete admin view permission.
+	err = core.GrantServerPermission(ctx, SystemActorID, customRole.Name, PermAdminUsersView)
 	if err != nil {
 		t.Fatalf("failed to grant users view permission: %v", err)
 	}
@@ -239,12 +259,12 @@ func TestPermissionsWithCustomRoles(t *testing.T) {
 	}
 
 	t.Run("custom role user has granted permissions", func(t *testing.T) {
-		can, err := core.CanAdminAccess(ctx, customUser.Id)
+		can, err := core.HasAnyAdminPermission(ctx, customUser.Id)
 		if err != nil {
-			t.Fatalf("CanAdminAccess error: %v", err)
+			t.Fatalf("HasAnyAdminPermission error: %v", err)
 		}
 		if !can {
-			t.Error("custom role user should have CanAdminAccess permission")
+			t.Error("custom role user should have an admin capability")
 		}
 
 		can, err = core.CanAdminUsersView(ctx, customUser.Id)
@@ -360,7 +380,7 @@ func TestCanHelpers(t *testing.T) {
 
 // TestCanHelpers_RevokedMemberPermission verifies that revoking a permission
 // from the member role actually prevents members from using that permission.
-// This tests the fix for the fast path that was bypassing the RBAC engine.
+// This tests the fix for the fast path that was bypassing RBAC resolution.
 func TestCanHelpers_RevokedMemberPermission(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
@@ -382,7 +402,7 @@ func TestCanHelpers_RevokedMemberPermission(t *testing.T) {
 		t.Fatalf("failed to create member user: %v", err)
 	}
 
-	t.Run("member does NOT have rooms.create by default", func(t *testing.T) {
+	t.Run("member does NOT have room.create by default", func(t *testing.T) {
 		can, err := core.CanCreateRoom(ctx, member.Id, KindChannel, "")
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -392,10 +412,10 @@ func TestCanHelpers_RevokedMemberPermission(t *testing.T) {
 		}
 	})
 
-	// Grant and then revoke rooms.create from the everyone role
-	t.Run("grant then revoke rooms.create from everyone role", func(t *testing.T) {
+	// Grant and then revoke room.create from the everyone role
+	t.Run("grant then revoke room.create from everyone role", func(t *testing.T) {
 		// First grant room.create to everyone role (since it's not granted by default)
-		err := core.GrantInstancePermission(ctx, RoleEveryone, PermRoomCreate)
+		err := core.GrantServerPermission(ctx, SystemActorID, RoleEveryone, PermRoomCreate)
 		if err != nil {
 			t.Fatalf("failed to grant permission: %v", err)
 		}
@@ -410,7 +430,7 @@ func TestCanHelpers_RevokedMemberPermission(t *testing.T) {
 		}
 
 		// Now revoke it
-		err = core.RevokeInstancePermission(ctx, RoleEveryone, PermRoomCreate)
+		err = core.RevokeServerPermission(ctx, SystemActorID, RoleEveryone, PermRoomCreate)
 		if err != nil {
 			t.Fatalf("failed to revoke permission: %v", err)
 		}
@@ -434,11 +454,12 @@ func TestCanHelpers_RevokedMemberPermission(t *testing.T) {
 		}
 	})
 
-	// Revoke rooms.join from the everyone role
-	t.Run("revoke rooms.join from everyone role", func(t *testing.T) {
-		err := core.RevokeInstancePermission(ctx, RoleEveryone, PermRoomJoin)
+	// Deny room.join from the everyone role. Joining is default-available
+	// unless an applicable deny blocks it.
+	t.Run("deny room.join from everyone role", func(t *testing.T) {
+		err := core.DenyServerPermission(ctx, SystemActorID, RoleEveryone, PermRoomJoin)
 		if err != nil {
-			t.Fatalf("failed to revoke permission: %v", err)
+			t.Fatalf("failed to deny permission: %v", err)
 		}
 
 		// Member should no longer have CanJoinRoom
@@ -447,7 +468,7 @@ func TestCanHelpers_RevokedMemberPermission(t *testing.T) {
 			t.Fatalf("unexpected error: %v", err)
 		}
 		if can {
-			t.Error("member should NOT have CanJoinRoom after revocation")
+			t.Error("member should NOT have CanJoinRoom after denial")
 		}
 
 		// Admin should still have it
@@ -482,10 +503,10 @@ func TestCanHelpers_RoomOverrides(t *testing.T) {
 	}
 	t.Run("CanPostMessage respects room-level denial", func(t *testing.T) {
 		// Ensure space grants message.post
-		core.GrantInstancePermission(ctx, RoleEveryone, PermMessagePost)
+		core.GrantServerPermission(ctx, SystemActorID, RoleEveryone, PermMessagePost)
 
 		// Deny at room level
-		core.DenyRoomPermission(ctx, room.Id, RoleEveryone, PermMessagePost)
+		core.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermMessagePost)
 
 		can, err := core.CanPostMessage(ctx, member.Id, KindChannel, room.Id)
 		if err != nil {
@@ -496,15 +517,15 @@ func TestCanHelpers_RoomOverrides(t *testing.T) {
 		}
 
 		// Cleanup
-		core.ClearRoomPermissionState(ctx, room.Id, RoleEveryone, PermMessagePost)
+		core.ClearRoomPermissionState(ctx, SystemActorID, room.Id, RoleEveryone, PermMessagePost)
 	})
 
 	t.Run("CanPostInThread respects room-level denial", func(t *testing.T) {
 		// Ensure space grants message.post-in-thread
-		core.GrantInstancePermission(ctx, RoleEveryone, PermMessagePostInThread)
+		core.GrantServerPermission(ctx, SystemActorID, RoleEveryone, PermMessagePostInThread)
 
 		// Deny at room level
-		core.DenyRoomPermission(ctx, room.Id, RoleEveryone, PermMessagePostInThread)
+		core.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermMessagePostInThread)
 
 		can, err := core.CanPostInThread(ctx, member.Id, KindChannel, room.Id)
 		if err != nil {
@@ -515,15 +536,15 @@ func TestCanHelpers_RoomOverrides(t *testing.T) {
 		}
 
 		// Cleanup
-		core.ClearRoomPermissionState(ctx, room.Id, RoleEveryone, PermMessagePostInThread)
+		core.ClearRoomPermissionState(ctx, SystemActorID, room.Id, RoleEveryone, PermMessagePostInThread)
 	})
 
 	t.Run("CanReactToMessage respects room-level grant", func(t *testing.T) {
 		// Clear message.react from everyone at space level
-		core.ClearInstancePermissionState(ctx, RoleEveryone, PermMessageReact)
+		core.ClearServerPermissionState(ctx, SystemActorID, RoleEveryone, PermMessageReact)
 
 		// Grant at room level
-		core.GrantRoomPermission(ctx, room.Id, RoleEveryone, PermMessageReact)
+		core.GrantRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermMessageReact)
 
 		can, err := core.CanReactToMessage(ctx, member.Id, KindChannel, room.Id)
 		if err != nil {
@@ -534,12 +555,12 @@ func TestCanHelpers_RoomOverrides(t *testing.T) {
 		}
 
 		// Cleanup
-		core.ClearRoomPermissionState(ctx, room.Id, RoleEveryone, PermMessageReact)
+		core.ClearRoomPermissionState(ctx, SystemActorID, room.Id, RoleEveryone, PermMessageReact)
 	})
 
 	t.Run("CanManageOthersMessage respects room-level grant", func(t *testing.T) {
 		// Grant message.manage at room level.
-		core.GrantRoomPermission(ctx, room.Id, RoleEveryone, PermMessageManage)
+		core.GrantRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermMessageManage)
 
 		can, err := core.CanManageOthersMessage(ctx, member.Id, KindChannel, room.Id)
 		if err != nil {
@@ -550,7 +571,7 @@ func TestCanHelpers_RoomOverrides(t *testing.T) {
 		}
 
 		// Cleanup
-		core.ClearRoomPermissionState(ctx, room.Id, RoleEveryone, PermMessageManage)
+		core.ClearRoomPermissionState(ctx, SystemActorID, room.Id, RoleEveryone, PermMessageManage)
 	})
 }
 

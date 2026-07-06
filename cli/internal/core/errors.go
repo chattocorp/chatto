@@ -19,6 +19,27 @@ var (
 	// to perform an operation.
 	ErrPermissionDenied = errors.New("permission denied")
 
+	// ErrInvalidArgument is returned when a caller provides invalid request
+	// input. Wrap this with an InvalidArgumentError when the caller should see a
+	// specific validation message.
+	ErrInvalidArgument = errors.New("invalid argument")
+
+	// ErrPasswordAlreadySet is returned when trying to add an initial password
+	// to an account that already has a password credential.
+	ErrPasswordAlreadySet = errors.New("password is already set")
+
+	// ErrCurrentPasswordRequired is returned when changing an existing password
+	// without proving knowledge of the current password.
+	ErrCurrentPasswordRequired = errors.New("current password is required")
+
+	// ErrCurrentPasswordInvalid is returned when the supplied current password
+	// does not match the authenticated user's password.
+	ErrCurrentPasswordInvalid = errors.New("current password is invalid")
+
+	// ErrAdminCannotSetOwnPassword is returned when a user attempts to use the
+	// admin password-reset path for their own account.
+	ErrAdminCannotSetOwnPassword = errors.New("cannot set your own password through admin user management")
+
 	// ErrNotSpaceMember is returned when a user attempts to access a space
 	// they are not a member of.
 	ErrNotSpaceMember = errors.New("not a member of this space")
@@ -55,6 +76,14 @@ var (
 	// ErrMessageNotFound is returned when a message body doesn't exist (already deleted).
 	ErrMessageNotFound = errors.New("message not found")
 
+	// ErrMessageAttachmentNotFound is returned when a message does not contain
+	// the requested attachment.
+	ErrMessageAttachmentNotFound = errors.New("message attachment not found")
+
+	// ErrMessageLinkPreviewNotFound is returned when a message does not contain
+	// the requested link preview.
+	ErrMessageLinkPreviewNotFound = errors.New("message link preview not found")
+
 	// ErrEditWindowExpired is returned when attempting to edit a message
 	// after the edit window has closed.
 	ErrEditWindowExpired = errors.New("edit window has expired")
@@ -88,6 +117,16 @@ var (
 	// DM conversations are permanent and cannot be left.
 	ErrCannotLeaveDMConversation = errors.New("cannot leave DM conversations")
 
+	// ErrCannotLeaveUniversalRoom is returned when a user tries to leave a
+	// universal channel room. Universal rooms grant effective membership through
+	// server policy; users can mute them instead.
+	ErrCannotLeaveUniversalRoom = errors.New("cannot leave universal rooms")
+
+	// ErrCannotBanDMRoomMember is returned when a moderator tries to ban
+	// someone from a DM room. DM membership is the privacy boundary and
+	// cannot be moderated like a channel room.
+	ErrCannotBanDMRoomMember = errors.New("cannot ban members from DM conversations")
+
 	// ErrLoginTooShort is returned when a login is shorter than MinLoginLength.
 	ErrLoginTooShort = errors.New("username must be at least 2 characters")
 
@@ -119,7 +158,7 @@ var (
 	// reactions, or joining.
 	ErrRoomArchived = errors.New("room is archived")
 
-// ErrPasswordTooShort is returned when a password is shorter than MinPasswordLength.
+	// ErrPasswordTooShort is returned when a password is shorter than MinPasswordLength.
 	ErrPasswordTooShort = fmt.Errorf("password must be at least %d characters long", MinPasswordLength)
 
 	// ErrPasswordTooLong is returned when a password exceeds MaxPasswordLength.
@@ -128,13 +167,31 @@ var (
 	ErrPasswordTooLong = fmt.Errorf("password cannot exceed %d bytes", MaxPasswordLength)
 )
 
+// InvalidArgumentError carries a caller-safe validation message while still
+// matching ErrInvalidArgument through errors.Is.
+type InvalidArgumentError struct {
+	Message string
+}
+
+func (e *InvalidArgumentError) Error() string {
+	return e.Message
+}
+
+func (e *InvalidArgumentError) Is(target error) bool {
+	return target == ErrInvalidArgument
+}
+
+func invalidArgument(message string) error {
+	return &InvalidArgumentError{Message: message}
+}
+
 // Input validation limits.
 // Note: These limits are enforced using len() which counts bytes, not Unicode characters.
 // This is intentional for consistent storage cost control - a 10KB message costs the same
 // regardless of whether it contains ASCII or multi-byte UTF-8 characters.
 const (
 	// MessageEditWindow is the duration after posting during which a user can edit
-	// their own message. Moderators with message.edit.any can edit at any time.
+	// their own message. Moderators with message.manage can edit at any time.
 	MessageEditWindow = 3 * time.Hour
 
 	// MaxMessageBodyLength is the maximum length of a message body in bytes.
@@ -166,4 +223,70 @@ const (
 	// surprising hash collisions on long passwords sharing the same prefix while
 	// still leaving room for passphrases.
 	MaxPasswordLength = 128
+
+	// MaxServerNameLength is the maximum length of a runtime-editable server name in bytes.
+	MaxServerNameLength = 80
+
+	// MaxServerDescriptionLength is the maximum length of a server description in bytes.
+	MaxServerDescriptionLength = 500
+
+	// MaxServerMOTDLength is the maximum length of a server message of the day in bytes.
+	MaxServerMOTDLength = 1000
+
+	// MaxServerWelcomeMessageLength is the maximum length of a server welcome message in bytes.
+	MaxServerWelcomeMessageLength = 10000
+
+	// MaxServerBlockedUsernamesLength is the maximum length of the blocked-username list in bytes.
+	MaxServerBlockedUsernamesLength = 10000
+
+	// MaxRoleDisplayNameLength is the maximum length of a role display name in bytes.
+	MaxRoleDisplayNameLength = 80
+
+	// MaxRoleDescriptionLength is the maximum length of a role description in bytes.
+	MaxRoleDescriptionLength = 500
+
+	// MaxRoomGroupNameLength is the maximum length of a room group display name in bytes.
+	MaxRoomGroupNameLength = 80
+
+	// MaxRoomGroupDescriptionLength is the maximum length of a room group description in bytes.
+	MaxRoomGroupDescriptionLength = 500
+
+	// MaxSidebarLinkLabelLength is the maximum length of a sidebar link label in bytes.
+	MaxSidebarLinkLabelLength = 80
+
+	// MaxSidebarLinkURLLength is the maximum length of a sidebar link URL in bytes.
+	MaxSidebarLinkURLLength = 2048
+
+	// MaxPushEndpointLength is the maximum length of a Push API endpoint URL in bytes.
+	MaxPushEndpointLength = 4096
+
+	// MaxPushKeyLength is the maximum length of a Push API p256dh public key in bytes.
+	MaxPushKeyLength = 256
+
+	// MaxPushAuthLength is the maximum length of a Push API auth secret in bytes.
+	MaxPushAuthLength = 128
+
+	// MaxPushUserAgentLength is the maximum length of a stored push user-agent string in bytes.
+	MaxPushUserAgentLength = 512
+
+	// MaxLinkPreviewURLLength is the maximum length of a client-provided link preview URL in bytes.
+	MaxLinkPreviewURLLength = 2048
+
+	// MaxLinkPreviewTitleLength is the maximum length of a client-provided link preview title in bytes.
+	MaxLinkPreviewTitleLength = 300
+
+	// MaxLinkPreviewDescriptionLength is the maximum length of a client-provided link preview description in bytes.
+	MaxLinkPreviewDescriptionLength = 1000
+
+	// MaxLinkPreviewSiteNameLength is the maximum length of a client-provided link preview site name in bytes.
+	MaxLinkPreviewSiteNameLength = 200
+
+	// MaxLinkPreviewEmbedTypeLength is the maximum length of a client-provided link preview embed type in bytes.
+	MaxLinkPreviewEmbedTypeLength = 64
+
+	// MaxLinkPreviewEmbedIDLength is the maximum length of a client-provided link preview embed ID in bytes.
+	MaxLinkPreviewEmbedIDLength = 256
+
+	// MaxLinkPreviewImageAssetIDLength is the maximum length of a client-provided link preview image asset ID in bytes.
+	MaxLinkPreviewImageAssetIDLength = 15
 )

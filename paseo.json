@@ -1,0 +1,24 @@
+{
+  "worktree": {
+    "setup": "mise trust && mise setup"
+  },
+  "scripts": {
+    "dev": {
+      "type": "service",
+      "command": "mise dev"
+    },
+    "dev-docs-website": {
+      "type": "service",
+      "command": "mise dev-docs-website"
+    },
+    "storybook": {
+      "type": "service",
+      "command": "mise storybook"
+    }
+  },
+  "metadataGeneration": {
+    "branchName": {
+      "instructions": "Use conventional commit branch prefixes, eg. fix/, feat/, perf/ etc."
+    }
+  }
+}

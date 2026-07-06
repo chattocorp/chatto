@@ -1,19 +1,18 @@
 # FDR-026: Last-Room Memory
 
 **Status:** Active
-**Last reviewed:** 2026-05-19
+**Last reviewed:** 2026-06-16
 
 ## Overview
 
-The frontend remembers, per connected server, the last channel room the user was in. When the user re-enters a server — by clicking its icon in the sidebar, by landing on the app after sign-in, or by hitting any link that points at the server root — they're taken back to that room instead of an intermediate landing page. The mechanic is local to the device and lightweight; if no last room is known, the user falls through to the server's Overview page.
+The frontend remembers, per connected server, the last room the user was in. When the user re-enters a server — by clicking its icon in the sidebar, by landing on the app after sign-in, or by hitting any link that points at the server root — they're taken back to that room instead of an intermediate landing page. The mechanic is local to the device and lightweight; if no last room is known, the user falls through to the server's Overview page.
 
 ## Behavior
 
-- Visiting a channel room records it as the server's last room. The record is per-server, not global.
+- Visiting a channel or DM room records it as the server's last room. The record is per-server, not global.
 - Visiting `/chat/{server}` (the server root) redirects to the recorded last room. If none is stored, it falls through to the server's Overview page at `/chat/{server}/overview`.
 - Visiting `/` (the app root) after sign-in redirects to the home server's last room when one exists. Otherwise it lands on the home server's root, which itself falls through to Overview.
 - The Overview page is reachable directly at `/chat/{server}/overview` — typing that URL, or clicking the sidebar "Overview" entry, never bounces to the last room.
-- DM rooms are deliberately not recorded. Only channel rooms qualify as a "last room".
 - The record is cleared when:
   - The room becomes inaccessible (deleted, the user lost access, or the server says it can't be loaded). The user is redirected back to the server root, which then falls through to Overview.
   - The server is removed from the client (disconnect or sign out).
@@ -35,11 +34,11 @@ The frontend remembers, per connected server, the last channel room the user was
 **Why:** Re-entering a server you've been using should land you in the room you were last in — that's the dominant case. But the Overview must still be reachable on demand (sidebar nav, Cmd-K, the empty-state link in the room list). Splitting the routes makes the URL itself the source of truth: one URL means "take me back where I was", the other means "show me the Overview".
 **Tradeoff:** Two URLs for what was previously one. Worth it; the alternative (querystring flags or shallow state) would couple the page to its callers.
 
-### 3. Channels only — never DMs
+### 3. Channels and DMs share one slot
 
-**Decision:** Only channel rooms are recorded. Entering a DM does not update the last-room slot.
-**Why:** DMs are conversation-driven, not place-driven. Auto-landing in a DM the user opened a week ago is surprising and easily wrong (the conversation may be stale, the user may not want it surfaced first). Channels are the implicit "where I work" destination.
-**Tradeoff:** A user whose primary use of a server is DMs gets the Overview as a landing page until they visit a channel. Acceptable; the Overview is a usable starting point.
+**Decision:** Channel rooms and DM rooms both update the same last-room slot.
+**Why:** DMs use the same room URL shape and sidebar as channels, so returning to the last room should behave consistently regardless of room type.
+**Tradeoff:** A user can be returned to a DM when they re-enter a server. This matches the literal "last room" behavior, but it means a stale DM can temporarily displace a channel until the user visits another room.
 
 ### 4. Stored on-device in `localStorage`
 

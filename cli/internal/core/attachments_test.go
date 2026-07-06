@@ -6,15 +6,14 @@ import (
 	"image"
 	"image/png"
 	"io"
-	"net/http/httptest"
 	"testing"
 	"time"
 
-	"github.com/johannesboyne/gofakes3"
-	"github.com/johannesboyne/gofakes3/backend/s3mem"
-	"github.com/nats-io/nats-server/v2/server"
 	"github.com/nats-io/nats.go"
 	"hmans.de/chatto/internal/config"
+	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/internal/testutil"
+	"hmans.de/chatto/internal/testutil/fakes3"
 )
 
 // createTestPNG creates a simple PNG image for testing
@@ -51,7 +50,7 @@ func TestChattoCore_UploadAttachment(t *testing.T) {
 
 		attachment, err := core.UploadAttachment(
 			ctx,
-			ServerSpaceID,
+			SystemActorID,
 			room.Id,
 			"test-image.png",
 			"image/png",
@@ -76,10 +75,6 @@ func TestChattoCore_UploadAttachment(t *testing.T) {
 
 		if attachment.ContentType != "image/png" {
 			t.Errorf("Expected content type 'image/png', got '%s'", attachment.ContentType)
-		}
-
-		if attachment.SpaceId != ServerSpaceID {
-			t.Errorf("Expected space ID '%s', got '%s'", ServerSpaceID, attachment.SpaceId)
 		}
 
 		if attachment.RoomId != room.Id {
@@ -109,7 +104,7 @@ func TestChattoCore_UploadAttachment(t *testing.T) {
 
 		attachment, err := core.UploadAttachment(
 			ctx,
-			ServerSpaceID,
+			SystemActorID,
 			room.Id,
 			"test-file.txt",
 			"text/plain",
@@ -159,7 +154,7 @@ func TestChattoCore_GetAttachment(t *testing.T) {
 	// Upload an attachment
 	attachment, err := core.UploadAttachment(
 		ctx,
-		ServerSpaceID,
+		SystemActorID,
 		room.Id,
 		"test-file.txt",
 		"text/plain",
@@ -221,7 +216,7 @@ func TestChattoCore_DeleteAttachment(t *testing.T) {
 	// Upload an attachment
 	attachment, err := core.UploadAttachment(
 		ctx,
-		ServerSpaceID,
+		SystemActorID,
 		room.Id,
 		"test-file.txt",
 		"text/plain",
@@ -239,8 +234,7 @@ func TestChattoCore_DeleteAttachment(t *testing.T) {
 		}
 
 		// Delete it
-		err = core.DeleteAttachment(ctx, ServerSpaceID, attachment.Id)
-		if err != nil {
+		if err := core.DeleteAttachmentFromStorage(ctx, attachment); err != nil {
 			t.Fatalf("Failed to delete attachment: %v", err)
 		}
 
@@ -252,10 +246,15 @@ func TestChattoCore_DeleteAttachment(t *testing.T) {
 	})
 
 	t.Run("delete non-existent attachment", func(t *testing.T) {
-		err := core.DeleteAttachment(ctx, ServerSpaceID, "nonexistent-attachment-id")
+		ghost := &corev1.Attachment{
+			Id:     "nonexistent-attachment-id",
+			RoomId: room.Id,
+			Storage: &corev1.DeprecatedAsset{
+				Asset: &corev1.DeprecatedAsset_Nats{Nats: &corev1.NATSAsset{Key: "nonexistent-attachment-id"}},
+			},
+		}
 		// Deletion of non-existent item may or may not error depending on implementation
-		// This test documents the current behavior
-		if err != nil {
+		if err := core.DeleteAttachmentFromStorage(ctx, ghost); err != nil {
 			t.Logf("Delete non-existent returned error (acceptable): %v", err)
 		}
 	})
@@ -274,7 +273,7 @@ func TestChattoCore_UploadAttachment_S3(t *testing.T) {
 		t.Fatalf("Failed to create room: %v", err)
 	}
 
-	attachment, err := core.UploadAttachment(ctx, ServerSpaceID, room.Id, "test.txt", "text/plain", bytes.NewReader([]byte("hello S3")))
+	attachment, err := core.UploadAttachment(ctx, SystemActorID, room.Id, "test.txt", "text/plain", bytes.NewReader([]byte("hello S3")))
 	if err != nil {
 		t.Fatalf("Failed to upload attachment: %v", err)
 	}
@@ -295,6 +294,45 @@ func TestChattoCore_UploadAttachment_S3(t *testing.T) {
 	}
 }
 
+func TestChattoCore_UploadAttachment_S3PathPrefixKeepsStoredKeyLogical(t *testing.T) {
+	core, _, s3Client, rawS3Client, _ := setupTestCoreWithS3PathPrefix(t, "tenant-a/chatto")
+	ctx := testContext(t)
+
+	room, err := core.CreateRoom(ctx, "test-user", KindChannel, "", "test-room", "Test room")
+	if err != nil {
+		t.Fatalf("Failed to create room: %v", err)
+	}
+
+	attachment, err := core.UploadAttachment(ctx, SystemActorID, room.Id, "test.txt", "text/plain", bytes.NewReader([]byte("hello prefixed S3")))
+	if err != nil {
+		t.Fatalf("Failed to upload attachment: %v", err)
+	}
+
+	s3Storage := attachment.Storage.GetS3()
+	if s3Storage == nil {
+		t.Fatal("Attachment storage should be S3")
+	}
+	wantLogicalKey := S3KeyAttachment(attachment.Id)
+	if s3Storage.Key != wantLogicalKey {
+		t.Fatalf("persisted S3 key = %q, want logical key %q", s3Storage.Key, wantLogicalKey)
+	}
+
+	info, err := s3Client.StatObject(ctx, s3Storage.Key)
+	if err != nil {
+		t.Fatalf("logical S3 stat should find object through configured prefix: %v", err)
+	}
+	if info.Key != wantLogicalKey {
+		t.Fatalf("logical stat key = %q, want %q", info.Key, wantLogicalKey)
+	}
+
+	if _, err := rawS3Client.StatObject(ctx, s3Storage.Key); err == nil {
+		t.Fatal("raw bucket-root stat should not find object at the logical key")
+	}
+	if _, err := rawS3Client.StatObject(ctx, "tenant-a/chatto/"+s3Storage.Key); err != nil {
+		t.Fatalf("raw stat should find physical prefixed object: %v", err)
+	}
+}
+
 func TestChattoCore_DeleteAttachmentFromStorage_S3(t *testing.T) {
 	core, _, s3Client := setupTestCoreWithS3(t)
 	ctx := testContext(t)
@@ -304,7 +342,7 @@ func TestChattoCore_DeleteAttachmentFromStorage_S3(t *testing.T) {
 		t.Fatalf("Failed to create room: %v", err)
 	}
 
-	attachment, err := core.UploadAttachment(ctx, ServerSpaceID, room.Id, "test.txt", "text/plain", bytes.NewReader([]byte("delete me from S3")))
+	attachment, err := core.UploadAttachment(ctx, SystemActorID, room.Id, "test.txt", "text/plain", bytes.NewReader([]byte("delete me from S3")))
 	if err != nil {
 		t.Fatalf("Failed to upload attachment: %v", err)
 	}
@@ -330,55 +368,220 @@ func TestChattoCore_DeleteAttachmentFromStorage_S3(t *testing.T) {
 	}
 }
 
-// ============================================================================
-// Attachment URL Generation Tests
-// ============================================================================
+func TestChattoCore_S3PathPrefixCanMoveBasePathWithoutChangingStoredKey(t *testing.T) {
+	core, _, oldPrefixClient, rawS3Client, s3Cfg := setupTestCoreWithS3PathPrefix(t, "tenant-a/chatto")
+	ctx := testContext(t)
 
-func TestChattoCore_GetAttachmentURL(t *testing.T) {
-	core, _ := setupTestCore(t)
+	room, err := core.CreateRoom(ctx, "test-user", KindChannel, "", "test-room", "Test room")
+	if err != nil {
+		t.Fatalf("Failed to create room: %v", err)
+	}
 
-	t.Run("generate basic attachment URL", func(t *testing.T) {
-		url := core.GetAttachmentURL("space123", "attachment456")
+	content := []byte("move me between prefixes")
+	attachment, err := core.UploadAttachment(ctx, SystemActorID, room.Id, "move.txt", "text/plain", bytes.NewReader(content))
+	if err != nil {
+		t.Fatalf("Failed to upload attachment: %v", err)
+	}
+	storedKey := attachment.Storage.GetS3().Key
 
-		expected := "/assets/space/space123/attachments/attachment456"
-		if url != expected {
-			t.Errorf("Expected URL '%s', got '%s'", expected, url)
-		}
-	})
+	if _, err := oldPrefixClient.StatObject(ctx, storedKey); err != nil {
+		t.Fatalf("old prefix client should find uploaded object: %v", err)
+	}
+
+	// Simulate an operator moving objects in S3 before changing config.
+	if _, err := rawS3Client.PutObjectFromBytes(ctx, "tenant-b/chatto/"+storedKey, content, "text/plain"); err != nil {
+		t.Fatalf("failed to copy object to new prefix: %v", err)
+	}
+	if err := rawS3Client.DeleteObject(ctx, "tenant-a/chatto/"+storedKey); err != nil {
+		t.Fatalf("failed to remove object from old prefix: %v", err)
+	}
+
+	s3Cfg.PathPrefix = "tenant-b/chatto"
+	newPrefixClient, err := NewS3Client(s3Cfg)
+	if err != nil {
+		t.Fatalf("failed to create new-prefix S3 client: %v", err)
+	}
+	core.s3Client = newPrefixClient
+
+	reader, info, err := core.GetAttachmentReader(ctx, attachment)
+	if err != nil {
+		t.Fatalf("GetAttachmentReader after prefix change: %v", err)
+	}
+	defer reader.(io.Closer).Close()
+	got, err := io.ReadAll(reader)
+	if err != nil {
+		t.Fatalf("failed to read moved object: %v", err)
+	}
+	if string(got) != string(content) {
+		t.Fatalf("moved object content = %q, want %q", got, content)
+	}
+	if info.ContentType != "text/plain" {
+		t.Fatalf("content type = %q, want text/plain", info.ContentType)
+	}
+
+	presignedURL, err := core.TryPresignedAttachmentURL(ctx, attachment, S3AssetRedirectTTL)
+	if err != nil {
+		t.Fatalf("TryPresignedAttachmentURL after prefix change: %v", err)
+	}
+	if !bytes.Contains([]byte(presignedURL), []byte("tenant-b/chatto/"+storedKey)) {
+		t.Fatalf("presigned URL %q does not contain new physical prefix", presignedURL)
+	}
 }
 
-func TestChattoCore_GetTransformedAttachmentURL(t *testing.T) {
-	core, _ := setupTestCore(t)
+func TestChattoCore_S3PathPrefixAppliesToAllAssetUploadsWithoutPersistingPrefix(t *testing.T) {
+	core, _, s3Client, rawS3Client, _ := setupTestCoreWithS3PathPrefix(t, "tenant-a/chatto")
+	ctx := testContext(t)
 
-	t.Run("generate transform URL with dimensions", func(t *testing.T) {
-		url := core.GetTransformedAttachmentURL("space123", "attachment456", 200, 150, "contain")
+	user, err := core.CreateUser(ctx, SystemActorID, "prefixed-user", "Prefixed User", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser failed: %v", err)
+	}
+	room, err := core.CreateRoom(ctx, user.Id, KindChannel, "", "prefixed-room", "Prefixed Room")
+	if err != nil {
+		t.Fatalf("CreateRoom failed: %v", err)
+	}
 
-		// URL should contain the base path
-		if !bytes.Contains([]byte(url), []byte("/assets/space/space123/attachments/attachment456/t/")) {
-			t.Errorf("URL doesn't contain expected base path: %s", url)
+	avatar, err := core.UploadUserAvatar(ctx, user.Id, bytes.NewReader(createTestPNG(64, 64)))
+	if err != nil {
+		t.Fatalf("UploadUserAvatar failed: %v", err)
+	}
+	logo, err := core.UploadServerLogo(ctx, bytes.NewReader(createTestPNG(100, 100)))
+	if err != nil {
+		t.Fatalf("UploadServerLogo failed: %v", err)
+	}
+	original, err := core.UploadAttachment(ctx, user.Id, room.Id, "original.png", "image/png", bytes.NewReader(createTestPNG(80, 80)))
+	if err != nil {
+		t.Fatalf("UploadAttachment failed: %v", err)
+	}
+	derivative, err := core.UploadDerivativeAttachment(ctx, original.Id, corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_THUMBNAIL, room.Id, "thumb.png", "image/png", bytes.NewReader(createTestPNG(32, 32)))
+	if err != nil {
+		t.Fatalf("UploadDerivativeAttachment failed: %v", err)
+	}
+
+	checkServerAsset := func(name string, asset *corev1.AssetRecord) {
+		t.Helper()
+		key := asset.GetS3().GetKey()
+		if bytes.Contains([]byte(key), []byte("tenant-a/chatto")) {
+			t.Fatalf("%s persisted key contains prefix: %q", name, key)
+		}
+		logicalS3Key := S3KeyServerAsset(key)
+		if _, err := s3Client.StatObject(ctx, logicalS3Key); err != nil {
+			t.Fatalf("%s logical S3 stat failed: %v", name, err)
+		}
+		if _, err := rawS3Client.StatObject(ctx, "tenant-a/chatto/"+logicalS3Key); err != nil {
+			t.Fatalf("%s raw physical S3 stat failed: %v", name, err)
+		}
+	}
+	checkAttachment := func(name string, attachment *corev1.Attachment) {
+		t.Helper()
+		key := attachment.GetStorage().GetS3().GetKey()
+		if key != S3KeyAttachment(attachment.Id) {
+			t.Fatalf("%s persisted key = %q, want logical attachment key", name, key)
+		}
+		if _, err := s3Client.StatObject(ctx, key); err != nil {
+			t.Fatalf("%s logical S3 stat failed: %v", name, err)
+		}
+		if _, err := rawS3Client.StatObject(ctx, "tenant-a/chatto/"+key); err != nil {
+			t.Fatalf("%s raw physical S3 stat failed: %v", name, err)
+		}
+	}
+
+	checkServerAsset("avatar", avatar)
+	checkServerAsset("server logo", logo)
+	checkAttachment("original attachment", original)
+	checkAttachment("derivative attachment", derivative)
+}
+
+// TestGetAttachmentReader_ProbesWhenStorageMissing covers the
+// fallback path GetAttachmentReader takes when handed an Attachment
+// whose `Storage` field is nil, as older video derivative records can be.
+func TestGetAttachmentReader_ProbesWhenStorageMissing(t *testing.T) {
+	t.Run("falls back to NATS by attachment ID", func(t *testing.T) {
+		core, _ := setupTestCore(t)
+		ctx := testContext(t)
+
+		room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "r", "r")
+		attachment, err := core.UploadAttachment(ctx, SystemActorID, room.Id, "x.txt", "text/plain", bytes.NewReader([]byte("nats-binary")))
+		if err != nil {
+			t.Fatalf("UploadAttachment: %v", err)
 		}
 
-		// URL should have a signed path component (non-empty after /t/)
-		if len(url) <= len("/assets/space/space123/attachments/attachment456/t/") {
-			t.Error("URL missing signed path component")
+		// Older derivative metadata may contain Id + RoomId but no Storage.
+		// Verify GetAttachmentReader can still find the binary by probing.
+		minimal := &corev1.Attachment{Id: attachment.Id, RoomId: room.Id}
+		reader, info, err := core.GetAttachmentReader(ctx, minimal)
+		if err != nil {
+			t.Fatalf("GetAttachmentReader with Storage-less attachment: %v", err)
+		}
+		data, _ := io.ReadAll(reader)
+		if string(data) != "nats-binary" {
+			t.Errorf("expected 'nats-binary', got %q", data)
+		}
+		if info.ContentType != "text/plain" {
+			t.Errorf("expected content type 'text/plain', got %q", info.ContentType)
 		}
 	})
 
-	t.Run("different dimensions produce different URLs", func(t *testing.T) {
-		url1 := core.GetTransformedAttachmentURL("space123", "attachment456", 200, 150, "contain")
-		url2 := core.GetTransformedAttachmentURL("space123", "attachment456", 400, 300, "contain")
+	t.Run("falls back to S3 across known layouts", func(t *testing.T) {
+		core, _, _ := setupTestCoreWithS3(t)
+		ctx := testContext(t)
 
-		if url1 == url2 {
-			t.Error("Different dimensions should produce different URLs")
+		room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "r", "r")
+		attachment, err := core.UploadAttachment(ctx, SystemActorID, room.Id, "y.txt", "text/plain", bytes.NewReader([]byte("s3-binary")))
+		if err != nil {
+			t.Fatalf("UploadAttachment: %v", err)
+		}
+
+		// Same shape as above but the binary now lives in S3.
+		minimal := &corev1.Attachment{Id: attachment.Id, RoomId: room.Id}
+		reader, _, err := core.GetAttachmentReader(ctx, minimal)
+		if err != nil {
+			t.Fatalf("GetAttachmentReader with Storage-less S3 attachment: %v", err)
+		}
+		if closer, ok := reader.(io.Closer); ok {
+			defer closer.Close()
+		}
+		data, _ := io.ReadAll(reader)
+		if string(data) != "s3-binary" {
+			t.Errorf("expected 's3-binary', got %q", data)
 		}
 	})
 
-	t.Run("different fit modes produce different URLs", func(t *testing.T) {
-		url1 := core.GetTransformedAttachmentURL("space123", "attachment456", 200, 150, "contain")
-		url2 := core.GetTransformedAttachmentURL("space123", "attachment456", 200, 150, "cover")
+	t.Run("falls back to prefixed S3 legacy layouts", func(t *testing.T) {
+		core, _, _, rawS3Client, _ := setupTestCoreWithS3PathPrefix(t, "tenant-a/chatto")
+		ctx := testContext(t)
 
-		if url1 == url2 {
-			t.Error("Different fit modes should produce different URLs")
+		attachmentID := "att_legacy_prefixed"
+		legacyLogicalKey := "spaces/server/attachments/" + attachmentID
+		legacyPhysicalKey := "tenant-a/chatto/" + legacyLogicalKey
+		if _, err := rawS3Client.PutObjectFromBytes(ctx, legacyPhysicalKey, []byte("prefixed-legacy-s3"), "text/plain"); err != nil {
+			t.Fatalf("failed to seed legacy S3 object: %v", err)
+		}
+
+		minimal := &corev1.Attachment{Id: attachmentID, RoomId: "room-legacy"}
+		reader, info, err := core.GetAttachmentReader(ctx, minimal)
+		if err != nil {
+			t.Fatalf("GetAttachmentReader with prefixed legacy S3 attachment: %v", err)
+		}
+		if closer, ok := reader.(io.Closer); ok {
+			defer closer.Close()
+		}
+		data, _ := io.ReadAll(reader)
+		if string(data) != "prefixed-legacy-s3" {
+			t.Errorf("expected 'prefixed-legacy-s3', got %q", data)
+		}
+		if info.ContentType != "text/plain" {
+			t.Errorf("expected content type 'text/plain', got %q", info.ContentType)
+		}
+	})
+
+	t.Run("returns error when binary is nowhere", func(t *testing.T) {
+		core, _ := setupTestCore(t)
+		ctx := testContext(t)
+
+		minimal := &corev1.Attachment{Id: "Aghost", RoomId: "Rghost"}
+		if _, _, err := core.GetAttachmentReader(ctx, minimal); err == nil {
+			t.Error("expected error for missing binary, got nil")
 		}
 	})
 }
@@ -390,35 +593,32 @@ func TestChattoCore_GetTransformedAttachmentURL(t *testing.T) {
 func TestChattoCore_AssetBaseURL(t *testing.T) {
 	core, _ := setupTestCore(t)
 
-	t.Run("GetAttachmentURL returns relative when AssetBaseURL is empty", func(t *testing.T) {
+	t.Run("GetStableAttachmentURL returns relative when AssetBaseURL is empty", func(t *testing.T) {
 		core.AssetBaseURL = ""
-		url := core.GetAttachmentURL("space123", "attachment456")
-
-		expected := "/assets/space/space123/attachments/attachment456"
-		if url != expected {
-			t.Errorf("Expected '%s', got '%s'", expected, url)
+		url := core.GetStableAttachmentURL("attachment456", "Uviewer")
+		if !bytes.HasPrefix([]byte(url), []byte("/assets/files/attachment456?access=")) {
+			t.Errorf("Expected relative URL, got '%s'", url)
 		}
 	})
 
-	t.Run("GetAttachmentURL returns absolute when AssetBaseURL is set", func(t *testing.T) {
+	t.Run("GetStableAttachmentURL returns absolute when AssetBaseURL is set", func(t *testing.T) {
 		core.AssetBaseURL = "https://chat.example.com"
 		defer func() { core.AssetBaseURL = "" }()
 
-		url := core.GetAttachmentURL("space123", "attachment456")
+		url := core.GetStableAttachmentURL("attachment456", "Uviewer")
 
-		expected := "https://chat.example.com/assets/space/space123/attachments/attachment456"
-		if url != expected {
-			t.Errorf("Expected '%s', got '%s'", expected, url)
+		if !bytes.HasPrefix([]byte(url), []byte("https://chat.example.com/assets/files/attachment456?access=")) {
+			t.Errorf("Expected absolute URL with base, got '%s'", url)
 		}
 	})
 
-	t.Run("GetTransformedAttachmentURL returns absolute when AssetBaseURL is set", func(t *testing.T) {
+	t.Run("GetStableTransformedAttachmentURL returns absolute when AssetBaseURL is set", func(t *testing.T) {
 		core.AssetBaseURL = "https://chat.example.com"
 		defer func() { core.AssetBaseURL = "" }()
 
-		url := core.GetTransformedAttachmentURL("space123", "attachment456", 200, 150, "contain")
+		url := core.GetStableTransformedAttachmentURL("attachment456", "Uviewer", 200, 150, "contain")
 
-		if !bytes.HasPrefix([]byte(url), []byte("https://chat.example.com/assets/space/")) {
+		if !bytes.HasPrefix([]byte(url), []byte("https://chat.example.com/assets/files/attachment456/image/200x150/contain?access=")) {
 			t.Errorf("Expected absolute URL with base, got '%s'", url)
 		}
 	})
@@ -429,31 +629,8 @@ func TestChattoCore_AssetBaseURL(t *testing.T) {
 
 		url := core.GetTransformedServerAssetURL("avatar-key", 100, 100, "cover")
 
-		if !bytes.HasPrefix([]byte(url), []byte("https://chat.example.com/assets/instance/")) {
+		if !bytes.HasPrefix([]byte(url), []byte("https://chat.example.com/assets/server/")) {
 			t.Errorf("Expected absolute URL with base, got '%s'", url)
-		}
-	})
-
-	t.Run("GetAttachmentURLFromStorage delegates correctly with AssetBaseURL", func(t *testing.T) {
-		core.AssetBaseURL = "https://chat.example.com"
-		defer func() { core.AssetBaseURL = "" }()
-
-		ctx := testContext(t)
-
-		room, err := core.CreateRoom(ctx, "test-user", KindChannel, "", "test-room", "test")
-		if err != nil {
-			t.Fatalf("Failed to create room: %v", err)
-		}
-
-		imageData := createTestPNG(50, 50)
-		attachment, err := core.UploadAttachment(ctx, ServerSpaceID, room.Id, "test.png", "image/png", bytes.NewReader(imageData))
-		if err != nil {
-			t.Fatalf("Failed to upload: %v", err)
-		}
-
-		url := core.GetAttachmentURLFromStorage(attachment)
-		if !bytes.HasPrefix([]byte(url), []byte("https://chat.example.com/assets/space/")) {
-			t.Errorf("Expected absolute URL, got '%s'", url)
 		}
 	})
 }
@@ -513,7 +690,7 @@ func TestAttachment_FullLifecycle(t *testing.T) {
 	// 1. Upload
 	attachment, err := core.UploadAttachment(
 		ctx,
-		ServerSpaceID,
+		SystemActorID,
 		room.Id,
 		"lifecycle-test.txt",
 		"text/plain",
@@ -523,8 +700,8 @@ func TestAttachment_FullLifecycle(t *testing.T) {
 		t.Fatalf("Upload failed: %v", err)
 	}
 
-	// 2. Verify URL generation
-	url := core.GetAttachmentURL(ServerSpaceID, attachment.Id)
+	// 2. Verify stable access-ticket URL generation
+	url := core.GetStableAttachmentURL(attachment.Id, SystemActorID)
 	if url == "" {
 		t.Error("URL generation failed")
 	}
@@ -541,8 +718,7 @@ func TestAttachment_FullLifecycle(t *testing.T) {
 	}
 
 	// 4. Delete
-	err = core.DeleteAttachment(ctx, ServerSpaceID, attachment.Id)
-	if err != nil {
+	if err := core.DeleteAttachmentFromStorage(ctx, attachment); err != nil {
 		t.Fatalf("Deletion failed: %v", err)
 	}
 
@@ -568,7 +744,7 @@ func TestAttachment_MultipleInSpace(t *testing.T) {
 		content := []byte("Attachment content " + string(rune('A'+i)))
 		att, err := core.UploadAttachment(
 			ctx,
-			ServerSpaceID,
+			SystemActorID,
 			room.Id,
 			"attachment"+string(rune('A'+i))+".txt",
 			"text/plain",
@@ -619,7 +795,7 @@ func TestAttachment_ImageDimensions(t *testing.T) {
 
 			attachment, err := core.UploadAttachment(
 				ctx,
-				ServerSpaceID,
+				SystemActorID,
 				room.Id,
 				tc.name+".png",
 				"image/png",
@@ -709,43 +885,20 @@ func TestImageCacheKey(t *testing.T) {
 // setupTestCoreWithS3 creates a ChattoCore backed by a fake in-memory S3 server.
 // Returns the core, NATS connection, and S3 client for verification.
 func setupTestCoreWithS3(t *testing.T) (*ChattoCore, *nats.Conn, *S3Client) {
+	core, nc, s3Client, _, _ := setupTestCoreWithS3PathPrefix(t, "")
+	return core, nc, s3Client
+}
+
+// setupTestCoreWithS3PathPrefix creates a ChattoCore backed by a fake
+// in-memory S3 server. It returns both a prefix-aware verification client and a
+// raw bucket-root client for assertions about physical object keys.
+func setupTestCoreWithS3PathPrefix(t *testing.T, pathPrefix string) (*ChattoCore, *nats.Conn, *S3Client, *S3Client, config.S3Config) {
 	t.Helper()
 
-	// Start fake S3 server
-	backend := s3mem.New()
-	faker := gofakes3.New(backend)
-	s3Server := httptest.NewServer(faker.Server())
-	t.Cleanup(s3Server.Close)
+	s3Server := fakes3.NewServer(t)
+	endpointHost := s3Server.EndpointHost()
 
-	endpointHost := s3Server.URL[7:] // Remove "http://"
-
-	// Start embedded NATS server
-	opts := &server.Options{
-		JetStream: true,
-		Port:      -1,
-		StoreDir:  t.TempDir(),
-	}
-
-	ns, err := server.NewServer(opts)
-	if err != nil {
-		t.Fatalf("Failed to create NATS server: %v", err)
-	}
-
-	go ns.Start()
-	if !ns.ReadyForConnections(5 * 1e9) {
-		t.Fatal("NATS server not ready")
-	}
-
-	nc, err := nats.Connect(ns.ClientURL())
-	if err != nil {
-		t.Fatalf("Failed to connect to NATS: %v", err)
-	}
-
-	t.Cleanup(func() {
-		nc.Close()
-		ns.Shutdown()
-		ns.WaitForShutdown()
-	})
+	_, nc := testutil.StartSharedNATS(t)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	t.Cleanup(cancel)
@@ -754,12 +907,14 @@ func setupTestCoreWithS3(t *testing.T) (*ChattoCore, *nats.Conn, *S3Client) {
 	pathStyle := true
 
 	cfg := config.CoreConfig{
+		SecretKey: "test-core-secret",
 		Assets: config.AssetsConfig{
 			SigningSecret:  "test-signing-secret",
 			StorageBackend: config.StorageBackendS3,
 			S3: config.S3Config{
 				Endpoint:        endpointHost,
 				Bucket:          "test-bucket",
+				PathPrefix:      pathPrefix,
 				AccessKeyID:     "test-key",
 				SecretAccessKey: "test-secret",
 				UseSSL:          &useSSL,
@@ -772,52 +927,36 @@ func setupTestCoreWithS3(t *testing.T) (*ChattoCore, *nats.Conn, *S3Client) {
 		t.Fatalf("Failed to create ChattoCore with S3: %v", err)
 	}
 
+	startCoreServices(t, core)
+
 	// Create a separate S3 client for test verification (to check if objects exist)
 	verifyClient, err := NewS3Client(cfg.Assets.S3)
 	if err != nil {
 		t.Fatalf("Failed to create verification S3 client: %v", err)
 	}
 
-	return core, nc, verifyClient
+	rawCfg := cfg.Assets.S3
+	rawCfg.PathPrefix = ""
+	rawVerifyClient, err := NewS3Client(rawCfg)
+	if err != nil {
+		t.Fatalf("Failed to create raw verification S3 client: %v", err)
+	}
+
+	return core, nc, verifyClient, rawVerifyClient, cfg.Assets.S3
 }
 
 // setupTestCoreWithCache creates a ChattoCore with asset caching enabled
 func setupTestCoreWithCache(t *testing.T) (*ChattoCore, *nats.Conn) {
 	t.Helper()
 
-	// Start embedded NATS server
-	opts := &server.Options{
-		JetStream: true,
-		Port:      -1,
-		StoreDir:  t.TempDir(),
-	}
-
-	ns, err := server.NewServer(opts)
-	if err != nil {
-		t.Fatalf("Failed to create NATS server: %v", err)
-	}
-
-	go ns.Start()
-	if !ns.ReadyForConnections(5 * 1e9) {
-		t.Fatal("NATS server not ready")
-	}
-
-	nc, err := nats.Connect(ns.ClientURL())
-	if err != nil {
-		t.Fatalf("Failed to connect to NATS: %v", err)
-	}
-
-	t.Cleanup(func() {
-		nc.Close()
-		ns.Shutdown()
-		ns.WaitForShutdown()
-	})
+	_, nc := testutil.StartSharedNATS(t)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	t.Cleanup(cancel)
 
 	// Create ChattoCore with caching enabled
 	cfg := config.CoreConfig{
+		SecretKey: "test-core-secret",
 		Assets: config.AssetsConfig{
 			SigningSecret: "test-signing-secret",
 			Cache: config.AssetsCacheConfig{
@@ -830,6 +969,8 @@ func setupTestCoreWithCache(t *testing.T) (*ChattoCore, *nats.Conn) {
 	if err != nil {
 		t.Fatalf("Failed to create ChattoCore: %v", err)
 	}
+
+	startCoreServices(t, core)
 
 	return core, nc
 }
@@ -853,7 +994,7 @@ func TestChattoCore_DeleteAttachment_CleansUpCache(t *testing.T) {
 	imageData := createTestPNG(100, 100)
 	attachment, err := core.UploadAttachment(
 		ctx,
-		ServerSpaceID,
+		SystemActorID,
 		room.Id,
 		"test-image.png",
 		"image/png",
@@ -863,10 +1004,12 @@ func TestChattoCore_DeleteAttachment_CleansUpCache(t *testing.T) {
 		t.Fatalf("Failed to upload attachment: %v", err)
 	}
 
-	// Simulate cached resizes by storing them directly
-	cacheKey1 := ImageCacheKey(ServerSpaceID, attachment.Id, 200, 150, "contain")
-	cacheKey2 := ImageCacheKey(ServerSpaceID, attachment.Id, 400, 300, "cover")
-	cacheKey3 := ImageCacheKey(ServerSpaceID, attachment.Id, 100, 100, "contain")
+	// Simulate cached resizes by storing them directly. The HTTP handler
+	// signs transform URLs with AttachmentSignResource and the cache uses
+	// that same prefix.
+	cacheKey1 := ImageCacheKey(AttachmentSignResource, attachment.Id, 200, 150, "contain")
+	cacheKey2 := ImageCacheKey(AttachmentSignResource, attachment.Id, 400, 300, "cover")
+	cacheKey3 := ImageCacheKey(AttachmentSignResource, attachment.Id, 100, 100, "contain")
 
 	// Store fake cached data
 	fakeWebP := []byte("fake webp data")
@@ -892,8 +1035,7 @@ func TestChattoCore_DeleteAttachment_CleansUpCache(t *testing.T) {
 	}
 
 	// Delete the attachment (should also clean up cache)
-	err = core.DeleteAttachment(ctx, ServerSpaceID, attachment.Id)
-	if err != nil {
+	if err := core.DeleteAttachmentFromStorage(ctx, attachment); err != nil {
 		t.Fatalf("Failed to delete attachment: %v", err)
 	}
 
@@ -918,20 +1060,19 @@ func TestChattoCore_DeleteAttachment_DoesNotAffectOtherAttachmentCache(t *testin
 
 	// Create two attachments
 	imageData := createTestPNG(100, 100)
-	attachment1, _ := core.UploadAttachment(ctx, ServerSpaceID, room.Id, "image1.png", "image/png", bytes.NewReader(imageData))
-	attachment2, _ := core.UploadAttachment(ctx, ServerSpaceID, room.Id, "image2.png", "image/png", bytes.NewReader(imageData))
+	attachment1, _ := core.UploadAttachment(ctx, SystemActorID, room.Id, "image1.png", "image/png", bytes.NewReader(imageData))
+	attachment2, _ := core.UploadAttachment(ctx, SystemActorID, room.Id, "image2.png", "image/png", bytes.NewReader(imageData))
 
 	// Cache entries for both attachments
-	key1 := ImageCacheKey(ServerSpaceID, attachment1.Id, 200, 150, "contain")
-	key2 := ImageCacheKey(ServerSpaceID, attachment2.Id, 200, 150, "contain")
+	key1 := ImageCacheKey(AttachmentSignResource, attachment1.Id, 200, 150, "contain")
+	key2 := ImageCacheKey(AttachmentSignResource, attachment2.Id, 200, 150, "contain")
 
 	fakeWebP := []byte("fake webp data")
 	core.StoreCachedResize(ctx, key1, fakeWebP)
 	core.StoreCachedResize(ctx, key2, fakeWebP)
 
 	// Delete attachment1
-	err := core.DeleteAttachment(ctx, ServerSpaceID, attachment1.Id)
-	if err != nil {
+	if err := core.DeleteAttachmentFromStorage(ctx, attachment1); err != nil {
 		t.Fatalf("Failed to delete attachment1: %v", err)
 	}
 
@@ -948,13 +1089,119 @@ func TestChattoCore_DeleteAttachment_DoesNotAffectOtherAttachmentCache(t *testin
 	}
 }
 
+func TestChattoCore_DeleteAttachment_CleansUpCacheWithoutStorageMetadata(t *testing.T) {
+	core, _ := setupTestCoreWithCache(t)
+	ctx := testContext(t)
+
+	room, err := core.CreateRoom(ctx, "test-user", KindChannel, "", "test-room", "Test room")
+	if err != nil {
+		t.Fatalf("Failed to create room: %v", err)
+	}
+
+	attachment, err := core.UploadAttachment(ctx, SystemActorID, room.Id, "image.png", "image/png", bytes.NewReader(createTestPNG(100, 100)))
+	if err != nil {
+		t.Fatalf("Failed to upload attachment: %v", err)
+	}
+
+	cacheKey := ImageCacheKey(AttachmentSignResource, attachment.Id, 200, 150, "contain")
+	if err := core.StoreCachedResize(ctx, cacheKey, []byte("fake webp data")); err != nil {
+		t.Fatalf("Failed to store cached resize: %v", err)
+	}
+
+	storageLess := &corev1.Attachment{Id: attachment.Id, RoomId: room.Id}
+	if err := core.DeleteAttachmentFromStorage(ctx, storageLess); err != nil {
+		t.Fatalf("Failed to delete storage-less attachment: %v", err)
+	}
+
+	data, err := core.GetCachedResize(ctx, cacheKey)
+	if err != nil {
+		t.Fatalf("Unexpected error getting cached resize: %v", err)
+	}
+	if data != nil {
+		t.Fatal("Cache entry should be deleted for storage-less attachment")
+	}
+
+	if _, _, err := core.GetAttachment(ctx, attachment.Id); err == nil {
+		t.Fatal("Expected backing attachment binary to be deleted")
+	}
+}
+
+func TestChattoCore_DeleteMessageOwnedAssetsForUser_CleansUpDerivativeCaches(t *testing.T) {
+	core, _ := setupTestCoreWithCache(t)
+	ctx := testContext(t)
+
+	user, err := core.CreateUser(ctx, "system", "assetcleanup", "Asset Cleanup", "password123")
+	if err != nil {
+		t.Fatalf("Failed to create user: %v", err)
+	}
+	room, err := core.CreateRoom(ctx, user.Id, KindChannel, "", "test-room", "Test room")
+	if err != nil {
+		t.Fatalf("Failed to create room: %v", err)
+	}
+	if _, err := core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id); err != nil {
+		t.Fatalf("Failed to join room: %v", err)
+	}
+
+	original, err := core.UploadAttachment(ctx, user.Id, room.Id, "clip.mp4", "video/mp4", bytes.NewReader([]byte("fake video bytes")))
+	if err != nil {
+		t.Fatalf("Failed to upload original video: %v", err)
+	}
+	thumbnail, err := core.UploadDerivativeAttachment(ctx, original.Id, corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_THUMBNAIL, room.Id, "thumb.png", "image/png", bytes.NewReader(createTestPNG(64, 64)))
+	if err != nil {
+		t.Fatalf("Failed to upload derivative thumbnail: %v", err)
+	}
+	inheritedRoomDerivativeID := "A-inherited-room-derivative"
+	if err := core.Assets.Apply(&corev1.Event{
+		Id: "E-inherited-room-derivative-created",
+		Event: &corev1.Event_AssetCreated{
+			AssetCreated: &corev1.AssetCreatedEvent{
+				OriginalBinaryAvailable: true,
+				Asset: &corev1.AssetRecord{
+					Id:          inheritedRoomDerivativeID,
+					Filename:    "inherited-thumb.png",
+					ContentType: "image/png",
+				},
+				ParentAssetId:  original.Id,
+				DerivativeRole: corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_THUMBNAIL,
+			},
+		},
+	}, 999); err != nil {
+		t.Fatalf("Failed to project inherited-room derivative: %v", err)
+	}
+
+	thumbnailCacheKey := ImageCacheKey(AttachmentSignResource, thumbnail.Id, 128, 128, "cover")
+	if err := core.StoreCachedResize(ctx, thumbnailCacheKey, []byte("fake webp data")); err != nil {
+		t.Fatalf("Failed to store thumbnail cached resize: %v", err)
+	}
+
+	if _, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "video", []string{original.Id}, "", "", nil, false); err != nil {
+		t.Fatalf("Failed to post message: %v", err)
+	}
+
+	if deleted := core.DeleteMessageOwnedAssetsForUser(ctx, user.Id, user.Id); deleted != 3 {
+		t.Fatalf("Expected original and derivative assets to be deleted, got %d", deleted)
+	}
+
+	if roomID, ok := core.Assets.AssetRoomID(inheritedRoomDerivativeID); !ok || roomID != room.Id {
+		t.Fatalf("deleted inherited-room derivative room = %q, %v; want %q, true", roomID, ok, room.Id)
+	}
+
+	data, err := core.GetCachedResize(ctx, thumbnailCacheKey)
+	if err != nil {
+		t.Fatalf("Unexpected error getting thumbnail cached resize: %v", err)
+	}
+	if data != nil {
+		t.Fatal("Derivative thumbnail cache entry should be deleted")
+	}
+}
+
 func TestChattoCore_DeleteCachedResizesForAttachment_NoCacheEnabled(t *testing.T) {
 	// Use standard setup (no cache)
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
 	// Should not error when cache is disabled
-	deleted, err := core.DeleteCachedResizesForAttachment(ctx, "space", "attachment")
+	deleted, err := core.DeleteCachedResizesForAttachment(ctx, "attachment")
 	if err != nil {
 		t.Errorf("Should not error when cache is disabled: %v", err)
 	}
@@ -968,7 +1215,7 @@ func TestChattoCore_DeleteCachedResizesForAttachment_EmptyCache(t *testing.T) {
 	ctx := testContext(t)
 
 	// Should handle empty cache gracefully
-	deleted, err := core.DeleteCachedResizesForAttachment(ctx, "space", "attachment")
+	deleted, err := core.DeleteCachedResizesForAttachment(ctx, "attachment")
 	if err != nil {
 		t.Errorf("Should not error on empty cache: %v", err)
 	}

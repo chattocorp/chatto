@@ -9,6 +9,9 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
+
+	"hmans.de/chatto/internal/events"
+	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
 // ============================================================================
@@ -43,10 +46,11 @@ type PasswordResetToken struct {
 // KV Key Functions
 // ============================================================================
 
-// passwordResetTokenKey returns the KV key for a password reset token.
-// Format: password_reset.{token}
-func passwordResetTokenKey(token string) string {
-	return fmt.Sprintf("password_reset.%s", token)
+const passwordResetTokenKeyPrefix = "password_reset."
+
+// passwordResetTokenKey returns the HMAC-derived KV key for a password reset token.
+func (c *ChattoCore) passwordResetTokenKey(token string) string {
+	return c.runtimeTokenKey(passwordResetTokenKeyPrefix, token)
 }
 
 // ============================================================================
@@ -73,11 +77,12 @@ func (c *ChattoCore) CreatePasswordResetToken(ctx context.Context, email string)
 
 	// Generate token
 	token := NewPasswordResetToken()
+	createdAt := time.Now()
 
 	tokenData := PasswordResetToken{
 		UserID:    user.Id,
 		Email:     normalizedEmail,
-		CreatedAt: time.Now(),
+		CreatedAt: createdAt,
 	}
 
 	data, err := json.Marshal(tokenData)
@@ -85,9 +90,14 @@ func (c *ChattoCore) CreatePasswordResetToken(ctx context.Context, email string)
 		return "", fmt.Errorf("failed to marshal token: %w", err)
 	}
 
-	_, err = c.storage.serverKV.Put(ctx, passwordResetTokenKey(token), data)
+	_, err = c.storage.runtimeStateKV.Create(ctx, c.passwordResetTokenKey(token), data, jetstream.KeyTTL(PasswordResetTokenTTL))
 	if err != nil {
 		return "", fmt.Errorf("failed to store password reset token: %w", err)
+	}
+
+	if err := c.recordPasswordResetLinkIssued(ctx, user.Id, normalizedEmail, createdAt); err != nil {
+		_ = c.deletePasswordResetToken(ctx, token)
+		return "", err
 	}
 
 	return token, nil
@@ -96,7 +106,8 @@ func (c *ChattoCore) CreatePasswordResetToken(ctx context.Context, email string)
 // getPasswordResetToken retrieves and validates a password reset token.
 // Returns the token data including userID and email.
 func (c *ChattoCore) getPasswordResetToken(ctx context.Context, token string) (*PasswordResetToken, error) {
-	entry, err := c.storage.serverKV.Get(ctx, passwordResetTokenKey(token))
+	key := c.passwordResetTokenKey(token)
+	entry, err := c.storage.runtimeStateKV.Get(ctx, key)
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) {
 			return nil, ErrPasswordResetTokenNotFound
@@ -112,7 +123,7 @@ func (c *ChattoCore) getPasswordResetToken(ctx context.Context, token string) (*
 	// Check if token has expired
 	if time.Since(tokenData.CreatedAt) > PasswordResetTokenTTL {
 		// Clean up expired token
-		c.storage.serverKV.Delete(ctx, passwordResetTokenKey(token))
+		_ = c.storage.runtimeStateKV.Delete(ctx, key)
 		return nil, ErrPasswordResetTokenExpired
 	}
 
@@ -121,7 +132,8 @@ func (c *ChattoCore) getPasswordResetToken(ctx context.Context, token string) (*
 
 // deletePasswordResetToken removes a password reset token.
 func (c *ChattoCore) deletePasswordResetToken(ctx context.Context, token string) error {
-	err := c.storage.serverKV.Delete(ctx, passwordResetTokenKey(token))
+	key := c.passwordResetTokenKey(token)
+	err := c.storage.runtimeStateKV.Delete(ctx, key)
 	if err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) {
 		return fmt.Errorf("failed to delete password reset token: %w", err)
 	}
@@ -151,11 +163,36 @@ func (c *ChattoCore) ResetPassword(ctx context.Context, token string, newPasswor
 	// Delete token immediately to prevent reuse (even if password update fails)
 	defer c.deletePasswordResetToken(ctx, token)
 
-	// Update the password
-	passwordKey := fmt.Sprintf("auth.%s.password", tokenData.UserID)
-	_, err = c.storage.serverKV.Put(ctx, passwordKey, []byte(newPasswordHash))
-	if err != nil {
+	passwordChanged := newEvent(tokenData.UserID, &corev1.Event{Event: &corev1.Event_UserPasswordHashChanged{
+		UserPasswordHashChanged: &corev1.UserPasswordHashChangedEvent{
+			UserId:       tokenData.UserID,
+			PasswordHash: []byte(newPasswordHash),
+		},
+	}})
+	agg := events.UserAggregate(tokenData.UserID)
+	entries := []events.BatchEntry{
+		{
+			Subject: agg.SubjectFor(passwordChanged),
+			Event:   passwordChanged,
+		},
+		{
+			Subject: agg.Subject(events.EventPasswordResetCompleted),
+			Event:   passwordResetCompletedEvent(ctx, tokenData.UserID),
+		},
+	}
+	if _, err := c.appendUserBatch(ctx, tokenData.UserID, entries, "", func() error {
+		if _, err := c.GetUser(ctx, tokenData.UserID); err != nil {
+			return fmt.Errorf("user not found: %w", err)
+		}
+		return nil
+	}); err != nil {
 		return fmt.Errorf("failed to update password: %w", err)
+	}
+	if _, err := c.RevokeRuntimeCredentialsForUser(ctx, tokenData.UserID, "password_reset"); err != nil {
+		c.logger.Warn("Failed to clean up runtime credentials after password reset", "user_id", tokenData.UserID, "error", err)
+	}
+	if err := c.PublishSessionTerminated(ctx, tokenData.UserID, "password_reset"); err != nil {
+		c.logger.Warn("Failed to publish SessionTerminatedEvent", "user_id", tokenData.UserID, "reason", "password_reset", "error", err)
 	}
 
 	return nil

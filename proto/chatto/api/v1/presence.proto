@@ -1,0 +1,42 @@
+syntax = "proto3";
+
+package chatto.api.v1;
+
+import "buf/validate/validate.proto";
+
+// Live presence status returned by public read APIs.
+//
+// Offline is a read-side state only. Clients cannot update their presence to
+// Offline through the account presence RPC; they should stop refreshing and let
+// the server's live presence record expire.
+enum PresenceStatus {
+  // No presence status was specified.
+  PRESENCE_STATUS_UNSPECIFIED = 0;
+  // The user is actively available.
+  PRESENCE_STATUS_ONLINE = 1;
+  // The user is connected but away or idle.
+  PRESENCE_STATUS_AWAY = 2;
+  // The user does not want notifications while this live status is active.
+  PRESENCE_STATUS_DO_NOT_DISTURB = 3;
+  // The user has no active live presence record.
+  PRESENCE_STATUS_OFFLINE = 4;
+}
+
+// Request to update the current user's live presence status.
+message UpdatePresenceRequest {
+  // Live status to store for the authenticated user. Offline is rejected.
+  PresenceStatus status = 1 [(buf.validate.field).enum = {
+    defined_only: true
+    not_in: [0, 4]
+  }];
+  // True when this update comes from a deliberate user selection rather than
+  // automatic idle/refresh updates. Automatic updates do not overwrite an
+  // active manually selected Away or Do Not Disturb status from another client.
+  bool user_selected = 2;
+}
+
+// Result of updating live presence.
+message UpdatePresenceResponse {
+  // Reportable status accepted and stored by the server.
+  PresenceStatus status = 1;
+}

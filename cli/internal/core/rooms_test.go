@@ -2,7 +2,11 @@ package core
 
 import (
 	"errors"
+	"sync"
 	"testing"
+	"time"
+
+	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
 func TestChattoCore_CreateRoom(t *testing.T) {
@@ -21,8 +25,8 @@ func TestChattoCore_CreateRoom(t *testing.T) {
 	if room.Id == "" {
 		t.Error("Room ID should not be empty")
 	}
-	if room.SpaceId != ServerSpaceID {
-		t.Errorf("Room SpaceId = %s, want %s", room.SpaceId, ServerSpaceID)
+	if KindOfRoom(room) != KindChannel {
+		t.Errorf("Room kind = %s, want %s", KindOfRoom(room), KindChannel)
 	}
 	if room.Name != "General" {
 		t.Errorf("Room Name = %s, want General", room.Name)
@@ -271,6 +275,43 @@ func TestChattoCore_CreateRoom_DuplicateName(t *testing.T) {
 	_, err = core.CreateRoom(ctx, "test-user", KindChannel, "", "General", "Another general room")
 	if !errors.Is(err, ErrRoomNameExists) {
 		t.Errorf("Expected ErrRoomNameExists, got: %v", err)
+	}
+}
+
+func TestChattoCore_CreateRoom_ConcurrentDuplicateName(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	start := make(chan struct{})
+	var wg sync.WaitGroup
+	errs := make(chan error, 8)
+	successes := make(chan *corev1.Room, 8)
+
+	for i := 0; i < 8; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			room, err := core.CreateRoom(ctx, "test-user", KindChannel, "", "concurrent-name", "")
+			if err != nil {
+				errs <- err
+				return
+			}
+			successes <- room
+		}()
+	}
+	close(start)
+	wg.Wait()
+	close(errs)
+	close(successes)
+
+	if got := len(successes); got != 1 {
+		t.Fatalf("concurrent CreateRoom successes = %d, want 1", got)
+	}
+	for err := range errs {
+		if !errors.Is(err, ErrRoomNameExists) {
+			t.Fatalf("concurrent CreateRoom error = %v, want ErrRoomNameExists", err)
+		}
 	}
 }
 
@@ -586,39 +627,10 @@ func TestChattoCore_RoomName_ReuseAfterRename(t *testing.T) {
 	}
 }
 
-// TestChattoCore_RoomName_BackfillFromBareRoom simulates a room created before atomic
-// name claiming existed: the room record is in the bucket but the index entry is not.
-// The next CreateRoom for that same name must still detect the collision via backfill.
-func TestChattoCore_RoomName_BackfillFromBareRoom(t *testing.T) {
-	core, _ := setupTestCore(t)
-	ctx := testContext(t)
-
-	room, err := core.CreateRoom(ctx, "test-user", KindChannel, "", "general", "")
-	if err != nil {
-		t.Fatalf("CreateRoom: %v", err)
-	}
-
-	// Simulate the pre-migration state: index entry is missing, room record is present.
-	bucket := core.storage.serverConfigKV
-	if err := bucket.Delete(ctx, roomNameIndexKey(room.Name)); err != nil {
-		t.Fatalf("delete index entry: %v", err)
-	}
-	core.roomNameIndexBackfilled.Delete(KindChannel) // force backfill on next call
-
-	// A duplicate must still be rejected — backfill should re-claim the name from the room record.
-	if _, err := core.CreateRoom(ctx, "test-user", KindChannel, "", "General", ""); !errors.Is(err, ErrRoomNameExists) {
-		t.Errorf("expected ErrRoomNameExists after backfill, got: %v", err)
-	}
-
-	// Existence query should agree.
-	exists, err := core.RoomNameExists(ctx, KindChannel, "general")
-	if err != nil {
-		t.Fatalf("RoomNameExists: %v", err)
-	}
-	if !exists {
-		t.Error("expected room name to exist after backfill")
-	}
-}
+// (TestChattoCore_RoomName_BackfillFromBareRoom removed in ADR-035
+// phase 6 — the KV name index has been retired in favor of the
+// RoomCatalog projection's FindByName; there's no backfill path left
+// to exercise.)
 
 func TestChattoCore_ListRoomsBySpace(t *testing.T) {
 	core, _ := setupTestCore(t)
@@ -656,6 +668,144 @@ func TestChattoCore_ListRoomsBySpace(t *testing.T) {
 	}
 	if !ids[room1.Id] || !ids[room2.Id] || !ids[room3.Id] {
 		t.Error("Not all created rooms were returned by ListRoomsBySpace")
+	}
+}
+
+func TestChattoCore_ListMemberRooms(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	user, err := core.CreateUser(ctx, "actor1", "memberrooms", "Member Rooms", "password")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	other, err := core.CreateUser(ctx, "actor1", "memberrooms2", "Member Rooms 2", "password")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+
+	room1, err := core.CreateRoom(ctx, user.Id, KindChannel, "", "member-room-1", "First")
+	if err != nil {
+		t.Fatalf("CreateRoom room1: %v", err)
+	}
+	room2, err := core.CreateRoom(ctx, user.Id, KindChannel, "", "member-room-2", "Second")
+	if err != nil {
+		t.Fatalf("CreateRoom room2: %v", err)
+	}
+	room3, err := core.CreateRoom(ctx, user.Id, KindChannel, "", "member-room-3", "Third")
+	if err != nil {
+		t.Fatalf("CreateRoom room3: %v", err)
+	}
+
+	if _, err := core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room1.Id); err != nil {
+		t.Fatalf("JoinRoom room1: %v", err)
+	}
+	if _, err := core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room2.Id); err != nil {
+		t.Fatalf("JoinRoom room2: %v", err)
+	}
+	if _, _, err := core.FindOrCreateDM(ctx, user.Id, []string{other.Id}); err != nil {
+		t.Fatalf("FindOrCreateDM: %v", err)
+	}
+
+	channelRooms, err := core.ListMemberRooms(ctx, KindChannel, user.Id, MemberRoomListOptions{})
+	if err != nil {
+		t.Fatalf("ListMemberRooms channel: %v", err)
+	}
+	if len(channelRooms) != 2 {
+		t.Fatalf("Expected 2 channel member rooms, got %d", len(channelRooms))
+	}
+	ids := make(map[string]bool, len(channelRooms))
+	for _, room := range channelRooms {
+		ids[room.Id] = true
+	}
+	if !ids[room1.Id] || !ids[room2.Id] || ids[room3.Id] {
+		t.Fatalf("ListMemberRooms returned wrong channel room set: %#v", ids)
+	}
+
+	dmRooms, err := core.ListMemberRooms(ctx, KindDM, user.Id, MemberRoomListOptions{})
+	if err != nil {
+		t.Fatalf("ListMemberRooms dm: %v", err)
+	}
+	if len(dmRooms) != 1 {
+		t.Fatalf("Expected 1 DM member room, got %d", len(dmRooms))
+	}
+
+	if _, err := core.PostMessage(ctx, KindChannel, room2.Id, user.Id, "newer", nil, "", "", nil, false); err != nil {
+		t.Fatalf("PostMessage room2: %v", err)
+	}
+
+	activeRooms, err := core.ListMemberRooms(ctx, KindChannel, user.Id, MemberRoomListOptions{
+		RequireLastMessage:    true,
+		SortByLastMessageDesc: true,
+	})
+	if err != nil {
+		t.Fatalf("ListMemberRooms active channel: %v", err)
+	}
+	if len(activeRooms) != 1 || activeRooms[0].Id != room2.Id {
+		t.Fatalf("Expected only room2 after RequireLastMessage, got %#v", activeRooms)
+	}
+}
+
+func TestChattoCore_ListMemberRoomsSortsByThreadReplyRecency(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	user, err := core.CreateUser(ctx, "actor1", "thread-recency-user", "Thread Recency", "password")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	roomWithReply, err := core.CreateRoom(ctx, user.Id, KindChannel, "", "thread-recency-older-root", "Older root")
+	if err != nil {
+		t.Fatalf("CreateRoom roomWithReply: %v", err)
+	}
+	roomWithNewerRoot, err := core.CreateRoom(ctx, user.Id, KindChannel, "", "thread-recency-newer-root", "Newer root")
+	if err != nil {
+		t.Fatalf("CreateRoom roomWithNewerRoot: %v", err)
+	}
+	if _, err := core.JoinRoom(ctx, user.Id, KindChannel, user.Id, roomWithReply.Id); err != nil {
+		t.Fatalf("JoinRoom roomWithReply: %v", err)
+	}
+	if _, err := core.JoinRoom(ctx, user.Id, KindChannel, user.Id, roomWithNewerRoot.Id); err != nil {
+		t.Fatalf("JoinRoom roomWithNewerRoot: %v", err)
+	}
+
+	root, err := core.PostMessage(ctx, KindChannel, roomWithReply.Id, user.Id, "older root", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage root: %v", err)
+	}
+	time.Sleep(time.Millisecond)
+	if _, err := core.PostMessage(ctx, KindChannel, roomWithNewerRoot.Id, user.Id, "newer root", nil, "", "", nil, false); err != nil {
+		t.Fatalf("PostMessage newer root: %v", err)
+	}
+	time.Sleep(time.Millisecond)
+	if _, err := core.PostMessage(ctx, KindChannel, roomWithReply.Id, user.Id, "fresh reply", nil, root.Id, "", nil, false); err != nil {
+		t.Fatalf("PostMessage reply: %v", err)
+	}
+
+	replyRoomLast, err := core.GetRoomLastMessageAt(ctx, KindChannel, roomWithReply.Id)
+	if err != nil {
+		t.Fatalf("GetRoomLastMessageAt roomWithReply: %v", err)
+	}
+	rootRoomLast, err := core.GetRoomLastMessageAt(ctx, KindChannel, roomWithNewerRoot.Id)
+	if err != nil {
+		t.Fatalf("GetRoomLastMessageAt roomWithNewerRoot: %v", err)
+	}
+	if !replyRoomLast.After(rootRoomLast) {
+		t.Fatalf("roomWithReply last message = %s, want after newer-root room %s", replyRoomLast, rootRoomLast)
+	}
+
+	rooms, err := core.ListMemberRooms(ctx, KindChannel, user.Id, MemberRoomListOptions{
+		RequireLastMessage:    true,
+		SortByLastMessageDesc: true,
+	})
+	if err != nil {
+		t.Fatalf("ListMemberRooms: %v", err)
+	}
+	if len(rooms) != 2 {
+		t.Fatalf("ListMemberRooms len = %d, want 2", len(rooms))
+	}
+	if rooms[0].Id != roomWithReply.Id {
+		t.Fatalf("first sorted room = %s, want room with fresh thread reply %s", rooms[0].Id, roomWithReply.Id)
 	}
 }
 

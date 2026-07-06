@@ -21,7 +21,7 @@ Use 14-character NanoIDs with an alphanumeric alphabet (~83.4 bits of entropy) p
 | `E` | Event |
 | `N` | Notification |
 
-Tokens use two-letter prefixes: `EV` (email verification), `PR` (password reset), `RG` (registration), `AD` (account deletion).
+Opaque tokens use two-letter prefixes: `PR` (password reset), `RG` (registration completion), and `AD` (account deletion). Email verification codes are six-digit numeric OTPs and do not use NanoID prefixes.
 
 DM room IDs are a special case: deterministic SHA-256 hex truncated to 14 characters, with no prefix (since they're computed from participant IDs, not randomly generated).
 

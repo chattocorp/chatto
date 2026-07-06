@@ -1,19 +1,21 @@
 # FDR-025: User Search & Member Directory
 
 **Status:** Active
-**Last reviewed:** 2026-05-19
+**Last reviewed:** 2026-07-04
 
 ## Overview
 
-Any authenticated user can browse the server's member directory — a paginated list of all users on the server, with optional substring search. The directory powers the admin Users page, the @mention autocomplete (in part), and any feature that needs "find a user by name".
+Any authenticated user can browse the server's member directory — a paginated list of all users on the server, with optional substring search. The directory powers general member-picking surfaces such as user comboboxes, quick switching, and @mention autocomplete. Admin member-management screens use the separate `AdminUserService` because they expose administrative fields and permissions.
 
 ## Behavior
 
 - The directory query accepts an optional search string, an offset, and a limit. Returns the matching members and a total count for paginating.
+- The canonical public surface is ConnectRPC `UserService.ListUsers(search, page)`.
 - Search matches a substring of either `login` or `displayName`, case-insensitive. Empty search returns all members.
 - Pagination is offset-based: caller specifies `offset` and `limit`; the response also includes `totalCount` so the caller can compute whether there are more pages.
-- Default page size is 20; the maximum is 100. Requests larger than 100 are silently clamped down.
+- Default page size is 20; the maximum is 500. Requests larger than 500 are silently clamped down.
 - Results are sorted by `createdAt` ascending (oldest member first). Users created before the timestamp field existed sort to the end, alphabetically by login.
+- Direct user lookups by stable user ID or login return the same public directory row shape as the directory and require authentication. Batch user hydration by stable user ID supports cache-miss loading without N+1 reads.
 
 ## Design Decisions
 
@@ -29,11 +31,11 @@ Any authenticated user can browse the server's member directory — a paginated 
 **Why:** Cursor pagination is what you want when results can shift between calls (an infinite scroll over a live stream). The member directory is mostly stable — new signups happen sometimes, but the page-flipping use case is rare. Offset-based is simpler to consume from the frontend and lets the UI show "Page 3 of 12".
 **Tradeoff:** If the directory changes mid-scroll, the user might see duplicates or skipped entries across pages. Acceptable given the volume and update rate.
 
-### 3. Hard limit of 100, silent clamp
+### 3. Hard limit of 500, silent clamp
 
-**Decision:** Requests with `limit > 100` are clamped to 100 without an error.
-**Why:** An error would break clients that send larger numbers naively. Clamping serves the request with a sensible cap. The frontend doesn't currently issue limits above 100, so the clamp only affects malformed requests.
-**Tradeoff:** A client expecting all 500 users in one response gets 100 and may not realise. The `totalCount` field in the response surfaces the discrepancy.
+**Decision:** Requests with `limit > 500` are clamped to 500 without an error.
+**Why:** An error would break clients that send larger numbers naively. Clamping serves the request with a sensible cap. Normal clients request smaller pages, so the clamp mainly affects malformed requests.
+**Tradeoff:** A client expecting all users in one response may get a truncated page and may not realise. The `totalCount` field in the response surfaces the discrepancy.
 
 ### 4. Sort by createdAt, with a stable fallback
 
@@ -41,11 +43,11 @@ Any authenticated user can browse the server's member directory — a paginated 
 **Why:** "Oldest first" is a stable order that matches the admin mental model ("show me long-term members first; new signups at the end"). The alphabetical fallback for null timestamps keeps the order deterministic for legacy users without inventing a fake timestamp.
 **Tradeoff:** Sorting by recency (newest first) is occasionally what an admin wants when investigating a signup wave. Not exposed today; could be added as a sort parameter if needed.
 
-### 5. All authenticated users can browse the directory
+### 5. All authenticated users can browse member profiles
 
-**Decision:** No special permission required; any authenticated user can list members.
+**Decision:** No special permission required; any authenticated user can list members or look up a member by stable user ID.
 **Why:** Chatto's privacy model treats user identity (login, display name, avatar) as public to other members. Hiding members from members would be incongruent — they'd see each other in messages anyway. Operators who want a fully private member list would need a different feature.
-**Tradeoff:** Bot accounts or system users (if introduced) would surface in normal listings. Not a current concern.
+**Tradeoff:** Bot accounts or system users (if introduced) would surface in normal listings. The admin UI may still require admin permissions to reach its member-management page, but the underlying directory query remains available to authenticated users.
 
 ### 6. Implicit membership, no explicit member records
 

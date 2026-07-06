@@ -5,6 +5,8 @@ import (
 	"encoding/hex"
 	"fmt"
 	"os"
+	"strings"
+	"time"
 
 	"github.com/c2h5oh/datasize"
 	"github.com/charmbracelet/log"
@@ -53,6 +55,13 @@ var initCmd = &cobra.Command{
 		}
 		signingSecretString := hex.EncodeToString(signingSecret)
 
+		// Generate a random server-wide core secret for token verifiers.
+		coreSecret := make([]byte, 32)
+		if _, err := rand.Read(coreSecret); err != nil {
+			log.Fatal("Failed to generate core secret", "error", err)
+		}
+		coreSecretString := hex.EncodeToString(coreSecret)
+
 		// Generate a random auth token for NATS connections (32 bytes = 256 bits)
 		authToken := make([]byte, 32)
 		if _, err := rand.Read(authToken); err != nil {
@@ -65,10 +74,17 @@ var initCmd = &cobra.Command{
 		unlimited := -1
 		cfg := config.ChattoConfig{
 			General: config.GeneralConfig{
-				LogLevel: "debug",
+				LogLevel:  "info",
+				LogFormat: "auto",
 			},
 			Auth: config.AuthConfig{
 				DirectRegistration: &directRegistration,
+				EmailOTP: config.EmailOTPConfig{
+					ThrottlingEnabled: &directRegistration,
+					TTL:               config.Duration(15 * time.Minute),
+					MaxDeliveredCodes: 10,
+					MaxWrongAttempts:  5,
+				},
 			},
 			Limits: config.LimitsConfig{
 				MaxUsers: &unlimited,
@@ -76,21 +92,29 @@ var initCmd = &cobra.Command{
 			Webserver: config.WebserverConfig{
 				Port:                   4000,
 				URL:                    "http://localhost:4000",
+				AllowedOrigins:         []string{"*"},
 				CookieSigningSecret:    sessionSecretString,
 				CookieEncryptionSecret: cookieEncryptionSecretString,
 			},
 			Core: config.CoreConfig{
+				SecretKey: coreSecretString,
 				Assets: config.AssetsConfig{
-					SigningSecret: signingSecretString,
-					MaxUploadSize: 25 * datasize.MB,
+					SigningSecret:  signingSecretString,
+					MaxUploadSize:  25 * datasize.MB,
+					StorageBackend: config.StorageBackendNATS,
 				},
 			},
+			SMTP: config.SMTPConfig{
+				Enabled: false,
+				Port:    587,
+				TLS:     config.SMTPTLSMandatory,
+			},
 			NATS: config.NATSConfig{
-				// Client config for CLI commands to connect to the embedded server
+				Replicas: 1,
 				Client: config.NATSClientConfig{
-					URL:        "nats://localhost:4222",
+					URL:        "nats://nats.example.com:4222",
 					AuthMethod: config.NATSAuthToken,
-					Token:      authTokenString,
+					Token:      "replace-me",
 				},
 				Embedded: config.EmbeddedNATSConfig{
 					Enabled:     true,
@@ -109,16 +133,65 @@ var initCmd = &cobra.Command{
 		if err != nil {
 			log.Fatal("Failed to marshal config", "error", err)
 		}
+		text := addAuthProviderExamples(string(b))
+		text = addEmailOTPDefaults(text)
 
-		if err := os.WriteFile(configPath, b, 0600); err != nil {
+		if err := os.WriteFile(configPath, []byte(text), 0600); err != nil {
 			log.Fatal("Failed to write config file", "error", err)
 		}
 		fmt.Printf("Configuration written to %s\n", configPath)
-		fmt.Printf("\nSetup complete! Run 'chatto run -c %s' to start the server.\n", configPath)
-		fmt.Println("\nTo connect with NATS CLI for debugging:")
-		fmt.Printf("  nats context save chatto --server localhost:4222 --token %s\n", authTokenString)
-		fmt.Println("  nats context select chatto")
 	},
+}
+
+func addAuthProviderExamples(tomlText string) string {
+	const generatedEmptyProviders = "# External login providers. Configure as repeated [[auth.providers]] tables.\nproviders = []"
+	const providerExamples = `# External login providers. Uncomment and adapt one or more [[auth.providers]] tables.
+#
+# [[auth.providers]]
+# id = 'chatto-hub'
+# type = 'oidc'
+# label = 'Chatto Hub'
+# issuer_url = 'https://id.example.com/realms/chatto'
+# client_id = 'chatto'
+# client_secret = 'replace-me'
+# request_email = true
+#
+# [[auth.providers]]
+# id = 'github'
+# type = 'github'
+# client_id = 'replace-me'
+# client_secret = 'replace-me'`
+
+	return strings.Replace(tomlText, generatedEmptyProviders, providerExamples, 1)
+}
+
+func addEmailOTPDefaults(tomlText string) string {
+	const marker = "# Email OTP guardrails for registration and email verification."
+	start := strings.Index(tomlText, marker)
+	if start == -1 {
+		return tomlText
+	}
+
+	endMarker := "\n# Instance-wide resource limits."
+	end := strings.Index(tomlText[start:], endMarker)
+	if end == -1 {
+		return tomlText
+	}
+	end += start
+
+	const emailOTPDefaults = `# Email OTP guardrails for registration and email verification.
+[auth.email_otp]
+# Enable email OTP throttling for registration and email verification. Default: true.
+throttling_enabled = true
+# How long registration and email-verification codes stay valid. Default: 15m.
+# ttl = '15m'
+# Maximum successfully delivered codes per email challenge before throttling. Default: 10.
+# max_delivered_codes = 10
+# Maximum wrong-code attempts per email challenge before throttling. Default: 5.
+# max_wrong_attempts = 5
+`
+
+	return tomlText[:start] + emailOTPDefaults + tomlText[end:]
 }
 
 func init() {

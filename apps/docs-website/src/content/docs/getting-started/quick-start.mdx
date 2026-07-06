@@ -1,0 +1,86 @@
+---
+title: Quick Start
+description: Get Chatto running in under five minutes.
+---
+
+import { CardGrid, LinkCard, Steps } from "@astrojs/starlight/components";
+
+### First Things First
+
+Alright, here's some stuff you should know before diving in. Please do not skip this part! You will have a significantly easier time setting up Chatto:
+
+- Chatto is extremely compact; it's **just a single binary** (or Docker image) that you spin up to get a functional chat server.
+- It can be configured through a **config file** (`chatto.toml`) or through **environment variables**.
+- You can let Chatto store uploaded files, or **configure an S3 compatible object store**.
+- Voice and video calls are powered by [LiveKit](https://github.com/livekit/livekit), which you will **need to deploy separately** (but don't worry, we'll guide you through it.) LiveKit is **fully optional**; if you don't need call functionality, you can safely skip it.
+
+We've saved the most important fact for last. Read it thoroughly, then read it again, because if you don't, you _will_ eventually lose your data:
+
+- **Chatto does not use a database**. Instead, it persists its data in something called [NATS](https://nats.io/). For simple single-process deployments, Chatto can **run an embedded NATS server**; but if you want to move to multiple processes (either for scaling, redundancy, or zero-downtime updates), you will need to set up and run a separate NATS server. (This is also very easy, and we'll guide you through it. Also, you can move from one setup to the other easily, so it's not a big decision you need to make beforehand.)
+
+That's it. For now. Let's dive in.
+
+### Try Chatto
+
+The quickest and easiest way to give Chatto a try is to just download the executable and run it. Setting up a proper production environment can be a little more involved (depending on your requirements), but if you just want to test the waters, this will get you up and running within minutes.
+
+<Steps>
+
+1. **Install Chatto:**
+
+   ```bash
+   brew install chattocorp/tap/chatto
+   ```
+
+   If you don't have Homebrew, just download the binary for your platform from [GitHub Releases](https://github.com/chattocorp/chatto/releases). Support for more package managers will be added with time!
+
+2. **Generate a configuration file:**
+
+   Move to an empty directory and have Chatto generate a configuration file:
+
+   ```bash
+   chatto init
+   ```
+
+   This creates a `chatto.toml` with random secrets for cookie signing, cookie encryption, runtime-token verifiers, asset signing, and NATS authentication.
+
+   **Take a minute to review this file.** It's already a working configuration, but you may want to customize some things. You will _definitely_ want to provide SMTP credentials.
+
+3. **Start the server:**
+
+   ```bash
+   chatto run
+   ```
+
+4. **Open your browser** to [http://localhost:4000](http://localhost:4000) (or whatever port you configured in the configuration file.)
+
+</Steps>
+
+The generated `chatto.toml` contains a sane set of defaults to get you started. After getting to know your new Chatto server for a little bit, it is **strongly recommended** to review and fine-tune this file, especially if you're interested in support for video uploads, push notifications, SSO, or voice and video calls.
+
+## Next Steps
+
+You will probably want to deploy Chatto in a manner that makes it reachable from the Internet, possibly from a VPS, a Kubernetes cluster, or similar; please move on to our Deployment guides section that will guide you through various different setups.
+
+<CardGrid>
+  <LinkCard
+    title="Read This First"
+    href="/guides/deployment/read-this-first/"
+    description="Choose a deployment path and make the important production decisions."
+  />
+  <LinkCard
+    title="Docker Compose"
+    href="/guides/deployment/docker-compose/"
+    description="Recommended self-hosting setup with Chatto, NATS, LiveKit, and Caddy."
+  />
+  <LinkCard
+    title="Standalone Binary"
+    href="/guides/deployment/binary/"
+    description="Run Chatto directly as a single binary with embedded NATS."
+  />
+  <LinkCard
+    title="Kubernetes"
+    href="/guides/deployment/kubernetes/"
+    description="Current Kubernetes guidance and requirements for scaled deployments."
+  />
+</CardGrid>

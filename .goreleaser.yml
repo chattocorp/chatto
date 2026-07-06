@@ -1,10 +1,6 @@
 version: 2
 project_name: chatto
 
-before:
-  hooks:
-    - mise build-frontend
-
 builds:
   - env:
       - CGO_ENABLED=0
@@ -12,15 +8,22 @@ builds:
     goos:
       - linux
       - darwin
-      - windows
     goarch:
       - amd64
       - arm64
+    ignore:
+      - goos: darwin
+        goarch: amd64
+    flags:
+      - -trimpath
     ldflags:
       - -s -w
 
 archives:
   - formats: [tar.gz]
+    files:
+      - LICENSES/AGPL-3.0-or-later.txt
+      - NOTICE
     # this name template makes the OS and Arch compatible with the results of `uname`.
     name_template: >-
       {{ .ProjectName }}_
@@ -29,74 +32,82 @@ archives:
       {{- else if eq .Arch "386" }}i386
       {{- else }}{{ .Arch }}{{ end }}
       {{- if .Arm }}v{{ .Arm }}{{ end }}
-    # use zip for windows archives
-    format_overrides:
-      - goos: windows
-        formats: [zip]
 
 changelog:
-  sort: asc
-  use: github
-  filters:
-    # Only include conventional commits (feat, fix, perf, refactor)
-    # This filters out non-conventional commits from merged branches
-    include:
-      - "^feat"
-      - "^fix"
-      - "^perf"
-      - "^refactor"
-  groups:
-    - title: "⚠️ Breaking Changes"
-      regexp: "!:"
-      order: 0
-    - title: Features
-      regexp: "^feat"
-      order: 1
-    - title: Bug Fixes
-      regexp: "^fix"
-      order: 2
-    - title: Performance
-      regexp: "^perf"
-      order: 3
-    - title: Other
-      order: 999
+  # release-please now owns the changelog (CHANGELOG.md + the GitHub
+  # Release body). Don't let GoReleaser generate or attach a second one.
+  disable: true
 
 dockers:
   - image_templates:
       - "ghcr.io/chattocorp/chatto:{{ .Version }}-amd64"
-    dockerfile: Dockerfile.goreleaser
+    dockerfile: docker/Dockerfile.goreleaser
+    extra_files:
+      - docker/docker-entrypoint.sh
+      - LICENSES/AGPL-3.0-or-later.txt
+      - NOTICE
     build_flag_templates:
       - "--pull"
       - "--platform=linux/amd64"
+      - "--cache-from=type=gha,scope=chatto-backend-amd64"
+      - "--cache-to=type=gha,scope=chatto-backend-amd64,mode=max"
       - "--label=org.opencontainers.image.source=https://github.com/chattocorp/chatto"
       - "--label=org.opencontainers.image.version={{ .Version }}"
       - "--label=org.opencontainers.image.created={{ .Date }}"
+      - "--label=org.opencontainers.image.licenses=AGPL-3.0-or-later"
     use: buildx
     goarch: amd64
     goos: linux
   - image_templates:
       - "ghcr.io/chattocorp/chatto:{{ .Version }}-arm64"
-    dockerfile: Dockerfile.goreleaser
+    dockerfile: docker/Dockerfile.goreleaser
+    extra_files:
+      - docker/docker-entrypoint.sh
+      - LICENSES/AGPL-3.0-or-later.txt
+      - NOTICE
     build_flag_templates:
       - "--pull"
       - "--platform=linux/arm64"
+      - "--cache-from=type=gha,scope=chatto-backend-arm64"
+      - "--cache-to=type=gha,scope=chatto-backend-arm64,mode=max"
       - "--label=org.opencontainers.image.source=https://github.com/chattocorp/chatto"
       - "--label=org.opencontainers.image.version={{ .Version }}"
       - "--label=org.opencontainers.image.created={{ .Date }}"
+      - "--label=org.opencontainers.image.licenses=AGPL-3.0-or-later"
     use: buildx
     goarch: arm64
     goos: linux
 
 docker_manifests:
+  # Always: the fully-qualified version tag (e.g. 0.0.190, 0.1.0-alpha.1).
   - name_template: "ghcr.io/chattocorp/chatto:{{ .Version }}"
     image_templates:
       - "ghcr.io/chattocorp/chatto:{{ .Version }}-amd64"
       - "ghcr.io/chattocorp/chatto:{{ .Version }}-arm64"
+
+  # Stable only: the Major.Minor floater. skip_push gates this out for
+  # prerelease tags (anything with a hyphen suffix, e.g. v0.1.0-alpha.1).
   - name_template: "ghcr.io/chattocorp/chatto:{{ .Major }}.{{ .Minor }}"
+    skip_push: '{{ if .Prerelease }}true{{ end }}'
     image_templates:
       - "ghcr.io/chattocorp/chatto:{{ .Version }}-amd64"
       - "ghcr.io/chattocorp/chatto:{{ .Version }}-arm64"
+
+  # Stable only, and only when the workflow has determined this tag is the
+  # highest stable semver. That lets a late 0.2.x maintenance release publish
+  # 0.2 and 0.2.x tags without moving :latest back from a newer stable line.
   - name_template: "ghcr.io/chattocorp/chatto:latest"
+    skip_push: '{{ if or .Prerelease (ne .Env.CHATTO_PUSH_LATEST "true") }}true{{ end }}'
+    image_templates:
+      - "ghcr.io/chattocorp/chatto:{{ .Version }}-amd64"
+      - "ghcr.io/chattocorp/chatto:{{ .Version }}-arm64"
+
+  # Prerelease only: a floating `:next` tag the dev cluster can track
+  # to auto-deploy every alpha, regardless of which Git branch cut the
+  # release. Skipped on stable releases so it never drifts to a
+  # non-prerelease build.
+  - name_template: "ghcr.io/chattocorp/chatto:next"
+    skip_push: '{{ if not .Prerelease }}true{{ end }}'
     image_templates:
       - "ghcr.io/chattocorp/chatto:{{ .Version }}-amd64"
       - "ghcr.io/chattocorp/chatto:{{ .Version }}-arm64"
@@ -115,8 +126,17 @@ release:
   github:
     owner: chattocorp
     name: chatto
-  footer: >-
-
-    ---
-
-    Released by [GoReleaser](https://github.com/goreleaser/goreleaser).
+  # release-please creates a draft GitHub Release with its changelog body.
+  # GoReleaser must NOT overwrite it: it should attach artifacts to that
+  # draft and leave publication to the workflow step that runs after release
+  # artifacts and container images have been pushed.
+  draft: true
+  use_existing_draft: true
+  replace_existing_artifacts: true
+  mode: keep-existing
+  # `auto` marks the GitHub Release as prerelease when the tag carries
+  # a prerelease suffix (e.g. v0.1.0-alpha.1). release-please-action
+  # already creates the Release with the correct prerelease flag for
+  # prerelease tags; this is belt-and-suspenders in case GoReleaser is
+  # invoked outside the release-please flow.
+  prerelease: auto

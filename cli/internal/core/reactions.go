@@ -2,16 +2,12 @@ package core
 
 import (
 	"context"
-	"encoding/binary"
 	"errors"
 	"fmt"
-	"slices"
 	"strings"
 	"time"
 
-	"github.com/nats-io/nats.go/jetstream"
-
-	"hmans.de/chatto/internal/core/subjects"
+	"hmans.de/chatto/internal/events"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -47,31 +43,10 @@ func parseReactionKey(key string) (string, string, string, error) {
 // Reactions API
 // ============================================================================
 
-// resolveReactionTarget returns the canonical event ID for storing reactions.
-// If the target message is an echo, returns the original thread reply's event ID
-// so that reactions are shared between the echo and the original.
-// Authorization: Caller must verify room membership before calling.
-func (c *ChattoCore) resolveReactionTarget(ctx context.Context, kind RoomKind, roomID, messageEventID string) (string, error) {
-	event, err := c.GetRoomEventByEventID(ctx, kind, roomID, messageEventID)
-	if err != nil {
-		return "", fmt.Errorf("failed to look up message: %w", err)
-	}
-	if event == nil {
-		return messageEventID, nil
-	}
-
-	if msg := event.GetMessagePosted(); msg != nil && msg.EchoOfEventId != "" {
-		return msg.EchoOfEventId, nil
-	}
-
-	return messageEventID, nil
-}
-
 // AddReaction adds an emoji reaction to a message.
 // Accepts an emoji shortcode name (e.g., "thumbsup", "heart").
 // Returns true if the reaction was added, false if it already existed.
-// Publishes a ReactionAddedEvent after successful KV write.
-// If the target message is an echo, the reaction is stored against the original message.
+// Publishes a durable ReactionAddedEvent after successful OCC write.
 func (c *ChattoCore) AddReaction(ctx context.Context, kind RoomKind, roomID, messageEventID, emojiInput, userID string) (bool, error) {
 	emojiName, err := resolveEmojiInput(emojiInput)
 	if err != nil {
@@ -87,36 +62,23 @@ func (c *ChattoCore) AddReaction(ctx context.Context, kind RoomKind, roomID, mes
 		return false, ErrRoomArchived
 	}
 
-	// Resolve echo → original so reactions are shared
-	canonicalEventID, err := c.resolveReactionTarget(ctx, kind, roomID, messageEventID)
+	messageEventID, err = c.canonicalReactionMessageEventID(roomID, messageEventID)
 	if err != nil {
 		return false, err
 	}
-
-	kv := c.storage.serverReactionsKV
-
-	key := reactionKey(canonicalEventID, emojiName, userID)
-
-	// Store timestamp as value for ordering reactions by time added
-	timestamp := make([]byte, 8)
-	binary.BigEndian.PutUint64(timestamp, uint64(time.Now().UnixNano()))
-
-	_, err = kv.Create(ctx, key, timestamp)
-	if errors.Is(err, jetstream.ErrKeyExists) {
-		return false, nil // Already reacted
-	}
+	event := newReactionAddedEvent(userID, roomID, messageEventID, emojiName)
+	added, err := c.publishReactionMutation(ctx, kind, roomID, messageEventID, emojiName, userID, event)
 	if err != nil {
 		return false, fmt.Errorf("failed to add reaction: %w", err)
 	}
-
-	// Publish event with the canonical (original) event ID so both
-	// channel view and thread view can match and refetch reactions.
-	c.publishReactionAddedEvent(ctx, kind, roomID, canonicalEventID, emojiName, userID)
+	if !added {
+		return false, nil
+	}
 
 	c.logger.Debug("Reaction added",
 		"kind", kind,
 		"room_id", roomID,
-		"message_event_id", canonicalEventID,
+		"message_event_id", messageEventID,
 		"emoji_name", emojiName,
 		"user_id", userID,
 	)
@@ -127,46 +89,30 @@ func (c *ChattoCore) AddReaction(ctx context.Context, kind RoomKind, roomID, mes
 // RemoveReaction removes an emoji reaction from a message.
 // Accepts an emoji shortcode name (e.g., "thumbsup", "heart").
 // Returns true if the reaction was removed, false if it didn't exist.
-// Publishes a ReactionRemovedEvent after successful KV delete.
-// If the target message is an echo, the reaction is removed from the original message.
+// Publishes a durable ReactionRemovedEvent after successful OCC write.
 func (c *ChattoCore) RemoveReaction(ctx context.Context, kind RoomKind, roomID, messageEventID, emojiInput, userID string) (bool, error) {
 	emojiName, err := resolveEmojiInput(emojiInput)
 	if err != nil {
 		return false, err
 	}
 
-	// Resolve echo → original so reactions are shared
-	canonicalEventID, err := c.resolveReactionTarget(ctx, kind, roomID, messageEventID)
+	messageEventID, err = c.canonicalReactionMessageEventID(roomID, messageEventID)
 	if err != nil {
 		return false, err
 	}
-
-	kv := c.storage.serverReactionsKV
-
-	key := reactionKey(canonicalEventID, emojiName, userID)
-
-	// Check if the reaction exists first (KV Delete doesn't error on non-existent keys)
-	_, err = kv.Get(ctx, key)
-	if errors.Is(err, jetstream.ErrKeyNotFound) {
-		return false, nil // Reaction didn't exist
-	}
-	if err != nil {
-		return false, fmt.Errorf("failed to check reaction: %w", err)
-	}
-
-	// Delete the reaction
-	err = kv.Delete(ctx, key)
+	event := newReactionRemovedEvent(userID, roomID, messageEventID, emojiName)
+	removed, err := c.publishReactionMutation(ctx, kind, roomID, messageEventID, emojiName, userID, event)
 	if err != nil {
 		return false, fmt.Errorf("failed to remove reaction: %w", err)
 	}
-
-	// Publish event with the canonical (original) event ID
-	c.publishReactionRemovedEvent(ctx, kind, roomID, canonicalEventID, emojiName, userID)
+	if !removed {
+		return false, nil
+	}
 
 	c.logger.Debug("Reaction removed",
 		"kind", kind,
 		"room_id", roomID,
-		"message_event_id", canonicalEventID,
+		"message_event_id", messageEventID,
 		"emoji_name", emojiName,
 		"user_id", userID,
 	)
@@ -184,131 +130,79 @@ type ReactionSummary struct {
 // Returns a slice of ReactionSummary, each containing the shortcode name and list of user IDs.
 // Results are ordered by the time each emoji was first added (earliest first).
 func (c *ChattoCore) GetReactions(ctx context.Context, messageEventID string) ([]ReactionSummary, error) {
-	result, err := c.GetReactionsBatch(ctx, []string{messageEventID})
-	if err != nil {
-		return nil, err
-	}
-	return result[messageEventID], nil
+	messageEventID, _ = c.canonicalReactionMessageEventID("", messageEventID)
+	return c.rooms().reactionsForMessage(messageEventID), nil
 }
 
 // GetReactionsBatch returns reactions for multiple messages in a single pass.
-// Uses ListKeysFiltered with per-message subject filters to avoid scanning the entire bucket.
 // Returns a map from messageEventID to sorted ReactionSummary slices.
 func (c *ChattoCore) GetReactionsBatch(ctx context.Context, eventIDs []string) (map[string][]ReactionSummary, error) {
 	if len(eventIDs) == 0 {
 		return make(map[string][]ReactionSummary), nil
 	}
-
-	kv := c.storage.serverReactionsKV
-
-	// Build NATS subject filters for all event IDs (e.g., "eventId1.>", "eventId2.>")
-	filters := make([]string, len(eventIDs))
-	for i, eventID := range eventIDs {
-		filters[i] = eventID + ".>"
+	canonicalEventIDs := make([]string, 0, len(eventIDs))
+	requestedByCanonical := make(map[string][]string, len(eventIDs))
+	for _, eventID := range eventIDs {
+		canonicalID, _ := c.canonicalReactionMessageEventID("", eventID)
+		canonicalEventIDs = append(canonicalEventIDs, canonicalID)
+		requestedByCanonical[canonicalID] = append(requestedByCanonical[canonicalID], eventID)
 	}
-
-	lister, err := kv.ListKeysFiltered(ctx, filters...)
-	if err != nil {
-		if errors.Is(err, jetstream.ErrNoKeysFound) {
-			return make(map[string][]ReactionSummary), nil
+	canonicalReactions := c.rooms().reactionsBatch(canonicalEventIDs)
+	result := make(map[string][]ReactionSummary, len(canonicalReactions))
+	for canonicalID, summaries := range canonicalReactions {
+		for _, requestedID := range requestedByCanonical[canonicalID] {
+			result[requestedID] = summaries
 		}
-		return nil, fmt.Errorf("failed to list reaction keys: %w", err)
 	}
-
-	// Collect all matching keys
-	var matchedKeys []string
-	for key := range lister.Keys() {
-		matchedKeys = append(matchedKeys, key)
-	}
-
-	// Parse keys and fetch timestamps, grouped by event ID
-	type emojiData struct {
-		userIDs       []string
-		earliestNanos uint64
-	}
-	// eventID -> emojiName -> emojiData
-	reactionsByEvent := make(map[string]map[string]*emojiData)
-
-	for _, key := range matchedKeys {
-		eventID, emojiName, userID, err := parseReactionKey(key)
-		if err != nil {
-			c.logger.Warn("Invalid reaction key", "key", key, "error", err)
-			continue
-		}
-
-		entry, err := kv.Get(ctx, key)
-		if err != nil {
-			c.logger.Warn("Failed to get reaction entry", "key", key, "error", err)
-			continue
-		}
-
-		// Parse timestamp from value (8-byte big-endian uint64)
-		var timestamp uint64
-		if len(entry.Value()) >= 8 {
-			timestamp = binary.BigEndian.Uint64(entry.Value())
-		}
-
-		if reactionsByEvent[eventID] == nil {
-			reactionsByEvent[eventID] = make(map[string]*emojiData)
-		}
-
-		data, exists := reactionsByEvent[eventID][emojiName]
-		if !exists {
-			data = &emojiData{earliestNanos: timestamp}
-			reactionsByEvent[eventID][emojiName] = data
-		} else if timestamp > 0 && (data.earliestNanos == 0 || timestamp < data.earliestNanos) {
-			data.earliestNanos = timestamp
-		}
-		data.userIDs = append(data.userIDs, userID)
-	}
-
-	// Convert to result map with sorted summaries per event
-	result := make(map[string][]ReactionSummary, len(reactionsByEvent))
-	for eventID, byEmoji := range reactionsByEvent {
-		type sortableReaction struct {
-			summary       ReactionSummary
-			earliestNanos uint64
-		}
-		sortable := make([]sortableReaction, 0, len(byEmoji))
-
-		for emojiName, data := range byEmoji {
-			sortable = append(sortable, sortableReaction{
-				summary: ReactionSummary{
-					Emoji:   emojiName,
-					UserIDs: data.userIDs,
-				},
-				earliestNanos: data.earliestNanos,
-			})
-		}
-
-		slices.SortFunc(sortable, func(a, b sortableReaction) int {
-			if a.earliestNanos < b.earliestNanos {
-				return -1
-			}
-			if a.earliestNanos > b.earliestNanos {
-				return 1
-			}
-			return strings.Compare(a.summary.Emoji, b.summary.Emoji)
-		})
-
-		summaries := make([]ReactionSummary, len(sortable))
-		for i, s := range sortable {
-			summaries[i] = s.summary
-		}
-		result[eventID] = summaries
-	}
-
 	return result, nil
+}
+
+// CanonicalReactionMessageEventID returns the original thread reply event ID
+// when messageEventID identifies a channel echo. Unknown IDs are returned
+// unchanged so legacy callers get the same behavior as direct projection reads.
+func (c *ChattoCore) CanonicalReactionMessageEventID(roomID, messageEventID string) string {
+	canonicalID, err := c.canonicalReactionMessageEventID(roomID, messageEventID)
+	if err != nil {
+		return messageEventID
+	}
+	return canonicalID
+}
+
+func (c *ChattoCore) canonicalReactionMessageEventID(roomID, messageEventID string) (string, error) {
+	if strings.TrimSpace(messageEventID) == "" {
+		return messageEventID, nil
+	}
+	if c == nil || c.RoomTimeline == nil {
+		return messageEventID, nil
+	}
+	entry, ok := c.RoomTimeline.Get(messageEventID)
+	if !ok || entry == nil || entry.Event == nil {
+		return messageEventID, nil
+	}
+	if roomID != "" && roomIDOfEvent(entry.Event) != roomID {
+		return "", ErrMessageNotFound
+	}
+	posted := entry.Event.GetMessagePosted()
+	if posted == nil || posted.GetEchoOfEventId() == "" {
+		return messageEventID, nil
+	}
+	originalID := posted.GetEchoOfEventId()
+	if roomID != "" {
+		if originalEntry, ok := c.RoomTimeline.Get(originalID); ok && originalEntry != nil && originalEntry.Event != nil && roomIDOfEvent(originalEntry.Event) != roomID {
+			return "", ErrMessageNotFound
+		}
+	}
+	return originalID, nil
 }
 
 // ============================================================================
 // Event Publishing
 // ============================================================================
 
-// publishReactionAddedEvent publishes a ReactionAddedEvent directly to the live subject space.
-// Reactions are transient UI updates that don't need JetStream storage - the KV bucket is the source of truth.
-func (c *ChattoCore) publishReactionAddedEvent(ctx context.Context, kind RoomKind, roomID, messageEventID, emoji, userID string) {
-	event := newEvent(userID, &corev1.Event{
+const maxReactionMutationRetries = 5
+
+func newReactionAddedEvent(userID, roomID, messageEventID, emoji string) *corev1.Event {
+	return newEvent(userID, &corev1.Event{
 		Event: &corev1.Event_ReactionAdded{
 			ReactionAdded: &corev1.ReactionAddedEvent{
 				RoomId:         roomID,
@@ -317,18 +211,10 @@ func (c *ChattoCore) publishReactionAddedEvent(ctx context.Context, kind RoomKin
 			},
 		},
 	})
-
-	// Publish directly to live subject (bypass JetStream)
-	subject := subjects.LiveRoomEvent(string(kind), roomID, "reaction_added")
-	if err := c.publishLiveServerEvent(ctx, subject, event); err != nil {
-		c.logger.Warn("Failed to publish reaction added event", "error", err)
-	}
 }
 
-// publishReactionRemovedEvent publishes a ReactionRemovedEvent directly to the live subject space.
-// Reactions are transient UI updates that don't need JetStream storage - the KV bucket is the source of truth.
-func (c *ChattoCore) publishReactionRemovedEvent(ctx context.Context, kind RoomKind, roomID, messageEventID, emoji, userID string) {
-	event := newEvent(userID, &corev1.Event{
+func newReactionRemovedEvent(userID, roomID, messageEventID, emoji string) *corev1.Event {
+	return newEvent(userID, &corev1.Event{
 		Event: &corev1.Event_ReactionRemoved{
 			ReactionRemoved: &corev1.ReactionRemovedEvent{
 				RoomId:         roomID,
@@ -337,10 +223,69 @@ func (c *ChattoCore) publishReactionRemovedEvent(ctx context.Context, kind RoomK
 			},
 		},
 	})
+}
 
-	// Publish directly to live subject (bypass JetStream)
-	subject := subjects.LiveRoomEvent(string(kind), roomID, "reaction_removed")
-	if err := c.publishLiveServerEvent(ctx, subject, event); err != nil {
-		c.logger.Warn("Failed to publish reaction removed event", "error", err)
+func (c *ChattoCore) publishReactionMutation(ctx context.Context, kind RoomKind, roomID, messageEventID, emoji, userID string, event *corev1.Event) (bool, error) {
+	add := event.GetReactionAdded() != nil
+	remove := event.GetReactionRemoved() != nil
+	if !add && !remove {
+		return false, fmt.Errorf("unsupported reaction event %T", event.GetEvent())
 	}
+
+	agg := events.RoomAggregate(roomID)
+	publishSubject := agg.SubjectFor(event)
+	occFilter := agg.AllEventsFilter()
+
+	for attempt := 0; attempt < maxReactionMutationRetries; attempt++ {
+		snapshot := c.rooms().reactionMutationSnapshot(roomID, messageEventID, emoji, userID)
+		if add && snapshot.Exists {
+			var err error
+			snapshot, err = c.currentReactionMutationSnapshot(ctx, roomID, messageEventID, emoji, userID)
+			if err != nil {
+				return false, err
+			}
+			if snapshot.Exists {
+				return false, nil
+			}
+		}
+		if remove && !snapshot.Exists {
+			var err error
+			snapshot, err = c.currentReactionMutationSnapshot(ctx, roomID, messageEventID, emoji, userID)
+			if err != nil {
+				return false, err
+			}
+			if !snapshot.Exists {
+				return false, nil
+			}
+		}
+
+		seq, err := c.EventPublisher.AppendAtFilter(ctx, publishSubject, event, occFilter, snapshot.Seq)
+		if err == nil {
+			if err := c.rooms().waitForReactions(ctx, events.SubjectPosition(publishSubject, seq)); err != nil {
+				return false, fmt.Errorf("wait for reactions projection: %w", err)
+			}
+			return true, nil
+		}
+		if !errors.Is(err, events.ErrConflict) {
+			return false, err
+		}
+
+		if err := c.rooms().waitForReactionsCurrent(ctx, c.EventPublisher, roomID); err != nil {
+			return false, err
+		}
+
+		select {
+		case <-ctx.Done():
+			return false, ctx.Err()
+		case <-time.After(time.Duration(1<<attempt) * time.Millisecond):
+		}
+	}
+	return false, fmt.Errorf("reaction OCC retry exhausted after %d attempts: %w", maxReactionMutationRetries, events.ErrConflict)
+}
+
+func (c *ChattoCore) currentReactionMutationSnapshot(ctx context.Context, roomID, messageEventID, emoji, userID string) (ReactionMutationSnapshot, error) {
+	if err := c.rooms().waitForReactionsCurrent(ctx, c.EventPublisher, roomID); err != nil {
+		return ReactionMutationSnapshot{}, err
+	}
+	return c.rooms().reactionMutationSnapshot(roomID, messageEventID, emoji, userID), nil
 }

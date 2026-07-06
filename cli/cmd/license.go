@@ -7,15 +7,23 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// LICENSE is a copy of the root LICENSE (go:embed can't reach outside the module).
-//go:embed LICENSE
+// LICENSE is synchronized from the AGPL license text before builds.
+//
+//go:embed embedded/LICENSE
 var licenseText string
+
+// NOTICE is synchronized from the root NOTICE before builds.
+//
+//go:embed embedded/NOTICE
+var noticeText string
 
 var licenseCmd = &cobra.Command{
 	Use:   "license",
 	Short: "Print license information",
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Print(licenseText)
+		fmt.Print("\n\n")
+		fmt.Print(noticeText)
 	},
 }
 

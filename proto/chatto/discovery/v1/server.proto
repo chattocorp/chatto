@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package chatto.discovery.v1;
+
+import "chatto/api/v1/server.proto";
+
+// Request for public server metadata.
+message GetServerRequest {}
+
+// Public metadata clients need before they can authenticate or render the
+// initial server view.
+message GetServerResponse {
+  // Public server profile and branding.
+  chatto.api.v1.ServerPublicProfile profile = 1;
+  // Login and registration options.
+  chatto.api.v1.ServerLogin login = 2;
+}
+
+// Provides unauthenticated server discovery metadata.
+service ServerDiscoveryService {
+  // Returns public server metadata, branding, registration status, and login
+  // provider information. This fully public RPC is available before login so
+  // clients can render the first server screen and authentication choices.
+  rpc GetServer(GetServerRequest) returns (GetServerResponse);
+}

@@ -3,9 +3,12 @@ package http_server
 import (
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"testing/fstest"
 
+	"github.com/gin-contrib/sessions"
+	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"hmans.de/chatto/internal/config"
@@ -63,28 +66,7 @@ func TestImmutableAssetCaching(t *testing.T) {
 	// Create a minimal test router that simulates our caching middleware
 	router := gin.New()
 
-	// Add the caching middleware (same logic as in setupFrontendRoutes)
-	router.Use(func(c *gin.Context) {
-		urlPath := c.Request.URL.Path
-		if len(urlPath) > len("/_app/immutable/") && urlPath[:len("/_app/immutable/")] == "/_app/immutable/" {
-			c.Header("Cache-Control", cacheControlImmutable)
-
-			if etag := extractImmutableETag(urlPath); etag != "" {
-				quotedETag := `"` + etag + `"`
-				c.Header("ETag", quotedETag)
-
-				if match := c.GetHeader("If-None-Match"); match != "" {
-					if match == quotedETag || match == etag || match == `W/`+quotedETag {
-						c.AbortWithStatus(http.StatusNotModified)
-						return
-					}
-				}
-			}
-		} else {
-			c.Header("Cache-Control", cacheControlNoCache)
-		}
-		c.Next()
-	})
+	router.Use(setFrontendCacheHeaders)
 
 	// Add a simple handler that returns content
 	router.GET("/*path", func(c *gin.Context) {
@@ -148,6 +130,55 @@ func TestImmutableAssetCaching(t *testing.T) {
 		assert.Equal(t, http.StatusOK, w.Code)
 		assert.Equal(t, cacheControlNoCache, w.Header().Get("Cache-Control"))
 		assert.Empty(t, w.Header().Get("ETag"))
+	})
+
+	t.Run("service worker returns revalidate cache policy", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/service-worker.js", nil)
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		assert.Equal(t, cacheControlRevalidate, w.Header().Get("Cache-Control"))
+		assert.Empty(t, w.Header().Get("ETag"))
+	})
+}
+
+func TestServiceWorkerETag(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	content := []byte("self.addEventListener('fetch', () => {});")
+	etag := serviceWorkerETag(content)
+
+	router := gin.New()
+	router.Use(setFrontendCacheHeaders)
+	router.GET("/service-worker.js", func(c *gin.Context) {
+		if setServiceWorkerETag(c, content) {
+			return
+		}
+		c.Data(http.StatusOK, "application/javascript", content)
+	})
+
+	t.Run("returns etag", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/service-worker.js", nil)
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		assert.Equal(t, cacheControlRevalidate, w.Header().Get("Cache-Control"))
+		assert.Equal(t, etag, w.Header().Get("ETag"))
+		assert.Equal(t, string(content), w.Body.String())
+	})
+
+	t.Run("matching if none match returns 304", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/service-worker.js", nil)
+		req.Header.Set("If-None-Match", etag)
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusNotModified, w.Code)
+		assert.Equal(t, cacheControlRevalidate, w.Header().Get("Cache-Control"))
+		assert.Equal(t, etag, w.Header().Get("ETag"))
+		assert.Empty(t, w.Body.String())
 	})
 }
 
@@ -287,6 +318,66 @@ func TestServeSPAFallback(t *testing.T) {
 	})
 }
 
+func TestFrontendFallbackDoesNotServeReservedBackendPrefixes(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	server := &HTTPServer{
+		config: config.ChattoConfig{Webserver: config.WebserverConfig{URL: "https://example.com"}},
+		router: gin.New(),
+	}
+	sessionStore := cookie.NewStore([]byte("test-secret-key-32-bytes-long!!"))
+	server.router.Use(sessions.Sessions("chatto_session", sessionStore))
+	if err := server.setupFrontendRoutes(); err != nil {
+		t.Fatalf("setupFrontendRoutes: %v", err)
+	}
+
+	tests := []string{
+		"/api/unknown",
+		"/auth/unknown",
+		"/assets/unknown",
+	}
+	for _, path := range tests {
+		t.Run(path, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, path, nil)
+			w := httptest.NewRecorder()
+			server.router.ServeHTTP(w, req)
+
+			assert.Equal(t, http.StatusNotFound, w.Code)
+			assert.NotContains(t, w.Body.String(), "<!DOCTYPE html>")
+		})
+	}
+}
+
+func TestFrontendFallbackAllowsRoutesWithReservedPrefixNames(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	server := &HTTPServer{
+		config: config.ChattoConfig{Webserver: config.WebserverConfig{URL: "https://example.com"}},
+		router: gin.New(),
+	}
+	sessionStore := cookie.NewStore([]byte("test-secret-key-32-bytes-long!!"))
+	server.router.Use(sessions.Sessions("chatto_session", sessionStore))
+	if err := server.setupFrontendRoutes(); err != nil {
+		t.Fatalf("setupFrontendRoutes: %v", err)
+	}
+
+	tests := []string{
+		"/apiary",
+		"/author",
+		"/assets-gallery",
+	}
+	for _, path := range tests {
+		t.Run(path, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, path, nil)
+			w := httptest.NewRecorder()
+			server.router.ServeHTTP(w, req)
+
+			assert.Equal(t, http.StatusOK, w.Code)
+			assert.Contains(t, strings.ToLower(w.Body.String()), "<!doctype html>")
+		})
+	}
+}
+
 func TestSecurityHeaders(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
@@ -295,9 +386,7 @@ func TestSecurityHeaders(t *testing.T) {
 
 	// Add the security headers middleware (same as in setupFrontendRoutes)
 	router.Use(func(c *gin.Context) {
-		c.Header("X-Content-Type-Options", "nosniff")
-		c.Header("X-Frame-Options", "DENY")
-		c.Header("Referrer-Policy", "strict-origin-when-cross-origin")
+		setFrontendSecurityHeaders(c)
 		c.Next()
 	})
 
@@ -314,5 +403,15 @@ func TestSecurityHeaders(t *testing.T) {
 		assert.Equal(t, "nosniff", w.Header().Get("X-Content-Type-Options"))
 		assert.Equal(t, "DENY", w.Header().Get("X-Frame-Options"))
 		assert.Equal(t, "strict-origin-when-cross-origin", w.Header().Get("Referrer-Policy"))
+		csp := w.Header().Get("Content-Security-Policy-Report-Only")
+		assert.NotEmpty(t, csp)
+		assert.Contains(t, csp, "default-src 'self'")
+		assert.Contains(t, csp, "connect-src 'self' http: https: ws: wss:")
+		assert.Contains(t, csp, "img-src 'self' data: blob: http: https:")
+		assert.Contains(t, csp, "media-src 'self' blob: http: https:")
+		assert.Contains(t, csp, "frame-src https://www.youtube-nocookie.com")
+		assert.Contains(t, csp, "require-trusted-types-for 'script'")
+		assert.Contains(t, csp, "trusted-types chatto-markdown-html")
+		assert.NotContains(t, csp, "trusted-types default")
 	})
 }

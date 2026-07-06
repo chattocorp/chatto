@@ -20,16 +20,21 @@ import (
 // Notification Key Helpers
 // ============================================================================
 
+const (
+	notificationTTL       = 90 * 24 * time.Hour
+	notificationKeyPrefix = "notification."
+)
+
 // notificationKey returns the KV key for a notification.
-// Format: {userId}.{notificationId}
+// Format: notification.{userId}.{notificationId}
 func notificationKey(userID, notificationID string) string {
-	return fmt.Sprintf("%s.%s", userID, notificationID)
+	return fmt.Sprintf("%s%s.%s", notificationKeyPrefix, userID, notificationID)
 }
 
 // notificationKeyFilter returns the NATS subject filter for all notifications for a user.
-// Uses NATS subject wildcard syntax: "userID.*" matches all keys starting with userID.
+// Uses NATS subject wildcard syntax: "notification.userID.*" matches all keys for the user.
 func notificationKeyFilter(userID string) string {
-	return userID + ".*"
+	return notificationKeyPrefix + userID + ".*"
 }
 
 // ============================================================================
@@ -37,7 +42,7 @@ func notificationKeyFilter(userID string) string {
 // ============================================================================
 
 // CreateNotification creates a new notification and publishes a sync event.
-// The notification is stored in the NOTIFICATIONS KV bucket with TTL.
+// The notification is stored in RUNTIME_STATE with a per-key TTL.
 // Authorization: Internal use only - called by message posting logic.
 //
 // The notification parameter should already have its oneof payload set.
@@ -47,6 +52,8 @@ func (c *ChattoCore) CreateNotification(
 	recipientID, actorID string,
 	notification *corev1.Notification,
 ) (*corev1.Notification, error) {
+	silent := c.suppressesNotificationAlertsForPresence(ctx, recipientID)
+
 	notificationID := NewNotificationID()
 	now := time.Now()
 
@@ -63,33 +70,44 @@ func (c *ChattoCore) CreateNotification(
 	}
 
 	key := notificationKey(recipientID, notificationID)
-	_, err = c.storage.notificationsKV.Put(ctx, key, data)
+	_, err = c.storage.runtimeStateKV.Create(ctx, key, data, jetstream.KeyTTL(notificationTTL))
 	if err != nil {
 		return nil, fmt.Errorf("failed to store notification: %w", err)
 	}
 
 	// Publish sync event to recipient for real-time delivery
-	c.publishNotificationCreatedEvent(ctx, notification)
+	c.publishNotificationCreatedEvent(ctx, notification, silent)
 
 	// Call the notification callback for push notifications (if set)
 	// Run asynchronously to avoid blocking notification creation if push is slow
-	if c.OnNotificationCreated != nil {
+	if c.OnNotificationCreated != nil && !silent {
 		go c.OnNotificationCreated(context.WithoutCancel(ctx), notification)
 	}
 
 	c.logger.Debug("Notification created",
 		"notification_id", notificationID,
 		"recipient_id", recipientID,
-		"type", notificationTypeName(notification))
+		"type", notificationTypeName(notification),
+		"silent", silent)
 
 	return notification, nil
+}
+
+func (c *ChattoCore) suppressesNotificationAlertsForPresence(ctx context.Context, userID string) bool {
+	status, err := c.GetUserPresence(ctx, userID)
+	if err != nil {
+		c.logger.Warn("Failed to get presence for notification suppression",
+			"user_id", userID, "error", err)
+		return false
+	}
+	return status == PresenceStatusDoNotDisturb
 }
 
 // GetNotifications returns all notifications for a user, ordered by creation time (newest first).
 // Authorization: Caller must verify userID matches authenticated user.
 func (c *ChattoCore) GetNotifications(ctx context.Context, userID string) ([]*corev1.Notification, error) {
 	prefix := notificationKeyFilter(userID)
-	lister, err := c.storage.notificationsKV.ListKeysFiltered(ctx, prefix)
+	lister, err := c.storage.runtimeStateKV.ListKeysFiltered(ctx, prefix)
 	if err != nil {
 		if errors.Is(err, jetstream.ErrNoKeysFound) {
 			return []*corev1.Notification{}, nil
@@ -99,7 +117,7 @@ func (c *ChattoCore) GetNotifications(ctx context.Context, userID string) ([]*co
 
 	var notifications []*corev1.Notification
 	for key := range lister.Keys() {
-		entry, err := c.storage.notificationsKV.Get(ctx, key)
+		entry, err := c.storage.runtimeStateKV.Get(ctx, key)
 		if err != nil {
 			c.logger.Warn("Failed to get notification", "key", key, "error", err)
 			continue
@@ -126,7 +144,7 @@ func (c *ChattoCore) GetNotifications(ctx context.Context, userID string) ([]*co
 // Authorization: Caller must verify userID matches authenticated user.
 func (c *ChattoCore) GetNotification(ctx context.Context, userID, notificationID string) (*corev1.Notification, error) {
 	key := notificationKey(userID, notificationID)
-	entry, err := c.storage.notificationsKV.Get(ctx, key)
+	entry, err := c.storage.runtimeStateKV.Get(ctx, key)
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) {
 			return nil, nil
@@ -149,7 +167,7 @@ func (c *ChattoCore) DismissNotification(ctx context.Context, userID, notificati
 	key := notificationKey(userID, notificationID)
 
 	// Fetch notification before deleting (needed for push dismissal callback)
-	entry, err := c.storage.notificationsKV.Get(ctx, key)
+	entry, err := c.storage.runtimeStateKV.Get(ctx, key)
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) {
 			return false, nil // Already dismissed
@@ -163,7 +181,7 @@ func (c *ChattoCore) DismissNotification(ctx context.Context, userID, notificati
 	}
 
 	// Delete
-	err = c.storage.notificationsKV.Delete(ctx, key)
+	err = c.storage.runtimeStateKV.Delete(ctx, key)
 	if err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) {
 		return false, fmt.Errorf("failed to delete notification: %w", err)
 	}
@@ -189,7 +207,7 @@ func (c *ChattoCore) DismissNotification(ctx context.Context, userID, notificati
 // Authorization: Caller must verify userID matches authenticated user.
 func (c *ChattoCore) DismissAllNotifications(ctx context.Context, userID string) (int, error) {
 	prefix := notificationKeyFilter(userID)
-	lister, err := c.storage.notificationsKV.ListKeysFiltered(ctx, prefix)
+	lister, err := c.storage.runtimeStateKV.ListKeysFiltered(ctx, prefix)
 	if err != nil {
 		if errors.Is(err, jetstream.ErrNoKeysFound) {
 			return 0, nil
@@ -205,7 +223,22 @@ func (c *ChattoCore) DismissAllNotifications(ctx context.Context, userID string)
 
 	deleted := 0
 	for _, key := range keys {
-		if err := c.storage.notificationsKV.Delete(ctx, key); err != nil {
+		var notif *corev1.Notification
+		entry, err := c.storage.runtimeStateKV.Get(ctx, key)
+		if err != nil {
+			if !errors.Is(err, jetstream.ErrKeyNotFound) {
+				c.logger.Warn("Failed to get notification before dismissing", "key", key, "error", err)
+			}
+		} else {
+			var decoded corev1.Notification
+			if err := proto.Unmarshal(entry.Value(), &decoded); err != nil {
+				c.logger.Warn("Failed to unmarshal notification before dismissing", "key", key, "error", err)
+			} else {
+				notif = &decoded
+			}
+		}
+
+		if err := c.storage.runtimeStateKV.Delete(ctx, key); err != nil {
 			if !errors.Is(err, jetstream.ErrKeyNotFound) {
 				c.logger.Warn("Failed to delete notification", "key", key, "error", err)
 			}
@@ -214,10 +247,14 @@ func (c *ChattoCore) DismissAllNotifications(ctx context.Context, userID string)
 		deleted++
 
 		// Extract notification ID from key and publish sync event
-		// Key format: {userId}.{notificationId}
-		keyPrefix := userID + "."
+		// Key format: notification.{userId}.{notificationId}
+		keyPrefix := notificationKeyPrefix + userID + "."
 		if notificationID := strings.TrimPrefix(key, keyPrefix); notificationID != key {
 			c.publishNotificationDismissedEvent(ctx, userID, notificationID)
+		}
+
+		if notif != nil && c.OnNotificationDismissed != nil {
+			go c.OnNotificationDismissed(context.WithoutCancel(ctx), userID, notif)
 		}
 	}
 
@@ -233,7 +270,7 @@ func (c *ChattoCore) DismissAllNotifications(ctx context.Context, userID string)
 // Authorization: Caller must verify userID matches authenticated user.
 func (c *ChattoCore) HasUnreadNotifications(ctx context.Context, userID string) (bool, error) {
 	prefix := notificationKeyFilter(userID)
-	lister, err := c.storage.notificationsKV.ListKeysFiltered(ctx, prefix)
+	lister, err := c.storage.runtimeStateKV.ListKeysFiltered(ctx, prefix)
 	if err != nil {
 		if errors.Is(err, jetstream.ErrNoKeysFound) {
 			return false, nil
@@ -252,7 +289,7 @@ func (c *ChattoCore) HasUnreadNotifications(ctx context.Context, userID string) 
 // Authorization: Caller must verify userID matches authenticated user.
 func (c *ChattoCore) GetNotificationCount(ctx context.Context, userID string) (int, error) {
 	prefix := notificationKeyFilter(userID)
-	lister, err := c.storage.notificationsKV.ListKeysFiltered(ctx, prefix)
+	lister, err := c.storage.runtimeStateKV.ListKeysFiltered(ctx, prefix)
 	if err != nil {
 		if errors.Is(err, jetstream.ErrNoKeysFound) {
 			return 0, nil
@@ -267,45 +304,197 @@ func (c *ChattoCore) GetNotificationCount(ctx context.Context, userID string) (i
 	return count, nil
 }
 
+func (c *ChattoCore) GetRoomNotificationsForMember(ctx context.Context, actorID, roomID string) ([]*corev1.Notification, error) {
+	if err := requireAuthenticatedActor(actorID); err != nil {
+		return nil, err
+	}
+	if strings.TrimSpace(roomID) == "" {
+		return nil, invalidArgument("room_id is required")
+	}
+	room, err := c.FindRoomByID(ctx, roomID)
+	if err != nil {
+		return nil, err
+	}
+	isMember, err := c.RoomMembershipExists(ctx, KindOfRoom(room), actorID, room.GetId())
+	if err != nil || !isMember {
+		return []*corev1.Notification{}, nil
+	}
+
+	notifications, err := c.GetNotifications(ctx, actorID)
+	if err != nil {
+		return nil, err
+	}
+	filtered := make([]*corev1.Notification, 0, len(notifications))
+	for _, notification := range notifications {
+		if notificationTargetRoomID(notification) == room.GetId() {
+			filtered = append(filtered, notification)
+		}
+	}
+	return filtered, nil
+}
+
+// DismissRoomReadNotifications clears pending room-level notifications covered
+// by a room read marker and emits the same cross-device dismissal side effects
+// as explicit notification dismissal.
+func (c *ChattoCore) DismissRoomReadNotifications(ctx context.Context, kind RoomKind, userID, roomID string, readThrough time.Time) int {
+	if readThrough.IsZero() {
+		return 0
+	}
+	count, err := c.dismissMatchingNotifications(ctx, userID, func(notification *corev1.Notification) bool {
+		switch payload := notification.GetNotification().(type) {
+		case *corev1.Notification_DmMessage:
+			return payload.DmMessage.GetRoomId() == roomID &&
+				c.notificationEventAtOrBefore(ctx, kind, roomID, payload.DmMessage.GetEventId(), readThrough)
+		case *corev1.Notification_Mention:
+			return payload.Mention.GetRoomId() == roomID &&
+				payload.Mention.GetInThread() == "" &&
+				c.notificationEventAtOrBefore(ctx, kind, roomID, payload.Mention.GetEventId(), readThrough)
+		case *corev1.Notification_Reply:
+			return payload.Reply.GetRoomId() == roomID &&
+				payload.Reply.GetInThread() == "" &&
+				c.notificationEventAtOrBefore(ctx, kind, roomID, payload.Reply.GetEventId(), readThrough)
+		case *corev1.Notification_RoomMessage:
+			return payload.RoomMessage.GetRoomId() == roomID &&
+				c.notificationEventAtOrBefore(ctx, kind, roomID, payload.RoomMessage.GetEventId(), readThrough)
+		default:
+			return false
+		}
+	})
+	if err != nil {
+		c.logger.Warn("Failed to dismiss read room notifications",
+			"user_id", userID,
+			"room_id", roomID,
+			"error", err)
+	}
+	return count
+}
+
+// DismissThreadReadNotifications clears pending thread-scoped notifications
+// covered by a thread read marker and emits the same cross-device dismissal
+// side effects as explicit notification dismissal.
+func (c *ChattoCore) DismissThreadReadNotifications(ctx context.Context, kind RoomKind, userID, roomID, threadRootEventID string, readThrough time.Time) int {
+	if readThrough.IsZero() {
+		return 0
+	}
+	count, err := c.dismissMatchingNotifications(ctx, userID, func(notification *corev1.Notification) bool {
+		switch payload := notification.GetNotification().(type) {
+		case *corev1.Notification_Mention:
+			return payload.Mention.GetRoomId() == roomID &&
+				payload.Mention.GetInThread() == threadRootEventID &&
+				c.notificationEventAtOrBefore(ctx, kind, roomID, payload.Mention.GetEventId(), readThrough)
+		case *corev1.Notification_Reply:
+			return payload.Reply.GetRoomId() == roomID &&
+				payload.Reply.GetInThread() == threadRootEventID &&
+				c.notificationEventAtOrBefore(ctx, kind, roomID, payload.Reply.GetEventId(), readThrough)
+		default:
+			return false
+		}
+	})
+	if err != nil {
+		c.logger.Warn("Failed to dismiss read thread notifications",
+			"user_id", userID,
+			"room_id", roomID,
+			"thread_root_event_id", threadRootEventID,
+			"error", err)
+	}
+	return count
+}
+
+func (c *ChattoCore) dismissMatchingNotifications(ctx context.Context, userID string, match func(*corev1.Notification) bool) (int, error) {
+	prefix := notificationKeyFilter(userID)
+	lister, err := c.storage.runtimeStateKV.ListKeysFiltered(ctx, prefix)
+	if err != nil {
+		if errors.Is(err, jetstream.ErrNoKeysFound) {
+			return 0, nil
+		}
+		return 0, fmt.Errorf("failed to list notification keys: %w", err)
+	}
+
+	notificationIDs := []string{}
+	for key := range lister.Keys() {
+		entry, err := c.storage.runtimeStateKV.Get(ctx, key)
+		if err != nil {
+			if errors.Is(err, jetstream.ErrKeyNotFound) {
+				continue
+			}
+			return len(notificationIDs), fmt.Errorf("failed to get notification: %w", err)
+		}
+
+		var notification corev1.Notification
+		if err := proto.Unmarshal(entry.Value(), &notification); err != nil {
+			return len(notificationIDs), fmt.Errorf("failed to unmarshal notification: %w", err)
+		}
+		if match(&notification) {
+			notificationIDs = append(notificationIDs, notification.GetId())
+		}
+	}
+
+	dismissed := 0
+	for _, notificationID := range notificationIDs {
+		ok, err := c.DismissNotification(ctx, userID, notificationID)
+		if err != nil {
+			return dismissed, err
+		}
+		if ok {
+			dismissed++
+		}
+	}
+	return dismissed, nil
+}
+
+func (c *ChattoCore) notificationEventAtOrBefore(ctx context.Context, kind RoomKind, roomID, eventID string, cutoff time.Time) bool {
+	if eventID == "" || cutoff.IsZero() {
+		return false
+	}
+	eventTime, err := c.GetEventTimestamp(ctx, kind, roomID, eventID)
+	if err != nil {
+		c.logger.Warn("Failed to resolve notification event timestamp",
+			"kind", kind,
+			"room_id", roomID,
+			"event_id", eventID,
+			"error", err)
+		return false
+	}
+	return !eventTime.IsZero() && !eventTime.After(cutoff)
+}
+
 // ============================================================================
 // Real-time Sync Events
 // ============================================================================
 
 // publishNotificationCreatedEvent publishes a live event for cross-device sync.
-func (c *ChattoCore) publishNotificationCreatedEvent(ctx context.Context, notif *corev1.Notification) {
+func (c *ChattoCore) publishNotificationCreatedEvent(ctx context.Context, notif *corev1.Notification, silent bool) {
 	// Extract navigation context from the notification payload
-	var spaceID, roomID, eventID, inReplyToID string
+	var roomID, eventID, inReplyToID string
 	switch n := notif.Notification.(type) {
 	case *corev1.Notification_DmMessage:
-		spaceID = DMSpaceID
 		roomID = n.DmMessage.RoomId
 	case *corev1.Notification_Mention:
-		spaceID = n.Mention.SpaceId
 		roomID = n.Mention.RoomId
 		eventID = n.Mention.EventId
 	case *corev1.Notification_Reply:
-		spaceID = n.Reply.SpaceId
 		roomID = n.Reply.RoomId
 		eventID = n.Reply.EventId
 		inReplyToID = n.Reply.InReplyToId
+	case *corev1.Notification_RoomMessage:
+		roomID = n.RoomMessage.RoomId
+		eventID = n.RoomMessage.EventId
 	}
 
-	event := &corev1.Event{
-		Id:        NewEventID(),
-		ActorId:   notif.ActorId,
+	event := newLiveEvent(notif.ActorId, &corev1.LiveEvent{
 		CreatedAt: notif.CreatedAt,
-		Event: &corev1.Event_NotificationCreated{
+		Event: &corev1.LiveEvent_NotificationCreated{
 			NotificationCreated: &corev1.NotificationCreatedEvent{
 				NotificationId: notif.Id,
-				SpaceId:        spaceID,
 				RoomId:         roomID,
 				EventId:        eventID,
 				InReplyToId:    inReplyToID,
+				Silent:         silent,
 			},
 		},
-	}
+	})
 
-	subject := subjects.LiveUserEvent(notif.RecipientId, "notification_created")
+	subject := subjects.LiveSyncUserEvent(notif.RecipientId, "notification_created")
 	if err := c.publishLiveEvent(ctx, subject, event); err != nil {
 		c.logger.Warn("Failed to publish notification created event",
 			"notification_id", notif.Id,
@@ -315,18 +504,15 @@ func (c *ChattoCore) publishNotificationCreatedEvent(ctx context.Context, notif 
 
 // publishNotificationDismissedEvent publishes a live event for cross-device sync.
 func (c *ChattoCore) publishNotificationDismissedEvent(ctx context.Context, userID, notificationID string) {
-	event := &corev1.Event{
-		Id:        NewEventID(),
-		ActorId:   userID,
-		CreatedAt: timestamppb.Now(),
-		Event: &corev1.Event_NotificationDismissed{
+	event := newLiveEvent(userID, &corev1.LiveEvent{
+		Event: &corev1.LiveEvent_NotificationDismissed{
 			NotificationDismissed: &corev1.NotificationDismissedEvent{
 				NotificationId: notificationID,
 			},
 		},
-	}
+	})
 
-	subject := subjects.LiveUserEvent(userID, "notification_dismissed")
+	subject := subjects.LiveSyncUserEvent(userID, "notification_dismissed")
 	if err := c.publishLiveEvent(ctx, subject, event); err != nil {
 		c.logger.Warn("Failed to publish notification dismissed event",
 			"notification_id", notificationID,
@@ -347,7 +533,27 @@ func notificationTypeName(notif *corev1.Notification) string {
 		return "mention"
 	case *corev1.Notification_Reply:
 		return "reply"
+	case *corev1.Notification_RoomMessage:
+		return "room_message"
 	default:
 		return "unknown"
+	}
+}
+
+func notificationTargetRoomID(notification *corev1.Notification) string {
+	if notification == nil {
+		return ""
+	}
+	switch payload := notification.GetNotification().(type) {
+	case *corev1.Notification_DmMessage:
+		return payload.DmMessage.GetRoomId()
+	case *corev1.Notification_Mention:
+		return payload.Mention.GetRoomId()
+	case *corev1.Notification_Reply:
+		return payload.Reply.GetRoomId()
+	case *corev1.Notification_RoomMessage:
+		return payload.RoomMessage.GetRoomId()
+	default:
+		return ""
 	}
 }

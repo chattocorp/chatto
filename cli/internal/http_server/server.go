@@ -3,11 +3,15 @@ package http_server
 import (
 	"context"
 	"crypto/tls"
-	"encoding/hex"
+	"errors"
 	"fmt"
+	"net"
 	"net/http"
+	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/charmbracelet/log"
@@ -30,7 +34,7 @@ type HTTPServerConfig struct {
 	Version string
 }
 
-// HTTPServer serves the HTTP/GraphQL API and static frontend.
+// HTTPServer serves the HTTP APIs and static frontend.
 type HTTPServer struct {
 	config     config.ChattoConfig
 	nc         *nats.Conn
@@ -41,7 +45,17 @@ type HTTPServer struct {
 	addr       string
 	version    string
 	logger     *log.Logger
+	metrics    *processMetrics
+
+	// Optional test hook used to make password-login revocation races deterministic.
+	passwordLoginSessionCreatedHook func(*gin.Context, string, uint64)
 }
+
+const (
+	httpServerReadHeaderTimeout = 10 * time.Second
+	httpServerIdleTimeout       = 2 * time.Minute
+	httpServerShutdownTimeout   = 5 * time.Second
+)
 
 // NewHTTPServer creates a new HTTP server with the provided dependencies.
 func NewHTTPServer(cfg HTTPServerConfig) (*HTTPServer, error) {
@@ -59,7 +73,7 @@ func NewHTTPServer(cfg HTTPServerConfig) (*HTTPServer, error) {
 	router := gin.New()
 	router.Use(gin.Recovery())
 	if cfg.Config.Webserver.RequestLoggingEnabled() {
-		router.Use(gin.Logger())
+		router.Use(requestLogger(logger))
 	}
 
 	s := &HTTPServer{
@@ -72,6 +86,7 @@ func NewHTTPServer(cfg HTTPServerConfig) (*HTTPServer, error) {
 		addr:       cfg.Addr,
 		version:    cfg.Version,
 		logger:     logger,
+		metrics:    newProcessMetrics(),
 	}
 
 	// Set up all routes
@@ -82,34 +97,79 @@ func NewHTTPServer(cfg HTTPServerConfig) (*HTTPServer, error) {
 	return s, nil
 }
 
+func newHTTPServer(addr string, handler http.Handler) *http.Server {
+	return &http.Server{
+		Addr:              addr,
+		Handler:           handler,
+		ReadHeaderTimeout: httpServerReadHeaderTimeout,
+		IdleTimeout:       httpServerIdleTimeout,
+	}
+}
+
+func newAppHTTPServer(addr string, handler http.Handler) *http.Server {
+	server := newHTTPServer(addr, handler)
+	protocols := new(http.Protocols)
+	protocols.SetHTTP1(true)
+	protocols.SetHTTP2(true)
+	protocols.SetUnencryptedHTTP2(true)
+	server.Protocols = protocols
+	return server
+}
+
+func requestLogger(logger *log.Logger) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		start := time.Now()
+		path := c.Request.URL.Path
+		hasQuery := c.Request.URL.RawQuery != ""
+
+		c.Next()
+
+		status := c.Writer.Status()
+		fields := []any{
+			"status", status,
+			"method", c.Request.Method,
+			"path", path,
+			"latency", time.Since(start).String(),
+			"client_ip_present", c.ClientIP() != "",
+			"user_agent", c.Request.UserAgent(),
+			"bytes", c.Writer.Size(),
+		}
+		if hasQuery {
+			fields = append(fields, "query_present", true)
+		}
+		if len(c.Errors) > 0 {
+			fields = append(fields, "error_count", len(c.Errors.ByType(gin.ErrorTypePrivate)))
+		}
+
+		switch {
+		case status >= http.StatusInternalServerError:
+			logger.Error("HTTP request", fields...)
+		case status >= http.StatusBadRequest:
+			logger.Warn("HTTP request", fields...)
+		default:
+			logger.Info("HTTP request", fields...)
+		}
+	}
+}
+
 func (s *HTTPServer) setupRoutes() error {
 	// SESSION MANAGEMENT
 
 	// Configure session middleware
 	authKey := []byte(s.config.Webserver.CookieSigningSecret)
-	var sessionStore cookie.Store
-	if encHex := s.config.Webserver.CookieEncryptionSecret; encHex != "" {
-		encKey, err := hex.DecodeString(encHex)
-		if err != nil {
-			return fmt.Errorf("webserver.cookie_encryption_secret: must be hex-encoded: %w", err)
-		}
-		switch len(encKey) {
-		case 16, 24, 32:
-		default:
-			return fmt.Errorf("webserver.cookie_encryption_secret must decode to 16, 24, or 32 bytes (got %d)", len(encKey))
-		}
+	var sessionStore sessions.Store
+	encKey, err := s.config.Webserver.CookieEncryptionKey()
+	if err != nil {
+		return err
+	}
+	if len(encKey) > 0 {
 		sessionStore = cookie.NewStore(authKey, encKey)
 	} else {
-		s.logger.Warn("webserver.cookie_encryption_secret is not set; session cookies are signed but NOT encrypted. Run `chatto init` on a fresh instance to generate one, or add a hex-encoded 32-byte value to chatto.toml.")
+		s.logger.Warn("webserver.cookie_encryption_secret is not set; session cookies are signed but NOT encrypted. Run `chatto init` on a fresh server to generate one, or add a hex-encoded 32-byte value to chatto.toml.")
 		sessionStore = cookie.NewStore(authKey)
 	}
-	sessionStore.Options(sessions.Options{
-		MaxAge:   60 * 60 * 24 * 90, // 90 days
-		HttpOnly: true,
-		Secure:   strings.HasPrefix(s.config.Webserver.URL, "https"),
-		Path:     "/",
-		SameSite: http.SameSiteLaxMode,
-	})
+	sessionStore.Options(cookieSessionOptions(s.config.Auth.TokenTTLOrDefault(), strings.HasPrefix(s.config.Webserver.URL, "https")))
+	sessionStore = newDebugSessionStore(sessionStore, s.logger)
 	s.router.Use(sessions.Sessions("chatto_session", sessionStore))
 
 	// Build allowed origins list once and share between CORS middleware and WebSocket CheckOrigin
@@ -117,12 +177,13 @@ func (s *HTTPServer) setupRoutes() error {
 
 	// CORS middleware for cross-origin API access (token-based auth)
 	s.router.Use(s.corsMiddleware(allowedOrigins))
+	s.router.Use(s.csrfMiddleware())
 
 	// Set up feature-specific routes
 	s.setupHealthRoutes()
-	s.setupServerInfoRoutes()
 	s.setupWebhookRoutes()
-	s.setupGraphQLAPI(allowedOrigins)
+	s.setupConnectAPI()
+	s.setupRealtimeAPI(allowedOrigins)
 	s.setupOIDCRoutes()
 	s.setupATProtoRoutes()
 	s.setupAuthRoutes()
@@ -141,6 +202,10 @@ func (s *HTTPServer) Run(ctx context.Context) error {
 
 	var servers []*http.Server
 	var tlsServer *http.Server
+	var metricsServer *http.Server
+	var operatorServer *http.Server
+	var operatorListener net.Listener
+	var operatorSocketInfo os.FileInfo
 
 	if s.config.Webserver.TLS.Enabled {
 		tlsConfig := s.config.Webserver.TLS
@@ -160,36 +225,59 @@ func (s *HTTPServer) Run(ctx context.Context) error {
 		}
 
 		// HTTPS server (started separately with ListenAndServeTLS)
-		tlsServer = &http.Server{
-			Addr:    s.addr,
-			Handler: s.router,
-			TLSConfig: &tls.Config{
-				GetCertificate: certManager.GetCertificate,
-				MinVersion:     tls.VersionTLS12,
-			},
+		tlsServer = newAppHTTPServer(s.addr, s.router)
+		tlsServer.TLSConfig = &tls.Config{
+			GetCertificate: certManager.GetCertificate,
+			MinVersion:     tls.VersionTLS12,
 		}
 
 		// HTTP server for ACME challenges and HTTPS redirect
 		httpAddr := fmt.Sprintf(":%d", tlsConfig.HTTPPortOrDefault())
-		servers = append(servers, &http.Server{
-			Addr:    httpAddr,
-			Handler: certManager.HTTPHandler(http.HandlerFunc(s.redirectToHTTPS)),
-		})
+		servers = append(servers, newHTTPServer(httpAddr, certManager.HTTPHandler(http.HandlerFunc(s.redirectToHTTPS))))
 	} else {
 		// Plain HTTP server
-		servers = append(servers, &http.Server{
-			Addr:    s.addr,
-			Handler: s.router,
-		})
+		servers = append(servers, newAppHTTPServer(s.addr, s.router))
+	}
+
+	if s.config.Metrics.Enabled {
+		var err error
+		metricsServer, err = s.newMetricsServer()
+		if err != nil {
+			return err
+		}
+		servers = append(servers, metricsServer)
+	}
+
+	if s.config.OperatorAPI.Enabled {
+		operatorServer = s.newOperatorAPIServer()
+		var err error
+		operatorListener, operatorSocketInfo, err = s.prepareOperatorAPISocket()
+		if err != nil {
+			return err
+		}
+		defer s.cleanupOperatorAPISocket(operatorSocketInfo)
+		servers = append(servers, operatorServer)
 	}
 
 	serverErr := make(chan error, len(servers)+1)
 
 	// Start HTTP servers
 	for _, srv := range servers {
-		s.logger.Info("Starting HTTP server", "addr", srv.Addr, "url", s.config.Webserver.URL)
+		if srv == metricsServer {
+			s.logger.Info("Starting metrics server", "url", metricsServerURL(srv.Addr, s.config.Metrics.PathOrDefault()))
+		} else if srv == operatorServer {
+			s.logger.Info("Starting operator API server", "socket", srv.Addr)
+		} else {
+			s.logger.Info("Starting HTTP server", "addr", srv.Addr, "url", s.config.Webserver.URL)
+		}
 		go func(srv *http.Server) {
-			if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			var err error
+			if srv == operatorServer {
+				err = srv.Serve(operatorListener)
+			} else {
+				err = srv.ListenAndServe()
+			}
+			if err != nil && err != http.ErrServerClosed {
 				serverErr <- err
 			}
 		}(srv)
@@ -225,18 +313,135 @@ func (s *HTTPServer) Run(ctx context.Context) error {
 	}
 }
 
-func (s *HTTPServer) shutdownServer(server *http.Server) error {
-	s.logger.Info("Shutting down server", "addr", server.Addr)
+func metricsServerURL(addr, path string) string {
+	return (&url.URL{Scheme: "http", Host: addr, Path: path}).String()
+}
 
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+func (s *HTTPServer) prepareOperatorAPISocket() (net.Listener, os.FileInfo, error) {
+	socketPath := s.config.OperatorAPI.SocketPathOrDefault()
+	socketMode := config.OperatorAPISocketMode
+	parent := filepath.Dir(socketPath)
+	if err := os.MkdirAll(parent, 0o700); err != nil {
+		return nil, nil, fmt.Errorf("create operator API socket directory %s: %w", parent, err)
+	}
+	if err := validateOperatorAPISocketParent(parent); err != nil {
+		return nil, nil, err
+	}
+	if existing, err := os.Lstat(socketPath); err == nil {
+		if existing.Mode()&os.ModeSocket == 0 {
+			return nil, nil, fmt.Errorf("operator API socket path %s exists and is not a Unix socket", socketPath)
+		}
+		if existing.Mode().Perm() != socketMode {
+			return nil, nil, fmt.Errorf("operator API socket %s has mode %04o, want %04o", socketPath, existing.Mode().Perm(), socketMode)
+		}
+		conn, err := net.DialTimeout("unix", socketPath, 200*time.Millisecond)
+		if err == nil {
+			_ = conn.Close()
+			return nil, nil, fmt.Errorf("operator API socket %s is already in use", socketPath)
+		}
+		if !isStaleOperatorSocketError(err) {
+			return nil, nil, fmt.Errorf("operator API socket %s exists but could not be verified as stale: %w", socketPath, err)
+		}
+		if err := os.Remove(socketPath); err != nil {
+			return nil, nil, fmt.Errorf("remove stale operator API socket %s: %w", socketPath, err)
+		}
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return nil, nil, fmt.Errorf("inspect operator API socket %s: %w", socketPath, err)
+	}
+
+	listener, err := net.Listen("unix", socketPath)
+	if err != nil {
+		return nil, nil, fmt.Errorf("listen on operator API socket %s: %w", socketPath, err)
+	}
+	if err := os.Chmod(socketPath, socketMode); err != nil {
+		_ = listener.Close()
+		_ = os.Remove(socketPath)
+		return nil, nil, fmt.Errorf("set operator API socket mode %s to %04o: %w", socketPath, socketMode, err)
+	}
+	created, err := os.Lstat(socketPath)
+	if err != nil {
+		_ = listener.Close()
+		_ = os.Remove(socketPath)
+		return nil, nil, fmt.Errorf("inspect created operator API socket %s: %w", socketPath, err)
+	}
+	if created.Mode().Perm() != socketMode {
+		_ = listener.Close()
+		_ = os.Remove(socketPath)
+		return nil, nil, fmt.Errorf("operator API socket %s has mode %04o after bind, want %04o", socketPath, created.Mode().Perm(), socketMode)
+	}
+	return listener, created, nil
+}
+
+func validateOperatorAPISocketParent(parent string) error {
+	info, err := os.Lstat(parent)
+	if err != nil {
+		return fmt.Errorf("inspect operator API socket directory %s: %w", parent, err)
+	}
+	mode := info.Mode()
+	if mode&os.ModeSymlink != 0 || !mode.IsDir() {
+		return fmt.Errorf("operator API socket directory %s is not a directory", parent)
+	}
+	uid, _, ok := fileOwnerIDs(info)
+	if !ok {
+		return fmt.Errorf("inspect owner of operator API socket directory %s", parent)
+	}
+	if uid != uint32(os.Geteuid()) {
+		return fmt.Errorf("operator API socket directory %s is owned by uid %d, want uid %d", parent, uid, os.Geteuid())
+	}
+	if mode&(os.ModeSetuid|os.ModeSetgid|os.ModeSticky) != 0 {
+		return fmt.Errorf("operator API socket directory %s has unsafe mode bits %s", parent, mode.String())
+	}
+	perm := mode.Perm()
+	if perm&0o077 != 0 {
+		return fmt.Errorf("operator API socket directory %s must not be accessible by group or other users; mode is %04o", parent, perm)
+	}
+	return nil
+}
+
+func fileOwnerIDs(info os.FileInfo) (uint32, uint32, bool) {
+	stat, ok := info.Sys().(*syscall.Stat_t)
+	if !ok {
+		return 0, 0, false
+	}
+	return stat.Uid, stat.Gid, true
+}
+
+func isStaleOperatorSocketError(err error) bool {
+	return errors.Is(err, syscall.ECONNREFUSED) || errors.Is(err, os.ErrNotExist)
+}
+
+func (s *HTTPServer) cleanupOperatorAPISocket(created os.FileInfo) {
+	if created == nil {
+		return
+	}
+	socketPath := s.config.OperatorAPI.SocketPathOrDefault()
+	current, err := os.Lstat(socketPath)
+	if err != nil {
+		return
+	}
+	if os.SameFile(created, current) {
+		if err := os.Remove(socketPath); err != nil {
+			s.logger.Warn("Failed to remove operator API socket", "socket", socketPath, "error", err)
+		}
+	}
+}
+
+func (s *HTTPServer) shutdownServer(server *http.Server) error {
+	return s.shutdownServerWithTimeout(server, httpServerShutdownTimeout)
+}
+
+func (s *HTTPServer) shutdownServerWithTimeout(server *http.Server, timeout time.Duration) error {
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
 	if err := server.Shutdown(shutdownCtx); err != nil {
 		s.logger.Error("Server forced to shutdown", "addr", server.Addr, "error", err)
+		if closeErr := server.Close(); closeErr != nil {
+			return fmt.Errorf("graceful shutdown: %w; forced close: %w", err, closeErr)
+		}
 		return err
 	}
 
-	s.logger.Info("Server shutdown complete", "addr", server.Addr)
 	return nil
 }
 

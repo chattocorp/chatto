@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"strings"
 	"testing"
 )
 
@@ -131,6 +132,11 @@ func TestSavePushSubscription(t *testing.T) {
 		if sub.CreatedAt == nil {
 			t.Error("Expected CreatedAt to be set")
 		}
+
+		key := pushSubscriptionKey(userID, endpoint)
+		if _, err := core.storage.runtimeStateKV.Get(ctx, key); err != nil {
+			t.Fatalf("expected push subscription in RUNTIME_STATE: %v", err)
+		}
 	})
 
 	t.Run("updates existing subscription with same endpoint", func(t *testing.T) {
@@ -149,6 +155,104 @@ func TestSavePushSubscription(t *testing.T) {
 			t.Errorf("Expected 1 subscription after update, got %d", len(subs))
 		}
 	})
+}
+
+func TestSavePushSubscription_StringLengthLimits(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := context.Background()
+	userID := "push-user-limits"
+
+	t.Run("accepts values at max length", func(t *testing.T) {
+		_, err := core.SavePushSubscription(
+			ctx,
+			userID,
+			strings.Repeat("e", MaxPushEndpointLength),
+			strings.Repeat("p", MaxPushKeyLength),
+			strings.Repeat("a", MaxPushAuthLength),
+			strings.Repeat("u", MaxPushUserAgentLength),
+		)
+		if err != nil {
+			t.Fatalf("SavePushSubscription at max lengths: %v", err)
+		}
+	})
+
+	tests := []struct {
+		name      string
+		endpoint  string
+		p256dh    string
+		auth      string
+		userAgent string
+		field     string
+		max       int
+	}{
+		{
+			name:     "endpoint",
+			endpoint: strings.Repeat("e", MaxPushEndpointLength+1),
+			p256dh:   "key",
+			auth:     "auth",
+			field:    "push endpoint",
+			max:      MaxPushEndpointLength,
+		},
+		{
+			name:     "p256dh",
+			endpoint: "https://push.example.com/limits-p256dh",
+			p256dh:   strings.Repeat("p", MaxPushKeyLength+1),
+			auth:     "auth",
+			field:    "push p256dh key",
+			max:      MaxPushKeyLength,
+		},
+		{
+			name:     "auth",
+			endpoint: "https://push.example.com/limits-auth",
+			p256dh:   "key",
+			auth:     strings.Repeat("a", MaxPushAuthLength+1),
+			field:    "push auth secret",
+			max:      MaxPushAuthLength,
+		},
+		{
+			name:      "user agent",
+			endpoint:  "https://push.example.com/limits-user-agent",
+			p256dh:    "key",
+			auth:      "auth",
+			userAgent: strings.Repeat("u", MaxPushUserAgentLength+1),
+			field:     "push user agent",
+			max:       MaxPushUserAgentLength,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := core.SavePushSubscription(ctx, userID, tt.endpoint, tt.p256dh, tt.auth, tt.userAgent)
+			assertStringLengthError(t, err, tt.field, tt.max)
+		})
+	}
+}
+
+func TestGetAllPushSubscriptions(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := context.Background()
+
+	_, err := core.SavePushSubscription(ctx, "push-user-all-a", "https://push.example.com/all-a", "key", "auth", "browser-a")
+	if err != nil {
+		t.Fatalf("SavePushSubscription user A error: %v", err)
+	}
+	_, err = core.SavePushSubscription(ctx, "push-user-all-b", "https://push.example.com/all-b", "key", "auth", "browser-b")
+	if err != nil {
+		t.Fatalf("SavePushSubscription user B error: %v", err)
+	}
+
+	subs, err := core.GetAllPushSubscriptions(ctx)
+	if err != nil {
+		t.Fatalf("GetAllPushSubscriptions error: %v", err)
+	}
+
+	seen := map[string]bool{}
+	for _, sub := range subs {
+		seen[sub.UserID] = true
+	}
+	if !seen["push-user-all-a"] || !seen["push-user-all-b"] {
+		t.Fatalf("GetAllPushSubscriptions missing users; got %#v", seen)
+	}
 }
 
 func TestGetUserPushSubscriptions(t *testing.T) {

@@ -1,7 +1,9 @@
 [tools]
+actionlint = "latest"
+buf = "latest"
 go = "1.26.2"
+goreleaser = "latest"
 node = "22"
-watchexec = "latest"
 
 [env]
 _.file = '.env'
@@ -12,7 +14,7 @@ _.file = '.env'
 
 [tasks.setup]
 description = "Set up the development environment"
-run = { task = "deps" }
+run = [{ task = "setup-cli" }, { task = "setup-frontend" }]
 
 # =============================================================================
 # Dependencies
@@ -21,48 +23,60 @@ run = { task = "deps" }
 [tasks.deps-cli]
 description = "Install Go dependencies"
 dir = "cli"
-run = "go get ./..."
+run = "go mod download"
 sources = ["go.mod", "go.sum"]
 
 [tasks.deps-frontend]
 description = "Install frontend dependencies"
-dir = "frontend"
+dir = "."
 run = "pnpm install"
-sources = ["package.json", "pnpm-lock.yaml"]
+# package.json also contains app metadata and scripts; the lockfile is the
+# dependency-resolution input that should trigger installs.
+sources = ["package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml", ".npmrc", "apps/*/package.json", "packages/*/package.json"]
 
 [tasks.deps]
 description = "Install all dependencies"
 run = { task = "deps-*" }
+
+[tasks.setup-cli]
+description = "Set up the CLI module"
+depends = ["deps-cli", "sync-cli-legal"]
+
+[tasks.setup-frontend]
+description = "Set up the frontend module"
+depends = ["deps-frontend"]
+
+# =============================================================================
+# License Metadata
+# =============================================================================
+
+[tasks.license-check]
+description = "Check SPDX/REUSE license metadata"
+run = "mise x uv@latest -- uvx reuse lint"
 
 # =============================================================================
 # Code Generation
 # =============================================================================
 
 [tasks.codegen-proto]
-description = "Generate Go code from protobuf schemas"
+description = "Generate Go and frontend code from protobuf schemas"
+depends = ["setup-cli", "setup-frontend"]
 dir = "proto"
-run = "buf generate"
-
-[tasks.codegen-cli]
-description = "Generate GraphQL code using gqlgen"
-depends = ["deps-cli", "codegen-proto"]
-dir = "cli"
-run = "go generate ./..."
-
-[tasks.codegen-frontend]
-description = "Generate Frontend code (e.g. GraphQL types)"
-depends = ["deps-frontend"]
-dir = "frontend"
-run = "pnpm codegen"
+run = [
+    "pnpm --dir ../packages/api-types run clean",
+    "buf generate",
+    "node ../tools/split-connectrpc-docs.mjs",
+    "node ../tools/trim-proto-codegen-output.mjs",
+]
 
 [tasks.codegen-emoji]
 description = "Generate Go emoji map from gemoji npm package"
-depends = ["deps-frontend"]
+depends = ["setup-frontend"]
 run = "node tools/gen-emoji-map.mjs"
 
 [tasks.codegen-types]
 description = "Generate TypeScript types from Go using tygo"
-depends = ["deps-cli"]
+depends = ["setup-cli"]
 dir = "cli"
 run = "go tool tygo generate"
 
@@ -74,97 +88,193 @@ run = { task = "codegen-*" }
 # Build
 # =============================================================================
 
+[tasks.sync-cli-legal]
+description = "Copy root legal files into the CLI module for go:embed"
+run = [
+    "mkdir -p cli/cmd/embedded",
+    "cp LICENSES/AGPL-3.0-or-later.txt cli/LICENSE",
+    "cp NOTICE cli/NOTICE",
+    "cp LICENSES/AGPL-3.0-or-later.txt cli/cmd/embedded/LICENSE",
+    "cp NOTICE cli/cmd/embedded/NOTICE",
+]
+sources = ["LICENSES/AGPL-3.0-or-later.txt", "NOTICE"]
+outputs = ["cli/LICENSE", "cli/NOTICE", "cli/cmd/embedded/LICENSE", "cli/cmd/embedded/NOTICE"]
+
 [tasks.build]
 description = "Build the entire project for all architectures"
 run = [{ task = "build-*" }, "ls -lah cli/bin/*"]
 
+[tasks.build-api-types]
+description = "Build the generated TypeScript API package"
+depends = ["setup-frontend"]
+dir = "packages/api-types"
+run = "pnpm build"
+sources = ["package.json", "tsconfig.json", "src/**/*"]
+
 [tasks.build-frontend]
 description = "Build the frontend application"
-depends = ["deps-frontend"]
-dir = "frontend"
+depends = ["setup-frontend", "build-api-types"]
+dir = "apps/frontend"
 run = [
     "pnpm svelte-kit sync",
     "pnpm build",
-    "rm -rf ../cli/internal/http_server/.client",
-    "cp -r build ../cli/internal/http_server/.client",
-    "touch ../cli/internal/http_server/.client/.gitkeep",
+    "touch build/.mise-build-stamp",
+    "rm -rf ../../cli/internal/http_server/.client",
+    "cp -r build ../../cli/internal/http_server/.client",
+    "touch ../../cli/internal/http_server/.client/.gitkeep",
 ]
 sources = [
+    "../../.npmrc",
+    "../../package.json",
+    "../../pnpm-lock.yaml",
+    "../../pnpm-workspace.yaml",
+    "../../packages/api-types/dist/**/*",
     "package.json",
-    "pnpm-lock.yaml",
     "src/**/*",
+    "!src/**/*.spec.*",
+    "!src/**/*.test.*",
+    "!src/**/*.stories.*",
+    "!src/**/*TestHarness.svelte",
     "static/**/*",
     "svelte.config.js",
     "tsconfig.json",
     "vite.config.ts",
 ]
+outputs = ["build/.mise-build-stamp", "../../cli/internal/http_server/.client/.gitkeep"]
 
-[tasks.build-cli]
-description = "Build the CLI application for the current architecture"
-depends = ["deps-cli", "build-frontend"]
+[tasks.build-dev-cli]
+description = "Build the development CLI application for the current architecture"
+depends = ["setup-cli", "build-frontend"]
 dir = "cli"
-run = "go build -o bin/chatto ."
-sources = ["**/*.go", "internal/http_server/.client/**/*"]
+run = "go build -trimpath -tags bootstrap -o bin/chatto ."
+sources = [
+    "go.mod",
+    "go.sum",
+    "**/*.go",
+    "!**/*_test.go",
+    "cmd/embedded/LICENSE",
+    "cmd/embedded/NOTICE",
+    "internal/http_server/.client/**/*",
+]
 outputs = ["bin/chatto"]
 
 [tasks.build-e2e-server]
 description = "Build the E2E test server binary with dev bootstrap and test endpoints enabled"
-depends = ["deps-cli", "build-frontend"]
+depends = ["setup-cli", "build-frontend"]
 dir = "cli"
 # `bootstrap` enables the [bootstrap] section in chatto.toml, which seeds
 # the e2eadmin user the harness logs in as. `test_endpoints` exposes the
 # test-only HTTP endpoints (e.g. /auth/test/create-user) used by per-test
 # fixtures. Deliberately scoped — the e2e binary should NOT pull in any
 # future broader dev-only code that might land under a separate tag.
-run = "go build -tags 'bootstrap test_endpoints' -o ../frontend/e2e/fixtures/bin/chatto ."
-sources = ["**/*.go", "internal/http_server/.client/**/*"]
-outputs = ["../frontend/e2e/fixtures/bin/chatto"]
-
-# =============================================================================
-# Development
-# =============================================================================
-
-[tasks._app-server]
-description = "Compile and run the app server in dev mode"
-dir = "cli"
-# `bootstrap` compiles in the [bootstrap] applier so chatto.toml seed
-# data is honored on every restart.
-run = "go run -tags bootstrap . start"
-sources = ["**/*.go", "go.mod", "go.sum"]
-hide = true
-
-[tasks.dev-app]
-description = "Run the application in development mode (with file watching)"
-depends = "build-frontend"
-run = "mise watch _app-server --restart"
-
-[tasks.dev-frontend]
-description = "Run the frontend application in development mode"
-depends = ["deps-frontend"]
-dir = "frontend"
-run = "pnpm dev"
+run = "CGO_ENABLED=0 go build -trimpath -tags 'bootstrap test_endpoints' -ldflags '-s -w' -o ../apps/frontend/e2e/fixtures/bin/chatto ."
+sources = [
+    "**/*.go",
+    "cmd/embedded/LICENSE",
+    "cmd/embedded/NOTICE",
+    "internal/http_server/.client/**/*",
+]
+outputs = ["../apps/frontend/e2e/fixtures/bin/chatto"]
 
 [tasks.storybook]
-description = "Run the Storybook design-system catalog"
-depends = ["deps-frontend"]
-dir = "frontend"
-run = "pnpm storybook"
+description = "Run the Storybook design-system catalog on the workspace port"
+depends = ["setup-frontend", "build-api-types"]
+dir = "apps/frontend"
+env = {
+  CHATTO_STORYBOOK_PORT = "{{env.CHATTO_STORYBOOK_PORT | default(value=env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000')))}}",
+}
+run = "exec pnpm exec storybook dev --host 127.0.0.1 --port \"$CHATTO_STORYBOOK_PORT\" --no-open"
 
-[tasks.dev-frontend-codegen]
-description = "Run graphql-codegen in watch mode"
-depends = ["deps-frontend"]
-dir = "frontend"
-run = "pnpm codegen --watch"
+[tasks.dev-backend]
+description = "Build and run the local development backend"
+depends = ["setup-cli"]
+dir = "cli"
+run = "go build -trimpath -tags bootstrap -o bin/chatto-dev . && exec ./bin/chatto-dev start"
+
+[tasks.dev-frontend]
+description = "Run the local development frontend"
+depends = ["setup-frontend", "build-api-types"]
+dir = "apps/frontend"
+run = "exec ./node_modules/.bin/vite dev"
+
+[tasks.dev-livekit]
+description = "Run a local LiveKit server with workspace-safe ports"
+env = {
+  CHATTO_DEV_PORT_BASE = "{{env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000'))}}",
+  CHATTO_DEV_LIVEKIT_KEYS = "devkey: devsecret",
+  CHATTO_DEV_LIVEKIT_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 5}}",
+  CHATTO_DEV_LIVEKIT_RTC_TCP_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 6}}",
+  CHATTO_DEV_LIVEKIT_UDP_PORTS = "{{env.CHATTO_DEV_PORT_BASE | int + 7}}",
+}
+run = "exec livekit-server --dev --bind 127.0.0.1 --node-ip 127.0.0.1 --keys \"$CHATTO_DEV_LIVEKIT_KEYS\" --port \"$CHATTO_DEV_LIVEKIT_PORT\" --rtc.tcp_port \"$CHATTO_DEV_LIVEKIT_RTC_TCP_PORT\" --udp-port \"$CHATTO_DEV_LIVEKIT_UDP_PORTS\""
+
+[tasks.dev-mailpit]
+description = "Run a local Mailpit SMTP server with workspace-safe ports"
+env = {
+  CHATTO_DEV_PORT_BASE = "{{env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000'))}}",
+  CHATTO_DEV_MAILPIT_SMTP_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 8}}",
+  CHATTO_DEV_MAILPIT_UI_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 9}}",
+}
+run = "exec mailpit --smtp \"127.0.0.1:$CHATTO_DEV_MAILPIT_SMTP_PORT\" --listen \"127.0.0.1:$CHATTO_DEV_MAILPIT_UI_PORT\""
 
 [tasks.dev]
-description = "Run a complete development environment (backend + frontend)"
-run = { task = "dev-*" }
+description = "Run the local backend and frontend development servers"
+depends = ["setup-cli", "build-api-types"]
+env = {
+  VITE_PORT = "{{env.VITE_PORT | default(value=env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000')))}}",
+  CHATTO_WEBSERVER_PORT = "{{env.CHATTO_WEBSERVER_PORT | default(value=env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000')) | int + 1)}}",
+  CHATTO_WEBSERVER_URL = "{% if env.CHATTO_WEBSERVER_URL is defined and env.CHATTO_WEBSERVER_URL != '' %}{{env.CHATTO_WEBSERVER_URL}}{% else %}http://localhost:{{env.VITE_PORT | default(value=env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000')))}}{% endif %}",
+  CHATTO_NATS_EMBEDDED_PORT = "{{env.CHATTO_NATS_EMBEDDED_PORT | default(value=env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000')) | int + 2)}}",
+  CHATTO_NATS_CLIENT_URL = "{% if env.CHATTO_NATS_CLIENT_URL is defined and env.CHATTO_NATS_CLIENT_URL != '' %}{{env.CHATTO_NATS_CLIENT_URL}}{% else %}nats://localhost:{{env.CHATTO_NATS_EMBEDDED_PORT | default(value=env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000')) | int + 2)}}{% endif %}",
+  CHATTO_METRICS_PORT = "{{env.CHATTO_METRICS_PORT | default(value=env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000')) | int + 3)}}",
+  CHATTO_EXPORTER_PORT = "{{env.CHATTO_EXPORTER_PORT | default(value=env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000')) | int + 4)}}",
+  CHATTO_LIVEKIT_URL = "{% if env.CHATTO_LIVEKIT_URL is defined and env.CHATTO_LIVEKIT_URL != '' %}{{env.CHATTO_LIVEKIT_URL}}{% else %}ws://localhost:{{env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000')) | int + 5}}{% endif %}",
+  CHATTO_LIVEKIT_WEBHOOK_URL = "{% if env.CHATTO_LIVEKIT_WEBHOOK_URL is defined and env.CHATTO_LIVEKIT_WEBHOOK_URL != '' %}{{env.CHATTO_LIVEKIT_WEBHOOK_URL}}{% else %}http://localhost:{{env.CHATTO_WEBSERVER_PORT | default(value=env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000')) | int + 1)}}/webhooks/livekit{% endif %}",
+  CHATTO_SMTP_PORT = "{{env.CHATTO_SMTP_PORT | default(value=env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000')) | int + 8)}}",
+}
+run = { tasks = ["dev-backend", "dev-frontend", "dev-livekit", "dev-mailpit"] }
+
+[tasks.dev-docs-website]
+description = "Run the docs website development server with workspace-safe ports"
+depends = ["setup-frontend"]
+dir = "apps/docs-website"
+raw = true
+run = """
+workspace_port_base="${CONDUCTOR_PORT:-${PASEO_PORT:-4000}}"
+docs_website_port="${CHATTO_DOCS_WEBSITE_PORT:-$workspace_port_base}"
+
+exec pnpm astro dev --host 127.0.0.1 --port "$docs_website_port"
+"""
 
 [tasks.chatto]
-description = "Runs the CLI app with the given arguments"
-depends = ["deps-cli", "build-frontend"]
+description = "Build and run the bundled Chatto CLI command with workspace-safe ports"
+depends = ["build-dev-cli"]
 dir = "cli"
-run = "go run -tags bootstrap . ${@}"
+env = {
+  CHATTO_WEBSERVER_PORT = "{{env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000'))}}",
+  CHATTO_WEBSERVER_URL = "http://localhost:{{env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000'))}}",
+  CHATTO_NATS_EMBEDDED_PORT = "{{env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000')) | int + 1}}",
+  CHATTO_NATS_CLIENT_URL = "nats://localhost:{{env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000')) | int + 1}}",
+  CHATTO_METRICS_ENABLED = "true",
+  CHATTO_METRICS_BIND_ADDRESS = "127.0.0.1",
+  CHATTO_METRICS_PORT = "{{env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000')) | int + 2}}",
+  CHATTO_METRICS_PATH = "/metrics",
+  CHATTO_EXPORTER_ENABLED = "true",
+  CHATTO_EXPORTER_BIND_ADDRESS = "127.0.0.1",
+  CHATTO_EXPORTER_PORT = "{{env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000')) | int + 3}}",
+  CHATTO_EXPORTER_PATH = "/metrics",
+  CHATTO_LIVEKIT_ENABLED = "true",
+  CHATTO_LIVEKIT_URL = "ws://localhost:{{env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000')) | int + 5}}",
+  CHATTO_LIVEKIT_API_KEY = "devkey",
+  CHATTO_LIVEKIT_API_SECRET = "devsecret",
+  CHATTO_LIVEKIT_WEBHOOK_URL = "http://localhost:{{env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000')) | int}}/webhooks/livekit",
+  CHATTO_SMTP_ENABLED = "true",
+  CHATTO_SMTP_HOST = "127.0.0.1",
+  CHATTO_SMTP_PORT = "{{env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000')) | int + 8}}",
+  CHATTO_SMTP_TLS = "opportunistic",
+  CHATTO_SMTP_FROM = "chatto-dev@chatto.localhost",
+}
+run = "exec bin/chatto"
 
 # =============================================================================
 # Testing
@@ -172,15 +282,27 @@ run = "go run -tags bootstrap . ${@}"
 
 [tasks.test-cli]
 description = "Run CLI tests"
-depends = ["deps-cli", "build-frontend"]
+depends = ["setup-cli", "build-frontend"]
 dir = "cli"
-run = "go test -tags test_endpoints ./..."
-sources = ["**/*.go"]
+run = "go test -trimpath -p ${CHATTO_GO_TEST_P:-4} -tags test_endpoints ./..."
+sources = ["**/*.go", "cmd/embedded/LICENSE", "cmd/embedded/NOTICE"]
+
+[tasks.test-cli-shutdown]
+description = "Run backend process shutdown integration tests"
+depends = ["setup-cli"]
+dir = "cli"
+run = "go test -trimpath -tags integration ./cmd -run TestRunCommandShutsDownOnSignals -count=1 -timeout 2m"
+sources = ["**/*.go", "cmd/embedded/LICENSE", "cmd/embedded/NOTICE"]
+
+[tasks.knip]
+description = "Find unused frontend/docs files, dependencies, and exports"
+depends = ["setup-frontend", "build-api-types"]
+run = "pnpm knip"
 
 [tasks.lint-frontend]
 description = "Run TypeScript and ESLint checks on frontend"
-depends = ["deps-frontend"]
-dir = "frontend"
+depends = ["setup-frontend", "build-api-types"]
+dir = "apps/frontend"
 run = ["pnpm check", "pnpm lint"]
 
 [tasks.lint]
@@ -189,14 +311,14 @@ run = [{ task = "lint-*" }]
 
 [tasks.test-frontend]
 description = "Run frontend unit tests"
-depends = ["deps-frontend"]
-dir = "frontend"
+depends = ["setup-frontend", "build-api-types"]
+dir = "apps/frontend"
 run = "pnpm vitest --run"
 
 [tasks.test-e2e]
 description = "Run E2E tests"
-depends = ["deps-frontend", "build-e2e-server"]
-dir = "frontend"
+depends = ["setup-frontend", "build-e2e-server"]
+dir = "apps/frontend"
 run = "pnpm exec playwright test"
 
 [tasks.test]
@@ -217,13 +339,15 @@ run = "bin/chatto run"
 description = "Clean all build artifacts"
 run = [
     "rm -rf cli/bin/*",
-    "rm -rf cli/internal/http_server/.client/*",
-    "rm -rf frontend/build/*",
+    "rm -rf cli/cmd/embedded",
+    "rm -rf cli/internal/http_server/.client",
+    "rm -rf apps/frontend/build",
 ]
 
 [tasks.reset-config]
 description = "Delete and reinitialize chatto.toml"
 confirm = "Are you sure you want to re-initialize chatto.toml? This will delete your current configuration."
+depends = ["setup-cli"]
 dir = "cli"
 run = ["rm chatto.toml", "go run . init"]
 
@@ -242,11 +366,26 @@ echo "Browse to: http://localhost:6060/hmans.de/chatto"
 pkgsite -http=localhost:6060 .
 """
 
-# =============================================================================
-# Versioning
-# =============================================================================
+[tasks.verify-docker]
+description = "Validate Docker, GoReleaser, and image workflow wiring"
+run = """
+set -euo pipefail
 
-[tasks.bump]
-description = "Bump version (usage: mise bump patch|minor|major)"
-dir = "cli"
-run = "go tool github.com/bcomnes/goversion/v2 -bump-file ../frontend/package.json ${@}"
+goreleaser check
+
+actionlint .github/workflows/*.yml
+
+docker buildx build --check --build-arg TARGETARCH=amd64 -f docker/Dockerfile.dev .
+docker buildx build --check -f docker/Dockerfile.frontend.dev .
+docker buildx build --check -f docker/Dockerfile.frontend.prebuilt .
+
+tmp="$(mktemp -d /tmp/chatto-docker-verify.XXXXXX)"
+trap 'rm -rf "$tmp"' EXIT
+context="$tmp/linux-amd64"
+mkdir -p "$context/docker"
+cp docker/Dockerfile.goreleaser "$context/Dockerfile"
+cp docker/docker-entrypoint.sh "$context/docker/docker-entrypoint.sh"
+printf '#!/bin/sh\necho chatto dummy\n' > "$context/chatto"
+chmod +x "$context/chatto"
+docker buildx build --build-arg TARGETARCH=amd64 -f "$context/Dockerfile" "$context"
+"""

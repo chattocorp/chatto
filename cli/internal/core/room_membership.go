@@ -4,86 +4,61 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
+	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
-	"google.golang.org/protobuf/proto"
 
-	"hmans.de/chatto/internal/core/subjects"
+	"hmans.de/chatto/internal/events"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-// roomMembershipKey returns the KV key for a room membership.
-// Pattern: `room_membership.{kind}.{roomID}.{userID}` where kind is
-// "channel" or "dm". Same outer-to-inner scope ordering as roomKey
-// (`room.{kind}.{roomID}`): kind, then room, then per-room detail.
-func roomMembershipKey(kind RoomKind, room_id, user_id string) string {
-	return fmt.Sprintf("room_membership.%s.%s.%s", kind, room_id, user_id)
-}
-
-// roomMembershipKeyPrefixForRoom returns the key prefix for listing all
-// memberships of a given room. Pattern: `room_membership.{kind}.{roomID}.*`.
-// Pure prefix scan — used by room-deletion cleanup and member-list reads.
-func roomMembershipKeyPrefixForRoom(kind RoomKind, room_id string) string {
-	return fmt.Sprintf("room_membership.%s.%s.*", kind, room_id)
-}
-
-// roomMembershipKeyMatchForUser returns the subject filter that matches
-// a user's memberships of a given kind. The userID is in the trailing
-// position of the key (`room_membership.{kind}.{roomID}.{userID}`), so
-// this is an internal-wildcard filter rather than a pure prefix:
-// `room_membership.{kind}.*.{userID}`. Server-side filtered by NATS.
-func roomMembershipKeyMatchForUser(kind RoomKind, user_id string) string {
-	return fmt.Sprintf("room_membership.%s.*.%s", kind, user_id)
-}
-
-// roomMembershipKeyMatchForUserAnyKind returns the subject filter that matches
-// a user's memberships across all kinds (channel + dm).
-// Pattern: `room_membership.*.*.{userID}`.
-func roomMembershipKeyMatchForUserAnyKind(user_id string) string {
-	return fmt.Sprintf("room_membership.*.*.%s", user_id)
-}
+const maxJoinRoomRetries = 5
 
 // GetRoomMembership retrieves a room membership for a user in a specific room.
+// Reads from the RoomMembership projection (ADR-035 phase 5 cutover).
+// kind is ignored — roomID is globally unique, so the (roomID, userID)
+// pair fully identifies a membership.
 func (c *ChattoCore) GetRoomMembership(ctx context.Context, kind RoomKind, user_id, room_id string) (*corev1.RoomMembership, error) {
-	kv := c.storage.serverConfigKV
-
-	key := roomMembershipKey(kind, room_id, user_id)
-	data, err := kv.Get(ctx, key)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get room membership for user %s in room %s: %w", user_id, room_id, err)
+	if !c.RoomMembership.IsMember(room_id, user_id) {
+		return nil, fmt.Errorf("room membership not found for user %s in room %s: %w", user_id, room_id, jetstream.ErrKeyNotFound)
 	}
-
-	var membership corev1.RoomMembership
-	if err := proto.Unmarshal(data.Value(), &membership); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal room membership data for user %s in room %s: %w", user_id, room_id, err)
-	}
-
-	return &membership, nil
+	return &corev1.RoomMembership{
+		UserId: user_id,
+		RoomId: room_id,
+	}, nil
 }
 
 // RoomMembershipExists checks if a user is a member of a room.
+// Reads from the RoomMembership projection (ADR-035 phase 5 cutover).
 //
-// Membership is strictly explicit: a user is a member iff a
-// `room_membership` KV record exists. A user with `room.join` who hasn't
-// joined is not yet a member.
+// Channel rooms marked universal grant effective membership to every server
+// member who is currently eligible to join the room. Explicit memberships
+// remain the durable state; universal membership is derived at read time.
 func (c *ChattoCore) RoomMembershipExists(ctx context.Context, kind RoomKind, user_id, room_id string) (bool, error) {
-	_, err := c.GetRoomMembership(ctx, kind, user_id, room_id)
-	switch {
-	case err == nil:
+	if c.RoomMembership.IsMember(room_id, user_id) {
 		return true, nil
-	case errors.Is(err, jetstream.ErrKeyNotFound):
-		return false, nil
-	default:
-		return false, fmt.Errorf("failed to check membership for user %s in room %s: %w", user_id, room_id, err)
 	}
+	if kind != KindChannel {
+		return false, nil
+	}
+	room, err := c.GetRoom(ctx, kind, room_id)
+	if err != nil {
+		return false, err
+	}
+	if !room.GetUniversal() {
+		return false, nil
+	}
+	return c.CanJoinRoomAt(ctx, user_id, kind, room_id)
 }
 
-// JoinRoom creates or updates a room membership for a user.
-// This operation is idempotent - calling it multiple times with the same parameters
-// will succeed without error, making it safe for distributed systems where the same
-// operation might be retried or executed concurrently.
-// Authorization: Caller must verify CanJoinRoom before calling.
+// JoinRoom creates a room membership for a user.
+// Idempotent: calling it multiple times with the same parameters is a no-op
+// (the projection's Apply is idempotent on already-present (room, user)
+// pairs, and we early-out via IsMember).
+// Authorization: Caller must verify CanJoinRoomAt before calling.
+//
+// Event-only. Publishes UserJoinedRoomEvent to EVT, then WaitForSeq on the
+// projections that serve membership and room history reads.
 func (c *ChattoCore) JoinRoom(ctx context.Context, actorID string, kind RoomKind, user_id, room_id string) (*corev1.RoomMembership, error) {
 	// Verify room exists and is not archived
 	room, err := c.GetRoom(ctx, kind, room_id)
@@ -93,259 +68,515 @@ func (c *ChattoCore) JoinRoom(ctx context.Context, actorID string, kind RoomKind
 	if room.Archived {
 		return nil, fmt.Errorf("cannot join archived room")
 	}
-
-	// Check if this is a new membership (for event publishing)
-	exists, err := c.RoomMembershipExists(ctx, kind, user_id, room_id)
-	if err != nil {
-		return nil, fmt.Errorf("failed to check existing membership: %w", err)
+	if kind == KindChannel && c.rooms().isRoomBanActive(room_id, user_id, time.Now()) {
+		return nil, ErrPermissionDenied
 	}
-	isNew := !exists
-
-	kv := c.storage.serverConfigKV
 
 	membership := &corev1.RoomMembership{
 		UserId: user_id,
 		RoomId: room_id,
 	}
-
-	data, err := proto.Marshal(membership)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal room membership data: %w", err)
+	if kind == KindChannel && room.GetUniversal() {
+		return membership, nil
 	}
 
-	_, err = kv.Put(ctx, roomMembershipKey(kind, room_id, user_id), data)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create room membership for user %s in room %s: %w", user_id, room_id, err)
+	event := newEvent(actorID, &corev1.Event{
+		Event: &corev1.Event_UserJoinedRoom{
+			UserJoinedRoom: &corev1.UserJoinedRoomEvent{
+				RoomId: room_id,
+			},
+		},
+	})
+
+	joinSubject := events.RoomAggregate(room_id).SubjectFor(event)
+	var seq uint64
+	for attempt := 0; attempt < maxJoinRoomRetries; attempt++ {
+		if c.RoomMembership.IsMember(room_id, user_id) {
+			return membership, nil
+		}
+
+		expectedSeq, err := c.EventPublisher.LastSubjectSeq(ctx, joinSubject)
+		if err != nil {
+			return nil, fmt.Errorf("read UserJoinedRoomEvent OCC seq: %w", err)
+		}
+		if expectedSeq > 0 {
+			if err := c.rooms().waitForDirectory(ctx, events.SubjectPosition(joinSubject, expectedSeq)); err != nil {
+				return nil, fmt.Errorf("wait for room directory projection before join: %w", err)
+			}
+			if c.RoomMembership.IsMember(room_id, user_id) {
+				return membership, nil
+			}
+		}
+
+		seq, err = c.EventPublisher.AppendAt(ctx, joinSubject, event, expectedSeq)
+		if err == nil {
+			if err := c.rooms().waitForDirectoryAndTimeline(ctx, events.SubjectPosition(joinSubject, seq)); err != nil {
+				return nil, err
+			}
+			break
+		}
+		if !errors.Is(err, events.ErrConflict) {
+			return nil, fmt.Errorf("publish UserJoinedRoomEvent: %w", err)
+		}
+
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-time.After(time.Duration(1<<attempt) * time.Millisecond):
+		}
+	}
+	if seq == 0 {
+		return nil, fmt.Errorf("publish UserJoinedRoomEvent retry exhausted after %d attempts: %w", maxJoinRoomRetries, events.ErrConflict)
 	}
 
 	c.logger.Info("Created room membership", "user_id", user_id, "kind", kind, "room_id", room_id)
 
+	c.initializeRoomReadMarker(ctx, kind, user_id, room_id)
+
+	return membership, nil
+}
+
+// AddMember creates an explicit channel-room membership for another user.
+// Authorization: caller must verify room.manage before calling.
+//
+// The membership transition is still represented by UserJoinedRoomEvent with
+// the target user as actor, so existing membership projections and public room
+// history remain compatible. A separate moderation event records the manager
+// action for audit.
+func (c *ChattoCore) AddMember(ctx context.Context, actorID string, kind RoomKind, roomID, targetUserID string) (*corev1.RoomMembership, error) {
+	if kind == KindDM {
+		return nil, invalidArgument("DM room participants cannot be managed through RoomService")
+	}
+	room, err := c.GetRoom(ctx, kind, roomID)
+	if err != nil {
+		return nil, err
+	}
+	if room.GetUniversal() {
+		return nil, invalidArgument("universal room membership cannot be managed explicitly")
+	}
+	if room.GetArchived() {
+		return nil, ErrRoomArchived
+	}
+	if _, err := c.GetUser(ctx, targetUserID); err != nil {
+		return nil, err
+	}
+
+	membership := &corev1.RoomMembership{
+		UserId: targetUserID,
+		RoomId: roomID,
+	}
+
+	agg := events.RoomAggregate(roomID)
+	filter := agg.AllEventsFilter()
+	for attempt := 0; attempt < maxJoinRoomRetries; attempt++ {
+		expectedSeq, err := c.EventPublisher.LastSubjectSeq(ctx, filter)
+		if err != nil {
+			return nil, fmt.Errorf("read room membership add OCC tail: %w", err)
+		}
+		if expectedSeq > 0 {
+			if err := c.rooms().waitForDirectory(ctx, events.SubjectPosition(filter, expectedSeq)); err != nil {
+				return nil, fmt.Errorf("wait for room directory projection before member add: %w", err)
+			}
+		}
+		if c.RoomMembership.IsMember(roomID, targetUserID) {
+			return membership, nil
+		}
+		if kind == KindChannel && c.rooms().isRoomBanActive(roomID, targetUserID, time.Now()) {
+			return nil, ErrPermissionDenied
+		}
+
+		auditEvent := newEvent(actorID, &corev1.Event{
+			Event: &corev1.Event_RoomMemberAdded{
+				RoomMemberAdded: &corev1.RoomMemberAddedEvent{
+					RoomId: roomID,
+					UserId: targetUserID,
+				},
+			},
+		})
+		joinEvent := newEvent(targetUserID, &corev1.Event{
+			Event: &corev1.Event_UserJoinedRoom{
+				UserJoinedRoom: &corev1.UserJoinedRoomEvent{
+					RoomId: roomID,
+				},
+			},
+		})
+
+		if err := c.appendRoomMembershipAuditBatch(ctx, roomID, expectedSeq, auditEvent, joinEvent); err == nil {
+			c.initializeRoomReadMarker(ctx, kind, targetUserID, roomID)
+			c.logger.Info("Added room membership", "actor_id", actorID, "user_id", targetUserID, "kind", kind, "room_id", roomID)
+			return membership, nil
+		} else if !errors.Is(err, events.ErrConflict) {
+			return nil, err
+		}
+
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-time.After(time.Duration(1<<attempt) * time.Millisecond):
+		}
+	}
+	return nil, fmt.Errorf("publish room member add retry exhausted after %d attempts: %w", maxJoinRoomRetries, events.ErrConflict)
+}
+
+// LeaveRoom removes a room membership for a user.
+// Idempotent: no-op if the user is not a member.
+//
+// Business rules:
+//   - DM conversations are permanent and cannot be left.
+//   - Universal rooms grant effective membership to join-eligible server
+//     members and cannot be left (users can mute them via notification
+//     preferences).
+//
+// ADR-035 phase 6: event-only. Publishes UserLeftRoomEvent, then WaitFor on
+// the projections that serve membership and room history reads.
+func (c *ChattoCore) LeaveRoom(ctx context.Context, actorID string, kind RoomKind, user_id, room_id string) error {
+	if kind == KindDM {
+		return ErrCannotLeaveDMConversation
+	}
+
+	room, err := c.GetRoom(ctx, kind, room_id)
+	if err != nil {
+		if errors.Is(err, jetstream.ErrKeyNotFound) && !c.RoomMembership.IsMember(room_id, user_id) {
+			return nil
+		}
+		return err
+	}
+	if kind == KindChannel && room.GetUniversal() {
+		return ErrCannotLeaveUniversalRoom
+	}
+
+	if !c.RoomMembership.IsMember(room_id, user_id) {
+		return nil
+	}
+
+	event := newEvent(actorID, &corev1.Event{
+		Event: &corev1.Event_UserLeftRoom{
+			UserLeftRoom: &corev1.UserLeftRoomEvent{
+				RoomId: room_id,
+			},
+		},
+	})
+
+	pos, err := c.rooms().appendDirectoryEventually(ctx, c.EventPublisher, events.RoomAggregate(room_id), event)
+	if err != nil {
+		return fmt.Errorf("publish UserLeftRoomEvent: %w", err)
+	}
+	if err := c.rooms().waitForTimeline(ctx, pos); err != nil {
+		return err
+	}
+
+	c.logger.Info("Deleted room membership", "user_id", user_id, "kind", kind, "room_id", room_id)
+	return nil
+}
+
+// RemoveMember removes another user's explicit channel-room membership.
+// Authorization: caller must verify room.manage before calling.
+//
+// The public membership transition remains a UserLeftRoomEvent with the target
+// user as actor. A separate moderation event records who performed the removal.
+func (c *ChattoCore) RemoveMember(ctx context.Context, actorID string, kind RoomKind, roomID, targetUserID string) (bool, error) {
+	if kind == KindDM {
+		return false, invalidArgument("DM room participants cannot be managed through RoomService")
+	}
+	room, err := c.GetRoom(ctx, kind, roomID)
+	if err != nil {
+		return false, err
+	}
+	if room.GetUniversal() {
+		return false, invalidArgument("universal room membership cannot be managed explicitly")
+	}
+	if room.GetArchived() {
+		return false, ErrRoomArchived
+	}
+	if _, err := c.GetUser(ctx, targetUserID); err != nil {
+		return false, err
+	}
+	agg := events.RoomAggregate(roomID)
+	filter := agg.AllEventsFilter()
+	for attempt := 0; attempt < maxJoinRoomRetries; attempt++ {
+		expectedSeq, err := c.EventPublisher.LastSubjectSeq(ctx, filter)
+		if err != nil {
+			return false, fmt.Errorf("read room membership remove OCC tail: %w", err)
+		}
+		if expectedSeq > 0 {
+			if err := c.rooms().waitForDirectory(ctx, events.SubjectPosition(filter, expectedSeq)); err != nil {
+				return false, fmt.Errorf("wait for room directory projection before member remove: %w", err)
+			}
+		}
+		if !c.RoomMembership.IsMember(roomID, targetUserID) {
+			return false, nil
+		}
+
+		auditEvent := newEvent(actorID, &corev1.Event{
+			Event: &corev1.Event_RoomMemberRemoved{
+				RoomMemberRemoved: &corev1.RoomMemberRemovedEvent{
+					RoomId: roomID,
+					UserId: targetUserID,
+				},
+			},
+		})
+		leaveEvent := newEvent(targetUserID, &corev1.Event{
+			Event: &corev1.Event_UserLeftRoom{
+				UserLeftRoom: &corev1.UserLeftRoomEvent{
+					RoomId: roomID,
+				},
+			},
+		})
+
+		if err := c.appendRoomMembershipAuditBatch(ctx, roomID, expectedSeq, auditEvent, leaveEvent); err == nil {
+			c.logger.Info("Removed room membership", "actor_id", actorID, "user_id", targetUserID, "kind", kind, "room_id", roomID)
+			return true, nil
+		} else if !errors.Is(err, events.ErrConflict) {
+			return false, err
+		}
+
+		select {
+		case <-ctx.Done():
+			return false, ctx.Err()
+		case <-time.After(time.Duration(1<<attempt) * time.Millisecond):
+		}
+	}
+	return false, fmt.Errorf("publish room member remove retry exhausted after %d attempts: %w", maxJoinRoomRetries, events.ErrConflict)
+}
+
+func (c *ChattoCore) appendRoomMembershipAuditBatch(ctx context.Context, roomID string, expectedSeq uint64, auditEvent, membershipEvent *corev1.Event) error {
+	agg := events.RoomAggregate(roomID)
+	filter := agg.AllEventsFilter()
+
+	entries := []events.BatchEntry{
+		{
+			Subject:       agg.SubjectFor(auditEvent),
+			Event:         auditEvent,
+			ExpectedSeq:   expectedSeq,
+			FilterSubject: filter,
+			HasOCC:        true,
+		},
+		{
+			Subject: agg.SubjectFor(membershipEvent),
+			Event:   membershipEvent,
+		},
+	}
+	seqs, err := c.EventPublisher.AppendBatch(ctx, entries)
+	if err != nil {
+		return fmt.Errorf("publish room membership audit batch: %w", err)
+	}
+
+	lastSubject := entries[len(entries)-1].Subject
+	lastSeq := seqs[len(seqs)-1]
+	if err := c.rooms().waitForDirectoryAndTimeline(ctx, events.SubjectPosition(lastSubject, lastSeq)); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (c *ChattoCore) initializeRoomReadMarker(ctx context.Context, kind RoomKind, userID, roomID string) {
 	// Initialize the read marker for new members. For non-empty rooms, mark
 	// them caught up to the current last event so existing messages don't
 	// surface as unread. For empty rooms, write an empty-string sentinel so
 	// the key's presence still distinguishes "member with nothing to read
 	// yet" from "no marker at all" (which the lazy-init path treats as a
 	// deploy-era upgrade — see GetLastReadEventID).
-	if isNew {
-		var initEventID string
-		if lastID, _, exists, err := c.GetRoomLastEvent(ctx, kind, room_id); err != nil {
-			c.logger.Warn("Failed to get room last event during join", "error", err, "room_id", room_id)
-		} else if exists {
-			initEventID = lastID
-		}
-		if err := c.SetLastReadEventID(ctx, kind, user_id, room_id, initEventID); err != nil {
-			c.logger.Warn("Failed to initialize read marker during join", "error", err, "room_id", room_id)
-		}
+	var initEventID string
+	if lastID, _, exists, err := c.GetRoomLastEvent(ctx, kind, roomID); err != nil {
+		c.logger.Warn("Failed to get room last event during join", "error", err, "room_id", roomID)
+	} else if exists {
+		initEventID = lastID
 	}
-
-	// Publish UserJoinedRoomEvent if this is a new membership
-	if isNew {
-		event := newEvent(actorID, &corev1.Event{
-			Event: &corev1.Event_UserJoinedRoom{
-				UserJoinedRoom: &corev1.UserJoinedRoomEvent{
-					SpaceId: SpaceIDForKind(kind),
-					RoomId:  room_id,
-				},
-			},
-		})
-
-		subject := subjects.RoomMeta(string(kind), room_id)
-		if err := c.publishServerEvent(ctx, subject, event); err != nil {
-			c.logger.Error("failed to publish UserJoinedRoomEvent", "error", err, "user_id", user_id, "room_id", room_id)
-		}
+	if err := c.SetLastReadEventID(ctx, kind, userID, roomID, initEventID); err != nil {
+		c.logger.Warn("Failed to initialize read marker during join", "error", err, "room_id", roomID)
 	}
-
-	return membership, nil
 }
 
-// LeaveRoom removes a room membership for a user.
-// This operation is idempotent - it will succeed even if the membership doesn't exist.
+// GetUserRoomMemberships retrieves all room memberships for a given user of a
+// given kind. The projection (ADR-035 phase 5) doesn't track kind, so the
+// caller's set of roomIDs is filtered against the Room KV via GetRoom.
+// This is O(N) lookups in the user's room count — acceptable for the
+// resolvers that use it (each user has a bounded number of rooms).
 //
-// Business rules:
-//   - DM conversations are permanent and cannot be left.
-//   - Global rooms grant implicit membership to every server member and
-//     cannot be left (users can mute them via notification preferences).
-func (c *ChattoCore) LeaveRoom(ctx context.Context, actorID string, kind RoomKind, user_id, room_id string) error {
-	// DM conversations are permanent - users cannot leave them
-	if kind == KindDM {
-		return ErrCannotLeaveDMConversation
-	}
-
-	// Check if the membership exists before deletion (for event publishing)
-	exists, err := c.RoomMembershipExists(ctx, kind, user_id, room_id)
-	if err != nil {
-		return fmt.Errorf("failed to check existing membership: %w", err)
-	}
-
-	kv := c.storage.serverConfigKV
-
-	err = kv.Delete(ctx, roomMembershipKey(kind, room_id, user_id))
-	if err != nil {
-		return fmt.Errorf("failed to delete room membership for user %s in room %s: %w", user_id, room_id, err)
-	}
-
-	c.logger.Info("Deleted room membership", "user_id", user_id, "kind", kind, "room_id", room_id)
-
-	// Publish UserLeftRoomEvent if the membership existed
-	if exists {
-		event := newEvent(actorID, &corev1.Event{
-			Event: &corev1.Event_UserLeftRoom{
-				UserLeftRoom: &corev1.UserLeftRoomEvent{
-					SpaceId: SpaceIDForKind(kind),
-					RoomId:  room_id,
-				},
-			},
-		})
-
-		subject := subjects.RoomMeta(string(kind), room_id)
-		if err := c.publishServerEvent(ctx, subject, event); err != nil {
-			c.logger.Error("failed to publish UserLeftRoomEvent", "error", err, "user_id", user_id, "room_id", room_id)
-		}
-	}
-
-	return nil
-}
-
-// GetUserRoomMemberships retrieves all room memberships for a given user in a specific space.
+// Once a RoomKind projection lands (or kind moves into the Room proto so
+// a kind check is local), this can become a single projection read.
 func (c *ChattoCore) GetUserRoomMemberships(ctx context.Context, kind RoomKind, user_id string) ([]*corev1.RoomMembership, error) {
-	kv := c.storage.serverConfigKV
-
-	kl, err := kv.ListKeysFiltered(ctx, roomMembershipKeyMatchForUser(kind, user_id))
+	rooms, err := c.ListMemberRooms(ctx, kind, user_id, MemberRoomListOptions{})
 	if err != nil {
-		return nil, fmt.Errorf("failed to list room memberships for user %s in space %s: %w", user_id, kind, err)
+		return nil, err
 	}
-
-	return readMembershipsFromKeys(ctx, kv, kl)
+	out := make([]*corev1.RoomMembership, 0, len(rooms))
+	for _, room := range rooms {
+		out = append(out, &corev1.RoomMembership{
+			UserId: user_id,
+			RoomId: room.Id,
+		})
+	}
+	return out, nil
 }
 
-// GetAllUserRoomMemberships retrieves all of a user's room memberships across
-// every kind (channel + dm). The post-pivot data layer is a single
-// SERVER_CONFIG bucket, so the kind segment is the only thing that scoped a
-// listing by space; callers that don't care about that distinction (e.g. the
-// unified live-event subscription) use this.
+// GetAllUserRoomMemberships retrieves all of a user's room memberships
+// across every kind. Reads from the RoomMembership projection
+// (ADR-035 phase 5 cutover).
 func (c *ChattoCore) GetAllUserRoomMemberships(ctx context.Context, user_id string) ([]*corev1.RoomMembership, error) {
-	kv := c.storage.serverConfigKV
-
-	kl, err := kv.ListKeysFiltered(ctx, roomMembershipKeyMatchForUserAnyKind(user_id))
+	channelRooms, err := c.ListMemberRooms(ctx, KindChannel, user_id, MemberRoomListOptions{})
 	if err != nil {
-		return nil, fmt.Errorf("failed to list room memberships for user %s: %w", user_id, err)
+		return nil, err
 	}
-
-	return readMembershipsFromKeys(ctx, kv, kl)
+	dmRooms, err := c.ListMemberRooms(ctx, KindDM, user_id, MemberRoomListOptions{})
+	if err != nil {
+		return nil, err
+	}
+	rooms := append(channelRooms, dmRooms...)
+	out := make([]*corev1.RoomMembership, 0, len(rooms))
+	for _, room := range rooms {
+		out = append(out, &corev1.RoomMembership{
+			UserId: user_id,
+			RoomId: room.Id,
+		})
+	}
+	return out, nil
 }
 
-func readMembershipsFromKeys(ctx context.Context, kv jetstream.KeyValue, kl jetstream.KeyLister) ([]*corev1.RoomMembership, error) {
-	var memberships []*corev1.RoomMembership
-	for key := range kl.Keys() {
-		data, err := kv.Get(ctx, key)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get room membership data for key %s: %w", key, err)
-		}
-
-		var membership corev1.RoomMembership
-		if err := proto.Unmarshal(data.Value(), &membership); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal room membership data for key %s: %w", key, err)
-		}
-
-		memberships = append(memberships, &membership)
-	}
-	return memberships, nil
-}
-
-// deleteUserRoomMembershipsInSpace deletes all room memberships for a user in a specific space.
-// This is called when a user leaves a space (or their account is deleted) to clean up room memberships.
-// It also publishes UserLeftRoomEvent for each room so clients can update their member lists.
+// deleteUserRoomMembershipsInSpace removes all of a user's memberships of
+// the given kind. Called when a user is deleted or leaves a space.
+// Publishes UserLeftRoomEvent for each affected room, which projections apply.
+//
+// ADR-035 phase 6: event-only. The list of rooms to leave is read
+// from the projection rather than scanning the KV bucket. The kind
+// filter is applied via GetRoom to skip rooms of other kinds.
 func (c *ChattoCore) deleteUserRoomMembershipsInSpace(ctx context.Context, user_id string, kind RoomKind) error {
-	kv := c.storage.serverConfigKV
-
-	// List the user's memberships in this space's kind. Key format
-	// post-#330 phase 4b: `room_membership.{kind}.{room_id}.{user_id}`.
-	// userID is the trailing segment, so this is an internal-wildcard
-	// filter rather than a pure prefix.
-	kl, err := kv.ListKeysFiltered(ctx, roomMembershipKeyMatchForUser(kind, user_id))
-	if err != nil {
-		// No keys found is fine - user may not be in any rooms
-		if errors.Is(err, jetstream.ErrNoKeysFound) {
-			return nil
-		}
-		return fmt.Errorf("failed to list room memberships for user %s in space %s: %w", user_id, kind, err)
+	allRoomIDs := c.RoomMembership.Rooms(user_id)
+	if len(allRoomIDs) == 0 {
+		return nil
 	}
 
-	// Collect keys and extract room IDs
-	type keyAndRoom struct {
-		key    string
+	type roomEntry struct {
 		roomID string
 	}
-	var entries []keyAndRoom
-	for key := range kl.Keys() {
-		// Extract room ID from key: room_membership.{kind}.{room_id}.{user_id}
-		parts := strings.Split(key, ".")
-		if len(parts) == 4 {
-			entries = append(entries, keyAndRoom{key: key, roomID: parts[2]})
+	var entries []roomEntry
+	for _, roomID := range allRoomIDs {
+		// Filter by kind: GetRoom returns ErrKeyNotFound when the
+		// room exists but is of a different kind.
+		if _, err := c.GetRoom(ctx, kind, roomID); err != nil {
+			if errors.Is(err, jetstream.ErrKeyNotFound) {
+				continue
+			}
+			return fmt.Errorf("lookup room %s during membership cleanup: %w", roomID, err)
 		}
+		entries = append(entries, roomEntry{roomID: roomID})
 	}
 
-	// Delete each room membership and publish events
+	var lastSubject string
+	var lastSeq uint64
 	for _, entry := range entries {
-		if err := kv.Delete(ctx, entry.key); err != nil {
-			c.logger.Warn("Failed to delete room membership", "key", entry.key, "error", err)
-			continue
-		}
-
-		// Publish UserLeftRoomEvent so clients can update their member lists
 		event := newEvent(user_id, &corev1.Event{
 			Event: &corev1.Event_UserLeftRoom{
 				UserLeftRoom: &corev1.UserLeftRoomEvent{
-					SpaceId: SpaceIDForKind(kind),
-					RoomId:  entry.roomID,
+					RoomId: entry.roomID,
 				},
 			},
 		})
-		subject := subjects.RoomMeta(string(kind), entry.roomID)
-		if err := c.publishServerEvent(ctx, subject, event); err != nil {
-			c.logger.Warn("Failed to publish UserLeftRoomEvent", "room_id", entry.roomID, "error", err)
+
+		seq, err := c.EventPublisher.AppendEventually(ctx, events.RoomAggregate(entry.roomID).SubjectFor(event), event)
+		if err != nil {
+			c.logger.Warn("Failed to publish UserLeftRoomEvent to EVT", "room_id", entry.roomID, "error", err)
+			continue
 		}
+		if seq > lastSeq {
+			lastSubject = events.RoomAggregate(entry.roomID).SubjectFor(event)
+			lastSeq = seq
+		}
+
 	}
 
 	if len(entries) > 0 {
 		c.logger.Info("Deleted user room memberships", "user_id", user_id, "kind", kind, "count", len(entries))
 	}
 
+	if lastSeq > 0 {
+		if err := c.rooms().waitForDirectory(ctx, events.SubjectPosition(lastSubject, lastSeq)); err != nil {
+			return fmt.Errorf("wait for room directory projection after membership cleanup: %w", err)
+		}
+		if err := c.rooms().waitForTimeline(ctx, events.SubjectPosition(lastSubject, lastSeq)); err != nil {
+			return fmt.Errorf("wait for room timeline projection after membership cleanup: %w", err)
+		}
+	}
 	return nil
 }
 
-// GetRoomMembersList retrieves all user memberships for a given room.
+// GetRoomMembersList returns every user currently a member of the room.
+// ADR-035 phase 6: served from the projection.
+//
+// kind is preserved on the signature for symmetry with the rest of the
+// room API; the (roomID, userID) pair is globally unique so kind is
+// irrelevant to the lookup.
 func (c *ChattoCore) GetRoomMembersList(ctx context.Context, kind RoomKind, room_id string) ([]*corev1.RoomMembership, error) {
-	kv := c.storage.serverConfigKV
-
-	// List room memberships of the kind that lives in this space's bucket.
-	// Key format: `room_membership.{kind}.{userID}.{roomID}`.
-	kl, err := kv.ListKeysFiltered(ctx, fmt.Sprintf("room_membership.%s.>", kind))
-	if err != nil {
-		if err == jetstream.ErrNoKeysFound {
-			return []*corev1.RoomMembership{}, nil
+	userIDs := c.RoomMembership.Members(room_id)
+	seen := make(map[string]struct{}, len(userIDs))
+	out := make([]*corev1.RoomMembership, 0, len(userIDs))
+	add := func(uid string) {
+		if uid == "" {
+			return
 		}
-		return nil, fmt.Errorf("failed to list room membership keys in space %s: %w", kind, err)
+		if _, ok := seen[uid]; ok {
+			return
+		}
+		seen[uid] = struct{}{}
+		out = append(out, &corev1.RoomMembership{UserId: uid, RoomId: room_id})
+	}
+	for _, uid := range userIDs {
+		add(uid)
 	}
 
-	var memberships []*corev1.RoomMembership
-
-	for key := range kl.Keys() {
-		data, err := kv.Get(ctx, key)
+	if kind == KindChannel {
+		room, err := c.GetRoom(ctx, kind, room_id)
 		if err != nil {
-			return nil, fmt.Errorf("failed to get room membership data for key %s: %w", key, err)
+			return nil, err
 		}
-
-		var membership corev1.RoomMembership
-		if err := proto.Unmarshal(data.Value(), &membership); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal room membership data for key %s: %w", key, err)
-		}
-
-		// Filter by room_id
-		if membership.RoomId == room_id {
-			memberships = append(memberships, &membership)
+		if room.GetUniversal() {
+			users, err := c.ListUsers(ctx)
+			if err != nil {
+				return nil, err
+			}
+			for _, user := range users {
+				if user == nil || user.GetId() == "" {
+					continue
+				}
+				if _, explicit := seen[user.GetId()]; explicit {
+					continue
+				}
+				canJoin, err := c.CanJoinRoomAt(ctx, user.GetId(), kind, room_id)
+				if err != nil {
+					return nil, err
+				}
+				if canJoin {
+					add(user.GetId())
+				}
+			}
 		}
 	}
+	return out, nil
+}
 
-	return memberships, nil
+func (c *ChattoCore) ListRoomMemberReferences(ctx context.Context, actorID, roomID string) ([]*corev1.User, error) {
+	room, kind, err := c.requireRoomMember(ctx, actorID, roomID)
+	if err != nil {
+		return nil, err
+	}
+	memberships, err := c.GetRoomMembersList(ctx, kind, room.GetId())
+	if err != nil {
+		return nil, err
+	}
+
+	users := make([]*corev1.User, 0, len(memberships))
+	for _, membership := range memberships {
+		user, err := c.GetUserReference(ctx, membership.GetUserId())
+		if err != nil {
+			if errors.Is(err, ErrNotFound) {
+				user = DeletedUserReference(membership.GetUserId())
+			} else {
+				return nil, err
+			}
+		}
+		if user != nil {
+			users = append(users, user)
+		}
+	}
+	return users, nil
 }

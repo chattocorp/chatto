@@ -1,12 +1,12 @@
 # Chatto Architecture
 
-This document is the **inventory**: what currently exists in the system — streams, KV buckets, object stores, subject patterns, key shapes, GraphQL operations. It's the *what's where* reference, not the *why* one.
+This document is the **inventory**: what currently exists in the system — streams, KV buckets, object stores, subject patterns, key shapes, and API operations. It's the *what's where* reference, not the *why* one.
 
 For *why* a particular design decision was made:
 
-- **Cross-cutting architectural choices** (NATS as primary store, GraphQL as the API, per-user encryption, etc.) live in the [Architecture Decision Records](adr/INDEX.md).
+- **Cross-cutting architectural choices** (NATS as primary store, API strategy, per-user encryption, etc.) live in the [Architecture Decision Records](adr/INDEX.md).
 - **Per-feature design** (Roles & Permissions, Direct Messages, Reactions, Notifications, etc.) lives in the [Feature Decision Records](fdr/INDEX.md).
-- **Coding and review conventions** live in `.claude/rules/` at the repo root.
+- **Coding and review conventions** live in the repo root [`AGENTS.md`](../AGENTS.md) and directory-specific `AGENTS.md` files.
 
 ## Table of Contents
 
@@ -14,17 +14,20 @@ For *why* a particular design decision was made:
   - [Core Concepts](#core-concepts)
 - [NATS Authentication](#nats-authentication)
 - [Architecture & APIs](#architecture--apis)
-- [GraphQL API Overview](#graphql-api-overview)
-  - [Queries](#queries)
-  - [Mutations](#mutations)
-  - [Subscriptions](#subscriptions)
-  - [Admin sub-API](#admin-sub-api)
-- [Architecture Pattern: CRUD + Audit Log](#architecture-pattern-crud--audit-log)
+- [Core Models](#core-models)
+- [Projection Inventory](#projection-inventory)
+- [ConnectRPC API Overview](#connectrpc-api-overview)
+  - [Endpoint Inventory](#endpoint-inventory)
+- [Realtime WebSocket API Overview](#realtime-websocket-api-overview)
+- [Architecture Pattern: Event-Sourced Writes](#architecture-pattern-event-sourced-writes)
   - [Write Path](#write-path)
   - [Consistency Model](#consistency-model)
 - [NATS Resource Inventory](#nats-resource-inventory)
-  - [Event Types](#event-types)
-  - [Event Streams](#event-streams)
+  - [Current Resources](#current-resources)
+  - [Event Envelopes](#event-envelopes)
+  - [EVT Subject Patterns](#evt-subject-patterns)
+  - [Durable EVT Event Inventory](#durable-evt-event-inventory)
+  - [Transient Live Subjects](#transient-live-subjects)
   - [KV Buckets (backed by streams)](#kv-buckets-backed-by-streams)
   - [Object Store Buckets](#object-store-buckets)
   - [Dynamic Image Transformation](#dynamic-image-transformation)
@@ -33,632 +36,720 @@ For *why* a particular design decision was made:
 
 ## Overview
 
-Chatto is a real-time chat application with a GraphQL gateway and NATS/JetStream backend. The architecture uses **KV buckets as the source of truth** for data storage, with **event streams providing audit trails** and real-time pub/sub capabilities.
+Chatto is a real-time chat application with a ConnectRPC public API, a protobuf realtime WebSocket, and a NATS/JetStream backend. Durable domain state is event-sourced in the `EVT` stream and served from projections; `RUNTIME_STATE` holds persisted latest-value runtime state such as notifications, push subscriptions, and auth tokens.
 
 ### Core Concepts
 
-- **Server**: A deployment of Chatto, consisting of 1-n application processes connected to the same NATS system and account. ("Instance" is the older name for this concept and persists in a handful of vestigial places — the `INSTANCE*` KV bucket names and the internal `RegisteredInstance`/`isInstanceAdmin` identifiers. Treat them as a rename-in-progress.)
-- **Rooms**: Communication channels on the server. Can be named (`general`) or direct messages between users; differentiated by a `kind` field (`channel` / `dm`).
-- **Users**: Global to the deployment, with server membership tracked centrally and per-room membership managed in `SERVER_CONFIG`.
+This document uses the canonical terms from the [glossary](GLOSSARY.md), especially **Server**, **Room**, **DM**, **Event**, **Projection**, **Subject**, and **Live Event**. The rest of this document focuses on where those concepts live in the current runtime architecture.
 
 ## NATS Authentication
 
-Chatto supports multiple methods for authenticating with NATS, configured via `[nats.client]` in `chatto.toml`:
+Chatto supports embedded NATS for single-process/self-hosted installs and external NATS for clustered deployments. Embedded NATS is configured under `[nats.embedded]`; when the embedded TCP listener is enabled, `ReadConfig` derives matching `[nats.client]` defaults for CLI/admin commands. External NATS connections are configured explicitly via `[nats.client]`.
 
-| Method        | Config             | Description                                                      |
-| ------------- | ------------------ | ---------------------------------------------------------------- |
-| `nkey`        | `nkey_seed`        | Default for embedded NATS. Uses Ed25519 keypairs.                |
-| `userpass`    | `username`, `password` | Simple username/password authentication.                      |
-| `credentials` | `credentials_file` | JWT authentication via standard `.creds` file (for external NATS). |
-| `none`        | -                  | No authentication (for trusted networks only).                   |
+| Method        | Config                                  | Description                                                       |
+| ------------- | --------------------------------------- | ----------------------------------------------------------------- |
+| `token`       | `token` / `nats.embedded.auth_token`    | Default for embedded NATS and simple external deployments.        |
+| `userpass`    | `username`, `password`                  | Simple username/password authentication.                          |
+| `credentials` | `credentials_file`                      | JWT authentication via standard `.creds` file for external NATS.  |
+| `nkey`        | `nkey_seed`                             | NKey seed auth for external NATS deployments that use NKeys.      |
+| `none`        | -                                       | No authentication; only acceptable on trusted private networks.   |
 
 **Embedded NATS Setup:**
 
 When using embedded NATS (default), `chatto init` generates:
-- `chatto.toml` with NKey seed in `[nats.client]`
-- `nats-server.conf` with the corresponding public key in `authorization.users`
-
-The `nats-server.conf` file is auto-generated on first startup if missing. Users can edit it to add clustering, TLS, or additional authorization rules.
+- `chatto.toml` with `[nats.embedded]`, in-process NATS enabled, JetStream data directory, and generated `auth_token`
+- A commented `nats.embedded.port` example; uncommenting the port enables a local TCP listener and derived `[nats.client]` connection defaults for CLI/admin commands
+- Standalone NATS-client tools such as `chatto exporter` require either external NATS or the embedded TCP listener. Single-process installs can instead opt into `[exporter].enabled = true` so `chatto run` starts the exporter in-process over its existing NATS connection.
 
 **External NATS Setup:**
 
-For connecting to an external NATS cluster with JWT authentication:
+For connecting to an external NATS cluster:
 1. Set `nats.embedded.enabled = false`
-2. Set `nats.client.auth_method = "credentials"`
-3. Set `nats.client.credentials_file = "path/to/your.creds"`
+2. Set `nats.client.url` to the external NATS URL(s)
+3. Set `nats.client.auth_method` plus the matching credential field (`token`, `username`/`password`, `credentials_file`, or `nkey_seed`)
 
 ## Architecture & APIs
 
-Key files: [`cli/internal/core/core.go`](cli/internal/core/core.go)
+Key files: [`cli/internal/core/core.go`](../cli/internal/core/core.go), [`cli/internal/events/`](../cli/internal/events/), [`cli/internal/runtimeunit/`](../cli/internal/runtimeunit/), [`cli/internal/connectapi/`](../cli/internal/connectapi/), [`cli/internal/http_server/connect.go`](../cli/internal/http_server/connect.go), [`cli/internal/http_server/metrics.go`](../cli/internal/http_server/metrics.go), [`cli/internal/exporter/`](../cli/internal/exporter/), [`proto/chatto/core/v1/`](../proto/chatto/core/v1/), [`proto/chatto/discovery/v1/`](../proto/chatto/discovery/v1/), [`proto/chatto/api/v1/`](../proto/chatto/api/v1/), [`proto/chatto/admin/v1/`](../proto/chatto/admin/v1/), [`proto/chatto/operator/v1/`](../proto/chatto/operator/v1/), [`proto/chatto/realtime/v1/`](../proto/chatto/realtime/v1/)
 
 - **NATS**: At the core, Chatto uses a series of NATS JetStream streams, KV buckets and object storage. Data stored in these is defined as Protocol Buffers (see `proto/`).
-- **Core**: The `core` package defines Chatto's domain logic and directly talks to NATS to interact with KV buckets and streams. It provides a ChattoCore struct with methods for all operations (spaces, users, rooms, messages, memberships).
-- **GraphQL**: Client-facing API for all operations (auth, management, messaging). Subscriptions over WebSocket for real-time updates. GraphQL resolvers call Core methods directly, performing authentication and authorization before each call.
-- **Web Client**: SvelteKit-based SPA that gets compiled and embedded into the Go binary. Talks to GraphQL API over HTTP/WebSocket.
+- **Core**: The `core` package defines Chatto's domain logic and directly talks to NATS to interact with KV buckets, object stores, and the `EVT` stream. `ChattoCore` remains the compatibility facade, while smaller models own projection readiness and domain-specific write concerns.
+- **Runtime Units**: Optional long-running processes that share Chatto configuration, logging, NATS, and JetStream access implement the `runtimeunit.Unit` interface. A unit can run as a standalone `chatto <unit>` command over `[nats.client]`, or be embedded under `chatto run` when its config section enables that mode. Only `chatto run` starts embedded NATS and boots `ChattoCore`; observer/projection/worker units must open the resources they need without using core boot paths unless they explicitly need the main application runtime.
+- **ConnectRPC**: Protobuf-first public API mounted under `/api/connect`. Public auth/capability-token unary flows live in `proto/chatto/auth/v1/`, unauthenticated discovery/bootstrap services live in `proto/chatto/discovery/v1/`, integration-oriented unary services and shared shapes live in `proto/chatto/api/v1/`, and visibly administrative unary services live in `proto/chatto/admin/v1/`. They generate Go server/client bindings under `cli/internal/pb/chatto/{auth,discovery,api,admin}/v1/` plus TypeScript bindings under `packages/api-types/src/chatto/{auth,discovery,api,admin}/v1/`. Service implementations live in `cli/internal/connectapi/`; the HTTP server only mounts them and injects authentication context. `chatto.auth.v1`, `chatto.discovery.v1`, `chatto.api.v1`, and `chatto.admin.v1` are the public API packages described by [ADR-045](adr/ADR-045-public-api-stability-tiers.md); app-specific protobuf API should be exceptional. Generated docs are split into domain service pages, shared ConnectRPC types, and realtime frames by `tools/split-connectrpc-docs.mjs`. The bundled web client uses the current API for public server profile metadata, server profile/security/branding administration, self-service profile/avatar/preferences/account-deletion commands, text/link-preview/attachment message posting, composer link-preview fetches, message-link preview cards, message edits/deletes, attachment/link-preview removal, room attachment listing and signed URL refresh, typing indicators, presence updates, reaction mutations, custom status writes, role catalog reads and role CRUD, permission matrix reads and role/user permission writes, room notification override mutations, room directory/sidebar reads, admin room layout reads/writes, admin system diagnostics, admin event-log reads, admin user identity/cooldown commands, channel room lifecycle, metadata, Universal membership, and membership commands, manager-controlled room member add/remove commands, DM start actions, room-ban reads/commands, main-room historical timeline pages, and thread historical timeline pages. The root-equivalent Operator API lives in `proto/chatto/operator/v1/` and is served only on the configured `[operator_api]` Unix socket, not on the public web listener.
+- **Realtime WebSocket**: Protobuf WebSocket protocol mounted at `/api/realtime`. Clients send and receive binary `chatto.realtime.v1.Realtime*` frames generated from `proto/chatto/realtime/v1/realtime.proto`. The endpoint authenticates with a bearer token in the initial hello frame or existing cookie auth, then delegates delivery to `core.StreamMyEvents` so room membership, RBAC, projection readiness, live membership changes, and session termination behavior stay centralized. The first version is live-only and does not expose acknowledgement or replay cursors; reconnect catch-up comes from projected reads.
+- **Metrics & Diagnostics**: Optional Prometheus-compatible per-process metrics run on a separate internal HTTP listener configured by `[metrics]`. The endpoint exposes Go/process collectors plus Chatto readiness, realtime stream counters, NATS client counters, projection health/lag gauges, and final projection startup duration/message-count gauges once initial replay completes. Deployment-wide Chatto instance metrics are exposed by the separate `chatto exporter` command, or by `chatto run` when `[exporter].enabled = true`; the exporter reads existing `EVT` and `MEMORY_CACHE` resources without running core boot mutations and can cache S3 bucket-size scans. Go pprof debug endpoints are available on the per-process metrics listener under `/debug/pprof/` only when `[metrics].pprof` / `CHATTO_METRICS_PPROF` is enabled. `[diagnostics].startup_cpu_profile` / `CHATTO_DIAGNOSTICS_STARTUP_CPU_PROFILE` writes a process-startup CPU profile through core boot for local replay benchmarking and operator troubleshooting.
+- **Web Client**: SvelteKit-based SPA that gets compiled and embedded into the Go binary. Talks to ConnectRPC for protobuf-first API surfaces, uses `/api/realtime` for live updates, and still carries a small local render DTO compatibility layer while component models are moved to protobuf-native names. Presence updates are Connect-based; the realtime event bus sends a bearer token in the protobuf hello frame when available and recovers missed live state with projected reads.
 - **Email**: Optional SMTP integration for transactional emails (verification, password reset). Configured via `[smtp]` in config. The `internal/email` package provides a `Mailer` that returns `ErrSMTPDisabled` when SMTP is not configured, allowing callers to handle gracefully.
 
-## GraphQL API Overview
+## Core Models
 
-Key files: [`cli/internal/graph/`](cli/internal/graph/) (schemas in `*.graphqls` files, resolvers in `*.resolvers.go`)
+Key files: [`cli/internal/core/core.go`](../cli/internal/core/core.go), [`cli/internal/core/*_model.go`](../cli/internal/core/), [`cli/internal/video/service.go`](../cli/internal/video/service.go)
 
-The GraphQL API is the primary client-facing interface for Chatto. It provides queries, mutations, and a single unified subscription over HTTP and WebSocket connections. Authentication is cookie-session-based; user registration, login, password reset, email verification, and OAuth flows are REST endpoints (under `/auth/...`) rather than GraphQL mutations.
+The core runtime is process-local but must be safe under multiple Chatto replicas connected to the same NATS account. Correctness comes from JetStream/KV atomicity and projection catch-up, not in-process serialization.
 
-The schema is modular: each feature area lives in its own `.graphqls` file and extends the root `Query` / `Mutation` / `Subscription` types. The operations below group by user-facing area, not by source file.
+`ChattoCore` keeps a core model inventory with stable machine-readable keys such as `config_manager`, `message_model`, and `my_events_model`. Per-process metrics expose these keys via `chatto_model_info`; `chatto_service_info` remains a deprecated compatibility alias that emits the previous `*_service` label values. Display names remain operator-facing text only.
 
-### Queries
+| Model                            | Key files                                                                                                                                                   | Responsibility                                                                                                                                |
+| -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ChattoCore`                     | [`core.go`](../cli/internal/core/core.go)                                                                                                                    | Application facade, resource initialization, lifecycle, API-facing operations                                                                  |
+| `MyEventsModel`                  | [`my_events_model.go`](../cli/internal/core/my_events_model.go)                                                                                              | `myEvents` live delivery, projection readiness, heartbeats, per-user authorization, and process-local stream counters                          |
+| `events.Publisher`              | [`publisher.go`](../cli/internal/events/publisher.go)                                                                                                       | OCC-only writes to `EVT`, including atomic batches and filter-scoped concurrency guards                                                        |
+| `ConfigModel`                    | [`config_model.go`](../cli/internal/core/config_model.go)                                                                                                   | Semantic server/user config event writes plus `ConfigProjection` readiness                                                                     |
+| `ConfigManager`                  | [`config_manager.go`](../cli/internal/core/config_manager.go)                                                                                               | Compatibility facade for server config reads/writes backed by `ConfigModel`                                                                   |
+| `NotificationPreferencesModel`   | [`notification_level.go`](../cli/internal/core/notification_level.go)                                                                                        | Operation-level notification preference API with authZ before config preference writes                                                         |
+| `MessageModel`                   | [`message_model.go`](../cli/internal/core/message_model.go), [`messages.go`](../cli/internal/core/messages.go)                                              | Operation-level message posting API with room/thread authZ, post validation, and read-marker side effects                                      |
+| `ReactionModel`                  | [`reaction_model.go`](../cli/internal/core/reaction_model.go), [`reactions.go`](../cli/internal/core/reactions.go)                                          | Operation-level reaction mutation API with actor membership and `message.react` authZ before room-aggregate reaction writes                    |
+| `RoomTimelineReadModel`          | [`room_timeline_read_model.go`](../cli/internal/core/room_timeline_read_model.go), [`room_events.go`](../cli/internal/core/room_events.go)                   | Operation-level room/thread timeline read API with actor membership checks, thread-root validation, and projection-backed page/window selection |
+| `ReadStateModel`                 | [`read_state_model.go`](../cli/internal/core/read_state_model.go), [`room_unread.go`](../cli/internal/core/room_unread.go)                                   | Operation-level room/thread read marker API with actor membership checks, anchor validation, advance-only marker writes, and sync events       |
+| `ThreadFollowModel`              | [`thread_follow_model.go`](../cli/internal/core/thread_follow_model.go), [`threads.go`](../cli/internal/core/threads.go)                                     | Operation-level thread follow/unfollow API with actor membership checks, thread-root validation, durable follow-state events, projection readiness, and sync events |
+| `RoomModel`                      | [`room_model.go`](../cli/internal/core/room_model.go)                                                                                                       | Room-derived projection readiness and narrow reads for room catalog, membership, layout, timeline, threads, reactions                          |
+| `UserModel`                      | [`user_model.go`](../cli/internal/core/user_model.go)                                                                                                       | User and content-key projection readiness for account/profile/custom-status/encryption writes                                                  |
+| `RBACModel`                      | [`rbac_model.go`](../cli/internal/core/rbac_model.go)                                                                                                       | RBAC projection readiness for role, assignment, and permission writes                                                                          |
+| `MentionablesModel`              | [`mentionables_projection.go`](../cli/internal/core/mentionables_projection.go)                                                                              | Global mention-handle namespace lookup and readiness                                                                                          |
+| `PresenceModel`                  | [`presence_model.go`](../cli/internal/core/presence_model.go), [`presence_hub.go`](../cli/internal/core/presence_hub.go)                                    | Live presence writes plus per-process watcher/fanout for presence state in `MEMORY_CACHE`                                                     |
+| `CallModel`                      | [`call_model.go`](../cli/internal/core/call_model.go), [`voice.go`](../cli/internal/core/voice.go), [`lease.go`](../cli/internal/lease/lease.go)             | Durable LiveKit call lifecycle/participant facts, call-state projection readiness, KMS-backed E2EE key resolution, and elected LiveKit reconciliation |
+| `MediaModel`                     | [`media_model.go`](../cli/internal/core/media_model.go), [`attachments.go`](../cli/internal/core/attachments.go)                                             | Attachment/media binary storage, signed asset URLs, transformed image cache operations                                                         |
+| `AssetModel`                     | [`asset_model.go`](../cli/internal/core/asset_model.go), [`asset_projection.go`](../cli/internal/core/asset_projection.go)                                   | Durable asset lifecycle facts, processing transitions, tombstones, derivative cleanup ordering, asset projection readiness and reads            |
+| `video.Service`                  | [`service.go`](../cli/internal/video/service.go)                                                                                                            | Process-local video/animated-GIF processing; emits asset processing result events                                                              |
 
-**Server & identity** ([`server.graphqls`](../cli/internal/graph/server.graphqls), [`server_rbac.graphqls`](../cli/internal/graph/server_rbac.graphqls))
+## Projection Inventory
 
-| Query                                | Description                                                                    |
-| ------------------------------------ | ------------------------------------------------------------------------------ |
-| `server`                             | Information about this Chatto server (name, branding, member counts). Public. |
-| `viewer`                             | Current authenticated user's identity, permissions, follows, notifications.    |
+Key files: [`cli/internal/core/core.go`](../cli/internal/core/core.go), [`cli/internal/events/projector.go`](../cli/internal/events/projector.go), [`cli/internal/core/projection_subjects_test.go`](../cli/internal/core/projection_subjects_test.go)
 
-Note: there is no top-level `me` query — viewer-scoped state hangs off the `viewer` field (which is extended by several feature files, e.g. `threads.graphqls` adds `viewer.followedThreads`, `notifications.graphqls` adds `viewer.notifications` / `viewer.hasNotifications`).
+Projections are in-memory read models rebuilt from `EVT`. `NewChattoCore` registers each top-level projector once with a stable machine-readable key such as `content_keys` plus a human display name such as `Content Keys`; `ChattoCore.Run` replays `evt.>` through one process-local ordered consumer, decodes each event once, dispatches it to projections whose logical subject filters match, records each projection's initial replay startup duration, waits for them to become current at boot, and writers wait for the relevant projector sequence before returning read-your-writes. The projector framework owns JetStream message handling and passes stable stream sequence numbers into `Projection.Apply`; projection implementations do not inspect consumer sequence numbers or raw JetStream metadata.
 
-**Users** ([`query.graphqls`](../cli/internal/graph/query.graphqls), [`user_permissions.graphqls`](../cli/internal/graph/user_permissions.graphqls), [`permission_inspector.graphqls`](../cli/internal/graph/permission_inspector.graphqls))
+| Runtime area       | Registered projector | Consumes                                                   | Read models / primary readers                                                             |
+| ------------------ | -------------------- | ---------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| Room directory     | Room Directory       | `evt.room.>`                                               | `RoomCatalogProjection`, `RoomMembershipProjection`, `RoomBanProjection`; room/member queries, room authorization, and Universal-room effective membership |
+| Room organization  | Room Group Layout    | `evt.group.>`, `evt.layout.>`                              | `RoomGroupProjection`, `RoomLayoutProjection`; sidebar groups, sidebar links, and mixed sidebar item ordering |
+| Room timeline      | Room Timeline        | `evt.room.>`                                               | Visible room timeline, latest message bodies, hidden echoes, current attachment-bearing message index, direct message-post lookup, and message asset references |
+| Assets             | Assets               | `evt.asset.>`, legacy `evt.room.*.asset_*`                 | Asset creation metadata, room scope, processing manifests, derivative graph, deletion state, and legacy room-asset compatibility |
+| Threads            | Threads              | `evt.room.*.thread_created`, `evt.room.*.thread_followed`, `evt.room.*.thread_unfollowed`, `evt.room.*.message_posted`, `evt.room.*.message_edited`, `evt.room.*.message_retracted`, `evt.user.*.user_key_shredded` | Per-thread reply logs, summaries, participants, reply counts, and follow state             |
+| Reactions          | Reactions            | `evt.room.>`                                               | Current canonical per-message reaction sets, echo-to-original reaction aliases, and room-scoped snapshot OCC positions; intentionally broad so reaction writes can OCC against the room tail |
+| Voice calls        | Call State           | `evt.room.>`                                               | Current LiveKit call session, participants, active room IDs, and room-scoped snapshot OCC positions |
+| Server/user config | Server Config        | `evt.config.>`, selected user cleanup/preference facts     | Server config, branding refs, user preferences, notification levels, blocked usernames     |
+| Users              | Users                | `evt.user.>`                                               | Account/profile/custom-status/auth lookup state, verified emails, external identity links, encrypted user PII |
+| Content keys       | Content Keys         | `evt.user.*.dek_generated`, `evt.user.*.user_key_shredded` | Active and shredded user DEK epochs for message bodies and user PII                        |
+| RBAC               | RBAC                 | `evt.rbac.>`                                               | Roles, role order, assignments, scoped allow/deny decisions                                |
+| Mentions           | Mentionables         | `evt.>`                                                    | Global mention-handle ownership across users, roles, `@all`, and `@here`                  |
 
-| Query                              | Description                                                                            |
-| ---------------------------------- | -------------------------------------------------------------------------------------- |
-| `user(id)`                         | Get a user by ID.                                                                      |
-| `userByLogin(login)`               | Get a user by login (returns null if not found).                                       |
-| `users`                            | List all users (server admin only).                                                    |
-| `userPermissionMatrix(userId)`     | Effective allow/deny matrix for a user (admin surface; `role.manage` + outrank gate).  |
-| `permissionExplanation(userId, …)` | Per-permission resolver explainer (self-inspection or admin).                          |
+Notes: registered projector keys are used by metrics and automation; registered projector names match the admin projection diagnostics. Composite projections expose nested read models, but only their parent projector is started by `ChattoCore.Run`. The shared replay fanout reduces duplicate replay delivery and protobuf decoding while keeping each projection's status, lag, failure, and read-your-writes waiters independent. `Subjects()` is the logical consumption and readiness contract; optional replay subjects are only the physical consumer filter. Focused logical filters are appropriate for stable derived indexes such as Threads, while broad filters remain intentional for projections whose snapshots expose room-tail OCC positions, such as Reactions and Call State. Threads reports the focused logical subjects above for waits and diagnostics; non-thread room facts are skipped before `Apply`.
 
-**Rooms** ([`query.graphqls`](../cli/internal/graph/query.graphqls), [`room.graphqls`](../cli/internal/graph/room.graphqls))
+## ConnectRPC API Overview
 
-| Query                              | Description                                                                            |
-| ---------------------------------- | -------------------------------------------------------------------------------------- |
-| `room(roomId)`                     | Get a room by ID. Room-scoped reads (`events`, `event(eventId)`, `eventsAround`, `voiceCallToken`, `viewerCan*` flags) live as fields on the returned `Room`. |
+Key files: [`proto/chatto/auth/v1/`](../proto/chatto/auth/v1/), [`proto/chatto/discovery/v1/`](../proto/chatto/discovery/v1/), [`proto/chatto/api/v1/`](../proto/chatto/api/v1/), [`proto/chatto/admin/v1/`](../proto/chatto/admin/v1/), [`proto/chatto/operator/v1/`](../proto/chatto/operator/v1/), [`cli/internal/connectapi/`](../cli/internal/connectapi/), [`cli/internal/connectapi/room_timeline_assembler.go`](../cli/internal/connectapi/room_timeline_assembler.go), [`cli/internal/http_server/connect.go`](../cli/internal/http_server/connect.go), [`cli/internal/pb/chatto/auth/v1/`](../cli/internal/pb/chatto/auth/v1/), [`cli/internal/pb/chatto/discovery/v1/`](../cli/internal/pb/chatto/discovery/v1/), [`cli/internal/pb/chatto/api/v1/`](../cli/internal/pb/chatto/api/v1/), [`cli/internal/pb/chatto/admin/v1/`](../cli/internal/pb/chatto/admin/v1/), [`cli/internal/pb/chatto/operator/v1/`](../cli/internal/pb/chatto/operator/v1/), [`apps/frontend/src/lib/api/`](../apps/frontend/src/lib/api/), [`apps/frontend/src/lib/state/userSummaries.svelte.ts`](../apps/frontend/src/lib/state/userSummaries.svelte.ts)
 
-**RBAC introspection** ([`role_permissions.graphqls`](../cli/internal/graph/role_permissions.graphqls), [`role_permission_matrix.graphqls`](../cli/internal/graph/role_permission_matrix.graphqls))
+The ConnectRPC API is the protobuf-first public API mounted under `/api/connect`. Generated service paths are prefixed by that mount, for example `/api/connect/chatto.auth.v1.ExternalIdentityAuthService/GetPendingExternalIdentity`, `/api/connect/chatto.discovery.v1.ServerDiscoveryService/GetServer`, `/api/connect/chatto.api.v1.ServerService/GetMotd`, and `/api/connect/chatto.admin.v1.AdminServerService/UpdateServerConfig`. `chatto.auth.v1` is the public auth/capability-token flow surface; `chatto.discovery.v1` is the unauthenticated discovery/bootstrap surface; `chatto.api.v1` is the broad integration-oriented base API for integrations and the bundled web client; `chatto.admin.v1` contains public but clearly administrative services. App-specific API should be exceptional rather than the default home for frontend-used features. Stability tiers are defined in [ADR-045](adr/ADR-045-public-api-stability-tiers.md): auth, discovery, integration, admin, exceptional bundled-client APIs, and `Realtime*` frames are documented as separate public tiers. `cli/internal/connectapi` owns service implementations and API/core protobuf mapping; `cli/internal/http_server/connect.go` owns Gin route mounting and bearer-token-then-cookie auth extraction. Bearer-header, realtime bearer-hello, and same-origin cookie presentations validate `session.{hmac}` typed runtime credentials through the shared core credential validator before the HTTP edge injects the authenticated user and normalized runtime-credential kind/handle into request context; deprecated `cookie_session.*` records are still read only as compatibility fallback for legacy signed browser sessions. Registered Connect handlers carry an explicit auth policy: `chatto.auth.v1.ExternalIdentityAuthService`, `chatto.discovery.v1.ServerDiscoveryService`, and the gRPC-compatible reflection services are public, while private services are wrapped with `connectrpc.com/authn` HTTP middleware. Reflection is mounted below `/api/connect` for v1 and v1alpha tools, lists public `chatto.auth.v1` / `chatto.discovery.v1` / `chatto.api.v1` / `chatto.admin.v1` services, and uses a restricted descriptor resolver so internal `chatto.core.v1` storage/event protobufs are not exposed. The HTTP CORS layer gives `ServerDiscoveryService.GetServer` wildcard public CORS so cross-origin clients can discover a server before registration or authentication. The HTTP edge resolves the full user through existing auth mechanisms, stores a narrow `connectapi.Caller` in Connect authn context, and private Connect handlers pass only the actor ID into core operation models. Those models own room membership authorization, RBAC/permission editor authorization, reaction/thread/root/anchor validation, external identity link ownership, and lower-level core helper calls. Public URL generation prefers the configured `webserver.url` origin; when it is unset, ConnectRPC falls back only to the direct request TLS state and host, and does not implicitly trust forwarded proxy headers. The ConnectRPC layer keeps protobuf request/response shaping, shared offset pagination with `PageRequest`/`PageInfo`, schema validation, opaque timeline cursor parsing/formatting, hydrated public timeline DTOs, and Connect status mapping. The Operator API is a separate root-equivalent ConnectRPC surface served from the configured `[operator_api]` Unix socket. It mounts only `chatto.operator.v1`, uses socket filesystem permissions as its access boundary, and calls core as `core.SystemActorID`; the public web listener never mounts `chatto.operator.v1`.
 
-| Query                                       | Description                                                              |
-| ------------------------------------------- | ------------------------------------------------------------------------ |
-| `rolePermissions(roleName, roomId?)`        | A role's grants/denials across every applicable tier.                    |
-| `tierRoles(roomId?, groupId?)`              | Full permission matrix at server / group / room scope.                   |
-| `rolePermissionMatrix(roleName)`            | Per-role permission matrix (`role.manage` gated).                        |
+Authenticated private Connect requests are rejected by auth middleware before protobuf decoding and schema validation. Once authenticated, `connectrpc.com/validate` enforces public API protovalidate rules before service methods run; missing required request IDs and invalid notification enum values return `InvalidArgument` at the generated handler layer. Public API protobufs are intentionally separate from persisted `corev1` EVT protobufs. `ServerInfoState` uses `chatto.discovery.v1.ServerDiscoveryService.GetServer` for public profile metadata. `chatto.discovery.v1.GetServerResponse` exposes the shared `chatto.api.v1.ServerPublicProfile` plus public login metadata, while `ServerService.GetMotd` exposes the authenticated member-visible MOTD and admin server mutation responses return `ServerPublicProfile` directly beside editable config. `ServerService.GetRuntimeConfig` exposes authenticated `ServerRuntimeConfig`; `ViewerService.GetViewer` exposes authenticated `ServerViewerPermissions` and `ServerViewerState`. `chatto.auth.v1.ExternalIdentityAuthService` exposes public pending-provider confirmation RPCs after the browser-only `/auth/providers/{providerID}` callback has produced a capability-scoped token. `MyAccountService` exposes self-service profile, avatar, password update, display-preference, presence, custom-status, linked-identity listing, link-start URL creation, provider disconnect, and account-deletion commands over ConnectRPC. Link-start and disconnect require a fresh runtime credential or current-password proof; disconnect refuses to remove the last available sign-in method from a passwordless account, advances auth generation, deletes runtime credentials best-effort, and publishes session termination. Link-start URLs carry a short-lived opaque `external_identity_link_start` token so bearer-authenticated multi-server clients can bind the target user before handing the browser to the target server origin. The provider callback then produces a pending link-flow capability token, and `ExternalIdentityAuthService.ConfirmExternalIdentityLink` completes the link to that bound account. Provider email becomes a Chatto verified email only when the adapter has an explicit provider verification signal; otherwise it is only used as a login/display hint. The provider redirect routes remain ordinary HTTP because they need browser redirects to and from external OAuth/OIDC providers. `AdminServerService` exposes server settings read/update commands, server branding upload/delete commands, and security-sensitive structured blocked-username reads/writes. Settings reads and writes and branding updates require `server.manage`; text config writes through `ConfigManager.UpdateServerConfigFunc`, branding writes delegate to the existing core server-branding upload/set/delete pipeline, and both publish the `ServerUpdated` live event. Server branding uploads use a service-specific Connect read limit derived from the configured asset upload size, while blocked-username updates remain admin-only config facts without a member-visible live event. Adding the first password to a passwordless account preserves existing sessions; changing an existing password requires the current password and advances auth generation. Avatar uploads use an account-specific Connect read limit derived from the configured asset upload size, then delegate to the existing core avatar upload/set pipeline so validation, resizing, asset lifecycle facts, and cleanup behavior stay shared. `ServerService` exposes authenticated MOTD and runtime configuration. `UserService` exposes `DirectoryMember` rows for authenticated server-wide user lists, singular user reads by stable user ID or login, and batch hydration by stable user IDs. User directory rows include public user state, presence, custom status, avatar URL, creation time, and server roles while keeping verified emails out of the public shape; singular missing users return `NOT_FOUND`, and batch reads omit missing IDs without failing the batch. `RoomService` exposes room-scoped member lists, singular reads, batch hydration, add/remove commands, and room ban moderation; room member reads require caller room membership and omit unknown or non-member IDs from batch responses. Timeline and feed includes are intentionally limited to hot paginated event/feed responses so clients can render many rows without per-row hydration; ordinary reads should return resources directly and rely on `BatchGet*` follow-up hydration. Notification actors, call participants, account responses, and role previews use the canonical `User` shape with presence and custom status; member surfaces use `DirectoryMember` when membership metadata is needed. The web client keeps a per-server `UserSummaryCache` keyed by `{serverId, userId}`: timeline includes prime the cache, and cache misses can be loaded through `UserService.BatchGetUsers` without one request per user. `AdminDiagnosticsService.GetSystemInfo` exposes owner-only operator diagnostics over ConnectRPC: NATS connection metadata, JetStream account/stream/consumer state, aggregate server counts, and projection health/memory estimates. `AdminEventLogService` exposes audit-gated EVT inspection over ConnectRPC: newest-first event pages, bounded filtered scans, event type suggestions, and single-sequence payload reads that return `NOT_FOUND` when the requested sequence does not exist. `AdminUserService` exposes server-admin member list/detail/batch reads, role assignment/revocation, and admin user identity, password update, and username-cooldown commands over ConnectRPC. Member reads delegate to core `ListAdminMembers`, `GetAdminMemberDetails`, and `BatchGetAdminMembers`: verified-email fields require `admin.view-users`, and another user's login-cooldown timestamp is visible only to server admins. Role assignment commands delegate to core `AdminAssignServerRole` / `AdminRevokeServerRole`, which require `role.assign` and prevent revoking the caller's own `owner` or `admin` role. Identity and cooldown commands delegate to core `AdminUpdateUser` / `AdminClearLoginChangeCooldown`, where self-targets pass and other targets require `user.manage-accounts`; admin password update commands delegate to `AdminSetUserPassword`, reject self-targets, require `user.manage-accounts`, revoke the target user's runtime credentials, and return the updated `AdminMember` row. Root-grade user lifecycle commands live in `chatto.operator.v1.OperatorUserService` on the operator socket; they validate and write through core operator administration helpers as `core.SystemActorID`. `RoleService` exposes authenticated public role catalog, singular role, and batch role reads without permission arrays. `AdminRoleService` exposes role catalog, role detail, CRUD, and custom role reordering; role writes delegate to core admin methods so `role.manage` authorization stays centralized. `NotificationService` exposes pending notification list, room-scoped list, count, existence, singular, batch, and dismiss reads/commands for the authenticated viewer. Realtime `notification_created` events carry notification IDs; clients can hydrate them through `GetNotification` or `BatchGetNotifications`, while dismissed or expired IDs return `NOT_FOUND` for singular reads and are omitted from batch reads. `AssetService` exposes room-scoped `Asset` reads with freshly signed URLs, while `MessageAttachment` remains the message-embedded attachment shape. `VoiceCallService` exposes room-scoped active-call runtime snapshots, participant reads, user join/leave intent commands, and LiveKit token issuance. Active call reads use `ActiveCall` as the canonical runtime snapshot with a `RoomSummary`: list and batch reads omit inactive/missing/inaccessible rooms, singular inactive rooms return `NOT_FOUND`, and `call_id` lets clients compare hydrated state with realtime call events from the same room.
 
-**Voice & link previews** ([`voice.graphqls`](../cli/internal/graph/voice.graphqls), [`linkpreview.graphqls`](../cli/internal/graph/linkpreview.graphqls))
+ConnectRPC request shapes follow the public API conventions in ADR-044: `Update*` requests are patch-shaped unless explicitly named as replacements, equivalent lookup identifiers use a request `oneof` on one RPC, and create/update inputs avoid reusing response-rich messages when a request-only shape is clearer. Current examples include `UserService.GetUser` and `AdminUserService.GetMember` targeting by either user ID or login through one oneof request, patch-style room/room-group/sidebar-link/role/message metadata updates, and `MessageService.CreateMessage` accepting a short-lived `link_preview_token` rather than client-provided `LinkPreview` metadata. Repeated public API atoms live in `chatto.api.v1.common`: image transform requests use `ImageTransformOptions`, browser-provided image uploads use `ImageUpload`, public auth-provider rows use `ProviderMetadata`, and notification responses/viewer rows reuse `NotificationPreference`.
 
-| Query                       | Description                                                                |
-| --------------------------- | -------------------------------------------------------------------------- |
-| `activeCallRoomIds`         | Room IDs that currently have an active LiveKit voice call.                 |
-| `linkPreview(url)`          | Fetch (and cache) Open Graph metadata for a URL.                           |
+`AssetUploadService` is the public ConnectRPC attachment-upload path. It owns room-scoped upload sessions, resumable bounded chunk writes, checksum-verified completion, cancellation, and the larger Connect read limit used only by `UploadChunk`.
 
-**Admin** ([`admin.graphqls`](../cli/internal/graph/admin.graphqls))
+`AssetService` is the public ConnectRPC room-scoped asset read path. It hydrates current attachment metadata with freshly signed original, thumbnail, video thumbnail, and processed-variant URLs; callers choose thumbnail dimensions through `ImageTransformOptions`. Singular reads return `NOT_FOUND` for missing, deleted, or wrong-room assets, while batch reads omit those IDs and preserve first-seen request order.
 
-Admin queries are nested under a single `admin: AdminQueries` field that returns `null` for non-admins — so one auth gate covers the whole sub-surface. See [Admin sub-API](#admin-sub-api) below for the contents.
+`MessageService` is the Connect path for message reads, text/link-preview/attachment message creation, composer link-preview fetches, message edits/deletes, attachment/link-preview removal, and reaction writes. `CreateMessage` accepts completed room-scoped attachment asset IDs, not inline attachment bytes; it accepts only server-issued link preview tokens, rejects expired pending assets, and drops unknown, deleted, wrong-room, or non-attachment IDs before posting through the core message model.
 
-### Mutations
+Attachments and accepted link previews remain message-owned subresources: deletion and composer preview fetches live on `MessageService`, explicit asset URL refreshes live on `AssetService`, and room-scoped attachment list pages live on `RoomService`. `MessageService.GetMessage` and `BatchGetMessages` return canonical renderable `Message` rows with current body state, attachment rows using the default render URL shape, reactions, and thread metadata. Room and thread timelines remain event streams; their `RoomMessagePosted` entries wrap the same `Message` shape. Message reads delegate room membership checks to `RoomTimelineReadModel`; batch reads check room membership once, omit missing/retracted/non-message event IDs, preserve first-seen event order, and return existing visible messages with empty attachment lists when appropriate.
 
-**Server settings** ([`mutation.graphqls`](../cli/internal/graph/mutation.graphqls))
+`MessageService.FetchLinkPreview` is the authenticated composer metadata path; it delegates to core link-preview fetch/cache logic and returns nullable preview metadata plus a transformed preview-image URL when an image asset is cached. Successful responses also include a short-lived opaque preview token stored in `RUNTIME_STATE`; `CreateMessage` resolves the token to the cached canonical server-fetched preview and rejects invalid or expired tokens. `MyAccountService.UpdatePresence` is the authenticated self-service path for refreshing live `ONLINE`, `AWAY`, and `DO_NOT_DISTURB` presence; `OFFLINE` is inferred from TTL expiry and is not accepted as an update. Its `user_selected` flag marks explicit user choices so automatic updates from other clients cannot overwrite manually selected Away/DND.
 
-| Mutation                | Description                                                |
-| ----------------------- | ---------------------------------------------------------- |
-| `updateServer`          | Update server name / description.                          |
-| `uploadServerLogo`      | Upload server logo.                                        |
-| `deleteServerLogo`      | Delete server logo.                                        |
-| `uploadServerBanner`    | Upload server banner.                                      |
-| `deleteServerBanner`    | Delete server banner.                                      |
+`RoomService` exposes channel room lifecycle, room-scoped attachment list pages, live-only typing indicator refreshes, and membership commands over ConnectRPC: create, update room metadata and Universal membership state, archive, unarchive, join, join room groups, leave, manager add/remove, start DM, list active room bans, ban, and unban. The handlers keep protobuf request validation and Connect status mapping at the transport boundary, while the core room/DM models own operation authorization such as `room.create`, scoped `room.manage`, `room.join`, `message.post` for DM starts, and `room.ban-member`; typing indicator refreshes require room membership but not message posting permission. Manager add/remove is channel-only, excludes Universal rooms, writes an audit fact plus the ordinary target-user join/leave membership fact, and can add a server member even when that member could not self-join through `room.join`.
 
-**Rooms** ([`mutation.graphqls`](../cli/internal/graph/mutation.graphqls), [`dm.graphqls`](../cli/internal/graph/dm.graphqls))
+`RoomDirectoryService` exposes room navigation and room-layout reads over ConnectRPC: non-archived visible channel rooms, active DM rooms, ordered room groups, mixed sidebar items, per-room viewer state, single-room and single-group refresh, and batch room/room-group hydration. It delegates visibility and viewer-state capability flags to the core `RoomDirectoryReadModel`, which preserves the visibility contract: non-archived channel rooms are shown through membership or `room.list`, DM rooms are membership-only and empty DMs are omitted, archived rooms stay directly refreshable through `GetRoom`, `BatchGetRooms` omits missing or hidden rooms while preserving first-seen request order, group reads omit unknown group IDs in batch and return `NOT_FOUND` for missing singular reads, and archived or hidden room entries are dropped from group/sidebar results.
 
-| Mutation                       | Description                                                                      |
-| ------------------------------ | -------------------------------------------------------------------------------- |
-| `createRoom`                   | Create a new channel room.                                                       |
-| `updateRoom`                   | Update a room's name / description (`room.manage`).                              |
-| `archiveRoom` / `unarchiveRoom`| Archive or restore a room (`room.manage`).                                       |
-| `joinRoom` / `leaveRoom`       | Join / leave a room.                                                             |
-| `joinGroup`                    | Join every room in a group the caller has `room.join` for. Powers "Join all".    |
-| `markRoomAsRead`               | Mark a room as read; records the last-seen root event ID for unread tracking.    |
-| `startDM`                      | Start a DM with a participant set (returns existing room if the set matches).    |
+`AdminRoomLayoutService` exposes admin room layout reads and mutations over ConnectRPC: editable room-group layout reads, room-group CRUD/reorder, room moves, sidebar-link CRUD/moves, and mixed sidebar item reorders. `ListRoomGroups` requires `role.manage` and includes visible archived room entries so the admin editor can manage or unarchive them; each returned group also carries the viewer's `can_create_room` capability for that group. Mutations mirror the previous resolver gates: room-group metadata/order requires `role.manage`, and room/sidebar-link group placement requires group-scoped `room.manage` in the affected source and/or target groups.
 
-**Messages, reactions, threads** ([`mutation.graphqls`](../cli/internal/graph/mutation.graphqls))
+`MyAccountService.UpdateCustomStatus` and `DeleteCustomStatus` are authenticated self-service profile mutations that delegate to the core user model, which writes durable user aggregate EVT facts. `NotificationPreferencesService.UpdateRoomNotificationPreference` is the authenticated/authorized preference mutation path: Connect requests use the shared bearer-token-then-cookie auth resolution, then delegate to the core `NotificationPreferencesModel`, which enforces channel-room membership before writing the room notification preference.
 
-| Mutation                  | Description                                                                                  |
-| ------------------------- | -------------------------------------------------------------------------------------------- |
-| `postMessage`             | Post a message (root or thread reply; optional attachments / link previews / echo-to-channel).|
-| `editMessage`             | Edit own message body (3-hour window).                                                       |
-| `deleteMessage`           | Delete message body (GDPR crypto-shred); event stays in stream as audit trail.               |
-| `deleteAttachment`        | Delete an attachment from own message.                                                       |
-| `deleteLinkPreview`       | Delete a link preview from own message.                                                      |
-| `addReaction` / `removeReaction` | Add or remove an emoji reaction (shortcode names).                                    |
-| `sendTypingIndicator`     | Publish a transient "user is typing" live event.                                             |
-| `markThreadAsRead`        | Update viewer's last-seen marker for a thread (drives unread separators).                    |
-| `followThread` / `unfollowThread` | Subscribe / unsubscribe to thread reply notifications.                              |
+`RoomService.GetRoomEvents` and `GetRoomEventsAround`, `MessageService.GetMessage` and `BatchGetMessages`, and `ThreadService.GetThreadEvents` and `GetThreadEventsAround` are the historical read paths: Connect authenticates and parses opaque cursors where applicable, accepts legacy `seq:` cursors as a compatibility input, delegates membership checks, message lookup, and projection-backed room/thread page selection to `RoomTimelineReadModel`, then hands projected rows to `roomTimelineAssembler` for public DTO hydration. The assembler owns renderable protobuf `Message` rows with users, message bodies, reactions, thread metadata, link previews, and default attachment URLs; timeline events wrap message rows in `RoomMessagePosted` so browser clients avoid resolver-style N+1 fetching and future public read surfaces can reuse the same mapping. Explicit custom attachment URL refreshes use `AssetService`. The web client uses `GetMessage` for `/m/{messageId}` routes that may point at thread-only replies and reads the returned `thread_root_event_id` to decide whether to open the room timeline or a thread. It reuses `GetRoomEventsAround` for pasted Chatto message-link preview cards.
 
-**User profile & account** ([`mutation.graphqls`](../cli/internal/graph/mutation.graphqls), [`user_preferences.graphqls`](../cli/internal/graph/user_preferences.graphqls))
+`RoomService` and `ThreadService` carry timeline-adjacent read-state paths through core `ReadStateModel`: marking rooms and threads read. `ThreadService` also carries thread-follow paths through core `ThreadFollowModel`: listing viewer followed threads with hydrated root-message render data and following/unfollowing threads.
 
-| Mutation                  | Description                                                                                  |
-| ------------------------- | -------------------------------------------------------------------------------------------- |
-| `updateProfile`           | Update display name and/or login (login change has a 30-day cooldown).                       |
-| `uploadAvatar`            | Upload avatar (resized to 256×256, WebP).                                                    |
-| `deleteAvatar`            | Delete a user's avatar.                                                                      |
-| `updateSettings`          | Update display preferences (timezone, time format).                                          |
-| `requestAccountDeletion`  | Issue a 15-minute confirmation token for account deletion (XSS-resistant two-step).          |
-| `deleteMyAccount`         | Permanently delete the authenticated user's account (GDPR crypto-shredding).                 |
+### Endpoint Inventory
 
-**Notifications, presence, push** ([`notifications.graphqls`](../cli/internal/graph/notifications.graphqls), [`notification_level.graphqls`](../cli/internal/graph/notification_level.graphqls), [`presence.graphqls`](../cli/internal/graph/presence.graphqls), [`push.graphqls`](../cli/internal/graph/push.graphqls))
+ConnectRPC unary RPCs are mounted at these HTTP paths. The service and method names come from `proto/chatto/auth/v1/*.proto`, `proto/chatto/discovery/v1/*.proto`, `proto/chatto/api/v1/*.proto`, and `proto/chatto/admin/v1/*.proto`; the final route is `connectapi.Prefix` (`/api/connect`) plus the generated Connect service path.
 
-| Mutation                          | Description                                                                                  |
-| --------------------------------- | -------------------------------------------------------------------------------------------- |
-| `dismissNotification`             | Dismiss a single in-app notification.                                                        |
-| `dismissAllNotifications`         | Dismiss every notification for the viewer (returns dismissed count).                         |
-| `setServerNotificationLevel`      | Update viewer's server-wide notification level.                                              |
-| `setRoomNotificationLevel`        | Update viewer's per-room notification level.                                                 |
-| `updateMyPresence`                | Set caller's presence status (`OFFLINE` is implicit on disconnect, not a valid input).       |
-| `subscribeToPush`                 | Register a Web Push subscription for this device.                                            |
-| `unsubscribeFromPush`             | Remove a previously-registered Web Push subscription.                                        |
+| Endpoint                                                                                     | Service                          | RPC                             | Auth / authorization                                                                                                                                               | Description                                                                                                                                                                                            |
+| -------------------------------------------------------------------------------------------- | -------------------------------- | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `/api/connect/chatto.discovery.v1.ServerDiscoveryService/GetServer`                          | `ServerDiscoveryService`         | `GetServer`                     | Public.                                                                                                                                                            | Public server metadata: name, version, auth methods/providers, registration state, OAuth URL.                                                                                                          |
+| `/api/connect/chatto.api.v1.ServerService/GetMotd`                                         | `ServerService`                  | `GetMotd`                       | Authenticated.                                                                                                                                                     | Read the member-visible message of the day.                                                                                                                                                            |
+| `/api/connect/chatto.api.v1.ServerService/GetRuntimeConfig`                                | `ServerService`                  | `GetRuntimeConfig`              | Authenticated.                                                                                                                                                     | Read authenticated server runtime settings used by clients.                                                                                                                                            |
+| `/api/connect/chatto.auth.v1.ExternalIdentityAuthService/GetPendingExternalIdentity`          | `ExternalIdentityAuthService`    | `GetPendingExternalIdentity`    | Public; requires a valid pending external-identity token.                                                                                                          | Read provider/profile hints for a pending create or link confirmation flow.                                                                                                                            |
+| `/api/connect/chatto.auth.v1.ExternalIdentityAuthService/CreateExternalIdentityAccount`       | `ExternalIdentityAuthService`    | `CreateExternalIdentityAccount` | Public; requires a valid create-flow token from an auto-provisioning provider.                                                                                     | Explicitly create a passwordless account, link the provider identity, and return a bearer token.                                                                                                       |
+| `/api/connect/chatto.auth.v1.ExternalIdentityAuthService/ConfirmExternalIdentityLink`         | `ExternalIdentityAuthService`    | `ConfirmExternalIdentityLink`   | Public; requires a valid pending link-flow token created after authenticated link start and provider callback.                                                      | Explicitly confirm linking the provider identity to the bound account.                                                                                                                                 |
+| `/api/connect/chatto.auth.v1.ExternalIdentityAuthService/CancelExternalIdentityFlow`          | `ExternalIdentityAuthService`    | `CancelExternalIdentityFlow`    | Public; requires a valid pending external-identity token.                                                                                                          | Delete a pending external identity confirmation flow.                                                                                                                                                  |
+| `/api/connect/chatto.api.v1.MyAccountService/ListExternalIdentities`                          | `MyAccountService`               | `ListExternalIdentities`        | Authenticated self-service.                                                                                                                                        | List configured linkable providers and identities already linked to the caller.                                                                                                                        |
+| `/api/connect/chatto.api.v1.MyAccountService/StartExternalIdentityLink`                       | `MyAccountService`               | `StartExternalIdentityLink`     | Authenticated self-service.                                                                                                                                        | Create a short-lived provider start URL bound to the caller for browser-based linking.                                                                                                                 |
+| `/api/connect/chatto.api.v1.MyAccountService/DisconnectExternalIdentity`                      | `MyAccountService`               | `DisconnectExternalIdentity`    | Authenticated self-service; requires fresh credential or current password; cannot remove the last sign-in method.                                                   | Disconnect a provider identity from the current account and revoke existing runtime credentials.                                                                                                       |
+| `/api/connect/chatto.admin.v1.AdminServerService/GetServerConfig`                              | `AdminServerService`             | `GetServerConfig`               | Authenticated; requires `server.manage`.                                                                                                                           | Read runtime-editable server profile settings plus the effective member-visible profile.                                                                                                               |
+| `/api/connect/chatto.admin.v1.AdminServerService/UpdateServerConfig`                           | `AdminServerService`             | `UpdateServerConfig`            | Authenticated; requires `server.manage`.                                                                                                                           | Update runtime-editable server profile settings and publish a server-updated live event.                                                                                                               |
+| `/api/connect/chatto.admin.v1.AdminServerService/UploadServerLogo`                             | `AdminServerService`             | `UploadServerLogo`              | Authenticated; requires `server.manage`.                                                                                                                           | Upload, resize, store, and set the public server logo.                                                                                                                                                 |
+| `/api/connect/chatto.admin.v1.AdminServerService/DeleteServerLogo`                             | `AdminServerService`             | `DeleteServerLogo`              | Authenticated; requires `server.manage`.                                                                                                                           | Clear the public server logo.                                                                                                                                                                          |
+| `/api/connect/chatto.admin.v1.AdminServerService/UploadServerBanner`                           | `AdminServerService`             | `UploadServerBanner`            | Authenticated; requires `server.manage`.                                                                                                                           | Upload, resize, store, and set the public server banner.                                                                                                                                               |
+| `/api/connect/chatto.admin.v1.AdminServerService/DeleteServerBanner`                           | `AdminServerService`             | `DeleteServerBanner`            | Authenticated; requires `server.manage`.                                                                                                                           | Clear the public server banner.                                                                                                                                                                        |
+| `/api/connect/chatto.admin.v1.AdminServerService/GetServerSecurityConfig`                      | `AdminServerService`             | `GetServerSecurityConfig`       | Authenticated; requires `server.manage`.                                                                                                                           | Read security-sensitive server configuration such as blocked usernames.                                                                                                                                |
+| `/api/connect/chatto.admin.v1.AdminServerService/UpdateBlockedUsernames`                       | `AdminServerService`             | `UpdateBlockedUsernames`        | Authenticated; requires `server.manage`.                                                                                                                           | Update the structured blocked-username list.                                                                                                                                                           |
+| `/api/connect/chatto.api.v1.MyAccountService/UpdateProfile`                                    | `MyAccountService`                 | `UpdateProfile`                 | Authenticated self-service.                                                                                                                                        | Update the caller's display name and/or login.                                                                                                                                                         |
+| `/api/connect/chatto.api.v1.MyAccountService/UploadAvatar`                                     | `MyAccountService`                 | `UploadAvatar`                  | Authenticated self-service.                                                                                                                                        | Upload, resize, store, and set the caller's avatar image.                                                                                                                                              |
+| `/api/connect/chatto.api.v1.MyAccountService/DeleteAvatar`                                     | `MyAccountService`                 | `DeleteAvatar`                  | Authenticated self-service.                                                                                                                                        | Delete the caller's avatar; idempotent when no avatar is set.                                                                                                                                          |
+| `/api/connect/chatto.api.v1.MyAccountService/UpdatePassword`                                      | `MyAccountService`                 | `UpdatePassword`                   | Authenticated self-service; current password required when changing an existing password.                                                                           | Add the first password to a passwordless account or change the caller's password.                                                                                                                      |
+| `/api/connect/chatto.api.v1.MyAccountService/UpdateSettings`                                   | `MyAccountService`                 | `UpdateSettings`                | Authenticated self-service.                                                                                                                                        | Update the caller's display preferences.                                                                                                                                                               |
+| `/api/connect/chatto.api.v1.MyAccountService/RequestAccountDeletion`                           | `MyAccountService`                 | `RequestAccountDeletion`        | Authenticated self-service.                                                                                                                                        | Issue a short-lived self-deletion confirmation token.                                                                                                                                                  |
+| `/api/connect/chatto.api.v1.MyAccountService/DeleteMyAccount`                                  | `MyAccountService`                 | `DeleteMyAccount`               | Authenticated self-service with confirmation token.                                                                                                                | Permanently delete the authenticated account.                                                                                                                                                          |
+| `/api/connect/chatto.admin.v1.AdminDiagnosticsService/GetSystemInfo`                           | `AdminDiagnosticsService`        | `GetSystemInfo`                 | Authenticated; owner-only.                                                                                                                                         | Read operator diagnostics for NATS, JetStream, server counts, and projections.                                                                                                                         |
+| `/api/connect/chatto.admin.v1.AdminEventLogService/ListEvents`                                 | `AdminEventLogService`           | `ListEvents`                    | Authenticated; requires `admin.view-audit`.                                                                                                                        | Read newest-first EVT diagnostic pages with optional bounded filters.                                                                                                                                  |
+| `/api/connect/chatto.admin.v1.AdminEventLogService/ListEventTypes`                             | `AdminEventLogService`           | `ListEventTypes`                | Authenticated; requires `admin.view-audit`.                                                                                                                        | List durable event type labels usable for event-log filtering.                                                                                                                                         |
+| `/api/connect/chatto.admin.v1.AdminEventLogService/GetEvent`                                   | `AdminEventLogService`           | `GetEvent`                      | Authenticated; requires `admin.view-audit`.                                                                                                                        | Read one diagnostic EVT entry by stream sequence, including JSON payload.                                                                                                                              |
+| `/api/connect/chatto.admin.v1.AdminUserService/ListMembers`                                    | `AdminUserService`               | `ListMembers`                   | Authenticated; requires `admin.view-users`.                                                                                                                        | List server members for the admin members screen.                                                                                                                                                      |
+| `/api/connect/chatto.admin.v1.AdminUserService/GetMember`                                      | `AdminUserService`               | `GetMember`                     | Authenticated; requires `admin.view-users`.                                                                                                                        | Read one server member plus role and permission metadata for admin details.                                                                                                                            |
+| `/api/connect/chatto.admin.v1.AdminUserService/BatchGetMembers`                                | `AdminUserService`               | `BatchGetMembers`               | Authenticated; requires `admin.view-users`; unknown IDs are omitted.                                                                                               | Read admin member rows in request order for multiple users.                                                                                                                                            |
+| `/api/connect/chatto.admin.v1.AdminUserService/AssignRole`                                     | `AdminUserService`               | `AssignRole`                    | Authenticated; requires `role.assign`.                                                                                                                             | Assign a server role to a user.                                                                                                                                                                        |
+| `/api/connect/chatto.admin.v1.AdminUserService/RevokeRole`                                     | `AdminUserService`               | `RevokeRole`                    | Authenticated; requires `role.assign`; cannot revoke caller's own owner/admin role.                                                                                | Revoke a server role from a user.                                                                                                                                                                      |
+| `/api/connect/chatto.admin.v1.AdminUserService/UpdateUser`                                     | `AdminUserService`               | `UpdateUser`                    | Authenticated; self-target or requires `user.manage-accounts`.                                                                                                     | Update a user's login and/or display name as an admin action.                                                                                                                                          |
+| `/api/connect/chatto.admin.v1.AdminUserService/UpdateUserPassword`                             | `AdminUserService`               | `UpdateUserPassword`            | Authenticated; requires `user.manage-accounts`; self-target is rejected.                                                                                           | Set another user's password as an admin action and revoke their runtime credentials.                                                                                                                   |
+| `/api/connect/chatto.admin.v1.AdminUserService/ClearUsernameCooldown`                          | `AdminUserService`               | `ClearUsernameCooldown`         | Authenticated; self-target or requires `user.manage-accounts`.                                                                                                     | Clear a user's self-service username-change cooldown.                                                                                                                                                  |
+| `/api/connect/chatto.admin.v1.AdminRoleService/ListRoles`                                      | `AdminRoleService`               | `ListRoles`                     | Authenticated.                                                                                                                                                     | List the role catalog and viewer role-management capabilities.                                                                                                                                         |
+| `/api/connect/chatto.admin.v1.AdminRoleService/GetRole`                                        | `AdminRoleService`               | `GetRole`                       | Authenticated; role roster is included only with `role.assign`.                                                                                                    | Read one role plus optional assigned-user roster for admin role details.                                                                                                                               |
+| `/api/connect/chatto.admin.v1.AdminRoleService/CreateRole`                                     | `AdminRoleService`               | `CreateRole`                    | Authenticated; requires `role.manage`.                                                                                                                             | Create a custom server role.                                                                                                                                                                           |
+| `/api/connect/chatto.admin.v1.AdminRoleService/UpdateRole`                                     | `AdminRoleService`               | `UpdateRole`                    | Authenticated; requires `role.manage`.                                                                                                                             | Update role display name, description, and optional pingability.                                                                                                                                       |
+| `/api/connect/chatto.admin.v1.AdminRoleService/DeleteRole`                                     | `AdminRoleService`               | `DeleteRole`                    | Authenticated; requires `role.manage`; system roles cannot be deleted.                                                                                             | Delete a custom server role.                                                                                                                                                                           |
+| `/api/connect/chatto.admin.v1.AdminRoleService/ReorderRoles`                                   | `AdminRoleService`               | `ReorderRoles`                  | Authenticated; requires `role.manage`; list must contain every custom role exactly once.                                                                           | Replace custom server role ordering while system roles keep fixed positions.                                                                                                                           |
+| `/api/connect/chatto.admin.v1.AdminPermissionService/GetRolePermissionTierMatrix`              | `AdminPermissionService`         | `GetRolePermissionTierMatrix`   | Authenticated; requires `role.manage`, except room scope also allows scoped `room.manage`.                                                                         | Read server/group/room role permission matrix data for the permissions editor.                                                                                                                         |
+| `/api/connect/chatto.admin.v1.AdminPermissionService/GetRolePermissionMatrix`                  | `AdminPermissionService`         | `GetRolePermissionMatrix`       | Authenticated; requires `role.manage`.                                                                                                                             | Read one role's permission matrix across server, group, and room scopes.                                                                                                                               |
+| `/api/connect/chatto.admin.v1.AdminPermissionService/GetUserPermissionMatrix`                  | `AdminPermissionService`         | `GetUserPermissionMatrix`       | Authenticated; requires `user.manage-permissions`.                                                                                                                 | Read one user's direct override and effective permission matrix.                                                                                                                                       |
+| `/api/connect/chatto.admin.v1.AdminPermissionService/ExplainPermissions`                       | `AdminPermissionService`         | `ExplainPermissions`            | Authenticated; requires `role.manage`; self-inspection is rejected.                                                                                                | Explain permission resolution for another user at server or room scope.                                                                                                                                |
+| `/api/connect/chatto.admin.v1.AdminPermissionService/SetRolePermission`                        | `AdminPermissionService`         | `SetRolePermission`             | Authenticated; requires `role.manage`, except room scope also allows scoped `room.manage`; owner role is immutable.                                                | Set or clear one role permission decision.                                                                                                                                                             |
+| `/api/connect/chatto.admin.v1.AdminPermissionService/SetUserPermission`                        | `AdminPermissionService`         | `SetUserPermission`             | Authenticated; requires `user.manage-permissions`.                                                                                                                 | Set or clear one direct user permission decision.                                                                                                                                                      |
+| `/api/connect/chatto.api.v1.AssetUploadService/CreateUpload`                                 | `AssetUploadService`             | `CreateUpload`                  | Authenticated; requires room membership in a non-archived room and attachment-upload permission.                                                                     | Start a room-scoped attachment upload session with declared size and SHA-256.                                                                                                                          |
+| `/api/connect/chatto.api.v1.AssetUploadService/UploadChunk`                                  | `AssetUploadService`             | `UploadChunk`                   | Authenticated; caller must own the upload session.                                                                                                                 | Append one bounded chunk at the expected offset and return the next committed offset.                                                                                                                   |
+| `/api/connect/chatto.api.v1.AssetUploadService/GetUpload`                                    | `AssetUploadService`             | `GetUpload`                     | Authenticated; caller must own the upload session.                                                                                                                 | Read upload status, committed offset, expiry, size, and chunk limit for resume.                                                                                                                         |
+| `/api/connect/chatto.api.v1.AssetUploadService/CompleteUpload`                               | `AssetUploadService`             | `CompleteUpload`                | Authenticated; caller must own the upload session and still have membership in a non-archived room plus attachment-upload permission.                                | Verify the assembled file checksum, create the pending attachment asset, and return its asset ID.                                                                                                      |
+| `/api/connect/chatto.api.v1.AssetUploadService/CancelUpload`                                 | `AssetUploadService`             | `CancelUpload`                  | Authenticated; caller must own the upload session.                                                                                                                 | Cancel an incomplete upload and mark temporary chunks for cleanup.                                                                                                                                      |
+| `/api/connect/chatto.api.v1.AssetService/GetAsset`                                          | `AssetService`                   | `GetAsset`                      | Authenticated; requires room membership.                                                                                                                           | Read one room-scoped asset with freshly signed original, thumbnail, video thumbnail, and processed-variant URLs.                                                                                        |
+| `/api/connect/chatto.api.v1.AssetService/BatchGetAssets`                                     | `AssetService`                   | `BatchGetAssets`                | Authenticated; requires room membership; missing/deleted/wrong-room asset IDs are omitted.                                                                         | Read room-scoped assets in first-seen request order with freshly signed URLs.                                                                                                                           |
+| `/api/connect/chatto.api.v1.MessageService/FetchLinkPreview`                                | `MessageService`                 | `FetchLinkPreview`              | Authenticated.                                                                                                                                                     | Fetch and cache Open Graph metadata for a composer URL, returning nullable preview metadata and a short-lived token for posting it.                                                                     |
+| `/api/connect/chatto.api.v1.MessageService/CreateMessage`                                    | `MessageService`                 | `CreateMessage`                 | Authenticated; requires room membership and post/thread/attach/echo permissions as applicable.                                                                     | Create a root message or thread reply with text, link preview, or completed attachment asset IDs, returning the renderable message. |
+| `/api/connect/chatto.api.v1.MessageService/UpdateMessage`                                    | `MessageService`                 | `UpdateMessage`                 | Authenticated; requires room membership; non-authors require `message.manage`; echo-state changes are author-only and may require `message.echo` + `message.post`. | Edit a message body and optionally reconcile a thread reply's channel echo state.                                                                                                                      |
+| `/api/connect/chatto.api.v1.MessageService/DeleteMessage`                                    | `MessageService`                 | `DeleteMessage`                 | Authenticated; requires room membership; non-authors require `message.manage`.                                                                                     | Retract a message body while keeping the durable audit fact.                                                                                                                                           |
+| `/api/connect/chatto.api.v1.MessageService/DeleteAttachment`                                 | `MessageService`                 | `DeleteAttachment`              | Authenticated; requires room membership and message authorship.                                                                                                    | Remove one attachment from the author's message and delete its asset best-effort.                                                                                                                      |
+| `/api/connect/chatto.api.v1.MessageService/DeleteLinkPreview`                                | `MessageService`                 | `DeleteLinkPreview`             | Authenticated; requires room membership and message authorship.                                                                                                    | Remove the accepted link preview from the author's message.                                                                                                                                            |
+| `/api/connect/chatto.api.v1.RoomService/ListRoomAttachments`                                 | `RoomService`                    | `ListRoomAttachments`           | Authenticated; requires room membership.                                                                                                                           | List current attachment-bearing room messages for the room files/media panel.                                                                                                                          |
+| `/api/connect/chatto.api.v1.RoomService/UpdateTypingIndicator`                               | `RoomService`                    | `UpdateTypingIndicator`         | Authenticated; requires room membership.                                                                                                                           | Refresh the current user's transient room/thread typing indicator; no posting permission is required.                                                                                                  |
+| `/api/connect/chatto.api.v1.MessageService/GetMessage`                                      | `MessageService`                 | `GetMessage`                    | Authenticated; requires room membership and a current message body.                                                                                                | Read one renderable message with current body, attachment rows using the default render URL shape, reactions, link preview, and thread metadata.                                                       |
+| `/api/connect/chatto.api.v1.MessageService/BatchGetMessages`                                 | `MessageService`                 | `BatchGetMessages`              | Authenticated; requires room membership; missing/retracted/non-message event IDs are omitted.                                                                      | Read renderable messages in first-seen request order for multiple event IDs in one room.                                                                                                                |
+| `/api/connect/chatto.api.v1.MyAccountService/UpdatePresence`                                   | `MyAccountService`                 | `UpdatePresence`                | Authenticated self-service.                                                                                                                                        | Refresh the caller's live presence as online, away, or do-not-disturb; `user_selected` protects explicit Away/DND from automatic overwrites.                                                           |
+| `/api/connect/chatto.api.v1.UserService/ListUsers`                                     | `UserService`                    | `ListUsers`                     | Authenticated.                                                                                                                                                     | List public server-wide user rows with profile state, creation time, and server roles.                                                                                                                 |
+| `/api/connect/chatto.api.v1.UserService/GetUser`                                       | `UserService`                    | `GetUser`                       | Authenticated; returns `NOT_FOUND` when not found.                                                                                                                 | Read one public server-wide user row by user ID or login.                                                                                                                                              |
+| `/api/connect/chatto.api.v1.UserService/BatchGetUsers`                                 | `UserService`                    | `BatchGetUsers`                 | Authenticated; unknown IDs are omitted.                                                                                                                            | Read public server-wide user rows in request order for multiple users.                                                                                                                                 |
+| `/api/connect/chatto.api.v1.RoleService/ListRoles`                                          | `RoleService`                    | `ListRoles`                     | Authenticated.                                                                                                                                                     | List the public role catalog without permission arrays.                                                                                                                                                 |
+| `/api/connect/chatto.api.v1.RoleService/GetRole`                                            | `RoleService`                    | `GetRole`                       | Authenticated; returns `NOT_FOUND` when not found.                                                                                                                 | Read one public role by stable name without permission arrays.                                                                                                                                          |
+| `/api/connect/chatto.api.v1.RoleService/BatchGetRoles`                                      | `RoleService`                    | `BatchGetRoles`                 | Authenticated; unknown names are omitted.                                                                                                                          | Read public role records in one request for role-name hydration.                                                                                                                                        |
+| `/api/connect/chatto.api.v1.MyAccountService/UpdateCustomStatus`                                  | `MyAccountService`                 | `UpdateCustomStatus`               | Authenticated self-service.                                                                                                                                        | Write the current user's custom status through durable user EVT.                                                                                                                                       |
+| `/api/connect/chatto.api.v1.MyAccountService/DeleteCustomStatus`                                | `MyAccountService`                 | `DeleteCustomStatus`             | Authenticated self-service.                                                                                                                                        | Clear the current user's custom status through durable user EVT.                                                                                                                                       |
+| `/api/connect/chatto.api.v1.NotificationService/ListNotifications`                          | `NotificationService`            | `ListNotifications`             | Authenticated.                                                                                                                                                     | List the viewer's pending notifications, newest first.                                                                                                                                                 |
+| `/api/connect/chatto.api.v1.NotificationService/GetNotification`                            | `NotificationService`            | `GetNotification`               | Authenticated; returns `NOT_FOUND` when unknown, dismissed, or expired.                                                                                            | Read one pending notification by ID.                                                                                                                                                                    |
+| `/api/connect/chatto.api.v1.NotificationService/BatchGetNotifications`                      | `NotificationService`            | `BatchGetNotifications`         | Authenticated; unknown, dismissed, and expired IDs are omitted.                                                                                                    | Read pending notifications in request order for realtime/event hydration.                                                                                                                              |
+| `/api/connect/chatto.api.v1.NotificationService/ListRoomNotifications`                      | `NotificationService`            | `ListRoomNotifications`         | Authenticated; non-members receive an empty page.                                                                                                                  | List pending notifications scoped to one room.                                                                                                                                                         |
+| `/api/connect/chatto.api.v1.NotificationService/ListRoomNotificationCounts`                     | `NotificationService`            | `ListRoomNotificationCounts`        | Authenticated.                                                                                                                                                     | List pending notification counts grouped by room.                                                                                                                                                      |
+| `/api/connect/chatto.api.v1.NotificationService/HasNotifications`                           | `NotificationService`            | `HasNotifications`              | Authenticated.                                                                                                                                                     | Cheap existence check for whether the viewer has pending notifications.                                                                                                                                |
+| `/api/connect/chatto.api.v1.NotificationService/DismissNotification`                        | `NotificationService`            | `DismissNotification`           | Authenticated.                                                                                                                                                     | Dismiss one pending notification; returns false if it was already gone.                                                                                                                                |
+| `/api/connect/chatto.api.v1.NotificationService/DismissAllNotifications`                    | `NotificationService`            | `DismissAllNotifications`       | Authenticated.                                                                                                                                                     | Dismiss all pending notifications for the viewer.                                                                                                                                                      |
+| `/api/connect/chatto.api.v1.NotificationPreferencesService/GetServerNotificationPreference`  | `NotificationPreferencesService` | `GetServerNotificationPreference` | Authenticated.                                                                                                                                                   | Read the viewer's server-level notification preference and effective level.                                                                                                                            |
+| `/api/connect/chatto.api.v1.NotificationPreferencesService/UpdateServerNotificationPreference` | `NotificationPreferencesService` | `UpdateServerNotificationPreference` | Authenticated.                                                                                                                                                 | Update the viewer's server-level notification preference.                                                                                                                                              |
+| `/api/connect/chatto.api.v1.NotificationPreferencesService/GetRoomNotificationPreference`    | `NotificationPreferencesService` | `GetRoomNotificationPreference` | Authenticated; requires channel-room membership.                                                                                                                   | Read the viewer's room notification preference and effective level.                                                                                                                                    |
+| `/api/connect/chatto.api.v1.NotificationPreferencesService/UpdateRoomNotificationPreference`         | `NotificationPreferencesService` | `UpdateRoomNotificationPreference`      | Authenticated; requires channel-room membership.                                                                                                                   | Write the viewer's room notification level through `NotificationPreferencesService`.                                                                                                                   |
+| `/api/connect/chatto.api.v1.VoiceCallService/ListActiveCalls`                                | `VoiceCallService`               | `ListActiveCalls`               | Authenticated; hidden and inaccessible rooms are omitted.                                                                                                          | List visible channel rooms that currently have active calls.                                                                                                                                           |
+| `/api/connect/chatto.api.v1.VoiceCallService/GetActiveCall`                                  | `VoiceCallService`               | `GetActiveCall`                 | Authenticated; requires room membership; returns `NOT_FOUND` when inactive or missing.                                                                             | Read one room-scoped active call snapshot with participants and call ID.                                                                                                                               |
+| `/api/connect/chatto.api.v1.VoiceCallService/BatchGetActiveCalls`                            | `VoiceCallService`               | `BatchGetActiveCalls`           | Authenticated; inactive, missing, and inaccessible rooms are omitted.                                                                                              | Read room-scoped active call snapshots in request order for many rooms.                                                                                                                                |
+| `/api/connect/chatto.api.v1.VoiceCallService/ListCallParticipants`                           | `VoiceCallService`               | `ListCallParticipants`          | Authenticated; requires room membership.                                                                                                                           | List participants currently projected for one room's active call.                                                                                                                                      |
+| `/api/connect/chatto.api.v1.VoiceCallService/JoinCall`                                       | `VoiceCallService`               | `JoinCall`                      | Authenticated; requires room membership; returns false when LiveKit is not configured.                                                                              | Record the viewer's intent to join a room call.                                                                                                                                                        |
+| `/api/connect/chatto.api.v1.VoiceCallService/GetCallToken`                                   | `VoiceCallService`               | `GetCallToken`                  | Authenticated; requires room membership and active LiveKit configuration/call.                                                                                      | Issue a LiveKit token and E2EE key for the room's active call.                                                                                                                                         |
+| `/api/connect/chatto.api.v1.VoiceCallService/LeaveCall`                                      | `VoiceCallService`               | `LeaveCall`                     | Authenticated; requires room membership; returns false when LiveKit is not configured.                                                                              | Record the viewer's intent to leave a room call.                                                                                                                                                       |
+| `/api/connect/chatto.api.v1.RoomService/MarkRoomAsRead`                                 | `RoomService`               | `MarkRoomAsRead`                | Authenticated; requires room membership.                                                                                                                           | Advance the viewer's room read marker, optionally anchored to a root message event ID.                                                                                                                 |
+| `/api/connect/chatto.api.v1.ThreadService/MarkThreadAsRead`                               | `RoomService`               | `MarkThreadAsRead`              | Authenticated; requires room membership and a valid non-echo thread root event.                                                                                    | Advance the viewer's thread read marker, optionally anchored to a message in that thread.                                                                                                              |
+| `/api/connect/chatto.api.v1.MessageService/AddReaction`                                     | `MessageService`                | `AddReaction`                   | Authenticated; requires room membership and `message.react`.                                                                                                       | Add the viewer's reaction to a message event; returns false if it already existed.                                                                                                                     |
+| `/api/connect/chatto.api.v1.MessageService/RemoveReaction`                                  | `MessageService`                | `RemoveReaction`                | Authenticated; requires room membership and `message.react`.                                                                                                       | Remove the viewer's reaction from a message event; returns false if it did not exist.                                                                                                                  |
+| `/api/connect/chatto.api.v1.RoomService/CreateRoom`                                          | `RoomService`                    | `CreateRoom`                    | Authenticated; requires `room.create` in the target group.                                                                                                         | Create a channel room in a room group, optionally with Universal enabled.                                                                                                                              |
+| `/api/connect/chatto.api.v1.RoomService/UpdateRoom`                                          | `RoomService`                    | `UpdateRoom`                    | Authenticated; requires room-management capability; direct-message rooms cannot be Universal.                                                                      | Update a room's name, description, and Universal membership flag.                                                                                                                                      |
+| `/api/connect/chatto.api.v1.RoomService/ArchiveRoom`                                         | `RoomService`                    | `ArchiveRoom`                   | Authenticated; requires room-management capability.                                                                                                                | Archive a room so it is hidden from active room lists.                                                                                                                                                 |
+| `/api/connect/chatto.api.v1.RoomService/UnarchiveRoom`                                       | `RoomService`                    | `UnarchiveRoom`                 | Authenticated; requires room-management capability.                                                                                                                | Restore an archived room to active room lists.                                                                                                                                                         |
+| `/api/connect/chatto.api.v1.RoomService/JoinRoom`                                            | `RoomService`                    | `JoinRoom`                      | Authenticated; requires `room.join` for the target room.                                                                                                           | Join the target room as the current user.                                                                                                                                                              |
+| `/api/connect/chatto.api.v1.RoomService/JoinRoomGroup`                                       | `RoomService`                    | `JoinRoomGroup`                 | Authenticated; joins only unarchived rooms where `room.join` allows the viewer.                                                                                    | Join every joinable room in a group, skipping already-joined and non-joinable rooms.                                                                                                                   |
+| `/api/connect/chatto.api.v1.RoomService/StartDM`                                             | `RoomService`                    | `StartDM`                       | Authenticated; requires DM start capability via `message.post` not being denied.                                                                                   | Start or fetch a direct-message room for the current user and participant set.                                                                                                                         |
+| `/api/connect/chatto.api.v1.RoomService/LeaveRoom`                                           | `RoomService`                    | `LeaveRoom`                     | Authenticated; rejected for DM and Universal rooms.                                                                                                                | Leave the target room as the current user.                                                                                                                                                             |
+| `/api/connect/chatto.api.v1.RoomService/ListMembers`                                         | `RoomService`                    | `ListMembers`                   | Authenticated; requires room membership.                                                                                                                           | List explicit public room member rows with profile state.                                                                                                                                              |
+| `/api/connect/chatto.api.v1.RoomService/GetMember`                                           | `RoomService`                    | `GetMember`                     | Authenticated; requires room membership; returns `NOT_FOUND` when the target is not a room member.                                                                 | Read one public room member row by user ID.                                                                                                                                                            |
+| `/api/connect/chatto.api.v1.RoomService/BatchGetMembers`                                     | `RoomService`                    | `BatchGetMembers`               | Authenticated; requires room membership; unknown and non-member IDs are omitted.                                                                                   | Read public room member rows in request order for multiple users.                                                                                                                                      |
+| `/api/connect/chatto.api.v1.RoomService/AddMember`                                       | `RoomService`                    | `AddMember`                 | Authenticated; requires `room.manage`; channel rooms only; rejected for Universal rooms and active room bans.                                                       | Add a user as an explicit room member, even when they could not self-join.                                                                                                                             |
+| `/api/connect/chatto.api.v1.RoomService/RemoveMember`                                  | `RoomService`                    | `RemoveMember`            | Authenticated; requires `room.manage`; channel rooms only; rejected for Universal rooms.                                                                            | Remove a user from the room's explicit members.                                                                                                                                                         |
+| `/api/connect/chatto.api.v1.RoomService/ListBans`                                        | `RoomService`                    | `ListBans`                  | Authenticated; requires `room.ban-member`.                                                                                                                         | List active room bans, optionally filtered to one channel room.                                                                                                                                        |
+| `/api/connect/chatto.api.v1.RoomService/BanMember`                                       | `RoomService`                    | `BanMember`                 | Authenticated; requires `room.ban-member`; channel rooms only.                                                                                                     | Ban a current room member with a required reason and optional expiry.                                                                                                                                  |
+| `/api/connect/chatto.api.v1.RoomService/UnbanMember`                                     | `RoomService`                    | `UnbanMember`               | Authenticated; requires `room.ban-member`; channel rooms only.                                                                                                     | Remove an active room ban with a required reason.                                                                                                                                                      |
+| `/api/connect/chatto.api.v1.RoomDirectoryService/ListRooms`                                  | `RoomDirectoryService`           | `ListRooms`                     | Authenticated; non-archived channel visibility follows membership or `room.list`; DMs require membership.                                                          | List rooms visible to the viewer with per-room viewer state and capabilities.                                                                                                                          |
+| `/api/connect/chatto.api.v1.RoomDirectoryService/ListRoomGroups`                             | `RoomDirectoryService`           | `ListRoomGroups`                | Authenticated; hidden and archived room entries are omitted.                                                                                                       | List ordered room groups with visible room entries and sidebar links.                                                                                                                                  |
+| `/api/connect/chatto.api.v1.RoomDirectoryService/GetRoomGroup`                               | `RoomDirectoryService`           | `GetRoomGroup`                  | Authenticated; hidden and archived room entries are omitted.                                                                                                       | Refresh one ordered room group by ID with visible room entries and sidebar links.                                                                                                                      |
+| `/api/connect/chatto.api.v1.RoomDirectoryService/BatchGetRoomGroups`                         | `RoomDirectoryService`           | `BatchGetRoomGroups`            | Authenticated; unknown groups are omitted; hidden and archived room entries are omitted.                                                                            | Hydrate room groups by ID while preserving first-seen request order.                                                                                                                                    |
+| `/api/connect/chatto.api.v1.RoomDirectoryService/GetRoom`                                    | `RoomDirectoryService`           | `GetRoom`                       | Authenticated; requires channel visibility or DM membership.                                                                                                       | Refresh one visible room by ID with viewer state and capabilities.                                                                                                                                     |
+| `/api/connect/chatto.api.v1.RoomDirectoryService/BatchGetRooms`                              | `RoomDirectoryService`           | `BatchGetRooms`                 | Authenticated; unknown and hidden rooms are omitted.                                                                                                               | Hydrate visible rooms by ID while preserving first-seen request order.                                                                                                                                  |
+| `/api/connect/chatto.admin.v1.AdminRoomLayoutService/ListRoomGroups`                         | `AdminRoomLayoutService`         | `ListRoomGroups`                | Authenticated; requires `role.manage`; includes visible archived room entries and per-group `can_create_room` for admin actions.                                   | List editable room-group layout with room entries and sidebar links for the admin editor.                                                                                                              |
+| `/api/connect/chatto.admin.v1.AdminRoomLayoutService/CreateRoomGroup`                          | `AdminRoomLayoutService`         | `CreateRoomGroup`               | Authenticated; requires `role.manage`.                                                                                                                             | Create a room group.                                                                                                                                                                                   |
+| `/api/connect/chatto.admin.v1.AdminRoomLayoutService/UpdateRoomGroup`                          | `AdminRoomLayoutService`         | `UpdateRoomGroup`               | Authenticated; requires `role.manage`.                                                                                                                             | Update room group metadata.                                                                                                                                                                            |
+| `/api/connect/chatto.admin.v1.AdminRoomLayoutService/DeleteRoomGroup`                          | `AdminRoomLayoutService`         | `DeleteRoomGroup`               | Authenticated; requires `role.manage`; group must be empty.                                                                                                        | Delete an empty room group.                                                                                                                                                                            |
+| `/api/connect/chatto.admin.v1.AdminRoomLayoutService/ReorderRoomGroups`                        | `AdminRoomLayoutService`         | `ReorderRoomGroups`             | Authenticated; requires `role.manage`; IDs must be a full permutation.                                                                                             | Replace the global room group order.                                                                                                                                                                   |
+| `/api/connect/chatto.admin.v1.AdminRoomLayoutService/MoveRoomToGroup`                          | `AdminRoomLayoutService`         | `MoveRoomToGroup`               | Authenticated; requires group-scoped `room.manage` in source and target groups.                                                                                    | Move a channel room to another group with source-change protection.                                                                                                                                    |
+| `/api/connect/chatto.admin.v1.AdminRoomLayoutService/ReorderSidebarItemsInGroup`               | `AdminRoomLayoutService`         | `ReorderSidebarItemsInGroup`    | Authenticated; requires group-scoped `room.manage`; entries must match current set.                                                                                | Replace mixed room/sidebar-link order inside a group.                                                                                                                                                  |
+| `/api/connect/chatto.admin.v1.AdminRoomLayoutService/CreateSidebarLink`                        | `AdminRoomLayoutService`         | `CreateSidebarLink`             | Authenticated; requires group-scoped `room.manage` in the target group.                                                                                            | Create a sidebar link in a room group.                                                                                                                                                                 |
+| `/api/connect/chatto.admin.v1.AdminRoomLayoutService/UpdateSidebarLink`                        | `AdminRoomLayoutService`         | `UpdateSidebarLink`             | Authenticated; requires group-scoped `room.manage` in the link's current group.                                                                                    | Update sidebar link label or URL.                                                                                                                                                                      |
+| `/api/connect/chatto.admin.v1.AdminRoomLayoutService/DeleteSidebarLink`                        | `AdminRoomLayoutService`         | `DeleteSidebarLink`             | Authenticated; requires group-scoped `room.manage` in the link's current group.                                                                                    | Delete a sidebar link.                                                                                                                                                                                 |
+| `/api/connect/chatto.admin.v1.AdminRoomLayoutService/MoveSidebarLinkToGroup`                   | `AdminRoomLayoutService`         | `MoveSidebarLinkToGroup`        | Authenticated; requires group-scoped `room.manage` in source and target groups.                                                                                    | Move a sidebar link to another room group.                                                                                                                                                             |
+| `/api/connect/chatto.api.v1.RoomService/GetRoomEvents`                               | `RoomService`            | `GetRoomEvents`                 | Authenticated; requires room membership.                                                                                                                           | Latest/before/after main-room timeline page with hydrated render data.                                                                                                                                 |
+| `/api/connect/chatto.api.v1.RoomService/GetRoomEventsAround`                         | `RoomService`            | `GetRoomEventsAround`           | Authenticated; requires room membership.                                                                                                                           | Main-room timeline window centered on a visible target event.                                                                                                                                          |
+| `/api/connect/chatto.api.v1.ThreadService/GetThreadEvents`                             | `RoomService`            | `GetThreadEvents`               | Authenticated; requires room membership and a valid non-echo thread root event.                                                                                    | Thread root plus latest/before/after reply page with hydrated render data.                                                                                                                             |
+| `/api/connect/chatto.api.v1.ThreadService/GetThreadEventsAround`                       | `RoomService`            | `GetThreadEventsAround`         | Authenticated; requires room membership and a valid non-echo thread root event.                                                                                    | Thread root plus reply window centered on a root or reply anchor event.                                                                                                                                |
+| `/api/connect/chatto.api.v1.ThreadService/ListFollowedThreads`                               | `ThreadService`                  | `ListFollowedThreads`           | Authenticated.                                                                                                                                                     | List viewer followed threads with room names, unread metadata, root-message render data, and user includes.                                                                                            |
+| `/api/connect/chatto.api.v1.ThreadService/FollowThread`                                      | `ThreadService`                  | `FollowThread`                  | Authenticated; requires room membership and a valid non-echo thread root event.                                                                                    | Mark the viewer as following a thread and emit the user-scoped follow-state sync event.                                                                                                                |
+| `/api/connect/chatto.api.v1.ThreadService/UnfollowThread`                                    | `ThreadService`                  | `UnfollowThread`                | Authenticated; requires room membership and a valid non-echo thread root event.                                                                                    | Remove the viewer's thread follow marker and emit the user-scoped follow-state sync event.                                                                                                             |
+## Realtime WebSocket API Overview
 
-**Room groups** ([`room_groups.graphqls`](../cli/internal/graph/room_groups.graphqls))
+Key files: [`proto/chatto/realtime/v1/realtime.proto`](../proto/chatto/realtime/v1/realtime.proto), [`cli/internal/http_server/realtime.go`](../cli/internal/http_server/realtime.go), [`cli/internal/core/my_events_model.go`](../cli/internal/core/my_events_model.go)
 
-| Mutation                          | Description                                                                                  |
-| --------------------------------- | -------------------------------------------------------------------------------------------- |
-| `createRoomGroup`                 | Create a new room group (`role.manage`).                                                     |
-| `updateRoomGroup`                 | Rename / re-describe a room group.                                                           |
-| `deleteRoomGroup`                 | Delete a room group (must be empty).                                                         |
-| `reorderRoomGroups`               | Reorder all room groups (full list, exactly once each).                                      |
-| `reorderRoomsInGroup`             | Reorder rooms within a single group.                                                         |
-| `moveRoomToSet`                   | Move a room into a different group (`room.manage` in both source and target — see ADR-031). |
-| `grantGroupPermission`            | Grant a permission to a role at group scope (overrides server defaults).                     |
-| `denyGroupPermission`             | Deny a permission to a role at group scope.                                                  |
-| `clearGroupPermissionState`       | Remove both grant and denial at group scope.                                                 |
+The protobuf realtime API is mounted at `GET /api/realtime` and upgrades to a binary WebSocket protocol. The first client frame must be `RealtimeClientFrame.hello`; the server accepts protocol version 1, authenticates either the hello bearer token or the existing cookie session, and replies with `RealtimeServerFrame.hello`. The second client frame must be `subscribe_events`, after which the server sends `subscribed` and starts forwarding authorized `RealtimeEventEnvelope` frames plus application-level heartbeats. Clients can send `ping` frames and receive `pong`. The v1 protocol is live-only and does not expose acknowledgement frames, resume requests, or event cursors.
 
-**Roles & permissions** ([`server_rbac.graphqls`](../cli/internal/graph/server_rbac.graphqls), [`server_rbac_extra.graphqls`](../cli/internal/graph/server_rbac_extra.graphqls))
+The HTTP handler does not implement independent room/RBAC filtering. After authentication it calls `core.StreamMyEventsWithOptions` with legacy presence touching disabled, then maps the already-authorized core envelope into public `chatto.realtime.v1` realtime frames. This keeps room membership, DM privacy, server/user/config event gates, projection readiness, live membership changes, slow-consumer shutdown, and session termination behavior shared with `core.StreamMyEvents`. Realtime events are public API signals, not raw persisted `corev1.Event` or `corev1.LiveEvent` payloads. ID-only realtime payloads are invalidation signals; `proto/chatto/realtime/v1/realtime.proto` documents the intended `chatto.api.v1`/`chatto.admin.v1` ConnectRPC hydration path for each referenced resource so clients can recover missed live state through projected reads.
 
-| Mutation                          | Description                                                                                  |
-| --------------------------------- | -------------------------------------------------------------------------------------------- |
-| `createRole` / `updateRole` / `deleteRole` | CRUD for custom server roles (system roles are fixed).                              |
-| `reorderRoles`                    | Reorder custom roles. System roles maintain fixed positions and are excluded.                |
-| `assignRole` / `revokeRole`       | Add / remove a role assignment on a user (`role.assign` + outrank target).                   |
-| `grantPermission` / `revokePermission` | Grant or revoke a permission on a role at server scope.                                 |
-| `denyPermission`                  | Deny a permission on a role at server scope (clears any existing grant).                     |
-| `clearPermissionState`            | Restore neutral state for a permission on a role at server scope.                            |
-| `grantRoomPermission` / `denyRoomPermission` / `clearRoomPermission` | Same trio at room scope.                              |
-| `grantUserPermission`             | Grant a permission directly to a user (beats role decisions; no self-action).                |
-| `denyUserPermission`              | Deny a permission directly to a user (beats role grants; no self-action).                    |
-| `clearUserPermissionState`        | Clear both grant and denial of a permission on a user.                                       |
+Clients recover missed state with projected reads, the same projected-read catch-up model. There is no per-connection JetStream consumer and no public subscription replay cursor.
 
-**Admin** ([`admin.graphqls`](../cli/internal/graph/admin.graphqls))
+| Endpoint        | Frame schema                          | Auth / authorization                                                                 | Description |
+| --------------- | ------------------------------------- | ------------------------------------------------------------------------------------ | ----------- |
+| `/api/realtime` | `chatto.realtime.v1.Realtime*` binary protobuf frames | Bearer token in hello or cookie auth; delivery delegated to `StreamMyEvents` for per-event authorization. | Live-only authenticated event stream for messages, reactions, typing, presence, rooms, notifications, read state, server/user profile invalidation, and session termination. |
 
-Like `Query.admin`, the `admin: AdminMutations` field returns `null` for non-admins. See [Admin sub-API](#admin-sub-api) below.
-
-### Subscriptions
-
-| Subscription          | Description                                                                                                                                                                                                                                                                                                                                                                                                          |
-| --------------------- | ---- |
-| `myEvents`            | The single subscription. Multiplexes room events (messages, reactions, typing, edits, deletes, mention notifications, video processing, voice call lifecycle) and deployment-scoped events (server config, profile updates, room CRUD, room-layout changes, notifications, thread-follow sync, presence, server membership lifecycle, session termination, heartbeats) into one envelope. The membership set is tracked in real time — joining or leaving a room updates filtering immediately without reconnecting. DM-room events are additionally gated by `dm.view`. Subscribing sets the caller's presence to `ONLINE`. Only new events stream; no historical replay. |
-
-There is no `adminAuditLogEvents` subscription — audit events arrive through `myEvents` for users with the relevant admin scope.
-
-### Admin sub-API
-
-`Query.admin` returns `AdminQueries`; `Mutation.admin` returns `AdminMutations`. Both return `null` when the caller lacks admin access, so the nested fields don't need individual auth checks (see [FDR-021](fdr/FDR-021-admin-dashboard.md)). Admin operations are spread across multiple schema files but all hang off these two types.
-
-| Field                                            | Type      | Description                                                                                  |
-| ------------------------------------------------ | --------- | -------------------------------------------------------------------------------------------- |
-| `admin.systemInfo`                               | Query     | Aggregate operational metrics: NATS connection + JetStream account usage totals.            |
-| `admin.serverConfig`                             | Query     | Server configuration overrides (welcome message, MOTD, blocked usernames, OG description).  |
-| `admin.roles`                                    | Query     | List all server roles with their permissions.                                                |
-| `admin.role(name)`                               | Query     | Get a single role.                                                                           |
-| `admin.serverPermissions`                        | Query     | List every available server permission identifier (catalog).                                 |
-| `admin.roleUsers(roleName)`                      | Query     | List users assigned to a role.                                                               |
-| `admin.userRoles(userId)`                        | Query     | List roles assigned to a user.                                                               |
-| `admin.userEffectivePermissions(userId)`         | Query     | A user's effective allow set at server scope (roles + user overrides combined).              |
-| `admin.userEffectiveDenials(userId)`             | Query     | A user's effective deny set at server scope.                                                 |
-| `admin.groupRolePermissions(groupId, roleName)`  | Query     | Explicit grants and denials for a role on a specific room group.                             |
-| `admin.groupUserPermissions(groupId, userId)`    | Query     | Explicit grants and denials for a user on a specific room group.                             |
-| `admin.updateServerConfig(input)`                | Mutation  | Update server configuration.                                                                 |
-| `admin.resetServerConfig`                        | Mutation  | Reset server configuration to defaults.                                                      |
-| `admin.updateUser(input)`                        | Mutation  | Update a user's login / display name (bypasses the 30-day cooldown).                         |
-| `admin.clearUsernameCooldown(userId)`            | Mutation  | Manually clear a user's login change cooldown.                                               |
-
-## Architecture Pattern: CRUD + Audit Log
+## Architecture Pattern: Event-Sourced Writes
 
 ### Write Path
 
 | Type    | Resource                      | Purpose                                     |
 | ------- | ----------------------------- | ------------------------------------------- |
-| KV      | `INSTANCE`                    | Users, memberships (bucket name retained from pre-rename) |
-| KV      | `INSTANCE_CONFIG`             | Server runtime configuration overrides      |
-| KV      | `USER_PRESENCE`               | Presence status (memory, TTL 60s)           |
-| KV      | `NOTIFICATIONS`               | User notifications (90-day TTL)             |
-| KV      | `AUTH_TOKENS`                 | Bearer auth tokens (configurable TTL)       |
-| KV      | `SERVER_CONFIG`               | Rooms (channel + DM), memberships           |
-| KV      | `SERVER_RBAC`                 | Roles, permissions, assignments (single flat tier — owner/admin/moderator/everyone) |
-| KV      | `SERVER_RUNTIME`              | Read status, mention tracking               |
-| KV      | `SERVER_BODIES`               | Message bodies (GDPR-compliant)             |
-| KV      | `SERVER_REACTIONS`            | Emoji reactions                             |
-| KV      | `SERVER_THREADS`              | Thread metadata (reply count, participants) |
-| Objects | `INSTANCE_ASSETS`             | Avatars, icons (bucket name retained from pre-rename) |
-| Objects | `ASSET_CACHE`                 | Cached resized images (optional, with TTL)  |
-| Objects | `SERVER_ASSETS`               | Message attachments                         |
-| Stream  | `SERVER_EVENTS`               | Room/membership events                      |
+| Stream  | `EVT`                         | Durable event-sourcing log for domain facts |
+| KV      | `RUNTIME_STATE`               | Persisted latest-value runtime/user state, including pending notifications, push subscriptions, auth/workflow tokens, and wrapped app DEK records |
+| KV      | `MEMORY_CACHE`                | Volatile memory-backed cache state for presence and short-lived leader leases; excluded from backups |
+| KV      | `ENCRYPTION_KEYS`             | KMS key-encryption keys and per-call LiveKit E2EE keys; excluded from backups |
+| Objects | `SERVER_ASSETS` or S3 bucket  | Persisted asset binaries                    |
+| Objects | `ASSET_CACHE`                 | Optional cached image transforms with TTL   |
 
 See [NATS Resource Inventory](#nats-resource-inventory) for detailed key patterns and subjects.
 
-**Important:** Event publishing is best-effort for most operations. If event publishing fails for spaces, users, or rooms, the operation still succeeds because the KV store (source of truth) was updated successfully. Event publishing failures are logged but do not block operations.
-
-**Exception:** Message posting requires successful event publishing because messages are stored only in event streams (see Messages section below). If event publishing fails for a message, the entire post operation fails.
+`EVT` publishing is mandatory for event-sourced domain facts because `EVT`
+is the source of truth and reads come from in-memory projections. If event
+publishing fails, the write fails. Current aggregates include room
+membership/metadata, room groups/layout, server config, users,
+messages/threads, reactions, voice call participation, assets, RBAC, and
+auth workflow audit facts.
 
 ### Consistency Model
 
-**Current (Single Embedded NATS):**
+**Latest-value KV/runtime state:**
 
-- Strong consistency for KV operations (source of truth)
+- Strong consistency for KV operations
 - Read-your-writes guaranteed via immediate KV updates
-- Event streams provide audit trail with best-effort delivery
-- No dual-write problem: KV is source of truth, events are additive
+- Per-key TTLs are used for expiring records such as notifications and auth/workflow tokens
+- These records are operational state, not durable domain history
 
-**Future (Clustered NATS - Multi-Process):**
+**Event-sourced aggregates:**
+
+- `EVT` is the source of truth.
+- Fresh deployments seed current invariants such as default RBAC roles, the default room group, and default channel rooms. The seeded `#announcements` room is Universal; `#general` is a normal channel room. Fresh RBAC seeds include `message.attach` for `everyone`; existing RBAC state is not silently backfilled on boot.
+- Reads come from in-memory projections rebuilt from `EVT`.
+- Room timeline reads use `RoomTimelineProjection`'s visible per-room timeline for initial loads, forward/backward pagination, and around-message windows; `Room.attachments` uses the projection's current attachment-bearing message index so it does not decrypt unrelated message bodies. Folded room facts such as edits, retractions, reactions, and thread replies are handled by derived indexes or sibling projections instead of being retained in the per-room timeline slice. Asset lifecycle facts live in `AssetProjection`, which also consumes legacy beta `evt.room.{roomId}.asset_*` facts. Live `Subscription.myEvents` delivery reads the committed EVT feed, waits for projection readiness, and emits authorized events without exposing folded facts as standalone timeline rows in `Room.events`.
+- Writes append to `EVT` only for durable domain facts; legacy KV/stream data is not maintained as a mirror.
+- Mutations whose decision comes from a projection use a snapshot that carries both derived state and the applied stream sequence for the same OCC subject/filter. On conflict, writers wait for the owning projection to the latest matching tail and retry from a fresh snapshot.
+- Read-your-writes is provided by waiting for the local projector to reach the append sequence.
 
 - KV buckets remain strongly consistent (NATS JetStream R3 replication)
-- Event streams continue providing audit trail and pub/sub
-- Configurable retention policies on the unified `SERVER_EVENTS` stream (delete old events without data loss)
-- Can rebuild/migrate KV stores from current state exports (not from events)
-
-**Benefits of This Approach:**
-
-- Simple to understand and debug (CRUD operations with event logging)
-- Can safely age out old events based on retention policy
-- No complex event replay or projection rebuilding required
-- Storage costs scale with active data, not infinite history
-- Still provides full audit trail for compliance/debugging (until retention expires)
+- `EVT` provides durable audit/history and projection replay; transient live events provide UI sync.
+- `EVT` retention is effectively forever until snapshot/archival policy is designed.
+- `RUNTIME_STATE` can be rebuilt only from current operational exports or fresh user action, not from `EVT`, by design.
 
 ## Roles, Permissions, and Direct Messages
 
 These sections previously described the RBAC model and DM behavior in detail. They've moved:
 
-- **Roles, permissions, and the resolver** — see [FDR-001](fdr/FDR-001-roles-and-permissions.md) for the design and rationale, [`/.claude/rules/authorization.md`](../.claude/rules/authorization.md) for the full resolver semantics (DM boundary, user-level overrides, scope cascade), and [`/.claude/rules/admin.md`](../.claude/rules/admin.md) for the admin-side picture.
+- **Roles, permissions, and the resolver** — see [FDR-001](fdr/FDR-001-roles-and-permissions.md) for the design and rationale, and [`cli/AGENTS.md`](../cli/AGENTS.md) for resolver semantics (DM boundary, user-level overrides, scope cascade) and the admin-side picture.
 - **Permission constants and `Can*` functions** — see [`cli/internal/core/permission.go`](../cli/internal/core/permission.go) and [`cli/internal/core/can.go`](../cli/internal/core/can.go).
-- **Direct Messages** — see [FDR-007](fdr/FDR-007-direct-messages.md) and [ADR-015 (DMs as a Hidden Space)](adr/ADR-015-dms-as-hidden-space.md).
-- **Storage layout for RBAC and DM rooms** — captured in the [NATS Resource Inventory](#nats-resource-inventory) below alongside the rest of the KV.
+- **Direct Messages** — see [FDR-007](fdr/FDR-007-direct-messages.md) and [ADR-037 (DM Access via Membership)](adr/ADR-037-dm-access-via-membership.md).
+- **Storage layout for RBAC and DM rooms** — captured in the [NATS Resource Inventory](#nats-resource-inventory) below.
 
 ## NATS Resource Inventory
 
-### Event Types
+Key files: [`cli/internal/core/core.go`](../cli/internal/core/core.go), [`cli/internal/events/subjects.go`](../cli/internal/events/subjects.go), [`proto/chatto/core/v1/event.proto`](../proto/chatto/core/v1/event.proto), [`cli/internal/core/subjects/subjects.go`](../cli/internal/core/subjects/subjects.go)
 
-Chatto uses a single protobuf wrapper, `corev1.Event`, for every event a user can receive — both the JetStream-stored room-scoped events and the deployment-scoped live events. The earlier two-wrapper split (`SpaceEvent` + `InstanceEvent` / live wrappers) was retired in PR #429: storage decisions (JetStream vs. NATS Core) belong to the publisher path, not the message type.
+### Current Resources
+
+| Type         | Name                | Storage | Backup | Description                                                                 |
+| ------------ | ------------------- | ------- | ------ | --------------------------------------------------------------------------- |
+| Stream       | `EVT`               | File    | Yes    | Event-sourcing log for durable `corev1.Event` facts on `evt.>`              |
+| KV bucket    | `RUNTIME_STATE`     | File    | Yes    | Persisted latest-value runtime state, auth/session tokens, notifications, wrapped app DEKs |
+| KV bucket    | `MEMORY_CACHE`      | Memory  | No     | Volatile presence and short-lived leader leases                             |
+| KV bucket    | `ENCRYPTION_KEYS`   | File    | No     | KMS key-encryption keys and per-call LiveKit E2EE keys; excluded from backups |
+| Object store | `SERVER_ASSETS`     | File    | Yes    | Default/legacy NATS-backed persisted asset binaries                         |
+| Object store | `ASSET_CACHE`       | File    | No     | Optional TTL cache for transformed image bytes                               |
+| NATS Core    | `live.sync.>`       | None    | No     | Transient `corev1.LiveEvent` pubsub signals                                  |
+| Republish    | `live.evt.>`        | None    | No     | Raw committed `EVT` facts republished by JetStream for server-side live delivery |
+
+### Event Envelopes
+
+Chatto uses `corev1.Event` as the durable EVT wrapper and `corev1.LiveEvent` as the transient NATS Core wrapper. The realtime API maps both through public protobuf frames, while the protobuf wire envelopes stay separate so live-only sync signals cannot leak into the durable audit/event log shape.
 
 - **Wrapper fields**: `id`, `created_at`, `actor_id`
-- **Concrete event**: `event` oneof; contextual fields (`spaceId`, `roomId`, etc.) live on the concrete payloads.
+- **Concrete event**: `event` oneof on the relevant wire envelope; contextual fields (`roomId`, etc.) live on the concrete payloads.
 
-The oneof's field-number convention makes durability obvious at a glance:
+The active `Event.event` oneof variants are all durable EVT payloads, regardless of numeric tag. Transient-only pubsub signals belong in `corev1.LiveEvent`, not `corev1.Event`.
 
-- **`< 1000`** — persisted variants stored in JetStream. The field number is part of the on-disk wire format; do not change or reuse.
-- **`>= 1000`** — live-only variants published to NATS Core. Free to reassign, modulo a single-deployment in-flight constraint.
+Existing `Event` oneof field numbers are part of the persisted JetStream wire format; do not renumber or reuse them.
 
 **Proto File Organization:**
 
 | File | Contents | Safety |
 | ---- | -------- | ------ |
-| `event.proto` | `Event` wrapper + the persisted event message definitions | Changing field numbers/structure affects JetStream-stored data — requires careful migration |
-| `live_event.proto` | All live-only event message definitions | Safe to change freely — these are never persisted |
+| `event.proto` | Durable `Event` wrapper + persisted event message definitions | Changing field numbers/structure affects JetStream-stored data — requires careful migration |
+| `live_events.proto` | Transient `LiveEvent` wrapper + live-only event message definitions | Safe to change freely — these are never persisted |
 
-Both files share `package chatto.core.v1` and generate into the same Go package. The `unwrapEvent` helper in `cli/internal/graph/event_helpers.go` is the single switch from the proto oneof to a typed payload; `unwrapEventAs[T]` is the typed wrapper used by the GraphQL resolvers.
+Both files share `package chatto.core.v1` and generate into the same Go package. `core.EventEnvelope` is the in-process realtime delivery interface that can carry durable EVT, transient LiveEvent, or a heartbeat through private concrete implementations.
 
 **Event Categories:**
 
 | Category                    | Storage    | Examples                                                    | Purpose                                                        |
 | --------------------------- | ---------- | ----------------------------------------------------------- | -------------------------------------------------------------- |
-| JetStream-stored (room)     | Stream     | RoomCreated, MessagePosted, UserJoinedRoom                  | Ordering guarantees, historical replay, audit trail            |
-| Room live-only              | NATS Core  | ReactionAdded, ReactionRemoved, MessageDeleted, MessageUpdated, PresenceChanged, UserTyping | Ephemeral room notifications where KV bucket is source of truth |
-| Deployment live (user/space/config) | NATS Core  | UserCreated, SpaceUpdated, ConfigUpdated, MentionNotification, NotificationCreated | Cross-tab sync, notifications, server lifecycle |
+| JetStream-stored (room) | Stream     | RoomCreated, RoomUniversalChanged, MessagePosted, MessageEdited, MessageRetracted, ReactionAdded, ReactionRemoved, UserJoinedRoom, CallStarted, CallParticipantJoined, CallParticipantLeft, CallEnded | Ordering guarantees, historical replay, projection source of truth |
+| Room live-only              | NATS Core  | UserTyping | Ephemeral room notifications where another store/projection is source of truth |
+| Deployment live (user/config) | NATS Core  | UserCreated, ServerUpdated, MentionNotification, NotificationCreated, PresenceChanged | Cross-tab sync, notifications, server lifecycle |
 
-The distinction between stored and live-only events is based on how they're published (JetStream vs NATS Core). All variants share the single `corev1.Event` envelope; GraphQL exposes them through one `ServerEvent` wrapping union with the typed payloads as members of the `ServerEventType` union.
+The distinction between stored and live-only events is explicit in the wire envelope: durable facts use `corev1.Event`, transient signals use `corev1.LiveEvent`. Room queries and server subscriptions are delivery contexts, not separate wrapper types.
 
 **Self-Contained Events:** Each concrete event contains all the IDs and context it needs:
 
-- Space events contain `space_id`
-- Room events contain `space_id` and `room_id`
-- Membership events contain relevant IDs (`space_id` for space joins, `space_id` + `room_id` for room joins)
-- Self-initiated events (e.g., `PresenceChanged`, `UserJoinedSpace`, `UserLeftSpace`) use the parent wrapper's `actor_id` instead of duplicating a `user_id` field
+- Room events contain `room_id`.
+- Membership events contain relevant IDs (`room_id` for room joins/leaves).
+- Self-initiated events (e.g., `PresenceChanged`) use the parent wrapper's `actor_id` instead of duplicating a `user_id` field.
 
 **Event Publishing Strategy:**
 
-Every event eventually lands on `live.server.>` so a subscriber needs only one NATS Core subscription to see all of them:
+User-facing live delivery is built from two internal NATS Core subject roots:
 
 1. **Primary Stream** (persistent):
-   - `SERVER_EVENTS` (subjects `server.>`) holds room messages, thread replies, room meta lifecycle, and server-level member events. A stream-level `RePublish` config forwards every accepted message onto `live.server.>` (same suffix, new prefix). The republish fires after persistence, so a subscriber cannot observe an event that didn't durably store.
+   - `EVT` (subjects `evt.>`) holds event-sourced domain state. Its stream-level `RePublish` config forwards every committed event once onto `live.evt.>`. This is a raw committed-event feed, not a client contract.
 2. **Direct Live Publish** (transient):
-   - Reactions, typing, message edits/deletes, user/space/config notifications publish directly via NATS Core to `live.server.>` — no stream storage. KV buckets are the source of truth for the state these reflect.
+   - Transient UI sync signals publish as `corev1.LiveEvent` via NATS Core to `live.sync.>` — no stream storage.
 
-The two paths share the same subject root; leaf tokens disambiguate (`.msg.{id}`, `.meta`, `.{verb}` for republished stream events; `.reaction_added`, `.user_typing`, `.profile_updated`, etc. for direct publishes). The `myEvents` GraphQL subscription is backed by one core stream (`StreamMyEvents`) that wraps a single `ChanSubscribe("live.server.>")` plus per-event authorization. There is no per-connection JetStream consumer.
+`MyEventsModel` is owned behind the `ChattoCore.StreamMyEvents` facade and subscribes to `live.sync.>` and `live.evt.>`. For deliverable raw EVT room and asset messages, it reads the republished `Nats-Sequence` header, waits for the local projections needed by authorization and follow-up resolvers, filters by the subscribing user, and then emits the authorized event. Asset lifecycle events resolve their room authorization through `AssetProjection`, using the room scope on `AssetCreatedEvent` and inherited parent scope for derivatives. Transient `LiveEvent` messages are adapted at this API boundary into public protobuf `/api/realtime` frames. Both surfaces are live-only; missed state is recovered by projected reads. The bundled web client opens `/api/realtime`, watches server heartbeats for silent stalls, refetches server-scoped projected state after reconnect gaps, and refetches the current room or thread window from projections after browser wake, WebSocket reconnect, socket end, or heartbeat-stall catch-up notifications. There is no per-connection JetStream consumer and no public subscription replay cursor.
 
-### Event Streams
+### EVT Subject Patterns
 
 | Stream                       | Wrapper          | Scope      | Description                                      |
 | ---------------------------- | ---------------- | ---------- | ------------------------------------------------ |
-| `SERVER_EVENTS`              | `corev1.Event`   | Server     | All JetStream-stored events; republishes onto `live.server.>` |
-| Live Events                  | `corev1.Event`   | Transient  | `live.server.>` (NATS Core) — also the unified subscription root for republished stream events |
+| `EVT`                        | `corev1.Event`   | Server     | Event-sourcing log ([ADR-033](adr/ADR-033-event-sourced-state-with-projections.md) / [ADR-034](adr/ADR-034-single-event-stream.md)). Subjects `evt.{aggregateType}.{aggregateId}.{eventType}`; republishes onto `live.evt.>` as the raw committed-event feed. Stores room membership/metadata, groups/layout, server config, users, messages/threads, reactions, assets, RBAC, and auth workflow audit facts. |
+| Live Sync                    | `corev1.LiveEvent` | Transient  | Direct NATS Core pubsub on `live.sync.>` for transient UI sync signals. `StreamMyEvents` authorizes and adapts these messages into realtime events; they are never projection input. |
 
-**SERVER\_EVENTS subjects:**
+The republished `live.evt.{aggregateType}.{aggregateId}.{eventType}` subject is an internal server-side feed; `StreamMyEvents` waits for projections and authorization before delivering anything to clients.
 
-Room events include event IDs in subjects for O(1) lookups via `GetLastMsgForSubject`. The `{kind}` segment (`channel` or `dm`) lets a single subject namespace serve both server-space rooms and DM rooms.
+| Pattern                                          | Description                                                                     |
+| ------------------------------------------------ | ------------------------------------------------------------------------------- |
+| `evt.>`                                          | All durable event-sourced facts                                                 |
+| `evt.room.>`                                     | All room aggregate facts                                                        |
+| `evt.room.{roomId}.{eventType}`                  | One room aggregate fact                                                         |
+| `evt.room.*.{eventType}`                         | One room event type across all rooms                                            |
+| `evt.asset.>`                                    | All asset aggregate facts                                                       |
+| `evt.asset.{assetId}.{eventType}`                | One asset aggregate fact                                                        |
+| `evt.asset.*.{eventType}`                        | One asset event type across all assets                                          |
+| `evt.config.>`                                   | Dynamic server/user configuration and preferences                               |
+| `evt.config.{subject}.{eventType}`               | Config fact for `server`, a user ID, or another configurable subject            |
+| `evt.group.{groupId}.{eventType}`                | Room group metadata and group-owned sidebar item ordering/membership facts      |
+| `evt.layout.default.{eventType}`                 | Singleton sidebar group ordering facts                                          |
+| `evt.user.{userId}.{eventType}`                  | User/account/profile/auth lookup facts and user-scoped auth audit facts         |
+| `evt.user.*.{eventType}`                         | One user event type across all users                                            |
+| `evt.rbac.{server\|scopeId}.{eventType}`         | Server-level RBAC or scoped RBAC decision facts for a room/group ID             |
+| `evt.auth.server.{eventType}`                    | Server-wide auth audit facts before a user aggregate exists                     |
+| `live.evt.>`                                     | JetStream republish of committed `EVT` facts                                    |
 
-| Subject                                                                       | Description                                    |
-| ----------------------------------------------------------------------------- | ---------------------------------------------- |
-| `server.member.joined` / `.left` / `.deleted`                                 | Membership lifecycle events                    |
-| `server.room.{kind}.{roomId}.msg.{eventId}`                                   | Root message posted                            |
-| `server.room.{kind}.{roomId}.msg.{rootEventId}.replies.{eventId}`             | Thread reply posted                            |
-| `server.room.{kind}.{roomId}.meta`                                            | Room lifecycle + membership                    |
+The aggregate ID is intentionally part of the subject; actor/user and detailed context stay in the protobuf payload. Asset subjects are keyed by asset ID, while room scope lives in `AssetCreatedEvent` and is resolved by `AssetProjection`. Cross-event-type invariants use wildcard OCC filters such as `evt.room.>`, `evt.asset.>`, or `evt.rbac.>`.
 
-The event ID in message subjects enables O(1) lookup (52µs) instead of O(n) scanning. Memory overhead is ~500 bytes per unique subject, which is bounded by TTL-based retention.
+### Durable EVT Event Inventory
 
-Filtering examples:
+| Subject pattern                                              | Protobuf event message                              |
+| ------------------------------------------------------------ | --------------------------------------------------- |
+| `evt.room.{roomId}.room_created`                             | `RoomCreatedEvent`                                  |
+| `evt.room.{roomId}.room_updated`                             | `RoomUpdatedEvent`                                  |
+| `evt.room.{roomId}.room_archived`                            | `RoomArchivedEvent`                                 |
+| `evt.room.{roomId}.room_unarchived`                          | `RoomUnarchivedEvent`                               |
+| `evt.room.{roomId}.room_universal_changed`                   | `RoomUniversalChangedEvent`                         |
+| `evt.room.{roomId}.room_deleted`                             | `RoomDeletedEvent`                                  |
+| `evt.room.{roomId}.user_joined`                              | `UserJoinedRoomEvent`                               |
+| `evt.room.{roomId}.user_left`                                | `UserLeftRoomEvent`                                 |
+| `evt.room.{roomId}.call_started`                             | `CallStartedEvent`                                  |
+| `evt.room.{roomId}.call_joined`                              | `CallParticipantJoinedEvent`                        |
+| `evt.room.{roomId}.call_left`                                | `CallParticipantLeftEvent`                          |
+| `evt.room.{roomId}.call_ended`                               | `CallEndedEvent`                                    |
+| `evt.room.{roomId}.room_member_banned`                       | `RoomMemberBannedEvent`                             |
+| `evt.room.{roomId}.room_member_unbanned`                     | `RoomMemberUnbannedEvent`                           |
+| `evt.room.{roomId}.room_member_added`                        | `RoomMemberAddedEvent`                              |
+| `evt.room.{roomId}.room_member_removed`                      | `RoomMemberRemovedEvent`                            |
+| `evt.room.{roomId}.message_body`                             | `MessageBodyEvent`                                  |
+| `evt.room.{roomId}.message_posted`                           | `MessagePostedEvent`                                |
+| `evt.room.{roomId}.message_edited`                           | `MessageEditedEvent`                                |
+| `evt.room.{roomId}.message_retracted`                        | `MessageRetractedEvent`                             |
+| `evt.room.{roomId}.thread_created`                           | `ThreadCreatedEvent`                                |
+| `evt.room.{roomId}.thread_followed`                          | `ThreadFollowedEvent`                               |
+| `evt.room.{roomId}.thread_unfollowed`                        | `ThreadUnfollowedEvent`                             |
+| `evt.room.{roomId}.reaction_added`                           | `ReactionAddedEvent`                                |
+| `evt.room.{roomId}.reaction_removed`                         | `ReactionRemovedEvent`                              |
+| `evt.asset.{assetId}.asset_created`                          | `AssetCreatedEvent`                                 |
+| `evt.asset.{assetId}.asset_processing_started`               | `AssetProcessingStartedEvent`                       |
+| `evt.asset.{assetId}.asset_processing_succeeded`             | `AssetProcessingSucceededEvent`                     |
+| `evt.asset.{assetId}.asset_processing_failed`                | `AssetProcessingFailedEvent`                        |
+| `evt.asset.{assetId}.asset_deleted`                          | `AssetDeletedEvent`                                 |
+| `evt.config.{subject}.server_name_changed`                   | `ServerNameChangedEvent`                            |
+| `evt.config.{subject}.server_description_changed`            | `ServerDescriptionChangedEvent`                     |
+| `evt.config.{subject}.server_welcome_message_changed`        | `ServerWelcomeMessageChangedEvent`                  |
+| `evt.config.{subject}.server_motd_changed`                   | `ServerMotdChangedEvent`                            |
+| `evt.config.{subject}.server_blocked_usernames_changed`      | `ServerBlockedUsernamesChangedEvent`                |
+| `evt.config.{subject}.server_logo_set`                       | `ServerLogoSetEvent`                                |
+| `evt.config.{subject}.server_logo_cleared`                   | `ServerLogoClearedEvent`                            |
+| `evt.config.{subject}.server_banner_set`                     | `ServerBannerSetEvent`                              |
+| `evt.config.{subject}.server_banner_cleared`                 | `ServerBannerClearedEvent`                          |
+| `evt.config.{subject}.user_timezone_changed`                 | `UserTimezoneChangedEvent`                          |
+| `evt.config.{subject}.user_timezone_cleared`                 | `UserTimezoneClearedEvent`                          |
+| `evt.config.{subject}.user_time_format_changed`              | `UserTimeFormatChangedEvent`                        |
+| `evt.config.{subject}.user_time_format_cleared`              | `UserTimeFormatClearedEvent`                        |
+| `evt.config.{subject}.user_server_notification_level_set`    | `UserServerNotificationLevelSetEvent`               |
+| `evt.config.{subject}.user_server_notification_level_cleared` | `UserServerNotificationLevelClearedEvent`          |
+| `evt.config.{subject}.user_room_notification_level_set`      | `UserRoomNotificationLevelSetEvent`                 |
+| `evt.config.{subject}.user_room_notification_level_cleared`  | `UserRoomNotificationLevelClearedEvent`             |
+| `evt.group.{groupId}.group_created`                         | `RoomGroupCreatedEvent`                             |
+| `evt.group.{groupId}.group_updated`                         | `RoomGroupUpdatedEvent`                             |
+| `evt.group.{groupId}.group_deleted`                         | `RoomGroupDeletedEvent`                             |
+| `evt.group.{groupId}.room_added`                            | `RoomAddedToGroupEvent`                             |
+| `evt.group.{groupId}.room_removed`                          | `RoomRemovedFromGroupEvent`                         |
+| `evt.group.{groupId}.rooms_reordered`                       | `RoomsInGroupReorderedEvent`                        |
+| `evt.group.{groupId}.sidebar_link_added`                    | `SidebarLinkAddedToGroupEvent`                      |
+| `evt.group.{groupId}.sidebar_link_updated`                  | `SidebarLinkUpdatedEvent`                           |
+| `evt.group.{groupId}.sidebar_link_removed`                  | `SidebarLinkRemovedFromGroupEvent`                  |
+| `evt.group.{groupId}.sidebar_entries_reordered`             | `SidebarGroupEntriesReorderedEvent`                 |
+| `evt.layout.default.groups_reordered`                        | `RoomGroupsReorderedEvent`                          |
+| `evt.user.{userId}.account_created`                         | `UserAccountCreatedEvent`                           |
+| `evt.user.{userId}.login_changed`                           | `UserLoginChangedEvent`                             |
+| `evt.user.{userId}.display_name_changed`                    | `UserDisplayNameChangedEvent`                       |
+| `evt.user.{userId}.avatar_set`                              | `UserAvatarSetEvent`                                |
+| `evt.user.{userId}.avatar_cleared`                          | `UserAvatarClearedEvent`                            |
+| `evt.user.{userId}.custom_status_set`                       | `UserCustomStatusSetEvent`                          |
+| `evt.user.{userId}.custom_status_cleared`                   | `UserCustomStatusClearedEvent`                      |
+| `evt.user.{userId}.verified_email_added`                    | `UserVerifiedEmailAddedEvent`                       |
+| `evt.user.{userId}.password_hash_changed`                   | `UserPasswordHashChangedEvent`                      |
+| `evt.user.{userId}.oidc_subject_linked`                     | `UserOIDCSubjectLinkedEvent` (legacy replay)        |
+| `evt.user.{userId}.external_identity_linked`                | `UserExternalIdentityLinkedEvent`                   |
+| `evt.user.{userId}.external_identity_unlinked`              | `UserExternalIdentityUnlinkedEvent`                 |
+| `evt.user.{userId}.server_preferences_changed`              | `UserServerPreferencesChangedEvent`                 |
+| `evt.user.{userId}.login_cooldown_started`                  | `UserLoginCooldownStartedEvent`                     |
+| `evt.user.{userId}.login_cooldown_cleared`                  | `UserLoginCooldownClearedEvent`                     |
+| `evt.user.{userId}.account_deleted`                         | `UserAccountDeletedEvent`                           |
+| `evt.user.{userId}.user_key_shredded`                       | `UserKeyShreddedEvent`                              |
+| `evt.user.{userId}.dek_generated`                           | `UserDEKGeneratedEvent`                             |
+| `evt.user.{userId}.email_verification_code_issued`          | `EmailVerificationCodeIssuedEvent`                  |
+| `evt.user.{userId}.password_reset_link_issued`              | `PasswordResetLinkIssuedEvent`                      |
+| `evt.user.{userId}.account_deletion_confirmation_issued`    | `AccountDeletionConfirmationIssuedEvent`            |
+| `evt.user.{userId}.password_reset_completed`                | `PasswordResetCompletedEvent`                       |
+| `evt.user.{userId}.login_succeeded`                         | `LoginSucceededEvent`                               |
+| `evt.user.{userId}.logout_succeeded`                        | `LogoutSucceededEvent`                              |
+| `evt.user.{userId}.auth_code_issued`                        | `AuthCodeIssuedEvent`                               |
+| `evt.user.{userId}.auth_code_exchange_succeeded`            | `AuthCodeExchangeSucceededEvent`                    |
+| `evt.user.{userId}.auth_code_exchange_failed`               | `AuthCodeExchangeFailedEvent`                       |
+| `evt.user.{userId}.bearer_token_issued`                     | `BearerTokenIssuedEvent`                            |
+| `evt.user.{userId}.bearer_token_revoked`                    | `BearerTokenRevokedEvent`                           |
+| `evt.user.{userId}.oauth_consent_granted`                   | `OAuthConsentGrantedEvent`                          |
+| `evt.user.{userId}.oauth_consent_denied`                    | `OAuthConsentDeniedEvent`                           |
+| `evt.rbac.{server\|scopeId}.role_created`                   | `RbacRoleCreatedEvent`                             |
+| `evt.rbac.{server\|scopeId}.role_display_name_changed`      | `RbacRoleDisplayNameChangedEvent`                  |
+| `evt.rbac.{server\|scopeId}.role_description_changed`       | `RbacRoleDescriptionChangedEvent`                  |
+| `evt.rbac.{server\|scopeId}.role_pingable_changed`          | `RbacRolePingableChangedEvent`                     |
+| `evt.rbac.{server\|scopeId}.role_deleted`                   | `RbacRoleDeletedEvent`                             |
+| `evt.rbac.{server\|scopeId}.roles_reordered`                | `RbacRolesReorderedEvent`                          |
+| `evt.rbac.{server\|scopeId}.role_assigned`                  | `RbacRoleAssignedEvent`                            |
+| `evt.rbac.{server\|scopeId}.role_revoked`                   | `RbacRoleRevokedEvent`                             |
+| `evt.rbac.{server\|scopeId}.permission_granted`             | `RbacPermissionGrantedEvent`                       |
+| `evt.rbac.{server\|scopeId}.permission_denied`              | `RbacPermissionDeniedEvent`                        |
+| `evt.rbac.{server\|scopeId}.permission_cleared`             | `RbacPermissionClearedEvent`                       |
+| `evt.auth.server.registration_verification_code_issued`    | `RegistrationVerificationCodeIssuedEvent`           |
+| `evt.auth.server.login_failed`                             | `LoginFailedEvent`                                  |
 
-| Pattern                                                              | Description                                    |
-| -------------------------------------------------------------------- | ---------------------------------------------- |
-| `server.>`                                                           | All events                                     |
-| `server.room.{kind}.{roomId}.>`                                      | All events in a room (messages + meta + threads) |
-| `server.room.{kind}.{roomId}.msg.>`                                  | All messages (root + threads)                  |
-| `server.room.{kind}.{roomId}.msg.*`                                  | Root messages only                             |
-| `server.room.{kind}.>`                                               | All events of one kind (channels or DMs)       |
-| `server.room.{kind}.{roomId}.msg.*.replies.>`                        | All thread replies in a room                   |
-| `server.room.{kind}.{roomId}.msg.{rootEventId}.replies.>`            | All replies in a specific thread               |
-| `server.room.{kind}.{roomId}.msg.*.replies.{eventId}`                | Lookup a thread reply by event ID              |
+Notes: Subject suffixes are stable NATS event tokens defined in [`cli/internal/events/subjects.go`](../cli/internal/events/subjects.go). Protobuf message types are the concrete `corev1.Event` oneof payloads defined in [`proto/chatto/core/v1/event.proto`](../proto/chatto/core/v1/event.proto) and sibling `*_events.proto` files. The current asset write path uses `evt.asset.{assetId}.*`; `AssetProjection` also consumes beta-era `evt.room.{roomId}.asset_*` histories for replay compatibility.
 
-Note: Event type (created, joined, etc.) is determined by the event payload, not the subject. Actor/user information is also in payloads, not subjects (optimized for low subject cardinality).
+### Transient Live Subjects
 
-**User Personal Streams** (transient):
+Transient sync signals use `corev1.LiveEvent` and are published directly on NATS Core. They are not persisted and are not projection input.
 
-- Subject: `user.{userId}.event`
-- Published via NATS Core (not JetStream) - transient, not persisted
-- Receives events relevant to the user (space joins/leaves, room joins/leaves)
-- Powers real-time notifications and user-centric subscriptions
-- Events are dual-published: to primary stream (audit trail) and user stream (notifications)
+Patterns: `live.sync.>` for transient `LiveEvent` pubsub and `live.evt.>` for raw EVT committed facts. `myEvents` consumes both roots server-side:
 
-**Live Subject Space**:
+- Direct NATS Core publishes (`publishLiveEvent()`): transient `corev1.LiveEvent` messages on `live.sync.>` with no stream storage.
+- `EVT` RePublish (`evt.>` → `live.evt.>`): every committed event-sourced fact is re-emitted once by JetStream. Chatto replicas must wait for local projection readiness and authorize before exposing deliverable room or asset events to clients.
 
-Pattern: `live.server.{scope}.{subject}` — the single subscription root for real-time delivery. Two publishers feed it:
+`SERVER_EVENTS` no longer has a `RePublish` live path and runtime code no longer writes legacy `server.>` mirrors. Historical `SERVER_EVENTS` streams may still appear in old backups, but current boot and live-delivery paths do not read or import them.
 
-- `SERVER_EVENTS` RePublish (`server.>` → `live.server.>`): every accepted stream message is re-emitted onto a NATS Core subject after persistence. Subscribers don't need a JetStream consumer to receive room messages, thread replies, room meta, or server-level member events.
-- Direct NATS Core publishes (`publishLiveUserEvent()`, `publishLiveDeploymentEvent()`, `publishLiveConfigEvent()`, `publishLiveRoomEvent()`, `publishLiveMemberEvent()`): transient events with no stream storage.
-
-Subject leaf tokens never collide between the two paths — republished events end in `.msg.{id}` / `.meta` / `.{member_verb}`, direct publishes use event-type tokens (`.reaction_added`, `.user_typing`, `.profile_updated`, etc.).
-
-**Deployment-wide live events** (`live.server.{user,config}.>`):
+**Transient live sync events** (`live.sync.{user,config,room}.>`):
 
 | Subject                                                  | Description                  |
 | -------------------------------------------------------- | ---------------------------- |
-| `live.server.user.{userId}.created`                      | User registration completed  |
-| `live.server.user.{userId}.profile_updated`              | User profile changed (broadcast) |
-| `live.server.user.{userId}.user_deleted`                 | User account deleted         |
-| `live.server.config.updated`                             | Server config (name/MOTD/welcome) changed |
-| `live.server.config.server_updated`                      | Server branding (name/logo/banner/description) changed |
-| `live.server.config.room_groups_updated`                 | Admin reordered the room sidebar / room-group layout |
-| `live.server.user.{userId}.mentioned`                    | User was @mentioned          |
-| `live.server.user.{userId}.dm_message`                   | New DM message received      |
-| `live.server.user.{userId}.notification_created`         | New notification created     |
-| `live.server.user.{userId}.notification_dismissed`       | Notification dismissed       |
-| `live.server.user.{userId}.notification_level_changed`   | Viewer's server/room notification level changed |
-| `live.server.user.{userId}.thread_follow_changed`        | Viewer's thread follow/unfollow toggled |
-| `live.server.user.{userId}.settings_updated`             | User preferences changed     |
-| `live.server.user.{userId}.room_read`                    | Room marked as read          |
-| `live.server.user.{userId}.session_terminated`           | Active session revoked (logout-other-devices, account deletion) |
+| `live.sync.user.{userId}.created`                        | User registration completed  |
+| `live.sync.user.{userId}.profile_updated`                | User profile changed (broadcast for login/display/avatar updates; custom status set/clear is delivered from `live.evt.>`) |
+| `live.sync.config.server_updated`                        | Public server profile/config changed (name/MOTD/welcome/logo/banner/description) |
+| `live.sync.config.room_groups_updated`                   | Admin reordered the room sidebar / room-group layout |
+| `live.sync.user.{userId}.mentioned`                      | User was @mentioned (legacy attention signal; suppressed during DND) |
+| `live.sync.user.{userId}.dm_message`                     | New DM message received (legacy attention signal; suppressed during DND) |
+| `live.sync.user.{userId}.notification_created`           | New notification created; may be marked silent for DND alert suppression |
+| `live.sync.user.{userId}.notification_dismissed`         | Notification dismissed       |
+| `live.sync.user.{userId}.notification_level_changed`     | Viewer's server/room notification level changed |
+| `live.sync.user.{userId}.thread_follow_changed`          | Viewer's thread follow/unfollow toggled |
+| `live.sync.user.{userId}.settings_updated`               | User preferences changed     |
+| `live.sync.user.{userId}.room_read`                      | Room marked as read          |
+| `live.sync.user.{userId}.session_terminated`             | Active session revoked (logout-other-devices, account deletion) |
+| `live.sync.member.deleted`                                | Server-level membership invalidation after account deletion |
+| `live.sync.room.{kind}.{roomId}.user_typing`             | User typing in a room        |
 
-**Republished from `SERVER_EVENTS`** (durable, available via `live.server.>` after stream write):
+Voice call lifecycle and participant transitions are durable room EVT facts under `evt.room.{roomId}.call_started`, `evt.room.{roomId}.call_joined`, `evt.room.{roomId}.call_left`, and `evt.room.{roomId}.call_ended`, republished to `live.evt.>` for realtime subscription delivery. They drive active-call state and indicators but are hidden from normal room history timelines. LiveKit room names include the active Chatto call ID suffix so LiveKit participant and room-finished observations are applied only to the matching call session. Only the replica holding the `MEMORY_CACHE` lease `lease.livekit_reconciler` runs the periodic LiveKit reconciliation loop. LiveKit reconciliation appends `RECONCILIATION` facts for participant mismatches in the matching call session. Missing LiveKit rooms and observed empty rooms end projected calls immediately after a successful listing; per-room LiveKit `not_found` responses while listing participants are treated as that room being gone/empty so other rooms can still reconcile. Pre-threshold LiveKit listing failures increment shared `MEMORY_CACHE` key `livekit.reconciliation.list_failures` and are retried on the normal reconciliation ticker, and listing failures only end projected active calls after three consecutive failed elected reconciliation cycles. A successful elected reconcile pass deletes that failure counter. `VoiceCallService.GetActiveCall`, `BatchGetActiveCalls`, `GetCallToken`, and `ListCallParticipants` expose the active call ID so clients can ignore stale leave/end facts from previous calls in the same room; realtime `call_*` events carrying a room/call ID pair can be hydrated through `GetActiveCall` or `BatchGetActiveCalls`. Room membership remains the authorization boundary for live delivery.
 
-| Subject                                                                       | Description                  |
-| ----------------------------------------------------------------------------- | ---------------------------- |
-| `live.server.room.{kind}.{roomId}.msg.{eventId}`                              | Root message posted          |
-| `live.server.room.{kind}.{roomId}.msg.{rootEventId}.replies.{eventId}`        | Thread reply posted          |
-| `live.server.room.{kind}.{roomId}.meta`                                       | Room lifecycle + membership  |
-| `live.server.member.joined` / `.left` / `.deleted`                            | Server-level membership      |
+The `/api/realtime` WebSocket is backed by the single core stream `StreamMyEvents`, which combines:
 
-**Direct live publishes** (transient, never stored):
-
-| Subject                                                  | Description                  |
-| -------------------------------------------------------- | ---------------------------- |
-| `live.server.room.{kind}.{roomId}.reaction_added`        | Reaction added to message    |
-| `live.server.room.{kind}.{roomId}.reaction_removed`      | Reaction removed from message|
-| `live.server.room.{kind}.{roomId}.message_deleted`       | Message deleted              |
-| `live.server.room.{kind}.{roomId}.message_updated`       | Message edited               |
-| `live.server.room.{kind}.{roomId}.user_typing`           | User typing in a room        |
-| `live.server.room.{kind}.{roomId}.call_joined`           | Participant joined the LiveKit voice call |
-| `live.server.room.{kind}.{roomId}.call_left`             | Participant left the LiveKit voice call |
-| `live.server.room.{kind}.{roomId}.video_processed`       | Video attachment finished transcoding |
-
-The unified `myEvents` GraphQL subscription is backed by a single core stream (`StreamMyEvents`) that combines:
-
-- One `ChanSubscribe("live.server.>")` (covers republished stream events and direct live publishes alike) with authorization applied per event: room membership for `live.server.room.>`, `isAuthorizedForLiveEvent` for everything else.
-- The PresenceHub (single per-process KV watcher on `presence.>` fanning out to all subscribers).
+- One `ChanSubscribe("live.sync.>")` for transient `LiveEvent` messages, and one `ChanSubscribe("live.evt.>")` for raw committed EVT facts. Authorization is applied per event: room membership for room subjects, asset room membership for asset subjects, `isAuthorizedForLiveEvent` for user/config/member subjects, and projection readiness before deliverable `live.evt.>` events.
+- Live-only subscription delivery. Missed state after reconnect is recovered from projected reads: server-scoped stores refetch their current projections after event-bus gaps, and the visible room/thread refetches its current message window. Transient sync and presence signals remain live-only.
+- The PresenceHub (single per-process KV watcher on `presence.>` fanning out per-user status changes to all subscribers).
 - An in-process heartbeat ticker (synthetic `Heartbeat` event every 25s for client-side liveness detection).
 
 ### KV Buckets (backed by streams)
 
 | Bucket                        | Storage | Backup   | Description                                     |
 | ----------------------------- | ------- | -------- | ----------------------------------------------- |
-| `INSTANCE`                    | File    | Yes      | Users, memberships (bucket name retained from pre-rename) |
-| `INSTANCE_CONFIG`             | File    | Yes      | Server runtime configuration overrides          |
-| `SERVER_CONFIG`               | File    | Yes      | Rooms (channel + DM), memberships               |
-| `SERVER_RBAC`                 | File    | Yes      | Roles, permissions, assignments (single flat tier) |
-| `SERVER_RUNTIME`              | File    | Yes      | Read state, mention tracking                    |
-| `SERVER_BODIES`               | File    | Yes      | Message bodies (GDPR-compliant)                 |
-| `SERVER_REACTIONS`            | File    | Yes      | Emoji reactions on messages                     |
-| `SERVER_THREADS`              | File    | Yes      | Thread metadata (reply count, participants)     |
-| `NOTIFICATIONS`               | File    | Yes      | User notifications (90-day TTL)                 |
-| `AUTH_TOKENS`                 | File    | No       | Bearer auth tokens (configurable TTL, default 90d) |
-| `USER_PRESENCE`               | Memory  | No       | User presence status (TTL 60s)                  |
-| `CALL_STATE`                  | Memory  | No       | Active voice call participants, keyed `{spaceId}.{roomId}` (repopulated by LiveKit webhooks after restart) |
-| `ENCRYPTION_KEYS`             | File    | **No**   | User encryption keys (excluded for security)    |
-| `LINK_PREVIEW_CACHE`          | File    | No       | Cached link preview metadata (48h TTL)          |
-
-All room data — channels and DMs alike — lives in the unified `SERVER_*` buckets. Per-space buckets (`SPACE_{spaceId}_*`) and the hidden DM space are gone after the Phase 4 migration (#354): rooms are differentiated by a `kind` segment in their KV keys (e.g. `room.channel.{roomId}` vs `room.dm.{roomId}`), and storage code never branches on `kind`.
-
-**INSTANCE keys:**
-
-| Key                                    | Description                                      |
-| -------------------------------------- | ------------------------------------------------ |
-| `user.{userId}`                        | User profile data                                |
-| `user_by_login.{lowercase(login)}`     | Login-to-UserID index (case-insensitive)         |
-| `auth.{userId}.password`               | Password hash (stored separately)                |
-| `user.{userId}.avatar`                 | User avatar asset reference                      |
-| `verified_emails.{userId}.{sha256(email)}` | One verified email per entry (proto `VerifiedEmail`) |
-| `email_verification.{token}`           | Verification token with userId/email (24h TTL)   |
-| `user_by_email.{sha256(email)}`        | Email-to-userId index (created on verification)  |
-| `password_reset.{token}`               | Password reset token                             |
-| `account_deletion.{token}`             | Account deletion confirmation token              |
-| `space.{spaceId}`                      | Vestigial primary-space record (key retained from pre-rename) |
-| `instance.logo`                        | Server logo asset reference (key retained from pre-rename) |
-| `instance.banner`                      | Server banner asset reference (key retained from pre-rename) |
-| `space_membership.{spaceId}.{userId}`  | User-server membership tracking (vestigial slot) |
-| `user_preferences.{userId}`            | User display preferences (timezone, time format) |
-
-Notes: Email verification uses SHA256 hashing for claim keys to ensure valid NATS subject characters and case-insensitive uniqueness. The claim key is created atomically when an email is verified, preventing race conditions where two users try to verify the same email. Verification tokens store userId and email in the JSON value for O(1) lookup by token.
-
-**INSTANCE_CONFIG keys:**
-
-| Key               | Description                                                                  |
-| ----------------- | ---------------------------------------------------------------------------- |
-| `config.instance` | Server configuration (proto message; key + proto name retained) — name, MOTD, welcome message |
-
-Notes: Stores runtime configuration. Each section is a protobuf-serialized message. Server configuration (name, MOTD, welcome message) lives entirely in KV, not in chatto.toml. The TOML file is reserved for operational settings (ports, secrets, NATS config). Deleting a key reverts to defaults.
-
-**NOTIFICATIONS keys:**
-
-| Key                          | Description                                       |
-| ---------------------------- | ------------------------------------------------- |
-| `{userId}.{notificationId}`  | Notification record (protobuf Notification)       |
-
-Notes: 90-day TTL for automatic cleanup. Notifications are created for DM messages, @mentions, and thread replies. Supports real-time sync via `NotificationCreatedEvent` and `NotificationDismissedEvent` published to `live.server.user.{userId}.*`.
-
-**AUTH_TOKENS keys:**
-
-| Key       | Description                                           |
-| --------- | ----------------------------------------------------- |
-| `{token}` | JSON with user ID and creation time                   |
-
-Notes: Tokens are opaque strings (`cht_AT` + 14-char NanoID). Used for `Authorization: Bearer <token>` header authentication, enabling cross-origin clients. TTL-based auto-expiry (default 90 days, configurable via `auth.token_ttl`). Excluded from backups since tokens are ephemeral credentials. Tokens are issued on login, registration, bootstrap, and OAuth callback.
+| `RUNTIME_STATE`               | File    | Yes      | Persisted latest-value runtime/user state, including pending notifications, push subscriptions, auth/workflow tokens, and wrapped app DEK records |
+| `MEMORY_CACHE`                | Memory  | No       | Volatile cache state; presence keyed `presence.{userId}` and short-lived leader leases keyed `lease.{name}` with per-key TTLs |
+| `ENCRYPTION_KEYS`             | File    | **No**   | KMS KEKs and LiveKit per-call E2EE keys (excluded for security); app-owned wrapped DEKs live in `RUNTIME_STATE` |
 
 **ENCRYPTION_KEYS keys:**
 
-| Key        | Description                                          |
-| ---------- | ---------------------------------------------------- |
-| `{userId}` | User's 32-byte encryption key (ChaCha20-Poly1305)    |
+| Key                   | Description                       |
+| --------------------- | --------------------------------- |
+| `kek.{keyRef}`        | Protobuf `UserKeyEncryptionKey` per-user KEK record addressed by opaque KMS key ref |
+| `call.e2ee.{callId}`  | Protobuf `UserKeyEncryptionKey` record containing the raw LiveKit E2EE key for one active call; referenced by `CallStartedEvent.e2ee_key_ref` and shredded when `CallEndedEvent` commits |
 
-Notes: Excluded from backups so backup archives contain only encrypted data, not the keys to decrypt it. Enables GDPR-compliant crypto-shredding: deleting a user's key renders all their messages permanently unreadable.
+Notes: Excluded from backups so backup archives do not contain the KEKs needed to unwrap protected content or the per-call media keys needed to decrypt captured LiveKit media. Chatto core uses the in-process `internal/kms` boundary for KEK creation, DEK wrap/unwrap, call-key lookup, and key shredding. App-owned wrapped DEK records live in `RUNTIME_STATE` under `dek.{contentKeyRef}`.
 
-**SERVER\_CONFIG keys:**
+**RUNTIME\_STATE keys:**
 
-Room and membership keys carry a `kind` segment (`channel` or `dm`) so listing operations can prefix-filter without loading and deserializing every record. The kind isn't a field on the `Room` proto — the storage layout is the canonical source of truth.
-
-| Key                                                  | Description                                      |
-| ---------------------------------------------------- | ------------------------------------------------ |
-| `room.channel.{roomId}`                              | Channel-style room. The Room proto carries `set_id` referencing its `RoomSet` (ADR-031). |
-| `room.dm.{roomId}`                                   | Direct-message room (no `set_id` — DMs aren't part of any room set). |
-| `room_name_index.{lowercaseName}`                    | Atomic name claim → room ID. Channels only; DMs have empty names. Enforces case-insensitive uniqueness without a read-then-write race. |
-| `room_membership.channel.{roomId}.{userId}`          | Channel membership (room-first ordering matches `room.{kind}.{X}`)  |
-| `room_membership.dm.{roomId}.{userId}`               | DM membership                                    |
-| `room_layout`                                        | Single proto holding the ordered list of `RoomSet`s (and each set's ordered room IDs). Updated atomically with OCC. |
-
-Useful filter patterns:
-
-| Pattern                                              | Matches                                          |
-| ---------------------------------------------------- | ------------------------------------------------ |
-| `room.channel.*`                                     | All channel rooms                                |
-| `room.dm.*`                                          | All DM rooms                                     |
-| `room.*.*`                                           | All rooms regardless of kind                     |
-| `room_membership.{kind}.{roomId}.*`                  | All members of one room (pure prefix)            |
-| `room_membership.{kind}.*.{userId}`                  | A user's memberships of one kind (server-side wildcard) |
-| `room_membership.{kind}.>`                           | All memberships of one kind                      |
-
-**SERVER\_RBAC keys:**
-
-Keys: `role.*`, `role_permission.*`, `role_assignment.*`, `user_permission.*`, `user_permission_denied.*`.
-
-**SERVER\_RUNTIME keys:**
+`RUNTIME_STATE` is the persisted home for latest-value runtime state that
+survives restart but is not content/domain history. See
+[ADR-036](adr/ADR-036-runtime-state-kv-boundary.md).
 
 | Key                                    | Description                                                       |
 | -------------------------------------- | ----------------------------------------------------------------- |
-| `room_read_event.{userId}.{roomId}`    | Last-read root message event ID (UTF-8 string, ~14 bytes). Empty value = "joined but no specific event read yet" (e.g. joined an empty room). Missing key triggers a one-time lazy init to the room's current last event ("caught up at first read post-deploy"). The legacy `room_read_status.*` keys (8-byte uint64 sequences) are orphaned and ignored. |
-| `room_mention_status.{userId}.{roomId}`| Unread mention indicator (boolean — key presence means unread)    |
-| `room_last_msg_at.{roomId}`            | Last message timestamp (per-room, used for sidebar sort)          |
-| `video.{attachmentId}`                 | Video processing state for an attachment                          |
+| `read.room.{userId}.{roomId}`          | Last-read root message event ID (UTF-8 string, ~14 bytes). Empty value = "joined but no specific event read yet" (e.g. joined an empty room). Missing key triggers a one-time lazy init to the room's current last event. |
+| `read.thread.{userId}.{roomId}.{threadRootEventId}` | Latest thread message event ID the user has seen. |
+| `thread_follow.{userId}.{roomId}.{threadRootEventId}` | Deprecated legacy thread follow marker imported once at core startup into `ThreadProjection` for backward read compatibility. One-byte `0x01` and textual `following` values seed active follows; textual `unfollowed` values seed explicit unfollows from short-lived pre-EVT builds. Current follow/unfollow writes use `evt.room.{roomId}.thread_followed` and `evt.room.{roomId}.thread_unfollowed`. Remove this compatibility import after a documented pre-1.0 cutoff. |
+| `notification.{userId}.{notificationId}` | Pending notification record (protobuf `Notification`) for DM messages, @mentions, replies, and all-message subscriptions. Uses per-key 90-day TTL. Live sync uses `NotificationCreatedEvent` / `NotificationDismissedEvent` on `live.sync.user.{userId}.*`; DND keeps the record but marks creation sync silent and skips push delivery. |
+| `push_subscription.{userId}.{endpointHash}` | Web Push subscription record (protobuf `PushSubscription`) for a user's browser/device. The endpoint hash keeps multiple devices per user while deduplicating the same browser subscription. |
+| `asset_upload.{uploadId}` | JSON room-scoped attachment upload session with actor, declared size/SHA-256, committed offset, chunk keys, status, and expiry. Open sessions use a 15-minute TTL; completed sessions expire with the 24-hour pending-attachment claim window. |
+| `email_otp.{hmac(subject)}.{hmac(code)}` | Shared registration and email-verification OTP code JSON. Registration values carry normalized email; authenticated email-verification values carry user ID and email. The subject hash scopes registration by email and authenticated verification by user/email, the code hash verifies the submitted six-digit code, and the raw code is never stored. Uses per-key 15-minute TTL. |
+| `email_otp.{hmac(subject)}.challenge` | Shared OTP challenge JSON with failed-attempt and issued-code counters. Wrong-code attempts update this record revision-safely, five wrong guesses exhaust the challenge until TTL, and at most ten codes can be issued for one challenge window. Uses per-key 15-minute TTL. |
+| `registration_completion.{hmac}` | Registration completion token JSON created after code verification. Uses per-key 15-minute TTL. |
+| `password_reset.{hmac}` | Password reset token JSON. Uses per-key 1-hour TTL. |
+| `account_deletion_token.{hmac}` | Account deletion confirmation token JSON. Uses per-key 15-minute TTL. |
+| `session.{hmac}` | Typed runtime credential JSON with user ID, credential kind (`first_party_session` or `oauth_access_token`), presentation (`bearer` or `cookie`), source/request metadata, fresh-auth metadata, and the user auth generation it was issued against. Uses per-key `auth.token_ttl` (default 90 days); successful validation refreshes the key with a new per-key TTL for sliding-window expiry. Password resets, password changes, external identity disconnects, and account deletion revoke older credentials by advancing the user's auth generation through durable user events; scans of `session.*` delete matching records as cleanup. |
+| `cookie_session.{userId}.{sessionHmac}` | Deprecated legacy cookie-session protobuf (`CookieSession`) retained for validation and cleanup of sessions created before typed runtime credentials. Current login flows write cookie-presentation credentials to `session.{hmac}` instead. Remove this compatibility path after existing sessions age out or after a documented pre-1.0 cutoff. |
+| `grant.{hmac}` | OAuth authorization code JSON with the user auth generation it was issued against. Uses per-key 5-minute TTL and is deleted on exchange attempt. |
+| `link_preview.{urlHash}` | Cached link preview metadata (protobuf `CachedLinkPreview`) keyed by SHA-256 of the normalized URL. Successful previews use per-key 24-hour TTL; failed fetches use per-key 1-hour TTL. |
+| `link_preview_token.{hmac}` | Short-lived composer link-preview token JSON referencing a cached preview URL. Uses per-key 30-minute TTL; raw tokens are only returned to the client. |
+| `dek.{contentKeyRef}` | Wrapped purpose-scoped app DEK record (protobuf `UserDataEncryptionKey`). No TTL; shredded on account deletion. |
 
-These keys don't carry a kind segment — `roomId` is globally unique, so direct lookup works for DM and channel rooms alike.
+Token HMAC keys are derived with `[core].secret_key` and the token family as a domain separator. Backups include `RUNTIME_STATE`, so sessions and pending links survive restore only when the same `core.secret_key` is kept; backup archives do not contain raw bearer tokens, cookie credential handles, or raw link/code values. Backups also include wrapped app DEK records, but those records cannot decrypt content without the KEKs in `ENCRYPTION_KEYS` or an external KMS.
 
-**USER_PRESENCE keys:**
+**MEMORY_CACHE keys:**
 
-| Key                  | Description                               |
-| -------------------- | ----------------------------------------- |
-| `presence.{userId}`  | Serialized `UserPresence` proto (status)  |
+| Key                                        | Description                                      |
+| ------------------------------------------ | ------------------------------------------------ |
+| `presence.{userId}`                        | Serialized `UserPresence` proto for the user's live status and manual-selection flag; per-key 60s TTL |
+| `lease.livekit_reconciler`                 | Short-lived leader lease; only the current owner runs periodic LiveKit reconciliation |
+| `livekit.reconciliation.list_failures`      | Shared consecutive LiveKit listing failure counter reset by any successful elected reconciliation pass |
 
-Notes: Memory-based storage (not persisted). 60-second TTL with 30-second client refresh. Uses `LimitMarkerTTL` so NATS emits delete markers on TTL expiry, allowing watchers to detect offline transitions. A single per-process **PresenceHub** watches `presence.>` and fans out updates to all space subscriptions (reducing KV watcher count from O(subscriptions) to O(1)). Subscriptions filter by space membership using a lazy positive-only cache. **Multi-device support**: On disconnect, clients stop refreshing but don't explicitly delete—TTL handles expiry. This means a user stays online if any device is still connected. **Event deduplication**: Presence events are only emitted when status actually changes (online→away, etc.), not on refresh cycles. **Client-driven status**: The `updateMyPresence` mutation allows clients to set AWAY or DO_NOT_DISTURB; heartbeat refreshes use optimistic locking to preserve these statuses.
-
-**SERVER\_BODIES keys:**
-
-| Key                    | Description                                              |
-| ---------------------- | -------------------------------------------------------- |
-| `{userId}.{eventId}`   | Message body keyed by user ID and event ID               |
-
-Notes: The compound key format `{userId}.{eventId}` enables efficient prefix-based deletion for GDPR compliance (delete all messages for a user via prefix scan). Separated from metadata for performance and operational flexibility. No `kind` segment — both IDs are globally unique NanoIDs.
-
-**SERVER\_REACTIONS keys:**
-
-| Key                                     | Description                                    |
-| --------------------------------------- | ---------------------------------------------- |
-| `{messageEventId}.{emojiName}.{userId}` | Reaction tracking (empty value = reacted; value stores nanosecond timestamp for "added at" ordering) |
-
-Notes: Emoji stored as name (e.g., "thumbsup") for NATS KV key compatibility. Separated for load isolation (high-volume). Events are live-only (not stored in JetStream). KV bucket is source of truth. Keyed by event ID (not the volatile JetStream sequence) so reactions survive any future stream re-publishing.
-
-**SERVER\_THREADS keys:**
-
-| Key                       | Description                                              |
-| ------------------------- | -------------------------------------------------------- |
-| `{roomId}.{rootEventId}`  | ThreadMetadata proto (reply count, last reply, participants) |
-
-Notes: Updated on each thread reply via optimistic locking. Tracks up to 50 participant IDs. Used for thread previews in channel view.
+Notes: Memory-based storage (not persisted, not backed up). Presence uses per-key TTL with 30-second client refresh and `LimitMarkerTTL` so NATS emits delete markers on TTL expiry. A single per-process **PresenceHub** watches `presence.>` and emits `PresenceChanged` only when a user's status changes. Clients refresh live status through ConnectRPC `MyAccountService.UpdatePresence`. On disconnect or "look offline", clients do not write `OFFLINE`; they stop refreshing and TTL handles expiry. Short-lived `lease.{name}` records coordinate singleton background work across replicas without adding durable state. Active voice call participants are served from the call-state projection over durable room EVT facts and reconciled against LiveKit by the elected reconciler; per-call LiveKit E2EE keys live behind the KMS boundary in `ENCRYPTION_KEYS`, and the retired `CALL_STATE` bucket is no longer imported.
 
 ### Object Store Buckets
 
 | Bucket                      | Description                                       |
 | --------------------------- | ------------------------------------------------- |
-| `INSTANCE_ASSETS`           | User avatars, server icon/banner (bucket name retained from pre-rename) |
 | `ASSET_CACHE`               | Cached resized images (optional)                  |
-| `SERVER_ASSETS`             | Message attachments                               |
-
-**INSTANCE_ASSETS keys:**
-
-| Key          | Description                         |
-| ------------ | ----------------------------------- |
-| `{assetId}`  | User avatars, space icons, etc.     |
-
-Notes: Content-Type stored in object headers. S2 compression enabled. Assets referenced by `Asset` proto in entity records (e.g., `User.Avatar`).
+| `SERVER_ASSETS`             | NATS-backed persisted asset binaries              |
 
 **ASSET_CACHE keys:**
 
-| Key                                    | Description                                  |
-| -------------------------------------- | -------------------------------------------- |
-| `{spaceId}.{attachmentId}.{paramsHash}`| Cached WebP image at specific dimensions     |
+| Key                                       | Description                                  |
+| ----------------------------------------- | -------------------------------------------- |
+| `attachment.{attachmentId}.{paramsHash}`  | Cached WebP image at specific dimensions     |
+| `server.{assetId}.{paramsHash}`           | Cached WebP transform of a server asset      |
 
-Notes: Only created when `[core.assets.cache]` is enabled in config. Uses TTL for automatic expiration (default 7 days). `paramsHash` is first 16 hex chars of SHA256(`{width}x{height}_{fit}`). Animated GIFs are not cached (served directly). S2 compression enabled.
+Notes: Only created when `[core.assets.cache]` is enabled in config. Uses TTL for automatic expiration (default 7 days). Current cache entries for deleted assets are also evicted from the active prefix (`attachment` or `server`) during binary cleanup. `paramsHash` is first 16 hex chars of SHA256(`{width}x{height}_{fit}`). Animated GIFs are not cached (served directly). S2 compression enabled.
 
-**SERVER\_ASSETS keys (primary + DM, post phase 4e):**
+**SERVER\_ASSETS keys:**
 
-| Key                   | Description                                     |
-| --------------------- | ----------------------------------------------- |
-| `{attachmentId}`      | Original attachment files (images, videos, etc.)|
-| `{attachmentId}_thumb`| WebP thumbnails (256px max dimension)           |
+| Key         | Description                                    |
+| ----------- | ---------------------------------------------- |
+| `{assetId}` | Persisted asset binary by ID when stored in NATS |
+| `asset-upload.{uploadId}.{offset}` | Temporary attachment upload chunk before completion |
 
-Notes: Attachment IDs are globally unique (NanoID), so no kind segment is needed. Channel and DM attachments share the same flat keyspace. Content-Type and original filename stored in object headers. S2 compression enabled. Attachment metadata stored in `MessageBody` proto in `SERVER_BODIES`.
+**S3 asset keys:**
+
+| Key                     | Description                                                  |
+| ----------------------- | ------------------------------------------------------------ |
+| `attachments/{assetId}` | Message attachment originals and derivative binaries         |
+| `instance/{assetId}`    | Server-scoped assets: user avatars, server branding images, and link-preview images |
+
+Attachment upload storage: chunked uploads first store temporary `asset-upload.*` chunks in `SERVER_ASSETS`. Completion verifies the full SHA-256, stores the final attachment in NATS or S3, records SHA-256/uploader/pending-expiry/video hints in `AssetCreatedEvent`, and deletes temporary chunks. Completed but unclaimed pending attachment assets expire after 24 hours unless a message body claims them.
+
+Notes: Asset IDs are globally unique (NanoID), so NATS-backed assets do not need a kind segment. S3 stores logical, prefix-free keys; any configured `path_prefix` is applied only when talking to the S3 backend. Content-Type and original filename stored in object headers where available. S2 compression enabled for `SERVER_ASSETS`. `MediaModel` owns binary storage and serving helpers; `AssetModel` owns durable lifecycle facts. Asset **metadata** (filename, dimensions, duration, storage pointer, …) is created in `AssetCreatedEvent` on `evt.asset.{assetId}.asset_created`; room scope and ownership context lives on the event (`message`, `derivative`, `user_avatar`, or `server_branding`) rather than inside `Asset`. New message bodies reference message-owned assets by ID. Link preview images are server-scoped persisted assets and are embedded in message bodies as `LinkPreview.image_asset` (`AssetRecord`) so the body records whether the image lives in S3 or `SERVER_ASSETS`; `image_asset_id` remains for compatibility with clients and older stored previews. Processing events refer to created asset IDs and are appended under the same `evt.asset.{assetId}.*` aggregate. The asset projection also reads beta-era `evt.room.{roomId}.asset_*` facts so existing 0.1.0 histories continue to replay without a stream rewrite. Message posting asks the process-local video service to spawn video/animated-GIF processing after appending asset creation and processing-started events; there is no transient NATS Core worker subject or `video_processed` live signal. Boot recovery derives missed work from the EVT projections and calls the same local path. Video processing success records thumbnail/variant asset IDs, while each derivative binary is separately declared with `AssetCreatedEvent` and an owner pointing at the original asset. `AssetProcessingFailedEvent.failure_code` records failed/unavailable outcomes. Account deletion follows the projected message asset graph and appends `AssetDeletedEvent` for source assets and derivative children before deleting backing bytes. The asset HTTP handler doesn't look up a separate index bucket; stable asset URLs resolve metadata and room scope from `AssetProjection`, while legacy locator URLs carry the body-or-video-manifest locator in the URL itself (see "Dynamic Image Transformation" below).
 
 ### Dynamic Image Transformation
 
-Chatto supports on-the-fly image transformation for attachments, allowing clients to request images at specific dimensions without pre-generating all possible sizes.
+Chatto supports on-the-fly image transformation for attachments and user avatars, allowing clients to request images at specific dimensions without pre-generating all possible sizes. Public server branding images expose canonical asset URLs instead of accepting arbitrary transform dimensions.
 
 **URL Structure:**
 
+ConnectRPC attachment fields primarily return stable asset paths with a
+per-user `access` ticket query parameter. Originals:
+
 ```
-/assets/space/{spaceId}/attachments/{attachmentId}/t/{signedPath}
+/assets/files/{assetId}?access={base64payload}.{hexHMAC}
 ```
 
-Where `{signedPath}` is: `{base64params}.{signature}`
+Image transforms use stable dimensions in the path and bind those same
+parameters into the access ticket:
 
-- `{base64params}` - Base64URL-encoded JSON: `{"w":640,"h":512,"f":"contain"}`
-- `{signature}` - Truncated HMAC-SHA256 (32 hex chars) of `{spaceId}/{attachmentId}/{base64params}`
+```
+/assets/files/{assetId}/image/{width}x{height}/{fit}?access={base64payload}.{hexHMAC}
+```
+
+Where:
+
+- `{assetId}` — the declared `AssetCreatedEvent.asset.id`
+- `{base64payload}` — base64url-encoded JSON `{a, u, e, w?, h?, f?}` (asset id, signed user id, Unix-second expiry, optional transform)
+- `{hexHMAC}` — first 16 bytes of HMAC-SHA256 of `{base64payload}` (32 hex chars)
+
+The HMAC uses `[core.assets].signing_secret`. The HTTP handler verifies the
+ticket signature, expiry, asset ID, and transform parameters, then resolves the
+asset and room scope from `AssetProjection`. Every request checks that the
+signed user is still a member of the asset's room before serving the binary.
+Protected asset responses use `private, no-store`; image resize results may
+still be cached internally by the server. Chatto streams protected asset bytes
+by default, but can redirect heavy passive originals such as video, audio, and
+large files to short-lived presigned S3 URLs after the same authorization check.
+
+The old `/assets/attachments/{signedLocator}` compatibility route was removed
+before 0.4.0. ConnectRPC attachment fields use the stable `/assets/files/...`
+URL plus `AssetURL.expiresAt` shape.
 
 **Transform Parameters:**
 
@@ -671,34 +762,22 @@ Where `{signedPath}` is: `{base64params}.{signature}`
 
 **Security:**
 
-URLs are signed with HMAC-SHA256 using a dedicated `signing_secret` (configured in `[core.assets]` section, separate from session secret). The signature covers the full path to prevent parameter tampering. Only the GraphQL API generates valid signed URLs.
+URLs are signed with HMAC-SHA256 using a dedicated `signing_secret` (configured in `[core.assets]` section, separate from session secret). The signature covers the full path to prevent parameter tampering. ConnectRPC room timeline responses, `MessageService` message read responses, `AssetService` asset read responses, and `RoomService` attachment list responses generate valid signed URLs.
 
-**GraphQL Integration:**
+**ConnectRPC Integration:**
 
-The `Attachment` type exposes transform parameters as field arguments:
-
-```graphql
-type Attachment {
-  url(width: Int, height: Int, fit: FitMode): String!
-  thumbnailUrl(width: Int, height: Int, fit: FitMode): String
-}
-
-enum FitMode {
-  CONTAIN
-  COVER
-  EXACT
-}
-```
-
-When arguments are provided, the resolver returns a signed transform URL. Without arguments, the original/default thumbnail URL is returned for backward compatibility.
+`RoomService`, `MessageService.CreateMessage`, `MessageService` message read RPCs, `AssetService` asset read RPCs, and `RoomService.ListRoomAttachments` return `MessageAssetUrl` objects for attachment URLs and thumbnails, including the embedded access-ticket expiry so clients can use `AssetService` to refresh assets before lazy loads or media startup hit an expired ticket. Public server profile image fields intentionally return canonical asset URLs without arbitrary transform arguments so anonymous server discovery cannot mint unbounded resize variants.
 
 **Caching:**
 
-Transformed images are generated on-demand with aggressive HTTP caching:
+Transformed images are generated on-demand. Public server assets can be cached
+aggressively; protected attachment responses are not browser-cacheable because
+ticket expiry and room-membership revocation must be checked on every fetch:
 
-- `Cache-Control: public, max-age=31536000, immutable` (1 year)
-- `ETag` based on attachment ID and transform parameters
-- No server-side caching; relies on CDN/proxy caching
+- Stable and legacy attachment originals and derivatives: `Cache-Control: private, no-store`
+- Server-scoped public assets and signed server transforms: public immutable/cacheable responses
+- `ETag` based on asset ID and transform parameters
+- Optional `ASSET_CACHE` object-store entries can cache resized bytes server-side
 
 **Output Format:**
 
@@ -706,50 +785,58 @@ All transformed images are encoded as WebP for optimal compression and quality.
 
 ### Messages
 
-Messages use a store-then-publish pattern optimized for reliability and GDPR compliance:
+Messages are persisted as durable `EVT` facts. Public timeline facts (`MessagePostedEvent`, `MessageEditedEvent`, `MessageRetractedEvent`) are bodyless; encrypted bodies live in private `MessageBodyEvent` payload facts on `evt.room.{roomId}.message_body` and are not delivered through live user subscriptions. Message bodies use the compact ADR-007 v2 envelope: XChaCha20-Poly1305 encrypts the body with the author's active message-body DEK epoch. AAD binds the message event ID, body event ID, room ID, author ID, and epoch. Per-user wrapped DEKs live in app-owned `RUNTIME_STATE` records; user EVT records only their purpose, epoch, content-key ref, wrapping algorithm, opaque wrapping key ref, and provider metadata for future KMS implementations. Durable user PII fields use a separate user-PII DEK epoch with user-event-specific AAD.
 
 **Message Identifiers:**
 
-- **Event ID**: NanoID (e.g., `E...`) used for event identification, body storage, and lookups via O(1) subject matching
-- **Body Key**: Compound key `{userId}.{eventId}` stored in `MessagePostedEvent.message_body_id`
+- **Event ID**: NanoID (e.g., `E...`) on the EVT envelope. This is the durable message identity used for thread metadata, message-body lookup, attachments, and projections. Reactions use this event ID except that channel echo IDs canonicalize to the original thread reply event ID.
+- **Payload**: `MessagePostedEvent` is payload-only. It carries room/thread/echo fields, but not an event ID, message-body ID alias, or embedded body.
 
 **Write Path:**
 
-1. Generate event with event ID
-2. Construct body key as `{userId}.{eventId}` and store body in BODIES bucket
-3. Publish event to room stream
-4. `PublishAck.Sequence` is captured and added to the event for resolvers
-5. Body exists before event is delivered - no race conditions
+1. Generate an EVT envelope with event ID
+2. Generate a private body event ID and encrypt the body with the author's active message-body DEK epoch
+3. Atomically append `MessageBodyEvent` before the bodyless `MessagePostedEvent`
+4. Wait for local projections to reach the public message append sequence before serving read-your-writes
 
 **Threading:**
 
 - `in_reply_to` field stores the event ID of the parent message (empty for top-level messages)
 - `in_thread` field stores the event ID of the thread root (empty for top-level messages)
-- Thread subject pattern: `server.room.{kind}.{roomId}.msg.{rootEventId}.replies.{eventId}`
-- Enables O(1) lookup of thread replies via wildcard pattern: `msg.*.replies.{eventId}`
-- Thread metadata (reply count, participants) stored in THREADS bucket keyed by `{roomId}.{rootEventId}`
+- Thread replies are ordinary `MessagePostedEvent` facts on `evt.room.{roomId}.message_posted` with `in_thread` set to the root event ID.
+- Thread replies can be echoed to the room timeline at post time or during the author's edit window. Echoes are separate `MessagePostedEvent` facts with `echo_of_event_id`; removing an edit-time echo appends a normal `MessageRetractedEvent` for the echo artifact. Reaction writes and reads accept the echo event ID but canonicalize reaction state to the original reply event ID.
+- Thread follow and unfollow choices are durable `ThreadFollowedEvent` / `ThreadUnfollowedEvent` facts on the room aggregate. `ThreadProjection` derives current follow state, follower fanout, followed-thread pages, reply counts, participants, and last-reply timestamps. During the migration window, startup seeds pre-EVT `thread_follow.*` runtime markers into that projection before replaying EVT.
+
+**Read Path:**
+
+- Room-level message history is served from `RoomTimelineProjection`, which keeps the visible room event log plus derived indexes for latest body state, hidden echoes, message asset references, and direct message-post lookup. Asset metadata, processing manifests, and derivative graphs are served from `AssetProjection`.
+- Initial loads and cursor pagination walk the visible room timeline so thread replies, edits, retractions, reactions, asset-processing facts, and directly hidden echoes do not count as separate room timeline rows.
+- Reconnect catch-up in the web client refreshes the currently viewed room window from `RoomTimelineProjection` after browser wake, realtime WebSocket reconnect, socket end, or heartbeat-stall catch-up notifications. When the user is at the bottom it fetches the latest page; when scrolled up it uses `eventsAround` for the visible anchor event and preserves scroll by event ID. Server-scoped stores also refetch projected state after event-bus reconnect gaps so notifications, unread/sidebar state, room layout, server profile/settings, and active-call indicators do not depend on replayed realtime events. `/api/realtime` v1 and `Subscription.myEvents` are live-only and do not expose a replay cursor.
+- `eventsAround` uses the same visible room timeline to center jump-to-message windows on the target's visible position.
+- Thread panes read the root message from `RoomTimelineProjection` and cursor-paginated replies from `ThreadProjection`. Anchored thread refreshes use `threadRepliesAround(eventId:)` to keep a visible reply in the refreshed window.
 
 **@Mentions:**
 
-- `@username` patterns in message body are extracted via regex (ASCII alphanumeric, underscore, hyphen)
-- Usernames are resolved to user IDs; only space members are included (non-members silently ignored)
+- `@username` patterns in message body are parsed as Markdown inline mention tokens (ASCII alphanumeric, underscore, hyphen, dot), excluding code spans, code blocks, and blockquotes.
+- Mention handles are resolved in the posting room; direct user handles only notify current room members, and invalid/non-member handles are silently ignored.
 - `MessagePostedEvent.mentioned_user_ids` contains resolved user IDs
-- Mention status stored in RUNTIME bucket (`room_mention_status.{userId}.{roomId}`)
-- Live notification published to `live.server.user.{userId}.mentioned` for toast display
-- Mention indicator cleared when user calls `markRoomAsRead`
+- Mention resolution is post-time only; later `MessageEditedEvent` facts update body content but do not add, remove, dismiss, or re-send mention notifications
+- Pending mention state is a notification record in `RUNTIME_STATE` (`notification.{userId}.{notificationId}`); sidebar notification count badges derive from pending notifications, not a separate mention flag.
+- A delivered direct `@username` mention inside a thread writes a `ThreadFollowedEvent` for the recipient only when no prior follow state exists. Explicit `unfollowed` state blocks mention-driven re-follow; role and broadcast mentions never create follow state.
+- Non-DND mentions also publish a legacy attention event to `live.sync.user.{userId}.mentioned`; the persisted notification still syncs through `notification_created`.
+- Mention notifications are dismissed when the user views the relevant room or thread, or explicitly dismisses them from the notification center.
 - Self-mentions are filtered out (no notification to message author)
 
 **GDPR Deletion:**
 
-- Delete only removes the KV entry in BODIES bucket using the compound key
-- Event remains in stream as audit record with empty body
-- `GetMessageBody` returns empty string for deleted messages
+- Delete appends `MessageRetractedEvent` to `EVT`; projections tombstone the message body before rendering.
+- Edit appends a new private `MessageBodyEvent` before a bodyless public `MessageEditedEvent`; obsolete body payload events are securely deleted best-effort after projection catch-up.
+- Attachment bytes are deleted from backing object storage best-effort and corresponding asset deletion facts are appended.
 
 ### Key Patterns
 
-- **Unified Event Subscriptions**: The `myEvents` subscription merges multiple event sources into a single stream: a JetStream ordered consumer (using `DeliverNewPolicy` for real-time delivery), NATS Core subscriptions for live-only events, and a PresenceHub subscription for presence updates.
-- **Compression**: The `SERVER_EVENTS` stream uses S2 compression to reduce storage costs
-- **GDPR Compliance**: Message bodies stored separately in `SERVER_BODIES` for compliant deletion while preserving audit trail
-- **Unified Server Storage**: Channels and DMs share the same `SERVER_*` buckets; the `kind` segment in keys (`room.channel.*` / `room.dm.*`) disambiguates without per-space isolation
-- **Out-of-Band Data Pattern**: High-volume content (message bodies) separated into dedicated `SERVER_BODIES` to avoid contention with metadata operations, enable independent scaling, and support future optimizations (compression, different storage backends)
-- **Eager Server Resource Initialization**: The unified `SERVER_*` buckets (stream, KV buckets, object store) are created up-front at boot, not lazily on first use. The Phase 4 migration (#354) retired the legacy lazycache fallback that briefly accommodated the per-space storage shape.
+- **Unified Event Subscriptions**: The `myEvents` subscription merges EVT republish (`live.evt.>`), transient sync (`live.sync.>`), and PresenceHub updates into one authorized user stream.
+- **Compression**: The `EVT` stream uses S2 compression to reduce storage costs
+- **GDPR Compliance**: Message bodies are encrypted per author; deletion is represented by EVT retraction/shred facts and projections refuse to render shredded or retracted content.
+- **Unified Event-Sourced Rooms**: Channels and DMs share `evt.room.{roomId}.>` subjects and room projections.
+- **Current Resource Initialization**: Current resources are created up front at boot by `newStorage`.

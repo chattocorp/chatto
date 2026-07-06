@@ -6,232 +6,268 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/proto"
+
+	"hmans.de/chatto/internal/events"
 	configv1 "hmans.de/chatto/internal/pb/chatto/config/v1"
+	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-// ErrConfigConflict is returned when a config update fails due to concurrent modification.
+// ErrConfigConflict is returned when a config update fails due to
+// concurrent modification. The OCC scope is the EVT event publish;
+// ErrConfigConflict surfaces when retries on the publish path exhaust
+// without success. Callers can retry the whole UpdateServerConfigFunc
+// call.
 var ErrConfigConflict = errors.New("config was modified by another request")
 
-// ConfigManager handles runtime configuration stored in NATS KV.
-// Instance configuration lives entirely in KV, not in chatto.toml.
+const maxConfigUpdateRetries = 5
+
+// ConfigManager handles runtime server configuration.
+//
+// Writes are event-only (publish to EVT + WaitForSeq for read-your-writes).
+// Reads come from the in-memory ConfigProjection.
 type ConfigManager struct {
-	kv jetstream.KeyValue
+	model      *ConfigModel
+	projection *ConfigProjection
 }
 
-// NewConfigManager creates a new ConfigManager.
-func NewConfigManager(kv jetstream.KeyValue) *ConfigManager {
+// NewConfigManager creates a server-config compatibility facade over the
+// semantic ConfigModel / ConfigProjection.
+func NewConfigManager(
+	model *ConfigModel,
+	projection *ConfigProjection,
+) *ConfigManager {
 	return &ConfigManager{
-		kv: kv,
+		model:      model,
+		projection: projection,
 	}
 }
-
-// KV key constants for config sections
-const (
-	configKeyInstance = "config.instance"
-)
 
 // =============================================================================
 // Instance Config
 // =============================================================================
 
-// GetInstanceConfig retrieves the instance configuration from KV.
-// Returns (config, isConfigured, error) where isConfigured indicates if KV value exists.
-func (cm *ConfigManager) GetInstanceConfig(ctx context.Context) (*configv1.ServerConfig, bool, error) {
-	entry, err := cm.kv.Get(ctx, configKeyInstance)
-	if err != nil {
-		if errors.Is(err, jetstream.ErrKeyNotFound) {
-			return nil, false, nil
-		}
-		return nil, false, fmt.Errorf("failed to get instance config: %w", err)
+// GetServerConfig returns the raw server configuration values currently held
+// by the projection, or nil when no server config fields have been set.
+// The error return is preserved for signature compatibility; the
+// projection is in-memory and cannot fail to read.
+func (cm *ConfigManager) GetServerConfig(_ context.Context) (*configv1.ServerConfig, error) {
+	if cm.projection == nil {
+		return nil, nil
 	}
-
-	cfg := &configv1.ServerConfig{}
-	if err := proto.Unmarshal(entry.Value(), cfg); err != nil {
-		return nil, false, fmt.Errorf("failed to unmarshal instance config: %w", err)
-	}
-
-	return cfg, true, nil
+	return cm.projection.Get(), nil
 }
 
-// SetInstanceConfig stores the instance configuration in KV.
-// Deprecated: Use UpdateInstanceConfigFunc for concurrent-safe updates.
-func (cm *ConfigManager) SetInstanceConfig(ctx context.Context, cfg *configv1.ServerConfig) error {
-	data, err := proto.Marshal(cfg)
-	if err != nil {
-		return fmt.Errorf("failed to marshal instance config: %w", err)
-	}
-
-	_, err = cm.kv.Put(ctx, configKeyInstance, data)
-	if err != nil {
-		return fmt.Errorf("failed to store instance config: %w", err)
-	}
-
-	return nil
+// SetServerConfig stores the server configuration by publishing semantic config
+// events and waiting for the projection to apply.
+//
+// Deprecated for runtime callers — they should use UpdateServerConfigFunc
+// to compose against the current state. SetServerConfig is kept for
+// tests and controlled repair paths that bypass the compose step.
+func (cm *ConfigManager) SetServerConfig(ctx context.Context, actorID string, cfg *configv1.ServerConfig) error {
+	return cm.publish(ctx, actorID, cfg)
 }
 
-// maxConfigRetries is the maximum number of retry attempts for OCC conflicts.
-const maxConfigRetries = 5
+// UpdateServerConfigFunc atomically updates the server config using
+// optimistic concurrency control. The updateFn receives the current
+// projection snapshot (or nil if no config has been written yet) and
+// should return the updated config. On conflict, the whole compose step
+// is retried against the newer projection snapshot, so field-level edits
+// do not publish stale full-config replacements.
+func (cm *ConfigManager) UpdateServerConfigFunc(
+	ctx context.Context,
+	actorID string,
+	updateFn func(current *configv1.ServerConfig) (*configv1.ServerConfig, error),
+) (*configv1.ServerConfig, error) {
+	if cm.model == nil {
+		return nil, fmt.Errorf("config manager: event publisher/projector not configured")
+	}
 
-// UpdateInstanceConfigFunc atomically updates the instance config using optimistic concurrency control.
-// The updateFn receives the current config (or nil if not configured) and should return the updated config.
-// If another concurrent update occurs, this will retry up to maxConfigRetries times.
-// Returns the final config after successful update.
-func (cm *ConfigManager) UpdateInstanceConfigFunc(ctx context.Context, updateFn func(current *configv1.ServerConfig) (*configv1.ServerConfig, error)) (*configv1.ServerConfig, error) {
-	for attempt := 0; attempt < maxConfigRetries; attempt++ {
-		// Get current entry to obtain revision
-		entry, err := cm.kv.Get(ctx, configKeyInstance)
-
-		var currentCfg *configv1.ServerConfig
-		var revision uint64
-
-		if err != nil {
-			if !errors.Is(err, jetstream.ErrKeyNotFound) {
-				return nil, fmt.Errorf("failed to get instance config: %w", err)
-			}
-			// Key doesn't exist - will use Create
-			currentCfg = nil
-			revision = 0
-		} else {
-			// Key exists - unmarshal and get revision
-			currentCfg = &configv1.ServerConfig{}
-			if err := proto.Unmarshal(entry.Value(), currentCfg); err != nil {
-				return nil, fmt.Errorf("failed to unmarshal instance config: %w", err)
-			}
-			revision = entry.Revision()
-		}
-
-		// Apply the update function
-		updatedCfg, err := updateFn(currentCfg)
+	for attempt := 0; attempt < maxConfigUpdateRetries; attempt++ {
+		agg, filter, expectedSeq, err := cm.model.prepareSubject(ctx, ConfigSubjectServer)
 		if err != nil {
 			return nil, err
 		}
-
-		// Marshal the updated config
-		data, err := proto.Marshal(updatedCfg)
+		baseline := cm.effectiveConfigForUpdate()
+		updated, err := updateFn(cloneServerConfig(baseline))
 		if err != nil {
-			return nil, fmt.Errorf("failed to marshal instance config: %w", err)
+			return nil, err
+		}
+		if updated == nil {
+			return nil, fmt.Errorf("update function returned nil config")
+		}
+		if err := validateServerConfig(updated); err != nil {
+			return nil, err
 		}
 
-		// Attempt atomic update
-		if revision == 0 {
-			// Key doesn't exist - use Create
-			_, err = cm.kv.Create(ctx, configKeyInstance, data)
-		} else {
-			// Key exists - use Update with revision
-			_, err = cm.kv.Update(ctx, configKeyInstance, data, revision)
-		}
-
+		err = cm.model.appendEventsAt(ctx, agg, filter, expectedSeq, serverConfigEvents(actorID, baseline, updated))
 		if err == nil {
-			// Success
-			return updatedCfg, nil
+			return updated, nil
 		}
-
-		// Check if it's a conflict error (key exists when creating, or wrong revision when updating)
-		// ErrKeyExists is used for both cases in the JetStream KV API
-		if errors.Is(err, jetstream.ErrKeyExists) {
-			// Retry
-			continue
+		if !errors.Is(err, events.ErrConflict) {
+			return nil, err
 		}
-
-		// Other error - fail immediately
-		return nil, fmt.Errorf("failed to store instance config: %w", err)
 	}
-
 	return nil, ErrConfigConflict
 }
 
-// ResetInstanceConfig removes the instance configuration from KV.
-func (cm *ConfigManager) ResetInstanceConfig(ctx context.Context) error {
-	err := cm.kv.Delete(ctx, configKeyInstance)
-	if err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) {
-		return fmt.Errorf("failed to reset instance config: %w", err)
+// publish writes the server config by emitting semantic config events on the
+// config aggregate and waiting for the projection to apply, giving the caller
+// read-your-writes.
+func (cm *ConfigManager) publish(ctx context.Context, actorID string, cfg *configv1.ServerConfig) error {
+	if cm.model == nil {
+		return fmt.Errorf("config manager: event publisher/projector not configured")
+	}
+	if err := validateServerConfig(cfg); err != nil {
+		return err
+	}
+
+	return cm.model.updateSubject(ctx, ConfigSubjectServer, func(_ events.Aggregate, _ string, _ uint64) ([]*corev1.Event, error) {
+		return serverConfigEvents(actorID, cm.effectiveConfigForUpdate(), cfg), nil
+	})
+}
+
+func validateServerConfig(cfg *configv1.ServerConfig) error {
+	if cfg == nil {
+		return nil
+	}
+	if err := validateStringMaxLength("server name", cfg.GetServerName(), MaxServerNameLength); err != nil {
+		return err
+	}
+	if err := validateStringMaxLength("server description", cfg.GetDescription(), MaxServerDescriptionLength); err != nil {
+		return err
+	}
+	if err := validateStringMaxLength("server welcome message", cfg.GetWelcomeMessage(), MaxServerWelcomeMessageLength); err != nil {
+		return err
+	}
+	if err := validateStringMaxLength("server MOTD", cfg.GetMotd(), MaxServerMOTDLength); err != nil {
+		return err
+	}
+	if err := validateStringMaxLength("server blocked usernames", cfg.GetBlockedUsernames(), MaxServerBlockedUsernamesLength); err != nil {
+		return err
+	}
+	for _, blocked := range parseBlockedUsernames(cfg.GetBlockedUsernames()) {
+		if err := validateStringMaxLength("blocked username", blocked, MaxLoginLength); err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
-// GetEffectiveWelcomeMessage returns the welcome message from instance config.
-// Returns empty string if not configured.
-func (cm *ConfigManager) GetEffectiveWelcomeMessage(ctx context.Context) (string, error) {
-	cfg, _, err := cm.GetInstanceConfig(ctx)
-	if err != nil {
-		return "", err
+func (cm *ConfigManager) effectiveConfigForUpdate() *configv1.ServerConfig {
+	cfg := cloneServerConfig(cm.projection.Get())
+	if cfg == nil {
+		cfg = &configv1.ServerConfig{}
 	}
-	if cfg != nil {
-		return cfg.WelcomeMessage, nil
-	}
-	return "", nil
+	cfg.BlockedUsernames = cm.projection.EffectiveBlockedUsernames()
+	return cfg
 }
 
-// GetEffectiveInstanceName returns the instance name from config.
-// Returns "Chatto" as default if not configured.
-func (cm *ConfigManager) GetEffectiveInstanceName(ctx context.Context) (string, error) {
-	cfg, _, err := cm.GetInstanceConfig(ctx)
-	if err != nil {
-		return "", err
+func cloneServerConfig(cfg *configv1.ServerConfig) *configv1.ServerConfig {
+	if cfg == nil {
+		return nil
 	}
-	if cfg != nil && cfg.ServerName != "" {
-		return cfg.ServerName, nil
-	}
-	return "Chatto", nil
+	return proto.Clone(cfg).(*configv1.ServerConfig)
 }
 
-// GetEffectiveMOTD returns the Message of the Day from config.
-// Returns empty string if not configured.
-func (cm *ConfigManager) GetEffectiveMOTD(ctx context.Context) (string, error) {
-	cfg, _, err := cm.GetInstanceConfig(ctx)
-	if err != nil {
-		return "", err
+func serverConfigEvents(actorID string, current, next *configv1.ServerConfig) []*corev1.Event {
+	if next == nil {
+		next = &configv1.ServerConfig{}
 	}
-	if cfg != nil {
-		return cfg.Motd, nil
+	var evs []*corev1.Event
+	if current.GetServerName() != next.GetServerName() {
+		evs = append(evs, newEvent(actorID, &corev1.Event{Event: &corev1.Event_ServerNameChanged{
+			ServerNameChanged: &corev1.ServerNameChangedEvent{Name: next.GetServerName()},
+		}}))
 	}
-	return "", nil
+	if current.GetDescription() != next.GetDescription() {
+		evs = append(evs, newEvent(actorID, &corev1.Event{Event: &corev1.Event_ServerDescriptionChanged{
+			ServerDescriptionChanged: &corev1.ServerDescriptionChangedEvent{Description: next.GetDescription()},
+		}}))
+	}
+	if current.GetWelcomeMessage() != next.GetWelcomeMessage() {
+		evs = append(evs, newEvent(actorID, &corev1.Event{Event: &corev1.Event_ServerWelcomeMessageChanged{
+			ServerWelcomeMessageChanged: &corev1.ServerWelcomeMessageChangedEvent{WelcomeMessage: next.GetWelcomeMessage()},
+		}}))
+	}
+	if current.GetMotd() != next.GetMotd() {
+		evs = append(evs, newEvent(actorID, &corev1.Event{Event: &corev1.Event_ServerMotdChanged{
+			ServerMotdChanged: &corev1.ServerMotdChangedEvent{Motd: next.GetMotd()},
+		}}))
+	}
+	if current.GetBlockedUsernames() != next.GetBlockedUsernames() {
+		evs = append(evs, newEvent(actorID, &corev1.Event{Event: &corev1.Event_ServerBlockedUsernamesChanged{
+			ServerBlockedUsernamesChanged: &corev1.ServerBlockedUsernamesChangedEvent{BlockedUsernames: next.GetBlockedUsernames()},
+		}}))
+	}
+	return evs
+}
+
+// =============================================================================
+// Effective accessors — all read from the projection.
+// =============================================================================
+
+// GetEffectiveWelcomeMessage returns the welcome message from the
+// projection. Empty string if not configured.
+func (cm *ConfigManager) GetEffectiveWelcomeMessage(_ context.Context) (string, error) {
+	if cm.projection == nil {
+		return "", nil
+	}
+	return cm.projection.EffectiveWelcomeMessage(), nil
+}
+
+// GetEffectiveServerName returns the server name from the projection,
+// falling back to "Chatto" if unset.
+func (cm *ConfigManager) GetEffectiveServerName(_ context.Context) (string, error) {
+	if cm.projection == nil {
+		return "Chatto", nil
+	}
+	return cm.projection.EffectiveServerName(), nil
+}
+
+// GetEffectiveMOTD returns the Message of the Day from the projection.
+// Empty string if not configured.
+func (cm *ConfigManager) GetEffectiveMOTD(_ context.Context) (string, error) {
+	if cm.projection == nil {
+		return "", nil
+	}
+	return cm.projection.EffectiveMOTD(), nil
 }
 
 // DefaultDescription is the fallback server description used when no
 // admin-configured description is set. Surfaced via OG meta tags and the
-// /api/server discovery endpoint.
+// ServerDiscoveryService.GetServer discovery endpoint.
 const DefaultDescription = "Come join our community!"
 
-// GetEffectiveDescription returns the server description from config,
-// falling back to DefaultDescription if unset.
-func (cm *ConfigManager) GetEffectiveDescription(ctx context.Context) (string, error) {
-	cfg, _, err := cm.GetInstanceConfig(ctx)
-	if err != nil {
-		return "", err
+// GetEffectiveDescription returns the server description from the
+// projection, falling back to DefaultDescription if unset.
+func (cm *ConfigManager) GetEffectiveDescription(_ context.Context) (string, error) {
+	if cm.projection == nil {
+		return DefaultDescription, nil
 	}
-	if cfg != nil && cfg.Description != "" {
-		return cfg.Description, nil
-	}
-	return DefaultDescription, nil
+	return cm.projection.EffectiveDescription(), nil
 }
 
 // =============================================================================
 // Blocked Usernames
 // =============================================================================
 
-// DefaultBlockedUsernames is the default list of blocked usernames for new instances.
+// DefaultBlockedUsernames is the default list of blocked usernames for
+// new servers (used when no config has been written yet).
 const DefaultBlockedUsernames = "root\nadmin\nsuperuser\nop\noperator\nsupport"
 
-// GetEffectiveBlockedUsernames returns the blocked usernames string from config.
-// Returns DefaultBlockedUsernames if not configured.
-func (cm *ConfigManager) GetEffectiveBlockedUsernames(ctx context.Context) (string, error) {
-	cfg, isConfigured, err := cm.GetInstanceConfig(ctx)
-	if err != nil {
-		return "", err
-	}
-	// If not configured at all, return defaults
-	if !isConfigured || cfg == nil {
+// GetEffectiveBlockedUsernames returns the blocked usernames string
+// from the projection. Returns DefaultBlockedUsernames if no config has
+// ever been written; returns "" if the operator explicitly cleared it.
+func (cm *ConfigManager) GetEffectiveBlockedUsernames(_ context.Context) (string, error) {
+	if cm.projection == nil {
 		return DefaultBlockedUsernames, nil
 	}
-	// If configured but blocked_usernames field is empty, that means admin cleared it
-	return cfg.BlockedUsernames, nil
+	return cm.projection.EffectiveBlockedUsernames(), nil
 }
 
-// GetBlockedUsernamesList returns the blocked usernames as a slice of lowercase strings.
-// Returns the parsed list from config, or the default list if not configured.
+// GetBlockedUsernamesList returns the blocked usernames as a slice of
+// lowercase strings.
 func (cm *ConfigManager) GetBlockedUsernamesList(ctx context.Context) ([]string, error) {
 	raw, err := cm.GetEffectiveBlockedUsernames(ctx)
 	if err != nil {
@@ -240,7 +276,8 @@ func (cm *ConfigManager) GetBlockedUsernamesList(ctx context.Context) ([]string,
 	return parseBlockedUsernames(raw), nil
 }
 
-// IsUsernameBlocked checks if a username is in the blocked list (case-insensitive).
+// IsUsernameBlocked checks if a username is in the blocked list
+// (case-insensitive).
 func (cm *ConfigManager) IsUsernameBlocked(ctx context.Context, login string) (bool, error) {
 	blockedList, err := cm.GetBlockedUsernamesList(ctx)
 	if err != nil {
@@ -255,8 +292,8 @@ func (cm *ConfigManager) IsUsernameBlocked(ctx context.Context, login string) (b
 	return false, nil
 }
 
-// parseBlockedUsernames parses a newline-separated string into a slice of lowercase strings.
-// Empty lines are ignored.
+// parseBlockedUsernames parses a newline-separated string into a slice
+// of lowercase strings. Empty lines are ignored.
 func parseBlockedUsernames(raw string) []string {
 	if raw == "" {
 		return nil

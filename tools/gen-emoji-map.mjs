@@ -16,8 +16,8 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-// Resolve gemoji from the frontend's node_modules
-const require = createRequire(resolve(__dirname, '../frontend/package.json'));
+// Resolve gemoji from the frontend workspace package.
+const require = createRequire(resolve(__dirname, '../apps/frontend/package.json'));
 const { gemoji } = require('gemoji');
 
 const outputPath = resolve(__dirname, '../cli/internal/core/emoji_gen.go');

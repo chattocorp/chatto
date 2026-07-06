@@ -1,0 +1,114 @@
+---
+title: Standalone Binary
+description: How to deploy Chatto as a standalone binary.
+---
+
+import {
+  Steps,
+  Aside,
+  FileTree,
+  LinkCard,
+  CardGrid,
+} from "@astrojs/starlight/components";
+import ArchDiagram from "../../../../components/diagrams/BinaryDiagram.astro";
+
+<Aside type="caution">
+  While it is totally possible to host Chatto just using the binary (it will
+  even terminate TLS for you if you want!), it is heavily recommended to make
+  use of the provided Docker image through [Docker
+  Compose](/guides/deployment/docker-compose/), [Kubernetes](/guides/deployment/kubernetes/), or
+  another container runtime of your choice.
+</Aside>
+
+Chatto ships as a single binary with an embedded NATS server and built-in Let's Encrypt TLS. No reverse proxy, no external database — just one process serving everything. Alternatively, spin it up on any port and use your existing reverse proxy to wire things up and terminate TLS.
+
+## Architecture
+
+<ArchDiagram />
+
+The Chatto binary includes an embedded NATS server with JetStream for storage. It expects a `chatto.toml` configuration file (you can generate one using `chatto init`), and stores all data in a `./data/` directory.
+
+## Prerequisites
+
+- A server with Chatto installed. Use `brew install chattocorp/tap/chatto` on macOS or Linux with Homebrew, or download the binary from [GitHub Releases](https://github.com/chattocorp/chatto/releases).
+- A domain pointing to your server (e.g., `chat.example.com`)
+- Firewall allowing inbound TCP 80 and 443
+
+## Setup
+
+Please refer to the [Quick Start](/getting-started/quick-start/) guide for details on initializing your `chatto.toml` configuration file.
+
+For production use, please review the file and **at least**:
+
+- configure SMTP credentials
+- set `webserver.url` to your public URL
+- review `webserver.tls` if you want Chatto to terminate TLS
+
+It is also strongly recommended that you:
+
+- review the `[core.assets.s3]` section if you want to use an external object store for uploaded files (optional, but recommended; you can enable this later if you wish)
+- make a decision to either enable `auth.direct_registration` or configure at least one SSO provider (you can use both together!)
+- review the `[push]` section if you want to support native push notifications
+- review the `[video]` section if you want to support video uploads
+- review the `[livekit]` section if you want to support voice and video calls (requires LiveKit)
+
+## Running as a systemd Service
+
+For production use on Linux, create a systemd unit to manage the process:
+
+```ini
+# /etc/systemd/system/chatto.service
+[Unit]
+Description=Chatto
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=chatto
+Group=chatto
+WorkingDirectory=/opt/chatto
+ExecStart=/opt/chatto/chatto run -c chatto.toml
+Restart=always
+RestartSec=5
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+
+[Install]
+WantedBy=multi-user.target
+```
+
+```bash
+sudo systemctl enable --now chatto
+```
+
+<Aside type="tip">
+  Using `AmbientCapabilities=CAP_NET_BIND_SERVICE` in the unit file grants the
+  capability at runtime, so you don't need to `setcap` the binary separately.
+  This is the preferred approach when using systemd. You only need these when
+  running Chatto on a port lower than 1024.
+</Aside>
+
+## Adding Voice and Video Calls
+
+The standalone binary doesn't include LiveKit. To add voice and video calls, you have two options:
+
+1. **Switch to Docker Compose** (recommended) — the [Docker Compose guide](/guides/deployment/docker-compose/) includes LiveKit out of the box.
+2. **Run LiveKit separately** — install and run a [LiveKit server](https://docs.livekit.io/home/self-hosting/local/) alongside Chatto, then configure the LiveKit environment variables.
+
+<CardGrid>
+  <LinkCard
+    title="Docker Compose"
+    href="/guides/deployment/docker-compose/"
+    description="Recommended production deployment with LiveKit and Caddy."
+  />
+  <LinkCard
+    title="Environment Variables"
+    href="/reference/environment-variables/"
+    description="Full reference for all configuration options."
+  />
+  <LinkCard
+    title="Backup & Restore"
+    href="/guides/operations/backup-restore/"
+    description="How to back up and restore your Chatto data."
+  />
+</CardGrid>

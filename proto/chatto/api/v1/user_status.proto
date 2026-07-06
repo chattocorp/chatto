@@ -1,0 +1,47 @@
+syntax = "proto3";
+
+package chatto.api.v1;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/timestamp.proto";
+
+// Custom status shown on a user profile, separate from presence.
+message CustomUserStatus {
+  // Short emoji marker displayed with the status.
+  string emoji = 1 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 16
+  }];
+  // User-written status text.
+  string text = 2 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 100
+  }];
+  // Optional time after which clients should stop showing the status.
+  google.protobuf.Timestamp expires_at = 3;
+}
+
+// Request to update or replace the current user's custom status.
+message UpdateCustomStatusRequest {
+  // Short emoji marker displayed with the status.
+  string emoji = 1;
+  // User-written status text.
+  string text = 2;
+  // Optional future time after which clients should stop showing the status.
+  google.protobuf.Timestamp expires_at = 3;
+}
+
+// Result of updating the current user's custom status.
+message UpdateCustomStatusResponse {
+  // Stored custom status after validation and normalization.
+  CustomUserStatus status = 1;
+}
+
+// Request to delete the current user's custom status.
+message DeleteCustomStatusRequest {}
+
+// Result of deleting the current user's custom status.
+message DeleteCustomStatusResponse {
+  // Current custom status after the operation. Usually absent after a clear.
+  CustomUserStatus status = 1;
+}

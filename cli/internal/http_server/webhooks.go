@@ -6,6 +6,7 @@ import (
 	"github.com/charmbracelet/log"
 	"github.com/gin-gonic/gin"
 	"github.com/livekit/protocol/auth"
+	"github.com/livekit/protocol/livekit"
 	"github.com/livekit/protocol/webhook"
 	"hmans.de/chatto/internal/core"
 )
@@ -37,7 +38,12 @@ func (s *HTTPServer) handleLiveKitWebhook(c *gin.Context) {
 		c.Status(http.StatusOK)
 		return
 	}
-	spaceID, roomID := core.ParseLiveKitRoomName(event.Room.Name)
+	if !liveKitWebhookRoomBelongsToInstance(event.Room.Name, s.config.LiveKit.ServerID) {
+		logger.Warn("Ignoring LiveKit webhook for foreign room", "room", event.Room.Name, "instance", s.config.LiveKit.ServerID)
+		c.Status(http.StatusOK)
+		return
+	}
+	spaceID, roomID, callID := core.ParseLiveKitRoomIdentity(event.Room.Name)
 	if spaceID == "" || roomID == "" {
 		logger.Warn("Unrecognized LiveKit room name", "name", event.Room.Name)
 		c.Status(http.StatusOK)
@@ -52,11 +58,20 @@ func (s *HTTPServer) handleLiveKitWebhook(c *gin.Context) {
 			break
 		}
 		md := core.ParseParticipantMetadata(event.Participant.Metadata)
+		eventCallID := callID
+		if eventCallID == "" {
+			eventCallID = md.CallID
+		}
+		if eventCallID == "" {
+			logger.Warn("Ignoring LiveKit participant joined without call ID", "room", event.Room.Name)
+			break
+		}
 		if err := s.core.HandleCallParticipantJoined(
 			ctx, spaceID, roomID,
 			event.Participant.Identity,
 			event.Participant.Name,
 			md.Login, md.AvatarURL,
+			eventCallID,
 		); err != nil {
 			logger.Warn("Failed to handle participant joined", "error", err)
 		}
@@ -65,18 +80,53 @@ func (s *HTTPServer) handleLiveKitWebhook(c *gin.Context) {
 		if event.Participant == nil {
 			break
 		}
+		if liveKitParticipantLeftIsConnectionHandoff(event.Participant) {
+			break
+		}
+		md := core.ParseParticipantMetadata(event.Participant.Metadata)
+		eventCallID := callID
+		if eventCallID == "" {
+			eventCallID = md.CallID
+		}
+		if eventCallID == "" {
+			logger.Warn("Ignoring LiveKit participant left without call ID", "room", event.Room.Name)
+			break
+		}
 		if err := s.core.HandleCallParticipantLeft(
 			ctx, spaceID, roomID,
 			event.Participant.Identity,
+			eventCallID,
 		); err != nil {
 			logger.Warn("Failed to handle participant left", "error", err)
 		}
 
 	case webhook.EventRoomFinished:
-		if err := s.core.HandleCallRoomFinished(ctx, spaceID, roomID); err != nil {
+		if callID == "" {
+			logger.Warn("Ignoring LiveKit room finished without call ID", "room", event.Room.Name)
+			break
+		}
+		if err := s.core.HandleCallRoomFinished(ctx, spaceID, roomID, callID); err != nil {
 			logger.Warn("Failed to handle room finished", "error", err)
 		}
 	}
 
 	c.Status(http.StatusOK)
+}
+
+func liveKitParticipantLeftIsConnectionHandoff(participant *livekit.ParticipantInfo) bool {
+	if participant == nil {
+		return false
+	}
+	// Chatto call membership is user-scoped, while LiveKit duplicate-identity
+	// replacement is connection-scoped. A new tab/device taking over the same
+	// user identity should not become a durable domain leave.
+	return participant.GetDisconnectReason() == livekit.DisconnectReason_DUPLICATE_IDENTITY
+}
+
+func liveKitWebhookRoomBelongsToInstance(roomName, instanceID string) bool {
+	roomInstanceID := core.ParseLiveKitRoomServerID(roomName)
+	if instanceID == "" {
+		return roomInstanceID == ""
+	}
+	return roomInstanceID == instanceID
 }

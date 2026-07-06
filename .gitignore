@@ -4,13 +4,14 @@ node_modules
 .DS_Store
 Thumbs.db
 .playwright-mcp
-.codex/
+.conductor/settings.local.toml
 
 # Env
 .env
 .env.*
 !.env.example
 !.env.test
+examples/dockercompose/livekit.generated.yaml
 
 # Build output
 /dist/
@@ -20,3 +21,4 @@ test-results/
 
 .claude/worktrees/
 .claude/scheduled_tasks.lock
+/cli/cmd/embedded/

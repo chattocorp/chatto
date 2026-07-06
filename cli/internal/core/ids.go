@@ -1,7 +1,10 @@
 package core
 
 import (
+	"crypto/rand"
+	"fmt"
 	"log"
+	"math/big"
 
 	gonanoid "github.com/matoous/go-nanoid/v2"
 )
@@ -35,9 +38,19 @@ func NewRoomID() string {
 	return newID("R")
 }
 
+// NewCallID generates a new voice call session ID with "C" prefix.
+func NewCallID() string {
+	return newID("C")
+}
+
 // NewRoomGroupID generates a new room-group ID with "G" prefix.
 func NewRoomGroupID() string {
 	return newID("G")
+}
+
+// NewSidebarLinkID generates a new sidebar-link ID with "L" prefix.
+func NewSidebarLinkID() string {
+	return newID("L")
 }
 
 // NewAssetID generates a new asset ID with "A" prefix.
@@ -45,19 +58,38 @@ func NewAssetID() string {
 	return newID("A")
 }
 
-// NewEmailVerificationToken generates a new email verification token with "EV" prefix.
-func NewEmailVerificationToken() string {
-	return newID("EV")
-}
-
 // NewPasswordResetToken generates a new password reset token with "PR" prefix.
 func NewPasswordResetToken() string {
 	return newID("PR")
 }
 
-// NewRegistrationToken generates a new registration token with "RG" prefix.
+// NewRegistrationToken generates a new registration completion token with "RG" prefix.
 func NewRegistrationToken() string {
 	return newID("RG")
+}
+
+// NewExternalIdentityCreateToken generates a pending external-identity account creation token.
+func NewExternalIdentityCreateToken() string {
+	return newID("EC")
+}
+
+// NewExternalIdentityLinkToken generates a pending external-identity account linking token.
+func NewExternalIdentityLinkToken() string {
+	return newID("EL")
+}
+
+// NewExternalIdentityLinkStartToken generates a provider-link browser handoff token.
+func NewExternalIdentityLinkStartToken() string {
+	return newID("ELS")
+}
+
+// NewVerificationCode generates a six-digit numeric code for email verification.
+func NewVerificationCode() (string, error) {
+	n, err := rand.Int(rand.Reader, big.NewInt(1000000))
+	if err != nil {
+		return "", fmt.Errorf("generate verification code: %w", err)
+	}
+	return fmt.Sprintf("%06d", n.Int64()), nil
 }
 
 // NewAccountDeletionToken generates a new account deletion confirmation token with "AD" prefix.
@@ -79,6 +111,16 @@ func NewNotificationID() string {
 // The "cht_" prefix makes tokens recognizable in logs and password managers.
 func NewAuthToken() string {
 	return "cht_" + newID("AT")
+}
+
+// NewLinkPreviewToken generates a composer link-preview token with "cht_LP" prefix.
+func NewLinkPreviewToken() string {
+	return "cht_" + newID("LP")
+}
+
+// NewCookieSessionID generates a new opaque cookie session ID with "cht_CS" prefix.
+func NewCookieSessionID() string {
+	return "cht_" + newID("CS")
 }
 
 // NewAuthCode generates a new OAuth authorization code with "cht_AC" prefix.

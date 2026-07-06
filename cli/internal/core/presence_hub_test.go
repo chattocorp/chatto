@@ -128,7 +128,7 @@ func TestPresenceHub_OfflineOnDelete(t *testing.T) {
 	}
 
 	// Delete the presence entry
-	err = core.storage.presenceKV.Delete(ctx, presenceKey("delete-user"))
+	err = core.storage.memoryCacheKV.Delete(ctx, presenceKey("delete-user"))
 	if err != nil {
 		t.Fatalf("Delete failed: %v", err)
 	}
@@ -141,5 +141,46 @@ func TestPresenceHub_OfflineOnDelete(t *testing.T) {
 		}
 	case <-time.After(2 * time.Second):
 		t.Fatal("Timeout waiting for OFFLINE event")
+	}
+}
+
+func TestPresenceHub_UserLevelStatusOverwrites(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	sub, err := core.PresenceHub.Subscribe(ctx)
+	if err != nil {
+		t.Fatalf("Subscribe failed: %v", err)
+	}
+	defer core.PresenceHub.Unsubscribe(sub)
+
+	if err := core.SetPresence(ctx, "overwrite-user", PresenceStatusAway); err != nil {
+		t.Fatalf("SetPresence away failed: %v", err)
+	}
+	expectPresenceUpdate(t, sub, "overwrite-user", PresenceStatusAway)
+
+	if err := core.SetPresence(ctx, "overwrite-user", PresenceStatusOnline); err != nil {
+		t.Fatalf("SetPresence online failed: %v", err)
+	}
+	expectPresenceUpdate(t, sub, "overwrite-user", PresenceStatusOnline)
+
+	if err := core.storage.memoryCacheKV.Delete(ctx, presenceKey("overwrite-user")); err != nil {
+		t.Fatalf("Delete presence failed: %v", err)
+	}
+	expectPresenceUpdate(t, sub, "overwrite-user", PresenceStatusOffline)
+}
+
+func expectPresenceUpdate(t *testing.T, sub *PresenceSubscription, userID, status string) {
+	t.Helper()
+	select {
+	case update := <-sub.C:
+		if update.UserID != userID {
+			t.Fatalf("Expected user %s, got %s", userID, update.UserID)
+		}
+		if update.Status != status {
+			t.Fatalf("Expected status %s, got %s", status, update.Status)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatalf("Timeout waiting for %s presence update", status)
 	}
 }

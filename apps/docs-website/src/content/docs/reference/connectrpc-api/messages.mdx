@@ -1,0 +1,387 @@
+---
+title: MessageService
+description: Message creation, editing, deletion, composer link-preview, reaction, and attachment RPCs.
+editUrl: false
+---
+
+{/* Generated from proto/chatto/{auth,discovery,api,admin,realtime}/v1/*.proto. Do not edit directly. */}
+
+Chatto exposes this service below `/api/connect`.
+
+
+
+Shared message and enum definitions are documented in [Shared Types And Enums](/reference/connectrpc-api/types/).
+
+
+
+<a id="chatto-api-v1-MessageService"></a>
+
+## MessageService
+
+Creates messages in room and thread timelines.
+
+<a id="chatto-api-v1-MessageService-FetchLinkPreview"></a>
+
+### FetchLinkPreview
+
+Fetches and caches metadata for a composer URL. Authentication is required
+to avoid exposing the preview fetcher as an unauthenticated network proxy.
+Successful responses include a short-lived token accepted by CreateMessage.
+
+```http
+POST /api/connect/chatto.api.v1.MessageService/FetchLinkPreview
+```
+
+<a id="chatto-api-v1-FetchLinkPreviewRequest"></a>
+
+#### Input: FetchLinkPreviewRequest
+
+Request to fetch server-side link preview metadata for a URL.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `url` | `string` | URL to preview. |
+
+
+<a id="chatto-api-v1-FetchLinkPreviewResponse"></a>
+
+#### Result: FetchLinkPreviewResponse
+
+Result of fetching link preview metadata.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `preview` | [`LinkPreview`](/reference/connectrpc-api/types/#chatto-api-v1-LinkPreview) | Preview metadata, or absent when the URL cannot be previewed. |
+| `preview_token` | `string` | Short-lived opaque token to pass to CreateMessage.link_preview_token when the user posts this preview. |
+
+
+<a id="chatto-api-v1-MessageService-CreateMessage"></a>
+
+### CreateMessage
+
+Creates a message for the current user. The user must be a room member and
+must have message.post for room messages or message.post-in-thread for
+thread replies. Echoing a thread reply also requires message.echo and
+message.post.
+
+```http
+POST /api/connect/chatto.api.v1.MessageService/CreateMessage
+```
+
+<a id="chatto-api-v1-CreateMessageRequest"></a>
+
+#### Input: CreateMessageRequest
+
+Request to create a message in a room or thread.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room where the message should be created. |
+| `body` | `string` | Message body text. Required unless attachment_asset_ids is non-empty. |
+| `attachment_asset_ids` | `repeated string` | Existing room-scoped attachment asset IDs to include with the message. |
+| `thread_root_event_id` | `string` | Event ID of the thread root message when posting a thread reply. |
+| `in_reply_to` | `string` | Event ID this message replies to for attribution. |
+| `also_send_to_channel` | `bool` | True to also echo a thread reply into the main room timeline. |
+| `link_preview_token` | `string` | Short-lived token returned by FetchLinkPreview for the selected URL. The server resolves the token to cached, server-fetched metadata during post. |
+
+
+<a id="chatto-api-v1-CreateMessageResponse"></a>
+
+#### Result: CreateMessageResponse
+
+Result of creating a message.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `message` | [`Message`](/reference/connectrpc-api/types/#chatto-api-v1-Message) | Renderable message created by the request. |
+
+
+<a id="chatto-api-v1-MessageService-UpdateMessage"></a>
+
+### UpdateMessage
+
+Edits a message body. Authors can edit their own messages within the edit
+window. Non-authors need message.manage and cannot change channel echo
+state.
+
+```http
+POST /api/connect/chatto.api.v1.MessageService/UpdateMessage
+```
+
+<a id="chatto-api-v1-UpdateMessageRequest"></a>
+
+#### Input: UpdateMessageRequest
+
+Request to patch a message.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room containing the message. |
+| `event_id` | `string` | Required. Event ID of the message to edit. |
+| `body` | `optional string` | New message body text. Omit to preserve the current body. |
+| `also_send_to_channel` | `optional bool` | For thread replies, whether a channel echo should exist after saving. Omit to preserve the current echo state. |
+
+
+<a id="chatto-api-v1-UpdateMessageResponse"></a>
+
+#### Result: UpdateMessageResponse
+
+Result of editing a message.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `message` | [`Message`](/reference/connectrpc-api/types/#chatto-api-v1-Message) | Renderable message after the edit. |
+
+
+<a id="chatto-api-v1-MessageService-DeleteMessage"></a>
+
+### DeleteMessage
+
+Retracts a message. Authors can delete their own messages. Non-authors need
+message.manage.
+
+```http
+POST /api/connect/chatto.api.v1.MessageService/DeleteMessage
+```
+
+<a id="chatto-api-v1-DeleteMessageRequest"></a>
+
+#### Input: DeleteMessageRequest
+
+Request to retract a message.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room containing the message. |
+| `event_id` | `string` | Required. Event ID of the message to retract. |
+
+
+<a id="chatto-api-v1-DeleteMessageResponse"></a>
+
+#### Result: DeleteMessageResponse
+
+Result of retracting a message.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `deleted` | `bool` | True when the delete/retract request was accepted. |
+
+
+<a id="chatto-api-v1-MessageService-DeleteAttachment"></a>
+
+### DeleteAttachment
+
+Removes one attachment from the author's own message.
+
+```http
+POST /api/connect/chatto.api.v1.MessageService/DeleteAttachment
+```
+
+<a id="chatto-api-v1-DeleteAttachmentRequest"></a>
+
+#### Input: DeleteAttachmentRequest
+
+Request to remove one attachment from a message.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room containing the message. |
+| `event_id` | `string` | Required. Event ID of the message containing the attachment. |
+| `attachment_id` | `string` | Required. Attachment ID to remove from the message. |
+
+
+<a id="chatto-api-v1-DeleteAttachmentResponse"></a>
+
+#### Result: DeleteAttachmentResponse
+
+Result of removing one attachment from a message.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `deleted` | `bool` | True when the attachment removal was accepted. |
+
+
+<a id="chatto-api-v1-MessageService-DeleteLinkPreview"></a>
+
+### DeleteLinkPreview
+
+Removes the accepted link preview from the author's own message.
+
+```http
+POST /api/connect/chatto.api.v1.MessageService/DeleteLinkPreview
+```
+
+<a id="chatto-api-v1-DeleteLinkPreviewRequest"></a>
+
+#### Input: DeleteLinkPreviewRequest
+
+Request to remove the accepted link preview from a message.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room containing the message. |
+| `event_id` | `string` | Required. Event ID of the message containing the link preview. |
+| `url` | `string` | Required. URL of the link preview to remove. |
+
+
+<a id="chatto-api-v1-DeleteLinkPreviewResponse"></a>
+
+#### Result: DeleteLinkPreviewResponse
+
+Result of removing a link preview from a message.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `deleted` | `bool` | True when the link preview removal was accepted. |
+
+
+<a id="chatto-api-v1-MessageService-GetMessage"></a>
+
+### GetMessage
+
+Reads one renderable message, including current body, attachment metadata,
+link preview, reactions, and thread metadata. Authentication and room
+membership are required. Returns NOT_FOUND when the event does not exist,
+is not a message, has been retracted, or belongs to a different room.
+
+```http
+POST /api/connect/chatto.api.v1.MessageService/GetMessage
+```
+
+<a id="chatto-api-v1-GetMessageRequest"></a>
+
+#### Input: GetMessageRequest
+
+Request to read one visible message.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room containing the message. |
+| `event_id` | `string` | Required. Message event ID. |
+
+
+<a id="chatto-api-v1-GetMessageResponse"></a>
+
+#### Result: GetMessageResponse
+
+Response containing one renderable message.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `message` | [`Message`](/reference/connectrpc-api/types/#chatto-api-v1-Message) | Renderable message. |
+
+
+<a id="chatto-api-v1-MessageService-BatchGetMessages"></a>
+
+### BatchGetMessages
+
+Reads many renderable messages in one room. Authentication and room
+membership are required. Missing, retracted, non-message, and wrong-room
+event IDs are omitted. Results preserve first-seen request order and
+repeated event IDs are de-duplicated.
+
+```http
+POST /api/connect/chatto.api.v1.MessageService/BatchGetMessages
+```
+
+<a id="chatto-api-v1-BatchGetMessagesRequest"></a>
+
+#### Input: BatchGetMessagesRequest
+
+Request to read many visible messages in one room.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room containing the messages. |
+| `event_ids` | `repeated string` | Required. Message event IDs. Missing, retracted, non-message, and wrong-room event IDs are omitted from the response. |
+
+
+<a id="chatto-api-v1-BatchGetMessagesResponse"></a>
+
+#### Result: BatchGetMessagesResponse
+
+Response containing renderable messages.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `messages` | repeated [`Message`](/reference/connectrpc-api/types/#chatto-api-v1-Message) | Renderable messages in first-seen request order. |
+
+
+<a id="chatto-api-v1-MessageService-AddReaction"></a>
+
+### AddReaction
+
+Adds a reaction to a message. The user must be a room member and have
+message.react in the target room.
+
+```http
+POST /api/connect/chatto.api.v1.MessageService/AddReaction
+```
+
+<a id="chatto-api-v1-AddReactionRequest"></a>
+
+#### Input: AddReactionRequest
+
+Request to add the current user's reaction to a message.
+
+When `message_event_id` names a channel echo of a thread reply, the server
+treats it as an alias for the original thread reply and stores the reaction
+on that original event.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room containing the message event. |
+| `message_event_id` | `string` | Required. Event ID of the message being reacted to, or a channel echo of the message. |
+| `emoji` | `string` | Required. Emoji shortcode name, such as "thumbsup" or "heart". |
+
+
+<a id="chatto-api-v1-AddReactionResponse"></a>
+
+#### Result: AddReactionResponse
+
+Result of adding a reaction.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `added` | `bool` | True when the reaction was newly added, false when it already existed. |
+| `reaction` | [`MessageReaction`](/reference/connectrpc-api/types/#chatto-api-v1-MessageReaction) | Updated aggregate reaction state for this emoji. |
+
+
+<a id="chatto-api-v1-MessageService-RemoveReaction"></a>
+
+### RemoveReaction
+
+Removes a reaction from a message. The user must be a room member and have
+message.react in the target room.
+
+```http
+POST /api/connect/chatto.api.v1.MessageService/RemoveReaction
+```
+
+<a id="chatto-api-v1-RemoveReactionRequest"></a>
+
+#### Input: RemoveReactionRequest
+
+Request to remove the current user's reaction from a message.
+
+When `message_event_id` names a channel echo of a thread reply, the server
+treats it as an alias for the original thread reply and removes the reaction
+from that original event.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room containing the message event. |
+| `message_event_id` | `string` | Required. Event ID of the message whose reaction should be removed, or a channel echo of the message. |
+| `emoji` | `string` | Required. Emoji shortcode name, such as "thumbsup" or "heart". |
+
+
+<a id="chatto-api-v1-RemoveReactionResponse"></a>
+
+#### Result: RemoveReactionResponse
+
+Result of removing a reaction.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `removed` | `bool` | True when the reaction was removed, false when it did not exist. |
+| `reaction` | [`MessageReaction`](/reference/connectrpc-api/types/#chatto-api-v1-MessageReaction) | Updated aggregate reaction state for this emoji. Empty when no reactions for the emoji remain. |

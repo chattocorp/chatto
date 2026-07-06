@@ -2,10 +2,15 @@
 package push
 
 import (
+	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/url"
+	"strings"
 
 	webpush "github.com/SherClockHolmes/webpush-go"
 	"github.com/charmbracelet/log"
@@ -16,9 +21,16 @@ import (
 
 // Sender sends Web Push notifications.
 type Sender struct {
-	config config.PushConfig
-	logger *log.Logger
+	config     config.PushConfig
+	logger     *log.Logger
+	httpClient webpush.HTTPClient
 }
+
+const (
+	pushRecordSize                       uint32 = 2048
+	maxPushProviderResponseBodyBytes            = 2048
+	truncatedPushProviderResponseBodyMsg        = "…"
+)
 
 // NewSender creates a new push notification sender.
 // Returns nil if push is not configured.
@@ -105,34 +117,78 @@ func (s *Sender) Send(ctx context.Context, sub *corev1.PushSubscription, payload
 
 	// Send the push notification
 	resp, err := webpush.SendNotification(payloadJSON, subscription, &webpush.Options{
-		Subscriber:      s.config.VAPIDSubject,
+		Subscriber:      normalizeVAPIDSubject(s.config.VAPIDSubject),
 		VAPIDPublicKey:  s.config.VAPIDPublicKey,
 		VAPIDPrivateKey: s.config.VAPIDPrivateKey,
 		TTL:             86400, // 24 hours
+		RecordSize:      pushRecordSize,
+		HTTPClient:      s.httpClient,
 	})
 	if err != nil {
 		result.Error = err
 		return result
 	}
-	defer func() {
-		// Drain body to allow connection reuse
-		_, _ = io.Copy(io.Discard, resp.Body)
-		resp.Body.Close()
-	}()
+	defer resp.Body.Close()
 
 	// Check response status
 	switch resp.StatusCode {
 	case 200, 201, 202:
+		// Drain body to allow connection reuse
+		_, _ = io.Copy(io.Discard, resp.Body)
 		result.Success = true
 	case 404, 410:
 		// 404 Not Found or 410 Gone - subscription is no longer valid
+		body, readErr := readPushProviderResponseBody(resp.Body)
 		result.Gone = true
-		result.Error = fmt.Errorf("subscription expired or invalid (status %d)", resp.StatusCode)
+		result.Error = pushServiceStatusError("subscription expired or invalid", resp.StatusCode, body, readErr)
 	default:
-		result.Error = fmt.Errorf("push service returned status %d", resp.StatusCode)
+		body, readErr := readPushProviderResponseBody(resp.Body)
+		result.Error = pushServiceStatusError("push service returned status", resp.StatusCode, body, readErr)
 	}
 
 	return result
+}
+
+func normalizeVAPIDSubject(subject string) string {
+	return strings.TrimPrefix(subject, "mailto:")
+}
+
+func readPushProviderResponseBody(body io.Reader) (string, error) {
+	var buf bytes.Buffer
+	_, err := io.Copy(&buf, io.LimitReader(body, maxPushProviderResponseBodyBytes+1))
+	_, _ = io.Copy(io.Discard, body)
+	if err != nil {
+		return "", err
+	}
+
+	responseBody := buf.Bytes()
+	truncated := false
+	if len(responseBody) > maxPushProviderResponseBodyBytes {
+		responseBody = responseBody[:maxPushProviderResponseBodyBytes]
+		truncated = true
+	}
+
+	text := strings.TrimSpace(strings.ToValidUTF8(string(responseBody), ""))
+	if truncated {
+		text += truncatedPushProviderResponseBodyMsg
+	}
+	return text, nil
+}
+
+func pushServiceStatusError(prefix string, statusCode int, body string, readErr error) error {
+	if readErr != nil {
+		return fmt.Errorf("%s %d (failed to read response body: %w)", prefix, statusCode, readErr)
+	}
+	if body == "" {
+		return fmt.Errorf("%s %d", prefix, statusCode)
+	}
+	return fmt.Errorf("%s %d: %s", prefix, statusCode, body)
+}
+
+// EndpointLogID returns a stable, opaque identifier for a push endpoint.
+func EndpointLogID(endpoint string) string {
+	hash := sha256.Sum256([]byte(endpoint))
+	return hex.EncodeToString(hash[:8])
 }
 
 // SendToMany sends a push notification to multiple subscriptions.
@@ -145,14 +201,43 @@ func (s *Sender) SendToMany(ctx context.Context, subscriptions []*corev1.PushSub
 	return results
 }
 
+func buildAppURL(baseURL string, segments []string, queryKey, queryValue string) string {
+	raw, err := url.JoinPath(baseURL, segments...)
+	if err != nil {
+		return ""
+	}
+
+	u, err := url.Parse(raw)
+	if err != nil {
+		return raw
+	}
+	if queryKey != "" && queryValue != "" {
+		query := u.Query()
+		query.Set(queryKey, queryValue)
+		u.RawQuery = query.Encode()
+	}
+	return u.String()
+}
+
+func buildNotificationURL(baseURL, roomID, threadRootID, highlightEventID string) string {
+	segments := []string{"chat", "-"}
+	if roomID != "" {
+		segments = append(segments, roomID)
+	}
+	if threadRootID != "" {
+		segments = append(segments, threadRootID)
+	}
+	return buildAppURL(baseURL, segments, "highlight", highlightEventID)
+}
+
 // BuildPayloadFromNotification creates a push payload from a notification.
 // The baseURL is used to build navigation URLs (e.g., "https://chatto.example.com").
 // The optional payloadCtx provides message preview and room name for richer notifications.
 func BuildPayloadFromNotification(notif *corev1.Notification, actorDisplayName, baseURL string, payloadCtx *PayloadContext) *Payload {
 	payload := &Payload{
 		NotificationID: notif.Id,
-		Icon:           baseURL + "/icons/icon-192.png",
-		Badge:          baseURL + "/icons/icon-192.png", // Badge should be monochrome, but use same for now
+		Icon:           buildAppURL(baseURL, []string{"icons", "icon-192.png"}, "", ""),
+		Badge:          buildAppURL(baseURL, []string{"icons", "icon-192.png"}, "", ""), // Badge should be monochrome, but use same for now
 	}
 
 	// Get preview from context, truncate if needed
@@ -163,18 +248,12 @@ func BuildPayloadFromNotification(notif *corev1.Notification, actorDisplayName, 
 		roomName = payloadCtx.RoomName
 	}
 
-	// URL prefix for the home instance. Push notifications are always generated
-	// by the server the user is connected to, so the instance segment is always "-".
-	// Chat URLs go straight from instance segment to room ID — no spaceId, no /dm/
-	// prefix (DMs are surfaced as rooms under the primary space).
-	chatPrefix := baseURL + "/chat/-"
-
 	switch n := notif.Notification.(type) {
 	case *corev1.Notification_DmMessage:
 		payload.Title = fmt.Sprintf("@%s sent you a new DM", actorDisplayName)
 		payload.Body = preview
 		payload.Tag = "dm-" + n.DmMessage.EventId
-		payload.URL = chatPrefix + "/" + n.DmMessage.RoomId
+		payload.URL = buildNotificationURL(baseURL, n.DmMessage.RoomId, "", "")
 
 	case *corev1.Notification_Mention:
 		if roomName != "" {
@@ -184,10 +263,7 @@ func BuildPayloadFromNotification(notif *corev1.Notification, actorDisplayName, 
 		}
 		payload.Body = preview
 		payload.Tag = "mention-" + n.Mention.EventId
-		payload.URL = chatPrefix + "/" + n.Mention.RoomId
-		if n.Mention.EventId != "" {
-			payload.URL += "?highlight=" + n.Mention.EventId
-		}
+		payload.URL = buildNotificationURL(baseURL, n.Mention.RoomId, n.Mention.InThread, n.Mention.EventId)
 
 	case *corev1.Notification_Reply:
 		if roomName != "" {
@@ -197,13 +273,17 @@ func BuildPayloadFromNotification(notif *corev1.Notification, actorDisplayName, 
 		}
 		payload.Body = preview
 		payload.Tag = "reply-" + n.Reply.EventId
-		if n.Reply.InThread != "" {
-			// Thread reply: navigate to the thread (using thread root) and highlight the replied-to message
-			payload.URL = chatPrefix + "/" + n.Reply.RoomId + "/" + n.Reply.InThread + "?highlight=" + n.Reply.InReplyToId
+		payload.URL = buildNotificationURL(baseURL, n.Reply.RoomId, n.Reply.InThread, n.Reply.EventId)
+
+	case *corev1.Notification_RoomMessage:
+		if roomName != "" {
+			payload.Title = fmt.Sprintf("@%s posted in #%s", actorDisplayName, roomName)
 		} else {
-			// Room-level reply: navigate to room and highlight the reply message
-			payload.URL = chatPrefix + "/" + n.Reply.RoomId + "?highlight=" + n.Reply.EventId
+			payload.Title = fmt.Sprintf("@%s posted a message", actorDisplayName)
 		}
+		payload.Body = preview
+		payload.Tag = "room-message-" + n.RoomMessage.EventId
+		payload.URL = buildNotificationURL(baseURL, n.RoomMessage.RoomId, "", n.RoomMessage.EventId)
 
 	default:
 		payload.Title = "New notification"
@@ -224,6 +304,8 @@ func NotificationTag(notif *corev1.Notification) string {
 		return "mention-" + n.Mention.EventId
 	case *corev1.Notification_Reply:
 		return "reply-" + n.Reply.EventId
+	case *corev1.Notification_RoomMessage:
+		return "room-message-" + n.RoomMessage.EventId
 	default:
 		return ""
 	}

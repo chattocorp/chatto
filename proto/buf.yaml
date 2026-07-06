@@ -4,7 +4,13 @@ modules:
 lint:
   use:
     - STANDARD
+  ignore_only:
+    ENUM_VALUE_PREFIX:
+      # Legacy persisted core enum. Keep existing names for source/protojson
+      # compatibility; public API enums still use prefixed values.
+      - chatto/core/v1/models.proto
 breaking:
   use:
     - FILE
-deps: []
+deps:
+  - buf.build/bufbuild/protovalidate

@@ -1,0 +1,197 @@
+syntax = "proto3";
+
+package chatto.core.v1;
+
+import "chatto/core/v1/user_preferences.proto";
+import "chatto/core/v1/models.proto";
+
+option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
+
+// ============================================================================
+// USER LIFECYCLE EVENTS (server-scoped)
+//
+// Top-level Event oneof tags owned by this file:
+//   - 700-716: durable user aggregate events on evt.user.{userId}.*
+//   - 1010-1015: live-only user lifecycle and preference broadcasts
+//
+// Keep these tags coordinated with event.proto. Message-internal field numbers
+// are local to each message and do not consume top-level Event tag space.
+// ============================================================================
+
+message UserCreatedEvent {
+  string user_id = 1;
+  string login = 2;
+  string display_name = 3;
+}
+
+// UserDeletedEvent records a durable user-account deletion fact in EVT.
+// Transient realtime delivery uses SessionTerminatedEvent for the deleted
+// user's own clients and ServerMemberDeletedEvent for server-wide invalidation.
+message UserDeletedEvent {
+  string user_id = 1;
+}
+
+// UserProfileUpdatedEvent is published when a user's profile changes.
+// This includes avatar uploads/deletions, display name changes, and login changes.
+// Allows other users to see profile changes in real-time.
+message UserProfileUpdatedEvent {
+  string user_id = 1;
+  string display_name = 2;
+  // URL to the user's avatar, or empty if no avatar is set.
+  string avatar_url = 3;
+  // The user's current login/username.
+  string login = 4;
+}
+
+// ============================================================================
+// USER PREFERENCE EVENTS (user-scoped)
+// ============================================================================
+
+// ServerUserPreferencesUpdatedEvent is published when a user updates their display preferences.
+// User-scoped private event for multi-tab/multi-device sync.
+message ServerUserPreferencesUpdatedEvent {
+  // IANA timezone name (empty = cleared/browser default).
+  string timezone = 1;
+  // Time display format preference.
+  TimeFormat time_format = 2;
+}
+
+// ============================================================================
+// DURABLE USER EVENTS (evt.user.{userId})
+// ============================================================================
+
+message EncryptedUserString {
+  bytes encrypted_value = 1;
+  bytes nonce = 2;
+  int32 content_key_epoch = 3;
+}
+
+message UserAccountCreatedEvent {
+  string user_id = 1;
+  EncryptedUserString encrypted_login = 10;
+  EncryptedUserString encrypted_display_name = 11;
+}
+
+message UserLoginChangedEvent {
+  string user_id = 1;
+  EncryptedUserString encrypted_login = 10;
+}
+
+message UserDisplayNameChangedEvent {
+  string user_id = 1;
+  EncryptedUserString encrypted_display_name = 10;
+}
+
+message UserAvatarSetEvent {
+  // Deprecated: legacy avatar storage pointer retained for decoding old
+  // user events. New avatar writes append AssetCreatedEvent with
+  // UserAvatarAssetOwner instead.
+  string user_id = 1;
+  DeprecatedAsset avatar = 2;
+}
+
+message UserAvatarClearedEvent {
+  string user_id = 1;
+}
+
+message UserVerifiedEmailAddedEvent {
+  string user_id = 1;
+  EncryptedUserString encrypted_email = 10;
+}
+
+message UserPasswordHashChangedEvent {
+  string user_id = 1;
+  bytes password_hash = 2;
+  // True when adding the first password to a passwordless account. Existing
+  // sessions remain valid; later password changes and password resets leave
+  // this false so they advance auth generation and revoke old credentials.
+  bool preserve_existing_credentials = 3;
+}
+
+message UserOIDCSubjectLinkedEvent {
+  string user_id = 1;
+  // New writes include issuer/subject so the event is inspectable. Legacy
+  // imports may only have the hash, because the old KV index key is one-way.
+  string issuer = 2;
+  string subject = 3;
+  string subject_hash = 4;
+}
+
+message UserExternalIdentityLinkedEvent {
+  string user_id = 1;
+  // Durable identity namespace used for lookup. For OIDC providers this is the
+  // verified issuer URL from the ID token, which lets the link survive local
+  // provider ID or label changes. For OAuth-only providers this is the stable
+  // configured local provider ID because there is no verified issuer URL.
+  string issuer = 2;
+  // Raw provider subjects are included only for events written after this
+  // field existed. Projections prefer subject_hash when present.
+  string subject = 3;
+  string subject_hash = 4;
+  // Event-time metadata about the configured provider that created the link.
+  // This is not dereferenced against current config during replay; providers
+  // may be renamed, removed, or reconfigured without changing existing links.
+  string provider_id = 5;
+  string provider_type = 6;
+}
+
+message UserExternalIdentityUnlinkedEvent {
+  string user_id = 1;
+  // Stable one-way identity hash previously written by
+  // UserExternalIdentityLinkedEvent or legacy UserOIDCSubjectLinkedEvent.
+  string subject_hash = 2;
+}
+
+message UserServerPreferencesChangedEvent {
+  string user_id = 1;
+  ServerUserPreferences preferences = 2;
+}
+
+message UserLoginCooldownStartedEvent {
+  string user_id = 1;
+}
+
+message UserLoginCooldownClearedEvent {
+  string user_id = 1;
+}
+
+message UserAccountDeletedEvent {
+  string user_id = 1;
+}
+
+message UserCustomStatusSetEvent {
+  string user_id = 1;
+  CustomUserStatus status = 2;
+}
+
+message UserCustomStatusClearedEvent {
+  string user_id = 1;
+}
+
+// UserKeyShreddedEvent is the durable audit signal that the user's
+// encryption key was destroyed. Projections use it to tombstone authored
+// messages before attempting decryption; asset cleanup is triggered from the
+// same command path.
+message UserKeyShreddedEvent {
+  string user_id = 1;
+}
+
+enum UserDEKPurpose {
+  USER_DEK_PURPOSE_UNSPECIFIED = 0;
+  USER_DEK_PURPOSE_MESSAGE_BODY = 1;
+  USER_DEK_PURPOSE_USER_PII = 2;
+}
+
+// UserDEKGeneratedEvent records the creation of one per-user data-encryption
+// key epoch. Message bodies and PII payloads reference purpose-specific
+// epochs; the wrapped key material lives in RUNTIME_STATE under
+// content_key_ref so it can be shredded independently of immutable EVT history.
+message UserDEKGeneratedEvent {
+  string user_id = 1;
+  UserDEKPurpose purpose = 2;
+  int32 epoch = 3;
+  string content_key_ref = 4;
+  string wrapping_key_ref = 5;
+  string wrapping_algorithm = 6;
+  bytes wrapping_metadata = 7;
+}

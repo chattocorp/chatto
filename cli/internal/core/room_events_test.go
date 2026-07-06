@@ -1,6 +1,7 @@
 package core
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
@@ -46,8 +47,8 @@ func TestChattoCore_GetRoomEvents(t *testing.T) {
 	expectedBodies := []string{"Message 1", "Message 2", "Message 3"}
 	for _, event := range events {
 		if msg := event.GetMessagePosted(); msg != nil {
-			// Body is lazy-loaded, fetch it separately using messageBodyId
-			fetchedBody, err := core.GetMessageBody(ctx, KindForSpace(msg.SpaceId), msg.MessageBodyId)
+			// Body lookup is keyed by the durable event envelope id.
+			fetchedBody, err := core.GetMessageBody(ctx, KindChannel, event.Id)
 			if err != nil {
 				t.Errorf("Failed to fetch message body: %v", err)
 			}
@@ -127,6 +128,52 @@ func TestChattoCore_GetRoomEvents_JoinAndLeaveEvents(t *testing.T) {
 	if leaveCount != 1 {
 		t.Errorf("Expected 1 UserLeftRoom event, got %d", leaveCount)
 	}
+}
+
+func TestChattoCore_GetRoomEvents_RoomLifecycleCommandsAreImmediatelyVisible(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	room, err := core.CreateRoom(ctx, "test-user", KindChannel, "", "lifecycle-room", "Original description")
+	if err != nil {
+		t.Fatalf("Failed to create room: %v", err)
+	}
+	assertLatestRoomEvent(t, core, ctx, KindChannel, room.Id, func(event *corev1.Event) bool {
+		created := event.GetRoomCreated()
+		return created != nil && created.RoomId == room.Id
+	})
+
+	if _, err := core.UpdateRoom(ctx, "test-user", KindChannel, room.Id, "renamed-lifecycle-room", "Updated description"); err != nil {
+		t.Fatalf("Failed to update room: %v", err)
+	}
+	assertLatestRoomEvent(t, core, ctx, KindChannel, room.Id, func(event *corev1.Event) bool {
+		updated := event.GetRoomUpdated()
+		return updated != nil && updated.RoomId == room.Id && updated.Name == "renamed-lifecycle-room"
+	})
+
+	if _, err := core.ArchiveRoom(ctx, "test-user", KindChannel, room.Id); err != nil {
+		t.Fatalf("Failed to archive room: %v", err)
+	}
+	assertLatestRoomEvent(t, core, ctx, KindChannel, room.Id, func(event *corev1.Event) bool {
+		archived := event.GetRoomArchived()
+		return archived != nil && archived.RoomId == room.Id
+	})
+
+	if _, err := core.UnarchiveRoom(ctx, "test-user", KindChannel, room.Id); err != nil {
+		t.Fatalf("Failed to unarchive room: %v", err)
+	}
+	assertLatestRoomEvent(t, core, ctx, KindChannel, room.Id, func(event *corev1.Event) bool {
+		unarchived := event.GetRoomUnarchived()
+		return unarchived != nil && unarchived.RoomId == room.Id
+	})
+
+	if err := core.DeleteRoom(ctx, "test-user", KindChannel, room.Id); err != nil {
+		t.Fatalf("Failed to delete room: %v", err)
+	}
+	assertLatestRoomEvent(t, core, ctx, KindChannel, room.Id, func(event *corev1.Event) bool {
+		deleted := event.GetRoomDeleted()
+		return deleted != nil && deleted.RoomId == room.Id
+	})
 }
 
 // TestChattoCore_GetRoomEvents_JoinAfterLastMessage verifies that join events
@@ -212,8 +259,8 @@ func TestChattoCore_GetRoomEvents_DeletedMessageBody(t *testing.T) {
 		t.Fatal("Event should be a MessagePosted event")
 	}
 
-	// Delete the message body using messageBodyId (author can delete own messages)
-	err = core.DeleteMessage(ctx, user.Id, KindChannel, room.Id, postedMessage.MessageBodyId)
+	// Delete the message body using the event envelope id (author can delete own messages)
+	err = core.DeleteMessage(ctx, user.Id, KindChannel, room.Id, roomEvent.Id)
 	if err != nil {
 		t.Fatalf("Failed to delete message: %v", err)
 	}
@@ -241,7 +288,7 @@ func TestChattoCore_GetRoomEvents_DeletedMessageBody(t *testing.T) {
 	messagePosted := messageEvent.GetMessagePosted()
 
 	// Verify the body is empty (deleted) when fetched via GetMessageBody
-	fetchedBody, err := core.GetMessageBody(ctx, KindForSpace(messagePosted.SpaceId), messagePosted.MessageBodyId)
+	fetchedBody, err := core.GetMessageBody(ctx, KindChannel, messageEvent.Id)
 	if err != nil {
 		t.Fatalf("Failed to fetch message body: %v", err)
 	}
@@ -284,10 +331,10 @@ func TestChattoCore_GetRoomEvents_Pagination(t *testing.T) {
 		events := eventsResult.Events
 
 		// Count MessagePosted events
-		var messageEvents []*corev1.MessagePostedEvent
+		var messageEvents []*corev1.Event
 		for _, event := range events {
-			if msg := event.GetMessagePosted(); msg != nil {
-				messageEvents = append(messageEvents, msg)
+			if event.GetMessagePosted() != nil {
+				messageEvents = append(messageEvents, event.Event)
 			}
 		}
 
@@ -296,7 +343,7 @@ func TestChattoCore_GetRoomEvents_Pagination(t *testing.T) {
 		}
 
 		// The last message in our result should be "Message 100" (most recent)
-		lastMsgBody, err := core.GetMessageBody(ctx, KindChannel, messageEvents[len(messageEvents)-1].MessageBodyId)
+		lastMsgBody, err := core.GetMessageBody(ctx, KindChannel, messageEvents[len(messageEvents)-1].Id)
 		if err != nil {
 			t.Fatalf("Failed to get last message body: %v", err)
 		}
@@ -305,7 +352,7 @@ func TestChattoCore_GetRoomEvents_Pagination(t *testing.T) {
 		}
 
 		// The first message in our result should be "Message 51" (51st newest)
-		firstMsgBody, err := core.GetMessageBody(ctx, KindChannel, messageEvents[0].MessageBodyId)
+		firstMsgBody, err := core.GetMessageBody(ctx, KindChannel, messageEvents[0].Id)
 		if err != nil {
 			t.Fatalf("Failed to get first message body: %v", err)
 		}
@@ -337,10 +384,10 @@ func TestChattoCore_GetRoomEvents_Pagination(t *testing.T) {
 		olderEvents := olderEventsResult.Events
 
 		// Count MessagePosted events in the older batch
-		var olderMessageEvents []*corev1.MessagePostedEvent
+		var olderMessageEvents []*corev1.Event
 		for _, event := range olderEvents {
-			if msg := event.GetMessagePosted(); msg != nil {
-				olderMessageEvents = append(olderMessageEvents, msg)
+			if event.GetMessagePosted() != nil {
+				olderMessageEvents = append(olderMessageEvents, event.Event)
 			}
 		}
 
@@ -352,7 +399,7 @@ func TestChattoCore_GetRoomEvents_Pagination(t *testing.T) {
 
 		// The newest message in the older batch should be before our cursor
 		if len(olderMessageEvents) > 0 {
-			newestOldBody, err := core.GetMessageBody(ctx, KindChannel, olderMessageEvents[len(olderMessageEvents)-1].MessageBodyId)
+			newestOldBody, err := core.GetMessageBody(ctx, KindChannel, olderMessageEvents[len(olderMessageEvents)-1].Id)
 			if err != nil {
 				t.Fatalf("Failed to get newest old message body: %v", err)
 			}
@@ -464,8 +511,8 @@ func TestChattoCore_GetRoomEventByEventID(t *testing.T) {
 			t.Errorf("Event ID mismatch: got %s, want %s", foundEvent.Id, postedEvent.Id)
 		}
 
-		if foundMessage.MessageBodyId != messagePosted.MessageBodyId {
-			t.Errorf("MessageBodyId mismatch: got %s, want %s", foundMessage.MessageBodyId, messagePosted.MessageBodyId)
+		if foundMessage.RoomId != messagePosted.RoomId {
+			t.Errorf("RoomId mismatch: got %s, want %s", foundMessage.RoomId, messagePosted.RoomId)
 		}
 
 		if foundEvent.Id != postedEvent.Id {
@@ -507,4 +554,28 @@ func TestChattoCore_GetRoomEventByEventID(t *testing.T) {
 			t.Error("Expected nil when looking up event in wrong room")
 		}
 	})
+}
+
+func assertLatestRoomEvent(
+	t *testing.T,
+	core *ChattoCore,
+	ctx context.Context,
+	kind RoomKind,
+	roomID string,
+	matches func(*corev1.Event) bool,
+) {
+	t.Helper()
+
+	result, err := core.GetRoomEvents(ctx, kind, roomID, 50, nil)
+	if err != nil {
+		t.Fatalf("GetRoomEvents: %v", err)
+	}
+	if len(result.Events) == 0 {
+		t.Fatal("expected at least one room event")
+	}
+
+	latest := result.Events[len(result.Events)-1]
+	if !matches(latest.Event) {
+		t.Fatalf("latest event = %T, want requested lifecycle event", latest.Event.GetEvent())
+	}
 }

@@ -1,0 +1,7 @@
+# Ignore everything by default.
+*
+
+# Backend source needed by Dockerfile.dev.
+!cli/
+cli/data/
+cli/bin/

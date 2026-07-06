@@ -14,6 +14,7 @@ import (
 	"github.com/nats-io/nats-server/v2/server"
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
+	"hmans.de/chatto/internal/testutil"
 )
 
 func TestSkipReason(t *testing.T) {
@@ -24,6 +25,7 @@ func TestSkipReason(t *testing.T) {
 		wantReason  string
 	}{
 		// Should be skipped (default: includeKeys=false)
+		{"KV_MEMORY_CACHE", false, true, "ephemeral (memory storage)"},
 		{"KV_USER_PRESENCE", false, true, "ephemeral (memory storage)"},
 		{"KV_CALL_STATE", false, true, "ephemeral (memory storage)"},
 		{"KV_ENCRYPTION_KEYS", false, true, "security (keys excluded from backups; pass --include-keys to override)"},
@@ -33,14 +35,17 @@ func TestSkipReason(t *testing.T) {
 
 		// With --include-keys, KV_ENCRYPTION_KEYS is backed up; others stay skipped.
 		{"KV_ENCRYPTION_KEYS", true, false, ""},
+		{"KV_MEMORY_CACHE", true, true, "ephemeral (memory storage)"},
 		{"KV_USER_PRESENCE", true, true, "ephemeral (memory storage)"},
 		{"KV_AUTH_TOKENS", true, true, "security (prevents token leakage)"},
 
-		// Should NOT be skipped regardless of includeKeys
+		// Should NOT be skipped regardless of includeKeys. OBJ_INSTANCE_ASSETS
+		// is legacy pre-0.1 data, but 0.0.x backups must preserve it so 0.1
+		// boot can copy those objects into SERVER_ASSETS.
 		{"KV_INSTANCE", false, false, ""},
 		{"KV_INSTANCE_RBAC", false, false, ""},
 		{"KV_INSTANCE_CONFIG", false, false, ""},
-		{"KV_NOTIFICATIONS", false, false, ""},
+		{"KV_RUNTIME_STATE", false, false, ""},
 		{"OBJ_INSTANCE_ASSETS", false, false, ""},
 		{"SPACE_abc123_EVENTS", false, false, ""},
 		{"KV_SPACE_abc123_CONFIG", false, false, ""},
@@ -182,37 +187,12 @@ func TestCreateAndExtractTarGz(t *testing.T) {
 func startTestNATS(t *testing.T) (*server.Server, *nats.Conn, jetstream.JetStream) {
 	t.Helper()
 
-	opts := &server.Options{
-		JetStream: true,
-		Port:      -1, // random port
-		StoreDir:  t.TempDir(),
-	}
-
-	ns, err := server.NewServer(opts)
-	if err != nil {
-		t.Fatalf("Failed to create NATS server: %v", err)
-	}
-
-	go ns.Start()
-	if !ns.ReadyForConnections(5 * time.Second) {
-		t.Fatal("NATS server not ready")
-	}
-
-	nc, err := nats.Connect(ns.ClientURL())
-	if err != nil {
-		t.Fatalf("Failed to connect to NATS: %v", err)
-	}
+	ns, nc := testutil.StartNATS(t)
 
 	js, err := jetstream.New(nc)
 	if err != nil {
 		t.Fatalf("Failed to create JetStream context: %v", err)
 	}
-
-	t.Cleanup(func() {
-		nc.Close()
-		ns.Shutdown()
-		ns.WaitForShutdown()
-	})
 
 	return ns, nc, js
 }
@@ -268,7 +248,7 @@ func TestBackupRestoreRoundTrip(t *testing.T) {
 
 	// Create a memory-only stream (should be skipped)
 	_, err = srcJS.CreateKeyValue(ctx, jetstream.KeyValueConfig{
-		Bucket:  "USER_PRESENCE",
+		Bucket:  "MEMORY_CACHE",
 		Storage: jetstream.MemoryStorage,
 	})
 	if err != nil {
@@ -313,15 +293,15 @@ func TestBackupRestoreRoundTrip(t *testing.T) {
 	}
 	manifest.Stats.TotalStreams = len(streamNames) - manifest.Stats.Skipped - manifest.Stats.Failed
 
-	// Verify the backup skipped USER_PRESENCE
-	var skippedPresence bool
+	// Verify the backup skipped MEMORY_CACHE
+	var skippedMemoryCache bool
 	for _, s := range manifest.Streams {
-		if s.Name == "KV_USER_PRESENCE" && s.Type == "skipped" {
-			skippedPresence = true
+		if s.Name == "KV_MEMORY_CACHE" && s.Type == "skipped" {
+			skippedMemoryCache = true
 		}
 	}
-	if !skippedPresence {
-		t.Error("Expected KV_USER_PRESENCE to be skipped in backup")
+	if !skippedMemoryCache {
+		t.Error("Expected KV_MEMORY_CACHE to be skipped in backup")
 	}
 
 	// Write manifest
@@ -447,10 +427,10 @@ func TestBackupRestoreRoundTrip(t *testing.T) {
 		}
 	}
 
-	// Verify USER_PRESENCE was NOT restored (it was skipped)
-	_, err = dstJS.KeyValue(ctx, "USER_PRESENCE")
+	// Verify MEMORY_CACHE was NOT restored (it was skipped)
+	_, err = dstJS.KeyValue(ctx, "MEMORY_CACHE")
 	if err == nil {
-		t.Error("USER_PRESENCE should not have been restored (was skipped during backup)")
+		t.Error("MEMORY_CACHE should not have been restored (was skipped during backup)")
 	}
 }
 

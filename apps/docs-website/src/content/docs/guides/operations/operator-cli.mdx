@@ -1,0 +1,69 @@
+---
+title: Operator CLI
+description: Local recovery and bootstrap commands with chatto operator.
+---
+
+`chatto operator` is Chatto's local, root-equivalent operations CLI. Use it for bootstrap, recovery, and scripted user administration when an in-app admin session is unavailable or not appropriate.
+
+Operator commands talk to the running Chatto process over a Unix socket. They do not open a second NATS/Core writer, and they do not use Chatto sessions, bearer tokens, cookies, RBAC roles, or CORS.
+
+## Enable the Operator API
+
+The Operator API is disabled by default:
+
+```toml
+[operator_api]
+enabled = true
+socket_path = "/tmp/chatto/operator.sock"
+```
+
+The socket mode is always `0600`. The socket parent directory must be owned by the Chatto process user and private to that user. Chatto refuses to start when an existing socket has a different mode or when the parent directory is group/other-accessible.
+
+## Run Commands
+
+On a host install, run commands as the same OS user that runs Chatto:
+
+```sh
+chatto operator user list
+chatto operator user list --search alice@example.com
+chatto operator user set-password USER_ID
+```
+
+In Docker Compose, exec into the running Chatto container as the `chatto` user:
+
+```sh
+docker compose exec -u chatto chatto /chatto operator user list
+docker compose exec -u chatto chatto /chatto operator user list --search alice@example.com
+docker compose exec -u chatto chatto /chatto operator user set-password USER_ID
+```
+
+Use `--operator-socket` or `CHATTO_OPERATOR_API_SOCKET_PATH` only when the socket path differs from config/defaults.
+
+## User IDs First
+
+Mutating user commands take a stable user ID as their first argument. Search first when you only know a login or verified email address:
+
+```sh
+chatto operator user list --search alice
+chatto operator user list --search alice@example.com
+```
+
+Then use the returned `USER_ID`:
+
+```sh
+chatto operator user get USER_ID
+chatto operator user update USER_ID --display-name "Alice"
+chatto operator user set-password USER_ID
+chatto operator user add-email USER_ID --email alice@example.com
+chatto operator user role add USER_ID moderator
+chatto operator user role remove USER_ID moderator
+chatto operator user delete USER_ID --yes
+```
+
+For password automation, prefer `--password-stdin` or `--password-file` over `--password` so secrets do not appear in shell history or process listings.
+
+## Security Notes
+
+Treat operator socket access like root access to Chatto. A process that can use the socket can create users, reset passwords, assign roles, and delete accounts.
+
+Do not mount or publish the socket unless the target container or host is fully trusted. If you need remote automation, run it through a trusted local agent on the Chatto host rather than exposing the socket over a network boundary.

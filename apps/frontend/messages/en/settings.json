@@ -1,0 +1,349 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "settings": {
+    "nav": {
+      "title": "Settings",
+      "back_to_server": "Back to Server",
+      "profile": "Profile",
+      "display": "Display",
+      "notifications": "Notifications",
+      "account": "Account"
+    },
+    "profile": {
+      "title": "Profile",
+      "subtitle": "Manage your profile information",
+      "avatar": {
+        "title": "Avatar",
+        "drop_title": "Drop image",
+        "drop_subtitle": "Upload as your avatar",
+        "alt": "Your avatar",
+        "description": "Upload an avatar. Images will be resized to 256x256 pixels.",
+        "uploading": "Uploading...",
+        "upload": "Upload Avatar",
+        "change": "Change Avatar",
+        "removing": "Removing...",
+        "remove": "Remove",
+        "invalid_type": "Please select an image file",
+        "too_large": "Image must be less than 10MB",
+        "uploaded": "Avatar uploaded successfully",
+        "upload_failed": "Failed to upload avatar",
+        "removed": "Avatar removed",
+        "delete_failed": "Failed to delete avatar"
+      },
+      "display_name": {
+        "label": "Display Name",
+        "placeholder": "Enter your display name",
+        "invalid": "Invalid display name"
+      },
+      "username": {
+        "label": "Username",
+        "placeholder": "Enter your username",
+        "invalid": "Invalid username",
+        "cooldown_error": "You can only change your username once every 30 days. Try again in {remaining}.",
+        "cooldown_notice": "You can change your username again in {remaining}.",
+        "confirm_title": "Change Username",
+        "confirm_prompt": "Are you sure you want to change your username to @{login}?",
+        "confirm_cooldown": "You can only change your username once every 30 days.",
+        "confirm_button": "Change Username"
+      },
+      "status": {
+        "title": "Custom Status",
+        "dialog_title": "Set a status",
+        "set_custom_status": "Set custom status",
+        "edit_button": "Edit status",
+        "emoji": {
+          "label": "Status emoji",
+          "placeholder": "🌿",
+          "choose": "Choose emoji"
+        },
+        "text": {
+          "label": "Status text",
+          "placeholder": "In focus mode"
+        },
+        "expires_at": {
+          "label": "Clear automatically at"
+        },
+        "expiry": {
+          "today": "Today",
+          "thirty_minutes": "30 minutes",
+          "one_hour": "1 hour",
+          "four_hours": "4 hours",
+          "tomorrow": "Tomorrow",
+          "never": "Don't clear",
+          "custom": "Custom",
+          "custom_date": "Custom clear time"
+        },
+        "suggestions": "Suggestions",
+        "template": {
+          "label": "Template",
+          "none": "No status",
+          "out_for_lunch": "Out for lunch",
+          "vacation": "Vacation",
+          "sick": "Sick",
+          "custom": "Custom"
+        },
+        "emoji_required": "Choose an emoji for your status",
+        "text_required": "Enter status text",
+        "saved": "Status updated",
+        "save_failed": "Failed to save status",
+        "cleared": "Status cleared",
+        "clear_failed": "Failed to clear status",
+        "save_button": "Save Status",
+        "clear_button": "Clear Status"
+      },
+      "presence": {
+        "button": "Presence: {status}",
+        "title": "Presence",
+        "auto": "Online",
+        "away": "Away",
+        "do_not_disturb": "Do Not Disturb",
+        "invisible": "Look offline"
+      },
+      "saved": "Profile updated successfully",
+      "save_failed": "Failed to save profile",
+      "save_button": "Save Changes"
+    },
+    "preferences": {
+      "title": "Display",
+      "subtitle": "Choose how Chatto appears",
+      "theme": {
+        "title": "Theme",
+        "system": {
+          "label": "System",
+          "description": "Follow your browser or OS appearance"
+        },
+        "light": {
+          "label": "Light",
+          "description": "Use the light interface on this browser"
+        },
+        "dark": {
+          "label": "Dark",
+          "description": "Use the dark interface on this browser"
+        }
+      },
+      "language": {
+        "title": "Language",
+        "description": "Choose the language for this browser.",
+        "english": "English",
+        "german": "Deutsch"
+      },
+      "timezone": {
+        "title": "Timezone",
+        "description": "Set your timezone to display timestamps in your local time. Leave empty to use your browser's default.",
+        "browser_default": "Browser default",
+        "clear": "Clear timezone (use browser default)",
+        "invalid": "Please select a valid timezone from the list",
+        "more_results": "{count} more - type to narrow results",
+        "current_time": "Current time there: {time}"
+      },
+      "time_format": {
+        "title": "Time Format",
+        "browser_default": {
+          "label": "Browser default",
+          "description": "Use your browser locale to determine 12h or 24h format"
+        },
+        "12h": {
+          "label": "12-hour",
+          "description": "e.g., 2:30 PM"
+        },
+        "24h": {
+          "label": "24-hour",
+          "description": "e.g., 14:30"
+        }
+      },
+      "save_button": "Save Display Settings",
+      "saved": "Display settings saved",
+      "save_failed": "Failed to save display settings"
+    },
+    "notifications": {
+      "title": "Notifications",
+      "subtitle": "Configure how you receive notifications",
+      "push": {
+        "title": "Push Notifications",
+        "not_configured": "Push notifications are not configured on this server",
+        "not_supported": "Push notifications are not supported in this browser.",
+        "ios_home_screen_title": "Add Chatto to your Home Screen",
+        "ios_home_screen_description": "On supported iOS/iPadOS versions, add Chatto to the Home Screen and open it from the app icon to enable push notifications.",
+        "blocked_title": "Push notifications blocked",
+        "blocked_description": "Enable notifications in your browser or OS settings, then open Chatto again.",
+        "enabled_title": "Push notifications enabled",
+        "enabled_description": "Chatto uses your browser or OS notification permission as the switch. To turn notifications off, disable them for this site in your browser or OS settings.",
+        "enable_title": "Enable push notifications",
+        "enable_description": "Get notified about new messages while Chatto is closed or running in the background.",
+        "enable_button": "Enable",
+        "enabling": "Enabling...",
+        "blocked_error": "Push notifications are blocked in your browser or OS settings.",
+        "enable_failed": "Failed to enable push notifications. Please try again.",
+        "enable_error": "An error occurred while enabling push notifications",
+        "remote_title": "Native push is unavailable for remote servers",
+        "remote_description": "This installed app can only register browser push notifications with the server that served it. In-app notification badges and sounds still work for this server while Chatto is open."
+      },
+      "push_prompt": {
+        "title": "Enable push notifications",
+        "message": "Get notified about DMs, mentions, and replies.",
+        "ios_home_screen_title": "Add Chatto to your Home Screen",
+        "ios_home_screen_message": "On supported iOS/iPadOS versions, open Chatto from its Home Screen icon before enabling push notifications.",
+        "enabled": "Push notifications enabled",
+        "blocked": "Push notifications are blocked in your browser or OS settings",
+        "enable_failed": "Failed to enable push notifications",
+        "enabling": "Enabling...",
+        "enable": "Enable",
+        "dismiss": "No thanks"
+      },
+      "levels": {
+        "loading": "Loading...",
+        "load_failed": "Failed to load notification preferences",
+        "server_updated": "Server notification level updated",
+        "room_updated": "Room notification level updated",
+        "update_failed": "Failed to update",
+        "server_title": "Server Notification Level",
+        "server_description": "Controls how you receive notifications for all rooms in this server. Individual rooms can override this setting.",
+        "room_title": "Room Overrides",
+        "room_description": "Override the server-level setting for individual rooms. Rooms set to \"Default\" inherit the server setting ({level}).",
+        "effective": "Effective: {level}",
+        "default": {
+          "label": "Default",
+          "description": "Use the inherited default"
+        },
+        "muted": {
+          "label": "Muted",
+          "description": "No notifications or unread markers"
+        },
+        "normal": {
+          "label": "Normal",
+          "description": "Unread markers + mentions, DMs, and thread replies"
+        },
+        "all_messages": {
+          "label": "All Messages",
+          "description": "Normal + notification for every new message"
+        }
+      },
+      "sound": {
+        "title": "Notification Sound",
+        "shape_title": "Sound Shape",
+        "preview": "Preview",
+        "reset": "Reset",
+        "off": "Off",
+        "volume": "Volume",
+        "tinny": "Tinny",
+        "muffled": "Muffled",
+        "echo": "Echo",
+        "reverb": "Reverb",
+        "crunch": "Crunch",
+        "category": {
+          "silent": "Silent",
+          "simple": "Simple",
+          "playful": "Playful",
+          "robots": "Robots",
+          "musical": "Musical",
+          "here_be_dragons": "Here Be Dragons"
+        },
+        "name": {
+          "silent": "Silent",
+          "ding": "Ding",
+          "chime_up": "Rising Chime",
+          "chime_down": "Falling Chime",
+          "pop": "Soft Pop",
+          "bubble": "Bubble",
+          "retro": "Retro Beep",
+          "coin": "Coin Collect",
+          "powerup": "Power Up",
+          "fanfare": "8-bit Fanfare",
+          "laser": "Laser Zap",
+          "robot": "Robot Voice",
+          "ufo": "UFO",
+          "beepboop": "Beep Boop",
+          "dialup": "Dial-Up",
+          "r2d2": "R2-D2",
+          "harp": "Harp Flourish",
+          "music_box": "Music Box",
+          "celesta": "Celesta Dream",
+          "synth": "Synth Chord",
+          "orchestra": "Orchestra Hit",
+          "la_cucaracha": "La Cucaracha",
+          "chaos": "Chaos",
+          "glitch": "Glitch",
+          "siren": "Alert Siren",
+          "dubstep": "Dubstep Drop",
+          "circus": "Circus"
+        }
+      }
+    },
+    "account": {
+      "title": "Account",
+      "subtitle": "Manage your account settings",
+      "info_title": "Account Information",
+      "username": "Username",
+      "display_name": "Display Name",
+      "danger_title": "Danger Zone",
+      "danger_description": "Deleting your account is permanent and cannot be undone. All your data will be removed.",
+      "delete_button": "Delete Account",
+      "delete_failed": "Failed to delete account",
+      "delete_request_failed": "Failed to request account deletion",
+      "password": {
+        "title": "Password",
+        "add_description": "Add a password so you can sign in directly and disconnect your last SSO provider.",
+        "change_description": "Change the password used for direct sign-in.",
+        "current_label": "Current Password",
+        "current_required": "Enter your current password.",
+        "add_button": "Add Password",
+        "change_button": "Change Password",
+        "saving": "Saving password...",
+        "saved": "Password added",
+        "changed": "Password changed",
+        "save_failed": "Failed to save password",
+        "fresh_auth_required": "Sign in again before adding a password.",
+        "already_set": "This account already has a password."
+      },
+      "sso": {
+        "title": "Single Sign-On",
+        "loading": "Loading sign-on providers...",
+        "load_failed": "Failed to load sign-on providers",
+        "none_configured": "No external sign-on providers are configured.",
+        "linked": "Linked",
+        "not_linked": "Not linked",
+        "link_button": "Link",
+        "link_failed": "Failed to link sign-on provider",
+        "fresh_auth_required": "Sign in again before linking another provider.",
+        "provider_unconfigured": "Provider no longer configured",
+        "disconnect_button": "Disconnect",
+        "disconnecting": "Disconnecting...",
+        "disconnect_failed": "Failed to disconnect sign-on provider",
+        "disconnect_last_method": "Add a password or another sign-in method before disconnecting this provider.",
+        "disconnect_fresh_auth_required": "Sign in again before disconnecting this provider.",
+        "disconnect_modal": {
+          "title": "Disconnect provider",
+          "body": "Disconnect {provider} from this account?",
+          "action": "Disconnect"
+        },
+        "disconnect_blocked_modal": {
+          "title": "Provider cannot be disconnected",
+          "body": "{provider} is your only sign-in method. Add a password or link another provider first."
+        },
+        "fresh_auth_modal": {
+          "title": "Confirm password",
+          "body": "Enter your current password before linking {provider}.",
+          "action": "Continue"
+        },
+        "disconnect_fresh_auth_modal": {
+          "title": "Confirm password",
+          "body": "Enter your current password before disconnecting {provider}.",
+          "action": "Disconnect"
+        }
+      },
+      "delete_modal": {
+        "title": "Delete Account",
+        "warning_label": "Warning:",
+        "warning_text": "This action is permanent and cannot be undone.",
+        "intro": "This will permanently delete your account and:",
+        "remove_from_rooms": "Remove you from all spaces and rooms",
+        "delete_messages": "Delete all your messages (content will be unrecoverable)",
+        "delete_profile": "Delete your profile, avatar, and associated data",
+        "confirm_label": "Type DELETE to confirm",
+        "confirm_placeholder": "DELETE",
+        "cancel": "Cancel",
+        "deleting": "Deleting..."
+      }
+    }
+  }
+}

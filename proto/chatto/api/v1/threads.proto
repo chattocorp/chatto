@@ -1,0 +1,112 @@
+syntax = "proto3";
+
+package chatto.api.v1;
+
+import "buf/validate/validate.proto";
+import "chatto/api/v1/message_types.proto";
+import "chatto/api/v1/pagination.proto";
+import "chatto/api/v1/read_state.proto";
+import "chatto/api/v1/room_timeline.proto";
+import "chatto/api/v1/rooms.proto";
+
+// Current follow state for one thread and viewer.
+message ThreadFollowState {
+  // Room containing the thread.
+  string room_id = 1;
+  // Event ID of the root message for the thread.
+  string thread_root_event_id = 2;
+  // True when the current user follows the thread.
+  bool following = 3;
+}
+
+// Request to follow one message thread.
+message FollowThreadRequest {
+  // Required. Room containing the thread.
+  string room_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Required. Event ID of the root message for the thread.
+  string thread_root_event_id = 2 [(buf.validate.field).string.min_len = 1];
+}
+
+// Result of following a thread.
+message FollowThreadResponse {
+  // True when the current user follows the thread after the operation.
+  bool following = 1;
+  // Current follow state after the operation.
+  ThreadFollowState state = 2;
+}
+
+// Request to stop following one message thread.
+message UnfollowThreadRequest {
+  // Required. Room containing the thread.
+  string room_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Required. Event ID of the root message for the thread.
+  string thread_root_event_id = 2 [(buf.validate.field).string.min_len = 1];
+}
+
+// Result of unfollowing a thread.
+message UnfollowThreadResponse {
+  // True when the current user follows the thread after the operation.
+  bool following = 1;
+  // Current follow state after the operation.
+  ThreadFollowState state = 2;
+}
+
+// One followed thread for the current user.
+message FollowedThread {
+  reserved 1 to 3, 5 to 7;
+  reserved "room_id", "room_name", "thread_root_event_id", "reply_count", "last_reply_at", "has_unread";
+
+  // Renderable root message, when the root is still visible.
+  Message root_message = 4;
+  // Room containing the thread.
+  RoomSummary room = 8;
+  // Aggregated thread state.
+  ThreadSummary thread = 9;
+}
+
+// Request for a page of followed threads for the current user.
+message ListFollowedThreadsRequest {
+  reserved 1, 2;
+  reserved "limit", "offset";
+
+  // Page request. Defaults to 20 results when absent or limit is zero.
+  PageRequest page = 3;
+}
+
+// Response containing one followed-thread page.
+message ListFollowedThreadsResponse {
+  reserved 2, 3;
+  reserved "total_count", "has_more";
+
+  // Followed threads in newest-activity-first order.
+  repeated FollowedThread threads = 1;
+  // Hot-path related entities needed to render this feed page without
+  // per-thread hydration.
+  RoomTimelineIncludes includes = 4;
+  // Page metadata.
+  PageInfo page = 5;
+}
+
+// Manages thread follow state for the current user.
+service ThreadService {
+  // Returns followed threads for the current user, including enough root-message
+  // data for clients to render the list without extra per-field fetches.
+  rpc ListFollowedThreads(ListFollowedThreadsRequest) returns (ListFollowedThreadsResponse);
+  // Follows a thread for the current user. Followed threads can be surfaced in
+  // clients and can participate in thread notification behavior.
+  rpc FollowThread(FollowThreadRequest) returns (FollowThreadResponse);
+  // Stops following a thread for the current user. The response reports the
+  // resulting follow state so clients can update local UI immediately.
+  rpc UnfollowThread(UnfollowThreadRequest) returns (UnfollowThreadResponse);
+  // Returns one page of events in a message thread. Initial pages include the
+  // thread root message; cursor pages return replies in the requested direction.
+  rpc GetThreadEvents(GetThreadEventsRequest) returns (GetThreadEventsResponse);
+  // Returns a thread timeline window centered around a specific event. Use this
+  // to open a reply from a notification or search result in context. Returns
+  // NOT_FOUND when the thread root or anchor event is missing or hidden and
+  // PERMISSION_DENIED when the room is inaccessible.
+  rpc GetThreadEventsAround(GetThreadEventsAroundRequest) returns (GetThreadEventsAroundResponse);
+  // Marks a thread timeline as read through the supplied event without changing
+  // the room-level read marker.
+  rpc MarkThreadAsRead(MarkThreadAsReadRequest) returns (MarkThreadAsReadResponse);
+}

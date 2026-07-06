@@ -1,0 +1,76 @@
+---
+title: ServerService
+description: Authenticated server MOTD and runtime configuration RPCs.
+editUrl: false
+---
+
+{/* Generated from proto/chatto/{auth,discovery,api,admin,realtime}/v1/*.proto. Do not edit directly. */}
+
+Chatto exposes this service below `/api/connect`.
+
+
+
+Shared message and enum definitions are documented in [Shared Types And Enums](/reference/connectrpc-api/types/).
+
+
+
+<a id="chatto-api-v1-ServerService"></a>
+
+## ServerService
+
+Provides authenticated server-wide reads.
+
+<a id="chatto-api-v1-ServerService-GetMotd"></a>
+
+### GetMotd
+
+Returns the authenticated message of the day.
+
+```http
+POST /api/connect/chatto.api.v1.ServerService/GetMotd
+```
+
+<a id="chatto-api-v1-GetMotdRequest"></a>
+
+#### Input: GetMotdRequest
+
+Request for the authenticated message of the day.
+
+
+<a id="chatto-api-v1-GetMotdResponse"></a>
+
+#### Result: GetMotdResponse
+
+Authenticated message of the day response.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `motd` | `optional string` | Optional message of the day shown to authenticated members. |
+
+
+<a id="chatto-api-v1-ServerService-GetRuntimeConfig"></a>
+
+### GetRuntimeConfig
+
+Returns authenticated runtime settings used by clients.
+
+```http
+POST /api/connect/chatto.api.v1.ServerService/GetRuntimeConfig
+```
+
+<a id="chatto-api-v1-GetRuntimeConfigRequest"></a>
+
+#### Input: GetRuntimeConfigRequest
+
+Request for authenticated server runtime configuration.
+
+
+<a id="chatto-api-v1-GetRuntimeConfigResponse"></a>
+
+#### Result: GetRuntimeConfigResponse
+
+Authenticated server runtime configuration response.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `runtime` | [`ServerRuntimeConfig`](/reference/connectrpc-api/types/#chatto-api-v1-ServerRuntimeConfig) | Authenticated runtime settings used by clients. |

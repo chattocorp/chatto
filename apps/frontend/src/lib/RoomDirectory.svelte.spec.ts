@@ -1,0 +1,266 @@
+import { afterEach, describe, it, expect, vi } from 'vitest';
+import { flushSync } from 'svelte';
+import { render } from 'vitest-browser-svelte';
+import Harness from './RoomDirectoryTestHarness.svelte';
+import {
+  RoomDirectoryStore,
+  type DirectoryRoom
+} from '$lib/state/server/roomDirectory.svelte';
+import type { RoomsListItem } from '$lib/state/server/rooms.svelte';
+import { RoomType } from '$lib/render/types';
+
+const room = (id: string, overrides: Partial<DirectoryRoom> = {}): DirectoryRoom => ({
+  id,
+  name: overrides.name ?? id,
+  description: overrides.description ?? null,
+  archived: overrides.archived ?? false,
+  isUniversal: overrides.isUniversal ?? false,
+  viewerCanJoinRoom: overrides.viewerCanJoinRoom ?? true
+});
+
+const listedRoom = (id: string, overrides: Partial<RoomsListItem> = {}): RoomsListItem => ({
+  id,
+  name: overrides.name ?? id,
+  type: overrides.type ?? RoomType.Channel,
+  isUniversal: overrides.isUniversal ?? false,
+  hasUnread: overrides.hasUnread ?? false,
+  viewerIsMember: overrides.viewerIsMember ?? true,
+  viewerCanJoinRoom: overrides.viewerCanJoinRoom ?? true,
+  viewerNotificationCount: overrides.viewerNotificationCount ?? 0,
+  members: overrides.members ?? []
+});
+
+const joined = (id: string): RoomsListItem => listedRoom(id, { viewerIsMember: true });
+
+function findButton(container: Element, label: string): HTMLButtonElement | undefined {
+  return [...container.querySelectorAll('button')].find(
+    (b) => b.textContent?.trim() === label
+  ) as HTMLButtonElement | undefined;
+}
+
+describe('RoomDirectory', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('renders a row per non-archived room with a Join button when not joined', () => {
+    const { container } = render(Harness, {
+      props: {
+        initialRooms: [room('r1'), room('r2', { archived: true }), room('r3')],
+        joinedRooms: [],
+        roomGroups: null
+      }
+    });
+    flushSync();
+
+    const items = container.querySelectorAll('li');
+    // r2 is archived → filtered out of `visibleRooms`. r1 and r3 render.
+    expect(items.length).toBe(2);
+
+    const joinButtons = [...container.querySelectorAll('button')].filter(
+      (b) => b.textContent?.trim() === 'Join'
+    );
+    expect(joinButtons.length).toBe(2);
+  });
+
+  it('renders "Joined" for rooms in the joined membership set', () => {
+    const { container } = render(Harness, {
+      props: {
+        initialRooms: [room('r1'), room('r2')],
+        joinedRooms: [joined('r1')],
+        roomGroups: null
+      }
+    });
+    flushSync();
+
+    // Each row has at most one button (the join/joined/leave control).
+    // For the joined row, both "Joined" and "Leave" labels live in the
+    // button as sibling spans (hover swaps them via group-hover classes),
+    // so we look for either via textContent.
+    expect(container.textContent).toContain('Joined');
+    expect(container.textContent).toContain('Join');
+  });
+
+  it('renders universal joined rooms without a leave action', () => {
+    const { container } = render(Harness, {
+      props: {
+        initialRooms: [room('general', { isUniversal: true })],
+        joinedRooms: [joined('general')],
+        roomGroups: null
+      }
+    });
+    flushSync();
+
+    expect(container.textContent).toContain('Universal');
+    expect(container.textContent?.match(/Universal/g)?.length).toBe(1);
+    expect(container.textContent).not.toContain('Joined');
+    expect(container.textContent).not.toContain('Leave');
+    expect(findButton(container, 'Universal')).toBeUndefined();
+  });
+
+  it('does not treat listable non-member rooms as joined', () => {
+    const { container } = render(Harness, {
+      props: {
+        initialRooms: [room('moar-stuff')],
+        joinedRooms: [listedRoom('moar-stuff', { viewerIsMember: false })],
+        roomGroups: null
+      }
+    });
+    flushSync();
+
+    expect(container.textContent).not.toContain('Joined');
+    expect(findButton(container, 'Join')).toBeDefined();
+  });
+
+  it('links joined rooms to their room route and leaves non-joined rooms as non-links', () => {
+    const { container } = render(Harness, {
+      props: {
+        initialRooms: [room('r1'), room('r2')],
+        joinedRooms: [joined('r1')],
+        roomGroups: null
+      }
+    });
+    flushSync();
+
+    const items = [...container.querySelectorAll('li')];
+    const joinedItem = items.find((li) => li.textContent?.includes('r1'))!;
+    const unjoinedItem = items.find((li) => li.textContent?.includes('r2'))!;
+
+    // Joined row: name is rendered inside an <a> pointing at the room route.
+    const link = joinedItem.querySelector('a');
+    expect(link).not.toBeNull();
+    expect(link!.getAttribute('href')).toBe('/chat/-/r1');
+    expect(link!.textContent).toContain('r1');
+
+    // Non-joined row: no link wrapping the label.
+    expect(unjoinedItem.querySelector('a')).toBeNull();
+  });
+
+  it('renders "Restricted" for rooms the viewer cannot join', () => {
+    const { container } = render(Harness, {
+      props: {
+        initialRooms: [room('locked', { viewerCanJoinRoom: false })],
+        joinedRooms: [],
+        roomGroups: null
+      }
+    });
+    flushSync();
+
+    expect(container.textContent).toContain('Restricted');
+  });
+
+  it('shows the empty state when there are no visible rooms', () => {
+    const { container } = render(Harness, {
+      props: {
+        initialRooms: [],
+        joinedRooms: [],
+        roomGroups: null
+      }
+    });
+    flushSync();
+
+    expect(container.textContent).toContain('No rooms in this server yet');
+  });
+
+  it('groups rooms by section when a layout is provided', () => {
+    const { container } = render(Harness, {
+      props: {
+        initialRooms: [room('r1', { name: 'general' }), room('r2', { name: 'random' })],
+        joinedRooms: [],
+        roomGroups: [{ id: 'sec', name: 'Important', roomIds: ['r1'] }]
+      }
+    });
+    flushSync();
+
+    // The section header is rendered.
+    expect(container.textContent).toContain('Important');
+  });
+
+  // -- "Join all" group action -----------------------------------------------
+
+  it('renders "Join all" on a group card with at least one joinable, non-joined room', () => {
+    const { container } = render(Harness, {
+      props: {
+        initialRooms: [room('a'), room('b')],
+        joinedRooms: [],
+        roomGroups: [{ id: 'g1', name: 'Group One', roomIds: ['a', 'b'] }]
+      }
+    });
+    flushSync();
+    expect(findButton(container, 'Join all')).toBeDefined();
+  });
+
+  it('hides "Join all" when every room in the group is already joined', () => {
+    const { container } = render(Harness, {
+      props: {
+        initialRooms: [room('a'), room('b')],
+        joinedRooms: [joined('a'), joined('b')],
+        roomGroups: [{ id: 'g1', name: 'All Joined', roomIds: ['a', 'b'] }]
+      }
+    });
+    flushSync();
+    expect(findButton(container, 'Join all')).toBeUndefined();
+  });
+
+  it('hides "Join all" when no room in the group is joinable', () => {
+    const { container } = render(Harness, {
+      props: {
+        initialRooms: [
+          room('a', { viewerCanJoinRoom: false }),
+          room('b', { viewerCanJoinRoom: false })
+        ],
+        joinedRooms: [],
+        roomGroups: [{ id: 'g1', name: 'Restricted Only', roomIds: ['a', 'b'] }]
+      }
+    });
+    flushSync();
+    expect(findButton(container, 'Join all')).toBeUndefined();
+  });
+
+  it('clicking "Join all" calls directory.joinGroup with the group ID', async () => {
+    // Spy on the store prototype so the harness's own instance picks it up.
+    const spy = vi
+      .spyOn(RoomDirectoryStore.prototype, 'joinGroup')
+      .mockResolvedValue({ ok: true, joinedRoomIds: ['a'] });
+
+    const { container } = render(Harness, {
+      props: {
+        initialRooms: [room('a'), room('b')],
+        joinedRooms: [joined('b')],
+        roomGroups: [{ id: 'g1', name: 'Mixed', roomIds: ['a', 'b'] }]
+      }
+    });
+    flushSync();
+
+    const btn = findButton(container, 'Join all');
+    expect(btn).toBeDefined();
+    btn!.click();
+
+    expect(spy).toHaveBeenCalledWith('g1');
+  });
+
+  // Filter is bound via bind:value; this confirms the search-match derivation
+  // wires through to the rendered list.
+  it('filters by search query (case-insensitive, matches name or description)', async () => {
+    const { container } = render(Harness, {
+      props: {
+        initialRooms: [
+          room('r1', { name: 'general' }),
+          room('r2', { name: 'random', description: 'off-topic chat' })
+        ],
+        joinedRooms: [],
+        roomGroups: null
+      }
+    });
+    flushSync();
+
+    const input = container.querySelector('input[type="text"]') as HTMLInputElement;
+    input.value = 'off-topic';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    flushSync();
+
+    const items = container.querySelectorAll('li');
+    expect(items.length).toBe(1);
+    expect(items[0].textContent).toContain('random');
+  });
+});

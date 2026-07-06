@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en" dir="ltr" style="color-scheme: light">
+  <head>
+    <meta charset="utf-8" />
+    <script>
+      // Resolve and apply shell preferences as early as possible — before CSS
+      // loads — so:
+      //   1. The active token set is in place by first paint (no FOUC).
+      //   2. The client-side Display setting works before SvelteKit hydrates.
+      (() => {
+        const root = document.documentElement;
+        const mq = window.matchMedia('(prefers-color-scheme: dark)');
+
+        function storedPreferenceTheme() {
+          try {
+            const raw = localStorage.getItem('chatto:preferences');
+            if (!raw) return null;
+            const parsed = JSON.parse(raw);
+            const theme = parsed && typeof parsed === 'object' ? parsed.displayTheme : null;
+            return theme === 'system' || theme === 'light' || theme === 'dark' ? theme : null;
+          } catch {
+            return null;
+          }
+        }
+
+        function legacyTheme() {
+          try {
+            const theme = localStorage.getItem('theme');
+            return theme === 'light' || theme === 'dark' ? theme : null;
+          } catch {
+            return null;
+          }
+        }
+
+        function applyTheme() {
+          const stored = storedPreferenceTheme() ?? legacyTheme() ?? 'system';
+          const effective =
+            stored === 'light' || stored === 'dark' ? stored : mq.matches ? 'dark' : 'light';
+          root.dataset.theme = effective;
+          // Pre-CSS background hint, mirrors --color-background.
+          root.style.backgroundColor = effective === 'dark' ? '#171717' : '#f3f4f6';
+          root.style.colorScheme = effective;
+        }
+
+        function applyLocale() {
+          const locales = ['en', 'de'];
+          const stored = localStorage.getItem('PARAGLIDE_LOCALE');
+          const browserLanguages =
+            typeof navigator === 'undefined' ? [] : navigator.languages || [navigator.language];
+          const requested = stored ? [stored] : browserLanguages;
+          const locale =
+            requested
+              .filter(Boolean)
+              .map((value) => String(value).toLowerCase())
+              .map((value) => locales.find((locale) => value === locale || value.startsWith(`${locale}-`)))
+              .find(Boolean) ?? 'en';
+
+          root.lang = locale;
+          root.dir = 'ltr';
+        }
+
+        applyTheme();
+        applyLocale();
+
+        mq.addEventListener('change', () => {
+          if ((storedPreferenceTheme() ?? legacyTheme() ?? 'system') === 'system') applyTheme();
+        });
+      })();
+    </script>
+    <!-- OG_META_PLACEHOLDER -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content"
+    />
+    <meta name="description" content="Real-time chat application" />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#e5e7eb" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#262626" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" href="/icons/favicon.png" type="image/png" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    %sveltekit.head%
+  </head>
+  <body>
+    <div style="display: contents">%sveltekit.body%</div>
+  </body>
+</html>

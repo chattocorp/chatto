@@ -2,6 +2,8 @@
 
 **Date:** 2026-03-01
 
+**Status:** Superseded by [ADR-040](ADR-040-permission-only-rbac-with-owner-override.md).
+
 ## Context
 
 Chatto needs a permission system that supports per-room overrides (e.g., an announcements channel where only moderators can post) without requiring special-case code for each scenario. Users can have multiple roles, and roles can explicitly grant or deny permissions.
@@ -14,9 +16,9 @@ Common resolution strategies:
 
 ## Decision
 
-Use hierarchy-wins resolution. Roles have a `position` field (lower number = higher rank). When checking a permission for a user:
+Use hierarchy-wins resolution. Roles have a `position` field (higher number = higher rank). When checking a permission for a user:
 
-1. Get the user's roles, sorted by position (ascending = highest rank first)
+1. Get the user's roles, sorted by position (descending = highest rank first)
 2. For each role, check if it has an explicit grant or deny for the permission
 3. The first explicit decision found wins
 4. If no role has an opinion, the permission is denied (default-deny)
@@ -28,4 +30,4 @@ Use hierarchy-wins resolution. Roles have a `position` field (lower number = hig
 - **Predictable resolution**: Given a user's roles and the role hierarchy, the permission outcome is deterministic and explainable.
 - **Testing requires rank awareness**: Denying a permission on the `everyone` role does NOT block users with higher-rank roles. Tests must deny on the user's actual highest-rank role to verify denial.
 - **Role ordering matters**: Changing a role's position changes permission outcomes. The position field is part of the security model, not just a display preference.
-- **Config-owner is just an `owner` assignment**: Config-designated owners (configured via `owners.emails`) used to bypass role-hierarchy resolution as a special case. After Phase 5 of #330 they're materialised as a real `owner` role assignment — at email-verification time for new accounts, and via `chatto reset rbac` for existing deployments — so they flow through the same hierarchy walk as everyone else. No special case in the resolver.
+- **Config-owner is just an `owner` assignment**: Config-designated owners (configured via `owners.emails`) used to bypass role-hierarchy resolution as a special case. After Phase 5 of #330 they're materialised as a real `owner` role assignment — at email-verification time for new accounts and at server boot for already-verified matching users after config changes — so they flow through the same hierarchy walk as everyone else. No special case in the resolver.

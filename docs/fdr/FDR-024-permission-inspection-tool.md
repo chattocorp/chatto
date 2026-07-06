@@ -1,7 +1,7 @@
 # FDR-024: Permission Inspection Tool
 
 **Status:** Active
-**Last reviewed:** 2026-05-19 (scope label rename to SERVER/GROUP/ROOM)
+**Last reviewed:** 2026-06-15
 
 ## Overview
 
@@ -10,6 +10,7 @@ Admins can inspect why a specific user has (or doesn't have) a permission, at se
 ## Behavior
 
 - The admin UI exposes a "Permission Explainer" tool: pick a user, optionally pick a room, pick a permission, and see the full resolution trace.
+- The ConnectRPC permission-inspection API keeps the inspector in the RBAC tooling namespace while preserving its admin/tooling-only authorization gate.
 - The trace lists every (subject, scope) entry the resolver evaluated. The first entry that produced an allow or deny is marked as the winning decision; subsequent entries show what the resolver *would* have looked at next if the winning entry hadn't fired.
 - Each trace entry shows: the subject (a role name, or "user" for user-level overrides), the scope (server / room group / room / user), the decided state (allow / deny / none), and whether this is the entry that won.
 - If no role or override produced a decision, the resulting state is "none" — which the API boundary treats as deny by default.
@@ -24,7 +25,7 @@ Admins can inspect why a specific user has (or doesn't have) a permission, at se
 
 ### 2. Admin-only, no self-inspection
 
-**Decision:** The query requires `admin.access` (and `role.manage` at the room/group scope when inspecting per-room permissions). Regular users can't run the inspector even against themselves.
+**Decision:** Role inspection requires RBAC-editor authority (`role.manage`). User-level inspection requires `user.manage-permissions`. Regular users can't run the inspector unless they have one of those admin capabilities.
 **Why:** The trace would leak which roles a user holds and the structure of the permission tree. Useful information to a malicious actor probing what they're up against. Restricting to admins keeps that surface inside the trust boundary.
 **Tradeoff:** Users who legitimately wonder "why can't I post here?" have to ask an admin. Acceptable; the failure mode is rare and the leak is real.
 
@@ -44,14 +45,13 @@ Admins can inspect why a specific user has (or doesn't have) a permission, at se
 
 **Decision:** Trace entries label scopes as `SERVER`, `GROUP`, and `ROOM`, mirroring what the admin UI displays and the `PermissionScope` constants used by the resolver.
 **Why:** Operators reading the trace shouldn't have to translate between internal vocabulary (e.g., "phase 2 of the resolver", "object ID 'any'") and what they see in the admin UI. The labels match the buttons.
-**Tradeoff:** None — the GraphQL `PermissionLevel` enum, the Go `Level*` constants, and the inspector UI use the same three tokens.
+**Tradeoff:** None — the API enum, the Go `Level*` constants, and the inspector UI use the same three tokens.
 
 ## Permissions
 
-- `admin.access` — server-scope inspection.
-- `admin.access` or `role.manage` — room-scope inspection.
+- `role.manage` — server-scope and room-scope inspection.
 
 ## Related
 
-- **ADRs:** ADR-005 (hierarchy-wins RBAC), ADR-031 (room-group-centric ACL)
+- **ADRs:** ADR-031 (room-group-centric ACL), ADR-040 (permission-only RBAC with owner override)
 - **FDRs:** FDR-001 (Roles & Permissions), FDR-017 (Room Groups & Sidebar Layout), FDR-021 (Admin Dashboard & System Monitoring)

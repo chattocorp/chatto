@@ -1,0 +1,268 @@
+---
+title: Security & Privacy
+description: An overview of Chatto's authentication, authorization, encryption, and privacy model.
+---
+
+import { Aside, LinkCard } from "@astrojs/starlight/components";
+
+This page describes the security and privacy features built into Chatto today.
+
+<Aside type="caution">
+  Chatto is alpha software. The model described here reflects the current implementation and may change. See [the project README](https://github.com/chattocorp/chatto) for the latest stability statement.
+</Aside>
+
+## Authentication
+
+### Password storage
+
+Passwords are hashed with **bcrypt** at the library default cost. Chatto enforces a minimum length of 8 characters and a maximum length of 128 bytes so bcrypt never silently truncates user input.
+
+Password hash changes are durable user events in the `EVT` stream and are read through the user projection. Raw passwords are never written to storage, audit events, logs, or live subscriptions. Password changes and resets also advance the user's auth generation, so older first-party session credentials, bearer tokens, and OAuth authorization codes are rejected.
+
+Login comparison runs bcrypt against a dummy hash for unknown users and OAuth-only users so the response time is identical regardless of whether the account exists. This blocks the most basic form of user enumeration via timing.
+
+### Sessions and tokens
+
+Chatto issues **opaque bearer tokens**, not JWTs. Bearer-token and same-origin cookie-session handles are stored as typed runtime credentials in `RUNTIME_STATE` under HMAC-derived `session.{hmac}` keys, with a sliding TTL: every successful validation re-puts the entry, extending its expiry. Revocation is a single KV delete -- there is no signed-but-still-valid window to worry about. Deprecated legacy cookie-session records remain readable for now so upgrades do not sign out existing browser sessions.
+
+Browser sessions use signed cookies with the following options:
+
+| Option     | Value                                   |
+| ---------- | --------------------------------------- |
+| `HttpOnly` | `true`                                  |
+| `SameSite` | `Lax`                                   |
+| `Secure`   | `true` when `webserver.url` is `https://` |
+| `Path`     | `/`                                     |
+| `MaxAge`   | 90 days                                 |
+
+Session cookies are always signed with `webserver.cookie_signing_secret`. They are additionally **encrypted** if `webserver.cookie_encryption_secret` is set. When the encryption secret is missing, Chatto logs a startup warning — running `chatto init` on a fresh server generates both secrets automatically.
+
+New browser session cookies store only an opaque runtime credential handle. The user ID, source, auth generation, and fresh-auth metadata live in the server-side `session.{hmac}` runtime credential record.
+
+### Email verification
+
+Registration sends a six-digit verification code with a 15-minute TTL. An email address must be verified before it can be used for password reset or for matching against the `owners.emails` config (see [Authorization](#authorization) below). Email lookup is case-insensitive — addresses are normalized and indexed by SHA-256 hash for the lookup bucket.
+
+The registration endpoint always returns `200 OK` regardless of whether the email is already claimed, so it cannot be used as an oracle to enumerate registered addresses.
+
+### Password reset
+
+Reset tokens have a 1-hour TTL and expire automatically via NATS KV TTL — no scheduled cleanup is required. A reset request for an unknown address returns the same response as a successful one.
+
+### Chatto frontend OAuth redirects
+
+When a Chatto frontend connects to another Chatto server, it uses `/oauth/authorize` with PKCE to mint a bearer token for that remote server. The remote server only redirects authorization codes back to trusted frontend origins.
+
+For a known hosted frontend, list the exact callback origin:
+
+```toml
+[webserver]
+oauth_redirect_origins = ["https://app.example.com"]
+```
+
+You can also allow any valid HTTPS Chatto frontend to connect:
+
+```toml
+[webserver]
+oauth_redirect_origins = ["*"]
+```
+
+Use `*` only when you intentionally want open connectivity. It allows any HTTPS origin to start a Chatto OAuth authorization request. PKCE prevents passive interception of the code, and Chatto still shows the user a consent screen for each redirect origin, but a malicious site can initiate its own flow and ask a logged-in user to approve it. If the user approves, that site receives an authorization code it can exchange for a bearer token.
+
+<Aside type="caution">
+  `webserver.allowed_origins = ["*"]` is different. That wildcard only affects CORS and WebSocket access; it does not trust OAuth redirect callbacks. Use `webserver.oauth_redirect_origins` for OAuth callback trust.
+</Aside>
+
+## Authorization
+
+Chatto enforces access control at the **API boundary**: ConnectRPC services require authentication by default unless they are explicitly public, and public operation models check permissions before touching domain state.
+
+Chatto uses a role-based permission system with four built-in roles (everyone / moderator / admin / owner), custom roles, room-specific overrides, and per-user grants and denies. The full model is covered on its own page:
+
+<LinkCard
+  title="Permissions & Roles"
+  href="/guides/planning/permissions/"
+  description="Roles, explicit grants and denies, owner recovery, common patterns, and how Chatto resolves any given permission check."
+/>
+
+### Initial ownership
+
+The first owner is designated via `owners.emails` in `chatto.toml`. The match runs against **verified** emails only, so claiming an address you can't receive mail at won't grant you ownership. When a matching email is verified, the user is auto-promoted to the owner role — no restart required.
+
+Owners are effective-owner overrides: they are allowed for every normal RBAC permission, and their permissions are virtual rather than stored as editable grants. Roles still have display order, but Chatto does not use role position as an authorization rank. See the [permissions guide](/guides/planning/permissions/) for the full resolution model.
+
+### The privacy boundary
+
+Owners and admins can see operational metadata but **cannot** see user content:
+
+| Owners and admins **can** see        | Owners and admins **cannot** see |
+| ------------------------------------ | -------------------------------- |
+| User list (login, email, avatar)     | Message content                  |
+| Room names, member counts            | Direct messages                  |
+| NATS / JetStream metrics             | File attachments                 |
+| System configuration                 | User passwords                   |
+
+This boundary is intentional and enforced in the admin API — admin operations do not fetch message bodies. If your community needs message moderation, that has to be designed as a separate, auditable feature; "log in as admin and read DMs" is not supported.
+
+## Encryption
+
+### Message bodies at rest
+
+Message bodies are encrypted before being written to JetStream. New messages use a compact versioned envelope:
+
+- Chatto generates a per-user, purpose-scoped message-body DEK epoch, stores the wrapped key in app-owned `RUNTIME_STATE` storage, and records only the content-key ref and wrapping metadata in the user event stream as a `UserDEKGeneratedEvent`.
+- The body is encrypted with **XChaCha20-Poly1305** using the author's active message-body DEK epoch.
+- Each DEK is wrapped through Chatto's KMS boundary, stored by the application, and addressed by an opaque content-key ref.
+- The encrypted body is authenticated with its event context — event ID, room ID, author ID, message-body DEK epoch, and message-body event type — as Additional Authenticated Data (AAD).
+
+The built-in KMS runs in-process and stores KEKs as protobuf `UserKeyEncryptionKey` records in a dedicated `ENCRYPTION_KEYS` NATS KV bucket under opaque `kek.*` references, with read compatibility for older raw 32-byte `kek.*` records. App-owned protobuf `UserDataEncryptionKey` wrapped DEK records live in `RUNTIME_STATE` under opaque `dek.*` content-key references. Raw `user.*` records are legacy direct-key compatibility only. DEK events record their purpose, epoch, content-key ref, wrapping key ref, and wrapping metadata, which keeps Chatto's durable event shape close to external KMS systems such as Vault, AWS KMS, or HSM-backed providers without making immutable EVT history or the KMS API a permanent DEK registry. Authentication tags are verified on every read; tampered ciphertext or ciphertext copied into the wrong event context is rejected with `ErrDecryptionFailed`.
+
+This means an attacker who exfiltrates the JetStream data files alone cannot recover message text without also obtaining the KMS KEKs from `ENCRYPTION_KEYS` or an external KMS.
+
+Older message bodies encrypted directly with the user's per-user ChaCha20-Poly1305 key remain readable.
+
+Durable user events also encrypt login, display name, and verified email fields with a separate user-PII DEK epoch. Legacy KV user records are imported by emitting encrypted user events, and projections decrypt those fields while the key exists to derive the in-memory login/email indexes used by the API.
+
+<Aside type="note">
+  Authorized live events and API responses still contain profile fields in plaintext because clients need to render them. The durable event log is the protected boundary here.
+</Aside>
+
+### Crypto-shredding
+
+When a user is deleted, Chatto:
+
+1. Retracts visible message bodies the user authored across every room.
+2. **Shreds the user's app-owned DEK refs and KMS wrapping-key refs**, rendering remaining encrypted body bytes and durable PII bytes permanently unreadable.
+3. Removes profile fields, the avatar object, push-notification subscriptions, email index entries, and the server membership.
+4. Publishes member-deleted events so other clients refetch and show "Deleted User" in place of any orphaned references.
+
+Once the user's key is gone, any encrypted ciphertext that happens to survive elsewhere (for example, in long-lived event streams) can never be decrypted again.
+
+### Transport (TLS)
+
+Chatto has **built-in Let's Encrypt** support via Go's `autocert` package — no Caddy or external reverse proxy required for HTTPS. When `webserver.tls.enabled = true`:
+
+- Certificates are obtained and renewed automatically for the configured domain.
+- `MinVersion: TLS 1.2` is enforced.
+- Plain HTTP requests are 301-redirected to HTTPS (except ACME challenges).
+
+TLS is **not required**. Chatto can also run plain HTTP, which is useful for local development or when you terminate TLS at your own proxy. If you terminate TLS upstream, make sure `webserver.url` starts with `https://` so the `Secure` cookie flag is set correctly.
+
+`webserver.url` is also the trusted public origin for generated absolute API and asset URLs. Chatto does not implicitly trust `X-Forwarded-Proto` or similar proxy headers for public URL generation; reverse-proxy deployments should set `webserver.url` to the external HTTPS origin.
+
+## Backup security
+
+Backups encrypt with [age](https://age-encryption.org) (passphrase-based scrypt) when you pass `--encrypt`. For small self-hosted servers, use a monolithic encrypted backup that includes encryption keys:
+
+```bash
+chatto backup -c chatto.toml --encrypt --include-keys
+```
+
+This is the easiest backup to restore correctly when you do not run a separate KMS or key-management process.
+
+Without `--include-keys`, the `ENCRYPTION_KEYS` bucket is deliberately excluded from backups for security reasons:
+
+- `ENCRYPTION_KEYS` — keeps backup archives unable to decrypt their own message bodies or durable user PII if leaked.
+
+`RUNTIME_STATE` is included in backups so active runtime credentials and pending registration, email-verification, password-reset, account-deletion, and OAuth-code flows can survive a restore. Credential entries in that bucket use HMAC-derived keys, so backup archives do not contain redeemable raw cookie handles, bearer tokens, verification codes, links, or OAuth codes. Restoring with a different `core.secret_key` intentionally invalidates those credentials.
+
+Encryption key records can also be exported and imported separately with `chatto keys export` / `chatto keys import`, again age-encrypted. Use this advanced split-backup flow only when you intentionally want data archives and key material stored or retained separately. Restores need the data backup, including the wrapped DEK records in `RUNTIME_STATE`, plus the KEKs from the separate key export to rebuild encrypted profile indexes as well as message bodies. The same passphrase format means a standalone `age` CLI can inspect or re-encrypt any Chatto archive.
+
+Backups are outside the live account-deletion flow. Restoring an old backup that includes keys, or restoring an old data backup together with an old key export, can make data deleted after that backup readable again. Set retention on backup material, and use lifecycle rules for remote backup buckets, storage-provider snapshots, and versioned object storage.
+
+<LinkCard
+  title="Backup & Restore"
+  href="/guides/operations/backup-restore/"
+  description="Full guide to backups, key exports, and disaster recovery."
+/>
+
+## Account deletion
+
+Users can delete their own account from account settings or through the public API. Deletion is comprehensive (see [Crypto-shredding](#crypto-shredding) above) and does not leave plaintext message bodies behind. There is no soft-delete or grace period — deletion is immediate and irreversible.
+
+## API surface
+
+### Operator API
+
+The Operator API is disabled by default. Operators can enable it with `[operator_api]` / `CHATTO_OPERATOR_API_*` configuration for trusted local automation such as `chatto operator user create` and password/bootstrap workflows. It listens on a Unix socket, not TCP, and uses filesystem permissions as its access boundary.
+
+The default socket path is Docker-friendly:
+
+```toml
+[operator_api]
+enabled = true
+socket_path = "/tmp/chatto/operator.sock"
+```
+
+Chatto serves only `chatto.operator.v1` on the operator socket, and the public web listener never mounts the Operator API. The inverse is also true: the operator socket does not serve public or admin ConnectRPC services. The socket mode is fixed at `0600`, and the parent directory must be private to the Chatto process user. This is intentional defense in depth, so normal public reverse-proxy routing for Chatto's web UI and public APIs cannot accidentally expose root-grade bootstrap access.
+
+The `chatto operator ...` CLI reads the socket path from `--operator-socket`, `CHATTO_OPERATOR_API_SOCKET_PATH`, or `chatto.toml`, falling back to `/tmp/chatto/operator.sock`. In Docker, run the command inside the container with `docker exec` or mount the socket path into a trusted sidecar/container with matching filesystem permissions. See [Operator CLI](/guides/operations/operator-cli/) for command examples.
+
+Operator actions are attributed to Chatto's system actor, not to an in-app user or RBAC role. Keep the socket path private to the Chatto process and explicitly trusted automation; for password workflows, prefer `--password-stdin` and `--password-file` over direct secret flags.
+
+### Public API
+
+The public request/response API is ConnectRPC under `/api/connect`, with protobuf definitions published in the API reference. Authorization is enforced by the API handlers and shared operation models, so sensitive operations remain permission-gated even though the API shape is documented.
+
+If you want a private server where no unauthenticated traffic reaches Chatto, place Chatto behind an authenticating reverse proxy.
+
+### Request limits
+
+ConnectRPC requests have explicit read limits:
+
+| Limit                         | Value          | Purpose                                                     |
+| ----------------------------- | -------------- | ----------------------------------------------------------- |
+| General protobuf request body | 1 MiB          | Bounds non-upload request size                              |
+| Upload request body           | Config-derived | Allows configured attachment uploads plus protobuf overhead |
+| Room event pagination limit   | 500 per field  | Bounds historical room event windows and jump-to-message reads |
+
+There is **no per-IP or per-user rate limiting** at the application layer. If you expose Chatto on the public internet, a request-rate limiter (e.g. Caddy `rate_limit`, Cloudflare, or an upstream WAF) is recommended.
+
+### CORS and WebSockets
+
+CORS allows the configured `webserver.url`, the local listen port (for development), and any explicit entries in `webserver.allowed_origins`. Credentials (cookies) are only attached for explicit origins; wildcard mode omits credentials, forcing token-based auth in that case.
+
+Realtime WebSocket connections perform the same origin check before the upgrade is accepted.
+
+OAuth redirect callbacks use a separate trust list, `webserver.oauth_redirect_origins`. See [Chatto frontend OAuth redirects](#chatto-frontend-oauth-redirects).
+
+## HTTP security headers
+
+Every frontend response sets:
+
+| Header                    | Value                              |
+| ------------------------- | ---------------------------------- |
+| `X-Content-Type-Options`  | `nosniff`                          |
+| `X-Frame-Options`         | `DENY`                             |
+| `Referrer-Policy`         | `strict-origin-when-cross-origin`  |
+
+Original attachment responses also set `X-Content-Type-Options: nosniff`. Uploaded active document formats such as HTML, XHTML, SVG, and XML are served with `Content-Security-Policy: sandbox`; S3-backed files of those types stream through Chatto instead of redirecting directly to object storage so that policy is preserved.
+
+For HSTS, CSP, and other policy headers, add them at your reverse proxy.
+
+## Secret and key storage
+
+| Secret or key material | Storage | Backed up by `chatto backup`? |
+| ---------------------- | ------- | ----------------------------- |
+| Per-user KEK records | `ENCRYPTION_KEYS` (NATS KV) | No (export separately, or use `--include-keys`) |
+| Per-call LiveKit E2EE keys | `ENCRYPTION_KEYS` (NATS KV, short-lived) | No (active calls are not recoverable without them) |
+| Wrapped app DEK records | `RUNTIME_STATE` (`dek.*` protobuf records) | Yes (unusable without KEKs) |
+| Runtime credential verifiers | `RUNTIME_STATE` (`session.{hmac}`, HMAC-keyed, with TTL) | Yes (not raw bearer tokens or cookie handles) |
+| Account-flow and OAuth-code verifiers | `RUNTIME_STATE` (HMAC-keyed, with TTL) | Yes (not raw codes or links) |
+| Core secret key | `chatto.toml` / `CHATTO_CORE_SECRET_KEY` | n/a |
+| Cookie signing secret | `chatto.toml` / `CHATTO_WEBSERVER_COOKIE_SIGNING_SECRET` | n/a |
+| Cookie encryption secret (optional) | `chatto.toml` / `CHATTO_WEBSERVER_COOKIE_ENCRYPTION_SECRET` | n/a |
+| Asset URL signing secret | `chatto.toml` / `CHATTO_CORE_ASSETS_SIGNING_SECRET` | n/a |
+| S3 access key ID and secret access key | `chatto.toml` / `CHATTO_CORE_ASSETS_S3_ACCESS_KEY_ID`, `CHATTO_CORE_ASSETS_S3_SECRET_ACCESS_KEY` | n/a |
+| NATS embedded/client credentials | `chatto.toml` / `CHATTO_NATS_EMBEDDED_AUTH_TOKEN`, `CHATTO_NATS_CLIENT_TOKEN`, `CHATTO_NATS_CLIENT_PASSWORD`, `CHATTO_NATS_CLIENT_CREDENTIALS_FILE`, or `CHATTO_NATS_CLIENT_NKEY_SEED` | n/a |
+| OAuth/OIDC provider client secrets | `chatto.toml` `[[auth.providers]]` / `CHATTO_AUTH_PROVIDERS_<index>_CLIENT_SECRET` or legacy `CHATTO_AUTH_OIDC_CLIENT_SECRET` | n/a |
+| SMTP password | `chatto.toml` / `CHATTO_SMTP_PASSWORD` | n/a |
+| Web Push VAPID key pair | `chatto.toml` / `CHATTO_PUSH_VAPID_PUBLIC_KEY`, `CHATTO_PUSH_VAPID_PRIVATE_KEY` | n/a |
+| LiveKit API and webhook secrets | `chatto.toml` / `CHATTO_LIVEKIT_API_KEY`, `CHATTO_LIVEKIT_API_SECRET`, `CHATTO_LIVEKIT_WEBHOOK_API_KEY`, `CHATTO_LIVEKIT_WEBHOOK_API_SECRET` | n/a |
+| TLS certificates | Disk cache directory (`autocert`) | n/a |
+
+`core.secret_key` is not a message-encryption KEK. Rotating it invalidates bearer tokens, cookie-session handles, OAuth authorization codes, and pending account-flow credentials, but it does not rotate or invalidate the KEK records in `ENCRYPTION_KEYS`.
+
+## Reporting a security issue
+
+For details on how to report security vulnerabilities, see the project README.

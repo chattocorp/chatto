@@ -2,6 +2,8 @@
 
 **Date:** 2026-03-01
 
+**Status:** Superseded by [ADR-042](ADR-042-protobuf-first-public-api.md). GraphQL was removed after the protobuf-first API migration; this record is preserved as historical context for the original API choice.
+
 ## Context
 
 Chatto's frontend needs to query structured data (users, spaces, rooms, messages), perform mutations (post message, join room, update settings), and receive real-time updates (new messages, presence changes, typing indicators). The API must support all three patterns efficiently.
@@ -28,5 +30,5 @@ The NATS request-reply API exists as a secondary internal/extension API for trus
 - **Typed end-to-end**: gqlgen generates Go types and resolver interfaces; graphql-codegen generates TypeScript types and urql hooks. Type mismatches are caught at build time.
 - **Subscriptions are native**: GraphQL subscriptions over WebSocket map naturally to NATS pub/sub. No custom WebSocket protocol needed.
 - **N+1 risk**: Field resolvers can cause excessive KV lookups. Addressed with dataloader patterns where needed.
-- **Schema changes are potentially breaking**: Changes to `.graphqls` files affect all clients. Managed carefully even though there are no external clients yet (see `current-status.md`).
+- **Schema changes are potentially breaking**: Changes to `.graphqls` files affect all clients. Managed carefully according to the project status in `AGENTS.md`.
 - **No file upload via GraphQL**: Binary uploads use separate HTTP endpoints, not GraphQL mutations.

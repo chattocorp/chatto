@@ -1,8 +1,13 @@
 package core
 
 import (
+	"encoding/json"
+	"errors"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/nats-io/nats.go/jetstream"
 )
 
 func TestChattoCore_CreateAuthCode(t *testing.T) {
@@ -29,6 +34,23 @@ func TestChattoCore_CreateAuthCode(t *testing.T) {
 	// cht_ (4) + AC (2) + nanoid (14) = 20 chars
 	if len(code) != 20 {
 		t.Errorf("Code length is %d, want 20", len(code))
+	}
+
+	key := core.authCodeKey(code)
+	if _, err := core.storage.runtimeStateKV.Get(ctx, key); err != nil {
+		t.Fatalf("expected auth code in RUNTIME_STATE: %v", err)
+	}
+	assertRuntimeKVHasTTL(t, core, key)
+	assertRawRuntimeTokenKeyAbsent(t, core, authCodeKeyPrefix+code)
+}
+
+func TestChattoCore_CreateAuthCodeRejectsEmptyUser(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	challenge := GenerateCodeChallenge("verifier123")
+	if code, err := core.CreateAuthCodeForGeneration(ctx, "", "https://example.com/callback", challenge, "S256", 0); !errors.Is(err, ErrAuthCodeNotFound) {
+		t.Fatalf("CreateAuthCodeForGeneration err = %v, code = %q, want ErrAuthCodeNotFound", err, code)
 	}
 }
 
@@ -70,6 +92,150 @@ func TestChattoCore_ExchangeAuthCode_HappyPath(t *testing.T) {
 	}
 	if validatedUserID != user.Id {
 		t.Errorf("ValidateAuthToken returned userID %q, want %q", validatedUserID, user.Id)
+	}
+	if data := readAuthTokenData(t, core, token); data.Kind != AuthTokenKindOAuthAccessToken {
+		t.Fatalf("exchanged auth token kind = %q, want %q", data.Kind, AuthTokenKindOAuthAccessToken)
+	}
+	if err := core.RequireFreshAuthForBearerToken(ctx, token); !errors.Is(err, ErrFreshAuthRequired) {
+		t.Fatalf("exchanged token fresh auth err = %v, want ErrFreshAuthRequired", err)
+	}
+}
+
+func TestChattoCore_ExchangeAuthCodeRejectsStaleAuthGeneration(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	user, err := core.CreateUser(ctx, "", "auth-code-generation-user", "Auth Code Generation User", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+
+	verifier := "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+	challenge := GenerateCodeChallenge(verifier)
+	redirectURI := "https://example.com/callback"
+	code, err := core.CreateAuthCode(ctx, user.Id, redirectURI, challenge, "S256")
+	if err != nil {
+		t.Fatalf("CreateAuthCode: %v", err)
+	}
+	if err := core.SetPasswordHash(ctx, user.Id, "newpassword456"); err != nil {
+		t.Fatalf("SetPasswordHash: %v", err)
+	}
+
+	token, userID, err := core.ExchangeAuthCode(ctx, code, verifier, redirectURI)
+	if !errors.Is(err, ErrAuthCodeNotFound) {
+		t.Fatalf("ExchangeAuthCode err = %v, want ErrAuthCodeNotFound", err)
+	}
+	if token != "" || userID != "" {
+		t.Fatalf("ExchangeAuthCode returned token=%q userID=%q, want empty", token, userID)
+	}
+}
+
+func TestChattoCore_ExchangeAuthCodeGrandfathersLegacyGeneration(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	user, err := core.CreateUser(ctx, "", "auth-code-legacy-user", "Auth Code Legacy User", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+
+	verifier := "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+	challenge := GenerateCodeChallenge(verifier)
+	redirectURI := "https://example.com/callback"
+	code := NewAuthCode()
+	data, err := json.Marshal(AuthCodeData{
+		UserID:              user.Id,
+		RedirectURI:         redirectURI,
+		CodeChallenge:       challenge,
+		CodeChallengeMethod: "S256",
+		CreatedAt:           time.Now(),
+	})
+	if err != nil {
+		t.Fatalf("marshal legacy auth code: %v", err)
+	}
+	if _, err := core.storage.runtimeStateKV.Create(ctx, core.authCodeKey(code), data, jetstream.KeyTTL(authCodeTTL)); err != nil {
+		t.Fatalf("store legacy auth code: %v", err)
+	}
+
+	token, userID, err := core.ExchangeAuthCode(ctx, code, verifier, redirectURI)
+	if err != nil {
+		t.Fatalf("ExchangeAuthCode: %v", err)
+	}
+	if userID != user.Id {
+		t.Fatalf("ExchangeAuthCode user ID = %q, want %q", userID, user.Id)
+	}
+	if gotUserID, err := core.ValidateAuthToken(ctx, token); err != nil {
+		t.Fatalf("exchanged token should validate: %v", err)
+	} else if gotUserID != user.Id {
+		t.Fatalf("exchanged token user ID = %q, want %q", gotUserID, user.Id)
+	}
+}
+
+func TestChattoCore_ExchangeAuthCodeRejectsLegacyGenerationBeforePasswordChange(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	user, err := core.CreateUser(ctx, "", "auth-code-legacy-stale-user", "Auth Code Legacy Stale User", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+
+	verifier := "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+	challenge := GenerateCodeChallenge(verifier)
+	redirectURI := "https://example.com/callback"
+	legacyCreatedAt := time.Now()
+	if err := core.SetPasswordHash(ctx, user.Id, "newpassword456"); err != nil {
+		t.Fatalf("SetPasswordHash: %v", err)
+	}
+
+	code := NewAuthCode()
+	data, err := json.Marshal(AuthCodeData{
+		UserID:              user.Id,
+		RedirectURI:         redirectURI,
+		CodeChallenge:       challenge,
+		CodeChallengeMethod: "S256",
+		CreatedAt:           legacyCreatedAt,
+	})
+	if err != nil {
+		t.Fatalf("marshal legacy auth code: %v", err)
+	}
+	if _, err := core.storage.runtimeStateKV.Create(ctx, core.authCodeKey(code), data, jetstream.KeyTTL(authCodeTTL)); err != nil {
+		t.Fatalf("store legacy auth code: %v", err)
+	}
+
+	token, userID, err := core.ExchangeAuthCode(ctx, code, verifier, redirectURI)
+	if !errors.Is(err, ErrAuthCodeNotFound) {
+		t.Fatalf("ExchangeAuthCode err = %v, want ErrAuthCodeNotFound", err)
+	}
+	if token != "" || userID != "" {
+		t.Fatalf("ExchangeAuthCode returned token=%q userID=%q, want empty", token, userID)
+	}
+}
+
+func TestChattoCore_CreateAuthCodeForGenerationRejectsStaleAuthGeneration(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	user, err := core.CreateUser(ctx, "", "auth-code-issue-gen-user", "Auth Code Issue User", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	authGeneration, err := core.CurrentAuthGeneration(ctx, user.Id)
+	if err != nil {
+		t.Fatalf("CurrentAuthGeneration: %v", err)
+	}
+
+	if err := core.SetPasswordHash(ctx, user.Id, "newpassword456"); err != nil {
+		t.Fatalf("SetPasswordHash: %v", err)
+	}
+
+	verifier := "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+	challenge := GenerateCodeChallenge(verifier)
+	redirectURI := "https://example.com/callback"
+	if code, err := core.CreateAuthCodeForGeneration(ctx, user.Id, redirectURI, challenge, "S256", authGeneration); !errors.Is(err, ErrAuthCodeNotFound) {
+		t.Fatalf("CreateAuthCodeForGeneration err = %v, want ErrAuthCodeNotFound", err)
+	} else if code != "" {
+		t.Fatalf("CreateAuthCodeForGeneration returned code=%q, want empty", code)
 	}
 }
 

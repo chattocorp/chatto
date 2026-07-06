@@ -1,0 +1,41 @@
+---
+interface Props {
+  src: string;
+  alt: string;
+  caption?: string;
+  bleed?: boolean;
+}
+
+const { src, alt, caption, bleed = false } = Astro.props;
+---
+
+<figure class:list={["release-image", { bleed }]}>
+  <img src={src} alt={alt} loading="lazy" decoding="async" />
+  {caption && <figcaption>{caption}</figcaption>}
+</figure>
+
+<style>
+  .release-image {
+    margin-block: 1.5rem 2.25rem;
+  }
+
+  .release-image.bleed {
+    margin-inline: calc(var(--sl-content-pad-x, 1rem) * -1);
+  }
+
+  .release-image img {
+    display: block;
+    width: 100%;
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.5rem;
+    background: var(--sl-color-gray-7);
+    box-shadow: var(--sl-shadow-md);
+  }
+
+  .release-image figcaption {
+    margin-top: 0.65rem;
+    color: var(--sl-color-gray-3);
+    font-size: 0.9rem;
+    line-height: 1.5;
+  }
+</style>

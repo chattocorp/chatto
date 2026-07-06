@@ -3,8 +3,6 @@ package core
 import (
 	"errors"
 	"testing"
-
-	"github.com/nats-io/nats.go/jetstream"
 )
 
 func TestCreateVerifiedUser_HappyPath(t *testing.T) {
@@ -46,9 +44,8 @@ func TestCreateVerifiedUser_RollsBackOnEmailConflict(t *testing.T) {
 		t.Errorf("expected ErrEmailAlreadyVerified wrapped, got %v", err)
 	}
 
-	// User record must NOT exist (rollback).
-	if _, err := core.storage.serverKV.Get(ctx, userByLoginKey("second-user")); !errors.Is(err, jetstream.ErrKeyNotFound) {
-		t.Errorf("expected login claim to be rolled back, got err=%v", err)
+	if got, ok := core.Users.GetByLogin("second-user"); ok {
+		t.Fatalf("rolled-back login claim resolved to user %+v", got)
 	}
 }
 

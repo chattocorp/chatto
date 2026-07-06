@@ -19,6 +19,7 @@ import (
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 	"hmans.de/chatto/internal/config"
+	"hmans.de/chatto/internal/kms"
 	"hmans.de/chatto/pkg/natsauth"
 )
 
@@ -30,10 +31,13 @@ type KeyExport struct {
 	Keys      []ExportedKey `json:"keys"`
 }
 
-// ExportedKey is a single user's encryption key in the export.
+// ExportedKey is one key export entry.
 type ExportedKey struct {
-	UserID string `json:"user_id"`
-	Key    []byte `json:"key"` // raw 32-byte ChaCha20-Poly1305 key
+	// KeyRef is the literal key ref. New KMS-backed entries use opaque refs
+	// such as "kek.Abc123"; legacy exports may only have UserID.
+	KeyRef string `json:"key_ref,omitempty"`
+	UserID string `json:"user_id,omitempty"`
+	Key    []byte `json:"key"` // raw legacy key bytes or protobuf-encoded key record
 }
 
 var (
@@ -51,12 +55,13 @@ var keysCmd = &cobra.Command{
 var keysExportCmd = &cobra.Command{
 	Use:   "export",
 	Short: "Export encryption keys",
-	Long: `Exports all user encryption keys to a file, encrypted with a passphrase.
+	Long: `Exports all Chatto encryption key records to a file, encrypted with a passphrase.
 
 The export file is encrypted using age (age-encryption.org) and contains
-all per-user encryption keys needed to decrypt message bodies. Store this
-file securely — anyone with the file and passphrase can decrypt all
-message content.
+the key-encryption keys needed to unwrap encrypted message bodies and durable
+user PII. Wrapped app DEK records live in RUNTIME_STATE and are included in
+normal data backups. Store this file securely — anyone with the file,
+passphrase, and data backup can decrypt encrypted Chatto content.
 
 Use together with 'chatto backup' for complete disaster recovery:
   1. chatto backup -c chatto.toml
@@ -67,10 +72,10 @@ Use together with 'chatto backup' for complete disaster recovery:
 var keysImportCmd = &cobra.Command{
 	Use:   "import <file>",
 	Short: "Import encryption keys",
-	Long: `Imports user encryption keys from a file created by 'chatto keys export'.
+	Long: `Imports Chatto encryption key records from a file created by 'chatto keys export'.
 
-By default, existing keys are NOT overwritten. Keys are only imported for
-users that don't already have a key in the ENCRYPTION_KEYS bucket.
+By default, existing records are NOT overwritten. Records are only imported
+when the destination bucket does not already contain that key ref.
 
 Use together with 'chatto restore' for complete disaster recovery:
   1. chatto restore backup.tar.gz -c chatto.toml
@@ -173,33 +178,101 @@ func runKeysImport(cmd *cobra.Command, args []string) {
 		log.Fatal("Failed to create JetStream context", "error", err)
 	}
 
-	kv, err := js.CreateOrUpdateKeyValue(ctx, jetstream.KeyValueConfig{
+	encryptionKV, err := openOrCreateKeyValue(ctx, js, jetstream.KeyValueConfig{
 		Bucket:      "ENCRYPTION_KEYS",
-		Description: "User encryption keys (excluded from backups)",
+		Description: "KMS key-encryption keys (excluded from backups)",
 		Storage:     jetstream.FileStorage,
+		History:     1,
+		Replicas:    cfg.NATS.ReplicasOrDefault(),
 	})
 	if err != nil {
 		log.Fatal("Failed to open ENCRYPTION_KEYS bucket", "error", err)
 	}
 
-	var imported, skipped int
+	imported, skippedExisting, skippedWrappedDEKs, err := importKeys(ctx, encryptionKV, keys)
+	if err != nil {
+		log.Fatal("Failed to import keys", "error", err)
+	}
+	if skippedWrappedDEKs > 0 {
+		log.Warn("Skipped wrapped DEK records from key export; wrapped DEKs belong in RUNTIME_STATE and are restored with data backups", "skipped_wrapped_deks", skippedWrappedDEKs)
+	}
+
+	log.Info("Key import complete", "imported", imported, "skipped_existing", skippedExisting, "skipped_wrapped_deks", skippedWrappedDEKs)
+}
+
+func openOrCreateKeyValue(ctx context.Context, js jetstream.JetStream, cfg jetstream.KeyValueConfig) (jetstream.KeyValue, error) {
+	kv, err := js.KeyValue(ctx, cfg.Bucket)
+	if err == nil {
+		return kv, nil
+	}
+	if !errors.Is(err, jetstream.ErrBucketNotFound) {
+		return nil, err
+	}
+	return js.CreateOrUpdateKeyValue(ctx, cfg)
+}
+
+func keyRefForImport(key ExportedKey) string {
+	if key.KeyRef != "" {
+		return key.KeyRef
+	}
+	if key.UserID == "" {
+		return ""
+	}
+	return "user." + key.UserID
+}
+
+func validateKEKRecord(keyRef string, data []byte) error {
+	if !kms.IsKeyRef(keyRef) {
+		return fmt.Errorf("unknown ENCRYPTION_KEYS key ref prefix: %s", keyRef)
+	}
+	return kms.ValidateUserKeyEncryptionKeyRecord(keyRef, data)
+}
+
+func validateExportedKey(key ExportedKey) (string, error) {
+	keyRef := keyRefForImport(key)
+	if keyRef == "" {
+		return "", fmt.Errorf("missing key_ref/user_id")
+	}
+	if err := validateKEKRecord(keyRef, key.Key); err != nil {
+		return "", err
+	}
+	return keyRef, nil
+}
+
+func importKeys(ctx context.Context, kv jetstream.KeyValue, keys []ExportedKey) (imported int, skippedExisting int, skippedWrappedDEKs int, err error) {
+	type importableKey struct {
+		ref string
+		key []byte
+	}
+	importable := make([]importableKey, 0, len(keys))
 	for _, key := range keys {
-		_, err := kv.Create(ctx, "user."+key.UserID, key.Key)
+		keyRef := keyRefForImport(key)
+		if strings.HasPrefix(keyRef, "dek.") {
+			skippedWrappedDEKs++
+			continue
+		}
+		keyRef, err := validateExportedKey(key)
+		if err != nil {
+			return 0, 0, 0, fmt.Errorf("invalid exported key %q: %w", keyRefForImport(key), err)
+		}
+		importable = append(importable, importableKey{ref: keyRef, key: key.Key})
+	}
+
+	for _, key := range importable {
+		_, err := kv.Create(ctx, key.ref, key.key)
 		if err != nil {
 			if errors.Is(err, jetstream.ErrKeyExists) {
-				skipped++
+				skippedExisting++
 				continue
 			}
-			log.Error("Failed to import key", "user_id", key.UserID, "error", err)
-			continue
+			return imported, skippedExisting, skippedWrappedDEKs, fmt.Errorf("failed to import key %s: %w", key.ref, err)
 		}
 		imported++
 	}
-
-	log.Info("Key import complete", "imported", imported, "skipped_existing", skipped)
+	return imported, skippedExisting, skippedWrappedDEKs, nil
 }
 
-// exportAllKeys reads all entries from the ENCRYPTION_KEYS KV bucket.
+// exportAllKeys reads KEK entries from the ENCRYPTION_KEYS KV bucket.
 func exportAllKeys(ctx context.Context, kv jetstream.KeyValue) ([]ExportedKey, error) {
 	keys, err := kv.Keys(ctx)
 	if err != nil {
@@ -215,17 +288,18 @@ func exportAllKeys(ctx context.Context, kv jetstream.KeyValue) ([]ExportedKey, e
 		if err != nil {
 			return nil, fmt.Errorf("failed to get key %s: %w", key, err)
 		}
-
-		// Strip "user." prefix if present
-		userID := key
-		if len(key) > 5 && key[:5] == "user." {
-			userID = key[5:]
+		if err := validateKEKRecord(key, entry.Value()); err != nil {
+			return nil, fmt.Errorf("invalid ENCRYPTION_KEYS record %s: %w", key, err)
 		}
 
-		exported = append(exported, ExportedKey{
-			UserID: userID,
+		exportedKey := ExportedKey{
+			KeyRef: key,
 			Key:    entry.Value(),
-		})
+		}
+		if strings.HasPrefix(key, "user.") {
+			exportedKey.UserID = strings.TrimPrefix(key, "user.")
+		}
+		exported = append(exported, exportedKey)
 	}
 
 	return exported, nil
@@ -234,7 +308,7 @@ func exportAllKeys(ctx context.Context, kv jetstream.KeyValue) ([]ExportedKey, e
 // encryptKeysToFile encrypts keys with age and writes them to a file.
 func encryptKeysToFile(keys []ExportedKey, passphrase, filePath string) error {
 	export := KeyExport{
-		Version:   2,
+		Version:   3,
 		CreatedAt: time.Now().UTC(),
 		KeyCount:  len(keys),
 		Keys:      keys,
@@ -300,8 +374,8 @@ func decryptKeysFromFile(filePath, passphrase string) ([]ExportedKey, error) {
 		return nil, fmt.Errorf("failed to parse key export: %w", err)
 	}
 
-	if export.Version != 2 {
-		return nil, fmt.Errorf("unsupported key export version: %d (expected 2)", export.Version)
+	if export.Version != 2 && export.Version != 3 {
+		return nil, fmt.Errorf("unsupported key export version: %d (expected 2 or 3)", export.Version)
 	}
 
 	return export.Keys, nil

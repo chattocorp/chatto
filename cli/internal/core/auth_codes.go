@@ -35,21 +35,26 @@ var (
 // exchanged within this window are automatically purged by NATS KV per-key TTL.
 const authCodeTTL = 5 * time.Minute
 
-// authCodeKeyPrefix is the KV key prefix that distinguishes authorization codes
-// from bearer tokens in the shared AUTH_TOKENS bucket.
+// authCodeKeyPrefix is the RUNTIME_STATE key prefix that distinguishes
+// authorization codes from bearer tokens.
 const authCodeKeyPrefix = "grant."
+
+func (c *ChattoCore) authCodeKey(code string) string {
+	return c.runtimeTokenKey(authCodeKeyPrefix, code)
+}
 
 // ============================================================================
 // Auth Code Types
 // ============================================================================
 
-// AuthCodeData is the JSON value stored in the AUTH_TOKENS KV bucket for authorization codes.
+// AuthCodeData is the JSON value stored in RUNTIME_STATE for authorization codes.
 type AuthCodeData struct {
-	UserID               string    `json:"user_id"`
-	RedirectURI          string    `json:"redirect_uri"`
-	CodeChallenge        string    `json:"code_challenge"`
-	CodeChallengeMethod  string    `json:"code_challenge_method"`
-	CreatedAt            time.Time `json:"created_at"`
+	UserID              string    `json:"user_id"`
+	RedirectURI         string    `json:"redirect_uri"`
+	CodeChallenge       string    `json:"code_challenge"`
+	CodeChallengeMethod string    `json:"code_challenge_method"`
+	CreatedAt           time.Time `json:"created_at"`
+	AuthGeneration      uint64    `json:"auth_generation,omitempty"`
 }
 
 // ============================================================================
@@ -57,30 +62,56 @@ type AuthCodeData struct {
 // ============================================================================
 
 // CreateAuthCode generates a new OAuth authorization code for the given user.
-// The code is stored in the AUTH_TOKENS KV bucket with a "grant." key prefix
+// The code is stored in RUNTIME_STATE with a "grant." key prefix
 // and a 5-minute per-key TTL. The code is single-use — it must be exchanged
 // via ExchangeAuthCode and is deleted on successful exchange.
 func (c *ChattoCore) CreateAuthCode(ctx context.Context, userID, redirectURI, codeChallenge, codeChallengeMethod string) (string, error) {
+	authGeneration, err := c.CurrentAuthGeneration(ctx, userID)
+	if err != nil {
+		return "", err
+	}
+	return c.CreateAuthCodeForGeneration(ctx, userID, redirectURI, codeChallenge, codeChallengeMethod, authGeneration)
+}
+
+// CreateAuthCodeForGeneration creates an OAuth authorization code for an
+// already-authenticated session that proved authGeneration.
+func (c *ChattoCore) CreateAuthCodeForGeneration(ctx context.Context, userID, redirectURI, codeChallenge, codeChallengeMethod string, authGeneration uint64) (string, error) {
+	if userID == "" {
+		return "", ErrAuthCodeNotFound
+	}
 	if codeChallengeMethod != "S256" {
 		return "", ErrAuthCodeInvalidMethod
 	}
 
 	code := NewAuthCode()
+	createdAt := time.Now()
+	key := c.authCodeKey(code)
+	if err := c.RequireAuthenticationAllowed(ctx, userID, authGeneration); err != nil {
+		if errors.Is(err, ErrAuthenticationRevoked) {
+			return "", ErrAuthCodeNotFound
+		}
+		return "", err
+	}
 
 	data, err := json.Marshal(AuthCodeData{
 		UserID:              userID,
 		RedirectURI:         redirectURI,
 		CodeChallenge:       codeChallenge,
 		CodeChallengeMethod: codeChallengeMethod,
-		CreatedAt:           time.Now(),
+		CreatedAt:           createdAt,
+		AuthGeneration:      authGeneration,
 	})
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal auth code: %w", err)
 	}
 
-	_, err = c.storage.authTokensKV.Create(ctx, authCodeKeyPrefix+code, data, jetstream.KeyTTL(authCodeTTL))
+	_, err = c.storage.runtimeStateKV.Create(ctx, key, data, jetstream.KeyTTL(authCodeTTL))
 	if err != nil {
 		return "", fmt.Errorf("failed to store auth code: %w", err)
+	}
+	if err := c.recordAuthCodeIssued(ctx, userID, redirectURI, createdAt); err != nil {
+		_ = c.storage.runtimeStateKV.Delete(ctx, key)
+		return "", err
 	}
 
 	return code, nil
@@ -94,9 +125,9 @@ func (c *ChattoCore) CreateAuthCode(ctx context.Context, userID, redirectURI, co
 //  2. redirect_uri matches the one used during authorization
 //  3. SHA256(code_verifier) == code_challenge (PKCE S256)
 func (c *ChattoCore) ExchangeAuthCode(ctx context.Context, code, codeVerifier, redirectURI string) (string, string, error) {
-	key := authCodeKeyPrefix + code
+	key := c.authCodeKey(code)
 
-	entry, err := c.storage.authTokensKV.Get(ctx, key)
+	entry, err := c.storage.runtimeStateKV.Get(ctx, key)
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) {
 			return "", "", ErrAuthCodeNotFound
@@ -106,30 +137,62 @@ func (c *ChattoCore) ExchangeAuthCode(ctx context.Context, code, codeVerifier, r
 
 	// Delete immediately (single-use). Even if subsequent validation fails,
 	// the code should not be reusable.
-	_ = c.storage.authTokensKV.Delete(ctx, key)
+	_ = c.storage.runtimeStateKV.Delete(ctx, key)
 
 	var codeData AuthCodeData
 	if err := json.Unmarshal(entry.Value(), &codeData); err != nil {
 		return "", "", fmt.Errorf("failed to unmarshal auth code: %w", err)
 	}
+	if codeData.UserID == "" {
+		return "", "", ErrAuthCodeNotFound
+	}
 
 	// Validate redirect_uri matches
 	if codeData.RedirectURI != redirectURI {
+		if err := c.recordAuthCodeExchangeFailed(ctx, codeData.UserID, codeData.RedirectURI, "redirect_mismatch"); err != nil {
+			return "", "", err
+		}
 		return "", "", ErrAuthCodeRedirectMismatch
 	}
 
 	// Validate PKCE
 	if !verifyCodeChallenge(codeData.CodeChallengeMethod, codeVerifier, codeData.CodeChallenge) {
+		if err := c.recordAuthCodeExchangeFailed(ctx, codeData.UserID, codeData.RedirectURI, "invalid_verifier"); err != nil {
+			return "", "", err
+		}
 		return "", "", ErrAuthCodeInvalidVerifier
 	}
 
+	validation, err := c.ValidateRuntimeCredential(ctx, RuntimeCredential{
+		UserID:         codeData.UserID,
+		CreatedAt:      codeData.CreatedAt,
+		AuthGeneration: codeData.AuthGeneration,
+	})
+	if err != nil {
+		if !errors.Is(err, ErrAuthenticationRevoked) {
+			return "", "", err
+		}
+		if err := c.recordAuthCodeExchangeFailed(ctx, codeData.UserID, codeData.RedirectURI, "auth_revoked"); err != nil {
+			return "", "", err
+		}
+		return "", "", ErrAuthCodeNotFound
+	}
+	codeData.AuthGeneration = validation.AuthGeneration
+
 	// Issue a bearer token
-	token, err := c.CreateAuthToken(ctx, codeData.UserID)
+	token, err := c.CreateAuthTokenWithSourceGeneration(ctx, validation.UserID, "oauth_code_exchange", validation.AuthGeneration)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to create bearer token: %w", err)
 	}
 
-	return token, codeData.UserID, nil
+	if err := c.recordAuthCodeExchangeSucceeded(ctx, codeData.UserID, codeData.RedirectURI); err != nil {
+		if revokeErr := c.RevokeAuthTokenWithReason(ctx, token, "oauth_exchange_audit_failed"); revokeErr != nil {
+			return "", "", fmt.Errorf("%w; failed to revoke issued bearer token: %v", err, revokeErr)
+		}
+		return "", "", err
+	}
+
+	return token, validation.UserID, nil
 }
 
 // ============================================================================

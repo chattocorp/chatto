@@ -1,0 +1,113 @@
+syntax = "proto3";
+
+package chatto.auth.v1;
+
+import "buf/validate/validate.proto";
+import "chatto/api/v1/external_identities.proto";
+
+// Mode of a pending external identity confirmation flow.
+enum ExternalIdentityFlowKind {
+  // The flow kind was not specified.
+  EXTERNAL_IDENTITY_FLOW_KIND_UNSPECIFIED = 0;
+  // Create a new passwordless account and link the provider identity.
+  EXTERNAL_IDENTITY_FLOW_KIND_CREATE_ACCOUNT = 1;
+  // Link the provider identity to the authenticated account.
+  EXTERNAL_IDENTITY_FLOW_KIND_LINK_ACCOUNT = 2;
+}
+
+// Metadata about a pending external identity flow. The provider subject is not
+// exposed; clients only need user-facing provider/profile hints.
+message PendingExternalIdentity {
+  // Pending flow kind.
+  ExternalIdentityFlowKind kind = 1;
+  // Provider ID that produced the identity.
+  string provider_id = 2;
+  // Provider type that produced the identity.
+  string provider_type = 3;
+  // Provider label shown to the user.
+  string provider_label = 4;
+  // Verified email supplied by the provider, when available.
+  string verified_email = 5;
+  // Suggested username derived from provider profile hints.
+  string login_hint = 6;
+  // Suggested display name derived from provider profile hints.
+  string display_name_hint = 7;
+  // User ID this link flow is bound to. Empty for create flows.
+  string bound_user_id = 8;
+  // Internal path the client should return to after confirmation.
+  string redirect_path = 9;
+}
+
+// Request to inspect a pending external identity flow.
+message GetPendingExternalIdentityRequest {
+  // Raw pending flow token from the provider callback redirect.
+  string token = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+// Result of inspecting a pending external identity flow.
+message GetPendingExternalIdentityResponse {
+  // Pending flow metadata.
+  PendingExternalIdentity pending = 1;
+}
+
+// Request to create a new passwordless account from a pending provider identity.
+message CreateExternalIdentityAccountRequest {
+  // Raw pending create token from the provider callback redirect.
+  string token = 1 [(buf.validate.field).string.min_len = 1];
+  // Desired username.
+  string login = 2 [(buf.validate.field).string = {
+    min_len: 2
+    max_len: 32
+  }];
+}
+
+// Result of creating an account from a pending provider identity.
+message CreateExternalIdentityAccountResponse {
+  // Newly created user ID.
+  string user_id = 1;
+  // Newly created username.
+  string login = 2;
+  // Bearer token for the new session.
+  string token = 3;
+}
+
+// Request to cancel a pending external identity flow.
+message CancelExternalIdentityFlowRequest {
+  // Raw pending flow token.
+  string token = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+// Result of cancelling a pending external identity flow.
+message CancelExternalIdentityFlowResponse {
+  // True when a pending flow was removed or already absent.
+  bool cancelled = 1;
+}
+
+// Request to confirm a pending provider link using the flow capability token.
+message ConfirmExternalIdentityLinkRequest {
+  // Raw pending link token from the provider callback redirect.
+  string token = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+// Result of confirming a provider identity link.
+message ConfirmExternalIdentityLinkResponse {
+  // Linked identity metadata.
+  chatto.api.v1.LinkedExternalIdentity linked_identity = 1;
+}
+
+// Public external identity authentication operations.
+service ExternalIdentityAuthService {
+  // Reads safe metadata for a pending create/link flow. This public RPC
+  // requires a valid pending-flow capability token and returns NOT_FOUND when
+  // the token is unknown or expired.
+  rpc GetPendingExternalIdentity(GetPendingExternalIdentityRequest) returns (GetPendingExternalIdentityResponse);
+  // Creates a passwordless account from a pending provider identity. This
+  // public RPC requires a valid create-flow capability token.
+  rpc CreateExternalIdentityAccount(CreateExternalIdentityAccountRequest) returns (CreateExternalIdentityAccountResponse);
+  // Links a provider identity using a pending link-flow capability token. This
+  // public RPC requires a valid link-flow capability token.
+  rpc ConfirmExternalIdentityLink(ConfirmExternalIdentityLinkRequest) returns (ConfirmExternalIdentityLinkResponse);
+  // Cancels a pending provider identity flow. This public RPC requires a valid
+  // pending-flow capability token.
+  rpc CancelExternalIdentityFlow(CancelExternalIdentityFlowRequest) returns (CancelExternalIdentityFlowResponse);
+}

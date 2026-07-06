@@ -2,6 +2,8 @@
 
 **Date:** 2026-03-01
 
+> **Superseded by [ADR-033](ADR-033-event-sourced-state-with-projections.md)** (2026-05-24). The CRUD-with-audit-log pattern described below is being replaced, aggregate by aggregate, with event-sourced state and derived projections. See [ADR-035](ADR-035-per-aggregate-phased-migration.md) for the migration approach.
+
 ## Context
 
 With NATS JetStream as the data store (ADR-001), there are two storage primitives available: **KV buckets** (key-value with last-writer-wins semantics) and **streams** (ordered, append-only message logs). The question is which serves as the source of truth for current state.

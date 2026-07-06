@@ -1,0 +1,183 @@
+syntax = "proto3";
+
+package chatto.api.v1;
+
+import "buf/validate/validate.proto";
+import "chatto/api/v1/message_types.proto";
+import "chatto/api/v1/users.proto";
+import "google/protobuf/timestamp.proto";
+
+// Related entities included beside timeline/feed events.
+//
+// Includes are reserved for hot paginated feed paths where many events may
+// repeatedly reference the same render data. Other APIs should return resources
+// directly and rely on BatchGet-style follow-up hydration instead of adding
+// includes maps.
+message RoomTimelineIncludes {
+  // Users keyed by user ID.
+  map<string, User> users = 1;
+}
+
+// Payload for room lifecycle and membership timeline events.
+message RoomTimelineRoomEvent {
+  // Room affected by the event.
+  string room_id = 1;
+}
+
+// Payload for a message-posted timeline event.
+message RoomMessagePosted {
+  // Renderable message created by this timeline event.
+  Message message = 1;
+}
+
+// One event in a room or thread timeline.
+//
+// Clients should inspect the event oneof to choose the renderer for the event.
+message RoomTimelineEvent {
+  // Stable event ID.
+  string id = 1;
+  // Time when the event was created.
+  google.protobuf.Timestamp created_at = 2;
+  // User ID of the event actor.
+  string actor_id = 3;
+
+  // Concrete event payload.
+  oneof event {
+    // A message was posted.
+    RoomMessagePosted message_posted = 10;
+    // The room was created.
+    RoomTimelineRoomEvent room_created = 20;
+    // The room metadata was updated.
+    RoomTimelineRoomEvent room_updated = 21;
+    // The room was deleted.
+    RoomTimelineRoomEvent room_deleted = 22;
+    // The room was archived.
+    RoomTimelineRoomEvent room_archived = 23;
+    // The room was unarchived.
+    RoomTimelineRoomEvent room_unarchived = 24;
+    // A user joined the room.
+    RoomTimelineRoomEvent user_joined_room = 30;
+    // A user left the room.
+    RoomTimelineRoomEvent user_left_room = 31;
+  }
+}
+
+// Cursor page of room or thread timeline events.
+//
+// Use opaque start_cursor and end_cursor values with before/after requests to
+// continue paging in either direction. Clients must treat cursor values as
+// server-owned tokens and must not parse or construct them. The has_older and
+// has_newer flags tell clients whether another request can extend the current
+// window.
+message RoomTimelinePage {
+  // Events in display order.
+  repeated RoomTimelineEvent events = 1;
+  // Opaque cursor for the first event in the page.
+  string start_cursor = 2;
+  // Opaque cursor for the last event in the page.
+  string end_cursor = 3;
+  // True when older events are available before start_cursor.
+  bool has_older = 4;
+  // True when newer events are available after end_cursor.
+  bool has_newer = 5;
+  // Hot-path related entities needed to render the page without per-event hydration.
+  RoomTimelineIncludes includes = 6;
+}
+
+// Request for a page of room timeline events.
+//
+// Omit the cursor to load the initial page. Set before to a previously returned
+// start_cursor to page toward older events, or after to a previously returned
+// end_cursor to page toward newer events.
+message GetRoomEventsRequest {
+  // Required. Room whose timeline should be loaded.
+  string room_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Maximum number of events to return. The server may clamp very large limits.
+  int32 limit = 2;
+  // Cursor direction for paging.
+  oneof cursor {
+    // Return events older than this opaque cursor.
+    string before = 3;
+    // Return events newer than this opaque cursor.
+    string after = 4;
+  }
+}
+
+// Response containing one room timeline page.
+message GetRoomEventsResponse {
+  // Loaded timeline page.
+  RoomTimelinePage page = 1;
+}
+
+// Request for room timeline events around a specific event.
+//
+// Use this when a client needs to jump to a known event and render enough
+// context around it.
+message GetRoomEventsAroundRequest {
+  // Required. Room whose timeline should be loaded.
+  string room_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Required. Anchor event ID that should appear in the returned page.
+  string event_id = 2 [(buf.validate.field).string.min_len = 1];
+  // Maximum number of events to return around the anchor.
+  int32 limit = 3;
+}
+
+// Response containing a room timeline window around a specific event.
+message GetRoomEventsAroundResponse {
+  // Loaded timeline page.
+  RoomTimelinePage page = 1;
+  // Zero-based index of the anchor event within page.events.
+  int32 target_index = 2;
+}
+
+// Request for a page of events in one thread.
+//
+// Omit the cursor to load the latest visible part of the thread, including the
+// root message. Set before to a previously returned start_cursor to page toward
+// older replies, or after to a previously returned end_cursor to page toward
+// newer replies without repeating the root message.
+message GetThreadEventsRequest {
+  // Required. Room containing the thread.
+  string room_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Required. Event ID of the root message for the thread.
+  string thread_root_event_id = 2 [(buf.validate.field).string.min_len = 1];
+  // Maximum number of events to return. The server may clamp very large limits.
+  int32 limit = 3;
+  // Cursor direction for paging.
+  oneof cursor {
+    // Return thread events older than this opaque cursor.
+    string before = 4;
+    // Return thread events newer than this opaque cursor.
+    string after = 5;
+  }
+}
+
+// Response containing one thread timeline page.
+message GetThreadEventsResponse {
+  // Loaded timeline page.
+  RoomTimelinePage page = 1;
+}
+
+// Request for thread events around a specific event.
+//
+// Use this when a client needs to jump to a known reply and render surrounding
+// thread context.
+message GetThreadEventsAroundRequest {
+  // Required. Room containing the thread.
+  string room_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Required. Event ID of the root message for the thread.
+  string thread_root_event_id = 2 [(buf.validate.field).string.min_len = 1];
+  // Required. Anchor event ID inside the thread. The event should belong to the
+  // requested thread.
+  string event_id = 3 [(buf.validate.field).string.min_len = 1];
+  // Maximum number of events to return around the anchor.
+  int32 limit = 4;
+}
+
+// Response containing a thread timeline window around a specific event.
+message GetThreadEventsAroundResponse {
+  // Loaded timeline page.
+  RoomTimelinePage page = 1;
+  // Zero-based index of the anchor event within page.events.
+  int32 target_index = 2;
+}

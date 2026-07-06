@@ -85,12 +85,12 @@ func (meta *OpenGraphMeta) generateTags() string {
 func (s *HTTPServer) getOpenGraphMeta(ctx context.Context, urlPath string) *OpenGraphMeta {
 	baseURL := strings.TrimSuffix(s.config.Webserver.URL, "/")
 
-	// Get instance name for both site_name and og:title — server identity
+	// Get server name for both site_name and og:title — server identity
 	// is the single source of truth for link previews.
 	serverName := "Chatto"
 	description := "Come join our community!"
 	if s.core != nil && s.core.ConfigManager() != nil {
-		if name, err := s.core.ConfigManager().GetEffectiveInstanceName(ctx); err == nil && name != "" {
+		if name, err := s.core.ConfigManager().GetEffectiveServerName(ctx); err == nil && name != "" {
 			serverName = name
 		}
 		if desc, err := s.core.ConfigManager().GetEffectiveDescription(ctx); err == nil && desc != "" {
@@ -102,7 +102,7 @@ func (s *HTTPServer) getOpenGraphMeta(ctx context.Context, urlPath string) *Open
 	var defaultImage string
 	if s.core != nil {
 		width, height := 1200, 630
-		bannerURL, err := s.core.GetServerBannerURL(ctx, &width, &height)
+		bannerURL, err := s.core.GetServerBannerURL(ctx, &width, &height, "cover")
 		if err == nil && bannerURL != "" {
 			defaultImage = bannerURL
 		}

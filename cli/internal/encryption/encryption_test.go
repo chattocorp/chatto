@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"golang.org/x/crypto/chacha20poly1305"
 )
 
 func TestEncryptDecrypt(t *testing.T) {
@@ -76,6 +77,70 @@ func TestDecryptWithTamperedNonce(t *testing.T) {
 
 	_, err = Decrypt(key, encrypted.Ciphertext, encrypted.Nonce)
 	require.ErrorIs(t, err, ErrDecryptionFailed)
+}
+
+func TestContentKeyBodyEncryptDecrypt(t *testing.T) {
+	kek, err := GenerateKey()
+	require.NoError(t, err)
+	contentKey, err := GenerateKey()
+	require.NoError(t, err)
+	aad := []byte("event=E123\x00room=R123\x00author=U123")
+
+	wrapped, err := WrapContentKey(kek, contentKey, []byte("user=U123\x00epoch=1"))
+	require.NoError(t, err)
+	require.NotEmpty(t, wrapped.EncryptedContentKey)
+	require.Len(t, wrapped.Nonce, XNonceSize)
+
+	unwrapped, err := UnwrapContentKey(kek, wrapped.EncryptedContentKey, wrapped.Nonce, []byte("user=U123\x00epoch=1"))
+	require.NoError(t, err)
+	require.Equal(t, contentKey, unwrapped)
+
+	encrypted, err := EncryptWithContentKey(unwrapped, []byte("secret message"), aad)
+	require.NoError(t, err)
+	require.NotEqual(t, "secret message", string(encrypted.Ciphertext))
+	require.Len(t, encrypted.Nonce, XNonceSize)
+
+	decrypted, err := DecryptWithContentKey(contentKey, encrypted.Ciphertext, encrypted.Nonce, aad)
+	require.NoError(t, err)
+	require.Equal(t, "secret message", string(decrypted))
+}
+
+func TestDecryptWithContentKeyRejectsTamperedAAD(t *testing.T) {
+	contentKey, err := GenerateKey()
+	require.NoError(t, err)
+	encrypted, err := EncryptWithContentKey(contentKey, []byte("secret message"), []byte("event=E123"))
+	require.NoError(t, err)
+
+	_, err = DecryptWithContentKey(contentKey, encrypted.Ciphertext, encrypted.Nonce, []byte("event=E456"))
+	require.ErrorIs(t, err, ErrDecryptionFailed)
+}
+
+func TestUnwrapContentKeyRejectsTamperedWrappedKey(t *testing.T) {
+	kek, err := GenerateKey()
+	require.NoError(t, err)
+	contentKey, err := GenerateKey()
+	require.NoError(t, err)
+	aad := []byte("event=E123")
+	wrapped, err := WrapContentKey(kek, contentKey, aad)
+	require.NoError(t, err)
+	wrapped.EncryptedContentKey[0] ^= 0xFF
+
+	_, err = UnwrapContentKey(kek, wrapped.EncryptedContentKey, wrapped.Nonce, aad)
+	require.ErrorIs(t, err, ErrDecryptionFailed)
+}
+
+func TestUnwrapContentKeyRejectsInvalidPlaintextKeySize(t *testing.T) {
+	kek, err := GenerateKey()
+	require.NoError(t, err)
+	aad := []byte("event=E123")
+	wrapAEAD, err := chacha20poly1305.NewX(kek)
+	require.NoError(t, err)
+	nonce, err := randomBytes(XNonceSize)
+	require.NoError(t, err)
+	ciphertext := wrapAEAD.Seal(nil, nonce, []byte("too-short"), aadForContentKey(aad))
+
+	_, err = UnwrapContentKey(kek, ciphertext, nonce, aad)
+	require.ErrorIs(t, err, ErrInvalidKeySize)
 }
 
 func TestNonceUniqueness(t *testing.T) {

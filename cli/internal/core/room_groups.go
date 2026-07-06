@@ -4,60 +4,60 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/url"
 	"slices"
 	"strings"
+	"time"
 
-	"github.com/nats-io/nats.go/jetstream"
-	"google.golang.org/protobuf/proto"
-
+	"hmans.de/chatto/internal/events"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-// room_groups.go is the storage and API surface for channel-room groups
-// (see ADR-031). Each group is its own KV document under
-// `room_group.{id}`; a single `room_layout` document holds the
-// authoritative *ordering* as a list of group IDs. The split keeps
-// per-group property edits (name, description, future visual fields)
-// from contending with each other or with reorder operations.
+const maxMoveRoomToGroupRetries = 5
+
+// room_groups.go is the API surface for channel-room groups (ADR-031).
 //
-// Read path: `ListRoomGroupsOrdered` is the canonical accessor. It runs
-// the legacy-shape migrator if needed, then reconciles the layout's
-// `group_ids` against the set of actual `room_group.*` documents. Stale
-// references (layout entries with no matching doc) are dropped. Orphan
-// docs (groups missing from the layout) are appended at the end so a
-// corrupted layout self-heals on read.
+// ADR-035 phase 6: storage is event-sourced. Group lifecycle and
+// per-group room-membership events live on `evt.group.{G}`; the
+// operator-defined inter-group ordering lives on the singleton
+// `evt.layout.default` aggregate. The legacy `room_group.{id}` and
+// `room_layout` KV records are no longer written or read by current code.
 //
-// Authorization is enforced at the API boundary; these methods assume
-// the caller is authorized.
+// Reads compose three read-model indexes:
+//   - RoomGroups: per-group metadata + ordered room_ids
+//   - RoomLayout: operator-defined ordering of group IDs
+//   - RoomCatalog: room metadata, used for the final reconciliation
+//
+// `ListRoomGroupsOrdered` walks the layout's ordering, drops stale
+// entries, and appends any orphan groups (present in RoomGroups but
+// missing from the layout) at the end by NanoID order — same
+// self-healing reconciliation the KV-era code did, just sourced from
+// in-memory projections.
+//
+// Low-level mutation helpers in this file assume the caller is authorized.
+// Public admin room-layout operations should go through
+// admin_room_layout_management.go so authorization stays in core.
 
 // Errors specific to room-group operations.
 var (
-	// ErrRoomGroupNotFound is returned when a group ID doesn't match any existing group.
-	ErrRoomGroupNotFound = errors.New("room group not found")
-	// ErrRoomGroupHasRooms is returned when trying to delete a group that still contains rooms.
-	ErrRoomGroupHasRooms = errors.New("room group has rooms; move them out before deleting")
-	// ErrRoomGroupNameEmpty is returned when a group name is empty or whitespace.
-	ErrRoomGroupNameEmpty = errors.New("room group name must not be empty")
-	// ErrRoomGroupOrderMismatch is returned when an order list doesn't match the
-	// current set of groups (extras, duplicates, or missing IDs).
-	ErrRoomGroupOrderMismatch = errors.New("room group order must be a permutation of existing groups")
+	ErrRoomGroupNotFound        = errors.New("room group not found")
+	ErrRoomGroupHasRooms        = errors.New("room group has rooms; move them out before deleting")
+	ErrRoomGroupNameEmpty       = errors.New("room group name must not be empty")
+	ErrRoomGroupOrderMismatch   = errors.New("room group order must be a permutation of existing groups")
+	ErrRoomMoveSourceChanged    = errors.New("room move source group changed")
+	ErrSidebarLinkNotFound      = errors.New("sidebar link not found")
+	ErrSidebarLinkSourceChanged = errors.New("sidebar link source group changed")
+	ErrSidebarLinkLabelEmpty    = errors.New("sidebar link label must not be empty")
+	ErrSidebarLinkURLInvalid    = errors.New("sidebar link URL must be an absolute http(s) URL or server-local path")
 )
 
-// roomGroupKey returns the KV key for a single group document.
-func roomGroupKey(groupID string) string {
-	return "room_group." + groupID
-}
-
-// roomGroupKeyPrefix is the prefix used by ListKeysFiltered to enumerate
-// every group document.
-const roomGroupKeyPrefix = "room_group."
-
-// CreateRoomGroup writes a new group document and appends its ID to the
-// layout. Name is trimmed; description may be empty.
+// CreateRoomGroup publishes a RoomGroupCreatedEvent and appends the
+// new group ID to the layout ordering via a RoomGroupsReorderedEvent.
+// Name is trimmed; description may be empty.
 func (c *ChattoCore) CreateRoomGroup(ctx context.Context, actorID, name, description string) (*corev1.RoomGroup, error) {
 	name = strings.TrimSpace(name)
-	if name == "" {
-		return nil, ErrRoomGroupNameEmpty
+	if err := validateRoomGroupMetadata(name, description); err != nil {
+		return nil, err
 	}
 
 	group := &corev1.RoomGroup{
@@ -65,155 +65,388 @@ func (c *ChattoCore) CreateRoomGroup(ctx context.Context, actorID, name, descrip
 		Name:        name,
 		Description: description,
 	}
-	if err := c.writeRoomGroup(ctx, group, 0); err != nil {
-		return nil, fmt.Errorf("write group doc: %w", err)
+
+	createdEvent := newEvent(actorID, &corev1.Event{
+		Event: &corev1.Event_RoomGroupCreated{
+			RoomGroupCreated: &corev1.RoomGroupCreatedEvent{
+				GroupId:     group.Id,
+				Name:        group.Name,
+				Description: group.Description,
+			},
+		},
+	})
+	if _, err := c.rooms().appendGroupLayoutEventually(ctx, c.EventPublisher, events.GroupAggregate(group.Id), createdEvent); err != nil {
+		return nil, fmt.Errorf("publish RoomGroupCreatedEvent: %w", err)
 	}
 
-	if err := c.mutateRoomLayoutOrder(ctx, func(order []string) ([]string, error) {
-		if slices.Contains(order, group.Id) {
-			return order, nil // defensive — shouldn't happen with fresh NanoID
-		}
-		return append(order, group.Id), nil
-	}); err != nil {
-		// Best-effort cleanup of the orphan doc on layout-write failure.
-		_ = c.deleteRoomGroupDoc(ctx, group.Id)
-		return nil, fmt.Errorf("append to layout: %w", err)
+	// Append the new group to the layout ordering. Best-effort: if
+	// this fails the group still exists in the catalog and the
+	// reconciler in ListRoomGroupsOrdered will append it as an orphan.
+	if err := c.appendGroupToLayout(ctx, actorID, group.Id); err != nil {
+		c.logger.Warn("Failed to append new group to layout ordering",
+			"group_id", group.Id, "error", err)
 	}
-
-	// New groups start with no explicit grants. Channel-room permissions
-	// resolve via the server-tier cascade until an operator adds an
-	// override here. See ADR-031 for the inheritance story; the seeder
-	// `SeedDefaultRoomGroupPermissions` is still available to admin tools
-	// that want to materialise the defaults explicitly into a group.
 
 	c.logger.Info("Created room group", "group_id", group.Id, "name", name, "actor_id", actorID)
 	c.notifyRoomLayoutChanged(ctx, actorID, "create_group")
 	return group, nil
 }
 
-// UpdateRoomGroup changes a group's name and/or description. The
-// layout's order is untouched; only the per-group doc is rewritten.
+// UpdateRoomGroup publishes a RoomGroupUpdatedEvent. Layout ordering
+// is untouched; only metadata changes.
 func (c *ChattoCore) UpdateRoomGroup(ctx context.Context, actorID, groupID, name, description string) (*corev1.RoomGroup, error) {
 	name = strings.TrimSpace(name)
-	if name == "" {
-		return nil, ErrRoomGroupNameEmpty
+	if err := validateRoomGroupMetadata(name, description); err != nil {
+		return nil, err
 	}
 
-	var updated *corev1.RoomGroup
-	if err := c.mutateRoomGroup(ctx, groupID, func(g *corev1.RoomGroup) error {
-		g.Name = name
-		g.Description = description
-		updated = g
-		return nil
-	}); err != nil {
-		return nil, err
+	if !c.RoomGroups.Exists(groupID) {
+		return nil, ErrRoomGroupNotFound
+	}
+
+	updatedEvent := newEvent(actorID, &corev1.Event{
+		Event: &corev1.Event_RoomGroupUpdated{
+			RoomGroupUpdated: &corev1.RoomGroupUpdatedEvent{
+				GroupId:     groupID,
+				Name:        name,
+				Description: description,
+			},
+		},
+	})
+	if _, err := c.rooms().appendGroupLayout(ctx, c.EventPublisher, events.GroupAggregate(groupID), updatedEvent); err != nil {
+		return nil, fmt.Errorf("publish RoomGroupUpdatedEvent: %w", err)
 	}
 
 	c.logger.Info("Updated room group", "group_id", groupID, "name", name, "actor_id", actorID)
 	c.notifyRoomLayoutChanged(ctx, actorID, "update_group")
+
+	updated, _ := c.RoomGroups.Get(groupID)
 	return updated, nil
 }
 
-// GetRoomGroup reads a single group document, or ErrRoomGroupNotFound if
-// the doc doesn't exist. Does NOT consult the layout — a group can exist
-// as a doc without being in the layout's order (the reconciler will pick
-// it up as an orphan on the next list call).
-func (c *ChattoCore) GetRoomGroup(ctx context.Context, groupID string) (*corev1.RoomGroup, error) {
-	g, err := c.loadRoomGroup(ctx, groupID)
-	if err != nil {
-		return nil, err
+func validateRoomGroupMetadata(name, description string) error {
+	if name == "" {
+		return ErrRoomGroupNameEmpty
+	}
+	if err := validateStringMaxLength("room group name", name, MaxRoomGroupNameLength); err != nil {
+		return err
+	}
+	if err := validateStringMaxLength("room group description", description, MaxRoomGroupDescriptionLength); err != nil {
+		return err
+	}
+	return nil
+}
+
+func validateSidebarLink(label, rawURL string) (string, string, error) {
+	label = strings.TrimSpace(label)
+	rawURL = strings.TrimSpace(rawURL)
+	if label == "" {
+		return "", "", ErrSidebarLinkLabelEmpty
+	}
+	if err := validateStringMaxLength("sidebar link label", label, MaxSidebarLinkLabelLength); err != nil {
+		return "", "", err
+	}
+	if err := validateStringMaxLength("sidebar link URL", rawURL, MaxSidebarLinkURLLength); err != nil {
+		return "", "", err
+	}
+	if !isValidSidebarLinkURL(rawURL) {
+		return "", "", ErrSidebarLinkURLInvalid
+	}
+	return label, rawURL, nil
+}
+
+func isValidSidebarLinkURL(rawURL string) bool {
+	if strings.HasPrefix(rawURL, "/") {
+		if strings.HasPrefix(rawURL, "//") || strings.Contains(rawURL, "\\") {
+			return false
+		}
+		parsed, err := url.ParseRequestURI(rawURL)
+		return err == nil && parsed != nil && parsed.Scheme == "" && parsed.Host == ""
+	}
+
+	parsed, err := url.Parse(rawURL)
+	return err == nil &&
+		parsed != nil &&
+		parsed.IsAbs() &&
+		parsed.Host != "" &&
+		(parsed.Scheme == "http" || parsed.Scheme == "https")
+}
+
+// GetRoomGroup reads a single group from the RoomGroups projection.
+// Returns ErrRoomGroupNotFound if no RoomGroupCreatedEvent for the
+// ID has been observed.
+func (c *ChattoCore) GetRoomGroup(_ context.Context, groupID string) (*corev1.RoomGroup, error) {
+	g, ok := c.RoomGroups.Get(groupID)
+	if !ok {
+		return nil, ErrRoomGroupNotFound
 	}
 	return g, nil
 }
 
-// DeleteRoomGroup removes a group's doc and its entry from the layout.
-// Fails with ErrRoomGroupHasRooms if the group still contains any rooms —
-// the operator must move them out first. There is no cascade.
-func (c *ChattoCore) DeleteRoomGroup(ctx context.Context, actorID, groupID string) error {
-	g, err := c.loadRoomGroup(ctx, groupID)
-	if err != nil {
-		return err
+func (c *ChattoCore) sidebarLinkGroup(ctx context.Context, linkID string) (string, error) {
+	groupID := c.RoomGroups.GroupForSidebarLink(linkID)
+	if groupID != "" {
+		return groupID, nil
 	}
-	if len(g.RoomIds) > 0 {
-		return ErrRoomGroupHasRooms
+	if err := c.rooms().waitForGroupLayoutCurrent(ctx, c.EventPublisher); err != nil {
+		return "", fmt.Errorf("wait for room group layout projection before sidebar-link lookup: %w", err)
 	}
+	groupID = c.RoomGroups.GroupForSidebarLink(linkID)
+	if groupID == "" {
+		return "", ErrSidebarLinkNotFound
+	}
+	return groupID, nil
+}
 
-	if err := c.mutateRoomLayoutOrder(ctx, func(order []string) ([]string, error) {
-		return slices.DeleteFunc(order, func(id string) bool { return id == groupID }), nil
-	}); err != nil {
-		return fmt.Errorf("remove from layout: %w", err)
-	}
-	if err := c.deleteRoomGroupDoc(ctx, groupID); err != nil {
-		return fmt.Errorf("delete group doc: %w", err)
-	}
+func (c *ChattoCore) GetSidebarLinkGroup(ctx context.Context, linkID string) (string, error) {
+	return c.sidebarLinkGroup(ctx, linkID)
+}
 
-	c.logger.Info("Deleted room group", "group_id", groupID, "actor_id", actorID)
-	c.notifyRoomLayoutChanged(ctx, actorID, "delete_group")
+func (c *ChattoCore) sidebarLinkInGroup(groupID, linkID string) (*corev1.SidebarLink, error) {
+	group, ok := c.RoomGroups.Get(groupID)
+	if !ok {
+		return nil, ErrRoomGroupNotFound
+	}
+	for _, link := range group.GetSidebarLinks() {
+		if link.GetId() == linkID {
+			return link, nil
+		}
+	}
+	return nil, ErrSidebarLinkNotFound
+}
+
+func sidebarLinkFromGroup(group *corev1.RoomGroup, linkID string) *corev1.SidebarLink {
+	if group == nil {
+		return nil
+	}
+	for _, link := range group.GetSidebarLinks() {
+		if link.GetId() == linkID {
+			return cloneSidebarLink(link)
+		}
+	}
 	return nil
 }
 
-// MoveRoomToGroup moves a room into the target group, removing it from
-// any other group it was previously in. The room is appended to the end
-// of the target group's room list. Touches at most two group documents
-// (source and target); the layout's order is not modified.
+func (c *ChattoCore) appendGroupLayoutAtFilter(ctx context.Context, agg events.Aggregate, event *corev1.Event, expectedSeq uint64) (events.StreamPosition, error) {
+	subject := agg.SubjectFor(event)
+	seq, err := c.EventPublisher.AppendAtFilter(ctx, subject, event, events.GroupSubjectFilter(), expectedSeq)
+	if err != nil {
+		return events.StreamPosition{}, err
+	}
+	pos := events.SubjectPosition(subject, seq)
+	if err := c.rooms().waitForGroupLayout(ctx, pos); err != nil {
+		return pos, err
+	}
+	return pos, nil
+}
+
+func (c *ChattoCore) waitForGroupOCCRetry(ctx context.Context, attempt int, message string) error {
+	if err := c.rooms().waitForGroupLayoutCurrent(ctx, c.EventPublisher); err != nil {
+		return fmt.Errorf("%s: %w", message, err)
+	}
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-time.After(time.Duration(1<<attempt) * time.Millisecond):
+		return nil
+	}
+}
+
+// DeleteRoomGroup removes a group via RoomGroupDeletedEvent. Fails
+// with ErrRoomGroupHasRooms if the group still contains any rooms or
+// sidebar links. The layout ordering is updated via a follow-up
+// RoomGroupsReorderedEvent.
+func (c *ChattoCore) DeleteRoomGroup(ctx context.Context, actorID, groupID string) error {
+	for attempt := 0; attempt < maxMoveRoomToGroupRetries; attempt++ {
+		snapshot := c.RoomGroups.Snapshot(groupID)
+		if !snapshot.Exists {
+			if err := c.rooms().waitForGroupLayoutCurrent(ctx, c.EventPublisher); err != nil {
+				return fmt.Errorf("wait for room group layout projection before delete: %w", err)
+			}
+			snapshot = c.RoomGroups.Snapshot(groupID)
+			if !snapshot.Exists {
+				return ErrRoomGroupNotFound
+			}
+		}
+		if len(snapshot.Group.GetRoomIds()) > 0 || len(snapshot.Group.GetSidebarLinks()) > 0 {
+			return ErrRoomGroupHasRooms
+		}
+
+		deletedEvent := newEvent(actorID, &corev1.Event{
+			Event: &corev1.Event_RoomGroupDeleted{
+				RoomGroupDeleted: &corev1.RoomGroupDeletedEvent{
+					GroupId: groupID,
+				},
+			},
+		})
+		if _, err := c.appendGroupLayoutAtFilter(ctx, events.GroupAggregate(groupID), deletedEvent, snapshot.Seq); err != nil {
+			if errors.Is(err, events.ErrConflict) {
+				if err := c.waitForGroupOCCRetry(ctx, attempt, "wait for room group layout projection after delete-group OCC conflict"); err != nil {
+					return err
+				}
+				continue
+			}
+			return fmt.Errorf("publish RoomGroupDeletedEvent: %w", err)
+		}
+
+		if err := c.removeGroupFromLayout(ctx, actorID, groupID); err != nil {
+			c.logger.Warn("Failed to remove deleted group from layout ordering",
+				"group_id", groupID, "error", err)
+		}
+
+		c.logger.Info("Deleted room group", "group_id", groupID, "actor_id", actorID)
+		c.notifyRoomLayoutChanged(ctx, actorID, "delete_group")
+		return nil
+	}
+	return fmt.Errorf("delete-room-group OCC retry exhausted after %d attempts: %w", maxMoveRoomToGroupRetries, events.ErrConflict)
+}
+
+// MoveRoomToGroup moves a room into the target group, removing it
+// from any other group it was previously in (ADR-031's "every room
+// belongs to exactly one group" invariant). Two events per ADR-034
+// Approach A: RoomRemovedFromGroup on source, RoomAddedToGroup on
+// target — projection sees them in stream order and the invariant
+// holds at every intermediate sequence.
 //
 // Authorization for the source and target groups must be checked by
 // the caller — see ADR-031's two-group rule.
 func (c *ChattoCore) MoveRoomToGroup(ctx context.Context, actorID, roomID, targetGroupID string) error {
-	groups, err := c.ListRoomGroupsOrdered(ctx, KindChannel)
-	if err != nil {
-		return err
-	}
-
-	var sourceGroupID string
-	for _, g := range groups {
-		if slices.Contains(g.RoomIds, roomID) {
-			sourceGroupID = g.Id
-			break
-		}
-	}
-
-	if sourceGroupID == targetGroupID {
-		// Already in the target group; idempotent no-op.
-		return nil
-	}
-
-	if sourceGroupID != "" {
-		if err := c.mutateRoomGroup(ctx, sourceGroupID, func(g *corev1.RoomGroup) error {
-			g.RoomIds = slices.DeleteFunc(g.RoomIds, func(id string) bool { return id == roomID })
-			return nil
-		}); err != nil {
-			return fmt.Errorf("remove from source group %s: %w", sourceGroupID, err)
-		}
-	}
-
-	if err := c.mutateRoomGroup(ctx, targetGroupID, func(g *corev1.RoomGroup) error {
-		if slices.Contains(g.RoomIds, roomID) {
-			return nil // defensive — already present
-		}
-		g.RoomIds = append(g.RoomIds, roomID)
-		return nil
-	}); err != nil {
-		return fmt.Errorf("append to target group %s: %w", targetGroupID, err)
-	}
-
-	c.logger.Info("Moved room to group", "room_id", roomID, "group_id", targetGroupID, "actor_id", actorID)
-	c.notifyRoomLayoutChanged(ctx, actorID, "move_room")
-	return nil
+	return c.moveRoomToGroup(ctx, actorID, roomID, "", targetGroupID, false)
 }
 
-// ReorderRoomGroups validates that orderedGroupIDs is a permutation of
-// the current set of group documents and writes the new ordering to the
-// layout. Rejects with ErrRoomGroupOrderMismatch on extras, duplicates,
-// or missing IDs. Group documents are untouched — only the layout's
-// `group_ids` field changes.
+// MoveRoomToGroupFromSource moves a room only if the room's current source
+// group still matches sourceGroupID. API callers that authorize the source
+// group before calling core should use this variant so a concurrent move
+// cannot swap the source group between authorization and append.
+func (c *ChattoCore) MoveRoomToGroupFromSource(ctx context.Context, actorID, roomID, sourceGroupID, targetGroupID string) error {
+	return c.moveRoomToGroup(ctx, actorID, roomID, sourceGroupID, targetGroupID, true)
+}
+
+func (c *ChattoCore) moveRoomToGroup(ctx context.Context, actorID, roomID, authorizedSourceGroupID, targetGroupID string, bindSource bool) error {
+	occFilter := events.GroupSubjectFilter()
+	for attempt := 0; attempt < maxMoveRoomToGroupRetries; attempt++ {
+		snapshot := c.RoomGroups.MoveSnapshot(roomID, targetGroupID)
+		if !snapshot.TargetExists {
+			if err := c.rooms().waitForGroupLayoutCurrent(ctx, c.EventPublisher); err != nil {
+				return fmt.Errorf("wait for room group layout projection before not-found decision: %w", err)
+			}
+			snapshot = c.RoomGroups.MoveSnapshot(roomID, targetGroupID)
+			if !snapshot.TargetExists {
+				return ErrRoomGroupNotFound
+			}
+		}
+
+		sourceGroupID := snapshot.SourceGroupID
+		if bindSource && sourceGroupID != authorizedSourceGroupID {
+			return ErrRoomMoveSourceChanged
+		}
+		if sourceGroupID == targetGroupID {
+			if err := c.rooms().waitForGroupLayoutCurrent(ctx, c.EventPublisher); err != nil {
+				return fmt.Errorf("wait for room group layout projection before no-op decision: %w", err)
+			}
+			snapshot = c.RoomGroups.MoveSnapshot(roomID, targetGroupID)
+			sourceGroupID = snapshot.SourceGroupID
+			if !snapshot.TargetExists {
+				return ErrRoomGroupNotFound
+			}
+			if bindSource && sourceGroupID != authorizedSourceGroupID {
+				return ErrRoomMoveSourceChanged
+			}
+			if sourceGroupID != targetGroupID {
+				continue
+			}
+			// Already in the target group; idempotent no-op.
+			return nil
+		}
+
+		// Build the move as an atomic batch (ADR-034 Approach A): the
+		// RoomRemovedFromGroup on the source and the RoomAddedToGroup on
+		// the target land adjacently in stream order. The first entry
+		// carries wildcard OCC over evt.group.>, so a concurrent move that
+		// changes any group membership forces a retry and a fresh source
+		// lookup before we publish.
+		added := newEvent(actorID, &corev1.Event{
+			Event: &corev1.Event_RoomAddedToGroup{
+				RoomAddedToGroup: &corev1.RoomAddedToGroupEvent{
+					GroupId: targetGroupID,
+					RoomId:  roomID,
+				},
+			},
+		})
+
+		var entries []events.BatchEntry
+		if sourceGroupID != "" {
+			removed := newEvent(actorID, &corev1.Event{
+				Event: &corev1.Event_RoomRemovedFromGroup{
+					RoomRemovedFromGroup: &corev1.RoomRemovedFromGroupEvent{
+						GroupId: sourceGroupID,
+						RoomId:  roomID,
+					},
+				},
+			})
+			sourceAgg := events.GroupAggregate(sourceGroupID)
+			entries = append(entries, events.BatchEntry{
+				Subject:       sourceAgg.SubjectFor(removed),
+				Event:         removed,
+				HasOCC:        true,
+				ExpectedSeq:   snapshot.Seq,
+				FilterSubject: occFilter,
+			})
+		}
+		targetAgg := events.GroupAggregate(targetGroupID)
+		entries = append(entries, events.BatchEntry{
+			Subject: targetAgg.SubjectFor(added),
+			Event:   added,
+		})
+		if !entries[0].HasOCC {
+			entries[0].HasOCC = true
+			entries[0].ExpectedSeq = snapshot.Seq
+			entries[0].FilterSubject = occFilter
+		}
+
+		seqs, err := c.EventPublisher.AppendBatch(ctx, entries)
+		if err == nil {
+			c.logger.Info("Moved room to group", "room_id", roomID, "group_id", targetGroupID, "actor_id", actorID)
+			c.notifyRoomLayoutChanged(ctx, actorID, "move_room")
+
+			// Wait on the final seq — the projector applies in stream order
+			// so reaching the last batch entry's seq implies every earlier
+			// entry's Apply has also landed.
+			lastSubject := entries[len(entries)-1].Subject
+			if err := c.rooms().waitForGroupLayout(ctx, events.SubjectPosition(lastSubject, seqs[len(seqs)-1])); err != nil {
+				return fmt.Errorf("wait for room group layout projection: %w", err)
+			}
+			return nil
+		}
+		if !errors.Is(err, events.ErrConflict) {
+			return fmt.Errorf("publish move-room batch: %w", err)
+		}
+
+		if err := c.rooms().waitForGroupLayoutCurrent(ctx, c.EventPublisher); err != nil {
+			return fmt.Errorf("wait for room group layout projection after OCC conflict: %w", err)
+		}
+
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(time.Duration(1<<attempt) * time.Millisecond):
+		}
+	}
+	return fmt.Errorf("move-room OCC retry exhausted after %d attempts: %w", maxMoveRoomToGroupRetries, events.ErrConflict)
+}
+
+// ReorderRoomGroups publishes a RoomGroupsReorderedEvent with the
+// new inter-group ordering. orderedGroupIDs must be a permutation of
+// the current set of groups in the RoomGroups projection — extras,
+// duplicates, or missing IDs return ErrRoomGroupOrderMismatch.
 func (c *ChattoCore) ReorderRoomGroups(ctx context.Context, actorID string, orderedGroupIDs []string) error {
-	docs, err := c.listAllRoomGroupDocs(ctx)
-	if err != nil {
-		return err
+	current := c.RoomGroups.All()
+	currentIDs := make(map[string]struct{}, len(current))
+	for _, g := range current {
+		currentIDs[g.Id] = struct{}{}
 	}
 
-	if len(orderedGroupIDs) != len(docs) {
+	if len(orderedGroupIDs) != len(currentIDs) {
 		return ErrRoomGroupOrderMismatch
 	}
 	seen := make(map[string]struct{}, len(orderedGroupIDs))
@@ -221,15 +454,13 @@ func (c *ChattoCore) ReorderRoomGroups(ctx context.Context, actorID string, orde
 		if _, dup := seen[id]; dup {
 			return ErrRoomGroupOrderMismatch
 		}
-		if _, ok := docs[id]; !ok {
+		if _, ok := currentIDs[id]; !ok {
 			return ErrRoomGroupOrderMismatch
 		}
 		seen[id] = struct{}{}
 	}
 
-	if err := c.mutateRoomLayoutOrder(ctx, func(_ []string) ([]string, error) {
-		return slices.Clone(orderedGroupIDs), nil
-	}); err != nil {
+	if err := c.publishLayoutOrdering(ctx, actorID, orderedGroupIDs); err != nil {
 		return err
 	}
 
@@ -238,36 +469,47 @@ func (c *ChattoCore) ReorderRoomGroups(ctx context.Context, actorID string, orde
 	return nil
 }
 
-// ReorderRoomsInGroup writes a new room ordering inside a single group.
-// `orderedRoomIDs` must be a permutation of the group's current
-// `room_ids` — extras, duplicates, or missing IDs return
-// ErrRoomGroupOrderMismatch. The layout's group order is untouched.
+// ReorderRoomsInGroup publishes a RoomsInGroupReorderedEvent with a
+// new intra-group room ordering. orderedRoomIDs must be a permutation
+// of the group's current room_ids — extras, duplicates, or missing
+// IDs return ErrRoomGroupOrderMismatch.
 //
-// Cross-group moves go through MoveRoomToGroup; this method exists for
+// Cross-group moves go through MoveRoomToGroup; this method is for
 // intra-group drag-reorder where the membership set doesn't change.
 func (c *ChattoCore) ReorderRoomsInGroup(ctx context.Context, actorID, groupID string, orderedRoomIDs []string) error {
-	if err := c.mutateRoomGroup(ctx, groupID, func(g *corev1.RoomGroup) error {
-		if len(orderedRoomIDs) != len(g.RoomIds) {
+	g, ok := c.RoomGroups.Get(groupID)
+	if !ok {
+		return ErrRoomGroupNotFound
+	}
+
+	if len(orderedRoomIDs) != len(g.RoomIds) {
+		return ErrRoomGroupOrderMismatch
+	}
+	current := make(map[string]struct{}, len(g.RoomIds))
+	for _, id := range g.RoomIds {
+		current[id] = struct{}{}
+	}
+	seen := make(map[string]struct{}, len(orderedRoomIDs))
+	for _, id := range orderedRoomIDs {
+		if _, dup := seen[id]; dup {
 			return ErrRoomGroupOrderMismatch
 		}
-		current := make(map[string]struct{}, len(g.RoomIds))
-		for _, id := range g.RoomIds {
-			current[id] = struct{}{}
+		if _, ok := current[id]; !ok {
+			return ErrRoomGroupOrderMismatch
 		}
-		seen := make(map[string]struct{}, len(orderedRoomIDs))
-		for _, id := range orderedRoomIDs {
-			if _, dup := seen[id]; dup {
-				return ErrRoomGroupOrderMismatch
-			}
-			if _, ok := current[id]; !ok {
-				return ErrRoomGroupOrderMismatch
-			}
-			seen[id] = struct{}{}
-		}
-		g.RoomIds = slices.Clone(orderedRoomIDs)
-		return nil
-	}); err != nil {
-		return err
+		seen[id] = struct{}{}
+	}
+
+	reorderedEvent := newEvent(actorID, &corev1.Event{
+		Event: &corev1.Event_RoomsInGroupReordered{
+			RoomsInGroupReordered: &corev1.RoomsInGroupReorderedEvent{
+				GroupId: groupID,
+				RoomIds: slices.Clone(orderedRoomIDs),
+			},
+		},
+	})
+	if _, err := c.rooms().appendGroupLayout(ctx, c.EventPublisher, events.GroupAggregate(groupID), reorderedEvent); err != nil {
+		return fmt.Errorf("publish RoomsInGroupReorderedEvent: %w", err)
 	}
 
 	c.logger.Info("Reordered rooms in group", "group_id", groupID, "actor_id", actorID)
@@ -275,34 +517,349 @@ func (c *ChattoCore) ReorderRoomsInGroup(ctx context.Context, actorID, groupID s
 	return nil
 }
 
-// ListRoomGroupsOrdered is the canonical reconciled accessor. It returns
-// the layout-ordered list of groups, with stale layout entries dropped
-// and orphan docs appended at the end (by NanoID, which is roughly
-// creation order). Runs the legacy-shape migrator on first call after
-// an upgrade.
+func (c *ChattoCore) CreateSidebarLink(ctx context.Context, actorID, groupID, label, rawURL string) (*corev1.SidebarLink, error) {
+	label, rawURL, err := validateSidebarLink(label, rawURL)
+	if err != nil {
+		return nil, err
+	}
+	link := &corev1.SidebarLink{
+		Id:    NewSidebarLinkID(),
+		Label: label,
+		Url:   rawURL,
+	}
+	for attempt := 0; attempt < maxMoveRoomToGroupRetries; attempt++ {
+		snapshot := c.RoomGroups.Snapshot(groupID)
+		if !snapshot.Exists {
+			if err := c.rooms().waitForGroupLayoutCurrent(ctx, c.EventPublisher); err != nil {
+				return nil, fmt.Errorf("wait for room group layout projection before sidebar-link create: %w", err)
+			}
+			snapshot = c.RoomGroups.Snapshot(groupID)
+			if !snapshot.Exists {
+				return nil, ErrRoomGroupNotFound
+			}
+		}
+
+		event := newEvent(actorID, &corev1.Event{
+			Event: &corev1.Event_SidebarLinkAddedToGroup{
+				SidebarLinkAddedToGroup: &corev1.SidebarLinkAddedToGroupEvent{
+					GroupId: groupID,
+					LinkId:  link.Id,
+					Label:   link.Label,
+					Url:     link.Url,
+				},
+			},
+		})
+		if _, err := c.appendGroupLayoutAtFilter(ctx, events.GroupAggregate(groupID), event, snapshot.Seq); err != nil {
+			if errors.Is(err, events.ErrConflict) {
+				if err := c.waitForGroupOCCRetry(ctx, attempt, "wait for room group layout projection after sidebar-link create OCC conflict"); err != nil {
+					return nil, err
+				}
+				continue
+			}
+			return nil, fmt.Errorf("publish SidebarLinkAddedToGroupEvent: %w", err)
+		}
+
+		c.logger.Info("Created sidebar link", "group_id", groupID, "link_id", link.Id, "actor_id", actorID)
+		c.notifyRoomLayoutChanged(ctx, actorID, "create_sidebar_link")
+		return link, nil
+	}
+	return nil, fmt.Errorf("create-sidebar-link OCC retry exhausted after %d attempts: %w", maxMoveRoomToGroupRetries, events.ErrConflict)
+}
+
+func (c *ChattoCore) UpdateSidebarLink(ctx context.Context, actorID, linkID, label, rawURL string) (*corev1.SidebarLink, error) {
+	groupID, err := c.sidebarLinkGroup(ctx, linkID)
+	if err != nil {
+		return nil, err
+	}
+	return c.UpdateSidebarLinkInGroup(ctx, actorID, groupID, linkID, label, rawURL)
+}
+
+func (c *ChattoCore) UpdateSidebarLinkInGroup(ctx context.Context, actorID, groupID, linkID, label, rawURL string) (*corev1.SidebarLink, error) {
+	label, rawURL, err := validateSidebarLink(label, rawURL)
+	if err != nil {
+		return nil, err
+	}
+	for attempt := 0; attempt < maxMoveRoomToGroupRetries; attempt++ {
+		snapshot := c.RoomGroups.Snapshot(groupID)
+		if !snapshot.Exists {
+			if err := c.rooms().waitForGroupLayoutCurrent(ctx, c.EventPublisher); err != nil {
+				return nil, fmt.Errorf("wait for room group layout projection before sidebar-link update: %w", err)
+			}
+			snapshot = c.RoomGroups.Snapshot(groupID)
+			if !snapshot.Exists {
+				return nil, ErrRoomGroupNotFound
+			}
+		}
+		if sidebarLinkFromGroup(snapshot.Group, linkID) == nil {
+			return nil, ErrSidebarLinkNotFound
+		}
+
+		event := newEvent(actorID, &corev1.Event{
+			Event: &corev1.Event_SidebarLinkUpdated{
+				SidebarLinkUpdated: &corev1.SidebarLinkUpdatedEvent{
+					GroupId: groupID,
+					LinkId:  linkID,
+					Label:   label,
+					Url:     rawURL,
+				},
+			},
+		})
+		if _, err := c.appendGroupLayoutAtFilter(ctx, events.GroupAggregate(groupID), event, snapshot.Seq); err != nil {
+			if errors.Is(err, events.ErrConflict) {
+				if err := c.waitForGroupOCCRetry(ctx, attempt, "wait for room group layout projection after sidebar-link update OCC conflict"); err != nil {
+					return nil, err
+				}
+				continue
+			}
+			return nil, fmt.Errorf("publish SidebarLinkUpdatedEvent: %w", err)
+		}
+
+		c.logger.Info("Updated sidebar link", "group_id", groupID, "link_id", linkID, "actor_id", actorID)
+		c.notifyRoomLayoutChanged(ctx, actorID, "update_sidebar_link")
+		return &corev1.SidebarLink{Id: linkID, Label: label, Url: rawURL}, nil
+	}
+	return nil, fmt.Errorf("update-sidebar-link OCC retry exhausted after %d attempts: %w", maxMoveRoomToGroupRetries, events.ErrConflict)
+}
+
+func (c *ChattoCore) DeleteSidebarLink(ctx context.Context, actorID, linkID string) error {
+	groupID, err := c.sidebarLinkGroup(ctx, linkID)
+	if err != nil {
+		return err
+	}
+	return c.DeleteSidebarLinkInGroup(ctx, actorID, groupID, linkID)
+}
+
+func (c *ChattoCore) DeleteSidebarLinkInGroup(ctx context.Context, actorID, groupID, linkID string) error {
+	for attempt := 0; attempt < maxMoveRoomToGroupRetries; attempt++ {
+		snapshot := c.RoomGroups.Snapshot(groupID)
+		if !snapshot.Exists {
+			if err := c.rooms().waitForGroupLayoutCurrent(ctx, c.EventPublisher); err != nil {
+				return fmt.Errorf("wait for room group layout projection before sidebar-link delete: %w", err)
+			}
+			snapshot = c.RoomGroups.Snapshot(groupID)
+			if !snapshot.Exists {
+				return ErrRoomGroupNotFound
+			}
+		}
+		if sidebarLinkFromGroup(snapshot.Group, linkID) == nil {
+			return ErrSidebarLinkNotFound
+		}
+
+		event := newEvent(actorID, &corev1.Event{
+			Event: &corev1.Event_SidebarLinkRemovedFromGroup{
+				SidebarLinkRemovedFromGroup: &corev1.SidebarLinkRemovedFromGroupEvent{
+					GroupId: groupID,
+					LinkId:  linkID,
+				},
+			},
+		})
+		if _, err := c.appendGroupLayoutAtFilter(ctx, events.GroupAggregate(groupID), event, snapshot.Seq); err != nil {
+			if errors.Is(err, events.ErrConflict) {
+				if err := c.waitForGroupOCCRetry(ctx, attempt, "wait for room group layout projection after sidebar-link delete OCC conflict"); err != nil {
+					return err
+				}
+				continue
+			}
+			return fmt.Errorf("publish SidebarLinkRemovedFromGroupEvent: %w", err)
+		}
+
+		c.logger.Info("Deleted sidebar link", "group_id", groupID, "link_id", linkID, "actor_id", actorID)
+		c.notifyRoomLayoutChanged(ctx, actorID, "delete_sidebar_link")
+		return nil
+	}
+	return fmt.Errorf("delete-sidebar-link OCC retry exhausted after %d attempts: %w", maxMoveRoomToGroupRetries, events.ErrConflict)
+}
+
+func (c *ChattoCore) MoveSidebarLinkToGroup(ctx context.Context, actorID, linkID, targetGroupID string) error {
+	sourceGroupID, err := c.sidebarLinkGroup(ctx, linkID)
+	if err != nil {
+		return err
+	}
+	return c.MoveSidebarLinkBetweenGroups(ctx, actorID, linkID, sourceGroupID, targetGroupID)
+}
+
+func (c *ChattoCore) MoveSidebarLinkBetweenGroups(ctx context.Context, actorID, linkID, sourceGroupID, targetGroupID string) error {
+	for attempt := 0; attempt < maxMoveRoomToGroupRetries; attempt++ {
+		snapshot := c.RoomGroups.SidebarLinkMoveSnapshot(linkID, targetGroupID)
+		if !snapshot.TargetExists {
+			if err := c.rooms().waitForGroupLayoutCurrent(ctx, c.EventPublisher); err != nil {
+				return fmt.Errorf("wait for room group layout projection before sidebar-link move target decision: %w", err)
+			}
+			snapshot = c.RoomGroups.SidebarLinkMoveSnapshot(linkID, targetGroupID)
+			if !snapshot.TargetExists {
+				return ErrRoomGroupNotFound
+			}
+		}
+		if snapshot.SourceGroupID == "" || snapshot.Link == nil {
+			if err := c.rooms().waitForGroupLayoutCurrent(ctx, c.EventPublisher); err != nil {
+				return fmt.Errorf("wait for room group layout projection before sidebar-link move source decision: %w", err)
+			}
+			snapshot = c.RoomGroups.SidebarLinkMoveSnapshot(linkID, targetGroupID)
+			if snapshot.SourceGroupID == "" || snapshot.Link == nil {
+				return ErrSidebarLinkNotFound
+			}
+		}
+		if snapshot.SourceGroupID != sourceGroupID {
+			return ErrSidebarLinkSourceChanged
+		}
+		if snapshot.SourceGroupID == targetGroupID {
+			return nil
+		}
+
+		removed := newEvent(actorID, &corev1.Event{
+			Event: &corev1.Event_SidebarLinkRemovedFromGroup{
+				SidebarLinkRemovedFromGroup: &corev1.SidebarLinkRemovedFromGroupEvent{
+					GroupId: snapshot.SourceGroupID,
+					LinkId:  linkID,
+				},
+			},
+		})
+		added := newEvent(actorID, &corev1.Event{
+			Event: &corev1.Event_SidebarLinkAddedToGroup{
+				SidebarLinkAddedToGroup: &corev1.SidebarLinkAddedToGroupEvent{
+					GroupId: targetGroupID,
+					LinkId:  linkID,
+					Label:   snapshot.Link.Label,
+					Url:     snapshot.Link.Url,
+				},
+			},
+		})
+		entries := []events.BatchEntry{
+			{
+				Subject:       events.GroupAggregate(snapshot.SourceGroupID).SubjectFor(removed),
+				Event:         removed,
+				HasOCC:        true,
+				ExpectedSeq:   snapshot.Seq,
+				FilterSubject: events.GroupSubjectFilter(),
+			},
+			{
+				Subject: events.GroupAggregate(targetGroupID).SubjectFor(added),
+				Event:   added,
+			},
+		}
+		seqs, err := c.EventPublisher.AppendBatch(ctx, entries)
+		if err == nil {
+			lastSubject := entries[len(entries)-1].Subject
+			if err := c.rooms().waitForGroupLayout(ctx, events.SubjectPosition(lastSubject, seqs[len(seqs)-1])); err != nil {
+				return fmt.Errorf("wait for room group layout projection: %w", err)
+			}
+			c.logger.Info("Moved sidebar link", "link_id", linkID, "source_group_id", snapshot.SourceGroupID, "target_group_id", targetGroupID, "actor_id", actorID)
+			c.notifyRoomLayoutChanged(ctx, actorID, "move_sidebar_link")
+			return nil
+		}
+		if !errors.Is(err, events.ErrConflict) {
+			return fmt.Errorf("publish sidebar-link move batch: %w", err)
+		}
+		if err := c.waitForGroupOCCRetry(ctx, attempt, "wait for room group layout projection after sidebar-link move OCC conflict"); err != nil {
+			return err
+		}
+	}
+	return fmt.Errorf("move-sidebar-link OCC retry exhausted after %d attempts: %w", maxMoveRoomToGroupRetries, events.ErrConflict)
+}
+
+func (c *ChattoCore) ReorderSidebarItemsInGroup(ctx context.Context, actorID, groupID string, orderedEntries []*corev1.SidebarGroupEntry) error {
+	for attempt := 0; attempt < maxMoveRoomToGroupRetries; attempt++ {
+		snapshot := c.RoomGroups.Snapshot(groupID)
+		if !snapshot.Exists {
+			if err := c.rooms().waitForGroupLayoutCurrent(ctx, c.EventPublisher); err != nil {
+				return fmt.Errorf("wait for room group layout projection before sidebar-item reorder: %w", err)
+			}
+			snapshot = c.RoomGroups.Snapshot(groupID)
+			if !snapshot.Exists {
+				return ErrRoomGroupNotFound
+			}
+		}
+		if !sameSidebarEntrySet(snapshot.Group.GetEntries(), orderedEntries) {
+			return ErrRoomGroupOrderMismatch
+		}
+		event := newEvent(actorID, &corev1.Event{
+			Event: &corev1.Event_SidebarGroupEntriesReordered{
+				SidebarGroupEntriesReordered: &corev1.SidebarGroupEntriesReorderedEvent{
+					GroupId: groupID,
+					Entries: cloneSidebarEntries(orderedEntries),
+				},
+			},
+		})
+		if _, err := c.appendGroupLayoutAtFilter(ctx, events.GroupAggregate(groupID), event, snapshot.Seq); err != nil {
+			if errors.Is(err, events.ErrConflict) {
+				if err := c.waitForGroupOCCRetry(ctx, attempt, "wait for room group layout projection after sidebar-item reorder OCC conflict"); err != nil {
+					return err
+				}
+				continue
+			}
+			return fmt.Errorf("publish SidebarGroupEntriesReorderedEvent: %w", err)
+		}
+
+		c.logger.Info("Reordered sidebar items in group", "group_id", groupID, "actor_id", actorID)
+		c.notifyRoomLayoutChanged(ctx, actorID, "reorder_sidebar_items_in_group")
+		return nil
+	}
+	return fmt.Errorf("reorder-sidebar-items OCC retry exhausted after %d attempts: %w", maxMoveRoomToGroupRetries, events.ErrConflict)
+}
+
+func sameSidebarEntrySet(current, next []*corev1.SidebarGroupEntry) bool {
+	if len(current) != len(next) {
+		return false
+	}
+	counts := make(map[string]int, len(current))
+	for _, entry := range current {
+		key := sidebarEntryKey(entry)
+		if key == "" {
+			return false
+		}
+		counts[key]++
+	}
+	for _, entry := range next {
+		key := sidebarEntryKey(entry)
+		if key == "" {
+			return false
+		}
+		counts[key]--
+		if counts[key] < 0 {
+			return false
+		}
+	}
+	for _, count := range counts {
+		if count != 0 {
+			return false
+		}
+	}
+	return true
+}
+
+func sidebarEntryKey(entry *corev1.SidebarGroupEntry) string {
+	if entry == nil || entry.GetId() == "" {
+		return ""
+	}
+	switch entry.GetKind() {
+	case corev1.SidebarGroupEntry_ROOM:
+		return "room:" + entry.GetId()
+	case corev1.SidebarGroupEntry_SIDEBAR_LINK:
+		return "link:" + entry.GetId()
+	default:
+		return ""
+	}
+}
+
+// ListRoomGroupsOrdered returns the layout-ordered list of channel
+// groups, dropping stale references and appending orphans (groups
+// present in the catalog but missing from the layout) at the end by
+// NanoID order so the sidebar self-heals on read.
 //
-// `kind` is preserved for symmetry with other room APIs; only KindChannel
-// participates in the layout today.
-func (c *ChattoCore) ListRoomGroupsOrdered(ctx context.Context, kind RoomKind) ([]*corev1.RoomGroup, error) {
+// `kind` is preserved on the signature for symmetry with other room
+// APIs; only KindChannel participates in the layout today.
+func (c *ChattoCore) ListRoomGroupsOrdered(_ context.Context, kind RoomKind) ([]*corev1.RoomGroup, error) {
 	if kind != KindChannel {
 		return nil, nil
 	}
 
-	// Trigger migration before reading docs — the migrator writes
-	// per-key group docs from legacy_sections, so we need it to run
-	// first or the docs map will miss freshly-migrated groups.
-	order, err := c.GetRoomLayoutOrder(ctx)
-	if err != nil {
-		return nil, err
+	order := c.RoomLayout.Order()
+	all := c.RoomGroups.All()
+	docs := make(map[string]*corev1.RoomGroup, len(all))
+	for _, g := range all {
+		docs[g.Id] = g
 	}
 
-	docs, err := c.listAllRoomGroupDocs(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	// Reconcile: walk the layout's order, picking up docs that exist;
-	// then append any docs missing from the order (orphan recovery).
 	out := make([]*corev1.RoomGroup, 0, len(docs))
 	used := make(map[string]struct{}, len(order))
 	for _, id := range order {
@@ -311,13 +868,12 @@ func (c *ChattoCore) ListRoomGroupsOrdered(ctx context.Context, kind RoomKind) (
 		}
 		g, ok := docs[id]
 		if !ok {
-			continue // stale reference — drop
+			continue
 		}
 		out = append(out, g)
 		used[id] = struct{}{}
 	}
 
-	// Orphans, sorted by ID for determinism.
 	var orphans []string
 	for id := range docs {
 		if _, ok := used[id]; !ok {
@@ -331,317 +887,58 @@ func (c *ChattoCore) ListRoomGroupsOrdered(ctx context.Context, kind RoomKind) (
 	return out, nil
 }
 
-// GetRoomLayoutOrder returns the raw `group_ids` ordering from the
-// layout doc, running the legacy-shape migrator if needed. May contain
-// stale references (IDs without matching docs); use
-// ListRoomGroupsOrdered for the reconciled view.
-func (c *ChattoCore) GetRoomLayoutOrder(ctx context.Context) ([]string, error) {
-	layout, err := c.readAndMaybeMigrateLayout(ctx)
-	if err != nil {
-		return nil, err
-	}
-	if layout == nil {
-		return nil, nil
-	}
-	return slices.Clone(layout.GroupIds), nil
+// GetRoomLayoutOrder returns the operator-defined ordering from the
+// RoomLayout projection. May include IDs of groups that have since
+// been deleted; use ListRoomGroupsOrdered for the reconciled view.
+func (c *ChattoCore) GetRoomLayoutOrder(_ context.Context) ([]string, error) {
+	return c.RoomLayout.Order(), nil
 }
 
 // ----------------------------------------------------------------------
-// Per-document KV ops
+// Layout-ordering helpers
 // ----------------------------------------------------------------------
 
-func (c *ChattoCore) loadRoomGroup(ctx context.Context, groupID string) (*corev1.RoomGroup, error) {
-	bucket := c.storage.serverConfigKV
-	entry, err := bucket.Get(ctx, roomGroupKey(groupID))
-	if err != nil {
-		if errors.Is(err, jetstream.ErrKeyNotFound) {
-			return nil, ErrRoomGroupNotFound
-		}
-		return nil, fmt.Errorf("get group %s: %w", groupID, err)
+// publishLayoutOrdering writes a RoomGroupsReorderedEvent on the
+// singleton layout aggregate and waits for the group/layout projection.
+func (c *ChattoCore) publishLayoutOrdering(ctx context.Context, actorID string, groupIDs []string) error {
+	event := newEvent(actorID, &corev1.Event{
+		Event: &corev1.Event_RoomGroupsReordered{
+			RoomGroupsReordered: &corev1.RoomGroupsReorderedEvent{
+				GroupIds: slices.Clone(groupIDs),
+			},
+		},
+	})
+	if _, err := c.rooms().appendGroupLayout(ctx, c.EventPublisher, events.LayoutAggregate(), event); err != nil {
+		return fmt.Errorf("publish RoomGroupsReorderedEvent: %w", err)
 	}
-	g := &corev1.RoomGroup{}
-	if err := proto.Unmarshal(entry.Value(), g); err != nil {
-		return nil, fmt.Errorf("unmarshal group %s: %w", groupID, err)
-	}
-	return g, nil
+	return nil
 }
 
-// writeRoomGroup writes a group document. Pass revision=0 to create
-// (fails with ErrKeyExists if already present); pass a non-zero
-// revision to update (fails with ErrKeyExists / ErrWrongLastSequence
-// on conflict).
-func (c *ChattoCore) writeRoomGroup(ctx context.Context, g *corev1.RoomGroup, revision uint64) error {
-	bucket := c.storage.serverConfigKV
-	data, err := proto.Marshal(g)
-	if err != nil {
-		return fmt.Errorf("marshal group %s: %w", g.Id, err)
-	}
-	if revision == 0 {
-		_, err = bucket.Create(ctx, roomGroupKey(g.Id), data)
-	} else {
-		_, err = bucket.Update(ctx, roomGroupKey(g.Id), data, revision)
-	}
-	return err
-}
-
-func (c *ChattoCore) deleteRoomGroupDoc(ctx context.Context, groupID string) error {
-	return c.storage.serverConfigKV.Delete(ctx, roomGroupKey(groupID))
-}
-
-// mutateRoomGroup reads, mutates, and rewrites one group document under
-// OCC. Returns ErrRoomGroupNotFound if the doc doesn't exist.
-func (c *ChattoCore) mutateRoomGroup(ctx context.Context, groupID string, mutate func(*corev1.RoomGroup) error) error {
-	bucket := c.storage.serverConfigKV
-	for attempt := 0; attempt < maxLayoutRetries; attempt++ {
-		entry, err := bucket.Get(ctx, roomGroupKey(groupID))
-		if err != nil {
-			if errors.Is(err, jetstream.ErrKeyNotFound) {
-				return ErrRoomGroupNotFound
-			}
-			return fmt.Errorf("get group %s: %w", groupID, err)
-		}
-		g := &corev1.RoomGroup{}
-		if err := proto.Unmarshal(entry.Value(), g); err != nil {
-			return fmt.Errorf("unmarshal group %s: %w", groupID, err)
-		}
-		if err := mutate(g); err != nil {
-			return err
-		}
-		if err := c.writeRoomGroup(ctx, g, entry.Revision()); err != nil {
-			if errors.Is(err, jetstream.ErrKeyExists) {
-				continue // OCC conflict, retry
-			}
-			return fmt.Errorf("write group %s: %w", groupID, err)
-		}
+// appendGroupToLayout appends groupID to the current layout ordering
+// if not already present, then publishes the new ordering.
+func (c *ChattoCore) appendGroupToLayout(ctx context.Context, actorID, groupID string) error {
+	current := c.RoomLayout.Order()
+	if slices.Contains(current, groupID) {
 		return nil
 	}
-	return ErrConfigConflict
+	return c.publishLayoutOrdering(ctx, actorID, append(current, groupID))
 }
 
-func (c *ChattoCore) listAllRoomGroupDocs(ctx context.Context) (map[string]*corev1.RoomGroup, error) {
-	bucket := c.storage.serverConfigKV
-	keyLister, err := bucket.ListKeysFiltered(ctx, roomGroupKeyPrefix+"*")
-	if err != nil {
-		return nil, fmt.Errorf("list room_group keys: %w", err)
+// removeGroupFromLayout removes groupID from the current layout
+// ordering and republishes if it was present.
+func (c *ChattoCore) removeGroupFromLayout(ctx context.Context, actorID, groupID string) error {
+	current := c.RoomLayout.Order()
+	if !slices.Contains(current, groupID) {
+		return nil
 	}
-	out := make(map[string]*corev1.RoomGroup)
-	for key := range keyLister.Keys() {
-		entry, err := bucket.Get(ctx, key)
-		if err != nil {
-			if errors.Is(err, jetstream.ErrKeyNotFound) {
-				continue
-			}
-			return nil, fmt.Errorf("get %s: %w", key, err)
-		}
-		g := &corev1.RoomGroup{}
-		if err := proto.Unmarshal(entry.Value(), g); err != nil {
-			c.logger.Warn("skipping unparseable group doc", "key", key, "error", err)
-			continue
-		}
-		if g.Id == "" {
-			c.logger.Warn("skipping group doc with empty ID", "key", key)
-			continue
-		}
-		out[g.Id] = g
-	}
-	return out, nil
+	next := slices.DeleteFunc(current, func(id string) bool { return id == groupID })
+	return c.publishLayoutOrdering(ctx, actorID, next)
 }
 
-// ----------------------------------------------------------------------
-// Layout doc (ordering only) + legacy-shape migration
-// ----------------------------------------------------------------------
-
-// mutateRoomLayoutOrder runs the mutator over the layout's `group_ids`
-// list with OCC retries. The mutator should treat the input as
-// immutable and return the new order.
-func (c *ChattoCore) mutateRoomLayoutOrder(ctx context.Context, mutate func([]string) ([]string, error)) error {
-	bucket := c.storage.serverConfigKV
-	for attempt := 0; attempt < maxLayoutRetries; attempt++ {
-		layout, revision, err := c.readLayoutWithRevision(ctx)
-		if err != nil {
-			return err
-		}
-
-		newOrder, err := mutate(layout.GroupIds)
-		if err != nil {
-			return err
-		}
-		layout.GroupIds = newOrder
-
-		data, err := proto.Marshal(layout)
-		if err != nil {
-			return fmt.Errorf("marshal layout: %w", err)
-		}
-		var writeErr error
-		if revision == 0 {
-			_, writeErr = bucket.Create(ctx, roomLayoutKey, data)
-		} else {
-			_, writeErr = bucket.Update(ctx, roomLayoutKey, data, revision)
-		}
-		if writeErr == nil {
-			return nil
-		}
-		if errors.Is(writeErr, jetstream.ErrKeyExists) {
-			continue // OCC conflict, retry
-		}
-		return fmt.Errorf("write layout: %w", writeErr)
-	}
-	return ErrConfigConflict
-}
-
-// readAndMaybeMigrateLayout reads the layout doc and, if it still
-// carries legacy fields (`legacy_sections` or `legacy_unsorted_room_ids`),
-// drains them into per-group documents + a fresh `group_ids` list. The
-// migrator is idempotent; subsequent calls find no legacy fields and
-// short-circuit.
-func (c *ChattoCore) readAndMaybeMigrateLayout(ctx context.Context) (*corev1.RoomLayout, error) {
-	layout, _, err := c.readLayoutWithRevision(ctx)
-	if err != nil {
-		return nil, err
-	}
-	if len(layout.LegacySections) == 0 && len(layout.LegacyUnsortedRoomIds) == 0 {
-		return layout, nil
-	}
-	// Run migration; the helper rewrites the layout in place via OCC.
-	if err := c.migrateLegacyRoomLayout(ctx); err != nil {
-		return nil, fmt.Errorf("migrate legacy layout: %w", err)
-	}
-	// Re-read so the caller sees the post-migration state.
-	layout, _, err = c.readLayoutWithRevision(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return layout, nil
-}
-
-// readLayoutWithRevision reads the layout key and returns its current
-// state plus its revision (0 if absent). Never returns nil — an absent
-// key yields an empty RoomLayout, so callers can always populate fields.
-func (c *ChattoCore) readLayoutWithRevision(ctx context.Context) (*corev1.RoomLayout, uint64, error) {
-	entry, err := c.storage.serverConfigKV.Get(ctx, roomLayoutKey)
-	if err != nil {
-		if errors.Is(err, jetstream.ErrKeyNotFound) {
-			return &corev1.RoomLayout{}, 0, nil
-		}
-		return nil, 0, fmt.Errorf("get layout: %w", err)
-	}
-	layout := &corev1.RoomLayout{}
-	if err := proto.Unmarshal(entry.Value(), layout); err != nil {
-		return nil, 0, fmt.Errorf("unmarshal layout: %w", err)
-	}
-	return layout, entry.Revision(), nil
-}
-
-// migrateLegacyRoomLayout drains `legacy_sections` and
-// `legacy_unsorted_room_ids` into per-group documents + a `group_ids`
-// list. Idempotent: short-circuits if the legacy fields are empty.
-//
-// Behaviour:
-//   - Each legacy section becomes a `room_group.{id}` document (unless
-//     a doc with that ID already exists from a prior migration attempt).
-//   - The new layout's `group_ids` mirrors the legacy section order.
-//   - `legacy_unsorted_room_ids` are absorbed into the first group's
-//     room_ids. If there are no legacy sections, a seed "Lobby" group is
-//     created to hold them.
-//   - Legacy fields are cleared on the final layout write.
-func (c *ChattoCore) migrateLegacyRoomLayout(ctx context.Context) error {
-	bucket := c.storage.serverConfigKV
-	for attempt := 0; attempt < maxLayoutRetries; attempt++ {
-		layout, revision, err := c.readLayoutWithRevision(ctx)
-		if err != nil {
-			return err
-		}
-		if len(layout.LegacySections) == 0 && len(layout.LegacyUnsortedRoomIds) == 0 {
-			return nil // already migrated, or never had legacy fields
-		}
-
-		// Build the new state.
-		newOrder := make([]string, 0, len(layout.LegacySections))
-		for _, sec := range layout.LegacySections {
-			if sec.Id == "" {
-				c.logger.Warn("skipping legacy section with empty ID")
-				continue
-			}
-			// Skip if a doc already exists (e.g., partial prior migration).
-			existing, loadErr := c.loadRoomGroup(ctx, sec.Id)
-			if loadErr != nil && !errors.Is(loadErr, ErrRoomGroupNotFound) {
-				return fmt.Errorf("check existing group %s: %w", sec.Id, loadErr)
-			}
-			if existing == nil {
-				g := &corev1.RoomGroup{
-					Id:      sec.Id,
-					Name:    sec.Name,
-					RoomIds: slices.Clone(sec.RoomIds),
-				}
-				if err := c.writeRoomGroup(ctx, g, 0); err != nil && !errors.Is(err, jetstream.ErrKeyExists) {
-					return fmt.Errorf("write migrated group %s: %w", sec.Id, err)
-				}
-			}
-			newOrder = append(newOrder, sec.Id)
-		}
-
-		// Absorb unsorted rooms into the first group (creating one if needed).
-		if len(layout.LegacyUnsortedRoomIds) > 0 {
-			var targetGroupID string
-			if len(newOrder) > 0 {
-				targetGroupID = newOrder[0]
-			} else {
-				seed := &corev1.RoomGroup{
-					Id:   NewRoomGroupID(),
-					Name: SeedDefaultRoomGroupName,
-				}
-				if err := c.writeRoomGroup(ctx, seed, 0); err != nil {
-					return fmt.Errorf("seed group for unsorted rooms: %w", err)
-				}
-				targetGroupID = seed.Id
-				newOrder = append(newOrder, seed.Id)
-			}
-			if err := c.mutateRoomGroup(ctx, targetGroupID, func(g *corev1.RoomGroup) error {
-				for _, rid := range layout.LegacyUnsortedRoomIds {
-					if !slices.Contains(g.RoomIds, rid) {
-						g.RoomIds = append(g.RoomIds, rid)
-					}
-				}
-				return nil
-			}); err != nil {
-				return fmt.Errorf("absorb unsorted rooms into %s: %w", targetGroupID, err)
-			}
-		}
-
-		// Write the layout with the new order and cleared legacy fields.
-		migrated := &corev1.RoomLayout{GroupIds: newOrder}
-		data, err := proto.Marshal(migrated)
-		if err != nil {
-			return fmt.Errorf("marshal migrated layout: %w", err)
-		}
-		var writeErr error
-		if revision == 0 {
-			_, writeErr = bucket.Create(ctx, roomLayoutKey, data)
-		} else {
-			_, writeErr = bucket.Update(ctx, roomLayoutKey, data, revision)
-		}
-		if writeErr == nil {
-			c.logger.Info("Migrated legacy room layout",
-				"sections", len(layout.LegacySections),
-				"unsorted", len(layout.LegacyUnsortedRoomIds),
-				"groups", len(newOrder),
-			)
-			return nil
-		}
-		if errors.Is(writeErr, jetstream.ErrKeyExists) {
-			continue // OCC conflict; retry the whole read-mutate-write cycle
-		}
-		return fmt.Errorf("write migrated layout: %w", writeErr)
-	}
-	return ErrConfigConflict
-}
-
-// notifyRoomLayoutChanged is the central place every room-layout mutator
-// (create/update/delete/reorder a group, move a room between groups,
-// create/delete a room) calls to nudge connected clients. It wraps
-// PublishRoomGroupsUpdated with best-effort error logging so a callsite
-// failure to deliver doesn't roll back the storage mutation that
-// preceded it. `reason` is purely for log forensics.
+// notifyRoomLayoutChanged is the central place every room-layout
+// mutator calls to nudge connected clients. Best-effort: a publish
+// failure here doesn't roll back the storage mutation that preceded
+// it. `reason` is purely for log forensics.
 func (c *ChattoCore) notifyRoomLayoutChanged(ctx context.Context, actorID, reason string) {
 	if err := c.PublishRoomGroupsUpdated(ctx, actorID, KindChannel); err != nil {
 		c.logger.Warn("Failed to publish room layout update event",
@@ -662,22 +959,13 @@ const SeedDefaultRoomGroupName = "Lobby"
 // ADR-031's "every channel room belongs to exactly one group"
 // invariant. Idempotent — safe to call on every boot.
 //
-// Behaviour:
-//   - Runs the legacy-shape migrator if the layout still has legacy
-//     fields populated (transparent on subsequent boots).
 //   - Creates the seed "Lobby" group if no groups exist.
-//   - Every channel room not currently in any group is appended to the
-//     first group in the layout. The room's GroupId proto field is
-//     stamped to match so resolvers can rely on it.
+//   - Every channel room not currently in any group is moved into the
+//     first group in the layout via MoveRoomToGroup (which emits the
+//     appropriate group events).
 //
 // Authorization: internal-only — runs as SystemActorID for mutations.
 func (c *ChattoCore) ensureChannelRoomsAreInAGroup(ctx context.Context) error {
-	// Trigger migration up front so the rest of the flow operates on the
-	// reconciled view.
-	if _, err := c.readAndMaybeMigrateLayout(ctx); err != nil {
-		return fmt.Errorf("ensure migrated layout: %w", err)
-	}
-
 	rooms, err := c.ListRooms(ctx, KindChannel)
 	if err != nil {
 		return fmt.Errorf("list channel rooms: %w", err)
@@ -687,7 +975,6 @@ func (c *ChattoCore) ensureChannelRoomsAreInAGroup(ctx context.Context) error {
 		return fmt.Errorf("list room groups: %w", err)
 	}
 
-	// Build "room → group" map from current group docs.
 	roomToGroup := make(map[string]string, len(rooms))
 	for _, g := range groups {
 		for _, rid := range g.RoomIds {
@@ -695,7 +982,6 @@ func (c *ChattoCore) ensureChannelRoomsAreInAGroup(ctx context.Context) error {
 		}
 	}
 
-	// Identify rooms that aren't in any group.
 	var unassigned []string
 	for _, r := range rooms {
 		if _, ok := roomToGroup[r.Id]; !ok {
@@ -703,43 +989,26 @@ func (c *ChattoCore) ensureChannelRoomsAreInAGroup(ctx context.Context) error {
 		}
 	}
 
-	if len(unassigned) > 0 || len(groups) == 0 {
-		var targetGroupID string
-		if len(groups) > 0 {
-			targetGroupID = groups[0].Id
-		} else {
-			seed, err := c.CreateRoomGroup(ctx, SystemActorID, SeedDefaultRoomGroupName, "")
-			if err != nil {
-				return fmt.Errorf("seed default room group: %w", err)
-			}
-			targetGroupID = seed.Id
-			c.logger.Info("Seeded default room group", "group_id", seed.Id, "name", SeedDefaultRoomGroupName)
-		}
-
-		for _, rid := range unassigned {
-			if err := c.MoveRoomToGroup(ctx, SystemActorID, rid, targetGroupID); err != nil {
-				return fmt.Errorf("move room %s to default group: %w", rid, err)
-			}
-			roomToGroup[rid] = targetGroupID
-		}
+	if len(unassigned) == 0 && len(groups) > 0 {
+		return nil
 	}
 
-	// Stamp Room.GroupId for rooms whose proto field doesn't match.
-	for _, r := range rooms {
-		want := roomToGroup[r.Id]
-		if r.GroupId == want {
-			continue
-		}
-		r.GroupId = want
-		data, err := proto.Marshal(r)
+	var targetGroupID string
+	if len(groups) > 0 {
+		targetGroupID = groups[0].Id
+	} else {
+		seed, err := c.CreateRoomGroup(ctx, SystemActorID, SeedDefaultRoomGroupName, "")
 		if err != nil {
-			return fmt.Errorf("marshal room %s: %w", r.Id, err)
+			return fmt.Errorf("seed default room group: %w", err)
 		}
-		if _, err := c.storage.serverConfigKV.Put(ctx, roomKey(KindChannel, r.Id), data); err != nil {
-			return fmt.Errorf("stamp group_id on room %s: %w", r.Id, err)
-		}
-		c.logger.Debug("Stamped room.group_id", "room_id", r.Id, "group_id", want)
+		targetGroupID = seed.Id
+		c.logger.Info("Seeded default room group", "group_id", seed.Id, "name", SeedDefaultRoomGroupName)
 	}
 
+	for _, rid := range unassigned {
+		if err := c.MoveRoomToGroup(ctx, SystemActorID, rid, targetGroupID); err != nil {
+			return fmt.Errorf("move room %s to default group: %w", rid, err)
+		}
+	}
 	return nil
 }

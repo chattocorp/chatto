@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"slices"
@@ -15,13 +14,10 @@ import (
 	"github.com/charmbracelet/log"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
-	"hmans.de/chatto/internal/core"
+	"hmans.de/chatto/internal/config"
 )
 
-// atprotoSessionKey holds the redirect URL across the auth flow, mirroring
-// the OIDC handler's use of the gin session. The OAuth state itself lives
-// in the indigo ClientApp's in-memory auth-request store.
-const atprotoSessionRedirectKey = "atproto_redirect"
+const atprotoProviderIssuer = config.AuthProviderTypeATProto
 
 // atprotoHandler bundles the indigo OAuth client and the helpers used by the
 // HTTP routes. One instance per HTTPServer.
@@ -44,6 +40,10 @@ func (s *HTTPServer) setupATProtoRoutes() {
 	}
 
 	auth := s.router.Group("/auth")
+	auth.Use(func(c *gin.Context) {
+		s.requestContextWithAuditMetadata(c)
+		c.Next()
+	})
 	auth.GET("atproto/client-metadata.json", h.handleClientMetadata)
 	auth.GET("atproto/jwks.json", h.handleJWKS)
 	auth.GET("atproto", h.handleStartFlow)
@@ -56,11 +56,10 @@ func newATProtoHandler(s *HTTPServer) (*atprotoHandler, error) {
 		return nil, errors.New("webserver.url must be set to enable AT Protocol sign-in")
 	}
 
-	// account:email is requested so we can seed the Chatto account's
-	// verified-email list (and trigger owners.emails owner auto-promotion)
-	// on first sign-in. Users can decline just this scope on the PDS
-	// consent screen and still complete sign-in — the email seed becomes
-	// a no-op. See maybeSeedEmail.
+	// account:email is requested so the shared external-identity account
+	// creation path can seed the verified-email list and trigger
+	// owners.emails owner auto-promotion. Users can decline this scope on
+	// the PDS consent screen and still complete sign-in.
 	scopes := []string{"atproto", "account:email"}
 
 	var cfg oauth.ClientConfig
@@ -84,8 +83,8 @@ func newATProtoHandler(s *HTTPServer) (*atprotoHandler, error) {
 	cfg.UserAgent = "chatto"
 
 	// State (in-flight auth requests + post-callback sessions) lives in the
-	// AUTH_TOKENS NATS KV bucket via atprotoOAuthStore. Survives server
-	// restart mid-flow and works in multi-replica deployments.
+	// MEMORY_CACHE NATS KV bucket via atprotoOAuthStore. This works in
+	// multi-replica deployments without putting ATProto tokens in backups.
 	app := oauth.NewClientApp(&cfg, newATProtoOAuthStore(s.core))
 
 	return &atprotoHandler{
@@ -150,11 +149,12 @@ func (h *atprotoHandler) handleJWKS(c *gin.Context) {
 	c.JSON(http.StatusOK, h.app.Config.PublicJWKS())
 }
 
-// handleStartFlow begins the OAuth flow. Expects ?handle=... (or ?identifier=...);
-// resolves the handle to a DID, sends PAR to the user's PDS, and redirects to
-// the authorization endpoint.
+// handleStartFlow begins the OAuth flow. Expects ?handle=... (or
+// ?identifier=...); resolves the handle to a DID, sends PAR to the user's PDS,
+// and redirects to the authorization endpoint.
 func (h *atprotoHandler) handleStartFlow(c *gin.Context) {
 	ctx := c.Request.Context()
+	session := sessions.Default(c)
 
 	identifier := strings.TrimSpace(c.Query("handle"))
 	if identifier == "" {
@@ -167,10 +167,38 @@ func (h *atprotoHandler) handleStartFlow(c *gin.Context) {
 	// Strip a leading @ for ergonomic input like "@alice.bsky.social".
 	identifier = strings.TrimPrefix(identifier, "@")
 
-	if redirect := c.Query("redirect"); redirect != "" && isValidInternalRedirect(redirect) {
-		session := sessions.Default(c)
-		session.Set(atprotoSessionRedirectKey, redirect)
-		_ = session.Save()
+	intent := c.Query("intent")
+	linkStartRedirect := ""
+	if intent == "link" {
+		start, err := h.s.core.ConsumePendingExternalIdentityLinkStart(ctx, c.Query("link_start"))
+		if err != nil || start.ProviderID != config.AuthProviderTypeATProto {
+			if err != nil {
+				log.Warn("ATProto link start token failed", "error", err)
+			} else {
+				log.Warn("ATProto link start token provider mismatch", "provider_id", start.ProviderID)
+			}
+			c.Redirect(http.StatusTemporaryRedirect, "/login?error=provider_failed")
+			return
+		}
+		session.Set(providerSessionKey(config.AuthProviderTypeATProto, "intent"), "link")
+		session.Set(providerSessionKey(config.AuthProviderTypeATProto, "link_user_id"), start.BoundUserID)
+		if isValidInternalRedirect(start.RedirectPath) {
+			linkStartRedirect = start.RedirectPath
+		}
+	} else {
+		session.Set(providerSessionKey(config.AuthProviderTypeATProto, "intent"), "login")
+		session.Delete(providerSessionKey(config.AuthProviderTypeATProto, "link_user_id"))
+	}
+
+	if linkStartRedirect != "" {
+		session.Set("oauth_redirect", linkStartRedirect)
+	} else if redirect := c.Query("redirect"); redirect != "" && isValidInternalRedirect(redirect) {
+		session.Set("oauth_redirect", redirect)
+	}
+	if err := session.Save(); err != nil {
+		log.Error("Failed to save ATProto auth session", "error", err)
+		c.Redirect(http.StatusTemporaryRedirect, "/login?error=provider_failed")
+		return
 	}
 
 	redirectURL, err := h.app.StartAuthFlow(ctx, identifier)
@@ -183,10 +211,12 @@ func (h *atprotoHandler) handleStartFlow(c *gin.Context) {
 	c.Redirect(http.StatusTemporaryRedirect, redirectURL)
 }
 
-// handleCallback completes the OAuth flow, looks up or creates the Chatto
-// user, mirrors basic profile data on first sign-in, and issues a session.
+// handleCallback completes the OAuth flow, converts the verified DID into a
+// shared external identity flow, and lets the generic SSO code create/link or
+// log in the Chatto account.
 func (h *atprotoHandler) handleCallback(c *gin.Context) {
 	ctx := c.Request.Context()
+	session := sessions.Default(c)
 
 	sessData, err := h.app.ProcessCallback(ctx, c.Request.URL.Query())
 	if err != nil {
@@ -196,6 +226,13 @@ func (h *atprotoHandler) handleCallback(c *gin.Context) {
 	}
 
 	did := sessData.AccountDID.String()
+	providerConfig := h.providerConfig()
+
+	intent, _ := session.Get(providerSessionKey(providerConfig.ID, "intent")).(string)
+	linkUserID, _ := session.Get(providerSessionKey(providerConfig.ID, "link_user_id")).(string)
+	session.Delete(providerSessionKey(providerConfig.ID, "intent"))
+	session.Delete(providerSessionKey(providerConfig.ID, "link_user_id"))
+	_ = session.Save()
 
 	// Resolve handle for display. The auth flow doesn't return it, so look it
 	// up via the directory. Best-effort: a missing handle isn't fatal.
@@ -206,162 +243,82 @@ func (h *atprotoHandler) handleCallback(c *gin.Context) {
 		log.Warn("ATProto handle lookup failed", "did", did, "error", err)
 	}
 
-	// Look up existing user by DID, or create one.
-	user, err := h.s.core.GetUserByATProtoDID(ctx, did)
+	verifiedEmail := h.fetchVerifiedEmail(ctx, sessData)
+	if err := h.app.Logout(ctx, sessData.AccountDID, sessData.SessionID); err != nil {
+		log.Warn("ATProto session revocation failed", "did", did, "error", err)
+	}
+	profile := h.fetchProfileHints(ctx, did, sessData.HostURL)
+
+	identity := resolvedProviderIdentity{
+		issuer:          atprotoProviderIssuer,
+		subject:         did,
+		verifiedEmail:   verifiedEmail,
+		avatarURL:       profile.avatarURL,
+		loginHint:       loginHintFromParts(handle, did),
+		displayNameHint: displayNameHintFromParts(profile.displayName, handle, did),
+	}
+
+	user, err := h.s.core.GetUserByExternalIdentity(ctx, identity.issuer, identity.subject)
 	if err != nil {
 		log.Error("ATProto user lookup failed", "did", did, "error", err)
 		c.Redirect(http.StatusTemporaryRedirect, "/login?error=atproto_callback")
 		return
 	}
-
-	isNewUser := user == nil
-	if isNewUser {
-		login := h.deriveLoginForHandle(ctx, handle, did)
-		displayName := handle
-		if displayName == "" {
-			displayName = did
-		}
-
-		user, err = h.s.core.CreateUser(ctx, "system", login, displayName, "")
-		if err != nil {
-			log.Error("ATProto user creation failed", "did", did, "login", login, "error", err)
-			c.Redirect(http.StatusTemporaryRedirect, "/login?error=atproto_callback")
-			return
-		}
-
-		if err := h.s.core.LinkATProtoDID(ctx, did, user.Id); err != nil {
-			log.Error("ATProto DID link failed", "did", did, "userId", user.Id, "error", err)
-			c.Redirect(http.StatusTemporaryRedirect, "/login?error=atproto_callback")
-			return
-		}
-
-		// Best-effort profile mirroring on first sign-in. Failures here must
-		// not block sign-in — the user exists; profile is just nice-to-have.
-		h.mirrorProfile(ctx, user.Id, did, sessData.HostURL)
-
-		// If the user granted account:email, seed a verified email. This
-		// also triggers owners.emails owner auto-promotion via the shared
-		// addVerifiedEmail hook. Best-effort: a declined scope or failed
-		// fetch leaves the user without an email; they can add one later.
-		h.maybeSeedEmail(ctx, user.Id, sessData)
+	if user == nil {
+		log.Info("ATProto login has no linked account", "did", did, "handle", handle)
+		h.s.redirectPendingExternalIdentity(c, session, providerConfig, identity, intent, linkUserID)
+		return
 	}
 
-	// Always revoke the OAuth session. We don't keep ATProto credentials
-	// past sign-in — we only use them once for identity verification.
-	if err := h.app.Logout(ctx, sessData.AccountDID, sessData.SessionID); err != nil {
-		log.Warn("ATProto session revocation failed", "did", did, "error", err)
+	if intent == "link" {
+		if linkUserID == "" || linkUserID != user.Id {
+			c.Redirect(http.StatusTemporaryRedirect, providerReturnPathWithError(session, "/", "external_identity_conflict"))
+			return
+		}
+		c.Redirect(http.StatusTemporaryRedirect, providerReturnPath(session, "/"))
+		return
 	}
 
-	// Issue Chatto session.
-	session := sessions.Default(c)
-	session.Set("user_id", user.Id)
-	if err := session.Save(); err != nil {
-		log.Error("Failed to save session after ATProto sign-in", "userId", user.Id, "error", err)
+	log.Info("ATProto sign-in successful", "userId", user.Id, "did", did, "handle", handle)
+
+	if identity.avatarURL != "" {
+		existingAvatar, _ := h.s.core.GetUserAvatar(ctx, user.Id)
+		if existingAvatar == nil {
+			if err := h.s.core.ImportUserAvatarFromURL(ctx, user.Id, identity.avatarURL); err != nil {
+				log.Warn("Failed to import ATProto avatar", "userId", user.Id, "error", err)
+			}
+		}
+	}
+
+	if err := h.s.completeProviderLogin(c, session, user.Id, providerConfig); err != nil {
+		log.Error("Failed to complete ATProto login", "userId", user.Id, "error", err)
 		c.Redirect(http.StatusTemporaryRedirect, "/login?error=atproto_callback")
 		return
 	}
-
-	log.Info("ATProto sign-in successful", "userId", user.Id, "did", did, "handle", handle, "new", isNewUser)
-
-	if hasPendingOAuthAuthorize(session) {
-		h.s.completeOAuthAuthorize(c, user.Id)
-		return
-	}
-
-	redirectURL := "/"
-	if v := session.Get(atprotoSessionRedirectKey); v != nil {
-		if s, ok := v.(string); ok && s != "" && isValidInternalRedirect(s) {
-			redirectURL = s
-		}
-		session.Delete(atprotoSessionRedirectKey)
-		_ = session.Save()
-	}
-
-	if bearerToken, err := h.s.core.CreateAuthToken(ctx, user.Id); err == nil {
-		separator := "?"
-		if strings.Contains(redirectURL, "?") {
-			separator = "&"
-		}
-		redirectURL = redirectURL + separator + "token=" + bearerToken
-	} else {
-		log.Warn("Failed to create bearer token on ATProto sign-in", "userId", user.Id, "error", err)
-	}
-
-	c.Redirect(http.StatusTemporaryRedirect, redirectURL)
 }
 
-// deriveLoginForHandle picks a login derived from the ATProto handle. The
-// handle is already a unique public identifier and a valid Chatto login by
-// shape; the only fixups are length and collision suffixing. Falls back to a
-// DID-derived login if no handle is available.
-func (h *atprotoHandler) deriveLoginForHandle(ctx context.Context, handle, did string) string {
-	base := strings.ToLower(strings.TrimSpace(handle))
-	if base == "" {
-		// did:plc:abc123... → "abc123..." truncated. Ugly but legal and unique.
-		base = "atproto-" + strings.TrimPrefix(strings.TrimPrefix(did, "did:plc:"), "did:web:")
-		base = invalidCharsRegex.ReplaceAllString(base, "")
-	}
-	if len(base) < 2 {
-		base = "user"
-	}
-	if len(base) > 32 {
-		base = base[:32]
-	}
-
-	// On collision, try suffixes -2, -3, ..., -100.
-	candidate := base
-	for attempt := 2; ; attempt++ {
-		if !h.s.loginInUse(ctx, candidate) {
-			return candidate
-		}
-		if attempt > 100 {
-			// Extremely unlikely; let CreateUser fail and surface the error.
-			return candidate
-		}
-		suffix := fmt.Sprintf("-%d", attempt)
-		maxBase := 32 - len(suffix)
-		if maxBase < 2 {
-			maxBase = 2
-		}
-		trimmed := base
-		if len(trimmed) > maxBase {
-			trimmed = trimmed[:maxBase]
-		}
-		candidate = trimmed + suffix
+func (h *atprotoHandler) providerConfig() config.AuthProviderConfig {
+	autoProvision := true
+	return config.AuthProviderConfig{
+		ID:            config.AuthProviderTypeATProto,
+		Type:          config.AuthProviderTypeATProto,
+		Label:         h.s.config.Auth.ATProto.LabelOrDefault(),
+		AutoProvision: &autoProvision,
 	}
 }
 
-// loginInUse is a small helper on HTTPServer (defined here for proximity to
-// its sole caller) that returns true if a login is already claimed. The
-// "not found" sentinel from the KV index is the not-claimed case and must
-// not propagate as a generic error — otherwise the collision-suffix loop
-// would treat every probe as taken and never settle on the bare handle.
-func (s *HTTPServer) loginInUse(ctx context.Context, login string) bool {
-	u, err := s.core.GetUserByLogin(ctx, login)
-	if errors.Is(err, core.ErrNotFound) {
-		return false
-	}
-	if err != nil {
-		// On any other lookup error, assume in-use to be safe; the create
-		// call will surface the real error if it really collides.
-		return true
-	}
-	return u != nil
-}
-
-// maybeSeedEmail asks the user's PDS for their account email and, if it's
-// confirmed, attaches it to the Chatto user as a verified email. Skipped
-// silently if the user declined the account:email scope or anything along
-// the way fails — email seeding is a nicety, not a correctness requirement.
-func (h *atprotoHandler) maybeSeedEmail(ctx context.Context, userID string, sessData *oauth.ClientSessionData) {
+// fetchVerifiedEmail asks the user's PDS for their account email. If it is
+// confirmed, the shared external-identity create flow will attach it as a
+// verified email; otherwise account creation proceeds without email.
+func (h *atprotoHandler) fetchVerifiedEmail(ctx context.Context, sessData *oauth.ClientSessionData) string {
 	if !slices.Contains(sessData.Scopes, "account:email") {
-		return
+		return ""
 	}
 
 	sess, err := h.app.ResumeSession(ctx, sessData.AccountDID, sessData.SessionID)
 	if err != nil {
-		log.Warn("ATProto email seed: ResumeSession failed", "error", err)
-		return
+		log.Warn("ATProto email fetch: ResumeSession failed", "error", err)
+		return ""
 	}
 
 	var resp struct {
@@ -369,33 +326,27 @@ func (h *atprotoHandler) maybeSeedEmail(ctx context.Context, userID string, sess
 		EmailConfirmed bool   `json:"emailConfirmed"`
 	}
 	if err := sess.APIClient().Get(ctx, "com.atproto.server.getSession", nil, &resp); err != nil {
-		log.Warn("ATProto email seed: getSession failed", "error", err)
-		return
+		log.Warn("ATProto email fetch: getSession failed", "error", err)
+		return ""
 	}
 
-	email := strings.ToLower(strings.TrimSpace(resp.Email))
-	if email == "" || !resp.EmailConfirmed {
-		return
+	if !resp.EmailConfirmed {
+		return ""
 	}
-
-	if err := h.s.core.AddVerifiedEmailDirect(ctx, userID, email); err != nil {
-		// Most likely "email already claimed by another user" — not actionable
-		// from here; leave the ATProto account without an email and let the
-		// user resolve it manually if it matters.
-		log.Warn("ATProto email seed: AddVerifiedEmailDirect failed", "userId", userID, "error", err)
-	}
+	return normalizeProviderEmail(resp.Email)
 }
 
-// mirrorProfile fetches the user's app.bsky.actor.profile record from their
-// PDS and seeds the Chatto display name and avatar. All failures are logged
-// and swallowed — profile mirroring is a UX nicety, not a correctness
-// requirement.
-//
-// We talk directly to the user's PDS (no Bluesky-Inc dependency); the profile
-// record is publicly readable so no auth is needed.
-func (h *atprotoHandler) mirrorProfile(ctx context.Context, userID, did, pdsURL string) {
+type atprotoProfileHints struct {
+	displayName string
+	avatarURL   string
+}
+
+// fetchProfileHints fetches the user's app.bsky.actor.profile record from
+// their PDS for account-creation hints. The record is publicly readable, so
+// this does not require retaining ATProto OAuth tokens after identification.
+func (h *atprotoHandler) fetchProfileHints(ctx context.Context, did, pdsURL string) atprotoProfileHints {
 	if pdsURL == "" {
-		return
+		return atprotoProfileHints{}
 	}
 
 	getRecordURL := fmt.Sprintf("%s/xrpc/com.atproto.repo.getRecord?repo=%s&collection=app.bsky.actor.profile&rkey=self",
@@ -406,18 +357,18 @@ func (h *atprotoHandler) mirrorProfile(ctx context.Context, userID, did, pdsURL 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, getRecordURL, nil)
 	if err != nil {
 		log.Warn("ATProto profile fetch: build request failed", "error", err)
-		return
+		return atprotoProfileHints{}
 	}
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		log.Warn("ATProto profile fetch failed", "error", err)
-		return
+		return atprotoProfileHints{}
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		// 400 here typically just means the record doesn't exist (user never
 		// set up a Bluesky profile). That's fine — fall back to handle-only.
-		return
+		return atprotoProfileHints{}
 	}
 
 	var record struct {
@@ -433,51 +384,22 @@ func (h *atprotoHandler) mirrorProfile(ctx context.Context, userID, did, pdsURL 
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&record); err != nil {
 		log.Warn("ATProto profile decode failed", "error", err)
-		return
+		return atprotoProfileHints{}
 	}
 
-	if dn := strings.TrimSpace(record.Value.DisplayName); dn != "" {
-		if _, err := h.s.core.UpdateUserDisplayName(ctx, userID, dn); err != nil {
-			log.Warn("ATProto display name update failed", "userId", userID, "error", err)
-		}
-	}
-
+	hints := atprotoProfileHints{displayName: strings.TrimSpace(record.Value.DisplayName)}
 	if record.Value.Avatar != nil && record.Value.Avatar.Ref.Link != "" {
-		h.fetchAndStoreATProtoAvatar(ctx, userID, did, pdsURL, record.Value.Avatar.Ref.Link)
+		hints.avatarURL = atprotoBlobURL(did, pdsURL, record.Value.Avatar.Ref.Link)
 	}
+	return hints
 }
 
-func (h *atprotoHandler) fetchAndStoreATProtoAvatar(ctx context.Context, userID, did, pdsURL, cid string) {
-	blobURL := fmt.Sprintf("%s/xrpc/com.atproto.sync.getBlob?did=%s&cid=%s",
+func atprotoBlobURL(did, pdsURL, cid string) string {
+	return fmt.Sprintf("%s/xrpc/com.atproto.sync.getBlob?did=%s&cid=%s",
 		strings.TrimRight(pdsURL, "/"),
 		url.QueryEscape(did),
 		url.QueryEscape(cid),
 	)
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, blobURL, nil)
-	if err != nil {
-		log.Warn("ATProto avatar blob request build failed", "error", err)
-		return
-	}
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		log.Warn("ATProto avatar blob fetch failed", "error", err)
-		return
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		log.Warn("ATProto avatar blob bad status", "status", resp.StatusCode)
-		return
-	}
-
-	asset, err := h.s.core.UploadUserAvatar(ctx, userID, io.LimitReader(resp.Body, 10*1024*1024))
-	if err != nil {
-		log.Warn("ATProto avatar upload failed", "userId", userID, "error", err)
-		return
-	}
-	if err := h.s.core.SetUserAvatar(ctx, userID, asset); err != nil {
-		log.Warn("ATProto avatar set failed", "userId", userID, "error", err)
-	}
 }
 
 // strPtr is a one-line helper used to populate optional string pointer fields

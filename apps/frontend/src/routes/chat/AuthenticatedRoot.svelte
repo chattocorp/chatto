@@ -1,0 +1,56 @@
+<script lang="ts">
+  import type { Snippet } from 'svelte';
+  import type { CurrentUser } from '$lib/auth/loadAuth';
+  import AuthStatusNotice from '$lib/components/AuthStatusNotice.svelte';
+  import NotificationSync from '$lib/components/NotificationSync.svelte';
+  import { shouldPauseLiveEventsForStoredPresence } from '$lib/presenceTracking';
+  import { createPresenceCache } from '$lib/state/presenceCache.svelte';
+  import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
+  import { eventBusManager } from '$lib/state/server/eventBus.svelte';
+  import { serverRegistry } from '$lib/state/server/registry.svelte';
+  import { UserSettingsState } from '$lib/state/userSettings.svelte';
+  import { createUserProfileCache } from '$lib/state/userProfiles.svelte';
+  import AuthenticatedChatProvider from './AuthenticatedChatProvider.svelte';
+
+  let {
+    user,
+    userSettings,
+    children
+  }: {
+    user: CurrentUser;
+    userSettings: UserSettingsState;
+    children: Snippet;
+  } = $props();
+
+  const profileCache = createUserProfileCache();
+  const presenceCache = createPresenceCache();
+
+  function startAuthenticatedBuses() {
+    if (shouldPauseLiveEventsForStoredPresence()) {
+      eventBusManager.pauseAll();
+      return;
+    }
+
+    for (const server of serverRegistry.servers) {
+      const store = serverRegistry.tryGetStore(server.id);
+      if (store?.isAuthenticated) {
+        eventBusManager.startBus(server.id, serverConnectionManager.getClient(server.id));
+      }
+    }
+  }
+
+  // Run synchronously so child route layouts can provide an already-started
+  // event bus during their own initialization.
+  startAuthenticatedBuses();
+
+  $effect(() => {
+    startAuthenticatedBuses();
+  });
+</script>
+
+<NotificationSync />
+<AuthStatusNotice />
+
+<AuthenticatedChatProvider {user} {userSettings} {profileCache} {presenceCache}>
+  {@render children()}
+</AuthenticatedChatProvider>

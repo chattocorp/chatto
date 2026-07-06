@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"sync"
 	"testing"
 )
 
@@ -77,6 +78,53 @@ func TestRoomMemberships_CreateOrUpdate_Idempotent(t *testing.T) {
 	// Both should have the same data
 	if first.UserId != second.UserId || first.RoomId != second.RoomId {
 		t.Error("Repeated CreateOrUpdate should return same membership data")
+	}
+}
+
+func TestRoomMemberships_ConcurrentJoinPublishesSingleEvent(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	user, _ := core.CreateUser(ctx, "actor1", "testuser", "Test User", "password")
+	room, _ := core.CreateRoom(ctx, "actor1", KindChannel, "", "test-room", "test-room Desc")
+
+	const joiners = 12
+	start := make(chan struct{})
+	errs := make(chan error, joiners)
+	var wg sync.WaitGroup
+	wg.Add(joiners)
+	for range joiners {
+		go func() {
+			defer wg.Done()
+			<-start
+			_, err := core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
+			errs <- err
+		}()
+	}
+
+	close(start)
+	wg.Wait()
+	close(errs)
+
+	for err := range errs {
+		if err != nil {
+			t.Fatalf("JoinRoom: %v", err)
+		}
+	}
+
+	eventsResult, err := core.GetRoomEvents(ctx, KindChannel, room.Id, 50, nil)
+	if err != nil {
+		t.Fatalf("GetRoomEvents: %v", err)
+	}
+
+	joinCount := 0
+	for _, event := range eventsResult.Events {
+		if event.GetUserJoinedRoom() != nil && event.ActorId == user.Id {
+			joinCount++
+		}
+	}
+	if joinCount != 1 {
+		t.Fatalf("expected exactly one UserJoinedRoom event, got %d", joinCount)
 	}
 }
 
@@ -330,6 +378,72 @@ func TestRoomMemberships_GetForRoom_NoMembers(t *testing.T) {
 	// Should return empty result
 	if len(memberships) != 0 {
 		t.Errorf("Expected 0 memberships, got %d", len(memberships))
+	}
+}
+
+func TestUniversalRoomsGrantEffectiveMembershipWithoutChangingExplicitMemberships(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	user1, _ := core.CreateUser(ctx, "actor1", "universal-user1", "Universal User 1", "password")
+	user2, _ := core.CreateUser(ctx, "actor1", "universal-user2", "Universal User 2", "password")
+	room, _ := core.CreateRoom(ctx, "actor1", KindChannel, "", "universal-room", "Universal room")
+
+	if _, err := core.JoinRoom(ctx, user1.Id, KindChannel, user1.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom user1: %v", err)
+	}
+
+	updated, err := core.SetRoomUniversal(ctx, user1.Id, KindChannel, room.Id, true)
+	if err != nil {
+		t.Fatalf("SetRoomUniversal on: %v", err)
+	}
+	if !updated.GetUniversal() {
+		t.Fatal("expected room to be universal")
+	}
+
+	user2Member, err := core.RoomMembershipExists(ctx, KindChannel, user2.Id, room.Id)
+	if err != nil {
+		t.Fatalf("RoomMembershipExists user2: %v", err)
+	}
+	if !user2Member {
+		t.Fatal("expected universal room to grant effective membership to user2")
+	}
+
+	memberships, err := core.GetRoomMembersList(ctx, KindChannel, room.Id)
+	if err != nil {
+		t.Fatalf("GetRoomMembersList: %v", err)
+	}
+	userIDs := make(map[string]bool)
+	for _, membership := range memberships {
+		userIDs[membership.UserId] = true
+	}
+	if !userIDs[user1.Id] || !userIDs[user2.Id] {
+		t.Fatalf("expected explicit and effective universal members, got %v", userIDs)
+	}
+
+	err = core.LeaveRoom(ctx, user2.Id, KindChannel, user2.Id, room.Id)
+	if !errors.Is(err, ErrCannotLeaveUniversalRoom) {
+		t.Fatalf("expected ErrCannotLeaveUniversalRoom, got %v", err)
+	}
+
+	updated, err = core.SetRoomUniversal(ctx, user1.Id, KindChannel, room.Id, false)
+	if err != nil {
+		t.Fatalf("SetRoomUniversal off: %v", err)
+	}
+	if updated.GetUniversal() {
+		t.Fatal("expected room to no longer be universal")
+	}
+
+	user1Member, err := core.RoomMembershipExists(ctx, KindChannel, user1.Id, room.Id)
+	if err != nil {
+		t.Fatalf("RoomMembershipExists user1: %v", err)
+	}
+	user2Member, err = core.RoomMembershipExists(ctx, KindChannel, user2.Id, room.Id)
+	if err != nil {
+		t.Fatalf("RoomMembershipExists user2 after disable: %v", err)
+	}
+	if !user1Member || user2Member {
+		t.Fatalf("expected explicit membership restored after disabling universal, user1=%t user2=%t", user1Member, user2Member)
 	}
 }
 

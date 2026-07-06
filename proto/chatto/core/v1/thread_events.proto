@@ -1,0 +1,60 @@
+syntax = "proto3";
+
+package chatto.core.v1;
+
+option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
+
+// ============================================================================
+// THREAD EVENTS
+//
+// Top-level Event oneof tags owned by this file:
+//   - 425-449: durable thread lifecycle/metadata events on evt.room.{roomId}.*
+//
+// Keep these tags coordinated with event.proto. Message-internal field numbers
+// are local to each message and do not consume top-level Event tag space.
+// ============================================================================
+
+message ThreadCreatedEvent {
+  // Room ID - identifies which room owns the thread.
+  string room_id = 1;
+
+  // Event ID of the root MessagePostedEvent that identifies this thread.
+  string thread_root_event_id = 2;
+}
+
+enum ThreadFollowSource {
+  THREAD_FOLLOW_SOURCE_UNSPECIFIED = 0;
+  // The user explicitly clicked Follow.
+  THREAD_FOLLOW_SOURCE_MANUAL = 1;
+  // The user posted a reply in the thread.
+  THREAD_FOLLOW_SOURCE_POSTED_REPLY = 2;
+  // The root author was subscribed when the first reply created the thread.
+  THREAD_FOLLOW_SOURCE_ROOT_AUTHOR = 3;
+  // The user was directly mentioned in the thread.
+  THREAD_FOLLOW_SOURCE_DIRECT_MENTION = 4;
+}
+
+message ThreadFollowedEvent {
+  // Room ID - identifies which room owns the thread.
+  string room_id = 1;
+
+  // Event ID of the root MessagePostedEvent that identifies this thread.
+  string thread_root_event_id = 2;
+
+  // User whose follow state changed.
+  string user_id = 3;
+
+  // Why the follow was created.
+  ThreadFollowSource source = 4;
+}
+
+message ThreadUnfollowedEvent {
+  // Room ID - identifies which room owns the thread.
+  string room_id = 1;
+
+  // Event ID of the root MessagePostedEvent that identifies this thread.
+  string thread_root_event_id = 2;
+
+  // User whose follow state changed.
+  string user_id = 3;
+}

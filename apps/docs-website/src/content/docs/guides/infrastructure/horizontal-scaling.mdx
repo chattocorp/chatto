@@ -1,0 +1,180 @@
+---
+title: Horizontal Scaling
+description: How to run multiple Chatto replicas for high availability and load distribution.
+---
+
+import { Aside, Tabs, TabItem, LinkCard, CardGrid } from "@astrojs/starlight/components";
+import ArchDiagram from "../../../../components/diagrams/HorizontalScalingDiagram.astro";
+
+By default, Chatto runs as a single process with an embedded NATS server — no external dependencies needed. This is the simplest way to run Chatto and works well for small to medium teams.
+
+When you outgrow a single process, Chatto scales horizontally. Every server process is stateless — all persistent data lives in shared NATS storage. You can run as many Chatto replicas as you need behind a load balancer, and they'll transparently share data.
+
+There are two scaling layers:
+
+| Layer | What you scale | Why |
+| ----- | -------------- | --- |
+| Chatto replicas | `chatto run` server processes | More web/API/realtime capacity, zero-downtime deploys, process-level redundancy. |
+| NATS cluster | NATS servers with JetStream enabled | Shared storage capacity, message-broker capacity, and NATS-side high availability. |
+
+<ArchDiagram />
+
+## How It Works
+
+All Chatto server processes connect to the same external NATS deployment. NATS JetStream handles:
+
+- **Persistent storage** — messages, users, memberships, and configuration
+- **Real-time events** — subscriptions, presence updates, and call state
+- **File storage** — attachments (unless offloaded to S3)
+
+Because there's no local state, any server process can handle any request. No session affinity is required — round-robin load balancing works perfectly.
+
+## Scaling NATS Itself
+
+A single external NATS server is enough to let multiple Chatto replicas share state, but it is still a single storage and broker node. For production high availability, run NATS as a cluster and enable JetStream replication for Chatto's streams, KV buckets, and object stores.
+
+NATS clustering gives the NATS layer its own redundancy and traffic distribution. JetStream clustering adds replicated persistent storage using a replica count such as 3 or 5, so Chatto data can survive individual NATS node failures as long as the cluster keeps quorum.
+
+Useful upstream references:
+
+- [NATS server clustering](https://docs.nats.io/running-a-nats-service/configuration/clustering) — core cluster configuration, routes, route authentication, and clustering behavior.
+- [JetStream clustering](https://docs.nats.io/running-a-nats-service/configuration/clustering/jetstream_clustering) — JetStream-enabled cluster sizing and configuration.
+- [JetStream concepts](https://docs.nats.io/nats-concepts/jetstream) — overview of JetStream persistence and replicated storage.
+- [NATS on Kubernetes](https://docs.nats.io/running-a-nats-service/nats-kubernetes) — official Kubernetes deployment entry point.
+
+Chatto controls the JetStream replica count with `nats.replicas` / `CHATTO_NATS_REPLICAS`. See [High Availability](/guides/infrastructure/high-availability/) for the Chatto-specific NATS cluster setup and failure-mode table.
+
+## Requirements
+
+- An **external NATS deployment**. Use a NATS cluster for high availability; a single external NATS server only removes Chatto's embedded-storage coupling.
+- A **load balancer** in front of the Chatto replicas (Caddy, nginx, Traefik, etc.)
+- The **same secrets** across all server processes (cookie signing, cookie encryption if configured, core token verifier key, asset signing)
+
+## Configuring Chatto for Multiple Replicas
+
+Disable the embedded NATS server and point all server processes at your external cluster:
+
+<Tabs>
+<TabItem label="Environment Variables">
+```bash
+# Disable embedded NATS
+CHATTO_NATS_EMBEDDED_ENABLED=false
+
+# Connect to external NATS cluster
+CHATTO_NATS_CLIENT_URL=nats://nats:4222
+CHATTO_NATS_CLIENT_AUTH_METHOD=token
+CHATTO_NATS_CLIENT_TOKEN=your-shared-token
+
+# These MUST be identical across all server processes
+CHATTO_WEBSERVER_COOKIE_SIGNING_SECRET=your-cookie-secret
+CHATTO_WEBSERVER_COOKIE_ENCRYPTION_SECRET=your-cookie-encryption-secret
+CHATTO_CORE_SECRET_KEY=your-core-secret
+CHATTO_CORE_ASSETS_SIGNING_SECRET=your-assets-secret
+```
+</TabItem>
+<TabItem label="TOML">
+```toml
+[nats.embedded]
+enabled = false
+
+[nats.client]
+url = "nats://nats:4222"
+auth_method = "token"
+token = "your-shared-token"
+```
+</TabItem>
+</Tabs>
+
+<Aside type="caution">
+  All server processes **must** share the same `cookie_signing_secret`, `cookie_encryption_secret` when configured, `core.secret_key`, and `core.assets.signing_secret`. If they differ, signed cookies, runtime credential records, OAuth codes, account-flow credentials, or asset URLs created by one server process won't validate on another.
+</Aside>
+
+## Health Checks
+
+Chatto exposes two health endpoints for orchestrator integration:
+
+| Endpoint | Purpose | Returns 200 when |
+|----------|---------|-------------------|
+| `GET /healthz` | Liveness probe | Process is alive |
+| `GET /readyz` | Readiness probe | NATS is connected and JetStream is ready |
+
+Use `/readyz` for startup and readiness probes to ensure traffic isn't routed to a server process that hasn't finished connecting to NATS.
+
+### Docker Compose
+
+```yaml
+chatto:
+  image: ghcr.io/chattocorp/chatto:latest
+  deploy:
+    replicas: 3
+  healthcheck:
+    test: ["CMD", "wget", "-q", "--spider", "http://localhost:4000/readyz"]
+    interval: 5s
+    timeout: 3s
+    retries: 3
+```
+
+Scale up or down at any time:
+
+```bash
+docker compose up -d --scale chatto=5
+```
+
+### Kubernetes
+
+```yaml
+readinessProbe:
+  httpGet:
+    path: /readyz
+    port: 4000
+  periodSeconds: 5
+livenessProbe:
+  httpGet:
+    path: /healthz
+    port: 4000
+  periodSeconds: 10
+startupProbe:
+  httpGet:
+    path: /readyz
+    port: 4000
+  failureThreshold: 15
+  periodSeconds: 2
+```
+
+## Voice and Video Calls with Multiple Server Processes
+
+If you're using LiveKit for calls, set the same `server_id` on every replica of one Chatto server. Use a different value only for different Chatto servers that share the same LiveKit cluster:
+
+```bash
+CHATTO_LIVEKIT_SERVER_ID=server-1
+```
+
+The `server_id` is prefixed to deterministic LiveKit room names, allowing the webhook handler to identify which Chatto server owns each event. If replicas of the same Chatto server use different values, users routed to different replicas can receive tokens for different LiveKit rooms for the same Chatto room.
+
+## Load Balancing
+
+Chatto is fully stateless, so load balancing is straightforward:
+
+- **Round-robin** is the recommended strategy
+- **Session affinity is not required** — any server process can serve any request
+- **WebSocket connections** are long-lived; ensure your load balancer supports them
+
+The [Docker Compose deployment guide](/guides/deployment/docker-compose/) includes a Caddy configuration that handles this automatically.
+
+## What You Need to Keep Consistent
+
+| Setting | Must match across server processes? | Notes |
+|---------|-------------------------------------|-------|
+| NATS client URL & credentials | Yes | All connect to the same external NATS deployment |
+| `cookie_signing_secret` | Yes | Cookie validation |
+| `cookie_encryption_secret` | Yes, when configured | Cookie confidentiality |
+| `core.secret_key` | Yes | Runtime credential, OAuth-code, and account-flow verifier keys |
+| `core.assets.signing_secret` | Yes | Asset URL signing |
+| `webserver.url` | Yes | Public URL for absolute links |
+| `livekit.server_id` | Yes, within one Chatto server | Use a different value only across Chatto servers sharing one LiveKit cluster |
+
+<CardGrid>
+  <LinkCard title="High Availability" href="/guides/infrastructure/high-availability/" description="NATS clustering and JetStream replication for fault tolerance." />
+  <LinkCard title="Docker Compose" href="/guides/deployment/docker-compose/" description="Full deployment walkthrough including load balancing with Caddy." />
+  <LinkCard title="S3 Storage" href="/guides/infrastructure/s3-storage/" description="Offload file storage to avoid replication costs." />
+</CardGrid>

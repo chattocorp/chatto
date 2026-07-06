@@ -1,0 +1,774 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { VoiceCallAPI } from '$lib/api-client/voiceCalls';
+
+const { soundMocks, toastMocks } = vi.hoisted(() => ({
+  soundMocks: {
+    playCallSound: vi.fn(() => Promise.resolve())
+  },
+  toastMocks: {
+    error: vi.fn()
+  }
+}));
+
+vi.mock('$lib/audio/callSounds', () => ({
+  playCallSound: soundMocks.playCallSound
+}));
+
+vi.mock('$lib/ui/toast', () => ({
+  toast: toastMocks
+}));
+
+import {
+  getVoiceCallMediaDeviceErrorMessage,
+  getVoiceCallJoinErrorMessage,
+  VoiceCallJoinError,
+  VoiceCallState
+} from './voiceCall.svelte';
+import { Room } from 'livekit-client';
+
+const calls: string[] = [];
+let lastRoomOptions: Record<string, unknown> | null = null;
+let lastKeyProvider: { setKey: ReturnType<typeof vi.fn> } | null = null;
+let lastRoom: {
+  disconnect: ReturnType<typeof vi.fn>;
+  localParticipant: {
+    setMicrophoneEnabled: ReturnType<typeof vi.fn>;
+    setScreenShareEnabled: ReturnType<typeof vi.fn>;
+    setCameraEnabled: ReturnType<typeof vi.fn>;
+  };
+  switchActiveDevice: ReturnType<typeof vi.fn>;
+} | null = null;
+let connectFailure: Error | null = null;
+let connectGate: { promise: Promise<void>; resolve: () => void } | null = null;
+let microphoneGate: { promise: Promise<void>; resolve: () => void } | null = null;
+let microphoneFailure: Error | null = null;
+let cameraGate: { promise: Promise<void>; resolve: () => void } | null = null;
+let cameraFailure: Error | null = null;
+let screenShareGate: { promise: Promise<void>; resolve: () => void } | null = null;
+let screenShareFailure: Error | null = null;
+let switchActiveDeviceFailure: Error | null = null;
+let roomEventHandlers = new Map<string, (...args: unknown[]) => void>();
+let localTrackPublications: Array<{
+  isMuted: boolean;
+  track: { source: string; mediaStreamTrack?: MediaStreamTrack };
+}> = [];
+let mockRemoteParticipants = new Map<string, unknown>();
+
+vi.mock('livekit-client', () => {
+  class MockExternalE2EEKeyProvider {
+    setKey: ReturnType<typeof vi.fn>;
+
+    constructor() {
+      const setKey = vi.fn(async (key: string) => {
+        calls.push(`setKey:${key}`);
+      });
+      this.setKey = setKey;
+      lastKeyProvider = { setKey };
+    }
+  }
+
+  class MockRoom {
+    static getLocalDevices = vi.fn(async (kind?: MediaDeviceKind) => {
+      if (kind === 'audioinput') {
+        return [{ deviceId: 'audio-input-1', kind, label: 'Microphone' }];
+      }
+      if (kind === 'audiooutput') {
+        return [{ deviceId: 'audio-output-1', kind, label: 'Speaker' }];
+      }
+      if (kind === 'videoinput') {
+        return [{ deviceId: 'video-input-1', kind, label: 'Camera' }];
+      }
+      return [];
+    });
+
+    localParticipant = {
+      setMicrophoneEnabled: vi.fn(async (enabled: boolean) => {
+        calls.push('setMicrophoneEnabled');
+        await microphoneGate?.promise;
+        if (enabled && microphoneFailure) {
+          roomEventHandlers.get('MediaDevicesError')?.(microphoneFailure, 'audioinput');
+          throw microphoneFailure;
+        }
+      }),
+      setCameraEnabled: vi.fn(async (enabled: boolean) => {
+        calls.push(`setCameraEnabled:${enabled}`);
+        await cameraGate?.promise;
+        if (enabled && cameraFailure) {
+          roomEventHandlers.get('MediaDevicesError')?.(cameraFailure, 'videoinput');
+          throw cameraFailure;
+        }
+        localTrackPublications = localTrackPublications.filter(
+          (pub) => pub.track.source !== 'camera'
+        );
+        if (enabled) {
+          localTrackPublications.push({
+            isMuted: false,
+            track: { source: 'camera' }
+          });
+        }
+      }),
+      setScreenShareEnabled: vi.fn(async (enabled: boolean) => {
+        calls.push(`setScreenShareEnabled:${enabled}`);
+        await screenShareGate?.promise;
+        if (screenShareFailure) {
+          roomEventHandlers.get('MediaDevicesError')?.(screenShareFailure, 'videoinput');
+          throw screenShareFailure;
+        }
+        localTrackPublications = localTrackPublications.filter(
+          (pub) => pub.track.source !== 'screen_share'
+        );
+        if (enabled) {
+          localTrackPublications.push({
+            isMuted: false,
+            track: { source: 'screen_share' }
+          });
+        }
+      }),
+      getTrackPublication: vi.fn(),
+      identity: 'local-user',
+      name: 'Local User',
+      metadata: '',
+      connectionQuality: 'excellent',
+      isSpeaking: false,
+      audioLevel: 0,
+      getTrackPublications: vi.fn(() => localTrackPublications)
+    };
+    remoteParticipants = mockRemoteParticipants;
+
+    constructor(options: Record<string, unknown>) {
+      lastRoomOptions = options;
+      lastRoom = {
+        disconnect: this.disconnect,
+        localParticipant: this.localParticipant,
+        switchActiveDevice: this.switchActiveDevice
+      };
+    }
+
+    on = vi.fn((event: string, handler: () => void) => {
+      roomEventHandlers.set(event, handler);
+      return this;
+    });
+    switchActiveDevice = vi.fn(async (kind: MediaDeviceKind, deviceId: string) => {
+      calls.push(`switchActiveDevice:${kind}:${deviceId}`);
+      if (switchActiveDeviceFailure) {
+        roomEventHandlers.get('MediaDevicesError')?.(switchActiveDeviceFailure, kind);
+        throw switchActiveDeviceFailure;
+      }
+    });
+    connect = vi.fn(async () => {
+      calls.push('connect');
+      await connectGate?.promise;
+      if (connectFailure) {
+        throw connectFailure;
+      }
+    });
+    setE2EEEnabled = vi.fn(async (enabled: boolean) => {
+      calls.push(`setE2EEEnabled:${enabled}`);
+    });
+    disconnect = vi.fn();
+    removeAllListeners = vi.fn();
+  }
+
+  return {
+    Room: MockRoom,
+    ExternalE2EEKeyProvider: MockExternalE2EEKeyProvider,
+    RoomEvent: {
+      ParticipantConnected: 'ParticipantConnected',
+      ParticipantDisconnected: 'ParticipantDisconnected',
+      TrackMuted: 'TrackMuted',
+      TrackUnmuted: 'TrackUnmuted',
+      Disconnected: 'Disconnected',
+      MediaDevicesChanged: 'MediaDevicesChanged',
+      MediaDevicesError: 'MediaDevicesError',
+      ConnectionQualityChanged: 'ConnectionQualityChanged',
+      TrackSubscribed: 'TrackSubscribed',
+      TrackUnsubscribed: 'TrackUnsubscribed',
+      TrackPublished: 'TrackPublished',
+      TrackUnpublished: 'TrackUnpublished',
+      LocalTrackPublished: 'LocalTrackPublished',
+      LocalTrackUnpublished: 'LocalTrackUnpublished'
+    },
+    Track: {
+      Kind: { Audio: 'audio' },
+      Source: { Microphone: 'microphone', Camera: 'camera', ScreenShare: 'screen_share' }
+    },
+    AudioPresets: { speech: {} },
+    VideoPresets: { h720: { resolution: {} } }
+  };
+});
+
+vi.mock('livekit-client/e2ee-worker?worker', () => ({
+  default: class MockE2EEWorker {
+    terminate = vi.fn();
+  }
+}));
+
+function createVoiceCallClient(overrides: Partial<VoiceCallAPI> = {}): VoiceCallAPI {
+  return {
+    listActiveCalls: vi.fn(async () => []),
+    getActiveCall: vi.fn(async () => null),
+    batchGetActiveCalls: vi.fn(async () => []),
+    listCallParticipants: vi.fn(async () => []),
+    joinCall: vi.fn(async () => true),
+    getCallToken: vi.fn(async () => ({
+      token: 'livekit-token',
+      e2eeKey: 'shared-e2ee-key',
+      callId: 'call-1'
+    })),
+    leaveCall: vi.fn(async () => true),
+    ...overrides
+  };
+}
+
+function deferredVoid(): { promise: Promise<void>; resolve: () => void } {
+  let resolve!: () => void;
+  const promise = new Promise<void>((res) => {
+    resolve = res;
+  });
+  return { promise, resolve };
+}
+
+async function flushPromises(times = 5): Promise<void> {
+  for (let i = 0; i < times; i++) {
+    await Promise.resolve();
+  }
+}
+
+describe('VoiceCallState', () => {
+  beforeEach(() => {
+    calls.length = 0;
+    lastRoomOptions = null;
+    lastKeyProvider = null;
+    lastRoom = null;
+    connectFailure = null;
+    connectGate = null;
+    microphoneGate = null;
+    microphoneFailure = null;
+    cameraGate = null;
+    cameraFailure = null;
+    screenShareGate = null;
+    screenShareFailure = null;
+    switchActiveDeviceFailure = null;
+    roomEventHandlers = new Map();
+    localTrackPublications = [];
+    mockRemoteParticipants = new Map();
+    vi.stubGlobal('Worker', class MockWorker {});
+    vi.stubGlobal('TransformStream', class MockTransformStream {});
+    vi.stubGlobal('ReadableStream', class MockReadableStream {});
+    vi.stubGlobal('WritableStream', class MockWritableStream {});
+    vi.stubGlobal('RTCRtpScriptTransform', class MockRTCRtpScriptTransform {});
+    vi.stubGlobal('crypto', { subtle: {} });
+    soundMocks.playCallSound.mockClear();
+    toastMocks.error.mockClear();
+    vi.mocked(Room.getLocalDevices).mockClear();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('sets up LiveKit E2EE before connecting', async () => {
+    const client = createVoiceCallClient();
+
+    const state = new VoiceCallState(client);
+    await state.join('wss://livekit.example.test', 'R1');
+
+    expect(client.joinCall).toHaveBeenCalledWith('R1');
+    expect(lastKeyProvider?.setKey).toHaveBeenCalledWith('shared-e2ee-key');
+    expect(lastRoomOptions?.encryption).toMatchObject({
+      keyProvider: lastKeyProvider
+    });
+    expect(calls.indexOf('setKey:shared-e2ee-key')).toBeLessThan(
+      calls.indexOf('setE2EEEnabled:true')
+    );
+    expect(calls.indexOf('setE2EEEnabled:true')).toBeLessThan(calls.indexOf('connect'));
+  });
+
+  it('does not play a join sound without the participant join event', async () => {
+    const client = createVoiceCallClient();
+    const state = new VoiceCallState(client);
+
+    await state.join('wss://livekit.example.test', 'R1');
+
+    expect(soundMocks.playCallSound).not.toHaveBeenCalled();
+  });
+
+  it('joins with microphone enabled but does not request camera permission while refreshing devices', async () => {
+    const client = createVoiceCallClient();
+    const state = new VoiceCallState(client);
+
+    await state.join('wss://livekit.example.test', 'R1');
+
+    expect(lastRoom?.localParticipant.setMicrophoneEnabled).toHaveBeenCalledWith(true);
+    expect(lastRoom?.localParticipant.setCameraEnabled).not.toHaveBeenCalled();
+    expect(Room.getLocalDevices).toHaveBeenCalledWith('audioinput');
+    expect(Room.getLocalDevices).toHaveBeenCalledWith('audiooutput');
+    expect(Room.getLocalDevices).toHaveBeenCalledWith('videoinput', false);
+    expect(Room.getLocalDevices).not.toHaveBeenCalledWith('videoinput');
+    expect(Room.getLocalDevices).not.toHaveBeenCalledWith('videoinput', true);
+  });
+
+  it('joins muted when microphone enable fails without enabling the camera', async () => {
+    microphoneFailure = new Error('microphone unavailable');
+    const client = createVoiceCallClient();
+    const state = new VoiceCallState(client);
+
+    await state.join('wss://livekit.example.test', 'R1');
+
+    expect(lastRoom?.localParticipant.setMicrophoneEnabled).toHaveBeenCalledWith(true);
+    expect(lastRoom?.localParticipant.setCameraEnabled).not.toHaveBeenCalled();
+    expect(state.isMuted).toBe(true);
+    expect(state.isInAnyCall).toBe(true);
+    expect(Room.getLocalDevices).toHaveBeenCalledWith('videoinput', false);
+    expect(toastMocks.error).toHaveBeenCalledWith(
+      'Could not start your microphone. You joined muted.'
+    );
+    expect(toastMocks.error).toHaveBeenCalledOnce();
+  });
+
+  it('plays a deferred current-user join event after connecting successfully', async () => {
+    connectGate = deferredVoid();
+    const client = createVoiceCallClient();
+    const state = new VoiceCallState(client);
+
+    const join = state.join('wss://livekit.example.test', 'R1');
+    await flushPromises();
+
+    expect(state.callTransitionSoundDecision('join', 'R1', 'call-1', true)).toBe('defer');
+    expect(soundMocks.playCallSound).not.toHaveBeenCalled();
+
+    connectGate.resolve();
+    await join;
+
+    expect(soundMocks.playCallSound).toHaveBeenCalledOnce();
+    expect(soundMocks.playCallSound).toHaveBeenCalledWith('join');
+  });
+
+  it('fails before recording join intent when encrypted calls are unsupported', async () => {
+    vi.stubGlobal('RTCRtpScriptTransform', undefined);
+    vi.stubGlobal('RTCRtpSender', class MockRTCRtpSender {});
+
+    const client = createVoiceCallClient();
+
+    const state = new VoiceCallState(client);
+
+    await expect(state.join('wss://livekit.example.test', 'R1')).rejects.toThrow(
+      VoiceCallJoinError
+    );
+
+    expect(client.joinCall).not.toHaveBeenCalled();
+    expect(client.getCallToken).not.toHaveBeenCalled();
+    expect(state.isInAnyCall).toBe(false);
+    expect(soundMocks.playCallSound).not.toHaveBeenCalled();
+  });
+
+  it('maps signaling failures to an actionable join error message', () => {
+    const error = new Error('could not establish signal connection: Abort handler called');
+
+    expect(getVoiceCallJoinErrorMessage(error)).toBe(
+      'Could not reach the voice server. Check your network and try again.'
+    );
+  });
+
+  it('coalesces duplicate joins for the same room while connecting', async () => {
+    const client = createVoiceCallClient();
+
+    const state = new VoiceCallState(client);
+    await Promise.all([
+      state.join('wss://livekit.example.test', 'R1'),
+      state.join('wss://livekit.example.test', 'R1')
+    ]);
+
+    expect(client.joinCall).toHaveBeenCalledTimes(1);
+    expect(client.getCallToken).toHaveBeenCalledTimes(1);
+    expect(calls.filter((call) => call === 'connect')).toHaveLength(1);
+  });
+
+  it('coalesces duplicate leave actions while the leave intent is in flight', async () => {
+    const client = createVoiceCallClient();
+
+    const state = new VoiceCallState(client);
+    await state.join('wss://livekit.example.test', 'R1');
+    soundMocks.playCallSound.mockClear();
+
+    await Promise.all([state.leave(), state.leave()]);
+
+    expect(client.joinCall).toHaveBeenCalledTimes(1);
+    expect(client.leaveCall).toHaveBeenCalledTimes(1);
+    expect(lastRoom?.disconnect).toHaveBeenCalledOnce();
+    expect(state.isInAnyCall).toBe(false);
+    expect(soundMocks.playCallSound).not.toHaveBeenCalled();
+  });
+
+  it('records a compensating leave when LiveKit connect fails after join intent', async () => {
+    connectFailure = new Error('connect failed');
+    const client = createVoiceCallClient();
+
+    const state = new VoiceCallState(client);
+
+    await expect(state.join('wss://livekit.example.test', 'R1')).rejects.toThrow('connect failed');
+
+    expect(client.joinCall).toHaveBeenCalledTimes(1);
+    expect(client.leaveCall).toHaveBeenCalledWith('R1');
+    expect(state.isInAnyCall).toBe(false);
+    expect(soundMocks.playCallSound).not.toHaveBeenCalled();
+  });
+
+  it('disconnects without recording leave when the backend ends the current call', async () => {
+    const client = createVoiceCallClient();
+
+    const state = new VoiceCallState(client);
+    await state.join('wss://livekit.example.test', 'R1');
+    soundMocks.playCallSound.mockClear();
+
+    state.handleCallEndedEvent('R1', 'old-call');
+    expect(lastRoom?.disconnect).not.toHaveBeenCalled();
+    expect(state.isInAnyCall).toBe(true);
+    expect(soundMocks.playCallSound).not.toHaveBeenCalled();
+
+    state.handleCallEndedEvent('R1', 'call-1');
+
+    expect(lastRoom?.disconnect).toHaveBeenCalledOnce();
+    expect(client.joinCall).toHaveBeenCalledTimes(1);
+    expect(client.leaveCall).not.toHaveBeenCalled();
+    expect(state.isInAnyCall).toBe(false);
+    expect(soundMocks.playCallSound).not.toHaveBeenCalled();
+  });
+
+  it('disconnects only for the current user participant leave event', async () => {
+    const client = createVoiceCallClient();
+
+    const state = new VoiceCallState(client);
+    await state.join('wss://livekit.example.test', 'R1');
+    soundMocks.playCallSound.mockClear();
+
+    state.handleParticipantLeftEvent('R1', 'call-1', 'remote-user', 'local-user');
+    expect(lastRoom?.disconnect).not.toHaveBeenCalled();
+    expect(state.isInAnyCall).toBe(true);
+    expect(soundMocks.playCallSound).not.toHaveBeenCalled();
+
+    state.handleParticipantLeftEvent('R1', 'old-call', 'local-user', 'local-user');
+    expect(lastRoom?.disconnect).not.toHaveBeenCalled();
+    expect(state.isInAnyCall).toBe(true);
+    expect(soundMocks.playCallSound).not.toHaveBeenCalled();
+
+    state.handleParticipantLeftEvent('R1', 'call-1', 'local-user', 'local-user');
+    expect(lastRoom?.disconnect).toHaveBeenCalledOnce();
+    expect(client.joinCall).toHaveBeenCalledTimes(1);
+    expect(client.leaveCall).not.toHaveBeenCalled();
+    expect(state.isInAnyCall).toBe(false);
+    expect(soundMocks.playCallSound).not.toHaveBeenCalled();
+    expect(state.callTransitionSoundDecision('leave', 'R1', 'call-1', true)).toBe('play');
+  });
+
+  it('matches only the currently connected call', async () => {
+    const client = createVoiceCallClient();
+    const state = new VoiceCallState(client);
+    await state.join('wss://livekit.example.test', 'R1');
+
+    expect(state.matchesActiveCall('R1', 'call-1')).toBe(true);
+    expect(state.matchesActiveCall('R1', 'old-call')).toBe(false);
+    expect(state.matchesActiveCall('R2', 'call-1')).toBe(false);
+    expect(state.matchesActiveCall('R1', null)).toBe(false);
+  });
+
+  it('toggles video-only screen sharing through LiveKit', async () => {
+    const client = createVoiceCallClient();
+    const state = new VoiceCallState(client);
+    await state.join('wss://livekit.example.test', 'R1');
+
+    await state.toggleScreenShare();
+
+    expect(lastRoom?.localParticipant.setScreenShareEnabled).toHaveBeenCalledWith(true);
+    expect(state.isScreenShareEnabled).toBe(true);
+    expect(state.participants[0]).toMatchObject({
+      identity: 'local-user',
+      isCameraEnabled: false,
+      isScreenShareEnabled: true
+    });
+    expect(state.participants[0].videoTrack).toBeNull();
+    expect(state.participants[0].screenShareTrack).toMatchObject(localTrackPublications[0].track);
+
+    await state.toggleScreenShare();
+
+    expect(lastRoom?.localParticipant.setScreenShareEnabled).toHaveBeenCalledWith(false);
+    expect(state.isScreenShareEnabled).toBe(false);
+    expect(state.participants[0].screenShareTrack).toBeNull();
+  });
+
+  it('keeps microphone pending until LiveKit applies the toggle', async () => {
+    const client = createVoiceCallClient();
+    const state = new VoiceCallState(client);
+    await state.join('wss://livekit.example.test', 'R1');
+    microphoneGate = deferredVoid();
+
+    const toggle = state.toggleMute();
+    await flushPromises();
+
+    expect(state.isMicrophonePending).toBe(true);
+    expect(state.isMuted).toBe(false);
+    expect(lastRoom?.localParticipant.setMicrophoneEnabled).toHaveBeenLastCalledWith(false);
+
+    microphoneGate.resolve();
+    await toggle;
+
+    expect(state.isMicrophonePending).toBe(false);
+    expect(state.isMuted).toBe(true);
+  });
+
+  it('keeps camera pending until LiveKit applies the toggle', async () => {
+    const client = createVoiceCallClient();
+    const state = new VoiceCallState(client);
+    await state.join('wss://livekit.example.test', 'R1');
+    cameraGate = deferredVoid();
+
+    const toggle = state.toggleCamera();
+    await flushPromises();
+
+    expect(state.isCameraPending).toBe(true);
+    expect(state.isCameraEnabled).toBe(false);
+    expect(lastRoom?.localParticipant.setCameraEnabled).toHaveBeenLastCalledWith(true);
+
+    cameraGate.resolve();
+    await toggle;
+
+    expect(state.isCameraPending).toBe(false);
+    expect(state.isCameraEnabled).toBe(true);
+  });
+
+  it('refreshes devices without camera permission until camera is explicitly enabled', async () => {
+    const client = createVoiceCallClient();
+    const state = new VoiceCallState(client);
+    await state.join('wss://livekit.example.test', 'R1');
+    vi.mocked(Room.getLocalDevices).mockClear();
+
+    await state.refreshDevices();
+    roomEventHandlers.get('MediaDevicesChanged')?.();
+    await flushPromises();
+
+    expect(Room.getLocalDevices).toHaveBeenCalledWith('videoinput', false);
+    expect(Room.getLocalDevices).not.toHaveBeenCalledWith('videoinput', true);
+
+    vi.mocked(Room.getLocalDevices).mockClear();
+    await state.toggleCamera();
+
+    expect(lastRoom?.localParticipant.setCameraEnabled).toHaveBeenCalledWith(true);
+    expect(Room.getLocalDevices).toHaveBeenCalledWith('videoinput', true);
+  });
+
+  it('keeps screen share pending until LiveKit applies the toggle', async () => {
+    const client = createVoiceCallClient();
+    const state = new VoiceCallState(client);
+    await state.join('wss://livekit.example.test', 'R1');
+    screenShareGate = deferredVoid();
+
+    const toggle = state.toggleScreenShare();
+    await flushPromises();
+
+    expect(state.isScreenSharePending).toBe(true);
+    expect(state.isScreenShareEnabled).toBe(false);
+    expect(lastRoom?.localParticipant.setScreenShareEnabled).toHaveBeenLastCalledWith(true);
+
+    screenShareGate.resolve();
+    await toggle;
+
+    expect(state.isScreenSharePending).toBe(false);
+    expect(state.isScreenShareEnabled).toBe(true);
+  });
+
+  it('keeps the call connected when screen capture fails', async () => {
+    const client = createVoiceCallClient();
+    const state = new VoiceCallState(client);
+    await state.join('wss://livekit.example.test', 'R1');
+    screenShareFailure = new Error('permission denied');
+
+    await state.toggleScreenShare();
+
+    expect(lastRoom?.localParticipant.setScreenShareEnabled).toHaveBeenCalledWith(true);
+    expect(state.isScreenShareEnabled).toBe(false);
+    expect(state.isInAnyCall).toBe(true);
+    expect(state.roomId).toBe('R1');
+    expect(toastMocks.error).toHaveBeenCalledWith('Screen sharing was canceled or blocked.');
+    expect(toastMocks.error).toHaveBeenCalledOnce();
+  });
+
+  it('reports permission failures when enabling media devices', async () => {
+    const client = createVoiceCallClient();
+    const state = new VoiceCallState(client);
+    await state.join('wss://livekit.example.test', 'R1');
+    toastMocks.error.mockClear();
+
+    microphoneFailure = Object.assign(new Error('Permission denied'), {
+      name: 'NotAllowedError'
+    });
+    await state.toggleMute();
+    expect(state.isMuted).toBe(true);
+    expect(toastMocks.error).not.toHaveBeenCalled();
+
+    await state.toggleMute();
+    expect(state.isMuted).toBe(true);
+    expect(toastMocks.error).toHaveBeenCalledWith(
+      'Microphone access was denied. Check your browser permissions and try again.'
+    );
+    expect(toastMocks.error).toHaveBeenCalledOnce();
+
+    cameraFailure = Object.assign(new Error('Device unavailable'), {
+      name: 'NotReadableError'
+    });
+    toastMocks.error.mockClear();
+    await state.toggleCamera();
+    expect(state.isCameraEnabled).toBe(false);
+    expect(toastMocks.error).toHaveBeenCalledWith('Your camera is already in use by another app.');
+    expect(toastMocks.error).toHaveBeenCalledOnce();
+  });
+
+  it('reports LiveKit media device errors without disconnecting', async () => {
+    const client = createVoiceCallClient();
+    const state = new VoiceCallState(client);
+    await state.join('wss://livekit.example.test', 'R1');
+    toastMocks.error.mockClear();
+
+    roomEventHandlers.get('MediaDevicesError')?.();
+
+    expect(toastMocks.error).toHaveBeenCalledWith('Could not access a media device.');
+    expect(toastMocks.error).toHaveBeenCalledOnce();
+    expect(state.isInAnyCall).toBe(true);
+  });
+
+  it('keeps selected devices unchanged when device switching fails', async () => {
+    const client = createVoiceCallClient();
+    const state = new VoiceCallState(client);
+    await state.join('wss://livekit.example.test', 'R1');
+    toastMocks.error.mockClear();
+    switchActiveDeviceFailure = Object.assign(new Error('device not found'), {
+      name: 'NotFoundError'
+    });
+
+    await state.setAudioDevice('missing-mic');
+    await state.setAudioOutputDevice('missing-speaker');
+    await state.setVideoDevice('missing-camera');
+
+    expect(state.selectedDeviceId).toBe('audio-input-1');
+    expect(state.selectedOutputDeviceId).toBe('audio-output-1');
+    expect(state.selectedVideoDeviceId).toBe('video-input-1');
+    expect(toastMocks.error).toHaveBeenCalledWith(
+      'No microphone was found. Choose another input device and try again.'
+    );
+    expect(toastMocks.error).toHaveBeenCalledWith(
+      'Could not switch speakers. This browser or device may not support speaker selection.'
+    );
+    expect(toastMocks.error).toHaveBeenCalledWith(
+      'No camera was found. Choose another camera and try again.'
+    );
+    expect(toastMocks.error).toHaveBeenCalledTimes(3);
+    expect(toastMocks.error).not.toHaveBeenCalledWith('Could not access a media device.');
+  });
+
+  it('maps media device failures to specific user-facing messages', () => {
+    expect(
+      getVoiceCallMediaDeviceErrorMessage(
+        'screen',
+        Object.assign(new Error('permission denied'), { name: 'NotAllowedError' }),
+        'enable'
+      )
+    ).toBe('Screen sharing was canceled or blocked.');
+    expect(
+      getVoiceCallMediaDeviceErrorMessage(
+        'microphone',
+        Object.assign(new Error('already in use'), { name: 'NotReadableError' }),
+        'join'
+      )
+    ).toBe('Your microphone is already in use by another app. You joined muted.');
+  });
+
+  it('keeps camera and screen-share tracks separate', async () => {
+    const client = createVoiceCallClient();
+    const state = new VoiceCallState(client);
+    await state.join('wss://livekit.example.test', 'R1');
+
+    await state.toggleCamera();
+    const cameraTrack = localTrackPublications.find((pub) => pub.track.source === 'camera')!.track;
+    await state.toggleScreenShare();
+    const screenShareTrack = localTrackPublications.find(
+      (pub) => pub.track.source === 'screen_share'
+    )!.track;
+
+    expect(state.participants[0]).toMatchObject({
+      isCameraEnabled: true,
+      isScreenShareEnabled: true
+    });
+    expect(state.participants[0].videoTrack).toMatchObject(cameraTrack);
+    expect(state.participants[0].screenShareTrack).toMatchObject(screenShareTrack);
+    expect(cameraTrack).not.toBe(screenShareTrack);
+  });
+
+  it('clears screen-share state on leave', async () => {
+    const client = createVoiceCallClient();
+    const state = new VoiceCallState(client);
+    await state.join('wss://livekit.example.test', 'R1');
+    await state.toggleScreenShare();
+
+    await state.leave();
+
+    expect(state.isScreenShareEnabled).toBe(false);
+    expect(state.participants).toEqual([]);
+  });
+
+  it('updates screen-share state when LiveKit reports local unpublish', async () => {
+    const client = createVoiceCallClient();
+    const state = new VoiceCallState(client);
+    await state.join('wss://livekit.example.test', 'R1');
+    await state.toggleScreenShare();
+    expect(state.isScreenShareEnabled).toBe(true);
+
+    localTrackPublications = [];
+    roomEventHandlers.get('LocalTrackUnpublished')?.();
+
+    expect(state.isScreenShareEnabled).toBe(false);
+    expect(state.participants[0].screenShareTrack).toBeNull();
+  });
+
+  it('locally mutes and unmutes remote participant audio for the current session only', async () => {
+    const setVolume = vi.fn();
+    mockRemoteParticipants.set('remote-user', {
+      identity: 'remote-user',
+      name: 'Remote User',
+      metadata: '',
+      connectionQuality: 'good',
+      isSpeaking: false,
+      audioLevel: 0,
+      setVolume,
+      trackPublications: new Map(),
+      getTrackPublications: vi.fn(() => [{ isMuted: false, track: { source: 'microphone' } }])
+    });
+    const client = createVoiceCallClient();
+    const state = new VoiceCallState(client);
+
+    await state.join('wss://livekit.example.test', 'R1');
+    setVolume.mockClear();
+
+    state.toggleParticipantLocalMute('remote-user');
+
+    expect(state.isParticipantLocallyMuted('remote-user')).toBe(true);
+    expect(setVolume).toHaveBeenLastCalledWith(0);
+    expect(state.participants.find((p) => p.identity === 'remote-user')).toMatchObject({
+      isLocallyMuted: true
+    });
+
+    state.toggleParticipantLocalMute('remote-user');
+
+    expect(state.isParticipantLocallyMuted('remote-user')).toBe(false);
+    expect(setVolume).toHaveBeenLastCalledWith(1);
+
+    state.toggleParticipantLocalMute('local-user');
+    expect(state.isParticipantLocallyMuted('local-user')).toBe(false);
+
+    state.toggleParticipantLocalMute('remote-user');
+    expect(state.isParticipantLocallyMuted('remote-user')).toBe(true);
+
+    await state.leave();
+
+    expect(state.isParticipantLocallyMuted('remote-user')).toBe(false);
+    expect(state.locallyMutedParticipantIds).toEqual({});
+  });
+});

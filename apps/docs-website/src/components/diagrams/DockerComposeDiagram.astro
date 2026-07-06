@@ -1,0 +1,54 @@
+---
+import { baseStyles } from './styles';
+import Box from './Box.astro';
+import Region from './Region.astro';
+import Dot from './Dot.astro';
+---
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 340" fill="none">
+  <style set:html={baseStyles} />
+
+  <Region x={195} y={20} w={490} h={300} label="DOCKER NETWORK" />
+
+  <Box type="browser" x={16} y={140} w={140} h={60} label="Browser" sublabel="SvelteKit SPA" />
+  <Box type="caddy" x={225} y={140} w={160} h={60} label="Caddy" sublabel="TLS · Load Balancer" port=":443" />
+  <Box type="nats" x={465} y={50} w={160} h={60} label="NATS" sublabel="JetStream · KV Store" port=":4222" />
+  <Box type="chatto" x={465} y={140} w={160} h={60} label="Chatto" sublabel="ConnectRPC · WebSocket" port=":4000" />
+  <Box type="livekit" x={465} y={240} w={160} h={60} label="LiveKit" sublabel="WebRTC Media" port=":7880" />
+
+  <!-- Connections -->
+  <path id="p-browser-caddy" class="conn" d="M156,170 L223,170"/>
+  <text class="proto" x="190" y="163" text-anchor="middle">HTTPS</text>
+  <text class="proto" x="190" y="185" text-anchor="middle">WSS</text>
+
+  <path id="p-caddy-chatto" class="conn" d="M385,170 L463,170"/>
+  <path id="p-caddy-livekit" class="conn" d="M385,185 L463,265"/>
+  <path id="p-browser-livekit" class="conn-dash" d="M86,200 L86,270 L463,270"/>
+  <text class="proto" x="270" y="285" text-anchor="middle">UDP :3478, :50000–50200</text>
+
+  <path id="p-chatto-nats" class="conn" d="M541,140 L541,110"/>
+  <path id="p-nats-chatto" class="conn" d="M549,110 L549,140"/>
+  <path id="p-chatto-livekit" class="conn" d="M545,200 L545,238"/>
+
+  <!-- Browser → Caddy -->
+  <Dot path="p-browser-caddy" r={3} dur="1.2s" />
+  <Dot path="p-browser-caddy" r={3} dur="1.2s" begin="0.6s" />
+
+  <!-- Caddy → Chatto -->
+  <Dot path="p-caddy-chatto" r={3} dur="1.2s" begin="0.3s" />
+  <Dot path="p-caddy-chatto" r={3} dur="1.2s" begin="0.9s" />
+
+  <!-- Caddy → LiveKit -->
+  <Dot path="p-caddy-livekit" color="yellow" r={3} dur="1.8s" />
+
+  <!-- Browser → LiveKit UDP -->
+  <Dot path="p-browser-livekit" color="yellow" dur="2.5s" opacity={0.7} />
+  <Dot path="p-browser-livekit" color="yellow" dur="2.5s" begin="1.25s" opacity={0.7} />
+
+  <!-- Chatto ↔ NATS -->
+  <Dot path="p-chatto-nats" color="blue" dur="1.6s" />
+  <Dot path="p-nats-chatto" color="blue" dur="1.6s" begin="0.4s" />
+
+  <!-- Chatto ↔ LiveKit -->
+  <Dot path="p-chatto-livekit" bounce dur="2.4s" opacity={0.7} />
+</svg>

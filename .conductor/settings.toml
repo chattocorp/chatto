@@ -1,0 +1,37 @@
+"$schema" = "https://conductor.build/schemas/settings.repo.schema.json"
+
+[[preview_urls]]
+name = "Chatto"
+url = "http://localhost:$CONDUCTOR_PORT"
+
+[[preview_urls]]
+name = "Mailpit"
+url = "http://localhost:$CONDUCTOR_PORT+9"
+
+[[preview_urls]]
+name = "Storybook"
+url = "http://localhost:$CONDUCTOR_PORT"
+
+[scripts]
+setup = "mise trust && mise setup"
+run_mode = "concurrent"
+
+[scripts.run.chatto]
+command = "mise dev"
+default = true
+icon = "message-square"
+
+[scripts.run.docs-website]
+command = "mise dev-docs-website"
+icon = "book-open"
+
+[scripts.run.storybook]
+command = "mise storybook"
+icon = "palette"
+
+[prompts]
+create_pr = "Create a full GitHub pull request for the current branch, not a draft PR."
+
+[git]
+delete_branch_on_archive = false
+worktree_push_auto_setup_remote = true

@@ -1,0 +1,261 @@
+syntax = "proto3";
+
+package chatto.admin.v1;
+
+import "buf/validate/validate.proto";
+import "chatto/api/v1/room_directory.proto";
+import "chatto/api/v1/rooms.proto";
+
+// One ordered sidebar item in an admin room group layout.
+message AdminRoomLayoutItem {
+  oneof item {
+    // Channel room entry.
+    chatto.api.v1.Room room = 1;
+    // Sidebar link entry.
+    chatto.api.v1.SidebarLink sidebar_link = 2;
+  }
+}
+
+// Ordered room group returned after admin layout mutations.
+message AdminRoomLayoutGroup {
+  reserved 4;
+  reserved "rooms";
+
+  // Stable room group ID.
+  string id = 1;
+  // Display name.
+  string name = 2;
+  // Public group description, when set.
+  string description = 3;
+  // Mixed room/sidebar-link entries in sidebar order.
+  repeated AdminRoomLayoutItem items = 5;
+  // Whether the viewer can create rooms in this group.
+  bool can_create_room = 6;
+}
+
+// Request for the server-admin room group layout.
+message ListRoomGroupsRequest {}
+
+// Server-admin room group layout response.
+message ListRoomGroupsResponse {
+  // Ordered room groups, including archived rooms the caller can manage.
+  repeated AdminRoomLayoutGroup groups = 1;
+}
+
+// Sidebar item kind used in reorder requests.
+enum AdminRoomLayoutItemKind {
+  // The item kind was not specified.
+  ADMIN_ROOM_LAYOUT_ITEM_KIND_UNSPECIFIED = 0;
+  // Channel room entry.
+  ADMIN_ROOM_LAYOUT_ITEM_KIND_ROOM = 1;
+  // Sidebar link entry.
+  ADMIN_ROOM_LAYOUT_ITEM_KIND_SIDEBAR_LINK = 2;
+}
+
+// One item reference in a sidebar order replacement.
+message AdminRoomLayoutItemInput {
+  // Item kind.
+  AdminRoomLayoutItemKind kind = 1 [(buf.validate.field).enum = {
+    defined_only: true
+    not_in: [0]
+  }];
+  // Room ID when kind is ROOM, sidebar link ID when kind is SIDEBAR_LINK.
+  string id = 2 [(buf.validate.field).string.min_len = 1];
+}
+
+// Request to create a room group.
+message CreateRoomGroupRequest {
+  // Required group display name.
+  string name = 1 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 80
+  }];
+  // Optional public group description.
+  string description = 2 [(buf.validate.field).string.max_len = 500];
+}
+
+// Result of creating a room group.
+message CreateRoomGroupResponse {
+  // Created room group.
+  AdminRoomLayoutGroup group = 1;
+}
+
+// Request to update a room group.
+message UpdateRoomGroupRequest {
+  // Required room group ID.
+  string group_id = 1 [(buf.validate.field).string.min_len = 1];
+  // New group display name, when changing it.
+  optional string name = 2 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 80
+  }];
+  // New public group description, when changing it. Empty clears the
+  // description.
+  optional string description = 3 [(buf.validate.field).string.max_len = 500];
+}
+
+// Result of updating a room group.
+message UpdateRoomGroupResponse {
+  // Updated room group.
+  AdminRoomLayoutGroup group = 1;
+}
+
+// Request to delete an empty room group.
+message DeleteRoomGroupRequest {
+  // Required room group ID.
+  string group_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+// Result of deleting a room group.
+message DeleteRoomGroupResponse {
+  // True when the room group was deleted.
+  bool deleted = 1;
+}
+
+// Request to replace the global room group order.
+message ReorderRoomGroupsRequest {
+  // Ordered room group IDs. The list must include every existing group exactly
+  // once.
+  repeated string ordered_group_ids = 1 [(buf.validate.field).repeated = {
+    min_items: 1
+    max_items: 1000
+    items: {
+      string: {min_len: 1}
+    }
+  }];
+}
+
+// Result of replacing the global room group order.
+message ReorderRoomGroupsResponse {
+  // Room groups in their new order.
+  repeated AdminRoomLayoutGroup groups = 1;
+}
+
+// Request to move a channel room to another room group.
+message MoveRoomToGroupRequest {
+  // Required channel room ID.
+  string room_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Required destination room group ID.
+  string group_id = 2 [(buf.validate.field).string.min_len = 1];
+}
+
+// Result of moving a channel room.
+message MoveRoomToGroupResponse {
+  // Moved room after the operation.
+  chatto.api.v1.Room room = 1;
+}
+
+// Request to replace the mixed sidebar item order in one group.
+message ReorderSidebarItemsInGroupRequest {
+  // Required room group ID.
+  string group_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Ordered room/sidebar-link item references.
+  repeated AdminRoomLayoutItemInput items = 2 [(buf.validate.field).repeated = {max_items: 1000}];
+}
+
+// Result of replacing the mixed sidebar item order.
+message ReorderSidebarItemsInGroupResponse {
+  // Updated room group.
+  AdminRoomLayoutGroup group = 1;
+}
+
+// Request to create a sidebar link in one room group.
+message CreateSidebarLinkRequest {
+  // Required destination room group ID.
+  string group_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Required display label.
+  string label = 2 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 80
+  }];
+  // Required absolute http(s) URL or server-local path.
+  string url = 3 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 2048
+  }];
+}
+
+// Result of creating a sidebar link.
+message CreateSidebarLinkResponse {
+  // Created sidebar link.
+  chatto.api.v1.SidebarLink sidebar_link = 1;
+}
+
+// Request to update a sidebar link.
+message UpdateSidebarLinkRequest {
+  // Required sidebar link ID.
+  string link_id = 1 [(buf.validate.field).string.min_len = 1];
+  // New display label, when changing it.
+  optional string label = 2 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 80
+  }];
+  // New absolute http(s) URL or server-local path, when changing it.
+  optional string url = 3 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 2048
+  }];
+}
+
+// Result of updating a sidebar link.
+message UpdateSidebarLinkResponse {
+  // Updated sidebar link.
+  chatto.api.v1.SidebarLink sidebar_link = 1;
+}
+
+// Request to delete a sidebar link.
+message DeleteSidebarLinkRequest {
+  // Required sidebar link ID.
+  string link_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+// Result of deleting a sidebar link.
+message DeleteSidebarLinkResponse {
+  // True when the sidebar link was deleted.
+  bool deleted = 1;
+}
+
+// Request to move a sidebar link to another room group.
+message MoveSidebarLinkToGroupRequest {
+  // Required sidebar link ID.
+  string link_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Required destination room group ID.
+  string group_id = 2 [(buf.validate.field).string.min_len = 1];
+}
+
+// Result of moving a sidebar link.
+message MoveSidebarLinkToGroupResponse {
+  // Moved sidebar link.
+  chatto.api.v1.SidebarLink sidebar_link = 1;
+}
+
+// Reads and mutates the server-admin room layout.
+service AdminRoomLayoutService {
+  // Lists the editable room group layout. Requires role.manage and returns
+  // visible room entries, including archived rooms for administrative actions
+  // such as unarchiving.
+  rpc ListRoomGroups(ListRoomGroupsRequest) returns (ListRoomGroupsResponse);
+  // Creates a room group. Requires role.manage.
+  rpc CreateRoomGroup(CreateRoomGroupRequest) returns (CreateRoomGroupResponse);
+  // Updates a room group's metadata. Requires role.manage.
+  rpc UpdateRoomGroup(UpdateRoomGroupRequest) returns (UpdateRoomGroupResponse);
+  // Deletes an empty room group. Requires role.manage.
+  rpc DeleteRoomGroup(DeleteRoomGroupRequest) returns (DeleteRoomGroupResponse);
+  // Replaces the global room group order. Requires role.manage.
+  rpc ReorderRoomGroups(ReorderRoomGroupsRequest) returns (ReorderRoomGroupsResponse);
+  // Moves a channel room to another room group. Requires room.manage in both
+  // source and destination groups.
+  rpc MoveRoomToGroup(MoveRoomToGroupRequest) returns (MoveRoomToGroupResponse);
+  // Replaces the mixed room/link sidebar order in one group. Requires
+  // room.manage in that group.
+  rpc ReorderSidebarItemsInGroup(ReorderSidebarItemsInGroupRequest) returns (ReorderSidebarItemsInGroupResponse);
+  // Creates a sidebar link. Requires room.manage in the destination group.
+  rpc CreateSidebarLink(CreateSidebarLinkRequest) returns (CreateSidebarLinkResponse);
+  // Updates a sidebar link. Requires room.manage in the link's current group.
+  rpc UpdateSidebarLink(UpdateSidebarLinkRequest) returns (UpdateSidebarLinkResponse);
+  // Deletes a sidebar link. Requires room.manage in the link's current group.
+  rpc DeleteSidebarLink(DeleteSidebarLinkRequest) returns (DeleteSidebarLinkResponse);
+  // Moves a sidebar link to another group. Requires room.manage in both source
+  // and destination groups.
+  rpc MoveSidebarLinkToGroup(MoveSidebarLinkToGroupRequest) returns (MoveSidebarLinkToGroupResponse);
+}

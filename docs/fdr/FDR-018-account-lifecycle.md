@@ -1,7 +1,7 @@
 # FDR-018: Account Lifecycle
 
 **Status:** Active
-**Last reviewed:** 2026-05-19
+**Last reviewed:** 2026-06-15
 
 ## Overview
 
@@ -11,23 +11,30 @@ This FDR covers the user account from registration through deletion: signup, ema
 
 ### Registration
 
-- **Password signup** — a user signs up with a login, email, and password. The login must pass uniqueness and format checks; emails are checked against the server's blocked-usernames list. After signup, a verification mail goes out; until the link is clicked the account has limited capabilities (configurable per server) — typically the restricted set defined by the `verified` role's grants. Clicking the link marks the email verified and the user gains the `verified` implicit role.
-- **OIDC signup** — when a user signs in via an OIDC provider for the first time and no Chatto account matches their subject or verified email, a new account is created. The email is treated as pre-verified (the IdP attested to it). The login is derived from the local-part of the email; the OIDC subject is stored as a stable identity link for future sign-ins. See FDR-023.
-- **AT Protocol signup** — when a user signs in via AT Protocol for the first time and no Chatto account matches their DID, a new account is created with their handle as the login. The sign-in flow requests the `account:email` scope; if the user grants it and their PDS-side email is confirmed, that email is attached to the new account as verified. If the user declines the scope, the account is created without an email and the user can add one later. See FDR-027.
-- If a verified email matches an entry in `owners.emails` in the server config, the user is auto-assigned the `owner` role on verification. This applies to email verifications from any path (manual link-click, OIDC pre-verified email, or a later-added email on an ATProto account).
+- A user signs up with a login, email, and password. The login must pass uniqueness, format, and blocked-username checks; email uniqueness is enforced when the address is verified.
+- After signup, an email is sent to the address with a six-digit verification code.
+- Registration and verification codes are backed by `RUNTIME_STATE` HMAC-derived records with configurable per-key TTLs (default 15 minutes). Raw code values are never written to `EVT` or backup archives. If email delivery fails, the pending OTP is cancelled so the failed send does not consume resend throttle capacity.
+- Until the email is verified, the account has limited capabilities (configurable per server) — typically read-only or some restricted set defined by what the `verified` role grants.
+- Entering the verification code marks the email as verified. The user gains the `verified` implicit role and the full set of permissions that role grants.
+- External provider account creation uses the pending external-identity confirmation flow described in FDR-023. AT Protocol is one such path when `[auth.atproto] enabled = true`; if the user grants `account:email` and the PDS confirms the email, that address is attached as verified on account creation. See FDR-029.
+- If the verified email matches an entry in `owners.emails` in the server config, the user is auto-assigned the `owner` role on verification.
 
 ### Email management
 
 - A user can have multiple verified email addresses on file.
-- Adding a new email triggers a verification mail to the new address; the email is added in pending state until the link is clicked.
+- Adding a new email triggers a verification mail to the new address; the email is added in pending state until the code is confirmed.
 - A user can delete one of their verified emails as long as at least one verified email remains.
+- Email verification code issuance is recorded in the EVT audit log with a hashed email, expiry, and safe request metadata; the raw code is not recorded.
 
 ### Account deletion
 
 - The user requests deletion via Account Settings.
 - A two-step confirmation flow asks the user to type a confirmation string before the deletion executes.
-- On deletion, the server: removes the user's profile data, deletes their avatar, removes their per-user encryption key from the `ENCRYPTION_KEYS` KV bucket, and revokes all their sessions and bearer tokens.
-- After deletion, all messages the user ever posted are cryptographically unreadable — the bytes are still on disk in JetStream, but without the key they decrypt to noise.
+- Account deletion confirmation-token issuance is recorded in the EVT audit log with expiry and safe request metadata; the raw token is not recorded.
+- The account deletion confirmation token itself lives in `RUNTIME_STATE` under an HMAC-derived key with a 15-minute per-key TTL.
+- On deletion, the server: removes the user's profile data, deletes their avatar, shreds the user's app-owned DEK refs from `RUNTIME_STATE` and KMS wrapping-key refs from `ENCRYPTION_KEYS`, records `UserKeyShreddedEvent` on the user aggregate, deletes message-owned assets and derivatives, and revokes all their sessions and bearer tokens.
+- After deletion, all messages the user ever posted are tombstoned by projection before decryption and cryptographically unreadable — the encrypted bytes are still on disk in JetStream, but without the key they decrypt to noise.
+- New durable user events store login, display name, and verified email as encrypted PII payloads. Projections decrypt them while the user's key exists and skip rebuilding them after crypto-shredding.
 - The login is freed up for re-use.
 
 ## Design Decisions
@@ -44,6 +51,12 @@ This FDR covers the user account from registration through deletion: signup, ema
 **Why:** People have work and personal addresses, change jobs, or have an alias. Single-email accounts force needless friction during transitions. Multiple-emails also helps the `owners.emails` config — operators can list either an old or new email and the right user gets owner status.
 **Tradeoff:** The data model and resolvers have to handle a list, not a scalar. Minor extra complexity in exchange for real flexibility.
 
+### 2a. Workflow tokens in runtime state
+
+**Decision:** Registration and email-verification codes, registration completion tokens, password-reset tokens, and account-deletion confirmation tokens are stored in `RUNTIME_STATE` under HMAC-derived keys with per-key TTLs. The HMAC input is scoped by workflow and keyed by `[core].secret_key`.
+**Why:** These values are raw credentials or credential-adjacent workflow state. They need restart and restore survival, but they are not reconstructable account history and should not become event-log or backup secrets. The audit value is captured separately in safe EVT facts.
+**Tradeoff:** Operators must keep `[core].secret_key` stable across restores if pending account workflows should continue working. Changing it intentionally invalidates outstanding registration, email-verification, password-reset, and account-deletion credentials.
+
 ### 3. Two-step deletion confirmation
 
 **Decision:** Account deletion requires the user to type a confirmation phrase, not just click a button. The `requestAccountDeletion` mutation sets up the flow; `deleteMyAccount` finalises it.
@@ -52,23 +65,29 @@ This FDR covers the user account from registration through deletion: signup, ema
 
 ### 4. Crypto-shredding instead of message deletion
 
-**Decision:** Account deletion destroys the user's encryption key. Encrypted message bodies stay on disk but become permanently unreadable.
-**Why:** Scanning every JetStream stream and KV bucket for a user's messages would be slow, error-prone, and leave fragments in backups and replicas. Destroying one key destroys all their content atomically. Backups specifically exclude the encryption key bucket so that restoring a backup doesn't restore the ability to read deleted users' messages. See ADR-007.
-**Tradeoff:** Encrypted-but-unreadable bytes linger forever. Storage cost is small (chat messages are tiny) and the privacy guarantee is stronger than "we tried to delete everything we could find".
+**Decision:** Account deletion shreds the app-owned DEK refs and KMS wrapping-key refs that protect the user's purpose-scoped DEKs and appends a durable `UserKeyShreddedEvent`. Encrypted message bodies and durable user PII stay on disk but become permanently unreadable; projections use the shred event to tombstone authored messages before attempting decryption. Message-owned assets, including derivative children such as thumbnails and video variants, receive `AssetDeletedEvent` and have their backing bytes removed.
+**Why:** Scanning every JetStream stream and KV bucket for a user's messages would be slow, error-prone, and leave fragments in backups and replicas. Destroying the content-key records and their wrapping keys destroys all text content atomically, while the shred event gives projections and cleanup code a deterministic audit signal. Backups specifically exclude the encryption key bucket so that restoring a backup doesn't restore the ability to read deleted users' messages. See ADR-007.
+**Tradeoff:** Encrypted-but-unreadable message bytes linger forever. Storage cost is small for text; binary assets are explicitly deleted because signed URLs could otherwise keep serving blobs until expiry.
 
-### 5. Per-user keys, not shared keys
+### 5. Per-user KEKs, not shared keys
 
-**Decision:** Each user has their own ChaCha20-Poly1305 encryption key.
-**Why:** Shared keys would mean one user's deletion can't crypto-shred their messages without affecting others. Per-user keys make each deletion fully self-contained. See ADR-007.
-**Tradeoff:** Every message-body decryption is a per-author KV lookup. The lookup is cheap (NATS KV is memory-cached) and dataloader batches help on bulk reads.
+**Decision:** Each user has their own KEK, addressed through an opaque KMS key ref. New messages use a purpose-scoped message-body DEK epoch stored under an opaque app-owned content-key ref and wrapped by that key ref; durable user PII uses a separate user-PII DEK epoch. Legacy messages encrypted directly with the per-user key remain readable.
+**Why:** Shared keys would mean one user's deletion can't crypto-shred their messages without affecting others. Per-user KEKs make each deletion fully self-contained, while opaque key refs, content-key refs, and purpose-scoped DEK epochs keep message and user events compact and map cleanly to local DEK storage plus external KMS unwrap flows. See ADR-007.
+**Tradeoff:** Message-body and user-PII decryption have to resolve and unwrap the relevant DEK epoch. The built-in KMS path is cheap and local today; an external KMS may need caching policy and latency budgets.
 
-### 6. KMS service boundary, even though it's in-process
+### 6. Durable user PII is encrypted, not indexed in EVT
 
-**Decision:** Encryption operations go through a KMS service interface (`encrypt`, `decrypt`, `deleteKey`) rather than direct key access. The default implementation runs in-process; the interface is designed for extraction to a standalone service.
-**Why:** A clean service boundary is what makes future extraction to Vault / AWS KMS / HSM possible without rewriting business logic. See ADR-007.
-**Tradeoff:** A tiny indirection layer for what's currently an in-process call. Negligible cost; future flexibility worth a lot.
+**Decision:** New durable user events encrypt login, display name, and verified email fields with the user's active user-PII DEK epoch. The projection decrypts these values and derives in-memory login/email indexes.
+**Why:** Immutable event logs are the wrong long-term home for plaintext PII. Keeping the encrypted payload in EVT preserves replayability without a separate PII KV store, and deletion destroys the key needed to rebuild the data. See ADR-007.
+**Tradeoff:** Projections need access to key-unwrapping during replay. If a user's key is gone, cold replay intentionally cannot rebuild their profile PII or uniqueness indexes.
 
-### 7. Login is freed on deletion
+### 7. KMS service boundary, even though it's in-process
+
+**Decision:** KEK creation, DEK wrapping/unwrapping, and KEK shredding go through a KMS service interface (`createKey`, `wrapContentKey`, `unwrapContentKey`, `shredKey`) using opaque key refs rather than direct KEK access or user IDs. DEK record create/load/shred stays in application-owned `RUNTIME_STATE` storage.
+**Why:** A clean KMS boundary is what makes future extraction to Vault / AWS KMS / HSM possible without turning the external KMS into Chatto's DEK registry. Keeping wrapped DEKs in `RUNTIME_STATE` also preserves them in normal data backups without backing up the KEKs needed to unwrap them. See ADR-007.
+**Tradeoff:** A tiny indirection layer for what's currently an in-process call. Legacy direct-key body decrypt still has a local raw-KEK compatibility path until old bodies age out.
+
+### 8. Login is freed on deletion
 
 **Decision:** After account deletion, the deleted user's login is available for re-use by a new signup.
 **Why:** Holding usernames forever would gradually exhaust the namespace. Re-use is acceptable because the new owner gets a new identity (new user ID, new encryption key) — they don't inherit any of the previous user's data or messages.
@@ -77,13 +96,13 @@ This FDR covers the user account from registration through deletion: signup, ema
 ## Permissions
 
 - Self: anyone authenticated can update their own profile (FDR-022), add or remove their own emails, and delete their own account.
-- `user.delete-any` — admin permission to delete other users' accounts. Subject to outranking the target via `requireUserAdminTarget`.
+- `user.delete-any` — admin permission to delete other users' accounts.
 - `user.delete-self` — gates own-account deletion. Granted to `everyone` by default; operators can revoke to lock down self-deletion.
 
 ## Related
 
-- **ADRs:** ADR-007 (per-user encryption with crypto-shredding), ADR-032 (external identity integration boundaries)
-- **FDRs:** FDR-001 (Roles & Permissions), FDR-022 (User Profile), FDR-023 (Authentication & Sessions), FDR-027 (Sign in with AT Protocol)
+- **ADRs:** ADR-007 (per-user encryption with crypto-shredding), ADR-048 (external identity integration boundaries)
+- **FDRs:** FDR-001 (Roles & Permissions), FDR-022 (User Profile), FDR-023 (Authentication & Sessions), FDR-029 (Sign in with AT Protocol)
 
 ## Open Questions
 

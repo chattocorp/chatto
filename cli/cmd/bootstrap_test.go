@@ -7,10 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nats-io/nats-server/v2/server"
-	"github.com/nats-io/nats.go"
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core"
+	"hmans.de/chatto/internal/testutil"
 )
 
 // setupCore spins up an in-process NATS server + ChattoCore for cmd-layer tests.
@@ -18,54 +17,77 @@ import (
 func setupCore(t *testing.T) *core.ChattoCore {
 	t.Helper()
 
-	opts := &server.Options{JetStream: true, Port: -1, StoreDir: t.TempDir()}
-	ns, err := server.NewServer(opts)
-	if err != nil {
-		t.Fatalf("nats server: %v", err)
-	}
-	go ns.Start()
-	if !ns.ReadyForConnections(5 * time.Second) {
-		t.Fatal("nats not ready")
-	}
-
-	nc, err := nats.Connect(ns.ClientURL())
-	if err != nil {
-		t.Fatalf("nats connect: %v", err)
-	}
-	t.Cleanup(func() {
-		nc.Close()
-		ns.Shutdown()
-		ns.WaitForShutdown()
-	})
+	_, nc := testutil.StartNATS(t)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	t.Cleanup(cancel)
 
-	cfg := config.CoreConfig{Assets: config.AssetsConfig{SigningSecret: "test-secret"}}
+	cfg := config.CoreConfig{
+		SecretKey: "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
+		Assets:    config.AssetsConfig{SigningSecret: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"},
+	}
 	c, err := core.NewChattoCore(ctx, nc, cfg)
 	if err != nil {
 		t.Fatalf("new core: %v", err)
 	}
 
-	hubCtx, hubCancel := context.WithCancel(context.Background())
-	go c.PresenceHub.Run(hubCtx)
-	t.Cleanup(hubCancel)
+	// Start core's background services (PresenceHub + projectors) — the
+	// same set cmd/run.go boots via c.Run. Membership mutations need the
+	// projector loops to advance so WaitForSeq returns.
+	servicesCtx, servicesCancel := context.WithCancel(context.Background())
+	servicesDone := make(chan error, 1)
+	go func() { servicesDone <- c.Run(servicesCtx) }()
+	t.Cleanup(func() {
+		servicesCancel()
+		select {
+		case <-servicesDone:
+		case <-time.After(5 * time.Second):
+			t.Fatal("core.Run did not stop within timeout")
+		}
+	})
+	bootCtx, bootCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer bootCancel()
+	if err := c.WaitForBoot(bootCtx); err != nil {
+		t.Fatalf("WaitForBoot: %v", err)
+	}
+
+	// Production `run.go` calls SeedDefaultRooms after WaitForBoot;
+	// mirror that here so bootstrap tests see the same starting
+	// state and the seeded rooms land in the Lobby group.
+	if err := c.SeedDefaultRooms(ctx); err != nil {
+		t.Fatalf("seed default rooms: %v", err)
+	}
 
 	return c
 }
 
-func TestApplyBootstrap_CreatesUsersAndInstance(t *testing.T) {
+func eventCount(t *testing.T, c *core.ChattoCore) uint64 {
+	t.Helper()
+
+	ctx := context.Background()
+	stream, err := c.EventStreamForDebug(ctx)
+	if err != nil {
+		t.Fatalf("event stream: %v", err)
+	}
+	info, err := stream.Info(ctx)
+	if err != nil {
+		t.Fatalf("event stream info: %v", err)
+	}
+	return info.State.Msgs
+}
+
+func TestApplyBootstrap_CreatesUsersAndServer(t *testing.T) {
 	c := setupCore(t)
 	ctx := context.Background()
 
 	cfg := config.BootstrapConfig{
 		Users: []config.BootstrapUser{
 			{
-				Login:        "alice",
-				DisplayName:  "Alice",
-				Email:        "alice@example.com",
-				Password:     "devpassword",
-				ServerRole: "owner",
+				Login:       "alice",
+				DisplayName: "Alice",
+				Email:       "alice@example.com",
+				Password:    "devpassword",
+				ServerRole:  "owner",
 			},
 			{
 				Login:    "bob",
@@ -93,21 +115,24 @@ func TestApplyBootstrap_CreatesUsersAndInstance(t *testing.T) {
 		t.Errorf("expected alice to have a verified email")
 	}
 
-	if isOwner, err := c.IsInstanceOwner(ctx, alice.Id); err != nil || !isOwner {
-		t.Errorf("expected alice to have instance-owner role (err=%v)", err)
+	if isOwner, err := c.IsServerOwner(ctx, alice.Id); err != nil || !isOwner {
+		t.Errorf("expected alice to have owner role (err=%v)", err)
+	}
+	if got := c.RBAC.GetDecision(core.ScopeServer, "", core.RoleEveryone, core.PermRoomCreate); got != core.DecisionNone {
+		t.Errorf("bootstrap should not grant server-tier room.create to everyone, got %s", got)
 	}
 
-	// The instance config should carry the bootstrap name.
+	// The server config should carry the bootstrap name.
 	cm := c.ConfigManager()
 	if cm == nil {
 		t.Fatal("expected ConfigManager to be available")
 	}
-	cfgInstance, _, err := cm.GetInstanceConfig(ctx)
+	cfgServer, err := cm.GetServerConfig(ctx)
 	if err != nil {
-		t.Fatalf("get instance config: %v", err)
+		t.Fatalf("get server config: %v", err)
 	}
-	if cfgInstance == nil || cfgInstance.ServerName != "Engineering" {
-		t.Errorf("expected instance name 'Engineering', got %+v", cfgInstance)
+	if cfgServer == nil || cfgServer.ServerName != "Engineering" {
+		t.Errorf("expected server name 'Engineering', got %+v", cfgServer)
 	}
 
 	rooms, err := c.ListRooms(ctx, "channel")
@@ -137,7 +162,13 @@ func TestApplyBootstrap_IsIdempotent(t *testing.T) {
 	}
 
 	applyBootstrap(ctx, c, cfg)
+	eventsAfterFirstRun := eventCount(t, c)
 	applyBootstrap(ctx, c, cfg) // second run should be a no-op for the same entries
+	eventsAfterSecondRun := eventCount(t, c)
+
+	if eventsAfterSecondRun != eventsAfterFirstRun {
+		t.Fatalf("expected second bootstrap to append no events, got %d -> %d", eventsAfterFirstRun, eventsAfterSecondRun)
+	}
 
 	// Bootstrap is idempotent at the room level: re-running shouldn't
 	// duplicate the default rooms (CreateRoom fails ErrRoomNameExists).
@@ -156,6 +187,32 @@ func TestApplyBootstrap_IsIdempotent(t *testing.T) {
 	}
 }
 
+func TestApplyBootstrap_SkipsWhenServerHasData(t *testing.T) {
+	c := setupCore(t)
+	ctx := context.Background()
+
+	if _, err := c.CreateUser(ctx, "system", "existing", "Existing User", "devpassword"); err != nil {
+		t.Fatalf("create existing user: %v", err)
+	}
+	eventsBeforeBootstrap := eventCount(t, c)
+
+	cfg := config.BootstrapConfig{
+		Users: []config.BootstrapUser{
+			{Login: "alice", Email: "alice@example.com", Password: "devpassword", ServerRole: "owner"},
+		},
+		Server: &config.BootstrapServer{Name: "Should Not Apply", Rooms: []string{"random"}},
+	}
+	applyBootstrap(ctx, c, cfg)
+	eventsAfterBootstrap := eventCount(t, c)
+
+	if eventsAfterBootstrap != eventsBeforeBootstrap {
+		t.Fatalf("expected bootstrap to append no events on non-empty server, got %d -> %d", eventsBeforeBootstrap, eventsAfterBootstrap)
+	}
+	if user, err := c.GetUserByLogin(ctx, "alice"); err == nil && user != nil {
+		t.Fatal("expected bootstrap user not to be created on non-empty server")
+	}
+}
+
 func TestApplyBootstrap_EmptySectionIsNoOp(t *testing.T) {
 	c := setupCore(t)
 	ctx := context.Background()
@@ -169,7 +226,7 @@ func TestApplyBootstrap_EmptySectionIsNoOp(t *testing.T) {
 
 // Bootstrap users are auto-joined to the deployment's primary space so non-owner
 // users (alice/bob in the dev config) actually land on the server rather than
-// existing as orphan members of the instance.
+// existing as orphan members of the server.
 func TestApplyBootstrap_AutoJoinsServer(t *testing.T) {
 	c := setupCore(t)
 	ctx := context.Background()
@@ -211,7 +268,7 @@ func TestApplyBootstrap_AutoJoinsServer(t *testing.T) {
 	}
 }
 
-// When no user is marked as instance-role=owner, the bootstrap falls back to
+// When no user is marked as role=owner, the bootstrap falls back to
 // the first defined user as the underlying primary-space owner.
 func TestApplyBootstrap_DerivesOwnerFromFirstUser(t *testing.T) {
 	c := setupCore(t)

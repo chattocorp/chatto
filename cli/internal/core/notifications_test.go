@@ -5,11 +5,14 @@ import (
 	"testing"
 	"time"
 
+	"google.golang.org/protobuf/proto"
+
+	"hmans.de/chatto/internal/core/subjects"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
 func TestCreateNotification(t *testing.T) {
-	core, _ := setupTestCore(t)
+	core, nc := setupTestCore(t)
 	ctx := context.Background()
 
 	recipientID := "recipient-user"
@@ -52,13 +55,15 @@ func TestCreateNotification(t *testing.T) {
 		if dmNotif.RoomId != "dm-room-123" {
 			t.Errorf("Expected room ID dm-room-123, got %s", dmNotif.RoomId)
 		}
+		if _, err := core.storage.runtimeStateKV.Get(ctx, notificationKey(recipientID, created.Id)); err != nil {
+			t.Fatalf("expected notification in RUNTIME_STATE: %v", err)
+		}
 	})
 
 	t.Run("creates mention notification", func(t *testing.T) {
 		notif := &corev1.Notification{
 			Notification: &corev1.Notification_Mention{
 				Mention: &corev1.MentionNotification{
-					SpaceId: "space-123",
 					RoomId:  "room-456",
 					EventId: "event-789",
 				},
@@ -74,9 +79,6 @@ func TestCreateNotification(t *testing.T) {
 		if mentionNotif == nil {
 			t.Fatal("Expected mention notification payload")
 		}
-		if mentionNotif.SpaceId != "space-123" {
-			t.Errorf("Expected space ID space-123, got %s", mentionNotif.SpaceId)
-		}
 		if mentionNotif.RoomId != "room-456" {
 			t.Errorf("Expected room ID room-456, got %s", mentionNotif.RoomId)
 		}
@@ -89,7 +91,6 @@ func TestCreateNotification(t *testing.T) {
 		notif := &corev1.Notification{
 			Notification: &corev1.Notification_Reply{
 				Reply: &corev1.ReplyNotification{
-					SpaceId:     "space-123",
 					RoomId:      "room-456",
 					EventId:     "reply-event",
 					InReplyToId: "root-event",
@@ -108,6 +109,125 @@ func TestCreateNotification(t *testing.T) {
 		}
 		if replyNotif.InReplyToId != "root-event" {
 			t.Errorf("Expected in reply to ID root-event, got %s", replyNotif.InReplyToId)
+		}
+	})
+
+	t.Run("publishes room message notification routing context", func(t *testing.T) {
+		subject := subjects.LiveSyncUserEvent(recipientID, "notification_created")
+		sub, err := nc.SubscribeSync(subject)
+		if err != nil {
+			t.Fatalf("SubscribeSync(%s): %v", subject, err)
+		}
+		defer sub.Unsubscribe()
+		if err := nc.Flush(); err != nil {
+			t.Fatalf("Flush subscription: %v", err)
+		}
+
+		created, err := core.CreateNotification(ctx, recipientID, actorID, &corev1.Notification{
+			Notification: &corev1.Notification_RoomMessage{
+				RoomMessage: &corev1.RoomMessageNotification{
+					RoomId:  "all-messages-room",
+					EventId: "all-messages-event",
+				},
+			},
+		})
+		if err != nil {
+			t.Fatalf("CreateNotification error: %v", err)
+		}
+
+		msg, err := sub.NextMsg(2 * time.Second)
+		if err != nil {
+			t.Fatalf("waiting for notification_created live event: %v", err)
+		}
+
+		var live corev1.LiveEvent
+		if err := proto.Unmarshal(msg.Data, &live); err != nil {
+			t.Fatalf("unmarshal live event: %v", err)
+		}
+		event := live.GetNotificationCreated()
+		if event == nil {
+			t.Fatalf("expected NotificationCreatedEvent, got %T", live.Event)
+		}
+		if event.NotificationId != created.Id {
+			t.Errorf("NotificationId = %q, want %q", event.NotificationId, created.Id)
+		}
+		if event.RoomId != "all-messages-room" {
+			t.Errorf("RoomId = %q, want all-messages-room", event.RoomId)
+		}
+		if event.EventId != "all-messages-event" {
+			t.Errorf("EventId = %q, want all-messages-event", event.EventId)
+		}
+		if event.Silent {
+			t.Fatal("NotificationCreatedEvent.Silent = true, want false")
+		}
+	})
+
+	t.Run("creates silent notifications for do not disturb recipients", func(t *testing.T) {
+		dndRecipientID := "dnd-recipient-user"
+		if err := core.SetPresence(ctx, dndRecipientID, PresenceStatusDoNotDisturb); err != nil {
+			t.Fatalf("SetPresence: %v", err)
+		}
+		pushCalls := make(chan *corev1.Notification, 1)
+		core.OnNotificationCreated = func(ctx context.Context, notification *corev1.Notification) {
+			pushCalls <- notification
+		}
+		t.Cleanup(func() {
+			core.OnNotificationCreated = nil
+		})
+
+		subject := subjects.LiveSyncUserEvent(dndRecipientID, "notification_created")
+		sub, err := nc.SubscribeSync(subject)
+		if err != nil {
+			t.Fatalf("SubscribeSync(%s): %v", subject, err)
+		}
+		defer sub.Unsubscribe()
+		if err := nc.Flush(); err != nil {
+			t.Fatalf("Flush subscription: %v", err)
+		}
+
+		created, err := core.CreateNotification(ctx, dndRecipientID, actorID, &corev1.Notification{
+			Notification: &corev1.Notification_Mention{
+				Mention: &corev1.MentionNotification{
+					RoomId:  "dnd-room",
+					EventId: "dnd-event",
+				},
+			},
+		})
+		if err != nil {
+			t.Fatalf("CreateNotification error: %v", err)
+		}
+		if created == nil {
+			t.Fatal("created notification = nil, want stored silent notification")
+		}
+
+		notifs, err := core.GetNotifications(ctx, dndRecipientID)
+		if err != nil {
+			t.Fatalf("GetNotifications: %v", err)
+		}
+		if len(notifs) != 1 {
+			t.Fatalf("notifications = %d, want 1", len(notifs))
+		}
+
+		msg, err := sub.NextMsg(2 * time.Second)
+		if err != nil {
+			t.Fatalf("waiting for notification_created live event: %v", err)
+		}
+		var live corev1.LiveEvent
+		if err := proto.Unmarshal(msg.Data, &live); err != nil {
+			t.Fatalf("unmarshal live event: %v", err)
+		}
+		event := live.GetNotificationCreated()
+		if event == nil {
+			t.Fatalf("expected NotificationCreatedEvent, got %T", live.Event)
+		}
+		if !event.Silent {
+			t.Fatal("NotificationCreatedEvent.Silent = false, want true")
+		}
+
+		select {
+		case notification := <-pushCalls:
+			t.Fatalf("push callback called with %+v, want no push for DND", notification)
+		case <-time.After(50 * time.Millisecond):
 		}
 	})
 }
@@ -264,6 +384,11 @@ func TestDismissAllNotifications(t *testing.T) {
 	userID := "dismiss-all-user"
 
 	t.Run("returns 0 when no notifications", func(t *testing.T) {
+		callbacks := make(chan *corev1.Notification, 1)
+		core.OnNotificationDismissed = func(ctx context.Context, userID string, notification *corev1.Notification) {
+			callbacks <- notification
+		}
+
 		count, err := core.DismissAllNotifications(ctx, userID)
 		if err != nil {
 			t.Fatalf("DismissAllNotifications error: %v", err)
@@ -271,16 +396,33 @@ func TestDismissAllNotifications(t *testing.T) {
 		if count != 0 {
 			t.Errorf("Expected 0, got %d", count)
 		}
+
+		select {
+		case notification := <-callbacks:
+			t.Fatalf("Expected no dismiss callback, got notification %s", notification.Id)
+		default:
+		}
 	})
 
-	t.Run("dismisses all notifications for user", func(t *testing.T) {
+	t.Run("dismisses all notifications for user and sends dismiss callbacks", func(t *testing.T) {
+		callbacks := make(chan *corev1.Notification, 3)
+		core.OnNotificationDismissed = func(ctx context.Context, userID string, notification *corev1.Notification) {
+			callbacks <- notification
+		}
+
 		// Create 3 notifications
+		expectedRoomsByID := map[string]string{}
+		roomIDs := []string{"room-a", "room-b", "room-c"}
 		for i := 0; i < 3; i++ {
-			core.CreateNotification(ctx, userID, "actor", &corev1.Notification{
+			created, err := core.CreateNotification(ctx, userID, "actor", &corev1.Notification{
 				Notification: &corev1.Notification_DmMessage{
-					DmMessage: &corev1.DMMessageNotification{RoomId: "room"},
+					DmMessage: &corev1.DMMessageNotification{RoomId: roomIDs[i]},
 				},
 			})
+			if err != nil {
+				t.Fatalf("CreateNotification error: %v", err)
+			}
+			expectedRoomsByID[created.Id] = created.GetDmMessage().RoomId
 		}
 
 		count, err := core.DismissAllNotifications(ctx, userID)
@@ -296,7 +438,376 @@ func TestDismissAllNotifications(t *testing.T) {
 		if len(remaining) != 0 {
 			t.Errorf("Expected 0 remaining, got %d", len(remaining))
 		}
+
+		received := map[string]string{}
+		for i := 0; i < 3; i++ {
+			select {
+			case notification := <-callbacks:
+				dm := notification.GetDmMessage()
+				if dm == nil {
+					t.Fatalf("Expected DM notification callback, got %T", notification.Notification)
+				}
+				received[notification.Id] = dm.RoomId
+			case <-time.After(time.Second):
+				t.Fatalf("Timed out waiting for dismiss callback %d", i+1)
+			}
+		}
+		if len(received) != len(expectedRoomsByID) {
+			t.Fatalf("Expected %d callbacks, got %d", len(expectedRoomsByID), len(received))
+		}
+		for id, expectedRoom := range expectedRoomsByID {
+			if received[id] != expectedRoom {
+				t.Errorf("Expected callback for %s with room %s, got %s", id, expectedRoom, received[id])
+			}
+		}
+		select {
+		case notification := <-callbacks:
+			t.Fatalf("Expected no extra dismiss callback, got notification %s", notification.Id)
+		default:
+		}
 	})
+}
+
+func TestReadMarkerNotificationDismissalPublishesSyncAndPushDismissal(t *testing.T) {
+	core, nc := setupTestCore(t)
+	ctx := testContext(t)
+
+	author, err := core.CreateUser(ctx, SystemActorID, "read-notification-author", "Read Notification Author", "password")
+	if err != nil {
+		t.Fatalf("CreateUser author: %v", err)
+	}
+	reader, err := core.CreateUser(ctx, SystemActorID, "read-notification-reader", "Read Notification Reader", "password")
+	if err != nil {
+		t.Fatalf("CreateUser reader: %v", err)
+	}
+	room, err := core.CreateRoom(ctx, author.Id, KindChannel, "", "read-notification-room", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if _, err := core.JoinRoom(ctx, author.Id, KindChannel, author.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom author: %v", err)
+	}
+	if _, err := core.JoinRoom(ctx, reader.Id, KindChannel, reader.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom reader: %v", err)
+	}
+
+	root, err := core.PostMessage(ctx, KindChannel, room.Id, author.Id, "root", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage root: %v", err)
+	}
+	reply1, err := core.PostMessage(ctx, KindChannel, room.Id, author.Id, "reply one", nil, root.Id, "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage reply1: %v", err)
+	}
+	reply2, err := core.PostMessage(ctx, KindChannel, room.Id, author.Id, "reply two", nil, root.Id, "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage reply2: %v", err)
+	}
+	reply3, err := core.PostMessage(ctx, KindChannel, room.Id, author.Id, "reply three", nil, root.Id, "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage reply3: %v", err)
+	}
+
+	dismissedPush := make(chan string, 3)
+	core.OnNotificationDismissed = func(ctx context.Context, userID string, notification *corev1.Notification) {
+		dismissedPush <- notification.GetId()
+	}
+
+	subject := subjects.LiveSyncUserEvent(reader.Id, "notification_dismissed")
+	sub, err := nc.SubscribeSync(subject)
+	if err != nil {
+		t.Fatalf("SubscribeSync(%s): %v", subject, err)
+	}
+	defer sub.Unsubscribe()
+	if err := nc.Flush(); err != nil {
+		t.Fatalf("Flush subscription: %v", err)
+	}
+
+	coveredReply, err := core.CreateNotification(ctx, reader.Id, author.Id, &corev1.Notification{
+		Notification: &corev1.Notification_Reply{
+			Reply: &corev1.ReplyNotification{
+				RoomId:      room.Id,
+				EventId:     reply1.Id,
+				InReplyToId: root.Id,
+				InThread:    root.Id,
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("CreateNotification covered reply: %v", err)
+	}
+	coveredMention, err := core.CreateNotification(ctx, reader.Id, author.Id, &corev1.Notification{
+		Notification: &corev1.Notification_Mention{
+			Mention: &corev1.MentionNotification{
+				RoomId:   room.Id,
+				EventId:  reply2.Id,
+				InThread: root.Id,
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("CreateNotification covered mention: %v", err)
+	}
+	futureReply, err := core.CreateNotification(ctx, reader.Id, author.Id, &corev1.Notification{
+		Notification: &corev1.Notification_Reply{
+			Reply: &corev1.ReplyNotification{
+				RoomId:      room.Id,
+				EventId:     reply3.Id,
+				InReplyToId: root.Id,
+				InThread:    root.Id,
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("CreateNotification future reply: %v", err)
+	}
+
+	cutoff, err := core.GetEventTimestamp(ctx, KindChannel, room.Id, reply2.Id)
+	if err != nil {
+		t.Fatalf("GetEventTimestamp: %v", err)
+	}
+	if got := core.DismissThreadReadNotifications(ctx, KindChannel, reader.Id, room.Id, root.Id, cutoff); got != 2 {
+		t.Fatalf("DismissThreadReadNotifications = %d, want 2", got)
+	}
+
+	remaining, err := core.GetNotifications(ctx, reader.Id)
+	if err != nil {
+		t.Fatalf("GetNotifications: %v", err)
+	}
+	if len(remaining) != 1 || remaining[0].GetId() != futureReply.GetId() {
+		t.Fatalf("remaining notifications = %+v, want only %s", remaining, futureReply.GetId())
+	}
+
+	wantIDs := map[string]bool{
+		coveredReply.GetId():   true,
+		coveredMention.GetId(): true,
+	}
+	for i := 0; i < 2; i++ {
+		msg, err := sub.NextMsg(2 * time.Second)
+		if err != nil {
+			t.Fatalf("waiting for notification_dismissed live event %d: %v", i+1, err)
+		}
+		var live corev1.LiveEvent
+		if err := proto.Unmarshal(msg.Data, &live); err != nil {
+			t.Fatalf("unmarshal live event: %v", err)
+		}
+		event := live.GetNotificationDismissed()
+		if event == nil {
+			t.Fatalf("expected NotificationDismissedEvent, got %T", live.Event)
+		}
+		if !wantIDs[event.GetNotificationId()] {
+			t.Fatalf("unexpected live dismissal id %s", event.GetNotificationId())
+		}
+		delete(wantIDs, event.GetNotificationId())
+	}
+	if len(wantIDs) != 0 {
+		t.Fatalf("missing live dismissal ids: %v", wantIDs)
+	}
+
+	wantPushIDs := map[string]bool{
+		coveredReply.GetId():   true,
+		coveredMention.GetId(): true,
+	}
+	for i := 0; i < 2; i++ {
+		select {
+		case id := <-dismissedPush:
+			if !wantPushIDs[id] {
+				t.Fatalf("unexpected push dismissal id %s", id)
+			}
+			delete(wantPushIDs, id)
+		case <-time.After(2 * time.Second):
+			t.Fatalf("waiting for push dismissal callback %d", i+1)
+		}
+	}
+	if len(wantPushIDs) != 0 {
+		t.Fatalf("missing push dismissal ids: %v", wantPushIDs)
+	}
+}
+
+func TestRoomReadNotificationDismissalPublishesSyncAndPushDismissal(t *testing.T) {
+	core, nc := setupTestCore(t)
+	ctx := testContext(t)
+
+	author, err := core.CreateUser(ctx, SystemActorID, "room-read-notification-author", "Room Read Notification Author", "password")
+	if err != nil {
+		t.Fatalf("CreateUser author: %v", err)
+	}
+	reader, err := core.CreateUser(ctx, SystemActorID, "room-read-notification-reader", "Room Read Notification Reader", "password")
+	if err != nil {
+		t.Fatalf("CreateUser reader: %v", err)
+	}
+	room, err := core.CreateRoom(ctx, author.Id, KindChannel, "", "room-read-notification-room", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if _, err := core.JoinRoom(ctx, author.Id, KindChannel, author.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom author: %v", err)
+	}
+	if _, err := core.JoinRoom(ctx, reader.Id, KindChannel, reader.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom reader: %v", err)
+	}
+
+	root, err := core.PostMessage(ctx, KindChannel, room.Id, author.Id, "root", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage root: %v", err)
+	}
+	threadReply, err := core.PostMessage(ctx, KindChannel, room.Id, author.Id, "thread reply", nil, root.Id, "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage thread reply: %v", err)
+	}
+	dmEvent, err := core.PostMessage(ctx, KindChannel, room.Id, author.Id, "dm branch", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage dm branch: %v", err)
+	}
+	mentionEvent, err := core.PostMessage(ctx, KindChannel, room.Id, author.Id, "mention branch", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage mention branch: %v", err)
+	}
+	replyEvent, err := core.PostMessage(ctx, KindChannel, room.Id, author.Id, "reply branch", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage reply branch: %v", err)
+	}
+	roomMessageEvent, err := core.PostMessage(ctx, KindChannel, room.Id, author.Id, "room message branch", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage room message branch: %v", err)
+	}
+	futureEvent, err := core.PostMessage(ctx, KindChannel, room.Id, author.Id, "future room message", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage future room message: %v", err)
+	}
+
+	dismissedPush := make(chan string, 4)
+	core.OnNotificationDismissed = func(ctx context.Context, userID string, notification *corev1.Notification) {
+		dismissedPush <- notification.GetId()
+	}
+
+	subject := subjects.LiveSyncUserEvent(reader.Id, "notification_dismissed")
+	sub, err := nc.SubscribeSync(subject)
+	if err != nil {
+		t.Fatalf("SubscribeSync(%s): %v", subject, err)
+	}
+	defer sub.Unsubscribe()
+	if err := nc.Flush(); err != nil {
+		t.Fatalf("Flush subscription: %v", err)
+	}
+
+	coveredDM, err := core.CreateNotification(ctx, reader.Id, author.Id, &corev1.Notification{
+		Notification: &corev1.Notification_DmMessage{
+			DmMessage: &corev1.DMMessageNotification{RoomId: room.Id, EventId: dmEvent.Id},
+		},
+	})
+	if err != nil {
+		t.Fatalf("CreateNotification covered dm: %v", err)
+	}
+	coveredMention, err := core.CreateNotification(ctx, reader.Id, author.Id, &corev1.Notification{
+		Notification: &corev1.Notification_Mention{
+			Mention: &corev1.MentionNotification{RoomId: room.Id, EventId: mentionEvent.Id},
+		},
+	})
+	if err != nil {
+		t.Fatalf("CreateNotification covered mention: %v", err)
+	}
+	coveredReply, err := core.CreateNotification(ctx, reader.Id, author.Id, &corev1.Notification{
+		Notification: &corev1.Notification_Reply{
+			Reply: &corev1.ReplyNotification{RoomId: room.Id, EventId: replyEvent.Id, InReplyToId: root.Id},
+		},
+	})
+	if err != nil {
+		t.Fatalf("CreateNotification covered reply: %v", err)
+	}
+	coveredRoomMessage, err := core.CreateNotification(ctx, reader.Id, author.Id, &corev1.Notification{
+		Notification: &corev1.Notification_RoomMessage{
+			RoomMessage: &corev1.RoomMessageNotification{RoomId: room.Id, EventId: roomMessageEvent.Id},
+		},
+	})
+	if err != nil {
+		t.Fatalf("CreateNotification covered room message: %v", err)
+	}
+	threadMention, err := core.CreateNotification(ctx, reader.Id, author.Id, &corev1.Notification{
+		Notification: &corev1.Notification_Mention{
+			Mention: &corev1.MentionNotification{RoomId: room.Id, EventId: threadReply.Id, InThread: root.Id},
+		},
+	})
+	if err != nil {
+		t.Fatalf("CreateNotification thread mention: %v", err)
+	}
+	futureRoomMessage, err := core.CreateNotification(ctx, reader.Id, author.Id, &corev1.Notification{
+		Notification: &corev1.Notification_RoomMessage{
+			RoomMessage: &corev1.RoomMessageNotification{RoomId: room.Id, EventId: futureEvent.Id},
+		},
+	})
+	if err != nil {
+		t.Fatalf("CreateNotification future room message: %v", err)
+	}
+
+	cutoff, err := core.GetEventTimestamp(ctx, KindChannel, room.Id, roomMessageEvent.Id)
+	if err != nil {
+		t.Fatalf("GetEventTimestamp: %v", err)
+	}
+	if got := core.DismissRoomReadNotifications(ctx, KindChannel, reader.Id, room.Id, cutoff); got != 4 {
+		t.Fatalf("DismissRoomReadNotifications = %d, want 4", got)
+	}
+
+	remaining, err := core.GetNotifications(ctx, reader.Id)
+	if err != nil {
+		t.Fatalf("GetNotifications: %v", err)
+	}
+	remainingIDs := map[string]bool{}
+	for _, notification := range remaining {
+		remainingIDs[notification.GetId()] = true
+	}
+	if !remainingIDs[threadMention.GetId()] || !remainingIDs[futureRoomMessage.GetId()] || len(remainingIDs) != 2 {
+		t.Fatalf("remaining notifications = %v, want thread %s and future room %s", remainingIDs, threadMention.GetId(), futureRoomMessage.GetId())
+	}
+
+	wantIDs := map[string]bool{
+		coveredDM.GetId():          true,
+		coveredMention.GetId():     true,
+		coveredReply.GetId():       true,
+		coveredRoomMessage.GetId(): true,
+	}
+	for i := 0; i < 4; i++ {
+		msg, err := sub.NextMsg(2 * time.Second)
+		if err != nil {
+			t.Fatalf("waiting for notification_dismissed live event %d: %v", i+1, err)
+		}
+		var live corev1.LiveEvent
+		if err := proto.Unmarshal(msg.Data, &live); err != nil {
+			t.Fatalf("unmarshal live event: %v", err)
+		}
+		event := live.GetNotificationDismissed()
+		if event == nil {
+			t.Fatalf("expected NotificationDismissedEvent, got %T", live.Event)
+		}
+		if !wantIDs[event.GetNotificationId()] {
+			t.Fatalf("unexpected live dismissal id %s", event.GetNotificationId())
+		}
+		delete(wantIDs, event.GetNotificationId())
+	}
+	if len(wantIDs) != 0 {
+		t.Fatalf("missing live dismissal ids: %v", wantIDs)
+	}
+
+	wantPushIDs := map[string]bool{
+		coveredDM.GetId():          true,
+		coveredMention.GetId():     true,
+		coveredReply.GetId():       true,
+		coveredRoomMessage.GetId(): true,
+	}
+	for i := 0; i < 4; i++ {
+		select {
+		case id := <-dismissedPush:
+			if !wantPushIDs[id] {
+				t.Fatalf("unexpected push dismissal id %s", id)
+			}
+			delete(wantPushIDs, id)
+		case <-time.After(2 * time.Second):
+			t.Fatalf("waiting for push dismissal callback %d", i+1)
+		}
+	}
+	if len(wantPushIDs) != 0 {
+		t.Fatalf("missing push dismissal ids: %v", wantPushIDs)
+	}
 }
 
 func TestHasUnreadNotifications(t *testing.T) {
@@ -454,6 +965,15 @@ func TestNotificationTypeName(t *testing.T) {
 				},
 			},
 			expected: "reply",
+		},
+		{
+			name: "room_message",
+			notif: &corev1.Notification{
+				Notification: &corev1.Notification_RoomMessage{
+					RoomMessage: &corev1.RoomMessageNotification{},
+				},
+			},
+			expected: "room_message",
 		},
 		{
 			name:     "unknown",

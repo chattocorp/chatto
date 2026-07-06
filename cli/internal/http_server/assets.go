@@ -4,36 +4,42 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"mime"
 	"net/http"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"time"
 
-	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 	"hmans.de/chatto/internal/assets"
+	"hmans.de/chatto/internal/authctx"
 	"hmans.de/chatto/internal/core"
+	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	"hmans.de/chatto/pkg/signedurl"
 )
 
+const protectedAssetCacheControl = "private, no-store"
+
 func (s *HTTPServer) setupAssetRoutes() {
-	// Instance assets use *path which catches everything including /t/signedPath for transforms
-	// The serveInstanceAsset handler detects and routes transform requests appropriately
+	// Server assets use *path which catches everything including /t/signedPath for transforms
+	// The serveServerAsset handler detects and routes transform requests appropriately
 	// These handlers probe both NATS and S3 backends automatically
-	s.router.GET("/assets/instance/*path", s.serveInstanceAsset)
-	s.router.GET("/assets/space/:spaceId/attachments/:attachmentId", s.serveSpaceAttachment)
-	s.router.GET("/assets/space/:spaceId/attachments/:attachmentId/t/:signedPath", s.serveTransformedAttachment)
+	s.router.GET("/assets/server/*path", s.serveServerAsset)
+	s.router.GET("/assets/files/:assetID", s.serveStableAttachment)
+	s.router.GET("/assets/files/:assetID/image/:dimensions/:fit", s.serveStableTransformedAttachment)
 }
 
 // transformRequest holds the parameters for a transformed asset request.
 // This allows sharing the transformation logic between different asset types.
 type transformRequest struct {
 	// ResourceID1 and ResourceID2 are used for signing verification.
-	// For space attachments: (spaceID, attachmentID)
-	// For instance assets: ("instance", key)
+	// For attachments: ("attachment", attachmentID)
+	// For server assets: ("server", key)
 	ResourceID1 string
 	ResourceID2 string
 	SignedPath  string
-	// CachePrefix distinguishes cache keys between asset types (e.g., "space", "instance")
+	// CachePrefix distinguishes cache keys between asset types (e.g., "attachment", "server")
 	CachePrefix string
 	// AssetID is used for ETag generation and logging
 	AssetID string
@@ -45,7 +51,38 @@ type transformRequest struct {
 	Authorize func(c *gin.Context) bool
 }
 
-func (s *HTTPServer) serveInstanceAsset(c *gin.Context) {
+type assetDeliveryMode int
+
+const (
+	deliveryChattoStream assetDeliveryMode = iota
+	deliveryS3Redirect
+)
+
+const largeAttachmentRedirectThreshold = 32 << 20
+
+func protectedAssetDeliveryMode(attachment *corev1.Attachment) assetDeliveryMode {
+	if attachment == nil {
+		return deliveryChattoStream
+	}
+	if !attachmentCanUsePresignedRedirect(attachment.GetContentType()) {
+		return deliveryChattoStream
+	}
+	if storage := attachment.GetStorage(); storage != nil {
+		if _, ok := storage.GetAsset().(*corev1.DeprecatedAsset_S3); !ok {
+			return deliveryChattoStream
+		}
+	}
+	contentType := strings.ToLower(attachment.GetContentType())
+	if strings.HasPrefix(contentType, "video/") || strings.HasPrefix(contentType, "audio/") {
+		return deliveryS3Redirect
+	}
+	if attachment.GetSize() >= largeAttachmentRedirectThreshold {
+		return deliveryS3Redirect
+	}
+	return deliveryChattoStream
+}
+
+func (s *HTTPServer) serveServerAsset(c *gin.Context) {
 	path := c.Param("path")
 
 	// Trim leading slash
@@ -59,17 +96,17 @@ func (s *HTTPServer) serveInstanceAsset(c *gin.Context) {
 		key := path[:idx]
 		signedPath := path[idx+3:] // skip "/t/"
 		if key != "" && signedPath != "" {
-			s.serveTransformedInstanceAsset(c, key, signedPath)
+			s.serveTransformedServerAsset(c, key, signedPath)
 			return
 		}
 	}
 
-	s.logger.Debug("Serving instance asset", "asset_id", path)
+	s.logger.Debug("Serving server asset", "asset_id", path)
 
 	// Probe both NATS and S3 backends
 	reader, info, err := s.core.GetServerAssetFromAnyBackend(c.Request.Context(), path)
 	if err != nil {
-		s.logger.Error("Failed to get instance asset", "error", err, "asset_id", path)
+		s.logger.Error("Failed to get server asset", "error", err, "asset_id", path)
 		c.JSON(http.StatusNotFound, gin.H{"error": "Asset not found"})
 		return
 	}
@@ -98,40 +135,32 @@ func (s *HTTPServer) serveInstanceAsset(c *gin.Context) {
 	)
 }
 
-// serveSpaceAttachment serves an attachment from a space's storage (NATS or S3).
+// serveStableAttachment serves the canonical authenticated asset URL:
 //
-// For S3-stored attachments: redirects to a presigned S3 URL. The browser talks
-// directly to S3, with full Range request support. Zero memory/CPU on the Go process.
+//	/assets/files/{assetID}
 //
-// For NATS-stored attachments: streams directly from NATS ObjectStore without
-// buffering the entire file into memory. Progressive playback works (faststart),
-// but seeking to unbuffered positions requires waiting for the buffer to catch up.
-func (s *HTTPServer) serveSpaceAttachment(c *gin.Context) {
-	spaceID := c.Param("spaceId")
-	attachmentID := c.Param("attachmentId")
+// The URL identifies the binary, while the access ticket (or, for API clients,
+// the request's cookie/bearer token) authorizes access.
+func (s *HTTPServer) serveStableAttachment(c *gin.Context) {
 	ctx := c.Request.Context()
+	assetID := c.Param("assetID")
 
-	s.logger.Debug("Serving space attachment", "space_id", spaceID, "attachment_id", attachmentID)
-
-	// Try S3 presigned redirect first (zero-copy, full Range support)
-	if presignedURL, err := s.core.TryPresignedAttachmentURL(ctx, spaceID, attachmentID); err == nil {
-		// S3 attachments don't store roomID, so authorizeAttachmentAccess passes
-		// with empty roomID (same as the previous proxying behavior).
-		if !s.authorizeAttachmentAccess(c, spaceID, "") {
-			return
-		}
-
-		// Cache the redirect itself — the attachment URL is immutable
-		c.Header("Cache-Control", "public, max-age=3600")
-		c.Redirect(http.StatusFound, presignedURL)
+	attachment, ok := s.resolveStableAttachment(c, ctx, assetID, nil)
+	if !ok {
 		return
 	}
 
-	// Fall back to probing both NATS and S3 backends (handles transient S3 errors
-	// where the presigned URL fails but direct S3 fetch succeeds)
-	reader, info, err := s.core.GetAttachmentFromAnyBackend(ctx, spaceID, attachmentID)
+	if protectedAssetDeliveryMode(attachment) == deliveryS3Redirect {
+		if presignedURL, err := s.core.TryPresignedAttachmentURL(ctx, attachment, core.S3AssetRedirectTTL); err == nil {
+			c.Header("Cache-Control", protectedAssetCacheControl)
+			c.Redirect(http.StatusFound, presignedURL)
+			return
+		}
+	}
+
+	reader, info, err := s.core.GetAttachmentReader(ctx, attachment)
 	if err != nil {
-		s.logger.Error("Failed to get attachment", "error", err, "space_id", spaceID, "attachment_id", attachmentID)
+		s.logger.Error("Failed to get stable attachment", "error", err, "attachment_id", assetID)
 		c.JSON(http.StatusNotFound, gin.H{"error": "Attachment not found"})
 		return
 	}
@@ -139,78 +168,197 @@ func (s *HTTPServer) serveSpaceAttachment(c *gin.Context) {
 		defer closer.Close()
 	}
 
-	if !s.authorizeAttachmentAccess(c, spaceID, info.RoomID) {
-		return
-	}
-
 	contentType := info.ContentType
 	if contentType == "" {
 		contentType = "application/octet-stream"
 	}
+	setOriginalAttachmentSecurityHeaders(c, contentType)
 
-	// Immutable asset - cache forever
-	c.Header("Cache-Control", "public, max-age=31536000, immutable")
-	c.Header("ETag", fmt.Sprintf("\"%s-%s\"", spaceID, attachmentID))
-	c.Header("Vary", "Accept-Encoding")
-
-	// Stream directly — no io.ReadAll, no memory buffering
+	c.Header("Cache-Control", protectedAssetCacheControl)
+	c.Header("ETag", fmt.Sprintf("\"%s\"", assetID))
+	c.Header("Vary", "Accept-Encoding, Authorization, Cookie")
 	c.DataFromReader(http.StatusOK, info.Size, contentType, reader, nil)
 }
 
-// authorizeAttachmentAccess checks if the current user can access an attachment.
-// Returns true if authorized, false if not (and sends appropriate error response).
-func (s *HTTPServer) authorizeAttachmentAccess(c *gin.Context, spaceID, roomID string) bool {
-	if roomID == "" {
-		return true
-	}
+const originalAttachmentSandboxCSP = "sandbox"
 
-	userID := s.getUserIDFromSession(c)
-	if userID == "" {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
-		return false
+func setOriginalAttachmentSecurityHeaders(c *gin.Context, contentType string) {
+	c.Header("X-Content-Type-Options", "nosniff")
+	if originalAttachmentNeedsSandbox(contentType) {
+		c.Header("Content-Security-Policy", originalAttachmentSandboxCSP)
 	}
-
-	isMember, err := s.core.RoomMembershipExists(c.Request.Context(), core.KindForSpace(spaceID), userID, roomID)
-	if err != nil {
-		s.logger.Error("Failed to check room membership", "error", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to verify access"})
-		return false
-	}
-
-	if !isMember {
-		c.JSON(http.StatusForbidden, gin.H{"error": "Access denied: not a member of the room"})
-		return false
-	}
-
-	return true
 }
 
-// getUserIDFromSession extracts the user ID from the Gin session.
-// Returns empty string if not authenticated.
-func (s *HTTPServer) getUserIDFromSession(c *gin.Context) string {
-	session := sessions.Default(c)
-	if session == nil {
-		return ""
+func attachmentCanUsePresignedRedirect(contentType string) bool {
+	return !originalAttachmentNeedsSandbox(contentType)
+}
+
+func originalAttachmentNeedsSandbox(contentType string) bool {
+	mediaType, _, err := mime.ParseMediaType(contentType)
+	if err != nil {
+		mediaType = strings.TrimSpace(strings.Split(contentType, ";")[0])
+	}
+	mediaType = strings.ToLower(mediaType)
+
+	switch mediaType {
+	case "text/html", "application/xhtml+xml", "image/svg+xml", "application/xml", "text/xml":
+		return true
+	default:
+		return strings.HasSuffix(mediaType, "+xml")
+	}
+}
+
+// serveStableTransformedAttachment serves an authenticated image derivative:
+//
+//	/assets/files/{assetID}/image/{width}x{height}/{fit}
+//
+// Transform dimensions remain visible and stable in the URL. Authorization
+// comes from the asset-scoped access ticket or request credentials.
+func (s *HTTPServer) serveStableTransformedAttachment(c *gin.Context) {
+	ctx := c.Request.Context()
+	assetID := c.Param("assetID")
+	params, err := parseStableTransformParams(c.Param("dimensions"), c.Param("fit"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
 	}
 
-	userIDRaw := session.Get("user_id")
-	if userIDRaw == nil {
-		return ""
-	}
-
-	userID, ok := userIDRaw.(string)
+	attachment, ok := s.resolveStableAttachment(c, ctx, assetID, params)
 	if !ok {
-		return ""
+		return
 	}
 
-	return userID
+	s.serveTransformedAssetWithParams(c, transformRequest{
+		CachePrefix: AttachmentStableCachePrefix,
+		AssetID:     assetID,
+		FetchAsset: func(ctx context.Context) (io.Reader, string, error) {
+			reader, info, err := s.core.GetAttachmentReader(ctx, attachment)
+			if err != nil {
+				return nil, "", err
+			}
+			return reader, info.ContentType, nil
+		},
+		Authorize: func(c *gin.Context) bool { return true },
+	}, params)
+}
+
+const AttachmentStableCachePrefix = "attachment-stable"
+
+func parseStableTransformParams(dimensions, fit string) (*signedurl.TransformParams, error) {
+	widthText, heightText, ok := strings.Cut(dimensions, "x")
+	if !ok {
+		return nil, fmt.Errorf("invalid dimensions")
+	}
+	width, err := strconv.Atoi(widthText)
+	if err != nil {
+		return nil, fmt.Errorf("invalid width")
+	}
+	height, err := strconv.Atoi(heightText)
+	if err != nil {
+		return nil, fmt.Errorf("invalid height")
+	}
+	params := &signedurl.TransformParams{Width: width, Height: height, Fit: fit}
+	if params.Width < 1 || params.Width > 2048 {
+		return nil, fmt.Errorf("width out of range [1, 2048]: %d", params.Width)
+	}
+	if params.Height < 1 || params.Height > 2048 {
+		return nil, fmt.Errorf("height out of range [1, 2048]: %d", params.Height)
+	}
+	if params.Fit != "contain" && params.Fit != "cover" && params.Fit != "exact" {
+		return nil, fmt.Errorf("invalid fit mode: %s", params.Fit)
+	}
+	return params, nil
+}
+
+func (s *HTTPServer) resolveStableAttachment(c *gin.Context, ctx context.Context, assetID string, params *signedurl.TransformParams) (*corev1.Attachment, bool) {
+	if assetID == "" {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Attachment not found"})
+		return nil, false
+	}
+
+	userID, ok := s.resolveStableAssetViewerID(c, assetID, params)
+	if !ok {
+		return nil, false
+	}
+
+	declared, ok := s.core.Assets.AssetCreation(assetID)
+	if !ok || declared == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Attachment not found"})
+		return nil, false
+	}
+	roomID, ok := s.core.Assets.AssetRoomID(assetID)
+	if !ok {
+		s.logger.Warn("Asset has no room scope", "attachment_id", assetID)
+		c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})
+		return nil, false
+	}
+
+	kind, err := s.core.FindRoomKind(ctx, roomID)
+	if err != nil {
+		s.logger.Error("Failed to resolve room kind for stable attachment auth", "error", err, "room_id", roomID)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to verify access"})
+		return nil, false
+	}
+	isMember, err := s.core.RoomMembershipExists(ctx, kind, userID, roomID)
+	if err != nil {
+		s.logger.Error("Failed to check stable attachment room membership", "error", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to verify access"})
+		return nil, false
+	}
+	if !isMember {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Access denied: not a member of the room"})
+		return nil, false
+	}
+
+	attachment := core.AttachmentFromAsset(declared.GetAsset())
+	if attachment == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Attachment not found"})
+		return nil, false
+	}
+	attachment.RoomId = roomID
+	return attachment, true
+}
+
+func (s *HTTPServer) resolveStableAssetViewerID(c *gin.Context, assetID string, params *signedurl.TransformParams) (string, bool) {
+	if access := c.Query("access"); access != "" {
+		ticket, err := signedurl.ParseSignedAssetAccessTicket(s.config.Core.Assets.SigningSecret, access)
+		if err != nil {
+			s.logger.Warn("Invalid asset access ticket", "error", err, "asset_id", assetID)
+			c.JSON(http.StatusForbidden, gin.H{"error": "Invalid asset access ticket"})
+			return "", false
+		}
+		if ticket.Expired(time.Now().Unix()) {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Asset access ticket expired"})
+			return "", false
+		}
+		if ticket.AssetID != assetID {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Asset access ticket does not match asset"})
+			return "", false
+		}
+		if !ticket.MatchesTransform(params) {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Asset access ticket does not match derivative"})
+			return "", false
+		}
+		return ticket.UserID, true
+	}
+
+	if params != nil {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Asset derivative URL requires a signed access ticket"})
+		return "", false
+	}
+
+	reqWithUser := s.injectUserIntoContext(c)
+	user := authctx.ForContext(reqWithUser.Context())
+	if user == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
+		return "", false
+	}
+	return user.Id, true
 }
 
 // serveTransformedAsset handles the common logic for serving transformed images.
 // It parses the signed path, checks cache, fetches the asset, transforms it, and serves the result.
 func (s *HTTPServer) serveTransformedAsset(c *gin.Context, req transformRequest) {
-	ctx := c.Request.Context()
-
 	// Parse and verify the signed path
 	params, err := signedurl.ParseSignedTransformPath(s.config.Core.Assets.SigningSecret, req.ResourceID1, req.ResourceID2, req.SignedPath)
 	if err != nil {
@@ -221,6 +369,12 @@ func (s *HTTPServer) serveTransformedAsset(c *gin.Context, req transformRequest)
 		c.JSON(http.StatusForbidden, gin.H{"error": "Invalid or expired transform URL"})
 		return
 	}
+
+	s.serveTransformedAssetWithParams(c, req, params)
+}
+
+func (s *HTTPServer) serveTransformedAssetWithParams(c *gin.Context, req transformRequest, params *signedurl.TransformParams) {
+	ctx := c.Request.Context()
 
 	// Build cache key with prefix to distinguish between asset types
 	cacheKey := core.ImageCacheKey(req.CachePrefix, req.AssetID, params.Width, params.Height, params.Fit)
@@ -236,9 +390,9 @@ func (s *HTTPServer) serveTransformedAsset(c *gin.Context, req transformRequest)
 			return
 		}
 
-		c.Header("Cache-Control", "public, max-age=31536000, immutable")
+		c.Header("Cache-Control", transformedAssetCacheControl(req.Authorize == nil))
 		c.Header("ETag", fmt.Sprintf("\"%s-%d-%d-%s\"", req.AssetID, params.Width, params.Height, params.Fit))
-		c.Header("Vary", "Accept-Encoding")
+		c.Header("Vary", transformedAssetVary(req.Authorize == nil))
 		c.Header("X-Cache", "HIT")
 		c.Data(http.StatusOK, assets.DetectImageContentType(cached), cached)
 		return
@@ -302,33 +456,47 @@ func (s *HTTPServer) serveTransformedAsset(c *gin.Context, req transformRequest)
 	}
 
 	// Set cache headers for long-term caching (immutable content)
-	c.Header("Cache-Control", "public, max-age=31536000, immutable")
+	c.Header("Cache-Control", transformedAssetCacheControl(req.Authorize == nil))
 	c.Header("ETag", fmt.Sprintf("\"%s-%d-%d-%s\"", req.AssetID, params.Width, params.Height, params.Fit))
-	c.Header("Vary", "Accept-Encoding")
+	c.Header("Vary", transformedAssetVary(req.Authorize == nil))
 	c.Header("X-Cache", "MISS")
 
 	// Serve the transformed image with appropriate content type
 	c.Data(http.StatusOK, result.ContentType, transformedData)
 }
 
-// serveTransformedInstanceAsset serves a dynamically transformed version of an instance asset.
-// URL format: /assets/instance/{key}/t/{signedPath}
-// Called by serveInstanceAsset when it detects a transform pattern in the path.
+func transformedAssetCacheControl(public bool) string {
+	if public {
+		return "public, max-age=31536000, immutable"
+	}
+	return protectedAssetCacheControl
+}
+
+func transformedAssetVary(public bool) string {
+	if public {
+		return "Accept-Encoding"
+	}
+	return "Accept-Encoding, Authorization, Cookie"
+}
+
+// serveTransformedServerAsset serves a dynamically transformed version of an server asset.
+// URL format: /assets/server/{key}/t/{signedPath}
+// Called by serveServerAsset when it detects a transform pattern in the path.
 // Probes both NATS and S3 backends for the asset.
-func (s *HTTPServer) serveTransformedInstanceAsset(c *gin.Context, key, signedPath string) {
-	s.logger.Debug("Serving transformed instance asset", "asset_id", key, "signed_path", signedPath)
+func (s *HTTPServer) serveTransformedServerAsset(c *gin.Context, key, signedPath string) {
+	s.logger.Debug("Serving transformed server asset", "asset_id", key, "signed_path", signedPath)
 
 	s.serveTransformedAsset(c, transformRequest{
-		ResourceID1: "instance",
+		ResourceID1: core.ServerAssetSignResource,
 		ResourceID2: key,
 		SignedPath:  signedPath,
-		CachePrefix: "instance",
+		CachePrefix: core.ServerAssetSignResource,
 		AssetID:     key,
 		FetchAsset: func(ctx context.Context) (io.Reader, string, error) {
 			// Probe both NATS and S3 backends
 			reader, info, err := s.core.GetServerAssetFromAnyBackend(ctx, key)
 			if err != nil {
-				s.logger.Debug("Failed to fetch instance asset",
+				s.logger.Debug("Failed to fetch server asset",
 					"asset_id", key,
 					"error", err)
 				return nil, "", err
@@ -340,65 +508,13 @@ func (s *HTTPServer) serveTransformedInstanceAsset(c *gin.Context, key, signedPa
 					"asset_id", key,
 					"fallback_content_type", contentType)
 			}
-			s.logger.Debug("Fetched instance asset",
+			s.logger.Debug("Fetched server asset",
 				"asset_id", key,
 				"content_type", contentType,
 				"size", info.Size)
 			return reader, contentType, nil
 		},
 		Authorize: nil, // Instance assets are public
-	})
-}
-
-// serveTransformedAttachment serves a dynamically transformed version of an attachment.
-// URL format: /assets/space/{spaceId}/attachments/{attachmentId}/t/{signedPath}
-// where signedPath is {base64params}.{signature}
-// Probes both NATS and S3 backends for the attachment.
-func (s *HTTPServer) serveTransformedAttachment(c *gin.Context) {
-	spaceID := c.Param("spaceId")
-	attachmentID := c.Param("attachmentId")
-	signedPath := c.Param("signedPath")
-
-	s.logger.Debug("Serving transformed attachment",
-		"space_id", spaceID,
-		"attachment_id", attachmentID)
-
-	// We need to fetch the attachment info for authorization, and cache the room ID
-	// since we may need it both for the authorize callback and for FetchAsset
-	var cachedRoomID string
-	var roomIDFetched bool
-
-	s.serveTransformedAsset(c, transformRequest{
-		ResourceID1: spaceID,
-		ResourceID2: attachmentID,
-		SignedPath:  signedPath,
-		CachePrefix: spaceID,
-		AssetID:     attachmentID,
-		FetchAsset: func(ctx context.Context) (io.Reader, string, error) {
-			// Probe both NATS and S3 backends
-			reader, info, err := s.core.GetAttachmentFromAnyBackend(ctx, spaceID, attachmentID)
-			if err != nil {
-				return nil, "", err
-			}
-			// Cache the room ID for authorization
-			cachedRoomID = info.RoomID
-			roomIDFetched = true
-			return reader, info.ContentType, nil
-		},
-		Authorize: func(c *gin.Context) bool {
-			// If we haven't fetched the room ID yet, we need to fetch it for authorization
-			if !roomIDFetched {
-				_, info, err := s.core.GetAttachmentFromAnyBackend(c.Request.Context(), spaceID, attachmentID)
-				if err != nil {
-					s.logger.Error("Failed to get attachment for auth", "error", err)
-					c.JSON(http.StatusNotFound, gin.H{"error": "Attachment not found"})
-					return false
-				}
-				cachedRoomID = info.RoomID
-				roomIDFetched = true
-			}
-			return s.authorizeAttachmentAccess(c, spaceID, cachedRoomID)
-		},
 	})
 }
 

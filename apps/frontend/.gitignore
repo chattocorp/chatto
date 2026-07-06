@@ -1,0 +1,35 @@
+test-results
+.vitest-attachments
+**/__screenshots__
+# Frontend
+node_modules
+
+# Output
+.output
+.vercel
+.netlify
+.wrangler
+.svelte-kit
+/build
+
+/playwright-report/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env
+.env
+.env.*
+!.env.example
+!.env.test
+
+# Vite
+vite.config.js.timestamp-*
+vite.config.ts.timestamp-*
+
+*storybook.log
+storybook-static
+# Inlang / Paraglide
+src/lib/paraglide
+project.inlang/cache/

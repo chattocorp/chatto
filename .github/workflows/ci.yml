@@ -2,19 +2,47 @@ name: ci
 
 on:
   push:
-    branches: [main]
-    tags: ["*"]
+    branches:
+      - main
+      - 'release-[0-9]*'
   pull_request:
-    branches: [main]
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - labeled
+      - unlabeled
+      - ready_for_review
+    branches:
+      - main
+      - 'release-[0-9]*'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 permissions:
-  contents: write
-  packages: write
-  id-token: write
+  contents: read
 
 jobs:
-  test-frontend-unit:
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+  license-check:
+    # runs-on: ubicloud-standard-4
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup mise
+        uses: jdx/mise-action@v4
+        with:
+          experimental: true
+
+      - name: Check license metadata
+        run: mise license-check
+
+  codegen-proto-drift:
+    # runs-on: ubicloud-standard-4
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -22,23 +50,84 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup
 
+      - name: Fetch protobuf breaking base
+        run: |
+          base_ref="${GITHUB_BASE_REF:-main}"
+          git fetch --no-tags --depth=1 origin "${base_ref}:refs/remotes/origin/${base_ref}"
+
+      - name: Check storage and internal protobuf breaking changes
+        run: |
+          base_ref="${GITHUB_BASE_REF:-main}"
+          cd proto
+          mise x -- buf breaking . --against "../.git#branch=origin/${base_ref},subdir=proto" \
+            --exclude-imports \
+            --exclude-path chatto/api/v1 \
+            --exclude-path chatto/admin/v1 \
+            --exclude-path chatto/operator/v1 \
+            --exclude-path chatto/realtime/v1
+
+      - name: Check public API protobuf breaking changes
+        if: ${{ github.event_name != 'pull_request' || !contains(github.event.pull_request.labels.*.name, 'api-breaking-change') }}
+        run: |
+          base_ref="${GITHUB_BASE_REF:-main}"
+          cd proto
+          mise x -- buf breaking . --against "../.git#branch=origin/${base_ref},subdir=proto" \
+            --path chatto/api/v1 \
+            --path chatto/admin/v1 \
+            --path chatto/operator/v1 \
+            --path chatto/realtime/v1
+
+      - name: Acknowledge intentional public API protobuf breaking changes
+        if: ${{ github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'api-breaking-change') }}
+        run: |
+          echo "::notice::Skipping public API Buf breaking check because this PR has the api-breaking-change label. Storage/internal protobuf breaking checks and codegen drift are still checked."
+
+      - name: Regenerate protobuf bindings
+        run: mise codegen-proto
+
+      - name: Check generated protobuf bindings are current
+        run: |
+          if ! git diff --exit-code; then
+            git status --short
+            exit 1
+          fi
+
+  test-frontend-unit:
+    # runs-on: ubicloud-standard-4
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup environment
+        uses: ./.github/actions/setup
+        with:
+          install-cli-deps: "false"
+
       - name: Cache Playwright browsers
         uses: actions/cache@v5
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('frontend/pnpm-lock.yaml') }}
+          key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('pnpm-lock.yaml') }}
           restore-keys: |
             playwright-${{ runner.os }}-${{ runner.arch }}-
 
       - name: Install Playwright dependencies
-        run: cd frontend && pnpm exec playwright install chromium --with-deps
+        run: cd apps/frontend && pnpm exec playwright install chromium --with-deps
         timeout-minutes: 5
 
+      - name: Run frontend typecheck
+        run: pnpm run check:frontend
+
+      - name: Run frontend lint
+        run: pnpm run lint:frontend
+
       - name: Run frontend unit tests
-        run: cd frontend && pnpm vitest --run
+        run: pnpm run test:frontend
 
   test-cli:
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    # runs-on: ubicloud-standard-4
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -50,10 +139,52 @@ jobs:
         run: mise build-frontend
 
       - name: Run Go tests
-        run: cd cli && go test -tags test_endpoints ./...
+        run: cd cli && go test -trimpath -p 1 -tags test_endpoints ./...
 
   test-e2e:
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    # runs-on: ubicloud-standard-4
+    runs-on: ubuntu-latest
+    name: test-e2e (${{ matrix.shard }}/4)
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup environment
+        uses: ./.github/actions/setup
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            playwright-${{ runner.os }}-${{ runner.arch }}-
+
+      - name: Install Playwright dependencies
+        run: cd apps/frontend && pnpm exec playwright install chromium --with-deps
+        timeout-minutes: 5
+
+      - name: Build E2E server
+        run: mise build-e2e-server
+
+      - name: Run E2E tests
+        run: cd apps/frontend && pnpm exec playwright test --grep-invert @ffmpeg --shard=${{ matrix.shard }}/4
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v7
+        if: ${{ failure() }}
+        with:
+          name: playwright-report-${{ matrix.shard }}-of-4
+          path: apps/frontend/playwright-report/
+          retention-days: 14
+
+  test-e2e-media:
+    # runs-on: ubicloud-standard-4
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -67,80 +198,24 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('frontend/pnpm-lock.yaml') }}
+          key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('pnpm-lock.yaml') }}
           restore-keys: |
             playwright-${{ runner.os }}-${{ runner.arch }}-
 
       - name: Install Playwright dependencies
-        run: cd frontend && pnpm exec playwright install chromium --with-deps
+        run: cd apps/frontend && pnpm exec playwright install chromium --with-deps
         timeout-minutes: 5
 
       - name: Build E2E server
         run: mise build-e2e-server
 
-      - name: Run E2E tests
-        run: cd frontend && pnpm exec playwright test
+      - name: Run media E2E tests
+        run: cd apps/frontend && pnpm exec playwright test --grep @ffmpeg
 
       - name: Upload Playwright report
         uses: actions/upload-artifact@v7
         if: ${{ failure() }}
         with:
-          name: playwright-report
-          path: frontend/playwright-report/
+          name: playwright-report-media
+          path: apps/frontend/playwright-report/
           retention-days: 14
-
-  release:
-    needs: [test-cli, test-e2e, test-frontend-unit]
-    if: startsWith(github.ref, 'refs/tags/')
-    runs-on: blacksmith-8vcpu-ubuntu-2404
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-        with:
-          # needed by GoReleaser to create changelog
-          fetch-depth: 0
-
-      - name: Setup environment
-        uses: ./.github/actions/setup
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-        with:
-          platforms: arm64
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@v6
-        with:
-          distribution: goreleaser
-          version: "~> v2"
-          args: release --clean
-        env:
-          # Use a PAT so the release is authored by a user account rather
-          # than github-actions[bot]. Bot-authored releases don't get
-          # GitHub's autolink rendering for commit SHAs and #NNN PR refs.
-          GITHUB_TOKEN: ${{ secrets.GORELEASER_GITHUB_TOKEN }}
-
-      - name: Extract version from tag
-        id: version
-        run: echo "version=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
-
-      - name: Build and push frontend Docker image
-        uses: useblacksmith/build-push-action@v2
-        with:
-          context: .
-          file: Dockerfile.frontend
-          push: true
-          platforms: linux/amd64,linux/arm64
-          tags: |
-            ghcr.io/chattocorp/chatto-client:${{ steps.version.outputs.version }}
-            ghcr.io/chattocorp/chatto-client:latest

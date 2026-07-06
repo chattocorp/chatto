@@ -1,0 +1,32 @@
+{
+  "name": "chatto-workspace",
+  "private": true,
+  "license": "AGPL-3.0-or-later",
+  "type": "module",
+  "packageManager": "pnpm@10.26.0",
+  "scripts": {
+    "build:api-types": "pnpm --filter @chatto/api-types build",
+    "build:docs": "pnpm --filter docs-website build",
+    "build:frontend": "pnpm run build:api-types && pnpm --filter chatto-frontend build",
+    "check:frontend": "pnpm run build:api-types && pnpm --filter chatto-frontend check",
+    "dev:docs": "mise dev-docs-website",
+    "dev:frontend": "pnpm run build:api-types && pnpm --filter chatto-frontend dev",
+    "knip": "pnpm run knip:prepare && knip",
+    "knip:prepare": "pnpm --dir apps/frontend run paraglide && pnpm --dir apps/frontend run prepare",
+    "lint:frontend": "pnpm run build:api-types && pnpm --filter chatto-frontend lint",
+    "test:frontend": "pnpm run build:api-types && pnpm --filter chatto-frontend exec vitest --run"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@parcel/watcher",
+      "esbuild",
+      "sharp"
+    ],
+    "ignoredBuiltDependencies": [
+      "@tailwindcss/oxide"
+    ]
+  },
+  "devDependencies": {
+    "knip": "^6.22.0"
+  }
+}

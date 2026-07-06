@@ -11,8 +11,12 @@ import (
 var Version = "dev"
 
 var rootCmd = &cobra.Command{
-	Use:     "chatto",
-	Version: Version,
+	Use:           "chatto",
+	Short:         "Run and manage a Chatto server",
+	Long:          rootBanner(Version),
+	Version:       Version,
+	SilenceUsage:  true,
+	SilenceErrors: true,
 }
 
 func Execute() {
@@ -26,4 +30,10 @@ func Execute() {
 func SetVersion(v string) {
 	Version = v
 	rootCmd.Version = v
+	rootCmd.Long = rootBanner(v)
+}
+
+func rootBanner(version string) string {
+	return fmt.Sprintf(`Chatto is a self-hostable chat server for teams and communities.
+Version: %s | Self-hosting docs: https://docs.chatto.run`, version)
 }

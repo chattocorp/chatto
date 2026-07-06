@@ -5,9 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -34,11 +36,19 @@ type ffprobeOutput struct {
 }
 
 type ffprobeStream struct {
-	CodecType string `json:"codec_type"`
-	CodecName string `json:"codec_name"`
-	Width     int32  `json:"width"`
-	Height    int32  `json:"height"`
-	Duration  string `json:"duration"`
+	CodecType          string            `json:"codec_type"`
+	CodecName          string            `json:"codec_name"`
+	Width              int32             `json:"width"`
+	Height             int32             `json:"height"`
+	Duration           string            `json:"duration"`
+	DisplayAspectRatio string            `json:"display_aspect_ratio"`
+	SampleAspectRatio  string            `json:"sample_aspect_ratio"`
+	Tags               map[string]string `json:"tags"`
+	SideDataList       []ffprobeSideData `json:"side_data_list"`
+}
+
+type ffprobeSideData struct {
+	Rotation json.RawMessage `json:"rotation"`
 }
 
 type ffprobeFormat struct {
@@ -88,8 +98,7 @@ func (s *Service) probe(ctx context.Context, inputPath string, contentType strin
 	for _, stream := range probe.Streams {
 		switch stream.CodecType {
 		case "video":
-			result.Width = stream.Width
-			result.Height = stream.Height
+			result.Width, result.Height = videoDisplayDimensions(stream)
 			result.VideoCodec = stream.CodecName
 			codecParts = append(codecParts, strings.ToUpper(stream.CodecName))
 			// Use stream-level duration as fallback (e.g., when -show_format is
@@ -111,10 +120,102 @@ func (s *Service) probe(ctx context.Context, inputPath string, contentType strin
 	return result, nil
 }
 
+func videoDisplayDimensions(stream ffprobeStream) (int32, int32) {
+	width := stream.Width
+	height := stream.Height
+	if width <= 0 || height <= 0 {
+		return width, height
+	}
+
+	displayRatio := float64(width) / float64(height)
+	if ratio, ok := parseAspectRatio(stream.DisplayAspectRatio); ok {
+		displayRatio = ratio
+	} else if ratio, ok := parseAspectRatio(stream.SampleAspectRatio); ok {
+		displayRatio *= ratio
+	}
+
+	if displayRatio > 0 {
+		rawRatio := float64(width) / float64(height)
+		if displayRatio >= rawRatio {
+			width = int32(math.Round(float64(height) * displayRatio))
+		} else {
+			height = int32(math.Round(float64(width) / displayRatio))
+		}
+	}
+
+	if videoRotatedByQuarterTurn(stream) {
+		width, height = height, width
+	}
+
+	return width, height
+}
+
+func parseAspectRatio(value string) (float64, bool) {
+	parts := strings.Split(strings.TrimSpace(value), ":")
+	if len(parts) != 2 {
+		return 0, false
+	}
+	numerator, err := strconv.ParseFloat(parts[0], 64)
+	if err != nil || numerator <= 0 {
+		return 0, false
+	}
+	denominator, err := strconv.ParseFloat(parts[1], 64)
+	if err != nil || denominator <= 0 {
+		return 0, false
+	}
+	return numerator / denominator, true
+}
+
+func videoRotatedByQuarterTurn(stream ffprobeStream) bool {
+	if stream.Tags != nil {
+		if rotation, ok := parseRotation(stream.Tags["rotate"]); ok {
+			return rotation%180 != 0
+		}
+	}
+	for _, data := range stream.SideDataList {
+		if rotation, ok := parseRotationRaw(data.Rotation); ok && rotation%180 != 0 {
+			return true
+		}
+	}
+	return false
+}
+
+func parseRotation(value string) (int, bool) {
+	rotation, err := strconv.Atoi(strings.TrimSpace(value))
+	if err != nil {
+		return 0, false
+	}
+	return normalizeRotation(rotation), true
+}
+
+func parseRotationRaw(value json.RawMessage) (int, bool) {
+	raw := strings.TrimSpace(string(value))
+	if raw == "" || raw == "null" {
+		return 0, false
+	}
+	var rotation int
+	if err := json.Unmarshal(value, &rotation); err == nil {
+		return normalizeRotation(rotation), true
+	}
+	var text string
+	if err := json.Unmarshal(value, &text); err == nil {
+		return parseRotation(text)
+	}
+	return 0, false
+}
+
+func normalizeRotation(rotation int) int {
+	rotation %= 360
+	if rotation < 0 {
+		rotation += 360
+	}
+	return rotation
+}
+
 // generateThumbnail captures a frame from the video as a JPEG thumbnail.
 // Captures at 1 second or 10% into the video, whichever is earlier.
 // inputOpts are placed before -i (e.g., "-ignore_loop 1" for GIF input).
-func (s *Service) generateThumbnail(ctx context.Context, inputPath, outputPath string, durationMs int64, inputOpts []string) error {
+func (s *Service) generateThumbnail(ctx context.Context, inputPath, outputPath string, durationMs int64, inputOpts []string, displayWidth, displayHeight int32) error {
 	// Seek to 1 second or 10% of duration, whichever is earlier
 	seekMs := int64(1000)
 	if tenPercent := durationMs / 10; tenPercent < seekMs && tenPercent > 0 {
@@ -127,7 +228,7 @@ func (s *Service) generateThumbnail(ctx context.Context, inputPath, outputPath s
 		"-ss", seekTime,
 		"-i", inputPath,
 		"-vframes", "1",
-		"-vf", "scale='min(640,iw)':-2",
+		"-vf", thumbnailScaleFilter(displayWidth, displayHeight),
 		"-q:v", "3",
 		"-y",
 		outputPath,
@@ -139,6 +240,23 @@ func (s *Service) generateThumbnail(ctx context.Context, inputPath, outputPath s
 	}
 
 	return nil
+}
+
+func thumbnailScaleFilter(displayWidth, displayHeight int32) string {
+	width, height, ok := thumbnailDimensions(displayWidth, displayHeight)
+	if !ok {
+		return "scale='min(640,iw)':-2"
+	}
+	return fmt.Sprintf("scale=%d:%d,setsar=1", width, height)
+}
+
+func thumbnailDimensions(displayWidth, displayHeight int32) (int32, int32, bool) {
+	if displayWidth <= 0 || displayHeight <= 0 {
+		return 0, 0, false
+	}
+	const maxWidth = 640
+	scale := math.Min(float64(maxWidth)/float64(displayWidth), 1)
+	return int32(math.Round(float64(displayWidth) * scale)), int32(math.Round(float64(displayHeight) * scale)), true
 }
 
 // transcode converts a video to H.264 MP4 at the specified height.
@@ -196,7 +314,7 @@ func selectVariantHeights(sourceHeight int32) []int {
 }
 
 // processVideo handles the full processing pipeline for a single video.
-func (s *Service) processVideo(ctx context.Context, req ProcessRequest) error {
+func (s *Service) processVideo(ctx context.Context, req processRequest) error {
 	// Per-job timeout prevents any single ffmpeg invocation from hanging forever.
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Minute)
 	defer cancel()
@@ -208,16 +326,9 @@ func (s *Service) processVideo(ctx context.Context, req ProcessRequest) error {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	// Update state to PROCESSING
-	if err := s.core.SetVideoProcessingState(ctx, req.AttachmentID, &corev1.VideoProcessingState{
-		Status: corev1.VideoStatus_VIDEO_STATUS_PROCESSING,
-	}); err != nil {
-		return fmt.Errorf("failed to set processing state: %w", err)
-	}
-
 	// Download original from asset store
 	inputPath := filepath.Join(tmpDir, "input")
-	if err := s.downloadAttachment(ctx, req.SpaceID, req.AttachmentID, inputPath); err != nil {
+	if err := s.downloadAttachment(ctx, req.Attachment, inputPath); err != nil {
 		return s.failProcessing(ctx, req, fmt.Errorf("failed to download original: %w", err))
 	}
 
@@ -231,7 +342,7 @@ func (s *Service) processVideo(ctx context.Context, req ProcessRequest) error {
 	}
 
 	s.logger.Info("Video probed",
-		"attachment_id", req.AttachmentID,
+		"asset_id", req.AssetID,
 		"duration_ms", probeResult.DurationMs,
 		"resolution", fmt.Sprintf("%dx%d", probeResult.Width, probeResult.Height),
 		"codec", probeResult.CodecInfo,
@@ -253,19 +364,22 @@ func (s *Service) processVideo(ctx context.Context, req ProcessRequest) error {
 
 	// Generate thumbnail
 	thumbPath := filepath.Join(tmpDir, "thumb.jpg")
-	if err := s.generateThumbnail(ctx, inputPath, thumbPath, probeResult.DurationMs, inputOpts); err != nil {
+	if err := s.generateThumbnail(ctx, inputPath, thumbPath, probeResult.DurationMs, inputOpts, probeResult.Width, probeResult.Height); err != nil {
 		s.logger.Warn("Thumbnail generation failed, continuing without thumbnail", "error", err)
 		thumbPath = "" // Non-fatal
 	}
 
-	// Upload thumbnail as attachment
-	var thumbnailAttachmentID string
+	// Upload thumbnail as a derivative asset of the original. Each derivative
+	// upload writes its own AssetCreatedEvent with parent_asset_id set, so
+	// the projection knows immediately that this asset is a child of the
+	// original — no separate "claim as derivative" step downstream.
+	var thumbnailAttachment *corev1.Attachment
 	if thumbPath != "" {
-		thumbID, err := s.uploadFile(ctx, req.SpaceID, req.RoomID, "thumbnail.jpg", "image/jpeg", thumbPath)
+		thumb, err := s.uploadDerivativeFile(ctx, req.AssetID, corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_THUMBNAIL, req.RoomID, "thumbnail.jpg", "image/jpeg", thumbPath)
 		if err != nil {
 			s.logger.Warn("Failed to upload thumbnail", "error", err)
 		} else {
-			thumbnailAttachmentID = thumbID
+			thumbnailAttachment = thumb
 		}
 	}
 
@@ -277,7 +391,7 @@ func (s *Service) processVideo(ctx context.Context, req ProcessRequest) error {
 	for _, h := range heights {
 		outputPath := filepath.Join(tmpDir, fmt.Sprintf("%dp.mp4", h))
 		s.logger.Info("Transcoding variant",
-			"attachment_id", req.AttachmentID,
+			"asset_id", req.AssetID,
 			"height", h,
 		)
 
@@ -293,28 +407,28 @@ func (s *Service) processVideo(ctx context.Context, req ProcessRequest) error {
 			continue
 		}
 
+		variantProbe, err := s.probe(ctx, outputPath, "video/mp4")
+		if err != nil {
+			s.logger.Error("Failed to probe transcoded variant", "height", h, "error", err)
+			continue
+		}
+
 		// Upload variant as attachment
 		quality := fmt.Sprintf("%dp", h)
-		filename := fmt.Sprintf("%s_%s.mp4", strings.TrimSuffix(req.AttachmentID, filepath.Ext(req.AttachmentID)), quality)
-		variantID, err := s.uploadFile(ctx, req.SpaceID, req.RoomID, filename, "video/mp4", outputPath)
+		filename := fmt.Sprintf("%s_%s.mp4", strings.TrimSuffix(req.AssetID, filepath.Ext(req.AssetID)), quality)
+		variant, err := s.uploadDerivativeFileWithDimensions(ctx, req.AssetID, corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_VIDEO_VARIANT, req.RoomID, filename, "video/mp4", outputPath, variantProbe.Width, variantProbe.Height)
 		if err != nil {
 			s.logger.Error("Failed to upload variant", "height", h, "error", err)
 			continue
 		}
 
-		// Calculate output width, rounding up to the nearest even number to match
-		// ffmpeg's scale=-2:HEIGHT behavior (which always outputs even dimensions).
-		variantWidth := probeResult.Width * int32(h) / probeResult.Height
-		if variantWidth%2 != 0 {
-			variantWidth++
-		}
-
 		variants = append(variants, &corev1.VideoVariant{
-			AttachmentId: variantID,
+			AttachmentId: variant.Id,
 			Quality:      quality,
-			Width:        variantWidth,
-			Height:       int32(h),
+			Width:        variantProbe.Width,
+			Height:       variantProbe.Height,
 			Size:         info.Size(),
+			Attachment:   variant,
 		})
 	}
 
@@ -322,63 +436,47 @@ func (s *Service) processVideo(ctx context.Context, req ProcessRequest) error {
 		return s.failProcessing(ctx, req, fmt.Errorf("all variant transcodes failed"))
 	}
 
-	// Update state to COMPLETED
-	state := &corev1.VideoProcessingState{
-		Status:                corev1.VideoStatus_VIDEO_STATUS_COMPLETED,
-		ThumbnailAttachmentId: thumbnailAttachmentID,
-		DurationMs:            probeResult.DurationMs,
-		Width:                 probeResult.Width,
-		Height:                probeResult.Height,
-		Variants:              variants,
-	}
-	if err := s.core.SetVideoProcessingState(ctx, req.AttachmentID, state); err != nil {
-		return fmt.Errorf("failed to set completed state: %w", err)
-	}
-
-	// Delete the original attachment (save storage — variants replace it)
-	if err := s.core.DeleteAttachmentFromStorageByID(ctx, req.SpaceID, req.AttachmentID); err != nil {
-		s.logger.Warn("Failed to delete original after transcoding", "error", err)
-		// Non-fatal — the variants are already uploaded
-	}
-
-	// Publish live event
-	if err := s.core.PublishVideoProcessingCompleted(ctx, core.KindForSpace(req.SpaceID), req.RoomID, req.AttachmentID, req.MessageBodyID); err != nil {
-		s.logger.Warn("Failed to publish video processing completed event", "error", err)
+	// Publish durable manifest. The original upload is retained as source
+	// content for future re-encoding; generated variants are derivatives.
+	kind, err := s.core.FindRoomKind(ctx, req.RoomID)
+	if err != nil {
+		s.logger.Warn("Failed to resolve room kind for video processed event", "error", err)
+	} else if err := s.core.RecordAssetProcessed(ctx, core.SystemActorID, kind, req.RoomID, req.MessageEventID, req.AssetID, probeResult.DurationMs, probeResult.Width, probeResult.Height, thumbnailAttachment, variants); err != nil {
+		s.logger.Warn("Failed to publish video processed event", "error", err)
 	}
 
 	s.logger.Info("Video processing completed",
-		"attachment_id", req.AttachmentID,
+		"asset_id", req.AssetID,
 		"variants", len(variants),
 	)
 
 	return nil
 }
 
-// failProcessing updates the processing state to FAILED and returns the original error.
-func (s *Service) failProcessing(ctx context.Context, req ProcessRequest, originalErr error) error {
+// failProcessing records a durable failed outcome and returns the original error.
+func (s *Service) failProcessing(ctx context.Context, req processRequest, originalErr error) error {
 	// Log the full error for server-side debugging (may contain file paths, ffmpeg output, etc.)
 	s.logger.Error("Video processing failed",
-		"attachment_id", req.AttachmentID,
-		"space_id", req.SpaceID,
+		"asset_id", req.AssetID,
 		"error", originalErr)
 
-	state := &corev1.VideoProcessingState{
-		Status:       corev1.VideoStatus_VIDEO_STATUS_FAILED,
-		ErrorMessage: "Video processing failed. Please try uploading again.",
-	}
-	if err := s.core.SetVideoProcessingState(ctx, req.AttachmentID, state); err != nil {
-		s.logger.Error("Failed to set error state", "error", err)
-	}
-	// Publish live event even on failure so frontend can update
-	if err := s.core.PublishVideoProcessingCompleted(ctx, core.KindForSpace(req.SpaceID), req.RoomID, req.AttachmentID, req.MessageBodyID); err != nil {
+	// Publish durable failure event even on failure so frontend can update
+	// and replay can reconstruct the terminal state.
+	kind, kindErr := s.core.FindRoomKind(ctx, req.RoomID)
+	if kindErr != nil {
+		s.logger.Warn("Failed to resolve room kind for video-failed event", "error", kindErr)
+	} else if err := s.core.RecordAssetProcessingFailed(ctx, core.SystemActorID, kind, req.RoomID, req.MessageEventID, req.AssetID, corev1.AssetProcessingFailureCode_ASSET_PROCESSING_FAILURE_CODE_PROCESSING_FAILED); err != nil {
 		s.logger.Warn("Failed to publish video processing failed event", "error", err)
 	}
 	return originalErr
 }
 
 // downloadAttachment downloads an attachment from the asset store to a local file.
-func (s *Service) downloadAttachment(ctx context.Context, spaceID, attachmentID, destPath string) error {
-	reader, _, err := s.core.GetAttachmentFromAnyBackend(ctx, spaceID, attachmentID)
+func (s *Service) downloadAttachment(ctx context.Context, attachment *corev1.Attachment, destPath string) error {
+	if attachment == nil {
+		return fmt.Errorf("attachment is nil")
+	}
+	reader, _, err := s.core.GetAttachmentReader(ctx, attachment)
 	if err != nil {
 		return err
 	}
@@ -399,19 +497,20 @@ func (s *Service) downloadAttachment(ctx context.Context, spaceID, attachmentID,
 	return nil
 }
 
-// uploadFile uploads a local file as an attachment and returns the new attachment ID.
-func (s *Service) uploadFile(ctx context.Context, spaceID, roomID, filename, contentType, srcPath string) (string, error) {
+// uploadDerivativeFile uploads a local file produced by the worker (thumbnail
+// or transcoded variant) as a derivative of `parentAssetID`. The single
+// AssetCreatedEvent emitted carries the parent + role so the projection
+// links the derivative to its origin immediately.
+func (s *Service) uploadDerivativeFile(ctx context.Context, parentAssetID string, derivativeRole corev1.AssetDerivativeRole, roomID, filename, contentType, srcPath string) (*corev1.Attachment, error) {
+	return s.uploadDerivativeFileWithDimensions(ctx, parentAssetID, derivativeRole, roomID, filename, contentType, srcPath, 0, 0)
+}
+
+func (s *Service) uploadDerivativeFileWithDimensions(ctx context.Context, parentAssetID string, derivativeRole corev1.AssetDerivativeRole, roomID, filename, contentType, srcPath string, width, height int32) (*corev1.Attachment, error) {
 	f, err := os.Open(srcPath)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	defer f.Close()
 
-	att, err := s.core.UploadAttachment(ctx, spaceID, roomID, filename, contentType, f)
-	if err != nil {
-		return "", err
-	}
-
-	return att.Id, nil
+	return s.core.UploadDerivativeAttachmentWithDimensions(ctx, parentAssetID, derivativeRole, roomID, filename, contentType, f, width, height)
 }
-

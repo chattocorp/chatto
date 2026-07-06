@@ -14,18 +14,51 @@ import (
 )
 
 // DefaultGlobalRoom describes a channel that ships with a fresh
-// deployment. The bootstrap owner is auto-joined; other users join
-// explicitly via `joinRoom` (or the room directory's "Join all").
+// deployment. Universal rooms are available to every join-eligible
+// server member without writing explicit memberships.
 type DefaultGlobalRoom struct {
 	Name        string
 	Description string
+	Universal   bool
 }
 
 // DefaultGlobalRooms is the list of channel rooms seeded on a fresh
-// deployment. Each lands in the seed "Lobby" group.
+// deployment. Each lands in the seed "Lobby" group. Normal rooms inherit the
+// server-tier everyone defaults; the "announcements" room is universal and
+// adds a room-tier everyone/message.post denial.
 var DefaultGlobalRooms = []DefaultGlobalRoom{
-	{Name: "announcements", Description: "Announcements and News"},
+	{Name: AnnouncementsRoomName, Description: "Announcements and news", Universal: true},
 	{Name: "general", Description: "General discussion"},
+}
+
+// SeedDefaultRooms creates the default channel rooms
+// (`announcements`, `general`) on a fresh server. Idempotent — returns
+// nil without creating anything once any channel room exists, so an
+// operator can delete the defaults without seeing them reappear on the
+// next boot (as long as at least one channel room remains).
+//
+// Relies on `ensureChannelRoomsAreInAGroup` having run first so the
+// seed "Lobby" group is already in the layout; `CreateRoom` with an
+// empty groupID then auto-routes each new room into it.
+func (c *ChattoCore) SeedDefaultRooms(ctx context.Context) error {
+	existing, err := c.ListRooms(ctx, KindChannel)
+	if err != nil {
+		return fmt.Errorf("list channel rooms: %w", err)
+	}
+	if len(existing) > 0 {
+		return nil
+	}
+
+	for _, r := range DefaultGlobalRooms {
+		if _, err := c.CreateRoom(ctx, SystemActorID, KindChannel, "", r.Name, r.Description, WithUniversalRoom(r.Universal)); err != nil {
+			if errors.Is(err, ErrRoomNameExists) {
+				continue
+			}
+			return fmt.Errorf("create default room %q: %w", r.Name, err)
+		}
+		c.logger.Info("Seeded default channel room", "name", r.Name)
+	}
+	return nil
 }
 
 // ============================================================================
@@ -33,8 +66,8 @@ var DefaultGlobalRooms = []DefaultGlobalRoom{
 // ============================================================================
 
 // CleanupUserState removes a user's per-kind artifacts: room memberships,
-// notification levels, and (during account deletion) emits a
-// SpaceMemberDeletedEvent so clients can re-render messages as "Deleted User".
+// notification levels, and (during account deletion) emits a live
+// ServerMemberDeletedEvent so clients can re-render messages as "Deleted User".
 // Idempotent; safe to call for kinds the user never interacted with.
 //
 // Post-#330 there's no separate "space membership" record to delete — every
@@ -49,21 +82,16 @@ func (c *ChattoCore) CleanupUserState(ctx context.Context, userID string, kind R
 	}
 
 	if isAccountDeletion {
-		spaceID := SpaceIDForKind(kind)
-		memberDeletedEvent := newEvent(userID, &corev1.Event{
-			Event: &corev1.Event_SpaceMemberDeleted{
-				SpaceMemberDeleted: &corev1.SpaceMemberDeletedEvent{
-					SpaceId: spaceID,
-					UserId:  userID,
+		memberDeletedEvent := newLiveEvent(userID, &corev1.LiveEvent{
+			Event: &corev1.LiveEvent_ServerMemberDeleted{
+				ServerMemberDeleted: &corev1.ServerMemberDeletedEvent{
+					UserId: userID,
 				},
 			},
 		})
-		// SERVER_EVENTS' RePublish forwards the persisted event onto
-		// live.server.member.deleted automatically — no manual live
-		// publish needed.
-		subject := subjects.Member("member_deleted")
-		if err := c.publishServerEvent(ctx, subject, memberDeletedEvent); err != nil {
-			c.logger.Warn("Failed to publish SpaceMemberDeletedEvent", "user_id", userID, "kind", kind, "error", err)
+		subject := subjects.LiveSyncMember("member_deleted")
+		if err := c.publishLiveEvent(ctx, subject, memberDeletedEvent); err != nil {
+			c.logger.Warn("Failed to publish ServerMemberDeletedEvent", "user_id", userID, "kind", kind, "error", err)
 		}
 	}
 

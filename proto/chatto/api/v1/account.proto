@@ -1,0 +1,150 @@
+syntax = "proto3";
+
+package chatto.api.v1;
+
+import "buf/validate/validate.proto";
+import "chatto/api/v1/common.proto";
+import "chatto/api/v1/external_identities.proto";
+import "chatto/api/v1/presence.proto";
+import "chatto/api/v1/user_status.proto";
+import "chatto/api/v1/users.proto";
+import "chatto/api/v1/viewer.proto";
+
+// Request to update the authenticated user's profile. At least one field must
+// be present.
+message UpdateProfileRequest {
+  // New display name, when changing it. Empty clears the explicit display
+  // name. The server also rejects control and confusing invisible characters.
+  optional string display_name = 1 [(buf.validate.field).string.max_len = 32];
+  // New login identifier, when changing it. The server accepts ASCII letters,
+  // digits, period, underscore, and hyphen, starting with a letter or digit.
+  optional string login = 2 [(buf.validate.field).string = {
+    min_len: 2
+    max_len: 32
+  }];
+}
+
+// Result of a profile update.
+message UpdateProfileResponse {
+  // Updated user profile.
+  User user = 1;
+}
+
+// Request to upload and set the authenticated user's avatar.
+message UploadAvatarRequest {
+  reserved 1 to 3;
+  reserved "filename", "content_type";
+
+  // Image payload. The server validates, resizes, and stores a WebP avatar.
+  ImageUpload image = 4;
+}
+
+// Result of uploading the authenticated user's avatar.
+message UploadAvatarResponse {
+  // Updated user profile.
+  User user = 1;
+}
+
+// Request to delete the authenticated user's avatar.
+message DeleteAvatarRequest {}
+
+// Result of deleting the authenticated user's avatar.
+message DeleteAvatarResponse {
+  // Updated user profile.
+  User user = 1;
+}
+
+// Request to update or add the authenticated user's password.
+message UpdatePasswordRequest {
+  // New password. The server applies the same password policy as registration
+  // and password reset.
+  string password = 1 [(buf.validate.field).string = {
+    min_len: 8
+    max_len: 128
+  }];
+  // Current password. Required when the account already has a password; omitted
+  // when adding the first password to a passwordless account.
+  string current_password = 2 [(buf.validate.field).string.max_len = 128];
+}
+
+// Result of updating or adding the authenticated account password.
+message UpdatePasswordResponse {
+  // Current authenticated user profile after the password update.
+  User user = 1;
+}
+
+// Request to update the authenticated user's display preferences. Omitted
+// fields are left unchanged. An empty timezone clears the explicit timezone.
+message UpdateSettingsRequest {
+  // IANA timezone override. Empty clears the override.
+  optional string timezone = 1;
+  // Preferred time format.
+  optional TimeFormat time_format = 2;
+}
+
+// Result of updating display preferences.
+message UpdateSettingsResponse {
+  // Stored settings after merging the request.
+  UserSettings settings = 1;
+}
+
+// Request a short-lived confirmation token for deleting the authenticated
+// account.
+message RequestAccountDeletionRequest {}
+
+// Result of issuing an account deletion confirmation token.
+message RequestAccountDeletionResponse {
+  // Confirmation token. Clients must pass this to DeleteMyAccount.
+  string confirmation_token = 1;
+}
+
+// Request to permanently delete the authenticated account.
+message DeleteMyAccountRequest {
+  // Confirmation token obtained from RequestAccountDeletion.
+  string confirmation_token = 1;
+}
+
+// Result of deleting the authenticated account.
+message DeleteMyAccountResponse {
+  // True when the account was deleted.
+  bool deleted = 1;
+}
+
+// Self-service account, profile, avatar, display preference, presence,
+// custom-status, external identity, and account lifecycle commands for the
+// authenticated user.
+service MyAccountService {
+  // Updates the authenticated user's login and/or display name.
+  rpc UpdateProfile(UpdateProfileRequest) returns (UpdateProfileResponse);
+  // Uploads and sets the authenticated user's avatar.
+  rpc UploadAvatar(UploadAvatarRequest) returns (UploadAvatarResponse);
+  // Deletes the authenticated user's avatar. The call is idempotent.
+  rpc DeleteAvatar(DeleteAvatarRequest) returns (DeleteAvatarResponse);
+  // Updates or adds the authenticated user's password.
+  rpc UpdatePassword(UpdatePasswordRequest) returns (UpdatePasswordResponse);
+  // Updates the authenticated user's display preferences.
+  rpc UpdateSettings(UpdateSettingsRequest) returns (UpdateSettingsResponse);
+  // Lists configured external identity providers and identities linked to the
+  // authenticated account.
+  rpc ListExternalIdentities(ListExternalIdentitiesRequest) returns (ListExternalIdentitiesResponse);
+  // Creates a short-lived browser handoff URL for linking a provider identity
+  // to the authenticated account. The provider callback completes through
+  // chatto.auth.v1.ExternalIdentityAuthService.ConfirmExternalIdentityLink.
+  rpc StartExternalIdentityLink(StartExternalIdentityLinkRequest) returns (StartExternalIdentityLinkResponse);
+  // Disconnects a provider identity from the authenticated account.
+  rpc DisconnectExternalIdentity(DisconnectExternalIdentityRequest) returns (DisconnectExternalIdentityResponse);
+  // Updates the current user's live presence status. This state is transient:
+  // clients should refresh it periodically while visible, and should stop
+  // calling this RPC when the user chooses to appear offline.
+  rpc UpdatePresence(UpdatePresenceRequest) returns (UpdatePresenceResponse);
+  // Updates or replaces the current user's custom status. Emoji and text are
+  // required, and expires_at must be omitted or in the future.
+  rpc UpdateCustomStatus(UpdateCustomStatusRequest) returns (UpdateCustomStatusResponse);
+  // Deletes the current user's custom status. The call is idempotent and returns
+  // the resulting empty status state.
+  rpc DeleteCustomStatus(DeleteCustomStatusRequest) returns (DeleteCustomStatusResponse);
+  // Issues a short-lived token used to confirm self-deletion.
+  rpc RequestAccountDeletion(RequestAccountDeletionRequest) returns (RequestAccountDeletionResponse);
+  // Permanently deletes the authenticated account after token validation.
+  rpc DeleteMyAccount(DeleteMyAccountRequest) returns (DeleteMyAccountResponse);
+}

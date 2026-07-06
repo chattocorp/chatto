@@ -1,0 +1,464 @@
+---
+title: Environment Variables
+description: All environment variables for configuring Chatto.
+---
+
+import EnvVar from '../../../components/EnvVar.astro';
+
+Every `chatto.toml` setting can be overridden with an environment variable. The naming pattern is `CHATTO_{SECTION}_{KEY}` in uppercase.
+
+## General
+
+<EnvVar name="CHATTO_LOG_LEVEL" toml="general.log_level" default="info">
+  Log level. Values: `debug`, `info`, `warn`, `error`.
+</EnvVar>
+
+<EnvVar name="CHATTO_LOG_FORMAT" toml="general.log_format" default="auto">
+  Log output format. Values: `auto`, `text`, `json`, `logfmt`. `auto` uses text when Chatto is attached to a terminal and JSON otherwise. Use `json` for Loki/Grafana ingestion so each log line includes a structured `level` field.
+</EnvVar>
+
+## Web Server
+
+<EnvVar name="CHATTO_WEBSERVER_URL" toml="webserver.url" required>
+  Public URL of the server, used for absolute links, public API asset URLs, and OAuth redirects. Set this to the external HTTPS origin when Chatto runs behind a reverse proxy; forwarded proxy headers are not trusted for public URL generation.
+</EnvVar>
+
+<EnvVar name="CHATTO_WEBSERVER_PORT" toml="webserver.port" default="4000">
+  Port to listen on.
+</EnvVar>
+
+<EnvVar name="CHATTO_WEBSERVER_COOKIE_SIGNING_SECRET" toml="webserver.cookie_signing_secret" required>
+  256-bit hex secret for signing session cookies. Generate with `openssl rand -hex 32`.
+</EnvVar>
+
+<EnvVar name="CHATTO_WEBSERVER_COOKIE_ENCRYPTION_SECRET" toml="webserver.cookie_encryption_secret">
+  Optional hex secret for encrypting session cookies after signing. Must decode to 16, 24, or 32 bytes. Generate an AES-256 key with `openssl rand -hex 32`.
+</EnvVar>
+
+<EnvVar name="CHATTO_WEBSERVER_WEBSOCKET_COMPRESSION" toml="webserver.websocket_compression" default="true">
+  Enable WebSocket compression.
+</EnvVar>
+
+<EnvVar name="CHATTO_WEBSERVER_REQUEST_LOGGING" toml="webserver.request_logging" default="false">
+  Log HTTP requests.
+</EnvVar>
+
+<EnvVar name="CHATTO_WEBSERVER_ALLOWED_ORIGINS" toml="webserver.allowed_origins">
+  Comma-separated list of origins allowed for cross-origin requests (CORS and WebSocket). The server's own origin (from `webserver.url`) and `localhost` at the listen port are always allowed. Defaults to `*` (wildcard) when not set, allowing any origin for multi-server support — cross-origin clients authenticate via Bearer tokens, not cookies. Set explicitly to restrict which origins can access the API. Wildcard CORS does not trust OAuth redirect callbacks.
+</EnvVar>
+
+<EnvVar name="CHATTO_WEBSERVER_OAUTH_REDIRECT_ORIGINS" toml="webserver.oauth_redirect_origins">
+  Comma-separated list of origins allowed for Chatto OAuth redirect callbacks when another Chatto frontend connects to this server. Use exact HTTPS origins, such as `https://app.example.com`, when you operate a known frontend. Set to `*` if you intentionally want any valid HTTPS Chatto frontend to connect. This is convenient for open federation-style alpha deployments, but it lets any HTTPS site start an authorization request and ask the user to approve sending an authorization code back to that site. See the [Security guide](/guides/operations/security/#chatto-frontend-oauth-redirects) for the risk tradeoff.
+</EnvVar>
+
+### TLS
+
+Built-in automatic TLS via Let's Encrypt. When enabled, Chatto handles certificate provisioning and renewal automatically.
+
+<EnvVar name="CHATTO_WEBSERVER_TLS_ENABLED" toml="webserver.tls.enabled" default="false">
+  Enable automatic TLS via Let's Encrypt. Requires ports 80 and 443 (or custom ports configured below).
+</EnvVar>
+
+<EnvVar name="CHATTO_WEBSERVER_TLS_DOMAIN" toml="webserver.tls.domain">
+  Domain name for the TLS certificate. Required when TLS is enabled.
+</EnvVar>
+
+<EnvVar name="CHATTO_WEBSERVER_TLS_EMAIL" toml="webserver.tls.email">
+  Email address for Let's Encrypt notifications. Required when TLS is enabled.
+</EnvVar>
+
+<EnvVar name="CHATTO_WEBSERVER_TLS_CACHE_DIR" toml="webserver.tls.cache_dir" default=".chatto/certs">
+  Directory to cache TLS certificates.
+</EnvVar>
+
+<EnvVar name="CHATTO_WEBSERVER_TLS_HTTP_PORT" toml="webserver.tls.http_port" default="80">
+  Port for the HTTP server (ACME challenges and HTTPS redirect). Use a higher port if running without elevated privileges.
+</EnvVar>
+
+## Metrics
+
+<EnvVar name="CHATTO_METRICS_ENABLED" toml="metrics.enabled" default="false">
+  Expose a Prometheus-compatible per-process metrics endpoint on a separate internal HTTP listener.
+</EnvVar>
+
+<EnvVar name="CHATTO_METRICS_BIND_ADDRESS" toml="metrics.bind_address" default="127.0.0.1">
+  Address to bind the metrics listener. Keep this on localhost unless a trusted internal network or sidecar needs direct scrape access.
+</EnvVar>
+
+<EnvVar name="CHATTO_METRICS_PORT" toml="metrics.port" default="9090">
+  Port for the metrics listener.
+</EnvVar>
+
+<EnvVar name="CHATTO_METRICS_PATH" toml="metrics.path" default="/metrics">
+  HTTP path for Prometheus scrapes.
+</EnvVar>
+
+<EnvVar name="CHATTO_METRICS_PPROF" toml="metrics.pprof" default="false">
+  Expose Go pprof debug endpoints on the metrics listener under `/debug/pprof/`. Keep the metrics listener private and enable this only while profiling.
+</EnvVar>
+
+## Exporter
+
+The exporter exposes deployment-wide Chatto metrics. Run it as `chatto exporter` against external NATS or an exposed embedded NATS TCP listener, or set `exporter.enabled = true` to embed it inside `chatto run` for single-process installs. Clustered deployments should enable the embedded exporter on at most one replica.
+
+<EnvVar name="CHATTO_EXPORTER_ENABLED" toml="exporter.enabled" default="false">
+  Start the deployment-wide Prometheus exporter inside `chatto run`.
+</EnvVar>
+
+<EnvVar name="CHATTO_EXPORTER_BIND_ADDRESS" toml="exporter.bind_address" default="127.0.0.1">
+  Address to bind the exporter listener. Keep this on localhost unless a trusted internal network or sidecar needs direct scrape access.
+</EnvVar>
+
+<EnvVar name="CHATTO_EXPORTER_PORT" toml="exporter.port" default="9100">
+  Port for the exporter listener.
+</EnvVar>
+
+<EnvVar name="CHATTO_EXPORTER_PATH" toml="exporter.path" default="/metrics">
+  HTTP path for Prometheus scrapes.
+</EnvVar>
+
+<EnvVar name="CHATTO_EXPORTER_S3_REFRESH_INTERVAL" toml="exporter.s3_refresh_interval" default="15m">
+  How often to refresh cached S3 bucket size metrics when S3 asset storage is configured.
+</EnvVar>
+
+<EnvVar name="CHATTO_EXPORTER_S3_TIMEOUT" toml="exporter.s3_timeout" default="30s">
+  Timeout for one S3 bucket-size refresh.
+</EnvVar>
+
+## Diagnostics
+
+<EnvVar name="CHATTO_DIAGNOSTICS_STARTUP_CPU_PROFILE" toml="diagnostics.startup_cpu_profile">
+  Write a Go CPU profile covering process startup through core boot to this path. Useful for local projection replay benchmarking; disabled when empty.
+</EnvVar>
+
+## Operator API
+
+<EnvVar name="CHATTO_OPERATOR_API_ENABLED" toml="operator_api.enabled" default="false">
+  Enable the local root-equivalent Operator API Unix socket for `chatto operator ...` commands. The public web listener never serves this API.
+</EnvVar>
+
+<EnvVar name="CHATTO_OPERATOR_API_SOCKET_PATH" toml="operator_api.socket_path" default="/tmp/chatto/operator.sock">
+  Unix socket path for local operator commands. The socket mode is fixed at `0600`; Docker users should normally run `chatto operator ...` inside the running container with `docker exec`.
+</EnvVar>
+
+## Core
+
+<EnvVar name="CHATTO_CORE_SECRET_KEY" toml="core.secret_key" required>
+  256-bit hex secret for HMAC-derived bearer-token, cookie-session, OAuth-code, and account-flow credential verifiers. Generate with `openssl rand -hex 32`. Keep this stable across restores if you want sessions and pending credentials to survive.
+</EnvVar>
+
+## Assets
+
+<EnvVar name="CHATTO_CORE_ASSETS_SIGNING_SECRET" toml="core.assets.signing_secret" required>
+  256-bit hex secret for signing asset URLs. Generate with `openssl rand -hex 32`.
+</EnvVar>
+
+<EnvVar name="CHATTO_CORE_ASSETS_MAX_UPLOAD_SIZE" toml="core.assets.max_upload_size" default="25 MB">
+  Max upload size for images and non-video files (e.g., `25MB`, `25 MiB`). Videos use a separate limit — see `CHATTO_VIDEO_MAX_UPLOAD_SIZE`.
+</EnvVar>
+
+<EnvVar name="CHATTO_CORE_ASSETS_STORAGE_BACKEND" toml="core.assets.storage_backend" default="nats">
+  Storage backend for persisted assets. Values: `nats`, `s3`.
+</EnvVar>
+
+### S3 Storage
+
+Only used when `storage_backend` is set to `s3`. See the [S3 Storage guide](/guides/infrastructure/s3-storage/) for setup instructions.
+
+<EnvVar name="CHATTO_CORE_ASSETS_S3_ENDPOINT" toml="core.assets.s3.endpoint">
+  S3 endpoint URL (e.g., `s3.amazonaws.com` for AWS, or a custom endpoint for S3-compatible services).
+</EnvVar>
+
+<EnvVar name="CHATTO_CORE_ASSETS_S3_BUCKET" toml="core.assets.s3.bucket">
+  S3 bucket name. Created automatically on startup if it doesn't exist.
+</EnvVar>
+
+<EnvVar name="CHATTO_CORE_ASSETS_S3_PATH_PREFIX" toml="core.assets.s3.path_prefix">
+  Optional object key prefix for all S3 assets. Leave empty to store objects at the bucket root.
+</EnvVar>
+
+<EnvVar name="CHATTO_CORE_ASSETS_S3_REGION" toml="core.assets.s3.region">
+  AWS region. Optional for non-AWS S3-compatible services.
+</EnvVar>
+
+<EnvVar name="CHATTO_CORE_ASSETS_S3_ACCESS_KEY_ID" toml="core.assets.s3.access_key_id">
+  S3 access key ID.
+</EnvVar>
+
+<EnvVar name="CHATTO_CORE_ASSETS_S3_SECRET_ACCESS_KEY" toml="core.assets.s3.secret_access_key">
+  S3 secret access key.
+</EnvVar>
+
+<EnvVar name="CHATTO_CORE_ASSETS_S3_USE_SSL" toml="core.assets.s3.use_ssl" default="true">
+  Use HTTPS for S3 connections.
+</EnvVar>
+
+<EnvVar name="CHATTO_CORE_ASSETS_S3_PATH_STYLE" toml="core.assets.s3.path_style" default="auto">
+  Override S3 URL addressing. By default, Chatto uses virtual-hosted addressing for AWS S3 endpoints and path-style addressing for custom S3-compatible endpoints.
+</EnvVar>
+
+### Image Cache
+
+<EnvVar name="CHATTO_CORE_ASSETS_CACHE_ENABLED" toml="core.assets.cache.enabled" default="false">
+  Enable caching for resized image transforms. Reduces CPU usage for repeated thumbnail generation.
+</EnvVar>
+
+<EnvVar name="CHATTO_CORE_ASSETS_CACHE_TTL" toml="core.assets.cache.ttl" default="7d">
+  Time-to-live for cached images. Supports durations like `7d`, `1w`, `168h`.
+</EnvVar>
+
+## NATS
+
+<EnvVar name="CHATTO_NATS_REPLICAS" toml="nats.replicas" default="1">
+  Number of replicas for JetStream streams, KV buckets, and object stores. Must be an odd number (`1`, `3`, or `5`) for quorum. Set to `3` or `5` when running a NATS cluster for fault tolerance.
+</EnvVar>
+
+### Embedded Server
+
+<EnvVar name="CHATTO_NATS_EMBEDDED_ENABLED" toml="nats.embedded.enabled" default="true">
+  Enable the embedded NATS server. Set to `false` when connecting to an external NATS server.
+</EnvVar>
+
+<EnvVar name="CHATTO_NATS_EMBEDDED_PORT" toml="nats.embedded.port" default="0">
+  Embedded NATS server port. Leave unset or set to `0` for in-process only mode. Set to `4222` or another port to expose a TCP listener for NATS CLI/admin commands.
+</EnvVar>
+
+<EnvVar name="CHATTO_NATS_EMBEDDED_BIND_ADDRESS" toml="nats.embedded.bind_address" default="127.0.0.1">
+  Embedded NATS server bind address.
+</EnvVar>
+
+<EnvVar name="CHATTO_NATS_EMBEDDED_HTTP_PORT" toml="nats.embedded.http_port" default="0">
+  NATS monitoring/stats HTTP port. Set to `0` to disable. Useful for debugging with the NATS dashboard.
+</EnvVar>
+
+<EnvVar name="CHATTO_NATS_EMBEDDED_DATA_DIR" toml="nats.embedded.data_dir" default="./data">
+  JetStream data directory for the embedded server.
+</EnvVar>
+
+<EnvVar name="CHATTO_NATS_EMBEDDED_AUTH_TOKEN" toml="nats.embedded.auth_token">
+  Auth token for the embedded NATS server. When the embedded TCP port is enabled, Chatto derives matching `nats.client` defaults for CLI/admin commands unless you override them explicitly.
+</EnvVar>
+
+### Client
+
+<EnvVar name="CHATTO_NATS_CLIENT_URL" toml="nats.client.url">
+  NATS server URL to connect to when using external NATS or an exposed embedded TCP listener. Supports comma-separated URLs for cluster failover (e.g., `nats://n1:4222,nats://n2:4222`).
+</EnvVar>
+
+<EnvVar name="CHATTO_NATS_CLIENT_AUTH_METHOD" toml="nats.client.auth_method">
+  NATS authentication method for external NATS or an exposed embedded TCP listener. Values: `none`, `token`, `userpass`, `credentials`, `nkey`.
+</EnvVar>
+
+<EnvVar name="CHATTO_NATS_CLIENT_TOKEN" toml="nats.client.token">
+  NATS auth token (when using `token` auth method). When explicitly set alongside embedded NATS, it must match `CHATTO_NATS_EMBEDDED_AUTH_TOKEN`.
+</EnvVar>
+
+<EnvVar name="CHATTO_NATS_CLIENT_USERNAME" toml="nats.client.username">
+  NATS username (when using `userpass` auth method).
+</EnvVar>
+
+<EnvVar name="CHATTO_NATS_CLIENT_PASSWORD" toml="nats.client.password">
+  NATS password (when using `userpass` auth method).
+</EnvVar>
+
+<EnvVar name="CHATTO_NATS_CLIENT_CREDENTIALS_FILE" toml="nats.client.credentials_file">
+  Path to `.creds` file (when using `credentials` auth method).
+</EnvVar>
+
+<EnvVar name="CHATTO_NATS_CLIENT_NKEY_SEED" toml="nats.client.nkey_seed">
+  NKey seed (when using `nkey` auth method).
+</EnvVar>
+
+<EnvVar name="CHATTO_NATS_CLIENT_CA_CERT" toml="nats.client.ca_cert">
+  PEM-encoded CA certificate for verifying the NATS server's TLS certificate. When set, the NATS client connection uses TLS.
+</EnvVar>
+
+## Authentication
+
+<EnvVar name="CHATTO_AUTH_DIRECT_REGISTRATION" toml="auth.direct_registration" default="true">
+  Enable direct (email/password) registration. When `false`, the registration page is hidden and the registration API returns `403`. Users can still sign in via configured SSO providers.
+</EnvVar>
+
+<EnvVar name="CHATTO_AUTH_TOKEN_TTL" toml="auth.token_ttl" default="90d">
+  Inactivity TTL for bearer auth tokens. Supports durations like `90d`, `2160h`. Successful validation refreshes the TTL; inactive tokens expire automatically.
+</EnvVar>
+
+<EnvVar name="CHATTO_AUTH_EMAIL_OTP_THROTTLING_ENABLED" toml="auth.email_otp.throttling_enabled" default="true">
+  Enable throttling for registration and email-verification code delivery and wrong-code attempts. Set to `false` to disable these throttles while keeping OTP TTL enforcement.
+</EnvVar>
+
+<EnvVar name="CHATTO_AUTH_EMAIL_OTP_TTL" toml="auth.email_otp.ttl" default="15m">
+  How long registration and email-verification codes remain valid. Supports durations like `15m`, `30m`, or `1h`.
+</EnvVar>
+
+<EnvVar name="CHATTO_AUTH_EMAIL_OTP_MAX_DELIVERED_CODES" toml="auth.email_otp.max_delivered_codes" default="10">
+  Maximum successfully delivered registration or email-verification codes allowed for the same email challenge before fresh code requests are throttled.
+</EnvVar>
+
+<EnvVar name="CHATTO_AUTH_EMAIL_OTP_MAX_WRONG_ATTEMPTS" toml="auth.email_otp.max_wrong_attempts" default="5">
+  Maximum wrong-code submissions allowed for the same email challenge before the challenge is exhausted until its TTL expires.
+</EnvVar>
+
+### External Login Providers
+
+External login providers are configured as repeated `[[auth.providers]]` tables in `chatto.toml`.
+Supported provider types are `oidc`, `github`, `gitlab`, `google`, and `discord`.
+
+<EnvVar name="CHATTO_AUTH_PROVIDERS_<index>_<field>" toml="auth.providers">
+  Counted environment-variable equivalent of repeated `[[auth.providers]]` tables. Indexes start at `0` and must not have gaps. Supported fields are `ID`, `TYPE`, `LABEL`, `CLIENT_ID`, `CLIENT_SECRET`, `ISSUER_URL`, `SCOPES`, `REQUEST_EMAIL`, `AUTO_PROVISION`, and `PROVIDER_OPTIONS_<KEY>`.
+</EnvVar>
+
+For compatibility with older single-provider OIDC deployments, Chatto also accepts `CHATTO_AUTH_OIDC_ENABLED`, `CHATTO_AUTH_OIDC_ISSUER_URL`, `CHATTO_AUTH_OIDC_CLIENT_ID`, `CHATTO_AUTH_OIDC_CLIENT_SECRET`, and optional `CHATTO_AUTH_OIDC_LABEL`. These create one `oidc` provider with `id = "oidc"`. Do not combine them with counted `CHATTO_AUTH_PROVIDERS_<index>_*` variables.
+
+```toml
+[[auth.providers]]
+id = "chatto-hub"
+type = "oidc"
+label = "Chatto Hub"
+issuer_url = "https://hub.chatto.dev"
+client_id = "..."
+client_secret = "..."
+auto_provision = false
+```
+
+Provider IDs are used in login URLs and external identity links, so do not change them after users link accounts through that provider.
+
+`request_email` defaults to `false`, so Chatto does not request provider email scopes unless you opt in. Set `request_email = true` when you want provider-verified email claims. OIDC providers can run with only `openid profile`; Chatto links and signs in accounts by issuer and subject even when no email claim is returned.
+
+Set `auto_provision = true` only for providers whose users should be allowed to create accounts. Unlinked identities from providers without auto-provisioning can still be linked by existing signed-in users from account settings.
+
+See [External Login Providers](/guides/integrations/external-login-providers/) for callback URLs, provider-specific examples, and discovery behavior.
+
+## SMTP
+
+<EnvVar name="CHATTO_SMTP_ENABLED" toml="smtp.enabled" default="false">
+  Enable SMTP email sending.
+</EnvVar>
+
+<EnvVar name="CHATTO_SMTP_HOST" toml="smtp.host">
+  SMTP server hostname.
+</EnvVar>
+
+<EnvVar name="CHATTO_SMTP_PORT" toml="smtp.port">
+  SMTP port. Common values: `587` for STARTTLS, or `465` for implicit TLS/SMTPS.
+</EnvVar>
+
+<EnvVar name="CHATTO_SMTP_TLS" toml="smtp.tls" default="mandatory">
+  SMTP TLS policy. Use `mandatory` to require STARTTLS on port `587`, or `implicit` for SMTPS on port `465`. When this value is omitted or left as `mandatory`, Chatto automatically uses implicit TLS for port `465`. Use `opportunistic` only when the SMTP server cannot support mandatory STARTTLS and plaintext fallback is explicitly acceptable.
+</EnvVar>
+
+<EnvVar name="CHATTO_SMTP_TLS_SERVER_NAME" toml="smtp.tls_server_name">
+  SMTP TLS server name for certificate verification and SNI. Use when `smtp.host` is an IP address or internal alias but the certificate is issued for a DNS name.
+</EnvVar>
+
+<EnvVar name="CHATTO_SMTP_TLS_SKIP_VERIFY" toml="smtp.tls_skip_verify" default="false">
+  Disable SMTP TLS certificate verification. Insecure; use only for trusted internal SMTP servers with self-signed or mismatched certificates.
+</EnvVar>
+
+<EnvVar name="CHATTO_SMTP_USERNAME" toml="smtp.username">
+  SMTP username.
+</EnvVar>
+
+<EnvVar name="CHATTO_SMTP_PASSWORD" toml="smtp.password">
+  SMTP password.
+</EnvVar>
+
+<EnvVar name="CHATTO_SMTP_FROM" toml="smtp.from">
+  From address for outgoing emails.
+</EnvVar>
+
+## Push Notifications
+
+<EnvVar name="CHATTO_PUSH_ENABLED" toml="push.enabled" default="false">
+  Enable Web Push notifications.
+</EnvVar>
+
+<EnvVar name="CHATTO_PUSH_VAPID_PUBLIC_KEY" toml="push.vapid_public_key">
+  VAPID public key for Web Push. Generate with `npx web-push generate-vapid-keys`.
+</EnvVar>
+
+<EnvVar name="CHATTO_PUSH_VAPID_PRIVATE_KEY" toml="push.vapid_private_key">
+  VAPID private key for Web Push.
+</EnvVar>
+
+<EnvVar name="CHATTO_PUSH_VAPID_SUBJECT" toml="push.vapid_subject">
+  VAPID subject identifier. Use an operator email address, optionally prefixed with `mailto:`, or an `https:` contact URL.
+</EnvVar>
+
+## Video Processing
+
+<EnvVar name="CHATTO_VIDEO_ENABLED" toml="video.enabled" default="false">
+  Enable server-side video processing and video uploads. When enabled, uploaded videos are transcoded into multiple quality variants for adaptive playback. Requires `ffmpeg` and `ffprobe` to be available on the server.
+</EnvVar>
+
+<EnvVar name="CHATTO_VIDEO_FFMPEG_PATH" toml="video.ffmpeg_path">
+  Path to the `ffmpeg` binary. If not set, Chatto looks for `ffmpeg` in `PATH`.
+</EnvVar>
+
+<EnvVar name="CHATTO_VIDEO_FFPROBE_PATH" toml="video.ffprobe_path">
+  Path to the `ffprobe` binary. If not set, Chatto looks for `ffprobe` in `PATH`.
+</EnvVar>
+
+<EnvVar name="CHATTO_VIDEO_MAX_CONCURRENT" toml="video.max_concurrent" default="2">
+  Maximum number of videos to process concurrently. Higher values use more CPU and memory.
+</EnvVar>
+
+<EnvVar name="CHATTO_VIDEO_MAX_UPLOAD_SIZE" toml="video.max_upload_size" default="100 MB">
+  Max upload size for video files (e.g., `100MB`, `200 MiB`). Only applies when video processing is enabled. Non-video files use `CHATTO_CORE_ASSETS_MAX_UPLOAD_SIZE` instead.
+</EnvVar>
+
+<EnvVar name="CHATTO_VIDEO_TEMP_DIR" toml="video.temp_dir">
+  Directory for temporary files during transcoding. Defaults to the system temp directory.
+</EnvVar>
+
+## LiveKit (Voice & Video Calls)
+
+<EnvVar name="CHATTO_LIVEKIT_ENABLED" toml="livekit.enabled" default="false">
+  Enable LiveKit voice and video call support. Requires a running LiveKit server.
+</EnvVar>
+
+<EnvVar name="CHATTO_LIVEKIT_URL" toml="livekit.url">
+  LiveKit server WebSocket URL. Use `ws://` for development, `wss://` for production.
+</EnvVar>
+
+<EnvVar name="CHATTO_LIVEKIT_API_KEY" toml="livekit.api_key">
+  LiveKit API key for authentication.
+</EnvVar>
+
+<EnvVar name="CHATTO_LIVEKIT_API_SECRET" toml="livekit.api_secret">
+  LiveKit API secret for signing JWT tokens. Keep this confidential.
+</EnvVar>
+
+<EnvVar name="CHATTO_LIVEKIT_WEBHOOK_URL" toml="livekit.webhook_url">
+  URL where LiveKit sends webhook events. Defaults to `{webserver.url}/webhooks/livekit`.
+</EnvVar>
+
+<EnvVar name="CHATTO_LIVEKIT_SERVER_ID" toml="livekit.server_id">
+  Unique identifier for this Chatto server, prefixed to deterministic LiveKit room names. This value must match across replicas of one Chatto server, and should differ only across different Chatto servers sharing the same LiveKit cluster. When empty, room names use the unprefixed format. The old `CHATTO_LIVEKIT_INSTANCE_ID` / `livekit.instance_id` name is still accepted as a deprecated alias.
+</EnvVar>
+
+<EnvVar name="CHATTO_LIVEKIT_INSTANCE_ID" toml="livekit.instance_id">
+  Deprecated alias for `CHATTO_LIVEKIT_SERVER_ID` / `livekit.server_id`. Prefer the server ID name in new deployments.
+</EnvVar>
+
+<EnvVar name="CHATTO_LIVEKIT_WEBHOOK_API_KEY" toml="livekit.webhook_api_key">
+  API key that LiveKit uses to sign webhook requests. When multiple Chatto servers share a LiveKit cluster, the webhook signing key may differ from the per-server API key. Falls back to `CHATTO_LIVEKIT_API_KEY` when not set.
+</EnvVar>
+
+<EnvVar name="CHATTO_LIVEKIT_WEBHOOK_API_SECRET" toml="livekit.webhook_api_secret">
+  API secret for validating webhook signatures. Falls back to `CHATTO_LIVEKIT_API_SECRET` when not set.
+</EnvVar>
+
+## Owners
+
+<EnvVar name="CHATTO_OWNERS_EMAILS" toml="owners.emails">
+  Comma-separated list of email addresses that confer server-owner status. A user with any verified email matching the list gets full server access (including `/admin` routes). Only verified email addresses are matched.
+</EnvVar>
+
+## Limits
+
+Server-wide resource limits. Use `-1` for unlimited (the default), `0` to disable creation entirely, or any positive integer to cap.
+
+<EnvVar name="CHATTO_LIMITS_MAX_USERS" toml="limits.max_users" default="-1">
+  Maximum number of verified accounts on this server. An account counts once it has at least one verified sign-in factor: a verified email or a linked SSO identity. Enforced when accounts are created and when the first verified factor is added. Note that the check is non-atomic, so a burst at the boundary can briefly overshoot by one or two.
+</EnvVar>

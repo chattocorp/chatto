@@ -1,0 +1,135 @@
+syntax = "proto3";
+
+package chatto.admin.v1;
+
+import "buf/validate/validate.proto";
+import "chatto/api/v1/roles.proto";
+import "chatto/api/v1/users.proto";
+
+// Role metadata plus administrative permission state.
+message AdminRole {
+  // Public role metadata shared with ordinary role catalog reads.
+  chatto.api.v1.Role role = 1;
+  // Permissions granted by this role.
+  repeated string permissions = 2;
+  // Permissions denied by this role.
+  repeated string permission_denials = 3;
+}
+
+// Request the role catalog.
+message ListRolesRequest {}
+
+// Finite role catalog snapshot plus viewer role-management capabilities.
+message ListRolesResponse {
+  // Roles sorted by position.
+  repeated AdminRole roles = 1;
+  // Whether the caller may create/update/delete role definitions.
+  bool viewer_can_manage_roles = 2;
+  // Whether the caller may assign/revoke roles and view role rosters.
+  bool viewer_can_assign_roles = 3;
+}
+
+// Request one role.
+message GetRoleRequest {
+  // Stable role name.
+  string name = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+// One role plus role-management metadata.
+message GetRoleResponse {
+  // Requested role.
+  AdminRole role = 1;
+  // Explicit users with this role. Empty unless the caller may assign roles.
+  repeated chatto.api.v1.User users = 2;
+  // Whether the caller may create/update/delete role definitions.
+  bool viewer_can_manage_roles = 3;
+  // Whether the caller may assign/revoke roles and view role rosters.
+  bool viewer_can_assign_roles = 4;
+}
+
+// Request to create a role.
+message CreateRoleRequest {
+  // Stable role name.
+  string name = 1 [(buf.validate.field).string.min_len = 1];
+  // Display name shown in admin and mention UIs.
+  string display_name = 2 [(buf.validate.field).string.max_len = 80];
+  // Optional role description.
+  string description = 3 [(buf.validate.field).string.max_len = 500];
+  // Whether messages may notify users assigned to this role.
+  bool pingable = 4;
+}
+
+// Result of creating a role.
+message CreateRoleResponse {
+  // Created role.
+  AdminRole role = 1;
+}
+
+// Request to update role metadata.
+message UpdateRoleRequest {
+  // Stable role name.
+  string name = 1 [(buf.validate.field).string.min_len = 1];
+  // Display name shown in admin and mention UIs, when changing it.
+  optional string display_name = 2 [(buf.validate.field).string.max_len = 80];
+  // Role description, when changing it. Empty clears the description.
+  optional string description = 3 [(buf.validate.field).string.max_len = 500];
+  // Whether messages may notify users assigned to this role, when changing it.
+  optional bool pingable = 4;
+}
+
+// Result of updating a role.
+message UpdateRoleResponse {
+  // Updated role.
+  AdminRole role = 1;
+}
+
+// Request to delete a role.
+message DeleteRoleRequest {
+  // Stable role name.
+  string name = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+// Result of deleting a role.
+message DeleteRoleResponse {
+  // True when the request completed.
+  bool deleted = 1;
+}
+
+// Request to replace custom role order.
+message ReorderRolesRequest {
+  // Ordered custom role names. The list must include every custom role exactly
+  // once; system roles keep fixed positions and must not be included.
+  repeated string role_names = 1 [(buf.validate.field).repeated = {
+    max_items: 1000
+    items: {
+      string: {min_len: 1}
+    }
+  }];
+}
+
+// Result of replacing custom role order.
+message ReorderRolesResponse {
+  // Full role catalog after reordering.
+  repeated AdminRole roles = 1;
+}
+
+// Provides authenticated role reads and administrative role definition changes.
+service AdminRoleService {
+  // Lists the role catalog including permission arrays as a finite snapshot.
+  // Requires an authenticated user. This intentionally includes permission
+  // arrays for clients that need to show a user's assigned roles and their
+  // effects; use chatto.api.v1.RoleService for lightweight catalog rendering.
+  rpc ListRoles(ListRolesRequest) returns (ListRolesResponse);
+  // Gets one role plus admin detail metadata. Returns NOT_FOUND when the
+  // role does not exist. Requires an authenticated user; the assigned-user
+  // roster is empty unless the caller may assign roles.
+  rpc GetRole(GetRoleRequest) returns (GetRoleResponse);
+  // Creates a custom role. Requires role.manage.
+  rpc CreateRole(CreateRoleRequest) returns (CreateRoleResponse);
+  // Updates role metadata. Requires role.manage.
+  rpc UpdateRole(UpdateRoleRequest) returns (UpdateRoleResponse);
+  // Deletes a custom role. Requires role.manage.
+  rpc DeleteRole(DeleteRoleRequest) returns (DeleteRoleResponse);
+  // Replaces the custom role order. Requires role.manage.
+  rpc ReorderRoles(ReorderRolesRequest) returns (ReorderRolesResponse);
+}

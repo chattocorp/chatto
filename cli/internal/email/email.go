@@ -3,6 +3,7 @@ package email
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 
@@ -65,11 +66,7 @@ func (m *Mailer) SendContext(ctx context.Context, msg Message) error {
 	message.SetBodyString(mail.TypeTextPlain, msg.Body)
 
 	// Build client options
-	opts := []mail.Option{
-		mail.WithPort(m.config.Port),
-		mail.WithTLSPortPolicy(mail.TLSOpportunistic),
-		mail.WithHELO("localhost"), // Use consistent HELO domain across all environments
-	}
+	opts := mailOptions(m.config)
 
 	// Add authentication if credentials provided
 	if m.config.Username != "" && m.config.Password != "" {
@@ -96,4 +93,34 @@ func (m *Mailer) SendContext(ctx context.Context, msg Message) error {
 // IsEnabled returns whether SMTP is configured and enabled.
 func (m *Mailer) IsEnabled() bool {
 	return m.config.Enabled
+}
+
+func mailOptions(cfg config.SMTPConfig) []mail.Option {
+	opts := []mail.Option{
+		mail.WithPort(cfg.Port),
+		mail.WithHELO("localhost"), // Use consistent HELO domain across all environments
+	}
+
+	switch cfg.TLSPolicyOrDefault() {
+	case config.SMTPTLSImplicit:
+		opts = append(opts, mail.WithSSL())
+	case config.SMTPTLSOpportunistic:
+		opts = append(opts, mail.WithTLSPortPolicy(mail.TLSOpportunistic))
+	default:
+		opts = append(opts, mail.WithTLSPortPolicy(mail.TLSMandatory))
+	}
+
+	if cfg.TLSSkipVerify || cfg.TLSServerName != "" {
+		serverName := cfg.Host
+		if cfg.TLSServerName != "" {
+			serverName = cfg.TLSServerName
+		}
+		opts = append(opts, mail.WithTLSConfig(&tls.Config{
+			ServerName:         serverName,
+			InsecureSkipVerify: cfg.TLSSkipVerify,
+			MinVersion:         tls.VersionTLS12,
+		}))
+	}
+
+	return opts
 }

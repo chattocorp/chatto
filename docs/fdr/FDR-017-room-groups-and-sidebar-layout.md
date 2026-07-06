@@ -1,20 +1,25 @@
 # FDR-017: Room Groups & Sidebar Layout
 
 **Status:** Active
-**Last reviewed:** 2026-05-19
+**Last reviewed:** 2026-06-18
 
 ## Overview
 
-Channel rooms are organized into **room groups** — named, ordered containers that act as both a UI grouping concept (collapsible sections in the sidebar) and the primary permission scope for room-level permissions. Every channel room belongs to exactly one group; DMs sit outside the group system entirely.
+Channel rooms are organized into **room groups** — named, ordered containers that act as both a UI grouping concept (collapsible sections in the sidebar) and the primary permission scope for room-level permissions. Every channel room belongs to exactly one group; DMs sit outside the group system entirely. Groups can also contain sidebar links: operator-managed links rendered in the same ordered sidebar section as rooms.
 
 ## Behavior
 
-- The sidebar shows rooms grouped under their group's name in operator-defined order. Groups can be collapsed/expanded.
+- The sidebar shows `room.list`-visible channel rooms and sidebar links grouped under their group's name in operator-defined order. Groups can be collapsed/expanded.
+- ConnectRPC `RoomDirectoryService.ListRoomGroups` exposes the same ordered sidebar structure for protobuf-first clients, filtering room entries to non-archived channel rooms visible to the viewer and preserving sidebar links.
+- Joined channel rooms behave as normal navigation entries. Listable channel rooms the viewer has not joined yet are shown slightly faded; selecting a joinable room asks for confirmation before joining, while selecting a non-joinable room explains that access is not currently available.
 - Server admins can create, rename, reorder, and delete groups via the admin UI.
+- Group names are limited to 80 bytes; group descriptions are limited to 500 bytes.
 - Every channel room belongs to exactly one group. There's no "uncategorized" branch — room creation requires a group.
+- Sidebar links belong to exactly one group, carry a label and either an absolute `http`/`https` URL or a server-local path starting with `/`, and are visible to authenticated users who can see the server sidebar.
 - A freshly bootstrapped server has one group named "Lobby" containing the auto-created `announcements` and `general` rooms. Operators can rename it, reorder it, or replace it like any other group.
-- Deleting a group is rejected while rooms still live in it. Operators move rooms out first.
+- Deleting a group is rejected while rooms or sidebar links still live in it. Operators move or delete its contents first.
 - Moving a room between groups requires `room.manage` in both the source and the target group (the room's effective ACL changes overnight).
+- Creating, editing, moving, deleting, or reordering sidebar links requires `room.manage` for the affected group. Moving a sidebar link between groups requires `room.manage` in both the source and target groups, matching room moves.
 - Room-scope permissions (`message.post`, `room.join`, `message.react`, etc.) can be configured per group, with per-room overrides on top.
 
 ## Design Decisions
@@ -39,29 +44,49 @@ Channel rooms are organized into **room groups** — named, ordered containers t
 
 ### 4. Group deletion is non-cascading
 
-**Decision:** A group with rooms in it can't be deleted. Operators must move every room out first.
+**Decision:** A group with rooms or sidebar links in it can't be deleted. Operators must move every sidebar item out first.
 **Why:** Cascading delete would be silent data loss in disguise — the operator might not realize rooms were tied to the group they're discarding. Forcing an explicit move makes the operator's intent unambiguous.
 **Tradeoff:** A bit more UI work to "drain" a group before removing it. Worth it for the safety.
 
 ### 5. Moves require authorization in both ends
 
-**Decision:** Moving a room from group A to group B requires `room.manage` in *both* A and B. The UI previews affected users before confirming.
+**Decision:** Moving a room or sidebar link from group A to group B requires `room.manage` in *both* A and B. The UI previews affected users before confirming room moves.
 **Why:** Moving across groups changes the effective permission set for everyone using the room. An admin authorized only in A shouldn't be able to dump rooms into B and grant a different audience access. Requiring both ends makes the privilege boundary symmetric.
-**Tradeoff:** Operators with split responsibilities (group-of-groups admins) can't unilaterally rebalance — they need authorization on both sides. Considered correct: the operation is consequential.
+**Tradeoff:** Operators with split responsibilities (group-of-groups admins) can't unilaterally rebalance — they need authorization on both sides. Considered correct: the operation is consequential. The write path uses a room-group projection snapshot plus `evt.group.>` OCC so concurrent moves retry from the current source group before appending the remove/add batch.
 
-### 6. DMs are outside the group system
+### 6. Sidebar links extend the existing group aggregate
 
-**Decision:** DM rooms don't belong to any group. Their permission resolution uses server scope plus the hardcoded `dmBoundaryDeniedPermissions` list; group concepts don't apply.
-**Why:** DMs don't fit a "category of rooms" model — every DM is its own thing. Trying to retrofit groups onto DMs would either need a synthetic "DMs" group (privilege concentration risk) or per-DM groups (meaningless). See ADR-015 and ADR-031.
-**Tradeoff:** Two parallel resolution paths in code. The DM path is small and well-isolated.
+**Decision:** Sidebar links are group-owned entries persisted as durable `evt.group.{groupId}.{eventType}` facts alongside room add/remove/reorder facts.
+**Why:** The sidebar already reads group membership and order from the group aggregate. Keeping external links in that aggregate gives one ordered list of sidebar items without introducing a second layout store or a parallel permission model.
+**Tradeoff:** A group reorder now talks about mixed sidebar entries rather than room IDs alone. The public API keeps room-specific operations and mixed-entry operations explicit for link-aware clients.
+
+### 7. DMs are outside the group system
+
+**Decision:** DM rooms don't belong to any group. Reading is governed by DM room membership; sending and starting DMs use message permissions; the hardcoded `dmBoundaryDeniedPermissions` list still prevents channel-style moderation inside DMs. Group concepts don't apply.
+**Why:** DMs don't fit a "category of rooms" model — every DM is its own conversation. Trying to retrofit groups onto DMs would either need a synthetic "DMs" group (privilege concentration risk) or per-DM groups (meaningless). See ADR-031 and ADR-037.
+**Tradeoff:** DMs keep a small policy branch outside the room-group model. That branch is about DM privacy and creation, not about read visibility.
+
+### 8. Sidebar visibility follows room.list, not membership
+
+**Decision:** Channel-room sidebar entries are based on `room.list` visibility and room-group layout, while membership only changes the row's presentation and action.
+**Why:** Operators configure the sidebar through room groups. Showing all listable rooms makes that layout the user's map of the server, and lets users discover rooms before joining them.
+**Tradeoff:** The sidebar can show rooms the viewer cannot enter yet. Those rows need clear affordances so discovery does not look like broken navigation.
+
+### 9. Room directory reads are available over ConnectRPC
+
+**Decision:** `RoomDirectoryService` is the protobuf-first read surface for room navigation: non-archived visible room lists, ordered room groups, mixed sidebar items, per-room viewer capability state, and the group join-all command.
+**Why:** Clients need room/sidebar data around lifecycle commands. Keeping the directory read model in ConnectRPC lets clients render navigation and action affordances through one protobuf API surface.
+**Tradeoff:** The service owns the room/sidebar visibility contract directly, so changes to room visibility must update the ConnectRPC mapping and tests.
 
 ## Permissions
 
 - `room.create` — configured per group (or at server scope as a default).
 - `room.manage` — required in both source and target groups when moving a room.
+- `room.list` — controls whether a channel room appears in the sidebar and room directory for non-members.
+- `room.join` — controls whether a non-member can join a visible channel room directly.
 - All channel-room-scope permissions (`message.post`, `room.join`, etc.) are configurable per group with per-room overrides.
 
 ## Related
 
-- **ADRs:** ADR-005 (hierarchy-wins RBAC), ADR-015 (DMs as a hidden space), ADR-031 (room-group-centric ACL)
+- **ADRs:** ADR-031 (room-group-centric ACL), ADR-037 (DM access via membership), ADR-040 (permission-only RBAC with owner override)
 - **FDRs:** FDR-001 (Roles & Permissions), FDR-007 (Direct Messages), FDR-019 (Room Lifecycle)

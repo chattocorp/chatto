@@ -1,0 +1,48 @@
+syntax = "proto3";
+
+package chatto.api.v1;
+
+import "buf/validate/validate.proto";
+
+// Request to fetch server-side link preview metadata for a URL.
+message FetchLinkPreviewRequest {
+  // URL to preview.
+  string url = 1 [
+    (buf.validate.field).string.min_len = 1,
+    (buf.validate.field).string.max_len = 2048
+  ];
+}
+
+// Link preview metadata used by message composers and room timeline events.
+//
+// Clients should treat optional metadata as unavailable when absent. Message
+// creation accepts only the preview_token returned by FetchLinkPreview, not
+// client-provided metadata fields.
+message LinkPreview {
+  // Previewed URL.
+  string url = 1;
+  // Page or embed title.
+  optional string title = 2;
+  // Page or embed description.
+  optional string description = 3;
+  // Preview image URL, when available.
+  optional string image_url = 4;
+  // Existing server asset ID for the preview image, when cached or stored with
+  // the message.
+  optional string image_asset_id = 5;
+  // Site name, when known.
+  optional string site_name = 6;
+  // Embed provider or type, when recognized.
+  optional string embed_type = 7;
+  // Provider-specific embed ID, when recognized.
+  optional string embed_id = 8;
+}
+
+// Result of fetching link preview metadata.
+message FetchLinkPreviewResponse {
+  // Preview metadata, or absent when the URL cannot be previewed.
+  LinkPreview preview = 1;
+  // Short-lived opaque token to pass to CreateMessage.link_preview_token when
+  // the user posts this preview.
+  string preview_token = 2;
+}

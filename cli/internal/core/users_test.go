@@ -2,16 +2,22 @@ package core
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"image"
 	"image/color"
 	"image/png"
 	"io"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
-	"github.com/nats-io/nats.go/jetstream"
+	"google.golang.org/protobuf/proto"
+	"hmans.de/chatto/internal/core/subjects"
+	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/kms"
+	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
 func TestChattoCore_CreateUser(t *testing.T) {
@@ -49,6 +55,121 @@ func TestChattoCore_CreateUser(t *testing.T) {
 	_, err = core.VerifyPassword(ctx, user.Login, "password123")
 	if err != nil {
 		t.Errorf("Expected password to be verifiable: %v", err)
+	}
+}
+
+func TestChattoCore_CreateUserUsesProvidedActorID(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	user, err := core.CreateUser(ctx, SystemActorID, "actor-attribution", "Actor Attribution", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+
+	accountEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.UserAggregate(user.Id).Subject(events.EventUserAccountCreated))
+	if err != nil {
+		t.Fatalf("SubjectEvents account created: %v", err)
+	}
+	if len(accountEvents) != 1 {
+		t.Fatalf("account created events = %d, want 1", len(accountEvents))
+	}
+	if got := accountEvents[0].GetActorId(); got != SystemActorID {
+		t.Fatalf("account created actor = %q, want %q", got, SystemActorID)
+	}
+
+	dekEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.UserAggregate(user.Id).Subject(events.EventUserDEKGenerated))
+	if err != nil {
+		t.Fatalf("SubjectEvents DEK generated: %v", err)
+	}
+	if len(dekEvents) != 2 {
+		t.Fatalf("DEK generated events = %d, want 2", len(dekEvents))
+	}
+	for _, event := range dekEvents {
+		if got := event.GetActorId(); got != SystemActorID {
+			t.Fatalf("DEK generated actor = %q, want %q", got, SystemActorID)
+		}
+	}
+}
+
+func TestChattoCore_CreateUserLiveEventUsesProvidedActorID(t *testing.T) {
+	core, nc := setupTestCore(t)
+	ctx := testContext(t)
+
+	sub, err := nc.SubscribeSync(subjects.LiveSyncAllEvents())
+	if err != nil {
+		t.Fatalf("SubscribeSync live events: %v", err)
+	}
+	defer sub.Unsubscribe()
+	if err := nc.Flush(); err != nil {
+		t.Fatalf("Flush subscription: %v", err)
+	}
+
+	user, err := core.CreateUser(ctx, SystemActorID, "actor-live-create", "Actor Live Create", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+
+	msg, err := sub.NextMsg(2 * time.Second)
+	if err != nil {
+		t.Fatalf("waiting for user created live event: %v", err)
+	}
+	var live corev1.LiveEvent
+	if err := proto.Unmarshal(msg.Data, &live); err != nil {
+		t.Fatalf("unmarshal live event: %v", err)
+	}
+	created := live.GetUserCreated()
+	if created == nil {
+		t.Fatalf("expected UserCreatedEvent, got %T", live.Event)
+	}
+	if created.GetUserId() != user.GetId() {
+		t.Fatalf("created live user_id = %q, want %q", created.GetUserId(), user.GetId())
+	}
+	if got := live.GetActorId(); got != SystemActorID {
+		t.Fatalf("created live actor = %q, want %q", got, SystemActorID)
+	}
+}
+
+type cancelAfterWrapKeyWrapper struct {
+	kms.KeyWrapper
+	cancel    context.CancelFunc
+	wrapped   bool
+	wrappedBy string
+}
+
+func (w *cancelAfterWrapKeyWrapper) WrapContentKey(ctx context.Context, keyRef string, contentKey, aad []byte) (*kms.WrappedContentKey, error) {
+	wrapped, err := w.KeyWrapper.WrapContentKey(ctx, keyRef, contentKey, aad)
+	if err == nil && !w.wrapped {
+		w.wrapped = true
+		w.wrappedBy = keyRef
+		w.cancel()
+	}
+	return wrapped, err
+}
+
+func TestChattoCore_CreateUser_AppendFailureCleansUpEncryptionKey(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx, cancel := context.WithCancel(testContext(t))
+	wrapper := &cancelAfterWrapKeyWrapper{
+		KeyWrapper: core.encryption.keyWrapper,
+		cancel:     cancel,
+	}
+	core.encryption.keyWrapper = wrapper
+
+	_, err := core.CreateUser(ctx, "system", "cancelled-signup", "Cancelled Signup", "password123")
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("CreateUser error = %v, want context.Canceled", err)
+	}
+	if !wrapper.wrapped {
+		t.Fatal("test did not reach content-key wrapping")
+	}
+
+	exists, err := wrapper.KeyWrapper.KeyExists(context.Background(), wrapper.wrappedBy)
+	if err != nil {
+		t.Fatalf("KeyExists: %v", err)
+	}
+	if exists {
+		t.Fatalf("encryption key for failed signup key ref %q still exists", wrapper.wrappedBy)
 	}
 }
 
@@ -563,6 +684,223 @@ func TestChattoCore_SetPasswordHash(t *testing.T) {
 	}
 }
 
+func TestChattoCore_SetPasswordHash_RechecksCurrentPasswordAfterOCCConflict(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	user, err := core.CreateUser(ctx, "system", "stale-password-user", "Stale Password User", "initial123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+
+	checks := 0
+	err = core.setPasswordHash(ctx, user.Id, user.Id, "staleoverwrite789", true, func() error {
+		checks++
+		if err := core.verifyUserPasswordCurrent(user.Id, "initial123"); err != nil {
+			return err
+		}
+		if checks == 1 {
+			if err := core.SetPasswordHash(ctx, user.Id, "newerpassword456"); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if !errors.Is(err, ErrCurrentPasswordInvalid) {
+		t.Fatalf("setPasswordHash stale proof error = %v, want ErrCurrentPasswordInvalid", err)
+	}
+	if checks < 2 {
+		t.Fatalf("current password check ran %d time(s), want retry after conflict", checks)
+	}
+	if _, err := core.VerifyPassword(ctx, user.Login, "newerpassword456"); err != nil {
+		t.Fatalf("newer password should remain valid: %v", err)
+	}
+	if _, err := core.VerifyPassword(ctx, user.Login, "staleoverwrite789"); err == nil {
+		t.Fatal("stale password overwrite should not be valid")
+	}
+}
+
+func TestChattoCore_SetPasswordHashRejectsMissingUser(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	err := core.SetPasswordHash(ctx, "UmissingPassword", "newpassword456")
+	if !errors.Is(err, ErrNotFound) {
+		t.Fatalf("SetPasswordHash error = %v, want ErrNotFound", err)
+	}
+}
+
+func TestChattoCore_SetPasswordHash_RevokesBearerTokens(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	user, err := core.CreateUser(ctx, "system", "password-revoke-user", "Password Revoke User", "initial123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	otherUser, err := core.CreateUser(ctx, "system", "password-revoke-other", "Password Revoke Other", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser other: %v", err)
+	}
+
+	token1, err := core.CreateAuthToken(ctx, user.Id)
+	if err != nil {
+		t.Fatalf("CreateAuthToken 1: %v", err)
+	}
+	token2, err := core.CreateAuthToken(ctx, user.Id)
+	if err != nil {
+		t.Fatalf("CreateAuthToken 2: %v", err)
+	}
+	otherToken, err := core.CreateAuthToken(ctx, otherUser.Id)
+	if err != nil {
+		t.Fatalf("CreateAuthToken other: %v", err)
+	}
+
+	if err := core.SetPasswordHash(ctx, user.Id, "newpassword456"); err != nil {
+		t.Fatalf("SetPasswordHash: %v", err)
+	}
+
+	if _, err := core.ValidateAuthToken(ctx, token1); err != ErrAuthTokenNotFound {
+		t.Fatalf("token1 ValidateAuthToken err = %v, want ErrAuthTokenNotFound", err)
+	}
+	if _, err := core.ValidateAuthToken(ctx, token2); err != ErrAuthTokenNotFound {
+		t.Fatalf("token2 ValidateAuthToken err = %v, want ErrAuthTokenNotFound", err)
+	}
+	if gotUserID, err := core.ValidateAuthToken(ctx, otherToken); err != nil {
+		t.Fatalf("other token should remain valid: %v", err)
+	} else if gotUserID != otherUser.Id {
+		t.Fatalf("other token user ID = %q, want %q", gotUserID, otherUser.Id)
+	}
+}
+
+func TestChattoCore_SetInitialPasswordHash(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	user, err := core.CreateUser(ctx, "system", "initial-password-user", "Initial Password User", "")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	token, err := core.CreateAuthToken(ctx, user.Id)
+	if err != nil {
+		t.Fatalf("CreateAuthToken: %v", err)
+	}
+
+	if hasPassword, err := core.HasPassword(ctx, user.Id); err != nil {
+		t.Fatalf("HasPassword before: %v", err)
+	} else if hasPassword {
+		t.Fatal("HasPassword before = true, want false")
+	}
+
+	if err := core.SetInitialPasswordHash(ctx, user.Id, "newpassword456"); err != nil {
+		t.Fatalf("SetInitialPasswordHash: %v", err)
+	}
+	if hasPassword, err := core.HasPassword(ctx, user.Id); err != nil {
+		t.Fatalf("HasPassword after: %v", err)
+	} else if !hasPassword {
+		t.Fatal("HasPassword after = false, want true")
+	}
+	if verified, err := core.VerifyPassword(ctx, user.Login, "newpassword456"); err != nil {
+		t.Fatalf("VerifyPassword: %v", err)
+	} else if verified.Id != user.Id {
+		t.Fatalf("verified user ID = %q, want %q", verified.Id, user.Id)
+	}
+	if gotUserID, err := core.ValidateAuthToken(ctx, token); err != nil {
+		t.Fatalf("existing auth token should remain valid: %v", err)
+	} else if gotUserID != user.Id {
+		t.Fatalf("token user ID = %q, want %q", gotUserID, user.Id)
+	}
+	if err := core.SetInitialPasswordHash(ctx, user.Id, "anotherpassword456"); !errors.Is(err, ErrPasswordAlreadySet) {
+		t.Fatalf("second SetInitialPasswordHash err = %v, want ErrPasswordAlreadySet", err)
+	}
+}
+
+func TestChattoCore_SetOwnPassword(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	passwordless, err := core.CreateUser(ctx, SystemActorID, "own-passwordless", "Own Passwordless", "")
+	if err != nil {
+		t.Fatalf("CreateUser passwordless: %v", err)
+	}
+	token, err := core.CreateAuthToken(ctx, passwordless.Id)
+	if err != nil {
+		t.Fatalf("CreateAuthToken passwordless: %v", err)
+	}
+	if err := core.SetOwnPassword(ctx, passwordless.Id, "", "newpassword456"); err != nil {
+		t.Fatalf("SetOwnPassword passwordless: %v", err)
+	}
+	if _, err := core.VerifyPassword(ctx, passwordless.Login, "newpassword456"); err != nil {
+		t.Fatalf("VerifyPassword passwordless: %v", err)
+	}
+	if gotUserID, err := core.ValidateAuthToken(ctx, token); err != nil {
+		t.Fatalf("initial password should preserve existing token: %v", err)
+	} else if gotUserID != passwordless.Id {
+		t.Fatalf("token user ID = %q, want %q", gotUserID, passwordless.Id)
+	}
+
+	existing, err := core.CreateUser(ctx, SystemActorID, "own-existing", "Own Existing", "oldpassword123")
+	if err != nil {
+		t.Fatalf("CreateUser existing: %v", err)
+	}
+	existingToken, err := core.CreateAuthToken(ctx, existing.Id)
+	if err != nil {
+		t.Fatalf("CreateAuthToken existing: %v", err)
+	}
+	if err := core.SetOwnPassword(ctx, existing.Id, "", "newpassword456"); !errors.Is(err, ErrCurrentPasswordRequired) {
+		t.Fatalf("SetOwnPassword missing current err = %v, want ErrCurrentPasswordRequired", err)
+	}
+	if err := core.SetOwnPassword(ctx, existing.Id, "wrongpassword", "newpassword456"); !errors.Is(err, ErrCurrentPasswordInvalid) {
+		t.Fatalf("SetOwnPassword wrong current err = %v, want ErrCurrentPasswordInvalid", err)
+	}
+	if err := core.SetOwnPassword(ctx, existing.Id, "oldpassword123", "newpassword456"); err != nil {
+		t.Fatalf("SetOwnPassword existing: %v", err)
+	}
+	if _, err := core.VerifyPassword(ctx, existing.Login, "oldpassword123"); err == nil {
+		t.Fatal("old password should no longer verify")
+	}
+	if _, err := core.VerifyPassword(ctx, existing.Login, "newpassword456"); err != nil {
+		t.Fatalf("new password should verify: %v", err)
+	}
+	if _, err := core.ValidateAuthToken(ctx, existingToken); err != ErrAuthTokenNotFound {
+		t.Fatalf("existing password change token err = %v, want ErrAuthTokenNotFound", err)
+	}
+}
+
+func TestChattoCore_FailedPasswordChangeKeepsOldPasswordUsable(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	user, err := core.CreateUser(ctx, "system", "password-failed-change-user", "Password Failed Change User", "oldpassword")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	if _, err := core.VerifyPassword(ctx, user.Login, "oldpassword"); err != nil {
+		t.Fatalf("old password should initially verify: %v", err)
+	}
+	authGeneration, err := core.CurrentAuthGeneration(ctx, user.Id)
+	if err != nil {
+		t.Fatalf("CurrentAuthGeneration: %v", err)
+	}
+
+	if err := core.SetPasswordHash(ctx, user.Id, "short"); err == nil {
+		t.Fatal("SetPasswordHash should reject too-short password")
+	}
+
+	afterGeneration, err := core.CurrentAuthGeneration(ctx, user.Id)
+	if err != nil {
+		t.Fatalf("CurrentAuthGeneration after failure: %v", err)
+	}
+	if afterGeneration != authGeneration {
+		t.Fatalf("auth generation = %d, want unchanged %d", afterGeneration, authGeneration)
+	}
+	if verified, err := core.VerifyPassword(ctx, user.Login, "oldpassword"); err != nil {
+		t.Fatalf("old password should remain usable after failed change: %v", err)
+	} else if verified.Id != user.Id {
+		t.Fatalf("verified user ID = %q, want %q", verified.Id, user.Id)
+	}
+}
+
 func TestChattoCore_CreateUser_WithoutPassword(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
@@ -628,6 +966,204 @@ func TestChattoCore_AddPasswordToOAuthUser(t *testing.T) {
 	}
 	if verified.Id != user.Id {
 		t.Errorf("Expected user ID '%s', got '%s'", user.Id, verified.Id)
+	}
+}
+
+func TestChattoCore_LinkExternalIdentity(t *testing.T) {
+	core, _ := setupTestCore(t)
+
+	ctx := context.Background()
+	user, err := core.CreateUser(ctx, "system", "externaluser", "External User", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	other, err := core.CreateUser(ctx, "system", "externalother", "External Other", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser other: %v", err)
+	}
+
+	if err := core.LinkExternalIdentity(ctx, "github-main", "github", "github-main", "12345", user.Id); err != nil {
+		t.Fatalf("LinkExternalIdentity: %v", err)
+	}
+	if err := core.LinkExternalIdentity(ctx, "github-main", "github", "github-main", "12345", user.Id); err != nil {
+		t.Fatalf("LinkExternalIdentity idempotent: %v", err)
+	}
+
+	found, err := core.GetUserByExternalIdentity(ctx, "github-main", "12345")
+	if err != nil {
+		t.Fatalf("GetUserByExternalIdentity: %v", err)
+	}
+	if found == nil || found.Id != user.Id {
+		t.Fatalf("GetUserByExternalIdentity = %v, want %s", found, user.Id)
+	}
+
+	err = core.LinkExternalIdentity(ctx, "github-main", "github", "github-main", "12345", other.Id)
+	if !errors.Is(err, ErrExternalIdentityAlreadyClaimed) {
+		t.Fatalf("LinkExternalIdentity conflict error = %v, want ErrExternalIdentityAlreadyClaimed", err)
+	}
+}
+
+func TestChattoCore_DisconnectExternalIdentity(t *testing.T) {
+	core, _ := setupTestCore(t)
+
+	ctx := context.Background()
+	user, err := core.CreateUser(ctx, "system", "disconnectuser", "Disconnect User", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	if err := core.LinkExternalIdentity(ctx, "github-main", "github", "github-main", "12345", user.Id); err != nil {
+		t.Fatalf("LinkExternalIdentity: %v", err)
+	}
+	authGeneration, err := core.CurrentAuthGeneration(ctx, user.Id)
+	if err != nil {
+		t.Fatalf("CurrentAuthGeneration: %v", err)
+	}
+	token, err := core.CreateAuthTokenWithSourceGeneration(ctx, user.Id, "external_identity_login", authGeneration)
+	if err != nil {
+		t.Fatalf("CreateAuthTokenWithSourceGeneration: %v", err)
+	}
+	sessionID, _, err := core.CreateCookieSessionForGeneration(ctx, user.Id, "external_identity_login", authGeneration)
+	if err != nil {
+		t.Fatalf("CreateCookieSessionForGeneration: %v", err)
+	}
+	identities, err := core.ExternalIdentitiesForUser(ctx, user.Id)
+	if err != nil {
+		t.Fatalf("ExternalIdentitiesForUser: %v", err)
+	}
+	if len(identities) != 1 || identities[0].SubjectHash == "" {
+		t.Fatalf("identities = %+v", identities)
+	}
+
+	if err := core.DisconnectExternalIdentity(ctx, user.Id, identities[0].SubjectHash); err != nil {
+		t.Fatalf("DisconnectExternalIdentity: %v", err)
+	}
+	found, err := core.GetUserByExternalIdentity(ctx, "github-main", "12345")
+	if err != nil {
+		t.Fatalf("GetUserByExternalIdentity: %v", err)
+	}
+	if found != nil {
+		t.Fatalf("GetUserByExternalIdentity after disconnect = %v, want nil", found)
+	}
+	identities, err = core.ExternalIdentitiesForUser(ctx, user.Id)
+	if err != nil {
+		t.Fatalf("ExternalIdentitiesForUser after disconnect: %v", err)
+	}
+	if len(identities) != 0 {
+		t.Fatalf("identities after disconnect = %+v, want empty", identities)
+	}
+	if _, err := core.ValidateAuthToken(ctx, token); !errors.Is(err, ErrAuthTokenNotFound) {
+		t.Fatalf("ValidateAuthToken after disconnect err = %v, want ErrAuthTokenNotFound", err)
+	}
+	if _, err := core.ValidateCookieSession(ctx, user.Id, sessionID); !errors.Is(err, ErrCookieSessionNotFound) {
+		t.Fatalf("ValidateCookieSession after disconnect err = %v, want ErrCookieSessionNotFound", err)
+	}
+	if _, err := core.CreateAuthTokenWithSourceGeneration(ctx, user.Id, "external_identity_login", authGeneration); !errors.Is(err, ErrAuthTokenNotFound) {
+		t.Fatalf("CreateAuthTokenWithSourceGeneration old generation err = %v, want ErrAuthTokenNotFound", err)
+	}
+	afterGeneration, err := core.CurrentAuthGeneration(ctx, user.Id)
+	if err != nil {
+		t.Fatalf("CurrentAuthGeneration after disconnect: %v", err)
+	}
+	if afterGeneration == authGeneration {
+		t.Fatal("auth generation should advance after external identity disconnect")
+	}
+
+	err = core.DisconnectExternalIdentity(ctx, user.Id, "missing-subject-hash")
+	if !errors.Is(err, ErrExternalIdentityNotFound) {
+		t.Fatalf("DisconnectExternalIdentity missing error = %v, want ErrExternalIdentityNotFound", err)
+	}
+}
+
+func TestChattoCore_DisconnectExternalIdentityRejectsLastPasswordlessMethod(t *testing.T) {
+	core, _ := setupTestCore(t)
+
+	ctx := context.Background()
+	user, err := core.CreateUser(ctx, "system", "passwordless-disconnect", "Passwordless Disconnect", "")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	if err := core.LinkExternalIdentity(ctx, "github-main", "github", "github-main", "12345", user.Id); err != nil {
+		t.Fatalf("LinkExternalIdentity: %v", err)
+	}
+	identities, err := core.ExternalIdentitiesForUser(ctx, user.Id)
+	if err != nil {
+		t.Fatalf("ExternalIdentitiesForUser: %v", err)
+	}
+
+	err = core.DisconnectExternalIdentity(ctx, user.Id, identities[0].SubjectHash)
+	if !errors.Is(err, ErrExternalIdentityLastMethod) {
+		t.Fatalf("DisconnectExternalIdentity last method error = %v, want ErrExternalIdentityLastMethod", err)
+	}
+
+	if err := core.LinkExternalIdentity(ctx, "discord-main", "discord", "discord-main", "abc123", user.Id); err != nil {
+		t.Fatalf("LinkExternalIdentity second: %v", err)
+	}
+	if err := core.DisconnectExternalIdentity(ctx, user.Id, identities[0].SubjectHash); err != nil {
+		t.Fatalf("DisconnectExternalIdentity with second identity: %v", err)
+	}
+	identities, err = core.ExternalIdentitiesForUser(ctx, user.Id)
+	if err != nil {
+		t.Fatalf("ExternalIdentitiesForUser final: %v", err)
+	}
+	if len(identities) != 1 || identities[0].ProviderID != "discord-main" {
+		t.Fatalf("identities final = %+v, want discord only", identities)
+	}
+}
+
+func TestChattoCore_DisconnectExternalIdentityConcurrentDuplicate(t *testing.T) {
+	core, _ := setupTestCore(t)
+
+	ctx := context.Background()
+	user, err := core.CreateUser(ctx, "system", "disconnectrace", "Disconnect Race", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	if err := core.LinkExternalIdentity(ctx, "github-main", "github", "github-main", "12345", user.Id); err != nil {
+		t.Fatalf("LinkExternalIdentity: %v", err)
+	}
+	identities, err := core.ExternalIdentitiesForUser(ctx, user.Id)
+	if err != nil {
+		t.Fatalf("ExternalIdentitiesForUser: %v", err)
+	}
+	if len(identities) != 1 || identities[0].SubjectHash == "" {
+		t.Fatalf("identities = %+v", identities)
+	}
+
+	start := make(chan struct{})
+	errs := make(chan error, 2)
+	var wg sync.WaitGroup
+	for i := 0; i < 2; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			errs <- core.DisconnectExternalIdentity(ctx, user.Id, identities[0].SubjectHash)
+		}()
+	}
+	close(start)
+	wg.Wait()
+	close(errs)
+
+	var successes, notFound int
+	for err := range errs {
+		switch {
+		case err == nil:
+			successes++
+		case errors.Is(err, ErrExternalIdentityNotFound):
+			notFound++
+		default:
+			t.Fatalf("DisconnectExternalIdentity concurrent error = %v", err)
+		}
+	}
+	if successes != 1 || notFound != 1 {
+		t.Fatalf("concurrent disconnect results: successes=%d notFound=%d, want 1 each", successes, notFound)
+	}
+	identities, err = core.ExternalIdentitiesForUser(ctx, user.Id)
+	if err != nil {
+		t.Fatalf("ExternalIdentitiesForUser after concurrent disconnect: %v", err)
+	}
+	if len(identities) != 0 {
+		t.Fatalf("identities after concurrent disconnect = %+v, want empty", identities)
 	}
 }
 
@@ -710,6 +1246,40 @@ func TestChattoCore_CreateUser_BlockedUsername(t *testing.T) {
 			t.Errorf("Expected ErrUsernameBlocked, got: %v", err)
 		}
 	})
+}
+
+func TestChattoCore_CreateUser_MentionNamespaceReserved(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	if _, err := core.CreateServerRole(ctx, SystemActorID, "helpdesk", "Helpdesk", ""); err != nil {
+		t.Fatalf("CreateServerRole helpdesk: %v", err)
+	}
+
+	for _, login := range []string{"all", "here", "helpdesk", "HELPDESK"} {
+		t.Run(login, func(t *testing.T) {
+			_, err := core.CreateUser(ctx, "system", login, login, "password123")
+			if !errors.Is(err, ErrUsernameBlocked) {
+				t.Fatalf("CreateUser(%q) error = %v, want ErrUsernameBlocked", login, err)
+			}
+		})
+	}
+}
+
+func TestChattoCore_UpdateUserLoginReleasesOldMentionHandle(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	user, err := core.CreateUser(ctx, SystemActorID, "oldhandle", "Old Handle", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	if _, err := core.UpdateUserLogin(ctx, user.Id, "newhandle"); err != nil {
+		t.Fatalf("UpdateUserLogin: %v", err)
+	}
+	if _, err := core.CreateServerRole(ctx, SystemActorID, "oldhandle", "Old Handle", ""); err != nil {
+		t.Fatalf("CreateServerRole with released login: %v", err)
+	}
 }
 
 func TestChattoCore_UpdateUserLogin(t *testing.T) {
@@ -995,6 +1565,422 @@ func TestChattoCore_UpdateUserLogin(t *testing.T) {
 	})
 }
 
+func TestChattoCore_AdminUpdateUserAuthorization(t *testing.T) {
+	t.Run("unauthenticated actor is rejected", func(t *testing.T) {
+		c, _ := setupTestCore(t)
+		ctx := testContext(t)
+		target, err := c.CreateUser(ctx, SystemActorID, "adminauth-target", "Target", "password123")
+		if err != nil {
+			t.Fatalf("CreateUser target: %v", err)
+		}
+		login := "adminauth-renamed"
+		_, err = c.AdminUpdateUser(ctx, "", target.Id, AdminUpdateUserInput{Login: &login})
+		if !errors.Is(err, ErrNotAuthenticated) {
+			t.Fatalf("AdminUpdateUser err = %v, want ErrNotAuthenticated", err)
+		}
+		if err := c.AdminSetUserPasswordAuthorized(ctx, "", target.Id, "newpassword456"); !errors.Is(err, ErrNotAuthenticated) {
+			t.Fatalf("AdminSetUserPasswordAuthorized err = %v, want ErrNotAuthenticated", err)
+		}
+	})
+
+	t.Run("regular user cannot update another user", func(t *testing.T) {
+		c, _ := setupTestCore(t)
+		ctx := testContext(t)
+		regular, err := c.CreateUser(ctx, SystemActorID, "adminauth-regular", "Regular", "password123")
+		if err != nil {
+			t.Fatalf("CreateUser regular: %v", err)
+		}
+		target, err := c.CreateUser(ctx, SystemActorID, "adminauth-target2", "Target", "password123")
+		if err != nil {
+			t.Fatalf("CreateUser target: %v", err)
+		}
+		login := "adminauth-denied"
+		_, err = c.AdminUpdateUser(ctx, regular.Id, target.Id, AdminUpdateUserInput{Login: &login})
+		if !errors.Is(err, ErrPermissionDenied) {
+			t.Fatalf("AdminUpdateUser err = %v, want ErrPermissionDenied", err)
+		}
+		if err := c.AdminClearLoginChangeCooldown(ctx, regular.Id, target.Id); !errors.Is(err, ErrPermissionDenied) {
+			t.Fatalf("AdminClearLoginChangeCooldown err = %v, want ErrPermissionDenied", err)
+		}
+		if err := c.AdminSetUserPasswordAuthorized(ctx, regular.Id, target.Id, "newpassword456"); !errors.Is(err, ErrPermissionDenied) {
+			t.Fatalf("AdminSetUserPasswordAuthorized err = %v, want ErrPermissionDenied", err)
+		}
+	})
+
+	t.Run("admin role holder can update another user", func(t *testing.T) {
+		c, _ := setupTestCore(t)
+		ctx := testContext(t)
+		admin, err := c.CreateUser(ctx, SystemActorID, "adminauth-admin", "Admin", "password123")
+		if err != nil {
+			t.Fatalf("CreateUser admin: %v", err)
+		}
+		if err := c.AssignAdminRole(ctx, admin.Id); err != nil {
+			t.Fatalf("AssignAdminRole: %v", err)
+		}
+		target, err := c.CreateUser(ctx, SystemActorID, "adminauth-target3", "Target", "password123")
+		if err != nil {
+			t.Fatalf("CreateUser target: %v", err)
+		}
+		login := "adminauth-updated"
+		displayName := "Admin Updated"
+		updated, err := c.AdminUpdateUser(ctx, admin.Id, target.Id, AdminUpdateUserInput{
+			Login:       &login,
+			DisplayName: &displayName,
+		})
+		if err != nil {
+			t.Fatalf("AdminUpdateUser: %v", err)
+		}
+		if updated.GetLogin() != login || updated.GetDisplayName() != displayName {
+			t.Fatalf("updated user = %+v, want login %q display %q", updated, login, displayName)
+		}
+		if err := c.AdminClearLoginChangeCooldown(ctx, admin.Id, target.Id); err != nil {
+			t.Fatalf("AdminClearLoginChangeCooldown: %v", err)
+		}
+		if err := c.AdminSetUserPasswordAuthorized(ctx, admin.Id, target.Id, "adminpassword456"); err != nil {
+			t.Fatalf("AdminSetUserPasswordAuthorized: %v", err)
+		}
+		if _, err := c.VerifyPassword(ctx, updated.GetLogin(), "adminpassword456"); err != nil {
+			t.Fatalf("admin-set password should verify: %v", err)
+		}
+		if err := c.GrantUserPermission(ctx, SystemActorID, admin.Id, PermAdminAuditView); err != nil {
+			t.Fatalf("GrantUserPermission admin.view-audit: %v", err)
+		}
+		log, err := c.ListEventLog(ctx, admin.Id, EventLogQuery{
+			Limit: 10,
+			Filter: EventLogFilter{
+				EventType: "UserPasswordHashChangedEvent",
+				ActorID:   admin.Id,
+			},
+		})
+		if err != nil {
+			t.Fatalf("ListEventLog password reset: %v", err)
+		}
+		var found bool
+		for _, entry := range log.Entries {
+			if strings.Contains(entry.PayloadJSON, target.Id) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Fatalf("admin password reset audit entry with actor %q for target %q not found: %+v", admin.Id, target.Id, log.Entries)
+		}
+	})
+
+	t.Run("role assignment permission cannot reset another user password", func(t *testing.T) {
+		c, _ := setupTestCore(t)
+		ctx := testContext(t)
+		roleAssigner, err := c.CreateUser(ctx, SystemActorID, "adminauth-role-assigner", "Role Assigner", "password123")
+		if err != nil {
+			t.Fatalf("CreateUser role assigner: %v", err)
+		}
+		if err := c.GrantUserPermission(ctx, SystemActorID, roleAssigner.Id, PermRoleAssign); err != nil {
+			t.Fatalf("GrantUserPermission role.assign: %v", err)
+		}
+		target, err := c.CreateUser(ctx, SystemActorID, "adminauth-target-role-only", "Target", "password123")
+		if err != nil {
+			t.Fatalf("CreateUser target: %v", err)
+		}
+
+		if err := c.AdminSetUserPasswordAuthorized(ctx, roleAssigner.Id, target.Id, "newpassword456"); !errors.Is(err, ErrPermissionDenied) {
+			t.Fatalf("AdminSetUserPasswordAuthorized err = %v, want ErrPermissionDenied", err)
+		}
+		if _, err := c.VerifyPassword(ctx, target.Login, "password123"); err != nil {
+			t.Fatalf("original password should still verify: %v", err)
+		}
+	})
+
+	t.Run("account management permission can reset another user password", func(t *testing.T) {
+		c, _ := setupTestCore(t)
+		ctx := testContext(t)
+		accountManager, err := c.CreateUser(ctx, SystemActorID, "adminauth-account-manager", "Account Manager", "password123")
+		if err != nil {
+			t.Fatalf("CreateUser account manager: %v", err)
+		}
+		if err := c.GrantUserPermission(ctx, SystemActorID, accountManager.Id, PermUserManageAccounts); err != nil {
+			t.Fatalf("GrantUserPermission user.manage-accounts: %v", err)
+		}
+		target, err := c.CreateUser(ctx, SystemActorID, "adminauth-target-account-manager", "Target", "password123")
+		if err != nil {
+			t.Fatalf("CreateUser target: %v", err)
+		}
+
+		if err := c.AdminSetUserPasswordAuthorized(ctx, accountManager.Id, target.Id, "managedpassword456"); err != nil {
+			t.Fatalf("AdminSetUserPasswordAuthorized: %v", err)
+		}
+		if _, err := c.VerifyPassword(ctx, target.Login, "managedpassword456"); err != nil {
+			t.Fatalf("account-manager-set password should verify: %v", err)
+		}
+	})
+
+	t.Run("self update uses account path not admin mutation path", func(t *testing.T) {
+		c, _ := setupTestCore(t)
+		ctx := testContext(t)
+		user, err := c.CreateUser(ctx, SystemActorID, "adminauth-self", "Self", "password123")
+		if err != nil {
+			t.Fatalf("CreateUser self: %v", err)
+		}
+		login := "adminauth-self-updated"
+		if _, err := c.AdminUpdateUser(ctx, user.Id, user.Id, AdminUpdateUserInput{Login: &login}); !errors.Is(err, ErrPermissionDenied) {
+			t.Fatalf("AdminUpdateUser self err = %v, want ErrPermissionDenied", err)
+		}
+		if err := c.AdminClearLoginChangeCooldown(ctx, user.Id, user.Id); !errors.Is(err, ErrPermissionDenied) {
+			t.Fatalf("AdminClearLoginChangeCooldown self err = %v, want ErrPermissionDenied", err)
+		}
+		updated, err := c.UpdateUserLogin(ctx, user.Id, login)
+		if err != nil {
+			t.Fatalf("UpdateUserLogin self: %v", err)
+		}
+		if updated.GetLogin() != login {
+			t.Fatalf("updated login = %q, want %q", updated.GetLogin(), login)
+		}
+	})
+
+	t.Run("self password reset is rejected", func(t *testing.T) {
+		c, _ := setupTestCore(t)
+		ctx := testContext(t)
+		user, err := c.CreateUser(ctx, SystemActorID, "adminauth-self-password", "Self Password", "password123")
+		if err != nil {
+			t.Fatalf("CreateUser self: %v", err)
+		}
+		if err := c.AdminSetUserPasswordAuthorized(ctx, user.Id, user.Id, "newpassword456"); !errors.Is(err, ErrAdminCannotSetOwnPassword) {
+			t.Fatalf("AdminSetUserPasswordAuthorized self err = %v, want ErrAdminCannotSetOwnPassword", err)
+		}
+		if _, err := c.VerifyPassword(ctx, user.Login, "password123"); err != nil {
+			t.Fatalf("original password should still verify: %v", err)
+		}
+	})
+}
+
+func TestChattoCore_AdminMemberReads(t *testing.T) {
+	c, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	target, err := c.CreateUser(ctx, SystemActorID, "adminmember-target", "Admin Member Target", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser target: %v", err)
+	}
+	regular, err := c.CreateUser(ctx, SystemActorID, "adminmember-regular", "Admin Member Regular", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser regular: %v", err)
+	}
+	admin, err := c.CreateUser(ctx, SystemActorID, "adminmember-admin", "Admin Member Admin", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser admin: %v", err)
+	}
+	if err := c.AssignAdminRole(ctx, admin.Id); err != nil {
+		t.Fatalf("AssignAdminRole: %v", err)
+	}
+	if err := c.AssignServerRole(ctx, SystemActorID, target.Id, RoleModerator); err != nil {
+		t.Fatalf("AssignServerRole target: %v", err)
+	}
+	if err := c.AddVerifiedEmailDirect(ctx, target.Id, "adminmember-target@example.test"); err != nil {
+		t.Fatalf("AddVerifiedEmailDirect target: %v", err)
+	}
+	if _, err := c.UpdateUserLogin(ctx, target.Id, "adminmember-target-renamed"); err != nil {
+		t.Fatalf("UpdateUserLogin target: %v", err)
+	}
+
+	if _, err := c.ListAdminMembers(ctx, "", AdminMemberListInput{}); !errors.Is(err, ErrNotAuthenticated) {
+		t.Fatalf("ListAdminMembers unauth err = %v, want ErrNotAuthenticated", err)
+	}
+	if _, err := c.BatchGetAdminMembers(ctx, "", []string{target.Id}); !errors.Is(err, ErrNotAuthenticated) {
+		t.Fatalf("BatchGetAdminMembers unauth err = %v, want ErrNotAuthenticated", err)
+	}
+
+	if _, err := c.ListAdminMembers(ctx, regular.Id, AdminMemberListInput{Search: "target", Limit: 10}); !errors.Is(err, ErrPermissionDenied) {
+		t.Fatalf("ListAdminMembers regular err = %v, want ErrPermissionDenied", err)
+	}
+	if _, err := c.GetAdminMemberDetails(ctx, regular.Id, target.Id); !errors.Is(err, ErrPermissionDenied) {
+		t.Fatalf("GetAdminMemberDetails regular err = %v, want ErrPermissionDenied", err)
+	}
+	if _, err := c.BatchGetAdminMembers(ctx, regular.Id, []string{target.Id}); !errors.Is(err, ErrPermissionDenied) {
+		t.Fatalf("BatchGetAdminMembers regular err = %v, want ErrPermissionDenied", err)
+	}
+
+	list, err := c.ListAdminMembers(ctx, admin.Id, AdminMemberListInput{Search: "target", Limit: 10})
+	if err != nil {
+		t.Fatalf("ListAdminMembers: %v", err)
+	}
+	if list.TotalCount != 1 || len(list.Users) != 1 {
+		t.Fatalf("ListAdminMembers returned %d/%d users, want 1/1", len(list.Users), list.TotalCount)
+	}
+	if got := list.Users[0].Roles; len(got) != 1 || got[0] != RoleModerator {
+		t.Fatalf("list user roles = %v, want explicit moderator only", got)
+	}
+	if !list.Users[0].HasVerifiedEmail || len(list.Users[0].VerifiedEmails) != 1 || list.Users[0].VerifiedEmails[0] != "adminmember-target@example.test" {
+		t.Fatalf("list user emails = has:%v emails:%v, want target email", list.Users[0].HasVerifiedEmail, list.Users[0].VerifiedEmails)
+	}
+	if list.Users[0].LastLoginChange == nil {
+		t.Fatal("list user LastLoginChange is nil, want visible cooldown timestamp")
+	}
+
+	batch, err := c.BatchGetAdminMembers(ctx, admin.Id, []string{target.Id, "missing-user", regular.Id, target.Id})
+	if err != nil {
+		t.Fatalf("BatchGetAdminMembers: %v", err)
+	}
+	if len(batch.Users) != 2 || batch.Users[0].ID != target.Id || batch.Users[1].ID != regular.Id {
+		t.Fatalf("BatchGetAdminMembers users = %+v, want target,regular", batch.Users)
+	}
+	if got := batch.Users[0].Roles; len(got) != 1 || got[0] != RoleModerator {
+		t.Fatalf("batch target roles = %v, want explicit moderator only", got)
+	}
+	if !batch.Users[0].HasVerifiedEmail || len(batch.Users[0].VerifiedEmails) != 1 || batch.Users[0].VerifiedEmails[0] != "adminmember-target@example.test" {
+		t.Fatalf("batch target emails = has:%v emails:%v, want target email", batch.Users[0].HasVerifiedEmail, batch.Users[0].VerifiedEmails)
+	}
+	if batch.Users[0].LastLoginChange == nil {
+		t.Fatal("batch target LastLoginChange is nil, want visible cooldown timestamp")
+	}
+	if len(batch.Roles) == 0 {
+		t.Fatal("batch roles are empty")
+	}
+
+	adminDetails, err := c.GetAdminMemberDetails(ctx, admin.Id, target.Id)
+	if err != nil {
+		t.Fatalf("GetAdminMemberDetails admin: %v", err)
+	}
+	if adminDetails.Member == nil {
+		t.Fatal("admin details member is nil")
+	}
+	if !adminDetails.Member.HasVerifiedEmail || len(adminDetails.Member.VerifiedEmails) != 1 || adminDetails.Member.VerifiedEmails[0] != "adminmember-target@example.test" {
+		t.Fatalf("admin details emails = has:%v emails:%v, want target email", adminDetails.Member.HasVerifiedEmail, adminDetails.Member.VerifiedEmails)
+	}
+	if adminDetails.Member.LastLoginChange == nil {
+		t.Fatal("admin details LastLoginChange is nil, want visible cooldown timestamp")
+	}
+	if !adminDetails.ViewerCanAssignRoles || !adminDetails.ViewerCanManageRoles || !adminDetails.ViewerCanManageUserPermissions {
+		t.Fatalf("admin capabilities = assign:%v manage:%v perms:%v, want all true", adminDetails.ViewerCanAssignRoles, adminDetails.ViewerCanManageRoles, adminDetails.ViewerCanManageUserPermissions)
+	}
+	if len(adminDetails.Roles) == 0 || len(adminDetails.AvailablePermissions) == 0 {
+		t.Fatalf("admin details roles/perms empty: roles=%d perms=%d", len(adminDetails.Roles), len(adminDetails.AvailablePermissions))
+	}
+}
+
+func TestChattoCore_AdminRoleAssignmentAuthorization(t *testing.T) {
+	t.Run("unauthenticated actor is rejected", func(t *testing.T) {
+		c, _ := setupTestCore(t)
+		ctx := testContext(t)
+		target, err := c.CreateUser(ctx, SystemActorID, "adminrole-target", "Target", "password123")
+		if err != nil {
+			t.Fatalf("CreateUser target: %v", err)
+		}
+		if err := c.AdminAssignServerRole(ctx, "", target.Id, RoleModerator); !errors.Is(err, ErrNotAuthenticated) {
+			t.Fatalf("AdminAssignServerRole err = %v, want ErrNotAuthenticated", err)
+		}
+	})
+
+	t.Run("regular user cannot assign or revoke roles", func(t *testing.T) {
+		c, _ := setupTestCore(t)
+		ctx := testContext(t)
+		regular, err := c.CreateUser(ctx, SystemActorID, "adminrole-regular", "Regular", "password123")
+		if err != nil {
+			t.Fatalf("CreateUser regular: %v", err)
+		}
+		target, err := c.CreateUser(ctx, SystemActorID, "adminrole-target2", "Target", "password123")
+		if err != nil {
+			t.Fatalf("CreateUser target: %v", err)
+		}
+		if err := c.AdminAssignServerRole(ctx, regular.Id, target.Id, RoleModerator); !errors.Is(err, ErrPermissionDenied) {
+			t.Fatalf("AdminAssignServerRole err = %v, want ErrPermissionDenied", err)
+		}
+		if err := c.AdminRevokeServerRole(ctx, regular.Id, target.Id, RoleModerator); !errors.Is(err, ErrPermissionDenied) {
+			t.Fatalf("AdminRevokeServerRole err = %v, want ErrPermissionDenied", err)
+		}
+	})
+
+	t.Run("role assigner can assign and revoke roles", func(t *testing.T) {
+		c, _ := setupTestCore(t)
+		ctx := testContext(t)
+		admin, err := c.CreateUser(ctx, SystemActorID, "adminrole-admin", "Admin", "password123")
+		if err != nil {
+			t.Fatalf("CreateUser admin: %v", err)
+		}
+		if err := c.AssignAdminRole(ctx, admin.Id); err != nil {
+			t.Fatalf("AssignAdminRole: %v", err)
+		}
+		target, err := c.CreateUser(ctx, SystemActorID, "adminrole-target3", "Target", "password123")
+		if err != nil {
+			t.Fatalf("CreateUser target: %v", err)
+		}
+		if err := c.AdminAssignServerRole(ctx, admin.Id, target.Id, RoleModerator); err != nil {
+			t.Fatalf("AdminAssignServerRole: %v", err)
+		}
+		roles, err := c.GetUserRoles(ctx, target.Id)
+		if err != nil {
+			t.Fatalf("GetUserRoles after assign: %v", err)
+		}
+		if len(roles) != 1 || roles[0] != RoleModerator {
+			t.Fatalf("roles after assign = %v, want moderator", roles)
+		}
+		if err := c.AdminRevokeServerRole(ctx, admin.Id, target.Id, RoleModerator); err != nil {
+			t.Fatalf("AdminRevokeServerRole: %v", err)
+		}
+		roles, err = c.GetUserRoles(ctx, target.Id)
+		if err != nil {
+			t.Fatalf("GetUserRoles after revoke: %v", err)
+		}
+		if len(roles) != 0 {
+			t.Fatalf("roles after revoke = %v, want none", roles)
+		}
+	})
+
+	t.Run("missing target user does not persist role facts", func(t *testing.T) {
+		c, _ := setupTestCore(t)
+		ctx := testContext(t)
+		admin, err := c.CreateUser(ctx, SystemActorID, "adminrole-missing-target-admin", "Admin", "password123")
+		if err != nil {
+			t.Fatalf("CreateUser admin: %v", err)
+		}
+		if err := c.AssignAdminRole(ctx, admin.Id); err != nil {
+			t.Fatalf("AssignAdminRole: %v", err)
+		}
+
+		const missingUserID = "UmissingAdminRoleTarget"
+		if err := c.AdminAssignServerRole(ctx, admin.Id, missingUserID, RoleModerator); !errors.Is(err, ErrNotFound) {
+			t.Fatalf("AdminAssignServerRole missing user err = %v, want ErrNotFound", err)
+		}
+		if c.RBAC.HasRole(missingUserID, RoleModerator) {
+			t.Fatal("missing user was assigned moderator role")
+		}
+
+		beforeRevocations, _, err := c.EventPublisher.SubjectEvents(ctx, events.RBACAggregate().Subject(events.EventRBACRoleRevoked))
+		if err != nil {
+			t.Fatalf("SubjectEvents role revoked before: %v", err)
+		}
+		if err := c.AdminRevokeServerRole(ctx, admin.Id, missingUserID, RoleModerator); !errors.Is(err, ErrNotFound) {
+			t.Fatalf("AdminRevokeServerRole missing user err = %v, want ErrNotFound", err)
+		}
+		afterRevocations, _, err := c.EventPublisher.SubjectEvents(ctx, events.RBACAggregate().Subject(events.EventRBACRoleRevoked))
+		if err != nil {
+			t.Fatalf("SubjectEvents role revoked after: %v", err)
+		}
+		if len(afterRevocations) != len(beforeRevocations) {
+			t.Fatalf("role revocation events changed from %d to %d for missing user", len(beforeRevocations), len(afterRevocations))
+		}
+	})
+
+	t.Run("cannot revoke own owner or admin role", func(t *testing.T) {
+		c, _ := setupTestCore(t)
+		ctx := testContext(t)
+		admin, err := c.CreateUser(ctx, SystemActorID, "adminrole-self", "Self", "password123")
+		if err != nil {
+			t.Fatalf("CreateUser admin: %v", err)
+		}
+		if err := c.AssignAdminRole(ctx, admin.Id); err != nil {
+			t.Fatalf("AssignAdminRole: %v", err)
+		}
+		if err := c.AssignOwnerRole(ctx, admin.Id); err != nil {
+			t.Fatalf("AssignOwnerRole: %v", err)
+		}
+		if err := c.AdminRevokeServerRole(ctx, admin.Id, admin.Id, RoleAdmin); !errors.Is(err, ErrCannotRevokeSelfAdmin) {
+			t.Fatalf("AdminRevokeServerRole admin err = %v, want ErrCannotRevokeSelfAdmin", err)
+		}
+		if err := c.AdminRevokeServerRole(ctx, admin.Id, admin.Id, RoleOwner); !errors.Is(err, ErrCannotRevokeSelfAdmin) {
+			t.Fatalf("AdminRevokeServerRole owner err = %v, want ErrCannotRevokeSelfAdmin", err)
+		}
+	})
+}
+
 func TestChattoCore_GetLastLoginChange(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
@@ -1027,6 +2013,56 @@ func TestChattoCore_GetLastLoginChange(t *testing.T) {
 			t.Errorf("Expected timestamp between %v and %v, got %v", before, after, lastChange)
 		}
 	})
+}
+
+func TestChattoCore_SetAndClearUserCustomStatus(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	user, err := core.CreateUser(ctx, "system", "statususer", "Status User", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser failed: %v", err)
+	}
+	expiresAt := time.Now().Add(time.Hour).UTC()
+
+	updated, err := core.SetUserCustomStatus(ctx, user.Id, "🌿", "In focus mode", &expiresAt)
+	if err != nil {
+		t.Fatalf("SetUserCustomStatus failed: %v", err)
+	}
+	if got := updated.GetCustomStatus().GetEmoji(); got != "🌿" {
+		t.Fatalf("custom status emoji = %q, want 🌿", got)
+	}
+	if got := updated.GetCustomStatus().GetText(); got != "In focus mode" {
+		t.Fatalf("custom status text = %q, want In focus mode", got)
+	}
+
+	if _, err := core.SetUserCustomStatus(ctx, user.Id, "🌿", "   ", nil); !errors.Is(err, ErrCustomStatusTextRequired) {
+		t.Fatalf("SetUserCustomStatus blank text error = %v, want ErrCustomStatusTextRequired", err)
+	}
+
+	statusEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.UserAggregate(user.Id).Subject(events.EventUserCustomStatusSet))
+	if err != nil {
+		t.Fatalf("SubjectEvents custom status set failed: %v", err)
+	}
+	if len(statusEvents) != 1 {
+		t.Fatalf("custom status set events = %d, want 1", len(statusEvents))
+	}
+
+	cleared, err := core.ClearUserCustomStatus(ctx, user.Id)
+	if err != nil {
+		t.Fatalf("ClearUserCustomStatus failed: %v", err)
+	}
+	if cleared.GetCustomStatus() != nil {
+		t.Fatalf("custom status after clear = %#v, want nil", cleared.GetCustomStatus())
+	}
+
+	clearEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.UserAggregate(user.Id).Subject(events.EventUserCustomStatusCleared))
+	if err != nil {
+		t.Fatalf("SubjectEvents custom status cleared failed: %v", err)
+	}
+	if len(clearEvents) != 1 {
+		t.Fatalf("custom status cleared events = %d, want 1", len(clearEvents))
+	}
 }
 
 // createTestImage creates a test PNG image with the specified dimensions.
@@ -1119,32 +2155,15 @@ func TestChattoCore_SetUserAvatar(t *testing.T) {
 	}
 }
 
-func TestChattoCore_SetUserAvatar_DoesNotModifyUserRecord(t *testing.T) {
-	core, nc := setupTestCore(t)
+func TestChattoCore_SetUserAvatar_DoesNotModifyUserProfile(t *testing.T) {
+	core, _ := setupTestCore(t)
 	ctx := testContext(t)
-
-	// Get JetStream context and KV bucket for verification
-	js, err := jetstream.New(nc)
-	if err != nil {
-		t.Fatalf("Failed to create JetStream context: %v", err)
-	}
-	kv, err := js.KeyValue(ctx, "INSTANCE")
-	if err != nil {
-		t.Fatalf("Failed to get INSTANCE KV bucket: %v", err)
-	}
 
 	// Create a user
 	user, err := core.CreateUser(ctx, "system", "avataruser", "Avatar User", "")
 	if err != nil {
 		t.Fatalf("Failed to create user: %v", err)
 	}
-
-	// Get the initial user record revision
-	entry1, err := kv.Get(ctx, "user."+user.Id)
-	if err != nil {
-		t.Fatalf("Failed to get user entry: %v", err)
-	}
-	initialRevision := entry1.Revision()
 
 	// Upload and set avatar
 	testImage := createTestImage(100, 100)
@@ -1154,23 +2173,20 @@ func TestChattoCore_SetUserAvatar_DoesNotModifyUserRecord(t *testing.T) {
 		t.Fatalf("Failed to set avatar: %v", err)
 	}
 
-	// User record revision should be unchanged (avatar is stored separately)
-	entry2, err := kv.Get(ctx, "user."+user.Id)
+	updated, err := core.GetUser(ctx, user.Id)
 	if err != nil {
-		t.Fatalf("Failed to get user entry: %v", err)
+		t.Fatalf("Failed to get user: %v", err)
+	}
+	if updated.Login != user.Login || updated.DisplayName != user.DisplayName {
+		t.Error("User profile fields were modified when avatar changed")
 	}
 
-	if entry2.Revision() != initialRevision {
-		t.Error("User record was modified when avatar changed - expected no modification")
-	}
-
-	// Verify avatar is stored at the correct scoped key
-	avatarEntry, err := kv.Get(ctx, "user."+user.Id+".avatar")
+	avatar, err := core.GetUserAvatar(ctx, user.Id)
 	if err != nil {
-		t.Fatalf("Expected avatar to be stored at scoped key: %v", err)
+		t.Fatalf("Failed to get avatar: %v", err)
 	}
-	if avatarEntry == nil {
-		t.Error("Expected avatar entry to exist")
+	if avatar == nil || avatar.GetNats().GetKey() != asset.GetNats().GetKey() {
+		t.Error("Expected avatar projection to contain the uploaded avatar")
 	}
 }
 
@@ -1185,7 +2201,7 @@ func TestChattoCore_GetUserAvatarURL(t *testing.T) {
 	}
 
 	// No avatar initially - should return empty string
-	url, err := core.GetUserAvatarURL(ctx, user.Id, nil, nil)
+	url, err := core.GetUserAvatarURL(ctx, user.Id, nil, nil, "")
 	if err != nil {
 		t.Fatalf("Failed to get avatar URL: %v", err)
 	}
@@ -1199,7 +2215,7 @@ func TestChattoCore_GetUserAvatarURL(t *testing.T) {
 	core.SetUserAvatar(ctx, user.Id, asset)
 
 	// Now should return URL
-	url, err = core.GetUserAvatarURL(ctx, user.Id, nil, nil)
+	url, err = core.GetUserAvatarURL(ctx, user.Id, nil, nil, "")
 	if err != nil {
 		t.Fatalf("Failed to get avatar URL: %v", err)
 	}
@@ -1228,12 +2244,12 @@ func TestChattoCore_GetUserAvatarURL_AbsoluteURL(t *testing.T) {
 
 	t.Run("returns relative URL when AssetBaseURL is empty", func(t *testing.T) {
 		core.AssetBaseURL = ""
-		url, err := core.GetUserAvatarURL(ctx, user.Id, nil, nil)
+		url, err := core.GetUserAvatarURL(ctx, user.Id, nil, nil, "")
 		if err != nil {
 			t.Fatalf("Failed to get avatar URL: %v", err)
 		}
-		if !bytes.HasPrefix([]byte(url), []byte("/assets/instance/")) {
-			t.Errorf("Expected relative URL starting with /assets/instance/, got '%s'", url)
+		if !bytes.HasPrefix([]byte(url), []byte("/assets/server/")) {
+			t.Errorf("Expected relative URL starting with /assets/server/, got '%s'", url)
 		}
 	})
 
@@ -1241,11 +2257,11 @@ func TestChattoCore_GetUserAvatarURL_AbsoluteURL(t *testing.T) {
 		core.AssetBaseURL = "https://chat.example.com"
 		defer func() { core.AssetBaseURL = "" }()
 
-		url, err := core.GetUserAvatarURL(ctx, user.Id, nil, nil)
+		url, err := core.GetUserAvatarURL(ctx, user.Id, nil, nil, "")
 		if err != nil {
 			t.Fatalf("Failed to get avatar URL: %v", err)
 		}
-		if !bytes.HasPrefix([]byte(url), []byte("https://chat.example.com/assets/instance/")) {
+		if !bytes.HasPrefix([]byte(url), []byte("https://chat.example.com/assets/server/")) {
 			t.Errorf("Expected absolute URL, got '%s'", url)
 		}
 	})
@@ -1255,11 +2271,11 @@ func TestChattoCore_GetUserAvatarURL_AbsoluteURL(t *testing.T) {
 		defer func() { core.AssetBaseURL = "" }()
 
 		w, h := 64, 64
-		url, err := core.GetUserAvatarURL(ctx, user.Id, &w, &h)
+		url, err := core.GetUserAvatarURL(ctx, user.Id, &w, &h, "cover")
 		if err != nil {
 			t.Fatalf("Failed to get avatar URL: %v", err)
 		}
-		if !bytes.HasPrefix([]byte(url), []byte("https://chat.example.com/assets/instance/")) {
+		if !bytes.HasPrefix([]byte(url), []byte("https://chat.example.com/assets/server/")) {
 			t.Errorf("Expected absolute transformed URL, got '%s'", url)
 		}
 	})
@@ -1333,7 +2349,7 @@ func TestChattoCore_DeleteUserAvatar(t *testing.T) {
 	}
 
 	// Verify avatar is set
-	url, err := core.GetUserAvatarURL(ctx, user.Id, nil, nil)
+	url, err := core.GetUserAvatarURL(ctx, user.Id, nil, nil, "")
 	if err != nil {
 		t.Fatalf("Failed to get avatar URL: %v", err)
 	}
@@ -1348,7 +2364,7 @@ func TestChattoCore_DeleteUserAvatar(t *testing.T) {
 	}
 
 	// Verify avatar is gone
-	url, err = core.GetUserAvatarURL(ctx, user.Id, nil, nil)
+	url, err = core.GetUserAvatarURL(ctx, user.Id, nil, nil, "")
 	if err != nil {
 		t.Fatalf("Failed to get avatar URL after deletion: %v", err)
 	}
@@ -1360,6 +2376,41 @@ func TestChattoCore_DeleteUserAvatar(t *testing.T) {
 	_, err = core.ServerStore().Get(ctx, asset.GetNats().Key)
 	if err == nil {
 		t.Error("Expected asset to be deleted from object store")
+	}
+}
+
+func TestChattoCore_DeleteUser_CleansUpAvatarCache(t *testing.T) {
+	core, _ := setupTestCoreWithCache(t)
+	ctx := testContext(t)
+
+	user, err := core.CreateUser(ctx, "system", "avatarcacheuser", "Avatar Cache User", "password123")
+	if err != nil {
+		t.Fatalf("Failed to create user: %v", err)
+	}
+
+	asset, err := core.UploadUserAvatar(ctx, user.Id, bytes.NewReader(createTestPNG(100, 100)))
+	if err != nil {
+		t.Fatalf("Failed to upload avatar: %v", err)
+	}
+	if err := core.SetUserAvatar(ctx, user.Id, asset); err != nil {
+		t.Fatalf("Failed to set avatar: %v", err)
+	}
+
+	cacheKey := ImageCacheKey(ServerAssetSignResource, asset.Id, 64, 64, "cover")
+	if err := core.StoreCachedResize(ctx, cacheKey, []byte("fake webp data")); err != nil {
+		t.Fatalf("Failed to store avatar cached resize: %v", err)
+	}
+
+	if err := core.DeleteUser(ctx, user.Id, user.Id); err != nil {
+		t.Fatalf("Failed to delete user: %v", err)
+	}
+
+	data, err := core.GetCachedResize(ctx, cacheKey)
+	if err != nil {
+		t.Fatalf("Unexpected error getting avatar cached resize: %v", err)
+	}
+	if data != nil {
+		t.Fatal("Avatar cache entry should be deleted during account deletion")
 	}
 }
 
@@ -1380,7 +2431,7 @@ func TestChattoCore_DeleteUserAvatar_NoAvatar(t *testing.T) {
 	}
 
 	// Verify still no avatar
-	url, err := core.GetUserAvatarURL(ctx, user.Id, nil, nil)
+	url, err := core.GetUserAvatarURL(ctx, user.Id, nil, nil, "")
 	if err != nil {
 		t.Fatalf("Failed to get avatar URL: %v", err)
 	}
@@ -1482,7 +2533,6 @@ func TestChattoCore_DeleteUser_PreservesSpaceAndPurgesUser(t *testing.T) {
 		t.Fatalf("Failed to create user: %v", err)
 	}
 
-
 	if err := core.DeleteUser(ctx, user.Id, user.Id); err != nil {
 		t.Fatalf("Failed to delete user: %v", err)
 	}
@@ -1572,20 +2622,20 @@ func TestChattoCore_DeleteUser_WithMessageBodies(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to post message 1: %v", err)
 	}
-	msg1ID := event1.GetMessagePosted().MessageBodyId
+	msg1ID := event1.Id
 
 	event2, err := core.PostMessage(ctx, KindChannel, room.Id, user1.Id, "Message 2 from user1", nil, "", "", nil, false)
 	if err != nil {
 		t.Fatalf("Failed to post message 2: %v", err)
 	}
-	msg2ID := event2.GetMessagePosted().MessageBodyId
+	msg2ID := event2.Id
 
 	// User 2 posts one message
 	event3, err := core.PostMessage(ctx, KindChannel, room.Id, user2.Id, "Message from user2", nil, "", "", nil, false)
 	if err != nil {
 		t.Fatalf("Failed to post message 3: %v", err)
 	}
-	msg3ID := event3.GetMessagePosted().MessageBodyId
+	msg3ID := event3.Id
 
 	// Verify all message bodies exist
 	_, err = core.GetMessageBody(ctx, KindChannel, msg1ID)

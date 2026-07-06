@@ -3,168 +3,142 @@ package core
 import (
 	"context"
 	"testing"
-
-	"hmans.de/chatto/internal/core/rbac"
 )
 
 // Helper to construct expected allow key from permission
 func expectedAllowKey(subject string, perm Permission, objectId string) string {
 	parts := perm.KeyParts()
-	return rbac.AllowKey(subject, parts.Verb, parts.ObjectType, objectId)
+	return AllowKey(subject, parts.Verb, parts.ObjectType, objectId)
 }
 
 // Helper to construct expected deny key from permission
 func expectedDenyKey(subject string, perm Permission, objectId string) string {
 	parts := perm.KeyParts()
-	return rbac.DenyKey(subject, parts.Verb, parts.ObjectType, objectId)
+	return DenyKey(subject, parts.Verb, parts.ObjectType, objectId)
 }
 
 // Helper to construct expected room-override allow key from permission
 func expectedRoomAllowKey(roomID, subject string, perm Permission) string {
 	parts := perm.KeyParts()
-	return rbac.RoomAllowKey(roomID, subject, parts.Verb, parts.ObjectType)
+	return RoomAllowKey(roomID, subject, parts.Verb, parts.ObjectType)
 }
 
 // Helper to construct expected room-override deny key from permission
 func expectedRoomDenyKey(roomID, subject string, perm Permission) string {
 	parts := perm.KeyParts()
-	return rbac.RoomDenyKey(roomID, subject, parts.Verb, parts.ObjectType)
+	return RoomDenyKey(roomID, subject, parts.Verb, parts.ObjectType)
 }
 
 // ============================================================================
 // Instance-Level Role Operations Tests
 // ============================================================================
 
-func TestGrantInstancePermission(t *testing.T) {
+func TestGrantServerPermission(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	t.Run("creates correct KV key for valid permission", func(t *testing.T) {
-		err := core.GrantInstancePermission(ctx, RoleModerator, PermDMWrite)
+	t.Run("creates allow decision for valid permission", func(t *testing.T) {
+		err := core.GrantServerPermission(ctx, SystemActorID, RoleModerator, PermMessagePost)
 		if err != nil {
-			t.Fatalf("GrantInstancePermission() error = %v", err)
+			t.Fatalf("GrantServerPermission() error = %v", err)
 		}
 
-		// Verify key was created
-		kv := core.storage.serverRBACEngine.KV()
-		expectedKey := expectedAllowKey(RoleModerator, PermDMWrite, rbac.ObjectIdAny)
-		_, err = kv.Get(ctx, expectedKey)
-		if err != nil {
-			t.Errorf("Expected KV key %s to exist, got error: %v", expectedKey, err)
+		if got := core.RBAC.GetDecision(ScopeServer, "", RoleModerator, PermMessagePost); got != DecisionAllow {
+			t.Errorf("decision = %s, want %s", got, DecisionAllow)
 		}
 	})
 
 	t.Run("removes existing denial when granting", func(t *testing.T) {
 		// First deny the permission
-		err := core.DenyInstancePermission(ctx, RoleModerator, PermDMView)
+		err := core.DenyServerPermission(ctx, SystemActorID, RoleModerator, PermMessagePost)
 		if err != nil {
-			t.Fatalf("DenyInstancePermission() error = %v", err)
+			t.Fatalf("DenyServerPermission() error = %v", err)
 		}
 
 		// Now grant it - should remove the denial
-		err = core.GrantInstancePermission(ctx, RoleModerator, PermDMView)
+		err = core.GrantServerPermission(ctx, SystemActorID, RoleModerator, PermMessagePost)
 		if err != nil {
-			t.Fatalf("GrantInstancePermission() error = %v", err)
+			t.Fatalf("GrantServerPermission() error = %v", err)
 		}
 
-		// Verify denial was removed
-		kv := core.storage.serverRBACEngine.KV()
-		denyKey := expectedDenyKey(RoleModerator, PermDMView, rbac.ObjectIdAny)
-		_, err = kv.Get(ctx, denyKey)
-		if err == nil {
-			t.Error("Expected denial key to be removed after grant")
+		if got := core.RBAC.GetDecision(ScopeServer, "", RoleModerator, PermMessagePost); got != DecisionAllow {
+			t.Errorf("decision = %s, want %s", got, DecisionAllow)
 		}
 	})
 
 	t.Run("rejects unrecognised permission", func(t *testing.T) {
-		err := core.GrantInstancePermission(ctx, RoleModerator, Permission("not.a.real.permission"))
+		err := core.GrantServerPermission(ctx, SystemActorID, RoleModerator, Permission("not.a.real.permission"))
 		if err == nil {
 			t.Error("Expected error for invalid permission")
 		}
 	})
 }
 
-func TestDenyInstancePermission(t *testing.T) {
+func TestDenyServerPermission(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	t.Run("creates deny key", func(t *testing.T) {
-		err := core.DenyInstancePermission(ctx, RoleEveryone, PermDMWrite)
+	t.Run("creates deny decision", func(t *testing.T) {
+		err := core.DenyServerPermission(ctx, SystemActorID, RoleEveryone, PermMessagePost)
 		if err != nil {
-			t.Fatalf("DenyInstancePermission() error = %v", err)
+			t.Fatalf("DenyServerPermission() error = %v", err)
 		}
 
-		// Verify deny key was created
-		kv := core.storage.serverRBACEngine.KV()
-		expectedKey := expectedDenyKey(RoleEveryone, PermDMWrite, rbac.ObjectIdAny)
-		_, err = kv.Get(ctx, expectedKey)
-		if err != nil {
-			t.Errorf("Expected deny key %s to exist, got error: %v", expectedKey, err)
+		if got := core.RBAC.GetDecision(ScopeServer, "", RoleEveryone, PermMessagePost); got != DecisionDeny {
+			t.Errorf("decision = %s, want %s", got, DecisionDeny)
 		}
 	})
 
 	t.Run("removes existing grant when denying", func(t *testing.T) {
 		// First grant the permission
-		err := core.GrantInstancePermission(ctx, RoleEveryone, PermDMWrite)
+		err := core.GrantServerPermission(ctx, SystemActorID, RoleEveryone, PermMessagePost)
 		if err != nil {
-			t.Fatalf("GrantInstancePermission() error = %v", err)
+			t.Fatalf("GrantServerPermission() error = %v", err)
 		}
 
 		// Now deny it - should remove the grant
-		err = core.DenyInstancePermission(ctx, RoleEveryone, PermDMWrite)
+		err = core.DenyServerPermission(ctx, SystemActorID, RoleEveryone, PermMessagePost)
 		if err != nil {
-			t.Fatalf("DenyInstancePermission() error = %v", err)
+			t.Fatalf("DenyServerPermission() error = %v", err)
 		}
 
-		// Verify grant was removed
-		kv := core.storage.serverRBACEngine.KV()
-		grantKey := expectedAllowKey(RoleEveryone, PermDMWrite, rbac.ObjectIdAny)
-		_, err = kv.Get(ctx, grantKey)
-		if err == nil {
-			t.Error("Expected grant key to be removed after denial")
+		if got := core.RBAC.GetDecision(ScopeServer, "", RoleEveryone, PermMessagePost); got != DecisionDeny {
+			t.Errorf("decision = %s, want %s", got, DecisionDeny)
 		}
 	})
 
 	t.Run("rejects unrecognised permission", func(t *testing.T) {
-		err := core.DenyInstancePermission(ctx, RoleModerator, Permission("not.real.permission"))
+		err := core.DenyServerPermission(ctx, SystemActorID, RoleModerator, Permission("not.real.permission"))
 		if err == nil {
 			t.Error("Expected error for invalid permission")
 		}
 	})
 }
 
-func TestClearInstancePermissionState(t *testing.T) {
+func TestClearServerPermissionState(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
 	t.Run("clears both grant and denial", func(t *testing.T) {
 		// Grant a permission
-		err := core.GrantInstancePermission(ctx, RoleModerator, PermDMView)
+		err := core.GrantServerPermission(ctx, SystemActorID, RoleModerator, PermMessagePost)
 		if err != nil {
 			t.Fatalf("Failed to grant: %v", err)
 		}
 
 		// Clear it
-		err = core.ClearInstancePermissionState(ctx, RoleModerator, PermDMView)
+		err = core.ClearServerPermissionState(ctx, SystemActorID, RoleModerator, PermMessagePost)
 		if err != nil {
-			t.Fatalf("ClearInstancePermissionState() error = %v", err)
+			t.Fatalf("ClearServerPermissionState() error = %v", err)
 		}
 
-		// Verify both keys are gone
-		kv := core.storage.serverRBACEngine.KV()
-		grantKey := expectedAllowKey(RoleModerator, PermDMView, rbac.ObjectIdAny)
-		denyKey := expectedDenyKey(RoleModerator, PermDMView, rbac.ObjectIdAny)
-
-		if _, err := kv.Get(ctx, grantKey); err == nil {
-			t.Error("Expected grant key to be cleared")
-		}
-		if _, err := kv.Get(ctx, denyKey); err == nil {
-			t.Error("Expected deny key to be cleared")
+		if got := core.RBAC.GetDecision(ScopeServer, "", RoleModerator, PermMessagePost); got != DecisionNone {
+			t.Errorf("decision = %s, want %s", got, DecisionNone)
 		}
 	})
 
 	t.Run("succeeds when clearing non-existent key", func(t *testing.T) {
-		err := core.ClearInstancePermissionState(ctx, RoleEveryone, PermDMWrite)
+		err := core.ClearServerPermissionState(ctx, SystemActorID, RoleEveryone, PermMessagePost)
 		if err != nil {
 			t.Errorf("Expected no error when clearing non-existent key, got: %v", err)
 		}
@@ -181,26 +155,22 @@ func TestGrantSpaceRolePermission(t *testing.T) {
 
 	_, _ = core.CreateUser(ctx, "system", "testuser", "Test User", "password123")
 
-	t.Run("creates correct KV key for space role", func(t *testing.T) {
-		err := core.GrantInstancePermission(ctx, RoleEveryone, PermRoomCreate)
+	t.Run("creates allow decision for role", func(t *testing.T) {
+		err := core.GrantServerPermission(ctx, SystemActorID, RoleEveryone, PermRoomCreate)
 		if err != nil {
 			t.Fatalf("GrantSpaceRolePermission() error = %v", err)
 		}
 
-		// Verify key was created in space RBAC KV
-		kv := core.storage.serverRBACKV
-		expectedKey := expectedAllowKey(RoleEveryone, PermRoomCreate, rbac.ObjectIdAny)
-		_, err = kv.Get(ctx, expectedKey)
-		if err != nil {
-			t.Errorf("Expected space KV key to exist, got error: %v", err)
+		if got := core.RBAC.GetDecision(ScopeServer, "", RoleEveryone, PermRoomCreate); got != DecisionAllow {
+			t.Errorf("decision = %s, want %s", got, DecisionAllow)
 		}
 	})
 
-	t.Run("works for instance role override at space level", func(t *testing.T) {
+	t.Run("works for role override at space level", func(t *testing.T) {
 		// Instance role override at space level
-		err := core.GrantInstancePermission(ctx, RoleModerator, PermRoomJoin)
+		err := core.GrantServerPermission(ctx, SystemActorID, RoleModerator, PermRoomJoin)
 		if err != nil {
-			t.Fatalf("GrantSpaceRolePermission() for instance role error = %v", err)
+			t.Fatalf("GrantSpaceRolePermission() for role error = %v", err)
 		}
 	})
 
@@ -219,18 +189,14 @@ func TestDenySpaceRolePermission(t *testing.T) {
 
 	_, _ = core.CreateUser(ctx, "system", "testuser", "Test User", "password123")
 
-	t.Run("creates deny key in space RBAC", func(t *testing.T) {
-		err := core.DenyInstancePermission(ctx, RoleEveryone, PermMessagePost)
+	t.Run("creates deny decision in server RBAC", func(t *testing.T) {
+		err := core.DenyServerPermission(ctx, SystemActorID, RoleEveryone, PermMessagePost)
 		if err != nil {
 			t.Fatalf("DenySpaceRolePermission() error = %v", err)
 		}
 
-		// Verify deny key was created
-		kv := core.storage.serverRBACKV
-		expectedKey := expectedDenyKey(RoleEveryone, PermMessagePost, rbac.ObjectIdAny)
-		_, err = kv.Get(ctx, expectedKey)
-		if err != nil {
-			t.Errorf("Expected space deny key to exist, got error: %v", err)
+		if got := core.RBAC.GetDecision(ScopeServer, "", RoleEveryone, PermMessagePost); got != DecisionDeny {
+			t.Errorf("decision = %s, want %s", got, DecisionDeny)
 		}
 	})
 }
@@ -243,18 +209,15 @@ func TestClearSpaceRolePermission(t *testing.T) {
 
 	t.Run("clears both grant and denial at space level", func(t *testing.T) {
 		// Grant then clear
-		_ = core.GrantInstancePermission(ctx, RoleEveryone, PermRoomJoin)
+		_ = core.GrantServerPermission(ctx, SystemActorID, RoleEveryone, PermRoomJoin)
 
-		err := core.ClearInstancePermissionState(ctx, RoleEveryone, PermRoomJoin)
+		err := core.ClearServerPermissionState(ctx, SystemActorID, RoleEveryone, PermRoomJoin)
 		if err != nil {
 			t.Fatalf("ClearSpaceRolePermission() error = %v", err)
 		}
 
-		// Verify keys are gone
-		kv := core.storage.serverRBACKV
-		grantKey := expectedAllowKey(RoleEveryone, PermRoomJoin, rbac.ObjectIdAny)
-		if _, err := kv.Get(ctx, grantKey); err == nil {
-			t.Error("Expected grant key to be cleared")
+		if got := core.RBAC.GetDecision(ScopeServer, "", RoleEveryone, PermRoomJoin); got != DecisionNone {
+			t.Errorf("decision = %s, want %s", got, DecisionNone)
 		}
 	})
 }
@@ -270,24 +233,19 @@ func TestGrantRoomRolePermission(t *testing.T) {
 	user, _ := core.CreateUser(ctx, "system", "testuser", "Test User", "password123")
 	room, _ := core.CreateRoom(ctx, user.Id, KindChannel, "", "General", "General chat")
 
-	t.Run("creates correct KV key for room-level permission", func(t *testing.T) {
-		err := core.GrantRoomPermission(ctx, room.Id, RoleEveryone, PermMessagePost)
+	t.Run("creates allow decision for room-level permission", func(t *testing.T) {
+		err := core.GrantRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermMessagePost)
 		if err != nil {
 			t.Fatalf("GrantRoomRolePermission() error = %v", err)
 		}
 
-		// Verify the per-room override key was created (ADR-031 shape).
-		kv := core.storage.serverRBACKV
-		expectedKey := expectedRoomAllowKey(room.Id, RoleEveryone, PermMessagePost)
-		_, err = kv.Get(ctx, expectedKey)
-		if err != nil {
-			t.Errorf("Expected room grant key to exist, got error: %v", err)
+		if got := core.RBAC.GetDecision(ScopeRoom, room.Id, RoleEveryone, PermMessagePost); got != DecisionAllow {
+			t.Errorf("decision = %s, want %s", got, DecisionAllow)
 		}
 	})
 
 	t.Run("rejects permission that does not apply at room scope", func(t *testing.T) {
-		// space.create only applies at instance scope
-		err := core.GrantRoomPermission(ctx, room.Id, RoleEveryone, PermDMWrite)
+		err := core.GrantRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermAdminUsersView)
 		if err == nil {
 			t.Error("Expected error for permission that doesn't apply at room scope")
 		}
@@ -301,23 +259,19 @@ func TestDenyRoomRolePermission(t *testing.T) {
 	user, _ := core.CreateUser(ctx, "system", "testuser", "Test User", "password123")
 	room, _ := core.CreateRoom(ctx, user.Id, KindChannel, "", "General", "General chat")
 
-	t.Run("creates deny key at room level", func(t *testing.T) {
-		err := core.DenyRoomPermission(ctx, room.Id, RoleEveryone, PermMessagePost)
+	t.Run("creates deny decision at room level", func(t *testing.T) {
+		err := core.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermMessagePost)
 		if err != nil {
 			t.Fatalf("DenyRoomRolePermission() error = %v", err)
 		}
 
-		// Verify the per-room override deny key was created (ADR-031 shape).
-		kv := core.storage.serverRBACKV
-		expectedKey := expectedRoomDenyKey(room.Id, RoleEveryone, PermMessagePost)
-		_, err = kv.Get(ctx, expectedKey)
-		if err != nil {
-			t.Errorf("Expected room deny key to exist, got error: %v", err)
+		if got := core.RBAC.GetDecision(ScopeRoom, room.Id, RoleEveryone, PermMessagePost); got != DecisionDeny {
+			t.Errorf("decision = %s, want %s", got, DecisionDeny)
 		}
 	})
 
 	t.Run("rejects permission that does not apply at room scope", func(t *testing.T) {
-		err := core.DenyRoomPermission(ctx, room.Id, RoleEveryone, PermAdminAccess)
+		err := core.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermAdminUsersView)
 		if err == nil {
 			t.Error("Expected error for permission that doesn't apply at room scope")
 		}
@@ -333,18 +287,15 @@ func TestClearRoomRolePermission(t *testing.T) {
 
 	t.Run("clears both grant and denial at room level", func(t *testing.T) {
 		// Grant then clear
-		_ = core.GrantRoomPermission(ctx, room.Id, RoleEveryone, PermRoomJoin)
+		_ = core.GrantRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermRoomJoin)
 
-		err := core.ClearRoomPermissionState(ctx, room.Id, RoleEveryone, PermRoomJoin)
+		err := core.ClearRoomPermissionState(ctx, SystemActorID, room.Id, RoleEveryone, PermRoomJoin)
 		if err != nil {
 			t.Fatalf("ClearRoomRolePermission() error = %v", err)
 		}
 
-		// Verify key was removed
-		kv := core.storage.serverRBACKV
-		grantKey := expectedAllowKey(RoleEveryone, PermRoomJoin, room.Id)
-		if _, err := kv.Get(ctx, grantKey); err == nil {
-			t.Error("Expected grant key to be cleared")
+		if got := core.RBAC.GetDecision(ScopeRoom, room.Id, RoleEveryone, PermRoomJoin); got != DecisionNone {
+			t.Errorf("decision = %s, want %s", got, DecisionNone)
 		}
 	})
 }
@@ -358,54 +309,46 @@ func TestPermissionOpsIdempotency(t *testing.T) {
 	ctx := testContext(t)
 
 	t.Run("granting same permission twice succeeds", func(t *testing.T) {
-		err := core.GrantInstancePermission(ctx, RoleModerator, PermDMView)
+		err := core.GrantServerPermission(ctx, SystemActorID, RoleModerator, PermMessagePost)
 		if err != nil {
 			t.Fatalf("First grant failed: %v", err)
 		}
 
-		err = core.GrantInstancePermission(ctx, RoleModerator, PermDMView)
+		err = core.GrantServerPermission(ctx, SystemActorID, RoleModerator, PermMessagePost)
 		if err != nil {
 			t.Errorf("Second grant should succeed (idempotent), got: %v", err)
 		}
 	})
 
 	t.Run("denying same permission twice succeeds", func(t *testing.T) {
-		err := core.DenyInstancePermission(ctx, RoleEveryone, PermDMWrite)
+		err := core.DenyServerPermission(ctx, SystemActorID, RoleEveryone, PermMessagePost)
 		if err != nil {
 			t.Fatalf("First deny failed: %v", err)
 		}
 
-		err = core.DenyInstancePermission(ctx, RoleEveryone, PermDMWrite)
+		err = core.DenyServerPermission(ctx, SystemActorID, RoleEveryone, PermMessagePost)
 		if err != nil {
 			t.Errorf("Second deny should succeed (idempotent), got: %v", err)
 		}
 	})
 
 	t.Run("denying after grant updates correctly", func(t *testing.T) {
-		perm := PermDMWrite
+		perm := PermMessagePost
 
 		// Grant
-		err := core.GrantInstancePermission(ctx, RoleEveryone, perm)
+		err := core.GrantServerPermission(ctx, SystemActorID, RoleEveryone, perm)
 		if err != nil {
 			t.Fatalf("Grant failed: %v", err)
 		}
 
 		// Now deny
-		err = core.DenyInstancePermission(ctx, RoleEveryone, perm)
+		err = core.DenyServerPermission(ctx, SystemActorID, RoleEveryone, perm)
 		if err != nil {
 			t.Fatalf("Deny failed: %v", err)
 		}
 
-		// Verify grant is gone and deny exists
-		kv := core.storage.serverRBACEngine.KV()
-		grantKey := expectedAllowKey(RoleEveryone, perm, rbac.ObjectIdAny)
-		denyKey := expectedDenyKey(RoleEveryone, perm, rbac.ObjectIdAny)
-
-		if _, err := kv.Get(ctx, grantKey); err == nil {
-			t.Error("Grant key should be removed after deny")
-		}
-		if _, err := kv.Get(ctx, denyKey); err != nil {
-			t.Error("Deny key should exist")
+		if got := core.RBAC.GetDecision(ScopeServer, "", RoleEveryone, perm); got != DecisionDeny {
+			t.Errorf("decision = %s, want %s", got, DecisionDeny)
 		}
 	})
 }
@@ -414,45 +357,48 @@ func TestPermissionOpsIdempotency(t *testing.T) {
 // Initialization Tests
 // ============================================================================
 
-func TestInitInstanceDefaults(t *testing.T) {
+func TestInitServerDefaults(t *testing.T) {
 	core, _ := setupTestCore(t)
-	ctx := testContext(t)
 
-	// InitInstanceDefaults is called during setupTestCore, so we can verify its effects
+	// InitServerDefaults is called during setupTestCore, so we can verify its effects
 
-	t.Run("admin has every instance permission", func(t *testing.T) {
-		// Admin gets every server-scope permission enumerated. The
-		// distinction from owner is rank, not capabilities — admins
-		// cannot manage owners (rank check) and cannot revoke their own
-		// role (self-lockout prevention), but the permission grid is
-		// identical to owner.
+	t.Run("admin has expected server permissions", func(t *testing.T) {
+		// Admin-specific defaults include administration, room administration,
+		// and message management. Ordinary posting defaults come from everyone.
 		for _, perm := range PermissionsForScope(ScopeServer) {
-			kv := core.storage.serverRBACEngine.KV()
-			key := expectedAllowKey(RoleAdmin, perm.Permission, rbac.ObjectIdAny)
-			_, err := kv.Get(ctx, key)
-			if err != nil {
-				t.Errorf("Expected admin to have permission %s, but key not found", perm.Permission)
+			if perm.Category == CategoryMessage && perm.Permission != PermMessageManage {
+				continue
+			}
+			if got := core.RBAC.GetDecision(ScopeServer, "", RoleAdmin, perm.Permission); got != DecisionAllow {
+				t.Errorf("admin decision for %s = %s, want %s", perm.Permission, got, DecisionAllow)
+			}
+		}
+		for _, perm := range []Permission{PermMessagePost, PermMessagePostInThread, PermMessageReact, PermMessageEcho} {
+			if got := core.RBAC.GetDecision(ScopeServer, "", RoleAdmin, perm); got != DecisionNone {
+				t.Errorf("admin server decision for %s = %s, want %s", perm, got, DecisionNone)
 			}
 		}
 	})
 
-	t.Run("everyone has dm.view permission", func(t *testing.T) {
-		kv := core.storage.serverRBACEngine.KV()
-		key := expectedAllowKey(RoleEveryone, PermDMView, rbac.ObjectIdAny)
-		_, err := kv.Get(ctx, key)
-		if err != nil {
-			t.Error("Expected instance-everyone to have dm.view permission")
+	t.Run("everyone has default server message.post permission", func(t *testing.T) {
+		if got := core.RBAC.GetDecision(ScopeServer, "", RoleEveryone, PermMessagePost); got != DecisionAllow {
+			t.Errorf("everyone decision for %s = %s, want %s", PermMessagePost, got, DecisionAllow)
 		}
 	})
 
 	t.Run("everyone has expected permissions", func(t *testing.T) {
-		kv := core.storage.serverRBACEngine.KV()
-		expectedPerms := []Permission{PermDMView, PermDMWrite, PermUserDeleteSelf}
+		expectedPerms := []Permission{
+			PermUserDeleteSelf,
+			PermRoomList,
+			PermRoomJoin,
+			PermMessagePost,
+			PermMessagePostInThread,
+			PermMessageReact,
+			PermMessageEcho,
+		}
 		for _, perm := range expectedPerms {
-			key := expectedAllowKey(RoleEveryone, perm, rbac.ObjectIdAny)
-			_, err := kv.Get(ctx, key)
-			if err != nil {
-				t.Errorf("Expected instance-everyone to have permission %s, but key not found", perm)
+			if got := core.RBAC.GetDecision(ScopeServer, "", RoleEveryone, perm); got != DecisionAllow {
+				t.Errorf("everyone decision for %s = %s, want %s", perm, got, DecisionAllow)
 			}
 		}
 	})
@@ -466,36 +412,29 @@ func TestInitDefaultPermissions(t *testing.T) {
 
 	// InitDefaultPermissions is called at boot, so we can verify its effects here.
 
-	t.Run("owner has every instance permission enumerated", func(t *testing.T) {
-		// Owner gets the full server-scope permission set explicitly —
-		// the same set as admin. No "bypass" super-permission exists.
-		// Operator-configured denies apply uniformly, including to owners,
-		// because the resolver walks roles for owners just like everyone
-		// else.
-		kv := core.storage.serverRBACKV
+	t.Run("owner role stores no default server permissions", func(t *testing.T) {
 		for _, perm := range PermissionsForScope(ScopeServer) {
-			key := expectedAllowKey(RoleOwner, perm.Permission, rbac.ObjectIdAny)
-			if _, err := kv.Get(ctx, key); err != nil {
-				t.Errorf("Expected owner to have permission %s, but key not found", perm.Permission)
+			if got := core.RBAC.GetDecision(ScopeServer, "", RoleOwner, perm.Permission); got != DecisionNone {
+				t.Errorf("owner decision for %s = %s, want %s", perm.Permission, got, DecisionNone)
 			}
 		}
 	})
 
-	t.Run("owner resolves to allow for every permission via enumerated grants", func(t *testing.T) {
-		// The behavioural contract: a freshly-assigned owner passes
-		// every defined server-scope permission check. The mechanism is
-		// the enumerated grant set on the owner role, not a short-circuit.
+	t.Run("owner resolves to allow for every permission via effective-owner override", func(t *testing.T) {
+		// The behavioural contract: a freshly-assigned owner passes every
+		// defined server-scope permission check, including message permissions
+		// that no longer have default server-scope grants.
 		owner, err := core.CreateUser(ctx, SystemActorID, "enum-owner", "Owner", "password123")
 		if err != nil {
 			t.Fatalf("CreateUser: %v", err)
 		}
-		if err := core.AssignInstanceOwnerRole(ctx, owner.Id); err != nil {
-			t.Fatalf("AssignInstanceOwnerRole: %v", err)
+		if err := core.AssignOwnerRole(ctx, owner.Id); err != nil {
+			t.Fatalf("AssignOwnerRole: %v", err)
 		}
 		for _, perm := range PermissionsForScope(ScopeServer) {
-			has, err := core.HasInstancePermission(ctx, owner.Id, perm.Permission)
+			has, err := core.HasServerPermission(ctx, owner.Id, perm.Permission)
 			if err != nil {
-				t.Fatalf("HasInstancePermission(%s): %v", perm.Permission, err)
+				t.Fatalf("HasServerPermission(%s): %v", perm.Permission, err)
 			}
 			if !has {
 				t.Errorf("Expected owner to resolve allow for %s", perm.Permission)
@@ -503,24 +442,63 @@ func TestInitDefaultPermissions(t *testing.T) {
 		}
 	})
 
-	t.Run("everyone has default member permissions", func(t *testing.T) {
-		kv := core.storage.serverRBACKV
-		for _, perm := range DefaultEveryonePermissions() {
-			key := expectedAllowKey(RoleEveryone, perm, rbac.ObjectIdAny)
-			if _, err := kv.Get(ctx, key); err != nil {
-				t.Errorf("Expected everyone to have permission %s, but key not found", perm)
+	t.Run("everyone has fresh seed member permissions", func(t *testing.T) {
+		for _, perm := range DefaultSeedEveryonePermissions() {
+			if got := core.RBAC.GetDecision(ScopeServer, "", RoleEveryone, perm); got != DecisionAllow {
+				t.Errorf("everyone decision for %s = %s, want %s", perm, got, DecisionAllow)
 			}
 		}
 	})
 
-	t.Run("moderator has moderation permissions", func(t *testing.T) {
-		kv := core.storage.serverRBACKV
-		moderatorPerms := []Permission{PermMessageManage}
+	t.Run("moderator has server-scope moderation permissions", func(t *testing.T) {
+		moderatorPerms := []Permission{PermMessageManage, PermRoomMemberBan}
 		for _, perm := range moderatorPerms {
-			key := expectedAllowKey("moderator", perm, rbac.ObjectIdAny)
-			if _, err := kv.Get(ctx, key); err != nil {
-				t.Errorf("Expected moderator to have permission %s, but key not found", perm)
+			if got := core.RBAC.GetDecision(ScopeServer, "", RoleModerator, perm); got != DecisionAllow {
+				t.Errorf("moderator decision for %s = %s, want %s", perm, got, DecisionAllow)
 			}
+		}
+		if got := core.RBAC.GetDecision(ScopeServer, "", RoleModerator, PermAdminUsersView); got != DecisionNone {
+			t.Errorf("moderator admin.view-users decision = %s, want %s", got, DecisionNone)
+		}
+	})
+
+	t.Run("ensure default permissions backfills missing grants without overriding denies", func(t *testing.T) {
+		if err := core.ClearServerPermissionState(ctx, SystemActorID, RoleModerator, PermMessageManage); err != nil {
+			t.Fatalf("ClearServerPermissionState: %v", err)
+		}
+		if got := core.RBAC.GetDecision(ScopeServer, "", RoleModerator, PermMessageManage); got != DecisionNone {
+			t.Fatalf("decision after clear = %s, want %s", got, DecisionNone)
+		}
+		if err := core.EnsureDefaultRolePermissions(ctx); err != nil {
+			t.Fatalf("EnsureDefaultRolePermissions backfill: %v", err)
+		}
+		if got := core.RBAC.GetDecision(ScopeServer, "", RoleModerator, PermMessageManage); got != DecisionAllow {
+			t.Fatalf("decision after ensure = %s, want %s", got, DecisionAllow)
+		}
+
+		if err := core.DenyServerPermission(ctx, SystemActorID, RoleModerator, PermMessageManage); err != nil {
+			t.Fatalf("DenyServerPermission: %v", err)
+		}
+		if err := core.EnsureDefaultRolePermissions(ctx); err != nil {
+			t.Fatalf("EnsureDefaultRolePermissions preserve deny: %v", err)
+		}
+		if got := core.RBAC.GetDecision(ScopeServer, "", RoleModerator, PermMessageManage); got != DecisionDeny {
+			t.Fatalf("decision after denied ensure = %s, want %s", got, DecisionDeny)
+		}
+	})
+
+	t.Run("ensure default permissions does not backfill seed-only attachment permission", func(t *testing.T) {
+		if err := core.ClearServerPermissionState(ctx, SystemActorID, RoleEveryone, PermMessageAttach); err != nil {
+			t.Fatalf("ClearServerPermissionState: %v", err)
+		}
+		if got := core.RBAC.GetDecision(ScopeServer, "", RoleEveryone, PermMessageAttach); got != DecisionNone {
+			t.Fatalf("decision after clear = %s, want %s", got, DecisionNone)
+		}
+		if err := core.EnsureDefaultRolePermissions(ctx); err != nil {
+			t.Fatalf("EnsureDefaultRolePermissions: %v", err)
+		}
+		if got := core.RBAC.GetDecision(ScopeServer, "", RoleEveryone, PermMessageAttach); got != DecisionNone {
+			t.Fatalf("decision after ensure = %s, want %s", got, DecisionNone)
 		}
 	})
 }
@@ -536,7 +514,7 @@ func TestPermissionOpsWithCancelledContext(t *testing.T) {
 	cancel() // Cancel immediately
 
 	t.Run("grant fails with cancelled context", func(t *testing.T) {
-		err := core.GrantInstancePermission(ctx, RoleModerator, PermDMView)
+		err := core.GrantServerPermission(ctx, SystemActorID, RoleModerator, PermMessagePost)
 		if err == nil {
 			t.Error("Expected error with cancelled context")
 		}
@@ -572,37 +550,39 @@ func TestSetupAnnouncementsRoomPermissions(t *testing.T) {
 		t.Fatalf("CreateRoom (announcements) failed: %v", err)
 	}
 
-	t.Run("announcements room denies message.post to everyone", func(t *testing.T) {
-		kv := core.storage.serverRBACKV
-		denyKey := expectedRoomDenyKey(annRoom.Id, RoleEveryone, PermMessagePost)
-		_, err := kv.Get(ctx, denyKey)
-		if err != nil {
-			t.Errorf("Expected deny key %s to exist for announcements room", denyKey)
+	t.Run("announcements room denies message.post for everyone", func(t *testing.T) {
+		if got := core.RBAC.GetDecision(ScopeRoom, annRoom.Id, RoleEveryone, PermMessagePost); got != DecisionDeny {
+			t.Errorf("decision = %s, want %s", got, DecisionDeny)
 		}
 	})
 
-	t.Run("announcements room does not need explicit grants for higher-ranked roles", func(t *testing.T) {
-		kv := core.storage.serverRBACKV
-
-		// Higher-ranked roles (owner/admin/moderator) inherit message.post
-		// from their server-scope defaults; the resolver hits those grants
-		// before descending to the everyone-role deny.
-		for _, roleName := range []string{RoleOwner, RoleAdmin, RoleModerator} {
-			grantKey := expectedRoomAllowKey(annRoom.Id, roleName, PermMessagePost)
-			if _, err := kv.Get(ctx, grantKey); err == nil {
-				t.Errorf("Did not expect grant key %s for %s in announcements room", grantKey, roleName)
+	t.Run("announcements room does not store staff message.post overrides", func(t *testing.T) {
+		for _, roleName := range []string{RoleAdmin, RoleModerator} {
+			if got := core.RBAC.GetDecision(ScopeRoom, annRoom.Id, roleName, PermMessagePost); got != DecisionNone {
+				t.Errorf("room decision for %s = %s, want %s", roleName, got, DecisionNone)
 			}
+		}
+		if got := core.RBAC.GetDecision(ScopeRoom, annRoom.Id, RoleOwner, PermMessagePost); got != DecisionNone {
+			t.Errorf("owner room decision = %s, want %s", got, DecisionNone)
 		}
 	})
 
 	t.Run("regular room does not have announcements permissions", func(t *testing.T) {
-		kv := core.storage.serverRBACKV
-
-		// Regular room should NOT have the everyone denial for message.post
-		denyKey := expectedRoomDenyKey(regularRoom.Id, RoleEveryone, PermMessagePost)
-		_, err := kv.Get(ctx, denyKey)
-		if err == nil {
+		if got := core.RBAC.GetDecision(ScopeRoom, regularRoom.Id, RoleEveryone, PermMessagePost); got == DecisionDeny {
 			t.Errorf("Regular room should not have %s denial for everyone", PermMessagePost)
+		}
+	})
+
+	t.Run("regular room stores no admin or moderator staff defaults", func(t *testing.T) {
+		for _, perm := range []Permission{PermMessageManage, PermRoomManage, PermRoomMemberBan} {
+			if got := core.RBAC.GetDecision(ScopeRoom, regularRoom.Id, RoleAdmin, perm); got != DecisionNone {
+				t.Errorf("admin room decision for %s = %s, want %s", perm, got, DecisionNone)
+			}
+		}
+		for _, perm := range []Permission{PermMessageManage, PermRoomMemberBan} {
+			if got := core.RBAC.GetDecision(ScopeRoom, regularRoom.Id, RoleModerator, perm); got != DecisionNone {
+				t.Errorf("moderator room decision for %s = %s, want %s", perm, got, DecisionNone)
+			}
 		}
 	})
 

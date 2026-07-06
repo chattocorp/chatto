@@ -6,7 +6,11 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go"
+	"hmans.de/chatto/internal/config"
+	"hmans.de/chatto/internal/core/subjects"
+	"hmans.de/chatto/internal/events"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/internal/testutil"
 )
 
 func TestChattoCore_PostMessage_Threading(t *testing.T) {
@@ -30,6 +34,63 @@ func TestChattoCore_PostMessage_Threading(t *testing.T) {
 		}
 		if msg.InReplyTo != "" {
 			t.Errorf("Root message should have empty InReplyTo, got %q", msg.InReplyTo)
+		}
+	})
+
+	t.Run("first thread reply emits ThreadCreatedEvent", func(t *testing.T) {
+		root, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "Root for explicit thread creation", nil, "", "", nil, false)
+		if err != nil {
+			t.Fatalf("Post root: %v", err)
+		}
+		reply, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "First explicit thread reply", nil, root.Id, "", nil, false)
+		if err != nil {
+			t.Fatalf("Post first reply: %v", err)
+		}
+
+		agg := events.RoomAggregate(room.Id)
+		threadCreatedEvents, _, err := core.EventPublisher.SubjectEvents(ctx, agg.Subject(events.EventThreadCreated))
+		if err != nil {
+			t.Fatalf("SubjectEvents(thread_created): %v", err)
+		}
+		var created *corev1.Event
+		for _, event := range threadCreatedEvents {
+			if event.GetThreadCreated().GetThreadRootEventId() == root.Id {
+				created = event
+				break
+			}
+		}
+		if created == nil {
+			t.Fatalf("expected ThreadCreatedEvent for root %s", root.Id)
+		}
+		if _, ok := core.RoomTimeline.Get(created.Id); ok {
+			t.Fatalf("ThreadCreatedEvent %s should not be retained in room timeline lookup", created.Id)
+		}
+		replyEntry, ok := core.RoomTimeline.Get(reply.Id)
+		if !ok {
+			t.Fatalf("reply %s was not projected", reply.Id)
+		}
+		if replyEntry.Event.GetMessagePosted().GetInThread() != root.Id {
+			t.Fatalf("reply in_thread = %q, want %q", replyEntry.Event.GetMessagePosted().GetInThread(), root.Id)
+		}
+		if !core.Threads.ThreadExists(root.Id) {
+			t.Fatalf("thread projection does not know root %s exists", root.Id)
+		}
+
+		if _, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "Second explicit thread reply", nil, root.Id, "", nil, false); err != nil {
+			t.Fatalf("Post second reply: %v", err)
+		}
+		threadCreatedEvents, _, err = core.EventPublisher.SubjectEvents(ctx, agg.Subject(events.EventThreadCreated))
+		if err != nil {
+			t.Fatalf("SubjectEvents(thread_created) after second reply: %v", err)
+		}
+		countForRoot := 0
+		for _, event := range threadCreatedEvents {
+			if event.GetThreadCreated().GetThreadRootEventId() == root.Id {
+				countForRoot++
+			}
+		}
+		if countForRoot != 1 {
+			t.Fatalf("ThreadCreatedEvent count for root %s = %d, want 1", root.Id, countForRoot)
 		}
 	})
 
@@ -129,6 +190,115 @@ func TestChattoCore_PostMessage_Threading(t *testing.T) {
 			if msg.InThread != rootEventID {
 				t.Errorf("Event %d should have InThread=%q, got %q", i, rootEventID, msg.InThread)
 			}
+		}
+	})
+
+	t.Run("GetThreadReplyEvents paginates replies", func(t *testing.T) {
+		rootEvent, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "Thread root for paged replies", nil, "", "", nil, false)
+		if err != nil {
+			t.Fatalf("Failed to post root message: %v", err)
+		}
+
+		replies := make([]*corev1.Event, 0, 3)
+		for i := 1; i <= 3; i++ {
+			reply, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, fmt.Sprintf("Paged reply %d", i), nil, rootEvent.Id, "", nil, false)
+			if err != nil {
+				t.Fatalf("Failed to post reply %d: %v", i, err)
+			}
+			replies = append(replies, reply)
+		}
+
+		page, err := core.GetThreadReplyEvents(ctx, KindChannel, room.Id, rootEvent.Id, 2, nil, nil)
+		if err != nil {
+			t.Fatalf("GetThreadReplyEvents: %v", err)
+		}
+		if len(page.Events) != 2 {
+			t.Fatalf("first page len = %d, want 2", len(page.Events))
+		}
+		if page.Events[0].Id != replies[1].Id || page.Events[1].Id != replies[2].Id {
+			t.Fatalf("first page IDs = [%s, %s], want [%s, %s]", page.Events[0].Id, page.Events[1].Id, replies[1].Id, replies[2].Id)
+		}
+		if !page.HasOlder || page.HasNewer {
+			t.Fatalf("first page hasOlder/hasNewer = %v/%v, want true/false", page.HasOlder, page.HasNewer)
+		}
+
+		older, err := core.GetThreadReplyEvents(ctx, KindChannel, room.Id, rootEvent.Id, 2, &page.StartCursorSeq, nil)
+		if err != nil {
+			t.Fatalf("GetThreadReplyEvents older: %v", err)
+		}
+		if len(older.Events) != 1 || older.Events[0].Id != replies[0].Id {
+			t.Fatalf("older page = %v, want only %s", eventIDsForTest(older.Events), replies[0].Id)
+		}
+		if older.HasOlder || !older.HasNewer {
+			t.Fatalf("older page hasOlder/hasNewer = %v/%v, want false/true", older.HasOlder, older.HasNewer)
+		}
+
+		newer, err := core.GetThreadReplyEvents(ctx, KindChannel, room.Id, rootEvent.Id, 2, nil, &older.EndCursorSeq)
+		if err != nil {
+			t.Fatalf("GetThreadReplyEvents newer: %v", err)
+		}
+		if len(newer.Events) != 2 || newer.Events[0].Id != replies[1].Id || newer.Events[1].Id != replies[2].Id {
+			t.Fatalf("newer page = %v, want [%s, %s]", eventIDsForTest(newer.Events), replies[1].Id, replies[2].Id)
+		}
+	})
+
+	t.Run("GetThreadReplyEventsAround centers reply window", func(t *testing.T) {
+		rootEvent, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "Thread root for around replies", nil, "", "", nil, false)
+		if err != nil {
+			t.Fatalf("Failed to post root message: %v", err)
+		}
+
+		replies := make([]*corev1.Event, 0, 5)
+		for i := 1; i <= 5; i++ {
+			reply, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, fmt.Sprintf("Around reply %d", i), nil, rootEvent.Id, "", nil, false)
+			if err != nil {
+				t.Fatalf("Failed to post reply %d: %v", i, err)
+			}
+			replies = append(replies, reply)
+		}
+
+		page, err := core.GetThreadReplyEventsAround(ctx, KindChannel, room.Id, rootEvent.Id, replies[2].Id, 3)
+		if err != nil {
+			t.Fatalf("GetThreadReplyEventsAround: %v", err)
+		}
+		if got := eventIDsForTest(page.Events); len(got) != 3 || got[0] != replies[1].Id || got[1] != replies[2].Id || got[2] != replies[3].Id {
+			t.Fatalf("around page = %v, want [%s, %s, %s]", got, replies[1].Id, replies[2].Id, replies[3].Id)
+		}
+		if !page.HasOlder || !page.HasNewer {
+			t.Fatalf("around page hasOlder/hasNewer = %v/%v, want true/true", page.HasOlder, page.HasNewer)
+		}
+
+		nearStartPage, err := core.GetThreadReplyEventsAround(ctx, KindChannel, room.Id, rootEvent.Id, replies[0].Id, 3)
+		if err != nil {
+			t.Fatalf("GetThreadReplyEventsAround near start: %v", err)
+		}
+		if got := eventIDsForTest(nearStartPage.Events); len(got) != 3 || got[0] != replies[0].Id || got[1] != replies[1].Id || got[2] != replies[2].Id {
+			t.Fatalf("near-start around page = %v, want [%s, %s, %s]", got, replies[0].Id, replies[1].Id, replies[2].Id)
+		}
+		if nearStartPage.HasOlder || !nearStartPage.HasNewer {
+			t.Fatalf("near-start around page hasOlder/hasNewer = %v/%v, want false/true", nearStartPage.HasOlder, nearStartPage.HasNewer)
+		}
+
+		nearEndPage, err := core.GetThreadReplyEventsAround(ctx, KindChannel, room.Id, rootEvent.Id, replies[4].Id, 3)
+		if err != nil {
+			t.Fatalf("GetThreadReplyEventsAround near end: %v", err)
+		}
+		if got := eventIDsForTest(nearEndPage.Events); len(got) != 3 || got[0] != replies[2].Id || got[1] != replies[3].Id || got[2] != replies[4].Id {
+			t.Fatalf("near-end around page = %v, want [%s, %s, %s]", got, replies[2].Id, replies[3].Id, replies[4].Id)
+		}
+		if !nearEndPage.HasOlder || nearEndPage.HasNewer {
+			t.Fatalf("near-end around page hasOlder/hasNewer = %v/%v, want true/false", nearEndPage.HasOlder, nearEndPage.HasNewer)
+		}
+
+		rootPage, err := core.GetThreadReplyEventsAround(ctx, KindChannel, room.Id, rootEvent.Id, rootEvent.Id, 3)
+		if err != nil {
+			t.Fatalf("GetThreadReplyEventsAround root anchor: %v", err)
+		}
+		if got := eventIDsForTest(rootPage.Events); len(got) != 3 || got[0] != replies[0].Id || got[1] != replies[1].Id || got[2] != replies[2].Id {
+			t.Fatalf("root anchor around page = %v, want [%s, %s, %s]", got, replies[0].Id, replies[1].Id, replies[2].Id)
+		}
+		if rootPage.HasOlder || !rootPage.HasNewer {
+			t.Fatalf("root anchor around page hasOlder/hasNewer = %v/%v, want false/true", rootPage.HasOlder, rootPage.HasNewer)
 		}
 	})
 
@@ -338,7 +508,12 @@ func TestChattoCore_ThreadLastOpened(t *testing.T) {
 	// Setup
 	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "General", "General discussion")
 	user, _ := core.CreateUser(ctx, "system", "testuser", "testuser", "password123")
-	threadRootEventId := "test-thread-root-123"
+	core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
+	root, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "Root message", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("Failed to post root message: %v", err)
+	}
+	threadRootEventId := root.Id
 
 	// Initially should return zero time (never opened)
 	lastOpened, err := core.GetThreadLastOpened(ctx, KindChannel, user.Id, room.Id, threadRootEventId)
@@ -445,6 +620,24 @@ func TestChattoCore_ThreadFollow(t *testing.T) {
 			t.Fatalf("Failed to follow thread: %v", err)
 		}
 
+		followEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.RoomAggregate(room.Id).Subject(events.EventThreadFollowed))
+		if err != nil {
+			t.Fatalf("SubjectEvents(thread_followed): %v", err)
+		}
+		if len(followEvents) != 1 {
+			t.Fatalf("Expected one thread_followed event, got %d", len(followEvents))
+		}
+		follow := followEvents[0].GetThreadFollowed()
+		if follow == nil {
+			t.Fatalf("Expected ThreadFollowed payload, got %#v", followEvents[0])
+		}
+		if follow.GetUserId() != user.Id || follow.GetRoomId() != room.Id || follow.GetThreadRootEventId() != threadRootEventId {
+			t.Fatalf("Unexpected thread_followed payload: %#v", follow)
+		}
+		if got := follow.GetSource(); got != corev1.ThreadFollowSource_THREAD_FOLLOW_SOURCE_MANUAL {
+			t.Fatalf("ThreadFollowed source = %v, want manual", got)
+		}
+
 		isFollowing, err := core.IsFollowingThread(ctx, KindChannel, user.Id, room.Id, threadRootEventId)
 		if err != nil {
 			t.Fatalf("Failed to check thread follow: %v", err)
@@ -473,6 +666,21 @@ func TestChattoCore_ThreadFollow(t *testing.T) {
 		}
 		if isFollowing {
 			t.Error("Expected not following after UnfollowThread")
+		}
+
+		unfollowEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.RoomAggregate(room.Id).Subject(events.EventThreadUnfollowed))
+		if err != nil {
+			t.Fatalf("SubjectEvents(thread_unfollowed): %v", err)
+		}
+		if len(unfollowEvents) != 1 {
+			t.Fatalf("Expected one thread_unfollowed event, got %d", len(unfollowEvents))
+		}
+		unfollow := unfollowEvents[0].GetThreadUnfollowed()
+		if unfollow == nil {
+			t.Fatalf("Expected ThreadUnfollowed payload, got %#v", unfollowEvents[0])
+		}
+		if unfollow.GetUserId() != user.Id || unfollow.GetRoomId() != room.Id || unfollow.GetThreadRootEventId() != threadRootEventId {
+			t.Fatalf("Unexpected thread_unfollowed payload: %#v", unfollow)
 		}
 	})
 
@@ -563,7 +771,7 @@ func TestChattoCore_ListFollowedThreads(t *testing.T) {
 	core.JoinRoom(ctx, userB.Id, KindChannel, userB.Id, room2.Id)
 
 	t.Run("returns empty list when no threads are followed", func(t *testing.T) {
-		threads, err := core.ListFollowedThreads(ctx, userA.Id, []string{ServerSpaceID})
+		threads, err := core.ListFollowedThreads(ctx, userA.Id, []string{LegacyServerSpaceID})
 		if err != nil {
 			t.Fatalf("Failed to list followed threads: %v", err)
 		}
@@ -586,7 +794,7 @@ func TestChattoCore_ListFollowedThreads(t *testing.T) {
 
 	t.Run("returns followed threads sorted by last activity", func(t *testing.T) {
 		// User A auto-follows both threads (root author auto-follow on first reply)
-		threads, err := core.ListFollowedThreads(ctx, userA.Id, []string{ServerSpaceID})
+		threads, err := core.ListFollowedThreads(ctx, userA.Id, []string{LegacyServerSpaceID})
 		if err != nil {
 			t.Fatalf("Failed to list followed threads: %v", err)
 		}
@@ -603,8 +811,41 @@ func TestChattoCore_ListFollowedThreads(t *testing.T) {
 		}
 	})
 
+	t.Run("returns a paged followed thread list", func(t *testing.T) {
+		page, err := core.ListFollowedThreadsPage(ctx, userA.Id, []string{LegacyServerSpaceID}, 1, 0)
+		if err != nil {
+			t.Fatalf("Failed to list followed thread page: %v", err)
+		}
+		if page.TotalCount != 2 {
+			t.Fatalf("TotalCount = %d, want 2", page.TotalCount)
+		}
+		if !page.HasMore {
+			t.Fatal("HasMore = false, want true for first page")
+		}
+		if len(page.Threads) != 1 {
+			t.Fatalf("page len = %d, want 1", len(page.Threads))
+		}
+		if page.Threads[0].ThreadRootEventID != rootMsg2.Id {
+			t.Errorf("first page root = %q, want %q", page.Threads[0].ThreadRootEventID, rootMsg2.Id)
+		}
+
+		page, err = core.ListFollowedThreadsPage(ctx, userA.Id, []string{LegacyServerSpaceID}, 1, 1)
+		if err != nil {
+			t.Fatalf("Failed to list followed thread second page: %v", err)
+		}
+		if page.HasMore {
+			t.Fatal("HasMore = true, want false for final page")
+		}
+		if len(page.Threads) != 1 {
+			t.Fatalf("second page len = %d, want 1", len(page.Threads))
+		}
+		if page.Threads[0].ThreadRootEventID != rootMsg1.Id {
+			t.Errorf("second page root = %q, want %q", page.Threads[0].ThreadRootEventID, rootMsg1.Id)
+		}
+	})
+
 	t.Run("includes correct metadata", func(t *testing.T) {
-		threads, err := core.ListFollowedThreads(ctx, userA.Id, []string{ServerSpaceID})
+		threads, err := core.ListFollowedThreads(ctx, userA.Id, []string{LegacyServerSpaceID})
 		if err != nil {
 			t.Fatalf("Failed to list followed threads: %v", err)
 		}
@@ -617,7 +858,7 @@ func TestChattoCore_ListFollowedThreads(t *testing.T) {
 		if thread2.RoomID != room2.Id {
 			t.Errorf("Expected room2 ID, got %s", thread2.RoomID)
 		}
-		if thread2.SpaceID != SpaceIDForKind(KindChannel) {
+		if thread2.SpaceID != LegacySpaceIDForRoomKind(KindChannel) {
 			t.Errorf("Expected canonical space ID, got %s", thread2.SpaceID)
 		}
 		if thread2.LastReplyAt == nil {
@@ -632,7 +873,7 @@ func TestChattoCore_ListFollowedThreads(t *testing.T) {
 	})
 
 	t.Run("hasUnread is true when thread has activity after last opened", func(t *testing.T) {
-		threads, err := core.ListFollowedThreads(ctx, userA.Id, []string{ServerSpaceID})
+		threads, err := core.ListFollowedThreads(ctx, userA.Id, []string{LegacyServerSpaceID})
 		if err != nil {
 			t.Fatalf("Failed to list followed threads: %v", err)
 		}
@@ -655,7 +896,7 @@ func TestChattoCore_ListFollowedThreads(t *testing.T) {
 		// User A opens thread 2
 		core.SetThreadLastOpened(ctx, KindChannel, userA.Id, room2.Id, rootMsg2.Id)
 
-		threads, err := core.ListFollowedThreads(ctx, userA.Id, []string{ServerSpaceID})
+		threads, err := core.ListFollowedThreads(ctx, userA.Id, []string{LegacyServerSpaceID})
 		if err != nil {
 			t.Fatalf("Failed to list followed threads: %v", err)
 		}
@@ -677,7 +918,7 @@ func TestChattoCore_ListFollowedThreads(t *testing.T) {
 		// User A unfollows thread 1
 		core.UnfollowThread(ctx, KindChannel, userA.Id, room1.Id, rootMsg1.Id)
 
-		threads, err := core.ListFollowedThreads(ctx, userA.Id, []string{ServerSpaceID})
+		threads, err := core.ListFollowedThreads(ctx, userA.Id, []string{LegacyServerSpaceID})
 		if err != nil {
 			t.Fatalf("Failed to list followed threads: %v", err)
 		}
@@ -691,7 +932,7 @@ func TestChattoCore_ListFollowedThreads(t *testing.T) {
 
 	t.Run("only returns threads for the specified user", func(t *testing.T) {
 		// User B followed both threads (auto-follow from posting replies)
-		threadsB, err := core.ListFollowedThreads(ctx, userB.Id, []string{ServerSpaceID})
+		threadsB, err := core.ListFollowedThreads(ctx, userB.Id, []string{LegacyServerSpaceID})
 		if err != nil {
 			t.Fatalf("Failed to list followed threads for user B: %v", err)
 		}
@@ -700,7 +941,7 @@ func TestChattoCore_ListFollowedThreads(t *testing.T) {
 		}
 
 		// User A should still only have 1 (unfollowed thread 1 above)
-		threadsA, err := core.ListFollowedThreads(ctx, userA.Id, []string{ServerSpaceID})
+		threadsA, err := core.ListFollowedThreads(ctx, userA.Id, []string{LegacyServerSpaceID})
 		if err != nil {
 			t.Fatalf("Failed to list followed threads for user A: %v", err)
 		}
@@ -713,7 +954,7 @@ func TestChattoCore_ListFollowedThreads(t *testing.T) {
 		// Manually follow a thread that has no metadata (orphaned)
 		core.FollowThread(ctx, KindChannel, userA.Id, room1.Id, "nonexistent-thread-id")
 
-		threads, err := core.ListFollowedThreads(ctx, userA.Id, []string{ServerSpaceID})
+		threads, err := core.ListFollowedThreads(ctx, userA.Id, []string{LegacyServerSpaceID})
 		if err != nil {
 			t.Fatalf("Failed to list followed threads: %v", err)
 		}
@@ -871,6 +1112,221 @@ func TestChattoCore_PostMessage_RootAuthorUnfollowRespected(t *testing.T) {
 	}
 }
 
+func TestChattoCore_PostMessage_DirectMentionAutoFollowsThread(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	room, _ := core.CreateRoom(ctx, SystemActorID, KindChannel, "", "General", "General discussion")
+	rootAuthor, _ := core.CreateUser(ctx, SystemActorID, "mention-root", "Mention Root", "password123")
+	replyAuthor, _ := core.CreateUser(ctx, SystemActorID, "mention-reply", "Mention Reply", "password123")
+	mentioned, _ := core.CreateUser(ctx, SystemActorID, "mention-target", "Mention Target", "password123")
+	core.JoinRoom(ctx, rootAuthor.Id, KindChannel, rootAuthor.Id, room.Id)
+	core.JoinRoom(ctx, replyAuthor.Id, KindChannel, replyAuthor.Id, room.Id)
+	core.JoinRoom(ctx, mentioned.Id, KindChannel, mentioned.Id, room.Id)
+
+	rootMsg, err := core.PostMessage(ctx, KindChannel, room.Id, rootAuthor.Id, "Root", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("Post root: %v", err)
+	}
+	if _, err := core.PostMessage(ctx, KindChannel, room.Id, replyAuthor.Id, "Looping in @mention-target", nil, rootMsg.Id, "", nil, false); err != nil {
+		t.Fatalf("Post direct mention reply: %v", err)
+	}
+
+	isFollowing, err := core.IsFollowingThread(ctx, KindChannel, mentioned.Id, room.Id, rootMsg.Id)
+	if err != nil {
+		t.Fatalf("IsFollowingThread: %v", err)
+	}
+	if !isFollowing {
+		t.Fatal("directly mentioned user should be auto-following the thread")
+	}
+
+	notifications, err := core.GetNotifications(ctx, mentioned.Id)
+	if err != nil {
+		t.Fatalf("GetNotifications: %v", err)
+	}
+	if len(notifications) != 1 || notifications[0].GetMention() == nil {
+		t.Fatalf("expected one mention notification, got %#v", notifications)
+	}
+}
+
+func TestChattoCore_PostMessage_DirectMentionRespectsExplicitUnfollow(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	room, _ := core.CreateRoom(ctx, SystemActorID, KindChannel, "", "General", "General discussion")
+	rootAuthor, _ := core.CreateUser(ctx, SystemActorID, "unfollow-root", "Unfollow Root", "password123")
+	replyAuthor, _ := core.CreateUser(ctx, SystemActorID, "unfollow-reply", "Unfollow Reply", "password123")
+	mentioned, _ := core.CreateUser(ctx, SystemActorID, "unfollow-target", "Unfollow Target", "password123")
+	core.JoinRoom(ctx, rootAuthor.Id, KindChannel, rootAuthor.Id, room.Id)
+	core.JoinRoom(ctx, replyAuthor.Id, KindChannel, replyAuthor.Id, room.Id)
+	core.JoinRoom(ctx, mentioned.Id, KindChannel, mentioned.Id, room.Id)
+
+	rootMsg, _ := core.PostMessage(ctx, KindChannel, room.Id, rootAuthor.Id, "Root", nil, "", "", nil, false)
+	if err := core.FollowThread(ctx, KindChannel, mentioned.Id, room.Id, rootMsg.Id); err != nil {
+		t.Fatalf("FollowThread: %v", err)
+	}
+	if err := core.UnfollowThread(ctx, KindChannel, mentioned.Id, room.Id, rootMsg.Id); err != nil {
+		t.Fatalf("UnfollowThread: %v", err)
+	}
+
+	if _, err := core.PostMessage(ctx, KindChannel, room.Id, replyAuthor.Id, "Still need @unfollow-target here", nil, rootMsg.Id, "", nil, false); err != nil {
+		t.Fatalf("Post direct mention reply: %v", err)
+	}
+
+	isFollowing, err := core.IsFollowingThread(ctx, KindChannel, mentioned.Id, room.Id, rootMsg.Id)
+	if err != nil {
+		t.Fatalf("IsFollowingThread: %v", err)
+	}
+	if isFollowing {
+		t.Fatal("direct mention should not restore an explicitly unfollowed thread")
+	}
+
+	notifications, err := core.GetNotifications(ctx, mentioned.Id)
+	if err != nil {
+		t.Fatalf("GetNotifications: %v", err)
+	}
+	if len(notifications) != 1 || notifications[0].GetMention() == nil {
+		t.Fatalf("expected mention notification despite explicit unfollow, got %#v", notifications)
+	}
+
+	if err := core.FollowThread(ctx, KindChannel, mentioned.Id, room.Id, rootMsg.Id); err != nil {
+		t.Fatalf("FollowThread after unfollow: %v", err)
+	}
+	isFollowing, err = core.IsFollowingThread(ctx, KindChannel, mentioned.Id, room.Id, rootMsg.Id)
+	if err != nil {
+		t.Fatalf("IsFollowingThread after follow: %v", err)
+	}
+	if !isFollowing {
+		t.Fatal("manual follow should clear explicit unfollow state")
+	}
+}
+
+func TestChattoCore_PostMessage_BroadMentionsDoNotAutoFollowThread(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	room, _ := core.CreateRoom(ctx, SystemActorID, KindChannel, "", "General", "General discussion")
+	rootAuthor, _ := core.CreateUser(ctx, SystemActorID, "broad-root", "Broad Root", "password123")
+	replyAuthor, _ := core.CreateUser(ctx, SystemActorID, "broad-reply", "Broad Reply", "password123")
+	mentioned, _ := core.CreateUser(ctx, SystemActorID, "broad-target", "Broad Target", "password123")
+	core.JoinRoom(ctx, rootAuthor.Id, KindChannel, rootAuthor.Id, room.Id)
+	core.JoinRoom(ctx, replyAuthor.Id, KindChannel, replyAuthor.Id, room.Id)
+	core.JoinRoom(ctx, mentioned.Id, KindChannel, mentioned.Id, room.Id)
+	if _, err := core.CreateServerRole(ctx, SystemActorID, "supportthread", "Support Thread", "Support thread responders", true); err != nil {
+		t.Fatalf("CreateServerRole: %v", err)
+	}
+	if err := core.AssignServerRole(ctx, SystemActorID, mentioned.Id, "supportthread"); err != nil {
+		t.Fatalf("AssignServerRole: %v", err)
+	}
+
+	rootMsg, _ := core.PostMessage(ctx, KindChannel, room.Id, rootAuthor.Id, "Root", nil, "", "", nil, false)
+	if _, err := core.PostMessage(ctx, KindChannel, room.Id, replyAuthor.Id, "@supportthread @all please look", nil, rootMsg.Id, "", nil, false); err != nil {
+		t.Fatalf("Post broad mention reply: %v", err)
+	}
+
+	isFollowing, err := core.IsFollowingThread(ctx, KindChannel, mentioned.Id, room.Id, rootMsg.Id)
+	if err != nil {
+		t.Fatalf("IsFollowingThread: %v", err)
+	}
+	if isFollowing {
+		t.Fatal("role and broadcast mentions should not auto-follow recipients")
+	}
+}
+
+func TestChattoCore_PostMessage_MutedDirectMentionDoesNotAutoFollowThread(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	room, _ := core.CreateRoom(ctx, SystemActorID, KindChannel, "", "General", "General discussion")
+	rootAuthor, _ := core.CreateUser(ctx, SystemActorID, "muted-root", "Muted Root", "password123")
+	replyAuthor, _ := core.CreateUser(ctx, SystemActorID, "muted-reply", "Muted Reply", "password123")
+	mentioned, _ := core.CreateUser(ctx, SystemActorID, "muted-target", "Muted Target", "password123")
+	core.JoinRoom(ctx, rootAuthor.Id, KindChannel, rootAuthor.Id, room.Id)
+	core.JoinRoom(ctx, replyAuthor.Id, KindChannel, replyAuthor.Id, room.Id)
+	core.JoinRoom(ctx, mentioned.Id, KindChannel, mentioned.Id, room.Id)
+	if err := core.SetRoomNotificationLevel(ctx, mentioned.Id, room.Id, corev1.NotificationLevel_NOTIFICATION_LEVEL_MUTED); err != nil {
+		t.Fatalf("SetRoomNotificationLevel: %v", err)
+	}
+
+	rootMsg, _ := core.PostMessage(ctx, KindChannel, room.Id, rootAuthor.Id, "Root", nil, "", "", nil, false)
+	if _, err := core.PostMessage(ctx, KindChannel, room.Id, replyAuthor.Id, "Muted ping @muted-target", nil, rootMsg.Id, "", nil, false); err != nil {
+		t.Fatalf("Post muted direct mention reply: %v", err)
+	}
+
+	isFollowing, err := core.IsFollowingThread(ctx, KindChannel, mentioned.Id, room.Id, rootMsg.Id)
+	if err != nil {
+		t.Fatalf("IsFollowingThread: %v", err)
+	}
+	if isFollowing {
+		t.Fatal("muted direct mention should not auto-follow the recipient")
+	}
+	notifications, err := core.GetNotifications(ctx, mentioned.Id)
+	if err != nil {
+		t.Fatalf("GetNotifications: %v", err)
+	}
+	if len(notifications) != 0 {
+		t.Fatalf("expected no notifications for muted direct mention, got %#v", notifications)
+	}
+}
+
+func TestChattoCore_LegacyThreadFollowValueStillLists(t *testing.T) {
+	ctx := testContext(t)
+	_, nc := testutil.StartNATS(t)
+	cfg := config.CoreConfig{
+		SecretKey: "test-core-secret",
+		Assets: config.AssetsConfig{
+			SigningSecret: "test-signing-secret",
+		},
+	}
+
+	first, err := NewChattoCore(ctx, nc, cfg)
+	if err != nil {
+		t.Fatalf("NewChattoCore first: %v", err)
+	}
+	startCoreServices(t, first)
+
+	room, _ := first.CreateRoom(ctx, SystemActorID, KindChannel, "", "General", "General discussion")
+	rootAuthor, _ := first.CreateUser(ctx, SystemActorID, "legacy-root", "Legacy Root", "password123")
+	replyAuthor, _ := first.CreateUser(ctx, SystemActorID, "legacy-reply", "Legacy Reply", "password123")
+	legacyFollower, _ := first.CreateUser(ctx, SystemActorID, "legacy-follower", "Legacy Follower", "password123")
+	first.JoinRoom(ctx, rootAuthor.Id, KindChannel, rootAuthor.Id, room.Id)
+	first.JoinRoom(ctx, replyAuthor.Id, KindChannel, replyAuthor.Id, room.Id)
+	first.JoinRoom(ctx, legacyFollower.Id, KindChannel, legacyFollower.Id, room.Id)
+
+	rootMsg, _ := first.PostMessage(ctx, KindChannel, room.Id, rootAuthor.Id, "Root", nil, "", "", nil, false)
+	if _, err := first.PostMessage(ctx, KindChannel, room.Id, replyAuthor.Id, "Reply", nil, rootMsg.Id, "", nil, false); err != nil {
+		t.Fatalf("Post reply: %v", err)
+	}
+	if _, err := first.storage.runtimeStateKV.Put(ctx, threadFollowKey(legacyFollower.Id, room.Id, rootMsg.Id), []byte{0x01}); err != nil {
+		t.Fatalf("write legacy thread follow marker: %v", err)
+	}
+
+	second, err := NewChattoCore(ctx, nc, cfg)
+	if err != nil {
+		t.Fatalf("NewChattoCore second: %v", err)
+	}
+	startCoreServices(t, second)
+	if err := second.WaitForProjectionsCurrent(ctx); err != nil {
+		t.Fatalf("WaitForProjectionsCurrent: %v", err)
+	}
+
+	isFollowing, err := second.IsFollowingThread(ctx, KindChannel, legacyFollower.Id, room.Id, rootMsg.Id)
+	if err != nil {
+		t.Fatalf("IsFollowingThread: %v", err)
+	}
+	if !isFollowing {
+		t.Fatal("legacy positive value should still count as following")
+	}
+
+	page, err := second.ListFollowedThreadsPage(ctx, legacyFollower.Id, []string{LegacySpaceIDForRoomKind(KindChannel)}, 10, 0)
+	if err != nil {
+		t.Fatalf("ListFollowedThreadsPage: %v", err)
+	}
+	if len(page.Threads) != 1 || page.Threads[0].ThreadRootEventID != rootMsg.Id {
+		t.Fatalf("followed threads = %#v, want legacy-followed thread %s", page.Threads, rootMsg.Id)
+	}
+}
+
 func TestChattoCore_NotifyThreadFollowers(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
@@ -958,9 +1414,8 @@ func TestChattoCore_PostMessage_ThreadReplyEcho(t *testing.T) {
 		for _, e := range roomEvents {
 			if msg := e.GetMessagePosted(); msg != nil && msg.EchoOfEventId != "" {
 				foundEcho = true
-				if msg.MessageBodyId != reply.MessageBodyId {
-					t.Errorf("Echo should share messageBodyId with reply: got echo=%q, reply=%q", msg.MessageBodyId, reply.MessageBodyId)
-				}
+				// The echo has its own envelope id. EchoOfEventId /
+				// EchoFromThreadRootEventId are the shared identifiers.
 				if msg.EchoOfEventId != replyEvent.Id {
 					t.Errorf("Echo.EchoOfEventId should be %q, got %q", replyEvent.Id, msg.EchoOfEventId)
 				}
@@ -1021,32 +1476,55 @@ func TestChattoCore_PostMessage_ThreadReplyEcho(t *testing.T) {
 		}
 	})
 
-	t.Run("shared message body between echo and reply", func(t *testing.T) {
-		// Post root and reply with echo
+	t.Run("echo carries the same body content as the reply", func(t *testing.T) {
+		// Post root and reply with echo.
 		rootEvent, _ := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "Root for body test", nil, "", "", nil, false)
 		replyEvent, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "Shared body content", nil, rootEvent.Id, "", nil, true)
 		if err != nil {
 			t.Fatalf("Failed to post reply: %v", err)
 		}
 
-		reply := replyEvent.GetMessagePosted()
+		// Echo and reply each have their own envelope id and encryption
+		// context, but decrypt to the same visible content.
+		replyBody, retracted, ok := core.RoomTimeline.LatestBody(replyEvent.Id)
+		if !ok || retracted || replyBody == nil {
+			t.Fatal("reply has no projected body")
+		}
 
-		// Find the echo in room events
 		roomEventsResult, _ := core.GetRoomEvents(ctx, KindChannel, room.Id, 50, nil)
-		roomEvents := roomEventsResult.Events
-		var echoBodyID string
-		for _, e := range roomEvents {
+		var echoBody *corev1.MessageBody
+		var echoID string
+		for _, e := range roomEventsResult.Events {
 			if msg := e.GetMessagePosted(); msg != nil && msg.EchoOfEventId == replyEvent.Id {
-				echoBodyID = msg.MessageBodyId
+				echoID = e.Id
 				break
 			}
 		}
-
-		if echoBodyID == "" {
-			t.Fatal("Echo not found in room events")
+		if echoID != "" {
+			echoBody, retracted, ok = core.RoomTimeline.LatestBody(echoID)
+			if !ok || retracted {
+				echoBody = nil
+			}
 		}
-		if echoBodyID != reply.MessageBodyId {
-			t.Errorf("Echo and reply should share messageBodyId: echo=%q, reply=%q", echoBodyID, reply.MessageBodyId)
+		if echoBody == nil {
+			t.Fatal("Echo not found in room events (or has no projected body)")
+		}
+		if echoID == "" {
+			t.Fatal("Echo event has no id")
+		}
+		if string(echoBody.EncryptedBody) == string(replyBody.EncryptedBody) {
+			t.Errorf("Echo body ciphertext should be independently encrypted")
+		}
+		echoText, err := core.GetMessageBody(ctx, KindChannel, echoID)
+		if err != nil {
+			t.Fatalf("Failed to decrypt echo body: %v", err)
+		}
+		replyText, err := core.GetMessageBody(ctx, KindChannel, replyEvent.Id)
+		if err != nil {
+			t.Fatalf("Failed to decrypt reply body: %v", err)
+		}
+		if echoText != replyText || echoText != "Shared body content" {
+			t.Errorf("Echo/reply body = %q/%q, want shared content", echoText, replyText)
 		}
 	})
 }
@@ -1065,7 +1543,7 @@ func TestChattoCore_PostMessage_EchoMentionNotification(t *testing.T) {
 	t.Run("echo with mention produces exactly one notification", func(t *testing.T) {
 		// Subscribe to live mention events for the target user
 		mentionCount := 0
-		sub, err := nc.Subscribe("live.server.user."+target.Id+".mentioned", func(msg *nats.Msg) {
+		sub, err := nc.Subscribe(subjects.LiveSyncUserEvent(target.Id, "mentioned"), func(msg *nats.Msg) {
 			mentionCount++
 		})
 		if err != nil {
@@ -1144,9 +1622,6 @@ func TestChattoCore_PostMessage_InReplyToNotification(t *testing.T) {
 			replyNotif := n.GetReply()
 			if replyNotif != nil {
 				found = true
-				if replyNotif.SpaceId != ServerSpaceID {
-					t.Errorf("ReplyNotification.SpaceId = %s, want %s", replyNotif.SpaceId, ServerSpaceID)
-				}
 				if replyNotif.RoomId != room.Id {
 					t.Errorf("ReplyNotification.RoomId = %s, want %s", replyNotif.RoomId, room.Id)
 				}
@@ -1210,7 +1685,7 @@ func TestChattoCore_PostMessage_InReplyToNotification(t *testing.T) {
 
 		// Alice mutes the room
 		core.SetRoomNotificationLevel(ctx, alice.Id, room.Id, corev1.NotificationLevel_NOTIFICATION_LEVEL_MUTED)
-		defer core.SetRoomNotificationLevel(ctx, alice.Id, room.Id, corev1.NotificationLevel_NOTIFICATION_LEVEL_DEFAULT)
+		defer core.SetRoomNotificationLevel(ctx, alice.Id, room.Id, corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED)
 
 		// Alice posts a message
 		aliceMsg, err := core.PostMessage(ctx, KindChannel, room.Id, alice.Id, "Muted test", nil, "", "", nil, false)
@@ -1315,6 +1790,46 @@ func TestChattoCore_PostMessage_InReplyToNotification(t *testing.T) {
 		}
 	})
 
+	t.Run("thread mention keeps existing follower notification", func(t *testing.T) {
+		// Clear existing notifications
+		core.DismissAllNotifications(ctx, alice.Id)
+
+		// Alice posts a root message. The first thread reply auto-follows her
+		// as root author before notifications are fanned out.
+		rootMsg, err := core.PostMessage(ctx, KindChannel, room.Id, alice.Id, "Thread root with mention", nil, "", "", nil, false)
+		if err != nil {
+			t.Fatalf("Failed to post root: %v", err)
+		}
+
+		_, err = core.PostMessage(ctx, KindChannel, room.Id, bob.Id, "Hey @alice look at this", nil, rootMsg.Id, "", nil, false)
+		if err != nil {
+			t.Fatalf("Failed to post thread reply with mention: %v", err)
+		}
+
+		notifications, err := core.GetNotifications(ctx, alice.Id)
+		if err != nil {
+			t.Fatalf("GetNotifications error: %v", err)
+		}
+
+		mentionCount := 0
+		threadReplyCount := 0
+		for _, n := range notifications {
+			if mention := n.GetMention(); mention != nil && mention.InThread == rootMsg.Id {
+				mentionCount++
+			}
+			if reply := n.GetReply(); reply != nil && reply.InThread == rootMsg.Id {
+				threadReplyCount++
+			}
+		}
+
+		if mentionCount != 1 {
+			t.Errorf("Expected 1 thread mention notification, got %d", mentionCount)
+		}
+		if threadReplyCount != 1 {
+			t.Errorf("Expected 1 followed-thread notification, got %d", threadReplyCount)
+		}
+	})
+
 	t.Run("in-thread inReplyTo notifies original author with InThread set", func(t *testing.T) {
 		// Clear existing notifications
 		core.DismissAllNotifications(ctx, alice.Id)
@@ -1406,4 +1921,80 @@ func TestChattoCore_PostMessage_InReplyToNotification(t *testing.T) {
 			t.Errorf("Expected exactly 1 ReplyNotification (deduped), got %d", replyCount)
 		}
 	})
+}
+
+func TestChattoCore_SetThreadLastReadEventIDDoesNotRegress(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "General", "General discussion")
+	user, _ := core.CreateUser(ctx, "system", "threadreader", "threadreader", "password123")
+	core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
+
+	root, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "Root message", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage root: %v", err)
+	}
+	reply1, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "First reply", nil, root.Id, "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage reply1: %v", err)
+	}
+	reply2, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "Second reply", nil, root.Id, "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage reply2: %v", err)
+	}
+	if reply2.GetCreatedAt().AsTime().IsZero() {
+		t.Fatal("reply2 created_at is zero")
+	}
+
+	marker2, err := core.GetThreadLastOpened(ctx, KindChannel, user.Id, room.Id, root.Id)
+	if err != nil {
+		t.Fatalf("GetThreadLastOpened after reply2: %v", err)
+	}
+	if marker2.IsZero() {
+		t.Fatal("thread marker after reply2 is zero")
+	}
+
+	previous, err := core.SetThreadLastReadEventID(ctx, KindChannel, user.Id, room.Id, root.Id, reply1.Id)
+	if err != nil {
+		t.Fatalf("SetThreadLastReadEventID stale reply1: %v", err)
+	}
+	if !previous.Equal(marker2) {
+		t.Fatalf("previous marker = %v, want %v", previous, marker2)
+	}
+	markerAfter, err := core.GetThreadLastOpened(ctx, KindChannel, user.Id, room.Id, root.Id)
+	if err != nil {
+		t.Fatalf("GetThreadLastOpened after stale reply1: %v", err)
+	}
+	if !markerAfter.Equal(marker2) {
+		t.Fatalf("thread marker regressed from %v to %v", marker2, markerAfter)
+	}
+
+	reply1Time := reply1.GetCreatedAt().AsTime()
+	previous, err = core.SetThreadLastOpenedAt(ctx, KindChannel, user.Id, room.Id, root.Id, reply1Time)
+	if err != nil {
+		t.Fatalf("SetThreadLastOpenedAt stale reply1 time: %v", err)
+	}
+	if !previous.Equal(marker2) {
+		t.Fatalf("previous legacy marker = %v, want %v", previous, marker2)
+	}
+	markerAfterLegacy, err := core.GetThreadLastOpened(ctx, KindChannel, user.Id, room.Id, root.Id)
+	if err != nil {
+		t.Fatalf("GetThreadLastOpened after stale legacy timestamp: %v", err)
+	}
+	if !markerAfterLegacy.Equal(marker2) {
+		t.Fatalf("thread marker regressed through legacy setter from %v to %v", marker2, markerAfterLegacy)
+	}
+}
+
+func eventIDsForTest(events []*RoomEvent) []string {
+	ids := make([]string, 0, len(events))
+	for _, event := range events {
+		if event == nil || event.Event == nil {
+			ids = append(ids, "")
+			continue
+		}
+		ids = append(ids, event.Id)
+	}
+	return ids
 }

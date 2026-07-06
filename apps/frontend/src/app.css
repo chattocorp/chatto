@@ -1,0 +1,621 @@
+@import '@fontsource-variable/ibm-plex-sans';
+@import '@fontsource-variable/ibm-plex-sans/wght-italic.css';
+@import '@fontsource/ibm-plex-mono/400.css';
+@import '@fontsource/ibm-plex-mono/500.css';
+@import 'tailwindcss';
+@import './prose.css';
+/* @plugin '@tailwindcss/forms'; */
+@plugin '@iconify/tailwind4' {
+  scale: 1.2;
+  prefixes: uil, mdi, logos;
+}
+
+/* Custom variant for desktop/mouse devices (fine pointer like mouse/trackpad).
+   Usage: pointer-fine:select-text - enables selection only on desktop */
+@custom-variant pointer-fine (@media (pointer: fine));
+
+/*
+ * Theme tokens.
+ *
+ * The active theme is selected by `data-theme` on `<html>`, which is set by
+ * the inline script in `app.html`. That script reads
+ * `chatto:preferences.displayTheme` for the client-side Display setting,
+ * falls back to legacy `localStorage.theme`, then mirrors
+ * `prefers-color-scheme`.
+ *
+ * Light is the default (`:root`). Dark applies via the attribute selector,
+ * so it wins whenever the script (or Storybook's theme toolbar) has set
+ * `data-theme="dark"`.
+ */
+:root {
+  color-scheme: light;
+
+  --color-background: var(--color-gray-100);
+  --color-text: var(--color-gray-600);
+  --color-text-top: var(--color-black);
+  --color-muted: var(--color-gray-500);
+
+  --color-border: var(--color-gray-200);
+  --color-surface: var(--color-gray-200);
+  --color-surface-100: var(--color-gray-200);
+  --color-surface-200: var(--color-gray-300);
+  --color-surface-300: var(--color-gray-400);
+  --color-surface-highlighted: var(--color-gray-300);
+
+  /* Form-field surface — distinct from any container surface so inputs
+     never disappear into a dialog or panel. Pure white in light mode
+     (raised paper), deeper-than-surface in dark mode (inset well). */
+  --color-input: var(--color-white);
+  --color-input-border: var(--color-gray-300);
+
+  --color-accent: var(--color-sky-600);
+  --color-primary: #64748b;
+  --color-primary-hover: #475569;
+  --color-link: var(--color-accent);
+  --color-link-hover: color-mix(in srgb, var(--color-accent), black 20%);
+  --color-success: var(--color-green-600);
+  --color-warning: var(--color-amber-600);
+  --color-danger: var(--color-red-600);
+  --color-error: var(--color-red-600);
+  --color-server: var(--color-indigo-600);
+  --color-presence-online: var(--color-green-500);
+  --color-presence-away: var(--color-yellow-500);
+  --color-presence-do-not-disturb: var(--color-red-500);
+  --color-presence-offline: var(--color-gray-500);
+  --color-presence-invisible: var(--color-gray-400);
+
+  /* Panel header band tint + 1px inset highlight just under the divider.
+     Tint matches the outer app frame (`bg-surface-100`) so the header
+     reads as if cut from that surface. Highlight is tuned per theme
+     (bright in light, barely-there in dark) — see dark override. */
+  --color-panel-tint: var(--color-surface-100);
+  --color-panel-highlight: rgba(255, 255, 255, 0.7);
+  --color-image-outline: rgba(0, 0, 0, 0.1);
+
+  /* Shimmer hover effect gradient */
+  --shimmer-gradient: linear-gradient(
+    120deg,
+    transparent 0%,
+    transparent 40%,
+    rgba(255, 255, 255, 0.15) 50%,
+    transparent 60%,
+    transparent 100%
+  );
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --color-background: var(--color-neutral-900);
+  --color-text: var(--color-neutral-300);
+  --color-text-top: var(--color-white);
+  --color-muted: var(--color-neutral-400);
+
+  --color-border: var(--color-neutral-800);
+  --color-surface: var(--color-neutral-800);
+  --color-surface-100: var(--color-neutral-800);
+  --color-surface-200: var(--color-neutral-700);
+  --color-surface-300: var(--color-neutral-600);
+  --color-surface-highlighted: var(--color-neutral-600);
+
+  /* See light-mode comment — sits below all surfaces for an inset well look. */
+  --color-input: var(--color-neutral-950);
+  --color-input-border: var(--color-neutral-700);
+
+  --color-accent: var(--color-sky-400);
+  --color-primary: var(--color-neutral-600);
+  --color-primary-hover: var(--color-neutral-500);
+  --color-link: var(--color-accent);
+  --color-link-hover: color-mix(in srgb, var(--color-accent), white 20%);
+  --color-success: var(--color-green-500);
+  --color-warning: var(--color-amber-500);
+  --color-danger: var(--color-red-400);
+  --color-error: var(--color-red-400);
+  --color-server: var(--color-indigo-400);
+
+  --color-panel-highlight: rgba(255, 255, 255, 0.04);
+  --color-image-outline: rgba(255, 255, 255, 0.1);
+}
+
+@theme {
+  --font-sans: 'IBM Plex Sans Variable', sans-serif;
+  --font-mono: 'IBM Plex Mono', monospace;
+
+  --color-background: var(--color-background);
+  --color-text: var(--color-text);
+  --color-text-top: var(--color-text-top);
+  --color-muted: var(--color-muted);
+
+  --color-border: var(--color-border);
+  --color-surface: var(--color-surface);
+  --color-surface-100: var(--color-surface-100);
+  --color-surface-200: var(--color-surface-200);
+  --color-surface-300: var(--color-surface-300);
+  --color-surface-highlighted: var(--color-surface-highlighted);
+
+  --color-input: var(--color-input);
+  --color-input-border: var(--color-input-border);
+
+  --color-accent: var(--color-accent);
+  --color-primary: var(--color-primary);
+  --color-primary-hover: var(--color-primary-hover);
+  --color-link: var(--color-link);
+  --color-link-hover: var(--color-link-hover);
+  --color-success: var(--color-success);
+  --color-warning: var(--color-warning);
+  --color-danger: var(--color-danger);
+  --color-error: var(--color-error);
+  --color-server: var(--color-server);
+  --color-presence-online: var(--color-presence-online);
+  --color-presence-away: var(--color-presence-away);
+  --color-presence-do-not-disturb: var(--color-presence-do-not-disturb);
+  --color-presence-offline: var(--color-presence-offline);
+  --color-presence-invisible: var(--color-presence-invisible);
+
+  --color-panel-tint: var(--color-panel-tint);
+  --color-panel-highlight: var(--color-panel-highlight);
+}
+
+/* Panel/card shells - canonical bordered surfaces for admin panels, room
+ * directory group cards, and similar content containers. Pair with
+ * `.panel-header` / `.panel-body` when the container has a distinct header.
+ */
+@utility panel-shell {
+  @apply rounded-xl border border-border bg-background;
+}
+
+@utility panel-shell-raised {
+  @apply shadow-md;
+}
+
+/* Compact framed surface for inline rows inside forms, dialogs, and settings. */
+@utility surface-box {
+  @apply rounded-lg border border-border bg-surface-100;
+}
+
+/* Panel header band — tinted background, hairline divider underneath, and
+ * a 1px inset highlight on whatever follows so the divider reads as an
+ * engraved ridge rather than a flat rule. The body inset is achieved via
+ * `box-shadow` on the *next* sibling (see `.panel-body`). Apply to the
+ * header element of any panel-like container (admin Panel, DataTable
+ * thead, hand-rolled room-group section).
+ */
+@utility panel-header {
+  background-color: var(--color-panel-tint);
+  border-bottom: 1px solid var(--color-border);
+}
+
+@utility panel-body {
+  box-shadow: inset 0 1px 0 var(--color-panel-highlight);
+}
+
+/* Button utilities — share the gradient + shadow visual language with
+ * ToggleChip / MatrixCell so primary actions, mini-buttons and chips
+ * all read as one coherent "interactive UI" system. Solid variants get
+ * a top-left → bottom-right gradient (lighter to saturated), a tone-
+ * tinted shadow, and a 1px ring; the secondary variant gets a quiet
+ * surface gradient + neutral ring. Disabled state collapses everything
+ * via opacity.
+ */
+@utility btn {
+  @apply inline-flex min-h-10 min-w-10 cursor-pointer items-center justify-center gap-1.5 rounded-lg px-4 py-2 font-medium;
+  @apply transition-[background-color,color,box-shadow,scale,--tw-gradient-from,--tw-gradient-to] duration-150 active:scale-[0.96];
+  @apply disabled:cursor-not-allowed disabled:opacity-50;
+}
+
+/* Solid variants: top-light → bottom-saturated gradient + a soft tone
+ * ring. No drop shadows — the gradient gives them depth on its own and
+ * keeps the visual language consistent with the rest of the app, which
+ * doesn't use shadows. */
+@utility btn-primary {
+  @apply btn text-white;
+  @apply bg-gradient-to-br from-primary/65 to-primary/95 ring-1 ring-primary/30;
+  @apply hover:from-primary/75 hover:to-primary;
+}
+
+@utility btn-accent {
+  @apply btn text-white;
+  @apply bg-gradient-to-br from-accent/65 to-accent/95 ring-1 ring-accent/30;
+  @apply hover:from-accent/75 hover:to-accent;
+}
+
+@utility btn-success {
+  @apply btn text-white;
+  @apply bg-gradient-to-br from-success/65 to-success/95 ring-1 ring-success/30;
+  @apply hover:from-success/75 hover:to-success;
+}
+
+@utility btn-secondary {
+  /* Quiet surface gradient + neutral ring — distinct from surfaces
+     (dialogs, panels) without competing with the saturated variants. */
+  @apply btn text-text;
+  @apply bg-gradient-to-br from-surface-100/80 to-surface-200/80 ring-1 ring-text/5;
+  @apply hover:from-surface-200 hover:to-surface-300 hover:ring-text/10;
+}
+
+@utility btn-ghost {
+  /* Stays minimal — no fill or ring until hover. Used for in-row icon
+     actions where a gradient would be too loud. */
+  @apply btn bg-transparent text-text hover:bg-surface;
+}
+
+@utility btn-warning {
+  @apply btn text-white;
+  @apply bg-gradient-to-br from-warning/65 to-warning/95 ring-1 ring-warning/30;
+  @apply hover:from-warning/75 hover:to-warning;
+}
+
+@utility btn-danger {
+  @apply btn text-white;
+  @apply bg-gradient-to-br from-danger/65 to-danger/95 ring-1 ring-danger/30;
+  @apply hover:from-danger/75 hover:to-danger;
+}
+
+@utility btn-sm {
+  @apply px-3 py-1.5 text-sm;
+}
+
+@utility btn-lg {
+  @apply px-6 py-3 font-semibold;
+}
+
+/* Form input utilities */
+@utility input {
+  @apply w-full rounded-lg border border-input-border bg-input px-3 py-2 text-text;
+  @apply placeholder:text-muted/70;
+  @apply transition-[border-color,box-shadow] duration-100;
+  @apply focus:border-accent focus:ring-2 focus:ring-accent/30 focus:outline-none;
+  @apply aria-invalid:border-error aria-invalid:focus:ring-error/30;
+  @apply disabled:cursor-not-allowed disabled:opacity-60;
+  @apply select-text; /* Re-enable text selection in form fields */
+}
+
+@utility textarea {
+  @apply input resize-none;
+}
+
+/* Checkbox utility */
+@utility checkbox {
+  @apply h-4 w-4 cursor-pointer rounded border-input-border bg-input text-accent;
+  @apply transition-[border-color,box-shadow] duration-100;
+  @apply focus:ring-2 focus:ring-accent/30 focus:ring-offset-0;
+  @apply disabled:cursor-not-allowed disabled:opacity-60;
+}
+
+@utility checkbox-option {
+  @apply flex cursor-pointer items-start gap-3 rounded-lg border border-border bg-surface/45 px-3 py-3;
+  @apply transition-[background-color,border-color,box-shadow] duration-100;
+  @apply hover:border-input-border hover:bg-surface-100;
+}
+
+@utility checkbox-box {
+  @apply mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-md border border-input-border bg-input text-transparent;
+  @apply transition-[background-color,border-color,box-shadow,color] duration-100;
+}
+
+/* Single-choice rows used by settings radio groups. */
+@utility choice-row {
+  @apply flex cursor-pointer items-center gap-3 rounded-lg border border-border px-3 py-2 text-left transition-colors;
+  @apply hover:border-input-border hover:bg-surface-100;
+  @apply disabled:cursor-not-allowed disabled:opacity-50;
+}
+
+@utility choice-row-selected {
+  @apply border-accent bg-accent/10 hover:border-accent hover:bg-accent/10;
+}
+
+@utility choice-indicator {
+  @apply flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 border-muted transition-colors;
+}
+
+@utility choice-indicator-selected {
+  @apply border-accent bg-accent;
+}
+
+@utility choice-indicator-dot {
+  @apply h-2 w-2 rounded-full bg-white;
+}
+
+/* Form error utility */
+@utility form-error {
+  @apply text-sm text-error;
+}
+
+/* Inline link — accent (sky) tint with hover underline. The `primary`
+ * design token is slate/neutral and would render links indistinguishable
+ * from body copy; accent is the canonical link color. */
+@utility link {
+  @apply text-accent hover:underline;
+}
+
+/* Mention styling in messages */
+.mention {
+  @apply cursor-pointer rounded-sm bg-surface-200 px-0.5 font-semibold;
+}
+
+.mention-self {
+  @apply bg-warning/20 text-warning;
+}
+
+/* Embed frame utility (attachments, link previews, embedded messages, video embeds) */
+@utility embed-frame {
+  @apply my-1.5 overflow-hidden rounded-md border border-border bg-surface-100 shadow-sm outline-[3px] outline-offset-0 outline-surface-300 transition-shadow hover:shadow-md focus-visible:shadow-md;
+}
+
+@utility embed-control-button {
+  @apply absolute top-1 right-1 flex h-10 w-10 cursor-pointer items-center justify-center rounded-full bg-black/60 text-white shadow-md ring-1 ring-white/30 transition-[background-color,opacity,scale] hover:bg-black/80 active:scale-[0.96] md:opacity-0;
+}
+
+@utility attachment-remove-button {
+  @apply absolute top-1 right-1 flex h-10 w-10 cursor-pointer items-center justify-center rounded-full text-white/90 outline-none transition-[opacity,scale] active:scale-[0.96] focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 focus-visible:ring-offset-background md:opacity-0;
+
+  &::before {
+    content: '';
+    @apply absolute h-7 w-7 rounded-full bg-black/45 shadow-sm ring-1 ring-white/25 transition-[background-color];
+  }
+
+  &:hover::before,
+  &:focus-visible::before {
+    @apply bg-black/65;
+  }
+
+  & > .iconify {
+    @apply relative z-10 text-sm;
+  }
+}
+
+/* Skeleton loading utility */
+@utility skeleton {
+  @apply relative overflow-hidden opacity-30;
+  background: linear-gradient(
+    90deg,
+    var(--color-surface-100) 0%,
+    var(--color-surface-200) 50%,
+    var(--color-surface-100) 100%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 2s linear infinite;
+}
+
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+@utility notification-dot {
+  @apply transition-colors;
+}
+
+/* Shimmer hover effect */
+@utility shimmer-hover {
+  @apply relative overflow-hidden;
+}
+
+/* Meta badge — shared shape for inline pill badges (reactions, thread counts, call participants).
+   Containers should add `group/badges` so the hover elevation works. */
+@utility meta-badge {
+  @apply inline-flex items-center rounded-sm border leading-none;
+  @apply bg-surface group-hover/badges:bg-surface-200 hover:bg-surface-300;
+}
+
+/* Pane header icon button — fixed padded hit area for icon-only controls in PaneHeader.
+   Resting inactive state is intentionally transparent; pair with
+   `pane-header-icon-button-active` for selected/toggled backgrounds. */
+@utility pane-header-icon-button {
+  @apply inline-flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-sm bg-transparent leading-none text-muted transition-[background-color,color,scale] active:scale-[0.96];
+  @apply hover:!text-text-top disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:!opacity-100;
+}
+
+@utility pane-header-icon-glyph {
+  @apply iconify shrink-0 text-base transition-colors;
+}
+
+@utility pane-header-icon-button-active {
+  @apply bg-surface-200 !text-text-top;
+}
+
+/* Sidebar navigation utilities */
+@utility sidebar-nav {
+  @apply flex flex-col gap-1;
+}
+
+@utility sidebar-item {
+  @apply relative flex w-full shrink-0 cursor-pointer items-center gap-2 overflow-hidden rounded-md px-1 py-1 text-text;
+  @apply hover:bg-surface-100 hover:text-text;
+}
+
+/* Shared shimmer pseudo-element rules for all shimmer-enabled elements */
+.shimmer-hover::before,
+.server-gutter-item::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--shimmer-gradient);
+  transform: translateX(-100%);
+  pointer-events: none;
+  z-index: 5;
+}
+
+.shimmer-hover:hover::before,
+.server-gutter-item:hover::before {
+  animation: shimmer-sweep 400ms ease-out forwards;
+}
+
+@keyframes shimmer-sweep {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@utility highlight-flash {
+  animation: highlight-flash 1.5s ease-out;
+}
+
+@keyframes highlight-flash {
+  0%,
+  15% {
+    background-color: color-mix(in oklch, var(--color-warning) 20%, transparent);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+@utility sidebar-icon {
+  @apply inline-flex h-5 w-5 shrink-0 items-center justify-center text-base;
+}
+
+/* Icon button in the app header: 44px tap target, negative margin to keep
+   visual alignment tight, subtle hover/active feedback. */
+@utility app-header-icon {
+  @apply -m-2 flex h-11 w-11 cursor-pointer items-center justify-center rounded transition-[background-color,color,scale] hover:text-text active:scale-[0.96] active:bg-surface-200;
+}
+
+/* Compact inline icon-only action for row/input affordances such as copy,
+ * dismiss, and clear. Larger toolbar icons should use HeaderIconButton or
+ * pane-header-icon-button instead.
+ */
+@utility icon-action {
+  @apply inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded text-muted transition-[background-color,color,scale] active:scale-[0.96];
+  @apply hover:bg-surface-200 hover:text-text;
+  @apply disabled:cursor-not-allowed disabled:opacity-50;
+}
+
+/* Hide scrollbar while maintaining scroll functionality */
+@utility scrollbar-hide {
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
+  &::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, Opera */
+  }
+}
+
+/* Server Gutter item — icon buttons in the leftmost sidebar (the Server Gutter). */
+@utility server-gutter-item {
+  @apply shimmer-hover relative flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-3xl transition-colors duration-100;
+  @apply bg-surface text-text/70 hover:bg-surface-highlighted hover:text-text;
+}
+
+@utility server-gutter-item-active {
+  @apply bg-surface-highlighted text-text hover:bg-surface-highlighted hover:text-text;
+  @apply ring-2 ring-text;
+}
+
+/* Make ServerLogo slightly smaller inside server-icon to leave room for the ring */
+.server-icon > div {
+  @apply h-11 w-11;
+}
+
+/* Menus (popup/context) */
+@utility menu {
+  /* `text-text` here counters the `[popover]` UA default of `color: CanvasText`
+     (which is pure white in dark mode, not the app's slightly-off neutral-100).
+     Menu items that need a different color still override it on their own. */
+  @apply rounded-lg border border-text/10 bg-surface-100 p-1 text-sm text-text shadow-xl;
+}
+
+@utility menu-section {
+  @apply rounded-md bg-background p-1;
+}
+
+@utility menu-section-sm {
+  @apply rounded-md bg-background p-0.5;
+}
+
+@utility menu-item {
+  @apply flex min-h-10 w-full cursor-pointer items-center gap-3 rounded px-3 py-1.5 text-left transition-[background-color,scale] hover:bg-surface-100 active:scale-[0.96];
+}
+
+@utility menu-item-active {
+  @apply bg-surface-100;
+}
+
+/* Simple non-interactive tooltip surface for FloatingTooltip. */
+@utility floating-tooltip {
+  @apply max-w-xs rounded-md border border-text/10 bg-surface-200 px-2.5 py-1.5 text-xs leading-snug text-text shadow-lg;
+}
+
+@layer base {
+  html {
+    height: 100%;
+    overflow: hidden;
+    /* pan-y lets the browser own vertical scroll while reserving horizontal
+       pans for our own gesture handling (mobile sidebar swipe). It also
+       implicitly disables pinch-zoom and double-tap-zoom — same as the
+       previous `manipulation` value. */
+    touch-action: pan-y;
+    /* Without this, Chrome (and some other browsers) interpret horizontal
+       swipes from the viewport edge as back/forward navigation gestures and
+       fire pointercancel mid-drag, killing our sidebar swipe handler. */
+    overscroll-behavior-x: none;
+    background-color: var(--color-background);
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    text-wrap: balance;
+  }
+
+  p,
+  li,
+  figcaption,
+  blockquote {
+    text-wrap: pretty;
+  }
+
+  img {
+    outline: 1px solid var(--color-image-outline);
+    outline-offset: -1px;
+  }
+
+  body {
+    /* inset:0 on a fixed element fills the layout viewport correctly in all
+       modes, including standalone PWA — unlike dvh/vh/100% which are all
+       short by safe-area-inset-top due to WebKit bug 237961.
+       Keyboard sizing is handled via JS in useVisualViewport.svelte.ts
+       because Safari does not support interactive-widget=resizes-content.
+       Safe-area padding is on the root layout div, not here — body is a
+       plain viewport-filling container so children can extend backgrounds
+       into safe areas while keeping content inset. */
+    position: fixed;
+    inset: 0;
+    overflow: hidden;
+
+    /* Mirror html's touch-action so the effective value for any touch
+       sequence is pan-y — vertical scroll is browser-handled, horizontal
+       pans are reserved for our own gesture handlers (sidebar swipe). */
+    touch-action: pan-y;
+
+    background-color: var(--color-background);
+    color: var(--color-text);
+
+    /* Disable text selection globally for native feel */
+    @apply select-none;
+  }
+}
+
+/* Mobile viewport scaling - scales entire UI proportionally */
+@media (max-width: 767px) {
+  html {
+    font-size: 15px; /* 87.5% of default 16px */
+  }
+}
+
+/* While the sidebar is being resized: lock the cursor to col-resize across the
+   whole page and suppress text selection so a fast drag doesn't accidentally
+   highlight room names or composer text. Set on <body> by SidebarResizeHandle. */
+body[data-resizing-sidebar],
+body[data-resizing-sidebar] * {
+  cursor: col-resize !important;
+}
+body[data-resizing-sidebar] {
+  user-select: none;
+}

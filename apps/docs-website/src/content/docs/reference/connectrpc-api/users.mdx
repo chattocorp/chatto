@@ -1,0 +1,122 @@
+---
+title: UserService
+description: Authenticated server-wide user directory RPCs.
+editUrl: false
+---
+
+{/* Generated from proto/chatto/{auth,discovery,api,admin,realtime}/v1/*.proto. Do not edit directly. */}
+
+Chatto exposes this service below `/api/connect`.
+
+
+
+Shared message and enum definitions are documented in [Shared Types And Enums](/reference/connectrpc-api/types/).
+
+
+
+<a id="chatto-api-v1-UserService"></a>
+
+## UserService
+
+Reads the authenticated server-wide user directory.
+
+<a id="chatto-api-v1-UserService-ListUsers"></a>
+
+### ListUsers
+
+Lists users visible to the authenticated user. Admin-sensitive account
+fields stay out of this public row shape.
+
+```http
+POST /api/connect/chatto.api.v1.UserService/ListUsers
+```
+
+<a id="chatto-api-v1-ListUsersRequest"></a>
+
+#### Input: ListUsersRequest
+
+Request for users visible to the authenticated user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `search` | `string` | Optional case-insensitive search against login and display name. |
+| `page` | [`PageRequest`](/reference/connectrpc-api/types/#chatto-api-v1-PageRequest) | Page request. Defaults to 20 results when absent or limit is zero. |
+
+
+<a id="chatto-api-v1-ListUsersResponse"></a>
+
+#### Result: ListUsersResponse
+
+User directory page.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `users` | repeated [`DirectoryMember`](/reference/connectrpc-api/types/#chatto-api-v1-DirectoryMember) | Users in the requested page. |
+| `page` | [`PageInfo`](/reference/connectrpc-api/types/#chatto-api-v1-PageInfo) | Page metadata. |
+
+
+<a id="chatto-api-v1-UserService-GetUser"></a>
+
+### GetUser
+
+Gets one visible user by user ID or login. Returns NOT_FOUND when the
+target is unknown.
+
+```http
+POST /api/connect/chatto.api.v1.UserService/GetUser
+```
+
+<a id="chatto-api-v1-GetUserRequest"></a>
+
+#### Input: GetUserRequest
+
+Request one visible user by stable user ID or login.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `target.user_id` | `string` | Target stable user ID. |
+| `target.login` | `string` | Target login identifier. |
+
+
+<a id="chatto-api-v1-GetUserResponse"></a>
+
+#### Result: GetUserResponse
+
+User directory response.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user` | [`DirectoryMember`](/reference/connectrpc-api/types/#chatto-api-v1-DirectoryMember) | Requested user. |
+
+
+<a id="chatto-api-v1-UserService-BatchGetUsers"></a>
+
+### BatchGetUsers
+
+Gets visible user rows for multiple stable user IDs. Unknown IDs are
+omitted from the response.
+
+```http
+POST /api/connect/chatto.api.v1.UserService/BatchGetUsers
+```
+
+<a id="chatto-api-v1-BatchGetUsersRequest"></a>
+
+#### Input: BatchGetUsersRequest
+
+Request user directory rows for a set of stable user IDs.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_ids` | `repeated string` | Required target user IDs. Unknown IDs are omitted from the response. |
+
+
+<a id="chatto-api-v1-BatchGetUsersResponse"></a>
+
+#### Result: BatchGetUsersResponse
+
+Batch user directory response.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `users` | repeated [`DirectoryMember`](/reference/connectrpc-api/types/#chatto-api-v1-DirectoryMember) | Found users. The server preserves first-seen request order and de-duplicates repeated IDs. |

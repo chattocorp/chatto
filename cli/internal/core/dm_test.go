@@ -2,31 +2,36 @@ package core
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 	"time"
 
 	"github.com/nats-io/nats.go"
+	"google.golang.org/protobuf/proto"
+
+	"hmans.de/chatto/internal/core/subjects"
+	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-func TestIsDMSpace(t *testing.T) {
+func TestRoomKindFromLegacySpaceID(t *testing.T) {
 	tests := []struct {
 		spaceID string
-		want    bool
+		want    RoomKind
 	}{
-		{DMSpaceID, true},
-		{"DM", true},
-		{"some-other-space", false},
-		{"", false},
-		{"dm", false},
-		{"__dm__", false},
+		{LegacyDMRoomSpaceID, KindDM},
+		{"DM", KindDM},
+		{"some-other-space", KindChannel},
+		{"", KindChannel},
+		{"dm", KindChannel},
+		{"__dm__", KindChannel},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.spaceID, func(t *testing.T) {
-			got := IsDMSpace(tt.spaceID)
+			got := RoomKindFromLegacySpaceID(tt.spaceID)
 			if got != tt.want {
-				t.Errorf("IsDMSpace(%q) = %v, want %v", tt.spaceID, got, tt.want)
+				t.Errorf("RoomKindFromLegacySpaceID(%q) = %v, want %v", tt.spaceID, got, tt.want)
 			}
 		})
 	}
@@ -141,6 +146,7 @@ func TestDMBoundaryDeniedPermissions(t *testing.T) {
 		PermRoomJoin,
 		PermMessagePost,
 		PermMessagePostInThread,
+		PermMessageAttach,
 		PermMessageReact,
 	}
 
@@ -153,53 +159,52 @@ func TestDMBoundaryDeniedPermissions(t *testing.T) {
 	}
 }
 
-func TestDMSpacePermissions(t *testing.T) {
+func TestDMRoomPermissionDefaults(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := context.Background()
 
-	// Test that Can* functions return correct values for DM space
 	userID := "test-user"
 
-	t.Run("CanJoinRoom returns true for DM space", func(t *testing.T) {
-		can, err := core.CanJoinRoom(ctx, userID, KindForSpace(DMSpaceID))
+	t.Run("CanJoinRoom returns true for DM rooms", func(t *testing.T) {
+		can, err := core.CanJoinRoom(ctx, userID, KindDM)
 		if err != nil {
 			t.Fatalf("CanJoinRoom error: %v", err)
 		}
 		if !can {
-			t.Error("CanJoinRoom should return true for DM space")
+			t.Error("CanJoinRoom should return true for DM rooms")
 		}
 	})
 
-	t.Run("CanAdminSpaceManage returns false for DM space", func(t *testing.T) {
+	t.Run("CanManageServer returns false for a regular user", func(t *testing.T) {
 		can, err := core.CanManageServer(ctx, userID)
 		if err != nil {
-			t.Fatalf("CanAdminSpaceManage error: %v", err)
+			t.Fatalf("CanManageServer error: %v", err)
 		}
 		if can {
-			t.Error("CanAdminSpaceManage should return false for DM space")
+			t.Error("CanManageServer should return false for a regular user")
 		}
 	})
 
-	t.Run("CanCreateRoom returns false for DM space", func(t *testing.T) {
-		can, err := core.CanCreateRoom(ctx, userID, KindForSpace(DMSpaceID), "")
+	t.Run("CanCreateRoom returns false for DM rooms", func(t *testing.T) {
+		can, err := core.CanCreateRoom(ctx, userID, KindDM, "")
 		if err != nil {
 			t.Fatalf("CanCreateRoom error: %v", err)
 		}
 		if can {
-			t.Error("CanCreateRoom should return false for DM space (use FindOrCreateDM)")
+			t.Error("CanCreateRoom should return false for DM rooms (use FindOrCreateDM)")
 		}
 	})
 
 	t.Run("CanSeeRoom returns false for DM rooms", func(t *testing.T) {
 		// DM rooms aren't surfaced through the channel room-list API; they
-		// use their own listing path (ListDMConversations). CanSeeRoom
+		// use the member-room listing path. CanSeeRoom
 		// short-circuits to false for KindDM.
-		can, err := core.CanSeeRoom(ctx, userID, KindForSpace(DMSpaceID), "R_dm_visibility_test")
+		can, err := core.CanSeeRoom(ctx, userID, KindDM, "R_dm_visibility_test")
 		if err != nil {
 			t.Fatalf("CanSeeRoom error: %v", err)
 		}
 		if can {
-			t.Error("CanSeeRoom should return false for DM rooms (use ListDMConversations)")
+			t.Error("CanSeeRoom should return false for DM rooms (use ListMemberRooms)")
 		}
 	})
 }
@@ -223,8 +228,8 @@ func TestFindOrCreateDM(t *testing.T) {
 		if room == nil {
 			t.Fatal("Expected room to be non-nil")
 		}
-		if room.SpaceId != DMSpaceID {
-			t.Errorf("Expected space_id %s, got %s", DMSpaceID, room.SpaceId)
+		if KindOfRoom(room) != KindDM {
+			t.Errorf("Expected kind DM, got %s", KindOfRoom(room))
 		}
 
 		// Verify both users are members
@@ -235,6 +240,33 @@ func TestFindOrCreateDM(t *testing.T) {
 		}
 		if !isMember2 {
 			t.Error("user2 should be a member of the DM")
+		}
+
+		eventsResult, err := core.GetRoomEvents(ctx, KindDM, room.Id, 50, nil)
+		if err != nil {
+			t.Fatalf("GetRoomEvents for new DM: %v", err)
+		}
+		if len(eventsResult.Events) != 3 {
+			t.Fatalf("expected 3 DM lifecycle events (room created + 2 joins), got %d", len(eventsResult.Events))
+		}
+
+		createdCount := 0
+		joinedActors := map[string]bool{}
+		for _, event := range eventsResult.Events {
+			if created := event.GetRoomCreated(); created != nil && created.RoomId == room.Id {
+				createdCount++
+			}
+			if joined := event.GetUserJoinedRoom(); joined != nil && joined.RoomId == room.Id {
+				joinedActors[event.ActorId] = true
+			}
+		}
+		if createdCount != 1 {
+			t.Errorf("expected 1 DM RoomCreated event, got %d", createdCount)
+		}
+		for _, userID := range []string{user1, user2} {
+			if !joinedActors[userID] {
+				t.Errorf("expected DM UserJoinedRoom event for %s", userID)
+			}
 		}
 	})
 
@@ -301,8 +333,8 @@ func TestFindOrCreateDM(t *testing.T) {
 		if room == nil {
 			t.Fatal("Expected room to be non-nil")
 		}
-		if room.SpaceId != DMSpaceID {
-			t.Errorf("Expected space_id %s, got %s", DMSpaceID, room.SpaceId)
+		if KindOfRoom(room) != KindDM {
+			t.Errorf("Expected kind DM, got %s", KindOfRoom(room))
 		}
 
 		// Verify user is a member
@@ -342,15 +374,24 @@ func TestFindOrCreateDM(t *testing.T) {
 	})
 }
 
-func TestListDMConversations(t *testing.T) {
+func listActiveDMRoomsForTest(t *testing.T, core *ChattoCore, ctx context.Context, userID string) []*corev1.Room {
+	t.Helper()
+	rooms, err := core.ListMemberRooms(ctx, KindDM, userID, MemberRoomListOptions{
+		RequireLastMessage:    true,
+		SortByLastMessageDesc: true,
+	})
+	if err != nil {
+		t.Fatalf("ListMemberRooms error: %v", err)
+	}
+	return rooms
+}
+
+func TestListMemberRooms_DMConversationPolicy(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
 	t.Run("returns empty list when no DMs", func(t *testing.T) {
-		rooms, err := core.ListDMConversations(ctx, "no-dms-user")
-		if err != nil {
-			t.Fatalf("ListDMConversations error: %v", err)
-		}
+		rooms := listActiveDMRoomsForTest(t, core, ctx, "no-dms-user")
 		if len(rooms) != 0 {
 			t.Errorf("Expected 0 DMs, got %d", len(rooms))
 		}
@@ -373,10 +414,7 @@ func TestListDMConversations(t *testing.T) {
 		}
 
 		// Empty DM should NOT appear in the list
-		rooms, err := core.ListDMConversations(ctx, user1.Id)
-		if err != nil {
-			t.Fatalf("ListDMConversations error: %v", err)
-		}
+		rooms := listActiveDMRoomsForTest(t, core, ctx, user1.Id)
 		if len(rooms) != 0 {
 			t.Errorf("Expected 0 DMs (empty DM should be filtered), got %d", len(rooms))
 		}
@@ -413,10 +451,7 @@ func TestListDMConversations(t *testing.T) {
 		}
 
 		// Only dm1 should appear (dm2 has no messages)
-		rooms, err := core.ListDMConversations(ctx, user1.Id)
-		if err != nil {
-			t.Fatalf("ListDMConversations error: %v", err)
-		}
+		rooms := listActiveDMRoomsForTest(t, core, ctx, user1.Id)
 		if len(rooms) != 1 {
 			t.Fatalf("Expected 1 DM, got %d", len(rooms))
 		}
@@ -431,17 +466,14 @@ func TestListDMConversations(t *testing.T) {
 		}
 
 		// Both should now appear
-		rooms, err = core.ListDMConversations(ctx, user1.Id)
-		if err != nil {
-			t.Fatalf("ListDMConversations error: %v", err)
-		}
+		rooms = listActiveDMRoomsForTest(t, core, ctx, user1.Id)
 		if len(rooms) != 2 {
 			t.Errorf("Expected 2 DMs after both have messages, got %d", len(rooms))
 		}
 	})
 }
 
-func TestListDMConversationsSortedByLastMessage(t *testing.T) {
+func TestListMemberRooms_DMConversationPolicySortedByLastMessage(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -482,10 +514,7 @@ func TestListDMConversationsSortedByLastMessage(t *testing.T) {
 	}
 
 	// List should have A-C first (more recent)
-	rooms, err := core.ListDMConversations(ctx, userA.Id)
-	if err != nil {
-		t.Fatalf("ListDMConversations error: %v", err)
-	}
+	rooms := listActiveDMRoomsForTest(t, core, ctx, userA.Id)
 	if len(rooms) != 2 {
 		t.Fatalf("Expected 2 DMs, got %d", len(rooms))
 	}
@@ -503,10 +532,7 @@ func TestListDMConversationsSortedByLastMessage(t *testing.T) {
 	}
 
 	// Now A-B should be first
-	rooms, err = core.ListDMConversations(ctx, userA.Id)
-	if err != nil {
-		t.Fatalf("ListDMConversations error: %v", err)
-	}
+	rooms = listActiveDMRoomsForTest(t, core, ctx, userA.Id)
 	if rooms[0].Id != dmAB.Id {
 		t.Errorf("Expected A-B first after new message, got %s", rooms[0].Id)
 	}
@@ -515,7 +541,7 @@ func TestListDMConversationsSortedByLastMessage(t *testing.T) {
 	}
 }
 
-func TestGetDMParticipants(t *testing.T) {
+func TestDMRoomParticipants(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := context.Background()
 
@@ -526,9 +552,14 @@ func TestGetDMParticipants(t *testing.T) {
 	t.Run("returns all participants", func(t *testing.T) {
 		room, _, _ := core.FindOrCreateDM(ctx, user1, []string{user2, user3})
 
-		participants, err := core.GetDMParticipants(ctx, room.Id)
+		members, err := core.GetRoomMembersList(ctx, KindDM, room.Id)
 		if err != nil {
-			t.Fatalf("GetDMParticipants error: %v", err)
+			t.Fatalf("GetRoomMembersList error: %v", err)
+		}
+
+		participants := make([]string, len(members))
+		for i, member := range members {
+			participants[i] = member.UserId
 		}
 		if len(participants) != 3 {
 			t.Errorf("Expected 3 participants, got %d", len(participants))
@@ -647,6 +678,43 @@ func TestDMUnreadStatus(t *testing.T) {
 	})
 }
 
+func TestDMRoomMembersCannotBeBannedAtCoreLayer(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	user1, err := core.CreateUser(ctx, "system", "dm-ban-core-1", "DM Ban Core 1", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser user1: %v", err)
+	}
+	user2, err := core.CreateUser(ctx, "system", "dm-ban-core-2", "DM Ban Core 2", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser user2: %v", err)
+	}
+
+	room, _, err := core.FindOrCreateDM(ctx, user1.Id, []string{user2.Id})
+	if err != nil {
+		t.Fatalf("FindOrCreateDM: %v", err)
+	}
+
+	if _, err := core.BanMember(ctx, user1.Id, KindDM, room.Id, user2.Id, "not allowed", nil); !errors.Is(err, ErrCannotBanDMRoomMember) {
+		t.Fatalf("expected ErrCannotBanDMRoomMember from BanMember, got %v", err)
+	}
+	if err := core.UnbanMember(ctx, user1.Id, KindDM, room.Id, user2.Id, "not allowed"); !errors.Is(err, ErrCannotBanDMRoomMember) {
+		t.Fatalf("expected ErrCannotBanDMRoomMember from UnbanMember, got %v", err)
+	}
+
+	isMember, err := core.RoomMembershipExists(ctx, KindDM, user2.Id, room.Id)
+	if err != nil {
+		t.Fatalf("RoomMembershipExists: %v", err)
+	}
+	if !isMember {
+		t.Fatal("expected DM membership to remain after rejected ban")
+	}
+	if _, ok := core.RoomBans.ActiveBan(room.Id, user2.Id, time.Now()); ok {
+		t.Fatal("expected rejected DM ban not to create an active ban")
+	}
+}
+
 func TestDMReactions(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
@@ -728,7 +796,7 @@ func TestDMNotifications(t *testing.T) {
 	t.Run("DM message triggers notification to other participants", func(t *testing.T) {
 		// Subscribe to user2's notification subject
 		notificationReceived := make(chan bool, 1)
-		sub, err := nc.Subscribe("live.server.user."+user2.Id+".dm_message", func(msg *nats.Msg) {
+		sub, err := nc.Subscribe(subjects.LiveSyncUserEvent(user2.Id, "dm_message"), func(msg *nats.Msg) {
 			notificationReceived <- true
 		})
 		if err != nil {
@@ -751,10 +819,66 @@ func TestDMNotifications(t *testing.T) {
 		}
 	})
 
+	t.Run("DM message creates silent notification for do not disturb participants", func(t *testing.T) {
+		if err := core.SetPresence(ctx, user2.Id, PresenceStatusDoNotDisturb); err != nil {
+			t.Fatalf("SetPresence DND: %v", err)
+		}
+		before, err := core.GetNotifications(ctx, user2.Id)
+		if err != nil {
+			t.Fatalf("GetNotifications before DND DM: %v", err)
+		}
+
+		sub, err := nc.SubscribeSync(subjects.LiveSyncUserEvent(user2.Id, "notification_created"))
+		if err != nil {
+			t.Fatalf("Failed to subscribe: %v", err)
+		}
+		defer sub.Unsubscribe()
+		dmSub, err := nc.SubscribeSync(subjects.LiveSyncUserEvent(user2.Id, "dm_message"))
+		if err != nil {
+			t.Fatalf("Failed to subscribe to dm_message: %v", err)
+		}
+		defer dmSub.Unsubscribe()
+		if err := nc.Flush(); err != nil {
+			t.Fatalf("Flush subscription: %v", err)
+		}
+
+		_, err = core.PostMessage(ctx, KindDM, room.Id, user1.Id, "DND DM notification message", nil, "", "", nil, false)
+		if err != nil {
+			t.Fatalf("Failed to post DND message: %v", err)
+		}
+
+		msg, err := sub.NextMsg(2 * time.Second)
+		if err != nil {
+			t.Fatalf("waiting for DND notification_created live event: %v", err)
+		}
+		var live corev1.LiveEvent
+		if err := proto.Unmarshal(msg.Data, &live); err != nil {
+			t.Fatalf("unmarshal live event: %v", err)
+		}
+		event := live.GetNotificationCreated()
+		if event == nil {
+			t.Fatalf("expected NotificationCreatedEvent, got %T", live.Event)
+		}
+		if !event.Silent {
+			t.Fatal("NotificationCreatedEvent.Silent = false, want true")
+		}
+		if _, err := dmSub.NextMsg(200 * time.Millisecond); err == nil {
+			t.Fatal("expected no legacy live DM notification while DND")
+		}
+
+		after, err := core.GetNotifications(ctx, user2.Id)
+		if err != nil {
+			t.Fatalf("GetNotifications after DND DM: %v", err)
+		}
+		if len(after) != len(before)+1 {
+			t.Fatalf("notifications after DND DM = %d, want %d", len(after), len(before)+1)
+		}
+	})
+
 	t.Run("DM message does not notify sender", func(t *testing.T) {
 		// Subscribe to user1's notification subject (the sender)
 		notificationReceived := make(chan bool, 1)
-		sub, err := nc.Subscribe("live.server.user."+user1.Id+".dm_message", func(msg *nats.Msg) {
+		sub, err := nc.Subscribe(subjects.LiveSyncUserEvent(user1.Id, "dm_message"), func(msg *nats.Msg) {
 			notificationReceived <- true
 		})
 		if err != nil {
@@ -827,9 +951,8 @@ func TestDMThreadReplyEcho(t *testing.T) {
 		for _, e := range roomEvents {
 			if msg := e.GetMessagePosted(); msg != nil && msg.EchoOfEventId == replyEvent.Id {
 				foundEcho = true
-				if msg.MessageBodyId != reply.MessageBodyId {
-					t.Errorf("DM echo should share messageBodyId: echo=%q, reply=%q", msg.MessageBodyId, reply.MessageBodyId)
-				}
+				// The DM echo has its own envelope id and links back to the
+				// original reply via EchoOfEventId.
 				if msg.EchoFromThreadRootEventId != rootEvent.Id {
 					t.Errorf("DM echo ThreadRootEventId should be %q, got %q", rootEvent.Id, msg.EchoFromThreadRootEventId)
 				}
@@ -868,7 +991,7 @@ func TestDMThreadReplyEcho(t *testing.T) {
 			t.Fatalf("Failed to post reply: %v", err)
 		}
 
-		metadata, err := core.GetThreadMetadata(ctx, KindForSpace(DMSpaceID), room.Id, rootEvent.Id)
+		metadata, err := core.GetThreadMetadata(ctx, KindDM, room.Id, rootEvent.Id)
 		if err != nil {
 			t.Fatalf("Failed to get metadata: %v", err)
 		}
