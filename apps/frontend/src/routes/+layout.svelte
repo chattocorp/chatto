@@ -3,12 +3,8 @@
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
   import * as m from '$lib/i18n/messages';
-  import { createNotificationClickUrlHandler } from '$lib/notifications/notificationClickNavigation';
-  import {
-    clearPendingNotificationClickUrl,
-    consumePendingNotificationClickUrl,
-    onNotificationClick
-  } from '$lib/notifications/pushNotifications';
+  import { onNotificationClick } from '$lib/notifications/pushNotifications';
+  import { prepareUiForNotificationPath } from '$lib/notifications/notificationNavigationUi';
   import ServerGutter from '$lib/ServerGutter.svelte';
   import { setAuthServerInfo } from '$lib/components/authServerInfo';
   import ConnectionIndicator from '$lib/components/ConnectionIndicator.svelte';
@@ -41,29 +37,6 @@
   useVisualViewport();
   usePinchZoomPrevention();
 
-  const handleNotificationClickUrl = createNotificationClickUrlHandler({
-    appUi,
-    clearPendingUrl: clearPendingNotificationClickUrl,
-    navigate: (path) => goto(resolve(path as '/'))
-  });
-
-  async function drainPendingNotificationClickUrl() {
-    const pendingUrl = await consumePendingNotificationClickUrl();
-    if (pendingUrl) {
-      await handleNotificationClickUrl(pendingUrl, { pendingAlreadyConsumed: true });
-    }
-  }
-
-  function handleWindowFocus() {
-    void drainPendingNotificationClickUrl();
-  }
-
-  function handleDocumentVisibilityChange() {
-    if (document.visibilityState === 'visible') {
-      void drainPendingNotificationClickUrl();
-    }
-  }
-
   const activeServerId = $derived(getActiveServer());
   const activeRoomId = $derived(chatRoomIdFromRoute(page.route.id, page.params.roomId));
 
@@ -75,15 +48,21 @@
     appUi.setActiveServer(activeServerId);
   });
 
-  // Route push-notification clicks via SvelteKit's client-side navigation.
-  // The service worker also persists the target so an installed PWA can recover
-  // the intended URL after the OS/browser resumes an old app window.
-  $effect(() => {
-    void drainPendingNotificationClickUrl();
-    return onNotificationClick(async (url, clickId) => {
-      await handleNotificationClickUrl(url, { clickId });
-    });
-  });
+  // Route push-notification clicks via SvelteKit's client-side navigation
+  // instead of letting the SW do a full document navigation. Same-URL
+  // clicks become a no-op; cross-URL clicks just update the route.
+  $effect(() =>
+    onNotificationClick((url) => {
+      try {
+        const target = new URL(url);
+        if (target.origin !== window.location.origin) return;
+        prepareUiForNotificationPath(appUi, target.pathname);
+        return goto(resolve((target.pathname + target.search + target.hash) as '/'));
+      } catch {
+        // Ignore malformed URLs from the SW.
+      }
+    })
+  );
 
   $effect(() => sidebarNav.initViewportTracking());
   afterNavigate(() => {
@@ -97,8 +76,6 @@
 <GlobalKeyboardShortcuts />
 <IdleTracker />
 <UpdateNotifier />
-<svelte:window onfocus={handleWindowFocus} />
-<svelte:document onvisibilitychange={handleDocumentVisibilityChange} />
 
 <svelte:head>
   <title>{fullTitle}</title>

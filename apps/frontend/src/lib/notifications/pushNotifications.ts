@@ -11,10 +11,6 @@ import {
   NOTIFICATION_CLICK_ACK_MESSAGE_TYPE,
   NOTIFICATION_CLICK_MESSAGE_TYPE
 } from '$lib/pwa/notificationClick.worker';
-import {
-  clearPendingNotificationClickTarget,
-  consumePendingNotificationClickTarget
-} from '$lib/pwa/notificationClickTarget';
 import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
 
 type EnsureRegisteredOptions = {
@@ -259,42 +255,12 @@ function originPushAPI() {
   });
 }
 
-function notificationClickTargetStorageAvailable(): boolean {
-  return typeof window !== 'undefined' && 'caches' in window;
-}
-
-export async function consumePendingNotificationClickUrl(): Promise<string | null> {
-  if (!notificationClickTargetStorageAvailable()) return null;
-  try {
-    return await consumePendingNotificationClickTarget(window.caches, window.location.origin);
-  } catch {
-    return null;
-  }
-}
-
-export async function clearPendingNotificationClickUrl(options: {
-  clickId?: string;
-  expectedUrl?: string;
-}): Promise<void> {
-  if (!notificationClickTargetStorageAvailable()) return;
-  try {
-    await clearPendingNotificationClickTarget(window.caches, window.location.origin, {
-      id: options.clickId,
-      expectedUrl: options.expectedUrl
-    });
-  } catch {
-    // Cache API failure must not block immediate notification-click navigation.
-  }
-}
-
 /**
  * Listen for notification-click messages from the service worker.
  * The SW posts these instead of calling `WindowClient.navigate()` so the
  * SPA can route via `goto()` (client-side navigation, no full reload).
  */
-export function onNotificationClick(
-  callback: (url: string, clickId?: string) => void | Promise<void>
-): () => void {
+export function onNotificationClick(callback: (url: string) => void | Promise<void>): () => void {
   if (!('serviceWorker' in navigator)) {
     return () => {};
   }
@@ -305,10 +271,9 @@ export function onNotificationClick(
       typeof event.data.url === 'string'
     ) {
       const responsePort = event.ports[0];
-      const clickId = typeof event.data.clickId === 'string' ? event.data.clickId : undefined;
       void (async () => {
         try {
-          await callback(event.data.url, clickId);
+          await callback(event.data.url);
           responsePort?.postMessage({ type: NOTIFICATION_CLICK_ACK_MESSAGE_TYPE });
         } catch {
           // Leave the service worker unacknowledged so it can fall back to

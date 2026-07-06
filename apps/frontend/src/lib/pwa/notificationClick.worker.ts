@@ -1,5 +1,4 @@
 import { normalizeSameOriginUrl } from './serviceWorkerPolicy';
-import type { PendingNotificationClickTarget } from './notificationClickTarget';
 
 export const NOTIFICATION_CLICK_ACK_TIMEOUT_MS = 750;
 export const NOTIFICATION_CLICK_MESSAGE_TYPE = 'notification-click';
@@ -34,17 +33,12 @@ interface NotificationClickLogger {
   warn: (...args: unknown[]) => void;
 }
 
-interface NotificationClickPendingTargetStorage {
-  writePendingNotificationClickTarget(url: string): Promise<PendingNotificationClickTarget>;
-}
-
 export type NotificationClickRouteResult = 'client' | 'navigate' | 'open';
 
 export interface NotificationClickRouteOptions {
   ackTimeoutMs?: number;
   createMessageChannel?: () => NotificationClickMessageChannel;
   logger?: NotificationClickLogger;
-  pendingTargetStorage?: NotificationClickPendingTargetStorage;
 }
 
 function sameOriginURLForPath(origin: string, pathname: string, search = '', hash = ''): string {
@@ -85,7 +79,6 @@ function isNotificationClickAck(message: unknown): boolean {
 function notifyClientAndWaitForAck(
   client: NotificationClickClient,
   url: string,
-  clickId: string | undefined,
   options: Required<Pick<NotificationClickRouteOptions, 'ackTimeoutMs' | 'createMessageChannel'>>
 ): Promise<boolean> {
   if (typeof client.postMessage !== 'function') return Promise.resolve(false);
@@ -110,15 +103,7 @@ function notifyClientAndWaitForAck(
     };
 
     try {
-      postMessage.call(
-        client,
-        {
-          type: NOTIFICATION_CLICK_MESSAGE_TYPE,
-          url,
-          ...(clickId ? { clickId } : {})
-        },
-        [channel.port2]
-      );
+      postMessage.call(client, { type: NOTIFICATION_CLICK_MESSAGE_TYPE, url }, [channel.port2]);
     } catch {
       finish(false);
     }
@@ -145,13 +130,6 @@ export async function routeNotificationClick(
   options: NotificationClickRouteOptions = {}
 ): Promise<NotificationClickRouteResult> {
   const url = normalizeNotificationClickUrl(rawUrl, origin);
-  let pendingTarget: PendingNotificationClickTarget | null = null;
-  try {
-    pendingTarget =
-      (await options.pendingTargetStorage?.writePendingNotificationClickTarget(url)) ?? null;
-  } catch (err) {
-    options.logger?.warn('[SW] Failed to persist notification click target:', err);
-  }
 
   const ackOptions = {
     ackTimeoutMs: options.ackTimeoutMs ?? NOTIFICATION_CLICK_ACK_TIMEOUT_MS,
@@ -165,12 +143,7 @@ export async function routeNotificationClick(
   for (const client of clientList) {
     const initiallyFocusedClient = await focusClient(client, options.logger);
     const focusedClient = initiallyFocusedClient ?? client;
-    const acknowledged = await notifyClientAndWaitForAck(
-      focusedClient,
-      url,
-      pendingTarget?.id,
-      ackOptions
-    );
+    const acknowledged = await notifyClientAndWaitForAck(focusedClient, url, ackOptions);
     if (acknowledged) {
       return 'client';
     }

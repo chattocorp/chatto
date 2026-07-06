@@ -15,7 +15,6 @@ import {
   routeNotificationClick,
   type NotificationClickClients
 } from '$lib/pwa/notificationClick.worker';
-import { writePendingNotificationClickTarget } from '$lib/pwa/notificationClickTarget';
 import {
   ServiceWorkerBadgeCoordinator,
   createCacheForegroundNotificationCountStorage
@@ -236,13 +235,7 @@ self.addEventListener('notificationclick', (event) => {
           rawUrl,
           self.location.origin,
           self.clients as unknown as NotificationClickClients,
-          {
-            logger: console,
-            pendingTargetStorage: {
-              writePendingNotificationClickTarget: (url) =>
-                writePendingNotificationClickTarget(caches, self.location.origin, url)
-            }
-          }
+          { logger: console }
         );
       } finally {
         await badgeCoordinator.reconcileAfterNotificationClick().catch(() => {});

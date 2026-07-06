@@ -1,7 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-  clearPendingNotificationClickUrl,
-  consumePendingNotificationClickUrl,
   ensureRegistered,
   getPushCapability,
   onNotificationClick,
@@ -367,14 +365,13 @@ describe('onNotificationClick', () => {
     serviceWorker.dispatchMessage({
       data: {
         type: 'notification-click',
-        url: 'https://chatto.example/chat/-/room-1',
-        clickId: 'click-1'
+        url: 'https://chatto.example/chat/-/room-1'
       },
       ports: [responsePort as unknown as MessagePort]
     });
 
     await Promise.resolve();
-    expect(callback).toHaveBeenCalledWith('https://chatto.example/chat/-/room-1', 'click-1');
+    expect(callback).toHaveBeenCalledWith('https://chatto.example/chat/-/room-1');
     expect(responsePort.postMessage).not.toHaveBeenCalled();
 
     navigation.resolve();
@@ -408,26 +405,5 @@ describe('onNotificationClick', () => {
 
     expect(callback).toHaveBeenCalledOnce();
     expect(responsePort.postMessage).not.toHaveBeenCalled();
-  });
-});
-
-describe('pending notification click target wrappers', () => {
-  it('treats Cache API failures as non-fatal', async () => {
-    const open = vi.fn(async () => {
-      throw new Error('cache unavailable');
-    });
-    vi.stubGlobal('window', {
-      caches: { open },
-      location: { origin: 'https://chatto.example' }
-    });
-
-    await expect(consumePendingNotificationClickUrl()).resolves.toBeNull();
-    await expect(
-      clearPendingNotificationClickUrl({
-        clickId: 'click-1',
-        expectedUrl: 'https://chatto.example/chat/-/room-1'
-      })
-    ).resolves.toBe(undefined);
-    expect(open).toHaveBeenCalledTimes(2);
   });
 });

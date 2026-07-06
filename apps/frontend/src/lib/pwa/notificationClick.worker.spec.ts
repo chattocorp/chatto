@@ -43,56 +43,6 @@ describe('routeNotificationClick', () => {
     );
   });
 
-  it('persists the normalized target before trying client routing fallbacks', async () => {
-    const writePendingNotificationClickTarget = vi.fn(async () => ({
-      id: 'click-1',
-      url: TARGET_URL
-    }));
-    const focus = vi.fn(async () => client);
-    const postMessage = vi.fn();
-    const client: NotificationClickClient = {
-      focus,
-      navigate: vi.fn(async () => client),
-      postMessage
-    };
-    const clients = clientsWith([client]);
-
-    const result = await routeNotificationClick(TARGET_URL, ORIGIN, clients, {
-      ackTimeoutMs: 1,
-      createMessageChannel: createAcknowledgingMessageChannel,
-      pendingTargetStorage: { writePendingNotificationClickTarget }
-    });
-
-    expect(result).toBe('navigate');
-    expect(writePendingNotificationClickTarget).toHaveBeenCalledWith(TARGET_URL);
-    expect(postMessage).toHaveBeenCalledWith(
-      { type: 'notification-click', url: TARGET_URL, clickId: 'click-1' },
-      expect.any(Array)
-    );
-    expect(writePendingNotificationClickTarget.mock.invocationCallOrder[0]).toBeLessThan(
-      focus.mock.invocationCallOrder[0]
-    );
-  });
-
-  it('continues routing when pending target persistence fails', async () => {
-    const logger = { warn: vi.fn() };
-    const clients = clientsWith([]);
-
-    await expect(
-      routeNotificationClick(TARGET_URL, ORIGIN, clients, {
-        logger,
-        pendingTargetStorage: {
-          writePendingNotificationClickTarget: vi.fn(async () => {
-            throw new Error('cache unavailable');
-          })
-        }
-      })
-    ).resolves.toBe('open');
-
-    expect(logger.warn).toHaveBeenCalledOnce();
-    expect(clients.openWindow).toHaveBeenCalledWith(TARGET_URL);
-  });
-
   it('focuses the window before using acknowledged SPA routing', async () => {
     const channel = createAcknowledgingMessageChannel();
     const focus = vi.fn(async () => client);
