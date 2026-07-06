@@ -21,6 +21,9 @@ builds:
 
 archives:
   - formats: [tar.gz]
+    files:
+      - LICENSES/AGPL-3.0-or-later.txt
+      - NOTICE
     # this name template makes the OS and Arch compatible with the results of `uname`.
     name_template: >-
       {{ .ProjectName }}_
@@ -41,6 +44,8 @@ dockers:
     dockerfile: docker/Dockerfile.goreleaser
     extra_files:
       - docker/docker-entrypoint.sh
+      - LICENSES/AGPL-3.0-or-later.txt
+      - NOTICE
     build_flag_templates:
       - "--pull"
       - "--platform=linux/amd64"
@@ -49,6 +54,7 @@ dockers:
       - "--label=org.opencontainers.image.source=https://github.com/chattocorp/chatto"
       - "--label=org.opencontainers.image.version={{ .Version }}"
       - "--label=org.opencontainers.image.created={{ .Date }}"
+      - "--label=org.opencontainers.image.licenses=AGPL-3.0-or-later"
     use: buildx
     goarch: amd64
     goos: linux
@@ -57,6 +63,8 @@ dockers:
     dockerfile: docker/Dockerfile.goreleaser
     extra_files:
       - docker/docker-entrypoint.sh
+      - LICENSES/AGPL-3.0-or-later.txt
+      - NOTICE
     build_flag_templates:
       - "--pull"
       - "--platform=linux/arm64"
@@ -65,6 +73,7 @@ dockers:
       - "--label=org.opencontainers.image.source=https://github.com/chattocorp/chatto"
       - "--label=org.opencontainers.image.version={{ .Version }}"
       - "--label=org.opencontainers.image.created={{ .Date }}"
+      - "--label=org.opencontainers.image.licenses=AGPL-3.0-or-later"
     use: buildx
     goarch: arm64
     goos: linux

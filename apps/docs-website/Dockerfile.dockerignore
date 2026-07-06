@@ -6,6 +6,9 @@
 !pnpm-lock.yaml
 !pnpm-workspace.yaml
 !.npmrc
+!LICENSES/
+!LICENSES/Apache-2.0.txt
+!NOTICE
 !apps/
 !apps/docs-website/
 !apps/docs-website/**

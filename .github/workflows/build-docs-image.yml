@@ -9,6 +9,8 @@ on:
       - "package.json"
       - "pnpm-lock.yaml"
       - "pnpm-workspace.yaml"
+      - "LICENSES/Apache-2.0.txt"
+      - "NOTICE"
   workflow_dispatch:
     inputs:
       ref:
@@ -91,3 +93,4 @@ jobs:
             org.opencontainers.image.source=https://github.com/chattocorp/chatto
             org.opencontainers.image.revision=${{ steps.image.outputs.sha }}
             org.opencontainers.image.version=${{ steps.image.outputs.docs_tag }}
+            org.opencontainers.image.licenses=Apache-2.0

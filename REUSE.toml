@@ -1,22 +1,45 @@
 # SPDX-FileCopyrightText: 2026 ChattoCorp GmbH
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: AGPL-3.0-or-later
 
 version = 1
 
 [[annotations]]
 path = "**"
-precedence = "override"
-SPDX-FileCopyrightText = "2026 ChattoCorp GmbH"
-SPDX-License-Identifier = "Apache-2.0"
-
-[[annotations]]
-path = "cli/**"
-precedence = "override"
 SPDX-FileCopyrightText = "2026 ChattoCorp GmbH"
 SPDX-License-Identifier = "AGPL-3.0-or-later"
 
 [[annotations]]
+path = [
+  "apps/docs-website/**",
+  "CHANGELOG.md",
+  "CONTRIBUTING.md",
+  "docs/**",
+  "examples/**",
+  "LICENSE.md",
+  "packages/api-types/**",
+  "README.md",
+  "SECURITY.md",
+  "proto/AGENTS.md",
+  "proto/buf.gen.yaml",
+  "proto/buf.lock",
+  "proto/buf.yaml",
+  "proto/templates/**",
+  "proto/chatto/admin/**",
+  "proto/chatto/api/**",
+  "proto/chatto/auth/**",
+  "proto/chatto/discovery/**",
+  "proto/chatto/operator/**",
+  "proto/chatto/realtime/**",
+]
+SPDX-FileCopyrightText = "2026 ChattoCorp GmbH"
+SPDX-License-Identifier = "Apache-2.0"
+
+[[annotations]]
+path = "LICENSE-APACHE"
+SPDX-FileCopyrightText = "2004 Apache Software Foundation"
+SPDX-License-Identifier = "Apache-2.0"
+
+[[annotations]]
 path = "LICENSE-AGPL"
-precedence = "override"
 SPDX-FileCopyrightText = "2007 Free Software Foundation, Inc."
 SPDX-License-Identifier = "AGPL-3.0-or-later"

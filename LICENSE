@@ -4,11 +4,15 @@ Chatto uses per-file SPDX license metadata following the REUSE specification.
 The canonical license metadata is in REUSE.toml and in any SPDX headers or
 adjacent .license files present in the source tree.
 
-The default repository license is the Apache License 2.0 (Apache-2.0).
-
-The cli/ directory is licensed under the GNU Affero General Public License
+The default repository license is the GNU Affero General Public License
 version 3 or any later version (AGPL-3.0-or-later). This covers the Chatto
-server and CLI implementation.
+server, CLI, frontend application, and release artifacts unless a more specific
+license is declared.
+
+Selected integration and documentation surfaces are licensed under the Apache
+License 2.0 (Apache-2.0), including public protocol/API definitions, generated
+TypeScript API client/types, documentation, and examples as annotated in
+REUSE.toml.
 
 The full license texts are available in:
 
