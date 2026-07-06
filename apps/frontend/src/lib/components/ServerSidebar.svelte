@@ -40,6 +40,7 @@ See the "UI" section of `docs/GLOSSARY.md`.
   // sidebar toggles via `hidden`/`flex` (no overlay; layout reflows).
   const tx = $derived(sidebarNav.isMobile ? (sidebarNav.progress - 1) * SIDEBAR_PANEL_WIDTH_PX : 0);
   const dragging = $derived(sidebarNav.dragOffset !== null);
+  const mobileClosed = $derived(sidebarNav.isMobile && sidebarNav.progress === 0 && !dragging);
   const resizable = $derived(!width);
 </script>
 
@@ -63,7 +64,7 @@ See the "UI" section of `docs/GLOSSARY.md`.
     // completes (see .sidebar-mobile-anim styles in routes/+layout.svelte) so
     // accessibility tools and Playwright `toBeVisible()` agree the panel is
     // hidden, not just translated off-screen.
-    sidebarNav.isMobile && sidebarNav.progress === 0 && !dragging && 'max-md:invisible',
+    mobileClosed && 'sidebar-mobile-closed',
     !dragging && 'sidebar-mobile-anim',
     resizable && 'server-sidebar--resizable'
   ]}
