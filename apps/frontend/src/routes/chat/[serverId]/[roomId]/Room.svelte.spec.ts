@@ -122,11 +122,13 @@ vi.mock('$lib/hooks', () => ({
     isRoomLoading: false
   }),
   useRoomUnread: () => ({
-    unreadAfterTime: null,
-    unreadBeforeTime: null,
+    unreadMarkerEventId: null,
+    unreadMarkerWindow: null,
     markRoomAsRead: mocks.markRoomAsRead,
     noteReadCursor: mocks.noteReadCursor,
-    noteAwayEvent: mocks.noteAwayEvent
+    noteAwayEvent: mocks.noteAwayEvent,
+    setUnreadMarkerEventId: vi.fn(),
+    clearUnreadMarker: vi.fn()
   }),
   useEvent: vi.fn(),
   usePresenceChange: vi.fn(),
@@ -378,7 +380,10 @@ describe('Room local message echo', () => {
 
     const roomRegion = q(container, '[data-testid="room-view-region"]')!;
     const desktopSidebarPane = q(container, '[data-testid="room-sidebar-desktop-pane"]')!;
-    const maximizeButton = q(container, '[data-testid="toggle-maximized-call"]') as HTMLButtonElement;
+    const maximizeButton = q(
+      container,
+      '[data-testid="toggle-maximized-call"]'
+    ) as HTMLButtonElement;
 
     await expect.element(desktopSidebarPane).toBeInTheDocument();
     expect(roomRegion.className).not.toContain('lg:hidden');
@@ -402,7 +407,10 @@ describe('Room local message echo', () => {
 
     const roomRegion = q(container, '[data-testid="room-view-region"]')!;
     const desktopSidebarPane = q(container, '[data-testid="room-sidebar-desktop-pane"]')!;
-    const maximizeButton = q(container, '[data-testid="toggle-maximized-call"]') as HTMLButtonElement;
+    const maximizeButton = q(
+      container,
+      '[data-testid="toggle-maximized-call"]'
+    ) as HTMLButtonElement;
 
     maximizeButton.click();
 
@@ -428,7 +436,10 @@ describe('Room local message echo', () => {
 
     const roomRegion = q(container, '[data-testid="room-view-region"]')!;
     const desktopSidebarPane = q(container, '[data-testid="room-sidebar-desktop-pane"]')!;
-    const maximizeButton = q(container, '[data-testid="toggle-maximized-call"]') as HTMLButtonElement;
+    const maximizeButton = q(
+      container,
+      '[data-testid="toggle-maximized-call"]'
+    ) as HTMLButtonElement;
 
     maximizeButton.click();
 
@@ -454,7 +465,10 @@ describe('Room local message echo', () => {
 
     const roomRegion = q(container, '[data-testid="room-view-region"]')!;
     const desktopSidebarPane = q(container, '[data-testid="room-sidebar-desktop-pane"]')!;
-    const maximizeButton = q(container, '[data-testid="toggle-maximized-call"]') as HTMLButtonElement;
+    const maximizeButton = q(
+      container,
+      '[data-testid="toggle-maximized-call"]'
+    ) as HTMLButtonElement;
 
     maximizeButton.click();
 

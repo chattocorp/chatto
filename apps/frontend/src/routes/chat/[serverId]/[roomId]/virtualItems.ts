@@ -99,7 +99,7 @@ export function buildVirtualItems(
     if (hasUnreadSeparator) {
       items.push({
         type: 'unread-separator',
-        key: 'unread-separator'
+        key: `unread-separator-${event.id}`
       });
     }
 

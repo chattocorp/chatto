@@ -148,7 +148,10 @@ describe('buildVirtualItems', () => {
 
     const e2Index = items.findIndex((i) => i.type === 'event' && i.key === 'e2');
     expect(e2Index).toBeGreaterThan(0);
-    expect(items[e2Index - 1]).toMatchObject({ type: 'unread-separator' });
+    expect(items[e2Index - 1]).toMatchObject({
+      type: 'unread-separator',
+      key: 'unread-separator-e2'
+    });
   });
 
   it('does not emit unread-separator when firstUnreadEventId is null', () => {

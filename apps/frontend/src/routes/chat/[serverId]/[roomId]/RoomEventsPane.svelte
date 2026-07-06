@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { useEvent } from '$lib/hooks';
+  import { useEvent, type UnreadMarkerWindow } from '$lib/hooks';
   import { RoomEventKind, roomEventKind, type RoomEventKindSource } from '$lib/render/eventKinds';
   import {
     getComposerContext,
@@ -26,16 +26,20 @@
   let {
     roomId,
     messageStore: store,
-    unreadAfterTime = null,
-    unreadBeforeTime = null,
+    unreadMarkerEventId = null,
+    unreadMarkerWindow = null,
+    onUnreadMarkerResolved,
+    onUnreadMarkerCleared,
     onOpenThread,
     typingUserIds = [],
     typingMembers = []
   }: {
     roomId: string;
     messageStore: MessagesStore;
-    unreadAfterTime?: string | null;
-    unreadBeforeTime?: string | null;
+    unreadMarkerEventId?: string | null;
+    unreadMarkerWindow?: UnreadMarkerWindow | null;
+    onUnreadMarkerResolved?: (eventId: string) => void;
+    onUnreadMarkerCleared?: () => void;
     onOpenThread?: OpenThreadHandler;
     typingUserIds?: string[];
     typingMembers?: RoomMember[];
@@ -48,11 +52,13 @@
   let roomEvents = $derived(store.rootEvents);
   let updateCounter = $derived(roomEvents.length);
 
-  // Resolve time-based unread boundary to an event ID for EventList
-  let unreadAfterEventId = $derived.by(() => {
-    if (unreadAfterTime === null) return null;
-    const afterMs = new Date(unreadAfterTime).getTime();
-    const beforeMs = unreadBeforeTime ? new Date(unreadBeforeTime).getTime() : Infinity;
+  // Resolve a fresh-entry server timestamp window once, then commit the
+  // concrete event id back to the unread hook. EventList only renders an
+  // explicit event-id marker.
+  let resolvedUnreadMarkerEventId = $derived.by(() => {
+    if (unreadMarkerWindow === null) return null;
+    const afterMs = new Date(unreadMarkerWindow.afterTime).getTime();
+    const beforeMs = new Date(unreadMarkerWindow.beforeTime).getTime();
     for (const event of roomEvents) {
       const eventMs = new Date(event.createdAt).getTime();
       if (eventMs > afterMs && eventMs <= beforeMs) {
@@ -60,6 +66,11 @@
       }
     }
     return null;
+  });
+
+  $effect(() => {
+    if (!resolvedUnreadMarkerEventId) return;
+    onUnreadMarkerResolved?.(resolvedUnreadMarkerEventId);
   });
 
   // Wire jumpState handlers to the store
@@ -137,7 +148,7 @@
   {onOpenThread}
   enableLastEditableFinder={true}
   isLoading={store.isInitialLoading}
-  {unreadAfterEventId}
+  unreadAfterEventId={unreadMarkerEventId}
   {typingUserIds}
   {typingMembers}
   scrollToEventId={jumpState?.scrollToEventId ?? null}
@@ -150,5 +161,6 @@
   onLoadNewer={() => store.loadNewer(jumpState)}
   onJumpToPresent={() => store.jumpToPresent(jumpState)}
   onReachedPresent={handleReachedPresent}
+  onReachedBottom={onUnreadMarkerCleared}
   onSoftRefresh={handleSoftRefresh}
 />

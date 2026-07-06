@@ -777,9 +777,9 @@ test.describe('Room unread separator', () => {
     await roomPage.expectMessageVisible(firstMessage);
     await waitForRoomReadViaConnect(page, generalRoomId);
 
-    // Background the tab. useRoomUnread's effect fires presence-false and
-    // anchors unreadAfterTime = lastCursor, unreadBeforeTime = null (the
-    // open-upper-bound window).
+    // Background the tab. useRoomUnread records only actual missed event ids,
+    // so a blur/refocus cycle with no other user's event must not create a
+    // separator.
     await page.evaluate(() => {
       Object.defineProperty(document, 'visibilityState', {
         value: 'hidden',

@@ -64,6 +64,7 @@
     onLoadNewer,
     onJumpToPresent,
     onReachedPresent,
+    onReachedBottom,
     onSoftRefresh,
     pendingHighlightId = null
   }: {
@@ -104,6 +105,7 @@
     onLoadNewer?: () => Promise<void>;
     onJumpToPresent?: () => void;
     onReachedPresent?: () => void;
+    onReachedBottom?: () => void;
     onSoftRefresh?: (result: RefreshCurrentWindowResult, anchored: boolean) => void;
     // Suppress auto-scroll while a highlight is pending (used by ThreadPane)
     pendingHighlightId?: string | null;
@@ -391,10 +393,16 @@
   // Scroll to bottom when clicking the new messages indicator
   function scrollToBottom() {
     setShouldScrollToBottom(true);
+    onReachedBottom?.();
     if (virtualizerHandle) {
       safeScrollToIndex(virtualItems.length - 1, { align: 'end' });
       scrollFader?.refresh();
     }
+  }
+
+  function handleJumpToPresentClick() {
+    onReachedBottom?.();
+    onJumpToPresent?.();
   }
 
   // Timer-based flag set by programmatic scrolls (auto-scroll effect, scroll-request
@@ -582,6 +590,7 @@
     if (!isJumpedMode || !hasReachedEnd || bottomDistance >= 50 || !onReachedPresent) return false;
 
     setShouldScrollToBottom(true);
+    onReachedBottom?.();
     console.debug('[room-refresh] reached present after forward pagination', {
       roomId,
       bottomDistance,
@@ -623,7 +632,11 @@
     if (!alwaysScrollToBottom) {
       // Re-enable auto-scroll if we're at the bottom (and not locked)
       if (distanceFromBottom < 10 && !scrollUpLock) {
+        const wasScrolledUp = !shouldScrollToBottom;
         setShouldScrollToBottom(true);
+        if (wasScrolledUp && Date.now() - userScrollIntentAt < USER_SCROLL_INTENT_MS) {
+          onReachedBottom?.();
+        }
       }
       // Disable auto-scroll if user scrolled up (and clearly not near the bottom).
       // Gated on a recent wheel/touchmove signal so virtua's internal scroll
@@ -820,7 +833,7 @@
   {#if isJumpedMode && !shouldScrollToBottom && onJumpToPresent}
     <button
       transition:fade={{ duration: 150 }}
-      onclick={onJumpToPresent}
+      onclick={handleJumpToPresentClick}
       data-testid="jump-to-present"
       class="absolute bottom-4 left-1/2 -translate-x-1/2 cursor-pointer menu whitespace-nowrap"
     >

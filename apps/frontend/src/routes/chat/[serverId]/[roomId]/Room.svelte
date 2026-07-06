@@ -339,7 +339,7 @@
     if (!event.event) return;
 
     if (!appState.isPresent && shouldRevealAwaySeparator(event)) {
-      unread.noteAwayEvent();
+      unread.noteAwayEvent(event.id);
     }
 
     if (isMessagePostedEvent(event.event) && event.event.roomId === roomId) {
@@ -571,8 +571,10 @@
         <RoomEventsPane
           {roomId}
           messageStore={roomMessageStore}
-          unreadAfterTime={unread.unreadAfterTime}
-          unreadBeforeTime={unread.unreadBeforeTime}
+          unreadMarkerEventId={unread.unreadMarkerEventId}
+          unreadMarkerWindow={unread.unreadMarkerWindow}
+          onUnreadMarkerResolved={(eventId) => unread.setUnreadMarkerEventId(eventId)}
+          onUnreadMarkerCleared={() => unread.clearUnreadMarker()}
           onOpenThread={openThread}
           typingUserIds={typingIndicator.userIds}
           typingMembers={getRoomMembers()}
