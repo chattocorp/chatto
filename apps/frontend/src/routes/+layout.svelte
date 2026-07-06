@@ -88,6 +88,7 @@
 {#snippet frame()}
   {@const progress = sidebarNav.isMobile ? sidebarNav.progress : 1}
   {@const dragging = sidebarNav.dragOffset !== null}
+  {@const mobileClosed = sidebarNav.isMobile && progress === 0 && !dragging}
   {@const tx = (progress - 1) * SIDEBAR_PANEL_WIDTH_PX}
   <div
     class="flex h-full w-full flex-col overscroll-y-contain bg-surface-100 pt-[env(safe-area-inset-top,0px)] md:p-3 md:pt-0"
@@ -112,35 +113,38 @@
           ></div>
         {/if}
 
-        {#if progress > 0}
-          <button
-            type="button"
-            use:sidebarSwipe
-            class={[
-              'fixed inset-0 top-11 z-40 touch-none bg-black/50 md:hidden',
-              !dragging && 'transition-opacity duration-200'
-            ]}
-            style="opacity: {progress}"
-            onclick={() => sidebarNav.close()}
-            aria-label={m['common.close_sidebar']()}
-          ></button>
-        {/if}
+        <button
+          type="button"
+          use:sidebarSwipe
+          data-testid="mobile-sidebar-backdrop"
+          class={[
+            'fixed inset-0 top-11 z-40 touch-none bg-black/50 md:hidden',
+            !dragging && 'transition-opacity duration-200',
+            mobileClosed && 'pointer-events-none'
+          ]}
+          style:opacity={progress}
+          disabled={mobileClosed}
+          tabindex={mobileClosed ? -1 : 0}
+          aria-hidden={mobileClosed}
+          onclick={() => sidebarNav.close()}
+          aria-label={m['common.close_sidebar']()}
+        ></button>
       {/if}
 
       <div class="flex min-h-0 flex-1 flex-row">
         <div
           use:sidebarSwipe
+          data-testid="mobile-sidebar-panel"
           class={[
             'z-50 min-h-0 flex-col self-stretch bg-background',
             'max-md:fixed max-md:top-11 max-md:bottom-0 max-md:left-0 max-md:w-17 max-md:touch-pan-y',
             // Mobile: always rendered so we can animate transform.
             // Desktop: hide entirely when closed (no overlay; layout reflows).
             sidebarNav.isMobile ? 'flex' : sidebarNav.isOpen ? 'flex' : 'hidden',
-            // Mobile-only: hide via `visibility: hidden` (with transition-delay
-            // applied via the `sidebar-mobile-anim` class below) when fully
-            // closed, so Playwright / accessibility tooling correctly see the
-            // sidebar as not-visible while the slide-in animation still works.
-            sidebarNav.isMobile && progress === 0 && !dragging && 'max-md:invisible',
+            // Mobile-only: hide via `visibility: hidden` after the close
+            // transition, so Playwright / accessibility tooling correctly see
+            // the sidebar as not-visible while the slide-out animation works.
+            mobileClosed && 'sidebar-mobile-closed',
             !dragging && 'sidebar-mobile-anim'
           ]}
           style:transform={sidebarNav.isMobile ? `translateX(${tx}px)` : undefined}
@@ -174,14 +178,16 @@
   */
   @media (max-width: 767px) {
     :global(.sidebar-mobile-anim) {
-      transition:
-        transform 200ms ease-out,
-        visibility 0s linear 200ms;
-    }
-    :global(.sidebar-mobile-anim:not(.invisible)) {
+      visibility: visible;
       transition:
         transform 200ms ease-out,
         visibility 0s linear 0s;
+    }
+    :global(.sidebar-mobile-anim.sidebar-mobile-closed) {
+      visibility: hidden;
+      transition:
+        transform 200ms ease-out,
+        visibility 0s linear 200ms;
     }
   }
 </style>
