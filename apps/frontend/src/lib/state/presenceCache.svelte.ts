@@ -1,4 +1,4 @@
-import { createContext } from 'svelte';
+import { createContext, untrack } from 'svelte';
 import { SvelteMap } from 'svelte/reactivity';
 import type { PresenceStatus } from '$lib/render/types';
 
@@ -20,16 +20,20 @@ export class PresenceCache {
   #version = $state(0);
 
   update(scope: PresenceCacheScope, status: PresenceStatus) {
-    this.#entries.set(presenceCacheKey(scope), status);
-    this.#version++;
+    untrack(() => {
+      this.#entries.set(presenceCacheKey(scope), status);
+      this.#version++;
+    });
   }
 
   clear(retainedEntries: Iterable<readonly [PresenceCacheScope, PresenceStatus]> = []) {
-    this.#entries.clear();
-    for (const [scope, status] of retainedEntries) {
-      this.#entries.set(presenceCacheKey(scope), status);
-    }
-    this.#version++;
+    untrack(() => {
+      this.#entries.clear();
+      for (const [scope, status] of retainedEntries) {
+        this.#entries.set(presenceCacheKey(scope), status);
+      }
+      this.#version++;
+    });
   }
 
   get(scope: PresenceCacheScope, fallback: PresenceStatus): PresenceStatus {
