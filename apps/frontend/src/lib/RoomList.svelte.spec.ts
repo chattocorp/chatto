@@ -497,26 +497,21 @@ describe('RoomList', () => {
     }
   );
 
-  it('opens a join modal for a faded joinable non-member channel row', async () => {
+  it('lets faded joinable non-member channel rows navigate to the room route', async () => {
     const { container } = render(RoomList);
 
     const row = q(container, '[href="/chat/-/joinable-channel"]') as HTMLAnchorElement;
     await expect.element(row).toBeInTheDocument();
     expect(row.className).toContain('opacity-60');
 
-    row.click();
+    const event = new MouseEvent('click', { bubbles: true, cancelable: true });
+    const wasNotCanceled = row.dispatchEvent(event);
 
-    expect(mocks.pushState).toHaveBeenCalledWith('', {
-      modal: {
-        type: 'joinRoom',
-        roomId: 'joinable-channel',
-        roomName: 'joinable',
-        viewerCanJoinRoom: true
-      }
-    });
+    expect(wasNotCanceled).toBe(true);
+    expect(mocks.pushState).not.toHaveBeenCalled();
   });
 
-  it('opens an access-info modal for a faded non-joinable channel row', async () => {
+  it('lets faded non-joinable channel rows navigate to the inline access screen', async () => {
     const { container } = render(RoomList);
 
     const row = q(container, '[href="/chat/-/restricted-channel"]') as HTMLAnchorElement;
@@ -526,16 +521,11 @@ describe('RoomList', () => {
     expect(icon?.classList.contains('uil--lock')).toBe(true);
     expect(row.querySelectorAll('.uil--lock')).toHaveLength(1);
 
-    row.click();
+    const event = new MouseEvent('click', { bubbles: true, cancelable: true });
+    const wasNotCanceled = row.dispatchEvent(event);
 
-    expect(mocks.pushState).toHaveBeenCalledWith('', {
-      modal: {
-        type: 'joinRoom',
-        roomId: 'restricted-channel',
-        roomName: 'restricted',
-        viewerCanJoinRoom: false
-      }
-    });
+    expect(wasNotCanceled).toBe(true);
+    expect(mocks.pushState).not.toHaveBeenCalled();
   });
 
   it('renders unread channel rows and icons in full-contrast text', async () => {

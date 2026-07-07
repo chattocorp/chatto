@@ -13,7 +13,6 @@
   const serverSegment = $derived(serverIdToSegment(activeInstanceId));
   import Dialog from '$lib/ui/Dialog.svelte';
   import ConfirmDialog from '$lib/ui/ConfirmDialog.svelte';
-  import { Button } from '$lib/ui/form';
   import CreateRoom from '$lib/CreateRoom.svelte';
   import { createRoomCommandAPI } from '$lib/api-client/rooms';
   import { createMessageAPI } from '$lib/api-client/messages';
@@ -27,12 +26,6 @@
   import { notifyRoomMessageMutated } from '$lib/state/room/messageMutationEvents';
 
   function closeModal() {
-    const closePath = page.state.modal?.closePath;
-    if (closePath) {
-      // eslint-disable-next-line svelte/no-navigation-without-resolve -- closePath is set by route guards from resolved app routes.
-      goto(closePath, { replaceState: true });
-      return;
-    }
     history.back();
   }
 
@@ -59,7 +52,6 @@
   }
 
   let leavingRoom = $state(false);
-  let joiningRoom = $state(false);
   let leavingServer = $state(false);
   let deletingMessage = $state(false);
   let deletingLinkPreview = $state(false);
@@ -89,34 +81,6 @@
 
     clearLastRoom(activeInstanceId);
     goto(resolve('/chat/[serverId]', { serverId: serverSegment }));
-  }
-
-  async function handleJoinRoom(roomId: string) {
-    joiningRoom = true;
-    const stores = serverRegistry.getStore(activeInstanceId);
-    const result = await stores.roomDirectory.joinRoom(roomId);
-    joiningRoom = false;
-
-    if (!result.ok) {
-      toast.error(m['room.join.failed']());
-      console.error('Error joining room:', result.error);
-      closeModal();
-      return;
-    }
-
-    toast.success(
-      result.room
-        ? m['room.join.success']({ room: result.room.name })
-        : m['room.join.success_generic']()
-    );
-    await stores.rooms.refresh();
-    const afterJoinPath = page.state.modal?.afterJoinPath;
-    if (afterJoinPath) {
-      // eslint-disable-next-line svelte/no-navigation-without-resolve -- afterJoinPath is set by route guards from resolved app routes.
-      goto(afterJoinPath);
-      return;
-    }
-    goto(resolve('/chat/[serverId]/[roomId]', { serverId: serverSegment, roomId }));
   }
 
   async function handleLeaveServer() {
@@ -275,33 +239,6 @@
   </Dialog>
 {:else if modalType === 'logout'}
   <SignOutDialog onclose={closeModal} />
-{:else if modalType === 'joinRoom' && roomId}
-  {#if page.state.modal?.viewerCanJoinRoom}
-    <ConfirmDialog
-      title={m['room.join.title']()}
-      tone="info"
-      actionLabel={m['room.join.action']()}
-      actionIcon="iconify uil--plus"
-      loading={joiningRoom}
-      onconfirm={() => handleJoinRoom(roomId)}
-      onclose={closeModal}
-    >
-      {m['room.join.prompt']({ room: roomName ?? '' })}
-    </ConfirmDialog>
-  {:else}
-    <Dialog visible title={m['room.join.access_title']()} size="sm" onclose={closeModal}>
-      {#snippet footer()}
-        <div class="flex justify-end">
-          <Button variant="accent" onclick={closeModal}>
-            <span class="iconify uil--check"></span>
-            {m['common.got_it']()}
-          </Button>
-        </div>
-      {/snippet}
-
-      <p class="text-muted">{m['room.join.access_denied']()}</p>
-    </Dialog>
-  {/if}
 {:else if modalType === 'leaveRoom' && roomId}
   <ConfirmDialog
     title={m['room.leave.title']()}

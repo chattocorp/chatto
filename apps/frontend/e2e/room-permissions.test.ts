@@ -74,6 +74,10 @@ async function createRoomViaAPI(page: Page, name?: string): Promise<string> {
   return createRoomViaConnect(page, roomName, groupId);
 }
 
+function shortSuffix(): string {
+  return Date.now().toString(36).slice(-6);
+}
+
 async function getRoomByName(page: Page, roomName: string): Promise<string> {
   return getRoomIdByNameViaConnect(page, roomName);
 }
@@ -528,6 +532,59 @@ test.describe('Permission-only Resolution', () => {
       await expect(page.getByText('Hello from a regular member!')).toBeVisible();
     });
 
+    test('joining from an unjoined sidebar room shows inline join and enables posting', async ({
+      page,
+      roomPage
+    }) => {
+      await createAndLoginTestUser(page);
+      await usePrimaryServerViaAPI(page, `Inline Join ${Date.now()}`);
+      const roomId = await createRoomViaAPI(page, `inline-join-${Date.now()}`);
+
+      const member = await createSecondTestUser(page);
+      await logoutUser(page);
+      await loginUser(page, member.login, member.password);
+      await page.goto(routes.chat);
+
+      const roomLink = page.locator(`a[href="${routes.room(roomId)}"]`).first();
+      await expect(roomLink).toBeVisible();
+      await roomLink.click();
+
+      await expect(page).toHaveURL(new RegExp(`${routes.room(roomId)}$`));
+      await expect(page.getByRole('button', { name: 'Join Room' })).toBeVisible();
+      await expect(page.locator('dialog[open]')).toHaveCount(0);
+
+      await page.getByRole('button', { name: 'Join Room' }).click();
+      await expect(page.getByTestId('message-input')).toHaveAttribute('contenteditable', 'true');
+
+      const body = `Posted after inline join ${Date.now()}`;
+      await roomPage.sendMessage(body);
+      await expect(page.getByText(body)).toBeVisible();
+    });
+
+    test('message deep links to unjoined rooms preserve the target after inline join', async ({
+      page
+    }) => {
+      await createAndLoginTestUser(page);
+      await usePrimaryServerViaAPI(page, `Inline Message Link ${Date.now()}`);
+      const roomId = await createRoomViaAPI(page, `msg-link-${shortSuffix()}`);
+      await joinRoomViaAPI(page, roomId);
+      const targetBody = `Linked before join ${Date.now()}`;
+      const target = await postMessageViaAPI(page, roomId, targetBody);
+      expect(target).not.toBeNull();
+
+      const member = await createSecondTestUser(page);
+      await logoutUser(page);
+      await loginUser(page, member.login, member.password);
+
+      await page.goto(routes.messageLink(roomId, target!.id));
+      await expect(page.getByRole('button', { name: 'Join Room' })).toBeVisible();
+      await expect(page).toHaveURL(new RegExp(`${routes.messageLink(roomId, target!.id)}$`));
+
+      await page.getByRole('button', { name: 'Join Room' }).click();
+      await expect(page).toHaveURL(new RegExp(`${routes.room(roomId)}$`));
+      await expect(page.getByText(targetBody)).toBeVisible();
+    });
+
     test('muted members cannot post to #general (role denial wins)', async ({
       page,
       roomPage: _roomPage
@@ -796,6 +853,25 @@ test.describe('Permission-only Resolution', () => {
       // substring).
       await expect(row.getByText('Restricted', { exact: true })).toBeVisible();
       await expect(row.getByRole('button', { name: 'Join' })).toHaveCount(0);
+    });
+
+    test('restricted room direct links render inline access denial instead of a modal', async ({
+      page
+    }) => {
+      await createAndLoginTestUser(page);
+      await usePrimaryServerViaAPI(page);
+      const roomId = await createRoomViaAPI(page, `restrict-${shortSuffix()}`);
+      await denyRoomPermission(page, roomId, 'everyone', 'room.join');
+
+      const member = await createSecondTestUser(page);
+      await logoutUser(page);
+      await loginUser(page, member.login, member.password);
+
+      await page.goto(routes.room(roomId));
+      await expect(page.getByText('You do not have permission to join this room.')).toBeVisible();
+      await expect(page.getByRole('link', { name: 'Return to Server' })).toBeVisible();
+      await expect(page.locator('dialog[open]')).toHaveCount(0);
+      await expect(page.getByRole('button', { name: 'Join Room' })).toHaveCount(0);
     });
   });
 });

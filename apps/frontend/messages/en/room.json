@@ -20,6 +20,7 @@
       "title": "Join Room",
       "action": "Join Room",
       "prompt": "Join #{room} to read and participate in this room.",
+      "inline_prompt": "Join this room to read and participate.",
       "success": "Joined #{room}",
       "success_generic": "Joined room",
       "failed": "Failed to join room",

@@ -1,11 +1,10 @@
 <script lang="ts">
-  import { goto } from '$app/navigation';
-  import { resolve } from '$app/paths';
   import { page } from '$app/state';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
-  import { roomLinkAccessRedirect } from '$lib/navigation/roomLinkAccess';
+  import { roomRouteAccess } from '$lib/navigation/roomLinkAccess';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import Room from './Room.svelte';
+  import RoomJoinScreen from './RoomJoinScreen.svelte';
 
   let { data, children } = $props();
 
@@ -19,37 +18,25 @@
   // decided whether the room exists, briefly showing the not-found redirect.
   const roomsStore = $derived(serverRegistry.getStore(activeServerId).rooms);
   const ready = $derived(!roomsStore.isInitialLoading);
-  const fallbackPath = $derived(resolve('/chat/[serverId]', { serverId: data.serverSegment }));
-  const targetPath = $derived(`${page.url.pathname}${page.url.search}${page.url.hash}`);
 
   let threadId = $derived(page.params.threadId);
 
   const isMessageLinkMode = $derived(/\/m\/[^/]+$/.test(page.url.pathname));
   const roomAccess = $derived.by(() => {
-    if (!ready || !roomId) return { kind: 'allow' } as const;
-    return roomLinkAccessRedirect({
+    if (!ready || !roomId) return { kind: 'unknown' } as const;
+    return roomRouteAccess({
       rooms: roomsStore.rooms,
-      roomId,
-      targetPath,
-      fallbackPath
+      roomId
     });
   });
-  const canRenderRoom = $derived(ready && roomId && roomAccess.kind === 'allow');
-
-  let lastAccessRedirectKey = $state<string | null>(null);
-
-  $effect(() => {
-    if (!ready || !roomId || roomAccess.kind !== 'redirect') return;
-
-    const key = JSON.stringify([roomAccess.path, roomAccess.state]);
-    if (lastAccessRedirectKey === key) return;
-    lastAccessRedirectKey = key;
-    // eslint-disable-next-line svelte/no-navigation-without-resolve -- roomAccess.path is the resolved server fallback path.
-    goto(roomAccess.path, { replaceState: true, state: roomAccess.state });
-  });
+  const canRenderRoom = $derived(
+    ready && roomId && (roomAccess.kind === 'member' || roomAccess.kind === 'unknown')
+  );
 </script>
 
-{#if canRenderRoom && roomId}
+{#if ready && roomId && roomAccess.kind === 'nonmember'}
+  <RoomJoinScreen room={roomAccess.room} serverSegment={data.serverSegment} />
+{:else if canRenderRoom && roomId}
   {#if isMessageLinkMode}
     <!-- Message link resolver: renders +page.svelte which fetches + redirects -->
     {@render children?.()}

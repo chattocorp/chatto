@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { RoomType } from '$lib/render/types';
 import type { RoomsListItem } from '$lib/state/server/rooms.svelte';
-import { roomLinkAccessRedirect } from './roomLinkAccess';
+import { roomRouteAccess } from './roomLinkAccess';
 
 function room(overrides: Partial<RoomsListItem> = {}): RoomsListItem {
   return {
@@ -18,68 +18,47 @@ function room(overrides: Partial<RoomsListItem> = {}): RoomsListItem {
   };
 }
 
-describe('roomLinkAccessRedirect', () => {
-  it('allows access when the viewer is already a member', () => {
+describe('roomRouteAccess', () => {
+  it('classifies members as allowed room viewers', () => {
     expect(
-      roomLinkAccessRedirect({
+      roomRouteAccess({
         rooms: [room()],
-        roomId: 'room-1',
-        targetPath: '/chat/-/room-1',
-        fallbackPath: '/chat/-'
+        roomId: 'room-1'
       })
-    ).toEqual({ kind: 'allow' });
+    ).toEqual({ kind: 'member' });
   });
 
   it('allows unknown rooms to fall through to room data loading', () => {
     expect(
-      roomLinkAccessRedirect({
+      roomRouteAccess({
         rooms: [],
-        roomId: 'room-1',
-        targetPath: '/chat/-/room-1',
-        fallbackPath: '/chat/-'
+        roomId: 'room-1'
       })
-    ).toEqual({ kind: 'allow' });
+    ).toEqual({ kind: 'unknown' });
   });
 
-  it('redirects nonmember rooms with a join modal and original target', () => {
+  it('classifies joinable nonmember rooms for inline joining', () => {
     expect(
-      roomLinkAccessRedirect({
+      roomRouteAccess({
         rooms: [room({ viewerIsMember: false })],
-        roomId: 'room-1',
-        targetPath: '/chat/-/room-1/m/message-1',
-        fallbackPath: '/chat/-'
+        roomId: 'room-1'
       })
     ).toEqual({
-      kind: 'redirect',
-      path: '/chat/-',
-      state: {
-        modal: {
-          type: 'joinRoom',
-          roomId: 'room-1',
-          roomName: 'general',
-          viewerCanJoinRoom: true,
-          afterJoinPath: '/chat/-/room-1/m/message-1',
-          closePath: '/chat/-'
-        }
-      }
+      kind: 'nonmember',
+      room: room({ viewerIsMember: false })
     });
   });
 
-  it('uses the same modal shape for non-joinable rooms', () => {
+  it('classifies restricted nonmember rooms for inline access denial', () => {
     expect(
-      roomLinkAccessRedirect({
+      roomRouteAccess({
         rooms: [room({ viewerIsMember: false, viewerCanJoinRoom: false })],
-        roomId: 'room-1',
-        targetPath: '/chat/-/room-1',
-        fallbackPath: '/chat/-'
+        roomId: 'room-1'
       })
     ).toMatchObject({
-      kind: 'redirect',
-      state: {
-        modal: {
-          type: 'joinRoom',
-          viewerCanJoinRoom: false
-        }
+      kind: 'nonmember',
+      room: {
+        viewerCanJoinRoom: false
       }
     });
   });
