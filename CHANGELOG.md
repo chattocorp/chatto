@@ -3,6 +3,17 @@
 All notable changes to Chatto. Maintained by release-please from the
 conventional-commit messages on `main` — do not edit by hand.
 
+## [0.4.2](https://github.com/chattocorp/chatto/compare/v0.4.1...v0.4.2) (2026-07-07)
+
+
+### Bug Fixes
+
+* **api:** tolerate invalid presence user ids ([#1336](https://github.com/chattocorp/chatto/issues/1336)) ([76f1bef](https://github.com/chattocorp/chatto/commit/76f1befee805f7db0a5a2810f6f9fa160e273e35))
+* **frontend:** render inline room join screen ([#1335](https://github.com/chattocorp/chatto/issues/1335)) ([af7c831](https://github.com/chattocorp/chatto/commit/af7c831d15c1b0d641ea0e367add127d629bdd92))
+* **frontend:** separate input mode from viewport size ([#1339](https://github.com/chattocorp/chatto/issues/1339)) ([217da21](https://github.com/chattocorp/chatto/commit/217da2157820d2ce45e1912e0cbfec2b152c7fca))
+* **frontend:** unify user card presence source ([#1334](https://github.com/chattocorp/chatto/issues/1334)) ([dde9b14](https://github.com/chattocorp/chatto/commit/dde9b1435bcbd31958de568e6bbf9a861a77f0d0))
+* **push:** add declarative web push payloads ([#1338](https://github.com/chattocorp/chatto/issues/1338)) ([ede325d](https://github.com/chattocorp/chatto/commit/ede325dfdc1c29683fb0739bb7bade9659136eb0))
+
 ## [0.4.1](https://github.com/chattocorp/chatto/compare/v0.4.0...v0.4.1) (2026-07-07)
 
 
