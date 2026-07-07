@@ -15,7 +15,9 @@
     | 'replies-and-reactions'
     | 'unread-followed-thread'
     | 'thread-echo'
-    | 'read-only-reactions';
+    | 'read-only-reactions'
+    | 'short-reaction-popover'
+    | 'high-count-reaction-popover';
 
   let { variant }: { variant: Variant } = $props();
 
@@ -78,6 +80,27 @@
       ]
     }
   ];
+  const shortReaction: ReactionSummaryView = {
+    emoji: 'thumbsup',
+    count: 2,
+    hasReacted: false,
+    users: [
+      { id: 'alice', displayName: 'Alice' },
+      { id: 'bob', displayName: 'Bob' }
+    ]
+  };
+  const highCountReaction: ReactionSummaryView = {
+    emoji: 'heart',
+    count: 72,
+    hasReacted: false,
+    users: [
+      { id: 'azerbaijan', displayName: 'Azerbaijan' },
+      { id: 'german-noob', displayName: 'German_Noob_With_An_Absurdly_Long_Name' },
+      { id: '2tap2b', displayName: '2tap2b' },
+      { id: 'muchtin', displayName: 'muchtin' },
+      { id: 'patry', displayName: 'patry' }
+    ]
+  };
 
   function noop() {}
 </script>
@@ -136,13 +159,31 @@
       onOpenThread={noop}
       onOpenEmojiPicker={noop}
     />
-  {:else}
+  {:else if variant === 'read-only-reactions'}
     <MessageMetaBar
       {roomId}
       {messageEventId}
       {serverSegment}
       {threadRootEventId}
       {reactions}
+      canReact={false}
+    />
+  {:else if variant === 'short-reaction-popover'}
+    <MessageMetaBar
+      {roomId}
+      {messageEventId}
+      {serverSegment}
+      {threadRootEventId}
+      reactions={[shortReaction]}
+      canReact={false}
+    />
+  {:else}
+    <MessageMetaBar
+      {roomId}
+      {messageEventId}
+      {serverSegment}
+      {threadRootEventId}
+      reactions={[highCountReaction]}
       canReact={false}
     />
   {/if}

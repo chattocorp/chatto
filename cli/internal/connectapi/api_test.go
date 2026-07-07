@@ -32,6 +32,7 @@ import (
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/core/linkpreview"
+	"hmans.de/chatto/internal/encryption"
 	"hmans.de/chatto/internal/events"
 	adminv1 "hmans.de/chatto/internal/pb/chatto/admin/v1"
 	"hmans.de/chatto/internal/pb/chatto/admin/v1/adminv1connect"
@@ -5939,6 +5940,131 @@ func TestRoomAndThreadTimelineHydratesMessagesWithoutClientNPlusOne(t *testing.T
 	}
 }
 
+func TestRoomTimelineKeepsDMReadableWhenMessageBodyCannotHydrate(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	ctx := withCaller(env.ctx, env.viewer)
+
+	participant, err := env.core.CreateUser(env.ctx, core.SystemActorID, "timeline-dm-corrupt", "Timeline DM Corrupt", "password")
+	if err != nil {
+		t.Fatalf("CreateUser participant: %v", err)
+	}
+	start, err := env.rooms.StartDM(ctx, connect.NewRequest(&apiv1.StartDMRequest{
+		ParticipantIds: []string{participant.Id},
+	}))
+	if err != nil {
+		t.Fatalf("StartDM: %v", err)
+	}
+	dm := start.Msg.GetRoom()
+
+	bad, err := env.core.PostMessage(env.ctx, core.KindDM, dm.Id, env.viewer.Id, "body that will be superseded", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage bad: %v", err)
+	}
+	corruptMessageBody(t, env, dm.Id, bad.Id, env.viewer.Id)
+	if _, err := env.core.GetFullMessageBodyByEventID(env.ctx, bad.Id); !errors.Is(err, core.ErrMessageBodyCorrupt) {
+		t.Fatalf("corrupt message body hydration error = %v, want ErrMessageBodyCorrupt", err)
+	}
+
+	goodResp, err := env.messages.CreateMessage(ctx, connect.NewRequest(&apiv1.CreateMessageRequest{
+		RoomId: dm.Id,
+		Body:   "good DM message",
+	}))
+	if err != nil {
+		t.Fatalf("CreateMessage good: %v", err)
+	}
+	good := goodResp.Msg.GetMessage()
+	if good == nil {
+		t.Fatalf("CreateMessage good message = nil")
+	}
+
+	resp, err := env.rooms.GetRoomEvents(ctx, connect.NewRequest(&apiv1.GetRoomEventsRequest{
+		RoomId: dm.Id,
+		Limit:  20,
+	}))
+	if err != nil {
+		t.Fatalf("GetRoomEvents with corrupt body: %v", err)
+	}
+
+	badTimelineEvent := timelinePageEvent(resp.Msg.GetPage(), bad.Id)
+	if badTimelineEvent == nil {
+		t.Fatalf("corrupt message %s missing from timeline", bad.Id)
+	}
+	badMessage := badTimelineEvent.GetMessagePosted().GetMessage()
+	if badMessage == nil {
+		t.Fatalf("corrupt message payload = nil")
+	}
+	if badMessage.Body != nil {
+		t.Fatalf("corrupt message body present = %q, want unavailable body", badMessage.GetBody())
+	}
+
+	goodTimelineEvent := timelinePageEvent(resp.Msg.GetPage(), good.GetId())
+	if goodTimelineEvent == nil {
+		t.Fatalf("good message %s missing from timeline", good.GetId())
+	}
+	goodMessage := goodTimelineEvent.GetMessagePosted().GetMessage()
+	if goodMessage == nil || goodMessage.GetBody() != "good DM message" {
+		t.Fatalf("good message = %+v, want body", goodMessage)
+	}
+}
+
+func TestRoomTimelineBodyHydrationPropagatesRequestErrors(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+
+	room := env.createJoinedRoom("timeline-body-canceled")
+	posted, err := env.core.PostMessage(env.ctx, core.KindChannel, room.Id, env.viewer.Id, "body should require hydration", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage: %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(env.ctx)
+	cancel()
+
+	h := &timelineHydrator{
+		api:                  env.api,
+		kind:                 core.KindChannel,
+		reactionsByMessageID: make(map[string][]core.ReactionSummary),
+		userIDs:              make(map[string]struct{}),
+	}
+	_, err = h.messagePosted(ctx, &core.RoomEvent{Event: posted}, posted.GetMessagePosted())
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("messagePosted error = %v, want context cancellation", err)
+	}
+}
+
+func corruptMessageBody(t *testing.T, env *connectAPITestEnv, roomID, eventID, authorID string) {
+	t.Helper()
+
+	bodyEventID := core.NewEventID()
+	bodyEvent := &corev1.Event{
+		Id:        bodyEventID,
+		ActorId:   authorID,
+		CreatedAt: timestamppb.Now(),
+		Event: &corev1.Event_MessageBody{
+			MessageBody: &corev1.MessageBodyEvent{
+				RoomId:  roomID,
+				EventId: eventID,
+				Body: &corev1.MessageBody{
+					CreatedAt:         timestamppb.Now(),
+					AuthorId:          authorID,
+					EncryptedBody:     []byte("not a valid ciphertext"),
+					EncryptionNonce:   []byte("bad nonce"),
+					EncryptionVersion: encryption.EnvelopeVersionV2,
+					ContentKeyEpoch:   1,
+					BodyEventId:       bodyEventID,
+				},
+			},
+		},
+	}
+	subject := events.RoomAggregate(roomID).SubjectFor(bodyEvent)
+	seq, err := env.core.EventPublisher.AppendEventually(env.ctx, subject, bodyEvent)
+	if err != nil {
+		t.Fatalf("Append corrupt MessageBodyEvent: %v", err)
+	}
+	if err := env.core.RoomTimelineProjector.WaitFor(env.ctx, events.SubjectPosition(subject, seq)); err != nil {
+		t.Fatalf("WaitFor corrupt MessageBodyEvent: %v", err)
+	}
+}
+
 func TestRoomAndThreadTimelineGetThreadEventsIncludesRootAndPaginatesReplies(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("timeline-thread")
@@ -6951,6 +7077,28 @@ func TestConnectErrorMapping(t *testing.T) {
 
 	if err := connectError(errors.New("boom")); strings.Contains(err.Error(), "boom") {
 		t.Fatalf("connectError leaked internal error: %v", err)
+	}
+}
+
+func TestSafeInternalErrorForLogRedactsSensitiveSubstrings(t *testing.T) {
+	err := errors.New("failed for email=person@example.test token=cht_ATabcdef123456 redirect=https://chat.example.test/callback?code=secret&state=s url=https://chat.example.test/path?code=secret&state=s and raw other@example.test")
+
+	got := safeInternalErrorForLog(err)
+	for _, forbidden := range []string{
+		"person@example.test",
+		"other@example.test",
+		"cht_ATabcdef123456",
+		"code=secret",
+		"state=s",
+	} {
+		if strings.Contains(got, forbidden) {
+			t.Fatalf("safeInternalErrorForLog leaked %q in %q", forbidden, got)
+		}
+	}
+	for _, want := range []string{"email=[redacted]", "redirect=[redacted]", "token=[redacted]", "?[redacted]", "[redacted-email]"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("safeInternalErrorForLog = %q, want redaction marker %q", got, want)
+		}
 	}
 }
 

@@ -129,11 +129,11 @@ func (c *ChattoCore) decryptMessageBody(ctx context.Context, eventID, roomID str
 	if msg.GetEncryptionVersion() >= encryption.EnvelopeVersionV2 || msg.GetContentKeyEpoch() > 0 {
 		version := msg.GetEncryptionVersion()
 		if version != encryption.EnvelopeVersionV2 {
-			return nil, fmt.Errorf("unsupported message body encryption version %d", version)
+			return nil, fmt.Errorf("%w: unsupported message body encryption version %d", ErrMessageBodyCorrupt, version)
 		}
 		epoch := msg.GetContentKeyEpoch()
 		if epoch <= 0 {
-			return nil, fmt.Errorf("missing content key epoch for v%d message body", version)
+			return nil, fmt.Errorf("%w: missing content key epoch for v%d message body", ErrMessageBodyCorrupt, version)
 		}
 		contentKeyEvent, ok := c.ContentKeys.Get(msg.GetAuthorId(), corev1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY, epoch)
 		if !ok {
@@ -143,12 +143,16 @@ func (c *ChattoCore) decryptMessageBody(ctx context.Context, eventID, roomID str
 		if err != nil {
 			return nil, err
 		}
-		return encryption.DecryptWithContentKey(
+		plaintext, err := encryption.DecryptWithContentKey(
 			contentKey.key,
 			msg.GetEncryptedBody(),
 			msg.GetEncryptionNonce(),
 			messageBodyAAD(eventID, msg.GetBodyEventId(), roomID, msg.GetAuthorId(), epoch),
 		)
+		if err != nil {
+			return nil, messageBodyEnvelopeError(err)
+		}
+		return plaintext, nil
 	}
 
 	if c.encryption.legacyKeys == nil {
@@ -161,7 +165,19 @@ func (c *ChattoCore) decryptMessageBody(ctx context.Context, eventID, roomID str
 	if key == nil {
 		return nil, encryption.ErrKeyNotFound
 	}
-	return encryption.Decrypt(key, msg.GetEncryptedBody(), msg.GetEncryptionNonce())
+	plaintext, err := encryption.Decrypt(key, msg.GetEncryptedBody(), msg.GetEncryptionNonce())
+	if err != nil {
+		return nil, messageBodyEnvelopeError(err)
+	}
+	return plaintext, nil
+}
+
+func messageBodyEnvelopeError(err error) error {
+	if errors.Is(err, encryption.ErrDecryptionFailed) ||
+		errors.Is(err, encryption.ErrInvalidNonceSize) {
+		return fmt.Errorf("%w: %w", ErrMessageBodyCorrupt, err)
+	}
+	return err
 }
 
 // (eventIDFromBodyKey is defined in core.go and shared with the

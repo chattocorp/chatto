@@ -46,7 +46,8 @@
     onClose: () => void;
   } = $props();
 
-  const quickReactions = $derived(getRecentEmojis(serverId).quickReactions);
+  const recentEmojis = $derived(getRecentEmojis(serverId));
+  const quickReactions = $derived(recentEmojis.quickReactions);
 
   const actions = useMessageActions();
   const replyInRoomActionLabel = $derived(replyInRoomLabel ?? m['room.message.actions.reply']());

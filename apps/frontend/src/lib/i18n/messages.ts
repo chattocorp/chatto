@@ -640,6 +640,9 @@ const msg_room_message_meta_add_reaction_label = (
 const msg_room_message_meta_remove_reaction_label = (
   inputs: Parameters<LocaleMessages['room_message_meta_remove_reaction_label']>[0]
 ): LocalizedString => messages().room_message_meta_remove_reaction_label(inputs);
+const msg_room_message_meta_reaction_users_more = (
+  inputs: Parameters<LocaleMessages['room_message_meta_reaction_users_more']>[0]
+): LocalizedString => messages().room_message_meta_reaction_users_more(inputs);
 const msg_room_message_meta_copy_link_title = (): LocalizedString => messages().room_message_meta_copy_link_title(empty());
 const msg_room_message_meta_in_reply_to = (): LocalizedString => messages().room_message_meta_in_reply_to(empty());
 const msg_room_message_meta_reply_preview_fallback = (): LocalizedString => messages().room_message_meta_reply_preview_fallback(empty());
@@ -1985,6 +1988,7 @@ export { msg_room_message_meta_follow_thread as 'room.message.meta.follow_thread
 export { msg_room_message_meta_unfollow_thread as 'room.message.meta.unfollow_thread' };
 export { msg_room_message_meta_add_reaction_label as 'room.message.meta.add_reaction_label' };
 export { msg_room_message_meta_remove_reaction_label as 'room.message.meta.remove_reaction_label' };
+export { msg_room_message_meta_reaction_users_more as 'room.message.meta.reaction_users_more' };
 export { msg_room_message_meta_copy_link_title as 'room.message.meta.copy_link_title' };
 export { msg_room_message_meta_in_reply_to as 'room.message.meta.in_reply_to' };
 export { msg_room_message_meta_reply_preview_fallback as 'room.message.meta.reply_preview_fallback' };

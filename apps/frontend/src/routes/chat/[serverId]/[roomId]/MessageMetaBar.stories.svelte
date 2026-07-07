@@ -5,7 +5,15 @@
   const { Story } = defineMeta({
     title: 'Chat/Message meta bar',
     component: MessageMetaBar,
-    tags: ['autodocs']
+    tags: ['autodocs'],
+    parameters: {
+      docs: {
+        description: {
+          component:
+            'Message metadata row with thread controls, reaction pills, and capped reaction-user popovers.'
+        }
+      }
+    }
   });
 </script>
 
@@ -31,4 +39,12 @@
 
 <Story name="Read-only reactions" asChild>
   <MessageMetaBarStoryFrame variant="read-only-reactions" />
+</Story>
+
+<Story name="Short Reaction Popover" asChild>
+  <MessageMetaBarStoryFrame variant="short-reaction-popover" />
+</Story>
+
+<Story name="High Count Reaction Popover" asChild>
+  <MessageMetaBarStoryFrame variant="high-count-reaction-popover" />
 </Story>

@@ -23,14 +23,14 @@ test.describe('Recent reactions', () => {
 
     // React with a non-default emoji via the emoji picker
     const message1 = roomPage.getMessage('Message 1');
-    await message1.reactViaEmojiPicker('rocket', 'rocket');
-    await message1.expectReaction('🚀', 1);
+    await message1.reactViaEmojiPicker('check', 'white_check_mark');
+    await message1.expectReaction('✅', 1);
 
-    // Now hover message2 — rocket should be at the first non-pinned slot (4).
+    // Now hover message2 — the checkmark should be at the first non-pinned slot (4).
     // Pinned slots 0-3 are unchanged.
     const updatedReactions = await message2.getToolbarQuickReactions();
     expect(updatedReactions.slice(0, 4)).toEqual(['👍', '👋', '🤣', '🙏']);
-    expect(updatedReactions[4]).toBe('🚀');
+    expect(updatedReactions[4]).toBe('✅');
     expect(updatedReactions).toHaveLength(6);
     // The last fallback emoji should have been pushed off
     expect(updatedReactions).not.toContain('😂');

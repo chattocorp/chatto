@@ -186,17 +186,76 @@ describe('MessageMetaBar', () => {
 
     const tooltip = q(container, '[role="tooltip"]')!;
     const reactionName = q(tooltip, 'strong')!;
+    const userNames = Array.from(
+      tooltip.querySelectorAll<HTMLElement>('[data-testid="reaction-tooltip-user"]')
+    ).map((el) => el.textContent?.trim());
 
-    expect(tooltip.textContent?.trim()).toBe('Thumbs up · Alice, Bob');
     expect(reactionName.textContent?.trim()).toBe('Thumbs up');
+    expect(userNames).toEqual(['Alice', 'Bob']);
+    expect(tooltip.classList.contains('menu')).toBe(true);
+    expect(q(tooltip, '.menu-section')).not.toBeNull();
+    expect(
+      Array.from(
+        tooltip.querySelectorAll<HTMLElement>('[data-testid="reaction-tooltip-user"]')
+      ).every((el) => el.classList.contains('break-words'))
+    ).toBe(true);
     expect(reactionName.classList.contains('font-semibold')).toBe(true);
+    expect(tooltip.innerHTML).not.toContain('whitespace-nowrap');
+  });
+
+  it('caps long reacting user lists and summarizes the remaining users', () => {
+    const { container } = render(MessageMetaBar, {
+      props: {
+        ...baseProps,
+        reactions: [
+          reaction({
+            count: 72,
+            users: [
+              { id: 'user-1', displayName: 'Azerbaijan' },
+              { id: 'user-2', displayName: 'German_Noob_With_An_Absurdly_Long_Name' },
+              { id: 'user-3', displayName: '2tap2b' },
+              { id: 'user-4', displayName: 'muchtin' },
+              { id: 'user-5', displayName: 'patry' }
+            ]
+          })
+        ]
+      }
+    });
+
+    const wrapper = q(container, 'button[aria-label="Add 👍 reaction (72)"]')!
+      .parentElement as HTMLElement;
+
+    wrapper.dispatchEvent(new MouseEvent('mouseenter'));
+    flushSync();
+
+    const tooltip = q(container, '[role="tooltip"]')!;
+    const content = q(tooltip, '.menu-section')!;
+    const reactingUsers = q(tooltip, 'span.text-muted')!;
+    const userNames = Array.from(
+      tooltip.querySelectorAll<HTMLElement>('[data-testid="reaction-tooltip-user"]')
+    ).map((el) => el.textContent?.trim());
+
+    expect(content.classList.contains('min-w-0')).toBe(true);
+    expect(tooltip.classList.contains('menu')).toBe(true);
+    expect(tooltip.classList.contains('w-64')).toBe(true);
+    expect(reactingUsers.classList.contains('min-w-0')).toBe(true);
+    expect(userNames).toEqual([
+      'Azerbaijan',
+      'German_Noob_With_An_Absurdly_Long_Name',
+      '2tap2b',
+      'muchtin',
+      'patry'
+    ]);
+    expect(reactingUsers.textContent).toContain('+ 67 more');
   });
 
   it('keeps the reaction tooltip available when the reaction button is disabled', () => {
     const { container } = render(MessageMetaBar, {
       props: {
         ...baseProps,
-        reactions: [reaction({ emoji: 'heart', count: 1, users: [{ id: 'user-1', displayName: 'Alice' }] })],
+        reactions: [
+          reaction({ emoji: 'heart', count: 1, users: [{ id: 'user-1', displayName: 'Alice' }] })
+        ],
         canReact: false
       }
     });
@@ -210,6 +269,7 @@ describe('MessageMetaBar', () => {
     flushSync();
 
     const tooltip = q(container, '[role="tooltip"]')!;
-    expect(tooltip.textContent?.trim()).toBe('Heart · Alice');
+    expect(q(tooltip, 'strong')?.textContent?.trim()).toBe('Heart');
+    expect(q(tooltip, '[data-testid="reaction-tooltip-user"]')?.textContent?.trim()).toBe('Alice');
   });
 });

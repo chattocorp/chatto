@@ -88,6 +88,7 @@
         "unfollow_thread": "Thread nicht mehr folgen",
         "add_reaction_label": "{emoji}-Reaktion hinzufügen ({count})",
         "remove_reaction_label": "{emoji}-Reaktion entfernen ({count})",
+        "reaction_users_more": "+ {count} weitere",
         "copy_link_title": "Klicken, um den Link zu dieser Nachricht zu kopieren",
         "in_reply_to": "als Antwort auf",
         "reply_preview_fallback": "Nachricht",

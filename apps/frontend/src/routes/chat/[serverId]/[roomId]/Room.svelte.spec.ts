@@ -51,6 +51,9 @@ const { mocks } = vi.hoisted(() => {
       },
       livekitUrl: null as string | null,
       roomKind: 1,
+      sidebarNav: {
+        isMobile: false
+      },
       getAppUiState: vi.fn(),
       activeCallRoomIds: new Set<string>(),
       joinedCallRoomIds: new Set<string>(),
@@ -192,7 +195,8 @@ vi.mock('$lib/state/globals.svelte', () => ({
   appState: {
     isFocused: true,
     isPresent: true
-  }
+  },
+  sidebarNav: mocks.sidebarNav
 }));
 
 vi.mock('$lib/state/appUi.svelte', async (importActual) => {
@@ -289,6 +293,7 @@ beforeEach(() => {
   mocks.timeline.getThreadEventsAround.mockResolvedValue(emptyTimelinePage());
   mocks.livekitUrl = null;
   mocks.roomKind = RoomKind.CHANNEL;
+  mocks.sidebarNav.isMobile = false;
   appUi = new AppUiState();
   appUi.setActiveRoomScope('server-1', 'room-1');
   mocks.getAppUiState.mockReturnValue(appUi);
@@ -365,6 +370,53 @@ describe('Room local message echo', () => {
       .element(q(container, '[data-testid="room-sidebar-mobile-pane"]'))
       .toBeInTheDocument();
     expect(consumePendingRoomSidebarPanel('server-1', 'room-1')).toBeNull();
+  });
+
+  it('keeps the thread open when pressing the app sidebar surface on mobile', async () => {
+    mocks.sidebarNav.isMobile = true;
+    render(Room, { props: { roomId: 'room-1', threadId: 'thread-root' } });
+    await tick();
+    mocks.goto.mockClear();
+
+    const appSidebar = document.createElement('div');
+    appSidebar.dataset.appSidebar = 'true';
+    document.body.append(appSidebar);
+
+    try {
+      appSidebar.dispatchEvent(
+        new PointerEvent('pointerdown', {
+          bubbles: true,
+          button: 0
+        })
+      );
+
+      expect(mocks.goto).not.toHaveBeenCalled();
+    } finally {
+      appSidebar.remove();
+    }
+  });
+
+  it('closes the thread when pressing the desktop app sidebar surface', async () => {
+    render(Room, { props: { roomId: 'room-1', threadId: 'thread-root' } });
+    await tick();
+    mocks.goto.mockClear();
+
+    const appSidebar = document.createElement('div');
+    appSidebar.dataset.appSidebar = 'true';
+    document.body.append(appSidebar);
+
+    try {
+      appSidebar.dispatchEvent(
+        new PointerEvent('pointerdown', {
+          bubbles: true,
+          button: 0
+        })
+      );
+
+      expect(mocks.goto).toHaveBeenCalledWith('/chat/-/room-1');
+    } finally {
+      appSidebar.remove();
+    }
   });
 
   it('lets a maximized desktop call sidebar fill the room route content area', async () => {

@@ -41,6 +41,10 @@ generated protobuf clients, Vitest browser tests, Playwright e2e, and Storybook.
 - Use `Snippet<[Args]>` for reusable layout/render snippets.
 - Prefer attachments (`{@attach}`) over legacy actions for new reusable DOM
   behavior.
+- Prefer Svelte template event attributes such as `onclick` and `onpointerdown`
+  for component-owned DOM event handling. Reserve imperative event listeners for
+  reusable actions, attachments, subscriptions, and external targets such as
+  `window`, `document`, or third-party libraries.
 
 ## Routing And Navigation
 

@@ -61,7 +61,7 @@ beforeEach(() => {
 });
 
 describe('MessageHoverBar recent reactions integration', () => {
-  it('uses an emoji selected in the picker as the first non-pinned quick reaction', async () => {
+  it('uses a checkmark emoji selected in the picker as the first non-pinned quick reaction', async () => {
     const bar = renderBar();
     expect(quickReactionLabels(bar.container)).toEqual(['👍', '👋', '🤣', '🙏', '❤️', '😂']);
 
@@ -72,14 +72,14 @@ describe('MessageHoverBar recent reactions integration', () => {
         onClose: vi.fn()
       }
     });
-    await searchEmoji(picker.container, 'rocket');
-    (picker.container.querySelector('button[title="rocket"]') as HTMLButtonElement).click();
+    await searchEmoji(picker.container, 'check');
+    (picker.container.querySelector('button[title="white_check_mark"]') as HTMLButtonElement).click();
     flushSync();
     await tick();
 
     const reactions = quickReactionLabels(bar.container);
     expect(reactions.slice(0, PINNED_REACTIONS.length)).toEqual([...PINNED_REACTIONS]);
-    expect(reactions[PINNED_REACTIONS.length]).toBe('🚀');
+    expect(reactions[PINNED_REACTIONS.length]).toBe('✅');
     expect(reactions).toHaveLength(6);
     expect(reactions).not.toContain('😂');
   });
