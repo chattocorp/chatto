@@ -13,6 +13,7 @@ type ServiceWorkerHandler = (event: {
     body?: string;
     icon?: string;
     badge?: string;
+    app_badge?: string | number;
     tag?: string;
     data?: { notificationId?: string; url?: string };
     close?: () => void;
@@ -178,6 +179,15 @@ describe('service worker badge orchestration', () => {
   it('uses declarative push notification fields when legacy root fields are absent', async () => {
     const worker = await importServiceWorker();
 
+    await worker.dispatch('message', {
+      data: {
+        type: 'chatto-badge-state',
+        notificationCount: 0,
+        serviceWorkerAppBadgeEnabled: true
+      }
+    });
+    worker.setAppBadge.mockClear();
+
     await worker.dispatch('push', {
       data: {
         json: () => ({
@@ -188,6 +198,7 @@ describe('service worker badge orchestration', () => {
             tag: 'notification-2',
             icon: 'https://chatto.example/icons/icon-192.png',
             badge: 'https://chatto.example/icons/icon-192.png',
+            app_badge: '5',
             navigate: 'https://chatto.example/chat/-/room-2?highlight=event-2',
             data: {
               notificationId: 'notif-2',
@@ -198,6 +209,7 @@ describe('service worker badge orchestration', () => {
       }
     });
 
+    expect(worker.setAppBadge).toHaveBeenCalledWith(5);
     expect(worker.registration.showNotification).toHaveBeenCalledWith('Declarative notification', {
       body: 'Opened by the browser or worker fallback',
       icon: 'https://chatto.example/icons/icon-192.png',
@@ -229,6 +241,7 @@ describe('service worker badge orchestration', () => {
         tag: 'notification-3',
         icon: 'https://chatto.example/icons/icon-192.png',
         badge: 'https://chatto.example/icons/icon-192.png',
+        app_badge: 3,
         data: {
           notificationId: 'notif-3',
           url: 'https://chatto.example/chat/-/room-3?highlight=event-3'
@@ -249,7 +262,7 @@ describe('service worker badge orchestration', () => {
         }
       }
     );
-    expect(worker.setAppBadge).toHaveBeenCalledOnce();
+    expect(worker.setAppBadge).toHaveBeenCalledWith(3);
   });
 
   it('uses declarative navigate as the fallback notification click URL', async () => {

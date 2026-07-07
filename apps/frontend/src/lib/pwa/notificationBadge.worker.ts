@@ -224,6 +224,23 @@ export class ServiceWorkerBadgeCoordinator {
     await (badgeNavigator.setAppBadge?.().catch(() => {}) ?? Promise.resolve());
   }
 
+  async setPushAppBadgeCount(notificationCount: number): Promise<void> {
+    this.#gate.invalidate();
+    const count = normalizeBadgeCount(notificationCount);
+    this.#foregroundNotificationCount = count;
+    await this.foregroundCountStorage?.writeForegroundNotificationState(
+      count,
+      await this.isServiceWorkerAppBadgeEnabled()
+    );
+
+    const badgeNavigator = await this.badgeNavigatorIfEnabled();
+    if (count > 0) {
+      await (badgeNavigator.setAppBadge?.(count).catch(() => {}) ?? Promise.resolve());
+    } else {
+      await (badgeNavigator.clearAppBadge?.().catch(() => {}) ?? Promise.resolve());
+    }
+  }
+
   private async isServiceWorkerAppBadgeEnabled(): Promise<boolean> {
     if (this.#serviceWorkerAppBadgeEnabled !== null) return this.#serviceWorkerAppBadgeEnabled;
     if (!this.foregroundCountStorage) return true;

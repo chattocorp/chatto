@@ -162,6 +162,7 @@ interface DeclarativeNotificationPayload {
   body?: string;
   icon?: string;
   badge?: string;
+  app_badge?: string | number;
   tag?: string;
   navigate?: string;
   data?: {
@@ -173,6 +174,7 @@ interface DeclarativeNotificationPayload {
 type NormalizedPushNotification = {
   title: string;
   options: NotificationOptions;
+  appBadgeCount: number | null;
 };
 
 type DeclarativePushEventNotification = Pick<
@@ -180,6 +182,7 @@ type DeclarativePushEventNotification = Pick<
   'title' | 'body' | 'icon' | 'tag' | 'data'
 > & {
   badge?: string;
+  app_badge?: string | number;
 };
 
 type PushEventWithDeclarativeNotification = PushEvent & {
@@ -215,7 +218,8 @@ function normalizePushNotification(payload: DeclarativePushPayload): NormalizedP
         notificationId,
         url
       }
-    }
+    },
+    appBadgeCount: declarativeAppBadgeCount(notification?.app_badge)
   };
 }
 
@@ -228,10 +232,21 @@ function declarativePayloadFromEventNotification(
       body: notification.body,
       icon: notification.icon,
       badge: notification.badge,
+      app_badge: notification.app_badge,
       tag: notification.tag,
       data: notificationData(notification.data)
     }
   };
+}
+
+function declarativeAppBadgeCount(appBadge: unknown): number | null {
+  if (typeof appBadge === 'number' && Number.isFinite(appBadge)) {
+    return Math.max(0, Math.floor(appBadge));
+  }
+  if (typeof appBadge !== 'string' || appBadge.trim() === '') return null;
+
+  const count = Number(appBadge);
+  return Number.isFinite(count) ? Math.max(0, Math.floor(count)) : null;
 }
 
 function notificationData(data: unknown): DeclarativeNotificationPayload['data'] {
@@ -286,7 +301,9 @@ self.addEventListener('push', (event) => {
   event.waitUntil(
     Promise.all([
       self.registration.showNotification(notification.title, notification.options),
-      badgeCoordinator.setProvisionalPushFlagBadge()
+      notification.appBadgeCount !== null
+        ? badgeCoordinator.setPushAppBadgeCount(notification.appBadgeCount)
+        : badgeCoordinator.setProvisionalPushFlagBadge()
     ])
   );
 });
