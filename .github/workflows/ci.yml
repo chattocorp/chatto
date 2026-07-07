@@ -114,7 +114,7 @@ jobs:
 
       - name: Install Playwright dependencies
         run: cd apps/frontend && pnpm exec playwright install chromium --with-deps
-        timeout-minutes: 5
+        timeout-minutes: 15
 
       - name: Run frontend typecheck
         run: pnpm run check:frontend
@@ -166,7 +166,7 @@ jobs:
 
       - name: Install Playwright dependencies
         run: cd apps/frontend && pnpm exec playwright install chromium --with-deps
-        timeout-minutes: 5
+        timeout-minutes: 15
 
       - name: Build E2E server
         run: mise build-e2e-server
@@ -204,7 +204,7 @@ jobs:
 
       - name: Install Playwright dependencies
         run: cd apps/frontend && pnpm exec playwright install chromium --with-deps
-        timeout-minutes: 5
+        timeout-minutes: 15
 
       - name: Build E2E server
         run: mise build-e2e-server
