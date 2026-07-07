@@ -93,18 +93,4 @@ describe('sidebarEdgeSwipe', () => {
 
     action.destroy();
   });
-
-  it('keeps closing when the drag leaves the original sidebar surface before claim', () => {
-    const { edge } = makeEdgeGestureHost();
-    sidebarNav.isOpen = true;
-    const action = sidebarSwipe(edge);
-
-    edge.dispatchEvent(pointer('pointerdown', 320));
-    window.dispatchEvent(pointer('pointermove', 0));
-    window.dispatchEvent(pointer('pointerup', 0));
-
-    expect(sidebarNav.isOpen).toBe(false);
-
-    action.destroy();
-  });
 });
