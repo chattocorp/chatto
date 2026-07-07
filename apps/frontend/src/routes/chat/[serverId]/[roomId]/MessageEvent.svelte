@@ -406,6 +406,11 @@
   const hasThreadNotification = $derived(
     hasReplies && event && notificationStore.hasThreadNotification(event.id)
   );
+  const hasMessageFooter = $derived(
+    (isEcho && !!onOpenThread) ||
+      (hasReplies && !!onOpenThread) ||
+      (msg?.reactions?.length ?? 0) > 0
+  );
 
   // Check if current user is mentioned (but not by themselves)
   const isCurrentUserMentioned = $derived(
@@ -636,7 +641,8 @@
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div
       class={[
-        'group/msg group/badges relative flex gap-4 px-2 py-1 select-none hover:bg-surface-100 md:mx-2 md:rounded-md md:pr-8',
+        'group/msg group/badges message-row',
+        hasMessageFooter ? 'message-row-footer' : '',
         compact && msg?.body ? 'items-baseline' : 'items-start',
         longPressActive || showActionSheet || contextMenuPos ? 'bg-surface-100' : ''
       ]}
@@ -681,11 +687,7 @@
               showPopoverForActor(e);
             }}
           >
-            <UserAvatar
-              user={actor}
-              size="md"
-              class="!h-11 !w-11 shadow-md"
-            />
+            <UserAvatar user={actor} size="md" class="!h-11 !w-11 shadow-md" />
           </button>
         {:else}
           <!-- Deleted user placeholder avatar -->
@@ -701,7 +703,7 @@
       {/if}
 
       <!-- Message content column -->
-      <div class="min-w-0 flex-1 space-y-1">
+      <div class="message-content-stack">
         {#if replyPreview}
           {@const replyJumpText =
             replyPreview.body ??
@@ -848,7 +850,7 @@
         {/each}
 
         <!-- Thread echo indicator, thread replies, and reactions -->
-        {#if (isEcho && onOpenThread) || (hasReplies && onOpenThread) || (msg?.reactions?.length ?? 0) > 0}
+        {#if hasMessageFooter}
           <MessageMetaBar
             {roomId}
             messageEventId={event.id}

@@ -347,7 +347,7 @@
 }
 
 @utility attachment-remove-button {
-  @apply absolute top-1 right-1 flex h-10 w-10 cursor-pointer items-center justify-center rounded-full text-white/90 outline-none transition-[opacity,scale] active:scale-[0.96] focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 focus-visible:ring-offset-background md:opacity-0;
+  @apply absolute top-1 right-1 flex h-10 w-10 cursor-pointer items-center justify-center rounded-full text-white/90 transition-[opacity,scale] outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 focus-visible:ring-offset-background active:scale-[0.96] md:opacity-0;
 
   &::before {
     content: '';
@@ -400,6 +400,20 @@
 @utility meta-badge {
   @apply inline-flex items-center rounded-sm border leading-none;
   @apply bg-surface group-hover/badges:bg-surface-200 hover:bg-surface-300;
+}
+
+/* Chat message row primitives. These keep the hover-highlight shell and its
+   child content stack aligned across the app and Storybook fixtures. */
+@utility message-row {
+  @apply relative flex gap-4 px-2 pt-1 pb-1 select-none hover:bg-surface-100 md:mx-2 md:rounded-md md:pr-8;
+}
+
+@utility message-row-footer {
+  @apply pb-0.5;
+}
+
+@utility message-content-stack {
+  @apply min-w-0 flex-1 space-y-1;
 }
 
 /* Pane header icon button — fixed padded hit area for icon-only controls in PaneHeader.
