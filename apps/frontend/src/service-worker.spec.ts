@@ -64,7 +64,7 @@ async function importServiceWorker(cacheStorage = createMemoryCacheStorage()) {
     getNotifications: vi.fn(
       async (_options?: { tag?: string }): Promise<TestNativeNotification[]> => []
     ),
-    showNotification: vi.fn(async () => {})
+    showNotification: vi.fn(async (_title: string, _options?: NotificationOptions) => {})
   };
   const clients = {
     claim: vi.fn(async () => {}),
