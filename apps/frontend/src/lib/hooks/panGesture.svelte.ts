@@ -4,7 +4,9 @@
  * Detects a press → optional long-press → drag claim → continuous update →
  * release-with-velocity flow on a single host element, and exposes the
  * decisions as plain callbacks. Specific use-sites (sidebar swipe, bottom-sheet
- * drag-to-dismiss, ...) wire these callbacks to their own state.
+ * drag-to-dismiss, ...) wire these callbacks to their own state. Pointer events
+ * are primary; mouse events are a fallback for desktop/trackpad drags in
+ * browser contexts that do not produce pointer moves for synthetic mouse input.
  *
  * The host element MUST have `touch-action: none` (or at minimum block native
  * panning along the chosen axis) — otherwise the browser fires `pointercancel`
@@ -58,6 +60,7 @@ type Sample = { v: number; t: number };
 export function panGesture(node: HTMLElement, config: PanGestureConfig) {
   let cfg = config;
   let pointerId: number | null = null;
+  let mouseActive = false;
   let startX = 0;
   let startY = 0;
   let claimed = false;
@@ -77,35 +80,43 @@ export function panGesture(node: HTMLElement, config: PanGestureConfig) {
 
   function reset() {
     if (pointerId !== null && captured) node.releasePointerCapture?.(pointerId);
+    if (mouseActive) {
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    }
     clearLongPress();
     pointerId = null;
+    mouseActive = false;
     claimed = false;
     captured = false;
     samples = [];
   }
 
-  function onDown(e: PointerEvent) {
-    if (pointerId !== null) return;
-    if (cfg.enabled && !cfg.enabled()) return;
-    pointerId = e.pointerId;
-    startX = e.clientX;
-    startY = e.clientY;
+  function begin(x: number, y: number, timeStamp: number) {
+    startX = x;
+    startY = y;
     claimed = false;
     captured = false;
-    samples = [{ v: primary(e.clientX, e.clientY), t: e.timeStamp }];
+    samples = [{ v: primary(x, y), t: timeStamp }];
     if (cfg.onLongPress) {
       longPressTimer = window.setTimeout(() => {
         longPressTimer = null;
-        cfg.onLongPress?.(e.clientX, e.clientY);
+        cfg.onLongPress?.(x, y);
         reset();
       }, LONG_PRESS_MS);
     }
   }
 
-  function onMove(e: PointerEvent) {
-    if (e.pointerId !== pointerId) return;
-    const dPrim = primary(e.clientX, e.clientY) - primary(startX, startY);
-    const dSec = secondary(e.clientX, e.clientY) - secondary(startX, startY);
+  function onDown(e: PointerEvent) {
+    if (pointerId !== null || mouseActive) return;
+    if (cfg.enabled && !cfg.enabled()) return;
+    pointerId = e.pointerId;
+    begin(e.clientX, e.clientY, e.timeStamp);
+  }
+
+  function move(x: number, y: number, timeStamp: number, capturePointerId?: number) {
+    const dPrim = primary(x, y) - primary(startX, startY);
+    const dSec = secondary(x, y) - secondary(startX, startY);
 
     if (Math.abs(dPrim) >= LONG_PRESS_CANCEL_PX || Math.abs(dSec) >= LONG_PRESS_CANCEL_PX) {
       clearLongPress();
@@ -124,27 +135,28 @@ export function panGesture(node: HTMLElement, config: PanGestureConfig) {
       }
       claimed = true;
       cfg.onStart?.();
-      node.setPointerCapture(e.pointerId);
-      captured = true;
+      if (capturePointerId !== undefined) {
+        node.setPointerCapture(capturePointerId);
+        captured = true;
+      }
     }
 
     cfg.onUpdate?.(dPrim);
-    samples.push({ v: primary(e.clientX, e.clientY), t: e.timeStamp });
-    const cutoff = e.timeStamp - VELOCITY_SAMPLE_MS;
+    samples.push({ v: primary(x, y), t: timeStamp });
+    const cutoff = timeStamp - VELOCITY_SAMPLE_MS;
     while (samples.length > 2 && samples[0].t < cutoff) samples.shift();
   }
 
-  function onUp(e: PointerEvent) {
-    if (e.pointerId !== pointerId) return;
+  function end(x: number, y: number) {
     if (!claimed) {
       const movedFar =
-        Math.abs(e.clientX - startX) >= LONG_PRESS_CANCEL_PX ||
-        Math.abs(e.clientY - startY) >= LONG_PRESS_CANCEL_PX;
-      if (!movedFar) cfg.onTap?.(e.clientX, e.clientY);
+        Math.abs(x - startX) >= LONG_PRESS_CANCEL_PX ||
+        Math.abs(y - startY) >= LONG_PRESS_CANCEL_PX;
+      if (!movedFar) cfg.onTap?.(x, y);
       reset();
       return;
     }
-    const dPrim = primary(e.clientX, e.clientY) - primary(startX, startY);
+    const dPrim = primary(x, y) - primary(startX, startY);
     const last = samples[samples.length - 1];
     const first = samples[0];
     const dt = last.t - first.t;
@@ -153,27 +165,59 @@ export function panGesture(node: HTMLElement, config: PanGestureConfig) {
     reset();
   }
 
+  function onMove(e: PointerEvent) {
+    if (e.pointerId !== pointerId) return;
+    move(e.clientX, e.clientY, e.timeStamp, e.pointerId);
+  }
+
+  function onUp(e: PointerEvent) {
+    if (e.pointerId !== pointerId) return;
+    end(e.clientX, e.clientY);
+  }
+
   function onCancel(e: PointerEvent) {
     if (e.pointerId !== pointerId) return;
     if (claimed) cfg.onCancel?.();
     reset();
   }
 
+  function onMouseDown(e: MouseEvent) {
+    if (pointerId !== null || mouseActive) return;
+    if (e.button !== 0) return;
+    if (cfg.enabled && !cfg.enabled()) return;
+    mouseActive = true;
+    begin(e.clientX, e.clientY, e.timeStamp);
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+  }
+
+  function onMouseMove(e: MouseEvent) {
+    if (!mouseActive) return;
+    move(e.clientX, e.clientY, e.timeStamp);
+  }
+
+  function onMouseUp(e: MouseEvent) {
+    if (!mouseActive) return;
+    end(e.clientX, e.clientY);
+  }
+
   node.addEventListener('pointerdown', onDown);
   node.addEventListener('pointermove', onMove);
   node.addEventListener('pointerup', onUp);
   node.addEventListener('pointercancel', onCancel);
+  node.addEventListener('mousedown', onMouseDown);
 
   return {
     update(next: PanGestureConfig) {
       cfg = next;
     },
     destroy() {
-      clearLongPress();
+      reset();
       node.removeEventListener('pointerdown', onDown);
       node.removeEventListener('pointermove', onMove);
       node.removeEventListener('pointerup', onUp);
       node.removeEventListener('pointercancel', onCancel);
+      node.removeEventListener('mousedown', onMouseDown);
     }
   };
 }

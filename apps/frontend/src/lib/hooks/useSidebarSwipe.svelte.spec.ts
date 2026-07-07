@@ -36,6 +36,16 @@ function pointer(type: string, x: number, y = 24) {
   });
 }
 
+function mouse(type: string, x: number, y = 24) {
+  return new MouseEvent(type, {
+    bubbles: true,
+    cancelable: true,
+    clientX: x,
+    clientY: y,
+    button: 0
+  });
+}
+
 describe('sidebarEdgeSwipe', () => {
   beforeEach(() => {
     resetSidebar();
@@ -88,6 +98,20 @@ describe('sidebarEdgeSwipe', () => {
     edge.dispatchEvent(pointer('pointerdown', 320));
     edge.dispatchEvent(pointer('pointermove', 0));
     edge.dispatchEvent(pointer('pointerup', 0));
+
+    expect(sidebarNav.isOpen).toBe(false);
+
+    action.destroy();
+  });
+
+  it('also closes the mobile sidebar on a leftward mouse drag', () => {
+    const { edge } = makeEdgeGestureHost();
+    sidebarNav.isOpen = true;
+    const action = sidebarSwipe(edge);
+
+    edge.dispatchEvent(mouse('mousedown', 320));
+    window.dispatchEvent(mouse('mousemove', 0));
+    window.dispatchEvent(mouse('mouseup', 0));
 
     expect(sidebarNav.isOpen).toBe(false);
 
