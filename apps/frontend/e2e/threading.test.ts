@@ -707,7 +707,7 @@ test.describe('Message Threading', () => {
     const rootMessage = `Responsive test ${Date.now()}`;
     const message = await roomPage.sendMessage(rootMessage);
 
-    // Open thread at desktop size (toolbar requires pointer-fine / md breakpoint)
+    // Open thread at desktop size (hover toolbar is available on fine-pointer input)
     await message.openThread();
     await roomPage.expectThreadPaneVisible();
 
@@ -734,7 +734,7 @@ test.describe('Message Threading', () => {
     const rootMessage = `Back button test ${Date.now()}`;
     const message = await roomPage.sendMessage(rootMessage);
 
-    // Open thread at desktop size (toolbar requires pointer-fine / md breakpoint)
+    // Open thread at desktop size (hover toolbar is available on fine-pointer input)
     await message.openThread();
     await roomPage.expectThreadPaneVisible();
 

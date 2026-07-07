@@ -3,7 +3,7 @@
 
 Quick actions toolbar that appears on hover at the upper-right of a message.
 Shows quick reaction emoji and action icons (reply, edit, more menu) inline.
-Desktop only (pointer-fine); mobile uses the long-press action sheet instead.
+Hover-capable input only; pure touch devices use the long-press action sheet instead.
 
 **Props:**
 - `serverId` - Server ID (scopes the recent-emoji slots per server)
@@ -122,8 +122,8 @@ Desktop only (pointer-fine); mobile uses the long-press action sheet instead.
 
 <div
   class={[
-    'invisible absolute right-0 bottom-full z-10 mb-[-6px] hidden flex-row gap-0.5 rounded-t-md rounded-b-none border border-b-0 border-border bg-surface-100 p-0.5 md:flex',
-    'pointer-fine:group-hover:visible'
+    'invisible absolute right-0 bottom-full z-10 mb-[-6px] hidden flex-row gap-0.5 rounded-t-md rounded-b-none border border-b-0 border-border bg-surface-100 p-0.5 hover-actions:flex',
+    'hover-actions:group-hover:visible'
   ]}
   class:!visible={forceVisible}
   role="toolbar"

@@ -36,7 +36,7 @@
   import EmojiPicker from '$lib/components/EmojiPicker.svelte';
   import MessageAttachments from './MessageAttachments.svelte';
   import MessageMetaBar from './MessageMetaBar.svelte';
-  import { isTouchDevice } from '$lib/utils/isTouchDevice';
+  import { prefersTouchActions, supportsHoverActions } from '$lib/utils/inputCapabilities';
   import { getUserSettings } from '$lib/state/userSettings.svelte';
   import { formatMessageTime } from '$lib/utils/formatTime';
   import { getLocale } from '$lib/i18n/runtime';
@@ -87,7 +87,8 @@
   const jumpState = composerContext.jumpState;
   const userSettings = getUserSettings();
   const activeLocale = $derived(getLocale());
-  const isTouch = isTouchDevice();
+  const prefersTouch = prefersTouchActions();
+  const canUseHoverActions = supportsHoverActions();
   // Wrap in $derived to ensure reactivity when the member list changes
   const members = $derived(getRoomMembers());
   const mentionRoleHandles = $derived(
@@ -136,27 +137,32 @@
   let messageBodySelectionRoot = $state<HTMLElement>();
   let selectedReplyQuoteSnapshot = $state<QuoteInsertionContent | null>(null);
 
-  // Emoji picker state (position doubles as visibility flag; on mobile ContextMenu ignores it)
+  // Emoji picker state (position doubles as visibility flag in floating mode)
   let emojiPickerPos = $state<{ x: number; y: number } | null>(null);
+  let emojiPickerPresentation = $state<'auto' | 'sheet'>('auto');
   const emojiActions = useMessageActions();
 
-  function openEmojiPicker() {
-    // Capture context menu position before it closes
-    // On mobile, position is ignored by ContextMenu (renders as BottomSheet)
+  function openEmojiPicker(presentation: 'auto' | 'sheet' = 'auto') {
+    emojiPickerPresentation = presentation;
+    // Capture context menu position before it closes. Sheet presentation ignores
+    // this fallback, but ContextMenu still requires a visibility anchor.
     emojiPickerPos = contextMenuPos ?? { x: 0, y: 0 };
   }
 
   function openEmojiPickerFromEvent(e: MouseEvent) {
+    emojiPickerPresentation = 'auto';
     emojiPickerPos = { x: e.clientX, y: e.clientY };
   }
 
   function openEmojiPickerFromToolbar(e: MouseEvent) {
+    emojiPickerPresentation = 'auto';
     const button = e.currentTarget as HTMLElement;
     const rect = button.getBoundingClientRect();
     emojiPickerPos = { x: rect.left, y: rect.bottom + 4 };
   }
 
   async function handleEmojiSelect(emoji: string) {
+    emojiPickerPresentation = 'auto';
     emojiPickerPos = null;
 
     if (!msg) return;
@@ -174,6 +180,7 @@
   }
 
   function closeEmojiPicker() {
+    emojiPickerPresentation = 'auto';
     emojiPickerPos = null;
   }
 
@@ -216,10 +223,10 @@
     cancelLongPress();
   }
 
-  // Mouse handlers for touch devices that also have mouse input (e.g., tablet with mouse)
+  // Mouse fallback for pure touch-primary devices. Hybrid devices with a hover-capable
+  // pointer use the normal hover toolbar instead.
   function handleMouseDown(e: MouseEvent) {
-    // Skip on desktop - context menu handles mouse interaction
-    if (!isTouch) return;
+    if (!prefersTouch || canUseHoverActions) return;
     // Only handle left mouse button
     if (e.button !== 0) return;
     startLongPress();
@@ -869,8 +876,8 @@
           />
         {/if}
       </div>
-      <!-- Quick actions toolbar (desktop only — mobile uses long-press action sheet) -->
-      {#if !isDeleted && !isTouch}
+      <!-- Quick actions toolbar (hover-capable input; pure touch uses long-press sheet) -->
+      {#if !isDeleted && canUseHoverActions}
         <MessageHoverBar
           serverId={getActiveServer()}
           {roomId}
@@ -953,9 +960,13 @@
     </ContextMenu>
   {/if}
 
-  <!-- Emoji picker (ContextMenu handles desktop popup vs mobile BottomSheet) -->
+  <!-- Emoji picker (ContextMenu handles floating vs sheet presentation) -->
   {#if emojiPickerPos && !isDeleted}
-    <ContextMenu position={emojiPickerPos} onclose={closeEmojiPicker}>
+    <ContextMenu
+      position={emojiPickerPos}
+      presentation={emojiPickerPresentation}
+      onclose={closeEmojiPicker}
+    >
       <EmojiPicker
         serverId={getActiveServer()}
         onSelect={handleEmojiSelect}
@@ -985,7 +996,7 @@
         replyThreadLabel={replyThreadActionLabel}
         onReplyInRoom={canUseReplyAction ? handleReplyInRoom : undefined}
         onReply={canUseThreadAction ? handleOpenThread : undefined}
-        onOpenEmojiPicker={roomPermissions.canReact ? openEmojiPicker : undefined}
+        onOpenEmojiPicker={roomPermissions.canReact ? () => openEmojiPicker('sheet') : undefined}
         onClose={() => (showActionSheet = false)}
       />
     </BottomSheet>

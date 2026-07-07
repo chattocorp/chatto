@@ -21,7 +21,7 @@
     type RoomMember
   } from '$lib/state/room';
   import { shouldAutoFocus } from '$lib/utils/shouldAutoFocus';
-  import { isTouchDevice } from '$lib/utils/isTouchDevice';
+  import { prefersTouchActions } from '$lib/utils/inputCapabilities';
   import { hasVisibleContent } from '$lib/validation';
   import { extractMentions, hasRoleOrVirtualMention } from '$lib/mentions';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
@@ -41,7 +41,7 @@
   };
 
   function getShortcutHints(): ShortcutHints | null {
-    if (typeof navigator === 'undefined' || isTouchDevice()) return null;
+    if (typeof navigator === 'undefined' || prefersTouchActions()) return null;
 
     const userAgentDataPlatform =
       'userAgentData' in navigator
@@ -743,7 +743,7 @@
       }
     }
 
-    if (event.key === 'Enter' && !event.ctrlKey && !event.metaKey && isTouchDevice()) {
+    if (event.key === 'Enter' && !event.ctrlKey && !event.metaKey && prefersTouchActions()) {
       return false;
     }
 

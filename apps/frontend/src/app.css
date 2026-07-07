@@ -13,6 +13,8 @@
 /* Custom variant for desktop/mouse devices (fine pointer like mouse/trackpad).
    Usage: pointer-fine:select-text - enables selection only on desktop */
 @custom-variant pointer-fine (@media (pointer: fine));
+/* Hover affordances should follow input capability, not viewport width. */
+@custom-variant hover-actions (@media (any-hover: hover) and (any-pointer: fine));
 
 /*
  * Theme tokens.

@@ -1,4 +1,4 @@
-import { isTouchDevice } from './isTouchDevice';
+import { prefersTouchActions } from './inputCapabilities';
 
 /**
  * Returns true if autofocus should be enabled.
@@ -6,5 +6,5 @@ import { isTouchDevice } from './isTouchDevice';
  */
 export function shouldAutoFocus(): boolean {
   if (typeof window === 'undefined') return false;
-  return !isTouchDevice();
+  return !prefersTouchActions();
 }
