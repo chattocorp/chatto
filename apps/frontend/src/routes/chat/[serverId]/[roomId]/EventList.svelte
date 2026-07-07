@@ -501,20 +501,26 @@
       console.debug('[room-refresh] event list refresh started', {
         roomId,
         reason: signal.reason,
+        source: signal.source,
         phase: signal.phase,
         hiddenDurationMs: signal.hiddenDurationMs,
         epoch: signal.epoch,
         mode: wasAtBottom ? 'latest' : 'anchored',
+        wasAtBottom,
         bottomDistance,
         anchorEventId: anchor?.eventId ?? null,
         itemCount: virtualItems.length
       });
-      const result = await messageStore.refreshCurrentWindow(anchor?.eventId ?? null);
+      const result = await messageStore.refreshCurrentWindow(
+        wasAtBottom ? null : (anchor?.eventId ?? null)
+      );
       if (!result.refreshed) {
         console.debug('[room-refresh] event list refresh skipped after store refresh failed', {
           roomId,
           reason: signal.reason,
+          source: signal.source,
           phase: signal.phase,
+          wasAtBottom,
           result
         });
         return false;
