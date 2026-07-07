@@ -61,7 +61,7 @@ See the "UI" section of `docs/GLOSSARY.md`.
     // Desktop: hide entirely when closed.
     sidebarNav.isMobile ? '' : sidebarNav.isOpen ? '' : 'hidden',
     // Mobile-only: become `visibility: hidden` once the slide-out animation
-    // completes (see .sidebar-mobile-anim styles in routes/+layout.svelte) so
+    // completes (see .sidebar-mobile-anim styles in MobileSidebarChrome.svelte) so
     // accessibility tools and Playwright `toBeVisible()` agree the panel is
     // hidden, not just translated off-screen.
     mobileClosed && 'sidebar-mobile-closed',
