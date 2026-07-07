@@ -16,7 +16,11 @@ const { mocks } = vi.hoisted(() => ({
     roomsStore: {
       rooms: [] as RoomsListItem[],
       isInitialLoading: false
-    }
+    },
+    joinRoom: vi.fn(),
+    refreshRooms: vi.fn(),
+    toastSuccess: vi.fn(),
+    toastError: vi.fn()
   }
 }));
 
@@ -44,8 +48,26 @@ vi.mock('$lib/state/activeServer.svelte', () => ({
 vi.mock('$lib/state/server/registry.svelte', () => ({
   serverRegistry: {
     getStore: () => ({
-      rooms: mocks.roomsStore
+      rooms: {
+        get rooms() {
+          return mocks.roomsStore.rooms;
+        },
+        get isInitialLoading() {
+          return mocks.roomsStore.isInitialLoading;
+        },
+        refresh: mocks.refreshRooms
+      },
+      roomDirectory: {
+        joinRoom: mocks.joinRoom
+      }
     })
+  }
+}));
+
+vi.mock('$lib/ui/toast', () => ({
+  toast: {
+    success: mocks.toastSuccess,
+    error: mocks.toastError
   }
 }));
 
@@ -93,6 +115,8 @@ beforeEach(() => {
   mocks.page.url = new URL('https://chat.example.test/chat/-/room-1');
   mocks.roomsStore.rooms = [room()];
   mocks.roomsStore.isInitialLoading = false;
+  mocks.joinRoom.mockResolvedValue({ ok: true, room: { id: 'room-1', name: 'development' } });
+  mocks.refreshRooms.mockResolvedValue(undefined);
 });
 
 describe('room route layout access handling', () => {
@@ -105,48 +129,72 @@ describe('room route layout access handling', () => {
     expect(q(container, '[data-testid="room-layout-room"]')?.dataset.roomId).toBe('room-1');
   });
 
-  it('opens the join modal for a room deep link when the viewer is not a member', async () => {
+  it('renders an inline join screen for a room deep link when the viewer is not a member', async () => {
     mocks.roomsStore.rooms = [room({ viewerIsMember: false })];
 
-    renderLayout();
+    const { container } = renderLayout();
 
-    await vi.waitFor(() => {
-      expect(mocks.goto).toHaveBeenCalledWith('/chat/-', {
-        replaceState: true,
-        state: {
-          modal: {
-            type: 'joinRoom',
-            roomId: 'room-1',
-            roomName: 'development',
-            viewerCanJoinRoom: true,
-            afterJoinPath: '/chat/-/room-1',
-            closePath: '/chat/-'
-          }
-        }
-      });
-    });
+    await expect.element(q(container, 'h1')).toHaveTextContent('#development');
+    await expect
+      .element(q(container, 'section'))
+      .toHaveTextContent('Join this room to read and participate.');
+    expect(q(container, '[data-testid="room-layout-room"]')).toBeNull();
+    expect(mocks.goto).not.toHaveBeenCalled();
   });
 
-  it('opens the join modal with the original message link target for message deep links', async () => {
+  it('renders the inline join screen instead of the message resolver for nonmember message links', async () => {
     mocks.page.url = new URL('https://chat.example.test/chat/-/room-1/m/Eabc123DEF456gh');
     mocks.roomsStore.rooms = [room({ viewerIsMember: false })];
 
-    renderLayout();
+    const { container } = renderLayout();
+
+    await expect.element(q(container, 'h1')).toHaveTextContent('#development');
+    await expect
+      .element(q(container, 'section'))
+      .toHaveTextContent('Join this room to read and participate.');
+    expect(q(container, '[data-testid="message-resolver"]')).toBeNull();
+    expect(mocks.goto).not.toHaveBeenCalled();
+  });
+
+  it('joins a nonmember room inline and refreshes room membership without changing URLs', async () => {
+    mocks.roomsStore.rooms = [room({ viewerIsMember: false })];
+
+    const { container } = renderLayout();
+    (q(container, 'button') as HTMLButtonElement).click();
 
     await vi.waitFor(() => {
-      expect(mocks.goto).toHaveBeenCalledWith('/chat/-', {
-        replaceState: true,
-        state: {
-          modal: {
-            type: 'joinRoom',
-            roomId: 'room-1',
-            roomName: 'development',
-            viewerCanJoinRoom: true,
-            afterJoinPath: '/chat/-/room-1/m/Eabc123DEF456gh',
-            closePath: '/chat/-'
-          }
-        }
-      });
+      expect(mocks.joinRoom).toHaveBeenCalledWith('room-1');
+      expect(mocks.toastSuccess).toHaveBeenCalledWith('Joined #development');
+      expect(mocks.refreshRooms).toHaveBeenCalledOnce();
     });
+    expect(mocks.goto).not.toHaveBeenCalled();
+  });
+
+  it('renders inline access denial for restricted nonmember rooms', async () => {
+    mocks.roomsStore.rooms = [room({ viewerIsMember: false, viewerCanJoinRoom: false })];
+
+    const { container } = renderLayout();
+
+    await expect
+      .element(q(container, 'section'))
+      .toHaveTextContent('You do not have permission to join this room.');
+    await expect.element(q(container, 'a[href="/chat/-"]')).toHaveTextContent('Return to Server');
+    expect(q(container, 'button')).toBeNull();
+    expect(mocks.joinRoom).not.toHaveBeenCalled();
+    expect(mocks.goto).not.toHaveBeenCalled();
+  });
+
+  it('renders the target thread after joining has made the viewer a member', async () => {
+    mocks.page.params = { serverId: '-', roomId: 'room-1', threadId: 'Ethread123ABC456' };
+    mocks.page.url = new URL('https://chat.example.test/chat/-/room-1/Ethread123ABC456');
+    mocks.roomsStore.rooms = [room()];
+
+    const { container } = renderLayout();
+
+    await tick();
+
+    const renderedRoom = q(container, '[data-testid="room-layout-room"]') as HTMLElement;
+    expect(renderedRoom?.dataset.roomId).toBe('room-1');
+    expect(renderedRoom?.dataset.threadId).toBe('Ethread123ABC456');
   });
 });

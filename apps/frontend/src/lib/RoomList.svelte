@@ -5,7 +5,7 @@ Renders the room list in the server sidebar. When a room layout is configured,
 rooms are organized into collapsible sections. Otherwise, rooms display alphabetically.
 -->
 <script lang="ts">
-  import { goto, pushState } from '$app/navigation';
+  import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
   import { serverIdToSegment } from '$lib/navigation';
@@ -283,17 +283,6 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     roomsStore.setUnread(event.roomId);
   });
 
-  function openJoinRoomModal(room: RoomsListItem) {
-    pushState('', {
-      modal: {
-        type: 'joinRoom',
-        roomId: room.id,
-        roomName: room.name,
-        viewerCanJoinRoom: room.viewerCanJoinRoom
-      }
-    });
-  }
-
   function wasCallIconClick(event: MouseEvent): boolean {
     const target = event.target;
     return target instanceof Element && target.closest('[data-testid="room-call-icon"]') !== null;
@@ -312,13 +301,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   }
 
   function handleRoomLinkClick(event: MouseEvent, room: RoomsListItem): void {
-    if (!room.viewerIsMember) {
-      event.preventDefault();
-      openJoinRoomModal(room);
-      return;
-    }
-
-    if (activeCallRooms.has(room.id) && wasCallIconClick(event)) {
+    if (room.viewerIsMember && activeCallRooms.has(room.id) && wasCallIconClick(event)) {
       event.preventDefault();
       void openRoomCallPanel(room.id);
     }

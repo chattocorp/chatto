@@ -555,6 +555,7 @@ const msg_room_join_action = (): LocalizedString => messages().room_join_action(
 const msg_room_join_prompt = (
   inputs: Parameters<LocaleMessages['room_join_prompt']>[0]
 ): LocalizedString => messages().room_join_prompt(inputs);
+const msg_room_join_inline_prompt = (): LocalizedString => messages().room_join_inline_prompt(empty());
 const msg_room_join_success = (
   inputs: Parameters<LocaleMessages['room_join_success']>[0]
 ): LocalizedString => messages().room_join_success(inputs);
@@ -1931,6 +1932,7 @@ export { msg_room_create_submit as 'room.create.submit' };
 export { msg_room_join_title as 'room.join.title' };
 export { msg_room_join_action as 'room.join.action' };
 export { msg_room_join_prompt as 'room.join.prompt' };
+export { msg_room_join_inline_prompt as 'room.join.inline_prompt' };
 export { msg_room_join_success as 'room.join.success' };
 export { msg_room_join_success_generic as 'room.join.success_generic' };
 export { msg_room_join_failed as 'room.join.failed' };

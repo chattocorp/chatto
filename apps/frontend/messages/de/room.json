@@ -20,6 +20,7 @@
       "title": "Raum beitreten",
       "action": "Raum beitreten",
       "prompt": "Tritt #{room} bei, um diesen Raum zu lesen und daran teilzunehmen.",
+      "inline_prompt": "Tritt diesem Raum bei, um ihn zu lesen und daran teilzunehmen.",
       "success": "#{room} beigetreten",
       "success_generic": "Raum beigetreten",
       "failed": "Raum konnte nicht beigetreten werden",

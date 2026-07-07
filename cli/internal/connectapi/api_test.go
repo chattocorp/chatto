@@ -3759,6 +3759,47 @@ func TestRoomServiceJoinRoomGroup(t *testing.T) {
 	}
 }
 
+func TestRoomServiceJoinRoomKeepsNormalPostingPermissions(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+
+	room, err := env.core.CreateRoom(env.ctx, env.viewer.Id, core.KindChannel, "", "join-posts", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	caller, err := env.core.CreateUser(env.ctx, core.SystemActorID, "join-posts-caller", "Join Posts Caller", "password")
+	if err != nil {
+		t.Fatalf("CreateUser caller: %v", err)
+	}
+	callerCtx := withCaller(env.ctx, caller)
+
+	if _, err := env.rooms.JoinRoom(callerCtx, connect.NewRequest(&apiv1.JoinRoomRequest{
+		RoomId: room.Id,
+	})); err != nil {
+		t.Fatalf("JoinRoom: %v", err)
+	}
+
+	getResp, err := env.directory.GetRoom(callerCtx, connect.NewRequest(&apiv1.GetRoomRequest{
+		RoomId: room.Id,
+	}))
+	if err != nil {
+		t.Fatalf("GetRoom: %v", err)
+	}
+	if !apiRoomPermissionGranted(getResp.Msg.GetRoom(), core.PermMessagePost) {
+		t.Fatalf("joined room message.post = false, room = %+v", getResp.Msg.GetRoom())
+	}
+
+	createResp, err := env.messages.CreateMessage(callerCtx, connect.NewRequest(&apiv1.CreateMessageRequest{
+		RoomId: room.Id,
+		Body:   "hello after joining",
+	}))
+	if err != nil {
+		t.Fatalf("CreateMessage after join: %v", err)
+	}
+	if createResp.Msg.GetMessage().GetBody() != "hello after joining" {
+		t.Fatalf("CreateMessage body = %q, want posted body", createResp.Msg.GetMessage().GetBody())
+	}
+}
+
 func TestUserServiceListUsers(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 

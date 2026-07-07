@@ -12,7 +12,6 @@ declare global {
         type:
           | 'createRoom'
           | 'logout'
-          | 'joinRoom'
           | 'leaveRoom'
           | 'deleteMessage'
           | 'leaveServer'
@@ -22,9 +21,6 @@ declare global {
         spaceId?: string;
         roomId?: string;
         roomName?: string;
-        viewerCanJoinRoom?: boolean;
-        afterJoinPath?: string;
-        closePath?: string;
         spaceName?: string;
         eventId?: string;
         attachmentId?: string;

@@ -115,6 +115,11 @@ describe('MessageMetaBar', () => {
     });
 
     const link = q(container, 'a[href="/chat/-/room-1/thread-1"]') as HTMLAnchorElement;
+    let preventedByComponent: boolean | undefined;
+    link.addEventListener('click', (event) => {
+      preventedByComponent = event.defaultPrevented;
+      event.preventDefault();
+    });
     const event = new MouseEvent('click', {
       bubbles: true,
       cancelable: true,
@@ -122,10 +127,9 @@ describe('MessageMetaBar', () => {
       metaKey: true
     });
 
-    const allowed = link.dispatchEvent(event);
+    link.dispatchEvent(event);
 
-    expect(allowed).toBe(true);
-    expect(event.defaultPrevented).toBe(false);
+    expect(preventedByComponent).toBe(false);
     expect(onOpenThread).not.toHaveBeenCalled();
   });
 

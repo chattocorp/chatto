@@ -5,20 +5,15 @@ import { q } from '$lib/test-utils';
 const { mocks } = vi.hoisted(() => ({
   mocks: {
     modal: {
-      type: 'joinRoom',
-      roomId: 'room-1',
-      roomName: 'general',
-      viewerCanJoinRoom: true
+      type: 'logout'
     } as Record<string, unknown> | undefined,
     closeModal: vi.fn(),
     goto: vi.fn(),
     toastSuccess: vi.fn(),
     toastError: vi.fn(),
-    joinRoom: vi.fn(),
     deleteMessage: vi.fn(),
     deleteAttachment: vi.fn(),
     deleteLinkPreview: vi.fn(),
-    refreshRooms: vi.fn(),
     mutation: vi.fn(() => ({
       toPromise: () => Promise.resolve({ data: {}, error: null })
     })),
@@ -76,14 +71,6 @@ vi.mock('$lib/state/activeServer.svelte', () => ({
 
 vi.mock('$lib/state/server/registry.svelte', () => ({
   serverRegistry: {
-    getStore: vi.fn(() => ({
-      roomDirectory: {
-        joinRoom: mocks.joinRoom
-      },
-      rooms: {
-        refresh: mocks.refreshRooms
-      }
-    })),
     getServer: vi.fn((id: string) => mocks.servers.find((server) => server.id === id)),
     isOriginServer: vi.fn((id: string) => mocks.originServer?.id === id),
     isAuthenticated: vi.fn((id: string) => mocks.authenticated[id] === true),
@@ -190,19 +177,14 @@ function clickButton(container: HTMLElement, label: string): void {
 beforeEach(() => {
   vi.spyOn(window.history, 'back').mockImplementation(() => undefined);
   mocks.modal = {
-    type: 'joinRoom',
-    roomId: 'room-1',
-    roomName: 'general',
-    viewerCanJoinRoom: true
+    type: 'logout'
   };
-  mocks.joinRoom.mockResolvedValue({ ok: true, room: { id: 'room-1', name: 'general' } });
   mocks.deleteMessage.mockResolvedValue(true);
   mocks.deleteAttachment.mockResolvedValue(true);
   mocks.deleteLinkPreview.mockResolvedValue(true);
   mocks.mutation.mockReturnValue({
     toPromise: () => Promise.resolve({ data: {}, error: null })
   });
-  mocks.refreshRooms.mockResolvedValue(undefined);
   mocks.signOutServer.mockResolvedValue(new Response('{}', { status: 200 }));
   mocks.signOutServers.mockResolvedValue(undefined);
   mocks.activeServer = 'origin';
@@ -216,95 +198,6 @@ beforeEach(() => {
   mocks.servers = [mocks.originServer];
   mocks.authenticated = { origin: true };
   vi.clearAllMocks();
-});
-
-describe('ModalContainer join room modal', () => {
-  it('joins and navigates from a joinable room modal', async () => {
-    const { container } = render(ModalContainer);
-
-    await expect
-      .element(q(container, 'dialog'))
-      .toHaveTextContent('Join #general to read and participate in this room.');
-    (q(container, 'button[type="submit"]') as HTMLButtonElement).click();
-
-    await vi.waitFor(() => {
-      expect(mocks.joinRoom).toHaveBeenCalledWith('room-1');
-      expect(mocks.refreshRooms).toHaveBeenCalledOnce();
-      expect(mocks.toastSuccess).toHaveBeenCalledWith('Joined #general');
-      expect(mocks.goto).toHaveBeenCalledWith('/chat/-/room-1');
-    });
-  });
-
-  it('joins and navigates to a deep-link target when provided', async () => {
-    mocks.modal = {
-      type: 'joinRoom',
-      roomId: 'room-1',
-      roomName: 'general',
-      viewerCanJoinRoom: true,
-      afterJoinPath: '/chat/-/room-1/m/message-1',
-      closePath: '/chat/-'
-    };
-
-    const { container } = render(ModalContainer);
-    (q(container, 'button[type="submit"]') as HTMLButtonElement).click();
-
-    await vi.waitFor(() => {
-      expect(mocks.joinRoom).toHaveBeenCalledWith('room-1');
-      expect(mocks.refreshRooms).toHaveBeenCalledOnce();
-      expect(mocks.goto).toHaveBeenCalledWith('/chat/-/room-1/m/message-1');
-    });
-  });
-
-  it('closes deep-link join prompts to their fallback path', async () => {
-    mocks.modal = {
-      type: 'joinRoom',
-      roomId: 'room-1',
-      roomName: 'general',
-      viewerCanJoinRoom: true,
-      afterJoinPath: '/chat/-/room-1/m/message-1',
-      closePath: '/chat/-'
-    };
-
-    const { container } = render(ModalContainer);
-    clickButton(container, 'Cancel');
-
-    expect(mocks.goto).toHaveBeenCalledWith('/chat/-', { replaceState: true });
-    expect(window.history.back).not.toHaveBeenCalled();
-  });
-
-  it('shows an error toast when joining fails', async () => {
-    mocks.joinRoom.mockResolvedValue({ ok: false, error: new Error('denied') });
-
-    const { container } = render(ModalContainer);
-    (q(container, 'button[type="submit"]') as HTMLButtonElement).click();
-
-    await vi.waitFor(() => {
-      expect(mocks.toastError).toHaveBeenCalledWith('Failed to join room');
-      expect(mocks.refreshRooms).not.toHaveBeenCalled();
-      expect(mocks.goto).not.toHaveBeenCalled();
-    });
-  });
-
-  it('renders a non-mutating access message for non-joinable rooms', async () => {
-    mocks.modal = {
-      type: 'joinRoom',
-      roomId: 'room-1',
-      roomName: 'private',
-      viewerCanJoinRoom: false
-    };
-
-    const { container } = render(ModalContainer);
-
-    await expect
-      .element(q(container, 'dialog'))
-      .toHaveTextContent('You do not have permission to join this room.');
-    expect(
-      [...container.querySelectorAll('button')].map((button) => button.textContent?.trim())
-    ).toEqual(['Got it']);
-    (q(container, 'button') as HTMLButtonElement).click();
-
-    expect(mocks.joinRoom).not.toHaveBeenCalled();
-  });
 });
 
 describe('ModalContainer sign out modal', () => {
