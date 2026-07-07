@@ -1,11 +1,23 @@
 package connectapi
 
 import (
+	"context"
 	"errors"
+	"fmt"
+	"regexp"
 
 	"connectrpc.com/connect"
+	"github.com/charmbracelet/log"
 	"github.com/nats-io/nats.go/jetstream"
 	"hmans.de/chatto/internal/core"
+)
+
+var (
+	errorLogEmailRE       = regexp.MustCompile(`[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}`)
+	errorLogTokenRE       = regexp.MustCompile(`cht_[A-Za-z0-9]{2}[A-Za-z0-9_-]+`)
+	errorLogURLQueryRE    = regexp.MustCompile(`(https?://[^\s?]+)\?[^ \t\n\r]+`)
+	errorLogQueryParamRE  = regexp.MustCompile(`(?i)\b(token|code|password|email|login|redirect|subject)=([^ \t\n\r&]+)`)
+	errorLogControlCharRE = regexp.MustCompile(`[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]`)
 )
 
 func connectError(err error) error {
@@ -96,9 +108,75 @@ func connectError(err error) error {
 		errors.Is(err, core.ErrSidebarLinkSourceChanged) {
 		return connect.NewError(connect.CodeFailedPrecondition, err)
 	}
-	return connect.NewError(connect.CodeInternal, errors.New("internal server error"))
+	return connectInternalError(err)
 }
 
 func invalidArgument(message string) error {
 	return connect.NewError(connect.CodeInvalidArgument, errors.New(message))
+}
+
+func connectInternalError(err error) error {
+	logInternalConnectError(err)
+	return connect.NewError(connect.CodeInternal, loggedInternalClientError{})
+}
+
+type loggedInternalClientError struct{}
+
+func (loggedInternalClientError) Error() string {
+	return "internal server error"
+}
+
+func internalErrorLoggingInterceptor() connect.Interceptor {
+	return connect.UnaryInterceptorFunc(func(next connect.UnaryFunc) connect.UnaryFunc {
+		return func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
+			res, err := next(ctx, req)
+			if err != nil && connect.CodeOf(err) == connect.CodeInternal && !internalErrorAlreadyLogged(err) {
+				logInternalConnectError(err, "procedure", req.Spec().Procedure)
+			}
+			return res, err
+		}
+	})
+}
+
+func internalErrorAlreadyLogged(err error) bool {
+	var logged loggedInternalClientError
+	return errors.As(err, &logged)
+}
+
+func logInternalConnectError(err error, attrs ...any) {
+	attrs = append(attrs,
+		"error", safeInternalErrorForLog(err),
+		"error_type", fmt.Sprintf("%T", err),
+		"root_error_type", rootErrorType(err))
+	log.Error("Connect API internal error", attrs...)
+}
+
+func safeInternalErrorForLog(err error) string {
+	if err == nil {
+		return ""
+	}
+	message := err.Error()
+	message = errorLogURLQueryRE.ReplaceAllString(message, "$1?[redacted]")
+	message = errorLogQueryParamRE.ReplaceAllString(message, "$1=[redacted]")
+	message = errorLogEmailRE.ReplaceAllString(message, "[redacted-email]")
+	message = errorLogTokenRE.ReplaceAllString(message, "[redacted-token]")
+	message = errorLogControlCharRE.ReplaceAllString(message, "?")
+	const maxInternalErrorLogLength = 2048
+	if len(message) > maxInternalErrorLogLength {
+		message = message[:maxInternalErrorLogLength] + "...[truncated]"
+	}
+	return message
+}
+
+func rootErrorType(err error) string {
+	for {
+		if unwrapper, ok := err.(interface{ Unwrap() error }); ok {
+			unwrapped := unwrapper.Unwrap()
+			if unwrapped != nil {
+				err = unwrapped
+				continue
+			}
+		}
+		return fmt.Sprintf("%T", err)
+	}
 }

@@ -62,7 +62,10 @@ func HandlerOptions() []connect.HandlerOption {
 func handlerOptionsWithReadMax(readMaxBytes int) []connect.HandlerOption {
 	return []connect.HandlerOption{
 		connect.WithReadMaxBytes(readMaxBytes),
-		connect.WithInterceptors(validate.NewInterceptor()),
+		connect.WithInterceptors(
+			internalErrorLoggingInterceptor(),
+			validate.NewInterceptor(),
+		),
 	}
 }
 

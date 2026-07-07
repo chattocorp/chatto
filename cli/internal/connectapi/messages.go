@@ -39,10 +39,10 @@ func (s *messageService) CreateMessage(ctx context.Context, req *connect.Request
 		return nil, connectError(err)
 	}
 	if result == nil {
-		return nil, connect.NewError(connect.CodeInternal, errors.New("message create returned no result"))
+		return nil, connectInternalError(errors.New("message create returned no result"))
 	}
 	if result.Event == nil {
-		return nil, connect.NewError(connect.CodeInternal, errors.New("message create returned no event"))
+		return nil, connectInternalError(errors.New("message create returned no event"))
 	}
 
 	roomID := result.Event.GetMessagePosted().GetRoomId()
