@@ -3,6 +3,24 @@
 All notable changes to Chatto. Maintained by release-please from the
 conventional-commit messages on `main` — do not edit by hand.
 
+## [0.4.1](https://github.com/chattocorp/chatto/compare/v0.4.0...v0.4.1) (2026-07-07)
+
+
+### Bug Fixes
+
+* **api:** log internal connect errors ([#1329](https://github.com/chattocorp/chatto/issues/1329)) ([c292bac](https://github.com/chattocorp/chatto/commit/c292bac00bfefbb4ba0cdbc0f1686b1a377e380d))
+* **frontend:** adopt menu shell for toasts ([#1323](https://github.com/chattocorp/chatto/issues/1323)) ([4982463](https://github.com/chattocorp/chatto/commit/4982463f6c396f7ae25ae83985f71453fb74a94d))
+* **frontend:** align message footer row spacing ([#1331](https://github.com/chattocorp/chatto/issues/1331)) ([02841fe](https://github.com/chattocorp/chatto/commit/02841fe39c93b3821eaa32f37e67ea32de799577))
+* **frontend:** hydrate room lifecycle event actors ([#1319](https://github.com/chattocorp/chatto/issues/1319)) ([a9abe8c](https://github.com/chattocorp/chatto/commit/a9abe8c03fd1e4e539d0870d56ca7569fbe4d2b5))
+* **frontend:** improve chat link navigation ([#1333](https://github.com/chattocorp/chatto/issues/1333)) ([a88133f](https://github.com/chattocorp/chatto/commit/a88133fd05199ef23597f0b2258e2f1fb3dc06ec))
+* **frontend:** improve reaction user popovers ([#1328](https://github.com/chattocorp/chatto/issues/1328)) ([2d1af04](https://github.com/chattocorp/chatto/commit/2d1af046e3fdc910762ea73bfb4ce78223865a9c))
+* **frontend:** refresh recent emoji quick reactions ([#1327](https://github.com/chattocorp/chatto/issues/1327)) ([fab2ae4](https://github.com/chattocorp/chatto/commit/fab2ae44c5b57ca1a0dc8703e46eb244a27e2b83))
+* **frontend:** simplify push notification click routing ([#1322](https://github.com/chattocorp/chatto/issues/1322)) ([21bff8d](https://github.com/chattocorp/chatto/commit/21bff8dac0996e087dbc0aeb4d23d21925b1fea2))
+* **frontend:** simplify room resume catch-up ([#1332](https://github.com/chattocorp/chatto/issues/1332)) ([b7d32ce](https://github.com/chattocorp/chatto/commit/b7d32ce1c7756839f0f90d15d018f0c1023c0455))
+* **frontend:** stabilize mobile sidebar gestures ([#1324](https://github.com/chattocorp/chatto/issues/1324)) ([1cbd3c5](https://github.com/chattocorp/chatto/commit/1cbd3c5f8b0adcc7b824c1023123c2498e81a225))
+* **read-state:** reduce no-op read signals ([#1330](https://github.com/chattocorp/chatto/issues/1330)) ([244e4c8](https://github.com/chattocorp/chatto/commit/244e4c82851de9dc9ab9bc7a2b982e840840f631))
+* **server:** reduce routine info logs ([#1325](https://github.com/chattocorp/chatto/issues/1325)) ([8849fd7](https://github.com/chattocorp/chatto/commit/8849fd7cd018b6a9112e920ef271b79fd0674629))
+
 ## [0.4.0](https://github.com/chattocorp/chatto/compare/v0.3.8...v0.4.0) (2026-07-06)
 
 
