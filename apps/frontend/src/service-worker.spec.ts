@@ -153,8 +153,83 @@ describe('service worker badge orchestration', () => {
     await Promise.all(messageDispatch.pending);
 
     expect(worker.registration.showNotification).toHaveBeenCalledOnce();
+    expect(worker.registration.showNotification).toHaveBeenCalledWith('New notification', {
+      body: 'Hello',
+      icon: '/icons/icon-192.png',
+      badge: '/icons/icon-192.png',
+      tag: 'notification-1',
+      data: {
+        notificationId: undefined,
+        url: 'https://chatto.example/chat/-/room-1'
+      }
+    });
     expect(nativeNotification.close).not.toHaveBeenCalled();
     expect(worker.clearAppBadge).not.toHaveBeenCalled();
+  });
+
+  it('uses declarative push notification fields when legacy root fields are absent', async () => {
+    const worker = await importServiceWorker();
+
+    await worker.dispatch('push', {
+      data: {
+        json: () => ({
+          web_push: 8030,
+          notification: {
+            title: 'Declarative notification',
+            body: 'Opened by the browser or worker fallback',
+            tag: 'notification-2',
+            icon: 'https://chatto.example/icons/icon-192.png',
+            badge: 'https://chatto.example/icons/icon-192.png',
+            navigate: 'https://chatto.example/chat/-/room-2?highlight=event-2',
+            data: {
+              notificationId: 'notif-2',
+              url: 'https://chatto.example/chat/-/room-2?highlight=event-2'
+            }
+          }
+        })
+      }
+    });
+
+    expect(worker.registration.showNotification).toHaveBeenCalledWith('Declarative notification', {
+      body: 'Opened by the browser or worker fallback',
+      icon: 'https://chatto.example/icons/icon-192.png',
+      badge: 'https://chatto.example/icons/icon-192.png',
+      tag: 'notification-2',
+      data: {
+        notificationId: 'notif-2',
+        url: 'https://chatto.example/chat/-/room-2?highlight=event-2'
+      }
+    });
+  });
+
+  it('uses declarative navigate as the fallback notification click URL', async () => {
+    const worker = await importServiceWorker();
+    const targetUrl = 'https://chatto.example/chat/-/room-2?highlight=event-2';
+
+    await worker.dispatch('push', {
+      data: {
+        json: () => ({
+          web_push: 8030,
+          notification: {
+            title: 'Declarative notification',
+            navigate: targetUrl,
+            data: {
+              notificationId: 'notif-2'
+            }
+          }
+        })
+      }
+    });
+
+    const options = worker.registration.showNotification.mock.calls[0][1] as NotificationOptions;
+    await worker.dispatch('notificationclick', {
+      notification: {
+        close: vi.fn(),
+        data: options.data as { url?: string }
+      }
+    });
+
+    expect(worker.clients.openWindow).toHaveBeenCalledWith(targetUrl);
   });
 
   it('preserves a foreground authoritative count after clicking the only native notification', async () => {

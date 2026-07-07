@@ -107,6 +107,37 @@ func TestPayloadMarshal(t *testing.T) {
 		if result["url"] != "/chat/room/123" {
 			t.Errorf("Expected url '/chat/room/123', got %v", result["url"])
 		}
+		if result["web_push"] != float64(declarativeWebPushValue) {
+			t.Errorf("Expected web_push %d, got %v", declarativeWebPushValue, result["web_push"])
+		}
+
+		notification, ok := result["notification"].(map[string]interface{})
+		if !ok {
+			t.Fatalf("Expected declarative notification object, got %T", result["notification"])
+		}
+		if notification["title"] != "Test Title" {
+			t.Errorf("Expected declarative title 'Test Title', got %v", notification["title"])
+		}
+		if notification["body"] != "Test Body" {
+			t.Errorf("Expected declarative body 'Test Body', got %v", notification["body"])
+		}
+		if notification["navigate"] != "/chat/room/123" {
+			t.Errorf("Expected declarative navigate '/chat/room/123', got %v", notification["navigate"])
+		}
+		if notification["tag"] != "test-tag" {
+			t.Errorf("Expected declarative tag 'test-tag', got %v", notification["tag"])
+		}
+
+		notificationData, ok := notification["data"].(map[string]interface{})
+		if !ok {
+			t.Fatalf("Expected declarative notification data object, got %T", notification["data"])
+		}
+		if notificationData["notificationId"] != "notif-123" {
+			t.Errorf("Expected declarative notificationId 'notif-123', got %v", notificationData["notificationId"])
+		}
+		if notificationData["url"] != "/chat/room/123" {
+			t.Errorf("Expected declarative data url '/chat/room/123', got %v", notificationData["url"])
+		}
 	})
 
 	t.Run("omits empty optional fields", func(t *testing.T) {
@@ -130,6 +161,42 @@ func TestPayloadMarshal(t *testing.T) {
 		}
 		if _, ok := result["notificationId"]; ok {
 			t.Error("Expected notificationId to be omitted when empty")
+		}
+		if _, ok := result["web_push"]; ok {
+			t.Error("Expected web_push to be omitted when navigate URL is empty")
+		}
+		if _, ok := result["notification"]; ok {
+			t.Error("Expected declarative notification to be omitted when navigate URL is empty")
+		}
+	})
+
+	t.Run("dismiss payload stays imperative only", func(t *testing.T) {
+		payload := &Payload{
+			Action: "dismiss",
+			Tag:    "test-tag",
+		}
+
+		data, err := json.Marshal(payload)
+		if err != nil {
+			t.Fatalf("Failed to marshal payload: %v", err)
+		}
+
+		var result map[string]interface{}
+		if err := json.Unmarshal(data, &result); err != nil {
+			t.Fatalf("Failed to unmarshal: %v", err)
+		}
+
+		if result["action"] != "dismiss" {
+			t.Errorf("Expected dismiss action, got %v", result["action"])
+		}
+		if result["tag"] != "test-tag" {
+			t.Errorf("Expected tag 'test-tag', got %v", result["tag"])
+		}
+		if _, ok := result["web_push"]; ok {
+			t.Error("Expected dismiss payload to omit web_push")
+		}
+		if _, ok := result["notification"]; ok {
+			t.Error("Expected dismiss payload to omit declarative notification")
 		}
 	})
 }

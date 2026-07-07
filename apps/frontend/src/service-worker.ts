@@ -151,6 +151,29 @@ interface PushPayload {
   action?: 'dismiss';
 }
 
+interface DeclarativePushPayload extends PushPayload {
+  web_push?: number;
+  notification?: DeclarativeNotificationPayload;
+}
+
+interface DeclarativeNotificationPayload {
+  title?: string;
+  body?: string;
+  icon?: string;
+  badge?: string;
+  tag?: string;
+  navigate?: string;
+  data?: {
+    notificationId?: string;
+    url?: string;
+  };
+}
+
+type NormalizedPushNotification = {
+  title: string;
+  options: NotificationOptions;
+};
+
 function handleBadgeStateMessage(event: ExtendableMessageEvent): boolean {
   const message = event.data as Record<string, unknown> | undefined;
   if (!message || message.type !== 'chatto-badge-state') return false;
@@ -164,6 +187,26 @@ function handleBadgeStateMessage(event: ExtendableMessageEvent): boolean {
   return true;
 }
 
+function normalizePushNotification(payload: DeclarativePushPayload): NormalizedPushNotification {
+  const notification = payload.notification;
+  const notificationId = payload.notificationId ?? notification?.data?.notificationId;
+  const url = payload.url ?? notification?.data?.url ?? notification?.navigate;
+
+  return {
+    title: payload.title ?? notification?.title ?? 'New notification',
+    options: {
+      body: payload.body ?? notification?.body,
+      icon: payload.icon ?? notification?.icon ?? '/icons/icon-192.png',
+      badge: payload.badge ?? notification?.badge ?? '/icons/icon-192.png',
+      tag: payload.tag ?? notification?.tag,
+      data: {
+        notificationId,
+        url
+      }
+    }
+  };
+}
+
 /**
  * Handle incoming push events.
  * Parse the payload and display a native notification, or dismiss existing ones.
@@ -174,9 +217,9 @@ self.addEventListener('push', (event) => {
     return;
   }
 
-  let payload: PushPayload;
+  let payload: DeclarativePushPayload;
   try {
-    payload = event.data.json() as PushPayload;
+    payload = event.data.json() as DeclarativePushPayload;
   } catch {
     console.error('Failed to parse push payload');
     return;
@@ -195,23 +238,11 @@ self.addEventListener('push', (event) => {
   }
 
   badgeCoordinator.recordRegularPush();
-
-  // Regular notification display
-  const options: NotificationOptions = {
-    body: payload.body,
-    icon: payload.icon ?? '/icons/icon-192.png',
-    badge: payload.badge ?? '/icons/icon-192.png',
-    tag: payload.tag,
-    // Pass notificationId and url in data for the click handler
-    data: {
-      notificationId: payload.notificationId,
-      url: payload.url
-    }
-  };
+  const notification = normalizePushNotification(payload);
 
   event.waitUntil(
     Promise.all([
-      self.registration.showNotification(payload.title ?? 'New notification', options),
+      self.registration.showNotification(notification.title, notification.options),
       badgeCoordinator.setProvisionalPushFlagBadge()
     ])
   );

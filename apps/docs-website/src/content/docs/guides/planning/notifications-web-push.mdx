@@ -89,6 +89,8 @@ Each browser or installed PWA creates its own subscription. A user can have mult
 
 When a user reopens Chatto, the app refreshes the server's stored subscription for that browser. Expired subscriptions are cleaned up automatically when push providers report them as gone.
 
+Chatto sends regular notifications in a declarative-compatible Web Push format, with a service-worker fallback for older browsers and already-installed app versions. Operators do not need to change VAPID keys or push configuration for this behavior.
+
 On iOS and iPadOS, Web Push works only for supported Home Screen web apps. Safari tabs that are not installed as an app may not receive native push.
 
 <Aside type="note">
