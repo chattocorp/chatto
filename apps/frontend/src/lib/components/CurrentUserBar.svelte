@@ -16,7 +16,8 @@ to the user settings page for the active server.
   import { getLiveDisplayName, type CustomUserStatus } from '$lib/state/userProfiles.svelte';
   import { setPresenceMode } from '$lib/presenceTracking';
   import { presencePreference, type PresenceMode } from '$lib/state/presencePreference.svelte';
-  import { RoomType } from '$lib/render/types';
+  import { PresenceStatus, RoomType } from '$lib/render/types';
+  import { getPresenceCache } from '$lib/state/presenceCache.svelte';
   import {
     roomSidebarPanelStorageSuffix,
     setPendingRoomSidebarPanel,
@@ -32,6 +33,7 @@ to the user settings page for the active server.
   import UserCustomStatusEditor from './UserCustomStatusEditor.svelte';
 
   const connection = useConnection();
+  const presenceCache = getPresenceCache();
   const activeServerId = $derived(getActiveServer());
   const serverSegment = $derived(serverIdToSegment(activeServerId));
   const activeStore = $derived(serverRegistry.tryGetStore(activeServerId));
@@ -75,7 +77,14 @@ to the user settings page for the active server.
   const compactCallDangerButtonClass = 'btn-danger h-10 w-10 shrink-0 !px-0 !py-0 text-xs';
   const isTouch = isTouchDevice();
   const presenceModes: PresenceMode[] = ['auto', 'away', 'doNotDisturb', 'invisible'];
-  const presenceLabel = $derived.by(() => presenceModeLabel(presencePreference.mode));
+  const currentPresence = $derived.by(() => {
+    if (!activeServerUser) return PresenceStatus.Offline;
+    return presenceCache.get(
+      { serverId: activeServerId, userId: activeServerUser.id },
+      activeServerUser.presenceStatus
+    );
+  });
+  const presenceLabel = $derived.by(() => presenceStatusLabel(currentPresence));
   let statusMenuAnchor = $state<{ top: number; bottom: number; left: number } | null>(null);
   let customStatusDialogVisible = $state(false);
 
@@ -101,6 +110,19 @@ to the user settings page for the active server.
         return m['settings.profile.presence.do_not_disturb']();
       case 'invisible':
         return m['settings.profile.presence.invisible']();
+      default:
+        return m['settings.profile.presence.auto']();
+    }
+  }
+
+  function presenceStatusLabel(status: PresenceStatus): string {
+    switch (status) {
+      case PresenceStatus.Away:
+        return m['settings.profile.presence.away']();
+      case PresenceStatus.DoNotDisturb:
+        return m['settings.profile.presence.do_not_disturb']();
+      case PresenceStatus.Offline:
+        return m['settings.profile.presence.offline']();
       default:
         return m['settings.profile.presence.auto']();
     }
@@ -289,7 +311,6 @@ to the user settings page for the active server.
           user={activeServerUser}
           size="sm"
           showPresence
-          presenceOverride={presencePreference.effectiveStatus}
         />
       </button>
       <div

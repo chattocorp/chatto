@@ -78,6 +78,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
 
   const connection = useConnection();
   const presenceCache = getPresenceCache();
+  const activeServerId = $derived(getActiveServer());
   const activeCallRooms = serverRegistry.getStore(getActiveServer()).activeCallRooms;
 
   const members = $derived(membersStore.filteredMembers);
@@ -130,7 +131,10 @@ calls, and similar room-specific panels can plug into the same shell. See the
 
   // Get effective presence for a member (live update or fall back to initial value)
   function getPresence(member: RoomMember): PresenceStatus {
-    return presenceCache.get(member.id, member.presenceStatus);
+    return presenceCache.get(
+      { serverId: activeServerId, userId: member.id },
+      member.presenceStatus
+    );
   }
 
   // Check if a presence status counts as "online" (connected to the system)

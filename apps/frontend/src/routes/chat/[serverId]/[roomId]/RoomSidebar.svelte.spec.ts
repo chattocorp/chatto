@@ -1334,13 +1334,13 @@ describe('RoomSidebar', () => {
     await vi.waitFor(() => {
       expect(presenceCache).toBeTruthy();
     });
-    presenceCache!.update(user.id, PresenceStatus.Away);
+    presenceCache!.update({ serverId: 'test-server', userId: user.id }, PresenceStatus.Away);
     await tick();
 
     expect(presenceBadge(container, 'Away')).toBeTruthy();
     expect(buttonByText(container, 'Online (1)')).toBeTruthy();
 
-    presenceCache!.update(user.id, PresenceStatus.Online);
+    presenceCache!.update({ serverId: 'test-server', userId: user.id }, PresenceStatus.Online);
     await tick();
 
     expect(presenceBadge(container, 'Online')).toBeTruthy();

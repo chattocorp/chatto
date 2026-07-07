@@ -6,6 +6,7 @@
 
 <script lang="ts">
   import { PresenceStatus, type UserAvatarUserView } from '$lib/render/types';
+  import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { getLiveAvatarUrl, getLiveCustomStatus } from '$lib/state/userProfiles.svelte';
   import { getPresenceCache } from '$lib/state/presenceCache.svelte';
   import { getAvatarInitials } from '$lib/utils/initials';
@@ -65,19 +66,18 @@
     user,
     size = 'md',
     showPresence = false,
-    presenceOverride = null,
     showStatus = false,
     class: className = ''
   }: {
     user: AvatarUser;
     size?: Size;
     showPresence?: boolean;
-    presenceOverride?: PresenceStatus | null;
     showStatus?: boolean;
     class?: string;
   } = $props();
 
   const presenceCache = getPresenceCache();
+  const serverId = $derived(getActiveServer());
 
   // Guard all derived computations against null user — during tab resume/reconnect,
   // fragment data can be transiently null. An unguarded crash here poisons Svelte 5's
@@ -93,7 +93,7 @@
   // newly-mounted ones like popovers — see the latest presence immediately.
   const presence = $derived.by(() => {
     if (!user || user.deleted) return undefined;
-    return presenceOverride ?? presenceCache.get(user.id, user.presenceStatus);
+    return presenceCache.get({ serverId, userId: user.id }, user.presenceStatus);
   });
 
   const customStatus = $derived(

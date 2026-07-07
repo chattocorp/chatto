@@ -12,7 +12,7 @@ vi.mock('$lib/state/userProfiles.svelte', () => ({
 
 vi.mock('$lib/state/presenceCache.svelte', () => ({
   getPresenceCache: () => ({
-    get: (_userId: string, fallback: unknown) => fallback
+    get: (_scope: { serverId: string; userId: string }, fallback: unknown) => fallback
   })
 }));
 

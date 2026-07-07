@@ -97,6 +97,7 @@
         "auto": "Online",
         "away": "Away",
         "do_not_disturb": "Do Not Disturb",
+        "offline": "Offline",
         "invisible": "Look offline"
       },
       "saved": "Profile updated successfully",

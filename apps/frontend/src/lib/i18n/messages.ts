@@ -181,6 +181,7 @@ const msg_settings_profile_presence_title = (): LocalizedString => messages().se
 const msg_settings_profile_presence_auto = (): LocalizedString => messages().settings_profile_presence_auto(empty());
 const msg_settings_profile_presence_away = (): LocalizedString => messages().settings_profile_presence_away(empty());
 const msg_settings_profile_presence_do_not_disturb = (): LocalizedString => messages().settings_profile_presence_do_not_disturb(empty());
+const msg_settings_profile_presence_offline = (): LocalizedString => messages().settings_profile_presence_offline(empty());
 const msg_settings_profile_presence_invisible = (): LocalizedString => messages().settings_profile_presence_invisible(empty());
 const msg_settings_profile_saved = (): LocalizedString => messages().settings_profile_saved(empty());
 const msg_settings_profile_save_failed = (): LocalizedString => messages().settings_profile_save_failed(empty());
@@ -1595,6 +1596,7 @@ export { msg_settings_profile_presence_title as 'settings.profile.presence.title
 export { msg_settings_profile_presence_auto as 'settings.profile.presence.auto' };
 export { msg_settings_profile_presence_away as 'settings.profile.presence.away' };
 export { msg_settings_profile_presence_do_not_disturb as 'settings.profile.presence.do_not_disturb' };
+export { msg_settings_profile_presence_offline as 'settings.profile.presence.offline' };
 export { msg_settings_profile_presence_invisible as 'settings.profile.presence.invisible' };
 export { msg_settings_profile_saved as 'settings.profile.saved' };
 export { msg_settings_profile_save_failed as 'settings.profile.save_failed' };
