@@ -8,7 +8,15 @@ vi.mock('$service-worker', () => ({
 
 type ServiceWorkerHandler = (event: {
   data?: { json: () => unknown };
-  notification?: { close: () => void; data?: { url?: string } };
+  notification?: {
+    title?: string;
+    body?: string;
+    icon?: string;
+    badge?: string;
+    tag?: string;
+    data?: { notificationId?: string; url?: string };
+    close?: () => void;
+  };
   waitUntil: (promise: Promise<unknown>) => void;
 }) => void;
 
@@ -200,6 +208,48 @@ describe('service worker badge orchestration', () => {
         url: 'https://chatto.example/chat/-/room-2?highlight=event-2'
       }
     });
+  });
+
+  it('handles mutable declarative push events with event.notification and no payload data', async () => {
+    const worker = await importServiceWorker();
+
+    await worker.dispatch('message', {
+      data: {
+        type: 'chatto-badge-state',
+        notificationCount: 0,
+        serviceWorkerAppBadgeEnabled: true
+      }
+    });
+    worker.setAppBadge.mockClear();
+
+    await worker.dispatch('push', {
+      notification: {
+        title: 'Mutable declarative notification',
+        body: 'Handled through PushEvent.notification',
+        tag: 'notification-3',
+        icon: 'https://chatto.example/icons/icon-192.png',
+        badge: 'https://chatto.example/icons/icon-192.png',
+        data: {
+          notificationId: 'notif-3',
+          url: 'https://chatto.example/chat/-/room-3?highlight=event-3'
+        }
+      }
+    });
+
+    expect(worker.registration.showNotification).toHaveBeenCalledWith(
+      'Mutable declarative notification',
+      {
+        body: 'Handled through PushEvent.notification',
+        icon: 'https://chatto.example/icons/icon-192.png',
+        badge: 'https://chatto.example/icons/icon-192.png',
+        tag: 'notification-3',
+        data: {
+          notificationId: 'notif-3',
+          url: 'https://chatto.example/chat/-/room-3?highlight=event-3'
+        }
+      }
+    );
+    expect(worker.setAppBadge).toHaveBeenCalledOnce();
   });
 
   it('uses declarative navigate as the fallback notification click URL', async () => {

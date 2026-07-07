@@ -153,6 +153,7 @@ interface PushPayload {
 
 interface DeclarativePushPayload extends PushPayload {
   web_push?: number;
+  mutable?: boolean;
   notification?: DeclarativeNotificationPayload;
 }
 
@@ -172,6 +173,17 @@ interface DeclarativeNotificationPayload {
 type NormalizedPushNotification = {
   title: string;
   options: NotificationOptions;
+};
+
+type DeclarativePushEventNotification = Pick<
+  Notification,
+  'title' | 'body' | 'icon' | 'tag' | 'data'
+> & {
+  badge?: string;
+};
+
+type PushEventWithDeclarativeNotification = PushEvent & {
+  notification?: DeclarativePushEventNotification | null;
 };
 
 function handleBadgeStateMessage(event: ExtendableMessageEvent): boolean {
@@ -207,21 +219,52 @@ function normalizePushNotification(payload: DeclarativePushPayload): NormalizedP
   };
 }
 
+function declarativePayloadFromEventNotification(
+  notification: DeclarativePushEventNotification
+): DeclarativePushPayload {
+  return {
+    notification: {
+      title: notification.title,
+      body: notification.body,
+      icon: notification.icon,
+      badge: notification.badge,
+      tag: notification.tag,
+      data: notificationData(notification.data)
+    }
+  };
+}
+
+function notificationData(data: unknown): DeclarativeNotificationPayload['data'] {
+  if (typeof data !== 'object' || data === null) return undefined;
+  return {
+    notificationId: stringProperty(data, 'notificationId'),
+    url: stringProperty(data, 'url')
+  };
+}
+
+function stringProperty(record: object, key: string): string | undefined {
+  const value = (record as Record<string, unknown>)[key];
+  return typeof value === 'string' ? value : undefined;
+}
+
 /**
  * Handle incoming push events.
  * Parse the payload and display a native notification, or dismiss existing ones.
  */
 self.addEventListener('push', (event) => {
-  if (!event.data) {
-    console.warn('Push event received with no data');
-    return;
-  }
-
+  const declarativeNotification = (event as PushEventWithDeclarativeNotification).notification;
   let payload: DeclarativePushPayload;
-  try {
-    payload = event.data.json() as DeclarativePushPayload;
-  } catch {
-    console.error('Failed to parse push payload');
+  if (event.data) {
+    try {
+      payload = event.data.json() as DeclarativePushPayload;
+    } catch {
+      console.error('Failed to parse push payload');
+      return;
+    }
+  } else if (declarativeNotification) {
+    payload = declarativePayloadFromEventNotification(declarativeNotification);
+  } else {
+    console.warn('Push event received with no data or declarative notification');
     return;
   }
 

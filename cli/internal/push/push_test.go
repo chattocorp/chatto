@@ -85,6 +85,7 @@ func TestPayloadMarshal(t *testing.T) {
 			Tag:            "test-tag",
 			NotificationID: "notif-123",
 			URL:            "/chat/room/123",
+			AppBadge:       "7",
 		}
 
 		data, err := json.Marshal(payload)
@@ -110,6 +111,9 @@ func TestPayloadMarshal(t *testing.T) {
 		if result["web_push"] != float64(declarativeWebPushValue) {
 			t.Errorf("Expected web_push %d, got %v", declarativeWebPushValue, result["web_push"])
 		}
+		if result["mutable"] != true {
+			t.Errorf("Expected mutable true, got %v", result["mutable"])
+		}
 
 		notification, ok := result["notification"].(map[string]interface{})
 		if !ok {
@@ -126,6 +130,9 @@ func TestPayloadMarshal(t *testing.T) {
 		}
 		if notification["tag"] != "test-tag" {
 			t.Errorf("Expected declarative tag 'test-tag', got %v", notification["tag"])
+		}
+		if notification["app_badge"] != "7" {
+			t.Errorf("Expected declarative app_badge '7', got %v", notification["app_badge"])
 		}
 
 		notificationData, ok := notification["data"].(map[string]interface{})
@@ -194,6 +201,9 @@ func TestPayloadMarshal(t *testing.T) {
 		}
 		if _, ok := result["web_push"]; ok {
 			t.Error("Expected dismiss payload to omit web_push")
+		}
+		if _, ok := result["mutable"]; ok {
+			t.Error("Expected dismiss payload to omit mutable")
 		}
 		if _, ok := result["notification"]; ok {
 			t.Error("Expected dismiss payload to omit declarative notification")

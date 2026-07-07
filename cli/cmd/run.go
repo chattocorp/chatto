@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 
 	"github.com/charmbracelet/log"
@@ -363,6 +364,13 @@ func setupPushNotifications(chattoCore *core.ChattoCore, cfg config.ChattoConfig
 
 		// Build and send push notification
 		payload := push.BuildPayloadFromNotification(notification, actorName, cfg.Webserver.URL, payloadCtx)
+		if count, err := chattoCore.GetNotificationCount(ctx, notification.RecipientId); err == nil {
+			payload.AppBadge = strconv.Itoa(count)
+		} else {
+			logger.Warn("Failed to get notification count for push app badge",
+				"user_id", notification.RecipientId,
+				"error", err)
+		}
 		results := sender.SendToMany(ctx, subscriptions, payload)
 
 		// Process results - clean up expired subscriptions

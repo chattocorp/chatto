@@ -54,6 +54,7 @@ type Payload struct {
 	Tag            string `json:"tag,omitempty"`
 	NotificationID string `json:"notificationId,omitempty"`
 	URL            string `json:"url,omitempty"`
+	AppBadge       string `json:"-"`
 	// Action is used for special payloads like "dismiss" to close notifications on other devices
 	Action string `json:"action,omitempty"`
 }
@@ -65,6 +66,7 @@ type declarativeNotification struct {
 	Tag      string                       `json:"tag,omitempty"`
 	Icon     string                       `json:"icon,omitempty"`
 	Badge    string                       `json:"badge,omitempty"`
+	AppBadge string                       `json:"app_badge,omitempty"`
 	Data     *declarativeNotificationData `json:"data,omitempty"`
 }
 
@@ -84,6 +86,7 @@ func (p Payload) MarshalJSON() ([]byte, error) {
 		URL            string                   `json:"url,omitempty"`
 		Action         string                   `json:"action,omitempty"`
 		WebPush        int                      `json:"web_push,omitempty"`
+		Mutable        bool                     `json:"mutable,omitempty"`
 		Notification   *declarativeNotification `json:"notification,omitempty"`
 	}
 
@@ -99,6 +102,7 @@ func (p Payload) MarshalJSON() ([]byte, error) {
 	}
 	if p.declarativeNotificationEligible() {
 		out.WebPush = declarativeWebPushValue
+		out.Mutable = true
 		out.Notification = &declarativeNotification{
 			Title:    p.Title,
 			Body:     p.Body,
@@ -106,6 +110,7 @@ func (p Payload) MarshalJSON() ([]byte, error) {
 			Tag:      p.Tag,
 			Icon:     p.Icon,
 			Badge:    p.Badge,
+			AppBadge: p.AppBadge,
 			Data: &declarativeNotificationData{
 				NotificationID: p.NotificationID,
 				URL:            p.URL,

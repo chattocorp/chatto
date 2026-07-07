@@ -17,7 +17,7 @@ Users can opt in to receive notifications through the browser's W3C Web Push sys
 - On iOS/iPadOS, Web Push is available only for Home Screen web apps on supported versions. Chatto treats Web Push as a notification trigger rather than authoritative app state and reconciles pending-notification count, native notifications, and dock badge state when the app is open.
 - Stored subscription fields are bounded: endpoint 4,096 bytes, public key 256 bytes, auth secret 128 bytes, and user agent 512 bytes.
 - A user can have multiple devices subscribed simultaneously — every device receives every push.
-- Push payloads include a declarative-compatible notification envelope with a title, a truncated message preview (max 100 chars, broken at word boundaries), and a navigation URL. The legacy root fields remain present so older Chatto service workers can display the same notification during upgrades.
+- Push payloads include a mutable declarative-compatible notification envelope with a title, a truncated message preview (max 100 chars, broken at word boundaries), a navigation URL, and the pending app badge count when available. The legacy root fields remain present so older Chatto service workers can display the same notification during upgrades.
 - Clicking a push notification navigates to the relevant room, thread, or DM.
 - Dismissing a notification in one place sends a "dismiss" action push to other devices, closing the system notification there too.
 - Expired or invalid subscriptions (browsers report 404/410 on push delivery) are cleaned up automatically.
@@ -76,9 +76,9 @@ Users can opt in to receive notifications through the browser's W3C Web Push sys
 
 ### 9. Declarative-compatible payloads with service-worker fallback
 
-**Decision:** Regular push notifications use the Declarative Web Push JSON envelope while keeping the older Chatto root fields in the same payload.
-**Why:** Modern browsers can display the standard declarative notification without relying on service-worker JavaScript, while older browsers and already-installed Chatto service workers keep using the existing fallback display and click-routing logic.
-**Tradeoff:** Payloads duplicate a small amount of title/body/navigation data. That is preferable to a flag-day service-worker rollout or a second subscription path.
+**Decision:** Regular push notifications use a mutable Declarative Web Push JSON envelope while keeping the older Chatto root fields in the same payload.
+**Why:** Modern browsers can display the standard declarative notification if the service worker is unavailable, while browsers with the Chatto worker installed still dispatch a push event so the worker can keep badge and click reconciliation behavior intact. Older browsers and already-installed Chatto service workers keep using the legacy root fields.
+**Tradeoff:** Payloads duplicate a small amount of title/body/navigation data and include WebKit's `app_badge` field when the count is available. That is preferable to a flag-day service-worker rollout, a second subscription path, or losing badge reconciliation on declarative-capable installed PWAs.
 
 ## Permissions
 
