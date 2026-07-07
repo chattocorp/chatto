@@ -23,6 +23,8 @@ declare global {
         roomId?: string;
         roomName?: string;
         viewerCanJoinRoom?: boolean;
+        afterJoinPath?: string;
+        closePath?: string;
         spaceName?: string;
         eventId?: string;
         attachmentId?: string;

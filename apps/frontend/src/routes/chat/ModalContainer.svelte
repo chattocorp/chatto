@@ -27,6 +27,12 @@
   import { notifyRoomMessageMutated } from '$lib/state/room/messageMutationEvents';
 
   function closeModal() {
+    const closePath = page.state.modal?.closePath;
+    if (closePath) {
+      // eslint-disable-next-line svelte/no-navigation-without-resolve -- closePath is set by route guards from resolved app routes.
+      goto(closePath, { replaceState: true });
+      return;
+    }
     history.back();
   }
 
@@ -104,6 +110,12 @@
         : m['room.join.success_generic']()
     );
     await stores.rooms.refresh();
+    const afterJoinPath = page.state.modal?.afterJoinPath;
+    if (afterJoinPath) {
+      // eslint-disable-next-line svelte/no-navigation-without-resolve -- afterJoinPath is set by route guards from resolved app routes.
+      goto(afterJoinPath);
+      return;
+    }
     goto(resolve('/chat/[serverId]/[roomId]', { serverId: serverSegment, roomId }));
   }
 

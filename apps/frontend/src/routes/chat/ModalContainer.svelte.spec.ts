@@ -235,6 +235,43 @@ describe('ModalContainer join room modal', () => {
     });
   });
 
+  it('joins and navigates to a deep-link target when provided', async () => {
+    mocks.modal = {
+      type: 'joinRoom',
+      roomId: 'room-1',
+      roomName: 'general',
+      viewerCanJoinRoom: true,
+      afterJoinPath: '/chat/-/room-1/m/message-1',
+      closePath: '/chat/-'
+    };
+
+    const { container } = render(ModalContainer);
+    (q(container, 'button[type="submit"]') as HTMLButtonElement).click();
+
+    await vi.waitFor(() => {
+      expect(mocks.joinRoom).toHaveBeenCalledWith('room-1');
+      expect(mocks.refreshRooms).toHaveBeenCalledOnce();
+      expect(mocks.goto).toHaveBeenCalledWith('/chat/-/room-1/m/message-1');
+    });
+  });
+
+  it('closes deep-link join prompts to their fallback path', async () => {
+    mocks.modal = {
+      type: 'joinRoom',
+      roomId: 'room-1',
+      roomName: 'general',
+      viewerCanJoinRoom: true,
+      afterJoinPath: '/chat/-/room-1/m/message-1',
+      closePath: '/chat/-'
+    };
+
+    const { container } = render(ModalContainer);
+    clickButton(container, 'Cancel');
+
+    expect(mocks.goto).toHaveBeenCalledWith('/chat/-', { replaceState: true });
+    expect(window.history.back).not.toHaveBeenCalled();
+  });
+
   it('shows an error toast when joining fails', async () => {
     mocks.joinRoom.mockResolvedValue({ ok: false, error: new Error('denied') });
 
