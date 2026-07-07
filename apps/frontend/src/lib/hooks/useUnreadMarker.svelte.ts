@@ -62,19 +62,22 @@ export function useUnreadMarker<TReadResult>(
       return;
     }
 
-    if (wasPresent && lastFiredTargetId === targetId) return;
-
     const isTargetChange = lastFiredTargetId !== targetId;
+    const awayEventId = pendingAwayEventId;
+
+    if (wasPresent && !isTargetChange) return;
+
     wasPresent = true;
     lastFiredTargetId = targetId;
 
     if (isTargetChange) {
       clearUnreadMarker();
-    } else if (pendingAwayEventId) {
-      setUnreadMarkerEventId(pendingAwayEventId);
+    } else if (awayEventId) {
+      setUnreadMarkerEventId(awayEventId);
       pendingAwayEventId = null;
     } else {
       pendingAwayEventId = null;
+      return;
     }
 
     const markedAtMs = Date.now();

@@ -68,21 +68,26 @@ func (s *ReadStateModel) MarkRoomAsRead(ctx context.Context, actorID, roomID, up
 		return nil, err
 	}
 
+	markerUpdated := false
 	if hasLast {
 		advance, err := s.core.AdvanceLastReadEventID(ctx, kind, actorID, room.Id, lastEventID)
 		if err != nil {
 			return nil, err
 		}
+		markerUpdated = advance.Updated
 		if advance.CurrentEventID != "" {
 			lastEventID = advance.CurrentEventID
 			lastTime = advance.CurrentTime
 		}
 	}
 
+	dismissedNotifications := 0
 	if hasLast && !lastTime.IsZero() {
-		s.core.DismissRoomReadNotifications(ctx, kind, actorID, room.Id, lastTime)
+		dismissedNotifications = s.core.DismissRoomReadNotifications(ctx, kind, actorID, room.Id, lastTime)
 	}
-	s.core.NotifyRoomMarkedAsRead(ctx, actorID, kind, room.Id)
+	if markerUpdated || dismissedNotifications > 0 {
+		s.core.NotifyRoomMarkedAsRead(ctx, actorID, kind, room.Id)
+	}
 
 	result := &MarkRoomAsReadResult{}
 	if hasLast && !lastTime.IsZero() {
