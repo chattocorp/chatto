@@ -36,6 +36,21 @@ function pointer(type: string, x: number, y = 24) {
   });
 }
 
+function touch(type: string, x: number, y = 24) {
+  const event = new Event(type, { bubbles: true, cancelable: true }) as TouchEvent;
+  const item = { identifier: 1, clientX: x, clientY: y };
+  const currentTouches = type === 'touchend' || type === 'touchcancel' ? [] : [item];
+  const touchList = (items: typeof currentTouches) =>
+    Object.assign(items, { item: (i: number) => items[i] ?? null });
+  Object.defineProperty(event, 'touches', {
+    value: touchList(currentTouches)
+  });
+  Object.defineProperty(event, 'changedTouches', {
+    value: touchList([item])
+  });
+  return event;
+}
+
 describe('sidebarEdgeSwipe', () => {
   beforeEach(() => {
     resetSidebar();
@@ -89,6 +104,22 @@ describe('sidebarEdgeSwipe', () => {
     window.dispatchEvent(pointer('pointermove', 0));
     window.dispatchEvent(pointer('pointerup', 0));
 
+    expect(sidebarNav.isOpen).toBe(false);
+
+    action.destroy();
+  });
+
+  it('closes the mobile sidebar on a leftward touch drag', () => {
+    const { edge } = makeEdgeGestureHost();
+    sidebarNav.isOpen = true;
+    const action = sidebarSwipe(edge);
+
+    edge.dispatchEvent(touch('touchstart', 320));
+    const move = touch('touchmove', 0);
+    window.dispatchEvent(move);
+    window.dispatchEvent(touch('touchend', 0));
+
+    expect(move.defaultPrevented).toBe(true);
     expect(sidebarNav.isOpen).toBe(false);
 
     action.destroy();
