@@ -16,12 +16,18 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-// liveEVTProjectionWaitTimeout bounds the causal barrier between JetStream's
-// raw EVT republish and realtime delivery. In the normal case the local
-// projectors have already advanced and WaitFor returns immediately; the
-// timeout covers replica lag or a stuck projector without wedging a
-// subscription goroutine forever.
-const liveEVTProjectionWaitTimeout = 2 * time.Second
+const (
+	// liveEVTProjectionWaitTimeout bounds the causal barrier between JetStream's
+	// raw EVT republish and realtime delivery. In the normal case the local
+	// projectors have already advanced and WaitFor returns immediately; the
+	// timeout covers replica lag or a stuck projector without wedging a
+	// subscription goroutine forever.
+	liveEVTProjectionWaitTimeout = 2 * time.Second
+
+	// MyEventsHeartbeatInterval controls the synthetic heartbeat cadence used by
+	// StreamMyEvents and advertised by the realtime WebSocket protocol.
+	MyEventsHeartbeatInterval = 15 * time.Second
+)
 
 // MyEventsModel owns the server-side myEvents live stream machinery.
 //
@@ -105,7 +111,7 @@ func (s *MyEventsModel) Metrics() MyEventsMetrics {
 //
 // The subscription also tracks presence liveness: subscribing implies the user
 // is online, and a ticker refreshes the KV TTL while the connection lives. A
-// synthetic Heartbeat is emitted every 25s so clients can detect a dead
+// synthetic Heartbeat is emitted every 15s so clients can detect a dead
 // subscription on an otherwise-healthy WebSocket.
 //
 // The returned channel closes when the context is cancelled or when a
@@ -176,7 +182,7 @@ func (s *MyEventsModel) StreamMyEvents(ctx context.Context, userID string, optio
 			defer presenceTicker.Stop()
 		}
 
-		heartbeatTicker := time.NewTicker(25 * time.Second)
+		heartbeatTicker := time.NewTicker(MyEventsHeartbeatInterval)
 		defer heartbeatTicker.Stop()
 
 		lastKnownPresence := presenceSub.Snapshot

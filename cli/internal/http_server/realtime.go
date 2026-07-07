@@ -26,7 +26,7 @@ const (
 	realtimeReadLimitBytes           = 64 << 10
 	realtimeHandshakeTimeout         = 10 * time.Second
 	realtimeWriteTimeout             = 10 * time.Second
-	realtimeHeartbeatIntervalSeconds = 25
+	realtimeHeartbeatIntervalSeconds = uint32(core.MyEventsHeartbeatInterval / time.Second)
 )
 
 var realtimeServerCapabilities = []string{
