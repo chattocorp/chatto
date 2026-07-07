@@ -18,8 +18,10 @@
  * call-sites a final say (e.g. reject "wrong direction" drags based on current
  * state).
  *
- * Pointer capture is deferred until claim so taps and short presses bubble
- * naturally; only confirmed drags lock the pointer.
+ * Move/release tracking is installed on `window` after pointerdown so the
+ * gesture can still claim if the pointer leaves the host before the first
+ * direction-locking move. Pointer capture is still deferred until claim so taps
+ * and short presses bubble naturally; only confirmed drags lock the pointer.
  */
 
 const DIRECTION_LOCK_PX = 8;
@@ -64,6 +66,7 @@ export function panGesture(node: HTMLElement, config: PanGestureConfig) {
   let captured = false;
   let samples: Sample[] = [];
   let longPressTimer: number | null = null;
+  let trackingWindow = false;
 
   const primary = (x: number, y: number) => (cfg.axis === 'x' ? x : y);
   const secondary = (x: number, y: number) => (cfg.axis === 'x' ? y : x);
@@ -77,6 +80,12 @@ export function panGesture(node: HTMLElement, config: PanGestureConfig) {
 
   function reset() {
     if (pointerId !== null && captured) node.releasePointerCapture?.(pointerId);
+    if (trackingWindow) {
+      window.removeEventListener('pointermove', onMove, true);
+      window.removeEventListener('pointerup', onUp, true);
+      window.removeEventListener('pointercancel', onCancel, true);
+      trackingWindow = false;
+    }
     clearLongPress();
     pointerId = null;
     claimed = false;
@@ -93,6 +102,10 @@ export function panGesture(node: HTMLElement, config: PanGestureConfig) {
     claimed = false;
     captured = false;
     samples = [{ v: primary(e.clientX, e.clientY), t: e.timeStamp }];
+    window.addEventListener('pointermove', onMove, true);
+    window.addEventListener('pointerup', onUp, true);
+    window.addEventListener('pointercancel', onCancel, true);
+    trackingWindow = true;
     if (cfg.onLongPress) {
       longPressTimer = window.setTimeout(() => {
         longPressTimer = null;
@@ -160,20 +173,14 @@ export function panGesture(node: HTMLElement, config: PanGestureConfig) {
   }
 
   node.addEventListener('pointerdown', onDown);
-  node.addEventListener('pointermove', onMove);
-  node.addEventListener('pointerup', onUp);
-  node.addEventListener('pointercancel', onCancel);
 
   return {
     update(next: PanGestureConfig) {
       cfg = next;
     },
     destroy() {
-      clearLongPress();
+      reset();
       node.removeEventListener('pointerdown', onDown);
-      node.removeEventListener('pointermove', onMove);
-      node.removeEventListener('pointerup', onUp);
-      node.removeEventListener('pointercancel', onCancel);
     }
   };
 }
