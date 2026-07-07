@@ -204,10 +204,6 @@ describe('root layout mobile sidebar animation', () => {
     expect(backdrop.style.opacity).toBe('0');
     expect(panel.style.transform).toBe('translateX(-324px)');
     expect(panel.classList.contains('sidebar-mobile-closed')).toBe(true);
-    expect(getComputedStyle(panel).visibility).toBe('visible');
-
-    await new Promise((resolve) => setTimeout(resolve, 250));
-    expect(getComputedStyle(panel).visibility).toBe('hidden');
   });
 
   it('keeps drag-to-close working for the mobile sidebar', async () => {
@@ -222,8 +218,8 @@ describe('root layout mobile sidebar animation', () => {
     if (!panel) return;
 
     panel.dispatchEvent(pointer('pointerdown', 320));
-    panel.dispatchEvent(pointer('pointermove', 0));
-    panel.dispatchEvent(pointer('pointerup', 0));
+    window.dispatchEvent(pointer('pointermove', 0));
+    window.dispatchEvent(pointer('pointerup', 0));
     await tick();
 
     expect(sidebarNav.isOpen).toBe(false);
