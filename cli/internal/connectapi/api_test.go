@@ -199,6 +199,18 @@ func TestRequireCaller(t *testing.T) {
 	})
 }
 
+func TestUserSummaryTreatsInvalidPresenceKeyAsOffline(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+
+	user, err := (&userService{api: env.api}).userSummary(env.ctx, core.DeletedUserReference("bad>"), nil)
+	if err != nil {
+		t.Fatalf("userSummary: %v", err)
+	}
+	if user.GetPresenceStatus() != apiv1.PresenceStatus_PRESENCE_STATUS_OFFLINE {
+		t.Fatalf("PresenceStatus = %v, want OFFLINE", user.GetPresenceStatus())
+	}
+}
+
 func TestPrivateHandlersRequireAuth(t *testing.T) {
 	api := New(nil, config.ChattoConfig{}, "test")
 	mux := http.NewServeMux()

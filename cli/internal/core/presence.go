@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
@@ -81,6 +82,10 @@ func parsePresenceKey(key string) (userID string, ok bool) {
 	return userID, true
 }
 
+func validPresenceUserID(userID string) bool {
+	return userID != "" && !strings.ContainsAny(userID, ".*>")
+}
+
 // ============================================================================
 // Presence Operations
 // ============================================================================
@@ -88,9 +93,12 @@ func parsePresenceKey(key string) (userID string, ok bool) {
 // GetUserPresence retrieves a user's current presence status.
 // Returns "OFFLINE" if the user has no presence entry (never connected or TTL expired).
 func (s *PresenceModel) GetUserPresence(ctx context.Context, userID string) (string, error) {
+	if !validPresenceUserID(userID) {
+		return PresenceStatusOffline, nil
+	}
 	entry, err := s.memoryCacheKV.Get(ctx, presenceKey(userID))
 	if err != nil {
-		if errors.Is(err, jetstream.ErrKeyNotFound) {
+		if errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrInvalidKey) {
 			return PresenceStatusOffline, nil
 		}
 		return PresenceStatusOffline, fmt.Errorf("failed to get presence: %w", err)

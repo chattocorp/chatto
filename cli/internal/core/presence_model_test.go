@@ -128,6 +128,20 @@ func TestPresenceModelGetUserPresenceTreatsDeletesAndCorruptValuesAsOffline(t *t
 	}
 }
 
+func TestPresenceModelGetUserPresenceTreatsInvalidUserIDAsOffline(t *testing.T) {
+	service, _, _ := newTestPresenceModel(t)
+	ctx := testContext(t)
+
+	for _, userID := range []string{"", "bad>", ".bad", "bad."} {
+		t.Run(userID, func(t *testing.T) {
+			got, err := service.GetUserPresence(ctx, userID)
+			if err != nil || got != PresenceStatusOffline {
+				t.Fatalf("GetUserPresence(%q) = %q, %v; want %q, nil", userID, got, err, PresenceStatusOffline)
+			}
+		})
+	}
+}
+
 func TestPresenceModelRefreshMissingEntrySetsOnline(t *testing.T) {
 	service, _, _ := newTestPresenceModel(t)
 	ctx := testContext(t)
