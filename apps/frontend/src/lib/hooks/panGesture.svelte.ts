@@ -4,9 +4,7 @@
  * Detects a press → optional long-press → drag claim → continuous update →
  * release-with-velocity flow on a single host element, and exposes the
  * decisions as plain callbacks. Specific use-sites (sidebar swipe, bottom-sheet
- * drag-to-dismiss, ...) wire these callbacks to their own state. Pointer events
- * are primary; mouse events are a fallback for desktop/trackpad drags in
- * browser contexts that do not produce pointer moves for synthetic mouse input.
+ * drag-to-dismiss, ...) wire these callbacks to their own state.
  *
  * The host element MUST have `touch-action: none` (or at minimum block native
  * panning along the chosen axis) — otherwise the browser fires `pointercancel`
@@ -20,8 +18,10 @@
  * call-sites a final say (e.g. reject "wrong direction" drags based on current
  * state).
  *
- * Pointer capture is deferred until claim so taps and short presses bubble
- * naturally; only confirmed drags lock the pointer.
+ * Move/release tracking is installed on `window` after pointerdown so the
+ * gesture can still claim if the pointer leaves the host before the first
+ * direction-locking move. Pointer capture is still deferred until claim so taps
+ * and short presses bubble naturally; only confirmed drags lock the pointer.
  */
 
 const DIRECTION_LOCK_PX = 8;
@@ -60,13 +60,13 @@ type Sample = { v: number; t: number };
 export function panGesture(node: HTMLElement, config: PanGestureConfig) {
   let cfg = config;
   let pointerId: number | null = null;
-  let mouseActive = false;
   let startX = 0;
   let startY = 0;
   let claimed = false;
   let captured = false;
   let samples: Sample[] = [];
   let longPressTimer: number | null = null;
+  let trackingWindow = false;
 
   const primary = (x: number, y: number) => (cfg.axis === 'x' ? x : y);
   const secondary = (x: number, y: number) => (cfg.axis === 'x' ? y : x);
@@ -80,43 +80,45 @@ export function panGesture(node: HTMLElement, config: PanGestureConfig) {
 
   function reset() {
     if (pointerId !== null && captured) node.releasePointerCapture?.(pointerId);
-    if (mouseActive) {
-      window.removeEventListener('mousemove', onMouseMove);
-      window.removeEventListener('mouseup', onMouseUp);
+    if (trackingWindow) {
+      window.removeEventListener('pointermove', onMove, true);
+      window.removeEventListener('pointerup', onUp, true);
+      window.removeEventListener('pointercancel', onCancel, true);
+      trackingWindow = false;
     }
     clearLongPress();
     pointerId = null;
-    mouseActive = false;
     claimed = false;
     captured = false;
     samples = [];
   }
 
-  function begin(x: number, y: number, timeStamp: number) {
-    startX = x;
-    startY = y;
+  function onDown(e: PointerEvent) {
+    if (pointerId !== null) return;
+    if (cfg.enabled && !cfg.enabled()) return;
+    pointerId = e.pointerId;
+    startX = e.clientX;
+    startY = e.clientY;
     claimed = false;
     captured = false;
-    samples = [{ v: primary(x, y), t: timeStamp }];
+    samples = [{ v: primary(e.clientX, e.clientY), t: e.timeStamp }];
+    window.addEventListener('pointermove', onMove, true);
+    window.addEventListener('pointerup', onUp, true);
+    window.addEventListener('pointercancel', onCancel, true);
+    trackingWindow = true;
     if (cfg.onLongPress) {
       longPressTimer = window.setTimeout(() => {
         longPressTimer = null;
-        cfg.onLongPress?.(x, y);
+        cfg.onLongPress?.(e.clientX, e.clientY);
         reset();
       }, LONG_PRESS_MS);
     }
   }
 
-  function onDown(e: PointerEvent) {
-    if (pointerId !== null || mouseActive) return;
-    if (cfg.enabled && !cfg.enabled()) return;
-    pointerId = e.pointerId;
-    begin(e.clientX, e.clientY, e.timeStamp);
-  }
-
-  function move(x: number, y: number, timeStamp: number, capturePointerId?: number) {
-    const dPrim = primary(x, y) - primary(startX, startY);
-    const dSec = secondary(x, y) - secondary(startX, startY);
+  function onMove(e: PointerEvent) {
+    if (e.pointerId !== pointerId) return;
+    const dPrim = primary(e.clientX, e.clientY) - primary(startX, startY);
+    const dSec = secondary(e.clientX, e.clientY) - secondary(startX, startY);
 
     if (Math.abs(dPrim) >= LONG_PRESS_CANCEL_PX || Math.abs(dSec) >= LONG_PRESS_CANCEL_PX) {
       clearLongPress();
@@ -135,28 +137,27 @@ export function panGesture(node: HTMLElement, config: PanGestureConfig) {
       }
       claimed = true;
       cfg.onStart?.();
-      if (capturePointerId !== undefined) {
-        node.setPointerCapture(capturePointerId);
-        captured = true;
-      }
+      node.setPointerCapture(e.pointerId);
+      captured = true;
     }
 
     cfg.onUpdate?.(dPrim);
-    samples.push({ v: primary(x, y), t: timeStamp });
-    const cutoff = timeStamp - VELOCITY_SAMPLE_MS;
+    samples.push({ v: primary(e.clientX, e.clientY), t: e.timeStamp });
+    const cutoff = e.timeStamp - VELOCITY_SAMPLE_MS;
     while (samples.length > 2 && samples[0].t < cutoff) samples.shift();
   }
 
-  function end(x: number, y: number) {
+  function onUp(e: PointerEvent) {
+    if (e.pointerId !== pointerId) return;
     if (!claimed) {
       const movedFar =
-        Math.abs(x - startX) >= LONG_PRESS_CANCEL_PX ||
-        Math.abs(y - startY) >= LONG_PRESS_CANCEL_PX;
-      if (!movedFar) cfg.onTap?.(x, y);
+        Math.abs(e.clientX - startX) >= LONG_PRESS_CANCEL_PX ||
+        Math.abs(e.clientY - startY) >= LONG_PRESS_CANCEL_PX;
+      if (!movedFar) cfg.onTap?.(e.clientX, e.clientY);
       reset();
       return;
     }
-    const dPrim = primary(x, y) - primary(startX, startY);
+    const dPrim = primary(e.clientX, e.clientY) - primary(startX, startY);
     const last = samples[samples.length - 1];
     const first = samples[0];
     const dt = last.t - first.t;
@@ -165,47 +166,13 @@ export function panGesture(node: HTMLElement, config: PanGestureConfig) {
     reset();
   }
 
-  function onMove(e: PointerEvent) {
-    if (e.pointerId !== pointerId) return;
-    move(e.clientX, e.clientY, e.timeStamp, e.pointerId);
-  }
-
-  function onUp(e: PointerEvent) {
-    if (e.pointerId !== pointerId) return;
-    end(e.clientX, e.clientY);
-  }
-
   function onCancel(e: PointerEvent) {
     if (e.pointerId !== pointerId) return;
     if (claimed) cfg.onCancel?.();
     reset();
   }
 
-  function onMouseDown(e: MouseEvent) {
-    if (pointerId !== null || mouseActive) return;
-    if (e.button !== 0) return;
-    if (cfg.enabled && !cfg.enabled()) return;
-    mouseActive = true;
-    begin(e.clientX, e.clientY, e.timeStamp);
-    window.addEventListener('mousemove', onMouseMove);
-    window.addEventListener('mouseup', onMouseUp);
-  }
-
-  function onMouseMove(e: MouseEvent) {
-    if (!mouseActive) return;
-    move(e.clientX, e.clientY, e.timeStamp);
-  }
-
-  function onMouseUp(e: MouseEvent) {
-    if (!mouseActive) return;
-    end(e.clientX, e.clientY);
-  }
-
   node.addEventListener('pointerdown', onDown);
-  node.addEventListener('pointermove', onMove);
-  node.addEventListener('pointerup', onUp);
-  node.addEventListener('pointercancel', onCancel);
-  node.addEventListener('mousedown', onMouseDown);
 
   return {
     update(next: PanGestureConfig) {
@@ -214,10 +181,6 @@ export function panGesture(node: HTMLElement, config: PanGestureConfig) {
     destroy() {
       reset();
       node.removeEventListener('pointerdown', onDown);
-      node.removeEventListener('pointermove', onMove);
-      node.removeEventListener('pointerup', onUp);
-      node.removeEventListener('pointercancel', onCancel);
-      node.removeEventListener('mousedown', onMouseDown);
     }
   };
 }
