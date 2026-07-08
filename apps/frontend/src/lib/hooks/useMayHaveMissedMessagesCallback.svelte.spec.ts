@@ -22,6 +22,10 @@ vi.mock('$lib/state/server/connection.svelte', () => ({
   useConnection: () => () => ({ reconnectCount: 0 })
 }));
 
+vi.mock('$lib/hooks/useReconnectCallback.svelte', () => ({
+  useReconnectCallback: () => undefined
+}));
+
 class FakeServerConnection {
   reconnectCount = $state(0);
   realtimeUrl = 'ws://test-server/api/realtime';
@@ -33,11 +37,20 @@ class FakeServerConnection {
 
 const TEST_SERVER = 'test-server';
 
+function setVisibilityState(value: DocumentVisibilityState): void {
+  Object.defineProperty(document, 'visibilityState', {
+    value,
+    configurable: true
+  });
+  document.dispatchEvent(new Event('visibilitychange'));
+}
+
 describe('useMayHaveMissedMessagesCallback', () => {
   let consoleDebug: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
     mocks.activeServerId = TEST_SERVER;
+    setVisibilityState('visible');
     setRealtimeSocketFactoryForTests(() => ({
       binaryType: 'arraybuffer',
       readyState: 0,
@@ -52,6 +65,7 @@ describe('useMayHaveMissedMessagesCallback', () => {
   });
 
   afterEach(() => {
+    setVisibilityState('visible');
     vi.useRealTimers();
     eventBusManager.stopBus(TEST_SERVER);
     setRealtimeSocketFactoryForTests(null);
@@ -83,6 +97,64 @@ describe('useMayHaveMissedMessagesCallback', () => {
         reason: 'event-bus-heartbeat-stalled',
         phase: 'immediate',
         source: 'event-bus'
+      })
+    );
+    rendered.unmount();
+  });
+
+  it('skips short browser visibility resumes', async () => {
+    vi.useFakeTimers();
+    const onSignal = vi.fn().mockResolvedValue(undefined);
+
+    const rendered = render(Harness, { props: { onSignal } });
+    flushSync();
+
+    setVisibilityState('hidden');
+    await vi.advanceTimersByTimeAsync(1_449);
+    setVisibilityState('visible');
+    await vi.advanceTimersByTimeAsync(1_000);
+
+    expect(onSignal).not.toHaveBeenCalled();
+    rendered.unmount();
+  });
+
+  it('skips short browser pageshow resumes with known hidden duration', async () => {
+    vi.useFakeTimers();
+    const onSignal = vi.fn().mockResolvedValue(undefined);
+
+    const rendered = render(Harness, { props: { onSignal } });
+    flushSync();
+
+    setVisibilityState('hidden');
+    await vi.advanceTimersByTimeAsync(1_449);
+    setVisibilityState('visible');
+    window.dispatchEvent(new Event('pageshow'));
+    await vi.advanceTimersByTimeAsync(1_000);
+
+    expect(onSignal).not.toHaveBeenCalled();
+    rendered.unmount();
+  });
+
+  it('runs the callback for longer browser visibility resumes', async () => {
+    vi.useFakeTimers();
+    const onSignal = vi.fn().mockResolvedValue(undefined);
+
+    const rendered = render(Harness, { props: { onSignal } });
+    flushSync();
+
+    setVisibilityState('hidden');
+    await vi.advanceTimersByTimeAsync(30_000);
+    setVisibilityState('visible');
+    await vi.advanceTimersByTimeAsync(1_000);
+
+    expect(onSignal).toHaveBeenCalledOnce();
+    expect(onSignal).toHaveBeenCalledWith(
+      expect.objectContaining({
+        serverId: TEST_SERVER,
+        reason: 'visibility',
+        phase: 'immediate',
+        source: 'browser',
+        hiddenDurationMs: 30_000
       })
     );
     rendered.unmount();

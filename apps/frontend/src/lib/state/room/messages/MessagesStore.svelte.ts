@@ -11,6 +11,7 @@ import { isRootRoomEvent, isThreadEvent } from './filters';
 import { type EventConnectionPage, type RawEvent, getActorId, unmask } from './helpers';
 
 type MessageScope = 'room' | 'thread';
+type SnapshotCursorMode = 'replace' | 'preserve' | 'latest';
 type RoomEventPayload = NonNullable<RoomEventView['event']>;
 type MessagePostedPayload = Extract<RoomEventPayload, { kind: typeof RoomEventKind.MessagePosted }>;
 type MessageEditedPayload = Extract<RoomEventPayload, { kind: typeof RoomEventKind.MessageEdited }>;
@@ -32,6 +33,8 @@ export type RefreshCurrentWindowResult = {
   hasNewer: boolean;
   refreshed: boolean;
 };
+
+const MAX_SOFT_REFRESH_PAGE_SIZE = 500;
 
 function eventCacheKey(roomId: string, eventId: string): string {
   return `${roomId}\u0000${eventId}`;
@@ -238,6 +241,10 @@ export class MessagesStore {
   /** True if a newer load has started; caller should discard its result. */
   private isStale(thisLoad: number): boolean {
     return this.#loadId !== thisLoad;
+  }
+
+  private softRefreshLimit(): number {
+    return Math.min(Math.max(PAGE_SIZE, this.events.length), MAX_SOFT_REFRESH_PAGE_SIZE);
   }
 
   private previewKey(eventId: string): string {
@@ -888,7 +895,7 @@ export class MessagesStore {
       hasOlder?: boolean;
     },
     existingBeforeFetch: ReadonlySet<string>,
-    options: { preserveExistingWindow?: boolean } = {}
+    options: { cursorMode?: SnapshotCursorMode } = {}
   ): void {
     const fetched = unmask(connection.events);
     const newSeen = new SvelteSet<string>();
@@ -896,6 +903,7 @@ export class MessagesStore {
     const previousOldestCursor = this.oldestCursor;
     const previousNewestCursor = this.newestCursor;
     const previousHasReachedStart = this.hasReachedStart;
+    const cursorMode = options.cursorMode ?? 'replace';
 
     for (const e of fetched) {
       if (newSeen.has(e.id)) continue;
@@ -904,11 +912,11 @@ export class MessagesStore {
     }
 
     // Preserve subscription events that arrived while the refresh query was in
-    // flight. Anchored refreshes also preserve already-loaded rows outside the
-    // fetched window so returning from another tab does not visually collapse a
-    // long scrolled buffer.
+    // flight. Soft catch-up refreshes also preserve already-loaded rows outside
+    // the fetched window so returning from another tab does not visually
+    // collapse a long scrolled buffer.
     for (const e of this.events) {
-      if (!options.preserveExistingWindow && existingBeforeFetch.has(e.id)) continue;
+      if (cursorMode === 'replace' && existingBeforeFetch.has(e.id)) continue;
       if (newSeen.has(e.id)) continue;
       newSeen.add(e.id);
       merged.push(e);
@@ -917,7 +925,11 @@ export class MessagesStore {
     this.events = merged;
     if (this.scope === 'room') this.sortRoomEvents();
     this.seenIds = newSeen;
-    if (options.preserveExistingWindow) {
+    if (cursorMode === 'latest') {
+      this.oldestCursor = previousOldestCursor ?? connection.startCursor ?? undefined;
+      this.newestCursor = connection.endCursor ?? previousNewestCursor ?? undefined;
+      this.hasReachedStart = previousHasReachedStart || !(connection.hasOlder ?? false);
+    } else if (cursorMode === 'preserve') {
       this.oldestCursor = previousOldestCursor ?? connection.startCursor ?? undefined;
       this.newestCursor = previousNewestCursor ?? connection.endCursor ?? undefined;
       this.hasReachedStart = previousHasReachedStart || !(connection.hasOlder ?? false);
@@ -931,7 +943,8 @@ export class MessagesStore {
       preservedExistingCount: merged.length - fetched.length,
       eventCount: this.events.length,
       hasOlder: connection.hasOlder ?? false,
-      hasReachedStart: this.hasReachedStart
+      hasReachedStart: this.hasReachedStart,
+      cursorMode
     });
   }
 
@@ -941,11 +954,11 @@ export class MessagesStore {
   ): Promise<RefreshCurrentWindowResult> {
     const page = await this.roomTimeline.getRoomEvents({
       roomId: this.roomId,
-      limit: PAGE_SIZE
+      limit: this.softRefreshLimit()
     });
 
     if (this.isStale(thisLoad)) return { hasOlder: false, hasNewer: false, refreshed: false };
-    this.replaceWithSnapshotAndUpdateCursors(page, existingBeforeFetch);
+    this.replaceWithSnapshotAndUpdateCursors(page, existingBeforeFetch, { cursorMode: 'latest' });
     return { hasOlder: page.hasOlder, hasNewer: page.hasNewer, refreshed: true };
   }
 
@@ -961,9 +974,7 @@ export class MessagesStore {
     });
 
     if (this.isStale(thisLoad)) return { hasOlder: false, hasNewer: false, refreshed: false };
-    this.replaceWithSnapshotAndUpdateCursors(page, existingBeforeFetch, {
-      preserveExistingWindow: true
-    });
+    this.replaceWithSnapshotAndUpdateCursors(page, existingBeforeFetch, { cursorMode: 'preserve' });
     return { hasOlder: page.hasOlder, hasNewer: page.hasNewer, refreshed: true };
   }
 
@@ -982,11 +993,16 @@ export class MessagesStore {
       : await this.roomTimeline.getThreadEvents({
           roomId: this.roomId,
           threadRootEventId: this.threadRootEventId,
-          limit: PAGE_SIZE
+          limit: this.softRefreshLimit()
         });
     if (this.isStale(thisLoad)) return { hasOlder: false, hasNewer: false, refreshed: false };
     this.replaceWithSnapshotAndUpdateCursors(page, existingBeforeFetch, {
-      preserveExistingWindow: anchorEventId !== null && anchorEventId !== this.threadRootEventId
+      cursorMode:
+        anchorEventId === null
+          ? 'latest'
+          : anchorEventId !== this.threadRootEventId
+            ? 'preserve'
+            : 'replace'
     });
     this.sortThreadEvents();
     return { hasOlder: page.hasOlder, hasNewer: page.hasNewer, refreshed: true };

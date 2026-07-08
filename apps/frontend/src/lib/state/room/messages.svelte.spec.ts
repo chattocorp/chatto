@@ -1009,6 +1009,68 @@ describe('MessagesStore — room lifecycle ownership', () => {
     store.dispose();
   });
 
+  it('soft-refreshes the latest room window without collapsing already-loaded history', async () => {
+    const initialLatest = Array.from({ length: 50 }, (_, index) =>
+      threadMessageEvent(`m${index + 51}`)
+    );
+    const older = Array.from({ length: 50 }, (_, index) => threadMessageEvent(`m${index + 1}`));
+    const refreshedLatest = Array.from({ length: 100 }, (_, index) => {
+      const id = `m${index + 2}`;
+      return id === 'm90' ? messageWithReaction(id, 'thumbsup') : threadMessageEvent(id);
+    });
+    const fake = new FakeQueryClient([
+      roomEventsResult({
+        events: initialLatest,
+        startCursor: 'tl:cursor-51',
+        endCursor: 'tl:cursor-100',
+        hasOlder: true,
+        hasNewer: false
+      }),
+      roomEventsResult({
+        events: older,
+        startCursor: 'tl:cursor-1',
+        endCursor: 'tl:cursor-50',
+        hasOlder: false,
+        hasNewer: true
+      }),
+      roomEventsResult({
+        events: refreshedLatest,
+        startCursor: 'tl:cursor-2',
+        endCursor: 'tl:cursor-101',
+        hasOlder: true,
+        hasNewer: false
+      })
+    ]);
+    const store = new MessagesStore(
+      fake as unknown as ServerConnection,
+      () => null,
+      timelineFromFixtures(fake)
+    );
+
+    store.setRoom('room-1');
+    await settle();
+    await store.loadMore();
+    await settle();
+    expect(store.rootEvents).toHaveLength(100);
+    fake.queryMock.mockClear();
+
+    await store.refreshCurrentWindow();
+    await settle();
+
+    expect(store.isInitialLoading).toBe(false);
+    expect(store.rootEvents.map((event) => event.id)).toEqual(
+      Array.from({ length: 101 }, (_, index) => `m${index + 1}`)
+    );
+    expect(store.rootEvents.find((event) => event.id === 'm90')?.event).toMatchObject({
+      reactions: [{ emoji: 'thumbsup', count: 1 }]
+    });
+    expect(store.hasReachedStart).toBe(true);
+    expect(fake.queryMock).toHaveBeenCalledOnce();
+    expect(fake.queryMock.mock.calls[0][1]).toEqual({ roomId: 'room-1', limit: 100 });
+    expect(fake.queryMock.mock.calls[0][2]).toEqual({ requestPolicy: 'network-only' });
+    store.dispose();
+  });
+
   it('soft-refreshes around an anchor event when one is provided', async () => {
     const fake = new FakeQueryClient([
       roomEventsResult({

@@ -21,9 +21,19 @@ export type MayHaveMissedMessagesReason =
   | 'manual-shortcut';
 
 const DEDUPE_MS = 1_000;
+const SHORT_BROWSER_RESUME_SKIP_MS = 30_000;
 
 function isEventBusReason(reason: MayHaveMissedMessagesReason): boolean {
   return reason.startsWith('event-bus-');
+}
+
+function shouldSkipShortBrowserResume(signal: ResumeSignal): boolean {
+  return (
+    signal.source === 'browser' &&
+    (signal.reason === 'visibility' || signal.reason === 'pageshow') &&
+    signal.hiddenDurationMs !== null &&
+    signal.hiddenDurationMs < SHORT_BROWSER_RESUME_SKIP_MS
+  );
 }
 
 function isEditableTarget(target: EventTarget | null): boolean {
@@ -89,6 +99,10 @@ function createRefreshRunner(
   return {
     trigger(signal: ResumeSignal): void {
       const now = Date.now();
+      if (shouldSkipShortBrowserResume(signal)) {
+        console.debug('[room-refresh] skipped short browser resume signal', signal);
+        return;
+      }
       if (inFlight) {
         queuedSignal = signal;
         console.debug('[room-refresh] queued maybe-missed signal while refresh is running', signal);
