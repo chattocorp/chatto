@@ -19,10 +19,12 @@ Include this component once in the chat layout (unconditionally).
   import {
     updateBadge,
     clearBadge,
-    syncServiceWorkerNotificationBadgeState
+    syncServiceWorkerNotificationBadgeState,
+    type AppBadgeIntent
   } from '$lib/notifications/appBadge';
   import type { EventEnvelope, EventHandler } from '$lib/eventBus.svelte';
   import { RoomEventKind, roomEventKind } from '$lib/render/eventKinds';
+  import { NotificationItemKind } from '$lib/api-client/notifications';
 
   function notificationCreatedEvent(event: EventEnvelope['event']): { silent?: boolean } | null {
     if (!event || !('silent' in event)) return null;
@@ -97,29 +99,37 @@ Include this component once in the chat layout (unconditionally).
     };
   });
 
-  let badgeState = $derived.by(() => {
-    let count = 0;
+  let badgeState = $derived.by((): { intent: AppBadgeIntent; allStoresLoaded: boolean } => {
+    let dmCount = 0;
+    let hasNotification = false;
     let allStoresLoaded = true;
 
     for (const instance of serverRegistry.servers) {
       const stores = serverRegistry.getStore(instance.id);
       if (!stores.isAuthenticated) continue;
       if (!stores.notifications.hasLoaded) allStoresLoaded = false;
-      count += Math.max(stores.notifications.unreadNotificationCount, stores.notifications.count);
+
+      const notifications = stores.notifications.notifications;
+      dmCount += notifications.filter((n) => n.kind === NotificationItemKind.DirectMessage).length;
+      if (notifications.length > 0 || stores.notifications.unreadNotificationCount > 0) {
+        hasNotification = true;
+      }
     }
 
-    return { count, allStoresLoaded };
+    if (dmCount > 0) return { intent: { kind: 'count', count: dmCount }, allStoresLoaded };
+    if (hasNotification) return { intent: { kind: 'flag' }, allStoresLoaded };
+    return { intent: { kind: 'clear' }, allStoresLoaded };
   });
 
   // Update PWA dock badge based on pending notifications only. Plain unread
   // rooms stay in-app so users can choose notification levels for important rooms.
   $effect(() => {
-    if (badgeState.count === 0 && !badgeState.allStoresLoaded) return;
+    if (badgeState.intent.kind === 'clear' && !badgeState.allStoresLoaded) return;
 
-    syncServiceWorkerNotificationBadgeState(badgeState.count);
+    syncServiceWorkerNotificationBadgeState(badgeState.intent);
 
-    if (badgeState.count > 0) {
-      updateBadge(badgeState.count);
+    if (badgeState.intent.kind !== 'clear') {
+      updateBadge(badgeState.intent);
     } else {
       clearBadge();
     }

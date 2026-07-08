@@ -16,8 +16,10 @@ import {
   type NotificationClickClients
 } from '$lib/pwa/notificationClick.worker';
 import {
+  normalizeUnknownBadgeIntent,
   ServiceWorkerBadgeCoordinator,
-  createCacheForegroundNotificationCountStorage
+  createCacheForegroundBadgeIntentStorage,
+  type ServiceWorkerBadgeIntent
 } from '$lib/pwa/notificationBadge.worker';
 
 declare const self: ServiceWorkerGlobalScope;
@@ -36,7 +38,7 @@ type ServiceWorkerAppBadgeNavigator = WorkerNavigator & {
 const badgeCoordinator = new ServiceWorkerBadgeCoordinator(
   self.registration,
   navigator as ServiceWorkerAppBadgeNavigator,
-  createCacheForegroundNotificationCountStorage(caches, BADGE_STATE_CACHE_NAME)
+  createCacheForegroundBadgeIntentStorage(caches, BADGE_STATE_CACHE_NAME)
 );
 
 /**
@@ -174,7 +176,7 @@ interface DeclarativeNotificationPayload {
 type NormalizedPushNotification = {
   title: string;
   options: NotificationOptions;
-  appBadgeCount: number | null;
+  appBadgeIntent: ServiceWorkerBadgeIntent;
 };
 
 type DeclarativePushEventNotification = Pick<
@@ -192,10 +194,16 @@ type PushEventWithDeclarativeNotification = PushEvent & {
 function handleBadgeStateMessage(event: ExtendableMessageEvent): boolean {
   const message = event.data as Record<string, unknown> | undefined;
   if (!message || message.type !== 'chatto-badge-state') return false;
-  if (typeof message.notificationCount !== 'number') return false;
+
+  const badgeIntent =
+    normalizeUnknownBadgeIntent(message.badgeIntent) ??
+    (typeof message.notificationCount === 'number'
+      ? legacyBadgeIntentFromCount(message.notificationCount)
+      : null);
+  if (!badgeIntent) return false;
 
   event.waitUntil(
-    badgeCoordinator.applyForegroundNotificationCount(message.notificationCount, {
+    badgeCoordinator.applyForegroundBadgeIntent(badgeIntent, {
       serviceWorkerAppBadgeEnabled: message.serviceWorkerAppBadgeEnabled === true
     })
   );
@@ -219,7 +227,7 @@ function normalizePushNotification(payload: DeclarativePushPayload): NormalizedP
         url
       }
     },
-    appBadgeCount: declarativeAppBadgeCount(notification?.app_badge)
+    appBadgeIntent: declarativeAppBadgeIntent(notification?.app_badge)
   };
 }
 
@@ -239,14 +247,23 @@ function declarativePayloadFromEventNotification(
   };
 }
 
-function declarativeAppBadgeCount(appBadge: unknown): number | null {
+function legacyBadgeIntentFromCount(notificationCount: number): ServiceWorkerBadgeIntent {
+  if (!Number.isFinite(notificationCount)) return { kind: 'clear' };
+  const count = Math.max(0, Math.floor(notificationCount));
+  return count > 0 ? { kind: 'count', count } : { kind: 'clear' };
+}
+
+function declarativeAppBadgeIntent(appBadge: unknown): ServiceWorkerBadgeIntent {
   if (typeof appBadge === 'number' && Number.isFinite(appBadge)) {
-    return Math.max(0, Math.floor(appBadge));
+    const count = Math.max(0, Math.floor(appBadge));
+    return count > 0 ? { kind: 'count', count } : { kind: 'clear' };
   }
-  if (typeof appBadge !== 'string' || appBadge.trim() === '') return null;
+  if (typeof appBadge !== 'string' || appBadge.trim() === '') return { kind: 'flag' };
 
   const count = Number(appBadge);
-  return Number.isFinite(count) ? Math.max(0, Math.floor(count)) : null;
+  if (!Number.isFinite(count)) return { kind: 'flag' };
+  const normalized = Math.max(0, Math.floor(count));
+  return normalized > 0 ? { kind: 'count', count: normalized } : { kind: 'clear' };
 }
 
 function notificationData(data: unknown): DeclarativeNotificationPayload['data'] {
@@ -301,9 +318,11 @@ self.addEventListener('push', (event) => {
   event.waitUntil(
     Promise.all([
       self.registration.showNotification(notification.title, notification.options),
-      notification.appBadgeCount !== null
-        ? badgeCoordinator.setPushAppBadgeCount(notification.appBadgeCount)
-        : badgeCoordinator.setProvisionalPushFlagBadge()
+      notification.appBadgeIntent.kind === 'count'
+        ? badgeCoordinator.setPushAppBadgeCount(notification.appBadgeIntent.count)
+        : notification.appBadgeIntent.kind === 'flag'
+          ? badgeCoordinator.setProvisionalPushFlagBadge()
+          : badgeCoordinator.setPushAppBadgeCount(0)
     ])
   );
 });

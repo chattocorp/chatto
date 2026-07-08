@@ -27,10 +27,11 @@ describe('syncServiceWorkerNotificationBadgeState', () => {
   it('tells the service worker to skip worker-side badging in a browser tab', () => {
     const { postMessage } = stubBadgeEnvironment({ installed: false });
 
-    syncServiceWorkerNotificationBadgeState(3);
+    syncServiceWorkerNotificationBadgeState({ kind: 'count', count: 3 });
 
     expect(postMessage).toHaveBeenCalledWith({
       type: 'chatto-badge-state',
+      badgeIntent: { kind: 'count', count: 3 },
       notificationCount: 3,
       serviceWorkerAppBadgeEnabled: false
     });
@@ -39,11 +40,12 @@ describe('syncServiceWorkerNotificationBadgeState', () => {
   it('allows worker-side badging in an installed app display mode', () => {
     const { postMessage } = stubBadgeEnvironment({ installed: true });
 
-    syncServiceWorkerNotificationBadgeState(3);
+    syncServiceWorkerNotificationBadgeState({ kind: 'flag' });
 
     expect(postMessage).toHaveBeenCalledWith({
       type: 'chatto-badge-state',
-      notificationCount: 3,
+      badgeIntent: { kind: 'flag' },
+      notificationCount: 1,
       serviceWorkerAppBadgeEnabled: true
     });
   });

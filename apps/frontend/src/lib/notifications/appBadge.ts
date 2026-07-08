@@ -1,11 +1,16 @@
 /**
  * App Badge API helper for PWA dock badges.
  *
- * Shows notification count on the app icon when installed as PWA.
+ * Shows notification attention on the app icon when installed as PWA.
  * Safari requires notification permission; Chrome/Edge work without it.
  *
  * @see https://developer.mozilla.org/en-US/docs/Web/API/Badging_API
  */
+
+export type AppBadgeIntent =
+  | { kind: 'clear' }
+  | { kind: 'flag' }
+  | { kind: 'count'; count: number };
 
 /**
  * Check if the Badging API is supported in this browser context.
@@ -17,51 +22,86 @@ export function isSupported(): boolean {
 function isInstalledAppContext(): boolean {
   if (typeof window === 'undefined') return false;
 
-  const standaloneDisplayModes = ['standalone', 'fullscreen', 'minimal-ui', 'window-controls-overlay'];
-  if (standaloneDisplayModes.some((mode) => window.matchMedia?.(`(display-mode: ${mode})`).matches)) {
+  const standaloneDisplayModes = [
+    'standalone',
+    'fullscreen',
+    'minimal-ui',
+    'window-controls-overlay'
+  ];
+  if (
+    standaloneDisplayModes.some((mode) => window.matchMedia?.(`(display-mode: ${mode})`).matches)
+  ) {
     return true;
   }
 
   return (navigator as Navigator & { standalone?: boolean }).standalone === true;
 }
 
-function normalizeBadgeCount(notificationCount: number): number {
-  if (!Number.isFinite(notificationCount)) return 0;
-  return Math.max(0, Math.floor(notificationCount));
+export function normalizeBadgeCount(count: number): number {
+  if (!Number.isFinite(count)) return 0;
+  return Math.max(0, Math.floor(count));
+}
+
+export function normalizeBadgeIntent(intent: AppBadgeIntent): AppBadgeIntent {
+  if (intent.kind !== 'count') return intent;
+  const count = normalizeBadgeCount(intent.count);
+  return count > 0 ? { kind: 'count', count } : { kind: 'clear' };
+}
+
+function legacyNotificationCount(intent: AppBadgeIntent): number {
+  switch (intent.kind) {
+    case 'count':
+      return normalizeBadgeCount(intent.count);
+    case 'flag':
+      return 1;
+    case 'clear':
+      return 0;
+  }
 }
 
 /**
- * Share the foreground notification count with the service worker so stale
+ * Share the foreground badge intent with the service worker so stale
  * push/native notification badge state can be reconciled against the app's
  * authoritative pending-notification state.
  */
-export function syncServiceWorkerNotificationBadgeState(notificationCount: number): void {
+export function syncServiceWorkerNotificationBadgeState(intent: AppBadgeIntent): void {
   if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return;
 
+  const normalized = normalizeBadgeIntent(intent);
   navigator.serviceWorker.controller?.postMessage({
     type: 'chatto-badge-state',
-    notificationCount: normalizeBadgeCount(notificationCount),
+    badgeIntent: normalized,
+    // Kept as a best-effort fallback for older active service workers.
+    notificationCount: legacyNotificationCount(normalized),
     serviceWorkerAppBadgeEnabled: isSupported() && isInstalledAppContext()
   });
 }
 
 /**
- * Update the app badge with the given count.
- * Sets a numeric badge if count > 0, clears it otherwise.
+ * Update the app badge for the given intent.
+ * Sets a numeric badge for DMs, a flag/dot for channel notifications, and
+ * clears it when notifications are handled.
  *
  * Silently fails if:
  * - Badging API not supported
  * - App not installed as PWA
  * - Safari without notification permission
  */
-export async function updateBadge(count: number): Promise<void> {
+export async function updateBadge(intent: AppBadgeIntent): Promise<void> {
   if (!isSupported()) return;
 
   try {
-    if (count > 0) {
-      await navigator.setAppBadge(count);
-    } else {
-      await navigator.clearAppBadge();
+    const normalized = normalizeBadgeIntent(intent);
+    switch (normalized.kind) {
+      case 'count':
+        await navigator.setAppBadge(normalized.count);
+        break;
+      case 'flag':
+        await navigator.setAppBadge();
+        break;
+      case 'clear':
+        await navigator.clearAppBadge();
+        break;
     }
   } catch (e) {
     // Silently fail - badge API may not work in all contexts

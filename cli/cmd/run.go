@@ -364,12 +364,14 @@ func setupPushNotifications(chattoCore *core.ChattoCore, cfg config.ChattoConfig
 
 		// Build and send push notification
 		payload := push.BuildPayloadFromNotification(notification, actorName, cfg.Webserver.URL, payloadCtx)
-		if count, err := chattoCore.GetNotificationCount(ctx, notification.RecipientId); err == nil {
-			payload.AppBadge = strconv.Itoa(count)
-		} else {
-			logger.Warn("Failed to get notification count for push app badge",
-				"user_id", notification.RecipientId,
-				"error", err)
+		if pushNotificationUsesCountBadge(notification) {
+			if count, err := chattoCore.GetNotificationCount(ctx, notification.RecipientId); err == nil {
+				payload.AppBadge = strconv.Itoa(count)
+			} else {
+				logger.Warn("Failed to get notification count for push app badge",
+					"user_id", notification.RecipientId,
+					"error", err)
+			}
 		}
 		results := sender.SendToMany(ctx, subscriptions, payload)
 
@@ -526,4 +528,9 @@ func fetchPayloadContext(ctx context.Context, chattoCore *core.ChattoCore, notif
 	}
 
 	return payloadCtx
+}
+
+func pushNotificationUsesCountBadge(notification *corev1.Notification) bool {
+	_, ok := notification.GetNotification().(*corev1.Notification_DmMessage)
+	return ok
 }
