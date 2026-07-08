@@ -32,6 +32,9 @@ export default defineConfig({
     starlight({
       title: "Chatto",
       customCss: ["./src/custom.css"],
+      components: {
+        SocialIcons: "./src/components/SocialIcons.astro",
+      },
       social: [
         {
           icon: "github",
