@@ -81,6 +81,7 @@ function subscribeEventsFrame(): Uint8Array {
 }
 
 function heartbeatStallMsForInterval(seconds: number): number {
+  if (seconds <= 0) return DEFAULT_HEARTBEAT_STALL_MS;
   return Math.max(MIN_HEARTBEAT_STALL_MS, seconds * MISSED_HEARTBEATS_BEFORE_STALL * 1000);
 }
 
