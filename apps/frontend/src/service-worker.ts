@@ -24,7 +24,7 @@ declare const self: ServiceWorkerGlobalScope;
 
 const CACHE_PREFIX = 'chatto-shell';
 const CACHE_NAME = `${CACHE_PREFIX}-${version}`;
-const BADGE_STATE_CACHE_NAME = 'chatto-badge-state-v1';
+const BADGE_STATE_CACHE_NAME = 'chatto-badge-state-v2';
 const SHELL_ASSETS = new Set([...build, ...files, OFFLINE_SHELL_PATH]);
 const PRECACHE_ASSETS = Array.from(new Set([...build, OFFLINE_SHELL_PATH, '/']));
 

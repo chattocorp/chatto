@@ -193,14 +193,18 @@ export class ServiceWorkerBadgeCoordinator {
       count,
       await this.isServiceWorkerAppBadgeEnabled()
     );
-    await applyAuthoritativeBadgeState(this.registration, await this.badgeNavigatorIfEnabled(), count, {
-      isCurrent
-    });
+    await applyAuthoritativeBadgeState(
+      this.registration,
+      await this.badgeNavigatorIfEnabled(),
+      count,
+      {
+        isCurrent
+      }
+    );
   }
 
   recordRegularPush(): void {
     this.#gate.invalidate();
-    this.#foregroundNotificationCount = Math.max(this.#foregroundNotificationCount ?? 0, 1);
   }
 
   async reconcileAfterDismissPush(): Promise<void> {
@@ -214,9 +218,16 @@ export class ServiceWorkerBadgeCoordinator {
     this.#gate.invalidate();
     const persistedForegroundCount =
       (await this.foregroundCountStorage?.readForegroundNotificationCount()) ?? 0;
-    await syncBadgeFromNativeNotifications(this.registration, await this.badgeNavigatorIfEnabled(), {
-      minimumNotificationCount: Math.max(this.#foregroundNotificationCount ?? 0, persistedForegroundCount)
-    });
+    await syncBadgeFromNativeNotifications(
+      this.registration,
+      await this.badgeNavigatorIfEnabled(),
+      {
+        minimumNotificationCount: Math.max(
+          this.#foregroundNotificationCount ?? 0,
+          persistedForegroundCount
+        )
+      }
+    );
   }
 
   async setProvisionalPushFlagBadge(): Promise<void> {
@@ -227,11 +238,6 @@ export class ServiceWorkerBadgeCoordinator {
   async setPushAppBadgeCount(notificationCount: number): Promise<void> {
     this.#gate.invalidate();
     const count = normalizeBadgeCount(notificationCount);
-    this.#foregroundNotificationCount = count;
-    await this.foregroundCountStorage?.writeForegroundNotificationState(
-      count,
-      await this.isServiceWorkerAppBadgeEnabled()
-    );
 
     const badgeNavigator = await this.badgeNavigatorIfEnabled();
     if (count > 0) {

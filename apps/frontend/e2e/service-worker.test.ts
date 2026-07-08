@@ -22,7 +22,7 @@ type BadgeStateSnapshot = {
   serviceWorkerAppBadgeEnabled: boolean | null;
 };
 
-const BADGE_STATE_CACHE_NAME = 'chatto-badge-state-v1';
+const BADGE_STATE_CACHE_NAME = 'chatto-badge-state-v2';
 const BADGE_STATE_REQUEST = '/__chatto/foreground-notification-count';
 
 test('service worker caches only the app shell and serves it offline', async ({
@@ -94,8 +94,8 @@ test('browser-tab badge-state messages do not crash service worker badging', asy
     return {
       controlled: Boolean(navigator.serviceWorker.controller),
       pageBadgingApiPresent: 'setAppBadge' in navigator,
-      installedAppDisplayMode: standaloneDisplayModes.some((mode) =>
-        window.matchMedia(`(display-mode: ${mode})`).matches
+      installedAppDisplayMode: standaloneDisplayModes.some(
+        (mode) => window.matchMedia(`(display-mode: ${mode})`).matches
       )
     };
   });

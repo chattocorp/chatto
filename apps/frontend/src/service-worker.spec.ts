@@ -222,6 +222,53 @@ describe('service worker badge orchestration', () => {
     });
   });
 
+  it('clears a declarative DM push app badge after clicking the only native notification', async () => {
+    const worker = await importServiceWorker();
+
+    await worker.dispatch('message', {
+      data: {
+        type: 'chatto-badge-state',
+        notificationCount: 0,
+        serviceWorkerAppBadgeEnabled: true
+      }
+    });
+    worker.clearAppBadge.mockClear();
+    worker.setAppBadge.mockClear();
+
+    await worker.dispatch('push', {
+      data: {
+        json: () => ({
+          web_push: 8030,
+          notification: {
+            title: 'New DM',
+            body: 'Hello from a DM',
+            tag: 'dm-event-1',
+            app_badge: '1',
+            navigate: 'https://chatto.example/chat/-/dm-room-1',
+            data: {
+              notificationId: 'notif-dm-1',
+              url: 'https://chatto.example/chat/-/dm-room-1'
+            }
+          }
+        })
+      }
+    });
+
+    const options = worker.registration.showNotification.mock.calls[0][1] as NotificationOptions;
+    worker.registration.getNotifications.mockResolvedValueOnce([]);
+
+    await worker.dispatch('notificationclick', {
+      notification: {
+        close: vi.fn(),
+        data: options.data as { url?: string }
+      }
+    });
+
+    expect(worker.setAppBadge).toHaveBeenCalledOnce();
+    expect(worker.setAppBadge).toHaveBeenCalledWith(1);
+    expect(worker.clearAppBadge).toHaveBeenCalledOnce();
+  });
+
   it('handles mutable declarative push events with event.notification and no payload data', async () => {
     const worker = await importServiceWorker();
 

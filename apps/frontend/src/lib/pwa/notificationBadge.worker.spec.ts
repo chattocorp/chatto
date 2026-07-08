@@ -312,6 +312,74 @@ describe('ServiceWorkerBadgeCoordinator', () => {
     expect(badgeNavigator.clearAppBadge).not.toHaveBeenCalled();
   });
 
+  it('clears a push-only badge after clicking the only native notification', async () => {
+    const registration = {
+      getNotifications: vi.fn(async () => [])
+    };
+    const badgeNavigator = {
+      setAppBadge: vi.fn(async () => {}),
+      clearAppBadge: vi.fn(async () => {})
+    };
+    const coordinator = new ServiceWorkerBadgeCoordinator(registration, badgeNavigator);
+
+    coordinator.recordRegularPush();
+    await coordinator.setProvisionalPushFlagBadge();
+    await coordinator.reconcileAfterNotificationClick();
+
+    expect(badgeNavigator.setAppBadge).toHaveBeenCalledOnce();
+    expect(badgeNavigator.clearAppBadge).toHaveBeenCalledOnce();
+  });
+
+  it('sets push app badge counts immediately without preserving them after click', async () => {
+    const registration = {
+      getNotifications: vi.fn(async () => [])
+    };
+    const badgeNavigator = {
+      setAppBadge: vi.fn(async () => {}),
+      clearAppBadge: vi.fn(async () => {})
+    };
+    const coordinator = new ServiceWorkerBadgeCoordinator(registration, badgeNavigator);
+
+    await coordinator.setPushAppBadgeCount(1);
+    await coordinator.reconcileAfterNotificationClick();
+
+    expect(badgeNavigator.setAppBadge).toHaveBeenCalledWith(1);
+    expect(badgeNavigator.clearAppBadge).toHaveBeenCalledOnce();
+  });
+
+  it('does not persist push app badge counts as foreground state', async () => {
+    const registration = {
+      getNotifications: vi.fn(async () => [])
+    };
+    const badgeNavigator = {
+      setAppBadge: vi.fn(async () => {}),
+      clearAppBadge: vi.fn(async () => {})
+    };
+    const foregroundCountStorage = createMemoryForegroundCountStorage();
+
+    const firstCoordinator = new ServiceWorkerBadgeCoordinator(
+      registration,
+      badgeNavigator,
+      foregroundCountStorage
+    );
+    await firstCoordinator.applyForegroundNotificationCount(0, {
+      serviceWorkerAppBadgeEnabled: true
+    });
+    badgeNavigator.clearAppBadge.mockClear();
+    badgeNavigator.setAppBadge.mockClear();
+
+    await firstCoordinator.setPushAppBadgeCount(1);
+
+    await new ServiceWorkerBadgeCoordinator(
+      registration,
+      badgeNavigator,
+      foregroundCountStorage
+    ).reconcileAfterNotificationClick();
+
+    expect(badgeNavigator.setAppBadge).toHaveBeenCalledWith(1);
+    expect(badgeNavigator.clearAppBadge).toHaveBeenCalledOnce();
+  });
+
   it('does not preserve a cached foreground count after a dismiss push', async () => {
     const registration = {
       getNotifications: vi.fn(async () => [])
