@@ -295,6 +295,61 @@ beforeEach(() => {
 });
 
 describe('RoomList', () => {
+  it('renders normal 1:1 DM rows with the other participant name', async () => {
+    const { container } = render(RoomList);
+
+    const dmRow = q(container, '[href="/chat/-/dm-with-participants"]');
+    await expect.element(dmRow).toBeInTheDocument();
+    expect(dmRow?.textContent ?? '').toContain('Teal');
+    expect(dmRow?.textContent ?? '').not.toContain('Me');
+  });
+
+  it('renders current-user-only DM rows as deleted-user conversations', async () => {
+    (mocks.store.rooms.rooms as unknown[]).push({
+      id: 'dm-deleted-peer',
+      name: '',
+      type: RoomType.Dm,
+      isUniversal: false,
+      hasUnread: false,
+      viewerIsMember: true,
+      viewerCanJoinRoom: true,
+      viewerNotificationCount: 0,
+      members: [user('me', 'me', 'Me')]
+    });
+
+    const { container } = render(RoomList);
+
+    const dmRow = q(container, '[href="/chat/-/dm-deleted-peer"]');
+    await expect.element(dmRow).toBeInTheDocument();
+    expect(dmRow?.textContent ?? '').toContain('Deleted User');
+    expect(dmRow?.textContent ?? '').not.toContain('Me');
+  });
+
+  it('renders group DM rows with non-current participants', async () => {
+    (mocks.store.rooms.rooms as unknown[]).push({
+      id: 'dm-group',
+      name: '',
+      type: RoomType.Dm,
+      isUniversal: false,
+      hasUnread: false,
+      viewerIsMember: true,
+      viewerCanJoinRoom: true,
+      viewerNotificationCount: 0,
+      members: [
+        user('me', 'me', 'Me'),
+        user('teal', 'teal', 'Teal'),
+        user('river', 'river', 'River')
+      ]
+    });
+
+    const { container } = render(RoomList);
+
+    const dmRow = q(container, '[href="/chat/-/dm-group"]');
+    await expect.element(dmRow).toBeInTheDocument();
+    expect(dmRow?.textContent ?? '').toContain('Teal, River');
+    expect(dmRow?.textContent ?? '').not.toContain('Me');
+  });
+
   it('renders active-call DM rows with the pulse icon and participant avatars', async () => {
     mocks.activeCallRoomIds.add('dm-with-participants');
     mocks.callParticipants.set('dm-with-participants', [

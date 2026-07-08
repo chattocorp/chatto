@@ -51,6 +51,17 @@ const { mocks } = vi.hoisted(() => {
       },
       livekitUrl: null as string | null,
       roomKind: 1,
+      dmData: null as null | {
+        participants: Array<{
+          id: string;
+          login: string;
+          displayName: string;
+          deleted?: boolean;
+          avatarUrl: string | null;
+          presenceStatus: string;
+        }>;
+        currentUserId: string | null;
+      },
       sidebarNav: {
         isMobile: false
       },
@@ -119,7 +130,7 @@ vi.mock('$lib/hooks', () => ({
       canManageRoom: false,
       canBanRoomMembers: false
     },
-    dmData: null,
+    dmData: mocks.dmData,
     isDM: mocks.roomKind === RoomKind.DM,
     isRoomLoading: false
   }),
@@ -207,6 +218,10 @@ vi.mock('$lib/state/appUi.svelte', async (importActual) => {
   };
 });
 
+vi.mock('$lib/state/userProfiles.svelte', () => ({
+  getLiveDisplayName: (_userId: string, fallback: string) => fallback
+}));
+
 vi.mock('$lib/storage/lastRoom', () => ({
   clearLastRoom: vi.fn(),
   setLastRoom: vi.fn()
@@ -263,8 +278,8 @@ vi.mock('$lib/ui/PageTitle.svelte', async () => {
 });
 
 vi.mock('$lib/ui/PaneHeader.svelte', async () => {
-  const { default: EmptyMock } = await import('./RoomLocalEchoEmptyMock.svelte');
-  return { default: EmptyMock };
+  const { default: PaneHeaderMock } = await import('./RoomLocalEchoPaneHeaderMock.svelte');
+  return { default: PaneHeaderMock };
 });
 
 import Room from './Room.svelte';
@@ -293,6 +308,7 @@ beforeEach(() => {
   mocks.timeline.getThreadEventsAround.mockResolvedValue(emptyTimelinePage());
   mocks.livekitUrl = null;
   mocks.roomKind = RoomKind.CHANNEL;
+  mocks.dmData = null;
   mocks.sidebarNav.isMobile = false;
   appUi = new AppUiState();
   appUi.setActiveRoomScope('server-1', 'room-1');
@@ -323,6 +339,28 @@ describe('Room local message echo', () => {
       .element(q(container, '[data-testid="room-event-ids"]'))
       .toHaveTextContent('msg-local');
     expect(mocks.resetTypingDebounce).toHaveBeenCalledOnce();
+  });
+
+  it('uses the deleted-user label for a direct-message room whose only participant is the current user', async () => {
+    mocks.roomKind = RoomKind.DM;
+    mocks.dmData = {
+      participants: [
+        {
+          id: 'test-user',
+          login: 'testuser',
+          displayName: 'Test User',
+          deleted: false,
+          avatarUrl: null,
+          presenceStatus: 'ONLINE'
+        }
+      ],
+      currentUserId: 'test-user'
+    };
+
+    const { container } = render(Room, { props: { roomId: 'room-1' } });
+
+    await expect.element(q(container, 'h1')).toHaveTextContent('Deleted User');
+    expect(q(container, 'h1')?.textContent ?? '').not.toContain('Test User');
   });
 
   it('does not advance the current room read cursor for a stale returned post from another room', async () => {
