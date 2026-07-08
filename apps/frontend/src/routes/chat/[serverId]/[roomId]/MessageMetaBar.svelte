@@ -26,12 +26,11 @@ Contains the thread reply button, reaction pills, and an add-reaction button.
   import type { RoomEventView } from '$lib/render/types';
   import UserAvatar, { UserAvatarViewData } from '$lib/components/UserAvatar.svelte';
   import UnreadDot from '$lib/ui/UnreadDot.svelte';
+  import { useReactionActions, type MessageActionParams } from '$lib/hooks';
   import { useRenderData } from '$lib/render/data';
-  import { useConnection } from '$lib/state/server/connection.svelte';
-  import { toast } from '$lib/ui/toast';
+  import type { MessagesStore } from '$lib/state/room';
   import FloatingPopover from '$lib/ui/FloatingPopover.svelte';
   import { getEmojiByName, getEmojiDisplayName } from '$lib/emoji';
-  import { createReactionAPI } from '$lib/api-client/reactions';
   import * as m from '$lib/i18n/messages';
 
   // Extract the MessagePostedEvent type from the union
@@ -53,6 +52,7 @@ Contains the thread reply button, reaction pills, and an add-reaction button.
     threadParticipants,
     hasThreadNotification = false,
     canReact = false,
+    messageStore = null,
     isFollowingThread = false,
     onToggleThreadFollow,
     onOpenThread,
@@ -68,6 +68,7 @@ Contains the thread reply button, reaction pills, and an add-reaction button.
     threadParticipants?: MessagePostedEvent['threadParticipants'];
     hasThreadNotification?: boolean;
     canReact?: boolean;
+    messageStore?: MessagesStore | null;
     isFollowingThread?: boolean;
     onToggleThreadFollow?: (e: MouseEvent) => void;
     onOpenThread?: () => void;
@@ -75,7 +76,7 @@ Contains the thread reply button, reaction pills, and an add-reaction button.
     isEchoEvent?: boolean;
   } = $props();
 
-  const connection = useConnection();
+  const reactionActions = useReactionActions();
   const replyCountLabel = $derived(
     replyCount === 1
       ? m['room.message.meta.reply_count_one']()
@@ -88,6 +89,15 @@ Contains the thread reply button, reaction pills, and an add-reaction button.
     tooltipReactionEmoji ? (reactions.find((r) => r.emoji === tooltipReactionEmoji) ?? null) : null
   );
   const REACTION_TOOLTIP_USER_LIMIT = 5;
+  const reactionParams: MessageActionParams = $derived({
+    serverId: serverSegment,
+    roomId,
+    messageEventId,
+    eventId: messageEventId,
+    messageBody: '',
+    threadRootEventId,
+    messageStore
+  });
 
   function reactionTooltipUsers(reaction: ReactionSummary): {
     names: string[];
@@ -117,22 +127,7 @@ Contains the thread reply button, reaction pills, and an add-reaction button.
   }
 
   async function toggleReaction(reaction: ReactionSummary) {
-    try {
-      const conn = connection();
-      const api = createReactionAPI({
-        serverId: conn.serverId ?? serverSegment,
-        baseUrl: conn.connectBaseUrl,
-        bearerToken: conn.bearerToken
-      });
-      const input = { roomId, messageEventId, emoji: reaction.emoji };
-      if (reaction.hasReacted) {
-        await api.removeReaction(input);
-      } else {
-        await api.addReaction(input);
-      }
-    } catch {
-      toast.error('Failed to update reaction');
-    }
+    await reactionActions.toggleReaction(reactionParams, reaction.emoji, reaction.hasReacted);
   }
 
   function openThreadFromLink(e: MouseEvent) {

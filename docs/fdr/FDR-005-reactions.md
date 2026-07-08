@@ -53,6 +53,12 @@ Users can react to a message with emoji. Reactions are aggregated into pills sho
 **Why:** Reactions mutate existing message rows. Refetching projected message rows updates reactions, edits, retractions, attachment processing state, and newly posted messages through one path, while avoiding fragile reconnect replay state in the browser.
 **Tradeoff:** Message-row catch-up is scoped to the room/thread the user is actually viewing. Other rooms catch up through normal queries when opened, while server-scoped projected state such as notifications, unread/sidebar state, room layout, server profile/settings, and active-call indicators is refetched after event-bus gaps. The `myEvents` subscription is intentionally live-only and no longer exposes a replay cursor.
 
+### 7. Web client reaction clicks are optimistic
+
+**Decision:** The web client applies add/remove reaction clicks to the visible message store immediately, then reconciles the touched emoji from the ConnectRPC response. The server remains authoritative: live reaction events and reconnect refreshes refetch the projected message row and replace the local optimistic state.
+**Why:** Reaction clicks should feel instant without changing the durable event model or public API.
+**Tradeoff:** Reactor-name tooltips are best-effort during the optimistic window and become exact after the projected row refresh.
+
 ## Permissions
 
 - `message.react` — add or remove a reaction on a message. Scoped at server, group, and room.

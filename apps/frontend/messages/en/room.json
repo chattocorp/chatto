@@ -66,6 +66,7 @@
       "delete_title": "Delete Message",
       "delete_prompt": "Are you sure you want to delete this message? This cannot be undone.",
       "delete_failed": "Failed to delete message",
+      "reaction_failed": "Failed to update reaction",
       "deleted": "Message deleted",
       "actions": {
         "toolbar": "Message actions",

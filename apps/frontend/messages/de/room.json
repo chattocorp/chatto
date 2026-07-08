@@ -66,6 +66,7 @@
       "delete_title": "Nachricht löschen",
       "delete_prompt": "Möchtest du diese Nachricht wirklich löschen? Dies kann nicht rückgängig gemacht werden.",
       "delete_failed": "Nachricht konnte nicht gelöscht werden",
+      "reaction_failed": "Reaktion konnte nicht aktualisiert werden",
       "deleted": "Nachricht gelöscht",
       "actions": {
         "toolbar": "Nachrichtenaktionen",

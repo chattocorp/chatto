@@ -86,6 +86,35 @@ function messageWithReaction(id: string, emoji: string) {
   };
 }
 
+function messageWithReactionState(
+  id: string,
+  reaction: {
+    emoji: string;
+    count: number;
+    hasReacted: boolean;
+    users?: { id: string; displayName: string }[];
+  }
+) {
+  const event = threadMessageEvent(id);
+  return {
+    ...event,
+    event: {
+      ...event.event,
+      reactions: [
+        {
+          users: [],
+          ...reaction
+        }
+      ]
+    }
+  };
+}
+
+function reactionsOf(event: { event?: { kind?: string; reactions?: unknown[] } | null }) {
+  if (event.event?.kind !== RoomEventKind.MessagePosted) throw new Error('expected message event');
+  return event.event.reactions ?? [];
+}
+
 function threadMessageWithReaction(id: string, threadRootEventId: string, emoji: string) {
   const event = threadMessageEvent(id, threadRootEventId);
   return {
@@ -744,6 +773,252 @@ describe('MessagesStore — room lifecycle ownership', () => {
     expect(store.rootEvents[0].event).toMatchObject({
       reactions: [{ emoji: 'heart', count: 1 }]
     });
+    store.dispose();
+  });
+
+  it('applies and rolls back an optimistic reaction add', async () => {
+    const fake = new FakeQueryClient();
+    const store = new MessagesStore(fake as unknown as ServerConnection, () => null, fakeTimelineAPI());
+    store.setRoom('room-1');
+    await settle();
+    store.events = [messageWithReaction('m1', 'heart') as never];
+
+    const optimistic = store.beginOptimisticReaction({
+      messageEventId: 'm1',
+      emoji: 'heart',
+      action: 'add'
+    });
+
+    expect(reactionsOf(store.rootEvents[0])).toMatchObject([
+      { emoji: 'heart', count: 2, hasReacted: true }
+    ]);
+
+    optimistic.rollback();
+
+    expect(reactionsOf(store.rootEvents[0])).toMatchObject([
+      { emoji: 'heart', count: 1, hasReacted: false }
+    ]);
+    store.dispose();
+  });
+
+  it('applies and rolls back an optimistic reaction remove', async () => {
+    const fake = new FakeQueryClient();
+    const store = new MessagesStore(fake as unknown as ServerConnection, () => null, fakeTimelineAPI());
+    store.setRoom('room-1');
+    await settle();
+    store.events = [
+      messageWithReactionState('m1', { emoji: 'heart', count: 2, hasReacted: true }) as never
+    ];
+
+    const optimistic = store.beginOptimisticReaction({
+      messageEventId: 'm1',
+      emoji: 'heart',
+      action: 'remove'
+    });
+
+    expect(reactionsOf(store.rootEvents[0])).toMatchObject([
+      { emoji: 'heart', count: 1, hasReacted: false }
+    ]);
+
+    optimistic.rollback();
+
+    expect(reactionsOf(store.rootEvents[0])).toMatchObject([
+      { emoji: 'heart', count: 2, hasReacted: true }
+    ]);
+    store.dispose();
+  });
+
+  it('tracks independent optimistic reactions per emoji', async () => {
+    const fake = new FakeQueryClient();
+    const store = new MessagesStore(fake as unknown as ServerConnection, () => null, fakeTimelineAPI());
+    store.setRoom('room-1');
+    await settle();
+    store.events = [threadMessageEvent('m1') as never];
+
+    const heart = store.beginOptimisticReaction({
+      messageEventId: 'm1',
+      emoji: 'heart',
+      action: 'add'
+    });
+    store.beginOptimisticReaction({
+      messageEventId: 'm1',
+      emoji: 'thumbsup',
+      action: 'add'
+    });
+
+    heart.rollback();
+
+    expect(reactionsOf(store.rootEvents[0])).toMatchObject([
+      { emoji: 'thumbsup', count: 1, hasReacted: true }
+    ]);
+    store.dispose();
+  });
+
+  it('rolls back only the touched reaction summary', async () => {
+    const fake = new FakeQueryClient();
+    const store = new MessagesStore(fake as unknown as ServerConnection, () => null, fakeTimelineAPI());
+    store.setRoom('room-1');
+    await settle();
+    store.events = [messageWithReaction('m1', 'heart') as never];
+
+    const optimistic = store.beginOptimisticReaction({
+      messageEventId: 'm1',
+      emoji: 'heart',
+      action: 'add'
+    });
+    const current = store.rootEvents[0];
+    if (current.event?.kind !== RoomEventKind.MessagePosted) throw new Error('expected message');
+    store.events[0] = {
+      ...current,
+      event: {
+        ...current.event,
+        body: 'edited while reaction was pending',
+        reactions: [
+          ...current.event.reactions,
+          { emoji: 'thumbsup', count: 1, hasReacted: true, users: [] }
+        ]
+      }
+    } as never;
+
+    optimistic.rollback();
+
+    const rolledBack = store.rootEvents[0];
+    expect(rolledBack.event).toMatchObject({ body: 'edited while reaction was pending' });
+    expect(reactionsOf(rolledBack)).toMatchObject([
+      { emoji: 'heart', count: 1, hasReacted: false },
+      { emoji: 'thumbsup', count: 1, hasReacted: true }
+    ]);
+    store.dispose();
+  });
+
+  it('reconciles an optimistic reaction from the RPC response', async () => {
+    const fake = new FakeQueryClient();
+    const store = new MessagesStore(fake as unknown as ServerConnection, () => null, fakeTimelineAPI());
+    store.setRoom('room-1');
+    await settle();
+    store.events = [messageWithReaction('m1', 'heart') as never];
+
+    const optimistic = store.beginOptimisticReaction({
+      messageEventId: 'm1',
+      emoji: 'heart',
+      action: 'add'
+    });
+    optimistic.applyServerReaction({ emoji: 'heart', count: 5, hasReacted: true });
+    optimistic.rollback();
+
+    expect(reactionsOf(store.rootEvents[0])).toMatchObject([
+      { emoji: 'heart', count: 5, hasReacted: true }
+    ]);
+    store.dispose();
+  });
+
+  it('does not let a stale rollback overwrite an authoritative reaction refetch', async () => {
+    const updated = messageWithReactionState('m1', {
+      emoji: 'heart',
+      count: 7,
+      hasReacted: true
+    });
+    const fake = new FakeQueryClient();
+    const timeline = fakeTimelineAPI({
+      getRoomEvents: vi.fn(async () => ({
+        events: [messageWithReaction('m1', 'heart') as never],
+        startCursor: 'tl:cursor-1',
+        endCursor: 'tl:cursor-1',
+        hasOlder: false,
+        hasNewer: false
+      })),
+      getRoomEventsAround: vi.fn(async () => pageFromEvent(updated))
+    });
+    const store = new MessagesStore(fake as unknown as ServerConnection, () => null, timeline);
+    store.setRoom('room-1');
+    await settle();
+
+    const optimistic = store.beginOptimisticReaction({
+      messageEventId: 'm1',
+      emoji: 'heart',
+      action: 'add'
+    });
+
+    store.ingestServerEvent({
+      id: 'reaction-authoritative',
+      createdAt: '2026-05-27T00:00:01Z',
+      actorId: 'u2',
+      actor: null,
+      event: {
+        kind: RoomEventKind.ReactionAdded,
+        roomId: 'room-1',
+        messageEventId: 'm1',
+        emoji: 'heart'
+      }
+    } as never);
+    await settle();
+    optimistic.rollback();
+
+    expect(reactionsOf(store.rootEvents[0])).toMatchObject([
+      { emoji: 'heart', count: 7, hasReacted: true }
+    ]);
+    store.dispose();
+  });
+
+  it('patches loaded original and echo messages before the original has an echo backlink', async () => {
+    const fake = new FakeQueryClient();
+    const store = new MessagesStore(fake as unknown as ServerConnection, () => null, fakeTimelineAPI());
+    const original = threadMessageEvent('reply');
+    const echo = threadMessageEvent('echo');
+    store.setRoom('room-1');
+    await settle();
+    store.events = [
+      original as never,
+      {
+        ...echo,
+        event: {
+          ...echo.event,
+          echoOfEventId: 'reply',
+          echoFromThreadRootEventId: 'root'
+        }
+      } as never
+    ];
+
+    store.beginOptimisticReaction({
+      messageEventId: 'echo',
+      emoji: 'heart',
+      action: 'add'
+    });
+
+    expect(reactionsOf(store.rootEvents[0])).toMatchObject([
+      { emoji: 'heart', count: 1, hasReacted: true }
+    ]);
+    expect(reactionsOf(store.rootEvents[1])).toMatchObject([
+      { emoji: 'heart', count: 1, hasReacted: true }
+    ]);
+    store.dispose();
+  });
+
+  it('patches and rolls back optimistic reactions in the preview cache', async () => {
+    const fake = new FakeQueryClient();
+    const timeline = fakeTimelineAPI({
+      getRoomEventsAround: vi.fn(async () => pageFromEvent(messageWithReaction('preview', 'heart')))
+    });
+    const store = new MessagesStore(fake as unknown as ServerConnection, () => null, timeline);
+    store.setRoom('room-1');
+    await settle();
+    await store.ensureEvent('preview');
+
+    const optimistic = store.beginOptimisticReaction({
+      messageEventId: 'preview',
+      emoji: 'heart',
+      action: 'add'
+    });
+
+    expect(reactionsOf(store.getEventById('preview')!)).toMatchObject([
+      { emoji: 'heart', count: 2, hasReacted: true }
+    ]);
+
+    optimistic.rollback();
+
+    expect(reactionsOf(store.getEventById('preview')!)).toMatchObject([
+      { emoji: 'heart', count: 1, hasReacted: false }
+    ]);
     store.dispose();
   });
 

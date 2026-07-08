@@ -172,7 +172,8 @@
       roomId,
       messageEventId: event.id,
       eventId: isEcho ? messageEvent!.echoOfEventId! : event.id,
-      messageBody: msg.body ?? ''
+      messageBody: msg.body ?? '',
+      messageStore
     };
     const name = emojiToName(emoji);
     const alreadyReacted = msg.reactions.some((r) => r.emoji === name && r.hasReacted);
@@ -868,6 +869,7 @@
             threadParticipants={messageEvent?.threadParticipants}
             {hasThreadNotification}
             canReact={roomPermissions.canReact}
+            {messageStore}
             {isFollowingThread}
             onToggleThreadFollow={hasReplies ? toggleThreadFollow : undefined}
             onOpenThread={onOpenThread ? handleOpenThread : undefined}
@@ -888,6 +890,7 @@
           threadRootEventId={editThreadRootEventId}
           channelEchoEventId={editChannelEchoEventId}
           canAddChannelEcho={canReconcileChannelEcho}
+          {messageStore}
           reactions={msg?.reactions ?? []}
           canReact={roomPermissions.canReact}
           {canEdit}
@@ -946,6 +949,7 @@
         threadRootEventId={editThreadRootEventId}
         channelEchoEventId={editChannelEchoEventId}
         canAddChannelEcho={canReconcileChannelEcho}
+        {messageStore}
         reactions={msg?.reactions ?? []}
         canReact={roomPermissions.canReact}
         {canEdit}
@@ -988,6 +992,7 @@
         threadRootEventId={editThreadRootEventId}
         channelEchoEventId={editChannelEchoEventId}
         canAddChannelEcho={canReconcileChannelEcho}
+        {messageStore}
         reactions={msg?.reactions ?? []}
         canReact={roomPermissions.canReact}
         {canEdit}

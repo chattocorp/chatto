@@ -612,6 +612,7 @@ const msg_room_message_empty = (): LocalizedString => messages().room_message_em
 const msg_room_message_delete_title = (): LocalizedString => messages().room_message_delete_title(empty());
 const msg_room_message_delete_prompt = (): LocalizedString => messages().room_message_delete_prompt(empty());
 const msg_room_message_delete_failed = (): LocalizedString => messages().room_message_delete_failed(empty());
+const msg_room_message_reaction_failed = (): LocalizedString => messages().room_message_reaction_failed(empty());
 const msg_room_message_deleted = (): LocalizedString => messages().room_message_deleted(empty());
 const msg_room_message_actions_toolbar = (): LocalizedString => messages().room_message_actions_toolbar(empty());
 const msg_room_message_actions_react_with = (
@@ -1972,6 +1973,7 @@ export { msg_room_message_empty as 'room.message.empty' };
 export { msg_room_message_delete_title as 'room.message.delete_title' };
 export { msg_room_message_delete_prompt as 'room.message.delete_prompt' };
 export { msg_room_message_delete_failed as 'room.message.delete_failed' };
+export { msg_room_message_reaction_failed as 'room.message.reaction_failed' };
 export { msg_room_message_deleted as 'room.message.deleted' };
 export { msg_room_message_actions_toolbar as 'room.message.actions.toolbar' };
 export { msg_room_message_actions_react_with as 'room.message.actions.react_with' };

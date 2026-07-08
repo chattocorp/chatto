@@ -18,7 +18,7 @@ export {
 } from './useEvent.svelte';
 
 // Message actions
-export { useMessageActions } from './useMessageActions.svelte';
+export { useMessageActions, useReactionActions } from './useMessageActions.svelte';
 export type { MessageActionParams } from './useMessageActions.svelte';
 
 // Data hooks

@@ -1,8 +1,18 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushSync } from 'svelte';
 import { render } from 'vitest-browser-svelte';
 import { q } from '$lib/test-utils';
 import MessageMetaBar from './MessageMetaBar.svelte';
+
+const mocks = vi.hoisted(() => ({
+  reactionActions: {
+    toggleReaction: vi.fn()
+  }
+}));
+
+vi.mock('$lib/hooks', () => ({
+  useReactionActions: () => mocks.reactionActions
+}));
 
 vi.mock('$app/paths', () => ({
   assets: '',
@@ -56,6 +66,10 @@ function reaction(
 }
 
 describe('MessageMetaBar', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it('renders the reply count badge as a native thread link', async () => {
     const { container } = render(MessageMetaBar, {
       props: {
@@ -275,5 +289,31 @@ describe('MessageMetaBar', () => {
     const tooltip = q(container, '[role="tooltip"]')!;
     expect(q(tooltip, 'strong')?.textContent?.trim()).toBe('Heart');
     expect(q(tooltip, '[data-testid="reaction-tooltip-user"]')?.textContent?.trim()).toBe('Alice');
+  });
+
+  it('routes reaction pill clicks through shared reaction actions', async () => {
+    const messageStore = { beginOptimisticReaction: vi.fn() };
+    const { container } = render(MessageMetaBar, {
+      props: {
+        ...baseProps,
+        reactions: [reaction({ hasReacted: true })],
+        canReact: true,
+        messageStore: messageStore as never
+      }
+    });
+
+    (q(container, 'button[aria-label="Remove 👍 reaction (2)"]') as HTMLButtonElement).click();
+
+    await vi.waitFor(() => {
+      expect(mocks.reactionActions.toggleReaction).toHaveBeenCalledWith(
+        expect.objectContaining({
+          roomId: 'room-1',
+          messageEventId: 'thread-1',
+          messageStore
+        }),
+        'thumbsup',
+        true
+      );
+    });
   });
 });

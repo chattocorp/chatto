@@ -1,5 +1,6 @@
 <script lang="ts">
   import { useMessageActions, type MessageActionParams } from '$lib/hooks';
+  import type { MessagesStore } from '$lib/state/room';
   import { getRecentEmojis } from '$lib/state/recentEmojis.svelte';
   import { getEmojiByName } from '$lib/emoji';
   import * as m from '$lib/i18n/messages';
@@ -14,6 +15,7 @@
     threadRootEventId = null,
     channelEchoEventId = null,
     canAddChannelEcho = false,
+    messageStore = null,
     reactions = [],
     canReact = false,
     canEdit = false,
@@ -34,6 +36,7 @@
     threadRootEventId?: string | null;
     channelEchoEventId?: string | null;
     canAddChannelEcho?: boolean;
+    messageStore?: MessagesStore | null;
     reactions?: { emoji: string; hasReacted: boolean }[];
     canReact?: boolean;
     canEdit?: boolean;
@@ -64,7 +67,8 @@
     messageBody,
     threadRootEventId,
     channelEchoEventId,
-    canAddChannelEcho
+    canAddChannelEcho,
+    messageStore
   });
 
   /** Set of Unicode emojis the current user has already reacted with (API returns shortcodes) */

@@ -26,6 +26,7 @@ Hover-capable input only; pure touch devices use the long-press action sheet ins
 <script lang="ts">
   import { useMessageActions, type MessageActionParams } from '$lib/hooks';
   import * as m from '$lib/i18n/messages';
+  import type { MessagesStore } from '$lib/state/room';
   import { getRecentEmojis } from '$lib/state/recentEmojis.svelte';
   import { getEmojiByName } from '$lib/emoji';
 
@@ -39,6 +40,7 @@ Hover-capable input only; pure touch devices use the long-press action sheet ins
     threadRootEventId = null,
     channelEchoEventId = null,
     canAddChannelEcho = false,
+    messageStore = null,
     reactions = [],
     canReact = false,
     canEdit = false,
@@ -59,6 +61,7 @@ Hover-capable input only; pure touch devices use the long-press action sheet ins
     threadRootEventId?: string | null;
     channelEchoEventId?: string | null;
     canAddChannelEcho?: boolean;
+    messageStore?: MessagesStore | null;
     reactions?: { emoji: string; hasReacted: boolean }[];
     canReact?: boolean;
     canEdit?: boolean;
@@ -89,7 +92,8 @@ Hover-capable input only; pure touch devices use the long-press action sheet ins
     messageBody,
     threadRootEventId,
     channelEchoEventId,
-    canAddChannelEcho
+    canAddChannelEcho,
+    messageStore
   });
 
   const hasActions = $derived(!!onReplyInRoom || !!onReply || canEdit || !!onOpenMenu);
