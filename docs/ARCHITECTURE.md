@@ -621,7 +621,7 @@ The `/api/realtime` WebSocket is backed by the single core stream `StreamMyEvent
 - One `ChanSubscribe("live.sync.>")` for transient `LiveEvent` messages, and one `ChanSubscribe("live.evt.>")` for raw committed EVT facts. Authorization is applied per event: room membership for room subjects, asset room membership for asset subjects, `isAuthorizedForLiveEvent` for user/config/member subjects, and projection readiness before deliverable `live.evt.>` events.
 - Live-only subscription delivery. Missed state after reconnect is recovered from projected reads: server-scoped stores refetch their current projections after event-bus gaps, and the visible room/thread refetches its current message window. Transient sync and presence signals remain live-only.
 - The PresenceHub (single per-process KV watcher on `presence.>` fanning out per-user status changes to all subscribers).
-- An in-process heartbeat ticker (synthetic `Heartbeat` event every 25s for client-side liveness detection).
+- An in-process heartbeat ticker (synthetic `Heartbeat` event every 15s for client-side liveness detection).
 
 ### KV Buckets (backed by streams)
 

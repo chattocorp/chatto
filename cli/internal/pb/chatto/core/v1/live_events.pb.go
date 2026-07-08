@@ -443,7 +443,7 @@ func (*LiveEvent_RoomGroupsUpdated) isLiveEvent_Event() {}
 func (*LiveEvent_SessionTerminated) isLiveEvent_Event() {}
 
 // HeartbeatEvent is a synthetic event with no payload. StreamMyEvents
-// emits one every ~25 seconds so clients can detect a dead subscription
+// emits one every ~15 seconds so clients can detect a dead subscription
 // on an otherwise-healthy WebSocket. It is never persisted and never
 // travels over NATS.
 type HeartbeatEvent struct {

@@ -82,6 +82,8 @@ func subscribeRealtime(t *testing.T, conn *websocket.Conn, token string) {
 		t.Fatalf("first realtime frame = %T, want hello", hello.GetFrame())
 	} else if got.ProtocolVersion != realtimeProtocolVersion || got.ServerVersion == "" {
 		t.Fatalf("unexpected realtime hello: %+v", got)
+	} else if got.HeartbeatIntervalSeconds != uint32(core.MyEventsHeartbeatInterval/time.Second) {
+		t.Fatalf("heartbeat interval = %d, want %d", got.HeartbeatIntervalSeconds, core.MyEventsHeartbeatInterval/time.Second)
 	} else if !slices.Equal(got.GetCapabilities(), realtimeServerCapabilities) {
 		t.Fatalf("realtime capabilities = %v, want %v", got.GetCapabilities(), realtimeServerCapabilities)
 	}
