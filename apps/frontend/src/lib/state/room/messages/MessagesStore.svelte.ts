@@ -77,6 +77,14 @@ function sameEventList(a: readonly RoomEventView[], b: readonly RoomEventView[])
   return true;
 }
 
+function isContinuityEvent(
+  event: RoomEventView,
+  scope: MessageScope | null,
+  threadRootEventId: string
+): boolean {
+  return scope !== 'thread' || event.id !== threadRootEventId;
+}
+
 function skippedRefreshResult(): RefreshCurrentWindowResult {
   return { hasOlder: false, hasNewer: false, refreshed: false, changed: false };
 }
@@ -936,6 +944,22 @@ export class MessagesStore {
     const previousOldestCursor = this.oldestCursor;
     const previousNewestCursor = this.newestCursor;
     const previousHasReachedStart = this.hasReachedStart;
+    const hasExistingContinuityEvents = this.events.some(
+      (event) =>
+        existingBeforeFetch.has(event.id) &&
+        isContinuityEvent(event, this.scope, this.threadRootEventId)
+    );
+    const hasFetchedOverlap = fetched.some(
+      (event) =>
+        existingBeforeFetch.has(event.id) &&
+        isContinuityEvent(event, this.scope, this.threadRootEventId)
+    );
+    const discontinuousLatestSnapshot =
+      !!options.preserveExistingWindow &&
+      !!options.latestSnapshot &&
+      !!connection.hasOlder &&
+      hasExistingContinuityEvents &&
+      !hasFetchedOverlap;
 
     for (const e of fetched) {
       if (newSeen.has(e.id)) continue;
@@ -948,7 +972,12 @@ export class MessagesStore {
     // fetched window so returning from another tab does not visually collapse a
     // long scrolled buffer.
     for (const e of this.events) {
-      if (!options.preserveExistingWindow && existingBeforeFetch.has(e.id)) continue;
+      if (
+        (!options.preserveExistingWindow || discontinuousLatestSnapshot) &&
+        existingBeforeFetch.has(e.id)
+      ) {
+        continue;
+      }
       if (newSeen.has(e.id)) continue;
       newSeen.add(e.id);
       merged.push(e);
@@ -967,7 +996,7 @@ export class MessagesStore {
       this.seenIds = newSeen;
     }
 
-    if (options.preserveExistingWindow) {
+    if (options.preserveExistingWindow && !discontinuousLatestSnapshot) {
       this.oldestCursor = previousOldestCursor ?? connection.startCursor ?? undefined;
       this.newestCursor = options.latestSnapshot
         ? (connection.endCursor ?? previousNewestCursor ?? undefined)
@@ -982,6 +1011,7 @@ export class MessagesStore {
       fetchedCount: fetched.length,
       preservedExistingCount: nextEvents.length - fetched.length,
       changed,
+      discontinuousLatestSnapshot,
       eventCount: this.events.length,
       hasOlder: connection.hasOlder ?? false,
       hasReachedStart: this.hasReachedStart

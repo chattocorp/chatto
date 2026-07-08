@@ -506,7 +506,7 @@
         hiddenDurationMs: signal.hiddenDurationMs,
         epoch: signal.epoch
       });
-      return true;
+      return false;
     }
 
     const bottomDistance = distanceFromBottom();

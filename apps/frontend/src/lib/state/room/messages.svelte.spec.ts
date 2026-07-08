@@ -1079,6 +1079,61 @@ describe('MessagesStore — room lifecycle ownership', () => {
     store.dispose();
   });
 
+  it('replaces a disjoint latest room refresh so older pagination can bridge gaps', async () => {
+    const fake = new FakeQueryClient([
+      roomEventsResult({
+        events: [threadMessageEvent('m1'), threadMessageEvent('m2')],
+        startCursor: 'tl:cursor-1',
+        endCursor: 'tl:cursor-2',
+        hasOlder: false,
+        hasNewer: false
+      }),
+      roomEventsResult({
+        events: [threadMessageEvent('m5'), threadMessageEvent('m6')],
+        startCursor: 'tl:cursor-5',
+        endCursor: 'tl:cursor-6',
+        hasOlder: true,
+        hasNewer: false
+      }),
+      roomEventsResult({
+        events: [threadMessageEvent('m3'), threadMessageEvent('m4')],
+        startCursor: 'tl:cursor-3',
+        endCursor: 'tl:cursor-4',
+        hasOlder: false,
+        hasNewer: true
+      })
+    ]);
+    const store = new MessagesStore(
+      fake as unknown as ServerConnection,
+      () => null,
+      timelineFromFixtures(fake)
+    );
+
+    store.setRoom('room-1');
+    await settle();
+    fake.queryMock.mockClear();
+
+    const result = await store.refreshCurrentWindow();
+    await settle();
+
+    expect(result).toMatchObject({ refreshed: true, changed: true });
+    expect(store.rootEvents.map((event) => event.id)).toEqual(['m5', 'm6']);
+    expect(store.hasReachedStart).toBe(false);
+
+    await store.loadMore();
+    await settle();
+
+    expect(fake.queryMock.mock.calls[1][0]).toBe('timeline:before');
+    expect(fake.queryMock.mock.calls[1][1]).toEqual({
+      roomId: 'room-1',
+      limit: 50,
+      before: 'tl:cursor-5'
+    });
+    expect(store.rootEvents.map((event) => event.id)).toEqual(['m3', 'm4', 'm5', 'm6']);
+    expect(store.hasReachedStart).toBe(true);
+    store.dispose();
+  });
+
   it('soft-refreshes around an anchor event when one is provided', async () => {
     const fake = new FakeQueryClient([
       roomEventsResult({
@@ -1300,6 +1355,72 @@ describe('MessagesStore — room lifecycle ownership', () => {
       eventId: 't1',
       limit: 50
     });
+    expect(fake.queryMock).not.toHaveBeenCalled();
+    store.dispose();
+  });
+
+  it('replaces a disjoint latest thread refresh so older pagination can bridge gaps', async () => {
+    const fake = new FakeQueryClient();
+    const timeline = fakeTimelineAPI({
+      getThreadEvents: vi
+        .fn()
+        .mockResolvedValueOnce({
+          events: [
+            threadMessageEvent('t1') as never,
+            threadMessageEvent('r1', 't1') as never,
+            threadMessageEvent('r2', 't1') as never
+          ],
+          startCursor: 'tl:cursor-1',
+          endCursor: 'tl:cursor-2',
+          hasOlder: false,
+          hasNewer: false
+        })
+        .mockResolvedValueOnce({
+          events: [
+            threadMessageEvent('t1') as never,
+            threadMessageEvent('r5', 't1') as never,
+            threadMessageEvent('r6', 't1') as never
+          ],
+          startCursor: 'tl:cursor-5',
+          endCursor: 'tl:cursor-6',
+          hasOlder: true,
+          hasNewer: false
+        })
+        .mockResolvedValueOnce({
+          events: [
+            threadMessageEvent('r3', 't1') as never,
+            threadMessageEvent('r4', 't1') as never
+          ],
+          startCursor: 'tl:cursor-3',
+          endCursor: 'tl:cursor-4',
+          hasOlder: false,
+          hasNewer: true
+        })
+    });
+    const store = new MessagesStore(fake as unknown as ServerConnection, () => null, timeline);
+
+    store.setThread('room-1', 't1');
+    await settle();
+
+    const result = await store.refreshCurrentWindow(null);
+    await settle();
+
+    expect(result).toMatchObject({ refreshed: true, changed: true });
+    expect(store.threadEvents.map((event) => event.id)).toEqual(['t1', 'r5', 'r6']);
+    expect(store.hasReachedStart).toBe(false);
+
+    await store.loadMore();
+    await settle();
+
+    expect(timeline.getThreadEvents).toHaveBeenCalledTimes(3);
+    expect(timeline.getThreadEvents).toHaveBeenLastCalledWith({
+      roomId: 'room-1',
+      threadRootEventId: 't1',
+      limit: 50,
+      before: 'tl:cursor-5'
+    });
+    expect(store.threadEvents.map((event) => event.id)).toEqual(['t1', 'r3', 'r4', 'r5', 'r6']);
+    expect(store.hasReachedStart).toBe(true);
     expect(fake.queryMock).not.toHaveBeenCalled();
     store.dispose();
   });

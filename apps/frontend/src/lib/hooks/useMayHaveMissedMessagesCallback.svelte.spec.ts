@@ -6,6 +6,7 @@ import {
   setRealtimeSocketFactoryForTests
 } from '$lib/state/server/eventBus.svelte';
 import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
+import { emitServerResumeSignal } from './resumeCoordinator.svelte';
 import Harness from './UseMayHaveMissedMessagesCallbackHarness.svelte';
 
 const { mocks } = vi.hoisted(() => ({
@@ -107,6 +108,45 @@ describe('useMayHaveMissedMessagesCallback', () => {
         reason: 'online',
         phase: 'immediate',
         source: 'browser'
+      })
+    );
+    rendered.unmount();
+  });
+
+  it('does not dedupe event-bus catch-up after a skipped refresh', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-07-08T12:00:00Z'));
+    const onSignal = vi.fn().mockResolvedValueOnce(false).mockResolvedValue(undefined);
+
+    const rendered = render(Harness, { props: { onSignal } });
+    flushSync();
+
+    emitServerResumeSignal(
+      TEST_SERVER,
+      {
+        reason: 'visibility',
+        source: 'browser',
+        hiddenDurationMs: 1_000
+      },
+      { coalesceMs: 0 }
+    );
+    await vi.waitFor(() => expect(onSignal).toHaveBeenCalledTimes(1));
+
+    emitServerResumeSignal(
+      TEST_SERVER,
+      {
+        reason: 'event-bus-ws-reconnected',
+        source: 'event-bus'
+      },
+      { coalesceMs: 0 }
+    );
+
+    await vi.waitFor(() => expect(onSignal).toHaveBeenCalledTimes(2));
+    expect(onSignal).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        reason: 'event-bus-ws-reconnected',
+        source: 'event-bus'
       })
     );
     rendered.unmount();
