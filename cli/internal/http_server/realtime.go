@@ -36,6 +36,10 @@ var realtimeServerCapabilities = []string{
 }
 
 func (s *HTTPServer) setupRealtimeAPI(allowedOrigins []string) {
+	if s.metrics == nil {
+		s.metrics = newProcessMetrics()
+	}
+
 	upgrader := websocket.Upgrader{
 		EnableCompression: s.config.Webserver.WebSocketCompressionEnabled(),
 		CheckOrigin: func(r *http.Request) bool {
@@ -50,6 +54,8 @@ func (s *HTTPServer) setupRealtimeAPI(allowedOrigins []string) {
 			s.logger.Warn("Realtime WebSocket upgrade failed", "error", err)
 			return
 		}
+		s.metrics.realtimeWebSocketOpened()
+		defer s.metrics.realtimeWebSocketClosed()
 		defer conn.Close()
 
 		s.serveRealtimeWebSocket(req.Context(), conn)
