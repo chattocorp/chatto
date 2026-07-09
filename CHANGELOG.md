@@ -3,6 +3,22 @@
 All notable changes to Chatto. Maintained by release-please from the
 conventional-commit messages on `main` — do not edit by hand.
 
+## [0.4.3](https://github.com/chattocorp/chatto/compare/v0.4.2...v0.4.3) (2026-07-09)
+
+
+### Bug Fixes
+
+* **api:** tune room member page defaults ([#1354](https://github.com/chattocorp/chatto/issues/1354)) ([07675ee](https://github.com/chattocorp/chatto/commit/07675ee459af03edc184cd67171ebb9f7e105b63))
+* backfill sparse room timelines ([#1353](https://github.com/chattocorp/chatto/issues/1353)) ([f8adf6a](https://github.com/chattocorp/chatto/commit/f8adf6a73b9a87510f1a17d0440c124472206686))
+* **docs:** add community chat link ([#1344](https://github.com/chattocorp/chatto/issues/1344)) ([10c1eec](https://github.com/chattocorp/chatto/commit/10c1eec5fe03190f18b6ab45a5580a8a814d7ed6))
+* **frontend:** add optimistic reactions ([#1349](https://github.com/chattocorp/chatto/issues/1349)) ([beaf180](https://github.com/chattocorp/chatto/commit/beaf180e79b6e1248879ec69e495568b24f18173))
+* **frontend:** harden login redirect path validation ([#1340](https://github.com/chattocorp/chatto/issues/1340)) ([01db3e3](https://github.com/chattocorp/chatto/commit/01db3e3032950bf95793df64707ee655bcd9d99b))
+* **frontend:** stabilize unread and resume refresh ([#1346](https://github.com/chattocorp/chatto/issues/1346)) ([d2f185a](https://github.com/chattocorp/chatto/commit/d2f185afca39be076ec6beda9493d1008319c53e))
+* **frontend:** use opaque PWA install icons ([#1352](https://github.com/chattocorp/chatto/issues/1352)) ([afd025c](https://github.com/chattocorp/chatto/commit/afd025c2827a6b3914f6f6a737a340341fc3ea33))
+* **metrics:** track realtime websocket connections ([#1356](https://github.com/chattocorp/chatto/issues/1356)) ([fd3ca58](https://github.com/chattocorp/chatto/commit/fd3ca582cee03cf4c3c9f753d1a14967fe0d6b1d))
+* **pwa:** stop preserving push badge hints ([#1343](https://github.com/chattocorp/chatto/issues/1343)) ([d9e50a3](https://github.com/chattocorp/chatto/commit/d9e50a3912fff800b1ed71c3a42a91d3e85dbd52))
+* **realtime:** align heartbeat cadence with client stall detection ([#1342](https://github.com/chattocorp/chatto/issues/1342)) ([c0e0d23](https://github.com/chattocorp/chatto/commit/c0e0d236ea4d29de7e75b63502323fe7be3ae967))
+
 ## [0.4.2](https://github.com/chattocorp/chatto/compare/v0.4.1...v0.4.2) (2026-07-07)
 
 
