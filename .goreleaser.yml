@@ -26,9 +26,10 @@ archives:
       - LICENSES/AGPL-3.0-or-later.txt
       - NOTICE
     # this name template makes the OS and Arch compatible with the results of `uname`.
+    # GoReleaser's `title` renders `freebsd` as `Freebsd`, but `uname` reports `FreeBSD`.
     name_template: >-
       {{ .ProjectName }}_
-      {{- title .Os }}_
+      {{- if eq .Os "freebsd" }}FreeBSD{{ else }}{{ title .Os }}{{ end }}_
       {{- if eq .Arch "amd64" }}x86_64
       {{- else if eq .Arch "386" }}i386
       {{- else }}{{ .Arch }}{{ end }}
