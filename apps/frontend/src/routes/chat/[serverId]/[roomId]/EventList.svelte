@@ -20,6 +20,7 @@
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { getUserSettings } from '$lib/state/userSettings.svelte';
+  import { INITIAL_ROOM_MESSAGE_BACKFILL_TARGET } from '$lib/state/room/messages/queries';
   import { formatDayLabel } from '$lib/utils/formatTime';
   import { useTabResumeCallback } from '$lib/hooks/useTabResumeCallback.svelte';
   import { useMayHaveMissedMessagesCallback } from '$lib/hooks/useMayHaveMissedMessagesCallback.svelte';
@@ -158,6 +159,9 @@
       // Deleted messages (body === null) are always shown with placeholder
       return true;
     })
+  );
+  let messageEventCount = $derived(
+    filteredEvents.filter((event) => isMessagePostedEvent(event.event)).length
   );
 
   // Apply message grouping and day separators
@@ -618,6 +622,7 @@
   });
 
   let forwardLoadInFlight = false;
+  let underfilledBackfillInFlight = false;
 
   function exitJumpedModeAtPresent(bottomDistance: number): boolean {
     if (!isJumpedMode || !hasReachedEnd || bottomDistance >= 50 || !onReachedPresent) return false;
@@ -650,6 +655,64 @@
       forwardLoadInFlight = false;
     }
   }
+
+  async function loadOlderIfTimelineNeedsBackfill(): Promise<void> {
+    if (
+      !enablePagination ||
+      !onLoadMore ||
+      isLoading ||
+      isLoadingMore ||
+      hasReachedStart ||
+      isJumpedMode ||
+      underfilledBackfillInFlight ||
+      !virtualizerHandle ||
+      virtualItems.length === 0
+    ) {
+      return;
+    }
+
+    underfilledBackfillInFlight = true;
+    try {
+      await tick();
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+      if (
+        !virtualizerHandle ||
+        isLoading ||
+        isLoadingMore ||
+        hasReachedStart ||
+        isJumpedMode ||
+        virtualItems.length === 0
+      ) {
+        return;
+      }
+
+      const scrollSize = virtualizerHandle.getScrollSize();
+      const viewportSize = virtualizerHandle.getViewportSize();
+      const lacksInitialRoomMessages =
+        filterThreadReplies &&
+        filteredEvents.length > 0 &&
+        messageEventCount < INITIAL_ROOM_MESSAGE_BACKFILL_TARGET;
+      if (scrollSize <= viewportSize + 50 || lacksInitialRoomMessages) {
+        await onLoadMore();
+      }
+    } finally {
+      underfilledBackfillInFlight = false;
+    }
+  }
+
+  $effect(() => {
+    void virtualItems.length;
+    void filteredEvents.length;
+    void messageEventCount;
+    void enablePagination;
+    void isLoading;
+    void isLoadingMore;
+    void hasReachedStart;
+    void isJumpedMode;
+    void virtualizerHandle;
+
+    void loadOlderIfTimelineNeedsBackfill();
+  });
 
   // Handle scroll events from virtua to detect user intent and trigger pagination.
   // virtua's shift=true handles scroll restoration during pagination automatically,

@@ -46,6 +46,22 @@ func TestEventFactsRoomIDAndVisibility(t *testing.T) {
 			visible: false,
 		},
 		{
+			name: "room member joined",
+			event: &corev1.Event{Event: &corev1.Event_UserJoinedRoom{
+				UserJoinedRoom: &corev1.UserJoinedRoomEvent{RoomId: "R1"},
+			}},
+			roomID:  "R1",
+			visible: true,
+		},
+		{
+			name: "room member left",
+			event: &corev1.Event{Event: &corev1.Event_UserLeftRoom{
+				UserLeftRoom: &corev1.UserLeftRoomEvent{RoomId: "R1"},
+			}},
+			roomID:  "R1",
+			visible: true,
+		},
+		{
 			name: "voice call started",
 			event: &corev1.Event{Event: &corev1.Event_VoiceCallStarted{
 				VoiceCallStarted: &corev1.CallStartedEvent{RoomId: "R1"},

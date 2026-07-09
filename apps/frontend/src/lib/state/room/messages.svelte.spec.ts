@@ -341,6 +341,46 @@ describe('MessagesStore — room lifecycle ownership', () => {
     store.dispose();
   });
 
+  it('backfills the initial room window when the latest page has too few messages', async () => {
+    const join = roomSystemEvent('join-1', RoomEventKind.UserJoinedRoom);
+    const firstMessage = threadMessageEvent('m2');
+    const olderMessage = threadMessageEvent('m1');
+    const fake = new FakeQueryClient();
+    const timeline = fakeTimelineAPI({
+      getRoomEvents: vi
+        .fn()
+        .mockResolvedValueOnce({
+          events: [firstMessage as never, join as never],
+          startCursor: 'tl:cursor-join',
+          endCursor: 'tl:cursor-join',
+          hasOlder: true,
+          hasNewer: false
+        })
+        .mockResolvedValueOnce({
+          events: [olderMessage as never],
+          startCursor: 'tl:cursor-message',
+          endCursor: 'tl:cursor-message',
+          hasOlder: false,
+          hasNewer: true
+        })
+    });
+    const store = new MessagesStore(fake as unknown as ServerConnection, () => null, timeline);
+
+    store.setRoom('room-1');
+
+    await vi.waitFor(() => {
+      expect(store.isInitialLoading).toBe(false);
+      expect(store.rootEvents.map((event) => event.id)).toEqual(['m1', 'join-1', 'm2']);
+    });
+    expect(timeline.getRoomEvents).toHaveBeenNthCalledWith(1, { roomId: 'room-1', limit: 50 });
+    expect(timeline.getRoomEvents).toHaveBeenNthCalledWith(2, {
+      roomId: 'room-1',
+      limit: 50,
+      before: 'tl:cursor-join'
+    });
+    store.dispose();
+  });
+
   it('does not refetch or clear events when setRoom is called for the current room', async () => {
     const loaded = threadMessageEvent('m1');
     const fake = new FakeQueryClient(
@@ -1530,6 +1570,68 @@ describe('MessagesStore — room lifecycle ownership', () => {
       'm7',
       'm8'
     ]);
+    store.dispose();
+  });
+
+  it('keeps backward pagination alive when an older page adds no new rows but has more history', async () => {
+    const currentWindow = Array.from({ length: 10 }, (_, index) =>
+      threadMessageEvent(`m${index + 10}`)
+    );
+    const fake = new FakeQueryClient();
+    const timeline = fakeTimelineAPI({
+      getRoomEvents: vi
+        .fn()
+        .mockResolvedValueOnce({
+          events: currentWindow as never[],
+          startCursor: 'tl:cursor-3',
+          endCursor: 'tl:cursor-3',
+          hasOlder: true,
+          hasNewer: false
+        })
+        .mockResolvedValueOnce({
+          events: [threadMessageEvent('m10') as never],
+          startCursor: 'tl:cursor-2',
+          endCursor: 'tl:cursor-2',
+          hasOlder: true,
+          hasNewer: false
+        })
+        .mockResolvedValueOnce({
+          events: [threadMessageEvent('m1') as never],
+          startCursor: 'tl:cursor-1',
+          endCursor: 'tl:cursor-1',
+          hasOlder: false,
+          hasNewer: true
+        })
+    });
+    const store = new MessagesStore(fake as unknown as ServerConnection, () => null, timeline);
+
+    store.setRoom('room-1');
+    await settle();
+
+    await store.loadMore();
+    await settle();
+
+    expect(store.rootEvents.map((event) => event.id)).toEqual(currentWindow.map((event) => event.id));
+    expect(store.hasReachedStart).toBe(false);
+
+    await store.loadMore();
+    await settle();
+
+    expect(store.rootEvents.map((event) => event.id)).toEqual([
+      'm1',
+      ...currentWindow.map((event) => event.id)
+    ]);
+    expect(store.hasReachedStart).toBe(true);
+    expect(timeline.getRoomEvents).toHaveBeenNthCalledWith(2, {
+      roomId: 'room-1',
+      limit: 50,
+      before: 'tl:cursor-3'
+    });
+    expect(timeline.getRoomEvents).toHaveBeenNthCalledWith(3, {
+      roomId: 'room-1',
+      limit: 50,
+      before: 'tl:cursor-2'
+    });
     store.dispose();
   });
 

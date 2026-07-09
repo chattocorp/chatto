@@ -6,7 +6,7 @@ import { RoomEventKind, roomEventKind } from '$lib/render/eventKinds';
 import { createRoomTimelineAPI, type RoomTimelineAPI } from '$lib/api-client/roomTimeline';
 import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
 import type { JumpToMessageState } from '../composerContext.svelte';
-import { PAGE_SIZE } from './queries';
+import { INITIAL_ROOM_MESSAGE_BACKFILL_TARGET, PAGE_SIZE } from './queries';
 import { isRootRoomEvent, isThreadEvent } from './filters';
 import { type EventConnectionPage, type RawEvent, getActorId, unmask } from './helpers';
 
@@ -763,14 +763,21 @@ export class MessagesStore {
 
       const olderEvents = unmask(page.events);
       if (olderEvents.length === 0) {
-        this.hasReachedStart = true;
+        if (page.startCursor) {
+          this.oldestCursor = page.startCursor;
+        }
+        if (!page.hasOlder || !page.startCursor || page.startCursor === before) {
+          this.hasReachedStart = true;
+        }
       } else {
         if (page.startCursor) {
           this.oldestCursor = page.startCursor;
         }
         const added = this.prependEvents(olderEvents);
         this.afterOlderPagePrepended();
-        if (added === 0) this.hasReachedStart = true;
+        if (added === 0 && (!page.hasOlder || !page.startCursor || page.startCursor === before)) {
+          this.hasReachedStart = true;
+        }
       }
 
       if (!page.hasOlder) this.hasReachedStart = true;
@@ -811,6 +818,22 @@ export class MessagesStore {
   private afterOlderPagePrepended(): void {
     if (this.scope === 'thread') {
       this.sortThreadEvents();
+    }
+  }
+
+  private roomWindowMessageCount(): number {
+    return this.rootEvents.filter((event) => isMessagePostedPayload(event.event)).length;
+  }
+
+  private async backfillInitialRoomWindow(thisLoad: number): Promise<void> {
+    while (
+      !this.isStale(thisLoad) &&
+      this.scope === 'room' &&
+      !this.hasReachedStart &&
+      this.oldestCursor &&
+      this.roomWindowMessageCount() < INITIAL_ROOM_MESSAGE_BACKFILL_TARGET
+    ) {
+      await this.loadMore();
     }
   }
 
@@ -1433,12 +1456,14 @@ export class MessagesStore {
     });
 
     promise
-      .then((page) => {
+      .then(async (page) => {
         if (this.isStale(thisLoad)) return;
         if (page) {
           this.replaceWithFetchedAndUpdateCursors(page);
           this.hasReachedStart = !page.hasOlder;
+          await this.backfillInitialRoomWindow(thisLoad);
         }
+        if (this.isStale(thisLoad)) return;
         this.isInitialLoading = false;
       })
       .catch((error: unknown) => {

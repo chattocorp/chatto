@@ -26,7 +26,7 @@ func TestChattoCore_GetRoomEvents(t *testing.T) {
 	core.PostMessage(ctx, KindChannel, room.Id, user2.Id, "Message 2", nil, "", "", nil, false)
 	core.PostMessage(ctx, KindChannel, room.Id, user1.Id, "Message 3", nil, "", "", nil, false)
 
-	// Get room events (returns all RoomEvents: messages + room membership + room lifecycle)
+	// Get room events (returns visible room events: messages + room membership + room lifecycle)
 	eventsResult, err := core.GetRoomEvents(ctx, KindChannel, room.Id, 50, nil)
 	if err != nil {
 		t.Fatalf("Failed to get room events: %v", err)
@@ -37,7 +37,6 @@ func TestChattoCore_GetRoomEvents(t *testing.T) {
 	// - 1 RoomCreated event
 	// - 2 UserJoinedRoom events (user1 and user2)
 	// - 3 MessagePosted events
-	// Note: With unified space stream, room lifecycle events are now included
 	if len(events) != 6 {
 		t.Errorf("Expected 6 room events (1 created + 2 joins + 3 messages), got %d", len(events))
 	}
@@ -88,14 +87,13 @@ func TestChattoCore_GetRoomEvents_JoinAndLeaveEvents(t *testing.T) {
 		t.Fatalf("Failed to leave room: %v", err)
 	}
 
-	// Get room events - should include join and leave events
+	// Get room events - should include join and leave events.
 	eventsResult, err := core.GetRoomEvents(ctx, KindChannel, room.Id, 50, nil)
 	if err != nil {
 		t.Fatalf("Failed to get room events: %v", err)
 	}
 	events := eventsResult.Events
 
-	// Count event types
 	joinCount := 0
 	leaveCount := 0
 	roomCreatedCount := 0
@@ -111,7 +109,6 @@ func TestChattoCore_GetRoomEvents_JoinAndLeaveEvents(t *testing.T) {
 		}
 	}
 
-	// Verify events: 1 RoomCreated + 1 UserJoinedRoom + 1 UserLeftRoom = 3 total
 	if len(events) != 3 {
 		t.Errorf("Expected 3 events (1 created + 1 join + 1 leave), got %d", len(events))
 		for _, e := range events {
@@ -127,6 +124,9 @@ func TestChattoCore_GetRoomEvents_JoinAndLeaveEvents(t *testing.T) {
 	}
 	if leaveCount != 1 {
 		t.Errorf("Expected 1 UserLeftRoom event, got %d", leaveCount)
+	}
+	if exists, err := core.RoomMembershipExists(ctx, KindChannel, user.Id, room.Id); err != nil || exists {
+		t.Fatalf("RoomMembershipExists after leave = %v, %v; want false, nil", exists, err)
 	}
 }
 
@@ -209,14 +209,13 @@ func TestChattoCore_GetRoomEvents_JoinAfterLastMessage(t *testing.T) {
 	}
 
 	// Get room events - should include user2's join event even though it
-	// happened after the last message
+	// happened after the last message.
 	eventsResult, err := core.GetRoomEvents(ctx, KindChannel, room.Id, 50, nil)
 	if err != nil {
 		t.Fatalf("Failed to get room events: %v", err)
 	}
 	events := eventsResult.Events
 
-	// Find user2's join event
 	foundUser2Join := false
 	for _, event := range events {
 		joinEvent := event.GetUserJoinedRoom()
