@@ -85,7 +85,7 @@ message ListRoomMembersRequest {
   string room_id = 1 [(buf.validate.field).string.min_len = 1];
   // Optional case-insensitive search against login and display name.
   string search = 2 [(buf.validate.field).string.max_len = 100];
-  // Page request. Defaults to 20 results when absent or limit is zero.
+  // Page request. Defaults to 250 results when absent or limit is zero.
   PageRequest page = 5;
 }
 

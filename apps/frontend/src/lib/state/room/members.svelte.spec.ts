@@ -69,6 +69,10 @@ function createStore(results: Array<MemberDirectoryPage | Promise<MemberDirector
 }
 
 describe('RoomMembersStore', () => {
+  it('requests room members in 250-member pages', () => {
+    expect(ROOM_MEMBERS_PAGE_SIZE).toBe(250);
+  });
+
   it('eagerly loads every room member page into the canonical member list', async () => {
     const fakeAPI = new FakeMemberDirectoryAPI([
       pageResult([user('u1', 'alice')], true, 3),

@@ -3980,10 +3980,25 @@ func TestRoomServiceListMembersRequiresMembership(t *testing.T) {
 	}
 }
 
-func TestMemberDirectoryOversizedPagesClampTo500(t *testing.T) {
-	limit, offset := apiPagination(&apiv1.PageRequest{Limit: 9999}, defaultMemberDirectoryLimit, maxMemberDirectoryLimit)
+func TestMemberDirectoryPaginationDefaultsAndClamps(t *testing.T) {
+	userLimit, userOffset := userDirectoryPagination(nil)
+	if userLimit != 20 || userOffset != 0 {
+		t.Fatalf("userDirectoryPagination nil page = %d, %d; want 20, 0", userLimit, userOffset)
+	}
+
+	roomLimit, roomOffset := roomMemberDirectoryPagination(nil)
+	if roomLimit != 250 || roomOffset != 0 {
+		t.Fatalf("roomMemberDirectoryPagination nil page = %d, %d; want 250, 0", roomLimit, roomOffset)
+	}
+
+	roomZeroLimit, roomZeroOffset := roomMemberDirectoryPagination(&apiv1.PageRequest{Limit: 0, Offset: 7})
+	if roomZeroLimit != 250 || roomZeroOffset != 7 {
+		t.Fatalf("roomMemberDirectoryPagination zero-limit page = %d, %d; want 250, 7", roomZeroLimit, roomZeroOffset)
+	}
+
+	limit, offset := roomMemberDirectoryPagination(&apiv1.PageRequest{Limit: 9999})
 	if limit != 500 || offset != 0 {
-		t.Fatalf("apiPagination limit, offset = %d, %d; want 500, 0", limit, offset)
+		t.Fatalf("roomMemberDirectoryPagination oversized page = %d, %d; want 500, 0", limit, offset)
 	}
 
 	users := make([]*corev1.User, 501)
