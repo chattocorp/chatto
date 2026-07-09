@@ -50,22 +50,8 @@ runs:
       if: inputs.install-ffmpeg == 'true'
       shell: bash
       run: |
-        if command -v ffmpeg >/dev/null 2>&1 && command -v ffprobe >/dev/null 2>&1; then
-          ffmpeg -version | head -n 1
-          ffprobe -version | head -n 1
-          exit 0
-        fi
-
-        sudo apt-get update \
-          -o Acquire::Retries=5 \
-          -o Acquire::http::Timeout=30 \
-          -o Acquire::https::Timeout=30 \
-          -qq
-        sudo apt-get install -y -qq --no-install-recommends \
-          -o Acquire::Retries=5 \
-          -o Acquire::http::Timeout=30 \
-          -o Acquire::https::Timeout=30 \
-          ffmpeg
+        sudo apt-get update -qq
+        sudo apt-get install -y -qq ffmpeg
 
     - name: Set up CLI
       if: inputs.install-cli-deps == 'true'

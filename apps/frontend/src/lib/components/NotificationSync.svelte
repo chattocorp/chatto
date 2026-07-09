@@ -101,6 +101,7 @@ Include this component once in the chat layout (unconditionally).
 
   let badgeState = $derived.by((): { intent: AppBadgeIntent; allStoresLoaded: boolean } => {
     let dmCount = 0;
+    let canUseNumericDmCount = true;
     let hasNotification = false;
     let allStoresLoaded = true;
 
@@ -110,13 +111,19 @@ Include this component once in the chat layout (unconditionally).
       if (!stores.notifications.hasLoaded) allStoresLoaded = false;
 
       const notifications = stores.notifications.notifications;
+      const notificationTotal = stores.notifications.unreadNotificationCount;
       dmCount += notifications.filter((n) => n.kind === NotificationItemKind.DirectMessage).length;
-      if (notifications.length > 0 || stores.notifications.unreadNotificationCount > 0) {
+      if (notificationTotal > notifications.length) {
+        canUseNumericDmCount = false;
+      }
+      if (notifications.length > 0 || notificationTotal > 0) {
         hasNotification = true;
       }
     }
 
-    if (dmCount > 0) return { intent: { kind: 'count', count: dmCount }, allStoresLoaded };
+    if (dmCount > 0 && canUseNumericDmCount) {
+      return { intent: { kind: 'count', count: dmCount }, allStoresLoaded };
+    }
     if (hasNotification) return { intent: { kind: 'flag' }, allStoresLoaded };
     return { intent: { kind: 'clear' }, allStoresLoaded };
   });

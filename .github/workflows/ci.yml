@@ -112,8 +112,8 @@ jobs:
           restore-keys: |
             playwright-${{ runner.os }}-${{ runner.arch }}-
 
-      - name: Install Playwright browser
-        run: cd apps/frontend && pnpm exec playwright install chromium --only-shell
+      - name: Install Playwright dependencies
+        run: cd apps/frontend && pnpm exec playwright install chromium --with-deps
         timeout-minutes: 15
 
       - name: Run frontend typecheck
@@ -164,8 +164,8 @@ jobs:
           restore-keys: |
             playwright-${{ runner.os }}-${{ runner.arch }}-
 
-      - name: Install Playwright browser
-        run: cd apps/frontend && pnpm exec playwright install chromium --only-shell
+      - name: Install Playwright dependencies
+        run: cd apps/frontend && pnpm exec playwright install chromium --with-deps
         timeout-minutes: 15
 
       - name: Build E2E server
@@ -202,8 +202,8 @@ jobs:
           restore-keys: |
             playwright-${{ runner.os }}-${{ runner.arch }}-
 
-      - name: Install Playwright browser
-        run: cd apps/frontend && pnpm exec playwright install chromium --only-shell
+      - name: Install Playwright dependencies
+        run: cd apps/frontend && pnpm exec playwright install chromium --with-deps
         timeout-minutes: 15
 
       - name: Build E2E server

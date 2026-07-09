@@ -190,7 +190,7 @@ describe('NotificationSync', () => {
   it('uses a numeric app badge for loaded DM notifications', async () => {
     mocks.store.notifications.notifications = [{ kind: 'directMessage' }];
     mocks.store.notifications.count = 1;
-    mocks.store.notifications.unreadNotificationCount = 3;
+    mocks.store.notifications.unreadNotificationCount = 1;
 
     await renderAndWaitForSubscription();
 
@@ -201,6 +201,18 @@ describe('NotificationSync', () => {
       kind: 'count',
       count: 1
     });
+    expect(mocks.clearBadge).not.toHaveBeenCalled();
+  });
+
+  it('uses a flag instead of a capped DM count when notifications are not fully loaded', async () => {
+    mocks.store.notifications.notifications = [{ kind: 'directMessage' }];
+    mocks.store.notifications.count = 1;
+    mocks.store.notifications.unreadNotificationCount = 3;
+
+    await renderAndWaitForSubscription();
+
+    await vi.waitFor(() => expect(mocks.updateBadge).toHaveBeenCalledWith({ kind: 'flag' }));
+    expect(mocks.syncServiceWorkerNotificationBadgeState).toHaveBeenCalledWith({ kind: 'flag' });
     expect(mocks.clearBadge).not.toHaveBeenCalled();
   });
 
