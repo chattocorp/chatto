@@ -141,6 +141,29 @@ jobs:
       - name: Run Go tests
         run: cd cli && go test -trimpath -p 1 -tags test_endpoints ./...
 
+  test-cli-freebsd-cross-compile:
+    # runs-on: ubicloud-standard-4
+    runs-on: ubuntu-latest
+    name: test-cli-freebsd-cross-compile (${{ matrix.goarch }})
+    strategy:
+      fail-fast: false
+      matrix:
+        goarch: [amd64, arm64]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup environment
+        uses: ./.github/actions/setup
+        with:
+          install-frontend-deps: "false"
+
+      - name: Build FreeBSD packages
+        run: cd cli && GOOS=freebsd GOARCH=${{ matrix.goarch }} CGO_ENABLED=0 go build -trimpath ./...
+
+      - name: Compile FreeBSD test packages
+        run: cd cli && GOOS=freebsd GOARCH=${{ matrix.goarch }} CGO_ENABLED=0 go test -run '^$' -exec /usr/bin/true ./...
+
   test-e2e:
     # runs-on: ubicloud-standard-4
     runs-on: ubuntu-latest
