@@ -85,10 +85,14 @@ describe('AddServerDialog', () => {
     });
 
     const [requestUrl, requestInit] = vi.mocked(globalThis.fetch).mock.calls[0];
-    expect(requestUrl).toBe(
+    const parsedRequestUrl = new URL(String(requestUrl));
+    expect(`${parsedRequestUrl.origin}${parsedRequestUrl.pathname}`).toBe(
       'https://chat.example.com/api/connect/chatto.discovery.v1.ServerDiscoveryService/GetServer'
     );
-    expect(requestInit?.method).toBe('POST');
+    expect(parsedRequestUrl.searchParams.get('connect')).toBe('v1');
+    expect(parsedRequestUrl.searchParams.get('encoding')).toBe('json');
+    expect(parsedRequestUrl.searchParams.get('message')).toBe('{}');
+    expect(requestInit?.method).toBe('GET');
 
     // The server-supplied name appears in the (visually-marked) preview
     // card, not in any action button.

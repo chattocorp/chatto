@@ -36,6 +36,9 @@ func setupCORSServer(t *testing.T, webserverConfig config.WebserverConfig) *HTTP
 	router.POST(serverDiscoveryConnectPath, func(c *gin.Context) {
 		c.String(http.StatusOK, "instance info")
 	})
+	router.GET(serverDiscoveryConnectPath, func(c *gin.Context) {
+		c.String(http.StatusOK, "instance info")
+	})
 
 	return s
 }
@@ -251,11 +254,33 @@ func TestCORSMiddleware(t *testing.T) {
 		if origin := w.Header().Get("Access-Control-Allow-Origin"); origin != "*" {
 			t.Errorf("expected Access-Control-Allow-Origin '*' from discovery handler, got %q", origin)
 		}
-		if methods := w.Header().Get("Access-Control-Allow-Methods"); methods != "POST, OPTIONS" {
-			t.Errorf("expected Access-Control-Allow-Methods 'POST, OPTIONS', got %q", methods)
+		if methods := w.Header().Get("Access-Control-Allow-Methods"); methods != "GET, POST, OPTIONS" {
+			t.Errorf("expected Access-Control-Allow-Methods 'GET, POST, OPTIONS', got %q", methods)
 		}
 		if creds := w.Header().Get("Access-Control-Allow-Credentials"); creds != "" {
 			t.Errorf("expected no Access-Control-Allow-Credentials for public discovery, got %q", creds)
+		}
+	})
+
+	t.Run("public server discovery GET uses wildcard CORS", func(t *testing.T) {
+		s := setupCORSServer(t, config.WebserverConfig{
+			URL:            "https://chat.example.com",
+			AllowedOrigins: []string{"https://only-this.example.com"},
+		})
+
+		req := httptest.NewRequest(http.MethodGet, serverDiscoveryConnectPath, nil)
+		req.Header.Set("Origin", "https://unknown.example.com")
+		w := httptest.NewRecorder()
+		s.router.ServeHTTP(w, req)
+
+		if w.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d", w.Code)
+		}
+		if origin := w.Header().Get("Access-Control-Allow-Origin"); origin != "*" {
+			t.Errorf("expected Access-Control-Allow-Origin '*' from discovery GET, got %q", origin)
+		}
+		if methods := w.Header().Get("Access-Control-Allow-Methods"); methods != "GET, POST, OPTIONS" {
+			t.Errorf("expected Access-Control-Allow-Methods 'GET, POST, OPTIONS', got %q", methods)
 		}
 	})
 

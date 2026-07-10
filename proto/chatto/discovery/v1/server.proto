@@ -3,6 +3,7 @@ syntax = "proto3";
 package chatto.discovery.v1;
 
 import "chatto/api/v1/server.proto";
+import "google/protobuf/descriptor.proto";
 
 // Request for public server metadata.
 message GetServerRequest {}
@@ -21,5 +22,7 @@ service ServerDiscoveryService {
   // Returns public server metadata, branding, registration status, and login
   // provider information. This fully public RPC is available before login so
   // clients can render the first server screen and authentication choices.
-  rpc GetServer(GetServerRequest) returns (GetServerResponse);
+  rpc GetServer(GetServerRequest) returns (GetServerResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
 }

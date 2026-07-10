@@ -85,7 +85,7 @@ func (s *HTTPServer) corsMiddleware(allowedOrigins []string) gin.HandlerFunc {
 
 		if c.Request.URL.Path == serverDiscoveryConnectPath {
 			c.Header("Access-Control-Allow-Origin", "*")
-			c.Header("Access-Control-Allow-Methods", "POST, OPTIONS")
+			c.Header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
 			c.Header("Access-Control-Allow-Headers", corsAllowedHeaders)
 			c.Header("Access-Control-Max-Age", "86400")
 			if c.Request.Method == http.MethodOptions {

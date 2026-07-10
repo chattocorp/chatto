@@ -132,6 +132,7 @@ func NewNotificationServiceClient(httpClient connect.HTTPClient, baseURL string,
 			httpClient,
 			baseURL+NotificationServiceDismissNotificationProcedure,
 			connect.WithSchema(notificationServiceMethods.ByName("DismissNotification")),
+			connect.WithIdempotency(connect.IdempotencyIdempotent),
 			connect.WithClientOptions(opts...),
 		),
 		dismissAllNotifications: connect.NewClient[v1.DismissAllNotificationsRequest, v1.DismissAllNotificationsResponse](
@@ -264,6 +265,7 @@ func NewNotificationServiceHandler(svc NotificationServiceHandler, opts ...conne
 		NotificationServiceDismissNotificationProcedure,
 		svc.DismissNotification,
 		connect.WithSchema(notificationServiceMethods.ByName("DismissNotification")),
+		connect.WithIdempotency(connect.IdempotencyIdempotent),
 		connect.WithHandlerOptions(opts...),
 	)
 	notificationServiceDismissAllNotificationsHandler := connect.NewUnaryHandler(

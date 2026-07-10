@@ -62,6 +62,7 @@ func NewServerDiscoveryServiceClient(httpClient connect.HTTPClient, baseURL stri
 			httpClient,
 			baseURL+ServerDiscoveryServiceGetServerProcedure,
 			connect.WithSchema(serverDiscoveryServiceMethods.ByName("GetServer")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
 	}
@@ -97,6 +98,7 @@ func NewServerDiscoveryServiceHandler(svc ServerDiscoveryServiceHandler, opts ..
 		ServerDiscoveryServiceGetServerProcedure,
 		svc.GetServer,
 		connect.WithSchema(serverDiscoveryServiceMethods.ByName("GetServer")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
 	return "/chatto.discovery.v1.ServerDiscoveryService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

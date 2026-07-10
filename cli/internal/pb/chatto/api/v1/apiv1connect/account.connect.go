@@ -138,6 +138,7 @@ func NewMyAccountServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			httpClient,
 			baseURL+MyAccountServiceDeleteAvatarProcedure,
 			connect.WithSchema(myAccountServiceMethods.ByName("DeleteAvatar")),
+			connect.WithIdempotency(connect.IdempotencyIdempotent),
 			connect.WithClientOptions(opts...),
 		),
 		updatePassword: connect.NewClient[v1.UpdatePasswordRequest, v1.UpdatePasswordResponse](
@@ -186,6 +187,7 @@ func NewMyAccountServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			httpClient,
 			baseURL+MyAccountServiceDeleteCustomStatusProcedure,
 			connect.WithSchema(myAccountServiceMethods.ByName("DeleteCustomStatus")),
+			connect.WithIdempotency(connect.IdempotencyIdempotent),
 			connect.WithClientOptions(opts...),
 		),
 		requestAccountDeletion: connect.NewClient[v1.RequestAccountDeletionRequest, v1.RequestAccountDeletionResponse](
@@ -345,6 +347,7 @@ func NewMyAccountServiceHandler(svc MyAccountServiceHandler, opts ...connect.Han
 		MyAccountServiceDeleteAvatarProcedure,
 		svc.DeleteAvatar,
 		connect.WithSchema(myAccountServiceMethods.ByName("DeleteAvatar")),
+		connect.WithIdempotency(connect.IdempotencyIdempotent),
 		connect.WithHandlerOptions(opts...),
 	)
 	myAccountServiceUpdatePasswordHandler := connect.NewUnaryHandler(
@@ -393,6 +396,7 @@ func NewMyAccountServiceHandler(svc MyAccountServiceHandler, opts ...connect.Han
 		MyAccountServiceDeleteCustomStatusProcedure,
 		svc.DeleteCustomStatus,
 		connect.WithSchema(myAccountServiceMethods.ByName("DeleteCustomStatus")),
+		connect.WithIdempotency(connect.IdempotencyIdempotent),
 		connect.WithHandlerOptions(opts...),
 	)
 	myAccountServiceRequestAccountDeletionHandler := connect.NewUnaryHandler(
