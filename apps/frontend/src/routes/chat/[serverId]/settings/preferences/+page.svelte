@@ -1,6 +1,6 @@
 <script lang="ts">
   import * as m from '$lib/i18n/messages';
-  import { getFormattingLocale, getLocale, setLocale, type Locale } from '$lib/i18n/runtime';
+  import { getLocale, setLocale, type Locale } from '$lib/i18n/runtime';
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { createAccountAPI } from '$lib/api-client/account';
   import { TimeFormat } from '$lib/render/types';
@@ -11,6 +11,7 @@
   import { PaneHeader, FormSection } from '$lib/ui';
   import { Button, FormError } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
+  import { formatMessageTime } from '$lib/utils/formatTime';
 
   const userSettings = getUserSettings();
   const currentUser = $derived(serverRegistry.getStore(getActiveServer()).currentUser);
@@ -65,12 +66,14 @@
   const selectedTimezoneTime = $derived.by(() => {
     if (!selectedTimezone) return null;
 
-    return new Date().toLocaleTimeString(getFormattingLocale(activeLocale), {
-      timeZone: selectedTimezone,
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: hour12ForTimeFormat(selectedTimeFormat)
-    });
+    return formatMessageTime(
+      new Date(),
+      {
+        effectiveTimezone: selectedTimezone,
+        effectiveHour12: hour12ForTimeFormat(selectedTimeFormat)
+      },
+      activeLocale
+    );
   });
 
   function handleTimezoneInput(e: Event) {
@@ -363,7 +366,9 @@
           {/each}
           {#if filteredTimezones.length > 50}
             <li class="px-3 py-1.5 text-xs text-muted">
-              {m['settings.preferences.timezone.more_results']({ count: filteredTimezones.length - 50 })}
+              {m['settings.preferences.timezone.more_results']({
+                count: filteredTimezones.length - 50
+              })}
             </li>
           {/if}
         </ul>

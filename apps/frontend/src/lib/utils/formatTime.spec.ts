@@ -44,6 +44,11 @@ describe('formatMessageTime', () => {
     expect(formatMessageTime('2025-04-27T14:30:00Z', settings('UTC'), 'en')).toBe('02:30 PM');
   });
 
+  it('keeps the browser time cycle when the active language differs', () => {
+    setBrowserLocale('en-US');
+    expect(formatMessageTime('2025-04-27T14:30:00Z', settings('UTC'), 'de')).toBe('02:30 PM');
+  });
+
   it('formats UTC time in 24-hour format', () => {
     expect(formatMessageTime('2025-04-27T14:30:00Z', utc12, 'en-US')).toBe('14:30');
   });
@@ -70,7 +75,12 @@ describe('formatDate', () => {
 
   it('keeps translated date text while applying the browser region', () => {
     setBrowserLocale('en-GB');
-    expect(formatDate('2025-04-27T14:30:00Z', utc12, 'de')).toMatch(/27\. Apr\.? 2025/);
+    expect(formatDate('2025-04-27T14:30:00Z', utc12, 'de')).toBe('27 Apr. 2025');
+  });
+
+  it('keeps browser date ordering when the active language differs', () => {
+    setBrowserLocale('en-US');
+    expect(formatDate('2025-04-27T14:30:00Z', utc12, 'de')).toBe('Apr. 27, 2025');
   });
 
   it('formats a date in long-month/short style', () => {
