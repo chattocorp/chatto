@@ -14,7 +14,9 @@ const { getRoomEventsAroundMock, timelineResults, refreshAssetUrlsMock } = vi.ho
   })
 );
 
-const testImageUrl = '/icons/favicon.png';
+function testImageUrl(label: string): string {
+  return `/icons/favicon.png?label=${label}`;
+}
 
 vi.mock('$lib/api-client/roomTimeline', () => ({
   createRoomTimelineAPI: vi.fn(() => ({
@@ -218,8 +220,8 @@ describe('MessagePreviewCard', () => {
   });
 
   it('refreshes attachment thumbnail asset URLs after image load failure', async () => {
-    timelineResults.push(previewResult(`${testImageUrl}#old-image`));
-    refreshAssetUrlsMock.mockResolvedValueOnce(refreshResult(`${testImageUrl}#fresh-image`));
+    timelineResults.push(previewResult(testImageUrl('old-image')));
+    refreshAssetUrlsMock.mockResolvedValueOnce(refreshResult(testImageUrl('fresh-image')));
 
     const { container } = render(MessagePreviewCard, {
       props: { link: link(), showDismiss: false }
@@ -235,7 +237,7 @@ describe('MessagePreviewCard', () => {
 
     await vi.waitFor(() => {
       const refreshed = container.querySelector<HTMLImageElement>('img[alt="photo.jpg"]');
-      expect(refreshed?.getAttribute('src')).toContain('#fresh-image');
+      expect(refreshed?.getAttribute('src')).toContain('fresh-image');
     });
     expect(refreshAssetUrlsMock).toHaveBeenCalledWith('room_1', ['att_1'], {
       width: 120,
@@ -245,32 +247,29 @@ describe('MessagePreviewCard', () => {
   });
 
   it('clears stale preview thumbnail asset URLs when refresh returns null', async () => {
-    timelineResults.push(previewResult(`${testImageUrl}#old-image`));
+    timelineResults.push(previewResult(testImageUrl('old-image')));
     refreshAssetUrlsMock.mockResolvedValueOnce(clearedRefreshResult('att_1'));
 
     const { container } = render(MessagePreviewCard, {
       props: { link: link(), showDismiss: false }
     });
 
-    await vi.waitFor(() => {
-      expect(container.querySelector('img[alt="photo.jpg"]')).not.toBeNull();
+    const img = await vi.waitFor(() => {
+      const current = container.querySelector<HTMLImageElement>('img[alt="photo.jpg"]');
+      expect(current).not.toBeNull();
+      return current!;
     });
-    container
-      .querySelector<HTMLImageElement>('img[alt="photo.jpg"]')
-      ?.dispatchEvent(new Event('error'));
+    img.dispatchEvent(new Event('error'));
 
     await vi.waitFor(() => {
       expect(refreshAssetUrlsMock).toHaveBeenCalled();
-    });
-
-    await vi.waitFor(() => {
       expect(container.querySelector('img[alt="photo.jpg"]')).toBeNull();
     });
     expect(container.textContent).toContain('Image');
   });
 
   it('renders video attachment thumbnails for linked message previews', async () => {
-    timelineResults.push(videoPreviewResult(`${testImageUrl}#old-video`));
+    timelineResults.push(videoPreviewResult(testImageUrl('old-video')));
 
     const { container } = render(MessagePreviewCard, {
       props: { link: link(), showDismiss: false }
@@ -281,15 +280,13 @@ describe('MessagePreviewCard', () => {
     });
 
     const img = container.querySelector<HTMLImageElement>('img[alt="clip.mp4"]');
-    expect(img?.getAttribute('src')).toContain('#old-video');
+    expect(img?.getAttribute('src')).toContain('old-video');
     expect(container.querySelector('.uil--play')).not.toBeNull();
   });
 
   it('refreshes video attachment thumbnail asset URLs after image load failure', async () => {
-    timelineResults.push(videoPreviewResult(`${testImageUrl}#old-video`));
-    refreshAssetUrlsMock.mockResolvedValueOnce(
-      videoRefreshResult(`${testImageUrl}#fresh-video`)
-    );
+    timelineResults.push(videoPreviewResult(testImageUrl('old-video')));
+    refreshAssetUrlsMock.mockResolvedValueOnce(videoRefreshResult(testImageUrl('fresh-video')));
 
     const { container } = render(MessagePreviewCard, {
       props: { link: link(), showDismiss: false }
@@ -305,40 +302,35 @@ describe('MessagePreviewCard', () => {
 
     await vi.waitFor(() => {
       const refreshed = container.querySelector<HTMLImageElement>('img[alt="clip.mp4"]');
-      expect(refreshed?.getAttribute('src')).toContain('#fresh-video');
+      expect(refreshed?.getAttribute('src')).toContain('fresh-video');
     });
   });
 
   it('clears stale preview video thumbnail asset URLs when refresh returns null', async () => {
-    timelineResults.push(videoPreviewResult(`${testImageUrl}#old-video`));
+    timelineResults.push(videoPreviewResult(testImageUrl('old-video')));
     refreshAssetUrlsMock.mockResolvedValueOnce(clearedRefreshResult('att_video'));
 
     const { container } = render(MessagePreviewCard, {
       props: { link: link(), showDismiss: false }
     });
 
-    await vi.waitFor(() => {
-      expect(container.querySelector('img[alt="clip.mp4"]')).not.toBeNull();
+    const img = await vi.waitFor(() => {
+      const current = container.querySelector<HTMLImageElement>('img[alt="clip.mp4"]');
+      expect(current).not.toBeNull();
+      return current!;
     });
-    container
-      .querySelector<HTMLImageElement>('img[alt="clip.mp4"]')
-      ?.dispatchEvent(new Event('error'));
+    img.dispatchEvent(new Event('error'));
 
     await vi.waitFor(() => {
       expect(refreshAssetUrlsMock).toHaveBeenCalled();
-    });
-
-    await vi.waitFor(() => {
       expect(container.querySelector('img[alt="clip.mp4"]')).toBeNull();
     });
     expect(container.querySelector('.uil--play')).not.toBeNull();
   });
 
   it('falls back to a video tile when the refreshed video thumbnail also fails', async () => {
-    timelineResults.push(videoPreviewResult(`${testImageUrl}#old-video`));
-    refreshAssetUrlsMock.mockResolvedValueOnce(
-      videoRefreshResult(`${testImageUrl}#fresh-video`)
-    );
+    timelineResults.push(videoPreviewResult(testImageUrl('old-video')));
+    refreshAssetUrlsMock.mockResolvedValueOnce(videoRefreshResult(testImageUrl('fresh-video')));
 
     const { container } = render(MessagePreviewCard, {
       props: { link: link(), showDismiss: false }
@@ -354,7 +346,7 @@ describe('MessagePreviewCard', () => {
 
     await vi.waitFor(() => {
       expect(container.querySelector<HTMLImageElement>('img[alt="clip.mp4"]')?.src).toContain(
-        '#fresh-video'
+        'fresh-video'
       );
     });
 

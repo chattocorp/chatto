@@ -894,7 +894,10 @@
               <span class="iconify text-lg text-muted uil--music"></span>
             </div>
           {:else}
-            <div class="flex h-16 w-16 items-center justify-center rounded-md bg-surface-200">
+            <div
+              data-testid="file-attachment-preview"
+              class="flex h-16 w-16 items-center justify-center rounded-md bg-surface-200"
+            >
               <span class="text-xs text-muted">{file.name.split('.').pop()}</span>
             </div>
           {/if}
@@ -915,7 +918,6 @@
     <input
       bind:this={fileInputElement}
       type="file"
-      accept={attachments.accept}
       multiple
       onchange={handleFileSelect}
       class="hidden"

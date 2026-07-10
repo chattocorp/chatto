@@ -318,7 +318,12 @@
 
     refreshPromise = refreshUrlsForMessage()
       .then((freshUrls) => {
-        applyRefreshedUrls(freshUrls);
+        if (freshUrls.size > 0) {
+          refreshedAttachmentUrls = mergeRefreshedAttachmentUrls(
+            refreshedAttachmentUrls,
+            freshUrls
+          );
+        }
         return freshUrls;
       })
       .finally(() => {
@@ -326,11 +331,6 @@
       });
 
     return refreshPromise;
-  }
-
-  function applyRefreshedUrls(freshUrls: Map<string, RefreshedAttachmentUrls>) {
-    if (freshUrls.size === 0) return;
-    refreshedAttachmentUrls = mergeRefreshedAttachmentUrls(refreshedAttachmentUrls, freshUrls);
   }
 
   function refreshAfterAssetError(attachment: Attachment, role: string) {
@@ -388,7 +388,9 @@
       imageAttachments.map((attachment) => attachment.id),
       LIGHTBOX_ATTACHMENT_IMAGE_REFRESH
     );
-    applyRefreshedUrls(freshUrls);
+    if (freshUrls.size > 0) {
+      refreshedAttachmentUrls = mergeRefreshedAttachmentUrls(refreshedAttachmentUrls, freshUrls);
+    }
     return freshUrls;
   }
 
