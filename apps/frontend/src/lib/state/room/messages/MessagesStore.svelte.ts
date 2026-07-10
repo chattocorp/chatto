@@ -9,6 +9,25 @@ import type { JumpToMessageState } from '../composerContext.svelte';
 import { PAGE_SIZE } from './queries';
 import { isRootRoomEvent, isThreadEvent } from './filters';
 import { type EventConnectionPage, type RawEvent, getActorId, unmask } from './helpers';
+import { OptimisticMutationRegistry } from '$lib/state/optimisticMutations';
+import {
+  beginOptimisticReaction as beginOptimisticReactionPatch,
+  clearOptimisticReactionsForEvent,
+  type OptimisticReactionAction,
+  type OptimisticReactionHandle
+} from './optimisticReactions';
+import {
+  beginOptimisticThreadFollow as beginOptimisticThreadFollowPatch,
+  clearOptimisticThreadFollowForEvent,
+  type OptimisticThreadFollowHandle
+} from './optimisticThreadFollow';
+
+export type {
+  OptimisticReactionAction,
+  OptimisticReactionHandle,
+  OptimisticReactionServerSummary
+} from './optimisticReactions';
+export type { OptimisticThreadFollowHandle } from './optimisticThreadFollow';
 
 type MessageScope = 'room' | 'thread';
 type RoomEventPayload = NonNullable<RoomEventView['event']>;
@@ -21,40 +40,17 @@ type MessageRetractedPayload = Extract<
 type ReactionMutationPayload =
   | Extract<RoomEventPayload, { kind: typeof RoomEventKind.ReactionAdded }>
   | Extract<RoomEventPayload, { kind: typeof RoomEventKind.ReactionRemoved }>;
-type MessageReactionSummary = MessagePostedPayload['reactions'][number];
 type AssetProcessingPayload =
   | Extract<RoomEventPayload, { kind: typeof RoomEventKind.AssetProcessingStarted }>
   | Extract<RoomEventPayload, { kind: typeof RoomEventKind.AssetProcessingSucceeded }>
   | Extract<RoomEventPayload, { kind: typeof RoomEventKind.AssetProcessingFailed }>;
 type RoomDeletedPayload = Extract<RoomEventPayload, { kind: typeof RoomEventKind.RoomDeleted }>;
 
-export type OptimisticReactionAction = 'add' | 'remove';
-
-export type OptimisticReactionServerSummary = {
-  emoji: string;
-  count: number;
-  hasReacted: boolean;
-} | null;
-
-export type OptimisticReactionHandle = {
-  applyServerReaction(reaction: OptimisticReactionServerSummary): void;
-  rollback(): void;
-};
-
 export type RefreshCurrentWindowResult = {
   hasOlder: boolean;
   hasNewer: boolean;
   refreshed: boolean;
   changed: boolean;
-};
-
-type OptimisticReactionSnapshot = {
-  key: string;
-  emoji: string;
-  previousReaction: MessageReactionSummary | null;
-  source: 'events' | 'preview';
-  eventId?: string;
-  previewKey?: string;
 };
 
 function eventCacheKey(roomId: string, eventId: string): string {
@@ -185,8 +181,8 @@ export class MessagesStore {
   private roomId = '';
   private oldestCursor: string | undefined;
   private newestCursor: string | undefined;
-  private optimisticReactionVersion = 0;
-  private optimisticReactionVersions = new SvelteMap<string, number>();
+  private optimisticReactions = new OptimisticMutationRegistry();
+  private optimisticThreadFollows = new OptimisticMutationRegistry();
 
   /** Increments on every load kickoff. Async callbacks compare against
    *  it via {@link isStale} to discard results from superseded loads. */
@@ -270,66 +266,43 @@ export class MessagesStore {
     emoji: string;
     action: OptimisticReactionAction;
   }): OptimisticReactionHandle {
-    const token = ++this.optimisticReactionVersion;
-    const targetIds = this.optimisticReactionTargetIds(input.messageEventId);
-    const snapshots: OptimisticReactionSnapshot[] = [];
-
-    const record = (snapshot: OptimisticReactionSnapshot) => {
-      snapshots.push(snapshot);
-      this.optimisticReactionVersions.set(snapshot.key, token);
-    };
-
-    for (let i = 0; i < this.events.length; i++) {
-      const event = this.events[i];
-      if (!this.isReactionTarget(event, targetIds)) continue;
-      const updated = this.eventWithOptimisticReaction(event, input.emoji, input.action);
-      if (!updated) continue;
-      const key = this.optimisticEventKey(event.id, input.emoji);
-      record({
-        key,
-        emoji: input.emoji,
-        previousReaction: this.reactionSummary(event, input.emoji),
-        source: 'events',
-        eventId: event.id
-      });
-      this.events[i] = updated;
-    }
-
-    for (const [previewKey, event] of this.previewEvents) {
-      if (!event || !this.isReactionTarget(event, targetIds)) continue;
-      const updated = this.eventWithOptimisticReaction(event, input.emoji, input.action);
-      if (!updated) continue;
-      const key = this.optimisticPreviewKey(previewKey, input.emoji);
-      record({
-        key,
-        emoji: input.emoji,
-        previousReaction: this.reactionSummary(event, input.emoji),
-        source: 'preview',
-        previewKey
-      });
-      this.previewEvents.set(previewKey, updated);
-    }
-
-    return {
-      applyServerReaction: (reaction) => {
-        for (const snapshot of snapshots) {
-          if (this.optimisticReactionVersions.get(snapshot.key) !== token) continue;
-          this.applyServerReactionSnapshot(snapshot, input.emoji, reaction);
-          this.optimisticReactionVersions.delete(snapshot.key);
-        }
+    return beginOptimisticReactionPatch({
+      ...input,
+      events: this.events,
+      previews: this.previewEvents,
+      registry: this.optimisticReactions,
+      setEvent: (index, event) => {
+        this.events[index] = event;
       },
-      rollback: () => {
-        for (const snapshot of snapshots) {
-          if (this.optimisticReactionVersions.get(snapshot.key) !== token) continue;
-          this.restoreOptimisticReactionSnapshot(snapshot);
-          this.optimisticReactionVersions.delete(snapshot.key);
-        }
+      setPreview: (key, event) => {
+        this.previewEvents.set(key, event);
       }
-    };
+    });
+  }
+
+  /**
+   * Apply a provisional local thread follow-state update on a known thread root.
+   * Projected server rows and live follow events remain authoritative and clear
+   * the pending optimistic mutation for the affected root row.
+   */
+  beginOptimisticThreadFollow(
+    threadRootEventId: string,
+    isFollowing: boolean
+  ): OptimisticThreadFollowHandle {
+    return beginOptimisticThreadFollowPatch({
+      threadRootEventId,
+      isFollowing,
+      events: this.events,
+      registry: this.optimisticThreadFollows,
+      setEvent: (index, event) => {
+        this.events[index] = event;
+      }
+    });
   }
 
   /** Update the viewer's thread follow state on a known thread root event. */
   setThreadRootFollowState(threadRootEventId: string, isFollowing: boolean): void {
+    clearOptimisticThreadFollowForEvent(this.optimisticThreadFollows, threadRootEventId);
     const idx = this.events.findIndex((e) => e.id === threadRootEventId);
     if (idx === -1) return;
 
@@ -387,242 +360,13 @@ export class MessagesStore {
     return eventCacheKey(this.roomId, eventId);
   }
 
-  private optimisticEventKey(eventId: string, emoji: string): string {
-    return `${this.optimisticEventKeyPrefix(eventId)}${emoji}`;
-  }
-
-  private optimisticEventKeyPrefix(eventId: string): string {
-    return `events:${eventId}\u0000`;
-  }
-
-  private optimisticPreviewKey(previewKey: string, emoji: string): string {
-    return `${this.optimisticPreviewKeyPrefix(previewKey)}${emoji}`;
-  }
-
-  private optimisticPreviewKeyPrefix(previewKey: string): string {
-    return `preview:${previewKey}\u0000`;
-  }
-
   private clearOptimisticVersionForEvent(eventId: string): void {
-    const eventPrefix = this.optimisticEventKeyPrefix(eventId);
-    const previewPrefix = this.optimisticPreviewKeyPrefix(this.previewKey(eventId));
-    for (const key of this.optimisticReactionVersions.keys()) {
-      if (key.startsWith(eventPrefix) || key.startsWith(previewPrefix)) {
-        this.optimisticReactionVersions.delete(key);
-      }
-    }
-  }
-
-  private optimisticReactionTargetIds(messageEventId: string): SvelteSet<string> {
-    const targetIds = new SvelteSet([messageEventId]);
-    let changed = true;
-
-    while (changed) {
-      changed = false;
-      for (const event of this.events) {
-        changed = this.addLinkedReactionTargetIds(event, targetIds) || changed;
-      }
-      for (const event of this.previewEvents.values()) {
-        if (event) changed = this.addLinkedReactionTargetIds(event, targetIds) || changed;
-      }
-    }
-
-    return targetIds;
-  }
-
-  private addLinkedReactionTargetIds(event: RoomEventView, targetIds: SvelteSet<string>): boolean {
-    const payload = event.event;
-    if (!isMessagePostedPayload(payload)) return false;
-
-    const before = targetIds.size;
-    if (targetIds.has(event.id)) {
-      if (payload.echoOfEventId) targetIds.add(payload.echoOfEventId);
-      if (payload.channelEchoEventId) targetIds.add(payload.channelEchoEventId);
-    }
-    if (payload.echoOfEventId && targetIds.has(payload.echoOfEventId)) targetIds.add(event.id);
-    if (payload.channelEchoEventId && targetIds.has(payload.channelEchoEventId)) {
-      targetIds.add(event.id);
-    }
-    return targetIds.size !== before;
-  }
-
-  private isReactionTarget(event: RoomEventView, targetIds: SvelteSet<string>): boolean {
-    if (targetIds.has(event.id)) return true;
-    const payload = event.event;
-    return (
-      isMessagePostedPayload(payload) &&
-      Boolean(
-        (payload.echoOfEventId && targetIds.has(payload.echoOfEventId)) ||
-          (payload.channelEchoEventId && targetIds.has(payload.channelEchoEventId))
-      )
+    clearOptimisticReactionsForEvent(
+      this.optimisticReactions,
+      eventId,
+      this.previewKey(eventId)
     );
-  }
-
-  private eventWithOptimisticReaction(
-    event: RoomEventView,
-    emoji: string,
-    action: OptimisticReactionAction
-  ): RoomEventView | null {
-    const payload = event.event;
-    if (!isMessagePostedPayload(payload)) return null;
-    return {
-      ...event,
-      event: {
-        ...payload,
-        reactions: this.optimisticReactions(payload.reactions, emoji, action)
-      }
-    };
-  }
-
-  private reactionSummary(event: RoomEventView, emoji: string): MessageReactionSummary | null {
-    const payload = event.event;
-    if (!isMessagePostedPayload(payload)) return null;
-    return payload.reactions.find((reaction) => reaction.emoji === emoji) ?? null;
-  }
-
-  private eventWithReactionSummary(
-    event: RoomEventView,
-    emoji: string,
-    reaction: MessageReactionSummary | null
-  ): RoomEventView | null {
-    const payload = event.event;
-    if (!isMessagePostedPayload(payload)) return null;
-    return {
-      ...event,
-      event: {
-        ...payload,
-        reactions: this.reactionsWithSummary(payload.reactions, emoji, reaction)
-      }
-    };
-  }
-
-  private optimisticReactions(
-    reactions: readonly MessageReactionSummary[],
-    emoji: string,
-    action: OptimisticReactionAction
-  ): MessageReactionSummary[] {
-    const existingIndex = reactions.findIndex((reaction) => reaction.emoji === emoji);
-    if (action === 'add') {
-      if (existingIndex === -1) {
-        return [...reactions, { emoji, count: 1, hasReacted: true, users: [] }];
-      }
-
-      return reactions.map((reaction, index) =>
-        index === existingIndex
-          ? {
-              ...reaction,
-              count: reaction.hasReacted ? reaction.count : reaction.count + 1,
-              hasReacted: true
-            }
-          : reaction
-      );
-    }
-
-    if (existingIndex === -1) return [...reactions];
-
-    return reactions.flatMap((reaction, index) => {
-      if (index !== existingIndex) return [reaction];
-      const count = reaction.hasReacted ? Math.max(0, reaction.count - 1) : reaction.count;
-      if (count === 0) return [];
-      return [{ ...reaction, count, hasReacted: false }];
-    });
-  }
-
-  private reactionsWithSummary(
-    reactions: readonly MessageReactionSummary[],
-    emoji: string,
-    reaction: MessageReactionSummary | null
-  ): MessageReactionSummary[] {
-    if (!reaction || reaction.count <= 0) {
-      return reactions.filter((existing) => existing.emoji !== emoji);
-    }
-
-    const existingIndex = reactions.findIndex((existing) => existing.emoji === emoji);
-    const nextReaction = {
-      ...reaction,
-      users: [...reaction.users]
-    };
-    if (existingIndex === -1) return [...reactions, nextReaction];
-    return reactions.map((existing, index) => (index === existingIndex ? nextReaction : existing));
-  }
-
-  private serverReactions(
-    reactions: readonly MessageReactionSummary[],
-    emoji: string,
-    reaction: OptimisticReactionServerSummary
-  ): MessageReactionSummary[] {
-    if (!reaction || reaction.count <= 0) {
-      return reactions.filter((existing) => existing.emoji !== emoji);
-    }
-
-    const existingIndex = reactions.findIndex((existing) => existing.emoji === emoji);
-    const nextReaction = (existing?: MessageReactionSummary): MessageReactionSummary => ({
-      emoji: reaction.emoji,
-      count: reaction.count,
-      hasReacted: reaction.hasReacted,
-      users: existing?.users ?? []
-    });
-
-    if (existingIndex === -1) return [...reactions, nextReaction()];
-    return reactions.map((existing, index) =>
-      index === existingIndex ? nextReaction(existing) : existing
-    );
-  }
-
-  private applyServerReactionSnapshot(
-    snapshot: OptimisticReactionSnapshot,
-    emoji: string,
-    reaction: OptimisticReactionServerSummary
-  ): void {
-    const apply = (event: RoomEventView): RoomEventView | null => {
-      const payload = event.event;
-      if (!isMessagePostedPayload(payload)) return null;
-      return {
-        ...event,
-        event: {
-          ...payload,
-          reactions: this.serverReactions(payload.reactions, emoji, reaction)
-        }
-      };
-    };
-
-    if (snapshot.source === 'events') {
-      const index = this.events.findIndex((event) => event.id === snapshot.eventId);
-      if (index === -1) return;
-      const updated = apply(this.events[index]);
-      if (updated) this.events[index] = updated;
-      return;
-    }
-
-    if (!snapshot.previewKey) return;
-    const event = this.previewEvents.get(snapshot.previewKey);
-    if (!event) return;
-    const updated = apply(event);
-    if (updated) this.previewEvents.set(snapshot.previewKey, updated);
-  }
-
-  private restoreOptimisticReactionSnapshot(snapshot: OptimisticReactionSnapshot): void {
-    if (snapshot.source === 'events') {
-      const index = this.events.findIndex((event) => event.id === snapshot.eventId);
-      if (index === -1) return;
-      const updated = this.eventWithReactionSummary(
-        this.events[index],
-        snapshot.emoji,
-        snapshot.previousReaction
-      );
-      if (updated) this.events[index] = updated;
-      return;
-    }
-
-    if (!snapshot.previewKey) return;
-    const event = this.previewEvents.get(snapshot.previewKey);
-    if (!event) return;
-    const updated = this.eventWithReactionSummary(
-      event,
-      snapshot.emoji,
-      snapshot.previousReaction
-    );
-    if (updated) this.previewEvents.set(snapshot.previewKey, updated);
+    clearOptimisticThreadFollowForEvent(this.optimisticThreadFollows, eventId);
   }
 
   setRoom(roomId: string): void {
@@ -1249,7 +993,8 @@ export class MessagesStore {
     this.seenIds = new SvelteSet();
     this.previewEvents.clear();
     this.pendingPreviewFetches.clear();
-    this.optimisticReactionVersions.clear();
+    this.optimisticReactions.clearAll();
+    this.optimisticThreadFollows.clearAll();
     this.oldestCursor = undefined;
     this.newestCursor = undefined;
     this.hasReachedStart = false;

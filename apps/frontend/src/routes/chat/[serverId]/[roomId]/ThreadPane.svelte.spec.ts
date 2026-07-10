@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
+import { q } from '$lib/test-utils';
 import ThreadPane from './ThreadPane.svelte';
 
 const { mocks } = vi.hoisted(() => {
@@ -156,6 +157,14 @@ describe('ThreadPane', () => {
       previousReadAt: null,
       lastReadAt: '2026-07-04T13:00:00Z'
     });
+    mocks.followThread.mockResolvedValue({
+      following: true,
+      state: { roomId: 'room-1', threadRootEventId: 'thread-root', following: true }
+    });
+    mocks.unfollowThread.mockResolvedValue({
+      following: false,
+      state: { roomId: 'room-1', threadRootEventId: 'thread-root', following: false }
+    });
   });
 
   it('marks the thread as read without directly dismissing thread notifications', async () => {
@@ -179,5 +188,45 @@ describe('ThreadPane', () => {
     expect(mocks.setThread).toHaveBeenCalledWith('room-1', 'thread-root');
     expect(mocks.notifications.dismissThreadNotifications).not.toHaveBeenCalled();
     expect(mocks.rooms.decrementUnreadNotification).not.toHaveBeenCalled();
+  });
+
+  it('updates the thread follow button optimistically while the RPC is pending', async () => {
+    let resolveFollow!: (value: {
+      following: boolean;
+      state: { roomId: string; threadRootEventId: string; following: boolean };
+    }) => void;
+    mocks.followThread.mockReturnValue(
+      new Promise((resolve) => {
+        resolveFollow = resolve;
+      })
+    );
+
+    const { container } = render(ThreadPane, {
+      props: {
+        roomId: 'room-1',
+        roomName: 'General',
+        threadRootEventId: 'thread-root',
+        onClose: mocks.onClose
+      }
+    });
+
+    (q(container, 'button[aria-label="Follow thread"]') as HTMLButtonElement).click();
+
+    await vi.waitFor(() => {
+      expect(q(container, 'button[aria-label="Unfollow thread"]')).toBeTruthy();
+    });
+    expect(mocks.followThread).toHaveBeenCalledWith({
+      roomId: 'room-1',
+      threadRootEventId: 'thread-root'
+    });
+
+    resolveFollow({
+      following: true,
+      state: { roomId: 'room-1', threadRootEventId: 'thread-root', following: true }
+    });
+
+    await vi.waitFor(() => {
+      expect(q(container, 'button[aria-label="Unfollow thread"]')).toBeTruthy();
+    });
   });
 });

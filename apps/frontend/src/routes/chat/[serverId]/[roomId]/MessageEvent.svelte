@@ -21,6 +21,7 @@
     type RoomMember
   } from '$lib/state/room';
   import { useConnection } from '$lib/state/server/connection.svelte';
+  import { OptimisticMutationRegistry } from '$lib/state/optimisticMutations';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { getServerPermissions } from '$lib/state/server/permissions.svelte';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
@@ -328,9 +329,15 @@
   // Overridable derived state: backing event data is the default, while
   // mutations/live events can update the row immediately.
   let isFollowingThread = $derived(messageEvent?.viewerIsFollowingThread ?? false);
+  const threadFollowOptimism = new OptimisticMutationRegistry();
+
+  function threadFollowKey(threadRootEventId: string): string {
+    return `message-thread-follow:${threadRootEventId}`;
+  }
 
   function setThreadFollowState(value: boolean) {
     if (!event) return;
+    threadFollowOptimism.clear(threadFollowKey(event.id));
     isFollowingThread = value;
     messageStore?.setThreadRootFollowState(event.id, value);
   }
@@ -345,9 +352,16 @@
 
   async function toggleThreadFollow(e: MouseEvent) {
     e.stopPropagation();
+    if (!event) return;
+
     const wasFollowing = isFollowingThread;
     const nextFollowing = !wasFollowing;
-    setThreadFollowState(nextFollowing);
+    const key = threadFollowKey(event.id);
+    const token = threadFollowOptimism.createToken();
+    const optimistic = messageStore?.beginOptimisticThreadFollow(event.id, nextFollowing);
+
+    threadFollowOptimism.mark(key, token);
+    isFollowingThread = nextFollowing;
 
     try {
       const conn = connection();
@@ -357,13 +371,26 @@
         bearerToken: conn.bearerToken
       });
       if (wasFollowing) {
-        await api.unfollowThread({ roomId, threadRootEventId: event.id });
+        const result = await api.unfollowThread({ roomId, threadRootEventId: event.id });
+        if (threadFollowOptimism.isCurrent(key, token)) {
+          isFollowingThread = result.following;
+          optimistic?.applyServerState(result.following);
+          threadFollowOptimism.clear(key);
+        }
       } else {
-        await api.followThread({ roomId, threadRootEventId: event.id });
+        const result = await api.followThread({ roomId, threadRootEventId: event.id });
+        if (threadFollowOptimism.isCurrent(key, token)) {
+          isFollowingThread = result.following;
+          optimistic?.applyServerState(result.following);
+          threadFollowOptimism.clear(key);
+        }
       }
-      setThreadFollowState(nextFollowing);
     } catch {
-      setThreadFollowState(wasFollowing);
+      if (threadFollowOptimism.isCurrent(key, token)) {
+        isFollowingThread = wasFollowing;
+        optimistic?.rollback();
+        threadFollowOptimism.clear(key);
+      }
     }
   }
 
