@@ -8,7 +8,8 @@ describe('ImageModal', () => {
       props: {
         items: [
           {
-            src: 'https://cdn.example.com/current.jpg',
+            src: 'https://cdn.example.com/display.jpg',
+            originalSrc: 'https://cdn.example.com/original.jpg',
             filename: 'image.jpg'
           }
         ],
@@ -18,8 +19,21 @@ describe('ImageModal', () => {
 
     const link = container.querySelector<HTMLAnchorElement>('a')!;
 
-    await expect.element(link).toHaveAttribute('href', 'https://cdn.example.com/current.jpg');
+    await expect.element(link).toHaveAttribute('href', 'https://cdn.example.com/original.jpg');
     await expect.element(link).toHaveAttribute('target', '_blank');
     await expect.element(link).toHaveAttribute('rel', 'noopener noreferrer');
+  });
+
+  it('falls back to the display image when no separate original URL exists', async () => {
+    const { container } = render(ImageModal, {
+      props: {
+        items: [{ src: 'https://cdn.example.com/display.jpg', filename: 'image.jpg' }],
+        onclose: () => {}
+      }
+    });
+
+    await expect
+      .element(container.querySelector<HTMLAnchorElement>('a')!)
+      .toHaveAttribute('href', 'https://cdn.example.com/display.jpg');
   });
 });

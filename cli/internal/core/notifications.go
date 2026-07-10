@@ -180,9 +180,14 @@ func (c *ChattoCore) DismissNotification(ctx context.Context, userID, notificati
 		return false, fmt.Errorf("failed to unmarshal notification: %w", err)
 	}
 
-	// Delete
-	err = c.storage.runtimeStateKV.Delete(ctx, key)
-	if err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) {
+	// Delete only the revision we fetched. Concurrent dismissals on another
+	// replica then become an idempotent no-op instead of publishing duplicate
+	// live events and push-dismiss callbacks.
+	err = c.storage.runtimeStateKV.Delete(ctx, key, jetstream.LastRevision(entry.Revision()))
+	if errors.Is(err, jetstream.ErrKeyExists) || errors.Is(err, jetstream.ErrKeyNotFound) {
+		return false, nil
+	}
+	if err != nil {
 		return false, fmt.Errorf("failed to delete notification: %w", err)
 	}
 
@@ -226,32 +231,37 @@ func (c *ChattoCore) DismissAllNotifications(ctx context.Context, userID string)
 		var notif *corev1.Notification
 		entry, err := c.storage.runtimeStateKV.Get(ctx, key)
 		if err != nil {
-			if !errors.Is(err, jetstream.ErrKeyNotFound) {
-				c.logger.Warn("Failed to get notification before dismissing", "key", key, "error", err)
+			if errors.Is(err, jetstream.ErrKeyNotFound) {
+				continue
 			}
-		} else {
-			var decoded corev1.Notification
-			if err := proto.Unmarshal(entry.Value(), &decoded); err != nil {
-				c.logger.Warn("Failed to unmarshal notification before dismissing", "key", key, "error", err)
-			} else {
-				notif = &decoded
-			}
+			return deleted, fmt.Errorf("failed to get notification before dismissing: %w", err)
 		}
 
-		if err := c.storage.runtimeStateKV.Delete(ctx, key); err != nil {
-			if !errors.Is(err, jetstream.ErrKeyNotFound) {
-				c.logger.Warn("Failed to delete notification", "key", key, "error", err)
+		var decoded corev1.Notification
+		if err := proto.Unmarshal(entry.Value(), &decoded); err != nil {
+			c.logger.Warn("Failed to unmarshal notification before dismissing", "key", key, "error", err)
+		} else {
+			notif = &decoded
+		}
+
+		if err := c.storage.runtimeStateKV.Delete(ctx, key, jetstream.LastRevision(entry.Revision())); err != nil {
+			if errors.Is(err, jetstream.ErrKeyExists) || errors.Is(err, jetstream.ErrKeyNotFound) {
+				continue
 			}
+			return deleted, fmt.Errorf("failed to delete notification: %w", err)
+		}
+
+		keyPrefix := notificationKeyPrefix + userID + "."
+		notificationID := strings.TrimPrefix(key, keyPrefix)
+		if notificationID == key {
+			return deleted, fmt.Errorf("invalid notification key %q", key)
+		}
+		if notificationID == "" {
 			continue
 		}
 		deleted++
 
-		// Extract notification ID from key and publish sync event
-		// Key format: notification.{userId}.{notificationId}
-		keyPrefix := notificationKeyPrefix + userID + "."
-		if notificationID := strings.TrimPrefix(key, keyPrefix); notificationID != key {
-			c.publishNotificationDismissedEvent(ctx, userID, notificationID)
-		}
+		c.publishNotificationDismissedEvent(ctx, userID, notificationID)
 
 		if notif != nil && c.OnNotificationDismissed != nil {
 			go c.OnNotificationDismissed(context.WithoutCancel(ctx), userID, notif)

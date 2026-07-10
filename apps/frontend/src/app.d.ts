@@ -26,7 +26,13 @@ declare global {
         attachmentId?: string;
         attachmentFilename?: string;
         previewUrl?: string;
-        imageItems?: Array<{ id?: string; src: string; alt?: string; filename?: string }>;
+        imageItems?: Array<{
+          id?: string;
+          src: string;
+          originalSrc?: string;
+          alt?: string;
+          filename?: string;
+        }>;
         imageIndex?: number;
       };
     }

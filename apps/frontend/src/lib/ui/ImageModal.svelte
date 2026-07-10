@@ -5,6 +5,7 @@
   export type ImageItem = {
     id?: string;
     src: string;
+    originalSrc?: string;
     alt?: string;
     filename?: string;
   };
@@ -100,7 +101,7 @@
 
         <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- external image URL -->
         <a
-          href={current.src}
+          href={current.originalSrc ?? current.src}
           target="_blank"
           rel="noopener noreferrer"
           class="flex items-center gap-1 text-sm text-white/60 hover:text-white"

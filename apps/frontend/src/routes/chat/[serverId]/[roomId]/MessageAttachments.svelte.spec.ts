@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import MessageAttachments from './MessageAttachments.svelte';
-import type { MessageAttachmentView } from '$lib/render/types';
+import { FitMode, type MessageAttachmentView } from '$lib/render/types';
 import type { RefreshedAttachmentUrls } from '$lib/attachments/attachmentUrls';
 
 const attachmentMocks = vi.hoisted(() => ({
@@ -202,9 +202,7 @@ describe('MessageAttachments', () => {
   });
 
   it('clears stale image URLs when refresh returns null asset URLs', async () => {
-    attachmentMocks.refreshAssetUrls.mockResolvedValue(
-      new Map([['att_1', emptyRefreshedUrls()]])
-    );
+    attachmentMocks.refreshAssetUrls.mockResolvedValue(new Map([['att_1', emptyRefreshedUrls()]]));
     const { container } = renderAttachment(
       imageAttachment({
         filename: 'expired.jpg',
@@ -246,6 +244,56 @@ describe('MessageAttachments', () => {
       expect(container.querySelector('img[alt="cleared.jpg"]')).toBeNull();
     });
     expect(attachmentMocks.pushState).not.toHaveBeenCalled();
+  });
+
+  it('opens the lightbox with a compressed display URL and a separate original URL', async () => {
+    attachmentMocks.refreshAssetUrls.mockResolvedValue(
+      new Map([
+        [
+          'att_1',
+          {
+            assetUrl: {
+              url: 'https://cdn.example.test/original.jpg',
+              expiresAt: '2027-05-29T15:00:00Z'
+            },
+            thumbnailAssetUrl: {
+              url: 'https://cdn.example.test/lightbox.jpg',
+              expiresAt: '2027-05-29T15:00:00Z'
+            },
+            videoThumbnailAssetUrl: null,
+            variantAssetUrls: new Map()
+          }
+        ]
+      ])
+    );
+    const { container } = renderAttachment(imageAttachment({ filename: 'large.jpg' }));
+
+    imageFrame(container, 'large.jpg').button.click();
+
+    await vi.waitFor(() => {
+      expect(attachmentMocks.refreshAssetUrls).toHaveBeenCalledWith('room_1', ['att_1'], {
+        width: 2048,
+        height: 2048,
+        fit: FitMode.Contain
+      });
+      expect(attachmentMocks.pushState).toHaveBeenCalledWith('', {
+        modal: {
+          type: 'imageViewer',
+          roomId: 'room_1',
+          eventId: 'event_1',
+          imageItems: [
+            {
+              id: 'att_1',
+              src: 'https://cdn.example.test/lightbox.jpg',
+              originalSrc: 'https://cdn.example.test/original.jpg',
+              alt: 'large.jpg',
+              filename: 'large.jpg'
+            }
+          ],
+          imageIndex: 0
+        }
+      });
+    });
   });
 
   it('renders multiple images inside a horizontal gallery with equal-height frames', () => {

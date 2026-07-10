@@ -21,6 +21,7 @@
   import {
     assetUrlNeedsRefresh,
     earliestAssetUrlRefreshAt,
+    LIGHTBOX_ATTACHMENT_IMAGE_REFRESH,
     mergeRefreshedAttachmentUrls,
     refreshAttachmentUrlsForAssets,
     withAssetUrlRetryParam,
@@ -364,28 +365,45 @@
   });
 
   async function refreshUrlsForMessage(): Promise<Map<string, RefreshedAttachmentUrls>> {
-    const conn = connection();
     return refreshAttachmentUrlsForAssets(
-      createAttachmentAPI({
-        serverId: conn.serverId,
-        baseUrl: conn.connectBaseUrl,
-        bearerToken: conn.bearerToken
-      }),
+      currentAttachmentAPI(),
       roomId,
       attachments.map((attachment) => attachment.id)
+    );
+  }
+
+  function currentAttachmentAPI() {
+    const conn = connection();
+    return createAttachmentAPI({
+      serverId: conn.serverId,
+      baseUrl: conn.connectBaseUrl,
+      bearerToken: conn.bearerToken
+    });
+  }
+
+  async function refreshLightboxUrls(): Promise<Map<string, RefreshedAttachmentUrls>> {
+    return refreshAttachmentUrlsForAssets(
+      currentAttachmentAPI(),
+      roomId,
+      imageAttachments.map((attachment) => attachment.id),
+      LIGHTBOX_ATTACHMENT_IMAGE_REFRESH
     );
   }
 
   async function openImageModal(attachment: Attachment) {
     // Refresh in one round-trip so navigating between images in the
     // lightbox can't hit an expired URL mid-session.
-    const freshUrls = await refreshAndApplyUrls();
+    const freshUrls = await refreshLightboxUrls();
     const imageItems: ImageItem[] = imageAttachments
       .map((a) => ({
         id: a.id,
         src:
-          normalizeAssetUrl(freshUrls.has(a.id) ? freshUrls.get(a.id)!.assetUrl : a.assetUrl)
-            ?.url ?? '',
+          normalizeAssetUrl(
+            freshUrls.has(a.id) ? freshUrls.get(a.id)!.thumbnailAssetUrl : a.thumbnailAssetUrl
+          )?.url ?? '',
+        originalSrc: normalizeAssetUrl(
+          freshUrls.has(a.id) ? freshUrls.get(a.id)!.assetUrl : a.assetUrl
+        )?.url,
         alt: a.filename,
         filename: a.filename
       }))

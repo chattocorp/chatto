@@ -638,9 +638,15 @@ func (c *MediaModel) probePresignedAttachmentURL(ctx context.Context, attachment
 	return "", fmt.Errorf("attachment %s not found in S3", attachmentID)
 }
 
-// AttachmentSignResource is the image-cache namespace for stable attachment
-// transforms. Keep it stable so cached resize keys survive deployments.
+// AttachmentSignResource binds legacy signed attachment transforms and remains
+// a cache-cleanup namespace for derivatives written before stable asset paths.
 const AttachmentSignResource = "attachment"
+
+// AttachmentDerivativeCacheResource versions the current attachment image
+// encoding profile independently from the stable public URL shape.
+const AttachmentDerivativeCacheResource = "attachment-stable-v2"
+
+const attachmentLegacyStableCacheResource = "attachment-stable"
 
 // ServerAssetSignResource is the first resource component fed to the
 // signed-URL signer for server asset transform URLs and the cache prefix for
@@ -811,12 +817,24 @@ func (c *MediaModel) StoreCachedResize(ctx context.Context, key string, data []b
 
 // DeleteCachedResizesForAttachment deletes all cached resizes for an
 // attachment. Returns the number of deleted cache entries and any error
-// encountered. Does nothing if the cache is disabled. Pre-ADR-030-Phase-4
-// cache entries written under a {server|DM} prefix are not cleaned up
-// and are left to age out — the transform-URL signer always uses the
-// kind-less prefix now, so no lookups land on them.
+// encountered. Does nothing if the cache is disabled. Current and earlier
+// stable attachment cache namespaces are removed; older room-kind prefixes
+// remain unaddressable and age out through the configured TTL.
 func (c *MediaModel) DeleteCachedResizesForAttachment(ctx context.Context, attachmentID string) (int, error) {
-	return c.DeleteCachedResizesForKey(ctx, AttachmentSignResource, attachmentID)
+	prefixes := []string{
+		AttachmentDerivativeCacheResource,
+		AttachmentSignResource,
+		attachmentLegacyStableCacheResource,
+	}
+	deleted := 0
+	for _, prefix := range prefixes {
+		count, err := c.DeleteCachedResizesForKey(ctx, prefix, attachmentID)
+		deleted += count
+		if err != nil {
+			return deleted, err
+		}
+	}
+	return deleted, nil
 }
 
 // DeleteCachedResizesForServerAsset deletes all cached resizes for a server

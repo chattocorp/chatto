@@ -1004,12 +1004,12 @@ func TestChattoCore_DeleteAttachment_CleansUpCache(t *testing.T) {
 		t.Fatalf("Failed to upload attachment: %v", err)
 	}
 
-	// Simulate cached resizes by storing them directly. The HTTP handler
-	// signs transform URLs with AttachmentSignResource and the cache uses
-	// that same prefix.
+	// Simulate cached resizes from both the original cache namespace and the
+	// current versioned attachment derivative namespace.
 	cacheKey1 := ImageCacheKey(AttachmentSignResource, attachment.Id, 200, 150, "contain")
 	cacheKey2 := ImageCacheKey(AttachmentSignResource, attachment.Id, 400, 300, "cover")
 	cacheKey3 := ImageCacheKey(AttachmentSignResource, attachment.Id, 100, 100, "contain")
+	cacheKey4 := ImageCacheKey(AttachmentDerivativeCacheResource, attachment.Id, 960, 400, "contain")
 
 	// Store fake cached data
 	fakeWebP := []byte("fake webp data")
@@ -1022,9 +1022,12 @@ func TestChattoCore_DeleteAttachment_CleansUpCache(t *testing.T) {
 	if err := core.StoreCachedResize(ctx, cacheKey3, fakeWebP); err != nil {
 		t.Fatalf("Failed to store cached resize 3: %v", err)
 	}
+	if err := core.StoreCachedResize(ctx, cacheKey4, fakeWebP); err != nil {
+		t.Fatalf("Failed to store cached resize 4: %v", err)
+	}
 
 	// Verify cache entries exist
-	for _, key := range []string{cacheKey1, cacheKey2, cacheKey3} {
+	for _, key := range []string{cacheKey1, cacheKey2, cacheKey3, cacheKey4} {
 		data, err := core.GetCachedResize(ctx, key)
 		if err != nil {
 			t.Fatalf("Failed to get cached resize %s: %v", key, err)
@@ -1040,7 +1043,7 @@ func TestChattoCore_DeleteAttachment_CleansUpCache(t *testing.T) {
 	}
 
 	// Verify all cache entries are deleted
-	for _, key := range []string{cacheKey1, cacheKey2, cacheKey3} {
+	for _, key := range []string{cacheKey1, cacheKey2, cacheKey3, cacheKey4} {
 		data, err := core.GetCachedResize(ctx, key)
 		if err != nil {
 			t.Fatalf("Unexpected error getting cached resize %s: %v", key, err)

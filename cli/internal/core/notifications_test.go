@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"sync"
 	"testing"
 	"time"
 
@@ -373,6 +374,69 @@ func TestDismissNotification(t *testing.T) {
 		}
 		if dismissed {
 			t.Error("Expected false when dismissing already dismissed notification")
+		}
+	})
+
+	t.Run("concurrent dismissals publish side effects once", func(t *testing.T) {
+		created, err := core.CreateNotification(ctx, userID, "actor", &corev1.Notification{
+			Notification: &corev1.Notification_DmMessage{
+				DmMessage: &corev1.DMMessageNotification{RoomId: "concurrent-dismiss"},
+			},
+		})
+		if err != nil {
+			t.Fatalf("CreateNotification: %v", err)
+		}
+
+		callbacks := make(chan struct{}, 2)
+		core.OnNotificationDismissed = func(context.Context, string, *corev1.Notification) {
+			callbacks <- struct{}{}
+		}
+		t.Cleanup(func() { core.OnNotificationDismissed = nil })
+
+		const attempts = 8
+		start := make(chan struct{})
+		results := make(chan bool, attempts)
+		errs := make(chan error, attempts)
+		var wg sync.WaitGroup
+		wg.Add(attempts)
+		for range attempts {
+			go func() {
+				defer wg.Done()
+				<-start
+				dismissed, err := core.DismissNotification(ctx, userID, created.Id)
+				results <- dismissed
+				errs <- err
+			}()
+		}
+		close(start)
+		wg.Wait()
+		close(results)
+		close(errs)
+
+		for err := range errs {
+			if err != nil {
+				t.Fatalf("DismissNotification: %v", err)
+			}
+		}
+		dismissedCount := 0
+		for dismissed := range results {
+			if dismissed {
+				dismissedCount++
+			}
+		}
+		if dismissedCount != 1 {
+			t.Fatalf("successful dismissals = %d, want 1", dismissedCount)
+		}
+
+		select {
+		case <-callbacks:
+		case <-time.After(time.Second):
+			t.Fatal("timed out waiting for dismissal callback")
+		}
+		select {
+		case <-callbacks:
+			t.Fatal("dismissal callback ran more than once")
+		case <-time.After(100 * time.Millisecond):
 		}
 	})
 }

@@ -43,6 +43,8 @@ type transformRequest struct {
 	CachePrefix string
 	// AssetID is used for ETag generation and logging
 	AssetID string
+	// JPEGQuality overrides the default quality for opaque static derivatives.
+	JPEGQuality int
 	// FetchAsset returns the asset data and content type.
 	// The reader will be closed if it implements io.Closer.
 	FetchAsset func(ctx context.Context) (io.Reader, string, error)
@@ -231,6 +233,7 @@ func (s *HTTPServer) serveStableTransformedAttachment(c *gin.Context) {
 	s.serveTransformedAssetWithParams(c, transformRequest{
 		CachePrefix: AttachmentStableCachePrefix,
 		AssetID:     assetID,
+		JPEGQuality: AttachmentDerivativeJPEGQuality,
 		FetchAsset: func(ctx context.Context) (io.Reader, string, error) {
 			reader, info, err := s.core.GetAttachmentReader(ctx, attachment)
 			if err != nil {
@@ -242,7 +245,14 @@ func (s *HTTPServer) serveStableTransformedAttachment(c *gin.Context) {
 	}, params)
 }
 
-const AttachmentStableCachePrefix = "attachment-stable"
+const (
+	// AttachmentDerivativeJPEGQuality keeps displayed attachment images compact
+	// without changing the encoding quality of public server assets.
+	AttachmentDerivativeJPEGQuality = 75
+	// AttachmentStableCachePrefix is versioned whenever attachment derivative
+	// encoding changes so older cached bytes cannot be reused.
+	AttachmentStableCachePrefix = core.AttachmentDerivativeCacheResource
+)
 
 func parseStableTransformParams(dimensions, fit string) (*signedurl.TransformParams, error) {
 	widthText, heightText, ok := strings.Cut(dimensions, "x")
@@ -431,7 +441,14 @@ func (s *HTTPServer) serveTransformedAssetWithParams(c *gin.Context, req transfo
 	}
 
 	// Transform the image
-	result, err := assets.TransformImage(data, params.Width, params.Height, assets.FitMode(params.Fit))
+	var result *assets.TransformResult
+	if req.JPEGQuality > 0 {
+		result, err = assets.TransformImageWithOptions(data, params.Width, params.Height, assets.FitMode(params.Fit), assets.TransformOptions{
+			JPEGQuality: req.JPEGQuality,
+		})
+	} else {
+		result, err = assets.TransformImage(data, params.Width, params.Height, assets.FitMode(params.Fit))
+	}
 	if err != nil {
 		s.logger.Error("Failed to transform image", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to transform image"})
