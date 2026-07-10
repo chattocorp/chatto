@@ -871,6 +871,15 @@ func (c *ChattoCore) listFollowedThreadsInSpace(ctx context.Context, userID stri
 		roomID := ref.roomID
 		threadRootEventID := ref.threadRootEventID
 
+		room, err := c.FindRoomByID(ctx, roomID)
+		if err != nil {
+			c.logger.Warn("Skipping followed thread with unavailable room", "error", err, "room_id", roomID, "thread_root_event_id", threadRootEventID)
+			continue
+		}
+		if KindOfRoom(room) != kind {
+			continue
+		}
+
 		following, err := c.IsFollowingThread(ctx, kind, userID, roomID, threadRootEventID)
 		if err != nil {
 			c.logger.Warn("Failed to check thread follow state while listing", "error", err, "room_id", roomID, "thread_root_event_id", threadRootEventID)
