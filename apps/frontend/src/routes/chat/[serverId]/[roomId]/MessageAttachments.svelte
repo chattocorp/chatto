@@ -318,12 +318,7 @@
 
     refreshPromise = refreshUrlsForMessage()
       .then((freshUrls) => {
-        if (freshUrls.size > 0) {
-          refreshedAttachmentUrls = mergeRefreshedAttachmentUrls(
-            refreshedAttachmentUrls,
-            freshUrls
-          );
-        }
+        applyRefreshedUrls(freshUrls);
         return freshUrls;
       })
       .finally(() => {
@@ -331,6 +326,11 @@
       });
 
     return refreshPromise;
+  }
+
+  function applyRefreshedUrls(freshUrls: Map<string, RefreshedAttachmentUrls>) {
+    if (freshUrls.size === 0) return;
+    refreshedAttachmentUrls = mergeRefreshedAttachmentUrls(refreshedAttachmentUrls, freshUrls);
   }
 
   function refreshAfterAssetError(attachment: Attachment, role: string) {
@@ -382,12 +382,14 @@
   }
 
   async function refreshLightboxUrls(): Promise<Map<string, RefreshedAttachmentUrls>> {
-    return refreshAttachmentUrlsForAssets(
+    const freshUrls = await refreshAttachmentUrlsForAssets(
       currentAttachmentAPI(),
       roomId,
       imageAttachments.map((attachment) => attachment.id),
       LIGHTBOX_ATTACHMENT_IMAGE_REFRESH
     );
+    applyRefreshedUrls(freshUrls);
+    return freshUrls;
   }
 
   async function openImageModal(attachment: Attachment) {

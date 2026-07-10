@@ -14,7 +14,7 @@ const { getRoomEventsAroundMock, timelineResults, refreshAssetUrlsMock } = vi.ho
   })
 );
 
-const transparentGif = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==';
+const testImageUrl = '/icons/favicon.png';
 
 vi.mock('$lib/api-client/roomTimeline', () => ({
   createRoomTimelineAPI: vi.fn(() => ({
@@ -218,10 +218,8 @@ describe('MessagePreviewCard', () => {
   });
 
   it('refreshes attachment thumbnail asset URLs after image load failure', async () => {
-    timelineResults.push(previewResult(transparentGif));
-    refreshAssetUrlsMock.mockResolvedValueOnce(
-      refreshResult(`${transparentGif}#fresh-image`)
-    );
+    timelineResults.push(previewResult(`${testImageUrl}#old-image`));
+    refreshAssetUrlsMock.mockResolvedValueOnce(refreshResult(`${testImageUrl}#fresh-image`));
 
     const { container } = render(MessagePreviewCard, {
       props: { link: link(), showDismiss: false }
@@ -247,12 +245,19 @@ describe('MessagePreviewCard', () => {
   });
 
   it('clears stale preview thumbnail asset URLs when refresh returns null', async () => {
-    timelineResults.push(previewResult(`${transparentGif}#old-image`));
+    timelineResults.push(previewResult(`${testImageUrl}#old-image`));
     refreshAssetUrlsMock.mockResolvedValueOnce(clearedRefreshResult('att_1'));
 
     const { container } = render(MessagePreviewCard, {
       props: { link: link(), showDismiss: false }
     });
+
+    await vi.waitFor(() => {
+      expect(container.querySelector('img[alt="photo.jpg"]')).not.toBeNull();
+    });
+    container
+      .querySelector<HTMLImageElement>('img[alt="photo.jpg"]')
+      ?.dispatchEvent(new Event('error'));
 
     await vi.waitFor(() => {
       expect(refreshAssetUrlsMock).toHaveBeenCalled();
@@ -265,7 +270,7 @@ describe('MessagePreviewCard', () => {
   });
 
   it('renders video attachment thumbnails for linked message previews', async () => {
-    timelineResults.push(videoPreviewResult(`${transparentGif}#old-video`));
+    timelineResults.push(videoPreviewResult(`${testImageUrl}#old-video`));
 
     const { container } = render(MessagePreviewCard, {
       props: { link: link(), showDismiss: false }
@@ -281,9 +286,9 @@ describe('MessagePreviewCard', () => {
   });
 
   it('refreshes video attachment thumbnail asset URLs after image load failure', async () => {
-    timelineResults.push(videoPreviewResult(`${transparentGif}#old-video`));
+    timelineResults.push(videoPreviewResult(`${testImageUrl}#old-video`));
     refreshAssetUrlsMock.mockResolvedValueOnce(
-      videoRefreshResult(`${transparentGif}#fresh-video`)
+      videoRefreshResult(`${testImageUrl}#fresh-video`)
     );
 
     const { container } = render(MessagePreviewCard, {
@@ -305,12 +310,19 @@ describe('MessagePreviewCard', () => {
   });
 
   it('clears stale preview video thumbnail asset URLs when refresh returns null', async () => {
-    timelineResults.push(videoPreviewResult(`${transparentGif}#old-video`));
+    timelineResults.push(videoPreviewResult(`${testImageUrl}#old-video`));
     refreshAssetUrlsMock.mockResolvedValueOnce(clearedRefreshResult('att_video'));
 
     const { container } = render(MessagePreviewCard, {
       props: { link: link(), showDismiss: false }
     });
+
+    await vi.waitFor(() => {
+      expect(container.querySelector('img[alt="clip.mp4"]')).not.toBeNull();
+    });
+    container
+      .querySelector<HTMLImageElement>('img[alt="clip.mp4"]')
+      ?.dispatchEvent(new Event('error'));
 
     await vi.waitFor(() => {
       expect(refreshAssetUrlsMock).toHaveBeenCalled();
@@ -323,9 +335,9 @@ describe('MessagePreviewCard', () => {
   });
 
   it('falls back to a video tile when the refreshed video thumbnail also fails', async () => {
-    timelineResults.push(videoPreviewResult(`${transparentGif}#old-video`));
+    timelineResults.push(videoPreviewResult(`${testImageUrl}#old-video`));
     refreshAssetUrlsMock.mockResolvedValueOnce(
-      videoRefreshResult(`${transparentGif}#fresh-video`)
+      videoRefreshResult(`${testImageUrl}#fresh-video`)
     );
 
     const { container } = render(MessagePreviewCard, {
