@@ -245,28 +245,34 @@ func (c *ChattoCore) LeaveRoom(ctx context.Context, actorID string, kind RoomKin
 		return ErrCannotLeaveUniversalRoom
 	}
 
-	if !c.RoomMembership.IsMember(room_id, user_id) {
-		return nil
-	}
+	agg := events.RoomAggregate(room_id)
+	filter := agg.AllEventsFilter()
+	for attempt := 0; attempt < maxJoinRoomRetries; attempt++ {
+		expectedSeq, err := c.EventPublisher.LastSubjectSeq(ctx, filter)
+		if err != nil {
+			return fmt.Errorf("read room leave OCC tail: %w", err)
+		}
+		if err := c.waitForRoomLeaveTail(ctx, filter, expectedSeq); err != nil {
+			return fmt.Errorf("wait for room projections before leave: %w", err)
+		}
+		if !c.RoomMembership.IsMember(room_id, user_id) {
+			return nil
+		}
 
-	event := newEvent(actorID, &corev1.Event{
-		Event: &corev1.Event_UserLeftRoom{
-			UserLeftRoom: &corev1.UserLeftRoomEvent{
-				RoomId: room_id,
-			},
-		},
-	})
+		if err := c.appendRoomLeaveBatch(ctx, kind, room_id, user_id, expectedSeq); err == nil {
+			c.logger.Info("Deleted room membership", "user_id", user_id, "kind", kind, "room_id", room_id)
+			return nil
+		} else if !errors.Is(err, events.ErrConflict) {
+			return err
+		}
 
-	pos, err := c.rooms().appendDirectoryEventually(ctx, c.EventPublisher, events.RoomAggregate(room_id), event)
-	if err != nil {
-		return fmt.Errorf("publish UserLeftRoomEvent: %w", err)
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(time.Duration(1<<attempt) * time.Millisecond):
+		}
 	}
-	if err := c.rooms().waitForTimeline(ctx, pos); err != nil {
-		return err
-	}
-
-	c.logger.Info("Deleted room membership", "user_id", user_id, "kind", kind, "room_id", room_id)
-	return nil
+	return fmt.Errorf("publish room leave retry exhausted after %d attempts: %w", maxJoinRoomRetries, events.ErrConflict)
 }
 
 // RemoveMember removes another user's explicit channel-room membership.
@@ -299,7 +305,7 @@ func (c *ChattoCore) RemoveMember(ctx context.Context, actorID string, kind Room
 			return false, fmt.Errorf("read room membership remove OCC tail: %w", err)
 		}
 		if expectedSeq > 0 {
-			if err := c.rooms().waitForDirectory(ctx, events.SubjectPosition(filter, expectedSeq)); err != nil {
+			if err := c.waitForRoomLeaveTail(ctx, filter, expectedSeq); err != nil {
 				return false, fmt.Errorf("wait for room directory projection before member remove: %w", err)
 			}
 		}
@@ -315,15 +321,8 @@ func (c *ChattoCore) RemoveMember(ctx context.Context, actorID string, kind Room
 				},
 			},
 		})
-		leaveEvent := newEvent(targetUserID, &corev1.Event{
-			Event: &corev1.Event_UserLeftRoom{
-				UserLeftRoom: &corev1.UserLeftRoomEvent{
-					RoomId: roomID,
-				},
-			},
-		})
 
-		if err := c.appendRoomMembershipAuditBatch(ctx, roomID, expectedSeq, auditEvent, leaveEvent); err == nil {
+		if err := c.appendRoomLeaveBatch(ctx, kind, roomID, targetUserID, expectedSeq, auditEvent); err == nil {
 			c.logger.Info("Removed room membership", "actor_id", actorID, "user_id", targetUserID, "kind", kind, "room_id", roomID)
 			return true, nil
 		} else if !errors.Is(err, events.ErrConflict) {
@@ -337,6 +336,121 @@ func (c *ChattoCore) RemoveMember(ctx context.Context, actorID string, kind Room
 		}
 	}
 	return false, fmt.Errorf("publish room member remove retry exhausted after %d attempts: %w", maxJoinRoomRetries, events.ErrConflict)
+}
+
+type roomLeaveCallCleanup struct {
+	kind        RoomKind
+	roomID      string
+	userID      string
+	callID      string
+	endedKeyRef string
+}
+
+func (c *ChattoCore) waitForRoomLeaveTail(ctx context.Context, filter string, seq uint64) error {
+	if seq == 0 {
+		return nil
+	}
+	pos := events.SubjectPosition(filter, seq)
+	if err := c.rooms().waitForDirectory(ctx, pos); err != nil {
+		return err
+	}
+	if c.CallStateProjector != nil {
+		if err := c.CallStateProjector.WaitFor(ctx, pos); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (c *ChattoCore) appendRoomLeaveBatch(ctx context.Context, kind RoomKind, roomID, userID string, expectedSeq uint64, prefixEvents ...*corev1.Event) error {
+	agg := events.RoomAggregate(roomID)
+	filter := agg.AllEventsFilter()
+
+	leaveEvent := newEvent(userID, &corev1.Event{
+		Event: &corev1.Event_UserLeftRoom{
+			UserLeftRoom: &corev1.UserLeftRoomEvent{
+				RoomId: roomID,
+			},
+		},
+	})
+
+	eventsToAppend := make([]*corev1.Event, 0, len(prefixEvents)+3)
+	eventsToAppend = append(eventsToAppend, prefixEvents...)
+	eventsToAppend = append(eventsToAppend, leaveEvent)
+
+	var cleanup roomLeaveCallCleanup
+	if c.CallState != nil {
+		snapshot := c.CallState.RoomSnapshot(roomID)
+		if participant, ok := callParticipantByUser(snapshot.Participants, userID); ok {
+			callID := participant.CallID
+			if callID == "" {
+				callID = snapshot.Call.CallID
+			}
+			eventsToAppend = append(eventsToAppend, newCallParticipantEvent(roomID, userID, callID, false, corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER))
+			cleanup = roomLeaveCallCleanup{
+				kind:   kind,
+				roomID: roomID,
+				userID: userID,
+				callID: callID,
+			}
+			if len(snapshot.Participants) == 1 && snapshot.Call.CallID == callID {
+				eventsToAppend = append(eventsToAppend, newCallEndedEvent(roomID, userID, callID, corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER))
+				cleanup.endedKeyRef = snapshot.Call.E2EEKeyRef
+			}
+		}
+	}
+
+	entries := make([]events.BatchEntry, 0, len(eventsToAppend))
+	for i, event := range eventsToAppend {
+		entry := events.BatchEntry{
+			Subject: agg.SubjectFor(event),
+			Event:   event,
+		}
+		if i == 0 {
+			entry.ExpectedSeq = expectedSeq
+			entry.FilterSubject = filter
+			entry.HasOCC = true
+		}
+		entries = append(entries, entry)
+	}
+
+	seqs, err := c.EventPublisher.AppendBatch(ctx, entries)
+	if err != nil {
+		return fmt.Errorf("publish room leave batch: %w", err)
+	}
+	pos := events.SubjectPosition(filter, seqs[len(seqs)-1])
+
+	var cleanupErr error
+	if cleanup.endedKeyRef != "" {
+		if c.callModel == nil || c.callModel.callKeys == nil {
+			cleanupErr = fmt.Errorf("call key store is not initialized")
+		} else {
+			c.callModel.queueEndedCallKeyCleanup(cleanup.endedKeyRef)
+			if err := c.callModel.cleanupQueuedCallKey(ctx, cleanup.endedKeyRef); err != nil {
+				cleanupErr = fmt.Errorf("shred ended call key: %w", err)
+			}
+		}
+	}
+
+	if err := c.rooms().waitForDirectoryAndTimeline(ctx, pos); err != nil {
+		return err
+	}
+	if cleanup.callID != "" && c.CallStateProjector != nil {
+		if err := c.CallStateProjector.WaitFor(ctx, pos); err != nil {
+			return err
+		}
+	}
+	c.removeLiveKitParticipantAfterRoomLeave(ctx, cleanup)
+	return cleanupErr
+}
+
+func (c *ChattoCore) removeLiveKitParticipantAfterRoomLeave(ctx context.Context, cleanup roomLeaveCallCleanup) {
+	if cleanup.callID == "" || c.callModel == nil {
+		return
+	}
+	if err := c.callModel.RemoveLiveKitParticipant(ctx, LegacySpaceIDForRoomKind(cleanup.kind), cleanup.roomID, cleanup.callID, cleanup.userID); err != nil {
+		c.logger.Warn("Failed to remove room-leaving participant from LiveKit call", "room_id", cleanup.roomID, "call_id", cleanup.callID, "error", err)
+	}
 }
 
 func (c *ChattoCore) appendRoomMembershipAuditBatch(ctx context.Context, roomID string, expectedSeq uint64, auditEvent, membershipEvent *corev1.Event) error {
@@ -465,22 +579,45 @@ func (c *ChattoCore) deleteUserRoomMembershipsInSpace(ctx context.Context, user_
 	var lastSubject string
 	var lastSeq uint64
 	for _, entry := range entries {
-		event := newEvent(user_id, &corev1.Event{
-			Event: &corev1.Event_UserLeftRoom{
-				UserLeftRoom: &corev1.UserLeftRoomEvent{
-					RoomId: entry.roomID,
-				},
-			},
-		})
-
-		seq, err := c.EventPublisher.AppendEventually(ctx, events.RoomAggregate(entry.roomID).SubjectFor(event), event)
-		if err != nil {
-			c.logger.Warn("Failed to publish UserLeftRoomEvent to EVT", "room_id", entry.roomID, "error", err)
-			continue
+		agg := events.RoomAggregate(entry.roomID)
+		filter := agg.AllEventsFilter()
+		published := false
+		for attempt := 0; attempt < maxJoinRoomRetries; attempt++ {
+			expectedSeq, err := c.EventPublisher.LastSubjectSeq(ctx, filter)
+			if err != nil {
+				c.logger.Warn("Failed to read room leave OCC tail during user cleanup", "room_id", entry.roomID, "error", err)
+				break
+			}
+			if err := c.waitForRoomLeaveTail(ctx, filter, expectedSeq); err != nil {
+				c.logger.Warn("Failed to wait for room projections during user cleanup", "room_id", entry.roomID, "error", err)
+				break
+			}
+			if err := c.appendRoomLeaveBatch(ctx, kind, entry.roomID, user_id, expectedSeq); err != nil {
+				if errors.Is(err, events.ErrConflict) {
+					select {
+					case <-ctx.Done():
+						return ctx.Err()
+					case <-time.After(time.Duration(1<<attempt) * time.Millisecond):
+					}
+					continue
+				}
+				c.logger.Warn("Failed to publish UserLeftRoomEvent to EVT", "room_id", entry.roomID, "error", err)
+				break
+			}
+			pos, err := c.EventPublisher.LastSubjectPosition(ctx, filter)
+			if err != nil {
+				c.logger.Warn("Failed to read room leave position after user cleanup", "room_id", entry.roomID, "error", err)
+				break
+			}
+			if pos.Seq > lastSeq {
+				lastSubject = filter
+				lastSeq = pos.Seq
+			}
+			published = true
+			break
 		}
-		if seq > lastSeq {
-			lastSubject = events.RoomAggregate(entry.roomID).SubjectFor(event)
-			lastSeq = seq
+		if !published {
+			c.logger.Warn("Failed to publish UserLeftRoomEvent to EVT after retries", "room_id", entry.roomID)
 		}
 
 	}

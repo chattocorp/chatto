@@ -56,6 +56,10 @@ authorization, live events, backup/restore, and backend tests.
 - Projection-backed decisions need OCC tokens for the same event-log prefix as
   the projected state. Do not decide from a projection and publish against an
   unrelated stream tail.
+- When a committed EVT fact requires a KMS, LiveKit, object-store, or other
+  external side effect, that fact must provide a durable recovery path. Verify
+  crash recovery, multi-replica discovery, lease handover, and bounded
+  request-path cost.
 - Subject/key shapes are part of the storage contract. When changing them,
   update constructors, parsers, tests, architecture docs, and e2e coverage.
 - For mixed records in one stream or KV bucket, encode discriminators in the key

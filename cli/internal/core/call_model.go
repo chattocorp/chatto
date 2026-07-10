@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	lkauth "github.com/livekit/protocol/auth"
@@ -36,6 +37,7 @@ const (
 )
 
 type liveKitParticipantSnapshot struct {
+	SpaceID string
 	RoomID  string
 	CallID  string
 	UserIDs []string
@@ -43,6 +45,10 @@ type liveKitParticipantSnapshot struct {
 
 type liveKitParticipantLister interface {
 	ListCallParticipants(ctx context.Context) ([]liveKitParticipantSnapshot, error)
+}
+
+type liveKitParticipantRemover interface {
+	RemoveCallParticipant(ctx context.Context, spaceID, roomID, callID, userID string) error
 }
 
 type CallModel struct {
@@ -54,6 +60,9 @@ type CallModel struct {
 	reconcileLease *lease.Lease
 	memoryCacheKV  jetstream.KeyValue
 	logger         events.Logger
+	cleanupMu      sync.Mutex
+	pendingKeyRefs map[string]struct{}
+	cleanupSeq     uint64
 }
 
 type liveKitFailureCleanupSummary struct {
@@ -118,6 +127,7 @@ func NewCallModel(
 		reconcileLease: reconcileLease,
 		memoryCacheKV:  memoryCacheKV,
 		logger:         logger,
+		pendingKeyRefs: make(map[string]struct{}),
 	}
 }
 
@@ -176,6 +186,7 @@ type liveKitRoomClient struct {
 type liveKitRoomService interface {
 	ListRooms(context.Context, *livekit.ListRoomsRequest) (*livekit.ListRoomsResponse, error)
 	ListParticipants(context.Context, *livekit.ListParticipantsRequest) (*livekit.ListParticipantsResponse, error)
+	RemoveParticipant(context.Context, *livekit.RoomParticipantIdentity) (*livekit.RemoveParticipantResponse, error)
 }
 
 func (c *liveKitRoomClient) ListCallParticipants(ctx context.Context) ([]liveKitParticipantSnapshot, error) {
@@ -189,7 +200,7 @@ func (c *liveKitRoomClient) ListCallParticipants(ctx context.Context) ([]liveKit
 		if room == nil || !liveKitRoomBelongsToInstance(room.GetName(), c.serverID) {
 			continue
 		}
-		_, roomID, callID := ParseLiveKitRoomIdentity(room.GetName())
+		spaceID, roomID, callID := ParseLiveKitRoomIdentity(room.GetName())
 		if roomID == "" {
 			continue
 		}
@@ -199,7 +210,7 @@ func (c *liveKitRoomClient) ListCallParticipants(ctx context.Context) ([]liveKit
 		)
 		if err != nil {
 			if isLiveKitRoomNotFound(err) {
-				out = append(out, liveKitParticipantSnapshot{RoomID: roomID, CallID: callID})
+				out = append(out, liveKitParticipantSnapshot{SpaceID: spaceID, RoomID: roomID, CallID: callID})
 				continue
 			}
 			return nil, err
@@ -211,9 +222,21 @@ func (c *liveKitRoomClient) ListCallParticipants(ctx context.Context) ([]liveKit
 			}
 		}
 		sort.Strings(userIDs)
-		out = append(out, liveKitParticipantSnapshot{RoomID: roomID, CallID: callID, UserIDs: userIDs})
+		out = append(out, liveKitParticipantSnapshot{SpaceID: spaceID, RoomID: roomID, CallID: callID, UserIDs: userIDs})
 	}
 	return out, nil
+}
+
+func (c *liveKitRoomClient) RemoveCallParticipant(ctx context.Context, spaceID, roomID, callID, userID string) error {
+	roomName := LiveKitRoomName(c.serverID, spaceID, roomID, callID)
+	_, err := c.service.RemoveParticipant(
+		c.withVideoGrant(ctx, &lkauth.VideoGrant{RoomAdmin: true, Room: roomName}),
+		&livekit.RoomParticipantIdentity{Room: roomName, Identity: userID},
+	)
+	if err != nil && !isLiveKitRoomNotFound(err) {
+		return err
+	}
+	return nil
 }
 
 func isLiveKitRoomNotFound(err error) bool {
@@ -264,6 +287,94 @@ func (s *CallModel) GetE2EEKey(ctx context.Context, roomID string) (string, erro
 	return key, nil
 }
 
+func (s *CallModel) RemoveLiveKitParticipant(ctx context.Context, spaceID, roomID, callID, userID string) error {
+	if s.livekit == nil {
+		return nil
+	}
+	remover, ok := s.livekit.(liveKitParticipantRemover)
+	if !ok {
+		return nil
+	}
+	return remover.RemoveCallParticipant(ctx, spaceID, roomID, callID, userID)
+}
+
+func (s *CallModel) queueEndedCallKeyCleanup(keyRef string) {
+	if keyRef == "" {
+		return
+	}
+	s.cleanupMu.Lock()
+	s.pendingKeyRefs[keyRef] = struct{}{}
+	s.cleanupMu.Unlock()
+}
+
+func (s *CallModel) cleanupQueuedCallKey(ctx context.Context, keyRef string) error {
+	if keyRef == "" {
+		return nil
+	}
+	if s.callKeys == nil {
+		return fmt.Errorf("call key store is not initialized")
+	}
+	if err := s.callKeys.ShredCallKey(context.WithoutCancel(ctx), keyRef); err != nil {
+		return err
+	}
+	s.cleanupMu.Lock()
+	delete(s.pendingKeyRefs, keyRef)
+	s.cleanupMu.Unlock()
+	return nil
+}
+
+func (s *CallModel) cleanupEndedCallKeys(ctx context.Context) error {
+	if s.callKeys == nil {
+		return fmt.Errorf("call key store is not initialized")
+	}
+	if err := s.loadEndedCallKeyCleanup(ctx); err != nil {
+		return err
+	}
+
+	s.cleanupMu.Lock()
+	keyRefs := make([]string, 0, len(s.pendingKeyRefs))
+	for keyRef := range s.pendingKeyRefs {
+		keyRefs = append(keyRefs, keyRef)
+	}
+	s.cleanupMu.Unlock()
+	sort.Strings(keyRefs)
+
+	var cleanupErr error
+	for _, keyRef := range keyRefs {
+		if err := s.callKeys.ShredCallKey(context.WithoutCancel(ctx), keyRef); err != nil {
+			cleanupErr = errors.Join(cleanupErr, fmt.Errorf("shred ended call key %s: %w", keyRef, err))
+			continue
+		}
+		s.cleanupMu.Lock()
+		delete(s.pendingKeyRefs, keyRef)
+		s.cleanupMu.Unlock()
+	}
+	return cleanupErr
+}
+
+func (s *CallModel) loadEndedCallKeyCleanup(ctx context.Context) error {
+	s.cleanupMu.Lock()
+	afterSeq := s.cleanupSeq
+	s.cleanupMu.Unlock()
+
+	ended, lastSeq, err := s.publisher.SubjectEventsAfter(ctx, events.RoomEventTypeFilter(events.EventCallEnded), afterSeq)
+	if err != nil {
+		return fmt.Errorf("load ended calls for key cleanup: %w", err)
+	}
+
+	s.cleanupMu.Lock()
+	defer s.cleanupMu.Unlock()
+	for _, event := range ended {
+		if callID := event.GetVoiceCallEnded().GetCallId(); callID != "" {
+			s.pendingKeyRefs[kms.CallKeyRef(callID)] = struct{}{}
+		}
+	}
+	if lastSeq > s.cleanupSeq {
+		s.cleanupSeq = lastSeq
+	}
+	return nil
+}
+
 func (s *CallModel) AppendJoined(ctx context.Context, roomID, userID string, source corev1.CallParticipantEventSource) error {
 	return s.appendParticipantTransition(ctx, roomID, userID, true, "", source)
 }
@@ -300,7 +411,8 @@ func (s *CallModel) appendParticipantTransition(ctx context.Context, roomID, use
 		if err == nil {
 			seq := seqs[len(seqs)-1]
 			if endedKeyRef != "" {
-				if err := s.callKeys.ShredCallKey(context.WithoutCancel(ctx), endedKeyRef); err != nil {
+				s.queueEndedCallKeyCleanup(endedKeyRef)
+				if err := s.cleanupQueuedCallKey(ctx, endedKeyRef); err != nil {
 					return fmt.Errorf("shred ended call key: %w", err)
 				}
 			}
@@ -558,9 +670,23 @@ func (s *CallModel) reconcileWithLiveKit(ctx context.Context, cleanupContext fun
 	if err := s.resetLiveKitListFailures(ctx); err != nil {
 		return fmt.Errorf("reset LiveKit listing failures: %w", err)
 	}
+	s.cleanupEndedCallKeysBestEffort(ctx)
 	observedRooms := make(map[string]struct{}, len(snapshots))
 	for _, snapshot := range snapshots {
 		if !s.liveKitSnapshotMatchesActiveCall(snapshot) {
+			if err := s.waitForSnapshotRoomTail(ctx, snapshot.RoomID); err != nil {
+				return err
+			}
+			if s.liveKitSnapshotMatchesActiveCall(snapshot) {
+				observedRooms[snapshot.RoomID] = struct{}{}
+				if err := s.ReconcileRoomParticipants(ctx, snapshot.RoomID, snapshot.UserIDs); err != nil {
+					return err
+				}
+				continue
+			}
+			if err := s.cleanupUnmatchedLiveKitSnapshot(ctx, snapshot); err != nil {
+				return err
+			}
 			continue
 		}
 		observedRooms[snapshot.RoomID] = struct{}{}
@@ -574,6 +700,69 @@ func (s *CallModel) reconcileWithLiveKit(ctx context.Context, cleanupContext fun
 				return err
 			}
 		}
+	}
+	return nil
+}
+
+func (s *CallModel) waitForSnapshotRoomTail(ctx context.Context, roomID string) error {
+	if roomID == "" || s.publisher == nil || s.projector == nil {
+		return nil
+	}
+	tail, err := s.publisher.LastSubjectPosition(ctx, events.RoomAggregate(roomID).AllEventsFilter())
+	if err != nil {
+		return fmt.Errorf("read unmatched LiveKit room tail: %w", err)
+	}
+	if tail.Seq == 0 {
+		return nil
+	}
+	if err := s.projector.WaitFor(ctx, tail); err != nil {
+		return fmt.Errorf("wait for unmatched LiveKit room projection: %w", err)
+	}
+	return nil
+}
+
+func (s *CallModel) cleanupUnmatchedLiveKitSnapshot(ctx context.Context, snapshot liveKitParticipantSnapshot) error {
+	if snapshot.RoomID == "" || snapshot.CallID == "" {
+		return nil
+	}
+	remover, ok := s.livekit.(liveKitParticipantRemover)
+	if !ok {
+		return nil
+	}
+	if err := s.ensureUnmatchedCallEndedFact(ctx, snapshot); err != nil {
+		return err
+	}
+	keyRef := kms.CallKeyRef(snapshot.CallID)
+	s.queueEndedCallKeyCleanup(keyRef)
+	for _, userID := range snapshot.UserIDs {
+		if userID == "" {
+			continue
+		}
+		if err := remover.RemoveCallParticipant(ctx, snapshot.SpaceID, snapshot.RoomID, snapshot.CallID, userID); err != nil {
+			return fmt.Errorf("remove participant from unmatched LiveKit call: %w", err)
+		}
+	}
+	if err := s.cleanupQueuedCallKey(ctx, keyRef); err != nil {
+		return fmt.Errorf("clean up unmatched LiveKit call key: %w", err)
+	}
+	return nil
+}
+
+func (s *CallModel) ensureUnmatchedCallEndedFact(ctx context.Context, snapshot liveKitParticipantSnapshot) error {
+	agg := events.RoomAggregate(snapshot.RoomID)
+	subject := agg.Subject(events.EventCallEnded)
+	endedEvents, _, err := s.publisher.SubjectEvents(ctx, subject)
+	if err != nil {
+		return fmt.Errorf("read unmatched LiveKit call endings: %w", err)
+	}
+	for _, event := range endedEvents {
+		if event.GetVoiceCallEnded().GetCallId() == snapshot.CallID {
+			return nil
+		}
+	}
+	ended := newCallEndedEvent(snapshot.RoomID, SystemActorID, snapshot.CallID, corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_RECONCILIATION)
+	if _, err := s.publisher.AppendEventually(ctx, subject, ended); err != nil {
+		return fmt.Errorf("record unmatched LiveKit call end: %w", err)
 	}
 	return nil
 }
@@ -670,13 +859,35 @@ func (s *CallModel) endActiveCallsAfterLiveKitFailure(ctx context.Context) liveK
 
 func (s *CallModel) Run(ctx context.Context) error {
 	if s.livekit == nil {
-		<-ctx.Done()
-		return ctx.Err()
+		if s.reconcileLease != nil {
+			return s.reconcileLease.Run(ctx, s.runCallKeyCleanupLoop)
+		}
+		return s.runCallKeyCleanupLoop(ctx)
 	}
 	if s.reconcileLease != nil {
 		return s.reconcileLease.Run(ctx, s.runReconciliationLoop)
 	}
 	return s.runReconciliationLoop(ctx)
+}
+
+func (s *CallModel) runCallKeyCleanupLoop(ctx context.Context) error {
+	s.cleanupEndedCallKeysBestEffort(ctx)
+	ticker := time.NewTicker(callReconcileInterval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-ticker.C:
+			s.cleanupEndedCallKeysBestEffort(ctx)
+		}
+	}
+}
+
+func (s *CallModel) cleanupEndedCallKeysBestEffort(ctx context.Context) {
+	if err := s.cleanupEndedCallKeys(ctx); err != nil && s.logger != nil {
+		s.logger.Warn("Failed to clean up ended call keys; will retry", "error", err)
+	}
 }
 
 func (s *CallModel) runReconciliationLoop(ctx context.Context) error {

@@ -466,9 +466,22 @@ func (p *Publisher) LastSubjectPosition(ctx context.Context, subjectOrFilter str
 // SubjectEvents returns events currently published on a subject, in stream
 // order, plus the stream sequence of the last matching event.
 func (p *Publisher) SubjectEvents(ctx context.Context, subject string) ([]*corev1.Event, uint64, error) {
+	return p.SubjectEventsAfter(ctx, subject, 0)
+}
+
+// SubjectEventsAfter returns events on a subject whose stream sequence is
+// greater than afterSeq, plus the last matching stream sequence.
+func (p *Publisher) SubjectEventsAfter(ctx context.Context, subject string, afterSeq uint64) ([]*corev1.Event, uint64, error) {
+	deliverPolicy := jetstream.DeliverAllPolicy
+	var startSeq uint64
+	if afterSeq > 0 {
+		deliverPolicy = jetstream.DeliverByStartSequencePolicy
+		startSeq = afterSeq + 1
+	}
 	consumer, err := p.stream.CreateConsumer(ctx, jetstream.ConsumerConfig{
 		FilterSubjects:    []string{subject},
-		DeliverPolicy:     jetstream.DeliverAllPolicy,
+		DeliverPolicy:     deliverPolicy,
+		OptStartSeq:       startSeq,
 		AckPolicy:         jetstream.AckNonePolicy,
 		MemoryStorage:     true,
 		InactiveThreshold: 30 * time.Second,

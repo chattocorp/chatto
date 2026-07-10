@@ -4480,6 +4480,74 @@ func TestVoiceCallServiceRecordsAndListsCalls(t *testing.T) {
 	}
 }
 
+func TestVoiceCallServiceRoomRemovalClearsCallParticipant(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	ctx := withCaller(env.ctx, env.viewer)
+	room := env.createJoinedRoom("voice-room-removal")
+	env.api.config.LiveKit = config.LiveKitConfig{
+		Enabled:   true,
+		URL:       "ws://livekit.test",
+		APIKey:    "test-key",
+		APISecret: "test-secret",
+		ServerID:  "test-server",
+	}
+
+	target, err := env.core.CreateUser(env.ctx, core.SystemActorID, "voice-room-removal-target", "Voice Room Removal Target", "password")
+	if err != nil {
+		t.Fatalf("CreateUser target: %v", err)
+	}
+	if _, err := env.core.JoinRoom(env.ctx, target.Id, core.KindChannel, target.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom target: %v", err)
+	}
+	if err := env.core.RecordCallParticipantJoined(env.ctx, core.KindChannel, room.Id, target.Id, corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER); err != nil {
+		t.Fatalf("RecordCallParticipantJoined: %v", err)
+	}
+	if err := env.core.GrantUserRoomPermission(env.ctx, core.SystemActorID, room.Id, env.viewer.Id, core.PermRoomManage); err != nil {
+		t.Fatalf("GrantUserRoomPermission room.manage: %v", err)
+	}
+
+	participantsResp, err := env.voice.ListCallParticipants(ctx, connect.NewRequest(&apiv1.ListCallParticipantsRequest{
+		RoomId: room.Id,
+	}))
+	if err != nil {
+		t.Fatalf("ListCallParticipants before removal: %v", err)
+	}
+	if participants := participantsResp.Msg.GetParticipants(); len(participants) != 1 || participants[0].GetUser().GetId() != target.Id {
+		t.Fatalf("participants before removal = %+v, want target", participants)
+	}
+
+	removeResp, err := env.rooms.RemoveMember(ctx, connect.NewRequest(&apiv1.RemoveMemberRequest{
+		RoomId: room.Id,
+		UserId: target.Id,
+	}))
+	if err != nil {
+		t.Fatalf("RemoveMember: %v", err)
+	}
+	if !removeResp.Msg.GetRemoved() {
+		t.Fatal("RemoveMember removed=false, want true")
+	}
+
+	participantsResp, err = env.voice.ListCallParticipants(ctx, connect.NewRequest(&apiv1.ListCallParticipantsRequest{
+		RoomId: room.Id,
+	}))
+	if err != nil {
+		t.Fatalf("ListCallParticipants after removal: %v", err)
+	}
+	if len(participantsResp.Msg.GetParticipants()) != 0 {
+		t.Fatalf("participants after removal = %+v, want none", participantsResp.Msg.GetParticipants())
+	}
+	if _, err := env.voice.GetActiveCall(ctx, connect.NewRequest(&apiv1.GetActiveCallRequest{
+		RoomId: room.Id,
+	})); connect.CodeOf(err) != connect.CodeNotFound {
+		t.Fatalf("GetActiveCall after removal code = %v, want not_found", connect.CodeOf(err))
+	}
+	if _, err := env.voice.GetCallToken(withCaller(env.ctx, target), connect.NewRequest(&apiv1.GetCallTokenRequest{
+		RoomId: room.Id,
+	})); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("removed member GetCallToken code = %v, want permission_denied", connect.CodeOf(err))
+	}
+}
+
 func TestMyAccountServiceUpdatePresence(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	ctx := withCaller(env.ctx, env.viewer)
