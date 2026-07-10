@@ -185,12 +185,6 @@ func (s *MyEventsModel) StreamMyEvents(ctx context.Context, userID string, optio
 		heartbeatTicker := time.NewTicker(MyEventsHeartbeatInterval)
 		defer heartbeatTicker.Stop()
 
-		lastKnownPresence := presenceSub.Snapshot
-		presenceSub.Snapshot = nil
-		if lastKnownPresence == nil {
-			lastKnownPresence = make(map[string]string)
-		}
-
 		defer func() {
 			s.activeStreams.Add(-1)
 			c.logger.Debug("Server event stream closed", "user_id", userID)
@@ -262,14 +256,6 @@ func (s *MyEventsModel) StreamMyEvents(ctx context.Context, userID string, optio
 				}
 
 			case update := <-presenceSub.C:
-				if last, exists := lastKnownPresence[update.UserID]; exists && last == update.Status {
-					continue
-				}
-				if update.Status == PresenceStatusOffline {
-					delete(lastKnownPresence, update.UserID)
-				} else {
-					lastKnownPresence[update.UserID] = update.Status
-				}
 				live := newLiveEvent(update.UserID, &corev1.LiveEvent{
 					Event: &corev1.LiveEvent_PresenceChanged{
 						PresenceChanged: &corev1.PresenceChangedEvent{Status: update.Status},

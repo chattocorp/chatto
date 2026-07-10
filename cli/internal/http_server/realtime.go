@@ -24,6 +24,8 @@ const (
 	realtimePath                     = "/api/realtime"
 	realtimeProtocolVersion          = 1
 	realtimeReadLimitBytes           = 64 << 10
+	realtimeReadBufferBytes          = 256
+	realtimeWriteBufferBytes         = 512
 	realtimeHandshakeTimeout         = 10 * time.Second
 	realtimeWriteTimeout             = 10 * time.Second
 	realtimeHeartbeatIntervalSeconds = uint32(core.MyEventsHeartbeatInterval / time.Second)
@@ -40,7 +42,11 @@ func (s *HTTPServer) setupRealtimeAPI(allowedOrigins []string) {
 		s.metrics = newProcessMetrics()
 	}
 
+	writeBufferPool := &sync.Pool{}
 	upgrader := websocket.Upgrader{
+		ReadBufferSize:    realtimeReadBufferBytes,
+		WriteBufferSize:   realtimeWriteBufferBytes,
+		WriteBufferPool:   writeBufferPool,
 		EnableCompression: s.config.Webserver.WebSocketCompressionEnabled(),
 		CheckOrigin: func(r *http.Request) bool {
 			return s.checkRealtimeWebSocketOrigin(r, allowedOrigins)

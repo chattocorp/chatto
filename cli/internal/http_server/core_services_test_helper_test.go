@@ -16,7 +16,7 @@ import (
 // ensureChannelRoomsAreInAGroup done), so test code can issue reads
 // against the projections immediately after this returns without
 // racing the background goroutines.
-func startCoreServices(t *testing.T, c *core.ChattoCore) {
+func startCoreServices(t testing.TB, c *core.ChattoCore) {
 	t.Helper()
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan error, 1)

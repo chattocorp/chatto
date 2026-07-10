@@ -12,8 +12,7 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-// PresenceUpdate represents a raw presence change from the KV watcher.
-// Subscribers perform their own filtering (space membership) and deduplication.
+// PresenceUpdate represents a deduplicated presence change from the KV watcher.
 type PresenceUpdate struct {
 	UserID string
 	Status string // PresenceStatusOnline, PresenceStatusAway, etc., or PresenceStatusOffline for delete
@@ -24,10 +23,6 @@ type PresenceSubscription struct {
 	// C receives presence updates. Closed when Unsubscribe is called.
 	C  <-chan PresenceUpdate
 	ch chan PresenceUpdate // internal writable channel
-
-	// Snapshot contains the current presence state at subscription time.
-	// Use this to initialize deduplication maps.
-	Snapshot map[string]string // userID -> status
 
 	id uint64
 }
@@ -126,8 +121,8 @@ func (h *PresenceHub) Run(ctx context.Context) error {
 					select {
 					case sub.ch <- update:
 					default:
-						// Slow consumer — drop update. Presence refreshes every 30s
-						// so the subscriber will self-correct on the next cycle.
+						// Slow consumer — drop update. Reconnect catch-up and
+						// projected reads restore current state for the client.
 					}
 				}
 			}
@@ -137,13 +132,10 @@ func (h *PresenceHub) Run(ctx context.Context) error {
 	}
 }
 
-// Subscribe registers a new subscriber. The returned PresenceSubscription
-// contains a channel for receiving updates and a snapshot of current presence
-// state for initializing deduplication maps.
-//
-// The subscription is registered atomically with the snapshot copy, so no
-// events can be missed between reading the snapshot and starting to receive
-// from the channel.
+// Subscribe registers a new subscriber for future presence transitions. The
+// hub owns the process-wide current-state snapshot and already suppresses
+// unchanged status refreshes, so subscribers do not need private snapshot
+// copies for deduplication.
 //
 // The caller must call Unsubscribe() when done.
 func (h *PresenceHub) Subscribe(ctx context.Context) (*PresenceSubscription, error) {
@@ -160,18 +152,10 @@ func (h *PresenceHub) Subscribe(ctx context.Context) (*PresenceSubscription, err
 	id := h.nextID
 	h.nextID++
 
-	// Copy snapshot under the same lock that registers the subscriber —
-	// this ensures no events are missed between snapshot and channel registration.
-	snapshot := make(map[string]string, len(h.snapshot))
-	for k, v := range h.snapshot {
-		snapshot[k] = v
-	}
-
 	sub := &PresenceSubscription{
-		C:        ch,
-		ch:       ch,
-		Snapshot: snapshot,
-		id:       id,
+		C:  ch,
+		ch: ch,
+		id: id,
 	}
 	h.subscribers[id] = sub
 	h.mu.Unlock()

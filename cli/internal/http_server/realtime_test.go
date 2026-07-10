@@ -3,6 +3,7 @@ package http_server
 import (
 	"context"
 	"net/http"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -16,7 +17,7 @@ import (
 	realtimev1 "hmans.de/chatto/internal/pb/chatto/realtime/v1"
 )
 
-func (env *wsTestEnv) connectRealtime(t *testing.T) *websocket.Conn {
+func (env *wsTestEnv) dialRealtime(t testing.TB) *websocket.Conn {
 	t.Helper()
 
 	wsURL := "ws" + strings.TrimPrefix(env.server.URL, "http") + realtimePath
@@ -32,11 +33,17 @@ func (env *wsTestEnv) connectRealtime(t *testing.T) *websocket.Conn {
 		}
 		t.Fatalf("Realtime WebSocket dial failed: %v", err)
 	}
+	return conn
+}
+
+func (env *wsTestEnv) connectRealtime(t testing.TB) *websocket.Conn {
+	t.Helper()
+	conn := env.dialRealtime(t)
 	t.Cleanup(func() { conn.Close() })
 	return conn
 }
 
-func sendRealtimeClientFrame(t *testing.T, conn *websocket.Conn, frame *realtimev1.RealtimeClientFrame) {
+func sendRealtimeClientFrame(t testing.TB, conn *websocket.Conn, frame *realtimev1.RealtimeClientFrame) {
 	t.Helper()
 	data, err := proto.Marshal(frame)
 	if err != nil {
@@ -47,7 +54,7 @@ func sendRealtimeClientFrame(t *testing.T, conn *websocket.Conn, frame *realtime
 	}
 }
 
-func readRealtimeServerFrame(t *testing.T, conn *websocket.Conn, timeout time.Duration) (*realtimev1.RealtimeServerFrame, bool) {
+func readRealtimeServerFrame(t testing.TB, conn *websocket.Conn, timeout time.Duration) (*realtimev1.RealtimeServerFrame, bool) {
 	t.Helper()
 	if err := conn.SetReadDeadline(time.Now().Add(timeout)); err != nil {
 		t.Fatalf("set realtime read deadline: %v", err)
@@ -69,7 +76,7 @@ func readRealtimeServerFrame(t *testing.T, conn *websocket.Conn, timeout time.Du
 	return &frame, true
 }
 
-func subscribeRealtime(t *testing.T, conn *websocket.Conn, token string) {
+func subscribeRealtime(t testing.TB, conn *websocket.Conn, token string) {
 	t.Helper()
 	sendRealtimeClientFrame(t, conn, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_Hello{
 		Hello: &realtimev1.RealtimeClientHello{ProtocolVersion: realtimeProtocolVersion, BearerToken: proto.String(token)},
@@ -100,7 +107,7 @@ func subscribeRealtime(t *testing.T, conn *websocket.Conn, token string) {
 	}
 }
 
-func waitRealtimeEvent(t *testing.T, conn *websocket.Conn, timeout time.Duration, match func(*realtimev1.RealtimeEventEnvelope) bool) *realtimev1.RealtimeEventEnvelope {
+func waitRealtimeEvent(t testing.TB, conn *websocket.Conn, timeout time.Duration, match func(*realtimev1.RealtimeEventEnvelope) bool) *realtimev1.RealtimeEventEnvelope {
 	t.Helper()
 	deadline := time.Now().Add(timeout)
 	for time.Now().Before(deadline) {
@@ -591,15 +598,66 @@ func TestRealtimeWebSocketRespondsToPing(t *testing.T) {
 
 	time.Sleep(realtimeHandshakeTimeout + 200*time.Millisecond)
 
+	// The payload is much larger than either transport buffer but remains well
+	// below the 64 KiB message limit. Buffer sizing must not limit frame size.
+	nonce := strings.Repeat("0123456789abcdef", 512)
 	sendRealtimeClientFrame(t, conn, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_Ping{
-		Ping: &realtimev1.RealtimePing{Nonce: "abc123"},
+		Ping: &realtimev1.RealtimePing{Nonce: nonce},
 	}})
 
 	frame, ok := readRealtimeServerFrame(t, conn, 5*time.Second)
 	if !ok {
 		t.Fatal("timed out waiting for pong")
 	}
-	if got := frame.GetPong(); got == nil || got.Nonce != "abc123" {
-		t.Fatalf("pong = %+v, want nonce abc123", got)
+	if got := frame.GetPong(); got == nil || got.Nonce != nonce {
+		t.Fatalf("pong nonce length = %d, want %d", len(got.GetNonce()), len(nonce))
+	}
+}
+
+func BenchmarkRealtimeWebSocketIdleConnections(b *testing.B) {
+	if b.N != 500 {
+		b.Skip("run with -benchtime=500x to measure the 500-connection retained-memory slope")
+	}
+
+	env := setupWebSocketTestServer(b)
+	user, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-benchmark", "RT Benchmark", "password123")
+	if err != nil {
+		b.Fatalf("CreateUser: %v", err)
+	}
+	token, err := env.core.CreateAuthToken(env.ctx, user.Id)
+	if err != nil {
+		b.Fatalf("CreateAuthToken: %v", err)
+	}
+
+	runtime.GC()
+	var before runtime.MemStats
+	runtime.ReadMemStats(&before)
+
+	connections := make([]*websocket.Conn, 0, b.N)
+	b.ReportAllocs()
+	b.ResetTimer()
+	for range b.N {
+		conn := env.dialRealtime(b)
+		subscribeRealtime(b, conn, token)
+		connections = append(connections, conn)
+	}
+	b.StopTimer()
+
+	runtime.GC()
+	var after runtime.MemStats
+	runtime.ReadMemStats(&after)
+	if b.N > 0 {
+		if after.HeapAlloc > before.HeapAlloc {
+			b.ReportMetric(float64(after.HeapAlloc-before.HeapAlloc)/float64(b.N), "retained-heap-B/conn")
+		}
+		if after.StackInuse > before.StackInuse {
+			b.ReportMetric(float64(after.StackInuse-before.StackInuse)/float64(b.N), "stack-B/conn")
+		}
+	}
+
+	for _, conn := range connections {
+		if err := conn.Close(); err != nil {
+			b.Errorf("close realtime connection: %v", err)
+		}
 	}
 }
