@@ -439,6 +439,30 @@ describe('RoomsStore - refresh', () => {
     expect(roomUnread.roomIsUnread('random')).toBe(true);
   });
 
+  it('does not cancel an optimistic read when an older refresh completes', async () => {
+    let resolveRooms!: (value: DirectoryRoomSummary[]) => void;
+    const roomDirectoryAPI = {
+      listRooms: vi.fn(
+        () => new Promise<DirectoryRoomSummary[]>((resolve) => (resolveRooms = resolve))
+      ),
+      listRoomGroups: vi.fn().mockResolvedValue([])
+    } as unknown as RoomDirectoryAPI;
+    const roomUnread = new RoomUnreadStore();
+    roomUnread.setRoomUnread('general', true);
+    const store = makeStore({ roomDirectoryAPI, roomUnread });
+
+    const refresh = store.refresh();
+    const read = roomUnread.beginOptimisticRead('general');
+    resolveRooms([makeRoom('general', { hasUnread: true })]);
+    await refresh;
+
+    expect(roomUnread.roomIsUnread('general')).toBe(false);
+
+    read.commit();
+
+    expect(roomUnread.roomIsUnread('general')).toBe(false);
+  });
+
   it('only replaces rooms whose notification counts changed', async () => {
     const notificationAPI = makeNotificationAPI({ general: 1, random: 0 });
     const store = makeStore({

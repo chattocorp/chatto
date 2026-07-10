@@ -94,6 +94,7 @@
       loaded = true;
       return;
     }
+    const unreadSnapshotRevision = roomUnreadStore.captureSnapshotRevision();
     try {
       const [serverState, viewer, rooms] = await Promise.all([
         getAuthenticatedServerState(connectAPIConfig()),
@@ -115,7 +116,8 @@
       );
       roomUnreadStore.initRooms(
         rooms,
-        serverState.viewerHasUnreadRooms && !hasUnreadChannel
+        serverState.viewerHasUnreadRooms && !hasUnreadChannel,
+        unreadSnapshotRevision
       );
 
       displayName = serverState.name;
@@ -244,8 +246,9 @@
     let roomId = roomUnreadStore.getFirstUnreadRoomId();
 
     if (!roomId) {
+      const unreadSnapshotRevision = roomUnreadStore.captureSnapshotRevision();
       const rooms = await roomDirectoryAPI().listRooms(RoomDirectoryScope.CHANNELS);
-      roomUnreadStore.updateRooms(rooms);
+      roomUnreadStore.updateRooms(rooms, unreadSnapshotRevision);
       roomUnreadStore.resolveUnknownUnread();
       roomId = roomUnreadStore.getFirstUnreadRoomId();
     }

@@ -55,6 +55,7 @@ const { mocks } = vi.hoisted(() => {
           getCleanPath: vi.fn().mockReturnValue('/chat/remote.example.com/room-1')
         },
         roomUnread: {
+          captureSnapshotRevision: vi.fn().mockReturnValue(0),
           clear: vi.fn(),
           initRooms: vi.fn(),
           updateRooms: vi.fn(),
@@ -237,6 +238,8 @@ describe('ServerSidebarEntry', () => {
     mocks.store.notifications.dismiss.mockClear();
     mocks.store.notifications.getCleanPath.mockReturnValue('/chat/remote.example.com/room-1');
     mocks.store.roomUnread.clear.mockClear();
+    mocks.store.roomUnread.captureSnapshotRevision.mockClear();
+    mocks.store.roomUnread.captureSnapshotRevision.mockReturnValue(0);
     mocks.store.roomUnread.initRooms.mockClear();
     mocks.store.roomUnread.updateRooms.mockClear();
     mocks.store.roomUnread.resolveUnknownUnread.mockClear();
@@ -341,7 +344,8 @@ describe('ServerSidebarEntry', () => {
     );
     expect(mocks.store.roomUnread.initRooms).toHaveBeenCalledWith(
       [{ id: 'dm-1', kind: 2, hasUnread: true }],
-      true
+      true,
+      0
     );
   });
 
