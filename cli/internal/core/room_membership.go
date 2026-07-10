@@ -425,7 +425,6 @@ func (c *ChattoCore) appendRoomLeaveBatch(ctx context.Context, kind RoomKind, ro
 		if c.callModel == nil || c.callModel.callKeys == nil {
 			cleanupErr = fmt.Errorf("call key store is not initialized")
 		} else {
-			c.callModel.queueEndedCallKeyCleanup(cleanup.endedKeyRef)
 			if err := c.callModel.cleanupQueuedCallKey(ctx, cleanup.endedKeyRef); err != nil {
 				cleanupErr = fmt.Errorf("shred ended call key: %w", err)
 			}

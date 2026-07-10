@@ -374,13 +374,19 @@ auth workflow audit facts.
 
 ### Durable Effect Inventory
 
-Key files: [`cli/internal/core/call_model.go`](../cli/internal/core/call_model.go), [`cli/internal/core/asset_model.go`](../cli/internal/core/asset_model.go), [`cli/internal/core/message_body_cleanup.go`](../cli/internal/core/message_body_cleanup.go), [`cli/internal/core/core.go`](../cli/internal/core/core.go), [`cli/internal/video/service.go`](../cli/internal/video/service.go)
+Key files: [`cli/internal/events/incremental_effect_consumer.go`](../cli/internal/events/incremental_effect_consumer.go), [`cli/internal/core/call_model.go`](../cli/internal/core/call_model.go), [`cli/internal/core/asset_model.go`](../cli/internal/core/asset_model.go), [`cli/internal/core/message_body_cleanup.go`](../cli/internal/core/message_body_cleanup.go), [`cli/internal/video/service.go`](../cli/internal/video/service.go)
 
 Some durable facts require work in a different storage system or external
 service. The table records the current execution and recovery contract. A
 durable trigger means unfinished work can be rediscovered after a crash; it
 does not by itself guarantee that every implementation currently performs that
 recovery.
+
+`IncrementalEffectConsumer` provides the shared low-level mechanism for
+process-local cursoring and independent failed-effect retries over a filtered
+EVT lane. Domain models still own lease selection, polling cadence, backoff,
+idempotent handlers, logging, and lifecycle; call-key cleanup is the first
+consumer, and a second domain must validate the boundary before broader use.
 
 | Effect | Durable fact or invariant | Immediate execution | Restart and multi-replica behavior | Current status |
 | ------ | ------------------------- | ------------------- | ---------------------------------- | -------------- |

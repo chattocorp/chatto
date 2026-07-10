@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -87,6 +88,119 @@ func makeMessagePostedEvent(roomID, userID string) *corev1.Event {
 				RoomId: roomID,
 			},
 		},
+	}
+}
+
+func TestIncrementalEffectConsumer_RetriesOnlyFailedEffectsAndAdvances(t *testing.T) {
+	js, stream := setupTestStream(t)
+	pub := NewPublisher(js, stream, testLogger())
+	ctx := testContext(t)
+	subject := RoomAggregate("R-consumer").Subject(EventUserJoinedRoom)
+
+	for _, userID := range []string{"U1", "U2"} {
+		if _, err := pub.AppendEventually(ctx, subject, makeEvent("R-consumer", userID)); err != nil {
+			t.Fatalf("AppendEventually %s: %v", userID, err)
+		}
+	}
+
+	fail := true
+	var handled []string
+	consumer := NewIncrementalEffectConsumer(pub, subject, func(_ context.Context, event *corev1.Event) error {
+		handled = append(handled, event.GetActorId())
+		if fail && event.GetActorId() == "U2" {
+			return errors.New("effect unavailable")
+		}
+		return nil
+	})
+
+	if err := consumer.Consume(ctx); err == nil {
+		t.Fatal("Consume returned nil for failed effect batch")
+	}
+	fail = false
+	if err := consumer.Consume(ctx); err != nil {
+		t.Fatalf("Consume retry: %v", err)
+	}
+	if _, err := pub.AppendEventually(ctx, subject, makeEvent("R-consumer", "U3")); err != nil {
+		t.Fatalf("AppendEventually U3: %v", err)
+	}
+	if err := consumer.Consume(ctx); err != nil {
+		t.Fatalf("Consume incremental event: %v", err)
+	}
+
+	want := []string{"U1", "U2", "U2", "U3"}
+	if !slices.Equal(handled, want) {
+		t.Fatalf("handled actors = %v, want %v", handled, want)
+	}
+}
+
+func TestIncrementalEffectConsumer_PermanentFailureDoesNotBlockLaterEffects(t *testing.T) {
+	js, stream := setupTestStream(t)
+	pub := NewPublisher(js, stream, testLogger())
+	ctx := testContext(t)
+	subject := RoomAggregate("R-independent").Subject(EventUserJoinedRoom)
+	for _, userID := range []string{"U1", "U2"} {
+		if _, err := pub.AppendEventually(ctx, subject, makeEvent("R-independent", userID)); err != nil {
+			t.Fatalf("AppendEventually %s: %v", userID, err)
+		}
+	}
+
+	var handled []string
+	consumer := NewIncrementalEffectConsumer(pub, subject, func(_ context.Context, event *corev1.Event) error {
+		handled = append(handled, event.GetActorId())
+		if event.GetActorId() == "U1" {
+			return errors.New("permanent effect failure")
+		}
+		return nil
+	})
+	if err := consumer.Consume(ctx); err == nil {
+		t.Fatal("Consume returned nil for permanent effect failure")
+	}
+	if _, err := pub.AppendEventually(ctx, subject, makeEvent("R-independent", "U3")); err != nil {
+		t.Fatalf("AppendEventually U3: %v", err)
+	}
+	if err := consumer.Consume(ctx); err == nil {
+		t.Fatal("Consume retry returned nil for permanent effect failure")
+	}
+
+	want := []string{"U1", "U2", "U1", "U3"}
+	if !slices.Equal(handled, want) {
+		t.Fatalf("handled actors = %v, want %v", handled, want)
+	}
+}
+
+func TestIncrementalEffectConsumer_SerializesConcurrentConsume(t *testing.T) {
+	js, stream := setupTestStream(t)
+	pub := NewPublisher(js, stream, testLogger())
+	ctx := testContext(t)
+	subject := RoomAggregate("R-serialized").Subject(EventUserJoinedRoom)
+	if _, err := pub.AppendEventually(ctx, subject, makeEvent("R-serialized", "U1")); err != nil {
+		t.Fatalf("AppendEventually: %v", err)
+	}
+
+	started := make(chan struct{})
+	release := make(chan struct{})
+	calls := 0
+	consumer := NewIncrementalEffectConsumer(pub, subject, func(context.Context, *corev1.Event) error {
+		calls++
+		if calls == 1 {
+			close(started)
+			<-release
+		}
+		return nil
+	})
+
+	errCh := make(chan error, 2)
+	go func() { errCh <- consumer.Consume(ctx) }()
+	<-started
+	go func() { errCh <- consumer.Consume(ctx) }()
+	close(release)
+	for range 2 {
+		if err := <-errCh; err != nil {
+			t.Fatalf("Consume: %v", err)
+		}
+	}
+	if calls != 1 {
+		t.Fatalf("handler calls = %d, want 1", calls)
 	}
 }
 

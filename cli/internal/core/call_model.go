@@ -9,7 +9,6 @@ import (
 	"net/url"
 	"sort"
 	"strings"
-	"sync"
 	"time"
 
 	lkauth "github.com/livekit/protocol/auth"
@@ -60,9 +59,7 @@ type CallModel struct {
 	reconcileLease *lease.Lease
 	memoryCacheKV  jetstream.KeyValue
 	logger         events.Logger
-	cleanupMu      sync.Mutex
-	pendingKeyRefs map[string]struct{}
-	cleanupSeq     uint64
+	keyCleanup     *events.IncrementalEffectConsumer
 }
 
 type liveKitFailureCleanupSummary struct {
@@ -118,7 +115,7 @@ func NewCallModel(
 	memoryCacheKV jetstream.KeyValue,
 	logger events.Logger,
 ) *CallModel {
-	return &CallModel{
+	model := &CallModel{
 		publisher:      publisher,
 		projection:     projection,
 		projector:      projector,
@@ -127,8 +124,13 @@ func NewCallModel(
 		reconcileLease: reconcileLease,
 		memoryCacheKV:  memoryCacheKV,
 		logger:         logger,
-		pendingKeyRefs: make(map[string]struct{}),
 	}
+	model.keyCleanup = events.NewIncrementalEffectConsumer(
+		publisher,
+		events.RoomEventTypeFilter(events.EventCallEnded),
+		model.cleanupEndedCallKey,
+	)
+	return model
 }
 
 func (c *ChattoCore) EnableLiveKitCallReconciliation(cfg config.LiveKitConfig) error {
@@ -298,15 +300,6 @@ func (s *CallModel) RemoveLiveKitParticipant(ctx context.Context, spaceID, roomI
 	return remover.RemoveCallParticipant(ctx, spaceID, roomID, callID, userID)
 }
 
-func (s *CallModel) queueEndedCallKeyCleanup(keyRef string) {
-	if keyRef == "" {
-		return
-	}
-	s.cleanupMu.Lock()
-	s.pendingKeyRefs[keyRef] = struct{}{}
-	s.cleanupMu.Unlock()
-}
-
 func (s *CallModel) cleanupQueuedCallKey(ctx context.Context, keyRef string) error {
 	if keyRef == "" {
 		return nil
@@ -317,60 +310,21 @@ func (s *CallModel) cleanupQueuedCallKey(ctx context.Context, keyRef string) err
 	if err := s.callKeys.ShredCallKey(context.WithoutCancel(ctx), keyRef); err != nil {
 		return err
 	}
-	s.cleanupMu.Lock()
-	delete(s.pendingKeyRefs, keyRef)
-	s.cleanupMu.Unlock()
 	return nil
 }
 
 func (s *CallModel) cleanupEndedCallKeys(ctx context.Context) error {
-	if s.callKeys == nil {
-		return fmt.Errorf("call key store is not initialized")
-	}
-	if err := s.loadEndedCallKeyCleanup(ctx); err != nil {
-		return err
-	}
-
-	s.cleanupMu.Lock()
-	keyRefs := make([]string, 0, len(s.pendingKeyRefs))
-	for keyRef := range s.pendingKeyRefs {
-		keyRefs = append(keyRefs, keyRef)
-	}
-	s.cleanupMu.Unlock()
-	sort.Strings(keyRefs)
-
-	var cleanupErr error
-	for _, keyRef := range keyRefs {
-		if err := s.callKeys.ShredCallKey(context.WithoutCancel(ctx), keyRef); err != nil {
-			cleanupErr = errors.Join(cleanupErr, fmt.Errorf("shred ended call key %s: %w", keyRef, err))
-			continue
-		}
-		s.cleanupMu.Lock()
-		delete(s.pendingKeyRefs, keyRef)
-		s.cleanupMu.Unlock()
-	}
-	return cleanupErr
+	return s.keyCleanup.Consume(ctx)
 }
 
-func (s *CallModel) loadEndedCallKeyCleanup(ctx context.Context) error {
-	s.cleanupMu.Lock()
-	afterSeq := s.cleanupSeq
-	s.cleanupMu.Unlock()
-
-	ended, lastSeq, err := s.publisher.SubjectEventsAfter(ctx, events.RoomEventTypeFilter(events.EventCallEnded), afterSeq)
-	if err != nil {
-		return fmt.Errorf("load ended calls for key cleanup: %w", err)
+func (s *CallModel) cleanupEndedCallKey(ctx context.Context, event *corev1.Event) error {
+	callID := event.GetVoiceCallEnded().GetCallId()
+	if callID == "" {
+		return nil
 	}
-
-	s.cleanupMu.Lock()
-	defer s.cleanupMu.Unlock()
-	for _, event := range ended {
-		if callID := event.GetVoiceCallEnded().GetCallId(); callID != "" {
-			s.pendingKeyRefs[kms.CallKeyRef(callID)] = struct{}{}
-		}
-	}
-	if lastSeq > s.cleanupSeq {
-		s.cleanupSeq = lastSeq
+	keyRef := kms.CallKeyRef(callID)
+	if err := s.cleanupQueuedCallKey(ctx, keyRef); err != nil {
+		return fmt.Errorf("shred ended call key %s: %w", keyRef, err)
 	}
 	return nil
 }
@@ -411,7 +365,6 @@ func (s *CallModel) appendParticipantTransition(ctx context.Context, roomID, use
 		if err == nil {
 			seq := seqs[len(seqs)-1]
 			if endedKeyRef != "" {
-				s.queueEndedCallKeyCleanup(endedKeyRef)
 				if err := s.cleanupQueuedCallKey(ctx, endedKeyRef); err != nil {
 					return fmt.Errorf("shred ended call key: %w", err)
 				}
@@ -733,7 +686,6 @@ func (s *CallModel) cleanupUnmatchedLiveKitSnapshot(ctx context.Context, snapsho
 		return err
 	}
 	keyRef := kms.CallKeyRef(snapshot.CallID)
-	s.queueEndedCallKeyCleanup(keyRef)
 	for _, userID := range snapshot.UserIDs {
 		if userID == "" {
 			continue
