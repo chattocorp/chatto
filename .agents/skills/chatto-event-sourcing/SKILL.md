@@ -141,6 +141,11 @@ object-store, webhook, or other external side effect as a crash boundary.
   relevant aggregate tail and re-check the decision.
 - Order recovery so the durable retry signal exists before an irreversible or
   externally visible cleanup step can make the work undiscoverable.
+- Before copying recovery metadata into a new event field, check whether the
+  event's aggregate ID can locate an existing immutable fact that already
+  carries it. Prefer that durable lookup when its cost is bounded and the
+  historical subject shape is compatible; document any legacy lanes that
+  cannot be located from the current aggregate ID.
 - Keep history-wide repair and reconciliation out of request paths. A request
   may attempt the side effect for the fact it just committed, while background
   recovery owns scanning, retries, and cross-replica discovery.
