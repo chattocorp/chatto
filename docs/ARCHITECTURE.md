@@ -714,7 +714,7 @@ Notes: Asset IDs are globally unique (NanoID), so NATS-backed assets do not need
 
 ### Dynamic Image Transformation
 
-Chatto supports on-the-fly image transformation for attachments and user avatars, allowing clients to request images at specific dimensions without pre-generating all possible sizes. Public server branding images expose canonical asset URLs instead of accepting arbitrary transform dimensions.
+Chatto supports on-the-fly image transformation for attachments and user avatars, allowing clients to request images at specific dimensions without pre-generating all possible sizes. Public server branding images expose canonical asset URLs instead of accepting arbitrary transform dimensions; the HTTP frontend server uses fixed 180/192/512px cover transforms of the current server logo for Apple touch icon and web-manifest install metadata, and keeps the web manifest network-served so service-worker caches do not pin stale branding.
 
 **URL Structure:**
 

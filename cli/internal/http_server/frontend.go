@@ -4,7 +4,9 @@ import (
 	"context"
 	"crypto/sha256"
 	"embed"
+	"encoding/json"
 	"fmt"
+	"html"
 	"io/fs"
 	"mime"
 	"net/http"
@@ -32,6 +34,14 @@ const (
 	// violations during development/staging before we consider enforcement.
 	contentSecurityPolicyReportOnly = "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: http: https:; media-src 'self' blob: http: https:; connect-src 'self' http: https: ws: wss:; frame-src https://www.youtube-nocookie.com; worker-src 'self'; require-trusted-types-for 'script'; trusted-types chatto-markdown-html"
 )
+
+const defaultAppleTouchIconHref = "/icons/apple-touch-icon.png"
+
+type pwaServerIconURLs struct {
+	AppleTouch180 string
+	Icon192       string
+	Icon512       string
+}
 
 func setFrontendSecurityHeaders(c *gin.Context) {
 	c.Header("X-Content-Type-Options", "nosniff")
@@ -115,6 +125,79 @@ func setFrontendCacheHeaders(c *gin.Context) {
 	c.Next()
 }
 
+func (s *HTTPServer) currentPWAIconURLs(ctx context.Context) *pwaServerIconURLs {
+	if s.core == nil {
+		return nil
+	}
+
+	sizeURL := func(size int) string {
+		width, height := size, size
+		url, err := s.core.GetServerLogoURL(ctx, &width, &height, "cover")
+		if err != nil {
+			s.logger.Warn("failed to get server logo URL for PWA metadata", "error", err, "size", size)
+			return ""
+		}
+		return url
+	}
+
+	icons := &pwaServerIconURLs{
+		AppleTouch180: sizeURL(180),
+		Icon192:       sizeURL(192),
+		Icon512:       sizeURL(512),
+	}
+	if icons.AppleTouch180 == "" || icons.Icon192 == "" || icons.Icon512 == "" {
+		return nil
+	}
+	return icons
+}
+
+func pwaManifestIcons(icon192, icon512 string) []map[string]string {
+	return []map[string]string{
+		{"src": icon192, "sizes": "192x192"},
+		{"src": icon512, "sizes": "512x512"},
+		{"src": icon192, "sizes": "192x192", "purpose": "maskable"},
+		{"src": icon512, "sizes": "512x512", "purpose": "maskable"},
+	}
+}
+
+func dynamicPWAManifest(staticManifest []byte, icons *pwaServerIconURLs) ([]byte, error) {
+	if icons == nil {
+		return staticManifest, nil
+	}
+
+	var manifest map[string]any
+	if err := json.Unmarshal(staticManifest, &manifest); err != nil {
+		return nil, err
+	}
+
+	manifest["icons"] = pwaManifestIcons(icons.Icon192, icons.Icon512)
+	if shortcuts, ok := manifest["shortcuts"].([]any); ok {
+		for _, shortcut := range shortcuts {
+			shortcutMap, ok := shortcut.(map[string]any)
+			if !ok {
+				continue
+			}
+			shortcutMap["icons"] = []map[string]string{
+				{"src": icons.Icon192, "sizes": "192x192"},
+			}
+		}
+	}
+
+	return json.MarshalIndent(manifest, "", "  ")
+}
+
+func injectAppleTouchIcon(content []byte, iconURL string) []byte {
+	if iconURL == "" {
+		return content
+	}
+	escaped := html.EscapeString(iconURL)
+	return []byte(strings.ReplaceAll(
+		string(content),
+		`href="`+defaultAppleTouchIconHref+`"`,
+		`href="`+escaped+`"`,
+	))
+}
+
 // clientAcceptsEncoding checks if the client accepts a specific encoding.
 // It parses the Accept-Encoding header and looks for the encoding name.
 func clientAcceptsEncoding(acceptEncoding, encoding string) bool {
@@ -149,9 +232,27 @@ func (s *HTTPServer) serveSPAFallback(c *gin.Context, clientFS fs.FS) bool {
 	defer cancel()
 
 	content = s.injectOpenGraphTags(ctx, content, c.Request.URL.Path)
+	if icons := s.currentPWAIconURLs(ctx); icons != nil {
+		content = injectAppleTouchIcon(content, icons.AppleTouch180)
+	}
 
 	c.Data(http.StatusOK, "text/html; charset=utf-8", content)
 	return true
+}
+
+func (s *HTTPServer) servePWAWebManifest(c *gin.Context, clientFS fs.FS) {
+	content, err := fs.ReadFile(clientFS, "manifest.webmanifest")
+	if err != nil {
+		c.Status(http.StatusInternalServerError)
+		return
+	}
+	content, err = dynamicPWAManifest(content, s.currentPWAIconURLs(c.Request.Context()))
+	if err != nil {
+		s.logger.Warn("failed to generate dynamic PWA manifest", "error", err)
+		c.Status(http.StatusInternalServerError)
+		return
+	}
+	c.Data(http.StatusOK, "application/manifest+json", content)
 }
 
 // servePrecompressedFile attempts to serve a precompressed version of a file.
@@ -274,6 +375,11 @@ func (s *HTTPServer) setupFrontendRoutes() error {
 			if setServiceWorkerETag(c, content) {
 				return
 			}
+		}
+
+		if filePath == "manifest.webmanifest" {
+			s.servePWAWebManifest(c, clientFS)
+			return
 		}
 
 		// Try to serve precompressed version first

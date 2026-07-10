@@ -1,17 +1,23 @@
 package http_server
 
 import (
+	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 	"testing/fstest"
+	"time"
 
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"hmans.de/chatto/internal/config"
+	"hmans.de/chatto/internal/core"
+	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/internal/testutil"
 )
 
 func TestExtractImmutableETag(t *testing.T) {
@@ -182,6 +188,67 @@ func TestServiceWorkerETag(t *testing.T) {
 	})
 }
 
+func TestDynamicPWAManifest(t *testing.T) {
+	staticManifest := []byte(`{
+  "name": "Chatto",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ],
+  "shortcuts": [
+    {
+      "name": "Open Chatto",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    }
+  ]
+}`)
+
+	t.Run("keeps static manifest when no server logo is available", func(t *testing.T) {
+		got, err := dynamicPWAManifest(staticManifest, nil)
+		if err != nil {
+			t.Fatalf("dynamicPWAManifest: %v", err)
+		}
+		assert.Equal(t, string(staticManifest), string(got))
+	})
+
+	t.Run("replaces install and shortcut icons with server logo URLs", func(t *testing.T) {
+		got, err := dynamicPWAManifest(staticManifest, &pwaServerIconURLs{
+			Icon192: "/assets/server/logo/t/192",
+			Icon512: "/assets/server/logo/t/512",
+		})
+		if err != nil {
+			t.Fatalf("dynamicPWAManifest: %v", err)
+		}
+
+		var manifest map[string]any
+		if err := json.Unmarshal(got, &manifest); err != nil {
+			t.Fatalf("unmarshal manifest: %v", err)
+		}
+
+		icons := manifest["icons"].([]any)
+		assert.Len(t, icons, 4)
+		assert.Equal(t, "/assets/server/logo/t/192", icons[0].(map[string]any)["src"])
+		assert.Equal(t, "192x192", icons[0].(map[string]any)["sizes"])
+		assert.Nil(t, icons[0].(map[string]any)["type"])
+		assert.Equal(t, "/assets/server/logo/t/512", icons[1].(map[string]any)["src"])
+		assert.Equal(t, "maskable", icons[2].(map[string]any)["purpose"])
+
+		shortcuts := manifest["shortcuts"].([]any)
+		shortcutIcons := shortcuts[0].(map[string]any)["icons"].([]any)
+		assert.Equal(t, "/assets/server/logo/t/192", shortcutIcons[0].(map[string]any)["src"])
+		assert.Nil(t, shortcutIcons[0].(map[string]any)["type"])
+	})
+}
+
+func TestInjectAppleTouchIcon(t *testing.T) {
+	content := []byte(`<link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png" />`)
+
+	got := injectAppleTouchIcon(content, "/assets/server/logo/t/180?a=1&b=2")
+
+	assert.Contains(t, string(got), `href="/assets/server/logo/t/180?a=1&amp;b=2"`)
+	assert.NotContains(t, string(got), defaultAppleTouchIconHref)
+}
+
 func TestClientAcceptsEncoding(t *testing.T) {
 	tests := []struct {
 		name           string
@@ -299,6 +366,29 @@ func TestServeSPAFallback(t *testing.T) {
 		assert.NotContains(t, w.Body.String(), "OG_META_PLACEHOLDER")
 	})
 
+	t.Run("injects server logo apple touch icon when server logo exists", func(t *testing.T) {
+		mockFS := fstest.MapFS{
+			"200.html": &fstest.MapFile{
+				Data: []byte(`<!DOCTYPE html><html><head><!-- OG_META_PLACEHOLDER --><link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png" /></head><body>SPA</body></html>`),
+			},
+		}
+
+		server := newTestServer()
+		server.core = setupFrontendTestCoreWithLogo(t)
+		router := gin.New()
+		router.GET("/test", func(c *gin.Context) {
+			server.serveSPAFallback(c, mockFS)
+		})
+
+		req := httptest.NewRequest("GET", "/test", nil)
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		assert.Contains(t, w.Body.String(), `href="/assets/server/logo-asset/t/`)
+		assert.NotContains(t, w.Body.String(), defaultAppleTouchIconHref)
+	})
+
 	t.Run("returns 500 when 200.html is missing", func(t *testing.T) {
 		// Empty filesystem - no 200.html
 		mockFS := fstest.MapFS{}
@@ -316,6 +406,46 @@ func TestServeSPAFallback(t *testing.T) {
 		assert.Equal(t, http.StatusInternalServerError, w.Code)
 		assert.Equal(t, "Failed to load application", w.Body.String())
 	})
+}
+
+func TestServePWAWebManifestUsesServerLogoWhenAvailable(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	mockFS := fstest.MapFS{
+		"manifest.webmanifest": &fstest.MapFile{
+			Data: []byte(`{
+  "name": "Chatto",
+  "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" }],
+  "shortcuts": [
+    { "name": "Open Chatto", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" }] }
+  ]
+}`),
+		},
+	}
+	server := &HTTPServer{
+		config: config.ChattoConfig{Webserver: config.WebserverConfig{URL: "https://example.com"}},
+		core:   setupFrontendTestCoreWithLogo(t),
+		router: gin.New(),
+	}
+	server.router.GET("/manifest.webmanifest", func(c *gin.Context) {
+		server.servePWAWebManifest(c, mockFS)
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/manifest.webmanifest", nil)
+	w := httptest.NewRecorder()
+	server.router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Equal(t, "application/manifest+json", w.Header().Get("Content-Type"))
+
+	var manifest map[string]any
+	if err := json.Unmarshal(w.Body.Bytes(), &manifest); err != nil {
+		t.Fatalf("unmarshal manifest: %v", err)
+	}
+	icons := manifest["icons"].([]any)
+	assert.True(t, strings.HasPrefix(icons[0].(map[string]any)["src"].(string), "/assets/server/logo-asset/t/"))
+	assert.Equal(t, "192x192", icons[0].(map[string]any)["sizes"])
+	assert.Nil(t, icons[0].(map[string]any)["type"])
 }
 
 func TestFrontendFallbackDoesNotServeReservedBackendPrefixes(t *testing.T) {
@@ -346,6 +476,36 @@ func TestFrontendFallbackDoesNotServeReservedBackendPrefixes(t *testing.T) {
 			assert.NotContains(t, w.Body.String(), "<!DOCTYPE html>")
 		})
 	}
+}
+
+func setupFrontendTestCoreWithLogo(t *testing.T) *core.ChattoCore {
+	t.Helper()
+
+	_, nc := testutil.StartSharedNATS(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	t.Cleanup(cancel)
+
+	chattoCore, err := core.NewChattoCore(ctx, nc, config.CoreConfig{
+		SecretKey: "test-core-secret",
+		Assets: config.AssetsConfig{
+			SigningSecret: "test-signing-secret",
+		},
+	})
+	if err != nil {
+		t.Fatalf("NewChattoCore: %v", err)
+	}
+	startCoreServices(t, chattoCore)
+
+	logo := &corev1.AssetRecord{
+		Id:          "logo-asset",
+		Filename:    "logo.webp",
+		ContentType: "image/webp",
+		Storage:     &corev1.AssetRecord_Nats{Nats: &corev1.NATSAsset{Key: "logo-asset"}},
+	}
+	if err := chattoCore.SetServerLogo(ctx, core.SystemActorID, logo); err != nil {
+		t.Fatalf("SetServerLogo: %v", err)
+	}
+	return chattoCore
 }
 
 func TestFrontendFallbackAllowsRoutesWithReservedPrefixNames(t *testing.T) {
