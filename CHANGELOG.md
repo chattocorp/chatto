@@ -3,6 +3,20 @@
 All notable changes to Chatto. Maintained by release-please from the
 conventional-commit messages on `main` — do not edit by hand.
 
+## [0.4.4](https://github.com/chattocorp/chatto/compare/v0.4.3...v0.4.4) (2026-07-10)
+
+
+### Bug Fixes
+
+* **api:** skip invalid followed-thread rooms ([#1366](https://github.com/chattocorp/chatto/issues/1366)) ([90a5918](https://github.com/chattocorp/chatto/commit/90a5918a8de8ce9bd857c34806a18e41f036fdf9))
+* **docs:** add per-page social previews ([#1370](https://github.com/chattocorp/chatto/issues/1370)) ([69eab4a](https://github.com/chattocorp/chatto/commit/69eab4a3ff2a0299488299f549b198a973a8d8a9))
+* **frontend:** allow any file in attachment picker ([#1364](https://github.com/chattocorp/chatto/issues/1364)) ([5b20e17](https://github.com/chattocorp/chatto/commit/5b20e176fca1248ccf118bd63c8dec5892a4512c))
+* **frontend:** compress displayed images ([#1361](https://github.com/chattocorp/chatto/issues/1361)) ([5539816](https://github.com/chattocorp/chatto/commit/553981628cb0a0a40f27f2576abbf289f3f9c5b9))
+* **messages:** expire context-free tombstones ([#1365](https://github.com/chattocorp/chatto/issues/1365)) ([98123b5](https://github.com/chattocorp/chatto/commit/98123b520c9a6242dd55bffb6594673192787d62))
+* **notifications:** harden delivery and synchronization ([#1363](https://github.com/chattocorp/chatto/issues/1363)) ([b46e012](https://github.com/chattocorp/chatto/commit/b46e012075c7f14d664f60f1a05042e38c782243))
+* **notifications:** prevent stale push delivery and badges ([#1368](https://github.com/chattocorp/chatto/issues/1368)) ([3c588aa](https://github.com/chattocorp/chatto/commit/3c588aa4d6cb53237be5519b1aa15fc85e094d1c))
+* **pwa:** use server logo for install icons ([#1371](https://github.com/chattocorp/chatto/issues/1371)) ([49b26e9](https://github.com/chattocorp/chatto/commit/49b26e9c4f0efc269bcabbd091e63a630bf6913d))
+
 ## [0.4.3](https://github.com/chattocorp/chatto/compare/v0.4.2...v0.4.3) (2026-07-09)
 
 
