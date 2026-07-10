@@ -2,10 +2,16 @@ package core
 
 import (
 	"context"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/nats-io/nats.go"
 	"google.golang.org/protobuf/types/known/timestamppb"
+	"hmans.de/chatto/internal/config"
+	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/internal/testutil"
 )
 
 func TestMyEventsDispatcherUsesConstantSharedSubscriptions(t *testing.T) {
@@ -74,6 +80,77 @@ func TestMyEventsDispatcherUsesConstantSharedSubscriptions(t *testing.T) {
 	core.myEventsModel.dispatchMu.Unlock()
 	if remainingDispatchSubscriptions != 0 {
 		t.Fatalf("dispatcher subscriptions after disconnect = %d, want 0", remainingDispatchSubscriptions)
+	}
+}
+
+func TestMyEventsMemberRoomCacheSeedsExplicitAndUniversalMemberships(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	actor, err := core.CreateUser(ctx, SystemActorID, "cache-seed-actor", "Cache Seed Actor", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser actor: %v", err)
+	}
+	viewer, err := core.CreateUser(ctx, SystemActorID, "cache-seed-viewer", "Cache Seed Viewer", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser viewer: %v", err)
+	}
+	explicitRoom, err := core.CreateRoom(ctx, actor.Id, KindChannel, "", "cache-seed-explicit", "")
+	if err != nil {
+		t.Fatalf("CreateRoom explicit: %v", err)
+	}
+	if _, err := core.JoinRoom(ctx, viewer.Id, KindChannel, viewer.Id, explicitRoom.Id); err != nil {
+		t.Fatalf("JoinRoom viewer: %v", err)
+	}
+	universalRoom, err := core.CreateRoom(ctx, actor.Id, KindChannel, "", "cache-seed-universal", "")
+	if err != nil {
+		t.Fatalf("CreateRoom universal: %v", err)
+	}
+	if _, err := core.SetRoomUniversal(ctx, actor.Id, KindChannel, universalRoom.Id, true); err != nil {
+		t.Fatalf("SetRoomUniversal: %v", err)
+	}
+	privateRoom, err := core.CreateRoom(ctx, actor.Id, KindChannel, "", "cache-seed-private", "")
+	if err != nil {
+		t.Fatalf("CreateRoom private: %v", err)
+	}
+	dmRoom, _, err := core.FindOrCreateDM(ctx, viewer.Id, []string{actor.Id})
+	if err != nil {
+		t.Fatalf("FindOrCreateDM: %v", err)
+	}
+
+	memberRooms := make(map[string]struct{})
+	if err := core.myEventsModel.populateMemberRoomsCache(ctx, viewer.Id, memberRooms); err != nil {
+		t.Fatalf("populateMemberRoomsCache: %v", err)
+	}
+	for label, roomID := range map[string]string{
+		"explicit channel":  explicitRoom.Id,
+		"universal channel": universalRoom.Id,
+		"explicit DM":       dmRoom.Id,
+	} {
+		if _, ok := memberRooms[roomID]; !ok {
+			t.Errorf("%s %q missing from member room cache", label, roomID)
+		}
+	}
+	if _, ok := memberRooms[privateRoom.Id]; ok {
+		t.Errorf("private non-member room %q present in member room cache", privateRoom.Id)
+	}
+}
+
+func TestMyEventsMemberRoomCacheSkipsDeletedCatalogEntry(t *testing.T) {
+	directory := NewRoomDirectoryProjection()
+	directory.Membership.byUser["viewer"] = map[string]struct{}{"deleted-room": {}}
+	core := &ChattoCore{
+		RoomDirectory:  directory,
+		RoomMembership: directory.Membership,
+		RoomCatalog:    directory.Catalog,
+		roomModel:      &RoomModel{directory: directory},
+	}
+	model := NewMyEventsModel(core)
+	memberRooms := make(map[string]struct{})
+	if err := model.populateMemberRoomsCache(context.Background(), "viewer", memberRooms); err != nil {
+		t.Fatalf("populateMemberRoomsCache: %v", err)
+	}
+	if len(memberRooms) != 0 {
+		t.Fatalf("member room cache = %v, want deleted room omitted", memberRooms)
 	}
 }
 
@@ -163,6 +240,137 @@ func TestMyEventsDispatcherSharedGapResetsCurrentSubscribers(t *testing.T) {
 	case <-replacement.Done:
 		t.Fatal("replacement subscriber started closed")
 	default:
+	}
+}
+
+func TestMyEventsDispatcherSourceGapDiscardsQueuedMessagesBeforeReplacement(t *testing.T) {
+	model := readyTestMyEventsDispatcher()
+	staleSubscriber := subscribeTestLiveDispatch(t, model)
+	msgChan := make(chan *nats.Msg, 3)
+	msgChan <- &nats.Msg{Subject: "live.evt.room.R1.user_left_room"}
+	msgChan <- &nats.Msg{Subject: "live.evt.room.R1.user_joined_room"}
+
+	disconnected, discarded := model.resetDispatchSubscribersAfterSourceGap(msgChan)
+	if disconnected != 1 || discarded != 2 {
+		t.Fatalf("source gap reset = (%d disconnected, %d discarded), want (1, 2)", disconnected, discarded)
+	}
+	select {
+	case <-staleSubscriber.Done:
+	case <-time.After(time.Second):
+		t.Fatal("pre-gap subscriber was not reset")
+	}
+
+	replacement := subscribeTestLiveDispatch(t, model)
+	select {
+	case msg := <-msgChan:
+		t.Fatalf("replacement could observe stale message %q", msg.Subject)
+	default:
+	}
+	select {
+	case <-replacement.Done:
+		t.Fatal("replacement subscriber started closed")
+	default:
+	}
+}
+
+func TestMyEventsDispatcherRejectsSubscribersWhileNATSSourceIsUnavailable(t *testing.T) {
+	model := readyTestMyEventsDispatcher()
+	current := subscribeTestLiveDispatch(t, model)
+
+	disconnected, discarded := model.markDispatchSourceUnavailable(nil)
+	if disconnected != 1 || discarded != 0 {
+		t.Fatalf("source unavailable reset = (%d disconnected, %d discarded), want (1, 0)", disconnected, discarded)
+	}
+	select {
+	case <-current.Done:
+	case <-time.After(time.Second):
+		t.Fatal("current subscriber was not reset")
+	}
+	if _, err := model.subscribeToLiveDispatch(context.Background()); err == nil || !strings.Contains(err.Error(), "temporarily unavailable") {
+		t.Fatalf("subscribe while source unavailable error = %v", err)
+	}
+
+	model.markDispatchSourceAvailable()
+	replacement := subscribeTestLiveDispatch(t, model)
+	select {
+	case <-replacement.Done:
+		t.Fatal("replacement subscriber started closed")
+	default:
+	}
+}
+
+func TestMyEventsDispatcherStopsWhenSharedNATSSubscriptionsClose(t *testing.T) {
+	_, nc := testutil.StartSharedNATS(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	core, err := NewChattoCore(ctx, nc, config.CoreConfig{
+		SecretKey: "dispatcher-source-close-test",
+		Assets: config.AssetsConfig{
+			SigningSecret: "dispatcher-source-close-signing-secret",
+		},
+	})
+	if err != nil {
+		t.Fatalf("NewChattoCore: %v", err)
+	}
+	core.PresenceHub.readyOnce.Do(func() { close(core.PresenceHub.ready) })
+
+	done := make(chan error, 1)
+	go func() { done <- core.myEventsModel.Run(ctx) }()
+	select {
+	case <-core.myEventsModel.dispatchReady:
+	case <-ctx.Done():
+		t.Fatal("dispatcher did not become ready")
+	}
+
+	nc.Close()
+	select {
+	case err := <-done:
+		if err == nil || !strings.Contains(err.Error(), "shared live") {
+			t.Fatalf("dispatcher error = %v, want shared subscription closure", err)
+		}
+	case <-ctx.Done():
+		t.Fatal("dispatcher remained live after NATS subscriptions closed")
+	}
+}
+
+func BenchmarkMyEventsPopulateMemberRoomsCache(b *testing.B) {
+	for _, roomCount := range []int{0, 1_000, 10_000} {
+		b.Run("rooms_"+strconv.Itoa(roomCount), func(b *testing.B) {
+			directory := NewRoomDirectoryProjection()
+			groups := NewRoomGroupProjection()
+			const userID = "benchmark-user"
+			rooms := make(map[string]struct{}, roomCount)
+			for i := 0; i < roomCount; i++ {
+				roomID := "room-" + strconv.Itoa(i)
+				directory.Catalog.rooms[roomID] = &roomCatalogEntry{
+					name:        "Benchmark Room " + strconv.Itoa(i),
+					description: "Representative room description for connection allocation measurement",
+					kind:        corev1.RoomKind_ROOM_KIND_CHANNEL,
+				}
+				rooms[roomID] = struct{}{}
+			}
+			directory.Membership.byUser[userID] = rooms
+			core := &ChattoCore{
+				RoomDirectory:  directory,
+				RoomMembership: directory.Membership,
+				RoomCatalog:    directory.Catalog,
+				RoomGroups:     groups,
+				roomModel:      &RoomModel{directory: directory},
+			}
+			model := NewMyEventsModel(core)
+
+			b.ReportAllocs()
+			for b.Loop() {
+				memberRooms := make(map[string]struct{})
+				if err := model.populateMemberRoomsCache(context.Background(), userID, memberRooms); err != nil {
+					b.Fatalf("populateMemberRoomsCache: %v", err)
+				}
+				if len(memberRooms) != roomCount {
+					b.Fatalf("member room count = %d, want %d", len(memberRooms), roomCount)
+				}
+			}
+		})
 	}
 }
 

@@ -90,6 +90,7 @@ type MyEventsModel struct {
 	dispatchReady       chan struct{}
 	dispatchReadyOnce   sync.Once
 	dispatchReadyErr    error
+	dispatchAvailable   bool
 	dispatchStopped     bool
 }
 
@@ -173,6 +174,8 @@ func (s *MyEventsModel) Run(ctx context.Context) error {
 
 	slowSyncConsumerCh := liveSyncSub.StatusChanged(nats.SubscriptionSlowConsumer)
 	slowEVTConsumerCh := liveEVTSub.StatusChanged(nats.SubscriptionSlowConsumer)
+	connectionStatusCh := s.core.nc.StatusChanged(nats.RECONNECTING, nats.CONNECTED, nats.CLOSED)
+	defer s.core.nc.RemoveStatusListener(connectionStatusCh)
 	s.finishDispatchStartup(nil)
 	defer s.stopDispatcher()
 
@@ -181,25 +184,60 @@ func (s *MyEventsModel) Run(ctx context.Context) error {
 		case <-ctx.Done():
 			return ctx.Err()
 
+		case status, ok := <-connectionStatusCh:
+			if !ok {
+				if err := ctx.Err(); err != nil {
+					return err
+				}
+				disconnected, discarded := s.markDispatchSourceUnavailable(msgChan)
+				s.core.logger.Error("Shared live event connection status closed - stopping dispatcher",
+					"discarded", discarded, "streams", disconnected)
+				return errors.New("shared live event connection status closed")
+			}
+			switch status {
+			case nats.RECONNECTING:
+				disconnected, discarded := s.markDispatchSourceUnavailable(msgChan)
+				s.core.logger.Warn("NATS connection interrupted - resetting live event streams",
+					"discarded", discarded, "streams", disconnected)
+			case nats.CONNECTED:
+				s.markDispatchSourceAvailable()
+				s.core.logger.Info("NATS connection restored - live event dispatcher available")
+			case nats.CLOSED:
+				disconnected, discarded := s.markDispatchSourceUnavailable(msgChan)
+				s.core.logger.Error("NATS connection closed - stopping live event dispatcher",
+					"discarded", discarded, "streams", disconnected)
+				return errors.New("shared live event NATS connection closed")
+			}
+
 		case _, ok := <-slowEVTConsumerCh:
 			if !ok {
-				slowEVTConsumerCh = nil
-				continue
+				if err := ctx.Err(); err != nil {
+					return err
+				}
+				disconnected := s.resetDispatchSubscribers(liveDispatchSourceGap, true)
+				s.core.logger.Error("Shared live EVT subscription closed - stopping dispatcher",
+					"streams", disconnected)
+				return errors.New("shared live EVT subscription closed")
 			}
 			dropped, _ := liveEVTSub.Dropped()
-			disconnected := s.resetDispatchSubscribers(liveDispatchSourceGap, true)
+			disconnected, discarded := s.resetDispatchSubscribersAfterSourceGap(msgChan)
 			s.core.logger.Warn("Slow consumer on shared live EVT subscription - resetting streams",
-				"dropped", dropped, "streams", disconnected)
+				"dropped", dropped, "discarded", discarded, "streams", disconnected)
 
 		case _, ok := <-slowSyncConsumerCh:
 			if !ok {
-				slowSyncConsumerCh = nil
-				continue
+				if err := ctx.Err(); err != nil {
+					return err
+				}
+				disconnected := s.resetDispatchSubscribers(liveDispatchSourceGap, true)
+				s.core.logger.Error("Shared live sync subscription closed - stopping dispatcher",
+					"streams", disconnected)
+				return errors.New("shared live sync subscription closed")
 			}
 			dropped, _ := liveSyncSub.Dropped()
-			disconnected := s.resetDispatchSubscribers(liveDispatchSourceGap, true)
+			disconnected, discarded := s.resetDispatchSubscribersAfterSourceGap(msgChan)
 			s.core.logger.Warn("Slow consumer on shared live sync subscription - resetting streams",
-				"dropped", dropped, "streams", disconnected)
+				"dropped", dropped, "discarded", discarded, "streams", disconnected)
 
 		case update, ok := <-presenceSub.C:
 			if !ok {
@@ -235,6 +273,8 @@ func (s *MyEventsModel) finishDispatchStartup(err error) {
 	s.dispatchReadyErr = err
 	if err != nil {
 		s.dispatchStopped = true
+	} else {
+		s.dispatchAvailable = true
 	}
 	s.dispatchReadyOnce.Do(func() { close(s.dispatchReady) })
 	s.dispatchMu.Unlock()
@@ -247,6 +287,7 @@ func (s *MyEventsModel) failDispatchStartup(err error) error {
 
 func (s *MyEventsModel) stopDispatcher() {
 	s.dispatchMu.Lock()
+	s.dispatchAvailable = false
 	s.dispatchStopped = true
 	for id, sub := range s.dispatchSubscribers {
 		delete(s.dispatchSubscribers, id)
@@ -269,6 +310,9 @@ func (s *MyEventsModel) subscribeToLiveDispatch(ctx context.Context) (*liveDispa
 	}
 	if s.dispatchStopped {
 		return nil, errors.New("live event dispatcher is stopped")
+	}
+	if !s.dispatchAvailable {
+		return nil, errors.New("live event dispatcher is temporarily unavailable")
 	}
 
 	ch := make(chan *preparedLiveEvent, liveDispatchQueueSize)
@@ -316,14 +360,66 @@ func (s *MyEventsModel) broadcastPreparedLiveEvent(event *preparedLiveEvent) {
 
 func (s *MyEventsModel) resetDispatchSubscribers(reason liveDispatchEndReason, slow bool) int {
 	s.dispatchMu.Lock()
+	disconnected := s.resetDispatchSubscribersLocked(reason)
+	s.dispatchMu.Unlock()
+	if slow && disconnected > 0 {
+		s.slowDisconnects.Add(uint64(disconnected))
+	}
+	return disconnected
+}
+
+// resetDispatchSubscribersAfterSourceGap establishes a clean fanout boundary
+// after NATS reports dropped messages. New subscribers cannot register until
+// the pre-gap channel backlog has been discarded, so a freshly seeded
+// membership cache cannot be mutated by stale transitions from before its
+// reconnect.
+func (s *MyEventsModel) resetDispatchSubscribersAfterSourceGap(msgChan <-chan *nats.Msg) (disconnected, discarded int) {
+	s.dispatchMu.Lock()
+	disconnected = s.resetDispatchSubscribersLocked(liveDispatchSourceGap)
+	discarded = drainLiveDispatchMessages(msgChan)
+	s.dispatchMu.Unlock()
+	if disconnected > 0 {
+		s.slowDisconnects.Add(uint64(disconnected))
+	}
+	return disconnected, discarded
+}
+
+func (s *MyEventsModel) markDispatchSourceUnavailable(msgChan <-chan *nats.Msg) (disconnected, discarded int) {
+	s.dispatchMu.Lock()
+	s.dispatchAvailable = false
+	disconnected = s.resetDispatchSubscribersLocked(liveDispatchSourceGap)
+	discarded = drainLiveDispatchMessages(msgChan)
+	s.dispatchMu.Unlock()
+	return disconnected, discarded
+}
+
+func (s *MyEventsModel) markDispatchSourceAvailable() {
+	s.dispatchMu.Lock()
+	if !s.dispatchStopped {
+		s.dispatchAvailable = true
+	}
+	s.dispatchMu.Unlock()
+}
+
+func drainLiveDispatchMessages(msgChan <-chan *nats.Msg) (discarded int) {
+	for {
+		select {
+		case _, ok := <-msgChan:
+			if !ok {
+				return discarded
+			}
+			discarded++
+		default:
+			return discarded
+		}
+	}
+}
+
+func (s *MyEventsModel) resetDispatchSubscribersLocked(reason liveDispatchEndReason) int {
 	disconnected := len(s.dispatchSubscribers)
 	for id, sub := range s.dispatchSubscribers {
 		delete(s.dispatchSubscribers, id)
 		s.endDispatchSubscriptionLocked(sub, reason)
-	}
-	s.dispatchMu.Unlock()
-	if slow && disconnected > 0 {
-		s.slowDisconnects.Add(uint64(disconnected))
 	}
 	return disconnected
 }
@@ -617,23 +713,32 @@ func (s *MyEventsModel) populateMemberRoomsCache(ctx context.Context, userID str
 		delete(memberRooms, k)
 	}
 
-	// Explicit channel memberships. Membership alone qualifies: a user who has
-	// joined the room receives its live events regardless of whether they could
-	// re-join today.
-	channelRooms, err := s.core.ListMemberRooms(ctx, KindChannel, userID, MemberRoomListOptions{})
-	if err != nil {
-		return fmt.Errorf("failed to list channel member rooms: %w", err)
-	}
-	for _, room := range channelRooms {
-		memberRooms[room.Id] = struct{}{}
+	// Explicit membership alone qualifies regardless of room kind or whether
+	// the user could re-join today. Read IDs directly from the shared projection:
+	// materializing full Room protobuf lists here made connection startup
+	// allocate in proportion to the entire room catalog.
+	for _, roomID := range s.core.RoomMembership.Rooms(userID) {
+		// Room deletion updates the catalog and membership indexes in sequence;
+		// preserve the prior ListMemberRooms behavior by ignoring a membership
+		// that briefly outlives its catalog entry.
+		if s.core.RoomCatalog.Exists(roomID) {
+			memberRooms[roomID] = struct{}{}
+		}
 	}
 
-	dmRooms, err := s.core.ListMemberRooms(ctx, KindDM, userID, MemberRoomListOptions{})
-	if err != nil {
-		return fmt.Errorf("failed to list DM member rooms: %w", err)
-	}
-	for _, room := range dmRooms {
-		memberRooms[room.Id] = struct{}{}
+	// Universal channel membership is derived rather than stored explicitly.
+	// Only these rooms need the room-scoped join permission check.
+	for _, roomID := range s.core.RoomCatalog.UniversalChannelRoomIDs() {
+		if _, explicit := memberRooms[roomID]; explicit {
+			continue
+		}
+		canJoin, err := s.core.CanJoinRoomAt(ctx, userID, KindChannel, roomID)
+		if err != nil {
+			return fmt.Errorf("check universal room membership for %s: %w", roomID, err)
+		}
+		if canJoin {
+			memberRooms[roomID] = struct{}{}
+		}
 	}
 
 	return nil
