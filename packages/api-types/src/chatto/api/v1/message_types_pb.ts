@@ -693,6 +693,14 @@ export class Message extends Message$1<Message> {
    */
   thread?: ThreadSummary;
 
+  /**
+   * Time when the message content was deleted through retraction or account
+   * crypto-shredding. Absent when unavailable body content is not a deletion.
+   *
+   * @generated from field: google.protobuf.Timestamp deleted_at = 21;
+   */
+  deletedAt?: Timestamp;
+
   constructor(data?: PartialMessage<Message>) {
     super();
     proto3.util.initPartial(data, this);
@@ -716,6 +724,7 @@ export class Message extends Message$1<Message> {
     { no: 13, name: "channel_echo_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 19, name: "reactions", kind: "message", T: MessageReaction, repeated: true },
     { no: 20, name: "thread", kind: "message", T: ThreadSummary },
+    { no: 21, name: "deleted_at", kind: "message", T: Timestamp },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Message {

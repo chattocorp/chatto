@@ -172,4 +172,7 @@ message Message {
   repeated MessageReaction reactions = 19;
   // Aggregated thread state, when known for a thread root message.
   ThreadSummary thread = 20;
+  // Time when the message content was deleted through retraction or account
+  // crypto-shredding. Absent when unavailable body content is not a deletion.
+  google.protobuf.Timestamp deleted_at = 21;
 }

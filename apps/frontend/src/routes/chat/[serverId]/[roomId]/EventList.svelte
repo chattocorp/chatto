@@ -26,6 +26,12 @@
   import { useMayHaveMissedMessagesCallback } from '$lib/hooks/useMayHaveMissedMessagesCallback.svelte';
   import type { ResumeSignal } from '$lib/hooks/resumeCoordinator.svelte';
   import type { OpenThreadHandler, ThreadOpenOptions } from './threadOpenOptions';
+  import {
+    scheduleNextTombstoneExpiry,
+    shouldHideTombstone,
+    visibleTombstoneEvents,
+    visibleUnreadMarkerEventId
+  } from './tombstoneVisibility';
 
   let {
     roomId,
@@ -145,8 +151,9 @@
     firstVisibleAt ? formatDayLabel(firstVisibleAt, userSettings, activeLocale) : null
   );
 
-  // Filter events based on configuration
-  let filteredEvents = $derived(
+  // First apply structural timeline filtering. Tombstone expiry is a separate
+  // stage so row removal cannot be mistaken for a newly arrived message.
+  let timelineEvents = $derived(
     events.filter((e) => {
       if (!isMessagePostedEvent(e.event)) return true;
 
@@ -156,10 +163,15 @@
       // In thread pane, filterThreadReplies=false to show all messages
       if (filterThreadReplies && msg?.threadRootEventId != null) return false;
 
-      // Deleted messages (body === null) are always shown with placeholder
       return true;
     })
   );
+  let tombstoneClockVersion = $state(0);
+  let filteredEvents = $derived.by(() => {
+    void tombstoneClockVersion;
+    const nowMs = Date.now();
+    return visibleTombstoneEvents(timelineEvents, nowMs);
+  });
   let messageEventCount = $derived(
     filteredEvents.filter((event) => isMessagePostedEvent(event.event)).length
   );
@@ -167,14 +179,53 @@
   // Apply message grouping and day separators
   let eventsWithMeta = $derived(computeEventMetadata(filteredEvents, userSettings, activeLocale));
 
-  // The unread separator event ID is computed by the parent component
-  // (RoomEventsPane for sequence-based, ThreadPane for time-based)
-  // and passed in directly as unreadAfterEventId.
+  // If the marker points at an expired tombstone, move it to the next visible
+  // event instead of silently dropping the unread boundary.
+  let effectiveUnreadAfterEventId = $derived.by(() => {
+    return visibleUnreadMarkerEventId(timelineEvents, filteredEvents, unreadAfterEventId ?? null);
+  });
 
   // Build flat array for the virtualizer (events + interleaved separators)
   let virtualItems = $derived(
-    buildVirtualItems(eventsWithMeta, unreadAfterEventId ?? null, hasReachedStart, showStartMarker)
+    buildVirtualItems(eventsWithMeta, effectiveUnreadAfterEventId, hasReachedStart, showStartMarker)
   );
+
+  async function expireTombstones(atMs: number) {
+    const bottomDistance = distanceFromBottom();
+    const wasAtBottom =
+      alwaysScrollToBottom ||
+      (bottomDistance === null ? shouldScrollToBottom : bottomDistance < 50);
+    const anchor = wasAtBottom ? null : captureRefreshAnchor(atMs);
+
+    tombstoneClockVersion += 1;
+    await tick();
+
+    if (wasAtBottom && scrollContainer) {
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+      scrollContainer.scrollTop = scrollContainer.scrollHeight;
+      scrollFader?.refresh();
+      return;
+    }
+    if (!anchor || !scrollContainer) return;
+
+    // Virtua can measure and correct the keyed list over several frames. Keep
+    // restoring the same event anchor while those measurements settle.
+    for (let frame = 0; frame < 4; frame++) {
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+      const target = scrollContainer.querySelector<HTMLElement>(eventSelector(anchor.eventId));
+      if (!target) return;
+      scrollContainer.scrollTop += target.getBoundingClientRect().top - anchor.top;
+    }
+    scrollFader?.refresh();
+  }
+
+  $effect(() => {
+    void tombstoneClockVersion;
+    const nowMs = Date.now();
+    return scheduleNextTombstoneExpiry(timelineEvents, nowMs, (expiresAt) => {
+      void expireTombstones(expiresAt);
+    });
+  });
 
   // Register finder for up-arrow-to-edit (computed on-demand, not reactively)
   const lastEditableMessageCtx = composerContext.lastEditableMessage;
@@ -223,9 +274,8 @@
   // messages via pagination (which prepends to the array) doesn't falsely trigger.
   $effect(() => {
     if (!showNewMessagesIndicator || alwaysScrollToBottom) return;
-    if (filteredEvents.length === 0) return;
-
-    const newestId = filteredEvents[filteredEvents.length - 1].id;
+    if (timelineEvents.length === 0) return;
+    const newestId = timelineEvents[timelineEvents.length - 1].id;
 
     if (lastSeenNewestId !== null && newestId !== lastSeenNewestId && !shouldScrollToBottom) {
       hasNewMessages = true;
@@ -465,25 +515,40 @@
     return `[data-event-id="${CSS.escape(eventId)}"]`;
   }
 
-  function captureRefreshAnchor(): RefreshAnchor | null {
+  function captureRefreshAnchor(visibleAtMs?: number): RefreshAnchor | null {
     if (!scrollContainer || !virtualizerHandle || virtualItems.length === 0) return null;
 
+    const viewportTop = scrollContainer.getBoundingClientRect().top;
+    let partiallyVisibleAnchor: RefreshAnchor | null = null;
     const startIdx = Math.max(
       0,
       virtualizerHandle.findItemIndex(virtualizerHandle.getScrollOffset())
     );
     for (let i = startIdx; i < virtualItems.length; i++) {
-      const eventId = eventIdForVirtualItem(virtualItems[i]);
+      const item = virtualItems[i];
+      if (
+        visibleAtMs !== undefined &&
+        item.type === 'event' &&
+        shouldHideTombstone(item.event, visibleAtMs)
+      ) {
+        continue;
+      }
+      const eventId = eventIdForVirtualItem(item);
       if (!eventId) continue;
 
       const el = scrollContainer.querySelector<HTMLElement>(eventSelector(eventId));
       if (!el) continue;
-      return {
+      const rect = el.getBoundingClientRect();
+      if (rect.bottom <= viewportTop) continue;
+      const candidate = {
         eventId,
-        top: el.getBoundingClientRect().top
+        top: rect.top
       };
+      if (rect.top >= viewportTop) return candidate;
+      partiallyVisibleAnchor ??= candidate;
     }
 
+    if (partiallyVisibleAnchor) return partiallyVisibleAnchor;
     console.debug('[room-refresh] no visible anchor found', { roomId });
     return null;
   }
@@ -612,6 +677,7 @@
   // while hidden, leaving shouldScrollToBottom=true even though the scroll has
   // drifted off the bottom (which would suppress the Jump to Present button).
   useTabResumeCallback(() => {
+    tombstoneClockVersion += 1;
     if (alwaysScrollToBottom || !shouldScrollToBottom || !initialScrollDone) return;
     if (!virtualizerHandle) return;
     const dist =
@@ -664,15 +730,21 @@
       isLoadingMore ||
       hasReachedStart ||
       isJumpedMode ||
-      underfilledBackfillInFlight ||
-      !virtualizerHandle ||
-      virtualItems.length === 0
+      underfilledBackfillInFlight
     ) {
       return;
     }
 
     underfilledBackfillInFlight = true;
     try {
+      // A fetched page can consist entirely of expired tombstones. There is no
+      // Virtualizer in that state, but pagination still needs to walk backward
+      // until it finds visible history or reaches the beginning.
+      if (timelineEvents.length > 0 && filteredEvents.length === 0) {
+        await onLoadMore();
+        return;
+      }
+
       await tick();
       await new Promise((resolve) => requestAnimationFrame(resolve));
       if (
@@ -690,7 +762,7 @@
       const viewportSize = virtualizerHandle.getViewportSize();
       const lacksInitialRoomMessages =
         filterThreadReplies &&
-        filteredEvents.length > 0 &&
+        timelineEvents.length > 0 &&
         messageEventCount < INITIAL_ROOM_MESSAGE_BACKFILL_TARGET;
       if (scrollSize <= viewportSize + 50 || lacksInitialRoomMessages) {
         await onLoadMore();
@@ -702,6 +774,7 @@
 
   $effect(() => {
     void virtualItems.length;
+    void timelineEvents.length;
     void filteredEvents.length;
     void messageEventCount;
     void enablePagination;

@@ -1,5 +1,5 @@
 import { tick } from 'svelte';
-import { SvelteMap, SvelteSet } from 'svelte/reactivity';
+import { SvelteDate, SvelteMap, SvelteSet } from 'svelte/reactivity';
 import type { RoomEventView } from '$lib/render/types';
 import type { EventEnvelope } from '$lib/eventBus.svelte';
 import { RoomEventKind, roomEventKind } from '$lib/render/eventKinds';
@@ -256,7 +256,10 @@ export class MessagesStore {
 
   /** Apply a successful local message delete without querying around a now-hidden echo. */
   applyLocalMessageDeletion(messageEventId: string): void {
-    this.applyDeletion(messageEventId);
+    // The committed realtime retraction replaces this client timestamp with
+    // the server event time. This provisional value lets the local tombstone
+    // enter the grace period immediately after the mutation succeeds.
+    this.applyDeletion(messageEventId, new SvelteDate().toISOString());
   }
 
   /**
@@ -696,7 +699,7 @@ export class MessagesStore {
     if (eventRoomId != null && eventRoomId !== this.roomId) return;
 
     if (isMessageRetractedPayload(eventData)) {
-      this.applyDeletion(eventData.messageEventId);
+      this.applyDeletion(eventData.messageEventId, spaceEvent.createdAt);
       return;
     }
 
@@ -1096,7 +1099,7 @@ export class MessagesStore {
    * Reactions and reply metadata are left intact so the tombstone row keeps
    * its existing engagement visible alongside the placeholder.
    */
-  private applyDeletion(messageEventId: string): void {
+  private applyDeletion(messageEventId: string, deletedAt: string): void {
     this.clearChannelEchoLink(messageEventId);
 
     const targetIndex = this.events.findIndex((e) => e.id === messageEventId);
@@ -1116,7 +1119,7 @@ export class MessagesStore {
 
       this.events[i] = {
         ...e,
-        event: { ...evt, body: null, attachments: [], linkPreview: null }
+        event: { ...evt, body: null, attachments: [], linkPreview: null, deletedAt }
       };
     }
 
@@ -1125,7 +1128,13 @@ export class MessagesStore {
     if (isMessagePostedPayload(preview?.event)) {
       this.previewEvents.set(previewKey, {
         ...preview,
-        event: { ...preview.event, body: null, attachments: [], linkPreview: null }
+        event: {
+          ...preview.event,
+          body: null,
+          attachments: [],
+          linkPreview: null,
+          deletedAt
+        }
       });
     }
   }

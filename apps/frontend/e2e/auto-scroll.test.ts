@@ -23,6 +23,84 @@ async function scrollContainerToTop(page: Page, container: Locator) {
 }
 
 test.describe('Message pane auto-scroll', () => {
+  test('preserves the visible scroll anchor when a tombstone expires above it', async ({
+    page,
+    chatPage,
+    roomPage
+  }) => {
+    await page.setViewportSize({ width: 1280, height: 500 });
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+    await chatPage.enterRoom('general');
+
+    const roomId = page.url().match(/\/chat\/-\/([^/]+)/)?.[1];
+    if (!roomId) throw new Error(`Could not extract roomId from ${page.url()}`);
+
+    const timestamp = Date.now();
+    const targetText = `Expiring anchor predecessor ${timestamp}`;
+    const target = await roomPage.sendMessage(targetText);
+    const targetId = await target.getEventId();
+    if (!targetId) throw new Error('Expected a target event ID');
+
+    const fillers = Array.from(
+      { length: 24 },
+      (_, index) => `Tombstone scroll filler ${index + 1} ${timestamp}`
+    );
+    await postMessagesViaConnect(page, roomId, fillers);
+    await expect(page.getByText(fillers.at(-1)!)).toBeVisible({
+      timeout: TIMEOUTS.UI_STANDARD
+    });
+
+    const messagesContainer = page.getByTestId('messages-container');
+    await scrollContainerToTop(page, messagesContainer);
+    await expect(target.locator).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+
+    await page.clock.install({ time: Date.now() });
+    await target.delete();
+    await roomPage.getMessageByEventId(targetId).expectDeleted();
+
+    // Reload onto the authoritative API row so the timer and the later scroll
+    // interaction exercise the same lifecycle users get after revisiting.
+    await page.reload();
+    await expect(page.getByText(fillers.at(-1)!)).toBeVisible({
+      timeout: TIMEOUTS.UI_STANDARD
+    });
+    await scrollContainerToTop(page, messagesContainer);
+    await roomPage.getMessageByEventId(targetId).expectDeleted();
+
+    // Move the tombstone above the viewport so removing it can be compensated
+    // by scrollTop (at absolute scrollTop=0, preserving a lower row is
+    // geometrically impossible because the browser cannot scroll negative).
+    const containerBox = await messagesContainer.boundingBox();
+    if (!containerBox) throw new Error('Messages container is not visible');
+    await page.mouse.move(
+      containerBox.x + containerBox.width / 2,
+      containerBox.y + containerBox.height / 2
+    );
+    await page.mouse.wheel(0, 160);
+    await expect.poll(() => messagesContainer.evaluate((el) => el.scrollTop)).toBeGreaterThan(80);
+
+    const before = await messagesContainer.evaluate((el) => ({
+      scrollHeight: el.scrollHeight,
+      scrollTop: el.scrollTop
+    }));
+
+    await page.clock.fastForward(2 * 60 * 60 * 1000);
+    await expect
+      .poll(() => messagesContainer.evaluate((el) => el.scrollHeight))
+      .toBeLessThan(before.scrollHeight);
+    const after = await messagesContainer.evaluate((el) => ({
+      scrollHeight: el.scrollHeight,
+      scrollTop: el.scrollTop
+    }));
+    // Virtualized row estimates can settle by a few pixels, but expiry must
+    // not shift the viewport by anything close to a full message row.
+    expect(
+      Math.abs(before.scrollTop - after.scrollTop - (before.scrollHeight - after.scrollHeight))
+    ).toBeLessThanOrEqual(40);
+    await expect(page.getByRole('button', { name: /new messages/i })).not.toBeVisible();
+  });
+
   test('auto-scrolls to new messages after scrolling back down to bottom', async ({
     page,
     chatPage,

@@ -192,6 +192,7 @@ export type RoomEventPayload =
       echoOfEventId?: string | null;
       echoFromThreadRootEventId?: string | null;
       channelEchoEventId?: string | null;
+      deletedAt?: string | null;
       replyCount: number;
       lastReplyAt?: string | null;
       threadParticipantCount?: number;

@@ -613,6 +613,16 @@ describe('MessagesStore — room lifecycle ownership', () => {
     await settle();
     fake.queryMock.mockClear();
 
+    store.applyLocalMessageDeletion('m1');
+    const provisionalMessage = store.rootEvents[0].event;
+    if (!provisionalMessage) throw new Error('expected provisional message payload');
+    expect(provisionalMessage).toMatchObject({ body: null, attachments: [] });
+    expect(
+      Number.isFinite(
+        Date.parse('deletedAt' in provisionalMessage ? (provisionalMessage.deletedAt ?? '') : '')
+      )
+    ).toBe(true);
+
     store.ingestServerEvent({
       id: 'retract-1',
       createdAt: '2026-05-27T00:00:01Z',
@@ -628,7 +638,8 @@ describe('MessagesStore — room lifecycle ownership', () => {
 
     expect(store.rootEvents[0].event).toMatchObject({
       body: null,
-      attachments: []
+      attachments: [],
+      deletedAt: '2026-05-27T00:00:01Z'
     });
     expect(fake.queryMock).not.toHaveBeenCalled();
     store.dispose();
@@ -1203,7 +1214,8 @@ describe('MessagesStore — room lifecycle ownership', () => {
 
     expect(store.rootEvents[0].event).toMatchObject({
       body: null,
-      attachments: []
+      attachments: [],
+      deletedAt: '2026-05-27T00:00:02Z'
     });
     expect(fake.queryMock).not.toHaveBeenCalled();
     store.dispose();

@@ -371,6 +371,14 @@ func (p *RoomTimelineProjection) adminProjectionEstimate() (int64, int64, []Proj
 	for eventID := range p.retractedFlags {
 		retractedBytes += projectionMapEntryOverhead + int64(len(eventID))
 	}
+	var tombstonedAtBytes int64
+	for eventID := range p.tombstonedAt {
+		tombstonedAtBytes += projectionMapEntryOverhead + int64(len(eventID)) + 24
+	}
+	var shreddedAtBytes int64
+	for userID := range p.shreddedAt {
+		shreddedAtBytes += projectionMapEntryOverhead + int64(len(userID)) + 24
+	}
 	hiddenEchoBytes := estimateStringSetBytes(p.hiddenEchoes)
 	var echoBytes, echoLinks int64
 	for eventID, echoes := range p.echoLinks {
@@ -419,7 +427,7 @@ func (p *RoomTimelineProjection) adminProjectionEstimate() (int64, int64, []Proj
 
 	totalBytes := rawBytes + messagePostIndexBytes + eventIndexBytes + eventIndexRetainedEntryBytes +
 		appliedEventIDsBytes + latestBodyBytes + bodyEventSeqsBytes + currentBodySeqBytes + retractedBytes +
-		hiddenEchoBytes + echoBytes + assetCreationBytes + assetChildrenBytes +
+		tombstonedAtBytes + shreddedAtBytes + hiddenEchoBytes + echoBytes + assetCreationBytes + assetChildrenBytes +
 		videoManifestBytes + assetOwnerBytes + shreddedUserBytes
 	return entries, totalBytes, []ProjectionAdminMetric{
 		{Name: "rooms", Value: int64(len(p.byRoom)), Bytes: 0},
@@ -433,6 +441,8 @@ func (p *RoomTimelineProjection) adminProjectionEstimate() (int64, int64, []Proj
 		{Name: "body_event_seqs", Value: bodyEventSeqs, Bytes: bodyEventSeqsBytes},
 		{Name: "current_body_seq_index", Value: int64(len(p.currentBodySeq)), Bytes: currentBodySeqBytes},
 		{Name: "retracted_flags", Value: int64(len(p.retractedFlags)), Bytes: retractedBytes},
+		{Name: "tombstoned_at_index", Value: int64(len(p.tombstonedAt)), Bytes: tombstonedAtBytes},
+		{Name: "shredded_at_index", Value: int64(len(p.shreddedAt)), Bytes: shreddedAtBytes},
 		{Name: "hidden_echoes", Value: int64(len(p.hiddenEchoes)), Bytes: hiddenEchoBytes},
 		{Name: "echo_links", Value: echoLinks, Bytes: echoBytes},
 		{Name: "asset_creations", Value: int64(len(p.assets.assetCreations)), Bytes: assetCreationBytes},
