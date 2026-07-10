@@ -36,7 +36,7 @@ Every `chatto.toml` setting can be overridden with an environment variable. The 
 </EnvVar>
 
 <EnvVar name="CHATTO_WEBSERVER_WEBSOCKET_COMPRESSION" toml="webserver.websocket_compression" default="true">
-  Enable WebSocket compression.
+  Negotiate WebSocket compression. The realtime server compresses frames of at least 1 KiB with a low-memory Huffman-only encoder; smaller invalidation and heartbeat frames stay uncompressed.
 </EnvVar>
 
 <EnvVar name="CHATTO_WEBSERVER_REQUEST_LOGGING" toml="webserver.request_logging" default="false">

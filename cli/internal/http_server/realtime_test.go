@@ -20,6 +20,16 @@ import (
 )
 
 func (env *wsTestEnv) dialRealtime(t testing.TB) *websocket.Conn {
+	return env.dialRealtimeWithDialer(t, websocket.DefaultDialer)
+}
+
+func (env *wsTestEnv) dialRealtimeWithCompression(t testing.TB) *websocket.Conn {
+	dialer := *websocket.DefaultDialer
+	dialer.EnableCompression = true
+	return env.dialRealtimeWithDialer(t, &dialer)
+}
+
+func (env *wsTestEnv) dialRealtimeWithDialer(t testing.TB, dialer *websocket.Dialer) *websocket.Conn {
 	t.Helper()
 
 	wsURL := "ws" + strings.TrimPrefix(env.server.URL, "http") + realtimePath
@@ -28,7 +38,7 @@ func (env *wsTestEnv) dialRealtime(t testing.TB) *websocket.Conn {
 		header.Add("Cookie", c.String())
 	}
 
-	conn, resp, err := websocket.DefaultDialer.Dial(wsURL, header)
+	conn, resp, err := dialer.Dial(wsURL, header)
 	if err != nil {
 		if resp != nil {
 			t.Fatalf("Realtime WebSocket dial failed with status %d: %v", resp.StatusCode, err)
@@ -584,7 +594,7 @@ func TestRealtimeWebSocketDoesNotDeliverRoomMessageToOutsider(t *testing.T) {
 	}
 }
 
-func TestRealtimeWebSocketRespondsToPing(t *testing.T) {
+func TestRealtimeWebSocketNegotiatedCompressionSupportsLargeFrames(t *testing.T) {
 	env := setupWebSocketTestServer(t)
 	user, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-ping", "RT Ping", "password123")
 	if err != nil {
@@ -595,7 +605,8 @@ func TestRealtimeWebSocketRespondsToPing(t *testing.T) {
 		t.Fatalf("CreateAuthToken: %v", err)
 	}
 
-	conn := env.connectRealtime(t)
+	conn := env.dialRealtimeWithCompression(t)
+	t.Cleanup(func() { conn.Close() })
 	subscribeRealtime(t, conn, token)
 
 	time.Sleep(realtimeHandshakeTimeout + 200*time.Millisecond)
@@ -617,6 +628,13 @@ func TestRealtimeWebSocketRespondsToPing(t *testing.T) {
 }
 
 func BenchmarkRealtimeWebSocketIdleConnections(b *testing.B) {
+	// This is a bounded regression benchmark for connection-scaled Go
+	// allocations in the in-process test harness, not a production RSS model.
+	// Real server-only RSS and heap measurements use an external load generator.
+	if b.N > 500 {
+		b.Skip("run with -benchtime=500x; this benchmark retains every socket until measurement")
+	}
+
 	env := setupWebSocketTestServer(b)
 	user, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-benchmark", "RT Benchmark", "password123")
 	if err != nil {
@@ -636,7 +654,7 @@ func BenchmarkRealtimeWebSocketIdleConnections(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for range b.N {
-		conn := env.dialRealtime(b)
+		conn := env.dialRealtimeWithCompression(b)
 		subscribeRealtime(b, conn, token)
 		connections = append(connections, conn)
 	}
@@ -648,6 +666,12 @@ func BenchmarkRealtimeWebSocketIdleConnections(b *testing.B) {
 	if b.N > 0 {
 		if after.HeapAlloc > before.HeapAlloc {
 			b.ReportMetric(float64(after.HeapAlloc-before.HeapAlloc)/float64(b.N), "retained-heap-B/conn")
+		}
+		if after.HeapSys > before.HeapSys {
+			b.ReportMetric(float64(after.HeapSys-before.HeapSys)/float64(b.N), "heap-sys-B/conn")
+		}
+		if after.Sys > before.Sys {
+			b.ReportMetric(float64(after.Sys-before.Sys)/float64(b.N), "runtime-sys-B/conn")
 		}
 		if after.StackInuse > before.StackInuse {
 			b.ReportMetric(float64(after.StackInuse-before.StackInuse)/float64(b.N), "stack-B/conn")
