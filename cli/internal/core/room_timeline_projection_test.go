@@ -535,6 +535,123 @@ func TestRoomTimeline_MessageBodyEventIsPrivateCurrentState(t *testing.T) {
 	}
 }
 
+func TestRoomTimeline_MessageDeletedAtTracksRetractionsAndEchoes(t *testing.T) {
+	p := NewRoomTimelineProjection()
+	root := postedEvent(postedOpts{envelopeID: "ENV-ROOT", roomID: "R1", actorID: "U1", at: 1})
+	reply := postedEvent(postedOpts{
+		envelopeID: "ENV-REPLY",
+		roomID:     "R1",
+		actorID:    "U2",
+		inReplyTo:  "ENV-ROOT",
+		inThread:   "ENV-ROOT",
+		at:         2,
+	})
+	echo := postedEvent(postedOpts{
+		envelopeID:                "ENV-ECHO",
+		roomID:                    "R1",
+		actorID:                   "U2",
+		echoOfEventID:             "ENV-REPLY",
+		echoFromThreadRootEventID: "ENV-ROOT",
+		at:                        3,
+	})
+	applyAll(t, p, []*corev1.Event{
+		bodyEvent("BODY-ROOT", "ENV-ROOT", "R1", "U1", "root", 1),
+		root,
+		bodyEvent("BODY-REPLY", "ENV-REPLY", "R1", "U2", "reply", 2),
+		reply,
+		bodyEvent("BODY-ECHO", "ENV-ECHO", "R1", "U2", "reply", 3),
+		echo,
+		retractedEvent("RETRACT-REPLY", "ENV-REPLY", "R1", "U2", "", 4),
+	})
+
+	if _, ok := p.MessageDeletedAt("ENV-ROOT"); ok {
+		t.Fatal("active root unexpectedly has tombstone timestamp")
+	}
+	if got, ok := p.MessageDeletedAt("ENV-REPLY"); !ok || !got.Equal(fixedTime(4)) {
+		t.Fatalf("reply tombstoned at = %v/%v, want %v", got, ok, fixedTime(4))
+	}
+	if got, ok := p.MessageDeletedAt("ENV-ECHO"); !ok || !got.Equal(fixedTime(4)) {
+		t.Fatalf("echo inherited tombstoned at = %v/%v, want %v", got, ok, fixedTime(4))
+	}
+}
+
+func TestRoomTimeline_MessageDeletedAtUsesUserKeyShredTime(t *testing.T) {
+	p := NewRoomTimelineProjection()
+	applyAll(t, p, []*corev1.Event{
+		bodyEvent("BODY-M1", "ENV-M1", "R1", "U1", "message", 1),
+		postedEvent(postedOpts{envelopeID: "ENV-M1", roomID: "R1", actorID: "U1", at: 1}),
+		{
+			Id:        "SHRED-U1",
+			CreatedAt: timestamppb.New(fixedTime(5)),
+			Event: &corev1.Event_UserKeyShredded{
+				UserKeyShredded: &corev1.UserKeyShreddedEvent{UserId: "U1"},
+			},
+		},
+	})
+
+	if got, ok := p.MessageDeletedAt("ENV-M1"); !ok || !got.Equal(fixedTime(5)) {
+		t.Fatalf("tombstoned at = %v/%v, want key shred time %v", got, ok, fixedTime(5))
+	}
+}
+
+func TestRoomTimeline_MessageDeletedAtHandlesKeyShredBeforeMessageReplay(t *testing.T) {
+	p := NewRoomTimelineProjection()
+	applyAll(t, p, []*corev1.Event{
+		{
+			Id:        "SHRED-U1",
+			CreatedAt: timestamppb.New(fixedTime(5)),
+			Event: &corev1.Event_UserKeyShredded{
+				UserKeyShredded: &corev1.UserKeyShreddedEvent{UserId: "U1"},
+			},
+		},
+		bodyEvent("BODY-M1", "ENV-M1", "R1", "U1", "message", 1),
+		postedEvent(postedOpts{envelopeID: "ENV-M1", roomID: "R1", actorID: "U1", at: 1}),
+	})
+
+	if got, ok := p.MessageDeletedAt("ENV-M1"); !ok || !got.Equal(fixedTime(5)) {
+		t.Fatalf("tombstoned at = %v/%v, want prior key shred time %v", got, ok, fixedTime(5))
+	}
+	if _, retracted, ok := p.LatestBody("ENV-M1"); !ok || !retracted {
+		t.Fatalf("LatestBody after prior key shred ok=%v retracted=%v, want retracted", ok, retracted)
+	}
+}
+
+func TestRoomTimeline_MessageDeletedAtKeepsEarliestDeletionFact(t *testing.T) {
+	p := NewRoomTimelineProjection()
+	applyAll(t, p, []*corev1.Event{
+		bodyEvent("BODY-M1", "ENV-M1", "R1", "U1", "message", 1),
+		postedEvent(postedOpts{envelopeID: "ENV-M1", roomID: "R1", actorID: "U1", at: 1}),
+		retractedEvent("RETRACT-5", "ENV-M1", "R1", "U1", "", 5),
+		retractedEvent("RETRACT-7", "ENV-M1", "R1", "U1", "", 7),
+		retractedEvent("RETRACT-3", "ENV-M1", "R1", "U1", "", 3),
+	})
+
+	if got, ok := p.MessageDeletedAt("ENV-M1"); !ok || !got.Equal(fixedTime(3)) {
+		t.Fatalf("tombstoned at = %v/%v, want earliest deletion time %v", got, ok, fixedTime(3))
+	}
+}
+
+func TestRoomTimeline_EchoIndexedAfterRetractionInheritsDeletionTime(t *testing.T) {
+	p := NewRoomTimelineProjection()
+	applyAll(t, p, []*corev1.Event{
+		bodyEvent("BODY-REPLY", "ENV-REPLY", "R1", "U1", "reply", 1),
+		postedEvent(postedOpts{envelopeID: "ENV-REPLY", roomID: "R1", actorID: "U1", at: 1}),
+		retractedEvent("RETRACT-REPLY", "ENV-REPLY", "R1", "U1", "", 4),
+		postedEvent(postedOpts{
+			envelopeID:                "ENV-ECHO",
+			roomID:                    "R1",
+			actorID:                   "U1",
+			echoOfEventID:             "ENV-REPLY",
+			echoFromThreadRootEventID: "ENV-ROOT",
+			at:                        2,
+		}),
+	})
+
+	if got, ok := p.MessageDeletedAt("ENV-ECHO"); !ok || !got.Equal(fixedTime(4)) {
+		t.Fatalf("late echo tombstoned at = %v/%v, want original deletion time %v", got, ok, fixedTime(4))
+	}
+}
+
 func TestRoomTimeline_RejectsMismatchedMessageBodyEventID(t *testing.T) {
 	p := NewRoomTimelineProjection()
 	bad := bodyEvent("ENV-BODY-1", "ENV-M1", "R1", "U1", "one", 1)
@@ -708,6 +825,7 @@ func TestRoomTimeline_AdminProjectionEstimateCoversDerivedIndexes(t *testing.T) 
 		"video_manifests",
 		"asset_message_owner_index",
 		"hidden_echoes",
+		"tombstoned_at_index",
 	} {
 		metric := projectionMetricByName(metrics, name)
 		if metric == nil {

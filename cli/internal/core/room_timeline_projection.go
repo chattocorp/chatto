@@ -1,6 +1,8 @@
 package core
 
 import (
+	"time"
+
 	"google.golang.org/protobuf/proto"
 	"hmans.de/chatto/internal/events"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
@@ -30,6 +32,12 @@ type RoomTimelineProjection struct {
 	bodyEventSeqs  map[string][]uint64
 	currentBodySeq map[string]uint64
 	retractedFlags map[string]struct{}
+	// tombstonedAt records when message content first became unavailable
+	// through a durable retraction or user key-shred fact. It deliberately does
+	// not cover missing/corrupt body payloads so clients can distinguish those
+	// states from deletions.
+	tombstonedAt map[string]time.Time
+	shreddedAt   map[string]time.Time
 	// attachmentMessageIDsByRoom tracks messages whose current body contains
 	// attachment/asset references. It lets room file reads page over current
 	// file-bearing messages instead of decrypting every message body in a room.
@@ -110,6 +118,8 @@ func NewRoomTimelineProjection() *RoomTimelineProjection {
 		bodyEventSeqs:              make(map[string][]uint64),
 		currentBodySeq:             make(map[string]uint64),
 		retractedFlags:             make(map[string]struct{}),
+		tombstonedAt:               make(map[string]time.Time),
+		shreddedAt:                 make(map[string]time.Time),
 		attachmentMessageIDsByRoom: make(map[string][]string),
 		attachmentMessageRoom:      make(map[string]string),
 		echoLinks:                  make(map[string][]string),
@@ -138,7 +148,7 @@ func (p *RoomTimelineProjection) Apply(event *corev1.Event, seq uint64) error {
 	p.Lock()
 	defer p.Unlock()
 	if shredded := event.GetUserKeyShredded(); shredded != nil {
-		p.applyUserKeyShreddedLocked(shredded.GetUserId())
+		p.applyUserKeyShreddedLocked(shredded.GetUserId(), eventCreatedAt(event))
 		return nil
 	}
 
@@ -168,6 +178,7 @@ func (p *RoomTimelineProjection) Apply(event *corev1.Event, seq uint64) error {
 				if _, shredded := p.shreddedUsers[authorID]; shredded {
 					delete(p.latestBody, targetID)
 					p.retractedFlags[targetID] = struct{}{}
+					p.setTombstonedAtLocked(targetID, p.shreddedAt[authorID])
 					p.removeAttachmentMessageLocked(targetID)
 				} else {
 					body = cloneMessageBody(body)
@@ -216,6 +227,7 @@ func (p *RoomTimelineProjection) Apply(event *corev1.Event, seq uint64) error {
 			if _, shredded := p.shreddedUsers[authorID]; shredded {
 				delete(p.latestBody, targetID)
 				p.retractedFlags[targetID] = struct{}{}
+				p.setTombstonedAtLocked(targetID, p.shreddedAt[authorID])
 				p.removeAttachmentMessageLocked(targetID)
 			}
 		}
@@ -231,6 +243,7 @@ func (p *RoomTimelineProjection) Apply(event *corev1.Event, seq uint64) error {
 	case *corev1.Event_MessageRetracted:
 		targetID := p.intern(ev.MessageRetracted.GetEventId())
 		if targetID != "" {
+			p.setTombstonedAtLocked(targetID, eventCreatedAt(event))
 			if origID := p.echoOriginalIDLocked(targetID); origID != "" {
 				if _, originalRetracted := p.retractedFlags[origID]; !originalRetracted {
 					delete(p.latestBody, targetID)
@@ -261,12 +274,18 @@ func eventMutatesRoomTimelineProjection(event *corev1.Event) bool {
 	return shouldIndexRoomTimelineEvent(event) || isVisibleRoomTimelineEntry(event)
 }
 
-func (p *RoomTimelineProjection) applyUserKeyShreddedLocked(userID string) {
+func (p *RoomTimelineProjection) applyUserKeyShreddedLocked(userID string, at time.Time) {
 	if userID == "" {
 		return
 	}
 	userID = p.intern(userID)
 	p.shreddedUsers[userID] = struct{}{}
+	if !at.IsZero() {
+		if existing, ok := p.shreddedAt[userID]; !ok || at.Before(existing) {
+			p.shreddedAt[userID] = at
+		}
+		at = p.shreddedAt[userID]
+	}
 	for eventID, idx := range p.byEventID {
 		entry := p.entryAtLocked(idx)
 		if entry == nil || entry.Event == nil {
@@ -281,7 +300,17 @@ func (p *RoomTimelineProjection) applyUserKeyShreddedLocked(userID string) {
 		}
 		delete(p.latestBody, eventID)
 		p.retractedFlags[eventID] = struct{}{}
+		p.setTombstonedAtLocked(eventID, at)
 		p.removeAttachmentMessageLocked(eventID)
+	}
+}
+
+func (p *RoomTimelineProjection) setTombstonedAtLocked(eventID string, at time.Time) {
+	if eventID == "" || at.IsZero() {
+		return
+	}
+	if existing, ok := p.tombstonedAt[eventID]; !ok || at.Before(existing) {
+		p.tombstonedAt[eventID] = at
 	}
 }
 
@@ -738,6 +767,26 @@ func (p *RoomTimelineProjection) MessageTombstoned(eventID string) bool {
 	defer p.RUnlock()
 	_, ok := p.retractedFlags[eventID]
 	return ok
+}
+
+// MessageDeletedAt returns when the message first became unavailable through
+// retraction or account key shredding. Echoes inherit the original message's
+// timestamp.
+func (p *RoomTimelineProjection) MessageDeletedAt(eventID string) (time.Time, bool) {
+	p.RLock()
+	defer p.RUnlock()
+	return p.messageTombstonedAtLocked(eventID)
+}
+
+func (p *RoomTimelineProjection) messageTombstonedAtLocked(eventID string) (time.Time, bool) {
+	if at, ok := p.tombstonedAt[eventID]; ok {
+		return at, true
+	}
+	if origID := p.echoOriginalIDLocked(eventID); origID != "" {
+		at, ok := p.tombstonedAt[origID]
+		return at, ok
+	}
+	return time.Time{}, false
 }
 
 // UnmanifestedVideoAttachments returns message-owned video/GIF assets that

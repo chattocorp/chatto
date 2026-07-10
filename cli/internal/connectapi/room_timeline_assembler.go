@@ -209,6 +209,9 @@ func (h *timelineHydrator) messagePosted(ctx context.Context, event *core.RoomEv
 		EchoFromThreadRootEventId: payload.GetEchoFromThreadRootEventId(),
 		Reactions:                 h.reactions(event.Id),
 	}
+	if deletedAt, ok := h.api.core.RoomTimeline.MessageDeletedAt(event.Id); ok {
+		message.DeletedAt = timestamppb.New(deletedAt)
+	}
 
 	if echoID, ok := h.api.core.RoomTimeline.ChannelEchoEventID(event.Id); ok {
 		message.ChannelEchoEventId = echoID

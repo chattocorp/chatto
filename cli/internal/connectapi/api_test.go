@@ -6008,6 +6008,107 @@ func TestRoomAndThreadTimelineHydratesMessagesWithoutClientNPlusOne(t *testing.T
 	}
 }
 
+func TestRoomAndThreadTimelineExposeDeletedAt(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	room := env.createJoinedRoom("timeline-tombstone-retention")
+	root := env.post(room.Id, env.viewer.Id, "root", "")
+	reply := env.post(room.Id, env.viewer.Id, "reply", root.Id)
+	ctx := withCaller(env.ctx, env.viewer)
+	beforeDelete, err := env.rooms.GetRoomEvents(ctx, connect.NewRequest(&apiv1.GetRoomEventsRequest{
+		RoomId: room.Id,
+		Limit:  10,
+	}))
+	if err != nil {
+		t.Fatalf("GetRoomEvents before delete: %v", err)
+	}
+	if got := timelinePageEvent(beforeDelete.Msg.GetPage(), root.Id).GetMessagePosted().GetMessage().GetDeletedAt(); got != nil {
+		t.Fatalf("active root deleted_at = %v, want nil", got)
+	}
+	if got := timelinePageEvent(beforeDelete.Msg.GetPage(), reply.Id).GetMessagePosted().GetMessage().GetDeletedAt(); got != nil {
+		t.Fatalf("active reply deleted_at = %v, want nil", got)
+	}
+
+	if err := env.core.DeleteMessage(env.ctx, env.viewer.Id, core.KindChannel, room.Id, reply.Id); err != nil {
+		t.Fatalf("DeleteMessage reply: %v", err)
+	}
+	replyDeletedAt, ok := env.core.RoomTimeline.MessageDeletedAt(reply.Id)
+	if !ok {
+		t.Fatal("reply projection deleted_at is missing")
+	}
+
+	thread, err := env.threads.GetThreadEvents(ctx, connect.NewRequest(&apiv1.GetThreadEventsRequest{
+		RoomId:            room.Id,
+		ThreadRootEventId: root.Id,
+		Limit:             10,
+	}))
+	if err != nil {
+		t.Fatalf("GetThreadEvents after delete: %v", err)
+	}
+	replyMessage := timelinePageEvent(thread.Msg.GetPage(), reply.Id).GetMessagePosted().GetMessage()
+	if got := replyMessage.GetDeletedAt(); got == nil || !got.AsTime().Equal(replyDeletedAt) {
+		t.Fatalf("deleted reply deleted_at = %v, want %v", got, replyDeletedAt)
+	}
+
+	if err := env.core.DeleteMessage(env.ctx, env.viewer.Id, core.KindChannel, room.Id, root.Id); err != nil {
+		t.Fatalf("DeleteMessage root: %v", err)
+	}
+	rootDeletedAt, ok := env.core.RoomTimeline.MessageDeletedAt(root.Id)
+	if !ok {
+		t.Fatal("root projection deleted_at is missing")
+	}
+	afterDelete, err := env.rooms.GetRoomEvents(ctx, connect.NewRequest(&apiv1.GetRoomEventsRequest{
+		RoomId: room.Id,
+		Limit:  10,
+	}))
+	if err != nil {
+		t.Fatalf("GetRoomEvents after delete: %v", err)
+	}
+	rootMessage := timelinePageEvent(afterDelete.Msg.GetPage(), root.Id).GetMessagePosted().GetMessage()
+	if got := rootMessage.GetDeletedAt(); got == nil || !got.AsTime().Equal(rootDeletedAt) {
+		t.Fatalf("deleted root deleted_at = %v, want %v", got, rootDeletedAt)
+	}
+}
+
+func TestRoomTimelineExposesAccountKeyShredDeletedAt(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	room := env.createJoinedRoom("timeline-account-key-shred")
+	author, err := env.core.CreateUser(env.ctx, core.SystemActorID, "timeline-shredded-author", "Timeline Shredded Author", "password")
+	if err != nil {
+		t.Fatalf("CreateUser author: %v", err)
+	}
+	if _, err := env.core.JoinRoom(env.ctx, env.viewer.Id, core.KindChannel, author.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom author: %v", err)
+	}
+	posted := env.post(room.Id, author.Id, "message before account deletion", "")
+
+	if err := env.core.DeleteUser(env.ctx, env.viewer.Id, author.Id); err != nil {
+		t.Fatalf("DeleteUser author: %v", err)
+	}
+	deletedAt, ok := env.core.RoomTimeline.MessageDeletedAt(posted.Id)
+	if !ok {
+		t.Fatal("projection account-shred deleted_at is missing")
+	}
+
+	resp, err := env.rooms.GetRoomEvents(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.GetRoomEventsRequest{
+		RoomId: room.Id,
+		Limit:  10,
+	}))
+	if err != nil {
+		t.Fatalf("GetRoomEvents after account deletion: %v", err)
+	}
+	timelineEvent := timelinePageEvent(resp.Msg.GetPage(), posted.Id)
+	if timelineEvent == nil {
+		t.Fatalf("account-shredded message %s missing from timeline", posted.Id)
+	}
+	message := timelineEvent.GetMessagePosted().GetMessage()
+	if message == nil {
+		t.Fatal("account-shredded message payload is nil")
+	}
+	if got := message.GetDeletedAt(); got == nil || !got.AsTime().Equal(deletedAt) {
+		t.Fatalf("account-shredded message deleted_at = %v, want %v", got, deletedAt)
+	}
+}
+
 func TestRoomTimelineKeepsDMReadableWhenMessageBodyCannotHydrate(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	ctx := withCaller(env.ctx, env.viewer)
@@ -6063,6 +6164,9 @@ func TestRoomTimelineKeepsDMReadableWhenMessageBodyCannotHydrate(t *testing.T) {
 	}
 	if badMessage.Body != nil {
 		t.Fatalf("corrupt message body present = %q, want unavailable body", badMessage.GetBody())
+	}
+	if badMessage.GetDeletedAt() != nil {
+		t.Fatalf("corrupt non-deleted message deleted_at = %v, want nil", badMessage.GetDeletedAt())
 	}
 
 	goodTimelineEvent := timelinePageEvent(resp.Msg.GetPage(), good.GetId())
