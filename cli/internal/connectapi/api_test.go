@@ -1564,6 +1564,34 @@ func TestAdminDiagnosticsServiceGetSystemInfoRequiresOwner(t *testing.T) {
 	if len(resp.Msg.GetProjections()) == 0 {
 		t.Fatal("Projections len = 0, want projection diagnostics")
 	}
+	if resp.Msg.GetAssetCleanup() == nil {
+		t.Fatal("AssetCleanup = nil")
+	}
+}
+
+func TestAdminAssetCleanupStatusMapping(t *testing.T) {
+	now := time.Now().UTC().Truncate(time.Second)
+	mapped := adminAssetCleanupStatus(core.AssetCleanupAdminStatus{
+		Health:               core.AssetCleanupHealthRetrying,
+		PendingCount:         2,
+		OldestPendingAt:      now.Add(-time.Hour),
+		PassInProgress:       true,
+		LastPassAt:           now.Add(-time.Minute),
+		LastSuccessfulPassAt: now.Add(-2 * time.Hour),
+		UpdatedAt:            now,
+		LastPassFailed:       true,
+		LastInspectedSeq:     41,
+		LatestDeletionSeq:    44,
+	})
+	if mapped.GetHealth() != adminv1.AdminAssetCleanupHealth_ADMIN_ASSET_CLEANUP_HEALTH_RETRYING {
+		t.Fatalf("health = %v, want retrying", mapped.GetHealth())
+	}
+	if mapped.GetPendingCount() != 2 || mapped.GetLastInspectedSequence() != "41" || mapped.GetLatestDeletionSequence() != "44" {
+		t.Fatalf("mapped status = %+v", mapped)
+	}
+	if !mapped.GetUpdatedAt().AsTime().Equal(now) || !mapped.GetOldestPendingAt().AsTime().Equal(now.Add(-time.Hour)) {
+		t.Fatalf("mapped timestamps = %+v", mapped)
+	}
 }
 
 func TestAdminEventLogServiceListsFiltersAndReadsEntries(t *testing.T) {

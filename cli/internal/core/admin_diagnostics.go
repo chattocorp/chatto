@@ -6,11 +6,12 @@ import (
 )
 
 type AdminDiagnostics struct {
-	Connection  *ConnectionInfo
-	Account     *AccountInfo
-	Stats       *ServerStats
-	JetStream   *JetStreamStats
-	Projections []ProjectionAdminState
+	Connection   *ConnectionInfo
+	Account      *AccountInfo
+	Stats        *ServerStats
+	JetStream    *JetStreamStats
+	Projections  []ProjectionAdminState
+	AssetCleanup AssetCleanupAdminStatus
 }
 
 func (c *ChattoCore) GetAdminDiagnostics(ctx context.Context, actorID string) (*AdminDiagnostics, error) {
@@ -41,12 +42,17 @@ func (c *ChattoCore) GetAdminDiagnostics(ctx context.Context, actorID string) (*
 	if err != nil {
 		return nil, fmt.Errorf("projection states: %w", err)
 	}
+	assetCleanup, err := c.assetLifecycle().AdminCleanupStatus(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("asset cleanup status: %w", err)
+	}
 
 	return &AdminDiagnostics{
-		Connection:  c.GetConnectionInfo(),
-		Account:     accountInfo,
-		Stats:       stats,
-		JetStream:   jetStreamStats,
-		Projections: projections,
+		Connection:   c.GetConnectionInfo(),
+		Account:      accountInfo,
+		Stats:        stats,
+		JetStream:    jetStreamStats,
+		Projections:  projections,
+		AssetCleanup: assetCleanup,
 	}, nil
 }

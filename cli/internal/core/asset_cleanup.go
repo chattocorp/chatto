@@ -20,9 +20,25 @@ func (s *AssetModel) Run(ctx context.Context) error {
 }
 
 func (s *AssetModel) runCleanupLoop(ctx context.Context) error {
-	if err := s.consumeAssetCleanup(ctx); err != nil {
-		s.logger.Warn("Asset cleanup pass failed", "error", err)
-	}
+	heartbeatDone := make(chan struct{})
+	go func() {
+		defer close(heartbeatDone)
+		ticker := time.NewTicker(assetCleanupHeartbeatEvery)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				if err := s.writeAssetCleanupStatus(ctx); err != nil && ctx.Err() == nil {
+					s.logger.Warn("Failed to publish asset cleanup heartbeat", "error", err)
+				}
+			}
+		}
+	}()
+	defer func() { <-heartbeatDone }()
+
+	s.runAssetCleanupPass(ctx)
 	ticker := time.NewTicker(s.cleanupPollEvery)
 	defer ticker.Stop()
 
@@ -31,10 +47,24 @@ func (s *AssetModel) runCleanupLoop(ctx context.Context) error {
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-ticker.C:
-			if err := s.consumeAssetCleanup(ctx); err != nil {
-				s.logger.Warn("Asset cleanup pass failed", "error", err)
-			}
+			s.runAssetCleanupPass(ctx)
 		}
+	}
+}
+
+func (s *AssetModel) runAssetCleanupPass(ctx context.Context) {
+	s.setAssetCleanupPassStarted()
+	if err := s.writeAssetCleanupStatus(ctx); err != nil && ctx.Err() == nil {
+		s.logger.Warn("Failed to publish asset cleanup pass start", "error", err)
+	}
+
+	err := s.consumeAssetCleanup(ctx)
+	s.setAssetCleanupPassFinished(err)
+	if writeErr := s.writeAssetCleanupStatus(ctx); writeErr != nil && ctx.Err() == nil {
+		s.logger.Warn("Failed to publish asset cleanup pass result", "error", writeErr)
+	}
+	if err != nil && ctx.Err() == nil {
+		s.logger.Warn("Asset cleanup pass failed", "error", err)
 	}
 }
 

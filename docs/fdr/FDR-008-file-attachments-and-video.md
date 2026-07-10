@@ -95,6 +95,12 @@ Users can attach files to messages — images, videos, documents — via drag-an
 **Why:** A committed deletion must remain recoverable when immediate storage cleanup fails, the process exits, or another replica committed the event. Resolving the immutable creation fact preserves that guarantee without duplicating storage metadata in the deletion event or depending on a mutable projection.
 **Tradeoff:** Each cleanup requires an aggregate-history lookup, and a fresh worker replays prior deletion facts idempotently. Beta room-scoped events cannot gain the same guarantee without a migration or unsafe backend-key inference, and server branding/avatar cleanup remains outside this message-owned worker.
 
+### 12. Cleanup health is shared and owner-visible
+
+**Decision:** The elected cleanup worker publishes a privacy-safe heartbeat to `MEMORY_CACHE`. Owner-only admin diagnostics compare that record with the current lease and latest asset-deletion sequence, then expose initializing, healthy, retrying, stalled, or inactive state together with pending retry count/age and pass timestamps. The Server Admin System tab renders this status without exposing asset IDs, filenames, storage keys, raw errors, or a reclaimed-byte estimate.
+**Why:** Automatic retry is only operationally useful when self-hosters can tell whether it completed, is catching up, or stopped reporting. Shared runtime state makes the result consistent when an admin request reaches a non-holder replica.
+**Tradeoff:** The heartbeat is intentionally volatile and is reconstructed after loss. Counts describe queued retry work, not historical deletion totals, and idempotent cleanup cannot reliably attribute reclaimed bytes.
+
 ## Permissions
 
 Posting an attachment requires room membership, the relevant message-posting permission (`message.post` or `message.post-in-thread`), and `message.attach`. The `message.attach` permission is configurable at server, group, and room scope and only gates message attachments; server branding uploads, user avatars, link previews, and attachment deletion use their existing checks.

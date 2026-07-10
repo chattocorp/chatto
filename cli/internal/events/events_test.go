@@ -155,6 +155,13 @@ func TestIncrementalEffectConsumer_PermanentFailureDoesNotBlockLaterEffects(t *t
 	if err := consumer.Consume(ctx); err == nil {
 		t.Fatal("Consume returned nil for permanent effect failure")
 	}
+	status := consumer.Status()
+	if !status.Initialized || status.PendingCount != 1 || status.AfterSeq == 0 {
+		t.Fatalf("status after failure = %+v, want initialized with one pending effect and cursor", status)
+	}
+	if status.OldestPendingAt.IsZero() {
+		t.Fatal("oldest pending time is zero")
+	}
 	if _, err := pub.AppendEventually(ctx, subject, makeEvent("R-independent", "U3")); err != nil {
 		t.Fatalf("AppendEventually U3: %v", err)
 	}
@@ -192,6 +199,10 @@ func TestIncrementalEffectConsumer_SerializesConcurrentConsume(t *testing.T) {
 	errCh := make(chan error, 2)
 	go func() { errCh <- consumer.Consume(ctx) }()
 	<-started
+	status := consumer.Status()
+	if !status.Initialized || status.PendingCount != 1 {
+		t.Fatalf("status during active handler = %+v, want initialized with one pending effect", status)
+	}
 	go func() { errCh <- consumer.Consume(ctx) }()
 	close(release)
 	for range 2 {

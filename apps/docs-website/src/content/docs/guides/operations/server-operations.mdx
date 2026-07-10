@@ -21,7 +21,7 @@ Running Chatto is mostly about keeping the process healthy, watching storage gro
 
 Owners and permissioned admins use the admin UI for daily operations. Depending on their permissions, they can inspect members, roles, permissions, server configuration, room layout, room bans, event-log diagnostics, and system health.
 
-The system pages expose operational metadata, not conversation content; they do not provide a special endpoint for reading every message or file. This application boundary does not constrain an infrastructure operator who controls the running process, storage, and encryption keys. See [Encryption at Rest and Data Erasure](/guides/operations/privacy-erasure/) for the threat model.
+The system pages expose operational metadata, not conversation content; they do not provide a special endpoint for reading every message or file. The Server Admin System tab includes elected asset-cleanup health, pending retry count/age, and pass timing without exposing asset names, storage keys, or raw cleanup errors. This application boundary does not constrain an infrastructure operator who controls the running process, storage, and encryption keys. See [Encryption at Rest and Data Erasure](/guides/operations/privacy-erasure/) for the threat model.
 
 ## Metrics
 

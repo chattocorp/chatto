@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"time"
 
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
@@ -19,9 +20,21 @@ type IncrementalEffectConsumer struct {
 	subject   string
 	handle    func(context.Context, *SubjectEvent) error
 
-	mu       sync.Mutex
-	afterSeq uint64
-	pending  []*SubjectEvent
+	mu          sync.Mutex
+	afterSeq    uint64
+	pending     []*SubjectEvent
+	initialized bool
+	statusMu    sync.RWMutex
+	status      IncrementalEffectConsumerStatus
+}
+
+// IncrementalEffectConsumerStatus is a point-in-time view of process-local
+// discovery and retry state. Domain owners decide how or whether to publish it.
+type IncrementalEffectConsumerStatus struct {
+	Initialized     bool
+	AfterSeq        uint64
+	PendingCount    int
+	OldestPendingAt time.Time
 }
 
 // NewIncrementalEffectConsumer constructs an incremental consumer. Lifecycle,
@@ -66,6 +79,7 @@ func (c *IncrementalEffectConsumer) Consume(ctx context.Context) error {
 
 	events, lastSeq, readErr := c.publisher.SubjectEventsWithSubjectsAfter(ctx, c.subject, c.afterSeq)
 	if readErr == nil {
+		c.initialized = true
 		c.pending = append(c.pending, events...)
 		if lastSeq > c.afterSeq {
 			c.afterSeq = lastSeq
@@ -73,6 +87,7 @@ func (c *IncrementalEffectConsumer) Consume(ctx context.Context) error {
 	} else {
 		readErr = fmt.Errorf("read incremental effects for %s: %w", c.subject, readErr)
 	}
+	c.updateStatusLocked()
 
 	remaining := c.pending[:0]
 	var handleErr error
@@ -83,5 +98,37 @@ func (c *IncrementalEffectConsumer) Consume(ctx context.Context) error {
 		}
 	}
 	c.pending = remaining
+	c.updateStatusLocked()
 	return errors.Join(readErr, handleErr)
+}
+
+// Status returns a concurrency-safe snapshot of discovery and retry state.
+func (c *IncrementalEffectConsumer) Status() IncrementalEffectConsumerStatus {
+	if c == nil {
+		return IncrementalEffectConsumerStatus{}
+	}
+	c.statusMu.RLock()
+	defer c.statusMu.RUnlock()
+	return c.status
+}
+
+func (c *IncrementalEffectConsumer) updateStatusLocked() {
+	status := IncrementalEffectConsumerStatus{
+		Initialized:  c.initialized,
+		AfterSeq:     c.afterSeq,
+		PendingCount: len(c.pending),
+	}
+	for _, pending := range c.pending {
+		createdAt := pending.Event.GetCreatedAt()
+		if createdAt == nil || !createdAt.IsValid() {
+			continue
+		}
+		at := createdAt.AsTime()
+		if status.OldestPendingAt.IsZero() || at.Before(status.OldestPendingAt) {
+			status.OldestPendingAt = at
+		}
+	}
+	c.statusMu.Lock()
+	c.status = status
+	c.statusMu.Unlock()
 }

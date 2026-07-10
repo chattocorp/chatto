@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -39,6 +40,8 @@ type AssetModel struct {
 	cleanupLease     *lease.Lease
 	cleanupConsumer  *events.IncrementalEffectConsumer
 	cleanupPollEvery time.Duration
+	cleanupStatusMu  sync.RWMutex
+	cleanupPass      assetCleanupPassStatus
 }
 
 func NewAssetModel(core *ChattoCore) *AssetModel {

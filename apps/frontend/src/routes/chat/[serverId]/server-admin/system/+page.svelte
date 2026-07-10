@@ -7,6 +7,7 @@
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import { useConnection } from '$lib/state/server/connection.svelte';
   import * as m from '$lib/i18n/messages';
+  import AssetCleanupPanel from './AssetCleanupPanel.svelte';
 
   const connection = useConnection();
 
@@ -181,6 +182,8 @@
             </div>
           </div>
         </Panel>
+
+        <AssetCleanupPanel status={systemInfo.assetCleanup} />
 
         <div>
           <h2 class="mb-3 text-sm font-semibold text-muted uppercase">
