@@ -1,4 +1,10 @@
-import { SvelteSet } from 'svelte/reactivity';
+import { SvelteMap, SvelteSet } from 'svelte/reactivity';
+import { OptimisticMutationRegistry } from '$lib/state/optimisticMutations';
+
+export type OptimisticRoomReadHandle = {
+  commit(): void;
+  rollback(): void;
+};
 
 /**
  * Tracks which rooms on the server have unread messages.
@@ -14,16 +20,37 @@ import { SvelteSet } from 'svelte/reactivity';
  * - Initial load with only a server-level signal → `setServerHasUnread`
  */
 export class RoomUnreadStore {
-  // Specific rooms known to be unread.
+  // Specific rooms authoritatively known to be unread.
   private unreadRooms = new SvelteSet<string>();
+  // Provisional reads hide the underlying unread fact until they settle.
+  private optimisticReadRooms = new SvelteSet<string>();
+  private optimisticReads = new OptimisticMutationRegistry();
+  private roomRevisions = new SvelteMap<string, number>();
   // Server-level unknown-unread flag (set when we know there's unread but
   // not which room — e.g. on initial load before rooms are queried).
   private serverHasUnknownUnread = $state(false);
+  private unknownUnreadRevision = 0;
+
+  private optimisticReadKey(roomId: string): string {
+    return `room:${roomId}`;
+  }
+
+  private roomRevision(roomId: string): number {
+    return this.roomRevisions.get(roomId) ?? 0;
+  }
+
+  private invalidateOptimisticRead(roomId: string): void {
+    this.optimisticReads.clear(this.optimisticReadKey(roomId));
+    this.optimisticReadRooms.delete(roomId);
+  }
 
   /**
    * Set unread status for a specific room.
    */
   setRoomUnread(roomId: string, unread: boolean): void {
+    this.roomRevisions.set(roomId, this.roomRevision(roomId) + 1);
+    this.invalidateOptimisticRead(roomId);
+
     if (unread) {
       this.unreadRooms.add(roomId);
     } else {
@@ -31,14 +58,52 @@ export class RoomUnreadStore {
       // Reading a specific room implies we now have concrete knowledge —
       // drop the unknown-unread flag.
       this.serverHasUnknownUnread = false;
+      this.unknownUnreadRevision++;
     }
+  }
+
+  /**
+   * Provisionally mark a room read while retaining the underlying unread fact.
+   * New room state invalidates the handle so rollback cannot overwrite it.
+   */
+  beginOptimisticRead(roomId: string): OptimisticRoomReadHandle {
+    const token = this.optimisticReads.createToken();
+    const roomRevision = this.roomRevision(roomId);
+    const unknownUnreadRevision = this.unknownUnreadRevision;
+    const key = this.optimisticReadKey(roomId);
+
+    this.optimisticReads.mark(key, token);
+    this.optimisticReadRooms.add(roomId);
+
+    return {
+      commit: () => {
+        if (!this.optimisticReads.isCurrent(key, token)) return;
+        if (this.roomRevision(roomId) !== roomRevision) return;
+
+        this.unreadRooms.delete(roomId);
+        if (this.unknownUnreadRevision === unknownUnreadRevision) {
+          this.serverHasUnknownUnread = false;
+          this.unknownUnreadRevision++;
+        }
+        this.optimisticReads.clear(key);
+        this.optimisticReadRooms.delete(roomId);
+      },
+      rollback: () => {
+        if (!this.optimisticReads.isCurrent(key, token)) return;
+        this.optimisticReads.clear(key);
+        this.optimisticReadRooms.delete(roomId);
+      }
+    };
   }
 
   /**
    * Check if the server has any unread rooms (or is flagged with unknown unread).
    */
   get hasAnyUnread(): boolean {
-    return this.unreadRooms.size > 0 || this.serverHasUnknownUnread;
+    for (const roomId of this.unreadRooms) {
+      if (!this.optimisticReadRooms.has(roomId)) return true;
+    }
+    return this.serverHasUnknownUnread && this.optimisticReadRooms.size === 0;
   }
 
   /**
@@ -46,7 +111,9 @@ export class RoomUnreadStore {
    * flag is set (no specific rooms).
    */
   getFirstUnreadRoomId(): string | null {
-    for (const roomId of this.unreadRooms) return roomId;
+    for (const roomId of this.unreadRooms) {
+      if (!this.optimisticReadRooms.has(roomId)) return roomId;
+    }
     return null;
   }
 
@@ -54,7 +121,7 @@ export class RoomUnreadStore {
    * Check if a specific room is unread.
    */
   roomIsUnread(roomId: string): boolean {
-    return this.unreadRooms.has(roomId);
+    return this.unreadRooms.has(roomId) && !this.optimisticReadRooms.has(roomId);
   }
 
   /**
@@ -62,11 +129,29 @@ export class RoomUnreadStore {
    * Call this when loading rooms.
    */
   initRooms(rooms: Array<{ id: string; hasUnread: boolean }>): void {
+    this.optimisticReads.clearAll();
+    this.optimisticReadRooms.clear();
+    this.roomRevisions.clear();
     this.unreadRooms.clear();
     this.serverHasUnknownUnread = false;
+    this.unknownUnreadRevision++;
+    this.updateRooms(rooms);
+  }
+
+  /** Merge an authoritative partial room snapshot without dropping other rooms. */
+  updateRooms(rooms: Array<{ id: string; hasUnread: boolean }>): void {
     for (const room of rooms) {
+      this.roomRevisions.set(room.id, this.roomRevision(room.id) + 1);
+      this.invalidateOptimisticRead(room.id);
       if (room.hasUnread) this.unreadRooms.add(room.id);
+      else this.unreadRooms.delete(room.id);
     }
+  }
+
+  /** Clear the server-level sentinel after all relevant room scopes are known. */
+  resolveUnknownUnread(): void {
+    this.serverHasUnknownUnread = false;
+    this.unknownUnreadRevision++;
   }
 
   /**
@@ -74,6 +159,9 @@ export class RoomUnreadStore {
    * signal is known (initial load, before rooms are queried).
    */
   setServerHasUnread(hasUnread: boolean): void {
+    this.optimisticReads.clearAll();
+    this.optimisticReadRooms.clear();
+    this.unknownUnreadRevision++;
     if (hasUnread) {
       this.serverHasUnknownUnread = true;
     } else {
@@ -86,7 +174,11 @@ export class RoomUnreadStore {
    * Clear all unread state.
    */
   clear(): void {
+    this.optimisticReads.clearAll();
+    this.optimisticReadRooms.clear();
+    this.roomRevisions.clear();
     this.unreadRooms.clear();
     this.serverHasUnknownUnread = false;
+    this.unknownUnreadRevision++;
   }
 }

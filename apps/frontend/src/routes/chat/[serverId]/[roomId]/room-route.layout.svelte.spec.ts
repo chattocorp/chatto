@@ -84,7 +84,6 @@ function room(overrides: Partial<RoomsListItem> = {}): RoomsListItem {
     name: 'development',
     type: RoomType.Channel,
     isUniversal: false,
-    hasUnread: false,
     viewerIsMember: true,
     viewerCanJoinRoom: true,
     viewerNotificationCount: 0,

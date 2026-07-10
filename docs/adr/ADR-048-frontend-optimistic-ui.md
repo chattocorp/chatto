@@ -24,6 +24,11 @@ optimistically changed. When projected server rows are fetched or refetched, the
 projected row remains authoritative and clears pending optimistic mutations for
 the affected row.
 
+For state such as room unread markers, the provisional patch may be a render
+overlay rather than a mutation of the underlying server fact. This lets a failed
+read reveal the previous unread state without allowing rollback to erase a newer
+message or an authoritative read event.
+
 Components should route a given optimistic action family through one shared
 frontend action path instead of mixing direct RPC calls with local patches.
 

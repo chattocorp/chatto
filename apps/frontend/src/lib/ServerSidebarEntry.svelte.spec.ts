@@ -56,6 +56,9 @@ const { mocks } = vi.hoisted(() => {
         },
         roomUnread: {
           clear: vi.fn(),
+          initRooms: vi.fn(),
+          updateRooms: vi.fn(),
+          resolveUnknownUnread: vi.fn(),
           setServerHasUnread: vi.fn(),
           setRoomUnread: vi.fn(),
           getFirstUnreadRoomId: vi.fn().mockReturnValue(null)
@@ -229,6 +232,9 @@ describe('ServerSidebarEntry', () => {
     mocks.store.notifications.dismiss.mockClear();
     mocks.store.notifications.getCleanPath.mockReturnValue('/chat/remote.example.com/room-1');
     mocks.store.roomUnread.clear.mockClear();
+    mocks.store.roomUnread.initRooms.mockClear();
+    mocks.store.roomUnread.updateRooms.mockClear();
+    mocks.store.roomUnread.resolveUnknownUnread.mockClear();
     mocks.store.roomUnread.setServerHasUnread.mockClear();
     mocks.store.roomUnread.setRoomUnread.mockClear();
     mocks.store.notificationLevels.setServerPreference.mockClear();
@@ -329,7 +335,9 @@ describe('ServerSidebarEntry', () => {
       NotificationLevel.Muted
     );
     expect(mocks.store.roomUnread.setServerHasUnread).toHaveBeenCalledWith(true);
-    expect(mocks.store.roomUnread.setRoomUnread).toHaveBeenCalledWith('dm-1', true);
+    expect(mocks.store.roomUnread.updateRooms).toHaveBeenCalledWith([
+      { id: 'dm-1', hasUnread: true }
+    ]);
   });
 
   it('keeps sidebar init usable when notification fetch returns no count changes', async () => {

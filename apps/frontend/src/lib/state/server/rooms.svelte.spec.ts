@@ -412,11 +412,13 @@ describe('RoomsStore - refresh', () => {
     expect(store.rooms[1]).toBe(random);
   });
 
-  it('patches changed room rows without replacing unchanged neighbors', async () => {
+  it('refreshes unread state without replacing room rows', async () => {
     const roomDirectoryAPI = makeRoomDirectoryAPI([makeRoom('general'), makeRoom('random')]);
+    const roomUnread = new RoomUnreadStore();
     const store = makeStore({
       roomDirectoryAPI,
-      notificationAPI: makeNotificationAPI()
+      notificationAPI: makeNotificationAPI(),
+      roomUnread
     });
 
     await store.refresh();
@@ -433,8 +435,8 @@ describe('RoomsStore - refresh', () => {
     await settle();
 
     expect(store.rooms[0]).toBe(general);
-    expect(store.rooms[1]).not.toBe(random);
-    expect(store.rooms[1]).toMatchObject({ id: 'random', hasUnread: true });
+    expect(store.rooms[1]).toBe(random);
+    expect(roomUnread.roomIsUnread('random')).toBe(true);
   });
 
   it('only replaces rooms whose notification counts changed', async () => {

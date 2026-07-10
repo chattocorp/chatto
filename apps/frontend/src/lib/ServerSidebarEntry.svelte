@@ -106,16 +106,8 @@
 
       const pref = viewer.serverNotificationPreference;
       notificationLevelStore.setServerPreference(pref.level, pref.effectiveLevel);
-      roomUnreadStore.clear();
+      roomUnreadStore.updateRooms(dmRooms);
       roomUnreadStore.setServerHasUnread(serverState.viewerHasUnreadRooms);
-
-      // Populate DM unread status. Channel and DM rooms now share the same
-      // per-room unread map.
-      for (const room of dmRooms) {
-        if (room.hasUnread) {
-          roomUnreadStore.setRoomUnread(room.id, true);
-        }
-      }
 
       displayName = serverState.name;
       logoUrl = serverState.logoUrl;
@@ -244,8 +236,9 @@
 
     if (!roomId) {
       const rooms = await roomDirectoryAPI().listRooms(RoomDirectoryScope.CHANNELS);
-      roomUnreadStore.initRooms(rooms);
-      roomId = rooms.find((r) => r.hasUnread)?.id ?? null;
+      roomUnreadStore.updateRooms(rooms);
+      roomUnreadStore.resolveUnknownUnread();
+      roomId = roomUnreadStore.getFirstUnreadRoomId();
     }
 
     if (roomId) {

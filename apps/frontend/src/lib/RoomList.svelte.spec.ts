@@ -17,6 +17,7 @@ const { mocks } = vi.hoisted(() => ({
   mocks: {
     activeCallRoomIds: new Set<string>(),
     callParticipants: new Map<string, unknown[]>(),
+    unreadRoomIds: new Set<string>(),
     pushState: vi.fn(),
     goto: vi.fn(),
     appUi: {
@@ -45,6 +46,13 @@ const { mocks } = vi.hoisted(() => ({
       notificationLevels: {
         isRoomMuted: vi.fn().mockReturnValue(false)
       },
+      roomUnread: {
+        roomIsUnread: vi.fn((roomId: string) => mocks.unreadRoomIds.has(roomId)),
+        setRoomUnread: vi.fn((roomId: string, unread: boolean) => {
+          if (unread) mocks.unreadRoomIds.add(roomId);
+          else mocks.unreadRoomIds.delete(roomId);
+        })
+      },
       activeCallRooms: {
         load: vi.fn().mockResolvedValue(undefined),
         has: vi.fn((roomId: string) => mocks.activeCallRoomIds.has(roomId)),
@@ -66,9 +74,7 @@ const { mocks } = vi.hoisted(() => ({
         roomGroups: null as RoomsListGroup[] | null,
         isInitialLoading: false,
         currentUserId: 'me',
-        markRead: vi.fn(),
         bumpRoom: vi.fn(),
-        setUnread: vi.fn(),
         clearUnreadNotifications: vi.fn(),
         decrementUnreadNotification: vi.fn(),
         incrementUnreadNotification: vi.fn(),
@@ -185,7 +191,6 @@ function setRooms() {
       name: 'general',
       type: RoomType.Channel,
       isUniversal: false,
-      hasUnread: false,
       viewerIsMember: true,
       viewerCanJoinRoom: true,
       viewerNotificationCount: 0,
@@ -196,7 +201,6 @@ function setRooms() {
       name: 'joinable',
       type: RoomType.Channel,
       isUniversal: false,
-      hasUnread: false,
       viewerIsMember: false,
       viewerCanJoinRoom: true,
       viewerNotificationCount: 0,
@@ -207,7 +211,6 @@ function setRooms() {
       name: 'restricted',
       type: RoomType.Channel,
       isUniversal: false,
-      hasUnread: false,
       viewerIsMember: false,
       viewerCanJoinRoom: false,
       viewerNotificationCount: 0,
@@ -218,7 +221,6 @@ function setRooms() {
       name: '',
       type: RoomType.Dm,
       isUniversal: false,
-      hasUnread: false,
       viewerIsMember: true,
       viewerCanJoinRoom: true,
       viewerNotificationCount: 0,
@@ -229,7 +231,6 @@ function setRooms() {
       name: '',
       type: RoomType.Dm,
       isUniversal: false,
-      hasUnread: false,
       viewerIsMember: true,
       viewerCanJoinRoom: true,
       viewerNotificationCount: 0,
@@ -249,13 +250,8 @@ function setRoomNotificationCount(roomId: string, count: number) {
 }
 
 function setRoomUnread(roomId: string, hasUnread: boolean) {
-  const rooms = mocks.store.rooms.rooms as Array<{
-    id: string;
-    hasUnread: boolean;
-  }>;
-  const room = rooms.find((item) => item.id === roomId);
-  if (!room) throw new Error(`Missing mocked room ${roomId}`);
-  room.hasUnread = hasUnread;
+  if (hasUnread) mocks.unreadRoomIds.add(roomId);
+  else mocks.unreadRoomIds.delete(roomId);
 }
 
 function dispatchRoomListEvent(handlerIndex: number, event: Record<string, unknown>) {
@@ -275,6 +271,7 @@ beforeEach(() => {
   sessionStorage.clear();
   mocks.activeCallRoomIds = new Set();
   mocks.callParticipants = new Map();
+  mocks.unreadRoomIds = new Set();
   mocks.store.rooms.roomGroups = null;
   mocks.store.rooms.isInitialLoading = false;
   mocks.store.rooms.currentUserId = 'me';
@@ -467,7 +464,7 @@ describe('RoomList', () => {
     });
 
     expect(mocks.store.rooms.bumpRoom).toHaveBeenCalledWith('channel-1');
-    expect(mocks.store.rooms.setUnread).toHaveBeenCalledWith('channel-1');
+    expect(mocks.store.roomUnread.setRoomUnread).toHaveBeenCalledWith('channel-1', true);
   });
 
   it.each([

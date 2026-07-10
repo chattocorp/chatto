@@ -17,16 +17,19 @@ export function useRoomUnread(getProps: () => { roomId: string }) {
 
   const unread = useUnreadMarker(() => getProps().roomId, {
     markAsRead: async (targetRoomId: string, upToEventId?: string) => {
-      roomUnreadStore.setRoomUnread(targetRoomId, false);
+      const optimisticRead = roomUnreadStore.beginOptimisticRead(targetRoomId);
 
       try {
         const conn = connection();
-        return await createReadStateAPI({
+        const result = await createReadStateAPI({
           serverId: conn.serverId ?? getActiveServer(),
           baseUrl: conn.connectBaseUrl,
           bearerToken: conn.bearerToken
         }).markRoomAsRead({ roomId: targetRoomId, upToEventId });
+        optimisticRead.commit();
+        return result;
       } catch (err) {
+        optimisticRead.rollback();
         console.error('Failed to mark room as read:', err);
         return null;
       }
