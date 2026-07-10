@@ -60,6 +60,8 @@ func adminAssetCleanupHealth(health core.AssetCleanupHealth) adminv1.AdminAssetC
 		return adminv1.AdminAssetCleanupHealth_ADMIN_ASSET_CLEANUP_HEALTH_RETRYING
 	case core.AssetCleanupHealthStalled:
 		return adminv1.AdminAssetCleanupHealth_ADMIN_ASSET_CLEANUP_HEALTH_STALLED
+	case core.AssetCleanupHealthUnavailable:
+		return adminv1.AdminAssetCleanupHealth_ADMIN_ASSET_CLEANUP_HEALTH_UNSPECIFIED
 	default:
 		return adminv1.AdminAssetCleanupHealth_ADMIN_ASSET_CLEANUP_HEALTH_UNSPECIFIED
 	}

@@ -183,8 +183,6 @@
           </div>
         </Panel>
 
-        <AssetCleanupPanel status={systemInfo.assetCleanup} />
-
         <div>
           <h2 class="mb-3 text-sm font-semibold text-muted uppercase">
             {m['admin.system.jetstream_account']()}
@@ -532,6 +530,8 @@
             {/snippet}
           </DataTable>
         </Panel>
+
+        <AssetCleanupPanel status={systemInfo.assetCleanup} />
       {/if}
     </div>
   </div>

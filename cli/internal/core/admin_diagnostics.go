@@ -44,7 +44,8 @@ func (c *ChattoCore) GetAdminDiagnostics(ctx context.Context, actorID string) (*
 	}
 	assetCleanup, err := c.assetLifecycle().AdminCleanupStatus(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("asset cleanup status: %w", err)
+		c.logger.Warn("Failed to read asset cleanup diagnostics", "error", err)
+		assetCleanup = AssetCleanupAdminStatus{Health: AssetCleanupHealthUnavailable}
 	}
 
 	return &AdminDiagnostics{

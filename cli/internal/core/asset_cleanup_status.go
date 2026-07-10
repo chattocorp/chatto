@@ -46,6 +46,7 @@ const (
 	AssetCleanupHealthHealthy
 	AssetCleanupHealthRetrying
 	AssetCleanupHealthStalled
+	AssetCleanupHealthUnavailable
 )
 
 type AssetCleanupAdminStatus struct {
