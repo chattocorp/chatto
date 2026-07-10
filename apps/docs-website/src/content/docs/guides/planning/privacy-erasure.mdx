@@ -61,7 +61,7 @@ The built-in implementation splits encrypted data, wrapped DEKs, and KEKs across
 
 To decrypt a protected field, Chatto resolves the DEK event, loads the wrapped DEK from `RUNTIME_STATE`, asks the KMS boundary to unwrap it with the referenced KEK, and then decrypts the field.
 
-The built-in KMS uses XChaCha20-Poly1305 to wrap each 256-bit DEK with a 256-bit KEK. Its `ENCRYPTION_KEYS` backend is local to Chatto, but the core code talks through an opaque key-wrapping interface so a future backend would not need to expose raw KEKs to the application. Chatto does not currently offer operator configuration for an external KMS.
+The built-in KMS uses XChaCha20-Poly1305 to wrap each 256-bit DEK with a 256-bit KEK. Its `ENCRYPTION_KEYS` backend is local to Chatto, but the core code talks through an opaque key-wrapping interface so a future backend would not need to expose raw KEKs to the application. External KMS support is planned, but Chatto does not currently offer operator configuration for one.
 
 ### Message text
 
