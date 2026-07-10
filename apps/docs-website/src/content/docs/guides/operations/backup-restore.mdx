@@ -5,7 +5,7 @@ description: How to back up and restore your Chatto server data.
 
 import { Steps, Aside } from "@astrojs/starlight/components";
 
-Chatto provides built-in CLI commands for backing up and restoring all server data. Backups capture the full state of your NATS JetStream storage — users, rooms, messages, memberships, assets, and more — into a single `.tar.gz` archive. Backups can optionally be encrypted with a passphrase using [age](https://age-encryption.org) encryption.
+Chatto provides built-in CLI commands for backing up and restoring its NATS JetStream storage — users, rooms, messages, memberships, NATS-backed assets, and more — into a single `.tar.gz` archive. S3-backed assets are not part of these NATS snapshots and need their own backup policy. Chatto backups can optionally be encrypted with a passphrase using [age](https://age-encryption.org) encryption.
 
 For small self-hosted servers, the recommended backup is a single encrypted archive that includes encryption keys:
 
@@ -21,7 +21,7 @@ Backups contain all persistent JetStream streams, KV buckets, and object stores:
 
 - **Server data** — users, memberships, roles, permissions, notifications, rooms, messages, threads, reactions, message bodies
 - **Call facts** — room-scoped call start/join/leave/end events used to rebuild active call participant state
-- **Assets** — user avatars, server icon and banner, message attachments
+- **NATS-backed assets** — user avatars, server icon and banner, message attachments
 
 ## What's excluded
 
@@ -36,7 +36,7 @@ Certain streams are intentionally excluded:
 | Asset cache | Regeneratable (resized image variants) |
 
 <Aside type="tip">
-  If you do not run a separate KMS or key-management process, use `--encrypt --include-keys`. A monolithic encrypted backup is simpler to automate, easier to test, and harder to restore incorrectly.
+  Use `--encrypt --include-keys` for the simplest complete backup of the built-in KMS. A monolithic encrypted backup is simpler to automate, easier to test, and harder to restore incorrectly.
 </Aside>
 
 <Aside type="caution">
@@ -216,7 +216,7 @@ chatto keys import keys.backup -c chatto.toml
 ```
 
 <Aside type="tip">
-  Without keys in the backup or a separate key import, the server will function normally — users can log in, browse rooms, and send new messages. Only previously encrypted message bodies and durable profile data will appear as unavailable.
+  Without the matching keys, the server cannot decrypt durable login, display-name, and verified-email events while rebuilding account projections. Existing accounts and their login indexes may therefore be unavailable, in addition to historical message text. Treat a keyless archive as intentionally incomplete unless you also retain a matching key export.
 </Aside>
 
 ## Automated backup script
@@ -329,7 +329,7 @@ rm backup.tar.gz
 
 ### Retention and account deletion
 
-Account deletion shreds the user's encryption keys in the live server and removes message-owned assets from active storage. Existing backups are not modified.
+Account deletion attempts to shred the user's encryption keys in the live server and remove message-owned assets from active storage. These cleanup steps can log warnings and continue on individual storage failures, so operators should monitor deletion-time errors. Existing backups are not modified.
 
 If you restore a backup from before an account deletion and that backup includes the user's keys, the deleted user's encrypted message bodies and durable profile data can become readable again. The same is true when restoring a keyless data backup together with an old key export that still contains that user's keys. This is expected disaster-recovery behavior, but it matters for erasure requests.
 

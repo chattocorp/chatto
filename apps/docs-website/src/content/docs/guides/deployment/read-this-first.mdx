@@ -27,9 +27,9 @@ But you can also **configure an external S3-compatible object storage** for Chat
 
 Each Chatto server powers a single community with its own data, including user accounts. You get a series of choices in how users can join your server, from direct email-based registration to logging in through an external identity provider (eg. Google, GitHub, Discord, your own self-hosted IdP, and so on.)
 
-A user account on your server is 100% separate from the same person's account on other servers. This is by design (see ["Chatto is not a platform"](/getting-started/introduction/)). All user data -- their PII (Personally Identifiable Information, eg. email address, user name, display name etc.) as well as their message data is **encrypted at rest**, using per-user keys that get wiped when the user decides to delete their account. This also means that outside of manually restoring a deleted user's keys, deleted user accounts and data is **unrecoverable**.
+A user account on your server is 100% separate from the same person's account on other servers. This is by design (see ["Chatto is not a platform"](/getting-started/introduction/)). Chatto encrypts message text plus login, display name, and verified email values in durable user events with per-user keys. Attachments, avatars, and event metadata are outside that field-level encryption boundary. See [Encryption at Rest and Data Erasure](/guides/planning/privacy-erasure/) for the exact coverage, threat model, and deletion behavior.
 
-Chatto ships with a simple built-in KMS (Key Management Service); support for external KMS is planned.
+Chatto ships with a built-in, in-process KMS (Key Management Service). Its key-wrapping interface provides an internal boundary for future backends, but external KMS configuration is not currently available.
 
 ### Voice and Video Calls
 
