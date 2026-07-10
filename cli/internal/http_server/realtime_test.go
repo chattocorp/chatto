@@ -3,7 +3,9 @@ package http_server
 import (
 	"context"
 	"net/http"
+	"os"
 	"runtime"
+	"runtime/pprof"
 	"slices"
 	"strings"
 	"testing"
@@ -615,10 +617,6 @@ func TestRealtimeWebSocketRespondsToPing(t *testing.T) {
 }
 
 func BenchmarkRealtimeWebSocketIdleConnections(b *testing.B) {
-	if b.N != 500 {
-		b.Skip("run with -benchtime=500x to measure the 500-connection retained-memory slope")
-	}
-
 	env := setupWebSocketTestServer(b)
 	user, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-benchmark", "RT Benchmark", "password123")
 	if err != nil {
@@ -632,6 +630,7 @@ func BenchmarkRealtimeWebSocketIdleConnections(b *testing.B) {
 	runtime.GC()
 	var before runtime.MemStats
 	runtime.ReadMemStats(&before)
+	beforeGoroutines := runtime.NumGoroutine()
 
 	connections := make([]*websocket.Conn, 0, b.N)
 	b.ReportAllocs()
@@ -654,10 +653,34 @@ func BenchmarkRealtimeWebSocketIdleConnections(b *testing.B) {
 			b.ReportMetric(float64(after.StackInuse-before.StackInuse)/float64(b.N), "stack-B/conn")
 		}
 	}
+	if profilePath := os.Getenv("CHATTO_BENCH_HEAP_PROFILE"); profilePath != "" {
+		profile, err := os.Create(profilePath)
+		if err != nil {
+			b.Fatalf("create heap profile: %v", err)
+		}
+		if err := pprof.WriteHeapProfile(profile); err != nil {
+			profile.Close()
+			b.Fatalf("write heap profile: %v", err)
+		}
+		if err := profile.Close(); err != nil {
+			b.Fatalf("close heap profile: %v", err)
+		}
+	}
 
 	for _, conn := range connections {
 		if err := conn.Close(); err != nil {
 			b.Errorf("close realtime connection: %v", err)
 		}
+	}
+	deadline := time.Now().Add(5 * time.Second)
+	for env.core.MyEventsMetrics().ActiveStreams != 0 && time.Now().Before(deadline) {
+		runtime.Gosched()
+		time.Sleep(10 * time.Millisecond)
+	}
+	if got := env.core.MyEventsMetrics().ActiveStreams; got != 0 {
+		b.Fatalf("active streams after disconnect = %d, want 0", got)
+	}
+	if delta := runtime.NumGoroutine() - beforeGoroutines; delta > 0 {
+		b.ReportMetric(float64(delta), "post-close-goroutines")
 	}
 }
