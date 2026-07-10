@@ -9,6 +9,10 @@ Chatto applies field-level encryption to message text and selected account field
 
 It is not full-disk encryption, end-to-end encryption, or blanket encryption of every record and asset. A running Chatto server must be able to decrypt protected fields for authorized clients, and its built-in key-management implementation runs in the same server process.
 
+<Aside type="caution">
+  Chatto is alpha software. This page describes the encryption and erasure surface that is currently implemented; more changes to this model are planned.
+</Aside>
+
 ## Encryption Coverage
 
 | Data | Chatto application-layer protection |
