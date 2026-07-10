@@ -17,11 +17,11 @@ import (
 type IncrementalEffectConsumer struct {
 	publisher *Publisher
 	subject   string
-	handle    func(context.Context, *corev1.Event) error
+	handle    func(context.Context, *SubjectEvent) error
 
 	mu       sync.Mutex
 	afterSeq uint64
-	pending  []*corev1.Event
+	pending  []*SubjectEvent
 }
 
 // NewIncrementalEffectConsumer constructs an incremental consumer. Lifecycle,
@@ -30,6 +30,22 @@ func NewIncrementalEffectConsumer(
 	publisher *Publisher,
 	subject string,
 	handle func(context.Context, *corev1.Event) error,
+) *IncrementalEffectConsumer {
+	return NewIncrementalEffectConsumerWithSubject(
+		publisher,
+		subject,
+		func(ctx context.Context, subjectEvent *SubjectEvent) error {
+			return handle(ctx, subjectEvent.Event)
+		},
+	)
+}
+
+// NewIncrementalEffectConsumerWithSubject constructs a consumer whose handler
+// can validate the durable aggregate subject before performing an effect.
+func NewIncrementalEffectConsumerWithSubject(
+	publisher *Publisher,
+	subject string,
+	handle func(context.Context, *SubjectEvent) error,
 ) *IncrementalEffectConsumer {
 	return &IncrementalEffectConsumer{
 		publisher: publisher,
@@ -48,7 +64,7 @@ func (c *IncrementalEffectConsumer) Consume(ctx context.Context) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	events, lastSeq, readErr := c.publisher.SubjectEventsAfter(ctx, c.subject, c.afterSeq)
+	events, lastSeq, readErr := c.publisher.SubjectEventsWithSubjectsAfter(ctx, c.subject, c.afterSeq)
 	if readErr == nil {
 		c.pending = append(c.pending, events...)
 		if lastSeq > c.afterSeq {
@@ -63,7 +79,7 @@ func (c *IncrementalEffectConsumer) Consume(ctx context.Context) error {
 	for _, event := range c.pending {
 		if err := c.handle(ctx, event); err != nil {
 			remaining = append(remaining, event)
-			handleErr = errors.Join(handleErr, fmt.Errorf("handle incremental effect %s for %s: %w", event.GetId(), c.subject, err))
+			handleErr = errors.Join(handleErr, fmt.Errorf("handle incremental effect %s for %s: %w", event.Event.GetId(), c.subject, err))
 		}
 	}
 	c.pending = remaining

@@ -45,10 +45,19 @@ func (s *AssetModel) consumeAssetCleanup(ctx context.Context) error {
 	return s.cleanupConsumer.Consume(ctx)
 }
 
-func (s *AssetModel) cleanupDeletedAsset(ctx context.Context, event *corev1.Event) error {
+func (s *AssetModel) cleanupDeletedAsset(ctx context.Context, subjectEvent *events.SubjectEvent) error {
+	event := subjectEvent.Event
 	deleted := event.GetAssetDeleted()
 	if deleted == nil || deleted.GetAssetId() == "" {
 		return nil
+	}
+	aggregateAssetID, ok := events.ParseAssetSubject(subjectEvent.Subject)
+	if !ok || aggregateAssetID != deleted.GetAssetId() {
+		return fmt.Errorf(
+			"asset deletion subject %q does not match payload id %q",
+			subjectEvent.Subject,
+			deleted.GetAssetId(),
+		)
 	}
 	createdEvents, _, err := s.EventPublisher.SubjectEvents(
 		ctx,
@@ -69,12 +78,42 @@ func (s *AssetModel) cleanupDeletedAsset(ctx context.Context, event *corev1.Even
 			deleted.GetAssetId(),
 		)
 	}
+	if err := s.validateCleanupStorage(deleted.GetAssetId(), created.GetAsset()); err != nil {
+		return err
+	}
 	attachment := attachmentFromAsset(created.GetAsset())
 	if attachment == nil {
 		return fmt.Errorf("asset creation %s has invalid storage metadata", deleted.GetAssetId())
 	}
 	if err := s.media().DeleteAttachmentFromStorage(ctx, attachment); err != nil {
 		return fmt.Errorf("delete asset %s from storage: %w", deleted.GetAssetId(), err)
+	}
+	return nil
+}
+
+func (s *AssetModel) validateCleanupStorage(assetID string, asset *corev1.AssetRecord) error {
+	switch {
+	case asset.GetNats() != nil:
+		if asset.GetNats().GetKey() != assetID {
+			return fmt.Errorf("asset %s has non-canonical NATS key %q", assetID, asset.GetNats().GetKey())
+		}
+	case asset.GetS3() != nil:
+		if s.s3Client == nil {
+			return fmt.Errorf("asset %s uses S3 but no S3 client is configured", assetID)
+		}
+		validKey := false
+		for _, candidate := range legacyAttachmentS3KeyCandidates(assetID) {
+			if asset.GetS3().GetKey() == candidate {
+				validKey = true
+				break
+			}
+		}
+		if !validKey {
+			return fmt.Errorf("asset %s has non-canonical S3 key %q", assetID, asset.GetS3().GetKey())
+		}
+		if asset.GetS3().GetBucket() != "" && asset.GetS3().GetBucket() != s.s3Client.Bucket() {
+			return fmt.Errorf("asset %s has unexpected S3 bucket %q", assetID, asset.GetS3().GetBucket())
+		}
 	}
 	return nil
 }

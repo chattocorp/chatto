@@ -44,7 +44,7 @@ type AssetModel struct {
 func NewAssetModel(core *ChattoCore) *AssetModel {
 	model := &AssetModel{ChattoCore: core, cleanupPollEvery: assetCleanupPollEvery}
 	if core != nil && core.EventPublisher != nil {
-		model.cleanupConsumer = events.NewIncrementalEffectConsumer(
+		model.cleanupConsumer = events.NewIncrementalEffectConsumerWithSubject(
 			core.EventPublisher,
 			events.AssetEventTypeFilter(events.EventAssetDeleted),
 			model.cleanupDeletedAsset,
