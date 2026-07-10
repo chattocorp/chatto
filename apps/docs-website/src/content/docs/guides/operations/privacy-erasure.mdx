@@ -1,0 +1,139 @@
+---
+title: Encryption at Rest and Data Erasure
+description: Understand exactly what Chatto encrypts, how its key hierarchy works, what the model does not protect, and how deletion and backups affect recoverability.
+---
+
+import { Aside, CardGrid, LinkCard } from "@astrojs/starlight/components";
+
+Chatto applies field-level encryption to message text and selected account fields before writing them to durable storage. This protects those fields when an attacker obtains event data without the corresponding key-encryption keys.
+
+It is not full-disk encryption, end-to-end encryption, or blanket encryption of every record and asset. A running Chatto server must be able to decrypt protected fields for authorized clients, and its built-in key-management implementation runs in the same server process.
+
+## Encryption Coverage
+
+| Data | Chatto application-layer protection |
+| ---- | ----------------------------------- |
+| Message text | Encrypted with XChaCha20-Poly1305 before it is written to the `EVT` stream. |
+| Login, display name, and verified email in durable user events | Encrypted with a separate user-PII key. |
+| Passwords | Never stored directly. Chatto stores bcrypt password hashes; those hashes are not encrypted by this model. |
+| Attachments, avatars, branding, and generated media | Not encrypted by Chatto. The bytes are stored in NATS Object Store or the configured S3-compatible backend. Use storage-level encryption and access controls. |
+| Filenames, content types, message authorship, room and thread IDs, timestamps, reactions, link-preview metadata, custom statuses, preferences, external-identity metadata, and other event metadata | Not encrypted by this model. Access control still applies through Chatto's APIs. |
+| Runtime records and configuration secrets | Not covered by the message/PII envelope. Protect the server host, NATS storage, `chatto.toml`, environment variables, and backup files. |
+
+<Aside type="caution">
+  “Encrypted at rest” in Chatto refers specifically to the protected fields above. Do not assume that copying an asset store, event stream, KV bucket, or server data directory reveals no readable metadata.
+</Aside>
+
+## Threat Model
+
+This model protects message text and the selected user-PII fields when someone obtains:
+
+- the `EVT` stream without the app-owned wrapped data-encryption-key records
+- a normal Chatto data backup without the `ENCRYPTION_KEYS` bucket or a matching key export
+- encrypted payloads whose ciphertext or authenticated context has been modified
+
+It does not protect those fields from:
+
+- an authorized client receiving plaintext through the API
+- code running inside the Chatto server process
+- an attacker who controls the live server or obtains both its protected data and the keys needed to unwrap it
+- an infrastructure operator with sufficient access to the running process, NATS, configuration, and key storage
+- compromise of attachment or avatar storage; those asset bytes are not encrypted by Chatto
+
+Chatto's administrative APIs do not provide a special “read every conversation” endpoint. That application boundary is separate from the encryption boundary: control of the server and its keys is more powerful than an in-app admin role.
+
+## Key Hierarchy
+
+Chatto creates two purpose-specific data-encryption keys (DEKs) for a new account:
+
+1. A **message-body DEK** encrypts message text authored by that user.
+2. A **user-PII DEK** encrypts the user's login, display name, and verified email in durable user events.
+
+Both start at epoch 1. The event stream records each DEK's purpose, epoch, opaque content-key reference, opaque wrapping-key reference, wrapping algorithm, and provider metadata. It does not contain the plaintext DEK.
+
+The built-in implementation splits encrypted data, wrapped DEKs, and KEKs across three locations:
+
+| Location | Contents | In a normal data backup? |
+| -------- | -------- | ------------------------ |
+| `EVT` | Encrypted payloads plus opaque DEK and KEK references | Yes |
+| `RUNTIME_STATE` at `dek.*` | App-owned DEK records, encrypted with a KEK | Yes |
+| `ENCRYPTION_KEYS` at `kek.*` | Built-in KMS key-encryption-key records | No, unless you pass `--include-keys` |
+
+To decrypt a protected field, Chatto resolves the DEK event, loads the wrapped DEK from `RUNTIME_STATE`, asks the KMS boundary to unwrap it with the referenced KEK, and then decrypts the field.
+
+The built-in KMS uses XChaCha20-Poly1305 to wrap each 256-bit DEK with a 256-bit KEK. Its `ENCRYPTION_KEYS` backend is local to Chatto, but the core code talks through an opaque key-wrapping interface so a future backend would not need to expose raw KEKs to the application. External KMS support is planned, but Chatto does not currently offer operator configuration for one.
+
+### Message text
+
+New message text uses a version-2 envelope with XChaCha20-Poly1305. Additional Authenticated Data (AAD) binds the ciphertext to:
+
+- the message event ID
+- the body event ID
+- the room ID
+- the author ID
+- the message-body DEK epoch
+- the message-body event type
+
+Changing the ciphertext or moving it to a different event context causes authentication to fail. Historical version-1 bodies remain readable through a compatibility path that uses a legacy per-user ChaCha20-Poly1305 key directly.
+
+The surrounding `MessageBodyEvent` is not wholly encrypted. Attachment references and link-preview metadata sit outside the encrypted text field.
+
+### Durable user PII
+
+Login, display name, and verified email values use XChaCha20-Poly1305 with the user's separate PII DEK. Their AAD binds the value to the user, event ID, event type, field name, and DEK epoch.
+
+The server decrypts these fields while rebuilding its in-memory user projection and lookup indexes. API responses contain the plaintext fields when the caller is authorized to receive them.
+
+## Account Deletion and Crypto-Shredding
+
+The account-deletion path attempts to:
+
+1. Purge every app-owned `dek.*` record referenced by the user's DEK events.
+2. Purge the corresponding `kek.*` records and any legacy `user.*` encryption-key record.
+3. Append a durable `UserKeyShreddedEvent` after key removal succeeds.
+4. Tombstone that user's message bodies in timeline and thread projections before any later decrypt attempt.
+5. Delete message-owned attachments and their derivatives, delete the avatar, revoke runtime credentials, remove settings and memberships, and mark the account deleted.
+
+Removing either a required wrapped DEK or its KEK makes the corresponding ciphertext unreadable through Chatto. The durable shred event also ensures that replayed projections treat the user's authored messages as unavailable.
+
+Crypto-shredding does not remove every historical fact. User IDs, message-posting facts, room and thread relationships, timestamps, and other non-encrypted event metadata can remain in `EVT`. Asset deletion removes backing bytes instead of relying on the per-user encryption keys because Chatto does not encrypt asset bytes with those keys.
+
+<Aside type="caution">
+  Key shredding and several storage cleanup operations are currently best-effort within the broader account-deletion command. The server logs a warning and can continue deleting the account if one of those steps fails. Operators should monitor deletion-time warnings and resolve storage or KMS failures; a successful account-deletion response alone is not proof that every backend cleanup succeeded.
+</Aside>
+
+## Backups and Recoverability
+
+A normal `chatto backup` includes `EVT`, `RUNTIME_STATE`, and NATS-backed assets, but excludes `ENCRYPTION_KEYS`. The backup therefore contains encrypted fields and their wrapped DEKs, but not the built-in KEKs required to unwrap them.
+
+Choose one of these recovery models:
+
+| Backup shape | Recoverability and exposure |
+| ------------ | --------------------------- |
+| `chatto backup --encrypt --include-keys` | One age-encrypted archive contains the data and built-in KEKs needed for a restore. Anyone with the archive passphrase can recover the protected fields. |
+| Encrypted data backup plus `chatto keys export` | Data and built-in KEKs are stored separately. A restore needs both the data backup and the matching age-encrypted key export. |
+| Data backup without keys | The archive cannot decrypt message text or durable user PII by itself. Losing every matching KEK makes those fields unrecoverable. |
+
+S3-backed assets are outside the NATS stream snapshots. Back them up and protect them according to your object-storage configuration.
+
+An old backup can reverse the practical effect of later crypto-shredding if it contains both the old wrapped DEKs and the KEKs that can unwrap them. This includes a backup made with `--include-keys` and a data backup paired with an old key export. Align retention for data archives, key exports, NATS snapshots, S3 versions, and storage-provider snapshots with your deletion policy.
+
+See [Backup & Restore](/guides/operations/backup-restore/) for commands and restore procedures.
+
+## Operational Checklist
+
+1. Encrypt backup archives that contain data or keys.
+2. Protect the server host, NATS data directory, `chatto.toml`, environment variables, and key exports.
+3. Enable encryption at rest in the NATS volume and S3-compatible storage if your threat model requires it.
+4. Keep data-backup and key-export retention aligned.
+5. Test both successful restores and the expected failure mode of a restore without keys.
+6. Monitor account-deletion warnings so failed key or asset cleanup is not overlooked.
+
+## Related Guides
+
+<CardGrid>
+  <LinkCard title="Security & Privacy" href="/guides/operations/security/" description="Authentication, authorization, TLS, API exposure, runtime credentials, and secret storage." />
+  <LinkCard title="Backup & Restore" href="/guides/operations/backup-restore/" description="Create, encrypt, restore, and test Chatto backups and key exports." />
+  <LinkCard title="Media & Attachments" href="/guides/infrastructure/media-attachments/" description="Configure and protect NATS- or S3-backed asset storage." />
+  <LinkCard title="Account API" href="/reference/connectrpc-api/account/" description="Public account-lifecycle API reference." />
+</CardGrid>

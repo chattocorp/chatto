@@ -29,7 +29,7 @@ import HomeScreenshot from "../../components/HomeScreenshot.astro";
 - **It's just a single binary**: start simple by throwing the executable on your favorite server -- no separate database required. or scale out with Docker Compose, Kubernetes, or your company's weird homegrown deployment system.
 - **Flexible permissions and roles**: server operators get fine-grained control over who can do what and where. Keep your server simple with just a few channels, or go full monty with hundreds of rooms sorted into room groups, each acting as a permission boundary.
 - **It's crazy fast**: both the backend and the frontend are compact, light on resource usage, and optimized for snappy performance. No, seriously. We really did go hard on performance. Maybe a little too hard.
-- **Focus on data protection and privacy**: PII and chat data never leaves your server, and is fully encrypted at rest, with support for crypto-shredding deleted accounts.
+- **Focus on data protection and privacy**: Chatto encrypts message text and selected durable account fields with per-user keys, supports crypto-shredding during account deletion, and documents the fields and assets outside that encryption boundary.
 
 ## Get Started
 
@@ -46,7 +46,7 @@ import HomeScreenshot from "../../components/HomeScreenshot.astro";
   />
   <LinkCard
     title="Building Your Community Structure"
-    href="/guides/planning/community-structure/"
+    href="/guides/operations/community-structure/"
     description="Plan room groups, universal rooms, permissions, roles, and server branding before inviting members."
   />
   <LinkCard
@@ -56,7 +56,7 @@ import HomeScreenshot from "../../components/HomeScreenshot.astro";
   />
   <LinkCard
     title="Notifications & Web Push"
-    href="/guides/planning/notifications-web-push/"
+    href="/guides/operations/notifications-web-push/"
     description="Configure persistent notifications, Web Push, VAPID keys, DND behavior, and device expectations."
   />
   <LinkCard

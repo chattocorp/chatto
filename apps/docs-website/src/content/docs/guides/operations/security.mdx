@@ -3,7 +3,7 @@ title: Security & Privacy
 description: An overview of Chatto's authentication, authorization, encryption, and privacy model.
 ---
 
-import { Aside, LinkCard } from "@astrojs/starlight/components";
+import { Aside, CardGrid, LinkCard } from "@astrojs/starlight/components";
 
 This page describes the security and privacy features built into Chatto today.
 
@@ -81,7 +81,7 @@ Chatto uses a role-based permission system with four built-in roles (everyone / 
 
 <LinkCard
   title="Permissions & Roles"
-  href="/guides/planning/permissions/"
+  href="/guides/operations/permissions/"
   description="Roles, explicit grants and denies, owner recovery, common patterns, and how Chatto resolves any given permission check."
 />
 
@@ -89,54 +89,23 @@ Chatto uses a role-based permission system with four built-in roles (everyone / 
 
 The first owner is designated via `owners.emails` in `chatto.toml`. The match runs against **verified** emails only, so claiming an address you can't receive mail at won't grant you ownership. When a matching email is verified, the user is auto-promoted to the owner role — no restart required.
 
-Owners are effective-owner overrides: they are allowed for every normal RBAC permission, and their permissions are virtual rather than stored as editable grants. Roles still have display order, but Chatto does not use role position as an authorization rank. See the [permissions guide](/guides/planning/permissions/) for the full resolution model.
+Owners are effective-owner overrides: they are allowed for every normal RBAC permission, and their permissions are virtual rather than stored as editable grants. Roles still have display order, but Chatto does not use role position as an authorization rank. See the [permissions guide](/guides/operations/permissions/) for the full resolution model.
 
 ### The privacy boundary
 
-Owners and admins can see operational metadata but **cannot** see user content:
+The dedicated administrative APIs expose account and operational data; they do not provide a special endpoint that returns every conversation. This application boundary is not a cryptographic boundary. Someone who controls the running server, its storage, and its encryption keys has more access than an in-app administrator.
 
-| Owners and admins **can** see        | Owners and admins **cannot** see |
-| ------------------------------------ | -------------------------------- |
-| User list (login, email, avatar)     | Message content                  |
-| Room names, member counts            | Direct messages                  |
-| NATS / JetStream metrics             | File attachments                 |
-| System configuration                 | User passwords                   |
+See [Encryption at Rest and Data Erasure](/guides/operations/privacy-erasure/) for the exact field-level encryption coverage and threat model.
 
-This boundary is intentional and enforced in the admin API — admin operations do not fetch message bodies. If your community needs message moderation, that has to be designed as a separate, auditable feature; "log in as admin and read DMs" is not supported.
+## Encryption and Data Erasure
 
-## Encryption
+Chatto encrypts message text and selected durable user-PII fields before writing them to storage. Attachments, avatars, event metadata, and many other records are outside that field-level envelope. Account deletion attempts to crypto-shred the protected fields' keys and separately remove user-owned asset bytes.
 
-### Message bodies at rest
-
-Message bodies are encrypted before being written to JetStream. New messages use a compact versioned envelope:
-
-- Chatto generates a per-user, purpose-scoped message-body DEK epoch, stores the wrapped key in app-owned `RUNTIME_STATE` storage, and records only the content-key ref and wrapping metadata in the user event stream as a `UserDEKGeneratedEvent`.
-- The body is encrypted with **XChaCha20-Poly1305** using the author's active message-body DEK epoch.
-- Each DEK is wrapped through Chatto's KMS boundary, stored by the application, and addressed by an opaque content-key ref.
-- The encrypted body is authenticated with its event context — event ID, room ID, author ID, message-body DEK epoch, and message-body event type — as Additional Authenticated Data (AAD).
-
-The built-in KMS runs in-process and stores KEKs as protobuf `UserKeyEncryptionKey` records in a dedicated `ENCRYPTION_KEYS` NATS KV bucket under opaque `kek.*` references, with read compatibility for older raw 32-byte `kek.*` records. App-owned protobuf `UserDataEncryptionKey` wrapped DEK records live in `RUNTIME_STATE` under opaque `dek.*` content-key references. Raw `user.*` records are legacy direct-key compatibility only. DEK events record their purpose, epoch, content-key ref, wrapping key ref, and wrapping metadata, which keeps Chatto's durable event shape close to external KMS systems such as Vault, AWS KMS, or HSM-backed providers without making immutable EVT history or the KMS API a permanent DEK registry. Authentication tags are verified on every read; tampered ciphertext or ciphertext copied into the wrong event context is rejected with `ErrDecryptionFailed`.
-
-This means an attacker who exfiltrates the JetStream data files alone cannot recover message text without also obtaining the KMS KEKs from `ENCRYPTION_KEYS` or an external KMS.
-
-Older message bodies encrypted directly with the user's per-user ChaCha20-Poly1305 key remain readable.
-
-Durable user events also encrypt login, display name, and verified email fields with a separate user-PII DEK epoch. Legacy KV user records are imported by emitting encrypted user events, and projections decrypt those fields while the key exists to derive the in-memory login/email indexes used by the API.
-
-<Aside type="note">
-  Authorized live events and API responses still contain profile fields in plaintext because clients need to render them. The durable event log is the protected boundary here.
-</Aside>
-
-### Crypto-shredding
-
-When a user is deleted, Chatto:
-
-1. Retracts visible message bodies the user authored across every room.
-2. **Shreds the user's app-owned DEK refs and KMS wrapping-key refs**, rendering remaining encrypted body bytes and durable PII bytes permanently unreadable.
-3. Removes profile fields, the avatar object, push-notification subscriptions, email index entries, and the server membership.
-4. Publishes member-deleted events so other clients refetch and show "Deleted User" in place of any orphaned references.
-
-Once the user's key is gone, any encrypted ciphertext that happens to survive elsewhere (for example, in long-lived event streams) can never be decrypted again.
+<LinkCard
+  title="Encryption at Rest and Data Erasure"
+  href="/guides/operations/privacy-erasure/"
+  description="Encryption coverage, threat model, key hierarchy, authenticated context, crypto-shredding, limitations, and backup implications."
+/>
 
 ### Transport (TLS)
 
@@ -152,33 +121,18 @@ TLS is **not required**. Chatto can also run plain HTTP, which is useful for loc
 
 ## Backup security
 
-Backups encrypt with [age](https://age-encryption.org) (passphrase-based scrypt) when you pass `--encrypt`. For small self-hosted servers, use a monolithic encrypted backup that includes encryption keys:
+Backups encrypt with [age](https://age-encryption.org) when you pass `--encrypt`. Passing `--include-keys` also includes Chatto's built-in key-encryption-key bucket and makes the archive capable of restoring protected message text and user PII:
 
 ```bash
 chatto backup -c chatto.toml --encrypt --include-keys
 ```
 
-This is the easiest backup to restore correctly when you do not run a separate KMS or key-management process.
+Without `--include-keys`, the `ENCRYPTION_KEYS` bucket is excluded. You can export those keys separately with `chatto keys export`. Treat either form as sensitive and align old data and key retention with your account-deletion policy.
 
-Without `--include-keys`, the `ENCRYPTION_KEYS` bucket is deliberately excluded from backups for security reasons:
-
-- `ENCRYPTION_KEYS` — keeps backup archives unable to decrypt their own message bodies or durable user PII if leaked.
-
-`RUNTIME_STATE` is included in backups so active runtime credentials and pending registration, email-verification, password-reset, account-deletion, and OAuth-code flows can survive a restore. Credential entries in that bucket use HMAC-derived keys, so backup archives do not contain redeemable raw cookie handles, bearer tokens, verification codes, links, or OAuth codes. Restoring with a different `core.secret_key` intentionally invalidates those credentials.
-
-Encryption key records can also be exported and imported separately with `chatto keys export` / `chatto keys import`, again age-encrypted. Use this advanced split-backup flow only when you intentionally want data archives and key material stored or retained separately. Restores need the data backup, including the wrapped DEK records in `RUNTIME_STATE`, plus the KEKs from the separate key export to rebuild encrypted profile indexes as well as message bodies. The same passphrase format means a standalone `age` CLI can inspect or re-encrypt any Chatto archive.
-
-Backups are outside the live account-deletion flow. Restoring an old backup that includes keys, or restoring an old data backup together with an old key export, can make data deleted after that backup readable again. Set retention on backup material, and use lifecycle rules for remote backup buckets, storage-provider snapshots, and versioned object storage.
-
-<LinkCard
-  title="Backup & Restore"
-  href="/guides/operations/backup-restore/"
-  description="Full guide to backups, key exports, and disaster recovery."
-/>
-
-## Account deletion
-
-Users can delete their own account from account settings or through the public API. Deletion is comprehensive (see [Crypto-shredding](#crypto-shredding) above) and does not leave plaintext message bodies behind. There is no soft-delete or grace period — deletion is immediate and irreversible.
+<CardGrid>
+  <LinkCard title="Backup & Restore" href="/guides/operations/backup-restore/" description="Commands, key exports, restore procedures, and storage coverage." />
+  <LinkCard title="Encryption at Rest and Data Erasure" href="/guides/operations/privacy-erasure/" description="How backups and retained keys affect encrypted data and crypto-shredding." />
+</CardGrid>
 
 ## API surface
 
