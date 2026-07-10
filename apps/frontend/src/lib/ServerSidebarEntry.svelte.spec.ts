@@ -143,6 +143,7 @@ vi.mock('$lib/api-client/viewer', () => ({
 
 vi.mock('$lib/api-client/roomDirectory', () => ({
   RoomDirectoryScope: {
+    ALL: 1,
     CHANNELS: 2,
     DMS: 3
   },
@@ -334,10 +335,10 @@ describe('ServerSidebarEntry', () => {
       NotificationLevel.Muted,
       NotificationLevel.Muted
     );
-    expect(mocks.store.roomUnread.setServerHasUnread).toHaveBeenCalledWith(true);
-    expect(mocks.store.roomUnread.updateRooms).toHaveBeenCalledWith([
-      { id: 'dm-1', hasUnread: true }
-    ]);
+    expect(mocks.store.roomUnread.initRooms).toHaveBeenCalledWith(
+      [{ id: 'dm-1', hasUnread: true }],
+      true
+    );
   });
 
   it('keeps sidebar init usable when notification fetch returns no count changes', async () => {

@@ -118,13 +118,17 @@ export class RoomUnreadStore {
    * Initialize unread state from room data.
    * Call this when loading rooms.
    */
-  initRooms(rooms: Array<{ id: string; hasUnread: boolean }>): void {
+  initRooms(
+    rooms: Array<{ id: string; hasUnread: boolean }>,
+    serverHasUnread = false
+  ): void {
     this.optimisticReads.clearAll();
     this.optimisticReadRooms.clear();
     this.roomRevisions.clear();
     this.unreadRooms.clear();
     this.serverHasUnknownUnread = false;
     this.updateRooms(rooms);
+    this.serverHasUnknownUnread = serverHasUnread && this.unreadRooms.size === 0;
   }
 
   /** Merge an authoritative partial room snapshot without dropping other rooms. */

@@ -82,7 +82,7 @@ describe('RoomUnreadStore', () => {
 
   it('preserves an unrelated unknown unread during a room read', () => {
     const store = new RoomUnreadStore();
-    store.setServerHasUnread(true);
+    store.initRooms([{ id: 'room-1', hasUnread: false }], true);
 
     const read = store.beginOptimisticRead('room-1');
     expect(store.roomIsUnread('room-1')).toBe(false);
@@ -92,6 +92,19 @@ describe('RoomUnreadStore', () => {
     expect(store.hasAnyUnread).toBe(true);
 
     store.resolveUnknownUnread();
+    expect(store.hasAnyUnread).toBe(false);
+  });
+
+  it('does not add an unknown sentinel when the aggregate is represented', () => {
+    const store = new RoomUnreadStore();
+    store.initRooms([{ id: 'dm', hasUnread: true }], true);
+
+    const read = store.beginOptimisticRead('dm');
+
+    expect(store.roomIsUnread('dm')).toBe(false);
+    expect(store.hasAnyUnread).toBe(false);
+
+    read.commit();
     expect(store.hasAnyUnread).toBe(false);
   });
 

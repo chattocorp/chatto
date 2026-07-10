@@ -91,10 +91,10 @@
       return;
     }
     try {
-      const [serverState, viewer, dmRooms] = await Promise.all([
+      const [serverState, viewer, rooms] = await Promise.all([
         getAuthenticatedServerState(connectAPIConfig()),
         getViewerStateViaConnect(connectAPIConfig()),
-        roomDirectoryAPI().listRooms(RoomDirectoryScope.DMS),
+        roomDirectoryAPI().listRooms(RoomDirectoryScope.ALL),
         notificationStore.fetch()
       ]);
 
@@ -106,8 +106,7 @@
 
       const pref = viewer.serverNotificationPreference;
       notificationLevelStore.setServerPreference(pref.level, pref.effectiveLevel);
-      roomUnreadStore.updateRooms(dmRooms);
-      roomUnreadStore.setServerHasUnread(serverState.viewerHasUnreadRooms);
+      roomUnreadStore.initRooms(rooms, serverState.viewerHasUnreadRooms);
 
       displayName = serverState.name;
       logoUrl = serverState.logoUrl;
