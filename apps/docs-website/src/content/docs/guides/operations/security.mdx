@@ -81,7 +81,7 @@ Chatto uses a role-based permission system with four built-in roles (everyone / 
 
 <LinkCard
   title="Permissions & Roles"
-  href="/guides/planning/permissions/"
+  href="/guides/operations/permissions/"
   description="Roles, explicit grants and denies, owner recovery, common patterns, and how Chatto resolves any given permission check."
 />
 
@@ -89,13 +89,13 @@ Chatto uses a role-based permission system with four built-in roles (everyone / 
 
 The first owner is designated via `owners.emails` in `chatto.toml`. The match runs against **verified** emails only, so claiming an address you can't receive mail at won't grant you ownership. When a matching email is verified, the user is auto-promoted to the owner role — no restart required.
 
-Owners are effective-owner overrides: they are allowed for every normal RBAC permission, and their permissions are virtual rather than stored as editable grants. Roles still have display order, but Chatto does not use role position as an authorization rank. See the [permissions guide](/guides/planning/permissions/) for the full resolution model.
+Owners are effective-owner overrides: they are allowed for every normal RBAC permission, and their permissions are virtual rather than stored as editable grants. Roles still have display order, but Chatto does not use role position as an authorization rank. See the [permissions guide](/guides/operations/permissions/) for the full resolution model.
 
 ### The privacy boundary
 
 The dedicated administrative APIs expose account and operational data; they do not provide a special endpoint that returns every conversation. This application boundary is not a cryptographic boundary. Someone who controls the running server, its storage, and its encryption keys has more access than an in-app administrator.
 
-See [Encryption at Rest and Data Erasure](/guides/planning/privacy-erasure/) for the exact field-level encryption coverage and threat model.
+See [Encryption at Rest and Data Erasure](/guides/operations/privacy-erasure/) for the exact field-level encryption coverage and threat model.
 
 ## Encryption and Data Erasure
 
@@ -103,7 +103,7 @@ Chatto encrypts message text and selected durable user-PII fields before writing
 
 <LinkCard
   title="Encryption at Rest and Data Erasure"
-  href="/guides/planning/privacy-erasure/"
+  href="/guides/operations/privacy-erasure/"
   description="Encryption coverage, threat model, key hierarchy, authenticated context, crypto-shredding, limitations, and backup implications."
 />
 
@@ -131,7 +131,7 @@ Without `--include-keys`, the `ENCRYPTION_KEYS` bucket is excluded. You can expo
 
 <CardGrid>
   <LinkCard title="Backup & Restore" href="/guides/operations/backup-restore/" description="Commands, key exports, restore procedures, and storage coverage." />
-  <LinkCard title="Encryption at Rest and Data Erasure" href="/guides/planning/privacy-erasure/" description="How backups and retained keys affect encrypted data and crypto-shredding." />
+  <LinkCard title="Encryption at Rest and Data Erasure" href="/guides/operations/privacy-erasure/" description="How backups and retained keys affect encrypted data and crypto-shredding." />
 </CardGrid>
 
 ## API surface
