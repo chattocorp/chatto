@@ -721,7 +721,8 @@ func (s *MyEventsModel) populateMemberRoomsCache(ctx context.Context, userID str
 		// Room deletion updates the catalog and membership indexes in sequence;
 		// preserve the prior ListMemberRooms behavior by ignoring a membership
 		// that briefly outlives its catalog entry.
-		if s.core.RoomCatalog.Exists(roomID) {
+		kind, exists := s.core.RoomCatalog.Kind(roomID)
+		if exists && (kind == corev1.RoomKind_ROOM_KIND_CHANNEL || kind == corev1.RoomKind_ROOM_KIND_DM) {
 			memberRooms[roomID] = struct{}{}
 		}
 	}

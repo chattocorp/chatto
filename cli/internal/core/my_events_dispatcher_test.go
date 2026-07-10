@@ -137,7 +137,13 @@ func TestMyEventsMemberRoomCacheSeedsExplicitAndUniversalMemberships(t *testing.
 
 func TestMyEventsMemberRoomCacheSkipsDeletedCatalogEntry(t *testing.T) {
 	directory := NewRoomDirectoryProjection()
-	directory.Membership.byUser["viewer"] = map[string]struct{}{"deleted-room": {}}
+	directory.Membership.byUser["viewer"] = map[string]struct{}{
+		"deleted-room":   {},
+		"malformed-room": {},
+		"valid-channel":  {},
+	}
+	directory.Catalog.rooms["malformed-room"] = &roomCatalogEntry{}
+	directory.Catalog.rooms["valid-channel"] = &roomCatalogEntry{kind: corev1.RoomKind_ROOM_KIND_CHANNEL}
 	core := &ChattoCore{
 		RoomDirectory:  directory,
 		RoomMembership: directory.Membership,
@@ -149,8 +155,11 @@ func TestMyEventsMemberRoomCacheSkipsDeletedCatalogEntry(t *testing.T) {
 	if err := model.populateMemberRoomsCache(context.Background(), "viewer", memberRooms); err != nil {
 		t.Fatalf("populateMemberRoomsCache: %v", err)
 	}
-	if len(memberRooms) != 0 {
-		t.Fatalf("member room cache = %v, want deleted room omitted", memberRooms)
+	if len(memberRooms) != 1 {
+		t.Fatalf("member room cache = %v, want only valid channel", memberRooms)
+	}
+	if _, ok := memberRooms["valid-channel"]; !ok {
+		t.Fatalf("member room cache = %v, want valid channel included", memberRooms)
 	}
 }
 

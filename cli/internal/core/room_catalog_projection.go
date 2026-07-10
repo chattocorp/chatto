@@ -124,6 +124,17 @@ func (p *RoomCatalogProjection) Exists(roomID string) bool {
 	return ok
 }
 
+// Kind returns the projected room kind without materializing a Room protobuf.
+func (p *RoomCatalogProjection) Kind(roomID string) (corev1.RoomKind, bool) {
+	p.RLock()
+	defer p.RUnlock()
+	entry, ok := p.rooms[roomID]
+	if !ok {
+		return corev1.RoomKind_ROOM_KIND_UNSPECIFIED, false
+	}
+	return entry.kind, true
+}
+
 // UniversalChannelRoomIDs returns the IDs of all current channel rooms with
 // universal membership. The returned slice is a copy; callers may mutate it.
 // This narrow read avoids materializing full Room protobufs for authorization
