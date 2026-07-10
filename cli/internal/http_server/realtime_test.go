@@ -3,9 +3,7 @@ package http_server
 import (
 	"context"
 	"net/http"
-	"os"
 	"runtime"
-	"runtime/pprof"
 	"slices"
 	"strings"
 	"testing"
@@ -627,28 +625,6 @@ func TestRealtimeWebSocketNegotiatedCompressionSupportsLargeFrames(t *testing.T)
 	}
 }
 
-func TestShouldCompressRealtimeFrame(t *testing.T) {
-	tests := []struct {
-		name               string
-		compressionEnabled bool
-		payloadBytes       int
-		want               bool
-	}{
-		{name: "disabled large frame", compressionEnabled: false, payloadBytes: realtimeCompressionMinBytes * 2, want: false},
-		{name: "empty frame", compressionEnabled: true, payloadBytes: 0, want: false},
-		{name: "below threshold", compressionEnabled: true, payloadBytes: realtimeCompressionMinBytes - 1, want: false},
-		{name: "at threshold", compressionEnabled: true, payloadBytes: realtimeCompressionMinBytes, want: true},
-		{name: "above threshold", compressionEnabled: true, payloadBytes: realtimeCompressionMinBytes + 1, want: true},
-	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			if got := shouldCompressRealtimeFrame(test.compressionEnabled, test.payloadBytes); got != test.want {
-				t.Fatalf("shouldCompressRealtimeFrame(%v, %d) = %v, want %v", test.compressionEnabled, test.payloadBytes, got, test.want)
-			}
-		})
-	}
-}
-
 func BenchmarkRealtimeWebSocketIdleConnections(b *testing.B) {
 	// This is a bounded regression benchmark for connection-scaled Go
 	// allocations in the in-process test harness, not a production RSS model.
@@ -670,7 +646,6 @@ func BenchmarkRealtimeWebSocketIdleConnections(b *testing.B) {
 	runtime.GC()
 	var before runtime.MemStats
 	runtime.ReadMemStats(&before)
-	beforeGoroutines := runtime.NumGoroutine()
 
 	connections := make([]*websocket.Conn, 0, b.N)
 	b.ReportAllocs()
@@ -699,34 +674,10 @@ func BenchmarkRealtimeWebSocketIdleConnections(b *testing.B) {
 			b.ReportMetric(float64(after.StackInuse-before.StackInuse)/float64(b.N), "stack-B/conn")
 		}
 	}
-	if profilePath := os.Getenv("CHATTO_BENCH_HEAP_PROFILE"); profilePath != "" {
-		profile, err := os.Create(profilePath)
-		if err != nil {
-			b.Fatalf("create heap profile: %v", err)
-		}
-		if err := pprof.WriteHeapProfile(profile); err != nil {
-			profile.Close()
-			b.Fatalf("write heap profile: %v", err)
-		}
-		if err := profile.Close(); err != nil {
-			b.Fatalf("close heap profile: %v", err)
-		}
-	}
 
 	for _, conn := range connections {
 		if err := conn.Close(); err != nil {
 			b.Errorf("close realtime connection: %v", err)
 		}
-	}
-	deadline := time.Now().Add(5 * time.Second)
-	for env.core.MyEventsMetrics().ActiveStreams != 0 && time.Now().Before(deadline) {
-		runtime.Gosched()
-		time.Sleep(10 * time.Millisecond)
-	}
-	if got := env.core.MyEventsMetrics().ActiveStreams; got != 0 {
-		b.Fatalf("active streams after disconnect = %d, want 0", got)
-	}
-	if delta := runtime.NumGoroutine() - beforeGoroutines; delta > 0 {
-		b.ReportMetric(float64(delta), "post-close-goroutines")
 	}
 }

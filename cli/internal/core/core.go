@@ -233,9 +233,9 @@ type ChattoCore struct {
 }
 
 // Run starts every background component owned by the core — currently
-// PresenceModel, MyEventsModel, CallModel, and every registered projector — and
-// blocks until ctx is cancelled or any component returns an error. Returns the
-// first error observed (or ctx.Err on shutdown).
+// PresenceModel, CallModel, and every registered projector — and blocks until
+// ctx is cancelled or any component returns an error. Returns the first error
+// observed (or ctx.Err on shutdown).
 //
 // Call this once per process from an errgroup goroutine; tests typically
 // launch it in a bare goroutine with a per-test context that cleanup
@@ -302,7 +302,6 @@ func (c *ChattoCore) Run(ctx context.Context) error {
 	})
 
 	g.Go(func() error { return c.presenceModel.Run(gctx) })
-	g.Go(func() error { return c.myEventsModel.Run(gctx) })
 	g.Go(func() error { return c.callModel.Run(gctx) })
 	g.Go(func() error { return c.assetModel.Run(gctx) })
 	g.Go(func() error { return c.AssetUploads().RunCleanup(gctx) })

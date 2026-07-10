@@ -119,7 +119,7 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 		// negotiated compression for larger payloads where it can repay the
 		// compressor state.
 		conn.EnableWriteCompression(
-			shouldCompressRealtimeFrame(s.config.Webserver.WebSocketCompressionEnabled(), len(data)),
+			s.config.Webserver.WebSocketCompressionEnabled() && len(data) >= realtimeCompressionMinBytes,
 		)
 		if err := conn.SetWriteDeadline(time.Now().Add(realtimeWriteTimeout)); err != nil {
 			return err
@@ -220,10 +220,6 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 			}
 		}
 	}
-}
-
-func shouldCompressRealtimeFrame(compressionEnabled bool, payloadBytes int) bool {
-	return compressionEnabled && payloadBytes >= realtimeCompressionMinBytes
 }
 
 func readRealtimeClientFrame(conn *websocket.Conn, timeout time.Duration) (*realtimev1.RealtimeClientFrame, error) {
