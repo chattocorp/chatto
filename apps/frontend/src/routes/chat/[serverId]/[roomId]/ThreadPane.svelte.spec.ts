@@ -215,6 +215,9 @@ describe('ThreadPane', () => {
     await vi.waitFor(() => {
       expect(q(container, 'button[aria-label="Unfollow thread"]')).toBeTruthy();
     });
+    expect(
+      (q(container, 'button[aria-label="Unfollow thread"]') as HTMLButtonElement).disabled
+    ).toBe(true);
     expect(mocks.followThread).toHaveBeenCalledWith({
       roomId: 'room-1',
       threadRootEventId: 'thread-root'
@@ -226,7 +229,46 @@ describe('ThreadPane', () => {
     });
 
     await vi.waitFor(() => {
+      expect(
+        (q(container, 'button[aria-label="Unfollow thread"]') as HTMLButtonElement).disabled
+      ).toBe(false);
+    });
+  });
+
+  it('ignores another follow toggle while the first request is pending', async () => {
+    let rejectFollow!: (error: Error) => void;
+    mocks.followThread.mockReturnValue(
+      new Promise((_, reject) => {
+        rejectFollow = reject;
+      })
+    );
+
+    const { container } = render(ThreadPane, {
+      props: {
+        roomId: 'room-1',
+        roomName: 'General',
+        threadRootEventId: 'thread-root',
+        onClose: mocks.onClose
+      }
+    });
+
+    (q(container, 'button[aria-label="Follow thread"]') as HTMLButtonElement).click();
+    await vi.waitFor(() => {
       expect(q(container, 'button[aria-label="Unfollow thread"]')).toBeTruthy();
+    });
+    const pendingButton = q(container, 'button[aria-label="Unfollow thread"]') as HTMLButtonElement;
+    pendingButton.click();
+
+    expect(pendingButton.disabled).toBe(true);
+    expect(mocks.followThread).toHaveBeenCalledOnce();
+    expect(mocks.unfollowThread).not.toHaveBeenCalled();
+
+    rejectFollow(new Error('request failed'));
+
+    await vi.waitFor(() => {
+      expect(
+        (q(container, 'button[aria-label="Follow thread"]') as HTMLButtonElement).disabled
+      ).toBe(false);
     });
   });
 });

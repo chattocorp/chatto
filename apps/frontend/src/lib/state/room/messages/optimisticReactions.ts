@@ -32,16 +32,19 @@ type BeginOptimisticReactionInput = {
   messageEventId: string;
   emoji: string;
   action: OptimisticReactionAction;
-  events: readonly RoomEventView[];
+  getEvents(): readonly RoomEventView[];
   previews: Iterable<readonly [string, RoomEventView | null]>;
   registry: OptimisticMutationRegistry;
-  setEvent(index: number, event: RoomEventView): void;
+  setEvent(eventId: string, event: RoomEventView): void;
   setPreview(key: string, event: RoomEventView): void;
 };
 
-export function beginOptimisticReaction(input: BeginOptimisticReactionInput): OptimisticReactionHandle {
+export function beginOptimisticReaction(
+  input: BeginOptimisticReactionInput
+): OptimisticReactionHandle {
   const token = input.registry.createToken();
-  const targetIds = optimisticReactionTargetIds(input.messageEventId, input.events, input.previews);
+  const events = input.getEvents();
+  const targetIds = optimisticReactionTargetIds(input.messageEventId, events, input.previews);
   const snapshots: OptimisticReactionSnapshot[] = [];
 
   const record = (snapshot: OptimisticReactionSnapshot) => {
@@ -49,7 +52,7 @@ export function beginOptimisticReaction(input: BeginOptimisticReactionInput): Op
     input.registry.mark(snapshot.key, token);
   };
 
-  input.events.forEach((event, index) => {
+  events.forEach((event) => {
     if (!isReactionTarget(event, targetIds)) return;
     const updated = eventWithOptimisticReaction(event, input.emoji, input.action);
     if (!updated) return;
@@ -61,7 +64,7 @@ export function beginOptimisticReaction(input: BeginOptimisticReactionInput): Op
       source: 'events',
       eventId: event.id
     });
-    input.setEvent(index, updated);
+    input.setEvent(event.id, updated);
   });
 
   for (const [previewKey, event] of input.previews) {
@@ -168,7 +171,7 @@ function isReactionTarget(event: RoomEventView, targetIds: Set<string>): boolean
     isMessagePostedPayload(payload) &&
     Boolean(
       (payload.echoOfEventId && targetIds.has(payload.echoOfEventId)) ||
-        (payload.channelEchoEventId && targetIds.has(payload.channelEchoEventId))
+      (payload.channelEchoEventId && targetIds.has(payload.channelEchoEventId))
     )
   );
 }
@@ -309,10 +312,10 @@ function applyServerReactionSnapshot(
   };
 
   if (snapshot.source === 'events') {
-    const index = input.events.findIndex((event) => event.id === snapshot.eventId);
-    if (index === -1) return;
-    const updated = apply(input.events[index]);
-    if (updated) input.setEvent(index, updated);
+    const event = input.getEvents().find((event) => event.id === snapshot.eventId);
+    if (!event) return;
+    const updated = apply(event);
+    if (updated) input.setEvent(event.id, updated);
     return;
   }
 
@@ -328,14 +331,10 @@ function restoreOptimisticReactionSnapshot(
   input: BeginOptimisticReactionInput
 ): void {
   if (snapshot.source === 'events') {
-    const index = input.events.findIndex((event) => event.id === snapshot.eventId);
-    if (index === -1) return;
-    const updated = eventWithReactionSummary(
-      input.events[index],
-      snapshot.emoji,
-      snapshot.previousReaction
-    );
-    if (updated) input.setEvent(index, updated);
+    const event = input.getEvents().find((event) => event.id === snapshot.eventId);
+    if (!event) return;
+    const updated = eventWithReactionSummary(event, snapshot.emoji, snapshot.previousReaction);
+    if (updated) input.setEvent(event.id, updated);
     return;
   }
 

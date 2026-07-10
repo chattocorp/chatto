@@ -8,16 +8,15 @@ type MessagePostedPayload = Extract<
 >;
 
 export type OptimisticThreadFollowHandle = {
-  applyServerState(isFollowing: boolean): void;
   rollback(): void;
 };
 
 type BeginOptimisticThreadFollowInput = {
   threadRootEventId: string;
   isFollowing: boolean;
-  events: readonly RoomEventView[];
+  getEvents(): readonly RoomEventView[];
   registry: OptimisticMutationRegistry;
-  setEvent(index: number, event: RoomEventView): void;
+  setEvent(eventId: string, event: RoomEventView): void;
 };
 
 export function beginOptimisticThreadFollow(
@@ -25,8 +24,7 @@ export function beginOptimisticThreadFollow(
 ): OptimisticThreadFollowHandle {
   const token = input.registry.createToken();
   const key = optimisticThreadFollowKey(input.threadRootEventId);
-  const index = input.events.findIndex((event) => event.id === input.threadRootEventId);
-  const event = index === -1 ? null : input.events[index];
+  const event = input.getEvents().find((event) => event.id === input.threadRootEventId) ?? null;
   const previousState = isMessagePostedPayload(event?.event)
     ? (event.event.viewerIsFollowingThread ?? null)
     : null;
@@ -35,26 +33,17 @@ export function beginOptimisticThreadFollow(
     const updated = eventWithThreadFollowState(event, input.isFollowing);
     if (updated) {
       input.registry.mark(key, token);
-      input.setEvent(index, updated);
+      input.setEvent(event.id, updated);
     }
   }
 
   return {
-    applyServerState: (isFollowing) => {
-      if (!input.registry.isCurrent(key, token)) return;
-      const currentIndex = input.events.findIndex((event) => event.id === input.threadRootEventId);
-      if (currentIndex !== -1) {
-        const updated = eventWithThreadFollowState(input.events[currentIndex], isFollowing);
-        if (updated) input.setEvent(currentIndex, updated);
-      }
-      input.registry.clear(key);
-    },
     rollback: () => {
       if (!input.registry.isCurrent(key, token)) return;
-      const currentIndex = input.events.findIndex((event) => event.id === input.threadRootEventId);
-      if (currentIndex !== -1) {
-        const updated = eventWithThreadFollowState(input.events[currentIndex], previousState);
-        if (updated) input.setEvent(currentIndex, updated);
+      const event = input.getEvents().find((event) => event.id === input.threadRootEventId);
+      if (event) {
+        const updated = eventWithThreadFollowState(event, previousState);
+        if (updated) input.setEvent(event.id, updated);
       }
       input.registry.clear(key);
     }

@@ -54,6 +54,7 @@ Contains the thread reply button, reaction pills, and an add-reaction button.
     canReact = false,
     messageStore = null,
     isFollowingThread = false,
+    isThreadFollowPending = false,
     onToggleThreadFollow,
     onOpenThread,
     onOpenEmojiPicker,
@@ -70,6 +71,7 @@ Contains the thread reply button, reaction pills, and an add-reaction button.
     canReact?: boolean;
     messageStore?: MessagesStore | null;
     isFollowingThread?: boolean;
+    isThreadFollowPending?: boolean;
     onToggleThreadFollow?: (e: MouseEvent) => void;
     onOpenThread?: () => void;
     onOpenEmojiPicker?: (e: MouseEvent) => void;
@@ -214,6 +216,7 @@ Contains the thread reply button, reaction pills, and an add-reaction button.
           isFollowingThread ? 'text-text' : ''
         ]}
         onclick={onToggleThreadFollow}
+        disabled={isThreadFollowPending}
         title={isFollowingThread
           ? m['room.message.meta.unfollow_thread']()
           : m['room.message.meta.follow_thread']()}

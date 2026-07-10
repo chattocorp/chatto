@@ -68,11 +68,12 @@ function begin(input: {
     messageEventId: input.messageEventId,
     emoji: input.emoji,
     action: input.action,
-    events,
+    getEvents: () => events,
     previews,
     registry: new OptimisticMutationRegistry(),
-    setEvent: (index, event) => {
-      events[index] = event;
+    setEvent: (eventId, event) => {
+      const index = events.findIndex((candidate) => candidate.id === eventId);
+      if (index !== -1) events[index] = event;
     },
     setPreview: (key, event) => {
       previews.set(key, event);
@@ -119,11 +120,12 @@ describe('optimistic reactions', () => {
     const events = [messageEvent('m1')];
     const registry = new OptimisticMutationRegistry();
     const input = {
-      events,
+      getEvents: () => events,
       previews: new Map<string, RoomEventView | null>(),
       registry,
-      setEvent: (index: number, event: RoomEventView) => {
-        events[index] = event;
+      setEvent: (eventId: string, event: RoomEventView) => {
+        const index = events.findIndex((candidate) => candidate.id === eventId);
+        if (index !== -1) events[index] = event;
       },
       setPreview: () => {}
     };
@@ -161,6 +163,30 @@ describe('optimistic reactions', () => {
     optimistic.rollback();
 
     expect(reactionsOf(events[0])).toMatchObject([{ emoji: 'heart', count: 5, hasReacted: true }]);
+  });
+
+  it('resolves the target by ID after the events array is replaced', () => {
+    let events = [messageEvent('m1', [reaction('heart', 1, false)]), messageEvent('m2')];
+    const optimistic = beginOptimisticReaction({
+      messageEventId: 'm1',
+      emoji: 'heart',
+      action: 'add',
+      getEvents: () => events,
+      previews: new Map(),
+      registry: new OptimisticMutationRegistry(),
+      setEvent: (eventId, event) => {
+        const index = events.findIndex((candidate) => candidate.id === eventId);
+        if (index !== -1) events[index] = event;
+      },
+      setPreview: () => {}
+    });
+
+    events = [messageEvent('new'), ...events];
+    optimistic.applyServerReaction({ emoji: 'heart', count: 5, hasReacted: true });
+
+    expect(events.map((event) => event.id)).toEqual(['new', 'm1', 'm2']);
+    expect(reactionsOf(events[1])).toMatchObject([{ emoji: 'heart', count: 5, hasReacted: true }]);
+    expect(reactionsOf(events[0])).toEqual([]);
   });
 
   it('rolls back only the touched reaction summary', () => {

@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest';
 import type { RoomEventView } from '$lib/render/types';
 import { RoomEventKind } from '$lib/render/eventKinds';
 import { OptimisticMutationRegistry } from '$lib/state/optimisticMutations';
-import { beginOptimisticThreadFollow, clearOptimisticThreadFollowForEvent } from './optimisticThreadFollow';
+import {
+  beginOptimisticThreadFollow,
+  clearOptimisticThreadFollowForEvent
+} from './optimisticThreadFollow';
 
 function messageEvent(id: string, isFollowing: boolean | null): RoomEventView {
   return {
@@ -46,10 +49,11 @@ function begin(input: {
   return beginOptimisticThreadFollow({
     threadRootEventId: input.threadRootEventId ?? 'root',
     isFollowing: input.isFollowing,
-    events: input.events,
+    getEvents: () => input.events,
     registry,
-    setEvent: (index, event) => {
-      input.events[index] = event;
+    setEvent: (eventId, event) => {
+      const index = input.events.findIndex((candidate) => candidate.id === eventId);
+      if (index !== -1) input.events[index] = event;
     }
   });
 }
@@ -78,14 +82,19 @@ describe('optimistic thread follow', () => {
     expect(events[0].event).toMatchObject({ replyCount: 3 });
   });
 
-  it('reconciles from the server response', () => {
-    const events = [messageEvent('root', false)];
+  it('resolves the root by ID after the events array is replaced', () => {
+    const input = {
+      events: [messageEvent('root', false), messageEvent('other', null)],
+      isFollowing: true
+    };
+    const optimistic = begin(input);
 
-    const optimistic = begin({ events, isFollowing: true });
-    optimistic.applyServerState(false);
+    input.events = [messageEvent('new', null), ...input.events];
     optimistic.rollback();
 
-    expect(followState(events[0])).toBe(false);
+    expect(input.events.map((event) => event.id)).toEqual(['new', 'root', 'other']);
+    expect(followState(input.events[1])).toBe(false);
+    expect(followState(input.events[0])).toBeNull();
   });
 
   it('keeps independent rapid toggles from rolling each other back', () => {

@@ -188,6 +188,25 @@ describe('MessageMetaBar', () => {
     expect(followButton?.closest('a')).toBeNull();
   });
 
+  it('disables the follow toggle while a request is pending', () => {
+    const onToggleThreadFollow = vi.fn();
+    const { container } = render(MessageMetaBar, {
+      props: {
+        ...baseProps,
+        replyCount: 1,
+        isFollowingThread: true,
+        isThreadFollowPending: true,
+        onToggleThreadFollow
+      }
+    });
+
+    const followButton = q(container, 'button[title="Unfollow thread"]') as HTMLButtonElement;
+    followButton.click();
+
+    expect(followButton.disabled).toBe(true);
+    expect(onToggleThreadFollow).not.toHaveBeenCalled();
+  });
+
   it('shows reaction tooltips with the readable reaction name and reacting users', () => {
     const { container } = render(MessageMetaBar, {
       props: {

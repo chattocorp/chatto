@@ -268,11 +268,12 @@ export class MessagesStore {
   }): OptimisticReactionHandle {
     return beginOptimisticReactionPatch({
       ...input,
-      events: this.events,
+      getEvents: () => this.events,
       previews: this.previewEvents,
       registry: this.optimisticReactions,
-      setEvent: (index, event) => {
-        this.events[index] = event;
+      setEvent: (eventId, event) => {
+        const index = this.events.findIndex((candidate) => candidate.id === eventId);
+        if (index !== -1) this.events[index] = event;
       },
       setPreview: (key, event) => {
         this.previewEvents.set(key, event);
@@ -292,10 +293,11 @@ export class MessagesStore {
     return beginOptimisticThreadFollowPatch({
       threadRootEventId,
       isFollowing,
-      events: this.events,
+      getEvents: () => this.events,
       registry: this.optimisticThreadFollows,
-      setEvent: (index, event) => {
-        this.events[index] = event;
+      setEvent: (eventId, event) => {
+        const index = this.events.findIndex((candidate) => candidate.id === eventId);
+        if (index !== -1) this.events[index] = event;
       }
     });
   }
@@ -361,11 +363,7 @@ export class MessagesStore {
   }
 
   private clearOptimisticVersionForEvent(eventId: string): void {
-    clearOptimisticReactionsForEvent(
-      this.optimisticReactions,
-      eventId,
-      this.previewKey(eventId)
-    );
+    clearOptimisticReactionsForEvent(this.optimisticReactions, eventId, this.previewKey(eventId));
     clearOptimisticThreadFollowForEvent(this.optimisticThreadFollows, eventId);
   }
 
