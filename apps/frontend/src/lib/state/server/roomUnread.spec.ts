@@ -90,4 +90,17 @@ describe('RoomUnreadStore', () => {
     read.rollback();
     expect(store.hasAnyUnread).toBe(true);
   });
+
+  it('keeps a room read optimistic when a coarse unread signal arrives', () => {
+    const store = new RoomUnreadStore();
+    store.setRoomUnread('room-1', true);
+
+    const read = store.beginOptimisticRead('room-1');
+    store.setServerHasUnread(true);
+
+    expect(store.roomIsUnread('room-1')).toBe(false);
+
+    read.rollback();
+    expect(store.roomIsUnread('room-1')).toBe(true);
+  });
 });

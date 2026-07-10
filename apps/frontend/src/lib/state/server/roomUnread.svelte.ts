@@ -159,12 +159,12 @@ export class RoomUnreadStore {
    * signal is known (initial load, before rooms are queried).
    */
   setServerHasUnread(hasUnread: boolean): void {
-    this.optimisticReads.clearAll();
-    this.optimisticReadRooms.clear();
     this.unknownUnreadRevision++;
     if (hasUnread) {
       this.serverHasUnknownUnread = true;
     } else {
+      this.optimisticReads.clearAll();
+      this.optimisticReadRooms.clear();
       this.serverHasUnknownUnread = false;
       this.unreadRooms.clear();
     }
