@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"errors"
 	"strconv"
 	"strings"
 	"testing"
@@ -179,6 +180,33 @@ func TestMyEventsDispatcherSharesPreparedEvent(t *testing.T) {
 	}
 	if got := receivePreparedLiveEvent(t, sub2); got != prepared {
 		t.Fatal("subscriber 2 did not receive the shared prepared event pointer")
+	}
+}
+
+func TestMyEventsDispatcherDrainsPresenceIndependently(t *testing.T) {
+	model := readyTestMyEventsDispatcher()
+	dispatchSub := subscribeTestLiveDispatch(t, model)
+	presenceUpdates := make(chan PresenceUpdate, 1)
+	presenceSub := &PresenceSubscription{C: presenceUpdates, ch: presenceUpdates}
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() { done <- model.runPresenceFanout(ctx, presenceSub) }()
+
+	presenceUpdates <- PresenceUpdate{UserID: "presence-user", Status: PresenceStatusAway}
+	prepared := receivePreparedLiveEvent(t, dispatchSub)
+	changed := prepared.envelope.LiveEvent().GetPresenceChanged()
+	if prepared.kind != preparedPresence || changed.GetStatus() != PresenceStatusAway {
+		t.Fatalf("prepared presence event = kind %d, status %q", prepared.kind, changed.GetStatus())
+	}
+
+	cancel()
+	select {
+	case err := <-done:
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("presence fanout error = %v, want context cancellation", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("presence fanout did not stop")
 	}
 }
 

@@ -627,6 +627,28 @@ func TestRealtimeWebSocketNegotiatedCompressionSupportsLargeFrames(t *testing.T)
 	}
 }
 
+func TestShouldCompressRealtimeFrame(t *testing.T) {
+	tests := []struct {
+		name               string
+		compressionEnabled bool
+		payloadBytes       int
+		want               bool
+	}{
+		{name: "disabled large frame", compressionEnabled: false, payloadBytes: realtimeCompressionMinBytes * 2, want: false},
+		{name: "empty frame", compressionEnabled: true, payloadBytes: 0, want: false},
+		{name: "below threshold", compressionEnabled: true, payloadBytes: realtimeCompressionMinBytes - 1, want: false},
+		{name: "at threshold", compressionEnabled: true, payloadBytes: realtimeCompressionMinBytes, want: true},
+		{name: "above threshold", compressionEnabled: true, payloadBytes: realtimeCompressionMinBytes + 1, want: true},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if got := shouldCompressRealtimeFrame(test.compressionEnabled, test.payloadBytes); got != test.want {
+				t.Fatalf("shouldCompressRealtimeFrame(%v, %d) = %v, want %v", test.compressionEnabled, test.payloadBytes, got, test.want)
+			}
+		})
+	}
+}
+
 func BenchmarkRealtimeWebSocketIdleConnections(b *testing.B) {
 	// This is a bounded regression benchmark for connection-scaled Go
 	// allocations in the in-process test harness, not a production RSS model.

@@ -33,7 +33,7 @@ const (
 	// liveDispatchQueueSize bounds prepared events waiting behind one stream.
 	// A full queue disconnects only that stream so reconnect catch-up can restore
 	// projected state without slowing the process-wide live intake.
-	liveDispatchQueueSize = 64
+	liveDispatchQueueSize = 256
 )
 
 type preparedLiveEventKind uint8
@@ -149,7 +149,10 @@ func (s *MyEventsModel) Metrics() MyEventsMetrics {
 // transitions are decoded or adapted once, projection-gated once, and then
 // fanned out as immutable prepared events to every active user stream.
 func (s *MyEventsModel) Run(ctx context.Context) error {
-	presenceSub, err := s.core.presenceModel.Subscribe(ctx)
+	runCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	presenceSub, err := s.core.presenceModel.Subscribe(runCtx)
 	if err != nil {
 		return s.failDispatchStartup(fmt.Errorf("subscribe to presence hub: %w", err))
 	}
@@ -178,15 +181,20 @@ func (s *MyEventsModel) Run(ctx context.Context) error {
 	defer s.core.nc.RemoveStatusListener(connectionStatusCh)
 	s.finishDispatchStartup(nil)
 	defer s.stopDispatcher()
+	presenceErr := make(chan error, 1)
+	go func() { presenceErr <- s.runPresenceFanout(runCtx, presenceSub) }()
 
 	for {
 		select {
-		case <-ctx.Done():
-			return ctx.Err()
+		case <-runCtx.Done():
+			return runCtx.Err()
+
+		case err := <-presenceErr:
+			return err
 
 		case status, ok := <-connectionStatusCh:
 			if !ok {
-				if err := ctx.Err(); err != nil {
+				if err := runCtx.Err(); err != nil {
 					return err
 				}
 				disconnected, discarded := s.markDispatchSourceUnavailable(msgChan)
@@ -211,7 +219,7 @@ func (s *MyEventsModel) Run(ctx context.Context) error {
 
 		case _, ok := <-slowEVTConsumerCh:
 			if !ok {
-				if err := ctx.Err(); err != nil {
+				if err := runCtx.Err(); err != nil {
 					return err
 				}
 				disconnected := s.resetDispatchSubscribers(liveDispatchSourceGap, true)
@@ -226,7 +234,7 @@ func (s *MyEventsModel) Run(ctx context.Context) error {
 
 		case _, ok := <-slowSyncConsumerCh:
 			if !ok {
-				if err := ctx.Err(); err != nil {
+				if err := runCtx.Err(); err != nil {
 					return err
 				}
 				disconnected := s.resetDispatchSubscribers(liveDispatchSourceGap, true)
@@ -239,6 +247,26 @@ func (s *MyEventsModel) Run(ctx context.Context) error {
 			s.core.logger.Warn("Slow consumer on shared live sync subscription - resetting streams",
 				"dropped", dropped, "discarded", discarded, "streams", disconnected)
 
+		case msg := <-msgChan:
+			prepared, ok, err := s.prepareLiveMessage(runCtx, msg)
+			if err != nil {
+				disconnected := s.resetDispatchSubscribers(liveDispatchProjectionFailure, false)
+				s.core.logger.Warn("Shared live event projection readiness failed - resetting streams",
+					"subject", msg.Subject, "streams", disconnected, "error", err)
+				continue
+			}
+			if ok {
+				s.broadcastPreparedLiveEvent(prepared)
+			}
+		}
+	}
+}
+
+func (s *MyEventsModel) runPresenceFanout(ctx context.Context, presenceSub *PresenceSubscription) error {
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
 		case update, ok := <-presenceSub.C:
 			if !ok {
 				return errors.New("presence hub subscription closed")
@@ -252,18 +280,6 @@ func (s *MyEventsModel) Run(ctx context.Context) error {
 				kind:     preparedPresence,
 				envelope: NewLiveEventEnvelope(live),
 			})
-
-		case msg := <-msgChan:
-			prepared, ok, err := s.prepareLiveMessage(ctx, msg)
-			if err != nil {
-				disconnected := s.resetDispatchSubscribers(liveDispatchProjectionFailure, false)
-				s.core.logger.Warn("Shared live event projection readiness failed - resetting streams",
-					"subject", msg.Subject, "streams", disconnected, "error", err)
-				continue
-			}
-			if ok {
-				s.broadcastPreparedLiveEvent(prepared)
-			}
 		}
 	}
 }
