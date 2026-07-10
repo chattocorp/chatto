@@ -39,6 +39,10 @@ path-specific guidance.
 - Never log PII: no raw login names, display names, email addresses, submitted
   auth identifiers, OAuth/OIDC provider subjects, tokens, passwords, auth codes,
   reset links, raw IPs, or full query strings.
+- Treat optional operational telemetry as best-effort: its failure must not make
+  broader diagnostics unavailable. Preserve an explicit unavailable state across
+  API and UI boundaries instead of replacing unknown values with healthy-looking
+  zeroes, empty strings, or timestamps.
 
 ## Tooling
 
