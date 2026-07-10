@@ -129,7 +129,7 @@ func newChattoCollector(server *HTTPServer) *chattoCollector {
 		),
 		myEventsSlowDisconnects: prometheus.NewDesc(
 			"chatto_my_events_slow_consumer_disconnects_total",
-			"Total myEvents streams reset because a per-stream dispatch queue or the shared NATS live intake was a slow consumer.",
+			"Total myEvents streams closed because their NATS live-event subscription was a slow consumer.",
 			nil,
 			nil,
 		),
