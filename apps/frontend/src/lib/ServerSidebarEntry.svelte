@@ -19,7 +19,7 @@
   import { getAppUiState } from '$lib/state/appUi.svelte';
   import { appState } from '$lib/state/globals.svelte';
   import ServerIcon from './ServerIcon.svelte';
-  import { onMount } from 'svelte';
+  import { untrack } from 'svelte';
   import * as m from '$lib/i18n/messages';
 
   let {
@@ -63,7 +63,8 @@
 
   let displayName = $state('');
   let logoUrl = $state<string | null>(null);
-  let loaded = $state(false);
+  let privateDataLoaded = $state(false);
+  const loaded = $derived(!stores.isAuthenticated || privateDataLoaded);
 
   const iconServer = $derived.by(() => {
     const refreshedName = stores.serverInfo.name !== 'Chatto' ? stores.serverInfo.name : undefined;
@@ -90,10 +91,6 @@
   }
 
   async function loadAll() {
-    if (registeredServer?.reauthRequiredAt != null) {
-      loaded = true;
-      return;
-    }
     const unreadSnapshotRevision = roomUnreadStore.captureSnapshotRevision();
     try {
       const [serverState, viewer, rooms] = await Promise.all([
@@ -122,7 +119,7 @@
 
       displayName = serverState.name;
       logoUrl = serverState.logoUrl;
-      loaded = true;
+      privateDataLoaded = true;
     } catch (err) {
       console.error(`[server:${serverId}] failed to load sidebar icon data`, err);
     }
@@ -140,8 +137,12 @@
     }
   }
 
-  onMount(() => {
-    void loadAll();
+  // Keep registered servers available as navigation targets even before the
+  // viewer signs in. Once authentication becomes available, load the private
+  // sidebar state without requiring this keyed entry to remount.
+  $effect(() => {
+    if (!stores.isAuthenticated) return;
+    untrack(() => void loadAll());
   });
 
   // Subscribe to server events. Use $effect (not onMount) so that if the

@@ -45,6 +45,7 @@ const { mocks } = vi.hoisted(() => {
         addedAt: 0
       },
       store: {
+        isAuthenticated: true,
         notifications: {
           fetch: vi.fn().mockResolvedValue(undefined),
           setUnreadNotificationCount: vi.fn(),
@@ -227,6 +228,7 @@ describe('ServerSidebarEntry', () => {
     mocks.registrar.onNotificationLevelChanged.mockClear();
     mocks.getAuthenticatedServerState.mockResolvedValue(serverState());
     mocks.getViewerStateViaConnect.mockResolvedValue(viewerState());
+    mocks.store.isAuthenticated = true;
     mocks.listRooms.mockResolvedValue([]);
     mocks.createRoomDirectoryAPI.mockReturnValue({ listRooms: mocks.listRooms });
     mocks.store.notifications.fetch.mockClear();
@@ -256,6 +258,23 @@ describe('ServerSidebarEntry', () => {
   afterEach(() => {
     consoleErrorSpy.mockRestore();
     consoleWarnSpy.mockRestore();
+  });
+
+  it('renders an unauthenticated server without loading private sidebar state', async () => {
+    mocks.store.isAuthenticated = false;
+
+    const { container } = render(ServerSidebarEntry, {
+      props: {
+        serverId: 'remote'
+      }
+    });
+
+    const icon = q(container, '[data-testid="server-icon"]');
+    await expect.element(icon).toBeInTheDocument();
+    await expect.element(icon).toHaveAttribute('href', '/chat/remote.example.com');
+    expect(mocks.getAuthenticatedServerState).not.toHaveBeenCalled();
+    expect(mocks.getViewerStateViaConnect).not.toHaveBeenCalled();
+    expect(mocks.store.notifications.fetch).not.toHaveBeenCalled();
   });
 
   it('keeps a failed server in the gutter as a dimmed icon', async () => {
