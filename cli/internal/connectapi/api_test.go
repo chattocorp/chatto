@@ -1594,6 +1594,15 @@ func TestAdminAssetCleanupStatusMapping(t *testing.T) {
 	}
 }
 
+func TestAdminAssetCleanupUnavailableStatusMapping(t *testing.T) {
+	mapped := adminAssetCleanupStatus(core.AssetCleanupAdminStatus{
+		Health: core.AssetCleanupHealthUnavailable,
+	})
+	if mapped.GetHealth() != adminv1.AdminAssetCleanupHealth_ADMIN_ASSET_CLEANUP_HEALTH_UNAVAILABLE {
+		t.Fatalf("health = %v, want unavailable", mapped.GetHealth())
+	}
+}
+
 func TestAdminEventLogServiceListsFiltersAndReadsEntries(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 

@@ -41,6 +41,13 @@ export enum AdminAssetCleanupHealth {
    * @generated from enum value: ADMIN_ASSET_CLEANUP_HEALTH_STALLED = 5;
    */
   STALLED = 5,
+
+  /**
+   * Cleanup diagnostics could not be read; other system diagnostics remain valid.
+   *
+   * @generated from enum value: ADMIN_ASSET_CLEANUP_HEALTH_UNAVAILABLE = 6;
+   */
+  UNAVAILABLE = 6,
 }
 // Retrieve enum metadata with: proto3.getEnumType(AdminAssetCleanupHealth)
 proto3.util.setEnumType(AdminAssetCleanupHealth, "chatto.admin.v1.AdminAssetCleanupHealth", [
@@ -50,6 +57,7 @@ proto3.util.setEnumType(AdminAssetCleanupHealth, "chatto.admin.v1.AdminAssetClea
   { no: 3, name: "ADMIN_ASSET_CLEANUP_HEALTH_HEALTHY" },
   { no: 4, name: "ADMIN_ASSET_CLEANUP_HEALTH_RETRYING" },
   { no: 5, name: "ADMIN_ASSET_CLEANUP_HEALTH_STALLED" },
+  { no: 6, name: "ADMIN_ASSET_CLEANUP_HEALTH_UNAVAILABLE" },
 ]);
 
 /**

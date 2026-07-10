@@ -58,6 +58,9 @@ describe('AssetCleanupPanel', () => {
     expect(container.textContent).toContain(
       'Cleanup health is not reported by this server version.'
     );
+    expect(container.textContent).not.toContain('Caught up');
+    expect(container.textContent).not.toContain('Never');
+    expect(container.textContent).not.toContain('None');
   });
 
   it('shows a stalled worker as an operational failure', () => {

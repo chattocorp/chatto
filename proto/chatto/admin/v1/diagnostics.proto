@@ -49,6 +49,8 @@ enum AdminAssetCleanupHealth {
   ADMIN_ASSET_CLEANUP_HEALTH_HEALTHY = 3;
   ADMIN_ASSET_CLEANUP_HEALTH_RETRYING = 4;
   ADMIN_ASSET_CLEANUP_HEALTH_STALLED = 5;
+  // Cleanup diagnostics could not be read; other system diagnostics remain valid.
+  ADMIN_ASSET_CLEANUP_HEALTH_UNAVAILABLE = 6;
 }
 
 // Broker and application diagnostics shown on the server admin system page.

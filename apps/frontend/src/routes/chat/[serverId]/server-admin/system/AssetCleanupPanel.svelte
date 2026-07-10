@@ -72,23 +72,29 @@
       <div>
         <div class="text-sm text-muted">{m['admin.system.asset_cleanup_oldest']()}</div>
         <div class="text-sm">
-          {status.oldestPendingAt
-            ? formatTimestamp(status.oldestPendingAt)
-            : m['admin.system.asset_cleanup_none']()}
+          {!status.available
+            ? '-'
+            : status.oldestPendingAt
+              ? formatTimestamp(status.oldestPendingAt)
+              : m['admin.system.asset_cleanup_none']()}
         </div>
       </div>
       <div>
         <div class="text-sm text-muted">{m['admin.system.asset_cleanup_last_pass']()}</div>
         <div class="text-sm">
-          {status.passInProgress
-            ? m['admin.system.asset_cleanup_in_progress']()
-            : formatTimestamp(status.lastPassAt)}
+          {!status.available
+            ? '-'
+            : status.passInProgress
+              ? m['admin.system.asset_cleanup_in_progress']()
+              : formatTimestamp(status.lastPassAt)}
         </div>
-        <div class="mt-1 text-xs text-muted">
-          {m['admin.system.asset_cleanup_last_success']({
-            time: formatTimestamp(status.lastSuccessfulPassAt)
-          })}
-        </div>
+        {#if status.available}
+          <div class="mt-1 text-xs text-muted">
+            {m['admin.system.asset_cleanup_last_success']({
+              time: formatTimestamp(status.lastSuccessfulPassAt)
+            })}
+          </div>
+        {/if}
       </div>
       <div>
         <div class="text-sm text-muted">{m['admin.system.asset_cleanup_event_scan']()}</div>

@@ -144,6 +144,8 @@ function assetCleanupHealth(
       return 'retrying';
     case AdminAssetCleanupHealth.STALLED:
       return 'stalled';
+    case AdminAssetCleanupHealth.UNAVAILABLE:
+      return 'unavailable';
     default:
       return 'unavailable';
   }
@@ -156,6 +158,10 @@ export async function getAdminSystemInfo(
   const response = await client.getSystemInfo({}, { headers });
   const systemInfo = response.systemInfo;
   const cleanup = response.assetCleanup;
+  const cleanupAvailable =
+    cleanup != null &&
+    cleanup.health !== AdminAssetCleanupHealth.UNSPECIFIED &&
+    cleanup.health !== AdminAssetCleanupHealth.UNAVAILABLE;
 
   return {
     connection: {
@@ -219,7 +225,7 @@ export async function getAdminSystemInfo(
       dmRoomCount: systemInfo?.stats?.dmRoomCount ?? 0
     },
     assetCleanup: {
-      available: cleanup != null,
+      available: cleanupAvailable,
       health: assetCleanupHealth(cleanup?.health),
       pendingCount: Number(cleanup?.pendingCount ?? 0),
       oldestPendingAt: cleanup?.oldestPendingAt?.toDate() ?? null,

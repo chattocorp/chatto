@@ -32,6 +32,8 @@ const (
 	AdminAssetCleanupHealth_ADMIN_ASSET_CLEANUP_HEALTH_HEALTHY      AdminAssetCleanupHealth = 3
 	AdminAssetCleanupHealth_ADMIN_ASSET_CLEANUP_HEALTH_RETRYING     AdminAssetCleanupHealth = 4
 	AdminAssetCleanupHealth_ADMIN_ASSET_CLEANUP_HEALTH_STALLED      AdminAssetCleanupHealth = 5
+	// Cleanup diagnostics could not be read; other system diagnostics remain valid.
+	AdminAssetCleanupHealth_ADMIN_ASSET_CLEANUP_HEALTH_UNAVAILABLE AdminAssetCleanupHealth = 6
 )
 
 // Enum value maps for AdminAssetCleanupHealth.
@@ -43,6 +45,7 @@ var (
 		3: "ADMIN_ASSET_CLEANUP_HEALTH_HEALTHY",
 		4: "ADMIN_ASSET_CLEANUP_HEALTH_RETRYING",
 		5: "ADMIN_ASSET_CLEANUP_HEALTH_STALLED",
+		6: "ADMIN_ASSET_CLEANUP_HEALTH_UNAVAILABLE",
 	}
 	AdminAssetCleanupHealth_value = map[string]int32{
 		"ADMIN_ASSET_CLEANUP_HEALTH_UNSPECIFIED":  0,
@@ -51,6 +54,7 @@ var (
 		"ADMIN_ASSET_CLEANUP_HEALTH_HEALTHY":      3,
 		"ADMIN_ASSET_CLEANUP_HEALTH_RETRYING":     4,
 		"ADMIN_ASSET_CLEANUP_HEALTH_STALLED":      5,
+		"ADMIN_ASSET_CLEANUP_HEALTH_UNAVAILABLE":  6,
 	}
 )
 
@@ -1421,14 +1425,15 @@ const file_chatto_admin_v1_diagnostics_proto_rawDesc = "" +
 	"\x15AdminProjectionMetric\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\x03R\x05value\x12\x14\n" +
-	"\x05bytes\x18\x03 \x01(\x03R\x05bytes*\x94\x02\n" +
+	"\x05bytes\x18\x03 \x01(\x03R\x05bytes*\xc0\x02\n" +
 	"\x17AdminAssetCleanupHealth\x12*\n" +
 	"&ADMIN_ASSET_CLEANUP_HEALTH_UNSPECIFIED\x10\x00\x12'\n" +
 	"#ADMIN_ASSET_CLEANUP_HEALTH_INACTIVE\x10\x01\x12+\n" +
 	"'ADMIN_ASSET_CLEANUP_HEALTH_INITIALIZING\x10\x02\x12&\n" +
 	"\"ADMIN_ASSET_CLEANUP_HEALTH_HEALTHY\x10\x03\x12'\n" +
 	"#ADMIN_ASSET_CLEANUP_HEALTH_RETRYING\x10\x04\x12&\n" +
-	"\"ADMIN_ASSET_CLEANUP_HEALTH_STALLED\x10\x052y\n" +
+	"\"ADMIN_ASSET_CLEANUP_HEALTH_STALLED\x10\x05\x12*\n" +
+	"&ADMIN_ASSET_CLEANUP_HEALTH_UNAVAILABLE\x10\x062y\n" +
 	"\x17AdminDiagnosticsService\x12^\n" +
 	"\rGetSystemInfo\x12%.chatto.admin.v1.GetSystemInfoRequest\x1a&.chatto.admin.v1.GetSystemInfoResponseB\xba\x01\n" +
 	"\x13com.chatto.admin.v1B\x10DiagnosticsProtoP\x01Z3hmans.de/chatto/internal/pb/chatto/admin/v1;adminv1\xa2\x02\x03CAX\xaa\x02\x0fChatto.Admin.V1\xca\x02\x0fChatto\\Admin\\V1\xe2\x02\x1bChatto\\Admin\\V1\\GPBMetadata\xea\x02\x11Chatto::Admin::V1b\x06proto3"

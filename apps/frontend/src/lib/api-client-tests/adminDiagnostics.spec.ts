@@ -224,4 +224,21 @@ describe('getAdminSystemInfo', () => {
       latestDeletionSequence: '0'
     });
   });
+
+  it('treats explicitly unavailable cleanup diagnostics as unavailable', async () => {
+    mocks.getSystemInfo.mockResolvedValue({
+      projections: [],
+      assetCleanup: {
+        health: AdminAssetCleanupHealth.UNAVAILABLE,
+        pendingCount: protoInt64.parse(7),
+        lastInspectedSequence: '41',
+        latestDeletionSequence: '44'
+      }
+    });
+
+    const info = await getAdminSystemInfo({ baseUrl: '/api/connect', bearerToken: null });
+
+    expect(info.assetCleanup.available).toBe(false);
+    expect(info.assetCleanup.health).toBe('unavailable');
+  });
 });
