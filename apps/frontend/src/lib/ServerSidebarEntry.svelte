@@ -19,7 +19,7 @@
   import { getAppUiState } from '$lib/state/appUi.svelte';
   import { appState } from '$lib/state/globals.svelte';
   import ServerIcon from './ServerIcon.svelte';
-  import { untrack } from 'svelte';
+  import { onMount } from 'svelte';
   import * as m from '$lib/i18n/messages';
 
   let {
@@ -137,12 +137,8 @@
     }
   }
 
-  // Keep registered servers available as navigation targets even before the
-  // viewer signs in. Once authentication becomes available, load the private
-  // sidebar state without requiring this keyed entry to remount.
-  $effect(() => {
-    if (!stores.isAuthenticated) return;
-    untrack(() => void loadAll());
+  onMount(() => {
+    if (stores.isAuthenticated) void loadAll();
   });
 
   // Subscribe to server events. Use $effect (not onMount) so that if the
