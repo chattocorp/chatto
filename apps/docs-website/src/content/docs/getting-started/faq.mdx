@@ -15,6 +15,18 @@ Chatto is developed by [ChattoCorp GmbH](https://chatto.run), which also operate
 
 We have no plans for premium member subscriptions, paid feature tiers, advertising, or similar monetization inside Chatto. Chatto Cloud customers pay for managed hosting, not for a more capable edition of Chatto. You can also move a server between Chatto Cloud and your own infrastructure without changing the product or its data format. Read the [open-source announcement](https://www.hmans.dev/blog/chatto-is-open-source/) for more about this model.
 
+## Is Chatto ready for production use?
+
+Yes, with some pre-1.0 caveats. Chatto already runs in production, including our own communities, and we consider it safe and stable enough for real use. It is still evolving quickly, however, so you should expect some bugs, missing features, and occasional breaking changes before version 1.0.
+
+Self-hosters should keep Chatto up to date, read the release notes before upgrading, and maintain regular, tested [backups](/guides/operations/backup-restore/). The public API is currently the part most likely to change, so integrations may need updates between releases. See the [Chatto roadmap](https://github.com/orgs/chattocorp/projects/1) for planned work.
+
+## Does Chatto collect telemetry or track its users?
+
+No. Chatto does not include product analytics or third-party tracking, and self-hosted servers do not send usage data, personal information, or chat data to ChattoCorp.
+
+Server operators can optionally expose local [Prometheus metrics](/guides/operations/server-operations/#metrics) for monitoring their own deployment. Those metrics remain under the operator's control and are not sent to ChattoCorp.
+
 ## Is Chatto end-to-end encrypted?
 
 With the exception of voice and video calls, Chatto is not end-to-end encrypted. A running Chatto server must be able to decrypt messages before sending them to authorized clients.
@@ -34,3 +46,9 @@ When you use more than one community, the Chatto client connects to each server 
 Not yet. Dedicated desktop and mobile apps are planned, but we do not have an estimated release date for them.
 
 In the meantime, Chatto is an excellent Progressive Web App (PWA) on both desktop and mobile devices. You can install it from a supported browser or add it to your Home Screen, then launch it like any other app. Installed PWAs also support features such as app badges and [push notifications](/guides/operations/notifications-web-push/) where the operating system and browser allow them.
+
+## Where can I get help or report a problem?
+
+Join the [official Chatto community](https://chat.chatto.run) and visit the `#self-hosting-support` room for setup questions, operational help, or general feedback. You can report reproducible bugs through [GitHub Issues](https://github.com/chattocorp/chatto/issues).
+
+Do not open a public issue for a security vulnerability. Follow the repository's [security policy](https://github.com/chattocorp/chatto/blob/main/SECURITY.md) to report it privately instead.
