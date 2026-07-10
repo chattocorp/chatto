@@ -4,6 +4,7 @@ import starlight from "@astrojs/starlight";
 
 // https://astro.build/config
 export default defineConfig({
+  site: "https://docs.chatto.run",
   redirects: {
     "/getting-started/overview": "/getting-started/introduction",
     "/guides/deployment-read-this-first": "/guides/deployment/read-this-first",
@@ -32,6 +33,7 @@ export default defineConfig({
     starlight({
       title: "Chatto",
       customCss: ["./src/custom.css"],
+      routeMiddleware: "./src/routeData.ts",
       components: {
         SocialIcons: "./src/components/SocialIcons.astro",
       },

@@ -18,6 +18,8 @@
     "@fontsource-variable/fraunces": "^5.2.9",
     "@fontsource-variable/ibm-plex-sans": "^5.2.8",
     "astro": "^6.4.7",
+    "astro-og-canvas": "^0.13.0",
+    "canvaskit-wasm": "^0.41.1",
     "sharp": "^0.34.5"
   }
 }
