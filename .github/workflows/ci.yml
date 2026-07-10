@@ -61,6 +61,7 @@ jobs:
           cd proto
           mise x -- buf breaking . --against "../.git#branch=origin/${base_ref},subdir=proto" \
             --exclude-imports \
+            --exclude-path chatto/discovery/v1 \
             --exclude-path chatto/api/v1 \
             --exclude-path chatto/admin/v1 \
             --exclude-path chatto/operator/v1 \
@@ -72,6 +73,7 @@ jobs:
           base_ref="${GITHUB_BASE_REF:-main}"
           cd proto
           mise x -- buf breaking . --against "../.git#branch=origin/${base_ref},subdir=proto" \
+            --path chatto/discovery/v1 \
             --path chatto/api/v1 \
             --path chatto/admin/v1 \
             --path chatto/operator/v1 \
