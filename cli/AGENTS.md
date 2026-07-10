@@ -161,6 +161,12 @@ mise x -- go test -tags test_endpoints ./internal/http_server -run TestName -tim
 ## Local Profiling
 
 - Store local benchmark/profiling artifacts under `.context/bench/`.
+- For realtime connection-memory work, negotiate production WebSocket
+  compression and use an external load generator so client allocations do not
+  enter the server profile.
+- Validate connection-scaled memory with server RSS/runtime `Sys` deltas and
+  active-connection heap profiles. Treat in-process `HeapAlloc` benchmarks as
+  regression signals, not production RSS models.
 - Startup CPU profile:
   `CHATTO_DIAGNOSTICS_STARTUP_CPU_PROFILE=.context/bench/startup.pprof`.
 - Runtime pprof: set `CHATTO_METRICS_ENABLED=true`,
