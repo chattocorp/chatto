@@ -25,6 +25,7 @@ Users can attach files to messages — images, videos, documents — via drag-an
 - Clients refresh expiring attachment URL fields through room-scoped `AssetService.GetAsset` / `BatchGetAssets`, or by refetching the relevant timeline or room attachment-list page. The timeline, previews, lightbox, downloads, and room-files surfaces refresh before expiry and retry after media load errors.
 - Active document attachment types such as HTML, XHTML, SVG, and XML can still be uploaded and viewed inline, but original-file responses are delivered in a browser sandbox so uploaded scripts do not run as trusted Chatto application code.
 - The room sidebar Files panel lists current accessible attachments from both root messages and thread replies, grouped by date as Today, Yesterday, This week, This month, then older calendar months. Rows show a thumbnail or file-type icon, filename, and upload time; selecting a root-message attachment jumps the room timeline to that message, while selecting a thread-reply attachment opens the thread pane and highlights the reply.
+- Deleting a message-owned attachment durably revokes access first, then removes its source/derivative bytes and transform-cache entries. A single elected cleanup worker retries failed physical deletion after process restart or replica handover.
 
 ## Design Decisions
 
@@ -87,6 +88,12 @@ Users can attach files to messages — images, videos, documents — via drag-an
 **Decision:** Timeline images fit within 960×400 bounds and lightbox images fit within 2048×2048 bounds. Opaque static derivatives use JPEG quality 75, while transparency and animation continue to use lossless WebP. Original uploads remain unchanged and available separately.
 **Why:** Timeline frames are much smaller than typical camera and screenshot uploads, and even full-screen viewing rarely benefits from transferring the source resolution. Separate display sizes reduce bandwidth without sacrificing the original file-sharing behavior.
 **Tradeoff:** Opaque displayed images are lossy and capped in resolution. Transparent and animated images may see smaller savings because preserving their behavior requires lossless encoding.
+
+### 11. Message-owned asset deletion is replayable
+
+**Decision:** Current `AssetDeletedEvent` facts capture the asset storage record before the asset projection removes creation metadata. Request paths still attempt immediate NATS/S3 and transform-cache deletion, while the holder of the `asset_cleanup` lease incrementally consumes canonical deletion facts and retries each idempotent cleanup independently. Historical deletion events without storage metadata remain replay-compatible and are skipped rather than probing guessed object keys.
+**Why:** A committed deletion must remain recoverable when immediate storage cleanup fails, the process exits, or another replica committed the event. Keeping the storage record in the durable fact gives later workers enough information without coupling cleanup to a mutable projection.
+**Tradeoff:** The additive event field increases EVT storage slightly. Pre-upgrade ID-only events cannot gain the same guarantee without a migration or unsafe backend-key inference, and server branding/avatar cleanup remains outside this message-owned worker.
 
 ## Permissions
 

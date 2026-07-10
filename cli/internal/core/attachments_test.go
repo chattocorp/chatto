@@ -366,6 +366,9 @@ func TestChattoCore_DeleteAttachmentFromStorage_S3(t *testing.T) {
 	if err == nil {
 		t.Error("Object should be deleted from S3")
 	}
+	if err := core.DeleteAttachmentFromStorage(ctx, attachment); err != nil {
+		t.Fatalf("Second S3 deletion should be idempotent: %v", err)
+	}
 }
 
 func TestChattoCore_S3PathPrefixCanMoveBasePathWithoutChangingStoredKey(t *testing.T) {

@@ -241,6 +241,9 @@ func TestMediaModelDeleteAttachmentFromStorageDeletesBinaryAndCache(t *testing.T
 	if got, err := service.GetCachedResize(ctx, cacheKey); err != nil || got != nil {
 		t.Fatalf("GetCachedResize after attachment delete = %q, %v; want nil, nil", string(got), err)
 	}
+	if err := service.DeleteAttachmentFromStorage(ctx, attachment); err != nil {
+		t.Fatalf("second DeleteAttachmentFromStorage returned error: %v", err)
+	}
 }
 
 func TestMediaModelStableAttachmentURLs(t *testing.T) {

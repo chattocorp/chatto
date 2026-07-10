@@ -7,12 +7,22 @@ import (
 	"strings"
 	"time"
 
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/lease"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
 var ErrAssetLifecycleSkipped = errors.New("asset lifecycle event skipped")
+
+const (
+	assetCleanupLeaseName       = "asset_cleanup"
+	assetCleanupLeaseTTL        = 45 * time.Second
+	assetCleanupLeaseRenewEvery = 15 * time.Second
+	assetCleanupLeaseRetryEvery = 5 * time.Second
+	assetCleanupPollEvery       = 30 * time.Second
+)
 
 // derivativeContext records that an upload is a derivative of another asset.
 type derivativeContext struct {
@@ -27,10 +37,20 @@ type derivativeContext struct {
 // tombstones, derivative cleanup ordering, and projection read-your-writes.
 type AssetModel struct {
 	*ChattoCore
+	cleanupLease    *lease.Lease
+	cleanupConsumer *events.IncrementalEffectConsumer
 }
 
 func NewAssetModel(core *ChattoCore) *AssetModel {
-	return &AssetModel{ChattoCore: core}
+	model := &AssetModel{ChattoCore: core}
+	if core != nil && core.EventPublisher != nil {
+		model.cleanupConsumer = events.NewIncrementalEffectConsumer(
+			core.EventPublisher,
+			events.AssetEventTypeFilter(events.EventAssetDeleted),
+			model.cleanupDeletedAsset,
+		)
+	}
+	return model
 }
 
 func (c *ChattoCore) assetLifecycle() *AssetModel {
@@ -442,9 +462,13 @@ func (s *AssetModel) RecordAssetDeleted(ctx context.Context, actorID string, roo
 	if actorID == "" {
 		return fmt.Errorf("asset deletion missing actor id (use SystemActorID for non-user paths)")
 	}
+	deleted := &corev1.AssetDeletedEvent{AssetId: assetID}
+	if created, ok := s.AssetCreation(assetID); ok && created.GetAsset() != nil {
+		deleted.Asset = proto.Clone(created.GetAsset()).(*corev1.AssetRecord)
+	}
 	event := newEvent(actorID, &corev1.Event{
 		Event: &corev1.Event_AssetDeleted{
-			AssetDeleted: &corev1.AssetDeletedEvent{AssetId: assetID},
+			AssetDeleted: deleted,
 		},
 	})
 	if err := s.appendAssetEventEventually(ctx, assetID, event); err != nil {

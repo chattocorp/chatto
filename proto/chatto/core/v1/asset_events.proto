@@ -93,6 +93,10 @@ message AssetCreatedEvent {
 // asset from any local projection; storage cleanup is separate.
 message AssetDeletedEvent {
   string asset_id = 1;
+
+  // Storage metadata captured from the creation fact before projections drop
+  // it. Empty on historical events written before durable cleanup existed.
+  AssetRecord asset = 2;
 }
 
 // AssetProcessingStartedEvent signals that derivative processing has been

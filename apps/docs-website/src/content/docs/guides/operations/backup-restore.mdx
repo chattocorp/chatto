@@ -329,7 +329,7 @@ rm backup.tar.gz
 
 ### Retention and account deletion
 
-Account deletion attempts to shred the user's encryption keys in the live server and remove message-owned assets from active storage. These cleanup steps can log warnings and continue on individual storage failures, so operators should monitor deletion-time errors. Existing backups are not modified.
+Account deletion attempts to shred the user's encryption keys in the live server and remove message-owned assets from active storage. Current message-owned asset deletion facts are replayable, so an elected worker retries failed binary and transform-cache removal after restart or replica handover. Key, avatar, runtime-state, and historical pre-recovery asset cleanup can still log warnings and continue, so operators should monitor deletion-time and background-cleanup errors. Existing backups are not modified.
 
 If you restore a backup from before an account deletion and that backup includes the user's keys, the deleted user's encrypted message bodies and durable profile data can become readable again. The same is true when restoring a keyless data backup together with an old key export that still contains that user's keys. This is expected disaster-recovery behavior, but it matters for erasure requests.
 
