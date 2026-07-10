@@ -59,6 +59,27 @@ function legacyNotificationCount(intent: AppBadgeIntent): number {
   }
 }
 
+type ServiceWorkerBadgeStateMessage = {
+  type: 'chatto-badge-state';
+  badgeIntent: AppBadgeIntent;
+  notificationCount: number;
+  serviceWorkerAppBadgeEnabled: boolean;
+};
+
+let latestServiceWorkerBadgeState: ServiceWorkerBadgeStateMessage | null = null;
+let observedServiceWorkerContainer: ServiceWorkerContainer | null = null;
+
+function observeServiceWorkerController(container: ServiceWorkerContainer): void {
+  if (observedServiceWorkerContainer === container) return;
+  observedServiceWorkerContainer = container;
+  container.addEventListener('controllerchange', () => {
+    if (observedServiceWorkerContainer !== container) return;
+    if (latestServiceWorkerBadgeState) {
+      container.controller?.postMessage(latestServiceWorkerBadgeState);
+    }
+  });
+}
+
 /**
  * Share the foreground badge intent with the service worker so stale
  * push/native notification badge state can be reconciled against the app's
@@ -68,13 +89,31 @@ export function syncServiceWorkerNotificationBadgeState(intent: AppBadgeIntent):
   if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return;
 
   const normalized = normalizeBadgeIntent(intent);
-  navigator.serviceWorker.controller?.postMessage({
+  const message: ServiceWorkerBadgeStateMessage = {
     type: 'chatto-badge-state',
     badgeIntent: normalized,
     // Kept as a best-effort fallback for older active service workers.
     notificationCount: legacyNotificationCount(normalized),
     serviceWorkerAppBadgeEnabled: isSupported() && isInstalledAppContext()
-  });
+  };
+  const container = navigator.serviceWorker;
+  latestServiceWorkerBadgeState = message;
+  observeServiceWorkerController(container);
+
+  if (container.controller) {
+    container.controller.postMessage(message);
+    return;
+  }
+
+  // A first PWA launch may have an active worker before the page is controlled.
+  // Deliver directly to that worker, while controllerchange above covers later
+  // worker replacements. Only the newest intent may win this asynchronous path.
+  void container.ready
+    .then((registration) => {
+      if (latestServiceWorkerBadgeState !== message) return;
+      (container.controller ?? registration.active)?.postMessage(message);
+    })
+    .catch(() => {});
 }
 
 /**
