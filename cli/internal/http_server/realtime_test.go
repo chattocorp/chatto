@@ -2,10 +2,13 @@ package http_server
 
 import (
 	"context"
+	"fmt"
+	"net"
 	"net/http"
 	"runtime"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -17,6 +20,32 @@ import (
 	realtimev1 "hmans.de/chatto/internal/pb/chatto/realtime/v1"
 )
 
+type websocketWireRecorder struct {
+	net.Conn
+	mu    sync.Mutex
+	reads []byte
+}
+
+func (r *websocketWireRecorder) Read(p []byte) (int, error) {
+	n, err := r.Conn.Read(p)
+	r.mu.Lock()
+	r.reads = append(r.reads, p[:n]...)
+	r.mu.Unlock()
+	return n, err
+}
+
+func (r *websocketWireRecorder) Reset() {
+	r.mu.Lock()
+	r.reads = r.reads[:0]
+	r.mu.Unlock()
+}
+
+func (r *websocketWireRecorder) Bytes() []byte {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return append([]byte(nil), r.reads...)
+}
+
 func (env *wsTestEnv) dialRealtime(t testing.TB) *websocket.Conn {
 	return env.dialRealtimeWithDialer(t, websocket.DefaultDialer)
 }
@@ -25,6 +54,27 @@ func (env *wsTestEnv) dialRealtimeWithCompression(t testing.TB) *websocket.Conn 
 	dialer := *websocket.DefaultDialer
 	dialer.EnableCompression = true
 	return env.dialRealtimeWithDialer(t, &dialer)
+}
+
+func (env *wsTestEnv) dialRealtimeWithCompressionRecorder(t testing.TB) (*websocket.Conn, *websocketWireRecorder) {
+	t.Helper()
+	dialer := *websocket.DefaultDialer
+	dialer.EnableCompression = true
+	var recorder *websocketWireRecorder
+	netDialer := &net.Dialer{}
+	dialer.NetDialContext = func(ctx context.Context, network, address string) (net.Conn, error) {
+		conn, err := netDialer.DialContext(ctx, network, address)
+		if err != nil {
+			return nil, err
+		}
+		recorder = &websocketWireRecorder{Conn: conn}
+		return recorder, nil
+	}
+	conn := env.dialRealtimeWithDialer(t, &dialer)
+	if recorder == nil {
+		t.Fatal("realtime WebSocket dial did not create a wire recorder")
+	}
+	return conn, recorder
 }
 
 func (env *wsTestEnv) dialRealtimeWithDialer(t testing.TB, dialer *websocket.Dialer) *websocket.Conn {
@@ -84,6 +134,36 @@ func readRealtimeServerFrame(t testing.TB, conn *websocket.Conn, timeout time.Du
 		t.Fatalf("unmarshal realtime server frame: %v", err)
 	}
 	return &frame, true
+}
+
+func realtimePingRoundTrip(conn *websocket.Conn, nonce string) error {
+	data, err := proto.Marshal(&realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_Ping{
+		Ping: &realtimev1.RealtimePing{Nonce: nonce},
+	}})
+	if err != nil {
+		return fmt.Errorf("marshal ping: %w", err)
+	}
+	if err := conn.WriteMessage(websocket.BinaryMessage, data); err != nil {
+		return fmt.Errorf("write ping: %w", err)
+	}
+	if err := conn.SetReadDeadline(time.Now().Add(5 * time.Second)); err != nil {
+		return fmt.Errorf("set pong deadline: %w", err)
+	}
+	messageType, data, err := conn.ReadMessage()
+	if err != nil {
+		return fmt.Errorf("read pong: %w", err)
+	}
+	if messageType != websocket.BinaryMessage {
+		return fmt.Errorf("pong message type = %d, want binary", messageType)
+	}
+	var frame realtimev1.RealtimeServerFrame
+	if err := proto.Unmarshal(data, &frame); err != nil {
+		return fmt.Errorf("unmarshal pong: %w", err)
+	}
+	if pong := frame.GetPong(); pong == nil || pong.Nonce != nonce {
+		return fmt.Errorf("pong nonce length = %d, want %d", len(pong.GetNonce()), len(nonce))
+	}
+	return nil
 }
 
 func subscribeRealtime(t testing.TB, conn *websocket.Conn, token string) {
@@ -622,6 +702,103 @@ func TestRealtimeWebSocketNegotiatedCompressionSupportsLargeFrames(t *testing.T)
 	}
 	if got := frame.GetPong(); got == nil || got.Nonce != nonce {
 		t.Fatalf("pong nonce length = %d, want %d", len(got.GetNonce()), len(nonce))
+	}
+}
+
+func TestRealtimeWebSocketCompressionThresholdOnWire(t *testing.T) {
+	env := setupWebSocketTestServer(t)
+	user, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-wire-compression", "RT Wire Compression", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	token, err := env.core.CreateAuthToken(env.ctx, user.Id)
+	if err != nil {
+		t.Fatalf("CreateAuthToken: %v", err)
+	}
+
+	tests := []struct {
+		name           string
+		nonce          string
+		wantCompressed bool
+	}{
+		{name: "small frame", nonce: "small", wantCompressed: false},
+		{name: "large frame", nonce: strings.Repeat("0123456789abcdef", 128), wantCompressed: true},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			conn, recorder := env.dialRealtimeWithCompressionRecorder(t)
+			t.Cleanup(func() { conn.Close() })
+			subscribeRealtime(t, conn, token)
+			recorder.Reset()
+
+			if err := realtimePingRoundTrip(conn, test.nonce); err != nil {
+				t.Fatal(err)
+			}
+			wire := recorder.Bytes()
+			if len(wire) == 0 {
+				t.Fatal("recorded no server WebSocket frame bytes")
+			}
+			if compressed := wire[0]&0x40 != 0; compressed != test.wantCompressed {
+				t.Fatalf("RSV1 compressed = %v, want %v (first byte %#x)", compressed, test.wantCompressed, wire[0])
+			}
+		})
+	}
+}
+
+func TestRealtimeWebSocketConcurrentSmallFramesStayUncompressed(t *testing.T) {
+	const connectionCount = 16
+
+	env := setupWebSocketTestServer(t)
+	user, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-concurrent-compression", "RT Concurrent Compression", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	token, err := env.core.CreateAuthToken(env.ctx, user.Id)
+	if err != nil {
+		t.Fatalf("CreateAuthToken: %v", err)
+	}
+
+	connections := make([]*websocket.Conn, 0, connectionCount)
+	recorders := make([]*websocketWireRecorder, 0, connectionCount)
+	for range connectionCount {
+		conn, recorder := env.dialRealtimeWithCompressionRecorder(t)
+		subscribeRealtime(t, conn, token)
+		recorder.Reset()
+		connections = append(connections, conn)
+		recorders = append(recorders, recorder)
+	}
+	t.Cleanup(func() {
+		for _, conn := range connections {
+			conn.Close()
+		}
+	})
+
+	start := make(chan struct{})
+	results := make(chan error, connectionCount)
+	for i, conn := range connections {
+		go func(i int, conn *websocket.Conn) {
+			<-start
+			if err := realtimePingRoundTrip(conn, "small"); err != nil {
+				results <- fmt.Errorf("connection %d: %w", i, err)
+				return
+			}
+			wire := recorders[i].Bytes()
+			if len(wire) == 0 {
+				results <- fmt.Errorf("connection %d: recorded no server frame bytes", i)
+				return
+			}
+			if wire[0]&0x40 != 0 {
+				results <- fmt.Errorf("connection %d: small frame has RSV1 set (first byte %#x)", i, wire[0])
+				return
+			}
+			results <- nil
+		}(i, conn)
+	}
+	close(start)
+	for range connectionCount {
+		if err := <-results; err != nil {
+			t.Error(err)
+		}
 	}
 }
 

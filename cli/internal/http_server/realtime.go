@@ -66,10 +66,9 @@ func (s *HTTPServer) setupRealtimeAPI(allowedOrigins []string) {
 		defer s.metrics.realtimeWebSocketClosed()
 		defer conn.Close()
 		if upgrader.EnableCompression {
-			// Realtime protobuf frames are small invalidation signals. Huffman-only
-			// DEFLATE preserves negotiated permessage-deflate while avoiding the
-			// multi-megabyte match dictionary retained by Gorilla's default level
-			// for every concurrently active compression writer.
+			// Huffman-only DEFLATE preserves negotiated permessage-deflate while
+			// avoiding Lempel-Ziv match searching for the larger frames that pass
+			// the write-compression threshold below.
 			if err := conn.SetCompressionLevel(flate.HuffmanOnly); err != nil {
 				s.logger.Warn("Failed to configure realtime WebSocket compression", "error", err)
 			}
