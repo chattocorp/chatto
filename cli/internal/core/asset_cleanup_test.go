@@ -93,6 +93,101 @@ func TestAssetCleanupFailureDoesNotBlockLaterDeletion(t *testing.T) {
 	}
 }
 
+func TestAssetCleanupDoesNotDeleteUnrelatedAssetOrCache(t *testing.T) {
+	core, _ := setupTestCoreWithCache(t)
+	ctx := testContext(t)
+	room, err := core.CreateRoom(ctx, SystemActorID, KindChannel, "", "asset-cleanup-isolation", "Asset cleanup isolation")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	deletedAsset, err := core.media().UploadAttachment(ctx, SystemActorID, room.GetId(), "deleted.txt", "text/plain", bytes.NewReader([]byte("deleted")))
+	if err != nil {
+		t.Fatalf("UploadAttachment deleted asset: %v", err)
+	}
+	survivingAsset, err := core.media().UploadAttachment(ctx, SystemActorID, room.GetId(), "surviving.txt", "text/plain", bytes.NewReader([]byte("surviving")))
+	if err != nil {
+		t.Fatalf("UploadAttachment surviving asset: %v", err)
+	}
+	deletedCacheKey := ImageCacheKey(AttachmentSignResource, deletedAsset.GetId(), 32, 32, "cover")
+	survivingCacheKey := ImageCacheKey(AttachmentSignResource, survivingAsset.GetId(), 32, 32, "cover")
+	if err := core.media().StoreCachedResize(ctx, deletedCacheKey, []byte("deleted-cache")); err != nil {
+		t.Fatalf("StoreCachedResize deleted asset: %v", err)
+	}
+	if err := core.media().StoreCachedResize(ctx, survivingCacheKey, []byte("surviving-cache")); err != nil {
+		t.Fatalf("StoreCachedResize surviving asset: %v", err)
+	}
+	if err := core.assetLifecycle().RecordAssetDeleted(ctx, SystemActorID, room.GetId(), deletedAsset.GetId()); err != nil {
+		t.Fatalf("RecordAssetDeleted: %v", err)
+	}
+
+	if err := NewAssetModel(core).consumeAssetCleanup(ctx); err != nil {
+		t.Fatalf("consumeAssetCleanup: %v", err)
+	}
+	if _, _, err := core.media().GetAttachmentReader(ctx, deletedAsset); err == nil {
+		t.Fatal("deleted asset remained readable")
+	}
+	if got, err := core.media().GetCachedResize(ctx, deletedCacheKey); err != nil || got != nil {
+		t.Fatalf("deleted asset cache = %q, %v; want nil, nil", got, err)
+	}
+	if _, _, err := core.media().GetAttachmentReader(ctx, survivingAsset); err != nil {
+		t.Fatalf("unrelated asset was not readable: %v", err)
+	}
+	if got, err := core.media().GetCachedResize(ctx, survivingCacheKey); err != nil || string(got) != "surviving-cache" {
+		t.Fatalf("unrelated asset cache = %q, %v; want surviving-cache, nil", got, err)
+	}
+}
+
+func TestAssetCleanupRejectsMismatchedCreationPayload(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	store, err := core.GetAttachmentsStore(ctx)
+	if err != nil {
+		t.Fatalf("GetAttachmentsStore: %v", err)
+	}
+	if _, err := store.PutBytes(ctx, "A-victim", []byte("victim")); err != nil {
+		t.Fatalf("put victim object: %v", err)
+	}
+	appendAssetCreationTestEventOnAggregate(t, ctx, core, "A-deleted", &corev1.AssetRecord{
+		Id:      "A-victim",
+		Storage: &corev1.AssetRecord_Nats{Nats: &corev1.NATSAsset{Key: "A-victim"}},
+	})
+	appendAssetDeletionTestEvent(t, ctx, core, &corev1.AssetDeletedEvent{AssetId: "A-deleted"})
+
+	if err := NewAssetModel(core).consumeAssetCleanup(ctx); err == nil {
+		t.Fatal("consumeAssetCleanup returned nil for mismatched creation payload")
+	}
+	if got, err := store.GetBytes(ctx, "A-victim"); err != nil || string(got) != "victim" {
+		t.Fatalf("victim object = %q, %v; want victim, nil", got, err)
+	}
+}
+
+func TestAssetCleanupDeletesS3ObjectFromDurableFacts(t *testing.T) {
+	core, _, s3Client := setupTestCoreWithS3(t)
+	ctx := testContext(t)
+	room, err := core.CreateRoom(ctx, SystemActorID, KindChannel, "", "asset-cleanup-s3", "Asset cleanup S3")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	attachment, err := core.media().UploadAttachment(ctx, SystemActorID, room.GetId(), "s3.txt", "text/plain", bytes.NewReader([]byte("s3")))
+	if err != nil {
+		t.Fatalf("UploadAttachment: %v", err)
+	}
+	s3Key := attachment.GetStorage().GetS3().GetKey()
+	if _, err := s3Client.StatObject(ctx, s3Key); err != nil {
+		t.Fatalf("StatObject before cleanup: %v", err)
+	}
+	if err := core.assetLifecycle().RecordAssetDeleted(ctx, SystemActorID, room.GetId(), attachment.GetId()); err != nil {
+		t.Fatalf("RecordAssetDeleted: %v", err)
+	}
+
+	if err := NewAssetModel(core).consumeAssetCleanup(ctx); err != nil {
+		t.Fatalf("consumeAssetCleanup: %v", err)
+	}
+	if _, err := s3Client.StatObject(ctx, s3Key); !IsNoSuchKeyError(err) {
+		t.Fatalf("StatObject after cleanup = %v, want no-such-key", err)
+	}
+}
+
 func TestAssetCleanupLeaseProcessesNonHolderCommitsAndHandsOver(t *testing.T) {
 	_, nc := testutil.StartSharedNATS(t)
 	ctx := testContext(t)
@@ -137,6 +232,13 @@ func TestAssetCleanupLeaseProcessesNonHolderCommitsAndHandsOver(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetAttachmentsStore: %v", err)
 	}
+	if _, err := store.PutBytes(ctx, "A-created-only", []byte("survivor")); err != nil {
+		t.Fatalf("put created-only object: %v", err)
+	}
+	appendAssetCreationTestEvent(t, ctx, second, &corev1.AssetRecord{
+		Id:      "A-created-only",
+		Storage: &corev1.AssetRecord_Nats{Nats: &corev1.NATSAsset{Key: "A-created-only"}},
+	})
 	appendNATSAssetDeletionTestFacts(t, ctx, second, store, "A-non-holder")
 	waitForAssetObjectDeleted(t, ctx, store, "A-non-holder")
 
@@ -146,6 +248,9 @@ func TestAssetCleanupLeaseProcessesNonHolderCommitsAndHandsOver(t *testing.T) {
 	}
 	appendNATSAssetDeletionTestFacts(t, ctx, first, store, "A-handover")
 	waitForAssetObjectDeleted(t, ctx, store, "A-handover")
+	if got, err := store.GetBytes(ctx, "A-created-only"); err != nil || string(got) != "survivor" {
+		t.Fatalf("created-only object after restart and handover = %q, %v; want survivor, nil", got, err)
+	}
 
 	cancelSecond()
 	if err := <-secondDone; !errors.Is(err, context.Canceled) {
@@ -199,10 +304,15 @@ func waitForAssetObjectDeleted(t *testing.T, ctx context.Context, store jetstrea
 
 func appendAssetCreationTestEvent(t *testing.T, ctx context.Context, core *ChattoCore, asset *corev1.AssetRecord) {
 	t.Helper()
+	appendAssetCreationTestEventOnAggregate(t, ctx, core, asset.GetId(), asset)
+}
+
+func appendAssetCreationTestEventOnAggregate(t *testing.T, ctx context.Context, core *ChattoCore, aggregateID string, asset *corev1.AssetRecord) {
+	t.Helper()
 	event := newEvent(SystemActorID, &corev1.Event{
 		Event: &corev1.Event_AssetCreated{AssetCreated: &corev1.AssetCreatedEvent{Asset: asset}},
 	})
-	if _, err := core.EventPublisher.AppendEventually(ctx, events.AssetAggregate(asset.GetId()).SubjectFor(event), event); err != nil {
+	if _, err := core.EventPublisher.AppendEventually(ctx, events.AssetAggregate(aggregateID).SubjectFor(event), event); err != nil {
 		t.Fatalf("append asset creation event: %v", err)
 	}
 }

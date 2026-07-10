@@ -62,6 +62,13 @@ func (s *AssetModel) cleanupDeletedAsset(ctx context.Context, event *corev1.Even
 		return nil
 	}
 	created := createdEvents[len(createdEvents)-1].GetAssetCreated()
+	if created.GetAsset().GetId() != deleted.GetAssetId() {
+		return fmt.Errorf(
+			"asset creation id %q does not match deletion aggregate %q",
+			created.GetAsset().GetId(),
+			deleted.GetAssetId(),
+		)
+	}
 	attachment := attachmentFromAsset(created.GetAsset())
 	if attachment == nil {
 		return fmt.Errorf("asset creation %s has invalid storage metadata", deleted.GetAssetId())
