@@ -1,10 +1,10 @@
 <script lang="ts">
   import * as m from '$lib/i18n/messages';
-  import { getLocale, setLocale, type Locale } from '$lib/i18n/runtime';
+  import { getFormattingLocale, getLocale, setLocale, type Locale } from '$lib/i18n/runtime';
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { createAccountAPI } from '$lib/api-client/account';
   import { TimeFormat } from '$lib/render/types';
-  import { getUserSettings } from '$lib/state/userSettings.svelte';
+  import { getUserSettings, hour12ForTimeFormat } from '$lib/state/userSettings.svelte';
   import { userPreferences, type DisplayTheme } from '$lib/state/userPreferences.svelte';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
@@ -65,11 +65,11 @@
   const selectedTimezoneTime = $derived.by(() => {
     if (!selectedTimezone) return null;
 
-    return new Date().toLocaleTimeString(activeLocale, {
+    return new Date().toLocaleTimeString(getFormattingLocale(activeLocale), {
       timeZone: selectedTimezone,
       hour: '2-digit',
       minute: '2-digit',
-      hour12: userSettings.effectiveHour12
+      hour12: hour12ForTimeFormat(selectedTimeFormat)
     });
   });
 

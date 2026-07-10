@@ -10,7 +10,7 @@
  */
 
 import type { UserSettingsState } from '$lib/state/userSettings.svelte';
-import { getLocale } from '$lib/i18n/runtime';
+import { getFormattingLocale, getLocale } from '$lib/i18n/runtime';
 import * as m from '$lib/i18n/messages';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -26,10 +26,11 @@ function getFormatter(
   locale: string | undefined,
   options: Intl.DateTimeFormatOptions
 ): Intl.DateTimeFormat {
-  const key = `${locale ?? ''}:${JSON.stringify(options)}`;
+  const formattingLocale = locale ? getFormattingLocale(locale) : locale;
+  const key = `${formattingLocale ?? ''}:${JSON.stringify(options)}`;
   let fmt = formatterCache.get(key);
   if (!fmt) {
-    fmt = new Intl.DateTimeFormat(locale, options);
+    fmt = new Intl.DateTimeFormat(formattingLocale, options);
     formatterCache.set(key, fmt);
   }
   return fmt;
@@ -93,8 +94,7 @@ function normalizeFirstDay(firstDay: number | undefined): number | null {
 
 export function firstDayOfWeekForLocale(locale?: string): number {
   const fallback = 1;
-  const localeName =
-    locale ?? globalThis.navigator?.languages?.[0] ?? globalThis.navigator?.language;
+  const localeName = getFormattingLocale(locale ?? activeLocale());
   if (!localeName || typeof Intl.Locale !== 'function') return fallback;
 
   try {
