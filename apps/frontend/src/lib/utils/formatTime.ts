@@ -49,11 +49,13 @@ function formatVisibleDateTime(
   locale: string,
   options: Intl.DateTimeFormatOptions
 ): string {
-  const regionalFormatter = getFormatter(regionalLocale(locale), options);
+  const calendar = getFormatter(locale, options).resolvedOptions().calendar;
+  const sharedOptions = { ...options, calendar };
+  const regionalFormatter = getFormatter(regionalLocale(locale), sharedOptions);
   const localizedOptions =
     options.hour !== undefined && options.hour12 === undefined
-      ? { ...options, hour12: regionalFormatter.resolvedOptions().hour12 }
-      : options;
+      ? { ...sharedOptions, hour12: regionalFormatter.resolvedOptions().hour12 }
+      : sharedOptions;
   const localizedParts = getFormatter(locale, localizedOptions).formatToParts(date);
   const localizedValues = new Map(
     localizedParts.filter((part) => part.type !== 'literal').map((part) => [part.type, part.value])

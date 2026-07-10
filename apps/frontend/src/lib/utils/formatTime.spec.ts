@@ -83,6 +83,11 @@ describe('formatDate', () => {
     expect(formatDate('2025-04-27T14:30:00Z', utc12, 'de')).toBe('Apr. 27, 2025');
   });
 
+  it('uses one calendar when combining regional patterns with translated values', () => {
+    setBrowserLocale('en-US-u-ca-islamic');
+    expect(formatDate('2025-04-27T14:30:00Z', utc12, 'de')).toBe('Apr. 27, 2025');
+  });
+
   it('formats a date in long-month/short style', () => {
     expect(formatDate('2025-04-27T14:30:00Z', utc12)).toMatch(/Apr\s*27,?\s*2025/);
   });
