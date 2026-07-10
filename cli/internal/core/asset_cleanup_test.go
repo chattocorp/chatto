@@ -3,10 +3,16 @@ package core
 import (
 	"bytes"
 	"context"
+	"errors"
 	"testing"
+	"time"
 
+	"github.com/nats-io/nats.go/jetstream"
+	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/lease"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/internal/testutil"
 )
 
 func TestAssetCleanupReplaysDeletionAndIsIdempotent(t *testing.T) {
@@ -84,6 +90,110 @@ func TestAssetCleanupFailureDoesNotBlockLaterDeletion(t *testing.T) {
 	}
 	if _, _, err := core.media().GetAttachmentReader(ctx, attachment); err == nil {
 		t.Fatal("later attachment remained readable after an earlier permanent failure")
+	}
+}
+
+func TestAssetCleanupLeaseProcessesNonHolderCommitsAndHandsOver(t *testing.T) {
+	_, nc := testutil.StartSharedNATS(t)
+	ctx := testContext(t)
+	cfg := config.CoreConfig{
+		SecretKey: "test-core-secret",
+		Assets:    config.AssetsConfig{SigningSecret: "test-signing-secret"},
+	}
+	first, err := NewChattoCore(ctx, nc, cfg)
+	if err != nil {
+		t.Fatalf("first core: %v", err)
+	}
+	second, err := NewChattoCore(ctx, nc, cfg)
+	if err != nil {
+		t.Fatalf("second core: %v", err)
+	}
+	first.assetModel.cleanupLease = newAssetCleanupTestLease(t, first, "first")
+	second.assetModel.cleanupLease = newAssetCleanupTestLease(t, second, "second")
+	first.assetModel.cleanupPollEvery = 10 * time.Millisecond
+	second.assetModel.cleanupPollEvery = 10 * time.Millisecond
+
+	acquired, err := first.assetModel.cleanupLease.TryAcquire(ctx)
+	if err != nil || !acquired {
+		t.Fatalf("first cleanup lease acquisition = %v, %v; want true, nil", acquired, err)
+	}
+	acquired, err = second.assetModel.cleanupLease.TryAcquire(ctx)
+	if err != nil || acquired {
+		t.Fatalf("second cleanup lease acquisition = %v, %v; want false, nil", acquired, err)
+	}
+
+	firstCtx, cancelFirst := context.WithCancel(context.Background())
+	secondCtx, cancelSecond := context.WithCancel(context.Background())
+	firstDone := make(chan error, 1)
+	secondDone := make(chan error, 1)
+	go func() { firstDone <- first.assetModel.Run(firstCtx) }()
+	go func() { secondDone <- second.assetModel.Run(secondCtx) }()
+	t.Cleanup(func() {
+		cancelFirst()
+		cancelSecond()
+	})
+
+	store, err := first.GetAttachmentsStore(ctx)
+	if err != nil {
+		t.Fatalf("GetAttachmentsStore: %v", err)
+	}
+	appendNATSAssetDeletionTestFacts(t, ctx, second, store, "A-non-holder")
+	waitForAssetObjectDeleted(t, ctx, store, "A-non-holder")
+
+	cancelFirst()
+	if err := <-firstDone; !errors.Is(err, context.Canceled) {
+		t.Fatalf("first cleanup runner shutdown = %v, want context canceled", err)
+	}
+	appendNATSAssetDeletionTestFacts(t, ctx, first, store, "A-handover")
+	waitForAssetObjectDeleted(t, ctx, store, "A-handover")
+
+	cancelSecond()
+	if err := <-secondDone; !errors.Is(err, context.Canceled) {
+		t.Fatalf("second cleanup runner shutdown = %v, want context canceled", err)
+	}
+}
+
+func newAssetCleanupTestLease(t *testing.T, core *ChattoCore, ownerID string) *lease.Lease {
+	t.Helper()
+	l, err := lease.New(core.js, core.storage.memoryCacheKV, lease.Options{
+		Name:       assetCleanupLeaseName,
+		OwnerID:    ownerID,
+		Bucket:     "MEMORY_CACHE",
+		TTL:        time.Second,
+		RenewEvery: 200 * time.Millisecond,
+		RetryEvery: 10 * time.Millisecond,
+	})
+	if err != nil {
+		t.Fatalf("new asset cleanup lease: %v", err)
+	}
+	return l
+}
+
+func appendNATSAssetDeletionTestFacts(t *testing.T, ctx context.Context, core *ChattoCore, store jetstream.ObjectStore, assetID string) {
+	t.Helper()
+	if _, err := store.PutBytes(ctx, assetID, []byte(assetID)); err != nil {
+		t.Fatalf("put asset object: %v", err)
+	}
+	appendAssetCreationTestEvent(t, ctx, core, &corev1.AssetRecord{
+		Id:      assetID,
+		Storage: &corev1.AssetRecord_Nats{Nats: &corev1.NATSAsset{Key: assetID}},
+	})
+	appendAssetDeletionTestEvent(t, ctx, core, &corev1.AssetDeletedEvent{AssetId: assetID})
+}
+
+func waitForAssetObjectDeleted(t *testing.T, ctx context.Context, store jetstream.ObjectStore, assetID string) {
+	t.Helper()
+	ticker := time.NewTicker(10 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		if _, err := store.GetBytes(ctx, assetID); err != nil {
+			return
+		}
+		select {
+		case <-ctx.Done():
+			t.Fatalf("wait for asset %s deletion: %v", assetID, ctx.Err())
+		case <-ticker.C:
+		}
 	}
 }
 

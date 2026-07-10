@@ -23,7 +23,7 @@ func (s *AssetModel) runCleanupLoop(ctx context.Context) error {
 	if err := s.consumeAssetCleanup(ctx); err != nil {
 		s.logger.Warn("Asset cleanup pass failed", "error", err)
 	}
-	ticker := time.NewTicker(assetCleanupPollEvery)
+	ticker := time.NewTicker(s.cleanupPollEvery)
 	defer ticker.Stop()
 
 	for {

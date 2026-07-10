@@ -823,14 +823,13 @@ func (c *MediaModel) DeleteCachedResizesForAttachment(ctx context.Context, attac
 		attachmentLegacyStableCacheResource,
 	}
 	deleted := 0
+	var deleteErr error
 	for _, prefix := range prefixes {
 		count, err := c.DeleteCachedResizesForKey(ctx, prefix, attachmentID)
 		deleted += count
-		if err != nil {
-			return deleted, err
-		}
+		deleteErr = errors.Join(deleteErr, err)
 	}
-	return deleted, nil
+	return deleted, deleteErr
 }
 
 // DeleteCachedResizesForServerAsset deletes all cached resizes for a server

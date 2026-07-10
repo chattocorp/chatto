@@ -36,12 +36,13 @@ type derivativeContext struct {
 // tombstones, derivative cleanup ordering, and projection read-your-writes.
 type AssetModel struct {
 	*ChattoCore
-	cleanupLease    *lease.Lease
-	cleanupConsumer *events.IncrementalEffectConsumer
+	cleanupLease     *lease.Lease
+	cleanupConsumer  *events.IncrementalEffectConsumer
+	cleanupPollEvery time.Duration
 }
 
 func NewAssetModel(core *ChattoCore) *AssetModel {
-	model := &AssetModel{ChattoCore: core}
+	model := &AssetModel{ChattoCore: core, cleanupPollEvery: assetCleanupPollEvery}
 	if core != nil && core.EventPublisher != nil {
 		model.cleanupConsumer = events.NewIncrementalEffectConsumer(
 			core.EventPublisher,
