@@ -26,9 +26,18 @@ Include this component once in the chat layout (unconditionally).
   import { RoomEventKind, roomEventKind } from '$lib/render/eventKinds';
   import { NotificationItemKind } from '$lib/api-client/notifications';
 
-  function notificationCreatedEvent(event: EventEnvelope['event']): { silent?: boolean } | null {
-    if (!event || !('silent' in event)) return null;
-    return { silent: event.silent === true };
+  function notificationCreatedEvent(
+    event: EventEnvelope['event']
+  ): { notificationId: string; silent?: boolean } | null {
+    if (
+      !event ||
+      !('notificationId' in event) ||
+      typeof event.notificationId !== 'string' ||
+      !('silent' in event)
+    ) {
+      return null;
+    }
+    return { notificationId: event.notificationId, silent: event.silent === true };
   }
 
   function notificationDismissedEvent(
@@ -62,7 +71,7 @@ Include this component once in the chat layout (unconditionally).
             const notification = notificationCreatedEvent(event.event);
             if (!notification) break;
             void Promise.allSettled([
-              notificationStore.addNotification(),
+              notificationStore.addNotification(notification.notificationId),
               stores.rooms.refreshNotificationCounts()
             ]);
             if (!notification.silent) {

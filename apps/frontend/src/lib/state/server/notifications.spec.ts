@@ -30,12 +30,23 @@ function page(items: NotificationItem[], totalCount = items.length): Notificatio
   };
 }
 
+function deferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  const promise = new Promise<T>((res) => {
+    resolve = res;
+  });
+  return { promise, resolve };
+}
+
 function makeAPI(
   options: {
     notifications?: NotificationPage;
     roomNotifications?: NotificationPage;
     notificationsError?: Error;
     roomNotificationsError?: Error;
+    getNotification?: (
+      notificationId: string
+    ) => Promise<NotificationItem | null> | NotificationItem | null;
     dismissNotification?: (notificationId: string) => Promise<boolean> | boolean;
     dismissAllNotifications?: () => Promise<number> | number;
   } = {}
@@ -45,7 +56,11 @@ function makeAPI(
       if (options.notificationsError) throw options.notificationsError;
       return options.notifications ?? page([]);
     }),
-    getNotification: vi.fn().mockResolvedValue(null),
+    getNotification: vi
+      .fn()
+      .mockImplementation(async (notificationId: string) =>
+        options.getNotification ? options.getNotification(notificationId) : null
+      ),
     batchGetNotifications: vi.fn().mockResolvedValue([]),
     listRoomNotifications: vi.fn().mockImplementation(async () => {
       if (options.roomNotificationsError) throw options.roomNotificationsError;
@@ -100,6 +115,59 @@ describe('NotificationStore', () => {
     expect(store.notifications).toHaveLength(2);
     expect(store.error).toBeNull();
     expect(store.hasLoaded).toBe(true);
+  });
+
+  it('discards an older full-list response that arrives after a newer response', async () => {
+    const older = deferred<NotificationPage>();
+    const newer = deferred<NotificationPage>();
+    const api = makeAPI();
+    api.listNotifications.mockReturnValueOnce(older.promise).mockReturnValueOnce(newer.promise);
+    const store = new NotificationStore(api);
+
+    const olderFetch = store.fetch();
+    const newerFetch = store.fetch();
+
+    newer.resolve(page([mention('newer')]));
+    await newerFetch;
+    older.resolve(page([mention('older')]));
+    await olderFetch;
+
+    expect(store.notifications.map((notification) => notification.id)).toEqual(['newer']);
+  });
+
+  it('hydrates one realtime notification by ID without refetching the full list', async () => {
+    const liveNotification = mention('live');
+    const api = makeAPI({
+      getNotification: (notificationId) =>
+        notificationId === liveNotification.id ? liveNotification : null
+    });
+    const store = new NotificationStore(api);
+
+    await store.addNotification(liveNotification.id);
+    await store.addNotification(liveNotification.id);
+
+    expect(api.getNotification).toHaveBeenCalledTimes(2);
+    expect(api.listNotifications).not.toHaveBeenCalled();
+    expect(store.notifications.map((notification) => notification.id)).toEqual(['live']);
+    expect(store.unreadNotificationCount).toBe(1);
+  });
+
+  it('does not let an in-flight fetch restore an optimistically dismissed notification', async () => {
+    const response = deferred<NotificationPage>();
+    const api = makeAPI();
+    api.listNotifications.mockReturnValueOnce(response.promise);
+    const store = new NotificationStore(api);
+    store.notifications = [mention('dismiss-me')];
+    store.unreadNotificationCount = 1;
+
+    const fetch = store.fetch();
+    await store.dismiss('dismiss-me');
+    response.resolve(page([mention('dismiss-me')]));
+    await fetch;
+
+    expect(api.listNotifications).toHaveBeenCalledTimes(2);
+    expect(store.notifications).toEqual([]);
+    expect(store.unreadNotificationCount).toBe(0);
   });
 
   it('fetchRoomNotification returns the newest room-scoped notification and caches it', async () => {

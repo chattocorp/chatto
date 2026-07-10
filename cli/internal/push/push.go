@@ -9,8 +9,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
 	"net/url"
 	"strings"
+	"sync"
+	"time"
 
 	webpush "github.com/SherClockHolmes/webpush-go"
 	"github.com/charmbracelet/log"
@@ -21,9 +24,10 @@ import (
 
 // Sender sends Web Push notifications.
 type Sender struct {
-	config     config.PushConfig
-	logger     *log.Logger
-	httpClient webpush.HTTPClient
+	config       config.PushConfig
+	logger       *log.Logger
+	httpClient   webpush.HTTPClient
+	requestSlots chan struct{}
 }
 
 const (
@@ -31,6 +35,8 @@ const (
 	maxPushProviderResponseBodyBytes            = 2048
 	truncatedPushProviderResponseBodyMsg        = "…"
 	declarativeWebPushValue                     = 8030
+	pushRequestTimeout                          = 10 * time.Second
+	maxConcurrentPushRequests                   = 16
 )
 
 // NewSender creates a new push notification sender.
@@ -40,8 +46,10 @@ func NewSender(cfg config.PushConfig, logger *log.Logger) *Sender {
 		return nil
 	}
 	return &Sender{
-		config: cfg,
-		logger: logger,
+		config:       cfg,
+		logger:       logger,
+		httpClient:   &http.Client{Timeout: pushRequestTimeout},
+		requestSlots: make(chan struct{}, maxConcurrentPushRequests),
 	}
 }
 
@@ -165,6 +173,19 @@ func (s *Sender) Send(ctx context.Context, sub *corev1.PushSubscription, payload
 	result := &SendResult{
 		Endpoint: sub.Endpoint,
 	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	requestCtx, cancel := context.WithTimeout(ctx, pushRequestTimeout)
+	defer cancel()
+
+	select {
+	case s.requestSlots <- struct{}{}:
+		defer func() { <-s.requestSlots }()
+	case <-requestCtx.Done():
+		result.Error = requestCtx.Err()
+		return result
+	}
 
 	// Marshal payload to JSON
 	payloadJSON, err := json.Marshal(payload)
@@ -183,7 +204,7 @@ func (s *Sender) Send(ctx context.Context, sub *corev1.PushSubscription, payload
 	}
 
 	// Send the push notification
-	resp, err := webpush.SendNotification(payloadJSON, subscription, &webpush.Options{
+	resp, err := webpush.SendNotificationWithContext(requestCtx, payloadJSON, subscription, &webpush.Options{
 		Subscriber:      normalizeVAPIDSubject(s.config.VAPIDSubject),
 		VAPIDPublicKey:  s.config.VAPIDPublicKey,
 		VAPIDPrivateKey: s.config.VAPIDPrivateKey,
@@ -262,9 +283,27 @@ func EndpointLogID(endpoint string) string {
 // Returns results for each subscription.
 func (s *Sender) SendToMany(ctx context.Context, subscriptions []*corev1.PushSubscription, payload *Payload) []*SendResult {
 	results := make([]*SendResult, len(subscriptions))
-	for i, sub := range subscriptions {
-		results[i] = s.Send(ctx, sub, payload)
+	if len(subscriptions) == 0 {
+		return results
 	}
+
+	workerCount := min(len(subscriptions), maxConcurrentPushRequests)
+	jobs := make(chan int)
+	var workers sync.WaitGroup
+	workers.Add(workerCount)
+	for range workerCount {
+		go func() {
+			defer workers.Done()
+			for i := range jobs {
+				results[i] = s.Send(ctx, subscriptions[i], payload)
+			}
+		}()
+	}
+	for i := range subscriptions {
+		jobs <- i
+	}
+	close(jobs)
+	workers.Wait()
 	return results
 }
 

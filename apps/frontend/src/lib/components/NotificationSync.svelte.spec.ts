@@ -132,6 +132,7 @@ describe('NotificationSync', () => {
     });
 
     expect(mocks.store.notifications.addNotification).toHaveBeenCalledOnce();
+    expect(mocks.store.notifications.addNotification).toHaveBeenCalledWith('n1');
     expect(mocks.store.rooms.refreshNotificationCounts).toHaveBeenCalledOnce();
     expect(mocks.store.rooms.incrementUnreadNotification).not.toHaveBeenCalled();
     expect(mocks.playNotificationSound).toHaveBeenCalledOnce();
@@ -150,6 +151,7 @@ describe('NotificationSync', () => {
     });
 
     expect(mocks.store.notifications.addNotification).toHaveBeenCalledOnce();
+    expect(mocks.store.notifications.addNotification).toHaveBeenCalledWith('n1');
     expect(mocks.store.rooms.refreshNotificationCounts).toHaveBeenCalledOnce();
     expect(mocks.playNotificationSound).not.toHaveBeenCalled();
   });

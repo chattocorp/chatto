@@ -6,12 +6,15 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	webpush "github.com/SherClockHolmes/webpush-go"
 	"github.com/charmbracelet/log"
@@ -20,6 +23,39 @@ import (
 	"hmans.de/chatto/internal/config"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
+
+type contextBlockingHTTPClient struct {
+	started chan struct{}
+}
+
+func (c *contextBlockingHTTPClient) Do(req *http.Request) (*http.Response, error) {
+	close(c.started)
+	<-req.Context().Done()
+	return nil, req.Context().Err()
+}
+
+type concurrencyTrackingHTTPClient struct {
+	current atomic.Int32
+	maximum atomic.Int32
+	calls   atomic.Int32
+}
+
+func (c *concurrencyTrackingHTTPClient) Do(*http.Request) (*http.Response, error) {
+	current := c.current.Add(1)
+	c.calls.Add(1)
+	for {
+		maximum := c.maximum.Load()
+		if current <= maximum || c.maximum.CompareAndSwap(maximum, current) {
+			break
+		}
+	}
+	time.Sleep(5 * time.Millisecond)
+	c.current.Add(-1)
+	return &http.Response{
+		StatusCode: http.StatusCreated,
+		Body:       io.NopCloser(strings.NewReader("")),
+	}, nil
+}
 
 func TestNewSender(t *testing.T) {
 	logger := log.New(nil)
@@ -694,6 +730,33 @@ func TestSendResult(t *testing.T) {
 }
 
 func TestSend(t *testing.T) {
+	t.Run("cancels an in-flight provider request with the caller context", func(t *testing.T) {
+		client := &contextBlockingHTTPClient{started: make(chan struct{})}
+		sender := newTestSender(t, client)
+		subscription := newTestPushSubscription(t, "https://push.example.com/context")
+		ctx, cancel := context.WithCancel(context.Background())
+		resultCh := make(chan *SendResult, 1)
+
+		go func() {
+			resultCh <- sender.Send(ctx, subscription, &Payload{Title: "Test"})
+		}()
+		select {
+		case <-client.started:
+		case <-time.After(time.Second):
+			t.Fatal("timed out waiting for provider request")
+		}
+		cancel()
+
+		select {
+		case result := <-resultCh:
+			if !errors.Is(result.Error, context.Canceled) {
+				t.Fatalf("Send error = %v, want context.Canceled", result.Error)
+			}
+		case <-time.After(time.Second):
+			t.Fatal("Send did not return after context cancellation")
+		}
+	})
+
 	t.Run("sends compact encrypted request", func(t *testing.T) {
 		var bodyLen int
 		var contentEncoding string
@@ -815,48 +878,36 @@ func TestSend(t *testing.T) {
 	})
 }
 
-// TestSendToMany tests the SendToMany method with invalid subscription material.
 func TestSendToMany(t *testing.T) {
-	// Create a mock push service that returns various statuses
-	callCount := 0
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		callCount++
-		switch callCount {
-		case 1:
-			w.WriteHeader(http.StatusCreated) // Success
-		case 2:
-			w.WriteHeader(http.StatusGone) // Subscription expired
-		case 3:
-			w.WriteHeader(http.StatusInternalServerError) // Server error
-		}
-	}))
-	defer server.Close()
+	client := &concurrencyTrackingHTTPClient{}
+	sender := newTestSender(t, client)
+	subscription := newTestPushSubscription(t, "https://push.example.com/many")
+	subscriptions := make([]*corev1.PushSubscription, maxConcurrentPushRequests*2)
+	for i := range subscriptions {
+		subscriptions[i] = subscription
+	}
 
-	t.Run("SendToMany returns results for each subscription", func(t *testing.T) {
-		logger := log.New(nil)
-		cfg := config.PushConfig{
-			Enabled:         true,
-			VAPIDPublicKey:  "BNJxJYL1iGKBrQaZHCbYoCHjFzHY3JLNbN6jl0GCvYpJxQKmJe_J6_yNKLlZj3xBLt0EZLsHx2XUcJDBj5vWVKY",
-			VAPIDPrivateKey: "LxZ3z5E3D3X3Y3Z3A3B3C3D3E3F3G3H3I3J3K3L3M3N",
-			VAPIDSubject:    "mailto:test@example.com",
-		}
-		sender := NewSender(cfg, logger)
-		if sender == nil {
-			t.Skip("Sender creation failed (expected with test keys)")
-		}
-
-		subscriptions := []*corev1.PushSubscription{
-			{Endpoint: server.URL + "/1", P256Dh: "key1", Auth: "auth1"},
-			{Endpoint: server.URL + "/2", P256Dh: "key2", Auth: "auth2"},
-		}
-		payload := &Payload{Title: "Test", Body: "Test body"}
-
-		results := sender.SendToMany(context.Background(), subscriptions, payload)
-
-		if len(results) != len(subscriptions) {
-			t.Errorf("Expected %d results, got %d", len(subscriptions), len(results))
-		}
+	results := sender.SendToMany(context.Background(), subscriptions, &Payload{
+		Title: "Test",
+		Body:  "Test body",
 	})
+
+	if len(results) != len(subscriptions) {
+		t.Fatalf("results = %d, want %d", len(results), len(subscriptions))
+	}
+	for i, result := range results {
+		if result == nil || !result.Success || result.Error != nil {
+			t.Fatalf("result[%d] = %+v, want success", i, result)
+		}
+	}
+	if got := int(client.calls.Load()); got != len(subscriptions) {
+		t.Fatalf("provider calls = %d, want %d", got, len(subscriptions))
+	}
+	if got := int(client.maximum.Load()); got > maxConcurrentPushRequests {
+		t.Fatalf("maximum concurrent requests = %d, want at most %d", got, maxConcurrentPushRequests)
+	} else if got < 2 {
+		t.Fatalf("maximum concurrent requests = %d, want concurrent fanout", got)
+	}
 }
 
 func newTestSender(t *testing.T, client webpush.HTTPClient) *Sender {
