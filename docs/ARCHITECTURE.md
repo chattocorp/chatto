@@ -687,12 +687,12 @@ Notes: Memory-based storage (not persisted, not backed up). Presence uses per-ke
 
 **ASSET_CACHE keys:**
 
-| Key                                       | Description                                  |
-| ----------------------------------------- | -------------------------------------------- |
-| `attachment.{attachmentId}.{paramsHash}`  | Cached WebP image at specific dimensions     |
-| `server.{assetId}.{paramsHash}`           | Cached WebP transform of a server asset      |
+| Key                                                  | Description                                      |
+| ---------------------------------------------------- | ------------------------------------------------ |
+| `attachment-stable-v2.{attachmentId}.{paramsHash}`   | Cached attachment derivative at specific bounds |
+| `server.{assetId}.{paramsHash}`                      | Cached transform of a server asset               |
 
-Notes: Only created when `[core.assets.cache]` is enabled in config. Uses TTL for automatic expiration (default 7 days). Current cache entries for deleted assets are also evicted from the active prefix (`attachment` or `server`) during binary cleanup. `paramsHash` is first 16 hex chars of SHA256(`{width}x{height}_{fit}`). Animated GIFs are not cached (served directly). S2 compression enabled.
+Notes: Only created when `[core.assets.cache]` is enabled in config. Uses TTL for automatic expiration (default 7 days). Current cache entries for deleted assets are also evicted from the active attachment or server prefix during binary cleanup. Attachment cache namespaces are versioned when encoding changes so older bytes are not reused. `paramsHash` is first 16 hex chars of SHA256(`{width}x{height}_{fit}`). S2 compression enabled.
 
 **SERVER\_ASSETS keys:**
 
@@ -768,6 +768,11 @@ URLs are signed with HMAC-SHA256 using a dedicated `signing_secret` (configured 
 
 `RoomService`, `MessageService.CreateMessage`, `MessageService` message read RPCs, `AssetService` asset read RPCs, and `RoomService.ListRoomAttachments` return `MessageAssetUrl` objects for attachment URLs and thumbnails, including the embedded access-ticket expiry so clients can use `AssetService` to refresh assets before lazy loads or media startup hit an expired ticket. Public server profile image fields intentionally return canonical asset URLs without arbitrary transform arguments so anonymous server discovery cannot mint unbounded resize variants.
 
+The bundled frontend requests 960×400 `contain` derivatives for room timeline
+images and separate 2048×2048 `contain` derivatives for the lightbox. The
+lightbox retains the original asset URL for its Open original action instead of
+using the display derivative as a download replacement.
+
 **Caching:**
 
 Transformed images are generated on-demand. Public server assets can be cached
@@ -781,7 +786,10 @@ ticket expiry and room-membership revocation must be checked on every fetch:
 
 **Output Format:**
 
-All transformed images are encoded as WebP for optimal compression and quality.
+Opaque static transforms are encoded as JPEG. Attachment derivatives use
+quality 75; server-scoped transforms retain the default quality 80.
+Transforms that need transparency, along with animated GIF transforms, use
+lossless WebP so their alpha or animation semantics are preserved.
 
 ### Messages
 

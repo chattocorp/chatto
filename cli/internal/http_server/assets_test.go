@@ -23,6 +23,7 @@ import (
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
+	"hmans.de/chatto/internal/assets"
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/email"
@@ -336,6 +337,69 @@ func TestAsset_TransformedImage_CacheHitMiss(t *testing.T) {
 	xCache := transformResp2.Header.Get("X-Cache")
 	if xCache != "HIT" {
 		t.Errorf("Expected X-Cache: HIT, got: %s", xCache)
+	}
+}
+
+func TestAsset_TransformedAttachmentUsesCompressedProfileAndVersionedCache(t *testing.T) {
+	env := setupAssetTestServer(t)
+
+	user, err := env.core.CreateUser(env.ctx, "system", "compressedimageuser", "Compressed Image User", "password123")
+	if err != nil {
+		t.Fatalf("Failed to create user: %v", err)
+	}
+	room, err := env.core.CreateRoom(env.ctx, user.Id, "channel", "", "compressed-images", "Compressed Images")
+	if err != nil {
+		t.Fatalf("Failed to create room: %v", err)
+	}
+	if _, err := env.core.JoinRoom(env.ctx, user.Id, "channel", user.Id, room.Id); err != nil {
+		t.Fatalf("Failed to join room: %v", err)
+	}
+	env.login(t, "compressedimageuser", "password123")
+
+	imageData := createAssetTestPNG(t, 1200, 800)
+	_, attachment := env.postAssetMessageWithAttachment(t, room.Id, "compressed image", imageData, "compressed.png")
+	thumbnailURL := attachment.GetThumbnailAssetUrl().GetUrl()
+	if !strings.Contains(thumbnailURL, "/960x400/contain") {
+		t.Fatalf("thumbnail URL = %q, want 960x400 contain transform", thumbnailURL)
+	}
+	oldCacheKey := core.ImageCacheKey("attachment-stable", attachment.GetId(), 960, 400, "contain")
+	if err := env.core.StoreCachedResize(env.ctx, oldCacheKey, []byte("old-quality-cache-entry")); err != nil {
+		t.Fatalf("Failed to seed old attachment cache namespace: %v", err)
+	}
+
+	resp, err := env.client.Get(env.server.URL + thumbnailURL)
+	if err != nil {
+		t.Fatalf("Failed to get transformed attachment: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("Expected 200 OK, got %d", resp.StatusCode)
+	}
+	if got := resp.Header.Get("X-Cache"); got != "MISS" {
+		t.Fatalf("X-Cache = %q, want MISS for old cache namespace", got)
+	}
+	got, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("Failed to read transformed attachment: %v", err)
+	}
+
+	wantResult, err := assets.TransformImageWithOptions(imageData, 960, 400, assets.FitContain, assets.TransformOptions{
+		JPEGQuality: AttachmentDerivativeJPEGQuality,
+	})
+	if err != nil {
+		t.Fatalf("Failed to build expected transform: %v", err)
+	}
+	want, err := io.ReadAll(wantResult.Reader)
+	if err != nil {
+		t.Fatalf("Failed to read expected transform: %v", err)
+	}
+	if !bytes.Equal(got, want) {
+		t.Fatal("attachment derivative did not use the compressed attachment profile")
+	}
+
+	cacheKey := core.ImageCacheKey(AttachmentStableCachePrefix, attachment.GetId(), 960, 400, "contain")
+	if !strings.HasPrefix(cacheKey, "attachment-stable-v2.") {
+		t.Fatalf("cache key = %q, want versioned attachment-stable-v2 prefix", cacheKey)
 	}
 }
 
@@ -909,7 +973,7 @@ func TestAsset_StableURLAcceptsAccessTicketAndBearerAuth(t *testing.T) {
 		t.Fatalf("Expected stable thumbnail request with access ticket to return 200, got %d", thumbResp.StatusCode)
 	}
 
-	mutatedThumbnailURL := strings.Replace(thumbnailURL, "960x800", "961x800", 1)
+	mutatedThumbnailURL := strings.Replace(thumbnailURL, "960x400", "961x400", 1)
 	if mutatedThumbnailURL == thumbnailURL {
 		t.Fatalf("Expected thumbnail URL to contain transform dimensions, got %q", thumbnailURL)
 	}
@@ -991,6 +1055,42 @@ func TestAsset_ServerAsset_HasCacheHeaders(t *testing.T) {
 	vary := resp.Header.Get("Vary")
 	if vary != "Accept-Encoding" {
 		t.Errorf("Expected Vary: Accept-Encoding, got: %s", vary)
+	}
+}
+
+func TestAsset_ServerAssetTransformKeepsDefaultQuality(t *testing.T) {
+	env := setupAssetTestServer(t)
+
+	imageData := createAssetTestPNG(t, 400, 300)
+	assetPath := "branding/default-quality.png"
+	if _, err := env.core.ServerStore().PutBytes(env.ctx, assetPath, imageData); err != nil {
+		t.Fatalf("Failed to store server asset: %v", err)
+	}
+
+	transformURL := env.core.GetTransformedServerAssetURL(assetPath, 200, 200, "contain")
+	resp, err := env.client.Get(env.server.URL + transformURL)
+	if err != nil {
+		t.Fatalf("Failed to get transformed server asset: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("Expected 200 OK, got %d", resp.StatusCode)
+	}
+	got, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("Failed to read transformed server asset: %v", err)
+	}
+
+	wantResult, err := assets.TransformImage(imageData, 200, 200, assets.FitContain)
+	if err != nil {
+		t.Fatalf("Failed to build expected server transform: %v", err)
+	}
+	want, err := io.ReadAll(wantResult.Reader)
+	if err != nil {
+		t.Fatalf("Failed to read expected server transform: %v", err)
+	}
+	if !bytes.Equal(got, want) {
+		t.Fatal("server asset transform did not retain the default image quality")
 	}
 }
 

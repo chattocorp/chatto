@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { q } from '$lib/test-utils';
 
@@ -9,6 +9,8 @@ const { mocks } = vi.hoisted(() => ({
     } as Record<string, unknown> | undefined,
     closeModal: vi.fn(),
     goto: vi.fn(),
+    replaceState: vi.fn(),
+    refreshAttachmentUrlsForAssets: vi.fn(),
     toastSuccess: vi.fn(),
     toastError: vi.fn(),
     deleteMessage: vi.fn(),
@@ -50,7 +52,7 @@ vi.mock('$app/state', () => ({
 
 vi.mock('$app/navigation', () => ({
   goto: mocks.goto,
-  replaceState: vi.fn()
+  replaceState: mocks.replaceState
 }));
 
 vi.mock('$app/paths', () => ({
@@ -122,7 +124,12 @@ vi.mock('$lib/auth/signOut', () => ({
 }));
 
 vi.mock('$lib/attachments/attachmentUrls', () => ({
-  refreshAttachmentUrlsForAssets: vi.fn()
+  LIGHTBOX_ATTACHMENT_IMAGE_REFRESH: {
+    width: 2048,
+    height: 2048,
+    fit: 'contain'
+  },
+  refreshAttachmentUrlsForAssets: mocks.refreshAttachmentUrlsForAssets
 }));
 
 vi.mock('$lib/CreateRoom.svelte', () => ({
@@ -135,10 +142,6 @@ vi.mock('$lib/api-client/messages', () => ({
     deleteAttachment: mocks.deleteAttachment,
     deleteLinkPreview: mocks.deleteLinkPreview
   })
-}));
-
-vi.mock('$lib/ui/ImageModal.svelte', () => ({
-  default: {}
 }));
 
 vi.mock('$lib/ui/ConfirmDialog.svelte', async () => {
@@ -182,6 +185,7 @@ beforeEach(() => {
   mocks.deleteMessage.mockResolvedValue(true);
   mocks.deleteAttachment.mockResolvedValue(true);
   mocks.deleteLinkPreview.mockResolvedValue(true);
+  mocks.refreshAttachmentUrlsForAssets.mockResolvedValue(new Map());
   mocks.mutation.mockReturnValue({
     toPromise: () => Promise.resolve({ data: {}, error: null })
   });
@@ -198,6 +202,67 @@ beforeEach(() => {
   mocks.servers = [mocks.originServer];
   mocks.authenticated = { origin: true };
   vi.clearAllMocks();
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+});
+
+describe('ModalContainer image viewer', () => {
+  it('refreshes compressed display and original URLs independently', async () => {
+    vi.useFakeTimers();
+    mocks.modal = {
+      type: 'imageViewer',
+      roomId: 'room_1',
+      eventId: 'event_1',
+      imageItems: [
+        {
+          id: 'att_1',
+          src: '/assets/files/att_1/image/2048x2048/contain?access=old',
+          originalSrc: '/assets/files/att_1?access=old',
+          filename: 'image.jpg'
+        }
+      ],
+      imageIndex: 0
+    };
+    mocks.refreshAttachmentUrlsForAssets.mockResolvedValue(
+      new Map([
+        [
+          'att_1',
+          {
+            assetUrl: { url: '/assets/files/att_1?access=fresh' },
+            thumbnailAssetUrl: {
+              url: '/assets/files/att_1/image/2048x2048/contain?access=fresh'
+            }
+          }
+        ]
+      ])
+    );
+
+    render(ModalContainer);
+    await vi.advanceTimersByTimeAsync(23 * 60 * 60 * 1000);
+
+    expect(mocks.refreshAttachmentUrlsForAssets).toHaveBeenCalledWith(
+      expect.anything(),
+      'room_1',
+      ['att_1'],
+      { width: 2048, height: 2048, fit: 'contain' }
+    );
+    expect(mocks.replaceState).toHaveBeenCalledWith('', {
+      modal: {
+        ...mocks.modal,
+        imageItems: [
+          {
+            id: 'att_1',
+            src: 'https://origin.example.test/assets/files/att_1/image/2048x2048/contain?access=fresh',
+            originalSrc: 'https://origin.example.test/assets/files/att_1?access=fresh',
+            filename: 'image.jpg'
+          }
+        ],
+        imageIndex: 0
+      }
+    });
+  });
 });
 
 describe('ModalContainer sign out modal', () => {

@@ -20,7 +20,11 @@
 
   import ImageModal from '$lib/ui/ImageModal.svelte';
 
-  import { refreshAttachmentUrlsForAssets } from '$lib/attachments/attachmentUrls';
+  import {
+    LIGHTBOX_ATTACHMENT_IMAGE_REFRESH,
+    refreshAttachmentUrlsForAssets
+  } from '$lib/attachments/attachmentUrls';
+  import { assetUrlForServer } from '$lib/assets/assetUrls';
   import { toast } from '$lib/ui/toast';
   import { clearLastRoom } from '$lib/storage/lastRoom';
   import { notifyRoomMessageMutated } from '$lib/state/room/messageMutationEvents';
@@ -162,7 +166,8 @@
     const freshUrls = await refreshAttachmentUrlsForAssets(
       getActiveAttachmentAPI(),
       refreshRoomId,
-      modal.imageItems.map((item) => item.id).filter((id): id is string => !!id)
+      modal.imageItems.map((item) => item.id).filter((id): id is string => !!id),
+      LIGHTBOX_ATTACHMENT_IMAGE_REFRESH
     );
     if (freshUrls.size === 0) {
       return;
@@ -177,13 +182,18 @@
       return;
     }
     const imageItems = currentModal.imageItems
-      .map((item) => ({
-        ...item,
-        src:
-          item.id && freshUrls.has(item.id)
-            ? (freshUrls.get(item.id)!.assetUrl?.url ?? '')
-            : item.src
-      }))
+      .map((item) => {
+        const refreshed = item.id ? freshUrls.get(item.id) : undefined;
+        return {
+          ...item,
+          src: refreshed
+            ? (assetUrlForServer(activeInstanceId, refreshed.thumbnailAssetUrl?.url) ?? '')
+            : item.src,
+          originalSrc: refreshed
+            ? (assetUrlForServer(activeInstanceId, refreshed.assetUrl?.url) ?? undefined)
+            : item.originalSrc
+        };
+      })
       .filter((item) => item.src !== '');
     if (imageItems.length === 0) {
       closeModal();

@@ -60,15 +60,14 @@ describe('refreshAttachmentUrlsForAssets', () => {
     ]);
     const refreshAssetUrls = vi.fn().mockResolvedValue(urlsFromAPI);
 
-    const urls = await refreshAttachmentUrlsForAssets(
-      apiWithRefresh(refreshAssetUrls),
-      'room_1',
-      ['att_1', 'att_2']
-    );
+    const urls = await refreshAttachmentUrlsForAssets(apiWithRefresh(refreshAssetUrls), 'room_1', [
+      'att_1',
+      'att_2'
+    ]);
 
     expect(refreshAssetUrls).toHaveBeenCalledWith('room_1', ['att_1', 'att_2'], {
       width: 960,
-      height: 800,
+      height: 400,
       fit: FitMode.Contain
     });
     expect(urls.get('att_1')?.assetUrl?.url).toBe('https://cdn.example.com/fresh-1.jpg');
@@ -84,16 +83,11 @@ describe('refreshAttachmentUrlsForAssets', () => {
   it('passes caller-selected thumbnail shape to the attachment API', async () => {
     const refreshAssetUrls = vi.fn().mockResolvedValue(new Map());
 
-    await refreshAttachmentUrlsForAssets(
-      apiWithRefresh(refreshAssetUrls),
-      'room_1',
-      ['att_1'],
-      {
-        width: 120,
-        height: 120,
-        fit: FitMode.Cover
-      }
-    );
+    await refreshAttachmentUrlsForAssets(apiWithRefresh(refreshAssetUrls), 'room_1', ['att_1'], {
+      width: 120,
+      height: 120,
+      fit: FitMode.Cover
+    });
 
     expect(refreshAssetUrls).toHaveBeenCalledWith('room_1', ['att_1'], {
       width: 120,
@@ -105,11 +99,9 @@ describe('refreshAttachmentUrlsForAssets', () => {
   it('returns an empty map when the refresh request fails', async () => {
     const refreshAssetUrls = vi.fn().mockRejectedValue(new Error('network failed'));
 
-    const urls = await refreshAttachmentUrlsForAssets(
-      apiWithRefresh(refreshAssetUrls),
-      'room_1',
-      ['att_1']
-    );
+    const urls = await refreshAttachmentUrlsForAssets(apiWithRefresh(refreshAssetUrls), 'room_1', [
+      'att_1'
+    ]);
 
     expect(urls.size).toBe(0);
   });

@@ -27,7 +27,7 @@ func newRoomTimelineAssembler(api *API) *roomTimelineAssembler {
 func defaultTimelineAttachmentThumbnail() attachmentThumbnailRequest {
 	return attachmentThumbnailRequest{
 		width:  960,
-		height: 800,
+		height: 400,
 		fit:    "contain",
 	}
 }

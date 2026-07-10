@@ -188,13 +188,10 @@ test('image attachment refreshes URL after an expired lazy-load request', async 
 
   let refreshQueryCount = 0;
 
-  await page.route(
-    '**/api/connect/chatto.api.v1.AssetService/BatchGetAssets',
-    async (route) => {
-      refreshQueryCount += 1;
-      await route.continue();
-    }
-  );
+  await page.route('**/api/connect/chatto.api.v1.AssetService/BatchGetAssets', async (route) => {
+    refreshQueryCount += 1;
+    await route.continue();
+  });
 
   let failedAssetLoad = false;
   await page.route('**/assets/files/**', async (route) => {
@@ -760,6 +757,10 @@ test('image lightbox supports keyboard navigation with multiple images', async (
 
   // Wait for all attachment images to appear in the message
   await expect(roomPage.attachmentImage).toHaveCount(5, { timeout: TIMEOUTS.COMPLEX_OPERATION });
+  await expect(roomPage.attachmentImage.first()).toHaveAttribute(
+    'src',
+    /\/image\/960x400\/contain\?/
+  );
 
   const gallery = page.getByTestId('message-image-gallery');
   await expect(gallery).toBeVisible();
@@ -831,6 +832,11 @@ test('image lightbox supports keyboard navigation with multiple images', async (
   const dialog = page.locator('dialog[open]');
   await expect(dialog).toBeVisible();
   await expect(dialog.getByText('1 / 5')).toBeVisible();
+  await expect(dialog.locator('img')).toHaveAttribute('src', /\/image\/2048x2048\/contain\?/);
+  await expect(dialog.getByRole('link', { name: 'Open original' })).toHaveAttribute(
+    'href',
+    /\/assets\/files\/[^/?]+\?/
+  );
 
   // Verify the "brighton.jpg" filename is shown
   await expect(dialog.getByText('brighton.jpg')).toBeVisible();

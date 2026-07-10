@@ -28,9 +28,10 @@ const (
 	MaxBannerWidth = 768
 	// MaxBannerHeight is the maximum height for space banner images (4:3 aspect ratio).
 	MaxBannerHeight = 576
-	// ThumbnailQuality is the JPEG quality for transformed thumbnails (1-100).
+	// DefaultTransformJPEGQuality is the JPEG quality used by transformed images
+	// unless the caller selects a surface-specific quality (1-100).
 	// 80 provides a good balance between file size and visual quality.
-	ThumbnailQuality = 80
+	DefaultTransformJPEGQuality = 80
 )
 
 // Config holds configuration for asset processing.
@@ -69,6 +70,12 @@ type TransformResult struct {
 	Reader io.Reader
 	// ContentType is the MIME type of the output ("image/webp" or "image/jpeg")
 	ContentType string
+}
+
+// TransformOptions controls image derivative encoding.
+type TransformOptions struct {
+	// JPEGQuality is used for opaque static images. It must be between 1 and 100.
+	JPEGQuality int
 }
 
 // DetectImageContentType returns the MIME type of image data based on magic bytes.
@@ -326,6 +333,17 @@ func hasTransparency(img image.Image) bool {
 // For images with transparency, returns WebP to preserve alpha.
 // For opaque images, returns JPEG for smaller file sizes.
 func TransformImage(data []byte, width, height int, fit FitMode) (*TransformResult, error) {
+	return TransformImageWithOptions(data, width, height, fit, TransformOptions{
+		JPEGQuality: DefaultTransformJPEGQuality,
+	})
+}
+
+// TransformImageWithOptions transforms an image with explicit encoding options.
+func TransformImageWithOptions(data []byte, width, height int, fit FitMode, options TransformOptions) (*TransformResult, error) {
+	if options.JPEGQuality < 1 || options.JPEGQuality > 100 {
+		return nil, fmt.Errorf("invalid JPEG quality: %d", options.JPEGQuality)
+	}
+
 	// Check if this is an animated GIF - handle specially to preserve animation
 	if IsAnimatedGIF(data) {
 		return transformAnimatedGIF(data, width, height, fit)
@@ -369,7 +387,7 @@ func TransformImage(data []byte, width, height int, fit FitMode) (*TransformResu
 		}, nil
 	}
 
-	if err := jpeg.Encode(&buf, transformed, &jpeg.Options{Quality: ThumbnailQuality}); err != nil {
+	if err := jpeg.Encode(&buf, transformed, &jpeg.Options{Quality: options.JPEGQuality}); err != nil {
 		return nil, fmt.Errorf("failed to encode to jpeg: %w", err)
 	}
 
@@ -518,7 +536,7 @@ func compositeGIFFrames(g *gif.GIF) []*image.NRGBA {
 			if previous != nil {
 				copy(canvas.Pix, previous.Pix)
 			}
-		// DisposalNone (0x01) and unspecified (0x00): leave canvas as-is
+			// DisposalNone (0x01) and unspecified (0x00): leave canvas as-is
 		}
 	}
 

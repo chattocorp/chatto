@@ -466,6 +466,57 @@ func TestTransformImage_OutputFormat(t *testing.T) {
 	}
 }
 
+func TestTransformImageWithOptions_UsesSelectedJPEGQuality(t *testing.T) {
+	testImg := createTestImage(1200, 800)
+
+	defaultResult, err := TransformImage(testImg, 960, 400, FitContain)
+	if err != nil {
+		t.Fatalf("TransformImage failed: %v", err)
+	}
+	defaultData, err := io.ReadAll(defaultResult.Reader)
+	if err != nil {
+		t.Fatalf("Failed to read default transform: %v", err)
+	}
+
+	explicitDefaultResult, err := TransformImageWithOptions(testImg, 960, 400, FitContain, TransformOptions{
+		JPEGQuality: DefaultTransformJPEGQuality,
+	})
+	if err != nil {
+		t.Fatalf("TransformImageWithOptions default quality failed: %v", err)
+	}
+	explicitDefaultData, err := io.ReadAll(explicitDefaultResult.Reader)
+	if err != nil {
+		t.Fatalf("Failed to read explicit default transform: %v", err)
+	}
+	if !bytes.Equal(defaultData, explicitDefaultData) {
+		t.Fatal("TransformImage did not preserve the default JPEG quality")
+	}
+
+	compressedResult, err := TransformImageWithOptions(testImg, 960, 400, FitContain, TransformOptions{
+		JPEGQuality: 75,
+	})
+	if err != nil {
+		t.Fatalf("TransformImageWithOptions quality 75 failed: %v", err)
+	}
+	compressedData, err := io.ReadAll(compressedResult.Reader)
+	if err != nil {
+		t.Fatalf("Failed to read compressed transform: %v", err)
+	}
+	if len(compressedData) >= len(defaultData) {
+		t.Fatalf("quality 75 output size = %d, want less than quality %d output size %d", len(compressedData), DefaultTransformJPEGQuality, len(defaultData))
+	}
+}
+
+func TestTransformImageWithOptions_RejectsInvalidJPEGQuality(t *testing.T) {
+	testImg := createTestImage(100, 100)
+	if _, err := TransformImageWithOptions(testImg, 50, 50, FitContain, TransformOptions{}); err == nil {
+		t.Fatal("TransformImageWithOptions accepted zero JPEG quality")
+	}
+	if _, err := TransformImageWithOptions(testImg, 50, 50, FitContain, TransformOptions{JPEGQuality: 101}); err == nil {
+		t.Fatal("TransformImageWithOptions accepted JPEG quality above 100")
+	}
+}
+
 func TestTransformImage_TransparentPNG_OutputsWebP(t *testing.T) {
 	// Create a PNG with transparent pixels
 	testImg := createTransparentTestImage(200, 200)
