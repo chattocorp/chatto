@@ -29,7 +29,6 @@ export class RoomUnreadStore {
   // Server-level unknown-unread flag (set when we know there's unread but
   // not which room — e.g. on initial load before rooms are queried).
   private serverHasUnknownUnread = $state(false);
-  private unknownUnreadRevision = 0;
 
   private optimisticReadKey(roomId: string): string {
     return `room:${roomId}`;
@@ -55,10 +54,6 @@ export class RoomUnreadStore {
       this.unreadRooms.add(roomId);
     } else {
       this.unreadRooms.delete(roomId);
-      // Reading a specific room implies we now have concrete knowledge —
-      // drop the unknown-unread flag.
-      this.serverHasUnknownUnread = false;
-      this.unknownUnreadRevision++;
     }
   }
 
@@ -69,7 +64,6 @@ export class RoomUnreadStore {
   beginOptimisticRead(roomId: string): OptimisticRoomReadHandle {
     const token = this.optimisticReads.createToken();
     const roomRevision = this.roomRevision(roomId);
-    const unknownUnreadRevision = this.unknownUnreadRevision;
     const key = this.optimisticReadKey(roomId);
 
     this.optimisticReads.mark(key, token);
@@ -81,10 +75,6 @@ export class RoomUnreadStore {
         if (this.roomRevision(roomId) !== roomRevision) return;
 
         this.unreadRooms.delete(roomId);
-        if (this.unknownUnreadRevision === unknownUnreadRevision) {
-          this.serverHasUnknownUnread = false;
-          this.unknownUnreadRevision++;
-        }
         this.optimisticReads.clear(key);
         this.optimisticReadRooms.delete(roomId);
       },
@@ -103,7 +93,7 @@ export class RoomUnreadStore {
     for (const roomId of this.unreadRooms) {
       if (!this.optimisticReadRooms.has(roomId)) return true;
     }
-    return this.serverHasUnknownUnread && this.optimisticReadRooms.size === 0;
+    return this.serverHasUnknownUnread;
   }
 
   /**
@@ -134,7 +124,6 @@ export class RoomUnreadStore {
     this.roomRevisions.clear();
     this.unreadRooms.clear();
     this.serverHasUnknownUnread = false;
-    this.unknownUnreadRevision++;
     this.updateRooms(rooms);
   }
 
@@ -151,7 +140,6 @@ export class RoomUnreadStore {
   /** Clear the server-level sentinel after all relevant room scopes are known. */
   resolveUnknownUnread(): void {
     this.serverHasUnknownUnread = false;
-    this.unknownUnreadRevision++;
   }
 
   /**
@@ -159,7 +147,6 @@ export class RoomUnreadStore {
    * signal is known (initial load, before rooms are queried).
    */
   setServerHasUnread(hasUnread: boolean): void {
-    this.unknownUnreadRevision++;
     if (hasUnread) {
       this.serverHasUnknownUnread = true;
     } else {
@@ -179,6 +166,5 @@ export class RoomUnreadStore {
     this.roomRevisions.clear();
     this.unreadRooms.clear();
     this.serverHasUnknownUnread = false;
-    this.unknownUnreadRevision++;
   }
 }

@@ -80,15 +80,19 @@ describe('RoomUnreadStore', () => {
     expect(store.roomIsUnread('room-1')).toBe(false);
   });
 
-  it('restores an unknown server unread signal when an optimistic read fails', () => {
+  it('preserves an unrelated unknown unread during a room read', () => {
     const store = new RoomUnreadStore();
     store.setServerHasUnread(true);
 
     const read = store.beginOptimisticRead('room-1');
-    expect(store.hasAnyUnread).toBe(false);
-
-    read.rollback();
+    expect(store.roomIsUnread('room-1')).toBe(false);
     expect(store.hasAnyUnread).toBe(true);
+
+    read.commit();
+    expect(store.hasAnyUnread).toBe(true);
+
+    store.resolveUnknownUnread();
+    expect(store.hasAnyUnread).toBe(false);
   });
 
   it('keeps a room read optimistic when a coarse unread signal arrives', () => {
