@@ -431,21 +431,21 @@ describe('MessageComposer', () => {
   });
 
   describe('file input configuration', () => {
-    it('accepts image and audio files when video processing is disabled', async () => {
+    it('allows selecting any file type', async () => {
       const { container } = renderMessageComposer({ roomId: 'room_456' });
 
-      await expect
-        .element(q(container, 'input[type="file"]'))
-        .toHaveAttribute('accept', 'image/*,audio/*');
+      await expect.element(q(container, 'input[type="file"]')).not.toHaveAttribute('accept');
     });
 
-    it('accepts image, video, and audio files when video processing is enabled', async () => {
-      mockInstanceStores.serverInfo.videoProcessingEnabled = true;
+    it('stages selected document files', async () => {
       const { container } = renderMessageComposer({ roomId: 'room_456' });
+      const input = q(container, 'input[type="file"]') as HTMLInputElement;
+
+      selectFiles(input, [new File(['document'], 'report.pdf', { type: 'application/pdf' })]);
 
       await expect
-        .element(q(container, 'input[type="file"]'))
-        .toHaveAttribute('accept', 'image/*,video/*,audio/*');
+        .poll(() => q(container, '[data-testid="file-attachment-preview"]')?.textContent)
+        .toBe('pdf');
     });
 
     it('allows multiple file selection', async () => {

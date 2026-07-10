@@ -382,12 +382,16 @@
   }
 
   async function refreshLightboxUrls(): Promise<Map<string, RefreshedAttachmentUrls>> {
-    return refreshAttachmentUrlsForAssets(
+    const freshUrls = await refreshAttachmentUrlsForAssets(
       currentAttachmentAPI(),
       roomId,
       imageAttachments.map((attachment) => attachment.id),
       LIGHTBOX_ATTACHMENT_IMAGE_REFRESH
     );
+    if (freshUrls.size > 0) {
+      refreshedAttachmentUrls = mergeRefreshedAttachmentUrls(refreshedAttachmentUrls, freshUrls);
+    }
+    return freshUrls;
   }
 
   async function openImageModal(attachment: Attachment) {
