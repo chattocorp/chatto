@@ -7170,6 +7170,61 @@ func TestThreadServiceListFollowedThreadsFiltersMembershipLoss(t *testing.T) {
 	}
 }
 
+func TestThreadServiceListFollowedThreadsFiltersOtherRoomKinds(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	participant, err := env.core.CreateUser(env.ctx, core.SystemActorID, "thread-dm-participant", "Thread DM Participant", "password")
+	if err != nil {
+		t.Fatalf("CreateUser participant: %v", err)
+	}
+	dm, _, err := env.core.FindOrCreateDM(env.ctx, env.viewer.Id, []string{participant.Id})
+	if err != nil {
+		t.Fatalf("FindOrCreateDM: %v", err)
+	}
+	root, err := env.core.PostMessage(env.ctx, core.KindDM, dm.Id, env.viewer.Id, "root body", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage root: %v", err)
+	}
+	if _, err := env.core.PostMessage(env.ctx, core.KindDM, dm.Id, participant.Id, "reply body", nil, root.Id, "", nil, false); err != nil {
+		t.Fatalf("PostMessage reply: %v", err)
+	}
+	if err := env.core.FollowThread(env.ctx, core.KindDM, env.viewer.Id, dm.Id, root.Id); err != nil {
+		t.Fatalf("FollowThread: %v", err)
+	}
+
+	resp, err := env.threads.ListFollowedThreads(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.ListFollowedThreadsRequest{
+		Page: &apiv1.PageRequest{Limit: 20},
+	}))
+	if err != nil {
+		t.Fatalf("ListFollowedThreads: %v", err)
+	}
+	if got := len(resp.Msg.GetThreads()); got != 0 {
+		t.Fatalf("ListFollowedThreads returned %d DM threads in the channel list, want 0", got)
+	}
+	if resp.Msg.GetPage().GetTotalCount() != 0 || resp.Msg.GetPage().GetHasMore() {
+		t.Fatalf("ListFollowedThreads page metadata = total %d hasMore %v, want total 0 hasMore false", resp.Msg.GetPage().GetTotalCount(), resp.Msg.GetPage().GetHasMore())
+	}
+}
+
+func TestFollowedThreadsResponseOmitsUnavailableRooms(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	page := &core.FollowedThreadsPage{
+		Threads: []*core.FollowedThread{{
+			SpaceID:           core.LegacySpaceIDForRoomKind(core.KindChannel),
+			RoomID:            "missing-room",
+			ThreadRootEventID: "missing-root",
+		}},
+		TotalCount: 1,
+	}
+
+	resp, err := newThreadAssembler(env.api).followedThreadsResponse(env.ctx, env.viewer.Id, page)
+	if err != nil {
+		t.Fatalf("followedThreadsResponse: %v", err)
+	}
+	if got := len(resp.GetThreads()); got != 0 {
+		t.Fatalf("followedThreadsResponse returned %d unavailable threads, want 0", got)
+	}
+}
+
 func TestNotificationLevelMapping(t *testing.T) {
 	valid := []struct {
 		name string
