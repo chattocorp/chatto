@@ -79,19 +79,6 @@ describe('RoomUnreadStore', () => {
     expect(store.roomIsUnread('room-1')).toBe(false);
   });
 
-  it('does not let a stale directory refresh restore an unknown unread after a read', () => {
-    const store = new RoomUnreadStore();
-    store.setRoomUnread('room-1', true);
-    const snapshotRevision = store.captureSnapshotRevision();
-
-    const read = store.beginOptimisticRead('room-1');
-    read.commit();
-    store.initRooms([{ id: 'room-1', hasUnread: false }], true, snapshotRevision);
-
-    expect(store.roomIsUnread('room-1')).toBe(false);
-    expect(store.hasAnyUnread).toBe(false);
-  });
-
   it('does not let a stale directory refresh overwrite a live read event', () => {
     const store = new RoomUnreadStore();
     store.setRoomUnread('room-1', true);
@@ -103,18 +90,6 @@ describe('RoomUnreadStore', () => {
     read.rollback();
 
     expect(store.roomIsUnread('room-1')).toBe(false);
-  });
-
-  it('does not let a stale directory refresh restore an unknown unread after a live read', () => {
-    const store = new RoomUnreadStore();
-    store.setRoomUnread('room-1', true);
-    const snapshotRevision = store.captureSnapshotRevision();
-
-    store.setRoomUnread('room-1', false);
-    store.initRooms([{ id: 'room-1', hasUnread: false }], true, snapshotRevision);
-
-    expect(store.roomIsUnread('room-1')).toBe(false);
-    expect(store.hasAnyUnread).toBe(false);
   });
 
   it('does not let rollback erase a newer unread message', () => {

@@ -143,8 +143,7 @@ export class RoomUnreadStore {
     }
 
     this.updateRooms(rooms, snapshotRevision);
-    this.serverHasUnknownUnread =
-      serverHasUnknownUnread && this.revision <= snapshotRevision;
+    this.serverHasUnknownUnread = serverHasUnknownUnread;
   }
 
   /** Merge an authoritative partial room snapshot without dropping other rooms. */
