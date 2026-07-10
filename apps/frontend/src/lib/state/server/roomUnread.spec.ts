@@ -97,15 +97,28 @@ describe('RoomUnreadStore', () => {
 
   it('does not add an unknown sentinel when the aggregate is represented', () => {
     const store = new RoomUnreadStore();
+    store.initRooms([{ id: 'channel', hasUnread: true }]);
+
+    const read = store.beginOptimisticRead('channel');
+
+    expect(store.roomIsUnread('channel')).toBe(false);
+    expect(store.hasAnyUnread).toBe(false);
+
+    read.commit();
+    expect(store.hasAnyUnread).toBe(false);
+  });
+
+  it('keeps a channel aggregate when only a DM unread is concrete', () => {
+    const store = new RoomUnreadStore();
     store.initRooms([{ id: 'dm', hasUnread: true }], true);
 
     const read = store.beginOptimisticRead('dm');
 
     expect(store.roomIsUnread('dm')).toBe(false);
-    expect(store.hasAnyUnread).toBe(false);
+    expect(store.hasAnyUnread).toBe(true);
 
     read.commit();
-    expect(store.hasAnyUnread).toBe(false);
+    expect(store.hasAnyUnread).toBe(true);
   });
 
   it('keeps a room read optimistic when a coarse unread signal arrives', () => {

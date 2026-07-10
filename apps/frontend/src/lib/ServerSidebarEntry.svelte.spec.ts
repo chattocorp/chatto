@@ -147,6 +147,10 @@ vi.mock('$lib/api-client/roomDirectory', () => ({
     CHANNELS: 2,
     DMS: 3
   },
+  RoomKind: {
+    CHANNEL: 1,
+    DM: 2
+  },
   createRoomDirectoryAPI: mocks.createRoomDirectoryAPI
 }));
 
@@ -295,7 +299,7 @@ describe('ServerSidebarEntry', () => {
         ]
       })
     );
-    mocks.listRooms.mockResolvedValue([{ id: 'dm-1', hasUnread: true }]);
+    mocks.listRooms.mockResolvedValue([{ id: 'dm-1', kind: 2, hasUnread: true }]);
 
     const { container } = render(ServerSidebarEntry, {
       props: {
@@ -336,7 +340,7 @@ describe('ServerSidebarEntry', () => {
       NotificationLevel.Muted
     );
     expect(mocks.store.roomUnread.initRooms).toHaveBeenCalledWith(
-      [{ id: 'dm-1', hasUnread: true }],
+      [{ id: 'dm-1', kind: 2, hasUnread: true }],
       true
     );
   });

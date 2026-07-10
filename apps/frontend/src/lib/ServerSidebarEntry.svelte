@@ -9,7 +9,11 @@
   import { isMessagePostedEvent, RoomEventKind, roomEventKind } from '$lib/render/eventKinds';
   import { getAuthenticatedServerState } from '$lib/api-client/serverState';
   import { getViewerStateViaConnect } from '$lib/api-client/viewer';
-  import { createRoomDirectoryAPI, RoomDirectoryScope } from '$lib/api-client/roomDirectory';
+  import {
+    createRoomDirectoryAPI,
+    RoomDirectoryScope,
+    RoomKind
+  } from '$lib/api-client/roomDirectory';
   import { notificationTarget } from '$lib/state/server/notifications.svelte';
   import { prepareUiForNotificationTarget } from '$lib/notifications/notificationNavigationUi';
   import { getAppUiState } from '$lib/state/appUi.svelte';
@@ -106,7 +110,13 @@
 
       const pref = viewer.serverNotificationPreference;
       notificationLevelStore.setServerPreference(pref.level, pref.effectiveLevel);
-      roomUnreadStore.initRooms(rooms, serverState.viewerHasUnreadRooms);
+      const hasUnreadChannel = rooms.some(
+        (room) => room.kind === RoomKind.CHANNEL && room.hasUnread
+      );
+      roomUnreadStore.initRooms(
+        rooms,
+        serverState.viewerHasUnreadRooms && !hasUnreadChannel
+      );
 
       displayName = serverState.name;
       logoUrl = serverState.logoUrl;
