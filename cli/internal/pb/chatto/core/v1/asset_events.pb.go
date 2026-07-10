@@ -270,11 +270,8 @@ func (x *AssetCreatedEvent) GetNeedsVideoProcessing() bool {
 // AssetDeletedEvent terminates the asset lifecycle. Subscribers drop the
 // asset from any local projection; storage cleanup is separate.
 type AssetDeletedEvent struct {
-	state   protoimpl.MessageState `protogen:"open.v1"`
-	AssetId string                 `protobuf:"bytes,1,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
-	// Storage metadata captured from the creation fact before projections drop
-	// it. Empty on historical events written before durable cleanup existed.
-	Asset         *AssetRecord `protobuf:"bytes,2,opt,name=asset,proto3" json:"asset,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AssetId       string                 `protobuf:"bytes,1,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -314,13 +311,6 @@ func (x *AssetDeletedEvent) GetAssetId() string {
 		return x.AssetId
 	}
 	return ""
-}
-
-func (x *AssetDeletedEvent) GetAsset() *AssetRecord {
-	if x != nil {
-		return x.Asset
-	}
-	return nil
 }
 
 // AssetProcessingStartedEvent signals that derivative processing has been
@@ -661,10 +651,9 @@ const file_chatto_core_v1_asset_events_proto_rawDesc = "" +
 	"\x06sha256\x18\b \x01(\tR\x06sha256\x12H\n" +
 	"\x12pending_expires_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\x10pendingExpiresAt\x124\n" +
 	"\x16needs_video_processing\x18\n" +
-	" \x01(\bR\x14needsVideoProcessingJ\x04\b\x04\x10\x05R\x10message_event_id\"a\n" +
+	" \x01(\bR\x14needsVideoProcessingJ\x04\b\x04\x10\x05R\x10message_event_id\".\n" +
 	"\x11AssetDeletedEvent\x12\x19\n" +
-	"\basset_id\x18\x01 \x01(\tR\aassetId\x121\n" +
-	"\x05asset\x18\x02 \x01(\v2\x1b.chatto.core.v1.AssetRecordR\x05asset\"b\n" +
+	"\basset_id\x18\x01 \x01(\tR\aassetId\"b\n" +
 	"\x1bAssetProcessingStartedEvent\x12\x19\n" +
 	"\basset_id\x18\x01 \x01(\tR\aassetId\x12(\n" +
 	"\x10message_event_id\x18\x02 \x01(\tR\x0emessageEventId\"\x9f\x01\n" +
@@ -727,15 +716,14 @@ var file_chatto_core_v1_asset_events_proto_depIdxs = []int32{
 	9,  // 0: chatto.core.v1.AssetCreatedEvent.asset:type_name -> chatto.core.v1.AssetRecord
 	0,  // 1: chatto.core.v1.AssetCreatedEvent.derivative_role:type_name -> chatto.core.v1.AssetDerivativeRole
 	10, // 2: chatto.core.v1.AssetCreatedEvent.pending_expires_at:type_name -> google.protobuf.Timestamp
-	9,  // 3: chatto.core.v1.AssetDeletedEvent.asset:type_name -> chatto.core.v1.AssetRecord
-	7,  // 4: chatto.core.v1.AssetProcessingSucceededEvent.video:type_name -> chatto.core.v1.AssetProcessedVideo
-	1,  // 5: chatto.core.v1.AssetProcessingFailedEvent.failure_code:type_name -> chatto.core.v1.AssetProcessingFailureCode
-	8,  // 6: chatto.core.v1.AssetProcessedVideo.variants:type_name -> chatto.core.v1.AssetVideoVariant
-	7,  // [7:7] is the sub-list for method output_type
-	7,  // [7:7] is the sub-list for method input_type
-	7,  // [7:7] is the sub-list for extension type_name
-	7,  // [7:7] is the sub-list for extension extendee
-	0,  // [0:7] is the sub-list for field type_name
+	7,  // 3: chatto.core.v1.AssetProcessingSucceededEvent.video:type_name -> chatto.core.v1.AssetProcessedVideo
+	1,  // 4: chatto.core.v1.AssetProcessingFailedEvent.failure_code:type_name -> chatto.core.v1.AssetProcessingFailureCode
+	8,  // 5: chatto.core.v1.AssetProcessedVideo.variants:type_name -> chatto.core.v1.AssetVideoVariant
+	6,  // [6:6] is the sub-list for method output_type
+	6,  // [6:6] is the sub-list for method input_type
+	6,  // [6:6] is the sub-list for extension type_name
+	6,  // [6:6] is the sub-list for extension extendee
+	0,  // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_chatto_core_v1_asset_events_proto_init() }

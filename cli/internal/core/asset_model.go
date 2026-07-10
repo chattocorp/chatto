@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/events"
 	"hmans.de/chatto/internal/lease"
@@ -462,13 +461,9 @@ func (s *AssetModel) RecordAssetDeleted(ctx context.Context, actorID string, roo
 	if actorID == "" {
 		return fmt.Errorf("asset deletion missing actor id (use SystemActorID for non-user paths)")
 	}
-	deleted := &corev1.AssetDeletedEvent{AssetId: assetID}
-	if created, ok := s.AssetCreation(assetID); ok && created.GetAsset() != nil {
-		deleted.Asset = proto.Clone(created.GetAsset()).(*corev1.AssetRecord)
-	}
 	event := newEvent(actorID, &corev1.Event{
 		Event: &corev1.Event_AssetDeleted{
-			AssetDeleted: deleted,
+			AssetDeleted: &corev1.AssetDeletedEvent{AssetId: assetID},
 		},
 	})
 	if err := s.appendAssetEventEventually(ctx, assetID, event); err != nil {

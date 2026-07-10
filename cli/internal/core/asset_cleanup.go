@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"hmans.de/chatto/internal/events"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -46,14 +47,24 @@ func (s *AssetModel) consumeAssetCleanup(ctx context.Context) error {
 
 func (s *AssetModel) cleanupDeletedAsset(ctx context.Context, event *corev1.Event) error {
 	deleted := event.GetAssetDeleted()
-	if deleted == nil || deleted.GetAsset() == nil {
-		// Historical deletion facts contain only an ID. Guessing old storage
-		// locations is unsafe, so compatibility events remain a no-op.
+	if deleted == nil || deleted.GetAssetId() == "" {
 		return nil
 	}
-	attachment := attachmentFromAsset(deleted.GetAsset())
+	createdEvents, _, err := s.EventPublisher.SubjectEvents(
+		ctx,
+		events.AssetAggregate(deleted.GetAssetId()).Subject(events.EventAssetCreated),
+	)
+	if err != nil {
+		return fmt.Errorf("read creation fact for asset %s: %w", deleted.GetAssetId(), err)
+	}
+	if len(createdEvents) == 0 {
+		// Beta room-scoped histories cannot be located from the asset ID alone.
+		return nil
+	}
+	created := createdEvents[len(createdEvents)-1].GetAssetCreated()
+	attachment := attachmentFromAsset(created.GetAsset())
 	if attachment == nil {
-		return fmt.Errorf("asset deletion %s has invalid storage metadata", deleted.GetAssetId())
+		return fmt.Errorf("asset creation %s has invalid storage metadata", deleted.GetAssetId())
 	}
 	if err := s.media().DeleteAttachmentFromStorage(ctx, attachment); err != nil {
 		return fmt.Errorf("delete asset %s from storage: %w", deleted.GetAssetId(), err)

@@ -9,37 +9,6 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-func TestRecordAssetDeletedCapturesStorageMetadata(t *testing.T) {
-	core, _ := setupTestCore(t)
-	ctx := testContext(t)
-	room, err := core.CreateRoom(ctx, SystemActorID, KindChannel, "", "asset-cleanup-payload", "Asset cleanup payload")
-	if err != nil {
-		t.Fatalf("CreateRoom: %v", err)
-	}
-	attachment, err := core.media().UploadAttachment(ctx, SystemActorID, room.GetId(), "payload.txt", "text/plain", bytes.NewReader([]byte("payload")))
-	if err != nil {
-		t.Fatalf("UploadAttachment: %v", err)
-	}
-
-	if err := core.assetLifecycle().RecordAssetDeleted(ctx, SystemActorID, room.GetId(), attachment.GetId()); err != nil {
-		t.Fatalf("RecordAssetDeleted: %v", err)
-	}
-	deletedEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.AssetAggregate(attachment.GetId()).Subject(events.EventAssetDeleted))
-	if err != nil {
-		t.Fatalf("SubjectEvents: %v", err)
-	}
-	if len(deletedEvents) != 1 {
-		t.Fatalf("asset deletion events = %d, want 1", len(deletedEvents))
-	}
-	deleted := deletedEvents[0].GetAssetDeleted()
-	if deleted.GetAsset().GetId() != attachment.GetId() {
-		t.Fatalf("captured asset id = %q, want %q", deleted.GetAsset().GetId(), attachment.GetId())
-	}
-	if deleted.GetAsset().GetNats().GetKey() != attachment.GetStorage().GetNats().GetKey() {
-		t.Fatalf("captured NATS key = %q, want %q", deleted.GetAsset().GetNats().GetKey(), attachment.GetStorage().GetNats().GetKey())
-	}
-}
-
 func TestAssetCleanupReplaysDeletionAndIsIdempotent(t *testing.T) {
 	core, _ := setupTestCoreWithCache(t)
 	ctx := testContext(t)
@@ -76,7 +45,7 @@ func TestAssetCleanupReplaysDeletionAndIsIdempotent(t *testing.T) {
 	}
 }
 
-func TestAssetCleanupSkipsHistoricalIDOnlyEvents(t *testing.T) {
+func TestAssetCleanupSkipsDeletionWithoutCanonicalCreationFact(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	appendAssetDeletionTestEvent(t, ctx, core, &corev1.AssetDeletedEvent{AssetId: "A-historical"})
@@ -90,13 +59,12 @@ func TestAssetCleanupSkipsHistoricalIDOnlyEvents(t *testing.T) {
 func TestAssetCleanupFailureDoesNotBlockLaterDeletion(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
-	appendAssetDeletionTestEvent(t, ctx, core, &corev1.AssetDeletedEvent{
-		AssetId: "A-bad-s3",
-		Asset: &corev1.AssetRecord{
-			Id:      "A-bad-s3",
-			Storage: &corev1.AssetRecord_S3{S3: &corev1.S3Asset{Key: "unavailable"}},
-		},
-	})
+	badAsset := &corev1.AssetRecord{
+		Id:      "A-bad-s3",
+		Storage: &corev1.AssetRecord_S3{S3: &corev1.S3Asset{Key: "unavailable"}},
+	}
+	appendAssetCreationTestEvent(t, ctx, core, badAsset)
+	appendAssetDeletionTestEvent(t, ctx, core, &corev1.AssetDeletedEvent{AssetId: badAsset.GetId()})
 
 	room, err := core.CreateRoom(ctx, SystemActorID, KindChannel, "", "asset-cleanup-independent", "Asset cleanup independent")
 	if err != nil {
@@ -116,6 +84,16 @@ func TestAssetCleanupFailureDoesNotBlockLaterDeletion(t *testing.T) {
 	}
 	if _, _, err := core.media().GetAttachmentReader(ctx, attachment); err == nil {
 		t.Fatal("later attachment remained readable after an earlier permanent failure")
+	}
+}
+
+func appendAssetCreationTestEvent(t *testing.T, ctx context.Context, core *ChattoCore, asset *corev1.AssetRecord) {
+	t.Helper()
+	event := newEvent(SystemActorID, &corev1.Event{
+		Event: &corev1.Event_AssetCreated{AssetCreated: &corev1.AssetCreatedEvent{Asset: asset}},
+	})
+	if _, err := core.EventPublisher.AppendEventually(ctx, events.AssetAggregate(asset.GetId()).SubjectFor(event), event); err != nil {
+		t.Fatalf("append asset creation event: %v", err)
 	}
 }
 
