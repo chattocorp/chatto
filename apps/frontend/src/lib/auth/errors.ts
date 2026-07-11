@@ -7,8 +7,8 @@ type MessageBearingError = {
 const AUTHENTICATION_REQUIRED_MESSAGE = 'authentication required';
 
 export function isAuthenticationRequiredError(error: unknown): boolean {
-  if (error instanceof ConnectError && error.code === Code.Unauthenticated) {
-    return true;
+  if (error instanceof ConnectError) {
+    return error.code === Code.Unauthenticated;
   }
 
   if (!error || typeof error !== 'object') return false;

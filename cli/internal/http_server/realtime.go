@@ -150,6 +150,11 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 	}
 	ctx, user, err := s.realtimeAuthenticatedUser(ctx, clientHello)
 	if err != nil {
+		if !errors.Is(err, core.ErrNotAuthenticated) {
+			writeError("temporarily_unavailable", "authentication service temporarily unavailable", true)
+			_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseTryAgainLater, "temporarily unavailable"), time.Now().Add(time.Second))
+			return
+		}
 		writeError("authentication_required", "authentication required", true)
 		_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.ClosePolicyViolation, "authentication required"), time.Now().Add(time.Second))
 		return
@@ -284,7 +289,10 @@ func (s *HTTPServer) readRealtimeControlFrames(ctx context.Context, cancel conte
 
 func (s *HTTPServer) realtimeAuthenticatedUser(ctx context.Context, hello *realtimev1.RealtimeClientHello) (context.Context, *corev1.User, error) {
 	if token := strings.TrimSpace(hello.GetBearerToken()); token != "" {
-		credential, ok := s.bearerPresentedCredential(ctx, token)
+		credential, ok, err := s.bearerPresentedCredential(ctx, token)
+		if err != nil {
+			return ctx, nil, err
+		}
 		if !ok {
 			return ctx, nil, core.ErrNotAuthenticated
 		}
@@ -294,6 +302,9 @@ func (s *HTTPServer) realtimeAuthenticatedUser(ctx context.Context, hello *realt
 	}
 	if user := authctx.ForContext(ctx); user != nil {
 		return ctx, user, nil
+	}
+	if err := authenticationValidationError(ctx); err != nil {
+		return ctx, nil, err
 	}
 	return ctx, nil, core.ErrNotAuthenticated
 }

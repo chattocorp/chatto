@@ -43,7 +43,12 @@ func (s *HTTPServer) setupOAuthRoutes() {
 		// query string is treated as a fresh authorize attempt and overwrites the
 		// pending session after validation below.
 		if c.Request.URL.RawQuery == "" {
-			if credential, ok := s.oauthCookieCredential(c); ok {
+			credential, ok, err := s.oauthCookieCredential(c)
+			if err != nil {
+				writeAuthenticationUnavailable(c)
+				return
+			}
+			if ok {
 				if hasPendingOAuthAuthorize(session) {
 					s.continueOAuthAuthorize(c, credential.auth.UserID, credential.cookieRecord.GetAuthGeneration())
 					return
@@ -106,7 +111,12 @@ func (s *HTTPServer) setupOAuthRoutes() {
 		session.Save()
 
 		// If user is already authenticated, generate code immediately
-		if credential, ok := s.oauthCookieCredential(c); ok {
+		credential, ok, err := s.oauthCookieCredential(c)
+		if err != nil {
+			writeAuthenticationUnavailable(c)
+			return
+		}
+		if ok {
 			s.continueOAuthAuthorize(c, credential.auth.UserID, credential.cookieRecord.GetAuthGeneration())
 			return
 		}
@@ -214,7 +224,11 @@ func (s *HTTPServer) setupOAuthRoutes() {
 	})
 
 	oauth.GET("consent/request", func(c *gin.Context) {
-		_, ok := s.oauthCookieCredential(c)
+		_, ok, err := s.oauthCookieCredential(c)
+		if err != nil {
+			writeAuthenticationUnavailable(c)
+			return
+		}
 		if !ok {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
 			return
@@ -238,7 +252,11 @@ func (s *HTTPServer) setupOAuthRoutes() {
 	})
 
 	oauth.POST("consent/approve", func(c *gin.Context) {
-		credential, ok := s.oauthCookieCredential(c)
+		credential, ok, err := s.oauthCookieCredential(c)
+		if err != nil {
+			writeAuthenticationUnavailable(c)
+			return
+		}
 		if !ok {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
 			return
@@ -270,7 +288,11 @@ func (s *HTTPServer) setupOAuthRoutes() {
 	})
 
 	oauth.POST("consent/deny", func(c *gin.Context) {
-		credential, ok := s.oauthCookieCredential(c)
+		credential, ok, err := s.oauthCookieCredential(c)
+		if err != nil {
+			writeAuthenticationUnavailable(c)
+			return
+		}
 		if !ok {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
 			return
@@ -306,13 +328,16 @@ func (s *HTTPServer) setupOAuthRoutes() {
 	})
 }
 
-func (s *HTTPServer) oauthCookieCredential(c *gin.Context) (presentedRuntimeCredential, bool) {
-	credential, ok := s.cookiePresentedCredential(c)
+func (s *HTTPServer) oauthCookieCredential(c *gin.Context) (presentedRuntimeCredential, bool, error) {
+	credential, ok, err := s.cookiePresentedCredential(c)
+	if err != nil {
+		return presentedRuntimeCredential{}, false, err
+	}
 	if !ok {
-		return presentedRuntimeCredential{}, false
+		return presentedRuntimeCredential{}, false, nil
 	}
 	s.rotateCookieSessionIfNeeded(c, credential.auth.UserID, credential.auth.Handle, credential.cookieRecord)
-	return credential, true
+	return credential, true, nil
 }
 
 type oauthTokenRequest struct {

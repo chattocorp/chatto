@@ -75,7 +75,7 @@ func (s *HTTPServer) setupAuthRoutes() {
 
 		loggedOutUserIDs := make(map[string]struct{}, 2)
 		session := sessions.Default(c)
-		cookieCredential, cookieOK := s.cookiePresentedCredential(c)
+		cookieCredential, cookieOK, _ := s.cookiePresentedCredential(c)
 
 		if authHeader := c.GetHeader("Authorization"); authHeader != "" {
 			if token, ok := strings.CutPrefix(authHeader, "Bearer "); ok && strings.TrimSpace(token) != "" {
@@ -544,6 +544,10 @@ func (s *HTTPServer) setupAuthRoutes() {
 	// Authenticated email verification code request.
 	auth.POST("verify-email/request-code", func(c *gin.Context) {
 		req := s.injectUserIntoContext(c)
+		if authenticationValidationError(req.Context()) != nil {
+			c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Authentication service temporarily unavailable"})
+			return
+		}
 		user := authctx.ForContext(req.Context())
 		if user == nil {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
@@ -595,6 +599,10 @@ func (s *HTTPServer) setupAuthRoutes() {
 	// Authenticated email verification code confirmation.
 	auth.POST("verify-email/confirm-code", func(c *gin.Context) {
 		req := s.injectUserIntoContext(c)
+		if authenticationValidationError(req.Context()) != nil {
+			c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Authentication service temporarily unavailable"})
+			return
+		}
 		user := authctx.ForContext(req.Context())
 		if user == nil {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})

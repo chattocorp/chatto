@@ -2,6 +2,7 @@ package http_server
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -19,6 +20,20 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	realtimev1 "hmans.de/chatto/internal/pb/chatto/realtime/v1"
 )
+
+func TestRealtimeAuthenticatedUserPreservesAuthenticationValidationError(t *testing.T) {
+	s := &HTTPServer{}
+	want := errors.New("storage unavailable")
+	ctx := context.WithValue(context.Background(), authenticationValidationErrorKey{}, want)
+
+	_, user, err := s.realtimeAuthenticatedUser(ctx, &realtimev1.RealtimeClientHello{})
+	if user != nil {
+		t.Fatalf("user = %v, want nil", user)
+	}
+	if !errors.Is(err, want) {
+		t.Fatalf("realtimeAuthenticatedUser err = %v, want %v", err, want)
+	}
+}
 
 type websocketWireRecorder struct {
 	net.Conn
