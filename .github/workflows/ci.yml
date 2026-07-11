@@ -65,6 +65,7 @@ jobs:
         with:
           name: frontend-bundle
           path: cli/internal/http_server/.client
+          include-hidden-files: true
           retention-days: 1
 
       - name: Upload E2E server
