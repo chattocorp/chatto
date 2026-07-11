@@ -3,6 +3,21 @@
 All notable changes to Chatto. Maintained by release-please from the
 conventional-commit messages on `main` — do not edit by hand.
 
+## [0.4.7](https://github.com/chattocorp/chatto/compare/v0.4.6...v0.4.7) (2026-07-11)
+
+
+### Bug Fixes
+
+* **frontend:** show server logo before login ([#1416](https://github.com/chattocorp/chatto/issues/1416)) ([577cf17](https://github.com/chattocorp/chatto/commit/577cf179b0a1bb669813a619896c41fb81d24d17))
+* **frontend:** stabilize linked-message navigation ([#1421](https://github.com/chattocorp/chatto/issues/1421)) ([721c974](https://github.com/chattocorp/chatto/commit/721c974bb0e02f62c654389588cdd34346f4fca9))
+* **frontend:** support file drops in threads ([#1417](https://github.com/chattocorp/chatto/issues/1417)) ([6166dc0](https://github.com/chattocorp/chatto/commit/6166dc0a1537ea1c483a8c330b3ee515fc16235c))
+* **release:** add next prerelease channel ([#1414](https://github.com/chattocorp/chatto/issues/1414)) ([6312e39](https://github.com/chattocorp/chatto/commit/6312e392fa1c0f16c74e5dce65166d586a1e76ca))
+
+
+### Performance Improvements
+
+* **frontend:** speed up large room member loading ([#1423](https://github.com/chattocorp/chatto/issues/1423)) ([6d4ce8a](https://github.com/chattocorp/chatto/commit/6d4ce8a5deaef0af8a34373ceae107359d01554a))
+
 ## [0.4.6](https://github.com/chattocorp/chatto/compare/v0.4.5...v0.4.6) (2026-07-11)
 
 
