@@ -257,12 +257,16 @@ func (p *RBACProjection) adminProjectionEstimate() (int64, int64, []ProjectionAd
 	for key, decision := range p.decisions {
 		decisionBytes += projectionMapEntryOverhead + int64(len(key.scope)+len(key.scopeID)+len(key.subject)+len(key.permission)+len(decision))
 	}
+	retainedEventIDs := p.replayGuard.retainedEventIDs()
+	retainedEventIDsBytes := estimateStringSetBytes(retainedEventIDs)
 	totalEntries := int64(len(p.roles)) + assignments + int64(len(p.decisions))
-	totalBytes := roleBytes + assignmentBytes + decisionBytes
+	totalBytes := roleBytes + assignmentBytes + decisionBytes + retainedEventIDsBytes
 	return totalEntries, totalBytes, []ProjectionAdminMetric{
 		{Name: "roles", Value: int64(len(p.roles)), Bytes: roleBytes},
 		{Name: "assignments", Value: assignments, Bytes: assignmentBytes},
 		{Name: "permission_decisions", Value: int64(len(p.decisions)), Bytes: decisionBytes},
+		{Name: "seen_event_ids", Value: int64(len(retainedEventIDs)), Bytes: retainedEventIDsBytes},
+		{Name: "event_id_compatibility_mode", Value: p.replayGuard.compatibilityValue(), Bytes: 0},
 	}
 }
 
@@ -347,7 +351,8 @@ func (p *RoomTimelineProjection) adminProjectionEstimate() (int64, int64, []Proj
 		entry := p.entryAtLocked(idx)
 		eventIndexRetainedEntryBytes += timelineEntryEstimatedBytes(entry)
 	}
-	appliedEventIDsBytes := estimateStringSetBytes(p.appliedEventIDs)
+	retainedEventIDs := p.replayGuard.retainedEventIDs()
+	appliedEventIDsBytes := estimateStringSetBytes(retainedEventIDs)
 	var latestBodyBytes int64
 	for eventID, body := range p.latestBody {
 		latestBodyBytes += projectionMapEntryOverhead + int64(len(eventID))
@@ -436,7 +441,8 @@ func (p *RoomTimelineProjection) adminProjectionEstimate() (int64, int64, []Proj
 		{Name: "message_posts_by_room_index", Value: messagePosts, Bytes: messagePostIndexBytes},
 		{Name: "event_id_index", Value: int64(len(p.byEventID)), Bytes: eventIndexBytes},
 		{Name: "event_id_retained_entries", Value: eventIndexRetainedEntries, Bytes: eventIndexRetainedEntryBytes},
-		{Name: "applied_event_ids", Value: int64(len(p.appliedEventIDs)), Bytes: appliedEventIDsBytes},
+		{Name: "applied_event_ids", Value: int64(len(retainedEventIDs)), Bytes: appliedEventIDsBytes},
+		{Name: "event_id_compatibility_mode", Value: p.replayGuard.compatibilityValue(), Bytes: 0},
 		{Name: "latest_body_index", Value: int64(len(p.latestBody)), Bytes: latestBodyBytes},
 		{Name: "body_event_seqs", Value: bodyEventSeqs, Bytes: bodyEventSeqsBytes},
 		{Name: "current_body_seq_index", Value: int64(len(p.currentBodySeq)), Bytes: currentBodySeqBytes},
@@ -498,7 +504,8 @@ func (p *ThreadProjection) adminProjectionEstimate() (int64, int64, []Projection
 			threadSummaryBytes += projectionMapEntryOverhead + int64(len(participantID)) + 8
 		}
 	}
-	appliedEventIDsBytes := estimateStringSetBytes(p.appliedEventIDs)
+	retainedEventIDs := p.replayGuard.retainedEventIDs()
+	appliedEventIDsBytes := estimateStringSetBytes(retainedEventIDs)
 	shreddedUserBytes := estimateStringSetBytes(p.shreddedUsers)
 	var followStateBytes int64
 	for key, state := range p.followState {
@@ -534,7 +541,8 @@ func (p *ThreadProjection) adminProjectionEstimate() (int64, int64, []Projection
 		{Name: "follow_states", Value: int64(len(p.followState)), Bytes: followStateBytes},
 		{Name: "follower_refs", Value: followerRefs, Bytes: followerBytes},
 		{Name: "followed_thread_refs", Value: followedRefs, Bytes: followedByUserBytes},
-		{Name: "applied_event_ids", Value: int64(len(p.appliedEventIDs)), Bytes: appliedEventIDsBytes},
+		{Name: "applied_event_ids", Value: int64(len(retainedEventIDs)), Bytes: appliedEventIDsBytes},
+		{Name: "event_id_compatibility_mode", Value: p.replayGuard.compatibilityValue(), Bytes: 0},
 		{Name: "shredded_users", Value: int64(len(p.shreddedUsers)), Bytes: shreddedUserBytes},
 	}
 }
@@ -567,7 +575,8 @@ func (p *ReactionProjection) adminProjectionEstimate() (int64, int64, []Projecti
 	for assetID, roomID := range p.assetRoom {
 		assetRoomBytes += projectionMapEntryOverhead + int64(len(assetID)+len(roomID))
 	}
-	seenBytes := int64(len(p.seen)) * projectionMapEntryOverhead
+	retainedEventIDs := p.replayGuard.retainedEventIDs()
+	seenBytes := estimateStringSetBytes(retainedEventIDs)
 	bytes += roomSeqBytes + messageRoomBytes + assetRoomBytes + seenBytes
 	return active, bytes, []ProjectionAdminMetric{
 		{Name: "messages", Value: int64(len(p.byMessage)), Bytes: 0},
@@ -576,7 +585,8 @@ func (p *ReactionProjection) adminProjectionEstimate() (int64, int64, []Projecti
 		{Name: "room_seq_index", Value: int64(len(p.roomSeq)), Bytes: roomSeqBytes},
 		{Name: "message_room_index", Value: int64(len(p.messageRoom)), Bytes: messageRoomBytes},
 		{Name: "asset_room_index", Value: int64(len(p.assetRoom)), Bytes: assetRoomBytes},
-		{Name: "seen_event_ids", Value: int64(len(p.seen)), Bytes: seenBytes},
+		{Name: "seen_event_ids", Value: int64(len(retainedEventIDs)), Bytes: seenBytes},
+		{Name: "event_id_compatibility_mode", Value: p.replayGuard.compatibilityValue(), Bytes: 0},
 	}
 }
 
@@ -625,7 +635,8 @@ func (p *UserProjection) adminProjectionEstimate() (int64, int64, []ProjectionAd
 	for hash, userID := range p.identityIndex {
 		oidcBytes += int64(len(hash) + len(userID))
 	}
-	seenBytes := int64(len(p.eventIDSeen)) * projectionMapEntryOverhead
+	retainedEventIDs := p.replayGuard.retainedEventIDs()
+	seenBytes := estimateStringSetBytes(retainedEventIDs)
 	bytes += loginBytes + emailBytes + oidcBytes + seenBytes
 	return users, bytes, []ProjectionAdminMetric{
 		{Name: "users", Value: users, Bytes: 0},
@@ -634,7 +645,8 @@ func (p *UserProjection) adminProjectionEstimate() (int64, int64, []ProjectionAd
 		{Name: "login_index", Value: int64(len(p.loginIndex)), Bytes: loginBytes},
 		{Name: "email_index", Value: int64(len(p.emailIndex)), Bytes: emailBytes},
 		{Name: "external_identity_index", Value: int64(len(p.identityIndex)), Bytes: oidcBytes},
-		{Name: "seen_event_ids", Value: int64(len(p.eventIDSeen)), Bytes: seenBytes},
+		{Name: "seen_event_ids", Value: int64(len(retainedEventIDs)), Bytes: seenBytes},
+		{Name: "event_id_compatibility_mode", Value: p.replayGuard.compatibilityValue(), Bytes: 0},
 	}
 }
 
@@ -665,14 +677,16 @@ func (p *ContentKeyProjection) adminProjectionEstimate() (int64, int64, []Projec
 			activeBytes += projectionMapEntryOverhead + 8
 		}
 	}
-	seenBytes := int64(len(p.eventIDSeen)) * projectionMapEntryOverhead
+	retainedEventIDs := p.replayGuard.retainedEventIDs()
+	seenBytes := estimateStringSetBytes(retainedEventIDs)
 	bytes += activeBytes + seenBytes
 	return epochs, bytes, []ProjectionAdminMetric{
 		{Name: "users", Value: users, Bytes: 0},
 		{Name: "purposes", Value: purposes, Bytes: 0},
 		{Name: "dek_epochs", Value: epochs, Bytes: bytes - activeBytes - seenBytes},
 		{Name: "active_epochs", Value: active, Bytes: activeBytes},
-		{Name: "seen_event_ids", Value: int64(len(p.eventIDSeen)), Bytes: seenBytes},
+		{Name: "seen_event_ids", Value: int64(len(retainedEventIDs)), Bytes: seenBytes},
+		{Name: "event_id_compatibility_mode", Value: p.replayGuard.compatibilityValue(), Bytes: 0},
 	}
 }
 

@@ -25,7 +25,7 @@ type UserProjection struct {
 	loginIndex    map[string]string
 	emailIndex    map[string]string
 	identityIndex map[string]string
-	eventIDSeen   eventIDSet
+	replayGuard   projectionReplayGuard
 	dekResolver   *unwrappedDEKResolver
 	dekEvents     map[string]map[corev1.UserDEKPurpose]map[int32]*corev1.UserDEKGeneratedEvent
 }
@@ -57,7 +57,7 @@ func newUserProjectionWithDEKResolver(dekResolver *unwrappedDEKResolver) *UserPr
 		loginIndex:    make(map[string]string),
 		emailIndex:    make(map[string]string),
 		identityIndex: make(map[string]string),
-		eventIDSeen:   newEventIDSet(),
+		replayGuard:   newProjectionReplayGuard(),
 		dekResolver:   dekResolver,
 		dekEvents:     make(map[string]map[corev1.UserDEKPurpose]map[int32]*corev1.UserDEKGeneratedEvent),
 	}
@@ -73,7 +73,7 @@ func (p *UserProjection) Apply(event *corev1.Event, seq uint64) error {
 	}
 	p.Lock()
 	defer p.Unlock()
-	if p.eventIDSeen.seenOrMark(event) {
+	if p.replayGuard.seenOrMark(event, seq) {
 		return nil
 	}
 
@@ -122,6 +122,12 @@ func (p *UserProjection) Apply(event *corev1.Event, seq uint64) error {
 		p.applyOAuthConsentGranted(e.OauthConsentGranted)
 	}
 	return nil
+}
+
+func (p *UserProjection) CompleteStartupReplay() {
+	p.Lock()
+	defer p.Unlock()
+	p.replayGuard.completeReplay()
 }
 
 func (p *UserProjection) ensureUserLocked(userID string) *projectedUser {

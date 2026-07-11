@@ -67,7 +67,7 @@ type ThreadProjection struct {
 	followState     map[string]ThreadFollowState
 	followers       map[string]map[string]struct{}
 	followedByUser  map[string]map[string]threadFollowRef
-	appliedEventIDs eventIDSet
+	replayGuard     projectionReplayGuard
 	shreddedUsers   map[string]struct{}
 	strings         projectionStringInterner
 }
@@ -82,7 +82,7 @@ func NewThreadProjection() *ThreadProjection {
 		followState:     make(map[string]ThreadFollowState),
 		followers:       make(map[string]map[string]struct{}),
 		followedByUser:  make(map[string]map[string]threadFollowRef),
-		appliedEventIDs: newEventIDSet(),
+		replayGuard:     newProjectionReplayGuard(),
 		shreddedUsers:   make(map[string]struct{}),
 		strings:         newProjectionStringInterner(),
 	}
@@ -137,11 +137,11 @@ func (p *ThreadProjection) Apply(event *corev1.Event, seq uint64) error {
 	p.Lock()
 	defer p.Unlock()
 
-	if p.appliedEventIDs.has(event) {
+	if p.replayGuard.seen(event, seq) {
 		return nil
 	}
 	markApplied := func() {
-		p.appliedEventIDs.mark(event)
+		p.replayGuard.mark(event, seq)
 	}
 
 	switch e := event.GetEvent().(type) {
@@ -225,6 +225,12 @@ func (p *ThreadProjection) Apply(event *corev1.Event, seq uint64) error {
 		markApplied()
 	}
 	return nil
+}
+
+func (p *ThreadProjection) CompleteStartupReplay() {
+	p.Lock()
+	defer p.Unlock()
+	p.replayGuard.completeReplay()
 }
 
 func threadFollowKeyPart(roomID, threadRootEventID string) string {

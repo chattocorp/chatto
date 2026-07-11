@@ -13,7 +13,7 @@ import (
 // evt.room.*.asset_* lanes so beta histories continue to replay.
 type AssetProjection struct {
 	events.MemoryProjection
-	appliedEventIDs  eventIDSet
+	replayGuard      projectionReplayGuard
 	assetCreations   map[string]*corev1.AssetCreatedEvent
 	assetChildren    map[string][]string
 	videoManifests   map[string]*VideoAttachmentManifest
@@ -23,7 +23,7 @@ type AssetProjection struct {
 
 func NewAssetProjection() *AssetProjection {
 	return &AssetProjection{
-		appliedEventIDs:  newEventIDSet(),
+		replayGuard:      newProjectionReplayGuard(),
 		assetCreations:   make(map[string]*corev1.AssetCreatedEvent),
 		assetChildren:    make(map[string][]string),
 		videoManifests:   make(map[string]*VideoAttachmentManifest),
@@ -43,14 +43,14 @@ func (p *AssetProjection) Subjects() []string {
 	}
 }
 
-func (p *AssetProjection) Apply(event *corev1.Event, _ uint64) error {
+func (p *AssetProjection) Apply(event *corev1.Event, seq uint64) error {
 	if event == nil || !isAssetLifecycleEvent(event) {
 		return nil
 	}
 	p.Lock()
 	defer p.Unlock()
 
-	if p.appliedEventIDs.seenOrMark(event) {
+	if p.replayGuard.seenOrMark(event, seq) {
 		return nil
 	}
 
@@ -130,6 +130,12 @@ func (p *AssetProjection) Apply(event *corev1.Event, _ uint64) error {
 		}
 	}
 	return nil
+}
+
+func (p *AssetProjection) CompleteStartupReplay() {
+	p.Lock()
+	defer p.Unlock()
+	p.replayGuard.completeReplay()
 }
 
 func (p *AssetProjection) AssetCreation(assetID string) (*corev1.AssetCreatedEvent, bool) {
@@ -278,10 +284,15 @@ func (p *AssetProjection) adminProjectionEstimate() (int64, int64, []ProjectionA
 	bytes += manifestBytes
 	deletedBytes := int64(len(p.deletedAssets)) * (projectionMapEntryOverhead + 32)
 	bytes += deletedBytes
+	retainedEventIDs := p.replayGuard.retainedEventIDs()
+	retainedEventIDsBytes := estimateStringSetBytes(retainedEventIDs)
+	bytes += retainedEventIDsBytes
 	return int64(len(p.assetCreations) + len(p.videoManifests) + len(p.deletedAssets)), bytes, []ProjectionAdminMetric{
-		{Name: "assets", Value: int64(len(p.assetCreations)), Bytes: bytes - manifestBytes - deletedBytes},
+		{Name: "assets", Value: int64(len(p.assetCreations)), Bytes: bytes - manifestBytes - deletedBytes - retainedEventIDsBytes},
 		{Name: "derivatives", Value: derivatives, Bytes: 0},
 		{Name: "video_manifests", Value: int64(len(p.videoManifests)), Bytes: manifestBytes},
 		{Name: "deleted_assets", Value: int64(len(p.deletedAssets)), Bytes: deletedBytes},
+		{Name: "applied_event_ids", Value: int64(len(retainedEventIDs)), Bytes: retainedEventIDsBytes},
+		{Name: "event_id_compatibility_mode", Value: p.replayGuard.compatibilityValue(), Bytes: 0},
 	}
 }

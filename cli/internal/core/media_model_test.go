@@ -595,7 +595,7 @@ func TestAssetModelDeleteVideoDerivativesUsesInheritedAssetRoom(t *testing.T) {
 	}
 
 	thumbnail := &corev1.Attachment{Id: "A-inherited-thumb"}
-	if err := core.Assets.Apply(&corev1.Event{
+	inheritedCreated := &corev1.Event{
 		Id: "E-inherited-thumb-created",
 		Event: &corev1.Event_AssetCreated{
 			AssetCreated: &corev1.AssetCreatedEvent{
@@ -609,8 +609,14 @@ func TestAssetModelDeleteVideoDerivativesUsesInheritedAssetRoom(t *testing.T) {
 				DerivativeRole: corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_THUMBNAIL,
 			},
 		},
-	}, 999); err != nil {
-		t.Fatalf("Apply inherited thumbnail creation: %v", err)
+	}
+	inheritedSubject := events.AssetAggregate(thumbnail.GetId()).SubjectFor(inheritedCreated)
+	inheritedSeq, err := core.EventPublisher.Append(ctx, inheritedSubject, inheritedCreated)
+	if err != nil {
+		t.Fatalf("Append inherited thumbnail creation: %v", err)
+	}
+	if err := core.AssetsProjector.WaitFor(ctx, events.SubjectPosition(inheritedSubject, inheritedSeq)); err != nil {
+		t.Fatalf("Wait for inherited thumbnail creation: %v", err)
 	}
 
 	if err := service.RecordAssetProcessed(ctx, SystemActorID, room.Id, "E-message", original.GetId(), 1200, 640, 360, thumbnail, nil); err != nil {
