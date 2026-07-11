@@ -289,6 +289,20 @@ describe('QuickSwitcher', () => {
     expect(input(container)).toBe(document.activeElement);
   });
 
+  it('omits DMs whose only listed member is the current user', async () => {
+    mocks.listRoomMembers.mockImplementation(async (roomId: string) => ({
+      members: roomId === 'dm-existing' ? [currentUser] : [],
+      totalCount: roomId === 'dm-existing' ? 1 : 0,
+      hasMore: false
+    }));
+
+    const { container } = await renderOpenSwitcher();
+
+    expect(container.textContent).not.toContain('Deleted User');
+    expect(container.textContent).not.toContain('Alice Current');
+    expect(container.textContent).not.toContain('Direct Message');
+  });
+
   it('fuzzy-filters rooms and shows no results for misses', async () => {
     const { container } = await renderOpenSwitcher();
     const initialCount = resultButtons(container).length;

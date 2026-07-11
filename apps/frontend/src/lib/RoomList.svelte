@@ -34,6 +34,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   import { prepareUiForNotificationTarget } from '$lib/notifications/notificationNavigationUi';
   import { getAppUiState } from '$lib/state/appUi.svelte';
   import { appState } from '$lib/state/globals.svelte';
+  import { getDMAvatarParticipants, getDMConversationLabel } from '$lib/dm/display';
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
   import type { EventEnvelope } from '$lib/eventBus.svelte';
   import { isMessagePostedEvent, RoomEventKind, roomEventKind } from '$lib/render/eventKinds';
@@ -132,8 +133,9 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   // When no layout exists, display channels alphabetically
   let sortedRooms = $derived([...channels].sort((a, b) => a.name.localeCompare(b.name)));
 
-  // DM display name: comma-joined participants other than the current user
-  // (or "You" for self-DMs).
+  // DM display name: comma-joined participants other than the current user.
+  // If the endpoint only returns the current user, the remote account was
+  // deleted and the conversation should be labeled as a deleted-user DM.
   //
   // `meId` comes from `roomsStore.currentUserId`, which is captured from the
   // same `viewer { user { id, rooms { members } } }` query that produced `room.members`.
@@ -144,19 +146,13 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   // label/avatars (e.g. a 1:1 with Teal rendering as "Teal, hmans").
   function dmDisplayName(room: RoomsListItem): string {
     const meId = roomsStore.currentUserId;
-    const others = room.members.filter((m) => m.id !== meId);
-    if (others.length === 0) return m['common.you']();
-    return others.map((m) => getLiveDisplayName(m.id, m.displayName || m.login)).join(', ');
+    return getDMConversationLabel(room.members, meId, m['room.sidebar.deleted_user'](), (member) =>
+      getLiveDisplayName(member.id, member.displayName || member.login)
+    );
   }
 
   function dmAvatarParticipants(room: RoomsListItem) {
-    const meId = roomsStore.currentUserId;
-    const others = room.members.filter((m) => m.id !== meId);
-    if (others.length === 0) {
-      // Self-DM: show own avatar
-      return room.members.slice(0, 1);
-    }
-    return others.slice(0, 3);
+    return getDMAvatarParticipants(room.members, roomsStore.currentUserId, 3);
   }
 
   function callParticipantAvatarUser(participant: CallRoomParticipant): UserAvatarUserView {

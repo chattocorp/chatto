@@ -32,6 +32,7 @@
   import { getAppUiState } from '$lib/state/appUi.svelte';
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
+  import { getDMConversationLabel } from '$lib/dm/display';
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
   import { resolve } from '$app/paths';
   import { serverIdToSegment } from '$lib/navigation';
@@ -217,12 +218,13 @@
       return m['room.title.direct_message']();
     }
 
-    const others = room.dmData.participants.filter((p) => p.id !== room.dmData!.currentUserId);
-    if (others.length === 0) {
-      const self = room.dmData.participants.find((p) => p.id === room.dmData!.currentUserId);
-      return self?.displayName || self?.login || m['common.you']();
-    }
-    return others.map((p) => getLiveDisplayName(p.id, p.displayName || p.login)).join(', ');
+    return getDMConversationLabel(
+      room.dmData.participants,
+      room.dmData.currentUserId,
+      m['room.sidebar.deleted_user'](),
+      (participant) =>
+        getLiveDisplayName(participant.id, participant.displayName || participant.login)
+    );
   });
 
   let roomDescription = $derived.by(() => {

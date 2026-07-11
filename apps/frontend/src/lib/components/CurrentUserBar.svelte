@@ -13,6 +13,7 @@ to the user settings page for the active server.
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { useConnection } from '$lib/state/server/connection.svelte';
+  import { getDMConversationLabel } from '$lib/dm/display';
   import { getLiveDisplayName, type CustomUserStatus } from '$lib/state/userProfiles.svelte';
   import { setPresenceMode } from '$lib/presenceTracking';
   import { presencePreference, type PresenceMode } from '$lib/state/presencePreference.svelte';
@@ -64,11 +65,12 @@ to the user settings page for the active server.
     if (!room) return m['common.current_call']();
     if (room.type === RoomType.Dm) {
       const meId = roomsStore?.currentUserId;
-      const others = room.members.filter((member) => member.id !== meId);
-      if (others.length === 0) return m['common.you']();
-      return others
-        .map((member) => getLiveDisplayName(member.id, member.displayName || member.login))
-        .join(', ');
+      return getDMConversationLabel(
+        room.members,
+        meId,
+        m['room.sidebar.deleted_user'](),
+        (member) => getLiveDisplayName(member.id, member.displayName || member.login)
+      );
     }
     return `# ${room.name}`;
   });
@@ -307,11 +309,7 @@ to the user settings page for the active server.
         data-testid="current-user-presence-menu"
         onclick={openStatusMenu}
       >
-        <UserAvatar
-          user={activeServerUser}
-          size="sm"
-          showPresence
-        />
+        <UserAvatar user={activeServerUser} size="sm" showPresence />
       </button>
       <div
         class="flex min-w-0 flex-1 flex-col overflow-hidden leading-tight"

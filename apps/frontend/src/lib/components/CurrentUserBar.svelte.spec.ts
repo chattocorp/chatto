@@ -508,4 +508,32 @@ describe('CurrentUserBar', () => {
     expect(callLink).toBeTruthy();
     expect(callLink!.textContent ?? '').toContain('Bob');
   });
+
+  it('uses the deleted-user label for active direct-message calls that only list the current user', () => {
+    voiceCallState.connected = true;
+    voiceCallState.roomId = 'dm-1';
+    roomsState.rooms = [
+      {
+        id: 'dm-1',
+        name: 'dm-1',
+        type: 'DM',
+        members: [
+          {
+            id: 'user-1',
+            login: 'alice',
+            displayName: 'Alice',
+            avatarUrl: null,
+            presenceStatus: PresenceStatus.Online
+          }
+        ]
+      }
+    ];
+
+    const { container } = render(CurrentUserBarTestHarness);
+
+    const callLink = q(container, '[data-testid="current-user-call-link"]');
+    expect(callLink).toBeTruthy();
+    expect(callLink!.textContent ?? '').toContain('Deleted User');
+    expect(callLink!.textContent ?? '').not.toContain('Alice');
+  });
 });

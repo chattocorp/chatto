@@ -12,13 +12,15 @@
   import { recentQuickSwitcher } from '$lib/state/recentQuickSwitcher.svelte';
   import { quickSwitcher } from '$lib/state/globals.svelte';
   import { ROOM_MEMBERS_PAGE_SIZE } from '$lib/state/room/members.svelte';
+  import {
+    getDMAvatarParticipants,
+    getDMConversationLabel,
+    hasVisibleDMParticipant
+  } from '$lib/dm/display';
   import * as m from '$lib/i18n/messages';
   import { toast } from '$lib/ui/toast';
   import { createRoomCommandAPI } from '$lib/api-client/rooms';
-  import {
-    createMemberDirectoryAPI,
-    type DirectoryMember
-  } from '$lib/api-client/memberDirectory';
+  import { createMemberDirectoryAPI, type DirectoryMember } from '$lib/api-client/memberDirectory';
   import {
     createRoomDirectoryAPI,
     RoomDirectoryScope,
@@ -106,6 +108,7 @@
               const participants = (
                 await members.listRoomMembers(room.id, '', ROOM_MEMBERS_PAGE_SIZE, 0)
               ).members.map(avatarUser);
+              if (!hasVisibleDMParticipant(participants, currentUserId)) return;
               items.push({
                 kind: 'dm',
                 id: room.id,
@@ -230,12 +233,7 @@
   }
 
   function dmLabel(participants: AvatarUser[], currentUserId: string | undefined): string {
-    const others = participants.filter((p) => p.id !== currentUserId);
-    if (others.length === 0) {
-      const self = participants.find((p) => p.id === currentUserId);
-      return self ? self.displayName || self.login : 'You';
-    }
-    return others.map((p) => p.displayName || p.login).join(', ');
+    return getDMConversationLabel(participants, currentUserId, m['room.sidebar.deleted_user']());
   }
 
   // --- Filtering ---
@@ -468,9 +466,7 @@
   }
 
   function dmAvatarParticipants(item: ResultItem): AvatarUser[] {
-    if (!item.participants) return [];
-    const others = item.participants.filter((p) => p.id !== item.currentUserId);
-    return others.length === 0 ? item.participants.slice(0, 1) : others.slice(0, 2);
+    return getDMAvatarParticipants(item.participants, item.currentUserId, 2);
   }
 
   function userAvatarParticipant(item: ResultItem): AvatarUser | null {

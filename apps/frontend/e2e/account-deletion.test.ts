@@ -1,12 +1,28 @@
-import { expect } from '@playwright/test';
+import { expect, type Locator, type Page } from '@playwright/test';
 import { createAndLoginTestUser } from './fixtures/testUser';
 import { withServerUser } from './fixtures/serverUser';
 import { waitForRoomReady } from './fixtures/realtimeSync';
 import { waitForUserDeletedViaConnect } from './fixtures/connectHelpers';
 import { test } from './setup';
-import { AccountPage } from './pages';
+import { AccountPage, DMPage } from './pages';
 import { TIMEOUTS } from './constants';
 import * as routes from './routes';
+
+async function openQuickSwitcher(page: Page): Promise<Locator> {
+  const dialog = page.locator('dialog.quick-switcher');
+  const shortcut = process.platform === 'darwin' ? 'Meta+k' : 'Control+k';
+
+  await expect(async () => {
+    await page.keyboard.press(shortcut);
+    await expect(dialog).toBeVisible({ timeout: 500 });
+  }).toPass({ timeout: TIMEOUTS.UI_STANDARD, intervals: [200, 500, 1000] });
+
+  return dialog;
+}
+
+function quickSwitcherResults(dialog: Locator): Locator {
+  return dialog.locator('button.sidebar-item');
+}
 
 test.describe('Account Deletion', () => {
   test.describe('Account Settings Page', () => {
@@ -310,6 +326,71 @@ test.describe('Account Deletion', () => {
             }
           );
         }
+      );
+    });
+
+    test('direct-message rooms with a deleted peer render as Deleted User and stay out of quick switcher', async ({
+      page,
+      chatPage,
+      browser,
+      serverURL
+    }) => {
+      const userA = await createAndLoginTestUser(page);
+      await chatPage.goto();
+
+      let conversationId = '';
+      let deletedDisplayName = '';
+
+      await withServerUser(browser!, serverURL, async ({ page: page2, user: userB }) => {
+        deletedDisplayName = userB.displayName;
+
+        const roomB = await new DMPage(page2).startConversation(userA.login);
+        await roomB.sendMessage(`deleted peer dm seed ${Date.now()}`);
+        conversationId = page2.url().split('/').pop()!;
+
+        await page.goto(routes.room(conversationId));
+        await page.waitForURL(routes.patterns.anyRoom);
+        await waitForRoomReady(page);
+
+        await expect(page.getByRole('heading', { name: userB.displayName })).toBeVisible({
+          timeout: TIMEOUTS.REALTIME_EVENT
+        });
+
+        const accountPage2 = new AccountPage(page2);
+        await accountPage2.goto();
+        await accountPage2.deleteAccount();
+
+        await waitForUserDeletedViaConnect(page, userB.id!);
+      });
+
+      await page.reload();
+      await page.waitForURL(routes.patterns.anyRoom);
+      await waitForRoomReady(page);
+
+      const deletedConversation = page
+        .locator('nav a.sidebar-item')
+        .filter({ has: page.getByText('Deleted User', { exact: true }) });
+      await expect(deletedConversation).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+      await expect(deletedConversation).toHaveAttribute(
+        'href',
+        new RegExp(`/chat/-/${conversationId}$`)
+      );
+      await expect(deletedConversation).not.toContainText('You');
+
+      await expect(page.getByRole('heading', { name: 'Deleted User', exact: true })).toBeVisible({
+        timeout: TIMEOUTS.REALTIME_EVENT
+      });
+      await expect(
+        page.getByRole('heading', { name: deletedDisplayName, exact: true })
+      ).not.toBeVisible();
+
+      const dialog = await openQuickSwitcher(page);
+      await expect(quickSwitcherResults(dialog).first()).toBeVisible({
+        timeout: TIMEOUTS.UI_STANDARD
+      });
+      await expect(quickSwitcherResults(dialog).filter({ hasText: 'Deleted User' })).toHaveCount(0);
+      await expect(quickSwitcherResults(dialog).filter({ hasText: 'Direct Message' })).toHaveCount(
+        0
       );
     });
   });
