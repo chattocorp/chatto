@@ -26,6 +26,7 @@
   import { useMayHaveMissedMessagesCallback } from '$lib/hooks/useMayHaveMissedMessagesCallback.svelte';
   import type { ResumeSignal } from '$lib/hooks/resumeCoordinator.svelte';
   import type { OpenThreadHandler, ThreadOpenOptions } from './threadOpenOptions';
+  import { convergeAtBottom } from './bottomScrollConvergence';
   import {
     scheduleNextTombstoneExpiry,
     shouldHideTombstone,
@@ -127,6 +128,7 @@
   let presentScrollRequest = $state(0);
   let presentScrollSequence = 0;
   let activePresentScrollRequest = 0;
+  let bottomScrollOperation = 0;
   let userScrollIntentAt = 0;
   const USER_SCROLL_INTENT_MS = 250;
 
@@ -260,6 +262,7 @@
     presentScrollSequence += 1;
     presentScrollRequest = 0;
     activePresentScrollRequest = 0;
+    cancelBottomScroll();
     initialScrollDone = false;
     setShouldScrollToBottom(true);
     lastSeenNewestId = null;
@@ -309,9 +312,7 @@
       }
       tick().then(() => {
         if (scrollContainer && shouldScrollToBottom) {
-          startScrollCorrection();
-          scrollContainer.scrollTop = scrollContainer.scrollHeight;
-          scrollFader?.refresh();
+          void requestBottomScroll();
         }
       });
     }
@@ -420,6 +421,53 @@
     }
   }
 
+  function cancelBottomScroll() {
+    bottomScrollOperation += 1;
+  }
+
+  async function requestBottomScroll(markInitialDone = false): Promise<boolean> {
+    if (!scrollContainer || !virtualizerHandle || virtualItems.length === 0) return false;
+
+    const operation = ++bottomScrollOperation;
+    const requestedRoomId = roomId;
+    const intentAtStart = userScrollIntentAt;
+    const converged = await convergeAtBottom({
+      continueWhile: () =>
+        operation === bottomScrollOperation &&
+        roomId === requestedRoomId &&
+        userScrollIntentAt === intentAtStart &&
+        !isJumpedMode &&
+        (alwaysScrollToBottom || shouldScrollToBottom) &&
+        Boolean(scrollContainer && virtualizerHandle),
+      waitForFrame: async () => {
+        await tick();
+        await new Promise((resolve) => requestAnimationFrame(resolve));
+      },
+      scroll: () => {
+        if (!scrollContainer) return;
+        safeScrollToIndex(virtualItems.length - 1, { align: 'end' });
+        scrollContainer.scrollTop = scrollContainer.scrollHeight;
+        scrollFader?.refresh();
+      },
+      measure: () => {
+        if (!virtualizerHandle) return null;
+        return {
+          distanceFromBottom:
+            virtualizerHandle.getScrollSize() -
+            virtualizerHandle.getScrollOffset() -
+            virtualizerHandle.getViewportSize(),
+          scrollSize: virtualizerHandle.getScrollSize(),
+          viewportSize: virtualizerHandle.getViewportSize()
+        };
+      }
+    });
+
+    if (operation === bottomScrollOperation && markInitialDone) {
+      initialScrollDone = true;
+    }
+    return converged;
+  }
+
   // Register the scroll container with ScrollState so sibling components
   // (MessageComposer, TypingIndicator) can synchronously scroll without waiting
   // for ResizeObserver callbacks.
@@ -450,24 +498,7 @@
     if (virtualItems.length > 0 && virtualizerHandle) {
       const shouldScroll = untrack(() => alwaysScrollToBottom || shouldScrollToBottom);
       if (shouldScroll) {
-        // Wait for Svelte to flush DOM updates so the virtualizer has
-        // accurate measurements for the new items before scrolling.
-        tick().then(() => {
-          if (!virtualizerHandle) return;
-          if (!untrack(() => alwaysScrollToBottom || shouldScrollToBottom)) return;
-          startScrollCorrection();
-          safeScrollToIndex(virtualItems.length - 1, { align: 'end' });
-          scrollFader?.refresh();
-          if (!untrack(() => initialScrollDone)) {
-            // Give virtua time to measure actual item heights and settle the
-            // scroll position.
-            setTimeout(() => {
-              safeScrollToIndex(virtualItems.length - 1, { align: 'end' });
-              scrollFader?.refresh();
-              initialScrollDone = true;
-            }, 80);
-          }
-        });
+        void requestBottomScroll(!untrack(() => initialScrollDone));
       }
     }
   });
@@ -476,10 +507,7 @@
   function scrollToBottom() {
     setShouldScrollToBottom(true);
     onReachedBottom?.();
-    if (virtualizerHandle) {
-      safeScrollToIndex(virtualItems.length - 1, { align: 'end' });
-      scrollFader?.refresh();
-    }
+    void requestBottomScroll();
   }
 
   function handleJumpToPresentClick() {
@@ -510,67 +538,8 @@
     if (isJumpedMode || isLoading || virtualItems.length === 0 || !virtualizerHandle) return;
 
     activePresentScrollRequest = request;
-    const requestedRoomId = roomId;
-    const intentAtStart = userScrollIntentAt;
-
-    void (async () => {
-      let settledFrames = 0;
-      let previousScrollSize: number | null = null;
-      let previousViewportSize: number | null = null;
-      for (let frame = 0; frame < 30 && settledFrames < 6; frame++) {
-        await tick();
-        await new Promise((resolve) => requestAnimationFrame(resolve));
-
-        if (
-          request !== presentScrollRequest ||
-          roomId !== requestedRoomId ||
-          isJumpedMode ||
-          userScrollIntentAt !== intentAtStart ||
-          !scrollContainer ||
-          !virtualizerHandle
-        ) {
-          return;
-        }
-
-        startScrollCorrection();
-        safeScrollToIndex(virtualItems.length - 1, { align: 'end' });
-        scrollContainer.scrollTop = scrollContainer.scrollHeight;
-        scrollFader?.refresh();
-
-        const bottomDistance = distanceFromBottom();
-        const scrollSize = virtualizerHandle.getScrollSize();
-        const viewportSize = virtualizerHandle.getViewportSize();
-        const measurementsUnchanged =
-          scrollSize === previousScrollSize && viewportSize === previousViewportSize;
-        settledFrames =
-          bottomDistance !== null && bottomDistance < 10 && measurementsUnchanged
-            ? settledFrames + 1
-            : 0;
-        previousScrollSize = scrollSize;
-        previousViewportSize = viewportSize;
-      }
-
-      initialScrollDone = true;
-    })();
+    void requestBottomScroll(true);
   });
-
-  // Timer-based flag set by programmatic scrolls (auto-scroll effect, scroll-request
-  // effect). During the window, handleVirtuaScroll will self-correct if the virtualizer
-  // re-measures items (changing scrollHeight) and leaves position short of bottom.
-  // Uses a timeout because the virtualizer may settle over multiple frames — a simple
-  // distance check clears too early (first scroll reaches bottom, flag clears, then
-  // virtualizer re-renders and grows scrollHeight).
-  let pendingScrollCorrection = false;
-  let scrollCorrectionTimer: ReturnType<typeof setTimeout> | null = null;
-
-  function startScrollCorrection() {
-    pendingScrollCorrection = true;
-    if (scrollCorrectionTimer) clearTimeout(scrollCorrectionTimer);
-    scrollCorrectionTimer = setTimeout(() => {
-      pendingScrollCorrection = false;
-      scrollCorrectionTimer = null;
-    }, 500);
-  }
 
   // Lock to prevent virtua's scroll corrections from immediately re-enabling
   // auto-scroll after we detect a user scroll-up. Without this, $fixScrollJump
@@ -586,6 +555,7 @@
   // layout shifts never get misread as the user scrolling up.
   function markUserScrollIntent() {
     userScrollIntentAt = Date.now();
+    cancelBottomScroll();
   }
 
   function markKeyboardScrollIntent(event: KeyboardEvent) {
@@ -734,13 +704,7 @@
 
       if (wasAtBottom) {
         setShouldScrollToBottom(true);
-        initialScrollDone = true;
-        startScrollCorrection();
-        scrollContainer?.scrollTo({ top: scrollContainer.scrollHeight });
-        if (virtualItems.length > 0) {
-          safeScrollToIndex(virtualItems.length - 1, { align: 'end' });
-        }
-        scrollFader?.refresh();
+        await requestBottomScroll(true);
         console.debug('[room-refresh] event list refresh completed at bottom', {
           roomId,
           result,
@@ -928,34 +892,13 @@
         distanceFromBottom > 20
       ) {
         setShouldScrollToBottom(false);
-        pendingScrollCorrection = false;
-        if (scrollCorrectionTimer) {
-          clearTimeout(scrollCorrectionTimer);
-          scrollCorrectionTimer = null;
-        }
+        cancelBottomScroll();
         scrollUpLock = true;
         if (scrollUpLockTimer) clearTimeout(scrollUpLockTimer);
         scrollUpLockTimer = setTimeout(() => {
           scrollUpLock = false;
         }, 150);
       }
-    }
-
-    // Self-correcting scroll: after a programmatic scroll, the virtualizer may
-    // re-measure items (changing scrollHeight), leaving the position short of
-    // the bottom. Re-scroll to the true bottom. Only fires during the short
-    // window after a programmatic scroll set the flag — never during user scrolling.
-    // Also gated on shouldScrollToBottom so a stale correction window from the
-    // initial auto-scroll doesn't yank the user back to the bottom after a
-    // jump-to-message takes them to an old event within those 500ms.
-    if (
-      pendingScrollCorrection &&
-      (alwaysScrollToBottom || shouldScrollToBottom) &&
-      distanceFromBottom > 50 &&
-      scrollContainer
-    ) {
-      scrollContainer.scrollTop = scrollContainer.scrollHeight;
-      scrollFader?.refresh();
     }
 
     previousOffset = offset;
