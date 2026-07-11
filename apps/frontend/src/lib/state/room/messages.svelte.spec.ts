@@ -627,6 +627,33 @@ describe('MessagesStore — room lifecycle ownership', () => {
     store.dispose();
   });
 
+  it('releases initial-load ownership when a refresh supersedes it', async () => {
+    const fake = new FakeQueryClient();
+    type RoomPage = Awaited<ReturnType<RoomTimelineAPI['getRoomEvents']>>;
+    const unresolvedInitial = new Promise<RoomPage>(() => {});
+    const timeline = fakeTimelineAPI({
+      getRoomEvents: vi
+        .fn()
+        .mockReturnValueOnce(unresolvedInitial)
+        .mockResolvedValueOnce({
+          events: [threadMessageEvent('refreshed') as never],
+          startCursor: 'tl:refreshed',
+          endCursor: 'tl:refreshed',
+          hasOlder: false,
+          hasNewer: false
+        })
+    });
+    const store = new MessagesStore(fake as unknown as ServerConnection, () => null, timeline);
+    store.setRoom('room-1');
+    expect(store.isInitialLoading).toBe(true);
+
+    await store.refreshCurrentWindow();
+
+    expect(store.rootEvents.map((event) => event.id)).toEqual(['refreshed']);
+    expect(store.isInitialLoading).toBe(false);
+    store.dispose();
+  });
+
   it('loads room history through the injected timeline API', async () => {
     const fake = new FakeQueryClient();
     const timeline = fakeTimelineAPI({

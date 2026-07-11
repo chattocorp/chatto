@@ -357,6 +357,10 @@ export class MessagesStore {
 
   /** Allocate a new load id; pair with {@link isStale} in async callbacks. */
   private startLoad(): number {
+    if (this.#pendingAuthoritativeLoadId !== null) {
+      this.#pendingAuthoritativeLoadId = null;
+      this.isInitialLoading = false;
+    }
     return ++this.#loadId;
   }
 
