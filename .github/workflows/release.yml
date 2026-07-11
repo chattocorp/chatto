@@ -65,10 +65,8 @@ jobs:
             case "$path" in
               .release-please-config.json|\
               .release-please-config-main.json|\
-              .release-please-config-prerelease.json|\
               .release-please-manifest.json|\
               .release-please-manifest-main.json|\
-              .release-please-manifest-prerelease.json|\
               CHANGELOG.md|\
               cli/version.go|\
               apps/frontend/package.json)

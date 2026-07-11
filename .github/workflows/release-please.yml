@@ -14,28 +14,13 @@ permissions:
   pull-requests: write
 
 jobs:
-  stable:
-    if: ${{ github.event.workflow_run.event == 'push' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch != 'next' }}
+  release-please:
+    if: ${{ github.event.workflow_run.event == 'push' && github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     env:
       TARGET_BRANCH: ${{ github.event.workflow_run.head_branch }}
       CONFIG_FILE: .release-please-config.json
       MANIFEST_FILE: .release-please-manifest.json
-    steps:
-      - uses: googleapis/release-please-action@v5
-        with:
-          token: ${{ secrets.RELEASE_PLEASE_PAT }}
-          config-file: ${{ env.CONFIG_FILE }}
-          manifest-file: ${{ env.MANIFEST_FILE }}
-          target-branch: ${{ env.TARGET_BRANCH }}
-
-  prerelease:
-    if: ${{ github.event.workflow_run.event == 'push' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'next' }}
-    runs-on: ubuntu-latest
-    env:
-      TARGET_BRANCH: ${{ github.event.workflow_run.head_branch }}
-      CONFIG_FILE: .release-please-config-prerelease.json
-      MANIFEST_FILE: .release-please-manifest-prerelease.json
     steps:
       - uses: googleapis/release-please-action@v5
         with:
