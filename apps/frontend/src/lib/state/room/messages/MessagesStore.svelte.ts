@@ -189,6 +189,8 @@ export class MessagesStore {
   #loadId = 0;
   #jumpId = 0;
   #windowId = 0;
+  #pendingAuthoritativeLoadId: number | null = null;
+  #pendingJumpId: number | null = null;
 
   constructor(
     serverConnection: ServerConnection,
@@ -378,6 +380,7 @@ export class MessagesStore {
     this.scope = 'room';
     this.#jumpId++;
     this.#windowId++;
+    this.#pendingJumpId = null;
     this.roomId = roomId;
     this.threadRootEventId = '';
     this.resetAndFetchLatest();
@@ -395,6 +398,7 @@ export class MessagesStore {
     this.scope = 'thread';
     this.#jumpId++;
     this.#windowId++;
+    this.#pendingJumpId = null;
     this.roomId = roomId;
     this.threadRootEventId = threadRootEventId;
 
@@ -638,11 +642,16 @@ export class MessagesStore {
     const jumpId = ++this.#jumpId;
     const roomId = this.roomId;
     if (this.events.some((e) => e.id === eventId)) {
+      if (this.#pendingJumpId !== null) {
+        this.#pendingJumpId = null;
+        if (this.#pendingAuthoritativeLoadId === null) this.isInitialLoading = false;
+      }
       jumpState.scrollToEventId = eventId;
       return true;
     }
 
     this.#windowId++;
+    this.#pendingJumpId = jumpId;
     jumpState.isLoadingNewer = false;
     this.isInitialLoading = true;
     try {
@@ -667,6 +676,7 @@ export class MessagesStore {
       // This replacement becomes the authoritative room window. Cancel any
       // older latest-page load before installing it.
       this.startLoad();
+      this.#pendingAuthoritativeLoadId = null;
       for (const event of parsed) this.clearOptimisticVersionForEvent(event.id);
       this.events = [...parsed];
       this.seenIds = new SvelteSet(parsed.map((e) => e.id));
@@ -690,7 +700,8 @@ export class MessagesStore {
       return false;
     } finally {
       if (this.#jumpId === jumpId && this.scope === 'room' && this.roomId === roomId) {
-        this.isInitialLoading = false;
+        this.#pendingJumpId = null;
+        this.isInitialLoading = this.#pendingAuthoritativeLoadId !== null;
       }
     }
   }
@@ -699,6 +710,7 @@ export class MessagesStore {
     if (this.scope !== 'room') return;
     this.#jumpId++;
     this.#windowId++;
+    this.#pendingJumpId = null;
     jumpState.reset();
     this.resetAndFetchLatest();
   }
@@ -1242,6 +1254,7 @@ export class MessagesStore {
 
   private resetAndFetchLatest(): void {
     const thisLoad = this.startLoad();
+    this.#pendingAuthoritativeLoadId = thisLoad;
     this.resetState();
     this.isInitialLoading = true;
     this.fetchLatest(thisLoad);
@@ -1262,11 +1275,13 @@ export class MessagesStore {
           await this.backfillInitialRoomWindow(thisLoad);
         }
         if (this.isStale(thisLoad)) return;
+        this.#pendingAuthoritativeLoadId = null;
         this.isInitialLoading = false;
       })
       .catch((error: unknown) => {
         if (this.isStale(thisLoad)) return;
         console.error('MessagesStore: fetchLatest failed:', error);
+        this.#pendingAuthoritativeLoadId = null;
         this.isInitialLoading = false;
       });
   }

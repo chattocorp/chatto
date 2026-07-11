@@ -84,7 +84,14 @@ describe('EventList jump completion', () => {
   });
 
   it('cancels a pending scroll attempt when unmounted', async () => {
-    vi.useFakeTimers();
+    const animationFrames: FrameRequestCallback[] = [];
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      vi.fn((callback: FrameRequestCallback) => {
+        animationFrames.push(callback);
+        return animationFrames.length;
+      })
+    );
     const onComplete = vi.fn();
     try {
       const rendered = render(EventListTestHarness, {
@@ -95,12 +102,15 @@ describe('EventList jump completion', () => {
         }
       });
 
+      await vi.waitFor(() => expect(animationFrames.length).toBeGreaterThan(0));
       rendered.unmount();
-      await vi.runAllTimersAsync();
+      for (let index = 0; index < 100 && animationFrames[index]; index++) {
+        animationFrames[index](index * 16);
+      }
 
       expect(onComplete).not.toHaveBeenCalled();
     } finally {
-      vi.useRealTimers();
+      vi.unstubAllGlobals();
     }
   });
 });

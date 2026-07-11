@@ -607,6 +607,26 @@ describe('MessagesStore — room lifecycle ownership', () => {
     store.dispose();
   });
 
+  it('clears jump loading when an in-flight jump is superseded by a loaded target', async () => {
+    const fake = new FakeQueryClient();
+    type AroundPage = Awaited<ReturnType<RoomTimelineAPI['getRoomEventsAround']>>;
+    const unresolvedAround = new Promise<AroundPage>(() => {});
+    const timeline = fakeTimelineAPI({ getRoomEventsAround: vi.fn(() => unresolvedAround) });
+    const store = new MessagesStore(fake as unknown as ServerConnection, () => null, timeline);
+    store.setRoom('room-1');
+    await settle();
+    store.events = [threadMessageEvent('loaded-target') as never];
+
+    const jumpState = new JumpToMessageState();
+    void store.jumpToMessage('missing-target', jumpState);
+    expect(store.isInitialLoading).toBe(true);
+
+    await expect(store.jumpToMessage('loaded-target', jumpState)).resolves.toBe(true);
+    expect(store.isInitialLoading).toBe(false);
+    expect(jumpState.scrollToEventId).toBe('loaded-target');
+    store.dispose();
+  });
+
   it('loads room history through the injected timeline API', async () => {
     const fake = new FakeQueryClient();
     const timeline = fakeTimelineAPI({
