@@ -425,13 +425,13 @@
     bottomScrollOperation += 1;
   }
 
-  async function requestBottomScroll(markInitialDone = false): Promise<boolean> {
-    if (!scrollContainer || !virtualizerHandle || virtualItems.length === 0) return false;
+  function requestBottomScroll(): Promise<boolean> | undefined {
+    if (!scrollContainer || !virtualizerHandle || virtualItems.length === 0) return undefined;
 
     const operation = ++bottomScrollOperation;
     const requestedRoomId = roomId;
     const intentAtStart = userScrollIntentAt;
-    const converged = await convergeAtBottom({
+    return convergeAtBottom({
       continueWhile: () =>
         operation === bottomScrollOperation &&
         roomId === requestedRoomId &&
@@ -460,12 +460,10 @@
           viewportSize: virtualizerHandle.getViewportSize()
         };
       }
+    }).then((converged) => {
+      if (operation === bottomScrollOperation) initialScrollDone = true;
+      return converged;
     });
-
-    if (operation === bottomScrollOperation && markInitialDone) {
-      initialScrollDone = true;
-    }
-    return converged;
   }
 
   // Register the scroll container with ScrollState so sibling components
@@ -498,7 +496,7 @@
     if (virtualItems.length > 0 && virtualizerHandle) {
       const shouldScroll = untrack(() => alwaysScrollToBottom || shouldScrollToBottom);
       if (shouldScroll) {
-        void requestBottomScroll(!untrack(() => initialScrollDone));
+        void requestBottomScroll();
       }
     }
   });
@@ -533,12 +531,23 @@
     void isLoading;
     void virtualItems.length;
     void virtualizerHandle;
+    void scrollContainer;
 
     if (request === 0 || request === activePresentScrollRequest) return;
-    if (isJumpedMode || isLoading || virtualItems.length === 0 || !virtualizerHandle) return;
+    if (
+      isJumpedMode ||
+      isLoading ||
+      virtualItems.length === 0 ||
+      !virtualizerHandle ||
+      !scrollContainer
+    ) {
+      return;
+    }
 
+    const bottomScroll = requestBottomScroll();
+    if (!bottomScroll) return;
     activePresentScrollRequest = request;
-    void requestBottomScroll(true);
+    void bottomScroll;
   });
 
   // Lock to prevent virtua's scroll corrections from immediately re-enabling
@@ -704,7 +713,7 @@
 
       if (wasAtBottom) {
         setShouldScrollToBottom(true);
-        await requestBottomScroll(true);
+        await requestBottomScroll();
         console.debug('[room-refresh] event list refresh completed at bottom', {
           roomId,
           result,
