@@ -175,6 +175,78 @@
   @apply rounded-lg border border-border bg-surface-100;
 }
 
+/* Message composer mode surface. Simple mode is intentionally unadorned;
+   data-composer-mode="rich" reveals the accent ring and glow. */
+@utility composer-mode-surface {
+  --composer-ring-opacity: 0;
+  @apply relative isolate;
+  box-shadow:
+    0 0 0 1px transparent,
+    0 0 0 transparent;
+  transition: box-shadow 240ms cubic-bezier(0.2, 0, 0, 1);
+
+  &::before {
+    content: '';
+    position: absolute;
+    z-index: -1;
+    inset: -2px;
+    padding: 2px;
+    border-radius: calc(0.75rem + 2px);
+    background: linear-gradient(
+      115deg,
+      color-mix(in srgb, var(--color-accent) 72%, white),
+      var(--color-accent),
+      color-mix(in srgb, var(--color-accent) 72%, #a855f7),
+      color-mix(in srgb, var(--color-accent) 72%, white)
+    );
+    background-size: 220% 100%;
+    opacity: var(--composer-ring-opacity);
+    pointer-events: none;
+    mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    mask-composite: exclude;
+    transition: opacity 240ms cubic-bezier(0.2, 0, 0, 1);
+  }
+
+  &[data-composer-mode='rich'] {
+    --composer-ring-opacity: 1;
+    box-shadow:
+      0 0 0 1px color-mix(in srgb, var(--color-accent) 45%, transparent),
+      0 0 16px color-mix(in srgb, var(--color-accent) 22%, transparent);
+  }
+
+  &[data-mode-transition]::before {
+    animation: composer-ring-shimmer 650ms cubic-bezier(0.2, 0, 0, 1);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    transition-duration: 0ms;
+
+    &::before {
+      transition-duration: 0ms;
+    }
+
+    &[data-mode-transition]::before {
+      animation: none;
+    }
+  }
+}
+
+@keyframes composer-ring-shimmer {
+  0% {
+    background-position: 100% 50%;
+    opacity: var(--composer-ring-opacity);
+  }
+  42% {
+    opacity: 1;
+  }
+  100% {
+    background-position: -100% 50%;
+    opacity: var(--composer-ring-opacity);
+  }
+}
+
 /* Panel header band — tinted background, hairline divider underneath, and
  * a 1px inset highlight on whatever follows so the divider reads as an
  * engraved ridge rather than a flat rule. The body inset is achieved via

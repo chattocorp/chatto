@@ -214,7 +214,7 @@
       autocomplete.reset();
       draftState.clearText();
       message = originalBody;
-      manualRichMode = false;
+      setManualRichMode(false);
       alsoSendToChannel = editState.channelEchoEventId !== null;
       api?.setContent(originalBody);
       tick().then(() => api?.focus('end'));
@@ -224,7 +224,7 @@
       // Exiting edit mode - clear the input
       autocomplete.reset();
       message = '';
-      manualRichMode = false;
+      setManualRichMode(false);
       alsoSendToChannel = false;
       editSeededForEvent = '';
       api?.setContent('');
@@ -248,7 +248,7 @@
 
     const draft = draftState.switchKey(DRAFT_KEY);
     message = draft;
-    manualRichMode = false;
+    setManualRichMode(false);
     editorApi?.setContent(draft);
     attachments.restore(untrack(() => draftState.takeFiles()));
 
@@ -336,7 +336,6 @@
   let editorHasRichStructure = $state(false);
   let isRichComposer = $derived(manualRichMode || editorHasRichStructure);
   let composerModeHasChanged = $state(false);
-  let composerModeInitialized = false;
   let composerModeAnimationTimer: ReturnType<typeof setTimeout> | null = null;
   let composerModeAnimationRun = 0;
   let nextEnterWillSend = $derived(canSubmit && isRichComposer && editorNextEnterWillSend);
@@ -348,18 +347,10 @@
       : null
   );
 
-  // Briefly mark mode transitions so the ring can shimmer without animating on mount.
-  $effect(() => {
-    void isRichComposer;
-
-    if (!composerModeInitialized) {
-      composerModeInitialized = true;
-      return;
-    }
-
+  function animateComposerModeChange() {
     const animationRun = ++composerModeAnimationRun;
     composerModeHasChanged = false;
-    tick().then(() => {
+    void tick().then(() => {
       if (animationRun !== composerModeAnimationRun) return;
       composerModeHasChanged = true;
       if (composerModeAnimationTimer) clearTimeout(composerModeAnimationTimer);
@@ -368,14 +359,25 @@
         composerModeAnimationTimer = null;
       }, 650);
     });
+  }
 
-    return () => {
-      composerModeAnimationRun += 1;
-      if (composerModeAnimationTimer) {
-        clearTimeout(composerModeAnimationTimer);
-        composerModeAnimationTimer = null;
-      }
-    };
+  function setManualRichMode(value: boolean) {
+    const wasRichComposer = untrack(() => manualRichMode || editorHasRichStructure);
+    manualRichMode = value;
+    const isRichComposerNow = untrack(() => manualRichMode || editorHasRichStructure);
+    if (wasRichComposer !== isRichComposerNow) animateComposerModeChange();
+  }
+
+  function setEditorHasRichStructure(value: boolean) {
+    const wasRichComposer = untrack(() => manualRichMode || editorHasRichStructure);
+    editorHasRichStructure = value;
+    const isRichComposerNow = untrack(() => manualRichMode || editorHasRichStructure);
+    if (wasRichComposer !== isRichComposerNow) animateComposerModeChange();
+  }
+
+  onDestroy(() => {
+    composerModeAnimationRun += 1;
+    if (composerModeAnimationTimer) clearTimeout(composerModeAnimationTimer);
   });
 
   $effect(() => {
@@ -579,7 +581,7 @@
   function restorePreparedPost(post: PreparedPost) {
     autocomplete.reset();
     message = post.bodyToSend;
-    manualRichMode = post.wasRichComposer;
+    setManualRichMode(post.wasRichComposer);
     editorApi?.setContent(post.bodyToSend);
     if (post.filesToSend) {
       attachments.restore(attachments.filesToPreviewItems(post.filesToSend));
@@ -611,7 +613,7 @@
 
     // Reset "also send to channel" checkbox after successful send
     alsoSendToChannel = false;
-    manualRichMode = false;
+    setManualRichMode(false);
   }
 
   async function submitPreparedPost(preparedPost: PreparedPost) {
@@ -619,7 +621,7 @@
     // message immediately (matches Slack/Discord behavior).
     autocomplete.reset();
     message = '';
-    manualRichMode = false;
+    setManualRichMode(false);
     editorApi?.setContent('');
     attachments.clear();
     linkPreviews.clear();
@@ -756,7 +758,7 @@
     autocomplete.reset();
     editState.cancelEdit();
     message = '';
-    manualRichMode = false;
+    setManualRichMode(false);
     editorApi?.setContent('');
   }
 
@@ -786,7 +788,7 @@
         if (isRichComposer) {
           handleSubmit(); // Fire-and-forget (async, but keydown must return sync)
         } else {
-          manualRichMode = true;
+          setManualRichMode(true);
           editorApi?.insertBlockBreak();
         }
         return true;
@@ -852,7 +854,7 @@
     const previousMessage = message;
     message = text;
     if (!text) {
-      manualRichMode = false;
+      setManualRichMode(false);
     }
     // Only trigger typing indicator for actual user input.
     // Programmatic setContent calls suppress TipTap update events, but this
@@ -864,7 +866,7 @@
   }
 
   function handleRichStructureChange(value: boolean) {
-    editorHasRichStructure = value;
+    setEditorHasRichStructure(value);
   }
 
   // Called when TipTap editor is ready - sync any pending state
@@ -964,7 +966,7 @@
     data-composer-mode={isRichComposer ? 'rich' : 'simple'}
     data-mode-transition={composerModeHasChanged ? '' : undefined}
     class={[
-      'composer-input-surface relative isolate flex items-start gap-4 rounded-xl bg-surface py-2 pr-3',
+      'composer-mode-surface flex items-start gap-4 rounded-xl bg-surface py-2 pr-3',
       isEditing ? 'pl-3' : 'pl-2'
     ]}
     class:opacity-50={inputDisabled}
@@ -1133,78 +1135,6 @@
 {/if}
 
 <style>
-  .composer-input-surface {
-    --composer-ring-opacity: 0;
-    box-shadow:
-      0 0 0 1px transparent,
-      0 0 0 transparent;
-    transition-property: box-shadow;
-    transition-duration: 240ms;
-    transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
-  }
-
-  .composer-input-surface::before {
-    position: absolute;
-    z-index: -1;
-    inset: -2px;
-    padding: 2px;
-    border-radius: calc(0.75rem + 2px);
-    background: linear-gradient(
-      115deg,
-      color-mix(in srgb, var(--color-accent) 72%, white),
-      var(--color-accent),
-      color-mix(in srgb, var(--color-accent) 72%, #a855f7),
-      color-mix(in srgb, var(--color-accent) 72%, white)
-    );
-    background-size: 220% 100%;
-    opacity: var(--composer-ring-opacity);
-    pointer-events: none;
-    content: '';
-    mask:
-      linear-gradient(#000 0 0) content-box,
-      linear-gradient(#000 0 0);
-    mask-composite: exclude;
-    transition-property: opacity;
-    transition-duration: 240ms;
-    transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
-  }
-
-  .composer-input-surface[data-composer-mode='rich'] {
-    --composer-ring-opacity: 1;
-    box-shadow:
-      0 0 0 1px color-mix(in srgb, var(--color-accent) 45%, transparent),
-      0 0 16px color-mix(in srgb, var(--color-accent) 22%, transparent);
-  }
-
-  .composer-input-surface[data-mode-transition]::before {
-    animation: composer-ring-shimmer 650ms cubic-bezier(0.2, 0, 0, 1);
-  }
-
-  @keyframes composer-ring-shimmer {
-    0% {
-      background-position: 100% 50%;
-      opacity: var(--composer-ring-opacity);
-    }
-    42% {
-      opacity: 1;
-    }
-    100% {
-      background-position: -100% 50%;
-      opacity: var(--composer-ring-opacity);
-    }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .composer-input-surface,
-    .composer-input-surface::before {
-      transition-duration: 0ms;
-    }
-
-    .composer-input-surface[data-mode-transition]::before {
-      animation: none;
-    }
-  }
-
   .sending {
     position: relative;
     overflow: hidden;
