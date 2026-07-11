@@ -151,6 +151,10 @@ mise x -- go test -tags test_endpoints ./internal/http_server -run TestName -tim
 
 - Always set a timeout for targeted Go tests.
 - Use table-driven tests where practical.
+- Tests that mutate a projection wired into a running `ChattoCore` must append
+  the fact through `EventPublisher` and wait for the owning projector. Reserve
+  direct `Apply` calls for isolated projection tests, using monotonically
+  increasing stream sequences.
 - Permission tests need positive and negative cases.
 - DM behavior needs explicit coverage when touching room/message/permission logic.
 - Endpoint tests for `/auth/test/*` or `/webhooks/test/*` require
