@@ -40,7 +40,7 @@ jobs:
         run: mise build-e2e-server
 
       - name: Build production image contexts
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'ci-publish-image')
         shell: bash
         run: |
           set -euo pipefail
@@ -76,7 +76,7 @@ jobs:
           retention-days: 1
 
       - name: Upload production image contexts
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'ci-publish-image')
         uses: actions/upload-artifact@v7
         with:
           name: production-image-contexts
@@ -302,7 +302,7 @@ jobs:
           retention-days: 14
 
   publish-main-image:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'ci-publish-image')
     needs:
       - build-assets
       - license-check
