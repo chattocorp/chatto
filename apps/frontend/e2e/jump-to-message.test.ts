@@ -15,17 +15,22 @@ const GET_ROOM_EVENTS_AROUND_ROUTE =
 
 type DeferredAroundRequest = {
   waitUntilBlocked: () => Promise<void>;
+  waitUntilDelivered: () => Promise<void>;
   release: () => void;
 };
 
 async function deferNextAroundRequest(page: Page): Promise<DeferredAroundRequest> {
   let releaseRequest: (() => void) | undefined;
   let markBlocked: (() => void) | undefined;
+  let markDelivered: (() => void) | undefined;
   const releaseGate = new Promise<void>((resolve) => {
     releaseRequest = resolve;
   });
   const blocked = new Promise<void>((resolve) => {
     markBlocked = resolve;
+  });
+  const delivered = new Promise<void>((resolve) => {
+    markDelivered = resolve;
   });
   let deferred = false;
 
@@ -40,10 +45,12 @@ async function deferNextAroundRequest(page: Page): Promise<DeferredAroundRequest
     markBlocked?.();
     await releaseGate;
     await route.fulfill({ response });
+    markDelivered?.();
   });
 
   return {
     waitUntilBlocked: () => blocked,
+    waitUntilDelivered: () => delivered,
     release: () => releaseRequest?.()
   };
 }
@@ -60,7 +67,7 @@ async function expectMessageCentered(page: Page, eventId: string): Promise<void>
     expect(containerBox).not.toBeNull();
     const messageCenter = messageBox!.y + messageBox!.height / 2;
     const containerCenter = containerBox!.y + containerBox!.height / 2;
-    expect(Math.abs(messageCenter - containerCenter)).toBeLessThan(containerBox!.height / 3);
+    expect(Math.abs(messageCenter - containerCenter)).toBeLessThan(containerBox!.height / 6);
   }).toPass({ timeout: TIMEOUTS.UI_STANDARD, intervals: [100, 250, 500] });
 }
 
@@ -358,6 +365,7 @@ test.describe('jump to message', () => {
     await page.goto(routes.messageLink(roomId, secondEventId));
     await expectMessageCentered(page, secondEventId);
     deferred.release();
+    await deferred.waitUntilDelivered();
 
     await expectMessageCentered(page, secondEventId);
     await expect(page.locator(`[data-event-id="${firstEventId}"]`)).not.toBeVisible();
@@ -378,6 +386,7 @@ test.describe('jump to message', () => {
     const { roomId } = await getIdsFromUrlViaConnect(page);
     const timestamp = Date.now();
     const targetBody = `Variable height target ${timestamp}\n${'A long wrapped line. '.repeat(30)}`;
+    const imageBody = `Image near variable target - ${timestamp}`;
     const targetEventId = await postMessageViaConnect(page, roomId, targetBody);
     await postReplyViaConnect(
       page,
@@ -387,7 +396,7 @@ test.describe('jump to message', () => {
     );
     await roomPage.sendAttachment(
       'e2e/fixtures/brighton.jpg',
-      `Image near variable target - ${timestamp}`
+      imageBody
     );
     await postMessagesViaConnect(
       page,
@@ -401,6 +410,17 @@ test.describe('jump to message', () => {
     await expect(page.locator(`[data-event-id="${targetEventId}"]`)).toContainText(
       'A long wrapped line.'
     );
+    const nearbyImage = page
+      .locator('[role="article"]', { hasText: imageBody })
+      .locator('img')
+      .first();
+    await expect(nearbyImage).toBeVisible({ timeout: TIMEOUTS.COMPLEX_OPERATION });
+    await expect(async () => {
+      expect(
+        await nearbyImage.evaluate((image: HTMLImageElement) => image.complete && image.naturalHeight > 0)
+      ).toBe(true);
+    }).toPass({ timeout: TIMEOUTS.COMPLEX_OPERATION, intervals: [100, 250, 500] });
+    await expectMessageCentered(page, targetEventId);
     await expect(page.getByTestId('jump-to-present')).toBeVisible();
   });
 });
