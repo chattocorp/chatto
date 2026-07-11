@@ -700,15 +700,14 @@ func (c *ChattoCore) ListRoomMemberReferences(ctx context.Context, actorID, room
 		return nil, err
 	}
 
+	userIDs := make([]string, len(memberships))
+	for i, membership := range memberships {
+		userIDs[i] = membership.GetUserId()
+	}
 	users := make([]*corev1.User, 0, len(memberships))
-	for _, membership := range memberships {
-		user, err := c.GetUserReference(ctx, membership.GetUserId())
-		if err != nil {
-			if errors.Is(err, ErrNotFound) {
-				user = DeletedUserReference(membership.GetUserId())
-			} else {
-				return nil, err
-			}
+	for i, user := range c.Users.GetReferences(userIDs) {
+		if user == nil {
+			user = DeletedUserReference(userIDs[i])
 		}
 		if user != nil {
 			users = append(users, user)

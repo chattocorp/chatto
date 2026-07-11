@@ -333,7 +333,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
         </div>
       </div>
 
-      {#if loading || membersStore.isInitialLoading}
+      {#if (loading || membersStore.isInitialLoading) && !membersStore.hasFirstPage}
         <ul role="list">
           {#each Array(8) as _, i (i)}
             <li class="flex items-center gap-2 rounded-md px-2 py-1.5">

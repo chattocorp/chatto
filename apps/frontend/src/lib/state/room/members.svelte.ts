@@ -71,8 +71,11 @@ function eventRoomId(eventData: EventEnvelope['event']): string | null {
 export class RoomMembersStore {
   members = $state.raw<RoomMember[]>([]);
   totalCount = $state(0);
-  hasLoaded = $state(false);
+  hasFirstPage = $state(false);
+  hasLoadedAll = $state(false);
   isInitialLoading = $state(false);
+  isBackgroundLoading = $state(false);
+  loadError = $state<string | null>(null);
   searchInput = $state('');
   activeSearch = $state('');
   livePresence = new SvelteMap<string, PresenceStatus>();
@@ -105,8 +108,20 @@ export class RoomMembersStore {
     return this.filterLoadedMembers(this.activeSearch);
   }
 
+  /** Compatibility alias for consumers that only care whether hydration is complete. */
+  get hasLoaded(): boolean {
+    return this.hasLoadedAll;
+  }
+
   ensureLoaded(): void {
-    if (!this.roomId || this.isInitialLoading || this.hasLoaded) return;
+    if (
+      !this.roomId ||
+      this.isInitialLoading ||
+      this.isBackgroundLoading ||
+      this.hasLoadedAll ||
+      this.loadError
+    )
+      return;
     void this.loadInitial();
   }
 
@@ -115,26 +130,28 @@ export class RoomMembersStore {
     this.searchInput = search;
     if (nextSearch === this.activeSearch) return;
     this.activeSearch = nextSearch;
+    if (nextSearch && !this.hasLoadedAll) {
+      await this.searchMembers(nextSearch);
+    }
   }
 
   async loadInitial(): Promise<void> {
     if (!this.roomId || !this.api) return;
     const loadId = ++this.#loadId;
     this.isInitialLoading = true;
+    this.isBackgroundLoading = false;
+    this.loadError = null;
     try {
-      const page = await this.fetchAllPages();
-      if (loadId !== this.#loadId) return;
-      this.members = page.members;
-      this.totalCount = page.totalCount;
-      this.hasLoaded = true;
+      await this.loadPages(loadId);
     } catch (error) {
       if (loadId === this.#loadId) {
+        this.loadError = error instanceof Error ? error.message : 'Failed to load room members';
         console.error('Failed to load room members:', error);
       }
     } finally {
       if (loadId === this.#loadId) {
-        this.hasLoaded = true;
         this.isInitialLoading = false;
+        this.isBackgroundLoading = false;
       }
     }
   }
@@ -143,21 +160,41 @@ export class RoomMembersStore {
     if (!this.roomId || !this.api) return;
     const loadId = ++this.#loadId;
     this.isInitialLoading = false;
+    this.isBackgroundLoading = false;
+    this.hasLoadedAll = false;
+    this.loadError = null;
     try {
-      const page = await this.fetchAllPages();
-      if (loadId !== this.#loadId) return;
-      this.members = page.members;
-      this.totalCount = page.totalCount;
-      this.hasLoaded = true;
+      await this.loadPages(loadId);
     } catch (error) {
       if (loadId === this.#loadId) {
+        this.loadError = error instanceof Error ? error.message : 'Failed to refresh room members';
         console.error('Failed to refresh room members:', error);
+      }
+    } finally {
+      if (loadId === this.#loadId) {
+        this.isInitialLoading = false;
+        this.isBackgroundLoading = false;
       }
     }
   }
 
   async searchMembers(search: string, limit = MENTION_MEMBER_SEARCH_LIMIT): Promise<RoomMember[]> {
-    return this.filteredLoadedMembers(search, limit);
+    const normalizedSearch = search.trim();
+    if (!normalizedSearch || this.hasLoadedAll || !this.roomId || !this.api) {
+      return this.filteredLoadedMembers(normalizedSearch, limit);
+    }
+
+    const roomId = this.roomId;
+    let page: RoomMembersPage;
+    try {
+      page = await this.fetchPage(0, limit, normalizedSearch);
+    } catch (error) {
+      console.error('Failed to search room members:', error);
+      return this.filteredLoadedMembers(normalizedSearch, limit);
+    }
+    if (roomId !== this.roomId) return [];
+    this.members = mergeMembersSorted(this.members, page.members);
+    return page.members.slice(0, limit);
   }
 
   ingestServerEvent(serverEvent: EventEnvelope): void {
@@ -178,25 +215,38 @@ export class RoomMembersStore {
     this.presenceVersion++;
   }
 
-  private async fetchAllPages(): Promise<RoomMembersPage> {
-    const members: RoomMember[] = [];
-    let totalCount = 0;
-    let hasMore = true;
+  private async loadPages(loadId: number): Promise<void> {
     let nextOffset = 0;
+    let hasMore = true;
+    let firstPage = true;
 
     while (hasMore) {
       const page = await this.fetchPage(nextOffset, ROOM_MEMBERS_PAGE_SIZE, '');
-      members.push(...page.members);
-      totalCount = page.totalCount;
+      if (loadId !== this.#loadId) return;
+
+      this.members = firstPage ? page.members : appendPageMembers(this.members, page.members);
+      this.totalCount = page.totalCount;
       hasMore = page.hasMore;
       nextOffset += page.members.length;
 
+      if (firstPage) {
+        firstPage = false;
+        this.hasFirstPage = true;
+        this.hasLoadedAll = !hasMore;
+        this.isInitialLoading = false;
+        this.isBackgroundLoading = hasMore;
+      }
+
       if (page.members.length === 0) {
+        hasMore = false;
         break;
       }
     }
 
-    return { members, totalCount, hasMore };
+    if (loadId === this.#loadId) {
+      this.hasLoadedAll = true;
+      this.isBackgroundLoading = false;
+    }
   }
 
   private async fetchPage(offset: number, limit: number, search: string): Promise<RoomMembersPage> {
@@ -217,13 +267,44 @@ export class RoomMembersStore {
     this.#loadId++;
     this.members = [];
     this.totalCount = 0;
-    this.hasLoaded = false;
+    this.hasFirstPage = false;
+    this.hasLoadedAll = false;
     this.isInitialLoading = false;
+    this.isBackgroundLoading = false;
+    this.loadError = null;
     this.searchInput = '';
     this.activeSearch = '';
     this.livePresence.clear();
     this.presenceVersion = 0;
   }
+}
+
+function appendUniqueMembers(current: RoomMember[], incoming: RoomMember[]): RoomMember[] {
+  if (incoming.length === 0) return current;
+
+  const byId = new SvelteMap(current.map((member) => [member.id, member]));
+  for (const member of incoming) byId.set(member.id, member);
+  return [...byId.values()];
+}
+
+function appendPageMembers(current: RoomMember[], incoming: RoomMember[]): RoomMember[] {
+  if (incoming.length === 0) return current;
+  const incomingIds = new Set(incoming.map((member) => member.id));
+  return [...current.filter((member) => !incomingIds.has(member.id)), ...incoming];
+}
+
+function mergeMembersSorted(current: RoomMember[], incoming: RoomMember[]): RoomMember[] {
+  return appendUniqueMembers(current, incoming).sort(compareMembers);
+}
+
+function compareMembers(left: RoomMember, right: RoomMember): number {
+  const leftDisplayName = left.displayName.toLowerCase();
+  const rightDisplayName = right.displayName.toLowerCase();
+  if (leftDisplayName < rightDisplayName) return -1;
+  if (leftDisplayName > rightDisplayName) return 1;
+  const leftLogin = left.login.toLowerCase();
+  const rightLogin = right.login.toLowerCase();
+  return leftLogin < rightLogin ? -1 : leftLogin > rightLogin ? 1 : 0;
 }
 
 const [getMembersStoreContext, setMembersStoreContext] = createContext<RoomMembersStore>();

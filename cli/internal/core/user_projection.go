@@ -551,6 +551,27 @@ func (p *UserProjection) GetReference(userID string) (*corev1.User, bool) {
 	return cloneUserWithActiveStatus(u.user, time.Now()), true
 }
 
+// GetReferences returns public user references aligned with userIDs. Unknown users are nil.
+func (p *UserProjection) GetReferences(userIDs []string) []*corev1.User {
+	p.RLock()
+	defer p.RUnlock()
+
+	now := time.Now()
+	users := make([]*corev1.User, len(userIDs))
+	for i, userID := range userIDs {
+		u := p.users[userID]
+		if u == nil {
+			continue
+		}
+		if u.deleted || u.user == nil || u.user.GetLogin() == "" || u.user.GetDisplayName() == "" {
+			users[i] = DeletedUserReference(userID)
+			continue
+		}
+		users[i] = cloneUserWithActiveStatus(u.user, now)
+	}
+	return users
+}
+
 func (p *UserProjection) GetByLogin(login string) (*corev1.User, bool) {
 	p.RLock()
 	userID := p.loginIndex[strings.ToLower(strings.TrimSpace(login))]
