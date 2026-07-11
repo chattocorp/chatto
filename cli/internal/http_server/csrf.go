@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/base64"
+	"errors"
 	"net/http"
 	"strconv"
 	"strings"
@@ -39,6 +40,10 @@ func (s *HTTPServer) csrfMiddleware() gin.HandlerFunc {
 		session := sessions.Default(c)
 		if isSafeHTTPMethod(c.Request.Method) && hasCookieCredential(session) {
 			if err := s.ensureCSRFToken(c); err != nil {
+				if errors.Is(err, errAuthenticationServiceUnavailable) {
+					c.AbortWithStatusJSON(http.StatusServiceUnavailable, gin.H{"error": "Authentication service temporarily unavailable"})
+					return
+				}
 				c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "Failed to prepare CSRF token"})
 				return
 			}
@@ -51,7 +56,7 @@ func (s *HTTPServer) csrfMiddleware() gin.HandlerFunc {
 func (s *HTTPServer) ensureCSRFToken(c *gin.Context) error {
 	binding, ok, err := s.csrfBinding(c)
 	if err != nil {
-		return err
+		return errAuthenticationServiceUnavailable
 	}
 	if !ok {
 		return nil

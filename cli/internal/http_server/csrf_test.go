@@ -204,6 +204,28 @@ func TestCSRFMiddleware(t *testing.T) {
 		}
 	})
 
+	t.Run("returns unavailable when safe-request cookie validation fails", func(t *testing.T) {
+		server, client := setupCSRFTestServer(t)
+		csrfCookieValue(t, client, server.URL)
+
+		req, err := http.NewRequest(http.MethodGet, server.URL+"/csrf-refresh", nil)
+		if err != nil {
+			t.Fatalf("create safe request: %v", err)
+		}
+		req.Header.Set("X-Test-Cancel-Authentication", "true")
+
+		resp, err := client.Do(req)
+		if err != nil {
+			t.Fatalf("safe request: %v", err)
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusServiceUnavailable {
+			body, _ := io.ReadAll(resp.Body)
+			t.Fatalf("status = %d, want 503; body=%s", resp.StatusCode, body)
+		}
+	})
+
 	t.Run("exempts cookie ConnectRPC POST", func(t *testing.T) {
 		server, client := setupCSRFTestServer(t)
 		csrfCookieValue(t, client, server.URL)

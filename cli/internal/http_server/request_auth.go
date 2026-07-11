@@ -14,6 +14,8 @@ import (
 
 type authenticationValidationErrorKey struct{}
 
+var errAuthenticationServiceUnavailable = errors.New("authentication service temporarily unavailable")
+
 func authenticationValidationError(ctx context.Context) error {
 	err, _ := ctx.Value(authenticationValidationErrorKey{}).(error)
 	return err
