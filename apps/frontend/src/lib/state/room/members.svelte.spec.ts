@@ -143,15 +143,46 @@ describe('RoomMembersStore', () => {
     const loading = store.loadInitial();
     await vi.waitFor(() => expect(store.hasFirstPage).toBe(true));
 
-    await expect(store.searchMembers('cor')).resolves.toMatchObject([{ id: 'u3' }]);
+    await store.setSearch('cor');
     expect(fakeAPI.listRoomMembers).toHaveBeenNthCalledWith(3, 'room-1', 'cor', 10, 0);
-    expect(store.members.map((member) => member.login)).toEqual(['alice', 'cora']);
+    expect(store.filteredMembers.map((member) => member.login)).toEqual(['cora']);
+    expect(store.members.map((member) => member.login)).toEqual(['alice']);
 
     backgroundPage.resolve(pageResult([user('u2', 'boris'), user('u3', 'cora')], false, 3));
     await loading;
 
     expect(store.members.map((member) => member.login)).toEqual(['alice', 'boris', 'cora']);
     expect(new Set(store.members.map((member) => member.id)).size).toBe(3);
+  });
+
+  it('discards an in-flight search when a same-room refresh starts', async () => {
+    const backgroundPage = deferred<MemberDirectoryPage>();
+    const staleSearch = deferred<MemberDirectoryPage>();
+    const refreshedPage = deferred<MemberDirectoryPage>();
+    const fakeAPI = new FakeMemberDirectoryAPI([
+      pageResult([user('u1', 'alice')], true, 2),
+      backgroundPage.promise,
+      staleSearch.promise,
+      refreshedPage.promise
+    ]);
+    const store = new RoomMembersStore(fakeAPI);
+
+    store.setRoom('room-1');
+    const initialLoad = store.loadInitial();
+    await vi.waitFor(() => expect(store.hasFirstPage).toBe(true));
+
+    const searching = store.searchMembers('departed');
+    const refreshing = store.refresh();
+    refreshedPage.resolve(pageResult([user('u1', 'alice')], false, 1));
+    await refreshing;
+
+    staleSearch.resolve(pageResult([user('u2', 'departed')], false, 1));
+    await expect(searching).resolves.toEqual([]);
+    expect(store.members.map((member) => member.login)).toEqual(['alice']);
+
+    backgroundPage.resolve(pageResult([user('u2', 'departed')], false, 2));
+    await initialLoad;
+    expect(store.members.map((member) => member.login)).toEqual(['alice']);
   });
 
   it('records failed initial loads to avoid immediate ensureLoaded retries', async () => {

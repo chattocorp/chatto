@@ -62,11 +62,10 @@ function eventRoomId(eventData: EventEnvelope['event']): string | null {
 /**
  * Room member store for the current room.
  *
- * The store uses the paginated Connect member directory API internally, but room initialization
- * eagerly fills `members` with the complete room member list. Message rendering,
- * mention highlighting, popovers, and moderation checks all treat this as
- * canonical room context, not as a lazy sidebar page. Partial page results are
- * never exposed as canonical state.
+ * The store publishes the first paginated Connect response immediately, then fills `members` with
+ * the remaining pages in the background. `hasFirstPage` marks interactive readiness while
+ * `hasLoadedAll` marks complete membership for mention rendering and other exhaustive consumers.
+ * Searches use a separate cache until their matching directory page enters canonical order.
  */
 export class RoomMembersStore {
   members = $state.raw<RoomMember[]>([]);
@@ -84,6 +83,7 @@ export class RoomMembersStore {
   private readonly api: MemberDirectoryAPI | null;
   private roomId = '';
   #loadId = 0;
+  #searchCache = new SvelteMap<string, RoomMember[]>();
 
   constructor(source?: ServerConnection | MemberDirectoryAPI | null) {
     if (!source) {
@@ -105,6 +105,11 @@ export class RoomMembersStore {
   }
 
   get filteredMembers(): RoomMember[] {
+    const query = this.activeSearch.trim().toLowerCase();
+    if (query && !this.hasLoadedAll) {
+      const searched = this.#searchCache.get(query);
+      if (searched) return searched;
+    }
     return this.filterLoadedMembers(this.activeSearch);
   }
 
@@ -163,6 +168,7 @@ export class RoomMembersStore {
     this.isBackgroundLoading = false;
     this.hasLoadedAll = false;
     this.loadError = null;
+    this.#searchCache.clear();
     try {
       await this.loadPages(loadId);
     } catch (error) {
@@ -185,6 +191,9 @@ export class RoomMembersStore {
     }
 
     const roomId = this.roomId;
+    const loadId = this.#loadId;
+    const cached = this.#searchCache.get(normalizedSearch.toLowerCase());
+    if (cached) return cached.slice(0, limit);
     let page: RoomMembersPage;
     try {
       page = await this.fetchPage(0, limit, normalizedSearch);
@@ -192,8 +201,8 @@ export class RoomMembersStore {
       console.error('Failed to search room members:', error);
       return this.filteredLoadedMembers(normalizedSearch, limit);
     }
-    if (roomId !== this.roomId) return [];
-    this.members = mergeMembersSorted(this.members, page.members);
+    if (roomId !== this.roomId || loadId !== this.#loadId) return [];
+    this.#searchCache.set(normalizedSearch.toLowerCase(), page.members);
     return page.members.slice(0, limit);
   }
 
@@ -274,37 +283,16 @@ export class RoomMembersStore {
     this.loadError = null;
     this.searchInput = '';
     this.activeSearch = '';
+    this.#searchCache.clear();
     this.livePresence.clear();
     this.presenceVersion = 0;
   }
-}
-
-function appendUniqueMembers(current: RoomMember[], incoming: RoomMember[]): RoomMember[] {
-  if (incoming.length === 0) return current;
-
-  const byId = new SvelteMap(current.map((member) => [member.id, member]));
-  for (const member of incoming) byId.set(member.id, member);
-  return [...byId.values()];
 }
 
 function appendPageMembers(current: RoomMember[], incoming: RoomMember[]): RoomMember[] {
   if (incoming.length === 0) return current;
   const incomingIds = new Set(incoming.map((member) => member.id));
   return [...current.filter((member) => !incomingIds.has(member.id)), ...incoming];
-}
-
-function mergeMembersSorted(current: RoomMember[], incoming: RoomMember[]): RoomMember[] {
-  return appendUniqueMembers(current, incoming).sort(compareMembers);
-}
-
-function compareMembers(left: RoomMember, right: RoomMember): number {
-  const leftDisplayName = left.displayName.toLowerCase();
-  const rightDisplayName = right.displayName.toLowerCase();
-  if (leftDisplayName < rightDisplayName) return -1;
-  if (leftDisplayName > rightDisplayName) return 1;
-  const leftLogin = left.login.toLowerCase();
-  const rightLogin = right.login.toLowerCase();
-  return leftLogin < rightLogin ? -1 : leftLogin > rightLogin ? 1 : 0;
 }
 
 const [getMembersStoreContext, setMembersStoreContext] = createContext<RoomMembersStore>();
