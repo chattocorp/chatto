@@ -144,7 +144,13 @@ describe('RoomMembersStore', () => {
     await vi.waitFor(() => expect(store.hasFirstPage).toBe(true));
 
     await store.setSearch('cor');
-    expect(fakeAPI.listRoomMembers).toHaveBeenNthCalledWith(3, 'room-1', 'cor', 10, 0);
+    expect(fakeAPI.listRoomMembers).toHaveBeenNthCalledWith(
+      3,
+      'room-1',
+      'cor',
+      ROOM_MEMBERS_PAGE_SIZE,
+      0
+    );
     expect(store.filteredMembers.map((member) => member.login)).toEqual(['cora']);
     expect(store.members.map((member) => member.login)).toEqual(['alice']);
 
@@ -183,6 +189,42 @@ describe('RoomMembersStore', () => {
     backgroundPage.resolve(pageResult([user('u2', 'departed')], false, 2));
     await initialLoad;
     expect(store.members.map((member) => member.login)).toEqual(['alice']);
+  });
+
+  it('pages through every sidebar search match while hydration is incomplete', async () => {
+    const backgroundPage = deferred<MemberDirectoryPage>();
+    const fakeAPI = new FakeMemberDirectoryAPI([
+      pageResult([user('u1', 'alice')], true, 3),
+      backgroundPage.promise,
+      pageResult([user('u2', 'match-a')], true, 2),
+      pageResult([user('u3', 'match-b')], false, 2)
+    ]);
+    const store = new RoomMembersStore(fakeAPI);
+
+    store.setRoom('room-1');
+    const loading = store.loadInitial();
+    await vi.waitFor(() => expect(store.hasFirstPage).toBe(true));
+
+    await store.setSearch('match');
+
+    expect(fakeAPI.listRoomMembers).toHaveBeenNthCalledWith(
+      3,
+      'room-1',
+      'match',
+      ROOM_MEMBERS_PAGE_SIZE,
+      0
+    );
+    expect(fakeAPI.listRoomMembers).toHaveBeenNthCalledWith(
+      4,
+      'room-1',
+      'match',
+      ROOM_MEMBERS_PAGE_SIZE,
+      1
+    );
+    expect(store.filteredMembers.map((member) => member.login)).toEqual(['match-a', 'match-b']);
+
+    backgroundPage.resolve(pageResult([user('u2', 'match-a'), user('u3', 'match-b')], false, 3));
+    await loading;
   });
 
   it('records failed initial loads to avoid immediate ensureLoaded retries', async () => {

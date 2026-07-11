@@ -38,6 +38,11 @@ export type RoomMembersPage = {
   hasMore: boolean;
 };
 
+type MemberSearchCacheEntry = {
+  members: RoomMember[];
+  complete: boolean;
+};
+
 function memberMatchesSearch(member: RoomMember, search: string): boolean {
   const query = search.trim().toLowerCase();
   if (!query) return true;
@@ -83,7 +88,7 @@ export class RoomMembersStore {
   private readonly api: MemberDirectoryAPI | null;
   private roomId = '';
   #loadId = 0;
-  #searchCache = new SvelteMap<string, RoomMember[]>();
+  #searchCache = new SvelteMap<string, MemberSearchCacheEntry>();
 
   constructor(source?: ServerConnection | MemberDirectoryAPI | null) {
     if (!source) {
@@ -108,7 +113,7 @@ export class RoomMembersStore {
     const query = this.activeSearch.trim().toLowerCase();
     if (query && !this.hasLoadedAll) {
       const searched = this.#searchCache.get(query);
-      if (searched) return searched;
+      if (searched) return searched.members;
     }
     return this.filterLoadedMembers(this.activeSearch);
   }
@@ -136,7 +141,7 @@ export class RoomMembersStore {
     if (nextSearch === this.activeSearch) return;
     this.activeSearch = nextSearch;
     if (nextSearch && !this.hasLoadedAll) {
-      await this.searchMembers(nextSearch);
+      await this.searchAllMembers(nextSearch);
     }
   }
 
@@ -193,7 +198,9 @@ export class RoomMembersStore {
     const roomId = this.roomId;
     const loadId = this.#loadId;
     const cached = this.#searchCache.get(normalizedSearch.toLowerCase());
-    if (cached) return cached.slice(0, limit);
+    if (cached && (cached.complete || cached.members.length >= limit)) {
+      return cached.members.slice(0, limit);
+    }
     let page: RoomMembersPage;
     try {
       page = await this.fetchPage(0, limit, normalizedSearch);
@@ -202,8 +209,40 @@ export class RoomMembersStore {
       return this.filteredLoadedMembers(normalizedSearch, limit);
     }
     if (roomId !== this.roomId || loadId !== this.#loadId) return [];
-    this.#searchCache.set(normalizedSearch.toLowerCase(), page.members);
+    this.#searchCache.set(normalizedSearch.toLowerCase(), {
+      members: page.members,
+      complete: !page.hasMore
+    });
     return page.members.slice(0, limit);
+  }
+
+  private async searchAllMembers(search: string): Promise<void> {
+    const query = search.trim().toLowerCase();
+    const loadId = this.#loadId;
+    let members: RoomMember[] = [];
+    let offset = 0;
+    let hasMore = true;
+
+    while (hasMore) {
+      let page: RoomMembersPage;
+      try {
+        page = await this.fetchPage(offset, ROOM_MEMBERS_PAGE_SIZE, search);
+      } catch (error) {
+        console.error('Failed to search room members:', error);
+        return;
+      }
+      if (
+        loadId !== this.#loadId ||
+        query !== this.activeSearch.trim().toLowerCase() ||
+        !this.roomId
+      )
+        return;
+
+      members = appendPageMembers(members, page.members);
+      hasMore = page.hasMore && page.members.length > 0;
+      offset += page.members.length;
+      this.#searchCache.set(query, { members, complete: !hasMore });
+    }
   }
 
   ingestServerEvent(serverEvent: EventEnvelope): void {
