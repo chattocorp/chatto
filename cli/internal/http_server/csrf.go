@@ -24,9 +24,16 @@ const (
 
 func (s *HTTPServer) csrfMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if s.requiresCSRF(c) && !s.validCSRFToken(c) {
-			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "CSRF token missing or invalid"})
-			return
+		if s.requiresCSRF(c) {
+			valid, err := s.validCSRFToken(c)
+			if err != nil {
+				c.AbortWithStatusJSON(http.StatusServiceUnavailable, gin.H{"error": "Authentication service temporarily unavailable"})
+				return
+			}
+			if !valid {
+				c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "CSRF token missing or invalid"})
+				return
+			}
 		}
 
 		session := sessions.Default(c)
@@ -42,7 +49,10 @@ func (s *HTTPServer) csrfMiddleware() gin.HandlerFunc {
 }
 
 func (s *HTTPServer) ensureCSRFToken(c *gin.Context) error {
-	binding, ok := s.csrfBinding(c)
+	binding, ok, err := s.csrfBinding(c)
+	if err != nil {
+		return err
+	}
 	if !ok {
 		return nil
 	}
@@ -91,19 +101,22 @@ func isCSRFExemptUnsafePath(path string) bool {
 	}
 }
 
-func (s *HTTPServer) validCSRFToken(c *gin.Context) bool {
+func (s *HTTPServer) validCSRFToken(c *gin.Context) (bool, error) {
 	headerToken := c.GetHeader(csrfHeaderName)
 	cookieToken, err := c.Cookie(csrfCookieName)
 	if err != nil || headerToken == "" || cookieToken == "" {
-		return false
+		return false, nil
 	}
 
 	if subtle.ConstantTimeCompare([]byte(headerToken), []byte(cookieToken)) != 1 {
-		return false
+		return false, nil
 	}
 
-	binding, ok := s.csrfBinding(c)
-	return ok && s.validSignedCSRFToken(cookieToken, binding)
+	binding, ok, err := s.csrfBinding(c)
+	if err != nil {
+		return false, err
+	}
+	return ok && s.validSignedCSRFToken(cookieToken, binding), nil
 }
 
 type csrfBinding struct {
@@ -111,12 +124,15 @@ type csrfBinding struct {
 	authGeneration uint64
 }
 
-func (s *HTTPServer) csrfBinding(c *gin.Context) (csrfBinding, bool) {
-	credential, ok, _ := s.cookiePresentedCredential(c)
-	if !ok {
-		return csrfBinding{}, false
+func (s *HTTPServer) csrfBinding(c *gin.Context) (csrfBinding, bool, error) {
+	credential, ok, err := s.cookiePresentedCredential(c)
+	if err != nil {
+		return csrfBinding{}, false, err
 	}
-	return csrfBindingForSession(credential.auth.UserID, credential.cookieRecord), true
+	if !ok {
+		return csrfBinding{}, false, nil
+	}
+	return csrfBindingForSession(credential.auth.UserID, credential.cookieRecord), true, nil
 }
 
 func hasCookieCredential(session sessions.Session) bool {
