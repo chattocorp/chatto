@@ -319,6 +319,152 @@ function timelineFromFixtures(fake: FakeQueryClient): RoomTimelineAPI {
 }
 
 describe('MessagesStore — room lifecycle ownership', () => {
+  it('reports a successful jump when the target is already loaded', async () => {
+    const fake = new FakeQueryClient();
+    const timeline = fakeTimelineAPI();
+    const store = new MessagesStore(fake as unknown as ServerConnection, () => null, timeline);
+    store.setRoom('room-1');
+    await settle();
+    store.events = [threadMessageEvent('m1') as never];
+
+    const jumpState = new JumpToMessageState();
+    const jumped = await store.jumpToMessage('m1', jumpState);
+
+    expect(jumped).toBe(true);
+    expect(jumpState.scrollToEventId).toBe('m1');
+    expect(timeline.getRoomEventsAround).not.toHaveBeenCalled();
+    store.dispose();
+  });
+
+  it('reports a successful jump after loading a room window around the target', async () => {
+    const fake = new FakeQueryClient();
+    const timeline = fakeTimelineAPI({
+      getRoomEventsAround: vi.fn(async () => ({
+        events: [
+          threadMessageEvent('m1') as never,
+          threadMessageEvent('m2') as never,
+          threadMessageEvent('m3') as never
+        ],
+        startCursor: 'tl:start',
+        endCursor: 'tl:end',
+        hasOlder: true,
+        hasNewer: true
+      }))
+    });
+    const store = new MessagesStore(fake as unknown as ServerConnection, () => null, timeline);
+    store.setRoom('room-1');
+    await settle();
+
+    const jumpState = new JumpToMessageState();
+    const jumped = await store.jumpToMessage('m2', jumpState);
+
+    expect(jumped).toBe(true);
+    expect(timeline.getRoomEventsAround).toHaveBeenCalledWith({
+      roomId: 'room-1',
+      eventId: 'm2',
+      limit: 50
+    });
+    expect(store.rootEvents.map((event) => event.id)).toEqual(['m1', 'm2', 'm3']);
+    expect(jumpState.isJumpedMode).toBe(true);
+    expect(jumpState.hasReachedEnd).toBe(false);
+    expect(jumpState.hasOlderMessages).toBe(true);
+    expect(jumpState.scrollToEventId).toBe('m2');
+    expect(store.isInitialLoading).toBe(false);
+    store.dispose();
+  });
+
+  it('reports a failed jump when the around page omits the target', async () => {
+    const fake = new FakeQueryClient();
+    const timeline = fakeTimelineAPI({
+      getRoomEventsAround: vi.fn(async () => ({
+        events: [threadMessageEvent('m3') as never],
+        startCursor: 'tl:start',
+        endCursor: 'tl:end',
+        hasOlder: false,
+        hasNewer: false
+      }))
+    });
+    const store = new MessagesStore(fake as unknown as ServerConnection, () => null, timeline);
+    store.setRoom('room-1');
+    await settle();
+    store.events = [threadMessageEvent('m1') as never];
+
+    const jumpState = new JumpToMessageState();
+    jumpState.isJumpedMode = true;
+    jumpState.scrollToEventId = 'previous';
+    const jumped = await store.jumpToMessage('m2', jumpState);
+
+    expect(jumped).toBe(false);
+    expect(store.rootEvents.map((event) => event.id)).toEqual(['m1']);
+    expect(jumpState.isJumpedMode).toBe(false);
+    expect(jumpState.scrollToEventId).toBeNull();
+    expect(store.isInitialLoading).toBe(false);
+    store.dispose();
+  });
+
+  it('reports a failed jump when loading the target window rejects', async () => {
+    const fake = new FakeQueryClient();
+    const timeline = fakeTimelineAPI({
+      getRoomEventsAround: vi.fn(async () => {
+        throw new Error('network failed');
+      })
+    });
+    const store = new MessagesStore(fake as unknown as ServerConnection, () => null, timeline);
+    store.setRoom('room-1');
+    await settle();
+
+    const jumpState = new JumpToMessageState();
+    const jumped = await store.jumpToMessage('m2', jumpState);
+
+    expect(jumped).toBe(false);
+    expect(jumpState.scrollToEventId).toBeNull();
+    expect(store.isInitialLoading).toBe(false);
+    store.dispose();
+  });
+
+  it('discards a jump response superseded by a newer jump', async () => {
+    const fake = new FakeQueryClient();
+    type AroundPage = Awaited<ReturnType<RoomTimelineAPI['getRoomEventsAround']>>;
+    let resolveFirst: ((value: AroundPage) => void) | undefined;
+    const firstPage = new Promise<AroundPage>((resolve) => {
+      resolveFirst = resolve;
+    });
+    const timeline = fakeTimelineAPI({
+      getRoomEventsAround: vi
+        .fn()
+        .mockReturnValueOnce(firstPage)
+        .mockResolvedValueOnce({
+          events: [threadMessageEvent('new-target') as never],
+          startCursor: 'tl:new',
+          endCursor: 'tl:new',
+          hasOlder: false,
+          hasNewer: false
+        })
+    });
+    const store = new MessagesStore(fake as unknown as ServerConnection, () => null, timeline);
+    store.setRoom('room-1');
+    await settle();
+
+    const jumpState = new JumpToMessageState();
+    const firstJump = store.jumpToMessage('old-target', jumpState);
+    const secondJump = store.jumpToMessage('new-target', jumpState);
+    await expect(secondJump).resolves.toBe(true);
+
+    resolveFirst?.({
+      events: [threadMessageEvent('old-target') as never],
+      startCursor: 'tl:old',
+      endCursor: 'tl:old',
+      hasOlder: false,
+      hasNewer: false
+    });
+
+    await expect(firstJump).resolves.toBe(false);
+    expect(store.rootEvents.map((event) => event.id)).toEqual(['new-target']);
+    expect(jumpState.scrollToEventId).toBe('new-target');
+    expect(store.isInitialLoading).toBe(false);
+    store.dispose();
+  });
+
   it('loads room history through the injected timeline API', async () => {
     const fake = new FakeQueryClient();
     const timeline = fakeTimelineAPI({

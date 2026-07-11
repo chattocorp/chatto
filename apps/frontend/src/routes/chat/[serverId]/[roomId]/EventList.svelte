@@ -105,7 +105,7 @@
     typingMembers?: RoomMember[];
     // Jump to message
     scrollToEventId?: string | null;
-    onScrollToEventComplete?: () => void;
+    onScrollToEventComplete?: (landed: boolean) => void;
     isJumpedMode?: boolean;
     isLoadingNewer?: boolean;
     hasReachedEnd?: boolean;
@@ -310,27 +310,66 @@
   });
 
   // Scroll to a specific event by ID (for jump-to-message)
+  let scrollAttemptId = 0;
   $effect(() => {
+    const attemptId = ++scrollAttemptId;
     const targetId = scrollToEventId;
     if (!targetId || !virtualizerHandle || virtualItems.length === 0) return;
-
-    // Find the target event's index in virtualItems
-    const targetIdx = virtualItems.findIndex(
-      (item) => item.type === 'event' && item.event.id === targetId
-    );
-    if (targetIdx === -1) return;
+    const targetEventId = targetId;
 
     // Disable auto-scroll so it doesn't race with the jump scroll.
     setShouldScrollToBottom(false);
     // Mark initial scroll as done so pending initial loading state cannot obscure the jump.
     initialScrollDone = true;
 
-    // Wait for render, then scroll and highlight.
-    // After a cache replacement (jump-to-message), virtua needs multiple frames
-    // to measure items and render the target element. Retry the highlight
-    // a few times to handle this latency.
+    // After a cache replacement, virtua can need several frames before the
+    // target item is indexed, measured, and mounted. Retry the full lookup +
+    // scroll path instead of giving up before the target is renderable.
     tick().then(() => {
-      safeScrollToIndex(targetIdx, { align: 'center' });
+      let attempts = 0;
+      const maxAttempts = 60;
+      let completed = false;
+
+      function complete(landed: boolean) {
+        if (completed || scrollAttemptId !== attemptId) return;
+        completed = true;
+        onScrollToEventComplete?.(landed);
+      }
+
+      function tryScrollAndHighlight() {
+        if (scrollAttemptId !== attemptId) return;
+
+        const targetIdx = virtualItems.findIndex(
+          (item) => item.type === 'event' && item.event.id === targetEventId
+        );
+        if (targetIdx !== -1) {
+          safeScrollToIndex(targetIdx, { align: 'center' });
+        }
+
+        // Scope to this EventList's scroll container so the thread pane
+        // highlights within the thread, not in the main room view.
+        const scope = scrollContainer ?? document;
+        const target = scope.querySelector(eventSelector(targetEventId));
+        if (target instanceof HTMLElement) {
+          target.classList.add('highlight-flash');
+          target.addEventListener(
+            'animationend',
+            () => target.classList.remove('highlight-flash'),
+            { once: true }
+          );
+          complete(true);
+          return;
+        }
+
+        if (attempts >= maxAttempts) {
+          complete(false);
+          return;
+        }
+        attempts++;
+        requestAnimationFrame(tryScrollAndHighlight);
+      }
+
+      requestAnimationFrame(tryScrollAndHighlight);
 
       // After the scroll and virtualizer measurement settle, restore
       // shouldScrollToBottom if we landed at the bottom (e.g., linking to a
@@ -338,7 +377,7 @@
       // the "Jump to Present" button appears spuriously because no scroll event
       // fires when content is shorter than the viewport.
       setTimeout(() => {
-        if (!virtualizerHandle) return;
+        if (!virtualizerHandle || scrollAttemptId !== attemptId) return;
         const dist =
           virtualizerHandle.getScrollSize() -
           virtualizerHandle.getScrollOffset() -
@@ -347,30 +386,6 @@
           setShouldScrollToBottom(true);
         }
       }, 200);
-
-      let attempts = 0;
-      function tryHighlight() {
-        // Scope to this EventList's scroll container so the thread pane
-        // highlights within the thread, not in the main room view.
-        const scope = scrollContainer ?? document;
-        const target = scope.querySelector(`[data-event-id="${targetId}"]`);
-        if (target instanceof HTMLElement) {
-          target.classList.add('highlight-flash');
-          target.addEventListener(
-            'animationend',
-            () => target.classList.remove('highlight-flash'),
-            { once: true }
-          );
-          onScrollToEventComplete?.();
-        } else if (attempts < 15) {
-          attempts++;
-          requestAnimationFrame(tryHighlight);
-        } else {
-          // Give up — element never appeared, still signal completion
-          onScrollToEventComplete?.();
-        }
-      }
-      requestAnimationFrame(tryHighlight);
     });
   });
 

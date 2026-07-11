@@ -616,11 +616,13 @@ export class MessagesStore {
     }
   }
 
-  async jumpToMessage(eventId: string, jumpState: JumpToMessageState): Promise<void> {
-    if (this.scope !== 'room') return;
+  async jumpToMessage(eventId: string, jumpState: JumpToMessageState): Promise<boolean> {
+    if (this.scope !== 'room') return false;
+    const thisLoad = this.startLoad();
     if (this.events.some((e) => e.id === eventId)) {
+      this.isInitialLoading = false;
       jumpState.scrollToEventId = eventId;
-      return;
+      return true;
     }
 
     this.isInitialLoading = true;
@@ -631,8 +633,17 @@ export class MessagesStore {
         limit: PAGE_SIZE
       });
 
+      if (this.isStale(thisLoad)) return false;
+
       const { events: rawEvents, hasOlder, hasNewer, startCursor, endCursor } = around;
       const parsed = unmask(rawEvents);
+      if (!parsed.some((event) => event.id === eventId)) {
+        jumpState.scrollToEventId = null;
+        jumpState.isJumpedMode = false;
+        jumpState.hasReachedEnd = false;
+        jumpState.hasOlderMessages = false;
+        return false;
+      }
 
       for (const event of parsed) this.clearOptimisticVersionForEvent(event.id);
       this.events = [...parsed];
@@ -646,8 +657,17 @@ export class MessagesStore {
       jumpState.hasReachedEnd = !hasNewer;
       jumpState.hasOlderMessages = hasOlder;
       jumpState.scrollToEventId = eventId;
+      return true;
+    } catch (error) {
+      if (this.isStale(thisLoad)) return false;
+      console.error('MessagesStore: jumpToMessage failed:', error);
+      jumpState.scrollToEventId = null;
+      jumpState.isJumpedMode = false;
+      jumpState.hasReachedEnd = false;
+      jumpState.hasOlderMessages = false;
+      return false;
     } finally {
-      this.isInitialLoading = false;
+      if (!this.isStale(thisLoad)) this.isInitialLoading = false;
     }
   }
 

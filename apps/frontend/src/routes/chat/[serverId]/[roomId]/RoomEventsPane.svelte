@@ -31,6 +31,8 @@
     onUnreadMarkerResolved,
     onUnreadMarkerCleared,
     onOpenThread,
+    pendingHighlightId = null,
+    onHighlightComplete,
     typingUserIds = [],
     typingMembers = []
   }: {
@@ -41,6 +43,8 @@
     onUnreadMarkerResolved?: (eventId: string) => void;
     onUnreadMarkerCleared?: () => void;
     onOpenThread?: OpenThreadHandler;
+    pendingHighlightId?: string | null;
+    onHighlightComplete?: () => void;
     typingUserIds?: string[];
     typingMembers?: RoomMember[];
   } = $props();
@@ -135,6 +139,7 @@
   scrollToEventId={jumpState?.scrollToEventId ?? null}
   onScrollToEventComplete={() => {
     if (jumpState) jumpState.scrollToEventId = null;
+    onHighlightComplete?.();
   }}
   isJumpedMode={jumpState?.isJumpedMode ?? false}
   isLoadingNewer={jumpState?.isLoadingNewer ?? false}
@@ -144,4 +149,5 @@
   onReachedPresent={handleReachedPresent}
   {onUnreadMarkerCleared}
   onSoftRefresh={handleSoftRefresh}
+  {pendingHighlightId}
 />

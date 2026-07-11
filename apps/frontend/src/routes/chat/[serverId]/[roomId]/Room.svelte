@@ -71,6 +71,7 @@
 
   // Thread navigation functions (URL-driven state)
   let pendingThreadHighlight = $state<string | null>(null);
+  let pendingMainHighlightId = $state<string | null>(null);
   let pendingThreadQuote = $state<{ id: number; text: QuoteInsertionContent } | null>(null);
   let pendingThreadQuoteId = 0;
   let pendingThreadReply = $state<PendingThreadReplyRequest | null>(null);
@@ -290,8 +291,12 @@
     if (threadId) {
       pendingThreadHighlight = eventId;
     } else {
-      tick().then(() => {
-        jumpState.jumpToMessage(eventId);
+      pendingMainHighlightId = eventId;
+      tick().then(async () => {
+        const jumped = await jumpState.jumpToMessage(eventId);
+        if (!jumped && pendingMainHighlightId === eventId) {
+          pendingMainHighlightId = null;
+        }
       });
     }
   }
@@ -537,6 +542,10 @@
           onUnreadMarkerResolved={(eventId) => unread.setUnreadMarkerEventId(eventId)}
           onUnreadMarkerCleared={() => unread.clearUnreadMarker()}
           onOpenThread={openThread}
+          pendingHighlightId={pendingMainHighlightId}
+          onHighlightComplete={() => {
+            pendingMainHighlightId = null;
+          }}
           typingUserIds={typingIndicator.userIds}
           typingMembers={getRoomMembers()}
         />

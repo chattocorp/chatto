@@ -3,6 +3,7 @@ import { render } from 'vitest-browser-svelte';
 import { tick } from 'svelte';
 import { q } from '$lib/test-utils';
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
+import { RoomEventKind } from '$lib/render/eventKinds';
 import {
   consumePendingRoomSidebarPanel,
   setPendingRoomSidebarPanel
@@ -56,6 +57,9 @@ const { mocks } = vi.hoisted(() => {
       getAppUiState: vi.fn(),
       activeCallRoomIds: new Set<string>(),
       joinedCallRoomIds: new Set<string>(),
+      pendingHighlightConsume: vi.fn(
+        (_roomId: string, _threadRootId: string | null): string | null => null
+      ),
       notifications: {
         notifications: [] as Array<{ id: string }>,
         dismissDMNotifications: vi.fn().mockResolvedValue({ byRoom: {} }),
@@ -170,7 +174,7 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
       },
       notifications: mocks.notifications,
       pendingHighlights: {
-        consume: vi.fn(() => null)
+        consume: mocks.pendingHighlightConsume
       },
       activeCallRooms: {
         has: vi.fn((roomId: string) => mocks.activeCallRoomIds.has(roomId))
@@ -280,6 +284,33 @@ function emptyTimelinePage() {
   };
 }
 
+function roomMessageEvent(id: string) {
+  return {
+    id,
+    createdAt: '2026-06-17T10:47:00Z',
+    actorId: 'test-user',
+    actor: null,
+    event: {
+      kind: RoomEventKind.MessagePosted,
+      roomId: 'room-1',
+      body: id,
+      attachments: [],
+      linkPreview: null,
+      reactions: [],
+      updatedAt: null,
+      inReplyTo: null,
+      threadRootEventId: null,
+      echoOfEventId: null,
+      echoFromThreadRootEventId: null,
+      channelEchoEventId: null,
+      replyCount: 0,
+      lastReplyAt: null,
+      threadParticipants: [],
+      viewerIsFollowingThread: true
+    }
+  };
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   localStorage.clear();
@@ -292,6 +323,8 @@ beforeEach(() => {
   mocks.livekitUrl = null;
   mocks.roomKind = RoomKind.CHANNEL;
   mocks.sidebarNav.isMobile = false;
+  mocks.pendingHighlightConsume.mockReset();
+  mocks.pendingHighlightConsume.mockReturnValue(null);
   appUi = new AppUiState();
   appUi.setActiveRoomScope('server-1', 'room-1');
   mocks.getAppUiState.mockReturnValue(appUi);
@@ -310,6 +343,59 @@ beforeEach(() => {
 });
 
 describe('Room local message echo', () => {
+  it('keeps root message-link highlights pending until the jump completes', async () => {
+    mocks.pendingHighlightConsume.mockReturnValueOnce('msg-linked');
+    mocks.timeline.getRoomEventsAround.mockResolvedValue({
+      events: [roomMessageEvent('msg-before'), roomMessageEvent('msg-linked')],
+      startCursor: 'tl:before',
+      endCursor: 'tl:linked',
+      hasOlder: true,
+      hasNewer: true
+    });
+
+    const { container } = render(Room, { props: { roomId: 'room-1' } });
+
+    await vi.waitFor(() => {
+      expect(mocks.timeline.getRoomEventsAround).toHaveBeenCalledWith({
+        roomId: 'room-1',
+        eventId: 'msg-linked',
+        limit: 50
+      });
+    });
+    await expect
+      .element(q(container, '[data-testid="pending-highlight-id"]'))
+      .toHaveTextContent('msg-linked');
+    await expect
+      .element(q(container, '[data-testid="room-event-ids"]'))
+      .toHaveTextContent('msg-before,msg-linked');
+
+    (q(container, '[data-testid="complete-highlight"]') as HTMLButtonElement).click();
+
+    await expect.element(q(container, '[data-testid="pending-highlight-id"]')).toHaveTextContent('');
+  });
+
+  it('clears root message-link highlights when the jump target cannot be loaded', async () => {
+    mocks.pendingHighlightConsume.mockReturnValueOnce('msg-missing-from-window');
+    mocks.timeline.getRoomEventsAround.mockResolvedValue({
+      events: [roomMessageEvent('msg-other')],
+      startCursor: 'tl:other',
+      endCursor: 'tl:other',
+      hasOlder: false,
+      hasNewer: false
+    });
+
+    const { container } = render(Room, { props: { roomId: 'room-1' } });
+
+    await vi.waitFor(() => {
+      expect(mocks.timeline.getRoomEventsAround).toHaveBeenCalledWith({
+        roomId: 'room-1',
+        eventId: 'msg-missing-from-window',
+        limit: 50
+      });
+    });
+    await expect.element(q(container, '[data-testid="pending-highlight-id"]')).toHaveTextContent('');
+  });
+
   it('inserts a returned main-room post into the same store rendered by the room timeline', async () => {
     const { container } = render(Room, { props: { roomId: 'room-1' } });
 

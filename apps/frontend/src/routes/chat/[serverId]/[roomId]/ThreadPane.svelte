@@ -120,6 +120,7 @@
   const jumpState = composerContext.jumpState;
   jumpState.setJumpHandler(async (eventId: string) => {
     jumpState.scrollToEventId = eventId;
+    return true;
   });
 
   let canPost = $derived(canPostInThread);
