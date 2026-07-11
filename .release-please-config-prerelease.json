@@ -5,7 +5,7 @@
   "bump-patch-for-minor-pre-major": false,
   "versioning": "prerelease",
   "prerelease": true,
-  "prerelease-type": "beta",
+  "prerelease-type": "beta.1",
   "draft": true,
   "force-tag-creation": true,
   "include-component-in-tag": false,

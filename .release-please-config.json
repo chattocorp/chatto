@@ -21,11 +21,6 @@
           "type": "json",
           "path": "apps/frontend/package.json",
           "jsonpath": "$.version"
-        },
-        {
-          "type": "json",
-          "path": ".release-please-manifest-prerelease.json",
-          "jsonpath": "$['.']"
         }
       ]
     }
