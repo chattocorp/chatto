@@ -6,59 +6,42 @@ description: How to deploy Chatto using Docker Compose.
 import {
   Steps,
   Aside,
-  FileTree,
   LinkCard,
   CardGrid,
 } from "@astrojs/starlight/components";
 import ArchDiagram from "../../../../components/diagrams/DockerComposeDiagram.astro";
 
-## Introduction
+Docker Compose is the quickest way to run the complete Chatto stack on one
+server. The example includes Chatto, NATS for persistent data, LiveKit for
+calls, and Caddy for automatic HTTPS.
 
-This guide walks through deploying Chatto with Docker Compose, in a more fully-featured setup compared to what we set up in the [Standalone Binary](/guides/deployment/binary/) guide. Specifically, this includes:
+## Quick Start
 
-- A separate NATS server for Chatto to connect to (instead of using the embedded server.)
-- A working LiveKit service to power your voice and video calls.
-- A Caddy reverse proxy.
-- Configuration through environment variables instead of `chatto.toml`.
+You need Docker with Compose v2, a server with a public IP address, and SMTP
+credentials. The commands below use `chat.example.com` for Chatto and
+`livekit.chat.example.com` for calls.
 
-Consider all of these optional; if you don't want to use Caddy, feel free to replace it with something else; if you don't need calls, just leave LiveKit disabled. We do recommend, however, to separate Chatto from NATS at this point because it will make future production use cases (scaling, high availability, zero-downtime deployments) a lot easier.
-
-## Architecture
-
-<ArchDiagram />
-
-## Prerequisites
-
-- Docker and Docker Compose v2
-- A domain pointing to your server (e.g., `chat.example.com`)
-- A `livekit.*` subdomain pointing to the same server (e.g., `livekit.chat.example.com`)
-- Firewall allowing inbound TCP 80/443 and UDP 3478, 50000-50200
-- SMTP credentials for email/password registration, email verification, and password reset
-
-## Setup
+The LiveKit hostname is only an example. You can use any hostname you control,
+such as `calls.example.com`; pass your Chatto hostname to `init-env.sh`, then
+set `CHATTO_LIVEKIT_URL` and the matching proxy route to your chosen LiveKit
+hostname.
 
 <Steps>
 
-1. **Copy the Compose example**
-
-   From an existing Chatto checkout:
+1. **Get the example**
 
    ```bash
-   cp -R examples/dockercompose chatto
-   cd chatto
+   git clone --depth 1 https://github.com/chattocorp/chatto.git
+   cd chatto/examples/dockercompose
    ```
 
-   From GitHub without cloning the full repository:
+2. **Point both domains at your server**
 
-   ```bash
-   git clone --depth 1 --filter=blob:none --sparse https://github.com/chattocorp/chatto.git chatto-source
-   git -C chatto-source sparse-checkout set examples/dockercompose
-   cp -R chatto-source/examples/dockercompose chatto
-   rm -rf chatto-source
-   cd chatto
-   ```
+   Create DNS records for `chat.example.com` and
+   `livekit.chat.example.com`. Allow inbound TCP 80, 443, and 7881 plus UDP
+   3478 and 50000-50200 in your host and cloud firewalls.
 
-2. **Create `.env` and LiveKit secrets**
+3. **Generate the configuration**
 
    ```bash
    ./init-env.sh chat.example.com admin@example.com
@@ -66,9 +49,7 @@ Consider all of these optional; if you don't want to use Caddy, feel free to rep
 
    Replace `chat.example.com` with your Chatto domain and `admin@example.com` with the email address you will use for the first account. The script generates `.env` and `livekit.generated.yaml` with matching NATS, Chatto, and LiveKit secrets.
 
-   If you prefer to manage every value yourself, copy `.env.example` to `.env`, replace all placeholder secrets with output from `openssl rand -hex 32`, and edit `livekit.yaml` so its key, secret, and webhook URL match `.env`.
-
-3. **Configure SMTP**
+4. **Configure SMTP**
 
    Edit `.env` and replace the `CHATTO_SMTP_*` placeholders with your provider settings. Direct email/password registration, email verification, and password reset require SMTP.
 
@@ -76,7 +57,7 @@ Consider all of these optional; if you don't want to use Caddy, feel free to rep
 
    Set `CHATTO_OWNERS_EMAILS` to the email address you will use for the first account. Registration sends a code by email and creates the account with that email already verified; if it matches this list, Chatto assigns the owner role automatically.
 
-4. **Start the stack**
+5. **Start Chatto**
 
    ```bash
    docker compose up -d
@@ -85,6 +66,46 @@ Consider all of these optional; if you don't want to use Caddy, feel free to rep
    Caddy will automatically obtain TLS certificates for both domains. Visit `https://chat.example.com` to create your first account with the email address from `CHATTO_OWNERS_EMAILS`.
 
 </Steps>
+
+That is enough for a complete single-server deployment. The remaining sections
+explain how the pieces fit together and how to customize them.
+
+## Understand the Stack
+
+<ArchDiagram />
+
+- **Chatto** serves the web app and APIs.
+- **NATS** stores Chatto's persistent data. Running it separately is the
+  recommended production topology: you can restart or replace Chatto without
+  restarting its data store, run multiple Chatto replicas against the same
+  data, and grow into a NATS cluster later.
+- **LiveKit** provides voice and video calls. Remove it if you do not need
+  calls.
+- **Caddy** provides automatic HTTPS and reverse proxying. Replace it if you
+  already use another proxy.
+
+### Why a Separate NATS Server?
+
+The standalone-binary setup embeds NATS inside Chatto, which is wonderfully
+simple for one process. Compose runs the same NATS JetStream storage as its own
+small container. This keeps the app and its data lifecycle separate and avoids
+a migration before adding Chatto replicas or zero-downtime app updates.
+
+This choice does not lock in your data. `chatto backup` creates a portable
+JetStream archive that `chatto restore` can load into either embedded or
+external NATS. You can therefore move between the standalone-binary, Compose,
+and clustered deployment models without rebuilding your community. See
+[Backup & Restore](/guides/operations/backup-restore/) for the commands and key
+handling guidance.
+
+### Prefer to Configure It by Hand?
+
+You usually do not need to: `init-env.sh` generates the secrets and config files
+for you. If you manage secrets elsewhere, start with `.env.example`, fill in its
+placeholders, and make sure the LiveKit key and secret are the same in `.env`
+and `livekit.yaml`.
+
+### Container and Operator Details
 
 The image runs Chatto as a non-root user. By default that user is `1000:1000`; set `PUID` and `PGID` in your shell or Compose environment if the files mounted into `/config` or `/data` are owned by a different host user or group. The entrypoint does not recursively change ownership of mounted directories, so make sure writable mounts are owned by the configured IDs.
 
@@ -125,6 +146,75 @@ Back up `nats_data` regularly. By default, file attachments and media are also s
     description="Run multiple Chatto replicas for high availability."
   />
 </CardGrid>
+
+## Use Your Existing Reverse Proxy
+
+Already running Caddy, nginx, Apache, Traefik, or another user-facing web
+server? You can keep it. Chatto needs only two HTTP reverse-proxy routes:
+
+- Your Chatto HTTPS hostname routes to Chatto on port 4000.
+- Your chosen LiveKit secure WebSocket hostname routes to LiveKit on port 7880.
+
+For example, the hostnames could be `chat.example.com` and
+`calls.example.com`. They do not need to share a parent domain or use the name
+`livekit`. Both need publicly trusted TLS certificates.
+
+If your proxy joins the Compose network, route directly to `chatto:4000` and
+`livekit:7880`. If it runs on the Docker host, replace those services' `expose`
+entries with loopback-only mappings such as `127.0.0.1:4000:4000` and
+`127.0.0.1:7880:7880`. Then remove the `caddy` service and its volumes from
+`compose.yml`.
+
+<Aside type="note">
+  Keep LiveKit's TCP and UDP `ports` entries. WebRTC media connects directly to
+  LiveKit and does not pass through a normal HTTP reverse proxy.
+</Aside>
+
+### What the Included Caddy Does
+
+If you do not already have a proxy, the included Caddy configuration obtains
+certificates, creates both routes, and load-balances Chatto replicas:
+
+```text
+chat.example.com {
+  reverse_proxy {
+    dynamic a chatto 4000 {
+      refresh 5s
+      versions ipv4
+    }
+    lb_policy round_robin
+  }
+}
+
+livekit.chat.example.com {
+  reverse_proxy livekit:7880
+}
+```
+
+The first route carries the Chatto web app, APIs, realtime connections, and
+LiveKit webhooks. The second carries LiveKit's API and WebSocket signaling.
+Caddy handles WebSocket upgrades automatically.
+
+The dynamic DNS upstream discovers each scaled Chatto container separately.
+Caddy refreshes the list and distributes new requests across healthy replicas;
+existing realtime connections stay with the replica that accepted them.
+
+### Network Ports
+
+The example publishes LiveKit's Layer 4 media ports directly from its container
+to the host:
+
+| Public port | Destination | Protocol and purpose |
+| ----------- | ----------- | -------------------- |
+| TCP 80 | Caddy | HTTP redirect and ACME HTTP challenge |
+| TCP 443 | Caddy | HTTPS and secure WebSocket traffic for both domains |
+| TCP 7881 | LiveKit 7881 | WebRTC media fallback when UDP is unavailable |
+| UDP 3478 | LiveKit 3478 | Embedded TURN/STUN relay |
+| UDP 50000-50200 | Same LiveKit ports | Direct WebRTC media |
+
+The standard Caddy image does not include the optional Caddy L4 plugin, and this
+single-host setup does not need it. Open the matching host and cloud firewall
+rules, and do not expose NATS port 4222 publicly.
 
 ## Optional Features
 
@@ -172,7 +262,7 @@ If you don't need voice and video calls, simplify the stack by:
 3. Removing the `livekit.*` block from the `Caddyfile`
 4. Removing the `CHATTO_LIVEKIT_*` variables from `.env`
 
-You won't need the `livekit.*` subdomain or the LiveKit UDP ports.
+You won't need the `livekit.*` subdomain, TCP 7881, or the LiveKit UDP ports.
 
 ## TURN Server for Restrictive Networks
 
@@ -181,18 +271,26 @@ The default setup exposes LiveKit's direct UDP media range and its embedded TURN
 ```yaml
 ports:
   - "50000-50200:50000-50200/udp"
+  - "7881:7881/tcp"
   - "3478:3478/udp"
 ```
 
-The generated and checked-in LiveKit configs enable the matching relay:
+The generated and checked-in LiveKit configs enable the matching TCP fallback
+and relay:
 
 ```yaml
+rtc:
+  tcp_port: 7881
+
 turn:
   enabled: true
   udp_port: 3478
 ```
 
-This helps with symmetric NATs and many mobile, Firefox, and restrictive-network failures while keeping the Compose example certificate-free.
+Direct UDP provides the best media path. TCP 7881 gives LiveKit an ICE/TCP
+fallback when UDP is unavailable, while TURN/UDP helps with symmetric NATs and
+many mobile, Firefox, and restrictive-network failures. This keeps the Compose
+example certificate-free beyond the HTTPS certificates managed by Caddy.
 
 Networks that block UDP entirely still need TURN/TLS. Add that only when you also provide a TURN domain plus certificate/key, or run LiveKit behind L4 TLS forwarding that terminates TLS before LiveKit.
 
@@ -216,7 +314,7 @@ See [Voice & Video Calls](/guides/infrastructure/voice-calls/#turn-for-restricti
 
 **Container startup order** — `depends_on` with `condition: service_healthy` ensures NATS and LiveKit are ready before Chatto starts. If health checks fail, check the individual service logs.
 
-**Calls don't connect** — Verify the LiveKit API key/secret in `.env` matches the selected LiveKit config (`livekit.generated.yaml` or `livekit.yaml`). Ensure `CHATTO_LIVEKIT_URL` uses the public `wss://livekit.*` subdomain (browsers connect to it directly). Check that UDP 3478 and 50000-50200 are open in your firewall.
+**Calls don't connect** — Verify the LiveKit API key/secret in `.env` matches the selected LiveKit config (`livekit.generated.yaml` or `livekit.yaml`). Ensure `CHATTO_LIVEKIT_URL` uses the public `wss://livekit.*` subdomain (browsers connect to it directly). Check that TCP 7881 and UDP 3478 and 50000-50200 are open in your firewall.
 
 **Calls fail for some users** — Confirm the built-in TURN/UDP relay is reachable on UDP 3478. Users behind firewalls that block UDP entirely need TURN/TLS. See [TURN server for restrictive networks](#turn-server-for-restrictive-networks).
 
