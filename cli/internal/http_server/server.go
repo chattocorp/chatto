@@ -397,14 +397,6 @@ func validateOperatorAPISocketParent(parent string) error {
 	return nil
 }
 
-func fileOwnerIDs(info os.FileInfo) (uint32, uint32, bool) {
-	stat, ok := info.Sys().(*syscall.Stat_t)
-	if !ok {
-		return 0, 0, false
-	}
-	return stat.Uid, stat.Gid, true
-}
-
 func isStaleOperatorSocketError(err error) bool {
 	return errors.Is(err, syscall.ECONNREFUSED) || errors.Is(err, os.ErrNotExist)
 }

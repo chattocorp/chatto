@@ -9,6 +9,7 @@ builds:
       - linux
       - freebsd
       - darwin
+      - windows
     goarch:
       - amd64
       - arm64
@@ -34,6 +35,10 @@ archives:
       {{- else if eq .Arch "386" }}i386
       {{- else }}{{ .Arch }}{{ end }}
       {{- if .Arm }}v{{ .Arm }}{{ end }}
+    # Use native ZIP archives for Windows releases.
+    format_overrides:
+      - goos: windows
+        formats: [zip]
 
 changelog:
   # release-please now owns the changelog (CHANGELOG.md + the GitHub
