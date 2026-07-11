@@ -3,7 +3,9 @@
   "release-type": "simple",
   "bump-minor-pre-major": true,
   "bump-patch-for-minor-pre-major": false,
-  "always-update": true,
+  "versioning": "prerelease",
+  "prerelease": true,
+  "prerelease-type": "beta",
   "draft": true,
   "force-tag-creation": true,
   "include-component-in-tag": false,
@@ -21,11 +23,6 @@
           "type": "json",
           "path": "apps/frontend/package.json",
           "jsonpath": "$.version"
-        },
-        {
-          "type": "json",
-          "path": ".release-please-manifest-prerelease.json",
-          "jsonpath": "$['.']"
         }
       ]
     }
