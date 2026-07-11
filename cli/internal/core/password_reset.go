@@ -105,29 +105,29 @@ func (c *ChattoCore) CreatePasswordResetToken(ctx context.Context, email string)
 
 // getPasswordResetToken retrieves and validates a password reset token.
 // Returns the token data including userID and email.
-func (c *ChattoCore) getPasswordResetToken(ctx context.Context, token string) (*PasswordResetToken, error) {
+func (c *ChattoCore) getPasswordResetToken(ctx context.Context, token string) (*PasswordResetToken, uint64, error) {
 	key := c.passwordResetTokenKey(token)
 	entry, err := c.storage.runtimeStateKV.Get(ctx, key)
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) {
-			return nil, ErrPasswordResetTokenNotFound
+			return nil, 0, ErrPasswordResetTokenNotFound
 		}
-		return nil, fmt.Errorf("failed to get password reset token: %w", err)
+		return nil, 0, fmt.Errorf("failed to get password reset token: %w", err)
 	}
 
 	var tokenData PasswordResetToken
 	if err := json.Unmarshal(entry.Value(), &tokenData); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal token: %w", err)
+		return nil, 0, fmt.Errorf("failed to unmarshal token: %w", err)
 	}
 
 	// Check if token has expired
 	if time.Since(tokenData.CreatedAt) > PasswordResetTokenTTL {
 		// Clean up expired token
 		_ = c.storage.runtimeStateKV.Delete(ctx, key)
-		return nil, ErrPasswordResetTokenExpired
+		return nil, 0, ErrPasswordResetTokenExpired
 	}
 
-	return &tokenData, nil
+	return &tokenData, entry.Revision(), nil
 }
 
 // deletePasswordResetToken removes a password reset token.
@@ -143,7 +143,7 @@ func (c *ChattoCore) deletePasswordResetToken(ctx context.Context, token string)
 // ValidatePasswordResetToken validates a token and returns the associated userID.
 // This is useful for checking if a token is valid before showing the reset form.
 func (c *ChattoCore) ValidatePasswordResetToken(ctx context.Context, token string) (string, error) {
-	tokenData, err := c.getPasswordResetToken(ctx, token)
+	tokenData, _, err := c.getPasswordResetToken(ctx, token)
 	if err != nil {
 		return "", err
 	}
@@ -155,13 +155,20 @@ func (c *ChattoCore) ValidatePasswordResetToken(ctx context.Context, token strin
 // This is atomic: the token is deleted regardless of password update outcome.
 func (c *ChattoCore) ResetPassword(ctx context.Context, token string, newPasswordHash string) error {
 	// Validate token first
-	tokenData, err := c.getPasswordResetToken(ctx, token)
+	tokenData, revision, err := c.getPasswordResetToken(ctx, token)
 	if err != nil {
 		return err
 	}
 
-	// Delete token immediately to prevent reuse (even if password update fails)
-	defer c.deletePasswordResetToken(ctx, token)
+	// Atomically claim the token before changing durable user state. A concurrent
+	// reset that read the same revision loses this delete and cannot proceed.
+	key := c.passwordResetTokenKey(token)
+	if err := c.storage.runtimeStateKV.Delete(ctx, key, jetstream.LastRevision(revision)); err != nil {
+		if errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted) || isRuntimeStateRevisionConflict(err) {
+			return ErrPasswordResetTokenNotFound
+		}
+		return fmt.Errorf("failed to consume password reset token: %w", err)
+	}
 
 	passwordChanged := newEvent(tokenData.UserID, &corev1.Event{Event: &corev1.Event_UserPasswordHashChanged{
 		UserPasswordHashChanged: &corev1.UserPasswordHashChangedEvent{

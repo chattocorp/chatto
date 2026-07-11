@@ -135,9 +135,14 @@ func (c *ChattoCore) ExchangeAuthCode(ctx context.Context, code, codeVerifier, r
 		return "", "", fmt.Errorf("failed to get auth code: %w", err)
 	}
 
-	// Delete immediately (single-use). Even if subsequent validation fails,
-	// the code should not be reusable.
-	_ = c.storage.runtimeStateKV.Delete(ctx, key)
+	// Atomically claim the code before validation and token issuance. A
+	// concurrent exchange that read the same revision must not also succeed.
+	if err := c.storage.runtimeStateKV.Delete(ctx, key, jetstream.LastRevision(entry.Revision())); err != nil {
+		if errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted) || isRuntimeStateRevisionConflict(err) {
+			return "", "", ErrAuthCodeNotFound
+		}
+		return "", "", fmt.Errorf("failed to consume auth code: %w", err)
+	}
 
 	var codeData AuthCodeData
 	if err := json.Unmarshal(entry.Value(), &codeData); err != nil {

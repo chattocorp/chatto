@@ -24,6 +24,7 @@ var errNoPendingOAuthAuthorize = errors.New("no pending OAuth authorization requ
 
 func (s *HTTPServer) setupOAuthRoutes() {
 	oauth := s.router.Group("/oauth")
+	oauth.Use(limitLegacyRequestBody())
 	oauth.Use(func(c *gin.Context) {
 		s.requestContextWithAuditMetadata(c)
 		c.Next()

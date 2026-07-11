@@ -65,6 +65,7 @@ func (s *HTTPServer) emailOTPExpirationText() string {
 
 func (s *HTTPServer) setupAuthRoutes() {
 	auth := s.router.Group("/auth")
+	auth.Use(limitLegacyRequestBody())
 	auth.Use(func(c *gin.Context) {
 		s.requestContextWithAuditMetadata(c)
 		c.Next()

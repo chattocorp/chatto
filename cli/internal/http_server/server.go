@@ -55,7 +55,45 @@ const (
 	httpServerReadHeaderTimeout = 10 * time.Second
 	httpServerIdleTimeout       = 2 * time.Minute
 	httpServerShutdownTimeout   = 5 * time.Second
+	legacyRequestBodyLimit      = 64 * 1024
+	legacyRequestBodyTimeout    = 30 * time.Second
 )
+
+type requestConnectionContextKey struct{}
+
+// limitLegacyRequestBody bounds the small JSON/form requests handled outside
+// ConnectRPC. It deliberately applies only to legacy route groups so uploads
+// and long-lived realtime connections keep their dedicated limits.
+func limitLegacyRequestBody() gin.HandlerFunc {
+	return limitRequestBody(legacyRequestBodyLimit, legacyRequestBodyTimeout)
+}
+
+func limitRequestBody(maxBytes int64, readTimeout time.Duration) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if c.Request.Body == nil {
+			c.Next()
+			return
+		}
+		if c.Request.ContentLength > maxBytes {
+			c.AbortWithStatusJSON(http.StatusRequestEntityTooLarge, gin.H{"error": "Request body is too large"})
+			return
+		}
+
+		controller := http.NewResponseController(c.Writer)
+		deadlineSet := controller.SetReadDeadline(time.Now().Add(readTimeout)) == nil
+		if !deadlineSet && c.Request.ProtoMajor == 1 {
+			if conn, ok := c.Request.Context().Value(requestConnectionContextKey{}).(net.Conn); ok {
+				deadlineSet = conn.SetReadDeadline(time.Now().Add(readTimeout)) == nil
+				defer conn.SetReadDeadline(time.Time{})
+			}
+		}
+		if deadlineSet {
+			defer func() { _ = controller.SetReadDeadline(time.Time{}) }()
+		}
+		c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxBytes)
+		c.Next()
+	}
+}
 
 // NewHTTPServer creates a new HTTP server with the provided dependencies.
 func NewHTTPServer(cfg HTTPServerConfig) (*HTTPServer, error) {
@@ -103,6 +141,9 @@ func newHTTPServer(addr string, handler http.Handler) *http.Server {
 		Handler:           handler,
 		ReadHeaderTimeout: httpServerReadHeaderTimeout,
 		IdleTimeout:       httpServerIdleTimeout,
+		ConnContext: func(ctx context.Context, conn net.Conn) context.Context {
+			return context.WithValue(ctx, requestConnectionContextKey{}, conn)
+		},
 	}
 }
 

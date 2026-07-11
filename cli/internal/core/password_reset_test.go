@@ -2,11 +2,62 @@ package core
 
 import (
 	"errors"
+	"sync"
 	"testing"
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
 )
+
+func TestChattoCore_ResetPasswordConcurrentSingleUse(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	user, err := core.CreateUser(ctx, SystemActorID, "concurrent-reset", "Concurrent Reset", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	if err := core.AddVerifiedEmailDirect(ctx, user.Id, "concurrent-reset@example.com"); err != nil {
+		t.Fatalf("AddVerifiedEmailDirect: %v", err)
+	}
+	token, err := core.CreatePasswordResetToken(ctx, "concurrent-reset@example.com")
+	if err != nil {
+		t.Fatalf("CreatePasswordResetToken: %v", err)
+	}
+	hash, err := bcrypt.GenerateFromPassword([]byte("newpassword123"), bcrypt.DefaultCost)
+	if err != nil {
+		t.Fatalf("GenerateFromPassword: %v", err)
+	}
+
+	const attempts = 8
+	start := make(chan struct{})
+	results := make(chan error, attempts)
+	var wg sync.WaitGroup
+	for range attempts {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			results <- core.ResetPassword(ctx, token, string(hash))
+		}()
+	}
+	close(start)
+	wg.Wait()
+	close(results)
+
+	successes := 0
+	for err := range results {
+		if err == nil {
+			successes++
+			continue
+		}
+		if !errors.Is(err, ErrPasswordResetTokenNotFound) {
+			t.Fatalf("ResetPassword returned unexpected error: %v", err)
+		}
+	}
+	if successes != 1 {
+		t.Fatalf("successful resets = %d, want 1", successes)
+	}
+}
 
 // ============================================================================
 // Password Reset Tests

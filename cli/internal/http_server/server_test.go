@@ -125,6 +125,65 @@ func TestNewHTTPServerAppliesTimeouts(t *testing.T) {
 	}
 }
 
+func TestLimitLegacyRequestBodyRejectsOversizedBodies(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	router.POST("/legacy", limitLegacyRequestBody(), func(c *gin.Context) {
+		var body map[string]any
+		if err := c.ShouldBindJSON(&body); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid body"})
+			return
+		}
+		c.Status(http.StatusNoContent)
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "/legacy", strings.NewReader(strings.Repeat("x", legacyRequestBodyLimit+1)))
+	req.Header.Set("Content-Type", "application/json")
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, req)
+
+	if response.Code != http.StatusRequestEntityTooLarge {
+		t.Fatalf("status = %d, want %d", response.Code, http.StatusRequestEntityTooLarge)
+	}
+}
+
+func TestLimitRequestBodyTimesOutSlowClients(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	completed := make(chan struct{})
+	router.POST("/legacy", limitRequestBody(1024, 50*time.Millisecond), func(c *gin.Context) {
+		defer close(completed)
+		var body map[string]any
+		if err := c.ShouldBindJSON(&body); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid body"})
+			return
+		}
+		c.Status(http.StatusNoContent)
+	})
+
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	server := newHTTPServer(listener.Addr().String(), router)
+	go func() { _ = server.Serve(listener) }()
+	t.Cleanup(func() { _ = server.Close() })
+
+	conn, err := net.Dial("tcp", listener.Addr().String())
+	if err != nil {
+		t.Fatalf("dial: %v", err)
+	}
+	defer conn.Close()
+	if _, err := io.WriteString(conn, "POST /legacy HTTP/1.1\r\nHost: test\r\nContent-Type: application/json\r\nContent-Length: 10\r\n\r\n{"); err != nil {
+		t.Fatalf("write partial request: %v", err)
+	}
+	select {
+	case <-completed:
+	case <-time.After(2 * time.Second):
+		t.Fatal("handler remained blocked reading a slow request body")
+	}
+}
+
 func TestShutdownServerForcesCloseAfterTimeout(t *testing.T) {
 	entered := make(chan struct{})
 	release := make(chan struct{})

@@ -104,6 +104,7 @@ func (s *HTTPServer) setupOIDCRoutes() {
 	}
 
 	auth := s.router.Group("/auth")
+	auth.Use(limitLegacyRequestBody())
 	auth.Use(func(c *gin.Context) {
 		s.requestContextWithAuditMetadata(c)
 		c.Next()
