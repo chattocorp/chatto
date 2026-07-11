@@ -307,7 +307,7 @@ func (s *HTTPServer) setupOAuthRoutes() {
 }
 
 func (s *HTTPServer) oauthCookieCredential(c *gin.Context) (presentedRuntimeCredential, bool) {
-	credential, ok := s.cookiePresentedCredential(c)
+	credential, ok, _ := s.cookiePresentedCredential(c)
 	if !ok {
 		return presentedRuntimeCredential{}, false
 	}

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { Code, ConnectError } from '@connectrpc/connect';
 
 const {
   getCurrentUserViaConnectMock,
@@ -127,5 +128,22 @@ describe('loadCurrentUser', () => {
 
     expect(await loadCurrentUser()).toEqual(user);
     expect(clearOriginAuthenticationMock).not.toHaveBeenCalled();
+  });
+
+  it('keeps cached auth state for typed unavailable errors containing auth wording', async () => {
+    const { loadCurrentUser } = await loadModule();
+    const unavailable = new ConnectError(
+      'authentication required: storage unavailable',
+      Code.Unavailable
+    );
+    getCurrentUserViaConnectMock
+      .mockResolvedValueOnce(user)
+      .mockRejectedValueOnce(unavailable)
+      .mockRejectedValueOnce(unavailable);
+
+    expect(await loadCurrentUser()).toEqual(user);
+    expect(await loadCurrentUser()).toEqual(user);
+    expect(clearOriginAuthenticationMock).not.toHaveBeenCalled();
+    expect(handleAuthenticationRequiredMock).not.toHaveBeenCalled();
   });
 });
