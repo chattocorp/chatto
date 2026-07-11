@@ -74,7 +74,7 @@ const { mocks } = vi.hoisted(() => {
         pendingHighlights: { set: vi.fn() },
         serverInfo: {
           name: 'Chatto',
-          iconUrl: null
+          iconUrl: null as string | null
         },
         setPermissions: vi.fn(),
         serverIndicator: vi.fn().mockReturnValue(null)
@@ -271,10 +271,11 @@ describe('ServerSidebarEntry', () => {
     });
 
     const icon = q(container, '[data-testid="server-icon"]');
+    const image = q(container, '[data-testid="server-icon"] img');
     await expect.element(icon).toBeInTheDocument();
     await expect.element(icon).toHaveAttribute('href', '/chat/remote.example.com');
     await expect
-      .element(icon.querySelector('img'))
+      .element(image)
       .toHaveAttribute('src', 'https://remote.example.com/assets/server/logo.webp');
     expect(mocks.getAuthenticatedServerState).not.toHaveBeenCalled();
     expect(mocks.getViewerStateViaConnect).not.toHaveBeenCalled();
@@ -339,11 +340,12 @@ describe('ServerSidebarEntry', () => {
     });
 
     const icon = q(container, '[data-testid="server-icon"]');
+    const image = q(container, '[data-testid="server-icon"] img');
     await expect.element(icon).toBeInTheDocument();
     await expect.element(icon).not.toHaveClass('opacity-40');
     await expect.element(icon).toHaveAttribute('title', 'Loaded Remote');
     await expect
-      .element(icon.querySelector('img'))
+      .element(image)
       .toHaveAttribute('src', 'https://remote.example.com/assets/server/private-logo.webp');
     await vi.waitFor(() => {
       expect(mocks.store.notifications.setUnreadNotificationCount).toHaveBeenLastCalledWith(3);
