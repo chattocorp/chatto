@@ -29,6 +29,8 @@ permissions:
 jobs:
   build-assets:
     runs-on: ubuntu-latest
+    outputs:
+      image-version: ${{ steps.production-image-contexts.outputs.version }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -40,10 +42,20 @@ jobs:
         run: mise build-e2e-server
 
       - name: Build production image contexts
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'ci-publish-image')
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        id: production-image-contexts
         shell: bash
         run: |
           set -euo pipefail
+
+          base_version="$(sed -n 's/.*Version = "\([^"]*\)".*/\1/p' cli/version.go)"
+          if [[ -z "$base_version" ]]; then
+            echo "::error::Could not read the base version from cli/version.go."
+            exit 1
+          fi
+
+          version="${base_version}+${GITHUB_SHA:0:12}"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
 
           for arch in amd64 arm64; do
             context=".context/ci/docker/linux-${arch}"
@@ -55,7 +67,8 @@ jobs:
             cp NOTICE "$context/NOTICE"
             (
               cd cli
-              CGO_ENABLED=0 GOOS=linux GOARCH="$arch" go build -trimpath -ldflags="-s -w" \
+              CGO_ENABLED=0 GOOS=linux GOARCH="$arch" go build -trimpath \
+                -ldflags="-s -w -X main.Version=${version}" \
                 -o "../$context/chatto" .
             )
           done
@@ -76,7 +89,7 @@ jobs:
           retention-days: 1
 
       - name: Upload production image contexts
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'ci-publish-image')
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: actions/upload-artifact@v7
         with:
           name: production-image-contexts
@@ -302,7 +315,7 @@ jobs:
           retention-days: 14
 
   publish-main-image:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'ci-publish-image')
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs:
       - build-assets
       - license-check
@@ -342,6 +355,11 @@ jobs:
           tags: ghcr.io/chattocorp/chatto:${{ github.sha }}-amd64
           cache-from: type=gha,scope=chatto-main-amd64
           cache-to: type=gha,scope=chatto-main-amd64,mode=max
+          labels: |
+            org.opencontainers.image.source=https://github.com/chattocorp/chatto
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ needs.build-assets.outputs.image-version }}
+            org.opencontainers.image.licenses=AGPL-3.0-or-later
 
       - name: Build and push arm64 image
         uses: docker/build-push-action@v6
@@ -353,6 +371,11 @@ jobs:
           tags: ghcr.io/chattocorp/chatto:${{ github.sha }}-arm64
           cache-from: type=gha,scope=chatto-main-arm64
           cache-to: type=gha,scope=chatto-main-arm64,mode=max
+          labels: |
+            org.opencontainers.image.source=https://github.com/chattocorp/chatto
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ needs.build-assets.outputs.image-version }}
+            org.opencontainers.image.licenses=AGPL-3.0-or-later
 
       - name: Publish multi-platform commit image
         shell: bash
@@ -366,4 +389,6 @@ jobs:
             echo "### Main commit image"
             echo
             echo "\`ghcr.io/chattocorp/chatto:${GITHUB_SHA}\`"
+            echo
+            echo "Version: \`${{ needs.build-assets.outputs.image-version }}\`"
           } >> "$GITHUB_STEP_SUMMARY"
