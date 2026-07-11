@@ -111,7 +111,7 @@
     isLoadingNewer?: boolean;
     hasReachedEnd?: boolean;
     onLoadNewer?: () => Promise<void>;
-    onJumpToPresent?: () => void;
+    onJumpToPresent?: () => Promise<boolean>;
     onReachedPresent?: () => void;
     onReachedBottom?: () => void;
     onSoftRefresh?: (result: RefreshCurrentWindowResult, anchored: boolean) => void;
@@ -125,8 +125,6 @@
   };
 
   let initialScrollDone = $state(false);
-  let presentScrollRequest = $state(0);
-  let presentScrollSequence = 0;
   let bottomScrollOperation = 0;
   let userScrollIntentAt = 0;
   const USER_SCROLL_INTENT_MS = 250;
@@ -258,8 +256,6 @@
   $effect(() => {
     void roomId;
 
-    presentScrollSequence += 1;
-    presentScrollRequest = 0;
     cancelBottomScroll();
     initialScrollDone = false;
     setShouldScrollToBottom(true);
@@ -506,47 +502,21 @@
     void requestBottomScroll();
   }
 
-  function handleJumpToPresentClick() {
+  async function handleJumpToPresentClick() {
     // The replacement latest window must perform a fresh initial-style bottom
     // scroll. Virtua otherwise preserves the historical window's offset when
     // the keyed data is replaced and can leave the user stranded mid-window.
     setShouldScrollToBottom(true);
     initialScrollDone = false;
     scrollUpLock = false;
-    presentScrollRequest = ++presentScrollSequence;
     onReachedBottom?.();
-    onJumpToPresent?.();
+    const requestedRoomId = roomId;
+    const intentAtStart = userScrollIntentAt;
+    if (!(await onJumpToPresent?.())) return;
+    await tick();
+    if (roomId !== requestedRoomId || userScrollIntentAt !== intentAtStart) return;
+    void requestBottomScroll();
   }
-
-  // Replacing a historical window with the latest window can leave Virtua at
-  // the old numeric offset while it incrementally measures the replacement
-  // rows. Keep the explicit return-to-present request pinned to the bottom
-  // until measurements are stable across consecutive frames. A new request,
-  // room change, or user scroll intent cancels the previous attempt.
-  $effect(() => {
-    const request = presentScrollRequest;
-    void isJumpedMode;
-    void isLoading;
-    void virtualItems.length;
-    void virtualizerHandle;
-    void scrollContainer;
-
-    if (request === 0) return;
-    if (
-      isJumpedMode ||
-      isLoading ||
-      virtualItems.length === 0 ||
-      !virtualizerHandle ||
-      !scrollContainer
-    ) {
-      return;
-    }
-
-    const bottomScroll = requestBottomScroll();
-    if (!bottomScroll) return;
-    presentScrollRequest = 0;
-    void bottomScroll;
-  });
 
   // Lock to prevent virtua's scroll corrections from immediately re-enabling
   // auto-scroll after we detect a user scroll-up. Without this, $fixScrollJump

@@ -24,7 +24,7 @@
     onComplete?: () => void;
     isLoading?: boolean;
     isJumpedMode?: boolean;
-    onJumpToPresent?: () => void;
+    onJumpToPresent?: () => Promise<boolean>;
     updateCounter?: number;
     pendingHighlightId?: string | null;
   } = $props();

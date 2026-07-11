@@ -387,7 +387,7 @@ export class MessagesStore {
     this.#pendingJumpId = null;
     this.roomId = roomId;
     this.threadRootEventId = '';
-    this.resetAndFetchLatest();
+    void this.resetAndFetchLatest();
   }
 
   setThread(roomId: string, threadRootEventId: string): void {
@@ -710,13 +710,13 @@ export class MessagesStore {
     }
   }
 
-  jumpToPresent(jumpState: JumpToMessageState): void {
-    if (this.scope !== 'room') return;
+  jumpToPresent(jumpState: JumpToMessageState): Promise<boolean> {
+    if (this.scope !== 'room') return Promise.resolve(false);
     this.#jumpId++;
     this.#windowId++;
     this.#pendingJumpId = null;
     jumpState.reset();
-    this.resetAndFetchLatest();
+    return this.resetAndFetchLatest();
   }
 
   /**
@@ -1256,37 +1256,39 @@ export class MessagesStore {
     return { hasOlder: page.hasOlder, hasNewer: page.hasNewer, refreshed: true, changed };
   }
 
-  private resetAndFetchLatest(): void {
+  private resetAndFetchLatest(): Promise<boolean> {
     const thisLoad = this.startLoad();
     this.#pendingAuthoritativeLoadId = thisLoad;
     this.resetState();
     this.isInitialLoading = true;
-    this.fetchLatest(thisLoad);
+    return this.fetchLatest(thisLoad);
   }
 
-  private fetchLatest(thisLoad: number): void {
+  private fetchLatest(thisLoad: number): Promise<boolean> {
     const promise = this.roomTimeline.getRoomEvents({
       roomId: this.roomId,
       limit: PAGE_SIZE
     });
 
-    promise
+    return promise
       .then(async (page) => {
-        if (this.isStale(thisLoad)) return;
+        if (this.isStale(thisLoad)) return false;
         if (page) {
           this.replaceWithFetchedAndUpdateCursors(page);
           this.hasReachedStart = !page.hasOlder;
           await this.backfillInitialRoomWindow(thisLoad);
         }
-        if (this.isStale(thisLoad)) return;
+        if (this.isStale(thisLoad)) return false;
         this.#pendingAuthoritativeLoadId = null;
         this.isInitialLoading = false;
+        return true;
       })
       .catch((error: unknown) => {
-        if (this.isStale(thisLoad)) return;
+        if (this.isStale(thisLoad)) return false;
         console.error('MessagesStore: fetchLatest failed:', error);
         this.#pendingAuthoritativeLoadId = null;
         this.isInitialLoading = false;
+        return false;
       });
   }
 

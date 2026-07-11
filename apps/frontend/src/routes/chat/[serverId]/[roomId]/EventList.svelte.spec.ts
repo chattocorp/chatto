@@ -119,8 +119,12 @@ describe('EventList jump completion', () => {
     }
   });
 
-  it('starts a pending return-to-present scroll when loading finishes', async () => {
-    const onJumpToPresent = vi.fn();
+  it('scrolls to present after the latest window finishes loading', async () => {
+    let finishLoading: ((loaded: boolean) => void) | undefined;
+    const latestLoaded = new Promise<boolean>((resolve) => {
+      finishLoading = resolve;
+    });
+    const onJumpToPresent = vi.fn(() => latestLoaded);
     const rendered = render(EventListTestHarness, {
       props: {
         eventIds: ['msg-target'],
@@ -132,35 +136,24 @@ describe('EventList jump completion', () => {
     });
 
     await expect.element(page.getByTestId('jump-to-present')).toBeVisible();
-    const callsBeforeJump = Number(
-      page.getByTestId('virtualizer-scroll-calls').element().textContent
-    );
+    await expect
+      .element(page.getByTestId('virtualizer-scroll-alignment'))
+      .toHaveTextContent('center');
     await page.getByTestId('jump-to-present').click();
     expect(onJumpToPresent).toHaveBeenCalledOnce();
+    await expect
+      .element(page.getByTestId('virtualizer-scroll-alignment'))
+      .toHaveTextContent('center');
 
+    finishLoading?.(true);
     await rendered.rerender({
       eventIds: ['msg-target'],
       scrollToEventId: null,
       isJumpedMode: false,
-      isLoading: true,
       onJumpToPresent,
       pendingHighlightId: 'suppress-normal-auto-scroll'
     });
-    await expect.element(page.getByTestId('virtualizer-scroll-calls')).not.toBeInTheDocument();
-
-    await rendered.rerender({
-      eventIds: ['msg-target'],
-      scrollToEventId: null,
-      isJumpedMode: false,
-      isLoading: false,
-      onJumpToPresent,
-      pendingHighlightId: 'suppress-normal-auto-scroll'
-    });
-    await vi.waitFor(() =>
-      expect(
-        Number(page.getByTestId('virtualizer-scroll-calls').element().textContent)
-      ).toBeGreaterThan(callsBeforeJump)
-    );
+    await expect.element(page.getByTestId('virtualizer-scroll-alignment')).toHaveTextContent('end');
   });
 
   it('completes initialization when a bottom scroll supersedes the initial request', async () => {

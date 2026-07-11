@@ -74,7 +74,7 @@
     isLoadingNewer?: boolean;
     hasReachedEnd?: boolean;
     onLoadNewer?: () => Promise<void>;
-    onJumpToPresent?: () => void;
+    onJumpToPresent?: () => Promise<boolean>;
     onReachedPresent?: () => void;
     onSoftRefresh?: (result: RefreshCurrentWindowResult, anchored: boolean) => void;
     pendingHighlightId?: string | null;
