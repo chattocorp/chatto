@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - next
       - 'release-[0-9]*'
   pull_request:
     types:
@@ -15,6 +16,7 @@ on:
       - ready_for_review
     branches:
       - main
+      - next
       - 'release-[0-9]*'
 
 concurrency:

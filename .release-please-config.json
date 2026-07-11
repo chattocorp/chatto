@@ -1,6 +1,9 @@
 {
   "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
   "release-type": "simple",
+  "versioning": "prerelease",
+  "prerelease": true,
+  "prerelease-type": "beta.1",
   "bump-minor-pre-major": true,
   "bump-patch-for-minor-pre-major": false,
   "always-update": true,
