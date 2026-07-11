@@ -332,8 +332,25 @@
 
       function complete(landed: boolean) {
         if (completed || scrollAttemptId !== attemptId) return;
-        completed = true;
-        onScrollToEventComplete?.(landed);
+        if (!landed) {
+          completed = true;
+          onScrollToEventComplete?.(false);
+          return;
+        }
+
+        // Check after the successful target scroll has settled. Starting this
+        // timer before the virtual row mounts can re-enable bottom scrolling
+        // based on the previous window's offset.
+        setTimeout(() => {
+          if (completed || !virtualizerHandle || scrollAttemptId !== attemptId) return;
+          const dist =
+            virtualizerHandle.getScrollSize() -
+            virtualizerHandle.getScrollOffset() -
+            virtualizerHandle.getViewportSize();
+          if (dist < 50) setShouldScrollToBottom(true);
+          completed = true;
+          onScrollToEventComplete?.(true);
+        }, 200);
       }
 
       function tryScrollAndHighlight() {
@@ -370,23 +387,11 @@
       }
 
       requestAnimationFrame(tryScrollAndHighlight);
-
-      // After the scroll and virtualizer measurement settle, restore
-      // shouldScrollToBottom if we landed at the bottom (e.g., linking to a
-      // recent message, or content doesn't overflow the viewport). Without this,
-      // the "Jump to Present" button appears spuriously because no scroll event
-      // fires when content is shorter than the viewport.
-      setTimeout(() => {
-        if (!virtualizerHandle || scrollAttemptId !== attemptId) return;
-        const dist =
-          virtualizerHandle.getScrollSize() -
-          virtualizerHandle.getScrollOffset() -
-          virtualizerHandle.getViewportSize();
-        if (dist < 50) {
-          setShouldScrollToBottom(true);
-        }
-      }, 200);
     });
+
+    return () => {
+      if (scrollAttemptId === attemptId) scrollAttemptId++;
+    };
   });
 
   // Scroll container and virtualizer handle

@@ -43,6 +43,7 @@
     type RoomSidebarPanel
   } from '$lib/storage/roomSidebarPanel';
   import { serverStorageKey } from '$lib/storage/serverStorage';
+  import { toast } from '$lib/ui/toast';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import { isMessagePostedEvent } from '$lib/render/eventKinds';
@@ -296,6 +297,7 @@
         const jumped = await jumpState.jumpToMessage(eventId);
         if (!jumped && pendingMainHighlightId === eventId) {
           pendingMainHighlightId = null;
+          toast.error(m['room.jump_failed']());
         }
       });
     }

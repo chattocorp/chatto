@@ -152,6 +152,7 @@
       "reply_placeholder": "Reply in thread..."
     },
     "jump_to_present": "Jump to Present",
+    "jump_failed": "Could not jump to that message.",
     "unread_separator": "New messages",
     "close_extras": "Close room extras"
   }

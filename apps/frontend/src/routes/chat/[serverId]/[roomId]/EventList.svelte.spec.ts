@@ -82,4 +82,21 @@ describe('EventList jump completion', () => {
     await expect.element(page.getByText('msg-new', { exact: true })).toBeInTheDocument();
     await vi.waitFor(() => expect(onComplete).toHaveBeenCalledExactlyOnceWith(true));
   });
+
+  it('cancels a pending scroll attempt when unmounted', async () => {
+    const onComplete = vi.fn();
+    const rendered = render(EventListTestHarness, {
+      props: {
+        eventIds: ['msg-other'],
+        scrollToEventId: 'msg-never-mounted',
+        onComplete
+      }
+    });
+
+    rendered.unmount();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(onComplete).not.toHaveBeenCalled();
+  });
 });

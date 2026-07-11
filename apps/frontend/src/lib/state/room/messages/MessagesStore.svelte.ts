@@ -187,6 +187,8 @@ export class MessagesStore {
   /** Increments on every load kickoff. Async callbacks compare against
    *  it via {@link isStale} to discard results from superseded loads. */
   #loadId = 0;
+  #jumpId = 0;
+  #windowId = 0;
 
   constructor(
     serverConnection: ServerConnection,
@@ -374,6 +376,8 @@ export class MessagesStore {
     if (this.scope === 'room' && this.roomId === roomId) return;
 
     this.scope = 'room';
+    this.#jumpId++;
+    this.#windowId++;
     this.roomId = roomId;
     this.threadRootEventId = '';
     this.resetAndFetchLatest();
@@ -389,6 +393,8 @@ export class MessagesStore {
     }
 
     this.scope = 'thread';
+    this.#jumpId++;
+    this.#windowId++;
     this.roomId = roomId;
     this.threadRootEventId = threadRootEventId;
 
@@ -587,16 +593,25 @@ export class MessagesStore {
     if (jumpState.isLoadingNewer || jumpState.hasReachedEnd) return;
     if (!this.newestCursor) return;
 
+    const roomId = this.roomId;
+    const windowId = this.#windowId;
     jumpState.isLoadingNewer = true;
     try {
       const page = await this.roomTimeline.getRoomEvents({
-        roomId: this.roomId,
+        roomId,
         limit: PAGE_SIZE,
         after: this.newestCursor
       });
 
       // User left jumped mode while in flight — abandon the result.
-      if (!jumpState.isJumpedMode) return;
+      if (
+        !jumpState.isJumpedMode ||
+        this.scope !== 'room' ||
+        this.roomId !== roomId ||
+        this.#windowId !== windowId
+      ) {
+        return;
+      }
 
       const newer = unmask(page.events);
       if (newer.length === 0) {
@@ -612,28 +627,32 @@ export class MessagesStore {
     } catch (error) {
       console.error('MessagesStore: loadNewer failed:', error);
     } finally {
-      jumpState.isLoadingNewer = false;
+      if (this.roomId === roomId && this.#windowId === windowId) {
+        jumpState.isLoadingNewer = false;
+      }
     }
   }
 
   async jumpToMessage(eventId: string, jumpState: JumpToMessageState): Promise<boolean> {
     if (this.scope !== 'room') return false;
-    const thisLoad = this.startLoad();
+    const jumpId = ++this.#jumpId;
+    const roomId = this.roomId;
     if (this.events.some((e) => e.id === eventId)) {
-      this.isInitialLoading = false;
       jumpState.scrollToEventId = eventId;
       return true;
     }
 
+    this.#windowId++;
+    jumpState.isLoadingNewer = false;
     this.isInitialLoading = true;
     try {
       const around = await this.roomTimeline.getRoomEventsAround({
-        roomId: this.roomId,
+        roomId,
         eventId,
         limit: PAGE_SIZE
       });
 
-      if (this.isStale(thisLoad)) return false;
+      if (this.#jumpId !== jumpId || this.scope !== 'room' || this.roomId !== roomId) return false;
 
       const { events: rawEvents, hasOlder, hasNewer, startCursor, endCursor } = around;
       const parsed = unmask(rawEvents);
@@ -645,6 +664,9 @@ export class MessagesStore {
         return false;
       }
 
+      // This replacement becomes the authoritative room window. Cancel any
+      // older latest-page load before installing it.
+      this.startLoad();
       for (const event of parsed) this.clearOptimisticVersionForEvent(event.id);
       this.events = [...parsed];
       this.seenIds = new SvelteSet(parsed.map((e) => e.id));
@@ -659,7 +681,7 @@ export class MessagesStore {
       jumpState.scrollToEventId = eventId;
       return true;
     } catch (error) {
-      if (this.isStale(thisLoad)) return false;
+      if (this.#jumpId !== jumpId || this.scope !== 'room' || this.roomId !== roomId) return false;
       console.error('MessagesStore: jumpToMessage failed:', error);
       jumpState.scrollToEventId = null;
       jumpState.isJumpedMode = false;
@@ -667,7 +689,9 @@ export class MessagesStore {
       jumpState.hasOlderMessages = false;
       return false;
     } finally {
-      if (!this.isStale(thisLoad)) this.isInitialLoading = false;
+      if (this.#jumpId === jumpId && this.scope === 'room' && this.roomId === roomId) {
+        this.isInitialLoading = false;
+      }
     }
   }
 
