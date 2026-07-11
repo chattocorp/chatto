@@ -544,6 +544,7 @@
 
     const bottomScroll = requestBottomScroll();
     if (!bottomScroll) return;
+    presentScrollRequest = 0;
     void bottomScroll;
   });
 

@@ -126,7 +126,8 @@ describe('EventList jump completion', () => {
         eventIds: ['msg-target'],
         scrollToEventId: 'msg-target',
         isJumpedMode: true,
-        onJumpToPresent
+        onJumpToPresent,
+        pendingHighlightId: 'suppress-normal-auto-scroll'
       }
     });
 
@@ -142,7 +143,8 @@ describe('EventList jump completion', () => {
       scrollToEventId: null,
       isJumpedMode: false,
       isLoading: true,
-      onJumpToPresent
+      onJumpToPresent,
+      pendingHighlightId: 'suppress-normal-auto-scroll'
     });
     await expect.element(page.getByTestId('virtualizer-scroll-calls')).not.toBeInTheDocument();
 
@@ -151,7 +153,8 @@ describe('EventList jump completion', () => {
       scrollToEventId: null,
       isJumpedMode: false,
       isLoading: false,
-      onJumpToPresent
+      onJumpToPresent,
+      pendingHighlightId: 'suppress-normal-auto-scroll'
     });
     await vi.waitFor(() =>
       expect(
