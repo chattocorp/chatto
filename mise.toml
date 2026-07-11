@@ -375,6 +375,8 @@ goreleaser check
 
 actionlint .github/workflows/*.yml
 
+docker/nats-wrapper_test.sh
+
 docker buildx build --check --build-arg TARGETARCH=amd64 -f docker/Dockerfile.dev .
 docker buildx build --check -f docker/Dockerfile.frontend.dev .
 docker buildx build --check -f docker/Dockerfile.frontend.prebuilt .
@@ -385,6 +387,10 @@ context="$tmp/linux-amd64"
 mkdir -p "$context/docker"
 cp docker/Dockerfile.goreleaser "$context/Dockerfile"
 cp docker/docker-entrypoint.sh "$context/docker/docker-entrypoint.sh"
+cp docker/nats-wrapper.sh "$context/docker/nats-wrapper.sh"
+mkdir -p "$context/LICENSES"
+cp LICENSES/AGPL-3.0-or-later.txt "$context/LICENSES/AGPL-3.0-or-later.txt"
+cp NOTICE "$context/NOTICE"
 printf '#!/bin/sh\necho chatto dummy\n' > "$context/chatto"
 chmod +x "$context/chatto"
 docker buildx build --build-arg TARGETARCH=amd64 -f "$context/Dockerfile" "$context"

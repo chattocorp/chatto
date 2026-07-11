@@ -5,9 +5,6 @@ ARG TARGETARCH
 ARG CHATTO_UID=1000
 ARG CHATTO_GID=1000
 
-# Tell the nats CLI which context to use by default. The file itself is
-# written at container start by docker-entrypoint.sh.
-ENV NATS_CONTEXT=chatto
 ENV HOME=/home/chatto
 
 # Runtime dependencies:
@@ -22,8 +19,9 @@ RUN set -eux; \
       su-exec \
       tzdata
 
-# Bundle the nats CLI so operators can inspect the same NATS server Chatto uses
-# with `docker exec <container> nats ...`. The entrypoint writes its context.
+# Bundle the NATS CLI so operators can inspect the same NATS server Chatto uses
+# with `docker exec <container> nats ...`. A wrapper maps Chatto's connection
+# environment to the CLI without writing runtime configuration files.
 RUN set -eux; \
  apk add --no-cache --virtual .build-deps curl unzip; \
  case "$TARGETARCH" in \
@@ -38,8 +36,9 @@ RUN set -eux; \
       "https://github.com/nats-io/natscli/releases/download/v${NATS_CLI_VERSION}/SHA256SUMS"; \
  cd /tmp; \
  grep "  ${archive}$" nats-SHA256SUMS | sha256sum -c -; \
- unzip -j "/tmp/${archive}" "*/nats" -d /usr/local/bin/; \
- chmod +x /usr/local/bin/nats; \
+ mkdir -p /usr/local/libexec; \
+ unzip -j "/tmp/${archive}" "*/nats" -d /usr/local/libexec/; \
+ chmod +x /usr/local/libexec/nats; \
  rm "/tmp/${archive}" /tmp/nats-SHA256SUMS; \
  apk del .build-deps
 
@@ -55,14 +54,15 @@ RUN set -eux; \
 # `chatto`; the release image only packages that binary and the entrypoint.
 COPY chatto /chatto
 COPY docker/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+COPY docker/nats-wrapper.sh /usr/local/bin/nats
 COPY LICENSES/AGPL-3.0-or-later.txt /usr/share/doc/chatto/LICENSE
 COPY NOTICE /usr/share/doc/chatto/NOTICE
-RUN chmod +x /chatto /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /chatto /usr/local/bin/docker-entrypoint.sh /usr/local/bin/nats
 
 WORKDIR /
 EXPOSE 4000
 
-# The entrypoint handles optional PUID/PGID remapping, writes the nats CLI
-# context, then execs `/chatto start -c /config/chatto.toml` by default.
+# The entrypoint handles optional PUID/PGID remapping, then execs
+# `/chatto start -c /config/chatto.toml` by default.
 ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["start", "-c", "/config/chatto.toml"]

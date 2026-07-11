@@ -51,6 +51,7 @@ dockers:
     dockerfile: docker/Dockerfile.goreleaser
     extra_files:
       - docker/docker-entrypoint.sh
+      - docker/nats-wrapper.sh
       - LICENSES/AGPL-3.0-or-later.txt
       - NOTICE
     build_flag_templates:
@@ -70,6 +71,7 @@ dockers:
     dockerfile: docker/Dockerfile.goreleaser
     extra_files:
       - docker/docker-entrypoint.sh
+      - docker/nats-wrapper.sh
       - LICENSES/AGPL-3.0-or-later.txt
       - NOTICE
     build_flag_templates:
