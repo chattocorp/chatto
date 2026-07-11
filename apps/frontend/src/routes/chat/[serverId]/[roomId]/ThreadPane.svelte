@@ -9,6 +9,8 @@
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { isMessagePostedEvent } from '$lib/render/eventKinds';
   import * as m from '$lib/i18n/messages';
+  import { dropZone } from '$lib/attachments/dropZone.svelte';
+  import DropZoneOverlay from '$lib/attachments/DropZoneOverlay.svelte';
 
   import { appState } from '$lib/state/globals.svelte';
   import {
@@ -102,6 +104,17 @@
   let consumedQuoteId = 0;
   let consumedReplyId = 0;
   let composerApi = $state<MessageComposerApi | null>(null);
+  let isDraggingFiles = $state(false);
+
+  const threadDropZone = $derived(
+    canPostInThread && canAttach
+      ? dropZone({
+          onDrop: (files) => composerApi?.addFiles(files),
+          onDragStateChange: (dragging) => (isDraggingFiles = dragging),
+          acceptedTypes: ['image/*', 'video/*', 'audio/*']
+        })
+      : undefined
+  );
 
   // Thread-scoped jump state so "in reply to" clicks scroll within the thread.
   const jumpState = composerContext.jumpState;
@@ -281,7 +294,9 @@
   class="absolute inset-y-0 right-0 z-10 flex min-h-0 w-full min-w-0 flex-col overflow-hidden border-l border-border bg-background shadow-[-4px_0_12px_rgba(0,0,0,0.15)] sm:w-[90%]"
   data-testid="thread-pane"
   transition:fly={{ x: 300, duration: 200 }}
+  {@attach threadDropZone}
 >
+  <DropZoneOverlay visible={isDraggingFiles} />
   <PaneHeader
     title={m['room.thread.title']({ room: roomName })}
     onBack={onClose}
