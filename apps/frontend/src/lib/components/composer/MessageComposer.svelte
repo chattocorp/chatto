@@ -335,6 +335,10 @@
   let manualRichMode = $state(false);
   let editorHasRichStructure = $state(false);
   let isRichComposer = $derived(manualRichMode || editorHasRichStructure);
+  let composerModeHasChanged = $state(false);
+  let composerModeInitialized = false;
+  let composerModeAnimationTimer: ReturnType<typeof setTimeout> | null = null;
+  let composerModeAnimationRun = 0;
   let nextEnterWillSend = $derived(canSubmit && isRichComposer && editorNextEnterWillSend);
   let submitHint = $derived(
     shortcutHints && isRichComposer
@@ -343,6 +347,36 @@
         : shortcutHints.submit
       : null
   );
+
+  // Briefly mark mode transitions so the ring can shimmer without animating on mount.
+  $effect(() => {
+    void isRichComposer;
+
+    if (!composerModeInitialized) {
+      composerModeInitialized = true;
+      return;
+    }
+
+    const animationRun = ++composerModeAnimationRun;
+    composerModeHasChanged = false;
+    tick().then(() => {
+      if (animationRun !== composerModeAnimationRun) return;
+      composerModeHasChanged = true;
+      if (composerModeAnimationTimer) clearTimeout(composerModeAnimationTimer);
+      composerModeAnimationTimer = setTimeout(() => {
+        composerModeHasChanged = false;
+        composerModeAnimationTimer = null;
+      }, 650);
+    });
+
+    return () => {
+      composerModeAnimationRun += 1;
+      if (composerModeAnimationTimer) {
+        clearTimeout(composerModeAnimationTimer);
+        composerModeAnimationTimer = null;
+      }
+    };
+  });
 
   $effect(() => {
     if (!canAttach && attachments.filesWithUrls.length > 0) {
@@ -926,8 +960,11 @@
 
   <!-- Unified input container -->
   <div
+    data-testid="composer-input-surface"
+    data-composer-mode={isRichComposer ? 'rich' : 'simple'}
+    data-mode-transition={composerModeHasChanged ? '' : undefined}
     class={[
-      'relative flex items-start gap-4 rounded-xl bg-surface py-2 pr-3',
+      'composer-input-surface relative isolate flex items-start gap-4 rounded-xl bg-surface py-2 pr-3',
       isEditing ? 'pl-3' : 'pl-2'
     ]}
     class:opacity-50={inputDisabled}
@@ -1096,6 +1133,78 @@
 {/if}
 
 <style>
+  .composer-input-surface {
+    --composer-ring-opacity: 0;
+    box-shadow:
+      0 0 0 1px transparent,
+      0 0 0 transparent;
+    transition-property: box-shadow;
+    transition-duration: 240ms;
+    transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+  }
+
+  .composer-input-surface::before {
+    position: absolute;
+    z-index: -1;
+    inset: -2px;
+    padding: 2px;
+    border-radius: calc(0.75rem + 2px);
+    background: linear-gradient(
+      115deg,
+      color-mix(in srgb, var(--color-accent) 72%, white),
+      var(--color-accent),
+      color-mix(in srgb, var(--color-accent) 72%, #a855f7),
+      color-mix(in srgb, var(--color-accent) 72%, white)
+    );
+    background-size: 220% 100%;
+    opacity: var(--composer-ring-opacity);
+    pointer-events: none;
+    content: '';
+    mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    mask-composite: exclude;
+    transition-property: opacity;
+    transition-duration: 240ms;
+    transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+  }
+
+  .composer-input-surface[data-composer-mode='rich'] {
+    --composer-ring-opacity: 1;
+    box-shadow:
+      0 0 0 1px color-mix(in srgb, var(--color-accent) 45%, transparent),
+      0 0 16px color-mix(in srgb, var(--color-accent) 22%, transparent);
+  }
+
+  .composer-input-surface[data-mode-transition]::before {
+    animation: composer-ring-shimmer 650ms cubic-bezier(0.2, 0, 0, 1);
+  }
+
+  @keyframes composer-ring-shimmer {
+    0% {
+      background-position: 100% 50%;
+      opacity: var(--composer-ring-opacity);
+    }
+    42% {
+      opacity: 1;
+    }
+    100% {
+      background-position: -100% 50%;
+      opacity: var(--composer-ring-opacity);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .composer-input-surface,
+    .composer-input-surface::before {
+      transition-duration: 0ms;
+    }
+
+    .composer-input-surface[data-mode-transition]::before {
+      animation: none;
+    }
+  }
+
   .sending {
     position: relative;
     overflow: hidden;
