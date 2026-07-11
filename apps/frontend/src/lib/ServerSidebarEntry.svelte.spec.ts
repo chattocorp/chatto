@@ -262,6 +262,7 @@ describe('ServerSidebarEntry', () => {
 
   it('renders an unauthenticated server without loading private sidebar state', async () => {
     mocks.store.isAuthenticated = false;
+    mocks.store.serverInfo.iconUrl = 'https://remote.example.com/assets/server/logo.webp';
 
     const { container } = render(ServerSidebarEntry, {
       props: {
@@ -272,6 +273,9 @@ describe('ServerSidebarEntry', () => {
     const icon = q(container, '[data-testid="server-icon"]');
     await expect.element(icon).toBeInTheDocument();
     await expect.element(icon).toHaveAttribute('href', '/chat/remote.example.com');
+    await expect
+      .element(icon.querySelector('img'))
+      .toHaveAttribute('src', 'https://remote.example.com/assets/server/logo.webp');
     expect(mocks.getAuthenticatedServerState).not.toHaveBeenCalled();
     expect(mocks.getViewerStateViaConnect).not.toHaveBeenCalled();
     expect(mocks.store.notifications.fetch).not.toHaveBeenCalled();
@@ -299,11 +303,15 @@ describe('ServerSidebarEntry', () => {
   });
 
   it('removes the dimmed state after sidebar init succeeds', async () => {
+    mocks.store.serverInfo.iconUrl = 'https://remote.example.com/assets/server/public-logo.webp';
     mocks.store.notifications.fetch.mockImplementationOnce(async () => {
       mocks.store.notifications.setUnreadNotificationCount(3);
     });
     mocks.getAuthenticatedServerState.mockResolvedValue(
-      serverState({ viewerHasUnreadRooms: true })
+      serverState({
+        logoUrl: 'https://remote.example.com/assets/server/private-logo.webp',
+        viewerHasUnreadRooms: true
+      })
     );
     mocks.getViewerStateViaConnect.mockResolvedValue(
       viewerState({
@@ -334,7 +342,9 @@ describe('ServerSidebarEntry', () => {
     await expect.element(icon).toBeInTheDocument();
     await expect.element(icon).not.toHaveClass('opacity-40');
     await expect.element(icon).toHaveAttribute('title', 'Loaded Remote');
-    expect(container.textContent).toContain('L');
+    await expect
+      .element(icon.querySelector('img'))
+      .toHaveAttribute('src', 'https://remote.example.com/assets/server/private-logo.webp');
     await vi.waitFor(() => {
       expect(mocks.store.notifications.setUnreadNotificationCount).toHaveBeenLastCalledWith(3);
     });
