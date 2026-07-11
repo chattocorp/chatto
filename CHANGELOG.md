@@ -3,6 +3,19 @@
 All notable changes to Chatto. Maintained by release-please from the
 conventional-commit messages on `main` — do not edit by hand.
 
+## [0.4.6](https://github.com/chattocorp/chatto/compare/v0.4.5...v0.4.6) (2026-07-11)
+
+
+### Bug Fixes
+
+* **api:** validate custom status emoji ([#1408](https://github.com/chattocorp/chatto/issues/1408)) ([cb62f72](https://github.com/chattocorp/chatto/commit/cb62f725eeab071b66d61b599eda0b74e154d573))
+
+
+### Performance Improvements
+
+* **projections:** bound replay idempotency memory ([#1407](https://github.com/chattocorp/chatto/issues/1407)) ([7dd3841](https://github.com/chattocorp/chatto/commit/7dd38411d8f6144f1a7126d13b23440348d09927))
+* **projections:** remove redundant string interning ([#1411](https://github.com/chattocorp/chatto/issues/1411)) ([c69ef30](https://github.com/chattocorp/chatto/commit/c69ef30babce67e6b5ec8fe3d00a490bd626c545))
+
 ## [0.4.5](https://github.com/chattocorp/chatto/compare/v0.4.4...v0.4.5) (2026-07-11)
 
 
