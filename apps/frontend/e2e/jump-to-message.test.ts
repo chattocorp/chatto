@@ -197,9 +197,19 @@ test.describe('jump to message', () => {
     await page.getByTestId('jump-to-present').evaluate((button: HTMLElement) => button.click());
 
     // Should return to the latest messages
-    await expect(page.getByText(`JTP filler 60 - ${timestamp}`)).toBeVisible({
+    await expect(page.getByText(replyBody)).toBeVisible({
       timeout: TIMEOUTS.COMPLEX_OPERATION
     });
+    const messagesContainer = page.getByTestId('messages-container').first();
+    await expect
+      .poll(
+        () =>
+          messagesContainer.evaluate(
+            (element) => element.scrollHeight - element.scrollTop - element.clientHeight
+          ),
+        { timeout: TIMEOUTS.UI_STANDARD }
+      )
+      .toBeLessThan(10);
 
     // The "Jump to Present" button should disappear
     await expect(page.getByTestId('jump-to-present')).not.toBeVisible({
@@ -356,11 +366,18 @@ test.describe('jump to message', () => {
     );
     const secondBody = `Winning target B - ${timestamp}`;
     const secondEventId = await postMessageViaConnect(page, roomId, secondBody);
+    const latestBody = `Later filler 60 - ${timestamp}`;
     await postMessagesViaConnect(
       page,
       roomId,
       Array.from({ length: 60 }, (_, index) => `Later filler ${index + 1} - ${timestamp}`)
     );
+
+    // An event append can complete before the room timeline projection has
+    // exposed every seeded row. Establish a fully projected latest window so
+    // this test only exercises response ordering, not projection convergence.
+    await page.reload();
+    await expect(page.getByText(latestBody)).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
 
     const deferred = await deferNextAroundRequest(page);
     await page.goto(routes.messageLink(roomId, firstEventId));

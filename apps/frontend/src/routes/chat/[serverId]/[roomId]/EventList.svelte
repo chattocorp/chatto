@@ -124,6 +124,11 @@
   };
 
   let initialScrollDone = $state(false);
+  let presentScrollRequest = $state(0);
+  let presentScrollSequence = 0;
+  let activePresentScrollRequest = 0;
+  let userScrollIntentAt = 0;
+  const USER_SCROLL_INTENT_MS = 250;
 
   // State for smart scroll behavior (when not alwaysScrollToBottom)
   let shouldScrollToBottom = $state(true);
@@ -252,6 +257,9 @@
   $effect(() => {
     void roomId;
 
+    presentScrollSequence += 1;
+    presentScrollRequest = 0;
+    activePresentScrollRequest = 0;
     initialScrollDone = false;
     setShouldScrollToBottom(true);
     lastSeenNewestId = null;
@@ -481,9 +489,70 @@
     setShouldScrollToBottom(true);
     initialScrollDone = false;
     scrollUpLock = false;
+    presentScrollRequest = ++presentScrollSequence;
     onReachedBottom?.();
     onJumpToPresent?.();
   }
+
+  // Replacing a historical window with the latest window can leave Virtua at
+  // the old numeric offset while it incrementally measures the replacement
+  // rows. Keep the explicit return-to-present request pinned to the bottom
+  // until measurements are stable across consecutive frames. A new request,
+  // room change, or user scroll intent cancels the previous attempt.
+  $effect(() => {
+    const request = presentScrollRequest;
+    void isJumpedMode;
+    void isLoading;
+    void virtualItems.length;
+    void virtualizerHandle;
+
+    if (request === 0 || request === activePresentScrollRequest) return;
+    if (isJumpedMode || isLoading || virtualItems.length === 0 || !virtualizerHandle) return;
+
+    activePresentScrollRequest = request;
+    const requestedRoomId = roomId;
+    const intentAtStart = userScrollIntentAt;
+
+    void (async () => {
+      let settledFrames = 0;
+      let previousScrollSize: number | null = null;
+      let previousViewportSize: number | null = null;
+      for (let frame = 0; frame < 30 && settledFrames < 6; frame++) {
+        await tick();
+        await new Promise((resolve) => requestAnimationFrame(resolve));
+
+        if (
+          request !== presentScrollRequest ||
+          roomId !== requestedRoomId ||
+          isJumpedMode ||
+          userScrollIntentAt !== intentAtStart ||
+          !scrollContainer ||
+          !virtualizerHandle
+        ) {
+          return;
+        }
+
+        startScrollCorrection();
+        safeScrollToIndex(virtualItems.length - 1, { align: 'end' });
+        scrollContainer.scrollTop = scrollContainer.scrollHeight;
+        scrollFader?.refresh();
+
+        const bottomDistance = distanceFromBottom();
+        const scrollSize = virtualizerHandle.getScrollSize();
+        const viewportSize = virtualizerHandle.getViewportSize();
+        const measurementsUnchanged =
+          scrollSize === previousScrollSize && viewportSize === previousViewportSize;
+        settledFrames =
+          bottomDistance !== null && bottomDistance < 10 && measurementsUnchanged
+            ? settledFrames + 1
+            : 0;
+        previousScrollSize = scrollSize;
+        previousViewportSize = viewportSize;
+      }
+
+      initialScrollDone = true;
+    })();
+  });
 
   // Timer-based flag set by programmatic scrolls (auto-scroll effect, scroll-request
   // effect). During the window, handleVirtuaScroll will self-correct if the virtualizer
@@ -515,11 +584,23 @@
   // so virtua's internal scroll adjustments (re-measurement, $fixScrollJump),
   // composer-resize-driven scrollTop writes, and browser scroll clamping during
   // layout shifts never get misread as the user scrolling up.
-  let userScrollIntentAt = 0;
-  const USER_SCROLL_INTENT_MS = 250;
-
   function markUserScrollIntent() {
     userScrollIntentAt = Date.now();
+  }
+
+  function markKeyboardScrollIntent(event: KeyboardEvent) {
+    const target = event.target;
+    if (
+      target instanceof HTMLInputElement ||
+      target instanceof HTMLTextAreaElement ||
+      (target instanceof HTMLElement && target.isContentEditable)
+    ) {
+      return;
+    }
+
+    if (['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' '].includes(event.key)) {
+      markUserScrollIntent();
+    }
   }
 
   function distanceFromBottom(): number | null {
@@ -948,6 +1029,8 @@
   }
 </script>
 
+<svelte:window onkeydown={markKeyboardScrollIntent} />
+
 <div class="relative flex min-h-0 min-w-0 flex-1 flex-col pb-2">
   <!-- Gradient fade overlay at top -->
   <div
@@ -963,6 +1046,7 @@
     data-testid="messages-container"
     onwheel={markUserScrollIntent}
     ontouchmove={markUserScrollIntent}
+    onpointerdown={markUserScrollIntent}
   >
     <div class="mt-auto">
       {#if !isLoading && virtualItems.length === 0}
