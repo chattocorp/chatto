@@ -84,19 +84,23 @@ describe('EventList jump completion', () => {
   });
 
   it('cancels a pending scroll attempt when unmounted', async () => {
+    vi.useFakeTimers();
     const onComplete = vi.fn();
-    const rendered = render(EventListTestHarness, {
-      props: {
-        eventIds: ['msg-other'],
-        scrollToEventId: 'msg-never-mounted',
-        onComplete
-      }
-    });
+    try {
+      const rendered = render(EventListTestHarness, {
+        props: {
+          eventIds: ['msg-other'],
+          scrollToEventId: 'msg-never-mounted',
+          onComplete
+        }
+      });
 
-    rendered.unmount();
-    await Promise.resolve();
-    await Promise.resolve();
+      rendered.unmount();
+      await vi.runAllTimersAsync();
 
-    expect(onComplete).not.toHaveBeenCalled();
+      expect(onComplete).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

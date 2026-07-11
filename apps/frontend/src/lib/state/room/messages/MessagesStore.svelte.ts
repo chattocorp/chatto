@@ -697,6 +697,8 @@ export class MessagesStore {
 
   jumpToPresent(jumpState: JumpToMessageState): void {
     if (this.scope !== 'room') return;
+    this.#jumpId++;
+    this.#windowId++;
     jumpState.reset();
     this.resetAndFetchLatest();
   }

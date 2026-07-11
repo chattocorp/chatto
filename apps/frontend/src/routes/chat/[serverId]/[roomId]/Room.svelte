@@ -73,6 +73,7 @@
   // Thread navigation functions (URL-driven state)
   let pendingThreadHighlight = $state<string | null>(null);
   let pendingMainHighlightId = $state<string | null>(null);
+  let mainHighlightRequestId = 0;
   let pendingThreadQuote = $state<{ id: number; text: QuoteInsertionContent } | null>(null);
   let pendingThreadQuoteId = 0;
   let pendingThreadReply = $state<PendingThreadReplyRequest | null>(null);
@@ -292,10 +293,15 @@
     if (threadId) {
       pendingThreadHighlight = eventId;
     } else {
+      const requestId = ++mainHighlightRequestId;
       pendingMainHighlightId = eventId;
       tick().then(async () => {
         const jumped = await jumpState.jumpToMessage(eventId);
-        if (!jumped && pendingMainHighlightId === eventId) {
+        if (
+          !jumped &&
+          mainHighlightRequestId === requestId &&
+          pendingMainHighlightId === eventId
+        ) {
           pendingMainHighlightId = null;
           toast.error(m['room.jump_failed']());
         }
