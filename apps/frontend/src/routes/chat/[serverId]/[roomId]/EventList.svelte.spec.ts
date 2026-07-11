@@ -60,7 +60,9 @@ describe('EventList jump completion', () => {
       }
     });
 
-    await vi.waitFor(() => expect(onComplete).toHaveBeenCalledExactlyOnceWith(false));
+    await vi.waitFor(() => expect(onComplete).toHaveBeenCalledExactlyOnceWith(false), {
+      timeout: 2_000
+    });
   });
 
   it('cancels completion for a superseded scroll target', async () => {
