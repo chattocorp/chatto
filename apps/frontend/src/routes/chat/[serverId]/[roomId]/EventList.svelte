@@ -127,7 +127,6 @@
   let initialScrollDone = $state(false);
   let presentScrollRequest = $state(0);
   let presentScrollSequence = 0;
-  let activePresentScrollRequest = 0;
   let bottomScrollOperation = 0;
   let userScrollIntentAt = 0;
   const USER_SCROLL_INTENT_MS = 250;
@@ -261,7 +260,6 @@
 
     presentScrollSequence += 1;
     presentScrollRequest = 0;
-    activePresentScrollRequest = 0;
     cancelBottomScroll();
     initialScrollDone = false;
     setShouldScrollToBottom(true);
@@ -533,7 +531,7 @@
     void virtualizerHandle;
     void scrollContainer;
 
-    if (request === 0 || request === activePresentScrollRequest) return;
+    if (request === 0) return;
     if (
       isJumpedMode ||
       isLoading ||
@@ -546,7 +544,6 @@
 
     const bottomScroll = requestBottomScroll();
     if (!bottomScroll) return;
-    activePresentScrollRequest = request;
     void bottomScroll;
   });
 

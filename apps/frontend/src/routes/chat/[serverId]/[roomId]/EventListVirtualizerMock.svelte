@@ -1,3 +1,11 @@
+<script module lang="ts">
+  let scrollOffset = 700;
+
+  export function setVirtualizerScrollOffset(offset: number) {
+    scrollOffset = offset;
+  }
+</script>
+
 <script lang="ts">
   import type { Snippet } from 'svelte';
 
@@ -10,9 +18,11 @@
   } = $props();
 
   let renderedIndex = $state<number | null>(null);
+  let scrollCalls = $state(0);
 
   export function scrollToIndex(index: number) {
     renderedIndex = index;
+    scrollCalls += 1;
   }
 
   export function getScrollSize() {
@@ -20,7 +30,7 @@
   }
 
   export function getScrollOffset() {
-    return 400;
+    return scrollOffset;
   }
 
   export function getViewportSize() {
@@ -33,6 +43,7 @@
 </script>
 
 <output data-testid="virtualizer-scroll-index">{renderedIndex ?? ''}</output>
+<output data-testid="virtualizer-scroll-calls">{scrollCalls}</output>
 {#if renderedIndex !== null && data[renderedIndex] !== undefined}
   {@render children(data[renderedIndex])}
 {/if}

@@ -2,6 +2,9 @@ import { describe, expect, it, vi } from 'vitest';
 import { page } from 'vitest/browser';
 import { render } from 'vitest-browser-svelte';
 import EventListTestHarness from './EventListTestHarness.svelte';
+import { setVirtualizerScrollOffset } from './EventListVirtualizerMock.svelte';
+
+const resumeCallbacks = vi.hoisted(() => [] as Array<() => void>);
 
 vi.mock('virtua/svelte', async () => {
   const { default: Virtualizer } = await import('./EventListVirtualizerMock.svelte');
@@ -27,7 +30,7 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
 }));
 
 vi.mock('$lib/hooks/useTabResumeCallback.svelte', () => ({
-  useTabResumeCallback: () => {}
+  useTabResumeCallback: (callback: () => void) => resumeCallbacks.push(callback)
 }));
 
 vi.mock('$lib/hooks/useMayHaveMissedMessagesCallback.svelte', () => ({
@@ -112,6 +115,97 @@ describe('EventList jump completion', () => {
 
       expect(onComplete).not.toHaveBeenCalled();
     } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('starts a pending return-to-present scroll when loading finishes', async () => {
+    const onJumpToPresent = vi.fn();
+    const rendered = render(EventListTestHarness, {
+      props: {
+        eventIds: ['msg-target'],
+        scrollToEventId: 'msg-target',
+        isJumpedMode: true,
+        onJumpToPresent
+      }
+    });
+
+    await expect.element(page.getByTestId('jump-to-present')).toBeVisible();
+    const callsBeforeJump = Number(
+      page.getByTestId('virtualizer-scroll-calls').element().textContent
+    );
+    await page.getByTestId('jump-to-present').click();
+    expect(onJumpToPresent).toHaveBeenCalledOnce();
+
+    await rendered.rerender({
+      eventIds: ['msg-target'],
+      scrollToEventId: null,
+      isJumpedMode: false,
+      isLoading: true,
+      onJumpToPresent
+    });
+    await expect.element(page.getByTestId('virtualizer-scroll-calls')).not.toBeInTheDocument();
+
+    await rendered.rerender({
+      eventIds: ['msg-target'],
+      scrollToEventId: null,
+      isJumpedMode: false,
+      isLoading: false,
+      onJumpToPresent
+    });
+    await vi.waitFor(() =>
+      expect(
+        Number(page.getByTestId('virtualizer-scroll-calls').element().textContent)
+      ).toBeGreaterThan(callsBeforeJump)
+    );
+  });
+
+  it('completes initialization when a bottom scroll supersedes the initial request', async () => {
+    const animationFrames: FrameRequestCallback[] = [];
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      vi.fn((callback: FrameRequestCallback) => {
+        animationFrames.push(callback);
+        return animationFrames.length;
+      })
+    );
+    try {
+      const rendered = render(EventListTestHarness, {
+        props: {
+          eventIds: ['msg-target'],
+          scrollToEventId: null,
+          updateCounter: 0
+        }
+      });
+
+      await vi.waitFor(() => expect(animationFrames.length).toBeGreaterThan(0));
+      await rendered.rerender({
+        eventIds: ['msg-target'],
+        scrollToEventId: null,
+        updateCounter: 1
+      });
+
+      for (let frame = 0; frame < 50; frame++) {
+        await vi.waitFor(() => expect(animationFrames.length).toBeGreaterThan(0));
+        animationFrames.shift()?.(frame * 16);
+        if (Number(page.getByTestId('virtualizer-scroll-calls').element().textContent) >= 7) {
+          break;
+        }
+      }
+      await vi.waitFor(() =>
+        expect(
+          Number(page.getByTestId('virtualizer-scroll-calls').element().textContent)
+        ).toBeGreaterThanOrEqual(7)
+      );
+      await Promise.resolve();
+
+      const resume = resumeCallbacks.at(-1);
+      expect(resume).toBeDefined();
+      setVirtualizerScrollOffset(400);
+      resume?.();
+      await expect.element(page.getByTestId('jump-to-present')).toBeVisible();
+    } finally {
+      setVirtualizerScrollOffset(700);
       vi.unstubAllGlobals();
     }
   });

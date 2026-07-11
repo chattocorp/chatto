@@ -12,11 +12,19 @@
   let {
     eventIds,
     scrollToEventId,
-    onComplete
+    onComplete,
+    isLoading = false,
+    isJumpedMode = false,
+    onJumpToPresent,
+    updateCounter = 0
   }: {
     eventIds: string[];
     scrollToEventId: string | null;
     onComplete?: () => void;
+    isLoading?: boolean;
+    isJumpedMode?: boolean;
+    onJumpToPresent?: () => void;
+    updateCounter?: number;
   } = $props();
 
   createComposerContext({ scroll: true });
@@ -66,7 +74,10 @@
   roomId="room-1"
   messageStore={messageStore as never}
   {events}
-  isLoading={false}
+  {isLoading}
+  {isJumpedMode}
+  {onJumpToPresent}
+  {updateCounter}
   {scrollToEventId}
   onScrollToEventComplete={onComplete}
 />
