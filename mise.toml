@@ -277,6 +277,26 @@ env = {
 run = "exec bin/chatto"
 
 # =============================================================================
+# Benchmarking
+# =============================================================================
+
+[tasks.bench-projections]
+description = "Benchmark projection replay throughput and retained heap"
+depends = ["setup-cli"]
+dir = "cli"
+run = [
+    "go test -trimpath ./internal/core -run '^$' -bench '^BenchmarkProjectionReplay$' -benchmem -count=${CHATTO_BENCH_COUNT:-5}",
+    "go test -trimpath ./internal/core -run '^$' -bench '^BenchmarkProjectionRetainedHeap$' -benchmem -benchtime=1x -count=${CHATTO_BENCH_COUNT:-5}",
+]
+
+[tasks.bench-projections-profile]
+description = "Capture exact retained-heap profiles for projection replay"
+depends = ["setup-cli"]
+dir = "cli"
+env = { CHATTO_BENCH_HEAP_PROFILE_DIR = "../.context/bench/projections" }
+run = "go test -trimpath ./internal/core -run '^$' -bench '^BenchmarkProjectionRetainedHeap$' -benchmem -benchtime=1x -count=1"
+
+# =============================================================================
 # Testing
 # =============================================================================
 

@@ -165,6 +165,22 @@ mise x -- go test -tags test_endpoints ./internal/http_server -run TestName -tim
 ## Local Profiling
 
 - Store local benchmark/profiling artifacts under `.context/bench/`.
+- Run `mise bench-projections` for projection replay throughput, allocations,
+  and retained Go heap. It uses a versioned deterministic protobuf fixture and
+  reports room timeline, threads, and combined results at multiple history
+  sizes. Benchmarks are explicit and do not run as part of `mise test`;
+  ordinary tests only run the small fixture-validation test.
+- Compare projection changes with repeated before/after runs on the same
+  machine and Go version. Keep the fixture version constant, check both 10,000
+  and 50,000-message retained-heap results, and reject memory improvements that
+  cause an unacceptable replay-throughput regression.
+- Run `mise bench-projections-profile` for exact retained-heap attribution.
+  Profiles are written under `.context/bench/projections/`; exact allocation
+  sampling is intentionally slower than the normal benchmark.
+- Treat the synthetic projection benchmark as a regression and attribution
+  tool, not a production RSS model. Confirm meaningful wins against a restored
+  real EVT history before shipping them. If the fixture event mix changes,
+  bump its version so results from different workloads are not compared.
 - For realtime connection-memory work, negotiate production WebSocket
   compression and use an external load generator so client allocations do not
   enter the server profile.
