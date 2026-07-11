@@ -1,57 +1,54 @@
 # Releasing Chatto
 
-Chatto uses release-please to prepare stable releases from `main` and beta
-prereleases from `next`. Both branches use `.release-please-config.json` and
-`.release-please-manifest.json`; the configuration on each branch determines
-which kind of release it produces. Stable releases publish the `latest`
-container tags, while prereleases publish the `next` container tags.
+Chatto uses release-please to prepare beta releases from `main`. Stable releases
+and maintenance patches come from `release-x.y` branches. Each branch uses the
+same `.release-please-config.json` and `.release-please-manifest.json` paths; the
+configuration committed to that branch determines whether it produces
+prereleases or stable releases.
 
-## Start a prerelease cycle
+## Prereleases from main
 
-Reset `next` to the latest stable `main`, then add these properties to
-`.release-please-config.json`:
+The release-please configuration on `main` uses prerelease versioning. Feature
+work merges into `main`, and release-please prepares versions such as
+`0.5.0-beta.1`, `0.5.0-beta.2`, and so on. Prereleases publish the `next`
+container tags.
 
-```json
-"versioning": "prerelease",
-"prerelease": true,
-"prerelease-type": "beta.1"
-```
-
-Commit that configuration change with an explicit `Release-As` footer:
+When development moves to a new version series, force its first version with a
+`Release-As` footer. For example:
 
 ```sh
-git fetch origin
-git switch next
-git reset --hard origin/main
-git add .release-please-config.json
-git commit \
+git switch -c begin-0.6 origin/main
+git commit --allow-empty \
   -m "chore(release): begin 0.6 prereleases" \
   -m "Release-As: 0.6.0-beta.1"
-git push --force-with-lease origin next
+git push -u origin begin-0.6
 ```
 
-Replace `0.6` with the version being developed. Release-please will prepare the
-first prerelease as `0.6.0-beta.1`; later prerelease PRs increment it to
-`beta.2`, `beta.3`, and so on.
+Merge this branch into `main`, preserving the `Release-As` footer in the squash
+commit or pull request body.
 
-## Promote a prerelease to stable
+## Create a stable release branch
 
-Create a promotion branch from `next`. Remove `versioning`, `prerelease`, and
-`prerelease-type` from `.release-please-config.json`, then commit that change
-with the intended stable version:
+Create `release-x.y` from the commit intended for the stable release. On that
+branch, remove `versioning`, `prerelease`, and `prerelease-type` from
+`.release-please-config.json`. Commit the stable configuration with an explicit
+`Release-As` footer:
 
 ```sh
-git switch -c promote-0.6 origin/next
+git switch -c release-0.5 <stable-candidate>
 git add .release-please-config.json
 git commit \
-  -m "chore(release): promote 0.6 to stable" \
-  -m "Release-As: 0.6.0"
-git push -u origin promote-0.6
+  -m "chore(release): prepare 0.5 stable releases" \
+  -m "Release-As: 0.5.0"
+git push -u origin release-0.5
 ```
 
-Open this branch as a pull request into `main`, and include `Release-As: 0.6.0`
-in the pull request body so a squash merge preserves the footer. Keeping the
-stable configuration change on the promotion branch prevents `next` from
-switching out of prerelease mode before the promotion is merged. After the
-promotion reaches `main`, release-please prepares the stable release PR for
-`0.6.0`.
+Release-please then prepares the stable `0.5.0` release PR on `release-0.5`.
+Stable releases publish `latest` only when they are the highest stable version.
+
+## Maintain a stable release
+
+Apply urgent fixes for an existing stable series to its `release-x.y` branch.
+Use conventional `fix:` commits so release-please prepares the next patch
+release, such as `0.5.1`. Forward-port each applicable fix to `main` so future
+versions contain it as well.
