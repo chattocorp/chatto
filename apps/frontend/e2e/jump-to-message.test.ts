@@ -12,14 +12,15 @@ import * as routes from './routes';
 
 const GET_ROOM_EVENTS_AROUND_ROUTE =
   '**/api/connect/chatto.api.v1.RoomService/GetRoomEventsAround';
+const ASSET_ROUTE = '**/assets/**';
 
-type DeferredAroundRequest = {
+type DeferredRequest = {
   waitUntilBlocked: () => Promise<void>;
   waitUntilDelivered: () => Promise<void>;
   release: () => void;
 };
 
-async function deferNextAroundRequest(page: Page): Promise<DeferredAroundRequest> {
+async function deferNextResponse(page: Page, url: string): Promise<DeferredRequest> {
   let releaseRequest: (() => void) | undefined;
   let markBlocked: (() => void) | undefined;
   let markDelivered: (() => void) | undefined;
@@ -34,7 +35,7 @@ async function deferNextAroundRequest(page: Page): Promise<DeferredAroundRequest
   });
   let deferred = false;
 
-  await page.route(GET_ROOM_EVENTS_AROUND_ROUTE, async (route) => {
+  await page.route(url, async (route) => {
     if (deferred) {
       await route.continue();
       return;
@@ -53,6 +54,10 @@ async function deferNextAroundRequest(page: Page): Promise<DeferredAroundRequest
     waitUntilDelivered: () => delivered,
     release: () => releaseRequest?.()
   };
+}
+
+async function deferNextAroundRequest(page: Page): Promise<DeferredRequest> {
+  return deferNextResponse(page, GET_ROOM_EVENTS_AROUND_ROUTE);
 }
 
 async function expectMessageCentered(page: Page, eventId: string): Promise<void> {
@@ -372,6 +377,37 @@ test.describe('jump to message', () => {
     await expect(page.getByText('Could not jump to that message.')).toHaveCount(0);
   });
 
+  test('switching rooms wins over an unresolved historical jump', async ({ page, chatPage }) => {
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+    await chatPage.enterRoom('general');
+
+    const { roomId } = await getIdsFromUrlViaConnect(page);
+    const timestamp = Date.now();
+    const targetBody = `Interrupted room target - ${timestamp}`;
+    const targetEventId = await postMessageViaConnect(page, roomId, targetBody);
+    await postMessagesViaConnect(
+      page,
+      roomId,
+      Array.from({ length: 60 }, (_, index) => `Interrupted room filler ${index + 1} - ${timestamp}`)
+    );
+
+    const deferred = await deferNextAroundRequest(page);
+    await page.goto(routes.messageLink(roomId, targetEventId));
+    await deferred.waitUntilBlocked();
+    await chatPage.enterRoom('announcements');
+    deferred.release();
+    await deferred.waitUntilDelivered();
+
+    await chatPage.enterRoom('general');
+    await expect(page.getByText(`Interrupted room filler 60 - ${timestamp}`)).toBeVisible({
+      timeout: TIMEOUTS.COMPLEX_OPERATION
+    });
+    await expect(page.locator(`[data-event-id="${targetEventId}"]`)).not.toBeVisible();
+    await expect(page.getByTestId('jump-to-present')).not.toBeVisible();
+    await expect(page.getByText('Could not jump to that message.')).toHaveCount(0);
+  });
+
   test('permalink remains centered while variable-height rows are measured', async ({
     page,
     chatPage,
@@ -385,8 +421,12 @@ test.describe('jump to message', () => {
 
     const { roomId } = await getIdsFromUrlViaConnect(page);
     const timestamp = Date.now();
-    const targetBody = `Variable height target ${timestamp}\n${'A long wrapped line. '.repeat(30)}`;
     const imageBody = `Image near variable target - ${timestamp}`;
+    await roomPage.sendAttachment(
+      'e2e/fixtures/brighton.jpg',
+      imageBody
+    );
+    const targetBody = `Variable height target ${timestamp}\n${'A long wrapped line. '.repeat(30)}`;
     const targetEventId = await postMessageViaConnect(page, roomId, targetBody);
     await postReplyViaConnect(
       page,
@@ -394,22 +434,22 @@ test.describe('jump to message', () => {
       `Reply attribution near variable target - ${timestamp}`,
       targetEventId
     );
-    await roomPage.sendAttachment(
-      'e2e/fixtures/brighton.jpg',
-      imageBody
-    );
     await postMessagesViaConnect(
       page,
       roomId,
       Array.from({ length: 80 }, (_, index) => `Variable filler ${index + 1} - ${timestamp}`)
     );
 
+    const deferredImage = await deferNextResponse(page, ASSET_ROUTE);
     await page.goto(routes.messageLink(roomId, targetEventId));
 
     await expectMessageCentered(page, targetEventId);
     await expect(page.locator(`[data-event-id="${targetEventId}"]`)).toContainText(
       'A long wrapped line.'
     );
+    await deferredImage.waitUntilBlocked();
+    deferredImage.release();
+    await deferredImage.waitUntilDelivered();
     const nearbyImage = page
       .locator('[role="article"]', { hasText: imageBody })
       .locator('img')
