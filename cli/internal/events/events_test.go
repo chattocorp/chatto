@@ -525,10 +525,11 @@ func TestPublisher_AppendBatch_EmptyIsNoOp(t *testing.T) {
 // trackingProjection records every Apply call so tests can assert on the
 // observed event stream.
 type trackingProjection struct {
-	mu     sync.Mutex
-	events []*corev1.Event
-	seqs   []uint64
-	subs   []string
+	mu                sync.Mutex
+	events            []*corev1.Event
+	seqs              []uint64
+	subs              []string
+	replayCompletions int
 }
 
 func newTrackingProjection(subs ...string) *trackingProjection {
@@ -548,10 +549,22 @@ func (p *trackingProjection) Apply(e *corev1.Event, seq uint64) error {
 func (p *trackingProjection) Snapshot() ([]byte, error) { return nil, nil }
 func (p *trackingProjection) Restore(_ []byte) error    { return nil }
 
+func (p *trackingProjection) CompleteStartupReplay() {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.replayCompletions++
+}
+
 func (p *trackingProjection) Count() int {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	return len(p.events)
+}
+
+func (p *trackingProjection) ReplayCompletions() int {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.replayCompletions
 }
 
 type replayTrackingProjection struct {
@@ -646,6 +659,28 @@ func TestProjector_AppliesEventsInOrder(t *testing.T) {
 	if got := projector.LastSeq(); got != msg.Sequence {
 		t.Errorf("LastSeq=%d, want %d", got, msg.Sequence)
 	}
+	if got := proj.ReplayCompletions(); got != 1 {
+		t.Errorf("startup replay completions = %d, want 1", got)
+	}
+}
+
+func TestProjector_CompletesEmptyStartupReplayOnce(t *testing.T) {
+	js, stream := setupTestStream(t)
+	proj := newTrackingProjection(RoomSubjectFilter())
+	projector := NewProjector(js, stream, proj, testLogger())
+
+	runCtx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	go func() { _ = projector.Run(runCtx) }()
+
+	waitFor(t, 2*time.Second, func() bool {
+		return projector.Status().StartupComplete && proj.ReplayCompletions() == 1
+	})
+	projector.maybeCompleteStartup(time.Now())
+	projector.maybeCompleteStartup(time.Now())
+	if got := proj.ReplayCompletions(); got != 1 {
+		t.Fatalf("startup replay completions = %d, want 1", got)
+	}
 }
 
 func TestRunProjectors_SharedConsumerAppliesEventsToAllProjectors(t *testing.T) {
@@ -682,6 +717,9 @@ func TestRunProjectors_SharedConsumerAppliesEventsToAllProjectors(t *testing.T) 
 	}
 	if statusA.LastSeq != statusB.LastSeq {
 		t.Fatalf("last seq mismatch = %d/%d", statusA.LastSeq, statusB.LastSeq)
+	}
+	if gotA, gotB := projA.ReplayCompletions(), projB.ReplayCompletions(); gotA != 1 || gotB != 1 {
+		t.Fatalf("startup replay completions = %d/%d, want 1/1", gotA, gotB)
 	}
 }
 

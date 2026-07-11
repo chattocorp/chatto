@@ -21,7 +21,7 @@ type RoomTimelineProjection struct {
 	byRoom             map[string][]int
 	byEventID          map[string]int
 	messagePostsByRoom map[string][]int
-	appliedEventIDs    eventIDSet
+	replayGuard        projectionReplayGuard
 	strings            projectionStringInterner
 	// latestBody is the derived current-body index. Updated as
 	// MessageEdited / MessageRetracted entries are applied so that
@@ -112,7 +112,7 @@ func NewRoomTimelineProjection() *RoomTimelineProjection {
 		byRoom:                     make(map[string][]int),
 		byEventID:                  make(map[string]int),
 		messagePostsByRoom:         make(map[string][]int),
-		appliedEventIDs:            newEventIDSet(),
+		replayGuard:                newProjectionReplayGuard(),
 		strings:                    newProjectionStringInterner(),
 		latestBody:                 make(map[string]*corev1.MessageBody),
 		bodyEventSeqs:              make(map[string][]uint64),
@@ -160,10 +160,9 @@ func (p *RoomTimelineProjection) Apply(event *corev1.Event, seq uint64) error {
 		return nil
 	}
 
-	// Idempotency: a re-applied event with the same envelope id is a
-	// no-op. The Projection.Apply contract is "Apply(e,n) twice ==
-	// Apply(e,n) once"; this is how we honour it.
-	if p.appliedEventIDs.seenOrMark(event) {
+	// Idempotency is envelope-ID based during startup replay. A clean history
+	// switches to the monotonic stream-sequence guard once replay completes.
+	if p.replayGuard.seenOrMark(event, seq) {
 		return nil
 	}
 
@@ -259,6 +258,12 @@ func (p *RoomTimelineProjection) Apply(event *corev1.Event, seq uint64) error {
 	}
 	p.assets.applyLifecycleEvent(event)
 	return nil
+}
+
+func (p *RoomTimelineProjection) CompleteStartupReplay() {
+	p.Lock()
+	defer p.Unlock()
+	p.replayGuard.completeReplay()
 }
 
 func eventMutatesRoomTimelineProjection(event *corev1.Event) bool {

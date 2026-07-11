@@ -1046,7 +1046,7 @@ func TestRoomTimeline_IgnoredRoomEventsDoNotRetainIdempotencyIDs(t *testing.T) {
 	}
 
 	applyAll(t, p, ignored)
-	if got := len(p.appliedEventIDs); got != 0 {
+	if got := len(p.replayGuard.retainedEventIDs()); got != 0 {
 		t.Fatalf("appliedEventIDs after ignored events = %d, want 0", got)
 	}
 	if got := p.RoomEventCount("R1"); got != 0 {
@@ -1071,14 +1071,21 @@ func TestRoomTimeline_HandledEventsRemainIdempotent(t *testing.T) {
 	if err := p.Apply(event, 1); err != nil {
 		t.Fatalf("Apply first: %v", err)
 	}
-	if err := p.Apply(event, 1); err != nil {
+	if err := p.Apply(event, 2); err != nil {
 		t.Fatalf("Apply duplicate: %v", err)
 	}
-	if got := len(p.appliedEventIDs); got != 1 {
+	p.CompleteStartupReplay()
+	if err := p.Apply(event, 3); err != nil {
+		t.Fatalf("Apply duplicate after replay: %v", err)
+	}
+	if got := len(p.replayGuard.retainedEventIDs()); got != 1 {
 		t.Fatalf("appliedEventIDs after duplicate message = %d, want 1", got)
 	}
 	if got := p.RoomEventCount("R1"); got != 1 {
 		t.Fatalf("RoomEventCount after duplicate message = %d, want 1", got)
+	}
+	if !p.replayGuard.compatibilityMode {
+		t.Fatal("duplicate replay did not retain compatibility mode")
 	}
 }
 
