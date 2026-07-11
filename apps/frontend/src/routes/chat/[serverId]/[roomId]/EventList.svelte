@@ -475,6 +475,12 @@
   }
 
   function handleJumpToPresentClick() {
+    // The replacement latest window must perform a fresh initial-style bottom
+    // scroll. Virtua otherwise preserves the historical window's offset when
+    // the keyed data is replaced and can leave the user stranded mid-window.
+    setShouldScrollToBottom(true);
+    initialScrollDone = false;
+    scrollUpLock = false;
     onReachedBottom?.();
     onJumpToPresent?.();
   }
