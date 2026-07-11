@@ -139,7 +139,7 @@ describe('EventList jump completion', () => {
     await expect
       .element(page.getByTestId('virtualizer-scroll-alignment'))
       .toHaveTextContent('center');
-    await page.getByTestId('jump-to-present').click();
+    page.getByTestId('jump-to-present').element().click();
     expect(onJumpToPresent).toHaveBeenCalledOnce();
     await expect
       .element(page.getByTestId('virtualizer-scroll-alignment'))
