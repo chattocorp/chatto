@@ -3,6 +3,18 @@
 All notable changes to Chatto. Maintained by release-please from the
 conventional-commit messages on `main` — do not edit by hand.
 
+## [0.5.0-beta.1](https://github.com/chattocorp/chatto/compare/v0.4.6...v0.5.0-beta.1) (2026-07-11)
+
+
+### Bug Fixes
+
+* **release:** add next prerelease channel ([#1414](https://github.com/chattocorp/chatto/issues/1414)) ([6312e39](https://github.com/chattocorp/chatto/commit/6312e392fa1c0f16c74e5dce65166d586a1e76ca))
+
+
+### Miscellaneous Chores
+
+* **release:** begin 0.5 prereleases ([e550e4e](https://github.com/chattocorp/chatto/commit/e550e4e4f0852a0b9ad8840d9533684ed759a60d))
+
 ## [0.4.6](https://github.com/chattocorp/chatto/compare/v0.4.5...v0.4.6) (2026-07-11)
 
 
