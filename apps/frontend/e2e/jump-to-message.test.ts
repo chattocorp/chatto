@@ -10,8 +10,7 @@ import {
 import { TIMEOUTS } from './constants';
 import * as routes from './routes';
 
-const GET_ROOM_EVENTS_AROUND_ROUTE =
-  '**/api/connect/chatto.api.v1.RoomService/GetRoomEventsAround';
+const GET_ROOM_EVENTS_AROUND_ROUTE = '**/api/connect/chatto.api.v1.RoomService/GetRoomEventsAround';
 const ASSET_ROUTE = '**/assets/**';
 
 type DeferredRequest = {
@@ -389,7 +388,10 @@ test.describe('jump to message', () => {
     await postMessagesViaConnect(
       page,
       roomId,
-      Array.from({ length: 60 }, (_, index) => `Interrupted room filler ${index + 1} - ${timestamp}`)
+      Array.from(
+        { length: 60 },
+        (_, index) => `Interrupted room filler ${index + 1} - ${timestamp}`
+      )
     );
 
     const deferred = await deferNextAroundRequest(page);
@@ -422,10 +424,7 @@ test.describe('jump to message', () => {
     const { roomId } = await getIdsFromUrlViaConnect(page);
     const timestamp = Date.now();
     const imageBody = `Image near variable target - ${timestamp}`;
-    await roomPage.sendAttachment(
-      'e2e/fixtures/brighton.jpg',
-      imageBody
-    );
+    await roomPage.sendAttachment('e2e/fixtures/brighton.jpg', imageBody);
     const targetBody = `Variable height target ${timestamp}\n${'A long wrapped line. '.repeat(30)}`;
     const targetEventId = await postMessageViaConnect(page, roomId, targetBody);
     await postReplyViaConnect(
@@ -457,7 +456,9 @@ test.describe('jump to message', () => {
     await expect(nearbyImage).toBeVisible({ timeout: TIMEOUTS.COMPLEX_OPERATION });
     await expect(async () => {
       expect(
-        await nearbyImage.evaluate((image: HTMLImageElement) => image.complete && image.naturalHeight > 0)
+        await nearbyImage.evaluate(
+          (image: HTMLImageElement) => image.complete && image.naturalHeight > 0
+        )
       ).toBe(true);
     }).toPass({ timeout: TIMEOUTS.COMPLEX_OPERATION, intervals: [100, 250, 500] });
     await expectMessageCentered(page, targetEventId);
