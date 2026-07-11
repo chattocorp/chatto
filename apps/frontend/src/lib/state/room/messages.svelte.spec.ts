@@ -605,6 +605,51 @@ describe('MessagesStore — room lifecycle ownership', () => {
     store.dispose();
   });
 
+  it('resolves returning to present only after initial backfill completes', async () => {
+    const fake = new FakeQueryClient();
+    type RoomPage = Awaited<ReturnType<RoomTimelineAPI['getRoomEvents']>>;
+    let resolveOlder: ((page: RoomPage) => void) | undefined;
+    const olderPage = new Promise<RoomPage>((resolve) => {
+      resolveOlder = resolve;
+    });
+    const timeline = fakeTimelineAPI({
+      getRoomEvents: vi
+        .fn()
+        .mockResolvedValueOnce(emptyPage())
+        .mockResolvedValueOnce({
+          events: [threadMessageEvent('present') as never],
+          startCursor: 'tl:present',
+          endCursor: 'tl:present',
+          hasOlder: true,
+          hasNewer: false
+        })
+        .mockImplementationOnce(() => olderPage)
+    });
+    const store = new MessagesStore(fake as unknown as ServerConnection, () => null, timeline);
+    store.setRoom('room-1');
+    await settle();
+
+    let completed = false;
+    const returningToPresent = store.jumpToPresent(new JumpToMessageState()).then((loaded) => {
+      completed = true;
+      return loaded;
+    });
+    await settle();
+    expect(completed).toBe(false);
+
+    resolveOlder?.({
+      events: [threadMessageEvent('older') as never],
+      startCursor: 'tl:older',
+      endCursor: 'tl:older',
+      hasOlder: false,
+      hasNewer: true
+    });
+
+    await expect(returningToPresent).resolves.toBe(true);
+    expect(store.rootEvents.map((event) => event.id)).toEqual(['older', 'present']);
+    store.dispose();
+  });
+
   it('clears jump loading when an in-flight jump is superseded by a loaded target', async () => {
     const fake = new FakeQueryClient();
     type AroundPage = Awaited<ReturnType<RoomTimelineAPI['getRoomEventsAround']>>;
