@@ -27,7 +27,8 @@ permissions:
   contents: read
 
 jobs:
-  build-assets:
+  build-main-image-contexts:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     outputs:
       image-version: ${{ steps.production-image-contexts.outputs.version }}
@@ -38,11 +39,10 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup
 
-      - name: Build shared frontend and E2E server
-        run: mise build-e2e-server
+      - name: Build frontend for production image
+        run: mise build-frontend
 
       - name: Build production image contexts
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         id: production-image-contexts
         shell: bash
         run: |
@@ -73,23 +73,7 @@ jobs:
             )
           done
 
-      - name: Upload frontend bundle
-        uses: actions/upload-artifact@v7
-        with:
-          name: frontend-bundle
-          path: cli/internal/http_server/.client
-          include-hidden-files: true
-          retention-days: 1
-
-      - name: Upload E2E server
-        uses: actions/upload-artifact@v7
-        with:
-          name: e2e-server
-          path: apps/frontend/e2e/fixtures/bin/chatto
-          retention-days: 1
-
       - name: Upload production image contexts
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: actions/upload-artifact@v7
         with:
           name: production-image-contexts
@@ -197,7 +181,6 @@ jobs:
         run: pnpm run test:frontend
 
   test-cli:
-    needs: build-assets
     # runs-on: ubicloud-standard-4
     runs-on: ubuntu-latest
     steps:
@@ -206,20 +189,14 @@ jobs:
 
       - name: Setup environment
         uses: ./.github/actions/setup
-        with:
-          install-frontend-deps: "false"
 
-      - name: Download frontend bundle
-        uses: actions/download-artifact@v8
-        with:
-          name: frontend-bundle
-          path: cli/internal/http_server/.client
+      - name: Build frontend
+        run: mise build-frontend
 
       - name: Run Go tests
         run: cd cli && go test -trimpath -p 1 -tags test_endpoints ./...
 
   test-e2e:
-    needs: build-assets
     # runs-on: ubicloud-standard-4
     runs-on: ubuntu-latest
     name: test-e2e (${{ matrix.shard }}/4)
@@ -233,17 +210,6 @@ jobs:
 
       - name: Setup environment
         uses: ./.github/actions/setup
-        with:
-          install-cli-deps: "false"
-
-      - name: Download E2E server
-        uses: actions/download-artifact@v8
-        with:
-          name: e2e-server
-          path: apps/frontend/e2e/fixtures/bin
-
-      - name: Restore E2E server permissions
-        run: chmod +x apps/frontend/e2e/fixtures/bin/chatto
 
       - name: Cache Playwright browsers
         uses: actions/cache@v5
@@ -256,6 +222,9 @@ jobs:
       - name: Install Playwright dependencies
         run: cd apps/frontend && pnpm exec playwright install chromium --with-deps
         timeout-minutes: 15
+
+      - name: Build E2E server
+        run: mise build-e2e-server
 
       - name: Run E2E tests
         run: cd apps/frontend && pnpm exec playwright test --grep-invert @ffmpeg --shard=${{ matrix.shard }}/4
@@ -269,7 +238,6 @@ jobs:
           retention-days: 14
 
   test-e2e-media:
-    needs: build-assets
     # runs-on: ubicloud-standard-4
     runs-on: ubuntu-latest
     steps:
@@ -280,16 +248,6 @@ jobs:
         uses: ./.github/actions/setup
         with:
           install-ffmpeg: "true"
-          install-cli-deps: "false"
-
-      - name: Download E2E server
-        uses: actions/download-artifact@v8
-        with:
-          name: e2e-server
-          path: apps/frontend/e2e/fixtures/bin
-
-      - name: Restore E2E server permissions
-        run: chmod +x apps/frontend/e2e/fixtures/bin/chatto
 
       - name: Cache Playwright browsers
         uses: actions/cache@v5
@@ -302,6 +260,9 @@ jobs:
       - name: Install Playwright dependencies
         run: cd apps/frontend && pnpm exec playwright install chromium --with-deps
         timeout-minutes: 15
+
+      - name: Build E2E server
+        run: mise build-e2e-server
 
       - name: Run media E2E tests
         run: cd apps/frontend && pnpm exec playwright test --grep @ffmpeg
@@ -317,7 +278,7 @@ jobs:
   publish-main-image:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs:
-      - build-assets
+      - build-main-image-contexts
       - license-check
       - codegen-proto-drift
       - test-frontend-unit
@@ -358,7 +319,7 @@ jobs:
           labels: |
             org.opencontainers.image.source=https://github.com/chattocorp/chatto
             org.opencontainers.image.revision=${{ github.sha }}
-            org.opencontainers.image.version=${{ needs.build-assets.outputs.image-version }}
+            org.opencontainers.image.version=${{ needs.build-main-image-contexts.outputs.image-version }}
             org.opencontainers.image.licenses=AGPL-3.0-or-later
 
       - name: Build and push arm64 image
@@ -374,7 +335,7 @@ jobs:
           labels: |
             org.opencontainers.image.source=https://github.com/chattocorp/chatto
             org.opencontainers.image.revision=${{ github.sha }}
-            org.opencontainers.image.version=${{ needs.build-assets.outputs.image-version }}
+            org.opencontainers.image.version=${{ needs.build-main-image-contexts.outputs.image-version }}
             org.opencontainers.image.licenses=AGPL-3.0-or-later
 
       - name: Publish multi-platform commit image
@@ -390,5 +351,5 @@ jobs:
             echo
             echo "\`ghcr.io/chattocorp/chatto:${GITHUB_SHA}\`"
             echo
-            echo "Version: \`${{ needs.build-assets.outputs.image-version }}\`"
+            echo "Version: \`${{ needs.build-main-image-contexts.outputs.image-version }}\`"
           } >> "$GITHUB_STEP_SUMMARY"
