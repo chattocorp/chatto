@@ -12,8 +12,11 @@ import (
 	"hmans.de/chatto/internal/config"
 )
 
-// ErrSMTPDisabled is returned when attempting to send email with SMTP disabled.
-var ErrSMTPDisabled = errors.New("SMTP is not enabled")
+// ErrEmailDisabled is returned when no transactional email transport is enabled.
+var ErrEmailDisabled = errors.New("email delivery is not enabled")
+
+// ErrSMTPDisabled is retained for compatibility with SMTP sender callers.
+var ErrSMTPDisabled = ErrEmailDisabled
 
 // Message represents an email message to be sent.
 type Message struct {
@@ -28,6 +31,15 @@ type Sender interface {
 	Send(msg Message) error
 	SendContext(ctx context.Context, msg Message) error
 	IsEnabled() bool
+}
+
+// NewSender creates the configured transactional email transport. SMTP remains
+// the default transport for configurations that predate EmailConfig.
+func NewSender(emailConfig config.EmailConfig, smtpConfig config.SMTPConfig) Sender {
+	if emailConfig.TransportOrDefault() == config.EmailTransportJMAP {
+		return NewJMAPMailer(emailConfig.JMAP)
+	}
+	return NewMailer(smtpConfig)
 }
 
 // Mailer handles sending transactional emails via SMTP.

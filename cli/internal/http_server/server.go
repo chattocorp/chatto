@@ -99,8 +99,8 @@ func limitRequestBody(maxBytes int64, readTimeout time.Duration) gin.HandlerFunc
 func NewHTTPServer(cfg HTTPServerConfig) (*HTTPServer, error) {
 	logger := log.WithPrefix("server.HTTP")
 
-	// Create email mailer (mock if built with -tags test_endpoints, real otherwise)
-	mockMailer, mailer := createMailer(cfg.Config.SMTP)
+	// Create the configured email sender (mock if built with -tags test_endpoints).
+	mockMailer, mailer := createMailer(cfg.Config.Email, cfg.Config.SMTP)
 
 	// Warn at startup if test endpoints are enabled (security-bypassing endpoints)
 	if mockMailer != nil {

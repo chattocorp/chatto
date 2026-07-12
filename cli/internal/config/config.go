@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"net"
+	"net/mail"
 	"net/url"
 	"os"
 	"sort"
@@ -733,6 +734,43 @@ type SMTPConfig struct {
 	From          string        `toml:"from" env:"CHATTO_SMTP_FROM" comment:"From address for outgoing emails. Example: noreply@example.com"`
 }
 
+// EmailTransport identifies the configured transactional email submission transport.
+type EmailTransport string
+
+const (
+	// EmailTransportSMTP submits transactional email through SMTP.
+	EmailTransportSMTP EmailTransport = "smtp"
+	// EmailTransportJMAP submits transactional email through JMAP.
+	EmailTransportJMAP EmailTransport = "jmap"
+)
+
+// JMAPConfig contains settings for transactional email submitted through JMAP.
+type JMAPConfig struct {
+	SessionURL     string `toml:"session_url,commented" env:"CHATTO_EMAIL_JMAP_SESSION_URL" comment:"JMAP session resource URL. Must use HTTP or HTTPS."`
+	AccessToken    string `toml:"access_token,commented" env:"CHATTO_EMAIL_JMAP_ACCESS_TOKEN" comment:"Bearer access token for the JMAP account. NEVER SHARE THIS!"`
+	From           string `toml:"from,commented" env:"CHATTO_EMAIL_JMAP_FROM" comment:"From address for outgoing emails. It must match a JMAP identity. Example: noreply@example.com"`
+	AccountID      string `toml:"account_id,commented" env:"CHATTO_EMAIL_JMAP_ACCOUNT_ID" comment:"Optional JMAP account ID. Defaults to the session's primary submission account."`
+	IdentityID     string `toml:"identity_id,commented" env:"CHATTO_EMAIL_JMAP_IDENTITY_ID" comment:"Optional JMAP identity ID. Defaults to the identity matching jmap.from."`
+	DraftMailboxID string `toml:"draft_mailbox_id,commented" env:"CHATTO_EMAIL_JMAP_DRAFT_MAILBOX_ID" comment:"Optional JMAP Drafts mailbox ID. Defaults to the mailbox with role 'drafts'."`
+}
+
+// EmailConfig contains transactional email transport settings. SMTP remains the
+// default so existing configurations continue to work without changes.
+type EmailConfig struct {
+	Transport EmailTransport `toml:"transport" env:"CHATTO_EMAIL_TRANSPORT" comment:"Transactional email transport: smtp (default) or jmap."`
+	JMAP      JMAPConfig     `toml:"jmap,commented" comment:"JMAP transactional email configuration. Used only when email.transport = 'jmap'."`
+}
+
+// TransportOrDefault returns the selected transport, defaulting to SMTP for
+// backward compatibility with existing SMTP-only configurations.
+func (c EmailConfig) TransportOrDefault() EmailTransport {
+	transport := EmailTransport(strings.ToLower(strings.TrimSpace(string(c.Transport))))
+	if transport == "" {
+		return EmailTransportSMTP
+	}
+	return transport
+}
+
 // PushConfig contains settings for Web Push notifications.
 // Push notifications allow messages to be delivered even when the browser is closed.
 type PushConfig struct {
@@ -866,6 +904,7 @@ type ChattoConfig struct {
 	Core        CoreConfig        `toml:"core" comment:"Core service configuration."`
 	Auth        AuthConfig        `toml:"auth" comment:"Authentication configuration."`
 	Limits      LimitsConfig      `toml:"limits,commented" comment:"Instance-wide resource limits. Use -1 for unlimited."`
+	Email       EmailConfig       `toml:"email" comment:"Transactional email transport configuration. SMTP is the default transport."`
 	SMTP        SMTPConfig        `toml:"smtp" comment:"SMTP configuration for transactional emails."`
 	Push        PushConfig        `toml:"push,commented" comment:"Web Push notification configuration."`
 	Video       VideoConfig       `toml:"video,commented" comment:"Video processing configuration. Requires ffmpeg."`
@@ -1096,25 +1135,47 @@ func (c *ChattoConfig) Validate() error {
 		}
 	}
 
-	// SMTP configuration
-	switch c.SMTP.TLSPolicyOrDefault() {
-	case SMTPTLSMandatory, SMTPTLSOpportunistic, SMTPTLSImplicit:
-	default:
-		errs = append(errs, "smtp.tls must be one of: mandatory, opportunistic, implicit")
-	}
-	if c.SMTP.Enabled {
+	// Transactional email configuration
+	switch c.Email.TransportOrDefault() {
+	case EmailTransportSMTP:
+		switch c.SMTP.TLSPolicyOrDefault() {
+		case SMTPTLSMandatory, SMTPTLSOpportunistic, SMTPTLSImplicit:
+		default:
+			errs = append(errs, "smtp.tls must be one of: mandatory, opportunistic, implicit")
+		}
+		if c.SMTP.Enabled {
+			if c.Webserver.URL == "" {
+				errs = append(errs, "webserver.url is required when SMTP is enabled")
+			}
+			if c.SMTP.Host == "" {
+				errs = append(errs, "smtp.host is required when SMTP is enabled")
+			}
+			if c.SMTP.Port < 1 || c.SMTP.Port > 65535 {
+				errs = append(errs, "smtp.port must be between 1 and 65535 when SMTP is enabled")
+			}
+			if c.SMTP.From == "" {
+				errs = append(errs, "smtp.from is required when SMTP is enabled")
+			}
+		}
+	case EmailTransportJMAP:
 		if c.Webserver.URL == "" {
-			errs = append(errs, "webserver.url is required when SMTP is enabled")
+			errs = append(errs, "webserver.url is required when JMAP email is enabled")
 		}
-		if c.SMTP.Host == "" {
-			errs = append(errs, "smtp.host is required when SMTP is enabled")
+		if c.Email.JMAP.SessionURL == "" {
+			errs = append(errs, "email.jmap.session_url is required when email.transport is jmap")
+		} else if err := validateAbsoluteHTTPURL("email.jmap.session_url", c.Email.JMAP.SessionURL); err != nil {
+			errs = append(errs, err.Error())
 		}
-		if c.SMTP.Port < 1 || c.SMTP.Port > 65535 {
-			errs = append(errs, "smtp.port must be between 1 and 65535 when SMTP is enabled")
+		if c.Email.JMAP.AccessToken == "" {
+			errs = append(errs, "email.jmap.access_token is required when email.transport is jmap")
 		}
-		if c.SMTP.From == "" {
-			errs = append(errs, "smtp.from is required when SMTP is enabled")
+		if c.Email.JMAP.From == "" {
+			errs = append(errs, "email.jmap.from is required when email.transport is jmap")
+		} else if _, err := mail.ParseAddress(c.Email.JMAP.From); err != nil {
+			errs = append(errs, "email.jmap.from must be a valid email address")
 		}
+	default:
+		errs = append(errs, "email.transport must be one of: smtp, jmap")
 	}
 
 	// Push notification configuration
