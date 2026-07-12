@@ -44,4 +44,7 @@ func TestChattoCore_PasskeysAreDurableAndUniquelyLinked(t *testing.T) {
 	if len(passkeys) != 0 {
 		t.Fatalf("passkeys after unlink = %#v, want none", passkeys)
 	}
+	if _, ok := core.Passkeys.Get(passkeyHash(credentialID)); ok {
+		t.Fatal("credential remains in passkey projection after unlink")
+	}
 }

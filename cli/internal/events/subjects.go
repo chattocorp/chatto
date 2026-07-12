@@ -21,14 +21,15 @@ const (
 
 // Aggregate type segments. Stable identifiers; once written, never renamed.
 const (
-	AggregateRoom   = "room"
-	AggregateConfig = "config"
-	AggregateGroup  = "group"
-	AggregateLayout = "layout"
-	AggregateUser   = "user"
-	AggregateAsset  = "asset"
-	AggregateRBAC   = "rbac"
-	AggregateAuth   = "auth"
+	AggregateRoom    = "room"
+	AggregateConfig  = "config"
+	AggregateGroup   = "group"
+	AggregateLayout  = "layout"
+	AggregateUser    = "user"
+	AggregateAsset   = "asset"
+	AggregateRBAC    = "rbac"
+	AggregateAuth    = "auth"
+	AggregatePasskey = "passkey"
 )
 
 // ConfigSingletonID is the sentinel aggregate ID for server-wide config
@@ -148,6 +149,9 @@ const (
 	EventUserExternalIdentityUnlinked = "external_identity_unlinked"
 	EventUserPasskeyLinked            = "passkey_linked"
 	EventUserPasskeyUnlinked          = "passkey_unlinked"
+	EventPasskeyCredentialRegistered  = "credential_registered"
+	EventPasskeyCredentialUpdated     = "credential_updated"
+	EventPasskeyCredentialRemoved     = "credential_removed"
 	EventUserServerPreferencesChanged = "server_preferences_changed"
 	EventUserLoginCooldownStarted     = "login_cooldown_started"
 	EventUserLoginCooldownCleared     = "login_cooldown_cleared"
@@ -345,6 +349,12 @@ func EventTypeOf(e *corev1.Event) string {
 		return EventUserPasskeyLinked
 	case *corev1.Event_UserPasskeyUnlinked:
 		return EventUserPasskeyUnlinked
+	case *corev1.Event_PasskeyCredentialRegistered:
+		return EventPasskeyCredentialRegistered
+	case *corev1.Event_PasskeyCredentialUpdated:
+		return EventPasskeyCredentialUpdated
+	case *corev1.Event_PasskeyCredentialRemoved:
+		return EventPasskeyCredentialRemoved
 	case *corev1.Event_UserServerPreferencesChanged:
 		return EventUserServerPreferencesChanged
 	case *corev1.Event_UserLoginCooldownStarted:
@@ -531,6 +541,11 @@ func AuthAggregate() Aggregate {
 	return Aggregate{Type: AggregateAuth, ID: AuthServerID}
 }
 
+// PasskeyAggregate owns one WebAuthn credential, keyed by its opaque hash.
+func PasskeyAggregate(credentialHash string) Aggregate {
+	return Aggregate{Type: AggregatePasskey, ID: credentialHash}
+}
+
 // EventSubjectFilter returns the wildcard filter matching every event in the
 // EVT stream. Use sparingly: most invariants should OCC against a narrower
 // aggregate namespace, but cross-aggregate invariants may need the stream-wide
@@ -577,6 +592,9 @@ func RBACSubjectFilter() string { return SubjectRoot + AggregateRBAC + ".>" }
 // audit facts.
 // Pattern: evt.auth.>
 func AuthSubjectFilter() string { return SubjectRoot + AggregateAuth + ".>" }
+
+// PasskeySubjectFilter returns all credential-specific passkey facts.
+func PasskeySubjectFilter() string { return SubjectRoot + AggregatePasskey + ".>" }
 
 // AggregateEventTypeFilter returns a cross-aggregate, event-type-narrow
 // filter — every event of the given type across every aggregate instance.

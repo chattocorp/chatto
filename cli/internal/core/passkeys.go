@@ -20,6 +20,7 @@ var (
 // Passkey is the durable WebAuthn credential material required by the server.
 // It deliberately excludes browser ceremony data, which belongs in runtime state.
 type Passkey struct {
+	UserID         string
 	CredentialHash string
 	CredentialID   []byte
 	Credential     []byte
@@ -53,24 +54,50 @@ func (c *ChattoCore) LinkPasskey(ctx context.Context, userID string, credentialI
 		return Passkey{}, ErrInvalidArgument
 	}
 	hash := passkeyHash(credentialID)
-	event := newEvent(userID, &corev1.Event{Event: &corev1.Event_UserPasskeyLinked{UserPasskeyLinked: &corev1.UserPasskeyLinkedEvent{UserId: userID, CredentialHash: hash, CredentialId: credentialID, Credential: credential, Label: label}}})
-	_, err := c.appendUserEvent(ctx, userID, event, events.UserSubjectFilter(), func() error {
+	userEvent := newEvent(userID, &corev1.Event{Event: &corev1.Event_UserPasskeyLinked{UserPasskeyLinked: &corev1.UserPasskeyLinkedEvent{UserId: userID, CredentialHash: hash, Label: label}}})
+	credentialEvent := newEvent(userID, &corev1.Event{Event: &corev1.Event_PasskeyCredentialRegistered{PasskeyCredentialRegistered: &corev1.PasskeyCredentialRegisteredEvent{UserId: userID, CredentialHash: hash, CredentialId: credentialID, Credential: credential}}})
+	passkeyAgg := events.PasskeyAggregate(hash)
+	for attempt := 0; attempt < maxUserMutationRetries; attempt++ {
+		userAgg := events.UserAggregate(userID)
+		userSeq, err := c.EventPublisher.LastSubjectSeq(ctx, userAgg.AllEventsFilter())
+		if err != nil {
+			return Passkey{}, fmt.Errorf("read user passkey OCC: %w", err)
+		}
+		credentialSeq, err := c.EventPublisher.LastSubjectSeq(ctx, passkeyAgg.AllEventsFilter())
+		if err != nil {
+			return Passkey{}, fmt.Errorf("read credential passkey OCC: %w", err)
+		}
+		if err := c.userModel.waitForUsers(ctx, events.SubjectPosition(userAgg.AllEventsFilter(), userSeq)); err != nil {
+			return Passkey{}, err
+		}
 		if _, ok := c.Users.Get(userID); !ok {
-			return ErrNotFound
+			return Passkey{}, ErrNotFound
 		}
-		for _, candidateID := range c.Users.UserIDs() {
-			for _, existing := range c.Users.Passkeys(candidateID) {
-				if existing.CredentialHash == hash && candidateID != userID {
-					return ErrPasskeyClaimed
-				}
+		if err := c.PasskeysProjector.WaitFor(ctx, events.SubjectPosition(passkeyAgg.AllEventsFilter(), credentialSeq)); err != nil {
+			return Passkey{}, err
+		}
+		if existing, ok := c.Passkeys.Get(hash); ok {
+			if existing.UserID != userID {
+				return Passkey{}, ErrPasskeyClaimed
 			}
+			return existing, nil
 		}
-		return nil
-	})
-	if err != nil {
-		return Passkey{}, err
+		entries := []events.BatchEntry{{Subject: userAgg.Subject(events.EventUserPasskeyLinked), Event: userEvent, HasOCC: true, ExpectedSeq: userSeq, FilterSubject: userAgg.AllEventsFilter()}, {Subject: passkeyAgg.Subject(events.EventPasskeyCredentialRegistered), Event: credentialEvent, HasOCC: true, ExpectedSeq: credentialSeq, FilterSubject: passkeyAgg.AllEventsFilter()}}
+		seqs, err := c.EventPublisher.AppendBatch(ctx, entries)
+		if err == nil {
+			if err := c.userModel.waitForUsers(ctx, events.SubjectPosition(entries[0].Subject, seqs[0])); err != nil {
+				return Passkey{}, err
+			}
+			if err := c.PasskeysProjector.WaitFor(ctx, events.SubjectPosition(entries[1].Subject, seqs[1])); err != nil {
+				return Passkey{}, err
+			}
+			return Passkey{UserID: userID, CredentialHash: hash, CredentialID: append([]byte(nil), credentialID...), Credential: append([]byte(nil), credential...), Label: label}, nil
+		}
+		if !errors.Is(err, events.ErrConflict) {
+			return Passkey{}, err
+		}
 	}
-	return Passkey{CredentialHash: hash, CredentialID: append([]byte(nil), credentialID...), Credential: append([]byte(nil), credential...), Label: label}, nil
+	return Passkey{}, fmt.Errorf("passkey link OCC retry exhausted: %w", events.ErrConflict)
 }
 
 func (c *ChattoCore) UnlinkPasskey(ctx context.Context, userID, credentialHash string) error {
@@ -78,8 +105,24 @@ func (c *ChattoCore) UnlinkPasskey(ctx context.Context, userID, credentialHash s
 	if userID == "" || credentialHash == "" {
 		return ErrInvalidArgument
 	}
-	event := newEvent(userID, &corev1.Event{Event: &corev1.Event_UserPasskeyUnlinked{UserPasskeyUnlinked: &corev1.UserPasskeyUnlinkedEvent{UserId: userID, CredentialHash: credentialHash}}})
-	_, err := c.appendUserEvent(ctx, userID, event, "", func() error {
+	userEvent := newEvent(userID, &corev1.Event{Event: &corev1.Event_UserPasskeyUnlinked{UserPasskeyUnlinked: &corev1.UserPasskeyUnlinkedEvent{UserId: userID, CredentialHash: credentialHash}}})
+	credentialEvent := newEvent(userID, &corev1.Event{Event: &corev1.Event_PasskeyCredentialRemoved{PasskeyCredentialRemoved: &corev1.PasskeyCredentialRemovedEvent{CredentialHash: credentialHash}}})
+	userAgg, passkeyAgg := events.UserAggregate(userID), events.PasskeyAggregate(credentialHash)
+	for attempt := 0; attempt < maxUserMutationRetries; attempt++ {
+		userSeq, err := c.EventPublisher.LastSubjectSeq(ctx, userAgg.AllEventsFilter())
+		if err != nil {
+			return err
+		}
+		credentialSeq, err := c.EventPublisher.LastSubjectSeq(ctx, passkeyAgg.AllEventsFilter())
+		if err != nil {
+			return err
+		}
+		if err := c.userModel.waitForUsers(ctx, events.SubjectPosition(userAgg.AllEventsFilter(), userSeq)); err != nil {
+			return err
+		}
+		if err := c.PasskeysProjector.WaitFor(ctx, events.SubjectPosition(passkeyAgg.AllEventsFilter(), credentialSeq)); err != nil {
+			return err
+		}
 		passkeys := c.Users.Passkeys(userID)
 		found := false
 		for _, passkey := range passkeys {
@@ -94,7 +137,17 @@ func (c *ChattoCore) UnlinkPasskey(ctx context.Context, userID, credentialHash s
 		if _, hasPassword := c.Users.PasswordHash(userID); !hasPassword && len(c.Users.ExternalIdentities(userID)) == 0 && !c.Users.HasVerifiedEmail(userID) && len(passkeys) <= 2 {
 			return ErrExternalIdentityLastMethod
 		}
-		return nil
-	})
-	return err
+		entries := []events.BatchEntry{{Subject: userAgg.Subject(events.EventUserPasskeyUnlinked), Event: userEvent, HasOCC: true, ExpectedSeq: userSeq, FilterSubject: userAgg.AllEventsFilter()}, {Subject: passkeyAgg.Subject(events.EventPasskeyCredentialRemoved), Event: credentialEvent, HasOCC: true, ExpectedSeq: credentialSeq, FilterSubject: passkeyAgg.AllEventsFilter()}}
+		seqs, err := c.EventPublisher.AppendBatch(ctx, entries)
+		if err == nil {
+			if err := c.userModel.waitForUsers(ctx, events.SubjectPosition(entries[0].Subject, seqs[0])); err != nil {
+				return err
+			}
+			return c.PasskeysProjector.WaitFor(ctx, events.SubjectPosition(entries[1].Subject, seqs[1]))
+		}
+		if !errors.Is(err, events.ErrConflict) {
+			return err
+		}
+	}
+	return fmt.Errorf("passkey unlink OCC retry exhausted: %w", events.ErrConflict)
 }

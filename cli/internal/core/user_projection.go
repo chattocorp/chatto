@@ -157,7 +157,7 @@ func (p *UserProjection) ensureUserLocked(userID string) *projectedUser {
 }
 
 func (p *UserProjection) applyPasskeyLinked(e *corev1.UserPasskeyLinkedEvent) {
-	if e == nil || e.GetUserId() == "" || e.GetCredentialHash() == "" || len(e.GetCredentialId()) == 0 || len(e.GetCredential()) == 0 {
+	if e == nil || e.GetUserId() == "" || e.GetCredentialHash() == "" {
 		return
 	}
 	u := p.ensureUserLocked(e.GetUserId())

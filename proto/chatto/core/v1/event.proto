@@ -178,6 +178,9 @@ message Event {
     UserExternalIdentityUnlinkedEvent user_external_identity_unlinked = 717;
     UserPasskeyLinkedEvent user_passkey_linked = 718;
     UserPasskeyUnlinkedEvent user_passkey_unlinked = 719;
+    PasskeyCredentialRegisteredEvent passkey_credential_registered = 720;
+    PasskeyCredentialUpdatedEvent passkey_credential_updated = 721;
+    PasskeyCredentialRemovedEvent passkey_credential_removed = 722;
 
     // ----- RBAC (800-839, durable, evt.rbac.>) -----
     RbacRoleCreatedEvent rbac_role_created = 800;
