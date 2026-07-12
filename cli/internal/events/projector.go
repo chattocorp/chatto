@@ -27,6 +27,12 @@ var ErrProjectionSubjectNotConsumed = errors.New("projection does not consume su
 // one supplied by the caller.
 var ErrProjectionSequenceSubjectMismatch = errors.New("projection wait sequence subject mismatch")
 
+// Projection replay is a sequential bulk read. NATS defaults to a 500-message
+// client buffer, which turns histories of many small EVT records into many
+// latency-bound pull requests on a remote JetStream cluster. A byte window
+// keeps those pulls large while bounding client-side memory.
+const projectionPullMaxBytes = 16 * 1024 * 1024
+
 // MemoryProjection is an embeddable base for projections whose state
 // lives entirely in process memory. It contributes a sync.RWMutex that
 // subclasses use for read/write coordination, plus no-op
@@ -593,6 +599,7 @@ func (p *Projector) Run(ctx context.Context) error {
 	// quiet when idle. See the perf-investigation notes accompanying
 	// this change.
 	cc, err := cons.Consume(p.handleMessage,
+		jetstream.PullMaxBytes(projectionPullMaxBytes),
 		jetstream.ConsumeErrHandler(p.handleConsumeErr),
 	)
 	if err != nil {
@@ -803,11 +810,12 @@ func runProjectorsOnSubjects(ctx context.Context, subjects []string, projectors 
 	failedCh := make(chan struct{}, 1)
 	cc, err := cons.Consume(func(msg jetstream.Msg) {
 		handleSharedProjectorMessage(msg, projectors, failedCh)
-	}, jetstream.ConsumeErrHandler(func(cc jetstream.ConsumeContext, err error) {
-		for _, projector := range projectors {
-			projector.handleConsumeErr(cc, err)
-		}
-	}))
+	}, jetstream.PullMaxBytes(projectionPullMaxBytes),
+		jetstream.ConsumeErrHandler(func(cc jetstream.ConsumeContext, err error) {
+			for _, projector := range projectors {
+				projector.handleConsumeErr(cc, err)
+			}
+		}))
 	if err != nil {
 		return fmt.Errorf("start consume: %w", err)
 	}
