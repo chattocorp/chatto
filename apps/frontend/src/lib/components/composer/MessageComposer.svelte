@@ -788,8 +788,10 @@
         if (isRichComposer) {
           handleSubmit(); // Fire-and-forget (async, but keydown must return sync)
         } else {
-          setManualRichMode(true);
           editorApi?.insertBlockBreak();
+          // TipTap reports an empty document while inserting the first block break,
+          // so commit manual rich mode after that update has had a chance to clear it.
+          setManualRichMode(true);
         }
         return true;
       }

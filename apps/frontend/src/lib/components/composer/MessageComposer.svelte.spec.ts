@@ -567,6 +567,20 @@ describe('MessageComposer', () => {
       });
     });
 
+    it('keeps an empty composer in rich mode after Ctrl+Enter', async () => {
+      const { container } = renderMessageComposer({ roomId: 'room_456' });
+      const editor = await findEditor(container);
+      const surface = q(container, '[data-testid="composer-input-surface"]');
+
+      await pressEditorKey(editor, 'Enter', { ctrlKey: true });
+
+      await vi.waitFor(() => {
+        expect(surface?.getAttribute('data-composer-mode')).toBe('rich');
+        expect(surface?.hasAttribute('data-mode-transition')).toBe(true);
+      });
+      expect(mutationMock).not.toHaveBeenCalled();
+    });
+
     it('tracks rich structure and returns to simple mode when cleared', async () => {
       const { container } = renderMessageComposer({ roomId: 'room_456' });
       const editor = await findEditor(container);
