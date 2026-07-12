@@ -301,11 +301,10 @@ func (c *ChattoCore) appendRBACBatch(ctx context.Context, entries []events.Batch
 }
 
 // appendRBACBatchWithUserCheck atomically updates RBAC facts while ensuring a
-// concurrently deleted target user cannot receive new durable assignments.
-func (c *ChattoCore) appendRBACBatchWithUserCheck(ctx context.Context, userID string, entries []events.BatchEntry, check func() error) (uint64, error) {
-	if len(entries) == 0 {
-		return 0, nil
-	}
+// concurrently deleted target user cannot receive new durable assignments. The
+// builder runs after projections are current on every retry, so an OCC conflict
+// cannot replay a stale state-replacement batch.
+func (c *ChattoCore) appendRBACBatchWithUserCheck(ctx context.Context, userID string, build func() ([]events.BatchEntry, error)) (uint64, error) {
 	filter := events.EventSubjectFilter()
 	userFilter := events.UserAggregate(userID).AllEventsFilter()
 
@@ -327,10 +326,12 @@ func (c *ChattoCore) appendRBACBatchWithUserCheck(ctx context.Context, userID st
 		if _, err := c.GetUser(ctx, userID); err != nil {
 			return 0, err
 		}
-		if check != nil {
-			if err := check(); err != nil {
-				return 0, err
-			}
+		entries, err := build()
+		if err != nil {
+			return 0, err
+		}
+		if len(entries) == 0 {
+			return 0, nil
 		}
 
 		chunk := append([]events.BatchEntry(nil), entries...)

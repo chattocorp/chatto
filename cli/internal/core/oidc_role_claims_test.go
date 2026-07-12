@@ -92,3 +92,37 @@ func TestChattoCore_SyncOIDCRoleClaimsWildcardIncludesOwner(t *testing.T) {
 		t.Fatal("implicit everyone must never become an explicit OIDC role")
 	}
 }
+
+func TestChattoCore_SyncOIDCRoleClaimsDoesNotRestoreDeletedRole(t *testing.T) {
+	chatto, _ := setupTestCore(t)
+	ctx := testContext(t)
+	user, err := chatto.CreateUser(ctx, SystemActorID, "oidc-deleted-role", "OIDC Deleted Role", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	if _, err := chatto.CreateServerRole(ctx, SystemActorID, "idp-editor", "IdP editor", ""); err != nil {
+		t.Fatalf("CreateServerRole: %v", err)
+	}
+	provider := config.AuthProviderConfig{
+		ID: "oidc", Type: config.AuthProviderTypeOpenIDConnect,
+		RoleClaim: "roles", RoleClaimAllowedRoles: []string{"idp-editor"}, RoleClaimMode: config.OIDCRoleClaimModeReconcile,
+	}
+	if err := chatto.SyncOIDCRoleClaims(ctx, user.Id, provider, true, []string{"idp-editor"}); err != nil {
+		t.Fatalf("initial SyncOIDCRoleClaims: %v", err)
+	}
+	if err := chatto.DeleteServerRole(ctx, SystemActorID, "idp-editor"); err != nil {
+		t.Fatalf("DeleteServerRole: %v", err)
+	}
+	if err := chatto.SyncOIDCRoleClaims(ctx, user.Id, provider, true, []string{"idp-editor"}); err != nil {
+		t.Fatalf("SyncOIDCRoleClaims after delete: %v", err)
+	}
+	if got := chatto.RBAC.OIDCRolesForProvider(user.Id, provider.ID); len(got) != 0 {
+		t.Fatalf("OIDC roles after deletion = %v, want none", got)
+	}
+	if _, err := chatto.CreateServerRole(ctx, SystemActorID, "idp-editor", "IdP editor", ""); err != nil {
+		t.Fatalf("recreate role: %v", err)
+	}
+	if chatto.RBAC.HasRole(user.Id, "idp-editor") {
+		t.Fatal("recreating a deleted role must not restore an old OIDC assignment")
+	}
+}

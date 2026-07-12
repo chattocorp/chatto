@@ -1,6 +1,7 @@
 package http_server
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
@@ -494,7 +495,7 @@ func (r *authProviderRuntime) resolveOIDCIdentity(c *gin.Context, session sessio
 		log.Info("OIDC ID token needs userinfo fallback", "provider_id", r.config.ID)
 		userInfo, err := r.oidc.provider.UserInfo(ctx, oauth2.StaticTokenSource(token))
 		if err != nil {
-			log.Warn("OIDC userinfo fallback failed", "provider_id", r.config.ID, "error", err)
+			log.Warn("OIDC userinfo fallback failed", "provider_id", r.config.ID)
 		} else if userInfo.Subject != idToken.Subject {
 			log.Warn("OIDC userinfo subject mismatch", "provider_id", r.config.ID)
 		} else {
@@ -547,6 +548,9 @@ func oidcStringClaim(claims map[string]json.RawMessage, name string) (bool, []st
 	}
 	raw, ok := claims[name]
 	if !ok {
+		return false, nil
+	}
+	if bytes.Equal(bytes.TrimSpace(raw), []byte("null")) {
 		return false, nil
 	}
 	var single string

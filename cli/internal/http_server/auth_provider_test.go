@@ -60,6 +60,28 @@ func TestProviderScopesForOIDC(t *testing.T) {
 	})
 }
 
+func TestOIDCStringClaim(t *testing.T) {
+	tests := []struct {
+		name    string
+		raw     json.RawMessage
+		present bool
+		want    []string
+	}{
+		{name: "string", raw: json.RawMessage(`"moderator"`), present: true, want: []string{"moderator"}},
+		{name: "array", raw: json.RawMessage(`["moderator", "admin"]`), present: true, want: []string{"moderator", "admin"}},
+		{name: "null is malformed", raw: json.RawMessage(`null`)},
+		{name: "object is malformed", raw: json.RawMessage(`{"role":"moderator"}`)},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			present, roles := oidcStringClaim(map[string]json.RawMessage{"roles": tt.raw}, "roles")
+			if present != tt.present || !slices.Equal(roles, tt.want) {
+				t.Fatalf("oidcStringClaim() = (%v, %v), want (%v, %v)", present, roles, tt.present, tt.want)
+			}
+		})
+	}
+}
+
 func TestProviderScopesForGoogle(t *testing.T) {
 	t.Run("default keeps openid profile", func(t *testing.T) {
 		scopes := providerScopes(config.AuthProviderConfig{Type: config.AuthProviderTypeGoogle})

@@ -53,6 +53,13 @@ func (c *ChattoCore) SyncOIDCRoleClaims(ctx context.Context, userID string, prov
 		}
 	}
 
+	_, err := c.appendRBACBatchWithUserCheck(ctx, userID, func() ([]events.BatchEntry, error) {
+		return c.oidcRoleClaimSyncEntries(userID, providerID, provider.OIDCRoleClaimModeOrDefault(), enabled, desired), nil
+	})
+	return err
+}
+
+func (c *ChattoCore) oidcRoleClaimSyncEntries(userID, providerID, mode string, enabled bool, desired map[string]struct{}) []events.BatchEntry {
 	current := c.RBAC.OIDCRolesForProvider(userID, providerID)
 	entries := make([]events.BatchEntry, 0, len(desired)+len(current))
 	desiredRoles := make([]string, 0, len(desired))
@@ -79,7 +86,7 @@ func (c *ChattoCore) SyncOIDCRoleClaims(ctx context.Context, userID string, prov
 		}})
 		entries = append(entries, events.BatchEntry{Subject: rbacSubjectForEvent(event), Event: event})
 	}
-	if !enabled || provider.OIDCRoleClaimModeOrDefault() == config.OIDCRoleClaimModeReconcile {
+	if !enabled || mode == config.OIDCRoleClaimModeReconcile {
 		for _, roleName := range current {
 			if enabled {
 				if _, wanted := desired[roleName]; wanted && c.RBAC.RoleExists(roleName) {
@@ -92,9 +99,5 @@ func (c *ChattoCore) SyncOIDCRoleClaims(ctx context.Context, userID string, prov
 			entries = append(entries, events.BatchEntry{Subject: rbacSubjectForEvent(event), Event: event})
 		}
 	}
-	if len(entries) == 0 {
-		return nil
-	}
-	_, err := c.appendRBACBatchWithUserCheck(ctx, userID, entries, nil)
-	return err
+	return entries
 }

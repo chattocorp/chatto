@@ -1118,6 +1118,7 @@ func (c *ChattoConfig) Validate() error {
 
 	// External auth providers
 	seenProviderIDs := make(map[string]struct{}, len(c.Auth.Providers))
+	seenOIDCIssuers := make(map[string]string, len(c.Auth.Providers))
 	for i, provider := range c.Auth.Providers {
 		prefix := fmt.Sprintf("auth.providers[%d]", i)
 		if c.Webserver.URL == "" {
@@ -1143,6 +1144,14 @@ func (c *ChattoConfig) Validate() error {
 		}
 		if provider.Type == AuthProviderTypeOpenIDConnect && provider.IssuerURL == "" {
 			errs = append(errs, prefix+".issuer_url is required when type = 'oidc'")
+		}
+		if provider.Type == AuthProviderTypeOpenIDConnect && provider.IssuerURL != "" {
+			issuerKey := strings.TrimRight(strings.TrimSpace(provider.IssuerURL), "/")
+			if existingID, exists := seenOIDCIssuers[issuerKey]; exists {
+				errs = append(errs, fmt.Sprintf("OIDC issuer %q is configured by both provider %q and %q; configure each issuer only once", issuerKey, existingID, provider.ID))
+			} else {
+				seenOIDCIssuers[issuerKey] = provider.ID
+			}
 		}
 		roleClaim := strings.TrimSpace(provider.RoleClaim)
 		roleSettingsConfigured := roleClaim != "" || len(provider.RoleClaimAllowedRoles) > 0 || provider.RoleClaimMode != ""

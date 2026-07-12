@@ -399,6 +399,18 @@ func TestChattoConfig_ValidateOIDCRoleClaims(t *testing.T) {
 	}
 }
 
+func TestChattoConfig_RejectsDuplicateOIDCIssuer(t *testing.T) {
+	cfg := validTestConfig()
+	cfg.Webserver.URL = "https://chat.example"
+	cfg.Auth.Providers = []AuthProviderConfig{
+		{ID: "primary", Type: AuthProviderTypeOpenIDConnect, IssuerURL: "https://issuer.example", ClientID: "id", ClientSecret: "secret"},
+		{ID: "privileged", Type: AuthProviderTypeOpenIDConnect, IssuerURL: "https://issuer.example/", ClientID: "id", ClientSecret: "secret"},
+	}
+	if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), "configure each issuer only once") {
+		t.Fatalf("Validate() error = %v, want duplicate OIDC issuer error", err)
+	}
+}
+
 func TestReadConfig_AuthProvidersEnvOverridesFile(t *testing.T) {
 	tmpDir := t.TempDir()
 	originalDir, err := os.Getwd()
