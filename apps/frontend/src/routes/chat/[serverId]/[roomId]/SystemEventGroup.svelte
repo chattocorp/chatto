@@ -5,6 +5,7 @@
   import { useRenderData } from '$lib/render/data';
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
   import DeletedUserLabel from '$lib/components/DeletedUserLabel.svelte';
+  import * as m from '$lib/i18n/messages';
 
   let {
     events,
@@ -14,12 +15,12 @@
     kind: SystemGroupKind;
   } = $props();
 
-  const action = $derived.by(() => {
+  const actionKind = $derived.by(() => {
     switch (kind) {
       case 'join':
-        return 'joined the room';
+        return 'joined';
       case 'leave':
-        return 'left the room';
+        return 'left';
     }
   });
 
@@ -60,14 +61,13 @@
 
   let expanded = $state(false);
 
-  function nameSeparator(index: number, total: number): string {
-    if (index === 0) return '';
-    if (index === total - 1) return total === 2 ? ' and ' : ', and ';
-    return ', ';
-  }
-
   const headActors = $derived(actors.slice(0, NAMES_BEFORE_TRUNCATION));
   const extraCount = $derived(Math.max(actors.length - NAMES_BEFORE_TRUNCATION, 0));
+  const action = $derived(
+    actionKind === 'joined'
+      ? m['room.system_events.joined']({ count: actors.length })
+      : m['room.system_events.left']({ count: actors.length })
+  );
 </script>
 
 {#snippet actorName(actor: Actor)}
@@ -80,7 +80,14 @@
 
 {#snippet actorNames(items: Actor[])}
   {#each items as actor, index (actor.id)}
-    {nameSeparator(index, items.length)}{@render actorName(actor)}
+    {#if index > 0}
+      {#if index === items.length - 1}
+        {items.length > 2 ? ', ' : ''}{m['room.system_events.and']()}
+      {:else}
+        ,
+      {/if}
+    {/if}
+    {@render actorName(actor)}
   {/each}
 {/snippet}
 
@@ -112,15 +119,15 @@
             class="ml-1 cursor-pointer underline decoration-dotted underline-offset-2 hover:text-text"
             onclick={() => (expanded = false)}
           >
-            show less
+            {m['room.system_events.show_less']()}
           </button>
         {/if}
       {:else}
-        {@render actorNames(headActors)}, and <button
+        {@render actorNames(headActors)}, {m['room.system_events.and']()} <button
           type="button"
           class="cursor-pointer underline decoration-dotted underline-offset-2 hover:text-text"
           onclick={() => (expanded = true)}
-        >{extraCount} {extraCount === 1 ? 'other' : 'others'}</button>
+        >{extraCount} {m['room.system_events.other_people']({ count: extraCount })}</button>
         {action}
       {/if}
     </span>

@@ -97,6 +97,42 @@
         "deleted": "Diese Nachricht wurde gelöscht."
       }
     },
+    "system_events": {
+      "joined": [
+        {
+          "declarations": ["input count", "local countPlural = count: plural"],
+          "selectors": ["countPlural"],
+          "match": {
+            "countPlural=one": "ist dem Raum beigetreten",
+            "countPlural=other": "sind dem Raum beigetreten"
+          }
+        }
+      ],
+      "left": [
+        {
+          "declarations": ["input count", "local countPlural = count: plural"],
+          "selectors": ["countPlural"],
+          "match": {
+            "countPlural=one": "hat den Raum verlassen",
+            "countPlural=other": "haben den Raum verlassen"
+          }
+        }
+      ],
+      "archived": "hat den Raum archiviert",
+      "unarchived": "hat die Archivierung des Raums aufgehoben",
+      "and": "und",
+      "other_people": [
+        {
+          "declarations": ["input count", "local countPlural = count: plural"],
+          "selectors": ["countPlural"],
+          "match": {
+            "countPlural=one": "weitere Person",
+            "countPlural=other": "weitere"
+          }
+        }
+      ],
+      "show_less": "weniger anzeigen"
+    },
     "attachment": {
       "delete_title": "Anhang löschen",
       "delete_prompt": "Möchtest du diesen Anhang wirklich löschen? Dies kann nicht rückgängig gemacht werden.",

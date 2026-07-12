@@ -651,6 +651,19 @@ const msg_room_message_meta_copy_link_title = (): LocalizedString => messages().
 const msg_room_message_meta_in_reply_to = (): LocalizedString => messages().room_message_meta_in_reply_to(empty());
 const msg_room_message_meta_reply_preview_fallback = (): LocalizedString => messages().room_message_meta_reply_preview_fallback(empty());
 const msg_room_message_meta_deleted = (): LocalizedString => messages().room_message_meta_deleted(empty());
+const msg_room_system_events_joined = (
+  inputs: Parameters<LocaleMessages['room_system_events_joined']>[0]
+): LocalizedString => messages().room_system_events_joined(inputs);
+const msg_room_system_events_left = (
+  inputs: Parameters<LocaleMessages['room_system_events_left']>[0]
+): LocalizedString => messages().room_system_events_left(inputs);
+const msg_room_system_events_archived = (): LocalizedString => messages().room_system_events_archived(empty());
+const msg_room_system_events_unarchived = (): LocalizedString => messages().room_system_events_unarchived(empty());
+const msg_room_system_events_and = (): LocalizedString => messages().room_system_events_and(empty());
+const msg_room_system_events_other_people = (
+  inputs: Parameters<LocaleMessages['room_system_events_other_people']>[0]
+): LocalizedString => messages().room_system_events_other_people(inputs);
+const msg_room_system_events_show_less = (): LocalizedString => messages().room_system_events_show_less(empty());
 const msg_room_attachment_delete_title = (): LocalizedString => messages().room_attachment_delete_title(empty());
 const msg_room_attachment_delete_prompt = (): LocalizedString => messages().room_attachment_delete_prompt(empty());
 const msg_room_attachment_delete_label = (): LocalizedString => messages().room_attachment_delete_label(empty());
@@ -2000,6 +2013,13 @@ export { msg_room_message_meta_copy_link_title as 'room.message.meta.copy_link_t
 export { msg_room_message_meta_in_reply_to as 'room.message.meta.in_reply_to' };
 export { msg_room_message_meta_reply_preview_fallback as 'room.message.meta.reply_preview_fallback' };
 export { msg_room_message_meta_deleted as 'room.message.meta.deleted' };
+export { msg_room_system_events_joined as 'room.system_events.joined' };
+export { msg_room_system_events_left as 'room.system_events.left' };
+export { msg_room_system_events_archived as 'room.system_events.archived' };
+export { msg_room_system_events_unarchived as 'room.system_events.unarchived' };
+export { msg_room_system_events_and as 'room.system_events.and' };
+export { msg_room_system_events_other_people as 'room.system_events.other_people' };
+export { msg_room_system_events_show_less as 'room.system_events.show_less' };
 export { msg_room_attachment_delete_title as 'room.attachment.delete_title' };
 export { msg_room_attachment_delete_prompt as 'room.attachment.delete_prompt' };
 export { msg_room_attachment_delete_label as 'room.attachment.delete_label' };

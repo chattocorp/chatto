@@ -5,6 +5,7 @@
   import { RoomEventKind, roomEventKind } from '$lib/render/eventKinds';
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
   import DeletedUserLabel from '$lib/components/DeletedUserLabel.svelte';
+  import * as m from '$lib/i18n/messages';
 
   let { event }: { event: RoomEventView } = $props();
 
@@ -31,13 +32,13 @@
     if (!event?.event) return null;
     switch (roomEventKind(event.event)) {
       case RoomEventKind.UserJoinedRoom:
-        return 'joined the room';
+        return m['room.system_events.joined']({ count: 1 });
       case RoomEventKind.UserLeftRoom:
-        return 'left the room';
+        return m['room.system_events.left']({ count: 1 });
       case RoomEventKind.RoomArchived:
-        return 'archived the room';
+        return m['room.system_events.archived']();
       case RoomEventKind.RoomUnarchived:
-        return 'unarchived the room';
+        return m['room.system_events.unarchived']();
       default:
         return null;
     }
